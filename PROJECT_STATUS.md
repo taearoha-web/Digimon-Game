@@ -1,42 +1,123 @@
 # PROJECT STATUS — Digimon Adventure RPG Prototype
 
-> **Continuity rule:** any agent/session continuing this project must read
-> `PROJECT_STATUS.md`, `DEVELOPMENT_PLAN.md`, `TODO.md` and `CHANGELOG.md`
-> first, inspect the repository, and continue from the current implementation.
+> **Continuity rule:** any agent/session continuing this project must first read
+> `PROJECT_STATUS.md`, `DEVELOPMENT_PLAN.md`, `TODO.md` and `CHANGELOG.md`,
+> inspect the repository, and continue from the current implementation.
 > Never restart the project or delete working features to rewrite them.
+
+_Last updated: 2026-09-25 (session 1)_
 
 ## Current phase
 
-**Phase 1 — Project foundation and architecture (in progress)**
+**Phase 18 — Playable vertical slice validation: reached.**
+Phases 1–17 are implemented (see below). Work now shifts to polish, device
+testing and content expansion (see `TODO.md`).
 
-## Completed systems
+## Completed systems (implemented = scenes + scripts + data + UI + wiring exist)
 
-- Repository initialised, folder structure created
-- Continuity documents created
+| Area | Status | Main files |
+|---|---|---|
+| Project foundation, autoloads, folders | ✅ | `project.godot`, `systems/core/*` |
+| Data architecture (species, skills, items, quests, dialogue, NPCs, encounters, maps, configs) | ✅ | `systems/**/*_data.gd`, `data/**.tres`, `tools/generate_data.gd` |
+| UI theme (fonts, buttons, panels, bars, sliders, toggles) | ✅ | `ui/theme/*`, `tools/generate_theme.gd` |
+| Scene management (fades, threaded loading, params, toasts) | ✅ | `systems/core/scene_manager.gd` |
+| Main menu (Continue / New / Load / Settings / Quit, 3D showcase) | ✅ | `ui/main_menu/*` |
+| Character creation (body type, hair, face, skin, eyes, clothes, colours, accessories, randomize/reset, live rotatable preview) | ✅ | `ui/new_game/character_creation.gd`, `characters/player/*` |
+| Starter selection (data-driven cards, 3D previews, stats, skill, evolution preview) | ✅ | `ui/new_game/starter_selection.gd`, `data/config/starter_roster.tres` |
+| Player name (validation, sanitising) → Confirmation → Intro | ✅ | `ui/new_game/*`, `systems/player/name_validator.gd` |
+| Starter Zone map (terrain, river, bridge, plaza, training grounds, meadow, forests, gateway, digital landmarks) | ✅ | `maps/starter_zone/*`, `shaders/*` |
+| Player controller (camera-relative walk/run, gravity, slopes, collisions) | ✅ | `characters/player/player_controller.gd` |
+| Mobile controls (analog joystick, camera drag + pinch, multitouch buttons) + PC fallback | ✅ | `systems/input/*` |
+| Third-person camera (smooth follow, spring-arm collision, zoom) | ✅ | `systems/camera/third_person_camera.gd` |
+| Partner follow AI (NavigationAgent3D, catch-up, teleport, idle) | ✅ | `digimon/partner_follower.gd` |
+| Animation architecture (procedural AnimationPlayer clips, contract names) | ✅ | `systems/animation/procedural_animator.gd` |
+| NPC system, dialogue UI, signposts, terminal, pickups, triggers, portal | ✅ | `characters/npc/npc.gd`, `ui/dialogue/*`, `systems/world/*` |
+| Quest system + tracker/compass + quest log (3 quests) | ✅ | `systems/quests/*`, `ui/hud/hud.gd`, `ui/menus/quest_panel.gd` |
+| Battle system (turn order by Speed, skills with reusable effects, items, defend, switch, escape, befriend, statuses) | ✅ | `systems/battle/*`, `scenes/battle/*`, `ui/battle/*` |
+| Damage formula (centralised: ATK/DEF, power, level, variance, crit, type, buffs) | ✅ | `systems/battle/damage_calculator.gd` |
+| EXP / level-ups / learnsets / level-up UI | ✅ | `systems/digimon/leveling.gd`, `ui/popups/popup_queue.gd` |
+| Evolution (data-driven requirements, cutscene, stat comparison) | ✅ | `systems/digimon/evolution_service.gd`, `ui/popups/evolution_screen.gd` |
+| Recruitment (in-battle Befriend + post-battle offer) & Collection screen | ✅ | `systems/recruitment/*`, `ui/menus/collection_panel.gd` |
+| Party (max 3, reorder, lead = field partner, storage swap) | ✅ | `systems/party/digimon_roster.gd`, `ui/menus/party_panel.gd` |
+| Inventory & items (categories, stacks, use effects, targets) | ✅ | `systems/inventory/*`, `ui/menus/inventory_panel.gd` |
+| Save/load (3 slots + autosave, versioned, migration, backups, corrupt-safe) | ✅ | `systems/core/save_manager.gd`, `ui/menus/save_load_panel.gd` |
+| Autosave (starter confirmed, quest reward, recruit, evolution, area transition, app paused) | ✅ | various |
+| Settings (music/SFX/UI volume, graphics quality, camera sensitivity, invert Y, FPS) | ✅ | `systems/core/settings_manager.gd`, `ui/menus/settings_panel.gd` |
+| Pause menu (Digimon, Party, Inventory, Quests, Settings, Save, Title, Return) | ✅ | `ui/menus/pause_menu.gd` |
+| Audio manager + original synthesized SFX (48) and music (5) | ✅ | `systems/core/audio_manager.gd`, `audio/*`, `tools/generate_placeholder_audio.py` |
+| Battle VFX (data-driven presets, projectiles, particles, floating numbers) | ✅ | `vfx/battle_vfx.gd` |
+| Tests (unit + integration) and QA tools | ✅ | `tests/*`, `tools/check_scripts.gd` |
+| Android / iOS export presets (landscape) | ✅ | `export_presets.cfg` |
 
-## Incomplete systems
+## Incomplete / partial systems
 
-Everything else (see `DEVELOPMENT_PLAN.md`).
+* **Second zone**: the Gateway works (locked → unlocked by quest) but shows a
+  "coming soon" message; no second map yet (`MapData` + scene needed).
+* **Shop / currency sink**: Data Coins are earned but not spendable.
+* **Nicknames**: supported in data (`DigimonInstance.nickname`), no UI yet.
+* **Skill replacement UI** exists (equip/unequip in Party/Collection), but no
+  "forget skill" prompt — new skills beyond 4 are simply known, not equipped.
+* **Language selection**: architecture only (Settings.language, TranslationServer).
+* **Real assets**: all placeholders (by design).
+* **Device testing**: not yet run on physical Android/iOS hardware.
 
-## Current known bugs
+## Current known bugs / caveats
 
-- None recorded yet.
+* First-ever import of a fresh clone prints "missing resource" errors for fonts
+  and icons (theme loads before import finishes). Harmless; gone after import.
+* Headless (dummy renderer) runs print `mesh_get_surface_count` errors from
+  rendering-only calls. Harmless; not present with a real renderer.
+* Navmesh bake prints "agent_radius is ceiled to cell_size" warning on 4.3 when
+  agent radius isn't a multiple of cell size (currently 0.6 / 0.3 = OK).
+* Partner may briefly clip through thin props while teleport-recovering.
 
 ## Next development task
 
-Create `project.godot`, autoload managers and core data classes.
+1. Test on a physical Android device (touch feel, performance, safe areas).
+2. Build zone 2 ("Data Forest") behind the Gateway using `WorldMap` +
+   a new builder and `data/maps/data_forest.tres`.
+3. Add a shop NPC (currency sink) and a nickname prompt when recruiting.
 
 ## Important architecture decisions
 
-- **Engine:** Godot 4.x, GDScript. Target 4.3+ (validated on 4.3 and 4.6 headless).
-- **Renderer:** `gl_compatibility` (GLES3) on every platform — widest Android
-  device support, cheapest for a low-poly stylised game.
-- **Landscape only**, base viewport 1280x720, stretch `canvas_items` + `expand`.
+* Godot **4.3+**, GDScript, **Compatibility renderer** everywhere (widest
+  Android support); validated on 4.3.0 and 4.6.0.
+* **Landscape only** (`sensor_landscape`), base viewport 1280×720,
+  `canvas_items` stretch with `expand` aspect → works on 16:9, 19.5:9, 20:9.
+* **Static species data never mutates**; per-Digimon state is
+  `DigimonInstance`. Evolution only swaps `species_id`.
+* **Rules/presentation split**: `BattleController` returns events; the scene
+  animates them. All damage through `DamageCalculator`.
+* **Data folders are auto-discovered** by `GameData`; `.tres` files are the
+  source of truth (initially bootstrapped by `tools/generate_data.gd` —
+  re-running that tool OVERWRITES edits).
+* The Starter Zone `.tscn` holds gameplay objects; static scenery is
+  procedural (`StarterZoneBuilder`, deterministic seed). Re-running
+  `tools/build_starter_zone_scene.gd` OVERWRITES manual scene edits.
+* Placeholders are **original** procedural meshes/animations/audio;
+  replacement points documented in `docs/ASSET_REPLACEMENT.md`.
+* Touch HUD controls use custom multitouch controls (`TouchButton`,
+  `VirtualJoystick`, `TouchCameraArea`) because regular Buttons only see the
+  emulated first touch.
 
 ## File locations
 
-See `README.md` → *Project architecture*.
+* Autoloads: `systems/core/`, `systems/quests/quest_manager.gd`
+* Data: `data/**` (species, skills, items, quests, dialogue, npcs, encounters, maps, config)
+* Scenes: `scenes/boot/boot.tscn` (main), `ui/**.tscn`, `maps/starter_zone/starter_zone.tscn`, `scenes/battle/battle_scene.tscn`, `characters/player/player.tscn`
+* Tools: `tools/` (generators, `check_scripts.gd`, `godot_env.sh`)
+* Tests: `tests/unit/`, `tests/integration/`, `tests/tools/` (screenshot tours)
+* Docs: `README.md`, `docs/ARCHITECTURE.md`, `docs/ASSET_REPLACEMENT.md`, `docs/screenshots/`
 
-## Test results
+## Test results (latest)
 
-- None yet.
+| Check | Godot 4.3.0 | Godot 4.6.0 |
+|---|---|---|
+| `tools/check_scripts.gd` (load every .gd/.tscn/.tres) | 0 failures | 0 failures |
+| Unit tests `tests/test_runner.tscn` | 46/46 pass, 841 assertions | 46/46 pass |
+| Integration `tests/integration/vertical_slice_test.tscn` | PASS (35 checks) | — (run on 4.3) |
+| Screenshot tours (menus / world / battle) at 1280×720 and 1600×720 | rendered OK (Mesa llvmpipe, Compatibility) | — |
+
+Not verifiable here (must be checked on devices / in the editor): real touch
+input on hardware, Android back button, device safe-area insets, audio output,
+performance on a mid-range phone.

@@ -12,6 +12,8 @@ const ENEMY_POS := Vector3(1.7, 0, -1.1)
 const TAMER_POS := Vector3(-3.3, 0, -0.6)
 const CAMERA_DEFAULT_POS := Vector3(-4.2, 2.5, 4.9)
 const CAMERA_DEFAULT_LOOK := Vector3(0.3, 0.8, -0.3)
+## Combatants are shown larger than in the field for readability on phones.
+const BATTLE_SCALE := 1.3
 
 var controller: BattleController
 var request: BattleRequest
@@ -265,7 +267,7 @@ func _play_switch(e: Dictionary) -> void:
 	player_visual = _spawn_visual(controller.player.instance.species_id, PLAYER_POS, ENEMY_POS)
 	player_visual.scale = Vector3.ONE * 0.01
 	var grow := create_tween()
-	grow.tween_property(player_visual, "scale", Vector3.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	grow.tween_property(player_visual, "scale", Vector3.ONE * BATTLE_SCALE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	BattleVfx.ring(_vfx_root, PLAYER_POS + Vector3(0, 0.2, 0), UIPalette.CYAN, 2.0)
 	ui.refresh_all()
 	await ui.show_message(str(e.text))
@@ -470,10 +472,10 @@ func _build_arena() -> void:
 		var ang := rng.randf() * TAU
 		var dist := rng.randf_range(35.0, 60.0)
 		var hill := MeshInstance3D.new()
-		hill.mesh = MeshKit.sphere_low()
+		hill.mesh = MeshKit.sphere()
 		var s := rng.randf_range(10.0, 22.0)
 		hill.scale = Vector3(s * 1.6, s * 0.7, s * 1.6)
-		hill.position = Vector3(cos(ang) * dist, -2.0, sin(ang) * dist)
+		hill.position = Vector3(cos(ang) * (dist + 12.0), -6.0, sin(ang) * (dist + 12.0))
 		hill.material_override = MeshKit.toon(Color(0.38, 0.62, 0.62).lerp(Color(0.45, 0.4, 0.75), rng.randf()))
 		add_child(hill)
 	for i in 16:
@@ -494,6 +496,8 @@ func _spawn_visual(species_id: StringName, pos: Vector3, look_target: Vector3) -
 	var v := DigimonVisual.new()
 	add_child(v)
 	v.set_species(species_id)
+	v.scale = Vector3.ONE * BATTLE_SCALE
+	v.model_height *= BATTLE_SCALE
 	v.position = pos
 	v.rotation.y = _yaw_towards(pos, look_target)
 	return v

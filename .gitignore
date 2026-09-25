@@ -3,7 +3,8 @@
 .import/
 /android/
 
-# Export output / credentials
+# Export output / credentials (export_presets.cfg is committed: it holds no secrets;
+# Godot 4.3+ keeps keystore passwords in .godot/export_credentials.cfg)
 export_credentials.cfg
 /build/
 /export/

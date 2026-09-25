@@ -47,6 +47,10 @@ return to NPC → quest complete → reward → save → keep exploring.
 
 Phases are internal milestones; work continues through them without stopping.
 
+**Status (session 1):** phases 1–18 implemented and validated (unit tests,
+headless vertical-slice test, screenshot tours). Remaining work is polish,
+device testing and content expansion — see `TODO.md` and `PROJECT_STATUS.md`.
+
 ## Architecture overview
 
 ```

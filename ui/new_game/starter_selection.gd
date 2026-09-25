@@ -143,11 +143,9 @@ func _select(index: int) -> void:
 		_cards[i].theme_type_variation = &"CardPanelSelected" if i == index else &"CardPanel"
 		_select_buttons[i].button_pressed = i == index
 		_select_buttons[i].text = "Selected!" if i == index else "Select"
-	var species := GameData.get_species(_ids[index])
 	var preview := _cards[index].get_child(0).get_child(0) as Preview3D
 	if preview and preview.subject is DigimonVisual:
 		(preview.subject as DigimonVisual).play_once(&"victory", &"idle")
-	EventBus.toast("%s: %s" % [species.display_name, str(_roster.taglines.get(species.id, ""))], &"info")
 	_confirm_button.disabled = false
 
 
