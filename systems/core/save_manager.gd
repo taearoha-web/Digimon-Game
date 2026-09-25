@@ -19,18 +19,20 @@ const SLOT_COUNT := 3
 const AUTOSAVE_MIN_INTERVAL := 8.0
 
 var last_error: String = ""
+## Overridable (tests point this at a scratch folder).
+var save_dir: String = SAVE_DIR
 var _last_autosave_time: float = -1000.0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+	DirAccess.make_dir_recursive_absolute(save_dir)
 
 
 func get_slot_path(slot: int) -> String:
 	if slot == AUTOSAVE_SLOT:
-		return SAVE_DIR.path_join("autosave.json")
-	return SAVE_DIR.path_join("slot_%d.json" % slot)
+		return save_dir.path_join("autosave.json")
+	return save_dir.path_join("slot_%d.json" % slot)
 
 
 func slot_exists(slot: int) -> bool:

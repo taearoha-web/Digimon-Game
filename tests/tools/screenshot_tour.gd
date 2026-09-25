@@ -35,9 +35,12 @@ func run() -> void:
 			await _menus_tour()
 		"world":
 			await _world_tour()
+		"battle":
+			await _battle_tour()
 		"all":
 			await _menus_tour()
 			await _world_tour()
+			await _battle_tour()
 		_:
 			await _menus_tour()
 	print("tour complete: %d screenshots" % _count)
@@ -144,6 +147,80 @@ func _world_tour() -> void:
 	await _wait(0.6)
 	await _shot("menu_collection")
 	world.pause_menu.close()
+
+
+func _battle_tour() -> void:
+	if not GameState.is_game_active:
+		var draft := NewGameDraft.new()
+		draft.player_name = "Hikaru"
+		draft.starter_species_id = &"gabumon"
+		GameState.start_new_game(draft)
+	var request := BattleRequest.wild(&"palmon", 4)
+	SceneManager.goto_battle(request)
+	await _wait_transition()
+	await _wait(0.4)
+	await _shot("battle_intro")
+	var battle: BattleScene = get_tree().current_scene
+	while battle.controller.phase != BattleController.Phase.AWAITING_COMMAND or not battle.ui._commands.visible:
+		await get_tree().process_frame
+	await _wait(0.3)
+	await _shot("battle_commands")
+	battle.ui._show_skill_menu()
+	await _wait(0.3)
+	await _shot("battle_skills")
+	var turns := 0
+	var shot_mid := false
+	while not battle.controller.is_finished() and turns < 30:
+		while not battle.ui._commands.visible and not battle.controller.is_finished():
+			await get_tree().process_frame
+			battle.ui._tapped = true
+		if battle.controller.is_finished():
+			break
+		if battle.controller.phase == BattleController.Phase.AWAITING_SWITCH:
+			for i in battle.controller.party.size():
+				if not battle.controller.party[i].is_fainted():
+					battle.ui.hide_menus()
+					battle._on_forced_switch(i)
+					break
+			continue
+		var options := battle.controller.get_skill_options()
+		var best: Dictionary = {}
+		for o in options:
+			if o.usable and (best.is_empty() or o.skill.power > best.skill.power):
+				best = o
+		battle.ui.hide_menus()
+		if best.is_empty():
+			battle._on_command({"type": "defend"})
+		else:
+			battle._on_command({"type": "skill", "skill_id": best.skill.id})
+		turns += 1
+		if not shot_mid:
+			await _wait(0.9)
+			await _shot("battle_attack")
+			shot_mid = true
+	# Results / popups
+	await _wait(1.5)
+	await _shot("battle_end")
+	for i in 40:
+		await _wait(0.25)
+		battle.ui._tapped = true
+		for node in battle.ui.find_children("*", "Button", true, false):
+			var b := node as Button
+			if b.visible and not b.disabled and b.text in ["Continue", "OK", "Welcome!", "Great!", "Later"]:
+				await _shot("battle_popup_%d" % i)
+				b.pressed.emit()
+				break
+		for node in battle.popups.find_children("*", "Button", true, false):
+			var b := node as Button
+			if b.visible and not b.disabled and b.text in ["OK", "Later"]:
+				await _shot("battle_popup_q%d" % i)
+				b.pressed.emit()
+				break
+		if SceneManager.is_transitioning:
+			break
+	await _wait_transition()
+	await _wait(1.0)
+	await _shot("after_battle_world")
 
 
 func _teleport(world: WorldMap, pos: Vector3) -> void:

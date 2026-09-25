@@ -181,6 +181,8 @@ func _box_distance(p: Vector2, center: Vector2, extents: Vector2) -> float:
 func _build_terrain() -> void:
 	var count := int(SIZE / CELL) + 1
 	var half := SIZE * 0.5
+	var positions := PackedVector3Array()
+	positions.resize(count * count)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for iz in count:
@@ -188,18 +190,23 @@ func _build_terrain() -> void:
 			var x := -half + ix * CELL
 			var z := -half + iz * CELL
 			var h := get_height(x, z)
+			var v := Vector3(x, h, z)
+			positions[iz * count + ix] = v
 			st.set_color(_ground_color(x, z, h))
 			st.set_uv(Vector2(x, z) * 0.1)
-			st.add_vertex(Vector3(x, h, z))
+			st.add_vertex(v)
+	# Collision faces are built from the same data (not read back from the
+	# mesh), so they also work with the headless/dummy renderer.
+	var faces := PackedVector3Array()
+	faces.resize((count - 1) * (count - 1) * 6)
+	var f := 0
 	for iz in count - 1:
 		for ix in count - 1:
 			var i := iz * count + ix
-			st.add_index(i)
-			st.add_index(i + 1)
-			st.add_index(i + count)
-			st.add_index(i + 1)
-			st.add_index(i + count + 1)
-			st.add_index(i + count)
+			for idx in [i, i + 1, i + count, i + 1, i + count + 1, i + count]:
+				st.add_index(idx)
+				faces[f] = positions[idx]
+				f += 1
 	st.generate_normals()
 	var mesh := st.commit()
 	var terrain := MeshInstance3D.new()
@@ -212,7 +219,9 @@ func _build_terrain() -> void:
 	body.collision_layer = 1
 	body.collision_mask = 0
 	var shape := CollisionShape3D.new()
-	shape.shape = mesh.create_trimesh_shape()
+	var concave := ConcavePolygonShape3D.new()
+	concave.set_faces(faces)
+	shape.shape = concave
 	body.add_child(shape)
 	add_child(body)
 
