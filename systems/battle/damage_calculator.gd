@@ -67,7 +67,7 @@ static func roll_hit(attacker: BattleCombatant, skill: SkillData, rng: RandomNum
 
 static func effectiveness_text(type_multiplier: float) -> String:
 	if type_multiplier >= 1.2:
-		return "It's super effective!"
+		return L10n.t("It's super effective!")
 	if type_multiplier <= 0.85:
-		return "It's not very effective…"
+		return L10n.t("It's not very effective…")
 	return ""

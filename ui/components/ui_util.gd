@@ -154,6 +154,11 @@ static func format_date(unix_time: int) -> String:
 	return "%04d-%02d-%02d %02d:%02d" % [d.year, d.month, d.day, d.hour, d.minute]
 
 
+## Translated display name of an element id (&"fire" -> "Fire" / "ไฟ").
+static func element_name(element: StringName) -> String:
+	return L10n.t(String(element).capitalize())
+
+
 static func element_color(element: StringName) -> Color:
 	var loop := Engine.get_main_loop()
 	var reg: Node = (loop as SceneTree).root.get_node_or_null("GameData") if loop is SceneTree else null

@@ -38,8 +38,8 @@ const SHORT_NAMES := {
 
 
 static func display_name(stat: StringName) -> String:
-	return DISPLAY_NAMES.get(stat, String(stat).capitalize())
+	return L10n.t(DISPLAY_NAMES.get(stat, String(stat).capitalize()))
 
 
 static func short_name(stat: StringName) -> String:
-	return SHORT_NAMES.get(stat, String(stat).to_upper())
+	return L10n.t(SHORT_NAMES.get(stat, String(stat).to_upper()))

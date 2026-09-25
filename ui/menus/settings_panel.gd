@@ -28,12 +28,18 @@ func _ready() -> void:
 	var lang_label := UIUtil.label("Language", &"BoldLabel")
 	lang_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lang_row.add_child(lang_label)
-	var lang := UIUtil.button(Settings.LANGUAGES.get(Settings.language, "English"), &"ChoiceButton", Vector2(260, 58))
-	lang.disabled = true
-	lang.tooltip_text = "More languages can be added through Godot translations."
-	lang_row.add_child(lang)
+	var lang_group := ButtonGroup.new()
+	for code in Settings.LANGUAGES.keys():
+		# Language names are shown in their own language, never translated.
+		var lang := UIUtil.button(Settings.LANGUAGES[code], &"TabButton", Vector2(150, 56))
+		lang.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		lang.toggle_mode = true
+		lang.button_group = lang_group
+		lang.button_pressed = Settings.language == code
+		lang.pressed.connect(func(): Settings.set_setting(&"language", code))
+		lang_row.add_child(lang)
 	box.add_child(lang_row)
-	box.add_child(UIUtil.label("More languages will be supported via Godot's translation system.", &"SmallLabel"))
+	box.add_child(UIUtil.label("Some text updates when you reopen a screen.", &"SmallLabel"))
 
 
 func _slider_row(title: String, key: StringName, min_value: float, max_value: float, step: float, percent: bool) -> Control:

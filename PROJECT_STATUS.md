@@ -55,7 +55,8 @@ polish and more content (see `TODO.md`).
 | Battle VFX (data-driven presets, projectiles, particles, floating numbers) | ✅ | `vfx/battle_vfx.gd` |
 | Tests (unit + integration) and QA tools | ✅ | `tests/*`, `tools/check_scripts.gd` |
 | Android / iOS export presets (landscape) | ✅ | `export_presets.cfg` |
-| Web build (Godot 4.3 single-threaded, gzip-packed ~10 MB, loading page) | ✅ tested in headless Chromium (iPhone landscape viewport, touch); not yet on a real iPhone | `tools/package_web.py`, `tools/web/artifact_shell.html` |
+| Thai localisation (default) + English, runtime switch in Settings | ✅ | `i18n/th.po`, `systems/core/l10n.gd`, `tools/i18n_extract.py` |
+| Web build (Godot 4.3 single-threaded, gzip-packed ~13 MB, loading page) | ✅ tested in headless Chromium (iPhone landscape viewport, touch); not yet on a real iPhone | `tools/package_web.py`, `tools/web/artifact_shell.html` |
 
 ## Incomplete / partial systems
 
@@ -64,7 +65,6 @@ polish and more content (see `TODO.md`).
 * **Nicknames**: supported in data (`DigimonInstance.nickname`), no UI yet.
 * **Skill replacement UI** exists (equip/unequip in Party/Collection), but no
   "forget skill" prompt — new skills beyond 4 are simply known, not equipped.
-* **Language selection**: architecture only (Settings.language, TranslationServer).
 * **Real assets**: all placeholders (by design).
 * **Device testing**: not yet run on physical Android/iOS hardware.
 
@@ -104,6 +104,11 @@ polish and more content (see `TODO.md`).
   `DigimonInstance`. Evolution only swaps `species_id`.
 * **Rules/presentation split**: `BattleController` returns events; the scene
   animates them. All damage through `DamageCalculator`.
+* **Localisation**: English source strings are the keys (`i18n/th.po`).
+  Controls auto-translate plain text; formatted/static strings use
+  `L10n.t()`; data resources are translated in memory by
+  `GameData.apply_locale()`. New text must be added to `i18n/th.po`
+  (`python3 tools/i18n_extract.py` lists what is missing).
 * **Data folders are auto-discovered** by `GameData`; `.tres` files are the
   source of truth. `tools/generate_data.gd` only writes MISSING files unless
   run with `-- --update=<path token>` or `-- --overwrite`.
@@ -136,7 +141,7 @@ polish and more content (see `TODO.md`).
 | Check | Godot 4.3.0 | Godot 4.6.0 |
 |---|---|---|
 | `tools/check_scripts.gd` (load every .gd/.tscn/.tres) | 0 failures (274 files) | 0 failures (274 files) |
-| Unit tests `tests/test_runner.tscn` | 52/52 pass, 1074 assertions | 52/52 pass, 1074 assertions |
+| Unit tests `tests/test_runner.tscn` | 56/56 pass, 2619 assertions | 52/52 pass, 1074 assertions |
 | Integration `tests/integration/vertical_slice_test.tscn` | PASS (54 checks) | PASS (54 checks) |
 | Screenshot tours (menus / world / battle / forest) at 1280×720 | rendered OK (Mesa llvmpipe, Compatibility) | — |
 

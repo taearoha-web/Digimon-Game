@@ -43,7 +43,7 @@ func _ready() -> void:
 
 func refresh() -> void:
 	var roster := GameState.roster
-	_count_label.text = "Owned %d / %d" % [roster.size(), roster.capacity]
+	_count_label.text = L10n.t("Owned %d / %d") % [roster.size(), roster.capacity]
 	UIUtil.clear(_grid)
 	for inst in roster.get_all():
 		_grid.add_child(_card(inst))
@@ -63,7 +63,7 @@ func refresh() -> void:
 			var lead := UIUtil.button("Make Partner", &"AccentButton", Vector2(0, 60))
 			lead.pressed.connect(func():
 				roster.set_lead(selected.uid)
-				EventBus.toast("%s is now your partner!" % selected.get_display_name(), &"success")
+				EventBus.toast(L10n.t("%s is now your partner!") % selected.get_display_name(), &"success")
 				refresh())
 			_actions.add_child(lead)
 	else:
@@ -76,7 +76,7 @@ func refresh() -> void:
 			_actions.add_child(add)
 		else:
 			for member in roster.get_party():
-				var swap := UIUtil.button("Swap with %s" % member.get_display_name(), &"ChoiceButton", Vector2(0, 60))
+				var swap := UIUtil.button(L10n.t("Swap with %s") % member.get_display_name(), &"ChoiceButton", Vector2(0, 60))
 				swap.pressed.connect(func():
 					roster.swap_with_storage(member.uid, selected.uid)
 					AudioManager.play_ui(&"ui_confirm")
@@ -98,9 +98,9 @@ func _card(inst: DigimonInstance) -> Control:
 	badge.custom_minimum_size = Vector2(0, 8)
 	box.add_child(badge)
 	box.add_child(UIUtil.label(inst.get_display_name(), &"BoldLabel"))
-	box.add_child(UIUtil.label("Lv %d · %s" % [inst.level, species.get_stage_name() if species else "?"], &"SmallLabel"))
+	box.add_child(UIUtil.label(L10n.t("Lv %d · %s") % [inst.level, species.get_stage_name() if species else "?"], &"SmallLabel"))
 	if GameState.roster.is_in_party(inst.uid):
-		box.add_child(UIUtil.chip("Party %d" % (GameState.roster.get_party_index(inst.uid) + 1), UIPalette.GOLD, 14))
+		box.add_child(UIUtil.chip(L10n.t("Party %d") % (GameState.roster.get_party_index(inst.uid) + 1), UIPalette.GOLD, 14))
 	card.gui_input.connect(func(event: InputEvent):
 		if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
 			_selected_uid = inst.uid

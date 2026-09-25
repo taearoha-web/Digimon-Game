@@ -29,32 +29,32 @@ static func buy(shop: ShopData, item_id: StringName, quantity: int, profile: Pla
 		registry: Node = null) -> Dictionary:
 	var item := _item(item_id, registry)
 	if shop == null or item == null or not shop.stock.has(item_id):
-		return _fail("That item isn't sold here.")
+		return _fail(L10n.t("That item isn't sold here."))
 	if quantity <= 0:
-		return _fail("Choose how many to buy.")
+		return _fail(L10n.t("Choose how many to buy."))
 	var price := get_buy_price(shop, item)
 	if price <= 0:
-		return _fail("That item isn't for sale.")
+		return _fail(L10n.t("That item isn't for sale."))
 	if inventory.count(item_id) + quantity > item.max_stack:
-		return _fail("You can't carry more %s." % item.display_name)
+		return _fail(L10n.t("You can't carry more %s.") % item.display_name)
 	var total := price * quantity
 	if not profile.spend_currency(total):
-		return _fail("Not enough Data Coins.")
+		return _fail(L10n.t("Not enough Data Coins."))
 	inventory.add_item(item_id, quantity)
-	return {"ok": true, "message": "Bought %d× %s for %d Data Coins." % [quantity, item.display_name, total], "total": total}
+	return {"ok": true, "message": L10n.t("Bought %d× %s for %d Data Coins.") % [quantity, item.display_name, total], "total": total}
 
 
 static func sell(item_id: StringName, quantity: int, profile: PlayerProfile, inventory: Inventory,
 		registry: Node = null) -> Dictionary:
 	var item := _item(item_id, registry)
 	if not can_sell(item):
-		return _fail("That item can't be sold.")
+		return _fail(L10n.t("That item can't be sold."))
 	if quantity <= 0 or not inventory.has_item(item_id, quantity):
-		return _fail("You don't have that many.")
+		return _fail(L10n.t("You don't have that many."))
 	inventory.remove_item(item_id, quantity)
 	var total := item.sell_price * quantity
 	profile.add_currency(total)
-	return {"ok": true, "message": "Sold %d× %s for %d Data Coins." % [quantity, item.display_name, total], "total": total}
+	return {"ok": true, "message": L10n.t("Sold %d× %s for %d Data Coins.") % [quantity, item.display_name, total], "total": total}
 
 
 static func _item(item_id: StringName, registry: Node) -> ItemData:

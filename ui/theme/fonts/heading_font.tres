@@ -1,12 +1,13 @@
-[gd_resource type="FontVariation" load_steps=3 format=3]
+[gd_resource type="FontVariation" load_steps=4 format=3]
 
 [ext_resource type="FontFile" path="res://assets/fonts/Fredoka-Variable.ttf" id="1_r3ft5"]
+[ext_resource type="FontFile" path="res://assets/fonts/Mitr-Medium.ttf" id="2_goybf"]
 
-[sub_resource type="SystemFont" id="SystemFont_6rx3h"]
+[sub_resource type="SystemFont" id="SystemFont_42ofx"]
 font_names = PackedStringArray("sans-serif", "Noto Sans", "Roboto", "Arial")
 
 [resource]
-fallbacks = Array[Font]([SubResource("SystemFont_6rx3h")])
+fallbacks = Array[Font]([ExtResource("2_goybf"), SubResource("SystemFont_42ofx")])
 base_font = ExtResource("1_r3ft5")
 variation_opentype = {
 "wght": 600

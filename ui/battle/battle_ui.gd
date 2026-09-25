@@ -60,17 +60,17 @@ func refresh_all() -> void:
 		return
 	var p := controller.player
 	_player_name.text = p.get_name()
-	_player_level.text = "Lv %d" % p.get_level()
+	_player_level.text = L10n.t("Lv %d") % p.get_level()
 	_set_attribute(_player_attr, p.get_species())
 	UIUtil.set_bar(_player_hp, p.instance.current_hp, p.instance.get_max_hp())
 	UIUtil.tint_hp_bar(_player_hp, p.instance.get_hp_ratio())
 	_player_hp_label.text = "%d / %d" % [p.instance.current_hp, p.instance.get_max_hp()]
 	UIUtil.set_bar(_player_sp, p.instance.current_sp, p.instance.get_max_sp())
-	_player_sp_label.text = "SP %d / %d" % [p.instance.current_sp, p.instance.get_max_sp()]
+	_player_sp_label.text = L10n.t("SP %d / %d") % [p.instance.current_sp, p.instance.get_max_sp()]
 	_set_status(_player_status, p.status_id)
 	var e := controller.enemy
 	_enemy_name.text = e.get_battle_name()
-	_enemy_level.text = "Lv %d" % e.get_level()
+	_enemy_level.text = L10n.t("Lv %d") % e.get_level()
 	_set_attribute(_enemy_attr, e.get_species())
 	UIUtil.set_bar(_enemy_hp, e.instance.current_hp, e.instance.get_max_hp())
 	UIUtil.tint_hp_bar(_enemy_hp, e.instance.get_hp_ratio())
@@ -93,7 +93,7 @@ func animate_hp(side: int, hp: int, max_hp: int) -> void:
 func set_sp(side: int, sp: int, max_sp: int) -> void:
 	if side == BattleCombatant.PLAYER_SIDE:
 		UIUtil.set_bar(_player_sp, sp, max_sp, true, 0.3)
-		_player_sp_label.text = "SP %d / %d" % [sp, max_sp]
+		_player_sp_label.text = L10n.t("SP %d / %d") % [sp, max_sp]
 
 
 func set_status(side: int, status_id: StringName) -> void:
@@ -130,7 +130,7 @@ func hide_menus() -> void:
 
 func show_main_menu() -> void:
 	_show_commands()
-	set_prompt("What will [b]%s[/b] do?" % TextVars.escape(controller.player.get_name()))
+	set_prompt(L10n.t("What will [b]%s[/b] do?") % TextVars.escape(controller.player.get_name()))
 	var grid := GridContainer.new()
 	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 10)
@@ -142,7 +142,7 @@ func show_main_menu() -> void:
 	var befriend := _menu_button(grid, "Befriend", &"", func(): _choose({"type": "befriend"}))
 	if controller.request.is_wild and controller.request.can_befriend:
 		var chance := RecruitmentService.befriend_chance(controller.enemy, controller.player, controller.recruit_config, controller.completed_quests)
-		befriend.text = "Befriend %d%%" % int(round(chance * 100.0))
+		befriend.text = L10n.t("Befriend %d%%") % int(round(chance * 100.0))
 	else:
 		befriend.disabled = true
 	_menu_button(grid, "Party", &"", _show_party_menu.bind(false))
@@ -165,10 +165,10 @@ func _show_skill_menu() -> void:
 	var any_usable := false
 	for option in options:
 		var skill: SkillData = option.skill
-		var b := UIUtil.button("%s\n%s · Pow %d · %d SP" % [skill.display_name, String(skill.element).capitalize(), skill.power, skill.sp_cost],
+		var b := UIUtil.button(L10n.t("%s\n%s · Pow %d · %d SP") % [skill.display_name, UIUtil.element_name(skill.element), skill.power, skill.sp_cost],
 			&"ChoiceButton", Vector2(0, 66))
 		if skill.power <= 0:
-			b.text = "%s\n%s · %d SP" % [skill.display_name, skill.get_category_name(), skill.sp_cost]
+			b.text = L10n.t("%s\n%s · %d SP") % [skill.display_name, skill.get_category_name(), skill.sp_cost]
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.add_theme_font_size_override("font_size", 18)
 		b.disabled = not option.usable
@@ -178,7 +178,7 @@ func _show_skill_menu() -> void:
 		grid.add_child(b)
 		any_usable = any_usable or option.usable
 	if not any_usable:
-		var struggle := UIUtil.button("Desperate Tackle\n(no SP left)", &"DangerButton", Vector2(0, 66))
+		var struggle := UIUtil.button(L10n.t("Desperate Tackle\n(no SP left)"), &"DangerButton", Vector2(0, 66))
 		struggle.pressed.connect(func(): _choose({"type": "struggle"}))
 		grid.add_child(struggle)
 	set_prompt("Choose a skill. Skills cost SP — Defend restores some.")
@@ -199,7 +199,7 @@ func _show_item_menu() -> void:
 		list.add_child(UIUtil.label("No usable items.", &"DimLabel"))
 	for entry in entries:
 		var item: ItemData = entry.item
-		var b := UIUtil.button("%s ×%d" % [item.display_name, int(entry.quantity)], &"ChoiceButton", Vector2(0, 56))
+		var b := UIUtil.button(L10n.t("%s ×%d") % [item.display_name, int(entry.quantity)], &"ChoiceButton", Vector2(0, 56))
 		b.icon = item.get_icon()
 		b.add_theme_constant_override("icon_max_width", 36)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -214,12 +214,12 @@ func _on_item_selected(item: ItemData) -> void:
 		_choose({"type": "item", "item_id": item.id})
 		return
 	_show_commands()
-	set_prompt("Use %s on…" % item.display_name)
+	set_prompt(L10n.t("Use %s on…") % item.display_name)
 	var list := UIUtil.vbox(8)
 	_command_box.add_child(list)
 	for inst in controller.party:
 		var reason := ItemService.get_block_reason(item, inst, true)
-		var b := UIUtil.button("%s  Lv %d  ·  HP %d/%d  ·  SP %d/%d" % [inst.get_display_name(), inst.level, inst.current_hp,
+		var b := UIUtil.button(L10n.t("%s  Lv %d  ·  HP %d/%d  ·  SP %d/%d") % [inst.get_display_name(), inst.level, inst.current_hp,
 			inst.get_max_hp(), inst.current_sp, inst.get_max_sp()], &"ChoiceButton", Vector2(0, 52))
 		b.disabled = reason != ""
 		b.pressed.connect(func(): _choose({"type": "item", "item_id": item.id, "target_uid": inst.uid}))
@@ -235,8 +235,8 @@ func _show_party_menu(forced: bool) -> void:
 	for i in controller.party.size():
 		var inst := controller.party[i]
 		var active := inst == controller.player.instance
-		var b := UIUtil.button("%s  Lv %d  ·  HP %d/%d%s" % [inst.get_display_name(), inst.level, inst.current_hp, inst.get_max_hp(),
-			"  (in battle)" if active else ("  (fainted)" if inst.is_fainted() else "")], &"ChoiceButton", Vector2(0, 54))
+		var b := UIUtil.button(L10n.t("%s  Lv %d  ·  HP %d/%d%s") % [inst.get_display_name(), inst.level, inst.current_hp, inst.get_max_hp(),
+			L10n.t("  (in battle)") if active else (L10n.t("  (fainted)") if inst.is_fainted() else "")], &"ChoiceButton", Vector2(0, 54))
 		b.disabled = active or inst.is_fainted()
 		b.pressed.connect(func():
 			hide_menus()
@@ -289,7 +289,7 @@ func _set_attribute(box: HBoxContainer, species: DigimonSpecies) -> void:
 	UIUtil.clear(box)
 	if species:
 		box.add_child(UIUtil.chip(species.get_attribute_name(), UIPalette.attribute_color(species.attribute), 14))
-		box.add_child(UIUtil.chip(String(species.element).capitalize(), UIUtil.element_color(species.element), 14))
+		box.add_child(UIUtil.chip(UIUtil.element_name(species.element), UIUtil.element_color(species.element), 14))
 
 
 func _set_status(box: HBoxContainer, status_id: StringName) -> void:

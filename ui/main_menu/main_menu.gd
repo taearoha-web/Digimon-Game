@@ -49,7 +49,7 @@ func _ready() -> void:
 	if not OS.has_feature("mobile") and not OS.has_feature("web"):
 		_menu_button("Quit", &"GhostButton", _on_quit)
 
-	var footer := UIUtil.label("v%s · Private prototype · Original placeholder art & audio" % ProjectSettings.get_setting("application/config/version", "0.1"),
+	var footer := UIUtil.label(L10n.t("v%s · Private prototype · Original placeholder art & audio") % ProjectSettings.get_setting("application/config/version", "0.1"),
 		&"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_menu_column.add_child(footer)

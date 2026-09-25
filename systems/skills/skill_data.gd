@@ -39,4 +39,4 @@ func deals_damage() -> bool:
 
 
 func get_category_name() -> String:
-	return ["Physical", "Special", "Support"][category]
+	return L10n.t(["Physical", "Special", "Support"][category])

@@ -126,6 +126,11 @@ open_quests={
 ]
 }
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://i18n/th.po")
+locale/include_text_server_data=true
+
 [layer_names]
 
 3d_physics/layer_1="world"

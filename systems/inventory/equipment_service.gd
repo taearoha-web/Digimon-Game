@@ -7,11 +7,11 @@ extends RefCounted
 static func equip(inst: DigimonInstance, item_id: StringName, inventory: Inventory) -> Dictionary:
 	var item := _item(item_id)
 	if inst == null or item == null or not item.is_equipment():
-		return {"ok": false, "message": "That can't be equipped."}
+		return {"ok": false, "message": L10n.t("That can't be equipped.")}
 	if not inventory.has_item(item_id):
-		return {"ok": false, "message": "You don't have %s." % item.display_name}
+		return {"ok": false, "message": L10n.t("You don't have %s.") % item.display_name}
 	if inst.held_item_id == item_id:
-		return {"ok": false, "message": "%s already holds %s." % [inst.get_display_name(), item.display_name]}
+		return {"ok": false, "message": L10n.t("%s already holds %s.") % [inst.get_display_name(), item.display_name]}
 	var hp_ratio := inst.get_hp_ratio()
 	# Take the new chip out first so a full stack of the old one can go back.
 	inventory.remove_item(item_id, 1)
@@ -22,19 +22,19 @@ static func equip(inst: DigimonInstance, item_id: StringName, inventory: Invento
 			return removed
 	inst.held_item_id = item_id
 	_keep_ratio(inst, hp_ratio)
-	return {"ok": true, "message": "%s equipped %s (%s)." % [inst.get_display_name(), item.display_name, item.describe_bonuses()]}
+	return {"ok": true, "message": L10n.t("%s equipped %s (%s).") % [inst.get_display_name(), item.display_name, item.describe_bonuses()]}
 
 
 static func unequip(inst: DigimonInstance, inventory: Inventory) -> Dictionary:
 	if inst == null or inst.held_item_id == &"":
-		return {"ok": false, "message": "Nothing equipped."}
+		return {"ok": false, "message": L10n.t("Nothing equipped.")}
 	var hp_ratio := inst.get_hp_ratio()
 	var item_id := inst.held_item_id
 	if inventory.add_item(item_id, 1) <= 0:
-		return {"ok": false, "message": "Your bag is full."}
+		return {"ok": false, "message": L10n.t("Your bag is full.")}
 	inst.held_item_id = &""
 	_keep_ratio(inst, hp_ratio)
-	return {"ok": true, "message": "Chip returned to your bag."}
+	return {"ok": true, "message": L10n.t("Chip returned to your bag.")}
 
 
 ## Every Digimon in [param roster] currently holding [param item_id].

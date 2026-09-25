@@ -127,15 +127,15 @@ func get_skills_up_to(level: int) -> Array[StringName]:
 
 
 func get_stage_name() -> String:
-	return STAGE_NAMES[clampi(stage, 0, STAGE_NAMES.size() - 1)]
+	return L10n.t(STAGE_NAMES[clampi(stage, 0, STAGE_NAMES.size() - 1)])
 
 
 func get_attribute_name() -> String:
-	return ATTRIBUTE_NAMES[clampi(attribute, 0, ATTRIBUTE_NAMES.size() - 1)]
+	return L10n.t(ATTRIBUTE_NAMES[clampi(attribute, 0, ATTRIBUTE_NAMES.size() - 1)])
 
 
 func get_rarity_name() -> String:
-	return RARITY_NAMES[clampi(rarity, 0, RARITY_NAMES.size() - 1)]
+	return L10n.t(RARITY_NAMES[clampi(rarity, 0, RARITY_NAMES.size() - 1)])
 
 
 func get_color(index: int, fallback: Color = Color.WHITE) -> Color:

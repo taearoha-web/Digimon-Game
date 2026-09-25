@@ -131,7 +131,7 @@ func _show_tab(tab: StringName) -> void:
 
 func _update_header() -> void:
 	var p := GameState.profile
-	_header_info.text = "Tamer %s  ·  Play time %s  ·  %d Data Coins  ·  %d Digimon" % [p.player_name,
+	_header_info.text = L10n.t("Tamer %s  ·  Play time %s  ·  %d Data Coins  ·  %d Digimon") % [p.player_name,
 		UIUtil.format_play_time(p.play_time_seconds), p.currency, GameState.roster.size()]
 
 

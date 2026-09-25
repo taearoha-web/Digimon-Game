@@ -73,7 +73,7 @@ func _ready() -> void:
 	trigger.body_entered.connect(_on_body_entered)
 
 	_label = Label3D.new()
-	_label.text = "Lv %d %s" % [level, species.display_name if species else String(species_id)]
+	_label.text = L10n.t("Lv %d %s") % [level, species.display_name if species else String(species_id)]
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.pixel_size = 0.004
 	_label.font_size = 44

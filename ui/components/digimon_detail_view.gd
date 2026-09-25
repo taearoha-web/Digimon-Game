@@ -59,15 +59,15 @@ func show_digimon(inst: DigimonInstance) -> void:
 		_info.add_child(chips)
 		chips.add_child(UIUtil.chip(species.get_stage_name(), UIPalette.stage_color(species.stage)))
 		chips.add_child(UIUtil.chip(species.get_attribute_name(), UIPalette.attribute_color(species.attribute)))
-		chips.add_child(UIUtil.chip(String(species.element).capitalize(), UIUtil.element_color(species.element)))
+		chips.add_child(UIUtil.chip(UIUtil.element_name(species.element), UIUtil.element_color(species.element)))
 		chips.add_child(UIUtil.chip(species.digimon_type, UIPalette.TEXT_DIM))
-		var meta := UIUtil.label("Friendship %d · Battles won %d" % [inst.friendship, inst.battles_won], &"SmallLabel")
+		var meta := UIUtil.label(L10n.t("Friendship %d · Battles won %d") % [inst.friendship, inst.battles_won], &"SmallLabel")
 		meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_info.add_child(meta)
 
 	var level_row := UIUtil.hbox(10)
 	_info.add_child(level_row)
-	level_row.add_child(UIUtil.label("Lv %d" % inst.level, &"ValueLabel"))
+	level_row.add_child(UIUtil.label(L10n.t("Lv %d") % inst.level, &"ValueLabel"))
 	var exp_bar := ProgressBar.new()
 	exp_bar.theme_type_variation = &"EXPBar"
 	exp_bar.show_percentage = false
@@ -76,14 +76,14 @@ func show_digimon(inst: DigimonInstance) -> void:
 	exp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	UIUtil.set_bar(exp_bar, inst.experience, Leveling.exp_to_next(inst.level))
 	level_row.add_child(exp_bar)
-	_info.add_child(UIUtil.label("%d / %d EXP to next level" % [inst.experience, Leveling.exp_to_next(inst.level)], &"SmallLabel"))
+	_info.add_child(UIUtil.label(L10n.t("%d / %d EXP to next level") % [inst.experience, Leveling.exp_to_next(inst.level)], &"SmallLabel"))
 
 	var vitals := GridContainer.new()
 	vitals.columns = 2
 	vitals.add_theme_constant_override("h_separation", 12)
 	_info.add_child(vitals)
-	vitals.add_child(UIUtil.label("HP %d/%d" % [inst.current_hp, inst.get_max_hp()], &"BoldLabel"))
-	vitals.add_child(UIUtil.label("SP %d/%d" % [inst.current_sp, inst.get_max_sp()], &"BoldLabel"))
+	vitals.add_child(UIUtil.label(L10n.t("HP %d/%d") % [inst.current_hp, inst.get_max_hp()], &"BoldLabel"))
+	vitals.add_child(UIUtil.label(L10n.t("SP %d/%d") % [inst.current_sp, inst.get_max_sp()], &"BoldLabel"))
 
 	_info.add_child(UIUtil.label("Stats", &"SubHeaderLabel"))
 	var stats := GridContainer.new()
@@ -103,7 +103,7 @@ func show_digimon(inst: DigimonInstance) -> void:
 
 	_add_chip_section(inst)
 
-	_info.add_child(UIUtil.label("Skills (tap to equip · max %d)" % DigimonInstance.MAX_EQUIPPED_SKILLS, &"SubHeaderLabel"))
+	_info.add_child(UIUtil.label(L10n.t("Skills (tap to equip · max %d)") % DigimonInstance.MAX_EQUIPPED_SKILLS, &"SubHeaderLabel"))
 	var skills := UIUtil.vbox(6)
 	_info.add_child(skills)
 	for skill_id in inst.known_skills:
@@ -111,7 +111,7 @@ func show_digimon(inst: DigimonInstance) -> void:
 		if skill == null:
 			continue
 		var equipped := inst.equipped_skills.has(skill_id)
-		var b := UIUtil.button("%s%s  ·  %s %d · %d SP" % ["✓ " if equipped else "", skill.display_name, String(skill.element).capitalize(),
+		var b := UIUtil.button(L10n.t("%s%s  ·  %s %d · %d SP") % ["✓ " if equipped else "", skill.display_name, UIUtil.element_name(skill.element),
 			skill.power, skill.sp_cost], &"ChoiceButton", Vector2(0, 52))
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.toggle_mode = true
@@ -119,7 +119,7 @@ func show_digimon(inst: DigimonInstance) -> void:
 		b.tooltip_text = skill.description
 		b.pressed.connect(func():
 			if not inst.set_skill_equipped(skill_id, not inst.equipped_skills.has(skill_id)):
-				EventBus.toast("Keep between 1 and %d skills equipped." % DigimonInstance.MAX_EQUIPPED_SKILLS, &"warning")
+				EventBus.toast(L10n.t("Keep between 1 and %d skills equipped.") % DigimonInstance.MAX_EQUIPPED_SKILLS, &"warning")
 			show_digimon(inst)
 			changed.emit())
 		skills.add_child(b)
@@ -133,7 +133,7 @@ func show_digimon(inst: DigimonInstance) -> void:
 		var path: EvolutionPath = status.path
 		var row := UIUtil.hbox(10)
 		_info.add_child(row)
-		var desc := UIUtil.label("→ %s (%s): %s" % [target.display_name, target.get_stage_name(),
+		var desc := UIUtil.label(L10n.t("→ %s (%s): %s") % [target.display_name, target.get_stage_name(),
 			", ".join(EvolutionService.describe_requirements(path))], &"BoldLabel" if status.ready else &"DimLabel")
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -166,7 +166,7 @@ func _add_chip_section(inst: DigimonInstance) -> void:
 		row.add_child(UIUtil.label("No chip held.", &"DimLabel"))
 	for entry in GameState.inventory.get_entries(ItemData.Category.EQUIPMENT):
 		var item: ItemData = entry.item
-		var b := UIUtil.button("%s %s" % ["Swap to" if held else "Equip", item.display_name], &"ChoiceButton", Vector2(0, 52))
+		var b := UIUtil.button(L10n.t("Swap to %s" if held else "Equip %s") % item.display_name, &"ChoiceButton", Vector2(0, 52))
 		b.icon = item.get_icon()
 		b.expand_icon = false
 		b.add_theme_constant_override("icon_max_width", 32)

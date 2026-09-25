@@ -47,7 +47,7 @@ static func get_def(status_id: StringName) -> Dictionary:
 
 
 static func get_display_name(status_id: StringName) -> String:
-	return str(get_def(status_id).get("name", String(status_id).capitalize()))
+	return L10n.t(str(get_def(status_id).get("name", String(status_id).capitalize())))
 
 
 static func get_color(status_id: StringName) -> Color:
@@ -55,5 +55,5 @@ static func get_color(status_id: StringName) -> Color:
 
 
 static func text(status_id: StringName, key: String, target_name: String) -> String:
-	var template := str(get_def(status_id).get(key, ""))
+	var template := L10n.t(str(get_def(status_id).get(key, "")))
 	return template.replace("{target}", target_name)

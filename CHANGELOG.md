@@ -3,6 +3,35 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — 2026-09-25 — Thai language
+
+### Added
+- **Thai translation of the whole game** (`i18n/th.po`, ~700 strings):
+  menus, HUD, battle messages, dialogue, quests, items, skills, Digimon
+  names/descriptions, NPCs, places, signposts and 3D labels. Thai is the
+  default language; Settings → Language switches ไทย / English at runtime.
+- Thai fonts as fallbacks in the UI theme: Noto Sans Thai (text) and Mitr
+  (headings), both SIL OFL. ICU text-server data is exported so Thai
+  lines wrap between words.
+- `L10n` helper (`systems/core/l10n.gd`): `L10n.t()` for formatted and
+  static-code strings; data resources are translated in memory by
+  `GameData.apply_locale()` (the .tres files stay English).
+- `tools/i18n_extract.py`: lists player-facing strings missing from the
+  catalog (`i18n/untranslated.txt` lists intentional exceptions).
+- `test_translations.gd`: catalog loaded, placeholders (`%s`, `{name}`,
+  BBCode) preserved in every translation, data fully translated, language
+  switching works both ways.
+
+### Fixed
+- Camera spun wildly when dragging with the right thumb while the left
+  thumb held the joystick (Web build): Godot's Web `ScreenDrag.relative`
+  can be computed against another finger. Camera and 3D previews now use
+  their own per-finger deltas (with a spike clamp).
+- Saved settings from older versions no longer force English: a language
+  is only kept when the player picked it (`language_chosen`).
+- Stat-change battle messages use whole-sentence templates so languages
+  can reorder words.
+
 ## [0.2.1] — 2026-09-25 — Web build (play on iPhone)
 
 ### Added

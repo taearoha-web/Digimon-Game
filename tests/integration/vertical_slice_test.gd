@@ -27,6 +27,7 @@ func _ready() -> void:
 		return
 	_driver_mode = true
 	await get_tree().process_frame
+	TestCase.use_locale("en") # checks compare English text
 	SaveManager.save_dir = TEST_DIR
 	DirAccess.make_dir_recursive_absolute(TEST_DIR)
 	for slot in range(0, SaveManager.SLOT_COUNT + 1):

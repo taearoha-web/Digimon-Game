@@ -9,6 +9,8 @@ const UNIT_DIR := "res://tests/unit"
 func _ready() -> void:
 	# Keep tests away from real player saves.
 	await get_tree().process_frame
+	# Assertions compare English text; translation tests switch locale themselves.
+	TestCase.use_locale("en")
 	var total_tests := 0
 	var total_failures := 0
 	var total_assertions := 0

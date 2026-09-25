@@ -56,7 +56,7 @@ func describe_bonuses() -> String:
 
 
 func get_category_name() -> String:
-	return CATEGORY_NAMES[clampi(category, 0, CATEGORY_NAMES.size() - 1)]
+	return L10n.t(CATEGORY_NAMES[clampi(category, 0, CATEGORY_NAMES.size() - 1)])
 
 
 func get_icon() -> Texture2D:

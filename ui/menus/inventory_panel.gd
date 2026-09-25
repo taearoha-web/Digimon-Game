@@ -60,8 +60,8 @@ func refresh() -> void:
 	UIUtil.clear(_list)
 	var entries := GameState.inventory.get_entries(_category)
 	if entries.is_empty():
-		var empty_text := "No chips in your bag. Chips held by Digimon show in their details." \
-			if _category == ItemData.Category.EQUIPMENT else "No items in this category."
+		var empty_text := L10n.t("No chips in your bag. Chips held by Digimon show in their details.") \
+			if _category == ItemData.Category.EQUIPMENT else L10n.t("No items in this category.")
 		var empty := UIUtil.label(empty_text, &"DimLabel")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_list.add_child(empty)
@@ -75,7 +75,7 @@ func refresh() -> void:
 		row.icon = item.get_icon()
 		row.expand_icon = false
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		row.text = "%s   ×%d" % [item.display_name, int(entry.quantity)]
+		row.text = L10n.t("%s   ×%d") % [item.display_name, int(entry.quantity)]
 		row.add_theme_constant_override("icon_max_width", 44)
 		row.pressed.connect(func():
 			_selected = item.id
@@ -96,7 +96,7 @@ func _show_detail() -> void:
 	var titles := UIUtil.vbox(4)
 	head.add_child(titles)
 	titles.add_child(UIUtil.label(item.display_name, &"HeaderLabel"))
-	titles.add_child(UIUtil.label("%s · Owned %d" % [item.get_category_name(), GameState.inventory.count(item.id)], &"DimLabel"))
+	titles.add_child(UIUtil.label(L10n.t("%s · Owned %d") % [item.get_category_name(), GameState.inventory.count(item.id)], &"DimLabel"))
 	var desc := UIUtil.label(item.description, &"")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
@@ -110,7 +110,7 @@ func _show_detail() -> void:
 	_detail.add_child(UIUtil.label("Use on:", &"SubHeaderLabel"))
 	for inst in GameState.roster.get_party():
 		var reason := ItemService.get_block_reason(item, inst, false)
-		var b := UIUtil.button("%s  Lv %d  ·  HP %d/%d  SP %d/%d" % [inst.get_display_name(), inst.level, inst.current_hp,
+		var b := UIUtil.button(L10n.t("%s  Lv %d  ·  HP %d/%d  SP %d/%d") % [inst.get_display_name(), inst.level, inst.current_hp,
 			inst.get_max_hp(), inst.current_sp, inst.get_max_sp()], &"ChoiceButton", Vector2(0, 58))
 		b.disabled = reason != ""
 		b.tooltip_text = reason
@@ -127,11 +127,11 @@ func _show_detail() -> void:
 
 
 func _show_equip_targets(item: ItemData) -> void:
-	_detail.add_child(UIUtil.label("Held bonus: " + item.describe_bonuses(), &"BoldLabel"))
+	_detail.add_child(UIUtil.label(L10n.t("Held bonus: %s") % item.describe_bonuses(), &"BoldLabel"))
 	_detail.add_child(UIUtil.label("Give to (one chip per Digimon):", &"SubHeaderLabel"))
 	for inst in GameState.roster.get_party():
 		var held := GameData.get_item(inst.held_item_id)
-		var text := "%s  Lv %d  ·  %s" % [inst.get_display_name(), inst.level, ("Holding " + held.display_name) if held else "No chip"]
+		var text := L10n.t("%s  Lv %d  ·  %s") % [inst.get_display_name(), inst.level, (L10n.t("Holding %s") % held.display_name) if held else L10n.t("No chip")]
 		var b := UIUtil.button(text, &"ChoiceButton", Vector2(0, 58))
 		b.disabled = inst.held_item_id == item.id
 		b.pressed.connect(func():

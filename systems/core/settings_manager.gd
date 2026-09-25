@@ -10,7 +10,8 @@ enum Quality { LOW, MEDIUM, HIGH }
 
 const PATH := "user://settings.cfg"
 const QUALITY_NAMES := ["Low", "Medium", "High"]
-const LANGUAGES := {"en": "English"}
+## Language code -> name shown in Settings (each in its own language).
+const LANGUAGES := {"th": "ไทย", "en": "English"}
 
 var music_volume: float = 0.7
 var sfx_volume: float = 0.9
@@ -19,7 +20,10 @@ var graphics_quality: int = Quality.MEDIUM
 var camera_sensitivity: float = 1.0
 var invert_camera_y: bool = false
 var show_fps: bool = false
-var language: String = "en"
+var language: String = "th"
+## True once the player picked a language in Settings. Saves from before the
+## Thai translation stored "en" as a default, which must not override "th".
+var language_chosen: bool = false
 
 
 func _ready() -> void:
@@ -27,6 +31,8 @@ func _ready() -> void:
 	if not _is_mobile():
 		graphics_quality = Quality.HIGH
 	load_settings()
+	# Set the locale now so GameData (next autoload) loads translated data.
+	TranslationServer.set_locale(language)
 	# Wait until every autoload (AudioManager creates buses) is ready.
 	apply.call_deferred()
 
@@ -38,6 +44,8 @@ func set_setting(key: StringName, value: Variant, persist := true) -> void:
 		push_warning("Settings: unknown key '%s'" % key)
 		return
 	set(key, value)
+	if key == &"language":
+		language_chosen = true
 	_sanitize()
 	apply()
 	if persist:
@@ -48,8 +56,11 @@ func set_setting(key: StringName, value: Variant, persist := true) -> void:
 func apply() -> void:
 	apply_audio()
 	apply_graphics()
-	if language in LANGUAGES:
+	if language in LANGUAGES and TranslationServer.get_locale() != language:
 		TranslationServer.set_locale(language)
+		var registry := get_node_or_null("/root/GameData")
+		if registry:
+			registry.apply_locale()
 
 
 func apply_audio() -> void:
@@ -80,7 +91,7 @@ func apply_graphics() -> void:
 
 
 func get_quality_name() -> String:
-	return QUALITY_NAMES[clampi(graphics_quality, 0, QUALITY_NAMES.size() - 1)]
+	return L10n.t(QUALITY_NAMES[clampi(graphics_quality, 0, QUALITY_NAMES.size() - 1)])
 
 
 func to_dict() -> Dictionary:
@@ -93,6 +104,7 @@ func to_dict() -> Dictionary:
 		"invert_camera_y": invert_camera_y,
 		"show_fps": show_fps,
 		"language": language,
+		"language_chosen": language_chosen,
 	}
 
 
@@ -124,6 +136,8 @@ func load_settings() -> void:
 	for key in to_dict().keys():
 		if cfg.has_section_key("settings", key):
 			set(key, cfg.get_value("settings", key))
+	if not bool(language_chosen):
+		language = "th"
 	_sanitize()
 
 
@@ -135,7 +149,8 @@ func _sanitize() -> void:
 	camera_sensitivity = clampf(float(camera_sensitivity), 0.2, 3.0)
 	invert_camera_y = bool(invert_camera_y)
 	show_fps = bool(show_fps)
-	language = str(language) if str(language) in LANGUAGES else "en"
+	language_chosen = bool(language_chosen)
+	language = str(language) if str(language) in LANGUAGES else "th"
 
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:

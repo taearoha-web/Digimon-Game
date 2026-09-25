@@ -38,7 +38,17 @@ func _make_fonts() -> void:
 	var fredoka: FontFile = load("res://assets/fonts/Fredoka-Variable.ttf")
 	var system_fallback := SystemFont.new()
 	system_fallback.font_names = PackedStringArray(["sans-serif", "Noto Sans", "Roboto", "Arial"])
-	var fallbacks: Array[Font] = [system_fallback]
+	# Thai glyphs (Fredoka/Nunito are Latin-only): Noto Sans Thai for text,
+	# Mitr for headings. Both SIL OFL.
+	var noto_thai: FontFile = load("res://assets/fonts/NotoSansThai-Variable.ttf")
+	var mitr: FontFile = load("res://assets/fonts/Mitr-Medium.ttf")
+	var thai_body := FontVariation.new()
+	thai_body.base_font = noto_thai
+	thai_body.variation_opentype = {"wght": 600}
+	var thai_bold := FontVariation.new()
+	thai_bold.base_font = noto_thai
+	thai_bold.variation_opentype = {"wght": 750}
+	var fallbacks: Array[Font] = [thai_body, system_fallback]
 
 	body_font = FontVariation.new()
 	body_font.base_font = nunito
@@ -49,13 +59,15 @@ func _make_fonts() -> void:
 	bold_font = FontVariation.new()
 	bold_font.base_font = nunito
 	bold_font.variation_opentype = {"wght": 850}
-	bold_font.fallbacks = fallbacks
+	var bold_fallbacks: Array[Font] = [thai_bold, system_fallback]
+	bold_font.fallbacks = bold_fallbacks
 	ResourceSaver.save(bold_font, FONT_DIR + "/bold_font.tres", ResourceSaver.FLAG_CHANGE_PATH)
 
 	heading_font = FontVariation.new()
 	heading_font.base_font = fredoka
 	heading_font.variation_opentype = {"wght": 600}
-	heading_font.fallbacks = fallbacks
+	var heading_fallbacks: Array[Font] = [mitr, system_fallback]
+	heading_font.fallbacks = heading_fallbacks
 	ResourceSaver.save(heading_font, FONT_DIR + "/heading_font.tres", ResourceSaver.FLAG_CHANGE_PATH)
 
 	# Reload so the theme references the font files instead of embedding copies.

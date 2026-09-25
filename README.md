@@ -62,7 +62,7 @@ secondary), with full keyboard/mouse controls for testing on PC.
 # Run the game
 godot --path .
 
-# Unit tests (52 tests); exit code = number of failures
+# Unit tests (56 tests); exit code = number of failures
 godot --headless --path . res://tests/test_runner.tscn
 
 # End-to-end vertical slice test (new game → quest → battle → save/load →
@@ -72,6 +72,16 @@ godot --headless --path . res://tests/integration/vertical_slice_test.tscn
 # Parse/load every script, scene and resource
 godot --headless --path . -s res://tools/check_scripts.gd
 ```
+
+## Languages
+
+The game is fully translated into **Thai (default)** and English; switch in
+Settings → Language (ไทย / English). Source strings are English and double as
+keys in `i18n/th.po` (gettext). Plain Control text translates automatically;
+formatted strings use `L10n.t("Lv %d") % level`; data resources are
+translated in memory by `GameData.apply_locale()`. Run
+`python3 tools/i18n_extract.py` to list strings still missing a translation.
+Thai glyphs come from Noto Sans Thai / Mitr (OFL) as theme font fallbacks.
 
 ## Play in a browser (iPhone / Android / PC)
 

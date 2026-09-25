@@ -38,7 +38,7 @@ func refresh() -> void:
 		any = true
 		if _selected == &"":
 			_selected = quest.id
-		var b := UIUtil.button("%s   [%s]" % [quest.title, QuestLog.STATE_NAMES[state]], &"ChoiceButton", Vector2(0, 60))
+		var b := UIUtil.button("%s   [%s]" % [quest.title, L10n.t(QuestLog.STATE_NAMES[state])], &"ChoiceButton", Vector2(0, 60))
 		b.toggle_mode = true
 		b.button_pressed = quest.id == _selected
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -67,7 +67,7 @@ func _show_detail() -> void:
 	_detail.add_child(summary)
 	var giver := GameData.get_npc(quest.giver_npc_id)
 	if giver:
-		_detail.add_child(UIUtil.label("From: %s (%s)" % [giver.display_name, giver.title], &"SmallLabel"))
+		_detail.add_child(UIUtil.label(L10n.t("From: %s (%s)") % [giver.display_name, giver.title], &"SmallLabel"))
 	_detail.add_child(UIUtil.label("Objectives", &"SubHeaderLabel"))
 	var step := GameState.quest_log.get_step(quest.id)
 	for i in quest.objectives.size():
@@ -78,7 +78,7 @@ func _show_detail() -> void:
 		row.add_child(UIUtil.texture_rect(load("res://assets/icons/ui/check.svg" if done else "res://assets/icons/ui/circle_empty.svg"), Vector2(28, 28)))
 		var text := TextVars.format(objective.description, {}, false)
 		if current and objective.required_count > 1:
-			text += " (%d/%d)" % [GameState.quest_log.get_progress(quest.id), objective.required_count]
+			text += L10n.t(" (%d/%d)") % [GameState.quest_log.get_progress(quest.id), objective.required_count]
 		var l := UIUtil.label(text, &"BoldLabel" if current else &"DimLabel")
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -89,17 +89,17 @@ func _show_detail() -> void:
 		var row := UIUtil.hbox(10)
 		var turned_in := state == QuestLog.State.REWARDED
 		row.add_child(UIUtil.texture_rect(load("res://assets/icons/ui/check.svg" if turned_in else "res://assets/icons/ui/circle_empty.svg"), Vector2(28, 28)))
-		row.add_child(UIUtil.label("Report to %s" % (npc.display_name if npc else "?"), &"BoldLabel" if state == QuestLog.State.COMPLETED else &"DimLabel"))
+		row.add_child(UIUtil.label(L10n.t("Report to %s") % (npc.display_name if npc else "?"), &"BoldLabel" if state == QuestLog.State.COMPLETED else &"DimLabel"))
 		_detail.add_child(row)
 	_detail.add_child(UIUtil.label("Rewards", &"SubHeaderLabel"))
 	var rewards: Array = []
 	if quest.reward_exp > 0:
-		rewards.append("%d EXP" % quest.reward_exp)
+		rewards.append(L10n.t("%d EXP") % quest.reward_exp)
 	if quest.reward_currency > 0:
-		rewards.append("%d Data Coins" % quest.reward_currency)
+		rewards.append(L10n.t("%d Data Coins") % quest.reward_currency)
 	for item_id in quest.reward_items.keys():
 		var item := GameData.get_item(StringName(item_id))
-		rewards.append("%s ×%d" % [item.display_name if item else String(item_id), int(quest.reward_items[item_id])])
+		rewards.append(L10n.t("%s ×%d") % [item.display_name if item else String(item_id), int(quest.reward_items[item_id])])
 	var reward_label := UIUtil.label(", ".join(rewards) if not rewards.is_empty() else "—", &"")
 	reward_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(reward_label)

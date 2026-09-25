@@ -49,7 +49,7 @@ func _step_indicator(step_index: int) -> Control:
 		var active := i == step_index
 		var done := i < step_index
 		var color := UIPalette.GOLD if active else (UIPalette.CYAN if done else UIPalette.TEXT_MUTED)
-		var chip := UIUtil.chip("%d  %s" % [i + 1, STEPS[i]], color, 17)
+		var chip := UIUtil.chip("%d  %s" % [i + 1, L10n.t(STEPS[i])], color, 17)
 		row.add_child(chip)
 	return row
 

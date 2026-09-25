@@ -62,8 +62,8 @@ func _build_card(index: int, species: DigimonSpecies) -> PanelContainer:
 	name_row.add_child(name_label)
 	name_row.add_child(UIUtil.chip(species.get_attribute_name(), UIPalette.attribute_color(species.attribute)))
 	var tagline: String = str(_roster.taglines.get(species.id, species.digimon_type))
-	box.add_child(UIUtil.label("%s  ·  %s type  ·  %s" % [tagline, species.digimon_type, String(species.element).capitalize()], &"SmallLabel"))
-	var desc := UIUtil.label(species.description.replace(" (Original placeholder model.)", ""), &"SmallLabel")
+	box.add_child(UIUtil.label(L10n.t("%s  ·  %s type  ·  %s") % [tagline, species.digimon_type, UIUtil.element_name(species.element)], &"SmallLabel"))
+	var desc := UIUtil.label(species.description.replace(L10n.t(" (Original placeholder model.)"), ""), &"SmallLabel")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.add_theme_font_size_override("font_size", 15)
 	desc.max_lines_visible = 3
@@ -80,7 +80,7 @@ func _build_card(index: int, species: DigimonSpecies) -> PanelContainer:
 		var skill := GameData.get_skill(skill_id)
 		if skill and skill.id != &"tackle":
 			skill_names.append(skill.display_name)
-	var skill_label := UIUtil.label("Starter skill: %s" % ", ".join(skill_names), &"BoldLabel")
+	var skill_label := UIUtil.label(L10n.t("Starter skill: %s") % ", ".join(skill_names), &"BoldLabel")
 	skill_label.add_theme_font_size_override("font_size", 19)
 	box.add_child(skill_label)
 	var evo_label := UIUtil.label(_evolution_text(species), &"SmallLabel")
@@ -129,8 +129,8 @@ func _evolution_text(species: DigimonSpecies) -> String:
 		if target == null or seen.has(target.id):
 			continue
 		seen.append(target.id)
-		parts.append("%s (%s) at Lv %d" % [target.display_name, target.get_stage_name(), path.min_level])
-	return "Evolves into " + ", ".join(parts) if not parts.is_empty() else "Evolution: unknown"
+		parts.append(L10n.t("%s (%s) at Lv %d") % [target.display_name, target.get_stage_name(), path.min_level])
+	return L10n.t("Evolves into %s") % ", ".join(parts) if not parts.is_empty() else L10n.t("Evolution: unknown")
 
 
 func _select(index: int) -> void:

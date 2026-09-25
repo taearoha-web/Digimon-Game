@@ -44,11 +44,11 @@ func _ready() -> void:
 	summary.add_child(UIUtil.label(draft.player_name, &"HeaderLabel"))
 	var catalog := GameData.customization_catalog
 	var a := draft.appearance
-	var outfit := "%s · %s · %s" % [
+	var outfit := L10n.t("%s · %s · %s") % [
 		catalog.find_option(&"top", a.top).get("name", a.top),
 		catalog.find_option(&"bottom", a.bottom).get("name", a.bottom),
 		catalog.find_option(&"shoes", a.shoes).get("name", a.shoes)]
-	summary.add_child(UIUtil.label("%s body · %s hair · %s face" % [
+	summary.add_child(UIUtil.label(L10n.t("%s body · %s hair · %s face") % [
 		catalog.find_option(&"body_type", a.body_type).get("name", a.body_type),
 		catalog.find_option(&"hair_style", a.hair_style).get("name", a.hair_style),
 		catalog.find_option(&"face", a.face).get("name", a.face)], &"DimLabel"))

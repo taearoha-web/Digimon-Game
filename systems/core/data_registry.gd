@@ -39,6 +39,38 @@ func reload_all() -> void:
 	recruitment_config = _load_single(RECRUITMENT_CONFIG_PATH, RecruitmentConfig.new()) as RecruitmentConfig
 	type_chart = _load_single(TYPE_CHART_PATH, TypeChart.new()) as TypeChart
 	customization_catalog = _load_single(CUSTOMIZATION_CATALOG_PATH, CustomizationCatalog.new()) as CustomizationCatalog
+	apply_locale()
+
+
+## Translates every display string of the loaded data into the current
+## TranslationServer locale (in memory; the .tres files stay English).
+## Called on load and whenever the language setting changes.
+func apply_locale() -> void:
+	for species in get_all("species"):
+		L10n.localize(species, [&"display_name", &"description", &"digimon_type"])
+		for path in species.evolutions:
+			L10n.localize(path, [&"hint"])
+	for skill in get_all("skills"):
+		L10n.localize(skill, [&"display_name", &"description"])
+	for item in get_all("items"):
+		L10n.localize(item, [&"display_name", &"description"])
+	for quest in get_all("quests"):
+		L10n.localize(quest, [&"title", &"summary"])
+		for objective in quest.objectives:
+			L10n.localize(objective, [&"description"])
+	for dialogue in get_all("dialogue"):
+		for line in dialogue.lines:
+			L10n.localize(line, [&"speaker", &"text"])
+	for npc in get_all("npcs"):
+		L10n.localize(npc, [&"display_name", &"title"])
+	for map_data in get_all("maps"):
+		L10n.localize(map_data, [&"display_name", &"description"])
+	for shop in get_all("shops"):
+		L10n.localize(shop, [&"display_name", &"greeting"])
+	if starter_roster:
+		L10n.localize(starter_roster, [&"taglines"])
+	if customization_catalog:
+		L10n.localize(customization_catalog, [&"body_types", &"hair_styles", &"faces", &"tops", &"bottoms", &"shoes", &"accessories"])
 
 
 func get_species(species_id: StringName) -> DigimonSpecies:

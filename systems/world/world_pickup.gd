@@ -12,7 +12,7 @@ var _visual: Node3D
 
 func _ready() -> void:
 	super._ready()
-	prompt_text = "Pick up"
+	prompt_text = L10n.t("Pick up")
 	interaction_radius = 1.8
 	add_to_group("pickups")
 	if pickup_id != "" and GameState.world.is_pickup_collected(pickup_id):
@@ -27,12 +27,12 @@ func _on_interact(_by: Node) -> void:
 		return
 	var added := GameState.inventory.add_item(item_id, amount)
 	if added <= 0:
-		EventBus.toast("You can't carry more %s." % item.display_name, &"warning")
+		EventBus.toast(L10n.t("You can't carry more %s.") % item.display_name, &"warning")
 		return
 	enabled = false
 	if pickup_id != "":
 		GameState.world.mark_pickup_collected(pickup_id)
-	EventBus.toast("Obtained %s ×%d" % [item.display_name, added], &"item")
+	EventBus.toast(L10n.t("Obtained %s ×%d") % [item.display_name, added], &"item")
 	AudioManager.play_sfx(&"pickup")
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "position:y", _visual.position.y + 1.2, 0.35)

@@ -9,17 +9,17 @@ extends RefCounted
 static func describe_requirements(path: EvolutionPath) -> PackedStringArray:
 	var parts := PackedStringArray()
 	if path.min_level > 1:
-		parts.append("Reach Lv %d" % path.min_level)
+		parts.append(L10n.t("Reach Lv %d") % path.min_level)
 	if path.required_item_id != &"":
-		parts.append("Have %s" % _item_name(path.required_item_id))
+		parts.append(L10n.t("Have %s") % _item_name(path.required_item_id))
 	if path.min_friendship > 0:
-		parts.append("Friendship %d+" % path.min_friendship)
+		parts.append(L10n.t("Friendship %d+") % path.min_friendship)
 	if path.required_quest_id != &"":
-		parts.append("Complete \"%s\"" % _quest_title(path.required_quest_id))
+		parts.append(L10n.t("Complete \"%s\"") % _quest_title(path.required_quest_id))
 	if path.required_flag != &"":
-		parts.append("Story progress: %s" % String(path.required_flag).capitalize())
+		parts.append(L10n.t("Story progress: %s") % String(path.required_flag).capitalize())
 	for stat in path.min_stats.keys():
-		parts.append("%s %d+" % [DigimonStats.display_name(StringName(stat)), int(path.min_stats[stat])])
+		parts.append(L10n.t("%s %d+") % [DigimonStats.display_name(StringName(stat)), int(path.min_stats[stat])])
 	return parts
 
 
@@ -27,27 +27,27 @@ static func describe_requirements(path: EvolutionPath) -> PackedStringArray:
 static func get_unmet_requirements(inst: DigimonInstance, path: EvolutionPath, ctx: Dictionary) -> PackedStringArray:
 	var unmet := PackedStringArray()
 	if inst == null or path == null:
-		unmet.append("Invalid evolution")
+		unmet.append(L10n.t("Invalid evolution"))
 		return unmet
 	if inst.level < path.min_level:
-		unmet.append("Reach Lv %d" % path.min_level)
+		unmet.append(L10n.t("Reach Lv %d") % path.min_level)
 	if path.required_item_id != &"":
 		var inventory: Inventory = ctx.get("inventory")
 		if inventory == null or not inventory.has_item(path.required_item_id):
-			unmet.append("Have %s" % _item_name(path.required_item_id))
+			unmet.append(L10n.t("Have %s") % _item_name(path.required_item_id))
 	if inst.friendship < path.min_friendship:
-		unmet.append("Friendship %d+" % path.min_friendship)
+		unmet.append(L10n.t("Friendship %d+") % path.min_friendship)
 	if path.required_quest_id != &"":
 		var quest_log: QuestLog = ctx.get("quest_log")
 		if quest_log == null or quest_log.get_state(path.required_quest_id) < QuestLog.State.COMPLETED:
-			unmet.append("Complete \"%s\"" % _quest_title(path.required_quest_id))
+			unmet.append(L10n.t("Complete \"%s\"") % _quest_title(path.required_quest_id))
 	if path.required_flag != &"":
 		var flags: Dictionary = ctx.get("flags", {})
 		if not flags.get(path.required_flag, false):
-			unmet.append("Story progress: %s" % String(path.required_flag).capitalize())
+			unmet.append(L10n.t("Story progress: %s") % String(path.required_flag).capitalize())
 	for stat in path.min_stats.keys():
 		if inst.get_stat(StringName(stat)) < int(path.min_stats[stat]):
-			unmet.append("%s %d+" % [DigimonStats.display_name(StringName(stat)), int(path.min_stats[stat])])
+			unmet.append(L10n.t("%s %d+") % [DigimonStats.display_name(StringName(stat)), int(path.min_stats[stat])])
 	return unmet
 
 
@@ -90,7 +90,7 @@ static func evolve(inst: DigimonInstance, path: EvolutionPath, ctx: Dictionary) 
 		return {"ok": false, "reason": ", ".join(unmet)}
 	var target := _species(path.target_species_id)
 	if target == null:
-		return {"ok": false, "reason": "Unknown species"}
+		return {"ok": false, "reason": L10n.t("Unknown species")}
 	var from_species := inst.species_id
 	var hp_ratio := inst.get_hp_ratio()
 	var sp_ratio := float(inst.current_sp) / float(maxi(1, inst.get_max_sp()))

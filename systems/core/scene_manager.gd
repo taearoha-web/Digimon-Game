@@ -60,7 +60,7 @@ func goto_map(map_id: StringName, spawn_id: StringName = &"", new_params := {}) 
 	var map_data: MapData = GameData.get_map(map_id)
 	if map_data == null or not ResourceLoader.exists(map_data.scene_path):
 		push_error("SceneManager: unknown map '%s'" % map_id)
-		EventBus.toast("That area is not available yet.", &"warning")
+		EventBus.toast(L10n.t("That area is not available yet."), &"warning")
 		return
 	var p := new_params.duplicate()
 	p["map_id"] = map_id
@@ -94,7 +94,7 @@ func _transition(path: String, key: StringName, new_params: Dictionary, show_loa
 	var packed := await _load_packed(path)
 	if packed == null:
 		push_error("SceneManager: failed to load %s" % path)
-		EventBus.toast("Failed to load scene.", &"warning")
+		EventBus.toast(L10n.t("Failed to load scene."), &"warning")
 		if key != &"main_menu":
 			packed = load(SCENES[&"main_menu"]) as PackedScene
 			key = &"main_menu"

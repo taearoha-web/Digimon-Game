@@ -57,7 +57,7 @@ func _slot_card(index: int, inst: DigimonInstance, party_size: int) -> Control:
 	var name_label := UIUtil.label(inst.get_display_name(), &"BoldLabel")
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.add_child(name_label)
-	title.add_child(UIUtil.label("Lv %d" % inst.level, &"ValueLabel"))
+	title.add_child(UIUtil.label(L10n.t("Lv %d") % inst.level, &"ValueLabel"))
 	var hp := ProgressBar.new()
 	hp.theme_type_variation = &"HPBar"
 	hp.show_percentage = false
@@ -65,8 +65,8 @@ func _slot_card(index: int, inst: DigimonInstance, party_size: int) -> Control:
 	UIUtil.set_bar(hp, inst.current_hp, inst.get_max_hp())
 	UIUtil.tint_hp_bar(hp, inst.get_hp_ratio())
 	info.add_child(hp)
-	info.add_child(UIUtil.label("HP %d/%d · SP %d/%d%s" % [inst.current_hp, inst.get_max_hp(), inst.current_sp, inst.get_max_sp(),
-		"  · Fainted" if inst.is_fainted() else ""], &"SmallLabel"))
+	info.add_child(UIUtil.label(L10n.t("HP %d/%d · SP %d/%d%s") % [inst.current_hp, inst.get_max_hp(), inst.current_sp, inst.get_max_sp(),
+		L10n.t("  · Fainted") if inst.is_fainted() else ""], &"SmallLabel"))
 	var arrows := UIUtil.vbox(4)
 	row.add_child(arrows)
 	var up := UIUtil.icon_button("res://assets/icons/ui/arrow_up.svg", Vector2(48, 40), &"ChoiceButton")
@@ -89,7 +89,7 @@ func _move(from: int, to: int) -> void:
 	if GameState.roster.move_party_member(from, to):
 		AudioManager.play_ui(&"ui_confirm")
 		if to == 0:
-			EventBus.toast("%s is now your partner!" % GameState.roster.get_lead().get_display_name(), &"success")
+			EventBus.toast(L10n.t("%s is now your partner!") % GameState.roster.get_lead().get_display_name(), &"success")
 	refresh()
 
 

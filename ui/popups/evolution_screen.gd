@@ -47,7 +47,7 @@ func _run(inst: DigimonInstance, path: EvolutionPath) -> void:
 	column.offset_bottom = -20
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_child(column)
-	_title = UIUtil.label("What? %s is evolving!" % inst.get_display_name(), &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_title = UIUtil.label(L10n.t("What? %s is evolving!") % inst.get_display_name(), &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	column.add_child(_title)
 	_stats_box = UIUtil.vbox(4)
 	column.add_child(_stats_box)
@@ -82,11 +82,11 @@ func _run(inst: DigimonInstance, path: EvolutionPath) -> void:
 	tween = create_tween()
 	tween.tween_property(_flash, "color:a", 0.0, 0.6)
 	if not result.get("ok", false):
-		_title.text = "Evolution failed: %s" % result.get("reason", "?")
+		_title.text = L10n.t("Evolution failed: %s") % result.get("reason", "?")
 	else:
 		AudioManager.play_sfx(&"level_up")
 		_visual.play_once(&"victory", &"idle")
-		_title.text = "Congratulations! It evolved into %s!" % target.display_name
+		_title.text = L10n.t("Congratulations! It evolved into %s!") % target.display_name
 		_show_stats(result)
 		EventBus.digimon_evolved.emit(inst, result.from_species)
 		GameState.roster.notify_changed()
@@ -115,6 +115,6 @@ func _show_stats(result: Dictionary) -> void:
 		if skill:
 			learned.append(skill.display_name)
 	if not learned.is_empty():
-		var l := UIUtil.label("New skills: %s" % ", ".join(learned), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		var l := UIUtil.label(L10n.t("New skills: %s") % ", ".join(learned), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		l.add_theme_color_override("font_color", UIPalette.GOLD)
 		_stats_box.add_child(l)

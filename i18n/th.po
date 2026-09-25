@@ -1,0 +1,2785 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Digimon Adventure RPG Prototype\n"
+"Language: th\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: characters/npc/npc.gd
+msgid "Your party was fully healed!"
+msgstr "ปาร์ตี้ของคุณฟื้นฟูเต็มที่แล้ว!"
+
+#: data/config/customization_catalog.tres
+msgid "Adventure Pants"
+msgstr "กางเกงนักผจญภัย"
+
+#: data/config/customization_catalog.tres
+msgid "Adventure Shirt"
+msgstr "เสื้อนักผจญภัย"
+
+#: data/config/customization_catalog.tres
+msgid "Backpack"
+msgstr "เป้สะพายหลัง"
+
+#: data/config/customization_catalog.tres
+msgid "Bob"
+msgstr "บ็อบ"
+
+#: data/config/customization_catalog.tres
+msgid "Boots"
+msgstr "รองเท้าบูท"
+
+#: data/config/customization_catalog.tres
+msgid "Bright"
+msgstr "สดใส"
+
+#: data/config/customization_catalog.tres
+msgid "Cap"
+msgstr "หมวกแก๊ป"
+
+#: data/config/customization_catalog.tres
+msgid "Cheerful"
+msgstr "ร่าเริง"
+
+#: data/config/customization_catalog.tres
+msgid "Cool"
+msgstr "เท่"
+
+#: data/config/customization_catalog.tres
+msgid "Female"
+msgstr "หญิง"
+
+#: data/config/customization_catalog.tres
+msgid "Glasses"
+msgstr "แว่นตา"
+
+#: data/config/customization_catalog.tres
+msgid "Hoodie"
+msgstr "ฮู้ดดี้"
+
+#: data/config/customization_catalog.tres
+msgid "Jacket"
+msgstr "แจ็กเก็ต"
+
+#: data/config/customization_catalog.tres
+msgid "Long"
+msgstr "ยาว"
+
+#: data/config/customization_catalog.tres
+msgid "Long Pants"
+msgstr "กางเกงขายาว"
+
+#: data/config/customization_catalog.tres
+msgid "Male"
+msgstr "ชาย"
+
+#: data/config/customization_catalog.tres
+msgid "Messy"
+msgstr "ยุ่ง ๆ"
+
+#: data/config/customization_catalog.tres
+msgid "Ponytail"
+msgstr "หางม้า"
+
+#: data/config/customization_catalog.tres
+msgid "Short Crop"
+msgstr "สั้นเกรียน"
+
+#: data/config/customization_catalog.tres
+msgid "Shorts"
+msgstr "กางเกงขาสั้น"
+
+#: data/config/customization_catalog.tres
+msgid "Sleepy"
+msgstr "ง่วง ๆ"
+
+#: data/config/customization_catalog.tres
+msgid "Sneakers"
+msgstr "รองเท้าผ้าใบ"
+
+#: data/config/customization_catalog.tres
+msgid "Spiky"
+msgstr "หนามแหลม"
+
+#: data/config/customization_catalog.tres
+msgid "T-Shirt"
+msgstr "เสื้อยืด"
+
+#: data/config/customization_catalog.tres
+msgid "Twin Tails"
+msgstr "แกะสองข้าง"
+
+#: data/config/starter_roster.tres
+msgid "Brave & fiery"
+msgstr "กล้าหาญและร้อนแรง"
+
+#: data/config/starter_roster.tres
+msgid "Gentle & lucky"
+msgstr "อ่อนโยนและโชคดี"
+
+#: data/config/starter_roster.tres
+msgid "Loyal & cool-headed"
+msgstr "ซื่อสัตย์และใจเย็น"
+
+#: data/config/type_chart.tres
+msgid "Dark"
+msgstr "ความมืด"
+
+#: data/config/type_chart.tres
+msgid "Earth"
+msgstr "ดิน"
+
+#: data/config/type_chart.tres
+msgid "Fire"
+msgstr "ไฟ"
+
+#: data/config/type_chart.tres
+msgid "Ice"
+msgstr "น้ำแข็ง"
+
+#: data/config/type_chart.tres
+msgid "Light"
+msgstr "แสง"
+
+#: data/config/type_chart.tres
+msgid "Plant"
+msgstr "พืช"
+
+#: data/config/type_chart.tres
+msgid "Thunder"
+msgstr "สายฟ้า"
+
+#: data/config/type_chart.tres
+msgid "Wind"
+msgstr "ลม"
+
+#: data/dialogue/byte_after.tres
+msgid "Did you know? Vaccine beats Virus, Virus beats Data, and Data beats Vaccine. Knowledge is power!"
+msgstr "รู้ไหม? วัคซีนชนะไวรัส ไวรัสชนะดาต้า และดาต้าชนะวัคซีน ความรู้คือพลัง!"
+
+#: data/dialogue/byte_after.tres
+msgid "Element matters too: fire melts ice, ice chills wind, thunder zaps wind. Experiment!"
+msgstr "ธาตุก็สำคัญนะ ไฟละลายน้ำแข็ง น้ำแข็งแช่แข็งลม สายฟ้าช็อตลม ลองทดลองดูสิ!"
+
+#: data/dialogue/byte_hint.tres
+msgid "My sensors detect fragments near the river, in the Wild Meadow and on the northern hill. Three is all I need!"
+msgstr "เซนเซอร์ของผมตรวจพบเศษข้อมูลใกล้แม่น้ำ ในทุ่งหญ้าป่า และบนเนินเขาทางเหนือ ขอแค่สามชิ้นก็พอ!"
+
+#: data/dialogue/byte_offer.tres
+msgid "A data storm scattered fragments of my archive all over the place. They glow like little floating cubes."
+msgstr "พายุข้อมูลพัดเศษคลังข้อมูลของผมกระจายไปทั่ว มันเรืองแสงเหมือนลูกบาศก์เล็ก ๆ ลอยอยู่"
+
+#: data/dialogue/byte_offer.tres
+msgid "Bzzt! Greetings, Tamer {player_name}. I am Byte, archivist of this zone."
+msgstr "บี๊บ! สวัสดี เทมเมอร์ {player_name} ผมคือไบต์ ผู้ดูแลคลังข้อมูลของโซนนี้"
+
+#: data/dialogue/byte_offer.tres
+msgid "Could you collect three Data Fragments for me? Just walk up to one and pick it up."
+msgstr "ช่วยเก็บเศษข้อมูลสามชิ้นให้ผมหน่อยได้ไหม แค่เดินเข้าไปใกล้แล้วเก็บขึ้นมา"
+
+#: data/dialogue/byte_turn_in.tres
+msgid "Archive restored! Splendid work, {player_name}."
+msgstr "กู้คืนคลังข้อมูลสำเร็จ! ยอดเยี่ยมมาก {player_name}"
+
+#: data/dialogue/byte_turn_in.tres
+msgid "Open your Inventory, pick the Gear tab and choose who should hold it. Use it well!"
+msgstr "เปิดกระเป๋า เลือกแท็บอุปกรณ์ แล้วเลือกว่าจะให้ใครถือ ใช้ให้คุ้มนะ!"
+
+#: data/dialogue/byte_turn_in.tres
+msgid "Please accept some equipment from my storage. That Power Chip boosts the attack of whichever Digimon holds it."
+msgstr "รับอุปกรณ์จากคลังของผมไปด้วยนะ ชิปพลังจะเพิ่มพลังโจมตีให้ดิจิมอนที่ถือมัน"
+
+#: data/dialogue/intro_sequence.tres
+msgid "A soft chime wakes you. Lines of light stream past like shooting stars…"
+msgstr "เสียงกริ๊งแผ่วเบาปลุกคุณขึ้นมา เส้นแสงพุ่งผ่านไปเหมือนดาวตก…"
+
+#: data/dialogue/intro_sequence.tres
+msgid "This is the Digital World. It's where Digimon like me live. And now… you're my Tamer!"
+msgstr "ที่นี่คือดิจิทัลเวิลด์ ที่อยู่ของดิจิมอนอย่างฉัน และตอนนี้… คุณคือเทมเมอร์ของฉันแล้ว!"
+
+#: data/dialogue/intro_sequence.tres
+msgid "When the glow fades, you are standing somewhere impossible: a world built from living data."
+msgstr "เมื่อแสงจางหาย คุณกำลังยืนอยู่ในที่ที่ไม่น่าจะมีอยู่จริง โลกที่สร้างจากข้อมูลที่มีชีวิต"
+
+#: data/dialogue/intro_sequence.tres
+msgid "Your adventure begins."
+msgstr "การผจญภัยของคุณเริ่มต้นขึ้นแล้ว"
+
+#: data/dialogue/intro_sequence.tres
+msgid "…Hey! Hey, are you okay? You're {player_name}, right? I've been waiting for you!"
+msgstr "…เฮ้! เฮ้ เป็นอะไรหรือเปล่า? คุณคือ {player_name} ใช่ไหม? ฉันรอคุณอยู่เลย!"
+
+#: data/dialogue/kai_default.tres
+msgid "Hey! I'm Kai. I'm training to become the strongest Tamer around!"
+msgstr "เฮ้! ฉันชื่อไค กำลังฝึกเพื่อเป็นเทมเมอร์ที่เก่งที่สุดแถวนี้!"
+
+#: data/dialogue/kai_default.tres
+msgid "In battle, Defend halves damage and restores some SP. Super handy when you're running low!"
+msgstr "ตอนต่อสู้ การป้องกันจะลดความเสียหายครึ่งหนึ่งและฟื้น SP ได้บ้าง ช่วยได้มากตอน SP ใกล้หมด!"
+
+#: data/dialogue/kai_default.tres
+msgid "Tip: push the joystick all the way to run, or tap the Sprint button to keep running."
+msgstr "เคล็ดลับ: ดันจอยให้สุดเพื่อวิ่ง หรือแตะปุ่มวิ่งเพื่อวิ่งต่อไปเรื่อย ๆ"
+
+#: data/dialogue/lumi_after.tres
+msgid "Thanks to you the forest is peaceful again. Need anything? Take a look at my wares."
+msgstr "ขอบคุณนะ ป่ากลับมาสงบอีกครั้งแล้ว ต้องการอะไรไหม? ดูสินค้าของฉันได้เลย"
+
+#: data/dialogue/lumi_hint.tres
+msgid "The Crystal Lake is north of camp, the Old Ruins are to the east. Stay safe, {player_name}!"
+msgstr "ทะเลสาบคริสตัลอยู่ทางเหนือของแคมป์ ซากปรักหักพังโบราณอยู่ทางตะวันออก ระวังตัวด้วยนะ {player_name}!"
+
+#: data/dialogue/lumi_offer.tres
+msgid "Oh! A Tamer came through the Gateway? Welcome to the Data Forest, {player_name}. I'm Lumi, the ranger here."
+msgstr "โอ้! มีเทมเมอร์ผ่านประตูมิติมาด้วย? ยินดีต้อนรับสู่ป่าดาต้า {player_name} ฉันชื่อลูมิ เป็นเรนเจอร์ที่นี่"
+
+#: data/dialogue/lumi_offer.tres
+msgid "Stronger Digimon live here than in the Starter Zone. My shop has chips and supplies if you need them!"
+msgstr "ดิจิมอนที่นี่แข็งแกร่งกว่าในโซนเริ่มต้นนะ ร้านของฉันมีชิปและเสบียงถ้าต้องการ!"
+
+#: data/dialogue/lumi_offer.tres
+msgid "The forest's data has been restless lately. I need someone to survey it for me."
+msgstr "ช่วงนี้ข้อมูลในป่าไม่ค่อยสงบ ฉันต้องการใครสักคนช่วยสำรวจให้"
+
+#: data/dialogue/lumi_offer.tres
+msgid "Visit the Crystal Lake to the north and the Old Ruins in the east, and win three battles against wild Digimon along the way."
+msgstr "ไปที่ทะเลสาบคริสตัลทางเหนือ กับซากปรักหักพังโบราณทางตะวันออก และชนะดิจิมอนป่าสามครั้งระหว่างทาง"
+
+#: data/dialogue/lumi_turn_in.tres
+msgid "Take this Speed Chip and an Evo Shard. {partner_name} has earned them."
+msgstr "รับชิปความเร็วกับเศษคริสตัลวิวัฒนาการนี้ไป {partner_name} สมควรได้รับมัน"
+
+#: data/dialogue/lumi_turn_in.tres
+msgid "Your survey is perfect! The forest feels calmer already."
+msgstr "การสำรวจของคุณสมบูรณ์แบบ! ป่ารู้สึกสงบขึ้นแล้ว"
+
+#: data/dialogue/mira_default.tres
+msgid "The Digital World is huge, {player_name}. Keep training with {partner_name}!"
+msgstr "ดิจิทัลเวิลด์กว้างใหญ่มากนะ {player_name} ฝึกกับ {partner_name} ต่อไปเรื่อย ๆ ล่ะ!"
+
+#: data/dialogue/mira_friend_done.tres
+msgid "Look at that, a new friend! Your party can hold three Digimon. The rest wait safely in your Collection."
+msgstr "ดูสิ เพื่อนใหม่! ปาร์ตี้มีดิจิมอนได้สามตัว ที่เหลือจะรออย่างปลอดภัยในคอลเลกชัน"
+
+#: data/dialogue/mira_friend_done.tres
+msgid "Open the menu to manage your Party and Collection. Take these and keep exploring!"
+msgstr "เปิดเมนูเพื่อจัดการปาร์ตี้และคอลเลกชัน รับของพวกนี้ไปแล้วสำรวจต่อเลย!"
+
+#: data/dialogue/mira_friend_hint.tres
+msgid "Weaken a wild Digimon, then use Befriend. Sometimes they even ask to join after a good fight!"
+msgstr "ทำให้ดิจิมอนป่าอ่อนแรงก่อน แล้วใช้คำสั่งผูกมิตร บางทีหลังสู้กันดี ๆ พวกมันก็ขอเข้าร่วมเองเลย!"
+
+#: data/dialogue/mira_friend_offer.tres
+msgid "Digimon don't join Tamers because they're forced to. They join because they want to."
+msgstr "ดิจิมอนไม่ได้มาอยู่กับเทมเมอร์เพราะถูกบังคับ แต่มาเพราะพวกมันอยากมาเอง"
+
+#: data/dialogue/mira_friend_offer.tres
+msgid "When a wild Digimon is weakened, try the Befriend command in battle. A Friendly Treat helps, too."
+msgstr "เมื่อดิจิมอนป่าอ่อนแรงแล้ว ลองใช้คำสั่งผูกมิตรในการต่อสู้ ขนมผูกมิตรก็ช่วยได้นะ"
+
+#: data/dialogue/mira_friend_offer.tres
+msgid "Why don't you try to make a new friend? Come back when someone joins your team!"
+msgstr "ลองไปหาเพื่อนใหม่ดูไหม? มีใครเข้าร่วมทีมแล้วค่อยกลับมาหาฉันนะ!"
+
+#: data/dialogue/mira_hint.tres
+msgid "Head east across the bridge to the Training Grounds, then win a battle against a wild Digimon."
+msgstr "ไปทางตะวันออก ข้ามสะพานไปที่ลานฝึก แล้วชนะการต่อสู้กับดิจิมอนป่าหนึ่งครั้ง"
+
+#: data/dialogue/mira_hint.tres
+msgid "If {partner_name} gets hurt, the Recovery Terminal here in the plaza will patch you right up."
+msgstr "ถ้า {partner_name} บาดเจ็บ เครื่องฟื้นฟูที่ลานกลางนี้จะรักษาให้ทันที"
+
+#: data/dialogue/mira_offer.tres
+msgid "And that must be your partner, {partner_name}. You two already look like a great team."
+msgstr "แล้วนั่นก็คงเป็นคู่หูของคุณ {partner_name} สินะ พวกคุณดูเป็นทีมที่เข้ากันดีมากเลย"
+
+#: data/dialogue/mira_offer.tres
+msgid "Cross the bridge to the east and visit the Training Grounds. Then show me you can win a battle against a wild Digimon."
+msgstr "ข้ามสะพานไปทางตะวันออกแล้วไปที่ลานฝึก จากนั้นแสดงให้ฉันเห็นว่าคุณชนะดิจิมอนป่าได้"
+
+#: data/dialogue/mira_offer.tres
+msgid "I'm Mira. I help new Tamers find their footing. Let's start with the basics!"
+msgstr "ฉันชื่อมิระ คอยช่วยเทมเมอร์มือใหม่ให้ตั้งตัวได้ มาเริ่มจากพื้นฐานกันเลย!"
+
+#: data/dialogue/mira_offer.tres
+msgid "Oh! You must be {player_name}. Welcome to the Digital World!"
+msgstr "อ้าว! คุณต้องเป็น {player_name} แน่ ๆ ยินดีต้อนรับสู่ดิจิทัลเวิลด์!"
+
+#: data/dialogue/mira_offer.tres
+msgid "Walk into a wild Digimon to challenge it. Skills cost SP, so watch your gauge!"
+msgstr "เดินเข้าไปชนดิจิมอนป่าเพื่อท้าสู้ สกิลใช้ SP นะ คอยดูเกจด้วยล่ะ!"
+
+#: data/dialogue/mira_turn_in.tres
+msgid "Here, take these supplies. That Evo Shard is special: once {partner_name} reaches Lv 7 it can trigger an early evolution."
+msgstr "นี่ รับเสบียงพวกนี้ไป เศษคริสตัลวิวัฒนาการชิ้นนั้นพิเศษนะ พอ {partner_name} ถึง Lv 7 ก็วิวัฒนาการได้เร็วกว่าปกติ"
+
+#: data/dialogue/mira_turn_in.tres
+msgid "I've also given you a Gate Pass. The gateway to the north-east will open for you now."
+msgstr "ฉันให้บัตรผ่านประตูกับคุณด้วย ประตูมิติทางตะวันออกเฉียงเหนือจะเปิดให้คุณแล้ว"
+
+#: data/dialogue/mira_turn_in.tres
+msgid "You did it, {player_name}! {partner_name} fought brilliantly."
+msgstr "ทำได้แล้ว {player_name}! {partner_name} สู้ได้ยอดเยี่ยมมาก"
+
+#: data/dialogue/pip_default.tres
+msgid "Welcome to Pip's Patch Stand! Patches, capsules, treats… everything a new Tamer needs."
+msgstr "ยินดีต้อนรับสู่ร้านแพตช์ของพิป! แพตช์ แคปซูล ขนม… มีทุกอย่างที่เทมเมอร์มือใหม่ต้องการ"
+
+#: data/dialogue/portal_locked.tres
+msgid "Gateway"
+msgstr "ประตูมิติ"
+
+#: data/dialogue/portal_locked.tres
+msgid "The gateway is sealed. A shimmering message reads: \"Gate Pass required.\""
+msgstr "ประตูมิติถูกผนึกอยู่ มีข้อความระยิบระยับเขียนว่า \"ต้องใช้บัตรผ่านประตู\""
+
+#: data/dialogue/portal_unlocked.tres
+msgid "(A new zone will be reachable here in a future update.)"
+msgstr "(จะไปโซนใหม่ทางนี้ได้ในอัปเดตถัดไป)"
+
+#: data/dialogue/portal_unlocked.tres
+msgid "The gateway hums with energy… but the path beyond is still forming."
+msgstr "ประตูมิติส่งเสียงหึ่งด้วยพลังงาน… แต่เส้นทางข้างหลังยังก่อตัวไม่เสร็จ"
+
+#: data/dialogue/sign_forest_camp.tres
+msgid "RANGER CAMP — Recovery Terminal and Lumi's shop.\nNORTH: Crystal Lake.  EAST: Old Ruins.  SOUTH-WEST: Gateway home."
+msgstr "แคมป์เรนเจอร์ — เครื่องฟื้นฟูและร้านของลูมิ\nเหนือ: ทะเลสาบคริสตัล  ตะวันออก: ซากปรักหักพังโบราณ  ตะวันตกเฉียงใต้: ประตูกลับบ้าน"
+
+#: data/dialogue/sign_lake.tres
+msgid "CRYSTAL LAKE — Its water mirrors the data sky. Do not drink the code."
+msgstr "ทะเลสาบคริสตัล — ผิวน้ำสะท้อนท้องฟ้าดาต้า ห้ามดื่มโค้ด"
+
+#: data/dialogue/sign_meadow.tres
+msgid "Signpost"
+msgstr "ป้ายบอกทาง"
+
+#: data/dialogue/sign_meadow.tres
+msgid "WILD MEADOW — Wild Digimon roam the tall grass. Tamers, stay alert!"
+msgstr "ทุ่งหญ้าป่า — ดิจิมอนป่าเดินอยู่ในหญ้าสูง เทมเมอร์ทั้งหลาย ระวังตัวด้วย!"
+
+#: data/dialogue/sign_plaza.tres
+msgid "PLAZA — Recovery Terminal here.\nEAST (over the bridge): Training Grounds & Wild Meadow.\nNORTH-EAST: Gateway."
+msgstr "ลานกลาง — มีเครื่องฟื้นฟูอยู่ที่นี่\nตะวันออก (ข้ามสะพาน): ลานฝึกและทุ่งหญ้าป่า\nตะวันออกเฉียงเหนือ: ประตูมิติ"
+
+#: data/dialogue/sign_ruins.tres
+msgid "OLD RUINS — Remains of an ancient server. Strong Digimon gather here."
+msgstr "ซากปรักหักพังโบราณ — ซากเซิร์ฟเวอร์โบราณ ดิจิมอนที่แข็งแกร่งมักมารวมตัวที่นี่"
+
+#: data/dialogue/sign_training.tres
+msgid "TRAINING GROUNDS — Wild Digimon often wander in here. Perfect for practice battles."
+msgstr "ลานฝึก — ดิจิมอนป่ามักเดินเข้ามาที่นี่ เหมาะสำหรับฝึกต่อสู้"
+
+#: data/dialogue/terminal_heal.tres
+msgid "Recovery Terminal"
+msgstr "เครื่องฟื้นฟู"
+
+#: data/dialogue/terminal_heal.tres
+msgid "Scanning party… Restoring data… Done! Your Digimon are fully healed."
+msgstr "กำลังสแกนปาร์ตี้… กำลังกู้คืนข้อมูล… เสร็จแล้ว! ดิจิมอนของคุณฟื้นฟูเต็มที่แล้ว"
+
+#: data/digimon/agumon.tres
+msgid "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited. (Original placeholder model.)"
+msgstr "ดิจิมอนสัตว์เลื้อยคลานตัวเล็กผู้กล้าหาญ กินจุและใจใหญ่ยิ่งกว่า เวลาตื่นเต้นจะพ่นไฟเล็ก ๆ ออกมา (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/agumon.tres
+msgid "Agumon"
+msgstr "อากุมอน"
+
+#: data/digimon/angemon.tres
+msgid "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light. (Original placeholder model.)"
+msgstr "ดิจิมอนผู้พิทักษ์ที่เปล่งประกาย มีปีกหลายคู่ คอยปกป้องผู้อ่อนแอด้วยแสงอันมั่นคง (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/angemon.tres
+msgid "Angel"
+msgstr "ทูตสวรรค์"
+
+#: data/digimon/angemon.tres
+msgid "Angemon"
+msgstr "เอนเจมอน"
+
+#: data/digimon/birdramon.tres
+msgid "A great bird Digimon whose wings blaze like a sunrise. (Original placeholder model.)"
+msgstr "ดิจิมอนนกยักษ์ที่ปีกลุกโชนราวกับดวงอาทิตย์ยามเช้า (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/birdramon.tres
+msgid "Birdramon"
+msgstr "เบิร์ดรามอน"
+
+#: data/digimon/birdramon.tres
+msgid "Giant Bird"
+msgstr "นกยักษ์"
+
+#: data/digimon/biyomon.tres
+msgid "A bright bird Digimon that is still learning to fly. It pecks with a beak that glows with heat. (Original placeholder model.)"
+msgstr "ดิจิมอนนกสีสดใสที่ยังหัดบินอยู่ จิกด้วยจะงอยปากที่ร้อนเรืองแสง (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/biyomon.tres
+msgid "Bird"
+msgstr "นก"
+
+#: data/digimon/biyomon.tres
+msgid "Biyomon"
+msgstr "ปิโยมอน"
+
+#: data/digimon/elecmon.tres
+msgid "A spirited mammal Digimon whose bundle of tails crackles with static. (Original placeholder model.)"
+msgstr "ดิจิมอนสัตว์เลี้ยงลูกด้วยนมจอมพลัง หางหลายเส้นของมันมีไฟฟ้าสถิตแตกเปาะแปะ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/elecmon.tres
+msgid "Elecmon"
+msgstr "เอเลคมอน"
+
+#: data/digimon/flymon.tres
+msgid "A huge buzzing insect Digimon. The sound of its wings unsettles its foes. (Original placeholder model.)"
+msgstr "ดิจิมอนแมลงตัวใหญ่ส่งเสียงหึ่ง เสียงปีกของมันทำให้ศัตรูหวั่นใจ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/flymon.tres
+msgid "Flymon"
+msgstr "ฟลายมอน"
+
+#: data/digimon/flymon.tres
+msgid "Insect"
+msgstr "แมลง"
+
+#: data/digimon/gabumon.tres
+msgid "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts. (Original placeholder model.)"
+msgstr "ดิจิมอนมีเขาขี้อาย ชอบซ่อนตัวใต้ขนลายทางอุ่น ๆ ซื่อสัตย์และสุขุม พ่นลมเย็นสีฟ้าได้ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/gabumon.tres
+msgid "An Evo Shard can speed things up."
+msgstr "เศษคริสตัลวิวัฒนาการช่วยให้เร็วขึ้นได้"
+
+#: data/digimon/gabumon.tres
+msgid "Gabumon"
+msgstr "กาบุมอน"
+
+#: data/digimon/gabumon.tres
+msgid "Grows with experience."
+msgstr "เติบโตไปตามประสบการณ์"
+
+#: data/digimon/gabumon.tres
+msgid "Reptile"
+msgstr "สัตว์เลื้อยคลาน"
+
+#: data/digimon/garurumon.tres
+msgid "A swift wolf Digimon with a coat that shimmers like ice. It runs across the Digital World like the wind. (Original placeholder model.)"
+msgstr "ดิจิมอนหมาป่าว่องไว ขนเป็นประกายเหมือนน้ำแข็ง วิ่งข้ามดิจิทัลเวิลด์ได้เร็วดั่งสายลม (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/garurumon.tres
+msgid "Beast"
+msgstr "สัตว์ร้าย"
+
+#: data/digimon/garurumon.tres
+msgid "Garurumon"
+msgstr "การุรุมอน"
+
+#: data/digimon/goburimon.tres
+msgid "A cheeky goblin Digimon that swings a knobbly club at anything that moves. (Original placeholder model.)"
+msgstr "ดิจิมอนก็อบลินจอมทะเล้น ฟาดกระบองปุ่มปมใส่ทุกอย่างที่ขยับ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/goburimon.tres
+msgid "Goblin"
+msgstr "ก็อบลิน"
+
+#: data/digimon/goburimon.tres
+msgid "Goburimon"
+msgstr "โกบุริมอน"
+
+#: data/digimon/greymon.tres
+msgid "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows. (Original placeholder model.)"
+msgstr "ดิจิมอนไดโนเสาร์หุ้มเกราะร่างสูงใหญ่ หัวที่สวมหมวกเกราะรับการโจมตีหนัก ๆ ได้สบาย (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/greymon.tres
+msgid "Dinosaur"
+msgstr "ไดโนเสาร์"
+
+#: data/digimon/greymon.tres
+msgid "Greymon"
+msgstr "เกรย์มอน"
+
+#: data/digimon/koromon.tres
+msgid "A bouncy pink ball of a Digimon with long floppy ears. It hops everywhere. (Original placeholder model.)"
+msgstr "ดิจิมอนลูกกลมสีชมพูเด้งดึ๋ง หูยาวห้อย กระโดดไปทั่ว (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/koromon.tres
+msgid "Koromon"
+msgstr "โคโรมอน"
+
+#: data/digimon/koromon.tres
+msgid "Lesser"
+msgstr "ดิจิมอนตัวจิ๋ว"
+
+#: data/digimon/kunemon.tres
+msgid "A mischievous larva Digimon that spins crackling threads from its mouth. (Original placeholder model.)"
+msgstr "ดิจิมอนตัวอ่อนจอมซน พ่นใยไฟฟ้าแตกเปาะแปะออกจากปาก (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/kunemon.tres
+msgid "Kunemon"
+msgstr "คุเนมอน"
+
+#: data/digimon/kunemon.tres
+msgid "Larva"
+msgstr "ตัวอ่อน"
+
+#: data/digimon/leomon.tres
+msgid "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice. (Original placeholder model.)"
+msgstr "ดิจิมอนนักรบสง่างามคล้ายสิงโต แผงคอพลิ้วไหว ยึดมั่นในความยุติธรรม (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/leomon.tres
+msgid "Beast Man"
+msgstr "มนุษย์สัตว์"
+
+#: data/digimon/leomon.tres
+msgid "Leomon"
+msgstr "ลีโอมอน"
+
+#: data/digimon/ogremon.tres
+msgid "A hulking ogre Digimon carrying a bone-white club. Rough, but it respects strength. (Original placeholder model.)"
+msgstr "ดิจิมอนยักษ์ร่างกำยำถือกระบองสีขาวดั่งกระดูก ดูหยาบกระด้างแต่เคารพคนที่แข็งแกร่ง (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/ogremon.tres
+msgid "Ogre"
+msgstr "ยักษ์โอเกอร์"
+
+#: data/digimon/ogremon.tres
+msgid "Ogremon"
+msgstr "โอเกอร์มอน"
+
+#: data/digimon/palmon.tres
+msgid "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines. (Original placeholder model.)"
+msgstr "ดิจิมอนพืชที่มีดอกไม้ใหญ่บนหัว ชอบแสงแดดและยืดเถาวัลย์ได้ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/palmon.tres
+msgid "Palmon"
+msgstr "พาลมอน"
+
+#: data/digimon/patamon.tres
+msgid "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer. (Original placeholder model.)"
+msgstr "ดิจิมอนตัวกลมร่าเริง บินได้ด้วยการกระพือหูใหญ่ ๆ ว่ากันว่านำโชคมาให้เทมเมอร์ของมัน (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/patamon.tres
+msgid "Mammal"
+msgstr "สัตว์เลี้ยงลูกด้วยนม"
+
+#: data/digimon/patamon.tres
+msgid "Patamon"
+msgstr "พาตามอน"
+
+#: data/digimon/togemon.tres
+msgid "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside. (Original placeholder model.)"
+msgstr "ดิจิมอนกระบองเพชรยักษ์สวมนวมชกมวย ภายนอกมีหนาม แต่ภายในใจดี (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/togemon.tres
+msgid "Togemon"
+msgstr "โทเกมอน"
+
+#: data/digimon/tokomon.tres
+msgid "A tiny white Digimon with little feet and a surprisingly big mouth. (Original placeholder model.)"
+msgstr "ดิจิมอนตัวจิ๋วสีขาว เท้าเล็ก ๆ แต่ปากใหญ่อย่างน่าประหลาด (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/tokomon.tres
+msgid "Tokomon"
+msgstr "โทโคมอน"
+
+#: data/digimon/tsunomon.tres
+msgid "A small round Digimon with a single horn and soft blue fur. (Original placeholder model.)"
+msgstr "ดิจิมอนตัวกลมเล็ก มีเขาเดียวและขนสีฟ้านุ่มนิ่ม (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: data/digimon/tsunomon.tres
+msgid "Tsunomon"
+msgstr "ซึโนมอน"
+
+#: data/items/data_fragment.tres
+msgid "A glowing piece of Byte's scattered archive."
+msgstr "ชิ้นส่วนเรืองแสงจากคลังข้อมูลของไบต์ที่กระจัดกระจาย"
+
+#: data/items/data_fragment.tres
+msgid "Data Fragment"
+msgstr "เศษข้อมูล"
+
+#: data/items/evo_shard.tres
+msgid "A crystal humming with evolution data. Lets a Rookie evolve early (Lv 7+). Used up on evolution."
+msgstr "คริสตัลที่สั่นด้วยข้อมูลวิวัฒนาการ ช่วยให้รุกกี้วิวัฒนาการได้เร็วขึ้น (Lv 7 ขึ้นไป) ใช้แล้วหมดไป"
+
+#: data/items/evo_shard.tres
+msgid "Evo Shard"
+msgstr "เศษคริสตัลวิวัฒนาการ"
+
+#: data/items/focus_chip.tres
+msgid "A violet circuit that amplifies special techniques."
+msgstr "วงจรสีม่วงที่ขยายพลังท่าพิเศษ"
+
+#: data/items/focus_chip.tres
+msgid "Focus Chip"
+msgstr "ชิปสมาธิ"
+
+#: data/items/friend_treat.tres
+msgid "A tasty snack. Using it in battle makes a wild Digimon easier to befriend (+15%)."
+msgstr "ขนมแสนอร่อย ใช้ตอนต่อสู้แล้วดิจิมอนป่าจะผูกมิตรได้ง่ายขึ้น (+15%)"
+
+#: data/items/friend_treat.tres
+msgid "Friendly Treat"
+msgstr "ขนมผูกมิตร"
+
+#: data/items/full_recovery_disk.tres
+msgid "Full Recovery Disk"
+msgstr "ดิสก์ฟื้นฟูเต็มที่"
+
+#: data/items/full_recovery_disk.tres
+msgid "Fully restores HP and SP of one Digimon."
+msgstr "ฟื้นฟู HP และ SP ของดิจิมอนหนึ่งตัวจนเต็ม"
+
+#: data/items/gate_pass.tres
+msgid "Gate Pass"
+msgstr "บัตรผ่านประตู"
+
+#: data/items/gate_pass.tres
+msgid "Opens the gateway in the Starter Zone."
+msgstr "ใช้เปิดประตูมิติในโซนเริ่มต้น"
+
+#: data/items/guard_chip.tres
+msgid "A sturdy blue circuit that hardens data shells."
+msgstr "วงจรสีฟ้าแข็งแรง ช่วยให้เปลือกข้อมูลแกร่งขึ้น"
+
+#: data/items/guard_chip.tres
+msgid "Guard Chip"
+msgstr "ชิปป้องกัน"
+
+#: data/items/medium_patch.tres
+msgid "Medium Data Patch"
+msgstr "แพตช์ข้อมูลกลาง"
+
+#: data/items/medium_patch.tres
+msgid "Restores 100 HP to one Digimon."
+msgstr "ฟื้นฟู HP 100 ให้ดิจิมอนหนึ่งตัว"
+
+#: data/items/power_chip.tres
+msgid "A red circuit that sharpens every strike."
+msgstr "วงจรสีแดงที่ทำให้ทุกการโจมตีคมขึ้น"
+
+#: data/items/power_chip.tres
+msgid "Power Chip"
+msgstr "ชิปพลัง"
+
+#: data/items/reboot_chip.tres
+msgid "Reboot Chip"
+msgstr "ชิปรีบูต"
+
+#: data/items/reboot_chip.tres
+msgid "Revives a fainted Digimon with 50% HP."
+msgstr "ชุบชีวิตดิจิมอนที่หมดสติ พร้อม HP 50%"
+
+#: data/items/small_patch.tres
+msgid "Restores 40 HP to one Digimon."
+msgstr "ฟื้นฟู HP 40 ให้ดิจิมอนหนึ่งตัว"
+
+#: data/items/small_patch.tres
+msgid "Small Data Patch"
+msgstr "แพตช์ข้อมูลเล็ก"
+
+#: data/items/sp_capsule.tres
+msgid "Restores 20 SP to one Digimon."
+msgstr "ฟื้นฟู SP 20 ให้ดิจิมอนหนึ่งตัว"
+
+#: data/items/sp_capsule.tres
+msgid "SP Capsule"
+msgstr "แคปซูล SP"
+
+#: data/items/speed_chip.tres
+msgid "A light green circuit that hums with momentum."
+msgstr "วงจรสีเขียวอ่อนที่สั่นด้วยแรงส่ง"
+
+#: data/items/speed_chip.tres
+msgid "Speed Chip"
+msgstr "ชิปความเร็ว"
+
+#: data/items/training_badge.tres
+msgid "Proof that you finished Mira's training."
+msgstr "หลักฐานว่าคุณผ่านการฝึกของมิระแล้ว"
+
+#: data/items/training_badge.tres
+msgid "Training Badge"
+msgstr "เหรียญตราการฝึก"
+
+#: data/items/vital_chip.tres
+msgid "A warm golden circuit that reinforces the core."
+msgstr "วงจรสีทองอบอุ่นที่เสริมความแข็งแกร่งให้แกนกลาง"
+
+#: data/items/vital_chip.tres
+msgid "Vital Chip"
+msgstr "ชิปพลังชีวิต"
+
+#: data/maps/data_forest.tres
+msgid "A glowing forest of crystal trees beyond the Gateway, home to stronger wild Digimon."
+msgstr "ป่าต้นไม้คริสตัลเรืองแสงหลังประตูมิติ ที่อยู่ของดิจิมอนป่าที่แข็งแกร่งกว่าเดิม"
+
+#: data/maps/data_forest.tres
+msgid "Data Forest"
+msgstr "ป่าดาต้า"
+
+#: data/maps/starter_zone.tres
+msgid "A peaceful corner of the Digital World where new Tamers arrive."
+msgstr "มุมสงบของดิจิทัลเวิลด์ที่เทมเมอร์มือใหม่มาถึง"
+
+#: data/maps/starter_zone.tres
+msgid "Starter Zone"
+msgstr "โซนเริ่มต้น"
+
+#: data/npcs/byte.tres
+msgid "Byte"
+msgstr "ไบต์"
+
+#: data/npcs/byte.tres
+msgid "Data Archivist"
+msgstr "ผู้ดูแลคลังข้อมูล"
+
+#: data/npcs/kai.tres
+msgid "Kai"
+msgstr "ไค"
+
+#: data/npcs/kai.tres
+msgid "Rookie Tamer"
+msgstr "เทมเมอร์มือใหม่"
+
+#: data/npcs/lumi.tres
+msgid "Forest Ranger"
+msgstr "เรนเจอร์ประจำป่า"
+
+#: data/npcs/lumi.tres
+msgid "Lumi"
+msgstr "ลูมิ"
+
+#: data/npcs/mira.tres
+msgid "Mira"
+msgstr "มิระ"
+
+#: data/npcs/mira.tres
+msgid "Tamer Guide"
+msgstr "ผู้แนะนำเทมเมอร์"
+
+#: data/npcs/pip.tres
+msgid "Item Vendor"
+msgstr "พ่อค้าไอเทม"
+
+#: data/npcs/pip.tres
+msgid "Pip"
+msgstr "พิป"
+
+#: data/quests/q_first_steps.tres
+msgid "First Steps"
+msgstr "ก้าวแรก"
+
+#: data/quests/q_first_steps.tres
+msgid "Mira wants to see you and {partner_name} handle yourselves. Visit the Training Grounds and win a battle."
+msgstr "มิระอยากเห็นฝีมือของคุณกับ {partner_name} ไปที่ลานฝึกแล้วชนะการต่อสู้หนึ่งครั้ง"
+
+#: data/quests/q_first_steps.tres
+msgid "Visit the Training Grounds (east, over the bridge)"
+msgstr "ไปที่ลานฝึก (ทางตะวันออก ข้ามสะพาน)"
+
+#: data/quests/q_first_steps.tres
+msgid "Win a battle against a wild Digimon"
+msgstr "ชนะการต่อสู้กับดิจิมอนป่า"
+
+#: data/quests/q_forest_survey.tres
+msgid "Explore the Old Ruins (east)"
+msgstr "สำรวจซากปรักหักพังโบราณ (ทางตะวันออก)"
+
+#: data/quests/q_forest_survey.tres
+msgid "Forest Survey"
+msgstr "สำรวจป่า"
+
+#: data/quests/q_forest_survey.tres
+msgid "Lumi asked you to survey the Data Forest: see the Crystal Lake and the Old Ruins, and win three battles."
+msgstr "ลูมิขอให้คุณสำรวจป่าดาต้า ไปดูทะเลสาบคริสตัลกับซากปรักหักพังโบราณ และชนะการต่อสู้สามครั้ง"
+
+#: data/quests/q_forest_survey.tres
+msgid "Visit the Crystal Lake (north of camp)"
+msgstr "ไปที่ทะเลสาบคริสตัล (ทางเหนือของแคมป์)"
+
+#: data/quests/q_forest_survey.tres
+msgid "Win battles against wild Digimon"
+msgstr "ชนะการต่อสู้กับดิจิมอนป่า"
+
+#: data/quests/q_new_friend.tres
+msgid "A New Friend"
+msgstr "เพื่อนใหม่"
+
+#: data/quests/q_new_friend.tres
+msgid "Befriend a wild Digimon (weaken it, then use Befriend)"
+msgstr "ผูกมิตรกับดิจิมอนป่า (ทำให้อ่อนแรงก่อน แล้วใช้ผูกมิตร)"
+
+#: data/quests/q_new_friend.tres
+msgid "Befriend a wild Digimon so it joins your team."
+msgstr "ผูกมิตรกับดิจิมอนป่าให้มาเข้าร่วมทีมของคุณ"
+
+#: data/quests/q_scattered_data.tres
+msgid "Byte's archive was scattered by a data storm. Collect three glowing Data Fragments."
+msgstr "คลังข้อมูลของไบต์ถูกพายุข้อมูลพัดกระจาย เก็บเศษข้อมูลเรืองแสงให้ได้สามชิ้น"
+
+#: data/quests/q_scattered_data.tres
+msgid "Collect Data Fragments"
+msgstr "เก็บเศษข้อมูล"
+
+#: data/quests/q_scattered_data.tres
+msgid "Scattered Data"
+msgstr "ข้อมูลที่กระจัดกระจาย"
+
+#: data/shops/forest_shop.tres
+msgid "Forest-grade gear for serious Tamers."
+msgstr "อุปกรณ์ระดับป่าลึก สำหรับเทมเมอร์ตัวจริง"
+
+#: data/shops/forest_shop.tres
+msgid "Ranger Supplies"
+msgstr "ร้านเสบียงเรนเจอร์"
+
+#: data/shops/plaza_shop.tres
+msgid "Everything a new Tamer needs!"
+msgstr "มีทุกอย่างที่เทมเมอร์มือใหม่ต้องการ!"
+
+#: data/shops/plaza_shop.tres
+msgid "Pip's Patch Stand"
+msgstr "ร้านแพตช์ของพิป"
+
+#: data/skills/air_pop.tres
+msgid "Air Pop"
+msgstr "ลมป๊อป"
+
+#: data/skills/air_pop.tres
+msgid "Fires a compressed puff of air."
+msgstr "ยิงลมอัดแน่นออกไป"
+
+#: data/skills/battle_cry.tres
+msgid "A mighty roar that raises the user's Attack."
+msgstr "คำรามอย่างทรงพลัง เพิ่มพลังโจมตีของตัวเอง"
+
+#: data/skills/battle_cry.tres
+msgid "Battle Cry"
+msgstr "เสียงคำรามศึก"
+
+#: data/skills/beast_fist.tres
+msgid "A mighty punch backed by a lion's roar."
+msgstr "หมัดทรงพลังพร้อมเสียงคำรามดั่งสิงโต"
+
+#: data/skills/beast_fist.tres
+msgid "Beast Fist"
+msgstr "หมัดอสูร"
+
+#: data/skills/bubble_puff.tres
+msgid "Blows a stream of stinging bubbles."
+msgstr "เป่าฟองแสบ ๆ ออกไปเป็นสาย"
+
+#: data/skills/bubble_puff.tres
+msgid "Bubble Puff"
+msgstr "ฟองพุ่ง"
+
+#: data/skills/buzz_dive.tres
+msgid "Buzz Dive"
+msgstr "ดิ่งเหล็กใน"
+
+#: data/skills/buzz_dive.tres
+msgid "Dives in with a venomous sting. May poison."
+msgstr "พุ่งดิ่งเข้าต่อยด้วยเหล็กในมีพิษ อาจทำให้ติดพิษ"
+
+#: data/skills/claw_swipe.tres
+msgid "Claw Swipe"
+msgstr "ตะปบกรงเล็บ"
+
+#: data/skills/claw_swipe.tres
+msgid "Rakes the foe with sharp claws. Lands critical hits more often."
+msgstr "ข่วนศัตรูด้วยกรงเล็บคม ติดคริติคอลบ่อยกว่าปกติ"
+
+#: data/skills/club_smash.tres
+msgid "Club Smash"
+msgstr "ฟาดกระบอง"
+
+#: data/skills/club_smash.tres
+msgid "Swings a heavy club with gusto."
+msgstr "เหวี่ยงกระบองหนักอย่างเต็มแรง"
+
+#: data/skills/ember_breath.tres
+msgid "Ember Breath"
+msgstr "ลมหายใจเปลวไฟ"
+
+#: data/skills/ember_breath.tres
+msgid "Spits a burst of hot embers at the foe."
+msgstr "พ่นถ่านไฟร้อน ๆ ใส่ศัตรู"
+
+#: data/skills/flame_peck.tres
+msgid "Flame Peck"
+msgstr "จิกเพลิง"
+
+#: data/skills/flame_peck.tres
+msgid "Pecks with a beak wreathed in fire."
+msgstr "จิกด้วยจะงอยปากที่ลุกเป็นไฟ"
+
+#: data/skills/focus.tres
+msgid "Concentrates to raise Sp. Attack and Accuracy."
+msgstr "รวมสมาธิเพื่อเพิ่มโจมตีพิเศษและความแม่นยำ"
+
+#: data/skills/focus.tres
+msgid "Focus"
+msgstr "รวมสมาธิ"
+
+#: data/skills/frost_howl.tres
+msgid "Breathes a freezing blue gale."
+msgstr "พ่นพายุสีฟ้าเย็นยะเยือก"
+
+#: data/skills/frost_howl.tres
+msgid "Frost Howl"
+msgstr "หอนเยือกแข็ง"
+
+#: data/skills/glacial_fang.tres
+msgid "Bites with icy fangs. May lower the target's Speed."
+msgstr "กัดด้วยเขี้ยวน้ำแข็ง อาจลดความเร็วของเป้าหมาย"
+
+#: data/skills/glacial_fang.tres
+msgid "Glacial Fang"
+msgstr "เขี้ยวธารน้ำแข็ง"
+
+#: data/skills/guardian_wall.tres
+msgid "Guardian Wall"
+msgstr "กำแพงผู้พิทักษ์"
+
+#: data/skills/guardian_wall.tres
+msgid "Raises a barrier that sharply boosts Defense."
+msgstr "สร้างเกราะที่เพิ่มพลังป้องกันอย่างมาก"
+
+#: data/skills/heavy_bash.tres
+msgid "A crushing overhead club blow."
+msgstr "ฟาดกระบองจากเหนือหัวอย่างรุนแรง"
+
+#: data/skills/heavy_bash.tres
+msgid "Heavy Bash"
+msgstr "ทุบหนัก"
+
+#: data/skills/horn_crash.tres
+msgid "Horn Crash"
+msgstr "เขาพุ่งชน"
+
+#: data/skills/horn_crash.tres
+msgid "Rams the foe with an armoured horn."
+msgstr "พุ่งชนศัตรูด้วยเขาหุ้มเกราะ"
+
+#: data/skills/horn_ram.tres
+msgid "Charges horn-first into the foe."
+msgstr "พุ่งเอาเขานำเข้าใส่ศัตรู"
+
+#: data/skills/horn_ram.tres
+msgid "Horn Ram"
+msgstr "ชนด้วยเขา"
+
+#: data/skills/inferno_burst.tres
+msgid "Inferno Burst"
+msgstr "ระเบิดเพลิงนรก"
+
+#: data/skills/inferno_burst.tres
+msgid "Unleashes a roaring fireball. May burn the target."
+msgstr "ปล่อยลูกไฟลูกใหญ่ อาจทำให้เป้าหมายถูกไฟลวก"
+
+#: data/skills/leaf_drain.tres
+msgid "Leaf Drain"
+msgstr "ใบไม้ดูดพลัง"
+
+#: data/skills/leaf_drain.tres
+msgid "Saps energy from the foe, healing the user by half the damage."
+msgstr "ดูดพลังจากศัตรู ฟื้น HP ตัวเองครึ่งหนึ่งของความเสียหาย"
+
+#: data/skills/menace.tres
+msgid "A scary glare that lowers the target's Attack."
+msgstr "จ้องอย่างน่ากลัว ลดพลังโจมตีของเป้าหมาย"
+
+#: data/skills/menace.tres
+msgid "Menace"
+msgstr "จ้องข่มขวัญ"
+
+#: data/skills/meteor_wing.tres
+msgid "Meteor Wing"
+msgstr "ปีกอุกกาบาต"
+
+#: data/skills/meteor_wing.tres
+msgid "Rains blazing feathers on the foe."
+msgstr "โปรยขนนกลุกเป็นไฟใส่ศัตรู"
+
+#: data/skills/needle_storm.tres
+msgid "Fires a barrage of cactus needles."
+msgstr "ยิงหนามกระบองเพชรรัว ๆ"
+
+#: data/skills/needle_storm.tres
+msgid "Needle Storm"
+msgstr "พายุเข็ม"
+
+#: data/skills/pelt_guard.tres
+msgid "Pelt Guard"
+msgstr "ห่มขนป้องกัน"
+
+#: data/skills/pelt_guard.tres
+msgid "Wraps up in its pelt, raising Defense and Sp. Defense."
+msgstr "ห่อตัวด้วยขน เพิ่มพลังป้องกันและป้องกันพิเศษ"
+
+#: data/skills/pincer_nip.tres
+msgid "A quick pinch with tiny mandibles."
+msgstr "หนีบเร็ว ๆ ด้วยเขี้ยวเล็ก ๆ"
+
+#: data/skills/pincer_nip.tres
+msgid "Pincer Nip"
+msgstr "หนีบเขี้ยว"
+
+#: data/skills/pollen_cloud.tres
+msgid "Pollen Cloud"
+msgstr "เมฆเกสร"
+
+#: data/skills/pollen_cloud.tres
+msgid "Scatters toxic pollen that poisons the target."
+msgstr "โปรยเกสรพิษ ทำให้เป้าหมายติดพิษ"
+
+#: data/skills/quick_dash.tres
+msgid "A lightning-fast strike that always goes first."
+msgstr "โจมตีเร็วดั่งสายฟ้า ได้ลงมือก่อนเสมอ"
+
+#: data/skills/quick_dash.tres
+msgid "Quick Dash"
+msgstr "พุ่งฉับไว"
+
+#: data/skills/radiant_strike.tres
+msgid "A punch wrapped in holy light."
+msgstr "หมัดที่ห่อหุ้มด้วยแสงศักดิ์สิทธิ์"
+
+#: data/skills/radiant_strike.tres
+msgid "Radiant Strike"
+msgstr "หมัดแสงศักดิ์สิทธิ์"
+
+#: data/skills/soothing_light.tres
+msgid "A warm glow that restores 35% of max HP."
+msgstr "แสงอุ่น ๆ ที่ฟื้นฟู HP 35% ของ HP สูงสุด"
+
+#: data/skills/soothing_light.tres
+msgid "Soothing Light"
+msgstr "แสงปลอบประโลม"
+
+#: data/skills/spark_tail.tres
+msgid "Spark Tail"
+msgstr "หางประกายไฟ"
+
+#: data/skills/spark_tail.tres
+msgid "Whips crackling tails at the foe."
+msgstr "ฟาดหางที่มีไฟฟ้าแตกเปาะแปะใส่ศัตรู"
+
+#: data/skills/static_silk.tres
+msgid "Shoots electrified thread. May stun the target."
+msgstr "ยิงใยไฟฟ้า อาจทำให้เป้าหมายมึนงง"
+
+#: data/skills/static_silk.tres
+msgid "Static Silk"
+msgstr "ใยไฟฟ้าสถิต"
+
+#: data/skills/tackle.tres
+msgid "A full-body charge. Costs no SP."
+msgstr "พุ่งชนเต็มตัว ไม่ใช้ SP"
+
+#: data/skills/tackle.tres
+msgid "Tackle"
+msgstr "พุ่งชน"
+
+#: data/skills/thorn_whip.tres
+msgid "Lashes out with a thorny vine."
+msgstr "ฟาดด้วยเถาวัลย์มีหนาม"
+
+#: data/skills/thorn_whip.tres
+msgid "Thorn Whip"
+msgstr "แส้หนาม"
+
+#: data/skills/whirlwind.tres
+msgid "Whips up a cutting whirlwind."
+msgstr "ปั่นลมหมุนที่คมกริบ"
+
+#: data/skills/whirlwind.tres
+msgid "Whirlwind"
+msgstr "ลมหมุน"
+
+#: data/skills/wing_slap.tres
+msgid "Smacks the foe with flapping wings."
+msgstr "ตบศัตรูด้วยปีกที่กระพือ"
+
+#: data/skills/wing_slap.tres
+msgid "Wing Slap"
+msgstr "ปีกตบ"
+
+#: digimon/wild_digimon.gd
+msgid "Lv %d %s"
+msgstr "Lv %d %s"
+
+#: maps/data_forest/data_forest.tscn
+msgid "Crystal Lake"
+msgstr "ทะเลสาบคริสตัล"
+
+#: maps/data_forest/data_forest.tscn
+msgid "Mossy Hollow"
+msgstr "หุบมอส"
+
+#: maps/data_forest/data_forest.tscn
+msgid "Old Ruins"
+msgstr "ซากปรักหักพังโบราณ"
+
+#: maps/data_forest/data_forest.tscn
+msgid "Ranger Camp"
+msgstr "แคมป์เรนเจอร์"
+
+#: maps/data_forest/data_forest.tscn
+msgid "Whispering Grove"
+msgstr "ป่ากระซิบ"
+
+#: maps/starter_zone/starter_zone.tscn
+msgid "Bitstream River"
+msgstr "แม่น้ำบิตสตรีม"
+
+#: maps/starter_zone/starter_zone.tscn
+msgid "Plaza"
+msgstr "ลานกลาง"
+
+#: maps/starter_zone/starter_zone.tscn
+msgid "Start Plaza"
+msgstr "ลานเริ่มต้น"
+
+#: maps/starter_zone/starter_zone.tscn
+msgid "Training"
+msgstr "ลานฝึก"
+
+#: maps/starter_zone/starter_zone.tscn
+msgid "Training Grounds"
+msgstr "ลานฝึก"
+
+#: maps/starter_zone/starter_zone.tscn
+msgid "Wild Meadow"
+msgstr "ทุ่งหญ้าป่า"
+
+#: maps/world_map.gd
+msgid "Digital World"
+msgstr "ดิจิทัลเวิลด์"
+
+#: maps/world_map.gd
+msgid "Talk to Mira in the plaza — look for the \"!\" marker."
+msgstr "ไปคุยกับมิระที่ลานกลาง มองหาเครื่องหมาย \"!\" นะ"
+
+#: maps/world_map.gd
+msgid "Your Digimon need rest! Visit the Recovery Terminal."
+msgstr "ดิจิมอนของคุณต้องพัก! ไปที่เครื่องฟื้นฟูก่อนนะ"
+
+#: maps/world_map.gd
+msgid "Your party was restored at the Recovery Terminal."
+msgstr "ปาร์ตี้ของคุณได้รับการฟื้นฟูที่เครื่องฟื้นฟูแล้ว"
+
+#: scenes/battle/battle_scene.gd
+msgid "%s joined your Collection!"
+msgstr "%s เข้ามาอยู่ในคอลเลกชันของคุณแล้ว!"
+
+#: scenes/battle/battle_scene.gd
+msgid "%s joined your party!"
+msgstr "%s เข้าร่วมปาร์ตี้ของคุณแล้ว!"
+
+#: scenes/battle/battle_scene.gd
+msgid "MISS"
+msgstr "พลาด"
+
+#: scenes/battle/battle_scene.gd
+msgid "New Friend!"
+msgstr "เพื่อนใหม่!"
+
+#: scenes/battle/battle_scene.gd
+msgid "Victory!"
+msgstr "ชนะแล้ว!"
+
+#: scenes/battle/battle_scene.gd
+msgid "You hurry back to the Recovery Terminal…"
+msgstr "คุณรีบกลับไปที่เครื่องฟื้นฟู…"
+
+#: scenes/battle/battle_scene.gd
+msgid "Your Collection is full."
+msgstr "คอลเลกชันของคุณเต็มแล้ว"
+
+#: scenes/boot/boot.gd
+msgid "Loading…"
+msgstr "กำลังโหลด…"
+
+#: systems/battle/battle_combatant.gd
+msgid "Wild %s"
+msgstr "%s ป่า"
+
+#: systems/battle/battle_controller.gd
+msgid "%s doesn't trust you yet."
+msgstr "%s ยังไม่ไว้ใจคุณ"
+
+#: systems/battle/battle_controller.gd
+msgid "%s drained %d HP!"
+msgstr "%s ดูด HP ไป %d!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s fainted!"
+msgstr "%s หมดสติ!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s has no energy left to fight!"
+msgstr "%s ไม่มีแรงสู้แล้ว!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s is already fighting!"
+msgstr "%s กำลังสู้อยู่แล้ว!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s is defending!"
+msgstr "%s ตั้งท่าป้องกัน!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s is wary of you…"
+msgstr "%s ยังระแวงคุณอยู่…"
+
+#: systems/battle/battle_controller.gd
+msgid "%s turned away!"
+msgstr "%s หันหนีไป!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s used %s!"
+msgstr "%s ใช้ %s!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s wants to battle!"
+msgstr "%s ต้องการต่อสู้!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s's attack missed!"
+msgstr "การโจมตีของ %s พลาด!"
+
+#: systems/battle/battle_controller.gd
+msgid "%s, come back!"
+msgstr "%s กลับมาก่อน!"
+
+#: systems/battle/battle_controller.gd
+msgid "A critical hit!"
+msgstr "คริติคอล!"
+
+#: systems/battle/battle_controller.gd
+msgid "A wild %s appeared!"
+msgstr "%s ป่าปรากฏตัว!"
+
+#: systems/battle/battle_controller.gd
+msgid "Choose a Digimon that can still fight."
+msgstr "เลือกดิจิมอนที่ยังสู้ได้"
+
+#: systems/battle/battle_controller.gd
+msgid "Couldn't get away!"
+msgstr "หนีไม่พ้น!"
+
+#: systems/battle/battle_controller.gd
+msgid "Desperate Tackle"
+msgstr "พุ่งชนสุดชีวิต"
+
+#: systems/battle/battle_controller.gd
+msgid "Go, %s!"
+msgstr "ไปเลย %s!"
+
+#: systems/battle/battle_controller.gd
+msgid "Got away safely!"
+msgstr "หนีรอดมาได้!"
+
+#: systems/battle/battle_controller.gd
+msgid "Invalid party slot."
+msgstr "ช่องปาร์ตี้ไม่ถูกต้อง"
+
+#: systems/battle/battle_controller.gd
+msgid "Not enough SP"
+msgstr "SP ไม่พอ"
+
+#: systems/battle/battle_controller.gd
+msgid "Not enough SP!"
+msgstr "SP ไม่พอ!"
+
+#: systems/battle/battle_controller.gd
+msgid "Not your turn."
+msgstr "ยังไม่ถึงตาของคุณ"
+
+#: systems/battle/battle_controller.gd
+msgid "That item can't be used in battle."
+msgstr "ใช้ไอเทมนั้นในการต่อสู้ไม่ได้"
+
+#: systems/battle/battle_controller.gd
+msgid "That only works on wild Digimon."
+msgstr "ใช้ได้กับดิจิมอนป่าเท่านั้น"
+
+#: systems/battle/battle_controller.gd
+msgid "There's no escaping this battle!"
+msgstr "หนีจากการต่อสู้นี้ไม่ได้!"
+
+#: systems/battle/battle_controller.gd
+msgid "This Digimon won't listen right now."
+msgstr "ดิจิมอนตัวนี้ยังไม่ยอมฟังตอนนี้"
+
+#: systems/battle/battle_controller.gd
+msgid "Unknown command."
+msgstr "ไม่รู้จักคำสั่งนี้"
+
+#: systems/battle/battle_controller.gd
+msgid "Unknown skill."
+msgstr "ไม่รู้จักสกิลนี้"
+
+#: systems/battle/battle_controller.gd
+msgid "You reach out to %s…"
+msgstr "คุณยื่นมือไปหา %s…"
+
+#: systems/battle/battle_controller.gd
+msgid "You still have usable skills."
+msgstr "คุณยังมีสกิลที่ใช้ได้อยู่"
+
+#: systems/battle/battle_controller.gd
+msgid "You used %s!"
+msgstr "คุณใช้ %s!"
+
+#: systems/battle/battle_controller.gd
+msgid "Your party can't fight any more…"
+msgstr "ปาร์ตี้ของคุณสู้ต่อไม่ไหวแล้ว…"
+
+#: systems/battle/battle_controller.gd
+msgid "{name}'s {stat} fell sharply!"
+msgstr "{stat}ของ {name} ลดลงมาก!"
+
+#: systems/battle/battle_controller.gd
+msgid "{name}'s {stat} fell!"
+msgstr "{stat}ของ {name} ลดลง!"
+
+#: systems/battle/battle_controller.gd
+msgid "{name}'s {stat} rose sharply!"
+msgstr "{stat}ของ {name} เพิ่มขึ้นมาก!"
+
+#: systems/battle/battle_controller.gd
+msgid "{name}'s {stat} rose!"
+msgstr "{stat}ของ {name} เพิ่มขึ้น!"
+
+#: systems/battle/battle_controller.gd
+msgid "{name}'s {stat} won't go any higher!"
+msgstr "{stat}ของ {name} เพิ่มขึ้นอีกไม่ได้แล้ว!"
+
+#: systems/battle/battle_controller.gd
+msgid "{name}'s {stat} won't go any lower!"
+msgstr "{stat}ของ {name} ลดลงอีกไม่ได้แล้ว!"
+
+#: systems/battle/damage_calculator.gd
+msgid "It's not very effective…"
+msgstr "ไม่ค่อยได้ผล…"
+
+#: systems/battle/damage_calculator.gd
+msgid "It's super effective!"
+msgstr "ได้ผลดีมาก!"
+
+#: systems/battle/status_effects.gd
+msgid "Burn"
+msgstr "ไฟลวก"
+
+#: systems/battle/status_effects.gd
+msgid "Poison"
+msgstr "พิษ"
+
+#: systems/battle/status_effects.gd
+msgid "Stun"
+msgstr "มึนงง"
+
+#: systems/battle/status_effects.gd
+msgid "{target} is hurt by its burn!"
+msgstr "{target} ได้รับความเสียหายจากไฟลวก!"
+
+#: systems/battle/status_effects.gd
+msgid "{target} is hurt by poison!"
+msgstr "{target} ได้รับความเสียหายจากพิษ!"
+
+#: systems/battle/status_effects.gd
+msgid "{target} is no longer stunned."
+msgstr "{target} หายมึนงงแล้ว"
+
+#: systems/battle/status_effects.gd
+msgid "{target} is stunned and can't move!"
+msgstr "{target} มึนงงจนขยับไม่ได้!"
+
+#: systems/battle/status_effects.gd
+msgid "{target} is stunned!"
+msgstr "{target} มึนงง!"
+
+#: systems/battle/status_effects.gd
+msgid "{target} recovered from poison."
+msgstr "{target} หายจากพิษแล้ว"
+
+#: systems/battle/status_effects.gd
+msgid "{target} was burned!"
+msgstr "{target} ถูกไฟลวก!"
+
+#: systems/battle/status_effects.gd
+msgid "{target} was poisoned!"
+msgstr "{target} ติดพิษ!"
+
+#: systems/battle/status_effects.gd
+msgid "{target}'s burn healed."
+msgstr "แผลไฟลวกของ {target} หายแล้ว"
+
+#: systems/core/save_manager.gd
+msgid "Cannot finalize save (%s)"
+msgstr "บันทึกเซฟให้เสร็จไม่ได้ (%s)"
+
+#: systems/core/save_manager.gd
+msgid "Cannot write save (%s)"
+msgstr "บันทึกเซฟไม่ได้ (%s)"
+
+#: systems/core/save_manager.gd
+msgid "No active game"
+msgstr "ยังไม่มีเกมที่กำลังเล่น"
+
+#: systems/core/save_manager.gd
+msgid "Save data is from an unsupported version."
+msgstr "ข้อมูลเซฟมาจากเวอร์ชันที่ไม่รองรับ"
+
+#: systems/core/save_manager.gd
+msgid "Save data is missing or corrupted."
+msgstr "ไม่พบข้อมูลเซฟ หรือข้อมูลเสียหาย"
+
+#: systems/core/save_manager.gd
+msgid "Save verification failed"
+msgstr "ตรวจสอบเซฟไม่ผ่าน"
+
+#: systems/core/scene_manager.gd
+msgid "Failed to load scene."
+msgstr "โหลดฉากไม่สำเร็จ"
+
+#: systems/core/scene_manager.gd
+msgid "Loading Digital World…"
+msgstr "กำลังโหลดดิจิทัลเวิลด์…"
+
+#: systems/core/scene_manager.gd
+msgid "That area is not available yet."
+msgstr "พื้นที่นั้นยังไปไม่ได้"
+
+#: systems/core/scene_manager.gd
+msgid "Tip: Defending halves damage and restores a little SP."
+msgstr "เคล็ดลับ: การป้องกันลดความเสียหายครึ่งหนึ่งและฟื้น SP เล็กน้อย"
+
+#: systems/core/scene_manager.gd
+msgid "Tip: Push the joystick all the way to run."
+msgstr "เคล็ดลับ: ดันจอยสุดเพื่อวิ่ง"
+
+#: systems/core/scene_manager.gd
+msgid "Tip: Recovery Terminals fully heal your party."
+msgstr "เคล็ดลับ: เครื่องฟื้นฟูรักษาปาร์ตี้ได้เต็มที่"
+
+#: systems/core/scene_manager.gd
+msgid "Tip: Vaccine beats Virus, Virus beats Data, Data beats Vaccine."
+msgstr "เคล็ดลับ: วัคซีนชนะไวรัส ไวรัสชนะดาต้า ดาต้าชนะวัคซีน"
+
+#: systems/core/scene_manager.gd
+msgid "Tip: Weakened wild Digimon are easier to befriend."
+msgstr "เคล็ดลับ: ดิจิมอนป่าที่อ่อนแรงจะผูกมิตรได้ง่ายขึ้น"
+
+#: systems/core/scene_manager.gd
+msgid "Tip: Your partner learns new skills as it levels up."
+msgstr "เคล็ดลับ: คู่หูจะได้สกิลใหม่เมื่อเลเวลอัป"
+
+#: systems/core/settings_manager.gd
+msgid "High"
+msgstr "สูง"
+
+#: systems/core/settings_manager.gd
+msgid "Low"
+msgstr "ต่ำ"
+
+#: systems/core/settings_manager.gd
+msgid "Medium"
+msgstr "กลาง"
+
+#: systems/digimon/digimon_species.gd
+msgid "Champion"
+msgstr "แชมเปี้ยน"
+
+#: systems/digimon/digimon_species.gd
+msgid "Common"
+msgstr "ทั่วไป"
+
+#: systems/digimon/digimon_species.gd
+msgid "Data"
+msgstr "ดาต้า"
+
+#: systems/digimon/digimon_species.gd
+msgid "Free"
+msgstr "อิสระ"
+
+#: systems/digimon/digimon_species.gd
+msgid "Fresh"
+msgstr "ทารก"
+
+#: systems/digimon/digimon_species.gd
+msgid "In-Training"
+msgstr "ฝึกหัด"
+
+#: systems/digimon/digimon_species.gd
+msgid "Legendary"
+msgstr "ตำนาน"
+
+#: systems/digimon/digimon_species.gd
+msgid "Mega"
+msgstr "เมก้า"
+
+#: systems/digimon/digimon_species.gd
+msgid "Rare"
+msgstr "หายาก"
+
+#: systems/digimon/digimon_species.gd
+msgid "Rookie"
+msgstr "รุกกี้"
+
+#: systems/digimon/digimon_species.gd
+msgid "Ultimate"
+msgstr "อัลติเมท"
+
+#: systems/digimon/digimon_species.gd
+msgid "Uncommon"
+msgstr "พบได้น้อย"
+
+#: systems/digimon/digimon_species.gd
+msgid "Vaccine"
+msgstr "วัคซีน"
+
+#: systems/digimon/digimon_species.gd
+msgid "Virus"
+msgstr "ไวรัส"
+
+#: systems/digimon/digimon_stats.gd
+msgid "ACC"
+msgstr "แม่นยำ"
+
+#: systems/digimon/digimon_stats.gd
+msgid "ATK"
+msgstr "โจมตี"
+
+#: systems/digimon/digimon_stats.gd
+msgid "Accuracy"
+msgstr "ความแม่นยำ"
+
+#: systems/digimon/digimon_stats.gd
+msgid "Attack"
+msgstr "พลังโจมตี"
+
+#: systems/digimon/digimon_stats.gd
+msgid "DEF"
+msgstr "ป้องกัน"
+
+#: systems/digimon/digimon_stats.gd
+msgid "Defense"
+msgstr "พลังป้องกัน"
+
+#: systems/digimon/digimon_stats.gd
+msgid "SP"
+msgstr "SP"
+
+#: systems/digimon/digimon_stats.gd
+msgid "SP.ATK"
+msgstr "โจมตีพ."
+
+#: systems/digimon/digimon_stats.gd
+msgid "SP.DEF"
+msgstr "ป้องกันพ."
+
+#: systems/digimon/digimon_stats.gd
+msgid "SPD"
+msgstr "ความเร็ว"
+
+#: systems/digimon/digimon_stats.gd
+msgid "Sp. Attack"
+msgstr "โจมตีพิเศษ"
+
+#: systems/digimon/digimon_stats.gd
+msgid "Sp. Defense"
+msgstr "ป้องกันพิเศษ"
+
+#: systems/digimon/digimon_stats.gd
+msgid "Speed"
+msgstr "ความเร็ว"
+
+#: systems/digimon/evolution_service.gd
+msgid "%s %d+"
+msgstr "%s %d+"
+
+#: systems/digimon/evolution_service.gd
+msgid "Complete \"%s\""
+msgstr "ทำเควสต์ \"%s\" สำเร็จ"
+
+#: systems/digimon/evolution_service.gd
+msgid "Friendship %d+"
+msgstr "ความสนิท %d+"
+
+#: systems/digimon/evolution_service.gd
+msgid "Have %s"
+msgstr "มี %s"
+
+#: systems/digimon/evolution_service.gd
+msgid "Invalid evolution"
+msgstr "วิวัฒนาการไม่ถูกต้อง"
+
+#: systems/digimon/evolution_service.gd
+msgid "Reach Lv %d"
+msgstr "ถึง Lv %d"
+
+#: systems/digimon/evolution_service.gd
+msgid "Story progress: %s"
+msgstr "ความคืบหน้าเนื้อเรื่อง: %s"
+
+#: systems/digimon/evolution_service.gd
+msgid "Unknown species"
+msgstr "ไม่รู้จักสายพันธุ์นี้"
+
+#: systems/inventory/equipment_service.gd
+msgid "%s already holds %s."
+msgstr "%s ถือ %s อยู่แล้ว"
+
+#: systems/inventory/equipment_service.gd
+msgid "%s equipped %s (%s)."
+msgstr "%s ติดตั้ง %s แล้ว (%s)"
+
+#: systems/inventory/equipment_service.gd
+msgid "Chip returned to your bag."
+msgstr "นำชิปกลับเข้ากระเป๋าแล้ว"
+
+#: systems/inventory/equipment_service.gd
+msgid "Nothing equipped."
+msgstr "ยังไม่ได้ติดตั้งอะไร"
+
+#: systems/inventory/equipment_service.gd
+msgid "That can't be equipped."
+msgstr "สิ่งนี้ติดตั้งไม่ได้"
+
+#: systems/inventory/equipment_service.gd
+msgid "You don't have %s."
+msgstr "คุณไม่มี %s"
+
+#: systems/inventory/equipment_service.gd
+msgid "Your bag is full."
+msgstr "กระเป๋าเต็มแล้ว"
+
+#: systems/inventory/item_data.gd
+msgid "Consumables"
+msgstr "ของใช้"
+
+#: systems/inventory/item_data.gd
+msgid "Equipment"
+msgstr "อุปกรณ์"
+
+#: systems/inventory/item_data.gd
+msgid "Evolution Items"
+msgstr "ไอเทมวิวัฒนาการ"
+
+#: systems/inventory/item_data.gd
+msgid "Key Items"
+msgstr "ไอเทมสำคัญ"
+
+#: systems/inventory/item_data.gd
+msgid "Quest Items"
+msgstr "ไอเทมเควสต์"
+
+#: systems/inventory/item_service.gd
+msgid "%s has fainted."
+msgstr "%s หมดสติอยู่"
+
+#: systems/inventory/item_service.gd
+msgid "%s hasn't fainted."
+msgstr "%s ยังไม่ได้หมดสติ"
+
+#: systems/inventory/item_service.gd
+msgid "%s is already in top shape."
+msgstr "%s อยู่ในสภาพดีเยี่ยมอยู่แล้ว"
+
+#: systems/inventory/item_service.gd
+msgid "%s is fully restored!"
+msgstr "%s ฟื้นฟูเต็มที่แล้ว!"
+
+#: systems/inventory/item_service.gd
+msgid "%s recovered %d HP!"
+msgstr "%s ฟื้น HP %d!"
+
+#: systems/inventory/item_service.gd
+msgid "%s recovered %d SP!"
+msgstr "%s ฟื้น SP %d!"
+
+#: systems/inventory/item_service.gd
+msgid "%s was revived!"
+msgstr "%s ฟื้นคืนสติแล้ว!"
+
+#: systems/inventory/item_service.gd
+msgid "%s's HP is already full."
+msgstr "HP ของ %s เต็มอยู่แล้ว"
+
+#: systems/inventory/item_service.gd
+msgid "%s's SP is already full."
+msgstr "SP ของ %s เต็มอยู่แล้ว"
+
+#: systems/inventory/item_service.gd
+msgid "Can't use that here."
+msgstr "ใช้ตรงนี้ไม่ได้"
+
+#: systems/inventory/item_service.gd
+msgid "No target."
+msgstr "ไม่มีเป้าหมาย"
+
+#: systems/inventory/item_service.gd
+msgid "Nothing happened."
+msgstr "ไม่มีอะไรเกิดขึ้น"
+
+#: systems/inventory/item_service.gd
+msgid "The wild Digimon seems curious about the %s."
+msgstr "ดิจิมอนป่าดูสนใจ %s"
+
+#: systems/inventory/item_service.gd
+msgid "Unknown item."
+msgstr "ไม่รู้จักไอเทมนี้"
+
+#: systems/inventory/item_service.gd
+msgid "You don't have that item."
+msgstr "คุณไม่มีไอเทมนั้น"
+
+#: systems/player/name_validator.gd
+msgid "Names can be at most %d characters."
+msgstr "ชื่อยาวได้ไม่เกิน %d ตัวอักษร"
+
+#: systems/player/name_validator.gd
+msgid "Names need at least one letter or number."
+msgstr "ชื่อต้องมีตัวอักษรหรือตัวเลขอย่างน้อยหนึ่งตัว"
+
+#: systems/player/name_validator.gd
+msgid "Please enter a name."
+msgstr "กรุณาใส่ชื่อ"
+
+#: systems/quests/quest_log.gd
+msgid "Active"
+msgstr "กำลังทำ"
+
+#: systems/quests/quest_log.gd
+msgid "Available"
+msgstr "รับได้"
+
+#: systems/quests/quest_log.gd
+msgid "Locked"
+msgstr "ล็อกอยู่"
+
+#: systems/quests/quest_log.gd
+msgid "Rewarded"
+msgstr "รับรางวัลแล้ว"
+
+#: systems/quests/quest_manager.gd
+msgid "Completed"
+msgstr "สำเร็จแล้ว"
+
+#: systems/quests/quest_manager.gd
+msgid "New Quest: %s"
+msgstr "เควสต์ใหม่: %s"
+
+#: systems/quests/quest_manager.gd
+msgid "Objective: %s"
+msgstr "เป้าหมาย: %s"
+
+#: systems/quests/quest_manager.gd
+msgid "Quest ready! Return to %s."
+msgstr "เควสต์พร้อมส่งแล้ว! กลับไปหา %s"
+
+#: systems/quests/quest_manager.gd
+msgid "Return to %s"
+msgstr "กลับไปหา %s"
+
+#: systems/quests/quest_manager.gd
+msgid "Talk to %s"
+msgstr "คุยกับ %s"
+
+#: systems/shop/shop_service.gd
+msgid "Bought %d× %s for %d Data Coins."
+msgstr "ซื้อ %d× %s แล้ว ใช้ไป %d เหรียญดาต้า"
+
+#: systems/shop/shop_service.gd
+msgid "Choose how many to buy."
+msgstr "เลือกจำนวนที่จะซื้อ"
+
+#: systems/shop/shop_service.gd
+msgid "Sold %d× %s for %d Data Coins."
+msgstr "ขาย %d× %s แล้ว ได้ %d เหรียญดาต้า"
+
+#: systems/shop/shop_service.gd
+msgid "That item can't be sold."
+msgstr "ไอเทมนั้นขายไม่ได้"
+
+#: systems/shop/shop_service.gd
+msgid "That item isn't for sale."
+msgstr "ไอเทมนั้นไม่ได้วางขาย"
+
+#: systems/shop/shop_service.gd
+msgid "That item isn't sold here."
+msgstr "ร้านนี้ไม่ได้ขายไอเทมนั้น"
+
+#: systems/shop/shop_service.gd
+msgid "You don't have that many."
+msgstr "คุณมีไม่พอ"
+
+#: systems/skills/skill_data.gd
+msgid "Physical"
+msgstr "กายภาพ"
+
+#: systems/skills/skill_data.gd
+msgid "Special"
+msgstr "พิเศษ"
+
+#: systems/skills/skill_data.gd
+msgid "Support"
+msgstr "สนับสนุน"
+
+#: systems/world/interactable.gd
+msgid "Interact"
+msgstr "ใช้"
+
+#: systems/world/portal.gd
+msgid "Enter"
+msgstr "เข้า"
+
+#: systems/world/recovery_terminal.gd
+msgid "Heal"
+msgstr "ฟื้นฟู"
+
+#: systems/world/recovery_terminal.gd
+msgid "Party fully healed!"
+msgstr "ปาร์ตี้ฟื้นฟูเต็มที่แล้ว!"
+
+#: systems/world/signpost.gd
+msgid "Read"
+msgstr "อ่าน"
+
+#: systems/world/signpost.gd
+msgid "Sign"
+msgstr "ป้าย"
+
+#: systems/world/world_pickup.gd
+msgid "Obtained %s ×%d"
+msgstr "ได้รับ %s ×%d"
+
+#: systems/world/world_pickup.gd
+msgid "Pick up"
+msgstr "เก็บ"
+
+#: systems/world/world_pickup.gd
+msgid "You can't carry more %s."
+msgstr "ถือ %s เพิ่มไม่ได้แล้ว"
+
+#: ui/battle/battle_results.gd
+msgid " (shared)"
+msgstr " (แบ่งกัน)"
+
+#: ui/battle/battle_results.gd
+msgid "%s joined your team!"
+msgstr "%s เข้าร่วมทีมของคุณแล้ว!"
+
+#: ui/battle/battle_results.gd
+msgid "%s wants to join your team!"
+msgstr "%s อยากเข้าร่วมทีมของคุณ!"
+
+#: ui/battle/battle_results.gd
+msgid "+%d EXP%s"
+msgstr "+%d EXP%s"
+
+#: ui/battle/battle_results.gd
+msgid "Found: %s"
+msgstr "พบ: %s"
+
+#: ui/battle/battle_results.gd
+msgid "Great!"
+msgstr "เยี่ยม!"
+
+#: ui/battle/battle_results.gd
+msgid "It will join your party."
+msgstr "จะเข้าร่วมปาร์ตี้ของคุณ"
+
+#: ui/battle/battle_results.gd
+msgid "Lv %d · %s · %s · %s"
+msgstr "Lv %d · %s · %s · %s"
+
+#: ui/battle/battle_results.gd
+msgid "Not now"
+msgstr "ไว้ก่อน"
+
+#: ui/battle/battle_results.gd
+msgid "Welcome!"
+msgstr "ยินดีต้อนรับ!"
+
+#: ui/battle/battle_results.gd
+msgid "Your Collection is full! Make room to recruit more Digimon."
+msgstr "คอลเลกชันเต็มแล้ว! ต้องเคลียร์ที่ก่อนจึงจะรับดิจิมอนเพิ่มได้"
+
+#: ui/battle/battle_results.gd
+msgid "Your party is full — it will wait in your Collection."
+msgstr "ปาร์ตี้เต็มแล้ว จะไปรออยู่ในคอลเลกชัน"
+
+#: ui/battle/battle_ui.gd
+msgid "  (fainted)"
+msgstr "  (หมดสติ)"
+
+#: ui/battle/battle_ui.gd
+msgid "  (in battle)"
+msgstr "  (กำลังสู้)"
+
+#: ui/battle/battle_ui.gd
+msgid "%s\n%s · %d SP"
+msgstr "%s\n%s · %d SP"
+
+#: ui/battle/battle_ui.gd
+msgid "%s\n%s · Pow %d · %d SP"
+msgstr "%s\n%s · พลัง %d · %d SP"
+
+#: ui/battle/battle_ui.gd
+msgid "%s  Lv %d  ·  HP %d/%d  ·  SP %d/%d"
+msgstr "%s  Lv %d  ·  HP %d/%d  ·  SP %d/%d"
+
+#: ui/battle/battle_ui.gd
+msgid "%s  Lv %d  ·  HP %d/%d%s"
+msgstr "%s  Lv %d  ·  HP %d/%d%s"
+
+#: ui/battle/battle_ui.gd
+msgid "Befriend"
+msgstr "ผูกมิตร"
+
+#: ui/battle/battle_ui.gd
+msgid "Befriend %d%%"
+msgstr "ผูกมิตร %d%%"
+
+#: ui/battle/battle_ui.gd
+msgid "Choose a skill. Skills cost SP — Defend restores some."
+msgstr "เลือกสกิล สกิลใช้ SP (การป้องกันจะฟื้น SP บางส่วน)"
+
+#: ui/battle/battle_ui.gd
+msgid "Choose an item."
+msgstr "เลือกไอเทม"
+
+#: ui/battle/battle_ui.gd
+msgid "Choose your next Digimon!"
+msgstr "เลือกดิจิมอนตัวถัดไป!"
+
+#: ui/battle/battle_ui.gd
+msgid "Defend"
+msgstr "ป้องกัน"
+
+#: ui/battle/battle_ui.gd
+msgid "Desperate Tackle\n(no SP left)"
+msgstr "พุ่งชนสุดชีวิต\n(SP หมด)"
+
+#: ui/battle/battle_ui.gd
+msgid "HP"
+msgstr "HP"
+
+#: ui/battle/battle_ui.gd
+msgid "No usable items."
+msgstr "ไม่มีไอเทมที่ใช้ได้"
+
+#: ui/battle/battle_ui.gd
+msgid "Run"
+msgstr "หนี"
+
+#: ui/battle/battle_ui.gd
+msgid "Skills"
+msgstr "สกิล"
+
+#: ui/battle/battle_ui.gd
+msgid "Switch to which Digimon?"
+msgstr "จะสลับเป็นดิจิมอนตัวไหน?"
+
+#: ui/battle/battle_ui.gd
+msgid "Use %s on…"
+msgstr "ใช้ %s กับ…"
+
+#: ui/battle/battle_ui.gd
+msgid "What will [b]%s[/b] do?"
+msgstr "[b]%s[/b] จะทำอะไรดี?"
+
+#: ui/components/digimon_detail_view.gd
+msgid "%d / %d EXP to next level"
+msgstr "%d / %d EXP ถึงเลเวลถัดไป"
+
+#: ui/components/digimon_detail_view.gd
+msgid "%s%s  ·  %s %d · %d SP"
+msgstr "%s%s  ·  %s %d · %d SP"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Chip"
+msgstr "ชิป"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Equip %s"
+msgstr "ใส่ %s"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Evolution"
+msgstr "วิวัฒนาการ"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Evolve"
+msgstr "วิวัฒนาการ"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Friendship %d · Battles won %d"
+msgstr "ความสนิท %d · ชนะ %d ครั้ง"
+
+#: ui/components/digimon_detail_view.gd
+msgid "HP %d/%d"
+msgstr "HP %d/%d"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Keep between 1 and %d skills equipped."
+msgstr "ต้องติดตั้งสกิลอย่างน้อย 1 และไม่เกิน %d สกิล"
+
+#: ui/components/digimon_detail_view.gd
+msgid "No chip held."
+msgstr "ไม่ได้ถือชิป"
+
+#: ui/components/digimon_detail_view.gd
+msgid "No known evolutions yet."
+msgstr "ยังไม่รู้เส้นทางวิวัฒนาการ"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Remove"
+msgstr "ถอด"
+
+#: ui/components/digimon_detail_view.gd
+msgid "SP %d/%d"
+msgstr "SP %d/%d"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Select a Digimon."
+msgstr "เลือกดิจิมอน"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Skills (tap to equip · max %d)"
+msgstr "สกิล (แตะเพื่อติดตั้ง · สูงสุด %d)"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Stats"
+msgstr "ค่าสถานะ"
+
+#: ui/components/digimon_detail_view.gd
+msgid "Swap to %s"
+msgstr "เปลี่ยนเป็น %s"
+
+#: ui/components/digimon_detail_view.gd
+msgid "→ %s (%s): %s"
+msgstr "→ %s (%s): %s"
+
+#: ui/components/modal_dialog.gd
+msgid "No"
+msgstr "ไม่"
+
+#: ui/components/modal_dialog.gd
+msgid "OK"
+msgstr "ตกลง"
+
+#: ui/components/modal_dialog.gd
+msgid "Yes"
+msgstr "ใช่"
+
+#: ui/dialogue/dialogue_box.gd
+msgid "Close"
+msgstr "ปิด"
+
+#: ui/dialogue/dialogue_box.gd
+msgid "Next ▸"
+msgstr "ถัดไป ▸"
+
+#: ui/dialogue/dialogue_box.gd
+msgid "Skip"
+msgstr "ข้าม"
+
+#: ui/hud/hud.gd
+msgid "Lv %d"
+msgstr "Lv %d"
+
+#: ui/hud/hud.gd
+msgid "Talk"
+msgstr "คุย"
+
+#: ui/main_menu/main_menu.gd
+msgid "Digimon\nAdventure"
+msgstr "ดิจิมอน\nแอดเวนเจอร์"
+
+#: ui/main_menu/main_menu.gd
+msgid "Load Game"
+msgstr "โหลดเกม"
+
+#: ui/main_menu/main_menu.gd
+msgid "New Game"
+msgstr "เริ่มเกมใหม่"
+
+#: ui/main_menu/main_menu.gd
+msgid "Quit"
+msgstr "ออก"
+
+#: ui/main_menu/main_menu.gd
+msgid "Quit Game?"
+msgstr "ออกจากเกม?"
+
+#: ui/main_menu/main_menu.gd
+msgid "RPG PROTOTYPE"
+msgstr "เกม RPG ต้นแบบ"
+
+#: ui/main_menu/main_menu.gd
+msgid "See you next time, Tamer!"
+msgstr "แล้วพบกันใหม่นะ เทมเมอร์!"
+
+#: ui/main_menu/main_menu.gd
+msgid "v%s · Private prototype · Original placeholder art & audio"
+msgstr "v%s · เกมต้นแบบส่วนตัว · ภาพและเสียงสร้างขึ้นเองชั่วคราว"
+
+#: ui/menus/collection_panel.gd
+msgid "Add to Party"
+msgstr "เพิ่มเข้าปาร์ตี้"
+
+#: ui/menus/collection_panel.gd
+msgid "Lv %d · %s"
+msgstr "Lv %d · %s"
+
+#: ui/menus/collection_panel.gd
+msgid "Make Partner"
+msgstr "ตั้งเป็นคู่หู"
+
+#: ui/menus/collection_panel.gd
+msgid "Move to Storage"
+msgstr "ย้ายไปที่เก็บ"
+
+#: ui/menus/collection_panel.gd
+msgid "Owned %d / %d"
+msgstr "มีแล้ว %d / %d"
+
+#: ui/menus/collection_panel.gd
+msgid "Party %d"
+msgstr "ปาร์ตี้ %d"
+
+#: ui/menus/collection_panel.gd
+msgid "Swap with %s"
+msgstr "สลับกับ %s"
+
+#: ui/menus/inventory_panel.gd
+msgid "%s  Lv %d  ·  %s"
+msgstr "%s  Lv %d  ·  %s"
+
+#: ui/menus/inventory_panel.gd
+msgid "%s  Lv %d  ·  HP %d/%d  SP %d/%d"
+msgstr "%s  Lv %d  ·  HP %d/%d  SP %d/%d"
+
+#: ui/menus/inventory_panel.gd
+msgid "%s · Owned %d"
+msgstr "%s · มี %d"
+
+#: ui/menus/inventory_panel.gd
+msgid "Can only be used during battle."
+msgstr "ใช้ได้เฉพาะตอนต่อสู้"
+
+#: ui/menus/inventory_panel.gd
+msgid "Evo"
+msgstr "วิวัฒน์"
+
+#: ui/menus/inventory_panel.gd
+msgid "Gear"
+msgstr "อุปกรณ์"
+
+#: ui/menus/inventory_panel.gd
+msgid "Give to (one chip per Digimon):"
+msgstr "ให้ดิจิมอนถือ (ถือได้ตัวละ 1 ชิป):"
+
+#: ui/menus/inventory_panel.gd
+msgid "Held bonus: %s"
+msgstr "โบนัสเมื่อถือ: %s"
+
+#: ui/menus/inventory_panel.gd
+msgid "Holding %s"
+msgstr "ถือ %s"
+
+#: ui/menus/inventory_panel.gd
+msgid "Items"
+msgstr "ไอเทม"
+
+#: ui/menus/inventory_panel.gd
+msgid "Key"
+msgstr "สำคัญ"
+
+#: ui/menus/inventory_panel.gd
+msgid "No chip"
+msgstr "ไม่มีชิป"
+
+#: ui/menus/inventory_panel.gd
+msgid "No chips in your bag. Chips held by Digimon show in their details."
+msgstr "ไม่มีชิปในกระเป๋า ชิปที่ดิจิมอนถืออยู่จะแสดงในหน้ารายละเอียดของดิจิมอนตัวนั้น"
+
+#: ui/menus/inventory_panel.gd
+msgid "No items in this category."
+msgstr "ไม่มีไอเทมในหมวดนี้"
+
+#: ui/menus/inventory_panel.gd
+msgid "Quest"
+msgstr "เควสต์"
+
+#: ui/menus/inventory_panel.gd
+msgid "Select an item."
+msgstr "เลือกไอเทม"
+
+#: ui/menus/inventory_panel.gd
+msgid "Use on:"
+msgstr "ใช้กับ:"
+
+#: ui/menus/party_panel.gd
+msgid "  · Fainted"
+msgstr "  · หมดสติ"
+
+#: ui/menus/party_panel.gd
+msgid "%s is now your partner!"
+msgstr "%s เป็นคู่หูของคุณแล้ว!"
+
+#: ui/menus/party_panel.gd
+msgid "Active Party"
+msgstr "ปาร์ตี้ปัจจุบัน"
+
+#: ui/menus/party_panel.gd
+msgid "Empty slot — add Digimon from the Collection"
+msgstr "ช่องว่าง เพิ่มดิจิมอนได้จากคอลเลกชัน"
+
+#: ui/menus/party_panel.gd
+msgid "HP %d/%d · SP %d/%d%s"
+msgstr "HP %d/%d · SP %d/%d%s"
+
+#: ui/menus/party_panel.gd
+msgid "Slot 1 is your partner in the field and leads in battle."
+msgstr "ช่องที่ 1 คือคู่หูที่เดินตามคุณ และออกสู้เป็นตัวแรก"
+
+#: ui/menus/pause_menu.gd
+msgid "Digimon"
+msgstr "ดิจิมอน"
+
+#: ui/menus/pause_menu.gd
+msgid "Inventory"
+msgstr "กระเป๋า"
+
+#: ui/menus/pause_menu.gd
+msgid "Leave"
+msgstr "ออก"
+
+#: ui/menus/pause_menu.gd
+msgid "Menu"
+msgstr "เมนู"
+
+#: ui/menus/pause_menu.gd
+msgid "Party"
+msgstr "ปาร์ตี้"
+
+#: ui/menus/pause_menu.gd
+msgid "Quests"
+msgstr "เควสต์"
+
+#: ui/menus/pause_menu.gd
+msgid "Return to Game"
+msgstr "กลับเข้าเกม"
+
+#: ui/menus/pause_menu.gd
+msgid "Return to Title?"
+msgstr "กลับไปหน้าจอหลัก?"
+
+#: ui/menus/pause_menu.gd
+msgid "Save"
+msgstr "เซฟ"
+
+#: ui/menus/pause_menu.gd
+msgid "Settings"
+msgstr "ตั้งค่า"
+
+#: ui/menus/pause_menu.gd
+msgid "Stay"
+msgstr "อยู่ต่อ"
+
+#: ui/menus/pause_menu.gd
+msgid "Tamer %s  ·  Play time %s  ·  %d Data Coins  ·  %d Digimon"
+msgstr "เทมเมอร์ %s  ·  เวลาเล่น %s  ·  %d เหรียญดาต้า  ·  ดิจิมอน %d ตัว"
+
+#: ui/menus/pause_menu.gd
+msgid "Title Screen"
+msgstr "หน้าจอหลัก"
+
+#: ui/menus/pause_menu.gd
+msgid "Unsaved progress since your last save will be lost. (Autosave keeps key moments.)"
+msgstr "ความคืบหน้าหลังเซฟครั้งล่าสุดจะหายไป (เซฟอัตโนมัติจะเก็บจุดสำคัญไว้ให้)"
+
+#: ui/menus/quest_panel.gd
+msgid " (%d/%d)"
+msgstr " (%d/%d)"
+
+#: ui/menus/quest_panel.gd
+msgid "%d Data Coins"
+msgstr "%d เหรียญดาต้า"
+
+#: ui/menus/quest_panel.gd
+msgid "%d EXP"
+msgstr "%d EXP"
+
+#: ui/menus/quest_panel.gd
+msgid "From: %s (%s)"
+msgstr "จาก: %s (%s)"
+
+#: ui/menus/quest_panel.gd
+msgid "No quests yet. Talk to people!"
+msgstr "ยังไม่มีเควสต์ ลองคุยกับผู้คนดูสิ!"
+
+#: ui/menus/quest_panel.gd
+msgid "Objectives"
+msgstr "เป้าหมาย"
+
+#: ui/menus/quest_panel.gd
+msgid "Report to %s"
+msgstr "รายงานตัวกับ %s"
+
+#: ui/menus/quest_panel.gd
+msgid "Rewards"
+msgstr "รางวัล"
+
+#: ui/menus/save_load_panel.gd
+msgid "%s  ·  %s Lv %d"
+msgstr "%s  ·  %s Lv %d"
+
+#: ui/menus/save_load_panel.gd
+msgid "%s  ·  Play time %s  ·  %s"
+msgstr "%s  ·  เวลาเล่น %s  ·  %s"
+
+#: ui/menus/save_load_panel.gd
+msgid "Autosave"
+msgstr "เซฟอัตโนมัติ"
+
+#: ui/menus/save_load_panel.gd
+msgid "Cancel"
+msgstr "ยกเลิก"
+
+#: ui/menus/save_load_panel.gd
+msgid "Delete"
+msgstr "ลบ"
+
+#: ui/menus/save_load_panel.gd
+msgid "Delete Save?"
+msgstr "ลบเซฟ?"
+
+#: ui/menus/save_load_panel.gd
+msgid "Empty"
+msgstr "ว่าง"
+
+#: ui/menus/save_load_panel.gd
+msgid "Game saved to Slot %d."
+msgstr "เซฟเกมลงช่อง %d แล้ว"
+
+#: ui/menus/save_load_panel.gd
+msgid "Load"
+msgstr "โหลด"
+
+#: ui/menus/save_load_panel.gd
+msgid "Load Game?"
+msgstr "โหลดเกม?"
+
+#: ui/menus/save_load_panel.gd
+msgid "Overwrite"
+msgstr "บันทึกทับ"
+
+#: ui/menus/save_load_panel.gd
+msgid "Overwrite?"
+msgstr "บันทึกทับ?"
+
+#: ui/menus/save_load_panel.gd
+msgid "Replace the data in Slot %d?"
+msgstr "แทนที่ข้อมูลในช่อง %d?"
+
+#: ui/menus/save_load_panel.gd
+msgid "Save data is damaged and cannot be loaded."
+msgstr "ข้อมูลเซฟเสียหาย โหลดไม่ได้"
+
+#: ui/menus/save_load_panel.gd
+msgid "Save deleted."
+msgstr "ลบเซฟแล้ว"
+
+#: ui/menus/save_load_panel.gd
+msgid "Save failed: %s"
+msgstr "เซฟไม่สำเร็จ: %s"
+
+#: ui/menus/save_load_panel.gd
+msgid "Slot %d"
+msgstr "ช่อง %d"
+
+#: ui/menus/save_load_panel.gd
+msgid "This cannot be undone."
+msgstr "ย้อนกลับไม่ได้นะ"
+
+#: ui/menus/save_load_panel.gd
+msgid "Unsaved progress in the current game will be lost."
+msgstr "ความคืบหน้าที่ยังไม่ได้เซฟในเกมนี้จะหายไป"
+
+#: ui/menus/settings_panel.gd
+msgid "Audio"
+msgstr "เสียง"
+
+#: ui/menus/settings_panel.gd
+msgid "Camera Sensitivity"
+msgstr "ความไวกล้อง"
+
+#: ui/menus/settings_panel.gd
+msgid "Controls"
+msgstr "การควบคุม"
+
+#: ui/menus/settings_panel.gd
+msgid "Graphics"
+msgstr "กราฟิก"
+
+#: ui/menus/settings_panel.gd
+msgid "Graphics Quality"
+msgstr "คุณภาพกราฟิก"
+
+#: ui/menus/settings_panel.gd
+msgid "Interface Sounds"
+msgstr "เสียงเมนู"
+
+#: ui/menus/settings_panel.gd
+msgid "Invert Camera Y"
+msgstr "กลับแกน Y กล้อง"
+
+#: ui/menus/settings_panel.gd
+msgid "Language"
+msgstr "ภาษา"
+
+#: ui/menus/settings_panel.gd
+msgid "Music Volume"
+msgstr "เสียงเพลง"
+
+#: ui/menus/settings_panel.gd
+msgid "Show FPS Counter"
+msgstr "แสดง FPS"
+
+#: ui/menus/settings_panel.gd
+msgid "Some text updates when you reopen a screen."
+msgstr "ข้อความบางส่วนจะเปลี่ยนเมื่อเปิดหน้านั้นใหม่"
+
+#: ui/menus/settings_panel.gd
+msgid "Sound Effects"
+msgstr "เสียงเอฟเฟกต์"
+
+#: ui/menus/shop_panel.gd
+msgid "%s   ·   %d coins   (own %d)"
+msgstr "%s   ·   %d เหรียญ   (มี %d)"
+
+#: ui/menus/shop_panel.gd
+msgid "Buy"
+msgstr "ซื้อ"
+
+#: ui/menus/shop_panel.gd
+msgid "Buy ×%d"
+msgstr "ซื้อ ×%d"
+
+#: ui/menus/shop_panel.gd
+msgid "Not enough Data Coins."
+msgstr "เหรียญดาต้าไม่พอ"
+
+#: ui/menus/shop_panel.gd
+msgid "Nothing to sell."
+msgstr "ไม่มีของให้ขาย"
+
+#: ui/menus/shop_panel.gd
+msgid "Quantity"
+msgstr "จำนวน"
+
+#: ui/menus/shop_panel.gd
+msgid "Sell"
+msgstr "ขาย"
+
+#: ui/menus/shop_panel.gd
+msgid "Sell ×%d"
+msgstr "ขาย ×%d"
+
+#: ui/menus/shop_panel.gd
+msgid "Sold out!"
+msgstr "สินค้าหมด!"
+
+#: ui/menus/shop_panel.gd
+msgid "Total %d coins"
+msgstr "รวม %d เหรียญ"
+
+#: ui/menus/shop_panel.gd
+msgid "Your bag can't hold more."
+msgstr "กระเป๋าใส่เพิ่มไม่ได้แล้ว"
+
+#: ui/new_game/character_creation.gd
+msgid "Accessories"
+msgstr "เครื่องประดับ"
+
+#: ui/new_game/character_creation.gd
+msgid "Accessory Colour"
+msgstr "สีเครื่องประดับ"
+
+#: ui/new_game/character_creation.gd
+msgid "Body"
+msgstr "รูปร่าง"
+
+#: ui/new_game/character_creation.gd
+msgid "Body Type"
+msgstr "รูปร่าง"
+
+#: ui/new_game/character_creation.gd
+msgid "Bottom"
+msgstr "กางเกง"
+
+#: ui/new_game/character_creation.gd
+msgid "Create Your Tamer"
+msgstr "สร้างเทมเมอร์ของคุณ"
+
+#: ui/new_game/character_creation.gd
+msgid "Customise how you look in the Digital World. Drag the preview to rotate."
+msgstr "แต่งตัวให้เข้ากับดิจิทัลเวิลด์ ลากที่ตัวละครเพื่อหมุนดู"
+
+#: ui/new_game/character_creation.gd
+msgid "Extras"
+msgstr "เพิ่มเติม"
+
+#: ui/new_game/character_creation.gd
+msgid "Eye Colour"
+msgstr "สีตา"
+
+#: ui/new_game/character_creation.gd
+msgid "Face"
+msgstr "ใบหน้า"
+
+#: ui/new_game/character_creation.gd
+msgid "Hair"
+msgstr "ผม"
+
+#: ui/new_game/character_creation.gd
+msgid "Hair Colour"
+msgstr "สีผม"
+
+#: ui/new_game/character_creation.gd
+msgid "Hairstyle"
+msgstr "ทรงผม"
+
+#: ui/new_game/character_creation.gd
+msgid "Leave Character Creation?"
+msgstr "ออกจากหน้าสร้างตัวละคร?"
+
+#: ui/new_game/character_creation.gd
+msgid "Next: Choose Partner"
+msgstr "ต่อไป: เลือกคู่หู"
+
+#: ui/new_game/character_creation.gd
+msgid "Outfit"
+msgstr "ชุด"
+
+#: ui/new_game/character_creation.gd
+msgid "Randomize"
+msgstr "สุ่ม"
+
+#: ui/new_game/character_creation.gd
+msgid "Reset"
+msgstr "รีเซ็ต"
+
+#: ui/new_game/character_creation.gd
+msgid "Shoes"
+msgstr "รองเท้า"
+
+#: ui/new_game/character_creation.gd
+msgid "Skin Tone"
+msgstr "สีผิว"
+
+#: ui/new_game/character_creation.gd
+msgid "Top"
+msgstr "เสื้อ"
+
+#: ui/new_game/character_creation.gd
+msgid "Your choices will be lost."
+msgstr "สิ่งที่เลือกไว้จะหายไป"
+
+#: ui/new_game/intro.gd
+msgid "Tap to continue ▸"
+msgstr "แตะเพื่อไปต่อ ▸"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "%s body · %s hair · %s face"
+msgstr "รูปร่าง%s · ผม%s · หน้า%s"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "%s · %s · %s"
+msgstr "%s · %s · %s"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Begin Adventure!"
+msgstr "เริ่มการผจญภัย!"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Check your choices. You can go back to change anything."
+msgstr "ตรวจสอบสิ่งที่เลือก ย้อนกลับไปแก้ไขได้ทุกอย่าง"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Partner"
+msgstr "คู่หู"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Ready for Adventure?"
+msgstr "พร้อมผจญภัยหรือยัง?"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Something is missing — please go back and check."
+msgstr "ยังขาดบางอย่าง ย้อนกลับไปตรวจสอบก่อนนะ"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Tamer"
+msgstr "เทมเมอร์"
+
+#: ui/new_game/new_game_confirmation.gd
+msgid "Your progress will be autosaved after you confirm."
+msgstr "เกมจะเซฟอัตโนมัติหลังจากคุณยืนยัน"
+
+#: ui/new_game/new_game_screen.gd
+msgid "Confirm"
+msgstr "ยืนยัน"
+
+#: ui/new_game/new_game_screen.gd
+msgid "Name"
+msgstr "ชื่อ"
+
+#: ui/new_game/player_name.gd
+msgid "Back"
+msgstr "กลับ"
+
+#: ui/new_game/player_name.gd
+msgid "Enter your name"
+msgstr "พิมพ์ชื่อของคุณ"
+
+#: ui/new_game/player_name.gd
+msgid "Need an idea?"
+msgstr "ไม่รู้จะตั้งชื่ออะไร?"
+
+#: ui/new_game/player_name.gd
+msgid "Next: Confirm"
+msgstr "ต่อไป: ยืนยัน"
+
+#: ui/new_game/player_name.gd
+msgid "Tamer Name"
+msgstr "ชื่อเทมเมอร์"
+
+#: ui/new_game/player_name.gd
+msgid "This is how Digimon and other Tamers will call you."
+msgstr "ดิจิมอนและเทมเมอร์คนอื่น ๆ จะเรียกคุณด้วยชื่อนี้"
+
+#: ui/new_game/player_name.gd
+msgid "What's Your Name?"
+msgstr "คุณชื่ออะไร?"
+
+#: ui/new_game/starter_selection.gd
+msgid " (Original placeholder model.)"
+msgstr " (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+
+#: ui/new_game/starter_selection.gd
+msgid "%s  ·  %s type  ·  %s"
+msgstr "%s  ·  ประเภท%s  ·  %s"
+
+#: ui/new_game/starter_selection.gd
+msgid "%s (%s) at Lv %d"
+msgstr "%s (%s) ที่ Lv %d"
+
+#: ui/new_game/starter_selection.gd
+msgid "Choose Your Partner"
+msgstr "เลือกคู่หูของคุณ"
+
+#: ui/new_game/starter_selection.gd
+msgid "Confirm Partner"
+msgstr "ยืนยันคู่หู"
+
+#: ui/new_game/starter_selection.gd
+msgid "Evolution: unknown"
+msgstr "วิวัฒนาการ: ยังไม่ทราบ"
+
+#: ui/new_game/starter_selection.gd
+msgid "Evolves into %s"
+msgstr "วิวัฒนาการเป็น %s"
+
+#: ui/new_game/starter_selection.gd
+msgid "Select"
+msgstr "เลือก"
+
+#: ui/new_game/starter_selection.gd
+msgid "Selected!"
+msgstr "เลือกแล้ว!"
+
+#: ui/new_game/starter_selection.gd
+msgid "Starter skill: %s"
+msgstr "สกิลเริ่มต้น: %s"
+
+#: ui/new_game/starter_selection.gd
+msgid "Your partner Digimon will follow you everywhere. Drag a preview to rotate it."
+msgstr "ดิจิมอนคู่หูจะตามคุณไปทุกที่ ลากที่ตัวดิจิมอนเพื่อหมุนดู"
+
+#: ui/popups/evolution_screen.gd
+msgid "Congratulations! It evolved into %s!"
+msgstr "ยินดีด้วย! วิวัฒนาการเป็น %s แล้ว!"
+
+#: ui/popups/evolution_screen.gd
+msgid "Continue"
+msgstr "เล่นต่อ"
+
+#: ui/popups/evolution_screen.gd
+msgid "Evolution failed: %s"
+msgstr "วิวัฒนาการไม่สำเร็จ: %s"
+
+#: ui/popups/evolution_screen.gd
+msgid "New skills: %s"
+msgstr "สกิลใหม่: %s"
+
+#: ui/popups/evolution_screen.gd
+msgid "What? %s is evolving!"
+msgstr "เอ๊ะ? %s กำลังวิวัฒนาการ!"
+
+#: ui/popups/popup_queue.gd
+msgid "%s is ready to evolve into %s!"
+msgstr "%s พร้อมวิวัฒนาการเป็น %s แล้ว!"
+
+#: ui/popups/popup_queue.gd
+msgid "%s reached Lv %d!"
+msgstr "%s ถึง Lv %d แล้ว!"
+
+#: ui/popups/popup_queue.gd
+msgid "+%d EXP for every party member"
+msgstr "+%d EXP ให้ทุกตัวในปาร์ตี้"
+
+#: ui/popups/popup_queue.gd
+msgid "EXP"
+msgstr "EXP"
+
+#: ui/popups/popup_queue.gd
+msgid "Evolution!"
+msgstr "วิวัฒนาการ!"
+
+#: ui/popups/popup_queue.gd
+msgid "Evolve!"
+msgstr "วิวัฒนาการ!"
+
+#: ui/popups/popup_queue.gd
+msgid "Later"
+msgstr "ไว้ทีหลัง"
+
+#: ui/popups/popup_queue.gd
+msgid "Level Up!"
+msgstr "เลเวลอัป!"
+
+#: ui/popups/popup_queue.gd
+msgid "New skill learned: %s!"
+msgstr "ได้สกิลใหม่: %s!"
+
+#: ui/popups/popup_queue.gd
+msgid "Quest Complete!"
+msgstr "เควสต์สำเร็จ!"
+
+#: ui/popups/popup_queue.gd
+msgid "Uses: %s"
+msgstr "ใช้: %s"
+
+msgid "+%d Data Coins"
+msgstr "+%d เหรียญดาต้า"
+
+msgid "Neutral"
+msgstr "ปกติ"

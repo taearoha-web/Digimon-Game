@@ -45,7 +45,7 @@ func start_quest(quest_id: StringName) -> bool:
 	quest_log().set_state(quest_id, State.ACTIVE)
 	quest_log().set_step(quest_id, 0, 0)
 	EventBus.quest_started.emit(quest_id)
-	EventBus.toast("New Quest: %s" % quest.title, &"quest")
+	EventBus.toast(L10n.t("New Quest: %s") % quest.title, &"quest")
 	AudioManager.play_ui(&"quest_start")
 	_check_passive_objectives(quest)
 	tracked_quest_changed.emit()
@@ -189,19 +189,19 @@ func get_objective_text(quest_id: StringName) -> String:
 		return ""
 	match get_state(quest_id):
 		State.AVAILABLE:
-			return "Talk to %s" % _npc_name(quest.giver_npc_id) if quest.giver_npc_id != &"" else quest.summary
+			return L10n.t("Talk to %s") % _npc_name(quest.giver_npc_id) if quest.giver_npc_id != &"" else quest.summary
 		State.ACTIVE:
 			var objective := get_current_objective(quest_id)
 			if objective == null:
 				return ""
 			var text := TextVars.format(objective.description, {}, false)
 			if objective.required_count > 1 and objective.type != QuestObjective.Type.REACH_LEVEL:
-				text += " (%d/%d)" % [quest_log().get_progress(quest_id), objective.required_count]
+				text += L10n.t(" (%d/%d)") % [quest_log().get_progress(quest_id), objective.required_count]
 			return text
 		State.COMPLETED:
-			return "Return to %s" % _npc_name(quest.turn_in_npc_id)
+			return L10n.t("Return to %s") % _npc_name(quest.turn_in_npc_id)
 		State.REWARDED:
-			return "Completed"
+			return L10n.t("Completed")
 	return ""
 
 
@@ -236,7 +236,7 @@ func _advance(quest: QuestData) -> void:
 		return
 	quest_log().set_step(quest.id, step, 0)
 	EventBus.quest_updated.emit(quest.id)
-	EventBus.toast("Objective: %s" % TextVars.format(quest.objectives[step].description, {}, false), &"quest")
+	EventBus.toast(L10n.t("Objective: %s") % TextVars.format(quest.objectives[step].description, {}, false), &"quest")
 	AudioManager.play_ui(&"quest_update")
 	_check_passive_objectives(quest)
 	tracked_quest_changed.emit()
@@ -250,7 +250,7 @@ func _complete(quest: QuestData) -> void:
 	if quest.turn_in_npc_id == &"":
 		grant_rewards(quest.id)
 	else:
-		EventBus.toast("Quest ready! Return to %s." % _npc_name(quest.turn_in_npc_id), &"quest")
+		EventBus.toast(L10n.t("Quest ready! Return to %s.") % _npc_name(quest.turn_in_npc_id), &"quest")
 		AudioManager.play_ui(&"quest_update")
 
 

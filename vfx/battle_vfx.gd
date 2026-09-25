@@ -177,7 +177,7 @@ static func projectile(parent: Node3D, vfx_id: StringName, from: Vector3, to: Ve
 ## Floating number / text above a combatant.
 static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0) -> void:
 	var label := Label3D.new()
-	label.text = text
+	label.text = L10n.t(text)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.font = load("res://ui/theme/fonts/heading_font.tres")

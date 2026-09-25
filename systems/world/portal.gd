@@ -16,7 +16,7 @@ var _ring_material: StandardMaterial3D
 
 func _ready() -> void:
 	super._ready()
-	prompt_text = "Enter"
+	prompt_text = L10n.t("Enter")
 	interaction_radius = 3.0
 	_build_visual()
 	EventBus.flag_changed.connect(func(_f, _v): _refresh_state())
@@ -91,7 +91,7 @@ func _build_visual() -> void:
 		MeshKit.part(self, MeshKit.box(), stone, Vector3(2.1 * side, 1.4, 0), Vector3(0.5, 2.8, 0.6))
 		MeshKit.part(self, MeshKit.sphere(), MeshKit.toon(UIPalette.CYAN, {"emission": 1.5}), Vector3(2.1 * side, 3.0, 0), Vector3(0.45, 0.45, 0.45))
 	var label := Label3D.new()
-	label.text = "Gateway"
+	label.text = L10n.t("Gateway")
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.pixel_size = 0.005
 	label.font_size = 48

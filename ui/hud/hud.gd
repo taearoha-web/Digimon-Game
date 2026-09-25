@@ -138,7 +138,7 @@ func refresh_partner() -> void:
 		return
 	var species := lead.get_species()
 	_partner_name.text = lead.get_display_name()
-	_partner_level.text = "Lv %d" % lead.level
+	_partner_level.text = L10n.t("Lv %d") % lead.level
 	_partner_badge.text = lead.get_display_name().substr(0, 1)
 	if lead.species_id != _badge_species:
 		_badge_species = lead.species_id

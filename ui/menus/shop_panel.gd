@@ -106,7 +106,7 @@ func refresh() -> void:
 		row.expand_icon = false
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.add_theme_constant_override("icon_max_width", 44)
-		row.text = "%s   ·   %d coins   (own %d)" % [item.display_name, price, GameState.inventory.count(item.id)]
+		row.text = L10n.t("%s   ·   %d coins   (own %d)") % [item.display_name, price, GameState.inventory.count(item.id)]
 		row.pressed.connect(func():
 			_selected = item.id
 			_quantity = 1
@@ -151,12 +151,12 @@ func _show_detail() -> void:
 	var titles := UIUtil.vbox(4)
 	head.add_child(titles)
 	titles.add_child(UIUtil.label(item.display_name, &"HeaderLabel"))
-	titles.add_child(UIUtil.label("%s · Owned %d" % [item.get_category_name(), GameState.inventory.count(item.id)], &"DimLabel"))
+	titles.add_child(UIUtil.label(L10n.t("%s · Owned %d") % [item.get_category_name(), GameState.inventory.count(item.id)], &"DimLabel"))
 	var desc := UIUtil.label(item.description, &"")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
 	if item.is_equipment():
-		_detail.add_child(UIUtil.label("Held bonus: " + item.describe_bonuses(), &"BoldLabel"))
+		_detail.add_child(UIUtil.label(L10n.t("Held bonus: %s") % item.describe_bonuses(), &"BoldLabel"))
 
 	var max_qty := _max_quantity(item)
 	_quantity = clampi(_quantity, 1, maxi(1, max_qty))
@@ -182,14 +182,14 @@ func _show_detail() -> void:
 		AudioManager.play_ui(&"ui_select")
 		_show_detail())
 	qty_row.add_child(plus)
-	qty_row.add_child(UIUtil.label("Total %d coins" % (price * _quantity), &"BoldLabel"))
+	qty_row.add_child(UIUtil.label(L10n.t("Total %d coins") % (price * _quantity), &"BoldLabel"))
 
-	var action := UIUtil.button(("Sell" if _selling else "Buy") + " ×%d" % _quantity, &"PrimaryButton", Vector2(240, 64))
+	var action := UIUtil.button(L10n.t("Sell ×%d" if _selling else "Buy ×%d") % _quantity, &"PrimaryButton", Vector2(240, 64))
 	action.disabled = max_qty <= 0
 	action.pressed.connect(_on_action.bind(item.id))
 	_detail.add_child(action)
 	if max_qty <= 0 and not _selling:
-		var reason := "Not enough Data Coins." if GameState.inventory.count(item.id) < item.max_stack else "Your bag can't hold more."
+		var reason := L10n.t("Not enough Data Coins.") if GameState.inventory.count(item.id) < item.max_stack else L10n.t("Your bag can't hold more.")
 		_detail.add_child(UIUtil.label(reason, &"SmallLabel"))
 
 

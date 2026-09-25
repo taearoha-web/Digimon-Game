@@ -8,6 +8,22 @@ var current_test := ""
 var assertions := 0
 
 
+## Switches UI + data language for a test ("en" is the default for tests so
+## assertions on English text stay stable).
+static func use_locale(code: String) -> void:
+	TranslationServer.set_locale(code)
+	var loop := Engine.get_main_loop()
+	if not loop is SceneTree:
+		return
+	var root := (loop as SceneTree).root
+	var settings := root.get_node_or_null("Settings")
+	if settings:
+		settings.language = code # in memory only, so Settings.apply() agrees
+	var registry := root.get_node_or_null("GameData")
+	if registry:
+		registry.apply_locale()
+
+
 func before_each() -> void:
 	pass
 

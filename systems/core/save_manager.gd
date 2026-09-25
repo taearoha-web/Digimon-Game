@@ -78,7 +78,7 @@ func get_slot_info(slot: int) -> Dictionary:
 
 func save_game(slot: int, is_autosave := false) -> bool:
 	if not GameState.is_game_active:
-		last_error = "No active game"
+		last_error = L10n.t("No active game")
 		save_completed.emit(slot, false)
 		return false
 	_capture_live_world_state()
@@ -109,12 +109,12 @@ func autosave(reason: String = "", force := false) -> bool:
 func load_game(slot: int) -> bool:
 	var data = _read_valid(get_slot_path(slot))
 	if data == null:
-		last_error = "Save data is missing or corrupted."
+		last_error = L10n.t("Save data is missing or corrupted.")
 		load_completed.emit(slot, false)
 		return false
 	data = migrate(data)
 	if data == null:
-		last_error = "Save data is from an unsupported version."
+		last_error = L10n.t("Save data is from an unsupported version.")
 		load_completed.emit(slot, false)
 		return false
 	GameState.load_from_dict(data.get("state", {}))
@@ -238,14 +238,14 @@ func _write_json_atomic(path: String, data: Dictionary) -> bool:
 	var tmp_path := path + ".tmp"
 	var file := FileAccess.open(tmp_path, FileAccess.WRITE)
 	if file == null:
-		last_error = "Cannot write save (%s)" % error_string(FileAccess.get_open_error())
+		last_error = L10n.t("Cannot write save (%s)") % error_string(FileAccess.get_open_error())
 		push_warning("SaveManager: " + last_error)
 		return false
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
 	# Verify what we wrote can be read back before replacing the real save.
 	if not is_valid_save(_read_json(tmp_path)):
-		last_error = "Save verification failed"
+		last_error = L10n.t("Save verification failed")
 		DirAccess.remove_absolute(tmp_path)
 		return false
 	if FileAccess.file_exists(path):
@@ -255,7 +255,7 @@ func _write_json_atomic(path: String, data: Dictionary) -> bool:
 		DirAccess.rename_absolute(path, bak)
 	var err := DirAccess.rename_absolute(tmp_path, path)
 	if err != OK:
-		last_error = "Cannot finalize save (%s)" % error_string(err)
+		last_error = L10n.t("Cannot finalize save (%s)") % error_string(err)
 		push_warning("SaveManager: " + last_error)
 		return false
 	return true

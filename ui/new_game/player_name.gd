@@ -99,7 +99,7 @@ func _on_text_changed(text: String, silent := false) -> void:
 	var error := NameValidator.validate(text)
 	_confirm_button.disabled = error != ""
 	_error.text = "" if (silent or text.strip_edges() == "") else error
-	_counter.text = "%d / %d" % [text.length(), NameValidator.MAX_LENGTH]
+	_counter.text = L10n.t("%d / %d") % [text.length(), NameValidator.MAX_LENGTH]
 
 
 func _on_confirm() -> void:

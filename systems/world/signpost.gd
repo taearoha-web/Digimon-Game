@@ -15,7 +15,7 @@ func _ready() -> void:
 	MeshKit.part(self, MeshKit.cylinder(), wood, Vector3(0, 0.6, 0), Vector3(0.12, 1.2, 0.12))
 	MeshKit.part(self, MeshKit.box(), board, Vector3(0, 1.15, 0), Vector3(1.1, 0.6, 0.08))
 	var label := Label3D.new()
-	label.text = title
+	label.text = L10n.t(title)
 	label.pixel_size = 0.004
 	label.font_size = 40
 	label.outline_size = 8

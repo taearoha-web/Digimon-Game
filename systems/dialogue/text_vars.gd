@@ -9,8 +9,8 @@ extends RefCounted
 ## Builds the default variable set from the current game state.
 static func default_context() -> Dictionary:
 	var ctx := {
-		"player_name": "Tamer",
-		"partner_name": "Partner",
+		"player_name": L10n.t("Tamer"),
+		"partner_name": L10n.t("Partner"),
 	}
 	var game_state = Engine.get_main_loop().root.get_node_or_null("GameState") if Engine.get_main_loop() else null
 	if game_state:

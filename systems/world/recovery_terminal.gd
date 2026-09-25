@@ -28,7 +28,7 @@ func _ready() -> void:
 	var spin := create_tween().set_loops()
 	spin.tween_property(_hologram, "rotation:y", TAU, 4.0).from(0.0)
 	var label := Label3D.new()
-	label.text = "Recovery Terminal"
+	label.text = L10n.t("Recovery Terminal")
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.pixel_size = 0.0035
 	label.font_size = 44
@@ -49,4 +49,4 @@ func _on_interact(_by: Node) -> void:
 	var box := DialogueBox.find(get_tree())
 	if box:
 		await box.play(&"terminal_heal")
-	EventBus.toast("Party fully healed!", &"success")
+	EventBus.toast(L10n.t("Party fully healed!"), &"success")

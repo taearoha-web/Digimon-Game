@@ -62,7 +62,7 @@ func setup(p_party: Array[DigimonInstance], enemy_instance: DigimonInstance, p_r
 	_mark_participant(player)
 	_struggle_skill = SkillData.new()
 	_struggle_skill.id = &"struggle"
-	_struggle_skill.display_name = "Desperate Tackle"
+	_struggle_skill.display_name = L10n.t("Desperate Tackle")
 	_struggle_skill.power = 20
 	_struggle_skill.accuracy = 100
 	var dmg := SkillEffect.new()
@@ -74,10 +74,10 @@ func start() -> Array[Dictionary]:
 	phase = Phase.AWAITING_COMMAND
 	var events: Array[Dictionary] = []
 	if request.is_wild:
-		events.append(_msg("A wild %s appeared!" % enemy.get_name()))
+		events.append(_msg(L10n.t("A wild %s appeared!") % enemy.get_name()))
 	else:
-		events.append(_msg("%s wants to battle!" % enemy.get_name()))
-	events.append(_msg("Go, %s!" % player.get_name()))
+		events.append(_msg(L10n.t("%s wants to battle!") % enemy.get_name()))
+	events.append(_msg(L10n.t("Go, %s!") % player.get_name()))
 	return events
 
 
@@ -90,36 +90,36 @@ func get_skill_options() -> Array[Dictionary]:
 	var options: Array[Dictionary] = []
 	for skill in player.get_equipped_skills():
 		var usable := player.can_afford(skill)
-		options.append({"skill": skill, "usable": usable, "reason": "" if usable else "Not enough SP"})
+		options.append({"skill": skill, "usable": usable, "reason": "" if usable else L10n.t("Not enough SP")})
 	return options
 
 
 ## Returns "" when [param command] is legal right now, otherwise the reason.
 func validate_command(command: Dictionary) -> String:
 	if phase != Phase.AWAITING_COMMAND:
-		return "Not your turn."
+		return L10n.t("Not your turn.")
 	match str(command.get("type", "")):
 		"skill":
 			var skill := _get_skill(StringName(command.get("skill_id", "")))
 			if skill == null or not player.instance.equipped_skills.has(skill.id):
-				return "Unknown skill."
+				return L10n.t("Unknown skill.")
 			if not player.can_afford(skill):
-				return "Not enough SP!"
+				return L10n.t("Not enough SP!")
 		"struggle":
 			if not player.get_usable_skills().is_empty():
-				return "You still have usable skills."
+				return L10n.t("You still have usable skills.")
 		"defend":
 			pass
 		"item":
 			var item_id := StringName(command.get("item_id", ""))
 			if inventory == null or not inventory.has_item(item_id):
-				return "You don't have that item."
+				return L10n.t("You don't have that item.")
 			var item: ItemData = _registry().get_item(item_id)
 			if item == null or not item.is_usable(true):
-				return "That item can't be used in battle."
+				return L10n.t("That item can't be used in battle.")
 			if item.use_effect == ItemData.UseEffect.BEFRIEND_BOOST:
 				if not request.is_wild:
-					return "That only works on wild Digimon."
+					return L10n.t("That only works on wild Digimon.")
 			else:
 				var target := _find_party_member(str(command.get("target_uid", player.instance.uid)))
 				var reason := ItemService.get_block_reason(item, target, true)
@@ -128,19 +128,19 @@ func validate_command(command: Dictionary) -> String:
 		"switch":
 			var index := int(command.get("index", -1))
 			if index < 0 or index >= party.size():
-				return "Invalid party slot."
+				return L10n.t("Invalid party slot.")
 			if party[index] == player.instance:
-				return "%s is already fighting!" % player.get_name()
+				return L10n.t("%s is already fighting!") % player.get_name()
 			if party[index].is_fainted():
-				return "%s has no energy left to fight!" % party[index].get_display_name()
+				return L10n.t("%s has no energy left to fight!") % party[index].get_display_name()
 		"escape":
 			if not request.can_escape:
-				return "There's no escaping this battle!"
+				return L10n.t("There's no escaping this battle!")
 		"befriend":
 			if not request.is_wild or not request.can_befriend:
-				return "This Digimon won't listen right now."
+				return L10n.t("This Digimon won't listen right now.")
 		_:
-			return "Unknown command."
+			return L10n.t("Unknown command.")
 	return ""
 
 
@@ -180,7 +180,7 @@ func submit_switch(index: int) -> Array[Dictionary]:
 	if phase != Phase.AWAITING_SWITCH:
 		return events
 	if index < 0 or index >= party.size() or party[index].is_fainted():
-		events.append(_msg("Choose a Digimon that can still fight."))
+		events.append(_msg(L10n.t("Choose a Digimon that can still fight.")))
 		events.append({"type": "invalid"})
 		return events
 	events.append_array(_switch_to(index, true))
@@ -225,13 +225,13 @@ func _use_skill(user: BattleCombatant, skill: SkillData) -> Array[Dictionary]:
 	user.instance.current_sp = maxi(0, user.instance.current_sp - skill.sp_cost)
 	events.append({
 		"type": "skill", "side": user.side, "skill_id": skill.id, "target_side": target.side,
-		"text": "%s used %s!" % [user.get_battle_name(), skill.display_name],
+		"text": L10n.t("%s used %s!") % [user.get_battle_name(), skill.display_name],
 	})
 	if skill.sp_cost > 0:
 		events.append(_sp_event(user))
 
 	if skill.target == SkillData.Target.ENEMY and not DamageCalculator.roll_hit(user, skill, rng):
-		events.append({"type": "miss", "side": target.side, "text": "%s's attack missed!" % user.get_battle_name()})
+		events.append({"type": "miss", "side": target.side, "text": L10n.t("%s's attack missed!") % user.get_battle_name()})
 		return events
 
 	var last_damage := 0
@@ -254,7 +254,7 @@ func _use_skill(user: BattleCombatant, skill: SkillData) -> Array[Dictionary]:
 					"element": skill.element, "skill_id": skill.id, "category": skill.category,
 				})
 				if result.critical:
-					events.append(_msg("A critical hit!"))
+					events.append(_msg(L10n.t("A critical hit!")))
 				var eff_text := DamageCalculator.effectiveness_text(result.type_multiplier)
 				if eff_text != "":
 					events.append(_msg(eff_text))
@@ -263,7 +263,7 @@ func _use_skill(user: BattleCombatant, skill: SkillData) -> Array[Dictionary]:
 					continue
 				var healed := effect_target.instance.heal(int(ceil(effect_target.instance.get_max_hp() * effect.amount / 100.0)))
 				events.append(_heal_event(effect_target, healed))
-				events.append(_msg("%s recovered %d HP!" % [effect_target.get_battle_name(), healed] if healed > 0 else "%s's HP is already full." % effect_target.get_battle_name()))
+				events.append(_msg(L10n.t("%s recovered %d HP!") % [effect_target.get_battle_name(), healed] if healed > 0 else L10n.t("%s's HP is already full.") % effect_target.get_battle_name()))
 			SkillEffect.Type.BUFF, SkillEffect.Type.DEBUFF:
 				if effect_target.is_fainted():
 					continue
@@ -285,7 +285,7 @@ func _use_skill(user: BattleCombatant, skill: SkillData) -> Array[Dictionary]:
 					var drained := user.instance.heal(int(ceil(last_damage * effect.amount / 100.0)))
 					if drained > 0:
 						events.append(_heal_event(user, drained))
-						events.append(_msg("%s drained %d HP!" % [user.get_battle_name(), drained]))
+						events.append(_msg(L10n.t("%s drained %d HP!") % [user.get_battle_name(), drained]))
 	return events
 
 
@@ -293,7 +293,7 @@ func _defend(actor: BattleCombatant) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	actor.is_defending = true
 	actor.instance.restore_sp(int(ceil(actor.instance.get_max_sp() * DEFEND_SP_PERCENT / 100.0)))
-	events.append({"type": "defend", "side": actor.side, "text": "%s is defending!" % actor.get_battle_name()})
+	events.append({"type": "defend", "side": actor.side, "text": L10n.t("%s is defending!") % actor.get_battle_name()})
 	events.append(_sp_event(actor))
 	return events
 
@@ -301,7 +301,7 @@ func _defend(actor: BattleCombatant) -> Array[Dictionary]:
 func _use_item(item_id: StringName, target_uid: String) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	var item: ItemData = _registry().get_item(item_id)
-	events.append({"type": "item", "side": PLAYER, "item_id": item_id, "text": "You used %s!" % item.display_name})
+	events.append({"type": "item", "side": PLAYER, "item_id": item_id, "text": L10n.t("You used %s!") % item.display_name})
 	if item.use_effect == ItemData.UseEffect.BEFRIEND_BOOST:
 		var boost := ItemService.use_item(item_id, null, inventory, true)
 		enemy.befriend_bonus += float(boost.befriend_bonus)
@@ -324,12 +324,12 @@ func _switch_to(index: int, forced: bool) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	var inst := party[index]
 	if not forced:
-		events.append(_msg("%s, come back!" % player.get_name()))
+		events.append(_msg(L10n.t("%s, come back!") % player.get_name()))
 	player.reset_battle_state()
 	player.clear_status()
 	player = BattleCombatant.new(inst, PLAYER)
 	_mark_participant(player)
-	events.append({"type": "switch", "side": PLAYER, "uid": inst.uid, "text": "Go, %s!" % inst.get_display_name()})
+	events.append({"type": "switch", "side": PLAYER, "uid": inst.uid, "text": L10n.t("Go, %s!") % inst.get_display_name()})
 	return events
 
 
@@ -342,9 +342,9 @@ func _try_escape() -> Array[Dictionary]:
 	if rng.randf() < chance:
 		outcome = Outcome.ESCAPED
 		phase = Phase.FINISHED
-		events.append({"type": "escape", "success": true, "text": "Got away safely!"})
+		events.append({"type": "escape", "success": true, "text": L10n.t("Got away safely!")})
 	else:
-		events.append({"type": "escape", "success": false, "text": "Couldn't get away!"})
+		events.append({"type": "escape", "success": false, "text": L10n.t("Couldn't get away!")})
 	return events
 
 
@@ -354,15 +354,15 @@ func _try_befriend() -> Array[Dictionary]:
 	var success := RecruitmentService.roll(chance, rng)
 	events.append({
 		"type": "befriend", "success": success, "chance": chance,
-		"text": "You reach out to %s…" % enemy.get_name(),
+		"text": L10n.t("You reach out to %s…") % enemy.get_name(),
 	})
 	if success:
 		recruited_instance = RecruitmentService.create_recruit(enemy.instance.species_id, enemy.get_level(), rng)
 		outcome = Outcome.RECRUITED
 		phase = Phase.FINISHED
-		events.append(_msg("%s wants to join your team!" % enemy.get_name()))
+		events.append(_msg(L10n.t("%s wants to join your team!") % enemy.get_name()))
 	else:
-		var lines := ["%s is wary of you…", "%s turned away!", "%s doesn't trust you yet."]
+		var lines := [L10n.t("%s is wary of you…"), L10n.t("%s turned away!"), L10n.t("%s doesn't trust you yet.")]
 		events.append(_msg(lines[rng.randi_range(0, lines.size() - 1)] % enemy.get_name()))
 		enemy.befriend_bonus += 0.03 # Persistence pays off a little.
 	return events
@@ -372,21 +372,21 @@ func _check_faints() -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	if enemy.is_fainted() and not _announced_faints.has(enemy):
 		_announced_faints[enemy] = true
-		events.append({"type": "faint", "side": ENEMY, "text": "%s fainted!" % enemy.get_battle_name()})
+		events.append({"type": "faint", "side": ENEMY, "text": L10n.t("%s fainted!") % enemy.get_battle_name()})
 		outcome = Outcome.VICTORY
 		phase = Phase.FINISHED
 		events.append({"type": "victory"})
 		return events
 	if player.is_fainted() and not _announced_faints.has(player):
 		_announced_faints[player] = true
-		events.append({"type": "faint", "side": PLAYER, "text": "%s fainted!" % player.get_name()})
+		events.append({"type": "faint", "side": PLAYER, "text": L10n.t("%s fainted!") % player.get_name()})
 		if _has_healthy_reserve():
 			phase = Phase.AWAITING_SWITCH
-			events.append({"type": "need_switch", "text": "Choose your next Digimon!"})
+			events.append({"type": "need_switch", "text": L10n.t("Choose your next Digimon!")})
 		else:
 			outcome = Outcome.DEFEAT
 			phase = Phase.FINISHED
-			events.append(_msg("Your party can't fight any more…"))
+			events.append(_msg(L10n.t("Your party can't fight any more…")))
 			events.append({"type": "defeat"})
 	return events
 
@@ -462,11 +462,15 @@ func _mark_participant(combatant: BattleCombatant) -> void:
 
 
 func _stat_text(target: BattleCombatant, stat: StringName, requested: int, applied: int) -> String:
-	var stat_name := DigimonStats.display_name(stat)
+	# Whole-sentence templates with named fields so translations can reorder.
+	var template: String
 	if applied == 0:
-		return "%s's %s won't go any %s!" % [target.get_battle_name(), stat_name, "higher" if requested > 0 else "lower"]
-	var amount_word := " sharply" if absi(applied) >= 2 else ""
-	return "%s's %s%s %s!" % [target.get_battle_name(), stat_name, amount_word, "rose" if applied > 0 else "fell"]
+		template = "{name}'s {stat} won't go any higher!" if requested > 0 else "{name}'s {stat} won't go any lower!"
+	elif absi(applied) >= 2:
+		template = "{name}'s {stat} rose sharply!" if applied > 0 else "{name}'s {stat} fell sharply!"
+	else:
+		template = "{name}'s {stat} rose!" if applied > 0 else "{name}'s {stat} fell!"
+	return L10n.t(template).format({"name": target.get_battle_name(), "stat": DigimonStats.display_name(stat)})
 
 
 func _msg(text: String) -> Dictionary:

@@ -32,7 +32,7 @@ func get_name() -> String:
 
 ## Name with "wild"/"foe" prefix for battle messages.
 func get_battle_name() -> String:
-	return ("Wild " + get_name()) if side == ENEMY_SIDE else get_name()
+	return (L10n.t("Wild %s") % get_name()) if side == ENEMY_SIDE else get_name()
 
 
 func get_level() -> int:

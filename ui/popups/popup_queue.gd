@@ -133,14 +133,14 @@ func _quest_popup(rewards: Dictionary) -> void:
 	var list := UIUtil.vbox(6)
 	box.add_child(list)
 	if int(rewards.get("exp", 0)) > 0:
-		list.add_child(_reward_row(null, "+%d EXP for every party member" % int(rewards.exp)))
+		list.add_child(_reward_row(null, L10n.t("+%d EXP for every party member") % int(rewards.exp)))
 	if int(rewards.get("currency", 0)) > 0:
-		list.add_child(_reward_row(load("res://assets/icons/ui/coin.svg"), "+%d Data Coins" % int(rewards.currency)))
+		list.add_child(_reward_row(load("res://assets/icons/ui/coin.svg"), L10n.t("+%d Data Coins") % int(rewards.currency)))
 	var items: Dictionary = rewards.get("items", {})
 	for item_id in items.keys():
 		var item := GameData.get_item(StringName(item_id))
 		if item:
-			list.add_child(_reward_row(item.get_icon(), "%s ×%d" % [item.display_name, int(items[item_id])]))
+			list.add_child(_reward_row(item.get_icon(), L10n.t("%s ×%d") % [item.display_name, int(items[item_id])]))
 	UIUtil.pop_in(f.panel)
 	await _close_button(box).pressed
 	f.overlay.queue_free()
@@ -163,7 +163,7 @@ func _level_up_popup(inst: DigimonInstance, ups: Array) -> void:
 	var first: Dictionary = ups.front()
 	var f := _frame("Level Up!", UIPalette.CYAN)
 	var box: VBoxContainer = f.box
-	box.add_child(UIUtil.label("%s reached Lv %d!" % [inst.get_display_name(), int(last.level)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	box.add_child(UIUtil.label(L10n.t("%s reached Lv %d!") % [inst.get_display_name(), int(last.level)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 22)
@@ -185,7 +185,7 @@ func _level_up_popup(inst: DigimonInstance, ups: Array) -> void:
 			if skill:
 				learned.append(skill.display_name)
 	if not learned.is_empty():
-		var l := UIUtil.label("New skill learned: %s!" % ", ".join(learned), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		var l := UIUtil.label(L10n.t("New skill learned: %s!") % ", ".join(learned), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		l.add_theme_color_override("font_color", UIPalette.GOLD)
 		box.add_child(l)
 		AudioManager.play_ui(&"skill_learned")
@@ -205,12 +205,12 @@ func _evolution_check(inst: DigimonInstance) -> void:
 	AudioManager.play_ui(&"evolve_ready")
 	var f := _frame("Evolution!", UIPalette.ORANGE)
 	var box: VBoxContainer = f.box
-	var text := UIUtil.label("%s is ready to evolve into %s!" % [inst.get_display_name(), target.display_name], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	var text := UIUtil.label(L10n.t("%s is ready to evolve into %s!") % [inst.get_display_name(), target.display_name], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(text)
 	if path.required_item_id != &"":
 		var item := GameData.get_item(path.required_item_id)
-		box.add_child(UIUtil.label("Uses: %s" % (item.display_name if item else String(path.required_item_id)), &"DimLabel", HORIZONTAL_ALIGNMENT_CENTER))
+		box.add_child(UIUtil.label(L10n.t("Uses: %s") % (item.display_name if item else String(path.required_item_id)), &"DimLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var row := UIUtil.hbox(16)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_child(row)

@@ -373,7 +373,7 @@ func _add_recruit(recruit: DigimonInstance) -> void:
 		EventBus.toast("Your Collection is full.", &"warning")
 		return
 	EventBus.digimon_recruited.emit(recruit)
-	EventBus.toast("%s joined your %s!" % [recruit.get_display_name(), "party" if placed == &"party" else "Collection"], &"success")
+	EventBus.toast(L10n.t("%s joined your party!" if placed == &"party" else "%s joined your Collection!") % recruit.get_display_name(), &"success")
 	SaveManager.autosave("digimon recruited", true)
 
 

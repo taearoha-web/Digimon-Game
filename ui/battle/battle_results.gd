@@ -62,7 +62,7 @@ func _build_victory(title: String, summary: Dictionary) -> void:
 		var name_label := UIUtil.label(inst.get_display_name(), &"BoldLabel")
 		name_label.custom_minimum_size = Vector2(170, 0)
 		row.add_child(name_label)
-		var level_label := UIUtil.label("Lv %d" % int(entry.old_level), &"ValueLabel")
+		var level_label := UIUtil.label(L10n.t("Lv %d") % int(entry.old_level), &"ValueLabel")
 		level_label.custom_minimum_size = Vector2(70, 0)
 		row.add_child(level_label)
 		var bar := ProgressBar.new()
@@ -74,7 +74,7 @@ func _build_victory(title: String, summary: Dictionary) -> void:
 		bar.step = 0.001
 		bar.value = float(entry.old_progress)
 		row.add_child(bar)
-		var gain := UIUtil.label("+%d EXP%s" % [int(entry.amount), "" if entry.participated else " (shared)"], &"BoldLabel")
+		var gain := UIUtil.label(L10n.t("+%d EXP%s") % [int(entry.amount), "" if entry.participated else L10n.t(" (shared)")], &"BoldLabel")
 		gain.add_theme_color_override("font_color", UIPalette.CYAN)
 		row.add_child(gain)
 		bars.append({"bar": bar, "level_label": level_label, "entry": entry})
@@ -83,8 +83,8 @@ func _build_victory(title: String, summary: Dictionary) -> void:
 		var parts: Array = []
 		for item_id in drops.keys():
 			var item := GameData.get_item(StringName(item_id))
-			parts.append("%s ×%d" % [item.display_name if item else String(item_id), int(drops[item_id])])
-		var drop_label := UIUtil.label("Found: " + ", ".join(parts), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+			parts.append(L10n.t("%s ×%d") % [item.display_name if item else String(item_id), int(drops[item_id])])
+		var drop_label := UIUtil.label(L10n.t("Found: %s") % ", ".join(parts), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		drop_label.add_theme_color_override("font_color", UIPalette.PINK)
 		box.add_child(drop_label)
 	var ok := UIUtil.button("Continue", &"PrimaryButton", Vector2(260, 64))
@@ -103,7 +103,7 @@ func _build_victory(title: String, summary: Dictionary) -> void:
 			t.tween_property(bar, "value", 1.0, 0.35)
 			await t.finished
 			level = int(up.level)
-			(b.level_label as Label).text = "Lv %d" % level
+			(b.level_label as Label).text = L10n.t("Lv %d") % level
 			(b.level_label as Label).add_theme_color_override("font_color", UIPalette.GOLD)
 			AudioManager.play_ui(&"level_up_blip")
 			bar.value = 0.0
@@ -124,12 +124,12 @@ func _build_recruit(inst: DigimonInstance, forced: bool) -> void:
 	preview.frame_height(visual.model_height)
 	visual.play_animation(&"victory")
 	var species := inst.get_species()
-	var title := "%s joined your team!" % inst.get_display_name() if forced else "%s wants to join your team!" % inst.get_display_name()
+	var title := L10n.t("%s joined your team!") % inst.get_display_name() if forced else L10n.t("%s wants to join your team!") % inst.get_display_name()
 	var header := UIUtil.label(title, &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(header)
 	if species:
-		box.add_child(UIUtil.label("Lv %d · %s · %s · %s" % [inst.level, species.get_stage_name(), species.get_attribute_name(), species.digimon_type],
+		box.add_child(UIUtil.label(L10n.t("Lv %d · %s · %s · %s") % [inst.level, species.get_stage_name(), species.get_attribute_name(), species.digimon_type],
 			&"DimLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var destination := "It will join your party." if GameState.roster.party.size() < DigimonRoster.MAX_PARTY else "Your party is full — it will wait in your Collection."
 	if GameState.roster.is_full():

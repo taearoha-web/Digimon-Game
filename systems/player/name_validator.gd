@@ -34,14 +34,14 @@ static func sanitize(raw: String) -> String:
 static func validate(raw: String) -> String:
 	var cleaned := sanitize(raw)
 	if cleaned.length() < MIN_LENGTH:
-		return "Please enter a name."
+		return L10n.t("Please enter a name.")
 	if raw.strip_edges().length() > MAX_LENGTH:
-		return "Names can be at most %d characters." % MAX_LENGTH
+		return L10n.t("Names can be at most %d characters.") % MAX_LENGTH
 	var has_visible := false
 	for i in cleaned.length():
 		if cleaned[i] != " " and cleaned[i] != "." and cleaned[i] != "-" and cleaned[i] != "_" and cleaned[i] != "'":
 			has_visible = true
 			break
 	if not has_visible:
-		return "Names need at least one letter or number."
+		return L10n.t("Names need at least one letter or number.")
 	return ""
