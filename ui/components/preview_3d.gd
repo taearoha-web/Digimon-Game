@@ -23,6 +23,7 @@ var _turntable: Node3D
 var _camera: Camera3D
 var _dragging := false
 var _drag_index := -1
+var _drag_last := Vector2.ZERO
 var _idle_time := 0.0
 
 
@@ -103,6 +104,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed and _drag_index == -1:
 			_drag_index = event.index
+			_drag_last = event.position
 			_dragging = true
 			_idle_time = 0.0
 		elif not event.pressed and event.index == _drag_index:
@@ -110,7 +112,9 @@ func _gui_input(event: InputEvent) -> void:
 			_dragging = false
 		accept_event()
 	elif event is InputEventScreenDrag and event.index == _drag_index:
-		yaw += event.relative.x * drag_sensitivity
+		# Own delta per finger (event.relative is unreliable with multitouch on Web).
+		yaw += clampf(event.position.x - _drag_last.x, -80.0, 80.0) * drag_sensitivity
+		_drag_last = event.position
 		accept_event()
 	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
 		if event.button_index == MOUSE_BUTTON_LEFT:

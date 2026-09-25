@@ -8,6 +8,8 @@ signal drag(relative: Vector2)
 signal pinch(amount: float)
 
 const MOUSE_INDEX := -100
+## Largest camera drag accepted from one event (px); guards against spikes.
+const MAX_DRAG_STEP := 80.0
 
 var _touches: Dictionary = {} # index -> position
 var _pinch_distance := 0.0
@@ -26,6 +28,10 @@ func _gui_input(event: InputEvent) -> void:
 		_pinch_distance = _current_pinch_distance()
 		accept_event()
 	elif event is InputEventScreenDrag and _touches.has(event.index):
+		# Use our own per-finger delta, not event.relative: the Web build
+		# computes relative against the wrong finger when another finger (the
+		# joystick thumb) moves in between, which made the camera spin.
+		var previous: Vector2 = _touches[event.index]
 		_touches[event.index] = event.position
 		if _touches.size() >= 2:
 			var distance := _current_pinch_distance()
@@ -33,7 +39,7 @@ func _gui_input(event: InputEvent) -> void:
 				pinch.emit((distance - _pinch_distance) * 0.01)
 			_pinch_distance = distance
 		elif _touches.size() == 1:
-			drag.emit(event.relative)
+			drag.emit((event.position - previous).limit_length(MAX_DRAG_STEP))
 		accept_event()
 	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
 		if event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT:
