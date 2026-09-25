@@ -17,6 +17,7 @@ const RIVER_HALF_WIDTH := 4.2
 const RIVER_DEPTH := 1.8
 const WATER_Y := -0.6
 const BRIDGE_HALF_WIDTH := 2.6
+const BRIDGE_RAMP_LENGTH := 3.0
 
 const PLAZA := Vector2(-38, 10)
 const PLAZA_RADIUS := 10.0
@@ -211,6 +212,25 @@ func _build_bridge() -> void:
 	_add_box_shape(body, Vector3(0, 0.05, 0), Vector3(length + 1.0, 0.4, BRIDGE_HALF_WIDTH * 2.0))
 	for side in [-1.0, 1.0]:
 		_add_box_shape(body, Vector3(0, 0.8, side * (BRIDGE_HALF_WIDTH + 0.05)), Vector3(length - 1.0, 1.6, 0.3))
+	# Sloped approach boards at both ends: the deck top sits ~25 cm above the
+	# path, a ledge the player's capsule cannot step onto.
+	var deck_top := 0.25
+	var deck_half := length * 0.5 + 0.5
+	for side: float in [-1.0, 1.0]:
+		var outer_x: float = side * (deck_half + BRIDGE_RAMP_LENGTH)
+		var ground := get_height(cx + outer_x, 0.0) - 0.12
+		# Order the points west -> east so the box's up axis points upward.
+		var a := Vector3(outer_x, ground, 0.0) if side < 0.0 else Vector3(side * deck_half, deck_top, 0.0)
+		var b := Vector3(side * deck_half, deck_top, 0.0) if side < 0.0 else Vector3(outer_x, ground, 0.0)
+		var slope := b - a
+		var angle := atan2(slope.y, slope.x)
+		var up := Vector3(-sin(angle), cos(angle), 0.0)
+		var run := slope.length()
+		var center := (a + b) * 0.5 - up * 0.15
+		var ramp := _add_box_shape(body, center, Vector3(run, 0.3, BRIDGE_HALF_WIDTH * 2.0))
+		ramp.rotation.z = angle
+		var boards := MeshKit.part(bridge, MeshKit.box(), plank_b, (a + b) * 0.5 - up * 0.05, Vector3(run, 0.1, BRIDGE_HALF_WIDTH * 2.0 - 0.2))
+		boards.rotation.z = angle
 
 
 # ---------------------------------------------------------------------------

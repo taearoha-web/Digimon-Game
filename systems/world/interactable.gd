@@ -14,6 +14,9 @@ signal interacted(by: Node)
 @export var enabled := true
 ## Higher priority wins when several interactables are in range.
 @export var interaction_priority := 0
+## Optional look for the HUD action button (defaults: speech icon, orange).
+@export var prompt_icon: Texture2D
+@export var prompt_accent := Color(0, 0, 0, 0)
 
 var _shape: CollisionShape3D
 

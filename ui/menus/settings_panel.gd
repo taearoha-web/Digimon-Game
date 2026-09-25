@@ -18,6 +18,16 @@ func _ready() -> void:
 	box.add_child(UIUtil.label("Graphics", &"SubHeaderLabel"))
 	box.add_child(_quality_row())
 	box.add_child(_toggle_row("Show FPS Counter", &"show_fps"))
+	if Settings.can_fullscreen():
+		var fullscreen := CheckButton.new()
+		fullscreen.text = "Fullscreen"
+		fullscreen.button_pressed = Settings.is_fullscreen()
+		fullscreen.custom_minimum_size = Vector2(0, 52)
+		fullscreen.focus_mode = Control.FOCUS_NONE
+		fullscreen.toggled.connect(func(on: bool):
+			AudioManager.play_ui(&"ui_click")
+			Settings.set_fullscreen(on))
+		box.add_child(fullscreen)
 
 	box.add_child(UIUtil.label("Controls", &"SubHeaderLabel"))
 	box.add_child(_slider_row("Camera Sensitivity", &"camera_sensitivity", 0.2, 3.0, 0.1, false))

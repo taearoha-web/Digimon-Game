@@ -90,6 +90,25 @@ func apply_graphics() -> void:
 		get_tree().call_group("quality_listeners", "apply_quality", graphics_quality)
 
 
+## Fullscreen is offered on desktop and in browsers that allow it (Android,
+## iPad, desktop). iPhone browsers have no page fullscreen, so it is hidden.
+func can_fullscreen() -> bool:
+	if OS.has_feature("web"):
+		if OS.has_feature("web_ios"):
+			return false
+		return bool(JavaScriptBridge.eval("!!(document.fullscreenEnabled || document.webkitFullscreenEnabled)", true))
+	return not _is_mobile()
+
+
+func is_fullscreen() -> bool:
+	var mode := DisplayServer.window_get_mode()
+	return mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+
+
+func set_fullscreen(on: bool) -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED)
+
+
 func get_quality_name() -> String:
 	return L10n.t(QUALITY_NAMES[clampi(graphics_quality, 0, QUALITY_NAMES.size() - 1)])
 

@@ -122,6 +122,26 @@ func _world_tour() -> void:
 		await _wait(0.05)
 	await _wait(1.0)
 	await _shot("quest_started")
+	# Bridge approach ramps (west end, looking east over the river).
+	_teleport(world, Vector3(-11.0, 0, 1.5))
+	world.camera_rig.set_yaw_behind(-PI * 0.5 - 0.25)
+	await _wait(1.2)
+	await _shot("bridge")
+	# Fight! button next to a wild Digimon.
+	var spawner := world.get_node("Spawners/MeadowSpawner") as EncounterSpawner
+	spawner.set_encounters_enabled(false)
+	var wilds := spawner.find_children("*", "WildDigimon", true, false)
+	if wilds.is_empty():
+		wilds = world.find_children("*", "WildDigimon", true, false)
+	if not wilds.is_empty():
+		var wild := wilds[0] as WildDigimon
+		wild.set_physics_process(false)
+		wild.encounters_enabled = true
+		_teleport(world, wild.global_position + Vector3(-2.6, 0, 1.2))
+		world.camera_rig.set_yaw_behind(atan2(-2.6, 1.2) + PI)
+		await _wait(1.0)
+		await _shot("fight_button")
+		wild.encounters_enabled = false
 	var tg: Node3D = world.get_node("Waypoints/training_grounds")
 	_teleport(world, tg.global_position + Vector3(-6, 0, 8))
 	world.camera_rig.set_yaw_behind(PI * 0.8)

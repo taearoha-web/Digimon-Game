@@ -34,6 +34,7 @@ var _compass: TextureRect
 var _compass_distance: Label
 var _compass_box: Control
 var _banner: Label
+var _default_interact_icon: Texture2D
 var _currency: Label
 var _fps: Label
 var _refresh_timer := 0.0
@@ -102,6 +103,9 @@ func set_controls_visible(value: bool) -> void:
 func set_interact_target(target: Interactable) -> void:
 	if target:
 		interact_button.set_label(target.get_prompt())
+		interact_button.icon = target.prompt_icon if target.prompt_icon else _default_interact_icon
+		interact_button.accent = target.prompt_accent if target.prompt_accent.a > 0.0 else UIPalette.ORANGE
+		interact_button.queue_redraw()
 		if not interact_button.visible:
 			interact_button.visible = true
 			interact_button.pivot_offset = interact_button.size * 0.5
@@ -288,7 +292,8 @@ func _build_top_right(frame: Control) -> void:
 func _build_buttons(frame: Control) -> void:
 	interact_button = TouchButton.new()
 	interact_button.radius = 70.0
-	interact_button.icon = load("res://assets/icons/ui/interact.svg")
+	_default_interact_icon = load("res://assets/icons/ui/interact.svg")
+	interact_button.icon = _default_interact_icon
 	interact_button.text = "Talk"
 	interact_button.accent = UIPalette.ORANGE
 	interact_button.anchor_left = 1.0

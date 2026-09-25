@@ -229,9 +229,11 @@ func _show_battle_aftermath() -> void:
 
 func _on_encounter(wild: WildDigimon) -> void:
 	if _battle_starting or _encounter_grace > 0.0 or dialogue_box.is_open or get_tree().paused:
+		wild.cancel_encounter()
 		return
 	if GameState.roster.is_party_defeated():
 		EventBus.toast("Your Digimon need rest! Visit the Recovery Terminal.", &"warning")
+		wild.cancel_encounter()
 		return
 	_battle_starting = true
 	player.set_input_enabled(false)

@@ -122,6 +122,7 @@
   }
   .controls b { font: 500 14px/1.3 var(--display); color: var(--text); }
   .foot { margin: 0; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .note { margin: 0; font-size: 12px; color: var(--gold); line-height: 1.5; }
 
   /* Portrait warning (the game is landscape only) */
   #rotate {
@@ -180,12 +181,13 @@
     <button id="play" type="button">เริ่มเล่น</button>
     <div class="progress" aria-live="polite">
       <div class="bar"><i id="bar"></i></div>
+      <p class="note" id="fs-note" hidden>บน iPhone หน้านี้ขยายเต็มจอไม่ได้ (ข้อจำกัดของ Apple) · หมุนเครื่องเป็นแนวนอนเพื่อให้เห็นเกมมากที่สุด</p>
       <p id="status">ขนาดดาวน์โหลดประมาณ __TOTAL_MB__ MB · เล่นแนวนอน</p>
     </div>
     <ul class="controls">
       <li><b>เดิน</b>ลากจอยวงกลมด้านซ้าย (ดันสุดเพื่อวิ่ง)</li>
       <li><b>หมุนกล้อง</b>ลากนิ้วบนจอครึ่งขวา · ถ่างสองนิ้วเพื่อซูม</li>
-      <li><b>คุย / เก็บของ</b>ปุ่มกลมใหญ่มุมขวาล่าง (โผล่เมื่ออยู่ใกล้)</li>
+      <li><b>คุย / เก็บของ / สู้!</b>ปุ่มกลมใหญ่มุมขวาล่าง (โผล่เมื่ออยู่ใกล้)</li>
       <li><b>เมนู</b>ปุ่ม ☰ มุมขวาบน · คอมพิวเตอร์: WASD, F, Esc</li>
     </ul>
     <p class="foot">ถ้าไม่มีเสียง ให้ปิดโหมดเงียบของ iPhone · เซฟเก็บไว้ในเบราว์เซอร์เครื่องนี้ · กราฟิกและเสียงเป็นของทำขึ้นเองสำหรับต้นแบบ</p>
@@ -267,8 +269,30 @@
     return new Response(data, { status: 200, headers: { 'Content-Type': packed[2], 'Content-Length': String(data.byteLength) } });
   };
 
+  // Fullscreen hides the browser/host bars where the browser allows it
+  // (Android, iPad, desktop). iPhone browsers have no page fullscreen.
+  function canFullscreen() {
+    const el = document.documentElement;
+    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) &&
+      !!(el.requestFullscreen || el.webkitRequestFullscreen);
+  }
+  function goFullscreen() {
+    if (!canFullscreen()) return;
+    try {
+      const el = document.documentElement;
+      const request = el.requestFullscreen || el.webkitRequestFullscreen;
+      const result = request.call(el, { navigationUI: 'hide' });
+      if (result && result.catch) result.catch(function () {});
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+    } catch (e) { /* optional */ }
+  }
+  if (!canFullscreen()) {
+    document.getElementById('fs-note').hidden = false;
+  }
+
   let started = false;
   function start() {
+    goFullscreen(); // must run inside the tap
     if (started) return;
     playBtn.disabled = true;
     playBtn.textContent = 'กำลังโหลด…';

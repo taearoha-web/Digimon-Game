@@ -2783,3 +2783,11 @@ msgstr "+%d เหรียญดาต้า"
 
 msgid "Neutral"
 msgstr "ปกติ"
+
+#: digimon/wild_digimon.gd
+msgid "Fight!"
+msgstr "สู้!"
+
+#: ui/menus/settings_panel.gd
+msgid "Fullscreen"
+msgstr "เต็มจอ"

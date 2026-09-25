@@ -21,8 +21,23 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `test_translations.gd`: catalog loaded, placeholders (`%s`, `{name}`,
   BBCode) preserved in every translation, data fully translated, language
   switching works both ways.
+- **Fight! button**: when a wild Digimon is within ~3.6 m, the HUD action
+  button (right side, next to Sprint) turns into a red "สู้!" / "Fight!"
+  button that starts the battle. Bumping into a Digimon still works.
+  Interactables can now set their own button icon and colour.
+- **Fullscreen**: the web page requests fullscreen when you tap Play, and
+  Settings → Graphics has a Fullscreen switch (desktop, Android, iPad;
+  iPhone browsers do not allow page fullscreen, so it is hidden there).
+- `tests/integration/traversal_test.tscn`: walks the player along routes
+  with simulated joystick input and real physics (bridge both ways, plaza
+  to training grounds, forest paths).
 
 ### Fixed
+- **The Starter Zone bridge could not be crossed**: its deck was a ~25 cm
+  ledge above the path. Sloped approach boards (collision + visuals) now
+  lead onto both ends.
+- A refused encounter (grace period, dialogue, fainted party) no longer
+  leaves that wild Digimon un-fightable.
 - Camera spun wildly when dragging with the right thumb while the left
   thumb held the joystick (Web build): Godot's Web `ScreenDrag.relative`
   can be computed against another finger. Camera and 3D previews now use

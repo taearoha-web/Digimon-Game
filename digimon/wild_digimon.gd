@@ -9,6 +9,8 @@ signal despawned(wild: WildDigimon)
 
 const NOTICE_RADIUS := 7.0
 const SLEEP_DISTANCE := 55.0
+## How close the player must be for the "Fight!" button to appear.
+const FIGHT_RADIUS := 3.6
 
 var species_id: StringName
 var level := 3
@@ -30,6 +32,7 @@ var _aggressive := false
 var _noticed := false
 var _yaw := 0.0
 var _triggered := false
+var _fight_prompt: Interactable
 
 
 func setup(p_species_id: StringName, p_level: int, center: Vector3, extents: Vector3, p_player: Node3D) -> void:
@@ -71,6 +74,19 @@ func _ready() -> void:
 	trigger.add_child(trigger_shape)
 	add_child(trigger)
 	trigger.body_entered.connect(_on_body_entered)
+
+	# "Fight!" on the HUD action button (right side) when the player is close,
+	# so battles can be started deliberately instead of only by bumping.
+	_fight_prompt = Interactable.new()
+	_fight_prompt.name = "FightPrompt"
+	_fight_prompt.prompt_text = "Fight!"
+	_fight_prompt.prompt_icon = load("res://assets/icons/ui/fight.svg")
+	_fight_prompt.prompt_accent = UIPalette.DANGER
+	_fight_prompt.interaction_radius = FIGHT_RADIUS
+	_fight_prompt.interaction_priority = 5
+	_fight_prompt.position = Vector3(0, 0.6, 0)
+	add_child(_fight_prompt)
+	_fight_prompt.interacted.connect(func(_by): _start_encounter())
 
 	_label = Label3D.new()
 	_label.text = L10n.t("Lv %d %s") % [level, species.display_name if species else String(species_id)]
@@ -139,6 +155,7 @@ func _physics_process(delta: float) -> void:
 func _think() -> void:
 	if player == null:
 		return
+	_fight_prompt.enabled = encounters_enabled and not _triggered
 	var distance := global_position.distance_to(player.global_position)
 	var was_noticed := _noticed
 	_noticed = distance < NOTICE_RADIUS and encounters_enabled
@@ -168,11 +185,25 @@ func _is_inside_region(point: Vector3, margin := 1.0) -> bool:
 
 
 func _on_body_entered(body: Node3D) -> void:
+	if body is PlayerController:
+		_start_encounter()
+
+
+func _start_encounter() -> void:
 	if _triggered or not encounters_enabled:
 		return
-	if body is PlayerController:
-		_triggered = true
-		encountered.emit(self)
+	_triggered = true
+	_fight_prompt.enabled = false
+	encountered.emit(self)
+
+
+## The world refused the battle (grace period, dialogue, fainted party):
+## allow another try shortly instead of staying un-fightable.
+func cancel_encounter() -> void:
+	await get_tree().create_timer(1.0).timeout
+	if is_instance_valid(self) and encounters_enabled:
+		_triggered = false
+		_fight_prompt.enabled = true
 
 
 ## Removes the Digimon with a small shrink animation.

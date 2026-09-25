@@ -69,6 +69,9 @@ godot --headless --path . res://tests/test_runner.tscn
 # shop → equip a chip → gateway to the Data Forest → forest quest → back)
 godot --headless --path . res://tests/integration/vertical_slice_test.tscn
 
+# Walk routes with simulated joystick input (bridges, paths)
+godot --headless --path . res://tests/integration/traversal_test.tscn
+
 # Parse/load every script, scene and resource
 godot --headless --path . -s res://tools/check_scripts.gd
 ```

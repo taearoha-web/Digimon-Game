@@ -116,10 +116,18 @@ func _run() -> void:
 	var wild := WildDigimon.new()
 	wild.setup(&"biyomon", 3, tg.global_position, Vector3(4, 0, 4), world.player)
 	world.add_child(wild)
+	# Spawned Digimon report encounters through their spawner; wire this one
+	# the same way.
+	wild.encountered.connect(world._on_encounter)
 	wild.global_position = world.player.global_position + Vector3(3, 0.3, 0)
-	await _frames(2)
+	wild.set_physics_process(false) # stand still so the check is deterministic
 	world._encounter_grace = 0.0
-	world._on_encounter(wild)
+	await _seconds(0.5)
+	# Start the fight with the HUD action button, like a player would.
+	var target := world.player.interaction.get_current()
+	_check(target != null and target.get_parent() == wild, "Fight button offered next to the wild Digimon")
+	_check(world.hud.interact_button.visible and world.hud.interact_button.text == "Fight!", "HUD shows the Fight! button")
+	world.player.try_interact()
 	await _wait_for_scene("BattleScene")
 	var battle := get_tree().current_scene as BattleScene
 	_check(battle != null, "battle scene loaded")

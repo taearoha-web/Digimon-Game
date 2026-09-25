@@ -141,8 +141,9 @@ polish and more content (see `TODO.md`).
 | Check | Godot 4.3.0 | Godot 4.6.0 |
 |---|---|---|
 | `tools/check_scripts.gd` (load every .gd/.tscn/.tres) | 0 failures (274 files) | 0 failures (274 files) |
-| Unit tests `tests/test_runner.tscn` | 56/56 pass, 2619 assertions | 52/52 pass, 1074 assertions |
-| Integration `tests/integration/vertical_slice_test.tscn` | PASS (54 checks) | PASS (54 checks) |
+| Unit tests `tests/test_runner.tscn` | 56/56 pass, 2623 assertions | 52/52 pass, 1074 assertions |
+| Integration `tests/integration/vertical_slice_test.tscn` | PASS (56 checks) | PASS (54 checks, v0.2) |
+| Traversal `tests/integration/traversal_test.tscn` (walk routes with real physics) | PASS (5 routes) | — |
 | Screenshot tours (menus / world / battle / forest) at 1280×720 | rendered OK (Mesa llvmpipe, Compatibility) | — |
 
 Not verifiable here (must be checked on devices / in the editor): real touch

@@ -45,3 +45,4 @@ Leo
 Nova
 Riku
 Emi
+!!(document.fullscreenEnabled || document.webkitFullscreenEnabled)
