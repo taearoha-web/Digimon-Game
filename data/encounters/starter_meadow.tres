@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="EncounterTable" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://systems/world/spawn_entry.gd" id="1_mqpvb"]
+[ext_resource type="Script" path="res://systems/world/encounter_table.gd" id="2_vqvmd"]
+
+[sub_resource type="Resource" id="Resource_sk0ib"]
+script = ExtResource("1_mqpvb")
+species_id = &"kunemon"
+min_level = 3
+max_level = 5
+weight = 3.0
+
+[sub_resource type="Resource" id="Resource_c0y83"]
+script = ExtResource("1_mqpvb")
+species_id = &"goburimon"
+min_level = 3
+max_level = 5
+weight = 3.0
+
+[sub_resource type="Resource" id="Resource_5slcw"]
+script = ExtResource("1_mqpvb")
+species_id = &"palmon"
+min_level = 4
+max_level = 6
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_ddewb"]
+script = ExtResource("1_mqpvb")
+species_id = &"elecmon"
+min_level = 4
+max_level = 6
+weight = 1.5
+
+[sub_resource type="Resource" id="Resource_4fggf"]
+script = ExtResource("1_mqpvb")
+species_id = &"biyomon"
+min_level = 4
+max_level = 6
+weight = 1.5
+
+[sub_resource type="Resource" id="Resource_t3lxm"]
+script = ExtResource("1_mqpvb")
+species_id = &"koromon"
+min_level = 3
+max_level = 4
+weight = 0.6
+
+[sub_resource type="Resource" id="Resource_tjms4"]
+script = ExtResource("1_mqpvb")
+species_id = &"tsunomon"
+min_level = 3
+max_level = 4
+weight = 0.6
+
+[sub_resource type="Resource" id="Resource_nfkw4"]
+script = ExtResource("1_mqpvb")
+species_id = &"tokomon"
+min_level = 3
+max_level = 4
+weight = 0.6
+
+[resource]
+script = ExtResource("2_vqvmd")
+id = &"starter_meadow"
+region_id = &"wild_meadow"
+entries = Array[ExtResource("1_mqpvb")]([SubResource("Resource_sk0ib"), SubResource("Resource_c0y83"), SubResource("Resource_5slcw"), SubResource("Resource_ddewb"), SubResource("Resource_4fggf"), SubResource("Resource_t3lxm"), SubResource("Resource_tjms4"), SubResource("Resource_nfkw4")])
+max_active = 4
+spawn_chance = 0.7
+check_interval = 3.0
+respawn_delay = 8.0

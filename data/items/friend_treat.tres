@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_yn8g0"]
+
+[resource]
+script = ExtResource("1_yn8g0")
+id = &"friend_treat"
+display_name = "Friendly Treat"
+description = "A tasty snack. Using it in battle makes a wild Digimon easier to befriend (+15%)."
+category = 0
+max_stack = 99
+icon_path = "res://assets/icons/items/friend_treat.svg"
+icon_color = Color(1, 0.64, 0.3, 1)
+use_effect = 6
+effect_value = 15
+usable_in_field = false
+usable_in_battle = true
+consumed_on_use = true
+sell_price = 30

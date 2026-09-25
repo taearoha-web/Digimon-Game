@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_64w0t"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_e55a1"]
+
+[sub_resource type="Resource" id="Resource_dtqh2"]
+script = ExtResource("1_64w0t")
+speaker = "{npc_name}"
+text = "Look at that, a new friend! Your party can hold three Digimon. The rest wait safely in your Collection."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_ehxq7"]
+script = ExtResource("1_64w0t")
+speaker = "{npc_name}"
+text = "Open the menu to manage your Party and Collection. Take these and keep exploring!"
+emotion = &""
+
+[resource]
+script = ExtResource("2_e55a1")
+id = &"mira_friend_done"
+lines = Array[ExtResource("1_64w0t")]([SubResource("Resource_dtqh2"), SubResource("Resource_ehxq7")])
+skippable = true

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_r04u8"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_4pq3w"]
+
+[sub_resource type="Resource" id="Resource_nn15p"]
+script = ExtResource("1_r04u8")
+type = 0
+target = 0
+stat = &""
+amount = 1
+status_id = &""
+chance = 1.0
+duration = 3
+
+[resource]
+script = ExtResource("2_4pq3w")
+id = &"claw_swipe"
+display_name = "Claw Swipe"
+description = "Rakes the foe with sharp claws. Lands critical hits more often."
+category = 0
+element = &"neutral"
+power = 50
+accuracy = 90
+sp_cost = 3
+target = 0
+crit_bonus = 0.12
+priority = 0
+effects = Array[ExtResource("1_r04u8")]([SubResource("Resource_nn15p")])
+animation = &"attack"
+vfx = &"slash"
+projectile = false
+sfx = &"hit_physical"

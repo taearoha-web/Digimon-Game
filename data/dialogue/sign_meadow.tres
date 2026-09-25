@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_j8u7s"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_lwww8"]
+
+[sub_resource type="Resource" id="Resource_sb2qu"]
+script = ExtResource("1_j8u7s")
+speaker = "Signpost"
+text = "WILD MEADOW — Wild Digimon roam the tall grass. Tamers, stay alert!"
+emotion = &""
+
+[resource]
+script = ExtResource("2_lwww8")
+id = &"sign_meadow"
+lines = Array[ExtResource("1_j8u7s")]([SubResource("Resource_sb2qu")])
+skippable = true

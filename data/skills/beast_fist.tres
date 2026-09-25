@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_f7gqg"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_1p5as"]
+
+[sub_resource type="Resource" id="Resource_opyd4"]
+script = ExtResource("1_f7gqg")
+type = 0
+target = 0
+stat = &""
+amount = 1
+status_id = &""
+chance = 1.0
+duration = 3
+
+[resource]
+script = ExtResource("2_1p5as")
+id = &"beast_fist"
+display_name = "Beast Fist"
+description = "A mighty punch backed by a lion's roar."
+category = 0
+element = &"earth"
+power = 75
+accuracy = 95
+sp_cost = 8
+target = 0
+crit_bonus = 0.0
+priority = 0
+effects = Array[ExtResource("1_f7gqg")]([SubResource("Resource_opyd4")])
+animation = &"attack"
+vfx = &"impact"
+projectile = false
+sfx = &"hit_physical"

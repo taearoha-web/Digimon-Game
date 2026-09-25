@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EncounterTable" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/world/spawn_entry.gd" id="1_vb7xh"]
+[ext_resource type="Script" path="res://systems/world/encounter_table.gd" id="2_ngxr8"]
+
+[sub_resource type="Resource" id="Resource_0mtfe"]
+script = ExtResource("1_vb7xh")
+species_id = &"kunemon"
+min_level = 3
+max_level = 4
+weight = 1.0
+
+[sub_resource type="Resource" id="Resource_aqpm8"]
+script = ExtResource("1_vb7xh")
+species_id = &"goburimon"
+min_level = 3
+max_level = 4
+weight = 1.0
+
+[resource]
+script = ExtResource("2_ngxr8")
+id = &"training_grounds"
+region_id = &"training_grounds"
+entries = Array[ExtResource("1_vb7xh")]([SubResource("Resource_0mtfe"), SubResource("Resource_aqpm8")])
+max_active = 2
+spawn_chance = 0.8
+check_interval = 2.5
+respawn_delay = 6.0

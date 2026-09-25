@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="DigimonSpecies" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_gl3x5"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_entvm"]
+
+[sub_resource type="Resource" id="Resource_qxwjn"]
+script = ExtResource("1_gl3x5")
+target_species_id = &"greymon"
+min_level = 10
+required_item_id = &""
+consume_item = true
+min_friendship = 0
+required_quest_id = &""
+required_flag = &""
+min_stats = {}
+hint = "Grows with experience."
+
+[sub_resource type="Resource" id="Resource_wxa2e"]
+script = ExtResource("1_gl3x5")
+target_species_id = &"greymon"
+min_level = 7
+required_item_id = &"evo_shard"
+consume_item = true
+min_friendship = 0
+required_quest_id = &""
+required_flag = &""
+min_stats = {}
+hint = "An Evo Shard can speed things up."
+
+[resource]
+script = ExtResource("2_entvm")
+id = &"agumon"
+display_name = "Agumon"
+description = "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited. (Original placeholder model.)"
+stage = 2
+attribute = 0
+digimon_type = "Reptile"
+element = &"fire"
+rarity = 2
+base_hp = 42
+base_sp = 20
+base_attack = 14
+base_defense = 10
+base_special_attack = 12
+base_special_defense = 9
+base_speed = 11
+growth_hp = 7.0
+growth_sp = 2.0
+growth_attack = 2.0
+growth_defense = 1.8
+growth_special_attack = 2.0
+growth_special_defense = 1.8
+growth_speed = 1.6
+innate_skills = Array[StringName]([&"tackle", &"ember_breath"])
+learnset = {
+6: &"claw_swipe",
+9: &"battle_cry"
+}
+evolutions = Array[ExtResource("1_gl3x5")]([SubResource("Resource_qxwjn"), SubResource("Resource_wxa2e")])
+base_exp_yield = 55
+recruit_modifier = 1.0
+drop_table = {
+"small_patch": 0.2
+}
+model_path = ""
+icon_path = ""
+animation_set = &"creature_default"
+sounds = {
+"cry": "cry_roar"
+}
+placeholder_body = &"dino"
+placeholder_colors = PackedColorArray(1, 0.62, 0.18, 1, 1, 0.9, 0.66, 1, 0.98, 0.97, 0.92, 1, 0.28, 0.62, 0.28, 1)
+placeholder_options = {
+"claws": true,
+"tail": true
+}
+model_scale = 1.0
+hovers = false
+move_speed = 3.5

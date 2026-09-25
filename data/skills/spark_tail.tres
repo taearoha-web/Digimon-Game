@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_1vn1y"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_n8jfn"]
+
+[sub_resource type="Resource" id="Resource_b2g2c"]
+script = ExtResource("1_1vn1y")
+type = 0
+target = 0
+stat = &""
+amount = 1
+status_id = &""
+chance = 1.0
+duration = 3
+
+[resource]
+script = ExtResource("2_n8jfn")
+id = &"spark_tail"
+display_name = "Spark Tail"
+description = "Whips crackling tails at the foe."
+category = 1
+element = &"thunder"
+power = 45
+accuracy = 95
+sp_cost = 4
+target = 0
+crit_bonus = 0.0
+priority = 0
+effects = Array[ExtResource("1_1vn1y")]([SubResource("Resource_b2g2c")])
+animation = &"skill"
+vfx = &"thunder"
+projectile = false
+sfx = &"thunder"

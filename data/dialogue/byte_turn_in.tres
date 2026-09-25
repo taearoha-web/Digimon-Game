@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_g6et0"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_5p0p3"]
+
+[sub_resource type="Resource" id="Resource_wwgpf"]
+script = ExtResource("1_g6et0")
+speaker = "{npc_name}"
+text = "Archive restored! Splendid work, {player_name}."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_d6jx3"]
+script = ExtResource("1_g6et0")
+speaker = "{npc_name}"
+text = "Please accept some equipment from my storage. Use it well!"
+emotion = &""
+
+[resource]
+script = ExtResource("2_5p0p3")
+id = &"byte_turn_in"
+lines = Array[ExtResource("1_g6et0")]([SubResource("Resource_wwgpf"), SubResource("Resource_d6jx3")])
+skippable = true

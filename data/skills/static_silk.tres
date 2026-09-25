@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_r6h1e"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_uffwp"]
+
+[sub_resource type="Resource" id="Resource_qrlmw"]
+script = ExtResource("1_r6h1e")
+type = 0
+target = 0
+stat = &""
+amount = 1
+status_id = &""
+chance = 1.0
+duration = 3
+
+[sub_resource type="Resource" id="Resource_wky1e"]
+script = ExtResource("1_r6h1e")
+type = 4
+target = 0
+stat = &""
+amount = 1
+status_id = &"stun"
+chance = 0.25
+duration = 2
+
+[resource]
+script = ExtResource("2_uffwp")
+id = &"static_silk"
+display_name = "Static Silk"
+description = "Shoots electrified thread. May stun the target."
+category = 1
+element = &"thunder"
+power = 35
+accuracy = 90
+sp_cost = 3
+target = 0
+crit_bonus = 0.0
+priority = 0
+effects = Array[ExtResource("1_r6h1e")]([SubResource("Resource_qrlmw"), SubResource("Resource_wky1e")])
+animation = &"skill"
+vfx = &"thunder"
+projectile = true
+sfx = &"thunder"

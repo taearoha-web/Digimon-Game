@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="DigimonSpecies" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_fbg2v"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_di0pm"]
+
+[sub_resource type="Resource" id="Resource_50ye6"]
+script = ExtResource("1_fbg2v")
+target_species_id = &"birdramon"
+min_level = 12
+required_item_id = &""
+consume_item = true
+min_friendship = 0
+required_quest_id = &""
+required_flag = &""
+min_stats = {}
+hint = ""
+
+[resource]
+script = ExtResource("2_di0pm")
+id = &"biyomon"
+display_name = "Biyomon"
+description = "A bright bird Digimon that is still learning to fly. It pecks with a beak that glows with heat. (Original placeholder model.)"
+stage = 2
+attribute = 0
+digimon_type = "Bird"
+element = &"wind"
+rarity = 1
+base_hp = 40
+base_sp = 20
+base_attack = 12
+base_defense = 8
+base_special_attack = 13
+base_special_defense = 10
+base_speed = 13
+growth_hp = 7.0
+growth_sp = 2.0
+growth_attack = 2.0
+growth_defense = 1.8
+growth_special_attack = 2.0
+growth_special_defense = 1.8
+growth_speed = 1.6
+innate_skills = Array[StringName]([&"tackle", &"flame_peck"])
+learnset = {
+6: &"whirlwind",
+9: &"focus"
+}
+evolutions = Array[ExtResource("1_fbg2v")]([SubResource("Resource_50ye6")])
+base_exp_yield = 46
+recruit_modifier = 1.0
+drop_table = {
+"friend_treat": 0.1,
+"small_patch": 0.2
+}
+model_path = ""
+icon_path = ""
+animation_set = &"creature_default"
+sounds = {
+"cry": "cry_chirp"
+}
+placeholder_body = &"bird"
+placeholder_colors = PackedColorArray(1, 0.58, 0.72, 1, 1, 0.82, 0.3, 1, 0.42, 0.72, 0.96, 1, 0.18, 0.28, 0.6, 1)
+placeholder_options = {}
+model_scale = 1.0
+hovers = true
+move_speed = 3.6

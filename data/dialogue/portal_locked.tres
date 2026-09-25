@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_axwni"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_vhvq5"]
+
+[sub_resource type="Resource" id="Resource_nej5n"]
+script = ExtResource("1_axwni")
+speaker = "Gateway"
+text = "The gateway is sealed. A shimmering message reads: \"Gate Pass required.\""
+emotion = &""
+
+[resource]
+script = ExtResource("2_vhvq5")
+id = &"portal_locked"
+lines = Array[ExtResource("1_axwni")]([SubResource("Resource_nej5n")])
+skippable = true

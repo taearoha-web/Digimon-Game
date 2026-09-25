@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="DigimonSpecies" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_dy8yk"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_diami"]
+
+[sub_resource type="Resource" id="Resource_ve6av"]
+script = ExtResource("1_dy8yk")
+target_species_id = &"togemon"
+min_level = 12
+required_item_id = &""
+consume_item = true
+min_friendship = 0
+required_quest_id = &""
+required_flag = &""
+min_stats = {}
+hint = ""
+
+[resource]
+script = ExtResource("2_diami")
+id = &"palmon"
+display_name = "Palmon"
+description = "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines. (Original placeholder model.)"
+stage = 2
+attribute = 1
+digimon_type = "Plant"
+element = &"plant"
+rarity = 1
+base_hp = 40
+base_sp = 20
+base_attack = 10
+base_defense = 10
+base_special_attack = 12
+base_special_defense = 12
+base_speed = 11
+growth_hp = 7.0
+growth_sp = 2.0
+growth_attack = 2.0
+growth_defense = 1.8
+growth_special_attack = 2.0
+growth_special_defense = 1.8
+growth_speed = 1.6
+innate_skills = Array[StringName]([&"tackle", &"thorn_whip"])
+learnset = {
+5: &"pollen_cloud",
+8: &"leaf_drain"
+}
+evolutions = Array[ExtResource("1_dy8yk")]([SubResource("Resource_ve6av")])
+base_exp_yield = 46
+recruit_modifier = 1.0
+drop_table = {
+"friend_treat": 0.1,
+"small_patch": 0.25
+}
+model_path = ""
+icon_path = ""
+animation_set = &"creature_default"
+sounds = {
+"cry": "cry_chirp"
+}
+placeholder_body = &"plant"
+placeholder_colors = PackedColorArray(0.46, 0.8, 0.42, 1, 1, 0.46, 0.62, 1, 1, 0.86, 0.3, 1, 0.12, 0.3, 0.12, 1)
+placeholder_options = {}
+model_scale = 1.0
+hovers = false
+move_speed = 3.0

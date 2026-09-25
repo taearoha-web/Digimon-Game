@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_cp3c5"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_fs1di"]
+
+[resource]
+script = ExtResource("2_fs1di")
+id = &"leomon"
+display_name = "Leomon"
+description = "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice. (Original placeholder model.)"
+stage = 3
+attribute = 0
+digimon_type = "Beast Man"
+element = &"earth"
+rarity = 2
+base_hp = 62
+base_sp = 28
+base_attack = 22
+base_defense = 16
+base_special_attack = 19
+base_special_defense = 16
+base_speed = 16
+growth_hp = 9.0
+growth_sp = 2.5
+growth_attack = 2.6
+growth_defense = 2.3
+growth_special_attack = 2.6
+growth_special_defense = 2.3
+growth_speed = 2.0
+innate_skills = Array[StringName]([&"tackle", &"quick_dash", &"spark_tail"])
+learnset = {
+14: &"beast_fist"
+}
+evolutions = Array[ExtResource("1_cp3c5")]([])
+base_exp_yield = 110
+recruit_modifier = 1.0
+drop_table = {
+"small_patch": 0.2
+}
+model_path = ""
+icon_path = ""
+animation_set = &"creature_default"
+sounds = {
+"cry": "cry_roar"
+}
+placeholder_body = &"beast"
+placeholder_colors = PackedColorArray(1, 0.8, 0.4, 1, 0.85, 0.5, 0.2, 1, 0.95, 0.9, 0.8, 1, 0.2, 0.2, 0.2, 1)
+placeholder_options = {
+"horn": false,
+"mane": true,
+"pelt": false
+}
+model_scale = 1.4
+hovers = false
+move_speed = 3.5

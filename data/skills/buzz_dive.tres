@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_gsmka"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_caq4i"]
+
+[sub_resource type="Resource" id="Resource_22bq3"]
+script = ExtResource("1_gsmka")
+type = 0
+target = 0
+stat = &""
+amount = 1
+status_id = &""
+chance = 1.0
+duration = 3
+
+[sub_resource type="Resource" id="Resource_o3oh7"]
+script = ExtResource("1_gsmka")
+type = 4
+target = 0
+stat = &""
+amount = 1
+status_id = &"poison"
+chance = 0.25
+duration = 3
+
+[resource]
+script = ExtResource("2_caq4i")
+id = &"buzz_dive"
+display_name = "Buzz Dive"
+description = "Dives in with a venomous sting. May poison."
+category = 0
+element = &"wind"
+power = 70
+accuracy = 95
+sp_cost = 8
+target = 0
+crit_bonus = 0.0
+priority = 0
+effects = Array[ExtResource("1_gsmka")]([SubResource("Resource_22bq3"), SubResource("Resource_o3oh7")])
+animation = &"attack"
+vfx = &"wind"
+projectile = false
+sfx = &"hit_physical"

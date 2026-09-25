@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_8i57e"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_7ncu2"]
+
+[resource]
+script = ExtResource("2_7ncu2")
+id = &"togemon"
+display_name = "Togemon"
+description = "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside. (Original placeholder model.)"
+stage = 3
+attribute = 1
+digimon_type = "Plant"
+element = &"plant"
+rarity = 1
+base_hp = 70
+base_sp = 28
+base_attack = 19
+base_defense = 19
+base_special_attack = 19
+base_special_defense = 16
+base_speed = 12
+growth_hp = 9.0
+growth_sp = 2.5
+growth_attack = 2.6
+growth_defense = 2.3
+growth_special_attack = 2.6
+growth_special_defense = 2.3
+growth_speed = 2.0
+innate_skills = Array[StringName]([&"tackle", &"thorn_whip", &"leaf_drain"])
+learnset = {
+14: &"needle_storm"
+}
+evolutions = Array[ExtResource("1_8i57e")]([])
+base_exp_yield = 100
+recruit_modifier = 1.0
+drop_table = {
+"small_patch": 0.2
+}
+model_path = ""
+icon_path = ""
+animation_set = &"creature_default"
+sounds = {
+"cry": "cry_grunt"
+}
+placeholder_body = &"plant"
+placeholder_colors = PackedColorArray(0.4, 0.7, 0.3, 1, 1, 0.4, 0.4, 1, 1, 0.85, 0.35, 1, 0.1, 0.2, 0.1, 1)
+placeholder_options = {
+"cactus": true
+}
+model_scale = 1.5
+hovers = false
+move_speed = 3.5

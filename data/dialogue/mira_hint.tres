@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_weff4"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_yydct"]
+
+[sub_resource type="Resource" id="Resource_qsxaa"]
+script = ExtResource("1_weff4")
+speaker = "{npc_name}"
+text = "Head east across the bridge to the Training Grounds, then win a battle against a wild Digimon."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_jxqo4"]
+script = ExtResource("1_weff4")
+speaker = "{npc_name}"
+text = "If {partner_name} gets hurt, the Recovery Terminal here in the plaza will patch you right up."
+emotion = &""
+
+[resource]
+script = ExtResource("2_yydct")
+id = &"mira_hint"
+lines = Array[ExtResource("1_weff4")]([SubResource("Resource_qsxaa"), SubResource("Resource_jxqo4")])
+skippable = true

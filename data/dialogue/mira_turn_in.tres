@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_56yqy"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_k5uso"]
+
+[sub_resource type="Resource" id="Resource_cx15r"]
+script = ExtResource("1_56yqy")
+speaker = "{npc_name}"
+text = "You did it, {player_name}! {partner_name} fought brilliantly."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_0v3kk"]
+script = ExtResource("1_56yqy")
+speaker = "{npc_name}"
+text = "Here, take these supplies. That Evo Shard is special: once {partner_name} reaches Lv 7 it can trigger an early evolution."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_sub37"]
+script = ExtResource("1_56yqy")
+speaker = "{npc_name}"
+text = "I've also given you a Gate Pass. The gateway to the north-east will open for you now."
+emotion = &""
+
+[resource]
+script = ExtResource("2_k5uso")
+id = &"mira_turn_in"
+lines = Array[ExtResource("1_56yqy")]([SubResource("Resource_cx15r"), SubResource("Resource_0v3kk"), SubResource("Resource_sub37")])
+skippable = true

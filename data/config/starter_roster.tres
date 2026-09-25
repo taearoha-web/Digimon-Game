@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StarterRoster" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/digimon/starter_roster.gd" id="1_mm2py"]
+
+[resource]
+script = ExtResource("1_mm2py")
+starter_ids = Array[StringName]([&"agumon", &"gabumon", &"patamon"])
+starting_level = 5
+taglines = {
+"agumon": "Brave & fiery",
+"gabumon": "Loyal & cool-headed",
+"patamon": "Gentle & lucky"
+}
+starting_items = {
+"friend_treat": 1,
+"small_patch": 3
+}
+starting_currency = 100

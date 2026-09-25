@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_vsepj"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_gdv76"]
+
+[sub_resource type="Resource" id="Resource_3h4xc"]
+script = ExtResource("1_vsepj")
+type = 0
+target = 0
+stat = &""
+amount = 1
+status_id = &""
+chance = 1.0
+duration = 3
+
+[sub_resource type="Resource" id="Resource_4fpxt"]
+script = ExtResource("1_vsepj")
+type = 6
+target = 1
+stat = &""
+amount = 50
+status_id = &""
+chance = 1.0
+duration = 3
+
+[resource]
+script = ExtResource("2_gdv76")
+id = &"leaf_drain"
+display_name = "Leaf Drain"
+description = "Saps energy from the foe, healing the user by half the damage."
+category = 1
+element = &"plant"
+power = 40
+accuracy = 100
+sp_cost = 4
+target = 0
+crit_bonus = 0.0
+priority = 0
+effects = Array[ExtResource("1_vsepj")]([SubResource("Resource_3h4xc"), SubResource("Resource_4fpxt")])
+animation = &"skill"
+vfx = &"leaf"
+projectile = false
+sfx = &"heal"

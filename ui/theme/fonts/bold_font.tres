@@ -1,0 +1,13 @@
+[gd_resource type="FontVariation" load_steps=3 format=3]
+
+[ext_resource type="FontFile" path="res://assets/fonts/Nunito-Variable.ttf" id="1_awglb"]
+
+[sub_resource type="SystemFont" id="SystemFont_6rx3h"]
+font_names = PackedStringArray("sans-serif", "Noto Sans", "Roboto", "Arial")
+
+[resource]
+fallbacks = Array[Font]([SubResource("SystemFont_6rx3h")])
+base_font = ExtResource("1_awglb")
+variation_opentype = {
+"wght": 850
+}

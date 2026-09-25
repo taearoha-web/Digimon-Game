@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_rrfjc"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_n046y"]
+
+[sub_resource type="Resource" id="Resource_q75o0"]
+script = ExtResource("1_rrfjc")
+speaker = "{npc_name}"
+text = "Oh! You must be {player_name}. Welcome to the Digital World!"
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_k7vxn"]
+script = ExtResource("1_rrfjc")
+speaker = "{npc_name}"
+text = "And that must be your partner, {partner_name}. You two already look like a great team."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_bdemh"]
+script = ExtResource("1_rrfjc")
+speaker = "{npc_name}"
+text = "I'm Mira. I help new Tamers find their footing. Let's start with the basics!"
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_twd4j"]
+script = ExtResource("1_rrfjc")
+speaker = "{npc_name}"
+text = "Cross the bridge to the east and visit the Training Grounds. Then show me you can win a battle against a wild Digimon."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_fjcpd"]
+script = ExtResource("1_rrfjc")
+speaker = "{npc_name}"
+text = "Walk into a wild Digimon to challenge it. Skills cost SP, so watch your gauge!"
+emotion = &""
+
+[resource]
+script = ExtResource("2_n046y")
+id = &"mira_offer"
+lines = Array[ExtResource("1_rrfjc")]([SubResource("Resource_q75o0"), SubResource("Resource_k7vxn"), SubResource("Resource_bdemh"), SubResource("Resource_twd4j"), SubResource("Resource_fjcpd")])
+skippable = true

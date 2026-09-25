@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_kbli1"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_wci4e"]
+
+[sub_resource type="Resource" id="Resource_88w3n"]
+script = ExtResource("1_kbli1")
+speaker = "{npc_name}"
+text = "Digimon don't join Tamers because they're forced to. They join because they want to."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_fodmt"]
+script = ExtResource("1_kbli1")
+speaker = "{npc_name}"
+text = "When a wild Digimon is weakened, try the Befriend command in battle. A Friendly Treat helps, too."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_tempn"]
+script = ExtResource("1_kbli1")
+speaker = "{npc_name}"
+text = "Why don't you try to make a new friend? Come back when someone joins your team!"
+emotion = &""
+
+[resource]
+script = ExtResource("2_wci4e")
+id = &"mira_friend_offer"
+lines = Array[ExtResource("1_kbli1")]([SubResource("Resource_88w3n"), SubResource("Resource_fodmt"), SubResource("Resource_tempn")])
+skippable = true

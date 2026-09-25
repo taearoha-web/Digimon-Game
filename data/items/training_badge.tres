@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_ewy62"]
+
+[resource]
+script = ExtResource("1_ewy62")
+id = &"training_badge"
+display_name = "Training Badge"
+description = "Proof that you finished Mira's training."
+category = 2
+max_stack = 1
+icon_path = "res://assets/icons/items/training_badge.svg"
+icon_color = Color(1, 0.75, 0.25, 1)
+use_effect = 0
+effect_value = 0
+usable_in_field = false
+usable_in_battle = false
+consumed_on_use = true
+sell_price = 0
