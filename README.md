@@ -20,6 +20,10 @@ secondary), with full keyboard/mouse controls for testing on PC.
 | ![](docs/screenshots/02_character_creation.png) | ![](docs/screenshots/03_starter_selection.png) |
 | **Exploring the Starter Zone** | **Turn-based battle** |
 | ![](docs/screenshots/05_world.png) | ![](docs/screenshots/07_battle.png) |
+| **Data Forest (zone 2)** | **Crystal Lake** |
+| ![](docs/screenshots/11_data_forest.png) | ![](docs/screenshots/12_crystal_lake.png) |
+| **Shop** | **Equipment chips** |
+| ![](docs/screenshots/15_shop.png) | ![](docs/screenshots/16_equipment_chip.png) |
 
 ---
 
@@ -58,10 +62,11 @@ secondary), with full keyboard/mouse controls for testing on PC.
 # Run the game
 godot --path .
 
-# Unit tests (46 tests); exit code = number of failures
+# Unit tests (52 tests); exit code = number of failures
 godot --headless --path . res://tests/test_runner.tscn
 
-# End-to-end vertical slice test (new game → quest → battle → save/load)
+# End-to-end vertical slice test (new game → quest → battle → save/load →
+# shop → equip a chip → gateway to the Data Forest → forest quest → back)
 godot --headless --path . res://tests/integration/vertical_slice_test.tscn
 
 # Parse/load every script, scene and resource
@@ -116,6 +121,13 @@ autosaves) → intro → **Digital World – Starter Zone**:
 7. Byte's side quest **Scattered Data**: find 3 glowing Data Fragments.
 8. Heal at the **Recovery Terminal**, manage your **Party** / **Collection**,
    use items, **evolve** (Lv 10, or Lv 7 with an Evo Shard), save/load anytime.
+9. Spend Data Coins at **Pip's Patch Stand** in the plaza (buy/sell).
+10. Give your Digimon an **equipment chip** (Inventory → *Gear*, or the
+    Digimon details) for a permanent stat bonus while held.
+11. With the Gate Pass, step through the **Gateway** (north-east) into the
+    **Data Forest**: stronger wild Digimon (Lv 6–11), the Crystal Lake, the
+    Old Ruins, and **Lumi**'s quest *Forest Survey* and shop. The gateway at
+    the forest's south-west corner leads back home.
 
 ## Project architecture
 
@@ -182,15 +194,19 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   confirmation, intro) with a data-driven customization catalog
 * Procedural chibi Tamer (male/female body types sharing one system) and 12
   original placeholder Digimon body plans (19 species)
-* Starter Zone: terrain with hills and a river, bridge, plaza, training
-  grounds, tall-grass meadow, forests, gateway, digital landmarks
+* Two zones connected by gateways: **Starter Zone** (hills, river, bridge,
+  plaza, training grounds, tall-grass meadow, forests, digital landmarks) and
+  **Data Forest** (crystal trees, glowing mushrooms, Crystal Lake, Old Ruins,
+  Ranger Camp, groves, fireflies) — both procedural via `ZoneBuilderBase`
 * Touch joystick, camera drag/pinch, multitouch buttons, keyboard/mouse
 * Third-person spring-arm camera with collision; camera-relative movement
 * Partner follow AI (NavigationAgent3D, catch-up, teleport, idle fidgets)
 * NPCs with quest markers, dialogue system with variables, signposts,
   recovery terminal, pickups, area triggers, portal
 * Quest system (Locked/Available/Active/Completed/Rewarded) + tracker, compass
-  and quest log; 3 quests
+  and quest log; 4 quests
+* Shops (data-driven `ShopData`, buy/sell with quantities) and equipment
+  chips (one per Digimon, stat bonuses, saved)
 * Turn-based battles: speed-based turn order, skills with reusable effects
   (damage/heal/buff/debuff/status/drain/SP), crits, type & attribute
   advantage, defend, items, switching, escape, befriend
@@ -209,8 +225,7 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Known limitations
 
 * All art and audio are **placeholders**; animations are procedural.
-* One explorable zone; the Gateway shows a "coming soon" message.
-* No shop/currency sink yet (Data Coins are collected only).
+* Two explorable zones; further gateways need new `MapData` + scenes.
 * Status effects: poison, stun and burn (architecture supports more).
 * Not yet tested on physical Android/iOS devices (validated with headless
   Godot, desktop rendering screenshots, and simulated aspect ratios).

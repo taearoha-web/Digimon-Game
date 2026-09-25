@@ -9,6 +9,7 @@
 ├───────────────────────── Game services ────────────────────────┤
 │ BattleController · DamageCalculator · BattleAI · BattleRewards   │
 │ Leveling · EvolutionService · RecruitmentService · ItemService   │
+│ EquipmentService · ShopService                                   │
 │ QuestManager (autoload) · NameValidator · TextVars               │
 ├───────────────────────── Runtime state ────────────────────────┤
 │ GameState (autoload): PlayerProfile, DigimonRoster(DigimonInstance│
@@ -16,7 +17,8 @@
 ├───────────────────────── Static data ──────────────────────────┤
 │ GameData (autoload) → DigimonSpecies, SkillData/SkillEffect,     │
 │ ItemData, QuestData/QuestObjective, DialogueData/Line, NpcData,  │
-│ EncounterTable/SpawnEntry, MapData, StarterRoster, TypeChart,    │
+│ EncounterTable/SpawnEntry, MapData, ShopData, StarterRoster,     │
+│ TypeChart,                                                       │
 │ RecruitmentConfig, CustomizationCatalog                          │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -34,7 +36,21 @@ and passes parameters through `SceneManager.params`.
 boot → main_menu → character_creation → starter_selection → player_name
      → confirmation (GameState.start_new_game + autosave) → intro
      → map:starter_zone ⇄ battle
+         ⇅ (Gateway portals: goto_map(target_map, target_spawn, {from_portal}))
+       map:data_forest ⇄ battle
 ```
+
+### Adding a zone
+
+1. `maps/<zone>/<zone>_builder.gd` extending `ZoneBuilderBase`: implement
+   `get_height()`, `_ground_color()` and `_build_scenery()` (helpers:
+   `_multimesh`, `_data_pillar`, `_data_cubes`, `_sky_islands`, colliders,
+   `paths` + `distance_to_paths`).
+2. `maps/<zone>/<zone>.gd` = `extends WorldMap`.
+3. `tools/build_<zone>_scene.gd` using `tools/zone_scene_kit.gd` to place
+   spawn points, NPCs, portals, pickups, triggers, spawners and waypoints.
+4. `data/maps/<zone>.tres` (`MapData`: scene, default spawn, music,
+   battle arena) and a `Portal` in an existing zone targeting it.
 
 Battles: the world stores the player transform, sets
 `GameState.pending_battle` (a `BattleRequest`) and calls

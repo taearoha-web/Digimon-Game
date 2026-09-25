@@ -3,10 +3,10 @@
 ## Now (high value)
 - [ ] Test on a physical Android device: touch feel (joystick size/dead zone,
       camera sensitivity), FPS on Low/Medium/High, safe-area insets, back button
-- [ ] Zone 2 "Data Forest" behind the Gateway (new builder + MapData + spawns)
-- [ ] Shop NPC to spend Data Coins (buy patches / treats / SP capsules)
 
 ## Gameplay
+- [ ] Zone 3 (e.g. a mountain or data city) reachable from the Data Forest
+- [ ] Chip upgrades / rarer chips as battle drops
 - [ ] Nickname prompt when a Digimon joins
 - [ ] "Forget a skill" prompt when learning a 5th skill while 4 are equipped
 - [ ] Trainer/NPC battles (BattleRequest.is_wild = false already supported)
@@ -30,3 +30,7 @@
 
 ## Done (session 1)
 - [x] Phases 1–18 of DEVELOPMENT_PLAN.md (see PROJECT_STATUS.md)
+- [x] Zone 2 "Data Forest" behind the Gateway (builder, scene, quest, spawns, music)
+- [x] Shops (Pip in the plaza, Lumi in the forest) — Data Coins sink
+- [x] Equipment chips (Gear tab, detail view, saved per Digimon)
+- [x] Per-map battle arena palettes
