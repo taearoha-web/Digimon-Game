@@ -73,7 +73,26 @@ godot --headless --path . res://tests/integration/vertical_slice_test.tscn
 godot --headless --path . -s res://tools/check_scripts.gd
 ```
 
-## Controls
+## Play in a browser (iPhone / Android / PC)
+
+The project exports to the Web (single-threaded Godot 4.3 build, WebGL 2), so it
+runs in Safari on iPhone (iOS 16.4+) and in mobile/desktop Chrome without an
+app install.
+
+```bash
+# one-time: Godot 4.3 export templates (at least web_nothreads_release.zip)
+godot --headless --path . --export-release "Web" build/web/index.html
+python3 tools/package_web.py      # -> build/web_artifact/ (~10 MB download)
+```
+
+`tools/package_web.py` gzips the engine and game data (35 MB -> 10 MB), adds a
+touch-friendly loading page (`tools/web/artifact_shell.html`: Play button,
+download progress, "rotate to landscape" hint) and inflates the files in the
+browser, so any static host works — no special headers or server compression.
+Serve `build/web_artifact/` from any static web host. Saves are kept in the
+browser (IndexedDB). On iPhone, turn off silent mode to hear audio.
+
+
 
 ### Mobile (touch)
 

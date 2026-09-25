@@ -7,6 +7,7 @@ var _name_input: LineEdit
 var _error: Label
 var _counter: Label
 var _confirm_button: Button
+var _last_text := ""
 
 
 func _ready() -> void:
@@ -86,7 +87,15 @@ func _ready() -> void:
 	_on_text_changed(_name_input.text, true)
 
 
+func _process(_delta: float) -> void:
+	# The web build's virtual keyboard (phones) can change the text without
+	# emitting text_changed, so keep the counter/button in sync by polling.
+	if _name_input and _name_input.text != _last_text:
+		_on_text_changed(_name_input.text)
+
+
 func _on_text_changed(text: String, silent := false) -> void:
+	_last_text = text
 	var error := NameValidator.validate(text)
 	_confirm_button.disabled = error != ""
 	_error.text = "" if (silent or text.strip_edges() == "") else error

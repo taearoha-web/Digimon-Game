@@ -55,6 +55,7 @@ polish and more content (see `TODO.md`).
 | Battle VFX (data-driven presets, projectiles, particles, floating numbers) | ✅ | `vfx/battle_vfx.gd` |
 | Tests (unit + integration) and QA tools | ✅ | `tests/*`, `tools/check_scripts.gd` |
 | Android / iOS export presets (landscape) | ✅ | `export_presets.cfg` |
+| Web build (Godot 4.3 single-threaded, gzip-packed ~10 MB, loading page) | ✅ tested in headless Chromium (iPhone landscape viewport, touch); not yet on a real iPhone | `tools/package_web.py`, `tools/web/artifact_shell.html` |
 
 ## Incomplete / partial systems
 
@@ -85,6 +86,8 @@ polish and more content (see `TODO.md`).
 
 ## Next development task
 
+0. Try the web build on a real iPhone (Safari and the Claude app viewer):
+   loading, touch, audio, frame rate, name keyboard.
 1. Test on a physical Android device (touch feel, performance, safe areas,
    draw calls in the Data Forest on Low/Medium).
 2. Nickname prompt when recruiting; "forget a skill" prompt.

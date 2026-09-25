@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.1] — 2026-09-25 — Web build (play on iPhone)
+
+### Added
+- "Web" export preset (single-threaded, WebGL 2, virtual keyboard) and
+  `tools/package_web.py` + `tools/web/artifact_shell.html`: gzip-packed
+  build (~10 MB) with a Thai/English loading page, download progress and a
+  portrait "rotate your phone" overlay.
+- Phone browsers (`web_ios` / `web_android`) use the mobile graphics defaults.
+
+### Fixed
+- Name entry on the web: the phone keyboard can change the text without a
+  `text_changed` signal, so the name screen now polls the field.
+- Version string updated to 0.2.0 (main-menu footer).
+
 ## [0.2.0] — 2026-09-25 — Second zone, shops and equipment
 
 ### Added

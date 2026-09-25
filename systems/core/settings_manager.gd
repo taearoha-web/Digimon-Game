@@ -147,4 +147,6 @@ func _set_bus_volume(bus_name: String, linear: float) -> void:
 
 
 static func _is_mobile() -> bool:
-	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
+	# "web_ios" / "web_android": the web build running in a phone browser.
+	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") \
+		or OS.has_feature("web_ios") or OS.has_feature("web_android")
