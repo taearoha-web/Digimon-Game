@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ShopData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://systems/shop/shop_data.gd" id="1_klbu6"]
+
+[resource]
+script = ExtResource("1_klbu6")
+id = &"plaza_shop"
+display_name = "Pip's Patch Stand"
+greeting = "Everything a new Tamer needs!"
+stock = Array[StringName]([&"small_patch", &"sp_capsule", &"friend_treat", &"reboot_chip", &"guard_chip"])
+price_multiplier = 1.0
+buys_items = true

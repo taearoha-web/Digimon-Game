@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="EncounterTable" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://systems/world/spawn_entry.gd" id="1_0ddnn"]
+[ext_resource type="Script" path="res://systems/world/encounter_table.gd" id="2_xhra6"]
+
+[sub_resource type="Resource" id="Resource_ru3tg"]
+script = ExtResource("1_0ddnn")
+species_id = &"palmon"
+min_level = 6
+max_level = 8
+weight = 3.0
+
+[sub_resource type="Resource" id="Resource_l0t56"]
+script = ExtResource("1_0ddnn")
+species_id = &"elecmon"
+min_level = 6
+max_level = 8
+weight = 2.5
+
+[sub_resource type="Resource" id="Resource_1sbfd"]
+script = ExtResource("1_0ddnn")
+species_id = &"biyomon"
+min_level = 6
+max_level = 8
+weight = 2.5
+
+[sub_resource type="Resource" id="Resource_h4foe"]
+script = ExtResource("1_0ddnn")
+species_id = &"kunemon"
+min_level = 6
+max_level = 7
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_vmeu0"]
+script = ExtResource("1_0ddnn")
+species_id = &"goburimon"
+min_level = 6
+max_level = 7
+weight = 1.5
+
+[sub_resource type="Resource" id="Resource_c2vvv"]
+script = ExtResource("1_0ddnn")
+species_id = &"togemon"
+min_level = 9
+max_level = 10
+weight = 0.3
+
+[resource]
+script = ExtResource("2_xhra6")
+id = &"forest_grove"
+region_id = &"forest_grove"
+entries = Array[ExtResource("1_0ddnn")]([SubResource("Resource_ru3tg"), SubResource("Resource_l0t56"), SubResource("Resource_1sbfd"), SubResource("Resource_h4foe"), SubResource("Resource_vmeu0"), SubResource("Resource_c2vvv")])
+max_active = 4
+spawn_chance = 0.7
+check_interval = 3.0
+respawn_delay = 8.0

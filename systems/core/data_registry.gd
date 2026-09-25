@@ -13,6 +13,7 @@ const DIRS := {
 	"npcs": "res://data/npcs",
 	"encounters": "res://data/encounters",
 	"maps": "res://data/maps",
+	"shops": "res://data/shops",
 }
 const STARTER_ROSTER_PATH := "res://data/config/starter_roster.tres"
 const RECRUITMENT_CONFIG_PATH := "res://data/config/recruitment_config.tres"
@@ -70,6 +71,10 @@ func get_encounter_table(table_id: StringName) -> EncounterTable:
 
 func get_map(map_id: StringName) -> MapData:
 	return _lookup("maps", map_id) as MapData
+
+
+func get_shop(shop_id: StringName) -> ShopData:
+	return _lookup("shops", shop_id) as ShopData
 
 
 func get_all(table: String) -> Array:

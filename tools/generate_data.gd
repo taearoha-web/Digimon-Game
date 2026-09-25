@@ -4,16 +4,26 @@ extends SceneTree
 ## Usage (from the project root):
 ##   godot --headless --path . -s res://tools/generate_data.gd
 ##
-## IMPORTANT: this was used to create the initial .tres files. Once a designer
-## edits the resources in the Godot editor, the .tres files are the source of
-## truth — re-running this script OVERWRITES them.
+## By default only MISSING resources are written, so edits made in the Godot
+## editor are never lost (the .tres files are the source of truth). Options
+## after "--":
+##   --update=items/,quests/q_x   overwrite files whose path contains any token
+##   --overwrite                  overwrite everything (resets designer edits!)
 
 const DATA := "res://data"
 
 var _count := 0
+var _skipped := 0
+var _overwrite_all := false
+var _update_tokens: PackedStringArray = []
 
 
 func _initialize() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--overwrite":
+			_overwrite_all = true
+		elif arg.begins_with("--update="):
+			_update_tokens = arg.trim_prefix("--update=").split(",", false)
 	_make_dirs()
 	_generate_type_chart()
 	_generate_skills()
@@ -25,21 +35,34 @@ func _initialize() -> void:
 	_generate_encounters()
 	_generate_maps()
 	_generate_configs()
-	print("generate_data: wrote %d resources" % _count)
+	_generate_shops()
+	print("generate_data: wrote %d resources, kept %d existing" % [_count, _skipped])
 	quit()
 
 
 func _make_dirs() -> void:
-	for sub in ["digimon", "skills", "items", "quests", "dialogue", "npcs", "encounters", "maps", "config"]:
+	for sub in ["digimon", "skills", "items", "quests", "dialogue", "npcs", "encounters", "maps", "config", "shops"]:
 		DirAccess.make_dir_recursive_absolute(DATA.path_join(sub))
 
 
 func _save(res: Resource, path: String) -> void:
+	if FileAccess.file_exists(path) and not _should_overwrite(path):
+		_skipped += 1
+		return
 	var err := ResourceSaver.save(res, path)
 	if err != OK:
 		printerr("Failed to save %s: %s" % [path, error_string(err)])
 	else:
 		_count += 1
+
+
+func _should_overwrite(path: String) -> bool:
+	if _overwrite_all:
+		return true
+	for token in _update_tokens:
+		if path.contains(token):
+			return true
+	return false
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +510,9 @@ func _item(id: StringName, name: String, desc: String, category: int, effect: in
 	it.consumed_on_use = opts.get("consumed", true)
 	it.icon_color = opts.get("color", Color(0.4, 0.8, 1.0))
 	it.icon_path = "res://assets/icons/items/%s.svg" % id
-	it.sell_price = opts.get("price", 0)
+	it.buy_price = opts.get("price", 0)
+	it.sell_price = int(opts.get("price", 0) / 2)
+	it.equip_bonuses = opts.get("bonuses", {})
 	_save(it, "%s/items/%s.tres" % [DATA, id])
 
 
@@ -514,6 +539,18 @@ func _generate_items() -> void:
 		{"color": Color(1.0, 0.75, 0.25), "stack": 1})
 	_item(&"gate_pass", "Gate Pass", "Opens the gateway in the Starter Zone.", C.KEY, E.NONE, 0,
 		{"color": Color(0.95, 0.4, 0.95), "stack": 1})
+
+	# Equipment chips: one can be held per Digimon (see EquipmentService).
+	_item(&"power_chip", "Power Chip", "A red circuit that sharpens every strike.", C.EQUIPMENT, E.NONE, 0,
+		{"color": Color(1.0, 0.42, 0.32), "price": 250, "stack": 9, "bonuses": {DigimonStats.ATTACK: 6}})
+	_item(&"guard_chip", "Guard Chip", "A sturdy blue circuit that hardens data shells.", C.EQUIPMENT, E.NONE, 0,
+		{"color": Color(0.35, 0.6, 1.0), "price": 250, "stack": 9, "bonuses": {DigimonStats.DEFENSE: 6}})
+	_item(&"speed_chip", "Speed Chip", "A light green circuit that hums with momentum.", C.EQUIPMENT, E.NONE, 0,
+		{"color": Color(0.4, 0.95, 0.5), "price": 300, "stack": 9, "bonuses": {DigimonStats.SPEED: 5}})
+	_item(&"focus_chip", "Focus Chip", "A violet circuit that amplifies special techniques.", C.EQUIPMENT, E.NONE, 0,
+		{"color": Color(0.72, 0.5, 1.0), "price": 250, "stack": 9, "bonuses": {DigimonStats.SPECIAL_ATTACK: 6}})
+	_item(&"vital_chip", "Vital Chip", "A warm golden circuit that reinforces the core.", C.EQUIPMENT, E.NONE, 0,
+		{"color": Color(1.0, 0.8, 0.3), "price": 300, "stack": 9, "bonuses": {DigimonStats.MAX_HP: 20}})
 
 
 # ---------------------------------------------------------------------------
@@ -594,7 +631,8 @@ func _generate_dialogue() -> void:
 	])
 	_dialogue(&"byte_turn_in", [
 		"Archive restored! Splendid work, {player_name}.",
-		"Please accept some equipment from my storage. Use it well!",
+		"Please accept some equipment from my storage. That Power Chip boosts the attack of whichever Digimon holds it.",
+		"Open your Inventory, pick the Gear tab and choose who should hold it. Use it well!",
 	])
 	_dialogue(&"byte_after", [
 		"Did you know? Vaccine beats Virus, Virus beats Data, and Data beats Vaccine. Knowledge is power!",
@@ -606,6 +644,29 @@ func _generate_dialogue() -> void:
 		"Hey! I'm Kai. I'm training to become the strongest Tamer around!",
 		"Tip: push the joystick all the way to run, or tap the Sprint button to keep running.",
 		"In battle, Defend halves damage and restores some SP. Super handy when you're running low!",
+	])
+
+	# Pip — Item Vendor (Starter Zone plaza)
+	_dialogue(&"pip_default", [
+		"Welcome to Pip's Patch Stand! Patches, capsules, treats… everything a new Tamer needs.",
+	])
+
+	# Lumi — Forest Ranger (Data Forest)
+	_dialogue(&"lumi_offer", [
+		"Oh! A Tamer came through the Gateway? Welcome to the Data Forest, {player_name}. I'm Lumi, the ranger here.",
+		"The forest's data has been restless lately. I need someone to survey it for me.",
+		"Visit the Crystal Lake to the north and the Old Ruins in the east, and win three battles against wild Digimon along the way.",
+		"Stronger Digimon live here than in the Starter Zone. My shop has chips and supplies if you need them!",
+	])
+	_dialogue(&"lumi_hint", [
+		"The Crystal Lake is north of camp, the Old Ruins are to the east. Stay safe, {player_name}!",
+	])
+	_dialogue(&"lumi_turn_in", [
+		"Your survey is perfect! The forest feels calmer already.",
+		"Take this Speed Chip and an Evo Shard. {partner_name} has earned them.",
+	])
+	_dialogue(&"lumi_after", [
+		"Thanks to you the forest is peaceful again. Need anything? Take a look at my wares.",
 	])
 
 	# Signposts & objects
@@ -625,6 +686,15 @@ func _generate_dialogue() -> void:
 		["Gateway", "The gateway hums with energy… but the path beyond is still forming."],
 		["Gateway", "(A new zone will be reachable here in a future update.)"],
 	])
+	_dialogue(&"sign_forest_camp", [
+		["Signpost", "RANGER CAMP — Recovery Terminal and Lumi's shop.\nNORTH: Crystal Lake.  EAST: Old Ruins.  SOUTH-WEST: Gateway home."],
+	])
+	_dialogue(&"sign_lake", [
+		["Signpost", "CRYSTAL LAKE — Its water mirrors the data sky. Do not drink the code."],
+	])
+	_dialogue(&"sign_ruins", [
+		["Signpost", "OLD RUINS — Remains of an ancient server. Strong Digimon gather here."],
+	])
 	_dialogue(&"terminal_heal", [
 		["Recovery Terminal", "Scanning party… Restoring data… Done! Your Digimon are fully healed."],
 	])
@@ -634,13 +704,18 @@ func _generate_dialogue() -> void:
 # NPCs
 # ---------------------------------------------------------------------------
 
-func _npc(id: StringName, name: String, title: String, default_dialogue: StringName, appearance: Dictionary) -> void:
+func _npc(id: StringName, name: String, title: String, default_dialogue: StringName, appearance: Dictionary,
+		shop_id: StringName = &"", radius := 2.6) -> void:
 	var n := NpcData.new()
+	n.interaction_radius = radius
 	n.id = id
 	n.display_name = name
 	n.title = title
 	n.default_dialogue_id = default_dialogue
 	n.appearance = appearance
+	if shop_id != &"":
+		n.service = &"shop"
+		n.shop_id = shop_id
 	_save(n, "%s/npcs/%s.tres" % [DATA, id])
 
 
@@ -663,6 +738,18 @@ func _generate_npcs() -> void:
 		"bottom": "shorts", "bottom_color": "3a3f4b", "shoes": "sneakers", "shoes_color": "e04f5f",
 		"accessories": ["hat"], "accessory_color": "e04f5f",
 	})
+	_npc(&"pip", "Pip", "Item Vendor", &"pip_default", {
+		"body_type": "female", "hair_style": "twin_tails", "hair_color": "f08cb4", "face": "bright",
+		"eye_color": "3b6fd1", "skin_tone": "f9e0cc", "top": "t_shirt", "top_color": "ffd166",
+		"bottom": "shorts", "bottom_color": "3a6ee8", "shoes": "sneakers", "shoes_color": "ff7a45",
+		"accessories": ["backpack"], "accessory_color": "ff7a45",
+	}, &"plaza_shop")
+	_npc(&"lumi", "Lumi", "Forest Ranger", &"lumi_after", {
+		"body_type": "female", "hair_style": "ponytail", "hair_color": "6b4226", "face": "cool",
+		"eye_color": "3c9a5f", "skin_tone": "c99468", "top": "adventure_shirt", "top_color": "5ac86e",
+		"bottom": "adventure_pants", "bottom_color": "8b5e3c", "shoes": "boots", "shoes_color": "3a3f4b",
+		"accessories": ["hat"], "accessory_color": "5ac86e",
+	}, &"forest_shop", 3.4)
 
 
 # ---------------------------------------------------------------------------
@@ -743,7 +830,20 @@ func _generate_quests() -> void:
 			_objective(T.COLLECT_ITEM, &"data_fragment", 3, "Collect Data Fragments"),
 		],
 		"offer": &"byte_offer", "hint": &"byte_hint", "turn_in_dialogue": &"byte_turn_in", "after": &"byte_after",
-		"exp": 120, "currency": 200, "items": {&"sp_capsule": 3, &"full_recovery_disk": 1},
+		"exp": 120, "currency": 200, "items": {&"sp_capsule": 3, &"full_recovery_disk": 1, &"power_chip": 1},
+	})
+	_quest({
+		"id": &"q_forest_survey", "title": "Forest Survey", "order": 3,
+		"summary": "Lumi asked you to survey the Data Forest: see the Crystal Lake and the Old Ruins, and win three battles.",
+		"giver": &"lumi", "turn_in": &"lumi", "prereq": [&"q_first_steps"],
+		"objectives": [
+			_objective(T.REACH_AREA, &"crystal_lake", 1, "Visit the Crystal Lake (north of camp)", &"crystal_lake"),
+			_objective(T.REACH_AREA, &"old_ruins", 1, "Explore the Old Ruins (east)", &"old_ruins"),
+			_objective(T.WIN_BATTLES, &"", 3, "Win battles against wild Digimon", &"old_ruins"),
+		],
+		"offer": &"lumi_offer", "hint": &"lumi_hint", "turn_in_dialogue": &"lumi_turn_in", "after": &"lumi_after",
+		"exp": 260, "currency": 300, "items": {&"speed_chip": 1, &"evo_shard": 1, &"medium_patch": 2},
+		"flags": [&"forest_surveyed"],
 	})
 
 
@@ -790,6 +890,21 @@ func _generate_encounters() -> void:
 		_spawn(&"kunemon", 3, 4, 1.0),
 		_spawn(&"goburimon", 3, 4, 1.0),
 	], 2, 0.8, 2.5, 6.0)
+	_table(&"forest_grove", &"forest_grove", [
+		_spawn(&"palmon", 6, 8, 3.0),
+		_spawn(&"elecmon", 6, 8, 2.5),
+		_spawn(&"biyomon", 6, 8, 2.5),
+		_spawn(&"kunemon", 6, 7, 2.0),
+		_spawn(&"goburimon", 6, 7, 1.5),
+		_spawn(&"togemon", 9, 10, 0.3),
+	], 4, 0.7, 3.0, 8.0)
+	_table(&"old_ruins", &"old_ruins", [
+		_spawn(&"elecmon", 8, 10, 2.0),
+		_spawn(&"goburimon", 8, 10, 2.0),
+		_spawn(&"flymon", 9, 10, 0.5),
+		_spawn(&"ogremon", 10, 11, 0.5),
+		_spawn(&"leomon", 10, 11, 0.3),
+	], 3, 0.7, 3.0, 9.0)
 
 
 func _generate_maps() -> void:
@@ -801,6 +916,16 @@ func _generate_maps() -> void:
 	m.music_id = &"field"
 	m.description = "A peaceful corner of the Digital World where new Tamers arrive."
 	_save(m, "%s/maps/starter_zone.tres" % DATA)
+
+	var forest := MapData.new()
+	forest.id = &"data_forest"
+	forest.display_name = "Data Forest"
+	forest.scene_path = "res://maps/data_forest/data_forest.tscn"
+	forest.default_spawn_id = &"from_starter_zone"
+	forest.music_id = &"forest"
+	forest.battle_arena = &"forest"
+	forest.description = "A glowing forest of crystal trees beyond the Gateway, home to stronger wild Digimon."
+	_save(forest, "%s/maps/data_forest.tres" % DATA)
 
 
 func _generate_configs() -> void:
@@ -843,6 +968,30 @@ func _generate_configs() -> void:
 	cat.skin_tones = _palette(["f9e0cc", "f6d2b3", "e8b98f", "c99468", "a06d47", "7a4e32"])
 	cat.clothing_colors = _palette(["ff7a45", "ffd166", "5ac86e", "34c3ff", "3a6ee8", "2f4a8a", "8a5ad6", "ff8fb1", "e04f5f", "f2f2f2", "3a3f4b", "8b5e3c", "c9b79c"])
 	_save(cat, DATA + "/config/customization_catalog.tres")
+
+
+# ---------------------------------------------------------------------------
+# Shops
+# ---------------------------------------------------------------------------
+
+func _shop(id: StringName, name: String, greeting: String, stock: Array) -> void:
+	var shop := ShopData.new()
+	shop.id = id
+	shop.display_name = name
+	shop.greeting = greeting
+	var typed: Array[StringName] = []
+	for item_id in stock:
+		typed.append(item_id)
+	shop.stock = typed
+	_save(shop, "%s/shops/%s.tres" % [DATA, id])
+
+
+func _generate_shops() -> void:
+	_shop(&"plaza_shop", "Pip's Patch Stand", "Everything a new Tamer needs!",
+		[&"small_patch", &"sp_capsule", &"friend_treat", &"reboot_chip", &"guard_chip"])
+	_shop(&"forest_shop", "Ranger Supplies", "Forest-grade gear for serious Tamers.",
+		[&"medium_patch", &"sp_capsule", &"reboot_chip", &"full_recovery_disk", &"friend_treat",
+		&"power_chip", &"guard_chip", &"speed_chip", &"focus_chip", &"vital_chip"])
 
 
 func _options(pairs: Array) -> Array[Dictionary]:

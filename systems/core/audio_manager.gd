@@ -65,6 +65,11 @@ func play_music(music_id: StringName, fade_time := 1.0) -> void:
 		_music_tween.chain().tween_callback(old_player.stop)
 
 
+## True when a music track with this id exists (any supported extension).
+func has_music(music_id: StringName) -> bool:
+	return music_id != &"" and _get_stream(MUSIC_DIR, music_id) != null
+
+
 func stop_music(fade_time := 1.0) -> void:
 	current_music_id = &""
 	if _music_tween:

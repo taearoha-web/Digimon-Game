@@ -120,9 +120,14 @@ static func set_bar(bar: ProgressBar, value: float, max_value: float, animate :=
 
 
 static func tint_hp_bar(bar: ProgressBar, ratio: float) -> void:
+	var color := UIPalette.hp_color(ratio)
+	if bar.has_meta("hp_tint") and bar.get_meta("hp_tint") == color:
+		return
+	bar.set_meta("hp_tint", color)
+	bar.remove_theme_stylebox_override("fill")
 	var fill := bar.get_theme_stylebox("fill").duplicate() as StyleBoxFlat
 	if fill:
-		fill.bg_color = UIPalette.hp_color(ratio)
+		fill.bg_color = color
 		bar.add_theme_stylebox_override("fill", fill)
 
 

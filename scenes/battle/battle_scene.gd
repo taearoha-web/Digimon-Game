@@ -16,6 +16,20 @@ const CAMERA_DEFAULT_LOOK := Vector3(0.3, 0.8, -0.3)
 const BATTLE_SCALE := 1.3
 
 var controller: BattleController
+## Arena palettes picked by BattleRequest.arena_theme (set from MapData).
+const ARENA_THEMES := {
+	&"digital_field": {
+		"sky_top": Color(0.22, 0.28, 0.72), "sky_horizon": Color(0.95, 0.72, 0.85), "sky_bottom": Color(0.3, 0.3, 0.6),
+		"ambient": Color(0.72, 0.76, 1.0), "floor": Color(0.36, 0.44, 0.7), "lines": Color(0.2, 0.88, 1.0),
+		"pillars": Color(0.25, 0.85, 1.0), "hills": [Color(0.38, 0.62, 0.62), Color(0.45, 0.4, 0.75)],
+	},
+	&"forest": {
+		"sky_top": Color(0.16, 0.4, 0.6), "sky_horizon": Color(0.78, 0.95, 0.84), "sky_bottom": Color(0.24, 0.48, 0.46),
+		"ambient": Color(0.66, 0.84, 0.9), "floor": Color(0.24, 0.48, 0.42), "lines": Color(0.45, 1.0, 0.78),
+		"pillars": Color(0.72, 0.5, 1.0), "hills": [Color(0.22, 0.55, 0.4), Color(0.42, 0.36, 0.7)],
+	},
+}
+
 var request: BattleRequest
 var ui: BattleUI
 var popups: PopupQueue
@@ -381,20 +395,21 @@ func _return_to_world() -> void:
 # ---------------------------------------------------------------------------
 
 func _build_arena() -> void:
+	var theme: Dictionary = ARENA_THEMES.get(request.arena_theme, ARENA_THEMES[&"digital_field"])
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = load("res://shaders/digital_sky.gdshader")
-	sky_mat.set_shader_parameter("top_color", Color(0.22, 0.28, 0.72))
-	sky_mat.set_shader_parameter("horizon_color", Color(0.95, 0.72, 0.85))
-	sky_mat.set_shader_parameter("bottom_color", Color(0.3, 0.3, 0.6))
+	sky_mat.set_shader_parameter("top_color", theme.sky_top)
+	sky_mat.set_shader_parameter("horizon_color", theme.sky_horizon)
+	sky_mat.set_shader_parameter("bottom_color", theme.sky_bottom)
 	sky_mat.set_shader_parameter("grid_strength", 0.3)
 	sky.sky_material = sky_mat
 	sky.radiance_size = Sky.RADIANCE_SIZE_32
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.72, 0.76, 1.0)
+	env.ambient_light_color = theme.ambient
 	env.ambient_light_energy = 0.36
 	env.glow_enabled = true
 	env.glow_intensity = 0.4
@@ -426,6 +441,8 @@ func _build_arena() -> void:
 	var grid := ShaderMaterial.new()
 	grid.shader = load("res://shaders/grid_floor.gdshader")
 	grid.set_shader_parameter("cells", 14.0)
+	grid.set_shader_parameter("base_color", theme.floor)
+	grid.set_shader_parameter("line_color", theme.lines)
 	platform.material_override = grid
 	platform.position = Vector3(0, -0.3, 0)
 	add_child(platform)
@@ -435,7 +452,7 @@ func _build_arena() -> void:
 	torus.outer_radius = 7.8
 	torus.rings = 64
 	rim.mesh = torus
-	rim.material_override = MeshKit.toon(UIPalette.CYAN, {"emission": 1.4})
+	rim.material_override = MeshKit.toon(theme.lines, {"emission": 1.4})
 	add_child(rim)
 	for pos in [PLAYER_POS, ENEMY_POS]:
 		var pad := MeshInstance3D.new()
@@ -465,6 +482,7 @@ func _build_arena() -> void:
 		pillar.mesh = pm
 		var pmat := ShaderMaterial.new()
 		pmat.shader = load("res://shaders/data_pillar.gdshader")
+		pmat.set_shader_parameter("tint", theme.pillars)
 		pillar.material_override = pmat
 		pillar.position = Vector3(cos(ang) * dist, pm.height * 0.5 - 0.5, sin(ang) * dist)
 		add_child(pillar)
@@ -476,7 +494,7 @@ func _build_arena() -> void:
 		var s := rng.randf_range(10.0, 22.0)
 		hill.scale = Vector3(s * 1.6, s * 0.7, s * 1.6)
 		hill.position = Vector3(cos(ang) * (dist + 12.0), -6.0, sin(ang) * (dist + 12.0))
-		hill.material_override = MeshKit.toon(Color(0.38, 0.62, 0.62).lerp(Color(0.45, 0.4, 0.75), rng.randf()))
+		hill.material_override = MeshKit.toon((theme.hills[0] as Color).lerp(theme.hills[1], rng.randf()))
 		add_child(hill)
 	for i in 16:
 		var cube := MeshInstance3D.new()

@@ -88,6 +88,20 @@ func _physics_process(delta: float) -> void:
 		avatar.rotation.y = _yaw
 
 
+## Optional NPC service after the conversation. Shops only open for small
+## talk so they never cover a quest offer or reward popup.
+func _run_service(action: StringName) -> void:
+	if data == null:
+		return
+	match data.service:
+		&"heal_party":
+			GameState.roster.heal_all()
+			EventBus.toast("Your party was fully healed!", &"success")
+		&"shop":
+			if action in [&"default", &"after", &"in_progress"]:
+				await ShopPanel.open_shop(get_tree(), GameData.get_shop(data.shop_id))
+
+
 func _update_marker() -> void:
 	if _marker == null:
 		return
@@ -118,9 +132,7 @@ func _on_interacted(by: Node) -> void:
 	if box and result.dialogue_id != &"":
 		await box.play(result.dialogue_id, {"npc_name": data.display_name if data else String(npc_id)})
 	QuestManager.apply_npc_action(result, npc_id)
-	if data and data.service == &"heal_party":
-		GameState.roster.heal_all()
-		EventBus.toast("Your party was fully healed!", &"success")
+	await _run_service(result.get("action", &"default"))
 	_update_marker()
 	# Small cooldown so a held interact key doesn't immediately re-open.
 	await get_tree().create_timer(0.3).timeout

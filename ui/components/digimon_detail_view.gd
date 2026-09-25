@@ -1,8 +1,9 @@
 class_name DigimonDetailView
 extends HBoxContainer
 ## Shared detail view for one owned Digimon: 3D preview, stage/attribute,
-## level + EXP, stats, skills (tap to equip / unequip, max 4) and evolution
-## paths with their requirements (Evolve button when ready).
+## level + EXP, stats, held chip (equip / remove), skills (tap to equip /
+## unequip, max 4) and evolution paths with their requirements (Evolve button
+## when ready).
 
 signal changed()
 signal evolve_requested(inst: DigimonInstance, path: EvolutionPath)
@@ -93,7 +94,14 @@ func show_digimon(inst: DigimonInstance) -> void:
 		var cell := UIUtil.hbox(6)
 		cell.add_child(UIUtil.label(DigimonStats.short_name(stat), &"SmallLabel"))
 		cell.add_child(UIUtil.label(str(inst.get_stat(stat)), &"ValueLabel"))
+		var bonus := inst.get_equipment_bonus(stat)
+		if bonus != 0:
+			var tag := UIUtil.label("%+d" % bonus, &"SmallLabel")
+			tag.add_theme_color_override("font_color", UIPalette.SUCCESS)
+			cell.add_child(tag)
 		stats.add_child(cell)
+
+	_add_chip_section(inst)
 
 	_info.add_child(UIUtil.label("Skills (tap to equip · max %d)" % DigimonInstance.MAX_EQUIPPED_SKILLS, &"SubHeaderLabel"))
 	var skills := UIUtil.vbox(6)
@@ -138,3 +146,39 @@ func show_digimon(inst: DigimonInstance) -> void:
 		var d := UIUtil.label(species.description, &"SmallLabel")
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_info.add_child(d)
+
+
+func _add_chip_section(inst: DigimonInstance) -> void:
+	_info.add_child(UIUtil.label("Chip", &"SubHeaderLabel"))
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 8)
+	row.add_theme_constant_override("v_separation", 6)
+	_info.add_child(row)
+	var held := GameData.get_item(inst.held_item_id)
+	if held:
+		var name_label := UIUtil.label("%s  (%s)" % [held.display_name, held.describe_bonuses()], &"BoldLabel")
+		name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(name_label)
+		var remove := UIUtil.button("Remove", &"GhostButton", Vector2(130, 52))
+		remove.pressed.connect(func(): _apply_chip_result(inst, EquipmentService.unequip(inst, GameState.inventory)))
+		row.add_child(remove)
+	else:
+		row.add_child(UIUtil.label("No chip held.", &"DimLabel"))
+	for entry in GameState.inventory.get_entries(ItemData.Category.EQUIPMENT):
+		var item: ItemData = entry.item
+		var b := UIUtil.button("%s %s" % ["Swap to" if held else "Equip", item.display_name], &"ChoiceButton", Vector2(0, 52))
+		b.icon = item.get_icon()
+		b.expand_icon = false
+		b.add_theme_constant_override("icon_max_width", 32)
+		b.tooltip_text = item.describe_bonuses()
+		b.pressed.connect(func(): _apply_chip_result(inst, EquipmentService.equip(inst, item.id, GameState.inventory)))
+		row.add_child(b)
+
+
+func _apply_chip_result(inst: DigimonInstance, result: Dictionary) -> void:
+	EventBus.toast(result.message, &"success" if result.ok else &"warning")
+	if result.ok:
+		AudioManager.play_ui(&"ui_confirm")
+		GameState.roster.notify_changed()
+	show_digimon(inst)
+	changed.emit()

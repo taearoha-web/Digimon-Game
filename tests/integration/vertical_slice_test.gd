@@ -2,7 +2,8 @@ extends Node
 ## End-to-end test of the vertical slice using the real scenes:
 ## new game -> world -> partner follows -> talk to Mira -> quest -> training
 ## grounds -> wild battle -> victory/EXP -> turn in quest -> rewards ->
-## save -> load. Runs headless:
+## save -> load -> shop -> equip a chip -> gateway to the Data Forest ->
+## forest quest -> travel back. Runs headless:
 ##   godot --headless --path . res://tests/integration/vertical_slice_test.tscn
 ## Exit code 0 = pass.
 
@@ -100,14 +101,19 @@ func _run() -> void:
 	_check(QuestManager.get_state(&"q_first_steps") == QuestLog.State.ACTIVE, "quest received")
 
 	print("== Travel to the Training Grounds")
+	# Ambient wild Digimon spawn at random spots; keep them from starting
+	# battles on their own so the scripted flow stays deterministic.
+	_calm_encounters(world)
 	var tg := world.get_node("Waypoints/training_grounds") as Node3D
 	_teleport(world, tg.global_position + Vector3(1, 0, 1))
 	await _seconds(0.8)
 	_check(GameState.quest_log.get_step(&"q_first_steps") == 1, "training grounds objective complete")
 
 	print("== Battle a wild Digimon")
+	# Biyomon (Vaccine) is weak to the Data-attribute Patamon starter, so the
+	# scripted fight is winnable regardless of damage variance/crits.
 	var wild := WildDigimon.new()
-	wild.setup(&"kunemon", 3, tg.global_position, Vector3(4, 0, 4), world.player)
+	wild.setup(&"biyomon", 3, tg.global_position, Vector3(4, 0, 4), world.player)
 	world.add_child(wild)
 	wild.global_position = world.player.global_position + Vector3(3, 0.3, 0)
 	await _frames(2)
@@ -122,13 +128,15 @@ func _run() -> void:
 	var level_before := lead.level
 	var exp_before := lead.experience
 	await _auto_battle(battle)
-	_check(battle.controller.outcome == BattleController.Outcome.VICTORY, "won the battle")
+	_check(battle.controller.outcome == BattleController.Outcome.VICTORY,
+		"won the battle (outcome %d)" % battle.controller.outcome)
 	await _dismiss_battle_popups(battle)
 	await _wait_for_scene("StarterZone")
 	world = get_tree().current_scene as WorldMap
 	_check(world != null, "returned to the world")
 	if world == null:
 		return
+	_calm_encounters(world)
 	await _frames(10)
 	_check(lead.level > level_before or lead.experience > exp_before, "EXP gained (Lv %d -> %d)" % [level_before, lead.level])
 	_check(QuestManager.get_state(&"q_first_steps") == QuestLog.State.COMPLETED, "quest ready to turn in")
@@ -161,6 +169,7 @@ func _run() -> void:
 	SceneManager.goto_map(GameState.world.current_map_id, GameState.world.spawn_id)
 	await _wait_transition()
 	world = get_tree().current_scene as WorldMap
+	_calm_encounters(world)
 	await _frames(10)
 	_check(world != null and world.player.global_position.distance_to(saved_pos) < 1.5, "player position restored after load")
 	_check(world != null and world.partner.visual.species.id == GameState.roster.get_lead().species_id, "partner restored after load")
@@ -172,6 +181,78 @@ func _run() -> void:
 		_check(world.pause_menu.is_open and world.pause_menu.current_tab == tab, "pause menu tab %s" % tab)
 	world.pause_menu.close()
 	_check(not get_tree().paused, "game unpaused after closing menu")
+
+	print("== Shop and equipment")
+	var pip := world.get_node("NPCs/Pip") as Npc
+	_teleport(world, pip.global_position + Vector3(1.8, 0, 0.5))
+	await _seconds(0.5)
+	GameState.profile.add_currency(500)
+	var coins := GameState.profile.currency
+	world.player.try_interact()
+	await _seconds(0.3)
+	await _finish_dialogue(world)
+	var shop := await _wait_for_shop()
+	_check(shop != null, "Pip's shop opened after talking")
+	_check(get_tree().paused, "world paused while shopping")
+	if shop:
+		shop._selected = &"guard_chip"
+		shop._quantity = 1
+		shop._on_action(&"guard_chip")
+		_check(GameState.inventory.has_item(&"guard_chip"), "bought a Guard Chip")
+		_check(GameState.profile.currency == coins - GameData.get_item(&"guard_chip").buy_price, "coins spent")
+		var sheet: Node = shop
+		while sheet and not sheet is OverlaySheet:
+			sheet = sheet.get_parent()
+		(sheet as OverlaySheet).close_sheet()
+	await _seconds(0.5)
+	_check(not get_tree().paused, "world resumed after closing the shop")
+	var holder := GameState.roster.get_lead()
+	var def_before := holder.get_stat(DigimonStats.DEFENSE)
+	_check(EquipmentService.equip(holder, &"guard_chip", GameState.inventory).ok, "Guard Chip equipped")
+	_check(holder.get_stat(DigimonStats.DEFENSE) == def_before + 6, "DEF bonus applied")
+
+	print("== Gateway to the Data Forest")
+	var gate := world.get_node("Interactables/Gateway") as Node3D
+	_teleport(world, gate.global_position + Vector3(-2.0, 0, 2.0))
+	await _seconds(0.5)
+	world.player.try_interact()
+	await _wait_for_scene("DataForest")
+	world = get_tree().current_scene as WorldMap
+	_check(world != null and world.map_id == &"data_forest", "arrived in the Data Forest")
+	if world == null or world.map_id != &"data_forest":
+		return
+	_calm_encounters(world)
+	var arrival := world.get_node("SpawnPoints/from_starter_zone") as Node3D
+	_check(world.player.global_position.distance_to(arrival.global_position) < 2.0, "spawned at the forest gateway")
+	_check(world.partner != null and world.partner.instance == GameState.roster.get_lead(), "partner followed through the gateway")
+	await _seconds(0.5)
+	_check(str(SaveManager.get_slot_info(SaveManager.AUTOSAVE_SLOT).get("map_name", "")) == "Data Forest", "autosaved on area transition")
+	var lumi := world.get_node("NPCs/Lumi") as Npc
+	_teleport(world, lumi.global_position + Vector3(0.4, 0, -2.9))
+	await _seconds(0.5)
+	world.player.try_interact()
+	await _seconds(0.3)
+	await _finish_dialogue(world)
+	await _seconds(0.3)
+	_check(QuestManager.get_state(&"q_forest_survey") == QuestLog.State.ACTIVE, "Lumi's Forest Survey started")
+	_check(_find_shop() == null, "shop stays closed while a quest is offered")
+	var lake := world.get_node("Waypoints/crystal_lake") as Node3D
+	_teleport(world, lake.global_position)
+	await _seconds(0.6)
+	_check(GameState.quest_log.get_step(&"q_forest_survey") >= 1, "Crystal Lake objective complete")
+	_check(holder.held_item_id == &"guard_chip", "chip still held after travelling")
+
+	print("== Back to the Starter Zone")
+	var home := world.get_node("Interactables/GatewayHome") as Node3D
+	_teleport(world, home.global_position + Vector3(2.0, 0, -2.0))
+	await _seconds(0.5)
+	world.player.try_interact()
+	await _wait_for_scene("StarterZone")
+	world = get_tree().current_scene as WorldMap
+	_check(world != null and world.map_id == &"starter_zone", "returned to the Starter Zone")
+	if world:
+		var back := world.get_node("SpawnPoints/from_gateway") as Node3D
+		_check(world.player.global_position.distance_to(back.global_position) < 2.0, "spawned beside the Gateway")
 	_completed = true
 
 
@@ -224,6 +305,29 @@ func _dismiss_popups(queue: PopupQueue, limit := STEP_TIMEOUT) -> void:
 				break
 		await get_tree().create_timer(0.15).timeout
 		elapsed += 0.15
+
+
+func _calm_encounters(world: WorldMap) -> void:
+	if world == null:
+		return
+	for node in world.find_children("*", "EncounterSpawner", true, false):
+		(node as EncounterSpawner).set_encounters_enabled(false)
+
+
+func _find_shop() -> ShopPanel:
+	var found := get_tree().root.find_children("*", "ShopPanel", true, false)
+	return found[0] as ShopPanel if not found.is_empty() else null
+
+
+func _wait_for_shop() -> ShopPanel:
+	var elapsed := 0.0
+	while elapsed < 3.0:
+		var shop := _find_shop()
+		if shop:
+			return shop
+		await get_tree().create_timer(0.1).timeout
+		elapsed += 0.1
+	return null
 
 
 func _finish_dialogue(world: WorldMap) -> void:

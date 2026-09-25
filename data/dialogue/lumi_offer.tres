@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_ti26t"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_6d0dk"]
+
+[sub_resource type="Resource" id="Resource_kqr68"]
+script = ExtResource("1_ti26t")
+speaker = "{npc_name}"
+text = "Oh! A Tamer came through the Gateway? Welcome to the Data Forest, {player_name}. I'm Lumi, the ranger here."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_o5ht6"]
+script = ExtResource("1_ti26t")
+speaker = "{npc_name}"
+text = "The forest's data has been restless lately. I need someone to survey it for me."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_ohfjj"]
+script = ExtResource("1_ti26t")
+speaker = "{npc_name}"
+text = "Visit the Crystal Lake to the north and the Old Ruins in the east, and win three battles against wild Digimon along the way."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_fhq2l"]
+script = ExtResource("1_ti26t")
+speaker = "{npc_name}"
+text = "Stronger Digimon live here than in the Starter Zone. My shop has chips and supplies if you need them!"
+emotion = &""
+
+[resource]
+script = ExtResource("2_6d0dk")
+id = &"lumi_offer"
+lines = Array[ExtResource("1_ti26t")]([SubResource("Resource_kqr68"), SubResource("Resource_o5ht6"), SubResource("Resource_ohfjj"), SubResource("Resource_fhq2l")])
+skippable = true

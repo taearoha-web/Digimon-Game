@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_yn8g0"]
+[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_r8blp"]
 
 [resource]
-script = ExtResource("1_yn8g0")
+script = ExtResource("1_r8blp")
 id = &"friend_treat"
 display_name = "Friendly Treat"
 description = "A tasty snack. Using it in battle makes a wild Digimon easier to befriend (+15%)."
@@ -16,4 +16,6 @@ effect_value = 15
 usable_in_field = false
 usable_in_battle = true
 consumed_on_use = true
-sell_price = 30
+buy_price = 30
+sell_price = 15
+equip_bonuses = {}

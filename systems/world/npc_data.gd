@@ -11,5 +11,7 @@ extends Resource
 @export var interaction_radius: float = 2.6
 ## Serialized [CharacterAppearance] for the chibi avatar.
 @export var appearance: Dictionary = {}
-## Optional service offered after dialogue (&"heal_party" or empty).
+## Optional service offered after dialogue: &"heal_party", &"shop" or empty.
 @export var service: StringName = &""
+## ShopData id opened by the &"shop" service.
+@export var shop_id: StringName = &""

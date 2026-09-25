@@ -54,6 +54,9 @@ func test_npcs_and_dialogue() -> void:
 	for npc in GameData.get_all("npcs"):
 		check_not_null(GameData.get_dialogue(npc.default_dialogue_id), "%s default dialogue" % npc.id)
 		check(not npc.appearance.is_empty(), "%s appearance" % npc.id)
+		check(npc.service in [&"", &"heal_party", &"shop"], "%s service '%s' is known" % [npc.id, npc.service])
+		if npc.service == &"shop":
+			check_not_null(GameData.get_shop(npc.shop_id), "%s shop %s" % [npc.id, npc.shop_id])
 	for d in GameData.get_all("dialogue"):
 		check(not d.lines.is_empty(), "dialogue %s is empty" % d.id)
 		for line in d.lines:
@@ -74,11 +77,50 @@ func test_items_and_icons() -> void:
 		check(item.display_name != "", "%s name" % item.id)
 		check(item.max_stack >= 1, "%s stack" % item.id)
 		check(ResourceLoader.exists(item.icon_path), "%s icon %s" % [item.id, item.icon_path])
+		check(item.sell_price <= item.buy_price or item.buy_price == 0, "%s sells for less than it costs" % item.id)
+		if item.is_equipment():
+			check(not item.equip_bonuses.is_empty(), "%s has equip bonuses" % item.id)
+			for stat in item.equip_bonuses.keys():
+				check(DigimonStats.ALL.has(StringName(stat)), "%s bonus stat %s is valid" % [item.id, stat])
+		else:
+			check(item.equip_bonuses.is_empty(), "%s is not equipment but has bonuses" % item.id)
+
+
+func test_shops() -> void:
+	check(GameData.get_all("shops").size() >= 2, "shops registered")
+	for shop in GameData.get_all("shops"):
+		check(shop.display_name != "", "%s name" % shop.id)
+		check(not shop.stock.is_empty(), "%s has stock" % shop.id)
+		for item_id in shop.stock:
+			var item := GameData.get_item(item_id)
+			if check_not_null(item, "%s sells missing %s" % [shop.id, item_id]):
+				check(item.buy_price > 0, "%s sells %s with a price" % [shop.id, item_id])
+				check(item.category != ItemData.Category.QUEST and item.category != ItemData.Category.KEY,
+					"%s must not sell quest/key item %s" % [shop.id, item_id])
 
 
 func test_maps_and_scenes() -> void:
 	for map_data in GameData.get_all("maps"):
 		check(ResourceLoader.exists(map_data.scene_path), "map %s scene" % map_data.id)
+		check(AudioManager.has_music(map_data.music_id), "map %s music %s" % [map_data.id, map_data.music_id])
+		# Every portal must lead to a registered map and an existing spawn point.
+		var scene := (load(map_data.scene_path) as PackedScene).instantiate()
+		check_not_null(scene.get_node_or_null("SpawnPoints/%s" % map_data.default_spawn_id),
+			"map %s default spawn %s" % [map_data.id, map_data.default_spawn_id])
+		for node in scene.find_children("*", "Portal", true, false):
+			var portal := node as Portal
+			var target := GameData.get_map(portal.target_map_id)
+			if check_not_null(target, "%s portal %s -> map %s" % [map_data.id, portal.name, portal.target_map_id]):
+				var target_scene := (load(target.scene_path) as PackedScene).instantiate()
+				check_not_null(target_scene.get_node_or_null("SpawnPoints/%s" % portal.target_spawn_id),
+					"%s portal %s -> spawn %s" % [map_data.id, portal.name, portal.target_spawn_id])
+				target_scene.free()
+		for node in scene.find_children("*", "EncounterSpawner", true, false):
+			check_not_null(GameData.get_encounter_table((node as EncounterSpawner).table_id),
+				"%s spawner %s table" % [map_data.id, node.name])
+		for npc in scene.find_children("*", "Npc", true, false):
+			check_not_null(GameData.get_npc((npc as Npc).npc_id), "%s npc %s data" % [map_data.id, npc.name])
+		scene.free()
 	for key in SceneManager.SCENES.keys():
 		check(ResourceLoader.exists(SceneManager.SCENES[key]), "scene %s -> %s" % [key, SceneManager.SCENES[key]])
 

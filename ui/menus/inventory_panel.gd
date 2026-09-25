@@ -1,9 +1,18 @@
 class_name InventoryPanel
 extends HBoxContainer
 ## Inventory: category tabs, item list, details and "Use" with a party
-## target picker. Item effects are resolved by ItemService.
+## target picker. Item effects are resolved by ItemService; chips (Gear tab)
+## are held by Digimon through EquipmentService.
 
-var _category := ItemData.Category.CONSUMABLE
+const TABS := [
+	["Items", ItemData.Category.CONSUMABLE],
+	["Gear", ItemData.Category.EQUIPMENT],
+	["Evo", ItemData.Category.EVOLUTION],
+	["Quest", ItemData.Category.QUEST],
+	["Key", ItemData.Category.KEY],
+]
+
+var _category: int = ItemData.Category.CONSUMABLE
 var _list: VBoxContainer
 var _detail: VBoxContainer
 var _selected: StringName = &""
@@ -14,21 +23,20 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 16)
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var left := UIUtil.vbox(10)
-	left.custom_minimum_size = Vector2(420, 0)
+	left.custom_minimum_size = Vector2(480, 0)
 	add_child(left)
-	var tabs := HFlowContainer.new()
-	tabs.add_theme_constant_override("h_separation", 6)
-	tabs.add_theme_constant_override("v_separation", 6)
+	var tabs := UIUtil.hbox(6)
 	left.add_child(tabs)
 	var group := ButtonGroup.new()
-	var short_names := ["Items", "Evolution", "Quest", "Key"]
-	for i in short_names.size():
-		var b := UIUtil.button(short_names[i], &"TabButton", Vector2(96, 50))
+	for tab in TABS:
+		var category: int = tab[1]
+		var b := UIUtil.button(tab[0], &"TabButton", Vector2(0, 50))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.toggle_mode = true
 		b.button_group = group
-		b.button_pressed = i == _category
+		b.button_pressed = category == _category
 		b.pressed.connect(func():
-			_category = i
+			_category = category
 			_selected = &""
 			refresh())
 		tabs.add_child(b)
@@ -52,7 +60,11 @@ func refresh() -> void:
 	UIUtil.clear(_list)
 	var entries := GameState.inventory.get_entries(_category)
 	if entries.is_empty():
-		_list.add_child(UIUtil.label("No items in this category.", &"DimLabel"))
+		var empty_text := "No chips in your bag. Chips held by Digimon show in their details." \
+			if _category == ItemData.Category.EQUIPMENT else "No items in this category."
+		var empty := UIUtil.label(empty_text, &"DimLabel")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_list.add_child(empty)
 	for entry in entries:
 		var item: ItemData = entry.item
 		if _selected == &"":
@@ -90,6 +102,9 @@ func _show_detail() -> void:
 	_detail.add_child(desc)
 	if item.usable_in_battle and not item.usable_in_field:
 		_detail.add_child(UIUtil.label("Can only be used during battle.", &"SmallLabel"))
+	if item.is_equipment():
+		_show_equip_targets(item)
+		return
 	if not item.is_usable(false):
 		return
 	_detail.add_child(UIUtil.label("Use on:", &"SubHeaderLabel"))
@@ -104,6 +119,26 @@ func _show_detail() -> void:
 			EventBus.toast(result.message, &"success" if result.ok else &"warning")
 			if result.ok:
 				AudioManager.play_sfx(&"heal")
+				GameState.roster.notify_changed()
+			if not GameState.inventory.has_item(item.id):
+				_selected = &""
+			refresh())
+		_detail.add_child(b)
+
+
+func _show_equip_targets(item: ItemData) -> void:
+	_detail.add_child(UIUtil.label("Held bonus: " + item.describe_bonuses(), &"BoldLabel"))
+	_detail.add_child(UIUtil.label("Give to (one chip per Digimon):", &"SubHeaderLabel"))
+	for inst in GameState.roster.get_party():
+		var held := GameData.get_item(inst.held_item_id)
+		var text := "%s  Lv %d  ·  %s" % [inst.get_display_name(), inst.level, ("Holding " + held.display_name) if held else "No chip"]
+		var b := UIUtil.button(text, &"ChoiceButton", Vector2(0, 58))
+		b.disabled = inst.held_item_id == item.id
+		b.pressed.connect(func():
+			var result := EquipmentService.equip(inst, item.id, GameState.inventory)
+			EventBus.toast(result.message, &"success" if result.ok else &"warning")
+			if result.ok:
+				AudioManager.play_ui(&"ui_confirm")
 				GameState.roster.notify_changed()
 			if not GameState.inventory.has_item(item.id):
 				_selected = &""

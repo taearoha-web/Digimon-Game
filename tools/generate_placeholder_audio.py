@@ -191,6 +191,11 @@ def build_sfx():
                                   "chime": (880, 1320, "sine"), "buzz": (180, 200, "square"), "grunt": (140, 100, "saw"),
                                   "squeak": (900, 1400, "square"), "small": (600, 800, "tri")}.items():
         sfx("cry_" + name, lambda b, f0=f0, f1=f1, kind=kind: tone(b, R, 0, 0.4, f0, kind, 0.3, f1, vibrato=0.04, r=0.12))
+    # Shop purchase jingle (tones only: no random noise, keeps later files stable).
+    def coin(b):
+        tone(b, R, 0.0, 0.07, 1318, "square", 0.22, duty=0.25, r=0.02)
+        tone(b, R, 0.07, 0.16, 1976, "square", 0.22, duty=0.25, r=0.08)
+    sfx("coin", coin)
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +288,16 @@ def build_music():
         tone(buf, R, t, d, note_freq(n), "tri", 0.3, vibrato=0.01)
         tone(buf, R, t, d, note_freq(n) / 2, "sine", 0.2)
     write_wav(os.path.join(MUSIC_DIR, "defeat.wav"), buf, R)
+
+    # Forest: calm and curious (E minor / D), 92 BPM, 16 bars. Appended last so
+    # the seeded noise used by earlier tracks stays byte-identical.
+    forest_chords = [["E3", "G3", "B3"], ["C4", "E4", "G4"], ["D4", "F#4", "A4"], ["B3", "D4", "F#4"]]
+    forest_mel = seq([(1, "B4"), (0.5, "E5"), (0.5, "F#5"), (1, "G5"), (1, "F#5"),
+                      (1, "E5"), (0.5, "G5"), (0.5, "A5"), (2, "B5"),
+                      (1, "A5"), (0.5, "F#5"), (0.5, "D5"), (1, "E5"), (1, "F#5"),
+                      (1.5, "D#5"), (0.5, "E5"), (1, "F#5"), (1, None)] * 4)
+    write_wav(os.path.join(MUSIC_DIR, "forest.wav"), render_song(92, 16, forest_chords, forest_mel, lead_kind="tri", swing=0.12,
+              lead_vol=0.2), MUSIC_RATE, loop=True)
 
 
 if __name__ == "__main__":

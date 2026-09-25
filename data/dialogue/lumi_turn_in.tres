@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_yiebg"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_b2j24"]
+
+[sub_resource type="Resource" id="Resource_0arvg"]
+script = ExtResource("1_yiebg")
+speaker = "{npc_name}"
+text = "Your survey is perfect! The forest feels calmer already."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_p82js"]
+script = ExtResource("1_yiebg")
+speaker = "{npc_name}"
+text = "Take this Speed Chip and an Evo Shard. {partner_name} has earned them."
+emotion = &""
+
+[resource]
+script = ExtResource("2_b2j24")
+id = &"lumi_turn_in"
+lines = Array[ExtResource("1_yiebg")]([SubResource("Resource_0arvg"), SubResource("Resource_p82js")])
+skippable = true

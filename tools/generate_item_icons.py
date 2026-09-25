@@ -38,6 +38,23 @@ ICONS = {
                   '<circle cx="34" cy="48" r="9" fill="none" stroke="#ffffff" stroke-width="4"/><path d="M43 48h26M61 48v8M67 48v6" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>'),
 }
 
+
+def chip(color, light, glyph):
+    """Equipment chip: square circuit board with pins and a stat glyph."""
+    pins = ('<g stroke="{l}" stroke-width="4" stroke-linecap="round"><path d="M36 16v10M48 16v10M60 16v10'
+            'M36 70v10M48 70v10M60 70v10M16 36h10M16 48h10M16 60h10M70 36h10M70 48h10M70 60h10"/></g>').format(l=light)
+    board = '<rect x="24" y="24" width="48" height="48" rx="9" fill="{c}" stroke="{l}" stroke-width="3.5"/>'.format(c=color, l=light)
+    inner = '<rect x="31" y="31" width="34" height="34" rx="6" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.55"/>'
+    return (color, pins + board + inner + glyph)
+
+
+# Stat glyphs (white) drawn on the chip.
+ICONS["power_chip"] = chip("#ff5a47", "#ffd9d2", '<path d="M42 58l12-20M40 40l16 16" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>')
+ICONS["guard_chip"] = chip("#4a7dff", "#dbe6ff", '<path d="M48 34l12 5v8c0 8-5 13-12 16-7-3-12-8-12-16v-8z" fill="#ffffff"/>')
+ICONS["speed_chip"] = chip("#3fcf6a", "#d8fbe2", '<path d="M36 40h12M32 48h16M36 56h12M52 36l10 12-10 12" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>')
+ICONS["focus_chip"] = chip("#9a66ff", "#ece2ff", '<path d="M48 34l3.5 10.5L62 48l-10.5 3.5L48 62l-3.5-10.5L34 48l10.5-3.5z" fill="#ffffff"/>')
+ICONS["vital_chip"] = chip("#ffb62e", "#fff0cc", '<path d="M48 61s-13-8-13-17a7 7 0 0 1 13-4 7 7 0 0 1 13 4c0 9-13 17-13 17z" fill="#ffffff"/>')
+
 os.makedirs(OUT, exist_ok=True)
 for name, (bg, body) in ICONS.items():
     with open(os.path.join(OUT, name + ".svg"), "w") as f:

@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_jlsjo"]
+[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_m66t6"]
 
 [resource]
-script = ExtResource("1_jlsjo")
+script = ExtResource("1_m66t6")
 id = &"small_patch"
 display_name = "Small Data Patch"
 description = "Restores 40 HP to one Digimon."
@@ -16,4 +16,6 @@ effect_value = 40
 usable_in_field = true
 usable_in_battle = true
 consumed_on_use = true
-sell_price = 20
+buy_price = 20
+sell_price = 10
+equip_bonuses = {}

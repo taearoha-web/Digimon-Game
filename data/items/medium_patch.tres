@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_asncp"]
+[ext_resource type="Script" path="res://systems/inventory/item_data.gd" id="1_jiuan"]
 
 [resource]
-script = ExtResource("1_asncp")
+script = ExtResource("1_jiuan")
 id = &"medium_patch"
 display_name = "Medium Data Patch"
 description = "Restores 100 HP to one Digimon."
@@ -16,4 +16,6 @@ effect_value = 100
 usable_in_field = true
 usable_in_battle = true
 consumed_on_use = true
-sell_price = 60
+buy_price = 60
+sell_price = 30
+equip_bonuses = {}

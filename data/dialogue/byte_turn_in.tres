@@ -1,22 +1,28 @@
-[gd_resource type="Resource" script_class="DialogueData" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="DialogueData" load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_g6et0"]
-[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_5p0p3"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_line.gd" id="1_eefi5"]
+[ext_resource type="Script" path="res://systems/dialogue/dialogue_data.gd" id="2_4xhi3"]
 
-[sub_resource type="Resource" id="Resource_wwgpf"]
-script = ExtResource("1_g6et0")
+[sub_resource type="Resource" id="Resource_ts280"]
+script = ExtResource("1_eefi5")
 speaker = "{npc_name}"
 text = "Archive restored! Splendid work, {player_name}."
 emotion = &""
 
-[sub_resource type="Resource" id="Resource_d6jx3"]
-script = ExtResource("1_g6et0")
+[sub_resource type="Resource" id="Resource_404lg"]
+script = ExtResource("1_eefi5")
 speaker = "{npc_name}"
-text = "Please accept some equipment from my storage. Use it well!"
+text = "Please accept some equipment from my storage. That Power Chip boosts the attack of whichever Digimon holds it."
+emotion = &""
+
+[sub_resource type="Resource" id="Resource_jglr6"]
+script = ExtResource("1_eefi5")
+speaker = "{npc_name}"
+text = "Open your Inventory, pick the Gear tab and choose who should hold it. Use it well!"
 emotion = &""
 
 [resource]
-script = ExtResource("2_5p0p3")
+script = ExtResource("2_4xhi3")
 id = &"byte_turn_in"
-lines = Array[ExtResource("1_g6et0")]([SubResource("Resource_wwgpf"), SubResource("Resource_d6jx3")])
+lines = Array[ExtResource("1_eefi5")]([SubResource("Resource_ts280"), SubResource("Resource_404lg"), SubResource("Resource_jglr6")])
 skippable = true

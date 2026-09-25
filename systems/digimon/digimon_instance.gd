@@ -27,6 +27,8 @@ var evolution_history: Array[StringName] = []
 var origin: StringName = &"wild"
 var obtained_at: int = 0
 var battles_won: int = 0
+## Equipped Digi-Chip (ItemData of category EQUIPMENT) or &"".
+var held_item_id: StringName = &""
 
 static var _uid_counter := 0
 
@@ -66,13 +68,20 @@ func get_display_name() -> String:
 	return species.display_name if species else String(species_id)
 
 
-## Final stat = base + growth * (level - 1) + individual bonus.
+## Final stat = base + growth * (level - 1) + individual bonus + held chip.
 func get_stat(stat: StringName) -> int:
 	var species := get_species()
 	if species == null:
 		return 1
 	var value := species.get_base_stat(stat) + species.get_growth(stat) * float(level - 1)
-	return maxi(1, int(round(value)) + int(bonus_stats.get(stat, 0)))
+	return maxi(1, int(round(value)) + int(bonus_stats.get(stat, 0)) + get_equipment_bonus(stat))
+
+
+func get_equipment_bonus(stat: StringName) -> int:
+	if held_item_id == &"" or _registry() == null:
+		return 0
+	var item: ItemData = _registry().get_item(held_item_id)
+	return int(item.equip_bonuses.get(stat, 0)) if item else 0
 
 
 func get_all_stats() -> Dictionary:
@@ -200,6 +209,7 @@ func to_dict() -> Dictionary:
 		"origin": String(origin),
 		"obtained_at": obtained_at,
 		"battles_won": battles_won,
+		"held_item_id": String(held_item_id),
 	}
 
 
@@ -216,6 +226,7 @@ static func from_dict(data: Dictionary) -> DigimonInstance:
 	inst.origin = StringName(str(data.get("origin", "wild")))
 	inst.obtained_at = int(data.get("obtained_at", 0))
 	inst.battles_won = int(data.get("battles_won", 0))
+	inst.held_item_id = StringName(str(data.get("held_item_id", "")))
 	inst.known_skills = _to_stringname_array(data.get("known_skills", []))
 	inst.equipped_skills = _to_stringname_array(data.get("equipped_skills", []))
 	inst.evolution_history = _to_stringname_array(data.get("evolution_history", []))

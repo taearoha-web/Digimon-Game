@@ -7,4 +7,6 @@ extends Resource
 @export_file("*.tscn") var scene_path: String = ""
 @export var default_spawn_id: StringName = &"start"
 @export var music_id: StringName = &"field"
+## Battle arena palette (see BattleScene.ARENA_THEMES).
+@export var battle_arena: StringName = &"digital_field"
 @export_multiline var description: String = ""

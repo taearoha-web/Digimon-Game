@@ -1,9 +1,9 @@
 [gd_resource type="Environment" load_steps=4 format=3]
 
-[ext_resource type="Shader" path="res://shaders/digital_sky.gdshader" id="1_mh8mi"]
+[ext_resource type="Shader" path="res://shaders/digital_sky.gdshader" id="1_hq8nk"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dt8fb"]
-shader = ExtResource("1_mh8mi")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mb2dg"]
+shader = ExtResource("1_hq8nk")
 shader_parameter/top_color = null
 shader_parameter/horizon_color = null
 shader_parameter/bottom_color = null
@@ -11,13 +11,13 @@ shader_parameter/grid_color = null
 shader_parameter/sun_color = null
 shader_parameter/grid_strength = null
 
-[sub_resource type="Sky" id="Sky_ll24k"]
-sky_material = SubResource("ShaderMaterial_dt8fb")
+[sub_resource type="Sky" id="Sky_70rnv"]
+sky_material = SubResource("ShaderMaterial_mb2dg")
 radiance_size = 0
 
 [resource]
 background_mode = 2
-sky = SubResource("Sky_ll24k")
+sky = SubResource("Sky_70rnv")
 ambient_light_source = 2
 ambient_light_color = Color(0.7, 0.78, 1, 1)
 ambient_light_energy = 0.34

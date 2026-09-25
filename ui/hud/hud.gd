@@ -38,6 +38,7 @@ var _currency: Label
 var _fps: Label
 var _refresh_timer := 0.0
 var _controls: Array[Control] = []
+var _badge_species: StringName = &""
 
 
 func _ready() -> void:
@@ -139,12 +140,14 @@ func refresh_partner() -> void:
 	_partner_name.text = lead.get_display_name()
 	_partner_level.text = "Lv %d" % lead.level
 	_partner_badge.text = lead.get_display_name().substr(0, 1)
-	var badge_style := StyleBoxFlat.new()
-	badge_style.bg_color = species.get_color(0, UIPalette.CYAN) if species else UIPalette.CYAN
-	badge_style.set_corner_radius_all(28)
-	badge_style.set_border_width_all(3)
-	badge_style.border_color = Color.WHITE
-	_partner_badge_panel.add_theme_stylebox_override("panel", badge_style)
+	if lead.species_id != _badge_species:
+		_badge_species = lead.species_id
+		var badge_style := StyleBoxFlat.new()
+		badge_style.bg_color = species.get_color(0, UIPalette.CYAN) if species else UIPalette.CYAN
+		badge_style.set_corner_radius_all(28)
+		badge_style.set_border_width_all(3)
+		badge_style.border_color = Color.WHITE
+		_partner_badge_panel.add_theme_stylebox_override("panel", badge_style)
 	UIUtil.set_bar(_hp_bar, lead.current_hp, lead.get_max_hp())
 	UIUtil.tint_hp_bar(_hp_bar, lead.get_hp_ratio())
 	_hp_label.text = "%d/%d" % [lead.current_hp, lead.get_max_hp()]

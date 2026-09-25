@@ -1,0 +1,294 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://maps/data_forest/data_forest.gd" id="1_85i7p"]
+[ext_resource type="Environment" path="res://resources/environments/data_forest_env.tres" id="2_6xfji"]
+[ext_resource type="Script" path="res://systems/world/quality_light.gd" id="3_yhog2"]
+[ext_resource type="Script" path="res://maps/data_forest/data_forest_builder.gd" id="4_uwv24"]
+[ext_resource type="Script" path="res://characters/npc/npc.gd" id="5_oulxs"]
+[ext_resource type="Script" path="res://systems/world/recovery_terminal.gd" id="6_acmw7"]
+[ext_resource type="Script" path="res://systems/world/signpost.gd" id="7_v638w"]
+[ext_resource type="Script" path="res://systems/world/portal.gd" id="8_std77"]
+[ext_resource type="Script" path="res://systems/world/world_pickup.gd" id="9_p16wy"]
+[ext_resource type="Script" path="res://systems/world/area_trigger.gd" id="10_evtv8"]
+[ext_resource type="Script" path="res://systems/world/encounter_spawner.gd" id="11_jsbeu"]
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_wdc5n"]
+geometry_parsed_geometry_type = 1
+geometry_collision_mask = 1
+cell_size = 0.3
+agent_height = 1.0
+agent_radius = 0.6
+agent_max_climb = 0.5
+agent_max_slope = 46.0
+filter_baking_aabb = AABB(-72, -6, -72, 144, 30, 144)
+
+[node name="DataForest" type="Node3D"]
+script = ExtResource("1_85i7p")
+map_id = &"data_forest"
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("2_6xfji")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.371572, 0.334565, 0, 0.669131, 0.743145, -0.5, -0.643582, 0.579484, 0, 0, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 0.68
+shadow_enabled = true
+shadow_blur = 1.5
+directional_shadow_max_distance = 45.0
+script = ExtResource("3_yhog2")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = SubResource("NavigationMesh_wdc5n")
+
+[node name="Builder" type="Node3D" parent="NavigationRegion3D"]
+script = ExtResource("4_uwv24")
+seed_value = 20251031
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="from_starter_zone" type="Marker3D" parent="SpawnPoints" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(-0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, -0.707107, -40, 0, 40)
+
+[node name="start" type="Marker3D" parent="SpawnPoints" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(-0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, -0.707107, -27, 0, 27)
+
+[node name="NPCs" type="Node3D" parent="."]
+
+[node name="Lumi" type="StaticBody3D" parent="NPCs" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.95, 0, 28.3)
+script = ExtResource("5_oulxs")
+npc_id = &"lumi"
+face_player_radius = 6.0
+initial_yaw_degrees = 171.0
+
+[node name="Interactables" type="Node3D" parent="."]
+
+[node name="RecoveryTerminal" type="Area3D" parent="Interactables" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -28, 0, 21.5)
+script = ExtResource("6_acmw7")
+respawn_spawn_id = &"start"
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+
+[node name="SignCamp" type="Area3D" parent="Interactables" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -31.5, 0, 27)
+script = ExtResource("7_v638w")
+dialogue_id = &"sign_forest_camp"
+title = "Ranger Camp"
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+
+[node name="SignLake" type="Area3D" parent="Interactables" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(0.798636, 0, -0.601815, 0, 1, 0, 0.601815, 0, 0.798636, 4, 0, -13)
+script = ExtResource("7_v638w")
+dialogue_id = &"sign_lake"
+title = "Crystal Lake"
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+
+[node name="SignRuins" type="Area3D" parent="Interactables" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 26, 0, 12)
+script = ExtResource("7_v638w")
+dialogue_id = &"sign_ruins"
+title = "Old Ruins"
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+
+[node name="GatewayHome" type="Area3D" parent="Interactables" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(-0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, -0.707107, -46, 0, 46)
+script = ExtResource("8_std77")
+target_map_id = &"starter_zone"
+target_spawn_id = &"from_gateway"
+required_flag = &""
+locked_dialogue_id = &"portal_locked"
+unavailable_dialogue_id = &"portal_unlocked"
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 6.0
+
+[node name="Pickups" type="Node3D" parent="."]
+
+[node name="forest_vital_chip" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0, 10)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_vital_chip"
+item_id = &"vital_chip"
+amount = 1
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="forest_focus_chip" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -48)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_focus_chip"
+item_id = &"focus_chip"
+amount = 1
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="forest_patch_lake" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -24)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_patch_lake"
+item_id = &"medium_patch"
+amount = 1
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="forest_capsule_grove" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 40)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_capsule_grove"
+item_id = &"sp_capsule"
+amount = 1
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="forest_treat_hollow" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44, 0, -16)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_treat_hollow"
+item_id = &"friend_treat"
+amount = 2
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="forest_reboot" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0, 30)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_reboot"
+item_id = &"reboot_chip"
+amount = 1
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="forest_shard" type="Area3D" parent="Pickups" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0, -44)
+script = ExtResource("9_p16wy")
+pickup_id = "forest_shard"
+item_id = &"evo_shard"
+amount = 1
+prompt_text = "Interact"
+interaction_radius = 2.2
+enabled = true
+interaction_priority = 0
+metadata/clear_radius = 1.5
+
+[node name="AreaTriggers" type="Node3D" parent="."]
+
+[node name="ranger_camp" type="Area3D" parent="AreaTriggers" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 0, 22)
+script = ExtResource("10_evtv8")
+area_id = &"ranger_camp"
+display_name = "Ranger Camp"
+radius = 10.0
+show_banner = true
+
+[node name="crystal_lake" type="Area3D" parent="AreaTriggers" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -30)
+script = ExtResource("10_evtv8")
+area_id = &"crystal_lake"
+display_name = "Crystal Lake"
+radius = 18.0
+show_banner = true
+
+[node name="old_ruins" type="Area3D" parent="AreaTriggers" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 6)
+script = ExtResource("10_evtv8")
+area_id = &"old_ruins"
+display_name = "Old Ruins"
+radius = 12.0
+show_banner = true
+
+[node name="whispering_grove" type="Area3D" parent="AreaTriggers" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 36)
+script = ExtResource("10_evtv8")
+area_id = &"whispering_grove"
+display_name = "Whispering Grove"
+radius = 13.0
+show_banner = true
+
+[node name="mossy_hollow" type="Area3D" parent="AreaTriggers" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, 0, -12)
+script = ExtResource("10_evtv8")
+area_id = &"mossy_hollow"
+display_name = "Mossy Hollow"
+radius = 11.0
+show_banner = true
+
+[node name="gateway_home" type="Area3D" parent="AreaTriggers" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -46, 0, 46)
+script = ExtResource("10_evtv8")
+area_id = &"gateway_home"
+display_name = "Gateway"
+radius = 7.0
+show_banner = true
+
+[node name="Spawners" type="Node3D" parent="."]
+
+[node name="GroveSpawner" type="Node3D" parent="Spawners" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 36)
+script = ExtResource("11_jsbeu")
+table_id = &"forest_grove"
+extents = Vector3(12, 0, 8)
+min_player_distance = 9.0
+initial_spawns = 3
+
+[node name="HollowSpawner" type="Node3D" parent="Spawners" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, 0, -12)
+script = ExtResource("11_jsbeu")
+table_id = &"forest_grove"
+extents = Vector3(8, 0, 9)
+min_player_distance = 9.0
+initial_spawns = 2
+
+[node name="RuinsSpawner" type="Node3D" parent="Spawners" groups=["ground_snap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 6)
+script = ExtResource("11_jsbeu")
+table_id = &"old_ruins"
+extents = Vector3(7, 0, 7)
+min_player_distance = 9.0
+initial_spawns = 2
+
+[node name="Waypoints" type="Node3D" parent="."]
+
+[node name="crystal_lake" type="Marker3D" parent="Waypoints" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -14)
+
+[node name="old_ruins" type="Marker3D" parent="Waypoints" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 7)
+
+[node name="ranger_camp" type="Marker3D" parent="Waypoints" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 0, 22)
+
+[node name="gateway" type="Marker3D" parent="Waypoints" groups=["ground_snap", "keep_clear"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -46, 0, 46)

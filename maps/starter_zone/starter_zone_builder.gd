@@ -1,5 +1,5 @@
 class_name StarterZoneBuilder
-extends Node3D
+extends ZoneBuilderBase
 ## Builds the Starter Zone's static scenery procedurally and deterministically
 ## (same seed = same world), keeping the .tscn small and editable:
 ##   terrain (hills, carved river, flattened paths/plazas) + trimesh collision,
@@ -9,8 +9,6 @@ extends Node3D
 ## Gameplay objects (NPCs, spawners, portal, pickups…) live in the .tscn.
 ## Everything with collision is added under this node so a parent
 ## NavigationRegion3D can bake a navmesh from it.
-
-signal built()
 
 const SIZE := 200.0
 const CELL := 2.0
@@ -32,17 +30,15 @@ const FLAT_ZONES := [[Vector2(-38, 10), 11.0, 0.05], [Vector2(24, -22), 11.5, 0.
 const FOREST_ZONES := [[Vector2(-55, -30), 22.0], [Vector2(-52, 30), 18.0], [Vector2(-10, -55), 16.0],
 	[Vector2(58, 40), 14.0], [Vector2(20, 55), 14.0], [Vector2(60, -18), 12.0]]
 
-@export var seed_value := 20250925
-
-var paths: Array[PackedVector2Array] = []
 var _noise := FastNoiseLite.new()
 var _detail := FastNoiseLite.new()
-var _rng := RandomNumberGenerator.new()
-var _occupied: Array[Vector3] = [] # x, z, radius of placed props
-var _ground_material: StandardMaterial3D
 
 
 func _init() -> void:
+	seed_value = 20250925
+	terrain_size = SIZE
+	terrain_cell = CELL
+	play_radius = PLAY_RADIUS
 	_noise.seed = 7
 	_noise.frequency = 0.035
 	_noise.fractal_octaves = 3
@@ -67,22 +63,7 @@ static func river_x(z: float) -> float:
 	return 2.0 + 5.0 * sin(z * 0.045)
 
 
-func build() -> void:
-	_rng.seed = seed_value
-	add_to_group("quality_listeners")
-	# Keep gameplay objects (NPCs, pickups, signs…) clear of trees and rocks.
-	for node in get_tree().get_nodes_in_group("keep_clear"):
-		if node is Node3D:
-			var p := (node as Node3D).global_position
-			_occupy(Vector2(p.x, p.z), float(node.get_meta("clear_radius", 2.5)))
-	_ground_material = StandardMaterial3D.new()
-	_ground_material.vertex_color_use_as_albedo = true
-	# Vertex colours are authored in sRGB like every other colour in the project.
-	_ground_material.vertex_color_is_srgb = true
-	_ground_material.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-	_ground_material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	_ground_material.roughness = 1.0
-	_build_terrain()
+func _build_scenery() -> void:
 	_build_river()
 	_build_bridge()
 	_build_plaza()
@@ -91,19 +72,8 @@ func build() -> void:
 	_build_trees()
 	_build_rocks()
 	_build_grass_and_flowers()
-	_build_data_cubes()
-	_build_sky_islands()
-	_build_boundary()
-	apply_quality(Settings.graphics_quality)
-	built.emit()
-
-
-## Low quality hides purely decorative foliage to save fill-rate.
-func apply_quality(level: int) -> void:
-	for node_name in ["Grass", "Flowers"]:
-		var node := get_node_or_null(node_name) as Node3D
-		if node:
-			node.visible = level != Settings.Quality.LOW
+	_data_cubes([PLAZA, GATEWAY, TRAINING, Vector2(-26, -38), Vector2(0, 40), Vector2(-60, -10), Vector2(40, 50)])
+	_sky_islands()
 
 
 # ---------------------------------------------------------------------------
@@ -132,18 +102,6 @@ func get_height(x: float, z: float) -> float:
 	return h
 
 
-func distance_to_paths(p: Vector2) -> float:
-	var best := INF
-	for path in paths:
-		for i in path.size() - 1:
-			var a: Vector2 = path[i]
-			var b: Vector2 = path[i + 1]
-			var ab := b - a
-			var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
-			best = minf(best, p.distance_to(a + ab * t))
-	return best
-
-
 func _ground_color(x: float, z: float, h: float) -> Color:
 	var p := Vector2(x, z)
 	var n := _noise.get_noise_2d(x * 1.7 + 40.0, z * 1.7)
@@ -167,63 +125,6 @@ func _ground_color(x: float, z: float, h: float) -> Color:
 	if h < -0.8:
 		c = c.lerp(Color("2f7c8c"), smoothstep(-0.8, -1.6, h))
 	return c
-
-
-func _box_distance(p: Vector2, center: Vector2, extents: Vector2) -> float:
-	var d := (p - center).abs() - extents
-	return maxf(d.x, d.y)
-
-
-# ---------------------------------------------------------------------------
-# Terrain
-# ---------------------------------------------------------------------------
-
-func _build_terrain() -> void:
-	var count := int(SIZE / CELL) + 1
-	var half := SIZE * 0.5
-	var positions := PackedVector3Array()
-	positions.resize(count * count)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for iz in count:
-		for ix in count:
-			var x := -half + ix * CELL
-			var z := -half + iz * CELL
-			var h := get_height(x, z)
-			var v := Vector3(x, h, z)
-			positions[iz * count + ix] = v
-			st.set_color(_ground_color(x, z, h))
-			st.set_uv(Vector2(x, z) * 0.1)
-			st.add_vertex(v)
-	# Collision faces are built from the same data (not read back from the
-	# mesh), so they also work with the headless/dummy renderer.
-	var faces := PackedVector3Array()
-	faces.resize((count - 1) * (count - 1) * 6)
-	var f := 0
-	for iz in count - 1:
-		for ix in count - 1:
-			var i := iz * count + ix
-			for idx in [i, i + 1, i + count, i + 1, i + count + 1, i + count]:
-				st.add_index(idx)
-				faces[f] = positions[idx]
-				f += 1
-	st.generate_normals()
-	var mesh := st.commit()
-	var terrain := MeshInstance3D.new()
-	terrain.name = "TerrainMesh"
-	terrain.mesh = mesh
-	terrain.material_override = _ground_material
-	add_child(terrain)
-	var body := StaticBody3D.new()
-	body.name = "TerrainBody"
-	body.collision_layer = 1
-	body.collision_mask = 0
-	var shape := CollisionShape3D.new()
-	var concave := ConcavePolygonShape3D.new()
-	concave.set_faces(faces)
-	shape.shape = concave
-	body.add_child(shape)
-	add_child(body)
 
 
 # ---------------------------------------------------------------------------
@@ -405,11 +306,6 @@ func _build_gateway_area() -> void:
 	_occupy(GATEWAY, 7.0)
 
 
-func _lamp(parent: Node3D, pos: Vector3) -> void:
-	MeshKit.part(parent, MeshKit.cylinder(), MeshKit.toon(Color("4b5a99")), pos + Vector3(0, 1.2, 0), Vector3(0.14, 2.4, 0.14))
-	MeshKit.part(parent, MeshKit.sphere(), MeshKit.toon(UIPalette.CYAN, {"emission": 1.6}), pos + Vector3(0, 2.5, 0), Vector3(0.45, 0.45, 0.45))
-
-
 func _bench(parent: Node3D, pos: Vector3, yaw: float) -> void:
 	var bench := Node3D.new()
 	bench.position = pos
@@ -420,34 +316,6 @@ func _bench(parent: Node3D, pos: Vector3, yaw: float) -> void:
 	MeshKit.part(bench, MeshKit.box(), wood, Vector3(0, 0.75, -0.22), Vector3(1.6, 0.4, 0.08))
 	for x in [-0.65, 0.65]:
 		MeshKit.part(bench, MeshKit.box(), MeshKit.toon(Color("4b5a99")), Vector3(x, 0.22, 0), Vector3(0.1, 0.44, 0.45))
-
-
-func _data_pillar(pos: Vector3, height: float) -> void:
-	var pillar := Node3D.new()
-	pillar.name = "DataPillar"
-	pillar.position = pos
-	add_child(pillar)
-	MeshKit.part(pillar, MeshKit.cylinder(), MeshKit.toon(Color("3a4a8c")), Vector3(0, 0.25, 0), Vector3(1.8, 0.5, 1.8))
-	var holo := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.6
-	mesh.bottom_radius = 0.8
-	mesh.height = height
-	mesh.radial_segments = 6
-	mesh.cap_top = false
-	mesh.cap_bottom = false
-	holo.mesh = mesh
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/data_pillar.gdshader")
-	holo.material_override = mat
-	holo.position = Vector3(0, height * 0.5 + 0.5, 0)
-	holo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	pillar.add_child(holo)
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	pillar.add_child(body)
-	_add_cylinder_shape(body, Vector3(0, 1.5, 0), 0.9, 3.0)
-	_occupy(Vector2(pos.x, pos.z), 2.0)
 
 
 # ---------------------------------------------------------------------------
@@ -467,10 +335,6 @@ func _is_clear(p: Vector2, radius: float, path_margin := 4.0) -> bool:
 		if p.distance_to(Vector2(o.x, o.y)) < o.z + radius:
 			return false
 	return true
-
-
-func _occupy(p: Vector2, radius: float) -> void:
-	_occupied.append(Vector3(p.x, p.y, radius))
 
 
 func _forest_density(p: Vector2) -> float:
@@ -598,127 +462,3 @@ func _build_grass_and_flowers() -> void:
 		flowers.append(Transform3D(Basis().scaled(Vector3(s, s * 0.7, s)), Vector3(p.x, get_height(p.x, p.y) + 0.18, p.y)))
 		flower_colors.append(palette[_rng.randi() % palette.size()])
 	_multimesh("Flowers", MeshKit.sphere_low(), flowers, flower_colors, _vertex_color_material(), false)
-
-
-func _build_data_cubes() -> void:
-	var cubes: Array[Transform3D] = []
-	var colors: Array[Color] = []
-	var clusters := [PLAZA, GATEWAY, TRAINING, Vector2(-26, -38), Vector2(0, 40), Vector2(-60, -10), Vector2(40, 50)]
-	for c in clusters:
-		for i in 9:
-			var p: Vector2 = c + Vector2(_rng.randf_range(-12, 12), _rng.randf_range(-12, 12))
-			var s := _rng.randf_range(0.25, 0.55)
-			var y := get_height(p.x, p.y) + _rng.randf_range(2.2, 5.0)
-			cubes.append(Transform3D(Basis().scaled(Vector3.ONE * s), Vector3(p.x, y, p.y)))
-			colors.append([Color(0.3, 0.95, 1.0), Color(1.0, 0.6, 0.35), Color(0.7, 0.55, 1.0)][_rng.randi() % 3])
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/data_cube.gdshader")
-	_multimesh("DataCubes", MeshKit.box(), cubes, colors, mat, false)
-
-
-func _build_sky_islands() -> void:
-	var islands := Node3D.new()
-	islands.name = "SkyIslands"
-	add_child(islands)
-	for i in 5:
-		var ang := i * TAU / 5.0 + 0.4
-		var dist := _rng.randf_range(115.0, 135.0)
-		var island := Node3D.new()
-		island.position = Vector3(cos(ang) * dist, _rng.randf_range(32.0, 52.0), sin(ang) * dist)
-		islands.add_child(island)
-		var s := _rng.randf_range(6.0, 11.0)
-		MeshKit.part(island, MeshKit.cone(), MeshKit.toon(Color("8a6a4e")), Vector3(0, -s * 0.6, 0), Vector3(s * 1.6, s * 1.4, s * 1.6), Vector3(180, 0, 0))
-		MeshKit.part(island, MeshKit.sphere_low(), MeshKit.toon(Color("6cc463")), Vector3(0, 0, 0), Vector3(s * 1.7, s * 0.35, s * 1.7))
-		for t in 3:
-			var off := Vector3(_rng.randf_range(-s * 0.5, s * 0.5), s * 0.4, _rng.randf_range(-s * 0.5, s * 0.5))
-			MeshKit.part(island, MeshKit.sphere_low(), MeshKit.toon(Color("4fae5a")), off + Vector3(0, s * 0.3, 0), Vector3.ONE * s * 0.5)
-		for child in island.get_children():
-			(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
-func _build_boundary() -> void:
-	var body := StaticBody3D.new()
-	body.name = "Boundary"
-	body.collision_layer = 1
-	add_child(body)
-	var segments := 64
-	var radius := PLAY_RADIUS + 3.0
-	for i in segments:
-		var ang := (i + 0.5) * TAU / segments
-		var pos := Vector3(cos(ang), 0, sin(ang)) * radius
-		var shape := _add_box_shape(body, pos + Vector3(0, get_height(pos.x, pos.z) + 4.0, 0), Vector3(1.0, 16.0, TAU * radius / segments + 1.0))
-		shape.rotation.y = -ang
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-func _vertex_color_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true
-	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	mat.roughness = 1.0
-	return mat
-
-
-func _multimesh(node_name: String, mesh: Mesh, transforms: Array[Transform3D], colors: Array[Color], material: Material, shadows := true) -> MultiMeshInstance3D:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = not colors.is_empty()
-	mm.mesh = mesh
-	mm.instance_count = transforms.size()
-	for i in transforms.size():
-		mm.set_instance_transform(i, transforms[i])
-		if mm.use_colors:
-			mm.set_instance_color(i, colors[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = node_name
-	mmi.multimesh = mm
-	mmi.material_override = material
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
-	return mmi
-
-
-func _make_tuft_mesh() -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in 3:
-		var ang := i * PI / 3.0
-		var dir := Vector3(cos(ang), 0, sin(ang))
-		var side := Vector3(-dir.z, 0, dir.x) * 0.09
-		var tip := dir * 0.08 + Vector3(0, 0.55, 0)
-		st.set_uv(Vector2(0, 1))
-		st.set_normal(Vector3.UP)
-		st.add_vertex(-side)
-		st.set_uv(Vector2(1, 1))
-		st.set_normal(Vector3.UP)
-		st.add_vertex(side)
-		st.set_uv(Vector2(0.5, 0))
-		st.set_normal(Vector3.UP)
-		st.add_vertex(tip)
-	return st.commit()
-
-
-func _add_box_shape(body: StaticBody3D, pos: Vector3, size: Vector3) -> CollisionShape3D:
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	shape.shape = box
-	shape.position = pos
-	body.add_child(shape)
-	return shape
-
-
-func _add_cylinder_shape(body: StaticBody3D, pos: Vector3, radius: float, height: float) -> CollisionShape3D:
-	var shape := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = radius
-	cyl.height = height
-	shape.shape = cyl
-	shape.position = pos
-	body.add_child(shape)
-	return shape

@@ -119,7 +119,7 @@ func _create_ui() -> void:
 	pause_menu = PauseMenu.new()
 	pause_menu.name = "PauseMenu"
 	add_child(pause_menu)
-	hud.menu_requested.connect(func(tab: StringName): pause_menu.open(tab))
+	hud.menu_requested.connect(_on_menu_requested)
 	pause_menu.closed.connect(_on_pause_closed)
 
 
@@ -244,6 +244,9 @@ func _on_encounter(wild: WildDigimon) -> void:
 	var request := BattleRequest.wild(wild.species_id, wild.level)
 	request.return_map_id = map_id
 	request.source_id = wild.spawn_key
+	var map_data := GameData.get_map(map_id)
+	if map_data:
+		request.arena_theme = map_data.battle_arena
 	await get_tree().create_timer(0.35).timeout
 	SceneManager.goto_battle(request)
 
@@ -258,6 +261,12 @@ func _on_dialogue_finished(_id: StringName) -> void:
 		return
 	player.set_input_enabled(true)
 	hud.set_controls_visible(true)
+
+
+func _on_menu_requested(tab: StringName) -> void:
+	if dialogue_box.is_open or _battle_starting or popups.is_busy():
+		return
+	pause_menu.open(tab)
 
 
 func _on_pause_closed() -> void:
@@ -284,16 +293,16 @@ func _on_quest_rewarded(_quest_id: StringName, rewards: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_menu") and not dialogue_box.is_open and not pause_menu.is_open:
 		get_viewport().set_input_as_handled()
-		pause_menu.open(&"")
+		_on_menu_requested(&"")
 	elif event.is_action_pressed("interact") and not dialogue_box.is_open and not pause_menu.is_open:
 		if player.try_interact():
 			get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("open_party") and not pause_menu.is_open:
-		pause_menu.open(&"party")
+		_on_menu_requested(&"party")
 	elif event.is_action_pressed("open_inventory") and not pause_menu.is_open:
-		pause_menu.open(&"inventory")
+		_on_menu_requested(&"inventory")
 	elif event.is_action_pressed("open_quests") and not pause_menu.is_open:
-		pause_menu.open(&"quests")
+		_on_menu_requested(&"quests")
 
 
 func _notification(what: int) -> void:
