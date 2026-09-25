@@ -43,7 +43,10 @@ var _progress: ProgressBar
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	InputSetup.ensure_defaults()
 	_build_overlay()
+	# Global toast notifications survive scene changes.
+	add_child(ToastLayer.new())
 
 
 func goto_scene(key: StringName, new_params := {}, show_loading := false) -> void:
@@ -147,12 +150,12 @@ func _build_overlay() -> void:
 
 	_fade = ColorRect.new()
 	_fade.color = Color(0.03, 0.05, 0.13, 0.0)
-	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_layer.add_child(_fade)
 
 	_loading_box = VBoxContainer.new()
-	_loading_box.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_loading_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_loading_box.anchor_left = 0.5
 	_loading_box.anchor_right = 0.5
 	_loading_box.anchor_top = 1.0

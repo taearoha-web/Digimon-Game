@@ -54,7 +54,13 @@ func play_once(anim_name: StringName, then_anim: StringName = &"idle") -> void:
 		return
 	current_animation = anim_name
 	_anim.play(anim_name, 0.1)
-	await _anim.animation_finished
+	var anim_res := _anim.get_animation(anim_name)
+	if anim_res.loop_mode != Animation.LOOP_NONE:
+		await get_tree().create_timer(anim_res.length).timeout
+	else:
+		await _anim.animation_finished
+	if not is_inside_tree():
+		return
 	if current_animation == anim_name:
 		play_animation(then_anim)
 
@@ -182,7 +188,7 @@ func _build_top_details(torso: Node3D, a: CharacterAppearance, shoulder: float, 
 	match a.top:
 		&"t_shirt":
 			MeshKit.part(torso, MeshKit.torus(), MeshKit.toon(a.top_color.darkened(0.2)), Vector3(0, 0.34 * torso_h, 0), Vector3(0.16, 0.08, 0.14))
-			MeshKit.part(torso, MeshKit.box(), MeshKit.toon(a.top_color.darkened(0.12)), Vector3(0, 0.02, 0.0), Vector3(0.3, 0.035, 0.235))
+			MeshKit.part(torso, MeshKit.torus(), MeshKit.toon(a.top_color.darkened(0.12)), Vector3(0, 0.0, 0.0), Vector3(0.33 * shoulder, 0.06, 0.25))
 		&"jacket":
 			var inner := MeshKit.toon(Color("f4f4f4") if a.top_color.get_luminance() < 0.7 else Color("3a3f4b"))
 			MeshKit.part(torso, box, inner, Vector3(0, 0.17, 0.112), Vector3(0.09, 0.3 * torso_h, 0.03))

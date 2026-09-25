@@ -61,7 +61,14 @@ func play_once(anim_name: StringName, then_anim: StringName = &"idle") -> void:
 		return
 	current_animation = resolved
 	_anim.play(resolved, 0.08)
-	await _anim.animation_finished
+	var anim_res := _anim.get_animation(resolved)
+	if anim_res.loop_mode != Animation.LOOP_NONE:
+		# Looping clips never emit animation_finished: play one cycle.
+		await get_tree().create_timer(anim_res.length).timeout
+	else:
+		await _anim.animation_finished
+	if not is_inside_tree():
+		return
 	if then_anim != &"" and current_animation == resolved:
 		play_animation(then_anim)
 

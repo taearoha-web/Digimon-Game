@@ -50,22 +50,31 @@ func play_music(music_id: StringName, fade_time := 1.0) -> void:
 	var new_player := _music_players[_active_music_index]
 	if _music_tween:
 		_music_tween.kill()
+		_music_tween = null
+	if not old_player.playing and stream == null:
+		return
 	_music_tween = create_tween().set_parallel(true)
 	if old_player.playing:
 		_music_tween.tween_property(old_player, "volume_db", -40.0, fade_time)
+	if stream != null:
+		new_player.stream = stream
+		new_player.volume_db = -40.0
+		new_player.play()
+		_music_tween.tween_property(new_player, "volume_db", 0.0, fade_time)
+	if old_player.playing:
 		_music_tween.chain().tween_callback(old_player.stop)
-	if stream == null:
-		return
-	new_player.stream = stream
-	new_player.volume_db = -40.0
-	new_player.play()
-	_music_tween.tween_property(new_player, "volume_db", 0.0, fade_time)
 
 
 func stop_music(fade_time := 1.0) -> void:
 	current_music_id = &""
 	if _music_tween:
 		_music_tween.kill()
+		_music_tween = null
+	var any_playing := false
+	for player in _music_players:
+		any_playing = any_playing or player.playing
+	if not any_playing:
+		return
 	_music_tween = create_tween().set_parallel(true)
 	for player in _music_players:
 		if player.playing:

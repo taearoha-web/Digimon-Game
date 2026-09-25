@@ -31,14 +31,17 @@ func _ready() -> void:
 	apply.call_deferred()
 
 
-func set_setting(key: StringName, value: Variant) -> void:
+## Applies a setting immediately. Pass persist=false while a slider is being
+## dragged and call [method save_settings] when the drag ends.
+func set_setting(key: StringName, value: Variant, persist := true) -> void:
 	if not key in self:
 		push_warning("Settings: unknown key '%s'" % key)
 		return
 	set(key, value)
 	_sanitize()
 	apply()
-	save_settings()
+	if persist:
+		save_settings()
 	changed.emit()
 
 
