@@ -12,20 +12,28 @@ build/web_artifact/ with:
 The shell intercepts Godot's fetch() of index.wasm / index.pck and serves the
 inflated data, so no server-side compression or special headers are needed.
 
+With --pages DIR it also writes a standalone site (full HTML document with a
+web-app manifest and iOS home-screen tags) for GitHub Pages, e.g. docs/play.
+Opened from an iPhone home-screen icon it runs fullscreen.
+
 Usage:
   godot --headless --path . --export-release "Web" build/web/index.html
-  python3 tools/package_web.py
+  python3 tools/package_web.py [--pages docs/play]
 """
 import gzip
 import json
 import os
 import re
 import shutil
+import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 SRC = os.path.join(ROOT, "build", "web")
 OUT = os.path.join(ROOT, "build", "web_artifact")
 SHELL = os.path.join(ROOT, "tools", "web", "artifact_shell.html")
+NOTE_ARTIFACT = "บน iPhone หน้านี้ขยายเต็มจอไม่ได้ (ข้อจำกัดของ Apple) · หมุนเครื่องเป็นแนวนอนเพื่อให้เห็นเกมมากที่สุด"
+NOTE_PAGES = "iPhone: กดปุ่มแชร์ → \"เพิ่มไปยังหน้าจอโฮม\" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ"
+TITLE = "Digital World Tamer"
 PACKED = {  # Godot file -> (published gzip name, MIME of the inflated data)
     "index.wasm": ("engine.gz.wasm", "application/wasm"),
     "index.pck": ("game.gz.wasm", "application/octet-stream"),
@@ -68,11 +76,60 @@ def main() -> None:
              .replace("__TOTAL_MB__", "%.0f" % (total / 1048576))
              .replace("__VERSION__", project_version()))
     with open(os.path.join(OUT, "index.html"), "w", encoding="utf-8") as f:
-        f.write(shell)
+        f.write(shell.replace("__FULLSCREEN_NOTE__", NOTE_ARTIFACT))
 
     for name in sorted(os.listdir(OUT)):
         print("%-24s %8.1f KB" % (name, os.path.getsize(os.path.join(OUT, name)) / 1024))
     print("total download: %.1f MB" % (total / 1048576))
+
+    if "--pages" in sys.argv:
+        pages_dir = os.path.join(ROOT, sys.argv[sys.argv.index("--pages") + 1])
+        write_pages_site(pages_dir, shell.replace("__FULLSCREEN_NOTE__", NOTE_PAGES))
+        print("GitHub Pages site written to", os.path.relpath(pages_dir, ROOT))
+
+
+def write_pages_site(pages_dir: str, shell: str) -> None:
+    """Standalone site: full document + manifest + icons (installable, fullscreen)."""
+    shutil.rmtree(pages_dir, ignore_errors=True)
+    shutil.copytree(OUT, pages_dir)
+    shutil.copy(os.path.join(SRC, "index.apple-touch-icon.png"), os.path.join(pages_dir, "apple-touch-icon.png"))
+    shutil.copy(os.path.join(SRC, "index.icon.png"), os.path.join(pages_dir, "icon.png"))
+    manifest = {
+        "name": TITLE,
+        "short_name": "Tamer",
+        "start_url": ".",
+        "scope": ".",
+        "display": "fullscreen",
+        "orientation": "landscape",
+        "background_color": "#0c1230",
+        "theme_color": "#0c1230",
+        "icons": [
+            {"src": "icon.png", "sizes": "128x128", "type": "image/png"},
+            {"src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png"},
+        ],
+    }
+    with open(os.path.join(pages_dir, "manifest.webmanifest"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    # The shell starts with <title>/<link>/<style>; those go into <head>.
+    split = shell.index("<canvas")
+    head = (
+        '<!doctype html>\n<html lang="th">\n<head>\n'
+        '<meta charset="utf-8">\n'
+        # No viewport-fit=cover: iOS keeps the game clear of the notch.
+        '<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">\n'
+        '<meta name="apple-mobile-web-app-capable" content="yes">\n'
+        '<meta name="mobile-web-app-capable" content="yes">\n'
+        '<meta name="apple-mobile-web-app-status-bar-style" content="black">\n'
+        '<meta name="apple-mobile-web-app-title" content="Tamer">\n'
+        '<meta name="theme-color" content="#0c1230">\n'
+        '<link rel="manifest" href="manifest.webmanifest">\n'
+        '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
+        '<link rel="icon" href="icon.png">\n'
+        '<style>body{margin:0}[hidden]{display:none!important}</style>\n'
+    )
+    page = head + shell[:split] + "</head>\n<body>\n" + shell[split:] + "\n</body>\n</html>\n"
+    with open(os.path.join(pages_dir, "index.html"), "w", encoding="utf-8") as f:
+        f.write(page)
 
 
 if __name__ == "__main__":

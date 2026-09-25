@@ -28,6 +28,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - **Fullscreen**: the web page requests fullscreen when you tap Play, and
   Settings → Graphics has a Fullscreen switch (desktop, Android, iPad;
   iPhone browsers do not allow page fullscreen, so it is hidden there).
+- **GitHub Pages site** (`docs/play/`, `tools/package_web.py --pages`):
+  full page with a web-app manifest and iOS home-screen tags, so on iPhone
+  "Add to Home Screen" launches the game fullscreen. `docs/.nojekyll`
+  serves the files as-is.
 - `tests/integration/traversal_test.tscn`: walks the player along routes
   with simulated joystick input and real physics (bridge both ways, plaza
   to training grounds, forest paths).

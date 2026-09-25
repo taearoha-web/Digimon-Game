@@ -88,6 +88,13 @@ Thai glyphs come from Noto Sans Thai / Mitr (OFL) as theme font fallbacks.
 
 ## Play in a browser (iPhone / Android / PC)
 
+**Online (GitHub Pages):** https://taearoha-web.github.io/Digimon-Game/play/
+(repository must be public and Pages set to *Deploy from a branch* →
+this branch → `/docs`). On iPhone, open it in Safari → Share →
+**Add to Home Screen**, then start the game from the icon to play
+fullscreen. The site in `docs/play/` is produced by
+`python3 tools/package_web.py --pages docs/play`.
+
 The project exports to the Web (single-threaded Godot 4.3 build, WebGL 2), so it
 runs in Safari on iPhone (iOS 16.4+) and in mobile/desktop Chrome without an
 app install.

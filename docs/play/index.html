@@ -1,3 +1,17 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tamer">
+<meta name="theme-color" content="#0c1230">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.png">
+<style>body{margin:0}[hidden]{display:none!important}</style>
 <title>Digital World Tamer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -171,18 +185,20 @@
   }
 </style>
 
+</head>
+<body>
 <canvas id="canvas" tabindex="0">Your browser does not support the canvas tag.</canvas>
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v__VERSION__</p>
+    <p class="eyebrow">Web build · v0.3.0</p>
     <h1>Digital World <span>Tamer</span></h1>
     <p class="lede">เกม RPG 3 มิติ: สร้างตัวละคร เลือกคู่หู ออกผจญภัย ต่อสู้แบบผลัดกันเล่น และชวนมอนสเตอร์มาเป็นเพื่อน</p>
     <button id="play" type="button">เริ่มเล่น</button>
     <div class="progress" aria-live="polite">
       <div class="bar"><i id="bar"></i></div>
-      <p class="note" id="fs-note" hidden>__FULLSCREEN_NOTE__</p>
-      <p id="status">ขนาดดาวน์โหลดประมาณ __TOTAL_MB__ MB · เล่นแนวนอน</p>
+      <p class="note" id="fs-note" hidden>iPhone: กดปุ่มแชร์ → "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ</p>
+      <p id="status">ขนาดดาวน์โหลดประมาณ 13 MB · เล่นแนวนอน</p>
     </div>
     <ul class="controls">
       <li><b>เดิน</b>ลากจอยวงกลมด้านซ้าย (ดันสุดเพื่อวิ่ง)</li>
@@ -205,9 +221,9 @@
 <script src="index.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = __GODOT_CONFIG__;
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 2, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 8177152, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
   // Compressed copies published next to the page: name -> [file, bytes, mime]
-  const PACKED = __PACKED__;
+  const PACKED = {"index.wasm": ["engine.gz.wasm", 7975981, "application/wasm"], "index.pck": ["game.gz.wasm", 5769648, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');
@@ -324,3 +340,6 @@
   playBtn.addEventListener('click', start);
 }());
 </script>
+
+</body>
+</html>

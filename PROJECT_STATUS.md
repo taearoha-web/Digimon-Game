@@ -56,6 +56,7 @@ polish and more content (see `TODO.md`).
 | Tests (unit + integration) and QA tools | ✅ | `tests/*`, `tools/check_scripts.gd` |
 | Android / iOS export presets (landscape) | ✅ | `export_presets.cfg` |
 | Thai localisation (default) + English, runtime switch in Settings | ✅ | `i18n/th.po`, `systems/core/l10n.gd`, `tools/i18n_extract.py` |
+| GitHub Pages site `docs/play/` (installable, fullscreen from iPhone home screen) | ✅ built; needs the repo public + Pages enabled by the owner | `tools/package_web.py --pages docs/play` |
 | Web build (Godot 4.3 single-threaded, gzip-packed ~13 MB, loading page) | ✅ tested in headless Chromium (iPhone landscape viewport, touch); not yet on a real iPhone | `tools/package_web.py`, `tools/web/artifact_shell.html` |
 
 ## Incomplete / partial systems
