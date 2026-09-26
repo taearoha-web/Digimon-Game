@@ -115,11 +115,13 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
     head = (
         '<!doctype html>\n<html lang="th">\n<head>\n'
         '<meta charset="utf-8">\n'
-        # No viewport-fit=cover: iOS keeps the game clear of the notch.
-        '<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">\n'
+        # Cover the whole screen (otherwise a home-screen app on iPhone is
+        # shifted down and clipped); the game keeps its buttons clear of the
+        # notch using the safe-area insets (window.godotSafeArea).
+        '<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">\n'
         '<meta name="apple-mobile-web-app-capable" content="yes">\n'
         '<meta name="mobile-web-app-capable" content="yes">\n'
-        '<meta name="apple-mobile-web-app-status-bar-style" content="black">\n'
+        '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n'
         '<meta name="apple-mobile-web-app-title" content="Tamer">\n'
         '<meta name="theme-color" content="#0c1230">\n'
         '<link rel="manifest" href="manifest.webmanifest">\n'

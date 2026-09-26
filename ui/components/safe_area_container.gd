@@ -29,6 +29,8 @@ static func get_safe_margins() -> Vector4:
 	if not loop is SceneTree:
 		return Vector4.ZERO
 	var root: Window = (loop as SceneTree).root
+	if OS.has_feature("web"):
+		return _get_web_safe_margins(root.get_visible_rect().size)
 	var window_size := Vector2(DisplayServer.window_get_size())
 	var safe := Rect2(DisplayServer.get_display_safe_area())
 	if window_size.x <= 0 or safe.size.x <= 0:
@@ -45,3 +47,14 @@ static func get_safe_margins() -> Vector4:
 	if not (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
 		return Vector4.ZERO
 	return Vector4(left * scale.x, top * scale.y, right * scale.x, bottom * scale.y)
+
+
+## Web: the page shell reports CSS safe-area insets (notch, home indicator) as
+## fractions of the window; Godot's own safe area is not reliable there.
+static func _get_web_safe_margins(canvas_size: Vector2) -> Vector4:
+	var raw = JavaScriptBridge.eval("window.godotSafeArea ? window.godotSafeArea() : ''", true)
+	var parts := str(raw).split(",")
+	if parts.size() != 4:
+		return Vector4.ZERO
+	var f := Vector4(parts[0].to_float(), parts[1].to_float(), parts[2].to_float(), parts[3].to_float())
+	return Vector4(f.x * canvas_size.x, f.y * canvas_size.y, f.z * canvas_size.x, f.w * canvas_size.y)

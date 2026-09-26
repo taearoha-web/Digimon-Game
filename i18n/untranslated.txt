@@ -46,3 +46,4 @@ Nova
 Riku
 Emi
 !!(document.fullscreenEnabled || document.webkitFullscreenEnabled)
+window.godotSafeArea ? window.godotSafeArea() : ''
