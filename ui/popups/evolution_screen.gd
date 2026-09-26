@@ -42,10 +42,12 @@ func _run(inst: DigimonInstance, path: EvolutionPath) -> void:
 	var column := UIUtil.vbox(10)
 	column.anchor_left = 0.15
 	column.anchor_right = 0.85
-	column.anchor_top = 0.72
+	# Pinned to the bottom edge and growing upwards, so the Continue button
+	# stays on screen however tall the stats get or however short the window.
+	column.anchor_top = 1.0
 	column.anchor_bottom = 1.0
-	column.offset_bottom = -20
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.offset_bottom = -24
+	column.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	root.add_child(column)
 	_title = UIUtil.label(L10n.t("What? %s is evolving!") % inst.get_display_name(), &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	column.add_child(_title)
@@ -92,6 +94,10 @@ func _run(inst: DigimonInstance, path: EvolutionPath) -> void:
 		GameState.roster.notify_changed()
 		SaveManager.autosave("evolution", true)
 	_continue.visible = true
+	# Tapping anywhere also continues (in case the button is hidden by the host page).
+	root.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed or event is InputEventScreenTouch and event.pressed:
+			_continue.pressed.emit())
 	await _continue.pressed
 	done.emit()
 
