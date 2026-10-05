@@ -26,7 +26,11 @@ var _buff_mult := 1.0
 var _label: Label3D
 var _equip_sig := ""
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
+const POTION_STOCK := 5
+const MP_POTION_STOCK := 3
+
 var damage_dealt := 0
+var _potion_cd := 0.0
 var hp := 1
 var max_hp := 1
 var _dead := false
@@ -129,6 +133,30 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		_die()
 
 
+## Drinks its own potions when low (they are restocked for free in the village).
+func _use_potions() -> void:
+	if hero.safe_zone:
+		member["potions"] = POTION_STOCK
+		member["mp_potions"] = MP_POTION_STOCK
+		return
+	if _potion_cd > 0.0 or Time.get_ticks_msec() < _cast_until:
+		return
+	var hp_left := int(member.get("potions", POTION_STOCK))
+	var mp_left := int(member.get("mp_potions", MP_POTION_STOCK))
+	if hp_left > 0 and float(hp) / float(max_hp) < 0.4:
+		member["potions"] = hp_left - 1
+		_potion_cd = 6.0
+		heal_fraction(0.4)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยา!", Color("ff8a9a"), 0.9)
+		AudioManager.play_sfx(&"heal", -4.0)
+	elif mp_left > 0 and mp < float(stats.max_mp) * 0.2:
+		member["mp_potions"] = mp_left - 1
+		_potion_cd = 6.0
+		mp = minf(float(stats.max_mp), mp + float(stats.max_mp) * 0.5)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยามานา!", Color("7ab0ff"), 0.9)
+		AudioManager.play_sfx(&"heal", -4.0)
+
+
 func heal_fraction(fraction: float) -> void:
 	if _dead:
 		return
@@ -183,6 +211,8 @@ func _physics_process(delta: float) -> void:
 			_revive()
 		return
 	_since_hurt += delta
+	_potion_cd = maxf(0.0, _potion_cd - delta)
+	_use_potions()
 	var regen := 0.03 if hero.safe_zone else (0.012 if _since_hurt > 5.0 else 0.0)
 	if regen > 0.0 and hp < max_hp:
 		hp = mini(max_hp, hp + maxi(1, int(float(max_hp) * regen * delta)))

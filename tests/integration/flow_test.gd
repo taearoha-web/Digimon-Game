@@ -220,6 +220,14 @@ func _party() -> void:
 	await _wait(0.3)
 	check(mob._nearest_victim() == buddy, "a monster close to the companion targets it")
 	mob.queue_free()
+	# Low HP away from town: the companion drinks a potion by itself.
+	zone.hero.safe_zone = false
+	buddy.member["potions"] = 5
+	buddy.hp = int(buddy.max_hp * 0.2)
+	buddy._potion_cd = 0.0
+	buddy._cast_until = 0
+	await _wait(0.5)
+	check(buddy.hp > int(buddy.max_hp * 0.4) and int(buddy.member.potions) == 4, "companion drinks a potion when low (%d left)" % int(buddy.member.potions))
 	buddy.take_damage(1.0, null)
 	check(buddy.hp < buddy.max_hp, "companion can be hurt")
 	buddy._invulnerable_until = 0

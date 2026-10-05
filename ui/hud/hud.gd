@@ -343,6 +343,8 @@ func _update_party() -> void:
 			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  Lv.%d" % [member.name, int(member.level)]
+		entry["name_text"] = "%s  Lv.%d" % [member.name, int(member.level)]
+		(entry.title as Label).text = "%s  ยา ×%d" % [entry.name_text, int(member.get("potions", 5))]
 		var bar := entry.bar as ProgressBar
 		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
 		if buddy:
