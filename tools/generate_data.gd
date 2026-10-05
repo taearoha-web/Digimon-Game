@@ -121,6 +121,25 @@ func _dmg() -> SkillEffect:
 	return _effect(SkillEffect.Type.DAMAGE)
 
 
+## Area skills for field combat: [shape, radius, cast range (BLAST only)].
+const FIELD_AREA := {
+	&"ember_breath": [SkillData.Shape.BLAST, 2.2, 8.0],
+	&"air_pop": [SkillData.Shape.BLAST, 2.0, 8.0],
+	&"inferno_burst": [SkillData.Shape.BLAST, 3.2, 9.0],
+	&"meteor_wing": [SkillData.Shape.BLAST, 3.6, 9.0],
+	&"frost_howl": [SkillData.Shape.BLAST, 2.6, 8.0],
+	&"static_silk": [SkillData.Shape.BLAST, 2.2, 8.0],
+	&"whirlwind": [SkillData.Shape.BURST, 4.5],
+	&"needle_storm": [SkillData.Shape.BURST, 5.0],
+	&"spark_tail": [SkillData.Shape.BURST, 3.6],
+	&"heavy_bash": [SkillData.Shape.BURST, 3.2],
+	&"club_smash": [SkillData.Shape.BURST, 2.8],
+	&"pollen_cloud": [SkillData.Shape.BURST, 4.0],
+	&"menace": [SkillData.Shape.BURST, 5.0],
+	&"beast_fist": [SkillData.Shape.BURST, 3.0],
+}
+
+
 func _skill(id: StringName, name: String, desc: String, category: int, element: StringName, power: int,
 		accuracy: int, sp: int, effects: Array, opts := {}) -> void:
 	var s := SkillData.new()
@@ -143,6 +162,18 @@ func _skill(id: StringName, name: String, desc: String, category: int, element: 
 	s.vfx = opts.get("vfx", &"impact")
 	s.projectile = opts.get("projectile", false)
 	s.sfx = opts.get("sfx", &"hit_physical" if category == SkillData.Category.PHYSICAL else &"hit_special")
+	# Field combat: area skills come from FIELD_AREA, the rest are single target.
+	var area: Array = FIELD_AREA.get(id, [])
+	if not area.is_empty():
+		s.shape = area[0]
+		s.area_radius = area[1]
+		s.cast_range = area[2] if area.size() > 2 else 8.0
+	else:
+		s.shape = SkillData.Shape.SINGLE
+		s.cast_range = 8.0 if s.projectile else 2.4
+	if s.target == SkillData.Target.SELF:
+		s.cast_range = 0.0
+	s.cooldown = snappedf(1.2 + sp * 0.55 if s.target == SkillData.Target.ENEMY else 6.0 + sp, 0.1)
 	_save(s, "%s/skills/%s.tres" % [DATA, id])
 
 

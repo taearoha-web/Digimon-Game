@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_3rqug"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_hgex7"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_lki1h"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_ev35t"]
 
-[sub_resource type="Resource" id="Resource_2k0g4"]
-script = ExtResource("1_3rqug")
+[sub_resource type="Resource" id="Resource_clqw1"]
+script = ExtResource("1_lki1h")
 type = 0
 target = 0
 stat = &""
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_hgex7")
+script = ExtResource("2_ev35t")
 id = &"meteor_wing"
 display_name = "Meteor Wing"
 description = "Rains blazing feathers on the foe."
@@ -26,7 +26,11 @@ sp_cost = 10
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_3rqug")]([SubResource("Resource_2k0g4")])
+effects = Array[ExtResource("1_lki1h")]([SubResource("Resource_clqw1")])
+shape = 2
+cast_range = 9.0
+area_radius = 3.6
+cooldown = 6.7
 animation = &"skill"
 vfx = &"fireball"
 projectile = true

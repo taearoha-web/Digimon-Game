@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_2ojay"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_ipfim"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_0wr71"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_afej3"]
 
-[sub_resource type="Resource" id="Resource_g4kd7"]
-script = ExtResource("1_2ojay")
+[sub_resource type="Resource" id="Resource_sbi8y"]
+script = ExtResource("1_0wr71")
 type = 2
 target = 1
 stat = &"defense"
@@ -13,8 +13,8 @@ status_id = &""
 chance = 1.0
 duration = 3
 
-[sub_resource type="Resource" id="Resource_3xhvl"]
-script = ExtResource("1_2ojay")
+[sub_resource type="Resource" id="Resource_oj2xe"]
+script = ExtResource("1_0wr71")
 type = 2
 target = 1
 stat = &"special_defense"
@@ -24,7 +24,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_ipfim")
+script = ExtResource("2_afej3")
 id = &"pelt_guard"
 display_name = "Pelt Guard"
 description = "Wraps up in its pelt, raising Defense and Sp. Defense."
@@ -36,7 +36,11 @@ sp_cost = 4
 target = 1
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_2ojay")]([SubResource("Resource_g4kd7"), SubResource("Resource_3xhvl")])
+effects = Array[ExtResource("1_0wr71")]([SubResource("Resource_sbi8y"), SubResource("Resource_oj2xe")])
+shape = 0
+cast_range = 0.0
+area_radius = 0.0
+cooldown = 10.0
 animation = &"skill"
 vfx = &"aura"
 projectile = false

@@ -22,6 +22,9 @@ extends Node3D
 
 var yaw := 0.0
 var camera: Camera3D
+## Field combat: the locked-on monster. The camera drifts towards it and backs
+## off a little so the whole fight stays in frame (the player still steers yaw).
+var combat_focus: Node3D
 
 var _yaw_node: Node3D
 var _pitch_node: Node3D
@@ -29,6 +32,7 @@ var _arm: SpringArm3D
 var _target_distance := 6.0
 var _mouse_rotating := false
 var _shake_strength := 0.0
+var _focus_blend := 0.0
 
 
 func _ready() -> void:
@@ -90,8 +94,12 @@ func shake(strength := 0.25) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var focusing := combat_focus != null and is_instance_valid(combat_focus)
+	_focus_blend = lerpf(_focus_blend, 1.0 if focusing else 0.0, 1.0 - exp(-2.5 * delta))
 	if target:
 		var goal := target.global_position + Vector3.UP * height_offset
+		if focusing and _focus_blend > 0.01:
+			goal = goal.lerp(combat_focus.global_position + Vector3.UP * height_offset, 0.4 * _focus_blend)
 		global_position = global_position.lerp(goal, 1.0 - exp(-follow_speed * delta))
 	var key_turn := Input.get_axis("camera_left", "camera_right")
 	if absf(key_turn) > 0.01:
@@ -101,7 +109,7 @@ func _physics_process(delta: float) -> void:
 		zoom(6.0 * delta)
 	if Input.is_action_pressed("camera_zoom_out"):
 		zoom(-6.0 * delta)
-	_arm.spring_length = lerpf(_arm.spring_length, _target_distance, 1.0 - exp(-8.0 * delta))
+	_arm.spring_length = lerpf(_arm.spring_length, _target_distance + 2.0 * _focus_blend, 1.0 - exp(-8.0 * delta))
 	if _shake_strength > 0.001:
 		camera.h_offset = randf_range(-1.0, 1.0) * _shake_strength
 		camera.v_offset = randf_range(-1.0, 1.0) * _shake_strength

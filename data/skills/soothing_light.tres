@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_2ghx0"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_seji5"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_8s6se"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_4gi2m"]
 
-[sub_resource type="Resource" id="Resource_b1871"]
-script = ExtResource("1_2ghx0")
+[sub_resource type="Resource" id="Resource_hk0lx"]
+script = ExtResource("1_8s6se")
 type = 1
 target = 1
 stat = &""
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_seji5")
+script = ExtResource("2_4gi2m")
 id = &"soothing_light"
 display_name = "Soothing Light"
 description = "A warm glow that restores 35% of max HP."
@@ -26,7 +26,11 @@ sp_cost = 6
 target = 1
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_2ghx0")]([SubResource("Resource_b1871")])
+effects = Array[ExtResource("1_8s6se")]([SubResource("Resource_hk0lx")])
+shape = 0
+cast_range = 0.0
+area_radius = 0.0
+cooldown = 12.0
 animation = &"skill"
 vfx = &"heal"
 projectile = false

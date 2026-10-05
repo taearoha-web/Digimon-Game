@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_l2nde"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_bw2sw"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_ldtyd"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_fbxg5"]
 
-[sub_resource type="Resource" id="Resource_5febx"]
-script = ExtResource("1_l2nde")
+[sub_resource type="Resource" id="Resource_j8b18"]
+script = ExtResource("1_ldtyd")
 type = 0
 target = 0
 stat = &""
@@ -13,8 +13,8 @@ status_id = &""
 chance = 1.0
 duration = 3
 
-[sub_resource type="Resource" id="Resource_mj2et"]
-script = ExtResource("1_l2nde")
+[sub_resource type="Resource" id="Resource_wxpyo"]
+script = ExtResource("1_ldtyd")
 type = 3
 target = 0
 stat = &"speed"
@@ -24,7 +24,7 @@ chance = 0.3
 duration = 3
 
 [resource]
-script = ExtResource("2_bw2sw")
+script = ExtResource("2_fbxg5")
 id = &"glacial_fang"
 display_name = "Glacial Fang"
 description = "Bites with icy fangs. May lower the target's Speed."
@@ -36,7 +36,11 @@ sp_cost = 10
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_l2nde")]([SubResource("Resource_5febx"), SubResource("Resource_mj2et")])
+effects = Array[ExtResource("1_ldtyd")]([SubResource("Resource_j8b18"), SubResource("Resource_wxpyo")])
+shape = 0
+cast_range = 2.4
+area_radius = 0.0
+cooldown = 6.7
 animation = &"attack"
 vfx = &"frost"
 projectile = false

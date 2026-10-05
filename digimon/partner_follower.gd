@@ -24,7 +24,13 @@ var visual: DigimonVisual
 var agent: NavigationAgent3D
 var instance: DigimonInstance
 
+## Field combat: while set, the partner runs at this node until it is within
+## [member engage_range] metres instead of following the player.
+var engage_target: Node3D
+var engage_range := 0.0
+
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 18.0)
+var _anim_lock_until := 0
 var _repath_timer := 0.0
 var _stuck_timer := 0.0
 var _last_position := Vector3.ZERO
@@ -34,6 +40,7 @@ var _yaw := 0.0
 
 
 func _ready() -> void:
+	add_to_group("partner")
 	collision_layer = 1 << 2
 	collision_mask = 1 << 0
 	floor_max_angle = deg_to_rad(50.0)
@@ -67,6 +74,39 @@ func setup(p_instance: DigimonInstance, p_target: Node3D) -> void:
 	_base_speed = species.move_speed if species else 3.5
 
 
+## Runs at [param target] until within [param attack_range] metres.
+func engage(target: Node3D, attack_range: float) -> void:
+	engage_target = target
+	engage_range = attack_range
+
+
+func disengage() -> void:
+	engage_target = null
+
+
+func is_engaging() -> bool:
+	return engage_target != null and is_instance_valid(engage_target)
+
+
+## Turns to look at a world position (used when a skill goes off).
+func face_towards(point: Vector3) -> void:
+	var dir := point - global_position
+	dir.y = 0.0
+	if dir.length_squared() > 0.001:
+		_yaw = atan2(dir.x, dir.z)
+		visual.rotation.y = _yaw
+
+
+## Plays a one-shot action animation without the locomotion code cutting it off.
+func play_action(anim: StringName, lock_ms := 450, then_anim: StringName = &"idle") -> void:
+	_anim_lock_until = Time.get_ticks_msec() + lock_ms
+	visual.play_once(anim, then_anim)
+
+
+func is_action_playing() -> bool:
+	return Time.get_ticks_msec() < _anim_lock_until
+
+
 ## Snap next to the target (used on spawn and when stuck).
 func teleport_near_target() -> void:
 	if target == null:
@@ -84,12 +124,19 @@ func _physics_process(delta: float) -> void:
 	var to_target := target.global_position - global_position
 	to_target.y = 0.0
 	var distance := to_target.length()
-	if distance > teleport_distance or (_stuck_timer > 2.0 and distance > follow_distance * 2.0):
+	if distance > teleport_distance or (_stuck_timer > 2.0 and distance > follow_distance * 2.0 and not is_engaging()):
 		teleport_near_target()
 		return
 
 	var goal := _follow_point()
 	var moving := distance > follow_distance or (distance > stop_distance and velocity.length() > 0.5)
+	var engage_dir := Vector3.ZERO
+	var engaging := is_engaging()
+	if engaging:
+		engage_dir = engage_target.global_position - global_position
+		engage_dir.y = 0.0
+		moving = engage_dir.length() > engage_range
+		goal = engage_target.global_position - engage_dir.normalized() * maxf(engage_range * 0.7, 0.2)
 	var desired := Vector3.ZERO
 	if moving:
 		_repath_timer -= delta
@@ -105,7 +152,9 @@ func _physics_process(delta: float) -> void:
 			dir = goal - global_position
 			dir.y = 0.0
 		var speed := _base_speed * 1.25
-		if distance > catch_up_distance:
+		if engaging:
+			speed = _base_speed * 2.3
+		elif distance > catch_up_distance:
 			speed = _base_speed * 2.4
 		elif distance > follow_distance * 1.8:
 			speed = _base_speed * 1.8
@@ -118,13 +167,15 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 	# Facing: movement direction when moving, otherwise glance at the player.
-	var face_dir := horizontal if horizontal.length() > 0.4 else to_target
+	var face_dir := horizontal if horizontal.length() > 0.4 else (engage_dir if engaging else to_target)
 	if face_dir.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(face_dir.x, face_dir.z), 1.0 - exp(-8.0 * delta))
 		visual.rotation.y = _yaw
 
 	var planar_speed := horizontal.length()
-	if planar_speed > _base_speed * 1.5:
+	if Time.get_ticks_msec() < _anim_lock_until:
+		pass # an attack / hurt animation is playing
+	elif planar_speed > _base_speed * 1.5:
 		visual.play_animation(&"run")
 	elif planar_speed > 0.3:
 		visual.play_animation(&"walk")
@@ -161,7 +212,7 @@ func _update_stuck(delta: float, desired: Vector3) -> void:
 
 
 func _update_idle(delta: float, speed: float) -> void:
-	if speed > 0.2:
+	if speed > 0.2 or is_action_playing() or is_engaging():
 		_idle_timer = randf_range(4.0, 8.0)
 		return
 	_idle_timer -= delta

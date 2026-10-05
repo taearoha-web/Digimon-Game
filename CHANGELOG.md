@@ -3,6 +3,41 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] — 2026-10-05 — Real-time combat in the map
+
+### Changed
+- **Wild monsters are now fought directly in the map** instead of switching to
+  a battle scene. Touching a monster or the old "Fight!" button no longer
+  starts a battle; the turn-based scene stays for scripted fights
+  (`WorldMap.start_battle(BattleRequest)`).
+- Wild monsters have HP bars, fight back (0.6 s red-flash telegraph, melee or
+  ranged by skill), hunt your partner when hurt (Virus types on sight, nearby
+  monsters join), and give up when you get far away.
+- Out of combat the partner slowly recovers HP, and SP regenerates over time
+  (faster when resting) instead of refilling after each battle.
+
+### Added
+- **Skill bar on the right edge of the HUD**: the partner's (up to 4) skills
+  as round buttons with element colour, an aim glyph, cooldown sweep, SP cost
+  and name; "Area" tag on area skills. Tap a skill → the partner runs at the
+  locked-on monster and uses it. Small buttons below: next target, swap
+  partner. Target frame (name + HP) under the quest tracker.
+- **Single-target and area skills**: `SkillData.shape` (SINGLE / BURST around
+  the caster / BLAST around the target), `cast_range`, `area_radius`,
+  `cooldown`. 14 skills are area skills; every starter begins with one
+  single-target and one area skill.
+- Kills grant EXP (participants full, bench half), drops, level-up /
+  evolution popups, quest progress and possible recruitment on the spot.
+- Fainted partner → the next healthy party member steps in; whole party
+  fainted → you wake up at the Recovery Terminal.
+- Keyboard: `1`–`4` skills, `R` next target. First-time hint toast.
+- Systems: `FieldCombat`, `FieldSkillResolver`, `FieldRewards`
+  (`systems/combat/`), `FieldHpBar`, `SkillBar`, `SkillButton`.
+- Tests: `test_field_combat.gd` (unit) and `field_combat_test.tscn`
+  (integration: area skills, monsters hurting the partner, faint swap, wipe);
+  the vertical slice now fights in the field and still covers the scripted
+  turn-based battle. Screenshot tour `field`.
+
 ## [0.4.0] — 2026-10-05 — Real monster models
 
 ### Changed

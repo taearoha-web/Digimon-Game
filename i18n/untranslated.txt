@@ -47,3 +47,4 @@ Riku
 Emi
 !!(document.fullscreenEnabled || document.webkitFullscreenEnabled)
 window.godotSafeArea ? window.godotSafeArea() : ''
+ and float(StatusEffects.get_def(combatant.status_id).get(

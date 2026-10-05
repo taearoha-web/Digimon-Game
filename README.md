@@ -19,8 +19,10 @@ secondary), with full keyboard/mouse controls for testing on PC.
 | Character creation | Starter selection |
 |---|---|
 | ![](docs/screenshots/02_character_creation.png) | ![](docs/screenshots/03_starter_selection.png) |
-| **Exploring the Starter Zone** | **Turn-based battle** |
-| ![](docs/screenshots/05_world.png) | ![](docs/screenshots/07_battle.png) |
+| **Exploring the Starter Zone** | **Real-time fight with the skill bar** |
+| ![](docs/screenshots/05_world.png) | ![](docs/screenshots/20_field_skillbar.png) |
+| **Area skill hitting a pack** | **Monsters fight back** |
+| ![](docs/screenshots/21_field_area_hit.png) | ![](docs/screenshots/22_field_enemies_fight_back.png) |
 | **Data Forest (zone 2)** | **Crystal Lake** |
 | ![](docs/screenshots/11_data_forest.png) | ![](docs/screenshots/12_crystal_lake.png) |
 | **Shop** | **Equipment chips** |
@@ -63,15 +65,18 @@ secondary), with full keyboard/mouse controls for testing on PC.
 # Run the game
 godot --path .
 
-# Unit tests (56 tests); exit code = number of failures
+# Unit tests (66 tests); exit code = number of failures
 godot --headless --path . res://tests/test_runner.tscn
 
-# End-to-end vertical slice test (new game → quest → battle → save/load →
+# End-to-end vertical slice test (new game → quest → field fight → save/load →
 # shop → equip a chip → gateway to the Data Forest → forest quest → back)
 godot --headless --path . res://tests/integration/vertical_slice_test.tscn
 
 # Walk routes with simulated joystick input (bridges, paths)
 godot --headless --path . res://tests/integration/traversal_test.tscn
+
+# Field combat (area skills, monsters hitting back, faint swap, wipe)
+godot --headless --path . res://tests/integration/field_combat_test.tscn
 
 # Parse/load every script, scene and resource
 godot --headless --path . -s res://tools/check_scripts.gd
@@ -152,10 +157,17 @@ autosaves) → intro → **Digital World – Starter Zone**:
 1. Your partner follows you everywhere.
 2. Talk to **Mira** (look for the **!**) → quest **First Steps**.
 3. Cross the bridge to the **Training Grounds** (the compass arrow guides you).
-4. Walk into a wild Digimon → turn-based **battle**: skills (SP), items,
-   defend, befriend, switch, run.
-5. Win → **EXP** and level-ups (new skills), item drops, and sometimes the wild
-   Digimon asks to **join your team**.
+4. Fight wild Digimon **right in the map**: your partner's skills are on the
+   skill bar at the right edge of the screen. Tap a skill and the partner runs
+   at the locked-on monster and fires it: **single-target** skills hit one
+   monster, **area** skills (marked "Area") hit every monster around the target
+   or around the partner. Skills cost SP and have cooldowns; monsters fight
+   back (watch for the red flash before a hit) and you can swap partners or
+   change the target with the two small buttons under the skill bar.
+   Keyboard: `1`–`4` skills, `R` next target.
+5. Win → **EXP** and level-ups (new skills), item drops, and sometimes the
+   defeated Digimon asks to **join your team**. If every Digimon faints you wake
+   up at the Recovery Terminal.
 6. Return to Mira → rewards (items, an **Evo Shard**, Gate Pass) → next quest
    **A New Friend** (befriend a Digimon).
 7. Byte's side quest **Scattered Data**: find 3 glowing Data Fragments.
@@ -247,9 +259,13 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   and quest log; 4 quests
 * Shops (data-driven `ShopData`, buy/sell with quantities) and equipment
   chips (one per Digimon, stat bonuses, saved)
-* Turn-based battles: speed-based turn order, skills with reusable effects
-  (damage/heal/buff/debuff/status/drain/SP), crits, type & attribute
-  advantage, defend, items, switching, escape, befriend
+* Real-time field combat: skill bar, single / burst / blast skills with
+  cooldowns and SP, monsters with HP that hunt your partner, crits, type &
+  attribute advantage, buffs/debuffs/status over time, partner swap, rewards
+  and recruitment on the spot (`systems/combat/`)
+* Turn-based battle scene (speed-based turn order, items, defend, switching,
+  escape, befriend) kept for scripted fights such as bosses
+  (`WorldMap.start_battle`)
 * EXP, level-ups, learnsets, level-up UI; data-driven evolution (level, item,
   friendship, quest, flag, stat requirements) with an evolution cutscene
 * Recruitment (in-battle Befriend + post-battle offers), party (max 3),

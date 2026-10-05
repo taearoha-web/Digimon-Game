@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Digimon Adventure RPG Prototype"
 config/description="Private prototype of a 3D mobile monster-taming RPG. All visuals and audio are original placeholders."
-config/version="0.4.0"
+config/version="0.5.0"
 run/main_scene="res://scenes/boot/boot.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "GL Compatibility")

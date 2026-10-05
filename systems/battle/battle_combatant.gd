@@ -15,6 +15,11 @@ var status_id: StringName = &""
 var status_turns := 0
 ## Extra befriend chance from items used this battle.
 var befriend_bonus := 0.0
+## Real-time (field combat) timers, in seconds; the turn counters above are
+## unused there. See [FieldSkillResolver].
+var field_status_time := 0.0
+var field_status_tick := 0.0
+var field_stage_time := 0.0
 
 
 func _init(p_instance: DigimonInstance = null, p_side: int = PLAYER_SIDE) -> void:
@@ -87,6 +92,8 @@ func apply_status(p_status_id: StringName, turns: int) -> bool:
 func clear_status() -> void:
 	status_id = &""
 	status_turns = 0
+	field_status_time = 0.0
+	field_status_tick = 0.0
 
 
 func can_afford(skill: SkillData) -> bool:

@@ -1,8 +1,9 @@
 class_name WorldMap
 extends Node3D
 ## Base script for explorable maps. Creates the player, camera and partner,
-## wires the HUD / dialogue / pause menu, starts battles from encounters and
-## restores state when returning from a battle or loading a save.
+## wires the HUD / dialogue / pause menu and the real-time [FieldCombat]
+## (monsters in the map are fought on the spot with the HUD skill bar), and
+## restores state when returning from a scripted battle or loading a save.
 ##
 ## Expected children (all optional except SpawnPoints):
 ##   Builder (StarterZoneBuilder or any node with build()/get_height())
@@ -24,6 +25,7 @@ var dialogue_box: DialogueBox
 var pause_menu: PauseMenu
 var popups: PopupQueue
 var builder: Node
+var combat: FieldCombat
 
 var _battle_starting := false
 var _encounter_grace := ENCOUNTER_GRACE_SECONDS
@@ -50,6 +52,12 @@ func _ready() -> void:
 
 	_create_ui()
 	_spawn_player()
+	combat = FieldCombat.new()
+	combat.name = "FieldCombat"
+	add_child(combat)
+	combat.setup(self, player)
+	combat.party_wiped.connect(_on_party_wiped)
+	hud.bind_combat(combat)
 	_spawn_partner()
 	_start_spawners()
 	for npc in get_tree().get_nodes_in_group("npcs"):
@@ -176,13 +184,14 @@ func _spawn_partner() -> void:
 	partner.teleport_near_target()
 	var p := partner.global_position
 	partner.global_position = Vector3(p.x, get_ground_height(p.x, p.z) + 0.3, p.z)
+	if combat:
+		combat.set_partner(partner)
 
 
 func _start_spawners() -> void:
 	for node in find_children("*", "EncounterSpawner", true, false):
 		var spawner := node as EncounterSpawner
 		spawner.start(player, get_ground_height)
-		spawner.encounter_started.connect(_on_encounter)
 
 
 func _snap_to_ground() -> void:
@@ -227,25 +236,22 @@ func _show_battle_aftermath() -> void:
 # Events
 # ---------------------------------------------------------------------------
 
-func _on_encounter(wild: WildDigimon) -> void:
+## Starts a scripted turn-based battle (e.g. a boss or trainer). Wild monsters
+## in the map are fought live with [FieldCombat] instead.
+func start_battle(request: BattleRequest) -> void:
 	if _battle_starting or _encounter_grace > 0.0 or dialogue_box.is_open or get_tree().paused:
-		wild.cancel_encounter()
 		return
 	if GameState.roster.is_party_defeated():
 		EventBus.toast("Your Digimon need rest! Visit the Recovery Terminal.", &"warning")
-		wild.cancel_encounter()
 		return
 	_battle_starting = true
 	player.set_input_enabled(false)
 	hud.set_controls_visible(false)
-	for node in find_children("*", "EncounterSpawner", true, false):
-		(node as EncounterSpawner).set_encounters_enabled(false)
+	combat.paused = true
 	AudioManager.play_sfx(&"encounter")
 	camera_rig.shake(0.25)
 	on_before_save()
-	var request := BattleRequest.wild(wild.species_id, wild.level)
 	request.return_map_id = map_id
-	request.source_id = wild.spawn_key
 	var map_data := GameData.get_map(map_id)
 	if map_data:
 		request.arena_theme = map_data.battle_arena
@@ -253,9 +259,28 @@ func _on_encounter(wild: WildDigimon) -> void:
 	SceneManager.goto_battle(request)
 
 
+## Every party member fainted: wake up healed at the Recovery Terminal.
+func _on_party_wiped() -> void:
+	if _battle_starting:
+		return
+	_battle_starting = true
+	player.set_input_enabled(false)
+	hud.set_controls_visible(false)
+	combat.paused = true
+	EventBus.toast("You hurry back to the Recovery Terminal…", &"warning")
+	await get_tree().create_timer(1.4).timeout
+	GameState.roster.heal_all()
+	GameState.world.has_position = false
+	GameState.world.current_map_id = GameState.world.respawn_map_id
+	GameState.world.spawn_id = GameState.world.respawn_spawn_id
+	GameState.last_battle_summary = {"outcome": BattleController.Outcome.DEFEAT}
+	SceneManager.goto_map(GameState.world.respawn_map_id, GameState.world.respawn_spawn_id, {"from_battle": true})
+
+
 func _on_dialogue_started(_id: StringName) -> void:
 	player.set_input_enabled(false)
 	hud.set_controls_visible(false)
+	combat.paused = true
 
 
 func _on_dialogue_finished(_id: StringName) -> void:
@@ -263,6 +288,7 @@ func _on_dialogue_finished(_id: StringName) -> void:
 		return
 	player.set_input_enabled(true)
 	hud.set_controls_visible(true)
+	combat.paused = false
 
 
 func _on_menu_requested(tab: StringName) -> void:

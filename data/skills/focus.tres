@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_kpl8n"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_w5hx5"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_82o8a"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_v6xlp"]
 
-[sub_resource type="Resource" id="Resource_jwim3"]
-script = ExtResource("1_kpl8n")
+[sub_resource type="Resource" id="Resource_6iihv"]
+script = ExtResource("1_82o8a")
 type = 2
 target = 1
 stat = &"special_attack"
@@ -13,8 +13,8 @@ status_id = &""
 chance = 1.0
 duration = 3
 
-[sub_resource type="Resource" id="Resource_6nil7"]
-script = ExtResource("1_kpl8n")
+[sub_resource type="Resource" id="Resource_tgi52"]
+script = ExtResource("1_82o8a")
 type = 2
 target = 1
 stat = &"accuracy"
@@ -24,7 +24,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_w5hx5")
+script = ExtResource("2_v6xlp")
 id = &"focus"
 display_name = "Focus"
 description = "Concentrates to raise Sp. Attack and Accuracy."
@@ -36,7 +36,11 @@ sp_cost = 3
 target = 1
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_kpl8n")]([SubResource("Resource_jwim3"), SubResource("Resource_6nil7")])
+effects = Array[ExtResource("1_82o8a")]([SubResource("Resource_6iihv"), SubResource("Resource_tgi52")])
+shape = 0
+cast_range = 0.0
+area_radius = 0.0
+cooldown = 9.0
 animation = &"skill"
 vfx = &"aura"
 projectile = false

@@ -2,7 +2,8 @@ class_name HUD
 extends CanvasLayer
 ## Exploration HUD (landscape, touch first):
 ##   left  : virtual joystick
-##   right : camera drag area, Interact button, Sprint toggle
+##   right : camera drag area, skill bar (partner skills), Interact, Sprint
+##   left, under the quest tracker : locked-on monster (name + HP)
 ##   top   : partner status, quest tracker + compass, menu button, currency
 ## Kept deliberately uncluttered; panels update on events or slow timers.
 
@@ -14,6 +15,8 @@ var joystick: VirtualJoystick
 var camera_area: TouchCameraArea
 var interact_button: TouchButton
 var sprint_button: TouchButton
+var skill_bar: SkillBar
+var combat: FieldCombat
 
 var player: PlayerController
 var camera_rig: ThirdPersonCamera
@@ -40,6 +43,11 @@ var _fps: Label
 var _refresh_timer := 0.0
 var _controls: Array[Control] = []
 var _badge_species: StringName = &""
+var _top_left_column: VBoxContainer
+var _target_panel: PanelContainer
+var _target_name: Label
+var _target_bar: ProgressBar
+var _target_hp: Label
 
 
 func _ready() -> void:
@@ -72,8 +80,11 @@ func _ready() -> void:
 	_build_buttons(frame)
 	_build_compass(frame)
 	_build_banner(frame)
+	_build_target_frame(frame)
+	skill_bar = SkillBar.new()
+	frame.add_child(skill_bar)
 
-	_controls = [joystick, camera_area, interact_button, sprint_button]
+	_controls = [joystick, camera_area, interact_button, sprint_button, skill_bar]
 	EventBus.party_changed.connect(refresh_partner)
 	EventBus.area_entered.connect(_on_area_entered)
 	QuestManager.tracked_quest_changed.connect(refresh_quest)
@@ -90,6 +101,13 @@ func bind(p_player: PlayerController, p_camera: ThirdPersonCamera, p_waypoint_re
 	player = p_player
 	camera_rig = p_camera
 	waypoint_resolver = p_waypoint_resolver
+
+
+## Connects the skill bar and target frame to the field combat system.
+func bind_combat(p_combat: FieldCombat) -> void:
+	combat = p_combat
+	skill_bar.bind(combat)
+	combat.target_changed.connect(func(_t): _refresh_target())
 
 
 ## Hides touch controls (e.g. during dialogue) without hiding status panels.
@@ -128,6 +146,7 @@ func show_banner(text: String) -> void:
 
 func _process(delta: float) -> void:
 	_update_compass()
+	_update_target_frame()
 	_refresh_timer -= delta
 	if _refresh_timer <= 0.0:
 		_refresh_timer = 0.5
@@ -198,6 +217,7 @@ func _build_top_left(frame: Control) -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.position = Vector2.ZERO
 	frame.add_child(column)
+	_top_left_column = column
 
 	var partner := UIUtil.panel(&"HudPanel")
 	partner.custom_minimum_size = Vector2(340, 0)
@@ -348,6 +368,51 @@ func _build_compass(frame: Control) -> void:
 	_compass_distance = UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_compass_distance.add_theme_font_size_override("font_size", 18)
 	_compass_box.add_child(_compass_distance)
+
+
+func _build_target_frame(frame: Control) -> void:
+	_target_panel = UIUtil.panel(&"HudPanel")
+	_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_target_panel.custom_minimum_size = Vector2(340, 0)
+	_target_panel.visible = false
+	_top_left_column.add_child(_target_panel)
+	var column := UIUtil.vbox(3)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_target_panel.add_child(column)
+	_target_name = UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_target_name.add_theme_font_size_override("font_size", 22)
+	column.add_child(_target_name)
+	var row := UIUtil.hbox(6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(row)
+	_target_bar = _bar(&"HPBar", 12)
+	row.add_child(_target_bar)
+	_target_hp = UIUtil.label("", &"SmallLabel")
+	_target_hp.custom_minimum_size = Vector2(64, 0)
+	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(_target_hp)
+
+
+func _refresh_target() -> void:
+	var wild: WildDigimon = combat.target if combat else null
+	_target_panel.visible = wild != null and is_instance_valid(wild)
+	if not _target_panel.visible:
+		return
+	var species := wild.instance.get_species()
+	_target_name.text = L10n.t("Lv %d %s") % [wild.level, species.display_name if species else String(wild.species_id)]
+	_update_target_frame()
+
+
+func _update_target_frame() -> void:
+	if combat == null or not _target_panel.visible:
+		return
+	var wild: WildDigimon = combat.target
+	if wild == null or not is_instance_valid(wild):
+		_target_panel.visible = false
+		return
+	UIUtil.set_bar(_target_bar, wild.instance.current_hp, wild.instance.get_max_hp())
+	UIUtil.tint_hp_bar(_target_bar, wild.instance.get_hp_ratio())
+	_target_hp.text = "%d/%d" % [wild.instance.current_hp, wild.instance.get_max_hp()]
 
 
 func _build_banner(frame: Control) -> void:

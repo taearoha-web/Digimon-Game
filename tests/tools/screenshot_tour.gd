@@ -2,7 +2,7 @@ extends Node
 ## Drives the real game flow and saves screenshots of each screen.
 ## Run (needs a display, e.g. xvfb-run):
 ##   godot --rendering-driver opengl3 --path . res://tests/tools/screenshot_tour.tscn -- <out_dir> [tour]
-## Tours: "menus" (default), "world", "battle", "forest", "all"
+## Tours: "menus" (default), "world", "battle", "forest", "field", "all"
 
 var out_dir := "user://screenshots"
 var tour := "menus"
@@ -39,9 +39,12 @@ func run() -> void:
 			await _battle_tour()
 		"forest":
 			await _forest_tour()
+		"field":
+			await _field_tour()
 		"all":
 			await _menus_tour()
 			await _world_tour()
+			await _field_tour()
 			await _battle_tour()
 			await _forest_tour()
 		_:
@@ -127,21 +130,6 @@ func _world_tour() -> void:
 	world.camera_rig.set_yaw_behind(-PI * 0.5 - 0.25)
 	await _wait(1.2)
 	await _shot("bridge")
-	# Fight! button next to a wild Digimon.
-	var spawner := world.get_node("Spawners/MeadowSpawner") as EncounterSpawner
-	spawner.set_encounters_enabled(false)
-	var wilds := spawner.find_children("*", "WildDigimon", true, false)
-	if wilds.is_empty():
-		wilds = world.find_children("*", "WildDigimon", true, false)
-	if not wilds.is_empty():
-		var wild := wilds[0] as WildDigimon
-		wild.set_physics_process(false)
-		wild.encounters_enabled = true
-		_teleport(world, wild.global_position + Vector3(-2.6, 0, 1.2))
-		world.camera_rig.set_yaw_behind(atan2(-2.6, 1.2) + PI)
-		await _wait(1.0)
-		await _shot("fight_button")
-		wild.encounters_enabled = false
 	var tg: Node3D = world.get_node("Waypoints/training_grounds")
 	_teleport(world, tg.global_position + Vector3(-6, 0, 8))
 	world.camera_rig.set_yaw_behind(PI * 0.8)
@@ -170,6 +158,68 @@ func _world_tour() -> void:
 	await _wait(0.6)
 	await _shot("menu_collection")
 	world.pause_menu.close()
+
+
+func _field_tour() -> void:
+	## Real-time field combat: skill bar, target frame, single and area skills.
+	var draft := NewGameDraft.new()
+	draft.player_name = "Hikaru"
+	draft.starter_species_id = &"agumon"
+	GameState.start_new_game(draft)
+	GameState.roster.get_lead().level = 8
+	GameState.roster.get_lead().learn_skill(&"claw_swipe")
+	GameState.roster.get_lead().learn_skill(&"battle_cry")
+	GameState.roster.get_lead().auto_equip_skills()
+	SceneManager.goto_map(&"starter_zone", &"start", {"intro": true})
+	await _wait_transition()
+	await _wait(2.0)
+	var world: WorldMap = get_tree().current_scene
+	for node in world.find_children("*", "EncounterSpawner", true, false):
+		(node as EncounterSpawner).set_encounters_enabled(false)
+		node.set_process(false)
+	for node in get_tree().get_nodes_in_group("wild_digimon"):
+		node.queue_free()
+	var meadow: Node3D = world.get_node("Waypoints/wild_meadow")
+	_teleport(world, meadow.global_position + Vector3(-5, 0, 6))
+	world.camera_rig.set_yaw_behind(atan2(5.0, -6.0) + PI)
+	await _wait(1.0)
+	var pack: Array[WildDigimon] = []
+	for i in 3:
+		var wild := WildDigimon.new()
+		wild.setup([&"palmon", &"goburimon", &"kunemon"][i], 4, meadow.global_position, Vector3(1, 0, 1), world.player)
+		wild.encounters_enabled = true
+		world.add_child(wild)
+		var spot := meadow.global_position + Vector3(-1.0 + i * 1.8, 0, 0.5 - (i % 2) * 1.4)
+		wild.global_position = Vector3(spot.x, world.get_ground_height(spot.x, spot.z) + 0.3, spot.z)
+		wild.set_physics_process(false)
+		pack.append(wild)
+	await _wait(1.2)
+	world.combat.set_target(pack[0])
+	await _shot("field_skillbar")
+	# Single-target skill.
+	world.hud.skill_bar.get_button(0).pressed.emit()
+	await _wait_until_hit(pack[0])
+	await _wait(0.25)
+	await _shot("field_single_hit")
+	# Area skill (BLAST on the target, hits its neighbours too).
+	world.combat._cooldowns.clear()
+	world.combat._gcd = 0.0
+	world.combat.use_skill(world.combat.get_skills()[1])
+	await _wait_until_hit(pack[1])
+	await _wait(0.2)
+	await _shot("field_area_hit")
+	for wild in pack:
+		wild.set_physics_process(true)
+		wild.provoke()
+	await _wait(2.4)
+	await _shot("field_enemies_fight_back")
+
+
+func _wait_until_hit(wild: WildDigimon) -> void:
+	var waited := 0.0
+	while is_instance_valid(wild) and wild.instance.current_hp >= wild.instance.get_max_hp() and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
 
 
 func _battle_tour() -> void:

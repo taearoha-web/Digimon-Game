@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_eijcg"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_m2632"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_2jia2"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_y0bw8"]
 
-[sub_resource type="Resource" id="Resource_062pa"]
-script = ExtResource("1_eijcg")
+[sub_resource type="Resource" id="Resource_4hu5c"]
+script = ExtResource("1_2jia2")
 type = 0
 target = 0
 stat = &""
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_m2632")
+script = ExtResource("2_y0bw8")
 id = &"heavy_bash"
 display_name = "Heavy Bash"
 description = "A crushing overhead club blow."
@@ -26,7 +26,11 @@ sp_cost = 9
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_eijcg")]([SubResource("Resource_062pa")])
+effects = Array[ExtResource("1_2jia2")]([SubResource("Resource_4hu5c")])
+shape = 1
+cast_range = 8.0
+area_radius = 3.2
+cooldown = 6.2
 animation = &"attack"
 vfx = &"rock"
 projectile = false

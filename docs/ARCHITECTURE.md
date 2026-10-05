@@ -35,9 +35,10 @@ and passes parameters through `SceneManager.params`.
 ```
 boot → main_menu → character_creation → starter_selection → player_name
      → confirmation (GameState.start_new_game + autosave) → intro
-     → map:starter_zone ⇄ battle
+     → map:starter_zone   (wild monsters are fought live in the map)
          ⇅ (Gateway portals: goto_map(target_map, target_spawn, {from_portal}))
-       map:data_forest ⇄ battle
+       map:data_forest
+       (scripted turn-based fights: WorldMap.start_battle → battle ⇄ map)
 ```
 
 ### Adding a zone
@@ -52,7 +53,8 @@ boot → main_menu → character_creation → starter_selection → player_name
 4. `data/maps/<zone>.tres` (`MapData`: scene, default spawn, music,
    battle arena) and a `Portal` in an existing zone targeting it.
 
-Battles: the world stores the player transform, sets
+Wild monsters are fought in the map itself (see **Field combat** below).
+Scripted turn-based battles (bosses, trainers): the world stores the player transform, sets
 `GameState.pending_battle` (a `BattleRequest`) and calls
 `SceneManager.goto_battle()`. The battle applies rewards to `GameState` and
 returns with `{"from_battle": true}`; the world restores the player position
@@ -74,7 +76,36 @@ returns with `{"from_battle": true}`; the world restores the player position
 | `dialogue_started/finished` | DialogueBox | WorldMap input lock |
 | `toast_requested` | anyone | ToastLayer |
 
-## Battle pipeline
+## Field combat (real-time, in the map)
+
+`WorldMap` owns a `FieldCombat` node (`systems/combat/field_combat.gd`):
+
+* The player moves; the lead partner fights. The HUD `SkillBar` (right edge)
+  shows the partner's equipped skills (`SkillButton` = element colour, aim
+  glyph, cooldown sweep, SP cost, name). `FieldCombat.use_skill()` locks the
+  target (nearest, hostile first), sends the partner at it
+  (`PartnerFollower.engage`) and fires the skill once it is within
+  `SkillData.get_engage_range()`.
+* `SkillData` field data: `shape` (SINGLE / BURST around the caster / BLAST
+  around the target), `cast_range`, `area_radius`, `cooldown` (set in
+  `tools/generate_data.gd`, `FIELD_AREA` + defaults).
+* `FieldSkillResolver` applies one skill to one target and returns plain
+  events (damage via `DamageCalculator`, heal, stat, status, drain, SP). Turn
+  counts become seconds; `tick()` advances status / stat-stage timers.
+  Pure logic, unit-tested in `tests/unit/test_field_combat.gd`.
+* `WildDigimon` has an own `DigimonInstance` + `BattleCombatant`, an HP bar,
+  hunts the partner when provoked (Virus types on sight; neighbours within 6 m
+  join), telegraphs hits (0.6 s windup), uses its damaging skills, and gives up
+  at the leash distance. `EncounterSpawner.set_encounters_enabled(false)` keeps
+  monsters calm (used by tests and screenshot tours).
+* Kills use `FieldRewards` (EXP: participants full, bench 50%; drops;
+  recruit roll → joins directly), emit `battle_won` for quests, and queue the
+  usual level-up / evolution popups. Fainted partner → next healthy member
+  steps in; nobody left → `party_wiped` → Recovery Terminal.
+* Balance knobs: `FieldCombat.PLAYER_DAMAGE_SCALE`, `WildDigimon.DAMAGE_SCALE`,
+  SP / HP regeneration constants, `DamageCalculator` stays the single formula.
+
+## Battle pipeline (scripted turn-based fights)
 
 1. `BattleController.setup(party, enemy, request, inventory, rng)`
 2. `start()` → intro events

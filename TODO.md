@@ -9,7 +9,9 @@
 - [ ] Chip upgrades / rarer chips as battle drops
 - [ ] Nickname prompt when a Digimon joins
 - [ ] "Forget a skill" prompt when learning a 5th skill while 4 are equipped
-- [ ] Trainer/NPC battles (BattleRequest.is_wild = false already supported)
+- [ ] Trainer/NPC/boss battles via `WorldMap.start_battle` (BattleRequest.is_wild = false already supported)
+- [ ] Field combat: tap a monster to target it, auto-attack when idle, dodge roll, boss with an area telegraph
+- [ ] Field combat: monsters that also chase the player, elite/pack spawns, combo/chain bonuses
 - [ ] More quests (daily training, recruit a specific species, reach Lv 10)
 - [ ] Ultimate/Mega stages for starter lines
 - [ ] Friendship-based evolution branches (requirements already supported)

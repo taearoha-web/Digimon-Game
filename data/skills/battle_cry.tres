@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_mog6s"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_wxplb"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_ord7h"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_pcsc5"]
 
-[sub_resource type="Resource" id="Resource_kgdso"]
-script = ExtResource("1_mog6s")
+[sub_resource type="Resource" id="Resource_p6me4"]
+script = ExtResource("1_ord7h")
 type = 2
 target = 1
 stat = &"attack"
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_wxplb")
+script = ExtResource("2_pcsc5")
 id = &"battle_cry"
 display_name = "Battle Cry"
 description = "A mighty roar that raises the user's Attack."
@@ -26,7 +26,11 @@ sp_cost = 4
 target = 1
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_mog6s")]([SubResource("Resource_kgdso")])
+effects = Array[ExtResource("1_ord7h")]([SubResource("Resource_p6me4")])
+shape = 0
+cast_range = 0.0
+area_radius = 0.0
+cooldown = 10.0
 animation = &"skill"
 vfx = &"aura"
 projectile = false

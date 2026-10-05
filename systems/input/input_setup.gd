@@ -19,6 +19,11 @@ const DEFAULTS := {
 	"open_party": [["key", KEY_P]],
 	"open_inventory": [["key", KEY_I]],
 	"open_quests": [["key", KEY_J]],
+	"skill_1": [["key", KEY_1]],
+	"skill_2": [["key", KEY_2]],
+	"skill_3": [["key", KEY_3]],
+	"skill_4": [["key", KEY_4]],
+	"target_next": [["key", KEY_R]],
 }
 
 

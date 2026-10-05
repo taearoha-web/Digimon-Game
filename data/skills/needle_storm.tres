@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_4d38u"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_ur2gc"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_mg4ru"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_vqaru"]
 
-[sub_resource type="Resource" id="Resource_yx8h2"]
-script = ExtResource("1_4d38u")
+[sub_resource type="Resource" id="Resource_qpm5q"]
+script = ExtResource("1_mg4ru")
 type = 0
 target = 0
 stat = &""
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_ur2gc")
+script = ExtResource("2_vqaru")
 id = &"needle_storm"
 display_name = "Needle Storm"
 description = "Fires a barrage of cactus needles."
@@ -26,7 +26,11 @@ sp_cost = 9
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_4d38u")]([SubResource("Resource_yx8h2")])
+effects = Array[ExtResource("1_mg4ru")]([SubResource("Resource_qpm5q")])
+shape = 1
+cast_range = 8.0
+area_radius = 5.0
+cooldown = 6.2
 animation = &"attack"
 vfx = &"leaf"
 projectile = false

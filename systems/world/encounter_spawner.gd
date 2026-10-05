@@ -1,9 +1,8 @@
 class_name EncounterSpawner
 extends Node3D
 ## Spawns wild Digimon inside a rectangular region using EncounterTable data.
+## "Encounters enabled" = the monsters may turn hostile (false keeps them calm).
 ## Never exceeds the table's max_active; checks on a timer (not per frame).
-
-signal encounter_started(wild: WildDigimon)
 
 @export var table_id: StringName
 ## Half-size of the spawn rectangle (x/z).
@@ -83,16 +82,9 @@ func _try_spawn(ignore_player_distance: bool) -> void:
 		wild.encounters_enabled = _encounters_enabled
 		get_parent().add_child(wild)
 		wild.global_position = pos + Vector3.UP * 0.3
-		wild.encountered.connect(_on_encountered)
 		wild.tree_exiting.connect(_on_wild_exiting.bind(wild))
 		_active.append(wild)
 		return
-
-
-func _on_encountered(wild: WildDigimon) -> void:
-	if not _encounters_enabled:
-		return
-	encounter_started.emit(wild)
 
 
 func _on_wild_exiting(wild: WildDigimon) -> void:

@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_nm33r"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_ihf8q"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_8or4h"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_ws1du"]
 
-[sub_resource type="Resource" id="Resource_340sd"]
-script = ExtResource("1_nm33r")
+[sub_resource type="Resource" id="Resource_0iine"]
+script = ExtResource("1_8or4h")
 type = 0
 target = 0
 stat = &""
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_ihf8q")
+script = ExtResource("2_ws1du")
 id = &"air_pop"
 display_name = "Air Pop"
 description = "Fires a compressed puff of air."
@@ -26,7 +26,11 @@ sp_cost = 4
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_nm33r")]([SubResource("Resource_340sd")])
+effects = Array[ExtResource("1_8or4h")]([SubResource("Resource_0iine")])
+shape = 2
+cast_range = 8.0
+area_radius = 2.0
+cooldown = 3.4
 animation = &"skill"
 vfx = &"wind"
 projectile = true

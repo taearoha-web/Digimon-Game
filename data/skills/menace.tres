@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_jftu1"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_ttsum"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_dmxtj"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_k1bhc"]
 
-[sub_resource type="Resource" id="Resource_w2b1x"]
-script = ExtResource("1_jftu1")
+[sub_resource type="Resource" id="Resource_y1rxx"]
+script = ExtResource("1_dmxtj")
 type = 3
 target = 0
 stat = &"attack"
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_ttsum")
+script = ExtResource("2_k1bhc")
 id = &"menace"
 display_name = "Menace"
 description = "A scary glare that lowers the target's Attack."
@@ -26,7 +26,11 @@ sp_cost = 3
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_jftu1")]([SubResource("Resource_w2b1x")])
+effects = Array[ExtResource("1_dmxtj")]([SubResource("Resource_y1rxx")])
+shape = 1
+cast_range = 8.0
+area_radius = 5.0
+cooldown = 2.9
 animation = &"skill"
 vfx = &"debuff"
 projectile = false

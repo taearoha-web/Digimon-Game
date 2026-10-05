@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SkillData" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_v7cos"]
-[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_bye34"]
+[ext_resource type="Script" path="res://systems/skills/skill_effect.gd" id="1_gbrg3"]
+[ext_resource type="Script" path="res://systems/skills/skill_data.gd" id="2_paobi"]
 
-[sub_resource type="Resource" id="Resource_v180q"]
-script = ExtResource("1_v7cos")
+[sub_resource type="Resource" id="Resource_fuki3"]
+script = ExtResource("1_gbrg3")
 type = 0
 target = 0
 stat = &""
@@ -14,7 +14,7 @@ chance = 1.0
 duration = 3
 
 [resource]
-script = ExtResource("2_bye34")
+script = ExtResource("2_paobi")
 id = &"bubble_puff"
 display_name = "Bubble Puff"
 description = "Blows a stream of stinging bubbles."
@@ -26,7 +26,11 @@ sp_cost = 0
 target = 0
 crit_bonus = 0.0
 priority = 0
-effects = Array[ExtResource("1_v7cos")]([SubResource("Resource_v180q")])
+effects = Array[ExtResource("1_gbrg3")]([SubResource("Resource_fuki3")])
+shape = 0
+cast_range = 8.0
+area_radius = 0.0
+cooldown = 1.2
 animation = &"skill"
 vfx = &"bubbles"
 projectile = true

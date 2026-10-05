@@ -2127,8 +2127,8 @@ msgid "See you next time, Tamer!"
 msgstr "แล้วพบกันใหม่นะ เทมเมอร์!"
 
 #: ui/main_menu/main_menu.gd
-msgid "v%s · Private prototype · Original placeholder art & audio"
-msgstr "v%s · เกมต้นแบบส่วนตัว · ภาพและเสียงสร้างขึ้นเองชั่วคราว"
+msgid "v%s · Private prototype · Monster models by Quaternius (CC0)"
+msgstr "v%s · เกมต้นแบบส่วนตัว · โมเดลมอนสเตอร์โดย Quaternius (CC0)"
 
 #: ui/menus/collection_panel.gd
 msgid "Add to Party"
@@ -2780,10 +2780,58 @@ msgstr "+%d เหรียญดาต้า"
 msgid "Neutral"
 msgstr "ปกติ"
 
-#: digimon/wild_digimon.gd
-msgid "Fight!"
-msgstr "สู้!"
-
 #: ui/menus/settings_panel.gd
 msgid "Fullscreen"
 msgstr "เต็มจอ"
+
+#: systems/combat/field_combat.gd
+msgid "Stunned!"
+msgstr "มึนงง!"
+
+#: systems/combat/field_combat.gd
+msgid "Too far!"
+msgstr "ไกลเกินไป!"
+
+#: systems/combat/field_combat.gd
+msgid "HP full"
+msgstr "HP เต็มแล้ว"
+
+#: systems/combat/field_combat.gd
+msgid "Can't go any higher!"
+msgstr "สูงสุดแล้ว!"
+
+#: systems/combat/field_combat.gd
+msgid "Can't go any lower!"
+msgstr "ต่ำสุดแล้ว!"
+
+#: systems/combat/field_combat.gd
+msgid "+%d SP"
+msgstr "+%d SP"
+
+#: systems/combat/field_combat.gd
+msgid "+%d EXP"
+msgstr "+%d EXP"
+
+#: systems/combat/field_combat.gd
+msgid "+%d %s"
+msgstr "+%d %s"
+
+#: systems/combat/field_combat.gd
+msgid "No monster nearby."
+msgstr "ไม่มีมอนสเตอร์อยู่ใกล้ๆ"
+
+#: systems/combat/field_combat.gd
+msgid "%s steps in!"
+msgstr "%s ลงมาสู้แทน!"
+
+#: systems/combat/field_combat.gd
+msgid "No other Digimon can fight right now."
+msgstr "ตอนนี้ไม่มีดิจิมอนตัวอื่นที่ต่อสู้ได้"
+
+#: systems/combat/field_combat.gd
+msgid "Area"
+msgstr "ตีหมู่"
+
+#: systems/combat/field_combat.gd
+msgid "Tap a skill on the right to attack — area skills hit every monster nearby!"
+msgstr "แตะสกิลด้านขวาเพื่อโจมตี สกิลตีหมู่จะโดนมอนสเตอร์ทุกตัวที่อยู่ใกล้!"

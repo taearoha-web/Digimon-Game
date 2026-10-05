@@ -102,40 +102,61 @@ func _run() -> void:
 	_check(QuestManager.get_state(&"q_first_steps") == QuestLog.State.ACTIVE, "quest received")
 
 	print("== Travel to the Training Grounds")
-	# Ambient wild Digimon spawn at random spots; keep them from starting
-	# battles on their own so the scripted flow stays deterministic.
+	# Ambient wild Digimon spawn at random spots; keep them from turning
+	# hostile on their own so the scripted flow stays deterministic.
 	_calm_encounters(world)
 	var tg := world.get_node("Waypoints/training_grounds") as Node3D
 	_teleport(world, tg.global_position + Vector3(1, 0, 1))
 	await _seconds(0.8)
 	_check(GameState.quest_log.get_step(&"q_first_steps") == 1, "training grounds objective complete")
 
-	print("== Battle a wild Digimon")
+	print("== Fight a wild Digimon in the field")
 	# Biyomon (Vaccine) is weak to the Data-attribute Patamon starter, so the
 	# scripted fight is winnable regardless of damage variance/crits.
+	var combat := world.combat
+	var lead := GameState.roster.get_lead()
+	var level_before := lead.level
+	var exp_before := lead.experience
 	var wild := WildDigimon.new()
 	wild.setup(&"biyomon", 3, tg.global_position, Vector3(4, 0, 4), world.player)
+	wild.encounters_enabled = false # never aggressive on its own: the check stays deterministic
 	world.add_child(wild)
-	# Spawned Digimon report encounters through their spawner; wire this one
-	# the same way.
-	wild.encountered.connect(world._on_encounter)
-	wild.global_position = world.player.global_position + Vector3(3, 0.3, 0)
-	wild.set_physics_process(false) # stand still so the check is deterministic
-	world._encounter_grace = 0.0
+	wild.global_position = world.partner.global_position + Vector3(4.5, 0.3, 0)
+	wild.set_physics_process(false) # stand still
 	await _seconds(0.5)
-	# Start the fight with the HUD action button, like a player would.
-	var target := world.player.interaction.get_current()
-	_check(target != null and target.get_parent() == wild, "Fight button offered next to the wild Digimon")
-	_check(world.hud.interact_button.visible and world.hud.interact_button.text == "Fight!", "HUD shows the Fight! button")
-	world.player.try_interact()
+	var bar := world.hud.skill_bar
+	_check(combat.get_skills().size() >= 2, "skill bar lists the partner's skills")
+	_check(bar.get_button(0).visible and bar.get_button(1).visible, "skill buttons shown on the HUD")
+	_check(combat.get_enemies().has(wild), "wild Digimon is targetable in the field")
+	var hp_before := wild.instance.current_hp
+	combat.set_target(wild) # ambient monsters may be closer: lock this one explicitly
+	bar.get_button(0).pressed.emit() # tap the first skill like a player
+	await _seconds(2.5)
+	_check(combat.target == wild, "tapping a skill locks onto the monster")
+	_check(wild.instance.current_hp < hp_before, "skill hit the monster (%d -> %d HP)" % [hp_before, wild.instance.current_hp])
+	_check(combat.cooldown_left(combat.get_skills()[0]) > 0.0 or combat.can_use(combat.get_skills()[0]) == &"", "skill cooldown tracked")
+	var fought := 0.0
+	while not wild.is_dead() and fought < 60.0:
+		for skill in combat.get_skills():
+			if skill.target == SkillData.Target.ENEMY and combat.can_use(skill) == &"":
+				combat.use_skill(skill)
+				break
+		await _seconds(0.3)
+		fought += 0.3
+	_check(wild.is_dead(), "defeated the wild Digimon in the field (%.1fs)" % fought)
+	await _seconds(1.5)
+	await _dismiss_popups(world.popups)
+	_check(lead.level > level_before or lead.experience > exp_before, "EXP gained (Lv %d -> %d)" % [level_before, lead.level])
+	_check(QuestManager.get_state(&"q_first_steps") == QuestLog.State.COMPLETED, "quest ready to turn in")
+
+	print("== Scripted turn-based battle (boss / trainer path)")
+	world._encounter_grace = 0.0
+	world.start_battle(BattleRequest.wild(&"biyomon", 3))
 	await _wait_for_scene("BattleScene")
 	var battle := get_tree().current_scene as BattleScene
 	_check(battle != null, "battle scene loaded")
 	if battle == null:
 		return
-	var lead := GameState.roster.get_lead()
-	var level_before := lead.level
-	var exp_before := lead.experience
 	await _auto_battle(battle)
 	_check(battle.controller.outcome == BattleController.Outcome.VICTORY,
 		"won the battle (outcome %d)" % battle.controller.outcome)
@@ -147,8 +168,6 @@ func _run() -> void:
 		return
 	_calm_encounters(world)
 	await _frames(10)
-	_check(lead.level > level_before or lead.experience > exp_before, "EXP gained (Lv %d -> %d)" % [level_before, lead.level])
-	_check(QuestManager.get_state(&"q_first_steps") == QuestLog.State.COMPLETED, "quest ready to turn in")
 	tg = world.get_node("Waypoints/training_grounds") as Node3D
 	_check(world.player.global_position.distance_to(tg.global_position) < 10.0, "player returned where the battle started")
 

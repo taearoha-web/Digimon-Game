@@ -40,7 +40,8 @@ polish and more content (see `TODO.md`).
 | Animation architecture (procedural AnimationPlayer clips, contract names) | ✅ | `systems/animation/procedural_animator.gd` |
 | NPC system, dialogue UI, signposts, terminal, pickups, triggers, portal | ✅ | `characters/npc/npc.gd`, `ui/dialogue/*`, `systems/world/*` |
 | Quest system + tracker/compass + quest log (4 quests) | ✅ | `systems/quests/*`, `ui/hud/hud.gd`, `ui/menus/quest_panel.gd` |
-| Battle system (turn order by Speed, skills with reusable effects, items, defend, switch, escape, befriend, statuses) | ✅ | `systems/battle/*`, `scenes/battle/*`, `ui/battle/*` |
+| Real-time field combat (skill bar, single/burst/blast skills, cooldowns, monsters with HP and AI, rewards, partner swap, wipe → terminal) | ✅ | `systems/combat/*`, `digimon/wild_digimon.gd`, `ui/hud/skill_bar.gd`, `ui/hud/skill_button.gd` |
+| Turn-based battle system (turn order by Speed, skills with reusable effects, items, defend, switch, escape, befriend, statuses) — now for scripted fights | ✅ | `systems/battle/*`, `scenes/battle/*`, `ui/battle/*` |
 | Damage formula (centralised: ATK/DEF, power, level, variance, crit, type, buffs) | ✅ | `systems/battle/damage_calculator.gd` |
 | EXP / level-ups / learnsets / level-up UI | ✅ | `systems/digimon/leveling.gd`, `ui/popups/popup_queue.gd` |
 | Evolution (data-driven requirements, cutscene, stat comparison) | ✅ | `systems/digimon/evolution_service.gd`, `ui/popups/evolution_screen.gd` |
@@ -146,7 +147,7 @@ polish and more content (see `TODO.md`).
 | Unit tests `tests/test_runner.tscn` | 56/56 pass, 2623 assertions | 52/52 pass, 1074 assertions |
 | Integration `tests/integration/vertical_slice_test.tscn` | PASS (56 checks) | PASS (54 checks, v0.2) |
 | Traversal `tests/integration/traversal_test.tscn` (walk routes with real physics) | PASS (5 routes) | — |
-| Screenshot tours (menus / world / battle / forest) at 1280×720 | rendered OK (Mesa llvmpipe, Compatibility) | — |
+| Screenshot tours (menus / world / field / battle / forest) at 1280×720 | rendered OK (Mesa llvmpipe, Compatibility) | — |
 
 Not verifiable here (must be checked on devices / in the editor): real touch
 input on hardware, Android back button, device safe-area insets, audio output,
