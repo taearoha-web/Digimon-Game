@@ -96,7 +96,7 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
     shutil.copy(os.path.join(SRC, "index.icon.png"), os.path.join(pages_dir, "icon.png"))
     manifest = {
         "name": TITLE,
-        "short_name": "Tamer",
+        "short_name": "Toon Tale",
         "start_url": ".",
         "scope": ".",
         "display": "fullscreen",
@@ -122,7 +122,7 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         '<meta name="apple-mobile-web-app-capable" content="yes">\n'
         '<meta name="mobile-web-app-capable" content="yes">\n'
         '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n'
-        '<meta name="apple-mobile-web-app-title" content="Tamer">\n'
+        '<meta name="apple-mobile-web-app-title" content="Toon Tale">\n'
         '<meta name="theme-color" content="#0c1230">\n'
         '<link rel="manifest" href="manifest.webmanifest">\n'
         '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
