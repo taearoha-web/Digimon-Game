@@ -58,7 +58,7 @@ const CLASSES := {
 		"model": "Ranger",
 		"weapon": "crossbow_2handed",
 		"offhand": "",
-		"weapon_kind": "crossbow",
+		"weapon_kind": "bow",
 		"color": Color("5ad17a"),
 		"main": "dex",
 		"base": {"str": 5, "int": 4, "dex": 14, "vit": 8},

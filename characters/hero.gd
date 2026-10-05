@@ -13,6 +13,7 @@ const TARGET_RANGE := 16.0
 const POTION_COOLDOWN := 1.2
 
 var visual: HeroVisual
+var _equip_sig := ""
 var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
@@ -56,10 +57,28 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(Game.class_id())
+	visual.setup(Game.class_id(), "", true, Game.profile.equip)
+	_equip_sig = _equipment_signature()
 	MeshKit.blob_shadow(self, 0.8)
 	refresh_stats()
 	Game.profile_changed.connect(refresh_stats)
+	Game.inventory_changed.connect(_on_inventory_changed)
+
+
+## Changes the hero's weapon / hat / outfit when the worn items change.
+func _on_inventory_changed() -> void:
+	var sig := _equipment_signature()
+	if sig != _equip_sig:
+		_equip_sig = sig
+		visual.set_equipment(Game.profile.equip)
+
+
+func _equipment_signature() -> String:
+	var parts: PackedStringArray = []
+	for slot in ["weapon", "armor", "helm"]:
+		var item: Variant = Game.profile.equip.get(slot)
+		parts.append(ItemLook.look_of(item) if item is Dictionary else "-")
+	return "|".join(parts)
 
 
 func refresh_stats() -> void:
