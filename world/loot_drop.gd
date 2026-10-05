@@ -38,7 +38,23 @@ func _ready() -> void:
 			_body.add_child(coin)
 	else:
 		color = ItemData.color_of(item)
-		if item.get("kind", "") == "potion":
+		var icon_texture := ItemLook.icon(item)
+		if icon_texture != null:
+			var pad := MeshInstance3D.new()
+			pad.mesh = MeshKit.cylinder()
+			pad.material_override = MeshKit.toon(color, {"emission": 1.4, "alpha": 0.55})
+			pad.scale = Vector3(0.7, 0.03, 0.7)
+			pad.position = Vector3(0, 0.05, 0)
+			_body.add_child(pad)
+			var sprite := Sprite3D.new()
+			sprite.texture = icon_texture
+			sprite.pixel_size = 0.0075 if item.get("kind", "") == "equip" else 0.0052
+			sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			sprite.shaded = false
+			sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			sprite.position = Vector3(0, 0.75, 0)
+			add_child(sprite)
+		elif item.get("kind", "") == "potion":
 			var bottle := MeshInstance3D.new()
 			bottle.mesh = MeshKit.sphere_low()
 			bottle.material_override = MeshKit.toon(color, {"emission": 1.0})
@@ -51,7 +67,7 @@ func _ready() -> void:
 			neck.scale = Vector3(0.1, 0.18, 0.1)
 			neck.position = Vector3(0, 0.55, 0)
 			_body.add_child(neck)
-		else:
+		if icon_texture == null and item.get("kind", "") != "potion":
 			var gem := MeshInstance3D.new()
 			gem.mesh = MeshKit.sphere_low()
 			gem.material_override = MeshKit.toon(color, {"emission": 1.6})

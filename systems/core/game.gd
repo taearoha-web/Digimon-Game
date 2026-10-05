@@ -73,7 +73,30 @@ func class_id() -> StringName:
 
 
 func class_data() -> Dictionary:
-	return ClassData.get_class_data(class_id())
+	return JobData.resolve(class_id(), job_id())
+
+
+func job_id() -> StringName:
+	return StringName(profile.get("job", ""))
+
+
+## Job change at the Job Master: needs the level, the fee and a class branch.
+func change_job(job: StringName) -> bool:
+	var info := JobData.get_job(job)
+	if info.is_empty() or info["class"] != class_id() or job_id() != &"":
+		return false
+	if int(profile["level"]) < JobData.JOB_LEVEL or int(profile["gold"]) < JobData.JOB_COST:
+		return false
+	profile["gold"] -= JobData.JOB_COST
+	profile["job"] = String(job)
+	profile["skill_points"] += 2
+	var stats := stats_now()
+	profile["hp"] = stats.max_hp
+	profile["mp"] = stats.max_mp
+	gold_changed.emit(profile["gold"])
+	profile_changed.emit()
+	mark_dirty()
+	return true
 
 
 func stats_now(buffs := {}) -> Dictionary:

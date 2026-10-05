@@ -124,6 +124,12 @@ func _row(item: Dictionary, price: int, action_label: String, action: Callable) 
 	var panel := UIUtil.panel(&"CardPanel")
 	var line := UIUtil.hbox(10)
 	panel.add_child(line)
+	var icon := TextureRect.new()
+	icon.texture = ItemLook.icon(item)
+	icon.custom_minimum_size = Vector2(64, 64)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	line.add_child(icon)
 	var info := UIUtil.vbox(1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)

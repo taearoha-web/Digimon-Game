@@ -139,10 +139,10 @@ func _process(_delta: float) -> void:
 		return
 	var p := Game.profile
 	var stats := hero.stats
-	var class_id := Game.class_id()
+	var class_id := StringName("%s|%s" % [Game.class_id(), Game.job_id()])
 	if class_id != _badge_class:
 		_badge_class = class_id
-		var data := ClassData.get_class_data(class_id)
+		var data := Game.class_data()
 		var style := StyleBoxFlat.new()
 		style.bg_color = data.color
 		style.set_corner_radius_all(30)

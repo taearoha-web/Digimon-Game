@@ -159,24 +159,39 @@ func _build_inventory() -> void:
 	var row := UIUtil.hbox(14)
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(row)
-	# Equipment slots
+	# Paper doll + equipment slots
 	var equip := UIUtil.vbox(6)
-	equip.custom_minimum_size = Vector2(250, 0)
+	equip.custom_minimum_size = Vector2(262, 0)
 	row.add_child(equip)
-	equip.add_child(UIUtil.label("สวมใส่อยู่", &"SubHeaderLabel"))
+	var preview := HeroPreview.new(Vector2i(262, 250))
+	equip.add_child(preview)
+	preview.show_hero(Game.class_id(), Game.profile.equip)
+	var slots := GridContainer.new()
+	slots.columns = 3
+	slots.add_theme_constant_override("h_separation", 6)
+	slots.add_theme_constant_override("v_separation", 6)
+	equip.add_child(slots)
 	for slot in ItemData.SLOTS:
 		var item: Variant = Game.profile.equip.get(slot)
-		var text := "%s: %s" % [ItemData.SLOT_NAMES[slot], ItemData.name_of(item) if item != null else "— ว่าง —"]
-		var b := UIUtil.button(text, &"", Vector2(0, 56))
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.clip_text = true
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(82, 82)
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 58)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		if item != null:
-			b.add_theme_color_override("font_color", ItemData.color_of(item))
+			b.icon = ItemLook.icon(item)
+			b.tooltip_text = ItemData.name_of(item)
+			b.modulate = Color.WHITE.lerp(ItemData.color_of(item), 0.35)
+		else:
+			b.text = ItemData.SLOT_NAMES[slot]
+			b.add_theme_font_size_override("font_size", 16)
+			b.modulate = Color(1, 1, 1, 0.7)
 		b.pressed.connect(func():
 			_selected_slot = slot
 			_selected_index = -1
 			_refresh_detail())
-		equip.add_child(b)
+		slots.add_child(b)
 	# Bag grid
 	var middle := UIUtil.vbox(6)
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -193,14 +208,20 @@ func _build_inventory() -> void:
 	scroll.add_child(grid)
 	for i in Game.INVENTORY_SIZE:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(108, 72)
+		b.custom_minimum_size = Vector2(100, 96)
 		b.clip_text = true
 		b.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 56)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		if i < Game.profile.inv.size():
 			var item: Dictionary = Game.profile.inv[i]
-			b.text = ItemData.name_of(item) + ("\n×%d" % int(item.count) if ItemData.is_stackable(item) else "")
+			b.icon = ItemLook.icon(item)
+			b.text = ("×%d" % int(item.count)) if ItemData.is_stackable(item) else ("Lv.%d" % int(item.level))
 			b.add_theme_color_override("font_color", ItemData.color_of(item))
-			b.add_theme_font_size_override("font_size", 16)
+			b.add_theme_font_size_override("font_size", 17)
+			b.modulate = Color.WHITE.lerp(ItemData.color_of(item), 0.3)
 			b.pressed.connect(func():
 				_selected_index = i
 				_selected_slot = ""
@@ -226,6 +247,12 @@ func _refresh_detail() -> void:
 	if item == null:
 		_detail.add_child(UIUtil.label("แตะไอเทมเพื่อดูรายละเอียด", &"DimLabel"))
 		return
+	var big := TextureRect.new()
+	big.texture = ItemLook.icon(item)
+	big.custom_minimum_size = Vector2(0, 96)
+	big.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	big.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_detail.add_child(big)
 	var title := UIUtil.label(ItemData.name_of(item), &"SubHeaderLabel")
 	title.add_theme_color_override("font_color", ItemData.color_of(item))
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

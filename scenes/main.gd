@@ -185,6 +185,8 @@ func _on_npc(role: String) -> void:
 		"shop":
 			dialog.say("พ่อค้าเก่งกาจ", "ยินดีต้อนรับ! ยา อาวุธ เกราะ มีครบ ของที่เก็บมาก็ขายได้ราคาดีนะ", [
 				{"label": "ดูสินค้า", "action": func(): shop.open_shop()}, {"label": "ไว้ก่อน"}])
+		"job":
+			_talk_job()
 		"healer":
 			var stats := Game.stats_now()
 			Game.profile.hp = stats.max_hp
@@ -194,6 +196,53 @@ func _on_npc(role: String) -> void:
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• สกิลทั้ง 4 อยู่บนแถบโค้งรอบปุ่มดาบ ปลดล็อกเมื่อเลเวลถึง\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ อัปสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+
+
+func _talk_job() -> void:
+	var speaker := "ปรมาจารย์ผู้เปลี่ยนชะตา"
+	var current := Game.job_id()
+	if current != &"":
+		var info := JobData.get_job(current)
+		dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนต่อไปเพื่อเป็นตำนานนะ!" % [info.name, info.title])
+		return
+	if int(Game.profile.level) < JobData.JOB_LEVEL:
+		dialog.say(speaker, "ฮึๆ เจ้ายังอ่อนหัดอยู่ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะชี้ทางสายอาชีพให้ — จะแยกเป็นสองสาย แต่ละสายมีสกิลใหม่และพลังต่างกัน" % JobData.JOB_LEVEL)
+		return
+	var branches := JobData.jobs_for(Game.class_id())
+	var options: Array = []
+	for id in branches:
+		var info := JobData.get_job(id)
+		options.append({"label": String(info.name), "action": func(): _show_job(id)})
+	options.append({"label": "ไว้ก่อน"})
+	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)" % [Game.class_data().name, JobData.JOB_COST], options)
+
+
+func _show_job(id: StringName) -> void:
+	var info := JobData.get_job(id)
+	var lines: PackedStringArray = ["%s — %s" % [info.name, info.title], info.desc]
+	for skill in info.skills:
+		lines.append("• %s: %s" % [skill.name, skill.desc])
+	var others := JobData.jobs_for(Game.class_id())
+	others.erase(id)
+	var options: Array = [{"label": "เลือก (%d)" % JobData.JOB_COST, "action": func(): _confirm_job(id)}]
+	for other in others:
+		options.append({"label": "ดู%s" % JobData.get_job(other).name, "action": func(): _show_job(other)})
+	options.append({"label": "ไว้ก่อน"})
+	dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "\n".join(lines), options)
+
+
+func _confirm_job(id: StringName) -> void:
+	var info := JobData.get_job(id)
+	if int(Game.profile.gold) < JobData.JOB_COST:
+		dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "เหรียญไม่พอนะ ต้องใช้ %d เหรียญ ไปล่ามอนสเตอร์มาก่อนแล้วกลับมาใหม่" % JobData.JOB_COST)
+		return
+	if not Game.change_job(id):
+		return
+	VfxKit.level_up(zone, zone.hero.global_position)
+	AudioManager.play_sfx(&"quest_complete")
+	hud.show_banner("เปลี่ยนอาชีพ: %s!" % info.name)
+	Game.say("ได้สกิลใหม่ 2 ตัว และแต้มสกิล +2 — ดูได้ที่เมนูสกิล", &"success")
+	Game.save()
 
 
 func _talk_elder() -> void:

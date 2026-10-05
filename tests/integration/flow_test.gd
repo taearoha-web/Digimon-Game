@@ -34,6 +34,8 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	for id in ClassData.IDS:
 		await _play_class(id)
+	await _jobs()
+	await _zones()
 	await _systems()
 
 
@@ -54,7 +56,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 4, "four villagers")
+	check(town.npcs.size() == 5, "five villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -110,6 +112,52 @@ func _alive(pack: Array[Mob]) -> int:
 	return n
 
 
+func _jobs() -> void:
+	print("== Jobs")
+	for class_id in ClassData.IDS:
+		var zone := await _start(class_id)
+		var branches := JobData.jobs_for(class_id)
+		check(branches.size() == 2, "%s has two job branches" % class_id)
+		check(not Game.change_job(branches[0]), "cannot change job below Lv.%d" % JobData.JOB_LEVEL)
+		Game.add_exp(2000000)
+		Game.add_gold(5000)
+		var atk_before: float = Game.stats_now().atk
+		var gold_before: int = Game.profile.gold
+		for branch in branches:
+			var other: StringName = branches[1] if branch == branches[0] else branches[0]
+			check(not Game.change_job(other) or Game.job_id() == other, "job picked")
+			if Game.job_id() == &"":
+				continue
+			break
+		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
+		check(Game.profile.gold == gold_before - JobData.JOB_COST, "job change cost gold")
+		var skills: Array = Game.class_data().skills
+		check(skills.size() == 4 and String(skills[0].id) != String(ClassData.get_skill(class_id, 0).id), "first skill replaced by a job skill")
+		check(not Game.change_job(branches[1]) and not Game.change_job(branches[0]), "job cannot be changed twice")
+		await _wait(0.4)
+		var hero: Hero = main.zone.hero
+		check(hero._ring != null, "job ring appears under the hero")
+
+
+func _zones() -> void:
+	print("== Zones")
+	await _start(&"warrior")
+	Game.add_exp(2000000)
+	for id in ZoneData.ZONES:
+		if id == &"town":
+			continue
+		await main.go(id, true)
+		await _wait(0.5)
+		var z: Zone = main.zone
+		check(z != null and z.zone_id == id, "zone %s loads" % id)
+		check(get_tree().get_nodes_in_group("mobs").size() >= 10, "%s camps are populated (%d)" % [id, get_tree().get_nodes_in_group("mobs").size()])
+		var info := ZoneData.get_zone(id)
+		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1), "%s has the right portals" % id)
+		for camp in info.camps:
+			for m in camp.monsters:
+				check(MonsterData.MONSTERS.has(m), "monster %s exists" % m)
+
+
 func _systems() -> void:
 	print("== Systems")
 	var zone := await _start(&"warrior")
@@ -128,6 +176,17 @@ func _systems() -> void:
 	Game.add_item(sword)
 	check(Game.equip_from_bag(Game.profile.inv.size() - 1), "equip a rare sword")
 	check(Game.stats_now().atk > atk_before, "ATK rises with the sword")
+	var look := ItemLook.look_of(sword)
+	check(look.begins_with("sword_") and ItemLook.icon(sword) != null, "sword has a look and an icon (%s)" % look)
+	check(zone.hero.visual.find_child("Held_" + look, true, false) != null, "hero holds the equipped sword model")
+	var helm := ItemData.generate(5, &"warrior", rng, 1, "helm")
+	var armor := ItemData.generate(5, &"warrior", rng, 1, "armor")
+	Game.add_item(helm)
+	Game.equip_from_bag(Game.profile.inv.size() - 1)
+	Game.add_item(armor)
+	Game.equip_from_bag(Game.profile.inv.size() - 1)
+	check(zone.hero.visual.find_child("Hat", true, false) != null or zone.hero.visual.find_child("Att_*", true, false) != null or ItemLook.helm_look(helm).has("part"), "hero wears the helm")
+	check(ItemLook.icon(armor) != null and ItemLook.icon(helm) != null, "armor and helm icons exist")
 	var mage_staff := ItemData.generate(5, &"mage", rng, 0, "weapon")
 	check(Game.equip_problem(mage_staff) != "", "a staff cannot be worn by a warrior")
 	var gold: int = Game.profile.gold

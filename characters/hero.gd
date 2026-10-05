@@ -13,6 +13,9 @@ const TARGET_RANGE := 16.0
 const POTION_COOLDOWN := 1.2
 
 var visual: HeroVisual
+var _equip_sig := ""
+var _ring_job: StringName = &""
+var _ring: MeshInstance3D
 var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
@@ -56,10 +59,56 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(Game.class_id())
+	visual.setup(Game.class_id(), "", true, Game.profile.equip)
+	_equip_sig = _equipment_signature()
 	MeshKit.blob_shadow(self, 0.8)
 	refresh_stats()
 	Game.profile_changed.connect(refresh_stats)
+	Game.inventory_changed.connect(_on_inventory_changed)
+	Game.profile_changed.connect(_update_job_ring)
+	_update_job_ring()
+
+
+## Changes the hero's weapon / hat / outfit when the worn items change.
+func _on_inventory_changed() -> void:
+	var sig := _equipment_signature()
+	if sig != _equip_sig:
+		_equip_sig = sig
+		visual.set_equipment(Game.profile.equip)
+
+
+## A glowing ring under the feet of a hero who has changed jobs.
+func _update_job_ring() -> void:
+	var job := Game.job_id()
+	if job == _ring_job:
+		return
+	_ring_job = job
+	if _ring:
+		_ring.queue_free()
+		_ring = null
+	if job == &"":
+		return
+	var color: Color = JobData.get_job(job).color
+	_ring = MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.78
+	torus.outer_radius = 0.94
+	torus.rings = 36
+	torus.ring_segments = 4
+	_ring.mesh = torus
+	_ring.material_override = MeshKit.toon(color, {"unshaded": true, "emission": 1.0})
+	_ring.scale = Vector3(1, 0.12, 1)
+	_ring.position = Vector3(0, 0.07, 0)
+	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_ring)
+
+
+func _equipment_signature() -> String:
+	var parts: PackedStringArray = []
+	for slot in ["weapon", "armor", "helm"]:
+		var item: Variant = Game.profile.equip.get(slot)
+		parts.append(ItemLook.look_of(item) if item is Dictionary else "-")
+	return "|".join(parts)
 
 
 func refresh_stats() -> void:
@@ -375,7 +424,8 @@ func cooldown_ratio(skill: Dictionary) -> float:
 func use_skill(index: int) -> String:
 	if _dead or safe_zone:
 		return "safe"
-	var skill := ClassData.get_skill(Game.class_id(), index)
+	var skills: Array = Game.class_data().skills
+	var skill: Dictionary = skills[index] if index >= 0 and index < skills.size() else {}
 	if skill.is_empty():
 		return "none"
 	if not Game.skill_unlocked(skill):
@@ -411,7 +461,7 @@ func _cast(skill: Dictionary) -> void:
 	if target and _valid_target(target):
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
 	AudioManager.play_sfx(&"skill_start", -4.0)
-	skill_fired.emit(ClassData.get_class_data(Game.class_id()).skills.find(skill))
+	skill_fired.emit(Game.class_data().skills.find(skill))
 	var snapshot := target
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var color: Color = skill.color

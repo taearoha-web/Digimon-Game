@@ -6,70 +6,170 @@ extends Node3D
 const CHARACTER_DIR := "res://assets/models/characters/"
 const LOOPING: Array[String] = ["Idle", "Running_A", "Running_B", "Walking_A", "Walking_B", "2H_Melee_Idle", "Unarmed_Idle", "Cheer", "Spellcasting", "Blocking", "Sit_Floor_Idle"]
 const HEIGHT := 2.0
-const PROPS := {
-	&"warrior": ["1H_Sword", "Badge_Shield", "Knight_Helmet", "Knight_Cape"],
-	&"archer": ["2H_Crossbow", "Rogue_Cape"],
-	&"mage": ["2H_Staff", "Mage_Hat", "Mage_Cape"],
-	&"priest": ["1H_Wand", "Spellbook", "Mage_Hat", "Mage_Cape"],
+## Ready-made looks per character model: head, outfit (body+arms+legs),
+## hat and cape pieces as [glb, node].
+const PRESETS := {
+	"Knight": {"head": ["Knight", "Knight_Head"], "outfit": "Knight", "hat": ["Knight", "Knight_Helmet"], "cape": ["Knight", "Knight_Cape"]},
+	"Mage": {"head": ["Mage", "Mage_Head"], "outfit": "Mage", "hat": ["Mage", "Mage_Hat"], "cape": ["Mage", "Mage_Cape"]},
+	"Rogue_Hooded": {"head": ["Rogue_Hooded", "Rogue_Head_Hooded"], "outfit": "Rogue", "cape": ["Rogue_Hooded", "Rogue_Cape"]},
+	"Rogue": {"head": ["Rogue", "Rogue_Head"], "outfit": "Rogue", "cape": ["Rogue", "Rogue_Cape"]},
+	"Barbarian": {"head": ["Barbarian", "Barbarian_Head"], "outfit": "Barbarian", "hat": ["Barbarian", "Barbarian_BearHat"]},
+	"Ranger": {"head": ["Ranger", "Ranger_Head"], "outfit": "Ranger", "cape": ["Ranger", "Ranger_Cape"], "extra": ["Ranger", "Ranger_Quiver"]},
 }
-
-## Models whose weapon is not built in: scene held in a hand slot.
-const HELD := {
-	"Ranger": [["handslot.l", "res://assets/models/weapons/bow_withString.gltf"]],
-	"Barbarian": [["handslot.r", "res://assets/models/weapons/axe_2handed.gltf"]],
-	"Rogue": [["handslot.r", "res://assets/models/weapons/dagger.gltf"]],
-}
+const OUTFIT_PARTS: Array[String] = ["Body", "ArmLeft", "ArmRight", "LegLeft", "LegRight"]
+const OUTFIT_GLB := {"knight": "Knight", "mage": "Mage", "rogue": "Rogue", "barbarian": "Barbarian", "ranger": "Ranger", "Knight": "Knight", "Mage": "Mage", "Rogue": "Rogue", "Barbarian": "Barbarian", "Ranger": "Ranger"}
 const CHIBI_HEAD := 1.28
+const BASE_MODEL := "Ranger"
+const PRIEST_GOLD := Color(1.9, 1.6, 0.35)
+const PRIEST_WHITE := Color(1.8, 1.8, 1.5)
 
 static var _shared_library: AnimationLibrary
 
 var class_id: StringName = &"warrior"
 var model_name := ""
-var _head_bone := -1
-var _skeleton: Skeleton3D
+var equip: Dictionary = {}
 var model: Node3D
 var anim: AnimationPlayer
 var current: String = ""
 var busy_until := 0
 
+var _head_bone := -1
+var _skeleton: Skeleton3D
+var _body_nodes: Array[Node] = []
+var _hold_nodes: Array[Node] = []
 var _tween: Tween
 
 
-func setup(p_class: StringName, p_model := "", armed := true) -> void:
+## p_model: wear another character's stock look (villagers); armed=false = no weapon.
+func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}) -> void:
 	class_id = p_class
 	for child in get_children():
 		child.queue_free()
 	var data := ClassData.get_class_data(class_id)
 	model_name = p_model if p_model != "" else String(data.model)
-	var packed := load(CHARACTER_DIR + model_name + ".glb") as PackedScene
-	if packed == null:
-		push_error("HeroVisual: missing model %s" % data.model)
-		return
+	var packed := load(CHARACTER_DIR + BASE_MODEL + ".glb") as PackedScene
 	model = packed.instantiate() as Node3D
 	add_child(model)
-	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if anim == null:
-		anim = _borrow_animations()
-	if anim:
-		for clip in anim.get_animation_list():
-			var a := anim.get_animation(clip)
-			a.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
-	_fit_height()
-	_show_props(PROPS[class_id])
-	if armed:
-		_hold_weapons()
-	_setup_chibi()
-	if class_id == &"priest" and model_name == "Mage":
-		_tint_priest()
+	_skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
+	for child in _skeleton.get_children():
+		child.free()
+	anim = _borrow_animations()
+	for clip in anim.get_animation_list():
+		var a := anim.get_animation(clip)
+		a.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
+	# KayKit rigs report a tall bind-pose box; the standing body is ~2.2 units.
+	model.scale = Vector3.ONE * (HEIGHT / 2.2)
+	_head_bone = _skeleton.find_bone("head")
+	set_process(_head_bone >= 0)
+	equip = p_equip
+	_armed = armed
+	refresh()
 	play("Idle")
+
+
+var _armed := true
+
+
+## Rebuilds everything the hero wears from [member equip] (slot -> item).
+func set_equipment(p_equip: Dictionary) -> void:
+	equip = p_equip
+	refresh()
+
+
+func refresh() -> void:
+	for n in _body_nodes:
+		if is_instance_valid(n):
+			n.free()
+	_body_nodes.clear()
+	for n in _hold_nodes:
+		if is_instance_valid(n):
+			n.free()
+	_hold_nodes.clear()
+	var preset: Dictionary = PRESETS.get(model_name, PRESETS["Ranger"])
+	var priest := class_id == &"priest" and model_name == "Mage"
+	var armor: Variant = equip.get("armor")
+	var helm: Variant = equip.get("helm")
+	# Outfit
+	var outfit_style: String = preset.outfit
+	var outfit_tint := PRIEST_WHITE if (priest and armor == null) else Color.WHITE
+	var cape: Variant = preset.get("cape")
+	if armor != null:
+		var look := ItemLook.armor_look(armor)
+		outfit_style = look.style
+		outfit_tint = look.tint
+		cape = look.cape
+	var glb: String = OUTFIT_GLB[outfit_style]
+	for piece in OUTFIT_PARTS:
+		_add_part(glb, "%s_%s" % [glb, piece], outfit_tint)
+	# Head, hat, cape
+	_add_part(preset.head[0], preset.head[1])
+	if preset.has("extra") and armor == null:
+		_add_part(preset.extra[0], preset.extra[1])
+	if cape != null and cape is Array:
+		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
+		_add_part(cape[0], cape[1], cape_tint)
+	if helm != null:
+		var hat := ItemLook.helm_look(helm)
+		_wear_hat(hat)
+	elif preset.has("hat"):
+		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
+	_hold_gear()
+
+
+func _add_part(glb: String, node_name: String, tint := Color.WHITE) -> void:
+	var node := HeroParts.attach(_skeleton, glb, node_name, tint)
+	if node:
+		_body_nodes.append(node)
+
+
+func _wear_hat(hat: Dictionary) -> void:
+	if hat.has("part"):
+		_add_part(hat.part[0], hat.part[1], hat.tint)
+		return
+	var attach := BoneAttachment3D.new()
+	attach.name = "Hat"
+	attach.bone_name = "head"
+	_skeleton.add_child(attach)
+	attach.add_child(GearKit.hat(hat.proc, hat.tint))
+	_body_nodes.append(attach)
+
+
+func _hold_gear() -> void:
+	if not _armed:
+		return
+	var data := ClassData.get_class_data(class_id)
+	var weapon_look := ItemLook.weapon_look(equip.get("weapon"), StringName(data.weapon_kind))
+	_hold(weapon_look, "handslot.r")
+	match class_id:
+		&"warrior":
+			_hold("shield_0", "handslot.l")
+		&"priest":
+			_hold("book", "handslot.l")
+
+
+func _hold(look: String, bone: String) -> void:
+	var item: Node3D
+	if look.begins_with("shield"):
+		item = WeaponKit.shield(look)
+	elif look == "book":
+		item = WeaponKit.book()
+	else:
+		item = WeaponKit.build(look)
+	var attach := BoneAttachment3D.new()
+	attach.name = "Held_" + look
+	attach.bone_name = bone
+	_skeleton.add_child(attach)
+	var pivot := Node3D.new()
+	pivot.rotation = Vector3(0, PI, 0) if bone == "handslot.r" else Vector3(0, PI, 0)
+	attach.add_child(pivot)
+	pivot.add_child(item)
+	_hold_nodes.append(attach)
 
 
 ## The free Adventurers 2.0 characters ship without animations; they share the
 ## Knight's rig, so give them the Knight's clips.
 func _borrow_animations() -> AnimationPlayer:
 	var rig := model.get_node_or_null("Rig_Medium")
-	if rig == null:
-		return null
 	rig.name = "Rig"
 	if _shared_library == null:
 		var donor := (load(CHARACTER_DIR + "Knight.glb") as PackedScene).instantiate()
@@ -84,72 +184,13 @@ func _borrow_animations() -> AnimationPlayer:
 	return player
 
 
-func _fit_height() -> void:
-	var box := AABB()
-	var first := true
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		var m := mi as MeshInstance3D
-		var skel := m.get_parent()
-		var b := m.get_aabb()
-		box = b if first else box.merge(b)
-		first = false
-	# KayKit rigs report a tall bind-pose box; the standing body is ~2.2 units.
-	model.scale = Vector3.ONE * (HEIGHT / 2.2)
-
-
-## The models carry all their props as bone attachments: show only the class kit.
-func _show_props(wanted: Array) -> void:
-	var skeleton := model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if skeleton == null:
-		return
-	for child in skeleton.get_children():
-		if child is BoneAttachment3D:
-			child.visible = child.name in wanted
-
-
-func _hold_weapons() -> void:
-	var skeleton := model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if skeleton == null or not HELD.has(model_name):
-		return
-	for entry in HELD[model_name]:
-		var scene := load(entry[1]) as PackedScene
-		if scene == null or skeleton.find_bone(entry[0]) < 0:
-			continue
-		var attach := BoneAttachment3D.new()
-		attach.name = "Held_" + String(entry[0])
-		attach.bone_name = entry[0]
-		skeleton.add_child(attach)
-		attach.add_child(scene.instantiate())
-
-
 ## Big head = cuter. Scales the head bone after the animation has posed it.
-func _setup_chibi() -> void:
-	_skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
-	if _skeleton:
-		_head_bone = _skeleton.find_bone("head")
-	set_process(_head_bone >= 0)
-
-
 func _process(_delta: float) -> void:
 	if _skeleton == null or _head_bone < 0:
 		return
 	var pose := _skeleton.get_bone_global_pose_no_override(_head_bone)
 	pose.basis = pose.basis.scaled(Vector3.ONE * CHIBI_HEAD)
 	_skeleton.set_bone_global_pose_override(_head_bone, pose, 1.0, true)
-
-
-func _tint_priest() -> void:
-	var tints := {"Mage_Hat": Color(1.9, 1.6, 0.35), "Mage_Cape": Color(2.2, 2.2, 2.0), "Mage_Body": Color(1.8, 1.8, 1.5),
-			"Mage_ArmLeft": Color(1.8, 1.8, 1.5), "Mage_ArmRight": Color(1.8, 1.8, 1.5), "Mage_LegLeft": Color(1.6, 1.6, 1.4), "Mage_LegRight": Color(1.6, 1.6, 1.4)}
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		var m := mi as MeshInstance3D
-		if not tints.has(String(m.name)):
-			continue
-		var source := m.mesh.surface_get_material(0) as StandardMaterial3D
-		if source:
-			var copy := source.duplicate() as StandardMaterial3D
-			copy.albedo_color = tints[String(m.name)]
-			m.set_surface_override_material(0, copy)
 
 
 func has_clip(clip: String) -> bool:
