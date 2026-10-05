@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_dy8yk"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_diami"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_2bhey"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_cigov"]
 
-[sub_resource type="Resource" id="Resource_ve6av"]
-script = ExtResource("1_dy8yk")
+[sub_resource type="Resource" id="Resource_bkapo"]
+script = ExtResource("1_2bhey")
 target_species_id = &"togemon"
 min_level = 12
 required_item_id = &""
@@ -16,10 +16,10 @@ min_stats = {}
 hint = ""
 
 [resource]
-script = ExtResource("2_diami")
+script = ExtResource("2_cigov")
 id = &"palmon"
 display_name = "Palmon"
-description = "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines. (Original placeholder model.)"
+description = "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines."
 stage = 2
 attribute = 1
 digimon_type = "Plant"
@@ -44,14 +44,14 @@ learnset = {
 5: &"pollen_cloud",
 8: &"leaf_drain"
 }
-evolutions = Array[ExtResource("1_dy8yk")]([SubResource("Resource_ve6av")])
+evolutions = Array[ExtResource("1_2bhey")]([SubResource("Resource_bkapo")])
 base_exp_yield = 46
 recruit_modifier = 1.0
 drop_table = {
 "friend_treat": 0.1,
 "small_patch": 0.25
 }
-model_path = ""
+model_path = "res://assets/models/monsters/blob/Cactoro.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -61,5 +61,6 @@ placeholder_body = &"plant"
 placeholder_colors = PackedColorArray(0.46, 0.8, 0.42, 1, 1, 0.46, 0.62, 1, 1, 0.86, 0.3, 1, 0.12, 0.3, 0.12, 1)
 placeholder_options = {}
 model_scale = 1.0
+model_target_height = 0.85
 hovers = false
 move_speed = 3.0

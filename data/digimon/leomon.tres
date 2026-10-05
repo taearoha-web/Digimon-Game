@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_cp3c5"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_fs1di"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_jmckd"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_ddexm"]
 
 [resource]
-script = ExtResource("2_fs1di")
+script = ExtResource("2_ddexm")
 id = &"leomon"
 display_name = "Leomon"
-description = "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice. (Original placeholder model.)"
+description = "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice."
 stage = 3
 attribute = 0
 digimon_type = "Beast Man"
@@ -31,13 +31,13 @@ innate_skills = Array[StringName]([&"tackle", &"quick_dash", &"spark_tail"])
 learnset = {
 14: &"beast_fist"
 }
-evolutions = Array[ExtResource("1_cp3c5")]([])
+evolutions = Array[ExtResource("1_jmckd")]([])
 base_exp_yield = 110
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Ninja.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -51,5 +51,6 @@ placeholder_options = {
 "pelt": false
 }
 model_scale = 1.4
+model_target_height = 1.1
 hovers = false
 move_speed = 3.5

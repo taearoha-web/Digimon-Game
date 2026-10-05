@@ -20,6 +20,20 @@ const ANIMATION_FALLBACKS := {
 	&"victory": [&"idle"],
 }
 
+## Imported models name their clips freely; each contract clip maps to the
+## first clip found in this list (Quaternius "Ultimate Monsters" names here).
+const CLIP_ALIASES := {
+	&"idle": [&"Idle", &"Flying_Idle"],
+	&"walk": [&"Walk", &"Flying_Idle"],
+	&"run": [&"Run", &"Fast_Flying", &"Walk"],
+	&"attack": [&"Bite_Front", &"Punch", &"Headbutt"],
+	&"skill": [&"Weapon", &"Headbutt", &"Jump", &"Punch"],
+	&"hurt": [&"HitRecieve", &"HitReact"],
+	&"defeat": [&"Death"],
+	&"victory": [&"Dance", &"Yes", &"Wave"],
+}
+const LOOPING_CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"victory"]
+
 var species: DigimonSpecies
 var model: Node3D
 var model_height: float = 1.0
@@ -116,9 +130,7 @@ func _rebuild() -> void:
 	if species.model_path != "" and ResourceLoader.exists(species.model_path):
 		var packed := load(species.model_path) as PackedScene
 		if packed:
-			model = packed.instantiate() as Node3D
-			_anim = _find_animation_player(model)
-			model_height = 1.2
+			model = _wrap_imported(packed.instantiate() as Node3D)
 	if model == null:
 		model = PlaceholderDigimonFactory.build(species)
 		_anim = ProceduralAnimator.build_creature(model, species.hovers)
@@ -128,14 +140,83 @@ func _rebuild() -> void:
 	play_animation(&"idle", 0.0)
 
 
+## Normalises an imported model: scales it to the species' target height,
+## sits its feet on the ground (or hovering), adds a blob shadow and aliases
+## its clips to the creature animation contract. Returns the wrapper root.
+func _wrap_imported(imported: Node3D) -> Node3D:
+	if imported == null:
+		return null
+	var root := Node3D.new()
+	root.name = "ImportedModel"
+	root.add_child(imported)
+	var box := _mesh_bounds(imported)
+	# Bounds are measured in the bind pose: T-posed arms/wings inflate the
+	# width, and flyers fold their wings up when animated, so size by the
+	# larger of height and depth.
+	var height := maxf(maxf(box.size.y, box.size.z), 0.001)
+	var fit := species.model_target_height / height if species.model_target_height > 0.0 else 1.0
+	imported.scale = Vector3.ONE * fit
+	var hover := 0.0
+	if species.hovers:
+		hover = 0.35 if species.model_target_height < 1.4 else 0.5
+	imported.position.y = -box.position.y * fit + hover
+	root.set_meta("hover", hover)
+	model_height = (height * fit + hover) * species.model_scale
+	MeshKit.blob_shadow(root, clampf(maxf(box.size.x, box.size.z) * fit * 0.3, 0.25, 1.3))
+	_anim = _find_animation_player(imported)
+	_alias_clips()
+	return root
+
+
+func _alias_clips() -> void:
+	if _anim == null:
+		return
+	var aliases := AnimationLibrary.new()
+	for contract in CLIP_ALIASES:
+		if _anim.has_animation(contract):
+			continue
+		for clip in CLIP_ALIASES[contract]:
+			if _anim.has_animation(clip):
+				# Duplicate so loop changes never leak into the shared import.
+				var a := _anim.get_animation(clip).duplicate() as Animation
+				a.loop_mode = Animation.LOOP_LINEAR if contract in LOOPING_CLIPS else Animation.LOOP_NONE
+				aliases.add_animation(contract, a)
+				break
+	if _anim.has_animation_library(&"contract"):
+		_anim.remove_animation_library(&"contract")
+	_anim.add_animation_library(&"contract", aliases)
+
+
+static func _mesh_bounds(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		var b := _relative_transform(m, node) * m.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
+
+
+static func _relative_transform(node: Node3D, ancestor: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var n: Node = node
+	while n != null and n != ancestor:
+		if n is Node3D:
+			t = (n as Node3D).transform * t
+		n = n.get_parent()
+	return t
+
+
 func _resolve(anim_name: StringName) -> StringName:
 	if _anim == null:
 		return &""
-	if _anim.has_animation(anim_name):
-		return anim_name
-	for fallback in ANIMATION_FALLBACKS.get(anim_name, []):
-		if _anim.has_animation(fallback):
-			return fallback
+	for candidate in [anim_name] + ANIMATION_FALLBACKS.get(anim_name, []):
+		if _anim.has_animation(candidate):
+			return candidate
+		var aliased := StringName("contract/" + candidate)
+		if _anim.has_animation(aliased):
+			return aliased
 	return &""
 
 

@@ -66,7 +66,8 @@ polish and more content (see `TODO.md`).
 * **Nicknames**: supported in data (`DigimonInstance.nickname`), no UI yet.
 * **Skill replacement UI** exists (equip/unequip in Party/Collection), but no
   "forget skill" prompt — new skills beyond 4 are simply known, not equipped.
-* **Real assets**: all placeholders (by design).
+* **Real assets**: Digimon use CC0 Quaternius models; characters, world and
+  audio are still placeholders.
 * **Device testing**: not yet run on physical Android/iOS hardware.
 
 ## Current known bugs / caveats

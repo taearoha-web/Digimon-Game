@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_ji43g"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_07ekv"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_0yihl"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_m8dlq"]
 
-[sub_resource type="Resource" id="Resource_kjw1g"]
-script = ExtResource("1_ji43g")
+[sub_resource type="Resource" id="Resource_7p4ef"]
+script = ExtResource("1_0yihl")
 target_species_id = &"patamon"
 min_level = 6
 required_item_id = &""
@@ -16,10 +16,10 @@ min_stats = {}
 hint = ""
 
 [resource]
-script = ExtResource("2_07ekv")
+script = ExtResource("2_m8dlq")
 id = &"tokomon"
 display_name = "Tokomon"
-description = "A tiny white Digimon with little feet and a surprisingly big mouth. (Original placeholder model.)"
+description = "A tiny white Digimon with little feet and a surprisingly big mouth."
 stage = 1
 attribute = 3
 digimon_type = "Lesser"
@@ -41,13 +41,13 @@ growth_special_defense = 1.3
 growth_speed = 1.3
 innate_skills = Array[StringName]([&"tackle", &"bubble_puff"])
 learnset = {}
-evolutions = Array[ExtResource("1_ji43g")]([SubResource("Resource_kjw1g")])
+evolutions = Array[ExtResource("1_0yihl")]([SubResource("Resource_7p4ef")])
 base_exp_yield = 30
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/blob/Chicken.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -60,5 +60,6 @@ placeholder_options = {
 "feet": true
 }
 model_scale = 1.0
+model_target_height = 0.6
 hovers = false
 move_speed = 3.0

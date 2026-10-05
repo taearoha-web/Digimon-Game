@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_vav1d"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_eots1"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_rji5i"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_ytdr7"]
 
-[sub_resource type="Resource" id="Resource_1cafq"]
-script = ExtResource("1_vav1d")
+[sub_resource type="Resource" id="Resource_kb8p2"]
+script = ExtResource("1_rji5i")
 target_species_id = &"angemon"
 min_level = 10
 required_item_id = &""
@@ -15,8 +15,8 @@ required_flag = &""
 min_stats = {}
 hint = "Grows with experience."
 
-[sub_resource type="Resource" id="Resource_025n2"]
-script = ExtResource("1_vav1d")
+[sub_resource type="Resource" id="Resource_dh1fs"]
+script = ExtResource("1_rji5i")
 target_species_id = &"angemon"
 min_level = 7
 required_item_id = &"evo_shard"
@@ -28,10 +28,10 @@ min_stats = {}
 hint = "An Evo Shard can speed things up."
 
 [resource]
-script = ExtResource("2_eots1")
+script = ExtResource("2_ytdr7")
 id = &"patamon"
 display_name = "Patamon"
-description = "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer. (Original placeholder model.)"
+description = "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer."
 stage = 2
 attribute = 1
 digimon_type = "Mammal"
@@ -56,13 +56,13 @@ learnset = {
 6: &"wing_slap",
 9: &"soothing_light"
 }
-evolutions = Array[ExtResource("1_vav1d")]([SubResource("Resource_1cafq"), SubResource("Resource_025n2")])
+evolutions = Array[ExtResource("1_rji5i")]([SubResource("Resource_kb8p2"), SubResource("Resource_dh1fs")])
 base_exp_yield = 55
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/blob/Dog.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -72,5 +72,6 @@ placeholder_body = &"winged"
 placeholder_colors = PackedColorArray(1, 0.72, 0.38, 1, 1, 0.94, 0.8, 1, 0.62, 0.42, 0.3, 1, 0.24, 0.42, 0.82, 1)
 placeholder_options = {}
 model_scale = 1.0
+model_target_height = 0.75
 hovers = true
 move_speed = 3.5

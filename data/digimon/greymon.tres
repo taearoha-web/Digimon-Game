@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_f2jlf"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_5kiqe"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_0602x"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_4xiin"]
 
 [resource]
-script = ExtResource("2_5kiqe")
+script = ExtResource("2_4xiin")
 id = &"greymon"
 display_name = "Greymon"
-description = "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows. (Original placeholder model.)"
+description = "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows."
 stage = 3
 attribute = 0
 digimon_type = "Dinosaur"
@@ -32,13 +32,13 @@ learnset = {
 12: &"inferno_burst",
 15: &"battle_cry"
 }
-evolutions = Array[ExtResource("1_f2jlf")]([])
+evolutions = Array[ExtResource("1_0602x")]([])
 base_exp_yield = 110
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/flying/Dragon_Evolved.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -48,5 +48,6 @@ placeholder_body = &"big_dino"
 placeholder_colors = PackedColorArray(1, 0.55, 0.16, 1, 0.26, 0.36, 0.74, 1, 0.62, 0.48, 0.32, 1, 0.9, 0.2, 0.1, 1)
 placeholder_options = {}
 model_scale = 1.0
-hovers = false
+model_target_height = 1.6
+hovers = true
 move_speed = 4.0

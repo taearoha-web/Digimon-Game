@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_gl3x5"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_entvm"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_3cqbm"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_bes3a"]
 
-[sub_resource type="Resource" id="Resource_qxwjn"]
-script = ExtResource("1_gl3x5")
+[sub_resource type="Resource" id="Resource_d5oav"]
+script = ExtResource("1_3cqbm")
 target_species_id = &"greymon"
 min_level = 10
 required_item_id = &""
@@ -15,8 +15,8 @@ required_flag = &""
 min_stats = {}
 hint = "Grows with experience."
 
-[sub_resource type="Resource" id="Resource_wxa2e"]
-script = ExtResource("1_gl3x5")
+[sub_resource type="Resource" id="Resource_0wwp2"]
+script = ExtResource("1_3cqbm")
 target_species_id = &"greymon"
 min_level = 7
 required_item_id = &"evo_shard"
@@ -28,10 +28,10 @@ min_stats = {}
 hint = "An Evo Shard can speed things up."
 
 [resource]
-script = ExtResource("2_entvm")
+script = ExtResource("2_bes3a")
 id = &"agumon"
 display_name = "Agumon"
-description = "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited. (Original placeholder model.)"
+description = "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited."
 stage = 2
 attribute = 0
 digimon_type = "Reptile"
@@ -56,13 +56,13 @@ learnset = {
 6: &"claw_swipe",
 9: &"battle_cry"
 }
-evolutions = Array[ExtResource("1_gl3x5")]([SubResource("Resource_qxwjn"), SubResource("Resource_wxa2e")])
+evolutions = Array[ExtResource("1_3cqbm")]([SubResource("Resource_d5oav"), SubResource("Resource_0wwp2")])
 base_exp_yield = 55
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Dino.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -75,5 +75,6 @@ placeholder_options = {
 "tail": true
 }
 model_scale = 1.0
+model_target_height = 1.1
 hovers = false
 move_speed = 3.5

@@ -249,6 +249,31 @@ func _evo(target: StringName, level: int, item: StringName = &"", hint := "") ->
 	return e
 
 
+## Quaternius "Ultimate Monsters" (CC0) model per species:
+## [file under assets/models/monsters, target height in m, hovers].
+const MODELS := {
+	&"koromon": ["blob/PinkBlob", 0.6, false],
+	&"tsunomon": ["blob/Birb", 0.6, false],
+	&"tokomon": ["blob/Chicken", 0.6, false],
+	&"agumon": ["big/Dino", 1.1, false],
+	&"gabumon": ["big/Yeti", 1.05, false],
+	&"patamon": ["blob/Dog", 0.75, true],
+	&"biyomon": ["flying/Pigeon", 0.75, true],
+	&"elecmon": ["big/Frog", 0.85, false],
+	&"goburimon": ["big/Orc", 1.0, false],
+	&"palmon": ["blob/Cactoro", 0.85, false],
+	&"kunemon": ["flying/Armabee", 0.7, true],
+	&"greymon": ["flying/Dragon_Evolved", 1.6, true],
+	&"garurumon": ["big/Fish", 1.4, false],
+	&"angemon": ["big/Bunny", 1.75, false],
+	&"birdramon": ["flying/Dragon", 0.75, true],
+	&"flymon": ["flying/Armabee_Evolved", 0.8, true],
+	&"leomon": ["big/Ninja", 1.1, false],
+	&"ogremon": ["big/Orc_Skull", 0.95, false],
+	&"togemon": ["big/Cactoro", 1.0, false],
+}
+
+
 func _species(id: StringName, def: Dictionary) -> void:
 	var s := DigimonSpecies.new()
 	s.id = id
@@ -294,6 +319,11 @@ func _species(id: StringName, def: Dictionary) -> void:
 	s.placeholder_options = def.get("options", {})
 	s.model_scale = def.get("scale", 1.0)
 	s.hovers = def.get("hovers", false)
+	if MODELS.has(id):
+		var m: Array = MODELS[id]
+		s.model_path = "res://assets/models/monsters/%s.gltf" % m[0]
+		s.model_target_height = m[1]
+		s.hovers = m[2]
 	s.move_speed = def.get("speed", 3.5)
 	s.animation_set = &"creature_default"
 	s.sounds = {&"cry": &"cry_%s" % def.get("cry", "small")}
@@ -309,7 +339,7 @@ func _generate_species() -> void:
 	_species(&"agumon", {
 		"name": "Agumon", "stage": ST.ROOKIE, "attr": AT.VACCINE, "type": "Reptile", "element": &"fire",
 		"rarity": RA.RARE, "base": ROOKIE, "mods": {"hp": 2, "atk": 2, "spd": -1, "spe": 0},
-		"desc": "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited. (Original placeholder model.)",
+		"desc": "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited.",
 		"innate": [&"tackle", &"ember_breath"], "learnset": {6: &"claw_swipe", 9: &"battle_cry"},
 		"evos": [_evo(&"greymon", 10, &"", "Grows with experience."), _evo(&"greymon", 7, &"evo_shard", "An Evo Shard can speed things up.")],
 		"exp": 55, "body": &"dino",
@@ -319,7 +349,7 @@ func _generate_species() -> void:
 	_species(&"gabumon", {
 		"name": "Gabumon", "stage": ST.ROOKIE, "attr": AT.DATA, "type": "Reptile", "element": &"ice",
 		"rarity": RA.RARE, "base": ROOKIE, "mods": {"hp": 4, "def": 3, "atk": 0, "spe": -1},
-		"desc": "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts. (Original placeholder model.)",
+		"desc": "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts.",
 		"innate": [&"tackle", &"frost_howl"], "learnset": {6: &"horn_ram", 9: &"pelt_guard"},
 		"evos": [_evo(&"garurumon", 10, &"", "Grows with experience."), _evo(&"garurumon", 7, &"evo_shard", "An Evo Shard can speed things up.")],
 		"exp": 55, "body": &"beast",
@@ -329,7 +359,7 @@ func _generate_species() -> void:
 	_species(&"patamon", {
 		"name": "Patamon", "stage": ST.ROOKIE, "attr": AT.DATA, "type": "Mammal", "element": &"wind",
 		"rarity": RA.RARE, "base": ROOKIE, "mods": {"hp": -2, "sp": 4, "atk": -1, "spa": 1, "spd": 2, "spe": 2},
-		"desc": "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer. (Original placeholder model.)",
+		"desc": "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer.",
 		"innate": [&"tackle", &"air_pop"], "learnset": {6: &"wing_slap", 9: &"soothing_light"},
 		"evos": [_evo(&"angemon", 10, &"", "Grows with experience."), _evo(&"angemon", 7, &"evo_shard", "An Evo Shard can speed things up.")],
 		"exp": 55, "body": &"winged", "hovers": true,
@@ -341,7 +371,7 @@ func _generate_species() -> void:
 	_species(&"greymon", {
 		"name": "Greymon", "stage": ST.CHAMPION, "attr": AT.VACCINE, "type": "Dinosaur", "element": &"fire",
 		"rarity": RA.RARE, "base": CHAMPION, "mods": {"atk": 3, "hp": 4},
-		"desc": "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows. (Original placeholder model.)",
+		"desc": "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows.",
 		"innate": [&"tackle", &"ember_breath", &"horn_crash"], "learnset": {12: &"inferno_burst", 15: &"battle_cry"},
 		"exp": 110, "body": &"big_dino", "scale": 1.0, "speed": 4.0,
 		"colors": [Color(1.0, 0.55, 0.16), Color(0.26, 0.36, 0.74), Color(0.62, 0.48, 0.32), Color(0.9, 0.2, 0.1)],
@@ -350,7 +380,7 @@ func _generate_species() -> void:
 	_species(&"garurumon", {
 		"name": "Garurumon", "stage": ST.CHAMPION, "attr": AT.DATA, "type": "Beast", "element": &"ice",
 		"rarity": RA.RARE, "base": CHAMPION, "mods": {"spe": 4, "def": 1},
-		"desc": "A swift wolf Digimon with a coat that shimmers like ice. It runs across the Digital World like the wind. (Original placeholder model.)",
+		"desc": "A swift wolf Digimon with a coat that shimmers like ice. It runs across the Digital World like the wind.",
 		"innate": [&"tackle", &"frost_howl", &"horn_ram"], "learnset": {12: &"glacial_fang", 15: &"pelt_guard"},
 		"exp": 110, "body": &"wolf", "speed": 5.0,
 		"colors": [Color(0.86, 0.92, 1.0), Color(0.3, 0.5, 0.92), Color(0.97, 0.98, 1.0), Color(0.85, 0.15, 0.15)],
@@ -359,7 +389,7 @@ func _generate_species() -> void:
 	_species(&"angemon", {
 		"name": "Angemon", "stage": ST.CHAMPION, "attr": AT.VACCINE, "type": "Angel", "element": &"light",
 		"rarity": RA.RARE, "base": CHAMPION, "mods": {"spa": 2, "spd": 3},
-		"desc": "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light. (Original placeholder model.)",
+		"desc": "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light.",
 		"innate": [&"tackle", &"air_pop", &"soothing_light"], "learnset": {12: &"radiant_strike", 15: &"guardian_wall"},
 		"exp": 110, "body": &"angel", "hovers": true, "speed": 4.2,
 		"colors": [Color(0.97, 0.97, 1.0), Color(0.3, 0.45, 0.9), Color(1.0, 0.84, 0.36), Color(0.3, 0.5, 0.9)],
@@ -370,7 +400,7 @@ func _generate_species() -> void:
 	_species(&"kunemon", {
 		"name": "Kunemon", "stage": ST.ROOKIE, "attr": AT.VIRUS, "type": "Larva", "element": &"thunder",
 		"rarity": RA.COMMON, "base": ROOKIE, "mods": {"hp": -6, "atk": -2, "def": -1, "spe": -1},
-		"desc": "A mischievous larva Digimon that spins crackling threads from its mouth. (Original placeholder model.)",
+		"desc": "A mischievous larva Digimon that spins crackling threads from its mouth.",
 		"innate": [&"tackle", &"static_silk"], "learnset": {5: &"pincer_nip"},
 		"evos": [_evo(&"flymon", 12)], "exp": 36, "body": &"larva", "speed": 2.6,
 		"drops": {&"small_patch": 0.3},
@@ -380,7 +410,7 @@ func _generate_species() -> void:
 	_species(&"goburimon", {
 		"name": "Goburimon", "stage": ST.ROOKIE, "attr": AT.VIRUS, "type": "Goblin", "element": &"earth",
 		"rarity": RA.COMMON, "base": ROOKIE, "mods": {"hp": -2, "atk": 1, "spa": -4, "spd": -2, "spe": -2},
-		"desc": "A cheeky goblin Digimon that swings a knobbly club at anything that moves. (Original placeholder model.)",
+		"desc": "A cheeky goblin Digimon that swings a knobbly club at anything that moves.",
 		"innate": [&"tackle", &"club_smash"], "learnset": {6: &"menace"},
 		"evos": [_evo(&"ogremon", 12)], "exp": 40, "body": &"goblin", "speed": 3.2,
 		"drops": {&"small_patch": 0.25, &"sp_capsule": 0.1},
@@ -390,7 +420,7 @@ func _generate_species() -> void:
 	_species(&"palmon", {
 		"name": "Palmon", "stage": ST.ROOKIE, "attr": AT.DATA, "type": "Plant", "element": &"plant",
 		"rarity": RA.UNCOMMON, "base": ROOKIE, "mods": {"atk": -2, "spd": 2},
-		"desc": "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines. (Original placeholder model.)",
+		"desc": "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines.",
 		"innate": [&"tackle", &"thorn_whip"], "learnset": {5: &"pollen_cloud", 8: &"leaf_drain"},
 		"evos": [_evo(&"togemon", 12)], "exp": 46, "body": &"plant", "speed": 3.0,
 		"drops": {&"small_patch": 0.25, &"friend_treat": 0.1},
@@ -400,7 +430,7 @@ func _generate_species() -> void:
 	_species(&"elecmon", {
 		"name": "Elecmon", "stage": ST.ROOKIE, "attr": AT.DATA, "type": "Mammal", "element": &"thunder",
 		"rarity": RA.UNCOMMON, "base": ROOKIE, "mods": {"hp": -3, "spa": 1, "spe": 4, "def": -1},
-		"desc": "A spirited mammal Digimon whose bundle of tails crackles with static. (Original placeholder model.)",
+		"desc": "A spirited mammal Digimon whose bundle of tails crackles with static.",
 		"innate": [&"tackle", &"spark_tail"], "learnset": {5: &"quick_dash", 8: &"focus"},
 		"evos": [_evo(&"leomon", 12)], "exp": 46, "body": &"critter", "speed": 4.5,
 		"drops": {&"sp_capsule": 0.2},
@@ -410,7 +440,7 @@ func _generate_species() -> void:
 	_species(&"biyomon", {
 		"name": "Biyomon", "stage": ST.ROOKIE, "attr": AT.VACCINE, "type": "Bird", "element": &"wind",
 		"rarity": RA.UNCOMMON, "base": ROOKIE, "mods": {"spe": 2, "spa": 1, "def": -2},
-		"desc": "A bright bird Digimon that is still learning to fly. It pecks with a beak that glows with heat. (Original placeholder model.)",
+		"desc": "A bright bird Digimon that is still learning to fly. It pecks with a beak that glows with heat.",
 		"innate": [&"tackle", &"flame_peck"], "learnset": {6: &"whirlwind", 9: &"focus"},
 		"evos": [_evo(&"birdramon", 12)], "exp": 46, "body": &"bird", "hovers": true, "speed": 3.6,
 		"drops": {&"small_patch": 0.2, &"friend_treat": 0.1},
@@ -422,7 +452,7 @@ func _generate_species() -> void:
 	_species(&"koromon", {
 		"name": "Koromon", "stage": ST.IN_TRAINING, "attr": AT.FREE, "type": "Lesser", "element": &"neutral",
 		"rarity": RA.UNCOMMON, "base": IN_TRAINING,
-		"desc": "A bouncy pink ball of a Digimon with long floppy ears. It hops everywhere. (Original placeholder model.)",
+		"desc": "A bouncy pink ball of a Digimon with long floppy ears. It hops everywhere.",
 		"innate": [&"tackle", &"bubble_puff"], "evos": [_evo(&"agumon", 6)], "exp": 30, "body": &"blob", "speed": 3.0,
 		"colors": [Color(1.0, 0.56, 0.7), Color(1.0, 0.8, 0.86), Color(0.9, 0.3, 0.5), Color(0.9, 0.2, 0.2)],
 		"options": {"ears": &"long"}, "cry": "squeak",
@@ -430,7 +460,7 @@ func _generate_species() -> void:
 	_species(&"tsunomon", {
 		"name": "Tsunomon", "stage": ST.IN_TRAINING, "attr": AT.FREE, "type": "Lesser", "element": &"neutral",
 		"rarity": RA.UNCOMMON, "base": IN_TRAINING,
-		"desc": "A small round Digimon with a single horn and soft blue fur. (Original placeholder model.)",
+		"desc": "A small round Digimon with a single horn and soft blue fur.",
 		"innate": [&"tackle", &"bubble_puff"], "evos": [_evo(&"gabumon", 6)], "exp": 30, "body": &"blob", "speed": 3.0,
 		"colors": [Color(0.52, 0.72, 1.0), Color(0.86, 0.92, 1.0), Color(0.95, 0.9, 0.75), Color(0.8, 0.2, 0.2)],
 		"options": {"horn": true}, "cry": "squeak",
@@ -438,7 +468,7 @@ func _generate_species() -> void:
 	_species(&"tokomon", {
 		"name": "Tokomon", "stage": ST.IN_TRAINING, "attr": AT.FREE, "type": "Lesser", "element": &"neutral",
 		"rarity": RA.UNCOMMON, "base": IN_TRAINING,
-		"desc": "A tiny white Digimon with little feet and a surprisingly big mouth. (Original placeholder model.)",
+		"desc": "A tiny white Digimon with little feet and a surprisingly big mouth.",
 		"innate": [&"tackle", &"bubble_puff"], "evos": [_evo(&"patamon", 6)], "exp": 30, "body": &"blob", "speed": 3.0,
 		"colors": [Color(0.98, 0.96, 0.92), Color(1.0, 0.8, 0.7), Color(1.0, 0.6, 0.55), Color(0.2, 0.2, 0.25)],
 		"options": {"ears": &"short", "feet": true}, "cry": "squeak",
@@ -448,7 +478,7 @@ func _generate_species() -> void:
 	_species(&"flymon", {
 		"name": "Flymon", "stage": ST.CHAMPION, "attr": AT.VIRUS, "type": "Insect", "element": &"wind",
 		"rarity": RA.UNCOMMON, "base": CHAMPION, "mods": {"spe": 3, "def": -2},
-		"desc": "A huge buzzing insect Digimon. The sound of its wings unsettles its foes. (Original placeholder model.)",
+		"desc": "A huge buzzing insect Digimon. The sound of its wings unsettles its foes.",
 		"innate": [&"tackle", &"static_silk", &"pincer_nip"], "learnset": {14: &"buzz_dive"},
 		"exp": 100, "body": &"larva", "hovers": true, "options": {"wings": true}, "scale": 1.3,
 		"colors": [Color(0.95, 0.72, 0.2), Color(0.22, 0.2, 0.26), Color(0.7, 0.9, 1.0), Color(0.9, 0.2, 0.2)],
@@ -457,7 +487,7 @@ func _generate_species() -> void:
 	_species(&"ogremon", {
 		"name": "Ogremon", "stage": ST.CHAMPION, "attr": AT.VIRUS, "type": "Ogre", "element": &"earth",
 		"rarity": RA.UNCOMMON, "base": CHAMPION, "mods": {"atk": 4, "spa": -4},
-		"desc": "A hulking ogre Digimon carrying a bone-white club. Rough, but it respects strength. (Original placeholder model.)",
+		"desc": "A hulking ogre Digimon carrying a bone-white club. Rough, but it respects strength.",
 		"innate": [&"tackle", &"club_smash", &"menace"], "learnset": {14: &"heavy_bash"},
 		"exp": 100, "body": &"goblin", "scale": 1.45,
 		"colors": [Color(0.3, 0.58, 0.3), Color(0.4, 0.26, 0.18), Color(0.94, 0.92, 0.86), Color(1.0, 0.8, 0.2)],
@@ -466,7 +496,7 @@ func _generate_species() -> void:
 	_species(&"togemon", {
 		"name": "Togemon", "stage": ST.CHAMPION, "attr": AT.DATA, "type": "Plant", "element": &"plant",
 		"rarity": RA.UNCOMMON, "base": CHAMPION, "mods": {"hp": 8, "def": 3, "spe": -3},
-		"desc": "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside. (Original placeholder model.)",
+		"desc": "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside.",
 		"innate": [&"tackle", &"thorn_whip", &"leaf_drain"], "learnset": {14: &"needle_storm"},
 		"exp": 100, "body": &"plant", "scale": 1.5, "options": {"cactus": true},
 		"colors": [Color(0.4, 0.7, 0.3), Color(1.0, 0.4, 0.4), Color(1.0, 0.85, 0.35), Color(0.1, 0.2, 0.1)],
@@ -475,7 +505,7 @@ func _generate_species() -> void:
 	_species(&"leomon", {
 		"name": "Leomon", "stage": ST.CHAMPION, "attr": AT.VACCINE, "type": "Beast Man", "element": &"earth",
 		"rarity": RA.RARE, "base": CHAMPION, "mods": {"atk": 3, "spe": 1},
-		"desc": "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice. (Original placeholder model.)",
+		"desc": "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice.",
 		"innate": [&"tackle", &"quick_dash", &"spark_tail"], "learnset": {14: &"beast_fist"},
 		"exp": 110, "body": &"beast", "scale": 1.4, "options": {"pelt": false, "mane": true, "horn": false},
 		"colors": [Color(1.0, 0.8, 0.4), Color(0.85, 0.5, 0.2), Color(0.95, 0.9, 0.8), Color(0.2, 0.2, 0.2)],
@@ -484,7 +514,7 @@ func _generate_species() -> void:
 	_species(&"birdramon", {
 		"name": "Birdramon", "stage": ST.CHAMPION, "attr": AT.VACCINE, "type": "Giant Bird", "element": &"fire",
 		"rarity": RA.RARE, "base": CHAMPION, "mods": {"spe": 3, "spa": 2, "def": -2},
-		"desc": "A great bird Digimon whose wings blaze like a sunrise. (Original placeholder model.)",
+		"desc": "A great bird Digimon whose wings blaze like a sunrise.",
 		"innate": [&"tackle", &"flame_peck", &"whirlwind"], "learnset": {14: &"meteor_wing"},
 		"exp": 110, "body": &"bird", "hovers": true, "scale": 1.5,
 		"colors": [Color(1.0, 0.5, 0.2), Color(1.0, 0.85, 0.3), Color(1.0, 0.3, 0.15), Color(0.3, 0.2, 0.1)],

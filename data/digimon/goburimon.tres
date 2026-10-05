@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_yb10c"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_l5fch"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_ttybq"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_5gdwx"]
 
-[sub_resource type="Resource" id="Resource_j3nij"]
-script = ExtResource("1_yb10c")
+[sub_resource type="Resource" id="Resource_o8vyp"]
+script = ExtResource("1_ttybq")
 target_species_id = &"ogremon"
 min_level = 12
 required_item_id = &""
@@ -16,10 +16,10 @@ min_stats = {}
 hint = ""
 
 [resource]
-script = ExtResource("2_l5fch")
+script = ExtResource("2_5gdwx")
 id = &"goburimon"
 display_name = "Goburimon"
-description = "A cheeky goblin Digimon that swings a knobbly club at anything that moves. (Original placeholder model.)"
+description = "A cheeky goblin Digimon that swings a knobbly club at anything that moves."
 stage = 2
 attribute = 2
 digimon_type = "Goblin"
@@ -43,14 +43,14 @@ innate_skills = Array[StringName]([&"tackle", &"club_smash"])
 learnset = {
 6: &"menace"
 }
-evolutions = Array[ExtResource("1_yb10c")]([SubResource("Resource_j3nij")])
+evolutions = Array[ExtResource("1_ttybq")]([SubResource("Resource_o8vyp")])
 base_exp_yield = 40
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.25,
 "sp_capsule": 0.1
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Orc.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -60,5 +60,6 @@ placeholder_body = &"goblin"
 placeholder_colors = PackedColorArray(0.46, 0.74, 0.36, 1, 0.56, 0.36, 0.2, 1, 0.64, 0.5, 0.34, 1, 0.95, 0.85, 0.2, 1)
 placeholder_options = {}
 model_scale = 1.0
+model_target_height = 1.0
 hovers = false
 move_speed = 3.2

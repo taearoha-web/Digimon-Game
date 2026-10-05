@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_wfauv"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_gufi1"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_4a5dg"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_5cemf"]
 
 [resource]
-script = ExtResource("2_gufi1")
+script = ExtResource("2_5cemf")
 id = &"flymon"
 display_name = "Flymon"
-description = "A huge buzzing insect Digimon. The sound of its wings unsettles its foes. (Original placeholder model.)"
+description = "A huge buzzing insect Digimon. The sound of its wings unsettles its foes."
 stage = 3
 attribute = 2
 digimon_type = "Insect"
@@ -31,13 +31,13 @@ innate_skills = Array[StringName]([&"tackle", &"static_silk", &"pincer_nip"])
 learnset = {
 14: &"buzz_dive"
 }
-evolutions = Array[ExtResource("1_wfauv")]([])
+evolutions = Array[ExtResource("1_4a5dg")]([])
 base_exp_yield = 100
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/flying/Armabee_Evolved.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -49,5 +49,6 @@ placeholder_options = {
 "wings": true
 }
 model_scale = 1.3
+model_target_height = 0.8
 hovers = true
 move_speed = 3.5

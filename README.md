@@ -8,9 +8,10 @@ level up, evolve, manage your party, and save your progress.
 The game is designed **touch-first, landscape-only** for Android (iOS
 secondary), with full keyboard/mouse controls for testing on PC.
 
-> **Assets:** every model, texture, sound and piece of music in this repo is an
-> **original placeholder** (procedural geometry and synthesized audio). No
-> copyrighted Digimon assets are included or required. Fonts are SIL OFL
+> **Assets:** Digimon use free CC0 monster models by Quaternius; everything
+> else (characters, world, sounds, music) is an **original placeholder**
+> (procedural geometry and synthesized audio). No official Digimon assets are
+> included or required. Fonts are SIL OFL
 > (Fredoka, Nunito). See [Asset replacement](#asset-replacement).
 
 ![Main menu](docs/screenshots/01_main_menu.png)
@@ -263,7 +264,8 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Known limitations
 
-* All art and audio are **placeholders**; animations are procedural.
+* Digimon use CC0 Quaternius models; characters, world and audio are still
+  **placeholders** with procedural animation.
 * Two explorable zones; further gateways need new `MapData` + scenes.
 * Status effects: poison, stun and burn (architecture supports more).
 * Not yet tested on physical Android/iOS devices (validated with headless

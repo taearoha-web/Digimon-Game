@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_dlgc5"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_u0b5b"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_wt5f4"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_4spiu"]
 
-[sub_resource type="Resource" id="Resource_0gw0f"]
-script = ExtResource("1_dlgc5")
+[sub_resource type="Resource" id="Resource_xhw2p"]
+script = ExtResource("1_wt5f4")
 target_species_id = &"garurumon"
 min_level = 10
 required_item_id = &""
@@ -15,8 +15,8 @@ required_flag = &""
 min_stats = {}
 hint = "Grows with experience."
 
-[sub_resource type="Resource" id="Resource_b0de2"]
-script = ExtResource("1_dlgc5")
+[sub_resource type="Resource" id="Resource_pnanr"]
+script = ExtResource("1_wt5f4")
 target_species_id = &"garurumon"
 min_level = 7
 required_item_id = &"evo_shard"
@@ -28,10 +28,10 @@ min_stats = {}
 hint = "An Evo Shard can speed things up."
 
 [resource]
-script = ExtResource("2_u0b5b")
+script = ExtResource("2_4spiu")
 id = &"gabumon"
 display_name = "Gabumon"
-description = "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts. (Original placeholder model.)"
+description = "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts."
 stage = 2
 attribute = 1
 digimon_type = "Reptile"
@@ -56,13 +56,13 @@ learnset = {
 6: &"horn_ram",
 9: &"pelt_guard"
 }
-evolutions = Array[ExtResource("1_dlgc5")]([SubResource("Resource_0gw0f"), SubResource("Resource_b0de2")])
+evolutions = Array[ExtResource("1_wt5f4")]([SubResource("Resource_xhw2p"), SubResource("Resource_pnanr")])
 base_exp_yield = 55
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Yeti.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -75,5 +75,6 @@ placeholder_options = {
 "pelt": true
 }
 model_scale = 1.0
+model_target_height = 1.05
 hovers = false
 move_speed = 3.5

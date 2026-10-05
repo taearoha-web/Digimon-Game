@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_8i57e"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_7ncu2"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_ifbu0"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_3nnop"]
 
 [resource]
-script = ExtResource("2_7ncu2")
+script = ExtResource("2_3nnop")
 id = &"togemon"
 display_name = "Togemon"
-description = "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside. (Original placeholder model.)"
+description = "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside."
 stage = 3
 attribute = 1
 digimon_type = "Plant"
@@ -31,13 +31,13 @@ innate_skills = Array[StringName]([&"tackle", &"thorn_whip", &"leaf_drain"])
 learnset = {
 14: &"needle_storm"
 }
-evolutions = Array[ExtResource("1_8i57e")]([])
+evolutions = Array[ExtResource("1_ifbu0")]([])
 base_exp_yield = 100
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Cactoro.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -49,5 +49,6 @@ placeholder_options = {
 "cactus": true
 }
 model_scale = 1.5
+model_target_height = 1.0
 hovers = false
 move_speed = 3.5

@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_le6xb"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_3dyyd"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_dxc67"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_pme1y"]
 
 [resource]
-script = ExtResource("2_3dyyd")
+script = ExtResource("2_pme1y")
 id = &"angemon"
 display_name = "Angemon"
-description = "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light. (Original placeholder model.)"
+description = "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light."
 stage = 3
 attribute = 0
 digimon_type = "Angel"
@@ -32,13 +32,13 @@ learnset = {
 12: &"radiant_strike",
 15: &"guardian_wall"
 }
-evolutions = Array[ExtResource("1_le6xb")]([])
+evolutions = Array[ExtResource("1_dxc67")]([])
 base_exp_yield = 110
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Bunny.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -48,5 +48,6 @@ placeholder_body = &"angel"
 placeholder_colors = PackedColorArray(0.97, 0.97, 1, 1, 0.3, 0.45, 0.9, 1, 1, 0.84, 0.36, 1, 0.3, 0.5, 0.9, 1)
 placeholder_options = {}
 model_scale = 1.0
-hovers = true
+model_target_height = 1.75
+hovers = false
 move_speed = 4.2

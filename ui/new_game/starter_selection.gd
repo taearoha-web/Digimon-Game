@@ -63,7 +63,7 @@ func _build_card(index: int, species: DigimonSpecies) -> PanelContainer:
 	name_row.add_child(UIUtil.chip(species.get_attribute_name(), UIPalette.attribute_color(species.attribute)))
 	var tagline: String = str(_roster.taglines.get(species.id, species.digimon_type))
 	box.add_child(UIUtil.label(L10n.t("%s  ·  %s type  ·  %s") % [tagline, species.digimon_type, UIUtil.element_name(species.element)], &"SmallLabel"))
-	var desc := UIUtil.label(species.description.replace(L10n.t(" (Original placeholder model.)"), ""), &"SmallLabel")
+	var desc := UIUtil.label(species.description, &"SmallLabel")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.add_theme_font_size_override("font_size", 15)
 	desc.max_lines_visible = 3

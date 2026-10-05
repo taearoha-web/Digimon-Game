@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_s1dbu"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_fj6oa"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_viiid"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_7d0f0"]
 
-[sub_resource type="Resource" id="Resource_blcgk"]
-script = ExtResource("1_s1dbu")
+[sub_resource type="Resource" id="Resource_skkc2"]
+script = ExtResource("1_viiid")
 target_species_id = &"leomon"
 min_level = 12
 required_item_id = &""
@@ -16,10 +16,10 @@ min_stats = {}
 hint = ""
 
 [resource]
-script = ExtResource("2_fj6oa")
+script = ExtResource("2_7d0f0")
 id = &"elecmon"
 display_name = "Elecmon"
-description = "A spirited mammal Digimon whose bundle of tails crackles with static. (Original placeholder model.)"
+description = "A spirited mammal Digimon whose bundle of tails crackles with static."
 stage = 2
 attribute = 1
 digimon_type = "Mammal"
@@ -44,13 +44,13 @@ learnset = {
 5: &"quick_dash",
 8: &"focus"
 }
-evolutions = Array[ExtResource("1_s1dbu")]([SubResource("Resource_blcgk")])
+evolutions = Array[ExtResource("1_viiid")]([SubResource("Resource_skkc2")])
 base_exp_yield = 46
 recruit_modifier = 1.0
 drop_table = {
 "sp_capsule": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/big/Frog.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -60,5 +60,6 @@ placeholder_body = &"critter"
 placeholder_colors = PackedColorArray(0.92, 0.3, 0.26, 1, 0.3, 0.42, 0.88, 1, 0.66, 0.42, 0.92, 1, 0.1, 0.1, 0.12, 1)
 placeholder_options = {}
 model_scale = 1.0
+model_target_height = 0.85
 hovers = false
 move_speed = 4.5

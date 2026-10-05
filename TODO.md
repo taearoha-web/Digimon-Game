@@ -16,7 +16,8 @@
 - [ ] Day/night tint and ambient creatures
 
 ## Presentation
-- [ ] Replace placeholder models with real art (see docs/ASSET_REPLACEMENT.md)
+- [x] Replace placeholder Digimon models with real art (Quaternius CC0)
+- [ ] Replace the procedural player/NPC avatars and world scenery with real art
 - [ ] Proper portrait icons for species (`DigimonSpecies.icon_path`)
 - [ ] Footstep / ambient loops, per-skill SFX variety
 - [ ] Camera auto-recentre option while moving

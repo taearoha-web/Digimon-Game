@@ -74,6 +74,9 @@ const RARITY_NAMES := ["Common", "Uncommon", "Rare", "Legendary"]
 ## Free-form options for the body plan (horns, wings, tail length…).
 @export var placeholder_options: Dictionary = {}
 @export var model_scale: float = 1.0
+## Height (m) an imported model is normalised to before [member model_scale].
+## 0 = use the model's own size.
+@export var model_target_height: float = 0.0
 ## Floating creatures hover above the ground.
 @export var hovers: bool = false
 @export var move_speed: float = 3.5

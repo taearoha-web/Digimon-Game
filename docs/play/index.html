@@ -203,14 +203,14 @@
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v0.3.0</p>
+    <p class="eyebrow">Web build · v0.4.0</p>
     <h1>Digital World <span>Tamer</span></h1>
     <p class="lede">เกม RPG 3 มิติ: สร้างตัวละคร เลือกคู่หู ออกผจญภัย ต่อสู้แบบผลัดกันเล่น และชวนมอนสเตอร์มาเป็นเพื่อน</p>
     <button id="play" type="button">เริ่มเล่น</button>
     <div class="progress" aria-live="polite">
       <div class="bar"><i id="bar"></i></div>
       <p class="note" id="fs-note" hidden>iPhone: กดปุ่มแชร์ → "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ</p>
-      <p id="status">ขนาดดาวน์โหลดประมาณ 13 MB · เล่นแนวนอน</p>
+      <p id="status">ขนาดดาวน์โหลดประมาณ 16 MB · เล่นแนวนอน</p>
     </div>
     <ul class="controls">
       <li><b>เดิน</b>ลากจอยวงกลมด้านซ้าย (ดันสุดเพื่อวิ่ง)</li>
@@ -233,9 +233,9 @@
 <script src="index.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 2, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 8177808, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 2, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 11637552, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
   // Compressed copies published next to the page: name -> [file, bytes, mime]
-  const PACKED = {"index.wasm": ["engine.gz.wasm", 7975981, "application/wasm"], "index.pck": ["game.gz.wasm", 5769986, "application/octet-stream"]};
+  const PACKED = {"index.wasm": ["engine.gz.wasm", 7975981, "application/wasm"], "index.pck": ["game.gz.wasm", 9180048, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');

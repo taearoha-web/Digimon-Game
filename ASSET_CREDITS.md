@@ -9,8 +9,9 @@
 | `i18n/th.po` (Thai translation) | Written for this project | Project |
 | `assets/icons/**` | Original, hand-written SVG for this project | Project |
 | `audio/**` | Original, synthesized by `tools/generate_placeholder_audio.py` | Project |
-| 3D characters, Digimon placeholders, world | Original procedural geometry (code) | Project |
+| `assets/models/monsters/**` (Digimon models and animations) | "Ultimate Monsters" by Quaternius (quaternius.com) | CC0 1.0 (`assets/models/monsters/LICENSE-Quaternius.txt`) |
+| 3D player/NPC characters, fallback Digimon placeholders, world | Original procedural geometry (code) | Project |
 
-No copyrighted Digimon models, textures, animations, music, sound effects,
+No official Digimon models, textures, animations, music, sound effects,
 icons or artwork are included. Digimon names appear only as data for this
 private prototype.

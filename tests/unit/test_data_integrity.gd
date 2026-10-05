@@ -20,6 +20,21 @@ func test_species_references() -> void:
 		check(species.placeholder_colors.size() >= 3, "%s needs placeholder colours" % species.id)
 
 
+func test_species_models() -> void:
+	for species in GameData.get_all_species():
+		if species.model_path == "":
+			continue
+		check(ResourceLoader.exists(species.model_path), "%s model missing: %s" % [species.id, species.model_path])
+		check(species.model_target_height > 0.0, "%s has no model target height" % species.id)
+		var visual := DigimonVisual.new()
+		visual.set_species(species)
+		check(visual.model != null, "%s model did not load" % species.id)
+		check(visual.model_height > 0.2 and visual.model_height < 3.0, "%s model height %.2f" % [species.id, visual.model_height])
+		for clip in [&"idle", &"walk", &"attack", &"hurt", &"defeat", &"victory"]:
+			check(visual._resolve(clip) != &"", "%s has no '%s' animation" % [species.id, clip])
+		visual.free()
+
+
 func test_starter_roster() -> void:
 	var roster := GameData.starter_roster
 	check_eq(roster.starter_ids.size(), 3, "starter count")

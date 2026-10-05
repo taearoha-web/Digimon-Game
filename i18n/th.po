@@ -379,16 +379,16 @@ msgid "Scanning party… Restoring data… Done! Your Digimon are fully healed."
 msgstr "กำลังสแกนปาร์ตี้… กำลังกู้คืนข้อมูล… เสร็จแล้ว! ดิจิมอนของคุณฟื้นฟูเต็มที่แล้ว"
 
 #: data/digimon/agumon.tres
-msgid "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited. (Original placeholder model.)"
-msgstr "ดิจิมอนสัตว์เลื้อยคลานตัวเล็กผู้กล้าหาญ กินจุและใจใหญ่ยิ่งกว่า เวลาตื่นเต้นจะพ่นไฟเล็ก ๆ ออกมา (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A small, brave reptile Digimon with a big appetite and an even bigger heart. It puffs out little flames when excited."
+msgstr "ดิจิมอนสัตว์เลื้อยคลานตัวเล็กผู้กล้าหาญ กินจุและใจใหญ่ยิ่งกว่า เวลาตื่นเต้นจะพ่นไฟเล็ก ๆ ออกมา"
 
 #: data/digimon/agumon.tres
 msgid "Agumon"
 msgstr "อากุมอน"
 
 #: data/digimon/angemon.tres
-msgid "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light. (Original placeholder model.)"
-msgstr "ดิจิมอนผู้พิทักษ์ที่เปล่งประกาย มีปีกหลายคู่ คอยปกป้องผู้อ่อนแอด้วยแสงอันมั่นคง (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A radiant guardian Digimon with several pairs of wings. It protects the weak with a steady light."
+msgstr "ดิจิมอนผู้พิทักษ์ที่เปล่งประกาย มีปีกหลายคู่ คอยปกป้องผู้อ่อนแอด้วยแสงอันมั่นคง"
 
 #: data/digimon/angemon.tres
 msgid "Angel"
@@ -399,8 +399,8 @@ msgid "Angemon"
 msgstr "เอนเจมอน"
 
 #: data/digimon/birdramon.tres
-msgid "A great bird Digimon whose wings blaze like a sunrise. (Original placeholder model.)"
-msgstr "ดิจิมอนนกยักษ์ที่ปีกลุกโชนราวกับดวงอาทิตย์ยามเช้า (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A great bird Digimon whose wings blaze like a sunrise."
+msgstr "ดิจิมอนนกยักษ์ที่ปีกลุกโชนราวกับดวงอาทิตย์ยามเช้า"
 
 #: data/digimon/birdramon.tres
 msgid "Birdramon"
@@ -411,8 +411,8 @@ msgid "Giant Bird"
 msgstr "นกยักษ์"
 
 #: data/digimon/biyomon.tres
-msgid "A bright bird Digimon that is still learning to fly. It pecks with a beak that glows with heat. (Original placeholder model.)"
-msgstr "ดิจิมอนนกสีสดใสที่ยังหัดบินอยู่ จิกด้วยจะงอยปากที่ร้อนเรืองแสง (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A bright bird Digimon that is still learning to fly. It pecks with a beak that glows with heat."
+msgstr "ดิจิมอนนกสีสดใสที่ยังหัดบินอยู่ จิกด้วยจะงอยปากที่ร้อนเรืองแสง"
 
 #: data/digimon/biyomon.tres
 msgid "Bird"
@@ -423,16 +423,16 @@ msgid "Biyomon"
 msgstr "ปิโยมอน"
 
 #: data/digimon/elecmon.tres
-msgid "A spirited mammal Digimon whose bundle of tails crackles with static. (Original placeholder model.)"
-msgstr "ดิจิมอนสัตว์เลี้ยงลูกด้วยนมจอมพลัง หางหลายเส้นของมันมีไฟฟ้าสถิตแตกเปาะแปะ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A spirited mammal Digimon whose bundle of tails crackles with static."
+msgstr "ดิจิมอนสัตว์เลี้ยงลูกด้วยนมจอมพลัง หางหลายเส้นของมันมีไฟฟ้าสถิตแตกเปาะแปะ"
 
 #: data/digimon/elecmon.tres
 msgid "Elecmon"
 msgstr "เอเลคมอน"
 
 #: data/digimon/flymon.tres
-msgid "A huge buzzing insect Digimon. The sound of its wings unsettles its foes. (Original placeholder model.)"
-msgstr "ดิจิมอนแมลงตัวใหญ่ส่งเสียงหึ่ง เสียงปีกของมันทำให้ศัตรูหวั่นใจ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A huge buzzing insect Digimon. The sound of its wings unsettles its foes."
+msgstr "ดิจิมอนแมลงตัวใหญ่ส่งเสียงหึ่ง เสียงปีกของมันทำให้ศัตรูหวั่นใจ"
 
 #: data/digimon/flymon.tres
 msgid "Flymon"
@@ -443,8 +443,8 @@ msgid "Insect"
 msgstr "แมลง"
 
 #: data/digimon/gabumon.tres
-msgid "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts. (Original placeholder model.)"
-msgstr "ดิจิมอนมีเขาขี้อาย ชอบซ่อนตัวใต้ขนลายทางอุ่น ๆ ซื่อสัตย์และสุขุม พ่นลมเย็นสีฟ้าได้ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A shy horned Digimon that hides under a warm striped pelt. Loyal and calm, it breathes chilly blue gusts."
+msgstr "ดิจิมอนมีเขาขี้อาย ชอบซ่อนตัวใต้ขนลายทางอุ่น ๆ ซื่อสัตย์และสุขุม พ่นลมเย็นสีฟ้าได้"
 
 #: data/digimon/gabumon.tres
 msgid "An Evo Shard can speed things up."
@@ -463,8 +463,8 @@ msgid "Reptile"
 msgstr "สัตว์เลื้อยคลาน"
 
 #: data/digimon/garurumon.tres
-msgid "A swift wolf Digimon with a coat that shimmers like ice. It runs across the Digital World like the wind. (Original placeholder model.)"
-msgstr "ดิจิมอนหมาป่าว่องไว ขนเป็นประกายเหมือนน้ำแข็ง วิ่งข้ามดิจิทัลเวิลด์ได้เร็วดั่งสายลม (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A swift wolf Digimon with a coat that shimmers like ice. It runs across the Digital World like the wind."
+msgstr "ดิจิมอนหมาป่าว่องไว ขนเป็นประกายเหมือนน้ำแข็ง วิ่งข้ามดิจิทัลเวิลด์ได้เร็วดั่งสายลม"
 
 #: data/digimon/garurumon.tres
 msgid "Beast"
@@ -475,8 +475,8 @@ msgid "Garurumon"
 msgstr "การุรุมอน"
 
 #: data/digimon/goburimon.tres
-msgid "A cheeky goblin Digimon that swings a knobbly club at anything that moves. (Original placeholder model.)"
-msgstr "ดิจิมอนก็อบลินจอมทะเล้น ฟาดกระบองปุ่มปมใส่ทุกอย่างที่ขยับ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A cheeky goblin Digimon that swings a knobbly club at anything that moves."
+msgstr "ดิจิมอนก็อบลินจอมทะเล้น ฟาดกระบองปุ่มปมใส่ทุกอย่างที่ขยับ"
 
 #: data/digimon/goburimon.tres
 msgid "Goblin"
@@ -487,8 +487,8 @@ msgid "Goburimon"
 msgstr "โกบุริมอน"
 
 #: data/digimon/greymon.tres
-msgid "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows. (Original placeholder model.)"
-msgstr "ดิจิมอนไดโนเสาร์หุ้มเกราะร่างสูงใหญ่ หัวที่สวมหมวกเกราะรับการโจมตีหนัก ๆ ได้สบาย (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A towering armoured dinosaur Digimon. Its helmeted head can shrug off heavy blows."
+msgstr "ดิจิมอนไดโนเสาร์หุ้มเกราะร่างสูงใหญ่ หัวที่สวมหมวกเกราะรับการโจมตีหนัก ๆ ได้สบาย"
 
 #: data/digimon/greymon.tres
 msgid "Dinosaur"
@@ -499,8 +499,8 @@ msgid "Greymon"
 msgstr "เกรย์มอน"
 
 #: data/digimon/koromon.tres
-msgid "A bouncy pink ball of a Digimon with long floppy ears. It hops everywhere. (Original placeholder model.)"
-msgstr "ดิจิมอนลูกกลมสีชมพูเด้งดึ๋ง หูยาวห้อย กระโดดไปทั่ว (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A bouncy pink ball of a Digimon with long floppy ears. It hops everywhere."
+msgstr "ดิจิมอนลูกกลมสีชมพูเด้งดึ๋ง หูยาวห้อย กระโดดไปทั่ว"
 
 #: data/digimon/koromon.tres
 msgid "Koromon"
@@ -511,8 +511,8 @@ msgid "Lesser"
 msgstr "ดิจิมอนตัวจิ๋ว"
 
 #: data/digimon/kunemon.tres
-msgid "A mischievous larva Digimon that spins crackling threads from its mouth. (Original placeholder model.)"
-msgstr "ดิจิมอนตัวอ่อนจอมซน พ่นใยไฟฟ้าแตกเปาะแปะออกจากปาก (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A mischievous larva Digimon that spins crackling threads from its mouth."
+msgstr "ดิจิมอนตัวอ่อนจอมซน พ่นใยไฟฟ้าแตกเปาะแปะออกจากปาก"
 
 #: data/digimon/kunemon.tres
 msgid "Kunemon"
@@ -523,8 +523,8 @@ msgid "Larva"
 msgstr "ตัวอ่อน"
 
 #: data/digimon/leomon.tres
-msgid "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice. (Original placeholder model.)"
-msgstr "ดิจิมอนนักรบสง่างามคล้ายสิงโต แผงคอพลิ้วไหว ยึดมั่นในความยุติธรรม (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A noble lion-like warrior Digimon with a flowing mane and a strong sense of justice."
+msgstr "ดิจิมอนนักรบสง่างามคล้ายสิงโต แผงคอพลิ้วไหว ยึดมั่นในความยุติธรรม"
 
 #: data/digimon/leomon.tres
 msgid "Beast Man"
@@ -535,8 +535,8 @@ msgid "Leomon"
 msgstr "ลีโอมอน"
 
 #: data/digimon/ogremon.tres
-msgid "A hulking ogre Digimon carrying a bone-white club. Rough, but it respects strength. (Original placeholder model.)"
-msgstr "ดิจิมอนยักษ์ร่างกำยำถือกระบองสีขาวดั่งกระดูก ดูหยาบกระด้างแต่เคารพคนที่แข็งแกร่ง (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A hulking ogre Digimon carrying a bone-white club. Rough, but it respects strength."
+msgstr "ดิจิมอนยักษ์ร่างกำยำถือกระบองสีขาวดั่งกระดูก ดูหยาบกระด้างแต่เคารพคนที่แข็งแกร่ง"
 
 #: data/digimon/ogremon.tres
 msgid "Ogre"
@@ -547,16 +547,16 @@ msgid "Ogremon"
 msgstr "โอเกอร์มอน"
 
 #: data/digimon/palmon.tres
-msgid "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines. (Original placeholder model.)"
-msgstr "ดิจิมอนพืชที่มีดอกไม้ใหญ่บนหัว ชอบแสงแดดและยืดเถาวัลย์ได้ (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A plant Digimon with a big flower on its head. It loves sunshine and can stretch its vines."
+msgstr "ดิจิมอนพืชที่มีดอกไม้ใหญ่บนหัว ชอบแสงแดดและยืดเถาวัลย์ได้"
 
 #: data/digimon/palmon.tres
 msgid "Palmon"
 msgstr "พาลมอน"
 
 #: data/digimon/patamon.tres
-msgid "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer. (Original placeholder model.)"
-msgstr "ดิจิมอนตัวกลมร่าเริง บินได้ด้วยการกระพือหูใหญ่ ๆ ว่ากันว่านำโชคมาให้เทมเมอร์ของมัน (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A round, cheerful Digimon that flies by flapping its big ear-wings. Said to bring good luck to its Tamer."
+msgstr "ดิจิมอนตัวกลมร่าเริง บินได้ด้วยการกระพือหูใหญ่ ๆ ว่ากันว่านำโชคมาให้เทมเมอร์ของมัน"
 
 #: data/digimon/patamon.tres
 msgid "Mammal"
@@ -567,24 +567,24 @@ msgid "Patamon"
 msgstr "พาตามอน"
 
 #: data/digimon/togemon.tres
-msgid "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside. (Original placeholder model.)"
-msgstr "ดิจิมอนกระบองเพชรยักษ์สวมนวมชกมวย ภายนอกมีหนาม แต่ภายในใจดี (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A giant cactus Digimon wearing boxing gloves. Prickly outside, kind inside."
+msgstr "ดิจิมอนกระบองเพชรยักษ์สวมนวมชกมวย ภายนอกมีหนาม แต่ภายในใจดี"
 
 #: data/digimon/togemon.tres
 msgid "Togemon"
 msgstr "โทเกมอน"
 
 #: data/digimon/tokomon.tres
-msgid "A tiny white Digimon with little feet and a surprisingly big mouth. (Original placeholder model.)"
-msgstr "ดิจิมอนตัวจิ๋วสีขาว เท้าเล็ก ๆ แต่ปากใหญ่อย่างน่าประหลาด (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A tiny white Digimon with little feet and a surprisingly big mouth."
+msgstr "ดิจิมอนตัวจิ๋วสีขาว เท้าเล็ก ๆ แต่ปากใหญ่อย่างน่าประหลาด"
 
 #: data/digimon/tokomon.tres
 msgid "Tokomon"
 msgstr "โทโคมอน"
 
 #: data/digimon/tsunomon.tres
-msgid "A small round Digimon with a single horn and soft blue fur. (Original placeholder model.)"
-msgstr "ดิจิมอนตัวกลมเล็ก มีเขาเดียวและขนสีฟ้านุ่มนิ่ม (โมเดลชั่วคราวที่ทำขึ้นเอง)"
+msgid "A small round Digimon with a single horn and soft blue fur."
+msgstr "ดิจิมอนตัวกลมเล็ก มีเขาเดียวและขนสีฟ้านุ่มนิ่ม"
 
 #: data/digimon/tsunomon.tres
 msgid "Tsunomon"
@@ -2669,10 +2669,6 @@ msgstr "ดิจิมอนและเทมเมอร์คนอื่น
 #: ui/new_game/player_name.gd
 msgid "What's Your Name?"
 msgstr "คุณชื่ออะไร?"
-
-#: ui/new_game/starter_selection.gd
-msgid " (Original placeholder model.)"
-msgstr " (โมเดลชั่วคราวที่ทำขึ้นเอง)"
 
 #: ui/new_game/starter_selection.gd
 msgid "%s  ·  %s type  ·  %s"

@@ -11,7 +11,8 @@ Each species is a `DigimonSpecies` resource in `res://data/digimon/<id>.tres`.
 | Field | Purpose |
 |---|---|
 | `model_path` | Path to a `.tscn`, `.scn`, `.glb` or `.gltf`. **Empty = procedural placeholder.** |
-| `model_scale` | Uniform scale applied to the model root |
+| `model_target_height` | Height (m) an imported model is normalised to; 0 = keep its own size |
+| `model_scale` | Uniform scale applied on top (also used by the placeholder) |
 | `icon_path` | Optional portrait/icon texture |
 | `animation_set` | Name of the animation contract (currently `creature_default`) |
 | `sounds` | `{ "cry": "cry_roar" }` – sound ids resolved by AudioManager |
@@ -33,7 +34,17 @@ contract** is:
 | `victory` | celebrating | yes |
 
 Missing clips fall back gracefully (`run → walk → idle`, `skill → attack`, …).
-Models should face **+Z** and have their origin at the feet.
+Models with other clip names are mapped through `DigimonVisual.CLIP_ALIASES`
+(e.g. `Idle`/`Flying_Idle` → `idle`, `Bite_Front`/`Punch` → `attack`,
+`Death` → `defeat`); add names there for a new asset pack.
+Models should face **+Z**. Imported models are scaled to `model_target_height`
+(measured from the larger of bind-pose height and depth, so T-posed arms and
+spread wings don't count) and their lowest point is put on the ground.
+
+The current models are Quaternius "Ultimate Monsters" (CC0) in
+`res://assets/models/monsters/`; the species → model table lives in
+`MODELS` in `tools/generate_data.gd`. To compare all species at once:
+`godot --path . res://tests/tools/preview_digimon.tscn -- out.png [animation]`.
 
 Placeholder look is controlled by `placeholder_body` (`dino`, `big_dino`,
 `beast`, `winged`, `wolf`, `angel`, `larva`, `goblin`, `plant`, `critter`,

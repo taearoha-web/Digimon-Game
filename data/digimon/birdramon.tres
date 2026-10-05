@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="DigimonSpecies" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_ffkv5"]
-[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_8wswc"]
+[ext_resource type="Script" path="res://systems/digimon/evolution_path.gd" id="1_toym4"]
+[ext_resource type="Script" path="res://systems/digimon/digimon_species.gd" id="2_yk2l4"]
 
 [resource]
-script = ExtResource("2_8wswc")
+script = ExtResource("2_yk2l4")
 id = &"birdramon"
 display_name = "Birdramon"
-description = "A great bird Digimon whose wings blaze like a sunrise. (Original placeholder model.)"
+description = "A great bird Digimon whose wings blaze like a sunrise."
 stage = 3
 attribute = 0
 digimon_type = "Giant Bird"
@@ -31,13 +31,13 @@ innate_skills = Array[StringName]([&"tackle", &"flame_peck", &"whirlwind"])
 learnset = {
 14: &"meteor_wing"
 }
-evolutions = Array[ExtResource("1_ffkv5")]([])
+evolutions = Array[ExtResource("1_toym4")]([])
 base_exp_yield = 110
 recruit_modifier = 1.0
 drop_table = {
 "small_patch": 0.2
 }
-model_path = ""
+model_path = "res://assets/models/monsters/flying/Dragon.gltf"
 icon_path = ""
 animation_set = &"creature_default"
 sounds = {
@@ -47,5 +47,6 @@ placeholder_body = &"bird"
 placeholder_colors = PackedColorArray(1, 0.5, 0.2, 1, 1, 0.85, 0.3, 1, 1, 0.3, 0.15, 1, 0.3, 0.2, 0.1, 1)
 placeholder_options = {}
 model_scale = 1.5
+model_target_height = 0.75
 hovers = true
 move_speed = 3.5

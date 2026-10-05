@@ -3,6 +3,25 @@
 All notable changes to this project are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] — 2026-10-05 — Real monster models
+
+### Changed
+- **Every Digimon now uses a real animated 3D model** instead of the
+  procedural placeholder: Quaternius "Ultimate Monsters" (CC0) in
+  `assets/models/monsters/`, picked to match each species' look and
+  evolution line (e.g. Koromon → pink blob, Agumon → dino, Greymon →
+  orange dragon, Togemon → cactus). The placeholder factory stays as a
+  fallback when `model_path` is empty or missing.
+- `DigimonVisual` normalises imported models: scales them to the new
+  `DigimonSpecies.model_target_height`, puts the feet on the ground (or
+  hovering for flyers), adds a blob shadow and maps the model's own clip
+  names to the creature animation contract (`CLIP_ALIASES`).
+- Species descriptions no longer end with "(Original placeholder model.)".
+
+### Added
+- `test_species_models`: every model loads, has a sane height and resolves
+  idle / walk / attack / hurt / defeat / victory.
+
 ## [0.3.0] — 2026-09-25 — Thai language
 
 ### Added
