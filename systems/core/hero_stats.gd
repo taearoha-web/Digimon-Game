@@ -31,21 +31,21 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 
 ## buffs: { atk, def, speed, crit } fractions (0.3 = +30%).
 static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
-	var data := ClassData.get_class_data(StringName(profile["class"]))
+	var data := JobData.resolve(StringName(profile["class"]), StringName(profile.get("job", "")))
 	var level: int = profile["level"]
 	var attrs := attributes(profile)
 	var gear := gear_bonus(profile)
 	var main_stat: int = attrs[data.main]
-	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk)) * (1.0 + float(buffs.get("atk", 0.0)))
-	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0)))
+	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0))
+	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0))
 	return {
 		"attrs": attrs,
 		"max_hp": int((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult)) + int(gear.hp),
 		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult)) + int(gear.mp),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)), 0.0, 0.75),
-		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0))),
+		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)), 0.0, 0.8),
+		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0))),
 		"dodge": clampf(attrs.dex * 0.0012, 0.0, 0.3),
 	}
 

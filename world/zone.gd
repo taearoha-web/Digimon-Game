@@ -157,6 +157,7 @@ func _build_town() -> void:
 	_make_portal(portals[0])
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
 	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
+	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เปลี่ยนอาชีพ (Lv.%d)" % JobData.JOB_LEVEL, Vector3(-11, 0, 5), "Knight")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
 	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")

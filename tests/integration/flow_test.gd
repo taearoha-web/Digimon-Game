@@ -34,6 +34,7 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	for id in ClassData.IDS:
 		await _play_class(id)
+	await _jobs()
 	await _systems()
 
 
@@ -54,7 +55,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 4, "four villagers")
+	check(town.npcs.size() == 5, "five villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -108,6 +109,33 @@ func _alive(pack: Array[Mob]) -> int:
 		if is_instance_valid(m) and not m.is_dead():
 			n += 1
 	return n
+
+
+func _jobs() -> void:
+	print("== Jobs")
+	for class_id in ClassData.IDS:
+		var zone := await _start(class_id)
+		var branches := JobData.jobs_for(class_id)
+		check(branches.size() == 2, "%s has two job branches" % class_id)
+		check(not Game.change_job(branches[0]), "cannot change job below Lv.%d" % JobData.JOB_LEVEL)
+		Game.add_exp(2000000)
+		Game.add_gold(5000)
+		var atk_before: float = Game.stats_now().atk
+		var gold_before: int = Game.profile.gold
+		for branch in branches:
+			var other: StringName = branches[1] if branch == branches[0] else branches[0]
+			check(not Game.change_job(other) or Game.job_id() == other, "job picked")
+			if Game.job_id() == &"":
+				continue
+			break
+		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
+		check(Game.profile.gold == gold_before - JobData.JOB_COST, "job change cost gold")
+		var skills: Array = Game.class_data().skills
+		check(skills.size() == 4 and String(skills[0].id) != String(ClassData.get_skill(class_id, 0).id), "first skill replaced by a job skill")
+		check(not Game.change_job(branches[1]) and not Game.change_job(branches[0]), "job cannot be changed twice")
+		await _wait(0.4)
+		var hero: Hero = main.zone.hero
+		check(hero._ring != null, "job ring appears under the hero")
 
 
 func _systems() -> void:
