@@ -1,0 +1,45 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Toon Tale"
+config/description="A solo cartoon action RPG for the phone browser: four classes, hunting fields, loot and bosses."
+config/version="0.1.0"
+run/main_scene="res://scenes/main.tscn"
+config/quit_on_go_back=false
+config/features=PackedStringArray("4.3", "GL Compatibility")
+boot_splash/bg_color=Color(0.0470588, 0.0705882, 0.188235, 1)
+boot_splash/show_image=false
+config/icon="res://icon.svg"
+
+[autoload]
+
+Game="*res://systems/core/game.gd"
+AudioManager="*res://systems/core/audio_manager.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[gui]
+
+theme/custom="res://ui/theme/game_theme.tres"
+common/drop_mouse_on_gui_input_disabled=true
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="player"
+3d_physics/layer_3="monster"
+3d_physics/layer_4="interactable"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
