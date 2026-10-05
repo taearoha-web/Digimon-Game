@@ -27,6 +27,7 @@ var npcs: Array[Npc] = []
 var current_interact: Dictionary = {}
 
 var _spawn_timer := 0.0
+var _camps: Array[Dictionary] = []
 var _boss: Mob
 var _boss_timer := 8.0
 var _boss_spot := Vector3.ZERO
@@ -52,8 +53,9 @@ func _ready() -> void:
 	_spawn_hero()
 	AudioManager.play_music(data.get("music", &"field"))
 	if not is_town:
-		for i in 6:
-			_spawn_monster(true)
+		for camp in _camps:
+			for i in maxi(2, int(camp.count) - 1):
+				_spawn_in_camp(camp, true)
 
 
 func _process(delta: float) -> void:
@@ -69,8 +71,8 @@ func _process(delta: float) -> void:
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0:
 		_spawn_timer = SPAWN_INTERVAL
-		if get_tree().get_nodes_in_group("mobs").size() < int(data.max_monsters):
-			_spawn_monster(false)
+		for camp in _camps:
+			_refill_camp(camp)
 	_tick_boss(delta)
 
 
@@ -97,7 +99,15 @@ func _build_field() -> void:
 		for t in 8:
 			var p := paths[0][i].lerp(paths[0][i + 1], t / 8.0)
 			clear.append(Vector3(p.x, p.y, 2.2))
-	Scenery.populate(self, theme, rng, FIELD_RADIUS, clear)
+	_camps.clear()
+	for c in data.camps:
+		var camp: Dictionary = c.duplicate()
+		camp["mobs"] = []
+		_camps.append(camp)
+		clear.append(Vector3(c.pos.x, c.pos.y, float(c.radius) + 2.0))
+	Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)))
+	for camp in _camps:
+		_make_camp_marker(camp)
 	portals = [{"to": &"town" if zone_id == &"meadow" else &"meadow", "pos": _start + Vector3(-3.0, 0, 0), "label": "หมู่บ้าน" if zone_id == &"meadow" else "ทุ่งหญ้า", "level": 1}]
 	if zone_id == &"meadow":
 		portals.append({"to": &"dark_forest", "pos": Vector3(FIELD_RADIUS - 6.0, 0, 0), "label": "ป่าเงาม่วง (Lv.7+)", "level": 7})
@@ -384,39 +394,87 @@ func interact() -> void:
 # Monsters, bosses, drops
 # ---------------------------------------------------------------------------
 
-func _random_spot(min_hero_distance: float) -> Vector3:
-	for attempt in 20:
-		var angle := rng.randf() * TAU
-		var r := sqrt(rng.randf()) * (FIELD_RADIUS - 6.0)
-		var p := Vector3(cos(angle) * r, 0, sin(angle) * r)
-		if p.distance_to(_start) < SAFE_START_RADIUS or p.distance_to(_boss_spot) < 11.0:
-			continue
-		if p.x > FIELD_RADIUS - 14.0 and absf(p.z) < 10.0:
-			continue
-		if hero and Vector3(hero.global_position.x - p.x, 0, hero.global_position.z - p.z).length() < min_hero_distance:
-			continue
-		return p
-	return Vector3(rng.randf_range(-20, 20), 0, rng.randf_range(-20, 20))
+func _camp_spot(camp: Dictionary) -> Vector3:
+	var angle := rng.randf() * TAU
+	var r := sqrt(rng.randf()) * (float(camp.radius) - 1.5)
+	return Vector3(camp.pos.x + cos(angle) * r, 0, camp.pos.y + sin(angle) * r)
 
 
-func _spawn_monster(initial: bool) -> void:
-	var spawns: Array = data.spawns
-	var total := 0.0
-	for s in spawns:
-		total += float(s.weight)
-	var roll := rng.randf() * total
-	var entry: Dictionary = spawns[0]
-	for s in spawns:
-		roll -= float(s.weight)
-		if roll <= 0.0:
-			entry = s
-			break
+func _refill_camp(camp: Dictionary) -> void:
+	var alive: Array = []
+	for m in camp.mobs:
+		if is_instance_valid(m) and not m.is_dead():
+			alive.append(m)
+	camp.mobs = alive
+	if alive.size() < int(camp.count):
+		_spawn_in_camp(camp, false)
+
+
+func _spawn_in_camp(camp: Dictionary, initial: bool) -> void:
+	var spot := _camp_spot(camp)
+	if not initial and hero and Vector2(hero.global_position.x - spot.x, hero.global_position.z - spot.z).length() < 14.0:
+		return
+	var ids: Array = camp.monsters
 	var mob := Mob.new()
-	var level := rng.randi_range(int(entry.levels[0]), int(entry.levels[1]))
-	var spot := _random_spot(10.0 if initial else 18.0)
-	mob.setup(entry.monster, level, spot, hero)
+	var level := rng.randi_range(int(camp.levels[0]), int(camp.levels[1]))
+	mob.setup(ids[rng.randi() % ids.size()], level, spot, hero)
 	mob.position = spot + Vector3(0, 0.3, 0)
 	add_child(mob)
+	camp.mobs.append(mob)
+
+
+## A flat painted patch plus a signpost naming the camp and its levels.
+func _make_camp_marker(camp: Dictionary) -> void:
+	var holder := Node3D.new()
+	holder.name = "Camp"
+	holder.position = Vector3(camp.pos.x, 0, camp.pos.y)
+	add_child(holder)
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = float(camp.radius)
+	cyl.bottom_radius = float(camp.radius)
+	cyl.height = 0.02
+	cyl.radial_segments = 40
+	disc.mesh = cyl
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var tint: Color = data.ground
+	mat.albedo_color = tint.lightened(0.18)
+	mat.albedo_color.a = 0.55
+	disc.material_override = mat
+	disc.position.y = 0.03
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(disc)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = float(camp.radius) - 0.22
+	torus.outer_radius = float(camp.radius)
+	torus.rings = 40
+	torus.ring_segments = 4
+	ring.mesh = torus
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.albedo_color = Color("fff2b0")
+	ring.material_override = ring_mat
+	ring.scale = Vector3(1, 0.05, 1)
+	ring.position.y = 0.05
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(ring)
+	# Signpost on the side facing the village.
+	var sign_pos := Vector3(-float(camp.radius) + 1.0, 0, 0)
+	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("7a5230")), sign_pos + Vector3(0, 1.1, 0), Vector3(0.16, 2.2, 0.16))
+	MeshKit.part(holder, MeshKit.box(), MeshKit.toon(Color("a8763e")), sign_pos + Vector3(0, 2.1, 0), Vector3(1.9, 0.7, 0.14))
+	var label := Label3D.new()
+	label.text = "%s\nLv.%d-%d" % [camp.name, camp.levels[0], camp.levels[1]]
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.pixel_size = 0.008
+	label.font_size = 40
+	label.outline_size = 12
+	label.modulate = Color("fff2c0")
+	label.position = sign_pos + Vector3(0, 3.1, 0)
+	label.visibility_range_end = 40.0
+	holder.add_child(label)
 
 
 func _tick_boss(delta: float) -> void:

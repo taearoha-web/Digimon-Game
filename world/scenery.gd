@@ -147,7 +147,7 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 			z += step
 			var r := p.length()
 			# Dense forest outside the play area, scattered groves inside it.
-			var chance := 0.7 if r > play_radius else (0.07 + 0.2 * smoothstep(play_radius * 0.55, play_radius, r))
+			var chance := 0.7 if r > play_radius else (0.012 + 0.09 * smoothstep(play_radius * 0.7, play_radius, r))
 			chance *= density
 			if rng.randf() > chance or not _free(p, 1.4, occupied):
 				continue
