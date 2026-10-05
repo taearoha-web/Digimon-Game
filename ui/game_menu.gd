@@ -1,0 +1,379 @@
+class_name GameMenu
+extends CanvasLayer
+## The in-game menu: character (stat points), bag + equipment, skills,
+## quests and settings. Pauses the game while open.
+
+signal closed()
+signal title_requested()
+
+const TABS := [
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["settings", "ตั้งค่า"],
+]
+
+var is_open := false
+var current_tab: StringName = &"inventory"
+
+var _root: Control
+var _content: Control
+var _tab_buttons: Dictionary = {}
+var _selected_index := -1
+var _selected_slot := ""
+var _detail: VBoxContainer
+
+
+func _ready() -> void:
+	layer = 60
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_root = Control.new()
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.visible = false
+	add_child(_root)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.03, 0.1, 0.78)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(dim)
+	var safe := SafeAreaContainer.new()
+	_root.add_child(safe)
+	var frame := Control.new()
+	safe.add_child(frame)
+	var panel := UIUtil.panel(&"GlassPanel")
+	panel.anchor_right = 1.0
+	panel.anchor_bottom = 1.0
+	panel.offset_left = 16
+	panel.offset_top = 12
+	panel.offset_right = -16
+	panel.offset_bottom = -12
+	frame.add_child(panel)
+	var row := UIUtil.hbox(14)
+	panel.add_child(row)
+	var tabs := UIUtil.vbox(8)
+	tabs.custom_minimum_size = Vector2(190, 0)
+	row.add_child(tabs)
+	for tab in TABS:
+		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 66))
+		b.pressed.connect(func(): show_tab(StringName(tab[0])))
+		tabs.add_child(b)
+		_tab_buttons[StringName(tab[0])] = b
+	tabs.add_child(UIUtil.spacer(false))
+	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 66))
+	close.pressed.connect(close_menu)
+	tabs.add_child(close)
+	_content = Control.new()
+	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_child(_content)
+	Game.profile_changed.connect(func(): if is_open: _rebuild())
+	Game.inventory_changed.connect(func(): if is_open: _rebuild())
+	Game.quest_changed.connect(func(): if is_open: _rebuild())
+
+
+func open_menu(tab: StringName = &"inventory") -> void:
+	is_open = true
+	get_tree().paused = true
+	_root.visible = true
+	AudioManager.play_ui(&"ui_open")
+	show_tab(tab)
+
+
+func close_menu() -> void:
+	is_open = false
+	_root.visible = false
+	get_tree().paused = false
+	AudioManager.play_ui(&"ui_cancel")
+	closed.emit()
+
+
+func show_tab(tab: StringName) -> void:
+	current_tab = tab
+	_selected_index = -1
+	_selected_slot = ""
+	_rebuild()
+
+
+func _rebuild() -> void:
+	for key in _tab_buttons:
+		_tab_buttons[key].disabled = key == current_tab
+	UIUtil.clear(_content)
+	match current_tab:
+		&"character": _build_character()
+		&"inventory": _build_inventory()
+		&"skills": _build_skills()
+		&"quests": _build_quests()
+		&"settings": _build_settings()
+
+
+# ---------------------------------------------------------------------------
+# Character
+# ---------------------------------------------------------------------------
+
+func _build_character() -> void:
+	var p := Game.profile
+	var stats := Game.stats_now()
+	var data := Game.class_data()
+	var row := UIUtil.hbox(20)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(row)
+	var left := UIUtil.vbox(8)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left)
+	left.add_child(UIUtil.label("%s  Lv.%d  (%s)" % [p.name, p.level, data.name], &"HeaderLabel"))
+	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
+	left.add_child(points)
+	var names := {"str": "STR พลัง", "int": "INT ปัญญา", "dex": "DEX ความคล่อง", "vit": "VIT ความทนทาน"}
+	var notes := {"str": "เพิ่มพลังโจมตีของนักรบ", "int": "เพิ่มพลังเวทและ MP", "dex": "เพิ่มพลังนักธนู คริติคอล หลบหลีก", "vit": "เพิ่ม HP และพลังป้องกัน"}
+	for key in ["str", "int", "dex", "vit"]:
+		var line := UIUtil.hbox(10)
+		left.add_child(line)
+		var label := UIUtil.label("%s  %d" % [names[key], int(stats.attrs[key])], &"BoldLabel")
+		label.custom_minimum_size = Vector2(250, 0)
+		line.add_child(label)
+		var plus := UIUtil.button("+", &"PrimaryButton", Vector2(70, 56))
+		plus.disabled = int(p.points) <= 0
+		plus.pressed.connect(func(): Game.spend_point(key))
+		line.add_child(plus)
+		line.add_child(UIUtil.label(notes[key], &"SmallLabel"))
+	var right := UIUtil.vbox(6)
+	right.custom_minimum_size = Vector2(380, 0)
+	row.add_child(right)
+	right.add_child(UIUtil.label("ค่าพลัง", &"SubHeaderLabel"))
+	for line in [
+		["HP", "%d / %d" % [p.hp, stats.max_hp]], ["MP", "%d / %d" % [p.mp, stats.max_mp]],
+		["พลังโจมตี", "%d" % int(stats.atk)], ["พลังป้องกัน", "%d" % int(stats.def)],
+		["คริติคอล", "%.1f%%" % (float(stats.crit) * 100.0)], ["หลบหลีก", "%.1f%%" % (float(stats.dodge) * 100.0)],
+		["EXP", "%d / %d" % [p.exp, HeroStats.exp_to_next(p.level)]], ["สังหารมอนสเตอร์", "%d ตัว" % int(p.kills)],
+		["เวลาเล่น", UIUtil.format_play_time(float(p.play_time))],
+	]:
+		var r := UIUtil.hbox(8)
+		var k := UIUtil.label(line[0], &"DimLabel")
+		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r.add_child(k)
+		r.add_child(UIUtil.label(line[1], &"BoldLabel"))
+		right.add_child(r)
+
+
+# ---------------------------------------------------------------------------
+# Inventory & equipment
+# ---------------------------------------------------------------------------
+
+func _build_inventory() -> void:
+	var row := UIUtil.hbox(14)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(row)
+	# Equipment slots
+	var equip := UIUtil.vbox(6)
+	equip.custom_minimum_size = Vector2(250, 0)
+	row.add_child(equip)
+	equip.add_child(UIUtil.label("สวมใส่อยู่", &"SubHeaderLabel"))
+	for slot in ItemData.SLOTS:
+		var item: Variant = Game.profile.equip.get(slot)
+		var text := "%s: %s" % [ItemData.SLOT_NAMES[slot], ItemData.name_of(item) if item != null else "— ว่าง —"]
+		var b := UIUtil.button(text, &"", Vector2(0, 56))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.clip_text = true
+		if item != null:
+			b.add_theme_color_override("font_color", ItemData.color_of(item))
+		b.pressed.connect(func():
+			_selected_slot = slot
+			_selected_index = -1
+			_refresh_detail())
+		equip.add_child(b)
+	# Bag grid
+	var middle := UIUtil.vbox(6)
+	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(middle)
+	middle.add_child(UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.INVENTORY_SIZE], &"SubHeaderLabel"))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	middle.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	scroll.add_child(grid)
+	for i in Game.INVENTORY_SIZE:
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(108, 72)
+		b.clip_text = true
+		b.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		if i < Game.profile.inv.size():
+			var item: Dictionary = Game.profile.inv[i]
+			b.text = ItemData.name_of(item) + ("\n×%d" % int(item.count) if ItemData.is_stackable(item) else "")
+			b.add_theme_color_override("font_color", ItemData.color_of(item))
+			b.add_theme_font_size_override("font_size", 16)
+			b.pressed.connect(func():
+				_selected_index = i
+				_selected_slot = ""
+				_refresh_detail())
+		else:
+			b.disabled = true
+		grid.add_child(b)
+	_detail = UIUtil.vbox(8)
+	_detail.custom_minimum_size = Vector2(270, 0)
+	row.add_child(_detail)
+	_refresh_detail()
+
+
+func _refresh_detail() -> void:
+	if _detail == null or not is_instance_valid(_detail):
+		return
+	UIUtil.clear(_detail)
+	var item: Variant = null
+	if _selected_slot != "":
+		item = Game.profile.equip.get(_selected_slot)
+	elif _selected_index >= 0 and _selected_index < Game.profile.inv.size():
+		item = Game.profile.inv[_selected_index]
+	if item == null:
+		_detail.add_child(UIUtil.label("แตะไอเทมเพื่อดูรายละเอียด", &"DimLabel"))
+		return
+	var title := UIUtil.label(ItemData.name_of(item), &"SubHeaderLabel")
+	title.add_theme_color_override("font_color", ItemData.color_of(item))
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.add_child(title)
+	if item.get("kind", "") == "equip":
+		_detail.add_child(UIUtil.label("%s • %s • เลเวล %d" % [ItemData.SLOT_NAMES[item.slot], ItemData.RARITY_NAMES[int(item.rarity)], int(item.level)], &"SmallLabel"))
+		if item.get("class", "") != "":
+			_detail.add_child(UIUtil.label("อาชีพ: " + String(ClassData.get_class_data(StringName(item["class"])).name), &"SmallLabel"))
+	for line in ItemData.stat_lines(item):
+		_detail.add_child(UIUtil.label(line, &"BoldLabel"))
+	if item.get("kind", "") == "equip":
+		var problem := Game.equip_problem(item)
+		var equipped := _selected_slot != ""
+		if equipped:
+			var take := UIUtil.button("ถอด", &"", Vector2(0, 60))
+			take.pressed.connect(func(): Game.unequip(_selected_slot); _selected_slot = ""; _rebuild())
+			_detail.add_child(take)
+		else:
+			var wear := UIUtil.button("สวมใส่" if problem == "" else problem, &"PrimaryButton", Vector2(0, 60))
+			wear.disabled = problem != ""
+			wear.pressed.connect(func(): Game.equip_from_bag(_selected_index); _selected_index = -1; _rebuild())
+			_detail.add_child(wear)
+			_detail.add_child(UIUtil.label("ราคาขาย: %d" % ItemData.sell_price(item), &"SmallLabel"))
+			var sell := UIUtil.button("ขาย", &"", Vector2(0, 56))
+			sell.pressed.connect(func(): Game.sell_item(_selected_index); _selected_index = -1; _rebuild())
+			_detail.add_child(sell)
+	else:
+		var use := UIUtil.button("ใช้", &"PrimaryButton", Vector2(0, 60))
+		use.pressed.connect(func(): _use_potion(_selected_index))
+		_detail.add_child(use)
+
+
+func _use_potion(index: int) -> void:
+	var item: Dictionary = Game.profile.inv[index]
+	var def: Dictionary = ItemData.POTIONS[item.id]
+	if def.has("town"):
+		close_menu()
+		var main := get_tree().current_scene
+		if main and main.has_method("use_town_scroll"):
+			Game.remove_item_at(index)
+			main.use_town_scroll()
+		return
+	Game.use_potion_at(index)
+	AudioManager.play_sfx(&"item_use")
+	_selected_index = -1
+	_rebuild()
+
+
+# ---------------------------------------------------------------------------
+# Skills
+# ---------------------------------------------------------------------------
+
+func _build_skills() -> void:
+	var box := UIUtil.vbox(8)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(box)
+	box.add_child(UIUtil.label("แต้มสกิลที่ใช้ได้: %d   (สกิลแต่ละตัวอัปได้สูงสุด ★%d: แรงขึ้น 15%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK], &"SubHeaderLabel"))
+	for skill in Game.class_data().skills:
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var line := UIUtil.hbox(14)
+		panel.add_child(line)
+		var info := UIUtil.vbox(2)
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(info)
+		var unlocked := Game.skill_unlocked(skill)
+		var rank := Game.effective_rank(skill)
+		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else "ปลดล็อกที่เลเวล %d" % int(skill.level))]
+		var title_label := UIUtil.label(title, &"BoldLabel")
+		if not unlocked:
+			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
+		info.add_child(title_label)
+		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(desc)
+		var up := UIUtil.button("อัป", &"PrimaryButton", Vector2(110, 56))
+		up.disabled = not unlocked or rank >= Game.MAX_SKILL_RANK or int(Game.profile.skill_points) <= 0
+		up.pressed.connect(func(): Game.upgrade_skill(skill))
+		line.add_child(up)
+
+
+# ---------------------------------------------------------------------------
+# Quests
+# ---------------------------------------------------------------------------
+
+func _build_quests() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_content.add_child(scroll)
+	var box := UIUtil.vbox(8)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	box.add_child(UIUtil.label("เควสต์ (รับจากผู้ใหญ่บ้านในหมู่บ้าน)", &"SubHeaderLabel"))
+	for id in QuestData.ORDER:
+		var quest := QuestData.get_quest(id)
+		var status := Game.quest_status(id)
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var col := UIUtil.vbox(2)
+		panel.add_child(col)
+		var state_text: String = {"new": "ยังไม่ได้รับ", "active": "กำลังทำ", "ready": "เสร็จแล้ว — กลับไปรายงาน", "done": "สำเร็จแล้ว ✔"}[status]
+		var title := UIUtil.label("%s  (Lv.%d+)  — %s" % [quest.name, int(quest.level), state_text], &"BoldLabel")
+		if status == "done":
+			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		col.add_child(title)
+		var detail := UIUtil.label(quest.desc, &"SmallLabel")
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(detail)
+		if status == "active" or status == "ready":
+			col.add_child(UIUtil.label("ความคืบหน้า: %d / %d  (%s)" % [int(Game.quest_state(id).get("progress", 0)), int(quest.count), MonsterData.get_monster(StringName(quest.target)).name], &"DimLabel"))
+		col.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d" % [int(quest.exp), int(quest.gold)], &"DimLabel"))
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+func _build_settings() -> void:
+	var box := UIUtil.vbox(14)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(box)
+	box.add_child(UIUtil.label("ตั้งค่า", &"HeaderLabel"))
+	for entry in [["เพลง", "Music"], ["เสียงเอฟเฟกต์", "SFX"]]:
+		var line := UIUtil.hbox(14)
+		box.add_child(line)
+		var label := UIUtil.label(entry[0], &"BoldLabel")
+		label.custom_minimum_size = Vector2(220, 0)
+		line.add_child(label)
+		var slider := HSlider.new()
+		slider.min_value = 0.0
+		slider.max_value = 1.0
+		slider.step = 0.05
+		slider.custom_minimum_size = Vector2(420, 40)
+		var bus := AudioServer.get_bus_index(entry[1])
+		slider.value = db_to_linear(AudioServer.get_bus_volume_db(bus)) if bus >= 0 else 1.0
+		slider.value_changed.connect(func(v: float):
+			if bus >= 0:
+				AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(v, 0.001))))
+		line.add_child(slider)
+	var save := UIUtil.button("บันทึกเกม", &"PrimaryButton", Vector2(320, 66))
+	save.pressed.connect(func():
+		Game.save()
+		Game.say("บันทึกเกมแล้ว", &"success"))
+	box.add_child(save)
+	var title := UIUtil.button("กลับหน้าหลัก", &"", Vector2(320, 66))
+	title.pressed.connect(func():
+		Game.save()
+		close_menu()
+		title_requested.emit())
+	box.add_child(title)

@@ -1,0 +1,20 @@
+[gd_resource type="FontVariation" load_steps=5 format=3]
+
+[ext_resource type="FontFile" path="res://assets/fonts/Nunito-Variable.ttf" id="1_awglb"]
+[ext_resource type="FontFile" path="res://assets/fonts/NotoSansThai-Variable.ttf" id="2_s2a81"]
+
+[sub_resource type="FontVariation" id="FontVariation_plln7"]
+base_font = ExtResource("2_s2a81")
+variation_opentype = {
+"wght": 750
+}
+
+[sub_resource type="SystemFont" id="SystemFont_42ofx"]
+font_names = PackedStringArray("sans-serif", "Noto Sans", "Roboto", "Arial")
+
+[resource]
+fallbacks = Array[Font]([SubResource("FontVariation_plln7"), SubResource("SystemFont_42ofx")])
+base_font = ExtResource("1_awglb")
+variation_opentype = {
+"wght": 850
+}
