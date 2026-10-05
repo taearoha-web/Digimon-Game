@@ -11,6 +11,8 @@ signal leveled_up(level: int)
 signal toast(text: String, kind: StringName)
 signal item_gained(item: Dictionary)
 signal quest_changed()
+signal party_changed()
+signal party_leveled(index: int, level: int)
 
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
@@ -207,8 +209,91 @@ func add_exp(amount: int) -> void:
 		profile["mp"] = stats.max_mp
 		leveled_up.emit(profile["level"])
 		profile_changed.emit()
+		if profile.has("party"):
+			party_catch_up()
 		save()
 	mark_dirty()
+
+
+# ---------------------------------------------------------------------------
+# AI party: two companions that fight beside the hero and share EXP
+# ---------------------------------------------------------------------------
+
+const PARTY_PICKS := {&"warrior": [&"archer", &"priest"], &"archer": [&"warrior", &"priest"], &"mage": [&"warrior", &"priest"], &"priest": [&"warrior", &"mage"]}
+const PARTY_NAMES := {&"warrior": "บราโว่", &"archer": "ลูน่า", &"mage": "มิกะ", &"priest": "นีน่า"}
+var _party_gear: Dictionary = {}
+
+
+func ensure_party() -> void:
+	var party: Variant = profile.get("party")
+	if party is Array and party.size() == 2:
+		for member in party:
+			member["level"] = maxi(1, int(member.get("level", 1)))
+			member["exp"] = int(member.get("exp", 0))
+		return
+	var list: Array = []
+	for c in PARTY_PICKS[class_id()]:
+		list.append({"class": String(c), "name": PARTY_NAMES[c], "level": maxi(1, int(profile["level"]) - 1), "exp": 0})
+	profile["party"] = list
+
+
+func party() -> Array:
+	ensure_party()
+	return profile["party"]
+
+
+## A fake profile so [HeroStats] can work out a companion's stats.
+func party_profile(member: Dictionary) -> Dictionary:
+	var job := ""
+	if int(member.level) >= JobData.JOB_LEVEL:
+		var branches := JobData.jobs_for(StringName(member["class"]))
+		job = String(branches[hash(member.name) % branches.size()])
+	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "job": job}
+
+
+## Gear that grows with the companion's level (same pieces until the next tier).
+func party_equip(member: Dictionary) -> Dictionary:
+	var tier := ItemData.tier_for(int(member.level))
+	var key := "%s|%d|%d" % [member.name, tier, int(member.level) / 3]
+	if _party_gear.has(key):
+		return _party_gear[key]
+	var local := RandomNumberGenerator.new()
+	local.seed = hash(key)
+	var gear := {}
+	for slot in ["weapon", "armor", "helm"]:
+		gear[slot] = ItemData.generate(maxi(1, int(member.level)), StringName(member["class"]), local, 1, slot)
+	_party_gear[key] = gear
+	return gear
+
+
+## Every kill's EXP goes to the whole party too: they level up together.
+func party_add_exp(amount: int) -> void:
+	for i in party().size():
+		var member: Dictionary = profile["party"][i]
+		if int(member.level) >= MAX_LEVEL:
+			continue
+		member["exp"] = int(member.exp) + amount
+		var gained := false
+		while int(member.level) < MAX_LEVEL and int(member.exp) >= HeroStats.exp_to_next(int(member.level)):
+			member["exp"] = int(member.exp) - HeroStats.exp_to_next(int(member.level))
+			member["level"] = int(member.level) + 1
+			gained = true
+		if gained:
+			party_leveled.emit(i, int(member.level))
+	party_changed.emit()
+	mark_dirty()
+
+
+## Companions never fall far behind the hero's level.
+func party_catch_up() -> void:
+	for i in party().size():
+		var member: Dictionary = profile["party"][i]
+		var floor_level := maxi(1, int(profile["level"]) - 2)
+		if int(member.level) < floor_level:
+			member["level"] = floor_level
+			member["exp"] = 0
+			party_leveled.emit(i, floor_level)
+	party_changed.emit()
 
 
 func exp_ratio() -> float:

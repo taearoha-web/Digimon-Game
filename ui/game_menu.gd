@@ -197,7 +197,7 @@ func _build_inventory() -> void:
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(middle)
 	middle.add_child(UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.INVENTORY_SIZE], &"SubHeaderLabel"))
-	var scroll := ScrollContainer.new()
+	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	middle.add_child(scroll)
@@ -339,7 +339,7 @@ func _build_skills() -> void:
 # ---------------------------------------------------------------------------
 
 func _build_quests() -> void:
-	var scroll := ScrollContainer.new()
+	var scroll := TouchScroll.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_content.add_child(scroll)

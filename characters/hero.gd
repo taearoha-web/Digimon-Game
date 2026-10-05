@@ -480,6 +480,12 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 	var mult: float = float(skill.get("mult", 0.0)) * rank_mult(skill)
 	var origin := global_position + Vector3(0, 1.3, 0)
 	var forward := Vector3(sin(_facing), 0, cos(_facing))
+	var show_center := global_position
+	if String(skill.shape) in ["single", "chain", "fan"] and _valid_target(mob):
+		show_center = mob.global_position
+	elif String(skill.shape) == "blast":
+		show_center = Vector3(mob.global_position.x if _valid_target(mob) else aim.x, 0.0, mob.global_position.z if _valid_target(mob) else aim.z)
+	SkillShow.play(field, skill, show_center, global_position, camera_rig)
 	match String(skill.shape):
 		"self":
 			_apply_self_fx(skill)
@@ -602,19 +608,30 @@ func _apply_self_fx(skill: Dictionary) -> void:
 	if fx.has("heal"):
 		_heal(float(fx.heal))
 	if fx.has("buff"):
-		var buff: Dictionary = fx.buff.duplicate()
-		buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
-		_buffs.append(buff)
-		refresh_stats()
-		if _buff_emitter == null:
-			_buff_emitter = VfxKit.buff_emitter(self, color)
-		_buff_emitter.color_ramp = null
-		(_buff_emitter.mesh.material as StandardMaterial3D).albedo_color = Color(color.r, color.g, color.b, 0.9)
-		_buff_emitter.emitting = true
-		VfxKit.aura(field, global_position, color)
-		VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
-		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), skill.name, color, 0.9)
-		AudioManager.play_sfx(&"buff")
+		receive_buff(fx.buff, color, String(skill.name))
+
+
+## A buff from a skill or from a companion: {atk, def, speed, crit, secs}.
+func receive_buff(buff_data: Dictionary, color: Color, label := "") -> void:
+	var buff: Dictionary = buff_data.duplicate()
+	buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
+	_buffs.append(buff)
+	refresh_stats()
+	if _buff_emitter == null:
+		_buff_emitter = VfxKit.buff_emitter(self, color)
+	_buff_emitter.color_ramp = null
+	(_buff_emitter.mesh.material as StandardMaterial3D).albedo_color = Color(color.r, color.g, color.b, 0.9)
+	_buff_emitter.emitting = true
+	VfxKit.aura(field, global_position, color)
+	VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
+	if label != "":
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), label, color, 0.9)
+	AudioManager.play_sfx(&"buff")
+
+
+## Healing from a companion.
+func receive_heal(fraction: float) -> void:
+	_heal(fraction)
 
 
 func _heal(fraction: float) -> void:

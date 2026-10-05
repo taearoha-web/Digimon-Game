@@ -34,6 +34,7 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	for id in ClassData.IDS:
 		await _play_class(id)
+	await _touch_scroll()
 	await _jobs()
 	await _zones()
 	await _systems()
@@ -91,6 +92,13 @@ func _play_class(class_id: StringName) -> void:
 	check(Game.profile.exp > exp_before or Game.profile.level > level_before, "EXP gained")
 	check(Game.profile.gold > gold_before, "gold picked up (%d -> %d)" % [gold_before, Game.profile.gold])
 	check(int(Game.profile.kills) >= 3, "kills counted")
+	check(zone.companions.size() == 2, "two AI companions are with the hero")
+	var party_exp: int = int(Game.party()[0].exp) + int(Game.party()[0].level) * 1000
+	check(party_exp > 1000, "companions share the EXP")
+	var party_damage := 0
+	for c in zone.companions:
+		party_damage += c.damage_dealt
+	check(party_damage > 0, "companions deal damage (%d)" % party_damage)
 
 
 func _spawn(zone: Zone, hero: Hero, ids: Array, level: int) -> Array[Mob]:
@@ -137,6 +145,56 @@ func _jobs() -> void:
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
 		check(hero._ring != null, "job ring appears under the hero")
+
+
+func _touch_scroll() -> void:
+	print("== Touch scroll")
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var scroll := TouchScroll.new()
+	scroll.position = Vector2(100, 100)
+	scroll.size = Vector2(300, 300)
+	layer.add_child(scroll)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var presses := [0]
+	for i in 30:
+		var b := Button.new()
+		b.text = "item %d" % i
+		b.custom_minimum_size = Vector2(0, 60)
+		b.pressed.connect(func(): presses[0] += 1)
+		box.add_child(b)
+	await _wait(0.2)
+	# Events are fed straight to the container (the window's stretch transform
+	# makes synthetic window events unreliable in headless runs).
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = Vector2(200, 300)
+	scroll._input(press)
+	for i in 8:
+		var move := InputEventMouseMotion.new()
+		move.position = Vector2(200, 300 - (i + 1) * 20)
+		move.relative = Vector2(0, -20)
+		scroll._input(move)
+	check(scroll._dragging, "moving the finger starts a drag")
+	var release := press.duplicate()
+	release.pressed = false
+	release.position = Vector2(200, 140)
+	scroll._input(release)
+	check(scroll.scroll_vertical >= 140, "dragging a list scrolls it (%d)" % scroll.scroll_vertical)
+	scroll.scroll_vertical = 0
+	scroll._velocity = 0.0
+	scroll._input(press)
+	var jitter := InputEventMouseMotion.new()
+	jitter.position = Vector2(200, 303)
+	jitter.relative = Vector2(0, 3)
+	scroll._input(jitter)
+	check(not scroll._dragging and scroll.scroll_vertical == 0, "a small wobble is still a tap, not a scroll")
+	scroll._input(release)
+	await _wait(0.2)
+	layer.queue_free()
 
 
 func _zones() -> void:

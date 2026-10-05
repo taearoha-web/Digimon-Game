@@ -356,7 +356,7 @@ static func danger_circle(parent: Node3D, pos: Vector3, radius: float, duration:
 
 
 static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, width := 0.9, duration := 0.6) -> void:
-	var mat := _glow(color, 0.85)
+	var mat := _glow(color, 0.5, false)
 	var mi := _instance(parent, MeshKit.cylinder(), mat, pos + Vector3(0, height * 0.5, 0))
 	mi.scale = Vector3(width, height, width)
 	var tween := mi.create_tween().set_parallel(true)
@@ -487,3 +487,122 @@ static func loot_beam(parent: Node3D, color: Color, height := 3.0) -> MeshInstan
 	mi.position = Vector3(0, height * 0.5, 0)
 	parent.add_child(mi)
 	return mi
+
+
+# ---------------------------------------------------------------------------
+# Big-skill spectacle
+# ---------------------------------------------------------------------------
+
+## Cones that burst out of the ground inside [param radius] (ice, rock, thorns).
+static func spikes(parent: Node3D, center: Vector3, radius: float, color: Color, count := 14, height := 2.2, delay_spread := 0.25) -> void:
+	for i in count:
+		var angle := randf() * TAU
+		var dist := sqrt(randf()) * radius
+		var pos := center + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		var h := height * randf_range(0.6, 1.2)
+		var mat := _glow(color, 0.9, false)
+		var cone := _instance(parent, MeshKit.cone(), mat, pos)
+		cone.scale = Vector3(0.35, 0.01, 0.35)
+		cone.rotation = Vector3(randf_range(-0.2, 0.2), randf() * TAU, randf_range(-0.2, 0.2))
+		var tween := cone.create_tween()
+		tween.tween_interval(randf() * delay_spread)
+		tween.tween_property(cone, "scale", Vector3(0.5, h, 0.5), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(cone, "position:y", pos.y + h * 0.5, 0.12)
+		tween.tween_interval(0.35)
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.3)
+		tween.tween_callback(cone.queue_free)
+
+
+## A heavy ground slam: cracks racing outwards, dust and a double shockwave.
+static func slam(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
+	shockwave(parent, pos + Vector3(0, 0.12, 0), color, radius)
+	for i in 6:
+		var angle := i * TAU / 6.0 + randf() * 0.3
+		var mat := _glow(Color(0.28, 0.18, 0.1), 0.6, false)
+		var crack := _instance(parent, MeshKit.box(), mat, pos + Vector3(0, 0.05, 0))
+		crack.rotation.y = -angle
+		crack.scale = Vector3(0.1, 0.02, 0.05)
+		var length := radius * randf_range(0.7, 1.0)
+		var tween := crack.create_tween().set_parallel(true)
+		tween.tween_property(crack, "scale", Vector3(length, 0.02, 0.07), 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(crack, "position", pos + Vector3(cos(angle), 0.05, sin(angle)) * length * 0.5, 0.22)
+		tween.chain().tween_property(mat, "albedo_color:a", 0.0, 0.6).set_delay(0.5)
+		tween.chain().tween_callback(crack.queue_free)
+	var dust := _particles(parent, pos + Vector3(0, 0.2, 0), Color(0.8, 0.7, 0.55), 30, 0.8)
+	dust.direction = Vector3.UP
+	dust.spread = 80.0
+	dust.initial_velocity_min = radius * 0.3
+	dust.initial_velocity_max = radius * 0.9
+	dust.gravity = Vector3(0, -3.0, 0)
+	dust.scale_amount_min = 1.2
+	dust.scale_amount_max = 2.4
+	get_ring_delay(parent, pos, color, radius * 0.6, 0.12)
+
+
+static func get_ring_delay(parent: Node3D, pos: Vector3, color: Color, radius: float, delay: float) -> void:
+	parent.get_tree().create_timer(delay).timeout.connect(func():
+		if is_instance_valid(parent):
+			shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius))
+
+
+## Many light columns (or arrows of light) falling over an area, staggered.
+static func column_rain(parent: Node3D, center: Vector3, radius: float, color: Color, count := 12, duration := 0.9, height := 9.0) -> void:
+	for i in count:
+		var angle := randf() * TAU
+		var dist := sqrt(randf()) * radius
+		var pos := center + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		parent.get_tree().create_timer(randf() * duration).timeout.connect(func():
+			if is_instance_valid(parent):
+				pillar(parent, pos, color, height, 0.55, 0.4)
+				sparks(parent, pos + Vector3(0, 0.3, 0), color, 8, 2.5, 0.4))
+
+
+## Stacked spinning rings that rise around [param pos]: a whirlwind / power-up column.
+static func vortex(parent: Node3D, pos: Vector3, color: Color, height := 3.0, duration := 0.7) -> void:
+	for i in 4:
+		var mat := _glow(color, 0.8, false)
+		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.2, 0))
+		var r := 0.9 + i * 0.25
+		ring.scale = Vector3(r, r * 0.25, r)
+		var tween := ring.create_tween().set_parallel(true)
+		tween.tween_property(ring, "position:y", pos.y + height * (0.4 + 0.2 * i), duration).set_delay(i * 0.05)
+		tween.tween_property(ring, "rotation:y", TAU * (2.0 if i % 2 == 0 else -2.0), duration)
+		tween.tween_property(ring, "scale", Vector3(r * 1.6, r * 0.2, r * 1.6), duration)
+		tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.8).set_delay(duration * 0.25)
+		tween.chain().tween_callback(ring.queue_free)
+
+
+## Radial rays and a flash: a crisp "critical" burst for single-target skills.
+static func star_burst(parent: Node3D, pos: Vector3, color: Color, size := 2.2) -> void:
+	flash(parent, pos, Color(1, 1, 1), size * 1.4, 0.3)
+	for i in 8:
+		var angle := i * TAU / 8.0
+		var mat := _glow(color, 0.9, false)
+		var ray := _instance(parent, MeshKit.box(), mat, pos)
+		ray.rotation = Vector3(0, 0, angle)
+		ray.scale = Vector3(0.05, 0.05, 0.05)
+		ray.look_at_from_position(pos, pos + Vector3(cos(angle), sin(angle) * 0.6, 0.4), Vector3.UP)
+		var tween := ray.create_tween().set_parallel(true)
+		tween.tween_property(ray, "scale", Vector3(0.05, 0.05, size * 0.9), 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ray, "position", pos + Vector3(cos(angle), sin(angle) * 0.6, 0.4).normalized() * size * 0.7, 0.16)
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.26)
+		tween.chain().tween_callback(ray.queue_free)
+
+
+## A ring of upright flames around [param center] (fire fields).
+static func fire_ring(parent: Node3D, center: Vector3, color: Color, radius: float, count := 18, lifetime := 1.2) -> void:
+	for i in count:
+		var angle := i * TAU / count + randf() * 0.2
+		var pos := center + Vector3(cos(angle), 0.0, sin(angle)) * radius * randf_range(0.6, 1.0)
+		var mat := _glow(color, 0.85, false)
+		var flame := _instance(parent, MeshKit.cone(), mat, pos)
+		flame.scale = Vector3(0.2, 0.01, 0.2)
+		var h := randf_range(1.2, 2.4)
+		var tween := flame.create_tween()
+		tween.tween_interval(randf() * 0.25)
+		tween.tween_property(flame, "scale", Vector3(0.55, h, 0.55), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(flame, "position:y", pos.y + h * 0.5, 0.18)
+		tween.tween_property(flame, "scale", Vector3(0.3, h * 1.3, 0.3), lifetime * 0.6)
+		tween.parallel().tween_property(mat, "albedo_color:a", 0.0, lifetime * 0.7)
+		tween.tween_callback(flame.queue_free)
+		sparks(parent, pos + Vector3(0, 0.4, 0), color, 4, 2.0, 0.6)
