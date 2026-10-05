@@ -53,7 +53,7 @@ func _ready() -> void:
 	light.rotation_degrees = Vector3(-35, 35, 0)
 	viewport.add_child(light)
 	var cam := Camera3D.new()
-	cam.position = Vector3(0, 1.15, 5.4)
+	cam.position = Vector3(0, 1.25, 6.4)
 	cam.rotation_degrees = Vector3(-6, 0, 0)
 	cam.fov = 38
 	viewport.add_child(cam)

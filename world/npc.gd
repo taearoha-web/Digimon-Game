@@ -11,12 +11,12 @@ var visual: HeroVisual
 var marker: Label3D
 
 
-func setup(p_role: String, p_name: String, p_class: StringName, p_title := "") -> void:
+func setup(p_role: String, p_name: String, p_class: StringName, p_title := "", p_model := "") -> void:
 	role = p_role
 	display_name = p_name
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(p_class)
+	visual.setup(p_class, p_model, false)
 	var label := Label3D.new()
 	label.text = p_name if p_title == "" else "%s\n%s" % [p_name, p_title]
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED

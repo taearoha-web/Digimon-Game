@@ -12,6 +12,10 @@ func _ready() -> void:
 	for c in ClassData.IDS:
 		var h := HeroVisual.new(); add_child(h); h.setup(c); h.position = Vector3(-4.5 + i * 3.0, 0, 0); h.rotation_degrees.y = 10
 		i += 1
+	var j := 0
+	for m in ["Barbarian", "Rogue", "Rogue_Hooded", "Ranger"]:
+		var h2 := HeroVisual.new(); add_child(h2); h2.setup(&"archer", m, true); h2.position = Vector3(-4.5 + j * 3.0, 0, -2.6); h2.rotation_degrees.y = 10
+		j += 1
 	var mons := [[&"pink_slime"], [&"wild_chicken"], [&"cactus_hat"], [&"mush_king"], [&"forest_orc"], [&"poison_bee"], [&"fire_dragon"]]
 	i = 0
 	for m in mons:

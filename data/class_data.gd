@@ -55,7 +55,7 @@ const CLASSES := {
 		"title": "ผู้พิฆาตระยะไกล",
 		"badge": "A",
 		"desc": "ยิงหน้าไม้จากระยะไกล คริติคอลสูง ยิงสามดอกและฝนลูกธนูตีหมู่",
-		"model": "Rogue_Hooded",
+		"model": "Ranger",
 		"weapon": "crossbow_2handed",
 		"offhand": "",
 		"weapon_kind": "crossbow",

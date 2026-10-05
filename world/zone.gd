@@ -146,10 +146,10 @@ func _build_town() -> void:
 	portals = [{"to": &"meadow", "pos": Vector3(0, 0, -33), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
 	_make_portal(portals[0])
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
-	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8))
-	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7))
+	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
+	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
-	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9))
+	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")
 
 
 func _spawn_hero() -> void:
@@ -318,11 +318,11 @@ func _lamp(pos: Vector3) -> void:
 	holder.add_child(light)
 
 
-func _add_npc(role: String, npc_name: String, class_id: StringName, title: String, pos: Vector3) -> void:
+func _add_npc(role: String, npc_name: String, class_id: StringName, title: String, pos: Vector3, model := "") -> void:
 	var npc := Npc.new()
 	npc.position = pos
 	add_child(npc)
-	npc.setup(role, npc_name, class_id, title)
+	npc.setup(role, npc_name, class_id, title, model)
 	npc.face(_start)
 	npcs.append(npc)
 

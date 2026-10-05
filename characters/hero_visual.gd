@@ -13,7 +13,20 @@ const PROPS := {
 	&"priest": ["1H_Wand", "Spellbook", "Mage_Hat", "Mage_Cape"],
 }
 
+## Models whose weapon is not built in: scene held in a hand slot.
+const HELD := {
+	"Ranger": [["handslot.l", "res://assets/models/weapons/bow_withString.gltf"]],
+	"Barbarian": [["handslot.r", "res://assets/models/weapons/axe_2handed.gltf"]],
+	"Rogue": [["handslot.r", "res://assets/models/weapons/dagger.gltf"]],
+}
+const CHIBI_HEAD := 1.28
+
+static var _shared_library: AnimationLibrary
+
 var class_id: StringName = &"warrior"
+var model_name := ""
+var _head_bone := -1
+var _skeleton: Skeleton3D
 var model: Node3D
 var anim: AnimationPlayer
 var current: String = ""
@@ -22,27 +35,53 @@ var busy_until := 0
 var _tween: Tween
 
 
-func setup(p_class: StringName) -> void:
+func setup(p_class: StringName, p_model := "", armed := true) -> void:
 	class_id = p_class
 	for child in get_children():
 		child.queue_free()
 	var data := ClassData.get_class_data(class_id)
-	var packed := load(CHARACTER_DIR + String(data.model) + ".glb") as PackedScene
+	model_name = p_model if p_model != "" else String(data.model)
+	var packed := load(CHARACTER_DIR + model_name + ".glb") as PackedScene
 	if packed == null:
 		push_error("HeroVisual: missing model %s" % data.model)
 		return
 	model = packed.instantiate() as Node3D
 	add_child(model)
 	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if anim == null:
+		anim = _borrow_animations()
 	if anim:
 		for clip in anim.get_animation_list():
 			var a := anim.get_animation(clip)
 			a.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
 	_fit_height()
 	_show_props(PROPS[class_id])
-	if class_id == &"priest":
+	if armed:
+		_hold_weapons()
+	_setup_chibi()
+	if class_id == &"priest" and model_name == "Mage":
 		_tint_priest()
 	play("Idle")
+
+
+## The free Adventurers 2.0 characters ship without animations; they share the
+## Knight's rig, so give them the Knight's clips.
+func _borrow_animations() -> AnimationPlayer:
+	var rig := model.get_node_or_null("Rig_Medium")
+	if rig == null:
+		return null
+	rig.name = "Rig"
+	if _shared_library == null:
+		var donor := (load(CHARACTER_DIR + "Knight.glb") as PackedScene).instantiate()
+		var donor_player := donor.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		_shared_library = donor_player.get_animation_library("")
+		donor_player.remove_animation_library("")
+		donor.free()
+	var player := AnimationPlayer.new()
+	player.name = "AnimationPlayer"
+	model.add_child(player)
+	player.add_animation_library("", _shared_library)
+	return player
 
 
 func _fit_height() -> void:
@@ -66,6 +105,37 @@ func _show_props(wanted: Array) -> void:
 	for child in skeleton.get_children():
 		if child is BoneAttachment3D:
 			child.visible = child.name in wanted
+
+
+func _hold_weapons() -> void:
+	var skeleton := model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skeleton == null or not HELD.has(model_name):
+		return
+	for entry in HELD[model_name]:
+		var scene := load(entry[1]) as PackedScene
+		if scene == null or skeleton.find_bone(entry[0]) < 0:
+			continue
+		var attach := BoneAttachment3D.new()
+		attach.name = "Held_" + String(entry[0])
+		attach.bone_name = entry[0]
+		skeleton.add_child(attach)
+		attach.add_child(scene.instantiate())
+
+
+## Big head = cuter. Scales the head bone after the animation has posed it.
+func _setup_chibi() -> void:
+	_skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if _skeleton:
+		_head_bone = _skeleton.find_bone("head")
+	set_process(_head_bone >= 0)
+
+
+func _process(_delta: float) -> void:
+	if _skeleton == null or _head_bone < 0:
+		return
+	var pose := _skeleton.get_bone_global_pose_no_override(_head_bone)
+	pose.basis = pose.basis.scaled(Vector3.ONE * CHIBI_HEAD)
+	_skeleton.set_bone_global_pose_override(_head_bone, pose, 1.0, true)
 
 
 func _tint_priest() -> void:
