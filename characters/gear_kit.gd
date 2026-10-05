@@ -89,3 +89,38 @@ static func _arc_ring(parent: Node3D, color: Color) -> Node3D:
 	mi.material_override = MeshKit.toon(color)
 	parent.add_child(mi)
 	return mi
+
+
+## Ankle cuff for the lower-leg bone (bone Y runs down the leg). side: +1 left, -1 right.
+static func boot_cuff(tier: int, side: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "BootCuff"
+	var leather: Color = [Color("9a6b42"), Color("7a5a3a"), Color("8a95a8"), Color("3e7a5a"), Color("c0392b"), Color("6a4ab0")][clampi(tier, 0, 5)]
+	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
+	_p(root, MeshKit.cylinder(), leather, Vector3(0, 0.1, 0), Vector3(0.34, 0.26, 0.34))
+	_p(root, MeshKit.torus(), metal, Vector3(0, -0.03, 0), Vector3(0.36, 0.5, 0.36))
+	if tier >= 2:
+		_p(root, MeshKit.sphere_low(), GEMS[clampi(tier, 0, 5)], Vector3(0, 0.08, 0.17), Vector3(0.09, 0.09, 0.06), Vector3.ZERO, 0.8)
+	if tier >= 3:
+		_p(root, MeshKit.prism(), Color("ffffff"), Vector3(side * 0.16, 0.05, -0.02), Vector3(0.2, 0.3, 0.03), Vector3(0, 0, side * -75.0))
+	return root
+
+
+## Necklace on the chest bone: a chain draped over the chest with a gem pendant.
+static func necklace(tier: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Necklace"
+	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
+	var gem: Color = GEMS[clampi(tier, 0, 5)]
+	var pts: Array[Vector3] = []
+	for i in 17:
+		var x := lerpf(-0.24, 0.24, i / 16.0)
+		pts.append(Vector3(x, 0.3 - (1.0 - pow(x / 0.24, 2.0)) * 0.3, 0.37 - absf(x) * 0.5))
+	var mi := MeshInstance3D.new()
+	mi.mesh = WeaponKit.tube(pts, Vector3(0, 0, 1), 0.03)
+	mi.material_override = MeshKit.toon(metal)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	_p(root, MeshKit.sphere(), gem, Vector3(0, 0.0, 0.4), Vector3(0.17, 0.2, 0.12), Vector3.ZERO, 1.0)
+	_p(root, MeshKit.torus(), metal, Vector3(0, 0.0, 0.4), Vector3(0.24, 0.24, 0.24), Vector3(90, 0, 0))
+	return root

@@ -31,6 +31,17 @@ const HELMS := [
 ]
 
 
+const BOOT_TINTS := [Color(0.9, 0.75, 0.6), Color(0.85, 0.8, 0.7), Color(0.85, 0.9, 1.1), Color(0.7, 1.0, 0.8), Color(1.2, 0.7, 0.65), Color(0.95, 0.8, 1.2)]
+
+
+static func tier_of(item: Dictionary) -> int:
+	return _tier(item)
+
+
+static func boots_tint(item: Dictionary) -> Color:
+	return BOOT_TINTS[clampi(_tier(item), 0, 5)]
+
+
 static func _tier(item: Dictionary) -> int:
 	return ItemData.tier_for(int(item.get("level", 1)))
 

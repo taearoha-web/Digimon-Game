@@ -36,6 +36,7 @@ func _run() -> void:
 		await _play_class(id)
 	await _touch_scroll()
 	await _jobs()
+	await _party()
 	await _zones()
 	await _systems()
 
@@ -57,7 +58,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 5, "five villagers")
+	check(town.npcs.size() == 6, "six villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -92,7 +93,7 @@ func _play_class(class_id: StringName) -> void:
 	check(Game.profile.exp > exp_before or Game.profile.level > level_before, "EXP gained")
 	check(Game.profile.gold > gold_before, "gold picked up (%d -> %d)" % [gold_before, Game.profile.gold])
 	check(int(Game.profile.kills) >= 3, "kills counted")
-	check(zone.companions.size() == 2, "two AI companions are with the hero")
+	check(zone.companions.size() == 1, "one AI companion is with the hero")
 	var party_exp: int = int(Game.party()[0].exp) + int(Game.party()[0].level) * 1000
 	check(party_exp > 1000, "companions share the EXP")
 	var party_damage := 0
@@ -195,6 +196,48 @@ func _touch_scroll() -> void:
 	scroll._input(release)
 	await _wait(0.2)
 	layer.queue_free()
+
+
+func _party() -> void:
+	print("== Party")
+	await _start(&"warrior")
+	await main.go(&"meadow", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	for node in get_tree().get_nodes_in_group("mobs"):
+		node.queue_free()
+	await _wait(0.2)
+	check(zone.companions.size() == 1, "exactly one companion")
+	var buddy: Companion = zone.companions[0]
+	check(not buddy.is_dead() and buddy.hp == buddy.max_hp, "companion starts at full HP (%d)" % buddy.max_hp)
+	# A monster standing next to the companion (far from the hero) goes for the companion.
+	zone.hero.global_position = Vector3(-14, 0.2, 0)
+	buddy.global_position = Vector3(10, 0.3, 0)
+	var mob := Mob.new()
+	mob.setup(&"pink_slime", 3, Vector3(12, 0, 0), zone.hero)
+	mob.position = Vector3(12, 0.3, 0)
+	zone.add_child(mob)
+	await _wait(0.3)
+	check(mob._nearest_victim() == buddy, "a monster close to the companion targets it")
+	mob.queue_free()
+	buddy.take_damage(1.0, null)
+	check(buddy.hp < buddy.max_hp, "companion can be hurt")
+	buddy._invulnerable_until = 0
+	buddy.take_damage(100000.0, null)
+	check(buddy.is_dead(), "companion can be killed")
+	buddy._revive_timer = 0.2
+	await _wait(0.8)
+	check(not buddy.is_dead() and buddy.hp > 0, "companion gets back up")
+	Game.recruit(&"mage")
+	await _wait(0.4)
+	check(zone.companions.size() == 1 and zone.companions[0].member["class"] == "mage", "recruiting swaps the companion")
+	check(String(Game.party()[0]["class"]) == "mage", "party data updated")
+	Game.dismiss_party()
+	await _wait(0.4)
+	check(zone.companions.is_empty() and Game.party().is_empty(), "dismissing leaves nobody")
+	Game.recruit(&"priest")
+	await _wait(0.3)
+	check(zone.companions.size() == 1, "can recruit again")
 
 
 func _zones() -> void:

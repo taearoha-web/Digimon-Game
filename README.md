@@ -27,13 +27,14 @@ loot, quests and bosses.
 
 Every weapon, helm and armor has a look. Wear it and the hero changes: 48 procedural weapon
 designs (sword / bow / staff / wand), 12 hats, five outfit styles (tinted per tier) mixed from the
-KayKit characters. Items have rendered icons in the bag, shop and on the ground.
+KayKit characters, boot cuffs and a necklace. Items have rendered icons in the bag, shop and on the ground.
 
 ## AI party
 
-Two AI companions (picked to complement your class, e.g. an archer and a priest for a warrior) follow you,
-help fight, use their skills (the priest heals and buffs you), share every kill's EXP and level up with
-you, wearing gear that grows with their level. They cannot be hurt; monsters only chase the hero.
+One AI companion at a time, picked from the Party Broker in the village (any of the four classes,
+swap or send home whenever). They follow you, fight the monster you fight, use skills (a priest heals and
+buffs you), share every kill's EXP and wear gear that grows with their level. Monsters attack them like the
+hero; when they fall they get back up after a few seconds.
 
 ## Jobs
 

@@ -18,6 +18,8 @@ func _ready() -> void:
 				equip["weapon"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "weapon")
 				equip["armor"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "armor")
 				equip["helm"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "helm")
+				equip["boots"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "boots")
+				equip["amulet"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "amulet")
 			var h := HeroVisual.new(); add_child(h); h.setup(StringName(c), "", true, equip)
 			h.position = Vector3(-7.5 + i * 3.0, 0, -row * 3.2); h.rotation_degrees.y = 10
 		row += 1

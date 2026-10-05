@@ -105,7 +105,7 @@ func _update_job_ring() -> void:
 
 func _equipment_signature() -> String:
 	var parts: PackedStringArray = []
-	for slot in ["weapon", "armor", "helm"]:
+	for slot in ["weapon", "armor", "helm", "boots", "amulet"]:
 		var item: Variant = Game.profile.equip.get(slot)
 		parts.append(ItemLook.look_of(item) if item is Dictionary else "-")
 	return "|".join(parts)
@@ -640,6 +640,9 @@ func _heal(fraction: float) -> void:
 	Game.profile.hp = mini(stats.max_hp, Game.profile.hp + amount)
 	VfxKit.heal(field, global_position)
 	BattleVfx.floating_text(field, global_position + Vector3(0, 2.6, 0), "+%d" % (Game.profile.hp - before), Color("6dff9a"), 1.0)
+	for node in get_tree().get_nodes_in_group("companions"):
+		if node.has_method("heal_fraction") and node.global_position.distance_to(global_position) < 9.0:
+			node.heal_fraction(fraction * 0.6)
 	AudioManager.play_sfx(&"heal")
 
 
