@@ -35,6 +35,7 @@ func _run() -> void:
 	for id in ClassData.IDS:
 		await _play_class(id)
 	await _jobs()
+	await _zones()
 	await _systems()
 
 
@@ -136,6 +137,25 @@ func _jobs() -> void:
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
 		check(hero._ring != null, "job ring appears under the hero")
+
+
+func _zones() -> void:
+	print("== Zones")
+	await _start(&"warrior")
+	Game.add_exp(2000000)
+	for id in ZoneData.ZONES:
+		if id == &"town":
+			continue
+		await main.go(id, true)
+		await _wait(0.5)
+		var z: Zone = main.zone
+		check(z != null and z.zone_id == id, "zone %s loads" % id)
+		check(get_tree().get_nodes_in_group("mobs").size() >= 10, "%s camps are populated (%d)" % [id, get_tree().get_nodes_in_group("mobs").size()])
+		var info := ZoneData.get_zone(id)
+		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1), "%s has the right portals" % id)
+		for camp in info.camps:
+			for m in camp.monsters:
+				check(MonsterData.MONSTERS.has(m), "monster %s exists" % m)
 
 
 func _systems() -> void:

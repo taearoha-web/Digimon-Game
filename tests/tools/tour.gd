@@ -43,9 +43,22 @@ func run() -> void:
 		"town": await _town()
 		"menus": await _menus()
 		"skills": await _skills()
+		"zones": await _zones()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _zones() -> void:
+	_level(30)
+	for id in [&"dark_forest", &"desert", &"snow", &"volcano"]:
+		await main.go(id, true)
+		await _wait(1.5)
+		var z: Zone = main.zone
+		z.hero.global_position = Vector3(-20, 0.2, -12)
+		z.camera_rig.snap_to_target()
+		await _wait(1.0)
+		await _shot("zone_%s" % id)
 
 
 func _town() -> void:

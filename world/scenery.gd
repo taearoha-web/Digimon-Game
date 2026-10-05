@@ -11,6 +11,26 @@ const BUSHES := ["Bush", "Bush_Large", "Bush_Small", "Bush_Flowers", "Bush_Large
 const ROCKS := ["Rock_1", "Rock_2", "Rock_3", "Rock_4", "Rock_5"]
 const FLOWER_MODELS := ["Plant_Flowers", "Plant_1", "Petals_1", "Plant_2"]
 
+## Per-theme scenery: tree models (weighted), light wall trees, bush / flower /
+## rock counts and the bush colours. Themes not listed use "meadow".
+const THEME_SETS := {
+	&"desert": {
+		"trees": [["PalmTree_1", 4.0], ["PalmTree_3", 3.0], ["DeadTree_5", 2.0], ["DeadTree_9", 1.5]],
+		"wall": ["PalmTree_1", "DeadTree_5", "PalmTree_3", "DeadTree_9"],
+		"bushes": 50, "flowers": 20, "rocks": 80, "bush_colors": [Color("c9b060"), Color("a8b04a"), Color("e0c070")],
+	},
+	&"snow": {
+		"trees": [["PineTree_1", 3.0], ["PineTree_2", 3.0], ["PineTree_4", 3.0], ["PineTree_5", 2.0], ["DeadTree_5", 1.0]],
+		"wall": ["PineTree_5", "PineTree_4", "PineTree_5", "PineTree_2"],
+		"bushes": 60, "flowers": 0, "rocks": 80, "bush_colors": [Color("e8f4ff"), Color("c8e0f0"), Color("ffffff")],
+	},
+	&"volcano": {
+		"trees": [["DeadTree_5", 3.0], ["DeadTree_9", 3.0]],
+		"wall": ["DeadTree_5", "DeadTree_9"],
+		"bushes": 30, "flowers": 0, "rocks": 120, "bush_colors": [Color("a04a28"), Color("c05a30"), Color("703020")],
+	},
+}
+
 static var _tuft: ArrayMesh
 
 
@@ -153,8 +173,12 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 				continue
 			var s := rng.randf_range(0.9, 1.45)
 			var model: String
+			var set: Dictionary = THEME_SETS.get(theme, {})
 			if r > play_radius + 3.0:
-				model = WALL_TREES[rng.randi() % WALL_TREES.size()]
+				var wall: Array = set.get("wall", WALL_TREES)
+				model = wall[rng.randi() % wall.size()]
+			elif set.has("trees"):
+				model = _pick(set.trees, rng)
 			else:
 				model = PINES[rng.randi() % PINES.size()] if rng.randf() < 0.4 else _pick(BROADLEAFS, rng)
 			if not groups.has(model):
@@ -179,10 +203,12 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3]) -> void:
 	var groups: Dictionary = {}
 	var colors: Dictionary = {}
-	var palette := [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")]
+	var set: Dictionary = THEME_SETS.get(theme, {})
+	var palette: Array = set.get("bush_colors", [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")])
+	var bush_total: int = int(set.get("bushes", 120))
 	var placed := 0
 	var attempts := 0
-	while placed < 120 and attempts < 900:
+	while placed < bush_total and attempts < bush_total * 8:
 		attempts += 1
 		var p := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		if p.length() > play_radius or not _free(p, 0.9, occupied):
@@ -210,7 +236,8 @@ static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 	var colors: Dictionary = {}
 	var placed := 0
 	var attempts := 0
-	while placed < 60 and attempts < 600:
+	var rock_total: int = int(THEME_SETS.get(theme, {}).get("rocks", 60))
+	while placed < rock_total and attempts < rock_total * 10:
 		attempts += 1
 		var p := Vector2(rng.randf_range(-play_radius - 8, play_radius + 8), rng.randf_range(-play_radius - 8, play_radius + 8))
 		if not _free(p, 1.0, occupied):
@@ -288,7 +315,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	var groups: Dictionary = {}
 	var flower_colors: Dictionary = {}
 	var palette := [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")]
-	for i in 200:
+	for i in int(THEME_SETS.get(theme, {}).get("flowers", 200)):
 		var p := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		if p.length() > play_radius or not _free(p, 0.2, occupied):
 			continue

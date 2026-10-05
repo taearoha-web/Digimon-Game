@@ -25,7 +25,7 @@ var _clips: Dictionary = {}
 var _tween: Tween
 
 
-func setup(model_path: String, target_height: float, hover := 0.0) -> void:
+func setup(model_path: String, target_height: float, hover := 0.0, tint := Color.WHITE) -> void:
 	var packed := load(DIR + model_path + ".gltf") as PackedScene
 	if packed == null:
 		push_error("MonsterVisual: missing %s" % model_path)
@@ -39,6 +39,8 @@ func setup(model_path: String, target_height: float, hover := 0.0) -> void:
 	model.scale = Vector3.ONE * fit
 	model.position.y = -box.position.y * fit + hover
 	height = target_height + hover
+	if tint != Color.WHITE:
+		_apply_tint(tint)
 	anim = _find_player(model)
 	if anim:
 		for key in CLIP_ALIASES:
@@ -49,6 +51,20 @@ func setup(model_path: String, target_height: float, hover := 0.0) -> void:
 					a.loop_mode = Animation.LOOP_LINEAR if key in LOOPING else Animation.LOOP_NONE
 					break
 	play("idle")
+
+
+## Re-colours the model (variants of the same monster for later zones).
+func _apply_tint(tint: Color) -> void:
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var source := mi.get_active_material(i) as StandardMaterial3D
+			if source:
+				var copy := source.duplicate() as StandardMaterial3D
+				copy.albedo_color = source.albedo_color * tint
+				mi.set_surface_override_material(i, copy)
 
 
 func play(key: String, speed := 1.0) -> void:

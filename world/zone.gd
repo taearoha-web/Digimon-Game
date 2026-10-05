@@ -27,6 +27,7 @@ var npcs: Array[Npc] = []
 var current_interact: Dictionary = {}
 
 var _spawn_timer := 0.0
+var _weather: CPUParticles3D
 var _camps: Array[Dictionary] = []
 var _boss: Mob
 var _boss_timer := 8.0
@@ -66,6 +67,8 @@ func _process(delta: float) -> void:
 		_interact_timer = 0.15
 		_update_interact()
 	_check_portals(delta)
+	if _weather and is_instance_valid(hero):
+		_weather.global_position = Vector3(hero.global_position.x, _weather.position.y, hero.global_position.z)
 	if is_town:
 		return
 	_spawn_timer -= delta
@@ -83,14 +86,13 @@ func _process(delta: float) -> void:
 func _build_field() -> void:
 	var theme: StringName = data.theme
 	var sky: Color = data.sky
-	var fog := sky.lerp(Color.WHITE, 0.35) if theme == &"meadow" else sky.lerp(Color("c46bff"), 0.25)
-	Scenery.environment(self, sky, fog, Color(0.9, 0.95, 1.0) if theme == &"meadow" else Color(0.7, 0.75, 1.0),
-			Color(1.0, 0.96, 0.88) if theme == &"meadow" else Color(0.85, 0.8, 1.0))
+	var fog: Color = data.get("fog", sky.lerp(Color.WHITE, 0.35))
+	Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)))
 	_start = Vector3(-FIELD_RADIUS + 8.0, 0, 0)
 	var ground_color: Color = data.ground
 	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(-FIELD_RADIUS, 0), Vector2(-20, 4), Vector2(0, -2), Vector2(26, 6), Vector2(FIELD_RADIUS, 0)])]
-	Scenery.ground(self, 130.0, ground_color.darkened(0.2), ground_color.darkened(0.02), 5 if theme == &"meadow" else 9,
-			Color("a98f62") if theme == &"meadow" else Color("7a6aa8"), paths, 2.2)
+	Scenery.ground(self, 130.0, ground_color.darkened(0.2), ground_color.darkened(0.02), int(data.get("seed", 5)),
+			data.get("path_color", Color("a98f62")), paths, 2.2)
 	_boss_spot = Vector3(30, 0, 26)
 	var clear: Array[Vector3] = [
 		Vector3(_start.x, _start.z, 6.0), Vector3(FIELD_RADIUS - 8.0, 0, 6.0), Vector3(_boss_spot.x, _boss_spot.z, 9.0),
@@ -108,12 +110,56 @@ func _build_field() -> void:
 	Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)))
 	for camp in _camps:
 		_make_camp_marker(camp)
-	portals = [{"to": &"town" if zone_id == &"meadow" else &"meadow", "pos": _start + Vector3(-3.0, 0, 0), "label": "หมู่บ้าน" if zone_id == &"meadow" else "ทุ่งหญ้า", "level": 1}]
-	if zone_id == &"meadow":
-		portals.append({"to": &"dark_forest", "pos": Vector3(FIELD_RADIUS - 6.0, 0, 0), "label": "ป่าเงาม่วง (Lv.7+)", "level": 7})
+	var prev: StringName = data.get("prev", &"town")
+	var next: StringName = data.get("next", &"")
+	portals = [{"to": prev, "pos": _start + Vector3(-3.0, 0, 0), "label": String(ZoneData.get_zone(prev).name), "level": 1}]
+	if next != &"":
+		var next_data := ZoneData.get_zone(next)
+		portals.append({"to": next, "pos": Vector3(FIELD_RADIUS - 6.0, 0, 0), "label": "%s (Lv.%d+)" % [next_data.name, int(next_data.level[0])], "level": int(next_data.level[0])})
 	for portal in portals:
 		_make_portal(portal)
 	_make_boundary_walls(FIELD_RADIUS + 1.0)
+	_make_weather(StringName(data.get("weather", &"")))
+
+
+## Falling snow or rising embers that follow the hero (cheap CPU particles).
+func _make_weather(kind: StringName) -> void:
+	if kind == &"":
+		return
+	_weather = CPUParticles3D.new()
+	_weather.amount = 160 if kind == &"snow" else 90
+	_weather.lifetime = 7.0 if kind == &"snow" else 4.5
+	_weather.preprocess = _weather.lifetime
+	_weather.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_weather.emission_box_extents = Vector3(26, 0.5, 26)
+	_weather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.22, 0.22) if kind == &"snow" else Vector2(0.2, 0.2)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_color = Color(1, 1, 1, 0.9) if kind == &"snow" else Color(1.0, 0.55, 0.2, 0.95)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_texture = VfxKit.soft_dot()
+	if kind == &"embers":
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	quad.material = mat
+	_weather.mesh = quad
+	if kind == &"snow":
+		_weather.direction = Vector3(0.15, -1, 0.05)
+		_weather.spread = 12.0
+		_weather.initial_velocity_min = 1.6
+		_weather.initial_velocity_max = 2.6
+		_weather.gravity = Vector3.ZERO
+		_weather.position.y = 14.0
+	else:
+		_weather.direction = Vector3(0.1, 1, 0.1)
+		_weather.spread = 20.0
+		_weather.initial_velocity_min = 0.8
+		_weather.initial_velocity_max = 2.2
+		_weather.gravity = Vector3.ZERO
+		_weather.position.y = 0.4
+	add_child(_weather)
 
 
 func _build_town() -> void:

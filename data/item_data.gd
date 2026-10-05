@@ -12,7 +12,7 @@ const RARITY_NAMES := ["ธรรมดา", "ดี", "หายาก", "ใ�
 const RARITY_COLORS := [Color("e6ecff"), Color("5ab8ff"), Color("ffc93c"), Color("c46bff")]
 const RARITY_ADJ := ["", "ชั้นดี", "ล้ำค่า", "แห่งตำนาน"]
 
-## Names by base type, one per tier (a tier is ~3 levels).
+## Names by base type, one per tier (a tier is 5 levels).
 const NAMES := {
 	"sword": ["ดาบไม้ฝึก", "ดาบเหล็ก", "ดาบเหล็กกล้า", "ดาบอัศวิน", "ดาบเพลิง", "ดาบมังกร"],
 	"bow": ["ธนูไม้", "ธนูหนัง", "ธนูนักล่า", "ธนูราชวงศ์", "ธนูเพลิง", "ธนูมังกร"],
@@ -39,7 +39,7 @@ static var _uid := 0
 
 
 static func tier_for(level: int) -> int:
-	return clampi((level - 1) / 3, 0, 5)
+	return clampi((level - 1) / 5, 0, 5)
 
 
 static func base_for(slot: String, class_id: StringName) -> String:

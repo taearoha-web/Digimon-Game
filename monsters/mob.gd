@@ -77,7 +77,7 @@ func _ready() -> void:
 
 	visual = MonsterVisual.new()
 	add_child(visual)
-	visual.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)))
+	visual.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)), template.get("tint", Color.WHITE))
 	var top := visual.height
 
 	_label = Label3D.new()

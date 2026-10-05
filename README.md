@@ -10,7 +10,7 @@ loot, quests and bosses.
 
 * **Joystick (left)** move · **drag the right side** to turn the camera · pinch to zoom
 * **Big sword button** locks the nearest monster and auto-attacks (the hero chases it)
-* **Four skills on the arc** around the sword button (unlock at Lv 1 / 4 / 8 / 12)
+* **Four skills on the arc** around the sword button (unlock at Lv 1 / 4 / 8 / 12; first two change with your job)
 * Potion buttons, target switch, menu (top right: stats, bag & equipment, skills, quests)
 * Keyboard: WASD move · Space attack · 1-4 skills · H/M potions · Tab target · I/K/C/J menus
 
@@ -23,10 +23,23 @@ loot, quests and bosses.
 | จอมเวท Mage | ranged, area damage | Fireball (burn) · Frost Nova (slow) · Chain Lightning · Meteor |
 | พรีสต์ Priest | ranged + self sustain | Holy Bolt · Heal · Holy Nova (area + heal) · Blessing (buff) |
 
+## Gear that shows
+
+Every weapon, helm and armor has a look. Wear it and the hero changes: 48 procedural weapon
+designs (sword / bow / staff / wand), 12 hats, five outfit styles (tinted per tier) mixed from the
+KayKit characters. Items have rendered icons in the bag, shop and on the ground.
+
+## Jobs
+
+At Lv 15 the Job Master in the village splits each class into two branches (1,500 gold):
+Paladin / Berserker · Sniper / Storm Hunter · Pyromancer / Cryomancer · Saint / Inquisitor.
+A job adds stat bonuses, a ring under the feet and two new skills in place of the first two.
+
 ## World
 
-Village (shop, quests, free healer) → Mistwood Meadow (Lv 1-6, boss: Mushroom King)
-→ Purple Forest (Lv 7-14, boss: Fire Dragon). Gear drops in four rarities.
+Village (shop, quests, free healer, Job Master) → Mistwood Meadow (Lv 1-6) → Purple Forest (Lv 7-14)
+→ Scorching Desert (Lv 15-22) → Eternal Ice Mountain (Lv 23-30) → Raging Volcano (Lv 31-40).
+Each field has marked monster camps, one species per camp, and a boss.
 
 ## Run & test
 
@@ -39,7 +52,7 @@ python3 tools/package_web.py                      # -> build/web_artifact (stati
 ```
 
 Screenshots: `godot --rendering-driver opengl3 --path . res://tests/tools/tour.tscn -- out_dir warrior field`
-(tours: field, town, menus, skills).
+(tours: field, town, menus, skills, zones).
 
 ## Credits
 
