@@ -218,7 +218,7 @@ func _spawn_party() -> void:
 		var buddy := Companion.new()
 		buddy.setup(Game.party()[i], i, hero, self)
 		add_child(buddy)
-		buddy.global_position = hero.global_position + Vector3(-2.4 if i == 0 else 2.4, 0.3, -2.6)
+		buddy.global_position = hero.global_position + Vector3(-3.0 if i == 0 else 3.0, 0.3, -0.6)
 		companions.append(buddy)
 	if not Game.party_leveled.is_connected(_on_party_leveled):
 		Game.party_leveled.connect(_on_party_leveled)

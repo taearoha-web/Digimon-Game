@@ -480,6 +480,12 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 	var mult: float = float(skill.get("mult", 0.0)) * rank_mult(skill)
 	var origin := global_position + Vector3(0, 1.3, 0)
 	var forward := Vector3(sin(_facing), 0, cos(_facing))
+	var show_center := global_position
+	if String(skill.shape) in ["single", "chain", "fan"] and _valid_target(mob):
+		show_center = mob.global_position
+	elif String(skill.shape) == "blast":
+		show_center = Vector3(mob.global_position.x if _valid_target(mob) else aim.x, 0.0, mob.global_position.z if _valid_target(mob) else aim.z)
+	SkillShow.play(field, skill, show_center, global_position, camera_rig)
 	match String(skill.shape):
 		"self":
 			_apply_self_fx(skill)

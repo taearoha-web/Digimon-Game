@@ -138,8 +138,10 @@ func _pick_target() -> Mob:
 
 
 func _follow(delta: float) -> Vector3:
+	# Beside the hero (seen from the camera), never between camera and hero.
 	var side := -1.0 if index == 0 else 1.0
-	var offset := Vector3(side * 2.4, 0, -2.6).rotated(Vector3.UP, hero._facing)
+	var yaw := hero.camera_rig.yaw if hero.camera_rig else hero._facing
+	var offset := Vector3(side * 3.0, 0, -0.6).rotated(Vector3.UP, yaw)
 	var spot := hero.global_position + offset
 	var to := _flat(spot - global_position)
 	if to.length() > 30.0:
@@ -330,6 +332,10 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 	var origin := global_position + Vector3(0, 1.3, 0)
 	var forward := Vector3(sin(_facing), 0, cos(_facing))
 	var alive := is_instance_valid(mob) and not mob.is_dead()
+	var show_center := global_position
+	if alive and String(skill.shape) in ["single", "chain", "fan", "blast"]:
+		show_center = Vector3(mob.global_position.x, 0.0, mob.global_position.z)
+	SkillShow.play(field, skill, show_center, global_position, null)
 	match String(skill.shape):
 		"self":
 			_apply_self(skill)

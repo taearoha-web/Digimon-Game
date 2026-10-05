@@ -62,6 +62,17 @@ func _ready() -> void:
 	snap_to_target()
 
 
+## A quick zoom-in kick for heavy skills.
+func punch(fov_add := 5.0) -> void:
+	if camera == null:
+		return
+	var base := 58.0
+	var tween := create_tween()
+	tween.tween_property(camera, "fov", base - fov_add, 0.08).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(camera, "fov", base, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	shake(0.35)
+
+
 func snap_to_target() -> void:
 	if target:
 		global_position = target.global_position + Vector3.UP * height_offset

@@ -6,6 +6,7 @@ extends Node
 var out_dir := "user://shots"
 var class_id: StringName = &"warrior"
 var tour := "field"
+var job := ""
 var main: Node
 var _n := 0
 
@@ -15,6 +16,7 @@ func _ready() -> void:
 	if args.size() > 0: out_dir = args[0]
 	if args.size() > 1: class_id = StringName(args[1])
 	if args.size() > 2: tour = args[2]
+	if args.size() > 3: job = args[3]
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
@@ -105,7 +107,10 @@ func _field() -> void:
 
 
 func _skills() -> void:
-	_level(12)
+	_level(20 if job != "" else 12)
+	if job != "":
+		Game.profile["job"] = job
+		Game.profile_changed.emit()
 	await main.go(&"meadow", true)
 	await _wait(1.0)
 	var z: Zone = main.zone
@@ -117,7 +122,7 @@ func _skills() -> void:
 		var pack: Array[Mob] = []
 		for j in 5:
 			var m := Mob.new()
-			m.setup(&"green_slime", 4, hero.global_position + Vector3(7 + (j % 3) * 1.6, 0, -2 + (j / 3) * 2.0 + j * 0.3), hero)
+			m.setup(&"green_slime", 4, hero.global_position + Vector3(4 + (j % 3) * 1.4, 0, -1.5 + (j / 3) * 2.0 + j * 0.3), hero)
 			m.position = m.home + Vector3(0, 0.3, 0)
 			z.add_child(m)
 			pack.append(m)
@@ -126,9 +131,9 @@ func _skills() -> void:
 		hero.cooldowns.clear()
 		Game.profile.mp = 999
 		hero.use_skill(i)
-		await _wait(0.3)
+		await _wait(0.45)
 		await _shot("cast_%d_a" % (i + 1))
-		await _wait(0.3)
+		await _wait(0.25)
 		await _shot("cast_%d_b" % (i + 1))
 		await _wait(0.3)
 		await _shot("cast_%d_c" % (i + 1))
