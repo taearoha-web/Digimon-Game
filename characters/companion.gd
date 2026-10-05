@@ -2,7 +2,8 @@ class_name Companion
 extends CharacterBody3D
 ## An AI party member: follows the hero, helps against whatever the hero is
 ## fighting, uses its class skills (the priest heals and buffs the hero) and
-## shares EXP. It cannot be hurt - monsters only ever go after the hero.
+## shares EXP. Monsters attack it like the hero; when it falls it gets back up
+## after a while.
 
 var member: Dictionary = {}
 var index := 0
@@ -26,6 +27,13 @@ var _label: Label3D
 var _equip_sig := ""
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 var damage_dealt := 0
+var hp := 1
+var max_hp := 1
+var _dead := false
+var _revive_timer := 0.0
+var _invulnerable_until := 0
+var _since_hurt := 99.0
+var _bar: FieldHpBar
 
 
 func setup(p_member: Dictionary, p_index: int, p_hero: Hero, p_field: Node3D) -> void:
@@ -61,7 +69,12 @@ func _ready() -> void:
 	_label.position = Vector3(0, 2.75, 0)
 	_label.visibility_range_end = 30.0
 	add_child(_label)
+	_bar = FieldHpBar.new()
+	_bar.position = Vector3(0, 3.05, 0)
+	_bar.visible = false
+	add_child(_bar)
 	refresh()
+	hp = max_hp
 	mp = float(stats.max_mp)
 	Game.party_changed.connect(refresh)
 
@@ -81,6 +94,74 @@ func refresh() -> void:
 		_equip_sig = sig
 		visual.set_equipment(Game.party_equip(member))
 	mp = minf(mp, float(stats.max_mp))
+	var ratio := float(hp) / float(max_hp) if max_hp > 0 else 1.0
+	max_hp = int(stats.max_hp)
+	hp = clampi(int(round(ratio * max_hp)), 1 if not _dead else 0, max_hp)
+	_update_bar()
+
+
+func is_dead() -> bool:
+	return _dead
+
+
+func _update_bar() -> void:
+	if _bar:
+		_bar.set_ratio(float(hp) / float(maxi(1, max_hp)))
+		_bar.visible = hp < max_hp and not _dead
+
+
+## Monsters hit companions just like the hero.
+func take_damage(raw: float, _attacker: Node = null) -> void:
+	if _dead or Time.get_ticks_msec() < _invulnerable_until or hero.safe_zone:
+		return
+	if randf() < float(stats.dodge):
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.8)
+		return
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
+	hp = maxi(0, hp - amount)
+	_since_hurt = 0.0
+	BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff7a8a"), 1.0)
+	visual.flash()
+	_update_bar()
+	if Time.get_ticks_msec() >= _cast_until:
+		visual.action("Hit_A", 1.2)
+	if hp <= 0:
+		_die()
+
+
+func heal_fraction(fraction: float) -> void:
+	if _dead:
+		return
+	var before := hp
+	hp = mini(max_hp, hp + int(float(max_hp) * fraction))
+	if hp > before:
+		VfxKit.heal(field, global_position)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.6, 0), "+%d" % (hp - before), Color("6dff9a"), 0.9)
+	_update_bar()
+
+
+func _die() -> void:
+	_dead = true
+	target = null
+	_revive_timer = 14.0
+	visual.hold_last_frame("Death_A")
+	_label.text = "%s ล้มแล้ว..." % member.name
+	_bar.visible = false
+	BattleVfx.floating_text(field, global_position + Vector3(0, 2.8, 0), "ล้มแล้ว!", Color("ff7a8a"), 1.2)
+	Game.say("%s ล้มแล้ว! จะลุกขึ้นมาใน %d วินาที" % [member.name, int(_revive_timer)], &"warning")
+
+
+func _revive() -> void:
+	_dead = false
+	hp = int(float(max_hp) * 0.6)
+	_invulnerable_until = Time.get_ticks_msec() + 2500
+	visual.release()
+	visual.play("Idle")
+	global_position = hero.global_position + Vector3(3.0, 0.3, -0.6).rotated(Vector3.UP, hero.camera_rig.yaw if hero.camera_rig else 0.0)
+	_label.text = "%s Lv.%d" % [member.name, int(member.level)]
+	VfxKit.level_up(field, global_position)
+	BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "กลับมาสู้!", Color("8ff0ff"), 1.2)
+	_update_bar()
 
 
 func level_up_fx() -> void:
@@ -92,6 +173,20 @@ func level_up_fx() -> void:
 func _physics_process(delta: float) -> void:
 	if hero == null or not is_instance_valid(hero) or stats.is_empty():
 		return
+	if _dead:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
+		move_and_slide()
+		_revive_timer -= delta
+		if _revive_timer <= 0.0 and not hero.is_dead():
+			_revive()
+		return
+	_since_hurt += delta
+	var regen := 0.03 if hero.safe_zone else (0.012 if _since_hurt > 5.0 else 0.0)
+	if regen > 0.0 and hp < max_hp:
+		hp = mini(max_hp, hp + maxi(1, int(float(max_hp) * regen * delta)))
+		_update_bar()
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_think -= delta
 	mp = minf(float(stats.max_mp), mp + float(stats.max_mp) * 0.02 * delta)
@@ -231,7 +326,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
 	VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.3 if crit else 0.9)
 	damage_dealt += amount
-	var killed := mob.take_hit(amount, crit, color)
+	var killed := mob.take_hit(amount, crit, color, self)
 	if killed:
 		return
 	if melee:
@@ -284,7 +379,7 @@ func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
 	match String(skill.shape):
 		"self":
-			if fx.has("heal") and hero_hp < 0.55:
+			if fx.has("heal") and (hero_hp < 0.55 or float(hp) / float(max_hp) < 0.45):
 				return 10.0
 			if fx.has("buff") and not fx.has("heal") and Time.get_ticks_msec() >= _buff_until and hero.target != null:
 				return 6.0
@@ -380,6 +475,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			var fx: Dictionary = skill.get("fx", {})
 			if fx.has("heal"):
 				hero.receive_heal(float(fx.heal) * 0.6)
+				heal_fraction(float(fx.heal) * 0.6)
 		"blast":
 			var center := Vector3(aim.x, 0.0, aim.z)
 			if alive:
@@ -406,6 +502,7 @@ func _apply_self(skill: Dictionary) -> void:
 	var color: Color = skill.color
 	if fx.has("heal"):
 		hero.receive_heal(float(fx.heal))
+		heal_fraction(float(fx.heal))
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff

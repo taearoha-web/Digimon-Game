@@ -187,6 +187,8 @@ func _on_npc(role: String) -> void:
 				{"label": "ดูสินค้า", "action": func(): shop.open_shop()}, {"label": "ไว้ก่อน"}])
 		"job":
 			_talk_job()
+		"party":
+			_talk_party()
 		"healer":
 			var stats := Game.stats_now()
 			Game.profile.hp = stats.max_hp
@@ -196,6 +198,38 @@ func _on_npc(role: String) -> void:
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• สกิลทั้ง 4 อยู่บนแถบโค้งรอบปุ่มดาบ ปลดล็อกเมื่อเลเวลถึง\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ อัปสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+
+
+func _talk_party() -> void:
+	var speaker := "นายหน้าเพื่อนร่วมทาง"
+	var party := Game.party()
+	var text := "ออกผจญภัยคนเดียวมันเหงานะ! ข้ามีนักผจญภัยฝีมือดีให้ร่วมทางด้วย 1 คน เก่งขึ้นตามเลเวลของเจ้า แต่ก็บาดเจ็บและล้มได้เหมือนกัน"
+	if not party.is_empty():
+		var member: Dictionary = party[0]
+		text += "\n\nตอนนี้เจ้าพา %s (%s Lv.%d) ไปด้วย" % [member.name, ClassData.get_class_data(StringName(member["class"])).name, int(member.level)]
+	var options: Array = [{"label": "เลือกเพื่อน", "action": func(): _pick_party()}]
+	if not party.is_empty():
+		options.append({"label": "ให้กลับบ้าน", "action": func():
+			Game.dismiss_party()
+			dialog.say(speaker, "เข้าใจแล้ว ไว้คิดถึงเมื่อไหร่ก็มาหาข้าใหม่นะ")})
+	options.append({"label": "ไว้ก่อน"})
+	dialog.say(speaker, text, options)
+
+
+func _pick_party() -> void:
+	var speaker := "นายหน้าเพื่อนร่วมทาง"
+	var lines: PackedStringArray = []
+	var options: Array = []
+	for id in ClassData.IDS:
+		lines.append("• %s — %s" % [ClassData.get_class_data(id).name, Game.PARTY_BLURBS[id]])
+		options.append({"label": String(ClassData.get_class_data(id).name), "action": func():
+			Game.recruit(id)
+			if zone and zone.hero:
+				VfxKit.level_up(zone, zone.hero.global_position)
+			var member: Dictionary = Game.party()[0]
+			dialog.say(speaker, "ตกลง! %s (%s) จะร่วมทางกับเจ้า เริ่มที่เลเวล %d ดูแลกันดีๆ นะ" % [member.name, ClassData.get_class_data(id).name, int(member.level)])})
+	options.append({"label": "ย้อนกลับ", "action": func(): _talk_party()})
+	dialog.say(speaker, "เลือกได้ 1 คน (เพื่อนคนเก่าจะกลับบ้านไป):\n" + "\n".join(lines), options)
 
 
 func _talk_job() -> void:

@@ -99,8 +99,12 @@ func refresh() -> void:
 		outfit_tint = look.tint
 		cape = look.cape
 	var glb: String = OUTFIT_GLB[outfit_style]
+	var boots: Variant = equip.get("boots")
 	for piece in OUTFIT_PARTS:
-		_add_part(glb, "%s_%s" % [glb, piece], outfit_tint)
+		var piece_tint := outfit_tint
+		if boots != null and piece.begins_with("Leg"):
+			piece_tint *= ItemLook.boots_tint(boots)
+		_add_part(glb, "%s_%s" % [glb, piece], piece_tint)
 	# Head, hat, cape
 	_add_part(preset.head[0], preset.head[1])
 	if preset.has("extra") and armor == null:
@@ -113,7 +117,30 @@ func refresh() -> void:
 		_wear_hat(hat)
 	elif preset.has("hat"):
 		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
+	_wear_trinkets()
 	_hold_gear()
+
+
+## Boots show as cuffs on both lower legs, an amulet as a necklace.
+func _wear_trinkets() -> void:
+	var boots: Variant = equip.get("boots")
+	if boots != null:
+		var tier := ItemLook.tier_of(boots)
+		for side in [1.0, -1.0]:
+			var attach := BoneAttachment3D.new()
+			attach.name = "Boots"
+			attach.bone_name = "lowerleg.l" if side > 0.0 else "lowerleg.r"
+			_skeleton.add_child(attach)
+			attach.add_child(GearKit.boot_cuff(tier, side))
+			_body_nodes.append(attach)
+	var amulet: Variant = equip.get("amulet")
+	if amulet != null:
+		var attach := BoneAttachment3D.new()
+		attach.name = "Amulet"
+		attach.bone_name = "chest"
+		_skeleton.add_child(attach)
+		attach.add_child(GearKit.necklace(ItemLook.tier_of(amulet)))
+		_body_nodes.append(attach)
 
 
 func _add_part(glb: String, node_name: String, tint := Color.WHITE) -> void:

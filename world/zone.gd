@@ -206,6 +206,7 @@ func _build_town() -> void:
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
 	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
 	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เปลี่ยนอาชีพ (Lv.%d)" % JobData.JOB_LEVEL, Vector3(-11, 0, 5), "Knight")
+	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
 	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")
@@ -214,14 +215,20 @@ func _build_town() -> void:
 func _spawn_party() -> void:
 	Game.ensure_party()
 	Game.party_catch_up()
+	for old in companions:
+		if is_instance_valid(old):
+			old.queue_free()
+	companions.clear()
 	for i in Game.party().size():
 		var buddy := Companion.new()
 		buddy.setup(Game.party()[i], i, hero, self)
 		add_child(buddy)
-		buddy.global_position = hero.global_position + Vector3(-3.0 if i == 0 else 3.0, 0.3, -0.6)
+		buddy.global_position = hero.global_position + Vector3(3.0, 0.3, -0.6)
 		companions.append(buddy)
 	if not Game.party_leveled.is_connected(_on_party_leveled):
 		Game.party_leveled.connect(_on_party_leveled)
+	if not Game.party_roster_changed.is_connected(_spawn_party):
+		Game.party_roster_changed.connect(_spawn_party)
 
 
 func _on_party_leveled(i: int, _level: int) -> void:
@@ -232,6 +239,8 @@ func _on_party_leveled(i: int, _level: int) -> void:
 func _exit_tree() -> void:
 	if Game.party_leveled.is_connected(_on_party_leveled):
 		Game.party_leveled.disconnect(_on_party_leveled)
+	if Game.party_roster_changed.is_connected(_spawn_party):
+		Game.party_roster_changed.disconnect(_spawn_party)
 
 
 func _spawn_hero() -> void:

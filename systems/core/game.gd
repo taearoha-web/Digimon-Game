@@ -13,6 +13,7 @@ signal item_gained(item: Dictionary)
 signal quest_changed()
 signal party_changed()
 signal party_leveled(index: int, level: int)
+signal party_roster_changed()
 
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
@@ -219,22 +220,45 @@ func add_exp(amount: int) -> void:
 # AI party: two companions that fight beside the hero and share EXP
 # ---------------------------------------------------------------------------
 
-const PARTY_PICKS := {&"warrior": [&"archer", &"priest"], &"archer": [&"warrior", &"priest"], &"mage": [&"warrior", &"priest"], &"priest": [&"warrior", &"mage"]}
-const PARTY_NAMES := {&"warrior": "บราโว่", &"archer": "ลูน่า", &"mage": "มิกะ", &"priest": "นีน่า"}
+const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"]}
+const PARTY_BLURBS := {
+	&"warrior": "นักรบเกราะหนา ยืนหน้าคอยรับดาเมจ",
+	&"archer": "นักธนู ยิงไกลและคริติคอลสูง",
+	&"mage": "จอมเวท ตีหมู่แรง แต่เลือดน้อย",
+	&"priest": "พรีสต์ ฮีลและเสริมพลังให้คุณ",
+}
 var _party_gear: Dictionary = {}
 
 
+## One AI companion. New and old saves without a party get a default one
+## (a priest, or a mage for a priest); older saves with two keep the first.
 func ensure_party() -> void:
 	var party: Variant = profile.get("party")
-	if party is Array and party.size() == 2:
-		for member in party:
+	if party is Array:
+		if party.size() > 1:
+			profile["party"] = party.slice(0, 1)
+		for member in profile["party"]:
 			member["level"] = maxi(1, int(member.get("level", 1)))
 			member["exp"] = int(member.get("exp", 0))
 		return
-	var list: Array = []
-	for c in PARTY_PICKS[class_id()]:
-		list.append({"class": String(c), "name": PARTY_NAMES[c], "level": maxi(1, int(profile["level"]) - 1), "exp": 0})
-	profile["party"] = list
+	recruit(&"mage" if class_id() == &"priest" else &"priest", false)
+
+
+## Hire a companion of the given class (replaces the current one).
+func recruit(c: StringName, announce := true) -> void:
+	var names: Array = PARTY_NAMES[c]
+	profile["party"] = [{"class": String(c), "name": names[randi() % names.size()], "level": maxi(1, int(profile["level"]) - 1), "exp": 0}]
+	mark_dirty()
+	party_changed.emit()
+	if announce:
+		party_roster_changed.emit()
+
+
+func dismiss_party() -> void:
+	profile["party"] = []
+	mark_dirty()
+	party_changed.emit()
+	party_roster_changed.emit()
 
 
 func party() -> Array:

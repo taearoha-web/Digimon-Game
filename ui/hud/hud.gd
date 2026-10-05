@@ -294,7 +294,7 @@ func _build_status(frame: Control) -> void:
 
 ## Small cards for the two AI companions: badge, name, level, EXP.
 func _build_party(column: Control) -> void:
-	for i in 2:
+	for i in 1:
 		var card := UIUtil.panel(&"HudPanel")
 		card.custom_minimum_size = Vector2(230, 0)
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -315,9 +315,11 @@ func _build_party(column: Control) -> void:
 		row.add_child(info)
 		var title := UIUtil.label("", &"SmallLabel")
 		info.add_child(title)
-		var bar := _bar(&"HPBar", 8)
+		var bar := _bar(&"HPBar", 9)
 		info.add_child(bar)
-		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "key": ""})
+		var exp_bar := _bar(&"EXPBar", 4)
+		info.add_child(exp_bar)
+		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "key": ""})
 
 
 func _update_party() -> void:
@@ -342,8 +344,15 @@ func _update_party() -> void:
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  Lv.%d" % [member.name, int(member.level)]
 		var bar := entry.bar as ProgressBar
-		bar.max_value = float(HeroStats.exp_to_next(int(member.level)))
-		bar.value = float(member.exp)
+		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
+		if buddy:
+			UIUtil.set_bar(bar, buddy.hp, buddy.max_hp)
+			UIUtil.tint_hp_bar(bar, float(buddy.hp) / float(maxi(1, buddy.max_hp)))
+		else:
+			UIUtil.set_bar(bar, 1, 1)
+		var exp_bar := entry.exp as ProgressBar
+		exp_bar.max_value = float(HeroStats.exp_to_next(int(member.level)))
+		exp_bar.value = float(member.exp)
 
 
 func _build_top_right(frame: Control) -> void:

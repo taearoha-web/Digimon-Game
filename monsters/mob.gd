@@ -22,6 +22,8 @@ var max_hp := 1
 var home := Vector3.ZERO
 var hero: Node3D
 var hostile := false
+var _victim: Node3D
+var _victim_timer := 0.0
 var is_boss := false
 var visual: MonsterVisual
 
@@ -147,7 +149,7 @@ func set_targeted(on: bool) -> void:
 
 
 ## Damage from the hero. Returns true when it killed the monster.
-func take_hit(amount: int, crit: bool, color := Color.WHITE) -> bool:
+func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = null) -> bool:
 	if _dead:
 		return false
 	hp = maxi(0, hp - amount)
@@ -163,6 +165,9 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE) -> bool:
 	if not is_boss:
 		visual.action("hurt", 320)
 		_anim_lock = Time.get_ticks_msec() + 320
+	if attacker is Companion and randf() < 0.45:
+		_victim = attacker
+		_victim_timer = 3.0
 	provoke()
 	return false
 
@@ -217,14 +222,18 @@ func _physics_process(delta: float) -> void:
 	_tick_status(delta)
 	if _dead:
 		return
-	var hero_ok: bool = hero != null and is_instance_valid(hero) and hero.has_method("is_dead") and not hero.is_dead()
+	_victim_timer -= delta
+	if _victim_timer <= 0.0 or not _alive(_victim):
+		_victim = _nearest_victim()
+		_victim_timer = 0.8
+	var hero_ok: bool = _victim != null
 	var desired := Vector3.ZERO
 	var chase_target: Node3D = null
 	var speed_factor := 0.5 if _slow > 0.0 else 1.0
 	if _stun > 0.0:
 		_stun -= delta
 	elif hero_ok:
-		var distance := _flat_distance(hero.global_position)
+		var distance := _flat_distance(_victim.global_position)
 		if not hostile and bool(template.aggro) and distance < NOTICE_RADIUS and not _returning:
 			hostile = true
 			_flash_alert()
@@ -234,7 +243,7 @@ func _physics_process(delta: float) -> void:
 				_returning = true
 				_winding = false
 			else:
-				chase_target = hero
+				chase_target = _victim
 	if _stun <= 0.0:
 		if chase_target:
 			desired = _chase(chase_target, delta, speed_factor)
@@ -314,28 +323,56 @@ func _begin_attack() -> void:
 func _strike() -> void:
 	_winding = false
 	_attack_timer = randf_range(1.8, 2.8) if not is_boss else randf_range(1.4, 2.0)
-	if _dead or _stun > 0.0 or hero == null or not is_instance_valid(hero) or hero.is_dead():
+	if _dead or _stun > 0.0 or not _alive(_victim):
 		return
+	var victim := _victim
 	visual.action("attack", 450)
 	_anim_lock = Time.get_ticks_msec() + 450
 	var raw := float(stats.atk) * randf_range(0.9, 1.1)
 	if String(template.attack) == "ranged":
 		var color: Color = template.get("color", Color("ff9a5a"))
 		var from := hit_point()
-		var to: Vector3 = hero.global_position + Vector3(0, 1.0, 0)
+		var to: Vector3 = victim.global_position + Vector3(0, 1.0, 0)
 		var flight := clampf(from.distance_to(to) / 13.0, 0.15, 0.6)
 		VfxKit.projectile(get_parent(), color, from, to, flight, 0.42)
-		get_tree().create_timer(flight).timeout.connect(func(): _deliver(raw), CONNECT_ONE_SHOT)
+		get_tree().create_timer(flight).timeout.connect(func(): _deliver(victim, raw), CONNECT_ONE_SHOT)
 	else:
-		_deliver(raw, 1.5 + body_radius() * 1.2 + 1.0)
+		_deliver(victim, raw, 1.5 + body_radius() * 1.2 + 1.0)
 
 
-func _deliver(raw: float, max_distance := 99.0) -> void:
-	if _dead or hero == null or not is_instance_valid(hero) or hero.is_dead():
+func _deliver(victim: Node3D, raw: float, max_distance := 99.0) -> void:
+	if _dead or not _alive(victim):
 		return
-	if _flat_distance(hero.global_position) > max_distance:
+	if _flat_distance(victim.global_position) > max_distance:
 		return
-	hero.take_damage(raw, self)
+	victim.take_damage(raw, self)
+
+
+## Hero or companion still standing.
+func _alive(node: Node3D) -> bool:
+	return node != null and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead()
+
+
+func _targets() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	if _alive(hero):
+		out.append(hero)
+	for node in get_tree().get_nodes_in_group("companions"):
+		if _alive(node as Node3D):
+			out.append(node as Node3D)
+	return out
+
+
+## The closest hero / companion (the hero counts as a little closer).
+func _nearest_victim() -> Node3D:
+	var best: Node3D = null
+	var best_d := 1e9
+	for t in _targets():
+		var d := _flat_distance(t.global_position) * (0.8 if t == hero else 1.0)
+		if d < best_d:
+			best_d = d
+			best = t
+	return best
 
 
 func _begin_slam() -> void:
@@ -354,8 +391,9 @@ func _begin_slam() -> void:
 			return
 		VfxKit.shockwave(get_parent(), center + Vector3(0, 0.1, 0), color, radius)
 		BattleVfx.burst(get_parent(), center + Vector3(0, 0.4, 0), color, 36, 1.4)
-		if hero and is_instance_valid(hero) and not hero.is_dead() and _flat_distance_from(hero.global_position, center) <= radius:
-			hero.take_damage(float(stats.atk) * 1.9, self)
+		for t in _targets():
+			if _flat_distance_from(t.global_position, center) <= radius:
+				t.take_damage(float(stats.atk) * 1.9, self)
 		, CONNECT_ONE_SHOT)
 
 
