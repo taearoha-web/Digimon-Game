@@ -17,7 +17,7 @@ var _pivot: Node3D
 
 func _ready() -> void:
 	layer = 50
-	add_child(UIUtil.digital_background())
+	add_child(UIUtil.sky_background())
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
@@ -61,8 +61,17 @@ func _ready() -> void:
 	viewport.add_child(_pivot)
 
 	# Class cards + details on the right.
+	var backing := Panel.new()
+	var back_style := StyleBoxFlat.new()
+	back_style.bg_color = Color(0.05, 0.1, 0.28, 0.72)
+	back_style.set_corner_radius_all(22)
+	backing.add_theme_stylebox_override("panel", back_style)
+	backing.position = Vector2(446, 52)
+	backing.size = Vector2(808, 424)
+	backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(backing)
 	var right := UIUtil.vbox(10)
-	right.position = Vector2(460, 56)
+	right.position = Vector2(460, 62)
 	right.size = Vector2(780, 600)
 	frame.add_child(right)
 	var row := UIUtil.hbox(10)
