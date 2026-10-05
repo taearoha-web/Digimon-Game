@@ -2,7 +2,7 @@ class_name UIUtil
 extends RefCounted
 ## Small helpers for building UI from code consistently with the theme.
 
-const DIGITAL_BG_SHADER := preload("res://shaders/ui_digital_background.gdshader")
+const SKY_BG_SHADER := preload("res://shaders/ui_sky_background.gdshader")
 
 
 static func label(text: String, variation: StringName = &"", align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
@@ -78,13 +78,13 @@ static func clear(node: Node) -> void:
 		child.queue_free()
 
 
-## Full-rect animated digital background.
-static func digital_background() -> ColorRect:
+## Full-rect animated cartoon sky background.
+static func sky_background() -> ColorRect:
 	var rect := ColorRect.new()
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
-	mat.shader = DIGITAL_BG_SHADER
+	mat.shader = SKY_BG_SHADER
 	rect.material = mat
 	return rect
 

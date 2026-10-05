@@ -8,7 +8,7 @@ signal continue_pressed()
 
 func _ready() -> void:
 	layer = 50
-	var bg := UIUtil.digital_background()
+	var bg := UIUtil.sky_background()
 	add_child(bg)
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
