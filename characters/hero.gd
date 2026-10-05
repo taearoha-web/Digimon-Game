@@ -602,19 +602,30 @@ func _apply_self_fx(skill: Dictionary) -> void:
 	if fx.has("heal"):
 		_heal(float(fx.heal))
 	if fx.has("buff"):
-		var buff: Dictionary = fx.buff.duplicate()
-		buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
-		_buffs.append(buff)
-		refresh_stats()
-		if _buff_emitter == null:
-			_buff_emitter = VfxKit.buff_emitter(self, color)
-		_buff_emitter.color_ramp = null
-		(_buff_emitter.mesh.material as StandardMaterial3D).albedo_color = Color(color.r, color.g, color.b, 0.9)
-		_buff_emitter.emitting = true
-		VfxKit.aura(field, global_position, color)
-		VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
-		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), skill.name, color, 0.9)
-		AudioManager.play_sfx(&"buff")
+		receive_buff(fx.buff, color, String(skill.name))
+
+
+## A buff from a skill or from a companion: {atk, def, speed, crit, secs}.
+func receive_buff(buff_data: Dictionary, color: Color, label := "") -> void:
+	var buff: Dictionary = buff_data.duplicate()
+	buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
+	_buffs.append(buff)
+	refresh_stats()
+	if _buff_emitter == null:
+		_buff_emitter = VfxKit.buff_emitter(self, color)
+	_buff_emitter.color_ramp = null
+	(_buff_emitter.mesh.material as StandardMaterial3D).albedo_color = Color(color.r, color.g, color.b, 0.9)
+	_buff_emitter.emitting = true
+	VfxKit.aura(field, global_position, color)
+	VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
+	if label != "":
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), label, color, 0.9)
+	AudioManager.play_sfx(&"buff")
+
+
+## Healing from a companion.
+func receive_heal(fraction: float) -> void:
+	_heal(fraction)
 
 
 func _heal(fraction: float) -> void:

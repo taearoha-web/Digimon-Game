@@ -24,6 +24,7 @@ var camera_rig: ThirdPersonCamera
 var rng := RandomNumberGenerator.new()
 var portals: Array[Dictionary] = []
 var npcs: Array[Npc] = []
+var companions: Array[Companion] = []
 var current_interact: Dictionary = {}
 
 var _spawn_timer := 0.0
@@ -52,6 +53,7 @@ func _ready() -> void:
 	else:
 		_build_field()
 	_spawn_hero()
+	_spawn_party()
 	AudioManager.play_music(data.get("music", &"field"))
 	if not is_town:
 		for camp in _camps:
@@ -207,6 +209,29 @@ func _build_town() -> void:
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
 	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")
+
+
+func _spawn_party() -> void:
+	Game.ensure_party()
+	Game.party_catch_up()
+	for i in Game.party().size():
+		var buddy := Companion.new()
+		buddy.setup(Game.party()[i], i, hero, self)
+		add_child(buddy)
+		buddy.global_position = hero.global_position + Vector3(-2.4 if i == 0 else 2.4, 0.3, -2.6)
+		companions.append(buddy)
+	if not Game.party_leveled.is_connected(_on_party_leveled):
+		Game.party_leveled.connect(_on_party_leveled)
+
+
+func _on_party_leveled(i: int, _level: int) -> void:
+	if i < companions.size() and is_instance_valid(companions[i]):
+		companions[i].level_up_fx()
+
+
+func _exit_tree() -> void:
+	if Game.party_leveled.is_connected(_on_party_leveled):
+		Game.party_leveled.disconnect(_on_party_leveled)
 
 
 func _spawn_hero() -> void:
@@ -546,6 +571,7 @@ func _on_mob_died(mob: Mob) -> void:
 	var exp_scale := 1.0 if level_gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(level_gap - 4))
 	var exp_gain := int(round(float(mob.stats.exp) * exp_scale))
 	Game.add_exp(exp_gain)
+	Game.party_add_exp(exp_gain)
 	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), "+%d EXP" % exp_gain, Color("66e0ff"), 0.8)
 	Game.report_kill(mob.monster_id, mob.is_boss)
 	_drop_loot(mob)

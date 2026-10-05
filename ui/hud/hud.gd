@@ -48,6 +48,7 @@ var _banner: Label
 var _death_panel: ColorRect
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
+var _party_cards: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -151,6 +152,7 @@ func _process(_delta: float) -> void:
 		_badge_panel.add_theme_stylebox_override("panel", style)
 		_badge.text = String(data.badge)
 	_name_label.text = String(p.name)
+	_update_party()
 	_level_label.text = "Lv.%d" % int(p.level)
 	UIUtil.set_bar(_hp_bar, p.hp, stats.max_hp)
 	UIUtil.tint_hp_bar(_hp_bar, float(p.hp) / float(maxi(1, stats.max_hp)))
@@ -288,6 +290,60 @@ func _build_status(frame: Control) -> void:
 	_target_hp.custom_minimum_size = Vector2(110, 0)
 	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	trow.add_child(_target_hp)
+	_build_party(column)
+
+## Small cards for the two AI companions: badge, name, level, EXP.
+func _build_party(column: Control) -> void:
+	for i in 2:
+		var card := UIUtil.panel(&"HudPanel")
+		card.custom_minimum_size = Vector2(230, 0)
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_child(card)
+		var row := UIUtil.hbox(8)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(row)
+		var badge := PanelContainer.new()
+		badge.custom_minimum_size = Vector2(34, 34)
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(badge)
+		var letter := UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge.add_child(letter)
+		var info := UIUtil.vbox(2)
+		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(info)
+		var title := UIUtil.label("", &"SmallLabel")
+		info.add_child(title)
+		var bar := _bar(&"HPBar", 8)
+		info.add_child(bar)
+		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "key": ""})
+
+
+func _update_party() -> void:
+	var party := Game.party()
+	for i in _party_cards.size():
+		var entry: Dictionary = _party_cards[i]
+		var card: Control = entry.card
+		card.visible = i < party.size() and (zone != null)
+		if not card.visible:
+			continue
+		var member: Dictionary = party[i]
+		var data := ClassData.get_class_data(StringName(member["class"]))
+		var key := "%s|%d" % [member.name, int(member.level)]
+		if key != entry.key:
+			entry["key"] = key
+			var style := StyleBoxFlat.new()
+			style.bg_color = data.color
+			style.set_corner_radius_all(17)
+			style.set_border_width_all(2)
+			style.border_color = Color.WHITE
+			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
+			(entry.letter as Label).text = String(data.badge)
+			(entry.title as Label).text = "%s  Lv.%d" % [member.name, int(member.level)]
+		var bar := entry.bar as ProgressBar
+		bar.max_value = float(HeroStats.exp_to_next(int(member.level)))
+		bar.value = float(member.exp)
 
 
 func _build_top_right(frame: Control) -> void:
