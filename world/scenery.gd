@@ -4,7 +4,9 @@ extends RefCounted
 ## flowers (Quaternius nature models via [NatureKit]) and the sky.
 
 const PINES := ["PineTree_1", "PineTree_2", "PineTree_4", "PineTree_5"]
-const BROADLEAFS := [["MapleTree_4", 4.0], ["NormalTree_5", 4.0], ["MapleTree_1", 2.0], ["BirchTree_4", 2.0], ["NormalTree_3", 0.5]]
+const BROADLEAFS := [["MapleTree_4", 5.0], ["NormalTree_5", 4.0], ["MapleTree_1", 1.5], ["BirchTree_4", 1.0]]
+## Light models for the dense forest wall outside the play area.
+const WALL_TREES := ["PineTree_5", "MapleTree_4", "PineTree_5", "NormalTree_5"]
 const BUSHES := ["Bush", "Bush_Large", "Bush_Small", "Bush_Flowers", "Bush_Large_Flowers", "Bush_Small_Flowers"]
 const ROCKS := ["Rock_1", "Rock_2", "Rock_3", "Rock_4", "Rock_5"]
 const FLOWER_MODELS := ["Plant_Flowers", "Plant_1", "Petals_1", "Plant_2"]
@@ -137,20 +139,24 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 		occupied: Array[Vector3], density: float, with_colliders: bool) -> void:
 	var groups: Dictionary = {}
 	var step := 4.6
-	var x := -play_radius - 36.0
-	while x <= play_radius + 36.0:
-		var z := -play_radius - 36.0
-		while z <= play_radius + 36.0:
+	var x := -play_radius - 26.0
+	while x <= play_radius + 26.0:
+		var z := -play_radius - 26.0
+		while z <= play_radius + 26.0:
 			var p := Vector2(x + rng.randf_range(-2.0, 2.0), z + rng.randf_range(-2.0, 2.0))
 			z += step
 			var r := p.length()
 			# Dense forest outside the play area, scattered groves inside it.
-			var chance := 0.92 if r > play_radius else (0.07 + 0.2 * smoothstep(play_radius * 0.55, play_radius, r))
+			var chance := 0.7 if r > play_radius else (0.07 + 0.2 * smoothstep(play_radius * 0.55, play_radius, r))
 			chance *= density
 			if rng.randf() > chance or not _free(p, 1.4, occupied):
 				continue
 			var s := rng.randf_range(0.9, 1.45)
-			var model: String = PINES[rng.randi() % PINES.size()] if rng.randf() < 0.4 else _pick(BROADLEAFS, rng)
+			var model: String
+			if r > play_radius + 3.0:
+				model = WALL_TREES[rng.randi() % WALL_TREES.size()]
+			else:
+				model = PINES[rng.randi() % PINES.size()] if rng.randf() < 0.4 else _pick(BROADLEAFS, rng)
 			if not groups.has(model):
 				groups[model] = []
 			groups[model].append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s * 1.15), Vector3(p.x, -0.05, p.y)))
@@ -167,7 +173,7 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 	for model in groups:
 		var transforms: Array[Transform3D] = []
 		transforms.assign(groups[model])
-		NatureKit.place(parent, "Trees_" + model, model, theme, transforms)
+		NatureKit.place(parent, "Trees_" + model, model, theme, transforms, [], true, 80.0)
 
 
 static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3]) -> void:
@@ -176,7 +182,7 @@ static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerato
 	var palette := [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")]
 	var placed := 0
 	var attempts := 0
-	while placed < 150 and attempts < 1000:
+	while placed < 120 and attempts < 900:
 		attempts += 1
 		var p := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		if p.length() > play_radius or not _free(p, 0.9, occupied):
@@ -195,7 +201,7 @@ static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerato
 		transforms.assign(groups[model])
 		var tints: Array[Color] = []
 		tints.assign(colors[model])
-		NatureKit.place(parent, "Bushes_" + model, model, theme, transforms, tints)
+		NatureKit.place(parent, "Bushes_" + model, model, theme, transforms, tints, true, 55.0)
 
 
 static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float,
@@ -231,7 +237,7 @@ static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 		transforms.assign(groups[model])
 		var tints: Array[Color] = []
 		tints.assign(colors[model])
-		NatureKit.place(parent, "Rocks_" + model, model, theme, transforms, tints)
+		NatureKit.place(parent, "Rocks_" + model, model, theme, transforms, tints, true, 75.0)
 
 
 static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3]) -> void:
@@ -275,7 +281,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		mmi.multimesh = mm
 		mmi.material_override = mat
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mmi.visibility_range_end = 70.0
+		mmi.visibility_range_end = 48.0
 		mmi.custom_aabb = AABB(Vector3(cell.x * NatureKit.CHUNK - 4.0, -1.0, cell.y * NatureKit.CHUNK - 4.0), Vector3(NatureKit.CHUNK + 8.0, 4.0, NatureKit.CHUNK + 8.0))
 		holder.add_child(mmi)
 	# Flowers
@@ -298,7 +304,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		ts.assign(groups[model])
 		var cs: Array[Color] = []
 		cs.assign(flower_colors[model])
-		NatureKit.place(parent, "Flowers_" + model, model, theme, ts, cs, false)
+		NatureKit.place(parent, "Flowers_" + model, model, theme, ts, cs, false, 45.0)
 
 
 static func _tuft_mesh() -> ArrayMesh:

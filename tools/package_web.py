@@ -33,7 +33,7 @@ OUT = os.path.join(ROOT, "build", "web_artifact")
 SHELL = os.path.join(ROOT, "tools", "web", "artifact_shell.html")
 NOTE_ARTIFACT = "บน iPhone หน้านี้ขยายเต็มจอไม่ได้ (ข้อจำกัดของ Apple) · หมุนเครื่องเป็นแนวนอนเพื่อให้เห็นเกมมากที่สุด"
 NOTE_PAGES = "iPhone: กดปุ่มแชร์ → \"เพิ่มไปยังหน้าจอโฮม\" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ"
-TITLE = "Digital World Tamer"
+TITLE = "Toon Tale"
 PACKED = {  # Godot file -> (published gzip name, MIME of the inflated data)
     "index.wasm": ("engine.gz.wasm", "application/wasm"),
     "index.pck": ("game.gz.wasm", "application/octet-stream"),

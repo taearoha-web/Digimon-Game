@@ -88,7 +88,7 @@ func _build_field() -> void:
 	var ground_color: Color = data.ground
 	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(-FIELD_RADIUS, 0), Vector2(-20, 4), Vector2(0, -2), Vector2(26, 6), Vector2(FIELD_RADIUS, 0)])]
 	Scenery.ground(self, 130.0, ground_color.darkened(0.2), ground_color.darkened(0.02), 5 if theme == &"meadow" else 9,
-			Color("b89a64") if theme == &"meadow" else Color("7a6aa8"), paths, 2.6)
+			Color("a98f62") if theme == &"meadow" else Color("7a6aa8"), paths, 2.2)
 	_boss_spot = Vector3(30, 0, 26)
 	var clear: Array[Vector3] = [
 		Vector3(_start.x, _start.z, 6.0), Vector3(FIELD_RADIUS - 8.0, 0, 6.0), Vector3(_boss_spot.x, _boss_spot.z, 9.0),
@@ -113,7 +113,7 @@ func _build_town() -> void:
 		PackedVector2Array([Vector2(0, -36), Vector2(0, 36)]),
 		PackedVector2Array([Vector2(-36, 0), Vector2(36, 0)]),
 	]
-	Scenery.ground(self, 130.0, Color("4fa84e"), Color("6bc05c"), 2, Color("b89a64"), paths, 3.4)
+	Scenery.ground(self, 130.0, Color("4fa84e"), Color("6bc05c"), 2, Color("a98f62"), paths, 2.6)
 	# Plaza disc
 	var plaza := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
@@ -168,16 +168,17 @@ func _spawn_hero() -> void:
 	camera_rig = ThirdPersonCamera.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = hero
-	camera_rig.pitch_degrees = -28.0
-	camera_rig.distance = 9.5
-	camera_rig.max_distance = 16.0
-	camera_rig.height_offset = 1.4
+	camera_rig.pitch_degrees = -22.0
+	camera_rig.distance = 8.0
+	camera_rig.max_distance = 15.0
+	camera_rig.height_offset = 1.5
 	add_child(camera_rig)
 	camera_rig.add_excluded_body(hero)
 	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
 	camera_rig.snap_to_target()
 	hero.camera_rig = camera_rig
 	hero.died.connect(func(): hero_died.emit())
+	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
 
 

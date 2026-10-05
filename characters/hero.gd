@@ -39,6 +39,7 @@ var _invulnerable_until := 0
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 var _facing := 0.0
 var _quiet := false
+var _buff_emitter: CPUParticles3D
 
 
 func _ready() -> void:
@@ -216,6 +217,8 @@ func _tick_timers(delta: float) -> void:
 	if expired:
 		_buffs = _buffs.filter(func(b): return b.until > now)
 		refresh_stats()
+		if _buffs.is_empty() and _buff_emitter:
+			_buff_emitter.emitting = false
 	# Regeneration: MP always, HP once out of combat (faster in the village).
 	var hp_rate := 0.02 if safe_zone else (0.006 if _since_hurt > 4.0 else 0.0)
 	var mp_rate := 0.05 if safe_zone else (0.02 if _since_hurt > 4.0 else 0.008)
@@ -476,7 +479,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				current = next
 		"burst":
 			var radius := float(skill.radius)
-			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, radius)
+			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, radius * 1.15)
 			if skill.id == "whirlwind":
 				for i in 3:
 					VfxKit.slash_arc(field, global_position + Vector3(0, 0.9 + i * 0.2, 0), _facing + i * 2.1, color, 3.4, 0.0)
@@ -553,6 +556,11 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
 		_buffs.append(buff)
 		refresh_stats()
+		if _buff_emitter == null:
+			_buff_emitter = VfxKit.buff_emitter(self, color)
+		_buff_emitter.color_ramp = null
+		(_buff_emitter.mesh.material as StandardMaterial3D).albedo_color = Color(color.r, color.g, color.b, 0.9)
+		_buff_emitter.emitting = true
 		VfxKit.aura(field, global_position, color)
 		VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), skill.name, color, 0.9)
@@ -577,7 +585,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
-	BattleVfx.play_impact(field, vfx, mob.hit_point(), 1.3 if crit else 1.0)
+	VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
 	var killed := mob.take_hit(amount, crit, color)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
 	_shake(0.12 if crit else 0.05)

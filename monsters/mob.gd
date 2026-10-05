@@ -87,7 +87,7 @@ func _ready() -> void:
 	_label.font_size = 44
 	_label.outline_size = 12
 	_label.modulate = Color(1.0, 0.82, 0.35) if is_boss else Color(1, 0.95, 0.85)
-	_label.visibility_range_end = 22.0
+	_label.visibility_range_end = 26.0 if is_boss else 9.0
 	_label.position = Vector3(0, top + 0.55, 0)
 	add_child(_label)
 	_bar = FieldHpBar.new()
@@ -388,6 +388,8 @@ func _die() -> void:
 	collision_layer = 0
 	remove_from_group("mobs")
 	visual.hold("die")
+	VfxKit.flash(get_parent(), hit_point(), Color("ffe9a0"), 2.6 if is_boss else 1.6)
+	VfxKit.sparks(get_parent(), hit_point(), Color("ffe27a"), 30 if is_boss else 14, 5.0, 0.7)
 	died.emit(self)
 	var tween := create_tween()
 	tween.tween_interval(1.0)

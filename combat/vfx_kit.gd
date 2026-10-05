@@ -130,12 +130,51 @@ static func sparks(parent: Node3D, pos: Vector3, color: Color, amount := 22, spe
 	p.scale_amount_max = 1.2
 
 
+## A quick bright blob (billboard) that swells and fades: the "pop" of every hit.
+static func flash(parent: Node3D, pos: Vector3, color: Color, size := 2.2, duration := 0.28) -> void:
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var core_mat := _glow(Color(1, 1, 1), 1.0)
+	core_mat.albedo_texture = soft_dot()
+	core_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var mat := _glow(color, 1.0)
+	mat.albedo_texture = soft_dot()
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var halo := _instance(parent, quad, mat, pos)
+	halo.scale = Vector3.ONE * size * 0.4
+	var core := _instance(parent, quad, core_mat, pos)
+	core.scale = Vector3.ONE * size * 0.25
+	var tween := halo.create_tween().set_parallel(true)
+	tween.tween_property(halo, "scale", Vector3.ONE * size * 1.3, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
+	tween.tween_property(core, "scale", Vector3.ONE * size * 0.7, duration * 0.8)
+	tween.tween_property(core_mat, "albedo_color:a", 0.0, duration * 0.8)
+	tween.chain().tween_callback(func():
+		halo.queue_free()
+		core.queue_free())
+
+
+## Standard hit: flash + sparks + a small ring.
+static func impact(parent: Node3D, pos: Vector3, color: Color, scale := 1.0) -> void:
+	flash(parent, pos, color, 2.0 * scale)
+	sparks(parent, pos, color, int(18 * scale), 5.0 * scale, 0.5)
+	sparks(parent, pos, Color.WHITE, int(8 * scale), 3.0 * scale, 0.35)
+	var mat := _glow(color, 0.9, false)
+	var ring := _instance(parent, MeshKit.torus(), mat, pos)
+	ring.scale = Vector3.ONE * 0.2
+	ring.rotation = Vector3(randf() * 0.8, randf() * TAU, randf() * 0.8)
+	var tween := ring.create_tween().set_parallel(true)
+	tween.tween_property(ring, "scale", Vector3.ONE * 1.5 * scale, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.25)
+	tween.chain().tween_callback(ring.queue_free)
+
+
 # ---------------------------------------------------------------------------
 # Projectiles
 # ---------------------------------------------------------------------------
 
 ## Glowing orb with a particle trail. Travels in a slight arc; awaitable.
-static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float, size := 0.4) -> void:
+static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float, size := 0.5) -> void:
 	var holder := Node3D.new()
 	parent.add_child(holder)
 	holder.global_position = from
@@ -167,7 +206,8 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 	tween.tween_method(func(t: float):
 		holder.global_position = from.lerp(mid, t).lerp(mid.lerp(to, t), t), 0.0, 1.0, maxf(duration, 0.05))
 	await tween.finished
-	sparks(parent, to, color, 14, 3.0, 0.4)
+	flash(parent, to, color, 1.8 + size * 2.0)
+	sparks(parent, to, color, 16, 3.5, 0.45)
 	holder.queue_free()
 
 
@@ -176,16 +216,17 @@ static func arrow(parent: Node3D, color: Color, from: Vector3, to: Vector3, dura
 	var dir := (to - from)
 	if dir.length() < 0.01:
 		return
-	var mi := _instance(parent, MeshKit.box(), _glow(color, 0.95), from)
-	mi.scale = Vector3(0.06, 0.06, 0.7)
+	var mi := _instance(parent, MeshKit.box(), _glow(color.lerp(Color.WHITE, 0.4), 1.0), from)
+	mi.scale = Vector3(0.07, 0.07, 1.5)
 	var trail := _instance(mi, MeshKit.box(), _glow(color, 0.35), from)
-	trail.scale = Vector3(1.8, 1.8, 2.2)
-	trail.position = Vector3(0, 0, -0.9)
+	trail.scale = Vector3(2.6, 2.6, 3.0)
+	trail.position = Vector3(0, 0, -1.3)
 	mi.look_at_from_position(from, to, Vector3.UP)
 	var tween := mi.create_tween()
 	tween.tween_property(mi, "global_position", to, maxf(duration, 0.05))
 	await tween.finished
-	sparks(parent, to, color, 10, 2.5, 0.3)
+	flash(parent, to, color, 1.6, 0.22)
+	sparks(parent, to, color, 12, 3.5, 0.35)
 	mi.queue_free()
 
 
@@ -209,14 +250,20 @@ static func lightning(parent: Node3D, from: Vector3, to: Vector3, color: Color) 
 		var mat := _glow(color.lerp(Color.WHITE, 0.5), 1.0)
 		mats.append(mat)
 		var mi := _instance(holder, MeshKit.box(), mat, (a + b) * 0.5)
-		mi.scale = Vector3(0.09, 0.09, a.distance_to(b))
+		mi.scale = Vector3(0.14, 0.14, a.distance_to(b) + 0.1)
 		mi.look_at_from_position((a + b) * 0.5, b, Vector3.UP)
-	sparks(parent, to, color, 12, 3.0, 0.35)
+		var glow_mat := _glow(color, 0.5)
+		mats.append(glow_mat)
+		var glow := _instance(holder, MeshKit.box(), glow_mat, (a + b) * 0.5)
+		glow.scale = Vector3(0.5, 0.5, a.distance_to(b) + 0.1)
+		glow.look_at_from_position((a + b) * 0.5, b, Vector3.UP)
+	flash(parent, to, color, 2.4)
+	sparks(parent, to, color, 14, 3.5, 0.4)
 	var tween := holder.create_tween()
-	tween.tween_interval(0.08)
+	tween.tween_interval(0.12)
 	tween.tween_method(func(a: float):
 		for m in mats:
-			m.albedo_color.a = a, 1.0, 0.0, 0.25)
+			m.albedo_color.a = minf(m.albedo_color.a, a), 1.0, 0.0, 0.3)
 	tween.tween_callback(holder.queue_free)
 
 
@@ -227,24 +274,39 @@ static func lightning(parent: Node3D, from: Vector3, to: Vector3, color: Color) 
 ## Crescent sword slash in front of a hero facing [param yaw].
 static func slash_arc(parent: Node3D, pos: Vector3, yaw: float, color: Color, size := 2.0, tilt := 0.0) -> void:
 	var mat := _glow(color, 0.95, false)
+	var core_mat := _glow(Color(1, 1, 1), 1.0)
 	var mi := _instance(parent, _crescent_mesh(), mat, pos)
 	mi.rotation = Vector3(0, yaw, tilt)
-	mi.scale = Vector3.ONE * size * 0.5
+	mi.scale = Vector3.ONE * size * 0.6
+	var core := _instance(parent, _crescent_mesh(), core_mat, pos + Vector3(0, 0.03, 0))
+	core.rotation = mi.rotation
+	core.scale = mi.scale * 0.8
+	var glow_mat := _glow(color, 0.5)
+	var glow := _instance(parent, _crescent_mesh(), glow_mat, pos + Vector3(0, -0.03, 0))
+	glow.rotation = mi.rotation
+	glow.scale = mi.scale * 1.25
 	var tween := mi.create_tween().set_parallel(true)
-	tween.tween_property(mi, "scale", Vector3.ONE * size, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.22).set_delay(0.06)
-	tween.chain().tween_callback(mi.queue_free)
+	tween.tween_property(mi, "scale", Vector3.ONE * size * 1.15, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(core, "scale", Vector3.ONE * size * 0.95, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(glow, "scale", Vector3.ONE * size * 1.45, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.25).set_delay(0.08)
+	tween.tween_property(core_mat, "albedo_color:a", 0.0, 0.2).set_delay(0.05)
+	tween.tween_property(glow_mat, "albedo_color:a", 0.0, 0.25).set_delay(0.05)
+	tween.chain().tween_callback(func():
+		mi.queue_free()
+		core.queue_free()
+		glow.queue_free())
 
 
 static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
 	var ring_mat := _glow(color, 0.95, false)
 	var ring := _instance(parent, MeshKit.torus(), ring_mat, pos)
 	ring.scale = Vector3(0.3, 0.3, 0.3)
-	var disc_mat := _glow(color, 0.45, false)
+	var disc_mat := _glow(color, 0.6, false)
 	var disc := _instance(parent, _disc_mesh(), disc_mat, pos + Vector3(0, 0.03, 0))
 	disc.scale = Vector3(0.3, 1, 0.3)
 	var tween := ring.create_tween().set_parallel(true)
-	tween.tween_property(ring, "scale", Vector3(radius, radius * 0.35, radius), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(ring, "scale", Vector3(radius, radius * 0.9, radius), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(ring_mat, "albedo_color:a", 0.0, 0.45)
 	tween.tween_property(disc, "scale", Vector3(radius, 1, radius), 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(disc_mat, "albedo_color:a", 0.0, 0.45)
@@ -258,10 +320,10 @@ static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float)
 static func ground_circle(parent: Node3D, pos: Vector3, color: Color, radius: float, duration: float) -> void:
 	var outer_mat := _glow(color, 0.9, false)
 	var outer := _instance(parent, MeshKit.torus(), outer_mat, pos + Vector3(0, 0.06, 0))
-	outer.scale = Vector3(radius, radius * 0.08, radius)
+	outer.scale = Vector3(radius, radius * 0.16, radius)
 	var inner_mat := _glow(color, 0.6, false)
 	var inner := _instance(parent, MeshKit.torus(), inner_mat, pos + Vector3(0, 0.07, 0))
-	inner.scale = Vector3(radius * 0.6, radius * 0.06, radius * 0.6)
+	inner.scale = Vector3(radius * 0.6, radius * 0.12, radius * 0.6)
 	var fill_mat := _glow(color, 0.22, false)
 	var fill := _instance(parent, _disc_mesh(), fill_mat, pos + Vector3(0, 0.04, 0))
 	fill.scale = Vector3(radius, 1, radius)
@@ -306,23 +368,30 @@ static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, wi
 ## Falls from the sky onto [param pos]; [param on_hit] is called at impact.
 static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float, radius: float, on_hit: Callable) -> void:
 	var start := pos + Vector3(-5.0, 18.0, -3.0)
-	var rock := _instance(parent, MeshKit.sphere_low(), _glow(Color(1.0, 0.85, 0.5), 1.0), start)
-	rock.scale = Vector3.ONE * 1.3
-	var halo := _instance(rock, MeshKit.sphere(), _glow(color, 0.5), start)
-	halo.scale = Vector3.ONE * 1.8
-	var trail := _particles(rock, start, color, 50, 0.7, false)
+	var rock := _instance(parent, MeshKit.sphere_low(), _glow(Color(1.0, 0.9, 0.6), 1.0), start)
+	rock.scale = Vector3.ONE * 1.8
+	var halo := _instance(rock, MeshKit.sphere(), _glow(color, 0.85, false), start)
+	halo.scale = Vector3.ONE * 1.35
+	var glow_quad := QuadMesh.new()
+	glow_quad.size = Vector2.ONE * 7.0
+	var glow_mat := _glow(color, 0.9)
+	glow_mat.albedo_texture = soft_dot()
+	glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_instance(rock, glow_quad, glow_mat, start)
+	var trail := _particles(rock, start, color, 70, 0.8, false)
 	trail.gravity = Vector3(0, 2.0, 0)
 	trail.spread = 30.0
 	trail.initial_velocity_min = 0.0
 	trail.initial_velocity_max = 1.0
-	trail.scale_amount_min = 1.0
-	trail.scale_amount_max = 2.2
+	trail.scale_amount_min = 2.0
+	trail.scale_amount_max = 4.0
 	var tween := rock.create_tween()
 	tween.tween_property(rock, "global_position", pos + Vector3(0, 0.8, 0), fall_time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func():
 		shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius)
-		pillar(parent, pos, color, 7.0, radius * 0.35, 0.5)
-		sparks(parent, pos + Vector3(0, 0.6, 0), Color(1.0, 0.8, 0.4), 40, 7.0, 0.8)
+		flash(parent, pos + Vector3(0, 1.0, 0), color, radius * 1.6, 0.4)
+		pillar(parent, pos, color, 8.0, radius * 0.45, 0.55)
+		sparks(parent, pos + Vector3(0, 0.6, 0), Color(1.0, 0.8, 0.4), 60, 9.0, 0.9)
 		on_hit.call()
 		rock.queue_free())
 
@@ -332,36 +401,60 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 # ---------------------------------------------------------------------------
 
 static func heal(parent: Node3D, pos: Vector3, color := Color("6dff9a")) -> void:
-	for i in 3:
-		var mat := _glow(color, 0.8)
+	flash(parent, pos + Vector3(0, 1.0, 0), color, 3.2, 0.5)
+	pillar(parent, pos, color, 4.5, 1.6, 0.7)
+	for i in 4:
+		var mat := _glow(color, 0.9, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
-		ring.scale = Vector3(0.9, 0.2, 0.9)
+		ring.scale = Vector3(1.1, 0.3, 1.1)
 		var tween := ring.create_tween().set_parallel(true)
-		tween.tween_property(ring, "global_position:y", pos.y + 1.8, 0.9).set_delay(i * 0.18)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.9).set_delay(i * 0.18)
+		tween.tween_property(ring, "global_position:y", pos.y + 2.4, 0.9).set_delay(i * 0.14)
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.9).set_delay(i * 0.14)
 		tween.chain().tween_callback(ring.queue_free)
-	var p := _particles(parent, pos + Vector3(0, 0.4, 0), color, 26, 1.0)
+	var p := _particles(parent, pos + Vector3(0, 0.4, 0), color, 40, 1.2)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 0.6
+	p.emission_sphere_radius = 0.8
 	p.direction = Vector3.UP
 	p.spread = 15.0
-	p.initial_velocity_min = 1.0
-	p.initial_velocity_max = 2.4
+	p.initial_velocity_min = 1.2
+	p.initial_velocity_max = 2.8
 	p.gravity = Vector3.ZERO
+	p.scale_amount_min = 0.8
+	p.scale_amount_max = 1.6
 
 
-## A buff aura: two rings spiral up around the hero.
+## A buff aura: bursts of rings and light when cast.
 static func aura(parent: Node3D, pos: Vector3, color: Color) -> void:
-	for i in 2:
-		var mat := _glow(color, 0.9)
+	flash(parent, pos + Vector3(0, 1.0, 0), color, 4.0, 0.55)
+	pillar(parent, pos, color, 6.0, 2.2, 0.9)
+	for i in 5:
+		var mat := _glow(color, 0.95, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
-		ring.scale = Vector3(0.8, 0.18, 0.8)
+		ring.scale = Vector3(1.0, 0.28, 1.0)
 		var tween := ring.create_tween().set_parallel(true)
-		tween.tween_property(ring, "global_position:y", pos.y + 2.2, 0.8).set_delay(i * 0.25)
-		tween.tween_property(ring, "scale", Vector3(1.2, 0.2, 1.2), 0.8).set_delay(i * 0.25)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.8).set_delay(i * 0.25)
+		tween.tween_property(ring, "global_position:y", pos.y + 2.6, 0.9).set_delay(i * 0.12)
+		tween.tween_property(ring, "scale", Vector3(1.7, 0.3, 1.7), 0.9).set_delay(i * 0.12)
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.9).set_delay(i * 0.12)
 		tween.chain().tween_callback(ring.queue_free)
-	sparks(parent, pos + Vector3(0, 0.6, 0), color, 20, 2.5, 0.8)
+	sparks(parent, pos + Vector3(0, 0.6, 0), color, 36, 4.0, 1.0)
+
+
+## Looping glow at the hero's feet while a buff lasts; returns the emitter.
+static func buff_emitter(hero: Node3D, color: Color) -> CPUParticles3D:
+	var p := _particles(hero, hero.global_position, color, 22, 1.0, false)
+	p.local_coords = true
+	p.position = Vector3(0, 0.1, 0)
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE_SURFACE
+	p.emission_sphere_radius = 0.9
+	p.direction = Vector3.UP
+	p.spread = 5.0
+	p.initial_velocity_min = 1.0
+	p.initial_velocity_max = 1.8
+	p.gravity = Vector3.ZERO
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.0
+	p.emitting = false
+	return p
 
 
 static func level_up(parent: Node3D, pos: Vector3) -> void:
