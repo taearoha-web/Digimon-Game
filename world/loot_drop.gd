@@ -67,7 +67,7 @@ func _ready() -> void:
 			neck.scale = Vector3(0.1, 0.18, 0.1)
 			neck.position = Vector3(0, 0.55, 0)
 			_body.add_child(neck)
-		if icon_texture == null and item.get("kind", "") != "potion":
+		if icon_texture == null and not ItemData.is_stackable(item):
 			var gem := MeshInstance3D.new()
 			gem.mesh = MeshKit.sphere_low()
 			gem.material_override = MeshKit.toon(color, {"emission": 1.6})
@@ -117,7 +117,7 @@ func _process(delta: float) -> void:
 		if to.length() < 0.5:
 			_collect()
 	elif flat < PICKUP_RADIUS and _age > 0.5:
-		if gold == 0 and item.get("kind", "") != "potion" and Game.inventory_free() <= 0:
+		if gold == 0 and not ItemData.is_stackable(item) and Game.inventory_free() <= 0:
 			if int(_age * 2.0) % 6 == 0:
 				pass
 			return

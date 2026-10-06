@@ -15,6 +15,7 @@ const SAFE_START_RADIUS := 14.0
 const SPAWN_INTERVAL := 1.6
 const DROP_RATE_GEAR := 0.14
 const DROP_RATE_POTION := 0.3
+const DROP_RATE_GEM := 0.07
 
 var zone_id: StringName = &"meadow"
 var data: Dictionary = {}
@@ -129,7 +130,7 @@ func _make_weather(kind: StringName) -> void:
 	if kind == &"":
 		return
 	_weather = CPUParticles3D.new()
-	_weather.amount = 160 if kind == &"snow" else 90
+	_weather.amount = int((160 if kind == &"snow" else 90) * GameSettings.particle_scale())
 	_weather.lifetime = 7.0 if kind == &"snow" else 4.5
 	_weather.preprocess = _weather.lifetime
 	_weather.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
@@ -207,6 +208,7 @@ func _build_town() -> void:
 	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
 	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เปลี่ยนอาชีพ (Lv.%d)" % JobData.JOB_LEVEL, Vector3(-11, 0, 5), "Knight")
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
+	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", Vector3(-12, 0, -2), "Barbarian")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
 	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")
@@ -600,12 +602,22 @@ func _drop_loot(mob: Mob) -> void:
 			_spawn_loot(item, 0, from)
 		_spawn_loot(ItemData.potion("hp_m", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_m", 2), 0, from)
+		for i in 2:
+			_spawn_loot(_random_gem(mob.level, 1), 0, from)
 		return
+	if rng.randf() < DROP_RATE_GEM:
+		_spawn_loot(_random_gem(mob.level, 0), 0, from)
 	if rng.randf() < DROP_RATE_GEAR:
 		_spawn_loot(ItemData.generate(mob.level, class_id, rng), 0, from)
 	if rng.randf() < DROP_RATE_POTION:
-		var tier := "s" if mob.level < 9 else "m"
+		var tier := "s" if mob.level < 9 else ("m" if mob.level < 22 else "l")
 		_spawn_loot(ItemData.potion(("hp_" if rng.randf() < 0.6 else "mp_") + tier, 1), 0, from)
+
+
+func _random_gem(level: int, bonus_size: int) -> Dictionary:
+	var kinds := ItemData.GEMS.keys()
+	var size := clampi((0 if level < 12 else (1 if level < 26 else 2)) + (bonus_size if rng.randf() < 0.5 else 0), 0, 2)
+	return ItemData.gem(String(kinds[rng.randi() % kinds.size()]), size)
 
 
 func _spawn_loot(item: Dictionary, gold: int, from: Vector3) -> void:

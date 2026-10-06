@@ -105,9 +105,9 @@ func _update_job_ring() -> void:
 
 func _equipment_signature() -> String:
 	var parts: PackedStringArray = []
-	for slot in ["weapon", "armor", "helm", "boots", "amulet"]:
+	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring"]:
 		var item: Variant = Game.profile.equip.get(slot)
-		parts.append(ItemLook.look_of(item) if item is Dictionary else "-")
+		parts.append((ItemLook.look_of(item) + "|%d|%d" % [int(item.get("plus", 0)), int(item.get("rarity", 0))]) if item is Dictionary else "-")
 	return "|".join(parts)
 
 
@@ -689,6 +689,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	visual.flash()
 	AudioManager.play_sfx(&"hit_special", -2.0)
 	_shake(0.14)
+	GameSettings.vibrate(35)
 	if Time.get_ticks_msec() >= _cast_until:
 		visual.action("Hit_A", 1.2)
 	if Game.profile.hp <= 0:

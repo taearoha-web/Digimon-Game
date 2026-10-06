@@ -89,7 +89,7 @@ func get_move_basis() -> Basis:
 
 
 func rotate_by_pixels(relative: Vector2) -> void:
-	var sensitivity := touch_sensitivity * 1.0
+	var sensitivity := touch_sensitivity * GameSettings.camera_speed
 	yaw -= relative.x * sensitivity
 	var invert := -1.0 if false else 1.0
 	pitch_degrees = clampf(pitch_degrees - relative.y * sensitivity * 57.3 * 0.6 * invert, min_pitch, max_pitch)

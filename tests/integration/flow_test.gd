@@ -38,6 +38,7 @@ func _run() -> void:
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _touch_scroll()
 	await _jobs()
+	await _items()
 	await _party()
 	await _zones()
 	await _systems()
@@ -60,7 +61,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 6, "six villagers")
+	check(town.npcs.size() == 7, "seven villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -267,6 +268,37 @@ func _zones() -> void:
 		for camp in info.camps:
 			for m in camp.monsters:
 				check(MonsterData.MONSTERS.has(m), "monster %s exists" % m)
+
+
+func _items() -> void:
+	print("== Items")
+	await _start(&"warrior")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	Game.add_gold(100000)
+	var sword := ItemData.generate(20, &"warrior", rng, 3, "weapon")
+	check(int(sword.sockets) == 2 and int(sword.plus) == 0, "legendary gear has two sockets")
+	Game.profile.equip["weapon"] = sword
+	var atk0: float = Game.stats_now().atk
+	var tries := 0
+	while int(sword.plus) < 3 and tries < 20:
+		Game.enhance_item(sword)
+		tries += 1
+	check(int(sword.plus) == 3 and Game.stats_now().atk > atk0, "forge raises +N and the attack stat (+%d)" % int(sword.plus))
+	var gold: int = Game.profile.gold
+	Game.profile["inv"].append(ItemData.gem("ruby", 2, 2))
+	var atk1: float = Game.stats_now().atk
+	check(Game.socket_gem(sword, Game.profile.inv.size() - 1) and Game.stats_now().atk >= atk1 + 22, "a ruby in a socket adds ATK")
+	check(int(Game.profile.inv[Game.profile.inv.size() - 1].count) == 1, "the gem stack went down by one")
+	var armor := ItemData.generate(20, &"warrior", rng, 1, "armor")
+	var helm := ItemData.generate(20, &"warrior", rng, 1, "helm")
+	check(str(armor.set) != "" and armor.set == helm.set, "same-tier gear belongs to the same set (%s)" % ItemData.set_label(armor.set))
+	var def0: float = Game.stats_now().def
+	Game.profile.equip["armor"] = armor
+	Game.profile.equip["helm"] = helm
+	check(HeroStats.set_counts(Game.profile).get(armor.set, 0) >= 2, "set pieces are counted")
+	check(ItemLook.icon(ItemData.gem("emerald", 1)) != null, "gems have an icon")
+	check(gold >= 0 and Game.save_code_roundtrip(), "save code export / import round-trips")
 
 
 func _systems() -> void:

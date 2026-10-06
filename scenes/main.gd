@@ -15,6 +15,7 @@ var _traveling := false
 
 
 func _ready() -> void:
+	GameSettings.load_settings()
 	InputSetup.ensure_defaults()
 	var fade_layer := CanvasLayer.new()
 	fade_layer.layer = 90
@@ -189,6 +190,11 @@ func _on_npc(role: String) -> void:
 			_talk_job()
 		"party":
 			_talk_party()
+		"forge":
+			dialog.say("ช่างตีเหล็กหนวดแดง", "ฮ่าๆ มีของดีมาให้ตีไหม? ข้าตีบวกอาวุธเกราะให้แรงขึ้นได้ถึง +10 พลาดก็เสียแค่เหรียญ ของไม่พัง! แล้วถ้ามีอัญมณีก็เอามาฝังช่องให้ได้ด้วย", [
+				{"label": "เปิดเตาตี", "action": func():
+					menu.forge_mode = true
+					_open_menu(&"inventory")}, {"label": "ไว้ก่อน"}])
 		"healer":
 			var stats := Game.stats_now()
 			Game.profile.hp = stats.max_hp

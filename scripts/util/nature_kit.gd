@@ -149,7 +149,7 @@ static func place(parent: Node3D, node_name: String, model: String, theme: Strin
 			mmi.name = "%s_%d_%d" % [model, cell.x, cell.y]
 			mmi.multimesh = mm
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mmi.visibility_range_end = view_distance
+			mmi.visibility_range_end = view_distance * GameSettings.view_scale()
 			mmi.custom_aabb = AABB(Vector3(cell.x * CHUNK - 8.0, -30.0, cell.y * CHUNK - 8.0), Vector3(CHUNK + 16.0, 80.0, CHUNK + 16.0))
 			holder.add_child(mmi)
 	return holder

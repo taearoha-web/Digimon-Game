@@ -35,6 +35,20 @@ const POTIONS := {
 	"town_scroll": {"name": "ใบวาร์ปกลับเมือง", "desc": "วาร์ปกลับหมู่บ้านทันที", "town": true, "price": 120, "color": Color("c9ffb0")},
 }
 
+## Gems that go into equipment sockets. value = stat per gem size step.
+const GEMS := {
+	"ruby": {"name": "ทับทิม", "stat": "atk", "values": [4, 10, 22], "color": Color("ff4a5a")},
+	"sapphire": {"name": "ไพลิน", "stat": "mp", "values": [12, 30, 65], "color": Color("4a9bff")},
+	"emerald": {"name": "มรกต", "stat": "hp", "values": [25, 70, 150], "color": Color("4ae07a")},
+	"topaz": {"name": "บุษราคัม", "stat": "crit", "values": [0.008, 0.018, 0.035], "color": Color("ffd23c")},
+	"amethyst": {"name": "อเมทิสต์", "stat": "def", "values": [3, 8, 18], "color": Color("c46bff")},
+}
+const GEM_SIZES := ["เล็ก", "กลาง", "ใหญ่"]
+const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล"}
+const SET_NAMES := ["", "ชุดนักเดินทาง", "ชุดนักล่า", "ชุดอัศวิน", "ชุดเพลิงฟ้า", "ชุดมังกร"]
+const SET_SLOTS := ["weapon", "armor", "helm", "boots"]
+const MAX_PLUS := 10
+
 static var _uid := 0
 
 
@@ -58,7 +72,40 @@ static func potion(id: String, count := 1) -> Dictionary:
 
 
 static func is_stackable(item: Dictionary) -> bool:
-	return item.get("kind", "") == "potion"
+	return item.get("kind", "") in ["potion", "gem"]
+
+
+static func gem(gem_id: String, size: int, count := 1) -> Dictionary:
+	return {"kind": "gem", "id": "%s_%d" % [gem_id, size], "count": count}
+
+
+## {name, stat, value, color, size} of a gem item.
+static func gem_info(item: Dictionary) -> Dictionary:
+	var bits := String(item.id).split("_")
+	var base: Dictionary = GEMS[bits[0]]
+	var size := clampi(int(bits[1]), 0, 2)
+	return {"name": "%s%s" % [base.name, GEM_SIZES[size]], "stat": base.stat, "value": base.values[size], "color": base.color, "size": size, "type": bits[0]}
+
+
+static func sockets_for(rarity: int) -> int:
+	return [0, 0, 1, 2][clampi(rarity, 0, 3)]
+
+
+static func set_id_for(slot: String, rarity: int, tier: int) -> String:
+	return "set%d" % tier if (slot in SET_SLOTS and rarity >= 1 and tier >= 1) else ""
+
+
+static func set_label(set_id: String) -> String:
+	return SET_NAMES[clampi(int(set_id.trim_prefix("set")), 0, 5)] if set_id != "" else ""
+
+
+## Chance (0-1) and gold cost of the next +1 at the forge.
+static func enhance_chance(plus: int) -> float:
+	return [1.0, 1.0, 1.0, 0.85, 0.8, 0.65, 0.6, 0.45, 0.4, 0.25][clampi(plus, 0, 9)]
+
+
+static func enhance_cost(item: Dictionary) -> int:
+	return int((int(item.get("price", 10)) * 0.4 + 40.0) * (1.0 + int(item.get("plus", 0)) * 0.7))
 
 
 ## Rolls rarity. [param boost] shifts odds towards better items (bosses).
@@ -123,6 +170,7 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 	var adjective: String = RARITY_ADJ[rarity]
 	return {
 		"kind": "equip", "uid": make_uid(), "slot": slot, "base": base,
+		"plus": 0, "sockets": sockets_for(rarity), "gems": [], "set": set_id_for(slot, rarity, tier),
 		"name": (base_name + " " + adjective).strip_edges(), "rarity": rarity, "level": level,
 		"class": String(class_id) if slot == "weapon" else "",
 		"stats": stats, "price": int(power * 5.0 * (1.0 + rarity * 1.1)),
@@ -132,19 +180,35 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 static func name_of(item: Dictionary) -> String:
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].name
-	return str(item.get("name", "?"))
+	if item.get("kind", "") == "gem":
+		return gem_info(item).name
+	var plus := int(item.get("plus", 0))
+	return ("+%d " % plus if plus > 0 else "") + str(item.get("name", "?"))
 
 
 static func color_of(item: Dictionary) -> Color:
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].color
+	if item.get("kind", "") == "gem":
+		return gem_info(item).color
 	return RARITY_COLORS[int(item.get("rarity", 0))]
 
 
+## Price of one unit (stackables) or the whole item.
+static func unit_sell_price(item: Dictionary) -> int:
+	if not is_stackable(item):
+		return sell_price(item)
+	var single := item.duplicate()
+	single["count"] = 1
+	return sell_price(single)
+
+
 static func sell_price(item: Dictionary) -> int:
+	if item.get("kind", "") == "gem":
+		return 20 * int(pow(3.0, gem_info(item).size)) * int(item.get("count", 1))
 	if item.get("kind", "") == "potion":
 		return int(POTIONS[item.id].price * 0.4) * int(item.get("count", 1))
-	return int(int(item.get("price", 1)) * 0.35)
+	return int(int(item.get("price", 1)) * (0.35 + 0.15 * int(item.get("plus", 0))))
 
 
 static func buy_price(item: Dictionary) -> int:
@@ -159,10 +223,35 @@ static func stat_lines(item: Dictionary) -> Array[String]:
 	if item.get("kind", "") == "potion":
 		lines.append(POTIONS[item.id].desc)
 		return lines
+	if item.get("kind", "") == "gem":
+		var info := gem_info(item)
+		lines.append("ใส่ช่องอัญมณี: %s +%s" % [STAT_LABELS[info.stat], ("%.1f%%" % (float(info.value) * 100.0)) if info.stat == "crit" else str(info.value)])
+		return lines
 	var stats: Dictionary = item.get("stats", {})
 	if stats.has("atk"): lines.append("พลังโจมตี +%d" % int(stats.atk))
 	if stats.has("def"): lines.append("พลังป้องกัน +%d" % int(stats.def))
 	if stats.has("hp"): lines.append("HP +%d" % int(stats.hp))
 	if stats.has("mp"): lines.append("MP +%d" % int(stats.mp))
 	if stats.has("crit"): lines.append("คริติคอล +%.1f%%" % (float(stats.crit) * 100.0))
+	return lines
+
+
+## Stat lines of the whole item including +N and gems, and set / socket info.
+static func detail_lines(item: Dictionary) -> Array[String]:
+	var lines := stat_lines(item)
+	if item.get("kind", "") != "equip":
+		return lines
+	var plus := int(item.get("plus", 0))
+	if plus > 0:
+		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%)" % [plus, plus * 8])
+	var sockets := int(item.get("sockets", 0))
+	var gems: Array = item.get("gems", [])
+	for i in sockets:
+		if i < gems.size():
+			var info := gem_info({"id": gems[i]})
+			lines.append("◆ %s: %s +%s" % [info.name, STAT_LABELS[info.stat], ("%.1f%%" % (float(info.value) * 100.0)) if info.stat == "crit" else str(info.value)])
+		else:
+			lines.append("◇ ช่องอัญมณีว่าง")
+	if str(item.get("set", "")) != "":
+		lines.append("เซ็ต: %s (ใส่ 2/3/4 ชิ้นได้โบนัส)" % set_label(item.set))
 	return lines

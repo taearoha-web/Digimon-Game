@@ -106,6 +106,39 @@ func stats_now(buffs := {}) -> Dictionary:
 	return HeroStats.compute(profile, buffs)
 
 
+## The whole save as one copyable text code (base64 of the JSON).
+func export_code() -> String:
+	if not has_profile:
+		return ""
+	profile["zone"] = String(current_zone)
+	return Marshalls.utf8_to_base64(JSON.stringify(profile))
+
+
+## Replaces the current profile with a pasted code. Returns false when invalid.
+func import_code(code: String) -> bool:
+	var text := Marshalls.base64_to_utf8(code.strip_edges())
+	var parsed: Variant = JSON.parse_string(text)
+	if not parsed is Dictionary or not parsed.has("class") or not parsed.has("level"):
+		return false
+	profile = _repair(parsed)
+	has_profile = true
+	clamp_vitals()
+	profile_changed.emit()
+	inventory_changed.emit()
+	quest_changed.emit()
+	party_changed.emit()
+	save()
+	return true
+
+
+func save_code_roundtrip() -> bool:
+	var before := JSON.stringify(profile)
+	var code := export_code()
+	if code == "" or not import_code(code):
+		return false
+	return JSON.stringify(profile).length() == before.length()
+
+
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
@@ -172,7 +205,7 @@ func _repair(data: Dictionary) -> Dictionary:
 
 
 func _repair_item(item: Dictionary) -> void:
-	for key in ["count", "rarity", "level", "price"]:
+	for key in ["count", "rarity", "level", "price", "plus", "sockets"]:
 		if item.has(key):
 			item[key] = int(item[key])
 	for key in item.get("stats", {}):
@@ -385,7 +418,7 @@ func inventory_free() -> int:
 func add_item(item: Dictionary) -> bool:
 	if ItemData.is_stackable(item):
 		for existing in profile["inv"]:
-			if existing.get("kind", "") == "potion" and existing.id == item.id:
+			if existing.get("kind", "") == item.get("kind", "") and existing.id == item.id:
 				existing["count"] = int(existing["count"]) + int(item.get("count", 1))
 				inventory_changed.emit()
 				item_gained.emit(item)
@@ -396,6 +429,50 @@ func add_item(item: Dictionary) -> bool:
 	profile["inv"].append(item)
 	inventory_changed.emit()
 	item_gained.emit(item)
+	mark_dirty()
+	return true
+
+
+## One forge attempt (+1). Returns "ok", "fail" (gold spent, nothing else lost) or a reason.
+func enhance_item(item: Dictionary) -> String:
+	if item.get("kind", "") != "equip":
+		return "ไอเทมนี้ตีบวกไม่ได้"
+	var plus := int(item.get("plus", 0))
+	if plus >= ItemData.MAX_PLUS:
+		return "บวกสูงสุดแล้ว"
+	var cost := ItemData.enhance_cost(item)
+	if int(profile["gold"]) < cost:
+		return "เหรียญไม่พอ (ต้องใช้ %d)" % cost
+	add_gold(-cost)
+	if rng.randf() < ItemData.enhance_chance(plus):
+		item["plus"] = plus + 1
+		item["price"] = int(int(item.price) * 1.12)
+		clamp_vitals()
+		inventory_changed.emit()
+		profile_changed.emit()
+		mark_dirty()
+		return "ok"
+	inventory_changed.emit()
+	mark_dirty()
+	return "fail"
+
+
+## Puts the gem at bag index into the item's next free socket.
+func socket_gem(item: Dictionary, gem_index: int) -> bool:
+	if gem_index < 0 or gem_index >= profile["inv"].size():
+		return false
+	var gem: Dictionary = profile["inv"][gem_index]
+	if gem.get("kind", "") != "gem" or item.get("kind", "") != "equip":
+		return false
+	if not item.has("gems"):
+		item["gems"] = []
+	if (item["gems"] as Array).size() >= int(item.get("sockets", 0)):
+		return false
+	(item["gems"] as Array).append(String(gem.id))
+	remove_item_at(gem_index, 1)
+	clamp_vitals()
+	profile_changed.emit()
+	inventory_changed.emit()
 	mark_dirty()
 	return true
 
@@ -520,7 +597,7 @@ func clamp_vitals() -> void:
 
 func sell_item(index: int, count := 1) -> void:
 	var item: Dictionary = profile["inv"][index]
-	var each := ItemData.sell_price(item) if not ItemData.is_stackable(item) else int(ItemData.POTIONS[item.id].price * 0.4)
+	var each := ItemData.unit_sell_price(item)
 	var qty := count if ItemData.is_stackable(item) else 1
 	add_gold(each * qty)
 	remove_item_at(index, qty)
