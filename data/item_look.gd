@@ -9,8 +9,9 @@ extends RefCounted
 ## Items store no look: it is derived from slot, level and uid, so old saves work.
 
 const ICON_DIR := "res://assets/icons/items/"
-const ARMOR_STYLES := [["rogue", "rogue"], ["ranger", "rogue"], ["ranger", "barbarian"], ["barbarian", "mage"], ["knight", "mage"], ["knight", "knight"]]
-const ARMOR_TINTS := [Color(1, 1, 1), Color(0.86, 1.06, 0.86), Color(0.85, 0.96, 1.25), Color(1.3, 1.1, 0.7), Color(1.15, 0.85, 1.3), Color(1.35, 0.8, 0.75)]
+const ARMOR_STYLES := [["rogue", "rogue"], ["ranger", "rogue"], ["ranger", "barbarian"], ["barbarian", "mage"], ["knight", "mage"], ["knight", "knight"], ["knight", "mage"], ["mage", "knight"], ["knight", "knight"], ["knight", "mage"]]
+const ARMOR_TINTS := [Color(1, 1, 1), Color(0.86, 1.06, 0.86), Color(0.85, 0.96, 1.25), Color(1.3, 1.1, 0.7), Color(1.15, 0.85, 1.3), Color(1.35, 0.8, 0.75),
+		Color(1.1, 1.0, 1.6), Color(1.55, 1.45, 1.0), Color(1.6, 1.1, 0.7), Color(1.75, 1.65, 1.45)]
 const CAPES := {
 	"knight": ["Knight", "Knight_Cape"], "mage": ["Mage", "Mage_Cape"], "ranger": ["Ranger", "Ranger_Cape"], "rogue": ["Rogue", "Rogue_Cape"],
 }
@@ -28,10 +29,22 @@ const HELMS := [
 	{"proc": "horned", "tint": Color("8a95a8")},
 	{"proc": "crown", "tint": Color("ffc93c")},
 	{"part": ["Mage", "Mage_Hat"], "tint": Color(1.9, 1.6, 0.35)},
+	# Lv.61-70: thunder helms
+	{"proc": "winged", "tint": Color("7a8aff")},
+	{"part": ["Mage", "Mage_Hat"], "tint": Color(1.2, 1.2, 2.0)},
+	# Lv.71-80: angel crowns
+	{"proc": "winged", "tint": Color("ffe27a")},
+	{"proc": "halo_crown", "tint": Color("fff0b0")},
+	# Lv.81-90: war-god crowns
+	{"proc": "flame_crown", "tint": Color("ff8a4a")},
+	{"proc": "halo_crown", "tint": Color("ffb04a")},
+	# Lv.91-100: eternal legend
+	{"proc": "grand_crown", "tint": Color("ffffff")},
+	{"proc": "grand_crown", "tint": Color("ffe27a")},
 ]
 
 
-const BOOT_TINTS := [Color(0.9, 0.75, 0.6), Color(0.85, 0.8, 0.7), Color(0.85, 0.9, 1.1), Color(0.7, 1.0, 0.8), Color(1.2, 0.7, 0.65), Color(0.95, 0.8, 1.2)]
+const BOOT_TINTS := [Color(0.9, 0.75, 0.6), Color(0.85, 0.8, 0.7), Color(0.85, 0.9, 1.1), Color(0.7, 1.0, 0.8), Color(1.2, 0.7, 0.65), Color(0.95, 0.8, 1.2), Color(0.8, 0.85, 1.5), Color(1.5, 1.4, 1.0), Color(1.5, 1.0, 0.7), Color(1.7, 1.6, 1.4)]
 
 
 static func tier_of(item: Dictionary) -> int:
@@ -39,7 +52,7 @@ static func tier_of(item: Dictionary) -> int:
 
 
 static func boots_tint(item: Dictionary) -> Color:
-	return BOOT_TINTS[clampi(_tier(item), 0, 5)]
+	return BOOT_TINTS[clampi(_tier(item), 0, 9)]
 
 
 static func _tier(item: Dictionary) -> int:
@@ -110,14 +123,14 @@ static func icon_for_id(id: String) -> Texture2D:
 static func all_icon_ids() -> Array[String]:
 	var ids: Array[String] = []
 	ids.append_array(WeaponKit.all_looks())
-	for tier in 6:
+	for tier in 10:
 		for style in ["rogue", "ranger", "barbarian", "mage", "knight"]:
 			if style in ARMOR_STYLES[tier]:
 				ids.append("armor_%s_%d" % [style, tier])
 	for i in HELMS.size():
 		ids.append("helm_%d" % i)
 	for kind in ["boots", "ring", "amulet"]:
-		for tier in 6:
+		for tier in 10:
 			ids.append("%s_%d" % [kind, tier])
 	for gem_id in ItemData.GEMS:
 		ids.append("gem_" + gem_id)
@@ -143,6 +156,9 @@ static func build_icon_node(id: String) -> Node3D:
 		var tint: Color = ARMOR_TINTS[int(bits[2])]
 		var glb := {"knight": "Knight", "mage": "Mage", "rogue": "Rogue", "barbarian": "Barbarian", "ranger": "Ranger"}[bits[1]] as String
 		_add_mesh_part(holder, glb, "%s_Body" % glb, tint)
+		var flourish := GearKit.armor_flourish(int(bits[2]))
+		flourish.position = Vector3(0, 0.9, 0)
+		holder.add_child(flourish)
 		return holder
 	if id.begins_with("helm_"):
 		# Shown on a head so the shape reads; hats are in head-bone space (bone at y 1.24).

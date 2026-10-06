@@ -117,6 +117,8 @@ func refresh() -> void:
 		_add_custom_head(helm == null)
 	if preset.has("extra") and armor == null:
 		_add_part(preset.extra[0], preset.extra[1])
+	if armor != null:
+		_wear_flourish(ItemLook.tier_of(armor))
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)
@@ -160,7 +162,29 @@ func _wear_trinkets() -> void:
 		_body_nodes.append(attach)
 
 
-## Sparkles around the hero for legendary gear (violet) or a weapon at +7 or more (gold).
+## Decoration on the armour that gets more lavish with the gear tier (Lv.10 per tier).
+func _wear_flourish(tier: int) -> void:
+	if tier < 2:
+		return
+	var attach := BoneAttachment3D.new()
+	attach.name = "ArmorFlourish"
+	attach.bone_name = "chest"
+	_skeleton.add_child(attach)
+	attach.add_child(GearKit.armor_flourish(tier))
+	_body_nodes.append(attach)
+
+
+## The best gear tier worn (0-9).
+func _top_tier() -> int:
+	var top := 0
+	for slot in ["weapon", "armor", "helm", "boots"]:
+		if equip.has(slot):
+			top = maxi(top, ItemLook.tier_of(equip[slot]))
+	return top
+
+
+## Sparkles around the hero for legendary gear (violet), a weapon at +7 or more (gold)
+## and, from gear tier 6 up (Lv.61+), a bigger and bigger aura plus a halo.
 func _make_aura() -> void:
 	if GameSettings.quality == 0:
 		return
@@ -171,6 +195,16 @@ func _make_aura() -> void:
 			color = Color("c46bff")
 		elif slot == "weapon" and int(item.get("plus", 0)) >= 7 and color.a == 0.0:
 			color = Color("ffd23c")
+	var tier := _top_tier()
+	if tier >= 6:
+		color = GearKit.TIERS_METAL[tier]
+		if tier >= 8:
+			var halo := BoneAttachment3D.new()
+			halo.name = "Halo"
+			halo.bone_name = "head"
+			_skeleton.add_child(halo)
+			halo.add_child(GearKit.halo(tier))
+			_body_nodes.append(halo)
 	if color.a == 0.0:
 		return
 	var p := CPUParticles3D.new()
@@ -186,14 +220,15 @@ func _make_aura() -> void:
 	mat.albedo_color = color
 	quad.material = mat
 	p.mesh = quad
-	p.amount = 14
-	p.lifetime = 1.5
+	var grand := maxi(tier - 5, 0)
+	p.amount = 14 + grand * 10
+	p.lifetime = 1.5 + 0.1 * float(grand)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 0.55
+	p.emission_sphere_radius = 0.55 + 0.08 * float(grand)
 	p.direction = Vector3.UP
 	p.spread = 20.0
-	p.initial_velocity_min = 0.3
-	p.initial_velocity_max = 0.7
+	p.initial_velocity_min = 0.3 + 0.08 * float(grand)
+	p.initial_velocity_max = 0.7 + 0.15 * float(grand)
 	p.gravity = Vector3.ZERO
 	p.local_coords = false
 	p.color_ramp = VfxKit._fade_ramp()

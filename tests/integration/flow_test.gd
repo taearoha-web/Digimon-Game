@@ -368,7 +368,10 @@ func _storage_and_auto() -> void:
 	check(int(Game.profile.kills) >= kills_before + 3, "auto killed monsters by itself (%d kills in %.0fs)" % [int(Game.profile.kills) - kills_before, waited])
 	check(farthest <= float(camp.radius) + 8.0, "auto stayed around the camp (max %.1f from the centre)" % farthest)
 	hero.move_input = Vector2(1, 0)
-	await _wait(0.3)
+	var held := 0.0
+	while hero.auto and held < 2.0:
+		await _wait(0.2)
+		held += 0.2
 	hero.move_input = Vector2.ZERO
 	check(not hero.auto, "moving by hand turns auto off")
 

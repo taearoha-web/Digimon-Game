@@ -5,8 +5,10 @@ extends RefCounted
 ## top of the head ≈ 1.05 above the head bone).
 
 const HEAD_TOP := 1.0
-const TIERS_METAL := [Color("b06a3a"), Color("c0c8d4"), Color("ffc93c"), Color("ff6f9a"), Color("6fe3b0"), Color("c46bff")]
-const GEMS := [Color("e8e0d0"), Color("5ab8ff"), Color("ff4a5a"), Color("6fe07a"), Color("ffd23c"), Color("c46bff")]
+const TIERS_METAL := [Color("b06a3a"), Color("c0c8d4"), Color("ffc93c"), Color("ff6f9a"), Color("6fe3b0"), Color("c46bff"), Color("7a8aff"), Color("ffe27a"), Color("ff8a4a"), Color("ffffff")]
+const GEMS := [Color("e8e0d0"), Color("5ab8ff"), Color("ff4a5a"), Color("6fe07a"), Color("ffd23c"), Color("c46bff"), Color("7ad8ff"), Color("ff6ad0"), Color("ff5a2a"), Color("fff6a0")]
+const LEATHER := [Color("9a6b42"), Color("7a5a3a"), Color("8a95a8"), Color("3e7a5a"), Color("c0392b"), Color("6a4ab0"), Color("3a3f7a"), Color("e8e0c8"), Color("7a2a1a"), Color("fff0b8")]
+const MAX_TIER := 9
 
 
 static func _p(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3, size: Vector3, rot := Vector3.ZERO, glow := 0.0) -> MeshInstance3D:
@@ -43,6 +45,37 @@ static func hat(proc: String, tint: Color) -> Node3D:
 			for side in [-1.0, 1.0]:
 				_p(root, MeshKit.cone(), Color("f2e8c8"), Vector3(side * 0.7, 1.0, 0), Vector3(0.22, 0.62, 0.22), Vector3(0, 0, side * -48.0))
 				_p(root, MeshKit.sphere_low(), tint.lightened(0.2), Vector3(side * 0.6, 0.78, 0), Vector3(0.2, 0.2, 0.2))
+		"winged":
+			_p(root, MeshKit.hemisphere(), tint, Vector3(0, 0.64, 0), Vector3(1.3, 1.36, 1.26), Vector3.ZERO, 0.3)
+			_p(root, MeshKit.torus(), tint.lightened(0.3), Vector3(0, 0.7, 0), Vector3(1.28, 1.0, 1.24), Vector3.ZERO, 0.5)
+			for side in [-1.0, 1.0]:
+				for k in 3:
+					_p(root, MeshKit.prism(), Color("ffffff"), Vector3(side * (0.7 + k * 0.1), 0.86 + k * 0.2, 0), Vector3(0.14, 0.58, 0.04), Vector3(0, 0, side * (-70.0 + k * 22.0)), 0.9)
+		"flame_crown":
+			_p(root, MeshKit.cylinder(), tint, Vector3(0, 0.98, 0), Vector3(1.08, 0.22, 1.02), Vector3.ZERO, 0.4)
+			for i in 9:
+				var a := i * TAU / 9.0
+				var h := 0.5 + 0.18 * (i % 3)
+				_p(root, MeshKit.cone(), Color("ff7a2a"), Vector3(cos(a) * 0.5, 1.2 + h * 0.4, sin(a) * 0.48), Vector3(0.2, h, 0.2), Vector3.ZERO, 1.6)
+				_p(root, MeshKit.cone(), Color("ffd23c"), Vector3(cos(a) * 0.5, 1.16 + h * 0.3, sin(a) * 0.48), Vector3(0.1, h * 0.6, 0.1), Vector3.ZERO, 1.8)
+		"halo_crown":
+			_p(root, MeshKit.cylinder(), tint, Vector3(0, 0.98, 0), Vector3(1.05, 0.2, 1.0), Vector3.ZERO, 0.5)
+			for i in 7:
+				var a := i * TAU / 7.0
+				_p(root, MeshKit.cone(), tint.lightened(0.2), Vector3(cos(a) * 0.48, 1.24, sin(a) * 0.46), Vector3(0.18, 0.42, 0.18), Vector3.ZERO, 0.7)
+				_p(root, MeshKit.sphere_low(), GEMS[i % GEMS.size()], Vector3(cos(a) * 0.5, 0.98, sin(a) * 0.48), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.6)
+			_p(root, MeshKit.torus(), Color("fff6a0"), Vector3(0, 1.75, 0), Vector3(1.0, 0.14, 1.0), Vector3.ZERO, 2.2)
+		"grand_crown":
+			_p(root, MeshKit.cylinder(), tint, Vector3(0, 1.0, 0), Vector3(1.12, 0.26, 1.06), Vector3.ZERO, 0.9)
+			for i in 11:
+				var a := i * TAU / 11.0
+				var h := 0.55 + 0.25 * (i % 2)
+				_p(root, MeshKit.cone(), tint.lightened(0.25), Vector3(cos(a) * 0.52, 1.24 + h * 0.3, sin(a) * 0.5), Vector3(0.18, h, 0.18), Vector3.ZERO, 1.1)
+				_p(root, MeshKit.sphere_low(), GEMS[(i + 3) % GEMS.size()], Vector3(cos(a) * 0.54, 1.0, sin(a) * 0.52), Vector3(0.11, 0.11, 0.11), Vector3.ZERO, 1.8)
+			for side in [-1.0, 1.0]:
+				for k in 4:
+					_p(root, MeshKit.prism(), Color("ffffff"), Vector3(side * (0.78 + k * 0.1), 0.9 + k * 0.22, 0), Vector3(0.14, 0.7, 0.04), Vector3(0, 0, side * (-72.0 + k * 20.0)), 1.4)
+			_p(root, MeshKit.torus(), Color("ffffff"), Vector3(0, 2.0, 0), Vector3(1.3, 0.16, 1.3), Vector3.ZERO, 3.0)
 		"crown":
 			_p(root, MeshKit.cylinder(), tint, Vector3(0, 0.98, 0), Vector3(1.05, 0.2, 1.0))
 			for i in 7:
@@ -52,14 +85,65 @@ static func hat(proc: String, tint: Color) -> Node3D:
 	return root
 
 
+## Extra armour decoration on the chest bone that grows more lavish with the tier:
+## chest emblem, shoulder studs and pauldrons, a back plate, glowing wings and
+## floating gems. Tiers 0-1 get nothing; tier 9 is a full set of angel wings.
+static func armor_flourish(tier: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "ArmorFlourish"
+	tier = clampi(tier, 0, MAX_TIER)
+	var metal: Color = TIERS_METAL[tier]
+	var gem: Color = GEMS[tier]
+	var glow := 0.0 if tier < 5 else 0.4 + 0.18 * float(tier - 5)
+	if tier >= 2:
+		_p(root, MeshKit.cylinder(), metal, Vector3(0, 0.12, 0.4), Vector3(0.28, 0.06, 0.28), Vector3(90, 0, 0), glow)
+		_p(root, MeshKit.sphere_low(), gem, Vector3(0, 0.12, 0.44), Vector3(0.14, 0.14, 0.1), Vector3.ZERO, 1.0 + glow)
+	if tier >= 3:
+		for side in [-1.0, 1.0]:
+			_p(root, MeshKit.sphere_low(), metal, Vector3(side * 0.5, 0.42, 0.0), Vector3(0.2, 0.2, 0.2), Vector3.ZERO, glow)
+	if tier >= 4:
+		for side in [-1.0, 1.0]:
+			_p(root, MeshKit.sphere(), metal, Vector3(side * 0.56, 0.5, 0.0), Vector3(0.42, 0.26, 0.4), Vector3(0, 0, side * -14.0), glow)
+			_p(root, MeshKit.cone(), metal.lightened(0.15), Vector3(side * 0.66, 0.66, 0.0), Vector3(0.14, 0.34, 0.14), Vector3(0, 0, side * -40.0), glow)
+	if tier >= 5:
+		_p(root, MeshKit.box(), metal.darkened(0.1), Vector3(0, 0.1, -0.36), Vector3(0.72, 0.84, 0.08), Vector3.ZERO, glow)
+		_p(root, MeshKit.sphere_low(), gem, Vector3(0, 0.12, -0.42), Vector3(0.16, 0.16, 0.08), Vector3.ZERO, 1.4)
+	if tier >= 6:
+		var feathers := 2 + (tier - 6)
+		for side in [-1.0, 1.0]:
+			for k in feathers:
+				var spread := 20.0 + k * 17.0
+				var lengthy := 0.7 + k * 0.1
+				var wing_color: Color = Color("ffffff") if tier >= 7 else metal.lightened(0.2)
+				_p(root, MeshKit.prism(), wing_color, Vector3(side * (0.34 + k * 0.1), 0.45 + k * 0.1, -0.44), Vector3(0.2, lengthy, 0.04), Vector3(0, 0, side * (-spread)), 0.9 + glow)
+	if tier >= 8:
+		for i in 6:
+			var a := TAU * i / 6.0
+			_p(root, MeshKit.sphere_low(), GEMS[(tier + i) % GEMS.size()], Vector3(cos(a) * 0.82, 0.4 + sin(a * 2.0) * 0.18, sin(a) * 0.82), Vector3(0.12, 0.12, 0.12), Vector3.ZERO, 2.0)
+	if tier >= 9:
+		_p(root, MeshKit.torus(), Color("fff6a0"), Vector3(0, 0.2, 0), Vector3(1.5, 0.12, 1.5), Vector3.ZERO, 2.4)
+	return root
+
+
+## A glowing halo over the head for the two grandest gear tiers.
+static func halo(tier: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Halo"
+	var color: Color = TIERS_METAL[clampi(tier, 0, MAX_TIER)]
+	_p(root, MeshKit.torus(), color, Vector3(0, 1.75, 0), Vector3(1.1, 0.12, 1.1), Vector3.ZERO, 2.4)
+	if tier >= 9:
+		_p(root, MeshKit.torus(), Color("ffffff"), Vector3(0, 1.95, 0), Vector3(0.7, 0.1, 0.7), Vector3.ZERO, 3.0)
+	return root
+
+
 ## Icon-only models.
 static func trinket(kind: String, tier: int) -> Node3D:
 	var root := Node3D.new()
-	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
-	var gem: Color = GEMS[clampi(tier, 0, 5)]
+	var metal: Color = TIERS_METAL[clampi(tier, 0, MAX_TIER)]
+	var gem: Color = GEMS[clampi(tier, 0, MAX_TIER)]
 	match kind:
 		"boots":
-			var leather: Color = [Color("9a6b42"), Color("7a5a3a"), Color("8a95a8"), Color("3e7a5a"), Color("c0392b"), Color("6a4ab0")][clampi(tier, 0, 5)]
+			var leather: Color = LEATHER[clampi(tier, 0, MAX_TIER)]
 			_p(root, MeshKit.box(), leather, Vector3(0, 0.34, 0), Vector3(0.34, 0.62, 0.34))
 			_p(root, MeshKit.box(), leather.darkened(0.15), Vector3(0, 0.02, 0.14), Vector3(0.36, 0.2, 0.62))
 			_p(root, MeshKit.box(), leather.lightened(0.25), Vector3(0, 0.62, 0), Vector3(0.42, 0.12, 0.42))
@@ -95,12 +179,12 @@ static func _arc_ring(parent: Node3D, color: Color) -> Node3D:
 static func boot_cuff(tier: int, side: float) -> Node3D:
 	var root := Node3D.new()
 	root.name = "BootCuff"
-	var leather: Color = [Color("9a6b42"), Color("7a5a3a"), Color("8a95a8"), Color("3e7a5a"), Color("c0392b"), Color("6a4ab0")][clampi(tier, 0, 5)]
-	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
+	var leather: Color = LEATHER[clampi(tier, 0, MAX_TIER)]
+	var metal: Color = TIERS_METAL[clampi(tier, 0, MAX_TIER)]
 	_p(root, MeshKit.cylinder(), leather, Vector3(0, 0.1, 0), Vector3(0.34, 0.26, 0.34))
 	_p(root, MeshKit.torus(), metal, Vector3(0, -0.03, 0), Vector3(0.36, 0.5, 0.36))
 	if tier >= 2:
-		_p(root, MeshKit.sphere_low(), GEMS[clampi(tier, 0, 5)], Vector3(0, 0.08, 0.17), Vector3(0.09, 0.09, 0.06), Vector3.ZERO, 0.8)
+		_p(root, MeshKit.sphere_low(), GEMS[clampi(tier, 0, MAX_TIER)], Vector3(0, 0.08, 0.17), Vector3(0.09, 0.09, 0.06), Vector3.ZERO, 0.8)
 	if tier >= 3:
 		_p(root, MeshKit.prism(), Color("ffffff"), Vector3(side * 0.16, 0.05, -0.02), Vector3(0.2, 0.3, 0.03), Vector3(0, 0, side * -75.0))
 	return root
@@ -110,8 +194,8 @@ static func boot_cuff(tier: int, side: float) -> Node3D:
 static func necklace(tier: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Necklace"
-	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
-	var gem: Color = GEMS[clampi(tier, 0, 5)]
+	var metal: Color = TIERS_METAL[clampi(tier, 0, MAX_TIER)]
+	var gem: Color = GEMS[clampi(tier, 0, MAX_TIER)]
 	var pts: Array[Vector3] = []
 	for i in 17:
 		var x := lerpf(-0.24, 0.24, i / 16.0)
@@ -140,7 +224,7 @@ static func gem(gem_id: String) -> Node3D:
 static func ring_band(tier: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "RingBand"
-	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
+	var metal: Color = TIERS_METAL[clampi(tier, 0, MAX_TIER)]
 	_p(root, MeshKit.torus(), metal, Vector3.ZERO, Vector3(0.34, 0.5, 0.34), Vector3(0, 0, 90), 0.3)
-	_p(root, MeshKit.sphere_low(), GEMS[clampi(tier, 0, 5)], Vector3(0, 0.0, 0.1), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.0)
+	_p(root, MeshKit.sphere_low(), GEMS[clampi(tier, 0, MAX_TIER)], Vector3(0, 0.0, 0.1), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.0)
 	return root

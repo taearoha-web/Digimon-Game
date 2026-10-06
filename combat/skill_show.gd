@@ -39,11 +39,54 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		"blast": _blast(parent, skill, style, color, center, radius, big)
 		"single": _single(parent, skill, style, color, center, origin, big)
 		_: _multi(parent, skill, style, color, center, origin)
-	if big:
+	var grand := _grandeur(parent, skill, color, shape, center, origin, radius, camera)
+	if big or grand >= 3:
 		if camera:
-			camera.punch(5.5)
-			Game.screen_flash.emit(color, 0.22)
-			hit_stop(parent, 0.06)
+			camera.punch(5.5 + 1.5 * float(maxi(grand - 2, 0)))
+			Game.screen_flash.emit(color, 0.22 + 0.05 * float(maxi(grand - 2, 0)))
+			hit_stop(parent, 0.06 + 0.02 * float(maxi(grand - 2, 0)))
+
+
+## Higher-level skills put on a bigger show on top of their normal effect: every
+## 20 skill levels add another rune circle, then sky strikes, shockwaves and
+## raining light, a spiral and pillar of light (Lv.80+) and a delayed second
+## wave for the Lv.100 ultimates. Returns the grandeur step 0-5.
+static func _grandeur(parent: Node3D, skill: Dictionary, color: Color, shape: String, center: Vector3, origin: Vector3, radius: float, camera: ThirdPersonCamera) -> int:
+	var step := clampi(int(skill.get("level", 1)) / 20, 0, 5)
+	if step <= 0:
+		return 0
+	var scale := GameSettings.particle_scale()
+	var at := origin if shape in ["self", "summon", "burst"] else center
+	var r := maxf(radius, 2.6)
+	for i in step:
+		VfxArt.rune_circle(parent, at, color.lerp(Color.WHITE, 0.2 * float(i)), r * (1.1 + 0.3 * float(i)), 1.0 + 0.2 * float(i), 1.0 if i % 2 == 0 else -1.0)
+	if step >= 2:
+		var strikes := int((3 + step * 2) * scale)
+		for i in strikes:
+			var a := TAU * float(i) / float(maxi(strikes, 1)) + randf() * 0.4
+			var spot := at + Vector3(cos(a), 0, sin(a)) * r * randf_range(0.55, 0.95)
+			VfxArt.sky_strike(parent, spot, color.lerp(Color.WHITE, 0.3), 0.5 + 0.12 * float(step), 12.0 + 2.0 * float(step), 0.12 * float(i % 4))
+	if step >= 3:
+		VfxKit.shockwave(parent, at + Vector3(0, 0.12, 0), color, r * 1.4)
+		VfxKit.column_rain(parent, at, r, color, int((8 + step * 3) * scale), 0.9, 12.0)
+	if step >= 4:
+		VfxArt.ribbon_spiral(parent, at, color, r * 0.7, 6.0, 1.4)
+		VfxKit.pillar(parent, at, color.lerp(Color.WHITE, 0.4), 16.0, 1.6, 1.2)
+		VfxKit.vortex(parent, at, Color.WHITE, r * 0.8, 0.9)
+	if step >= 5:
+		# The Lv.100 ultimate: a second, bigger wave a moment later.
+		parent.get_tree().create_timer(0.35).timeout.connect(func():
+			if not is_instance_valid(parent):
+				return
+			VfxKit.shockwave(parent, at + Vector3(0, 0.12, 0), Color.WHITE, r * 1.9)
+			VfxArt.star_flash(parent, at + Vector3(0, 1.4, 0), Color.WHITE, 7.0)
+			VfxArt.rune_circle(parent, at, Color.WHITE, r * 1.8, 1.3, -1.0)
+			for i in int(10.0 * scale):
+				var a := randf() * TAU
+				VfxArt.sky_strike(parent, at + Vector3(cos(a), 0, sin(a)) * r * randf_range(0.2, 1.1), color, 1.0, 18.0, 0.05 * i)
+			if camera:
+				camera.punch(9.0), CONNECT_ONE_SHOT)
+	return step
 
 
 static func hit_stop(node: Node, seconds: float) -> void:
