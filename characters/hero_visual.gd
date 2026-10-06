@@ -228,14 +228,29 @@ func _add_custom_head(with_hair: bool) -> void:
 
 func _wear_hat(hat: Dictionary) -> void:
 	if hat.has("part"):
-		_add_part(hat.part[0], hat.part[1], hat.tint)
+		var worn := _add_part(hat.part[0], hat.part[1], hat.tint)
+		_lift_hat(worn)
 		return
 	var attach := BoneAttachment3D.new()
 	attach.name = "Hat"
 	attach.bone_name = "head"
 	_skeleton.add_child(attach)
-	attach.add_child(GearKit.hat(hat.proc, hat.tint))
+	var model_hat := GearKit.hat(hat.proc, hat.tint)
+	attach.add_child(model_hat)
+	_lift_hat(model_hat)
 	_body_nodes.append(attach)
+
+
+## The custom head is a little taller than the stock KayKit head: lift hats so
+## they sit on the hair instead of covering the eyes.
+func _lift_hat(node: Node) -> void:
+	if look.is_empty() or node == null:
+		return
+	var holder: Node3D = node
+	if node is BoneAttachment3D and node.get_child_count() > 0:
+		holder = node.get_child(0) as Node3D
+	if holder:
+		holder.position += Vector3(0, 0.05, 0)
 
 
 func _hold_gear() -> void:

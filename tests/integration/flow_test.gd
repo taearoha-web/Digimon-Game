@@ -35,6 +35,7 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	await _vagabond()
 	await _look()
+	await _tiers()
 	for id in ClassData.IDS:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
@@ -209,9 +210,8 @@ func _vagabond() -> void:
 	# Loadout: swap a skill into slot 4 once unlocked.
 	Game.profile["level"] = 20
 	Game.fill_loadout()
-	check(Game.equip_skill("avalanche", 0) and String(Game.loadout()[0]) == "avalanche", "equip a skill on slot 1")
-	check(not Game.loadout().has("wind_arrow"), "the replaced skill leaves the bar")
-	check(Game.equip_skill("perfect_aim", 0) and String(Game.loadout()[0]) == "perfect_aim" and String(Game.loadout()[1]) == "avalanche", "a skill already on the bar swaps places")
+	check(not Game.equip_skill("avalanche", 0), "Lv.20 skills stay locked until the advanced job")
+	check(Game.equip_skill("scout_hawk", 0) and String(Game.loadout()[0]) == "scout_hawk" and String(Game.loadout()[2]) == "wind_arrow", "a skill already on the bar swaps places")
 	check(not Game.equip_skill("phoenix_shot", 1), "locked skills cannot be equipped")
 	Game.profile.gold = 5000
 	Game.profile.skill_points = 3
@@ -221,6 +221,25 @@ func _vagabond() -> void:
 	await main.go(&"town", true)
 	await _wait(0.3)
 	check(main.zone.hero != null, "village reloads with the new line")
+
+
+func _tiers() -> void:
+	print("== Skill tiers")
+	await _start(&"mage")
+	Game.profile["level"] = 50
+	Game.fill_loadout()
+	var watornado := ClassData.find_skill(&"mage", "watornado")
+	var flame := ClassData.find_skill(&"mage", "flame_wave")
+	var fire_bolt := ClassData.find_skill(&"mage", "fire_bolt")
+	check(Game.class_tier() == 1 and Game.skill_unlocked(fire_bolt), "line skills below Lv.20 need only the line")
+	check(not Game.skill_unlocked(watornado) and not Game.skill_unlocked(flame), "Lv.20+ skills are locked without the advanced job")
+	check(Game.skill_lock_reason(watornado).contains("ขั้นสูง"), "lock reason names the advancement")
+	check(not Game.loadout().has("watornado"), "locked skills are kept off the bar")
+	Game.add_gold(50000)
+	var branch := JobData.jobs_for(&"mage")[0]
+	check(Game.change_job(branch) and Game.class_tier() == 2, "advanced job reaches tier 2")
+	check(Game.skill_unlocked(watornado) and not Game.skill_unlocked(flame), "tier 2 opens Lv.20-39 skills only")
+	check(Game.change_master() and Game.class_tier() == 3 and Game.skill_unlocked(flame), "master job opens Lv.40+ skills")
 
 
 func _look() -> void:

@@ -7,10 +7,10 @@ extends RefCounted
 ## (all ints). Everything is placed in head-bone space like GearKit hats:
 ## the head is centred at y = CY, the front of the face is +Z.
 
-const CY := 0.62
-const RX := 0.58
-const RY := 0.56
-const RZ := 0.55
+const CY := 0.58
+const RX := 0.55
+const RY := 0.52
+const RZ := 0.52
 
 const SKINS: Array[Color] = [Color("fbe4d8"), Color("f8ccab"), Color("eab98f"), Color("d29a6c"), Color("b9794e"), Color("94583a"), Color("6e3f28"), Color("f1d6c4")]
 const SKIN_NAMES: Array[String] = ["ขาวใส", "ขาวอมชมพู", "ผิวสองสี", "แทนอ่อน", "แทน", "น้ำตาล", "เข้ม", "ซีด"]

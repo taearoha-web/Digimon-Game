@@ -195,7 +195,13 @@ func _on_level_up(level: int) -> void:
 	Game.say("ได้แต้มสถานะ +%d และแต้มสกิล +1 (เปิดเมนูเพื่อใช้)" % Game.STAT_POINTS_PER_LEVEL, &"success")
 	for skill in Game.skill_pool():
 		if int(skill.level) == level:
-			Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
+			if Game.skill_unlocked(skill):
+				Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
+			else:
+				Game.say("สกิล %s ต้อง%s ก่อน — ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % [skill.name, Game.skill_lock_reason(skill).trim_prefix("ต้อง")], &"quest")
+	if Game.class_id() != ClassData.START and ((level == JobData.JOB_LEVEL and Game.job_id() == &"") or (level == JobData.MASTER_LEVEL and Game.job_id() != &"" and not bool(Game.profile.get("job3", false)))):
+		hud.show_banner("เปลี่ยนอาชีพขั้นต่อไปได้แล้ว!")
+		Game.say("สกิลเลเวล %d ขึ้นไปต้องเปลี่ยนอาชีพ ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % level, &"quest")
 	if Game.class_id() == ClassData.START and level == ClassData.LINE_LEVEL:
 		hud.show_banner("ถึงเวลาเลือกสาย!")
 		Game.say("ไปหาปรมาจารย์ผู้เปลี่ยนชะตาในหมู่บ้านเพื่อเลือกสาย: ดาบ ธนู เวทย์ หรือนักบวช", &"quest")
@@ -311,7 +317,7 @@ func _talk_job() -> void:
 		elif int(Game.profile.level) >= JobData.MASTER_LEVEL and JobData.MASTERS.has(current):
 			var m: Dictionary = JobData.MASTERS[current]
 			var lines: PackedStringArray = ["ถึงเวลาเลื่อนขั้นสุดท้ายแล้ว! \"%s\" — %s" % [m.name, m.title]]
-			lines.append("พลังโจมตี/ป้องกัน/HP จะเพิ่มขึ้นอีกขั้น และได้แต้มสกิล +3")
+			lines.append("พลังเพิ่มขึ้นอีกขั้น ได้แต้มสกิล +3 และใช้สกิลเลเวล 40 ขึ้นไปได้")
 			lines.append("ค่าเลื่อนขั้น %d เหรียญ" % JobData.MASTER_COST)
 			dialog.say(speaker, "\n".join(lines), [
 				{"label": "เลื่อนขั้น", "action": func(): _confirm_master()}, {"label": "ไว้ก่อน"}])
@@ -327,7 +333,7 @@ func _talk_job() -> void:
 		var info := JobData.get_job(id)
 		options.append({"label": String(info.name), "action": func(): _show_job(id)})
 	options.append({"label": "ไว้ก่อน"})
-	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)" % [Game.class_data().name, JobData.JOB_COST], options)
+	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)\nเปลี่ยนแล้วจะใช้สกิลเลเวล 20-39 ได้ และพลังเพิ่มขึ้น" % [Game.class_data().name, JobData.JOB_COST], options)
 
 
 func _show_line(id: StringName) -> void:

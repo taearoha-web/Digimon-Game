@@ -96,7 +96,7 @@ func _row(skill: Dictionary, passive: bool) -> Control:
 	var unlocked := Game.skill_unlocked(skill)
 	var rank := Game.effective_rank(skill)
 	var tag := "[ติดตัว] " if passive else ""
-	var title := "%s%s   %s" % [tag, skill.name, ("★".repeat(rank) + "☆".repeat(Game.MAX_SKILL_RANK - rank)) if unlocked else "ปลดล็อกที่เลเวล %d" % int(skill.level)]
+	var title := "%s%s   %s" % [tag, skill.name, ("★".repeat(rank) + "☆".repeat(Game.MAX_SKILL_RANK - rank)) if unlocked else Game.skill_lock_reason(skill)]
 	var title_label := UIUtil.label(title, &"BoldLabel")
 	if not unlocked:
 		title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)

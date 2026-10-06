@@ -123,7 +123,7 @@ func loadout() -> Array:
 
 ## Keeps the bar valid and puts newly unlocked skills into empty slots.
 func fill_loadout() -> void:
-	profile["loadout"] = ClassData.default_loadout(class_id(), int(profile.get("level", 1)), profile.get("loadout", []))
+	profile["loadout"] = ClassData.default_loadout(class_id(), int(profile.get("level", 1)), profile.get("loadout", []), class_tier())
 
 
 ## Puts a skill on a bar slot; a skill already on the bar swaps places.
@@ -191,6 +191,7 @@ func change_master() -> bool:
 		return false
 	profile["gold"] -= JobData.MASTER_COST
 	profile["job3"] = true
+	fill_loadout()
 	profile["skill_points"] += 3
 	var stats := stats_now()
 	profile["hp"] = stats.max_hp
@@ -211,6 +212,7 @@ func change_job(job: StringName) -> bool:
 		return false
 	profile["gold"] -= JobData.JOB_COST
 	profile["job"] = String(job)
+	fill_loadout()
 	profile["skill_points"] += 2
 	var stats := stats_now()
 	profile["hp"] = stats.max_hp
@@ -342,7 +344,7 @@ func _migrate_skills(data: Dictionary) -> void:
 			data.skills.erase(skill_id)
 	if not data.get("loadout") is Array:
 		data["loadout"] = ["", "", "", ""]
-	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"])
+	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, StringName(data.get("job", "")), bool(data.get("job3", false))))
 
 
 func _repair_item(item: Dictionary) -> void:
@@ -533,7 +535,22 @@ func skill_rank(skill_id: String) -> int:
 
 
 func skill_unlocked(skill: Dictionary) -> bool:
-	return profile["level"] >= int(skill.level)
+	return profile["level"] >= int(skill.level) and class_tier() >= ClassData.skill_tier(skill)
+
+
+## 0 Vagabond, 1 line, 2 advanced job (Lv.20), 3 master job (Lv.40).
+func class_tier() -> int:
+	return ClassData.tier_of(class_id(), job_id(), bool(profile.get("job3", false)))
+
+
+## Why a skill cannot be used yet ("" when it can).
+func skill_lock_reason(skill: Dictionary) -> String:
+	if profile["level"] < int(skill.level):
+		return "ปลดล็อกที่เลเวล %d" % int(skill.level)
+	var need := ClassData.skill_tier(skill)
+	if class_tier() < need:
+		return "ต้องเปลี่ยนเป็น%s (Lv.%d)" % [ClassData.tier_name(need), ClassData.LINE_LEVEL if need == 1 else (JobData.JOB_LEVEL if need == 2 else JobData.MASTER_LEVEL)]
+	return ""
 
 
 ## Skills start at rank 1 once their level is reached; ranks 2-5 cost a skill point.
