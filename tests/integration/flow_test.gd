@@ -38,6 +38,7 @@ func _run() -> void:
 	await _storage_and_auto()
 	await _dex_and_stars()
 	await _tiers()
+	await _summons()
 	for id in ClassData.IDS:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
@@ -142,39 +143,34 @@ func _alive(pack: Array[Mob]) -> int:
 
 
 func _jobs() -> void:
-	print("== Jobs")
+	print("== Advancements")
 	for class_id in ClassData.IDS:
-		var zone := await _start(class_id)
-		var branches := JobData.jobs_for(class_id)
-		check(branches.size() == 1, "%s has a single advanced path" % class_id)
-		check(not Game.change_job(branches[0]), "cannot change job below Lv.%d" % JobData.JOB_LEVEL)
-		Game.add_exp(2000000)
-		Game.add_gold(5000)
-		var atk_before: float = Game.stats_now().atk
+		await _start(class_id)
+		check(JobData.PATHS[class_id].size() == 4, "%s has four advancement steps" % class_id)
+		check(not Game.advance(), "cannot advance below Lv.%d" % JobData.TIER_LEVELS[0])
+		Game.add_exp(100000000)
+		check(Game.profile.level == Game.MAX_LEVEL, "%s reaches the level cap %d" % [class_id, Game.MAX_LEVEL])
 		var attrs_before: Dictionary = Game.stats_now().attrs
-		var gold_before: int = Game.profile.gold
-		check(Game.change_job(branches[0]), "job picked")
-		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
-		check(Game.profile.gold == gold_before - JobData.JOB_COST + 1000, "job change cost gold (the job achievement pays 1000 back)")
-		check(String(Game.class_data().name) != String(ClassData.get_class_data(class_id).name), "job renames the hero")
+		var name_before := String(Game.class_data().name)
+		for step in 4:
+			Game.profile.gold = 1000000
+			var gold_before: int = Game.profile.gold
+			check(Game.advance(), "%s advances to step %d (%s)" % [class_id, step + 1, JobData.current(class_id, Game.adv()).name])
+			check(Game.profile.gold <= gold_before - int(JobData.TIER_COSTS[step]) + 300000, "advancement %d costs gold" % (step + 1))
+			if step == 0:
+				await _wait(0.4)
+				check(main.zone.hero._ring != null, "the advancement ring appears under the hero")
+				check(String(Game.class_data().name) != name_before, "advancing renames the hero")
+		check(Game.adv() == 4 and not Game.advance(), "%s cannot advance past the legend step" % class_id)
+		check(String(Game.class_data().name).contains("ในตำนาน"), "%s ends as a legend (%s)" % [class_id, Game.class_data().name])
 		var main_key: String = ClassData.get_class_data(class_id).main
-		check(int(Game.stats_now().attrs[main_key]) >= int(attrs_before[main_key]) + 10, "%s: the job raises the main attribute (%s)" % [class_id, main_key])
-		check(not Game.change_job(branches[0]), "job cannot be changed twice")
-		await _wait(0.4)
-		var hero: Hero = main.zone.hero
-		check(hero._ring != null, "job ring appears under the hero")
-		# Passives raise stats; the Lv.30 advancement swaps skills 3 and 4.
+		check(int(Game.stats_now().attrs[main_key]) >= int(attrs_before[main_key]) + 80, "%s: advancements raise the main attribute (%s)" % [class_id, main_key])
 		var before := Game.stats_now()
 		var power_before: float = float(before.atk) + float(before.def) + float(before.max_hp) + float(before.max_mp) + float(before.crit) * 1000.0 + float(before.speed)
 		Game.profile.skills[ClassData.PASSIVES[class_id][0].id] = 5
 		var after_stats := Game.stats_now()
 		var power_after: float = float(after_stats.atk) + float(after_stats.def) + float(after_stats.max_hp) + float(after_stats.max_mp) + float(after_stats.crit) * 1000.0 + float(after_stats.speed)
 		check(power_after > power_before, "passive skill ranks add stats")
-		Game.add_gold(10000)
-		Game.profile["level"] = JobData.MASTER_LEVEL
-		check(Game.change_master(), "%s can take the Lv.%d advancement" % [class_id, JobData.MASTER_LEVEL])
-		check(bool(Game.class_data().get("master", false)), "master advancement applied")
-		check(not Game.change_master(), "the master advancement is one-time")
 
 
 func _vagabond() -> void:
@@ -226,20 +222,80 @@ func _vagabond() -> void:
 func _tiers() -> void:
 	print("== Skill tiers")
 	await _start(&"mage")
-	Game.profile["level"] = 50
+	Game.profile["level"] = 100
 	Game.fill_loadout()
+	var fire_bolt := ClassData.find_skill(&"mage", "fire_bolt")
 	var watornado := ClassData.find_skill(&"mage", "watornado")
 	var flame := ClassData.find_skill(&"mage", "flame_wave")
-	var fire_bolt := ClassData.find_skill(&"mage", "fire_bolt")
+	var meteo := ClassData.find_skill(&"mage", "meteo")
+	var hell := ClassData.find_skill(&"mage", "hell_meteor")
+	var armageddon := ClassData.find_skill(&"mage", "armageddon")
 	check(Game.class_tier() == 1 and Game.skill_unlocked(fire_bolt), "line skills below Lv.20 need only the line")
-	check(not Game.skill_unlocked(watornado) and not Game.skill_unlocked(flame), "Lv.20+ skills are locked without the advanced job")
-	check(Game.skill_lock_reason(watornado).contains("ขั้นสูง"), "lock reason names the advancement")
+	check(not Game.skill_unlocked(watornado) and not Game.skill_unlocked(armageddon), "higher skills are locked without the advancement")
+	check(Game.skill_lock_reason(watornado).contains("นักเวทย์ขั้นสูง"), "lock reason names the advancement")
 	check(not Game.loadout().has("watornado"), "locked skills are kept off the bar")
-	Game.add_gold(50000)
-	var branch := JobData.jobs_for(&"mage")[0]
-	check(Game.change_job(branch) and Game.class_tier() == 2, "advanced job reaches tier 2")
+	Game.profile.gold = 10000000
+	check(Game.advance() and Game.class_tier() == 2, "Lv.20 step reaches tier 2")
 	check(Game.skill_unlocked(watornado) and not Game.skill_unlocked(flame), "tier 2 opens Lv.20-39 skills only")
-	check(Game.change_master() and Game.class_tier() == 3 and Game.skill_unlocked(flame), "master job opens Lv.40+ skills")
+	check(Game.advance() and Game.class_tier() == 3 and Game.skill_unlocked(flame) and not Game.skill_unlocked(meteo), "tier 3 (Lv.40) opens Lv.40-59 skills")
+	check(Game.advance() and Game.class_tier() == 4 and Game.skill_unlocked(meteo) and not Game.skill_unlocked(hell), "tier 4 (Lv.60) opens Lv.60-79 skills")
+	check(Game.advance() and Game.class_tier() == 5 and Game.skill_unlocked(hell) and Game.skill_unlocked(armageddon), "tier 5 (Lv.80) opens Lv.80+ skills")
+	check(String(JobData.current(&"mage", 3).name) == "ปรมาจารย์นักเวทย์" and String(JobData.current(&"mage", 4).name) == "นักเวทย์ในตำนาน", "mage tier names follow the plan")
+	check(String(JobData.current(&"mage", 2).name) == "นักเวทย์ขั้นสุดยอด", "Lv.40 is the supreme mage")
+
+
+func _summons() -> void:
+	print("== Summoners")
+	for class_id in [&"archer", &"mage"]:
+		var summoners := 0
+		for skill in ClassData.pool(class_id):
+			if String(skill.shape) == "summon":
+				summoners += 1
+		check(summoners >= 3, "%s has summoner skills (%d)" % [class_id, summoners])
+	await _start(&"archer")
+	var field_zone := await _go_field()
+	var hero: Hero = field_zone.hero
+	Game.profile["level"] = 100
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.profile.mp = 99999
+	var wolverine := ClassData.find_skill(&"archer", "recall_wolverine")
+	check(Game.equip_skill("recall_wolverine", 0), "summon skill can be put on the bar")
+	var before := get_tree().get_nodes_in_group("mobs").size()
+	hero.cooldowns.clear()
+	hero.use_skill(0)
+	await _wait(0.9)
+	var count := 0
+	for child in field_zone.get_children():
+		if child is Summon:
+			count += 1
+	check(count == 2, "Recall Wolverine summons two wolves (%d)" % count)
+	var watched: Array = get_tree().get_nodes_in_group("mobs").duplicate()
+	var hp_before := 0
+	for node in watched:
+		hp_before += int((node as Mob).hp)
+	await _wait(6.0)
+	var hp_after := 0
+	for node in watched:
+		if is_instance_valid(node) and not (node as Mob).is_dead():
+			hp_after += int((node as Mob).hp)
+	check(before > 0, "monsters are around for the summons to fight")
+	check(hp_after < hp_before, "the wolves bite the monsters (%d -> %d total HP)" % [hp_before, hp_after])
+	check(wolverine.shape == "summon", "wolverine is a summon skill")
+
+
+func _go_field() -> Zone:
+	await main.go(&"meadow", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	var hero: Hero = zone.hero
+	for node in get_tree().get_nodes_in_group("mobs"):
+		node.queue_free()
+	await _wait(0.2)
+	hero.global_position = Vector3(-20, 0.2, 0)
+	_spawn(zone, hero, [&"pink_slime", &"green_slime", &"pink_slime"], 2)
+	await _wait(0.4)
+	return zone
 
 
 func _dex_and_stars() -> void:
@@ -256,7 +312,7 @@ func _dex_and_stars() -> void:
 	hero.refresh_stats()
 	check(float(hero.stats.haste) <= HeroStats.MAX_HASTE + 0.001, "haste is capped")
 	var blast := ClassData.find_skill(&"archer", "avalanche")
-	Game.profile["job"] = "archer_2"
+	Game.profile["adv"] = 1
 	Game.profile.skills["avalanche"] = 5
 	Game.profile["level"] = 50
 	var grown := hero._ranked(blast)

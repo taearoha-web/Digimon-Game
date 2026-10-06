@@ -92,7 +92,7 @@ func refresh() -> void:
 		return
 	stats = HeroStats.compute(Game.party_profile(member))
 	var pp := Game.party_profile(member)
-	data = JobData.resolve(StringName(member["class"]), StringName(pp.job), bool(pp.job3))
+	data = JobData.resolve(StringName(member["class"]), int(pp.adv))
 	_label.text = "%s Lv.%d" % [member.name, int(member.level)]
 	var sig := _signature()
 	if sig != _equip_sig:
@@ -427,6 +427,8 @@ func _try_skills(distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	for skill in skills:
+		if String(skill.shape) == "summon":
+			continue
 		if int(skill.level) > int(member.level) + 9 or ClassData.skill_tier(skill) > _tier() or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, distance, hero_hp)
@@ -441,7 +443,7 @@ func _try_skills(distance: float) -> bool:
 
 ## Companions advance on their own: job at Lv.20, master at Lv.40.
 func _tier() -> int:
-	return 1 + (1 if int(member.level) >= JobData.JOB_LEVEL else 0) + (1 if int(member.level) >= JobData.MASTER_LEVEL else 0)
+	return 1 + JobData.adv_for_level(int(member.level))
 
 
 func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:

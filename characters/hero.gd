@@ -29,6 +29,7 @@ var target: Mob
 var engaged := false
 ## Auto hunting: fights inside the camp it was switched on in, uses skills and potions.
 var auto := false
+var _summons: Array = []
 var _auto_center := Vector3.ZERO
 var _auto_radius := 10.0
 var _auto_timer := 0.0
@@ -86,16 +87,16 @@ func _on_inventory_changed() -> void:
 
 ## A glowing ring under the feet of a hero who has changed jobs.
 func _update_job_ring() -> void:
-	var job := Game.job_id()
+	var job := StringName("%s|%d" % [Game.class_id(), Game.adv()])
 	if job == _ring_job:
 		return
 	_ring_job = job
 	if _ring:
 		_ring.queue_free()
 		_ring = null
-	if job == &"":
+	if Game.adv() <= 0:
 		return
-	var color: Color = JobData.get_job(job).color
+	var color: Color = JobData.current(Game.class_id(), Game.adv()).color
 	_ring = MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.78
@@ -251,6 +252,9 @@ func _auto_cast(hp_rate: float) -> void:
 				if fx.has("heal") and hp_rate > (0.55 if not fx.has("buff") else 0.75):
 					continue
 				if fx.has("buff") and not fx.has("heal") and not _buffs.is_empty():
+					continue
+			"summon":
+				if _summons_alive(skill.id) > 0:
 					continue
 			"burst":
 				if crowd < 2:
@@ -563,7 +567,7 @@ func use_skill(index: int) -> String:
 	if int(Game.profile.mp) < mp_cost(skill):
 		message.emit("MP ไม่พอ!")
 		return "mp"
-	if skill.shape == "self":
+	if skill.shape == "self" or skill.shape == "summon":
 		_cast(skill)
 		return ""
 	if not _valid_target(target):
@@ -618,6 +622,8 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 	match String(skill.shape):
 		"self":
 			_apply_self_fx(skill)
+		"summon":
+			_summon(skill, mult)
 		"single":
 			if not _valid_target(mob):
 				return
@@ -729,6 +735,36 @@ func _arrow_rain(skill: Dictionary, center: Vector3, radius: float, mult: float)
 		VfxKit.shockwave(field, center + Vector3(0, 0.1, 0), color, radius * 0.9)
 		_blast_damage(skill, center, radius, mult)
 	, CONNECT_ONE_SHOT)
+
+
+## Calls the skill's creatures (replacing the same skill's earlier ones; at most 5 in all).
+func _summon(skill: Dictionary, mult: float) -> void:
+	var spec: Dictionary = skill.summon
+	_summons = _summons.filter(func(s): return is_instance_valid(s))
+	for old in _summons.duplicate():
+		if old.skill_id == skill.id:
+			old.queue_free()
+			_summons.erase(old)
+	var count := int(spec.get("count", 1)) + (1 if Game.effective_rank(skill) >= 5 and int(spec.get("count", 1)) > 1 else 0)
+	for i in count:
+		var s := Summon.new()
+		s.setup(self, String(skill.id), spec, mult, i, count)
+		field.add_child(s)
+		_summons.append(s)
+	while _summons.size() > 5:
+		var oldest: Summon = _summons.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
+	VfxKit.aura(field, global_position, skill.color)
+	BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), String(skill.name), skill.color, 0.6)
+
+
+func _summons_alive(skill_id: String) -> int:
+	var n := 0
+	for s in _summons:
+		if is_instance_valid(s) and s.skill_id == skill_id:
+			n += 1
+	return n
 
 
 func _apply_self_fx(skill: Dictionary) -> void:

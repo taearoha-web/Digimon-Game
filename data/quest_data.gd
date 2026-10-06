@@ -29,10 +29,30 @@ const QUESTS := {
 	"lava": {"name": "ออร์คลาวาอาละวาด", "desc": "ออร์คลาวาออกจากปล่องภูเขาไฟมาเผาไร่ ไปหยุดพวกมัน", "target": "fire_orc", "count": 14, "level": 32,
 		"exp": 50000, "gold": 16000, "items": [["hp_l", 8], ["mp_l", 8]], "zone": "volcano", "next": "magma"},
 	"magma": {"name": "มังกรแมกมาจ้าวภูเขาไฟ", "desc": "จ้าวแห่งภูเขาไฟรอเจ้าอยู่ที่ใจกลางปล่อง นี่คือบททดสอบสุดท้าย", "target": "magma_dragon", "count": 1, "level": 40,
-		"exp": 120000, "gold": 40000, "items": [["hp_l", 10], ["mp_l", 10]], "gear": [42, 3], "zone": "volcano", "next": ""},
+		"exp": 120000, "gold": 40000, "items": [["hp_l", 10], ["mp_l", 10]], "gear": [42, 3], "zone": "volcano", "next": "bones"},
+	"bones": {"name": "กองทัพอัศวินกระดูก", "desc": "อัศวินกระดูกลุกจากสุสานจันทร์เลือด ไปปราบพวกมัน", "target": "bone_knight", "count": 15, "level": 44,
+		"exp": 200000, "gold": 60000, "items": [["hp_xl", 10], ["mp_xl", 10]], "zone": "graveyard", "next": "bone_lord"},
+	"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "desc": "เจ้าแห่งสุสานตื่นแล้ว ปราบมันให้สิ้นซาก", "target": "bone_lord", "count": 1, "level": 54,
+		"exp": 500000, "gold": 150000, "items": [["hp_xl", 10], ["mp_xl", 10]], "gear": [56, 3], "zone": "graveyard", "next": "toxic"},
+	"toxic": {"name": "หนองน้ำพิษมรณะ", "desc": "กบพิษยักษ์แพร่โรคในหนองน้ำ ไปกำจัดพวกมัน", "target": "toxic_frog", "count": 15, "level": 56,
+		"exp": 700000, "gold": 200000, "items": [["mp_xl", 10], ["hp_xl", 10]], "zone": "swamp", "next": "toad_king"},
+	"toad_king": {"name": "ราชาเห็ดพิษ", "desc": "จ้าวแห่งหนองน้ำพิษซ่อนอยู่ใจกลางหนอง", "target": "toad_king", "count": 1, "level": 66,
+		"exp": 1500000, "gold": 400000, "items": [["hp_xl", 10], ["mp_xl", 10]], "gear": [68, 3], "zone": "swamp", "next": "thunder"},
+	"thunder": {"name": "ภูผาสายฟ้าคำราม", "desc": "ยักษ์หินสายฟ้าถล่มหมู่บ้านใต้เขา ไปหยุดพวกมัน", "target": "thunder_golem", "count": 15, "level": 68,
+		"exp": 2000000, "gold": 500000, "items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "storm", "next": "storm_dragon"},
+	"storm_dragon": {"name": "มังกรสายฟ้าคำราม", "desc": "มังกรผู้เรียกพายุอยู่บนยอดเขา", "target": "storm_dragon", "count": 1, "level": 78,
+		"exp": 4000000, "gold": 1000000, "items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [80, 3], "zone": "storm", "next": "angels"},
+	"angels": {"name": "ทูตสวรรค์ตกต่ำ", "desc": "นครเมฆาสวรรค์ล่ม ทูตสวรรค์ที่ตกต่ำคลั่งไปทั่ว", "target": "fallen_angel", "count": 15, "level": 80,
+		"exp": 5000000, "gold": 1500000, "items": [["mp_xxl", 10], ["hp_xxl", 10]], "zone": "sky", "next": "gold_dragon"},
+	"gold_dragon": {"name": "มังกรทองเทพเจ้า", "desc": "เทพมังกรผู้เฝ้านครเมฆา แข็งแกร่งเกินมนุษย์", "target": "gold_dragon", "count": 1, "level": 90,
+		"exp": 9000000, "gold": 3000000, "items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [92, 3], "zone": "sky", "next": "hell"},
+	"hell": {"name": "ขุมนรกอเวจี", "desc": "ออร์คปีศาจบุกขึ้นมาจากขุมนรก ไปปิดประตูนรก", "target": "hell_orc", "count": 15, "level": 92,
+		"exp": 12000000, "gold": 4000000, "items": [["mp_xxl", 10], ["hp_xxl", 10]], "zone": "abyss", "next": "abyss_dragon"},
+	"abyss_dragon": {"name": "ราชามังกรอเวจี", "desc": "จ้าวแห่งขุมนรกคือศัตรูสุดท้ายของโลก ปราบมัน และกลายเป็นตำนาน", "target": "abyss_dragon", "count": 1, "level": 100,
+		"exp": 30000000, "gold": 10000000, "items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [100, 3], "zone": "abyss", "next": ""},
 }
 
-const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs", "ghosts", "dragon", "wolves", "sand_dragon", "yetis", "yeti_king", "lava", "magma"]
+const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs", "ghosts", "dragon", "wolves", "sand_dragon", "yetis", "yeti_king", "lava", "magma", "bones", "bone_lord", "toxic", "toad_king", "thunder", "storm_dragon", "angels", "gold_dragon", "hell", "abyss_dragon"]
 
 
 static func get_quest(id: String) -> Dictionary:

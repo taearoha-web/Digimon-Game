@@ -13,12 +13,12 @@ func _init() -> void:
 		print("== %s" % ClassData.get_class_data(c).name)
 		print("  Lv | zone        | TTK s | HP lost/kill | kills/lv | min/lv | total min")
 		var total := 0.0
-		for level in range(1, 41):
+		for level in range(10, 101):
 			var zone := _zone_for(level)
 			var mon := _avg_monster(zone, level)
 			var profile := _profile(c, level, rng)
 			var stats := HeroStats.compute(profile)
-			var data := JobData.resolve(c, StringName(profile.job))
+			var data := JobData.resolve(c, int(profile.adv))
 			var dps := _dps(data, stats, level)
 			var net_hit := float(mon.stats.def)
 			var dmg_mult := 100.0 / (100.0 + net_hit)
@@ -29,15 +29,15 @@ func _init() -> void:
 			var kills := float(HeroStats.exp_to_next(level)) / maxf(exp_kill, 1.0)
 			var minutes := kills * (ttk + OVERHEAD) / 60.0
 			total += minutes
-			if level in [1, 3, 5, 8, 10, 12, 15, 18, 20, 23, 25, 28, 30, 33, 35, 38, 40]:
+			if level % 10 == 0 or level in [10, 15, 25, 35, 45, 55]:
 				print("  %2d | %-11s | %5.1f | %10.0f%% | %8.1f | %6.1f | %7.0f" % [level, zone, ttk, hp_lost * 100.0, kills, minutes, total])
 		total_all[c] = total
-	print("Total minutes to Lv.40: ", total_all)
+	print("Total minutes Lv.10-100: ", total_all)
 	quit()
 
 
 func _zone_for(level: int) -> String:
-	for id in [&"volcano", &"snow", &"desert", &"dark_forest", &"meadow"]:
+	for id in [&"abyss", &"sky", &"storm", &"swamp", &"graveyard", &"volcano", &"snow", &"desert", &"dark_forest", &"meadow"]:
 		if level >= int(ZoneData.get_zone(id).level[0]):
 			return String(id)
 	return "meadow"
@@ -77,10 +77,7 @@ func _profile(c: StringName, level: int, rng: RandomNumberGenerator) -> Dictiona
 	var equip := {}
 	for slot in ["weapon", "armor", "helm", "boots"]:
 		equip[slot] = ItemData.generate(maxi(1, level - 2), c, rng, 0 if rng.randf() < 0.7 else 1, slot)
-	var job := ""
-	if level >= JobData.JOB_LEVEL:
-		job = String(JobData.jobs_for(c)[0])
-	return {"class": String(c), "level": level, "attrs": attrs, "equip": equip, "job": job}
+	return {"class": String(c), "level": level, "attrs": attrs, "equip": equip, "adv": JobData.adv_for_level(level)}
 
 
 func _dps(data: Dictionary, stats: Dictionary, level: int) -> float:
@@ -89,9 +86,15 @@ func _dps(data: Dictionary, stats: Dictionary, level: int) -> float:
 	var attack: Dictionary = data.attack
 	var basic := atk * float(attack.mult) * crit_mult / (float(attack.interval) * 1.05)
 	var skill_dps := 0.0
+	# The bar holds the four best skills this level can use.
+	var usable: Array = []
+	var tier := ClassData.tier_of(StringName(data.get("id", "")), JobData.adv_for_level(level))
 	for skill in data.skills:
-		if int(skill.level) > level or float(skill.get("mult", 0.0)) <= 0.0:
+		if int(skill.level) > level or float(skill.get("mult", 0.0)) <= 0.0 or ClassData.skill_tier(skill) > 1 + JobData.adv_for_level(level):
 			continue
+		usable.append(skill)
+	usable.sort_custom(func(a, b): return float(a.mult) / (float(a.cd) + 0.9) * (2.0 if a.shape in ["burst", "blast", "fan", "chain"] else 1.0) > float(b.mult) / (float(b.cd) + 0.9) * (2.0 if b.shape in ["burst", "blast", "fan", "chain"] else 1.0))
+	for skill in usable.slice(0, 4):
 		var targets := 1.0
 		if skill.shape == "burst" or skill.shape == "blast":
 			targets = 2.0
