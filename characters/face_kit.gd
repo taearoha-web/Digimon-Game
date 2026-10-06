@@ -14,16 +14,28 @@ const RZ := 0.52
 
 const SKINS: Array[Color] = [Color("fbe4d8"), Color("f8ccab"), Color("eab98f"), Color("d29a6c"), Color("b9794e"), Color("94583a"), Color("6e3f28"), Color("f1d6c4")]
 const SKIN_NAMES: Array[String] = ["ขาวใส", "ขาวอมชมพู", "ผิวสองสี", "แทนอ่อน", "แทน", "น้ำตาล", "เข้ม", "ซีด"]
-const HAIR_COLORS: Array[Color] = [Color("2a2220"), Color("5b3a29"), Color("8a5a32"), Color("d8b25a"), Color("c4452e"), Color("e8e0d0"), Color("5a7ad8"), Color("e87ab0")]
-const HAIR_COLOR_NAMES: Array[String] = ["ดำ", "น้ำตาลเข้ม", "น้ำตาล", "บลอนด์", "แดง", "ขาว", "ฟ้า", "ชมพู"]
+const HAIR_COLORS: Array[Color] = [Color("2a2220"), Color("5b3a29"), Color("8a5a32"), Color("d8b25a"), Color("c4452e"), Color("e8e0d0"), Color("5a7ad8"), Color("e87ab0"), Color("8a5ad8"), Color("4aa86a"), Color("b8c0d0"), Color("e8843a")]
+const HAIR_COLOR_NAMES: Array[String] = ["ดำ", "น้ำตาลเข้ม", "น้ำตาล", "บลอนด์", "แดง", "ขาว", "ฟ้า", "ชมพู", "ม่วง", "เขียว", "เงิน", "ส้ม"]
+## Starter outfits for the Vagabond (0 = the stock one): [name, outfit model, tint, cape part or ""].
+const OUTFITS := [
+	["ชุดนักเดินทาง", "", Color.WHITE, ""],
+	["ชุดนักล่าป่า", "Ranger", Color.WHITE, "Ranger_Cape"],
+	["ชุดอัศวินฝึกหัด", "Knight", Color.WHITE, ""],
+	["ชุดจอมเวทม่วง", "Mage", Color.WHITE, "Mage_Cape"],
+	["ชุดเงาราตรี", "Rogue", Color(0.75, 0.75, 1.05), "Rogue_Cape"],
+	["ชุดนักรบป่าเถื่อน", "Barbarian", Color.WHITE, ""],
+	["ชุดฟ้าสดใส", "Knight", Color(0.6, 0.95, 1.7), ""],
+	["ชุดแดงเพลิง", "Barbarian", Color(1.7, 0.75, 0.6), ""],
+	["ชุดทองหรู", "Mage", Color(1.7, 1.45, 0.7), "Mage_Cape"],
+]
 const EYE_COLORS: Array[Color] = [Color("3a2a22"), Color("5a8ad8"), Color("4aa86a"), Color("8a6a3a"), Color("a05ad8"), Color("d8604a")]
 const EYE_COLOR_NAMES: Array[String] = ["น้ำตาลเข้ม", "ฟ้า", "เขียว", "น้ำตาลอำพัน", "ม่วง", "แดง"]
 const EYE_NAMES: Array[String] = ["กลมโต", "รีสูง", "ง่วงๆ", "ยิ้มหยี", "เฉียบคม"]
 const NOSE_NAMES: Array[String] = ["จุดเล็ก", "กลมน่ารัก", "โด่ง", "กว้าง"]
 const MOUTH_NAMES: Array[String] = ["ยิ้ม", "เฉยๆ", "อ้าปากยิ้ม", "ทำปาก", "ยิ้มกว้างเห็นฟัน"]
 const HAIR_NAMES := [
-	["ทรงสั้น", "ทรงตั้ง", "ปัดข้าง", "โมฮอว์ค", "ทรงเกรียน"],
-	["ผมยาว", "หางม้า", "ผมคู่", "ทรงบ๊อบ", "จุกมวย"],
+	["ทรงสั้น", "ทรงตั้ง", "ปัดข้าง", "โมฮอว์ค", "ทรงเกรียน", "ผมยาวประบ่า", "ทรงฟูกลม", "ทรงเกาหลีปัดหน้า"],
+	["ผมยาว", "หางม้า", "ผมคู่", "ทรงบ๊อบ", "จุกมวย", "ผมเปียคู่", "ผมยาวสลวย", "มัดสูงสองข้าง"],
 ]
 const GENDER_NAMES: Array[String] = ["ชาย", "หญิง"]
 
@@ -45,6 +57,8 @@ void fragment() {
 	}
 	ALBEDO = rgb * tint.rgb;
 	ROUGHNESS = rough;
+	RIM = 0.4;
+	RIM_TINT = 0.5;
 }
 """
 
@@ -52,7 +66,7 @@ static var _skin_shader: Shader
 
 
 static func default_look() -> Dictionary:
-	return {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0}
+	return {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0, "outfit": 0}
 
 
 static func option_count(key: String, gender: int) -> int:
@@ -65,13 +79,14 @@ static func option_count(key: String, gender: int) -> int:
 		"eye_color": return EYE_COLORS.size()
 		"nose": return NOSE_NAMES.size()
 		"mouth": return MOUTH_NAMES.size()
+		"outfit": return OUTFITS.size()
 	return 1
 
 
 static func random_look(rng: RandomNumberGenerator) -> Dictionary:
 	var look := default_look()
 	look["gender"] = rng.randi() % 2
-	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth"]:
+	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth", "outfit"]:
 		look[key] = rng.randi() % option_count(key, int(look["gender"]))
 	return look
 
@@ -83,7 +98,7 @@ static func repair(look: Dictionary) -> Dictionary:
 		if look.has(key):
 			out[key] = int(look[key])
 	out["gender"] = clampi(int(out["gender"]), 0, 1)
-	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth"]:
+	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth", "outfit"]:
 		out[key] = clampi(int(out[key]), 0, option_count(key, int(out["gender"])) - 1)
 	return out
 
@@ -268,6 +283,21 @@ static func _hair(root: Node3D, look: Dictionary) -> void:
 				_p(hair, MeshKit.sphere_low(), color, b, Vector3(0.3, 0.18, 0.18), Vector3(0, 0, 12))
 			3:
 				_p(hair, MeshKit.sphere_low(), light, Vector3(0, 1.14, 0.1), Vector3(0.28, 0.4, 0.8), Vector3(-10, 0, 0))
+			5:
+				_fringe(hair, color, light, 0.9, 0.22, 5)
+				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.12, -0.4), Vector3(1.2, 1.5, 0.7))
+				for side in [-1.0, 1.0]:
+					_p(hair, MeshKit.capsule(), dark, Vector3(side * 0.6, 0.18, 0.0), Vector3(0.22, 0.5, 0.3))
+			6:
+				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.98, -0.05), Vector3(1.26, 0.7, 1.18))
+				_p(hair, MeshKit.sphere_low(), light, Vector3(0, 1.1, 0.0), Vector3(0.9, 0.5, 0.86))
+			7:
+				var a2 := _face(-0.12, 0.94, 0.04)
+				_p(hair, MeshKit.sphere_low(), light, a2, Vector3(0.85, 0.3, 0.2), Vector3(0, 0, -10))
+				var b2 := _face(0.34, 0.8, 0.02)
+				_p(hair, MeshKit.sphere_low(), color, b2, Vector3(0.28, 0.5, 0.18), Vector3(0, 0, 8))
+				for side in [-1.0, 1.0]:
+					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.56, 0.5, 0.05), Vector3(0.2, 0.46, 0.34))
 			_:
 				pass
 	else:
@@ -288,6 +318,20 @@ static func _hair(root: Node3D, look: Dictionary) -> void:
 				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.34, -0.28), Vector3(1.28, 0.78, 0.9))
 				for side in [-1.0, 1.0]:
 					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.56, 0.32, 0.1), Vector3(0.2, 0.52, 0.38))
+			5:
+				for side in [-1.0, 1.0]:
+					for k in 3:
+						_p(hair, MeshKit.sphere_low(), color if k % 2 == 0 else light, Vector3(side * (0.62 - k * 0.02), 0.5 - k * 0.3, -0.05), Vector3(0.26, 0.3, 0.26))
+					_p(hair, MeshKit.torus(), Color("ff6a8a"), Vector3(side * 0.6, -0.32, -0.05), Vector3(0.24, 0.16, 0.24))
+			6:
+				_p(hair, MeshKit.sphere_low(), color, Vector3(0, -0.1, -0.4), Vector3(1.3, 1.9, 0.7))
+				for side in [-1.0, 1.0]:
+					_p(hair, MeshKit.capsule(), light, Vector3(side * 0.6, 0.0, 0.05), Vector3(0.2, 0.7, 0.28))
+			7:
+				for side in [-1.0, 1.0]:
+					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.5, 0.95, -0.1), Vector3(0.2, 0.2, 0.2))
+					_p(hair, MeshKit.capsule(), color, Vector3(side * 0.62, 0.55, -0.12), Vector3(0.24, 0.62, 0.24), Vector3(0, 0, side * -14.0))
+					_p(hair, MeshKit.sphere_low(), light, Vector3(side * 0.7, 0.16, -0.12), Vector3(0.2, 0.2, 0.2))
 			_:
 				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 1.22, -0.1), Vector3(0.46, 0.42, 0.46))
 				_p(hair, MeshKit.torus(), Color("ff6a8a"), Vector3(0, 1.02, -0.1), Vector3(0.5, 0.3, 0.5))

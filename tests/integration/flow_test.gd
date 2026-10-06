@@ -445,6 +445,31 @@ func _look() -> void:
 		check(head.get_child_count() > 8 and head.get_node_or_null("Hair") != null, "head %d has face parts and hair" % i)
 		head.free()
 	check(FaceKit.build_head(FaceKit.default_look(), false).get_node_or_null("Hair") == null, "no hair under a helmet")
+	check(FaceKit.option_count("hair", 0) >= 8 and FaceKit.option_count("hair", 1) >= 8 and FaceKit.OUTFITS.size() >= 9 and FaceKit.HAIR_COLORS.size() == FaceKit.HAIR_COLOR_NAMES.size(), "8 hair styles per gender, 9 starter outfits")
+	for g in 2:
+		for style in FaceKit.option_count("hair", g):
+			var styled := FaceKit.default_look()
+			styled["gender"] = g
+			styled["hair"] = style
+			var styled_head := FaceKit.build_head(styled)
+			check(styled_head.get_node_or_null("Hair") != null and styled_head.get_node("Hair").get_child_count() >= 2, "hair style %d/%d builds" % [g, style])
+			styled_head.free()
+	var starter_look := FaceKit.default_look()
+	starter_look["outfit"] = 3
+	var starter := HeroVisual.new()
+	main.add_child(starter)
+	starter.setup(ClassData.START, "", true, {}, starter_look)
+	var outlined := 0
+	for node in starter.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(i)
+			if mat != null and mat.next_pass != null:
+				outlined += 1
+	check(outlined > 5, "the hero gets a cartoon outline (%d surfaces)" % outlined)
+	starter.free()
+	var old_look := {"gender": 1, "skin": 2, "hair": 1, "hair_color": 3, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0}
+	check(int(FaceKit.repair(old_look).outfit) == 0, "old saves without an outfit still load")
 	Game.delete_save()
 	var chosen := FaceKit.default_look()
 	chosen["gender"] = 1
