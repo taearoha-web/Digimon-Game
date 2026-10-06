@@ -26,6 +26,8 @@ const INVENTORY_SIZE := 30
 const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 50
 const MAX_SKILL_RANK := 5
+## Area skills (burst / blast) grow this much wider per extra star.
+const RADIUS_PER_STAR := 0.08
 
 var profile: Dictionary = {}
 var has_profile := false
@@ -558,6 +560,11 @@ func skill_lock_reason(skill: Dictionary) -> String:
 ## Skills start at rank 1 once their level is reached; ranks 2-5 cost a skill point.
 func effective_rank(skill: Dictionary) -> int:
 	return maxi(1, skill_rank(skill.id)) if skill_unlocked(skill) else 0
+
+
+## Radius multiplier of an area skill at a star rank.
+func radius_scale(rank: int) -> float:
+	return 1.0 + RADIUS_PER_STAR * float(maxi(rank, 1) - 1)
 
 
 ## Gold the Skill Master charges to raise a skill from its current rank.

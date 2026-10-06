@@ -72,7 +72,9 @@ func _draw() -> void:
 		draw_arc(badge, 12.0, 0, TAU, 16, cost_color, 2.0, true)
 		_text(str(cost), badge, 14, cost_color)
 		if rank > 1:
-			_text("★%d" % rank, c + Vector2(-radius * 0.7, -radius * 0.7), 14, UIPalette.GOLD)
+			var star_at := c + Vector2(-radius * 0.72, -radius * 0.72)
+			draw_colored_polygon(StarRow.star_points(star_at + Vector2(-5, 0), 8.0), UIPalette.GOLD)
+			_text(str(rank), star_at + Vector2(8, 0), 14, UIPalette.GOLD)
 	else:
 		_text("Lv.%d" % int(skill.level), c + Vector2(0, radius * 0.52), 15, Color(1, 0.85, 0.5))
 	if show_name and _font:
