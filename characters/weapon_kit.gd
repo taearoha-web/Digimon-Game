@@ -1,12 +1,12 @@
 class_name WeaponKit
 extends RefCounted
-## Procedural cartoon weapons: 12 designs per kind (two per gear tier).
+## Procedural cartoon weapons: 20 designs per kind (two per gear tier, ten tiers).
 ## A look id is "<kind>_<index>", e.g. "staff_7". Every weapon is built with
 ## its grip at the origin and its tip along +Y (bows lie in the XZ plane),
 ## the same convention as the KayKit weapon models.
 
 const KINDS: Array[String] = ["sword", "bow", "staff", "wand"]
-const DESIGNS := 12
+const DESIGNS := 20
 
 const WOOD := Color("b07a45")
 const DARK_WOOD := Color("6e4526")
@@ -29,6 +29,15 @@ const SWORDS := [
 	{"len": 1.4, "w": 0.24, "blade": Color("7fe3ff"), "guard": "round", "gc": Color("2a6fb0"), "grip": Color("1f2f55"), "glow": 1.3},
 	{"len": 1.55, "w": 0.28, "blade": Color("b8203a"), "guard": "wings", "gc": Color("26202e"), "grip": Color("26202e"), "glow": 0.9, "gem": Color("ffd23c")},
 	{"len": 1.6, "w": 0.28, "blade": Color("fff3b8"), "guard": "wings", "gc": GOLD, "grip": Color("fff3b8"), "glow": 1.6, "gem": Color("ffffff")},
+	# Lv.61-100: ever grander blades with auras
+	{"len": 1.7, "w": 0.3, "blade": Color("b79bff"), "guard": "wings", "gc": Color("2a1f55"), "grip": Color("1a1030"), "glow": 1.8, "gem": Color("ffd0ff"), "aura": Color("b79bff")},
+	{"len": 1.7, "w": 0.3, "blade": Color("fff06a"), "guard": "wings", "gc": Color("5a4a10"), "grip": Color("2a2410"), "glow": 2.0, "gem": Color("ffffff"), "aura": Color("fff06a")},
+	{"len": 1.8, "w": 0.32, "blade": Color("ffffff"), "guard": "wings", "gc": Color("ffe27a"), "grip": Color("ffffff"), "glow": 2.2, "gem": Color("7fe3ff"), "aura": Color("fff0b0")},
+	{"len": 1.8, "w": 0.32, "blade": Color("a0f0ff"), "guard": "wings", "gc": Color("ffffff"), "grip": Color("2a6fb0"), "glow": 2.4, "gem": Color("ffffff"), "aura": Color("7fe3ff")},
+	{"len": 1.9, "w": 0.34, "blade": Color("ff4a2a"), "guard": "wings", "gc": Color("26100e"), "grip": Color("26100e"), "glow": 2.6, "gem": Color("ffd23c"), "aura": Color("ff6a2a")},
+	{"len": 1.9, "w": 0.34, "blade": Color("c46bff"), "guard": "wings", "gc": Color("ffd23c"), "grip": Color("2a1040"), "glow": 2.6, "gem": Color("ffffff"), "aura": Color("d08aff")},
+	{"len": 2.0, "w": 0.36, "blade": Color("ffe27a"), "guard": "wings", "gc": Color("ffffff"), "grip": Color("ffe27a"), "glow": 3.0, "gem": Color("ff4a5a"), "aura": Color("ffd23c")},
+	{"len": 2.1, "w": 0.4, "blade": Color("ffffff"), "guard": "wings", "gc": Color("fff6a0"), "grip": Color("ffffff"), "glow": 3.6, "gem": Color("ff6ad0"), "aura": Color("ffd0ff")},
 ]
 
 # shaft colour, head style, head colour, glow
@@ -45,6 +54,14 @@ const STAFFS := [
 	{"shaft": Color("2a4a6e"), "head": "crystal", "hc": Color("7fe3ff"), "glow": 1.4},
 	{"shaft": Color("26202e"), "head": "crescent", "hc": Color("ff4a5a"), "glow": 1.3},
 	{"shaft": GOLD, "head": "ring", "hc": Color("fff3b8"), "glow": 1.8},
+	{"shaft": Color("2a2060"), "head": "wings", "hc": Color("b79bff"), "glow": 2.0, "aura": Color("b79bff")},
+	{"shaft": Color("3a3f7a"), "head": "crystal", "hc": Color("fff06a"), "glow": 2.2, "aura": Color("fff06a")},
+	{"shaft": Color("ffe27a"), "head": "halo", "hc": Color("ffffff"), "glow": 2.4, "aura": Color("fff0b0")},
+	{"shaft": Color("ffffff"), "head": "wings", "hc": Color("ffe27a"), "glow": 2.6, "aura": Color("ffe27a")},
+	{"shaft": Color("4a1a14"), "head": "sun", "hc": Color("ff6a2a"), "glow": 2.8, "aura": Color("ff8a3a")},
+	{"shaft": Color("2a1040"), "head": "halo", "hc": Color("d08aff"), "glow": 2.8, "aura": Color("d08aff")},
+	{"shaft": GOLD, "head": "sun", "hc": Color("fff3b8"), "glow": 3.2, "aura": Color("ffd23c")},
+	{"shaft": Color("ffffff"), "head": "sun", "hc": Color("ffd0ff"), "glow": 3.8, "aura": Color("ffd0ff")},
 ]
 
 const WANDS := [
@@ -60,6 +77,14 @@ const WANDS := [
 	{"shaft": Color("2a4a6e"), "tip": "crystal", "tc": Color("7fe3ff"), "glow": 1.3},
 	{"shaft": Color("fff3b8"), "tip": "feather", "tc": Color("ffe27a"), "glow": 1.2},
 	{"shaft": Color("fff3b8"), "tip": "star", "tc": Color("ffffff"), "glow": 2.0},
+	{"shaft": Color("2a2060"), "tip": "halo", "tc": Color("b79bff"), "glow": 2.0, "aura": Color("b79bff")},
+	{"shaft": Color("3a3f7a"), "tip": "crystal", "tc": Color("fff06a"), "glow": 2.2, "aura": Color("fff06a")},
+	{"shaft": Color("ffe27a"), "tip": "halo", "tc": Color("ffffff"), "glow": 2.4, "aura": Color("fff0b0")},
+	{"shaft": Color("ffffff"), "tip": "feather", "tc": Color("ffe27a"), "glow": 2.6, "aura": Color("ffe27a")},
+	{"shaft": Color("4a1a14"), "tip": "flame", "tc": Color("ff6a2a"), "glow": 2.8, "aura": Color("ff8a3a")},
+	{"shaft": Color("2a1040"), "tip": "heart", "tc": Color("d08aff"), "glow": 2.8, "aura": Color("d08aff")},
+	{"shaft": GOLD, "tip": "halo", "tc": Color("fff3b8"), "glow": 3.2, "aura": Color("ffd23c")},
+	{"shaft": Color("ffffff"), "tip": "star", "tc": Color("ffd0ff"), "glow": 3.8, "aura": Color("ffd0ff")},
 ]
 
 # wood colour, limb style, size, string colour, gem colour (or transparent)
@@ -76,6 +101,14 @@ const BOWS := [
 	{"wood": Color("2a4a6e"), "style": "leaf", "size": 1.35, "glow": Color("7fe3ff")},
 	{"wood": Color("26202e"), "style": "horn", "size": 1.4, "glow": Color("ff4a5a")},
 	{"wood": GOLD, "style": "leaf", "size": 1.5, "glow": Color("fff3b8")},
+	{"wood": Color("2a2060"), "style": "horn", "size": 1.55, "glow": Color("b79bff"), "aura": Color("b79bff")},
+	{"wood": Color("3a3f7a"), "style": "recurve", "size": 1.55, "glow": Color("fff06a"), "aura": Color("fff06a")},
+	{"wood": Color("ffe27a"), "style": "leaf", "size": 1.6, "glow": Color("ffffff"), "aura": Color("fff0b0"), "gem": Color("7fe3ff")},
+	{"wood": Color("ffffff"), "style": "horn", "size": 1.65, "glow": Color("7fe3ff"), "aura": Color("a0f0ff"), "gem": Color("ffffff")},
+	{"wood": Color("4a1a14"), "style": "recurve", "size": 1.7, "glow": Color("ff6a2a"), "aura": Color("ff6a2a"), "gem": Color("ffd23c")},
+	{"wood": Color("2a1040"), "style": "leaf", "size": 1.75, "glow": Color("d08aff"), "aura": Color("d08aff"), "gem": Color("ffffff")},
+	{"wood": GOLD, "style": "horn", "size": 1.8, "glow": Color("fff3b8"), "aura": Color("ffd23c"), "gem": Color("ff4a5a")},
+	{"wood": Color("ffffff"), "style": "leaf", "size": 1.9, "glow": Color("ffd0ff"), "aura": Color("ffd0ff"), "gem": Color("ff6ad0")},
 ]
 
 
@@ -91,7 +124,33 @@ static func build(look: String) -> Node3D:
 		"staff": _staff(root, STAFFS[index])
 		"wand": _wand(root, WANDS[index])
 		_: _sword(root, SWORDS[0])
+	var design: Dictionary = {"sword": SWORDS, "bow": BOWS, "staff": STAFFS, "wand": WANDS}.get(kind, SWORDS)[index]
+	if design.has("aura"):
+		_flourish(root, kind, design.aura, index)
 	return root
+
+
+## The grandest weapons (Lv.61+) float in a glowing aura: a translucent shell, an
+## orbit ring and drifting sparks that grow with the design index.
+static func _flourish(root: Node3D, kind: String, aura: Color, index: int) -> void:
+	var level := index - 12 + 1   # 1..8
+	var span := (0.8 + 0.12 * level) * (0.6 if kind in ["staff", "wand"] else 0.8)
+	var centre := Vector3(0, 0.9 if kind == "sword" else (0.7 if kind == "wand" else 1.45), 0)
+	if kind == "bow":
+		centre = Vector3(-0.15, 0, 0)
+	var shell_color := Color(aura.r, aura.g, aura.b, 0.18 + 0.02 * level)
+	var shell := MeshInstance3D.new()
+	shell.mesh = MeshKit.sphere()
+	shell.material_override = MeshKit.toon(shell_color, {"unshaded": true, "alpha": shell_color.a})
+	shell.scale = Vector3(span * 0.55, span * (0.9 if kind != "bow" else 0.5), span * 0.55) if kind != "bow" else Vector3(span * 0.5, span * 0.5, span * 0.9)
+	shell.position = centre
+	shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(shell)
+	for i in 2 + level:
+		var a := TAU * float(i) / float(2 + level)
+		var orb := _p(root, MeshKit.sphere_low(), aura.lightened(0.3), centre + Vector3(cos(a) * span * 0.42, sin(a * 2.0) * span * 0.35, sin(a) * span * 0.42), Vector3.ONE * 0.09, Vector3.ZERO, 2.4)
+		orb.name = "Spark"
+	_p(root, MeshKit.torus(), aura, centre, Vector3(span * 0.9, span * 0.9, span * 0.9), Vector3(75, 0, 20), 1.8)
 
 
 static func look_for(kind: String, tier: int, variant: int) -> String:
@@ -245,6 +304,21 @@ static func _staff(root: Node3D, d: Dictionary) -> void:
 			for side in [-1.0, 1.0]:
 				_p(root, MeshKit.sphere_low(), Color("2a1f30"), top + Vector3(side * 0.08, 0.17, 0.13), Vector3(0.09, 0.1, 0.06))
 				_p(root, MeshKit.cone(), Color("5b4a7a"), top + Vector3(side * 0.2, 0.3, 0), Vector3(0.08, 0.22, 0.08), Vector3(0, 0, side * -35.0))
+		"halo":
+			_p(root, MeshKit.sphere(), c, top + Vector3(0, 0.22, 0), Vector3(0.3, 0.3, 0.3), Vector3.ZERO, 1.2 + glow)
+			_p(root, MeshKit.torus(), Color("ffe27a"), top + Vector3(0, 0.22, 0), Vector3(0.78, 0.78, 0.78), Vector3(90, 0, 0), 1.2 + glow)
+			_p(root, MeshKit.torus(), c, top + Vector3(0, 0.22, 0), Vector3(0.58, 0.58, 0.58), Vector3(60, 0, 0), 1.0 + glow)
+		"wings":
+			_p(root, MeshKit.sphere(), c, top + Vector3(0, 0.2, 0), Vector3(0.3, 0.3, 0.3), Vector3.ZERO, 1.2 + glow)
+			for side in [-1.0, 1.0]:
+				for k in 3:
+					_p(root, MeshKit.prism(), Color("ffffff"), top + Vector3(side * (0.18 + k * 0.1), 0.18 + k * 0.14, 0), Vector3(0.12, 0.5, 0.04), Vector3(0, 0, side * (-62.0 + k * 20.0)), 1.0 + glow)
+		"sun":
+			_p(root, MeshKit.sphere(), c, top + Vector3(0, 0.26, 0), Vector3(0.4, 0.4, 0.4), Vector3.ZERO, 1.5 + glow)
+			for i in 12:
+				var a := i * TAU / 12.0
+				_p(root, MeshKit.cone(), c.lightened(0.2), top + Vector3(cos(a) * 0.34, 0.26 + sin(a) * 0.34, 0), Vector3(0.1, 0.3, 0.1), Vector3(0, 0, rad_to_deg(a) - 90.0), 1.6 + glow)
+			_p(root, MeshKit.torus(), Color("ffffff"), top + Vector3(0, 0.26, 0), Vector3(0.9, 0.9, 0.9), Vector3(90, 0, 0), 1.5 + glow)
 		"flame":
 			_p(root, MeshKit.sphere_low(), Color("7a2a1a"), top + Vector3(0, 0.0, 0), Vector3(0.22, 0.22, 0.22))
 			_p(root, MeshKit.cone(), c, top + Vector3(0, 0.3, 0), Vector3(0.3, 0.56, 0.3), Vector3.ZERO, 1.4)
@@ -283,6 +357,9 @@ static func _wand(root: Node3D, d: Dictionary) -> void:
 		"feather":
 			_p(root, MeshKit.sphere(), c, top + Vector3(0, 0.22, 0), Vector3(0.14, 0.5, 0.05), Vector3(0, 0, -10), glow)
 			_p(root, MeshKit.sphere(), c.darkened(0.08), top + Vector3(-0.04, 0.2, 0.02), Vector3(0.1, 0.4, 0.04), Vector3(0, 0, 14), glow)
+		"halo":
+			_p(root, MeshKit.sphere(), c, top + Vector3(0, 0.16, 0), Vector3(0.2, 0.2, 0.2), Vector3.ZERO, 1.2 + glow)
+			_p(root, MeshKit.torus(), Color("ffe27a"), top + Vector3(0, 0.16, 0), Vector3(0.5, 0.5, 0.5), Vector3(90, 0, 0), 1.2 + glow)
 		"flame":
 			_p(root, MeshKit.cone(), c, top + Vector3(0, 0.2, 0), Vector3(0.2, 0.4, 0.2), Vector3.ZERO, 1.4)
 			_p(root, MeshKit.cone(), Color("ffd23c"), top + Vector3(0, 0.16, 0), Vector3(0.1, 0.24, 0.1), Vector3.ZERO, 1.6)

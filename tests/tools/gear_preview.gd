@@ -12,18 +12,18 @@ func _ready() -> void:
 	var classes: Array = [args[1]] if args.size() > 1 else ["warrior", "archer", "mage", "priest"]
 	var row := 0
 	for c in classes:
-		for i in 6:
+		for i in 10:
 			var equip := {}
-			if i > 0:
-				equip["weapon"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "weapon")
-				equip["armor"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "armor")
-				equip["helm"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "helm")
-				equip["boots"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "boots")
-				equip["amulet"] = ItemData.generate(i * 3 + 1, StringName(c), rng, 1, "amulet")
+			if true:
+				equip["weapon"] = ItemData.generate(i * 10 + 5, StringName(c), rng, 1, "weapon")
+				equip["armor"] = ItemData.generate(i * 10 + 5, StringName(c), rng, 1, "armor")
+				equip["helm"] = ItemData.generate(i * 10 + 5, StringName(c), rng, 1, "helm")
+				equip["boots"] = ItemData.generate(i * 10 + 5, StringName(c), rng, 1, "boots")
+				equip["amulet"] = ItemData.generate(i * 10 + 5, StringName(c), rng, 1, "amulet")
 			var h := HeroVisual.new(); add_child(h); h.setup(StringName(c), "", true, equip)
-			h.position = Vector3(-7.5 + i * 3.0, 0, -row * 3.2); h.rotation_degrees.y = 10
+			h.position = Vector3(-13.5 + i * 3.0, 0, -row * 3.2); h.rotation_degrees.y = 10
 		row += 1
-	var cam := Camera3D.new(); cam.position = Vector3(0, 2.4 + 1.2 * (classes.size() - 1), 7.5 + 1.2 * (classes.size() - 1)); cam.rotation_degrees = Vector3(-10, 0, 0); cam.fov = 55; add_child(cam)
+	var cam := Camera3D.new(); cam.position = Vector3(0, 2.4 + 1.2 * (classes.size() - 1), 10.5 + 1.2 * (classes.size() - 1)); cam.rotation_degrees = Vector3(-10, 0, 0); cam.fov = 62; add_child(cam)
 	cam.position.z -= 0
 	await get_tree().create_timer(0.8).timeout
 	await RenderingServer.frame_post_draw
