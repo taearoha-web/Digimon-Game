@@ -29,6 +29,16 @@ Every weapon, helm and armor has a look. Wear it and the hero changes: 48 proced
 designs (sword / bow / staff / wand), 12 hats, five outfit styles (tinted per tier) mixed from the
 KayKit characters, boot cuffs and a necklace. Items have rendered icons in the bag, shop and on the ground.
 
+## More to do
+
+* **Forge** (blacksmith in the village): enhance gear up to +10 (failure only costs gold), socket gems dropped by
+  monsters, set bonuses for 2/3/4 pieces of the same set. Legendary gear and +7 weapons sparkle.
+* **Third advancement** at Lv.30 (new skills 3 and 4) and **passive skills** (Lv.10 / 25, up to 5 stars).
+* **Daily quests**, 18 **achievements**, a three-wave **arena** with a boss, an ending after the last boss.
+* **Minimap**, graphics quality (low / medium / high), camera speed, save backup code (Settings).
+* Companion stance (tap its card: follow / aggressive / guard) and a brave or careful personality.
+* `godot --headless -s res://tools/balance.gd` prints how long each class takes to level.
+
 ## AI party
 
 One AI companion at a time, picked from the Party Broker in the village (any of the four classes,

@@ -27,6 +27,7 @@ func _ready() -> void:
 	_fade.modulate.a = 0.0
 	fade_layer.add_child(_fade)
 	add_child(ToastLayer.new())
+	Game.ending_requested.connect(show_ending)
 	hud = HUD.new()
 	hud.visible = false
 	add_child(hud)
@@ -136,6 +137,13 @@ func _fade_to(alpha: float, duration: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "modulate:a", alpha, duration)
 	await tween.finished
+
+
+func show_ending() -> void:
+	if get_tree().paused:
+		return
+	var ending := EndingScreen.new()
+	add_child(ending)
 
 
 func _on_hero_died() -> void:

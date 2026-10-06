@@ -41,6 +41,7 @@ func _run() -> void:
 	await _items()
 	await _goals()
 	await _arena()
+	await _ending()
 	await _party()
 	await _zones()
 	await _systems()
@@ -367,6 +368,25 @@ func _arena() -> void:
 		m.take_hit(99999999, false)
 	await _wait(0.5)
 	check(z._arena_state == "done" and int(Game.profile.flags.get("arena_clears", 0)) == 1, "winning the arena is counted")
+
+
+func _ending() -> void:
+	print("== Ending")
+	await _start(&"warrior")
+	var seen := [false]
+	Game.ending_requested.connect(func(): seen[0] = true, CONNECT_ONE_SHOT)
+	Game.report_kill(&"magma_dragon", true)
+	await _wait(3.2)
+	check(seen[0], "killing the last boss triggers the ending once")
+	var again := [false]
+	Game.ending_requested.connect(func(): again[0] = true, CONNECT_ONE_SHOT)
+	Game.report_kill(&"magma_dragon", true)
+	await _wait(3.0)
+	check(not again[0], "the ending does not repeat")
+	for node in main.get_children():
+		if node is EndingScreen:
+			node._finish()
+	get_tree().paused = false
 
 
 func _systems() -> void:

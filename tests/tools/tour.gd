@@ -145,9 +145,30 @@ func _skills() -> void:
 
 
 func _menus() -> void:
-	_level(10)
+	_level(32)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for slot in ["weapon", "armor", "helm", "boots", "ring", "amulet"]:
+		var item := ItemData.generate(30, class_id, rng, 3 if slot == "weapon" else 2, slot)
+		item["plus"] = 7 if slot == "weapon" else 2
+		Game.profile.equip[slot] = item
+	Game.profile["inv"].append(ItemData.gem("ruby", 1, 3))
+	Game.profile["inv"].append(ItemData.generate(28, class_id, rng, 2, "armor"))
 	await main.go(&"town", true)
-	main.menu.open_menu(&"character")
+	main.menu.forge_mode = true
+	main.menu.open_menu(&"inventory")
+	main.menu._selected_slot = "weapon"
+	main.menu._refresh_detail()
+	await _wait(0.8)
+	await _shot("menu_forge")
+	main.menu.forge_mode = false
+	main.menu.show_tab(&"achievements")
+	await _wait(0.4)
+	await _shot("menu_achievements")
+	main.menu.show_tab(&"settings")
+	await _wait(0.4)
+	await _shot("menu_settings")
+	main.menu.show_tab(&"character")
 	await _wait(0.5)
 	await _shot("menu_character")
 	main.menu.show_tab(&"inventory")

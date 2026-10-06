@@ -14,6 +14,7 @@ const POTION_COOLDOWN := 1.2
 
 var visual: HeroVisual
 var _equip_sig := ""
+var _step_timer := 0.0
 var _ring_job: StringName = &""
 var _ring: MeshInstance3D
 var camera_rig: ThirdPersonCamera
@@ -248,6 +249,10 @@ func _physics_process(delta: float) -> void:
 	var speed := Vector3(velocity.x, 0, velocity.z).length()
 	if speed > 0.6:
 		visual.play("Running_A", 0.12, clampf(speed / 5.4, 0.8, 1.4))
+		_step_timer -= delta
+		if _step_timer <= 0.0 and is_on_floor():
+			_step_timer = 0.34
+			AudioManager.play_sfx(&"step", -17.0, 0.12)
 	else:
 		visual.play("Idle")
 

@@ -165,9 +165,9 @@ func _build_inventory() -> void:
 	_content.add_child(row)
 	# Paper doll + equipment slots
 	var equip := UIUtil.vbox(6)
-	equip.custom_minimum_size = Vector2(262, 0)
+	equip.custom_minimum_size = Vector2(240, 0)
 	row.add_child(equip)
-	var preview := HeroPreview.new(Vector2i(262, 250))
+	var preview := HeroPreview.new(Vector2i(240, 230))
 	equip.add_child(preview)
 	preview.show_hero(Game.class_id(), Game.profile.equip)
 	var slots := GridContainer.new()
@@ -178,7 +178,7 @@ func _build_inventory() -> void:
 	for slot in ItemData.SLOTS:
 		var item: Variant = Game.profile.equip.get(slot)
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(82, 82)
+		b.custom_minimum_size = Vector2(74, 74)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 58)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -212,7 +212,7 @@ func _build_inventory() -> void:
 	scroll.add_child(grid)
 	for i in Game.INVENTORY_SIZE:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(100, 96)
+		b.custom_minimum_size = Vector2(90, 92)
 		b.clip_text = true
 		b.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 		b.expand_icon = true
@@ -234,7 +234,7 @@ func _build_inventory() -> void:
 			b.disabled = true
 		grid.add_child(b)
 	_detail = UIUtil.vbox(8)
-	_detail.custom_minimum_size = Vector2(270, 0)
+	_detail.custom_minimum_size = Vector2(250, 0)
 	row.add_child(_detail)
 	_refresh_detail()
 
@@ -271,7 +271,10 @@ func _refresh_detail() -> void:
 		_detail.add_child(detail_label)
 	if item.get("kind", "") == "equip" and str(item.get("set", "")) != "":
 		var counts := HeroStats.set_counts(Game.profile)
-		_detail.add_child(UIUtil.label("สวมอยู่ %d/4 ชิ้น: 2=HP • 3=โจมตี • 4=ป้องกัน+คริ" % int(counts.get(item.set, 0)), &"DimLabel"))
+		var set_label := UIUtil.label("สวมอยู่ %d/4 ชิ้น: 2=HP • 3=โจมตี • 4=ป้องกัน+คริ" % int(counts.get(item.set, 0)), &"DimLabel")
+		set_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		set_label.custom_minimum_size = Vector2(240, 0)
+		_detail.add_child(set_label)
 	if forge_mode and item.get("kind", "") == "equip":
 		_build_forge_buttons(item)
 	if item.get("kind", "") == "equip":
@@ -304,7 +307,8 @@ func _refresh_detail() -> void:
 func _build_forge_buttons(item: Dictionary) -> void:
 	var plus := int(item.get("plus", 0))
 	if plus < ItemData.MAX_PLUS:
-		var btn := UIUtil.button("ตีบวก +%d  (%d%% • %d เหรียญ)" % [plus + 1, int(ItemData.enhance_chance(plus) * 100.0), ItemData.enhance_cost(item)], &"PrimaryButton", Vector2(0, 58))
+		_detail.add_child(UIUtil.label("ค่าตี %d เหรียญ" % ItemData.enhance_cost(item), &"DimLabel"))
+		var btn := UIUtil.button("ตีบวก +%d  (%d%%)" % [plus + 1, int(ItemData.enhance_chance(plus) * 100.0)], &"PrimaryButton", Vector2(0, 58))
 		btn.pressed.connect(func():
 			var result := Game.enhance_item(item)
 			match result:
@@ -550,6 +554,12 @@ func _build_settings() -> void:
 	var backup := UIUtil.button("สำรอง / นำเข้าเซฟ", &"", Vector2(320, 66))
 	backup.pressed.connect(_open_backup)
 	box.add_child(backup)
+	if int(Game.profile.flags.get("ending_seen", 0)) > 0:
+		var ending := UIUtil.button("ดูตอนจบอีกครั้ง", &"", Vector2(320, 66))
+		ending.pressed.connect(func():
+			close_menu()
+			Game.ending_requested.emit())
+		box.add_child(ending)
 	var title := UIUtil.button("กลับหน้าหลัก", &"", Vector2(320, 66))
 	title.pressed.connect(func():
 		Game.save()

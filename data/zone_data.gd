@@ -5,7 +5,7 @@ extends RefCounted
 const ZONES := {
 	&"town": {"name": "หมู่บ้านมิสต์วูด", "scene": "town", "safe": true, "music": &"title"},
 	&"meadow": {
-		"name": "ทุ่งหญ้ามิสต์วูด", "scene": "field", "level": [1, 6], "music": &"field", "theme": &"meadow",
+		"name": "ทุ่งหญ้ามิสต์วูด", "scene": "field", "level": [1, 6], "music": &"field", "theme": &"meadow", "ambience": &"water",
 		"tree_density": 1.0,
 		# Each camp is a marked patch of grass where one kind of monster lives.
 		"camps": [
@@ -19,7 +19,7 @@ const ZONES := {
 		"sky": Color("8ed0ff"), "ground": Color("5fbf57"), "prev": &"town", "next": &"dark_forest",
 	},
 	&"dark_forest": {
-		"name": "ป่าเงาม่วง", "scene": "field", "level": [7, 14], "music": &"forest", "theme": &"digital",
+		"name": "ป่าเงาม่วง", "scene": "field", "level": [7, 14], "music": &"forest", "theme": &"digital", "ambience": &"hum",
 		"tree_density": 3.0,
 		"camps": [
 			{"name": "ค่ายออร์คป่า", "monsters": [&"forest_orc"], "levels": [7, 10], "pos": Vector2(-26, -15), "radius": 10.0, "count": 5},
@@ -34,7 +34,7 @@ const ZONES := {
 		"prev": &"meadow", "next": &"desert",
 	},
 	&"desert": {
-		"name": "ทะเลทรายตะวันเดือด", "scene": "field", "level": [15, 22], "music": &"field", "theme": &"desert",
+		"name": "ทะเลทรายตะวันเดือด", "scene": "field", "level": [15, 22], "music": &"field", "theme": &"desert", "ambience": &"wind",
 		"tree_density": 0.6,
 		"camps": [
 			{"name": "ลานนกทราย", "monsters": [&"sand_birb"], "levels": [15, 18], "pos": Vector2(-26, -15), "radius": 10.0, "count": 5},
@@ -48,7 +48,7 @@ const ZONES := {
 		"path_color": Color("b08a50"), "seed": 4, "prev": &"dark_forest", "next": &"snow",
 	},
 	&"snow": {
-		"name": "ภูเขาน้ำแข็งนิรันดร์", "scene": "field", "level": [23, 30], "music": &"forest", "theme": &"snow", "weather": &"snow",
+		"name": "ภูเขาน้ำแข็งนิรันดร์", "scene": "field", "level": [23, 30], "music": &"forest", "theme": &"snow", "weather": &"snow", "ambience": &"wind",
 		"tree_density": 1.4,
 		"camps": [
 			{"name": "ลานกระต่ายหิมะ", "monsters": [&"snow_bunny"], "levels": [23, 26], "pos": Vector2(-26, -15), "radius": 10.0, "count": 5},
@@ -62,7 +62,7 @@ const ZONES := {
 		"path_color": Color("a8bcd4"), "seed": 6, "prev": &"desert", "next": &"volcano",
 	},
 	&"volcano": {
-		"name": "ปล่องภูเขาไฟคลั่ง", "scene": "field", "level": [31, 40], "music": &"forest", "theme": &"volcano", "weather": &"embers",
+		"name": "ปล่องภูเขาไฟคลั่ง", "scene": "field", "level": [31, 40], "music": &"forest", "theme": &"volcano", "weather": &"embers", "ambience": &"fire",
 		"tree_density": 0.5,
 		"camps": [
 			{"name": "เหมืองผึ้งไฟ", "monsters": [&"flame_bee"], "levels": [31, 34], "pos": Vector2(-26, -15), "radius": 10.0, "count": 5},

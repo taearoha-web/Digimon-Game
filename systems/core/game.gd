@@ -15,6 +15,7 @@ signal party_changed()
 signal party_leveled(index: int, level: int)
 signal party_roster_changed()
 signal achievement_unlocked(name: String)
+signal ending_requested()
 
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
@@ -702,6 +703,9 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 		quest_changed.emit()
 	if is_boss:
 		profile["boss_kills"][String(monster_id)] = int(profile["boss_kills"].get(String(monster_id), 0)) + 1
+	if is_boss and monster_id == &"magma_dragon" and int(profile["flags"].get("ending_seen", 0)) == 0:
+		profile["flags"]["ending_seen"] = 1
+		get_tree().create_timer(2.5).timeout.connect(func(): ending_requested.emit())
 	daily_progress("kills", 1)
 	daily_progress("zone_kills", 1)
 	if is_boss:

@@ -11,3 +11,14 @@
 
 The nature pack ships without textures; `NatureKit` and `shaders/foliage.gdshader` / `rock.gdshader`
 recolour it procedurally.
+
+## Sound effects (CC0)
+
+| Files | Source |
+|---|---|
+| `audio/sfx/ui_*.ogg`, `hit_*.ogg`, `crit.ogg`, `portal.ogg`, `step.ogg`, `chop.ogg` | Kenney (kenney.nl): Interface Sounds, Impact Sounds, RPG Audio, CC0 |
+| `audio/ambient/wind.ogg` | Wind Loop by sketchman3 (opengameart.org), CC0 |
+| `audio/ambient/fire.ogg` | Fire Crackle by Pag (opengameart.org), CC0 |
+| `audio/ambient/water.ogg`, `hum.ogg` | 30 CC0 SFX Loops by rubberduck (opengameart.org), CC0 |
+
+Music and the remaining effects are synthesized for this project.

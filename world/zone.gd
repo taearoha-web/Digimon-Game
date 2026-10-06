@@ -61,6 +61,7 @@ func _ready() -> void:
 	_spawn_hero()
 	_spawn_party()
 	AudioManager.play_music(data.get("music", &"field"))
+	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
 	if not is_town:
 		for camp in _camps:
 			for i in maxi(2, int(camp.count) - 1):

@@ -49,6 +49,7 @@ var _death_panel: ColorRect
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _party_cards: Array[Dictionary] = []
+var minimap: Minimap
 
 
 func _ready() -> void:
@@ -89,6 +90,8 @@ func _ready() -> void:
 func bind(p_zone: Zone) -> void:
 	zone = p_zone
 	hero = zone.hero
+	minimap.zone = zone
+	minimap.visible = true
 	joystick.input_changed.connect(func(v: Vector2): hero.move_input = v)
 	camera_area.drag.connect(zone.camera_rig.rotate_by_pixels)
 	camera_area.pinch.connect(zone.camera_rig.zoom)
@@ -291,6 +294,14 @@ func _build_status(frame: Control) -> void:
 	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	trow.add_child(_target_hp)
 	_build_party(column)
+	minimap = Minimap.new()
+	minimap.anchor_left = 1.0
+	minimap.anchor_right = 1.0
+	minimap.offset_left = -150
+	minimap.offset_right = -10
+	minimap.offset_top = 132
+	minimap.offset_bottom = 272
+	frame.add_child(minimap)
 
 ## Small cards for the two AI companions: badge, name, level, EXP.
 func _build_party(column: Control) -> void:

@@ -8,6 +8,7 @@ extends Node
 
 const SFX_DIR := "res://audio/sfx"
 const MUSIC_DIR := "res://audio/music"
+const AMBIENT_DIR := "res://audio/ambient"
 const EXTENSIONS := ["ogg", "wav", "mp3"]
 const SFX_POOL_SIZE := 10
 const UI_POOL_SIZE := 3
@@ -22,6 +23,8 @@ var _ui_pool: Array[AudioStreamPlayer] = []
 var _stream_cache: Dictionary = {}
 var _missing_warned: Dictionary = {}
 var _music_tween: Tween
+var _ambient: AudioStreamPlayer
+var current_ambient_id: StringName = &""
 
 
 func _ready() -> void:
@@ -34,6 +37,10 @@ func _ready() -> void:
 		player.finished.connect(_on_music_finished.bind(player))
 		add_child(player)
 		_music_players.append(player)
+	_ambient = AudioStreamPlayer.new()
+	_ambient.name = "Ambient"
+	_ambient.bus = "SFX"
+	add_child(_ambient)
 	for i in SFX_POOL_SIZE:
 		_sfx_pool.append(_make_player("Sfx%d" % i, "SFX"))
 	for i in UI_POOL_SIZE:
@@ -87,6 +94,25 @@ func stop_music(fade_time := 1.0) -> void:
 	_music_tween.chain().tween_callback(func():
 		for p in _music_players:
 			p.stop())
+
+
+## A quiet looping background (wind, fire...). Empty id stops it.
+func play_ambient(ambient_id: StringName, volume_db := -12.0) -> void:
+	if ambient_id == current_ambient_id:
+		return
+	current_ambient_id = ambient_id
+	if ambient_id == &"":
+		_ambient.stop()
+		return
+	var stream := _get_stream(AMBIENT_DIR, ambient_id)
+	if stream == null:
+		_ambient.stop()
+		return
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	_ambient.stream = stream
+	_ambient.volume_db = volume_db
+	_ambient.play()
 
 
 func play_sfx(sfx_id: StringName, volume_db := 0.0, pitch_variation := 0.06) -> void:
