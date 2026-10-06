@@ -36,7 +36,7 @@ const QUESTS := {
 		"exp": 500000, "gold": 150000, "items": [["hp_xl", 10], ["mp_xl", 10]], "gear": [56, 3], "zone": "graveyard", "next": "toxic"},
 	"toxic": {"name": "หนองน้ำพิษมรณะ", "desc": "กบพิษยักษ์แพร่โรคในหนองน้ำ ไปกำจัดพวกมัน", "target": "toxic_frog", "count": 15, "level": 56,
 		"exp": 700000, "gold": 200000, "items": [["mp_xl", 10], ["hp_xl", 10]], "zone": "swamp", "next": "toad_king"},
-	"toad_king": {"name": "ราชาเห็ดพิษ", "desc": "จ้าวแห่งหนองน้ำพิษซ่อนอยู่ใจกลางหนอง", "target": "toad_king", "count": 1, "level": 66,
+	"toad_king": {"name": "ราชากบพิษ", "desc": "จ้าวแห่งหนองน้ำพิษซ่อนอยู่ใจกลางหนอง", "target": "toad_king", "count": 1, "level": 66,
 		"exp": 1500000, "gold": 400000, "items": [["hp_xl", 10], ["mp_xl", 10]], "gear": [68, 3], "zone": "swamp", "next": "thunder"},
 	"thunder": {"name": "ภูผาสายฟ้าคำราม", "desc": "ยักษ์หินสายฟ้าถล่มหมู่บ้านใต้เขา ไปหยุดพวกมัน", "target": "thunder_golem", "count": 15, "level": 68,
 		"exp": 2000000, "gold": 500000, "items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "storm", "next": "storm_dragon"},
