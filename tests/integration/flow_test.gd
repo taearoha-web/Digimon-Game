@@ -144,22 +144,17 @@ func _jobs() -> void:
 	for class_id in ClassData.IDS:
 		var zone := await _start(class_id)
 		var branches := JobData.jobs_for(class_id)
-		check(branches.size() == 2, "%s has two job branches" % class_id)
+		check(branches.size() == 1, "%s has a single advanced path" % class_id)
 		check(not Game.change_job(branches[0]), "cannot change job below Lv.%d" % JobData.JOB_LEVEL)
 		Game.add_exp(2000000)
 		Game.add_gold(5000)
 		var atk_before: float = Game.stats_now().atk
 		var gold_before: int = Game.profile.gold
-		for branch in branches:
-			var other: StringName = branches[1] if branch == branches[0] else branches[0]
-			check(not Game.change_job(other) or Game.job_id() == other, "job picked")
-			if Game.job_id() == &"":
-				continue
-			break
+		check(Game.change_job(branches[0]), "job picked")
 		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
 		check(Game.profile.gold == gold_before - JobData.JOB_COST + 1000, "job change cost gold (the job achievement pays 1000 back)")
 		check(String(Game.class_data().name) != String(ClassData.get_class_data(class_id).name), "job renames the hero")
-		check(not Game.change_job(branches[1]) and not Game.change_job(branches[0]), "job cannot be changed twice")
+		check(not Game.change_job(branches[0]), "job cannot be changed twice")
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
 		check(hero._ring != null, "job ring appears under the hero")

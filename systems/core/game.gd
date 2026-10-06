@@ -321,6 +321,8 @@ func _repair(data: Dictionary) -> Dictionary:
 		data.attrs[key] = int(data.attrs.get(key, 0))
 	for skill_id in data.skills.keys():
 		data.skills[skill_id] = int(data.skills[skill_id])
+	if data.get("job", "") != "":
+		data["job"] = String(JobData.migrate_job(StringName(data.get("class", "warrior")), StringName(data["job"])))
 	_migrate_skills(data)
 	for item in data.inv:
 		_repair_item(item)

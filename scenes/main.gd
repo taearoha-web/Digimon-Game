@@ -325,15 +325,9 @@ func _talk_job() -> void:
 			dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้าอีกครั้งเพื่อเลื่อนขั้นสูงสุด!" % [info.name, info.title, JobData.MASTER_LEVEL])
 		return
 	if int(Game.profile.level) < JobData.JOB_LEVEL:
-		dialog.say(speaker, "เจ้าฝึกฝนต่อไปเถอะ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะชี้ทางสายอาชีพขั้นสูงให้ — จะแยกเป็นสองสาย มีพลังต่างกัน" % JobData.JOB_LEVEL)
+		dialog.say(speaker, "เจ้าฝึกฝนต่อไปเถอะ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะเปลี่ยนเจ้าเป็นอาชีพขั้นสูง ปลดล็อกสกิลเลเวล 20-39 และเพิ่มพลังให้" % JobData.JOB_LEVEL)
 		return
-	var branches := JobData.jobs_for(Game.class_id())
-	var options: Array = []
-	for id in branches:
-		var info := JobData.get_job(id)
-		options.append({"label": String(info.name), "action": func(): _show_job(id)})
-	options.append({"label": "ไว้ก่อน"})
-	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)\nเปลี่ยนแล้วจะใช้สกิลเลเวล 20-39 ได้ และพลังเพิ่มขึ้น" % [Game.class_data().name, JobData.JOB_COST], options)
+	_show_job(JobData.jobs_for(Game.class_id())[0])
 
 
 func _show_line(id: StringName) -> void:
@@ -379,13 +373,8 @@ func _confirm_master() -> void:
 
 func _show_job(id: StringName) -> void:
 	var info := JobData.get_job(id)
-	var lines: PackedStringArray = ["%s — %s" % [info.name, info.title], info.desc]
-	var others := JobData.jobs_for(Game.class_id())
-	others.erase(id)
-	var options: Array = [{"label": "เลือก (%d)" % JobData.JOB_COST, "action": func(): _confirm_job(id)}]
-	for other in others:
-		options.append({"label": "ดู%s" % JobData.get_job(other).name, "action": func(): _show_job(other)})
-	options.append({"label": "ไว้ก่อน"})
+	var lines: PackedStringArray = ["พร้อมเปลี่ยนอาชีพขั้นสูงแล้ว! \"%s\" — %s" % [info.name, info.title], info.desc, "ค่าเปลี่ยนอาชีพ %d เหรียญ และได้แต้มสกิล +2" % JobData.JOB_COST]
+	var options: Array = [{"label": "เปลี่ยนอาชีพ", "action": func(): _confirm_job(id)}, {"label": "ไว้ก่อน"}]
 	dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "\n".join(lines), options)
 
 
