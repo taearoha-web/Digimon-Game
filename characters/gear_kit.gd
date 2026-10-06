@@ -124,3 +124,23 @@ static func necklace(tier: int) -> Node3D:
 	_p(root, MeshKit.sphere(), gem, Vector3(0, 0.0, 0.4), Vector3(0.17, 0.2, 0.12), Vector3.ZERO, 1.0)
 	_p(root, MeshKit.torus(), metal, Vector3(0, 0.0, 0.4), Vector3(0.24, 0.24, 0.24), Vector3(90, 0, 0))
 	return root
+
+
+## A cut gem for icons: two cones back to back with a bright highlight.
+static func gem(gem_id: String) -> Node3D:
+	var root := Node3D.new()
+	var color: Color = ItemData.GEMS[gem_id].color
+	_p(root, MeshKit.cone(), color, Vector3(0, 0.22, 0), Vector3(0.62, 0.42, 0.62), Vector3.ZERO, 0.9)
+	_p(root, MeshKit.cone(), color.darkened(0.2), Vector3(0, -0.1, 0), Vector3(0.62, 0.55, 0.62), Vector3(180, 0, 0), 0.9)
+	_p(root, MeshKit.sphere_low(), Color(1, 1, 1), Vector3(-0.1, 0.25, 0.22), Vector3(0.12, 0.08, 0.08), Vector3.ZERO, 1.5)
+	return root
+
+
+## A band for the wrist (ring slot): a thin torus with a gem.
+static func ring_band(tier: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "RingBand"
+	var metal: Color = TIERS_METAL[clampi(tier, 0, 5)]
+	_p(root, MeshKit.torus(), metal, Vector3.ZERO, Vector3(0.34, 0.5, 0.34), Vector3(0, 0, 90), 0.3)
+	_p(root, MeshKit.sphere_low(), GEMS[clampi(tier, 0, 5)], Vector3(0, 0.0, 0.1), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.0)
+	return root

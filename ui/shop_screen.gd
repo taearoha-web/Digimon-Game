@@ -114,7 +114,7 @@ func _rebuild() -> void:
 	for i in Game.profile.inv.size():
 		var item: Dictionary = Game.profile.inv[i]
 		empty = false
-		var price := ItemData.sell_price(item) if not ItemData.is_stackable(item) else int(ItemData.POTIONS[item.id].price * 0.4)
+		var price := ItemData.unit_sell_price(item)
 		_sell_box.add_child(_row(item, price, "ขาย", func(): Game.sell_item(i)))
 	if empty:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))

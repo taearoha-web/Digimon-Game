@@ -88,6 +88,8 @@ static func helm_look(item: Dictionary) -> Dictionary:
 
 
 static func icon(item: Dictionary) -> Texture2D:
+	if item.get("kind", "") == "gem":
+		return icon_for_id("gem_" + String(item.id).split("_")[0])
 	if item.get("kind", "") == "potion":
 		var pid := String(item.id)
 		var path := "res://assets/icons/ui/heart_potion.svg" if pid.begins_with("hp") else ("res://assets/icons/ui/mana_potion.svg" if pid.begins_with("mp") else "res://assets/icons/ui/quest.svg")
@@ -117,6 +119,8 @@ static func all_icon_ids() -> Array[String]:
 	for kind in ["boots", "ring", "amulet"]:
 		for tier in 6:
 			ids.append("%s_%d" % [kind, tier])
+	for gem_id in ItemData.GEMS:
+		ids.append("gem_" + gem_id)
 	return ids
 
 
@@ -155,6 +159,9 @@ static func build_icon_node(id: String) -> Node3D:
 				_add_mesh_part(hat_holder, spec.part[0], spec.part[1], spec.tint)
 		else:
 			hat_holder.add_child(GearKit.hat(spec.proc, spec.tint))
+		return holder
+	if id.begins_with("gem_"):
+		holder.add_child(GearKit.gem(id.trim_prefix("gem_")))
 		return holder
 	for slot in ["boots", "ring", "amulet"]:
 		if id.begins_with(slot + "_"):

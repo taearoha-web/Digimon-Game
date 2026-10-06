@@ -14,6 +14,7 @@ const POTION_COOLDOWN := 1.2
 
 var visual: HeroVisual
 var _equip_sig := ""
+var _step_timer := 0.0
 var _ring_job: StringName = &""
 var _ring: MeshInstance3D
 var camera_rig: ThirdPersonCamera
@@ -105,9 +106,9 @@ func _update_job_ring() -> void:
 
 func _equipment_signature() -> String:
 	var parts: PackedStringArray = []
-	for slot in ["weapon", "armor", "helm", "boots", "amulet"]:
+	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring"]:
 		var item: Variant = Game.profile.equip.get(slot)
-		parts.append(ItemLook.look_of(item) if item is Dictionary else "-")
+		parts.append((ItemLook.look_of(item) + "|%d|%d" % [int(item.get("plus", 0)), int(item.get("rarity", 0))]) if item is Dictionary else "-")
 	return "|".join(parts)
 
 
@@ -248,6 +249,10 @@ func _physics_process(delta: float) -> void:
 	var speed := Vector3(velocity.x, 0, velocity.z).length()
 	if speed > 0.6:
 		visual.play("Running_A", 0.12, clampf(speed / 5.4, 0.8, 1.4))
+		_step_timer -= delta
+		if _step_timer <= 0.0 and is_on_floor():
+			_step_timer = 0.34
+			AudioManager.play_sfx(&"step", -17.0, 0.12)
 	else:
 		visual.play("Idle")
 
@@ -462,6 +467,7 @@ func _cast(skill: Dictionary) -> void:
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
 	AudioManager.play_sfx(&"skill_start", -4.0)
 	skill_fired.emit(Game.class_data().skills.find(skill))
+	Game.daily_progress("skills", 1)
 	var snapshot := target
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var color: Color = skill.color
@@ -689,6 +695,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	visual.flash()
 	AudioManager.play_sfx(&"hit_special", -2.0)
 	_shake(0.14)
+	GameSettings.vibrate(35)
 	if Time.get_ticks_msec() >= _cast_until:
 		visual.action("Hit_A", 1.2)
 	if Game.profile.hp <= 0:

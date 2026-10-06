@@ -15,6 +15,7 @@ var _traveling := false
 
 
 func _ready() -> void:
+	GameSettings.load_settings()
 	InputSetup.ensure_defaults()
 	var fade_layer := CanvasLayer.new()
 	fade_layer.layer = 90
@@ -26,6 +27,7 @@ func _ready() -> void:
 	_fade.modulate.a = 0.0
 	fade_layer.add_child(_fade)
 	add_child(ToastLayer.new())
+	Game.ending_requested.connect(show_ending)
 	hud = HUD.new()
 	hud.visible = false
 	add_child(hud)
@@ -123,6 +125,7 @@ func go(zone_id: StringName, instant := false) -> void:
 	z.travel_requested.connect(func(to: StringName): go(to))
 	z.npc_interact.connect(_on_npc)
 	z.hero_died.connect(_on_hero_died)
+	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	hud.bind(z)
 	hud.visible = true
 	Game.save()
@@ -134,6 +137,13 @@ func _fade_to(alpha: float, duration: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "modulate:a", alpha, duration)
 	await tween.finished
+
+
+func show_ending() -> void:
+	if get_tree().paused:
+		return
+	var ending := EndingScreen.new()
+	add_child(ending)
 
 
 func _on_hero_died() -> void:
@@ -189,6 +199,16 @@ func _on_npc(role: String) -> void:
 			_talk_job()
 		"party":
 			_talk_party()
+		"daily":
+			_talk_daily()
+		"arena":
+			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
+				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])
+		"forge":
+			dialog.say("ช่างตีเหล็กหนวดแดง", "ฮ่าๆ มีของดีมาให้ตีไหม? ข้าตีบวกอาวุธเกราะให้แรงขึ้นได้ถึง +10 พลาดก็เสียแค่เหรียญ ของไม่พัง! แล้วถ้ามีอัญมณีก็เอามาฝังช่องให้ได้ด้วย", [
+				{"label": "เปิดเตาตี", "action": func():
+					menu.forge_mode = true
+					_open_menu(&"inventory")}, {"label": "ไว้ก่อน"}])
 		"healer":
 			var stats := Game.stats_now()
 			Game.profile.hp = stats.max_hp
@@ -200,13 +220,30 @@ func _on_npc(role: String) -> void:
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• สกิลทั้ง 4 อยู่บนแถบโค้งรอบปุ่มดาบ ปลดล็อกเมื่อเลเวลถึง\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ อัปสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
+func _talk_daily() -> void:
+	var speaker := "กระดานเควสต์รายวัน"
+	var paid := Game.daily_claim_all()
+	var lines: PackedStringArray = []
+	for entry in Game.daily().quests:
+		var template := Game.daily_template(entry.id)
+		var target := Game.daily_target(entry)
+		var mark := "✔" if entry.claimed else ("●" if int(entry.progress) >= target else "○")
+		lines.append("%s %s — %s (%d/%d)" % [mark, template.name, String(template.desc) % target, int(entry.progress), target])
+	var text := "\n".join(lines)
+	if paid > 0:
+		AudioManager.play_sfx(&"quest_complete")
+		text = "รับรางวัลแล้ว %d งาน!\n\n%s" % [paid, text]
+		Game.save()
+	dialog.say(speaker, text)
+
+
 func _talk_party() -> void:
 	var speaker := "นายหน้าเพื่อนร่วมทาง"
 	var party := Game.party()
 	var text := "ออกผจญภัยคนเดียวมันเหงานะ! ข้ามีนักผจญภัยฝีมือดีให้ร่วมทางด้วย 1 คน เก่งขึ้นตามเลเวลของเจ้า แต่ก็บาดเจ็บและล้มได้เหมือนกัน"
 	if not party.is_empty():
 		var member: Dictionary = party[0]
-		text += "\n\nตอนนี้เจ้าพา %s (%s Lv.%d) ไปด้วย" % [member.name, ClassData.get_class_data(StringName(member["class"])).name, int(member.level)]
+		text += "\n\nตอนนี้เจ้าพา %s (%s Lv.%d นิสัย%s) ไปด้วย\nแตะการ์ดเพื่อนที่มุมซ้ายบนเพื่อสลับ ตามติด/บุกลุย/ป้องกัน" % [member.name, ClassData.get_class_data(StringName(member["class"])).name, int(member.level), Game.TRAIT_NAMES.get(String(member.get("trait", "brave")), "กล้าหาญ")]
 	var options: Array = [{"label": "เลือกเพื่อน", "action": func(): _pick_party()}]
 	if not party.is_empty():
 		options.append({"label": "ให้กลับบ้าน", "action": func():
@@ -237,7 +274,18 @@ func _talk_job() -> void:
 	var current := Game.job_id()
 	if current != &"":
 		var info := JobData.get_job(current)
-		dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนต่อไปเพื่อเป็นตำนานนะ!" % [info.name, info.title])
+		if bool(Game.profile.get("job3", false)):
+			dialog.say(speaker, "เจ้าคือ \"%s\" — %s ถึงขั้นสูงสุดแล้ว ไม่มีอะไรจะสอนอีกแล้วนะ!" % [Game.class_data().name, Game.class_data().title])
+		elif int(Game.profile.level) >= JobData.MASTER_LEVEL and JobData.MASTERS.has(current):
+			var m: Dictionary = JobData.MASTERS[current]
+			var lines: PackedStringArray = ["ถึงเวลาเลื่อนขั้นสุดท้ายแล้ว! \"%s\" — %s" % [m.name, m.title]]
+			for skill in m.skills:
+				lines.append("• %s: %s" % [skill.name, skill.desc])
+			lines.append("ค่าเลื่อนขั้น %d เหรียญ (สกิลที่ 3 และ 4 จะถูกแทนที่)" % JobData.MASTER_COST)
+			dialog.say(speaker, "\n".join(lines), [
+				{"label": "เลื่อนขั้น", "action": func(): _confirm_master()}, {"label": "ไว้ก่อน"}])
+		else:
+			dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้าอีกครั้งเพื่อเลื่อนขั้นสูงสุด!" % [info.name, info.title, JobData.MASTER_LEVEL])
 		return
 	if int(Game.profile.level) < JobData.JOB_LEVEL:
 		dialog.say(speaker, "ฮึๆ เจ้ายังอ่อนหัดอยู่ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะชี้ทางสายอาชีพให้ — จะแยกเป็นสองสาย แต่ละสายมีสกิลใหม่และพลังต่างกัน" % JobData.JOB_LEVEL)
@@ -249,6 +297,19 @@ func _talk_job() -> void:
 		options.append({"label": String(info.name), "action": func(): _show_job(id)})
 	options.append({"label": "ไว้ก่อน"})
 	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)" % [Game.class_data().name, JobData.JOB_COST], options)
+
+
+func _confirm_master() -> void:
+	if int(Game.profile.gold) < JobData.MASTER_COST:
+		dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "เหรียญไม่พอนะ ต้องใช้ %d เหรียญ" % JobData.MASTER_COST)
+		return
+	if not Game.change_master():
+		return
+	VfxKit.level_up(zone, zone.hero.global_position)
+	AudioManager.play_sfx(&"quest_complete")
+	hud.show_banner("เลื่อนขั้น: %s!" % Game.class_data().name)
+	Game.say("ได้สกิลใหม่ 2 ตัวมาแทนสกิลที่ 3-4 และแต้มสกิล +3", &"success")
+	Game.save()
 
 
 func _show_job(id: StringName) -> void:

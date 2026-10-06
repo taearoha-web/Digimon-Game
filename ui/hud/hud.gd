@@ -49,6 +49,7 @@ var _death_panel: ColorRect
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _party_cards: Array[Dictionary] = []
+var minimap: Minimap
 
 
 func _ready() -> void:
@@ -89,6 +90,8 @@ func _ready() -> void:
 func bind(p_zone: Zone) -> void:
 	zone = p_zone
 	hero = zone.hero
+	minimap.zone = zone
+	minimap.visible = true
 	joystick.input_changed.connect(func(v: Vector2): hero.move_input = v)
 	camera_area.drag.connect(zone.camera_rig.rotate_by_pixels)
 	camera_area.pinch.connect(zone.camera_rig.zoom)
@@ -140,7 +143,7 @@ func _process(_delta: float) -> void:
 		return
 	var p := Game.profile
 	var stats := hero.stats
-	var class_id := StringName("%s|%s" % [Game.class_id(), Game.job_id()])
+	var class_id := StringName("%s|%s|%s" % [Game.class_id(), Game.job_id(), Game.profile.get("job3", false)])
 	if class_id != _badge_class:
 		_badge_class = class_id
 		var data := Game.class_data()
@@ -291,13 +294,25 @@ func _build_status(frame: Control) -> void:
 	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	trow.add_child(_target_hp)
 	_build_party(column)
+	minimap = Minimap.new()
+	minimap.anchor_left = 1.0
+	minimap.anchor_right = 1.0
+	minimap.offset_left = -150
+	minimap.offset_right = -10
+	minimap.offset_top = 132
+	minimap.offset_bottom = 272
+	frame.add_child(minimap)
 
 ## Small cards for the two AI companions: badge, name, level, EXP.
 func _build_party(column: Control) -> void:
 	for i in 1:
 		var card := UIUtil.panel(&"HudPanel")
 		card.custom_minimum_size = Vector2(230, 0)
-		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.mouse_filter = Control.MOUSE_FILTER_STOP
+		card.gui_input.connect(_tap(func():
+			var stance := Game.cycle_stance()
+			if stance != "":
+				Game.say("เพื่อน: %s" % Game.STANCE_NAMES[stance], &"info")))
 		column.add_child(card)
 		var row := UIUtil.hbox(8)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -344,7 +359,7 @@ func _update_party() -> void:
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  Lv.%d" % [member.name, int(member.level)]
 		entry["name_text"] = "%s  Lv.%d" % [member.name, int(member.level)]
-		(entry.title as Label).text = "%s  ยา ×%d" % [entry.name_text, int(member.get("potions", 5))]
+		(entry.title as Label).text = "%s  ยา×%d  [%s]" % [entry.name_text, int(member.get("potions", 5)), Game.STANCE_NAMES[String(member.get("stance", "follow"))]]
 		var bar := entry.bar as ProgressBar
 		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
 		if buddy:

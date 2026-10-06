@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -19,6 +19,8 @@ var _tab_buttons: Dictionary = {}
 var _selected_index := -1
 var _selected_slot := ""
 var _detail: VBoxContainer
+## Opened from the blacksmith: items can be enhanced and socketed.
+var forge_mode := false
 
 
 func _ready() -> void:
@@ -76,6 +78,7 @@ func open_menu(tab: StringName = &"inventory") -> void:
 
 
 func close_menu() -> void:
+	forge_mode = false
 	is_open = false
 	_root.visible = false
 	get_tree().paused = false
@@ -99,6 +102,7 @@ func _rebuild() -> void:
 		&"inventory": _build_inventory()
 		&"skills": _build_skills()
 		&"quests": _build_quests()
+		&"achievements": _build_achievements()
 		&"settings": _build_settings()
 
 
@@ -161,9 +165,9 @@ func _build_inventory() -> void:
 	_content.add_child(row)
 	# Paper doll + equipment slots
 	var equip := UIUtil.vbox(6)
-	equip.custom_minimum_size = Vector2(262, 0)
+	equip.custom_minimum_size = Vector2(240, 0)
 	row.add_child(equip)
-	var preview := HeroPreview.new(Vector2i(262, 250))
+	var preview := HeroPreview.new(Vector2i(240, 230))
 	equip.add_child(preview)
 	preview.show_hero(Game.class_id(), Game.profile.equip)
 	var slots := GridContainer.new()
@@ -174,7 +178,7 @@ func _build_inventory() -> void:
 	for slot in ItemData.SLOTS:
 		var item: Variant = Game.profile.equip.get(slot)
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(82, 82)
+		b.custom_minimum_size = Vector2(74, 74)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 58)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -208,7 +212,7 @@ func _build_inventory() -> void:
 	scroll.add_child(grid)
 	for i in Game.INVENTORY_SIZE:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(100, 96)
+		b.custom_minimum_size = Vector2(90, 92)
 		b.clip_text = true
 		b.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 		b.expand_icon = true
@@ -230,7 +234,7 @@ func _build_inventory() -> void:
 			b.disabled = true
 		grid.add_child(b)
 	_detail = UIUtil.vbox(8)
-	_detail.custom_minimum_size = Vector2(270, 0)
+	_detail.custom_minimum_size = Vector2(250, 0)
 	row.add_child(_detail)
 	_refresh_detail()
 
@@ -261,8 +265,18 @@ func _refresh_detail() -> void:
 		_detail.add_child(UIUtil.label("%s • %s • เลเวล %d" % [ItemData.SLOT_NAMES[item.slot], ItemData.RARITY_NAMES[int(item.rarity)], int(item.level)], &"SmallLabel"))
 		if item.get("class", "") != "":
 			_detail.add_child(UIUtil.label("อาชีพ: " + String(ClassData.get_class_data(StringName(item["class"])).name), &"SmallLabel"))
-	for line in ItemData.stat_lines(item):
-		_detail.add_child(UIUtil.label(line, &"BoldLabel"))
+	for line in ItemData.detail_lines(item):
+		var detail_label := UIUtil.label(line, &"BoldLabel" if not line.begins_with("เซ็ต") else &"SmallLabel")
+		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_detail.add_child(detail_label)
+	if item.get("kind", "") == "equip" and str(item.get("set", "")) != "":
+		var counts := HeroStats.set_counts(Game.profile)
+		var set_label := UIUtil.label("สวมอยู่ %d/4 ชิ้น: 2=HP • 3=โจมตี • 4=ป้องกัน+คริ" % int(counts.get(item.set, 0)), &"DimLabel")
+		set_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		set_label.custom_minimum_size = Vector2(240, 0)
+		_detail.add_child(set_label)
+	if forge_mode and item.get("kind", "") == "equip":
+		_build_forge_buttons(item)
 	if item.get("kind", "") == "equip":
 		var problem := Game.equip_problem(item)
 		var equipped := _selected_slot != ""
@@ -279,10 +293,49 @@ func _refresh_detail() -> void:
 			var sell := UIUtil.button("ขาย", &"", Vector2(0, 56))
 			sell.pressed.connect(func(): Game.sell_item(_selected_index); _selected_index = -1; _rebuild())
 			_detail.add_child(sell)
+	elif item.get("kind", "") == "gem":
+		_detail.add_child(UIUtil.label("ไปที่ช่างตีเหล็กเพื่อใส่ลงช่องในอาวุธ/ชุด", &"DimLabel"))
+		var sell_gem := UIUtil.button("ขาย (%d)" % ItemData.unit_sell_price(item), &"", Vector2(0, 56))
+		sell_gem.pressed.connect(func(): Game.sell_item(_selected_index, 1); _selected_index = -1; _rebuild())
+		_detail.add_child(sell_gem)
 	else:
 		var use := UIUtil.button("ใช้", &"PrimaryButton", Vector2(0, 60))
 		use.pressed.connect(func(): _use_potion(_selected_index))
 		_detail.add_child(use)
+
+
+func _build_forge_buttons(item: Dictionary) -> void:
+	var plus := int(item.get("plus", 0))
+	if plus < ItemData.MAX_PLUS:
+		_detail.add_child(UIUtil.label("ค่าตี %d เหรียญ" % ItemData.enhance_cost(item), &"DimLabel"))
+		var btn := UIUtil.button("ตีบวก +%d  (%d%%)" % [plus + 1, int(ItemData.enhance_chance(plus) * 100.0)], &"PrimaryButton", Vector2(0, 58))
+		btn.pressed.connect(func():
+			var result := Game.enhance_item(item)
+			match result:
+				"ok":
+					Game.say("ตีบวกสำเร็จ! %s" % ItemData.name_of(item), &"success")
+					AudioManager.play_sfx(&"level_up")
+				"fail":
+					Game.say("ตีบวกพลาด... (เสียแค่เหรียญ ไอเทมไม่หาย)", &"warning")
+				_:
+					Game.say(result, &"warning")
+			_rebuild())
+		_detail.add_child(btn)
+	var free := int(item.get("sockets", 0)) - (item.get("gems", []) as Array).size()
+	if free > 0:
+		var seen := {}
+		for i in Game.profile.inv.size():
+			var gem: Dictionary = Game.profile.inv[i]
+			if gem.get("kind", "") == "gem" and not seen.has(gem.id):
+				seen[gem.id] = true
+				var info := ItemData.gem_info(gem)
+				var put := UIUtil.button("ใส่ %s ×%d" % [info.name, int(gem.count)], &"", Vector2(0, 50))
+				put.add_theme_color_override("font_color", info.color)
+				put.pressed.connect(func():
+					if Game.socket_gem(item, i):
+						Game.say("ใส่อัญมณีแล้ว", &"success")
+					_rebuild())
+				_detail.add_child(put)
 
 
 func _use_potion(index: int) -> void:
@@ -310,7 +363,10 @@ func _build_skills() -> void:
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(box)
 	box.add_child(UIUtil.label("แต้มสกิลที่ใช้ได้: %d   (สกิลแต่ละตัวอัปได้สูงสุด ★%d: แรงขึ้น 15%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK], &"SubHeaderLabel"))
-	for skill in Game.class_data().skills:
+	var all_skills: Array = Game.class_data().skills.duplicate()
+	all_skills.append_array(ClassData.PASSIVES.get(Game.class_id(), []))
+	for skill in all_skills:
+		var is_passive: bool = skill.has("bonus")
 		var panel := UIUtil.panel(&"CardPanel")
 		box.add_child(panel)
 		var line := UIUtil.hbox(14)
@@ -325,7 +381,7 @@ func _build_skills() -> void:
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
 		info.add_child(title_label)
-		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
+		var desc := UIUtil.label(("[ติดตัว] " + String(skill.desc)) if is_passive else "%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(desc)
 		var up := UIUtil.button("อัป", &"PrimaryButton", Vector2(110, 56))
@@ -346,7 +402,24 @@ func _build_quests() -> void:
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
-	box.add_child(UIUtil.label("เควสต์ (รับจากผู้ใหญ่บ้านในหมู่บ้าน)", &"SubHeaderLabel"))
+	box.add_child(UIUtil.label("เควสต์รายวัน (รับรางวัลที่กระดานในหมู่บ้าน)", &"SubHeaderLabel"))
+	var reward := GoalsData.reward_for(int(Game.profile.level))
+	for entry in Game.daily().quests:
+		var template := Game.daily_template(entry.id)
+		var target := Game.daily_target(entry)
+		var done: bool = int(entry.progress) >= target
+		var dpanel := UIUtil.panel(&"CardPanel")
+		box.add_child(dpanel)
+		var dcol := UIUtil.vbox(2)
+		dpanel.add_child(dcol)
+		var state := "รับรางวัลแล้ว ✔" if entry.claimed else ("เสร็จแล้ว — ไปรับที่กระดาน" if done else "%d / %d" % [int(entry.progress), target])
+		var dtitle := UIUtil.label("%s — %s" % [template.name, state], &"BoldLabel")
+		if entry.claimed:
+			dtitle.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		dcol.add_child(dtitle)
+		dcol.add_child(UIUtil.label(String(template.desc) % target, &"SmallLabel"))
+		dcol.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d" % [int(reward.exp), int(reward.gold)], &"DimLabel"))
+	box.add_child(UIUtil.label("เควสต์เนื้อเรื่อง (รับจากผู้ใหญ่บ้านในหมู่บ้าน)", &"SubHeaderLabel"))
 	for id in QuestData.ORDER:
 		var quest := QuestData.get_quest(id)
 		var status := Game.quest_status(id)
@@ -368,13 +441,54 @@ func _build_quests() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Achievements
+# ---------------------------------------------------------------------------
+
+func _build_achievements() -> void:
+	var scroll := TouchScroll.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(scroll)
+	var box := UIUtil.vbox(8)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var done_count := 0
+	for ach in GoalsData.ACHIEVEMENTS:
+		if Game.profile.get("ach", {}).has(ach.id):
+			done_count += 1
+	box.add_child(UIUtil.label("ความสำเร็จ  %d / %d" % [done_count, GoalsData.ACHIEVEMENTS.size()], &"HeaderLabel"))
+	for ach in GoalsData.ACHIEVEMENTS:
+		var done: bool = Game.profile.get("ach", {}).has(ach.id)
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var col := UIUtil.vbox(2)
+		panel.add_child(col)
+		var value := mini(Game.achievement_value(ach.check), int(ach.goal))
+		var title := UIUtil.label("%s%s" % ["✔ " if done else "", ach.name], &"BoldLabel")
+		if done:
+			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		col.add_child(title)
+		col.add_child(UIUtil.label("%s  (%d / %d)" % [ach.desc, value, int(ach.goal)], &"SmallLabel"))
+		var parts: PackedStringArray = []
+		if ach.reward.has("gold"):
+			parts.append("เหรียญ %d" % int(ach.reward.gold))
+		if ach.reward.has("sp"):
+			parts.append("แต้มสกิล %d" % int(ach.reward.sp))
+		if ach.reward.has("gem"):
+			parts.append("อัญมณี")
+		col.add_child(UIUtil.label("รางวัล: " + " • ".join(parts), &"DimLabel"))
+
+
+# ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
 
 func _build_settings() -> void:
-	var box := UIUtil.vbox(14)
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_content.add_child(box)
+	var scroll := TouchScroll.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(scroll)
+	var box := UIUtil.vbox(12)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	box.add_child(UIUtil.label("ตั้งค่า", &"HeaderLabel"))
 	for entry in [["เพลง", "Music"], ["เสียงเอฟเฟกต์", "SFX"]]:
 		var line := UIUtil.hbox(14)
@@ -393,14 +507,96 @@ func _build_settings() -> void:
 			if bus >= 0:
 				AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(v, 0.001))))
 		line.add_child(slider)
+	# Camera speed
+	var cam_line := UIUtil.hbox(14)
+	box.add_child(cam_line)
+	var cam_label := UIUtil.label("ความเร็วหมุนกล้อง", &"BoldLabel")
+	cam_label.custom_minimum_size = Vector2(220, 0)
+	cam_line.add_child(cam_label)
+	var cam_slider := HSlider.new()
+	cam_slider.min_value = 0.4
+	cam_slider.max_value = 2.5
+	cam_slider.step = 0.1
+	cam_slider.value = GameSettings.camera_speed
+	cam_slider.custom_minimum_size = Vector2(420, 40)
+	cam_slider.value_changed.connect(func(v: float):
+		GameSettings.camera_speed = v
+		GameSettings.save_settings())
+	cam_line.add_child(cam_slider)
+	# Graphics quality
+	var q_line := UIUtil.hbox(10)
+	box.add_child(q_line)
+	var q_label := UIUtil.label("คุณภาพกราฟิก", &"BoldLabel")
+	q_label.custom_minimum_size = Vector2(220, 0)
+	q_line.add_child(q_label)
+	for i in 3:
+		var qb := UIUtil.button(String(GameSettings.QUALITY_NAMES[i]), &"PrimaryButton" if GameSettings.quality == i else &"", Vector2(180, 56))
+		qb.pressed.connect(func():
+			GameSettings.quality = i
+			GameSettings.save_settings()
+			GameSettings.apply_live(get_tree())
+			Game.say("ตั้งคุณภาพ: %s (ต้นไม้และหญ้าจะเปลี่ยนเมื่อเข้าแมพใหม่)" % GameSettings.QUALITY_NAMES[i], &"info")
+			_rebuild())
+		q_line.add_child(qb)
+	var vib := CheckButton.new()
+	vib.text = "สั่นเมื่อโดนตี (มือถือ)"
+	vib.button_pressed = GameSettings.vibration
+	vib.toggled.connect(func(on: bool):
+		GameSettings.vibration = on
+		GameSettings.save_settings())
+	box.add_child(vib)
 	var save := UIUtil.button("บันทึกเกม", &"PrimaryButton", Vector2(320, 66))
 	save.pressed.connect(func():
 		Game.save()
 		Game.say("บันทึกเกมแล้ว", &"success"))
 	box.add_child(save)
+	# Save backup: the save lives in this browser only, so offer copy / paste.
+	var backup := UIUtil.button("สำรอง / นำเข้าเซฟ", &"", Vector2(320, 66))
+	backup.pressed.connect(_open_backup)
+	box.add_child(backup)
+	if int(Game.profile.flags.get("ending_seen", 0)) > 0:
+		var ending := UIUtil.button("ดูตอนจบอีกครั้ง", &"", Vector2(320, 66))
+		ending.pressed.connect(func():
+			close_menu()
+			Game.ending_requested.emit())
+		box.add_child(ending)
 	var title := UIUtil.button("กลับหน้าหลัก", &"", Vector2(320, 66))
 	title.pressed.connect(func():
 		Game.save()
 		close_menu()
 		title_requested.emit())
 	box.add_child(title)
+
+
+## A text box holding the save as a code: copy it somewhere safe, or paste a code and import.
+func _open_backup() -> void:
+	UIUtil.clear(_content)
+	var box := UIUtil.vbox(10)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(box)
+	box.add_child(UIUtil.label("สำรองเซฟ", &"HeaderLabel"))
+	box.add_child(UIUtil.label("กดค้างที่กล่องข้อความเพื่อคัดลอก เก็บรหัสนี้ไว้ในโน้ต แล้ววางกลับมาเพื่อนำเข้าบนเครื่องไหนก็ได้", &"SmallLabel"))
+	var edit := TextEdit.new()
+	edit.custom_minimum_size = Vector2(0, 280)
+	edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	edit.text = Game.export_code()
+	box.add_child(edit)
+	var row := UIUtil.hbox(10)
+	box.add_child(row)
+	var copy := UIUtil.button("คัดลอกรหัส", &"PrimaryButton", Vector2(240, 60))
+	copy.pressed.connect(func():
+		DisplayServer.clipboard_set(edit.text)
+		Game.say("คัดลอกแล้ว", &"success"))
+	row.add_child(copy)
+	var imp := UIUtil.button("นำเข้าจากกล่อง", &"", Vector2(260, 60))
+	imp.pressed.connect(func():
+		if Game.import_code(edit.text):
+			Game.say("นำเข้าเซฟสำเร็จ!", &"success")
+			_rebuild()
+		else:
+			Game.say("รหัสไม่ถูกต้อง", &"warning"))
+	row.add_child(imp)
+	var back := UIUtil.button("กลับ", &"", Vector2(160, 60))
+	back.pressed.connect(_rebuild)
+	row.add_child(back)

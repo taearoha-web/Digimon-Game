@@ -60,8 +60,10 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	sun.rotation_degrees = Vector3(-52, -35, 0)
 	sun.light_color = sun_color
 	sun.light_energy = 0.68
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 55.0
+	GameSettings.load_settings()
+	sun.shadow_enabled = GameSettings.shadow_distance() > 0.0
+	sun.directional_shadow_max_distance = maxf(GameSettings.shadow_distance(), 1.0)
+	sun.add_to_group("sun")
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	parent.add_child(sun)
 
@@ -168,7 +170,7 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 			var r := p.length()
 			# Dense forest outside the play area, scattered groves inside it.
 			var chance := 0.7 if r > play_radius else (0.012 + 0.09 * smoothstep(play_radius * 0.7, play_radius, r))
-			chance *= density
+			chance *= density * GameSettings.density_scale()
 			if rng.randf() > chance or not _free(p, 1.4, occupied):
 				continue
 			var s := rng.randf_range(0.9, 1.45)
@@ -205,7 +207,7 @@ static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerato
 	var colors: Dictionary = {}
 	var set: Dictionary = THEME_SETS.get(theme, {})
 	var palette: Array = set.get("bush_colors", [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")])
-	var bush_total: int = int(set.get("bushes", 120))
+	var bush_total: int = int(float(set.get("bushes", 120)) * GameSettings.density_scale())
 	var placed := 0
 	var attempts := 0
 	while placed < bush_total and attempts < bush_total * 8:
@@ -236,7 +238,7 @@ static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 	var colors: Dictionary = {}
 	var placed := 0
 	var attempts := 0
-	var rock_total: int = int(THEME_SETS.get(theme, {}).get("rocks", 60))
+	var rock_total: int = int(float(THEME_SETS.get(theme, {}).get("rocks", 60)) * GameSettings.density_scale())
 	while placed < rock_total and attempts < rock_total * 10:
 		attempts += 1
 		var p := Vector2(rng.randf_range(-play_radius - 8, play_radius + 8), rng.randf_range(-play_radius - 8, play_radius + 8))
@@ -274,7 +276,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	var tuft := _tuft_mesh()
 	var transforms: Array[Transform3D] = []
 	var tints: Array[Color] = []
-	for i in 1500:
+	for i in int(1500.0 * GameSettings.density_scale()):
 		var p := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		if p.length() > play_radius or not _free(p, 0.1, occupied):
 			continue
@@ -308,14 +310,14 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		mmi.multimesh = mm
 		mmi.material_override = mat
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mmi.visibility_range_end = 48.0
+		mmi.visibility_range_end = 48.0 * GameSettings.view_scale()
 		mmi.custom_aabb = AABB(Vector3(cell.x * NatureKit.CHUNK - 4.0, -1.0, cell.y * NatureKit.CHUNK - 4.0), Vector3(NatureKit.CHUNK + 8.0, 4.0, NatureKit.CHUNK + 8.0))
 		holder.add_child(mmi)
 	# Flowers
 	var groups: Dictionary = {}
 	var flower_colors: Dictionary = {}
 	var palette := [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")]
-	for i in int(THEME_SETS.get(theme, {}).get("flowers", 200)):
+	for i in int(float(THEME_SETS.get(theme, {}).get("flowers", 200)) * GameSettings.density_scale()):
 		var p := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		if p.length() > play_radius or not _free(p, 0.2, occupied):
 			continue

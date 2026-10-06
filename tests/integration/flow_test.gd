@@ -38,6 +38,10 @@ func _run() -> void:
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _touch_scroll()
 	await _jobs()
+	await _items()
+	await _goals()
+	await _arena()
+	await _ending()
 	await _party()
 	await _zones()
 	await _systems()
@@ -60,7 +64,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 6, "six villagers")
+	check(town.npcs.size() == 9, "nine villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -141,13 +145,27 @@ func _jobs() -> void:
 				continue
 			break
 		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
-		check(Game.profile.gold == gold_before - JobData.JOB_COST, "job change cost gold")
+		check(Game.profile.gold == gold_before - JobData.JOB_COST + 1000, "job change cost gold (the job achievement pays 1000 back)")
 		var skills: Array = Game.class_data().skills
 		check(skills.size() == 4 and String(skills[0].id) != String(ClassData.get_skill(class_id, 0).id), "first skill replaced by a job skill")
 		check(not Game.change_job(branches[1]) and not Game.change_job(branches[0]), "job cannot be changed twice")
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
 		check(hero._ring != null, "job ring appears under the hero")
+		# Passives raise stats; the Lv.30 advancement swaps skills 3 and 4.
+		var before := Game.stats_now()
+		var power_before: float = float(before.def) + float(before.max_hp) + float(before.max_mp) + float(before.crit) * 1000.0 + float(before.speed)
+		Game.profile.skills[ClassData.PASSIVES[class_id][0].id] = 5
+		var after_stats := Game.stats_now()
+		var power_after: float = float(after_stats.def) + float(after_stats.max_hp) + float(after_stats.max_mp) + float(after_stats.crit) * 1000.0 + float(after_stats.speed)
+		check(power_after > power_before, "passive skill ranks add stats")
+		Game.add_gold(10000)
+		Game.profile["level"] = 30
+		var skill3_before: String = String(Game.class_data().skills[2].id)
+		check(Game.change_master(), "%s can take the Lv.30 advancement" % class_id)
+		var after: Array = Game.class_data().skills
+		check(String(after[2].id) != skill3_before and bool(Game.class_data().get("master", false)), "skills 3 and 4 are replaced by master skills")
+		check(not Game.change_master(), "the Lv.30 advancement is one-time")
 
 
 func _touch_scroll() -> void:
@@ -238,6 +256,7 @@ func _party() -> void:
 	buddy._revive_timer = 0.2
 	await _wait(0.8)
 	check(not buddy.is_dead() and buddy.hp > 0, "companion gets back up")
+	check(Game.cycle_stance() == "aggressive" and Game.cycle_stance() == "guard" and Game.cycle_stance() == "follow", "stance cycles follow -> aggressive -> guard")
 	Game.recruit(&"mage")
 	await _wait(0.4)
 	check(zone.companions.size() == 1 and zone.companions[0].member["class"] == "mage", "recruiting swaps the companion")
@@ -255,7 +274,7 @@ func _zones() -> void:
 	await _start(&"warrior")
 	Game.add_exp(2000000)
 	for id in ZoneData.ZONES:
-		if id == &"town":
+		if id == &"town" or id == &"arena":
 			continue
 		await main.go(id, true)
 		await _wait(0.5)
@@ -267,6 +286,107 @@ func _zones() -> void:
 		for camp in info.camps:
 			for m in camp.monsters:
 				check(MonsterData.MONSTERS.has(m), "monster %s exists" % m)
+
+
+func _items() -> void:
+	print("== Items")
+	await _start(&"warrior")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	Game.add_gold(100000)
+	var sword := ItemData.generate(20, &"warrior", rng, 3, "weapon")
+	check(int(sword.sockets) == 2 and int(sword.plus) == 0, "legendary gear has two sockets")
+	Game.profile.equip["weapon"] = sword
+	var atk0: float = Game.stats_now().atk
+	var tries := 0
+	while int(sword.plus) < 3 and tries < 20:
+		Game.enhance_item(sword)
+		tries += 1
+	check(int(sword.plus) == 3 and Game.stats_now().atk > atk0, "forge raises +N and the attack stat (+%d)" % int(sword.plus))
+	var gold: int = Game.profile.gold
+	Game.profile["inv"].append(ItemData.gem("ruby", 2, 2))
+	var atk1: float = Game.stats_now().atk
+	check(Game.socket_gem(sword, Game.profile.inv.size() - 1) and Game.stats_now().atk >= atk1 + 22, "a ruby in a socket adds ATK")
+	check(int(Game.profile.inv[Game.profile.inv.size() - 1].count) == 1, "the gem stack went down by one")
+	var armor := ItemData.generate(20, &"warrior", rng, 1, "armor")
+	var helm := ItemData.generate(20, &"warrior", rng, 1, "helm")
+	check(str(armor.set) != "" and armor.set == helm.set, "same-tier gear belongs to the same set (%s)" % ItemData.set_label(armor.set))
+	var def0: float = Game.stats_now().def
+	Game.profile.equip["armor"] = armor
+	Game.profile.equip["helm"] = helm
+	check(HeroStats.set_counts(Game.profile).get(armor.set, 0) >= 2, "set pieces are counted")
+	check(ItemLook.icon(ItemData.gem("emerald", 1)) != null, "gems have an icon")
+	check(gold >= 0 and Game.save_code_roundtrip(), "save code export / import round-trips")
+
+
+func _goals() -> void:
+	print("== Goals")
+	await _start(&"warrior")
+	var d := Game.daily()
+	check(d.quests.size() == 3, "three daily quests")
+	var again := Game.daily()
+	check(again.quests[0].id == d.quests[0].id, "daily quests stay the same within a day")
+	var entry: Dictionary = d.quests[0]
+	var kind: String = Game.daily_template(entry.id).kind
+	Game.daily_progress(kind, 9999)
+	check(int(entry.progress) >= Game.daily_target(entry), "daily progress completes")
+	var gold: int = Game.profile.gold
+	check(Game.daily_claim_all() >= 1 and Game.profile.gold > gold, "claiming a daily pays gold")
+	check(Game.daily_claim_all() == 0, "a daily can only be claimed once")
+	Game.report_kill(&"pink_slime", false)
+	check(Game.profile.ach.has("first_blood"), "first kill unlocks an achievement")
+	var gold_after: int = Game.profile.gold
+	Game.profile["kills"] = 99
+	Game.report_kill(&"pink_slime", false)
+	check(Game.profile.ach.has("hunter100") and Game.profile.gold >= gold_after + 500, "100 kills unlock an achievement with a gold reward")
+
+
+func _arena() -> void:
+	print("== Arena")
+	await _start(&"warrior")
+	Game.add_exp(500000)
+	await main.go(&"arena", true)
+	await _wait(0.5)
+	var z: Zone = main.zone
+	check(z != null and z.zone_id == &"arena", "arena loads")
+	z._arena_timer = 0.1
+	await _wait(0.5)
+	check(z._arena_wave == 1 and z._arena_mobs.size() == 4, "wave 1 spawns four monsters")
+	for m in z._arena_mobs:
+		m.take_hit(9999999, false)
+	await _wait(0.5)
+	check(z._arena_state == "rest", "clearing a wave starts the break")
+	z._arena_timer = 0.1
+	await _wait(0.4)
+	for m in z._arena_mobs:
+		m.take_hit(9999999, false)
+	await _wait(0.4)
+	z._arena_timer = 0.1
+	await _wait(0.4)
+	check(z._arena_wave == 3 and z._arena_mobs.size() == 3, "wave 3 has a boss and two escorts")
+	for m in z._arena_mobs:
+		m.take_hit(99999999, false)
+	await _wait(0.5)
+	check(z._arena_state == "done" and int(Game.profile.flags.get("arena_clears", 0)) == 1, "winning the arena is counted")
+
+
+func _ending() -> void:
+	print("== Ending")
+	await _start(&"warrior")
+	var seen := [false]
+	Game.ending_requested.connect(func(): seen[0] = true, CONNECT_ONE_SHOT)
+	Game.report_kill(&"magma_dragon", true)
+	await _wait(3.2)
+	check(seen[0], "killing the last boss triggers the ending once")
+	var again := [false]
+	Game.ending_requested.connect(func(): again[0] = true, CONNECT_ONE_SHOT)
+	Game.report_kill(&"magma_dragon", true)
+	await _wait(3.0)
+	check(not again[0], "the ending does not repeat")
+	for node in main.get_children():
+		if node is EndingScreen:
+			node._finish()
+	get_tree().paused = false
 
 
 func _systems() -> void:

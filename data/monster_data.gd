@@ -39,11 +39,11 @@ const MONSTERS := {
 	&"ice_bee": {"name": "ผึ้งน้ำแข็ง", "model": "flying/Armabee_Evolved", "height": 1.3, "hp": 1.1, "atk": 1.4, "def": 1.0, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("8fe8ff"), "tint": Color(0.7, 0.95, 1.4)},
 	&"yeti_king": {"name": "ราชายักษ์หิมะ", "model": "big/Yeti", "height": 4.0, "hp": 12.0, "atk": 2.0, "def": 1.8, "speed": 2.2, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.95, 1.4)},
 	# Volcano
-	&"fire_orc": {"name": "ออร์คลาวา", "model": "big/Orc_Skull", "height": 2.1, "hp": 1.8, "atk": 1.6, "def": 1.5, "speed": 2.4, "aggro": true, "attack": "melee", "tint": Color(1.5, 0.6, 0.5)},
-	&"lava_dino": {"name": "ไดโนลาวา", "model": "big/Dino", "height": 2.2, "hp": 1.9, "atk": 1.6, "def": 1.5, "speed": 2.5, "aggro": true, "attack": "melee", "tint": Color(1.6, 0.6, 0.4)},
-	&"ember_ghost": {"name": "ผีถ่านเพลิง", "model": "flying/Ghost", "height": 1.6, "hp": 1.3, "atk": 1.7, "def": 1.1, "speed": 2.5, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("ff7a2a"), "tint": Color(1.6, 0.8, 0.4)},
-	&"magma_wizard": {"name": "พ่อมดแมกมา", "model": "blob/Wizard", "height": 1.7, "hp": 1.3, "atk": 1.9, "def": 1.2, "speed": 2.2, "aggro": true, "attack": "ranged", "color": Color("ff5a2a"), "tint": Color(1.6, 0.55, 0.45)},
-	&"flame_bee": {"name": "ผึ้งเปลวไฟ", "model": "flying/Armabee_Evolved", "height": 1.4, "hp": 1.2, "atk": 1.7, "def": 1.1, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("ffa03a"), "tint": Color(1.6, 0.8, 0.4)},
+	&"fire_orc": {"name": "ออร์คลาวา", "model": "big/Orc_Skull", "height": 2.1, "hp": 1.5, "atk": 1.4, "def": 1.3, "speed": 2.4, "aggro": true, "attack": "melee", "tint": Color(1.5, 0.6, 0.5)},
+	&"lava_dino": {"name": "ไดโนลาวา", "model": "big/Dino", "height": 2.2, "hp": 1.55, "atk": 1.4, "def": 1.3, "speed": 2.5, "aggro": true, "attack": "melee", "tint": Color(1.6, 0.6, 0.4)},
+	&"ember_ghost": {"name": "ผีถ่านเพลิง", "model": "flying/Ghost", "height": 1.6, "hp": 1.2, "atk": 1.5, "def": 1.0, "speed": 2.5, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("ff7a2a"), "tint": Color(1.6, 0.8, 0.4)},
+	&"magma_wizard": {"name": "พ่อมดแมกมา", "model": "blob/Wizard", "height": 1.7, "hp": 1.2, "atk": 1.6, "def": 1.1, "speed": 2.2, "aggro": true, "attack": "ranged", "color": Color("ff5a2a"), "tint": Color(1.6, 0.55, 0.45)},
+	&"flame_bee": {"name": "ผึ้งเปลวไฟ", "model": "flying/Armabee_Evolved", "height": 1.4, "hp": 1.1, "atk": 1.5, "def": 1.0, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("ffa03a"), "tint": Color(1.6, 0.8, 0.4)},
 	&"magma_dragon": {"name": "มังกรแมกมาจ้าวภูเขาไฟ", "model": "flying/Dragon_Evolved", "height": 4.4, "hp": 14.0, "atk": 2.2, "def": 2.0, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.9, "color": Color("ff4a2a"), "tint": Color(1.5, 0.55, 0.45)},
 }
 
@@ -57,9 +57,9 @@ static func stats_for(id: StringName, level: int) -> Dictionary:
 	var m := get_monster(id)
 	var boss := bool(m.get("boss", false))
 	return {
-		"hp": int(round((38.0 + level * level * 3.0 + level * 26.0) * float(m.hp))),
-		"atk": int(round((5.0 + level * 3.1) * float(m.atk))),
+		"hp": int(round((38.0 + level * level * 3.0 + level * 26.0) * float(m.hp) * 1.3)),
+		"atk": int(round((5.0 + level * 3.1) * float(m.atk) * 1.45)),
 		"def": int(round((1.0 + level * 1.5) * float(m.def))),
-		"exp": int(round((10.0 + level * 9.0) * (8.0 if boss else 1.0))),
+		"exp": int(round((10.0 + level * 9.0) * 1.15 * (8.0 if boss else 1.0))),
 		"gold": int(round((3.0 + level * 3.0) * (10.0 if boss else 1.0))),
 	}

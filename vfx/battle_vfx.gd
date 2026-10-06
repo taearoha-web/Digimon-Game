@@ -175,7 +175,15 @@ static func projectile(parent: Node3D, vfx_id: StringName, from: Vector3, to: Ve
 
 
 ## Floating number / text above a combatant.
+static var _floating_active := 0
+
+
 static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0) -> void:
+	# Many hits at once would pile up unreadably: cap the count and spread them out.
+	if _floating_active > 26 and size < 1.2:
+		return
+	pos += Vector3(randf_range(-0.35, 0.35), randf_range(0.0, 0.25), randf_range(-0.35, 0.35))
+	_floating_active += 1
 	var label := Label3D.new()
 	label.text = L10n.t(text)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -193,7 +201,9 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	tween.tween_property(label, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(label, "global_position", pos + Vector3(0, 0.9, 0), 0.9).set_ease(Tween.EASE_OUT)
 	tween.tween_property(label, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(label.queue_free)
+	tween.tween_callback(func():
+		_floating_active = maxi(0, _floating_active - 1)
+		label.queue_free())
 
 
 static func stat_arrows(parent: Node3D, pos: Vector3, up: bool) -> void:

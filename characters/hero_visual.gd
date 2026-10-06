@@ -133,6 +133,15 @@ func _wear_trinkets() -> void:
 			_skeleton.add_child(attach)
 			attach.add_child(GearKit.boot_cuff(tier, side))
 			_body_nodes.append(attach)
+	var ring: Variant = equip.get("ring")
+	if ring != null:
+		var ring_attach := BoneAttachment3D.new()
+		ring_attach.name = "RingBand"
+		ring_attach.bone_name = "wrist.l"
+		_skeleton.add_child(ring_attach)
+		ring_attach.add_child(GearKit.ring_band(ItemLook.tier_of(ring)))
+		_body_nodes.append(ring_attach)
+	_make_aura()
 	var amulet: Variant = equip.get("amulet")
 	if amulet != null:
 		var attach := BoneAttachment3D.new()
@@ -141,6 +150,49 @@ func _wear_trinkets() -> void:
 		_skeleton.add_child(attach)
 		attach.add_child(GearKit.necklace(ItemLook.tier_of(amulet)))
 		_body_nodes.append(attach)
+
+
+## Sparkles around the hero for legendary gear (violet) or a weapon at +7 or more (gold).
+func _make_aura() -> void:
+	if GameSettings.quality == 0:
+		return
+	var color := Color(0, 0, 0, 0)
+	for slot in equip:
+		var item: Dictionary = equip[slot]
+		if int(item.get("rarity", 0)) >= 3:
+			color = Color("c46bff")
+		elif slot == "weapon" and int(item.get("plus", 0)) >= 7 and color.a == 0.0:
+			color = Color("ffd23c")
+	if color.a == 0.0:
+		return
+	var p := CPUParticles3D.new()
+	p.name = "Aura"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.22, 0.22)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = VfxKit.soft_dot()
+	mat.albedo_color = color
+	quad.material = mat
+	p.mesh = quad
+	p.amount = 14
+	p.lifetime = 1.5
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.55
+	p.direction = Vector3.UP
+	p.spread = 20.0
+	p.initial_velocity_min = 0.3
+	p.initial_velocity_max = 0.7
+	p.gravity = Vector3.ZERO
+	p.local_coords = false
+	p.color_ramp = VfxKit._fade_ramp()
+	p.position = Vector3(0, 0.9, 0)
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(p)
+	_body_nodes.append(p)
 
 
 func _add_part(glb: String, node_name: String, tint := Color.WHITE) -> void:

@@ -28,7 +28,7 @@ const CLASSES := {
 		"color": Color("ff7a45"),
 		"main": "str",
 		"base": {"str": 12, "int": 3, "dex": 6, "vit": 12},
-		"gain": {"str": 2, "int": 0, "dex": 1, "vit": 2},
+		"gain": {"str": 3, "int": 0, "dex": 1, "vit": 2},
 		"hp_mult": 1.3,
 		"mp_mult": 0.7,
 		"attack": {
@@ -131,12 +131,12 @@ const CLASSES := {
 		"weapon_kind": "wand",
 		"color": Color("ffe27a"),
 		"main": "int",
-		"base": {"str": 4, "int": 12, "dex": 5, "vit": 10},
-		"gain": {"str": 0, "int": 2, "dex": 1, "vit": 2},
+		"base": {"str": 4, "int": 14, "dex": 5, "vit": 10},
+		"gain": {"str": 0, "int": 4, "dex": 1, "vit": 2},
 		"hp_mult": 1.0,
 		"mp_mult": 1.3,
 		"attack": {
-			"range": 8.5, "interval": 0.9, "mult": 0.95, "hit_delay": 0.3, "projectile": true, "vfx": &"light",
+			"range": 8.5, "interval": 0.9, "mult": 1.05, "hit_delay": 0.3, "projectile": true, "vfx": &"light",
 			"color": Color("fff0a0"),
 			"anims": ["Spellcast_Shoot"],
 		},
@@ -155,6 +155,28 @@ const CLASSES := {
 				"fx": {"buff": {"atk": 0.25, "def": 0.25, "crit": 0.1, "secs": 20.0}}, "color": Color("ffe27a"), "vfx": &"aura", "icon": "bless"},
 		],
 	},
+}
+
+
+## Passive skills: always on once the level is reached, +[per] per rank.
+## Keys of [bonus]: atk, def, hp, mp (fractions), crit, speed, dodge (added).
+const PASSIVES := {
+	&"warrior": [
+		{"id": "iron_skin", "name": "ผิวเหล็ก", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 10, "bonus": {"def": 0.04}},
+		{"id": "warrior_heart", "name": "ใจนักรบ", "desc": "HP สูงสุด +4% ต่อดาว", "level": 25, "bonus": {"hp": 0.04}},
+	],
+	&"archer": [
+		{"id": "hawk_eye", "name": "สายตาเหยี่ยว", "desc": "คริติคอล +1.5% ต่อดาว", "level": 10, "bonus": {"crit": 0.015}},
+		{"id": "light_foot", "name": "ฝีเท้าเบา", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 25, "bonus": {"speed": 0.02, "dodge": 0.006}},
+	],
+	&"mage": [
+		{"id": "arcane_mind", "name": "ผู้รอบรู้", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
+		{"id": "elemental_power", "name": "พลังธาตุ", "desc": "พลังโจมตี +3% ต่อดาว", "level": 25, "bonus": {"atk": 0.03}},
+	],
+	&"priest": [
+		{"id": "divine_grace", "name": "พรจากสวรรค์", "desc": "HP สูงสุด +4% ต่อดาว", "level": 10, "bonus": {"hp": 0.04}},
+		{"id": "guiding_light", "name": "แสงนำทาง", "desc": "พลังโจมตี +3% และ MP +3% ต่อดาว", "level": 25, "bonus": {"atk": 0.03, "mp": 0.03}},
+	],
 }
 
 
