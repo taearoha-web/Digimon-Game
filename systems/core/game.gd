@@ -62,7 +62,7 @@ func _notification(what: int) -> void:
 # Profile
 # ---------------------------------------------------------------------------
 
-func new_profile(class_id: StringName, hero_name: String) -> void:
+func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 	profile = {
 		"version": SAVE_VERSION, "class": String(class_id), "name": hero_name.strip_edges(),
 		"level": 1, "exp": 0, "points": 0, "skill_points": 1,
@@ -71,6 +71,8 @@ func new_profile(class_id: StringName, hero_name: String) -> void:
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
 		"flags": {}, "boss_kills": {},
 	}
+	if not look.is_empty():
+		profile["look"] = FaceKit.repair(look)
 	has_profile = true
 	var starter := ItemData.generate(1, class_id, rng, 0, "weapon")
 	starter["name"] = "%s ของมือใหม่" % ItemData.NAMES[starter.base][0]
@@ -306,6 +308,8 @@ func _repair(data: Dictionary) -> Dictionary:
 	for key in ["level", "exp", "points", "skill_points", "gold", "hp", "mp", "kills", "deaths"]:
 		data[key] = int(data.get(key, 0))
 	data["level"] = maxi(1, int(data["level"]))
+	if data.get("look") is Dictionary:
+		data["look"] = FaceKit.repair(data["look"])
 	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills"]:
 		if not data.get(key) is Dictionary:
 			data[key] = {}

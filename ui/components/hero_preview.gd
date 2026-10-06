@@ -41,12 +41,12 @@ func _init(p_size := Vector2i(250, 300)) -> void:
 	viewport.add_child(_pivot)
 
 
-func show_hero(class_id: StringName, equip: Dictionary, model := "") -> void:
+func show_hero(class_id: StringName, equip: Dictionary, model := "", look := {}) -> void:
 	if visual:
 		visual.queue_free()
 	visual = HeroVisual.new()
 	_pivot.add_child(visual)
-	visual.setup(class_id, model, true, equip)
+	visual.setup(class_id, model, true, equip, look)
 
 
 ## Drag with a finger (or the mouse) to turn the hero around.

@@ -84,8 +84,8 @@ func _show_class_select() -> void:
 	class_screen = screen
 	add_child(screen)
 	screen.cancelled.connect(_show_title)
-	screen.confirmed.connect(func(class_id: StringName, hero_name: String):
-		Game.new_profile(class_id, hero_name)
+	screen.confirmed.connect(func(class_id: StringName, hero_name: String, look: Dictionary):
+		Game.new_profile(class_id, hero_name, look)
 		screen.queue_free()
 		class_screen = null
 		hud.visible = true

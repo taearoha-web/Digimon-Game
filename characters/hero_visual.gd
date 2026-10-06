@@ -28,6 +28,8 @@ static var _shared_library: AnimationLibrary
 var class_id: StringName = &"warrior"
 var model_name := ""
 var equip: Dictionary = {}
+## Custom face/hair (FaceKit); empty = the stock KayKit head of the class model.
+var look: Dictionary = {}
 var model: Node3D
 var anim: AnimationPlayer
 var current: String = ""
@@ -41,8 +43,9 @@ var _tween: Tween
 
 
 ## p_model: wear another character's stock look (villagers); armed=false = no weapon.
-func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}) -> void:
+func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_look := {}) -> void:
 	class_id = p_class
+	look = p_look
 	for child in get_children():
 		child.queue_free()
 	var data := ClassData.get_class_data(class_id)
@@ -104,9 +107,14 @@ func refresh() -> void:
 		var piece_tint := outfit_tint
 		if boots != null and piece.begins_with("Leg"):
 			piece_tint *= ItemLook.boots_tint(boots)
-		_add_part(glb, "%s_%s" % [glb, piece], piece_tint)
+		var part := _add_part(glb, "%s_%s" % [glb, piece], piece_tint)
+		if not look.is_empty() and part is MeshInstance3D:
+			_reskin(part as MeshInstance3D, piece_tint)
 	# Head, hat, cape
-	_add_part(preset.head[0], preset.head[1])
+	if look.is_empty():
+		_add_part(preset.head[0], preset.head[1])
+	else:
+		_add_custom_head(helm == null)
 	if preset.has("extra") and armor == null:
 		_add_part(preset.extra[0], preset.extra[1])
 	if cape != null and cape is Array:
@@ -115,7 +123,7 @@ func refresh() -> void:
 	if helm != null:
 		var hat := ItemLook.helm_look(helm)
 		_wear_hat(hat)
-	elif preset.has("hat"):
+	elif preset.has("hat") and look.is_empty():
 		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
 	_wear_trinkets()
 	_hold_gear()
@@ -195,10 +203,27 @@ func _make_aura() -> void:
 	_body_nodes.append(p)
 
 
-func _add_part(glb: String, node_name: String, tint := Color.WHITE) -> void:
+func _add_part(glb: String, node_name: String, tint := Color.WHITE) -> Node3D:
 	var node := HeroParts.attach(_skeleton, glb, node_name, tint)
 	if node:
 		_body_nodes.append(node)
+	return node
+
+
+## Skin colour of the chosen look on a body part.
+func _reskin(mi: MeshInstance3D, tint: Color) -> void:
+	for i in mi.mesh.get_surface_count():
+		var source := mi.mesh.surface_get_material(i) as StandardMaterial3D
+		mi.set_surface_override_material(i, FaceKit.skin_material(source, tint, look))
+
+
+func _add_custom_head(with_hair: bool) -> void:
+	var attach := BoneAttachment3D.new()
+	attach.name = "CustomHeadAttach"
+	attach.bone_name = "head"
+	_skeleton.add_child(attach)
+	attach.add_child(FaceKit.build_head(look, with_hair))
+	_body_nodes.append(attach)
 
 
 func _wear_hat(hat: Dictionary) -> void:

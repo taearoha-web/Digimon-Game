@@ -60,7 +60,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(Game.class_id(), "", true, Game.profile.equip)
+	visual.setup(Game.class_id(), "", true, Game.profile.equip, Game.profile.get("look", {}))
 	_equip_sig = _equipment_signature()
 	MeshKit.blob_shadow(self, 0.8)
 	refresh_stats()

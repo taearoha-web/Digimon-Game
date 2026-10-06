@@ -169,7 +169,7 @@ func _build_inventory() -> void:
 	row.add_child(equip)
 	var preview := HeroPreview.new(Vector2i(240, 230))
 	equip.add_child(preview)
-	preview.show_hero(Game.class_id(), Game.profile.equip)
+	preview.show_hero(Game.class_id(), Game.profile.equip, "", Game.profile.get("look", {}))
 	var slots := GridContainer.new()
 	slots.columns = 3
 	slots.add_theme_constant_override("h_separation", 6)
