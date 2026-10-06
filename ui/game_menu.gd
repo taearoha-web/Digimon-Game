@@ -233,9 +233,13 @@ func _build_inventory() -> void:
 		else:
 			b.disabled = true
 		grid.add_child(b)
+	var detail_scroll := TouchScroll.new()
+	detail_scroll.custom_minimum_size = Vector2(250, 0)
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_child(detail_scroll)
 	_detail = UIUtil.vbox(8)
-	_detail.custom_minimum_size = Vector2(250, 0)
-	row.add_child(_detail)
+	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_scroll.add_child(_detail)
 	_refresh_detail()
 
 
@@ -253,7 +257,7 @@ func _refresh_detail() -> void:
 		return
 	var big := TextureRect.new()
 	big.texture = ItemLook.icon(item)
-	big.custom_minimum_size = Vector2(0, 96)
+	big.custom_minimum_size = Vector2(0, 72)
 	big.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	big.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_detail.add_child(big)

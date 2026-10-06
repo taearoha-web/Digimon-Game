@@ -20,8 +20,8 @@ func setup(p_role: String, p_name: String, p_class: StringName, p_title := "", p
 	var label := Label3D.new()
 	label.text = p_name if p_title == "" else "%s\n%s" % [p_name, p_title]
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.pixel_size = 0.0066
-	label.font_size = 44
+	label.pixel_size = 0.0048
+	label.font_size = 40
 	label.outline_size = 12
 	label.modulate = Color("fff2c0")
 	label.position = Vector3(0, 2.75, 0)
