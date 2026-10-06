@@ -6,7 +6,7 @@ extends RefCounted
 ## ice spikes, columns of light, fire rings, whirlwinds, X-slashes, motes...
 ## Used by the hero and by AI companions.
 
-const BIG_IDS := ["meteor", "earthquake", "hell_meteor", "blizzard", "holy_rain", "final_judgement", "absolute_zero", "death_blizzard", "heaven_blade", "blood_storm", "sky_rain", "judgement", "sea_of_flame"]
+const BIG_IDS := ["bone_crash", "destroyer", "diastrophism", "flame_wave", "extinction", "glacial_spike", "phoenix_shot", "bomb_shot", "resurrection", "rage_of_zecram"]
 
 static var _stopped := false
 

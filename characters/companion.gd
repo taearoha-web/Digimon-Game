@@ -427,7 +427,7 @@ func _try_skills(distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	for skill in skills:
-		if int(skill.level) > int(member.level) or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if int(skill.level) > int(member.level) + 9 or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, distance, hero_hp)
 		if score > best_score:

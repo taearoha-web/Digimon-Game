@@ -47,10 +47,25 @@ func run() -> void:
 		"town": await _town()
 		"menus": await _menus()
 		"skills": await _skills()
+		"line": await _line()
 		"zones": await _zones()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _line() -> void:
+	_level(10)
+	main._talk_job()
+	await _wait(0.6)
+	await _shot("line_choice")
+	main._show_line(&"mage")
+	await _wait(0.6)
+	await _shot("line_mage")
+	main.dialog.close()
+	main.menu.open_menu(&"skills")
+	await _wait(0.6)
+	await _shot("menu_skills_vagabond")
 
 
 func _zones() -> void:
@@ -188,11 +203,17 @@ func _menus() -> void:
 	main.shop.open_shop()
 	await _wait(0.5)
 	await _shot("shop")
+	main.shop.close_shop()
+	main.trainer.open_trainer()
+	await _wait(0.5)
+	await _shot("skill_trainer")
+	main.trainer.close_trainer()
 
 
 func _level(level: int) -> void:
 	Game.profile.level = level
 	Game.profile.skill_points = level
+	Game.fill_loadout()
 	var stats := Game.stats_now()
 	Game.profile.hp = stats.max_hp
 	Game.profile.mp = stats.max_mp

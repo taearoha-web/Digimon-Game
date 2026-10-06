@@ -6,6 +6,7 @@ var zone: Zone
 var hud: HUD
 var menu: GameMenu
 var shop: ShopScreen
+var trainer: SkillTrainer
 var dialog: DialogBox
 var _flash: ColorRect
 var title_screen: CanvasLayer
@@ -50,6 +51,8 @@ func _ready() -> void:
 	menu.title_requested.connect(_back_to_title)
 	shop = ShopScreen.new()
 	add_child(shop)
+	trainer = SkillTrainer.new()
+	add_child(trainer)
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
@@ -182,7 +185,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -190,9 +193,12 @@ func _open_menu(tab: StringName) -> void:
 func _on_level_up(level: int) -> void:
 	hud.show_banner("เลเวลอัป! Lv.%d" % level)
 	Game.say("ได้แต้มสถานะ +%d และแต้มสกิล +1 (เปิดเมนูเพื่อใช้)" % Game.STAT_POINTS_PER_LEVEL, &"success")
-	for skill in Game.class_data().skills:
+	for skill in Game.skill_pool():
 		if int(skill.level) == level:
-			Game.say("ปลดล็อกสกิลใหม่: %s!" % skill.name, &"quest")
+			Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
+	if Game.class_id() == ClassData.START and level == ClassData.LINE_LEVEL:
+		hud.show_banner("ถึงเวลาเลือกสาย!")
+		Game.say("ไปหาปรมาจารย์ผู้เปลี่ยนชะตาในหมู่บ้านเพื่อเลือกสาย: ดาบ ธนู เวทย์ หรือนักบวช", &"quest")
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +216,9 @@ func _on_npc(role: String) -> void:
 				{"label": "ดูสินค้า", "action": func(): shop.open_shop()}, {"label": "ไว้ก่อน"}])
 		"job":
 			_talk_job()
+		"skill":
+			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
+				{"label": "ฝึกสกิล", "action": func(): trainer.open_trainer()}, {"label": "ไว้ก่อน"}])
 		"party":
 			_talk_party()
 		"daily":
@@ -230,7 +239,7 @@ func _on_npc(role: String) -> void:
 			AudioManager.play_sfx(&"heal")
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
-			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• สกิลทั้ง 4 อยู่บนแถบโค้งรอบปุ่มดาบ ปลดล็อกเมื่อเลเวลถึง\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ อัปสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ 4 ตัวบนแถบโค้งได้ที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
 func _talk_daily() -> void:
@@ -285,6 +294,16 @@ func _pick_party() -> void:
 func _talk_job() -> void:
 	var speaker := "ปรมาจารย์ผู้เปลี่ยนชะตา"
 	var current := Game.job_id()
+	if Game.class_id() == ClassData.START:
+		if int(Game.profile.level) < ClassData.LINE_LEVEL:
+			dialog.say(speaker, "เจ้ายังเป็นแค่นักเดินทางสินะ ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้า จะได้เลือกสายที่เหมาะกับเจ้า: สายดาบ สายธนู นักเวทย์ หรือนักบวช" % ClassData.LINE_LEVEL)
+			return
+		var options: Array = []
+		for id in ClassData.IDS:
+			options.append({"label": String(ClassData.get_class_data(id).name), "action": func(): _show_line(id)})
+		options.append({"label": "ไว้ก่อน"})
+		dialog.say(speaker, "ถึงเวลาเลือกเส้นทางแล้ว! สายไหนที่ใจเจ้าเรียกหา? (เลือกแล้วเปลี่ยนไม่ได้ ไม่เสียค่าใช้จ่าย)", options)
+		return
 	if current != &"":
 		var info := JobData.get_job(current)
 		if bool(Game.profile.get("job3", false)):
@@ -292,16 +311,15 @@ func _talk_job() -> void:
 		elif int(Game.profile.level) >= JobData.MASTER_LEVEL and JobData.MASTERS.has(current):
 			var m: Dictionary = JobData.MASTERS[current]
 			var lines: PackedStringArray = ["ถึงเวลาเลื่อนขั้นสุดท้ายแล้ว! \"%s\" — %s" % [m.name, m.title]]
-			for skill in m.skills:
-				lines.append("• %s: %s" % [skill.name, skill.desc])
-			lines.append("ค่าเลื่อนขั้น %d เหรียญ (สกิลที่ 3 และ 4 จะถูกแทนที่)" % JobData.MASTER_COST)
+			lines.append("พลังโจมตี/ป้องกัน/HP จะเพิ่มขึ้นอีกขั้น และได้แต้มสกิล +3")
+			lines.append("ค่าเลื่อนขั้น %d เหรียญ" % JobData.MASTER_COST)
 			dialog.say(speaker, "\n".join(lines), [
 				{"label": "เลื่อนขั้น", "action": func(): _confirm_master()}, {"label": "ไว้ก่อน"}])
 		else:
 			dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้าอีกครั้งเพื่อเลื่อนขั้นสูงสุด!" % [info.name, info.title, JobData.MASTER_LEVEL])
 		return
 	if int(Game.profile.level) < JobData.JOB_LEVEL:
-		dialog.say(speaker, "ฮึๆ เจ้ายังอ่อนหัดอยู่ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะชี้ทางสายอาชีพให้ — จะแยกเป็นสองสาย แต่ละสายมีสกิลใหม่และพลังต่างกัน" % JobData.JOB_LEVEL)
+		dialog.say(speaker, "เจ้าฝึกฝนต่อไปเถอะ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะชี้ทางสายอาชีพขั้นสูงให้ — จะแยกเป็นสองสาย มีพลังต่างกัน" % JobData.JOB_LEVEL)
 		return
 	var branches := JobData.jobs_for(Game.class_id())
 	var options: Array = []
@@ -310,6 +328,34 @@ func _talk_job() -> void:
 		options.append({"label": String(info.name), "action": func(): _show_job(id)})
 	options.append({"label": "ไว้ก่อน"})
 	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)" % [Game.class_data().name, JobData.JOB_COST], options)
+
+
+func _show_line(id: StringName) -> void:
+	var data := ClassData.get_class_data(id)
+	var lines: PackedStringArray = [data.desc, "สกิลแรกที่จะได้:"]
+	var shown := 0
+	for skill in ClassData.pool(id):
+		if shown >= 4:
+			break
+		lines.append("• %s (Lv.%d)" % [skill.name, int(skill.level)])
+		shown += 1
+	var options: Array = [{"label": "เลือกสายนี้", "action": func(): _confirm_line(id)}]
+	for other in ClassData.IDS:
+		if other != id:
+			options.append({"label": "ดู%s" % ClassData.get_class_data(other).name, "action": func(): _show_line(other)})
+	options.append({"label": "ไว้ก่อน"})
+	dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "\n".join(lines), options)
+
+
+func _confirm_line(id: StringName) -> void:
+	if not Game.change_class(id):
+		return
+	AudioManager.play_sfx(&"quest_complete")
+	hud.show_banner("เลือกสาย: %s!" % ClassData.get_class_data(id).name)
+	Game.say("ได้สกิลของสายใหม่แล้ว! เปิดเมนูสกิลเพื่อจัดแถบ และไปหาปรมาจารย์สกิลเพื่ออัปสกิล", &"success")
+	await go(&"town", true)
+	if zone and zone.hero:
+		VfxKit.level_up(zone, zone.hero.global_position)
 
 
 func _confirm_master() -> void:
@@ -321,15 +367,13 @@ func _confirm_master() -> void:
 	VfxKit.level_up(zone, zone.hero.global_position)
 	AudioManager.play_sfx(&"quest_complete")
 	hud.show_banner("เลื่อนขั้น: %s!" % Game.class_data().name)
-	Game.say("ได้สกิลใหม่ 2 ตัวมาแทนสกิลที่ 3-4 และแต้มสกิล +3", &"success")
+	Game.say("เลื่อนขั้นสูงสุดแล้ว! พลังเพิ่มขึ้นและได้แต้มสกิล +3", &"success")
 	Game.save()
 
 
 func _show_job(id: StringName) -> void:
 	var info := JobData.get_job(id)
 	var lines: PackedStringArray = ["%s — %s" % [info.name, info.title], info.desc]
-	for skill in info.skills:
-		lines.append("• %s: %s" % [skill.name, skill.desc])
 	var others := JobData.jobs_for(Game.class_id())
 	others.erase(id)
 	var options: Array = [{"label": "เลือก (%d)" % JobData.JOB_COST, "action": func(): _confirm_job(id)}]
@@ -349,7 +393,7 @@ func _confirm_job(id: StringName) -> void:
 	VfxKit.level_up(zone, zone.hero.global_position)
 	AudioManager.play_sfx(&"quest_complete")
 	hud.show_banner("เปลี่ยนอาชีพ: %s!" % info.name)
-	Game.say("ได้สกิลใหม่ 2 ตัว และแต้มสกิล +2 — ดูได้ที่เมนูสกิล", &"success")
+	Game.say("เปลี่ยนอาชีพแล้ว! พลังเพิ่มขึ้น และได้แต้มสกิล +2", &"success")
 	Game.save()
 
 

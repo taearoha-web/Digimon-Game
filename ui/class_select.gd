@@ -5,7 +5,7 @@ extends CanvasLayer
 signal confirmed(class_id: StringName, hero_name: String)
 signal cancelled()
 
-var _selected: StringName = &"warrior"
+var _selected: StringName = ClassData.START
 var _preview: HeroVisual
 var _cards: Dictionary = {}
 var _name_input: LineEdit
@@ -27,7 +27,7 @@ func _ready() -> void:
 	root.add_child(safe)
 	var frame := Control.new()
 	safe.add_child(frame)
-	var header := UIUtil.label("เลือกอาชีพของคุณ", &"HeaderLabel")
+	var header := UIUtil.label("สร้างตัวละคร", &"HeaderLabel")
 	header.position = Vector2(8, 4)
 	frame.add_child(header)
 
@@ -80,9 +80,11 @@ func _ready() -> void:
 	frame.add_child(right)
 	var row := UIUtil.hbox(10)
 	right.add_child(row)
-	for id in ClassData.IDS:
+	# Everyone starts as a Vagabond; the four lines are chosen at Lv.10. The
+	# cards let the player preview each line's look.
+	for id in [ClassData.START] + ClassData.IDS:
 		var data := ClassData.get_class_data(id)
-		var card := UIUtil.button(String(data.name), &"", Vector2(180, 74))
+		var card := UIUtil.button(String(data.name), &"", Vector2(150, 74))
 		card.pressed.connect(func(): _select(id))
 		row.add_child(card)
 		_cards[id] = card
@@ -109,7 +111,7 @@ func _ready() -> void:
 	var back := UIUtil.button("กลับ", &"", Vector2(120, 68))
 	back.pressed.connect(func(): cancelled.emit())
 	name_row.add_child(back)
-	_select(&"warrior")
+	_select(ClassData.START)
 
 
 ## Drag the preview with a finger (or mouse) to turn the hero.
@@ -147,7 +149,15 @@ func _select(id: StringName) -> void:
 	_title.text = "%s — %s" % [data.name, data.title]
 	_desc.text = data.desc
 	UIUtil.clear(_skills_box)
-	for skill in data.skills:
+	var pool := ClassData.pool(id)
+	var shown := 0
+	if id != ClassData.START:
+		var note := UIUtil.label("เลือกสายนี้ได้ที่เลเวล %d — สกิลตัวอย่าง:" % ClassData.LINE_LEVEL, &"SmallLabel")
+		_skills_box.add_child(note)
+	for skill in pool:
+		shown += 1
+		if shown > 4:
+			break
 		var line := UIUtil.label("• %s (Lv.%d)  %s" % [skill.name, int(skill.level), skill.desc], &"SmallLabel")
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size = Vector2(740, 0)
@@ -159,4 +169,4 @@ func _on_confirm() -> void:
 	var hero_name := _name_input.text.strip_edges()
 	if hero_name == "":
 		hero_name = "ฮีโร่"
-	confirmed.emit(_selected, hero_name)
+	confirmed.emit(ClassData.START, hero_name)

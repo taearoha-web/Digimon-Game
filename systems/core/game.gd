@@ -67,7 +67,7 @@ func new_profile(class_id: StringName, hero_name: String) -> void:
 		"version": SAVE_VERSION, "class": String(class_id), "name": hero_name.strip_edges(),
 		"level": 1, "exp": 0, "points": 0, "skill_points": 1,
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
-		"skills": {}, "gold": 150, "equip": {}, "inv": [],
+		"skills": {}, "loadout": ["", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
 		"flags": {}, "boss_kills": {},
 	}
@@ -76,6 +76,7 @@ func new_profile(class_id: StringName, hero_name: String) -> void:
 	starter["name"] = "%s ของมือใหม่" % ItemData.NAMES[starter.base][0]
 	profile["equip"]["weapon"] = starter
 	profile["inv"] = [ItemData.potion("hp_s", 5), ItemData.potion("mp_s", 3), ItemData.potion("town_scroll", 1)]
+	fill_loadout()
 	var stats := stats_now()
 	profile["hp"] = stats.max_hp
 	profile["mp"] = stats.max_mp
@@ -89,8 +90,91 @@ func class_id() -> StringName:
 	return StringName(profile.get("class", "warrior"))
 
 
+## The class with the skill bar loadout as [code]skills[/code] (always 4 entries, {} = empty slot).
 func class_data() -> Dictionary:
-	return JobData.resolve(class_id(), job_id(), bool(profile.get("job3", false)))
+	var data := JobData.resolve(class_id(), job_id(), bool(profile.get("job3", false))).duplicate()
+	data["skills"] = loadout_skills()
+	return data
+
+
+## Every active skill of the class (the pool the bar is filled from).
+func skill_pool() -> Array:
+	return ClassData.pool(class_id())
+
+
+func passive_pool() -> Array:
+	return ClassData.PASSIVES.get(class_id(), [])
+
+
+func loadout_skills() -> Array:
+	var out: Array = []
+	for id in loadout():
+		out.append(ClassData.find_skill(class_id(), String(id)))
+	return out
+
+
+func loadout() -> Array:
+	if not profile.get("loadout") is Array or (profile["loadout"] as Array).size() != ClassData.SLOTS:
+		fill_loadout()
+	return profile["loadout"]
+
+
+## Keeps the bar valid and puts newly unlocked skills into empty slots.
+func fill_loadout() -> void:
+	profile["loadout"] = ClassData.default_loadout(class_id(), int(profile.get("level", 1)), profile.get("loadout", []))
+
+
+## Puts a skill on a bar slot; a skill already on the bar swaps places.
+func equip_skill(skill_id: String, slot: int) -> bool:
+	var skill := ClassData.find_skill(class_id(), skill_id)
+	if skill.is_empty() or not skill_unlocked(skill) or slot < 0 or slot >= ClassData.SLOTS:
+		return false
+	var bar: Array = loadout()
+	var from := bar.find(skill_id)
+	if from >= 0:
+		bar[from] = bar[slot]
+	bar[slot] = skill_id
+	profile_changed.emit()
+	mark_dirty()
+	return true
+
+
+## Vagabond -> one of the four lines (Lv.10, free). Vagabond weapons turn into
+## the new line's weapon type with the same level, rarity and enhancement.
+func change_class(new_class: StringName) -> bool:
+	if class_id() != ClassData.START or not ClassData.IDS.has(new_class) or int(profile["level"]) < ClassData.LINE_LEVEL:
+		return false
+	profile["class"] = String(new_class)
+	var local := RandomNumberGenerator.new()
+	local.randomize()
+	for slot in profile["equip"]:
+		_convert_weapon(profile["equip"][slot], new_class, local)
+	for item in profile["inv"]:
+		_convert_weapon(item, new_class, local)
+	profile["loadout"] = ["", "", "", ""]
+	fill_loadout()
+	var stats := stats_now()
+	profile["hp"] = stats.max_hp
+	profile["mp"] = stats.max_mp
+	if party().is_empty():
+		ensure_party()
+	profile_changed.emit()
+	inventory_changed.emit()
+	party_changed.emit()
+	mark_dirty()
+	check_achievements()
+	save()
+	return true
+
+
+func _convert_weapon(item: Dictionary, new_class: StringName, rng: RandomNumberGenerator) -> void:
+	if item.get("kind", "") != "equip" or item.get("class", "") != String(ClassData.START):
+		return
+	var fresh := ItemData.generate(int(item.level), new_class, rng, int(item.rarity), "weapon")
+	item["class"] = String(new_class)
+	item["base"] = fresh.base
+	var starter := String(item.get("name", "")).ends_with("ของมือใหม่")
+	item["name"] = ("%s ของมือใหม่" % ItemData.NAMES[fresh.base][0]) if starter else fresh.name
 
 
 func job_id() -> StringName:
@@ -231,11 +315,30 @@ func _repair(data: Dictionary) -> Dictionary:
 		data.attrs[key] = int(data.attrs.get(key, 0))
 	for skill_id in data.skills.keys():
 		data.skills[skill_id] = int(data.skills[skill_id])
+	_migrate_skills(data)
 	for item in data.inv:
 		_repair_item(item)
 	for slot in data.equip:
 		_repair_item(data.equip[slot])
 	return data
+
+
+## Saves from before the Priston Tale skill system: refund the skill points
+## spent on the old skills and start with a fresh bar.
+func _migrate_skills(data: Dictionary) -> void:
+	var cls := StringName(data.get("class", "warrior"))
+	var valid := {}
+	for skill in ClassData.pool(cls):
+		valid[skill.id] = true
+	for skill in ClassData.PASSIVES.get(cls, []):
+		valid[skill.id] = true
+	for skill_id in data.skills.keys():
+		if not valid.has(skill_id):
+			data["skill_points"] = int(data["skill_points"]) + maxi(0, int(data.skills[skill_id]) - 1)
+			data.skills.erase(skill_id)
+	if not data.get("loadout") is Array:
+		data["loadout"] = ["", "", "", ""]
+	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"])
 
 
 func _repair_item(item: Dictionary) -> void:
@@ -272,6 +375,7 @@ func add_exp(amount: int) -> void:
 		gained = true
 	exp_changed.emit()
 	if gained:
+		fill_loadout()
 		var stats := stats_now()
 		profile["hp"] = stats.max_hp
 		profile["mp"] = stats.max_mp
@@ -433,12 +537,20 @@ func effective_rank(skill: Dictionary) -> int:
 	return maxi(1, skill_rank(skill.id)) if skill_unlocked(skill) else 0
 
 
+## Gold the Skill Master charges to raise a skill from its current rank.
+func skill_upgrade_cost(skill: Dictionary) -> int:
+	return 60 * effective_rank(skill) * maxi(1, int(skill.level) / 5)
+
+
+## Done at the Skill Master: costs one skill point and gold per rank.
 func upgrade_skill(skill: Dictionary) -> bool:
 	if profile["skill_points"] <= 0 or not skill_unlocked(skill):
 		return false
 	var rank := effective_rank(skill)
-	if rank >= MAX_SKILL_RANK:
+	if rank >= MAX_SKILL_RANK or int(profile["gold"]) < skill_upgrade_cost(skill):
 		return false
+	profile["gold"] -= skill_upgrade_cost(skill)
+	gold_changed.emit(profile["gold"])
 	profile["skill_points"] -= 1
 	profile["skills"][skill.id] = rank + 1
 	profile_changed.emit()

@@ -363,17 +363,30 @@ func _use_potion(index: int) -> void:
 # ---------------------------------------------------------------------------
 
 func _build_skills() -> void:
+	var scroll := TouchScroll.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_content.add_child(scroll)
 	var box := UIUtil.vbox(8)
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_content.add_child(box)
-	box.add_child(UIUtil.label("แต้มสกิลที่ใช้ได้: %d   (สกิลแต่ละตัวอัปได้สูงสุด ★%d: แรงขึ้น 15%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK], &"SubHeaderLabel"))
-	var all_skills: Array = Game.class_data().skills.duplicate()
-	all_skills.append_array(ClassData.PASSIVES.get(Game.class_id(), []))
-	for skill in all_skills:
-		var is_passive: bool = skill.has("bonus")
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	box.add_child(UIUtil.label("แถบสกิล: เลือกใส่ได้ 4 ช่อง   •   แต้มสกิล %d (ไปอัปที่ปรมาจารย์สกิลในหมู่บ้าน)" % int(Game.profile.skill_points), &"SubHeaderLabel"))
+	var bar_row := UIUtil.hbox(8)
+	box.add_child(bar_row)
+	var bar: Array = Game.loadout_skills()
+	for i in bar.size():
+		var slot_panel := UIUtil.panel(&"CardPanel")
+		slot_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var slot_label := UIUtil.label("%d. %s" % [i + 1, bar[i].name if not bar[i].is_empty() else "— ว่าง —"], &"BoldLabel")
+		slot_label.clip_text = true
+		slot_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		slot_panel.add_child(slot_label)
+		bar_row.add_child(slot_panel)
+	var pool: Array = Game.skill_pool()
+	for skill in pool:
 		var panel := UIUtil.panel(&"CardPanel")
 		box.add_child(panel)
-		var line := UIUtil.hbox(14)
+		var line := UIUtil.hbox(10)
 		panel.add_child(line)
 		var info := UIUtil.vbox(2)
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -385,13 +398,33 @@ func _build_skills() -> void:
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
 		info.add_child(title_label)
-		var desc := UIUtil.label(("[ติดตัว] " + String(skill.desc)) if is_passive else "%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
+		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(desc)
-		var up := UIUtil.button("อัป", &"PrimaryButton", Vector2(110, 56))
-		up.disabled = not unlocked or rank >= Game.MAX_SKILL_RANK or int(Game.profile.skill_points) <= 0
-		up.pressed.connect(func(): Game.upgrade_skill(skill))
-		line.add_child(up)
+		var equipped := Game.loadout().find(skill.id)
+		for slot in ClassData.SLOTS:
+			var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(56, 56))
+			b.disabled = not unlocked or equipped == slot
+			b.pressed.connect(func():
+				if Game.equip_skill(skill.id, slot):
+					AudioManager.play_ui(&"ui_select"))
+			line.add_child(b)
+	var passives: Array = Game.passive_pool()
+	if not passives.is_empty():
+		box.add_child(UIUtil.label("สกิลติดตัว (ทำงานเองตลอด)", &"SubHeaderLabel"))
+	for skill in passives:
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var info := UIUtil.vbox(2)
+		panel.add_child(info)
+		var unlocked := Game.skill_unlocked(skill)
+		var rank := Game.effective_rank(skill)
+		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else "ปลดล็อกที่เลเวล %d" % int(skill.level))]
+		var title_label := UIUtil.label(title, &"BoldLabel")
+		if not unlocked:
+			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
+		info.add_child(title_label)
+		info.add_child(UIUtil.label(String(skill.desc), &"SmallLabel"))
 
 
 # ---------------------------------------------------------------------------
