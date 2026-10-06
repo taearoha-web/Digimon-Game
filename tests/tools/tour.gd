@@ -7,6 +7,7 @@ var out_dir := "user://shots"
 var class_id: StringName = &"warrior"
 var tour := "field"
 var job := ""
+var master := false
 var main: Node
 var _n := 0
 
@@ -17,6 +18,7 @@ func _ready() -> void:
 	if args.size() > 1: class_id = StringName(args[1])
 	if args.size() > 2: tour = args[2]
 	if args.size() > 3: job = args[3]
+	if args.size() > 4: master = args[4] == "master"
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
@@ -107,9 +109,11 @@ func _field() -> void:
 
 
 func _skills() -> void:
-	_level(20 if job != "" else 12)
+	Game.dismiss_party()
+	_level(34 if master else (20 if job != "" else 12))
 	if job != "":
 		Game.profile["job"] = job
+		Game.profile["job3"] = master
 		Game.profile_changed.emit()
 	await main.go(&"meadow", true)
 	await _wait(1.0)

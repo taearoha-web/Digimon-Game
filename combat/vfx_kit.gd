@@ -111,6 +111,16 @@ static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, 
 	return p
 
 
+static func _textured_quad(tex: Texture2D, color: Color, size: float) -> QuadMesh:
+	var quad := QuadMesh.new()
+	quad.size = Vector2(size, size)
+	var mat := _glow(color, 1.0)
+	mat.albedo_texture = tex
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	quad.material = mat
+	return quad
+
+
 static func _fade_ramp() -> Gradient:
 	var g := Gradient.new()
 	g.set_color(0, Color(1, 1, 1, 1))
@@ -157,6 +167,7 @@ static func flash(parent: Node3D, pos: Vector3, color: Color, size := 2.2, durat
 ## Standard hit: flash + sparks + a small ring.
 static func impact(parent: Node3D, pos: Vector3, color: Color, scale := 1.0) -> void:
 	flash(parent, pos, color, 2.0 * scale)
+	VfxArt.star_flash(parent, pos, color, 2.4 * scale, 0.3)
 	sparks(parent, pos, color, int(18 * scale), 5.0 * scale, 0.5)
 	sparks(parent, pos, Color.WHITE, int(8 * scale), 3.0 * scale, 0.35)
 	var mat := _glow(color, 0.9, false)
@@ -174,10 +185,16 @@ static func impact(parent: Node3D, pos: Vector3, color: Color, scale := 1.0) -> 
 # ---------------------------------------------------------------------------
 
 ## Glowing orb with a particle trail. Travels in a slight arc; awaitable.
-static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float, size := 0.5) -> void:
+static func variant_for(vfx: StringName) -> String:
+	return {&"fireball": "flame", &"frost": "shard", &"light": "spark", &"thunder": "spark", &"leaf": "spark"}.get(vfx, "orb")
+
+
+static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float, size := 0.5, variant := "orb") -> void:
 	var holder := Node3D.new()
 	parent.add_child(holder)
 	holder.global_position = from
+	if from.distance_to(to) > 0.05:
+		holder.look_at_from_position(from, to, Vector3.UP)
 	var core := _instance(holder, MeshKit.sphere(), _glow(Color(1, 1, 1), 1.0), from)
 	core.scale = Vector3.ONE * size * 0.6
 	var halo := _instance(holder, MeshKit.sphere(), _glow(color, 0.9, false), from)
@@ -196,6 +213,33 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 	trail.gravity = Vector3.ZERO
 	trail.scale_amount_min = 0.6
 	trail.scale_amount_max = 1.2
+	match variant:
+		"flame":
+			trail.mesh = _textured_quad(VfxArt.texture("star"), color, 0.5)
+			for i in 3:
+				var flame := _instance(holder, MeshKit.cone(), _glow(Color("ff8a2a"), 0.8), from)
+				flame.scale = Vector3(size * 0.7, size * (2.2 - i * 0.5), size * 0.7)
+				flame.rotation_degrees = Vector3(90, 0, 0)
+				flame.position = Vector3(randf_range(-0.05, 0.05), randf_range(-0.05, 0.05), size * (0.9 + i * 0.35))
+		"shard":
+			trail.mesh = _textured_quad(VfxArt.texture("snow"), color, 0.45)
+			core.visible = false
+			halo.visible = false
+			var shard := _instance(holder, MeshKit.cone(), _glow(color.lerp(Color.WHITE, 0.5), 0.95, false), from)
+			shard.scale = Vector3(size * 0.45, size * 2.4, size * 0.45)
+			shard.rotation_degrees = Vector3(-90, 0, 0)
+			var tail := _instance(holder, MeshKit.cone(), _glow(color, 0.8, false), from)
+			tail.scale = Vector3(size * 0.45, size * 1.2, size * 0.45)
+			tail.rotation_degrees = Vector3(90, 0, 0)
+			tail.position = Vector3(0, 0, size * 1.2)
+		"spark":
+			trail.mesh = _textured_quad(VfxArt.texture("star"), color, 0.5)
+			var star_quad := QuadMesh.new()
+			star_quad.size = Vector2.ONE * size * 3.2
+			var star_mat := _glow(color.lerp(Color.WHITE, 0.4), 1.0)
+			star_mat.albedo_texture = VfxArt.texture("star")
+			star_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			_instance(holder, star_quad, star_mat, from)
 	var light := OmniLight3D.new()
 	light.light_color = color
 	light.light_energy = 1.4

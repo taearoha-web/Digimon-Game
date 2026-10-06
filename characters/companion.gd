@@ -375,7 +375,7 @@ func _shoot(mob: Mob, mult: float, color: Color, vfx: StringName, skill: Variant
 	if String(member["class"]) == "archer":
 		VfxKit.arrow(field, color, from, to, flight)
 	else:
-		VfxKit.projectile(field, color, from, to, flight, 0.35)
+		VfxKit.projectile(field, color, from, to, flight, 0.35, VfxKit.variant_for(vfx))
 	get_tree().create_timer(flight).timeout.connect(func():
 		if is_instance_valid(mob) and not mob.is_dead():
 			_deal(mob, mult, color, vfx, false, skill)

@@ -396,7 +396,7 @@ func _basic_attack() -> void:
 			if Game.class_id() == &"archer":
 				VfxKit.arrow(field, color, from, to, flight)
 			else:
-				VfxKit.projectile(field, color, from, to, flight, 0.3)
+				VfxKit.projectile(field, color, from, to, flight, 0.3, VfxKit.variant_for(attack.vfx))
 			get_tree().create_timer(flight).timeout.connect(func(): _deal(mob, float(attack.mult), color, attack.vfx, false), CONNECT_ONE_SHOT)
 		, CONNECT_ONE_SHOT)
 	else:
@@ -573,7 +573,7 @@ func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: floa
 	if Game.class_id() == &"archer":
 		VfxKit.arrow(field, color, from, to, flight)
 	else:
-		VfxKit.projectile(field, color, from, to, flight, 0.5 * scale)
+		VfxKit.projectile(field, color, from, to, flight, 0.5 * scale, VfxKit.variant_for(skill.vfx))
 	get_tree().create_timer(flight).timeout.connect(func():
 		if _dead:
 			return

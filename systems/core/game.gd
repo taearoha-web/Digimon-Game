@@ -16,6 +16,7 @@ signal party_leveled(index: int, level: int)
 signal party_roster_changed()
 signal achievement_unlocked(name: String)
 signal ending_requested()
+signal screen_flash(color: Color, strength: float)
 
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
