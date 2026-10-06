@@ -72,7 +72,7 @@ func _draw() -> void:
 	else:
 		_text("Lv.%d" % int(skill.level), c + Vector2(0, radius * 0.52), 15, Color(1, 0.85, 0.5))
 	if show_name and _font:
-		_text(String(skill.name), c + Vector2(0, radius + 15.0), 15, Color(1, 1, 1, 0.95 if ready else 0.65))
+		_text(String(skill.name), c + Vector2(0, radius + 14.0), 13, Color(1, 1, 1, 0.95 if ready else 0.65))
 
 
 ## One drawing per skill icon key; returns false for unknown keys (the shape glyph is used then).

@@ -85,7 +85,7 @@ func _ready() -> void:
 	_label = Label3D.new()
 	_label.text = "Lv.%d %s" % [level, template.name]
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.pixel_size = 0.0062
+	_label.pixel_size = 0.0046
 	_label.font_size = 44
 	_label.outline_size = 12
 	_label.modulate = Color(1.0, 0.82, 0.35) if is_boss else Color(1, 0.95, 0.85)

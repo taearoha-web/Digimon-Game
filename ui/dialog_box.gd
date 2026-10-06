@@ -30,8 +30,8 @@ func _ready() -> void:
 	_panel.anchor_bottom = 1.0
 	_panel.offset_left = -480
 	_panel.offset_right = 480
-	_panel.offset_top = -250
-	_panel.offset_bottom = -18
+	_panel.offset_top = -270
+	_panel.offset_bottom = -12
 	_panel.visible = false
 	frame.add_child(_panel)
 	var column := UIUtil.vbox(10)
@@ -39,10 +39,14 @@ func _ready() -> void:
 	_speaker = UIUtil.label("", &"SubHeaderLabel")
 	_speaker.add_theme_color_override("font_color", UIPalette.GOLD)
 	column.add_child(_speaker)
+	var text_scroll := TouchScroll.new()
+	text_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_scroll.custom_minimum_size = Vector2(0, 90)
+	column.add_child(text_scroll)
 	_text = UIUtil.label("", &"BoldLabel")
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(_text)
+	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_scroll.add_child(_text)
 	_buttons = UIUtil.hbox(14)
 	_buttons.alignment = BoxContainer.ALIGNMENT_END
 	column.add_child(_buttons)
@@ -57,7 +61,7 @@ func say(speaker: String, text: String, options: Array = []) -> void:
 	if options.is_empty():
 		options = [{"label": "ตกลง", "action": Callable()}]
 	for option in options:
-		var b := UIUtil.button(String(option.label), &"PrimaryButton" if option == options[0] else &"", Vector2(160, 58))
+		var b := UIUtil.button(String(option.label), &"PrimaryButton" if option == options[0] else &"", Vector2(140, 52))
 		var action: Callable = option.get("action", Callable())
 		b.pressed.connect(func():
 			close()

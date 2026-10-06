@@ -307,7 +307,7 @@ func _build_status(frame: Control) -> void:
 func _build_party(column: Control) -> void:
 	for i in 1:
 		var card := UIUtil.panel(&"HudPanel")
-		card.custom_minimum_size = Vector2(230, 0)
+		card.custom_minimum_size = Vector2(350, 0)
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.gui_input.connect(_tap(func():
 			var stance := Game.cycle_stance()
@@ -329,6 +329,9 @@ func _build_party(column: Control) -> void:
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(info)
 		var title := UIUtil.label("", &"SmallLabel")
+		title.clip_text = true
+		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(title)
 		var bar := _bar(&"HPBar", 9)
 		info.add_child(bar)

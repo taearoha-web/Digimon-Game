@@ -19,7 +19,7 @@ func _initialize() -> void:
 	_make_fonts()
 	var theme := Theme.new()
 	theme.default_font = body_font
-	theme.default_font_size = 22
+	theme.default_font_size = 18
 	_button_styles(theme)
 	_label_styles(theme)
 	_panel_styles(theme)
@@ -122,7 +122,7 @@ func _button_set(theme: Theme, type: String, bg: Color, border: Color, font_colo
 	theme.set_color("font_disabled_color", type, Color(font_color.r, font_color.g, font_color.b, 0.4))
 	theme.set_color("icon_normal_color", type, Color.WHITE)
 	theme.set_font("font", type, heading_font)
-	theme.set_font_size("font_size", type, 24)
+	theme.set_font_size("font_size", type, 19)
 	theme.set_constant("h_separation", type, 10)
 
 
@@ -134,7 +134,7 @@ func _button_styles(theme: Theme) -> void:
 	_button_set(theme, "PrimaryButton", P.ORANGE, Color("ffd9c2"), Color.WHITE, 20, Color("ff935f"), Color("e0612a"))
 	theme.set_color("font_outline_color", "PrimaryButton", Color("8a3510"))
 	theme.set_constant("outline_size", "PrimaryButton", 5)
-	theme.set_font_size("font_size", "PrimaryButton", 26)
+	theme.set_font_size("font_size", "PrimaryButton", 21)
 
 	theme.add_type("AccentButton")
 	theme.set_type_variation("AccentButton", "Button")
@@ -157,14 +157,14 @@ func _button_styles(theme: Theme) -> void:
 	theme.set_stylebox("hover_pressed", "TabButton", _box(Color("27a7d4"), P.CYAN, 2, 16))
 	theme.set_color("font_pressed_color", "TabButton", Color.WHITE)
 	theme.set_color("font_hover_pressed_color", "TabButton", Color.WHITE)
-	theme.set_font_size("font_size", "TabButton", 21)
+	theme.set_font_size("font_size", "TabButton", 17)
 
 	theme.add_type("ChoiceButton")
 	theme.set_type_variation("ChoiceButton", "Button")
 	_button_set(theme, "ChoiceButton", Color(0.13, 0.19, 0.42, 0.9), Color(1, 1, 1, 0.12), P.TEXT, 14, Color(0.18, 0.26, 0.55, 1.0), Color(0.2, 0.55, 0.75, 1.0))
 	theme.set_stylebox("pressed", "ChoiceButton", _box(Color("1f6f9a"), P.CYAN, 3, 14))
 	theme.set_stylebox("hover_pressed", "ChoiceButton", _box(Color("2583b4"), P.CYAN, 3, 14))
-	theme.set_font_size("font_size", "ChoiceButton", 20)
+	theme.set_font_size("font_size", "ChoiceButton", 16)
 
 	theme.add_type("IconButton")
 	theme.set_type_variation("IconButton", "Button")
@@ -187,7 +187,7 @@ func _button_styles(theme: Theme) -> void:
 	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
 		theme.set_stylebox(state, "CheckButton", empty)
 	theme.set_font("font", "CheckButton", body_font)
-	theme.set_font_size("font_size", "CheckButton", 22)
+	theme.set_font_size("font_size", "CheckButton", 18)
 	theme.set_color("font_color", "CheckButton", P.TEXT)
 	theme.set_color("font_hover_color", "CheckButton", Color.WHITE)
 	theme.set_color("font_pressed_color", "CheckButton", Color.WHITE)
@@ -200,15 +200,15 @@ func _label_styles(theme: Theme) -> void:
 	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0))
 
 	var variations := {
-		"TitleLabel": [heading_font, 60, Color.WHITE, 12],
-		"HeaderLabel": [heading_font, 34, Color.WHITE, 6],
-		"SubHeaderLabel": [heading_font, 24, P.CYAN, 0],
-		"ValueLabel": [heading_font, 22, Color.WHITE, 0],
-		"BoldLabel": [bold_font, 22, P.TEXT, 0],
-		"DimLabel": [body_font, 19, P.TEXT_DIM, 0],
-		"SmallLabel": [body_font, 17, P.TEXT_DIM, 0],
-		"HudLabel": [bold_font, 20, Color.WHITE, 5],
-		"NameTagLabel": [heading_font, 24, Color.WHITE, 6],
+		"TitleLabel": [heading_font, 48, Color.WHITE, 12],
+		"HeaderLabel": [heading_font, 27, Color.WHITE, 6],
+		"SubHeaderLabel": [heading_font, 19, P.CYAN, 0],
+		"ValueLabel": [heading_font, 18, Color.WHITE, 0],
+		"BoldLabel": [bold_font, 18, P.TEXT, 0],
+		"DimLabel": [body_font, 15, P.TEXT_DIM, 0],
+		"SmallLabel": [body_font, 14, P.TEXT_DIM, 0],
+		"HudLabel": [bold_font, 16, Color.WHITE, 5],
+		"NameTagLabel": [heading_font, 19, Color.WHITE, 6],
 	}
 	for type_name in variations.keys():
 		var v: Array = variations[type_name]
@@ -225,8 +225,8 @@ func _label_styles(theme: Theme) -> void:
 
 	theme.set_font("normal_font", "RichTextLabel", body_font)
 	theme.set_font("bold_font", "RichTextLabel", bold_font)
-	theme.set_font_size("normal_font_size", "RichTextLabel", 22)
-	theme.set_font_size("bold_font_size", "RichTextLabel", 22)
+	theme.set_font_size("normal_font_size", "RichTextLabel", 18)
+	theme.set_font_size("bold_font_size", "RichTextLabel", 18)
 	theme.set_color("default_color", "RichTextLabel", P.TEXT)
 
 
@@ -259,7 +259,7 @@ func _input_styles(theme: Theme) -> void:
 	theme.set_stylebox("focus", "LineEdit", focus)
 	theme.set_stylebox("read_only", "LineEdit", normal)
 	theme.set_font("font", "LineEdit", heading_font)
-	theme.set_font_size("font_size", "LineEdit", 32)
+	theme.set_font_size("font_size", "LineEdit", 26)
 	theme.set_color("font_color", "LineEdit", Color.WHITE)
 	theme.set_color("font_placeholder_color", "LineEdit", P.TEXT_MUTED)
 	theme.set_color("caret_color", "LineEdit", P.CYAN)
@@ -273,7 +273,7 @@ func _bar_styles(theme: Theme) -> void:
 	theme.set_stylebox("background", "ProgressBar", bg)
 	theme.set_stylebox("fill", "ProgressBar", fill)
 	theme.set_font("font", "ProgressBar", bold_font)
-	theme.set_font_size("font_size", "ProgressBar", 14)
+	theme.set_font_size("font_size", "ProgressBar", 11)
 	theme.set_color("font_color", "ProgressBar", Color.WHITE)
 	for pair in [["HPBar", P.HP_HIGH], ["SPBar", P.SP], ["EXPBar", P.EXP], ["StatBar", P.ORANGE]]:
 		var type_name: String = pair[0]

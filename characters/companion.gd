@@ -66,7 +66,7 @@ func _ready() -> void:
 	MeshKit.blob_shadow(self, 0.8)
 	_label = Label3D.new()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.pixel_size = 0.0062
+	_label.pixel_size = 0.0046
 	_label.font_size = 44
 	_label.outline_size = 12
 	_label.modulate = Color("8ff0ff")
