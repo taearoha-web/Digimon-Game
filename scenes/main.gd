@@ -127,6 +127,7 @@ func go(zone_id: StringName, instant := false) -> void:
 	_clear_zone()
 	await get_tree().process_frame
 	Game.current_zone = zone_id
+	Game.save()
 	if from_zone != String(zone_id):
 		Game.profile["spawn_override"] = from_zone
 	var z := Zone.new()

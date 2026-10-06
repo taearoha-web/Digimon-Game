@@ -191,7 +191,7 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	label.font = load("res://ui/theme/fonts/heading_font.tres")
 	label.font_size = int(96 * size)
 	label.outline_size = int(22 * size)
-	label.pixel_size = 0.006
+	label.pixel_size = 0.0042
 	label.modulate = color
 	label.outline_modulate = Color(0.03, 0.05, 0.14)
 	parent.add_child(label)

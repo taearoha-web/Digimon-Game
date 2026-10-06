@@ -52,6 +52,9 @@ var _party_cards: Array[Dictionary] = []
 var minimap: Minimap
 
 
+var _save_label: Label
+
+
 func _ready() -> void:
 	layer = 10
 	_root = Control.new()
@@ -83,8 +86,24 @@ func _ready() -> void:
 	_combat_controls = [attack_button, hp_potion, mp_potion, target_button]
 	_combat_controls.append_array(skill_slots)
 	Game.gold_changed.connect(func(_g): _refresh_gold())
+	_save_label = UIUtil.label("💾 บันทึกอัตโนมัติ", &"SmallLabel")
+	_save_label.modulate.a = 0.0
+	_save_label.anchor_left = 0.5
+	_save_label.anchor_right = 0.5
+	_save_label.offset_left = -70.0
+	_save_label.offset_top = 6.0
+	_save_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.add_child(_save_label)
+	Game.autosaved.connect(_flash_saved)
 	Game.toast.connect(func(text: String, _k: StringName): pass)
 	_refresh_gold()
+
+
+func _flash_saved() -> void:
+	var tw := create_tween()
+	tw.tween_property(_save_label, "modulate:a", 0.85, 0.2)
+	tw.tween_interval(1.2)
+	tw.tween_property(_save_label, "modulate:a", 0.0, 0.6)
 
 
 func bind(p_zone: Zone) -> void:
@@ -427,13 +446,13 @@ func _build_action_buttons(frame: Control) -> void:
 		frame.add_child(slot)
 		skill_slots.append(slot)
 
-	hp_potion = _small_button("res://assets/icons/ui/heart_potion.svg", Color("ff5a6e"), center + Vector2(-108, 46))
+	hp_potion = _small_button("res://assets/icons/ui/heart_potion.svg", Color("ff5a6e"), center + Vector2(-230, 50))
 	hp_potion.pressed.connect(func(): if hero: hero.use_potion("hp"))
 	frame.add_child(hp_potion)
-	mp_potion = _small_button("res://assets/icons/ui/mana_potion.svg", Color("5a9bff"), center + Vector2(-176, 40))
+	mp_potion = _small_button("res://assets/icons/ui/mana_potion.svg", Color("5a9bff"), center + Vector2(-298, 46))
 	mp_potion.pressed.connect(func(): if hero: hero.use_potion("mp"))
 	frame.add_child(mp_potion)
-	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.DANGER, center + Vector2(-244, 26))
+	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.DANGER, center + Vector2(-366, 40))
 	target_button.pressed.connect(func(): if hero: hero.cycle_target())
 	frame.add_child(target_button)
 

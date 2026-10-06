@@ -631,7 +631,7 @@ func receive_buff(buff_data: Dictionary, color: Color, label := "") -> void:
 	VfxKit.aura(field, global_position, color)
 	VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
 	if label != "":
-		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), label, color, 0.9)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), label, color, 0.6)
 	AudioManager.play_sfx(&"buff")
 
 
