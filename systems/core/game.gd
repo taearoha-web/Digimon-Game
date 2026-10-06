@@ -9,6 +9,7 @@ signal gold_changed(gold: int)
 signal exp_changed()
 signal leveled_up(level: int)
 signal toast(text: String, kind: StringName)
+signal autosaved()
 signal item_gained(item: Dictionary)
 signal quest_changed()
 signal party_changed()
@@ -20,6 +21,7 @@ signal screen_flash(color: Color, strength: float)
 
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
+const AUTOSAVE_INTERVAL := 10.0
 const INVENTORY_SIZE := 30
 const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 50
@@ -43,8 +45,17 @@ func _process(delta: float) -> void:
 		return
 	profile["play_time"] = float(profile.get("play_time", 0.0)) + delta
 	_autosave_timer += delta
-	if _autosave_timer > 30.0 and _dirty:
+	if _autosave_timer > AUTOSAVE_INTERVAL and _dirty:
 		save()
+		autosaved.emit()
+
+
+func _notification(what: int) -> void:
+	# Leaving the tab / app, or closing it, saves right away.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED \
+			or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if has_profile:
+			save()
 
 
 # ---------------------------------------------------------------------------

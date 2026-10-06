@@ -478,7 +478,7 @@ func _cast(skill: Dictionary) -> void:
 		VfxKit.ground_circle(field, Vector3(aim.x, global_position.y, aim.z), color, float(skill.radius), delay + 0.2)
 	elif skill.shape == "burst":
 		VfxKit.ground_circle(field, global_position, color, float(skill.radius) * 0.5, delay)
-	BattleVfx.floating_text(field, global_position + Vector3(0, 2.9, 0), String(skill.name), color, 0.85)
+	BattleVfx.floating_text(field, global_position + Vector3(0, 2.9, 0), String(skill.name), color, 0.5)
 	get_tree().create_timer(delay).timeout.connect(func():
 		if is_instance_valid(self):
 			_resolve(skill, snapshot, aim)
