@@ -8,7 +8,7 @@ extends RefCounted
 
 const JOB_LEVEL := 20
 const JOB_COST := 1500
-const MASTER_LEVEL := 35
+const MASTER_LEVEL := 40
 const MASTER_COST := 6000
 
 const JOBS := {
@@ -55,7 +55,7 @@ const JOBS := {
 }
 
 
-## Third advancement at Lv.35: renames the hero again and boosts the bonuses. Same bonus keys as the jobs (multipliers, crit/speed added).
+## Third advancement at Lv.40: renames the hero again and boosts the bonuses. Same bonus keys as the jobs (multipliers, crit/speed added).
 const MASTERS := {
 	&"paladin": {"name": "โฮลีไนท์", "title": "ผู้พิทักษ์แห่งสวรรค์", "bonus": {"hp": 1.15, "def": 1.12, "atk": 1.08}},
 	&"berserker": {"name": "จอมสังหารคลั่ง", "title": "มัจจุราชสนามรบ", "bonus": {"hp": 1.1, "atk": 1.15, "crit": 0.05}},
@@ -81,7 +81,7 @@ static func jobs_for(class_id: StringName) -> Array[StringName]:
 
 
 ## Base class data with the job applied (name, bonuses) and, when
-## [param master] is set, the Lv.35 upgrade (renamed, stronger bonuses).
+## [param master] is set, the Lv.40 upgrade (renamed, stronger bonuses).
 ## [code]skills[/code] is the whole class pool; the hero swaps in its bar loadout.
 static func resolve(class_id: StringName, job_id: StringName, master := false) -> Dictionary:
 	var base: Dictionary = ClassData.CLASSES.get(class_id, ClassData.CLASSES[&"warrior"])
