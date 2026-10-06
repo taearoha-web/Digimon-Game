@@ -60,6 +60,11 @@ func _ready() -> void:
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
 	_show_title()
+	# A reloaded browser tab (memory pressure, screen lock) goes straight back in.
+	if OS.has_feature("web") and Game.should_resume():
+		await get_tree().process_frame
+		await _continue()
+		Game.say("เล่นต่อจากเดิมอัตโนมัติ", &"info")
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +97,7 @@ func _show_class_select() -> void:
 		screen.queue_free()
 		class_screen = null
 		hud.visible = true
+		Game.playing = true
 		await go(&"town", true))
 
 
@@ -102,10 +108,13 @@ func _continue() -> void:
 		title_screen.queue_free()
 		title_screen = null
 	hud.visible = true
+	Game.playing = true
 	await go(Game.current_zone if Game.current_zone != &"" else &"town", true)
 
 
 func _back_to_title() -> void:
+	Game.playing = false
+	Game.save()
 	await _fade_to(1.0, 0.3)
 	_show_title()
 	await _fade_to(0.0, 0.3)

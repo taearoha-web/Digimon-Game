@@ -43,6 +43,7 @@ func _run() -> void:
 	for id in ClassData.IDS:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
+	await _resume_after_reload()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -491,6 +492,31 @@ func _look() -> void:
 	hero_visual.set_equipment(Game.profile.equip)
 	await _wait(0.2)
 	check(hero_visual.find_child("Hair", true, false) == null, "hair is hidden under a helmet")
+
+
+func _resume_after_reload() -> void:
+	print("== Resume after a browser reload")
+	var zone := await _start(&"warrior")
+	await _wait(0.3)
+	Game.playing = true
+	Game.save()
+	check(Game.should_resume(), "a recent in-game save is resumed after a reload")
+	Game.playing = false
+	Game.save()
+	check(not Game.should_resume(), "going back to the title screen cancels the auto-resume")
+	Game.playing = true
+	Game.save()
+	var path := ProjectSettings.globalize_path(Game.SAVE_PATH)
+	var f := FileAccess.open(Game.SAVE_PATH, FileAccess.READ)
+	var data: Dictionary = JSON.parse_string(f.get_as_text())
+	f.close()
+	data["saved_at"] = int(Time.get_unix_time_from_system()) - Game.RESUME_WINDOW - 60
+	var w := FileAccess.open(Game.SAVE_PATH, FileAccess.WRITE)
+	w.store_string(JSON.stringify(data))
+	w.close()
+	check(not Game.should_resume(), "an old save is not resumed automatically")
+	Game.delete_save()
+	check(not Game.should_resume(), "no save, no resume")
 
 
 func _camera_while_moving() -> void:
