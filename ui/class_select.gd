@@ -9,7 +9,7 @@ signal cancelled()
 
 const ROWS := [
 	["hair", "ทรงผม"], ["hair_color", "สีผม"], ["skin", "สีผิว"], ["eyes", "ทรงตา"],
-	["eye_color", "สีตา"], ["nose", "จมูก"], ["mouth", "ปาก"],
+	["eye_color", "สีตา"], ["nose", "จมูก"], ["mouth", "ปาก"], ["outfit", "ชุด"],
 ]
 
 var look: Dictionary = FaceKit.default_look()
@@ -175,6 +175,7 @@ func _value_text(key: String) -> String:
 		"eye_color": return FaceKit.EYE_COLOR_NAMES[i]
 		"nose": return FaceKit.NOSE_NAMES[i]
 		"mouth": return FaceKit.MOUTH_NAMES[i]
+		"outfit": return FaceKit.OUTFITS[i][0]
 	return ""
 
 

@@ -101,6 +101,11 @@ func refresh() -> void:
 		outfit_style = look.style
 		outfit_tint = look.tint
 		cape = look.cape
+	if armor == null and class_id == ClassData.START and not look.is_empty() and int(look.get("outfit", 0)) > 0:
+		var starter: Array = FaceKit.OUTFITS[clampi(int(look.outfit), 0, FaceKit.OUTFITS.size() - 1)]
+		outfit_style = String(starter[1])
+		outfit_tint = starter[2]
+		cape = [outfit_style, String(starter[3])] if String(starter[3]) != "" else null
 	var glb: String = OUTFIT_GLB[outfit_style]
 	var boots: Variant = equip.get("boots")
 	for piece in OUTFIT_PARTS:
@@ -129,6 +134,68 @@ func refresh() -> void:
 		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
 	_wear_trinkets()
 	_hold_gear()
+	_polish()
+
+
+static var _outline_material: StandardMaterial3D
+
+
+## One dark hull shared by every character: a thin cartoon outline.
+static func outline_material() -> StandardMaterial3D:
+	if _outline_material == null:
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(0.09, 0.05, 0.13)
+		m.cull_mode = BaseMaterial3D.CULL_FRONT
+		m.grow = true
+		m.grow_amount = 0.02
+		_outline_material = m
+	return _outline_material
+
+
+## Premium finish: a cartoon outline and a soft rim light on everything the
+## hero wears (glowing / transparent effect meshes are left alone).
+func _polish() -> void:
+	var meshes: Array[MeshInstance3D] = []
+	for node in find_children("*", "MeshInstance3D", true, false):
+		meshes.append(node as MeshInstance3D)
+	# Thin held gear (bows, staffs) only gets the rim light: an outline would swallow it.
+	var held: Array[Node] = []
+	for hold in _hold_nodes:
+		held.append(hold)
+		held.append_array(hold.find_children("*", "MeshInstance3D", true, false))
+	for mi in meshes:
+		if mi.mesh == null or mi.has_meta("polished"):
+			continue
+		mi.set_meta("polished", true)
+		var outlined := not (mi in held)
+		if mi.material_override != null:
+			var done := _polish_material(mi.material_override, outlined)
+			if done != null:
+				mi.material_override = done
+			continue
+		for i in mi.mesh.get_surface_count():
+			var done := _polish_material(mi.get_active_material(i), outlined)
+			if done != null:
+				mi.set_surface_override_material(i, done)
+
+
+func _polish_material(source: Material, outlined: bool) -> Material:
+	if source is StandardMaterial3D:
+		var std := source as StandardMaterial3D
+		if std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or std.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+			return null
+		var copy := std.duplicate() as StandardMaterial3D
+		copy.rim_enabled = true
+		copy.rim = 0.25
+		copy.rim_tint = 0.6
+		if outlined:
+			copy.next_pass = outline_material()
+		return copy
+	if outlined and source is ShaderMaterial and FaceKit._skin_shader != null and (source as ShaderMaterial).shader == FaceKit._skin_shader:
+		(source as ShaderMaterial).next_pass = outline_material()
+		return source
+	return null
 
 
 ## Boots show as cuffs on both lower legs, an amulet as a necklace.
