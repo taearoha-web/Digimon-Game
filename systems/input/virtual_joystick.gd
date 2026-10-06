@@ -47,9 +47,11 @@ func _reset_center() -> void:
 
 
 ## Only the ring (plus some slack) grabs touches; everywhere else the finger
-## falls through to the camera area underneath, so it can turn the camera.
+## falls through to the camera area underneath, so it can turn the camera
+## even while the other thumb is holding the joystick. (The finger that is
+## already steering keeps receiving its drags through Godot's touch focus.)
 func _has_point(point: Vector2) -> bool:
-	if is_active:
+	if follow_touch and not is_active:
 		return true
 	return point.distance_to(_center) <= base_radius * 1.45
 
