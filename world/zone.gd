@@ -51,7 +51,8 @@ func _ready() -> void:
 	child_entered_tree.connect(func(node: Node):
 		var mob := node as Mob
 		if mob and not mob.died.is_connected(_on_mob_died):
-			mob.died.connect(_on_mob_died))
+			mob.died.connect(_on_mob_died)
+			mob.phase_changed.connect(_on_boss_phase))
 	data = ZoneData.get_zone(zone_id)
 	is_town = bool(data.get("safe", false))
 	if is_town:
@@ -605,6 +606,24 @@ func _tick_boss(delta: float) -> void:
 	add_child(mob)
 	_boss = mob
 	Game.say("บอส %s ปรากฏตัวแล้ว!" % MonsterData.get_monster(info.monster).name, &"warning")
+
+
+## Phase 1 and 2 of a boss: a handful of the field's monsters join the fight.
+func _on_boss_phase(boss: Mob, _phase: int) -> void:
+	var ids: Array = []
+	for camp in data.get("camps", []):
+		ids.append_array(camp.monsters)
+	if ids.is_empty():
+		return
+	for i in 3:
+		var angle := TAU * float(i) / 3.0 + rng.randf()
+		var spot := boss.global_position + Vector3(cos(angle), 0, sin(angle)) * 4.5
+		var add := Mob.new()
+		add.setup(ids[rng.randi() % ids.size()], maxi(1, boss.level - 4), spot, hero)
+		add.position = spot + Vector3(0, 0.3, 0)
+		add_child(add)
+		add.hostile = true
+		VfxKit.shockwave(self, spot + Vector3(0, 0.1, 0), Color("ffd84a"), 2.0)
 
 
 func _on_mob_died(mob: Mob) -> void:

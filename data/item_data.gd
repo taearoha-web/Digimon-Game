@@ -8,9 +8,9 @@ extends RefCounted
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
 const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย"}
-const RARITY_NAMES := ["ธรรมดา", "ดี", "หายาก", "ในตำนาน"]
-const RARITY_COLORS := [Color("e6ecff"), Color("5ab8ff"), Color("ffc93c"), Color("c46bff")]
-const RARITY_ADJ := ["", "ชั้นดี", "ล้ำค่า", "แห่งตำนาน"]
+const RARITY_NAMES := ["ธรรมดา", "ดี", "หายาก", "ในตำนาน", "เทพนิยาย"]
+const RARITY_COLORS := [Color("e6ecff"), Color("5ab8ff"), Color("ffc93c"), Color("c46bff"), Color("ff4a5e")]
+const RARITY_ADJ := ["", "ชั้นดี", "ล้ำค่า", "แห่งตำนาน", "แห่งเทพนิยาย"]
 
 ## Names by base type, one per tier (a tier is 10 levels: Lv.1-10, 11-20 ... 91-100).
 const NAMES := {
@@ -92,7 +92,7 @@ static func gem_info(item: Dictionary) -> Dictionary:
 
 
 static func sockets_for(rarity: int) -> int:
-	return [0, 0, 1, 2][clampi(rarity, 0, 3)]
+	return [0, 0, 1, 2, 3][clampi(rarity, 0, 4)]
 
 
 static func set_id_for(slot: String, rarity: int, tier: int) -> String:
@@ -112,9 +112,16 @@ static func enhance_cost(item: Dictionary) -> int:
 	return int((int(item.get("price", 10)) * 0.4 + 40.0) * (1.0 + int(item.get("plus", 0)) * 0.7))
 
 
+## Stat multiplier of a rarity; the mythic tier jumps well above legendary.
+static func rarity_mult(rarity: int, per: float) -> float:
+	return 1.0 + per * rarity + (per * 1.5 if rarity >= 4 else 0.0)
+
+
 ## Rolls rarity. [param boost] shifts odds towards better items (bosses).
 static func roll_rarity(rng: RandomNumberGenerator, boost := 0.0) -> int:
 	var r := rng.randf() - boost
+	if r < 0.0008 - boost * 0.8:
+		return 4
 	if r < 0.012:
 		return 3
 	if r < 0.07:
@@ -144,22 +151,22 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 	var stats := {}
 	match slot:
 		"weapon":
-			stats["atk"] = int(round(power * (1.0 + 0.22 * rarity) * rng.randf_range(0.92, 1.08)))
+			stats["atk"] = int(round(power * rarity_mult(rarity, 0.22) * rng.randf_range(0.92, 1.08)))
 		"armor":
-			stats["def"] = int(round(power * 0.75 * (1.0 + 0.2 * rarity) * rng.randf_range(0.92, 1.08)))
-			stats["hp"] = int(round(level * 5.0 * (1.0 + 0.2 * rarity)))
+			stats["def"] = int(round(power * 0.75 * rarity_mult(rarity, 0.2) * rng.randf_range(0.92, 1.08)))
+			stats["hp"] = int(round(level * 5.0 * rarity_mult(rarity, 0.2)))
 		"helm":
-			stats["def"] = int(round(power * 0.4 * (1.0 + 0.2 * rarity)))
-			stats["hp"] = int(round(level * 3.0 * (1.0 + 0.2 * rarity)))
+			stats["def"] = int(round(power * 0.4 * rarity_mult(rarity, 0.2)))
+			stats["hp"] = int(round(level * 3.0 * rarity_mult(rarity, 0.2)))
 		"boots":
-			stats["def"] = int(round(power * 0.3 * (1.0 + 0.2 * rarity)))
-			stats["hp"] = int(round(level * 2.0 * (1.0 + 0.2 * rarity)))
+			stats["def"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
+			stats["hp"] = int(round(level * 2.0 * rarity_mult(rarity, 0.2)))
 		"ring":
-			stats["atk"] = int(round(power * 0.3 * (1.0 + 0.2 * rarity)))
+			stats["atk"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
 			stats["crit"] = snappedf(0.01 + level * 0.0007 * (1.0 + rarity * 0.3), 0.001)
 		"amulet":
-			stats["mp"] = int(round(level * 4.0 * (1.0 + 0.2 * rarity)))
-			stats["hp"] = int(round(level * 4.0 * (1.0 + 0.2 * rarity)))
+			stats["mp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
+			stats["hp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
 	var bonus_pool := ["hp", "mp", "crit", "atk", "def"]
 	for i in rarity:
 		var key: String = bonus_pool[rng.randi() % bonus_pool.size()]

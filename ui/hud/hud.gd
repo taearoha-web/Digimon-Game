@@ -40,6 +40,11 @@ var _exp_bar: ProgressBar
 var _badge: Label
 var _badge_panel: PanelContainer
 var _target_panel: PanelContainer
+var _boss_panel: PanelContainer
+var _tracker: Label
+var _tracker_timer := 0.0
+var _boss_name: Label
+var _boss_bar: ProgressBar
 var _target_name: Label
 var _target_bar: ProgressBar
 var _target_hp: Label
@@ -158,7 +163,7 @@ func show_death(visible_flag: bool) -> void:
 		create_tween().tween_property(_death_panel, "modulate:a", 1.0, 0.6)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if hero == null or not is_instance_valid(hero) or Game.profile.is_empty():
 		return
 	var p := Game.profile
@@ -190,6 +195,8 @@ func _process(_delta: float) -> void:
 		attack_button.set_toggled(hero.engaged)
 		auto_button.set_toggled(hero.auto)
 	_update_target_frame()
+	_update_boss_bar()
+	_update_tracker(delta)
 
 
 func _update_skills() -> void:
@@ -216,6 +223,81 @@ func _refresh_target() -> void:
 	if _target_panel.visible:
 		_target_name.text = "Lv.%d %s" % [mob.level, mob.template.name]
 		_target_name.add_theme_color_override("font_color", Color("ffd84a") if mob.is_boss else Color.WHITE)
+
+
+## Wide bar at the top while a boss that noticed the hero is alive nearby.
+func _update_boss_bar() -> void:
+	var boss: Mob = null
+	if hero and not zone.is_town:
+		for node in get_tree().get_nodes_in_group("mobs"):
+			var mob := node as Mob
+			if mob and mob.is_boss and mob.hostile and not mob.is_dead() \
+					and mob.global_position.distance_to(hero.global_position) < 40.0:
+				boss = mob
+				break
+	_boss_panel.visible = boss != null
+	if boss == null:
+		return
+	var phase_text: String = ["", "  (เรียกพวก)", "  (คลั่ง!)"][clampi(boss.phase, 0, 2)]
+	_boss_name.text = "Lv.%d %s%s" % [boss.level, boss.template.name, phase_text]
+	UIUtil.set_bar(_boss_bar, boss.hp, boss.max_hp)
+	UIUtil.tint_hp_bar(_boss_bar, float(boss.hp) / float(boss.max_hp))
+
+
+## Two lines under the minimap: the story quest and the daily board.
+func _update_tracker(delta: float) -> void:
+	_tracker_timer -= delta
+	if _tracker_timer > 0.0:
+		return
+	_tracker_timer = 0.5
+	if Game.profile.is_empty() or zone.is_town:
+		_tracker.visible = false
+		return
+	_tracker.visible = true
+	var lines: PackedStringArray = []
+	var quest_id := QuestData.current_quest()
+	if quest_id != "" and Game.quest_status(quest_id) in ["active", "ready"]:
+		var quest := QuestData.get_quest(quest_id)
+		var have := int(Game.quest_state(quest_id).get("progress", 0))
+		lines.append("เควสต์: %s %d/%d" % [quest.name, have, int(quest.count)] if have < int(quest.count) else "เควสต์: %s ✔ กลับไปรายงาน" % quest.name)
+	var done := 0
+	for entry in Game.daily().quests:
+		if int(entry.progress) >= Game.daily_target(entry):
+			done += 1
+	lines.append("รายวัน: เสร็จ %d/3" % done)
+	_tracker.text = "\n".join(lines)
+
+
+func _build_tracker(frame: Control) -> void:
+	_tracker = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	_tracker.anchor_left = 1.0
+	_tracker.anchor_right = 1.0
+	_tracker.offset_left = -330
+	_tracker.offset_right = -10
+	_tracker.offset_top = 278
+	_tracker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tracker.add_theme_constant_override("outline_size", 6)
+	_tracker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	frame.add_child(_tracker)
+
+
+func _build_boss_bar(frame: Control) -> void:
+	_build_tracker(frame)
+	_boss_panel = UIUtil.panel(&"HudPanel")
+	_boss_panel.anchor_left = 0.3
+	_boss_panel.anchor_right = 0.7
+	_boss_panel.offset_top = 8
+	_boss_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_panel.visible = false
+	frame.add_child(_boss_panel)
+	var col := UIUtil.vbox(3)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_panel.add_child(col)
+	_boss_name = UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_boss_name.add_theme_color_override("font_color", Color("ffd84a"))
+	col.add_child(_boss_name)
+	_boss_bar = _bar(&"HPBar", 16)
+	col.add_child(_boss_bar)
 
 
 func _update_target_frame() -> void:
@@ -501,6 +583,7 @@ func _small_button(icon_path: String, accent: Color, center_rel: Vector2) -> Tou
 
 
 func _build_banner(frame: Control) -> void:
+	_build_boss_bar(frame)
 	_banner = UIUtil.label("", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_banner.add_theme_font_size_override("font_size", 46)
 	_banner.anchor_left = 0.2
