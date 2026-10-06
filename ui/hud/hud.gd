@@ -58,7 +58,7 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 	camera_area = TouchCameraArea.new()
-	camera_area.anchor_left = 0.32
+	camera_area.anchor_left = 0.0
 	camera_area.anchor_right = 1.0
 	camera_area.anchor_bottom = 1.0
 	_root.add_child(camera_area)

@@ -5,13 +5,15 @@ extends SubViewportContainer
 var visual: HeroVisual
 var _pivot: Node3D
 var _spin := true
+var _dragging := false
+var _idle := 0.0
 
 
 func _init(p_size := Vector2i(250, 300)) -> void:
 	stretch = true
 	custom_minimum_size = Vector2(p_size)
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var viewport := SubViewport.new()
 	viewport.own_world_3d = true
@@ -47,6 +49,25 @@ func show_hero(class_id: StringName, equip: Dictionary, model := "") -> void:
 	visual.setup(class_id, model, true, equip)
 
 
+## Drag with a finger (or the mouse) to turn the hero around.
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		_dragging = event.pressed
+		_idle = 0.0
+		accept_event()
+	elif event is InputEventScreenDrag:
+		_pivot.rotation.y += event.relative.x * 0.012
+		_idle = 0.0
+		accept_event()
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION and event.button_index == MOUSE_BUTTON_LEFT:
+		_dragging = event.pressed
+		_idle = 0.0
+	elif event is InputEventMouseMotion and _dragging and event.device != InputEvent.DEVICE_ID_EMULATION:
+		_pivot.rotation.y += event.relative.x * 0.012
+		_idle = 0.0
+
+
 func _process(delta: float) -> void:
-	if _spin and _pivot:
+	_idle += delta
+	if _spin and _pivot and not _dragging and _idle > 1.5:
 		_pivot.rotation.y += delta * 0.7

@@ -46,6 +46,14 @@ func _reset_center() -> void:
 		queue_redraw()
 
 
+## Only the ring (plus some slack) grabs touches; everywhere else the finger
+## falls through to the camera area underneath, so it can turn the camera.
+func _has_point(point: Vector2) -> bool:
+	if is_active:
+		return true
+	return point.distance_to(_center) <= base_radius * 1.45
+
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed and _touch_index == -1 and _accepts(event.position):

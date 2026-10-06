@@ -13,6 +13,8 @@ var _desc: Label
 var _title: Label
 var _skills_box: VBoxContainer
 var _pivot: Node3D
+var _spin_dragging := false
+var _spin_idle := 0.0
 
 
 func _ready() -> void:
@@ -32,6 +34,8 @@ func _ready() -> void:
 	# 3D preview on the left.
 	var container := SubViewportContainer.new()
 	container.stretch = true
+	container.mouse_filter = Control.MOUSE_FILTER_STOP
+	container.gui_input.connect(_on_preview_input)
 	container.position = Vector2(8, 60)
 	container.size = Vector2(430, 560)
 	frame.add_child(container)
@@ -108,8 +112,25 @@ func _ready() -> void:
 	_select(&"warrior")
 
 
+## Drag the preview with a finger (or mouse) to turn the hero.
+func _on_preview_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		_spin_dragging = event.pressed
+		_spin_idle = 0.0
+	elif event is InputEventScreenDrag:
+		_pivot.rotation.y += event.relative.x * 0.012
+		_spin_idle = 0.0
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION and event.button_index == MOUSE_BUTTON_LEFT:
+		_spin_dragging = event.pressed
+		_spin_idle = 0.0
+	elif event is InputEventMouseMotion and _spin_dragging and event.device != InputEvent.DEVICE_ID_EMULATION:
+		_pivot.rotation.y += event.relative.x * 0.012
+		_spin_idle = 0.0
+
+
 func _process(delta: float) -> void:
-	if _pivot:
+	_spin_idle += delta
+	if _pivot and not _spin_dragging and _spin_idle > 1.5:
 		_pivot.rotation.y += delta * 0.6
 
 
