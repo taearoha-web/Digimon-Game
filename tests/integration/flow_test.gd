@@ -149,6 +149,20 @@ func _jobs() -> void:
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
 		check(hero._ring != null, "job ring appears under the hero")
+		# Passives raise stats; the Lv.30 advancement swaps skills 3 and 4.
+		var before := Game.stats_now()
+		var power_before: float = float(before.def) + float(before.max_hp) + float(before.max_mp) + float(before.crit) * 1000.0 + float(before.speed)
+		Game.profile.skills[ClassData.PASSIVES[class_id][0].id] = 5
+		var after_stats := Game.stats_now()
+		var power_after: float = float(after_stats.def) + float(after_stats.max_hp) + float(after_stats.max_mp) + float(after_stats.crit) * 1000.0 + float(after_stats.speed)
+		check(power_after > power_before, "passive skill ranks add stats")
+		Game.add_gold(10000)
+		Game.profile["level"] = 30
+		var skill3_before: String = String(Game.class_data().skills[2].id)
+		check(Game.change_master(), "%s can take the Lv.30 advancement" % class_id)
+		var after: Array = Game.class_data().skills
+		check(String(after[2].id) != skill3_before and bool(Game.class_data().get("master", false)), "skills 3 and 4 are replaced by master skills")
+		check(not Game.change_master(), "the Lv.30 advancement is one-time")
 
 
 func _touch_scroll() -> void:

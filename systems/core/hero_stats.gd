@@ -54,6 +54,19 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 	return total
 
 
+## Sum of the always-on passive skills (rank 1 once unlocked, up to 5 stars).
+static func passive_bonus(profile: Dictionary) -> Dictionary:
+	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "speed": 0.0, "dodge": 0.0}
+	var level: int = profile["level"]
+	for passive in ClassData.PASSIVES.get(StringName(profile["class"]), []):
+		if level < int(passive.level):
+			continue
+		var rank := maxi(1, int(profile.get("skills", {}).get(passive.id, 0)))
+		for key in passive.bonus:
+			total[key] += float(passive.bonus[key]) * rank
+	return total
+
+
 ## How many pieces of each set are worn: { set_id: count }.
 static func set_counts(profile: Dictionary) -> Dictionary:
 	var counts := {}
@@ -66,22 +79,23 @@ static func set_counts(profile: Dictionary) -> Dictionary:
 
 ## buffs: { atk, def, speed, crit } fractions (0.3 = +30%).
 static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
-	var data := JobData.resolve(StringName(profile["class"]), StringName(profile.get("job", "")))
+	var data := JobData.resolve(StringName(profile["class"]), StringName(profile.get("job", "")), bool(profile.get("job3", false)))
 	var level: int = profile["level"]
 	var attrs := attributes(profile)
 	var gear := gear_bonus(profile)
+	var passive := passive_bonus(profile)
 	var main_stat: int = attrs[data.main]
-	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0))
-	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0))
+	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk))
+	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def))
 	return {
 		"attrs": attrs,
-		"max_hp": int((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult)) + int(gear.hp),
-		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult)) + int(gear.mp),
+		"max_hp": int((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp))) + int(gear.hp),
+		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp))) + int(gear.mp),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)), 0.0, 0.8),
-		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0))),
-		"dodge": clampf(attrs.dex * 0.0012, 0.0, 0.3),
+		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit), 0.0, 0.8),
+		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
+		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge), 0.0, 0.35),
 	}
 
 

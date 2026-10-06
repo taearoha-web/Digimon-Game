@@ -91,7 +91,8 @@ func refresh() -> void:
 	if not is_instance_valid(visual):
 		return
 	stats = HeroStats.compute(Game.party_profile(member))
-	data = JobData.resolve(StringName(member["class"]), StringName(Game.party_profile(member).job))
+	var pp := Game.party_profile(member)
+	data = JobData.resolve(StringName(member["class"]), StringName(pp.job), bool(pp.job3))
 	_label.text = "%s Lv.%d" % [member.name, int(member.level)]
 	var sig := _signature()
 	if sig != _equip_sig:

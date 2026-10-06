@@ -76,11 +76,29 @@ func class_id() -> StringName:
 
 
 func class_data() -> Dictionary:
-	return JobData.resolve(class_id(), job_id())
+	return JobData.resolve(class_id(), job_id(), bool(profile.get("job3", false)))
 
 
 func job_id() -> StringName:
 	return StringName(profile.get("job", ""))
+
+
+## Third advancement (Lv.30, after a job).
+func change_master() -> bool:
+	if job_id() == &"" or bool(profile.get("job3", false)) or not JobData.MASTERS.has(job_id()):
+		return false
+	if int(profile["level"]) < JobData.MASTER_LEVEL or int(profile["gold"]) < JobData.MASTER_COST:
+		return false
+	profile["gold"] -= JobData.MASTER_COST
+	profile["job3"] = true
+	profile["skill_points"] += 3
+	var stats := stats_now()
+	profile["hp"] = stats.max_hp
+	profile["mp"] = stats.max_mp
+	gold_changed.emit(profile["gold"])
+	profile_changed.emit()
+	mark_dirty()
+	return true
 
 
 ## Job change at the Job Master: needs the level, the fee and a class branch.
@@ -305,7 +323,7 @@ func party_profile(member: Dictionary) -> Dictionary:
 	if int(member.level) >= JobData.JOB_LEVEL:
 		var branches := JobData.jobs_for(StringName(member["class"]))
 		job = String(branches[hash(member.name) % branches.size()])
-	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "job": job}
+	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "job": job, "job3": int(member.level) >= JobData.MASTER_LEVEL and job != ""}
 
 
 ## Gear that grows with the companion's level (same pieces until the next tier).

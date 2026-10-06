@@ -8,6 +8,8 @@ extends RefCounted
 
 const JOB_LEVEL := 15
 const JOB_COST := 1500
+const MASTER_LEVEL := 30
+const MASTER_COST := 6000
 
 const JOBS := {
 	&"paladin": {
@@ -117,6 +119,76 @@ const JOBS := {
 }
 
 
+## Third advancement at Lv.30: renames the hero again, boosts the bonuses and
+## replaces skills 3 and 4. Same bonus keys as the jobs (multipliers, crit/speed added).
+const MASTERS := {
+	&"paladin": {"name": "โฮลีไนท์", "title": "ผู้พิทักษ์แห่งสวรรค์", "bonus": {"hp": 1.15, "def": 1.12, "atk": 1.08},
+		"skills": [
+			{"id": "heaven_blade", "name": "ดาบสวรรค์ตกลง", "desc": "ดาบแสงถล่มศัตรูรอบตัว ฟื้นฟู HP 10%", "level": 30, "mp": 34, "cd": 12.0,
+				"shape": "burst", "mult": 4.2, "radius": 6.0, "anim": "2H_Melee_Attack_Spin", "hit_delay": 0.4,
+				"fx": {"heal": 0.1}, "color": Color("fff0a0"), "vfx": &"light", "icon": "spin"},
+			{"id": "holy_wings", "name": "ปีกศักดิ์สิทธิ์", "desc": "ATK +30% DEF +50% นาน 20 วิ และฟื้นฟู HP 30%", "level": 30, "mp": 38, "cd": 32.0,
+				"shape": "self", "anim": "Cheer", "hit_delay": 0.2,
+				"fx": {"heal": 0.3, "buff": {"atk": 0.3, "def": 0.5, "secs": 20.0}}, "color": Color("ffe27a"), "vfx": &"aura", "icon": "roar"}]},
+	&"berserker": {"name": "จอมสังหารคลั่ง", "title": "มัจจุราชสนามรบ", "bonus": {"hp": 1.1, "atk": 1.15, "crit": 0.05},
+		"skills": [
+			{"id": "blood_storm", "name": "พายุเลือด", "desc": "พายุคมดาบถล่มรอบตัว ศัตรูมึนงง 1 วินาที", "level": 30, "mp": 36, "cd": 12.0,
+				"shape": "burst", "mult": 4.8, "radius": 6.5, "anim": "2H_Melee_Attack_Spin", "hit_delay": 0.4,
+				"fx": {"stun": 1.0}, "color": Color("ff3a3a"), "vfx": &"slash", "icon": "spin"},
+			{"id": "last_rage", "name": "คลั่งสุดขีด", "desc": "ATK +60% คริ +15% วิ่งเร็ว +20% นาน 15 วิ", "level": 30, "mp": 36, "cd": 34.0,
+				"shape": "self", "anim": "Cheer", "hit_delay": 0.2,
+				"fx": {"buff": {"atk": 0.6, "crit": 0.15, "speed": 0.2, "secs": 15.0}}, "color": Color("ff4a3a"), "vfx": &"aura", "icon": "roar"}]},
+	&"sniper": {"name": "ผู้พิฆาตเงา", "title": "ลูกศรที่ไม่เคยพลาด", "bonus": {"atk": 1.15, "crit": 0.08},
+		"skills": [
+			{"id": "fate_arrow", "name": "ลูกศรพิชิตชะตา", "desc": "ลูกศรเดียวแรงมหาศาลจากระยะไกล", "level": 30, "mp": 36, "cd": 9.0,
+				"shape": "single", "mult": 8.5, "range": 16.0, "anim": "2H_Ranged_Shoot", "hit_delay": 0.25, "projectile": true,
+				"color": Color("ffe27a"), "vfx": &"impact", "icon": "arrow"},
+			{"id": "sky_rain", "name": "ฝนลูกศรสวรรค์", "desc": "ลูกศรนับร้อยถล่มพื้นที่กว้าง", "level": 30, "mp": 40, "cd": 15.0,
+				"shape": "blast", "mult": 4.5, "range": 12.0, "radius": 6.0, "anim": "2H_Ranged_Shooting", "hit_delay": 0.6,
+				"color": Color("ffd84a"), "vfx": &"leaf", "icon": "rain"}]},
+	&"stormer": {"name": "จอมพรานพายุ", "title": "เจ้าแห่งสายลม", "bonus": {"atk": 1.1, "speed": 0.08, "hp": 1.1},
+		"skills": [
+			{"id": "eight_winds", "name": "พายุศร 8 ทิศ", "desc": "ยิง 8 ดอกพร้อมกัน", "level": 30, "mp": 38, "cd": 10.0,
+				"shape": "fan", "mult": 2.4, "range": 13.0, "hits": 8, "anim": "2H_Ranged_Shoot", "hit_delay": 0.2, "projectile": true,
+				"color": Color("8fffd0"), "vfx": &"leaf", "icon": "triple"},
+			{"id": "killing_wind", "name": "สายลมพิฆาต", "desc": "คลื่นลมกว้างถล่มศัตรู ช้าลง 4 วินาที", "level": 30, "mp": 38, "cd": 13.0,
+				"shape": "burst", "mult": 3.8, "radius": 6.5, "anim": "2H_Ranged_Shooting", "hit_delay": 0.4,
+				"fx": {"slow": 4.0}, "color": Color("7affd0"), "vfx": &"wind", "icon": "spin"}]},
+	&"pyromancer": {"name": "ราชาเพลิงนรก", "title": "ผู้เผาโลก", "bonus": {"atk": 1.15, "mp": 1.1},
+		"skills": [
+			{"id": "hell_meteor", "name": "อุกกาบาตนรก", "desc": "อุกกาบาตยักษ์ ความเสียหายมหาศาลและติดไฟ", "level": 30, "mp": 55, "cd": 16.0,
+				"shape": "blast", "mult": 7.0, "range": 12.0, "radius": 7.0, "anim": "Spellcast_Long", "hit_delay": 1.0,
+				"fx": {"burn": [0.5, 6.0]}, "color": Color("ff5a2a"), "vfx": &"fireball", "icon": "meteor"},
+			{"id": "flame_armor", "name": "เกราะเพลิง", "desc": "ATK +40% DEF +30% นาน 18 วิ", "level": 30, "mp": 36, "cd": 30.0,
+				"shape": "self", "anim": "Spellcasting", "hit_delay": 0.3,
+				"fx": {"buff": {"atk": 0.4, "def": 0.3, "secs": 18.0}}, "color": Color("ff7a2a"), "vfx": &"aura", "icon": "fire"}]},
+	&"cryomancer": {"name": "ราชินีน้ำแข็งนิรันดร์", "title": "ผู้หยุดกาลเวลา", "bonus": {"atk": 1.12, "mp": 1.15, "def": 1.1},
+		"skills": [
+			{"id": "absolute_zero", "name": "จุดเยือกแข็งสัมบูรณ์", "desc": "คลื่นน้ำแข็งกว้าง ศัตรูมึนงง 2 วินาที", "level": 30, "mp": 46, "cd": 14.0,
+				"shape": "burst", "mult": 5.0, "radius": 7.0, "anim": "Spellcast_Raise", "hit_delay": 0.5,
+				"fx": {"stun": 2.0, "slow": 4.0}, "color": Color("bfefff"), "vfx": &"frost", "icon": "ice"},
+			{"id": "death_blizzard", "name": "พายุหิมะมรณะ", "desc": "พายุหิมะมหาศาลถล่มพื้นที่กว้าง", "level": 30, "mp": 54, "cd": 16.0,
+				"shape": "blast", "mult": 6.0, "range": 12.0, "radius": 7.0, "anim": "Spellcast_Long", "hit_delay": 0.9,
+				"fx": {"slow": 5.0}, "color": Color("aaf0ff"), "vfx": &"frost", "icon": "ice"}]},
+	&"saint": {"name": "พระผู้ให้ชีวิต", "title": "แสงสว่างแห่งความหวัง", "bonus": {"hp": 1.2, "def": 1.1, "mp": 1.1},
+		"skills": [
+			{"id": "miracle", "name": "อัศจรรย์ฟื้นคืน", "desc": "ฟื้นฟู HP 100% และ DEF +40% นาน 12 วิ", "level": 30, "mp": 56, "cd": 30.0,
+				"shape": "self", "anim": "Spellcast_Raise", "hit_delay": 0.3,
+				"fx": {"heal": 1.0, "buff": {"def": 0.4, "secs": 12.0}}, "color": Color("6dff9a"), "vfx": &"heal", "icon": "heal"},
+			{"id": "holy_domain", "name": "เขตแดนศักดิ์สิทธิ์", "desc": "แสงสวรรค์รอบตัวทำร้ายศัตรู ฟื้นฟู HP 30%", "level": 30, "mp": 44, "cd": 14.0,
+				"shape": "burst", "mult": 3.5, "radius": 7.0, "anim": "Spellcast_Raise", "hit_delay": 0.4,
+				"fx": {"heal": 0.3}, "color": Color("d8ffe0"), "vfx": &"light", "icon": "nova"}]},
+	&"inquisitor": {"name": "ผู้พิพากษาสูงสุด", "title": "เสียงตัดสินแห่งสวรรค์", "bonus": {"atk": 1.15, "crit": 0.05},
+		"skills": [
+			{"id": "final_judgement", "name": "แสงพิพากษาทั้งปวง", "desc": "ลำแสงจากสวรรค์ถล่มพื้นที่กว้าง ศัตรูมึนงง 2 วินาที", "level": 30, "mp": 56, "cd": 16.0,
+				"shape": "blast", "mult": 7.0, "range": 12.0, "radius": 7.0, "anim": "Spellcast_Long", "hit_delay": 0.9,
+				"fx": {"stun": 2.0}, "color": Color("fff0a0"), "vfx": &"light", "icon": "nova"},
+			{"id": "light_sword", "name": "ดาบแสงสวรรค์", "desc": "ดาบแสงพุ่งเจาะศัตรูตัวเดียว ทำให้มึนงง", "level": 30, "mp": 34, "cd": 8.0,
+				"shape": "single", "mult": 9.0, "range": 11.0, "anim": "Spellcast_Shoot", "hit_delay": 0.3, "projectile": true,
+				"fx": {"stun": 1.0}, "color": Color("ffd27a"), "vfx": &"light", "icon": "light"}]},
+}
+
+
 static func get_job(id: StringName) -> Dictionary:
 	return JOBS.get(id, {})
 
@@ -129,13 +201,15 @@ static func jobs_for(class_id: StringName) -> Array[StringName]:
 	return out
 
 
-## Base class data with the job applied (name, bonuses, first two skills).
-static func resolve(class_id: StringName, job_id: StringName) -> Dictionary:
+## Base class data with the job applied (name, bonuses, first two skills) and,
+## when [param master] is set, the Lv.30 upgrade (renamed, skills 3 and 4).
+static func resolve(class_id: StringName, job_id: StringName, master := false) -> Dictionary:
 	var base: Dictionary = ClassData.CLASSES.get(class_id, ClassData.CLASSES[&"warrior"])
 	var job := get_job(job_id)
 	if job.is_empty() or job["class"] != class_id:
 		return base
-	var key := "%s|%s" % [class_id, job_id]
+	master = master and MASTERS.has(job_id)
+	var key := "%s|%s|%s" % [class_id, job_id, master]
 	if _cache.has(key):
 		return _cache[key]
 	var data := base.duplicate()
@@ -155,6 +229,20 @@ static func resolve(class_id: StringName, job_id: StringName) -> Dictionary:
 	var skills: Array = (base.skills as Array).duplicate()
 	skills[0] = job.skills[0]
 	skills[1] = job.skills[1]
+	if master:
+		var m: Dictionary = MASTERS[job_id]
+		var mb: Dictionary = m.bonus
+		data["name"] = m.name
+		data["title"] = m.title
+		data["master"] = true
+		data["hp_mult"] = float(data.hp_mult) * float(mb.get("hp", 1.0))
+		data["mp_mult"] = float(data.mp_mult) * float(mb.get("mp", 1.0))
+		data["atk_mult"] = float(data.atk_mult) * float(mb.get("atk", 1.0))
+		data["def_mult"] = float(data.def_mult) * float(mb.get("def", 1.0))
+		data["crit_bonus"] = float(data.crit_bonus) + float(mb.get("crit", 0.0))
+		data["speed_bonus"] = float(data.speed_bonus) + float(mb.get("speed", 0.0))
+		skills[2] = m.skills[0]
+		skills[3] = m.skills[1]
 	data["skills"] = skills
 	_cache[key] = data
 	return data

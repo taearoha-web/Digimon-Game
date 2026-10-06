@@ -243,7 +243,18 @@ func _talk_job() -> void:
 	var current := Game.job_id()
 	if current != &"":
 		var info := JobData.get_job(current)
-		dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนต่อไปเพื่อเป็นตำนานนะ!" % [info.name, info.title])
+		if bool(Game.profile.get("job3", false)):
+			dialog.say(speaker, "เจ้าคือ \"%s\" — %s ถึงขั้นสูงสุดแล้ว ไม่มีอะไรจะสอนอีกแล้วนะ!" % [Game.class_data().name, Game.class_data().title])
+		elif int(Game.profile.level) >= JobData.MASTER_LEVEL and JobData.MASTERS.has(current):
+			var m: Dictionary = JobData.MASTERS[current]
+			var lines: PackedStringArray = ["ถึงเวลาเลื่อนขั้นสุดท้ายแล้ว! \"%s\" — %s" % [m.name, m.title]]
+			for skill in m.skills:
+				lines.append("• %s: %s" % [skill.name, skill.desc])
+			lines.append("ค่าเลื่อนขั้น %d เหรียญ (สกิลที่ 3 และ 4 จะถูกแทนที่)" % JobData.MASTER_COST)
+			dialog.say(speaker, "\n".join(lines), [
+				{"label": "เลื่อนขั้น", "action": func(): _confirm_master()}, {"label": "ไว้ก่อน"}])
+		else:
+			dialog.say(speaker, "เจ้าคือ \"%s\" — %s แล้ว ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้าอีกครั้งเพื่อเลื่อนขั้นสูงสุด!" % [info.name, info.title, JobData.MASTER_LEVEL])
 		return
 	if int(Game.profile.level) < JobData.JOB_LEVEL:
 		dialog.say(speaker, "ฮึๆ เจ้ายังอ่อนหัดอยู่ กลับมาเมื่อถึงเลเวล %d แล้วข้าจะชี้ทางสายอาชีพให้ — จะแยกเป็นสองสาย แต่ละสายมีสกิลใหม่และพลังต่างกัน" % JobData.JOB_LEVEL)
@@ -255,6 +266,19 @@ func _talk_job() -> void:
 		options.append({"label": String(info.name), "action": func(): _show_job(id)})
 	options.append({"label": "ไว้ก่อน"})
 	dialog.say(speaker, "เจ้าพร้อมแล้ว! เส้นทางของ%s แยกเป็นสองสาย — เลือกดูรายละเอียดได้เลย (ค่าเปลี่ยนอาชีพ %d เหรียญ)" % [Game.class_data().name, JobData.JOB_COST], options)
+
+
+func _confirm_master() -> void:
+	if int(Game.profile.gold) < JobData.MASTER_COST:
+		dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "เหรียญไม่พอนะ ต้องใช้ %d เหรียญ" % JobData.MASTER_COST)
+		return
+	if not Game.change_master():
+		return
+	VfxKit.level_up(zone, zone.hero.global_position)
+	AudioManager.play_sfx(&"quest_complete")
+	hud.show_banner("เลื่อนขั้น: %s!" % Game.class_data().name)
+	Game.say("ได้สกิลใหม่ 2 ตัวมาแทนสกิลที่ 3-4 และแต้มสกิล +3", &"success")
+	Game.save()
 
 
 func _show_job(id: StringName) -> void:

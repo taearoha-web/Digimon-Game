@@ -358,7 +358,10 @@ func _build_skills() -> void:
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(box)
 	box.add_child(UIUtil.label("แต้มสกิลที่ใช้ได้: %d   (สกิลแต่ละตัวอัปได้สูงสุด ★%d: แรงขึ้น 15%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK], &"SubHeaderLabel"))
-	for skill in Game.class_data().skills:
+	var all_skills: Array = Game.class_data().skills.duplicate()
+	all_skills.append_array(ClassData.PASSIVES.get(Game.class_id(), []))
+	for skill in all_skills:
+		var is_passive: bool = skill.has("bonus")
 		var panel := UIUtil.panel(&"CardPanel")
 		box.add_child(panel)
 		var line := UIUtil.hbox(14)
@@ -373,7 +376,7 @@ func _build_skills() -> void:
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
 		info.add_child(title_label)
-		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
+		var desc := UIUtil.label(("[ติดตัว] " + String(skill.desc)) if is_passive else "%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(desc)
 		var up := UIUtil.button("อัป", &"PrimaryButton", Vector2(110, 56))

@@ -158,6 +158,28 @@ const CLASSES := {
 }
 
 
+## Passive skills: always on once the level is reached, +[per] per rank.
+## Keys of [bonus]: atk, def, hp, mp (fractions), crit, speed, dodge (added).
+const PASSIVES := {
+	&"warrior": [
+		{"id": "iron_skin", "name": "ผิวเหล็ก", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 10, "bonus": {"def": 0.04}},
+		{"id": "warrior_heart", "name": "ใจนักรบ", "desc": "HP สูงสุด +4% ต่อดาว", "level": 25, "bonus": {"hp": 0.04}},
+	],
+	&"archer": [
+		{"id": "hawk_eye", "name": "สายตาเหยี่ยว", "desc": "คริติคอล +1.5% ต่อดาว", "level": 10, "bonus": {"crit": 0.015}},
+		{"id": "light_foot", "name": "ฝีเท้าเบา", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 25, "bonus": {"speed": 0.02, "dodge": 0.006}},
+	],
+	&"mage": [
+		{"id": "arcane_mind", "name": "ผู้รอบรู้", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
+		{"id": "elemental_power", "name": "พลังธาตุ", "desc": "พลังโจมตี +3% ต่อดาว", "level": 25, "bonus": {"atk": 0.03}},
+	],
+	&"priest": [
+		{"id": "divine_grace", "name": "พรจากสวรรค์", "desc": "HP สูงสุด +4% ต่อดาว", "level": 10, "bonus": {"hp": 0.04}},
+		{"id": "guiding_light", "name": "แสงนำทาง", "desc": "พลังโจมตี +3% และ MP +3% ต่อดาว", "level": 25, "bonus": {"atk": 0.03, "mp": 0.03}},
+	],
+}
+
+
 static func get_class_data(class_id: StringName) -> Dictionary:
 	return CLASSES.get(class_id, CLASSES[&"warrior"])
 
