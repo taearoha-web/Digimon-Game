@@ -317,7 +317,7 @@ func _talk_job() -> void:
 		elif int(Game.profile.level) >= JobData.MASTER_LEVEL and JobData.MASTERS.has(current):
 			var m: Dictionary = JobData.MASTERS[current]
 			var lines: PackedStringArray = ["ถึงเวลาเลื่อนขั้นสุดท้ายแล้ว! \"%s\" — %s" % [m.name, m.title]]
-			lines.append("พลังเพิ่มขึ้นอีกขั้น ได้แต้มสกิล +3 และใช้สกิลเลเวล 40 ขึ้นไปได้")
+			lines.append("ค่าสถานะเพิ่มอีก: %s  ได้แต้มสกิล +3 และใช้สกิลเลเวล 40 ขึ้นไปได้" % JobData.attr_text(m.attrs))
 			lines.append("ค่าเลื่อนขั้น %d เหรียญ" % JobData.MASTER_COST)
 			dialog.say(speaker, "\n".join(lines), [
 				{"label": "เลื่อนขั้น", "action": func(): _confirm_master()}, {"label": "ไว้ก่อน"}])
@@ -373,7 +373,7 @@ func _confirm_master() -> void:
 
 func _show_job(id: StringName) -> void:
 	var info := JobData.get_job(id)
-	var lines: PackedStringArray = ["พร้อมเปลี่ยนอาชีพขั้นสูงแล้ว! \"%s\" — %s" % [info.name, info.title], info.desc, "ค่าเปลี่ยนอาชีพ %d เหรียญ และได้แต้มสกิล +2" % JobData.JOB_COST]
+	var lines: PackedStringArray = ["พร้อมเปลี่ยนอาชีพขั้นสูงแล้ว! \"%s\" — %s" % [info.name, info.title], info.desc, "ค่าสถานะเพิ่มทันที: %s  (พลังโจมตี/ป้องกัน/HP เพิ่มตามสาย)" % JobData.attr_text(info.attrs), "ค่าเปลี่ยนอาชีพ %d เหรียญ และได้แต้มสกิล +2" % JobData.JOB_COST]
 	var options: Array = [{"label": "เปลี่ยนอาชีพ", "action": func(): _confirm_job(id)}, {"label": "ไว้ก่อน"}]
 	dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "\n".join(lines), options)
 

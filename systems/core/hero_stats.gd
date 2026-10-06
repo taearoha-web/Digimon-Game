@@ -15,8 +15,9 @@ static func attributes(profile: Dictionary) -> Dictionary:
 	var data := ClassData.get_class_data(StringName(profile["class"]))
 	var level: int = profile["level"]
 	var result := {}
+	var advance := JobData.attr_bonus(StringName(profile.get("job", "")), bool(profile.get("job3", false)))
 	for key in ["str", "int", "dex", "vit"]:
-		result[key] = int(data.base[key]) + int(data.gain[key]) * (level - 1) + int(profile["attrs"].get(key, 0))
+		result[key] = int(data.base[key]) + int(data.gain[key]) * (level - 1) + int(profile["attrs"].get(key, 0)) + int(advance[key])
 	return result
 
 
