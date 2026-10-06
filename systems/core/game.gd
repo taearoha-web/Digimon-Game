@@ -266,10 +266,36 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+## True while the player is in a zone (false on the title screen). Saved with
+## the profile so a reloaded page can drop straight back into the game.
+var playing := false
+
+## How long after the last save a reloaded page resumes automatically (seconds).
+const RESUME_WINDOW := 12 * 3600
+
+
+## The browser can discard or reload the page while it is in the background
+## (low memory, screen lock). If the last save says "in game" and is recent,
+## the title screen is skipped.
+func should_resume() -> bool:
+	if not has_save():
+		return false
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		return false
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary or not parsed.has("class"):
+		return false
+	var age := Time.get_unix_time_from_system() - float(parsed.get("saved_at", 0))
+	return bool(parsed.get("resume", false)) and age >= 0.0 and age < RESUME_WINDOW
+
+
 func save() -> void:
 	if not has_profile:
 		return
 	profile["zone"] = String(current_zone)
+	profile["resume"] = playing
+	profile["saved_at"] = int(Time.get_unix_time_from_system())
 	var file := FileAccess.open(SAVE_PATH + ".tmp", FileAccess.WRITE)
 	if file == null:
 		return
