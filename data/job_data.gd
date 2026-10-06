@@ -16,21 +16,25 @@ const JOBS := {
 		"class": &"warrior", "name": "นักดาบขั้นสูง", "title": "อัศวินผู้กล้า", "color": Color("ffb04a"),
 		"desc": "นักดาบที่ผ่านการฝึกขั้นสูง ทนทานและแข็งแกร่งขึ้น ใช้สกิลเลเวล 20-39 ได้",
 		"bonus": {"hp": 1.2, "def": 1.1, "atk": 1.1},
+		"attrs": {"str": 12, "vit": 8, "dex": 3},
 	},
 	&"archer_2": {
 		"class": &"archer", "name": "นักธนูขั้นสูง", "title": "พรานตาเหยี่ยว", "color": Color("5affc0"),
 		"desc": "นักธนูที่ยิงแม่นและว่องไวขึ้น คริติคอลสูง ใช้สกิลเลเวล 20-39 ได้",
 		"bonus": {"atk": 1.1, "crit": 0.05, "speed": 0.05},
+		"attrs": {"dex": 12, "str": 4, "vit": 5},
 	},
 	&"mage_2": {
 		"class": &"mage", "name": "นักเวทย์ขั้นสูง", "title": "จอมเวทธาตุ", "color": Color("b79bff"),
 		"desc": "นักเวทย์ที่ควบคุมธาตุได้ลึกซึ้งขึ้น พลังเวทและ MP เพิ่มมาก ใช้สกิลเลเวล 20-39 ได้",
 		"bonus": {"atk": 1.15, "mp": 1.2, "def": 1.05},
+		"attrs": {"int": 12, "vit": 5, "dex": 3},
 	},
 	&"priest_2": {
 		"class": &"priest", "name": "นักบวชขั้นสูง", "title": "ผู้รักษาแห่งแสง", "color": Color("fff0a0"),
 		"desc": "นักบวชที่อึดและรักษาเก่งขึ้น แสงศักดิ์สิทธิ์แรงขึ้น ใช้สกิลเลเวล 20-39 ได้",
 		"bonus": {"hp": 1.15, "def": 1.1, "mp": 1.1, "atk": 1.1},
+		"attrs": {"int": 10, "vit": 8, "dex": 3},
 	},
 }
 
@@ -38,11 +42,33 @@ const JOBS := {
 ## Third advancement at Lv.40: renames the hero again and boosts the bonuses. Same
 ## bonus keys as the jobs (multipliers, crit/speed added).
 const MASTERS := {
-	&"warrior_2": {"name": "ปรมาจารย์นักดาบ", "title": "ราชันย์แห่งสนามรบ", "bonus": {"hp": 1.12, "def": 1.1, "atk": 1.12, "crit": 0.03}},
-	&"archer_2": {"name": "ปรมาจารย์นักธนู", "title": "ลูกศรที่ไม่เคยพลาด", "bonus": {"atk": 1.12, "crit": 0.05, "speed": 0.04}},
-	&"mage_2": {"name": "ปรมาจารย์นักเวทย์", "title": "ผู้หยุดกาลเวลา", "bonus": {"atk": 1.14, "mp": 1.12, "def": 1.05}},
-	&"priest_2": {"name": "ปรมาจารย์นักบวช", "title": "แสงสว่างแห่งความหวัง", "bonus": {"hp": 1.12, "def": 1.08, "mp": 1.1, "atk": 1.1}},
+	&"warrior_2": {"name": "ปรมาจารย์นักดาบ", "title": "ราชันย์แห่งสนามรบ", "bonus": {"hp": 1.12, "def": 1.1, "atk": 1.12, "crit": 0.03}, "attrs": {"str": 20, "vit": 14, "dex": 5}},
+	&"archer_2": {"name": "ปรมาจารย์นักธนู", "title": "ลูกศรที่ไม่เคยพลาด", "bonus": {"atk": 1.12, "crit": 0.05, "speed": 0.04}, "attrs": {"dex": 20, "str": 8, "vit": 8}},
+	&"mage_2": {"name": "ปรมาจารย์นักเวทย์", "title": "ผู้หยุดกาลเวลา", "bonus": {"atk": 1.14, "mp": 1.12, "def": 1.05}, "attrs": {"int": 20, "vit": 8, "dex": 5}},
+	&"priest_2": {"name": "ปรมาจารย์นักบวช", "title": "แสงสว่างแห่งความหวัง", "bonus": {"hp": 1.12, "def": 1.08, "mp": 1.1, "atk": 1.1}, "attrs": {"int": 18, "vit": 12, "dex": 4}},
 }
+
+
+## Attribute bonuses (STR/INT/DEX/VIT) an advancement adds on top of the class growth.
+static func attr_bonus(job_id: StringName, master: bool) -> Dictionary:
+	var total := {"str": 0, "int": 0, "dex": 0, "vit": 0}
+	var job := get_job(job_id)
+	if job.is_empty():
+		return total
+	for key in job.get("attrs", {}):
+		total[key] += int(job.attrs[key])
+	if master and MASTERS.has(job_id):
+		for key in MASTERS[job_id].get("attrs", {}):
+			total[key] += int(MASTERS[job_id].attrs[key])
+	return total
+
+
+static func attr_text(attrs: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for key in ["str", "int", "dex", "vit"]:
+		if int(attrs.get(key, 0)) > 0:
+			parts.append("%s +%d" % [String(key).to_upper(), int(attrs[key])])
+	return "  ".join(parts)
 
 
 ## Saves from the branching jobs (paladin, pyromancer...) move to the single path.

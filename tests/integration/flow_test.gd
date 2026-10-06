@@ -149,11 +149,14 @@ func _jobs() -> void:
 		Game.add_exp(2000000)
 		Game.add_gold(5000)
 		var atk_before: float = Game.stats_now().atk
+		var attrs_before: Dictionary = Game.stats_now().attrs
 		var gold_before: int = Game.profile.gold
 		check(Game.change_job(branches[0]), "job picked")
 		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
 		check(Game.profile.gold == gold_before - JobData.JOB_COST + 1000, "job change cost gold (the job achievement pays 1000 back)")
 		check(String(Game.class_data().name) != String(ClassData.get_class_data(class_id).name), "job renames the hero")
+		var main_key: String = ClassData.get_class_data(class_id).main
+		check(int(Game.stats_now().attrs[main_key]) >= int(attrs_before[main_key]) + 10, "%s: the job raises the main attribute (%s)" % [class_id, main_key])
 		check(not Game.change_job(branches[0]), "job cannot be changed twice")
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
