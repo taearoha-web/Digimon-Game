@@ -124,7 +124,7 @@ func _build_character() -> void:
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
 	var names := {"str": "STR พลัง", "int": "INT ปัญญา", "dex": "DEX ความคล่อง", "vit": "VIT ความทนทาน"}
-	var notes := {"str": "เพิ่มพลังโจมตีของนักรบ", "int": "เพิ่มพลังเวทและ MP", "dex": "เพิ่มพลังนักธนู คริติคอล หลบหลีก", "vit": "เพิ่ม HP และพลังป้องกัน"}
+	var notes := {"str": "เพิ่มพลังโจมตีของนักรบ", "int": "เพิ่มพลังเวทและ MP", "dex": "เพิ่มคริติคอล หลบหลีก และความเร็วสกิล", "vit": "เพิ่ม HP และพลังป้องกัน"}
 	for key in ["str", "int", "dex", "vit"]:
 		var line := UIUtil.hbox(10)
 		left.add_child(line)
@@ -143,7 +143,7 @@ func _build_character() -> void:
 	for line in [
 		["HP", "%d / %d" % [p.hp, stats.max_hp]], ["MP", "%d / %d" % [p.mp, stats.max_mp]],
 		["พลังโจมตี", "%d" % int(stats.atk)], ["พลังป้องกัน", "%d" % int(stats.def)],
-		["คริติคอล", "%.1f%%" % (float(stats.crit) * 100.0)], ["หลบหลีก", "%.1f%%" % (float(stats.dodge) * 100.0)],
+		["คริติคอล", "%.1f%%" % (float(stats.crit) * 100.0)], ["หลบหลีก", "%.1f%%" % (float(stats.dodge) * 100.0)], ["ความเร็วสกิล", "+%.1f%%" % (float(stats.haste) * 100.0)],
 		["EXP", "%d / %d" % [p.exp, HeroStats.exp_to_next(p.level)]], ["สังหารมอนสเตอร์", "%d ตัว" % int(p.kills)],
 		["เวลาเล่น", UIUtil.format_play_time(float(p.play_time))],
 	]:
@@ -393,11 +393,16 @@ func _build_skills() -> void:
 		line.add_child(info)
 		var unlocked := Game.skill_unlocked(skill)
 		var rank := Game.effective_rank(skill)
-		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else Game.skill_lock_reason(skill))]
-		var title_label := UIUtil.label(title, &"BoldLabel")
+		var title_row := UIUtil.hbox(12)
+		info.add_child(title_row)
+		var title_label := UIUtil.label(String(skill.name), &"BoldLabel")
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
-		info.add_child(title_label)
+		title_row.add_child(title_label)
+		if unlocked:
+			title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
+		else:
+			title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
 		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(desc)
@@ -419,11 +424,16 @@ func _build_skills() -> void:
 		panel.add_child(info)
 		var unlocked := Game.skill_unlocked(skill)
 		var rank := Game.effective_rank(skill)
-		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else Game.skill_lock_reason(skill))]
-		var title_label := UIUtil.label(title, &"BoldLabel")
+		var title_row := UIUtil.hbox(12)
+		info.add_child(title_row)
+		var title_label := UIUtil.label(String(skill.name), &"BoldLabel")
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
-		info.add_child(title_label)
+		title_row.add_child(title_label)
+		if unlocked:
+			title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
+		else:
+			title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
 		info.add_child(UIUtil.label(String(skill.desc), &"SmallLabel"))
 
 

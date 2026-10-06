@@ -35,6 +35,7 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	await _vagabond()
 	await _look()
+	await _dex_and_stars()
 	await _tiers()
 	for id in ClassData.IDS:
 		await _play_class(id)
@@ -238,6 +239,30 @@ func _tiers() -> void:
 	check(Game.change_job(branch) and Game.class_tier() == 2, "advanced job reaches tier 2")
 	check(Game.skill_unlocked(watornado) and not Game.skill_unlocked(flame), "tier 2 opens Lv.20-39 skills only")
 	check(Game.change_master() and Game.class_tier() == 3 and Game.skill_unlocked(flame), "master job opens Lv.40+ skills")
+
+
+func _dex_and_stars() -> void:
+	print("== DEX haste and star radius")
+	await _start(&"archer")
+	var hero: Hero = main.zone.hero
+	var skill := ClassData.find_skill(&"archer", "wind_arrow")
+	var cd_before := hero.cooldown_of(skill)
+	Game.profile.attrs.dex += 100
+	hero.refresh_stats()
+	check(float(hero.stats.haste) >= 0.1, "100 DEX gives about 10%% haste (%.2f)" % float(hero.stats.haste))
+	check(hero.cooldown_of(skill) < cd_before * 0.95, "DEX shortens cooldowns")
+	Game.profile.attrs.dex += 10000
+	hero.refresh_stats()
+	check(float(hero.stats.haste) <= HeroStats.MAX_HASTE + 0.001, "haste is capped")
+	var blast := ClassData.find_skill(&"archer", "avalanche")
+	Game.profile["job"] = "archer_2"
+	Game.profile.skills["avalanche"] = 5
+	Game.profile["level"] = 50
+	var grown := hero._ranked(blast)
+	check(float(grown.radius) > float(blast.radius) * 1.3, "5 stars widen an area skill by about 32%% (%.1f -> %.1f)" % [float(blast.radius), float(grown.radius)])
+	var fan := ClassData.find_skill(&"archer", "arrow_of_rage")
+	Game.profile.skills["arrow_of_rage"] = 5
+	check(int(hero._ranked(fan).hits) == int(fan.hits) + 2, "5 stars add two arrows to a fan skill")
 
 
 func _look() -> void:

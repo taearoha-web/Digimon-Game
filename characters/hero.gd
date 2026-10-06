@@ -369,13 +369,13 @@ func _combat_step(delta: float) -> Vector3:
 
 func _skill_range(skill: Dictionary) -> float:
 	if skill.shape == "burst":
-		return float(skill.radius) * 0.7
+		return float(_ranked(skill).radius) * 0.7
 	return float(skill.get("range", 3.0))
 
 
 func _basic_attack() -> void:
 	var attack: Dictionary = Game.class_data().attack
-	_attack_timer = float(attack.interval)
+	_attack_timer = float(attack.interval) * (1.0 - _haste())
 	_since_hurt = minf(_since_hurt, 1.0)
 	var anims: Array = attack.anims
 	var clip: String = anims[_combo % anims.size()]
@@ -418,7 +418,25 @@ func mp_cost(skill: Dictionary) -> int:
 
 
 func cooldown_of(skill: Dictionary) -> float:
-	return float(skill.cd) * (1.0 - 0.03 * float(Game.effective_rank(skill) - 1))
+	return float(skill.cd) * (1.0 - 0.03 * float(Game.effective_rank(skill) - 1)) * (1.0 - _haste())
+
+
+## Share of time DEX cuts from cooldowns, wind-ups and the basic attack interval.
+func _haste() -> float:
+	return float(stats.get("haste", 0.0))
+
+
+## The skill with its area and target counts grown by the star rank.
+func _ranked(skill: Dictionary) -> Dictionary:
+	var rank := Game.effective_rank(skill)
+	if rank <= 1:
+		return skill
+	var grown := skill.duplicate()
+	if grown.has("radius"):
+		grown["radius"] = float(skill.radius) * Game.radius_scale(rank)
+	if String(skill.shape) in ["chain", "fan"] and grown.has("hits"):
+		grown["hits"] = int(skill.hits) + (1 if rank >= 3 else 0) + (1 if rank >= 5 else 0)
+	return grown
 
 
 func cooldown_ratio(skill: Dictionary) -> float:
@@ -460,13 +478,14 @@ func _cast(skill: Dictionary) -> void:
 	Game.profile.mp -= cost
 	cooldowns[skill.id] = cooldown_of(skill)
 	_since_hurt = minf(_since_hurt, 1.0)
-	var delay := float(skill.hit_delay)
-	visual.action(skill.anim, 1.0)
+	skill_fired.emit(Game.class_data().skills.find(skill))
+	skill = _ranked(skill)
+	var delay := float(skill.hit_delay) * (1.0 - _haste())
+	visual.action(skill.anim, 1.0 / maxf(1.0 - _haste(), 0.5))
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 90
 	if target and _valid_target(target):
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
 	AudioManager.play_sfx(&"skill_start", -4.0)
-	skill_fired.emit(Game.class_data().skills.find(skill))
 	Game.daily_progress("skills", 1)
 	var snapshot := target
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0

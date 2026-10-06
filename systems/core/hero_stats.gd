@@ -4,6 +4,9 @@ extends RefCounted
 
 const MOVE_SPEED := 5.4
 const CRIT_DAMAGE := 1.6
+## DEX makes skills and attacks quicker: 1% per 10 DEX, at most 40%.
+const HASTE_PER_DEX := 0.001
+const MAX_HASTE := 0.4
 
 
 static func exp_to_next(level: int) -> int:
@@ -97,6 +100,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit), 0.0, 0.8),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge), 0.0, 0.35),
+		"haste": clampf(float(attrs.dex) * HASTE_PER_DEX, 0.0, MAX_HASTE),
 	}
 
 

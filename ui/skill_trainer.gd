@@ -78,7 +78,7 @@ func close_trainer() -> void:
 
 func _rebuild() -> void:
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)
-	_info.text = "แต้มสกิลที่ใช้ได้: %d   (ดาวละ 1 แต้ม + เหรียญ, สูงสุด ★%d: แรงขึ้น 15%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK]
+	_info.text = "แต้มสกิลที่ใช้ได้: %d   (ดาวละ 1 แต้ม + เหรียญ, สูงสุด %d ดาว: แรงขึ้น 15%% และวงกว้างขึ้น 8%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK]
 	UIUtil.clear(_box)
 	for skill in Game.skill_pool():
 		_box.add_child(_row(skill, false))
@@ -96,18 +96,26 @@ func _row(skill: Dictionary, passive: bool) -> Control:
 	var unlocked := Game.skill_unlocked(skill)
 	var rank := Game.effective_rank(skill)
 	var tag := "[ติดตัว] " if passive else ""
-	var title := "%s%s   %s" % [tag, skill.name, ("★".repeat(rank) + "☆".repeat(Game.MAX_SKILL_RANK - rank)) if unlocked else Game.skill_lock_reason(skill)]
-	var title_label := UIUtil.label(title, &"BoldLabel")
+	var title_row := UIUtil.hbox(12)
+	info.add_child(title_row)
+	var title_label := UIUtil.label(tag + String(skill.name), &"BoldLabel")
 	if not unlocked:
 		title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
-	info.add_child(title_label)
+	title_row.add_child(title_label)
+	if unlocked:
+		title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 20.0))
+	else:
+		var lock := UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel")
+		title_row.add_child(lock)
 	var text := String(skill.desc) if passive else "%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)]
+	if not passive and String(skill.shape) in ["burst", "blast"]:
+		text += "  •  รัศมี %.1f (ดาวละ +%d%%)" % [float(skill.radius) * Game.radius_scale(rank), int(Game.RADIUS_PER_STAR * 100.0)]
 	var desc := UIUtil.label(text, &"SmallLabel")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(desc)
 	var cost := Game.skill_upgrade_cost(skill)
 	var maxed := rank >= Game.MAX_SKILL_RANK
-	var button := UIUtil.button("เต็มแล้ว" if maxed else "อัป %d" % cost, &"PrimaryButton", Vector2(150, 56))
+	var button := UIUtil.button("เต็มแล้ว" if maxed else ("ล็อก" if not unlocked else "อัป %d" % cost), &"PrimaryButton", Vector2(150, 56))
 	button.disabled = not unlocked or maxed or int(Game.profile.skill_points) <= 0 or int(Game.profile.gold) < cost
 	button.pressed.connect(func():
 		if Game.upgrade_skill(skill):
