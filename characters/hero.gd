@@ -434,7 +434,7 @@ func use_skill(index: int) -> String:
 	if skill.is_empty():
 		return "none"
 	if not Game.skill_unlocked(skill):
-		message.emit("ปลดล็อกที่เลเวล %d" % int(skill.level))
+		message.emit(Game.skill_lock_reason(skill))
 		return "locked"
 	if float(cooldowns.get(skill.id, 0.0)) > 0.0:
 		return "cooldown"

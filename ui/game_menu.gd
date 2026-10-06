@@ -393,7 +393,7 @@ func _build_skills() -> void:
 		line.add_child(info)
 		var unlocked := Game.skill_unlocked(skill)
 		var rank := Game.effective_rank(skill)
-		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else "ปลดล็อกที่เลเวล %d" % int(skill.level))]
+		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else Game.skill_lock_reason(skill))]
 		var title_label := UIUtil.label(title, &"BoldLabel")
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
@@ -419,7 +419,7 @@ func _build_skills() -> void:
 		panel.add_child(info)
 		var unlocked := Game.skill_unlocked(skill)
 		var rank := Game.effective_rank(skill)
-		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else "ปลดล็อกที่เลเวล %d" % int(skill.level))]
+		var title := "%s   %s" % [skill.name, ("★".repeat(rank) if unlocked else Game.skill_lock_reason(skill))]
 		var title_label := UIUtil.label(title, &"BoldLabel")
 		if not unlocked:
 			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)

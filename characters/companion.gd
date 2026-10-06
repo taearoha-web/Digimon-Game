@@ -427,7 +427,7 @@ func _try_skills(distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	for skill in skills:
-		if int(skill.level) > int(member.level) + 9 or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if int(skill.level) > int(member.level) + 9 or ClassData.skill_tier(skill) > _tier() or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, distance, hero_hp)
 		if score > best_score:
@@ -437,6 +437,11 @@ func _try_skills(distance: float) -> bool:
 		return false
 	_cast(best)
 	return true
+
+
+## Companions advance on their own: job at Lv.20, master at Lv.40.
+func _tier() -> int:
+	return 1 + (1 if int(member.level) >= JobData.JOB_LEVEL else 0) + (1 if int(member.level) >= JobData.MASTER_LEVEL else 0)
 
 
 func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:

@@ -184,8 +184,30 @@ static func find_skill(class_id: StringName, skill_id: String) -> Dictionary:
 	return {}
 
 
+## Advancement tier a skill needs: 1 = the chosen line (Lv.10), 2 = advanced job
+## (Lv.20), 3 = master job (Lv.40). Vagabond skills need none (0).
+static func skill_tier(skill: Dictionary) -> int:
+	var level := int(skill.get("level", 1))
+	if level < LINE_LEVEL:
+		return 0
+	return 1 if level < 20 else (2 if level < 40 else 3)
+
+
+## Current tier of a hero: 0 Vagabond, 1 line, 2 advanced job, 3 master.
+static func tier_of(class_id: StringName, job: StringName, master: bool) -> int:
+	if class_id == START:
+		return 0
+	if job == &"":
+		return 1
+	return 3 if master else 2
+
+
+static func tier_name(tier: int) -> String:
+	return ["นักเดินทาง", "อาชีพขั้นแรก", "อาชีพขั้นสูง", "อาชีพขั้นปรมาจารย์"][clampi(tier, 0, 3)]
+
+
 ## The first unlocked skills fill the empty bar slots.
-static func default_loadout(class_id: StringName, level: int, current: Array = []) -> Array:
+static func default_loadout(class_id: StringName, level: int, current: Array = [], tier := 3) -> Array:
 	var out: Array = []
 	for i in SLOTS:
 		out.append(String(current[i]) if i < current.size() else "")
@@ -193,10 +215,10 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 	# Drop ids that no longer belong to this class or are not unlocked.
 	for i in SLOTS:
 		var skill := find_skill(class_id, out[i])
-		if skill.is_empty() or int(skill.level) > level or out.find(out[i]) != i:
+		if skill.is_empty() or int(skill.level) > level or skill_tier(skill) > tier or out.find(out[i]) != i:
 			out[i] = ""
 	for skill in pool_skills:
-		if int(skill.level) > level or out.has(skill.id):
+		if int(skill.level) > level or skill_tier(skill) > tier or out.has(skill.id):
 			continue
 		var empty := out.find("")
 		if empty < 0:
