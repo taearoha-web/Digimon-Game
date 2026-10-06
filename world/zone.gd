@@ -216,6 +216,7 @@ func _build_town() -> void:
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
 	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
 	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, Vector3(-11, 0, 5), "Knight")
+	_add_npc("storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", Vector3(15, 0, -4), "Rogue_Hooded")
 	_add_npc("skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", Vector3(-8, 0, 10), "Mage")
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
 	_add_npc("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน", Vector3(-3, 0, 12), "Rogue_Hooded")
@@ -488,6 +489,18 @@ func interact() -> void:
 # ---------------------------------------------------------------------------
 # Monsters, bosses, drops
 # ---------------------------------------------------------------------------
+
+## The monster camp the point is inside (or just outside), or {}.
+func camp_near(point: Vector3) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d := INF
+	for camp in _camps:
+		var d := Vector2(point.x - camp.pos.x, point.z - camp.pos.y).length()
+		if d <= float(camp.radius) + 3.0 and d < best_d:
+			best = camp
+			best_d = d
+	return best
+
 
 func _camp_spot(camp: Dictionary) -> Vector3:
 	var angle := rng.randf() * TAU

@@ -24,6 +24,7 @@ var skill_slots: Array[SkillSlot] = []
 var hp_potion: TouchButton
 var mp_potion: TouchButton
 var target_button: TouchButton
+var auto_button: TouchButton
 var interact_button: TouchButton
 
 var _root: Control
@@ -81,9 +82,9 @@ func _ready() -> void:
 	_build_action_buttons(_frame)
 	_build_banner(_frame)
 	_build_death_overlay()
-	_controls = [joystick, camera_area, attack_button, hp_potion, mp_potion, target_button, interact_button]
+	_controls = [joystick, camera_area, attack_button, hp_potion, mp_potion, target_button, auto_button, interact_button]
 	_controls.append_array(skill_slots)
-	_combat_controls = [attack_button, hp_potion, mp_potion, target_button]
+	_combat_controls = [attack_button, hp_potion, mp_potion, target_button, auto_button]
 	_combat_controls.append_array(skill_slots)
 	Game.gold_changed.connect(func(_g): _refresh_gold())
 	_save_label = UIUtil.label("💾 บันทึกอัตโนมัติ", &"SmallLabel")
@@ -187,6 +188,7 @@ func _process(_delta: float) -> void:
 		_update_skills()
 		_update_potions()
 		attack_button.set_toggled(hero.engaged)
+		auto_button.set_toggled(hero.auto)
 	_update_target_frame()
 
 
@@ -458,6 +460,13 @@ func _build_action_buttons(frame: Control) -> void:
 	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.DANGER, center + Vector2(-366, 40))
 	target_button.pressed.connect(func(): if hero: hero.cycle_target())
 	frame.add_child(target_button)
+
+	auto_button = _small_button("", Color("5affc0"), center + Vector2(-434, 34))
+	auto_button.toggle_mode = true
+	auto_button.text = "ออโต้"
+	auto_button.font_size_override = 18
+	auto_button.pressed.connect(func(): if hero: hero.toggle_auto())
+	frame.add_child(auto_button)
 
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0

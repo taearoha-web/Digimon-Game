@@ -11,6 +11,7 @@ signal toggled(on: bool)
 @export var icon: Texture2D
 @export var radius := 60.0
 @export var toggle_mode := false
+@export var font_size_override := 0
 @export var button_pressed := false
 @export var accent := Color(0.2, 0.88, 1.0)
 @export var disabled := false:
@@ -111,7 +112,7 @@ func _draw() -> void:
 	if text != "" and _font:
 		# Custom-drawn, so translate here (Controls only auto-translate their own text).
 		var shown := L10n.t(text)
-		var font_size := 22 if icon else 26
+		var font_size := font_size_override if font_size_override > 0 else (22 if icon else 26)
 		var w := _font.get_string_size(shown, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
 		draw_string_outline(_font, Vector2(center.x - w * 0.5, text_y + font_size * 0.35), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 5, Color(0.02, 0.04, 0.12, alpha))
 		draw_string(_font, Vector2(center.x - w * 0.5, text_y + font_size * 0.35), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, alpha))

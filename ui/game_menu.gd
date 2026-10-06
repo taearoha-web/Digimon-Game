@@ -200,7 +200,7 @@ func _build_inventory() -> void:
 	var middle := UIUtil.vbox(6)
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(middle)
-	middle.add_child(UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.INVENTORY_SIZE], &"SubHeaderLabel"))
+	middle.add_child(UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.bag_size()], &"SubHeaderLabel"))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -210,7 +210,7 @@ func _build_inventory() -> void:
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(grid)
-	for i in Game.INVENTORY_SIZE:
+	for i in Game.bag_size():
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(90, 92)
 		b.clip_text = true

@@ -7,6 +7,7 @@ var hud: HUD
 var menu: GameMenu
 var shop: ShopScreen
 var trainer: SkillTrainer
+var storage: StorageScreen
 var dialog: DialogBox
 var _flash: ColorRect
 var title_screen: CanvasLayer
@@ -53,6 +54,8 @@ func _ready() -> void:
 	add_child(shop)
 	trainer = SkillTrainer.new()
 	add_child(trainer)
+	storage = StorageScreen.new()
+	add_child(storage)
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
@@ -185,7 +188,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -222,6 +225,9 @@ func _on_npc(role: String) -> void:
 				{"label": "ดูสินค้า", "action": func(): shop.open_shop()}, {"label": "ไว้ก่อน"}])
 		"job":
 			_talk_job()
+		"storage":
+			dialog.say("เจ้าของคลัง", "ของที่ยังไม่ใช้ฝากไว้กับข้าได้ปลอดภัย (คลังจุ %d ช่อง) หรือจะจ่ายเหรียญขยายกระเป๋าเพิ่มทีละ %d ช่องก็ได้ ตอนนี้กระเป๋ามี %d ช่อง" % [Game.STORAGE_SIZE, Game.BAG_STEP, Game.bag_size()], [
+				{"label": "เปิดคลัง", "action": func(): storage.open_storage()}, {"label": "ไว้ก่อน"}])
 		"skill":
 			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
 				{"label": "ฝึกสกิล", "action": func(): trainer.open_trainer()}, {"label": "ไว้ก่อน"}])
