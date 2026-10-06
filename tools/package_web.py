@@ -21,6 +21,7 @@ Usage:
   python3 tools/package_web.py [--pages docs/play]
 """
 import gzip
+import hashlib
 import json
 import os
 import re
@@ -61,9 +62,14 @@ def main() -> None:
         shutil.copy(os.path.join(SRC, name), os.path.join(OUT, name))
 
     packed = {}
+    build_ids = []
     for name, (out_name, mime) in PACKED.items():
         with open(os.path.join(SRC, name), "rb") as f:
             data = f.read()
+        # A content hash in the file name busts browser / home-screen caches on every new build.
+        digest = hashlib.sha1(data).hexdigest()[:8]
+        out_name = out_name.replace(".gz", ".%s.gz" % digest)
+        build_ids.append(digest)
         with open(os.path.join(OUT, out_name), "wb") as f:
             f.write(gzip.compress(data, compresslevel=9, mtime=0))
         packed[name] = [out_name, os.path.getsize(os.path.join(OUT, out_name)), mime]
@@ -74,7 +80,7 @@ def main() -> None:
     shell = (shell.replace("__GODOT_CONFIG__", json.dumps(config))
              .replace("__PACKED__", json.dumps(packed))
              .replace("__TOTAL_MB__", "%.0f" % (total / 1048576))
-             .replace("__VERSION__", project_version()))
+             .replace("__VERSION__", "%s · build %s" % (project_version(), build_ids[-1])))
     with open(os.path.join(OUT, "index.html"), "w", encoding="utf-8") as f:
         f.write(shell.replace("__FULLSCREEN_NOTE__", NOTE_ARTIFACT))
 
