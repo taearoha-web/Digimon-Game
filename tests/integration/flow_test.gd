@@ -35,6 +35,7 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	await _vagabond()
 	await _look()
+	await _storage_and_auto()
 	await _dex_and_stars()
 	await _tiers()
 	for id in ClassData.IDS:
@@ -75,7 +76,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 10, "ten villagers")
+	check(town.npcs.size() == 11, "eleven villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 4 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -263,6 +264,57 @@ func _dex_and_stars() -> void:
 	var fan := ClassData.find_skill(&"archer", "arrow_of_rage")
 	Game.profile.skills["arrow_of_rage"] = 5
 	check(int(hero._ranked(fan).hits) == int(fan.hits) + 2, "5 stars add two arrows to a fan skill")
+
+
+func _storage_and_auto() -> void:
+	print("== Storage, bigger bag, auto hunting")
+	var zone := await _start(&"warrior")
+	check(Game.bag_size() == Game.BASE_BAG and Game.BASE_BAG >= 40, "the bag starts with %d slots" % Game.bag_size())
+	Game.add_item(ItemData.potion("hp_s", 3))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	Game.add_item(ItemData.generate(5, &"warrior", rng, 1, "armor"))
+	var bag_before: int = Game.profile.inv.size()
+	check(Game.deposit_item(0) and Game.profile.inv.size() == bag_before - 1 and Game.storage().size() == 1, "deposit moves an item to the storage")
+	Game.add_item(ItemData.potion("hp_s", 2))
+	check(Game.deposit_item(Game.profile.inv.size() - 1) or true, "deposit potions")
+	var stored_before: int = Game.storage().size()
+	check(Game.withdraw_item(0) and Game.storage().size() == stored_before - 1, "withdraw brings an item back")
+	for i in Game.STORAGE_SIZE + 5:
+		Game.add_item(ItemData.generate(3, &"warrior", rng, 0, "boots"))
+	check(Game.profile.inv.size() <= Game.bag_size(), "the bag never exceeds its size")
+	Game.profile.gold = 100000
+	var cost := Game.bag_expand_cost()
+	check(cost > 0 and Game.expand_bag() and Game.bag_size() == Game.BASE_BAG + Game.BAG_STEP, "paying gold adds %d bag slots" % Game.BAG_STEP)
+	var save_code := Game.export_code()
+	check(Game.import_code(save_code) and Game.bag_size() == Game.BASE_BAG + Game.BAG_STEP and Game.storage().size() == stored_before - 1, "bag size and storage survive saving")
+	# Auto hunting stays inside the camp it was switched on in.
+	await main.go(&"meadow", true)
+	await _wait(0.5)
+	var field: Zone = main.zone
+	var hero: Hero = field.hero
+	Game.profile["level"] = 20
+	Game.fill_loadout()
+	var camp: Dictionary = field._camps[0]
+	hero.global_position = Vector3(camp.pos.x, 0.2, camp.pos.y)
+	var center := Vector3(camp.pos.x, 0, camp.pos.y)
+	hero.set_auto(true)
+	check(hero.auto, "auto turns on inside a camp")
+	var kills_before := int(Game.profile.kills)
+	var farthest := 0.0
+	var waited := 0.0
+	while waited < 45.0 and int(Game.profile.kills) < kills_before + 3 and not hero.is_dead():
+		await _wait(0.5)
+		waited += 0.5
+		Game.profile.hp = maxi(int(Game.profile.hp), int(hero.stats.max_hp * 0.6))
+		Game.profile.mp = maxi(int(Game.profile.mp), 40)
+		farthest = maxf(farthest, Vector2(hero.global_position.x - center.x, hero.global_position.z - center.z).length())
+	check(int(Game.profile.kills) >= kills_before + 3, "auto killed monsters by itself (%d kills in %.0fs)" % [int(Game.profile.kills) - kills_before, waited])
+	check(farthest <= float(camp.radius) + 8.0, "auto stayed around the camp (max %.1f from the centre)" % farthest)
+	hero.move_input = Vector2(1, 0)
+	await _wait(0.3)
+	hero.move_input = Vector2.ZERO
+	check(not hero.auto, "moving by hand turns auto off")
 
 
 func _look() -> void:

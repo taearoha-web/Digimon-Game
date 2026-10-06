@@ -8,6 +8,7 @@ signal died()
 signal target_changed(target: Mob)
 signal skill_fired(index: int)
 signal message(text: String)
+signal auto_changed(on: bool)
 
 const TARGET_RANGE := 16.0
 const POTION_COOLDOWN := 1.2
@@ -26,6 +27,11 @@ var move_input := Vector2.ZERO
 var target: Mob
 ## Auto-attack mode: keeps hitting the target and picks the next one itself.
 var engaged := false
+## Auto hunting: fights inside the camp it was switched on in, uses skills and potions.
+var auto := false
+var _auto_center := Vector3.ZERO
+var _auto_radius := 10.0
+var _auto_timer := 0.0
 var stats: Dictionary = {}
 var cooldowns: Dictionary = {}
 var potion_cd := 0.0
@@ -159,6 +165,100 @@ func tap_attack() -> void:
 	engaged = true
 
 
+# ---------------------------------------------------------------------------
+# Auto hunting
+# ---------------------------------------------------------------------------
+
+func toggle_auto() -> void:
+	set_auto(not auto)
+
+
+func set_auto(on: bool) -> void:
+	if on == auto:
+		return
+	if on:
+		if _dead or safe_zone:
+			message.emit("ออโต้ใช้ได้เฉพาะในทุ่งล่ามอนสเตอร์")
+			return
+		var camp: Dictionary = field.camp_near(global_position) if field and field.has_method("camp_near") else {}
+		if camp.is_empty():
+			_auto_center = global_position
+			_auto_radius = 12.0
+		else:
+			_auto_center = Vector3(camp.pos.x, 0.0, camp.pos.y)
+			_auto_radius = float(camp.radius)
+		Game.say("ออโต้เปิด: ล่าในวงนี้ (แตะปุ่มออโต้หรือเดินเองเพื่อหยุด)", &"info")
+	else:
+		engaged = false
+		_pending = {}
+	auto = on
+	auto_changed.emit(on)
+
+
+func _auto_step(delta: float) -> Vector3:
+	_auto_timer -= delta
+	if _auto_timer <= 0.0:
+		_auto_timer = 0.3
+		_auto_think()
+	var home := _flat(_auto_center - global_position)
+	if not _valid_target(target):
+		if home.length() > 4.0:
+			_face(home, delta, 12.0)
+			return home.normalized() * float(stats.speed)
+		return Vector3.ZERO
+	if home.length() > _auto_radius + 6.0:
+		set_target(null)
+		engaged = false
+		_pending = {}
+		return Vector3.ZERO
+	return _combat_step(delta)
+
+
+func _auto_think() -> void:
+	var hp_rate := float(Game.profile.hp) / float(maxi(1, stats.max_hp))
+	var mp_rate := float(Game.profile.mp) / float(maxi(1, stats.max_mp))
+	if hp_rate < 0.45 and Game.total_potions("hp") > 0:
+		use_potion("hp")
+	if mp_rate < 0.2 and Game.total_potions("mp") > 0:
+		use_potion("mp")
+	if hp_rate < 0.25 and Game.total_potions("hp") == 0:
+		message.emit("ยาเลือดหมด — ปิดออโต้")
+		set_auto(false)
+		return
+	if not _valid_target(target):
+		for mob in mobs_in_range(_auto_radius + 6.0):
+			if _flat(mob.global_position - _auto_center).length() <= _auto_radius + 2.0:
+				set_target(mob)
+				break
+	engaged = _valid_target(target)
+	if engaged and _pending.is_empty() and Time.get_ticks_msec() >= _cast_until and mp_rate > 0.12:
+		_auto_cast(hp_rate)
+
+
+## Picks the next skill off the bar that makes sense right now.
+func _auto_cast(hp_rate: float) -> void:
+	var skills: Array = Game.class_data().skills
+	var crowd := mobs_in_range(7.0).size()
+	for i in skills.size():
+		var skill: Dictionary = skills[i]
+		if skill.is_empty() or not Game.skill_unlocked(skill):
+			continue
+		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or int(Game.profile.mp) < mp_cost(skill):
+			continue
+		var fx: Dictionary = skill.get("fx", {})
+		match String(skill.shape):
+			"self":
+				if fx.has("heal") and hp_rate > (0.55 if not fx.has("buff") else 0.75):
+					continue
+				if fx.has("buff") and not fx.has("heal") and not _buffs.is_empty():
+					continue
+			"burst":
+				if crowd < 2:
+					continue
+		use_skill(i)
+		return
+
+
 func set_target(mob: Mob) -> void:
 	if mob == target:
 		return
@@ -232,6 +332,8 @@ func _physics_process(delta: float) -> void:
 	if direction.length() > 0.1 and not casting:
 		engaged = false
 		_pending = {}
+		if auto:
+			set_auto(false)
 	if _target_dead():
 		_on_target_lost()
 	var desired := Vector3.ZERO
@@ -239,6 +341,8 @@ func _physics_process(delta: float) -> void:
 		if direction.length() > 0.1:
 			desired = direction * float(stats.speed)
 			_face(direction, delta, 14.0)
+		elif auto:
+			desired = _auto_step(delta)
 		else:
 			desired = _combat_step(delta)
 	velocity.x = lerpf(velocity.x, desired.x, 1.0 - exp(-16.0 * delta))
@@ -725,6 +829,7 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	set_auto(false)
 	engaged = false
 	_pending = {}
 	set_target(null)

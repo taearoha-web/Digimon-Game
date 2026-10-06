@@ -22,7 +22,10 @@ signal screen_flash(color: Color, strength: float)
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
 const AUTOSAVE_INTERVAL := 10.0
-const INVENTORY_SIZE := 30
+const BASE_BAG := 40
+const MAX_BAG := 100
+const BAG_STEP := 10
+const STORAGE_SIZE := 80
 const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 50
 const MAX_SKILL_RANK := 5
@@ -71,7 +74,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {},
+		"flags": {}, "boss_kills": {}, "storage": [], "bag_slots": BASE_BAG,
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -319,6 +322,11 @@ func _repair(data: Dictionary) -> Dictionary:
 			data[key] = {}
 	if not data.get("inv") is Array:
 		data["inv"] = []
+	if not data.get("storage") is Array:
+		data["storage"] = []
+	data["bag_slots"] = int(data.get("bag_slots", BASE_BAG))
+	for stored in data["storage"]:
+		_repair_item(stored)
 	for key in ["str", "int", "dex", "vit"]:
 		data.attrs[key] = int(data.attrs.get(key, 0))
 	for skill_id in data.skills.keys():
@@ -605,8 +613,81 @@ func spend_gold(amount: int) -> bool:
 	return true
 
 
+func bag_size() -> int:
+	return clampi(int(profile.get("bag_slots", BASE_BAG)), BASE_BAG, MAX_BAG)
+
+
 func inventory_free() -> int:
-	return INVENTORY_SIZE - profile["inv"].size()
+	return bag_size() - profile["inv"].size()
+
+
+## Gold for the next +10 bag slots at the storage keeper (0 when maxed).
+func bag_expand_cost() -> int:
+	if bag_size() >= MAX_BAG:
+		return 0
+	return 1500 * ((bag_size() - BASE_BAG) / BAG_STEP + 1)
+
+
+func expand_bag() -> bool:
+	var cost := bag_expand_cost()
+	if cost <= 0 or int(profile["gold"]) < cost:
+		return false
+	add_gold(-cost)
+	profile["bag_slots"] = bag_size() + BAG_STEP
+	inventory_changed.emit()
+	mark_dirty()
+	return true
+
+
+# --- storage (the warehouse in the village) ----------------------------------
+
+func storage() -> Array:
+	if not profile.get("storage") is Array:
+		profile["storage"] = []
+	return profile["storage"]
+
+
+func _stack_into(list: Array, item: Dictionary) -> bool:
+	if ItemData.is_stackable(item):
+		for existing in list:
+			if existing.get("kind", "") == item.get("kind", "") and existing.id == item.id:
+				existing["count"] = int(existing["count"]) + int(item.get("count", 1))
+				return true
+	return false
+
+
+## Moves a whole bag entry into the storage. Returns false when storage is full.
+func deposit_item(index: int) -> bool:
+	if index < 0 or index >= profile["inv"].size():
+		return false
+	var item: Dictionary = profile["inv"][index]
+	var list := storage()
+	if not _stack_into(list, item):
+		if list.size() >= STORAGE_SIZE:
+			return false
+		list.append(item)
+	profile["inv"].remove_at(index)
+	inventory_changed.emit()
+	mark_dirty()
+	return true
+
+
+## Moves a storage entry back into the bag. Returns false when the bag is full.
+func withdraw_item(index: int) -> bool:
+	var list := storage()
+	if index < 0 or index >= list.size():
+		return false
+	var item: Dictionary = list[index]
+	if not _stack_into(profile["inv"], item):
+		if profile["inv"].size() >= bag_size():
+			return false
+		profile["inv"].append(item)
+	else:
+		inventory_changed.emit()
+	list.remove_at(index)
+	inventory_changed.emit()
+	mark_dirty()
+	return true
 
 
 ## Adds an item (stacking potions). Returns false when the bag is full.
@@ -619,7 +700,7 @@ func add_item(item: Dictionary) -> bool:
 				item_gained.emit(item)
 				mark_dirty()
 				return true
-	if profile["inv"].size() >= INVENTORY_SIZE:
+	if profile["inv"].size() >= bag_size():
 		return false
 	profile["inv"].append(item)
 	if item.get("kind", "") == "equip" and int(item.get("rarity", 0)) >= 3:
@@ -780,7 +861,7 @@ func equip_from_bag(index: int) -> bool:
 
 
 func unequip(slot: String) -> bool:
-	if not profile["equip"].has(slot) or profile["inv"].size() >= INVENTORY_SIZE:
+	if not profile["equip"].has(slot) or profile["inv"].size() >= bag_size():
 		return false
 	profile["inv"].append(profile["equip"][slot])
 	profile["equip"].erase(slot)
