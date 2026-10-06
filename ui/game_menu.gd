@@ -451,6 +451,8 @@ func _build_quests() -> void:
 	scroll.add_child(box)
 	box.add_child(UIUtil.label("เควสต์รายวัน (รับรางวัลที่กระดานในหมู่บ้าน)", &"SubHeaderLabel"))
 	var reward := GoalsData.reward_for(int(Game.profile.level))
+	var streak := Game.daily_streak()
+	box.add_child(UIUtil.label("ติดต่อกัน %d วัน • โบนัสรางวัล +%d%% • ทำครบ 3 งานรับหีบรางวัล" % [streak, int(minf(maxf(float(streak) - 1.0, 0.0), 6.0) * 10.0)], &"DimLabel"))
 	for entry in Game.daily().quests:
 		var template := Game.daily_template(entry.id)
 		var target := Game.daily_target(entry)

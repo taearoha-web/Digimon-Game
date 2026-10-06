@@ -76,7 +76,7 @@ func _ready() -> void:
 			_body.add_child(gem)
 		var rarity := int(item.get("rarity", 0))
 		if item.get("kind", "") == "equip":
-			VfxKit.loot_beam(self, color, 2.0 + rarity * 1.4)
+			VfxKit.loot_beam(self, color, 2.0 + rarity * 1.4 + (2.5 if rarity >= 4 else 0.0))
 			if rarity >= 1:
 				var label := Label3D.new()
 				label.text = ItemData.name_of(item)
@@ -97,7 +97,24 @@ func _ready() -> void:
 	tween.parallel().tween_property(self, "position:x", land.x, 0.4)
 	tween.parallel().tween_property(self, "position:z", land.z, 0.4)
 	tween.tween_property(self, "position:y", 0.05, 0.22).set_ease(Tween.EASE_IN)
-	tween.tween_callback(func(): _landed = true)
+	tween.tween_callback(_on_landed)
+
+
+## Rare gear announces itself: a burst of light, a chime and a message.
+func _on_landed() -> void:
+	_landed = true
+	if item.get("kind", "") != "equip":
+		return
+	var rarity := int(item.get("rarity", 0))
+	if rarity < 3:
+		return
+	var color := ItemData.color_of(item)
+	var parent := get_parent() as Node3D
+	if parent:
+		VfxKit.shockwave(parent, global_position + Vector3(0, 0.1, 0), color, 2.0 + rarity)
+		VfxKit.sparks(parent, global_position + Vector3(0, 0.6, 0), color, 14 + rarity * 8, 4.0, 0.8)
+	AudioManager.play_sfx(&"quest_complete", -3.0)
+	Game.say("ของ%s ตกแล้ว: %s" % [ItemData.RARITY_NAMES[rarity], ItemData.name_of(item)], &"success")
 
 
 func _process(delta: float) -> void:

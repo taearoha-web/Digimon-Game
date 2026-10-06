@@ -260,6 +260,9 @@ func _talk_daily() -> void:
 		var target := Game.daily_target(entry)
 		var mark := "✔" if entry.claimed else ("●" if int(entry.progress) >= target else "○")
 		lines.append("%s %s — %s (%d/%d)" % [mark, template.name, String(template.desc) % target, int(entry.progress), target])
+	var streak := Game.daily_streak()
+	if streak > 0:
+		lines.append("ติดต่อกัน %d วัน (โบนัสรางวัล +%d%%)  ทำครบทั้ง 3 งานรับหีบรางวัลพิเศษ" % [streak, int(minf(float(streak) - 1.0, 6.0) * 10.0)])
 	var text := "\n".join(lines)
 	if paid > 0:
 		AudioManager.play_sfx(&"quest_complete")

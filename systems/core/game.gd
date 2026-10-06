@@ -703,6 +703,8 @@ func add_item(item: Dictionary) -> bool:
 	profile["inv"].append(item)
 	if item.get("kind", "") == "equip" and int(item.get("rarity", 0)) >= 3:
 		flag_max("got_legend", 1)
+		if int(item.get("rarity", 0)) >= 4:
+			flag_max("got_mythic", 1)
 		check_achievements()
 	inventory_changed.emit()
 	item_gained.emit(item)
@@ -991,23 +993,56 @@ func daily_progress(kind: String, amount: int) -> void:
 				say("เควสต์รายวัน \"%s\" เสร็จแล้ว! รับรางวัลที่กระดานในหมู่บ้าน" % template.name, &"quest")
 
 
-## Claims every finished daily quest; returns how many were paid out.
+## Consecutive days the daily board was claimed (bonus grows up to 7 days).
+func daily_streak() -> int:
+	var last := String(profile["flags"].get("daily_last", ""))
+	var streak := int(profile["flags"].get("daily_streak", 0))
+	if last == GoalsData.today() or last == GoalsData.yesterday():
+		return streak
+	return 0
+
+
+## Claims every finished daily quest; returns how many were paid out. The first
+## claim of a day extends the streak, and finishing all three adds a bonus chest.
 func daily_claim_all() -> int:
 	var count := 0
+	var today := GoalsData.today()
 	for entry in daily().quests:
 		if entry.claimed or int(entry.progress) < daily_target(entry):
 			continue
+		if String(profile["flags"].get("daily_last", "")) != today:
+			profile["flags"]["daily_streak"] = daily_streak() + 1
+			profile["flags"]["daily_last"] = today
+		var bonus := 1.0 + 0.1 * minf(float(daily_streak()) - 1.0, 6.0)
 		entry["claimed"] = true
 		var reward := GoalsData.reward_for(int(profile["level"]))
-		add_exp(reward.exp)
-		party_add_exp(reward.exp)
-		add_gold(reward.gold)
+		add_exp(int(reward.exp * bonus))
+		party_add_exp(int(reward.exp * bonus))
+		add_gold(int(reward.gold * bonus))
 		profile["flags"]["dailies"] = int(profile["flags"].get("dailies", 0)) + 1
 		count += 1
 	if count > 0:
+		var all_done := true
+		for entry in daily().quests:
+			all_done = all_done and bool(entry.claimed)
+		if all_done and not bool(daily().get("chest", false)):
+			daily()["chest"] = true
+			_daily_chest()
+		flag_max("best_streak", daily_streak())
 		check_achievements()
 		mark_dirty()
 	return count
+
+
+## Bonus for completing the whole daily board: rare gear plus gems.
+func _daily_chest() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var level := int(profile["level"])
+	var item := ItemData.generate(level, class_id(), rng, maxi(2, ItemData.roll_rarity(rng, 0.25)))
+	add_item(item)
+	add_item(ItemData.gem(["ruby", "sapphire", "emerald", "topaz", "amethyst"][rng.randi() % 5], 0 if level < 30 else 1))
+	say("หีบรางวัลรายวัน: ได้ %s และอัญมณี" % ItemData.name_of(item), &"success")
 
 
 ## Current value of an achievement's counter.

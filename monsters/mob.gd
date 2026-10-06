@@ -6,12 +6,15 @@ extends CharacterBody3D
 ## the field (signal [signal died]).
 
 signal died(mob: Mob)
+## A boss crossed a health threshold: phase 1 (70%) and 2 (40%, enraged).
+signal phase_changed(mob: Mob, phase: int)
 
 const NOTICE_RADIUS := 9.0
 const LEASH := 34.0
 const WINDUP := 0.5
 const PACK_RADIUS := 6.0
 const SLAM_INTERVAL := 8.0
+const BARRAGE_METEORS := 4
 
 var monster_id: StringName = &"pink_slime"
 var template: Dictionary = {}
@@ -48,6 +51,10 @@ var _anim_lock := 0
 var _bar_until := 0.0
 var _returning := false
 var _yaw := 0.0
+var phase := 0
+var _atk_scale := 1.0
+var _base_speed := 2.0
+var _barrage_timer := 9.0
 
 
 func setup(id: StringName, p_level: int, p_home: Vector3, p_hero: Node3D) -> void:
@@ -61,6 +68,7 @@ func setup(id: StringName, p_level: int, p_home: Vector3, p_hero: Node3D) -> voi
 	max_hp = hp
 	is_boss = bool(template.get("boss", false))
 	_speed = float(template.speed)
+	_base_speed = _speed
 
 
 func _ready() -> void:
@@ -162,6 +170,8 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 	if hp <= 0:
 		_die()
 		return true
+	if is_boss:
+		_check_phase()
 	if not is_boss:
 		visual.action("hurt", 320)
 		_anim_lock = Time.get_ticks_msec() + 320
@@ -254,6 +264,9 @@ func _physics_process(delta: float) -> void:
 				_returning = false
 				hp = max_hp
 				_bar.set_ratio(1.0)
+				phase = 0
+				_atk_scale = 1.0
+				_speed = _base_speed
 			else:
 				desired = to_home.normalized() * _speed * 1.6
 		elif not _winding:
@@ -274,6 +287,11 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var reach := (7.0 if ranged else 1.5 + body_radius() * 1.2)
 	_attack_timer -= delta
 	_slam_timer -= delta
+	if phase >= 1:
+		_barrage_timer -= delta
+		if _barrage_timer <= 0.0:
+			_barrage_timer = 9.0 if phase == 1 else 6.0
+			_meteor_barrage(target)
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-9.0 * delta))
 		visual.rotation.y = _yaw
@@ -328,7 +346,7 @@ func _strike() -> void:
 	var victim := _victim
 	visual.action("attack", 450)
 	_anim_lock = Time.get_ticks_msec() + 450
-	var raw := float(stats.atk) * randf_range(0.9, 1.1)
+	var raw := float(stats.atk) * _atk_scale * randf_range(0.9, 1.1)
 	if String(template.attack) == "ranged":
 		var color: Color = template.get("color", Color("ff9a5a"))
 		var from := hit_point()
@@ -393,8 +411,55 @@ func _begin_slam() -> void:
 		BattleVfx.burst(get_parent(), center + Vector3(0, 0.4, 0), color, 36, 1.4)
 		for t in _targets():
 			if _flat_distance_from(t.global_position, center) <= radius:
-				t.take_damage(float(stats.atk) * 1.9, self)
+				t.take_damage(float(stats.atk) * _atk_scale * 1.9, self)
 		, CONNECT_ONE_SHOT)
+
+
+## Bosses change tactics as they lose health: help arrives at 70%, rage at 40%.
+func _check_phase() -> void:
+	var ratio := float(hp) / float(max_hp)
+	var wanted := 2 if ratio < 0.4 else (1 if ratio < 0.7 else 0)
+	if wanted <= phase:
+		return
+	phase = wanted
+	_barrage_timer = 2.5
+	var color: Color = template.get("color", Color("ff6a4a"))
+	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), color, 7.0)
+	BattleVfx.burst(get_parent(), global_position + Vector3(0, 0.6, 0), color, 40, 1.6)
+	if phase == 2:
+		_atk_scale = 1.3
+		_speed *= 1.25
+		visual.flash(Color(1.0, 0.2, 0.15), 1.0)
+		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.9, 0), "คลั่ง!", Color("ff4a4a"), 1.5)
+		Game.say("%s คลั่งแล้ว! ระวังอุกกาบาต" % String(template.name), &"warning")
+	else:
+		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.9, 0), "เรียกพวก!", Color("ffd84a"), 1.4)
+		Game.say("%s ร้องเรียกลูกสมุน!" % String(template.name), &"warning")
+	phase_changed.emit(self, phase)
+
+
+## Warning circles drop around the victim; whoever stays inside is hit.
+func _meteor_barrage(target: Node3D) -> void:
+	if _dead or target == null or not is_instance_valid(target):
+		return
+	var color: Color = template.get("color", Color("ff6a4a"))
+	var radius := 2.6
+	for i in BARRAGE_METEORS:
+		var spot: Vector3 = target.global_position
+		if i > 0:
+			var angle := randf() * TAU
+			spot += Vector3(cos(angle), 0, sin(angle)) * randf_range(2.0, 7.0)
+		spot.y = 0.0
+		VfxKit.danger_circle(get_parent(), spot, radius, 1.5)
+		get_tree().create_timer(1.5).timeout.connect(func():
+			if _dead:
+				return
+			VfxKit.shockwave(get_parent(), spot + Vector3(0, 0.1, 0), color, radius)
+			BattleVfx.burst(get_parent(), spot + Vector3(0, 0.4, 0), color, 20, 1.0)
+			for t in _targets():
+				if _flat_distance_from(t.global_position, spot) <= radius:
+					t.take_damage(float(stats.atk) * _atk_scale * 1.2, self)
+			, CONNECT_ONE_SHOT)
 
 
 func _tick_status(delta: float) -> void:

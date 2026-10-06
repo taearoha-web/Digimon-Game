@@ -32,6 +32,10 @@ static func pick_for_date(date: String) -> Array:
 	return picked
 
 
+static func yesterday() -> String:
+	return Time.get_date_string_from_unix_time(int(Time.get_unix_time_from_system()) - 86400)
+
+
 static func target_for(template: Dictionary, level: int) -> int:
 	return maxi(1, int(round(float(template.base) + float(template.per_level) * level)))
 
@@ -58,6 +62,8 @@ const ACHIEVEMENTS := [
 	{"id": "boss5", "name": "ราชาบอส", "desc": "ปราบบอสครบทั้ง 5 ชนิด", "check": "boss_types", "goal": 5, "reward": {"gold": 12000, "sp": 3}},
 	{"id": "boss10", "name": "ผู้ล้มเทพมังกร", "desc": "ปราบบอสครบทั้ง 10 ชนิด", "check": "boss_types", "goal": 10, "reward": {"gold": 500000, "sp": 8}},
 	{"id": "plus7", "name": "ช่างตีมือทอง", "desc": "ตีบวกไอเทมให้ถึง +7", "check": "best_plus", "goal": 7, "reward": {"gem": ["topaz", 2]}},
+	{"id": "mythic", "name": "เทพนิยายมีจริง", "desc": "ได้ไอเทมระดับเทพนิยาย", "check": "got_mythic", "goal": 1, "reward": {"gold": 50000, "sp": 3}},
+	{"id": "streak7", "name": "ไม่ขาดสาย", "desc": "รับรางวัลรายวันติดต่อกัน 7 วัน", "check": "best_streak", "goal": 7, "reward": {"gold": 20000, "gem": ["ruby", 3]}},
 	{"id": "legend", "name": "ของในตำนาน", "desc": "ได้ไอเทมระดับตำนาน", "check": "got_legend", "goal": 1, "reward": {"gold": 2000}},
 	{"id": "gems5", "name": "นักฝังอัญมณี", "desc": "ฝังอัญมณีรวม 5 เม็ด", "check": "gems_set", "goal": 5, "reward": {"gem": ["sapphire", 1]}},
 	{"id": "rich", "name": "เศรษฐีใหม่", "desc": "มีเหรียญ 50,000", "check": "gold", "goal": 50000, "reward": {"sp": 1}},

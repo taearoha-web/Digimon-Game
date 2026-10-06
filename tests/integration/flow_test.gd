@@ -36,6 +36,7 @@ func _run() -> void:
 	await _vagabond()
 	await _look()
 	await _storage_and_auto()
+	await _bosses_loot_dailies()
 	await _dex_and_stars()
 	await _tiers()
 	await _summons()
@@ -320,6 +321,62 @@ func _dex_and_stars() -> void:
 	var fan := ClassData.find_skill(&"archer", "arrow_of_rage")
 	Game.profile.skills["arrow_of_rage"] = 5
 	check(int(hero._ranked(fan).hits) == int(fan.hits) + 2, "5 stars add two arrows to a fan skill")
+
+
+func _bosses_loot_dailies() -> void:
+	print("== Boss phases, mythic drops, daily streak")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var legend := ItemData.generate(60, &"warrior", rng, 3, "weapon")
+	var mythic := ItemData.generate(60, &"warrior", rng, 4, "weapon")
+	check(int(mythic.stats.atk) > int(legend.stats.atk) * 1.12, "a mythic weapon beats a legendary one (%d vs %d)" % [int(mythic.stats.atk), int(legend.stats.atk)])
+	check(int(mythic.sockets) == 3 and ItemData.RARITY_NAMES.size() == 5 and ItemData.color_of(mythic) == ItemData.RARITY_COLORS[4], "mythic has 3 sockets and its own colour")
+	var plain := 0
+	var boosted := 0
+	for i in 5000:
+		plain += 1 if ItemData.roll_rarity(rng) == 4 else 0
+		boosted += 1 if ItemData.roll_rarity(rng, 0.3) == 4 else 0
+	check(plain <= 25 and boosted > 100 and boosted < 600, "mythic is very rare on monsters (%d/5000) and findable from bosses (%d/5000)" % [plain, boosted])
+	var zone := await _start(&"warrior")
+	await main.go(&"meadow", true)
+	await _wait(0.5)
+	var field: Zone = main.zone
+	var hero: Hero = field.hero
+	Game.profile["level"] = 30
+	var boss := Mob.new()
+	boss.setup(&"mush_king", 12, Vector3(20, 0, 20), hero)
+	boss.position = Vector3(20, 0.3, 20)
+	field.add_child(boss)
+	boss.hostile = true
+	hero.global_position = Vector3(18, 0.2, 18)
+	await _wait(0.3)
+	var before := get_tree().get_nodes_in_group("mobs").size()
+	boss.take_hit(int(boss.max_hp * 0.35), false, Color.WHITE, hero)
+	await _wait(0.2)
+	check(boss.phase == 1 and get_tree().get_nodes_in_group("mobs").size() >= before + 3, "at 65%% HP the boss calls 3 helpers (phase %d)" % boss.phase)
+	var speed_before: float = boss._speed
+	boss.take_hit(int(boss.max_hp * 0.3), false, Color.WHITE, hero)
+	await _wait(0.2)
+	check(boss.phase == 2 and boss._atk_scale > 1.2 and boss._speed > speed_before, "at 35%% HP the boss is enraged (atk x%.1f)" % boss._atk_scale)
+	field._on_boss_phase(boss, 2)
+	check(field.get_children().size() > 0, "boss phase handler runs on its own")
+	# Daily board: streak and the bonus chest.
+	Game.profile["daily"] = {}
+	var board := Game.daily()
+	for entry in board.quests:
+		entry["progress"] = Game.daily_target(entry)
+	var inv_before: int = Game.profile.inv.size()
+	var gold_before: int = Game.profile.gold
+	check(Game.daily_claim_all() == 3 and Game.daily_streak() == 1, "claiming the board starts a 1-day streak")
+	check(bool(Game.daily().get("chest", false)) and Game.profile.inv.size() >= inv_before + 2, "finishing all three adds the bonus chest")
+	check(Game.daily_claim_all() == 0, "nothing is paid twice")
+	Game.profile["flags"]["daily_last"] = GoalsData.yesterday()
+	Game.profile["flags"]["daily_streak"] = 6
+	check(Game.daily_streak() == 6, "yesterday's streak is kept")
+	Game.profile["flags"]["daily_last"] = "2000-01-01"
+	check(Game.daily_streak() == 0, "a missed day resets the streak")
+	Game.add_item(ItemData.generate(40, &"warrior", rng, 4))
+	check(Game.achievement_value("got_mythic") == 1, "getting a mythic item is recorded")
 
 
 func _storage_and_auto() -> void:
