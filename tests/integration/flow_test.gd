@@ -39,6 +39,8 @@ func _run() -> void:
 	await _touch_scroll()
 	await _jobs()
 	await _items()
+	await _goals()
+	await _arena()
 	await _party()
 	await _zones()
 	await _systems()
@@ -61,7 +63,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 7, "seven villagers")
+	check(town.npcs.size() == 9, "nine villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -142,7 +144,7 @@ func _jobs() -> void:
 				continue
 			break
 		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
-		check(Game.profile.gold == gold_before - JobData.JOB_COST, "job change cost gold")
+		check(Game.profile.gold == gold_before - JobData.JOB_COST + 1000, "job change cost gold (the job achievement pays 1000 back)")
 		var skills: Array = Game.class_data().skills
 		check(skills.size() == 4 and String(skills[0].id) != String(ClassData.get_skill(class_id, 0).id), "first skill replaced by a job skill")
 		check(not Game.change_job(branches[1]) and not Game.change_job(branches[0]), "job cannot be changed twice")
@@ -253,6 +255,7 @@ func _party() -> void:
 	buddy._revive_timer = 0.2
 	await _wait(0.8)
 	check(not buddy.is_dead() and buddy.hp > 0, "companion gets back up")
+	check(Game.cycle_stance() == "aggressive" and Game.cycle_stance() == "guard" and Game.cycle_stance() == "follow", "stance cycles follow -> aggressive -> guard")
 	Game.recruit(&"mage")
 	await _wait(0.4)
 	check(zone.companions.size() == 1 and zone.companions[0].member["class"] == "mage", "recruiting swaps the companion")
@@ -270,7 +273,7 @@ func _zones() -> void:
 	await _start(&"warrior")
 	Game.add_exp(2000000)
 	for id in ZoneData.ZONES:
-		if id == &"town":
+		if id == &"town" or id == &"arena":
 			continue
 		await main.go(id, true)
 		await _wait(0.5)
@@ -313,6 +316,57 @@ func _items() -> void:
 	check(HeroStats.set_counts(Game.profile).get(armor.set, 0) >= 2, "set pieces are counted")
 	check(ItemLook.icon(ItemData.gem("emerald", 1)) != null, "gems have an icon")
 	check(gold >= 0 and Game.save_code_roundtrip(), "save code export / import round-trips")
+
+
+func _goals() -> void:
+	print("== Goals")
+	await _start(&"warrior")
+	var d := Game.daily()
+	check(d.quests.size() == 3, "three daily quests")
+	var again := Game.daily()
+	check(again.quests[0].id == d.quests[0].id, "daily quests stay the same within a day")
+	var entry: Dictionary = d.quests[0]
+	var kind: String = Game.daily_template(entry.id).kind
+	Game.daily_progress(kind, 9999)
+	check(int(entry.progress) >= Game.daily_target(entry), "daily progress completes")
+	var gold: int = Game.profile.gold
+	check(Game.daily_claim_all() >= 1 and Game.profile.gold > gold, "claiming a daily pays gold")
+	check(Game.daily_claim_all() == 0, "a daily can only be claimed once")
+	Game.report_kill(&"pink_slime", false)
+	check(Game.profile.ach.has("first_blood"), "first kill unlocks an achievement")
+	var gold_after: int = Game.profile.gold
+	Game.profile["kills"] = 99
+	Game.report_kill(&"pink_slime", false)
+	check(Game.profile.ach.has("hunter100") and Game.profile.gold >= gold_after + 500, "100 kills unlock an achievement with a gold reward")
+
+
+func _arena() -> void:
+	print("== Arena")
+	await _start(&"warrior")
+	Game.add_exp(500000)
+	await main.go(&"arena", true)
+	await _wait(0.5)
+	var z: Zone = main.zone
+	check(z != null and z.zone_id == &"arena", "arena loads")
+	z._arena_timer = 0.1
+	await _wait(0.5)
+	check(z._arena_wave == 1 and z._arena_mobs.size() == 4, "wave 1 spawns four monsters")
+	for m in z._arena_mobs:
+		m.take_hit(9999999, false)
+	await _wait(0.5)
+	check(z._arena_state == "rest", "clearing a wave starts the break")
+	z._arena_timer = 0.1
+	await _wait(0.4)
+	for m in z._arena_mobs:
+		m.take_hit(9999999, false)
+	await _wait(0.4)
+	z._arena_timer = 0.1
+	await _wait(0.4)
+	check(z._arena_wave == 3 and z._arena_mobs.size() == 3, "wave 3 has a boss and two escorts")
+	for m in z._arena_mobs:
+		m.take_hit(99999999, false)
+	await _wait(0.5)
+	check(z._arena_state == "done" and int(Game.profile.flags.get("arena_clears", 0)) == 1, "winning the arena is counted")
 
 
 func _systems() -> void:

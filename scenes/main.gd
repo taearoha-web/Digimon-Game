@@ -124,6 +124,7 @@ func go(zone_id: StringName, instant := false) -> void:
 	z.travel_requested.connect(func(to: StringName): go(to))
 	z.npc_interact.connect(_on_npc)
 	z.hero_died.connect(_on_hero_died)
+	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	hud.bind(z)
 	hud.visible = true
 	Game.save()
@@ -190,6 +191,11 @@ func _on_npc(role: String) -> void:
 			_talk_job()
 		"party":
 			_talk_party()
+		"daily":
+			_talk_daily()
+		"arena":
+			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
+				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])
 		"forge":
 			dialog.say("ช่างตีเหล็กหนวดแดง", "ฮ่าๆ มีของดีมาให้ตีไหม? ข้าตีบวกอาวุธเกราะให้แรงขึ้นได้ถึง +10 พลาดก็เสียแค่เหรียญ ของไม่พัง! แล้วถ้ามีอัญมณีก็เอามาฝังช่องให้ได้ด้วย", [
 				{"label": "เปิดเตาตี", "action": func():
@@ -206,13 +212,30 @@ func _on_npc(role: String) -> void:
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• สกิลทั้ง 4 อยู่บนแถบโค้งรอบปุ่มดาบ ปลดล็อกเมื่อเลเวลถึง\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ อัปสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
+func _talk_daily() -> void:
+	var speaker := "กระดานเควสต์รายวัน"
+	var paid := Game.daily_claim_all()
+	var lines: PackedStringArray = []
+	for entry in Game.daily().quests:
+		var template := Game.daily_template(entry.id)
+		var target := Game.daily_target(entry)
+		var mark := "✔" if entry.claimed else ("●" if int(entry.progress) >= target else "○")
+		lines.append("%s %s — %s (%d/%d)" % [mark, template.name, String(template.desc) % target, int(entry.progress), target])
+	var text := "\n".join(lines)
+	if paid > 0:
+		AudioManager.play_sfx(&"quest_complete")
+		text = "รับรางวัลแล้ว %d งาน!\n\n%s" % [paid, text]
+		Game.save()
+	dialog.say(speaker, text)
+
+
 func _talk_party() -> void:
 	var speaker := "นายหน้าเพื่อนร่วมทาง"
 	var party := Game.party()
 	var text := "ออกผจญภัยคนเดียวมันเหงานะ! ข้ามีนักผจญภัยฝีมือดีให้ร่วมทางด้วย 1 คน เก่งขึ้นตามเลเวลของเจ้า แต่ก็บาดเจ็บและล้มได้เหมือนกัน"
 	if not party.is_empty():
 		var member: Dictionary = party[0]
-		text += "\n\nตอนนี้เจ้าพา %s (%s Lv.%d) ไปด้วย" % [member.name, ClassData.get_class_data(StringName(member["class"])).name, int(member.level)]
+		text += "\n\nตอนนี้เจ้าพา %s (%s Lv.%d นิสัย%s) ไปด้วย\nแตะการ์ดเพื่อนที่มุมซ้ายบนเพื่อสลับ ตามติด/บุกลุย/ป้องกัน" % [member.name, ClassData.get_class_data(StringName(member["class"])).name, int(member.level), Game.TRAIT_NAMES.get(String(member.get("trait", "brave")), "กล้าหาญ")]
 	var options: Array = [{"label": "เลือกเพื่อน", "action": func(): _pick_party()}]
 	if not party.is_empty():
 		options.append({"label": "ให้กลับบ้าน", "action": func():

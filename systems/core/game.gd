@@ -14,6 +14,7 @@ signal quest_changed()
 signal party_changed()
 signal party_leveled(index: int, level: int)
 signal party_roster_changed()
+signal achievement_unlocked(name: String)
 
 const SAVE_PATH := "user://toon_tale_save.json"
 const SAVE_VERSION := 1
@@ -97,6 +98,7 @@ func change_master() -> bool:
 	profile["mp"] = stats.max_mp
 	gold_changed.emit(profile["gold"])
 	profile_changed.emit()
+	check_achievements()
 	mark_dirty()
 	return true
 
@@ -117,6 +119,7 @@ func change_job(job: StringName) -> bool:
 	gold_changed.emit(profile["gold"])
 	profile_changed.emit()
 	mark_dirty()
+	check_achievements()
 	return true
 
 
@@ -261,6 +264,7 @@ func add_exp(amount: int) -> void:
 		profile["mp"] = stats.max_mp
 		leveled_up.emit(profile["level"])
 		profile_changed.emit()
+		check_achievements()
 		if profile.has("party"):
 			party_catch_up()
 		save()
@@ -298,11 +302,29 @@ func ensure_party() -> void:
 ## Hire a companion of the given class (replaces the current one).
 func recruit(c: StringName, announce := true) -> void:
 	var names: Array = PARTY_NAMES[c]
-	profile["party"] = [{"class": String(c), "name": names[randi() % names.size()], "level": maxi(1, int(profile["level"]) - 1), "exp": 0}]
+	profile["party"] = [{"class": String(c), "name": names[randi() % names.size()], "level": maxi(1, int(profile["level"]) - 1), "exp": 0, "stance": "follow", "trait": ["brave", "careful"][randi() % 2]}]
 	mark_dirty()
 	party_changed.emit()
 	if announce:
 		party_roster_changed.emit()
+
+
+const STANCES := ["follow", "aggressive", "guard"]
+const STANCE_NAMES := {"follow": "ตามติด", "aggressive": "บุกลุย", "guard": "ป้องกัน"}
+const TRAIT_NAMES := {"brave": "กล้าหาญ", "careful": "ระมัดระวัง"}
+
+
+## Tap the party card: follow -> aggressive -> guard.
+func cycle_stance() -> String:
+	var list := party()
+	if list.is_empty():
+		return ""
+	var member: Dictionary = list[0]
+	var i := STANCES.find(String(member.get("stance", "follow")))
+	member["stance"] = STANCES[(i + 1) % STANCES.size()]
+	mark_dirty()
+	party_changed.emit()
+	return String(member.stance)
 
 
 func dismiss_party() -> void:
@@ -445,6 +467,9 @@ func add_item(item: Dictionary) -> bool:
 	if profile["inv"].size() >= INVENTORY_SIZE:
 		return false
 	profile["inv"].append(item)
+	if item.get("kind", "") == "equip" and int(item.get("rarity", 0)) >= 3:
+		flag_max("got_legend", 1)
+		check_achievements()
 	inventory_changed.emit()
 	item_gained.emit(item)
 	mark_dirty()
@@ -465,6 +490,8 @@ func enhance_item(item: Dictionary) -> String:
 	if rng.randf() < ItemData.enhance_chance(plus):
 		item["plus"] = plus + 1
 		item["price"] = int(int(item.price) * 1.12)
+		flag_max("best_plus", plus + 1)
+		check_achievements()
 		clamp_vitals()
 		inventory_changed.emit()
 		profile_changed.emit()
@@ -487,7 +514,9 @@ func socket_gem(item: Dictionary, gem_index: int) -> bool:
 	if (item["gems"] as Array).size() >= int(item.get("sockets", 0)):
 		return false
 	(item["gems"] as Array).append(String(gem.id))
+	flag_add("gems_set")
 	remove_item_at(gem_index, 1)
+	check_achievements()
 	clamp_vitals()
 	profile_changed.emit()
 	inventory_changed.emit()
@@ -673,4 +702,119 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 		quest_changed.emit()
 	if is_boss:
 		profile["boss_kills"][String(monster_id)] = int(profile["boss_kills"].get(String(monster_id), 0)) + 1
+	daily_progress("kills", 1)
+	daily_progress("zone_kills", 1)
+	if is_boss:
+		daily_progress("boss", 1)
+	check_achievements()
 	mark_dirty()
+
+
+# ---------------------------------------------------------------------------
+# Daily quests and achievements (see GoalsData)
+# ---------------------------------------------------------------------------
+
+## Today's three daily quests, created the first time they are needed each day.
+func daily() -> Dictionary:
+	var today := GoalsData.today()
+	var current: Variant = profile.get("daily")
+	if current is Dictionary and current.get("date", "") == today and (current.get("quests", []) as Array).size() == 3:
+		return current
+	var quests: Array = []
+	for template in GoalsData.pick_for_date(today):
+		quests.append({"id": template.id, "progress": 0, "claimed": false})
+	profile["daily"] = {"date": today, "quests": quests, "zone": String(current_zone)}
+	return profile["daily"]
+
+
+func daily_template(id: String) -> Dictionary:
+	for template in GoalsData.DAILY_POOL:
+		if template.id == id:
+			return template
+	return {}
+
+
+func daily_target(entry: Dictionary) -> int:
+	return GoalsData.target_for(daily_template(entry.id), int(profile["level"]))
+
+
+func daily_progress(kind: String, amount: int) -> void:
+	if not has_profile:
+		return
+	if kind == "zone_kills" and (current_zone == &"town" or current_zone == &"arena"):
+		return
+	for entry in daily().quests:
+		var template := daily_template(entry.id)
+		if template.get("kind", "") != kind or entry.claimed:
+			continue
+		var target := daily_target(entry)
+		if int(entry.progress) < target:
+			entry["progress"] = mini(int(entry.progress) + amount, target)
+			if int(entry.progress) >= target:
+				say("เควสต์รายวัน \"%s\" เสร็จแล้ว! รับรางวัลที่กระดานในหมู่บ้าน" % template.name, &"quest")
+
+
+## Claims every finished daily quest; returns how many were paid out.
+func daily_claim_all() -> int:
+	var count := 0
+	for entry in daily().quests:
+		if entry.claimed or int(entry.progress) < daily_target(entry):
+			continue
+		entry["claimed"] = true
+		var reward := GoalsData.reward_for(int(profile["level"]))
+		add_exp(reward.exp)
+		party_add_exp(reward.exp)
+		add_gold(reward.gold)
+		profile["flags"]["dailies"] = int(profile["flags"].get("dailies", 0)) + 1
+		count += 1
+	if count > 0:
+		check_achievements()
+		mark_dirty()
+	return count
+
+
+## Current value of an achievement's counter.
+func achievement_value(key: String) -> int:
+	match key:
+		"kills": return int(profile["kills"])
+		"level": return int(profile["level"])
+		"job": return 1 if job_id() != &"" else 0
+		"job3": return 1 if bool(profile.get("job3", false)) else 0
+		"bosses":
+			var n := 0
+			for id in profile["boss_kills"]:
+				n += int(profile["boss_kills"][id])
+			return n
+		"boss_types": return (profile["boss_kills"] as Dictionary).size()
+		"gold": return int(profile["gold"])
+		_: return int(profile["flags"].get(key, 0))
+
+
+func check_achievements() -> void:
+	if not has_profile:
+		return
+	if not profile.get("ach") is Dictionary:
+		profile["ach"] = {}
+	for ach in GoalsData.ACHIEVEMENTS:
+		if profile["ach"].has(ach.id) or achievement_value(ach.check) < int(ach.goal):
+			continue
+		profile["ach"][ach.id] = true
+		var reward: Dictionary = ach.reward
+		if reward.has("gold"):
+			add_gold(int(reward.gold))
+		if reward.has("sp"):
+			profile["skill_points"] += int(reward.sp)
+		if reward.has("gem"):
+			add_item(ItemData.gem(String(reward.gem[0]), int(reward.gem[1]) - 1, 1))
+		profile_changed.emit()
+		achievement_unlocked.emit(String(ach.name))
+		say("ความสำเร็จ: %s — รับรางวัลแล้ว" % ach.name, &"success")
+		mark_dirty()
+
+
+func flag_add(key: String, amount := 1) -> void:
+	profile["flags"][key] = int(profile["flags"].get(key, 0)) + amount
+
+
+func flag_max(key: String, value: int) -> void:
+	profile["flags"][key] = maxi(int(profile["flags"].get(key, 0)), value)

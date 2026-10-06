@@ -75,6 +75,11 @@ const ZONES := {
 		"sky": Color("3a1a14"), "ground": Color("4a3838"), "fog": Color("8a3a22"), "ambient": Color(1.0, 0.62, 0.48), "sun": Color(1.0, 0.58, 0.38),
 		"path_color": Color("7a4a3a"), "seed": 8, "prev": &"snow", "next": &"",
 	},
+	&"arena": {
+		"name": "สนามประลองกล้าหาญ", "scene": "field", "level": [1, 50], "music": &"field", "theme": &"meadow", "arena": true,
+		"tree_density": 0.15, "camps": [],
+		"sky": Color("9ad0ff"), "ground": Color("b7a874"), "path_color": Color("8a7a52"), "seed": 12, "prev": &"town", "next": &"",
+	},
 }
 
 

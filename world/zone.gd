@@ -8,6 +8,7 @@ signal travel_requested(zone_id: StringName)
 signal interact_changed(label: String)
 signal npc_interact(role: String)
 signal hero_died()
+signal banner_requested(text: String)
 
 const FIELD_RADIUS := 52.0
 const TOWN_RADIUS := 38.0
@@ -30,6 +31,10 @@ var current_interact: Dictionary = {}
 
 var _spawn_timer := 0.0
 var _weather: CPUParticles3D
+var _arena_wave := 0
+var _arena_state := "wait"
+var _arena_timer := 4.0
+var _arena_mobs: Array[Mob] = []
 var _camps: Array[Dictionary] = []
 var _boss: Mob
 var _boss_timer := 8.0
@@ -80,6 +85,8 @@ func _process(delta: float) -> void:
 		for camp in _camps:
 			_refill_camp(camp)
 	_tick_boss(delta)
+	if bool(data.get("arena", false)):
+		_arena_tick(delta)
 
 
 # ---------------------------------------------------------------------------
@@ -208,6 +215,8 @@ func _build_town() -> void:
 	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
 	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เปลี่ยนอาชีพ (Lv.%d)" % JobData.JOB_LEVEL, Vector3(-11, 0, 5), "Knight")
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
+	_add_npc("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน", Vector3(-3, 0, 12), "Rogue_Hooded")
+	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", Vector3(4, 0, -14), "Knight")
 	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", Vector3(-12, 0, -2), "Barbarian")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
@@ -561,6 +570,8 @@ func _make_camp_marker(camp: Dictionary) -> void:
 
 
 func _tick_boss(delta: float) -> void:
+	if not data.has("boss"):
+		return
 	if _boss != null and is_instance_valid(_boss) and not _boss.is_dead():
 		return
 	_boss_timer -= delta
@@ -624,3 +635,82 @@ func _spawn_loot(item: Dictionary, gold: int, from: Vector3) -> void:
 	var drop := LootDrop.new()
 	drop.setup(item, gold, hero, from)
 	add_child(drop)
+
+
+# ---------------------------------------------------------------------------
+# Arena: three waves, the last one with a boss, then a reward chest
+# ---------------------------------------------------------------------------
+
+func _arena_tick(delta: float) -> void:
+	match _arena_state:
+		"wait", "rest":
+			_arena_timer -= delta
+			if _arena_timer <= 0.0:
+				_arena_next_wave()
+		"fight":
+			_arena_mobs = _arena_mobs.filter(func(m): return is_instance_valid(m) and not m.is_dead())
+			if _arena_mobs.is_empty():
+				if _arena_wave >= 3:
+					_arena_win()
+				else:
+					_arena_state = "rest"
+					_arena_timer = 4.0
+					banner_requested.emit("รอบที่ %d สำเร็จ!" % _arena_wave)
+
+
+## The hunting field whose level range fits the hero (the last one for very high levels).
+func _arena_source() -> Dictionary:
+	var level: int = Game.profile.level
+	var best := ZoneData.get_zone(&"meadow")
+	for id in [&"meadow", &"dark_forest", &"desert", &"snow", &"volcano"]:
+		var info := ZoneData.get_zone(id)
+		if level >= int(info.level[0]):
+			best = info
+	return best
+
+
+func _arena_next_wave() -> void:
+	_arena_wave += 1
+	_arena_state = "fight"
+	banner_requested.emit("รอบที่ %d / 3" % _arena_wave)
+	var source := _arena_source()
+	var ids: Array = []
+	for camp in source.camps:
+		ids.append_array(camp.monsters)
+	var level: int = Game.profile.level
+	var count: int = [4, 6, 2][_arena_wave - 1]
+	for i in count:
+		var angle := rng.randf() * TAU
+		var spot := Vector3(cos(angle), 0, sin(angle)) * rng.randf_range(8.0, 14.0)
+		_arena_spawn(ids[rng.randi() % ids.size()], level + _arena_wave - 1, spot)
+	if _arena_wave == 3:
+		_arena_spawn(source.boss.monster, level + 2, Vector3(0, 0, -10))
+		Game.say("บอสปรากฏตัวแล้ว!", &"warning")
+
+
+func _arena_spawn(id: StringName, level: int, spot: Vector3) -> void:
+	var mob := Mob.new()
+	mob.setup(id, level, spot, hero)
+	mob.position = spot + Vector3(0, 0.3, 0)
+	add_child(mob)
+	mob.hostile = true
+	_arena_mobs.append(mob)
+
+
+func _arena_win() -> void:
+	_arena_state = "done"
+	banner_requested.emit("ชนะสนามประลอง!")
+	AudioManager.play_sfx(&"quest_complete")
+	var today := GoalsData.today()
+	var full: bool = Game.profile.flags.get("arena_day", "") != today
+	Game.profile.flags["arena_day"] = today
+	var level: int = Game.profile.level
+	var scale := 1.0 if full else 0.35
+	_spawn_loot({}, int(level * 150 * scale), hero.global_position + Vector3(0, 0, 1.5))
+	for i in (2 if full else 1):
+		_spawn_loot(_random_gem(level, 1), 0, hero.global_position + Vector3(1.5, 0, 0))
+	if full:
+		_spawn_loot(ItemData.generate(level + 1, Game.class_id(), rng, maxi(2, ItemData.roll_rarity(rng, 0.4))), 0, hero.global_position + Vector3(-1.5, 0, 0))
+	Game.flag_add("arena_clears")
+	Game.check_achievements()
+	Game.say("ชนะแล้ว! รับรางวัลจากพื้น แล้วเดินกลับประตูเพื่อออกจากสนาม%s" % ("" if full else " (รางวัลลดลงเพราะชนะครั้งที่สองของวัน)"), &"success")

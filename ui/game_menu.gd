@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -102,6 +102,7 @@ func _rebuild() -> void:
 		&"inventory": _build_inventory()
 		&"skills": _build_skills()
 		&"quests": _build_quests()
+		&"achievements": _build_achievements()
 		&"settings": _build_settings()
 
 
@@ -397,7 +398,24 @@ func _build_quests() -> void:
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
-	box.add_child(UIUtil.label("เควสต์ (รับจากผู้ใหญ่บ้านในหมู่บ้าน)", &"SubHeaderLabel"))
+	box.add_child(UIUtil.label("เควสต์รายวัน (รับรางวัลที่กระดานในหมู่บ้าน)", &"SubHeaderLabel"))
+	var reward := GoalsData.reward_for(int(Game.profile.level))
+	for entry in Game.daily().quests:
+		var template := Game.daily_template(entry.id)
+		var target := Game.daily_target(entry)
+		var done: bool = int(entry.progress) >= target
+		var dpanel := UIUtil.panel(&"CardPanel")
+		box.add_child(dpanel)
+		var dcol := UIUtil.vbox(2)
+		dpanel.add_child(dcol)
+		var state := "รับรางวัลแล้ว ✔" if entry.claimed else ("เสร็จแล้ว — ไปรับที่กระดาน" if done else "%d / %d" % [int(entry.progress), target])
+		var dtitle := UIUtil.label("%s — %s" % [template.name, state], &"BoldLabel")
+		if entry.claimed:
+			dtitle.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		dcol.add_child(dtitle)
+		dcol.add_child(UIUtil.label(String(template.desc) % target, &"SmallLabel"))
+		dcol.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d" % [int(reward.exp), int(reward.gold)], &"DimLabel"))
+	box.add_child(UIUtil.label("เควสต์เนื้อเรื่อง (รับจากผู้ใหญ่บ้านในหมู่บ้าน)", &"SubHeaderLabel"))
 	for id in QuestData.ORDER:
 		var quest := QuestData.get_quest(id)
 		var status := Game.quest_status(id)
@@ -416,6 +434,44 @@ func _build_quests() -> void:
 		if status == "active" or status == "ready":
 			col.add_child(UIUtil.label("ความคืบหน้า: %d / %d  (%s)" % [int(Game.quest_state(id).get("progress", 0)), int(quest.count), MonsterData.get_monster(StringName(quest.target)).name], &"DimLabel"))
 		col.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d" % [int(quest.exp), int(quest.gold)], &"DimLabel"))
+
+
+# ---------------------------------------------------------------------------
+# Achievements
+# ---------------------------------------------------------------------------
+
+func _build_achievements() -> void:
+	var scroll := TouchScroll.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(scroll)
+	var box := UIUtil.vbox(8)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var done_count := 0
+	for ach in GoalsData.ACHIEVEMENTS:
+		if Game.profile.get("ach", {}).has(ach.id):
+			done_count += 1
+	box.add_child(UIUtil.label("ความสำเร็จ  %d / %d" % [done_count, GoalsData.ACHIEVEMENTS.size()], &"HeaderLabel"))
+	for ach in GoalsData.ACHIEVEMENTS:
+		var done: bool = Game.profile.get("ach", {}).has(ach.id)
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var col := UIUtil.vbox(2)
+		panel.add_child(col)
+		var value := mini(Game.achievement_value(ach.check), int(ach.goal))
+		var title := UIUtil.label("%s%s" % ["✔ " if done else "", ach.name], &"BoldLabel")
+		if done:
+			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		col.add_child(title)
+		col.add_child(UIUtil.label("%s  (%d / %d)" % [ach.desc, value, int(ach.goal)], &"SmallLabel"))
+		var parts: PackedStringArray = []
+		if ach.reward.has("gold"):
+			parts.append("เหรียญ %d" % int(ach.reward.gold))
+		if ach.reward.has("sp"):
+			parts.append("แต้มสกิล %d" % int(ach.reward.sp))
+		if ach.reward.has("gem"):
+			parts.append("อัญมณี")
+		col.add_child(UIUtil.label("รางวัล: " + " • ".join(parts), &"DimLabel"))
 
 
 # ---------------------------------------------------------------------------

@@ -297,7 +297,11 @@ func _build_party(column: Control) -> void:
 	for i in 1:
 		var card := UIUtil.panel(&"HudPanel")
 		card.custom_minimum_size = Vector2(230, 0)
-		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.mouse_filter = Control.MOUSE_FILTER_STOP
+		card.gui_input.connect(_tap(func():
+			var stance := Game.cycle_stance()
+			if stance != "":
+				Game.say("เพื่อน: %s" % Game.STANCE_NAMES[stance], &"info")))
 		column.add_child(card)
 		var row := UIUtil.hbox(8)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -344,7 +348,7 @@ func _update_party() -> void:
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  Lv.%d" % [member.name, int(member.level)]
 		entry["name_text"] = "%s  Lv.%d" % [member.name, int(member.level)]
-		(entry.title as Label).text = "%s  ยา ×%d" % [entry.name_text, int(member.get("potions", 5))]
+		(entry.title as Label).text = "%s  ยา×%d  [%s]" % [entry.name_text, int(member.get("potions", 5)), Game.STANCE_NAMES[String(member.get("stance", "follow"))]]
 		var bar := entry.bar as ProgressBar
 		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
 		if buddy:

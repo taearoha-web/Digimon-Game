@@ -462,6 +462,7 @@ func _cast(skill: Dictionary) -> void:
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
 	AudioManager.play_sfx(&"skill_start", -4.0)
 	skill_fired.emit(Game.class_data().skills.find(skill))
+	Game.daily_progress("skills", 1)
 	var snapshot := target
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var color: Color = skill.color

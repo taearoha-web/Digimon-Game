@@ -128,6 +128,7 @@ func _collect() -> void:
 	var parent := get_parent() as Node3D
 	if gold > 0:
 		Game.add_gold(gold)
+		Game.daily_progress("gold", gold)
 		BattleVfx.floating_text(parent, global_position + Vector3(0, 0.8, 0), "+%d เหรียญ" % gold, Color("ffd84a"), 0.8)
 		AudioManager.play_sfx(&"coin", -4.0)
 	else:

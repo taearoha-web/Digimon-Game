@@ -142,9 +142,10 @@ func _use_potions() -> void:
 		return
 	if _potion_cd > 0.0 or Time.get_ticks_msec() < _cast_until:
 		return
+	var hp_threshold := 0.55 if String(member.get("trait", "")) == "careful" else 0.35
 	var hp_left := int(member.get("potions", POTION_STOCK))
 	var mp_left := int(member.get("mp_potions", MP_POTION_STOCK))
-	if hp_left > 0 and float(hp) / float(max_hp) < 0.4:
+	if hp_left > 0 and float(hp) / float(max_hp) < hp_threshold:
 		member["potions"] = hp_left - 1
 		_potion_cd = 6.0
 		heal_fraction(0.4)
@@ -247,7 +248,33 @@ func _physics_process(delta: float) -> void:
 func _pick_target() -> Mob:
 	if hero.safe_zone:
 		return null
+	var stance := String(member.get("stance", "follow"))
 	var best: Mob = null
+	if stance == "aggressive":
+		# Goes after any monster near itself, within reach of the hero.
+		var near_d := 16.0
+		for node in get_tree().get_nodes_in_group("mobs"):
+			var m := node as Mob
+			if m and not m.is_dead() and _flat(m.global_position - hero.global_position).length() < 24.0:
+				var dd := _flat(m.global_position - global_position).length()
+				if dd < near_d:
+					near_d = dd
+					best = m
+		if best:
+			return best
+	elif stance == "guard":
+		# Only helps with what is attacking the hero.
+		if hero.target != null and is_instance_valid(hero.target) and not hero.target.is_dead() and hero.target.hostile:
+			return hero.target
+		var guard_d := 7.0
+		for node in get_tree().get_nodes_in_group("mobs"):
+			var m := node as Mob
+			if m and not m.is_dead() and m.hostile:
+				var dd := _flat(m.global_position - hero.global_position).length()
+				if dd < guard_d:
+					guard_d = dd
+					best = m
+		return best
 	if hero.target != null and is_instance_valid(hero.target) and not hero.target.is_dead() \
 			and _flat(hero.target.global_position - global_position).length() < 28.0:
 		return hero.target
@@ -286,6 +313,12 @@ func _fight(delta: float) -> Vector3:
 	var distance := to.length() - target.body_radius()
 	var reach := float(attack.range) * 0.85
 	_face(to, delta, 18.0)
+	# Careful companions back off towards the hero when badly hurt.
+	if String(member.get("trait", "")) == "careful" and float(hp) / float(max_hp) < 0.3 and not hero.is_dead():
+		var back := _flat(hero.global_position - global_position)
+		if back.length() > 2.5:
+			_face(back, delta, 14.0)
+			return back.normalized() * float(stats.speed) * 1.2
 	if distance > reach:
 		return to.normalized() * float(stats.speed) * 1.05
 	if _try_skills(to.length()):
