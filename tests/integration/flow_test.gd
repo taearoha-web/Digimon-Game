@@ -43,6 +43,7 @@ func _run() -> void:
 	for id in ClassData.IDS:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
+	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
 	await _items()
@@ -490,6 +491,37 @@ func _look() -> void:
 	hero_visual.set_equipment(Game.profile.equip)
 	await _wait(0.2)
 	check(hero_visual.find_child("Hair", true, false) == null, "hair is hidden under a helmet")
+
+
+func _camera_while_moving() -> void:
+	print("== Camera while moving")
+	var zone := await _start(&"warrior")
+	await _wait(0.4)
+	var hud: HUD = main.hud
+	var stick := hud.joystick
+	var area := hud.camera_area
+	var rig: ThirdPersonCamera = main.zone.camera_rig
+	# Thumb 1 holds the joystick (finger 0).
+	var centre := stick._center
+	stick._begin(0, centre + Vector2(60, 0))
+	check(stick.is_active and stick.output.length() > 0.1, "the joystick is held and the hero is running")
+	check(not stick._has_point(centre + Vector2(400, -150)), "a finger far from the ring is not swallowed by the held joystick")
+	check(stick._has_point(centre + Vector2(50, 0)), "the ring itself still belongs to the joystick")
+	# Thumb 2 (finger 1) drags on the camera area.
+	var yaw_before := rig.yaw
+	var press := InputEventScreenTouch.new()
+	press.index = 1
+	press.pressed = true
+	press.position = Vector2(900, 300)
+	area._gui_input(press)
+	for i in 6:
+		var drag := InputEventScreenDrag.new()
+		drag.index = 1
+		drag.position = Vector2(900 + (i + 1) * 20, 300)
+		drag.relative = Vector2(20, 0)
+		area._gui_input(drag)
+	check(absf(rig.yaw - yaw_before) > 0.2 and stick.is_active, "the camera turns while the joystick is still held (yaw %.2f -> %.2f)" % [yaw_before, rig.yaw])
+	stick._end()
 
 
 func _touch_scroll() -> void:
