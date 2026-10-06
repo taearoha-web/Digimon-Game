@@ -65,7 +65,7 @@ func _ready() -> void:
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
 	if not is_town:
 		for camp in _camps:
-			for i in maxi(2, int(camp.count) - 1):
+			for i in int(camp.count):
 				_spawn_in_camp(camp, true)
 
 
@@ -507,8 +507,12 @@ func _refill_camp(camp: Dictionary) -> void:
 
 func _spawn_in_camp(camp: Dictionary, initial: bool) -> void:
 	var spot := _camp_spot(camp)
-	if not initial and hero and Vector2(hero.global_position.x - spot.x, hero.global_position.z - spot.z).length() < 14.0:
-		return
+	# Monsters keep spawning while the hero stands in the camp, just not on top of them.
+	if not initial and hero:
+		for attempt in 6:
+			if Vector2(hero.global_position.x - spot.x, hero.global_position.z - spot.z).length() >= 6.0:
+				break
+			spot = _camp_spot(camp)
 	var ids: Array = camp.monsters
 	var mob := Mob.new()
 	var level := rng.randi_range(int(camp.levels[0]), int(camp.levels[1]))
