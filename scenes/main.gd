@@ -7,6 +7,7 @@ var hud: HUD
 var menu: GameMenu
 var shop: ShopScreen
 var dialog: DialogBox
+var _flash: ColorRect
 var title_screen: CanvasLayer
 var class_screen: CanvasLayer
 
@@ -27,6 +28,17 @@ func _ready() -> void:
 	_fade.modulate.a = 0.0
 	fade_layer.add_child(_fade)
 	add_child(ToastLayer.new())
+	var flash_layer := CanvasLayer.new()
+	flash_layer.layer = 80
+	add_child(flash_layer)
+	_flash = ColorRect.new()
+	_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash.color = Color(1, 1, 1, 0)
+	flash_layer.add_child(_flash)
+	Game.screen_flash.connect(func(color: Color, strength: float):
+		_flash.color = Color(color.r, color.g, color.b, strength)
+		create_tween().tween_property(_flash, "color:a", 0.0, 0.35))
 	Game.ending_requested.connect(show_ending)
 	hud = HUD.new()
 	hud.visible = false

@@ -58,6 +58,7 @@ func _ready() -> void:
 		_build_town()
 	else:
 		_build_field()
+	VfxArt.warm_up()
 	_spawn_hero()
 	_spawn_party()
 	AudioManager.play_music(data.get("music", &"field"))
