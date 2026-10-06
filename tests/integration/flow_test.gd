@@ -34,6 +34,7 @@ func check(condition: bool, message: String) -> void:
 
 func _run() -> void:
 	await _vagabond()
+	await _look()
 	for id in ClassData.IDS:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
@@ -220,6 +221,40 @@ func _vagabond() -> void:
 	await main.go(&"town", true)
 	await _wait(0.3)
 	check(main.zone.hero != null, "village reloads with the new line")
+
+
+func _look() -> void:
+	print("== Character look")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	for i in 12:
+		var random_look := FaceKit.random_look(rng)
+		var fixed := FaceKit.repair(random_look)
+		check(fixed == random_look, "random look %d is valid" % i)
+		var head := FaceKit.build_head(fixed)
+		check(head.get_child_count() > 8 and head.get_node_or_null("Hair") != null, "head %d has face parts and hair" % i)
+		head.free()
+	check(FaceKit.build_head(FaceKit.default_look(), false).get_node_or_null("Hair") == null, "no hair under a helmet")
+	Game.delete_save()
+	var chosen := FaceKit.default_look()
+	chosen["gender"] = 1
+	chosen["hair"] = 2
+	chosen["skin"] = 5
+	Game.new_profile(ClassData.START, "ทดสอบ", chosen)
+	check(int(Game.profile.look.gender) == 1 and int(Game.profile.look.skin) == 5, "the chosen look is stored in the profile")
+	var back := Game.export_code()
+	check(Game.import_code(back) and int(Game.profile.look.hair) == 2, "the look survives a save code round trip")
+	main.title_screen = null
+	main.hud.visible = true
+	main._traveling = false
+	await main.go(&"town", true)
+	await _wait(0.4)
+	var hero_visual: HeroVisual = main.zone.hero.visual
+	check(not hero_visual.look.is_empty() and hero_visual.find_child("CustomHead", true, false) != null, "the hero wears the custom head")
+	Game.profile.equip["helm"] = ItemData.generate(5, ClassData.START, rng, 1, "helm")
+	hero_visual.set_equipment(Game.profile.equip)
+	await _wait(0.2)
+	check(hero_visual.find_child("Hair", true, false) == null, "hair is hidden under a helmet")
 
 
 func _touch_scroll() -> void:

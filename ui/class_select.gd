@@ -1,23 +1,29 @@
 class_name ClassSelect
 extends CanvasLayer
-## Pick one of four classes (3D preview, description, skills) and a name.
+## Character creator: every hero starts as a Vagabond in the stock outfit; the
+## player picks gender, hair, skin tone, eyes, nose and mouth and a name. The
+## sword / bow / mage / priest line is chosen later, at Lv.10.
 
-signal confirmed(class_id: StringName, hero_name: String)
+signal confirmed(class_id: StringName, hero_name: String, look: Dictionary)
 signal cancelled()
 
-var _selected: StringName = ClassData.START
+const ROWS := [
+	["hair", "ทรงผม"], ["hair_color", "สีผม"], ["skin", "สีผิว"], ["eyes", "ทรงตา"],
+	["eye_color", "สีตา"], ["nose", "จมูก"], ["mouth", "ปาก"],
+]
+
+var look: Dictionary = FaceKit.default_look()
 var _preview: HeroVisual
-var _cards: Dictionary = {}
 var _name_input: LineEdit
-var _desc: Label
-var _title: Label
-var _skills_box: VBoxContainer
 var _pivot: Node3D
 var _spin_dragging := false
-var _spin_idle := 0.0
+var _value_labels: Dictionary = {}
+var _gender_buttons: Array[Button] = []
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	_rng.randomize()
 	layer = 50
 	add_child(UIUtil.sky_background())
 	var root := Control.new()
@@ -31,7 +37,7 @@ func _ready() -> void:
 	header.position = Vector2(8, 4)
 	frame.add_child(header)
 
-	# 3D preview on the left.
+	# 3D preview on the left, close on the face; drag to turn.
 	var container := SubViewportContainer.new()
 	container.stretch = true
 	container.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -57,116 +63,153 @@ func _ready() -> void:
 	light.rotation_degrees = Vector3(-35, 35, 0)
 	viewport.add_child(light)
 	var cam := Camera3D.new()
-	cam.position = Vector3(0, 1.25, 6.4)
-	cam.rotation_degrees = Vector3(-6, 0, 0)
-	cam.fov = 38
+	cam.position = Vector3(0, 1.75, 6.2)
+	cam.rotation_degrees = Vector3(-4, 0, 0)
+	cam.fov = 32
 	viewport.add_child(cam)
 	_pivot = Node3D.new()
 	viewport.add_child(_pivot)
 
-	# Class cards + details on the right.
+	# Options panel on the right.
 	var backing := Panel.new()
 	var back_style := StyleBoxFlat.new()
 	back_style.bg_color = Color(0.05, 0.1, 0.28, 0.72)
 	back_style.set_corner_radius_all(22)
 	backing.add_theme_stylebox_override("panel", back_style)
 	backing.position = Vector2(446, 52)
-	backing.size = Vector2(808, 424)
+	backing.size = Vector2(808, 580)
 	backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(backing)
 	var right := UIUtil.vbox(10)
-	right.position = Vector2(460, 62)
-	right.size = Vector2(780, 600)
+	right.position = Vector2(466, 64)
+	right.size = Vector2(770, 560)
 	frame.add_child(right)
-	var row := UIUtil.hbox(10)
-	right.add_child(row)
-	# Everyone starts as a Vagabond; the four lines are chosen at Lv.10. The
-	# cards let the player preview each line's look.
-	for id in [ClassData.START] + ClassData.IDS:
-		var data := ClassData.get_class_data(id)
-		var card := UIUtil.button(String(data.name), &"", Vector2(150, 74))
-		card.pressed.connect(func(): _select(id))
-		row.add_child(card)
-		_cards[id] = card
-	_title = UIUtil.label("", &"SubHeaderLabel")
-	right.add_child(_title)
-	_desc = UIUtil.label("", &"BoldLabel")
-	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_desc.custom_minimum_size = Vector2(740, 0)
-	right.add_child(_desc)
-	_skills_box = UIUtil.vbox(4)
-	right.add_child(_skills_box)
+
+	var gender_row := UIUtil.hbox(10)
+	right.add_child(gender_row)
+	var gender_title := UIUtil.label("เพศ", &"BoldLabel")
+	gender_title.custom_minimum_size = Vector2(110, 0)
+	gender_row.add_child(gender_title)
+	for g in 2:
+		var b := UIUtil.button(FaceKit.GENDER_NAMES[g], &"", Vector2(170, 60))
+		b.pressed.connect(func(): _set_gender(g))
+		gender_row.add_child(b)
+		_gender_buttons.append(b)
+	var random_button := UIUtil.button("🎲 สุ่ม", &"", Vector2(150, 60))
+	random_button.pressed.connect(func():
+		look = FaceKit.random_look(_rng)
+		_refresh())
+	gender_row.add_child(random_button)
+
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 6)
+	right.add_child(grid)
+	for row in ROWS:
+		grid.add_child(_option_row(String(row[0]), String(row[1])))
+
+	var note := UIUtil.label("ทุกคนเริ่มเป็นนักเดินทางในชุดเริ่มต้น พอถึงเลเวล 10 ค่อยเลือกสาย ดาบ / ธนู / เวทย์ / บวช", &"SmallLabel")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	right.add_child(note)
 	var name_row := UIUtil.hbox(10)
 	right.add_child(name_row)
 	name_row.add_child(UIUtil.label("ชื่อ:", &"BoldLabel"))
 	_name_input = LineEdit.new()
 	_name_input.max_length = 14
 	_name_input.placeholder_text = "ตั้งชื่อฮีโร่"
-	_name_input.custom_minimum_size = Vector2(300, 60)
+	_name_input.custom_minimum_size = Vector2(280, 60)
 	_name_input.text = "ฮีโร่"
 	name_row.add_child(_name_input)
-	var go := UIUtil.button("เริ่มผจญภัย!", &"PrimaryButton", Vector2(240, 68))
+	var go := UIUtil.button("เริ่มผจญภัย!", &"PrimaryButton", Vector2(220, 64))
 	go.pressed.connect(_on_confirm)
 	name_row.add_child(go)
-	var back := UIUtil.button("กลับ", &"", Vector2(120, 68))
+	var back := UIUtil.button("กลับ", &"", Vector2(110, 64))
 	back.pressed.connect(func(): cancelled.emit())
 	name_row.add_child(back)
-	_select(ClassData.START)
+	_refresh()
 
 
-## Drag the preview with a finger (or mouse) to turn the hero.
-func _on_preview_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch:
-		_spin_dragging = event.pressed
-		_spin_idle = 0.0
-	elif event is InputEventScreenDrag:
-		_pivot.rotation.y += event.relative.x * 0.012
-		_spin_idle = 0.0
-	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION and event.button_index == MOUSE_BUTTON_LEFT:
-		_spin_dragging = event.pressed
-		_spin_idle = 0.0
-	elif event is InputEventMouseMotion and _spin_dragging and event.device != InputEvent.DEVICE_ID_EMULATION:
-		_pivot.rotation.y += event.relative.x * 0.012
-		_spin_idle = 0.0
+func _option_row(key: String, title: String) -> Control:
+	var row := UIUtil.hbox(6)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var name_label := UIUtil.label(title, &"BoldLabel")
+	name_label.custom_minimum_size = Vector2(84, 0)
+	row.add_child(name_label)
+	var left := UIUtil.button("◀", &"", Vector2(60, 54))
+	left.pressed.connect(func(): _step(key, -1))
+	row.add_child(left)
+	var value := UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	value.custom_minimum_size = Vector2(130, 0)
+	value.clip_text = true
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(value)
+	_value_labels[key] = value
+	var right := UIUtil.button("▶", &"", Vector2(60, 54))
+	right.pressed.connect(func(): _step(key, 1))
+	row.add_child(right)
+	return row
 
 
-func _process(delta: float) -> void:
-	_spin_idle += delta
-	if _pivot and not _spin_dragging and _spin_idle > 1.5:
-		_pivot.rotation.y += delta * 0.6
+func _set_gender(g: int) -> void:
+	if int(look.gender) == g:
+		return
+	look["gender"] = g
+	look["hair"] = 0
+	_refresh()
 
 
-func _select(id: StringName) -> void:
-	_selected = id
-	var data := ClassData.get_class_data(id)
-	for key in _cards:
-		_cards[key].disabled = key == id
+func _step(key: String, delta: int) -> void:
+	var count := FaceKit.option_count(key, int(look.gender))
+	look[key] = posmod(int(look[key]) + delta, count)
+	_refresh()
+
+
+func _value_text(key: String) -> String:
+	var i := int(look[key])
+	match key:
+		"hair": return "%s  (%d/%d)" % [FaceKit.HAIR_NAMES[int(look.gender)][i], i + 1, FaceKit.option_count(key, int(look.gender))]
+		"hair_color": return FaceKit.HAIR_COLOR_NAMES[i]
+		"skin": return FaceKit.SKIN_NAMES[i]
+		"eyes": return FaceKit.EYE_NAMES[i]
+		"eye_color": return FaceKit.EYE_COLOR_NAMES[i]
+		"nose": return FaceKit.NOSE_NAMES[i]
+		"mouth": return FaceKit.MOUTH_NAMES[i]
+	return ""
+
+
+func _refresh() -> void:
+	look = FaceKit.repair(look)
+	for g in _gender_buttons.size():
+		_gender_buttons[g].disabled = int(look.gender) == g
+	for key in _value_labels:
+		var label: Label = _value_labels[key]
+		label.text = _value_text(key)
+		var tint := Color.WHITE
+		match key:
+			"hair_color": tint = FaceKit.HAIR_COLORS[int(look.hair_color)].lerp(Color.WHITE, 0.6)
+			"skin": tint = FaceKit.SKINS[int(look.skin)].lerp(Color.WHITE, 0.4)
+			"eye_color": tint = FaceKit.EYE_COLORS[int(look.eye_color)].lerp(Color.WHITE, 0.65)
+		label.add_theme_color_override("font_color", tint)
 	if _preview:
 		_preview.queue_free()
 	_preview = HeroVisual.new()
 	_pivot.add_child(_preview)
-	_preview.setup(id)
-	_title.text = "%s — %s" % [data.name, data.title]
-	_desc.text = data.desc
-	UIUtil.clear(_skills_box)
-	var pool := ClassData.pool(id)
-	var shown := 0
-	if id != ClassData.START:
-		var note := UIUtil.label("เลือกสายนี้ได้ที่เลเวล %d — สกิลตัวอย่าง:" % ClassData.LINE_LEVEL, &"SmallLabel")
-		_skills_box.add_child(note)
-	for skill in pool:
-		shown += 1
-		if shown > 4:
-			break
-		var line := UIUtil.label("• %s (Lv.%d)  %s" % [skill.name, int(skill.level), skill.desc], &"SmallLabel")
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		line.custom_minimum_size = Vector2(740, 0)
-		_skills_box.add_child(line)
-	AudioManager.play_ui(&"ui_select")
+	_preview.setup(ClassData.START, "", true, {}, look)
+
+
+## Drag the preview with a finger (or mouse) to turn the hero.
+func _on_preview_input(event: InputEvent) -> void:
+	if event is InputEventScreenDrag:
+		_pivot.rotation.y += event.relative.x * 0.012
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION and event.button_index == MOUSE_BUTTON_LEFT:
+		_spin_dragging = event.pressed
+	elif event is InputEventMouseMotion and _spin_dragging and event.device != InputEvent.DEVICE_ID_EMULATION:
+		_pivot.rotation.y += event.relative.x * 0.012
 
 
 func _on_confirm() -> void:
 	var hero_name := _name_input.text.strip_edges()
 	if hero_name == "":
 		hero_name = "ฮีโร่"
-	confirmed.emit(ClassData.START, hero_name)
+	confirmed.emit(ClassData.START, hero_name, FaceKit.repair(look))

@@ -31,12 +31,35 @@ func run() -> void:
 	main.title_screen.new_game_pressed.emit()
 	await _wait(0.8)
 	await _shot("class_select")
-	main.class_screen._select(&"mage")
+	main.class_screen._set_gender(1)
+	main.class_screen.look["hair"] = 1
+	main.class_screen.look["skin"] = 5
+	main.class_screen.look["mouth"] = 2
+	main.class_screen._refresh()
 	await _wait(0.6)
 	await _shot("class_select_mage")
+	if tour == "faces":
+		var cs = main.class_screen
+		for g in 2:
+			cs._set_gender(g)
+			for h in 5:
+				cs.look["hair"] = h
+				cs.look["hair_color"] = (h * 2 + g) % 8
+				cs.look["skin"] = (h * 3 + g * 2) % 8
+				cs.look["eyes"] = h
+				cs.look["eye_color"] = h % 6
+				cs.look["nose"] = h % 4
+				cs.look["mouth"] = h
+				cs._refresh()
+				await _wait(0.35)
+				await _shot("face_g%d_h%d" % [g, h])
+		get_tree().quit()
+		return
 	main.class_screen.cancelled.emit()
 	await _wait(0.3)
-	Game.new_profile(class_id, "ทดสอบ")
+	var look_rng := RandomNumberGenerator.new()
+	look_rng.seed = 7
+	Game.new_profile(class_id, "ทดสอบ", FaceKit.random_look(look_rng))
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null
