@@ -682,7 +682,7 @@ func _arena_tick(delta: float) -> void:
 func _arena_source() -> Dictionary:
 	var level: int = Game.profile.level
 	var best := ZoneData.get_zone(&"meadow")
-	for id in [&"meadow", &"dark_forest", &"desert", &"snow", &"volcano"]:
+	for id in [&"meadow", &"dark_forest", &"desert", &"snow", &"volcano", &"graveyard", &"swamp", &"storm", &"sky", &"abyss"]:
 		var info := ZoneData.get_zone(id)
 		if level >= int(info.level[0]):
 			best = info

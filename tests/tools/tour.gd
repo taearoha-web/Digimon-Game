@@ -92,8 +92,8 @@ func _line() -> void:
 
 
 func _zones() -> void:
-	_level(30)
-	for id in [&"dark_forest", &"desert", &"snow", &"volcano"]:
+	_level(100)
+	for id in [&"graveyard", &"swamp", &"storm", &"sky", &"abyss"]:
 		await main.go(id, true)
 		await _wait(1.5)
 		var z: Zone = main.zone
@@ -148,10 +148,11 @@ func _field() -> void:
 
 func _skills() -> void:
 	Game.dismiss_party()
-	_level(34 if master else (20 if job != "" else 12))
+	_level(100 if job != "" else 12)
 	if job != "":
-		Game.profile["job"] = job
-		Game.profile["job3"] = master
+		Game.profile["adv"] = int(job)
+		var bars := {"archer": ["recall_wolverine", "golden_falcon", "force_of_nature", "tempest"], "mage": ["spirit_elemental", "dancing_sword", "fire_elemental", "armageddon"], "warrior": ["cyclone_strike", "grand_cross", "brandish", "gladiator"], "priest": ["summon_muspell", "divine_judgment", "holy_rain_big", "last_judgement"]}
+		Game.profile["loadout"] = bars[String(class_id)]
 		Game.profile_changed.emit()
 	await main.go(&"meadow", true)
 	await _wait(1.0)

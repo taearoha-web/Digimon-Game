@@ -34,7 +34,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	var fx: Dictionary = skill.get("fx", {})
 	var big: bool = mult >= 4.0 or String(skill.id) in BIG_IDS or (shape == "self" and float(fx.get("buff", {}).get("atk", 0.0)) >= 0.3)
 	match shape:
-		"self": _self_cast(parent, skill, style, color, origin)
+		"self", "summon": _self_cast(parent, skill, style, color, origin)
 		"burst": _burst(parent, skill, style, color, origin, radius, big)
 		"blast": _blast(parent, skill, style, color, center, radius, big)
 		"single": _single(parent, skill, style, color, center, origin, big)

@@ -27,7 +27,7 @@ const MAX_BAG := 100
 const BAG_STEP := 10
 const STORAGE_SIZE := 80
 const STAT_POINTS_PER_LEVEL := 3
-const MAX_LEVEL := 50
+const MAX_LEVEL := 100
 const MAX_SKILL_RANK := 5
 ## Area skills (burst / blast) grow this much wider per extra star.
 const RADIUS_PER_STAR := 0.08
@@ -74,7 +74,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {}, "storage": [], "bag_slots": BASE_BAG,
+		"flags": {}, "boss_kills": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -99,7 +99,7 @@ func class_id() -> StringName:
 
 ## The class with the skill bar loadout as [code]skills[/code] (always 4 entries, {} = empty slot).
 func class_data() -> Dictionary:
-	var data := JobData.resolve(class_id(), job_id(), bool(profile.get("job3", false))).duplicate()
+	var data := JobData.resolve(class_id(), adv()).duplicate()
 	data["skills"] = loadout_skills()
 	return data
 
@@ -184,46 +184,42 @@ func _convert_weapon(item: Dictionary, new_class: StringName, rng: RandomNumberG
 	item["name"] = ("%s ของมือใหม่" % ItemData.NAMES[fresh.base][0]) if starter else fresh.name
 
 
-func job_id() -> StringName:
-	return StringName(profile.get("job", ""))
+## How many advancement steps (Lv.20/40/60/80) the hero has taken (0-4).
+func adv() -> int:
+	return clampi(int(profile.get("adv", 0)), 0, JobData.MAX_ADV)
 
 
-## Third advancement (Lv.30, after a job).
-func change_master() -> bool:
-	if job_id() == &"" or bool(profile.get("job3", false)) or not JobData.MASTERS.has(job_id()):
+## The next advancement step ({} when none is left or the hero is still a Vagabond).
+func next_step() -> Dictionary:
+	if class_id() == ClassData.START or adv() >= JobData.MAX_ADV:
+		return {}
+	return JobData.step(class_id(), adv())
+
+
+func next_step_level() -> int:
+	return int(JobData.TIER_LEVELS[adv()]) if adv() < JobData.MAX_ADV else 0
+
+
+func next_step_cost() -> int:
+	return int(JobData.TIER_COSTS[adv()]) if adv() < JobData.MAX_ADV else 0
+
+
+## Job Master: the next advancement needs its level and fee. Returns false if refused.
+func advance() -> bool:
+	if next_step().is_empty():
 		return false
-	if int(profile["level"]) < JobData.MASTER_LEVEL or int(profile["gold"]) < JobData.MASTER_COST:
+	if int(profile["level"]) < next_step_level() or int(profile["gold"]) < next_step_cost():
 		return false
-	profile["gold"] -= JobData.MASTER_COST
-	profile["job3"] = true
+	profile["gold"] -= next_step_cost()
+	profile["skill_points"] += int(JobData.TIER_SKILL_POINTS[adv()])
+	profile["adv"] = adv() + 1
 	fill_loadout()
-	profile["skill_points"] += 3
 	var stats := stats_now()
 	profile["hp"] = stats.max_hp
 	profile["mp"] = stats.max_mp
 	gold_changed.emit(profile["gold"])
 	profile_changed.emit()
-	check_achievements()
-	mark_dirty()
-	return true
-
-
-## Job change at the Job Master: needs the level, the fee and a class branch.
-func change_job(job: StringName) -> bool:
-	var info := JobData.get_job(job)
-	if info.is_empty() or info["class"] != class_id() or job_id() != &"":
-		return false
-	if int(profile["level"]) < JobData.JOB_LEVEL or int(profile["gold"]) < JobData.JOB_COST:
-		return false
-	profile["gold"] -= JobData.JOB_COST
-	profile["job"] = String(job)
-	fill_loadout()
-	profile["skill_points"] += 2
-	var stats := stats_now()
-	profile["hp"] = stats.max_hp
-	profile["mp"] = stats.max_mp
-	gold_changed.emit(profile["gold"])
-	profile_changed.emit()
+	party_changed.emit()
 	mark_dirty()
 	check_achievements()
 	return true
@@ -331,8 +327,14 @@ func _repair(data: Dictionary) -> Dictionary:
 		data.attrs[key] = int(data.attrs.get(key, 0))
 	for skill_id in data.skills.keys():
 		data.skills[skill_id] = int(data.skills[skill_id])
-	if data.get("job", "") != "":
-		data["job"] = String(JobData.migrate_job(StringName(data.get("class", "warrior")), StringName(data["job"])))
+	# Older saves: "job" (first advancement) and "job3" (second) became the "adv" step count.
+	if not data.has("adv"):
+		data["adv"] = 0
+		if data.get("job", "") != "":
+			data["adv"] = 2 if bool(data.get("job3", false)) else 1
+	data.erase("job")
+	data.erase("job3")
+	data["adv"] = int(data["adv"])
 	_migrate_skills(data)
 	for item in data.inv:
 		_repair_item(item)
@@ -356,7 +358,7 @@ func _migrate_skills(data: Dictionary) -> void:
 			data.skills.erase(skill_id)
 	if not data.get("loadout") is Array:
 		data["loadout"] = ["", "", "", ""]
-	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, StringName(data.get("job", "")), bool(data.get("job3", false))))
+	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, int(data.get("adv", 0))))
 
 
 func _repair_item(item: Dictionary) -> void:
@@ -476,11 +478,7 @@ func party() -> Array:
 
 ## A fake profile so [HeroStats] can work out a companion's stats.
 func party_profile(member: Dictionary) -> Dictionary:
-	var job := ""
-	if int(member.level) >= JobData.JOB_LEVEL:
-		var branches := JobData.jobs_for(StringName(member["class"]))
-		job = String(branches[hash(member.name) % branches.size()])
-	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "job": job, "job3": int(member.level) >= JobData.MASTER_LEVEL and job != ""}
+	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "adv": JobData.adv_for_level(int(member.level))}
 
 
 ## Gear that grows with the companion's level (same pieces until the next tier).
@@ -550,9 +548,9 @@ func skill_unlocked(skill: Dictionary) -> bool:
 	return profile["level"] >= int(skill.level) and class_tier() >= ClassData.skill_tier(skill)
 
 
-## 0 Vagabond, 1 line, 2 advanced job (Lv.20), 3 master job (Lv.40).
+## 0 Vagabond, 1 line (Lv.10), then 2..5 for the four advancements (Lv.20/40/60/80).
 func class_tier() -> int:
-	return ClassData.tier_of(class_id(), job_id(), bool(profile.get("job3", false)))
+	return ClassData.tier_of(class_id(), adv())
 
 
 ## Why a skill cannot be used yet ("" when it can).
@@ -561,7 +559,7 @@ func skill_lock_reason(skill: Dictionary) -> String:
 		return "ปลดล็อกที่เลเวล %d" % int(skill.level)
 	var need := ClassData.skill_tier(skill)
 	if class_tier() < need:
-		return "ต้องเปลี่ยนเป็น%s (Lv.%d)" % [ClassData.tier_name(need), ClassData.LINE_LEVEL if need == 1 else (JobData.JOB_LEVEL if need == 2 else JobData.MASTER_LEVEL)]
+		return "ต้องเปลี่ยนเป็น%s (Lv.%d)" % [JobData.tier_name(class_id(), need), ClassData.LINE_LEVEL if need == 1 else JobData.tier_level(need)]
 	return ""
 
 
@@ -1017,8 +1015,9 @@ func achievement_value(key: String) -> int:
 	match key:
 		"kills": return int(profile["kills"])
 		"level": return int(profile["level"])
-		"job": return 1 if job_id() != &"" else 0
-		"job3": return 1 if bool(profile.get("job3", false)) else 0
+		"job": return 1 if adv() >= 1 else 0
+		"job3": return 1 if adv() >= 2 else 0
+		"job5": return 1 if adv() >= 4 else 0
 		"bosses":
 			var n := 0
 			for id in profile["boss_kills"]:

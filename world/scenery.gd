@@ -24,6 +24,31 @@ const THEME_SETS := {
 		"wall": ["PineTree_5", "PineTree_4", "PineTree_5", "PineTree_2"],
 		"bushes": 60, "flowers": 0, "rocks": 80, "bush_colors": [Color("e8f4ff"), Color("c8e0f0"), Color("ffffff")],
 	},
+	&"graveyard": {
+		"trees": [["DeadTree_5", 3.0], ["DeadTree_9", 3.0]],
+		"wall": ["DeadTree_5", "DeadTree_9"],
+		"bushes": 20, "flowers": 0, "rocks": 130, "bush_colors": [Color("4a4a5a"), Color("5a6a62"), Color("3a3a48")],
+	},
+	&"swamp": {
+		"trees": [["PalmTree_1", 3.0], ["PalmTree_3", 3.0], ["DeadTree_5", 2.0], ["NormalTree_3", 1.5]],
+		"wall": ["PalmTree_1", "DeadTree_9", "PalmTree_3", "DeadTree_5"],
+		"bushes": 70, "flowers": 10, "rocks": 50, "bush_colors": [Color("5a8a3a"), Color("7a9a48"), Color("4a6a30")],
+	},
+	&"storm": {
+		"trees": [["PineTree_1", 2.0], ["PineTree_5", 2.0], ["DeadTree_5", 2.0]],
+		"wall": ["PineTree_5", "DeadTree_5", "PineTree_4"],
+		"bushes": 25, "flowers": 0, "rocks": 170, "bush_colors": [Color("6a7888"), Color("8898a8"), Color("586470")],
+	},
+	&"sky": {
+		"trees": [["BirchTree_4", 3.0], ["MapleTree_1", 2.0], ["NormalTree_5", 1.5]],
+		"wall": ["BirchTree_4", "MapleTree_4", "NormalTree_3"],
+		"bushes": 40, "flowers": 80, "rocks": 40, "bush_colors": [Color("f0e8b0"), Color("fff6d0"), Color("e8d890")],
+	},
+	&"abyss": {
+		"trees": [["DeadTree_5", 3.0], ["DeadTree_9", 3.0]],
+		"wall": ["DeadTree_9", "DeadTree_5"],
+		"bushes": 15, "flowers": 0, "rocks": 140, "bush_colors": [Color("6a1a28"), Color("3a1a22"), Color("8a2a34")],
+	},
 	&"volcano": {
 		"trees": [["DeadTree_5", 3.0], ["DeadTree_9", 3.0]],
 		"wall": ["DeadTree_5", "DeadTree_9"],

@@ -96,6 +96,12 @@ func _stock() -> Array[Dictionary]:
 	if level >= 16:
 		stock.append(ItemData.potion("hp_l"))
 		stock.append(ItemData.potion("mp_l"))
+	if level >= 40:
+		stock.append(ItemData.potion("hp_xl"))
+		stock.append(ItemData.potion("mp_xl"))
+	if level >= 70:
+		stock.append(ItemData.potion("hp_xxl"))
+		stock.append(ItemData.potion("mp_xxl"))
 	stock.append(ItemData.potion("town_scroll"))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%d|%s" % [ItemData.tier_for(level), Game.profile.class])

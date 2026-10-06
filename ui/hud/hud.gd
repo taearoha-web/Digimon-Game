@@ -163,7 +163,7 @@ func _process(_delta: float) -> void:
 		return
 	var p := Game.profile
 	var stats := hero.stats
-	var class_id := StringName("%s|%s|%s" % [Game.class_id(), Game.job_id(), Game.profile.get("job3", false)])
+	var class_id := StringName("%s|%d" % [Game.class_id(), Game.adv()])
 	if class_id != _badge_class:
 		_badge_class = class_id
 		var data := Game.class_data()

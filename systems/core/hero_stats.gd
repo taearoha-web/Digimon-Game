@@ -18,7 +18,7 @@ static func attributes(profile: Dictionary) -> Dictionary:
 	var data := ClassData.get_class_data(StringName(profile["class"]))
 	var level: int = profile["level"]
 	var result := {}
-	var advance := JobData.attr_bonus(StringName(profile.get("job", "")), bool(profile.get("job3", false)))
+	var advance := JobData.attr_bonus(StringName(profile["class"]), int(profile.get("adv", 0)))
 	for key in ["str", "int", "dex", "vit"]:
 		result[key] = int(data.base[key]) + int(data.gain[key]) * (level - 1) + int(profile["attrs"].get(key, 0)) + int(advance[key])
 	return result
@@ -63,7 +63,7 @@ static func passive_bonus(profile: Dictionary) -> Dictionary:
 	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "speed": 0.0, "dodge": 0.0}
 	var level: int = profile["level"]
 	for passive in ClassData.PASSIVES.get(StringName(profile["class"]), []):
-		if level < int(passive.level) or ClassData.skill_tier(passive) > ClassData.tier_of(StringName(profile["class"]), StringName(profile.get("job", "")), bool(profile.get("job3", false))):
+		if level < int(passive.level) or ClassData.skill_tier(passive) > ClassData.tier_of(StringName(profile["class"]), int(profile.get("adv", 0))):
 			continue
 		var rank := maxi(1, int(profile.get("skills", {}).get(passive.id, 0)))
 		for key in passive.bonus:
@@ -83,7 +83,7 @@ static func set_counts(profile: Dictionary) -> Dictionary:
 
 ## buffs: { atk, def, speed, crit } fractions (0.3 = +30%).
 static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
-	var data := JobData.resolve(StringName(profile["class"]), StringName(profile.get("job", "")), bool(profile.get("job3", false)))
+	var data := JobData.resolve(StringName(profile["class"]), int(profile.get("adv", 0)))
 	var level: int = profile["level"]
 	var attrs := attributes(profile)
 	var gear := gear_bonus(profile)
