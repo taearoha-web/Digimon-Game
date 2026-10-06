@@ -195,6 +195,9 @@ func _update_skills() -> void:
 	for i in skill_slots.size():
 		var skill: Dictionary = skills[i]
 		var slot := skill_slots[i]
+		if skill.is_empty():
+			slot.apply({}, 0.0, 0.0, false, false, 0, false)
+			continue
 		slot.cost = hero.mp_cost(skill)
 		slot.apply(skill, hero.cooldown_ratio(skill), float(hero.cooldowns.get(skill.id, 0.0)), int(Game.profile.mp) >= hero.mp_cost(skill),
 				Game.skill_unlocked(skill), Game.effective_rank(skill), false)

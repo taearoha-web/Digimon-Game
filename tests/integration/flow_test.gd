@@ -33,6 +33,7 @@ func check(condition: bool, message: String) -> void:
 
 
 func _run() -> void:
+	await _vagabond()
 	for id in ClassData.IDS:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
@@ -53,6 +54,13 @@ func _start(class_id: StringName) -> Zone:
 		main.title_screen = null
 	Game.delete_save()
 	Game.new_profile(class_id, "ทดสอบ")
+	if class_id != ClassData.START:
+		# Lines start at Lv.10 in the real game; the tests jump straight there.
+		Game.profile["level"] = ClassData.LINE_LEVEL
+		Game.fill_loadout()
+		var stats := Game.stats_now()
+		Game.profile.hp = stats.max_hp
+		Game.profile.mp = stats.max_mp
 	main.hud.visible = true
 	main._traveling = false
 	await main.go(&"town", true)
@@ -64,8 +72,10 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 9, "nine villagers")
+	check(town.npcs.size() == 10, "ten villagers")
 	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
+	var bar := Game.loadout_skills()
+	check(bar.size() == 4 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
 	await main.go(&"meadow", true)
 	await _wait(0.6)
 	var zone: Zone = main.zone
@@ -146,26 +156,70 @@ func _jobs() -> void:
 			break
 		check(Game.job_id() != &"", "%s changed job to %s" % [class_id, Game.job_id()])
 		check(Game.profile.gold == gold_before - JobData.JOB_COST + 1000, "job change cost gold (the job achievement pays 1000 back)")
-		var skills: Array = Game.class_data().skills
-		check(skills.size() == 4 and String(skills[0].id) != String(ClassData.get_skill(class_id, 0).id), "first skill replaced by a job skill")
+		check(String(Game.class_data().name) != String(ClassData.get_class_data(class_id).name), "job renames the hero")
 		check(not Game.change_job(branches[1]) and not Game.change_job(branches[0]), "job cannot be changed twice")
 		await _wait(0.4)
 		var hero: Hero = main.zone.hero
 		check(hero._ring != null, "job ring appears under the hero")
 		# Passives raise stats; the Lv.30 advancement swaps skills 3 and 4.
 		var before := Game.stats_now()
-		var power_before: float = float(before.def) + float(before.max_hp) + float(before.max_mp) + float(before.crit) * 1000.0 + float(before.speed)
+		var power_before: float = float(before.atk) + float(before.def) + float(before.max_hp) + float(before.max_mp) + float(before.crit) * 1000.0 + float(before.speed)
 		Game.profile.skills[ClassData.PASSIVES[class_id][0].id] = 5
 		var after_stats := Game.stats_now()
-		var power_after: float = float(after_stats.def) + float(after_stats.max_hp) + float(after_stats.max_mp) + float(after_stats.crit) * 1000.0 + float(after_stats.speed)
+		var power_after: float = float(after_stats.atk) + float(after_stats.def) + float(after_stats.max_hp) + float(after_stats.max_mp) + float(after_stats.crit) * 1000.0 + float(after_stats.speed)
 		check(power_after > power_before, "passive skill ranks add stats")
 		Game.add_gold(10000)
-		Game.profile["level"] = 30
-		var skill3_before: String = String(Game.class_data().skills[2].id)
-		check(Game.change_master(), "%s can take the Lv.30 advancement" % class_id)
-		var after: Array = Game.class_data().skills
-		check(String(after[2].id) != skill3_before and bool(Game.class_data().get("master", false)), "skills 3 and 4 are replaced by master skills")
-		check(not Game.change_master(), "the Lv.30 advancement is one-time")
+		Game.profile["level"] = JobData.MASTER_LEVEL
+		check(Game.change_master(), "%s can take the Lv.%d advancement" % [class_id, JobData.MASTER_LEVEL])
+		check(bool(Game.class_data().get("master", false)), "master advancement applied")
+		check(not Game.change_master(), "the master advancement is one-time")
+
+
+func _vagabond() -> void:
+	print("== Vagabond")
+	var zone := await _start(ClassData.START)
+	check(Game.class_id() == ClassData.START and zone.hero != null, "new heroes start as a Vagabond")
+	var bar := Game.loadout_skills()
+	check(not bar[0].is_empty() and bar[1].is_empty(), "Lv.1 Vagabond has one skill on the bar")
+	check(not Game.change_class(&"warrior"), "cannot pick a line below Lv.%d" % ClassData.LINE_LEVEL)
+	Game.add_exp(HeroStats.exp_to_next(1) + HeroStats.exp_to_next(2) + HeroStats.exp_to_next(3) + HeroStats.exp_to_next(4) + HeroStats.exp_to_next(5) + HeroStats.exp_to_next(6) + HeroStats.exp_to_next(7) + HeroStats.exp_to_next(8) + HeroStats.exp_to_next(9))
+	check(Game.profile.level == 10, "reached Lv.10 (Lv.%d)" % Game.profile.level)
+	var filled := 0
+	for skill in Game.loadout_skills():
+		if not skill.is_empty():
+			filled += 1
+	check(filled == 3, "the three Vagabond skills fill the bar")
+	# Gear and the skill bar follow the new line.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var drop := ItemData.generate(8, ClassData.START, rng, 2, "weapon")
+	Game.add_item(drop)
+	check(Game.change_class(&"archer"), "picked the archer line")
+	check(Game.class_id() == &"archer", "class is now the archer")
+	check(String(Game.profile.equip.weapon["class"]) == "archer" and String(Game.profile.equip.weapon.base) == "bow", "worn weapon became a bow")
+	var kept := false
+	for item in Game.profile.inv:
+		if item.get("kind", "") == "equip" and String(item.get("class", "")) == "archer":
+			kept = true
+	check(kept, "bag weapon turned into the new line's weapon")
+	bar = Game.loadout_skills()
+	check(String(bar[0].id) == "wind_arrow" and String(bar[1].id) == "perfect_aim", "bar holds the first archer skills")
+	check(not Game.change_class(&"mage"), "the line cannot be changed twice")
+	# Loadout: swap a skill into slot 4 once unlocked.
+	Game.profile["level"] = 20
+	Game.fill_loadout()
+	check(Game.equip_skill("avalanche", 0) and String(Game.loadout()[0]) == "avalanche", "equip a skill on slot 1")
+	check(not Game.loadout().has("wind_arrow"), "the replaced skill leaves the bar")
+	check(Game.equip_skill("perfect_aim", 0) and String(Game.loadout()[0]) == "perfect_aim" and String(Game.loadout()[1]) == "avalanche", "a skill already on the bar swaps places")
+	check(not Game.equip_skill("phoenix_shot", 1), "locked skills cannot be equipped")
+	Game.profile.gold = 5000
+	Game.profile.skill_points = 3
+	var skill := ClassData.find_skill(&"archer", "wind_arrow")
+	check(Game.upgrade_skill(skill) and Game.skill_rank("wind_arrow") == 2, "skill trainer raises a rank for points + gold")
+	check(Game.profile.gold < 5000, "ranks cost gold")
+	await main.go(&"town", true)
+	await _wait(0.3)
+	check(main.zone.hero != null, "village reloads with the new line")
 
 
 func _touch_scroll() -> void:

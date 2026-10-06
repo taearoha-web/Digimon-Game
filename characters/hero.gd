@@ -542,7 +542,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		"burst":
 			var radius := float(skill.radius)
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, radius * 1.15)
-			if skill.id == "whirlwind":
+			if skill.get("special", "") == "spin":
 				for i in 3:
 					VfxKit.slash_arc(field, global_position + Vector3(0, 0.9 + i * 0.2, 0), _facing + i * 2.1, color, 3.4, 0.0)
 			_shake(0.2)
@@ -557,9 +557,9 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			if _valid_target(mob):
 				center = Vector3(mob.global_position.x, 0.0, mob.global_position.z)
 			var radius := float(skill.radius)
-			if skill.id == "meteor":
+			if skill.get("special", "") == "meteor":
 				VfxKit.meteor(field, center, color, 0.55, radius, func(): _blast_damage(skill, center, radius, mult))
-			elif skill.id == "arrow_rain":
+			elif skill.get("special", "") == "rain":
 				_arrow_rain(skill, center, radius, mult)
 			else:
 				VfxKit.shockwave(field, center + Vector3(0, 0.1, 0), color, radius)
@@ -578,7 +578,7 @@ func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: floa
 		if _dead:
 			return
 		if _valid_target(mob):
-			if skill.id == "fireball":
+			if skill.get("special", "") == "boom":
 				VfxKit.shockwave(field, mob.global_position + Vector3(0, 0.15, 0), color, 2.2)
 			_deal(mob, mult, color, skill.vfx, true, skill)
 	, CONNECT_ONE_SHOT)

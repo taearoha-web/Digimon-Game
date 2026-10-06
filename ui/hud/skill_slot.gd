@@ -38,6 +38,10 @@ func apply(p_skill: Dictionary, p_ratio: float, p_left: float, p_mp_ok: bool, p_
 
 func _draw() -> void:
 	if skill.is_empty():
+		var mid := size * 0.5
+		draw_arc(mid, radius, 0, TAU, 40, Color(1, 1, 1, 0.22), 3.0, true)
+		draw_line(mid + Vector2(-9, 0), mid + Vector2(9, 0), Color(1, 1, 1, 0.22), 3.0, true)
+		draw_line(mid + Vector2(0, -9), mid + Vector2(0, 9), Color(1, 1, 1, 0.22), 3.0, true)
 		return
 	var c := size * 0.5
 	var ready := cooldown_ratio <= 0.0 and enough_mp and unlocked
