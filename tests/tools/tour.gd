@@ -72,9 +72,58 @@ func run() -> void:
 		"skills": await _skills()
 		"line": await _line()
 		"zones": await _zones()
+		"boss": await _boss()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _boss() -> void:
+	Game.dismiss_party()
+	_level(30)
+	Game.profile.hp = 99999
+	Game.profile["quests"]["slimes"] = {"status": "active", "progress": 3}
+	await main.go(&"meadow", true)
+	await _wait(1.0)
+	var z: Zone = main.zone
+	var hero: Hero = z.hero
+	hero.global_position = Vector3(-18, 0.2, 2)
+	z.camera_rig.snap_to_target()
+	var boss := Mob.new()
+	boss.setup(&"mush_king", 12, hero.global_position + Vector3(9, 0, 0), hero)
+	boss.position = boss.home + Vector3(0, 0.3, 0)
+	z.add_child(boss)
+	boss.hostile = true
+	await _wait(1.0)
+	await _shot("boss_start")
+	boss.take_hit(int(boss.max_hp * 0.32), false, Color.WHITE, hero)
+	await _wait(0.7)
+	await _shot("boss_phase1_helpers")
+	boss.take_hit(int(boss.max_hp * 0.3), false, Color.WHITE, hero)
+	await _wait(2.2)
+	await _shot("boss_phase2_rage")
+	await _wait(0.9)
+	await _shot("boss_barrage_warning")
+	await _wait(0.8)
+	await _shot("boss_barrage_hit")
+	boss.queue_free()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for i in 4:
+		var drop := LootDrop.new()
+		drop.setup(ItemData.generate(40, class_id, rng, 1 + i if i < 3 else 4), 0, hero, hero.global_position + Vector3(-3 + i * 2.0, 0, 5))
+		z.add_child(drop)
+	await _wait(0.4)
+	await _shot("drops_landing")
+	await _wait(1.2)
+	hero.global_position = Vector3(-18, 0.2, 2)
+	await _shot("drops_rarities")
+	Game.profile["daily"] = {}
+	for entry in Game.daily().quests:
+		entry["progress"] = Game.daily_target(entry)
+	main.menu.open_menu(&"quests")
+	await _wait(0.6)
+	await _shot("quests_menu")
 
 
 func _line() -> void:
