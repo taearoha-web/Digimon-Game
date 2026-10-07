@@ -39,6 +39,7 @@ var _age := 0.0
 var _fading := false
 var _dead := false
 var _bar: FieldHpBar
+var _book := BuffBook.new()
 
 
 func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: float, slot: int, slots: int, p_rank := 1) -> void:
@@ -108,6 +109,7 @@ func _process(delta: float) -> void:
 		return
 	_age += delta
 	life -= delta
+	_book.tick(self, not _dead and not _fading, func(): return (float(_kind.height) if _kind.has("height") else 1.6) + float(_kind.hover))
 	if life <= 0.0 and not _fading:
 		_vanish()
 	if _fading:
@@ -122,7 +124,7 @@ func _process(delta: float) -> void:
 		want_range = _reach() * 0.85
 	var to := goal - global_position
 	to.y = 0.0
-	var speed := float(_kind.speed)
+	var speed := float(_kind.speed) * (1.0 + _book.total("speed"))
 	if to.length() > want_range + 0.3:
 		var step := minf(to.length() - want_range, speed * delta * (1.0 if _valid(_target) else 1.6))
 		global_position += to.normalized() * maxf(step, 0.0)
@@ -145,11 +147,18 @@ func is_dead() -> bool:
 	return _dead
 
 
+## Buff skills of the hero reach summons too: the aura shows, defence and speed
+## apply (attack and crit already come through the hero's own stats).
+func receive_party_buff(buff: Dictionary, color: Color, label := "") -> void:
+	_book.add(buff, color, label)
+	VfxKit.aura(get_parent(), global_position, color)
+
+
 ## Monsters hit summons like any other ally.
 func take_damage(raw: float, _attacker: Node = null) -> void:
 	if _dead or _fading or not is_instance_valid(hero):
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(hero.stats.def) * 0.6))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(hero.stats.def) * 0.6 * (1.0 + _book.total("def"))))))
 	hp = maxi(0, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	BattleVfx.floating_text(get_parent(), global_position + Vector3(0, (float(_kind.hover) + 1.8) * size_mult, 0), str(amount), Color("ff7a8a"), 1.0)

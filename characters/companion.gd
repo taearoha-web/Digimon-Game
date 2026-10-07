@@ -23,6 +23,7 @@ var _combo := 0
 var _think := 0.0
 var _buff_until := 0
 var _buff_mult := 1.0
+var _book := BuffBook.new()
 var _label: Label3D
 var _equip_sig := ""
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
@@ -122,7 +123,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.8)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def) * (1.0 + _book.total("def"))))))
 	hp = maxi(0, hp - amount)
 	_since_hurt = 0.0
 	BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff7a8a"), 1.0)
@@ -200,9 +201,16 @@ func level_up_fx() -> void:
 	refresh()
 
 
+## A buff cast by the hero reaches the companion too.
+func receive_party_buff(buff: Dictionary, color: Color, label := "") -> void:
+	_book.add(buff, color, label)
+	VfxKit.aura(field, global_position, color)
+
+
 func _physics_process(delta: float) -> void:
 	if hero == null or not is_instance_valid(hero) or stats.is_empty():
 		return
+	_book.tick(self, not _dead, func(): return BuffAura.measure_top(visual, self))
 	if _dead:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -303,7 +311,7 @@ func _follow(delta: float) -> Vector3:
 	if to.length() < 0.7:
 		return Vector3.ZERO
 	_face(to, delta, 12.0)
-	var speed := float(stats.speed) * (1.35 if to.length() > 5.0 else 1.0)
+	var speed := float(stats.speed) * (1.35 if to.length() > 5.0 else 1.0) * (1.0 + _book.total("speed"))
 	return to.normalized() * minf(speed, to.length() * 6.0)
 
 
@@ -345,7 +353,7 @@ func _flat(v: Vector3) -> Vector3:
 # ---------------------------------------------------------------------------
 
 func _buffed_atk() -> float:
-	return float(stats.atk) * (_buff_mult if Time.get_ticks_msec() < _buff_until else 1.0)
+	return float(stats.atk) * (_buff_mult if Time.get_ticks_msec() < _buff_until else 1.0) * (1.0 + _book.total("atk"))
 
 
 func _basic_attack() -> void:
@@ -384,7 +392,7 @@ func _shoot(mob: Mob, mult: float, color: Color, vfx: StringName, skill: Variant
 
 func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, skill: Variant) -> void:
 	var raw := _buffed_atk() * mult * randf_range(0.92, 1.08)
-	var crit := randf() < float(stats.crit)
+	var crit := randf() < float(stats.crit) + _book.total("crit")
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
