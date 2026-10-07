@@ -3,18 +3,20 @@ extends Node3D
 ## A creature or floating blade the hero calls with a summoner skill. It follows
 ## the hero, picks the hero's target (or the nearest monster) and attacks. It
 ## has its own health bar, monsters can attack it, and it lasts 3 minutes or
-## until it is killed. Its size is 100% at 1 star and grows 25% per extra star (200% at 5).
+## until it is killed. Its size is 100% at 1 star, 110% at 2 stars and 150% at 5 stars (even steps between).
 
 ## Seconds a summon stays (3 minutes).
 const LIFETIME := 180.0
 
+## Heights are chosen so that a 5-star summon (150%) stands a little taller than the
+## hero (~2.8 m with hair, ~2.0 m body): the biggest kinds top out around 3.0-3.2 m.
 const KINDS := {
-	"falcon": {"model": "flying/Pigeon", "height": 1.0, "hover": 1.8, "tint": Color(1.6, 1.3, 0.5), "ranged": true, "speed": 7.0, "range": 7.0, "color": Color("ffd84a")},
-	"wolf": {"model": "blob/Dog", "height": 1.25, "hover": 0.0, "tint": Color(0.85, 0.95, 1.3), "ranged": false, "speed": 6.5, "range": 1.8, "color": Color("bfe0ff")},
-	"beast": {"model": "big/Dino", "height": 1.9, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
-	"elemental": {"model": "flying/Ghost", "height": 1.5, "hover": 0.9, "tint": Color(0.7, 1.2, 1.7), "ranged": true, "speed": 5.0, "range": 8.0, "color": Color("7fe3ff")},
-	"fire_elemental": {"model": "flying/Ghost", "height": 2.2, "hover": 0.9, "tint": Color(1.8, 0.7, 0.3), "ranged": true, "speed": 5.0, "range": 8.5, "color": Color("ff7a2a")},
-	"muspell": {"model": "big/Yeti", "height": 2.4, "hover": 0.0, "tint": Color(0.7, 0.95, 1.6), "ranged": false, "speed": 4.8, "range": 2.6, "color": Color("aaf0ff")},
+	"falcon": {"model": "flying/Pigeon", "height": 0.8, "hover": 1.2, "tint": Color(1.6, 1.3, 0.5), "ranged": true, "speed": 7.0, "range": 7.0, "color": Color("ffd84a")},
+	"wolf": {"model": "blob/Dog", "height": 1.4, "hover": 0.0, "tint": Color(0.85, 0.95, 1.3), "ranged": false, "speed": 6.5, "range": 1.8, "color": Color("bfe0ff")},
+	"beast": {"model": "big/Dino", "height": 1.95, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
+	"elemental": {"model": "flying/Ghost", "height": 1.2, "hover": 0.7, "tint": Color(0.7, 1.2, 1.7), "ranged": true, "speed": 5.0, "range": 8.0, "color": Color("7fe3ff")},
+	"fire_elemental": {"model": "flying/Ghost", "height": 1.4, "hover": 0.7, "tint": Color(1.8, 0.7, 0.3), "ranged": true, "speed": 5.0, "range": 8.5, "color": Color("ff7a2a")},
+	"muspell": {"model": "big/Yeti", "height": 2.1, "hover": 0.0, "tint": Color(0.7, 0.95, 1.6), "ranged": false, "speed": 4.8, "range": 2.6, "color": Color("aaf0ff")},
 	"sword": {"proc": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
 }
 
@@ -48,8 +50,7 @@ func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: 
 	spec = p_spec
 	damage_mult = p_damage_mult
 	rank = clampi(p_rank, 1, 10)
-	# 100% at 1 star, +25% per extra star: 125%, 150%, 175%, 200% at 5 stars.
-	size_mult = 1.0 + 0.25 * float(rank - 1)
+	size_mult = size_for_rank(rank)
 	life = float(spec.get("secs", LIFETIME))
 	max_hp = maxi(300, int(round(float(hero.stats.max_hp) * 0.8 * (1.0 + 0.6 * float(rank - 1)))))
 	hp = max_hp
@@ -141,6 +142,13 @@ func _process(delta: float) -> void:
 		var dist := Vector2(_target.global_position.x - global_position.x, _target.global_position.z - global_position.z).length() - _target.body_radius()
 		if dist <= _reach() + 0.4:
 			_attack()
+
+
+## Body size by skill stars: 1 = normal, 2 = +10%, 5 = +50%, evenly in between.
+static func size_for_rank(stars: int) -> float:
+	if stars <= 1:
+		return 1.0
+	return 1.10 + 0.40 * float(mini(stars, 5) - 2) / 3.0
 
 
 func is_dead() -> bool:
