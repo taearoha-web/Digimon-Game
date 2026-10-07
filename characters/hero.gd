@@ -853,6 +853,8 @@ func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally :=
 	buff["color"] = color
 	buff["total"] = float(buff.secs)
 	buff["ally"] = from_ally
+	# Casting the same buff again refreshes it instead of stacking a second copy.
+	_buffs = _buffs.filter(func(b): return not (String(b.get("name", "")) == String(buff.name) and bool(b.get("ally", false)) == from_ally))
 	_buffs.append(buff)
 	refresh_stats()
 	if _buff_emitter == null:
