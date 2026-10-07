@@ -748,7 +748,7 @@ func _summon(skill: Dictionary, mult: float) -> void:
 	var count := int(spec.get("count", 1)) + (1 if Game.effective_rank(skill) >= 5 and int(spec.get("count", 1)) > 1 else 0)
 	for i in count:
 		var s := Summon.new()
-		s.setup(self, String(skill.id), spec, mult, i, count)
+		s.setup(self, String(skill.id), spec, mult, i, count, maxi(1, Game.effective_rank(skill)))
 		field.add_child(s)
 		_summons.append(s)
 	while _summons.size() > 5:

@@ -12,7 +12,9 @@ signal menu_requested(tab: StringName)
 signal interact_pressed()
 
 const ARC_RADIUS := 158.0
-const ARC_ANGLES := [172.0, 142.0, 112.0, 82.0]
+## Two arcs of four around the attack button: the inner one is slots 1-4, the outer one 5-8.
+const ARC_ANGLES := [172.0, 142.0, 112.0, 82.0, 160.0, 132.0, 104.0, 76.0]
+const OUTER_ARC_RADIUS := 262.0
 const ATTACK_RADIUS := 62.0
 
 var hero: Hero
@@ -524,10 +526,10 @@ func _build_action_buttons(frame: Control) -> void:
 	frame.add_child(attack_button)
 
 	var center := Vector2(-30 - ATTACK_RADIUS, -30 - ATTACK_RADIUS)
-	for i in 4:
+	for i in ClassData.SLOTS:
 		var slot := SkillSlot.new()
 		var angle := deg_to_rad(float(ARC_ANGLES[i]))
-		var offset := Vector2(cos(angle), -sin(angle)) * ARC_RADIUS
+		var offset := Vector2(cos(angle), -sin(angle)) * (ARC_RADIUS if i < 4 else OUTER_ARC_RADIUS)
 		_place_corner(slot, center + offset + Vector2(slot.radius, slot.radius), slot.radius)
 		slot.pressed.connect(func(): if hero: hero.use_skill(i))
 		frame.add_child(slot)
@@ -644,7 +646,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				interact_pressed.emit()
 			else:
 				hero.tap_attack()
-		KEY_1, KEY_2, KEY_3, KEY_4:
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8:
 			hero.use_skill(event.physical_keycode - KEY_1)
 		KEY_H:
 			hero.use_potion("hp")

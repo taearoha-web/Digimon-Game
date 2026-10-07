@@ -23,6 +23,10 @@ const DEFAULTS := {
 	"skill_2": [["key", KEY_2]],
 	"skill_3": [["key", KEY_3]],
 	"skill_4": [["key", KEY_4]],
+	"skill_5": [["key", KEY_5]],
+	"skill_6": [["key", KEY_6]],
+	"skill_7": [["key", KEY_7]],
+	"skill_8": [["key", KEY_8]],
 	"target_next": [["key", KEY_R]],
 }
 

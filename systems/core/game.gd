@@ -72,7 +72,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"version": SAVE_VERSION, "class": String(class_id), "name": hero_name.strip_edges(),
 		"level": 1, "exp": 0, "points": 0, "skill_points": 1,
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
-		"skills": {}, "loadout": ["", "", "", ""], "gold": 150, "equip": {}, "inv": [],
+		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
 		"flags": {}, "boss_kills": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 	}
@@ -97,7 +97,7 @@ func class_id() -> StringName:
 	return StringName(profile.get("class", "warrior"))
 
 
-## The class with the skill bar loadout as [code]skills[/code] (always 4 entries, {} = empty slot).
+## The class with the skill bar loadout as [code]skills[/code] (always ClassData.SLOTS entries, {} = empty slot).
 func class_data() -> Dictionary:
 	var data := JobData.resolve(class_id(), adv()).duplicate()
 	data["skills"] = loadout_skills()
@@ -383,7 +383,7 @@ func _migrate_skills(data: Dictionary) -> void:
 			data["skill_points"] = int(data["skill_points"]) + maxi(0, int(data.skills[skill_id]) - 1)
 			data.skills.erase(skill_id)
 	if not data.get("loadout") is Array:
-		data["loadout"] = ["", "", "", ""]
+		data["loadout"] = ["", "", "", "", "", "", "", ""]
 	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, int(data.get("adv", 0))))
 
 
