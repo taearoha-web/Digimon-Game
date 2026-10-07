@@ -8,6 +8,7 @@ signal inventory_changed()
 signal gold_changed(gold: int)
 signal exp_changed()
 signal leveled_up(level: int)
+signal paragon_leveled(level: int)
 signal toast(text: String, kind: StringName)
 signal autosaved()
 signal item_gained(item: Dictionary)
@@ -78,7 +79,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {}, "pvp": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
+		"flags": {}, "boss_kills": {}, "pvp": {}, "paragon": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -446,6 +447,14 @@ func _repair(data: Dictionary) -> Dictionary:
 			data["flags"][key] = int(data["flags"][key])
 	for key in data["pvp"]:
 		data["pvp"][key] = int(data["pvp"][key])
+	if not data.get("paragon") is Dictionary:
+		data["paragon"] = {}
+	for key in data["paragon"]:
+		if data["paragon"][key] is Dictionary:
+			for k2 in data["paragon"][key]:
+				data["paragon"][key][k2] = int(data["paragon"][key][k2])
+		else:
+			data["paragon"][key] = int(data["paragon"][key])
 	_migrate_skills(data)
 	for item in data.inv:
 		_repair_item(item)
@@ -495,6 +504,7 @@ func say(text: String, kind: StringName = &"info") -> void:
 
 func add_exp(amount: int) -> void:
 	if profile["level"] >= MAX_LEVEL:
+		_add_paragon_exp(amount)
 		return
 	profile["exp"] += amount
 	var gained := false
@@ -638,7 +648,107 @@ func party_catch_up() -> void:
 
 
 func exp_ratio() -> float:
+	if int(profile["level"]) >= MAX_LEVEL:
+		var need := paragon_need()
+		return 1.0 if need <= 0 else float(paragon().exp) / float(need)
 	return float(profile["exp"]) / float(HeroStats.exp_to_next(profile["level"]))
+
+
+# ---------------------------------------------------------------------------
+# Paragon: after Lv.100 EXP keeps levelling the hero up to ★200. Each ★ gives a
+# point to spend on permanent bonuses (see PARAGON_STATS).
+# ---------------------------------------------------------------------------
+
+const PARAGON_MAX := 200
+## key: [name, bonus per point, max points, what it does]
+const PARAGON_STATS := {
+	"atk": ["พลังโจมตี", 0.005, 60, "พลังโจมตี +0.5%% ต่อแต้ม"],
+	"def": ["พลังป้องกัน", 0.005, 60, "พลังป้องกัน +0.5%% ต่อแต้ม"],
+	"hp": ["พลังชีวิต", 0.008, 60, "HP สูงสุด +0.8%% ต่อแต้ม"],
+	"crit": ["คริติคอล", 0.001, 50, "คริติคอล +0.1%% ต่อแต้ม"],
+	"haste": ["ความเร็วสกิล", 0.001, 40, "ความเร็วสกิล +0.1%% ต่อแต้ม"],
+}
+
+
+func paragon() -> Dictionary:
+	if not profile.get("paragon") is Dictionary:
+		profile["paragon"] = {}
+	var p: Dictionary = profile["paragon"]
+	for key in ["level", "exp", "points", "spent"]:
+		p[key] = int(p.get(key, 0))
+	if not p.get("alloc") is Dictionary:
+		p["alloc"] = {}
+	for key in PARAGON_STATS:
+		p["alloc"][key] = int(p["alloc"].get(key, 0))
+	return p
+
+
+## EXP for the next ★ (grows with each ★).
+func paragon_need() -> int:
+	var lv := int(paragon().level)
+	if lv >= PARAGON_MAX:
+		return 0
+	return int(float(HeroStats.exp_to_next(MAX_LEVEL)) * (1.0 + 0.02 * float(lv)))
+
+
+func _add_paragon_exp(amount: int) -> void:
+	var p := paragon()
+	if int(p.level) >= PARAGON_MAX:
+		exp_changed.emit()
+		return
+	p["exp"] = int(p.exp) + amount
+	var gained := 0
+	while int(p.level) < PARAGON_MAX and int(p.exp) >= paragon_need():
+		p["exp"] = int(p.exp) - paragon_need()
+		p["level"] = int(p.level) + 1
+		p["points"] = int(p.points) + 1
+		gained += 1
+		flag_max("paragon_level", int(p.level))
+		if int(p.level) % 25 == 0:
+			add_gold(int(p.level) * 2000)
+			say("เหรียญรางวัลหลักไมล์ ★%d: +%d" % [int(p.level), int(p.level) * 2000], &"success")
+	if int(p.level) >= PARAGON_MAX:
+		p["exp"] = 0
+	exp_changed.emit()
+	if gained > 0:
+		paragon_leveled.emit(int(p.level))
+		profile_changed.emit()
+		check_achievements()
+		save()
+	mark_dirty()
+
+
+func paragon_spend(key: String) -> bool:
+	var p := paragon()
+	var info: Array = PARAGON_STATS.get(key, [])
+	if info.is_empty() or int(p.points) <= 0 or int(p.alloc[key]) >= int(info[2]):
+		return false
+	p["points"] = int(p.points) - 1
+	p["spent"] = int(p.spent) + 1
+	p["alloc"][key] = int(p.alloc[key]) + 1
+	clamp_vitals()
+	profile_changed.emit()
+	mark_dirty()
+	return true
+
+
+func paragon_reset_cost() -> int:
+	return 20000 + 1000 * int(paragon().spent)
+
+
+## Gives every spent point back for gold.
+func paragon_reset() -> bool:
+	var p := paragon()
+	if int(p.spent) <= 0 or not spend_gold(paragon_reset_cost()):
+		return false
+	p["points"] = int(p.points) + int(p.spent)
+	p["spent"] = 0
+	for key in PARAGON_STATS:
+		p["alloc"][key] = 0
+	clamp_vitals()
+	profile_changed.emit()
+	mark_dirty()
+	return true
 
 
 func spend_point(attr: String) -> bool:

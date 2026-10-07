@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "paragon" in OS.get_cmdline_user_args():
+		await _paragon()
+		return
 	if "void" in OS.get_cmdline_user_args():
 		await _void_zone()
 		return
@@ -59,6 +62,7 @@ func _run() -> void:
 	await _pvp_duel()
 	await _wings()
 	await _void_zone()
+	await _paragon()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -690,7 +694,10 @@ func _pvp_duel() -> void:
 	var before := Game.pvp_rp()
 	zone = main.zone
 	zone.hero._invulnerable_until = 0
-	zone.hero.take_damage(9999999.0)
+	for i in 40:
+		zone.hero.take_damage(9999999.0)
+		if zone.hero.is_dead():
+			break
 	await _wait(3.2)
 	check(Game.pvp_rp() < before and int(Game.pvp().losses) == 1, "a loss costs rank points")
 	main.pvp_screen.close_screen()
@@ -826,6 +833,40 @@ func _void_zone() -> void:
 			items += 1
 			best = maxi(best, int((c as LootDrop).item.rarity))
 	check(items == 4 and best >= 3, "the void emperor drops four gear pieces, at least legendary (%d, rarity %d)" % [items, best])
+
+
+func _paragon() -> void:
+	print("== Paragon")
+	await _start(&"warrior")
+	Game.profile["level"] = 99
+	Game.add_exp(HeroStats.exp_to_next(99) + 10)
+	check(int(Game.profile.level) == 100 and int(Game.paragon().level) == 0, "reaching Lv.100 starts at paragon 0")
+	var need := Game.paragon_need()
+	check(need > 50000, "a paragon level costs real EXP (%d)" % need)
+	var atk0: float = Game.stats_now().atk
+	var hp0: int = Game.stats_now().max_hp
+	Game.add_exp(need * 4)
+	check(int(Game.paragon().level) >= 3 and int(Game.paragon().points) >= 3, "EXP after Lv.100 gives paragon levels (%d)" % int(Game.paragon().level))
+	check(Game.exp_ratio() >= 0.0 and Game.exp_ratio() < 1.0, "the EXP bar follows paragon EXP")
+	check(Game.paragon_spend("atk") and Game.paragon_spend("atk") and Game.paragon_spend("hp"), "points can be spent")
+	check(float(Game.stats_now().atk) > atk0 and int(Game.stats_now().max_hp) > hp0, "paragon points raise attack and HP")
+	var cap: int = Game.PARAGON_STATS["crit"][2]
+	Game.paragon()["points"] = cap + 5
+	var bought := 0
+	for i in cap + 5:
+		if Game.paragon_spend("crit"):
+			bought += 1
+	check(bought == cap, "a stat stops at its cap (%d)" % bought)
+	Game.profile["gold"] = 10000000
+	check(Game.paragon_reset() and int(Game.paragon().spent) == 0 and int(Game.paragon().alloc.atk) == 0, "points can be reset for gold")
+	Game.paragon()["level"] = Game.PARAGON_MAX - 1
+	Game.paragon()["exp"] = 0
+	Game.add_exp(Game.paragon_need() + 100)
+	check(int(Game.paragon().level) == Game.PARAGON_MAX, "the paragon cap is 200")
+	var before_level := int(Game.paragon().level)
+	Game.add_exp(999999)
+	check(int(Game.paragon().level) == before_level, "no levels past the cap")
+	check(Game.save_code_roundtrip(), "paragon survives the save code")
 
 
 func _timer_bars() -> void:

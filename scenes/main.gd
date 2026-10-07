@@ -68,6 +68,10 @@ func _ready() -> void:
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
+	Game.paragon_leveled.connect(func(level: int):
+		hud.show_banner("ระดับเหนือเลเวล ★%d!" % level)
+		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
+		AudioManager.play_sfx(&"level_up"))
 	_show_title()
 	# A reloaded browser tab (memory pressure, screen lock) goes straight back in.
 	if OS.has_feature("web") and Game.should_resume():

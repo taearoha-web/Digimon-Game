@@ -117,9 +117,13 @@ func _build_character() -> void:
 	var row := UIUtil.hbox(20)
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(row)
+	var left_scroll := TouchScroll.new()
+	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	row.add_child(left_scroll)
 	var left := UIUtil.vbox(8)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(left)
+	left_scroll.add_child(left)
 	left.add_child(UIUtil.label("%s  Lv.%d  (%s)" % [p.name, p.level, data.name], &"HeaderLabel"))
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
@@ -136,6 +140,8 @@ func _build_character() -> void:
 		plus.pressed.connect(func(): Game.spend_point(key))
 		line.add_child(plus)
 		line.add_child(UIUtil.label(notes[key], &"SmallLabel"))
+	if int(p.level) >= Game.MAX_LEVEL:
+		_build_paragon(left)
 	var right := UIUtil.vbox(6)
 	right.custom_minimum_size = Vector2(380, 0)
 	row.add_child(right)
@@ -144,7 +150,7 @@ func _build_character() -> void:
 		["HP", "%d / %d" % [p.hp, stats.max_hp]], ["MP", "%d / %d" % [p.mp, stats.max_mp]],
 		["พลังโจมตี", "%d" % int(stats.atk)], ["พลังป้องกัน", "%d" % int(stats.def)],
 		["คริติคอล", "%.1f%%" % (float(stats.crit) * 100.0)], ["หลบหลีก", "%.1f%%" % (float(stats.dodge) * 100.0)], ["ความเร็วสกิล", "+%.1f%%" % (float(stats.haste) * 100.0)],
-		["EXP", "%d / %d" % [p.exp, HeroStats.exp_to_next(p.level)]], ["สังหารมอนสเตอร์", "%d ตัว" % int(p.kills)],
+		["EXP", _exp_text()], ["สังหารมอนสเตอร์", "%d ตัว" % int(p.kills)],
 		["เวลาเล่น", UIUtil.format_play_time(float(p.play_time))],
 	]:
 		var r := UIUtil.hbox(8)
@@ -153,6 +159,43 @@ func _build_character() -> void:
 		r.add_child(k)
 		r.add_child(UIUtil.label(line[1], &"BoldLabel"))
 		right.add_child(r)
+
+
+func _exp_text() -> String:
+	var p := Game.profile
+	if int(p.level) >= Game.MAX_LEVEL:
+		var para := Game.paragon()
+		if int(para.level) >= Game.PARAGON_MAX:
+			return "ระดับสูงสุด ★%d" % Game.PARAGON_MAX
+		return "★%d  %d / %d" % [int(para.level), int(para.exp), Game.paragon_need()]
+	return "%d / %d" % [p.exp, HeroStats.exp_to_next(p.level)]
+
+
+## Paragon points (after Lv.100): permanent bonuses with a gold refund button.
+func _build_paragon(parent: Control) -> void:
+	var para := Game.paragon()
+	parent.add_child(UIUtil.label("★ ระดับเหนือเลเวล %d / %d  ·  แต้มที่ใช้ได้ %d" % [int(para.level), Game.PARAGON_MAX, int(para.points)], &"SubHeaderLabel"))
+	for key in Game.PARAGON_STATS:
+		var info: Array = Game.PARAGON_STATS[key]
+		var used := int(para.alloc[key])
+		var line := UIUtil.hbox(8)
+		parent.add_child(line)
+		var label := UIUtil.label("%s %d/%d" % [info[0], used, int(info[2])], &"BoldLabel")
+		label.custom_minimum_size = Vector2(250, 0)
+		line.add_child(label)
+		var plus := UIUtil.button("+", &"PrimaryButton", Vector2(70, 48))
+		plus.disabled = int(para.points) <= 0 or used >= int(info[2])
+		plus.pressed.connect(func(): Game.paragon_spend(key))
+		line.add_child(plus)
+		line.add_child(UIUtil.label(String(info[3]).replace("%%", "%"), &"SmallLabel"))
+	if int(para.spent) > 0:
+		var reset := UIUtil.button("คืนแต้มทั้งหมด (%d เหรียญ)" % Game.paragon_reset_cost(), &"", Vector2(0, 48))
+		reset.pressed.connect(func():
+			if Game.paragon_reset():
+				Game.say("คืนแต้มพาราก้อนแล้ว", &"success")
+			else:
+				Game.say("เหรียญไม่พอ", &"warning"))
+		parent.add_child(reset)
 
 
 # ---------------------------------------------------------------------------

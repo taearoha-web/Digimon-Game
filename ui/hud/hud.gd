@@ -185,7 +185,7 @@ func _process(delta: float) -> void:
 		_badge.text = String(data.badge)
 	_name_label.text = String(p.name)
 	_update_party()
-	_level_label.text = "Lv.%d" % int(p.level)
+	_level_label.text = "Lv.%d" % int(p.level) if int(Game.paragon().level) <= 0 else "Lv.%d ★%d" % [int(p.level), int(Game.paragon().level)]
 	UIUtil.set_bar(_hp_bar, p.hp, stats.max_hp)
 	UIUtil.tint_hp_bar(_hp_bar, float(p.hp) / float(maxi(1, stats.max_hp)))
 	_hp_label.text = "%d/%d" % [p.hp, stats.max_hp]

@@ -89,19 +89,20 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var attrs := attributes(profile)
 	var gear := gear_bonus(profile)
 	var passive := passive_bonus(profile)
+	var para: Dictionary = (profile.get("paragon", {}) as Dictionary).get("alloc", {}) if profile.get("paragon") is Dictionary else {}
 	var main_stat: int = attrs[data.main]
-	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk))
-	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def))
+	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.005 * float(para.get("atk", 0)))
+	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0)))
 	return {
 		"attrs": attrs,
-		"max_hp": int((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp))) + int(gear.hp),
+		"max_hp": int((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0)))) + int(gear.hp),
 		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp))) + int(gear.mp),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit), 0.0, 0.8),
+		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, 0.8),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge), 0.0, 0.35),
-		"haste": clampf(float(attrs.dex) * HASTE_PER_DEX, 0.0, MAX_HASTE),
+		"haste": clampf(float(attrs.dex) * HASTE_PER_DEX + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
 	}
 
 
