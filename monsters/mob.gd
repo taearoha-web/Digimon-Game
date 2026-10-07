@@ -373,7 +373,7 @@ func _deliver(victim: Node3D, raw: float, max_distance := 99.0) -> void:
 
 
 ## Hero or companion still standing.
-func _alive(node: Node3D) -> bool:
+func _alive(node: Variant) -> bool:
 	return node != null and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead()
 
 

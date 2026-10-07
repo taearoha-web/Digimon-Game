@@ -143,7 +143,23 @@ const ZONES := {
 		],
 		"boss": {"monster": &"abyss_dragon", "level": 100, "respawn": 60.0},
 		"sky": Color("1a0810"), "ground": Color("2a1a22"), "fog": Color("6a1a2a"), "ambient": Color(0.9, 0.5, 0.55), "sun": Color(1.0, 0.45, 0.5),
-		"path_color": Color("5a2030"), "seed": 25, "prev": &"sky", "next": &"",
+		"path_color": Color("5a2030"), "seed": 25, "prev": &"sky", "next": &"void",
+	},
+	&"void": {
+		"name": "ห้วงจักรวาลวิบัติ", "scene": "field", "level": [100, 100], "music": &"battle", "theme": &"void", "weather": &"embers", "ambience": &"hum",
+		"tree_density": 0.4,
+		"camps": [
+			{"name": "ลานยักษ์หินว่างเปล่า", "monsters": [&"void_golem"], "levels": [100, 100], "pos": Vector2(-26, -15), "radius": 10.0, "count": 8},
+			{"name": "สุสานดาวดับ", "monsters": [&"star_wraith"], "levels": [100, 100], "pos": Vector2(-20, 17), "radius": 9.0, "count": 8},
+			{"name": "รอยแยกมิติ", "monsters": [&"rift_stalker"], "levels": [100, 100], "pos": Vector2(2, -19), "radius": 9.0, "count": 8},
+			{"name": "รังหนวดอนันต์", "monsters": [&"tentacle_horror"], "levels": [100, 100], "pos": Vector2(6, 19), "radius": 9.0, "count": 8},
+			{"name": "เตาหลอมซูเปอร์โนวา", "monsters": [&"nova_drake", &"void_golem"], "levels": [100, 100], "pos": Vector2(28, -16), "radius": 10.0, "count": 8},
+		],
+		"boss": {"monster": &"void_emperor", "level": 100, "respawn": 90.0},
+		# Rich farming: more and better drops than any other field.
+		"loot": {"gear": 0.30, "rarity_boost": 0.07, "gem": 0.2, "potion": 0.5, "wing": 0.006, "boss_wing": 0.6, "boss_items": 4},
+		"sky": Color("0c0420"), "ground": Color("1c1234"), "fog": Color("5a2a9a"), "ambient": Color(0.65, 0.5, 1.0), "sun": Color(0.85, 0.6, 1.0),
+		"path_color": Color("4a2a86"), "seed": 31, "prev": &"abyss", "next": &"",
 	},
 	&"pvp": {
 		"name": "โคลีเซียมจัดอันดับ", "scene": "field", "level": [10, 100], "music": &"battle", "pvp": true,

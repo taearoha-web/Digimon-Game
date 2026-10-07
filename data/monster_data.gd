@@ -80,6 +80,13 @@ const MONSTERS := {
 	&"hell_dino": {"name": "สัตว์ประหลาดนรก", "model": "blob/GreenSpikyBlob", "height": 3.2, "hp": 3.6, "atk": 3.3, "def": 2.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(1.6, 0.4, 0.4)},
 	&"hell_wizard": {"name": "ปีศาจหนวดนรก", "model": "cute/Cthulhu", "height": 2.2, "hp": 2.8, "atk": 4.0, "def": 2.0, "speed": 2.7, "aggro": true, "attack": "ranged", "color": Color("ff3a5a"), "tint": Color(2.0, 0.7, 0.8)},
 	&"abyss_dragon": {"name": "ราชามังกรอเวจี", "model": "flying/Dragon_Evolved", "height": 5.8, "hp": 30.0, "atk": 3.8, "def": 3.5, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.1, "color": Color("ff2a4a"), "tint": Color(1.2, 0.3, 0.4)},
+	# Void of calamity (Lv.100 endgame farm): huge HP, heavy hits, rich drops.
+	&"void_golem": {"name": "ยักษ์หินห้วงว่างเปล่า", "model": "big/BlueDemon", "height": 3.6, "hp": 6.5, "atk": 4.6, "def": 4.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(0.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0},
+	&"star_wraith": {"name": "วิญญาณดาวดับ", "model": "flying/Ghost_Skull", "height": 2.8, "hp": 5.5, "atk": 5.6, "def": 3.4, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("9a7aff"), "tint": Color(0.8, 0.6, 2.0), "exp": 4.0, "gold": 5.0},
+	&"rift_stalker": {"name": "นักล่าช่องมิติ", "model": "big/Ninja", "height": 3.0, "hp": 6.0, "atk": 6.0, "def": 3.8, "speed": 4.8, "aggro": true, "attack": "melee", "tint": Color(0.5, 1.7, 1.9), "exp": 4.0, "gold": 5.0},
+	&"tentacle_horror": {"name": "อสูรหนวดอนันต์", "model": "cute/Cthulhu", "height": 3.2, "hp": 7.0, "atk": 5.2, "def": 4.0, "speed": 3.0, "aggro": true, "attack": "ranged", "color": Color("ff5af0"), "tint": Color(1.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0},
+	&"nova_drake": {"name": "มังกรน้อยซูเปอร์โนวา", "model": "cute/YellowDragon", "height": 3.6, "hp": 7.5, "atk": 5.0, "def": 4.4, "speed": 3.4, "aggro": true, "attack": "melee", "tint": Color(1.9, 0.5, 0.9), "exp": 4.0, "gold": 5.0},
+	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "big/Demon", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0},
 }
 
 
@@ -97,6 +104,6 @@ static func stats_for(id: StringName, level: int) -> Dictionary:
 		"hp": int(round((38.0 + eff * eff * 3.0 + eff * 26.0) * float(m.hp) * 1.3)),
 		"atk": int(round((5.0 + eff * 3.1) * float(m.atk) * 1.45)),
 		"def": int(round((1.0 + eff * 1.5) * float(m.def))),
-		"exp": int(round((10.0 + level * 9.0) * 1.15 * (8.0 if boss else 1.0))),
-		"gold": int(round((3.0 + level * 3.0) * (10.0 if boss else 1.0))),
+		"exp": int(round((10.0 + level * 9.0) * 1.15 * (8.0 if boss else 1.0) * float(m.get("exp", 1.0)))),
+		"gold": int(round((3.0 + level * 3.0) * (10.0 if boss else 1.0) * float(m.get("gold", 1.0)))),
 	}

@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "void" in OS.get_cmdline_user_args():
+		await _void_zone()
+		return
 	if "wings" in OS.get_cmdline_user_args():
 		await _wings()
 		return
@@ -55,6 +58,7 @@ func _run() -> void:
 	await _warp_points()
 	await _pvp_duel()
 	await _wings()
+	await _void_zone()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -621,7 +625,7 @@ func _warp_points() -> void:
 	var town: Zone = main.zone
 	check(town.npcs.any(func(n): return n.role == "warp"), "the village has a warp crystal")
 	var places := WarpScreen.destinations()
-	check(places.size() == 11 and places[0] == &"town" and places[10] == &"abyss", "the warp list is the village plus all ten fields")
+	check(places.size() == 12 and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list is the village plus all eleven fields")
 	check(WarpScreen.unlocked(&"meadow", 1) and not WarpScreen.unlocked(&"dark_forest", 6) and WarpScreen.unlocked(&"dark_forest", 7), "fields unlock by level")
 	Game.profile["level"] = 30
 	var open := places.filter(func(p): return WarpScreen.unlocked(p, 30))
@@ -772,6 +776,56 @@ func _wings() -> void:
 	Game.fill_loadout()
 	Game.save_code_roundtrip()
 	check(Game.save_code_roundtrip(), "wings survive the save code")
+
+
+func _void_zone() -> void:
+	print("== Void of calamity")
+	var info := ZoneData.get_zone(&"void")
+	check(ZoneData.get_zone(&"abyss").next == &"void" and info.prev == &"abyss", "the void follows the abyss")
+	check(int(info.level[0]) == 100, "the void needs Lv.100")
+	var hell := MonsterData.stats_for(&"hell_orc", 100)
+	var tank := MonsterData.stats_for(&"void_golem", 100)
+	check(int(tank.hp) >= int(hell.hp) * 1.8 and int(tank.atk) > int(hell.atk), "void monsters have far more HP (%d vs %d) and hit harder" % [tank.hp, hell.hp])
+	var emperor := MonsterData.stats_for(&"void_emperor", 100)
+	check(int(emperor.hp) > 900000, "the void emperor is a huge HP sponge (%d)" % emperor.hp)
+	await _start(&"warrior")
+	Game.profile["level"] = 100
+	Game.fill_loadout()
+	await main.go(&"void", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	check(zone.zone_id == &"void" and get_tree().get_nodes_in_group("mobs").size() >= 30, "the void is populated")
+	for node in get_tree().get_nodes_in_group("mobs"):
+		(node as Mob).queue_free()
+	var mob := Mob.new()
+	mob.setup(&"void_golem", 100, Vector3.ZERO, zone.hero)
+	zone.add_child(mob)
+	var gear := 0
+	var high := 0
+	for i in 300:
+		var before := zone.get_child_count()
+		zone._drop_loot(mob)
+		for j in range(before, zone.get_child_count()):
+			var c := zone.get_child(j)
+			if c is LootDrop and (c as LootDrop).item.get("kind", "") == "equip":
+				gear += 1
+				if int((c as LootDrop).item.rarity) >= 3:
+					high += 1
+	check(gear >= 60 and gear <= 130, "void monsters drop gear about 30%% of the time (%d / 300)" % gear)
+	check(high >= 3, "legendary or better gear drops in the void (%d)" % high)
+	var boss := Mob.new()
+	boss.setup(&"void_emperor", 100, Vector3.ZERO, zone.hero)
+	zone.add_child(boss)
+	var before_boss := zone.get_child_count()
+	zone._drop_loot(boss)
+	var items := 0
+	var best := 0
+	for j in range(before_boss, zone.get_child_count()):
+		var c := zone.get_child(j)
+		if c is LootDrop and (c as LootDrop).item.get("kind", "") == "equip" and (c as LootDrop).item.get("slot", "") != "wings":
+			items += 1
+			best = maxi(best, int((c as LootDrop).item.rarity))
+	check(items == 4 and best >= 3, "the void emperor drops four gear pieces, at least legendary (%d, rarity %d)" % [items, best])
 
 
 func _timer_bars() -> void:
