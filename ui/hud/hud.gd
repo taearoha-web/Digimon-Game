@@ -190,6 +190,7 @@ func _process(delta: float) -> void:
 	var stars := int(Game.paragon().level)
 	_star_row.visible = stars > 0
 	(_star_row.get_node("StarValue") as Label).text = str(stars)
+	(_star_row.get_node("StarValue") as Label).add_theme_color_override("font_color", UIPalette.GOLD)
 	UIUtil.set_bar(_hp_bar, p.hp, stats.max_hp)
 	UIUtil.tint_hp_bar(_hp_bar, float(p.hp) / float(maxi(1, stats.max_hp)))
 	_hp_label.text = "%d/%d" % [p.hp, stats.max_hp]
@@ -382,12 +383,19 @@ func _build_status(frame: Control) -> void:
 	_name_label = UIUtil.label("", &"HudLabel")
 	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(_name_label)
+	# "Lv.100 [star] 5" is one unit on one line: level, star icon and star count.
+	var level_row := UIUtil.hbox(6)
+	level_row.alignment = BoxContainer.ALIGNMENT_END
+	level_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_child(level_row)
 	_level_label = UIUtil.label("", &"ValueLabel")
 	_level_label.add_theme_color_override("font_color", UIPalette.GOLD)
-	name_row.add_child(_level_label)
-	_star_row = UIUtil.star_count(0, 22)
+	_level_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_level_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	level_row.add_child(_level_label)
+	_star_row = UIUtil.star_count(0, 22, &"ValueLabel")
 	_star_row.visible = false
-	name_row.add_child(_star_row)
+	level_row.add_child(_star_row)
 	var hp_row := UIUtil.hbox(6)
 	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(hp_row)

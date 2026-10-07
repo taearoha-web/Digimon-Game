@@ -47,8 +47,9 @@ static func _shrink(points: PackedVector2Array, factor: float) -> PackedVector2A
 
 
 ## A star icon followed by a number (e.g. paragon level), as one row.
-static func star_count(value: int, font_size := 22) -> HBoxContainer:
+static func star_count(value: int, font_size := 22, variation: StringName = &"") -> HBoxContainer:
 	var row := hbox(3)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var icon := TextureRect.new()
 	icon.texture = star_texture()
 	icon.custom_minimum_size = Vector2(font_size + 2, font_size + 2)
@@ -59,7 +60,11 @@ static func star_count(value: int, font_size := 22) -> HBoxContainer:
 	row.add_child(icon)
 	var label := Label.new()
 	label.text = str(value)
-	label.add_theme_font_size_override("font_size", font_size)
+	if variation != &"":
+		label.theme_type_variation = variation
+	else:
+		label.add_theme_font_size_override("font_size", font_size)
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	label.add_theme_color_override("font_color", Color("ffd84a"))
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.name = "StarValue"

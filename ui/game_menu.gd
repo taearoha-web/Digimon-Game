@@ -175,7 +175,7 @@ func _exp_text() -> String:
 func _build_paragon(parent: Control) -> void:
 	var para := Game.paragon()
 	var head := UIUtil.hbox(8)
-	head.add_child(UIUtil.star_count(int(para.level), 28))
+	head.add_child(UIUtil.star_count(int(para.level), 28, &"SubHeaderLabel"))
 	head.add_child(UIUtil.label("ระดับเหนือเลเวล / %d  ·  แต้มที่ใช้ได้ %d" % [Game.PARAGON_MAX, int(para.points)], &"SubHeaderLabel"))
 	parent.add_child(head)
 	for key in Game.PARAGON_STATS:
