@@ -364,6 +364,10 @@ func nearest_mob(radius := TARGET_RANGE) -> Mob:
 func use_potion(kind: String) -> void:
 	if _dead or potion_cd > 0.0:
 		return
+	if Game.in_duel():
+		Game.say("ใช้ยาในสนามจัดอันดับไม่ได้", &"warning")
+		potion_cd = 1.0
+		return
 	var before_hp: int = Game.profile.hp
 	var before_mp: int = Game.profile.mp
 	var id := Game.quick_potion(kind)

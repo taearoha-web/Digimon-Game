@@ -346,6 +346,9 @@ func _use_potion(index: int) -> void:
 	var item: Dictionary = Game.profile.inv[index]
 	var def: Dictionary = ItemData.POTIONS[item.id]
 	if def.has("town"):
+		if Game.in_duel():
+			Game.say("หนีจากการดวลไม่ได้!", &"warning")
+			return
 		close_menu()
 		var main := get_tree().current_scene
 		if main and main.has_method("use_town_scroll"):

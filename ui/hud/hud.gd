@@ -246,7 +246,7 @@ func _update_boss_bar() -> void:
 		for node in get_tree().get_nodes_in_group("mobs"):
 			var mob := node as Mob
 			if mob and mob.is_boss and mob.hostile and not mob.is_dead() \
-					and mob.global_position.distance_to(hero.global_position) < 40.0:
+					and (zone.is_pvp or mob.global_position.distance_to(hero.global_position) < 40.0):
 				boss = mob
 				break
 	_boss_panel.visible = boss != null
@@ -254,6 +254,9 @@ func _update_boss_bar() -> void:
 		return
 	var phase_text: String = ["", "  (เรียกพวก)", "  (คลั่ง!)"][clampi(boss.phase, 0, 2)]
 	_boss_name.text = "Lv.%d %s%s" % [boss.level, boss.template.name, phase_text]
+	if zone.is_pvp and zone.pvp_match != null:
+		var left := int(ceil(maxf(zone.pvp_match.time_left, 0.0)))
+		_boss_name.text = "⚔ %s   ⏱ %d:%02d" % [_boss_name.text, left / 60, left % 60]
 	UIUtil.set_bar(_boss_bar, boss.hp, boss.max_hp)
 	UIUtil.tint_hp_bar(_boss_bar, float(boss.hp) / float(boss.max_hp))
 
