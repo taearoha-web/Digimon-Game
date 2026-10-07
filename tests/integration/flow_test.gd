@@ -309,12 +309,12 @@ func _summons() -> void:
 	check(wolf.is_dead() and not wolf.is_in_group("summons"), "a summon at 0 HP dies")
 	await _wait(0.6)
 	check(not is_instance_valid(wolf), "the dead summon is removed")
-	# Stars make it bigger: 1 star 100%, 2 = 125%, 3 = 150%, 4 = 175%, 5 = 200%.
-	var expected := {1: 1.0, 2: 1.25, 3: 1.5, 4: 1.75, 5: 2.0}
+	# Stars make it bigger: 1 star normal, 2 stars +10%, 5 stars +50%.
+	var expected := {1: 1.0, 2: 1.10, 3: 1.2333, 4: 1.3667, 5: 1.5}
 	for stars in expected:
 		var probe := Summon.new()
 		probe.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 180.0}, 1.0, 0, 1, stars)
-		check(absf(probe.size_mult - float(expected[stars])) < 0.001, "%d star(s) -> %d%% size" % [stars, int(round(float(expected[stars]) * 100.0))])
+		check(absf(probe.size_mult - float(expected[stars])) < 0.002, "%d star(s) -> %d%% size" % [stars, int(round(float(expected[stars]) * 100.0))])
 		probe.free()
 	Game.profile.skills["recall_wolverine"] = 4
 	hero.cooldowns.clear()
@@ -324,9 +324,9 @@ func _summons() -> void:
 	for child in field_zone.get_children():
 		if child is Summon and not child.is_dead():
 			big = child
-	check(big != null and big.rank == 4 and absf(big.size_mult - 1.75) < 0.01, "4 stars make the summon 175% size")
+	check(big != null and big.rank == 4 and absf(big.size_mult - 1.3667) < 0.01, "4 stars make the summon 137% size")
 	await _wait(0.5)
-	check(big != null and absf(big.scale.x - 1.75) < 0.1, "the summon model really is 175%% (scale %.2f)" % (big.scale.x if big else 0.0))
+	check(big != null and absf(big.scale.x - 1.3667) < 0.1, "the summon model really is 137%% (scale %.2f)" % (big.scale.x if big else 0.0))
 
 
 func _go_field() -> Zone:

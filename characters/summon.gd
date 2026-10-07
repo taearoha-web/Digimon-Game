@@ -3,7 +3,7 @@ extends Node3D
 ## A creature or floating blade the hero calls with a summoner skill. It follows
 ## the hero, picks the hero's target (or the nearest monster) and attacks. It
 ## has its own health bar, monsters can attack it, and it lasts 3 minutes or
-## until it is killed. Its size is 100% at 1 star and grows 25% per extra star (200% at 5).
+## until it is killed. Its size is 100% at 1 star, 110% at 2 stars and 150% at 5 stars (even steps between).
 
 ## Seconds a summon stays (3 minutes).
 const LIFETIME := 180.0
@@ -48,8 +48,7 @@ func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: 
 	spec = p_spec
 	damage_mult = p_damage_mult
 	rank = clampi(p_rank, 1, 10)
-	# 100% at 1 star, +25% per extra star: 125%, 150%, 175%, 200% at 5 stars.
-	size_mult = 1.0 + 0.25 * float(rank - 1)
+	size_mult = size_for_rank(rank)
 	life = float(spec.get("secs", LIFETIME))
 	max_hp = maxi(300, int(round(float(hero.stats.max_hp) * 0.8 * (1.0 + 0.6 * float(rank - 1)))))
 	hp = max_hp
@@ -141,6 +140,13 @@ func _process(delta: float) -> void:
 		var dist := Vector2(_target.global_position.x - global_position.x, _target.global_position.z - global_position.z).length() - _target.body_radius()
 		if dist <= _reach() + 0.4:
 			_attack()
+
+
+## Body size by skill stars: 1 = normal, 2 = +10%, 5 = +50%, evenly in between.
+static func size_for_rank(stars: int) -> float:
+	if stars <= 1:
+		return 1.0
+	return 1.10 + 0.40 * float(mini(stars, 5) - 2) / 3.0
 
 
 func is_dead() -> bool:
