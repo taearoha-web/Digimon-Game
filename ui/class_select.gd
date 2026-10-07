@@ -95,7 +95,7 @@ func _ready() -> void:
 		b.pressed.connect(func(): _set_gender(g))
 		gender_row.add_child(b)
 		_gender_buttons.append(b)
-	var random_button := UIUtil.button("🎲 สุ่ม", &"", Vector2(150, 60))
+	var random_button := UIUtil.button("สุ่ม", &"", Vector2(150, 60))
 	random_button.pressed.connect(func():
 		look = FaceKit.random_look(_rng)
 		_refresh())

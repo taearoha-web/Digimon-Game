@@ -102,7 +102,7 @@ func _build_lobby() -> void:
 	var column := _fill()
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
-	var title := UIUtil.label("⚔ ลีกจัดอันดับ — โคลีเซียม", &"HeaderLabel")
+	var title := UIUtil.label("ลีกจัดอันดับ — โคลีเซียม", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	var close := UIUtil.button("ปิด", &"", Vector2(120, 54))
@@ -138,7 +138,7 @@ func _build_lobby() -> void:
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
 	left.add_child(UIUtil.spacer(false))
-	var go := UIUtil.button("⚔ ท้าดวล!", &"PrimaryButton", Vector2(0, 80))
+	var go := UIUtil.button("ท้าดวล!", &"PrimaryButton", Vector2(0, 80))
 	var blocked := int(Game.profile.level) < PvpData.MIN_LEVEL
 	go.disabled = blocked
 	if blocked:
@@ -179,7 +179,7 @@ func _ladder_row(step_index: int, mine: int) -> Control:
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(name_label)
 	var level := PvpData.opponent_level(int(Game.profile.level), step_index * PvpData.STEP_RP)
-	var stars := "★".repeat(PvpData.stars(step_index * PvpData.STEP_RP)) + "☆".repeat(5 - PvpData.stars(step_index * PvpData.STEP_RP))
+	var stars := "ความเก่ง %d/5" % PvpData.stars(step_index * PvpData.STEP_RP)
 	line.add_child(UIUtil.label("คู่ต่อสู้ Lv.%d  %s" % [level, stars], &"SmallLabel"))
 	if step_index == mine:
 		line.add_child(UIUtil.label("◀ คุณอยู่ที่นี่", &"BoldLabel"))
@@ -220,13 +220,13 @@ func _build_result(result: Dictionary) -> void:
 		rewards += " · ชนะติด %d" % int(result.streak)
 	column.add_child(UIUtil.label(rewards, &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	if bool(result.promoted):
-		var promo := UIUtil.label("🎉 เลื่อนลีกเป็น %s!%s" % [PvpData.tier_of(int(result.rp_after)).name, (" ได้รับ " + String(result.item)) if String(result.item) != "" else ""], &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		var promo := UIUtil.label("เลื่อนลีกเป็น %s!%s" % [PvpData.tier_of(int(result.rp_after)).name, (" ได้รับ " + String(result.item)) if String(result.item) != "" else ""], &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		promo.add_theme_color_override("font_color", Color("ffd84a"))
 		column.add_child(promo)
 	var buttons := UIUtil.hbox(16)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(buttons)
-	var again := UIUtil.button("⚔ ดวลอีกครั้ง", &"PrimaryButton", Vector2(320, 76))
+	var again := UIUtil.button("ดวลอีกครั้ง", &"PrimaryButton", Vector2(320, 76))
 	again.pressed.connect(func():
 		close_screen()
 		challenge_requested.emit())

@@ -68,11 +68,11 @@ const MAX_PLUS := 10
 static var _uid := 0
 
 
-## "Lv.80", or "Lv.100 ★2" for gear above Lv.100 (worn with paragon levels).
+## "Lv.80", or "Lv.100 ดาว2" for gear above Lv.100 (worn with paragon levels).
 static func level_text(level: int) -> String:
 	if level <= 100:
 		return "Lv.%d" % level
-	return "Lv.100 ★%d" % (level - 100)
+	return "Lv.100 ดาว%d" % (level - 100)
 
 
 static func tier_for(level: int) -> int:
@@ -306,9 +306,9 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	for i in sockets:
 		if i < gems.size():
 			var info := gem_info({"id": gems[i]})
-			lines.append("◆ %s: %s +%s" % [info.name, STAT_LABELS[info.stat], ("%.1f%%" % (float(info.value) * 100.0)) if info.stat == "crit" else str(info.value)])
+			lines.append("ใส่แล้ว %s: %s +%s" % [info.name, STAT_LABELS[info.stat], ("%.1f%%" % (float(info.value) * 100.0)) if info.stat == "crit" else str(info.value)])
 		else:
-			lines.append("◇ ช่องอัญมณีว่าง")
+			lines.append("ช่องอัญมณีว่าง")
 	if str(item.get("set", "")) != "":
 		lines.append("เซ็ต: %s (ใส่ 2/3/4 ชิ้นได้โบนัส)" % set_label(item.set))
 	return lines

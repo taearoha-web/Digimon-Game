@@ -41,7 +41,7 @@ func _ready() -> void:
 	var title_box := UIUtil.vbox(0)
 	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title_box)
-	title_box.add_child(UIUtil.label("✦ เสาวาป — เลือกปลายทาง", &"HeaderLabel"))
+	title_box.add_child(UIUtil.label("เสาวาป — เลือกปลายทาง", &"HeaderLabel"))
 	_here = UIUtil.label("", &"SmallLabel")
 	title_box.add_child(_here)
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(130, 56))
@@ -101,7 +101,7 @@ func _row(id: StringName, level: int) -> Control:
 	var panel := UIUtil.panel(&"CardPanel")
 	var line := UIUtil.hbox(12)
 	panel.add_child(line)
-	var icon := UIUtil.label("🏘" if id == &"town" else "🗺", &"HeaderLabel")
+	var icon := UIUtil.label("เมือง" if id == &"town" else "แมพ", &"SmallLabel")
 	line.add_child(icon)
 	var info := UIUtil.vbox(1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -113,7 +113,7 @@ func _row(id: StringName, level: int) -> Control:
 	info.add_child(name_label)
 	var detail := "ปลอดภัย · ร้านค้า · เซฟจุดฟื้นฟู" if id == &"town" else "มอนสเตอร์ Lv.%d–%d · บอสประจำแมพ" % [int(z.level[0]), int(z.level[1])]
 	if not open:
-		detail = "🔒 ต้องเลเวล %d ขึ้นไป" % int(z.level[0])
+		detail = "ล็อก · ต้องเลเวล %d ขึ้นไป" % int(z.level[0])
 	info.add_child(UIUtil.label(detail, &"SmallLabel"))
 	var go := UIUtil.button("วาป" if open and not is_here else ("อยู่ที่นี่" if is_here else "ล็อก"), &"PrimaryButton", Vector2(130, 52))
 	go.disabled = is_here or not open

@@ -83,7 +83,7 @@ func _build_lobby() -> void:
 	var column := _column()
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
-	var title := UIUtil.label("🌀 หอคอยห้วงวิบัติ — ไต่ไม่รู้จบ", &"HeaderLabel")
+	var title := UIUtil.label("หอคอยห้วงวิบัติ — ไต่ไม่รู้จบ", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	_shard_label = UIUtil.label("ผลึกห้วงวิบัติ  %d" % int(t.shards), &"SubHeaderLabel")
@@ -116,7 +116,7 @@ func _build_lobby() -> void:
 			_build_lobby())
 		floors.add_child(b)
 	var blocked := int(Game.profile.level) < TowerData.MIN_LEVEL
-	var go := UIUtil.button("⚔ ขึ้นหอคอย (ชั้น %d)" % _start_floor, &"PrimaryButton", Vector2(0, 84))
+	var go := UIUtil.button("ขึ้นหอคอย (ชั้น %d)" % _start_floor, &"PrimaryButton", Vector2(0, 84))
 	go.disabled = blocked
 	if blocked:
 		go.text = "ต้องเลเวล %d" % TowerData.MIN_LEVEL
@@ -124,7 +124,7 @@ func _build_lobby() -> void:
 		close_screen()
 		climb_requested.emit(_start_floor))
 	left.add_child(go)
-	var rewards := UIUtil.label("รางวัลต่อชั้น: เหรียญ %d × เลขชั้น · ผลึก 1 + ชั้น/10 (บอส +6) · EXP พาราก้อนจากมอนสเตอร์ · ดรอปเกียร์มีดาว ★ / ปีก" % 2500, &"SmallLabel")
+	var rewards := UIUtil.label("รางวัลต่อชั้น: เหรียญ %d × เลขชั้น · ผลึก 1 + ชั้น/10 (บอส +6) · EXP พาราก้อนจากมอนสเตอร์ · ดรอปเกียร์มีดาว / ปีก" % 2500, &"SmallLabel")
 	rewards.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rewards)
 	_msg = UIUtil.label("", &"BoldLabel")
@@ -142,9 +142,9 @@ func _build_lobby() -> void:
 	var list := UIUtil.vbox(8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	list.add_child(_shop_row("🎁 หีบเกียร์ตำนาน", "เกียร์เลเวล 100 หรือมีดาว ★ ระดับตำนานขึ้นไป (ลุ้นเทพนิยาย) ของสายอาชีพคุณ", TowerData.COST_GEAR, func(): _buy("gear")))
-	list.add_child(_shop_row("💎 อัญมณีเม็ดใหญ่", "สุ่มอัญมณีขนาดใหญ่ 1 เม็ด", TowerData.COST_GEM, func(): _buy("gem")))
-	list.add_child(UIUtil.label("🪽 สุ่มค่าปีกใหม่ (ชนิดเดิม ค่าสุ่มใหม่ — ผลอาจแย่ลงได้) ราคา %d ผลึก/ครั้ง" % TowerData.COST_REROLL, &"BoldLabel"))
+	list.add_child(_shop_row("หีบเกียร์ตำนาน", "เกียร์เลเวล 100 หรือมีดาว ระดับตำนานขึ้นไป (ลุ้นเทพนิยาย) ของสายอาชีพคุณ", TowerData.COST_GEAR, func(): _buy("gear")))
+	list.add_child(_shop_row("อัญมณีเม็ดใหญ่", "สุ่มอัญมณีขนาดใหญ่ 1 เม็ด", TowerData.COST_GEM, func(): _buy("gem")))
+	list.add_child(UIUtil.label("สุ่มค่าปีกใหม่ (ชนิดเดิม ค่าสุ่มใหม่ — ผลอาจแย่ลงได้) ราคา %d ผลึก/ครั้ง" % TowerData.COST_REROLL, &"BoldLabel"))
 	_wing_box = UIUtil.vbox(6)
 	list.add_child(_wing_box)
 	_fill_wings()
@@ -242,14 +242,14 @@ func show_result(result: Dictionary) -> void:
 	column.add_child(heading)
 	column.add_child(UIUtil.label("ถึงชั้น %d  (ผ่านมา %d ชั้น)" % [int(result.floor), int(result.cleared)], &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	if bool(result.new_best):
-		var nb := UIUtil.label("🎉 สถิติใหม่! ชั้นสูงสุด %d" % int(result.best), &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		var nb := UIUtil.label("สถิติใหม่! ชั้นสูงสุด %d" % int(result.best), &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		nb.add_theme_color_override("font_color", Color("ffd84a"))
 		column.add_child(nb)
 	column.add_child(UIUtil.label("รางวัลรอบนี้: เหรียญ +%d · ผลึกห้วงวิบัติ +%d (รวม %d)" % [int(result.gold), int(result.shards), int(Game.tower().shards)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var buttons := UIUtil.hbox(16)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(buttons)
-	var again := UIUtil.button("⚔ ปีกอีกครั้ง", &"PrimaryButton", Vector2(320, 76))
+	var again := UIUtil.button("ปีนอีกครั้ง", &"PrimaryButton", Vector2(320, 76))
 	again.pressed.connect(func():
 		close_screen()
 		climb_requested.emit(_start_floor))
