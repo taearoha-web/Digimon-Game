@@ -132,6 +132,9 @@ func _build_field() -> void:
 	for portal in portals:
 		_make_portal(portal)
 	_make_boundary_walls(FIELD_RADIUS + 1.0)
+	if not bool(data.get("arena", false)):
+		_add_warp(_start + Vector3(3.5, 0, -5.0), "วาปกลับเมือง / ข้ามแมพ")
+		_add_warp(Vector3(FIELD_RADIUS - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
 	_make_weather(StringName(data.get("weather", &"")))
 
 
@@ -225,6 +228,7 @@ func _build_town() -> void:
 	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", Vector3(-12, 0, -2), "Barbarian")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
+	_add_warp(Vector3(-5.5, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
 	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")
 
 
@@ -423,6 +427,14 @@ func _lamp(pos: Vector3) -> void:
 	light.omni_range = 7.0
 	light.position = Vector3(0, 3.3, 0)
 	holder.add_child(light)
+
+
+func _add_warp(pos: Vector3, title: String) -> void:
+	var stone := WarpStone.new()
+	stone.position = pos
+	add_child(stone)
+	stone.setup("warp", "เสาวาป", &"mage", title)
+	npcs.append(stone)
 
 
 func _add_npc(role: String, npc_name: String, class_id: StringName, title: String, pos: Vector3, model := "") -> void:
