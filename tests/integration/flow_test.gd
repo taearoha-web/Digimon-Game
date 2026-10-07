@@ -44,6 +44,7 @@ func _run() -> void:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _resume_after_reload()
+	await _save_slots()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -561,17 +562,45 @@ func _resume_after_reload() -> void:
 	check(not Game.should_resume(), "going back to the title screen cancels the auto-resume")
 	Game.playing = true
 	Game.save()
-	var path := ProjectSettings.globalize_path(Game.SAVE_PATH)
-	var f := FileAccess.open(Game.SAVE_PATH, FileAccess.READ)
+	var path := ProjectSettings.globalize_path(Game.save_path())
+	var f := FileAccess.open(Game.save_path(), FileAccess.READ)
 	var data: Dictionary = JSON.parse_string(f.get_as_text())
 	f.close()
 	data["saved_at"] = int(Time.get_unix_time_from_system()) - Game.RESUME_WINDOW - 60
-	var w := FileAccess.open(Game.SAVE_PATH, FileAccess.WRITE)
+	var w := FileAccess.open(Game.save_path(), FileAccess.WRITE)
 	w.store_string(JSON.stringify(data))
 	w.close()
 	check(not Game.should_resume(), "an old save is not resumed automatically")
 	Game.delete_save()
 	check(not Game.should_resume(), "no save, no resume")
+
+
+func _save_slots() -> void:
+	print("== Four save slots")
+	for i in range(1, 5):
+		Game.delete_save(i)
+	check(not Game.any_save() and Game.free_slot() == 1, "all four slots start empty")
+	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest"]
+	for i in 4:
+		Game.slot = i + 1
+		Game.new_profile(classes[i], "ฮีโร่%d" % (i + 1))
+		Game.profile["level"] = 10 + i
+		Game.save()
+	check(Game.free_slot() == 0, "four heroes fill the four slots")
+	for i in 4:
+		var info := Game.slot_info(i + 1)
+		check(not info.is_empty() and info["name"] == "ฮีโร่%d" % (i + 1) and int(info["level"]) == 10 + i, "slot %d keeps its own hero" % (i + 1))
+	check(Game.load_game(3) and Game.slot == 3 and Game.class_id() == &"mage", "loading slot 3 gives the mage")
+	check(Game.last_slot() == 3, "the last played slot is remembered")
+	Game.delete_save(2)
+	check(not Game.has_save(2) and Game.has_save(1) and Game.has_save(3) and Game.free_slot() == 2, "deleting one slot leaves the others")
+	Game.playing = true
+	Game.save()
+	check(Game.should_resume(), "auto-resume uses the last played slot")
+	Game.playing = false
+	for i in range(1, 5):
+		Game.delete_save(i)
+	Game.slot = 1
 
 
 func _timer_bars() -> void:

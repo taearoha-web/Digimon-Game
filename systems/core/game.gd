@@ -19,7 +19,10 @@ signal achievement_unlocked(name: String)
 signal ending_requested()
 signal screen_flash(color: Color, strength: float)
 
-const SAVE_PATH := "user://toon_tale_save.json"
+## The original single save file; it becomes slot 1 the first time slots are used.
+const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
+const SLOT_COUNT := 4
+const META_PATH := "user://toon_tale_meta.json"
 const SAVE_VERSION := 1
 const AUTOSAVE_INTERVAL := 10.0
 const BASE_BAG := 40
@@ -43,6 +46,7 @@ var _dirty := false
 func _ready() -> void:
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_migrate_legacy_save()
 
 
 func _process(delta: float) -> void:
@@ -262,8 +266,82 @@ func save_code_roundtrip() -> bool:
 	return JSON.stringify(profile).length() == before.length()
 
 
-func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+## Which of the 4 save slots (1..4) the current profile belongs to.
+var slot := 1
+
+
+func save_path(for_slot := -1) -> String:
+	return "user://toon_tale_slot_%d.json" % (slot if for_slot < 1 else for_slot)
+
+
+func _migrate_legacy_save() -> void:
+	if FileAccess.file_exists(LEGACY_SAVE_PATH) and not FileAccess.file_exists(save_path(1)):
+		var dir := DirAccess.open("user://")
+		if dir:
+			dir.rename(LEGACY_SAVE_PATH.get_file(), save_path(1).get_file())
+
+
+## True when the given slot (default: the current one) holds a save.
+func has_save(for_slot := -1) -> bool:
+	return FileAccess.file_exists(save_path(for_slot))
+
+
+func any_save() -> bool:
+	for i in range(1, SLOT_COUNT + 1):
+		if has_save(i):
+			return true
+	return false
+
+
+## The first empty slot, or 0 when all four are taken.
+func free_slot() -> int:
+	for i in range(1, SLOT_COUNT + 1):
+		if not has_save(i):
+			return i
+	return 0
+
+
+func _read_slot(for_slot: int) -> Dictionary:
+	if not has_save(for_slot):
+		return {}
+	var file := FileAccess.open(save_path(for_slot), FileAccess.READ)
+	if file == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if parsed is Dictionary and parsed.has("class"):
+		return parsed
+	return {}
+
+
+## A short summary of a slot for the title screen; {} when it is empty.
+func slot_info(for_slot: int) -> Dictionary:
+	var raw := _read_slot(for_slot)
+	if raw.is_empty():
+		return {}
+	return {
+		"class": String(raw.get("class", "warrior")), "name": String(raw.get("name", "?")),
+		"level": int(raw.get("level", 1)), "adv": int(raw.get("adv", 0)), "zone": String(raw.get("zone", "town")),
+		"play_time": float(raw.get("play_time", 0.0)), "saved_at": int(raw.get("saved_at", 0)),
+		"rank": int(raw.get("pvp", {}).get("rp", 0)) if raw.get("pvp", {}) is Dictionary else 0,
+	}
+
+
+func last_slot() -> int:
+	if not FileAccess.file_exists(META_PATH):
+		return 1
+	var file := FileAccess.open(META_PATH, FileAccess.READ)
+	var parsed: Variant = JSON.parse_string(file.get_as_text()) if file else null
+	if parsed is Dictionary:
+		var n := int(parsed.get("slot", 1))
+		if n >= 1 and n <= SLOT_COUNT:
+			return n
+	return 1
+
+
+func _remember_slot() -> void:
+	var file := FileAccess.open(META_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify({"slot": slot}))
 
 
 ## True while the player is in a zone (false on the title screen). Saved with
@@ -275,19 +353,14 @@ const RESUME_WINDOW := 12 * 3600
 
 
 ## The browser can discard or reload the page while it is in the background
-## (low memory, screen lock). If the last save says "in game" and is recent,
-## the title screen is skipped.
+## (low memory, screen lock). If the last played slot says "in game" and was
+## saved recently, the title screen is skipped.
 func should_resume() -> bool:
-	if not has_save():
+	var raw := _read_slot(last_slot())
+	if raw.is_empty():
 		return false
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return false
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if not parsed is Dictionary or not parsed.has("class"):
-		return false
-	var age := Time.get_unix_time_from_system() - float(parsed.get("saved_at", 0))
-	return bool(parsed.get("resume", false)) and age >= 0.0 and age < RESUME_WINDOW
+	var age := Time.get_unix_time_from_system() - float(raw.get("saved_at", 0))
+	return bool(raw.get("resume", false)) and age >= 0.0 and age < RESUME_WINDOW
 
 
 func save() -> void:
@@ -296,40 +369,43 @@ func save() -> void:
 	profile["zone"] = String(current_zone)
 	profile["resume"] = playing
 	profile["saved_at"] = int(Time.get_unix_time_from_system())
-	var file := FileAccess.open(SAVE_PATH + ".tmp", FileAccess.WRITE)
+	var path := save_path()
+	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		return
 	file.store_string(JSON.stringify(profile))
 	file.close()
 	var dir := DirAccess.open("user://")
 	if dir:
-		dir.rename(SAVE_PATH.get_file() + ".tmp", SAVE_PATH.get_file())
+		dir.rename(path.get_file() + ".tmp", path.get_file())
+	_remember_slot()
 	_autosave_timer = 0.0
 	_dirty = false
 
 
-func load_game() -> bool:
-	if not has_save():
+## Loads a slot (default: the current one) and makes it the active one.
+func load_game(from_slot := -1) -> bool:
+	var target := slot if from_slot < 1 else from_slot
+	var raw := _read_slot(target)
+	if raw.is_empty():
 		return false
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return false
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if not parsed is Dictionary or not parsed.has("class"):
-		return false
-	profile = _repair(parsed)
+	slot = target
+	profile = _repair(raw)
 	has_profile = true
 	current_zone = StringName(profile.get("zone", "town"))
+	_remember_slot()
 	profile_changed.emit()
 	inventory_changed.emit()
 	return true
 
 
-func delete_save() -> void:
-	if has_save():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
-	has_profile = false
-	profile = {}
+func delete_save(for_slot := -1) -> void:
+	var target := slot if for_slot < 1 else for_slot
+	if has_save(target):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path(target)))
+	if target == slot:
+		has_profile = false
+		profile = {}
 
 
 ## JSON turns ints into floats: restore the types the game expects.

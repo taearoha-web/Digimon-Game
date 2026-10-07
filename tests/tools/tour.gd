@@ -27,8 +27,22 @@ func _ready() -> void:
 
 
 func run() -> void:
+	if tour == "slots":
+		for i in 3:
+			Game.slot = i + 1
+			Game.new_profile([&"warrior", &"mage", &"priest"][i], ["ไรเดน", "ลูน่า", "ซันนี่"][i])
+			Game.profile["level"] = [34, 52, 12][i]
+			Game.profile["adv"] = [1, 2, 0][i]
+			Game.profile["zone"] = ["desert", "graveyard", "meadow"][i]
+			Game.save()
+		Game.has_profile = false
+		main._show_title()
+		await _wait(0.6)
+		await _shot("title_slots")
+		get_tree().quit()
+		return
 	await _shot("title")
-	main.title_screen.new_game_pressed.emit()
+	main.title_screen.new_game_pressed.emit(1)
 	await _wait(0.8)
 	await _shot("class_select")
 	main.class_screen._set_gender(1)

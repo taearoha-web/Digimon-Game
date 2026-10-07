@@ -63,7 +63,7 @@ func _ready() -> void:
 	# A reloaded browser tab (memory pressure, screen lock) goes straight back in.
 	if OS.has_feature("web") and Game.should_resume():
 		await get_tree().process_frame
-		await _continue()
+		await _continue(Game.last_slot())
 		Game.say("เล่นต่อจากเดิมอัตโนมัติ", &"info")
 
 
@@ -84,7 +84,8 @@ func _show_title() -> void:
 	screen.continue_pressed.connect(_continue)
 
 
-func _show_class_select() -> void:
+func _show_class_select(slot: int) -> void:
+	Game.slot = slot
 	if title_screen:
 		title_screen.queue_free()
 		title_screen = null
@@ -101,8 +102,8 @@ func _show_class_select() -> void:
 		await go(&"town", true))
 
 
-func _continue() -> void:
-	if not Game.load_game():
+func _continue(slot: int) -> void:
+	if not Game.load_game(slot):
 		return
 	if title_screen:
 		title_screen.queue_free()
