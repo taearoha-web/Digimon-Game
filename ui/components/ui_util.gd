@@ -5,6 +5,69 @@ extends RefCounted
 const SKY_BG_SHADER := preload("res://shaders/ui_sky_background.gdshader")
 
 
+static var _star_texture: ImageTexture
+
+
+## A drawn gold five-point star (the fonts have no star glyph).
+static func star_texture() -> Texture2D:
+	if _star_texture != null:
+		return _star_texture
+	var size := 64
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var points := PackedVector2Array()
+	for i in 10:
+		var a := -PI / 2.0 + TAU * float(i) / 10.0
+		var r := 29.0 if i % 2 == 0 else 12.5
+		points.append(Vector2(32.0 + cos(a) * r, 33.5 + sin(a) * r))
+	for y in size:
+		for x in size:
+			# 3x3 supersampling for smooth edges.
+			var inside := 0
+			var core := 0
+			for sy in 3:
+				for sx in 3:
+					var p := Vector2(float(x) + (sx + 0.5) / 3.0, float(y) + (sy + 0.5) / 3.0)
+					if Geometry2D.is_point_in_polygon(p, points):
+						inside += 1
+						if Geometry2D.is_point_in_polygon(p, _shrink(points, 0.78)):
+							core += 1
+			if inside > 0:
+				var color := Color("a86a00").lerp(Color("ffd84a"), float(core) / float(inside))
+				img.set_pixel(x, y, Color(color.r, color.g, color.b, float(inside) / 9.0))
+	_star_texture = ImageTexture.create_from_image(img)
+	return _star_texture
+
+
+static func _shrink(points: PackedVector2Array, factor: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var center := Vector2(32.0, 33.5)
+	for p in points:
+		out.append(center + (p - center) * factor)
+	return out
+
+
+## A star icon followed by a number (e.g. paragon level), as one row.
+static func star_count(value: int, font_size := 22) -> HBoxContainer:
+	var row := hbox(3)
+	var icon := TextureRect.new()
+	icon.texture = star_texture()
+	icon.custom_minimum_size = Vector2(font_size + 2, font_size + 2)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(icon)
+	var label := Label.new()
+	label.text = str(value)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", Color("ffd84a"))
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.name = "StarValue"
+	row.add_child(label)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return row
+
+
 static func label(text: String, variation: StringName = &"", align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := Label.new()
 	l.text = text

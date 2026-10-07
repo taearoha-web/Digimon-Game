@@ -35,6 +35,7 @@ var _frame: Control
 var _controls: Array[Control] = []
 var _name_label: Label
 var _level_label: Label
+var _star_row: HBoxContainer
 var _hp_bar: ProgressBar
 var _hp_label: Label
 var _mp_bar: ProgressBar
@@ -185,7 +186,10 @@ func _process(delta: float) -> void:
 		_badge.text = String(data.badge)
 	_name_label.text = String(p.name)
 	_update_party()
-	_level_label.text = "Lv.%d" % int(p.level) if int(Game.paragon().level) <= 0 else "Lv.%d ดาว %d" % [int(p.level), int(Game.paragon().level)]
+	_level_label.text = "Lv.%d" % int(p.level)
+	var stars := int(Game.paragon().level)
+	_star_row.visible = stars > 0
+	(_star_row.get_node("StarValue") as Label).text = str(stars)
 	UIUtil.set_bar(_hp_bar, p.hp, stats.max_hp)
 	UIUtil.tint_hp_bar(_hp_bar, float(p.hp) / float(maxi(1, stats.max_hp)))
 	_hp_label.text = "%d/%d" % [p.hp, stats.max_hp]
@@ -381,6 +385,9 @@ func _build_status(frame: Control) -> void:
 	_level_label = UIUtil.label("", &"ValueLabel")
 	_level_label.add_theme_color_override("font_color", UIPalette.GOLD)
 	name_row.add_child(_level_label)
+	_star_row = UIUtil.star_count(0, 22)
+	_star_row.visible = false
+	name_row.add_child(_star_row)
 	var hp_row := UIUtil.hbox(6)
 	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(hp_row)

@@ -166,6 +166,8 @@ func _paragon_check() -> void:
 	Game.paragon()["alloc"]["atk"] = 15
 	Game.paragon()["alloc"]["hp"] = 10
 	Game.profile_changed.emit()
+	await _wait(0.4)
+	await _shot("paragon_hud")
 	main.menu.open_menu(&"character")
 	await _wait(0.6)
 	await _shot("paragon_menu")

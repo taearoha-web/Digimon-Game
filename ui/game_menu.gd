@@ -174,7 +174,10 @@ func _exp_text() -> String:
 ## Paragon points (after Lv.100): permanent bonuses with a gold refund button.
 func _build_paragon(parent: Control) -> void:
 	var para := Game.paragon()
-	parent.add_child(UIUtil.label("ระดับเหนือเลเวล (ดาว) %d / %d  ·  แต้มที่ใช้ได้ %d" % [int(para.level), Game.PARAGON_MAX, int(para.points)], &"SubHeaderLabel"))
+	var head := UIUtil.hbox(8)
+	head.add_child(UIUtil.star_count(int(para.level), 28))
+	head.add_child(UIUtil.label("ระดับเหนือเลเวล / %d  ·  แต้มที่ใช้ได้ %d" % [Game.PARAGON_MAX, int(para.points)], &"SubHeaderLabel"))
+	parent.add_child(head)
 	for key in Game.PARAGON_STATS:
 		var info: Array = Game.PARAGON_STATS[key]
 		var used := int(para.alloc[key])
