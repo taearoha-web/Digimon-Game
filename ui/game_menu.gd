@@ -310,7 +310,9 @@ func _refresh_detail() -> void:
 
 func _build_forge_buttons(item: Dictionary) -> void:
 	var plus := int(item.get("plus", 0))
-	if plus < ItemData.MAX_PLUS:
+	if not EnhanceFx.can_enhance(item):
+		_detail.add_child(UIUtil.label("แหวนและสร้อยเป็นของวิเศษคงที่ ตีบวกไม่ได้ (ฝังอัญมณีได้)", &"DimLabel"))
+	elif plus < ItemData.MAX_PLUS:
 		_detail.add_child(UIUtil.label("ค่าตี %d เหรียญ" % ItemData.enhance_cost(item), &"DimLabel"))
 		var btn := UIUtil.button("ตีบวก +%d  (%d%%)" % [plus + 1, int(ItemData.enhance_chance(plus) * 100.0)], &"PrimaryButton", Vector2(0, 58))
 		btn.pressed.connect(func():

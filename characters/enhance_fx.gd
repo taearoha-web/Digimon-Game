@@ -201,3 +201,41 @@ static func on_body(visual: Node3D, plus: int) -> Array[Node]:
 			_flames(fire, Vector3(0, 0.15, 0), 0.8, 16)
 			made.append(fire)
 	return made
+
+
+## Slots that cannot be enhanced (they stay as they are).
+const FIXED_SLOTS: Array[String] = ["ring", "amulet"]
+
+
+static func can_enhance(item: Dictionary) -> bool:
+	return item.get("kind", "") == "equip" and not (String(item.get("slot", "")) in FIXED_SLOTS)
+
+
+## Every enhanced piece glows by itself: an additive overlay on its own meshes
+## (stronger and faster-pulsing with the grade) plus a little sparkle at its spot.
+## spot = where on the body the sparkles rise (visual space).
+static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
+	var g := grade(plus)
+	if g == 0:
+		return
+	var color := COLORS[g]
+	var overlay := _glow_material(color, [0.0, 0.08, 0.14, 0.2, 0.28][g])
+	var found := false
+	for node in nodes:
+		if not is_instance_valid(node):
+			continue
+		for m in MeshKit.collect_meshes(node):
+			m.material_overlay = overlay
+			found = true
+	if not found:
+		return
+	var base_a: float = overlay.albedo_color.a
+	var speed: float = [0.0, 1.8, 1.3, 0.9, 0.5][g]
+	var pulse := owner.create_tween().set_loops()
+	pulse.tween_property(overlay, "albedo_color:a", base_a * 1.8, speed).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(overlay, "albedo_color:a", base_a * 0.45, speed).set_trans(Tween.TRANS_SINE)
+	if GameSettings.quality > 0 and g >= 2:
+		var p := _sparkles(owner, spot, color, [0, 0, 5, 8, 12][g], spread, 0.1, 0.5 + 0.1 * g, 0.9)
+		p.name = "PieceSparkles"
+		if g == 4:
+			_flames(owner, spot, spread * 0.8, 6)
