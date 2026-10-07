@@ -309,6 +309,18 @@ func _summons() -> void:
 	check(wolf.is_dead() and not wolf.is_in_group("summons"), "a summon at 0 HP dies")
 	await _wait(0.6)
 	check(not is_instance_valid(wolf), "the dead summon is removed")
+	# Balance: at 5 stars a summon is a little taller than the hero (about 2.8 m with hair), never huge.
+	for kind_name in Summon.KINDS:
+		var kind: Dictionary = Summon.KINDS[kind_name]
+		if kind.has("height"):
+			var top5: float = (float(kind.height) + float(kind.hover)) * Summon.size_for_rank(5)
+			check(top5 >= 2.0 and top5 <= 3.3, "%s stands %.2f m tall at 5 stars (no giants)" % [kind_name, top5])
+	var biggest := 0.0
+	for kind_name in Summon.KINDS:
+		var kind: Dictionary = Summon.KINDS[kind_name]
+		if kind.has("height"):
+			biggest = maxf(biggest, (float(kind.height) + float(kind.hover)) * Summon.size_for_rank(5))
+	check(biggest > 2.9 and biggest < 3.3, "the biggest 5-star summon is just above the hero (%.2f m)" % biggest)
 	# Stars make it bigger: 1 star normal, 2 stars +10%, 5 stars +50%.
 	var expected := {1: 1.0, 2: 1.10, 3: 1.2333, 4: 1.3667, 5: 1.5}
 	for stars in expected:
