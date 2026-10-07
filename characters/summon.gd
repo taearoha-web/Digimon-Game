@@ -3,7 +3,7 @@ extends Node3D
 ## A creature or floating blade the hero calls with a summoner skill. It follows
 ## the hero, picks the hero's target (or the nearest monster) and attacks. It
 ## has its own health bar, monsters can attack it, and it lasts 3 minutes or
-## until it is killed. Its size grows by one body-size per skill star.
+## until it is killed. Its size is 100% at 1 star and grows 25% per extra star (200% at 5).
 
 ## Seconds a summon stays (3 minutes).
 const LIFETIME := 180.0
@@ -48,8 +48,8 @@ func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: 
 	spec = p_spec
 	damage_mult = p_damage_mult
 	rank = clampi(p_rank, 1, 10)
-	# One extra body-size per star: 1x at 1 star, 2x at 2 stars ... 5x at 5 stars.
-	size_mult = float(rank)
+	# 100% at 1 star, +25% per extra star: 125%, 150%, 175%, 200% at 5 stars.
+	size_mult = 1.0 + 0.25 * float(rank - 1)
 	life = float(spec.get("secs", LIFETIME))
 	max_hp = maxi(300, int(round(float(hero.stats.max_hp) * 0.8 * (1.0 + 0.6 * float(rank - 1)))))
 	hp = max_hp
