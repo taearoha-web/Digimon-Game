@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "stars" in OS.get_cmdline_user_args():
+		await _star_drops()
+		return
 	if "tower" in OS.get_cmdline_user_args():
 		await _tower()
 		return
@@ -67,6 +70,7 @@ func _run() -> void:
 	await _void_zone()
 	await _paragon()
 	await _tower()
+	await _star_drops()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -944,12 +948,68 @@ func _tower() -> void:
 	check(int(Game.tower().shards) == 500 - 8 * TowerData.COST_REROLL, "each re-roll costs shards")
 	var inv0: int = Game.profile.inv.size()
 	var bought := Game.tower_buy("gear")
-	check(bought.begins_with("ok:") and Game.profile.inv.size() == inv0 + 1 and int(Game.profile.inv[inv0].rarity) >= 3 and int(Game.profile.inv[inv0].level) == 100, "shards buy legendary Lv.100 gear")
+	check(bought.begins_with("ok:") and Game.profile.inv.size() == inv0 + 1 and int(Game.profile.inv[inv0].rarity) >= 3 and int(Game.profile.inv[inv0].level) >= 100, "shards buy legendary Lv.100+ gear")
 	check(Game.tower_buy("gem").begins_with("ok:"), "shards buy a large gem")
 	Game.tower()["shards"] = 5
 	check(Game.tower_buy("gear") != "ok" and Game.tower_reroll_wings(wing) != "ok", "not enough shards buys nothing")
 	Game.fill_loadout()
 	check(Game.save_code_roundtrip(), "tower progress survives the save code")
+
+
+func _star_drops() -> void:
+	print("== Star drops")
+	await _start(&"warrior")
+	Game.profile["level"] = 100
+	Game.paragon()["level"] = 20
+	var plain := 0
+	var stars := 0
+	var low := 999
+	var high := 0
+	for i in 400:
+		var lv := Game.star_gear_level()
+		if lv == 100:
+			plain += 1
+		else:
+			stars += 1
+			low = mini(low, lv - 100)
+			high = maxi(high, lv - 100)
+	check(plain > 60 and plain < 180 and stars > 220, "about 30%% of star-zone gear is plain Lv.100 (%d / 400)" % plain)
+	check(low >= 21 and high <= 28, "star gear sits just above your paragon level (★%d–★%d at ★20)" % [low, high])
+	check(Game.star_gear_level(10) >= 100, "tower floors push the stars higher")
+	await main.go(&"void", true, true)
+	await _wait(0.5)
+	var zone: Zone = main.zone
+	for node in get_tree().get_nodes_in_group("mobs"):
+		(node as Mob).queue_free()
+	var mob := Mob.new()
+	mob.setup(&"void_golem", 100, Vector3.ZERO, zone.hero)
+	zone.add_child(mob)
+	var starry := 0
+	var total := 0
+	for i in 300:
+		var before := zone.get_child_count()
+		zone._drop_loot(mob)
+		for j in range(before, zone.get_child_count()):
+			var c := zone.get_child(j)
+			if c is LootDrop and (c as LootDrop).item.get("kind", "") == "equip" and (c as LootDrop).item.get("slot", "") != "wings":
+				total += 1
+				if int((c as LootDrop).item.level) > 100:
+					starry += 1
+	check(total > 40 and starry > total / 2, "void monsters drop star gear (%d of %d pieces)" % [starry, total])
+	await main.go(&"abyss", true, true)
+	await _wait(0.5)
+	var plain_mob := Mob.new()
+	plain_mob.setup(&"hell_orc", 100, Vector3.ZERO, main.zone.hero)
+	main.zone.add_child(plain_mob)
+	var above := 0
+	for i in 200:
+		var before2: int = main.zone.get_child_count()
+		main.zone._drop_loot(plain_mob)
+		for j in range(before2, main.zone.get_child_count()):
+			var c2: Node = main.zone.get_child(j)
+			if c2 is LootDrop and (c2 as LootDrop).item.get("kind", "") == "equip" and int((c2 as LootDrop).item.level) > 100:
+				above += 1
+	check(above == 0, "other zones never drop star gear")
 
 
 func _timer_bars() -> void:

@@ -711,7 +711,7 @@ func _drop_loot(mob: Mob) -> void:
 			var rarity := maxi(1, ItemData.roll_rarity(rng, maxf(0.3, boost * 5.0)))
 			if i < 2:
 				rarity = maxi(rarity, best)
-			_spawn_loot(ItemData.generate(mob.level, class_id, rng, rarity), 0, from)
+			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity), 0, from)
 		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)):
 			_spawn_loot(ItemData.wings(rng), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
@@ -728,7 +728,7 @@ func _drop_loot(mob: Mob) -> void:
 	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)):
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
 	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)):
-		var item := ItemData.generate(mob.level, class_id, rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
+		var item := ItemData.generate(_gear_level(mob, loot), class_id, rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
 		_spawn_loot(item, 0, from)
 	if rng.randf() < float(loot.get("potion", DROP_RATE_POTION)):
 		var tier := "s" if mob.level < 9 else ("m" if mob.level < 22 else "l")
@@ -741,6 +741,18 @@ func _drop_loot(mob: Mob) -> void:
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
 		_spawn_loot(ItemData.wings(rng), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
+
+
+## Gear level of a drop. Star zones (the Lv.100 void and tower) drop gear above
+## Lv.100 (worn with paragon levels): about 70% of pieces carry a few stars above
+## your own paragon level, and tower floors add more.
+func _gear_level(mob: Mob, loot: Dictionary) -> int:
+	if not bool(loot.get("stars", false)) or int(mob.level) < 100:
+		return mob.level
+	var bonus := 0
+	if tower_run != null:
+		bonus = tower_run.floor_no / 10
+	return Game.star_gear_level(bonus)
 
 
 func _random_gem(level: int, bonus_size: int) -> Dictionary:
