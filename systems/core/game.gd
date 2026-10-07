@@ -873,6 +873,23 @@ func socket_gem(item: Dictionary, gem_index: int) -> bool:
 	return true
 
 
+## Takes the gem in a socket back out into the bag (it is not lost).
+func unsocket_gem(item: Dictionary, socket_index: int) -> String:
+	var gems: Array = item.get("gems", [])
+	if socket_index < 0 or socket_index >= gems.size():
+		return "ไม่มีอัญมณีในช่องนี้"
+	var bits := String(gems[socket_index]).split("_")
+	var gem := ItemData.gem(bits[0], int(bits[1]))
+	if not add_item(gem):
+		return "กระเป๋าเต็ม"
+	gems.remove_at(socket_index)
+	clamp_vitals()
+	profile_changed.emit()
+	inventory_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
 func remove_item_at(index: int, count := 1) -> void:
 	if index < 0 or index >= profile["inv"].size():
 		return

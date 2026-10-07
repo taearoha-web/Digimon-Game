@@ -332,6 +332,21 @@ func _build_forge_buttons(item: Dictionary) -> void:
 					Game.say(result, &"warning")
 			_rebuild())
 		_detail.add_child(btn)
+	var socketed: Array = item.get("gems", [])
+	for k in socketed.size():
+		var socket_index: int = k
+		var worn := ItemData.gem_info({"id": socketed[k]})
+		var take := UIUtil.button("ถอด %s ออก" % worn.name, &"", Vector2(0, 50))
+		take.add_theme_color_override("font_color", worn.color)
+		take.pressed.connect(func():
+			var result := Game.unsocket_gem(item, socket_index)
+			if result == "ok":
+				Game.say("ถอด%sแล้ว (เก็บเข้ากระเป๋า)" % worn.name, &"success")
+				AudioManager.play_sfx(&"pickup")
+			else:
+				Game.say(result, &"warning")
+			_rebuild())
+		_detail.add_child(take)
 	var free := int(item.get("sockets", 0)) - (item.get("gems", []) as Array).size()
 	if free > 0:
 		var seen := {}

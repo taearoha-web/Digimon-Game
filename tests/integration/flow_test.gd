@@ -1104,6 +1104,11 @@ func _items() -> void:
 	var atk1: float = Game.stats_now().atk
 	check(Game.socket_gem(sword, Game.profile.inv.size() - 1) and Game.stats_now().atk >= atk1 + 22, "a ruby in a socket adds ATK")
 	check(int(Game.profile.inv[Game.profile.inv.size() - 1].count) == 1, "the gem stack went down by one")
+	var atk_with_gem: float = Game.stats_now().atk
+	check(Game.unsocket_gem(sword, 0) == "ok" and (sword.gems as Array).is_empty() and Game.stats_now().atk <= atk_with_gem - 22, "a gem can be taken back out (attack drops)")
+	check(int(Game.profile.inv[Game.profile.inv.size() - 1].count) == 2, "the removed gem returns to the bag stack")
+	check(Game.unsocket_gem(sword, 0) != "ok", "an empty socket cannot be emptied")
+	Game.socket_gem(sword, Game.profile.inv.size() - 1)
 	var armor := ItemData.generate(20, &"warrior", rng, 1, "armor")
 	var helm := ItemData.generate(20, &"warrior", rng, 1, "helm")
 	check(str(armor.set) != "" and armor.set == helm.set, "same-tier gear belongs to the same set (%s)" % ItemData.set_label(armor.set))
