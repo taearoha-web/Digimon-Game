@@ -73,6 +73,8 @@ func _ready() -> void:
 	_label.modulate = Color("8ff0ff")
 	_label.position = Vector3(0, 2.75, 0)
 	_label.visibility_range_end = 30.0
+	_label.no_depth_test = true
+	_label.render_priority = 2
 	add_child(_label)
 	_bar = FieldHpBar.new()
 	_bar.position = Vector3(0, 3.05, 0)

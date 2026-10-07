@@ -11,7 +11,7 @@ extends RefCounted
 const ICON_DIR := "res://assets/icons/items/"
 const ARMOR_STYLES := [["rogue", "rogue"], ["ranger", "rogue"], ["ranger", "barbarian"], ["barbarian", "mage"], ["knight", "mage"], ["knight", "knight"], ["knight", "mage"], ["mage", "knight"], ["knight", "knight"], ["knight", "mage"]]
 const ARMOR_TINTS := [Color(1, 1, 1), Color(0.86, 1.06, 0.86), Color(0.85, 0.96, 1.25), Color(1.3, 1.1, 0.7), Color(1.15, 0.85, 1.3), Color(1.35, 0.8, 0.75),
-		Color(1.1, 1.0, 1.6), Color(1.55, 1.45, 1.0), Color(1.6, 1.1, 0.7), Color(1.75, 1.65, 1.45)]
+		Color(1.1, 1.0, 1.45), Color(1.3, 1.22, 0.9), Color(1.3, 0.98, 0.68), Color(1.2, 1.12, 0.95)]
 const CAPES := {
 	"knight": ["Knight", "Knight_Cape"], "mage": ["Mage", "Mage_Cape"], "ranger": ["Ranger", "Ranger_Cape"], "rogue": ["Rogue", "Rogue_Cape"],
 }
@@ -39,8 +39,8 @@ const HELMS := [
 	{"proc": "flame_crown", "tint": Color("ff8a4a")},
 	{"proc": "halo_crown", "tint": Color("ffb04a")},
 	# Lv.91-100: eternal legend
-	{"proc": "grand_crown", "tint": Color("ffffff")},
-	{"proc": "grand_crown", "tint": Color("ffe27a")},
+	{"proc": "grand_crown", "tint": Color("e0b040")},
+	{"proc": "grand_crown", "tint": Color("d89a30")},
 ]
 
 

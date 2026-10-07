@@ -50,7 +50,7 @@ static func hat(proc: String, tint: Color) -> Node3D:
 			_p(root, MeshKit.torus(), tint.lightened(0.3), Vector3(0, 0.7, 0), Vector3(1.28, 1.0, 1.24), Vector3.ZERO, 0.5)
 			for side in [-1.0, 1.0]:
 				for k in 3:
-					_p(root, MeshKit.prism(), Color("ffffff"), Vector3(side * (0.7 + k * 0.1), 0.86 + k * 0.2, 0), Vector3(0.14, 0.58, 0.04), Vector3(0, 0, side * (-70.0 + k * 22.0)), 0.9)
+					_p(root, MeshKit.prism(), Color("fff4d0"), Vector3(side * (0.7 + k * 0.1), 0.86 + k * 0.2, 0), Vector3(0.14, 0.5, 0.04), Vector3(0, 0, side * (-70.0 + k * 22.0)), 0.4)
 		"flame_crown":
 			_p(root, MeshKit.cylinder(), tint, Vector3(0, 0.98, 0), Vector3(1.08, 0.22, 1.02), Vector3.ZERO, 0.4)
 			for i in 9:
@@ -64,18 +64,16 @@ static func hat(proc: String, tint: Color) -> Node3D:
 				var a := i * TAU / 7.0
 				_p(root, MeshKit.cone(), tint.lightened(0.2), Vector3(cos(a) * 0.48, 1.24, sin(a) * 0.46), Vector3(0.18, 0.42, 0.18), Vector3.ZERO, 0.7)
 				_p(root, MeshKit.sphere_low(), GEMS[i % GEMS.size()], Vector3(cos(a) * 0.5, 0.98, sin(a) * 0.48), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.6)
-			_p(root, MeshKit.torus(), Color("fff6a0"), Vector3(0, 1.75, 0), Vector3(1.0, 0.14, 1.0), Vector3.ZERO, 2.2)
+			_p(root, MeshKit.torus(), Color("ffe9a0"), Vector3(0, 1.6, 0), Vector3(0.8, 0.08, 0.8), Vector3.ZERO, 1.0)
 		"grand_crown":
-			_p(root, MeshKit.cylinder(), tint, Vector3(0, 1.0, 0), Vector3(1.12, 0.26, 1.06), Vector3.ZERO, 0.9)
-			for i in 11:
-				var a := i * TAU / 11.0
-				var h := 0.55 + 0.25 * (i % 2)
-				_p(root, MeshKit.cone(), tint.lightened(0.25), Vector3(cos(a) * 0.52, 1.24 + h * 0.3, sin(a) * 0.5), Vector3(0.18, h, 0.18), Vector3.ZERO, 1.1)
-				_p(root, MeshKit.sphere_low(), GEMS[(i + 3) % GEMS.size()], Vector3(cos(a) * 0.54, 1.0, sin(a) * 0.52), Vector3(0.11, 0.11, 0.11), Vector3.ZERO, 1.8)
-			for side in [-1.0, 1.0]:
-				for k in 4:
-					_p(root, MeshKit.prism(), Color("ffffff"), Vector3(side * (0.78 + k * 0.1), 0.9 + k * 0.22, 0), Vector3(0.14, 0.7, 0.04), Vector3(0, 0, side * (-72.0 + k * 20.0)), 1.4)
-			_p(root, MeshKit.torus(), Color("ffffff"), Vector3(0, 2.0, 0), Vector3(1.3, 0.16, 1.3), Vector3.ZERO, 3.0)
+			# A small gold crown that sits snugly on the head: a band, six short points, a thin ring.
+			_p(root, MeshKit.cylinder(), tint, Vector3(0, 0.98, 0), Vector3(0.82, 0.16, 0.78), Vector3.ZERO, 0.15)
+			for i in 6:
+				var a := i * TAU / 6.0
+				var h := 0.2 + 0.08 * (i % 2)
+				_p(root, MeshKit.cone(), tint.lightened(0.08), Vector3(cos(a) * 0.36, 1.06 + h * 0.4, sin(a) * 0.34), Vector3(0.11, h, 0.11), Vector3.ZERO, 0.2)
+				_p(root, MeshKit.sphere_low(), GEMS[(i + 3) % GEMS.size()], Vector3(cos(a) * 0.4, 0.98, sin(a) * 0.38), Vector3(0.07, 0.07, 0.07), Vector3.ZERO, 0.8)
+			_p(root, MeshKit.torus(), Color("ffe9a0"), Vector3(0, 1.45, 0), Vector3(0.6, 0.06, 0.6), Vector3.ZERO, 0.8)
 		"crown":
 			_p(root, MeshKit.cylinder(), tint, Vector3(0, 0.98, 0), Vector3(1.05, 0.2, 1.0))
 			for i in 7:
@@ -131,10 +129,10 @@ static func wings(kind: String, plus := 0) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Wings_" + kind
 	var spec := {
-		"atk": {"n": 5, "len": 2.3, "w": 0.36, "step": 15.0, "a": Color("d8283a"), "b": Color("4a0c18"), "glow": 0.7, "mesh": "prism"},
-		"def": {"n": 7, "len": 1.8, "w": 0.5, "step": 11.0, "a": Color("f0c85a"), "b": Color("d6dde8"), "glow": 0.3, "mesh": "prism"},
-		"hp": {"n": 6, "len": 2.0, "w": 0.44, "step": 13.0, "a": Color("58e08a"), "b": Color("e4ffd8"), "glow": 0.6, "mesh": "prism"},
-		"matk": {"n": 5, "len": 2.2, "w": 0.38, "step": 14.0, "a": Color("8a5bff"), "b": Color("3fb8ff"), "glow": 0.8, "mesh": "cone"},
+		"atk": {"n": 5, "len": 2.2, "w": 0.34, "step": 15.0, "a": Color("c8283a"), "b": Color("5a1020"), "glow": 0.35, "leaf": false},
+		"def": {"n": 6, "len": 1.8, "w": 0.46, "step": 13.0, "a": Color("e8c25a"), "b": Color("c8d0e0"), "glow": 0.12, "leaf": true},
+		"hp": {"n": 6, "len": 1.9, "w": 0.42, "step": 13.0, "a": Color("58d888"), "b": Color("d8f8d0"), "glow": 0.25, "leaf": true},
+		"matk": {"n": 5, "len": 2.0, "w": 0.4, "step": 14.0, "a": Color("8a5bff"), "b": Color("4fb8ff"), "glow": 0.5, "leaf": true},
 	}
 	var sp: Dictionary = spec.get(kind, spec["atk"])
 	var flapper := Node3D.new()
@@ -145,26 +143,25 @@ static func wings(kind: String, plus := 0) -> Node3D:
 		wing.position = Vector3(side * 0.16, 0.0, 0.0)
 		flapper.add_child(wing)
 		var n: int = sp.n
+		# Feathers fan out from the shoulder; the longest ones sit lowest and outermost.
 		for k in n:
-			var angle: float = 6.0 + float(k) * float(sp.step)
-			var length: float = float(sp.len) * (0.62 + 0.38 * float(k) / float(n - 1))
+			var angle: float = 8.0 + float(k) * float(sp.step)
+			var length: float = float(sp.len) * (0.55 + 0.45 * float(k) / float(n - 1))
 			var arm := Node3D.new()
 			arm.rotation_degrees = Vector3(-14.0, 0.0, -side * angle)
 			wing.add_child(arm)
 			var color: Color = sp.a if k % 2 == 0 else sp.b
-			var mesh: Mesh = MeshKit.cone() if sp.mesh == "cone" else MeshKit.prism()
-			_p(arm, mesh, color, Vector3(0, length * 0.5, -0.02 * k), Vector3(float(sp.w), length, 0.05), Vector3.ZERO, float(sp.glow))
-			if kind == "atk":
-				_p(arm, MeshKit.cone(), Color("ffd0c0"), Vector3(0, length + 0.05, 0), Vector3(0.1, 0.28, 0.1), Vector3.ZERO, 1.2)
-		# Wing spar.
-		_p(wing, MeshKit.box(), sp.b.darkened(0.3), Vector3(side * 0.12, 0.45, 0.0), Vector3(0.08, 0.95, 0.09), Vector3(0, 0, -side * 22.0), 0.2)
+			if bool(sp.leaf):
+				# A rounded feather: an elongated ellipsoid.
+				_p(arm, MeshKit.sphere(), color, Vector3(0, length * 0.5, -0.02 * k), Vector3(float(sp.w), length, 0.06), Vector3.ZERO, float(sp.glow))
+			else:
+				_p(arm, MeshKit.prism(), color, Vector3(0, length * 0.5, -0.02 * k), Vector3(float(sp.w), length, 0.05), Vector3.ZERO, float(sp.glow))
+				_p(arm, MeshKit.cone(), Color("ffd0c0"), Vector3(0, length + 0.05, 0), Vector3(0.09, 0.24, 0.09), Vector3.ZERO, 0.6)
+		# Shoulder joint and a covert of small feathers near the body.
+		_p(wing, MeshKit.sphere_low(), sp.b.darkened(0.2), Vector3(side * 0.04, 0.05, 0.0), Vector3(0.3, 0.3, 0.22), Vector3.ZERO, 0.1)
 		var flap := wing.create_tween().set_loops()
 		flap.tween_property(wing, "rotation_degrees:y", side * 14.0, 0.85).set_trans(Tween.TRANS_SINE)
 		flap.tween_property(wing, "rotation_degrees:y", side * -4.0, 0.85).set_trans(Tween.TRANS_SINE)
-	if kind == "matk":
-		for i in 3:
-			var orb := _p(root, MeshKit.sphere_low(), Color("c8f4ff"), Vector3(0, 0.4, -0.5), Vector3.ONE * 0.12, Vector3.ZERO, 2.4)
-			orb.position = Vector3(cos(i * TAU / 3.0) * 0.9, 0.4 + 0.4 * i * 0.3, -0.5)
 	var bob := flapper.create_tween().set_loops()
 	bob.tween_property(flapper, "position:y", 0.06, 1.2).set_trans(Tween.TRANS_SINE)
 	bob.tween_property(flapper, "position:y", -0.04, 1.2).set_trans(Tween.TRANS_SINE)
@@ -176,9 +173,8 @@ static func halo(tier: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Halo"
 	var color: Color = TIERS_METAL[clampi(tier, 0, MAX_TIER)]
-	_p(root, MeshKit.torus(), color, Vector3(0, 1.75, 0), Vector3(1.1, 0.12, 1.1), Vector3.ZERO, 2.4)
-	if tier >= 9:
-		_p(root, MeshKit.torus(), Color("ffffff"), Vector3(0, 1.95, 0), Vector3(0.7, 0.1, 0.7), Vector3.ZERO, 3.0)
+	# One thin ring floating above the head (kept small so the face stays visible).
+	_p(root, MeshKit.torus(), color.lerp(Color("ffe9a0"), 0.4), Vector3(0, 1.5, 0), Vector3(0.62, 0.06, 0.62), Vector3.ZERO, 0.8)
 	return root
 
 

@@ -96,9 +96,37 @@ func run() -> void:
 		"paragon": await _paragon_check()
 		"tower": await _tower_check()
 		"voidcast": await _voidcast_check()
+		"fullgear": await _fullgear_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _fullgear_check() -> void:
+	_level(100)
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.paragon()["level"] = 16
+	var grng := RandomNumberGenerator.new()
+	grng.seed = 6
+	for slot in ["weapon", "armor", "helm", "boots", "ring", "amulet"]:
+		var item := ItemData.generate(120, Game.class_id(), grng, 4, slot)
+		item["plus"] = 10 if not (slot in EnhanceFx.FIXED_SLOTS) else 0
+		Game.profile.equip[slot] = item
+	Game.profile.equip["wings"] = ItemData.wings(grng, "atk")
+	Game.profile.equip["wings"]["plus"] = 10
+	Game.recruit(&"priest")
+	await main.go(&"meadow", true, true)
+	await _wait(1.0)
+	var hero: Hero = main.zone.hero
+	hero.global_position = Vector3(-30, 0.2, 0)
+	main.zone.camera_rig.snap_to_target()
+	main.zone.camera_rig.zoom(2.0)
+	await _wait(1.2)
+	await _shot("fullgear_front")
+	hero.set_facing(PI)
+	await _wait(0.6)
+	await _shot("fullgear_back")
 
 
 func _voidcast_check() -> void:

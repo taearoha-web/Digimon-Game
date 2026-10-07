@@ -296,7 +296,7 @@ func _make_aura() -> void:
 		_body_nodes.append_array(EnhanceFx.on_body(self, best))
 	var tier := _top_tier()
 	if tier >= 6:
-		color = GearKit.TIERS_METAL[tier]
+		color = GearKit.TIERS_METAL[tier].lerp(Color("ffd870"), 0.35)
 		if tier >= 8:
 			var halo := BoneAttachment3D.new()
 			halo.name = "Halo"
@@ -316,7 +316,7 @@ func _make_aura() -> void:
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.albedo_texture = VfxKit.soft_dot()
-	mat.albedo_color = color
+	mat.albedo_color = Color(color.r, color.g, color.b, 0.5)
 	quad.material = mat
 	p.mesh = quad
 	var grand := maxi(tier - 5, 0)
