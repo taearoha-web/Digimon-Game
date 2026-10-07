@@ -38,6 +38,7 @@ var cooldowns: Dictionary = {}
 var potion_cd := 0.0
 
 var _buffs: Array[Dictionary] = []
+var _auras: Dictionary = {} # kind -> BuffAura
 var _pending: Dictionary = {}
 var _attack_timer := 0.0
 var _combo := 0
@@ -140,6 +141,83 @@ func facing() -> float:
 func set_facing(yaw: float) -> void:
 	_facing = yaw
 	visual.rotation.y = yaw
+
+
+## Defence buffs wrap the hero in a green barrier, attack buffs flare a power
+## aura, speed buffs spin wind rings and crit buffs scatter sparkles. Each kind
+## lives as long as at least one buff of that kind is active.
+func _sync_auras(now: int) -> void:
+	var wanted := {}
+	for buff in _buffs:
+		if int(buff.until) <= now or _dead:
+			continue
+		var color: Color = buff.get("color", Color("ffd84a"))
+		if float(buff.get("def", 0.0)) > 0.0:
+			wanted["shield"] = Color("5aff9a").lerp(color, 0.3)
+		if float(buff.get("atk", 0.0)) > 0.0:
+			wanted["power"] = color
+		if float(buff.get("speed", 0.0)) > 0.0:
+			wanted["wind"] = color
+		if float(buff.get("crit", 0.0)) > 0.0:
+			wanted["spark"] = color
+	for kind in wanted:
+		if not _auras.has(kind) or not is_instance_valid(_auras[kind]):
+			var aura := BuffAura.new()
+			aura.setup(kind, wanted[kind])
+			add_child(aura)
+			_auras[kind] = aura
+	for kind in _auras.keys():
+		if not wanted.has(kind):
+			if is_instance_valid(_auras[kind]):
+				(_auras[kind] as Node).queue_free()
+			_auras.erase(kind)
+
+
+## What the HUD timer bars show: active buffs (own and from allies) and summons,
+## each {id, name, color, left, total, kind, ally, count, hp}. [left] counts down in seconds.
+func timer_status() -> Array:
+	var out: Array = []
+	var now := Time.get_ticks_msec()
+	var seen := {}
+	for buff in _buffs:
+		var left := (float(buff.until) - float(now)) / 1000.0
+		if left <= 0.0:
+			continue
+		var key := "buff:%s:%s" % [buff.get("name", ""), buff.get("ally", false)]
+		if seen.has(key):
+			var entry: Dictionary = out[seen[key]]
+			if left > float(entry.left):
+				entry["left"] = left
+				entry["total"] = float(buff.get("total", left))
+			continue
+		seen[key] = out.size()
+		var glyph := "power"
+		if float(buff.get("def", 0.0)) > 0.0:
+			glyph = "shield"
+		elif float(buff.get("atk", 0.0)) > 0.0:
+			glyph = "power"
+		elif float(buff.get("speed", 0.0)) > 0.0:
+			glyph = "wind"
+		elif float(buff.get("crit", 0.0)) > 0.0:
+			glyph = "spark"
+		out.append({"id": key, "glyph": glyph, "name": String(buff.get("name", "บัฟ")), "color": buff.get("color", Color("ffd84a")), "left": left,
+				"total": float(buff.get("total", left)), "kind": "buff", "ally": bool(buff.get("ally", false)), "count": 1, "hp": 1.0})
+	for summon in _summons:
+		if not is_instance_valid(summon) or summon.is_dead():
+			continue
+		var key := "summon:%s" % summon.skill_id
+		if seen.has(key):
+			var entry: Dictionary = out[seen[key]]
+			entry["count"] = int(entry.count) + 1
+			entry["left"] = minf(float(entry.left), float(summon.life))
+			entry["hp"] = minf(float(entry.hp), float(summon.hp) / float(maxi(summon.max_hp, 1)))
+			continue
+		seen[key] = out.size()
+		var skill := ClassData.find_skill(Game.class_id(), String(summon.skill_id))
+		out.append({"id": key, "glyph": "summon", "name": String(skill.get("name", summon.skill_id)), "color": skill.get("color", Color("7fe3ff")), "left": float(summon.life),
+				"total": float(summon.spec.get("secs", Summon.LIFETIME)), "kind": "summon", "ally": false, "count": 1,
+				"hp": float(summon.hp) / float(maxi(summon.max_hp, 1))})
+	return out
 
 
 func has_buff() -> bool:
@@ -381,6 +459,7 @@ func _tick_timers(delta: float) -> void:
 		refresh_stats()
 		if _buffs.is_empty() and _buff_emitter:
 			_buff_emitter.emitting = false
+	_sync_auras(now)
 	# Regeneration: MP always, HP once out of combat (faster in the village).
 	var hp_rate := 0.02 if safe_zone else (0.006 if _since_hurt > 4.0 else 0.0)
 	var mp_rate := 0.05 if safe_zone else (0.02 if _since_hurt > 4.0 else 0.008)
@@ -777,9 +856,13 @@ func _apply_self_fx(skill: Dictionary) -> void:
 
 
 ## A buff from a skill or from a companion: {atk, def, speed, crit, secs}.
-func receive_buff(buff_data: Dictionary, color: Color, label := "") -> void:
+func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally := false) -> void:
 	var buff: Dictionary = buff_data.duplicate()
 	buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
+	buff["name"] = label if label != "" else "บัฟ"
+	buff["color"] = color
+	buff["total"] = float(buff.secs)
+	buff["ally"] = from_ally
 	_buffs.append(buff)
 	refresh_stats()
 	if _buff_emitter == null:

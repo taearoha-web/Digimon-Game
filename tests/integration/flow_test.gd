@@ -44,6 +44,7 @@ func _run() -> void:
 		await _play_class(id)
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _resume_after_reload()
+	await _timer_bars()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -551,6 +552,48 @@ func _resume_after_reload() -> void:
 	check(not Game.should_resume(), "an old save is not resumed automatically")
 	Game.delete_save()
 	check(not Game.should_resume(), "no save, no resume")
+
+
+func _timer_bars() -> void:
+	print("== Buff and summon timer bars")
+	await _start(&"archer")
+	var field_zone := await _go_field()
+	var hero: Hero = field_zone.hero
+	var hud: HUD = main.hud
+	hero.receive_buff({"atk": 0.3, "secs": 20.0}, Color("ff4a3a"), "Rage")
+	hero.receive_buff({"def": 0.5, "secs": 30.0}, Color("ffe9a0"), "Blessing", true)
+	var status := hero.timer_status()
+	check(status.size() == 2, "own and ally buffs both show a timer (%d)" % status.size())
+	check(status[0].name == "Rage" and absf(float(status[0].left) - 20.0) < 1.0 and not bool(status[0].ally), "own buff: name and time left")
+	check(status[1].name == "Blessing" and bool(status[1].ally) and float(status[1].total) == 30.0, "ally buff is marked and keeps its full duration")
+	Game.profile["level"] = 100
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.profile.mp = 99999
+	Game.equip_skill("recall_wolverine", 0)
+	hero.cooldowns.clear()
+	hero.use_skill(0)
+	await _wait(0.9)
+	var with_summon := hero.timer_status()
+	var summon_entry: Dictionary = {}
+	for entry in with_summon:
+		if entry.kind == "summon":
+			summon_entry = entry
+	check(not summon_entry.is_empty() and int(summon_entry.count) == 2 and float(summon_entry.left) > 150.0 and float(summon_entry.total) == 180.0, "the summons show one 3-minute timer for the pair")
+	await _wait(0.3)
+	check(hud._timers.visible and hud._timers._chips.size() == 3, "the HUD shows three timer chips (%d)" % hud._timers._chips.size())
+	var before_ratio: float = hud._timers._chips[status[0].id].ratio
+	check(hero._auras.has("power") and hero._auras.has("shield"), "attack and defence buffs show a power aura and a barrier on the hero")
+	hero._buffs[0]["until"] = Time.get_ticks_msec() + 1500
+	await _wait(0.4)
+	var after_ratio: float = hud._timers._chips[status[0].id].ratio
+	check(after_ratio < before_ratio * 0.2, "the timer ring unwinds as time runs out (%.2f -> %.2f)" % [before_ratio, after_ratio])
+	await _wait(1.6)
+	check(not hud._timers._chips.has(status[0].id), "the chip disappears when the buff ends")
+	check(not hero._auras.has("power") and hero._auras.has("shield"), "the power aura goes with its buff, the barrier stays")
+	hero._buffs.clear()
+	await _wait(0.3)
+	check(hero._auras.is_empty(), "no buff, no aura")
 
 
 func _camera_while_moving() -> void:
