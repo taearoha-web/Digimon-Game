@@ -45,6 +45,7 @@ func _run() -> void:
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _resume_after_reload()
 	await _timer_bars()
+	_buff_durations()
 	await _team_buffs()
 	await _camera_while_moving()
 	await _touch_scroll()
@@ -615,6 +616,20 @@ func _timer_bars() -> void:
 	check(hero._auras.is_empty(), "no buff, no aura")
 
 
+func _buff_durations() -> void:
+	print("== Buff durations")
+	var count := 0
+	var shortest := 999.0
+	for class_id in ClassData.IDS:
+		for skill in ClassData.pool(class_id):
+			var fx: Dictionary = skill.get("fx", {})
+			if fx.has("buff"):
+				count += 1
+				shortest = minf(shortest, float(fx.buff.secs))
+	check(count >= 20 and shortest >= 60.0, "all %d buff skills last at least 1 minute (shortest %.0f s)" % [count, shortest])
+	check(not ClassData.find_skill(&"warrior", "holy_valor").desc.contains("25 วินาที"), "buff descriptions say 1 minute")
+
+
 func _team_buffs() -> void:
 	print("== Buffs reach the team")
 	await _start(&"warrior")
@@ -644,6 +659,14 @@ func _team_buffs() -> void:
 	check(hero._auras.has("shield") and hero._auras.has("power"), "the hero shows the barrier and the power aura")
 	check(buddy._book.total("def") > 0.0 and buddy._book.total("atk") > 0.0, "the companion gets the defence and attack buff (def +%.2f)" % buddy._book.total("def"))
 	check(buddy._book.auras.has("shield"), "the companion shows the barrier too")
+	var hero_buffs_before := hero._buffs.size()
+	var buddy_buffs_before := buddy._book.buffs.size()
+	hero.cooldowns.clear()
+	Game.profile.mp = int(hero.stats.max_mp)
+	hero.use_skill(0)
+	await _wait(0.8)
+	check(hero._buffs.size() == hero_buffs_before and buddy._book.buffs.size() == buddy_buffs_before, "casting the same buff again refreshes it instead of stacking")
+	check(float(hero.timer_status()[0].total) >= 60.0, "the buff lasts a full minute")
 	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("shield"), "the summon gets the defence buff and shows the barrier")
 	check(buddy._buffed_atk() > float(buddy.stats.atk) * 1.3, "the companion hits harder while buffed (%.0f vs %.0f)" % [buddy._buffed_atk(), float(buddy.stats.atk)])
 	for buff in buddy._book.buffs:

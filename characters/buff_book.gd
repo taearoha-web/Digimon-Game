@@ -14,6 +14,8 @@ func add(data: Dictionary, color: Color, label := "") -> void:
 	buff["until"] = Time.get_ticks_msec() + int(float(buff.get("secs", 10.0)) * 1000.0)
 	buff["name"] = label
 	buff["color"] = color
+	# The same buff cast again refreshes instead of stacking.
+	buffs = buffs.filter(func(b): return String(b.get("name", "")) != label)
 	buffs.append(buff)
 
 
