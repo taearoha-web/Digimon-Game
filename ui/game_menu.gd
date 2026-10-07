@@ -317,8 +317,13 @@ func _build_forge_buttons(item: Dictionary) -> void:
 			var result := Game.enhance_item(item)
 			match result:
 				"ok":
-					Game.say("ตีบวกสำเร็จ! %s" % ItemData.name_of(item), &"success")
+					var new_plus := int(item.get("plus", 0))
+					var g := EnhanceFx.grade(new_plus)
+					var mood: String = ["", "", "เรืองแสงแล้ว!", "ลุกโชนแล้ว!", "ขีดสุด! เปลวเพลิงโอบอาวุธ!"][g] if g >= 2 else ""
+					Game.say("ตีบวกสำเร็จ! %s %s" % [ItemData.name_of(item), mood], &"success")
 					AudioManager.play_sfx(&"level_up")
+					if g >= 2:
+						Game.screen_flash.emit(EnhanceFx.color_of(new_plus), 0.12 + 0.07 * float(g))
 				"fail":
 					Game.say("ตีบวกพลาด... (เสียแค่เหรียญ ไอเทมไม่หาย)", &"warning")
 				_:

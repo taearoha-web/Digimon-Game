@@ -90,9 +90,28 @@ func run() -> void:
 		"timers": await _timers_check()
 		"warp": await _warp_check()
 		"pvp": await _pvp_check()
+		"enhance": await _enhance_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _enhance_check() -> void:
+	Game.dismiss_party()
+	_level(60)
+	var hero: Hero = main.zone.hero
+	hero.global_position = Vector3(-2.0, 0.2, 14.0)
+	main.zone.camera_rig.snap_to_target()
+	main.zone.camera_rig.zoom(2.5)
+	hero.set_facing(PI)
+	main.zone.camera_rig.set_yaw_behind(PI)
+	for plus in [0, 2, 5, 8, 10]:
+		for slot in Game.profile.equip:
+			Game.profile.equip[slot]["plus"] = plus
+		Game.inventory_changed.emit()
+		hero.visual.set_equipment(Game.profile.equip)
+		await _wait(1.3)
+		await _shot("plus_%d" % plus)
 
 
 func _pvp_check() -> void:
