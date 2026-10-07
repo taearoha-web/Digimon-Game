@@ -142,7 +142,7 @@ func _build_lobby() -> void:
 	var list := UIUtil.vbox(8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	list.add_child(_shop_row("หีบเกียร์ตำนาน", "เกียร์เลเวล 100 หรือมีดาว ระดับตำนานขึ้นไป (ลุ้นเทพนิยาย) ของสายอาชีพคุณ", TowerData.COST_GEAR, func(): _buy("gear")))
+	list.add_child(_shop_row("หีบเกียร์ตำนาน", "เกียร์เลเวล 100 หรือมีดาว (สูงสุด 20 ดาว) ระดับตำนานขึ้นไป (ลุ้นเทพนิยาย) ของสายอาชีพคุณ", TowerData.COST_GEAR, func(): _buy("gear")))
 	list.add_child(_shop_row("อัญมณีเม็ดใหญ่", "สุ่มอัญมณีขนาดใหญ่ 1 เม็ด", TowerData.COST_GEM, func(): _buy("gem")))
 	list.add_child(UIUtil.label("สุ่มค่าปีกใหม่ (ชนิดเดิม ค่าสุ่มใหม่ — ผลอาจแย่ลงได้) ราคา %d ผลึก/ครั้ง" % TowerData.COST_REROLL, &"BoldLabel"))
 	_wing_box = UIUtil.vbox(6)

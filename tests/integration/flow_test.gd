@@ -964,7 +964,7 @@ func _star_drops() -> void:
 	print("== Star drops")
 	await _start(&"warrior")
 	Game.profile["level"] = 100
-	Game.paragon()["level"] = 20
+	Game.paragon()["level"] = 8
 	var plain := 0
 	var stars := 0
 	var low := 999
@@ -978,8 +978,19 @@ func _star_drops() -> void:
 			low = mini(low, lv - 100)
 			high = maxi(high, lv - 100)
 	check(plain > 25 and plain < 110 and stars > 290, "about 15%% of star-zone gear is plain Lv.100 (%d / 400)" % plain)
-	check(low >= 21 and high <= 28, "star gear sits just above your paragon level (★%d–★%d at ★20)" % [low, high])
+	check(low >= 9 and high <= 16, "star gear sits just above your paragon level (%d-%d stars at 8)" % [low, high])
 	check(Game.star_gear_level(10) >= 100, "tower floors push the stars higher")
+	Game.paragon()["level"] = 150
+	var top := 0
+	for i in 200:
+		top = maxi(top, Game.star_gear_level(30) - 100)
+	check(top == ItemData.MAX_GEAR_STAR, "gear stars stop at 20 (%d)" % top)
+	var rng_cap := RandomNumberGenerator.new()
+	check(int(ItemData.generate(250, &"warrior", rng_cap, 2, "armor").level) == 120, "no gear is generated above Lv.120")
+	var stale := {"kind": "equip", "level": 180, "stats": {}}
+	Game._repair_item(stale)
+	check(int(stale.level) == 120, "old saves are capped at Lv.120")
+	Game.paragon()["level"] = 8
 	await main.go(&"void", true, true)
 	await _wait(0.5)
 	var zone: Zone = main.zone
