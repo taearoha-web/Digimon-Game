@@ -78,7 +78,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
+		"flags": {}, "boss_kills": {}, "pvp": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -263,7 +263,8 @@ func save_code_roundtrip() -> bool:
 	var code := export_code()
 	if code == "" or not import_code(code):
 		return false
-	return JSON.stringify(profile).length() == before.length()
+	var same := JSON.stringify(profile).length() == before.length()
+	return same
 
 
 ## Which of the 4 save slots (1..4) the current profile belongs to.
@@ -393,6 +394,9 @@ func load_game(from_slot := -1) -> bool:
 	profile = _repair(raw)
 	has_profile = true
 	current_zone = StringName(profile.get("zone", "town"))
+	# A duel is never resumed: leaving mid-fight puts the hero back in the village.
+	if current_zone == &"pvp":
+		current_zone = &"town"
 	_remember_slot()
 	profile_changed.emit()
 	inventory_changed.emit()
@@ -415,7 +419,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	data["level"] = maxi(1, int(data["level"]))
 	if data.get("look") is Dictionary:
 		data["look"] = FaceKit.repair(data["look"])
-	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills"]:
+	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "pvp"]:
 		if not data.get(key) is Dictionary:
 			data[key] = {}
 	if not data.get("inv") is Array:
@@ -437,6 +441,11 @@ func _repair(data: Dictionary) -> Dictionary:
 	data.erase("job")
 	data.erase("job3")
 	data["adv"] = int(data["adv"])
+	for key in data["flags"]:
+		if data["flags"][key] is float:
+			data["flags"][key] = int(data["flags"][key])
+	for key in data["pvp"]:
+		data["pvp"][key] = int(data["pvp"][key])
 	_migrate_skills(data)
 	for item in data.inv:
 		_repair_item(item)
@@ -912,9 +921,17 @@ func quick_potion(kind: String) -> String:
 	return id
 
 
+## True while inside a ranked duel (no potions, no escaping).
+func in_duel() -> bool:
+	return current_zone == &"pvp"
+
+
 func use_potion_at(index: int) -> String:
 	var item: Dictionary = profile["inv"][index]
 	if item.get("kind", "") != "potion":
+		return ""
+	if in_duel():
+		say("ใช้ยาในสนามจัดอันดับไม่ได้", &"warning")
 		return ""
 	var def: Dictionary = ItemData.POTIONS[item.id]
 	var stats := stats_now()
@@ -1185,6 +1202,69 @@ func check_achievements() -> void:
 		achievement_unlocked.emit(String(ach.name))
 		say("ความสำเร็จ: %s — รับรางวัลแล้ว" % ach.name, &"success")
 		mark_dirty()
+
+
+# ---------------------------------------------------------------------------
+# Ranked duels (PvP against AI players)
+# ---------------------------------------------------------------------------
+
+func pvp() -> Dictionary:
+	if not profile.get("pvp") is Dictionary:
+		profile["pvp"] = {}
+	var p: Dictionary = profile["pvp"]
+	for key in ["rp", "wins", "losses", "streak", "best_streak", "peak_rp"]:
+		p[key] = int(p.get(key, 0))
+	return p
+
+
+func pvp_rp() -> int:
+	return int(pvp().rp)
+
+
+## Applies the result of a duel: rank points, gold, EXP and a reward for
+## reaching a new league. Returns everything the result screen shows.
+func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) -> Dictionary:
+	var p := pvp()
+	var before := int(p.rp)
+	var streak := int(p.streak)
+	var delta := PvpData.rp_change(won, timeout, streak)
+	var after := maxi(PvpData.tier_floor(before), before + delta) if delta < 0 else before + delta
+	after = clampi(after, 0, 99999)
+	p["rp"] = after
+	p["peak_rp"] = maxi(int(p.peak_rp), after)
+	if won:
+		p["wins"] = int(p.wins) + 1
+		p["streak"] = streak + 1
+		p["best_streak"] = maxi(int(p.best_streak), int(p.streak))
+		flag_add("pvp_wins")
+	else:
+		p["losses"] = int(p.losses) + 1
+		p["streak"] = 0
+	flag_max("pvp_best_step", PvpData.step(after))
+	var level := int(profile.level)
+	var gold := PvpData.gold_reward(level, before, won)
+	var exp_gain := PvpData.exp_reward(level, before, won)
+	var promoted: bool = int(PvpData.place(PvpData.step(after)).tier) > int(PvpData.place(PvpData.step(before)).tier)
+	var item_name := ""
+	if promoted:
+		var tier := int(PvpData.place(PvpData.step(after)).tier)
+		gold += level * 300 * tier
+		var gear := ItemData.generate(level, class_id(), rng, clampi(1 + tier / 2, 1, 4))
+		if add_item(gear):
+			item_name = ItemData.name_of(gear)
+	add_gold(gold)
+	add_exp(exp_gain)
+	var stats := stats_now()
+	profile["hp"] = stats.max_hp
+	profile["mp"] = stats.max_mp
+	check_achievements()
+	mark_dirty()
+	save()
+	return {
+		"won": won, "timeout": timeout, "opponent": opponent, "opponent_level": int(info.member.level),
+		"opponent_class": String(info.member["class"]), "rp_before": before, "rp_after": after, "delta": after - before,
+		"gold": gold, "exp": exp_gain, "promoted": promoted, "item": item_name, "streak": int(p.streak),
+	}
 
 
 func flag_add(key: String, amount := 1) -> void:

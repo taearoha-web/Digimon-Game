@@ -89,9 +89,41 @@ func run() -> void:
 		"hud": await _hud_check()
 		"timers": await _timers_check()
 		"warp": await _warp_check()
+		"pvp": await _pvp_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _pvp_check() -> void:
+	Game.dismiss_party()
+	_level(int(job) if job != "" else 40)
+	Game.profile["adv"] = 2
+	Game.fill_loadout()
+	Game.pvp()["rp"] = 640
+	await main.go(&"pvp", true, true)
+	await _wait(1.0)
+	var zone: Zone = main.zone
+	await _shot("pvp_intro")
+	var cam := Camera3D.new()
+	zone.add_child(cam)
+	cam.position = Vector3(-6, 24, 52)
+	cam.look_at(Vector3(0, 3, 0))
+	cam.fov = 70
+	cam.make_current()
+	await _wait(0.5)
+	await _shot("pvp_overview")
+	cam.position = Vector3(0, 10, 5)
+	cam.look_at(Vector3(0, 7, -30))
+	await _wait(0.3)
+	await _shot("pvp_stands")
+	zone.camera_rig.camera.make_current()
+	await _wait(4.0)
+	zone.hero.set_auto(true)
+	for i in 6:
+		await _wait(2.2)
+		await _shot("pvp_fight")
+	print("rival hp: ", zone.pvp_match.rival.hp, "/", zone.pvp_match.rival.max_hp, " hero hp: ", Game.profile.hp)
 
 
 func _warp_check() -> void:

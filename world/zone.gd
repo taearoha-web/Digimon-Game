@@ -9,6 +9,8 @@ signal interact_changed(label: String)
 signal npc_interact(role: String)
 signal hero_died()
 signal banner_requested(text: String)
+## A ranked duel ended (result: see Game.pvp_finish).
+signal pvp_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
 const TOWN_RADIUS := 38.0
@@ -21,6 +23,8 @@ const DROP_RATE_GEM := 0.07
 var zone_id: StringName = &"meadow"
 var data: Dictionary = {}
 var is_town := false
+var is_pvp := false
+var pvp_match: PvpMatch
 var hero: Hero
 var camera_rig: ThirdPersonCamera
 var rng := RandomNumberGenerator.new()
@@ -55,13 +59,22 @@ func _ready() -> void:
 			mob.phase_changed.connect(_on_boss_phase))
 	data = ZoneData.get_zone(zone_id)
 	is_town = bool(data.get("safe", false))
+	is_pvp = bool(data.get("pvp", false))
 	if is_town:
 		_build_town()
+	elif is_pvp:
+		_build_pvp()
 	else:
 		_build_field()
 	VfxArt.warm_up()
 	_spawn_hero()
-	_spawn_party()
+	if not is_pvp:
+		_spawn_party()
+	else:
+		pvp_match = PvpMatch.new()
+		pvp_match.setup(self, hero)
+		pvp_match.finished.connect(func(result: Dictionary): pvp_finished.emit(result))
+		add_child(pvp_match)
 	AudioManager.play_music(data.get("music", &"field"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
 	if not is_town:
@@ -95,6 +108,12 @@ func _process(delta: float) -> void:
 # ---------------------------------------------------------------------------
 # Building
 # ---------------------------------------------------------------------------
+
+func _build_pvp() -> void:
+	PvpArena.build(self, rng)
+	_start = Vector3(-PvpArena.SPAWN_X, 0, 0)
+	_make_boundary_walls(PvpArena.RADIUS + 1.5)
+
 
 func _build_field() -> void:
 	var theme: StringName = data.theme
@@ -224,6 +243,7 @@ func _build_town() -> void:
 	_add_npc("skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", Vector3(-8, 0, 10), "Mage")
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
 	_add_npc("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน", Vector3(-3, 0, 12), "Rogue_Hooded")
+	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", Vector3(-3, 0, -17), "Knight")
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", Vector3(4, 0, -14), "Knight")
 	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", Vector3(-12, 0, -2), "Barbarian")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
@@ -268,7 +288,7 @@ func _spawn_hero() -> void:
 	hero.name = "Hero"
 	hero.field = self
 	hero.safe_zone = is_town
-	hero.field_radius = TOWN_RADIUS if is_town else FIELD_RADIUS
+	hero.field_radius = TOWN_RADIUS if is_town else (PvpArena.RADIUS if is_pvp else FIELD_RADIUS)
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":
@@ -288,7 +308,10 @@ func _spawn_hero() -> void:
 	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
 	camera_rig.snap_to_target()
 	hero.camera_rig = camera_rig
-	hero.died.connect(func(): hero_died.emit())
+	# A ranked duel ends through PvpMatch; only a normal death sends the hero home.
+	hero.died.connect(func():
+		if not is_pvp:
+			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
 
@@ -639,6 +662,10 @@ func _on_boss_phase(boss: Mob, _phase: int) -> void:
 
 
 func _on_mob_died(mob: Mob) -> void:
+	if mob is Rival:
+		if is_instance_valid(hero) and hero.target == mob:
+			hero.set_target(null)
+		return
 	_kills += 1
 	var level_gap: int = Game.profile.level - mob.level
 	var exp_scale := 1.0 if level_gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(level_gap - 4))

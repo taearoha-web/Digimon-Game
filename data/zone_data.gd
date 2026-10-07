@@ -145,6 +145,10 @@ const ZONES := {
 		"sky": Color("1a0810"), "ground": Color("2a1a22"), "fog": Color("6a1a2a"), "ambient": Color(0.9, 0.5, 0.55), "sun": Color(1.0, 0.45, 0.5),
 		"path_color": Color("5a2030"), "seed": 25, "prev": &"sky", "next": &"",
 	},
+	&"pvp": {
+		"name": "โคลีเซียมจัดอันดับ", "scene": "field", "level": [10, 100], "music": &"battle", "pvp": true,
+		"tree_density": 0.0, "camps": [], "sky": Color("4d63c8"), "ground": Color("d6c08a"), "prev": &"town", "next": &"",
+	},
 	&"arena": {
 		"name": "สนามประลองกล้าหาญ", "scene": "field", "level": [1, 100], "music": &"field", "theme": &"meadow", "arena": true,
 		"tree_density": 0.15, "camps": [],

@@ -33,6 +33,10 @@ func check(condition: bool, message: String) -> void:
 
 
 func _run() -> void:
+	# `-- pvp` runs only the ranked-duel section (quick iteration).
+	if "pvp" in OS.get_cmdline_user_args():
+		await _pvp_duel()
+		return
 	await _vagabond()
 	await _look()
 	await _storage_and_auto()
@@ -46,6 +50,7 @@ func _run() -> void:
 	await _resume_after_reload()
 	await _save_slots()
 	await _warp_points()
+	await _pvp_duel()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -85,7 +90,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 12, "eleven villagers and the warp crystal")
+	check(town.npcs.size() == 13, "eleven villagers, the warp crystal and the ranked-duel desk")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -632,6 +637,61 @@ func _warp_points() -> void:
 	check(main.zone.zone_id == &"town", "warping back reaches the village")
 
 
+func _pvp_duel() -> void:
+	print("== Ranked duel")
+	check(PvpData.rank_name(0) == "ทองแดง III" and PvpData.rank_name(300) == "เงิน III" and PvpData.rank_name(1600) == "ตำนาน", "rank names follow the ladder")
+	check(PvpData.tier_floor(450) == 300 and PvpData.tier_floor(1550) == 1500, "a loss never drops you out of your league")
+	await _start(&"warrior")
+	Game.profile["level"] = 30
+	Game.fill_loadout()
+	Game.pvp()["rp"] = 350
+	await main.go(&"pvp", true, true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	check(zone.is_pvp and zone.pvp_match != null and zone.pvp_match.rival != null, "the coliseum has a rival")
+	check(zone.companions.is_empty(), "no companions in a duel")
+	var rival: Rival = zone.pvp_match.rival
+	check(rival.level >= 27 and rival.max_hp > 100, "the rival is level matched (Lv.%d, %d HP)" % [rival.level, rival.max_hp])
+	check(not rival.take_hit(50, false), "the rival cannot be hurt during the countdown")
+	Game.profile.inv.append(ItemData.potion("hp_s", 2))
+	Game.profile.hp = 10
+	check(Game.use_potion_at(Game.profile.inv.size() - 1) == "", "no potions in a duel")
+	Game.profile.hp = Game.stats_now().max_hp
+	await _wait(4.8)
+	check(zone.pvp_match.state == "fight", "the fight starts after the countdown")
+	var hs := Game.stats_now()
+	zone.hero._invulnerable_until = Time.get_ticks_msec() + 20000
+	zone.hero.global_position = Vector3(PvpArena.SPAWN_X - 3.0, 0.2, 0.0)
+	for i in 10:
+		await _wait(0.5)
+		Game.profile.hp = Game.stats_now().max_hp
+	check(zone.pvp_match.state == "fight", "the fight is running")
+	Game.profile.hp = Game.stats_now().max_hp
+	rival.hp = 1
+	for i in 30:
+		if rival.take_hit(99999, false):
+			break
+	await _wait(3.2)
+	check(rival.is_dead(), "the rival can be beaten")
+	check(Game.pvp_rp() > 350 and int(Game.pvp().wins) == 1, "a win earns rank points (%d RP)" % Game.pvp_rp())
+	check(main.pvp_screen.is_open, "the result screen opens")
+	main.pvp_screen.close_screen()
+	# A loss.
+	await main.go(&"pvp", true, true)
+	await _wait(5.0)
+	var before := Game.pvp_rp()
+	zone = main.zone
+	zone.hero._invulnerable_until = 0
+	zone.hero.take_damage(9999999.0)
+	await _wait(3.2)
+	check(Game.pvp_rp() < before and int(Game.pvp().losses) == 1, "a loss costs rank points")
+	main.pvp_screen.close_screen()
+	await main.go(&"town", true, true)
+	await _wait(0.5)
+	check(main.zone.is_town and Game.profile.hp > 0, "back in the village alive")
+	check(Game.save_code_roundtrip(), "save code still round-trips after duels")
+
+
 func _timer_bars() -> void:
 	print("== Buff and summon timer bars")
 	await _start(&"archer")
@@ -870,7 +930,7 @@ func _zones() -> void:
 	await _start(&"warrior")
 	Game.add_exp(2000000)
 	for id in ZoneData.ZONES:
-		if id == &"town" or id == &"arena":
+		if id == &"town" or id == &"arena" or id == &"pvp":
 			continue
 		await main.go(id, true)
 		await _wait(0.5)

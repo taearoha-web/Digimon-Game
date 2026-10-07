@@ -85,9 +85,7 @@ func _ready() -> void:
 	shape.position = Vector3(0, capsule.height * 0.5, 0)
 	add_child(shape)
 
-	visual = MonsterVisual.new()
-	add_child(visual)
-	visual.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)), template.get("tint", Color.WHITE))
+	visual = _make_visual()
 	var top := visual.height
 
 	_label = Label3D.new()
@@ -118,6 +116,14 @@ func _ready() -> void:
 	_pick_goal()
 	visual.scale = Vector3.ONE * 0.01
 	create_tween().tween_property(visual, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## The model of this monster (ranked-duel rivals override it with a hero model).
+func _make_visual() -> MonsterVisual:
+	var v := MonsterVisual.new()
+	add_child(v)
+	v.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)), template.get("tint", Color.WHITE))
+	return v
 
 
 func is_dead() -> bool:
@@ -497,6 +503,11 @@ func _die() -> void:
 	VfxKit.flash(get_parent(), hit_point(), Color("ffe9a0"), 2.6 if is_boss else 1.6)
 	VfxKit.sparks(get_parent(), hit_point(), Color("ffe27a"), 30 if is_boss else 14, 5.0, 0.7)
 	died.emit(self)
+	_vanish()
+
+
+## After dying the body shrinks away and the node is freed.
+func _vanish() -> void:
 	var tween := create_tween()
 	tween.tween_interval(1.0)
 	tween.tween_property(visual, "scale", Vector3.ONE * 0.01, 0.4)
