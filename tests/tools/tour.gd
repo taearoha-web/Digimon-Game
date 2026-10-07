@@ -91,9 +91,39 @@ func run() -> void:
 		"warp": await _warp_check()
 		"pvp": await _pvp_check()
 		"enhance": await _enhance_check()
+		"wings": await _wings_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _wings_check() -> void:
+	Game.dismiss_party()
+	_level(100)
+	var hero: Hero = main.zone.hero
+	hero.global_position = Vector3(-2.0, 0.2, 14.0)
+	main.zone.camera_rig.snap_to_target()
+	main.zone.camera_rig.zoom(2.5)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var cam := Camera3D.new()
+	main.zone.add_child(cam)
+	cam.fov = 45
+	hero.set_facing(0.0)
+	for kind in ItemData.WING_KINDS:
+		Game.profile.equip["wings"] = ItemData.wings(rng, kind)
+		hero.refresh_stats()
+		hero.visual.set_equipment(Game.profile.equip)
+		await _wait(0.8)
+		var fwd := Vector3(sin(hero.visual.rotation.y), 0, cos(hero.visual.rotation.y))
+		var base := hero.global_position + Vector3(0, 1.1, 0)
+		for view in ["back", "side"]:
+			var off := -fwd * 4.2 + Vector3(0, 0.8, 0) if view == "back" else fwd.cross(Vector3.UP) * 4.2 + Vector3(0, 0.8, 0)
+			cam.global_position = base + off
+			cam.look_at(base, Vector3.UP)
+			cam.make_current()
+			await _wait(0.4)
+			await _shot("wings_%s_%s" % [kind, view])
 
 
 func _enhance_check() -> void:

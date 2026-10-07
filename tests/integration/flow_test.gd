@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "wings" in OS.get_cmdline_user_args():
+		await _wings()
+		return
 	await _vagabond()
 	await _look()
 	await _storage_and_auto()
@@ -51,6 +54,7 @@ func _run() -> void:
 	await _save_slots()
 	await _warp_points()
 	await _pvp_duel()
+	await _wings()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -690,6 +694,84 @@ func _pvp_duel() -> void:
 	await _wait(0.5)
 	check(main.zone.is_town and Game.profile.hp > 0, "back in the village alive")
 	check(Game.save_code_roundtrip(), "save code still round-trips after duels")
+
+
+func _wings() -> void:
+	print("== Wings")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var seen := {}
+	var values: Array[int] = []
+	for i in 80:
+		var w := ItemData.wings(rng)
+		seen[w.wing] = true
+		if i == 0:
+			check(w.slot == "wings" and int(w.level) == 100 and int(w.rarity) >= 2, "wings are a Lv.100 item")
+		var info: Dictionary = ItemData.WING_INFO[w.wing]
+		var v := int(w.stats[info.stat])
+		values.append(v)
+		if v < int(float(info.base) * 0.74) or v > int(float(info.base) * 1.26):
+			check(false, "wing roll out of range: %s %d" % [w.wing, v])
+	check(seen.size() == 4, "all four wing types drop")
+	check(values.max() > values.min() + 20, "wing stats are random (%d..%d)" % [values.min(), values.max()])
+	# Effect on stats: matk only helps int classes.
+	await _start(&"mage")
+	Game.profile["level"] = 100
+	var before_mage := float(Game.stats_now().atk)
+	var wing_m := ItemData.wings(rng, "matk")
+	Game.profile.inv.append(wing_m)
+	check(Game.equip_from_bag(Game.profile.inv.size() - 1), "level 100 can wear wings")
+	check(float(Game.stats_now().atk) >= before_mage + float(wing_m.stats.matk) - 1.0, "magic wings add attack for a mage")
+	await _start(&"warrior")
+	Game.profile["level"] = 100
+	var before_w := float(Game.stats_now().atk)
+	var wing_a := ItemData.wings(rng, "atk")
+	Game.profile.inv.append(wing_a)
+	Game.equip_from_bag(Game.profile.inv.size() - 1)
+	check(float(Game.stats_now().atk) >= before_w + float(wing_a.stats.atk) - 1.0, "attack wings add attack")
+	var wing_hp := ItemData.wings(rng, "hp")
+	var hp_before: int = Game.stats_now().max_hp
+	Game.profile.inv.append(wing_hp)
+	Game.equip_from_bag(Game.profile.inv.size() - 1)
+	check(int(Game.stats_now().max_hp) > hp_before + 1000, "life wings add lots of HP")
+	check(Game.profile.equip.wings.wing == "hp", "the wing slot holds the new pair")
+	Game.profile["level"] = 50
+	Game.profile.inv.append(ItemData.wings(rng, "def"))
+	check(not Game.equip_from_bag(Game.profile.inv.size() - 1), "wings need level 100")
+	# The Lv.100 boss: drops and the 1-minute respawn.
+	check(float(ZoneData.get_zone(&"abyss").boss.respawn) == 60.0, "the Lv.100 boss comes back 1 minute after dying")
+	Game.profile["level"] = 100
+	Game.add_exp(0)
+	await main.go(&"abyss", true)
+	await _wait(0.5)
+	var zone: Zone = main.zone
+	var boss := Mob.new()
+	boss.setup(&"abyss_dragon", 100, Vector3(0, 0, 0), zone.hero)
+	zone.add_child(boss)
+	var found := 0
+	for i in 60:
+		zone._drop_loot(boss)
+	for child in zone.get_children():
+		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings":
+			found += 1
+	check(found >= 6 and found <= 40, "the Lv.100 boss drops wings about a third of the time (%d / 60)" % found)
+	var lowboss := Mob.new()
+	lowboss.setup(&"magma_dragon", 42, Vector3(0, 0, 0), zone.hero)
+	zone.add_child(lowboss)
+	var before_count := 0
+	for child in zone.get_children():
+		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings":
+			before_count += 1
+	for i in 30:
+		zone._drop_loot(lowboss)
+	var after_count := 0
+	for child in zone.get_children():
+		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings":
+			after_count += 1
+	check(after_count == before_count, "other bosses never drop wings")
+	Game.fill_loadout()
+	Game.save_code_roundtrip()
+	check(Game.save_code_roundtrip(), "wings survive the save code")
 
 
 func _timer_bars() -> void:

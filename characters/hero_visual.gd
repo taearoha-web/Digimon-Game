@@ -124,6 +124,14 @@ func refresh() -> void:
 		_add_part(preset.extra[0], preset.extra[1])
 	if armor != null:
 		_wear_flourish(ItemLook.tier_of(armor))
+	var wings: Variant = equip.get("wings")
+	if wings is Dictionary:
+		var back := BoneAttachment3D.new()
+		back.name = "Wings"
+		back.bone_name = "chest"
+		_skeleton.add_child(back)
+		back.add_child(GearKit.wings(String(wings.get("wing", "atk")), int(wings.get("plus", 0))))
+		_body_nodes.append(back)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)

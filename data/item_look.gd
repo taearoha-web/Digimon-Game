@@ -80,6 +80,8 @@ static func look_of(item: Dictionary) -> String:
 			return "armor_%s_%d" % [ARMOR_STYLES[tier][_variant(item)], tier]
 		"helm":
 			return "helm_%d" % (tier * 2 + _variant(item))
+		"wings":
+			return "wings_%s" % String(item.get("wing", "atk"))
 		_:
 			return "%s_%d" % [slot, tier]
 
@@ -110,7 +112,46 @@ static func icon(item: Dictionary) -> Texture2D:
 	var id := look_of(item)
 	if id == "":
 		return null
+	if id.begins_with("wings_"):
+		return wing_icon(id.trim_prefix("wings_"))
 	return icon_for_id(id)
+
+
+static var _wing_icons := {}
+
+
+## A pair of wings drawn into a 128px icon (no art file needed).
+static func wing_icon(kind: String) -> Texture2D:
+	if _wing_icons.has(kind):
+		return _wing_icons[kind]
+	var info: Dictionary = ItemData.WING_INFO.get(kind, ItemData.WING_INFO["atk"])
+	var main: Color = info.color
+	var img := Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	var count := 5 if kind != "def" else 6
+	for side in [-1.0, 1.0]:
+		for k in count:
+			var angle := deg_to_rad(18.0 + k * 15.0)
+			var length := 52.0 * (0.62 + 0.38 * float(k) / float(count - 1))
+			var tint: Color = main.lightened(0.35) if k % 2 == 0 else main.darkened(0.15)
+			var steps := int(length)
+			for i in steps:
+				var t := float(i) / float(steps)
+				var x: float = 64.0 + side * (sin(angle) * length * t + 5.0)
+				var y: float = 84.0 - cos(angle) * length * t
+				var radius := (6.5 if kind == "def" else 5.0) * (1.0 - t * 0.7)
+				_stamp(img, x, y, radius, tint.lerp(Color.WHITE, t * 0.2))
+	var tex := ImageTexture.create_from_image(img)
+	_wing_icons[kind] = tex
+	return tex
+
+
+static func _stamp(img: Image, cx: float, cy: float, radius: float, color: Color) -> void:
+	for yy in range(int(cy - radius), int(cy + radius) + 1):
+		for xx in range(int(cx - radius), int(cx + radius) + 1):
+			if xx < 0 or yy < 0 or xx >= 128 or yy >= 128:
+				continue
+			if Vector2(xx - cx, yy - cy).length() <= radius:
+				img.set_pixel(xx, yy, color)
 
 
 static func icon_for_id(id: String) -> Texture2D:
