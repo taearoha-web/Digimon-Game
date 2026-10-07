@@ -72,9 +72,23 @@ func run() -> void:
 		"skills": await _skills()
 		"line": await _line()
 		"zones": await _zones()
+		"hud": await _hud_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _hud_check() -> void:
+	Game.dismiss_party()
+	_level(100)
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	await main.go(&"meadow", true)
+	await _wait(1.0)
+	await _shot("hud_field")
+	main.zone.hero.cooldowns[Game.class_data().skills[2].id] = 5.0
+	await _wait(0.4)
+	await _shot("hud_cooldown")
 
 
 func _line() -> void:

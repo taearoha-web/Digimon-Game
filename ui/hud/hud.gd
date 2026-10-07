@@ -11,10 +11,11 @@ extends CanvasLayer
 signal menu_requested(tab: StringName)
 signal interact_pressed()
 
-const ARC_RADIUS := 158.0
-## Two arcs of four around the attack button: the inner one is slots 1-4, the outer one 5-8.
-const ARC_ANGLES := [172.0, 142.0, 112.0, 82.0, 160.0, 132.0, 104.0, 76.0]
-const OUTER_ARC_RADIUS := 262.0
+## Bottom row, left of the big attack button: the eight skills 1..8 in a line.
+const SKILL_SPACING := 80.0
+const SKILL_ROW_Y := -86.0
+## Right-hand column above the attack button: HP potion, MP potion, auto, focus.
+const SIDE_SPACING := 64.0
 const ATTACK_RADIUS := 62.0
 
 var hero: Hero
@@ -274,8 +275,8 @@ func _build_tracker(frame: Control) -> void:
 	_tracker = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
 	_tracker.anchor_left = 1.0
 	_tracker.anchor_right = 1.0
-	_tracker.offset_left = -330
-	_tracker.offset_right = -10
+	_tracker.offset_left = -480
+	_tracker.offset_right = -130
 	_tracker.offset_top = 278
 	_tracker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tracker.add_theme_constant_override("outline_size", 6)
@@ -526,31 +527,33 @@ func _build_action_buttons(frame: Control) -> void:
 	frame.add_child(attack_button)
 
 	var center := Vector2(-30 - ATTACK_RADIUS, -30 - ATTACK_RADIUS)
+	var first_x := center.x - ATTACK_RADIUS - 28.0 - 34.0
 	for i in ClassData.SLOTS:
 		var slot := SkillSlot.new()
-		var angle := deg_to_rad(float(ARC_ANGLES[i]))
-		var offset := Vector2(cos(angle), -sin(angle)) * (ARC_RADIUS if i < 4 else OUTER_ARC_RADIUS)
-		_place_corner(slot, center + offset + Vector2(slot.radius, slot.radius), slot.radius)
+		slot.name_drop = float(i % 2) * 15.0
+		var x := first_x - float(ClassData.SLOTS - 1 - i) * SKILL_SPACING
+		_place_corner(slot, Vector2(x, SKILL_ROW_Y) + Vector2(slot.radius, slot.radius), slot.radius)
 		slot.pressed.connect(func(): if hero: hero.use_skill(i))
 		frame.add_child(slot)
 		skill_slots.append(slot)
 
-	hp_potion = _small_button("res://assets/icons/ui/heart_potion.svg", Color("ff5a6e"), center + Vector2(-230, 50))
+	var side_x := center.x
+	var side_y := center.y - ATTACK_RADIUS - 24.0 - 28.0
+	hp_potion = _small_button("res://assets/icons/ui/heart_potion.svg", Color("ff5a6e"), Vector2(side_x, side_y))
 	hp_potion.pressed.connect(func(): if hero: hero.use_potion("hp"))
 	frame.add_child(hp_potion)
-	mp_potion = _small_button("res://assets/icons/ui/mana_potion.svg", Color("5a9bff"), center + Vector2(-298, 46))
+	mp_potion = _small_button("res://assets/icons/ui/mana_potion.svg", Color("5a9bff"), Vector2(side_x, side_y - SIDE_SPACING))
 	mp_potion.pressed.connect(func(): if hero: hero.use_potion("mp"))
 	frame.add_child(mp_potion)
-	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.DANGER, center + Vector2(-366, 40))
-	target_button.pressed.connect(func(): if hero: hero.cycle_target())
-	frame.add_child(target_button)
-
-	auto_button = _small_button("", Color("5affc0"), center + Vector2(-434, 34))
+	auto_button = _small_button("", Color("5affc0"), Vector2(side_x, side_y - SIDE_SPACING * 2.0))
 	auto_button.toggle_mode = true
 	auto_button.text = "ออโต้"
 	auto_button.font_size_override = 18
 	auto_button.pressed.connect(func(): if hero: hero.toggle_auto())
 	frame.add_child(auto_button)
+	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.DANGER, Vector2(side_x, side_y - SIDE_SPACING * 3.0))
+	target_button.pressed.connect(func(): if hero: hero.cycle_target())
+	frame.add_child(target_button)
 
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0

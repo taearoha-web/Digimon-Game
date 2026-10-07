@@ -12,6 +12,8 @@ var unlocked := true
 var rank := 1
 var queued := false
 var show_name := true
+## Extra pixels the name is pushed down (neighbours in a row alternate so names never overlap).
+var name_drop := 0.0
 var cost := 0
 
 
@@ -78,7 +80,7 @@ func _draw() -> void:
 	else:
 		_text("Lv.%d" % int(skill.level), c + Vector2(0, radius * 0.52), 15, Color(1, 0.85, 0.5))
 	if show_name and _font:
-		_text(String(skill.name), c + Vector2(0, radius + 14.0), 13, Color(1, 1, 1, 0.95 if ready else 0.65))
+		_text(String(skill.name), c + Vector2(0, radius + 14.0 + name_drop), 13, Color(1, 1, 1, 0.95 if ready else 0.65))
 
 
 ## One drawing per skill icon key; returns false for unknown keys (the shape glyph is used then).
