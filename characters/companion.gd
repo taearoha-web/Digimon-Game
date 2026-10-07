@@ -577,7 +577,7 @@ func _apply_self(skill: Dictionary) -> void:
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
-		hero.receive_buff(buff, color, String(skill.name))
+		hero.receive_buff(buff, color, String(skill.name), true)
 		_buff_until = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
 		_buff_mult = 1.0 + float(buff.get("atk", 0.0))
 		VfxKit.aura(field, global_position, color)

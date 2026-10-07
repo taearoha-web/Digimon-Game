@@ -73,6 +73,7 @@ func run() -> void:
 		"line": await _line()
 		"zones": await _zones()
 		"hud": await _hud_check()
+		"timers": await _timers_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
@@ -89,6 +90,40 @@ func _hud_check() -> void:
 	main.zone.hero.cooldowns[Game.class_data().skills[2].id] = 5.0
 	await _wait(0.4)
 	await _shot("hud_cooldown")
+
+
+func _timers_check() -> void:
+	Game.dismiss_party()
+	_level(100)
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	await main.go(&"meadow", true)
+	await _wait(1.0)
+	var hero: Hero = main.zone.hero
+	hero.global_position = Vector3(-18, 0.2, 2)
+	main.zone.camera_rig.snap_to_target()
+	await _wait(0.5)
+	main.zone.camera_rig.zoom(2.0)
+	var only := job
+	if only == "" or only == "shield":
+		hero.receive_buff({"def": 0.8, "secs": 25.0}, Color("ffe9a0"), "Drastic Spirit", true)
+	if only == "" or only == "power":
+		hero.receive_buff({"atk": 0.55, "secs": 18.0}, Color("ff4a3a"), "Berserker")
+	if only == "" or only == "wind":
+		hero.receive_buff({"speed": 0.3, "secs": 20.0}, Color("7affd0"), "Swift Axe")
+	if only == "" or only == "spark":
+		hero.receive_buff({"crit": 0.15, "secs": 25.0}, Color("ffd27a"), "Scout Hawk")
+	if only == "" or only == "summon":
+		var wolf := Summon.new()
+		wolf.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 2, "secs": 180.0, "interval": 0.9}, 3.0, 0, 2, 2)
+		main.zone.add_child(wolf)
+		hero._summons.append(wolf)
+		wolf.life = 120.0
+	await _wait(5.0)
+	await _shot("timers_full")
+	hero._buffs[0]["until"] = Time.get_ticks_msec() + 2500
+	await _wait(0.4)
+	await _shot("timers_low")
 
 
 func _line() -> void:

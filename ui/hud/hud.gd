@@ -44,6 +44,7 @@ var _badge: Label
 var _badge_panel: PanelContainer
 var _target_panel: PanelContainer
 var _boss_panel: PanelContainer
+var _timers: TimerBars
 var _tracker: Label
 var _tracker_timer := 0.0
 var _boss_name: Label
@@ -200,6 +201,7 @@ func _process(delta: float) -> void:
 	_update_target_frame()
 	_update_boss_bar()
 	_update_tracker(delta)
+	_update_timers(delta)
 
 
 func _update_skills() -> void:
@@ -226,6 +228,15 @@ func _refresh_target() -> void:
 	if _target_panel.visible:
 		_target_name.text = "Lv.%d %s" % [mob.level, mob.template.name]
 		_target_name.add_theme_color_override("font_color", Color("ffd84a") if mob.is_boss else Color.WHITE)
+
+
+## Buff / summon countdown chips at the top centre (pushed below the boss bar when it shows).
+func _update_timers(delta: float) -> void:
+	_timers.offset_top = 92.0 if _boss_panel.visible else 6.0
+	if hero == null or not is_instance_valid(hero) or zone == null or zone.is_town:
+		_timers.update_entries([], delta)
+		return
+	_timers.update_entries(hero.timer_status(), delta)
 
 
 ## Wide bar at the top while a boss that noticed the hero is alive nearby.
@@ -286,6 +297,11 @@ func _build_tracker(frame: Control) -> void:
 
 func _build_boss_bar(frame: Control) -> void:
 	_build_tracker(frame)
+	_timers = TimerBars.new()
+	_timers.anchor_left = 0.5
+	_timers.anchor_right = 0.5
+	_timers.offset_top = 8
+	frame.add_child(_timers)
 	_boss_panel = UIUtil.panel(&"HudPanel")
 	_boss_panel.anchor_left = 0.3
 	_boss_panel.anchor_right = 0.7
