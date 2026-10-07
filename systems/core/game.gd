@@ -486,6 +486,9 @@ func _migrate_skills(data: Dictionary) -> void:
 
 
 func _repair_item(item: Dictionary) -> void:
+	# Older saves may hold gear above the star cap.
+	if item.has("level") and int(item.level) > ItemData.MAX_GEAR_LEVEL:
+		item["level"] = ItemData.MAX_GEAR_LEVEL
 	for key in ["count", "rarity", "level", "price", "plus", "sockets"]:
 		if item.has(key):
 			item[key] = int(item[key])
@@ -809,7 +812,7 @@ func star_gear_level(bonus := 0) -> int:
 	if rng.randf() < 0.15:
 		return MAX_LEVEL
 	var star := int(paragon().level) + rng.randi_range(1, 8) + bonus
-	return MAX_LEVEL + clampi(star, 1, PARAGON_MAX)
+	return MAX_LEVEL + clampi(star, 1, ItemData.MAX_GEAR_STAR)
 
 
 func paragon_spend(key: String) -> bool:

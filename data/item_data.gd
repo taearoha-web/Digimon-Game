@@ -20,6 +20,9 @@ const WING_INFO := {
 	"matk": {"name": "ปีกคริสตัลจันทรา", "stat": "matk", "base": 210, "second": "mp", "color": Color("9a6bff")},
 }
 const WING_DROP_LEVEL := 100
+## Gear stars stop at 20 (Lv.100 + 20 = Lv.120), so gear chasing has an end.
+const MAX_GEAR_STAR := 20
+const MAX_GEAR_LEVEL := 100 + MAX_GEAR_STAR
 const RARITY_NAMES := ["ธรรมดา", "ดี", "หายาก", "ในตำนาน", "เทพนิยาย"]
 const RARITY_COLORS := [Color("e6ecff"), Color("5ab8ff"), Color("ffc93c"), Color("c46bff"), Color("ff4a5e")]
 const RARITY_ADJ := ["", "ชั้นดี", "ล้ำค่า", "แห่งตำนาน", "แห่งเทพนิยาย"]
@@ -151,7 +154,7 @@ static func roll_rarity(rng: RandomNumberGenerator, boost := 0.0) -> int:
 
 
 static func generate(level: int, class_id: StringName, rng: RandomNumberGenerator, rarity := -1, slot := "") -> Dictionary:
-	level = maxi(1, level)
+	level = clampi(level, 1, MAX_GEAR_LEVEL)
 	if slot == "":
 		var weights := [28.0, 26.0, 14.0, 14.0, 9.0, 9.0]
 		var roll := rng.randf() * 100.0
