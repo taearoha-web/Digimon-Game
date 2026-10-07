@@ -150,7 +150,7 @@ const ZONES := {
 		"tree_density": 0.0, "camps": [], "sky": Color("4d63c8"), "ground": Color("d6c08a"), "prev": &"town", "next": &"",
 	},
 	&"arena": {
-		"name": "สนามประลองกล้าหาญ", "scene": "field", "level": [1, 100], "music": &"field", "theme": &"meadow", "arena": true,
+		"name": "สนามประลองกล้าหาญ", "scene": "field", "level": [1, 100], "music": &"battle", "theme": &"meadow", "arena": true,
 		"tree_density": 0.15, "camps": [],
 		"sky": Color("9ad0ff"), "ground": Color("b7a874"), "path_color": Color("8a7a52"), "seed": 12, "prev": &"town", "next": &"",
 	},
