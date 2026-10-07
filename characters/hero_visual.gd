@@ -108,11 +108,15 @@ func refresh() -> void:
 		cape = [outfit_style, String(starter[3])] if String(starter[3]) != "" else null
 	var glb: String = OUTFIT_GLB[outfit_style]
 	var boots: Variant = equip.get("boots")
+	var armor_nodes: Array = []
+	var boot_nodes: Array = []
 	for piece in OUTFIT_PARTS:
 		var piece_tint := outfit_tint
 		if boots != null and piece.begins_with("Leg"):
 			piece_tint *= ItemLook.boots_tint(boots)
 		var part := _add_part(glb, "%s_%s" % [glb, piece], piece_tint)
+		if part != null:
+			(boot_nodes if piece.begins_with("Leg") else armor_nodes).append(part)
 		if not look.is_empty() and part is MeshInstance3D:
 			_reskin(part as MeshInstance3D, piece_tint)
 	# Head, hat, cape
@@ -124,6 +128,9 @@ func refresh() -> void:
 		_add_part(preset.extra[0], preset.extra[1])
 	if armor != null:
 		_wear_flourish(ItemLook.tier_of(armor))
+		var flourish := _body_nodes[_body_nodes.size() - 1] if not _body_nodes.is_empty() and ItemLook.tier_of(armor) >= 2 else null
+		if flourish != null:
+			armor_nodes.append(flourish)
 	var wings: Variant = equip.get("wings")
 	if wings is Dictionary:
 		var back := BoneAttachment3D.new()
@@ -132,15 +139,30 @@ func refresh() -> void:
 		_skeleton.add_child(back)
 		back.add_child(GearKit.wings(String(wings.get("wing", "atk")), int(wings.get("plus", 0))))
 		_body_nodes.append(back)
+		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), Vector3(0, 1.25, -0.55), 0.5)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)
 	if helm != null:
 		var hat := ItemLook.helm_look(helm)
-		_wear_hat(hat)
+		var before_count := _body_nodes.size()
+		var worn_part: Node = _wear_hat(hat)
+		var hat_nodes: Array = []
+		if worn_part != null:
+			hat_nodes.append(worn_part)
+		elif _body_nodes.size() > before_count:
+			hat_nodes.append(_body_nodes[_body_nodes.size() - 1])
+		EnhanceFx.glow_piece(self, hat_nodes, int(helm.get("plus", 0)), Vector3(0, 1.85, 0), 0.25)
 	elif preset.has("hat") and look.is_empty():
 		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
+	var cuff_start := _body_nodes.size()
 	_wear_trinkets()
+	if boots != null:
+		for n in _body_nodes.slice(cuff_start):
+			if n is BoneAttachment3D and (n as BoneAttachment3D).name == "Boots":
+				boot_nodes.append(n)
+	EnhanceFx.glow_piece(self, armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.0, 0), 0.4)
+	EnhanceFx.glow_piece(self, boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.25, 0), 0.4)
 	_hold_gear()
 	_polish()
 
@@ -338,11 +360,11 @@ func _add_custom_head(with_hair: bool) -> void:
 	_body_nodes.append(attach)
 
 
-func _wear_hat(hat: Dictionary) -> void:
+func _wear_hat(hat: Dictionary) -> Node:
 	if hat.has("part"):
 		var worn := _add_part(hat.part[0], hat.part[1], hat.tint)
 		_lift_hat(worn)
-		return
+		return worn
 	var attach := BoneAttachment3D.new()
 	attach.name = "Hat"
 	attach.bone_name = "head"
@@ -351,6 +373,7 @@ func _wear_hat(hat: Dictionary) -> void:
 	attach.add_child(model_hat)
 	_lift_hat(model_hat)
 	_body_nodes.append(attach)
+	return null
 
 
 ## The custom head is a little taller than the stock KayKit head: lift hats so

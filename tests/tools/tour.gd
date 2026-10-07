@@ -135,9 +135,15 @@ func _enhance_check() -> void:
 	main.zone.camera_rig.zoom(2.5)
 	hero.set_facing(PI)
 	main.zone.camera_rig.set_yaw_behind(PI)
+	var gear_rng := RandomNumberGenerator.new()
+	gear_rng.seed = 3
+	for slot in ["armor", "helm", "boots", "ring", "amulet"]:
+		Game.profile.equip[slot] = ItemData.generate(60, Game.class_id(), gear_rng, 2, slot)
+	Game.profile.equip["wings"] = ItemData.wings(gear_rng, "hp")
 	for plus in [0, 2, 5, 8, 10]:
 		for slot in Game.profile.equip:
-			Game.profile.equip[slot]["plus"] = plus
+			if not (slot in EnhanceFx.FIXED_SLOTS):
+				Game.profile.equip[slot]["plus"] = plus
 		Game.inventory_changed.emit()
 		hero.visual.set_equipment(Game.profile.equip)
 		await _wait(1.3)

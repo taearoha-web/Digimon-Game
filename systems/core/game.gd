@@ -827,6 +827,8 @@ func add_item(item: Dictionary) -> bool:
 func enhance_item(item: Dictionary) -> String:
 	if item.get("kind", "") != "equip":
 		return "ไอเทมนี้ตีบวกไม่ได้"
+	if not EnhanceFx.can_enhance(item):
+		return "แหวนกับสร้อยตีบวกไม่ได้"
 	var plus := int(item.get("plus", 0))
 	if plus >= ItemData.MAX_PLUS:
 		return "บวกสูงสุดแล้ว"

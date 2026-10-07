@@ -1041,6 +1041,10 @@ func _items() -> void:
 		Game.enhance_item(sword)
 		tries += 1
 	check(int(sword.plus) == 3 and Game.stats_now().atk > atk0, "forge raises +N and the attack stat (+%d)" % int(sword.plus))
+	var ring := ItemData.generate(20, &"warrior", rng, 1, "ring")
+	var amulet := ItemData.generate(20, &"warrior", rng, 1, "amulet")
+	check(Game.enhance_item(ring) != "ok" and Game.enhance_item(amulet) != "ok" and int(ring.plus) == 0 and int(amulet.plus) == 0, "rings and amulets cannot be enhanced")
+	check(Game.enhance_item(ItemData.generate(20, &"warrior", rng, 1, "boots")) in ["ok", "fail"], "boots can be enhanced")
 	var gold: int = Game.profile.gold
 	Game.profile["inv"].append(ItemData.gem("ruby", 2, 2))
 	var atk1: float = Game.stats_now().atk
