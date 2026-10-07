@@ -100,6 +100,10 @@ func _timers_check() -> void:
 	await main.go(&"meadow", true)
 	await _wait(1.0)
 	var hero: Hero = main.zone.hero
+	Game.profile["look"]["hair_color"] = 1
+	Game.profile["look"]["hair"] = 5
+	hero.visual.look = Game.profile["look"]
+	hero.visual.refresh()
 	hero.global_position = Vector3(-18, 0.2, 2)
 	main.zone.camera_rig.snap_to_target()
 	await _wait(0.5)

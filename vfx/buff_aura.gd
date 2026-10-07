@@ -27,11 +27,59 @@ void fragment() {
 static var _shield_shader: Shader
 
 var kind := "shield"
+## Height of the character it surrounds (feet to top of hair/hat); sizes the barrier.
+var body_top := 2.8
 var color := Color("5aff9a")
 var _age := 0.0
 var _spin: Array[Node3D] = []
 var _body: Node3D
+var _base_scale := Vector3.ONE
 var _material: ShaderMaterial
+
+
+## Keeps the aura nodes of [param host] in step with [param buffs] (dictionaries
+## with until / def / atk / speed / crit / color): defence = barrier, attack =
+## power aura, speed = wind rings, crit = sparkles. [param top] is a Callable
+## returning the body height, used only when an aura is created.
+static func sync(host: Node3D, auras: Dictionary, buffs: Array, now: int, alive: bool, top: Callable) -> void:
+	var wanted := {}
+	if alive:
+		for buff in buffs:
+			if int(buff.until) <= now:
+				continue
+			var color: Color = buff.get("color", Color("ffd84a"))
+			if float(buff.get("def", 0.0)) > 0.0:
+				wanted["shield"] = Color("5aff9a").lerp(color, 0.3)
+			if float(buff.get("atk", 0.0)) > 0.0:
+				wanted["power"] = color
+			if float(buff.get("speed", 0.0)) > 0.0:
+				wanted["wind"] = color
+			if float(buff.get("crit", 0.0)) > 0.0:
+				wanted["spark"] = color
+	for kind in wanted:
+		if not auras.has(kind) or not is_instance_valid(auras[kind]):
+			var aura := BuffAura.new()
+			aura.setup(kind, wanted[kind])
+			aura.body_top = float(top.call())
+			host.add_child(aura)
+			auras[kind] = aura
+	for kind in auras.keys():
+		if not wanted.has(kind):
+			if is_instance_valid(auras[kind]):
+				(auras[kind] as Node).queue_free()
+			auras.erase(kind)
+
+
+## Height from the feet to the highest point of a character's meshes (hair, hat...).
+static func measure_top(root: Node, host: Node3D) -> float:
+	var top := 2.0
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null or mi.get_parent() is BuffAura or not mi.is_inside_tree():
+			continue
+		var box := mi.global_transform * mi.get_aabb()
+		top = maxf(top, box.end.y - host.global_position.y)
+	return clampf(top, 2.0, 4.5)
 
 
 func setup(p_kind: String, p_color: Color) -> void:
@@ -56,7 +104,7 @@ func _process(delta: float) -> void:
 	if _material:
 		_material.set_shader_parameter("strength", 0.9 + 0.12 * sin(_age * 3.0))
 	if kind == "shield" and _body:
-		_body.scale = Vector3(1.0, 1.0, 1.0) * (1.0 + 0.02 * sin(_age * 3.0))
+		_body.scale = _base_scale * (1.0 + 0.02 * sin(_age * 3.0))
 
 
 func _build_shield() -> void:
@@ -75,12 +123,15 @@ func _build_shield() -> void:
 	mi.mesh = sphere
 	mi.material_override = _material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.scale = Vector3(0.95, 1.05, 0.95)
-	mi.position = Vector3(0, 0.95, 0)
+	# The hero measures ~2.8 m with its big head: the bubble runs from below the soles to above the hair.
+	var half := body_top * 0.5 + 0.45
+	mi.scale = Vector3(half * 0.9, half, half * 0.9)
+	mi.position = Vector3(0, body_top * 0.5, 0)
 	add_child(mi)
 	_body = mi
+	_base_scale = mi.scale
 	# A glowing base ring where the bubble meets the ground.
-	_ring(Vector3(0, 0.06, 0), 0.95, color, 0.7, 1.4)
+	_ring(Vector3(0, 0.06, 0), half * 0.8, color, 0.7, 1.4)
 
 
 func _build_power() -> void:

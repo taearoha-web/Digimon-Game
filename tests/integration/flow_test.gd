@@ -45,6 +45,7 @@ func _run() -> void:
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _resume_after_reload()
 	await _timer_bars()
+	await _team_buffs()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -594,6 +595,43 @@ func _timer_bars() -> void:
 	hero._buffs.clear()
 	await _wait(0.3)
 	check(hero._auras.is_empty(), "no buff, no aura")
+
+
+func _team_buffs() -> void:
+	print("== Buffs reach the team")
+	await _start(&"warrior")
+	await main.go(&"meadow", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	var hero: Hero = zone.hero
+	for node in get_tree().get_nodes_in_group("mobs"):
+		node.queue_free()
+	Game.profile["level"] = 100
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.profile.mp = 99999
+	var buddy: Companion = zone.companions[0]
+	var wolf := Summon.new()
+	wolf.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 180.0, "interval": 0.9}, 2.0, 0, 1, 1)
+	zone.add_child(wolf)
+	hero._summons.append(wolf)
+	await _wait(0.4)
+	var holy := ClassData.find_skill(&"warrior", "holy_valor")
+	check(Game.equip_skill("holy_valor", 0), "a buff skill can be put on the bar")
+	hero.cooldowns.clear()
+	hero.refresh_stats()
+	Game.profile.mp = int(hero.stats.max_mp)
+	check(hero.use_skill(0) == "", "the buff skill is cast")
+	await _wait(0.8)
+	check(hero._auras.has("shield") and hero._auras.has("power"), "the hero shows the barrier and the power aura")
+	check(buddy._book.total("def") > 0.0 and buddy._book.total("atk") > 0.0, "the companion gets the defence and attack buff (def +%.2f)" % buddy._book.total("def"))
+	check(buddy._book.auras.has("shield"), "the companion shows the barrier too")
+	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("shield"), "the summon gets the defence buff and shows the barrier")
+	check(buddy._buffed_atk() > float(buddy.stats.atk) * 1.3, "the companion hits harder while buffed (%.0f vs %.0f)" % [buddy._buffed_atk(), float(buddy.stats.atk)])
+	for buff in buddy._book.buffs:
+		buff["until"] = Time.get_ticks_msec() + 200
+	await _wait(0.6)
+	check(buddy._book.auras.is_empty() and buddy._book.total("def") == 0.0, "the companion's buff and auras end with the buff")
 
 
 func _camera_while_moving() -> void:

@@ -147,30 +147,12 @@ func set_facing(yaw: float) -> void:
 ## aura, speed buffs spin wind rings and crit buffs scatter sparkles. Each kind
 ## lives as long as at least one buff of that kind is active.
 func _sync_auras(now: int) -> void:
-	var wanted := {}
-	for buff in _buffs:
-		if int(buff.until) <= now or _dead:
-			continue
-		var color: Color = buff.get("color", Color("ffd84a"))
-		if float(buff.get("def", 0.0)) > 0.0:
-			wanted["shield"] = Color("5aff9a").lerp(color, 0.3)
-		if float(buff.get("atk", 0.0)) > 0.0:
-			wanted["power"] = color
-		if float(buff.get("speed", 0.0)) > 0.0:
-			wanted["wind"] = color
-		if float(buff.get("crit", 0.0)) > 0.0:
-			wanted["spark"] = color
-	for kind in wanted:
-		if not _auras.has(kind) or not is_instance_valid(_auras[kind]):
-			var aura := BuffAura.new()
-			aura.setup(kind, wanted[kind])
-			add_child(aura)
-			_auras[kind] = aura
-	for kind in _auras.keys():
-		if not wanted.has(kind):
-			if is_instance_valid(_auras[kind]):
-				(_auras[kind] as Node).queue_free()
-			_auras.erase(kind)
+	BuffAura.sync(self, _auras, _buffs, now, not _dead, _body_top)
+
+
+## Height from the soles to the highest point of the body (hat / big hair included).
+func _body_top() -> float:
+	return BuffAura.measure_top(visual, self)
 
 
 ## What the HUD timer bars show: active buffs (own and from allies) and summons,
@@ -853,6 +835,14 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		_heal(float(fx.heal))
 	if fx.has("buff"):
 		receive_buff(fx.buff, color, String(skill.name))
+		_share_buff(fx.buff, color, String(skill.name))
+
+
+## Buff skills reach the whole team: companions and summoned creatures get them too.
+func _share_buff(buff: Dictionary, color: Color, label: String) -> void:
+	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
+		if is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
+			node.receive_party_buff(buff, color, label)
 
 
 ## A buff from a skill or from a companion: {atk, def, speed, crit, secs}.
