@@ -81,11 +81,6 @@ func _ready() -> void:
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
 		AudioManager.play_sfx(&"level_up"))
 	_show_title()
-	# A reloaded browser tab (memory pressure, screen lock) goes straight back in.
-	if OS.has_feature("web") and Game.should_resume():
-		await get_tree().process_frame
-		await _continue(Game.last_slot())
-		Game.say("เล่นต่อจากเดิมอัตโนมัติ", &"info")
 
 
 # ---------------------------------------------------------------------------
