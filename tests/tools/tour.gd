@@ -93,9 +93,24 @@ func run() -> void:
 		"enhance": await _enhance_check()
 		"wings": await _wings_check()
 		"void": await _void_check()
+		"paragon": await _paragon_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _paragon_check() -> void:
+	Game.dismiss_party()
+	_level(100)
+	Game.paragon()["level"] = 37
+	Game.paragon()["points"] = 12
+	Game.paragon()["spent"] = 25
+	Game.paragon()["alloc"]["atk"] = 15
+	Game.paragon()["alloc"]["hp"] = 10
+	Game.profile_changed.emit()
+	main.menu.open_menu(&"character")
+	await _wait(0.6)
+	await _shot("paragon_menu")
 
 
 func _void_check() -> void:
