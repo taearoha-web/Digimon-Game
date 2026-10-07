@@ -260,8 +260,10 @@ func _make_aura() -> void:
 		var item: Dictionary = equip[slot]
 		if int(item.get("rarity", 0)) >= 3:
 			color = Color("c46bff")
-		elif slot == "weapon" and int(item.get("plus", 0)) >= 7 and color.a == 0.0:
-			color = Color("ffd23c")
+	var best := EnhanceFx.best_plus(equip)
+	if best >= 4:
+		color = EnhanceFx.color_of(best)
+		_body_nodes.append_array(EnhanceFx.on_body(self, best))
 	var tier := _top_tier()
 	if tier >= 6:
 		color = GearKit.TIERS_METAL[tier]
@@ -288,7 +290,7 @@ func _make_aura() -> void:
 	quad.material = mat
 	p.mesh = quad
 	var grand := maxi(tier - 5, 0)
-	p.amount = 14 + grand * 10
+	p.amount = 14 + grand * 10 + (best * 3 if best >= 4 else 0)
 	p.lifetime = 1.5 + 0.1 * float(grand)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.55 + 0.08 * float(grand)
@@ -360,7 +362,7 @@ func _hold_gear() -> void:
 		return
 	var data := ClassData.get_class_data(class_id)
 	var weapon_look := ItemLook.weapon_look(equip.get("weapon"), StringName(data.weapon_kind))
-	_hold(weapon_look, "handslot.r")
+	_hold(weapon_look, "handslot.r", int(equip.get("weapon", {}).get("plus", 0)))
 	match class_id:
 		&"warrior":
 			_hold("shield_0", "handslot.l")
@@ -368,7 +370,7 @@ func _hold_gear() -> void:
 			_hold("book", "handslot.l")
 
 
-func _hold(look: String, bone: String) -> void:
+func _hold(look: String, bone: String, plus := 0) -> void:
 	var item: Node3D
 	if look.begins_with("shield"):
 		item = WeaponKit.shield(look)
@@ -384,6 +386,8 @@ func _hold(look: String, bone: String) -> void:
 	pivot.rotation = Vector3(0, PI, 0) if bone == "handslot.r" else Vector3(0, PI, 0)
 	attach.add_child(pivot)
 	pivot.add_child(item)
+	if plus > 0:
+		EnhanceFx.on_item(item, plus)
 	_hold_nodes.append(attach)
 
 

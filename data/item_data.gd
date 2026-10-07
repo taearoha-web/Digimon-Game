@@ -254,7 +254,8 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		return lines
 	var plus := int(item.get("plus", 0))
 	if plus > 0:
-		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%)" % [plus, plus * 8])
+		var look_name: String = EnhanceFx.NAMES[EnhanceFx.grade(plus)]
+		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · เอฟเฟกต์: %s" % [plus, plus * 8, look_name])
 	var sockets := int(item.get("sockets", 0))
 	var gems: Array = item.get("gems", [])
 	for i in sockets:
