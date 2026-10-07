@@ -25,7 +25,7 @@ static func attributes(profile: Dictionary) -> Dictionary:
 
 
 static func gear_bonus(profile: Dictionary) -> Dictionary:
-	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0}
+	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "matk": 0.0}
 	var sets := {}
 	for slot in profile["equip"]:
 		var item: Dictionary = profile["equip"][slot]
@@ -55,6 +55,7 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 	total["def"] = int(total.def)
 	total["hp"] = int(total.hp)
 	total["mp"] = int(total.mp)
+	total["matk"] = int(total.matk)
 	return total
 
 
@@ -89,7 +90,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var gear := gear_bonus(profile)
 	var passive := passive_bonus(profile)
 	var main_stat: int = attrs[data.main]
-	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk))
+	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk))
 	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def))
 	return {
 		"attrs": attrs,

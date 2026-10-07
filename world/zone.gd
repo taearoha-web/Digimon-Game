@@ -19,6 +19,8 @@ const SPAWN_INTERVAL := 1.6
 const DROP_RATE_GEAR := 0.14
 const DROP_RATE_POTION := 0.3
 const DROP_RATE_GEM := 0.07
+## Chance that the Lv.100 boss drops a pair of wings (it respawns 1 minute after dying).
+const WING_DROP_RATE := 0.35
 
 var zone_id: StringName = &"meadow"
 var data: Dictionary = {}
@@ -689,6 +691,9 @@ func _drop_loot(mob: Mob) -> void:
 		for i in 3:
 			var item := ItemData.generate(mob.level, class_id, rng, maxi(1, ItemData.roll_rarity(rng, 0.3)))
 			_spawn_loot(item, 0, from)
+		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < WING_DROP_RATE:
+			_spawn_loot(ItemData.wings(rng), 0, from)
+			Game.say("ปีกเทพตกจากบอส!", &"quest")
 		_spawn_loot(ItemData.potion("hp_m", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_m", 2), 0, from)
 		for i in 2:

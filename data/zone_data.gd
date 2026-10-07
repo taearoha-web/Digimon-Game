@@ -141,7 +141,7 @@ const ZONES := {
 			{"name": "ทุ่งสัตว์ประหลาดนรก", "monsters": [&"hell_dino"], "levels": [94, 98], "pos": Vector2(6, 19), "radius": 9.0, "count": 10},
 			{"name": "หอปีศาจหนวดนรก", "monsters": [&"hell_wizard"], "levels": [96, 100], "pos": Vector2(28, -16), "radius": 10.0, "count": 10},
 		],
-		"boss": {"monster": &"abyss_dragon", "level": 100, "respawn": 360.0},
+		"boss": {"monster": &"abyss_dragon", "level": 100, "respawn": 60.0},
 		"sky": Color("1a0810"), "ground": Color("2a1a22"), "fog": Color("6a1a2a"), "ambient": Color(0.9, 0.5, 0.55), "sun": Color(1.0, 0.45, 0.5),
 		"path_color": Color("5a2030"), "seed": 25, "prev": &"sky", "next": &"",
 	},

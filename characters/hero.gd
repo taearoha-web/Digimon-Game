@@ -114,7 +114,7 @@ func _update_job_ring() -> void:
 
 func _equipment_signature() -> String:
 	var parts: PackedStringArray = []
-	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring"]:
+	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring", "wings"]:
 		var item: Variant = Game.profile.equip.get(slot)
 		parts.append((ItemLook.look_of(item) + "|%d|%d" % [int(item.get("plus", 0)), int(item.get("rarity", 0))]) if item is Dictionary else "-")
 	return "|".join(parts)

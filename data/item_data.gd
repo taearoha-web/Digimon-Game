@@ -7,7 +7,19 @@ extends RefCounted
 ## Potions:   { kind:"potion", id, count }
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
-const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย"}
+const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก"}
+## Every equipment slot on the paper doll (wings only drop from the Lv.100 boss).
+const EQUIP_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet", "wings"]
+
+## The four wing types. base = the stat at a 1.0 roll; every wing rolls 0.75-1.25 of it.
+const WING_KINDS: Array[String] = ["atk", "def", "hp", "matk"]
+const WING_INFO := {
+	"atk": {"name": "ปีกพิฆาตโลหิต", "stat": "atk", "base": 210, "second": "crit", "color": Color("e0283a")},
+	"def": {"name": "ปีกพิทักษ์สุริยะ", "stat": "def", "base": 190, "second": "hp", "color": Color("f0c85a")},
+	"hp": {"name": "ปีกชีวิตนิรันดร์", "stat": "hp", "base": 1800, "second": "def", "color": Color("58e08a")},
+	"matk": {"name": "ปีกคริสตัลจันทรา", "stat": "matk", "base": 210, "second": "mp", "color": Color("9a6bff")},
+}
+const WING_DROP_LEVEL := 100
 const RARITY_NAMES := ["ธรรมดา", "ดี", "หายาก", "ในตำนาน", "เทพนิยาย"]
 const RARITY_COLORS := [Color("e6ecff"), Color("5ab8ff"), Color("ffc93c"), Color("c46bff"), Color("ff4a5e")]
 const RARITY_ADJ := ["", "ชั้นดี", "ล้ำค่า", "แห่งตำนาน", "แห่งเทพนิยาย"]
@@ -48,7 +60,7 @@ const GEMS := {
 	"amethyst": {"name": "อเมทิสต์", "stat": "def", "values": [3, 8, 18], "color": Color("c46bff")},
 }
 const GEM_SIZES := ["เล็ก", "กลาง", "ใหญ่"]
-const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล"}
+const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล", "matk": "พลังโจมตีเวทย์"}
 const SET_NAMES := ["", "ชุดนักเดินทาง", "ชุดนักล่า", "ชุดอัศวิน", "ชุดเพลิงฟ้า", "ชุดมังกร", "ชุดอสูรสายฟ้า", "ชุดเทวทูต", "ชุดเทพสงคราม", "ชุดตำนานนิรันดร์"]
 const SET_SLOTS := ["weapon", "armor", "helm", "boots"]
 const MAX_PLUS := 10
@@ -188,6 +200,31 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 	}
 
 
+## A level-100 pair of wings with randomly rolled stats. The roll (0.75-1.25)
+## sets the rarity: a near-perfect roll is a mythic pair.
+static func wings(rng: RandomNumberGenerator, kind := "") -> Dictionary:
+	if kind == "":
+		kind = WING_KINDS[rng.randi() % WING_KINDS.size()]
+	var info: Dictionary = WING_INFO[kind]
+	var roll := (rng.randf_range(0.75, 1.25) + rng.randf_range(0.75, 1.25)) * 0.5
+	roll = clampf(roll + rng.randf_range(-0.08, 0.08), 0.75, 1.25)
+	var rarity := 4 if roll >= 1.12 else (3 if roll >= 0.95 else 2)
+	var stats := {}
+	stats[info.stat] = int(round(float(info.base) * roll))
+	match String(info.second):
+		"crit": stats["crit"] = snappedf(rng.randf_range(0.02, 0.06), 0.001)
+		"hp": stats["hp"] = rng.randi_range(150, 450)
+		"def": stats["def"] = rng.randi_range(40, 120)
+		"mp": stats["mp"] = rng.randi_range(100, 300)
+	var adjective: String = ["", "", "", "สมบูรณ์", "สมบูรณ์แบบ"][rarity]
+	return {
+		"kind": "equip", "uid": make_uid(), "slot": "wings", "base": "wings", "wing": kind,
+		"plus": 0, "sockets": sockets_for(rarity), "gems": [], "set": "",
+		"name": ("%s %s" % [info.name, adjective]).strip_edges(), "rarity": rarity, "level": WING_DROP_LEVEL,
+		"class": "", "stats": stats, "price": int(30000.0 * roll),
+	}
+
+
 static func name_of(item: Dictionary) -> String:
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].name
@@ -242,6 +279,7 @@ static func stat_lines(item: Dictionary) -> Array[String]:
 	if stats.has("atk"): lines.append("พลังโจมตี +%d" % int(stats.atk))
 	if stats.has("def"): lines.append("พลังป้องกัน +%d" % int(stats.def))
 	if stats.has("hp"): lines.append("HP +%d" % int(stats.hp))
+	if stats.has("matk"): lines.append("พลังโจมตีเวทย์ +%d (ใช้กับสายเวทย์/นักบวช)" % int(stats.matk))
 	if stats.has("mp"): lines.append("MP +%d" % int(stats.mp))
 	if stats.has("crit"): lines.append("คริติคอล +%.1f%%" % (float(stats.crit) * 100.0))
 	return lines

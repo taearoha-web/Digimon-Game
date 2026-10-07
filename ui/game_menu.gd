@@ -175,7 +175,7 @@ func _build_inventory() -> void:
 	slots.add_theme_constant_override("h_separation", 6)
 	slots.add_theme_constant_override("v_separation", 6)
 	equip.add_child(slots)
-	for slot in ItemData.SLOTS:
+	for slot in ItemData.EQUIP_SLOTS:
 		var item: Variant = Game.profile.equip.get(slot)
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(74, 74)

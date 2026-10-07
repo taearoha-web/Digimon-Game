@@ -125,6 +125,52 @@ static func armor_flourish(tier: int) -> Node3D:
 	return root
 
 
+## A pair of wings in chest-bone space (the back is -z). kind: atk | def | hp | matk.
+## Each wing is a fan of feathers that gently flaps.
+static func wings(kind: String, plus := 0) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Wings_" + kind
+	var spec := {
+		"atk": {"n": 5, "len": 2.3, "w": 0.36, "step": 15.0, "a": Color("d8283a"), "b": Color("4a0c18"), "glow": 0.7, "mesh": "prism"},
+		"def": {"n": 7, "len": 1.8, "w": 0.5, "step": 11.0, "a": Color("f0c85a"), "b": Color("d6dde8"), "glow": 0.3, "mesh": "prism"},
+		"hp": {"n": 6, "len": 2.0, "w": 0.44, "step": 13.0, "a": Color("58e08a"), "b": Color("e4ffd8"), "glow": 0.6, "mesh": "prism"},
+		"matk": {"n": 5, "len": 2.2, "w": 0.38, "step": 14.0, "a": Color("8a5bff"), "b": Color("3fb8ff"), "glow": 0.8, "mesh": "cone"},
+	}
+	var sp: Dictionary = spec.get(kind, spec["atk"])
+	var flapper := Node3D.new()
+	flapper.position = Vector3(0, 0.0, -0.5)
+	root.add_child(flapper)
+	for side in [-1.0, 1.0]:
+		var wing := Node3D.new()
+		wing.position = Vector3(side * 0.16, 0.0, 0.0)
+		flapper.add_child(wing)
+		var n: int = sp.n
+		for k in n:
+			var angle: float = 6.0 + float(k) * float(sp.step)
+			var length: float = float(sp.len) * (0.62 + 0.38 * float(k) / float(n - 1))
+			var arm := Node3D.new()
+			arm.rotation_degrees = Vector3(-14.0, 0.0, -side * angle)
+			wing.add_child(arm)
+			var color: Color = sp.a if k % 2 == 0 else sp.b
+			var mesh: Mesh = MeshKit.cone() if sp.mesh == "cone" else MeshKit.prism()
+			_p(arm, mesh, color, Vector3(0, length * 0.5, -0.02 * k), Vector3(float(sp.w), length, 0.05), Vector3.ZERO, float(sp.glow))
+			if kind == "atk":
+				_p(arm, MeshKit.cone(), Color("ffd0c0"), Vector3(0, length + 0.05, 0), Vector3(0.1, 0.28, 0.1), Vector3.ZERO, 1.2)
+		# Wing spar.
+		_p(wing, MeshKit.box(), sp.b.darkened(0.3), Vector3(side * 0.12, 0.45, 0.0), Vector3(0.08, 0.95, 0.09), Vector3(0, 0, -side * 22.0), 0.2)
+		var flap := wing.create_tween().set_loops()
+		flap.tween_property(wing, "rotation_degrees:y", side * 14.0, 0.85).set_trans(Tween.TRANS_SINE)
+		flap.tween_property(wing, "rotation_degrees:y", side * -4.0, 0.85).set_trans(Tween.TRANS_SINE)
+	if kind == "matk":
+		for i in 3:
+			var orb := _p(root, MeshKit.sphere_low(), Color("c8f4ff"), Vector3(0, 0.4, -0.5), Vector3.ONE * 0.12, Vector3.ZERO, 2.4)
+			orb.position = Vector3(cos(i * TAU / 3.0) * 0.9, 0.4 + 0.4 * i * 0.3, -0.5)
+	var bob := flapper.create_tween().set_loops()
+	bob.tween_property(flapper, "position:y", 0.06, 1.2).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(flapper, "position:y", -0.04, 1.2).set_trans(Tween.TRANS_SINE)
+	return root
+
+
 ## A glowing halo over the head for the two grandest gear tiers.
 static func halo(tier: int) -> Node3D:
 	var root := Node3D.new()
