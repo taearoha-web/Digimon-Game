@@ -96,7 +96,7 @@ func _ready() -> void:
 	_combat_controls = [attack_button, hp_potion, mp_potion, target_button, auto_button]
 	_combat_controls.append_array(skill_slots)
 	Game.gold_changed.connect(func(_g): _refresh_gold())
-	_save_label = UIUtil.label("💾 บันทึกอัตโนมัติ", &"SmallLabel")
+	_save_label = UIUtil.label("บันทึกอัตโนมัติ", &"SmallLabel")
 	_save_label.modulate.a = 0.0
 	_save_label.anchor_left = 0.5
 	_save_label.anchor_right = 0.5
@@ -185,7 +185,7 @@ func _process(delta: float) -> void:
 		_badge.text = String(data.badge)
 	_name_label.text = String(p.name)
 	_update_party()
-	_level_label.text = "Lv.%d" % int(p.level) if int(Game.paragon().level) <= 0 else "Lv.%d ★%d" % [int(p.level), int(Game.paragon().level)]
+	_level_label.text = "Lv.%d" % int(p.level) if int(Game.paragon().level) <= 0 else "Lv.%d ดาว %d" % [int(p.level), int(Game.paragon().level)]
 	UIUtil.set_bar(_hp_bar, p.hp, stats.max_hp)
 	UIUtil.tint_hp_bar(_hp_bar, float(p.hp) / float(maxi(1, stats.max_hp)))
 	_hp_label.text = "%d/%d" % [p.hp, stats.max_hp]
@@ -256,7 +256,7 @@ func _update_boss_bar() -> void:
 	_boss_name.text = "Lv.%d %s%s" % [boss.level, boss.template.name, phase_text]
 	if zone.is_pvp and zone.pvp_match != null:
 		var left := int(ceil(maxf(zone.pvp_match.time_left, 0.0)))
-		_boss_name.text = "⚔ %s   ⏱ %d:%02d" % [_boss_name.text, left / 60, left % 60]
+		_boss_name.text = "%s   เวลา %d:%02d" % [_boss_name.text, left / 60, left % 60]
 	UIUtil.set_bar(_boss_bar, boss.hp, boss.max_hp)
 	UIUtil.tint_hp_bar(_boss_bar, float(boss.hp) / float(boss.max_hp))
 
@@ -276,7 +276,7 @@ func _update_tracker(delta: float) -> void:
 	if quest_id != "" and Game.quest_status(quest_id) in ["active", "ready"]:
 		var quest := QuestData.get_quest(quest_id)
 		var have := int(Game.quest_state(quest_id).get("progress", 0))
-		lines.append("เควสต์: %s %d/%d" % [quest.name, have, int(quest.count)] if have < int(quest.count) else "เควสต์: %s ✔ กลับไปรายงาน" % quest.name)
+		lines.append("เควสต์: %s %d/%d" % [quest.name, have, int(quest.count)] if have < int(quest.count) else "เควสต์: %s เสร็จแล้ว กลับไปรายงาน" % quest.name)
 	var done := 0
 	for entry in Game.daily().quests:
 		if int(entry.progress) >= Game.daily_target(entry):

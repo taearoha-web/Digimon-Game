@@ -11,18 +11,18 @@ const MIN_LEVEL := 10
 
 ## divs = how many divisions (III, II, I) the tier has.
 const TIERS: Array[Dictionary] = [
-	{"name": "ทองแดง", "color": Color("d08a52"), "divs": 3, "icon": "🥉"},
-	{"name": "เงิน", "color": Color("cfd8e8"), "divs": 3, "icon": "🥈"},
-	{"name": "ทอง", "color": Color("ffd24a"), "divs": 3, "icon": "🥇"},
-	{"name": "แพลทินัม", "color": Color("6fe8d8"), "divs": 3, "icon": "💠"},
-	{"name": "เพชร", "color": Color("7fb8ff"), "divs": 3, "icon": "💎"},
-	{"name": "ปรมาจารย์", "color": Color("c58aff"), "divs": 1, "icon": "👑"},
-	{"name": "ตำนาน", "color": Color("ff6a5a"), "divs": 1, "icon": "🔥"},
+	{"name": "ทองแดง", "color": Color("d08a52"), "divs": 3, "icon": "1"},
+	{"name": "เงิน", "color": Color("cfd8e8"), "divs": 3, "icon": "2"},
+	{"name": "ทอง", "color": Color("ffd24a"), "divs": 3, "icon": "3"},
+	{"name": "แพลทินัม", "color": Color("6fe8d8"), "divs": 3, "icon": "4"},
+	{"name": "เพชร", "color": Color("7fb8ff"), "divs": 3, "icon": "5"},
+	{"name": "ปรมาจารย์", "color": Color("c58aff"), "divs": 1, "icon": "6"},
+	{"name": "ตำนาน", "color": Color("ff6a5a"), "divs": 1, "icon": "7"},
 ]
 const ROMAN := ["I", "II", "III"]
 
 const NAMES := [
-	"ซามูไรหมาป่า", "นักล่าเงา", "Kira", "Luna★", "มังกรทอง", "เจ้าชายลมพัด", "Blaze", "ราชินีน้ำแข็ง", "Zephyr",
+	"ซามูไรหมาป่า", "นักล่าเงา", "Kira", "Luna", "มังกรทอง", "เจ้าชายลมพัด", "Blaze", "ราชินีน้ำแข็ง", "Zephyr",
 	"อัศวินดอกไม้", "Nova", "พ่อมดจอมขี้เล่น", "Rex", "สายฟ้าแดง", "Mochi", "ปีศาจน้อย", "Saber", "ดาบพิฆาต",
 	"Aria", "ผู้พิทักษ์ป่า", "Vex", "ลมหนาวเหนือ", "Orion", "ศิษย์เอกสำนักเมฆ", "Yuki", "นายพรานจันทร์เสี้ยว",
 	"Drako", "แม่มดน้อย", "Hikari", "จอมยุทธ์พเนจร", "Ember", "ไอ้หนูกล้า",

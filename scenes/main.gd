@@ -77,7 +77,7 @@ func _ready() -> void:
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
 	Game.paragon_leveled.connect(func(level: int):
-		hud.show_banner("ระดับเหนือเลเวล ★%d!" % level)
+		hud.show_banner("ระดับเหนือเลเวล ดาว %d!" % level)
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
 		AudioManager.play_sfx(&"level_up"))
 	_show_title()
@@ -301,7 +301,7 @@ func _talk_daily() -> void:
 	for entry in Game.daily().quests:
 		var template := Game.daily_template(entry.id)
 		var target := Game.daily_target(entry)
-		var mark := "✔" if entry.claimed else ("●" if int(entry.progress) >= target else "○")
+		var mark := "[เสร็จ]" if entry.claimed else ("[รับ]" if int(entry.progress) >= target else "[ ]")
 		lines.append("%s %s — %s (%d/%d)" % [mark, template.name, String(template.desc) % target, int(entry.progress), target])
 	var streak := Game.daily_streak()
 	if streak > 0:

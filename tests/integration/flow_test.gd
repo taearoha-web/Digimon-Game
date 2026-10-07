@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "vfx" in OS.get_cmdline_user_args():
+		await _vfx_budget()
+		return
 	if "stars" in OS.get_cmdline_user_args():
 		await _star_drops()
 		return
@@ -71,6 +74,7 @@ func _run() -> void:
 	await _paragon()
 	await _tower()
 	await _star_drops()
+	await _vfx_budget()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -879,7 +883,7 @@ func _paragon() -> void:
 	var grng := RandomNumberGenerator.new()
 	grng.seed = 8
 	var high := ItemData.generate(103, &"warrior", grng, 2, "armor")
-	check(ItemData.level_text(103) == "Lv.100 ★3" and ItemData.level_text(80) == "Lv.80", "gear above Lv.100 is labelled with stars")
+	check(ItemData.level_text(103) == "Lv.100 ดาว3" and ItemData.level_text(80) == "Lv.80", "gear above Lv.100 is labelled with stars")
 	Game.paragon()["level"] = 2
 	check(Game.equip_problem(high) != "", "Lv.103 gear needs star 3 (have 2)")
 	Game.paragon()["level"] = 3
@@ -973,7 +977,7 @@ func _star_drops() -> void:
 			stars += 1
 			low = mini(low, lv - 100)
 			high = maxi(high, lv - 100)
-	check(plain > 60 and plain < 180 and stars > 220, "about 30%% of star-zone gear is plain Lv.100 (%d / 400)" % plain)
+	check(plain > 25 and plain < 110 and stars > 290, "about 15%% of star-zone gear is plain Lv.100 (%d / 400)" % plain)
 	check(low >= 21 and high <= 28, "star gear sits just above your paragon level (★%d–★%d at ★20)" % [low, high])
 	check(Game.star_gear_level(10) >= 100, "tower floors push the stars higher")
 	await main.go(&"void", true, true)
@@ -1010,6 +1014,32 @@ func _star_drops() -> void:
 			if c2 is LootDrop and (c2 as LootDrop).item.get("kind", "") == "equip" and int((c2 as LootDrop).item.level) > 100:
 				above += 1
 	check(above == 0, "other zones never drop star gear")
+
+
+func _vfx_budget() -> void:
+	print("== Effect budget")
+	check(SkillShow.budget_step(5, 0) == 5 and SkillShow.budget_step(5, 1) == 5, "a lone big skill gets its full show")
+	check(SkillShow.budget_step(5, 2) == 2 and SkillShow.budget_step(4, 3) == 2, "a second and third big skill are toned down")
+	check(SkillShow.budget_step(5, 4) == 1 and SkillShow.budget_step(5, 9) == 1 and SkillShow.budget_step(1, 9) == 1, "a flood of big skills gets only a small show")
+	# Fire all eight skills at once in the void: the number of live effect nodes stays bounded.
+	await _start(&"mage")
+	Game.profile["level"] = 100
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.profile["mp"] = 99999
+	await main.go(&"void", true, true)
+	await _wait(0.6)
+	var hero: Hero = main.zone.hero
+	hero._invulnerable_until = Time.get_ticks_msec() + 30000
+	var nodes_before: int = main.zone.get_child_count()
+	for i in 8:
+		Game.profile["mp"] = 99999
+		hero.cooldowns.clear()
+		hero.use_skill(i)
+		await _wait(0.1)
+	await _wait(0.4)
+	var spawned: int = main.zone.get_child_count() - nodes_before
+	check(spawned < 900, "eight big skills at once spawn a bounded number of effect nodes (%d)" % spawned)
 
 
 func _timer_bars() -> void:

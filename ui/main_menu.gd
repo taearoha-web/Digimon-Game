@@ -109,7 +109,7 @@ func _card(i: int) -> Control:
 	card.add_child(col)
 	col.add_child(_line("ช่อง %d" % i, 22, Color("ffe08a"), HORIZONTAL_ALIGNMENT_CENTER))
 	if info.is_empty():
-		var plus := _line("＋", 84, Color(1, 1, 1, 0.55), HORIZONTAL_ALIGNMENT_CENTER)
+		var plus := _line("+", 84, Color(1, 1, 1, 0.55), HORIZONTAL_ALIGNMENT_CENTER)
 		plus.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		col.add_child(plus)

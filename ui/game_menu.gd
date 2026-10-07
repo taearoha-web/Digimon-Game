@@ -166,15 +166,15 @@ func _exp_text() -> String:
 	if int(p.level) >= Game.MAX_LEVEL:
 		var para := Game.paragon()
 		if int(para.level) >= Game.PARAGON_MAX:
-			return "ระดับสูงสุด ★%d" % Game.PARAGON_MAX
-		return "★%d  %d / %d" % [int(para.level), int(para.exp), Game.paragon_need()]
+			return "ระดับสูงสุด ดาว %d" % Game.PARAGON_MAX
+		return "ดาว %d  %d / %d" % [int(para.level), int(para.exp), Game.paragon_need()]
 	return "%d / %d" % [p.exp, HeroStats.exp_to_next(p.level)]
 
 
 ## Paragon points (after Lv.100): permanent bonuses with a gold refund button.
 func _build_paragon(parent: Control) -> void:
 	var para := Game.paragon()
-	parent.add_child(UIUtil.label("★ ระดับเหนือเลเวล %d / %d  ·  แต้มที่ใช้ได้ %d" % [int(para.level), Game.PARAGON_MAX, int(para.points)], &"SubHeaderLabel"))
+	parent.add_child(UIUtil.label("ระดับเหนือเลเวล (ดาว) %d / %d  ·  แต้มที่ใช้ได้ %d" % [int(para.level), Game.PARAGON_MAX, int(para.points)], &"SubHeaderLabel"))
 	for key in Game.PARAGON_STATS:
 		var info: Array = Game.PARAGON_STATS[key]
 		var used := int(para.alloc[key])
@@ -529,7 +529,7 @@ func _build_quests() -> void:
 		box.add_child(dpanel)
 		var dcol := UIUtil.vbox(2)
 		dpanel.add_child(dcol)
-		var state := "รับรางวัลแล้ว ✔" if entry.claimed else ("เสร็จแล้ว — ไปรับที่กระดาน" if done else "%d / %d" % [int(entry.progress), target])
+		var state := "รับรางวัลแล้ว" if entry.claimed else ("เสร็จแล้ว — ไปรับที่กระดาน" if done else "%d / %d" % [int(entry.progress), target])
 		var dtitle := UIUtil.label("%s — %s" % [template.name, state], &"BoldLabel")
 		if entry.claimed:
 			dtitle.add_theme_color_override("font_color", UIPalette.SUCCESS)
@@ -544,7 +544,7 @@ func _build_quests() -> void:
 		box.add_child(panel)
 		var col := UIUtil.vbox(2)
 		panel.add_child(col)
-		var state_text: String = {"new": "ยังไม่ได้รับ", "active": "กำลังทำ", "ready": "เสร็จแล้ว — กลับไปรายงาน", "done": "สำเร็จแล้ว ✔"}[status]
+		var state_text: String = {"new": "ยังไม่ได้รับ", "active": "กำลังทำ", "ready": "เสร็จแล้ว — กลับไปรายงาน", "done": "สำเร็จแล้ว เสร็จแล้ว"}[status]
 		var title := UIUtil.label("%s  (Lv.%d+)  — %s" % [quest.name, int(quest.level), state_text], &"BoldLabel")
 		if status == "done":
 			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
@@ -580,7 +580,7 @@ func _build_achievements() -> void:
 		var col := UIUtil.vbox(2)
 		panel.add_child(col)
 		var value := mini(Game.achievement_value(ach.check), int(ach.goal))
-		var title := UIUtil.label("%s%s" % ["✔ " if done else "", ach.name], &"BoldLabel")
+		var title := UIUtil.label("%s%s" % ["(สำเร็จ) " if done else "", ach.name], &"BoldLabel")
 		if done:
 			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
 		col.add_child(title)

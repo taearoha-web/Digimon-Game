@@ -791,7 +791,7 @@ func _add_paragon_exp(amount: int) -> void:
 		flag_max("paragon_level", int(p.level))
 		if int(p.level) % 25 == 0:
 			add_gold(int(p.level) * 2000)
-			say("เหรียญรางวัลหลักไมล์ ★%d: +%d" % [int(p.level), int(p.level) * 2000], &"success")
+			say("เหรียญรางวัลหลักไมล์ ดาว %d: +%d" % [int(p.level), int(p.level) * 2000], &"success")
 	if int(p.level) >= PARAGON_MAX:
 		p["exp"] = 0
 	exp_changed.emit()
@@ -806,7 +806,7 @@ func _add_paragon_exp(amount: int) -> void:
 ## Level of a star-zone gear drop: Lv.100 (30%) or 100 + a few stars above your
 ## paragon level (the extra is the tower floor bonus).
 func star_gear_level(bonus := 0) -> int:
-	if rng.randf() < 0.3:
+	if rng.randf() < 0.15:
 		return MAX_LEVEL
 	var star := int(paragon().level) + rng.randi_range(1, 8) + bonus
 	return MAX_LEVEL + clampi(star, 1, PARAGON_MAX)
@@ -1183,7 +1183,7 @@ func equip_problem(item: Dictionary) -> String:
 			return "ต้องเลเวล %d" % int(item.level)
 		var star := int(item.level) - MAX_LEVEL
 		if int(profile["level"]) < MAX_LEVEL or int(paragon().level) < star:
-			return "ต้องเลเวล 100 และระดับเหนือเลเวล ★%d" % star
+			return "ต้องเลเวล 100 และระดับเหนือเลเวล ดาว %d" % star
 	if item.get("class", "") != "" and item["class"] != profile["class"]:
 		return "สำหรับอาชีพอื่น"
 	return ""

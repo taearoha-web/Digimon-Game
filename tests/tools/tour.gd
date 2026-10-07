@@ -95,9 +95,42 @@ func run() -> void:
 		"void": await _void_check()
 		"paragon": await _paragon_check()
 		"tower": await _tower_check()
+		"voidcast": await _voidcast_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _voidcast_check() -> void:
+	_level(100)
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.profile["mp"] = 99999
+	await main.go(&"void", true, true)
+	await _wait(1.0)
+	var hero: Hero = main.zone.hero
+	hero.global_position = Vector3(-24, 0.2, -10)
+	main.zone.camera_rig.snap_to_target()
+	await _wait(1.5)
+	for round in 2:
+		for i in 8:
+			Game.profile["mp"] = 99999
+			hero.cooldowns.clear()
+			hero.use_skill(i)
+			await _wait(0.12)
+		for k in 8:
+			await _wait(0.3)
+			var img := get_viewport().get_texture().get_image()
+			var c := img.get_pixel(640, 300)
+			var flat := true
+			var ref := img.get_pixel(100, 200)
+			for p in [Vector2i(400, 150), Vector2i(800, 350), Vector2i(1000, 500), Vector2i(300, 450)]:
+				var q := img.get_pixel(p.x, p.y)
+				if absf(q.r - ref.r) + absf(q.g - ref.g) + absf(q.b - ref.b) > 0.05:
+					flat = false
+			print("round %d t=%d flat=%s cam=%s fov=%s" % [round, k, flat, main.zone.camera_rig.camera.global_position, main.zone.camera_rig.camera.fov])
+			if flat:
+				await _shot("FLAT_%d_%d" % [round, k])
 
 
 func _tower_check() -> void:

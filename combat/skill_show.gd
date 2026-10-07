@@ -55,7 +55,16 @@ static func _grandeur(parent: Node3D, skill: Dictionary, color: Color, shape: St
 	var step := clampi(int(skill.get("level", 1)) / 20, 0, 5)
 	if step <= 0:
 		return 0
-	var scale := GameSettings.particle_scale()
+	# Casting many big skills at once stacks hundreds of huge translucent effects;
+	# phones choke on that overdraw (the screen goes blank for a few seconds). The
+	# more grand shows were cast in the last 1.5 s, the smaller the next one.
+	var now := Time.get_ticks_msec()
+	_recent_shows = _recent_shows.filter(func(t): return now - int(t) < 1500)
+	var crowd := _recent_shows.size()
+	if step >= 3:
+		_recent_shows.append(now)
+	step = budget_step(step, crowd)
+	var scale := GameSettings.particle_scale() * (1.0 if crowd < 2 else 0.5)
 	var at := origin if shape in ["self", "summon", "burst"] else center
 	var r := maxf(radius, 2.6)
 	for i in step:
@@ -86,6 +95,18 @@ static func _grandeur(parent: Node3D, skill: Dictionary, color: Color, shape: St
 				VfxArt.sky_strike(parent, at + Vector3(cos(a), 0, sin(a)) * r * randf_range(0.2, 1.1), color, 1.0, 18.0, 0.05 * i)
 			if camera:
 				camera.punch(9.0), CONNECT_ONE_SHOT)
+	return step
+
+
+static var _recent_shows: Array = []
+
+
+## Caps a skill's grand show when other big shows are already on screen.
+static func budget_step(step: int, crowd: int) -> int:
+	if crowd >= 4:
+		return mini(step, 1)
+	if crowd >= 2:
+		return mini(step, 2)
 	return step
 
 
