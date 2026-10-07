@@ -10,6 +10,8 @@ var trainer: SkillTrainer
 var storage: StorageScreen
 var warp: WarpScreen
 var pvp_screen: PvpScreen
+var tower_screen: TowerScreen
+var _tower_floor := 1
 var dialog: DialogBox
 var _flash: ColorRect
 var title_screen: CanvasLayer
@@ -65,6 +67,12 @@ func _ready() -> void:
 	add_child(pvp_screen)
 	pvp_screen.challenge_requested.connect(func(): go(&"pvp", false, true))
 	pvp_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	tower_screen = TowerScreen.new()
+	add_child(tower_screen)
+	tower_screen.climb_requested.connect(func(floor_no: int):
+		_tower_floor = floor_no
+		go(&"tower", false, true))
+	tower_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
@@ -165,12 +173,14 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	var z := Zone.new()
 	z.name = "Zone"
 	z.zone_id = zone_id
+	z.tower_start_floor = _tower_floor
 	add_child(z)
 	zone = z
 	z.travel_requested.connect(func(to: StringName): go(to))
 	z.npc_interact.connect(_on_npc)
 	z.hero_died.connect(_on_hero_died)
 	z.pvp_finished.connect(func(result: Dictionary): pvp_screen.show_result(result))
+	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	hud.bind(z)
 	hud.visible = true
@@ -215,7 +225,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -263,6 +273,8 @@ func _on_npc(role: String) -> void:
 			warp.open_warp()
 		"pvp":
 			pvp_screen.open_lobby()
+		"tower":
+			tower_screen.open_lobby()
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])

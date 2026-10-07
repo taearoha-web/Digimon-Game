@@ -79,7 +79,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {}, "pvp": {}, "paragon": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
+		"flags": {}, "boss_kills": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -396,7 +396,7 @@ func load_game(from_slot := -1) -> bool:
 	has_profile = true
 	current_zone = StringName(profile.get("zone", "town"))
 	# A duel is never resumed: leaving mid-fight puts the hero back in the village.
-	if current_zone == &"pvp":
+	if current_zone == &"pvp" or current_zone == &"tower":
 		current_zone = &"town"
 	_remember_slot()
 	profile_changed.emit()
@@ -447,6 +447,10 @@ func _repair(data: Dictionary) -> Dictionary:
 			data["flags"][key] = int(data["flags"][key])
 	for key in data["pvp"]:
 		data["pvp"][key] = int(data["pvp"][key])
+	if not data.get("tower") is Dictionary:
+		data["tower"] = {}
+	for key in data["tower"]:
+		data["tower"][key] = int(data["tower"][key])
 	if not data.get("paragon") is Dictionary:
 		data["paragon"] = {}
 	for key in data["paragon"]:
@@ -652,6 +656,87 @@ func exp_ratio() -> float:
 		var need := paragon_need()
 		return 1.0 if need <= 0 else float(paragon().exp) / float(need)
 	return float(profile["exp"]) / float(HeroStats.exp_to_next(profile["level"]))
+
+
+# ---------------------------------------------------------------------------
+# Void Tower and Void Shards
+# ---------------------------------------------------------------------------
+
+func tower() -> Dictionary:
+	if not profile.get("tower") is Dictionary:
+		profile["tower"] = {}
+	var t: Dictionary = profile["tower"]
+	for key in ["best", "shards", "runs", "best_before"]:
+		t[key] = int(t.get(key, 0))
+	return t
+
+
+func tower_add_shards(amount: int) -> void:
+	tower()["shards"] = int(tower().shards) + amount
+	mark_dirty()
+
+
+func tower_floor_cleared(floor_no: int) -> void:
+	var t := tower()
+	if floor_no > int(t.best):
+		t["best"] = floor_no
+	flag_max("tower_best", int(t.best))
+	check_achievements()
+	mark_dirty()
+
+
+func tower_begin_run() -> void:
+	var t := tower()
+	t["runs"] = int(t.runs) + 1
+	t["best_before"] = int(t.best)
+
+
+func tower_spend(cost: int) -> bool:
+	var t := tower()
+	if int(t.shards) < cost:
+		return false
+	t["shards"] = int(t.shards) - cost
+	mark_dirty()
+	return true
+
+
+## Re-rolls the random stats of a pair of wings (same type, plus and gems stay).
+func tower_reroll_wings(item: Dictionary) -> String:
+	if String(item.get("slot", "")) != "wings":
+		return "ใช้กับปีกเท่านั้น"
+	if int(tower().shards) < TowerData.COST_REROLL:
+		return "ผลึกไม่พอ (ต้องใช้ %d)" % TowerData.COST_REROLL
+	var fresh := ItemData.wings(rng, String(item.get("wing", "atk")))
+	tower_spend(TowerData.COST_REROLL)
+	item["stats"] = fresh.stats
+	item["rarity"] = fresh.rarity
+	item["name"] = fresh.name
+	item["price"] = fresh.price
+	item["sockets"] = maxi(int(fresh.sockets), (item.get("gems", []) as Array).size())
+	clamp_vitals()
+	profile_changed.emit()
+	inventory_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
+## "gear": a Lv.100 piece of legendary-or-better gear; "gem": a large gem.
+func tower_buy(kind: String) -> String:
+	var cost := TowerData.COST_GEAR if kind == "gear" else TowerData.COST_GEM
+	if int(tower().shards) < cost:
+		return "ผลึกไม่พอ (ต้องใช้ %d)" % cost
+	if inventory_free() <= 0 and kind == "gear":
+		return "กระเป๋าเต็ม"
+	var item: Dictionary
+	if kind == "gear":
+		item = ItemData.generate(100, class_id(), rng, maxi(3, ItemData.roll_rarity(rng, 0.45)))
+	else:
+		var kinds := ItemData.GEMS.keys()
+		item = ItemData.gem(String(kinds[rng.randi() % kinds.size()]), 2)
+	if not add_item(item):
+		return "กระเป๋าเต็ม"
+	tower_spend(cost)
+	return "ok:" + ItemData.name_of(item)
 
 
 # ---------------------------------------------------------------------------
