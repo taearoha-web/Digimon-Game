@@ -33,7 +33,8 @@ func _init(p_size := Vector2i(250, 300)) -> void:
 	light.rotation_degrees = Vector3(-35, 35, 0)
 	viewport.add_child(light)
 	var cam := Camera3D.new()
-	cam.position = Vector3(0, 1.1, 6.2)
+	# Far enough back to fit tall crowns and wings above the head.
+	cam.position = Vector3(0, 1.7, 8.6)
 	cam.rotation_degrees = Vector3(-3, 0, 0)
 	cam.fov = 30
 	viewport.add_child(cam)

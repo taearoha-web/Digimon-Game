@@ -213,7 +213,7 @@ func _build_inventory() -> void:
 	var equip := UIUtil.vbox(6)
 	equip.custom_minimum_size = Vector2(240, 0)
 	row.add_child(equip)
-	var preview := HeroPreview.new(Vector2i(240, 230))
+	var preview := HeroPreview.new(Vector2i(240, 290))
 	equip.add_child(preview)
 	preview.show_hero(Game.class_id(), Game.profile.equip, "", Game.profile.get("look", {}))
 	var slots := GridContainer.new()
@@ -289,6 +289,44 @@ func _build_inventory() -> void:
 	_refresh_detail()
 
 
+## "Compared with what you wear now": the worn item of the same slot and the
+## stat differences (green = better, red = worse).
+func _build_compare(item: Dictionary) -> void:
+	var slot := String(item.slot)
+	var worn: Variant = Game.profile.equip.get(slot)
+	_detail.add_child(UIUtil.label("เทียบกับที่ใส่อยู่", &"SubHeaderLabel"))
+	var now := HeroStats.gear_bonus({"equip": {slot: worn}} if worn != null else {"equip": {}})
+	var then := HeroStats.gear_bonus({"equip": {slot: item}})
+	var labels := {"atk": "พลังโจมตี", "matk": "โจมตีเวทย์", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล"}
+	var any := false
+	for key in ["atk", "matk", "def", "hp", "mp", "crit"]:
+		var delta := float(then.get(key, 0.0)) - float(now.get(key, 0.0))
+		if absf(delta) < 0.0005:
+			continue
+		any = true
+		var text := "%s %s%s" % [labels[key], "+" if delta > 0.0 else "-", ("%.1f%%" % (absf(delta) * 100.0)) if key == "crit" else str(int(round(absf(delta))))]
+		var diff := UIUtil.label(text + (" (ดีกว่า)" if delta > 0.0 else " (แย่กว่า)"), &"BoldLabel")
+		diff.add_theme_color_override("font_color", Color("6dff9a") if delta > 0.0 else Color("ff7a8a"))
+		_detail.add_child(diff)
+	if not any:
+		_detail.add_child(UIUtil.label("ค่าพลังเท่ากัน", &"SmallLabel"))
+	if worn == null:
+		var none := UIUtil.label("(ช่อง%sยังว่างอยู่)" % ItemData.SLOT_NAMES.get(slot, slot), &"SmallLabel")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_detail.add_child(none)
+		return
+	var name_label := UIUtil.label("ที่ใส่อยู่: " + ItemData.name_of(worn), &"SmallLabel")
+	name_label.add_theme_color_override("font_color", ItemData.color_of(worn))
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.custom_minimum_size = Vector2(240, 0)
+	_detail.add_child(name_label)
+	var worn_lines := ItemData.level_text(int(worn.level)) + " · " + " · ".join(ItemData.stat_lines(worn))
+	var worn_label := UIUtil.label(worn_lines, &"DimLabel")
+	worn_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	worn_label.custom_minimum_size = Vector2(240, 0)
+	_detail.add_child(worn_label)
+
+
 func _refresh_detail() -> void:
 	if _detail == null or not is_instance_valid(_detail):
 		return
@@ -315,6 +353,8 @@ func _refresh_detail() -> void:
 		_detail.add_child(UIUtil.label("%s • %s • ต้องการ %s" % [ItemData.SLOT_NAMES[item.slot], ItemData.RARITY_NAMES[int(item.rarity)], ItemData.level_text(int(item.level))], &"SmallLabel"))
 		if item.get("class", "") != "":
 			_detail.add_child(UIUtil.label("อาชีพ: " + String(ClassData.get_class_data(StringName(item["class"])).name), &"SmallLabel"))
+	if _selected_slot == "" and item.get("kind", "") == "equip":
+		_build_compare(item)
 	for line in ItemData.detail_lines(item):
 		var detail_label := UIUtil.label(line, &"BoldLabel" if not line.begins_with("เซ็ต") else &"SmallLabel")
 		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

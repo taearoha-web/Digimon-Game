@@ -127,6 +127,16 @@ func _fullgear_check() -> void:
 	hero.set_facing(PI)
 	await _wait(0.6)
 	await _shot("fullgear_back")
+	Game.profile.inv.append(ItemData.generate(118, Game.class_id(), grng, 4, "weapon"))
+	main.menu.open_menu(&"inventory")
+	await _wait(0.8)
+	for i in Game.profile.inv.size():
+		if Game.profile.inv[i].get("slot", "") == "weapon":
+			main.menu._selected_index = i
+	main.menu._selected_slot = ""
+	main.menu._refresh_detail()
+	await _wait(5.5)
+	await _shot("inventory_compare")
 
 
 func _voidcast_check() -> void:
