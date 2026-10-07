@@ -68,6 +68,13 @@ const MAX_PLUS := 10
 static var _uid := 0
 
 
+## "Lv.80", or "Lv.100 ★2" for gear above Lv.100 (worn with paragon levels).
+static func level_text(level: int) -> String:
+	if level <= 100:
+		return "Lv.%d" % level
+	return "Lv.100 ★%d" % (level - 100)
+
+
 static func tier_for(level: int) -> int:
 	return clampi((level - 1) / 10, 0, 9)
 

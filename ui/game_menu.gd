@@ -265,7 +265,7 @@ func _build_inventory() -> void:
 		if i < Game.profile.inv.size():
 			var item: Dictionary = Game.profile.inv[i]
 			b.icon = ItemLook.icon(item)
-			b.text = ("×%d" % int(item.count)) if ItemData.is_stackable(item) else ("Lv.%d" % int(item.level))
+			b.text = ("×%d" % int(item.count)) if ItemData.is_stackable(item) else ItemData.level_text(int(item.level)).replace("Lv.100 ", "")
 			b.add_theme_color_override("font_color", ItemData.color_of(item))
 			b.add_theme_font_size_override("font_size", 17)
 			b.modulate = Color.WHITE.lerp(ItemData.color_of(item), 0.3)
@@ -309,7 +309,7 @@ func _refresh_detail() -> void:
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(title)
 	if item.get("kind", "") == "equip":
-		_detail.add_child(UIUtil.label("%s • %s • เลเวล %d" % [ItemData.SLOT_NAMES[item.slot], ItemData.RARITY_NAMES[int(item.rarity)], int(item.level)], &"SmallLabel"))
+		_detail.add_child(UIUtil.label("%s • %s • ต้องการ %s" % [ItemData.SLOT_NAMES[item.slot], ItemData.RARITY_NAMES[int(item.rarity)], ItemData.level_text(int(item.level))], &"SmallLabel"))
 		if item.get("class", "") != "":
 			_detail.add_child(UIUtil.label("อาชีพ: " + String(ClassData.get_class_data(StringName(item["class"])).name), &"SmallLabel"))
 	for line in ItemData.detail_lines(item):

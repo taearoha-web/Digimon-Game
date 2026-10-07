@@ -871,6 +871,17 @@ func _paragon() -> void:
 	Game.add_exp(999999)
 	check(int(Game.paragon().level) == before_level, "no levels past the cap")
 	check(Game.save_code_roundtrip(), "paragon survives the save code")
+	# Gear above Lv.100 is worn with paragon levels.
+	var grng := RandomNumberGenerator.new()
+	grng.seed = 8
+	var high := ItemData.generate(103, &"warrior", grng, 2, "armor")
+	check(ItemData.level_text(103) == "Lv.100 ★3" and ItemData.level_text(80) == "Lv.80", "gear above Lv.100 is labelled with stars")
+	Game.paragon()["level"] = 2
+	check(Game.equip_problem(high) != "", "Lv.103 gear needs star 3 (have 2)")
+	Game.paragon()["level"] = 3
+	check(Game.equip_problem(high) == "", "Lv.103 gear can be worn at star 3")
+	Game.profile["level"] = 90
+	check(Game.equip_problem(high) != "", "paragon gear still needs Lv.100")
 
 
 func _tower() -> void:
@@ -1179,7 +1190,7 @@ func _zones() -> void:
 	await _start(&"warrior")
 	Game.add_exp(2000000)
 	for id in ZoneData.ZONES:
-		if id == &"town" or id == &"arena" or id == &"pvp":
+		if id == &"town" or id == &"arena" or id == &"pvp" or id == &"tower":
 			continue
 		await main.go(id, true)
 		await _wait(0.5)

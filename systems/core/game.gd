@@ -1167,8 +1167,14 @@ func use_potion_at(index: int) -> String:
 func equip_problem(item: Dictionary) -> String:
 	if item.get("kind", "") != "equip":
 		return "ใส่ไม่ได้"
-	if int(item.level) > profile["level"]:
-		return "ต้องเลเวล %d" % int(item.level)
+	# Gear above Lv.100 (dropped in the arena and the tower) needs paragon levels:
+	# Lv.101 needs ★1, Lv.102 needs ★2 and so on.
+	if int(item.level) > int(profile["level"]):
+		if int(item.level) <= MAX_LEVEL:
+			return "ต้องเลเวล %d" % int(item.level)
+		var star := int(item.level) - MAX_LEVEL
+		if int(profile["level"]) < MAX_LEVEL or int(paragon().level) < star:
+			return "ต้องเลเวล 100 และระดับเหนือเลเวล ★%d" % star
 	if item.get("class", "") != "" and item["class"] != profile["class"]:
 		return "สำหรับอาชีพอื่น"
 	return ""
