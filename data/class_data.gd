@@ -17,7 +17,7 @@ extends RefCounted
 
 const START: StringName = &"vagabond"
 const LINE_LEVEL := 10
-const SLOTS := 4
+const SLOTS := 8
 ## The four lines picked at Lv.10 (also the AI companion classes).
 const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest"]
 
@@ -332,15 +332,15 @@ static func _build_pools() -> void:
 		_sk(a, "arrow_of_rage", "Arrow of Rage", "ยิง 3 ดอกพร้อมกัน", 16, 18, 7.0, "fan", 2.0, {"hits": 3, "color": Color("b8f07a"), "icon": "triple"}),
 		_sk(a, "avalanche", "Avalanche", "ห่าลูกศรถล่มพื้นที่เป้าหมาย", 20, 24, 10.0, "blast", 3.2, {"radius": 4.5, "special": "rain", "color": Color("b8f0a0"), "vfx": &"leaf", "icon": "rain"}),
 		_sk(a, "elemental_shot", "Elemental Shot", "ลูกศรธาตุไฟ ติดไฟต่อเนื่อง", 24, 22, 6.0, "single", 5.0, {"fx": {"burn": [0.35, 4.0]}, "vfx": &"fireball", "color": Color("ff7a2a"), "icon": "fire"}),
-		_sk(a, "golden_falcon", "Golden Falcon", "เรียกเหยี่ยวทองบินโจมตีศัตรูนาน 28 วินาที และฟื้นฟู HP ให้คุณเมื่อมันโจมตี", 28, 30, 30.0, "summon", 2.4, {"summon": {"kind": "falcon", "count": 1, "secs": 28.0, "interval": 1.0, "heal": 0.01}, "color": Color("ffe27a"), "icon": "triple"}),
+		_sk(a, "golden_falcon", "Golden Falcon", "เรียกเหยี่ยวทองบินโจมตีศัตรูนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล) และฟื้นฟู HP ให้คุณเมื่อมันโจมตี", 28, 30, 30.0, "summon", 2.4, {"summon": {"kind": "falcon", "count": 1, "secs": 180.0, "interval": 1.0, "heal": 0.01}, "color": Color("ffe27a"), "icon": "triple"}),
 		_sk(a, "bomb_shot", "Bomb Shot", "ลูกศรระเบิดสร้างความเสียหายเป็นวง ติดไฟ", 32, 32, 10.0, "blast", 4.2, {"radius": 4.5, "fx": {"burn": [0.3, 4.0]}, "vfx": &"fireball", "color": Color("ff8a3a"), "icon": "fire"}),
 		_sk(a, "perforation", "Perforation", "ลูกศรเจาะทะลวงเกราะ แรงมาก", 36, 32, 8.0, "single", 7.0, {"range": 16.0, "color": Color("ffe27a"), "icon": "arrow"}),
-		_sk(a, "recall_wolverine", "Recall Wolverine", "เรียกหมาป่า 2 ตัวกระโจนกัดศัตรูนาน 30 วินาที", 40, 40, 34.0, "summon", 3.2, {"summon": {"kind": "wolf", "count": 2, "secs": 30.0, "interval": 0.9}, "color": Color("c9e8a0"), "icon": "triple"}),
+		_sk(a, "recall_wolverine", "Recall Wolverine", "เรียกหมาป่า 2 ตัวกระโจนกัดศัตรูนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล)", 40, 40, 34.0, "summon", 3.2, {"summon": {"kind": "wolf", "count": 2, "secs": 180.0, "interval": 0.9}, "color": Color("c9e8a0"), "icon": "triple"}),
 		_sk(a, "phoenix_shot", "Phoenix Shot", "ลูกศรนกฟีนิกซ์ แรงมหาศาล ติดไฟแรง", 44, 44, 12.0, "single", 9.0, {"range": 16.0, "fx": {"burn": [0.5, 5.0]}, "vfx": &"fireball", "color": Color("ff6a2a"), "icon": "fire"}),
 		_sk(a, "dionic_sight", "Dionic Sight", "ตาแห่งสวรรค์ คริติคอล +30% ATK +20% นาน 25 วินาที", 52, 52, 36.0, "self", 0.0, {"fx": {"buff": {"crit": 0.3, "atk": 0.2, "secs": 25.0}}, "color": Color("ffe27a"), "icon": "boots"}),
 		_sk(a, "lethal_sight", "Lethal Sight", "เล็งสังหาร ยิงแรงมากจากระยะไกล", 56, 54, 9.0, "single", 10.5, {"range": 17.0, "color": Color("ffd84a"), "icon": "arrow"}),
 		_sk(a, "fierce_wind", "Fierce Wind", "ลมกระโชกยิงลูกศร 7 ดอกพร้อมกัน", 60, 62, 11.0, "fan", 5.5, {"hits": 7, "range": 13.0, "color": Color("8fffd0"), "icon": "triple"}),
-		_sk(a, "force_of_nature", "Force of Nature", "เรียกอสูรแห่งธรรมชาติ 2 ตัวมาช่วยรบนาน 30 วินาที", 64, 80, 36.0, "summon", 4.6, {"summon": {"kind": "beast", "count": 2, "secs": 30.0, "interval": 1.1}, "color": Color("7aff8a"), "icon": "triple"}),
+		_sk(a, "force_of_nature", "Force of Nature", "เรียกอสูรแห่งธรรมชาติ 2 ตัวมาช่วยรบนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล)", 64, 80, 36.0, "summon", 4.6, {"summon": {"kind": "beast", "count": 2, "secs": 180.0, "interval": 1.1}, "color": Color("7aff8a"), "icon": "triple"}),
 		_sk(a, "ensnare", "Ensnare", "ห่าลูกศรบ่วงพันธนาการ ศัตรูช้าลง 5 วินาที", 68, 66, 13.0, "blast", 8.0, {"radius": 6.0, "special": "rain", "fx": {"slow": 5.0}, "color": Color("b8f0a0"), "vfx": &"leaf", "icon": "rain"}),
 		_sk(a, "hurricane", "Hurricane", "พายุลมถล่มรอบตัว ศัตรูช้าลง 3 วินาที", 72, 74, 12.0, "burst", 10.0, {"radius": 7.0, "fx": {"slow": 3.0}, "vfx": &"wind", "color": Color("7affd0"), "icon": "spin"}),
 		_sk(a, "arrow_of_thunder", "Arrow of Thunder", "ลูกศรสายฟ้ากระโดดไปหาศัตรู 6 ตัว", 76, 78, 12.0, "chain", 6.0, {"hits": 6, "color": Color("fff06a"), "icon": "bolt"}),
@@ -362,11 +362,11 @@ static func _build_pools() -> void:
 		_sk(m, "dead_ray", "Dead Ray", "รังสีมรณะแรงสูงใส่ศัตรูตัวเดียว", 28, 30, 7.0, "single", 6.4, {"range": 12.0, "vfx": &"thunder", "color": Color("fff06a"), "icon": "bolt"}),
 		_sk(m, "energy_shield", "Energy Shield", "โล่พลังงาน DEF +60% นาน 20 วินาที", 31, 32, 32.0, "self", 0.0, {"fx": {"buff": {"def": 0.6, "secs": 20.0}}, "color": Color("7fdcff"), "icon": "shield"}),
 		_sk(m, "diastrophism", "Diastrophism", "แผ่นดินไหวถล่มพื้นที่กว้าง ศัตรูมึนงง", 35, 46, 14.0, "blast", 5.4, {"radius": 7.0, "special": "meteor", "fx": {"stun": 1.2}, "color": Color("c8a060"), "icon": "meteor"}),
-		_sk(m, "spirit_elemental", "Spirit Elemental", "เรียกวิญญาณธาตุยิงเวทใส่ศัตรูนาน 30 วินาที", 39, 40, 34.0, "summon", 4.2, {"summon": {"kind": "elemental", "count": 1, "secs": 30.0, "interval": 1.3}, "color": Color("7fe3ff"), "icon": "bless"}),
-		_sk(m, "dancing_sword", "Dancing Sword", "เรียกดาบเวท 3 เล่มร่ายรำฟันศัตรูนาน 25 วินาที", 43, 42, 30.0, "summon", 2.6, {"summon": {"kind": "sword", "count": 3, "secs": 25.0, "interval": 0.7}, "color": Color("e6f4ff"), "icon": "bolt"}),
+		_sk(m, "spirit_elemental", "Spirit Elemental", "เรียกวิญญาณธาตุยิงเวทใส่ศัตรูนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล)", 39, 40, 34.0, "summon", 4.2, {"summon": {"kind": "elemental", "count": 1, "secs": 180.0, "interval": 1.3}, "color": Color("7fe3ff"), "icon": "bless"}),
+		_sk(m, "dancing_sword", "Dancing Sword", "เรียกดาบเวท 3 เล่มร่ายรำฟันศัตรูนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล)", 43, 42, 30.0, "summon", 2.6, {"summon": {"kind": "sword", "count": 3, "secs": 180.0, "interval": 0.7}, "color": Color("e6f4ff"), "icon": "bolt"}),
 		_sk(m, "flame_wave", "Flame Wave", "คลื่นเพลิงถาโถมรอบตัว เผาศัตรูทุกตัว", 47, 56, 14.0, "burst", 6.0, {"radius": 7.0, "fx": {"burn": [0.5, 6.0]}, "vfx": &"fireball", "color": Color("ff5a2a"), "icon": "fire"}),
 		_sk(m, "distortion", "Distortion", "บิดมิติรอบตัว ศัตรูช้าลง 4 วินาที", 52, 62, 12.0, "burst", 7.5, {"radius": 7.0, "fx": {"slow": 4.0}, "color": Color("b79bff"), "icon": "nova"}),
-		_sk(m, "fire_elemental", "Fire Elemental", "เรียกเอเลเมนทัลไฟยักษ์ยิงลูกไฟนาน 30 วินาที", 56, 80, 36.0, "summon", 6.0, {"summon": {"kind": "fire_elemental", "count": 1, "secs": 30.0, "interval": 1.2}, "color": Color("ff7a2a"), "icon": "fire"}),
+		_sk(m, "fire_elemental", "Fire Elemental", "เรียกเอเลเมนทัลไฟยักษ์ยิงลูกไฟนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล)", 56, 80, 36.0, "summon", 6.0, {"summon": {"kind": "fire_elemental", "count": 1, "secs": 180.0, "interval": 1.2}, "color": Color("ff7a2a"), "icon": "fire"}),
 		_sk(m, "meteo", "Meteo", "อุกกาบาตตกใส่พื้นที่ ติดไฟ", 60, 90, 16.0, "blast", 11.0, {"radius": 8.0, "special": "meteor", "fx": {"burn": [0.4, 5.0]}, "vfx": &"fireball", "color": Color("ff5a2a"), "icon": "meteor"}),
 		_sk(m, "silraphim", "Silraphim", "ATK +50% DEF +30% นาน 25 วินาที", 64, 70, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "def": 0.3, "secs": 25.0}}, "color": Color("ffd0ff"), "icon": "bless"}),
 		_sk(m, "slow_speed", "Slow Speed", "เวทหน่วงเวลา ศัตรูช้าลงมาก 6 วินาที", 68, 72, 12.0, "blast", 8.0, {"radius": 7.0, "fx": {"slow": 6.0}, "vfx": &"frost", "color": Color("7fdcff"), "icon": "ice"}),
@@ -393,7 +393,7 @@ static func _build_pools() -> void:
 		_sk(p, "virtual_life", "Virtual Life", "พลังชีวิตจำลอง ฟื้นฟู HP 30% ATK +20% DEF +30% นาน 25 วินาที", 40, 44, 34.0, "self", 0.0, {"fx": {"heal": 0.3, "buff": {"atk": 0.2, "def": 0.3, "secs": 25.0}}, "vfx": &"aura", "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),
 		_sk(p, "glacial_spike", "Glacial Spike", "หอกน้ำแข็งแทงพื้น ศัตรูช้าลง", 44, 50, 14.0, "blast", 6.0, {"radius": 6.0, "fx": {"slow": 4.0}, "vfx": &"frost", "color": Color("aaf0ff"), "icon": "ice"}),
 		_sk(p, "resurrection", "Resurrection", "ฟื้นฟู HP 100% และ DEF +35% นาน 15 วินาที", 48, 60, 45.0, "self", 0.0, {"fx": {"heal": 1.0, "buff": {"def": 0.35, "secs": 15.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
-		_sk(p, "summon_muspell", "Summon Muspell", "เรียกวิญญาณพิทักษ์ผู้ยิ่งใหญ่มาช่วยรบนาน 30 วินาที", 52, 80, 36.0, "summon", 4.4, {"summon": {"kind": "muspell", "count": 1, "secs": 30.0, "interval": 1.2}, "color": Color("aaf0ff"), "icon": "nova"}),
+		_sk(p, "summon_muspell", "Summon Muspell", "เรียกวิญญาณพิทักษ์ผู้ยิ่งใหญ่มาช่วยรบนาน 3 นาทีหรือจนกว่าจะถูกสังหาร (ใหญ่ขึ้นตามดาวสกิล)", 52, 80, 36.0, "summon", 4.4, {"summon": {"kind": "muspell", "count": 1, "secs": 180.0, "interval": 1.2}, "color": Color("aaf0ff"), "icon": "nova"}),
 		_sk(p, "regeneration_field", "Regeneration Field", "ฟื้นฟู HP 50% DEF +30% นาน 20 วินาที", 56, 76, 28.0, "self", 0.0, {"fx": {"heal": 0.5, "buff": {"def": 0.3, "secs": 20.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("6dff9a"), "icon": "heal"}),
 		_sk(p, "chain_lightning", "Chain Lightning", "สายฟ้าสวรรค์ฟาดศัตรู 8 ตัว", 60, 70, 11.0, "chain", 5.5, {"hits": 8, "color": Color("fff06a"), "icon": "bolt"}),
 		_sk(p, "blessing_aura", "Blessing Aura", "ATK +50% DEF +40% นาน 25 วินาที", 64, 84, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "def": 0.4, "secs": 25.0}}, "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),

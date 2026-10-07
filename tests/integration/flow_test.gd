@@ -81,9 +81,9 @@ func _play_class(class_id: StringName) -> void:
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
 	check(town.npcs.size() == 11, "eleven villagers")
-	check(main.hud.skill_slots.size() == 4, "HUD has four skill slots")
+	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
-	check(bar.size() == 4 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
+	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
 	await main.go(&"meadow", true)
 	await _wait(0.6)
 	var zone: Zone = main.zone
@@ -285,6 +285,40 @@ func _summons() -> void:
 	check(before > 0, "monsters are around for the summons to fight")
 	check(hp_after < hp_before, "the wolves bite the monsters (%d -> %d total HP)" % [hp_before, hp_after])
 	check(wolverine.shape == "summon", "wolverine is a summon skill")
+	# Health bar, 3-minute life, monsters can kill it, size grows with the stars.
+	var wolf: Summon = null
+	for child in field_zone.get_children():
+		if child is Summon:
+			wolf = child
+	check(wolf != null and wolf.life > 150.0 and wolf.life <= 180.0 and wolf.max_hp > 0 and wolf._bar != null, "a summon lasts 3 minutes and has a health bar (%d HP)" % (wolf.max_hp if wolf else 0))
+	check(wolf != null and wolf.is_in_group("summons") and not wolf.is_dead(), "summons are in their own group")
+	var mob_view := Mob.new()
+	mob_view.setup(&"pink_slime", 5, Vector3(0, 0, 0), hero)
+	field_zone.add_child(mob_view)
+	await _wait(0.1)
+	var targets := mob_view._targets()
+	check(targets.has(wolf), "monsters can pick a summon as their victim")
+	mob_view.queue_free()
+	check(not ClassData.find_skill(&"archer", "recall_wolverine").desc.contains("30 วินาที"), "summon description says 3 minutes")
+	var hp_start := wolf.hp
+	wolf.take_damage(float(wolf.max_hp) * 0.25)
+	check(wolf.hp < hp_start, "monsters' hits lower a summon's HP")
+	wolf.take_damage(float(wolf.max_hp) * 50.0)
+	check(wolf.is_dead() and not wolf.is_in_group("summons"), "a summon at 0 HP dies")
+	await _wait(0.6)
+	check(not is_instance_valid(wolf), "the dead summon is removed")
+	# Stars make it bigger: 1 star = 1x, 4 stars = 4x.
+	Game.profile.skills["recall_wolverine"] = 4
+	hero.cooldowns.clear()
+	hero.use_skill(0)
+	await _wait(0.9)
+	var big: Summon = null
+	for child in field_zone.get_children():
+		if child is Summon and not child.is_dead():
+			big = child
+	check(big != null and big.rank == 4 and absf(big.size_mult - 4.0) < 0.01, "4 stars make the summon 4x bigger")
+	await _wait(0.5)
+	check(big != null and absf(big.scale.x - 4.0) < 0.2, "the summon model really is 4x (scale %.2f)" % (big.scale.x if big else 0.0))
 
 
 func _go_field() -> Zone:

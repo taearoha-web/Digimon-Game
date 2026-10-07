@@ -408,7 +408,7 @@ func _build_skills() -> void:
 		info.add_child(desc)
 		var equipped := Game.loadout().find(skill.id)
 		for slot in ClassData.SLOTS:
-			var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(56, 56))
+			var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(48, 52))
 			b.disabled = not unlocked or equipped == slot
 			b.pressed.connect(func():
 				if Game.equip_skill(skill.id, slot):

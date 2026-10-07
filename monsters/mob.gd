@@ -378,6 +378,9 @@ func _targets() -> Array[Node3D]:
 	for node in get_tree().get_nodes_in_group("companions"):
 		if _alive(node as Node3D):
 			out.append(node as Node3D)
+	for node in get_tree().get_nodes_in_group("summons"):
+		if _alive(node as Node3D):
+			out.append(node as Node3D)
 	return out
 
 
