@@ -145,7 +145,7 @@ func _row(item: Dictionary, price: int, action_label: String, action: Callable) 
 	info.add_child(name_label)
 	var summary := ", ".join(ItemData.stat_lines(item))
 	if item.get("kind", "") == "equip":
-		summary = "Lv.%d  %s" % [int(item.level), summary]
+		summary = "%s  %s" % [ItemData.level_text(int(item.level)), summary]
 		if item.get("class", "") != "" and item["class"] != Game.profile["class"]:
 			summary += "  (อาชีพอื่น)"
 	var detail := UIUtil.label(summary, &"SmallLabel")
