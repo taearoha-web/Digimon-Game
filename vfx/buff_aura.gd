@@ -27,10 +27,13 @@ void fragment() {
 static var _shield_shader: Shader
 
 var kind := "shield"
+## Height of the character it surrounds (feet to top of hair/hat); sizes the barrier.
+var body_top := 2.8
 var color := Color("5aff9a")
 var _age := 0.0
 var _spin: Array[Node3D] = []
 var _body: Node3D
+var _base_scale := Vector3.ONE
 var _material: ShaderMaterial
 
 
@@ -56,7 +59,7 @@ func _process(delta: float) -> void:
 	if _material:
 		_material.set_shader_parameter("strength", 0.9 + 0.12 * sin(_age * 3.0))
 	if kind == "shield" and _body:
-		_body.scale = Vector3(1.0, 1.0, 1.0) * (1.0 + 0.02 * sin(_age * 3.0))
+		_body.scale = _base_scale * (1.0 + 0.02 * sin(_age * 3.0))
 
 
 func _build_shield() -> void:
@@ -75,12 +78,15 @@ func _build_shield() -> void:
 	mi.mesh = sphere
 	mi.material_override = _material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.scale = Vector3(0.95, 1.05, 0.95)
-	mi.position = Vector3(0, 0.95, 0)
+	# The hero measures ~2.8 m with its big head: the bubble runs from below the soles to above the hair.
+	var half := body_top * 0.5 + 0.45
+	mi.scale = Vector3(half * 0.9, half, half * 0.9)
+	mi.position = Vector3(0, body_top * 0.5, 0)
 	add_child(mi)
 	_body = mi
+	_base_scale = mi.scale
 	# A glowing base ring where the bubble meets the ground.
-	_ring(Vector3(0, 0.06, 0), 0.95, color, 0.7, 1.4)
+	_ring(Vector3(0, 0.06, 0), half * 0.8, color, 0.7, 1.4)
 
 
 func _build_power() -> void:

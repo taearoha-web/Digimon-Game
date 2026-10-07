@@ -164,6 +164,7 @@ func _sync_auras(now: int) -> void:
 		if not _auras.has(kind) or not is_instance_valid(_auras[kind]):
 			var aura := BuffAura.new()
 			aura.setup(kind, wanted[kind])
+			aura.body_top = _body_top()
 			add_child(aura)
 			_auras[kind] = aura
 	for kind in _auras.keys():
@@ -171,6 +172,18 @@ func _sync_auras(now: int) -> void:
 			if is_instance_valid(_auras[kind]):
 				(_auras[kind] as Node).queue_free()
 			_auras.erase(kind)
+
+
+## Height from the soles to the highest point of the body (hat / big hair included).
+func _body_top() -> float:
+	var top := 2.0
+	for node in visual.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null or mi.get_parent() is BuffAura or not mi.is_inside_tree():
+			continue
+		var box := mi.global_transform * mi.get_aabb()
+		top = maxf(top, box.end.y - global_position.y)
+	return clampf(top, 2.0, 4.5)
 
 
 ## What the HUD timer bars show: active buffs (own and from allies) and summons,
