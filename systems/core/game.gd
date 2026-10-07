@@ -729,7 +729,7 @@ func tower_buy(kind: String) -> String:
 		return "กระเป๋าเต็ม"
 	var item: Dictionary
 	if kind == "gear":
-		item = ItemData.generate(100, class_id(), rng, maxi(3, ItemData.roll_rarity(rng, 0.45)))
+		item = ItemData.generate(star_gear_level(), class_id(), rng, maxi(3, ItemData.roll_rarity(rng, 0.45)))
 	else:
 		var kinds := ItemData.GEMS.keys()
 		item = ItemData.gem(String(kinds[rng.randi() % kinds.size()]), 2)
@@ -801,6 +801,15 @@ func _add_paragon_exp(amount: int) -> void:
 		check_achievements()
 		save()
 	mark_dirty()
+
+
+## Level of a star-zone gear drop: Lv.100 (30%) or 100 + a few stars above your
+## paragon level (the extra is the tower floor bonus).
+func star_gear_level(bonus := 0) -> int:
+	if rng.randf() < 0.3:
+		return MAX_LEVEL
+	var star := int(paragon().level) + rng.randi_range(1, 8) + bonus
+	return MAX_LEVEL + clampi(star, 1, PARAGON_MAX)
 
 
 func paragon_spend(key: String) -> bool:

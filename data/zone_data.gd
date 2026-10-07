@@ -157,14 +157,14 @@ const ZONES := {
 		],
 		"boss": {"monster": &"void_emperor", "level": 100, "respawn": 90.0},
 		# Rich farming: more and better drops than any other field.
-		"loot": {"gear": 0.30, "rarity_boost": 0.07, "gem": 0.2, "potion": 0.5, "wing": 0.006, "shard": 0.03, "boss_shards": 10, "boss_wing": 0.6, "boss_items": 4},
+		"loot": {"stars": true, "gear": 0.30, "rarity_boost": 0.07, "gem": 0.2, "potion": 0.5, "wing": 0.006, "shard": 0.03, "boss_shards": 10, "boss_wing": 0.6, "boss_items": 4},
 		"sky": Color("0c0420"), "ground": Color("1c1234"), "fog": Color("5a2a9a"), "ambient": Color(0.65, 0.5, 1.0), "sun": Color(0.85, 0.6, 1.0),
 		"path_color": Color("4a2a86"), "seed": 31, "prev": &"abyss", "next": &"",
 	},
 	&"tower": {
 		"name": "หอคอยห้วงวิบัติ", "scene": "field", "level": [100, 100], "music": &"battle", "theme": &"void", "weather": &"embers", "ambience": &"hum",
 		"tree_density": 0.2, "camps": [], "tower": true,
-		"loot": {"gear": 0.22, "rarity_boost": 0.06, "gem": 0.15, "potion": 0.35, "wing": 0.004, "boss_wing": 0.5, "boss_items": 4},
+		"loot": {"stars": true, "gear": 0.22, "rarity_boost": 0.06, "gem": 0.15, "potion": 0.35, "wing": 0.004, "boss_wing": 0.5, "boss_items": 4},
 		"sky": Color("0c0420"), "ground": Color("1c1234"), "fog": Color("5a2a9a"), "ambient": Color(0.65, 0.5, 1.0), "sun": Color(0.85, 0.6, 1.0),
 		"path_color": Color("4a2a86"), "seed": 33, "prev": &"town", "next": &"",
 	},
