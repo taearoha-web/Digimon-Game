@@ -56,18 +56,20 @@ func setup(p_role: String, p_name: String, _p_class: StringName, p_title := "", 
 	light.omni_range = 8.0
 	light.position = Vector3(0, 2.3, 0)
 	add_child(light)
-	var label := Label3D.new()
-	label.text = p_name if p_title == "" else "%s\n%s" % [p_name, p_title]
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.pixel_size = 0.0052
-	label.font_size = 46
-	label.outline_size = 12
-	label.line_spacing = 6.0
-	label.modulate = Color("d8f6ff")
-	label.position = Vector3(0, 4.2, 0)
-	label.visibility_range_end = 40.0
-	label.no_depth_test = true
-	add_child(label)
+	for entry in [[p_name, 4.5, 54, Color("d8f6ff")], [p_title, 3.95, 38, Color("9fd8ff")]]:
+		if String(entry[0]) == "":
+			continue
+		var label := Label3D.new()
+		label.text = String(entry[0])
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.pixel_size = 0.0052
+		label.font_size = int(entry[2])
+		label.outline_size = 12
+		label.modulate = entry[3]
+		label.position = Vector3(0, float(entry[1]), 0)
+		label.visibility_range_end = 26.0
+		label.no_depth_test = true
+		add_child(label)
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	var shape := CollisionShape3D.new()

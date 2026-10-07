@@ -109,7 +109,7 @@ static func on_item(item: Node3D, plus: int) -> void:
 		return
 	var color := COLORS[g]
 	var rich := GameSettings.quality > 0
-	var overlay := _glow_material(color, [0.0, 0.1, 0.16, 0.24, 0.3][g])
+	var overlay := _glow_material(color, [0.0, 0.07, 0.11, 0.15, 0.2][g])
 	for m in MeshKit.collect_meshes(item):
 		m.material_overlay = overlay
 	var pulse := item.create_tween().set_loops()
@@ -184,7 +184,7 @@ static func on_body(visual: Node3D, plus: int) -> Array[Node]:
 		spin.tween_property(ring, "rotation:y", TAU * (1.0 if i == 0 else -1.0), 4.0 - 0.6 * float(g)).from(0.0)
 	var disc := MeshInstance3D.new()
 	disc.mesh = MeshKit.cylinder()
-	disc.material_override = _glow_material(color, 0.22)
+	disc.material_override = _glow_material(color, 0.12)
 	disc.scale = Vector3(2.0 + 0.3 * g, 0.01, 2.0 + 0.3 * g)
 	disc.position = Vector3(0, 0.04, 0)
 	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -219,7 +219,7 @@ static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, sp
 	if g == 0:
 		return
 	var color := COLORS[g]
-	var overlay := _glow_material(color, [0.0, 0.08, 0.14, 0.2, 0.28][g])
+	var overlay := _glow_material(color, [0.0, 0.05, 0.08, 0.11, 0.15][g])
 	var found := false
 	for node in nodes:
 		if not is_instance_valid(node):

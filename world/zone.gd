@@ -378,6 +378,7 @@ func _make_portal(portal: Dictionary) -> void:
 	label.modulate = Color("e8fbff")
 	label.position = Vector3(0, 5.0, 0)
 	label.no_depth_test = true
+	label.visibility_range_end = 24.0
 	holder.add_child(label)
 	var light := OmniLight3D.new()
 	light.light_color = color

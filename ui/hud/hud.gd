@@ -544,7 +544,10 @@ func _build_top_right(frame: Control) -> void:
 	_zone_label.anchor_left = 1.0
 	_zone_label.anchor_right = 1.0
 	_zone_label.offset_left = -480
-	_zone_label.offset_top = 104
+	_zone_label.offset_top = 90
+	_zone_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
+	_zone_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_zone_label.add_theme_constant_override("outline_size", 6)
 	_zone_label.offset_right = -160
 	frame.add_child(_zone_label)
 
