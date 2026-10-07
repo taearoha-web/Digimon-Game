@@ -277,7 +277,7 @@ func _build_tracker(frame: Control) -> void:
 	_tracker.anchor_right = 1.0
 	_tracker.offset_left = -480
 	_tracker.offset_right = -130
-	_tracker.offset_top = 278
+	_tracker.offset_top = 252
 	_tracker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tracker.add_theme_constant_override("outline_size", 6)
 	_tracker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -408,8 +408,8 @@ func _build_status(frame: Control) -> void:
 	minimap.anchor_right = 1.0
 	minimap.offset_left = -150
 	minimap.offset_right = -10
-	minimap.offset_top = 132
-	minimap.offset_bottom = 272
+	minimap.offset_top = 102
+	minimap.offset_bottom = 242
 	frame.add_child(minimap)
 
 ## Small cards for the two AI companions: badge, name, level, EXP.
@@ -509,9 +509,9 @@ func _build_top_right(frame: Control) -> void:
 	_zone_label = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
 	_zone_label.anchor_left = 1.0
 	_zone_label.anchor_right = 1.0
-	_zone_label.offset_left = -330
-	_zone_label.offset_top = 84
-	_zone_label.offset_right = -4
+	_zone_label.offset_left = -480
+	_zone_label.offset_top = 104
+	_zone_label.offset_right = -160
 	frame.add_child(_zone_label)
 
 
