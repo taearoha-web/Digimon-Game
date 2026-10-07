@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "tower" in OS.get_cmdline_user_args():
+		await _tower()
+		return
 	if "paragon" in OS.get_cmdline_user_args():
 		await _paragon()
 		return
@@ -63,6 +66,7 @@ func _run() -> void:
 	await _wings()
 	await _void_zone()
 	await _paragon()
+	await _tower()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -102,7 +106,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 13, "eleven villagers, the warp crystal and the ranked-duel desk")
+	check(town.npcs.size() == 14, "eleven villagers, the warp crystal, the ranked-duel desk and the tower keeper")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -867,6 +871,74 @@ func _paragon() -> void:
 	Game.add_exp(999999)
 	check(int(Game.paragon().level) == before_level, "no levels past the cap")
 	check(Game.save_code_roundtrip(), "paragon survives the save code")
+
+
+func _tower() -> void:
+	print("== Void Tower")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	check(TowerData.hp_mult(30) > TowerData.hp_mult(1) * 3 and TowerData.atk_mult(30) > 2.0, "monsters get much tougher with the floor")
+	check(TowerData.is_boss_floor(10) and not TowerData.is_boss_floor(11) and TowerData.spec(10, rng).boss and TowerData.spec(10, rng).ids[0] == &"void_emperor", "every 10th floor is the emperor")
+	check(TowerData.start_floors(0) == [1] and TowerData.start_floors(35) == [1, 11, 21, 31], "checkpoints every 10 floors")
+	await _start(&"warrior")
+	Game.profile["level"] = 100
+	Game.fill_loadout()
+	Game.dismiss_party()
+	Game.profile["hp"] = Game.stats_now().max_hp
+	main._tower_floor = 1
+	await main.go(&"tower", true, true)
+	await _wait(0.5)
+	var zone: Zone = main.zone
+	check(zone.is_tower and zone.tower_run != null and zone.tower_run.floor_no == 1, "the tower starts at floor 1")
+	await _wait(4.2)
+	var mobs := get_tree().get_nodes_in_group("mobs")
+	check(mobs.size() == 5, "floor 1 has five monsters (%d)" % mobs.size())
+	var first: Mob = mobs[0]
+	var plain := MonsterData.stats_for(first.monster_id, 100)
+	check(int(first.stats.hp) == int(plain.hp), "floor 1 monsters have their normal strength")
+	zone.hero._invulnerable_until = Time.get_ticks_msec() + 60000
+	var shards0 := int(Game.tower().shards)
+	var gold0: int = Game.profile.gold
+	for m in mobs:
+		(m as Mob).take_hit(99999999, false)
+	await _wait(1.0)
+	check(int(Game.tower().best) == 1 and int(Game.tower().shards) == shards0 + 1, "clearing a floor pays a shard and sets the best floor")
+	check(int(Game.profile.gold) > gold0, "clearing a floor pays gold")
+	await _wait(6.6)
+	check(zone.tower_run.floor_no == 2 and get_tree().get_nodes_in_group("mobs").size() >= 5, "the next floor starts by itself")
+	var second: Mob = get_tree().get_nodes_in_group("mobs")[0]
+	check(int(second.stats.hp) > int(MonsterData.stats_for(second.monster_id, 100).hp), "floor 2 monsters are tougher")
+	# Dying ends the climb without a penalty.
+	zone.hero._invulnerable_until = 0
+	var gold_before: int = Game.profile.gold
+	for i in 40:
+		zone.hero.take_damage(99999999.0)
+		if zone.hero.is_dead():
+			break
+	await _wait(3.2)
+	check(main.tower_screen.is_open, "the result screen opens after a fall")
+	check(int(Game.profile.gold) >= gold_before, "no gold is lost for falling in the tower")
+	main.tower_screen.close_screen()
+	# Shop.
+	Game.tower()["shards"] = 500
+	var wing := ItemData.wings(rng, "atk")
+	Game.profile.inv.append(wing)
+	var old_stats := (wing.stats as Dictionary).duplicate()
+	var changed := false
+	for i in 8:
+		check(Game.tower_reroll_wings(wing) == "ok", "wings can be re-rolled") if i == 0 else Game.tower_reroll_wings(wing)
+		if (wing.stats as Dictionary) != old_stats:
+			changed = true
+	check(changed and wing.wing == "atk" and int(wing.stats.atk) >= 150, "a re-roll gives new random stats of the same type")
+	check(int(Game.tower().shards) == 500 - 8 * TowerData.COST_REROLL, "each re-roll costs shards")
+	var inv0: int = Game.profile.inv.size()
+	var bought := Game.tower_buy("gear")
+	check(bought.begins_with("ok:") and Game.profile.inv.size() == inv0 + 1 and int(Game.profile.inv[inv0].rarity) >= 3 and int(Game.profile.inv[inv0].level) == 100, "shards buy legendary Lv.100 gear")
+	check(Game.tower_buy("gem").begins_with("ok:"), "shards buy a large gem")
+	Game.tower()["shards"] = 5
+	check(Game.tower_buy("gear") != "ok" and Game.tower_reroll_wings(wing) != "ok", "not enough shards buys nothing")
+	Game.fill_loadout()
+	check(Game.save_code_roundtrip(), "tower progress survives the save code")
 
 
 func _timer_bars() -> void:

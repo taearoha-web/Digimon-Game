@@ -11,6 +11,8 @@ signal hero_died()
 signal banner_requested(text: String)
 ## A ranked duel ended (result: see Game.pvp_finish).
 signal pvp_finished(result: Dictionary)
+## A Void Tower climb ended.
+signal tower_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
 const TOWN_RADIUS := 38.0
@@ -26,6 +28,9 @@ var zone_id: StringName = &"meadow"
 var data: Dictionary = {}
 var is_town := false
 var is_pvp := false
+var is_tower := false
+var tower_run: TowerRun
+var tower_start_floor := 1
 var pvp_match: PvpMatch
 var hero: Hero
 var camera_rig: ThirdPersonCamera
@@ -62,6 +67,7 @@ func _ready() -> void:
 	data = ZoneData.get_zone(zone_id)
 	is_town = bool(data.get("safe", false))
 	is_pvp = bool(data.get("pvp", false))
+	is_tower = bool(data.get("tower", false))
 	if is_town:
 		_build_town()
 	elif is_pvp:
@@ -77,6 +83,12 @@ func _ready() -> void:
 		pvp_match.setup(self, hero)
 		pvp_match.finished.connect(func(result: Dictionary): pvp_finished.emit(result))
 		add_child(pvp_match)
+	if is_tower:
+		Game.tower_begin_run()
+		tower_run = TowerRun.new()
+		tower_run.setup(self, hero, tower_start_floor)
+		tower_run.finished.connect(func(result: Dictionary): tower_finished.emit(result))
+		add_child(tower_run)
 	AudioManager.play_music(data.get("music", &"field"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
 	if not is_town:
@@ -153,7 +165,9 @@ func _build_field() -> void:
 	for portal in portals:
 		_make_portal(portal)
 	_make_boundary_walls(FIELD_RADIUS + 1.0)
-	if not bool(data.get("arena", false)):
+	if is_tower:
+		_start = Vector3(0, 0, 0)
+	if not bool(data.get("arena", false)) and not is_tower:
 		_add_warp(_start + Vector3(3.5, 0, -5.0), "วาปกลับเมือง / ข้ามแมพ")
 		_add_warp(Vector3(FIELD_RADIUS - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
 	_make_weather(StringName(data.get("weather", &"")))
@@ -246,6 +260,7 @@ func _build_town() -> void:
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
 	_add_npc("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน", Vector3(-3, 0, 12), "Rogue_Hooded")
 	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", Vector3(-3, 0, -17), "Knight")
+	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", Vector3(-9, 0, -16), "Mage")
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", Vector3(4, 0, -14), "Knight")
 	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", Vector3(-12, 0, -2), "Barbarian")
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
@@ -312,7 +327,7 @@ func _spawn_hero() -> void:
 	hero.camera_rig = camera_rig
 	# A ranked duel ends through PvpMatch; only a normal death sends the hero home.
 	hero.died.connect(func():
-		if not is_pvp:
+		if not is_pvp and not is_tower:
 			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
@@ -700,6 +715,10 @@ func _drop_loot(mob: Mob) -> void:
 		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)):
 			_spawn_loot(ItemData.wings(rng), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
+		if int(loot.get("boss_shards", 0)) > 0:
+			var n := rng.randi_range(int(loot.boss_shards) / 2, int(loot.boss_shards))
+			Game.tower_add_shards(n)
+			Game.say("ผลึกห้วงวิบัติ +%d" % n, &"quest")
 		var top := mob.level >= 100
 		_spawn_loot(ItemData.potion("hp_xl" if top else "hp_m", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_xl" if top else "mp_m", 2), 0, from)
@@ -716,6 +735,9 @@ func _drop_loot(mob: Mob) -> void:
 		if mob.level >= 100:
 			tier = "xl" if rng.randf() < 0.7 else "xxl"
 		_spawn_loot(ItemData.potion(("hp_" if rng.randf() < 0.6 else "mp_") + tier, 1), 0, from)
+	if float(loot.get("shard", 0.0)) > 0.0 and rng.randf() < float(loot.shard):
+		Game.tower_add_shards(1)
+		BattleVfx.floating_text(self, from + Vector3(0, 1.6, 0), "ผลึกห้วงวิบัติ +1", Color("c58aff"), 0.9)
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
 		_spawn_loot(ItemData.wings(rng), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")

@@ -94,9 +94,34 @@ func run() -> void:
 		"wings": await _wings_check()
 		"void": await _void_check()
 		"paragon": await _paragon_check()
+		"tower": await _tower_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _tower_check() -> void:
+	Game.dismiss_party()
+	_level(100)
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	Game.tower()["best"] = 34
+	Game.tower()["shards"] = 130
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2
+	Game.profile.equip["wings"] = ItemData.wings(rng, "matk")
+	main.tower_screen.open_lobby()
+	await _wait(0.6)
+	await _shot("tower_lobby")
+	main.tower_screen.close_screen()
+	main._tower_floor = 21
+	await main.go(&"tower", true, true)
+	await _wait(5.5)
+	await _shot("tower_fight")
+	await _wait(2.0)
+	main.tower_screen.show_result({"floor": 24, "cleared": 3, "shards": 9, "gold": 120000, "best": 34, "new_best": false})
+	await _wait(0.5)
+	await _shot("tower_result")
 
 
 func _paragon_check() -> void:
