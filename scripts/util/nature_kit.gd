@@ -134,6 +134,18 @@ const THEMES := {
 		"Rock": [Color("2a2030"), Color("a02838")],
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
+	&"void": {
+		"PineTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
+		"MapleTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
+		"NormalTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
+		"BirchTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
+		"Bush_Leaves": [Color("2a1250"), Color("c04ae0")],
+		"PalmTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
+		"Grass": [Color("1a1034"), Color("5a2aa8")],
+		"Bark": Color("120a22"), "BirchBark": Color("120a22"), "PalmBark": Color("120a22"),
+		"Rock": [Color("241a46"), Color("7a4ad8")],
+		"Flowers": [Color("ffffff"), Color("ffffff")],
+	},
 }
 
 static var _cache: Dictionary = {}

@@ -92,9 +92,29 @@ func run() -> void:
 		"pvp": await _pvp_check()
 		"enhance": await _enhance_check()
 		"wings": await _wings_check()
+		"void": await _void_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _void_check() -> void:
+	Game.dismiss_party()
+	_level(100)
+	Game.profile["adv"] = 4
+	Game.fill_loadout()
+	await main.go(&"void", true, true)
+	await _wait(1.2)
+	var hero: Hero = main.zone.hero
+	await _shot("void_start")
+	hero.global_position = Vector3(-24, 0.2, -10)
+	main.zone.camera_rig.snap_to_target()
+	await _wait(1.0)
+	await _shot("void_camp")
+	hero.global_position = Vector3(26, 0.2, 22)
+	main.zone.camera_rig.snap_to_target()
+	await _wait(2.5)
+	await _shot("void_boss")
 
 
 func _wings_check() -> void:

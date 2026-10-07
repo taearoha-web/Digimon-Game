@@ -687,25 +687,38 @@ func _drop_loot(mob: Mob) -> void:
 	_spawn_loot({}, gold, from)
 	var boss := mob.is_boss
 	var class_id := Game.class_id()
+	# Rich zones (the Lv.100 void) override the default drop odds.
+	var loot: Dictionary = data.get("loot", {})
+	var boost := float(loot.get("rarity_boost", 0.0))
 	if boss:
-		for i in 3:
-			var item := ItemData.generate(mob.level, class_id, rng, maxi(1, ItemData.roll_rarity(rng, 0.3)))
-			_spawn_loot(item, 0, from)
-		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < WING_DROP_RATE:
+		var best := maxi(1, int(loot.get("boss_min_rarity", 3 if loot.has("boss_items") else 1)))
+		for i in int(loot.get("boss_items", 3)):
+			var rarity := maxi(1, ItemData.roll_rarity(rng, maxf(0.3, boost * 5.0)))
+			if i < 2:
+				rarity = maxi(rarity, best)
+			_spawn_loot(ItemData.generate(mob.level, class_id, rng, rarity), 0, from)
+		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)):
 			_spawn_loot(ItemData.wings(rng), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
-		_spawn_loot(ItemData.potion("hp_m", 3), 0, from)
-		_spawn_loot(ItemData.potion("mp_m", 2), 0, from)
-		for i in 2:
+		var top := mob.level >= 100
+		_spawn_loot(ItemData.potion("hp_xl" if top else "hp_m", 3), 0, from)
+		_spawn_loot(ItemData.potion("mp_xl" if top else "mp_m", 2), 0, from)
+		for i in (4 if loot.has("boss_items") else 2):
 			_spawn_loot(_random_gem(mob.level, 1), 0, from)
 		return
-	if rng.randf() < DROP_RATE_GEM:
-		_spawn_loot(_random_gem(mob.level, 0), 0, from)
-	if rng.randf() < DROP_RATE_GEAR:
-		_spawn_loot(ItemData.generate(mob.level, class_id, rng), 0, from)
-	if rng.randf() < DROP_RATE_POTION:
+	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)):
+		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
+	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)):
+		var item := ItemData.generate(mob.level, class_id, rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
+		_spawn_loot(item, 0, from)
+	if rng.randf() < float(loot.get("potion", DROP_RATE_POTION)):
 		var tier := "s" if mob.level < 9 else ("m" if mob.level < 22 else "l")
+		if mob.level >= 100:
+			tier = "xl" if rng.randf() < 0.7 else "xxl"
 		_spawn_loot(ItemData.potion(("hp_" if rng.randf() < 0.6 else "mp_") + tier, 1), 0, from)
+	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
+		_spawn_loot(ItemData.wings(rng), 0, from)
+		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
 func _random_gem(level: int, bonus_size: int) -> Dictionary:

@@ -44,6 +44,11 @@ const THEME_SETS := {
 		"wall": ["BirchTree_4", "MapleTree_4", "NormalTree_3"],
 		"bushes": 40, "flowers": 80, "rocks": 40, "bush_colors": [Color("f0e8b0"), Color("fff6d0"), Color("e8d890")],
 	},
+	&"void": {
+		"trees": [["DeadTree_5", 3.0], ["DeadTree_9", 3.0]],
+		"wall": ["DeadTree_9", "DeadTree_5"],
+		"bushes": 25, "flowers": 0, "rocks": 160, "bush_colors": [Color("8a3ad0"), Color("c04ae0"), Color("4a2a9a")],
+	},
 	&"abyss": {
 		"trees": [["DeadTree_5", 3.0], ["DeadTree_9", 3.0]],
 		"wall": ["DeadTree_9", "DeadTree_5"],
