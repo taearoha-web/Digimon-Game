@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "compare" in OS.get_cmdline_user_args():
+		await _item_compare()
+		return
 	if "vfx" in OS.get_cmdline_user_args():
 		await _vfx_budget()
 		return
@@ -75,6 +78,7 @@ func _run() -> void:
 	await _tower()
 	await _star_drops()
 	await _vfx_budget()
+	await _item_compare()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -1051,6 +1055,31 @@ func _vfx_budget() -> void:
 	await _wait(0.4)
 	var spawned: int = main.zone.get_child_count() - nodes_before
 	check(spawned < 900, "eight big skills at once spawn a bounded number of effect nodes (%d)" % spawned)
+
+
+func _item_compare() -> void:
+	print("== Item compare")
+	await _start(&"warrior")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12
+	var worn := ItemData.generate(20, &"warrior", rng, 1, "weapon")
+	var better := ItemData.generate(20, &"warrior", rng, 3, "weapon")
+	Game.profile.equip["weapon"] = worn
+	Game.profile.inv.append(better)
+	main.menu.open_menu(&"inventory")
+	await _wait(0.4)
+	main.menu._selected_index = Game.profile.inv.size() - 1
+	main.menu._selected_slot = ""
+	main.menu._refresh_detail()
+	await _wait(0.2)
+	var texts: Array[String] = []
+	for node in main.menu._detail.find_children("*", "Label", true, false):
+		texts.append((node as Label).text)
+	var joined := "\n".join(texts)
+	check("เทียบกับที่ใส่อยู่" in joined, "selecting a bag item shows the compare section")
+	check(ItemData.name_of(worn) in joined, "the compare section names the worn item")
+	check("ดีกว่า" in joined, "a better item shows green 'better' differences")
+	main.menu.close_menu()
 
 
 func _timer_bars() -> void:
