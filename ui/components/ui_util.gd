@@ -52,12 +52,18 @@ static func star_count(value: int, font_size := 22, variation: StringName = &"")
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var icon := TextureRect.new()
 	icon.texture = star_texture()
-	icon.custom_minimum_size = Vector2(font_size + 2, font_size + 2)
+	icon.custom_minimum_size = Vector2(font_size * 0.92, font_size * 0.92)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(icon)
+	# Text sits above the middle of its line box (room for descenders): lift the star to match.
+	var lift := MarginContainer.new()
+	lift.add_theme_constant_override("margin_bottom", int(float(font_size) * 0.16))
+	lift.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lift.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lift.add_child(icon)
+	row.add_child(lift)
 	var label := Label.new()
 	label.text = str(value)
 	if variation != &"":
