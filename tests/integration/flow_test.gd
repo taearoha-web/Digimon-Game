@@ -45,6 +45,7 @@ func _run() -> void:
 	check(_party_damage_total > 0, "companions dealt damage over the four runs (%d)" % _party_damage_total)
 	await _resume_after_reload()
 	await _save_slots()
+	await _warp_points()
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
@@ -84,7 +85,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 11, "eleven villagers")
+	check(town.npcs.size() == 12, "eleven villagers and the warp crystal")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -601,6 +602,34 @@ func _save_slots() -> void:
 	for i in range(1, 5):
 		Game.delete_save(i)
 	Game.slot = 1
+
+
+func _warp_points() -> void:
+	print("== Warp points")
+	await _start(&"warrior")
+	await main.go(&"town", true)
+	await _wait(0.4)
+	var town: Zone = main.zone
+	check(town.npcs.any(func(n): return n.role == "warp"), "the village has a warp crystal")
+	var places := WarpScreen.destinations()
+	check(places.size() == 11 and places[0] == &"town" and places[10] == &"abyss", "the warp list is the village plus all ten fields")
+	check(WarpScreen.unlocked(&"meadow", 1) and not WarpScreen.unlocked(&"dark_forest", 6) and WarpScreen.unlocked(&"dark_forest", 7), "fields unlock by level")
+	Game.profile["level"] = 30
+	var open := places.filter(func(p): return WarpScreen.unlocked(p, 30))
+	check(open.has(&"snow") and not open.has(&"volcano"), "at Lv.30 the warp reaches the snow mountain but not the volcano")
+	main.warp.open_warp()
+	await _wait(0.2)
+	check(main.warp.is_open, "the warp screen opens")
+	main.warp.close_warp()
+	await main.go(&"snow", false, true)
+	await _wait(0.8)
+	var snow: Zone = main.zone
+	check(snow.zone_id == &"snow", "warping lands in the snow field")
+	check(snow.hero.global_position.x < -30.0, "warping arrives at the field start")
+	check(snow.npcs.filter(func(n): return n.role == "warp").size() == 2, "a field has a warp crystal at both ends")
+	await main.go(&"town", false, true)
+	await _wait(0.6)
+	check(main.zone.zone_id == &"town", "warping back reaches the village")
 
 
 func _timer_bars() -> void:

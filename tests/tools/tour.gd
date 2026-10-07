@@ -88,9 +88,30 @@ func run() -> void:
 		"zones": await _zones()
 		"hud": await _hud_check()
 		"timers": await _timers_check()
+		"warp": await _warp_check()
 		_: await _field()
 	print("tour done: ", _n)
 	get_tree().quit()
+
+
+func _warp_check() -> void:
+	Game.dismiss_party()
+	_level(30)
+	var hero: Hero = main.zone.hero
+	hero.global_position = Vector3(-2.0, 0.2, 7.0)
+	main.zone.camera_rig.snap_to_target()
+	await _wait(0.8)
+	await _shot("town_stone")
+	main.warp.open_warp()
+	await _wait(0.4)
+	await _shot("warp_list")
+	main.warp.close_warp()
+	await main.go(&"snow", true, true)
+	await _wait(1.0)
+	await _shot("snow_arrive")
+	main.zone.hero.global_position = main.zone.hero.global_position + Vector3(2.0, 0, -2.0)
+	await _wait(0.6)
+	await _shot("snow_stone")
 
 
 func _hud_check() -> void:

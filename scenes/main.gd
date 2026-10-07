@@ -8,6 +8,7 @@ var menu: GameMenu
 var shop: ShopScreen
 var trainer: SkillTrainer
 var storage: StorageScreen
+var warp: WarpScreen
 var dialog: DialogBox
 var _flash: ColorRect
 var title_screen: CanvasLayer
@@ -56,6 +57,9 @@ func _ready() -> void:
 	add_child(trainer)
 	storage = StorageScreen.new()
 	add_child(storage)
+	warp = WarpScreen.new()
+	add_child(warp)
+	warp.warp_chosen.connect(func(id: StringName): go(id, false, true))
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
@@ -131,7 +135,8 @@ func _clear_zone() -> void:
 		zone = null
 
 
-func go(zone_id: StringName, instant := false) -> void:
+## warp = true arrives at the field's start (not at the portal you came through).
+func go(zone_id: StringName, instant := false, warping := false) -> void:
 	if _traveling:
 		return
 	_traveling = true
@@ -144,8 +149,10 @@ func go(zone_id: StringName, instant := false) -> void:
 	await get_tree().process_frame
 	Game.current_zone = zone_id
 	Game.save()
-	if from_zone != String(zone_id):
+	if from_zone != String(zone_id) and not warping:
 		Game.profile["spawn_override"] = from_zone
+	elif warping:
+		Game.profile["spawn_override"] = ""
 	var z := Zone.new()
 	z.name = "Zone"
 	z.zone_id = zone_id
@@ -198,7 +205,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -242,6 +249,8 @@ func _on_npc(role: String) -> void:
 			_talk_party()
 		"daily":
 			_talk_daily()
+		"warp":
+			warp.open_warp()
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])
@@ -258,7 +267,7 @@ func _on_npc(role: String) -> void:
 			AudioManager.play_sfx(&"heal")
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
-			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ 4 ตัวบนแถบโค้งได้ที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ 4 ตัวบนแถบโค้งได้ที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
 func _talk_daily() -> void:
