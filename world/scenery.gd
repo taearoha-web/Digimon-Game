@@ -70,26 +70,29 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	sky_material.sky_horizon_color = fog_color
 	sky_material.ground_bottom_color = fog_color.darkened(0.2)
 	sky_material.ground_horizon_color = fog_color
-	sky_material.sun_angle_max = 25.0
+	sky_material.sun_angle_max = 8.0
+	sky_material.sky_curve = 0.22
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = ambient
-	env.ambient_light_energy = 0.38
+	# A cool fill preserves detail in shadow; warm direct light gives the
+	# characters and soft foliage distinct, readable planes in Compatibility.
+	env.ambient_light_color = ambient.lerp(Color("b6c8df"), 0.22)
+	env.ambient_light_energy = 0.32
 	env.fog_enabled = true
 	env.fog_light_color = fog_color
-	env.fog_density = 0.0028
+	env.fog_density = 0.0021
 	env.glow_enabled = false
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	parent.add_child(world_env)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-52, -35, 0)
+	sun.rotation_degrees = Vector3(-48, -35, 0)
 	sun.light_color = sun_color
-	sun.light_energy = 0.68
+	sun.light_energy = 0.46
 	GameSettings.load_settings()
 	sun.shadow_enabled = GameSettings.shadow_distance() > 0.0
 	sun.directional_shadow_max_distance = maxf(GameSettings.shadow_distance(), 1.0)
@@ -100,11 +103,14 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 
 ## Flat ground with soft colour patches (vertex colours), plus a physics floor.
 static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Color, seed_value := 3,
-		path_color := Color("d8c38a"), paths: Array[PackedVector2Array] = [], path_width := 3.0) -> void:
+		path_color := Color("d8c38a"), paths: Array[PackedVector2Array] = [], path_width := 3.0,
+		clearings: Array[Vector3] = []) -> void:
 	var noise := FastNoiseLite.new()
 	noise.seed = seed_value
 	noise.frequency = 0.045
-	var cells := 56
+	# The former 4.6 m grid could not resolve a 2.2 m trail. A finer static
+	# ground mesh gives soft paths without textures, decals or extra draw calls.
+	var cells := 104
 	var step := half_size * 2.0 / cells
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -117,6 +123,11 @@ static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Co
 				var z: float = -half_size + c.y * step
 				var n := noise.get_noise_2d(x, z) * 0.5 + 0.5
 				var col := color_a.lerp(color_b, clampf(n * 1.3, 0.0, 1.0))
+				for clearing in clearings:
+					var cd := Vector2(x - clearing.x, z - clearing.y).length()
+					var edge := clearing.z + noise.get_noise_2d(x * 2.0, z * 2.0) * 1.2
+					var blend := 1.0 - smoothstep(edge * 0.56, edge, cd)
+					col = col.lerp(color_b.lerp(path_color, 0.24), blend * 0.42)
 				var d := _path_distance(Vector2(x, z), paths)
 				if d < path_width:
 					col = col.lerp(path_color, 1.0 - smoothstep(path_width * 0.5, path_width, d))
@@ -128,7 +139,7 @@ static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Co
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.vertex_color_is_srgb = true
-	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	mat.roughness = 1.0
 	mi.material_override = mat
@@ -236,7 +247,7 @@ static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerato
 	var groups: Dictionary = {}
 	var colors: Dictionary = {}
 	var set: Dictionary = THEME_SETS.get(theme, {})
-	var palette: Array = set.get("bush_colors", [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")])
+	var palette: Array = set.get("bush_colors", [Color("dfa7bb"), Color("eed8a0"), Color("eef0df"), Color("b7abd5"), Color("dfa38d")])
 	var bush_total: int = int(float(set.get("bushes", 120)) * GameSettings.density_scale())
 	var placed := 0
 	var attempts := 0
@@ -300,7 +311,7 @@ static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 
 
 static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3]) -> void:
-	var colors: Dictionary = NatureKit.THEMES[theme]
+	var colors: Dictionary = NatureKit.THEMES.get(theme, NatureKit.THEMES[&"meadow"])
 	var low: Color = colors["Grass"][0]
 	var high: Color = colors["Grass"][1]
 	var tuft := _tuft_mesh()
@@ -315,7 +326,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		tints.append(low.lerp(high, rng.randf()))
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/grass_sway.gdshader")
-	mat.set_shader_parameter("tip_color", high.lightened(0.15))
+	mat.set_shader_parameter("tip_color", high.lightened(0.05))
 	var holder := Node3D.new()
 	holder.name = "Grass"
 	parent.add_child(holder)
@@ -346,7 +357,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	# Flowers
 	var groups: Dictionary = {}
 	var flower_colors: Dictionary = {}
-	var palette := [Color("ff8fb1"), Color("ffd166"), Color("ffffff"), Color("b28dff"), Color("ff7a45")]
+	var palette := [Color("eaaabe"), Color("efd698"), Color("fff6df"), Color("c6b5e6"), Color("e6af95")]
 	for i in int(float(THEME_SETS.get(theme, {}).get("flowers", 200)) * GameSettings.density_scale()):
 		var p := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		if p.length() > play_radius or not _free(p, 0.2, occupied):

@@ -1,6 +1,6 @@
 class_name SkillSlot
 extends TouchButton
-## One skill on the arc: coloured round button with a glyph for how the skill
+## One skill in the bottom row: coloured round button with a glyph for how the skill
 ## is aimed, cooldown sweep, MP cost, a lock for skills not unlocked yet and
 ## the skill name underneath.
 
@@ -12,18 +12,20 @@ var unlocked := true
 var rank := 1
 var queued := false
 var show_name := true
-## Extra pixels the name is pushed down (neighbours in a row alternate so names never overlap).
+## Extra pixels the name is pushed down.
 var name_drop := 0.0
+var name_width := 86.0
 var cost := 0
+var slot_number := 0
 
 
 func _init() -> void:
-	radius = 34.0
+	radius = 36.0
 	toggle_mode = false
 
 
 func apply(p_skill: Dictionary, p_ratio: float, p_left: float, p_mp_ok: bool, p_unlocked: bool, p_rank: int, p_queued: bool) -> void:
-	var changed := p_skill != skill or not is_equal_approx(p_ratio, cooldown_ratio) or p_mp_ok != enough_mp \
+	var changed := p_skill != skill or not is_equal_approx(p_ratio, cooldown_ratio) or ceili(p_left) != ceili(cooldown_left) or p_mp_ok != enough_mp \
 			or p_unlocked != unlocked or p_rank != rank or p_queued != queued
 	skill = p_skill
 	cooldown_ratio = p_ratio
@@ -48,13 +50,14 @@ func _draw() -> void:
 	var c := size * 0.5
 	var ready := cooldown_ratio <= 0.0 and enough_mp and unlocked
 	var alpha := 1.0 if ready else 0.6
-	var fill := Color(accent.r * 0.3, accent.g * 0.3, accent.b * 0.4, 0.88 * alpha)
+	var fill := Color(UIPalette.BG_DEEP.lerp(accent, 0.22), 0.96 * alpha)
 	if _held or queued:
 		fill = Color(accent.r * 0.85, accent.g * 0.85, accent.b * 0.85, 0.95)
 	draw_circle(c + Vector2(0, 4), radius, Color(0, 0, 0, 0.3 * alpha))
 	draw_circle(c, radius, fill)
-	draw_arc(c, radius, 0, TAU, 48, Color(1, 1, 1, 0.9 * alpha), 3.0, true)
-	draw_arc(c, radius - 5.0, 0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.95 * alpha), 3.0, true)
+	draw_arc(c, radius, 0, TAU, 48, Color(UIPalette.GOLD, 0.75 * alpha), 2.0, true)
+	draw_arc(c, radius - 5.0, 0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.95 * alpha), 2.0, true)
+	draw_arc(c + Vector2(0, -1), radius - 9.0, PI * 1.13, PI * 1.7, 18, Color(1, 1, 1, 0.18 * alpha), 2.0, true)
 	if unlocked:
 		if not _icon(c, Color(1, 1, 1, alpha)):
 			_glyph(c, Color(1, 1, 1, alpha))
@@ -74,13 +77,21 @@ func _draw() -> void:
 		draw_arc(badge, 12.0, 0, TAU, 16, cost_color, 2.0, true)
 		_text(str(cost), badge, 14, cost_color)
 		if rank > 1:
-			var star_at := c + Vector2(-radius * 0.72, -radius * 0.72)
+			var star_at := c + Vector2(radius * 0.64, -radius * 0.78)
 			draw_colored_polygon(StarRow.star_points(star_at + Vector2(-5, 0), 8.0), UIPalette.GOLD)
 			_text(str(rank), star_at + Vector2(8, 0), 14, UIPalette.GOLD)
 	else:
 		_text("Lv.%d" % int(skill.level), c + Vector2(0, radius * 0.52), 15, Color(1, 0.85, 0.5))
+	if slot_number > 0:
+		var key_at := c + Vector2(-radius * 0.76, -radius * 0.76)
+		draw_circle(key_at, 10.0, UIPalette.BG_DEEP)
+		_text(str(slot_number), key_at, 12, UIPalette.TEXT_DIM)
 	if show_name and _font:
-		_text(String(skill.name), c + Vector2(0, radius + 14.0 + name_drop), 13, Color(1, 1, 1, 0.95 if ready else 0.65))
+		var label := String(skill.name)
+		var font_size := 13
+		while _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x > name_width and font_size > 10:
+			font_size -= 1
+		_text(label, c + Vector2(0, radius + 16.0 + name_drop), font_size, Color(UIPalette.TEXT, 0.95 if ready else 0.65))
 
 
 ## One drawing per skill icon key; returns false for unknown keys (the shape glyph is used then).

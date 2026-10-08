@@ -5,7 +5,7 @@ config_version=5
 
 config/name="Toon Tale"
 config/description="A solo cartoon action RPG for the phone browser: four classes, hunting fields, loot and bosses."
-config/version="0.1.0"
+config/version="0.3.1"
 run/main_scene="res://scenes/main.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "GL Compatibility")

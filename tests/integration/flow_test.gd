@@ -34,6 +34,10 @@ func check(condition: bool, message: String) -> void:
 
 func _run() -> void:
 	# `-- pvp` runs only the ranked-duel section (quick iteration).
+	if "imports" in OS.get_cmdline_user_args():
+		await _look()
+		await _storage_and_auto()
+		return
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
@@ -497,6 +501,7 @@ func _storage_and_auto() -> void:
 	check(cost > 0 and Game.expand_bag() and Game.bag_size() == Game.BASE_BAG + Game.BAG_STEP, "paying gold adds %d bag slots" % Game.BAG_STEP)
 	var save_code := Game.export_code()
 	check(Game.import_code(save_code) and Game.bag_size() == Game.BASE_BAG + Game.BAG_STEP and Game.storage().size() == stored_before - 1, "bag size and storage survive saving")
+	await _wait_for_import_reload()
 	# Auto hunting stays inside the camp it was switched on in.
 	await main.go(&"meadow", true)
 	await _wait(0.5)
@@ -540,7 +545,9 @@ func _look() -> void:
 		var head := FaceKit.build_head(fixed)
 		check(head.get_child_count() > 8 and head.get_node_or_null("Hair") != null, "head %d has face parts and hair" % i)
 		head.free()
-	check(FaceKit.build_head(FaceKit.default_look(), false).get_node_or_null("Hair") == null, "no hair under a helmet")
+	var helmet_head := FaceKit.build_head(FaceKit.default_look(), false)
+	check(helmet_head.get_node_or_null("Hair") == null, "no hair under a helmet")
+	helmet_head.free()
 	check(FaceKit.option_count("hair", 0) >= 8 and FaceKit.option_count("hair", 1) >= 8 and FaceKit.OUTFITS.size() >= 9 and FaceKit.HAIR_COLORS.size() == FaceKit.HAIR_COLOR_NAMES.size(), "8 hair styles per gender, 9 starter outfits")
 	for g in 2:
 		for style in FaceKit.option_count("hair", g):
@@ -575,6 +582,8 @@ func _look() -> void:
 	check(int(Game.profile.look.gender) == 1 and int(Game.profile.look.skin) == 5, "the chosen look is stored in the profile")
 	var back := Game.export_code()
 	check(Game.import_code(back) and int(Game.profile.look.hair) == 2, "the look survives a save code round trip")
+	await _wait_for_import_reload()
+	check(main.zone != null and int(main.zone.hero.visual.look.get("hair", -1)) == 2, "import reload rebuilds the restored character look")
 	main.title_screen = null
 	main.hud.visible = true
 	main._traveling = false
@@ -1517,6 +1526,17 @@ func _systems() -> void:
 
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
+
+
+## Imports now rebuild the live zone via a deferred signal. Finish that travel
+## before a test starts another one or captures references to the replacement.
+func _wait_for_import_reload() -> void:
+	await get_tree().process_frame
+	var elapsed := 0.0
+	while main._traveling and elapsed < 5.0:
+		await _wait(0.05)
+		elapsed += 0.05
+	check(not main._traveling and main.zone != null, "import's deferred zone reload completes")
 
 
 func _shared_potions() -> void:

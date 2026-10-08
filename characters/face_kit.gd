@@ -57,8 +57,9 @@ void fragment() {
 	}
 	ALBEDO = rgb * tint.rgb;
 	ROUGHNESS = rough;
-	RIM = 0.4;
-	RIM_TINT = 0.5;
+	SPECULAR = 0.16;
+	RIM = 0.18;
+	RIM_TINT = 0.75;
 }
 """
 
@@ -118,7 +119,7 @@ static func skin_material(source: StandardMaterial3D, tint: Color, look: Diction
 	var mat := ShaderMaterial.new()
 	mat.shader = _skin_shader
 	mat.set_shader_parameter("albedo_tex", source.albedo_texture)
-	mat.set_shader_parameter("tint", source.albedo_color * tint)
+	mat.set_shader_parameter("tint", source.albedo_color * StorybookFinish.balanced_tint(tint))
 	mat.set_shader_parameter("skin", skin_color(look))
 	mat.set_shader_parameter("skin_ref", Color("f5b993"))
 	return mat
@@ -127,11 +128,13 @@ static func skin_material(source: StandardMaterial3D, tint: Color, look: Diction
 # --- head ------------------------------------------------------------------
 
 static func _m(color: Color, unshaded := false) -> StandardMaterial3D:
-	return MeshKit.toon(color, {"unshaded": true} if unshaded else {})
+	var source := MeshKit.toon(color, {"unshaded": true} if unshaded else {})
+	return source if unshaded else StorybookFinish.material(source)
 
 
 static func _p(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3, size: Vector3, rot := Vector3.ZERO, unshaded := false) -> MeshInstance3D:
 	var mi := MeshKit.part(parent, mesh, _m(color, unshaded), pos, size, rot)
+	mi.set_meta("face_detail", parent.name != "Hair")
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
 
@@ -147,108 +150,141 @@ static func _face(x: float, y: float, lift := 0.0) -> Vector3:
 ## The whole head (without the neck/body). [param with_hair] false under helmets.
 static func build_head(look: Dictionary, with_hair := true) -> Node3D:
 	look = repair(look)
-	var root := Node3D.new()
+	var root := FaceExpression.new()
 	root.name = "CustomHead"
+	root.interval = 3.6 + float(int(look.hair) % 4) * 0.35
+	root.phase = 0.8 + float(int(look.hair_color) % 5) * 0.41
 	var skin := skin_color(look)
 	var female := int(look.gender) == 1
-	_p(root, MeshKit.sphere(), skin, Vector3(0, CY, 0), Vector3(RX * 2.0, RY * 2.0, RZ * 2.0))
+	_p(root, MeshKit.sphere(), skin, Vector3(0, CY, 0), Vector3(RX * 2.0, RY * 2.0, RZ * 2.0)).set_meta("face_detail", false)
 	for side in [-1.0, 1.0]:
-		_p(root, MeshKit.sphere_low(), skin.darkened(0.05), Vector3(side * (RX - 0.02), CY - 0.02, -0.02), Vector3(0.12, 0.2, 0.14))
+		_p(root, MeshKit.sphere(), skin.darkened(0.04), Vector3(side * (RX - 0.02), CY - 0.02, -0.02), Vector3(0.13, 0.2, 0.15))
+		_p(root, MeshKit.sphere(), skin.lerp(Color("d88687"), 0.28), Vector3(side * (RX + 0.014), CY - 0.015, 0.047), Vector3(0.055, 0.11, 0.045))
 	_eyes(root, look, skin, female)
 	_nose(root, int(look.nose), skin)
 	_mouth(root, int(look.mouth), skin, female)
-	if female:
-		for side in [-1.0, 1.0]:
-			var cheek := _face(side * 0.33, CY - 0.1, -0.02)
-			_p(root, MeshKit.sphere_low(), Color(1.0, 0.45, 0.5, 0.45), cheek, Vector3(0.16, 0.09, 0.05), Vector3.ZERO, true)
+	# Opaque warm cheeks stay readable on all skin tones without alpha sorting.
+	for side in [-1.0, 1.0]:
+		var cheek := _face(side * 0.33, CY - 0.145, 0.006)
+		_p(root, MeshKit.sphere(), skin.lerp(Color("e78089"), 0.27 if female else 0.16), cheek, Vector3(0.16, 0.065, 0.028), Vector3(0, side * 24.0, 0))
 	if with_hair:
 		_hair(root, look)
 	return root
 
 
-static func _eyes(root: Node3D, look: Dictionary, skin: Color, female: bool) -> void:
+static func _eyes(root: FaceExpression, look: Dictionary, skin: Color, female: bool) -> void:
 	var hair_color: Color = HAIR_COLORS[int(look.hair_color)]
 	var iris: Color = EYE_COLORS[int(look.eye_color)]
 	var kind := int(look.eyes)
 	var ey := CY - 0.0
 	for side in [-1.0, 1.0]:
 		var ex: float = side * 0.2
-		var at := _face(ex, ey, -0.02)
+		var at := _face(ex, ey, -0.013)
+		var eye := Node3D.new()
+		eye.name = "EyeLeft" if side < 0.0 else "EyeRight"
+		eye.position = at
+		root.add_child(eye)
+		if kind != 3:
+			root.eyes.append(eye)
 		match kind:
 			0:
-				_eye(root, at, Vector2(0.17, 0.2), Vector2(0.135, 0.17), iris, 0.0)
+				_eye(eye, Vector3.ZERO, Vector2(0.19, 0.235), Vector2(0.145, 0.195), iris, 0.0)
 			1:
-				_eye(root, at, Vector2(0.13, 0.23), Vector2(0.1, 0.2), iris, 0.0)
+				_eye(eye, Vector3.ZERO, Vector2(0.155, 0.25), Vector2(0.12, 0.21), iris, 0.0)
 			2:
-				_eye(root, at, Vector2(0.18, 0.15), Vector2(0.125, 0.12), iris, 0.0)
-				_p(root, MeshKit.box(), skin, at + Vector3(0, 0.085, 0.045), Vector3(0.22, 0.09, 0.05))
+				_eye(eye, Vector3.ZERO, Vector2(0.19, 0.155), Vector2(0.13, 0.13), iris, 0.0)
 			3:
-				for i in 5:
-					var t := float(i) / 4.0
-					var spot := at + Vector3((t - 0.5) * 0.2 * side, sin(t * PI) * 0.07, 0.04)
-					_p(root, MeshKit.sphere_low(), Color("2a1c18"), spot, Vector3(0.05, 0.05, 0.04), Vector3.ZERO, true)
+				var happy_eye := PackedVector2Array()
+				for i in 21:
+					var t := float(i) / 20.0
+					happy_eye.append(Vector2(ex + (t - 0.5) * 0.18, ey + sin(t * PI) * 0.06))
+				_face_stroke(root, happy_eye, Color("352c43"), 0.025)
 			_:
-				_eye(root, at, Vector2(0.19, 0.12), Vector2(0.11, 0.115), iris, side * -14.0)
+				_eye(eye, Vector3.ZERO, Vector2(0.2, 0.14), Vector2(0.12, 0.125), iris, side * -12.0)
 		# Brow (and lashes for girls).
 		var brow := _face(ex, ey + 0.2, 0.0)
 		var brow_w := 0.17 if female else 0.2
 		var brow_h := 0.03 if female else 0.045
-		_p(root, MeshKit.box(), hair_color.darkened(0.15), brow + Vector3(0, 0, 0.01), Vector3(brow_w, brow_h, 0.04), Vector3(0, 0, side * -8.0))
+		_p(root, MeshKit.sphere(), hair_color.darkened(0.12), brow + Vector3(0, 0, 0.01), Vector3(brow_w, brow_h, 0.035), Vector3(0, 0, side * -8.0), true)
 		if female and kind != 3:
 			_p(root, MeshKit.box(), Color("2a1c18"), at + Vector3(side * 0.1, 0.1, 0.05), Vector3(0.06, 0.025, 0.03), Vector3(0, 0, side * 28.0), true)
 
 
 static func _eye(root: Node3D, at: Vector3, white: Vector2, iris_size: Vector2, iris: Color, tilt: float) -> void:
 	var rot := Vector3(0, 0, tilt)
-	_p(root, MeshKit.sphere_low(), Color("fbfbf5"), at, Vector3(white.x, white.y, 0.1), rot, true)
-	_p(root, MeshKit.sphere_low(), iris, at + Vector3(0, -0.005, 0.03), Vector3(iris_size.x, iris_size.y, 0.1), rot, true)
-	_p(root, MeshKit.sphere_low(), Color("15100e"), at + Vector3(0, -0.005, 0.06), Vector3(iris_size.x * 0.55, iris_size.y * 0.6, 0.08), rot, true)
-	_p(root, MeshKit.sphere_low(), Color.WHITE, at + Vector3(0.035, 0.05, 0.085), Vector3(0.05, 0.05, 0.04), Vector3.ZERO, true)
+	_p(root, MeshKit.sphere(), Color("352c43"), at + Vector3(0, 0.006, -0.008), Vector3(white.x + 0.024, white.y + 0.024, 0.078), rot, true)
+	_p(root, MeshKit.sphere(), Color("fff9ee"), at, Vector3(white.x, white.y, 0.084), rot, true)
+	_p(root, MeshKit.sphere(), iris.darkened(0.14), at + Vector3(0, -0.007, 0.03), Vector3(iris_size.x, iris_size.y, 0.076), rot, true)
+	_p(root, MeshKit.sphere(), iris.lightened(0.28), at + Vector3(0, -iris_size.y * 0.23, 0.064), Vector3(iris_size.x * 0.73, iris_size.y * 0.43, 0.024), rot, true)
+	_p(root, MeshKit.sphere(), Color("232032"), at + Vector3(0, 0.005, 0.064), Vector3(iris_size.x * 0.5, iris_size.y * 0.61, 0.04), rot, true)
+	_p(root, MeshKit.sphere(), Color.WHITE, at + Vector3(-0.028, 0.051, 0.084), Vector3(0.05, 0.059, 0.02), Vector3.ZERO, true)
+	_p(root, MeshKit.sphere(), Color("fff0cf"), at + Vector3(0.03, -0.036, 0.083), Vector3(0.023, 0.026, 0.014), Vector3.ZERO, true)
 
 
 static func _nose(root: Node3D, kind: int, skin: Color) -> void:
 	var at := _face(0, CY - 0.17, -0.01)
 	match kind:
 		0:
-			_p(root, MeshKit.sphere_low(), skin.darkened(0.18), at + Vector3(0, 0, 0.01), Vector3(0.05, 0.04, 0.04), Vector3.ZERO, true)
+			_p(root, MeshKit.sphere(), skin.lerp(Color("d88a78"), 0.18), at + Vector3(0, 0, 0.013), Vector3(0.038, 0.028, 0.036))
 		1:
-			_p(root, MeshKit.sphere_low(), skin.lightened(0.05), at + Vector3(0, 0.01, 0.0), Vector3(0.1, 0.09, 0.09))
+			_p(root, MeshKit.sphere(), skin.lightened(0.05), at + Vector3(0, 0.01, 0.0), Vector3(0.1, 0.09, 0.09))
 		2:
 			_p(root, MeshKit.cone(), skin.lightened(0.04), at + Vector3(0, 0.03, 0.01), Vector3(0.09, 0.16, 0.09), Vector3(90, 0, 0))
 		_:
-			_p(root, MeshKit.sphere_low(), skin.lightened(0.03), at + Vector3(0, 0.0, 0.0), Vector3(0.17, 0.08, 0.08))
-			_p(root, MeshKit.sphere_low(), skin.darkened(0.2), at + Vector3(-0.045, -0.03, 0.035), Vector3(0.03, 0.025, 0.02), Vector3.ZERO, true)
-			_p(root, MeshKit.sphere_low(), skin.darkened(0.2), at + Vector3(0.045, -0.03, 0.035), Vector3(0.03, 0.025, 0.02), Vector3.ZERO, true)
+			_p(root, MeshKit.sphere(), skin.lightened(0.03), at + Vector3(0, 0.0, 0.0), Vector3(0.17, 0.08, 0.08))
+			_p(root, MeshKit.sphere(), skin.darkened(0.2), at + Vector3(-0.045, -0.03, 0.035), Vector3(0.03, 0.025, 0.02), Vector3.ZERO, true)
+			_p(root, MeshKit.sphere(), skin.darkened(0.2), at + Vector3(0.045, -0.03, 0.035), Vector3(0.03, 0.025, 0.02), Vector3.ZERO, true)
 
 
 static func _mouth(root: Node3D, kind: int, skin: Color, female: bool) -> void:
-	var lip := Color("e0607a") if female else skin.darkened(0.35)
+	var lip := Color("b56575") if female else skin.lerp(Color("a36360"), 0.65)
 	var dark := Color("4a1c1c")
 	var at := _face(0, CY - 0.33, -0.02)
 	match kind:
 		0, 4:
-			var width := 0.3 if kind == 0 else 0.4
+			var width := 0.25 if kind == 0 else 0.34
 			if kind == 4:
 				_p(root, MeshKit.box(), Color("fbfbf5"), at + Vector3(0, -0.01, 0.06), Vector3(width * 0.8, 0.05, 0.03), Vector3.ZERO, true)
-			for i in 7:
-				var t := float(i) / 6.0
-				var spot := at + Vector3((t - 0.5) * width, -sin(t * PI) * 0.06 + 0.03, 0.05)
-				_p(root, MeshKit.sphere_low(), lip if kind == 0 else dark, spot, Vector3(0.045, 0.04, 0.035), Vector3.ZERO, true)
+			var smile := PackedVector2Array()
+			for i in 25:
+				var t := float(i) / 24.0
+				smile.append(Vector2((t - 0.5) * width, CY - 0.30 - sin(t * PI) * 0.046))
+			_face_stroke(root, smile, lip if kind == 0 else dark, 0.016)
 		1:
 			_p(root, MeshKit.box(), lip, at + Vector3(0, 0, 0.05), Vector3(0.2, 0.035, 0.03), Vector3.ZERO, true)
 		2:
-			_p(root, MeshKit.sphere_low(), dark, at + Vector3(0, 0, 0.04), Vector3(0.2, 0.13, 0.06), Vector3.ZERO, true)
-			_p(root, MeshKit.sphere_low(), Color("e8707a"), at + Vector3(0, -0.035, 0.065), Vector3(0.11, 0.05, 0.04), Vector3.ZERO, true)
+			_p(root, MeshKit.sphere(), dark, at + Vector3(0, 0, 0.04), Vector3(0.2, 0.13, 0.06), Vector3.ZERO, true)
+			_p(root, MeshKit.sphere(), Color("e8707a"), at + Vector3(0, -0.035, 0.065), Vector3(0.11, 0.05, 0.04), Vector3.ZERO, true)
 		_:
-			_p(root, MeshKit.sphere_low(), lip, at + Vector3(0, 0, 0.045), Vector3(0.09, 0.07, 0.05), Vector3.ZERO, true)
+			_p(root, MeshKit.sphere(), lip, at + Vector3(0, 0, 0.045), Vector3(0.09, 0.07, 0.05), Vector3.ZERO, true)
 
 
 # --- hair ------------------------------------------------------------------
 
+## A continuous thin ribbon follows the face surface. This stays a clean drawn
+## smile at portrait distance instead of separated beads that resemble stubble.
+static func _face_stroke(root: Node3D, points: PackedVector2Array, color: Color, width: float) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in points.size():
+		var previous := points[maxi(i - 1, 0)]
+		var next := points[mini(i + 1, points.size() - 1)]
+		var tangent := (next - previous).normalized()
+		var normal := Vector2(-tangent.y, tangent.x) * width * 0.5
+		for side in [-1.0, 1.0]:
+			var p: Vector2 = points[i] + normal * side
+			st.set_normal(Vector3.BACK)
+			st.add_vertex(_face(p.x, p.y, 0.014))
+	for i in points.size() - 1:
+		var a := i * 2
+		for index in [a, a + 1, a + 2, a + 1, a + 3, a + 2]:
+			st.add_index(index)
+	_p(root, st.commit(), color, Vector3.ZERO, Vector3.ONE, Vector3.ZERO, true)
+
 static func _hair(root: Node3D, look: Dictionary) -> void:
 	var color: Color = HAIR_COLORS[int(look.hair_color)]
-	var dark := color.darkened(0.12)
-	var light := color.lightened(0.12)
+	var dark := color.darkened(0.18)
+	var light := color.lightened(0.16)
 	var style := int(look.hair)
 	var female := int(look.gender) == 1
 	var hair := Node3D.new()
@@ -264,7 +300,7 @@ static func _hair(root: Node3D, look: Dictionary) -> void:
 	_p(hair, MeshKit.hemisphere(), color, Vector3(0, CY + 0.2, -0.03), cap_scale, Vector3(-10, 0, 0))
 	if not (not female and style == 3):
 		var back := 1.0 if not (not female and style == 4) else 0.55
-		_p(hair, MeshKit.sphere_low(), dark, Vector3(0, CY + 0.02, -0.22), Vector3(RX * 2.12, RY * 1.7 * back + 0.2, RZ * 1.45))
+		_p(hair, MeshKit.sphere(), dark, Vector3(0, CY + 0.02, -0.22), Vector3(RX * 2.12, RY * 1.7 * back + 0.2, RZ * 1.45))
 	if not female:
 		match style:
 			0:
@@ -278,63 +314,65 @@ static func _hair(root: Node3D, look: Dictionary) -> void:
 				_p(hair, MeshKit.cone(), light, Vector3(0, 1.22, 0), Vector3(0.26, 0.5, 0.26))
 			2:
 				var a := _face(-0.08, 0.93, 0.02)
-				_p(hair, MeshKit.sphere_low(), light, a, Vector3(0.66, 0.22, 0.2), Vector3(0, 0, -14))
+				_p(hair, MeshKit.sphere(), light, a, Vector3(0.66, 0.22, 0.2), Vector3(0, 0, -14))
 				var b := _face(0.3, 0.9, 0.0)
-				_p(hair, MeshKit.sphere_low(), color, b, Vector3(0.3, 0.18, 0.18), Vector3(0, 0, 12))
+				_p(hair, MeshKit.sphere(), color, b, Vector3(0.3, 0.18, 0.18), Vector3(0, 0, 12))
 			3:
-				_p(hair, MeshKit.sphere_low(), light, Vector3(0, 1.14, 0.1), Vector3(0.28, 0.4, 0.8), Vector3(-10, 0, 0))
+				_p(hair, MeshKit.sphere(), light, Vector3(0, 1.14, 0.1), Vector3(0.28, 0.4, 0.8), Vector3(-10, 0, 0))
 			5:
 				_fringe(hair, color, light, 0.9, 0.22, 5)
-				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.12, -0.4), Vector3(1.2, 1.5, 0.7))
+				_p(hair, MeshKit.sphere(), color, Vector3(0, 0.12, -0.4), Vector3(1.2, 1.5, 0.7))
 				for side in [-1.0, 1.0]:
 					_p(hair, MeshKit.capsule(), dark, Vector3(side * 0.6, 0.18, 0.0), Vector3(0.22, 0.5, 0.3))
 			6:
-				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.98, -0.05), Vector3(1.26, 0.7, 1.18))
-				_p(hair, MeshKit.sphere_low(), light, Vector3(0, 1.1, 0.0), Vector3(0.9, 0.5, 0.86))
+				_p(hair, MeshKit.sphere(), color, Vector3(0, 0.98, -0.05), Vector3(1.26, 0.7, 1.18))
+				_p(hair, MeshKit.sphere(), light, Vector3(0, 1.1, 0.0), Vector3(0.9, 0.5, 0.86))
 			7:
 				var a2 := _face(-0.12, 0.94, 0.04)
-				_p(hair, MeshKit.sphere_low(), light, a2, Vector3(0.85, 0.3, 0.2), Vector3(0, 0, -10))
+				_p(hair, MeshKit.sphere(), light, a2, Vector3(0.85, 0.3, 0.2), Vector3(0, 0, -10))
 				var b2 := _face(0.34, 0.8, 0.02)
-				_p(hair, MeshKit.sphere_low(), color, b2, Vector3(0.28, 0.5, 0.18), Vector3(0, 0, 8))
+				_p(hair, MeshKit.sphere(), color, b2, Vector3(0.28, 0.5, 0.18), Vector3(0, 0, 8))
 				for side in [-1.0, 1.0]:
-					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.56, 0.5, 0.05), Vector3(0.2, 0.46, 0.34))
+					_p(hair, MeshKit.sphere(), dark, Vector3(side * 0.56, 0.5, 0.05), Vector3(0.2, 0.46, 0.34))
 			_:
 				pass
 	else:
 		_fringe(hair, color, light, 0.9, 0.24, 5)
 		match style:
 			0:
-				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.22, -0.36), Vector3(1.22, 1.3, 0.7))
+				_p(hair, MeshKit.sphere(), color, Vector3(0, 0.22, -0.36), Vector3(1.22, 1.3, 0.7))
 				for side in [-1.0, 1.0]:
 					_p(hair, MeshKit.capsule(), dark, Vector3(side * 0.58, 0.3, 0.0), Vector3(0.2, 0.36, 0.3))
 			1:
-				_p(hair, MeshKit.sphere_low(), dark, Vector3(0, 0.82, -0.62), Vector3(0.3, 0.3, 0.3))
+				_p(hair, MeshKit.sphere(), dark, Vector3(0, 0.82, -0.62), Vector3(0.3, 0.3, 0.3))
 				_p(hair, MeshKit.capsule(), color, Vector3(0, 0.3, -0.7), Vector3(0.28, 0.32, 0.28), Vector3(14, 0, 0))
 			2:
 				for side in [-1.0, 1.0]:
-					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.62, 0.7, -0.1), Vector3(0.24, 0.24, 0.24))
+					_p(hair, MeshKit.sphere(), dark, Vector3(side * 0.62, 0.7, -0.1), Vector3(0.24, 0.24, 0.24))
 					_p(hair, MeshKit.capsule(), color, Vector3(side * 0.68, 0.2, -0.1), Vector3(0.22, 0.28, 0.22), Vector3(0, 0, side * -8.0))
 			3:
-				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 0.34, -0.28), Vector3(1.28, 0.78, 0.9))
+				_p(hair, MeshKit.sphere(), color, Vector3(0, 0.34, -0.28), Vector3(1.28, 0.78, 0.9))
 				for side in [-1.0, 1.0]:
-					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.56, 0.32, 0.1), Vector3(0.2, 0.52, 0.38))
+					_p(hair, MeshKit.sphere(), dark, Vector3(side * 0.56, 0.32, 0.1), Vector3(0.2, 0.52, 0.38))
 			5:
 				for side in [-1.0, 1.0]:
 					for k in 3:
-						_p(hair, MeshKit.sphere_low(), color if k % 2 == 0 else light, Vector3(side * (0.62 - k * 0.02), 0.5 - k * 0.3, -0.05), Vector3(0.26, 0.3, 0.26))
+						_p(hair, MeshKit.sphere(), color if k % 2 == 0 else light, Vector3(side * (0.62 - k * 0.02), 0.5 - k * 0.3, -0.05), Vector3(0.26, 0.3, 0.26))
 					_p(hair, MeshKit.torus(), Color("ff6a8a"), Vector3(side * 0.6, -0.32, -0.05), Vector3(0.24, 0.16, 0.24))
 			6:
-				_p(hair, MeshKit.sphere_low(), color, Vector3(0, -0.1, -0.4), Vector3(1.3, 1.9, 0.7))
+				_p(hair, MeshKit.sphere(), color, Vector3(0, -0.1, -0.4), Vector3(1.3, 1.9, 0.7))
 				for side in [-1.0, 1.0]:
 					_p(hair, MeshKit.capsule(), light, Vector3(side * 0.6, 0.0, 0.05), Vector3(0.2, 0.7, 0.28))
 			7:
 				for side in [-1.0, 1.0]:
-					_p(hair, MeshKit.sphere_low(), dark, Vector3(side * 0.5, 0.95, -0.1), Vector3(0.2, 0.2, 0.2))
+					_p(hair, MeshKit.sphere(), dark, Vector3(side * 0.5, 0.95, -0.1), Vector3(0.2, 0.2, 0.2))
 					_p(hair, MeshKit.capsule(), color, Vector3(side * 0.62, 0.55, -0.12), Vector3(0.24, 0.62, 0.24), Vector3(0, 0, side * -14.0))
-					_p(hair, MeshKit.sphere_low(), light, Vector3(side * 0.7, 0.16, -0.12), Vector3(0.2, 0.2, 0.2))
+					_p(hair, MeshKit.sphere(), light, Vector3(side * 0.7, 0.16, -0.12), Vector3(0.2, 0.2, 0.2))
 			_:
-				_p(hair, MeshKit.sphere_low(), color, Vector3(0, 1.22, -0.1), Vector3(0.46, 0.42, 0.46))
+				_p(hair, MeshKit.sphere(), color, Vector3(0, 1.22, -0.1), Vector3(0.46, 0.42, 0.46))
 				_p(hair, MeshKit.torus(), Color("ff6a8a"), Vector3(0, 1.02, -0.1), Vector3(0.5, 0.3, 0.5))
+
+	_bake_hair(hair)
 
 
 ## Bangs lying on the forehead along an arc.
@@ -343,4 +381,60 @@ static func _fringe(hair: Node3D, color: Color, light: Color, y: float, size: fl
 		var t := (float(i) / float(maxi(count - 1, 1))) - 0.5
 		var x := t * 0.8
 		var at := _face(x, y - absf(t) * 0.16, 0.0)
-		_p(hair, MeshKit.sphere_low(), light if i % 2 == 0 else color, at, Vector3(size, size * 0.8, size * 0.6), Vector3(0, 0, -t * 30.0))
+		_p(hair, _hair_lock(), light if i % 3 == 0 else color, at + Vector3(0, 0.085, 0.008), Vector3(size * 1.17, size * 1.23, size * 0.46), Vector3(-8.0, 0, -t * 28.0))
+
+
+static var _lock_mesh: ArrayMesh
+
+
+## Rounded roots and a curved tapered tip make the fringe read as sculpted hair.
+static func _hair_lock() -> ArrayMesh:
+	if _lock_mesh != null:
+		return _lock_mesh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const RINGS := 7
+	const SIDES := 12
+	for ring in RINGS:
+		var t := float(ring) / float(RINGS - 1)
+		var radius := 0.46 * pow(maxf(1.0 - t, 0.001), 0.6)
+		for side in SIDES:
+			var angle := TAU * float(side) / float(SIDES)
+			st.set_uv(Vector2(float(side) / SIDES, t))
+			st.add_vertex(Vector3(cos(angle) * radius + t * t * 0.16, -t, sin(angle) * radius + sin(t * PI) * 0.24))
+	for ring in RINGS - 1:
+		for side in SIDES:
+			var a := ring * SIDES + side
+			var b := ring * SIDES + (side + 1) % SIDES
+			var c := a + SIDES
+			var d := b + SIDES
+			for index in [a, c, b, b, c, d]:
+				st.add_index(index)
+	st.generate_normals()
+	_lock_mesh = st.commit()
+	return _lock_mesh
+
+
+## A hairstyle has only a few colours: merge the static clumps by material to
+## keep the smoother geometry from multiplying mobile draw calls.
+static func _bake_hair(hair: Node3D) -> void:
+	var batches: Dictionary = {}
+	for child in hair.get_children():
+		if not child is MeshInstance3D:
+			continue
+		var mi := child as MeshInstance3D
+		var mat := mi.material_override
+		var key := mat.get_instance_id()
+		if not batches.has(key):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			batches[key] = {"builder": st, "material": mat}
+		(batches[key].builder as SurfaceTool).append_from(mi.mesh, 0, mi.transform)
+		mi.free()
+	for key in batches:
+		var mi := MeshInstance3D.new()
+		mi.name = "SculptedHair"
+		mi.mesh = (batches[key].builder as SurfaceTool).commit()
+		mi.material_override = batches[key].material
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		hair.add_child(mi)

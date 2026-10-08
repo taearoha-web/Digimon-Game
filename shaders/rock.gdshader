@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_toon, specular_disabled;
+render_mode diffuse_burley, specular_disabled;
 // Stylised rocks: flat stone colour with moss on the upward-facing parts.
 
 uniform vec4 stone_color : source_color = vec4(0.42, 0.45, 0.55, 1.0);
@@ -16,7 +16,7 @@ void vertex() {
 
 void fragment() {
 	float moss = smoothstep(0.55, 0.9, up_facing) * moss_amount;
-	vec3 stone = stone_color.rgb * mix(vec3(1.0), inst_tint * 1.5, 0.35);
+	vec3 stone = stone_color.rgb * mix(vec3(1.0), inst_tint, 0.18);
 	ALBEDO = mix(stone, moss_color.rgb, moss);
 	ROUGHNESS = 1.0;
 }

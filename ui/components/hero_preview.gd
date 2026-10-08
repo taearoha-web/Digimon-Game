@@ -24,14 +24,21 @@ func _init(p_size := Vector2i(250, 300)) -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.9, 0.92, 1.0)
-	env.ambient_light_energy = 0.9
+	env.ambient_light_color = Color("d7e5ef")
+	env.ambient_light_energy = 0.72
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	viewport.add_child(world_env)
 	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-35, 35, 0)
+	light.rotation_degrees = Vector3(-38, -32, 0)
+	light.light_color = Color("fff0dc")
+	light.light_energy = 1.3
 	viewport.add_child(light)
+	var rim := DirectionalLight3D.new()
+	rim.rotation_degrees = Vector3(-18, 145, 0)
+	rim.light_color = Color("a9ddd8")
+	rim.light_energy = 0.7
+	viewport.add_child(rim)
 	var cam := Camera3D.new()
 	# Far enough back to fit tall crowns and wings above the head.
 	cam.position = Vector3(0, 1.7, 8.6)
@@ -40,6 +47,20 @@ func _init(p_size := Vector2i(250, 300)) -> void:
 	viewport.add_child(cam)
 	_pivot = Node3D.new()
 	viewport.add_child(_pivot)
+	# A quiet studio pedestal grounds the model without a full second scene.
+	var plinth := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.4
+	disc.bottom_radius = 1.5
+	disc.height = 0.11
+	disc.radial_segments = 40
+	plinth.mesh = disc
+	plinth.position.y = -0.075
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("537a80")
+	material.roughness = 0.7
+	plinth.material_override = material
+	viewport.add_child(plinth)
 
 
 func show_hero(class_id: StringName, equip: Dictionary, model := "", look := {}) -> void:
@@ -71,4 +92,4 @@ func _gui_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_idle += delta
 	if _spin and _pivot and not _dragging and _idle > 1.5:
-		_pivot.rotation.y += delta * 0.7
+		_pivot.rotation.y += delta * 0.24

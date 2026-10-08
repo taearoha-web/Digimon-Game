@@ -2,8 +2,8 @@ class_name HUD
 extends CanvasLayer
 ## Always-on screen UI (landscape, touch first):
 ##   left            joystick
-##   bottom right    big Attack button, the four class skills on an arc around
-##                   it, potion / target / talk buttons
+##   bottom          eight skills in one row, big Attack button at the right
+##   far right       HP potion, MP potion, auto and target in a vertical column
 ##   top left        hero panel (HP, MP, EXP) and the locked-on monster
 ##   top right       gold, zone name, menu
 ## All state is read from [Game] and the hero every frame.
@@ -11,11 +11,9 @@ extends CanvasLayer
 signal menu_requested(tab: StringName)
 signal interact_pressed()
 
-## Bottom row, left of the big attack button: the eight skills 1..8 in a line.
-const SKILL_SPACING := 80.0
-const SKILL_ROW_Y := -86.0
-## Right-hand column above the attack button: HP potion, MP potion, auto, focus.
-const SIDE_SPACING := 64.0
+## One bottom row leaves the joystick's touch circle clear on the left.
+const SKILL_SPACING := 94.0
+const SKILL_ROW_Y := -68.0
 const ATTACK_RADIUS := 62.0
 
 var hero: Hero
@@ -91,6 +89,8 @@ func _ready() -> void:
 	_build_top_right(_frame)
 	_build_action_buttons(_frame)
 	_build_banner(_frame)
+	_frame.resized.connect(_layout_actions)
+	_layout_actions()
 	_build_death_overlay()
 	_controls = [joystick, camera_area, attack_button, hp_potion, mp_potion, target_button, auto_button, interact_button]
 	_controls.append_array(skill_slots)
@@ -563,32 +563,26 @@ func _build_action_buttons(frame: Control) -> void:
 	attack_button.pressed.connect(func(): if hero: hero.tap_attack())
 	frame.add_child(attack_button)
 
-	var center := Vector2(-30 - ATTACK_RADIUS, -30 - ATTACK_RADIUS)
-	var first_x := center.x - ATTACK_RADIUS - 28.0 - 34.0
 	for i in ClassData.SLOTS:
 		var slot := SkillSlot.new()
-		slot.name_drop = float(i % 2) * 15.0
-		var x := first_x - float(ClassData.SLOTS - 1 - i) * SKILL_SPACING
-		_place_corner(slot, Vector2(x, SKILL_ROW_Y) + Vector2(slot.radius, slot.radius), slot.radius)
+		slot.slot_number = i + 1
 		slot.pressed.connect(func(): if hero: hero.use_skill(i))
 		frame.add_child(slot)
 		skill_slots.append(slot)
 
-	var side_x := center.x
-	var side_y := center.y - ATTACK_RADIUS - 24.0 - 28.0
-	hp_potion = _small_button("res://assets/icons/ui/heart_potion.svg", Color("ff5a6e"), Vector2(side_x, side_y))
+	hp_potion = _small_button("res://assets/icons/ui/heart_potion.svg", UIPalette.DANGER, Vector2.ZERO)
 	hp_potion.pressed.connect(func(): if hero: hero.use_potion("hp"))
 	frame.add_child(hp_potion)
-	mp_potion = _small_button("res://assets/icons/ui/mana_potion.svg", Color("5a9bff"), Vector2(side_x, side_y - SIDE_SPACING))
+	mp_potion = _small_button("res://assets/icons/ui/mana_potion.svg", UIPalette.SP, Vector2.ZERO)
 	mp_potion.pressed.connect(func(): if hero: hero.use_potion("mp"))
 	frame.add_child(mp_potion)
-	auto_button = _small_button("", Color("5affc0"), Vector2(side_x, side_y - SIDE_SPACING * 2.0))
+	auto_button = _small_button("", UIPalette.SUCCESS, Vector2.ZERO)
 	auto_button.toggle_mode = true
 	auto_button.text = "ออโต้"
-	auto_button.font_size_override = 18
+	auto_button.font_size_override = 17
 	auto_button.pressed.connect(func(): if hero: hero.toggle_auto())
 	frame.add_child(auto_button)
-	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.DANGER, Vector2(side_x, side_y - SIDE_SPACING * 3.0))
+	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.GOLD, Vector2.ZERO)
 	target_button.pressed.connect(func(): if hero: hero.cycle_target())
 	frame.add_child(target_button)
 
@@ -600,6 +594,38 @@ func _build_action_buttons(frame: Control) -> void:
 	_place_corner(interact_button, Vector2(-30, -30), 52.0)
 	interact_button.pressed.connect(func(): interact_pressed.emit())
 	frame.add_child(interact_button)
+
+
+## Positions are calculated together so every skill retains its own touch area.
+## The virtual canvas expands beyond 1280 x 720 on wide phones/tablets.
+static func action_layout(canvas_size: Vector2) -> Dictionary:
+	var spacing := clampf((canvas_size.x - 550.0) / float(ClassData.SLOTS - 1), 80.0, SKILL_SPACING)
+	var centers: Array[Vector2] = []
+	for i in ClassData.SLOTS:
+		centers.append(Vector2(-200.0 - (ClassData.SLOTS - 1 - i) * spacing, SKILL_ROW_Y))
+	var utility: Array[Vector2] = []
+	# Keep the top potion below the minimap, including a phone's safe insets.
+	var utility_spacing := clampf((canvas_size.y - 466.0) / 3.0, 62.0, 72.0)
+	for i in 4:
+		utility.append(Vector2(-40.0, -184.0 - (3 - i) * utility_spacing))
+	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "attack": Vector2(-84, -84)}
+
+
+func _layout_actions() -> void:
+	if attack_button == null or skill_slots.size() != ClassData.SLOTS:
+		return
+	var positions := action_layout(_frame.size)
+	for i in skill_slots.size():
+		var slot := skill_slots[i]
+		slot.name_width = minf(86.0, positions.skill_spacing - 6.0)
+		slot.queue_redraw()
+		_place_corner(slot, positions.skills[i] + Vector2.ONE * slot.radius, slot.radius)
+	var utilities := [hp_potion, mp_potion, auto_button, target_button]
+	for i in utilities.size():
+		var button: TouchButton = utilities[i]
+		_place_corner(button, positions.utility[i] + Vector2.ONE * button.radius, button.radius)
+	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
+	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
 
 
 func _place_corner(control: Control, offset_from_corner: Vector2, r: float) -> void:

@@ -54,21 +54,21 @@ func _make_fonts() -> void:
 	body_font.base_font = nunito
 	body_font.variation_opentype = {"wght": 650}
 	body_font.fallbacks = fallbacks
-	ResourceSaver.save(body_font, FONT_DIR + "/body_font.tres", ResourceSaver.FLAG_CHANGE_PATH)
+	ResourceSaver.save(body_font, FONT_DIR + "/body_font.tres")
 
 	bold_font = FontVariation.new()
 	bold_font.base_font = nunito
 	bold_font.variation_opentype = {"wght": 850}
 	var bold_fallbacks: Array[Font] = [thai_bold, system_fallback]
 	bold_font.fallbacks = bold_fallbacks
-	ResourceSaver.save(bold_font, FONT_DIR + "/bold_font.tres", ResourceSaver.FLAG_CHANGE_PATH)
+	ResourceSaver.save(bold_font, FONT_DIR + "/bold_font.tres")
 
 	heading_font = FontVariation.new()
 	heading_font.base_font = fredoka
 	heading_font.variation_opentype = {"wght": 600}
 	var heading_fallbacks: Array[Font] = [mitr, system_fallback]
 	heading_font.fallbacks = heading_fallbacks
-	ResourceSaver.save(heading_font, FONT_DIR + "/heading_font.tres", ResourceSaver.FLAG_CHANGE_PATH)
+	ResourceSaver.save(heading_font, FONT_DIR + "/heading_font.tres")
 
 	# Reload so the theme references the font files instead of embedding copies.
 	body_font = ResourceLoader.load(FONT_DIR + "/body_font.tres", "", ResourceLoader.CACHE_MODE_REPLACE)
@@ -127,13 +127,13 @@ func _button_set(theme: Theme, type: String, bg: Color, border: Color, font_colo
 
 
 func _button_styles(theme: Theme) -> void:
-	_button_set(theme, "Button", P.CARD, Color(P.CYAN.r, P.CYAN.g, P.CYAN.b, 0.4), P.TEXT, 18, P.CARD_HOVER, Color("141d45"))
+	_button_set(theme, "Button", P.CARD, Color(P.GOLD.r, P.GOLD.g, P.GOLD.b, 0.32), P.TEXT, 16, P.CARD_HOVER, P.BG_DEEP)
 
 	theme.add_type("PrimaryButton")
 	theme.set_type_variation("PrimaryButton", "Button")
-	_button_set(theme, "PrimaryButton", P.ORANGE, Color("ffd9c2"), Color.WHITE, 20, Color("ff935f"), Color("e0612a"))
+	_button_set(theme, "PrimaryButton", P.GOLD, Color("fff0c5"), P.TEXT_DARK, 18, Color("ffe6ad"), Color("dba957"))
 	theme.set_color("font_outline_color", "PrimaryButton", Color("8a3510"))
-	theme.set_constant("outline_size", "PrimaryButton", 5)
+	theme.set_constant("outline_size", "PrimaryButton", 0)
 	theme.set_font_size("font_size", "PrimaryButton", 21)
 
 	theme.add_type("AccentButton")
@@ -200,8 +200,8 @@ func _label_styles(theme: Theme) -> void:
 	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0))
 
 	var variations := {
-		"TitleLabel": [heading_font, 48, Color.WHITE, 12],
-		"HeaderLabel": [heading_font, 27, Color.WHITE, 6],
+		"TitleLabel": [heading_font, 48, P.TEXT, 3],
+		"HeaderLabel": [heading_font, 27, P.TEXT, 1],
 		"SubHeaderLabel": [heading_font, 19, P.CYAN, 0],
 		"ValueLabel": [heading_font, 18, Color.WHITE, 0],
 		"BoldLabel": [bold_font, 18, P.TEXT, 0],
@@ -219,7 +219,7 @@ func _label_styles(theme: Theme) -> void:
 		theme.set_color("font_color", type_name, v[2])
 		theme.set_constant("outline_size", type_name, v[3])
 		theme.set_color("font_outline_color", type_name, Color(0.03, 0.05, 0.14, 0.9))
-	theme.set_color("font_shadow_color", "TitleLabel", Color(0.2, 0.9, 1.0, 0.45))
+	theme.set_color("font_shadow_color", "TitleLabel", Color(0.03, 0.06, 0.10, 0.4))
 	theme.set_constant("shadow_offset_x", "TitleLabel", 0)
 	theme.set_constant("shadow_offset_y", "TitleLabel", 6)
 
@@ -231,7 +231,7 @@ func _label_styles(theme: Theme) -> void:
 
 
 func _panel_styles(theme: Theme) -> void:
-	var main := _with_shadow(_box(P.PANEL, Color(P.CYAN.r, P.CYAN.g, P.CYAN.b, 0.35), 2, 24, Vector4(22, 18, 22, 18)), 14, 0.4)
+	var main := _with_shadow(_box(P.PANEL, Color(P.GOLD.r, P.GOLD.g, P.GOLD.b, 0.35), 2, 24, Vector4(22, 18, 22, 18)), 14, 0.4)
 	theme.set_stylebox("panel", "PanelContainer", main)
 	theme.set_stylebox("panel", "Panel", main)
 
@@ -263,7 +263,7 @@ func _input_styles(theme: Theme) -> void:
 	theme.set_color("font_color", "LineEdit", Color.WHITE)
 	theme.set_color("font_placeholder_color", "LineEdit", P.TEXT_MUTED)
 	theme.set_color("caret_color", "LineEdit", P.CYAN)
-	theme.set_color("selection_color", "LineEdit", Color(P.CYAN.r, P.CYAN.g, P.CYAN.b, 0.35))
+	theme.set_color("selection_color", "LineEdit", Color(P.GOLD.r, P.GOLD.g, P.GOLD.b, 0.35))
 	theme.set_constant("caret_width", "LineEdit", 3)
 
 

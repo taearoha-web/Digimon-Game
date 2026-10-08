@@ -23,9 +23,21 @@ var busy_until := 0
 
 var _clips: Dictionary = {}
 var _tween: Tween
+var _rest_scale := Vector3.ONE
+var _ground_offset := 0.0
+var _hover := 0.0
+var _idle_phase := 0.0
+var _soft_body := false
+var _motion_weight := 0.0
 
 
 func setup(model_path: String, target_height: float, hover := 0.0, tint := Color.WHITE) -> void:
+	if is_instance_valid(model):
+		model.free()
+	_clips.clear()
+	current = ""
+	busy_until = 0
+	_motion_weight = 0.0
 	var packed := load(DIR + model_path + ".gltf") as PackedScene
 	if packed == null:
 		push_error("MonsterVisual: missing %s" % model_path)
@@ -38,9 +50,13 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	var fit := target_height / measured
 	model.scale = Vector3.ONE * fit
 	model.position.y = -box.position.y * fit + hover
+	_rest_scale = model.scale
+	_ground_offset = -box.position.y * fit
+	_hover = hover
+	_idle_phase = float(absi(model_path.hash()) % 100) * 0.063
+	_soft_body = model_path.contains("Blob") or model_path.contains("Glub") or model_path.contains("Ghost")
 	height = target_height + hover
-	if tint != Color.WHITE:
-		_apply_tint(tint)
+	_apply_finish(tint, fit)
 	anim = _find_player(model)
 	if anim:
 		for key in CLIP_ALIASES:
@@ -51,10 +67,13 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 					a.loop_mode = Animation.LOOP_LINEAR if key in LOOPING else Animation.LOOP_NONE
 					break
 	play("idle")
+	set_process(true)
 
 
-## Re-colours the model (variants of the same monster for later zones).
-func _apply_tint(tint: Color) -> void:
+## The same soft illustrated finish as the heroes, with a satin gloss reserved
+## for jelly creatures. Outline width is measured in world space after fitting.
+func _apply_finish(tint: Color, fit: float) -> void:
+	var width := 0.009 / maxf(fit, 0.001) if GameSettings.quality > 0 else 0.0
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi.mesh == null:
@@ -62,9 +81,22 @@ func _apply_tint(tint: Color) -> void:
 		for i in mi.mesh.get_surface_count():
 			var source := mi.get_active_material(i) as StandardMaterial3D
 			if source:
-				var copy := source.duplicate() as StandardMaterial3D
-				copy.albedo_color = source.albedo_color * tint
-				mi.set_surface_override_material(i, copy)
+				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, width, _soft_body))
+
+
+func _process(delta: float) -> void:
+	if model == null or has_meta("freeze_expression"):
+		return
+	# Small idle-only breathing complements authored clips. Attack, hit and death
+	# silhouettes stay precise, and low quality skips this extra presentation work.
+	var target := 1.0 if current == "idle" and GameSettings.quality > 0 else 0.0
+	_motion_weight = move_toward(_motion_weight, target, delta * 5.0)
+	_idle_phase += delta * (2.8 if _soft_body else 1.9)
+	var wave := sin(_idle_phase) * _motion_weight
+	var stretch := 1.0 + wave * (0.024 if _soft_body else 0.008)
+	model.scale = _rest_scale * Vector3(1.0 / sqrt(stretch), stretch, 1.0 / sqrt(stretch))
+	var bob := wave * minf(height * 0.022, 0.06) if _hover > 0.0 else 0.0
+	model.position.y = _ground_offset * stretch + _hover + bob
 
 
 func play(key: String, speed := 1.0) -> void:

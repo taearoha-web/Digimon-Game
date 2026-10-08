@@ -240,7 +240,7 @@ static func _make_particles(parent: Node3D, pos: Vector3, color: Color, amount: 
 	var p := CPUParticles3D.new()
 	p.mesh = _particle_mesh
 	p.material_override = _particle_material
-	p.amount = amount
+	var reserved := VfxBudget.track_particles(p, amount)
 	p.lifetime = lifetime
 	p.one_shot = one_shot
 	p.explosiveness = 0.9 if one_shot else 0.0
@@ -253,17 +253,22 @@ static func _make_particles(parent: Node3D, pos: Vector3, color: Color, amount: 
 	p.position = pos if parent is Node3D and not one_shot else Vector3.ZERO
 	if one_shot:
 		p.global_position = pos
-		p.emitting = true
+		p.emitting = reserved
 		p.finished.connect(p.queue_free)
+		if not reserved:
+			p.queue_free()
 	return p
 
 
 static func _flash_light(parent: Node3D, pos: Vector3, color: Color, energy := 2.0) -> void:
+	if not VfxBudget.can_light():
+		return
 	var light := OmniLight3D.new()
 	light.light_color = color
-	light.light_energy = energy
+	light.light_energy = minf(energy, 0.8)
 	light.omni_range = 4.0
 	parent.add_child(light)
+	VfxBudget.track_light(light)
 	light.global_position = pos
 	var tween := light.create_tween()
 	tween.tween_property(light, "light_energy", 0.0, 0.3)

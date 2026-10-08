@@ -19,6 +19,7 @@ var _tab_buttons: Dictionary = {}
 var _selected_index := -1
 var _selected_slot := ""
 var _detail: VBoxContainer
+var _item_buttons: Array[Dictionary] = []
 ## Opened from the blacksmith: items can be enhanced and socketed.
 var forge_mode := false
 
@@ -206,6 +207,7 @@ func _build_paragon(parent: Control) -> void:
 # ---------------------------------------------------------------------------
 
 func _build_inventory() -> void:
+	_item_buttons.clear()
 	var row := UIUtil.hbox(14)
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(row)
@@ -232,7 +234,7 @@ func _build_inventory() -> void:
 		if item != null:
 			b.icon = ItemLook.icon(item)
 			b.tooltip_text = ItemData.name_of(item)
-			b.modulate = Color.WHITE.lerp(ItemData.color_of(item), 0.35)
+			_style_item_button(b, ItemData.color_of(item), _selected_slot == slot)
 		else:
 			b.text = ItemData.SLOT_NAMES[slot]
 			b.add_theme_font_size_override("font_size", 16)
@@ -242,11 +244,13 @@ func _build_inventory() -> void:
 			_selected_index = -1
 			_refresh_detail())
 		slots.add_child(b)
+		_item_buttons.append({"button": b, "slot": slot, "index": -1, "color": ItemData.color_of(item) if item != null else UIPalette.TEXT_MUTED})
 	# Bag grid
 	var middle := UIUtil.vbox(6)
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(middle)
 	middle.add_child(UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.bag_size()], &"SubHeaderLabel"))
+	middle.add_child(UIUtil.label("แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel"))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -271,7 +275,9 @@ func _build_inventory() -> void:
 			b.text = ("×%d" % int(item.count)) if ItemData.is_stackable(item) else ItemData.level_text(int(item.level)).replace("Lv.100 ", "")
 			b.add_theme_color_override("font_color", ItemData.color_of(item))
 			b.add_theme_font_size_override("font_size", 17)
-			b.modulate = Color.WHITE.lerp(ItemData.color_of(item), 0.3)
+			_style_item_button(b, ItemData.color_of(item), _selected_index == i)
+			b.tooltip_text = "%s · %s" % [ItemData.name_of(item), ItemData.RARITY_NAMES[int(item.get("rarity", 0))]]
+			_item_buttons.append({"button": b, "slot": "", "index": i, "color": ItemData.color_of(item)})
 			b.pressed.connect(func():
 				_selected_index = i
 				_selected_slot = ""
@@ -328,6 +334,10 @@ func _build_compare(item: Dictionary) -> void:
 
 
 func _refresh_detail() -> void:
+	for entry in _item_buttons:
+		if is_instance_valid(entry.button):
+			var selected: bool = (entry.slot != "" and entry.slot == _selected_slot) or (entry.slot == "" and entry.index == _selected_index)
+			_style_item_button(entry.button, entry.color, selected)
 	if _detail == null or not is_instance_valid(_detail):
 		return
 	UIUtil.clear(_detail)
@@ -707,8 +717,10 @@ func _build_settings() -> void:
 	box.add_child(vib)
 	var save := UIUtil.button("บันทึกเกม", &"PrimaryButton", Vector2(320, 66))
 	save.pressed.connect(func():
-		Game.save()
-		Game.say("บันทึกเกมแล้ว", &"success"))
+		if Game.save():
+			Game.say("บันทึกเกมแล้ว", &"success")
+		else:
+			Game.say("บันทึกไม่สำเร็จ กรุณาสำรองรหัสเซฟ", &"warning"))
 	box.add_child(save)
 	# Save backup: the save lives in this browser only, so offer copy / paste.
 	var backup := UIUtil.button("สำรอง / นำเข้าเซฟ", &"", Vector2(320, 66))
@@ -737,11 +749,25 @@ func _open_backup() -> void:
 	box.add_child(UIUtil.label("สำรองเซฟ", &"HeaderLabel"))
 	box.add_child(UIUtil.label("กดค้างที่กล่องข้อความเพื่อคัดลอก เก็บรหัสนี้ไว้ในโน้ต แล้ววางกลับมาเพื่อนำเข้าบนเครื่องไหนก็ได้", &"SmallLabel"))
 	var edit := TextEdit.new()
-	edit.custom_minimum_size = Vector2(0, 280)
+	edit.custom_minimum_size = Vector2(0, 180)
 	edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	edit.text = Game.export_code()
 	box.add_child(edit)
+	var destination_row := UIUtil.hbox(12)
+	box.add_child(destination_row)
+	destination_row.add_child(UIUtil.label("นำเข้าไปยังช่อง", &"BoldLabel"))
+	var destination := OptionButton.new()
+	destination.custom_minimum_size = Vector2(370, 56)
+	var suggested := Game.free_slot()
+	if suggested <= 0:
+		suggested = Game.slot
+	for save_slot in range(1, Game.SLOT_COUNT + 1):
+		var info := Game.slot_info(save_slot)
+		var title := "ช่อง %d · ว่าง" % save_slot if info.is_empty() else "ช่อง %d · %s Lv.%d" % [save_slot, info.name, info.level]
+		destination.add_item(title, save_slot)
+	destination.select(suggested - 1)
+	destination_row.add_child(destination)
 	var row := UIUtil.hbox(10)
 	box.add_child(row)
 	var copy := UIUtil.button("คัดลอกรหัส", &"PrimaryButton", Vector2(240, 60))
@@ -749,14 +775,50 @@ func _open_backup() -> void:
 		DisplayServer.clipboard_set(edit.text)
 		Game.say("คัดลอกแล้ว", &"success"))
 	row.add_child(copy)
-	var imp := UIUtil.button("นำเข้าจากกล่อง", &"", Vector2(260, 60))
-	imp.pressed.connect(func():
-		if Game.import_code(edit.text):
-			Game.say("นำเข้าเซฟสำเร็จ!", &"success")
-			_rebuild()
-		else:
-			Game.say("รหัสไม่ถูกต้อง", &"warning"))
+	var imp := UIUtil.button("ตรวจสอบและนำเข้า", &"", Vector2(260, 60))
+	imp.pressed.connect(func(): _confirm_backup(edit.text, destination.get_selected_id()))
 	row.add_child(imp)
 	var back := UIUtil.button("กลับ", &"", Vector2(160, 60))
 	back.pressed.connect(_rebuild)
 	row.add_child(back)
+
+
+## Review validated identity and the exact destination before any file changes.
+func _confirm_backup(code: String, target_slot: int) -> void:
+	var info := Game.preview_import(code)
+	if info.is_empty():
+		Game.say("รหัสไม่ถูกต้องหรือข้อมูลเซฟเสียหาย", &"warning")
+		return
+	var existing := Game.slot_info(target_slot)
+	var cls := JobData.resolve(StringName(info["class"]), int(info.adv))
+	var message := "%s · %s · Lv.%d\nพื้นที่: %s\nเวลาเล่น: %s\n\nปลายทาง: ช่อง %d" % [
+		info.name, cls.name, int(info.level), ZoneData.get_zone(StringName(info.zone)).name,
+		UIUtil.format_play_time(float(info.play_time)), target_slot]
+	if not existing.is_empty():
+		message += "\nจะแทนที่ %s (Lv.%d) ในช่องนี้" % [existing.name, int(existing.level)]
+	else:
+		message += " (ว่าง)"
+	var approved: bool = await ModalDialog.confirm(self, "ตรวจสอบเซฟก่อนนำเข้า", message,
+		"นำเข้าและเล่นเซฟนี้", "ยกเลิก", not existing.is_empty())
+	if not approved:
+		return
+	if Game.import_code(code, target_slot):
+		Game.say("นำเข้าเซฟช่อง %d สำเร็จ!" % target_slot, &"success")
+		close_menu()
+	else:
+		Game.say("นำเข้าไม่สำเร็จ กรุณาตรวจรหัสและพื้นที่จัดเก็บ", &"warning")
+
+
+## Rarity belongs to the frame; item artwork keeps its original readable colours.
+func _style_item_button(button: Button, rarity: Color, selected: bool) -> void:
+	for state in ["normal", "hover", "pressed", "hover_pressed"]:
+		var style := StyleBoxFlat.new()
+		style.bg_color = UIPalette.CARD.lerp(rarity, 0.10 if state == "normal" else 0.20)
+		style.border_color = UIPalette.GOLD if selected else Color(rarity, 0.7)
+		style.set_border_width_all(3 if selected else 2)
+		style.set_corner_radius_all(13)
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.content_margin_top = 5
+		style.content_margin_bottom = 5
+		button.add_theme_stylebox_override(state, style)

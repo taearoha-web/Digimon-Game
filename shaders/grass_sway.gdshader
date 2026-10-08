@@ -1,9 +1,9 @@
 shader_type spatial;
-render_mode cull_disabled, diffuse_toon, specular_disabled;
+render_mode cull_disabled, diffuse_burley, specular_disabled;
 // Wind-swayed grass tufts (MultiMesh with per-instance colour).
 
 uniform vec4 tip_color : source_color = vec4(0.62, 0.92, 0.45, 1.0);
-uniform float sway = 0.12;
+uniform float sway = 0.09;
 
 void vertex() {
 	vec3 world_origin = MODEL_MATRIX[3].xyz;
@@ -18,4 +18,5 @@ void fragment() {
 	// Instance colours are sRGB; convert to linear like source_color uniforms.
 	vec3 base = pow(COLOR.rgb, vec3(2.2));
 	ALBEDO = mix(tip_color.rgb, base, h);
+	ROUGHNESS = 1.0;
 }

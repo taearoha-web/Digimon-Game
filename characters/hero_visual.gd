@@ -40,6 +40,7 @@ var _skeleton: Skeleton3D
 var _body_nodes: Array[Node] = []
 var _hold_nodes: Array[Node] = []
 var _tween: Tween
+var _face: FaceExpression
 
 
 ## p_model: wear another character's stock look (villagers); armed=false = no weapon.
@@ -80,6 +81,7 @@ func set_equipment(p_equip: Dictionary) -> void:
 
 
 func refresh() -> void:
+	_face = null
 	for n in _body_nodes:
 		if is_instance_valid(n):
 			n.free()
@@ -173,13 +175,7 @@ static var _outline_material: StandardMaterial3D
 ## One dark hull shared by every character: a thin cartoon outline.
 static func outline_material() -> StandardMaterial3D:
 	if _outline_material == null:
-		var m := StandardMaterial3D.new()
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(0.09, 0.05, 0.13)
-		m.cull_mode = BaseMaterial3D.CULL_FRONT
-		m.grow = true
-		m.grow_amount = 0.02
-		_outline_material = m
+		_outline_material = StorybookFinish.outline(0.012)
 	return _outline_material
 
 
@@ -198,7 +194,7 @@ func _polish() -> void:
 		if mi.mesh == null or mi.has_meta("polished"):
 			continue
 		mi.set_meta("polished", true)
-		var outlined := not (mi in held)
+		var outlined := not (mi in held) and not bool(mi.get_meta("face_detail", false)) and GameSettings.quality > 0
 		if mi.material_override != null:
 			var done := _polish_material(mi.material_override, outlined)
 			if done != null:
@@ -215,13 +211,7 @@ func _polish_material(source: Material, outlined: bool) -> Material:
 		var std := source as StandardMaterial3D
 		if std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or std.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
 			return null
-		var copy := std.duplicate() as StandardMaterial3D
-		copy.rim_enabled = true
-		copy.rim = 0.25
-		copy.rim_tint = 0.6
-		if outlined:
-			copy.next_pass = outline_material()
-		return copy
+		return StorybookFinish.material(std, Color.WHITE, 0.012 if outlined else 0.0)
 	if outlined and source is ShaderMaterial and FaceKit._skin_shader != null and (source as ShaderMaterial).shader == FaceKit._skin_shader:
 		(source as ShaderMaterial).next_pass = outline_material()
 		return source
@@ -356,7 +346,8 @@ func _add_custom_head(with_hair: bool) -> void:
 	attach.name = "CustomHeadAttach"
 	attach.bone_name = "head"
 	_skeleton.add_child(attach)
-	attach.add_child(FaceKit.build_head(look, with_hair))
+	_face = FaceKit.build_head(look, with_hair) as FaceExpression
+	attach.add_child(_face)
 	_body_nodes.append(attach)
 
 
@@ -442,6 +433,8 @@ func _borrow_animations() -> AnimationPlayer:
 
 ## Big head = cuter. Scales the head bone after the animation has posed it.
 func _process(_delta: float) -> void:
+	if is_instance_valid(_face):
+		_face.asleep = current.begins_with("Death") or current.begins_with("Lie")
 	if _skeleton == null or _head_bone < 0:
 		return
 	var pose := _skeleton.get_bone_global_pose_no_override(_head_bone)

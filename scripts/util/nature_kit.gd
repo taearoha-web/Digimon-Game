@@ -15,27 +15,27 @@ const VIEW_DISTANCE := 85.0
 ## Per theme: leaf colours by material-name prefix, bark and rock colours.
 const THEMES := {
 	&"meadow": {
-		"PineTree_Leaves": [Color("2c6b45"), Color("5fa66a")],
-		"MapleTree_Leaves": [Color("4f9a3c"), Color("c5d65a")],
-		"NormalTree_Leaves": [Color("3a8a45"), Color("8fd05e")],
-		"BirchTree_Leaves": [Color("5aa44a"), Color("b4e36a")],
-		"Bush_Leaves": [Color("2f7d3e"), Color("79c75a")],
-		"PalmTree_Leaves": [Color("3a9a4a"), Color("8fe070")],
-		"Grass": [Color("3f9a44"), Color("86d46a")],
-		"Bark": Color("7a5236"), "BirchBark": Color("d8d2c4"), "PalmBark": Color("9a7448"),
-		"Rock": [Color("9aa3b8"), Color("5ea35a")],
+		"PineTree_Leaves": [Color("436b58"), Color("91b084")],
+		"MapleTree_Leaves": [Color("698754"), Color("c4c991")],
+		"NormalTree_Leaves": [Color("50795a"), Color("a7bd80")],
+		"BirchTree_Leaves": [Color("789366"), Color("d0d69c")],
+		"Bush_Leaves": [Color("537951"), Color("a1b97c")],
+		"PalmTree_Leaves": [Color("537e60"), Color("acc890")],
+		"Grass": [Color("638758"), Color("a5bc7c")],
+		"Bark": Color("886957"), "BirchBark": Color("d8d2c4"), "PalmBark": Color("9a7448"),
+		"Rock": [Color("9aa3b8"), Color("77906a")],
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
 	&"digital": {
-		"PineTree_Leaves": [Color("1f6b6a"), Color("55d6b4")],
-		"MapleTree_Leaves": [Color("5a4aa8"), Color("b08aff")],
-		"NormalTree_Leaves": [Color("23805f"), Color("6fe0a0")],
-		"BirchTree_Leaves": [Color("3a8fa8"), Color("8fe8ff")],
-		"Bush_Leaves": [Color("1f7f55"), Color("5fd6a0")],
-		"PalmTree_Leaves": [Color("2a8f8a"), Color("7ff0d0")],
-		"Grass": [Color("237a43"), Color("7fd89a")],
+		"PineTree_Leaves": [Color("3e676d"), Color("8bbbb2")],
+		"MapleTree_Leaves": [Color("71658c"), Color("b9a6db")],
+		"NormalTree_Leaves": [Color("4b7773"), Color("9bc9b1")],
+		"BirchTree_Leaves": [Color("638d9e"), Color("b5d3df")],
+		"Bush_Leaves": [Color("496c60"), Color("8bb29c")],
+		"PalmTree_Leaves": [Color("577e86"), Color("a4c9c8")],
+		"Grass": [Color("466c5b"), Color("92b5a0")],
 		"Bark": Color("5a4a6e"), "BirchBark": Color("a99cc4"), "PalmBark": Color("6e5a8a"),
-		"Rock": [Color("7f86a8"), Color("57c7a4")],
+		"Rock": [Color("7f86a8"), Color("81a99a")],
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
 	&"desert": {
@@ -135,12 +135,12 @@ const THEMES := {
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
 	&"void": {
-		"PineTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
-		"MapleTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
-		"NormalTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
-		"BirchTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
-		"Bush_Leaves": [Color("2a1250"), Color("c04ae0")],
-		"PalmTree_Leaves": [Color("1a0e34"), Color("9a4af0")],
+		"PineTree_Leaves": [Color("1a0e34"), Color("9783c4")],
+		"MapleTree_Leaves": [Color("1a0e34"), Color("9783c4")],
+		"NormalTree_Leaves": [Color("1a0e34"), Color("9783c4")],
+		"BirchTree_Leaves": [Color("1a0e34"), Color("9783c4")],
+		"Bush_Leaves": [Color("2a1250"), Color("ab81c9")],
+		"PalmTree_Leaves": [Color("1a0e34"), Color("9783c4")],
 		"Grass": [Color("1a1034"), Color("5a2aa8")],
 		"Bark": Color("120a22"), "BirchBark": Color("120a22"), "PalmBark": Color("120a22"),
 		"Rock": [Color("241a46"), Color("7a4ad8")],
@@ -248,8 +248,8 @@ static func _material_for(material_name: String, theme: StringName, model_height
 	mat.set_shader_parameter("top_color", pair[1])
 	mat.set_shader_parameter("height_ref", model_height)
 	var is_flower := material_name == "Flowers"
-	mat.set_shader_parameter("tint_strength", 1.0 if is_flower else 0.2)
-	mat.set_shader_parameter("sway", 0.02 if material_name.begins_with("Bush") or is_flower else 0.06)
+	mat.set_shader_parameter("tint_strength", 1.0 if is_flower else 0.12)
+	mat.set_shader_parameter("sway", 0.018 if material_name.begins_with("Bush") or is_flower else 0.045)
 	return mat
 
 

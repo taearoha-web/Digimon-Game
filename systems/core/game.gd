@@ -19,6 +19,7 @@ signal party_roster_changed()
 signal achievement_unlocked(name: String)
 signal ending_requested()
 signal screen_flash(color: Color, strength: float)
+signal profile_imported()
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
@@ -33,6 +34,8 @@ const STORAGE_SIZE := 80
 const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 100
 const MAX_SKILL_RANK := 5
+const MAX_SAVE_BYTES := 1048576
+const MAX_SAVE_NUMBER := 1000000000000
 ## Area skills (burst / blast) grow this much wider per extra star.
 const RADIUS_PER_STAR := 0.08
 
@@ -56,8 +59,11 @@ func _process(delta: float) -> void:
 	profile["play_time"] = float(profile.get("play_time", 0.0)) + delta
 	_autosave_timer += delta
 	if _autosave_timer > AUTOSAVE_INTERVAL and _dirty:
-		save()
-		autosaved.emit()
+		if save():
+			autosaved.emit()
+		else:
+			# Retry at the next interval instead of opening a failing file every frame.
+			_autosave_timer = 0.0
 
 
 func _notification(what: int) -> void:
@@ -238,34 +244,80 @@ func stats_now(buffs := {}) -> Dictionary:
 func export_code() -> String:
 	if not has_profile:
 		return ""
-	profile["zone"] = String(current_zone)
-	return Marshalls.utf8_to_base64(JSON.stringify(profile))
+	var snapshot := profile.duplicate(true)
+	snapshot["zone"] = String(current_zone)
+	return Marshalls.utf8_to_base64(JSON.stringify(snapshot))
 
 
-## Replaces the current profile with a pasted code. Returns false when invalid.
-func import_code(code: String) -> bool:
-	var text := Marshalls.base64_to_utf8(code.strip_edges())
-	var parsed: Variant = JSON.parse_string(text)
-	if not parsed is Dictionary or not parsed.has("class") or not parsed.has("level"):
+## Inspect a backup without changing the active hero or any save slot.
+func preview_import(code: String) -> Dictionary:
+	var candidate := _decode_import(code)
+	if candidate.is_empty():
+		return {}
+	return {"name": candidate.name, "class": candidate["class"], "level": candidate.level,
+		"adv": candidate.adv, "zone": candidate.zone, "play_time": candidate.play_time}
+
+
+func _decode_import(code: String) -> Dictionary:
+	var clean := code.strip_edges()
+	if clean.is_empty() or clean.length() > MAX_SAVE_BYTES * 2:
+		return {}
+	var format := RegEx.new()
+	format.compile("^[A-Za-z0-9+/]+={0,2}$")
+	if clean.length() % 4 != 0 or format.search(clean) == null:
+		return {}
+	var decoded := Marshalls.base64_to_utf8(clean)
+	if decoded.is_empty() or decoded.length() > MAX_SAVE_BYTES:
+		return {}
+	var json := JSON.new()
+	if json.parse(decoded) != OK:
+		return {}
+	var parsed: Variant = json.data
+	if not parsed is Dictionary or not _valid_profile(parsed):
+		return {}
+	return _repair(parsed)
+
+
+## Commit only after the backup and destination are valid and disk write succeeds.
+func import_code(code: String, target_slot := -1) -> bool:
+	var destination := slot if target_slot == -1 else target_slot
+	if destination < 1 or destination > SLOT_COUNT:
 		return false
-	profile = _repair(parsed)
+	var candidate := _decode_import(code)
+	if candidate.is_empty():
+		return false
+	candidate["resume"] = playing
+	candidate["saved_at"] = int(Time.get_unix_time_from_system())
+	if not _write_profile(candidate, destination):
+		return false
+	profile = candidate
+	slot = destination
 	has_profile = true
-	clamp_vitals()
+	current_zone = StringName(profile.zone)
+	_dirty = false
+	_autosave_timer = 0.0
+	_party_gear.clear()
+	_remember_slot()
 	profile_changed.emit()
 	inventory_changed.emit()
 	quest_changed.emit()
 	party_changed.emit()
-	save()
+	gold_changed.emit(int(profile.gold))
+	exp_changed.emit()
+	profile_imported.emit()
 	return true
 
 
 func save_code_roundtrip() -> bool:
-	var before := JSON.stringify(profile)
 	var code := export_code()
-	if code == "" or not import_code(code):
+	if code == "":
 		return false
-	var same := JSON.stringify(profile).length() == before.length()
-	return same
+	var restored := _decode_import(code)
+	var snapshot := profile.duplicate(true)
+	snapshot["zone"] = String(current_zone)
+	# JSON represents all numbers as floats; normalize both sides through JSON
+	# so a type-only change never hides a real lost or changed field.
+	return not restored.is_empty() and JSON.parse_string(JSON.stringify(restored)) == JSON.parse_string(JSON.stringify(_repair(snapshot)))
 
 
 ## Which of the 4 save slots (1..4) the current profile belongs to.
@@ -304,13 +356,15 @@ func free_slot() -> int:
 
 
 func _read_slot(for_slot: int) -> Dictionary:
-	if not has_save(for_slot):
+	if for_slot < 1 or for_slot > SLOT_COUNT or not has_save(for_slot):
 		return {}
 	var file := FileAccess.open(save_path(for_slot), FileAccess.READ)
 	if file == null:
 		return {}
+	if file.get_length() > MAX_SAVE_BYTES:
+		return {}
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if parsed is Dictionary and parsed.has("class"):
+	if parsed is Dictionary and _valid_profile(parsed):
 		return parsed
 	return {}
 
@@ -328,12 +382,22 @@ func slot_info(for_slot: int) -> Dictionary:
 	}
 
 
+## Cosmetic data for a title-screen preview; does not select or load the slot.
+func slot_profile_preview(for_slot: int) -> Dictionary:
+	var raw := _read_slot(for_slot)
+	if raw.is_empty():
+		return {}
+	var repaired := _repair(raw)
+	return {"class": repaired["class"], "adv": repaired.adv,
+		"look": repaired.get("look", {}), "equip": repaired.equip}
+
+
 func last_slot() -> int:
 	if not FileAccess.file_exists(META_PATH):
 		return 1
 	var file := FileAccess.open(META_PATH, FileAccess.READ)
 	var parsed: Variant = JSON.parse_string(file.get_as_text()) if file else null
-	if parsed is Dictionary:
+	if parsed is Dictionary and _valid_integer(parsed.get("slot", 1), 1, SLOT_COUNT):
 		var n := int(parsed.get("slot", 1))
 		if n >= 1 and n <= SLOT_COUNT:
 			return n
@@ -365,24 +429,42 @@ func should_resume() -> bool:
 	return bool(raw.get("resume", false)) and age >= 0.0 and age < RESUME_WINDOW
 
 
-func save() -> void:
+func save() -> bool:
 	if not has_profile:
-		return
-	profile["zone"] = String(current_zone)
-	profile["resume"] = playing
-	profile["saved_at"] = int(Time.get_unix_time_from_system())
-	var path := save_path()
-	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify(profile))
-	file.close()
-	var dir := DirAccess.open("user://")
-	if dir:
-		dir.rename(path.get_file() + ".tmp", path.get_file())
+		return false
+	# Keep the last successful metadata and the dirty state until commit succeeds.
+	var snapshot := profile.duplicate(true)
+	snapshot["zone"] = String(current_zone)
+	snapshot["resume"] = playing
+	snapshot["saved_at"] = int(Time.get_unix_time_from_system())
+	if not _write_profile(snapshot, slot):
+		_dirty = true
+		return false
+	profile["zone"] = snapshot.zone
+	profile["resume"] = snapshot.resume
+	profile["saved_at"] = snapshot.saved_at
 	_remember_slot()
 	_autosave_timer = 0.0
 	_dirty = false
+	return true
+
+
+## Same-directory rename keeps the previous save intact if writing fails.
+func _write_profile(snapshot: Dictionary, destination: int) -> bool:
+	if destination < 1 or destination > SLOT_COUNT:
+		return false
+	var path := save_path(destination)
+	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(snapshot))
+	file.flush()
+	var write_error := file.get_error()
+	file.close()
+	if write_error != OK:
+		return false
+	var dir := DirAccess.open("user://")
+	return dir != null and dir.rename(path.get_file() + ".tmp", path.get_file()) == OK
 
 
 ## Loads a slot (default: the current one) and makes it the active one.
@@ -395,9 +477,9 @@ func load_game(from_slot := -1) -> bool:
 	profile = _repair(raw)
 	has_profile = true
 	current_zone = StringName(profile.get("zone", "town"))
-	# A duel is never resumed: leaving mid-fight puts the hero back in the village.
-	if current_zone == &"pvp" or current_zone == &"tower":
-		current_zone = &"town"
+	_dirty = false
+	_autosave_timer = 0.0
+	_party_gear.clear()
 	_remember_slot()
 	profile_changed.emit()
 	inventory_changed.emit()
@@ -413,11 +495,168 @@ func delete_save(for_slot := -1) -> void:
 		profile = {}
 
 
+## Reject wrong types before any typed gameplay code can touch imported JSON.
+## Missing optional fields are supported for older saves; malformed ones are not.
+func _valid_profile(data: Dictionary) -> bool:
+	if not data.get("class") is String or not ClassData.CLASSES.has(StringName(data["class"])):
+		return false
+	if not _valid_integer(data.get("level"), 1, MAX_LEVEL):
+		return false
+	if not _valid_integer(data.get("version", SAVE_VERSION), 1, SAVE_VERSION):
+		return false
+	for key in ["exp", "points", "skill_points", "gold", "hp", "mp", "kills", "deaths", "saved_at"]:
+		if not _valid_integer(data.get(key, 0)):
+			return false
+	if not _valid_number(data.get("play_time", 0.0)) or not _valid_integer(data.get("adv", 0), 0, JobData.MAX_ADV):
+		return false
+	if not _valid_integer(data.get("bag_slots", BASE_BAG), BASE_BAG, MAX_BAG):
+		return false
+	for key in ["name", "zone", "job", "spawn_override"]:
+		if data.has(key) and not data[key] is String:
+			return false
+	for key in ["resume", "job3"]:
+		if data.has(key) and not data[key] is bool:
+			return false
+	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "pvp", "tower", "paragon", "ach", "look", "daily"]:
+		if data.has(key) and not data[key] is Dictionary:
+			return false
+	for key in ["inv", "storage", "loadout", "party"]:
+		if data.has(key) and not data[key] is Array:
+			return false
+	for key in ["attrs", "skills", "boss_kills", "pvp", "tower", "look"]:
+		for value in data.get(key, {}).values():
+			if not _valid_integer(value):
+				return false
+	for key in data.get("flags", {}):
+		var value: Variant = data.flags[key]
+		if key in ["daily_last", "arena_day"]:
+			if not value is String:
+				return false
+		elif not _valid_integer(value):
+			return false
+	for value in data.get("ach", {}).values():
+		if not value is bool:
+			return false
+	for key in ["inv", "storage"]:
+		if data.get(key, []).size() > (MAX_BAG if key == "inv" else STORAGE_SIZE):
+			return false
+		for item in data.get(key, []):
+			if not _valid_item(item):
+				return false
+	for equip_slot in data.get("equip", {}):
+		var item: Variant = data.equip[equip_slot]
+		if not ItemData.EQUIP_SLOTS.has(equip_slot) or not _valid_item(item):
+			return false
+		if item.kind != "equip" or item.slot != equip_slot:
+			return false
+	for skill_id in data.get("loadout", []):
+		if not skill_id is String:
+			return false
+	for state in data.get("quests", {}).values():
+		if not state is Dictionary or state.get("status", "new") not in ["new", "active", "ready", "done"] or not _valid_integer(state.get("progress", 0)):
+			return false
+	var para: Dictionary = data.get("paragon", {})
+	for key in para:
+		if key not in ["level", "exp", "points", "spent", "alloc"]:
+			return false
+	if not _valid_integer(para.get("level", 0), 0, PARAGON_MAX) or not para.get("alloc", {}) is Dictionary:
+		return false
+	for key in ["exp", "points", "spent"]:
+		if not _valid_integer(para.get(key, 0)):
+			return false
+	for key in para.get("alloc", {}):
+		if not PARAGON_STATS.has(key) or not _valid_integer(para.alloc[key], 0, int(PARAGON_STATS[key][2])):
+			return false
+	for member in data.get("party", []):
+		if not member is Dictionary or not member.get("class") is String or not ClassData.IDS.has(StringName(member["class"])):
+			return false
+		if not member.get("name", "") is String or not _valid_integer(member.get("level", 1), 1, MAX_LEVEL) or not _valid_integer(member.get("exp", 0)):
+			return false
+		if member.get("stance", "follow") not in STANCES or member.get("trait", "brave") not in TRAIT_NAMES:
+			return false
+		for key in ["potions", "mp_potions", "hp", "mp"]:
+			if not _valid_integer(member.get(key, 0)):
+				return false
+	if data.has("daily"):
+		var daily_data: Dictionary = data.daily
+		if not daily_data.get("chest", false) is bool:
+			return false
+		if not daily_data.get("date", "") is String or not daily_data.get("zone", "town") is String or not daily_data.get("quests", []) is Array:
+			return false
+		for entry in daily_data.get("quests", []):
+			if not entry is Dictionary or not entry.get("id") is String or daily_template(entry.id).is_empty():
+				return false
+			if not _valid_integer(entry.get("progress", 0)) or not entry.get("claimed", false) is bool:
+				return false
+	return true
+
+
+func _valid_number(value: Variant, minimum := 0.0, maximum := float(MAX_SAVE_NUMBER)) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) and float(value) >= minimum and float(value) <= maximum
+
+
+func _valid_integer(value: Variant, minimum := 0, maximum := MAX_SAVE_NUMBER) -> bool:
+	return _valid_number(value, float(minimum), float(maximum)) and float(value) == floor(float(value))
+
+
+func _valid_gem_id(value: Variant) -> bool:
+	if not value is String:
+		return false
+	var bits: PackedStringArray = value.split("_")
+	return bits.size() == 2 and ItemData.GEMS.has(bits[0]) and bits[1] in ["0", "1", "2"]
+
+
+func _valid_item(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	var item: Dictionary = value
+	if item.get("kind") in ["potion", "gem"]:
+		# Stack items never contain equipment fields. Refuse ambiguous data before
+		# item repair or UI code can accidentally interpret those nested values.
+		for key in ["stats", "gems", "level", "rarity", "price", "plus", "sockets"]:
+			if item.has(key):
+				return false
+		return _valid_integer(item.get("count", 1), 1) and (ItemData.POTIONS.has(item.get("id")) if item.kind == "potion" else _valid_gem_id(item.get("id")))
+	if item.get("kind") != "equip" or not ItemData.EQUIP_SLOTS.has(item.get("slot")):
+		return false
+	for key in ["uid", "name", "class", "set", "base"]:
+		if not item.get(key, "") is String:
+			return false
+	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
+		return false
+	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
+		return false
+	if item.get("slot") == "wings" and not ItemData.WING_KINDS.has(item.get("wing")):
+		return false
+	if item.get("class", "") != "" and not ClassData.CLASSES.has(StringName(item["class"])):
+		return false
+	if not _valid_integer(item.get("level"), 1) or not _valid_integer(item.get("rarity", 0), 0, 4):
+		return false
+	if not _valid_integer(item.get("plus", 0), 0, ItemData.MAX_PLUS) or not _valid_integer(item.get("sockets", 0), 0, 3) or not _valid_integer(item.get("price", 0)):
+		return false
+	for key in item.get("stats", {}):
+		if not ItemData.STAT_LABELS.has(key) or not _valid_number(item.stats[key], 0.0, 10000000.0):
+			return false
+	if item.get("gems", []).size() > int(item.get("sockets", 0)):
+		return false
+	for gem_id in item.get("gems", []):
+		if not _valid_gem_id(gem_id):
+			return false
+	return true
+
+
 ## JSON turns ints into floats: restore the types the game expects.
 func _repair(data: Dictionary) -> Dictionary:
+	var has_hp := data.has("hp")
+	var has_mp := data.has("mp")
 	for key in ["level", "exp", "points", "skill_points", "gold", "hp", "mp", "kills", "deaths"]:
 		data[key] = int(data.get(key, 0))
 	data["level"] = maxi(1, int(data["level"]))
+	data["version"] = SAVE_VERSION
+	data["name"] = String(data.get("name", "นักเดินทาง")).strip_edges().left(80)
+	data["play_time"] = float(data.get("play_time", 0.0))
+	var zone := StringName(data.get("zone", "town"))
+	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower"] else "town"
 	if data.get("look") is Dictionary:
 		data["look"] = FaceKit.repair(data["look"])
 	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "pvp"]:
@@ -433,7 +672,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	for key in ["str", "int", "dex", "vit"]:
 		data.attrs[key] = int(data.attrs.get(key, 0))
 	for skill_id in data.skills.keys():
-		data.skills[skill_id] = int(data.skills[skill_id])
+		data.skills[skill_id] = clampi(int(data.skills[skill_id]), 0, MAX_SKILL_RANK)
 	# Older saves: "job" (first advancement) and "job3" (second) became the "adv" step count.
 	if not data.has("adv"):
 		data["adv"] = 0
@@ -441,7 +680,7 @@ func _repair(data: Dictionary) -> Dictionary:
 			data["adv"] = 2 if bool(data.get("job3", false)) else 1
 	data.erase("job")
 	data.erase("job3")
-	data["adv"] = int(data["adv"])
+	data["adv"] = clampi(int(data["adv"]), 0, JobData.MAX_ADV)
 	for key in data["flags"]:
 		if data["flags"][key] is float:
 			data["flags"][key] = int(data["flags"][key])
@@ -464,6 +703,34 @@ func _repair(data: Dictionary) -> Dictionary:
 		_repair_item(item)
 	for slot in data.equip:
 		_repair_item(data.equip[slot])
+	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
+	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
+		var para: Dictionary = data.paragon
+		para["level"] = int(para.get("level", 0))
+		para["exp"] = int(para.get("exp", 0)) + int(data.exp)
+		para["points"] = int(para.get("points", 0))
+		while int(para.level) < PARAGON_MAX:
+			var need := int(float(HeroStats.exp_to_next(MAX_LEVEL)) * (1.0 + 0.02 * float(para.level)))
+			if int(para.exp) < need:
+				break
+			para["exp"] = int(para.exp) - need
+			para["level"] = int(para.level) + 1
+			para["points"] = int(para.points) + 1
+		if int(para.level) == PARAGON_MAX:
+			para["exp"] = 0
+		data["exp"] = 0
+	if data.has("party"):
+		data["party"] = data.party.slice(0, 1)
+		for member in data.party:
+			member["name"] = member.get("name", "เพื่อนร่วมทาง")
+			member["level"] = int(member.get("level", 1))
+			member["exp"] = int(member.get("exp", 0))
+	for entry in data.get("daily", {}).get("quests", []):
+		entry["progress"] = int(entry.get("progress", 0))
+		entry["claimed"] = bool(entry.get("claimed", false))
+	var stats := HeroStats.compute(data)
+	data["hp"] = clampi(int(data.hp), 0, int(stats.max_hp)) if has_hp else int(stats.max_hp)
+	data["mp"] = clampi(int(data.mp), 0, int(stats.max_mp)) if has_mp else int(stats.max_mp)
 	return data
 
 
@@ -486,6 +753,13 @@ func _migrate_skills(data: Dictionary) -> void:
 
 
 func _repair_item(item: Dictionary) -> void:
+	if item.get("kind") == "equip":
+		for key in ["price", "plus", "sockets", "rarity"]:
+			item[key] = int(item.get(key, 0))
+		item["stats"] = item.get("stats", {})
+		item["gems"] = item.get("gems", [])
+	else:
+		item["count"] = int(item.get("count", 1))
 	# Older saves may hold gear above the star cap.
 	if item.has("level") and int(item.level) > ItemData.MAX_GEAR_LEVEL:
 		item["level"] = ItemData.MAX_GEAR_LEVEL
@@ -510,6 +784,8 @@ func say(text: String, kind: StringName = &"info") -> void:
 # ---------------------------------------------------------------------------
 
 func add_exp(amount: int) -> void:
+	if amount <= 0 or not has_profile:
+		return
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return
@@ -521,6 +797,11 @@ func add_exp(amount: int) -> void:
 		profile["points"] += STAT_POINTS_PER_LEVEL
 		profile["skill_points"] += 1
 		gained = true
+	# The same reward can reach Lv.100 and start earning Paragon immediately.
+	if int(profile["level"]) >= MAX_LEVEL and int(profile["exp"]) > 0:
+		var overflow := int(profile["exp"])
+		profile["exp"] = 0
+		_add_paragon_exp(overflow)
 	exp_changed.emit()
 	if gained:
 		fill_loadout()
