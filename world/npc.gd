@@ -17,6 +17,7 @@ func setup(p_role: String, p_name: String, p_class: StringName, p_title := "", p
 	visual = HeroVisual.new()
 	add_child(visual)
 	visual.setup(p_class, p_model, false)
+	visual.add_to_group("anim_lod")
 	var label := Label3D.new()
 	label.text = p_name if p_title == "" else "%s\n%s" % [p_name, p_title]
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED

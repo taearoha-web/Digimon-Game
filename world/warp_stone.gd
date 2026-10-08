@@ -40,12 +40,13 @@ func setup(p_role: String, p_name: String, _p_class: StringName, p_title := "", 
 		ring.rotation_degrees = Vector3(80 + i * 12, 0, 0)
 		add_child(ring)
 		_rings.append(ring)
-	var light := OmniLight3D.new()
-	light.light_color = color
-	light.light_energy = 0.18
-	light.omni_range = 3.8
-	light.position = Vector3(0, 2.3, 0)
-	add_child(light)
+	if GameSettings.quality >= 2:
+		var light := OmniLight3D.new()
+		light.light_color = color
+		light.light_energy = 0.18
+		light.omni_range = 3.8
+		light.position = Vector3(0, 2.3, 0)
+		add_child(light)
 	for entry in [[p_name, 4.5, 54, Color("d8f6ff")], [p_title, 3.95, 38, Color("9fd8ff")]]:
 		if String(entry[0]) == "":
 			continue
