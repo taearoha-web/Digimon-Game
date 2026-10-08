@@ -137,7 +137,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		_die()
 
 
-## Drinks its own potions when low (they are restocked for free in the village).
+## Drinks potions when low, from the hero's bag first (own stock refills free in the village).
 func _use_potions() -> void:
 	if hero.safe_zone:
 		member["potions"] = POTION_STOCK
@@ -146,20 +146,37 @@ func _use_potions() -> void:
 	if _potion_cd > 0.0 or Time.get_ticks_msec() < _cast_until:
 		return
 	var hp_threshold := 0.55 if String(member.get("trait", "")) == "careful" else 0.35
+	# Potions are shared with the hero: the bag first, the companion's own free stock after.
 	var hp_left := int(member.get("potions", POTION_STOCK))
 	var mp_left := int(member.get("mp_potions", MP_POTION_STOCK))
-	if hp_left > 0 and float(hp) / float(max_hp) < hp_threshold:
-		member["potions"] = hp_left - 1
-		_potion_cd = 6.0
-		heal_fraction(0.4)
-		BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยา!", Color("ff8a9a"), 0.9)
-		AudioManager.play_sfx(&"heal", -4.0)
-	elif mp_left > 0 and mp < float(stats.max_mp) * 0.2:
-		member["mp_potions"] = mp_left - 1
-		_potion_cd = 6.0
-		mp = minf(float(stats.max_mp), mp + float(stats.max_mp) * 0.5)
-		BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยามานา!", Color("7ab0ff"), 0.9)
-		AudioManager.play_sfx(&"heal", -4.0)
+	if float(hp) / float(max_hp) < hp_threshold:
+		var value := Game.take_potion_for_ally("hp", max_hp - hp)
+		if value > 0:
+			_drink_hp(float(value) / float(max_hp))
+		elif hp_left > 0:
+			member["potions"] = hp_left - 1
+			_drink_hp(0.4)
+	elif mp < float(stats.max_mp) * 0.2:
+		var value := Game.take_potion_for_ally("mp", int(float(stats.max_mp) - mp))
+		if value > 0:
+			_drink_mp(float(value))
+		elif mp_left > 0:
+			member["mp_potions"] = mp_left - 1
+			_drink_mp(float(stats.max_mp) * 0.5)
+
+
+func _drink_hp(fraction: float) -> void:
+	_potion_cd = 6.0
+	heal_fraction(fraction)
+	BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยา!", Color("ff8a9a"), 0.9)
+	AudioManager.play_sfx(&"heal", -4.0)
+
+
+func _drink_mp(amount: float) -> void:
+	_potion_cd = 6.0
+	mp = minf(float(stats.max_mp), mp + amount)
+	BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยามานา!", Color("7ab0ff"), 0.9)
+	AudioManager.play_sfx(&"heal", -4.0)
 
 
 func heal_fraction(fraction: float) -> void:
