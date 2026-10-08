@@ -56,30 +56,47 @@ func _has_point(point: Vector2) -> bool:
 	return point.distance_to(_center) <= base_radius * 1.45
 
 
+## Releases and drags of the finger that steers are read before the GUI sees them
+## ([method _input]), so a menu, a dialog or a hidden HUD that steals the GUI focus
+## can never leave the stick (and the hero) running with nobody holding it.
+func _input(event: InputEvent) -> void:
+	if _touch_index == -1:
+		return
+	if event is InputEventScreenTouch:
+		if not event.pressed and event.index == _touch_index:
+			_end()
+	elif event is InputEventScreenDrag:
+		if event.index == _touch_index:
+			_move(_to_local(event.position))
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
+		if event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and _touch_index == MOUSE_INDEX:
+			_end()
+	elif event is InputEventMouseMotion and event.device != InputEvent.DEVICE_ID_EMULATION:
+		if _touch_index == MOUSE_INDEX:
+			_move(_to_local(event.position))
+
+
+func _to_local(global_pos: Vector2) -> Vector2:
+	return get_global_transform_with_canvas().affine_inverse() * global_pos
+
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		if event.pressed and _touch_index == -1 and _accepts(event.position):
+		# A new press on the stick always takes over, even when the old finger never
+		# reported its release (the browser dropped it, or reused its index).
+		if event.pressed and _accepts(event.position):
 			_begin(event.index, event.position)
 			accept_event()
 		elif not event.pressed and event.index == _touch_index:
-			_end()
 			accept_event()
 	elif event is InputEventScreenDrag:
 		if event.index == _touch_index:
-			_move(event.position)
 			accept_event()
 	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed and _touch_index == -1 and _accepts(event.position):
 				_begin(MOUSE_INDEX, event.position)
 				accept_event()
-			elif not event.pressed and _touch_index == MOUSE_INDEX:
-				_end()
-				accept_event()
-	elif event is InputEventMouseMotion and event.device != InputEvent.DEVICE_ID_EMULATION:
-		if _touch_index == MOUSE_INDEX:
-			_move(event.position)
-			accept_event()
 
 
 func _notification(what: int) -> void:
@@ -96,6 +113,11 @@ func _accepts(pos: Vector2) -> bool:
 
 
 func _begin(index: int, pos: Vector2) -> void:
+	if is_active:
+		# Taking over from a finger that was lost: let go of the old one first.
+		_touch_index = -1
+		is_active = false
+		output = Vector2.ZERO
 	_touch_index = index
 	is_active = true
 	if follow_touch:

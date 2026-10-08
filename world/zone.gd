@@ -97,9 +97,32 @@ func _ready() -> void:
 				_spawn_in_camp(camp, true)
 
 
+## Models farther than this from the camera stop animating (they are tiny and
+## half-hidden by fog); a phone saves a skeleton update per model that way.
+const ANIM_RADIUS := [24.0, 34.0, 48.0]
+var _lod_timer := 0.0
+
+
+func _update_anim_lod() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var limit: float = ANIM_RADIUS[clampi(GameSettings.quality, 0, 2)]
+	var from := camera.global_position
+	for node in get_tree().get_nodes_in_group("anim_lod"):
+		var model := node as Node3D
+		var player: Variant = model.get("anim") if model else null
+		if player is AnimationPlayer and is_instance_valid(player):
+			(player as AnimationPlayer).active = model.global_position.distance_squared_to(from) < limit * limit
+
+
 func _process(delta: float) -> void:
 	if hero == null:
 		return
+	_lod_timer -= delta
+	if _lod_timer <= 0.0:
+		_lod_timer = 0.4
+		_update_anim_lod()
 	_interact_timer -= delta
 	if _interact_timer <= 0.0:
 		_interact_timer = 0.15
@@ -458,12 +481,14 @@ func _lamp(pos: Vector3) -> void:
 	add_child(holder)
 	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("4a4a58")), Vector3(0, 1.6, 0), Vector3(0.14, 3.2, 0.14))
 	MeshKit.part(holder, MeshKit.sphere_low(), MeshKit.toon(Color("ffe9a0"), {"emission": 2.0}), Vector3(0, 3.3, 0), Vector3(0.45, 0.45, 0.45))
-	var light := OmniLight3D.new()
-	light.light_color = Color("ffe9b0")
-	light.light_energy = 0.7
-	light.omni_range = 7.0
-	light.position = Vector3(0, 3.3, 0)
-	holder.add_child(light)
+	# Real lights cost every mesh around them an extra shading pass: only on "high".
+	if GameSettings.quality >= 2:
+		var light := OmniLight3D.new()
+		light.light_color = Color("ffe9b0")
+		light.light_energy = 0.7
+		light.omni_range = 7.0
+		light.position = Vector3(0, 3.3, 0)
+		holder.add_child(light)
 
 
 func _add_warp(pos: Vector3, title: String) -> void:

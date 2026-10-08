@@ -122,7 +122,15 @@ func bind(p_zone: Zone) -> void:
 	hero = zone.hero
 	minimap.zone = zone
 	minimap.visible = true
-	joystick.input_changed.connect(func(v: Vector2): hero.move_input = v)
+	# One link to the current hero (bind runs for every zone), and a thumb that is
+	# still on the stick keeps steering the new hero straight away.
+	if _stick_link.is_valid() and joystick.input_changed.is_connected(_stick_link):
+		joystick.input_changed.disconnect(_stick_link)
+	_stick_link = func(v: Vector2):
+		if hero and is_instance_valid(hero):
+			hero.move_input = v
+	joystick.input_changed.connect(_stick_link)
+	hero.move_input = joystick.output
 	camera_area.drag.connect(zone.camera_rig.rotate_by_pixels)
 	camera_area.pinch.connect(zone.camera_rig.zoom)
 	hero.message.connect(func(text: String): Game.say(text, &"warning"))
@@ -168,9 +176,24 @@ func show_death(visible_flag: bool) -> void:
 		create_tween().tween_property(_death_panel, "modulate:a", 1.0, 0.6)
 
 
+var _refresh_in := 0.0
+var _stick_link := Callable()
+
+
 func _process(delta: float) -> void:
 	if hero == null or not is_instance_valid(hero) or Game.profile.is_empty():
 		return
+	# Bars, labels and skill buttons change slowly: refresh them 20 times a second
+	# instead of every frame (less text and layout work on phones).
+	_refresh_in -= delta
+	if _refresh_in <= 0.0:
+		_refresh_in = 0.05
+		_refresh()
+	_update_tracker(delta)
+	_update_timers(delta)
+
+
+func _refresh() -> void:
 	var p := Game.profile
 	var stats := hero.stats
 	var class_id := StringName("%s|%d" % [Game.class_id(), Game.adv()])
@@ -190,7 +213,6 @@ func _process(delta: float) -> void:
 	var stars := int(Game.paragon().level)
 	_star_row.visible = stars > 0
 	(_star_row.get_node("StarValue") as Label).text = str(stars)
-	(_star_row.get_node("StarValue") as Label).add_theme_color_override("font_color", UIPalette.GOLD)
 	UIUtil.set_bar(_hp_bar, p.hp, stats.max_hp)
 	UIUtil.tint_hp_bar(_hp_bar, float(p.hp) / float(maxi(1, stats.max_hp)))
 	_hp_label.text = "%d/%d" % [p.hp, stats.max_hp]
@@ -205,8 +227,6 @@ func _process(delta: float) -> void:
 		auto_button.set_toggled(hero.auto)
 	_update_target_frame()
 	_update_boss_bar()
-	_update_tracker(delta)
-	_update_timers(delta)
 
 
 func _update_skills() -> void:

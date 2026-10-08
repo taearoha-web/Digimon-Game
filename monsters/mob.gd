@@ -123,6 +123,7 @@ func _make_visual() -> MonsterVisual:
 	var v := MonsterVisual.new()
 	add_child(v)
 	v.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)), template.get("tint", Color.WHITE))
+	v.add_to_group("anim_lod")
 	return v
 
 
