@@ -1147,6 +1147,28 @@ func quick_potion(kind: String) -> String:
 	return id
 
 
+## A companion drinks from the shared bag: takes the smallest potion that covers
+## `missing` (or the biggest one available) and returns its restore value, 0 if none.
+func take_potion_for_ally(kind: String, missing: int) -> int:
+	if in_duel() or missing <= 0:
+		return 0
+	var best_index := -1
+	var best_value := 0
+	for i in profile["inv"].size():
+		var item: Dictionary = profile["inv"][i]
+		if item.get("kind", "") != "potion" or not ItemData.POTIONS[item.id].has(kind):
+			continue
+		var value: int = ItemData.POTIONS[item.id][kind]
+		if best_index == -1 or (best_value < missing and value > best_value) or (value >= missing and value < best_value):
+			best_index = i
+			best_value = value
+	if best_index == -1:
+		return 0
+	remove_item_at(best_index)
+	profile_changed.emit()
+	return best_value
+
+
 ## True while inside a ranked duel (no potions, no escaping).
 func in_duel() -> bool:
 	return current_zone == &"pvp"

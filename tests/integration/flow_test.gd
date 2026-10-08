@@ -37,6 +37,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "potions" in OS.get_cmdline_user_args():
+		await _shared_potions()
+		return
 	if "compare" in OS.get_cmdline_user_args():
 		await _item_compare()
 		return
@@ -82,6 +85,7 @@ func _run() -> void:
 	await _timer_bars()
 	_buff_durations()
 	await _team_buffs()
+	await _shared_potions()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -1288,6 +1292,7 @@ func _party() -> void:
 	mob.queue_free()
 	# Low HP away from town: the companion drinks a potion by itself.
 	zone.hero.safe_zone = false
+	Game.profile["inv"] = []  # an empty bag: it falls back to its own stock
 	buddy.member["potions"] = 5
 	buddy.hp = int(buddy.max_hp * 0.2)
 	buddy._potion_cd = 0.0
@@ -1512,3 +1517,28 @@ func _systems() -> void:
 
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
+
+
+func _shared_potions() -> void:
+	print("== Companions share the potion bag")
+	await _start(&"warrior")
+	await main.go(&"meadow", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	for node in get_tree().get_nodes_in_group("mobs"):
+		node.queue_free()
+	var buddy: Companion = zone.companions[0]
+	Game.profile["inv"] = [ItemData.potion("hp_m", 2), ItemData.potion("mp_m", 1)]
+	buddy.hp = int(float(buddy.max_hp) * 0.2)
+	buddy._potion_cd = 0.0
+	buddy._cast_until = 0
+	var before := buddy.hp
+	buddy._use_potions()
+	check(buddy.hp > before, "the companion drinks when low (%d -> %d)" % [before, buddy.hp])
+	check(Game.potion_count("hp_m") == 1, "the potion came from the shared bag")
+	check(int(buddy.member.get("potions", 5)) == 5, "its own free stock was not touched")
+	Game.profile["inv"] = []
+	buddy.hp = int(float(buddy.max_hp) * 0.2)
+	buddy._potion_cd = 0.0
+	buddy._use_potions()
+	check(int(buddy.member.get("potions", 5)) == 4, "with an empty bag it falls back to its own stock")
