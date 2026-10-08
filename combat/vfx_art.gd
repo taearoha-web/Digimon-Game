@@ -9,7 +9,7 @@ static var _tex: Dictionary = {}
 
 ## Generate every texture once (call while a zone loads so the first cast never hitches).
 static func warm_up() -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer"]:
 		texture(kind)
 
 
@@ -158,6 +158,13 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 			a = maxf(a, _band(r, 0.23, 0.024))
 			var petal_edge := 0.43 + 0.13 * cos(angle * 6.0)
 			a = maxf(a, _band(r, petal_edge, 0.028))
+		"lancer":
+			# A spearhead pointing up over a crossing shaft.
+			var tip_pts := [Vector2(0, -0.58), Vector2(0.2, -0.12), Vector2(0, 0.02), Vector2(-0.2, -0.12)]
+			for i in tip_pts.size():
+				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, tip_pts[i], tip_pts[(i + 1) % tip_pts.size()])))
+			a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, Vector2(0, 0.0), Vector2(0, 0.58))))
+			a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, Vector2(-0.22, 0.1), Vector2(0.22, 0.1))))
 		"summoner":
 			# A paw: one pad and four toes.
 			a = maxf(a, smoothstep(0.30, 0.26, p.distance_to(Vector2(0, 0.18))) * 0.9)

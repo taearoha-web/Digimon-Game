@@ -129,7 +129,7 @@ func _build_character() -> void:
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
 	var names := {"str": "STR พลัง", "int": "INT ปัญญา", "dex": "DEX ความคล่อง", "vit": "VIT ความทนทาน"}
-	var notes := {"str": "เพิ่มพลังโจมตีของนักรบ", "int": "เพิ่มพลังเวทและ MP", "dex": "เพิ่มคริติคอล หลบหลีก และความเร็วสกิล", "vit": "เพิ่ม HP และพลังป้องกัน"}
+	var notes := {"str": "เพิ่มพลังโจมตีของนักรบ (และนักหอกเล็กน้อย)", "int": "เพิ่มพลังเวทและ MP", "dex": "เพิ่มพลังโจมตีของนักธนู/นักหอก คริติคอล หลบหลีก และความเร็วสกิล", "vit": "เพิ่ม HP และพลังป้องกัน"}
 	for key in ["str", "int", "dex", "vit"]:
 		var line := UIUtil.hbox(10)
 		left.add_child(line)

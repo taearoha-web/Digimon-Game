@@ -5,7 +5,7 @@ extends RefCounted
 
 const FAMILY_COLORS := {
 	"vagabond": Color("f3cc8d"), "warrior": Color("ffac8f"),
-	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"), "summoner": Color("b4f08c"),
+	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"), "summoner": Color("b4f08c"), "lancer": Color("9ad8ff"),
 }
 const ELEMENT_COLORS := {
 	"fire": Color("ffab79"), "ice": Color("a8e5ff"), "holy": Color("ffe7ac"),

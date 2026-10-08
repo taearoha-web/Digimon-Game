@@ -19,14 +19,14 @@ const START: StringName = &"vagabond"
 const LINE_LEVEL := 10
 const SLOTS := 8
 ## The four lines picked at Lv.10 (also the AI companion classes).
-const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner"]
+const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer"]
 
 const CLASSES := {
 	&"vagabond": {
 		"name": "นักเดินทาง",
 		"title": "ผู้ยังไม่เลือกเส้นทาง",
 		"badge": "V",
-		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช หรือผู้เรียกอสูร",
+		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช หรือผู้เรียกอสูร หรือนักหอก",
 		"model": "Rogue",
 		"weapon": "sword_1handed",
 		"offhand": "",
@@ -146,6 +146,28 @@ const CLASSES := {
 			"anims": ["Spellcast_Shoot"],
 		},
 	},
+	&"lancer": {
+		"name": "นักหอก",
+		"title": "ผู้พิชิตแนวหน้า",
+		"badge": "L",
+		"desc": "สายหอก — คล่องแคล่วและรวดเร็ว ตีด้วยหอกยาวระยะกลาง แทงทะลุหลายตัวเป็นแนวตรง ยิ่ง DEX สูงยิ่งแรง (STR เสริมเป็นรอง) สกิลแบบ Pikeman ของ Priston Tale",
+		"model": "Knight",
+		"weapon": "spear",
+		"offhand": "",
+		"weapon_kind": "spear",
+		"color": Color("6ecbff"),
+		"main": "dex",
+		"sub": "str",
+		"base": {"str": 9, "int": 3, "dex": 13, "vit": 9},
+		"gain": {"str": 1, "int": 0, "dex": 3, "vit": 2},
+		"hp_mult": 1.15,
+		"mp_mult": 0.8,
+		"crit_bonus": 0.04,
+		"attack": {
+			"range": 3.8, "interval": 0.72, "mult": 1.0, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
+			"anims": ["2H_Melee_Attack_Stab", "2H_Melee_Attack_Slice", "2H_Melee_Attack_Stab"],
+		},
+	},
 }
 
 
@@ -195,6 +217,14 @@ const PASSIVES := {
 		{"id": "spirit_ward", "name": "Spirit Ward", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
 		{"id": "primal_focus", "name": "Primal Focus", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
 		{"id": "gaia_heart", "name": "Gaia's Heart", "desc": "HP +4% และ MP +4% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "mp": 0.04}},
+	],
+	&"lancer": [
+		{"id": "spear_mastery", "name": "Spear Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 10, "bonus": {"atk": 0.04}},
+		{"id": "light_footwork", "name": "Light Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
+		{"id": "keen_point", "name": "Keen Point", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
+		{"id": "iron_stance", "name": "Iron Stance", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
+		{"id": "dragon_fang", "name": "Dragon Fang", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "valkyrie_heart", "name": "Valkyrie's Heart", "desc": "HP +4% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "speed": 0.02}},
 	],
 }
 
@@ -271,14 +301,14 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 # --- skill table -----------------------------------------------------------
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
-	var melee := cls == &"vagabond" or cls == &"warrior"
+	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
 	match shape:
 		"single":
-			skill["range"] = 2.9 if melee else (10.5 if caster else 13.0)
+			skill["range"] = 4.2 if cls == &"lancer" else 2.9 if melee else (10.5 if caster else 13.0)
 			skill["projectile"] = not melee
-			skill["anim"] = "1H_Melee_Attack_Chop" if melee else ("Spellcast_Shoot" if caster else "2H_Ranged_Shoot")
+			skill["anim"] = "2H_Melee_Attack_Stab" if cls == &"lancer" else "1H_Melee_Attack_Chop" if melee else ("Spellcast_Shoot" if caster else "2H_Ranged_Shoot")
 			skill["hit_delay"] = 0.25 if melee else (0.3 if caster else 0.2)
 			skill["vfx"] = &"slash" if melee else (&"light" if cls == &"priest" else (&"leaf" if cls == &"summoner" else &"impact"))
 		"burst":
@@ -467,4 +497,34 @@ static func _build_pools() -> void:
 		sm.call("primal_legion", "Primal Legion", "เรียกอสูรป่าดึกดำบรรพ์ 3 ตัว", 92, 110, 45.0, 10.0, "beast", 3, 1.0, Color("7aff8a")),
 		_sk(s, "cataclysm", "Cataclysm", "ธรรมชาติพิโรธ ถล่มรอบตัวอย่างรุนแรง", 96, 118, 16.0, "burst", 22.0, {"radius": 9.0, "vfx": &"leaf", "color": Color("b8ff7a"), "icon": "spin"}),
 		sm.call("elder_dragon", "Elder Dragon", "เรียกมังกรโบราณผู้เป็นตำนาน", 100, 150, 50.0, 28.0, "elder_dragon", 1, 1.2, Color("ffd84a")),
+	]
+	var l := &"lancer"
+	var pc := func(n: int, length: float, width := 1.3, keep := 0.7) -> Dictionary:
+		return {"n": n, "len": length, "w": width, "k": keep}
+	_pools[l] = [
+		_sk(l, "thrust", "Thrust", "แทงหอกใส่ศัตรูตัวเดียว ทะลุไปโดนตัวหลังอีก 2 ตัว", 10, 9, 3.0, "single", 3.0, {"pierce": pc.call(2, 6.5), "color": Color("9ad8ff"), "icon": "sword"}),
+		_sk(l, "stagger", "Stagger", "ด้ามหอกกระแทก ศัตรูมึนงง 1.2 วินาที", 10, 12, 6.0, "single", 3.2, {"fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
+		_sk(l, "focus", "Focus", "จดจ่อ คริติคอล +15% ATK +10% นาน 1 นาที", 13, 16, 28.0, "self", 0.0, {"fx": {"buff": {"crit": 0.15, "atk": 0.1, "secs": 60.0}}, "color": Color("ffd27a"), "icon": "roar"}),
+		_sk(l, "skewer", "Skewer", "แทงเสียบทะลุแนวตรง 3 ตัว", 16, 18, 6.0, "single", 4.2, {"pierce": pc.call(3, 7.5), "color": Color("8fd0ff"), "icon": "sword"}),
+		_sk(l, "whirl", "Whirl", "หมุนหอกฟาดรอบตัว", 20, 22, 8.0, "burst", 2.7, {"radius": 4.6, "special": "spin", "color": Color("9ad8ff"), "icon": "spin"}),
+		_sk(l, "charge_dash", "Charge Dash", "พุ่งเข้าใส่แล้วแทง ศัตรูมึนงงสั้นๆ", 24, 24, 8.0, "single", 5.0, {"range": 8.5, "fx": {"stun": 0.6}, "pierce": pc.call(2, 8.5), "color": Color("ffb04a"), "icon": "boots"}),
+		_sk(l, "wind_stance", "Wind Stance", "ท่าลม วิ่งเร็ว +30% คริติคอล +12% ATK +15% นาน 1 นาที", 27, 26, 30.0, "self", 0.0, {"fx": {"buff": {"speed": 0.3, "crit": 0.12, "atk": 0.15, "secs": 60.0}}, "color": Color("7affd0"), "icon": "boots"}),
+		_sk(l, "impale", "Impale", "ปักหอกเสียบศัตรู ช้าลง 3 วินาที ทะลุ 3 ตัว", 31, 28, 8.0, "single", 6.0, {"fx": {"slow": 3.0}, "pierce": pc.call(3, 8.0), "color": Color("7fdcff"), "icon": "sword"}),
+		_sk(l, "spear_wave", "Spear Wave", "คลื่นหอกพุ่งไกลทะลุ 5 ตัว", 35, 34, 9.0, "single", 4.8, {"range": 9.0, "pierce": pc.call(5, 11.0, 1.5), "vfx": &"impact", "color": Color("b8e6ff"), "icon": "arrow"}),
+		_sk(l, "iron_resolve", "Iron Resolve", "ใจเหล็ก DEF +50% ฟื้นฟู HP 15% นาน 1 นาที", 39, 34, 32.0, "self", 0.0, {"fx": {"heal": 0.15, "buff": {"def": 0.5, "secs": 60.0}}, "color": Color("c0d0e8"), "icon": "shield"}),
+		_sk(l, "spinning_pike", "Spinning Pike", "หอกหมุนเป็นพายุรอบตัว", 43, 40, 10.0, "burst", 5.2, {"radius": 5.0, "special": "spin", "color": Color("8fd0ff"), "icon": "spin"}),
+		_sk(l, "hook_strike", "Hook Strike", "เกี่ยวด้วยใบมีดข้างหอก ศัตรูมึนงง 1.5 วินาที", 47, 42, 9.0, "single", 7.0, {"fx": {"stun": 1.5}, "pierce": pc.call(2, 7.0), "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
+		_sk(l, "war_cry", "War Cry", "ตะโกนศึก ศัตรูรอบตัวมึนงง 2 วินาที", 52, 46, 16.0, "burst", 1.8, {"radius": 7.0, "fx": {"stun": 2.0}, "vfx": &"impact", "anim": "Cheer", "color": Color("ffd27a"), "icon": "roar"}),
+		_sk(l, "dragon_tooth", "Dragon Tooth", "เขี้ยวมังกร แทงทะลุศัตรู 6 ตัว", 56, 54, 10.0, "single", 8.5, {"pierce": pc.call(6, 10.0, 1.5), "color": Color("ff8a4a"), "icon": "sword"}),
+		_sk(l, "typhoon_spear", "Typhoon Spear", "พายุหอกหมุนถล่มรอบตัว ศัตรูช้าลง", 60, 62, 12.0, "burst", 9.0, {"radius": 6.5, "special": "spin", "fx": {"slow": 2.5}, "vfx": &"wind", "color": Color("7affd0"), "icon": "spin"}),
+		_sk(l, "lancer_rush", "Lancer Rush", "บุกทะลวง ATK +45% วิ่งเร็ว +25% คริติคอล +10% นาน 1 นาที", 64, 60, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.45, "speed": 0.25, "crit": 0.1, "secs": 60.0}}, "color": Color("ff9a5a"), "icon": "boots"}),
+		_sk(l, "vanguard_strike", "Vanguard Strike", "แทงแนวหน้าทรงพลัง ทะลุ 4 ตัว", 68, 66, 9.0, "single", 12.0, {"range": 4.6, "pierce": pc.call(4, 9.0, 1.5), "color": Color("6ecbff"), "icon": "sword"}),
+		_sk(l, "sky_pierce", "Sky Pierce", "หอกพุ่งทะลุฟ้า แทงเป็นเส้นยาวทะลุ 8 ตัว", 72, 74, 11.0, "single", 9.5, {"range": 10.0, "pierce": pc.call(8, 13.0, 1.6), "vfx": &"light", "color": Color("d8f0ff"), "icon": "arrow"}),
+		_sk(l, "dragon_stance", "Dragon Stance", "ท่ามังกร ATK +40% DEF +40% ฟื้นฟู HP 20% นาน 1 นาที", 76, 70, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.4, "def": 0.4, "secs": 60.0}}, "color": Color("ffb04a"), "icon": "shield"}),
+		_sk(l, "dragon_lance", "Dragon Lance", "หอกมังกรเพลิงแทงทะลุ 8 ตัว ติดไฟ", 80, 90, 11.0, "single", 14.0, {"range": 5.0, "pierce": pc.call(8, 14.0, 1.6), "fx": {"burn": [0.4, 5.0]}, "vfx": &"fireball", "color": Color("ff6a2a"), "icon": "fire"}),
+		_sk(l, "gale_cyclone", "Gale Cyclone", "ไซโคลนหอกพัดถล่มรอบตัว ศัตรูช้าลง", 84, 96, 14.0, "burst", 14.0, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "vfx": &"wind", "color": Color("7affd0"), "icon": "spin"}),
+		_sk(l, "valkyrie_blessing", "Valkyrie's Blessing", "พรวัลคีรี ATK +60% วิ่งเร็ว +20% คริติคอล +15% นาน 1 นาที", 88, 96, 45.0, "self", 0.0, {"fx": {"buff": {"atk": 0.6, "speed": 0.2, "crit": 0.15, "secs": 60.0}}, "color": Color("ffe9a0"), "icon": "bless"}),
+		_sk(l, "gungnir", "Gungnir", "ขว้างหอกเทพเจ้า ทะลุศัตรู 5 ตัวเป็นแนวยาว", 92, 110, 13.0, "single", 17.0, {"range": 13.0, "pierce": pc.call(5, 15.0, 1.8), "vfx": &"light", "color": Color("fff0a0"), "icon": "arrow"}),
+		_sk(l, "heaven_rend", "Heaven Rend", "ฟาดหอกฉีกฟ้า ศัตรูรอบตัวมึนงง 1.2 วินาที", 96, 118, 16.0, "burst", 21.0, {"radius": 9.0, "fx": {"stun": 1.2}, "special": "spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "spin"}),
+		_sk(l, "ragnarok_lance", "Ragnarok Lance", "หอกแห่งวันสิ้นโลก แทงทะลุศัตรู 10 ตัว", 100, 140, 14.0, "single", 30.0, {"range": 5.5, "pierce": pc.call(10, 15.0, 1.8, 0.8), "vfx": &"light", "color": Color("ffd84a"), "icon": "sword"}),
 	]

@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "lancer" in OS.get_cmdline_user_args():
+		await _lancer_class()
+		return
 	if "summoner" in OS.get_cmdline_user_args():
 		await _summoner_class()
 		return
@@ -630,7 +633,7 @@ func _save_slots() -> void:
 	for i in range(1, 5):
 		Game.delete_save(i)
 	check(not Game.any_save() and Game.free_slot() == 1, "all four slots start empty")
-	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner"]
+	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer"]
 	for i in 4:
 		Game.slot = i + 1
 		Game.new_profile(classes[i], "ฮีโร่%d" % (i + 1))
@@ -1611,3 +1614,75 @@ func _summoner_class() -> void:
 	check(weapon.class == "summoner" and ItemLook.weapon_look(weapon, &"staff") != "", "summoner weapons are staffs for the class")
 	Game.recruit(&"summoner")
 	check(Game.party()[0]["class"] == "summoner", "a summoner can be hired as companion")
+
+
+func _lancer_class() -> void:
+	print("== The lancer class")
+	await _start(&"lancer")
+	await main.go(&"meadow", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	var hero: Hero = zone.hero
+	for node in get_tree().get_nodes_in_group("mobs"):
+		node.queue_free()
+	check(Game.class_id() == &"lancer" and ClassData.IDS.has(&"lancer"), "the lancer is a playable line")
+	check(ClassData.pool(&"lancer").size() == 25, "25 active skills (%d)" % ClassData.pool(&"lancer").size())
+	var data := ClassData.get_class_data(&"lancer")
+	check(String(data.main) == "dex" and String(data.sub) == "str", "DEX is the main attribute, STR the second")
+	# More DEX means more attack (and more haste/crit), more STR a little.
+	var before: float = Game.stats_now().atk
+	Game.profile["attrs"]["dex"] = int(Game.profile["attrs"].get("dex", 0)) + 10
+	var with_dex: float = Game.stats_now().atk
+	check(with_dex >= before + 9.9, "+10 DEX raises attack (%.0f -> %.0f)" % [before, with_dex])
+	Game.profile["attrs"]["str"] = int(Game.profile["attrs"].get("str", 0)) + 10
+	var with_str: float = Game.stats_now().atk
+	check(with_str > with_dex and with_str - with_dex < with_dex - before, "+10 STR raises attack, but less than DEX (+%.1f)" % (with_str - with_dex))
+	# Every spear design builds, and weapons for the class are spears.
+	for i in WeaponKit.DESIGNS:
+		var node := WeaponKit.build("spear_%d" % i)
+		check(node.get_child_count() >= 4, "spear_%d has parts" % i) if i in [0, 12, 19] else null
+		node.free()
+	var weapon := ItemData.generate(40, &"lancer", RandomNumberGenerator.new(), 1, "weapon")
+	check(weapon.base == "spear" and ItemLook.look_of(weapon).begins_with("spear_"), "lancer weapons are spears (%s)" % weapon.name)
+	var held := false
+	for n in hero.visual.find_children("Held_spear_*", "BoneAttachment3D", true, false):
+		held = true
+	check(held, "the hero holds a spear")
+	# A thrust goes on through the monsters lined up behind its target.
+	Game.profile["level"] = 30
+	Game.profile["adv"] = 1
+	Game.fill_loadout()
+	Game.profile.mp = 99999
+	hero.refresh_stats()
+	hero.global_position = Vector3(-18, 0.2, 2)
+	var lined: Array[Mob] = []
+	for i in 4:
+		var m := Mob.new()
+		m.setup(&"green_slime", 4, hero.global_position + Vector3(3.0 + i * 1.1, 0, 0), hero)
+		m.position = m.home + Vector3(0, 0.3, 0)
+		m.max_hp = 100000
+		m.hp = 100000
+		zone.add_child(m)
+		lined.append(m)
+	var off_line := Mob.new()
+	off_line.setup(&"green_slime", 4, hero.global_position + Vector3(4.0, 0, 6.0), hero)
+	off_line.position = off_line.home + Vector3(0, 0.3, 0)
+	off_line.max_hp = 100000
+	off_line.hp = 100000
+	zone.add_child(off_line)
+	await _wait(0.3)
+	var slot: int = Game.profile["loadout"].find("thrust")
+	check(slot >= 0, "Thrust is on the bar")
+	hero.set_target(lined[0])
+	hero.cooldowns.clear()
+	check(hero.use_skill(slot) == "", "Thrust is cast")
+	await _wait(1.0)
+	var damaged := 0
+	for m in lined:
+		if m.hp < 100000:
+			damaged += 1
+	check(lined[0].hp < 100000 and lined[1].hp < 100000 and lined[2].hp < 100000, "the thrust hits the target and two more in the line (%d hit)" % damaged)
+	check(lined[3].hp == 100000, "the fourth monster is beyond its two extra victims")
+	check(off_line.hp == 100000, "a monster off to the side is not hit")
+	Game.recruit(&"lancer")
+	check(Game.party()[0]["class"] == "lancer", "a lancer can be hired as companion")

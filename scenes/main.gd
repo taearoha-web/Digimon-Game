@@ -367,7 +367,7 @@ func _talk_job() -> void:
 	var speaker := "ปรมาจารย์ผู้เปลี่ยนชะตา"
 	if Game.class_id() == ClassData.START:
 		if int(Game.profile.level) < ClassData.LINE_LEVEL:
-			dialog.say(speaker, "เจ้ายังเป็นแค่นักเดินทางสินะ ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้า จะได้เลือกสายที่เหมาะกับเจ้า: สายดาบ สายธนู นักเวทย์ นักบวช หรือผู้เรียกอสูร" % ClassData.LINE_LEVEL)
+			dialog.say(speaker, "เจ้ายังเป็นแค่นักเดินทางสินะ ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้า จะได้เลือกสายที่เหมาะกับเจ้า: สายดาบ สายธนู นักเวทย์ นักบวช ผู้เรียกอสูร หรือนักหอก" % ClassData.LINE_LEVEL)
 			return
 		var options: Array = []
 		for id in ClassData.IDS:

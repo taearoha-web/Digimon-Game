@@ -23,6 +23,8 @@ const BASE_MODEL := "Ranger"
 const PRIEST_GOLD := Color(1.9, 1.6, 0.35)
 const PRIEST_WHITE := Color(1.8, 1.8, 1.5)
 
+## A spear is carried slanted forward, point up (pitch, yaw, roll in degrees).
+static var spear_tilt := Vector3(-48.0, 22.0, 0.0)
 static var _shared_library: AnimationLibrary
 
 var class_id: StringName = &"warrior"
@@ -405,7 +407,9 @@ func _hold(look: String, bone: String, plus := 0) -> void:
 	attach.bone_name = bone
 	_skeleton.add_child(attach)
 	var pivot := Node3D.new()
-	pivot.rotation = Vector3(0, PI, 0) if bone == "handslot.r" else Vector3(0, PI, 0)
+	pivot.rotation = Vector3(0, PI, 0)
+	if look.begins_with("spear"):
+		pivot.rotation_degrees = Vector3(0, 180.0, 0) + spear_tilt
 	attach.add_child(pivot)
 	pivot.add_child(item)
 	if plus > 0:
@@ -448,6 +452,8 @@ func has_clip(clip: String) -> bool:
 
 ## Loops a locomotion clip (ignored while a one-shot action is still playing).
 func play(clip: String, blend := 0.15, speed := 1.0) -> void:
+	if clip == "Idle" and class_id == &"lancer":
+		clip = "2H_Melee_Idle"
 	if anim == null or not anim.has_animation(clip):
 		return
 	if Time.get_ticks_msec() < busy_until:
