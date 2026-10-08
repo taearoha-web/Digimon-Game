@@ -52,9 +52,7 @@ static func attach(skeleton: Skeleton3D, glb: String, node_name: String, tint :=
 		for i in mi.mesh.get_surface_count():
 			var source := mi.mesh.surface_get_material(i) as StandardMaterial3D
 			if source:
-				var copy := source.duplicate() as StandardMaterial3D
-				copy.albedo_color = source.albedo_color * tint
-				mi.set_surface_override_material(i, copy)
+				mi.set_surface_override_material(i, StorybookFinish.material(source, tint))
 	if part.kind == "skinned":
 		# Parts from the 47-bone characters bind to extra (IK/prop) bones that the
 		# base rig lacks: add them as inert bones so the skin indices stay valid.

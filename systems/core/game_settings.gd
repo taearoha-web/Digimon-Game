@@ -18,11 +18,19 @@ static func load_settings() -> void:
 		return
 	_loaded = true
 	if FileAccess.file_exists(PATH):
-		var parsed: Variant = JSON.parse_string(FileAccess.open(PATH, FileAccess.READ).get_as_text())
+		var file := FileAccess.open(PATH, FileAccess.READ)
+		var parsed: Variant = JSON.parse_string(file.get_as_text()) if file else null
 		if parsed is Dictionary:
-			quality = int(parsed.get("quality", -1))
-			camera_speed = clampf(float(parsed.get("camera_speed", 1.0)), 0.4, 2.5)
-			vibration = bool(parsed.get("vibration", true))
+			var saved_quality: Variant = parsed.get("quality", -1)
+			if saved_quality is int or saved_quality is float:
+				if is_finite(float(saved_quality)):
+					quality = clampi(int(saved_quality), -1, 2)
+			var saved_speed: Variant = parsed.get("camera_speed", 1.0)
+			if saved_speed is int or saved_speed is float:
+				if is_finite(float(saved_speed)):
+					camera_speed = clampf(float(saved_speed), 0.4, 2.5)
+			if parsed.get("vibration") is bool:
+				vibration = parsed.vibration
 	if quality < 0:
 		# First run: phones and browsers get the lighter setting.
 		quality = 1 if (OS.has_feature("web") or OS.has_feature("mobile")) else 2

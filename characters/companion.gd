@@ -508,6 +508,7 @@ func _cast(skill: Dictionary) -> void:
 	var color: Color = skill.color
 	var aim := target.global_position if target and is_instance_valid(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var snapshot := target
+	SkillShow.anticipate(field, skill, global_position, delay)
 	if skill.shape == "blast":
 		VfxKit.ground_circle(field, Vector3(aim.x, global_position.y, aim.z), color, float(skill.radius), delay + 0.2)
 	elif skill.shape == "burst":

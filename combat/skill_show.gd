@@ -1,17 +1,37 @@
 class_name SkillShow
 extends RefCounted
-## The spectacle layered on top of a skill's normal effect. Everything is
-## chosen by the skill's element ("style", from its vfx preset) and its shape,
-## so every skill (class, job and master) gets a fitting show: rune circles,
-## ice spikes, columns of light, fire rings, whirlwinds, X-slashes, motes...
-## Used by the hero and by AI companions.
+## Class identity, elemental silhouette and a restrained finishing beat for every
+## active skill. This layer is cosmetic: it never schedules damage or alters time.
 
-const BIG_IDS := ["bone_crash", "destroyer", "diastrophism", "flame_wave", "extinction", "glacial_spike", "phoenix_shot", "bomb_shot", "resurrection", "rage_of_zecram"]
+const FAMILY_COLORS := {
+	"vagabond": Color("f3cc8d"), "warrior": Color("ffac8f"),
+	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"),
+}
+const ELEMENT_COLORS := {
+	"fire": Color("ffab79"), "ice": Color("a8e5ff"), "holy": Color("ffe7ac"),
+	"heal": Color("a4edc5"), "thunder": Color("d8ceff"), "wind": Color("bcf0e3"),
+	"leaf": Color("9ee5bc"), "arcane": Color("c6aeff"), "earth": Color("e8c79f"),
+}
+static var _families: Dictionary = {}
+static var _recent_shows: Array[int] = []
 
-static var _stopped := false
+
+static func family_of(skill: Dictionary) -> String:
+	if _families.is_empty():
+		for family in FAMILY_COLORS:
+			for entry in ClassData.pool(StringName(family)):
+				_families[String(entry.id)] = family
+	return _families.get(String(skill.get("id", "")), "vagabond")
 
 
 static func style_of(skill: Dictionary) -> String:
+	var id := String(skill.get("id", ""))
+	if id in ["diastrophism", "bone_crash", "destroyer"]:
+		return "earth"
+	if id in ["agony", "distortion", "vague", "magic_overdrive", "silraphim", "spirit_elemental", "dancing_sword"]:
+		return "arcane"
+	if id == "fire_elemental":
+		return "fire"
 	match String(skill.get("vfx", &"impact")):
 		"fireball": return "fire"
 		"frost": return "ice"
@@ -21,87 +41,70 @@ static func style_of(skill: Dictionary) -> String:
 		"wind": return "wind"
 		"leaf": return "leaf"
 		"aura": return "buff"
-		_: return "phys"
+	var family := family_of(skill)
+	return "arcane" if family == "mage" else ("holy" if family == "priest" else "phys")
 
 
-## center: where the skill lands; origin: the caster's feet; camera: optional.
-static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, camera: ThirdPersonCamera = null) -> void:
-	var color: Color = skill.color
+## Public description also used by the all-skill visual audit.
+static func profile_for(skill: Dictionary) -> Dictionary:
+	var family := family_of(skill)
 	var style := style_of(skill)
+	var primary: Color = ELEMENT_COLORS.get(style, FAMILY_COLORS[family])
+	var source: Color = skill.get("color", primary)
+	primary = primary.lerp(source, 0.16)
+	var id := String(skill.get("id", ""))
+	var motif := String(skill.get("icon", "star"))
+	if skill.get("fx", {}).has("heal") and String(skill.shape) == "self":
+		motif = "heal"
+	elif String(skill.shape) == "summon":
+		motif = String(skill.get("summon", {}).get("kind", "spirit"))
+	return {"family": family, "style": style, "primary": primary,
+		"accent": FAMILY_COLORS[family].lerp(Color.WHITE, 0.28),
+		"motif": motif, "phase": float(posmod(id.hash(), 360)) * PI / 180.0,
+		"tier": clampi(int(skill.get("level", 1)) / 20, 0, 5),
+		"mapped": _families.has(id)}
+
+
+## Called with the existing wind-up duration. It does not delay resolution.
+static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, duration: float) -> void:
+	var look := profile_for(skill)
+	VfxArt.crest(parent, origin, look.accent, look.family, 1.25, maxf(duration, 0.18), look.phase)
+	if String(look.family) in ["mage", "priest"]:
+		VfxArt.star_flash(parent, origin + Vector3(0, 1.35, 0), look.primary, 0.65, maxf(duration, 0.18))
+
+
+## center: target/area; origin: caster's feet. Hero and companions share this path.
+static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, camera: ThirdPersonCamera = null) -> void:
+	var look := profile_for(skill)
 	var shape := String(skill.shape)
-	var radius := float(skill.get("radius", 3.0))
-	var mult := float(skill.get("mult", 0.0))
-	var fx: Dictionary = skill.get("fx", {})
-	var big: bool = mult >= 4.0 or String(skill.id) in BIG_IDS or (shape == "self" and float(fx.get("buff", {}).get("atk", 0.0)) >= 0.3)
-	match shape:
-		"self", "summon": _self_cast(parent, skill, style, color, origin)
-		"burst": _burst(parent, skill, style, color, origin, radius, big)
-		"blast": _blast(parent, skill, style, color, center, radius, big)
-		"single": _single(parent, skill, style, color, center, origin, big)
-		_: _multi(parent, skill, style, color, center, origin)
-	var grand := _grandeur(parent, skill, color, shape, center, origin, radius, camera)
-	if big or grand >= 3:
-		if camera:
-			camera.punch(5.5 + 1.5 * float(maxi(grand - 2, 0)))
-			Game.screen_flash.emit(color, 0.22 + 0.05 * float(maxi(grand - 2, 0)))
-			hit_stop(parent, 0.06 + 0.02 * float(maxi(grand - 2, 0)))
-
-
-## Higher-level skills put on a bigger show on top of their normal effect: every
-## 20 skill levels add another rune circle, then sky strikes, shockwaves and
-## raining light, a spiral and pillar of light (Lv.80+) and a delayed second
-## wave for the Lv.100 ultimates. Returns the grandeur step 0-5.
-static func _grandeur(parent: Node3D, skill: Dictionary, color: Color, shape: String, center: Vector3, origin: Vector3, radius: float, camera: ThirdPersonCamera) -> int:
-	var step := clampi(int(skill.get("level", 1)) / 20, 0, 5)
-	if step <= 0:
-		return 0
-	# Casting many big skills at once stacks hundreds of huge translucent effects;
-	# phones choke on that overdraw (the screen goes blank for a few seconds). The
-	# more grand shows were cast in the last 1.5 s, the smaller the next one.
 	var now := Time.get_ticks_msec()
-	_recent_shows = _recent_shows.filter(func(t): return now - int(t) < 1500)
+	_recent_shows = _recent_shows.filter(func(t: int): return now - t < 1000)
 	var crowd := _recent_shows.size()
-	if step >= 3:
-		_recent_shows.append(now)
-	step = budget_step(step, crowd)
-	var scale := GameSettings.particle_scale() * (1.0 if crowd < 2 else 0.5)
+	_recent_shows.append(now)
+	var tier := budget_step(int(look.tier), crowd)
+	tier = mini(tier, [1, 3, 5][VfxBudget.quality()])
+	var radius := float(skill.get("radius", 2.0))
 	var at := origin if shape in ["self", "summon", "burst"] else center
-	var r := maxf(radius, 2.6)
-	for i in step:
-		VfxArt.rune_circle(parent, at, color.lerp(Color.WHITE, 0.2 * float(i)), r * (1.1 + 0.3 * float(i)), 1.0 + 0.2 * float(i), 1.0 if i % 2 == 0 else -1.0)
-	if step >= 2:
-		var strikes := int((3 + step * 2) * scale)
-		for i in strikes:
-			var a := TAU * float(i) / float(maxi(strikes, 1)) + randf() * 0.4
-			var spot := at + Vector3(cos(a), 0, sin(a)) * r * randf_range(0.55, 0.95)
-			VfxArt.sky_strike(parent, spot, color.lerp(Color.WHITE, 0.3), 0.5 + 0.12 * float(step), 12.0 + 2.0 * float(step), 0.12 * float(i % 4))
-	if step >= 3:
-		VfxKit.shockwave(parent, at + Vector3(0, 0.12, 0), color, r * 1.4)
-		VfxKit.column_rain(parent, at, r, color, int((8 + step * 3) * scale), 0.9, 12.0)
-	if step >= 4:
-		VfxArt.ribbon_spiral(parent, at, color, r * 0.7, 6.0, 1.4)
-		VfxKit.pillar(parent, at, color.lerp(Color.WHITE, 0.4), 16.0, 1.6, 1.2)
-		VfxKit.vortex(parent, at, Color.WHITE, r * 0.8, 0.9)
-	if step >= 5:
-		# The Lv.100 ultimate: a second, bigger wave a moment later.
-		parent.get_tree().create_timer(0.35).timeout.connect(func():
-			if not is_instance_valid(parent):
-				return
-			VfxKit.shockwave(parent, at + Vector3(0, 0.12, 0), Color.WHITE, r * 1.9)
-			VfxArt.star_flash(parent, at + Vector3(0, 1.4, 0), Color.WHITE, 7.0)
-			VfxArt.rune_circle(parent, at, Color.WHITE, r * 1.8, 1.3, -1.0)
-			for i in int(10.0 * scale):
-				var a := randf() * TAU
-				VfxArt.sky_strike(parent, at + Vector3(cos(a), 0, sin(a)) * r * randf_range(0.2, 1.1), color, 1.0, 18.0, 0.05 * i)
-			if camera:
-				camera.punch(9.0), CONNECT_ONE_SHOT)
-	return step
+	# Companion bursts cannot blanket the field; each still keeps its core shape.
+	if crowd >= 5:
+		VfxArt.star_flash(parent, at + Vector3(0, 0.9, 0), look.primary, 1.1, 0.22)
+		return
+	match shape:
+		"self", "summon": _self_cast(parent, skill, look, origin, tier)
+		"burst", "blast": _area(parent, skill, look, at, radius, tier)
+		"single": _single(parent, skill, look, center, origin, tier)
+		"fan", "chain": _multi(parent, skill, look, origin, center, tier)
+	if tier >= 3 and VfxBudget.can_decorate():
+		# A small second beat instead of another enormous white explosion.
+		var finish_radius := minf(radius * 0.65, 3.2)
+		parent.create_tween().tween_interval(0.2).finished.connect(func():
+			if is_instance_valid(parent) and parent.is_inside_tree():
+				VfxArt.bloom(parent, at, look.accent, _mote_kind(look.style), finish_radius, 4 + tier, 0.55, look.phase), CONNECT_ONE_SHOT)
+	if camera and tier >= 4 and crowd == 0:
+		camera.punch(2.0 + float(tier - 4) * 0.8)
 
 
-static var _recent_shows: Array = []
-
-
-## Caps a skill's grand show when other big shows are already on screen.
+## Preserve the public crowd limiter used by the integration suite.
 static func budget_step(step: int, crowd: int) -> int:
 	if crowd >= 4:
 		return mini(step, 1)
@@ -110,123 +113,108 @@ static func budget_step(step: int, crowd: int) -> int:
 	return step
 
 
-static func hit_stop(node: Node, seconds: float) -> void:
-	if _stopped or node.get_tree().paused:
-		return
-	_stopped = true
-	Engine.time_scale = 0.12
-	node.get_tree().create_timer(seconds, true, false, true).timeout.connect(func():
-		Engine.time_scale = 1.0
-		_stopped = false)
-
-
-static func _motes_for(parent: Node3D, style: String, color: Color, pos: Vector3, radius: float, count := 26) -> void:
+static func _mote_kind(style: String) -> String:
 	match style:
-		"fire": VfxArt.motes(parent, pos, Color("ff9a3a"), "ember", count, radius, 0.3)
-		"ice": VfxArt.motes(parent, pos, Color("e6f8ff"), "snow", count, radius, 0.0)
-		"holy": VfxArt.motes(parent, pos, Color("fff0a0"), "light", count, radius, 0.4)
-		"heal": VfxArt.motes(parent, pos, Color("9affb8"), "petal", count, radius, 0.3)
-		"wind", "leaf": VfxArt.motes(parent, pos, Color("8affb0") if style == "leaf" else color, "leaf", count, radius, 0.5)
-		"thunder": VfxArt.motes(parent, pos, Color("fff06a"), "ember", count, radius, 0.3)
-		"buff": VfxArt.motes(parent, pos, color, "light", count, radius, 0.3)
-		_: VfxArt.motes(parent, pos, color.lerp(Color("c8a878"), 0.4), "ember", count, radius, 0.1)
+		"ice": return "snow"
+		"heal": return "heart"
+		"leaf", "wind": return "leaf"
+		"fire": return "flame"
+		"holy": return "petal"
+		"earth": return "diamond"
+		_: return "star"
 
 
-static func _self_cast(parent: Node3D, skill: Dictionary, style: String, color: Color, origin: Vector3) -> void:
-	VfxArt.rune_circle(parent, origin, color, 3.0, 1.0)
-	VfxArt.ribbon_spiral(parent, origin, color, 3.4, 2.5, 1.0)
-	VfxKit.shockwave(parent, origin + Vector3(0, 0.12, 0), color, 3.6)
-	_motes_for(parent, style if style != "phys" else "buff", color, origin + Vector3(0, 0.3, 0), 1.4, 22)
-	if style == "heal":
-		VfxKit.vortex(parent, origin, Color("6dff9a"), 3.4, 0.9)
-	else:
-		VfxKit.pillar(parent, origin, color, 8.0, 1.1, 0.8)
-		VfxKit.vortex(parent, origin, color, 3.6, 0.9)
+static func _finish(parent: Node3D, look: Dictionary, at: Vector3, radius: float, count := 12) -> void:
+	var kind := _mote_kind(look.style)
+	VfxArt.motes(parent, at + Vector3(0, 0.25, 0), look.primary, kind, count, minf(radius, 3.0), 0.15, 0.75)
 
 
-static func _burst(parent: Node3D, skill: Dictionary, style: String, color: Color, origin: Vector3, radius: float, big: bool) -> void:
-	VfxArt.rune_circle(parent, origin, color, radius, 0.9, -1.0)
-	VfxKit.shockwave(parent, origin + Vector3(0, 0.12, 0), color, radius * 1.15)
-	VfxKit.get_ring_delay(parent, origin, Color.WHITE, radius * 0.7, 0.1)
-	_motes_for(parent, style, color, origin, radius * 0.7, 30)
+static func _self_cast(parent: Node3D, skill: Dictionary, look: Dictionary, origin: Vector3, tier: int) -> void:
+	VfxArt.crest(parent, origin, look.primary, look.family, 1.9 + float(tier) * 0.16, 0.85, look.phase)
+	VfxArt.ribbon_spiral(parent, origin, look.accent, 2.0, 1.0, 0.65, 0.85)
+	var kind := _mote_kind(look.style)
+	if look.motif == "shield":
+		kind = "diamond"
+	elif look.family == "archer":
+		kind = "leaf"
+	elif look.motif == "heal":
+		kind = "heart"
+	VfxArt.bloom(parent, origin, look.primary, kind, 1.2, 6, 0.8, look.phase)
+	if String(skill.shape) == "summon":
+		var summons: Dictionary = skill.get("summon", {})
+		var count := mini(int(summons.get("count", 1)), 3)
+		for i in count:
+			var angle := float(look.phase) + float(i) * TAU / float(count)
+			var point := origin + Vector3(cos(angle), 0, sin(angle)) * 1.6
+			VfxArt.crest(parent, point, look.primary, look.family, 0.65, 0.9, angle)
+			VfxArt.star_flash(parent, point + Vector3(0, 0.6, 0), look.accent, 1.3)
+	_finish(parent, look, origin, 1.0, 10)
+
+
+static func _area(parent: Node3D, skill: Dictionary, look: Dictionary, at: Vector3, radius: float, tier: int) -> void:
+	var color: Color = look.primary
+	var style := String(look.style)
+	# Outline follows the real attack radius; vertical accents stay below 5m.
+	VfxArt.crest(parent, at, color, look.family, radius, 0.72, look.phase)
 	match style:
 		"fire":
-			VfxKit.fire_ring(parent, origin, Color("ff6a2a"), radius * 0.85, 24, 1.4)
+			VfxKit.fire_ring(parent, at, color, radius * 0.8, 8 + tier, 0.5)
 		"ice":
-			VfxKit.spikes(parent, origin, radius, Color("a8ecff"), 20, 2.6, 0.3)
-		"holy":
-			VfxKit.column_rain(parent, origin, radius, color, 10, 0.5, 9.0)
-			VfxKit.get_ring_delay(parent, origin, color, radius * 0.5, 0.22)
+			VfxKit.spikes(parent, at, radius * 0.8, color, 8 + tier, 1.6, 0.18)
+			VfxArt.bloom(parent, at, look.accent, "snow", minf(radius * 0.7, 3.5), 5, 0.7, look.phase)
+		"holy", "heal":
+			VfxArt.bloom(parent, at, color, "petal", radius * 0.75, 8, 0.85, look.phase)
+			VfxKit.column_rain(parent, at, radius * 0.7, look.accent, 4 + tier, 0.4, 4.5)
 		"wind", "leaf":
-			VfxKit.vortex(parent, origin, color, 3.2, 0.8)
-			VfxKit.vortex(parent, origin + Vector3(0, 0.6, 0), Color.WHITE, 2.4, 0.7)
+			VfxArt.ribbon_spiral(parent, at, color, 1.8, 1.2, 0.65, radius * 0.65)
+			VfxArt.bloom(parent, at, color, "leaf", radius * 0.7, 7, 0.7, look.phase)
 		"thunder":
-			for i in 5:
-				var a := randf() * TAU
-				var spot := origin + Vector3(cos(a), 0, sin(a)) * radius * 0.8
-				VfxArt.sky_strike(parent, spot, Color("fff06a"), 0.7, 12.0, 0.3)
+			for i in VfxBudget.count(3 + tier, 2):
+				var angle := float(look.phase) + float(i) * 2.4
+				var point := at + Vector3(cos(angle), 0, sin(angle)) * radius * 0.6
+				VfxArt.sky_strike(parent, point, color, 0.3, 5.0, 0.3)
+		"arcane":
+			VfxArt.ribbon_spiral(parent, at, color, 2.0, 1.4, 0.7, radius * 0.65)
+			VfxArt.bloom(parent, at, look.accent, "diamond", radius * 0.75, 7, 0.8, look.phase)
+		"earth":
+			VfxKit.spikes(parent, at, radius * 0.75, color, 7, 1.2, 0.12)
 		_:
-			VfxKit.slam(parent, origin, color, radius)
-			if big:
-				VfxKit.spikes(parent, origin, radius, Color("a8784a"), 16, 2.0)
+			if look.motif == "roar":
+				VfxArt.ribbon_spiral(parent, at, color, 1.0, 1.1, 0.5, radius * 0.65)
+			else:
+				for i in VfxBudget.count(3, 2):
+					VfxKit.slash_arc(parent, at + Vector3(0, 0.7 + float(i) * 0.12, 0), look.phase + float(i) * 2.1, color, minf(radius * 0.8, 4.0), 0.12)
+	_finish(parent, look, at, radius * 0.6, 12 + tier * 2)
 
 
-static func _blast(parent: Node3D, skill: Dictionary, style: String, color: Color, center: Vector3, radius: float, big: bool) -> void:
-	VfxArt.rune_circle(parent, center, color, radius, 1.0)
-	_motes_for(parent, style, color, center, radius * 0.8, 34)
-	match style:
-		"fire":
-			VfxKit.fire_ring(parent, center, Color("ff6a2a"), radius, 22, 1.6)
-			if big:
-				VfxKit.slam(parent, center, color, radius)
-		"ice":
-			VfxKit.spikes(parent, center, radius, Color("a8ecff"), 22, 2.8, 0.5)
-			VfxKit.column_rain(parent, center, radius, Color("e6f8ff"), 14, 1.0, 10.0)
-		"holy":
-			VfxKit.column_rain(parent, center, radius, color, 22, 1.1, 12.0)
-			VfxArt.sky_strike(parent, center, color, 1.8, 16.0, 0.6)
-		"leaf", "wind":
-			VfxKit.column_rain(parent, center, radius, color, 12, 0.7, 12.0)
-			VfxKit.vortex(parent, center, color, 2.6, 0.7)
-		"thunder":
-			for i in 6:
-				var a := randf() * TAU
-				VfxArt.sky_strike(parent, center + Vector3(cos(a), 0, sin(a)) * radius * randf(), Color("fff06a"), 0.7, 14.0, 0.3)
-		_:
-			VfxKit.slam(parent, center, color, radius)
-			VfxKit.spikes(parent, center, radius, Color("a8784a"), 14, 2.0)
+static func _single(parent: Node3D, skill: Dictionary, look: Dictionary, center: Vector3, origin: Vector3, tier: int) -> void:
+	var direction := center - origin
+	var yaw := atan2(direction.x, direction.z) if direction.length() > 0.1 else 0.0
+	var color: Color = look.primary
+	if bool(skill.get("projectile", false)):
+		# Arrival flashes are owned by the projectile; launch art stays at caster.
+		var launch := origin + direction.normalized() * 0.6 + Vector3(0, 1.25, 0)
+		VfxArt.star_flash(parent, launch, color, 1.0 + float(tier) * 0.08)
+		if look.family == "archer":
+			VfxArt.bloom(parent, origin, look.accent, "leaf", 0.9, 4, 0.45, yaw)
+		else:
+			VfxArt.crest(parent, origin, color, look.family, 1.4, 0.55, look.phase)
+		return
+	var hit := center + Vector3(0, 0.95, 0)
+	var cut := origin + direction.normalized() * minf(direction.length(), 1.3) + Vector3(0, 0.95, 0)
+	if String(skill.id) in ["raving", "triple_impact", "avenging_crash"]:
+		VfxArt.cross_slash(parent, cut, yaw, color, 2.5)
+	else:
+		VfxKit.slash_arc(parent, cut, yaw, color, 2.5 + float(tier) * 0.14, -0.65)
+	VfxArt.star_flash(parent, hit, look.accent, 1.7, 0.22)
+	if look.motif == "shield":
+		VfxArt.bloom(parent, center, color, "diamond", 0.65, 4, 0.45, look.phase)
+	_finish(parent, look, center, 0.65, 8)
 
 
-static func _single(parent: Node3D, skill: Dictionary, style: String, color: Color, center: Vector3, origin: Vector3, big: bool) -> void:
-	var hit := center + Vector3(0, 1.0, 0)
-	_motes_for(parent, style, color, hit, 0.9, 16)
-	match style:
-		"holy":
-			VfxArt.sky_strike(parent, center, color, 1.2 if big else 0.8, 14.0, 0.5)
-		"ice":
-			VfxKit.spikes(parent, center, 1.4, Color("a8ecff"), 7, 2.0, 0.1)
-			VfxArt.star_flash(parent, hit, Color("dff8ff"), 2.6)
-		"fire":
-			VfxKit.fire_ring(parent, center, Color("ff6a2a"), 1.6, 9, 1.0)
-			VfxArt.star_flash(parent, hit, color, 2.8)
-		"thunder":
-			VfxArt.sky_strike(parent, center, Color("fff06a"), 0.8, 14.0, 0.3)
-		"leaf", "wind":
-			VfxArt.star_flash(parent, hit, color, 2.4)
-			VfxKit.vortex(parent, center, color, 1.8, 0.5)
-		"buff", "heal":
-			VfxArt.star_flash(parent, hit, color, 2.4)
-		_:
-			var to := center - origin
-			var yaw := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
-			VfxArt.cross_slash(parent, origin + to.normalized() * minf(1.4, to.length()) + Vector3(0, 1.1, 0), yaw, color, 4.8 if big else 4.0)
-			VfxArt.star_flash(parent, hit, color, 4.2 if big else 3.4)
-			if big:
-				VfxKit.slam(parent, center, color, 2.4)
-
-
-static func _multi(parent: Node3D, skill: Dictionary, style: String, color: Color, center: Vector3, origin: Vector3) -> void:
-	VfxKit.vortex(parent, origin, color, 2.4, 0.5)
-	VfxArt.rune_circle(parent, origin, color, 1.8, 0.6)
-	_motes_for(parent, style, color, origin + Vector3(0, 0.6, 0), 1.0, 18)
-	VfxArt.star_flash(parent, center + Vector3(0, 1.0, 0), color, 2.2)
+static func _multi(parent: Node3D, skill: Dictionary, look: Dictionary, origin: Vector3, center: Vector3, tier: int) -> void:
+	VfxArt.crest(parent, origin, look.accent, look.family, 1.6, 0.55, look.phase)
+	var kind := "leaf" if look.family == "archer" else ("petal" if look.family == "priest" else "diamond")
+	VfxArt.bloom(parent, origin, look.primary, kind, 1.2, mini(int(skill.get("hits", 3)), 8), 0.5, look.phase)
+	if String(skill.shape) == "chain":
+		VfxArt.star_flash(parent, center + Vector3(0, 1.0, 0), look.accent, 1.3 + float(tier) * 0.08, 0.2)

@@ -1,77 +1,83 @@
 # Toon Tale
 
-เกม RPG ล่ามอนสเตอร์สไตล์การ์ตูน เล่นคนเดียวบนมือถือ (เบราว์เซอร์) แรงบันดาลใจจากเกม MMORPG รุ่นคลาสสิก
-สร้างด้วย **Godot 4.3** (GL Compatibility) ส่งออกเป็น Web ได้
-
-A solo cartoon action-RPG for the phone browser: four classes, hunting fields,
-loot, quests and bosses.
+A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3** and the GL Compatibility renderer. Version **0.3.1** refines the storybook visuals, mobile controls, skill effects, progression and save recovery.
 
 ## Play
 
-* **Joystick (left)** move · **drag the right side** to turn the camera · pinch to zoom
-* **Big sword button** locks the nearest monster and auto-attacks (the hero chases it)
-* **Four skills on the arc** around the sword button (unlock at Lv 1 / 4 / 8 / 12; first two change with your job)
-* Potion buttons, target switch, menu (top right: stats, bag & equipment, skills, quests)
-* Keyboard: WASD move · Space attack · 1-4 skills · H/M potions · Tab target · I/K/C/J menus
+- Left joystick / WASD: move. Drag the right side / right mouse: turn the camera. Pinch / mouse wheel: zoom.
+- Sword button / Space: lock a nearby monster and auto-attack. Eight skills sit in one row along the bottom; keyboard shortcuts are 1–8.
+- Far-right vertical controls, top to bottom: HP potion, MP potion, auto hunting, target switch. Walk manually to stop auto hunting.
+- Menu / I: character, equipment, skills, quests, achievements and settings. H/M use potions; Tab switches targets.
 
-## Classes
+Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage or Priest at **Lv.10**. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
 
-| Class | Style | Skills |
-|---|---|---|
-| นักรบ Warrior | melee, tankiest | Power Slash · Shield Bash (stun) · Whirlwind (area) · Battle Roar (buff) |
-| นักธนู Archer | ranged, crits | Power Shot · Triple Shot · Arrow Rain (area) · Swift Step (buff) |
-| จอมเวท Mage | ranged, area damage | Fireball (burn) · Frost Nova (slow) · Chain Lightning · Meteor |
-| พรีสต์ Priest | ranged + self sustain | Holy Bolt · Heal · Holy Nova (area + heal) · Blessing (buff) |
+## Adventure
 
-## Gear that shows
+Travel from Mistwood village through ten hunting fields to Lv.100, with the Void field available for endgame adventures. Equip weapons and outfits that appear on the hero, enhance equipment to +10, socket gems, collect set bonuses and earn wings. Travel with one AI companion with follow, aggressive or guard behavior. The village provides shops, storage, healing, skill training, quests and travel crystals.
 
-Every weapon, helm and armor has a look. Wear it and the hero changes: 48 procedural weapon
-designs (sword / bow / staff / wand), 12 hats, five outfit styles (tinted per tier) mixed from the
-KayKit characters, boot cuffs and a necklace. Items have rendered icons in the bag, shop and on the ground.
+After Lv.100, earn **Paragon** levels, collect star equipment in the Void, and climb the **Void Tower**. Ranked arena opponents are **AI**, not online players; stronger ranks can heal and dodge. Daily quests and achievements provide additional goals.
 
-## More to do
+## Version 0.3.1
 
-* **Forge** (blacksmith in the village): enhance gear up to +10 (failure only costs gold), socket gems dropped by
-  monsters, set bonuses for 2/3/4 pieces of the same set. Legendary gear and +7 weapons sparkle.
-* **Third advancement** at Lv.30 (new skills 3 and 4) and **passive skills** (Lv.10 / 25, up to 5 stars).
-* **Daily quests**, 18 **achievements**, a three-wave **arena** with a boss, an ending after the last boss.
-* **Minimap**, graphics quality (low / medium / high), camera speed, save backup code (Settings).
-* Companion stance (tap its card: follow / aggressive / guard) and a brave or careful personality.
-* `godot --headless -s res://tools/balance.gd` prints how long each class takes to level.
+- Eight skills now sit in a single bottom row. HP potion, MP potion, auto and target form a vertical column at the far right. Layout checks cover three aspect ratios and phone safe-area insets.
 
-## AI party
+## Version 0.3.0
 
-One AI companion at a time, picked from the Party Broker in the village (any of the four classes,
-swap or send home whenever). They follow you, fight the monster you fight, use skills (a priest heals and
-buffs you), share every kill's EXP and wear gear that grows with their level. Monsters attack them like the
-hero; when they fall they get back up after a few seconds.
+- Softer landscape colors, regional landmarks, cottage details and natural camp clearings.
+- Sculpted hair, layered eyes and catchlights, blinking, softer character/monster outlines and material finish.
+- Class-specific crests, ribbons and elemental accents across all **102 active skills**. Decorative effect limits follow graphics quality and crowding.
+- Navy, cream and gold interface, equipped hero preview on the save screen, responsive creator and single-row bottom skill bank.
+- Quest rewards track the actual EXP curve; EXP overflowing Lv.100 continues into Paragon.
+- Save imports show a preview and destination, validate nested data and preserve the current save if writing fails. Restoring a character rebuilds the active scene.
+- The web loader decompresses files as streams to avoid accumulating another complete compressed buffer.
 
-## Jobs
+## Saves
 
-At Lv 15 the Job Master in the village splits each class into two branches (1,500 gold):
-Paladin / Berserker · Sniper / Storm Hunter · Pyromancer / Cryomancer · Saint / Inquisitor.
-A job adds stat bonuses, a ring under the feet and two new skills in place of the first two.
+Four save slots are stored in the current browser/device. Use **Settings → สำรอง / นำเข้าเซฟ** to copy a backup code before changing devices or clearing browser data. Review the character and destination slot before restoring. Arena/tower backups resume safely in town. Saves are local; there is no account or cloud synchronization.
 
-## World
+## Run and validate
 
-Village (shop, quests, free healer, Job Master) → Mistwood Meadow (Lv 1-6) → Purple Forest (Lv 7-14)
-→ Scorching Desert (Lv 15-22) → Eternal Ice Mountain (Lv 23-30) → Raging Volcano (Lv 31-40).
-Each field has marked monster camps, one species per camp, and a boss.
-
-## Run & test
+Open `project.godot` with Godot 4.3, or:
 
 ```bash
-godot --path .                                   # play
-godot --headless --path . res://tests/integration/flow_test.tscn   # end-to-end test
-godot --headless --path . -s res://tools/check_scripts.gd          # load every script
-godot --headless --path . --export-release "Web" build/web/index.html
-python3 tools/package_web.py                      # -> build/web_artifact (static hosting)
+godot --headless --editor --import --path .
+godot --path .
+godot --headless --path . -s res://tools/check_scripts.gd
+godot --headless --path . -s res://tests/integration/character_finish_test.gd
+godot --headless --path . res://tests/integration/save_progression_test.tscn
+godot --headless --path . res://tests/integration/skill_presentation_test.tscn
+godot --headless --path . res://tests/tools/ui_polish_review.tscn
+godot --headless --path . res://tests/integration/flow_test.tscn
+node tools/test_web_loader.mjs
 ```
 
-Screenshots: `godot --rendering-driver opengl3 --path . res://tests/tools/tour.tscn -- out_dir warrior field`
-(tours: field, town, menus, skills, zones).
+Tests create and delete game saves: run them with a separate `XDG_DATA_HOME` on Linux. The GitHub Actions workflow pins Godot 4.3 and isolates save, UI and integration fixtures. Character checks cover blinking, hair geometry and material reuse; the headless UI check verifies touch-control spacing and all eight populated skill slots. The balance simulator is a rough combat estimate, not a complete playthrough: `godot --headless --path . -s res://tools/balance.gd`.
+
+## Build the browser game
+
+Install the matching Godot 4.3 Web export templates. The project uses the single-threaded web export.
+
+```bash
+mkdir -p build/web
+godot --headless --path . --export-release "Web" build/web/index.html
+python3 tools/package_web.py --pages docs/play
+```
+
+`build/web_artifact` is suitable for static hosting. `docs/play` adds the web app manifest and iPhone home-screen metadata. Publishing source changes alone does not rebuild the existing browser bundle; export and package it before publishing a release.
+
+## Visual review
+
+Actual captures from the updated game: [heroes](docs/screenshots/v0.3.0/heroes.png), [representative skill effects](docs/screenshots/v0.3.0/skills.png), [eight-slot HUD](docs/screenshots/v0.3.1/hud.png), and [inventory](docs/screenshots/v0.3.0/inventory.png).
+
+```bash
+godot --rendering-driver opengl3 --path . res://tests/tools/tour.tscn -- /tmp/toon-shots warrior field
+godot --rendering-driver opengl3 --path . res://tests/tools/look_preview.tscn -- /tmp/heroes.png classes
+godot --rendering-driver opengl3 --path . res://tests/tools/monster_preview.tscn -- /tmp/monsters.png zone:meadow
+godot --rendering-driver opengl3 --path . res://tests/tools/ui_polish_review.tscn -- /tmp/toon-ui-shots
+```
+
+Inspect menus, touch targets, boss telegraphs and crowded skill effects on representative phones. Desktop software-renderer timings do not establish mobile performance.
 
 ## Credits
 
-See [ASSET_CREDITS.md](ASSET_CREDITS.md). Characters: KayKit Adventurers (CC0). Monsters and
-nature: Quaternius (CC0). Fonts: SIL OFL. Sound and music: synthesized for this project.
+See [ASSET_CREDITS.md](ASSET_CREDITS.md). KayKit Adventurers and Quaternius models are CC0. Fonts are SIL OFL. Audio credits and source licenses are retained with the project.

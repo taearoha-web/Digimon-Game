@@ -1,0 +1,47 @@
+name: Validate Toon Tale
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  game:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      XDG_DATA_HOME: /tmp/toon-ci-data
+      XDG_CONFIG_HOME: /tmp/toon-ci-config
+      XDG_CACHE_HOME: /tmp/toon-ci-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Godot 4.3
+        run: |
+          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          echo /tmp/godot >> "$GITHUB_PATH"
+      - name: Import assets
+        run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
+      - name: Validate scripts
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . -s res://tools/check_scripts.gd
+      - name: Validate character assembly and material reuse
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . -s res://tests/integration/character_finish_test.gd
+      - name: Validate save recovery and progression
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-save
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/save_progression_test.tscn
+      - name: Audit every skill and graphics quality
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/skill_presentation_test.tscn
+      - name: Validate mobile control layout and populated HUD
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-ui
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/tools/ui_polish_review.tscn
+      - name: Play the integration flow
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-flow
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/flow_test.tscn
+      - name: Test streaming web loader
+        run: node tools/test_web_loader.mjs

@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, diffuse_toon, specular_disabled;
+render_mode cull_disabled, diffuse_burley, specular_disabled;
 // Stylised leaves / bushes / flowers for the imported nature models.
 // Vertical colour gradient, gentle wind sway, optional per-instance tint
 // (MultiMesh colours). The pack ships without textures, so colour comes from here.
@@ -26,6 +26,7 @@ void vertex() {
 
 void fragment() {
 	vec3 gradient = mix(base_color.rgb, top_color.rgb, rel_height);
-	ALBEDO = mix(gradient, gradient * inst_tint * 1.6, tint_strength);
+	// Flower instance colours stay pastel instead of blowing out above 1.0.
+	ALBEDO = mix(gradient, gradient * inst_tint, tint_strength);
 	ROUGHNESS = 1.0;
 }

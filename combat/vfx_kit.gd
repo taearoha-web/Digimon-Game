@@ -23,6 +23,7 @@ static func _glow(color: Color, alpha := 1.0, additive := true) -> StandardMater
 		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.albedo_color = Color(color.r, color.g, color.b, alpha)
+	m.disable_fog = true
 	return m
 
 
@@ -97,11 +98,11 @@ static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, 
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	quad.material = mat
 	p.mesh = quad
-	p.amount = amount
+	var reserved := VfxBudget.track_particles(p, amount)
 	p.lifetime = lifetime
 	p.one_shot = one_shot
 	p.explosiveness = 0.9 if one_shot else 0.0
-	p.emitting = true
+	p.emitting = reserved
 	p.local_coords = false
 	p.color_ramp = _fade_ramp()
 	parent.add_child(p)
@@ -240,11 +241,13 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 			star_mat.albedo_texture = VfxArt.texture("star")
 			star_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 			_instance(holder, star_quad, star_mat, from)
-	var light := OmniLight3D.new()
-	light.light_color = color
-	light.light_energy = 1.4
-	light.omni_range = 3.5
-	holder.add_child(light)
+	if VfxBudget.can_light():
+		var light := OmniLight3D.new()
+		light.light_color = color
+		light.light_energy = 0.65
+		light.omni_range = 2.8
+		holder.add_child(light)
+		VfxBudget.track_light(light)
 	var mid := (from + to) * 0.5 + Vector3(0, minf(0.6, from.distance_to(to) * 0.08), 0)
 	var tween := holder.create_tween()
 	tween.tween_method(func(t: float):
@@ -277,7 +280,7 @@ static func arrow(parent: Node3D, color: Color, from: Vector3, to: Vector3, dura
 ## A jagged lightning bolt between two points that flashes and fades.
 static func lightning(parent: Node3D, from: Vector3, to: Vector3, color: Color) -> void:
 	var points: Array[Vector3] = [from]
-	var segments := 7
+	var segments := VfxBudget.count(7, 3)
 	var up := Vector3.UP
 	var side := (to - from).cross(up).normalized()
 	for i in range(1, segments):
@@ -343,14 +346,14 @@ static func slash_arc(parent: Node3D, pos: Vector3, yaw: float, color: Color, si
 
 
 static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
-	var ring_mat := _glow(color, 0.95, false)
+	var ring_mat := _glow(color, 0.75, false)
 	var ring := _instance(parent, MeshKit.torus(), ring_mat, pos)
 	ring.scale = Vector3(0.3, 0.3, 0.3)
-	var disc_mat := _glow(color, 0.6, false)
+	var disc_mat := _glow(color, 0.10, false)
 	var disc := _instance(parent, _disc_mesh(), disc_mat, pos + Vector3(0, 0.03, 0))
 	disc.scale = Vector3(0.3, 1, 0.3)
 	var tween := ring.create_tween().set_parallel(true)
-	tween.tween_property(ring, "scale", Vector3(radius, radius * 0.9, radius), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(ring, "scale", Vector3(radius, radius * 0.06, radius), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(ring_mat, "albedo_color:a", 0.0, 0.45)
 	tween.tween_property(disc, "scale", Vector3(radius, 1, radius), 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(disc_mat, "albedo_color:a", 0.0, 0.45)
@@ -368,7 +371,7 @@ static func ground_circle(parent: Node3D, pos: Vector3, color: Color, radius: fl
 	var inner_mat := _glow(color, 0.6, false)
 	var inner := _instance(parent, MeshKit.torus(), inner_mat, pos + Vector3(0, 0.07, 0))
 	inner.scale = Vector3(radius * 0.6, radius * 0.12, radius * 0.6)
-	var fill_mat := _glow(color, 0.22, false)
+	var fill_mat := _glow(color, 0.08, false)
 	var fill := _instance(parent, _disc_mesh(), fill_mat, pos + Vector3(0, 0.04, 0))
 	fill.scale = Vector3(radius, 1, radius)
 	var tween := outer.create_tween().set_parallel(true)
@@ -400,8 +403,11 @@ static func danger_circle(parent: Node3D, pos: Vector3, radius: float, duration:
 
 
 static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, width := 0.9, duration := 0.6) -> void:
-	var mat := _glow(color, 0.5, false)
+	if not VfxBudget.can_decorate():
+		return
+	var mat := _glow(color, 0.28, false)
 	var mi := _instance(parent, MeshKit.cylinder(), mat, pos + Vector3(0, height * 0.5, 0))
+	VfxBudget.track_decoration(mi)
 	mi.scale = Vector3(width, height, width)
 	var tween := mi.create_tween().set_parallel(true)
 	tween.tween_property(mi, "scale", Vector3(width * 0.15, height, width * 0.15), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
@@ -447,7 +453,7 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 static func heal(parent: Node3D, pos: Vector3, color := Color("6dff9a")) -> void:
 	flash(parent, pos + Vector3(0, 1.0, 0), color, 3.2, 0.5)
 	pillar(parent, pos, color, 4.5, 1.6, 0.7)
-	for i in 4:
+	for i in VfxBudget.count(4):
 		var mat := _glow(color, 0.9, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
 		ring.scale = Vector3(1.1, 0.3, 1.1)
@@ -471,7 +477,7 @@ static func heal(parent: Node3D, pos: Vector3, color := Color("6dff9a")) -> void
 static func aura(parent: Node3D, pos: Vector3, color: Color) -> void:
 	flash(parent, pos + Vector3(0, 1.0, 0), color, 4.0, 0.55)
 	pillar(parent, pos, color, 6.0, 2.2, 0.9)
-	for i in 5:
+	for i in VfxBudget.count(5):
 		var mat := _glow(color, 0.95, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
 		ring.scale = Vector3(1.0, 0.28, 1.0)
@@ -539,13 +545,16 @@ static func loot_beam(parent: Node3D, color: Color, height := 3.0) -> MeshInstan
 
 ## Cones that burst out of the ground inside [param radius] (ice, rock, thorns).
 static func spikes(parent: Node3D, center: Vector3, radius: float, color: Color, count := 14, height := 2.2, delay_spread := 0.25) -> void:
-	for i in count:
+	for i in VfxBudget.count(count):
+		if not VfxBudget.can_decorate():
+			break
 		var angle := randf() * TAU
 		var dist := sqrt(randf()) * radius
 		var pos := center + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
 		var h := height * randf_range(0.6, 1.2)
 		var mat := _glow(color, 0.9, false)
 		var cone := _instance(parent, MeshKit.cone(), mat, pos)
+		VfxBudget.track_decoration(cone)
 		cone.scale = Vector3(0.35, 0.01, 0.35)
 		cone.rotation = Vector3(randf_range(-0.2, 0.2), randf() * TAU, randf_range(-0.2, 0.2))
 		var tween := cone.create_tween()
@@ -584,26 +593,26 @@ static func slam(parent: Node3D, pos: Vector3, color: Color, radius: float) -> v
 
 
 static func get_ring_delay(parent: Node3D, pos: Vector3, color: Color, radius: float, delay: float) -> void:
-	parent.get_tree().create_timer(delay).timeout.connect(func():
+	parent.create_tween().tween_interval(delay).finished.connect(func():
 		if is_instance_valid(parent):
 			shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius))
 
 
 ## Many light columns (or arrows of light) falling over an area, staggered.
 static func column_rain(parent: Node3D, center: Vector3, radius: float, color: Color, count := 12, duration := 0.9, height := 9.0) -> void:
-	for i in count:
+	for i in VfxBudget.count(count):
 		var angle := randf() * TAU
 		var dist := sqrt(randf()) * radius
 		var pos := center + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
-		parent.get_tree().create_timer(randf() * duration).timeout.connect(func():
-			if is_instance_valid(parent):
-				pillar(parent, pos, color, height, 0.55, 0.4)
+		parent.create_tween().tween_interval(randf() * duration).finished.connect(func():
+			if is_instance_valid(parent) and VfxBudget.can_decorate():
+				pillar(parent, pos, color, height, 0.24, 0.3)
 				sparks(parent, pos + Vector3(0, 0.3, 0), color, 8, 2.5, 0.4))
 
 
 ## Stacked spinning rings that rise around [param pos]: a whirlwind / power-up column.
 static func vortex(parent: Node3D, pos: Vector3, color: Color, height := 3.0, duration := 0.7) -> void:
-	for i in 4:
+	for i in VfxBudget.count(4):
 		var mat := _glow(color, 0.8, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.2, 0))
 		var r := 0.9 + i * 0.25
@@ -635,11 +644,15 @@ static func star_burst(parent: Node3D, pos: Vector3, color: Color, size := 2.2) 
 
 ## A ring of upright flames around [param center] (fire fields).
 static func fire_ring(parent: Node3D, center: Vector3, color: Color, radius: float, count := 18, lifetime := 1.2) -> void:
-	for i in count:
-		var angle := i * TAU / count + randf() * 0.2
+	var visible_count := VfxBudget.count(count)
+	for i in visible_count:
+		if not VfxBudget.can_decorate():
+			break
+		var angle := i * TAU / visible_count + randf() * 0.12
 		var pos := center + Vector3(cos(angle), 0.0, sin(angle)) * radius * randf_range(0.6, 1.0)
 		var mat := _glow(color, 0.85, false)
 		var flame := _instance(parent, MeshKit.cone(), mat, pos)
+		VfxBudget.track_decoration(flame)
 		flame.scale = Vector3(0.2, 0.01, 0.2)
 		var h := randf_range(1.2, 2.4)
 		var tween := flame.create_tween()

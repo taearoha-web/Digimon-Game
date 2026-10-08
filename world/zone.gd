@@ -137,8 +137,11 @@ func _build_field() -> void:
 	_start = Vector3(-FIELD_RADIUS + 8.0, 0, 0)
 	var ground_color: Color = data.ground
 	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(-FIELD_RADIUS, 0), Vector2(-20, 4), Vector2(0, -2), Vector2(26, 6), Vector2(FIELD_RADIUS, 0)])]
-	Scenery.ground(self, 130.0, ground_color.darkened(0.2), ground_color.darkened(0.02), int(data.get("seed", 5)),
-			data.get("path_color", Color("a98f62")), paths, 2.2)
+	var clearings: Array[Vector3] = []
+	for camp in data.camps:
+		clearings.append(Vector3(camp.pos.x, camp.pos.y, float(camp.radius)))
+	Scenery.ground(self, 130.0, ground_color.darkened(0.13), ground_color.lightened(0.025), int(data.get("seed", 5)),
+			data.get("path_color", Color("c5b394")), paths, 2.8, clearings)
 	_boss_spot = Vector3(30, 0, 26)
 	var clear: Array[Vector3] = [
 		Vector3(_start.x, _start.z, 6.0), Vector3(FIELD_RADIUS - 8.0, 0, 6.0), Vector3(_boss_spot.x, _boss_spot.z, 9.0),
@@ -154,6 +157,9 @@ func _build_field() -> void:
 		_camps.append(camp)
 		clear.append(Vector3(c.pos.x, c.pos.y, float(c.radius) + 2.0))
 	Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)))
+	WorldArt.landscape(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
+	if data.has("boss"):
+		WorldArt.boss_landmark(self, theme, _boss_spot)
 	for camp in _camps:
 		_make_camp_marker(camp)
 	var prev: StringName = data.get("prev", &"town")
@@ -178,18 +184,20 @@ func _make_weather(kind: StringName) -> void:
 	if kind == &"":
 		return
 	_weather = CPUParticles3D.new()
-	_weather.amount = int((160 if kind == &"snow" else 90) * GameSettings.particle_scale())
+	_weather.amount = maxi(1, int((110 if kind == &"snow" else 48) * GameSettings.particle_scale()))
 	_weather.lifetime = 7.0 if kind == &"snow" else 4.5
 	_weather.preprocess = _weather.lifetime
 	_weather.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	_weather.emission_box_extents = Vector3(26, 0.5, 26)
 	_weather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.22, 0.22) if kind == &"snow" else Vector2(0.2, 0.2)
+	quad.size = Vector2(0.16, 0.16) if kind == &"snow" else Vector2(0.12, 0.12)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_color = Color(1, 1, 1, 0.9) if kind == &"snow" else Color(1.0, 0.55, 0.2, 0.95)
+	mat.albedo_color = Color(1, 1, 1, 0.7) if kind == &"snow" else Color(1.0, 0.72, 0.45, 0.7)
+	if StringName(data.get("theme", &"")) == &"void":
+		mat.albedo_color = Color(0.77, 0.7, 1.0, 0.6)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_texture = VfxKit.soft_dot()
 	if kind == &"embers":
@@ -214,13 +222,13 @@ func _make_weather(kind: StringName) -> void:
 
 
 func _build_town() -> void:
-	Scenery.environment(self, Color("7fc8ff"), Color("dff0ff"), Color(1.0, 0.98, 0.95))
+	Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"))
 	_start = Vector3(0, 0, 14)
 	var paths: Array[PackedVector2Array] = [
 		PackedVector2Array([Vector2(0, -36), Vector2(0, 36)]),
 		PackedVector2Array([Vector2(-36, 0), Vector2(36, 0)]),
 	]
-	Scenery.ground(self, 130.0, Color("4fa84e"), Color("6bc05c"), 2, Color("a98f62"), paths, 2.6)
+	Scenery.ground(self, 130.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), paths, 3.0)
 	# Plaza disc
 	var plaza := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
@@ -229,7 +237,7 @@ func _build_town() -> void:
 	disc.height = 0.06
 	disc.radial_segments = 40
 	plaza.mesh = disc
-	plaza.material_override = MeshKit.toon(Color("c9b27c"))
+	plaza.material_override = MeshKit.toon(Color("d7c8b3"))
 	plaza.position = Vector3(0, 0.02, 0)
 	add_child(plaza)
 	var clear: Array[Vector3] = [Vector3(0, 0, 11.0), Vector3(0, 0, 0), Vector3(0, -33, 5.0)]
@@ -247,6 +255,7 @@ func _build_town() -> void:
 		_house(h[0], h[1], h[2], h[3], h[4])
 		clear.append(Vector3(h[0].x, h[0].z, 6.5))
 	Scenery.populate(self, &"meadow", rng, TOWN_RADIUS, clear, 0.8)
+	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	_fountain(Vector3(0, 0, 0))
 	for lamp in [Vector3(-6, 0, -6), Vector3(6, 0, -6), Vector3(-6, 0, 6), Vector3(6, 0, 6), Vector3(0, 0, -20), Vector3(0, 0, 22)]:
 		_lamp(lamp)
@@ -347,45 +356,37 @@ func _make_portal(portal: Dictionary) -> void:
 	holder.name = "Portal_" + String(portal.to)
 	holder.position = portal.pos
 	add_child(holder)
-	var color := Color("5ad0ff") if portal.level <= Game.profile.get("level", 1) else Color("ff6a6a")
+	var color := Color("5baea7") if portal.level <= Game.profile.get("level", 1) else Color("c88789")
+	MeshKit.part(holder, MeshKit.cylinder(), WorldArt._mat(Color("88989b")), Vector3(0, 0.12, 0), Vector3(2.2, 0.24, 2.2))
 	for i in 2:
 		var ring := MeshInstance3D.new()
 		ring.mesh = MeshKit.torus()
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.albedo_color = color
-		ring.material_override = mat
-		ring.scale = Vector3(2.4 - i * 0.7, 2.4 - i * 0.7, 2.4 - i * 0.7)
+		ring.material_override = WorldArt._mat(color, 0.1)
+		var s := 1.95 - i * 0.5
+		ring.scale = Vector3(s, s, s)
 		ring.rotation_degrees = Vector3(90, 0, 0)
-		ring.position = Vector3(0, 2.4, 0)
+		ring.position = Vector3(0, 1.6, 0)
+		ring.visibility_range_begin = 2.8
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(ring)
 		var tween := ring.create_tween().set_loops()
-		tween.tween_property(ring, "rotation:z", TAU * (1 if i == 0 else -1), 5.0)
-	var core := MeshInstance3D.new()
-	core.mesh = MeshKit.cylinder()
-	core.material_override = VfxKit._glow(color, 0.3)
-	core.scale = Vector3(1.5, 0.04, 1.5)
-	core.position = Vector3(0, 0.05, 0)
-	holder.add_child(core)
-	var beam := VfxKit.loot_beam(holder, color, 5.0)
-	beam.scale = Vector3(1.2, 5.0, 1.2)
+		tween.tween_property(ring, "rotation:z", TAU * (1 if i == 0 else -1), 8.0)
+	# An open rune and a small jewel replace the opaque additive light column.
+	var jewel := MeshKit.part(holder, MeshKit.sphere_low(), WorldArt._mat(color.lightened(0.15), 0.1),
+		Vector3(0, 1.6, 0), Vector3(0.35, 0.65, 0.35))
+	jewel.visibility_range_begin = 2.8
+	jewel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var label := Label3D.new()
 	label.text = "▶ " + String(portal.label)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.pixel_size = 0.006
-	label.font_size = 56
-	label.outline_size = 14
-	label.modulate = Color("e8fbff")
-	label.position = Vector3(0, 5.0, 0)
-	label.no_depth_test = true
+	label.pixel_size = 0.005
+	label.font_size = 40
+	label.outline_size = 9
+	label.modulate = Color("e5eee3")
+	label.position = Vector3(0, 3.2, 0)
+	label.visibility_range_begin = 4.0
 	label.visibility_range_end = 24.0
 	holder.add_child(label)
-	var light := OmniLight3D.new()
-	light.light_color = color
-	light.light_energy = 1.4
-	light.omni_range = 7.0
-	light.position = Vector3(0, 2.5, 0)
-	holder.add_child(light)
 
 
 func _make_boundary_walls(radius: float) -> void:
@@ -409,16 +410,11 @@ func _house(pos: Vector3, yaw: float, wall: Color, roof: Color, size: Vector3) -
 	holder.rotation.y = yaw
 	add_child(holder)
 	MeshKit.part(holder, MeshKit.box(), MeshKit.toon(wall), Vector3(0, size.y * 0.5, 0), size)
-	# Roof: two sloped slabs.
-	var slab_w := size.x * 0.62
-	for side in [-1.0, 1.0]:
-		var slab := MeshKit.part(holder, MeshKit.box(), MeshKit.toon(roof), Vector3(side * size.x * 0.25, size.y + 0.75, 0),
-				Vector3(slab_w, 0.35, size.z + 1.0), Vector3(0, 0, -side * 32.0))
-		slab.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	MeshKit.part(holder, MeshKit.box(), MeshKit.toon(wall.darkened(0.08)), Vector3(0, size.y + 0.4, 0), Vector3(size.x * 0.12, 1.4, size.z))
-	MeshKit.part(holder, MeshKit.box(), MeshKit.toon(Color("7a4a2a")), Vector3(0, 1.0, size.z * 0.5 + 0.02), Vector3(1.3, 2.0, 0.12))
-	for wx in [-size.x * 0.3, size.x * 0.3]:
-		MeshKit.part(holder, MeshKit.box(), MeshKit.toon(Color("bfe8ff"), {"emission": 0.4}), Vector3(wx, size.y * 0.6, size.z * 0.5 + 0.02), Vector3(1.0, 1.0, 0.1))
+	# A solid gable closes the old slab gap; timber and window boxes make the
+	# village read as tiny handmade cottages at the normal camera distance.
+	MeshKit.part(holder, MeshKit.prism(), MeshKit.toon(roof.lerp(Color("bba6a5"), 0.22)),
+		Vector3(0, size.y + 0.88, 0), Vector3(size.x + 1.0, 1.9, size.z + 1.0))
+	WorldArt.cottage_details(holder, size, roof)
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	var shape := CollisionShape3D.new()
@@ -589,44 +585,14 @@ func _spawn_in_camp(camp: Dictionary, initial: bool) -> void:
 	camp.mobs.append(mob)
 
 
-## A flat painted patch plus a signpost naming the camp and its levels.
+## Organic ground clearings are baked into Scenery.ground. Low stones and a
+## readable wooden sign identify encounters without drawing UI rings on grass.
 func _make_camp_marker(camp: Dictionary) -> void:
 	var holder := Node3D.new()
 	holder.name = "Camp"
 	holder.position = Vector3(camp.pos.x, 0, camp.pos.y)
 	add_child(holder)
-	var disc := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = float(camp.radius)
-	cyl.bottom_radius = float(camp.radius)
-	cyl.height = 0.02
-	cyl.radial_segments = 40
-	disc.mesh = cyl
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var tint: Color = data.ground
-	mat.albedo_color = tint.lightened(0.18)
-	mat.albedo_color.a = 0.55
-	disc.material_override = mat
-	disc.position.y = 0.03
-	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	holder.add_child(disc)
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = float(camp.radius) - 0.22
-	torus.outer_radius = float(camp.radius)
-	torus.rings = 40
-	torus.ring_segments = 4
-	ring.mesh = torus
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ring_mat.albedo_color = Color("fff2b0")
-	ring.material_override = ring_mat
-	ring.scale = Vector3(1, 0.05, 1)
-	ring.position.y = 0.05
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	holder.add_child(ring)
+	WorldArt.camp_details(holder, StringName(data.theme), float(camp.radius), int(camp.pos.x * 17 + camp.pos.y * 31))
 	# Signpost on the side facing the village.
 	var sign_pos := Vector3(-float(camp.radius) + 1.0, 0, 0)
 	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("7a5230")), sign_pos + Vector3(0, 1.1, 0), Vector3(0.16, 2.2, 0.16))
@@ -634,12 +600,12 @@ func _make_camp_marker(camp: Dictionary) -> void:
 	var label := Label3D.new()
 	label.text = "%s\nLv.%d-%d" % [camp.name, camp.levels[0], camp.levels[1]]
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.pixel_size = 0.008
+	label.pixel_size = 0.0065
 	label.font_size = 40
-	label.outline_size = 12
-	label.modulate = Color("fff2c0")
+	label.outline_size = 9
+	label.modulate = Color("fff0d6")
 	label.position = sign_pos + Vector3(0, 3.1, 0)
-	label.visibility_range_end = 40.0
+	label.visibility_range_end = 30.0
 	holder.add_child(label)
 
 

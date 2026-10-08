@@ -9,14 +9,14 @@ static var _tex: Dictionary = {}
 
 ## Generate every texture once (call while a zone loads so the first cast never hitches).
 static func warm_up() -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest"]:
 		texture(kind)
 
 
 static func texture(kind: String) -> Texture2D:
 	if _tex.has(kind):
 		return _tex[kind]
-	var size := 160 if kind == "rune" else 64
+	var size := 160 if kind == "rune" or kind.begins_with("crest_") else 64
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	for y in size:
 		for x in size:
@@ -28,6 +28,17 @@ static func texture(kind: String) -> Texture2D:
 				"leaf": a = _leaf_alpha(p)
 				"snow": a = _snow_alpha(p)
 				"diamond": a = _diamond_alpha(p)
+				"heart":
+					var q := Vector2(p.x, -p.y + 0.2)
+					var h := pow(q.x * q.x + q.y * q.y - 0.42, 3.0) - q.x * q.x * q.y * q.y * q.y
+					a = smoothstep(0.02, -0.02, h)
+				"petal": a = smoothstep(1.0, 0.8, pow(p.x * 1.5, 2.0) + pow(p.y * 0.95, 2.0))
+				"flame":
+					var width := maxf(0.02, (1.0 - p.y) * (p.y + 1.0) * 0.56)
+					a = smoothstep(width, width * 0.68, absf(p.x + sin(p.y * 3.0) * 0.1)) * smoothstep(-1.0, -0.75, p.y)
+				_:
+					if kind.begins_with("crest_"):
+						a = _crest_alpha(p, kind.trim_prefix("crest_"))
 			img.set_pixel(x, y, Color(1, 1, 1, clampf(a, 0.0, 1.0)))
 	img.generate_mipmaps()
 	var tex := ImageTexture.create_from_image(img)
@@ -120,23 +131,61 @@ static func _diamond_alpha(p: Vector2) -> float:
 	return smoothstep(0.9, 0.7, d) * (0.65 + 0.35 * (1.0 - absf(p.x)))
 
 
+## Class emblems use generous negative space, so enemy telegraphs stay legible.
+static func _crest_alpha(p: Vector2, family: String) -> float:
+	var r := p.length()
+	var a := maxf(_band(r, 0.92, 0.018), _band(r, 0.82, 0.012) * 0.65)
+	var angle := atan2(p.y, p.x)
+	match family:
+		"warrior":
+			var vertices := [Vector2(-0.39, -0.42), Vector2(0.39, -0.42), Vector2(0.34, 0.15), Vector2(0, 0.56), Vector2(-0.34, 0.15)]
+			for i in vertices.size():
+				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, vertices[i], vertices[(i + 1) % vertices.size()])))
+			a = maxf(a, smoothstep(0.028, 0.01, _seg_dist(p, Vector2(0, -0.25), Vector2(0, 0.35))))
+		"archer":
+			a = maxf(a, _band(r, 0.55, 0.024) if absf(p.x) > 0.22 else 0.0)
+			for k in 8:
+				var c := ang_point(0.57, 35.0 + float(k) * 45.0)
+				a = maxf(a, smoothstep(0.10, 0.065, p.distance_to(c)))
+			a = maxf(a, smoothstep(0.032, 0.01, _seg_dist(p, Vector2(0, 0.38), Vector2(0, -0.4))))
+			for sign_x in [-1.0, 1.0]:
+				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, Vector2(0, -0.4), Vector2(sign_x * 0.2, -0.12))))
+		"mage":
+			a = maxf(a, _band(r, 0.52, 0.024))
+			for k in 5:
+				a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, ang_point(0.51, k * 72.0 - 90.0), ang_point(0.51, (k + 2) * 72.0 - 90.0))))
+		"priest":
+			a = maxf(a, _band(r, 0.23, 0.024))
+			var petal_edge := 0.43 + 0.13 * cos(angle * 6.0)
+			a = maxf(a, _band(r, petal_edge, 0.028))
+		_:
+			a = maxf(a, _band(absf(p.x) + absf(p.y), 0.48, 0.028))
+	for k in 4:
+		a = maxf(a, smoothstep(0.048, 0.022, p.distance_to(ang_point(0.72, k * 90.0))))
+	return a
+
+
 # ---------------------------------------------------------------------------
 # Effects
 # ---------------------------------------------------------------------------
 
 ## A glowing rune circle lying on the ground that spins, swells and fades.
 static func rune_circle(parent: Node3D, pos: Vector3, color: Color, radius: float, duration := 0.9, spin := 1.0) -> void:
+	if not VfxBudget.can_decorate(2):
+		return
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE * 2.0
 	# Alpha-blended (not additive) so the lines keep their colour on bright grass.
 	var mat := VfxKit._glow(color.darkened(0.12), 0.95, false)
 	mat.albedo_texture = texture("rune")
 	var mi := VfxKit._instance(parent, quad, mat, pos + Vector3(0, 0.07, 0))
+	VfxBudget.track_decoration(mi)
 	mi.rotation_degrees = Vector3(-90, 0, 0)
 	mi.scale = Vector3.ONE * radius * 0.2
-	var halo_mat := VfxKit._glow(color, 0.35)
+	var halo_mat := VfxKit._glow(color, 0.10)
 	halo_mat.albedo_texture = VfxKit.soft_dot()
 	var halo := VfxKit._instance(parent, quad, halo_mat, pos + Vector3(0, 0.05, 0))
+	VfxBudget.track_decoration(halo)
 	halo.rotation_degrees = Vector3(-90, 0, 0)
 	halo.scale = Vector3.ONE * radius * 1.15
 	var tween := mi.create_tween().set_parallel(true)
@@ -157,12 +206,12 @@ static func motes(parent: Node3D, pos: Vector3, color: Color, kind: String, coun
 	var mat := VfxKit._glow(color, 1.0, kind in ["ember", "light"])
 	match kind:
 		"snow": mat.albedo_texture = texture("snow")
-		"leaf", "petal": mat.albedo_texture = texture("leaf")
+		"leaf", "petal", "heart", "flame", "diamond": mat.albedo_texture = texture(kind)
 		_: mat.albedo_texture = texture("star")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED if kind != "leaf" else BaseMaterial3D.BILLBOARD_ENABLED
 	quad.material = mat
 	p.mesh = quad
-	p.amount = maxi(4, int(count * GameSettings.particle_scale()))
+	var reserved := VfxBudget.track_particles(p, count)
 	p.lifetime = lifetime
 	p.one_shot = true
 	p.explosiveness = 0.55
@@ -195,7 +244,7 @@ static func motes(parent: Node3D, pos: Vector3, color: Color, kind: String, coun
 			p.scale_amount_min = 0.6
 			p.scale_amount_max = 1.3
 			height += 4.5
-		"leaf", "petal":
+		"leaf", "petal", "heart":
 			p.direction = Vector3.UP
 			p.spread = 90.0
 			p.initial_velocity_min = 1.5
@@ -215,17 +264,21 @@ static func motes(parent: Node3D, pos: Vector3, color: Color, kind: String, coun
 			p.scale_amount_max = 1.2
 	parent.add_child(p)
 	p.global_position = pos + Vector3(0, height, 0)
-	p.emitting = true
+	p.emitting = reserved
 	parent.get_tree().create_timer(lifetime + 0.4).timeout.connect(p.queue_free)
 
 
 ## A thick light column that slams down, with a flare and a ring at its foot.
 static func sky_strike(parent: Node3D, pos: Vector3, color: Color, width := 1.4, height := 14.0, duration := 0.5) -> void:
-	var outer_mat := VfxKit._glow(color, 0.55, false)
+	if not VfxBudget.can_decorate(2):
+		return
+	var outer_mat := VfxKit._glow(color, 0.3, false)
 	var outer := VfxKit._instance(parent, MeshKit.cylinder(), outer_mat, pos + Vector3(0, height * 0.5, 0))
+	VfxBudget.track_decoration(outer)
 	outer.scale = Vector3(width * 0.4, height, width * 0.4)
 	var core_mat := VfxKit._glow(Color(1, 1, 1), 0.95)
 	var core := VfxKit._instance(parent, MeshKit.cylinder(), core_mat, pos + Vector3(0, height * 0.5, 0))
+	VfxBudget.track_decoration(core)
 	core.scale = Vector3(width * 0.16, height, width * 0.16)
 	var tween := outer.create_tween().set_parallel(true)
 	tween.tween_property(outer, "scale", Vector3(width, height, width), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -282,29 +335,82 @@ static func star_flash(parent: Node3D, pos: Vector3, color: Color, size := 2.0, 
 	tween.chain().tween_callback(mi.queue_free)
 
 
-## Glowing beads that spiral upwards around [param pos] (buffs, heals, speed-ups).
+## Continuous silk ribbons: two draw calls instead of 28 separately tweened beads.
 static func ribbon_spiral(parent: Node3D, pos: Vector3, color: Color, height := 3.2, turns := 2.5, duration := 0.9, radius := 0.9) -> void:
-	for strand in 2:
-		for i in 14:
-			var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.3), 1.0)
-			var bead := VfxKit._instance(parent, MeshKit.sphere_low(), mat, pos)
-			bead.scale = Vector3.ONE * 0.16 * (1.0 - float(i) / 20.0)
-			var delay := float(i) * 0.03
-			var phase := float(strand) * PI
-			var tween := bead.create_tween()
-			tween.tween_interval(delay)
-			tween.tween_method(func(t: float):
-				var angle := phase + t * TAU * turns
-				var rr := radius * (1.0 - 0.25 * t)
-				bead.global_position = pos + Vector3(cos(angle) * rr, 0.1 + t * height, sin(angle) * rr)
-				mat.albedo_color.a = 1.0 - t * t, 0.0, 1.0, duration)
-			tween.tween_callback(bead.queue_free)
+	for strand in (1 if VfxBudget.quality() == 0 else 2):
+		if not VfxBudget.can_decorate():
+			break
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var steps := 24 if VfxBudget.quality() == 0 else 48
+		for i in steps:
+			var points: Array[Vector3] = []
+			for j in 2:
+				var t := float(i + j) / float(steps)
+				var angle := t * TAU * turns + float(strand) * PI
+				var center := Vector3(cos(angle) * radius, t * height + 0.1, sin(angle) * radius)
+				var half := 0.065 * sin(PI * t)
+				points.append(center - Vector3.UP * half)
+				points.append(center + Vector3.UP * half)
+			for k in [0, 1, 2, 2, 1, 3]:
+				st.add_vertex(points[k])
+		var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.15), 0.75, false)
+		var ribbon := VfxKit._instance(parent, st.commit(), mat, pos)
+		VfxBudget.track_decoration(ribbon)
+		ribbon.scale = Vector3(0.6, 0.25, 0.6)
+		var tween := ribbon.create_tween().set_parallel(true)
+		tween.tween_property(ribbon, "scale", Vector3.ONE, duration * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ribbon, "rotation:y", PI * 0.8, duration)
+		tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.65).set_delay(duration * 0.35)
+		tween.chain().tween_callback(ribbon.queue_free)
+
+
+## A fine class seal, with no opaque centre or screen-filling glow.
+static func crest(parent: Node3D, pos: Vector3, color: Color, family: String, radius := 1.8, duration := 0.65, phase := 0.0) -> void:
+	if not VfxBudget.can_decorate():
+		return
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * 2.0
+	var mat := VfxKit._glow(color, 0.8, false)
+	mat.albedo_texture = texture("crest_" + family)
+	var seal := VfxKit._instance(parent, quad, mat, pos + Vector3(0, 0.085, 0))
+	VfxBudget.track_decoration(seal)
+	seal.rotation = Vector3(-PI * 0.5, 0, phase)
+	seal.scale = Vector3.ONE * radius * 0.55
+	var tween := seal.create_tween().set_parallel(true)
+	tween.tween_property(seal, "scale", Vector3.ONE * radius, minf(duration * 0.35, 0.22)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(seal, "rotation:z", phase + 0.25, duration)
+	tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.5).set_delay(duration * 0.5)
+	tween.chain().tween_callback(seal.queue_free)
+
+
+## Floating petals / leaves / shield gems grow outwards, leaving the face visible.
+static func bloom(parent: Node3D, pos: Vector3, color: Color, kind: String, radius := 1.1, count := 6, duration := 0.7, phase := 0.0) -> void:
+	var visible_count := VfxBudget.count(count, 3)
+	for i in visible_count:
+		if not VfxBudget.can_decorate():
+			break
+		var angle := TAU * float(i) / float(visible_count) + phase
+		var direction := Vector3(cos(angle), 0, sin(angle))
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.45, 0.75)
+		var mat := VfxKit._glow(color, 0.8, false)
+		mat.albedo_texture = texture(kind)
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		var petal := VfxKit._instance(parent, quad, mat, pos + direction * radius * 0.4 + Vector3(0, 0.5, 0))
+		VfxBudget.track_decoration(petal)
+		petal.scale = Vector3.ONE * 0.15
+		var tween := petal.create_tween().set_parallel(true)
+		tween.tween_property(petal, "global_position", pos + direction * radius + Vector3(0, 1.7, 0), duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tween.tween_property(petal, "scale", Vector3.ONE, duration * 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.5).set_delay(duration * 0.5)
+		tween.chain().tween_callback(petal.queue_free)
 
 
 ## Two crossing crescents: the warrior's signature finishing cut.
 static func cross_slash(parent: Node3D, pos: Vector3, yaw: float, color: Color, size := 3.0) -> void:
 	VfxKit.slash_arc(parent, pos, yaw, color, size, -0.7)
-	parent.get_tree().create_timer(0.07).timeout.connect(func():
+	parent.create_tween().tween_interval(0.07).finished.connect(func():
 		if is_instance_valid(parent):
 			VfxKit.slash_arc(parent, pos, yaw, color, size, 0.7)
 			star_flash(parent, pos, color, size * 0.9))

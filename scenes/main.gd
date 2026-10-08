@@ -46,6 +46,7 @@ func _ready() -> void:
 		_flash.color = Color(color.r, color.g, color.b, strength)
 		create_tween().tween_property(_flash, "color:a", 0.0, 0.35))
 	Game.ending_requested.connect(show_ending)
+	Game.profile_imported.connect(_reload_imported_profile, CONNECT_DEFERRED)
 	hud = HUD.new()
 	hud.visible = false
 	add_child(hud)
@@ -86,6 +87,27 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 # Title / new game
 # ---------------------------------------------------------------------------
+
+
+## A restored save changes the hero, party and world together. Rebuild the scene
+## after the import dialog's callback has returned so no old character survives.
+func _reload_imported_profile() -> void:
+	# The old field must not apply damage to the newly restored profile while
+	# the transition fades. The replacement field starts processing normally.
+	if zone:
+		zone.process_mode = Node.PROCESS_MODE_DISABLED
+	if menu and menu.is_open:
+		menu.close_menu()
+	if not Game.has_profile:
+		return
+	if title_screen:
+		title_screen.queue_free()
+		title_screen = null
+	if class_screen:
+		class_screen.queue_free()
+		class_screen = null
+	Game.playing = true
+	await go(Game.current_zone, false, true)
 
 func _show_title() -> void:
 	_clear_zone()
@@ -286,7 +308,7 @@ func _on_npc(role: String) -> void:
 			AudioManager.play_sfx(&"heal")
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
-			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ 4 ตัวบนแถบโค้งได้ที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
 func _talk_daily() -> void:

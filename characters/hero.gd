@@ -664,6 +664,7 @@ func _cast(skill: Dictionary) -> void:
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var color: Color = skill.color
 	# Wind-up effect while the cast animation plays.
+	SkillShow.anticipate(field, skill, global_position, delay)
 	if skill.shape == "blast":
 		VfxKit.ground_circle(field, Vector3(aim.x, global_position.y, aim.z), color, float(skill.radius), delay + 0.2)
 	elif skill.shape == "burst":
