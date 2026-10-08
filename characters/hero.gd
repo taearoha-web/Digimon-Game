@@ -699,6 +699,13 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				VfxKit.slash_arc(field, global_position + forward * 1.2 + Vector3(0, 1.0, 0), _facing, color, 3.0, -0.4)
 				VfxKit.sparks(field, mob.hit_point(), color, 20, 4.5, 0.5)
 				_deal(mob, mult, color, skill.vfx, true, skill)
+				if skill.has("pierce"):
+					var spec: Dictionary = skill.pierce
+					var tip := mob.global_position + Vector3(0, 1.0, 0)
+					VfxKit.arrow(field, color, origin, tip + (tip - origin).normalized() * float(spec.get("len", 6.0)) * 0.6, 0.28)
+					for extra in Pierce.victims(get_tree(), global_position, mob.global_position, spec, mob):
+						VfxKit.sparks(field, extra.hit_point(), color, 12, 3.5, 0.4)
+						_deal(extra, mult * float(spec.get("k", 0.7)), color, skill.vfx, true, skill)
 		"fan":
 			var list := mobs_in_range(float(skill.range))
 			if _valid_target(mob):

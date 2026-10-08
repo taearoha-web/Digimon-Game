@@ -541,6 +541,10 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			else:
 				VfxKit.slash_arc(field, global_position + forward * 1.2 + Vector3(0, 1.0, 0), _facing, color, 3.0, -0.4)
 				_deal(mob, mult, color, skill.vfx, true, skill)
+				if skill.has("pierce"):
+					var spec: Dictionary = skill.pierce
+					for extra in Pierce.victims(get_tree(), global_position, mob.global_position, spec, mob):
+						_deal(extra, mult * float(spec.get("k", 0.7)), color, skill.vfx, true, skill)
 		"fan":
 			var list := _mobs_near(global_position, float(skill.range))
 			if alive:

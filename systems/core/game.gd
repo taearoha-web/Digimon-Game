@@ -821,13 +821,14 @@ func add_exp(amount: int) -> void:
 # AI party: two companions that fight beside the hero and share EXP
 # ---------------------------------------------------------------------------
 
-const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"], &"summoner": ["ไลรา", "เฟิร์น"]}
+const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"], &"summoner": ["ไลรา", "เฟิร์น"], &"lancer": ["เรย์", "ซากุระ"]}
 const PARTY_BLURBS := {
 	&"warrior": "นักรบเกราะหนา ยืนหน้าคอยรับดาเมจ",
 	&"archer": "นักธนู ยิงไกลและคริติคอลสูง",
 	&"mage": "จอมเวท ตีหมู่แรง แต่เลือดน้อย",
 	&"priest": "พรีสต์ ฮีลและเสริมพลังให้คุณ",
 	&"summoner": "ผู้เรียกอสูร เรียกสัตว์ป่ามาช่วยรบ",
+	&"lancer": "นักหอก แทงทะลุหลายตัว ตีไว",
 }
 var _party_gear: Dictionary = {}
 

@@ -459,7 +459,7 @@ func _skills() -> void:
 	_level(100 if job != "" else 12)
 	if job != "":
 		Game.profile["adv"] = int(job)
-		var bars := {"summoner": ["alpha_wolves", "ancient_treant", "wind_drake", "elder_dragon"], "archer": ["recall_wolverine", "golden_falcon", "force_of_nature", "tempest"], "mage": ["spirit_elemental", "dancing_sword", "fire_elemental", "armageddon"], "warrior": ["cyclone_strike", "grand_cross", "brandish", "gladiator"], "priest": ["summon_muspell", "divine_judgment", "holy_rain_big", "last_judgement"]}
+		var bars := {"lancer": ["thrust", "spear_wave", "dragon_lance", "ragnarok_lance"], "summoner": ["alpha_wolves", "ancient_treant", "wind_drake", "elder_dragon"], "archer": ["recall_wolverine", "golden_falcon", "force_of_nature", "tempest"], "mage": ["spirit_elemental", "dancing_sword", "fire_elemental", "armageddon"], "warrior": ["cyclone_strike", "grand_cross", "brandish", "gladiator"], "priest": ["summon_muspell", "divine_judgment", "holy_rain_big", "last_judgement"]}
 		Game.profile["loadout"] = bars[String(class_id)]
 		Game.profile_changed.emit()
 	await main.go(&"meadow", true)

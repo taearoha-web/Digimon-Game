@@ -91,7 +91,8 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var passive := passive_bonus(profile)
 	var para: Dictionary = (profile.get("paragon", {}) as Dictionary).get("alloc", {}) if profile.get("paragon") is Dictionary else {}
 	var main_stat: int = attrs[data.main]
-	var atk := (float(main_stat) * 1.0 + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.005 * float(para.get("atk", 0)))
+	var sub_stat: float = float(attrs[data.sub]) * 0.5 if data.has("sub") else 0.0
+	var atk := (float(main_stat) * 1.0 + sub_stat + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.005 * float(para.get("atk", 0)))
 	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0)))
 	return {
 		"attrs": attrs,

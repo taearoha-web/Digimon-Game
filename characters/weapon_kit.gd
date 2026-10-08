@@ -5,7 +5,7 @@ extends RefCounted
 ## its grip at the origin and its tip along +Y (bows lie in the XZ plane),
 ## the same convention as the KayKit weapon models.
 
-const KINDS: Array[String] = ["sword", "bow", "staff", "wand"]
+const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "spear"]
 const DESIGNS := 20
 
 const WOOD := Color("b07a45")
@@ -62,6 +62,30 @@ const STAFFS := [
 	{"shaft": Color("2a1040"), "head": "halo", "hc": Color("d08aff"), "glow": 2.8, "aura": Color("d08aff")},
 	{"shaft": GOLD, "head": "sun", "hc": Color("fff3b8"), "glow": 3.2, "aura": Color("ffd23c")},
 	{"shaft": Color("ffffff"), "head": "sun", "hc": Color("ffd0ff"), "glow": 3.8, "aura": Color("ffd0ff")},
+]
+
+# shaft colour, head style (leaf | broad | trident | glaive | halberd | flame | crystal), head colour, tassel colour
+const SPEARS := [
+	{"shaft": WOOD, "head": "leaf", "hc": IRON, "tassel": Color("c0392b")},
+	{"shaft": DARK_WOOD, "head": "leaf", "hc": STEEL, "tassel": Color("2a6fb0")},
+	{"shaft": WOOD, "head": "broad", "hc": IRON, "tassel": Color("c0392b")},
+	{"shaft": DARK_WOOD, "head": "broad", "hc": STEEL, "tassel": Color("e8e8f4")},
+	{"shaft": Color("7a4a26"), "head": "trident", "hc": STEEL, "tassel": Color("2a6fb0")},
+	{"shaft": Color("2c3a63"), "head": "leaf", "hc": Color("e6ecf8"), "tassel": Color("4aa3ff"), "gem": Color("4aa3ff")},
+	{"shaft": Color("7a1f2b"), "head": "glaive", "hc": Color("f1f4fb"), "tassel": GOLD, "gem": Color("ff4a5a")},
+	{"shaft": Color("2b2b3d"), "head": "halberd", "hc": Color("c9d0e0"), "tassel": Color("6ff0c0"), "gem": Color("6ff0c0")},
+	{"shaft": Color("3a1a10"), "head": "flame", "hc": Color("ff8a2a"), "tassel": Color("ff4a2a"), "glow": 1.4},
+	{"shaft": Color("1f2f55"), "head": "trident", "hc": Color("7fe3ff"), "tassel": Color("7fe3ff"), "glow": 1.3},
+	{"shaft": Color("26202e"), "head": "glaive", "hc": Color("b8203a"), "tassel": Color("ffd23c"), "glow": 0.9, "gem": Color("ffd23c")},
+	{"shaft": GOLD, "head": "broad", "hc": Color("fff3b8"), "tassel": Color("ffffff"), "glow": 1.0},
+	{"shaft": Color("2a2060"), "head": "crystal", "hc": Color("b79bff"), "tassel": Color("d8c8ff"), "glow": 1.5, "aura": Color("b79bff")},
+	{"shaft": Color("3a3f7a"), "head": "halberd", "hc": Color("fff06a"), "tassel": Color("fff06a"), "glow": 1.4, "aura": Color("fff06a")},
+	{"shaft": Color("ffe27a"), "head": "trident", "hc": Color("ffffff"), "tassel": Color("fff0b0"), "glow": 1.4, "aura": Color("fff0b0"), "gem": Color("7fe3ff")},
+	{"shaft": Color("ffffff"), "head": "glaive", "hc": Color("7fe3ff"), "tassel": Color("a0f0ff"), "glow": 1.5, "aura": Color("a0f0ff"), "gem": Color("ffffff")},
+	{"shaft": Color("4a1a14"), "head": "flame", "hc": Color("ff6a2a"), "tassel": Color("ff6a2a"), "glow": 1.7, "aura": Color("ff6a2a"), "gem": Color("ffd23c")},
+	{"shaft": Color("2a1040"), "head": "crystal", "hc": Color("d08aff"), "tassel": Color("d08aff"), "glow": 1.7, "aura": Color("d08aff"), "gem": Color("ffffff")},
+	{"shaft": GOLD, "head": "halberd", "hc": Color("fff3b8"), "tassel": Color("ffd23c"), "glow": 1.8, "aura": Color("ffd23c"), "gem": Color("ff4a5a")},
+	{"shaft": Color("ffffff"), "head": "crystal", "hc": Color("ffd0ff"), "tassel": Color("ffd0ff"), "glow": 2.0, "aura": Color("ffd0ff"), "gem": Color("ff6ad0")},
 ]
 
 const WANDS := [
@@ -123,8 +147,9 @@ static func build(look: String) -> Node3D:
 		"bow": _bow(root, BOWS[index])
 		"staff": _staff(root, STAFFS[index])
 		"wand": _wand(root, WANDS[index])
+		"spear": _spear(root, SPEARS[index])
 		_: _sword(root, SWORDS[0])
-	var design: Dictionary = {"sword": SWORDS, "bow": BOWS, "staff": STAFFS, "wand": WANDS}.get(kind, SWORDS)[index]
+	var design: Dictionary = {"sword": SWORDS, "bow": BOWS, "staff": STAFFS, "wand": WANDS, "spear": SPEARS}.get(kind, SWORDS)[index]
 	if design.has("aura"):
 		_flourish(root, kind, design.aura, index)
 	return root
@@ -134,8 +159,8 @@ static func build(look: String) -> Node3D:
 ## orbit ring and drifting sparks that grow with the design index.
 static func _flourish(root: Node3D, kind: String, aura: Color, index: int) -> void:
 	var level := index - 12 + 1   # 1..8
-	var span := (0.8 + 0.12 * level) * (0.6 if kind in ["staff", "wand"] else 0.8)
-	var centre := Vector3(0, 0.9 if kind == "sword" else (0.7 if kind == "wand" else 1.45), 0)
+	var span := (0.8 + 0.12 * level) * (0.6 if kind in ["staff", "wand", "spear"] else 0.8)
+	var centre := Vector3(0, 0.9 if kind == "sword" else (0.7 if kind == "wand" else 1.2 if kind == "spear" else 1.45), 0)
 	if kind == "bow":
 		centre = Vector3(-0.15, 0, 0)
 	var shell_color := Color(aura.r, aura.g, aura.b, 0.18 + 0.02 * level)
@@ -259,6 +284,50 @@ static func _sword(root: Node3D, d: Dictionary) -> void:
 	_p(root, MeshKit.box(), fuller, Vector3(0, by + 0.02, 0.04), Vector3(blade_w * 0.22, blade_len * 0.82, 0.03), Vector3.ZERO, glow)
 	if d.has("gem"):
 		_p(root, MeshKit.sphere_low(), d.gem, Vector3(0, gy + 0.0, 0.08), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.2)
+
+
+# ---------------------------------------------------------------------------
+# Spears
+# ---------------------------------------------------------------------------
+
+static func _spear(root: Node3D, d: Dictionary) -> void:
+	var glow := float(d.get("glow", 0.0))
+	var hc: Color = d.hc
+	# A long shaft (grip near the middle), a butt cap and a tassel under the head.
+	_p(root, MeshKit.cylinder(), d.shaft, Vector3(0, 0.15, 0), Vector3(0.08, 2.4, 0.08))
+	_p(root, MeshKit.cone(), (d.shaft as Color).darkened(0.25), Vector3(0, -1.08, 0), Vector3(0.11, 0.2, 0.11), Vector3(180, 0, 0))
+	var neck := Vector3(0, 1.32, 0)
+	_p(root, MeshKit.cylinder(), Color("e7b64a"), neck, Vector3(0.13, 0.1, 0.13))
+	_p(root, MeshKit.sphere_low(), d.tassel, neck + Vector3(0, -0.12, 0), Vector3(0.17, 0.2, 0.17))
+	var top := neck + Vector3(0, 0.05, 0)
+	match d.head:
+		"leaf":
+			_p(root, MeshKit.prism(), hc, top + Vector3(0, 0.32, 0), Vector3(0.22, 0.62, 0.07), Vector3.ZERO, glow)
+		"broad":
+			_p(root, MeshKit.prism(), hc, top + Vector3(0, 0.38, 0), Vector3(0.34, 0.74, 0.08), Vector3.ZERO, glow)
+			_p(root, MeshKit.box(), (hc as Color).lightened(0.35), top + Vector3(0, 0.3, 0.045), Vector3(0.05, 0.45, 0.03), Vector3.ZERO, glow)
+		"trident":
+			_p(root, MeshKit.prism(), hc, top + Vector3(0, 0.38, 0), Vector3(0.16, 0.6, 0.07), Vector3.ZERO, glow)
+			for side in [-1.0, 1.0]:
+				_p(root, MeshKit.prism(), hc, top + Vector3(side * 0.17, 0.26, 0), Vector3(0.1, 0.42, 0.06), Vector3(0, 0, side * -8.0), glow)
+				_p(root, MeshKit.box(), hc, top + Vector3(side * 0.09, 0.06, 0), Vector3(0.18, 0.05, 0.06), Vector3.ZERO, glow)
+		"glaive":
+			_p(root, MeshKit.prism(), hc, top + Vector3(0.05, 0.42, 0), Vector3(0.3, 0.8, 0.06), Vector3(0, 0, -6.0), glow)
+			_p(root, MeshKit.box(), Color("e7b64a"), top + Vector3(0, 0.05, 0), Vector3(0.12, 0.08, 0.12))
+		"halberd":
+			_p(root, MeshKit.prism(), hc, top + Vector3(0, 0.45, 0), Vector3(0.14, 0.55, 0.07), Vector3.ZERO, glow)
+			_p(root, MeshKit.prism(), hc, top + Vector3(0.2, 0.14, 0), Vector3(0.36, 0.34, 0.07), Vector3(0, 0, -90.0), glow)
+			_p(root, MeshKit.box(), (hc as Color).darkened(0.2), top + Vector3(-0.1, 0.14, 0), Vector3(0.14, 0.05, 0.07))
+		"flame":
+			for i in 3:
+				var k := float(i)
+				_p(root, MeshKit.cone(), hc.lerp(Color("ffd23c"), k * 0.3), top + Vector3((k - 1.0) * 0.1, 0.3 + (0.12 if i == 1 else 0.0), 0), Vector3(0.18, 0.52 + (0.18 if i == 1 else 0.0), 0.12), Vector3.ZERO, 1.0 + glow)
+		"crystal":
+			_p(root, MeshKit.cone(), hc, top + Vector3(0, 0.46, 0), Vector3(0.26, 0.7, 0.26), Vector3.ZERO, 0.8 + glow)
+			_p(root, MeshKit.cone(), (hc as Color).darkened(0.15), top + Vector3(0, 0.08, 0), Vector3(0.26, 0.2, 0.26), Vector3(180, 0, 0), 0.8 + glow)
+			_p(root, MeshKit.torus(), Color("e7b64a"), top + Vector3(0, 0.0, 0), Vector3(0.28, 0.1, 0.28))
+	if d.has("gem"):
+		_p(root, MeshKit.sphere_low(), d.gem, top + Vector3(0, 0.02, 0.06), Vector3(0.1, 0.1, 0.1), Vector3.ZERO, 1.3)
 
 
 # ---------------------------------------------------------------------------
