@@ -17,6 +17,12 @@ const KINDS := {
 	"elemental": {"model": "flying/Ghost", "height": 1.2, "hover": 0.7, "tint": Color(0.7, 1.2, 1.7), "ranged": true, "speed": 5.0, "range": 8.0, "color": Color("7fe3ff")},
 	"fire_elemental": {"model": "flying/Ghost", "height": 1.4, "hover": 0.7, "tint": Color(1.8, 0.7, 0.3), "ranged": true, "speed": 5.0, "range": 8.5, "color": Color("ff7a2a")},
 	"muspell": {"model": "big/Yeti", "height": 2.1, "hover": 0.0, "tint": Color(0.7, 0.95, 1.6), "ranged": false, "speed": 4.8, "range": 2.6, "color": Color("aaf0ff")},
+	"cat": {"model": "blob/Cat", "height": 1.4, "hover": 0.0, "tint": Color(1.5, 1.2, 0.8), "ranged": false, "speed": 7.0, "range": 1.7, "color": Color("ffd8a0")},
+	"frog": {"model": "big/Frog", "height": 1.5, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": true, "speed": 4.6, "range": 7.0, "color": Color("7fe07a")},
+	"guardian": {"model": "big/Monkroose", "height": 2.0, "hover": 0.0, "tint": Color(1.3, 1.1, 0.8), "ranged": false, "speed": 5.0, "range": 2.4, "color": Color("c8a070")},
+	"treant": {"model": "big/MushroomKing", "height": 2.1, "hover": 0.0, "tint": Color(0.8, 1.4, 0.6), "ranged": false, "speed": 4.4, "range": 2.6, "color": Color("b0e070")},
+	"drake": {"model": "flying/Dragon", "height": 1.2, "hover": 0.9, "tint": Color(0.7, 1.5, 1.2), "ranged": true, "speed": 6.0, "range": 8.5, "color": Color("7affd0")},
+	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 1.35, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
 	"sword": {"proc": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
 }
 

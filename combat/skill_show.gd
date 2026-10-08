@@ -5,7 +5,7 @@ extends RefCounted
 
 const FAMILY_COLORS := {
 	"vagabond": Color("f3cc8d"), "warrior": Color("ffac8f"),
-	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"),
+	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"), "summoner": Color("b4f08c"),
 }
 const ELEMENT_COLORS := {
 	"fire": Color("ffab79"), "ice": Color("a8e5ff"), "holy": Color("ffe7ac"),
@@ -69,7 +69,7 @@ static func profile_for(skill: Dictionary) -> Dictionary:
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, duration: float) -> void:
 	var look := profile_for(skill)
 	VfxArt.crest(parent, origin, look.accent, look.family, 1.25, maxf(duration, 0.18), look.phase)
-	if String(look.family) in ["mage", "priest"]:
+	if String(look.family) in ["mage", "priest", "summoner"]:
 		VfxArt.star_flash(parent, origin + Vector3(0, 1.35, 0), look.primary, 0.65, maxf(duration, 0.18))
 
 
@@ -214,7 +214,7 @@ static func _single(parent: Node3D, skill: Dictionary, look: Dictionary, center:
 
 static func _multi(parent: Node3D, skill: Dictionary, look: Dictionary, origin: Vector3, center: Vector3, tier: int) -> void:
 	VfxArt.crest(parent, origin, look.accent, look.family, 1.6, 0.55, look.phase)
-	var kind := "leaf" if look.family == "archer" else ("petal" if look.family == "priest" else "diamond")
+	var kind := "leaf" if look.family in ["archer", "summoner"] else ("petal" if look.family == "priest" else "diamond")
 	VfxArt.bloom(parent, origin, look.primary, kind, 1.2, mini(int(skill.get("hits", 3)), 8), 0.5, look.phase)
 	if String(skill.shape) == "chain":
 		VfxArt.star_flash(parent, center + Vector3(0, 1.0, 0), look.accent, 1.3 + float(tier) * 0.08, 0.2)
