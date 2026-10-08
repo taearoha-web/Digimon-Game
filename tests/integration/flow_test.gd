@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "summoner" in OS.get_cmdline_user_args():
+		await _summoner_class()
+		return
 	if "potions" in OS.get_cmdline_user_args():
 		await _shared_potions()
 		return
@@ -627,7 +630,7 @@ func _save_slots() -> void:
 	for i in range(1, 5):
 		Game.delete_save(i)
 	check(not Game.any_save() and Game.free_slot() == 1, "all four slots start empty")
-	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest"]
+	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner"]
 	for i in 4:
 		Game.slot = i + 1
 		Game.new_profile(classes[i], "ฮีโร่%d" % (i + 1))
@@ -1562,3 +1565,49 @@ func _shared_potions() -> void:
 	buddy._potion_cd = 0.0
 	buddy._use_potions()
 	check(int(buddy.member.get("potions", 5)) == 4, "with an empty bag it falls back to its own stock")
+
+
+func _summoner_class() -> void:
+	print("== The summoner class")
+	await _start(&"summoner")
+	await main.go(&"meadow", true)
+	await _wait(0.6)
+	var zone: Zone = main.zone
+	var hero: Hero = zone.hero
+	for node in get_tree().get_nodes_in_group("mobs"):
+		node.queue_free()
+	check(Game.class_id() == &"summoner" and ClassData.IDS.has(&"summoner"), "the summoner is a playable line")
+	check(ClassData.pool(&"summoner").size() == 25, "25 active skills (%d)" % ClassData.pool(&"summoner").size())
+	check(not ClassData.find_skill(&"summoner", "elder_dragon").is_empty(), "the Lv.100 skill exists")
+	var bar: Array = Game.profile["loadout"]
+	check(bar.has("thorn_shot") and bar.has("spirit_cat"), "the first skills fill the bar (%s)" % str(bar))
+	# Every creature kind of the class has a model and stands in the field.
+	var kinds := {}
+	for skill in ClassData.pool(&"summoner"):
+		if skill.shape == "summon":
+			kinds[String(skill.summon.kind)] = true
+	for kind in kinds:
+		check(Summon.KINDS.has(kind), "summon kind '%s' is defined" % kind)
+		var probe := Summon.new()
+		probe.setup(hero, "spirit_cat", {"kind": kind, "count": 1, "secs": 10.0, "interval": 1.0}, 2.0, 0, 1, 1)
+		zone.add_child(probe)
+		await _wait(0.1)
+		check(is_instance_valid(probe) and probe._visual != null, "'%s' builds its body" % kind)
+		probe.queue_free()
+	# Casting a summon skill puts creatures next to the hero.
+	Game.profile["level"] = 30
+	Game.profile["adv"] = 1
+	Game.fill_loadout()
+	Game.profile.mp = 99999
+	hero.refresh_stats()
+	var slot: int = Game.profile["loadout"].find("wolf_pack")
+	check(slot >= 0, "Wolf Pack is on the bar at Lv.30")
+	hero.cooldowns.clear()
+	check(hero.use_skill(slot) == "", "Wolf Pack is cast")
+	await _wait(0.8)
+	check(hero._summons_alive("wolf_pack") == 2, "two wolves are called (%d)" % hero._summons_alive("wolf_pack"))
+	# The class gets its own gear and a companion of its kind can be hired.
+	var weapon := ItemData.generate(30, &"summoner", RandomNumberGenerator.new(), 2, "weapon")
+	check(weapon.class == "summoner" and ItemLook.weapon_look(weapon, &"staff") != "", "summoner weapons are staffs for the class")
+	Game.recruit(&"summoner")
+	check(Game.party()[0]["class"] == "summoner", "a summoner can be hired as companion")

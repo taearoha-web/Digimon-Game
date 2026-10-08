@@ -9,7 +9,7 @@ static var _tex: Dictionary = {}
 
 ## Generate every texture once (call while a zone loads so the first cast never hitches).
 static func warm_up() -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner"]:
 		texture(kind)
 
 
@@ -158,6 +158,11 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 			a = maxf(a, _band(r, 0.23, 0.024))
 			var petal_edge := 0.43 + 0.13 * cos(angle * 6.0)
 			a = maxf(a, _band(r, petal_edge, 0.028))
+		"summoner":
+			# A paw: one pad and four toes.
+			a = maxf(a, smoothstep(0.30, 0.26, p.distance_to(Vector2(0, 0.18))) * 0.9)
+			for toe in [Vector2(-0.36, -0.12), Vector2(-0.14, -0.38), Vector2(0.14, -0.38), Vector2(0.36, -0.12)]:
+				a = maxf(a, smoothstep(0.13, 0.09, p.distance_to(toe)))
 		_:
 			a = maxf(a, _band(absf(p.x) + absf(p.y), 0.48, 0.028))
 	for k in 4:

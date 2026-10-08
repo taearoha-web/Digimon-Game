@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
 ## Hero classes: the Vagabond (Lv.1-9) and the four lines chosen at Lv.10 (sword,
-## bow, mage, priest). Each class has a pool of active skills modelled on
+## bow, mage, priest, summoner). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -19,14 +19,14 @@ const START: StringName = &"vagabond"
 const LINE_LEVEL := 10
 const SLOTS := 8
 ## The four lines picked at Lv.10 (also the AI companion classes).
-const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest"]
+const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner"]
 
 const CLASSES := {
 	&"vagabond": {
 		"name": "นักเดินทาง",
 		"title": "ผู้ยังไม่เลือกเส้นทาง",
 		"badge": "V",
-		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ หรือนักบวช",
+		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช หรือผู้เรียกอสูร",
 		"model": "Rogue",
 		"weapon": "sword_1handed",
 		"offhand": "",
@@ -125,6 +125,27 @@ const CLASSES := {
 			"anims": ["Spellcast_Shoot"],
 		},
 	},
+	&"summoner": {
+		"name": "ผู้เรียกอสูร",
+		"title": "ผู้ผูกพันกับป่าและสัตว์",
+		"badge": "S",
+		"desc": "สายเรียกอสูร — เรียกสัตว์ป่าและเทพพิทักษ์มาสู้เคียงข้าง เสริมพลังให้ทั้งทีม ตัวเองสู้ด้วยเวทธรรมชาติ ยิ่งเรียกมาก ยิ่งแรง แต่ตัวเองเลือดไม่เยอะ",
+		"model": "Barbarian",
+		"weapon": "staff",
+		"offhand": "",
+		"weapon_kind": "staff",
+		"color": Color("7ddc6a"),
+		"main": "int",
+		"base": {"str": 4, "int": 13, "dex": 6, "vit": 9},
+		"gain": {"str": 0, "int": 3, "dex": 1, "vit": 2},
+		"hp_mult": 0.95,
+		"mp_mult": 1.4,
+		"attack": {
+			"range": 9.0, "interval": 0.9, "mult": 1.0, "hit_delay": 0.3, "projectile": true, "vfx": &"leaf",
+			"color": Color("a8f07a"),
+			"anims": ["Spellcast_Shoot"],
+		},
+	},
 }
 
 
@@ -166,6 +187,14 @@ const PASSIVES := {
 		{"id": "faith", "name": "Faith", "desc": "HP สูงสุด +4% ต่อดาว", "level": 40, "bonus": {"hp": 0.04}},
 		{"id": "divine_power", "name": "Divine Power", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
 		{"id": "sanctity", "name": "Sanctity", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 80, "bonus": {"def": 0.04}},
+	],
+	&"summoner": [
+		{"id": "nature_bond", "name": "Nature Bond", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
+		{"id": "beast_tamer", "name": "Beast Tamer", "desc": "พลังโจมตี +3% ต่อดาว", "level": 20, "bonus": {"atk": 0.03}},
+		{"id": "wild_vitality", "name": "Wild Vitality", "desc": "HP สูงสุด +4% ต่อดาว", "level": 30, "bonus": {"hp": 0.04}},
+		{"id": "spirit_ward", "name": "Spirit Ward", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
+		{"id": "primal_focus", "name": "Primal Focus", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "gaia_heart", "name": "Gaia's Heart", "desc": "HP +4% และ MP +4% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "mp": 0.04}},
 	],
 }
 
@@ -243,7 +272,7 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
 	var melee := cls == &"vagabond" or cls == &"warrior"
-	var caster := cls == &"mage" or cls == &"priest"
+	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
 	match shape:
 		"single":
@@ -251,7 +280,7 @@ static func _sk(cls: StringName, id: String, name: String, desc: String, level: 
 			skill["projectile"] = not melee
 			skill["anim"] = "1H_Melee_Attack_Chop" if melee else ("Spellcast_Shoot" if caster else "2H_Ranged_Shoot")
 			skill["hit_delay"] = 0.25 if melee else (0.3 if caster else 0.2)
-			skill["vfx"] = &"slash" if melee else (&"light" if cls == &"priest" else &"impact")
+			skill["vfx"] = &"slash" if melee else (&"light" if cls == &"priest" else (&"leaf" if cls == &"summoner" else &"impact"))
 		"burst":
 			skill["radius"] = 4.5
 			skill["anim"] = "2H_Melee_Attack_Spin" if melee else ("Spellcast_Raise" if caster else "2H_Ranged_Shooting")
@@ -406,4 +435,36 @@ static func _build_pools() -> void:
 		_sk(p, "holy_rain_big", "Holy Rain", "ฝนแสงศักดิ์สิทธิ์ถล่มพื้นที่กว้างมาก", 92, 130, 18.0, "blast", 16.0, {"radius": 10.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
 		_sk(p, "miracle", "Miracle", "ปาฏิหาริย์ ATK +80% DEF +60% ฟื้นฟู HP 50% นาน 1 นาที", 96, 140, 55.0, "self", 0.0, {"fx": {"heal": 0.5, "buff": {"atk": 0.8, "def": 0.6, "secs": 60.0}}, "vfx": &"aura", "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),
 		_sk(p, "last_judgement", "Last Judgement", "การพิพากษาครั้งสุดท้ายถล่มพื้นที่ ศัตรูมึนงง 2 วินาที", 100, 180, 24.0, "blast", 24.0, {"radius": 12.0, "fx": {"stun": 2.0}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
+	]
+	var s := &"summoner"
+	var sm := func(id: String, name: String, desc: String, level: int, mp: int, cd: float, mult: float, kind: String, count: int, interval: float, color: Color, extra := {}) -> Dictionary:
+		var spec := {"kind": kind, "count": count, "secs": 180.0, "interval": interval}
+		spec.merge(extra.get("spec", {}))
+		return _sk(s, id, name, desc + " (นาน 3 นาทีหรือจนกว่าจะถูกสังหาร ใหญ่ขึ้นตามดาวสกิล)", level, mp, cd, "summon", mult, {"summon": spec, "color": color, "icon": "triple"})
+	_pools[s] = [
+		_sk(s, "thorn_shot", "Thorn Shot", "ยิงหนามธรรมชาติใส่ศัตรูตัวเดียว", 10, 9, 3.0, "single", 2.9, {"color": Color("a8f07a"), "icon": "arrow"}),
+		sm.call("spirit_cat", "Spirit Cat", "เรียกแมววิญญาณกระโจนข่วนศัตรู", 10, 14, 24.0, 2.2, "cat", 1, 0.8, Color("ffd8a0")),
+		_sk(s, "forest_blessing", "Forest Blessing", "พลังป่าคุ้มครอง DEF +25% ATK +12% นาน 1 นาที (ส่งถึงทีมและอสูร)", 13, 18, 30.0, "self", 0.0, {"fx": {"buff": {"def": 0.25, "atk": 0.12, "secs": 60.0}}, "color": Color("7ddc6a"), "icon": "bless"}),
+		_sk(s, "vine_lash", "Vine Lash", "เถาวัลย์ฟาด 3 เส้นพร้อมกัน", 16, 18, 7.0, "fan", 2.0, {"hits": 3, "color": Color("6fe07a"), "icon": "triple"}),
+		_sk(s, "entangle", "Entangle", "รากไม้พันศัตรูในพื้นที่ ช้าลง 4 วินาที", 20, 24, 10.0, "blast", 3.4, {"radius": 4.8, "fx": {"slow": 4.0}, "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
+		sm.call("wolf_pack", "Wolf Pack", "เรียกหมาป่าแห่งป่า 2 ตัว", 24, 30, 30.0, 2.8, "wolf", 2, 0.9, Color("bfe0ff")),
+		_sk(s, "regrowth", "Regrowth", "ฟื้นฟู HP 35% และ DEF +15% นาน 1 นาที", 27, 28, 20.0, "self", 0.0, {"fx": {"heal": 0.35, "buff": {"def": 0.15, "secs": 60.0}}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
+		_sk(s, "spore_burst", "Spore Burst", "ปล่อยสปอร์ระเบิดรอบตัว ศัตรูช้าลง 3 วินาที", 31, 32, 10.0, "burst", 4.8, {"radius": 5.0, "fx": {"slow": 3.0}, "vfx": &"leaf", "color": Color("b8f07a"), "icon": "nova"}),
+		sm.call("giant_frog", "Giant Frog", "เรียกกบยักษ์พ่นน้ำพิษใส่ศัตรู", 35, 38, 32.0, 4.0, "frog", 1, 1.1, Color("7fe07a")),
+		_sk(s, "beast_rage", "Beast Rage", "ATK +30% วิ่งเร็ว +15% นาน 1 นาที (ส่งถึงทีมและอสูร)", 39, 34, 32.0, "self", 0.0, {"fx": {"buff": {"atk": 0.3, "speed": 0.15, "secs": 60.0}}, "color": Color("ffb04a"), "icon": "roar"}),
+		_sk(s, "thorn_storm", "Thorn Storm", "พายุหนามถล่มพื้นที่เป้าหมาย", 43, 46, 12.0, "blast", 7.0, {"radius": 6.0, "special": "rain", "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
+		sm.call("forest_guardian", "Forest Guardian", "เรียกผู้พิทักษ์ป่าร่างยักษ์", 47, 60, 36.0, 6.0, "guardian", 1, 1.2, Color("c8a070")),
+		_sk(s, "life_bloom", "Life Bloom", "ฟื้นฟู HP 40% DEF +30% นาน 1 นาที", 52, 52, 28.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.3, "secs": 60.0}}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
+		_sk(s, "nature_wrath", "Nature's Wrath", "พลังธรรมชาติกระโดดฟาดศัตรู 6 ตัว", 56, 58, 12.0, "chain", 5.6, {"hits": 6, "vfx": &"leaf", "color": Color("7ddc6a"), "icon": "bolt"}),
+		sm.call("alpha_wolves", "Alpha Wolves", "เรียกหมาป่าจ่าฝูง 3 ตัว", 60, 70, 36.0, 5.0, "wolf", 3, 0.8, Color("9ad0ff")),
+		_sk(s, "earth_shatter", "Earth Shatter", "ทุบพื้นสะเทือนรอบตัว ศัตรูมึนงง 1.2 วินาที", 64, 66, 12.0, "burst", 9.0, {"radius": 6.0, "fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("e8c79f"), "icon": "nova"}),
+		sm.call("ancient_treant", "Ancient Treant", "เรียกเอนท์โบราณผู้ทรงพลัง", 68, 90, 40.0, 9.0, "treant", 1, 1.3, Color("b0e070")),
+		_sk(s, "spirit_link", "Spirit Link", "เชื่อมวิญญาณ ATK +50% วิ่งเร็ว +20% DEF +30% นาน 1 นาที (ส่งถึงทีมและอสูร)", 72, 76, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "speed": 0.2, "def": 0.3, "secs": 60.0}}, "color": Color("a8ffd0"), "icon": "bless"}),
+		_sk(s, "sylvan_ray", "Sylvan Ray", "รังสีแห่งป่าใส่ศัตรูตัวเดียว", 76, 78, 9.0, "single", 14.0, {"range": 12.0, "vfx": &"leaf", "color": Color("b8ffa0"), "icon": "light"}),
+		_sk(s, "world_tree", "World Tree", "ต้นไม้โลกถล่มพื้นที่กว้าง ศัตรูช้าลง 4 วินาที", 80, 100, 16.0, "blast", 15.0, {"radius": 8.5, "fx": {"slow": 4.0}, "special": "rain", "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
+		sm.call("wind_drake", "Wind Drake", "เรียกมังกรลมบินพ่นลมใส่ศัตรู", 84, 100, 40.0, 12.0, "drake", 1, 1.2, Color("7affd0")),
+		_sk(s, "gaia_blessing", "Gaia's Blessing", "ฟื้นฟู HP 40% DEF +60% ATK +40% นาน 1 นาที (ส่งถึงทีมและอสูร)", 88, 96, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.6, "atk": 0.4, "secs": 60.0}}, "vfx": &"heal", "color": Color("d8ffb0"), "icon": "bless"}),
+		sm.call("primal_legion", "Primal Legion", "เรียกอสูรป่าดึกดำบรรพ์ 3 ตัว", 92, 110, 45.0, 10.0, "beast", 3, 1.0, Color("7aff8a")),
+		_sk(s, "cataclysm", "Cataclysm", "ธรรมชาติพิโรธ ถล่มรอบตัวอย่างรุนแรง", 96, 118, 16.0, "burst", 22.0, {"radius": 9.0, "vfx": &"leaf", "color": Color("b8ff7a"), "icon": "spin"}),
+		sm.call("elder_dragon", "Elder Dragon", "เรียกมังกรโบราณผู้เป็นตำนาน", 100, 150, 50.0, 28.0, "elder_dragon", 1, 1.2, Color("ffd84a")),
 	]
