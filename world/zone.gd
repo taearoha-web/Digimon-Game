@@ -348,10 +348,24 @@ func _spawn_hero() -> void:
 	camera_rig = ThirdPersonCamera.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = hero
-	camera_rig.pitch_degrees = -22.0
-	camera_rig.distance = 8.0
-	camera_rig.max_distance = 15.0
-	camera_rig.height_offset = 1.5
+	BattleVfx.text_scale = 1.0 if is_town else 1.8
+	if is_town:
+		camera_rig.pitch_degrees = -22.0
+		camera_rig.distance = 8.0
+		camera_rig.max_distance = 15.0
+		camera_rig.height_offset = 1.5
+	else:
+		# Fighting in the field: a high, pulled-back view of the whole battlefield
+		# (like an action RPG), with only a small tilt range so it stays readable.
+		camera_rig.pitch_degrees = -47.0
+		camera_rig.min_pitch = -56.0
+		camera_rig.max_pitch = -38.0
+		camera_rig.distance = 22.0
+		camera_rig.min_distance = 14.0
+		camera_rig.max_distance = 32.0
+		camera_rig.height_offset = 0.9
+		camera_rig.base_fov = 40.0
+		camera_rig.far_plane = 150.0
 	add_child(camera_rig)
 	camera_rig.add_excluded_body(hero)
 	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
