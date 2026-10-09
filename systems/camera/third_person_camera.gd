@@ -16,6 +16,8 @@ extends Node3D
 @export var min_pitch := -65.0
 @export var max_pitch := 8.0
 @export var follow_speed := 9.0
+@export var base_fov := 58.0
+@export var far_plane := 260.0
 @export var touch_sensitivity := 0.0065
 @export var key_rotate_speed := 2.2
 @export_flags_3d_physics var collision_mask := 1
@@ -52,8 +54,8 @@ func _ready() -> void:
 	_pitch_node.add_child(_arm)
 	camera = Camera3D.new()
 	camera.name = "Camera3D"
-	camera.fov = 58.0
-	camera.far = 260.0
+	camera.fov = base_fov
+	camera.far = far_plane
 	camera.current = true
 	_arm.add_child(camera)
 	_target_distance = distance
@@ -66,7 +68,7 @@ func _ready() -> void:
 func punch(fov_add := 5.0) -> void:
 	if camera == null:
 		return
-	var base := 58.0
+	var base := base_fov
 	var tween := create_tween()
 	tween.tween_property(camera, "fov", base - fov_add, 0.08).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(camera, "fov", base, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)

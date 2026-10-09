@@ -178,6 +178,10 @@ static func projectile(parent: Node3D, vfx_id: StringName, from: Vector3, to: Ve
 static var _floating_active := 0
 
 
+## World-space size of floating texts and name tags: the field camera is far away.
+static var text_scale := 1.0
+
+
 static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0) -> void:
 	# Many hits at once would pile up unreadably: cap the count and spread them out.
 	if _floating_active > 26 and size < 1.2:
@@ -191,7 +195,7 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	label.font = load("res://ui/theme/fonts/heading_font.tres")
 	label.font_size = int(96 * size)
 	label.outline_size = int(22 * size)
-	label.pixel_size = 0.0042
+	label.pixel_size = 0.0042 * text_scale
 	label.modulate = color
 	label.outline_modulate = Color(0.03, 0.05, 0.14)
 	parent.add_child(label)
