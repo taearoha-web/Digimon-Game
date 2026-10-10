@@ -813,6 +813,28 @@ func _wings() -> void:
 	check(shown != null, "the hero wears the warrior wing model")
 	var flap := shown.find_child("AnimationPlayer", true, false) as AnimationPlayer if shown else null
 	check(flap != null and flap.is_playing(), "the wings idle-flap")
+	# Wing poses from the HUD: fly lifts the hero, fold folds, stand lands.
+	var hero_w: Hero = main.zone.hero
+	main.hud._refresh()
+	check(main.hud._wing_row.visible and main.hud._wing_chips.size() == 3, "wearing wings shows the fly / stand / fold buttons")
+	hero_w.set_wing_mode(HeroVisual.WING_FLY)
+	await _wait(1.5)
+	check(hero_w.visual.position.y > 0.6, "flying lifts the hero off the ground (%.2f)" % hero_w.visual.position.y)
+	check(flap.current_animation in ["Flap", "Glide"], "flying wings flap (%s)" % flap.current_animation)
+	check(int(Game.profile.flags.get("wing_mode", -1)) == HeroVisual.WING_FLY, "the wing pose is saved")
+	hero_w.set_wing_mode(HeroVisual.WING_FOLD)
+	await _wait(1.5)
+	check(hero_w.visual.position.y < 0.1 and flap.assigned_animation == "Fold", "folding lands the hero and folds the wings")
+	hero_w.set_wing_mode(HeroVisual.WING_STAND)
+	await _wait(1.6)
+	check(flap.current_animation == "Idle", "standing opens the wings again (%s)" % flap.current_animation)
+	hero_w.set_wing_mode(HeroVisual.WING_FLY)
+	Game.profile.inv.append(ItemData.wings(rng, "warrior", 2))
+	Game.equip_from_bag(Game.profile.inv.size() - 1)
+	await _wait(1.0)
+	var fresh_flap := hero_w.visual.find_child("Wings_warrior", true, false).find_child("AnimationPlayer", true, false) as AnimationPlayer
+	check(fresh_flap.current_animation in ["Flap", "Glide"] and hero_w.visual.position.y > 0.6, "new wings keep flying")
+	hero_w.set_wing_mode(HeroVisual.WING_STAND)
 	# Old (pre-class) wings turn into the class's pair on load, keeping plus and gems.
 	var old := {"kind": "equip", "uid": "oldwing", "slot": "wings", "base": "wings", "wing": "matk", "plus": 4, "sockets": 2,
 		"gems": [], "set": "", "name": "ปีกคริสตัลจันทรา", "rarity": 3, "level": 100, "class": "", "stats": {"matk": 200, "mp": 120}, "price": 30000}

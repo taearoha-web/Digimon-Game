@@ -137,7 +137,9 @@ static func wings(kind: String) -> Node3D:
 		mi.set_meta("no_outline", true)
 	var player := root.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if player != null and player.has_animation("Idle"):
-		player.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
+		for clip in ["Idle", "Flap", "Glide"]:
+			if player.has_animation(clip):
+				player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		player.play("Idle")
 	return root
 

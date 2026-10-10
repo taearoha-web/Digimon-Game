@@ -58,6 +58,10 @@ var _death_panel: ColorRect
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _party_cards: Array[Dictionary] = []
+## Wing pose chips (fly / stand / fold) under the companion card, shown while wings are worn.
+var _wing_row: HBoxContainer
+var _wing_chips: Array[PanelContainer] = []
+var _wing_shown := -1
 var minimap: Minimap
 
 
@@ -209,6 +213,7 @@ func _refresh() -> void:
 		_badge.text = String(data.badge)
 	_name_label.text = String(p.name)
 	_update_party()
+	_update_wing_row()
 	_level_label.text = "Lv.%d" % int(p.level)
 	var stars := int(Game.paragon().level)
 	_star_row.visible = stars > 0
@@ -457,6 +462,7 @@ func _build_status(frame: Control) -> void:
 	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	trow.add_child(_target_hp)
 	_build_party(column)
+	_build_wing_row(column)
 	minimap = Minimap.new()
 	minimap.anchor_left = 1.0
 	minimap.anchor_right = 1.0
@@ -501,6 +507,49 @@ func _build_party(column: Control) -> void:
 		var exp_bar := _bar(&"EXPBar", 4)
 		info.add_child(exp_bar)
 		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "key": ""})
+
+
+const WING_LABELS := ["ยืน", "บิน", "หุบปีก"]
+## Chip order on screen: fly, stand, fold.
+const WING_ORDER := [HeroVisual.WING_FLY, HeroVisual.WING_STAND, HeroVisual.WING_FOLD]
+
+
+func _build_wing_row(column: Control) -> void:
+	_wing_row = UIUtil.hbox(8)
+	_wing_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wing_row.visible = false
+	column.add_child(_wing_row)
+	for mode in WING_ORDER:
+		var chip := PanelContainer.new()
+		chip.custom_minimum_size = Vector2(108, 46)
+		chip.mouse_filter = Control.MOUSE_FILTER_STOP
+		chip.gui_input.connect(_tap(func():
+			if hero != null:
+				hero.set_wing_mode(mode)
+				_update_wing_row()))
+		var label := UIUtil.label(WING_LABELS[mode], &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(label)
+		_wing_row.add_child(chip)
+		_wing_chips.append(chip)
+
+
+func _update_wing_row() -> void:
+	var worn := hero != null and is_instance_valid(hero.visual) and hero.visual.has_wings()
+	_wing_row.visible = worn
+	if not worn or hero.visual.wing_mode == _wing_shown:
+		return
+	_wing_shown = hero.visual.wing_mode
+	for i in _wing_chips.size():
+		var active: bool = WING_ORDER[i] == _wing_shown
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(UIPalette.GOLD, 0.9) if active else Color(0.1, 0.12, 0.2, 0.72)
+		style.set_corner_radius_all(14)
+		style.set_border_width_all(2)
+		style.border_color = Color.WHITE if active else Color(1, 1, 1, 0.35)
+		_wing_chips[i].add_theme_stylebox_override("panel", style)
+		(_wing_chips[i].get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if active else Color.WHITE)
 
 
 func _update_party() -> void:
