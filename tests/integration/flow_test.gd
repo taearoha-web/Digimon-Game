@@ -1654,7 +1654,13 @@ func _summoner_class() -> void:
 	check(hero._summons_alive("wolf_pack") == 2, "two wolves are called (%d)" % hero._summons_alive("wolf_pack"))
 	# The class gets its own gear and a companion of its kind can be hired.
 	var weapon := ItemData.generate(30, &"summoner", RandomNumberGenerator.new(), 2, "weapon")
-	check(weapon.class == "summoner" and ItemLook.weapon_look(weapon, &"staff") != "", "summoner weapons are staffs for the class")
+	check(weapon.class == "summoner" and weapon.base == "lantern" and ItemLook.look_of(weapon) == "lantern_2", "summoner weapons are lantern staffs for the class")
+	check(hero.visual.find_child("Held_tome_0", true, false) != null, "the summoner holds the grimoire matching the starter lantern")
+	Game.profile["level"] = 30
+	Game.profile.inv.append(weapon)
+	Game.equip_from_bag(Game.profile.inv.size() - 1)
+	await _wait(0.1)
+	check(hero.visual.find_child("Held_lantern_2", true, false) != null and hero.visual.find_child("Held_tome_2", true, false) != null, "a Lv.21-30 lantern brings the Lv.3 grimoire")
 	Game.recruit(&"summoner")
 	check(Game.party()[0]["class"] == "summoner", "a summoner can be hired as companion")
 
@@ -1826,16 +1832,22 @@ func _hit_feel() -> void:
 
 func _weapon_models() -> void:
 	print("== Modelled weapons")
-	for kind in ["sword", "bow", "staff", "wand", "spear", "shield"]:
+	for kind in ["sword", "bow", "staff", "wand", "lantern", "spear", "shield"]:
 		check(WeaponKit.has_model(kind) and WeaponKit.designs(kind) == 10, "%s has 10 modelled tiers" % kind)
 		for tier in [0, 9]:
 			var look := WeaponKit.look_for(kind, tier, 1)
 			var node := WeaponKit.shield(look) if kind == "shield" else WeaponKit.build(look)
 			check(not node.find_children("*", "MeshInstance3D", true, false).is_empty(), "%s builds" % look)
 			node.free()
-	for cls in [&"mage", &"summoner"]:
-		var rod := ItemData.generate(40, cls, RandomNumberGenerator.new(), 1, "weapon")
-		check(rod.base == "staff" and ItemLook.look_of(rod) == "staff_3", "%s carries the staff" % cls)
+	var rod := ItemData.generate(40, &"mage", RandomNumberGenerator.new(), 1, "weapon")
+	check(rod.base == "staff" and ItemLook.look_of(rod) == "staff_3", "the mage carries the staff")
+	var lamp := ItemData.generate(1, &"summoner", RandomNumberGenerator.new(), 0, "weapon")
+	check(lamp.base == "lantern" and ItemLook.look_of(lamp) == "lantern_0" and String(lamp.name).begins_with("โคมกระดาษวิญญาณ") and ItemLook.icon(lamp) != null, "the summoner starts with the Spirit Paper Lantern (%s)" % lamp.name)
+	check(WeaponKit.has_model("tome") and not ("tome" in WeaponKit.KINDS) and not WeaponKit.build("tome_9").find_children("*", "MeshInstance3D", true, false).is_empty(), "the grimoire is a model, not an item")
+	var old_rod := {"kind": "equip", "uid": "oldrod", "slot": "weapon", "base": "staff", "plus": 3, "sockets": 1, "gems": [], "set": "",
+		"name": "คทามังกรเพลิง ล้ำค่า", "rarity": 2, "level": 45, "class": "summoner", "stats": {"atk": 120}, "price": 100}
+	Game._repair_item(old_rod)
+	check(old_rod.base == "lantern" and old_rod.name == "โคมกรงเล็บมังกร ล้ำค่า" and int(old_rod.plus) == 3, "a summoner's old staff becomes the lantern of the same tier (%s)" % old_rod.name)
 	var wand := ItemData.generate(1, &"priest", RandomNumberGenerator.new(), 0, "weapon")
 	check(wand.base == "wand" and ItemLook.look_of(wand) == "wand_0" and String(wand.name).begins_with("คทาสามเณร"), "the priest starts with the Novice Wand (%s)" % wand.name)
 	check(WeaponKit.build("wand_9").find_children("*", "MeshInstance3D", true, false).size() > 0 and ItemLook.icon(ItemData.generate(95, &"priest", RandomNumberGenerator.new(), 2, "weapon")) != null, "Lv.91-100 wands are modelled with an icon")

@@ -756,18 +756,31 @@ func _migrate_skills(data: Dictionary) -> void:
 	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, int(data.get("adv", 0))))
 
 
+## Weapon kinds of the spell casters (converted between when a class's kind changes).
+const CASTER_WEAPONS := ["staff", "wand", "lantern"]
+
+
 func _repair_item(item: Dictionary) -> void:
-	# Priest weapons are short wands: old wand names and the staffs a priest got
-	# while wands were staffs become the modelled wand of the same tier.
-	if item.get("slot", "") == "weapon" and (item.get("base", "") == "wand" or (item.get("base", "") == "staff" and item.get("class", "") == "priest")):
-		var names: Array = ItemData.NAMES.staff if item.base == "staff" else ItemData.LEGACY_WAND_NAMES
-		item["base"] = "wand"
-		var named := String(item.get("name", ""))
-		for tier in names.size():
-			var old := String(names[tier])
-			if named == old or named.begins_with(old + " "):
-				item["name"] = String(ItemData.NAMES.wand[tier]) + named.substr(old.length())
-				break
+	# A class's weapon kind can change (priest staff -> wand, summoner staff ->
+	# lantern): spell-caster weapons become the class's kind at the same tier,
+	# renamed from the old kind's name list (the priest's first wands included).
+	var base := String(item.get("base", ""))
+	if item.get("slot", "") == "weapon" and base in CASTER_WEAPONS and ClassData.CLASSES.has(StringName(item.get("class", ""))):
+		var want := String(ClassData.get_class_data(StringName(item["class"])).weapon_kind)
+		if want in CASTER_WEAPONS:
+			var named := String(item.get("name", ""))
+			var lists: Array = [ItemData.LEGACY_WAND_NAMES] if base == "wand" else []
+			if base != want:
+				lists.push_front(ItemData.NAMES[base])
+			for names in lists:
+				for tier in names.size():
+					var old := String(names[tier])
+					if named == old or named.begins_with(old + " "):
+						item["name"] = String(ItemData.NAMES[want][tier]) + named.substr(old.length())
+						break
+				if String(item.get("name", "")) != named:
+					break
+			item["base"] = want
 	if item.get("kind") == "equip":
 		for key in ["price", "plus", "sockets", "rarity"]:
 			item[key] = int(item.get(key, 0))
