@@ -912,6 +912,10 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
 	var killed := mob.take_hit(amount, crit, color)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
+	var stop := HitFeel.stop_for(crit, mult if not skill.is_empty() else 0.0)
+	if stop > 0.0:
+		HitFeel.hitstop(get_tree(), stop)
+	HitFeel.debris(field, mob.hit_point(), skill)
 	_shake(0.12 if crit else 0.05)
 	if killed:
 		return
