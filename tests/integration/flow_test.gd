@@ -1677,6 +1677,7 @@ func _lancer_class() -> void:
 		m.max_hp = 100000
 		m.hp = 100000
 		zone.add_child(m)
+		m.apply_stun(10.0)  # stay in line: no chasing before the thrust
 		lined.append(m)
 	var off_line := Mob.new()
 	off_line.setup(&"green_slime", 4, hero.global_position + Vector3(4.0, 0, 6.0), hero)
@@ -1684,6 +1685,7 @@ func _lancer_class() -> void:
 	off_line.max_hp = 100000
 	off_line.hp = 100000
 	zone.add_child(off_line)
+	off_line.apply_stun(10.0)
 	await _wait(0.3)
 	var slot: int = Game.profile["loadout"].find("thrust")
 	check(slot >= 0, "Thrust is on the bar")
