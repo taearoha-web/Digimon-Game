@@ -23,6 +23,15 @@ const BASE_MODEL := "Ranger"
 const PRIEST_GOLD := Color(1.9, 1.6, 0.35)
 const PRIEST_WHITE := Color(1.8, 1.8, 1.5)
 
+## The player's own hero (and rivals / companions with a look) wear these
+## fully rigged chibi models: boy or girl, fixed face and hair. Every KayKit clip
+## was retargeted onto their rig (tools/retarget_chibi.py), weapon slots included.
+const CHIBI_MODELS := ["res://assets/models/heroes/chibi_boy.glb", "res://assets/models/heroes/chibi_girl.glb"]
+const CHIBI_HEIGHT := 2.45
+## KayKit bone names used for gear -> the chibi rig's names.
+const CHIBI_BONES := {"chest": "Chest", "head": "Head", "wrist.l": "LeftHand", "wrist.r": "RightHand",
+	"lowerleg.l": "LeftLowerLeg", "lowerleg.r": "RightLowerLeg"}
+
 ## A spear is carried slanted forward, point up (pitch, yaw, roll in degrees).
 static var spear_tilt := Vector3(-48.0, 22.0, 0.0)
 static var _shared_library: AnimationLibrary
@@ -43,6 +52,9 @@ var _body_nodes: Array[Node] = []
 var _hold_nodes: Array[Node] = []
 var _tween: Tween
 var _face: FaceExpression
+## True for the rigged chibi models; gear built for KayKit units is scaled by _gear_scale.
+var chibi := false
+var _gear_scale := 1.0
 
 
 ## p_model: wear another character's stock look (villagers); armed=false = no weapon.
@@ -53,6 +65,10 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 		child.queue_free()
 	var data := ClassData.get_class_data(class_id)
 	model_name = p_model if p_model != "" else String(data.model)
+	chibi = p_model == "" and look.has("gender")
+	if chibi:
+		_setup_chibi(armed, p_equip)
+		return
 	var packed := load(CHARACTER_DIR + BASE_MODEL + ".glb") as PackedScene
 	model = packed.instantiate() as Node3D
 	add_child(model)
@@ -76,6 +92,88 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 var _armed := true
 
 
+func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
+	var gender := clampi(int(look.get("gender", 0)), 0, 1)
+	model = (load(CHIBI_MODELS[gender]) as PackedScene).instantiate() as Node3D
+	add_child(model)
+	_skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
+	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	for clip in anim.get_animation_list():
+		var a := anim.get_animation(clip)
+		a.loop_mode = Animation.LOOP_LINEAR if (clip in LOOPING or clip.begins_with("Chibi_")) else Animation.LOOP_NONE
+	var height := 0.0
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		height = maxf(height, (mi as MeshInstance3D).get_aabb().size.y)
+	model.scale = Vector3.ONE * (CHIBI_HEIGHT / maxf(height, 0.1))
+	_gear_scale = (HEIGHT / 2.2) / model.scale.x
+	_head_bone = -1
+	set_process(false)
+	equip = p_equip
+	_armed = armed
+	refresh()
+	play("Idle")
+
+
+static var _slot_fixes: Dictionary = {}
+
+
+## The chibi's weapon slot is a new bone whose axes differ from KayKit's: compare
+## both rigs in the T-pose clip and return the turn that lines them up.
+func _slot_fix(bone: String) -> Basis:
+	var key := "%s|%s" % [CHIBI_MODELS[clampi(int(look.get("gender", 0)), 0, 1)], bone]
+	if _slot_fixes.has(key):
+		return _slot_fixes[key]
+	var mine := _posed_slot(CHIBI_MODELS[clampi(int(look.get("gender", 0)), 0, 1)], bone)
+	var kaykit := _posed_slot(CHARACTER_DIR + "Knight.glb", bone)
+	var fix := mine.inverse() * kaykit
+	_slot_fixes[key] = fix
+	return fix
+
+
+static func _posed_slot(path: String, bone: String) -> Basis:
+	var scene := (load(path) as PackedScene).instantiate() as Node3D
+	var skeleton := scene.find_child("Skeleton3D", true, false) as Skeleton3D
+	var player := scene.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var out := Basis.IDENTITY
+	if skeleton and player and player.has_animation("T-Pose"):
+		var anim_res := player.get_animation("T-Pose")
+		# Pose the bones straight from the clip's first keys (no scene tree needed).
+		for i in anim_res.get_track_count():
+			if anim_res.track_get_type(i) != Animation.TYPE_ROTATION_3D:
+				continue
+			var idx := skeleton.find_bone(String(anim_res.track_get_path(i).get_concatenated_subnames()))
+			if idx >= 0:
+				skeleton.set_bone_pose_rotation(idx, anim_res.rotation_track_interpolate(i, 0.0))
+		var b := skeleton.find_bone(bone)
+		if b >= 0:
+			out = skeleton.get_bone_global_pose(b).basis.orthonormalized()
+	scene.free()
+	return out
+
+
+## Bone of this rig for a KayKit bone name.
+func _bone(kaykit_name: String) -> String:
+	return String(CHIBI_BONES.get(kaykit_name, kaykit_name)) if chibi else kaykit_name
+
+
+## The chibi wears its own outfit, face and hair: only held gear, wings and auras.
+func _refresh_chibi() -> void:
+	var wings: Variant = equip.get("wings")
+	if wings is Dictionary:
+		var back := BoneAttachment3D.new()
+		back.name = "Wings"
+		back.bone_name = _bone("chest")
+		_skeleton.add_child(back)
+		var w := GearKit.wings(String(wings.get("wing", "atk")), int(wings.get("plus", 0)))
+		w.scale *= _gear_scale
+		back.add_child(w)
+		_body_nodes.append(back)
+		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), Vector3(0, 1.25, -0.55), 0.5)
+	_make_aura()
+	_hold_gear()
+	_polish()
+
+
 ## Rebuilds everything the hero wears from [member equip] (slot -> item).
 func set_equipment(p_equip: Dictionary) -> void:
 	equip = p_equip
@@ -92,6 +190,9 @@ func refresh() -> void:
 		if is_instance_valid(n):
 			n.free()
 	_hold_nodes.clear()
+	if chibi:
+		_refresh_chibi()
+		return
 	var preset: Dictionary = PRESETS.get(model_name, PRESETS["Ranger"])
 	var priest := class_id == &"priest" and model_name == "Mage"
 	var armor: Variant = equip.get("armor")
@@ -213,7 +314,7 @@ func _polish_material(source: Material, outlined: bool) -> Material:
 		var std := source as StandardMaterial3D
 		if std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or std.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
 			return null
-		return StorybookFinish.material(std, Color.WHITE, 0.012 if outlined else 0.0)
+		return StorybookFinish.material(std, Color.WHITE, 0.012 * _gear_scale if outlined else 0.0)
 	if outlined and source is ShaderMaterial and FaceKit._skin_shader != null and (source as ShaderMaterial).shader == FaceKit._skin_shader:
 		(source as ShaderMaterial).next_pass = outline_material()
 		return source
@@ -292,9 +393,12 @@ func _make_aura() -> void:
 		if tier >= 8:
 			var halo := BoneAttachment3D.new()
 			halo.name = "Halo"
-			halo.bone_name = "head"
+			halo.bone_name = _bone("head")
 			_skeleton.add_child(halo)
-			halo.add_child(GearKit.halo(tier))
+			var ring := GearKit.halo(tier)
+			if chibi:
+				ring.scale *= _gear_scale
+			halo.add_child(ring)
 			_body_nodes.append(halo)
 	if color.a == 0.0:
 		return
@@ -410,6 +514,9 @@ func _hold(look: String, bone: String, plus := 0) -> void:
 	pivot.rotation = Vector3(0, PI, 0)
 	if look.begins_with("spear"):
 		pivot.rotation_degrees = Vector3(0, 180.0, 0) + spear_tilt
+	if chibi:
+		pivot.basis = _slot_fix(bone) * pivot.basis
+	pivot.scale = Vector3.ONE * _gear_scale
 	attach.add_child(pivot)
 	pivot.add_child(item)
 	if plus > 0:
@@ -454,6 +561,7 @@ func has_clip(clip: String) -> bool:
 func play(clip: String, blend := 0.15, speed := 1.0) -> void:
 	if clip == "Idle" and class_id == &"lancer":
 		clip = "2H_Melee_Idle"
+
 	if anim == null or not anim.has_animation(clip):
 		return
 	if Time.get_ticks_msec() < busy_until:

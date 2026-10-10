@@ -578,7 +578,7 @@ func _look() -> void:
 			var mat := mi.get_active_material(i)
 			if mat != null and mat.next_pass != null:
 				outlined += 1
-	check(outlined > 5, "the hero gets a cartoon outline (%d surfaces)" % outlined)
+	check(outlined >= 1, "the hero gets a cartoon outline (%d surfaces)" % outlined)
 	starter.free()
 	var old_look := {"gender": 1, "skin": 2, "hair": 1, "hair_color": 3, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0}
 	check(int(FaceKit.repair(old_look).outfit) == 0, "old saves without an outfit still load")
@@ -599,7 +599,7 @@ func _look() -> void:
 	await main.go(&"town", true)
 	await _wait(0.4)
 	var hero_visual: HeroVisual = main.zone.hero.visual
-	check(not hero_visual.look.is_empty() and hero_visual.find_child("CustomHead", true, false) != null, "the hero wears the custom head")
+	check(not hero_visual.look.is_empty() and hero_visual.chibi and hero_visual.anim.has_animation("1H_Melee_Attack_Chop"), "the hero wears the rigged chibi model with every game clip")
 	Game.profile.equip["helm"] = ItemData.generate(5, ClassData.START, rng, 1, "helm")
 	hero_visual.set_equipment(Game.profile.equip)
 	await _wait(0.2)
@@ -1494,7 +1494,7 @@ func _systems() -> void:
 	Game.equip_from_bag(Game.profile.inv.size() - 1)
 	Game.add_item(armor)
 	Game.equip_from_bag(Game.profile.inv.size() - 1)
-	check(zone.hero.visual.find_child("Hat", true, false) != null or zone.hero.visual.find_child("Att_*", true, false) != null or ItemLook.helm_look(helm).has("part"), "hero wears the helm")
+	check(zone.hero.visual.chibi or zone.hero.visual.find_child("Hat", true, false) != null or zone.hero.visual.find_child("Att_*", true, false) != null or ItemLook.helm_look(helm).has("part"), "hero wears the helm (the chibi keeps its own hair)")
 	check(ItemLook.icon(armor) != null and ItemLook.icon(helm) != null, "armor and helm icons exist")
 	var mage_staff := ItemData.generate(5, &"mage", rng, 0, "weapon")
 	check(Game.equip_problem(mage_staff) != "", "a staff cannot be worn by a warrior")

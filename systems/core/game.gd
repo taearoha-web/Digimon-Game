@@ -822,6 +822,14 @@ func add_exp(amount: int) -> void:
 # ---------------------------------------------------------------------------
 
 const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"], &"summoner": ["ไลรา", "เฟิร์น"], &"lancer": ["เรย์", "ซากุระ"]}
+## Which chibi model a companion wears (0 boy, 1 girl), from its name.
+const PARTY_GIRLS := ["ลูน่า", "ฟ้า", "มิกะ", "เจน", "นีน่า", "ใบบัว", "ไลรา", "เฟิร์น", "ซากุระ"]
+
+
+func party_gender(member: Dictionary) -> int:
+	return 1 if String(member.get("name", "")) in PARTY_GIRLS else 0
+
+
 const PARTY_BLURBS := {
 	&"warrior": "นักรบเกราะหนา ยืนหน้าคอยรับดาเมจ",
 	&"archer": "นักธนู ยิงไกลและคริติคอลสูง",

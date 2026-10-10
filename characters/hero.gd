@@ -68,7 +68,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(Game.class_id(), "", true, Game.profile.equip, Game.profile.get("look", {}))
+	visual.setup(Game.class_id(), "", true, Game.profile.equip, _look())
 	_equip_sig = _equipment_signature()
 	MeshKit.blob_shadow(self, 0.8)
 	refresh_stats()
@@ -983,3 +983,9 @@ func _shake(strength: float) -> void:
 func _flat(v: Vector3) -> Vector3:
 	v.y = 0.0
 	return v
+
+
+## Saves from before the character creator have no look: they get the boy model.
+func _look() -> Dictionary:
+	var look: Dictionary = Game.profile.get("look", {})
+	return look if look.has("gender") else {"gender": 0}
