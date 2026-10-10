@@ -6,8 +6,8 @@ extends RefCounted
 ## the same convention as the KayKit weapon models. A few code-built props stay
 ## (the priest's book) together with the mesh helpers other kits share.
 
-## Mage, priest and summoner all carry the staff.
-const KINDS: Array[String] = ["sword", "bow", "staff", "spear"]
+## Mage and summoner carry the staff, the priest a short wand (with a matching book).
+const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "spear"]
 
 const GOLD := Color("ffc93c")
 
@@ -19,6 +19,7 @@ const MODEL_TIERS := 10
 const MODELS := {
 	"sword": {"file": "sword", "scale": 1.45, "offset": Vector3(0, -0.22, 0)},
 	"staff": {"file": "staff", "scale": 2.0, "offset": Vector3(0, 0.1, 0)},
+	"wand": {"file": "wand", "scale": 1.7, "offset": Vector3(0, 0.05, 0)},
 	"bow": {"file": "bow", "scale": 2.2, "offset": Vector3(0, -0.25, 0), "basis": [Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0)]},
 	"shield": {"file": "shield", "scale": 1.0, "offset": Vector3.ZERO},
 	"spear": {"file": "spear", "scale": 1.3, "offset": Vector3.ZERO},
@@ -143,10 +144,72 @@ static func shield(look := "shield_0") -> Node3D:
 	return _model("shield", int(look.rsplit("_", true, 1)[1]))
 
 
-static func book(color := Color("ff5a9a")) -> Node3D:
+## The priest's book follows the wand of the same tier: cover, metal trim and
+## gem colours of that wand, and an emblem in the wand's shape (moon, sun,
+## snowflake, eclipse, cross, star, lotus).
+const BOOK_STYLES := [
+	{"cover": Color("8a5a32"), "trim": Color("d8a640"), "gem": Color("8fd0ff"), "emblem": "ring"},
+	{"cover": Color("7c8590"), "trim": Color("454b55"), "gem": Color("e04848"), "emblem": "plate"},
+	{"cover": Color("9ed8cc"), "trim": Color("e6eef2"), "gem": Color("38e0e6"), "emblem": "moon"},
+	{"cover": Color("eef0f4"), "trim": Color("e0b440"), "gem": Color("a04ae0"), "emblem": "ring"},
+	{"cover": Color("6a1820"), "trim": Color("e0a838"), "gem": Color("ff9a28"), "emblem": "sun"},
+	{"cover": Color("cfe6f6"), "trim": Color("ffffff"), "gem": Color("7ac8ff"), "emblem": "snow"},
+	{"cover": Color("1c1824"), "trim": Color("5a3080"), "gem": Color("c45aff"), "emblem": "eclipse"},
+	{"cover": Color("f2e2b8"), "trim": Color("e0b440"), "gem": Color("fffbe8"), "emblem": "cross"},
+	{"cover": Color("1e2a5a"), "trim": Color("e8c040"), "gem": Color("fff060"), "emblem": "star"},
+	{"cover": Color("6a3ab8"), "trim": Color("f0c850"), "gem": Color("8ff0ff"), "emblem": "lotus"},
+]
+
+
+static func book(tier := 0) -> Node3D:
+	var style: Dictionary = BOOK_STYLES[clampi(tier, 0, BOOK_STYLES.size() - 1)]
+	var cover: Color = style.cover
+	var trim: Color = style.trim
+	var gem: Color = style.gem
+	var glow := 0.6 + 0.12 * tier
 	var root := Node3D.new()
-	_p(root, MeshKit.box(), color, Vector3.ZERO, Vector3(0.42, 0.56, 0.12))
-	_p(root, MeshKit.box(), Color("fff2c0"), Vector3(0.025, 0, 0), Vector3(0.38, 0.5, 0.1))
-	_p(root, MeshKit.box(), GOLD, Vector3(-0.2, 0, 0), Vector3(0.04, 0.58, 0.14))
-	_p(root, MeshKit.sphere_low(), GOLD, Vector3(0, 0, 0.07), Vector3(0.1, 0.1, 0.05), Vector3.ZERO, 0.8)
+	_p(root, MeshKit.box(), cover, Vector3.ZERO, Vector3(0.42, 0.56, 0.12))
+	_p(root, MeshKit.box(), Color("fff4d6"), Vector3(0.025, 0, 0), Vector3(0.38, 0.52, 0.1))
+	_p(root, MeshKit.box(), trim, Vector3(-0.2, 0, 0), Vector3(0.05, 0.58, 0.14))
+	for x in [-1.0, 1.0]:
+		for y in [-1.0, 1.0]:
+			_p(root, MeshKit.box(), trim, Vector3(x * 0.18, y * 0.25, 0.0), Vector3(0.08, 0.08, 0.135))
+	if tier >= 3:
+		_p(root, MeshKit.box(), trim, Vector3(0.2, 0, 0), Vector3(0.05, 0.1, 0.14))
+	var face := Vector3(0.0, 0.0, 0.065)
+	match String(style.emblem):
+		"plate":
+			_p(root, MeshKit.box(), trim, face, Vector3(0.2, 0.26, 0.02))
+			_p(root, MeshKit.sphere_low(), gem, face + Vector3(0, 0, 0.015), Vector3(0.07, 0.07, 0.04), Vector3.ZERO, glow)
+		"moon":
+			_p(root, MeshKit.torus(), trim, face, Vector3(0.2, 0.2, 0.2), Vector3(90, 0, 0))
+			_p(root, MeshKit.sphere_low(), cover, face + Vector3(0.04, 0.03, 0.01), Vector3(0.16, 0.16, 0.03))
+			_p(root, MeshKit.sphere_low(), gem, face + Vector3(-0.03, -0.02, 0.01), Vector3(0.06, 0.06, 0.04), Vector3.ZERO, glow)
+		"sun":
+			for k in 8:
+				_p(root, MeshKit.prism(), trim, face + Vector3(cos(k * PI / 4.0), sin(k * PI / 4.0), 0) * 0.1, Vector3(0.04, 0.08, 0.02), Vector3(0, 0, rad_to_deg(k * PI / 4.0) - 90.0))
+			_p(root, MeshKit.sphere_low(), gem, face, Vector3(0.12, 0.12, 0.05), Vector3.ZERO, glow)
+		"snow":
+			for k in 3:
+				_p(root, MeshKit.box(), trim, face, Vector3(0.03, 0.26, 0.02), Vector3(0, 0, k * 60.0), 0.3)
+			_p(root, MeshKit.sphere_low(), gem, face, Vector3(0.07, 0.07, 0.04), Vector3.ZERO, glow)
+		"eclipse":
+			_p(root, MeshKit.torus(), gem, face, Vector3(0.22, 0.22, 0.22), Vector3(90, 0, 0), glow)
+			_p(root, MeshKit.sphere_low(), Color("0c0a12"), face + Vector3(0, 0, 0.01), Vector3(0.15, 0.15, 0.03))
+		"cross":
+			_p(root, MeshKit.box(), trim, face, Vector3(0.05, 0.3, 0.02))
+			_p(root, MeshKit.box(), trim, face + Vector3(0, 0.05, 0), Vector3(0.2, 0.05, 0.02))
+			_p(root, MeshKit.sphere_low(), gem, face + Vector3(0, 0.05, 0.015), Vector3(0.06, 0.06, 0.04), Vector3.ZERO, glow)
+		"star":
+			for k in 4:
+				_p(root, MeshKit.prism(), trim, face + Vector3(cos(k * PI / 2.0), sin(k * PI / 2.0), 0) * 0.08, Vector3(0.05, 0.12, 0.02), Vector3(0, 0, rad_to_deg(k * PI / 2.0) - 90.0))
+			_p(root, MeshKit.sphere_low(), gem, face, Vector3(0.08, 0.08, 0.05), Vector3.ZERO, glow)
+		"lotus":
+			for k in 5:
+				var a := deg_to_rad(90.0 + (k - 2) * 32.0)
+				_p(root, MeshKit.sphere_low(), gem.lerp(Color.WHITE, 0.3), face + Vector3(cos(a), sin(a) - 0.6, 0) * 0.1, Vector3(0.05, 0.12, 0.02), Vector3(0, 0, rad_to_deg(a) - 90.0), glow * 0.6)
+			_p(root, MeshKit.sphere_low(), trim, face + Vector3(0, -0.07, 0.01), Vector3(0.08, 0.05, 0.03), Vector3.ZERO, 0.4)
+		_:
+			_p(root, MeshKit.torus(), trim, face, Vector3(0.18, 0.18, 0.18), Vector3(90, 0, 0))
+			_p(root, MeshKit.sphere_low(), gem, face, Vector3(0.09, 0.09, 0.05), Vector3.ZERO, glow)
 	return root
