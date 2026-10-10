@@ -6,7 +6,8 @@ extends RefCounted
 ## the same convention as the KayKit weapon models. A few code-built props stay
 ## (the priest's book) together with the mesh helpers other kits share.
 
-const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "spear"]
+## Mage, priest and summoner all carry the staff.
+const KINDS: Array[String] = ["sword", "bow", "staff", "spear"]
 
 const GOLD := Color("ffc93c")
 
@@ -18,7 +19,6 @@ const MODEL_TIERS := 10
 const MODELS := {
 	"sword": {"file": "sword", "scale": 1.45, "offset": Vector3(0, -0.22, 0)},
 	"staff": {"file": "staff", "scale": 2.0, "offset": Vector3(0, 0.1, 0)},
-	"wand": {"file": "staff", "scale": 1.15, "offset": Vector3.ZERO},
 	"bow": {"file": "bow", "scale": 2.2, "offset": Vector3(0, -0.25, 0), "basis": [Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0)]},
 	"shield": {"file": "shield", "scale": 1.0, "offset": Vector3.ZERO},
 	"spear": {"file": "spear", "scale": 1.3, "offset": Vector3.ZERO},

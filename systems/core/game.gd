@@ -624,9 +624,9 @@ func _valid_item(value: Variant) -> bool:
 			return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
-	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
+	if item.get("base", "") != "wings" and item.get("base", "") != "wand" and not ItemData.NAMES.has(item.get("base")):
 		return false
-	if item.get("slot") == "wings" and not ItemData.WING_KINDS.has(item.get("wing")):
+	if item.get("slot") == "wings" and not (ItemData.WING_INFO.has(item.get("wing")) or ItemData.LEGACY_WING_KINDS.has(item.get("wing"))):
 		return false
 	if item.get("class", "") != "" and not ClassData.CLASSES.has(StringName(item["class"])):
 		return false
@@ -703,6 +703,10 @@ func _repair(data: Dictionary) -> Dictionary:
 		_repair_item(item)
 	for slot in data.equip:
 		_repair_item(data.equip[slot])
+	# Wings from before class wings turn into this class's pair.
+	for item in data.inv + data.storage + data.equip.values():
+		if item is Dictionary:
+			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -753,6 +757,14 @@ func _migrate_skills(data: Dictionary) -> void:
 
 
 func _repair_item(item: Dictionary) -> void:
+	# The priest's wands became staffs: same tier, staff name.
+	if item.get("base", "") == "wand":
+		item["base"] = "staff"
+		var named := String(item.get("name", ""))
+		for tier in ItemData.LEGACY_WAND_NAMES.size():
+			if named.begins_with(ItemData.LEGACY_WAND_NAMES[tier] + " ") or named == ItemData.LEGACY_WAND_NAMES[tier]:
+				item["name"] = ItemData.NAMES.staff[tier] + named.substr(String(ItemData.LEGACY_WAND_NAMES[tier]).length())
+				break
 	if item.get("kind") == "equip":
 		for key in ["price", "plus", "sockets", "rarity"]:
 			item[key] = int(item.get(key, 0))
@@ -994,13 +1006,13 @@ func tower_spend(cost: int) -> bool:
 	return true
 
 
-## Re-rolls the random stats of a pair of wings (same type, plus and gems stay).
+## Re-rolls the random stats and rarity of a pair of wings (same class, plus and gems stay).
 func tower_reroll_wings(item: Dictionary) -> String:
 	if String(item.get("slot", "")) != "wings":
 		return "ใช้กับปีกเท่านั้น"
 	if int(tower().shards) < TowerData.COST_REROLL:
 		return "ผลึกไม่พอ (ต้องใช้ %d)" % TowerData.COST_REROLL
-	var fresh := ItemData.wings(rng, String(item.get("wing", "atk")))
+	var fresh := ItemData.wings(rng, String(item.get("wing", "warrior")))
 	tower_spend(TowerData.COST_REROLL)
 	item["stats"] = fresh.stats
 	item["rarity"] = fresh.rarity

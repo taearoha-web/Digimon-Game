@@ -28,6 +28,10 @@ const PRIEST_WHITE := Color(1.8, 1.8, 1.5)
 ## was retargeted onto their rig (tools/retarget_chibi.py), weapon slots included.
 const CHIBI_MODELS := ["res://assets/models/heroes/chibi_boy.glb", "res://assets/models/heroes/chibi_girl.glb"]
 const CHIBI_HEIGHT := 2.45
+## Where the enhancement glow of wings sits, and the class wing models on a KayKit
+## body (chest-bone space; the models are sized for the chibi).
+const WING_GLOW := Vector3(0, 1.6, -0.5)
+const KAYKIT_WINGS := Transform3D(Vector3(2.2, 0, 0), Vector3(0, 2.2, 0), Vector3(0, 0, 2.2), Vector3(0, -1.0, -0.1))
 ## KayKit bone names used for gear -> the chibi rig's names.
 const CHIBI_BONES := {"chest": "Chest", "head": "Head", "wrist.l": "LeftHand", "wrist.r": "RightHand",
 	"lowerleg.l": "LeftLowerLeg", "lowerleg.r": "RightLowerLeg"}
@@ -186,15 +190,13 @@ func _refresh_chibi() -> void:
 	EnhanceFx.glow_piece(self, boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
 	var wings: Variant = equip.get("wings")
 	if wings is Dictionary:
-		var back := BoneAttachment3D.new()
-		back.name = "Wings"
-		back.bone_name = _bone("chest")
-		_skeleton.add_child(back)
-		var w := GearKit.wings(String(wings.get("wing", "atk")), int(wings.get("plus", 0)))
-		w.scale *= _gear_scale
-		back.add_child(w)
-		_body_nodes.append(back)
-		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), Vector3(0, 1.25, -0.55), 0.5)
+		# The wing models share the chibi's model space: undo the chest's rest pose.
+		var back := _chibi_attach("Chest", "Wings")
+		var chest := _skeleton.find_bone("Chest")
+		if chest >= 0:
+			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
+		back.add_child(GearKit.wings(_wing_kind(wings)))
+		EnhanceFx.glow_piece(self, [back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 	_make_aura()
 	_hold_gear()
 	_polish()
@@ -202,6 +204,12 @@ func _refresh_chibi() -> void:
 
 ## A node on a chibi bone whose axes are the model's (x side, y up, z front) and
 ## whose units are the chibi skeleton's.
+## Which class model a pair of wings shows (old items fall back to this hero's class).
+func _wing_kind(item: Dictionary) -> String:
+	var kind := String(item.get("wing", ""))
+	return kind if ItemData.WING_INFO.has(kind) else String(class_id)
+
+
 func _chibi_attach(bone: String, node_name: String) -> Node3D:
 	var attach := BoneAttachment3D.new()
 	attach.name = node_name
@@ -325,9 +333,11 @@ func refresh() -> void:
 		back.name = "Wings"
 		back.bone_name = "chest"
 		_skeleton.add_child(back)
-		back.add_child(GearKit.wings(String(wings.get("wing", "atk")), int(wings.get("plus", 0))))
+		var w := GearKit.wings(_wing_kind(wings))
+		w.transform = KAYKIT_WINGS
+		back.add_child(w)
 		_body_nodes.append(back)
-		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), Vector3(0, 1.25, -0.55), 0.5)
+		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)
@@ -371,7 +381,7 @@ func _polish() -> void:
 	var meshes: Array[MeshInstance3D] = []
 	for node in find_children("*", "MeshInstance3D", true, false):
 		meshes.append(node as MeshInstance3D)
-	# Thin held gear (bows, staffs) only gets the rim light: an outline would swallow it.
+	# Thin held gear (bows, staffs) and wings only get the rim light: an outline would swallow it.
 	var held: Array[Node] = []
 	for hold in _hold_nodes:
 		held.append(hold)
@@ -380,7 +390,7 @@ func _polish() -> void:
 		if mi.mesh == null or mi.has_meta("polished"):
 			continue
 		mi.set_meta("polished", true)
-		var outlined := not (mi in held) and not bool(mi.get_meta("face_detail", false)) and GameSettings.quality > 0
+		var outlined := not (mi in held) and not bool(mi.get_meta("face_detail", false)) and not bool(mi.get_meta("no_outline", false)) and GameSettings.quality > 0
 		if mi.material_override != null:
 			var done := _polish_material(mi.material_override, outlined)
 			if done != null:

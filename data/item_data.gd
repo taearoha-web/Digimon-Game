@@ -11,14 +11,23 @@ const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "h
 ## Every equipment slot on the paper doll (wings only drop from the Lv.100 boss).
 const EQUIP_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet", "wings"]
 
-## The four wing types. base = the stat at a 1.0 roll; every wing rolls 0.75-1.25 of it.
-const WING_KINDS: Array[String] = ["atk", "def", "hp", "matk"]
+## Wings drop for the class being played: one model per class, a main stat
+## that class fights with (rolled in a range) and one more bonus stat per rarity
+## step (a common pair has the main stat only, a mythic pair has all four).
 const WING_INFO := {
-	"atk": {"name": "ปีกพิฆาตโลหิต", "stat": "atk", "base": 210, "second": "crit", "color": Color("e0283a")},
-	"def": {"name": "ปีกพิทักษ์สุริยะ", "stat": "def", "base": 190, "second": "hp", "color": Color("f0c85a")},
-	"hp": {"name": "ปีกชีวิตนิรันดร์", "stat": "hp", "base": 1800, "second": "def", "color": Color("58e08a")},
-	"matk": {"name": "ปีกคริสตัลจันทรา", "stat": "matk", "base": 210, "second": "mp", "color": Color("9a6bff")},
+	"warrior": {"name": "ปีกใบมีด", "stat": "atk", "base": 210, "bonus": ["hp", "def", "crit", "mp"], "color": Color("c9d3e6")},
+	"archer": {"name": "ปีกขนนกเอลฟ์", "stat": "atk", "base": 200, "bonus": ["crit", "hp", "mp", "def"], "color": Color("7fd66a")},
+	"lancer": {"name": "ปีกมังกร", "stat": "atk", "base": 205, "bonus": ["crit", "hp", "def", "mp"], "color": Color("e0503a")},
+	"mage": {"name": "ปีกอาร์เคน", "stat": "matk", "base": 215, "bonus": ["mp", "crit", "hp", "def"], "color": Color("9a6bff")},
+	"summoner": {"name": "ปีกผีเสื้อวิญญาณ", "stat": "matk", "base": 205, "bonus": ["mp", "hp", "crit", "def"], "color": Color("5ad0e6")},
+	"priest": {"name": "ปีกนางฟ้า", "stat": "matk", "base": 195, "bonus": ["hp", "mp", "def", "crit"], "color": Color("f2d47a")},
 }
+## Bonus stat ranges a rarity step can add.
+const WING_BONUS := {"hp": [300, 700], "mp": [150, 350], "crit": [0.02, 0.05], "def": [50, 120]}
+## The priest's old wand names: wands became staffs (converted on load).
+const LEGACY_WAND_NAMES := ["คทาไม้", "คทาเงิน", "คทาแสง", "คทาศักดิ์สิทธิ์", "คทาอรุณ", "คทามังกร", "คทาจันทราเงิน", "คทาเสราฟิม", "คทาเทวะ", "คทาเทพเจ้า"]
+## Wing types from before class wings (old saves are converted on load).
+const LEGACY_WING_KINDS: Array[String] = ["atk", "def", "hp", "matk"]
 const WING_DROP_LEVEL := 100
 ## Gear stars stop at 20 (Lv.100 + 20 = Lv.120), so gear chasing has an end.
 const MAX_GEAR_STAR := 20
@@ -33,7 +42,6 @@ const NAMES := {
 	"spear": ["หอกฝึกหัด", "หอกเหล็กกล้า", "หอกมิธริล", "หอกราชวงศ์", "หอกมังกรเพลิง", "หอกน้ำแข็ง", "หอกเงามืด", "หอกศักดิ์สิทธิ์", "หอกสายฟ้า", "หอกเทพเจ้า"],
 	"bow": ["ธนูล่าสัตว์", "ธนูเหล็กกล้า", "ธนูมิธริล", "ธนูราชวงศ์", "ธนูมังกรเพลิง", "ธนูน้ำแข็ง", "ธนูเงามืด", "ธนูศักดิ์สิทธิ์", "ธนูสายฟ้า", "ธนูเทพเจ้า"],
 	"staff": ["คทาฝึกหัด", "คทาเหล็กกล้า", "คทามิธริล", "คทาราชวงศ์", "คทามังกรเพลิง", "คทาน้ำแข็ง", "คทาเงามืด", "คทาศักดิ์สิทธิ์", "คทาสายฟ้า", "คทาเทพเจ้า"],
-	"wand": ["คทาไม้", "คทาเงิน", "คทาแสง", "คทาศักดิ์สิทธิ์", "คทาอรุณ", "คทามังกร", "คทาจันทราเงิน", "คทาเสราฟิม", "คทาเทวะ", "คทาเทพเจ้า"],
 	"armor": ["เสื้อผ้าหนา", "เสื้อหนัง", "เสื้อเกราะโซ่", "เสื้อเกราะเหล็ก", "เสื้อเกราะอัศวิน", "เสื้อเกราะมังกร", "เสื้อเกราะอสูรสายฟ้า", "เสื้อเกราะทูตสวรรค์", "เสื้อเกราะเทพสงคราม", "เสื้อเกราะตำนานนิรันดร์"],
 	"helm": ["หมวกผ้า", "หมวกหนัง", "หมวกเหล็ก", "หมวกอัศวิน", "หมวกเพลิง", "หมวกมังกร", "หมวกอสูรสายฟ้า", "มงกุฎทูตสวรรค์", "มงกุฎเทพสงคราม", "มงกุฎตำนานนิรันดร์"],
 	"boots": ["รองเท้าผ้า", "รองเท้าหนัง", "รองเท้าเหล็ก", "รองเท้าลมพัด", "รองเท้าเพลิง", "รองเท้ามังกร", "รองเท้าสายฟ้า", "รองเท้าปีกทูตสวรรค์", "รองเท้าเทพสงคราม", "รองเท้าตำนานนิรันดร์"],
@@ -211,29 +219,43 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 	}
 
 
-## A level-100 pair of wings with randomly rolled stats. The roll (0.75-1.25)
-## sets the rarity: a near-perfect roll is a mythic pair.
-static func wings(rng: RandomNumberGenerator, kind := "") -> Dictionary:
-	if kind == "":
-		kind = WING_KINDS[rng.randi() % WING_KINDS.size()]
-	var info: Dictionary = WING_INFO[kind]
-	var roll := (rng.randf_range(0.75, 1.25) + rng.randf_range(0.75, 1.25)) * 0.5
-	roll = clampf(roll + rng.randf_range(-0.08, 0.08), 0.75, 1.25)
-	var rarity := 4 if roll >= 1.12 else (3 if roll >= 0.95 else 2)
+## A level-100 pair of class wings. The main stat rolls in a range; each rarity
+## step adds one bonus stat (HP, MP, crit, def) from the class's pool.
+static func wings(rng: RandomNumberGenerator, class_id := "", rarity := -1) -> Dictionary:
+	if not WING_INFO.has(class_id):
+		class_id = "warrior" if class_id != "" else WING_INFO.keys()[rng.randi() % WING_INFO.size()]
+	var info: Dictionary = WING_INFO[class_id]
+	if rarity < 0:
+		var r := rng.randf()
+		rarity = 4 if r < 0.03 else (3 if r < 0.12 else (2 if r < 0.30 else (1 if r < 0.60 else 0)))
+	rarity = clampi(rarity, 0, 4)
+	var roll := rng.randf_range(0.8, 1.2) * (1.0 + 0.04 * rarity)
 	var stats := {}
 	stats[info.stat] = int(round(float(info.base) * roll))
-	match String(info.second):
-		"crit": stats["crit"] = snappedf(rng.randf_range(0.02, 0.06), 0.001)
-		"hp": stats["hp"] = rng.randi_range(150, 450)
-		"def": stats["def"] = rng.randi_range(40, 120)
-		"mp": stats["mp"] = rng.randi_range(100, 300)
-	var adjective: String = ["", "", "", "สมบูรณ์", "สมบูรณ์แบบ"][rarity]
+	var pool: Array = (info.bonus as Array).duplicate()
+	for i in rarity:
+		var key: String = pool.pop_at(rng.randi() % pool.size())
+		var span: Array = WING_BONUS[key]
+		stats[key] = snappedf(rng.randf_range(span[0], span[1]), 0.001) if key == "crit" else rng.randi_range(span[0], span[1])
 	return {
-		"kind": "equip", "uid": make_uid(), "slot": "wings", "base": "wings", "wing": kind,
+		"kind": "equip", "uid": make_uid(), "slot": "wings", "base": "wings", "wing": class_id,
 		"plus": 0, "sockets": sockets_for(rarity), "gems": [], "set": "",
-		"name": ("%s %s" % [info.name, adjective]).strip_edges(), "rarity": rarity, "level": WING_DROP_LEVEL,
-		"class": "", "stats": stats, "price": int(30000.0 * roll),
+		"name": ("%s %s" % [info.name, RARITY_ADJ[rarity]]).strip_edges(), "rarity": rarity, "level": WING_DROP_LEVEL,
+		"class": class_id, "stats": stats, "price": int(20000.0 * roll * (1.0 + 0.5 * rarity)),
 	}
+
+
+## Old (pre-class) wings become the class wings of [param class_id] with a fresh
+## roll at the same rarity; plus and gems carry over.
+static func migrate_wings(item: Dictionary, class_id: String) -> void:
+	if item.get("slot", "") != "wings" or WING_INFO.has(String(item.get("wing", ""))):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(String(item.get("uid", "")))
+	var fresh := wings(rng, class_id, clampi(int(item.get("rarity", 2)), 0, 4))
+	for key in ["wing", "class", "stats", "name", "price"]:
+		item[key] = fresh[key]
+	item["sockets"] = maxi(int(fresh.sockets), (item.get("gems", []) as Array).size())
 
 
 static func name_of(item: Dictionary) -> String:

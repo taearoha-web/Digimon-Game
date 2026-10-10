@@ -760,43 +760,67 @@ func _wings() -> void:
 	print("== Wings")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
-	var seen := {}
+	var rarities := {}
 	var values: Array[int] = []
-	for i in 80:
-		var w := ItemData.wings(rng)
-		seen[w.wing] = true
-		if i == 0:
-			check(w.slot == "wings" and int(w.level) == 100 and int(w.rarity) >= 2, "wings are a Lv.100 item")
-		var info: Dictionary = ItemData.WING_INFO[w.wing]
-		var v := int(w.stats[info.stat])
-		values.append(v)
-		if v < int(float(info.base) * 0.74) or v > int(float(info.base) * 1.26):
-			check(false, "wing roll out of range: %s %d" % [w.wing, v])
-	check(seen.size() == 4, "all four wing types drop")
+	for cls in ItemData.WING_INFO:
+		var info: Dictionary = ItemData.WING_INFO[cls]
+		check(ResourceLoader.exists(GearKit.WING_MODEL % cls), "%s wings have a model" % cls)
+		for i in 60:
+			var w := ItemData.wings(rng, cls)
+			rarities[int(w.rarity)] = true
+			if i == 0:
+				check(w.slot == "wings" and int(w.level) == 100 and w.wing == cls and w["class"] == cls, "%s wings are a Lv.100 %s-only item" % [cls, cls])
+			var v := int(w.stats[info.stat])
+			values.append(v)
+			var stretch := 1.0 + 0.04 * int(w.rarity)
+			if v < int(float(info.base) * 0.8 * stretch) - 1 or v > int(float(info.base) * 1.2 * stretch) + 1:
+				check(false, "wing main stat out of range: %s %d" % [cls, v])
+			if (w.stats as Dictionary).size() != 1 + int(w.rarity):
+				check(false, "a rarity-%d pair should hold %d stats: %s" % [int(w.rarity), 1 + int(w.rarity), str(w.stats)])
+			for key in w.stats:
+				if key != info.stat and not (info.bonus as Array).has(key):
+					check(false, "%s wings rolled a stat outside their pool: %s" % [cls, key])
+	check(rarities.size() == 5, "wings drop in every rarity, common to mythic")
 	check(values.max() > values.min() + 20, "wing stats are random (%d..%d)" % [values.min(), values.max()])
-	# Effect on stats: matk only helps int classes.
+	var plain := ItemData.wings(rng, "archer", 0)
+	check((plain.stats as Dictionary).keys() == ["atk"], "common wings hold the main stat only")
+	var top := ItemData.wings(rng, "mage", 4)
+	check(top.stats.has("matk") and top.stats.has("hp") and top.stats.has("mp") and top.stats.has("crit") and top.stats.has("def"), "mythic wings add HP, MP, crit and defence")
+	# Effect on stats: magic wings for int classes, attack wings for the rest.
 	await _start(&"mage")
 	Game.profile["level"] = 100
 	var before_mage := float(Game.stats_now().atk)
-	var wing_m := ItemData.wings(rng, "matk")
+	var wing_m := ItemData.wings(rng, "mage", 0)
 	Game.profile.inv.append(wing_m)
 	check(Game.equip_from_bag(Game.profile.inv.size() - 1), "level 100 can wear wings")
 	check(float(Game.stats_now().atk) >= before_mage + float(wing_m.stats.matk) - 1.0, "magic wings add attack for a mage")
+	Game.profile.inv.append(ItemData.wings(rng, "warrior"))
+	check(not Game.equip_from_bag(Game.profile.inv.size() - 1), "a mage cannot wear warrior wings")
 	await _start(&"warrior")
 	Game.profile["level"] = 100
 	var before_w := float(Game.stats_now().atk)
-	var wing_a := ItemData.wings(rng, "atk")
+	var wing_a := ItemData.wings(rng, "warrior", 1)
 	Game.profile.inv.append(wing_a)
 	Game.equip_from_bag(Game.profile.inv.size() - 1)
-	check(float(Game.stats_now().atk) >= before_w + float(wing_a.stats.atk) - 1.0, "attack wings add attack")
-	var wing_hp := ItemData.wings(rng, "hp")
+	check(float(Game.stats_now().atk) >= before_w + float(wing_a.stats.atk) - 1.0, "warrior wings add attack")
 	var hp_before: int = Game.stats_now().max_hp
+	var wing_hp := ItemData.wings(rng, "warrior", 4)
 	Game.profile.inv.append(wing_hp)
 	Game.equip_from_bag(Game.profile.inv.size() - 1)
-	check(int(Game.stats_now().max_hp) > hp_before + 1000, "life wings add lots of HP")
-	check(Game.profile.equip.wings.wing == "hp", "the wing slot holds the new pair")
+	check(int(Game.stats_now().max_hp) >= hp_before + int(wing_hp.stats.hp) - 1, "mythic wings add their HP")
+	check(Game.profile.equip.wings.uid == wing_hp.uid, "the wing slot holds the new pair")
+	var shown: Node = main.zone.hero.visual.find_child("Wings_warrior", true, false)
+	check(shown != null, "the hero wears the warrior wing model")
+	var flap := shown.find_child("AnimationPlayer", true, false) as AnimationPlayer if shown else null
+	check(flap != null and flap.is_playing(), "the wings idle-flap")
+	# Old (pre-class) wings turn into the class's pair on load, keeping plus and gems.
+	var old := {"kind": "equip", "uid": "oldwing", "slot": "wings", "base": "wings", "wing": "matk", "plus": 4, "sockets": 2,
+		"gems": [], "set": "", "name": "ปีกคริสตัลจันทรา", "rarity": 3, "level": 100, "class": "", "stats": {"matk": 200, "mp": 120}, "price": 30000}
+	var fixed := Game._repair({"class": "warrior", "inv": [old], "equip": {}})
+	var moved: Dictionary = fixed.inv[0]
+	check(moved.wing == "warrior" and moved["class"] == "warrior" and int(moved.plus) == 4 and int(moved.rarity) == 3 and moved.stats.has("atk") and not moved.stats.has("matk"), "old wings become the class's wings")
 	Game.profile["level"] = 50
-	Game.profile.inv.append(ItemData.wings(rng, "def"))
+	Game.profile.inv.append(ItemData.wings(rng, "warrior"))
 	check(not Game.equip_from_bag(Game.profile.inv.size() - 1), "wings need level 100")
 	# The Lv.100 boss: drops and the 1-minute respawn.
 	check(float(ZoneData.get_zone(&"abyss").boss.respawn) == 60.0, "the Lv.100 boss comes back 1 minute after dying")
@@ -815,6 +839,11 @@ func _wings() -> void:
 		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings":
 			found += 1
 	check(found >= 6 and found <= 40, "the Lv.100 boss drops wings about a third of the time (%d / 60)" % found)
+	var own := true
+	for child in zone.get_children():
+		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings" and (child as LootDrop).item.wing != "warrior":
+			own = false
+	check(own, "a warrior only finds warrior wings")
 	var lowboss := Mob.new()
 	lowboss.setup(&"magma_dragon", 42, Vector3(0, 0, 0), zone.hero)
 	zone.add_child(lowboss)
@@ -977,7 +1006,7 @@ func _tower() -> void:
 	main.tower_screen.close_screen()
 	# Shop.
 	Game.tower()["shards"] = 500
-	var wing := ItemData.wings(rng, "atk")
+	var wing := ItemData.wings(rng, "warrior")
 	Game.profile.inv.append(wing)
 	var old_stats := (wing.stats as Dictionary).duplicate()
 	var changed := false
@@ -985,7 +1014,7 @@ func _tower() -> void:
 		check(Game.tower_reroll_wings(wing) == "ok", "wings can be re-rolled") if i == 0 else Game.tower_reroll_wings(wing)
 		if (wing.stats as Dictionary) != old_stats:
 			changed = true
-	check(changed and wing.wing == "atk" and int(wing.stats.atk) >= 150, "a re-roll gives new random stats of the same type")
+	check(changed and wing.wing == "warrior" and int(wing.stats.atk) >= 160, "a re-roll gives new random stats of the same class")
 	check(int(Game.tower().shards) == 500 - 8 * TowerData.COST_REROLL, "each re-roll costs shards")
 	var inv0: int = Game.profile.inv.size()
 	var bought := Game.tower_buy("gear")
@@ -1797,13 +1826,20 @@ func _hit_feel() -> void:
 
 func _weapon_models() -> void:
 	print("== Modelled weapons")
-	for kind in ["sword", "bow", "staff", "wand", "spear", "shield"]:
+	for kind in ["sword", "bow", "staff", "spear", "shield"]:
 		check(WeaponKit.has_model(kind) and WeaponKit.designs(kind) == 10, "%s has 10 modelled tiers" % kind)
 		for tier in [0, 9]:
 			var look := WeaponKit.look_for(kind, tier, 1)
 			var node := WeaponKit.shield(look) if kind == "shield" else WeaponKit.build(look)
 			check(not node.find_children("*", "MeshInstance3D", true, false).is_empty(), "%s builds" % look)
 			node.free()
+	for cls in [&"mage", &"priest", &"summoner"]:
+		var rod := ItemData.generate(40, cls, RandomNumberGenerator.new(), 1, "weapon")
+		check(rod.base == "staff" and ItemLook.look_of(rod) == "staff_3", "%s carries the staff" % cls)
+	var old_wand := {"kind": "equip", "uid": "oldwand", "slot": "weapon", "base": "wand", "plus": 2, "sockets": 0, "gems": [], "set": "",
+		"name": "คทาแสง ชั้นดี", "rarity": 1, "level": 25, "class": "priest", "stats": {"atk": 50}, "price": 100}
+	Game._repair_item(old_wand)
+	check(old_wand.base == "staff" and old_wand.name == "คทามิธริล ชั้นดี" and ItemLook.look_of(old_wand) == "staff_2", "an old priest wand becomes the matching staff (%s)" % old_wand.name)
 	var starter := ItemData.generate(1, &"warrior", RandomNumberGenerator.new(), 0, "weapon")
 	check(ItemLook.look_of(starter) == "sword_0" and String(starter.name).begins_with("ดาบอัศวิน"), "the Lv.1 sword is the Knight Sword (%s)" % starter.name)
 	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")

@@ -72,7 +72,7 @@ func _profile(c: StringName, level: int, gear: String) -> Dictionary:
 			item["gems"] = g
 		equip[slot] = item
 	if gear == "maxed" and level == 100:
-		equip["wings"] = ItemData.wings(rng, "atk" if String(data.main) != "int" else "matk")
+		equip["wings"] = ItemData.wings(rng, String(c), 4)
 		equip["wings"]["plus"] = 10
 	var stars := {"fresh": 1, "farmed": 3, "maxed": 5}[gear] as int
 	var skills := {}
