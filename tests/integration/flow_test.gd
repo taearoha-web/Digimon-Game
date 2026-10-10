@@ -43,6 +43,7 @@ func _run() -> void:
 		return
 	if "balance" in OS.get_cmdline_user_args():
 		_balance_rules()
+		await _hit_feel()
 		return
 	if "chibi" in OS.get_cmdline_user_args():
 		await _chibi_armor()
@@ -106,6 +107,7 @@ func _run() -> void:
 	await _team_buffs()
 	await _shared_potions()
 	_balance_rules()
+	await _hit_feel()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -1774,3 +1776,16 @@ func _balance_rules() -> void:
 	check(absf(float(gladiator.mult) - 26.0 * 0.65) < 0.01, "Lv.100 skills carry the curve (Gladiator x%.1f)" % float(gladiator.mult))
 	check(HeroStats.MAX_CRIT == 0.5 and HeroStats.PLUS_BONUS == 0.05, "crit stops at 50%, +10 gear gives +50%")
 	check(Summon.HIT_SHARE < 0.2, "a summon's single hit is a small share of its skill")
+
+
+func _hit_feel() -> void:
+	print("== Hit feel")
+	check(HitFeel.stop_for(false, 1.0) == 0.0 and HitFeel.stop_for(true, 8.0) > HitFeel.stop_for(false, 8.0), "only crits and big skills stop the game")
+	HitFeel._last_stop = 0
+	HitFeel.hitstop(get_tree(), 0.05)
+	check(Engine.time_scale < 0.2, "a hitstop slows time")
+	HitFeel.hitstop(get_tree(), 0.05)
+	await get_tree().create_timer(0.2, true, false, true).timeout
+	check(is_equal_approx(Engine.time_scale, 1.0), "time runs normally again right after")
+	var mat := VfxKit.energy(Color("ff9a4a"), 0)
+	check(mat.shader != null and mat.get_shader_parameter("mode") == 0, "energy effects use the flowing shader")

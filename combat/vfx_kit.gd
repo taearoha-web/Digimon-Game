@@ -27,6 +27,41 @@ static func _glow(color: Color, alpha := 1.0, additive := true) -> StandardMater
 	return m
 
 
+const ENERGY_SHADER := preload("res://shaders/vfx_energy.gdshader")
+static var _ground_quad: PlaneMesh
+
+
+## Flowing-noise material (shaders/vfx_energy.gdshader). mode 0 ring, 1 band.
+static func energy(color: Color, mode: int, params := {}) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = ENERGY_SHADER
+	m.set_shader_parameter("color", color)
+	m.set_shader_parameter("core", color.lerp(Color.WHITE, 0.55))
+	m.set_shader_parameter("mode", mode)
+	m.set_shader_parameter("seed", randf() * 50.0)
+	for key in params:
+		m.set_shader_parameter(key, params[key])
+	return m
+
+
+## A 2x2 quad lying on the ground (UV 0..1) for energy rings.
+static func ground_quad() -> PlaneMesh:
+	if _ground_quad == null:
+		_ground_quad = PlaneMesh.new()
+		_ground_quad.size = Vector2(2, 2)
+	return _ground_quad
+
+
+## Draws both energy modes once, invisibly, so the first real cast does not
+## stall while the browser compiles the shader.
+static func warm_shaders(parent: Node3D, pos: Vector3) -> void:
+	for mode in 2:
+		var mat := energy(Color(1, 1, 1, 0.01), mode, {"fade": 0.01})
+		var mi := _instance(parent, ground_quad() if mode == 0 else _crescent_mesh(), mat, pos + Vector3(0, 0.05, 0))
+		mi.scale = Vector3.ONE * 0.2
+		mi.get_tree().create_timer(0.4).timeout.connect(mi.queue_free)
+
+
 ## Round, soft-edged dot used for every particle and orb halo.
 static func soft_dot() -> Texture2D:
 	if _soft_texture == null:
@@ -83,8 +118,12 @@ static func _crescent_mesh() -> ArrayMesh:
 			var o1 := Vector3(sin(a1), 0, cos(a1)) * 1.0
 			var i0 := o0 * (1.0 - thickness0 * 2.2)
 			var i1 := o1 * (1.0 - thickness1 * 2.2)
-			for v in [o0, i0, o1, o1, i0, i1]:
-				st.add_vertex(v)
+			var u0 := float(i) / steps
+			var u1 := float(i + 1) / steps
+			# U runs along the arc, V from the sharp outer edge (0) to the inner edge (1).
+			for corner in [[o0, u0, 0.0], [i0, u0, 1.0], [o1, u1, 0.0], [o1, u1, 0.0], [i0, u0, 1.0], [i1, u1, 1.0]]:
+				st.set_uv(Vector2(corner[1], corner[2]))
+				st.add_vertex(corner[0])
 		_crescent = st.commit()
 	return _crescent
 
@@ -320,7 +359,16 @@ static func lightning(parent: Node3D, from: Vector3, to: Vector3, color: Color) 
 
 ## Crescent sword slash in front of a hero facing [param yaw].
 static func slash_arc(parent: Node3D, pos: Vector3, yaw: float, color: Color, size := 2.0, tilt := 0.0) -> void:
-	var mat := _glow(color, 0.95, false)
+	var mat := _glow(color, 0.55, false)
+	var flow := energy(color, 1, {"flow": 3.0, "noise_scale": 4.0})
+	var streak := _instance(parent, _crescent_mesh(), flow, pos + Vector3(0, 0.05, 0))
+	streak.rotation = Vector3(0, yaw, tilt)
+	streak.scale = Vector3.ONE * size * 0.7
+	var st := streak.create_tween().set_parallel(true)
+	st.tween_property(streak, "scale", Vector3.ONE * size * 1.3, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	st.tween_method(func(v: float): flow.set_shader_parameter("progress", v), 0.0, 1.0, 0.3)
+	st.tween_method(func(v: float): flow.set_shader_parameter("fade", v), 1.0, 0.0, 0.22).set_delay(0.1)
+	st.chain().tween_callback(streak.queue_free)
 	var core_mat := _glow(Color(1, 1, 1), 1.0)
 	var mi := _instance(parent, _crescent_mesh(), mat, pos)
 	mi.rotation = Vector3(0, yaw, tilt)
@@ -346,20 +394,22 @@ static func slash_arc(parent: Node3D, pos: Vector3, yaw: float, color: Color, si
 
 
 static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
-	var ring_mat := _glow(color, 0.75, false)
+	# A wave of flowing energy that rushes out over the ground and burns away.
+	var wave_mat := energy(color, 0, {"ring_radius": 0.82, "ring_width": 0.2, "flow": 2.4, "fill": 0.18})
+	var wave := _instance(parent, ground_quad(), wave_mat, pos + Vector3(0, 0.06, 0))
+	wave.scale = Vector3(0.25, 1, 0.25)
+	var ring_mat := _glow(color.lerp(Color.WHITE, 0.5), 0.6, false)
 	var ring := _instance(parent, MeshKit.torus(), ring_mat, pos)
 	ring.scale = Vector3(0.3, 0.3, 0.3)
-	var disc_mat := _glow(color, 0.10, false)
-	var disc := _instance(parent, _disc_mesh(), disc_mat, pos + Vector3(0, 0.03, 0))
-	disc.scale = Vector3(0.3, 1, 0.3)
-	var tween := ring.create_tween().set_parallel(true)
-	tween.tween_property(ring, "scale", Vector3(radius, radius * 0.06, radius), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(ring_mat, "albedo_color:a", 0.0, 0.45)
-	tween.tween_property(disc, "scale", Vector3(radius, 1, radius), 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(disc_mat, "albedo_color:a", 0.0, 0.45)
+	var tween := wave.create_tween().set_parallel(true)
+	tween.tween_property(wave, "scale", Vector3(radius * 1.15, 1, radius * 1.15), 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_method(func(v: float): wave_mat.set_shader_parameter("progress", v), 0.0, 1.0, 0.5)
+	tween.tween_method(func(v: float): wave_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.3).set_delay(0.2)
+	tween.tween_property(ring, "scale", Vector3(radius, radius * 0.05, radius), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(ring_mat, "albedo_color:a", 0.0, 0.4)
 	tween.chain().tween_callback(func():
-		ring.queue_free()
-		disc.queue_free())
+		wave.queue_free()
+		ring.queue_free())
 	sparks(parent, pos + Vector3(0, 0.3, 0), color, 28, radius * 1.4, 0.6)
 
 
@@ -371,15 +421,16 @@ static func ground_circle(parent: Node3D, pos: Vector3, color: Color, radius: fl
 	var inner_mat := _glow(color, 0.6, false)
 	var inner := _instance(parent, MeshKit.torus(), inner_mat, pos + Vector3(0, 0.07, 0))
 	inner.scale = Vector3(radius * 0.6, radius * 0.12, radius * 0.6)
-	var fill_mat := _glow(color, 0.08, false)
-	var fill := _instance(parent, _disc_mesh(), fill_mat, pos + Vector3(0, 0.04, 0))
-	fill.scale = Vector3(radius, 1, radius)
+	# A swirling energy ring fills the area while the spell gathers.
+	var fill_mat := energy(color, 0, {"ring_radius": 0.86, "ring_width": 0.1, "flow": 1.2, "swirl": 1.0, "fill": 0.22, "noise_scale": 6.0})
+	var fill := _instance(parent, ground_quad(), fill_mat, pos + Vector3(0, 0.04, 0))
+	fill.scale = Vector3(radius * 1.05, 1, radius * 1.05)
 	var tween := outer.create_tween().set_parallel(true)
 	tween.tween_property(outer, "rotation:y", TAU, duration)
 	tween.tween_property(inner, "rotation:y", -TAU, duration)
 	tween.tween_property(outer_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
 	tween.tween_property(inner_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
-	tween.tween_property(fill_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
+	tween.tween_method(func(v: float): fill_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
 	tween.chain().tween_callback(func():
 		outer.queue_free()
 		inner.queue_free()
