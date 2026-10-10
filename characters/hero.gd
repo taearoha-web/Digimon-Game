@@ -14,6 +14,8 @@ const TARGET_RANGE := 16.0
 const POTION_COOLDOWN := 1.2
 ## How high flying wings lift the hero.
 const FLY_HEIGHT := 0.9
+## Forward lean (radians) while flying on the move.
+const FLY_LEAN := 0.38
 
 var visual: HeroVisual
 var _equip_sig := ""
@@ -445,6 +447,10 @@ func _hover(delta: float, moving: bool) -> void:
 	if flying:
 		lift = FLY_HEIGHT + sin(Time.get_ticks_msec() * 0.0025) * 0.1
 	visual.position.y = lerpf(visual.position.y, lift, 1.0 - exp(-4.0 * delta))
+	# Flying forward leans the whole body into the flight.
+	if visual.model != null:
+		var lean := FLY_LEAN if flying and moving else 0.0
+		visual.model.rotation.x = lerpf(visual.model.rotation.x, lean, 1.0 - exp(-5.0 * delta))
 
 
 ## Wing pose from the HUD buttons (saved with the profile).
