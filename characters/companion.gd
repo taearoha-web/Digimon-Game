@@ -62,7 +62,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(StringName(member["class"]), "", true, Game.party_equip(member))
+	visual.setup(StringName(member["class"]), "", true, Game.party_equip(member), {"gender": Game.party_gender(member)})
 	_equip_sig = _signature()
 	MeshKit.blob_shadow(self, 0.8)
 	_label = Label3D.new()

@@ -63,7 +63,7 @@ func _ready() -> void:
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage_col.add_child(_stage)
 	_pivot = _stage._pivot
-	stage_col.add_child(UIUtil.label("ลากเพื่อหมุน · แต่งได้ในแบบของคุณ", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	stage_col.add_child(UIUtil.label("ลากเพื่อหมุน · เลือกเด็กชายหรือเด็กหญิง", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
 
 	var backing := UIUtil.panel(&"GlassPanel")
 	backing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -89,6 +89,8 @@ func _ready() -> void:
 		look = FaceKit.random_look(_rng)
 		_refresh())
 	gender_row.add_child(random_button)
+	# The heroes are finished chibi models now: face and hair come with the model.
+	random_button.visible = false
 
 	_grid = GridContainer.new()
 	_grid.columns = 2
@@ -97,7 +99,8 @@ func _ready() -> void:
 	right.add_child(_grid)
 	for row in ROWS:
 		_grid.add_child(_option_row(String(row[0]), String(row[1])))
-	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช เมื่อเลเวล 10", &"SmallLabel")
+	_grid.visible = false
+	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก เมื่อเลเวล 10", &"SmallLabel")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(note)
 	right.add_child(UIUtil.label("ชื่อฮีโร่", &"BoldLabel"))
