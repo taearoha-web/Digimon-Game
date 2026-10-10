@@ -12,6 +12,8 @@ signal auto_changed(on: bool)
 
 const TARGET_RANGE := 16.0
 const POTION_COOLDOWN := 1.2
+## How high flying wings lift the hero.
+const FLY_HEIGHT := 0.9
 
 var visual: HeroVisual
 var _equip_sig := ""
@@ -67,6 +69,7 @@ func _ready() -> void:
 	shape.position = Vector3(0, 0.85, 0)
 	add_child(shape)
 	visual = HeroVisual.new()
+	visual.wing_mode = clampi(int(Game.profile.flags.get("wing_mode", 0)), HeroVisual.WING_STAND, HeroVisual.WING_FOLD)
 	add_child(visual)
 	visual.setup(Game.class_id(), "", true, Game.profile.equip, _look())
 	_equip_sig = _equipment_signature()
@@ -394,6 +397,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 		velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
 		move_and_slide()
+		visual.position.y = lerpf(visual.position.y, 0.0, 1.0 - exp(-6.0 * delta))
 		return
 	_tick_timers(delta)
 	var now := Time.get_ticks_msec()
@@ -429,6 +433,25 @@ func _physics_process(delta: float) -> void:
 			AudioManager.play_sfx(&"step", -17.0, 0.12)
 	else:
 		visual.play("Idle")
+	_hover(delta, speed > 0.6)
+
+
+## Flying wings lift the hero off the ground (the shadow stays below) with a
+## gentle bob; standing or folded wings bring it back down.
+func _hover(delta: float, moving: bool) -> void:
+	var flying := visual.has_wings() and visual.wing_mode == HeroVisual.WING_FLY
+	visual.set_wing_moving(moving)
+	var lift := 0.0
+	if flying:
+		lift = FLY_HEIGHT + sin(Time.get_ticks_msec() * 0.0025) * 0.1
+	visual.position.y = lerpf(visual.position.y, lift, 1.0 - exp(-4.0 * delta))
+
+
+## Wing pose from the HUD buttons (saved with the profile).
+func set_wing_mode(mode: int) -> void:
+	Game.profile.flags["wing_mode"] = mode
+	Game.mark_dirty()
+	visual.set_wing_mode(mode)
 
 
 func _tick_timers(delta: float) -> void:

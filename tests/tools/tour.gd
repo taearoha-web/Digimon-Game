@@ -257,6 +257,20 @@ func _wings_check() -> void:
 			cam.make_current()
 			await _wait(0.4)
 			await _shot("wings_%s_%s" % [kind, view])
+	# Wing poses from the HUD buttons, seen from the game camera and the side.
+	for mode in [HeroVisual.WING_FLY, HeroVisual.WING_FOLD]:
+		hero.set_wing_mode(mode)
+		await _wait(1.6)
+		var side := hero.global_position + Vector3(0, 1.1, 0)
+		cam.global_position = side + Vector3(sin(hero.visual.rotation.y), 0, cos(hero.visual.rotation.y)).cross(Vector3.UP) * 5.0 + Vector3(0, 0.6, 0)
+		cam.look_at(side, Vector3.UP)
+		cam.make_current()
+		await _wait(0.3)
+		await _shot("wing_mode_%d_side" % mode)
+		main.zone.camera_rig.camera.make_current()
+		await _wait(0.3)
+		await _shot("wing_mode_%d_hud" % mode)
+	hero.set_wing_mode(HeroVisual.WING_STAND)
 
 
 func _enhance_check() -> void:

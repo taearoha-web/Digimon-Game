@@ -37,6 +37,10 @@ const CHIBI_BONES := {"chest": "Chest", "head": "Head", "wrist.l": "LeftHand", "
 	"lowerleg.l": "LeftLowerLeg", "lowerleg.r": "RightLowerLeg"}
 
 ## A spear is carried slanted forward, point up (pitch, yaw, roll in degrees).
+## Wing poses: open and idling, flying (flap in place, glide when moving), folded.
+const WING_STAND := 0
+const WING_FLY := 1
+const WING_FOLD := 2
 static var spear_tilt := Vector3(-48.0, 22.0, 0.0)
 ## A lantern staff is held upright so the lantern hangs from its crook.
 static var lantern_tilt := Vector3(0.0, 0.0, -75.0)
@@ -60,6 +64,9 @@ var _tween: Tween
 var _face: FaceExpression
 ## True for the rigged chibi models; gear built for KayKit units is scaled by _gear_scale.
 var chibi := false
+## Wing pose picked on the HUD (see WING_*); kept across gear changes.
+var wing_mode := WING_STAND
+var _wing_moving := false
 var _gear_scale := 1.0
 
 
@@ -199,6 +206,7 @@ func _refresh_chibi() -> void:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
 		back.add_child(GearKit.wings(_wing_kind(wings)))
 		EnhanceFx.glow_piece(self, [back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_pose_wings.call_deferred(wing_mode, true)
 	_make_aura()
 	_hold_gear()
 	_polish()
@@ -206,6 +214,53 @@ func _refresh_chibi() -> void:
 
 ## A node on a chibi bone whose axes are the model's (x side, y up, z front) and
 ## whose units are the chibi skeleton's.
+## True while a pair of wings is worn.
+func has_wings() -> bool:
+	return equip.get("wings") is Dictionary
+
+
+## Switches the wing pose: folding plays the fold once and holds it; opening
+## from folded plays the unfold first.
+func set_wing_mode(mode: int, instant := false) -> void:
+	var was := wing_mode
+	wing_mode = clampi(mode, WING_STAND, WING_FOLD)
+	_pose_wings(was, instant)
+
+
+## Flying wings glide while the hero moves and flap while hovering in place.
+func set_wing_moving(moving: bool) -> void:
+	if moving == _wing_moving:
+		return
+	_wing_moving = moving
+	if wing_mode == WING_FLY:
+		_pose_wings(WING_FLY, false)
+
+
+func _wing_player() -> AnimationPlayer:
+	var wings := find_child("Wings_*", true, false)
+	return wings.find_child("AnimationPlayer", true, false) as AnimationPlayer if wings != null else null
+
+
+func _pose_wings(was: int, instant: bool) -> void:
+	var player := _wing_player()
+	if player == null:
+		return
+	if wing_mode == WING_FOLD:
+		if player.has_animation("Fold"):
+			player.play("Fold", 0.0 if instant else 0.2)
+			if instant:
+				player.seek(player.get_animation("Fold").length, true)
+		return
+	var clip := "Idle" if wing_mode == WING_STAND else ("Glide" if _wing_moving else "Flap")
+	if not player.has_animation(clip):
+		return
+	if was == WING_FOLD and not instant and player.has_animation("Unfold"):
+		player.play("Unfold", 0.1)
+		player.queue(clip)
+	elif player.current_animation != clip:
+		player.play(clip, 0.0 if instant else 0.3)
+
+
 ## Which class model a pair of wings shows (old items fall back to this hero's class).
 func _wing_kind(item: Dictionary) -> String:
 	var kind := String(item.get("wing", ""))
@@ -340,6 +395,7 @@ func refresh() -> void:
 		back.add_child(w)
 		_body_nodes.append(back)
 		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_pose_wings.call_deferred(wing_mode, true)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)
