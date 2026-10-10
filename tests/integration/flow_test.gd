@@ -44,6 +44,7 @@ func _run() -> void:
 	if "balance" in OS.get_cmdline_user_args():
 		_balance_rules()
 		await _hit_feel()
+		_weapon_models()
 		return
 	if "chibi" in OS.get_cmdline_user_args():
 		await _chibi_armor()
@@ -108,6 +109,7 @@ func _run() -> void:
 	await _shared_potions()
 	_balance_rules()
 	await _hit_feel()
+	_weapon_models()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -1649,10 +1651,10 @@ func _lancer_class() -> void:
 	Game.profile["attrs"]["str"] = int(Game.profile["attrs"].get("str", 0)) + 10
 	var with_str: float = Game.stats_now().atk
 	check(with_str > with_dex and with_str - with_dex < with_dex - before, "+10 STR raises attack, but less than DEX (+%.1f)" % (with_str - with_dex))
-	# Every spear design builds, and weapons for the class are spears.
-	for i in WeaponKit.DESIGNS:
+	# Every spear tier builds, and weapons for the class are spears.
+	for i in WeaponKit.designs("spear"):
 		var node := WeaponKit.build("spear_%d" % i)
-		check(node.get_child_count() >= 4, "spear_%d has parts" % i) if i in [0, 12, 19] else null
+		check(not node.find_children("*", "MeshInstance3D", true, false).is_empty(), "spear_%d has a model" % i) if i in [0, 4, 9] else null
 		node.free()
 	var weapon := ItemData.generate(40, &"lancer", RandomNumberGenerator.new(), 1, "weapon")
 	check(weapon.base == "spear" and ItemLook.look_of(weapon).begins_with("spear_"), "lancer weapons are spears (%s)" % weapon.name)
@@ -1675,6 +1677,7 @@ func _lancer_class() -> void:
 		m.max_hp = 100000
 		m.hp = 100000
 		zone.add_child(m)
+		m.apply_stun(10.0)  # stay in line: no chasing before the thrust
 		lined.append(m)
 	var off_line := Mob.new()
 	off_line.setup(&"green_slime", 4, hero.global_position + Vector3(4.0, 0, 6.0), hero)
@@ -1682,6 +1685,7 @@ func _lancer_class() -> void:
 	off_line.max_hp = 100000
 	off_line.hp = 100000
 	zone.add_child(off_line)
+	off_line.apply_stun(10.0)
 	await _wait(0.3)
 	var slot: int = Game.profile["loadout"].find("thrust")
 	check(slot >= 0, "Thrust is on the bar")
@@ -1789,3 +1793,19 @@ func _hit_feel() -> void:
 	check(is_equal_approx(Engine.time_scale, 1.0), "time runs normally again right after")
 	var mat := VfxKit.energy(Color("ff9a4a"), 0)
 	check(mat.shader != null and mat.get_shader_parameter("mode") == 0, "energy effects use the flowing shader")
+
+
+func _weapon_models() -> void:
+	print("== Modelled weapons")
+	for kind in ["sword", "bow", "staff", "wand", "spear", "shield"]:
+		check(WeaponKit.has_model(kind) and WeaponKit.designs(kind) == 10, "%s has 10 modelled tiers" % kind)
+		for tier in [0, 9]:
+			var look := WeaponKit.look_for(kind, tier, 1)
+			var node := WeaponKit.shield(look) if kind == "shield" else WeaponKit.build(look)
+			check(not node.find_children("*", "MeshInstance3D", true, false).is_empty(), "%s builds" % look)
+			node.free()
+	var starter := ItemData.generate(1, &"warrior", RandomNumberGenerator.new(), 0, "weapon")
+	check(ItemLook.look_of(starter) == "sword_0" and String(starter.name).begins_with("ดาบอัศวิน"), "the Lv.1 sword is the Knight Sword (%s)" % starter.name)
+	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")
+	check(ItemLook.look_of(top) == "bow_9" and ItemLook.icon(top) != null, "Lv.91-100 bows are the God Bow with an icon")
+	check(WeaponKit.look_for("sword", 9, 1) == "sword_9" and WeaponKit.look_for("sword", 15, 0) == "sword_9", "star gear above Lv.100 keeps the top model")

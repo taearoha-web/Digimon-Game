@@ -189,7 +189,7 @@ static func build_icon_node(id: String) -> Node3D:
 			w.rotation_degrees = Vector3(90, 0, 0)
 		else:
 			holder.rotation_degrees = Vector3(0, 0, -38)
-		if kind == "staff" or kind == "spear":
+		if (kind == "staff" or kind == "spear") and not WeaponKit.has_model(kind):
 			holder.set_meta("frame", Vector3(0.5, 0.65, 1.9))
 		return holder
 	if id.begins_with("armor_"):

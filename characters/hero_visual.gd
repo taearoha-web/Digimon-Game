@@ -576,7 +576,7 @@ func _hold_gear() -> void:
 	_hold(weapon_look, "handslot.r", int(equip.get("weapon", {}).get("plus", 0)))
 	match class_id:
 		&"warrior":
-			_hold("shield_0", "handslot.l")
+			_hold("shield_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
 		&"priest":
 			_hold("book", "handslot.l")
 
