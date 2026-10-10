@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "chibi" in OS.get_cmdline_user_args():
+		await _chibi_armor()
+		return
 	if "joystick" in OS.get_cmdline_user_args():
 		await _joystick()
 		return
@@ -1732,3 +1735,27 @@ func _joystick() -> void:
 	main.hud.set_controls_visible(false)
 	check(hero.move_input == Vector2.ZERO and not stick.is_active, "hiding the controls stops the hero")
 	main.hud.set_controls_visible(true)
+
+
+func _chibi_armor() -> void:
+	print("== Chibi heroes wear armour")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var hv := HeroVisual.new()
+	add_child(hv)
+	hv.setup(&"warrior", "", true, {}, {"gender": 1})
+	check(hv.chibi and hv.find_child("ChibiPauldron", true, false) == null, "no armour: no armour pieces")
+	var equip := {}
+	for slot in ["weapon", "armor", "helm", "boots", "amulet"]:
+		equip[slot] = ItemData.generate(65, &"warrior", rng, 2, slot)
+	hv.set_equipment(equip)
+	var body: MeshInstance3D = null
+	for node in hv.model.find_children("*", "MeshInstance3D", true, false):
+		if (node as MeshInstance3D).skin != null:
+			body = node
+	var mat := body.material_override as ShaderMaterial if body else null
+	check(mat != null and float(mat.get_shader_parameter("outfit_amount")) > 0.5, "the outfit is recoloured for the armour tier")
+	for piece in ["ChibiPauldron", "ChibiChest", "ChibiHelm", "ChibiBoots", "ChibiAmulet"]:
+		check(hv.find_child(piece, true, false) != null, "%s is worn" % piece)
+	check(hv.find_child("Held_" + ItemLook.look_of(equip.weapon), true, false) != null, "the weapon is still held")
+	hv.queue_free()

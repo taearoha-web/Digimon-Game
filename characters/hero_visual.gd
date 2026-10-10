@@ -156,8 +156,34 @@ func _bone(kaykit_name: String) -> String:
 	return String(CHIBI_BONES.get(kaykit_name, kaykit_name)) if chibi else kaykit_name
 
 
-## The chibi wears its own outfit, face and hair: only held gear, wings and auras.
+const CHIBI_OUTFIT := preload("res://shaders/chibi_outfit.gdshader")
+
+
+## The chibi keeps its face and hair. Armour recolours its outfit and adds
+## pieces (pauldrons, emblem, belt, cape), helms become headbands / circlets /
+## crowns over the hair, boots get cuffs, an amulet a pendant.
 func _refresh_chibi() -> void:
+	var armor: Variant = equip.get("armor")
+	var helm: Variant = equip.get("helm")
+	var boots: Variant = equip.get("boots")
+	_dress_chibi(armor)
+	var armor_nodes: Array = []
+	if armor != null:
+		armor_nodes = _chibi_armor(ItemLook.tier_of(armor))
+	if helm != null:
+		var crown := _chibi_attach("Head", "ChibiHelm")
+		ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
+		EnhanceFx.glow_piece(self, [crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
+	var boot_nodes: Array = []
+	if boots != null:
+		for side in ["Left", "Right"]:
+			var cuff := _chibi_attach(side + "LowerLeg", "ChibiBoots")
+			ChibiGear.boot_cuff(cuff, ItemLook.tier_of(boots))
+			boot_nodes.append(cuff.get_parent())
+	if equip.get("amulet") != null:
+		ChibiGear.pendant(_chibi_attach("Chest", "ChibiAmulet"), ItemLook.tier_of(equip.amulet))
+	EnhanceFx.glow_piece(self, armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.1, 0), 0.4)
+	EnhanceFx.glow_piece(self, boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
 	var wings: Variant = equip.get("wings")
 	if wings is Dictionary:
 		var back := BoneAttachment3D.new()
@@ -172,6 +198,63 @@ func _refresh_chibi() -> void:
 	_make_aura()
 	_hold_gear()
 	_polish()
+
+
+## A node on a chibi bone whose axes are the model's (x side, y up, z front) and
+## whose units are the chibi skeleton's.
+func _chibi_attach(bone: String, node_name: String) -> Node3D:
+	var attach := BoneAttachment3D.new()
+	attach.name = node_name
+	attach.bone_name = bone
+	_skeleton.add_child(attach)
+	_body_nodes.append(attach)
+	var frame := Node3D.new()
+	var idx := _skeleton.find_bone(bone)
+	if idx >= 0:
+		frame.basis = _skeleton.get_bone_global_rest(idx).basis.orthonormalized().inverse()
+	attach.add_child(frame)
+	return frame
+
+
+func _chibi_armor(tier: int) -> Array:
+	var nodes: Array = []
+	for side in [1.0, -1.0]:
+		var shoulder := _chibi_attach(("Left" if side > 0.0 else "Right") + "UpperArm", "ChibiPauldron")
+		ChibiGear.pauldron(shoulder, tier, side)
+		nodes.append(shoulder.get_parent())
+	var chest := _chibi_attach("Chest", "ChibiChest")
+	ChibiGear.chest(chest, tier)
+	nodes.append(chest.get_parent())
+	if tier >= 4:
+		var waist := _chibi_attach("Hips", "ChibiBelt")
+		ChibiGear.belt(waist, tier)
+		nodes.append(waist.get_parent())
+	return nodes
+
+
+## Recolours the outfit for the armour tier (no armour: the model's own colours).
+func _dress_chibi(armor: Variant) -> void:
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.skin == null or mi.mesh == null:
+			continue
+		var source := mi.mesh.surface_get_material(0) as StandardMaterial3D
+		if source == null:
+			continue
+		var mat := ShaderMaterial.new()
+		mat.shader = CHIBI_OUTFIT
+		mat.set_shader_parameter("albedo_tex", source.albedo_texture)
+		if armor != null:
+			var tier := ItemLook.tier_of(armor)
+			mat.set_shader_parameter("outfit_color", ChibiGear.cloth(tier))
+			mat.set_shader_parameter("outfit_amount", 0.5 + 0.04 * float(tier))
+			mat.set_shader_parameter("sheen", 0.0 if tier < 2 else 0.2 + 0.08 * float(tier))
+			if tier >= 7:
+				mat.set_shader_parameter("glow_color", ChibiGear.cloth(tier) * 0.35)
+		if GameSettings.quality > 0:
+			mat.next_pass = StorybookFinish.outline(0.012 * _gear_scale)
+		mi.material_override = mat
+		mi.set_meta("polished", true)
 
 
 ## Rebuilds everything the hero wears from [member equip] (slot -> item).

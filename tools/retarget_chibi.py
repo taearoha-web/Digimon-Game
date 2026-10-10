@@ -38,6 +38,20 @@ while body.modifiers.find('dec') > 0:
 bpy.ops.object.modifier_apply(modifier='dec')
 print('tris', len(body.data.polygons))
 
+# Vertex colour R = how much of the vertex may be recoloured as outfit: head,
+# hair, face and hands stay 0 (the shader also leaves skin-coloured texels alone).
+KEEP_SKIN = ('Head', 'Neck', 'Jaw', 'LeftHand', 'RightHand')
+KEEP_PREFIX = ('Hair', 'Eye', 'Brow', 'Mouth', 'LeftThumb', 'LeftIndex', 'LeftMiddle', 'LeftRing', 'LeftLittle',
+    'RightThumb', 'RightIndex', 'RightMiddle', 'RightRing', 'RightLittle')
+names = {g.index: g.name for g in body.vertex_groups}
+attr = body.data.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
+for v in body.data.vertices:
+    keep = sum(g.weight for g in v.groups if names[g.group] in KEEP_SKIN or names[g.group].startswith(KEEP_PREFIX))
+    total = sum(g.weight for g in v.groups) or 1.0
+    r = max(0.0, min(1.0, 1.0 - keep / total))
+    attr.data[v.index].color = (r, r, r, 1.0)
+body.data.color_attributes.active_color = attr
+
 # --- one 1024 colour texture, no normal / metal-rough maps ---------------
 mat = body.data.materials[0]
 nt = mat.node_tree
@@ -228,5 +242,5 @@ for o in bpy.context.scene.objects:
 bpy.ops.export_scene.gltf(filepath=DST, export_format='GLB', use_selection=True,
     export_animations=True, export_animation_mode='NLA_TRACKS', export_force_sampling=True,
     export_optimize_animation_size=False, export_image_format='JPEG', export_jpeg_quality=82,
-    export_morph=False, export_skins=True, export_all_influences=False, export_def_bones=False)
+    export_morph=False, export_vertex_color='ACTIVE', export_skins=True, export_all_influences=False, export_def_bones=False)
 print('exported', DST)
