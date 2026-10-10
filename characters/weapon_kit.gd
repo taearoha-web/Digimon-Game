@@ -6,8 +6,9 @@ extends RefCounted
 ## the same convention as the KayKit weapon models. A few code-built props stay
 ## (the priest's book) together with the mesh helpers other kits share.
 
-## Mage and summoner carry the staff, the priest a short wand (with a matching book).
-const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "spear"]
+## The mage carries the staff, the priest a short wand (with a matching book) and
+## the summoner a lantern staff (with the grimoire of the same tier, see TOME).
+const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear"]
 
 const GOLD := Color("ffc93c")
 
@@ -20,6 +21,9 @@ const MODELS := {
 	"sword": {"file": "sword", "scale": 1.45, "offset": Vector3(0, -0.22, 0)},
 	"staff": {"file": "staff", "scale": 2.0, "offset": Vector3(0, 0.1, 0)},
 	"wand": {"file": "wand", "scale": 1.7, "offset": Vector3(0, 0.05, 0)},
+	"lantern": {"file": "lantern", "scale": 1.9, "offset": Vector3(0, 0.1, 0)},
+	# The summoner's grimoire: not an item, it follows the lantern's tier.
+	"tome": {"file": "tome", "scale": 2.1, "offset": Vector3.ZERO},
 	"bow": {"file": "bow", "scale": 2.2, "offset": Vector3(0, -0.25, 0), "basis": [Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0)]},
 	"shield": {"file": "shield", "scale": 1.0, "offset": Vector3.ZERO},
 	"spear": {"file": "spear", "scale": 1.3, "offset": Vector3.ZERO},

@@ -38,6 +38,8 @@ const CHIBI_BONES := {"chest": "Chest", "head": "Head", "wrist.l": "LeftHand", "
 
 ## A spear is carried slanted forward, point up (pitch, yaw, roll in degrees).
 static var spear_tilt := Vector3(-48.0, 22.0, 0.0)
+## A lantern staff is held upright so the lantern hangs from its crook.
+static var lantern_tilt := Vector3(0.0, 0.0, -75.0)
 static var _shared_library: AnimationLibrary
 
 var class_id: StringName = &"warrior"
@@ -589,6 +591,8 @@ func _hold_gear() -> void:
 			_hold("shield_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
 		&"priest":
 			_hold("book_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
+		&"summoner":
+			_hold("tome_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
 
 
 func _hold(look: String, bone: String, plus := 0) -> void:
@@ -607,6 +611,8 @@ func _hold(look: String, bone: String, plus := 0) -> void:
 	pivot.rotation = Vector3(0, PI, 0)
 	if look.begins_with("spear"):
 		pivot.rotation_degrees = Vector3(0, 180.0, 0) + spear_tilt
+	elif look.begins_with("lantern"):
+		pivot.rotation_degrees = Vector3(0, 180.0, 0) + lantern_tilt
 	if chibi:
 		pivot.basis = _slot_fix(bone) * pivot.basis
 	pivot.scale = Vector3.ONE * _gear_scale
