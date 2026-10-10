@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "balance" in OS.get_cmdline_user_args():
+		_balance_rules()
+		return
 	if "chibi" in OS.get_cmdline_user_args():
 		await _chibi_armor()
 		return
@@ -102,6 +105,7 @@ func _run() -> void:
 	_buff_durations()
 	await _team_buffs()
 	await _shared_potions()
+	_balance_rules()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -1759,3 +1763,14 @@ func _chibi_armor() -> void:
 		check(hv.find_child(piece, true, false) != null, "%s is worn" % piece)
 	check(hv.find_child("Held_" + ItemLook.look_of(equip.weapon), true, false) != null, "the weapon is still held")
 	hv.queue_free()
+
+
+func _balance_rules() -> void:
+	print("== Damage balance rules")
+	check(absf(BuffBook.stack([0.3, 0.55, 0.4, 0.8]) - 1.1125) < 0.001, "attack buffs stack with diminishing returns (x2.11, not x3.05)")
+	check(BuffBook.stack([]) == 0.0 and BuffBook.stack([0.4]) == 0.4, "one buff counts in full")
+	check(is_equal_approx(ClassData.damage_curve(20), 1.0) and is_equal_approx(ClassData.damage_curve(100), 0.65), "skill damage fades from 100% (Lv.20) to 65% (Lv.100)")
+	var gladiator := ClassData.find_skill(&"warrior", "gladiator")
+	check(absf(float(gladiator.mult) - 26.0 * 0.65) < 0.01, "Lv.100 skills carry the curve (Gladiator x%.1f)" % float(gladiator.mult))
+	check(HeroStats.MAX_CRIT == 0.5 and HeroStats.PLUS_BONUS == 0.05, "crit stops at 50%, +10 gear gives +50%")
+	check(Summon.HIT_SHARE < 0.2, "a summon's single hit is a small share of its skill")

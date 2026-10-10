@@ -186,7 +186,7 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 			stats["hp"] = int(round(level * 2.0 * rarity_mult(rarity, 0.2)))
 		"ring":
 			stats["atk"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
-			stats["crit"] = snappedf(0.01 + level * 0.0007 * (1.0 + rarity * 0.3), 0.001)
+			stats["crit"] = snappedf(0.01 + level * 0.0004 * (1.0 + rarity * 0.3), 0.001)
 		"amulet":
 			stats["mp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
 			stats["hp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
@@ -196,7 +196,7 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 		match key:
 			"hp": stats[key] = int(stats.get(key, 0)) + int(level * 4.0 + 6)
 			"mp": stats[key] = int(stats.get(key, 0)) + int(level * 2.0 + 4)
-			"crit": stats[key] = snappedf(float(stats.get(key, 0.0)) + 0.01 + level * 0.0004, 0.001)
+			"crit": stats[key] = snappedf(float(stats.get(key, 0.0)) + 0.006 + level * 0.0002, 0.001)
 			"atk": stats[key] = int(stats.get(key, 0)) + int(power * 0.12 + 1)
 			"def": stats[key] = int(stats.get(key, 0)) + int(power * 0.1 + 1)
 	var names: Array = NAMES[base]
@@ -304,7 +304,7 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	var plus := int(item.get("plus", 0))
 	if plus > 0:
 		var look_name: String = EnhanceFx.NAMES[EnhanceFx.grade(plus)]
-		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · เอฟเฟกต์: %s" % [plus, plus * 8, look_name])
+		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · เอฟเฟกต์: %s" % [plus, int(round(plus * HeroStats.PLUS_BONUS * 100.0)), look_name])
 	var sockets := int(item.get("sockets", 0))
 	var gems: Array = item.get("gems", [])
 	for i in sockets:

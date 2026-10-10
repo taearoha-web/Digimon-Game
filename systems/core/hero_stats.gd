@@ -3,6 +3,10 @@ extends RefCounted
 ## Derived stats from a profile (level, attributes, equipment) and its buffs.
 
 const MOVE_SPEED := 5.4
+## Each +1 of enhancement adds this share of the item's stats (+50% at +10).
+const PLUS_BONUS := 0.05
+## Crit chance stops here (gear crit used to reach 80% at the end of the game).
+const MAX_CRIT := 0.5
 const CRIT_DAMAGE := 1.6
 ## DEX makes skills and attacks quicker: 1% per 10 DEX, at most 40%.
 const HASTE_PER_DEX := 0.001
@@ -29,7 +33,7 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 	var sets := {}
 	for slot in profile["equip"]:
 		var item: Dictionary = profile["equip"][slot]
-		var boost := 1.0 + 0.08 * float(item.get("plus", 0))
+		var boost := 1.0 + PLUS_BONUS * float(item.get("plus", 0))
 		for key in item.get("stats", {}):
 			total[key] = total.get(key, 0.0) + float(item.stats[key]) * (boost if key != "crit" else 1.0 + 0.04 * float(item.get("plus", 0)))
 		for gem_id in item.get("gems", []):
@@ -92,7 +96,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var para: Dictionary = (profile.get("paragon", {}) as Dictionary).get("alloc", {}) if profile.get("paragon") is Dictionary else {}
 	var main_stat: int = attrs[data.main]
 	var sub_stat: float = float(attrs[data.sub]) * 0.5 if data.has("sub") else 0.0
-	var atk := (float(main_stat) * 1.0 + sub_stat + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.005 * float(para.get("atk", 0)))
+	var atk := (float(main_stat) * 1.0 + sub_stat + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.003 * float(para.get("atk", 0)))
 	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0)))
 	return {
 		"attrs": attrs,
@@ -100,7 +104,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp))) + int(gear.mp),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, 0.8),
+		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge), 0.0, 0.35),
 		"haste": clampf(float(attrs.dex) * HASTE_PER_DEX + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),

@@ -22,11 +22,22 @@ func add(data: Dictionary, color: Color, label := "") -> void:
 ## Sum of one effect ("atk", "def", "speed", "crit") over the buffs still running.
 func total(key: String) -> float:
 	var now := Time.get_ticks_msec()
-	var sum := 0.0
+	var values: Array = []
 	for buff in buffs:
 		if int(buff.until) > now:
-			sum += float(buff.get(key, 0.0))
-	return sum
+			values.append(float(buff.get(key, 0.0)))
+	return stack(values)
+
+
+## Buffs of one stat don't simply add up: the strongest counts in full, every
+## other one adds a quarter of its value (four attack buffs: x2.1, not x3.3).
+static func stack(values: Array) -> float:
+	var best := 0.0
+	var sum := 0.0
+	for v in values:
+		best = maxf(best, float(v))
+		sum += maxf(float(v), 0.0)
+	return best + 0.25 * (sum - best)
 
 
 ## Drops expired buffs and keeps the auras in step. [param top] returns the
