@@ -9,6 +9,8 @@ const TIERS_METAL := [Color("b06a3a"), Color("c0c8d4"), Color("ffc93c"), Color("
 const GEMS := [Color("e8e0d0"), Color("5ab8ff"), Color("ff4a5a"), Color("6fe07a"), Color("ffd23c"), Color("c46bff"), Color("7ad8ff"), Color("ff6ad0"), Color("ff5a2a"), Color("fff6a0")]
 const LEATHER := [Color("9a6b42"), Color("7a5a3a"), Color("8a95a8"), Color("3e7a5a"), Color("c0392b"), Color("6a4ab0"), Color("3a3f7a"), Color("e8e0c8"), Color("7a2a1a"), Color("fff0b8")]
 const MAX_TIER := 9
+## The class wing models (assets/models/wings/wings_<class>.glb).
+const WING_MODEL := "res://assets/models/wings/wings_%s.glb"
 
 
 static func _p(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3, size: Vector3, rot := Vector3.ZERO, glow := 0.0) -> MeshInstance3D:
@@ -123,48 +125,20 @@ static func armor_flourish(tier: int) -> Node3D:
 	return root
 
 
-## A pair of wings in chest-bone space (the back is -z). kind: atk | def | hp | matk.
-## Each wing is a fan of feathers that gently flaps.
-static func wings(kind: String, plus := 0) -> Node3D:
-	var root := Node3D.new()
+## A class pair of wings (modelled in the chibi hero's model space: about one
+## unit tall, behind the back) idling on a loop. kind: a class id.
+static func wings(kind: String) -> Node3D:
+	if not ItemData.WING_INFO.has(kind):
+		kind = "warrior"
+	var root := (load(WING_MODEL % kind) as PackedScene).instantiate() as Node3D
 	root.name = "Wings_" + kind
-	var spec := {
-		"atk": {"n": 5, "len": 2.2, "w": 0.34, "step": 15.0, "a": Color("c8283a"), "b": Color("5a1020"), "glow": 0.35, "leaf": false},
-		"def": {"n": 6, "len": 1.8, "w": 0.46, "step": 13.0, "a": Color("e8c25a"), "b": Color("c8d0e0"), "glow": 0.12, "leaf": true},
-		"hp": {"n": 6, "len": 1.9, "w": 0.42, "step": 13.0, "a": Color("58d888"), "b": Color("d8f8d0"), "glow": 0.25, "leaf": true},
-		"matk": {"n": 5, "len": 2.0, "w": 0.4, "step": 14.0, "a": Color("8a5bff"), "b": Color("4fb8ff"), "glow": 0.5, "leaf": true},
-	}
-	var sp: Dictionary = spec.get(kind, spec["atk"])
-	var flapper := Node3D.new()
-	flapper.position = Vector3(0, 0.0, -0.5)
-	root.add_child(flapper)
-	for side in [-1.0, 1.0]:
-		var wing := Node3D.new()
-		wing.position = Vector3(side * 0.16, 0.0, 0.0)
-		flapper.add_child(wing)
-		var n: int = sp.n
-		# Feathers fan out from the shoulder; the longest ones sit lowest and outermost.
-		for k in n:
-			var angle: float = 8.0 + float(k) * float(sp.step)
-			var length: float = float(sp.len) * (0.55 + 0.45 * float(k) / float(n - 1))
-			var arm := Node3D.new()
-			arm.rotation_degrees = Vector3(-14.0, 0.0, -side * angle)
-			wing.add_child(arm)
-			var color: Color = sp.a if k % 2 == 0 else sp.b
-			if bool(sp.leaf):
-				# A rounded feather: an elongated ellipsoid.
-				_p(arm, MeshKit.sphere(), color, Vector3(0, length * 0.5, -0.02 * k), Vector3(float(sp.w), length, 0.06), Vector3.ZERO, float(sp.glow))
-			else:
-				_p(arm, MeshKit.prism(), color, Vector3(0, length * 0.5, -0.02 * k), Vector3(float(sp.w), length, 0.05), Vector3.ZERO, float(sp.glow))
-				_p(arm, MeshKit.cone(), Color("ffd0c0"), Vector3(0, length + 0.05, 0), Vector3(0.09, 0.24, 0.09), Vector3.ZERO, 0.6)
-		# Shoulder joint and a covert of small feathers near the body.
-		_p(wing, MeshKit.sphere_low(), sp.b.darkened(0.2), Vector3(side * 0.04, 0.05, 0.0), Vector3(0.3, 0.3, 0.22), Vector3.ZERO, 0.1)
-		var flap := wing.create_tween().set_loops()
-		flap.tween_property(wing, "rotation_degrees:y", side * 14.0, 0.85).set_trans(Tween.TRANS_SINE)
-		flap.tween_property(wing, "rotation_degrees:y", side * -4.0, 0.85).set_trans(Tween.TRANS_SINE)
-	var bob := flapper.create_tween().set_loops()
-	bob.tween_property(flapper, "position:y", 0.06, 1.2).set_trans(Tween.TRANS_SINE)
-	bob.tween_property(flapper, "position:y", -0.04, 1.2).set_trans(Tween.TRANS_SINE)
+	# Thin membranes and feathers: an outline shell would draw dark stripes across them.
+	for mi in root.find_children("*", "MeshInstance3D", true, false):
+		mi.set_meta("no_outline", true)
+	var player := root.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if player != null and player.has_animation("Idle"):
+		player.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
+		player.play("Idle")
 	return root
 
 

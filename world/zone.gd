@@ -721,7 +721,7 @@ func _drop_loot(mob: Mob) -> void:
 				rarity = maxi(rarity, best)
 			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity), 0, from)
 		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)):
-			_spawn_loot(ItemData.wings(rng), 0, from)
+			_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
 		if int(loot.get("boss_shards", 0)) > 0:
 			var n := rng.randi_range(int(loot.boss_shards) / 2, int(loot.boss_shards))
@@ -747,7 +747,7 @@ func _drop_loot(mob: Mob) -> void:
 		Game.tower_add_shards(1)
 		BattleVfx.floating_text(self, from + Vector3(0, 1.6, 0), "ผลึกห้วงวิบัติ +1", Color("c58aff"), 0.9)
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
-		_spawn_loot(ItemData.wings(rng), 0, from)
+		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 

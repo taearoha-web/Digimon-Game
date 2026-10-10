@@ -113,7 +113,7 @@ func _fullgear_check() -> void:
 		var item := ItemData.generate(120, Game.class_id(), grng, 4, slot)
 		item["plus"] = 10 if not (slot in EnhanceFx.FIXED_SLOTS) else 0
 		Game.profile.equip[slot] = item
-	Game.profile.equip["wings"] = ItemData.wings(grng, "atk")
+	Game.profile.equip["wings"] = ItemData.wings(grng, String(class_id))
 	Game.profile.equip["wings"]["plus"] = 10
 	Game.recruit(&"priest")
 	await main.go(&"meadow", true, true)
@@ -180,7 +180,7 @@ func _tower_check() -> void:
 	Game.tower()["shards"] = 130
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2
-	Game.profile.equip["wings"] = ItemData.wings(rng, "matk")
+	Game.profile.equip["wings"] = ItemData.wings(rng, "mage")
 	main.tower_screen.open_lobby()
 	await _wait(0.6)
 	await _shot("tower_lobby")
@@ -243,15 +243,15 @@ func _wings_check() -> void:
 	main.zone.add_child(cam)
 	cam.fov = 45
 	hero.set_facing(0.0)
-	for kind in ItemData.WING_KINDS:
-		Game.profile.equip["wings"] = ItemData.wings(rng, kind)
+	for kind in ItemData.WING_INFO:
+		Game.profile.equip["wings"] = ItemData.wings(rng, kind, 4)
 		hero.refresh_stats()
 		hero.visual.set_equipment(Game.profile.equip)
 		await _wait(0.8)
 		var fwd := Vector3(sin(hero.visual.rotation.y), 0, cos(hero.visual.rotation.y))
 		var base := hero.global_position + Vector3(0, 1.1, 0)
-		for view in ["back", "side"]:
-			var off := -fwd * 4.2 + Vector3(0, 0.8, 0) if view == "back" else fwd.cross(Vector3.UP) * 4.2 + Vector3(0, 0.8, 0)
+		for view in ["back", "side", "front"]:
+			var off: Vector3 = {"back": -fwd * 4.2, "side": fwd.cross(Vector3.UP) * 4.2, "front": fwd * 4.2}[view] + Vector3(0, 0.8, 0)
 			cam.global_position = base + off
 			cam.look_at(base, Vector3.UP)
 			cam.make_current()
@@ -272,7 +272,7 @@ func _enhance_check() -> void:
 	gear_rng.seed = 3
 	for slot in ["armor", "helm", "boots", "ring", "amulet"]:
 		Game.profile.equip[slot] = ItemData.generate(60, Game.class_id(), gear_rng, 2, slot)
-	Game.profile.equip["wings"] = ItemData.wings(gear_rng, "hp")
+	Game.profile.equip["wings"] = ItemData.wings(gear_rng, String(Game.class_id()))
 	for plus in [0, 2, 5, 8, 10]:
 		for slot in Game.profile.equip:
 			if not (slot in EnhanceFx.FIXED_SLOTS):
