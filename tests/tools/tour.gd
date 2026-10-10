@@ -271,6 +271,28 @@ func _wings_check() -> void:
 		await _wait(0.3)
 		await _shot("wing_mode_%d_hud" % mode)
 	hero.set_wing_mode(HeroVisual.WING_STAND)
+	# Flying body clips: hovering and flying forward (physics paused to hold the pose).
+	hero.set_wing_mode(HeroVisual.WING_FLY)
+	await _wait(1.5)
+	for moving in [false, true]:
+		hero.set_physics_process(false)
+		hero.visual.position.y = Hero.FLY_HEIGHT
+		hero.visual.current = ""
+		hero.visual.play("Running_A" if moving else "Idle")
+		hero.visual.set_wing_moving(moving)
+		hero.visual.model.rotation.x = Hero.FLY_LEAN if moving else 0.0
+		await _wait(1.2)
+		var fwd := Vector3(sin(hero.visual.rotation.y), 0, cos(hero.visual.rotation.y))
+		var base := hero.global_position + Vector3(0, 1.6, 0)
+		for view in ["side", "front"]:
+			var off: Vector3 = {"side": fwd.cross(Vector3.UP) * 4.6, "front": fwd * 4.6 + fwd.cross(Vector3.UP) * 1.5}[view] + Vector3(0, 0.5, 0)
+			cam.global_position = base + off
+			cam.look_at(base, Vector3.UP)
+			cam.make_current()
+			await _wait(0.3)
+			await _shot("fly_%s_%s" % ["forward" if moving else "hover", view])
+	hero.set_physics_process(true)
+	hero.set_wing_mode(HeroVisual.WING_STAND)
 
 
 func _enhance_check() -> void:

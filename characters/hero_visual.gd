@@ -114,6 +114,7 @@ func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)
 		a.loop_mode = Animation.LOOP_LINEAR if (clip in LOOPING or clip.begins_with("Chibi_")) else Animation.LOOP_NONE
+	FlyClips.add_to(anim, _skeleton)
 	var height := 0.0
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		height = maxf(height, (mi as MeshInstance3D).get_aabb().size.y)
@@ -214,6 +215,14 @@ func _refresh_chibi() -> void:
 
 ## A node on a chibi bone whose axes are the model's (x side, y up, z front) and
 ## whose units are the chibi skeleton's.
+## While flying, standing and running become the flying body clips (FlyClips).
+const FLY_CLIPS := {"Idle": "Fly_Hover", "Running_A": "Fly_Forward"}
+
+
+func flying() -> bool:
+	return wing_mode == WING_FLY and has_wings()
+
+
 ## True while a pair of wings is worn.
 func has_wings() -> bool:
 	return equip.get("wings") is Dictionary
@@ -225,6 +234,14 @@ func set_wing_mode(mode: int, instant := false) -> void:
 	var was := wing_mode
 	wing_mode = clampi(mode, WING_STAND, WING_FOLD)
 	_pose_wings(was, instant)
+	# Swap between the ground and flying body clips right away.
+	var ground := current
+	for key in FLY_CLIPS:
+		if FLY_CLIPS[key] == current:
+			ground = key
+	if ground != current or (FLY_CLIPS.has(current) and flying()):
+		current = ""
+		play(ground)
 
 
 ## Flying wings glide while the hero moves and flap while hovering in place.
@@ -714,6 +731,10 @@ func has_clip(clip: String) -> bool:
 
 ## Loops a locomotion clip (ignored while a one-shot action is still playing).
 func play(clip: String, blend := 0.15, speed := 1.0) -> void:
+	if flying() and FLY_CLIPS.has(clip) and anim != null and anim.has_animation(FLY_CLIPS[clip]):
+		clip = FLY_CLIPS[clip]
+		speed = 1.0
+		blend = maxf(blend, 0.3)
 	if clip == "Idle" and class_id == &"lancer":
 		clip = "2H_Melee_Idle"
 
