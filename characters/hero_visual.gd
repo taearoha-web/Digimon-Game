@@ -588,15 +588,15 @@ func _hold_gear() -> void:
 		&"warrior":
 			_hold("shield_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
 		&"priest":
-			_hold("book", "handslot.l")
+			_hold("book_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
 
 
 func _hold(look: String, bone: String, plus := 0) -> void:
 	var item: Node3D
 	if look.begins_with("shield"):
 		item = WeaponKit.shield(look)
-	elif look == "book":
-		item = WeaponKit.book()
+	elif look.begins_with("book_"):
+		item = WeaponKit.book(int(look.trim_prefix("book_")))
 	else:
 		item = WeaponKit.build(look)
 	var attach := BoneAttachment3D.new()

@@ -1826,20 +1826,32 @@ func _hit_feel() -> void:
 
 func _weapon_models() -> void:
 	print("== Modelled weapons")
-	for kind in ["sword", "bow", "staff", "spear", "shield"]:
+	for kind in ["sword", "bow", "staff", "wand", "spear", "shield"]:
 		check(WeaponKit.has_model(kind) and WeaponKit.designs(kind) == 10, "%s has 10 modelled tiers" % kind)
 		for tier in [0, 9]:
 			var look := WeaponKit.look_for(kind, tier, 1)
 			var node := WeaponKit.shield(look) if kind == "shield" else WeaponKit.build(look)
 			check(not node.find_children("*", "MeshInstance3D", true, false).is_empty(), "%s builds" % look)
 			node.free()
-	for cls in [&"mage", &"priest", &"summoner"]:
+	for cls in [&"mage", &"summoner"]:
 		var rod := ItemData.generate(40, cls, RandomNumberGenerator.new(), 1, "weapon")
 		check(rod.base == "staff" and ItemLook.look_of(rod) == "staff_3", "%s carries the staff" % cls)
+	var wand := ItemData.generate(1, &"priest", RandomNumberGenerator.new(), 0, "weapon")
+	check(wand.base == "wand" and ItemLook.look_of(wand) == "wand_0" and String(wand.name).begins_with("คทาสามเณร"), "the priest starts with the Novice Wand (%s)" % wand.name)
+	check(WeaponKit.build("wand_9").find_children("*", "MeshInstance3D", true, false).size() > 0 and ItemLook.icon(ItemData.generate(95, &"priest", RandomNumberGenerator.new(), 2, "weapon")) != null, "Lv.91-100 wands are modelled with an icon")
 	var old_wand := {"kind": "equip", "uid": "oldwand", "slot": "weapon", "base": "wand", "plus": 2, "sockets": 0, "gems": [], "set": "",
 		"name": "คทาแสง ชั้นดี", "rarity": 1, "level": 25, "class": "priest", "stats": {"atk": 50}, "price": 100}
 	Game._repair_item(old_wand)
-	check(old_wand.base == "staff" and old_wand.name == "คทามิธริล ชั้นดี" and ItemLook.look_of(old_wand) == "staff_2", "an old priest wand becomes the matching staff (%s)" % old_wand.name)
+	check(old_wand.base == "wand" and old_wand.name == "คทาจันทร์มิธริล ชั้นดี" and ItemLook.look_of(old_wand) == "wand_2", "an old priest wand gets the matching new wand (%s)" % old_wand.name)
+	var staff_era := {"kind": "equip", "uid": "staffera", "slot": "weapon", "base": "staff", "plus": 0, "sockets": 0, "gems": [], "set": "",
+		"name": "คทาราชวงศ์", "rarity": 0, "level": 35, "class": "priest", "stats": {"atk": 80}, "price": 100}
+	Game._repair_item(staff_era)
+	check(staff_era.base == "wand" and staff_era.name == "คทาราชาผู้ทรงศีล", "a priest's staff becomes the wand of the same tier (%s)" % staff_era.name)
+	var mage_staff := {"kind": "equip", "uid": "magestaff", "slot": "weapon", "base": "staff", "plus": 0, "sockets": 0, "gems": [], "set": "",
+		"name": "คทาราชวงศ์", "rarity": 0, "level": 35, "class": "mage", "stats": {"atk": 80}, "price": 100}
+	Game._repair_item(mage_staff)
+	check(mage_staff.base == "staff" and mage_staff.name == "คทาราชวงศ์", "a mage's staff stays a staff")
+	check(WeaponKit.book(4).find_children("*", "MeshInstance3D", true, false).size() > 6, "the priest's book is styled per wand tier")
 	var starter := ItemData.generate(1, &"warrior", RandomNumberGenerator.new(), 0, "weapon")
 	check(ItemLook.look_of(starter) == "sword_0" and String(starter.name).begins_with("ดาบอัศวิน"), "the Lv.1 sword is the Knight Sword (%s)" % starter.name)
 	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")

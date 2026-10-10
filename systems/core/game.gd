@@ -624,7 +624,7 @@ func _valid_item(value: Variant) -> bool:
 			return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
-	if item.get("base", "") != "wings" and item.get("base", "") != "wand" and not ItemData.NAMES.has(item.get("base")):
+	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
 		return false
 	if item.get("slot") == "wings" and not (ItemData.WING_INFO.has(item.get("wing")) or ItemData.LEGACY_WING_KINDS.has(item.get("wing"))):
 		return false
@@ -757,13 +757,16 @@ func _migrate_skills(data: Dictionary) -> void:
 
 
 func _repair_item(item: Dictionary) -> void:
-	# The priest's wands became staffs: same tier, staff name.
-	if item.get("base", "") == "wand":
-		item["base"] = "staff"
+	# Priest weapons are short wands: old wand names and the staffs a priest got
+	# while wands were staffs become the modelled wand of the same tier.
+	if item.get("slot", "") == "weapon" and (item.get("base", "") == "wand" or (item.get("base", "") == "staff" and item.get("class", "") == "priest")):
+		var names: Array = ItemData.NAMES.staff if item.base == "staff" else ItemData.LEGACY_WAND_NAMES
+		item["base"] = "wand"
 		var named := String(item.get("name", ""))
-		for tier in ItemData.LEGACY_WAND_NAMES.size():
-			if named.begins_with(ItemData.LEGACY_WAND_NAMES[tier] + " ") or named == ItemData.LEGACY_WAND_NAMES[tier]:
-				item["name"] = ItemData.NAMES.staff[tier] + named.substr(String(ItemData.LEGACY_WAND_NAMES[tier]).length())
+		for tier in names.size():
+			var old := String(names[tier])
+			if named == old or named.begins_with(old + " "):
+				item["name"] = String(ItemData.NAMES.wand[tier]) + named.substr(old.length())
 				break
 	if item.get("kind") == "equip":
 		for key in ["price", "plus", "sockets", "rarity"]:
