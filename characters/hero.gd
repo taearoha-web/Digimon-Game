@@ -123,10 +123,12 @@ func _equipment_signature() -> String:
 func refresh_stats() -> void:
 	var totals := {"atk": 0.0, "def": 0.0, "speed": 0.0, "crit": 0.0}
 	var now := Time.get_ticks_msec()
-	for buff in _buffs:
-		if buff.until > now:
-			for key in totals:
-				totals[key] += float(buff.get(key, 0.0))
+	for key in totals:
+		var values: Array = []
+		for buff in _buffs:
+			if buff.until > now:
+				values.append(float(buff.get(key, 0.0)))
+		totals[key] = BuffBook.stack(values)
 	stats = Game.stats_now(totals)
 
 

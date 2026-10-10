@@ -179,51 +179,51 @@ const PASSIVES := {
 		{"id": "toughness", "name": "Toughness", "desc": "HP สูงสุด +3% ต่อดาว", "level": 3, "bonus": {"hp": 0.03}},
 	],
 	&"warrior": [
-		{"id": "melee_mastery", "name": "Melee Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 10, "bonus": {"atk": 0.04}},
+		{"id": "melee_mastery", "name": "Melee Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
 		{"id": "physical_training", "name": "Physical Training", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
 		{"id": "holy_body", "name": "Holy Body", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 30, "bonus": {"def": 0.04}},
-		{"id": "weapon_mastery", "name": "Weapon Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 40, "bonus": {"atk": 0.04}},
+		{"id": "weapon_mastery", "name": "Weapon Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 40, "bonus": {"atk": 0.025}},
 		{"id": "battle_instinct", "name": "Battle Instinct", "desc": "คริติคอล +1.5% ต่อดาว", "level": 60, "bonus": {"crit": 0.015}},
 		{"id": "immortal_body", "name": "Immortal Body", "desc": "HP สูงสุด +5% ต่อดาว", "level": 80, "bonus": {"hp": 0.05}},
 	],
 	&"archer": [
-		{"id": "shooting_mastery", "name": "Shooting Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 10, "bonus": {"atk": 0.04}},
+		{"id": "shooting_mastery", "name": "Shooting Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
 		{"id": "wind_step", "name": "Wind Step", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
 		{"id": "hawk_eye", "name": "Hawk Eye", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
 		{"id": "evasion_mastery", "name": "Evasion Mastery", "desc": "หลบหลีก +1% ต่อดาว", "level": 40, "bonus": {"dodge": 0.01}},
-		{"id": "ranger_mastery", "name": "Ranger Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "ranger_mastery", "name": "Ranger Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "wind_walker", "name": "Wind Walker", "desc": "ความเร็ว +3% ต่อดาว", "level": 80, "bonus": {"speed": 0.03}},
 	],
 	&"mage": [
 		{"id": "mental_mastery", "name": "Mental Mastery", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
-		{"id": "elemental_mastery", "name": "Elemental Mastery", "desc": "พลังโจมตี +3% ต่อดาว", "level": 20, "bonus": {"atk": 0.03}},
+		{"id": "elemental_mastery", "name": "Elemental Mastery", "desc": "พลังโจมตี +2% ต่อดาว", "level": 20, "bonus": {"atk": 0.02}},
 		{"id": "arcane_barrier", "name": "Arcane Barrier", "desc": "HP สูงสุด +3% ต่อดาว", "level": 30, "bonus": {"hp": 0.03}},
 		{"id": "mana_pool", "name": "Mana Pool", "desc": "MP สูงสุด +5% ต่อดาว", "level": 40, "bonus": {"mp": 0.05}},
-		{"id": "spell_mastery", "name": "Spell Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "spell_mastery", "name": "Spell Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "archmage_will", "name": "Archmage's Will", "desc": "คริติคอล +1.5% ต่อดาว", "level": 80, "bonus": {"crit": 0.015}},
 	],
 	&"priest": [
 		{"id": "meditation", "name": "Meditation", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
 		{"id": "divine_grace", "name": "Divine Grace", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
-		{"id": "holy_aura", "name": "Holy Aura", "desc": "พลังโจมตี +3% และ MP +3% ต่อดาว", "level": 30, "bonus": {"atk": 0.03, "mp": 0.03}},
+		{"id": "holy_aura", "name": "Holy Aura", "desc": "พลังโจมตี +2% และ MP +3% ต่อดาว", "level": 30, "bonus": {"atk": 0.02, "mp": 0.03}},
 		{"id": "faith", "name": "Faith", "desc": "HP สูงสุด +4% ต่อดาว", "level": 40, "bonus": {"hp": 0.04}},
-		{"id": "divine_power", "name": "Divine Power", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "divine_power", "name": "Divine Power", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "sanctity", "name": "Sanctity", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 80, "bonus": {"def": 0.04}},
 	],
 	&"summoner": [
 		{"id": "nature_bond", "name": "Nature Bond", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
-		{"id": "beast_tamer", "name": "Beast Tamer", "desc": "พลังโจมตี +3% ต่อดาว", "level": 20, "bonus": {"atk": 0.03}},
+		{"id": "beast_tamer", "name": "Beast Tamer", "desc": "พลังโจมตี +2% ต่อดาว", "level": 20, "bonus": {"atk": 0.02}},
 		{"id": "wild_vitality", "name": "Wild Vitality", "desc": "HP สูงสุด +4% ต่อดาว", "level": 30, "bonus": {"hp": 0.04}},
 		{"id": "spirit_ward", "name": "Spirit Ward", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
-		{"id": "primal_focus", "name": "Primal Focus", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "primal_focus", "name": "Primal Focus", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "gaia_heart", "name": "Gaia's Heart", "desc": "HP +4% และ MP +4% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "mp": 0.04}},
 	],
 	&"lancer": [
-		{"id": "spear_mastery", "name": "Spear Mastery", "desc": "พลังโจมตี +4% ต่อดาว", "level": 10, "bonus": {"atk": 0.04}},
+		{"id": "spear_mastery", "name": "Spear Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
 		{"id": "light_footwork", "name": "Light Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
 		{"id": "keen_point", "name": "Keen Point", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
 		{"id": "iron_stance", "name": "Iron Stance", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
-		{"id": "dragon_fang", "name": "Dragon Fang", "desc": "พลังโจมตี +4% ต่อดาว", "level": 60, "bonus": {"atk": 0.04}},
+		{"id": "dragon_fang", "name": "Dragon Fang", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "valkyrie_heart", "name": "Valkyrie's Heart", "desc": "HP +4% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "speed": 0.02}},
 	],
 }
@@ -300,7 +300,15 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 
 # --- skill table -----------------------------------------------------------
 
+## High-level skills hit a lot harder on paper; the damage audit showed them
+## one-shooting their own zones with farmed gear. Their multiplier fades from
+## 100% at Lv.20 to 65% at Lv.100 (summons included).
+static func damage_curve(level: int) -> float:
+	return 1.0 - 0.35 * clampf(float(level - 20) / 80.0, 0.0, 1.0)
+
+
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
+	mult *= damage_curve(level)
 	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
@@ -526,5 +534,5 @@ static func _build_pools() -> void:
 		_sk(l, "valkyrie_blessing", "Valkyrie's Blessing", "พรวัลคีรี ATK +60% วิ่งเร็ว +20% คริติคอล +15% นาน 1 นาที", 88, 96, 45.0, "self", 0.0, {"fx": {"buff": {"atk": 0.6, "speed": 0.2, "crit": 0.15, "secs": 60.0}}, "color": Color("ffe9a0"), "icon": "bless"}),
 		_sk(l, "gungnir", "Gungnir", "ขว้างหอกเทพเจ้า ทะลุศัตรู 5 ตัวเป็นแนวยาว", 92, 110, 13.0, "single", 17.0, {"range": 13.0, "pierce": pc.call(5, 15.0, 1.8), "vfx": &"light", "color": Color("fff0a0"), "icon": "arrow"}),
 		_sk(l, "heaven_rend", "Heaven Rend", "ฟาดหอกฉีกฟ้า ศัตรูรอบตัวมึนงง 1.2 วินาที", 96, 118, 16.0, "burst", 21.0, {"radius": 9.0, "fx": {"stun": 1.2}, "special": "spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "spin"}),
-		_sk(l, "ragnarok_lance", "Ragnarok Lance", "หอกแห่งวันสิ้นโลก แทงทะลุศัตรู 10 ตัว", 100, 140, 14.0, "single", 30.0, {"range": 5.5, "pierce": pc.call(10, 15.0, 1.8, 0.8), "vfx": &"light", "color": Color("ffd84a"), "icon": "sword"}),
+		_sk(l, "ragnarok_lance", "Ragnarok Lance", "หอกแห่งวันสิ้นโลก แทงทะลุศัตรู 10 ตัว", 100, 140, 14.0, "single", 26.0, {"range": 5.5, "pierce": pc.call(10, 15.0, 1.8, 0.8), "vfx": &"light", "color": Color("ffd84a"), "icon": "sword"}),
 	]

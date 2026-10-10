@@ -30,6 +30,8 @@ var hero: Hero
 var skill_id := ""
 var spec: Dictionary = {}
 var damage_mult := 1.0
+## A summon hits every second for minutes: each hit is this share of its skill's multiplier.
+const HIT_SHARE := 0.14
 var life := LIFETIME
 var rank := 1
 var size_mult := 1.0
@@ -236,7 +238,7 @@ func _attack() -> void:
 	var strike := func():
 		if not _valid(mob) or not is_instance_valid(hero):
 			return
-		var raw: float = float(hero.stats.atk) * damage_mult * randf_range(0.92, 1.08)
+		var raw: float = float(hero.stats.atk) * damage_mult * HIT_SHARE * randf_range(0.92, 1.08)
 		var crit := randf() < float(hero.stats.crit)
 		if crit:
 			raw *= HeroStats.CRIT_DAMAGE
