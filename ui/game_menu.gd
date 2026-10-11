@@ -19,6 +19,8 @@ var _tab_buttons: Dictionary = {}
 var _selected_index := -1
 var _selected_slot := ""
 var _detail: VBoxContainer
+## Buttons for the selected item, pinned above the scrolling detail text.
+var _actions: VBoxContainer
 var _item_buttons: Array[Dictionary] = []
 ## Opened from the blacksmith: items can be enhanced and socketed.
 var forge_mode := false
@@ -249,7 +251,21 @@ func _build_inventory() -> void:
 	var middle := UIUtil.vbox(6)
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(middle)
-	middle.add_child(UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.bag_size()], &"SubHeaderLabel"))
+	var head := UIUtil.hbox(8)
+	middle.add_child(head)
+	var count_label := UIUtil.label("กระเป๋า (%d/%d)" % [Game.profile.inv.size(), Game.bag_size()], &"SubHeaderLabel")
+	count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(count_label)
+	var auto_sell := UIUtil.button("ขายอัตโนมัติ", &"", Vector2(150, 50))
+	auto_sell.add_theme_font_size_override("font_size", 18)
+	auto_sell.pressed.connect(_open_auto_sell)
+	head.add_child(auto_sell)
+	auto_sell.visible = not forge_mode
+	var filter := UIUtil.button("ตัวกรองเก็บของ", &"", Vector2(160, 50))
+	filter.add_theme_font_size_override("font_size", 18)
+	filter.pressed.connect(_open_loot_filter)
+	head.add_child(filter)
+	filter.visible = not forge_mode
 	middle.add_child(UIUtil.label("แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel"))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -285,10 +301,15 @@ func _build_inventory() -> void:
 		else:
 			b.disabled = true
 		grid.add_child(b)
+	var side := UIUtil.vbox(8)
+	side.custom_minimum_size = Vector2(260, 0)
+	row.add_child(side)
+	_actions = UIUtil.vbox(6)
+	side.add_child(_actions)
 	var detail_scroll := TouchScroll.new()
-	detail_scroll.custom_minimum_size = Vector2(250, 0)
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_child(detail_scroll)
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side.add_child(detail_scroll)
 	_detail = UIUtil.vbox(8)
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.add_child(_detail)
@@ -341,6 +362,8 @@ func _refresh_detail() -> void:
 	if _detail == null or not is_instance_valid(_detail):
 		return
 	UIUtil.clear(_detail)
+	if _actions != null and is_instance_valid(_actions):
+		UIUtil.clear(_actions)
 	var item: Variant = null
 	if _selected_slot != "":
 		item = Game.profile.equip.get(_selected_slot)
@@ -377,31 +400,172 @@ func _refresh_detail() -> void:
 		_detail.add_child(set_label)
 	if forge_mode and item.get("kind", "") == "equip":
 		_build_forge_buttons(item)
+	# Actions sit above the scrolling text so they never need scrolling to.
+	var target: Control = _actions if _actions != null and is_instance_valid(_actions) else _detail
 	if item.get("kind", "") == "equip":
 		var problem := Game.equip_problem(item)
 		var equipped := _selected_slot != ""
 		if equipped:
-			var take := UIUtil.button("ถอด", &"", Vector2(0, 60))
+			var take := UIUtil.button("ถอด", &"", Vector2(0, 58))
 			take.pressed.connect(func(): Game.unequip(_selected_slot); _selected_slot = ""; _rebuild())
-			_detail.add_child(take)
+			target.add_child(take)
 		else:
-			var wear := UIUtil.button("สวมใส่" if problem == "" else problem, &"PrimaryButton", Vector2(0, 60))
+			var pair := UIUtil.hbox(6)
+			target.add_child(pair)
+			var wear := UIUtil.button("สวมใส่" if problem == "" else problem, &"PrimaryButton", Vector2(0, 58))
+			wear.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			wear.clip_text = true
 			wear.disabled = problem != ""
 			wear.pressed.connect(func(): Game.equip_from_bag(_selected_index); _selected_index = -1; _rebuild())
-			_detail.add_child(wear)
-			_detail.add_child(UIUtil.label("ราคาขาย: %d" % ItemData.sell_price(item), &"SmallLabel"))
-			var sell := UIUtil.button("ขาย", &"", Vector2(0, 56))
-			sell.pressed.connect(func(): Game.sell_item(_selected_index); _selected_index = -1; _rebuild())
-			_detail.add_child(sell)
+			pair.add_child(wear)
+			var sell := UIUtil.button("ขาย +%d" % ItemData.sell_price(item), &"", Vector2(0, 58))
+			sell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			sell.pressed.connect(func(): _sell_selected(1))
+			pair.add_child(sell)
 	elif item.get("kind", "") == "gem":
 		_detail.add_child(UIUtil.label("ไปที่ช่างตีเหล็กเพื่อใส่ลงช่องในอาวุธ/ชุด", &"DimLabel"))
-		var sell_gem := UIUtil.button("ขาย (%d)" % ItemData.unit_sell_price(item), &"", Vector2(0, 56))
-		sell_gem.pressed.connect(func(): Game.sell_item(_selected_index, 1); _selected_index = -1; _rebuild())
-		_detail.add_child(sell_gem)
+		var sell_gem := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
+		sell_gem.pressed.connect(func(): _sell_selected(1))
+		target.add_child(sell_gem)
 	else:
-		var use := UIUtil.button("ใช้", &"PrimaryButton", Vector2(0, 60))
+		var use := UIUtil.button("ใช้", &"PrimaryButton", Vector2(0, 58))
 		use.pressed.connect(func(): _use_potion(_selected_index))
-		_detail.add_child(use)
+		target.add_child(use)
+
+
+## Sells the selected bag item and keeps the selection on the next one, so a
+## row of junk can be sold by tapping "sell" again and again.
+func _sell_selected(count: int) -> void:
+	if _selected_index < 0 or _selected_index >= Game.profile.inv.size():
+		return
+	Game.sell_item(_selected_index, count)
+	if _selected_index >= Game.profile.inv.size():
+		_selected_index = Game.profile.inv.size() - 1
+	_rebuild()
+
+
+const LEVEL_STEPS := [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
+
+
+## Auto-sell: pick the grades and a level limit, see what would go, sell it all.
+func _open_auto_sell() -> void:
+	UIUtil.clear(_content)
+	var flags: Dictionary = Game.profile.flags
+	var state := {"mask": int(flags.get("autosell_mask", 3)), "level": int(flags.get("autosell_level", 0))}
+	var box := UIUtil.vbox(12)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(box)
+	box.add_child(UIUtil.label("ขายอัตโนมัติ", &"HeaderLabel"))
+	box.add_child(UIUtil.label("1. เลือกเกรดที่จะขาย (เรียงจากต่ำสุดไปสูงสุด)", &"BoldLabel"))
+	var grades := UIUtil.hbox(8)
+	box.add_child(grades)
+	var level_row := UIUtil.hbox(10)
+	var level_label := UIUtil.label("", &"SubHeaderLabel")
+	var preview := UIUtil.label("", &"BoldLabel")
+	var sell := UIUtil.button("", &"PrimaryButton", Vector2(320, 64))
+	var refresh := func():
+		var picked := Game.auto_sell_indices(int(state.mask), int(state.level))
+		var gold := 0
+		for i in picked:
+			gold += ItemData.sell_price(Game.profile.inv[i])
+		level_label.text = "ทุกเลเวล" if int(state.level) == 0 else "ต่ำกว่า Lv.%d" % int(state.level)
+		preview.text = "จะขาย %d ชิ้น ได้ %d เหรียญ" % [picked.size(), gold]
+		sell.text = "ขาย %d ชิ้น" % picked.size()
+		sell.disabled = picked.is_empty()
+	for r in 5:
+		var chip := _grade_toggle(r, (int(state.mask) >> r) & 1 == 1, "ขาย", "ไม่ขาย")
+		chip.toggled.connect(func(on: bool):
+			state["mask"] = (int(state.mask) | (1 << r)) if on else (int(state.mask) & ~(1 << r))
+			refresh.call())
+		grades.add_child(chip)
+	box.add_child(UIUtil.label("2. เลเวลของไอเทม", &"BoldLabel"))
+	box.add_child(level_row)
+	var minus := UIUtil.button("−", &"", Vector2(72, 60))
+	var plus := UIUtil.button("+", &"", Vector2(72, 60))
+	level_label.custom_minimum_size = Vector2(220, 0)
+	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	minus.pressed.connect(func():
+		state["level"] = LEVEL_STEPS[maxi(0, LEVEL_STEPS.find(int(state.level)) - 1)]
+		refresh.call())
+	plus.pressed.connect(func():
+		state["level"] = LEVEL_STEPS[mini(LEVEL_STEPS.size() - 1, LEVEL_STEPS.find(int(state.level)) + 1)]
+		refresh.call())
+	level_row.add_child(minus)
+	level_row.add_child(level_label)
+	level_row.add_child(plus)
+	var keep := UIUtil.label("ไม่ขายเสมอ: ของที่สวมอยู่ ของที่ตีบวกแล้ว ของที่ใส่อัญมณี และปีก", &"DimLabel")
+	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(keep)
+	box.add_child(preview)
+	var buttons := UIUtil.hbox(10)
+	box.add_child(buttons)
+	sell.pressed.connect(func():
+		Game.auto_sell(int(state.mask), int(state.level))
+		_selected_index = -1
+		_rebuild())
+	buttons.add_child(sell)
+	var back := UIUtil.button("กลับ", &"", Vector2(160, 64))
+	back.pressed.connect(_rebuild)
+	buttons.add_child(back)
+	refresh.call()
+
+
+## Pickup filter: which grades of dropped gear the hero picks up.
+func _open_loot_filter() -> void:
+	UIUtil.clear(_content)
+	var box := UIUtil.vbox(12)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(box)
+	box.add_child(UIUtil.label("ตัวกรองเก็บของ", &"HeaderLabel"))
+	box.add_child(UIUtil.label("เลือกเกรดอุปกรณ์ที่จะเก็บเมื่อมอนสเตอร์ดรอป (เรียงจากต่ำสุดไปสูงสุด)", &"BoldLabel"))
+	var grades := UIUtil.hbox(8)
+	box.add_child(grades)
+	for r in 5:
+		var chip := _grade_toggle(r, (Game.loot_mask() >> r) & 1 == 1, "เก็บ", "ไม่เก็บ")
+		chip.toggled.connect(func(on: bool):
+			Game.set_loot_mask((Game.loot_mask() | (1 << r)) if on else (Game.loot_mask() & ~(1 << r))))
+		grades.add_child(chip)
+	var quick := UIUtil.hbox(8)
+	box.add_child(quick)
+	for spec in [["เก็บทุกเกรด", 31], ["ดี ขึ้นไป", 30], ["หายาก ขึ้นไป", 28], ["ในตำนาน ขึ้นไป", 24]]:
+		var b := UIUtil.button(String(spec[0]), &"", Vector2(0, 54))
+		b.add_theme_font_size_override("font_size", 18)
+		b.pressed.connect(func():
+			Game.set_loot_mask(int(spec[1]))
+			_open_loot_filter())
+		quick.add_child(b)
+	var note := UIUtil.label("ยา อัญมณี เหรียญ และปีก เก็บเสมอ · ของเกรดที่ปิดไว้จะไม่ดรอปให้เก็บ", &"DimLabel")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	var back := UIUtil.button("กลับ", &"PrimaryButton", Vector2(200, 64))
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(_rebuild)
+	box.add_child(back)
+
+
+## A grade chip in its rarity colour that switches between [param on_text] and [param off_text].
+func _grade_toggle(rarity: int, on: bool, on_text: String, off_text: String) -> Button:
+	var chip := Button.new()
+	chip.toggle_mode = true
+	chip.custom_minimum_size = Vector2(150, 74)
+	chip.add_theme_font_size_override("font_size", 18)
+	var color: Color = ItemData.RARITY_COLORS[rarity]
+	var paint := func(state: bool):
+		chip.text = "%s\n%s" % [ItemData.RARITY_NAMES[rarity], ("✔ " + on_text) if state else ("✖ " + off_text)]
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(color, 0.85) if state else Color(0.12, 0.14, 0.22, 0.9)
+		style.set_corner_radius_all(12)
+		style.set_border_width_all(3)
+		style.border_color = color
+		for key in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+			chip.add_theme_stylebox_override(key, style)
+		var text_color := Color("1a1a24") if state else color
+		for key in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
+			chip.add_theme_color_override(key, text_color)
+	chip.button_pressed = on
+	paint.call(on)
+	chip.toggled.connect(func(state: bool): paint.call(state))
+	return chip
 
 
 func _build_forge_buttons(item: Dictionary) -> void:

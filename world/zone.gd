@@ -696,6 +696,9 @@ func _random_gem(level: int, bonus_size: int) -> Dictionary:
 
 
 func _spawn_loot(item: Dictionary, gold: int, from: Vector3) -> void:
+	# Gear of grades switched off in the pickup filter is left behind.
+	if gold <= 0 and not item.is_empty() and not Game.keeps_loot(item):
+		return
 	var drop := LootDrop.new()
 	drop.setup(item, gold, hero, from)
 	add_child(drop)

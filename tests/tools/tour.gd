@@ -83,6 +83,7 @@ func run() -> void:
 	match tour:
 		"town": await _town()
 		"village": await _village()
+		"bag": await _bag()
 		"menus": await _menus()
 		"skills": await _skills()
 		"line": await _line()
@@ -633,3 +634,24 @@ func _village() -> void:
 		cam.look_at(base, Vector3.UP)
 		await _wait(0.3)
 		await _shot("npc_" + npc.role)
+
+
+## The bag: pinned item actions, the auto-sell page and the pickup filter.
+func _bag() -> void:
+	_level(60)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	for i in 18:
+		Game.profile["inv"].append(ItemData.generate(20 + i * 3, class_id, rng, i % 5))
+	await main.go(&"town", true)
+	main.menu.open_menu(&"inventory")
+	main.menu._selected_index = 3
+	main.menu._refresh_detail()
+	await _wait(0.6)
+	await _shot("bag_selected")
+	main.menu._open_auto_sell()
+	await _wait(0.4)
+	await _shot("bag_auto_sell")
+	main.menu._open_loot_filter()
+	await _wait(0.4)
+	await _shot("bag_loot_filter")
