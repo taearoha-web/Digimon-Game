@@ -78,6 +78,8 @@ func _apply_finish(tint: Color, fit: float) -> void:
 		var mi := node as MeshInstance3D
 		if mi.mesh == null:
 			continue
+		if not GameSettings.world_shadows():
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		for i in mi.mesh.get_surface_count():
 			var source := mi.get_active_material(i) as StandardMaterial3D
 			if source:

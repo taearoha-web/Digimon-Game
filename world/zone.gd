@@ -103,6 +103,8 @@ func _ready() -> void:
 ## Models farther than this from the camera stop animating (they are tiny and
 ## half-hidden by fog); a phone saves a skeleton update per model that way.
 const ANIM_RADIUS := [24.0, 34.0, 48.0]
+## Monsters farther than this from the hero sleep (hidden, no AI or physics).
+const AWAKE_RADIUS := [36.0, 44.0, 72.0]
 var _lod_timer := 0.0
 
 
@@ -117,6 +119,19 @@ func _update_anim_lod() -> void:
 		var player: Variant = model.get("anim") if model else null
 		if player is AnimationPlayer and is_instance_valid(player):
 			(player as AnimationPlayer).active = model.global_position.distance_squared_to(from) < limit * limit
+	if hero == null or not is_instance_valid(hero):
+		return
+	var awake: float = AWAKE_RADIUS[clampi(GameSettings.quality, 0, 2)]
+	var center := hero.global_position
+	for node in get_tree().get_nodes_in_group("mobs"):
+		var mob := node as Mob
+		if mob:
+			var d := Vector2(mob.global_position.x - center.x, mob.global_position.z - center.z).length()
+			# A little slack so a monster on the edge does not blink in and out.
+			if d > awake + 4.0:
+				mob.set_dormant(true)
+			elif d < awake:
+				mob.set_dormant(false)
 
 
 func _process(delta: float) -> void:
@@ -124,7 +139,7 @@ func _process(delta: float) -> void:
 		return
 	_lod_timer -= delta
 	if _lod_timer <= 0.0:
-		_lod_timer = 0.4
+		_lod_timer = 0.25
 		_update_anim_lod()
 	_interact_timer -= delta
 	if _interact_timer <= 0.0:

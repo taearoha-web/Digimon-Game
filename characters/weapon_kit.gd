@@ -52,6 +52,7 @@ static func _model(kind: String, index: int) -> Node3D:
 		var cols: Array = spec.basis
 		basis = Basis(cols[0], cols[1], cols[2])
 	model.transform = Transform3D(basis.scaled(Vector3.ONE * float(spec.scale)), basis * (spec.offset as Vector3) * float(spec.scale))
+	MeshMerge.merge(model, path)
 	root.add_child(model)
 	return root
 
@@ -216,4 +217,5 @@ static func book(tier := 0) -> Node3D:
 		_:
 			_p(root, MeshKit.torus(), trim, face, Vector3(0.18, 0.18, 0.18), Vector3(90, 0, 0))
 			_p(root, MeshKit.sphere_low(), gem, face, Vector3(0.09, 0.09, 0.05), Vector3.ZERO, glow)
+	MeshMerge.merge(root, "book_%d" % tier)
 	return root

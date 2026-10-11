@@ -23,6 +23,8 @@ var _traveling := false
 
 func _ready() -> void:
 	GameSettings.load_settings()
+	GameSettings.apply_resolution(get_tree())
+	get_tree().root.size_changed.connect(func(): GameSettings.apply_resolution(get_tree()))
 	InputSetup.ensure_defaults()
 	var fade_layer := CanvasLayer.new()
 	fade_layer.layer = 90
