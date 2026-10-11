@@ -35,6 +35,10 @@ SHELL = os.path.join(ROOT, "tools", "web", "artifact_shell.html")
 NOTE_ARTIFACT = "บน iPhone หน้านี้ขยายเต็มจอไม่ได้ (ข้อจำกัดของ Apple) · หมุนเครื่องเป็นแนวนอนเพื่อให้เห็นเกมมากที่สุด"
 NOTE_PAGES = "iPhone: กดปุ่มแชร์ → \"เพิ่มไปยังหน้าจอโฮม\" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ"
 TITLE = "Toon Tale"
+## Where the site is published (link previews need absolute image URLs).
+PAGES_URL = "https://taearoha-web.github.io/Digimon-Game/play/"
+DESCRIPTION = "Toon Tale ผจญภัย ARPG แนวการ์ตูน 6 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง"
+BRANDING = os.path.join(ROOT, "assets", "branding")
 PACKED = {  # Godot file -> (published gzip name, MIME of the inflated data)
     "index.wasm": ("engine.gz.wasm", "application/wasm"),
     "index.pck": ("game.gz.wasm", "application/octet-stream"),
@@ -98,8 +102,13 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
     """Standalone site: full document + manifest + icons (installable, fullscreen)."""
     shutil.rmtree(pages_dir, ignore_errors=True)
     shutil.copytree(OUT, pages_dir)
-    shutil.copy(os.path.join(SRC, "index.apple-touch-icon.png"), os.path.join(pages_dir, "apple-touch-icon.png"))
-    shutil.copy(os.path.join(SRC, "index.icon.png"), os.path.join(pages_dir, "icon.png"))
+    # The game's own icon (the hero in angel wings, tools/make_branding.py) at
+    # every size phones ask for, and the wide picture shown with shared links.
+    from PIL import Image
+    icon = Image.open(os.path.join(BRANDING, "icon_512.png")).convert("RGB")
+    for name, size in [("icon.png", 192), ("apple-touch-icon.png", 180), ("icon-512.png", 512)]:
+        icon.resize((size, size), Image.LANCZOS).save(os.path.join(pages_dir, name), optimize=True)
+    Image.open(os.path.join(BRANDING, "og_image.png")).convert("RGB").save(os.path.join(pages_dir, "og.jpg"), quality=88, optimize=True)
     manifest = {
         "name": TITLE,
         "short_name": "Toon Tale",
@@ -110,8 +119,9 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         "background_color": "#0c1230",
         "theme_color": "#0c1230",
         "icons": [
-            {"src": "icon.png", "sizes": "128x128", "type": "image/png"},
+            {"src": "icon.png", "sizes": "192x192", "type": "image/png"},
             {"src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png"},
+            {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
         ],
     }
     with open(os.path.join(pages_dir, "manifest.webmanifest"), "w", encoding="utf-8") as f:
@@ -133,8 +143,20 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         '<link rel="manifest" href="manifest.webmanifest">\n'
         '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
         '<link rel="icon" href="icon.png">\n'
+        # What chat apps (LINE, Facebook, Discord...) show for a shared link.
+        f'<meta name="description" content="{DESCRIPTION}">\n'
+        f'<meta property="og:title" content="{TITLE}">\n'
+        f'<meta property="og:description" content="{DESCRIPTION}">\n'
+        '<meta property="og:type" content="website">\n'
+        f'<meta property="og:url" content="{PAGES_URL}">\n'
+        f'<meta property="og:image" content="{PAGES_URL}og.jpg">\n'
+        '<meta property="og:image:width" content="1200">\n'
+        '<meta property="og:image:height" content="630">\n'
+        '<meta name="twitter:card" content="summary_large_image">\n'
+        f'<meta name="twitter:image" content="{PAGES_URL}og.jpg">\n'
         '<style>body{margin:0}[hidden]{display:none!important}</style>\n'
     )
+    shell = shell.replace("Your browser does not support the canvas tag.", "เบราว์เซอร์นี้เปิดเกมไม่ได้ ลองเปิดด้วย Safari หรือ Chrome")
     page = head + shell[:split] + "</head>\n<body>\n" + shell[split:] + "\n</body>\n</html>\n"
     with open(os.path.join(pages_dir, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)

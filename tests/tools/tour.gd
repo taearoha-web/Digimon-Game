@@ -84,6 +84,7 @@ func run() -> void:
 		"town": await _town()
 		"village": await _village()
 		"bag": await _bag()
+		"logo": await _logo()
 		"menus": await _menus()
 		"skills": await _skills()
 		"line": await _line()
@@ -662,3 +663,36 @@ func _bag() -> void:
 	main.menu._open_loot_filter()
 	await _wait(0.4)
 	await _shot("bag_loot_filter")
+
+
+## Key art for the game icon and link preview: the hero in wings and top gear
+## under the great sakura, the torii and shrine behind (HUD and labels hidden).
+func _logo() -> void:
+	Game.dismiss_party()
+	_level(100)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	Game.profile.equip["weapon"] = ItemData.generate(95, class_id, rng, 1, "weapon")
+	Game.profile.equip["armor"] = ItemData.generate(55, class_id, rng, 1, "armor")
+	Game.profile.equip["wings"] = ItemData.wings(rng, "priest", 0)
+	await main.go(&"town", true)
+	await _wait(1.0)
+	var z: Zone = main.zone
+	var hero: Hero = z.hero
+	main.hud.visible = false
+	for label in z.find_children("*", "Label3D", true, false):
+		(label as Label3D).text = ""
+	hero.set_physics_process(false)
+	hero.global_position = Vector3(1.5, 0.0, 9.5)
+	hero.visual.set_equipment(Game.profile.equip)
+	hero.visual.rotation.y = 0.35
+	await _wait(1.2)
+	var cam := Camera3D.new()
+	z.add_child(cam)
+	cam.fov = 38
+	for spec in [["logo_square", Vector3(2.5, 2.3, 13.1), Vector3(1.55, 1.75, 9.5)], ["logo_wide", Vector3(4.0, 1.9, 16.0), Vector3(-0.2, 2.3, 6.0)]]:
+		cam.global_position = spec[1]
+		cam.look_at(spec[2], Vector3.UP)
+		cam.make_current()
+		await _wait(0.5)
+		await _shot(String(spec[0]))
