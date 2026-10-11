@@ -82,6 +82,7 @@ func run() -> void:
 	await _wait(1.2)
 	match tour:
 		"town": await _town()
+		"village": await _village()
 		"menus": await _menus()
 		"skills": await _skills()
 		"line": await _line()
@@ -596,3 +597,39 @@ func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	_n += 1
 	get_viewport().get_texture().get_image().save_png(out_dir.path_join("%02d_%s.png" % [_n, name]))
+
+
+## The Japanese village: overview, each quarter from above, and every villager.
+func _village() -> void:
+	var z: Zone = main.zone
+	await _wait(1.0)
+	await _shot("village_spawn")
+	print("village draw calls: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		" objects: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+		" primitives: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	var cam := Camera3D.new()
+	z.add_child(cam)
+	cam.fov = 50
+	cam.far = 400
+	var views := [
+		["overview", Vector3(0, 70, 62), Vector3(0, 0, -4)],
+		["plaza", Vector3(0, 16, 22), Vector3(0, 1, 0)],
+		["shrine", Vector3(6, 14, -8), Vector3(2, 2, -38)],
+		["market", Vector3(10, 12, 14), Vector3(28, 1, -2)],
+		["dojo", Vector3(-20, 12, 8), Vector3(-27, 2, -10)],
+		["south", Vector3(-6, 14, 52), Vector3(-16, 0, 30)],
+		["ring", Vector3(30, 12, 38), Vector3(40, 0, 22)],
+	]
+	for v in views:
+		cam.global_position = v[1]
+		cam.look_at(v[2], Vector3.UP)
+		cam.make_current()
+		await _wait(0.6)
+		await _shot("village_" + String(v[0]))
+	for npc in z.npcs:
+		var front := Vector3(sin(npc.visual.rotation.y), 0, cos(npc.visual.rotation.y)) if npc.visual else Vector3(0, 0, 1)
+		var base: Vector3 = npc.global_position + Vector3(0, 1.3, 0)
+		cam.global_position = base + front * 4.2 + Vector3(0, 0.6, 0)
+		cam.look_at(base, Vector3.UP)
+		await _wait(0.3)
+		await _shot("npc_" + npc.role)

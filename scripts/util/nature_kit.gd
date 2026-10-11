@@ -26,6 +26,19 @@ const THEMES := {
 		"Rock": [Color("9aa3b8"), Color("77906a")],
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
+	# The Japanese village: broadleaf crowns bloom as sakura, pines stay green.
+	&"village": {
+		"PineTree_Leaves": [Color("3f6a52"), Color("8aae7c")],
+		"MapleTree_Leaves": [Color("e58aa8"), Color("ffe1ea")],
+		"NormalTree_Leaves": [Color("e894b0"), Color("ffe6ee")],
+		"BirchTree_Leaves": [Color("f0a8c0"), Color("fff0f4")],
+		"Bush_Leaves": [Color("4f7a4c"), Color("9fbc7a")],
+		"PalmTree_Leaves": [Color("537e60"), Color("acc890")],
+		"Grass": [Color("638758"), Color("a5bc7c")],
+		"Bark": Color("5a3e34"), "BirchBark": Color("d8d2c4"), "PalmBark": Color("9a7448"),
+		"Rock": [Color("9aa3b0"), Color("77906a")],
+		"Flowers": [Color("ffffff"), Color("ffffff")],
+	},
 	&"digital": {
 		"PineTree_Leaves": [Color("3e676d"), Color("8bbbb2")],
 		"MapleTree_Leaves": [Color("71658c"), Color("b9a6db")],

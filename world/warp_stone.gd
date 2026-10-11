@@ -8,7 +8,7 @@ var _rings: Array[MeshInstance3D] = []
 var _t := 0.0
 
 
-func setup(p_role: String, p_name: String, _p_class: StringName, p_title := "", _p_model := "") -> void:
+func setup(p_role: String, p_name: String, _p_class: StringName, p_title := "", _p_model := "", _p_look := {}) -> void:
 	role = p_role
 	display_name = p_name
 	var color := Color("61b8ad")
