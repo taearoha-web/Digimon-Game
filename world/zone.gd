@@ -78,6 +78,7 @@ func _ready() -> void:
 	_spawn_hero()
 	if not is_town:
 		VfxKit.warm_shaders(self, hero.global_position)
+		ElementFx.warm(self, hero.global_position)
 	if not is_pvp:
 		_spawn_party()
 	else:

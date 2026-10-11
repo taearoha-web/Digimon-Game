@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "elements" in OS.get_cmdline_user_args():
+		await _element_fx()
+		return
 	if "bag" in OS.get_cmdline_user_args():
 		await _bag_tools()
 		return
@@ -118,6 +121,7 @@ func _run() -> void:
 	_weapon_models()
 	await _japan_village()
 	await _bag_tools()
+	await _element_fx()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -2010,3 +2014,50 @@ func _bag_tools() -> void:
 	check(Game.profile.inv.size() == count - 1 or ItemData.is_stackable(Game.profile.inv[0]), "selling from the bag removes the item")
 	check(main.menu._selected_index == 0, "the next item is selected after selling")
 	main.menu.close_menu()
+
+
+func _element_fx() -> void:
+	print("== Elemental skill effects and spirit summons")
+	var find := func(id: String) -> Dictionary:
+		for cls in ClassData.IDS:
+			var found := ClassData.find_skill(cls, id)
+			if not found.is_empty():
+				return found
+		return {}
+	var expect := {"fire_ball": "fire", "flame_wave": "fire", "ice_storm": "ice", "glacial_spike": "ice",
+		"entangle": "vine", "thorn_storm": "vine", "world_tree": "plant", "spore_burst": "plant", "watornado": "water"}
+	for id in expect:
+		var skill: Dictionary = find.call(id)
+		check(not skill.is_empty() and ElementFx.element_of(skill) == expect[id], "%s is drawn as %s (%s)" % [id, expect[id], ElementFx.element_of(skill) if not skill.is_empty() else "missing"])
+	var town := await _start(&"mage")
+	await main.go(&"meadow", true)
+	await _wait(0.3)
+	var zone: Zone = main.zone
+	var spot: Vector3 = zone.hero.global_position + Vector3(6, 0, 0)
+	var before := zone.get_child_count()
+	ElementFx.fire_field(zone, spot, 3.0, 3)
+	var flames := zone.get_children().filter(func(n): return n is MeshInstance3D and (n as MeshInstance3D).material_override is ShaderMaterial and ((n as MeshInstance3D).material_override as ShaderMaterial).shader == ElementFx.FLAME_SHADER)
+	check(flames.size() >= 5, "a fire skill raises real flames (%d)" % flames.size())
+	ElementFx.ice_field(zone, spot + Vector3(0, 0, 8), 3.0, 3)
+	ElementFx.vine_field(zone, spot + Vector3(0, 0, -8), 3.0, 3)
+	ElementFx.plant_field(zone, spot + Vector3(8, 0, 0), 3.0, "tree", 3)
+	await _wait(0.2)
+	var crystals := zone.get_children().filter(func(n): return n is MeshInstance3D and (n as MeshInstance3D).mesh == ElementFx.crystal_mesh())
+	check(crystals.size() >= 4, "an ice skill raises ice crystals (%d)" % crystals.size())
+	var growing := zone.get_children().filter(func(n): return n is MeshInstance3D and (n as MeshInstance3D).material_override is ShaderMaterial and ((n as MeshInstance3D).material_override as ShaderMaterial).shader == ElementFx.VINE_SHADER)
+	check(growing.size() >= 4, "nature skills grow vines and a tree (%d)" % growing.size())
+	await _wait(2.6)
+	check(zone.get_child_count() <= before + 6, "elemental effects clean themselves up (%d left)" % (zone.get_child_count() - before))
+	# Summons glow as spirits with a rune circle under their feet.
+	await _start(&"summoner")
+	await main.go(&"meadow", true)
+	await _wait(0.3)
+	var hero: Hero = main.zone.hero
+	var summon := Summon.new()
+	summon.setup(hero, "alpha_wolves", {"kind": "wolf", "count": 1}, 1.0, 0, 1, 1)
+	main.zone.add_child(summon)
+	await _wait(0.4)
+	var glowing := summon.find_children("*", "MeshInstance3D", true, false).filter(func(m): return (m as MeshInstance3D).material_overlay != null)
+	check(glowing.size() > 0, "a summoned beast glows as a spirit")
+	check(summon._sigil != null and summon._sigil.is_inside_tree(), "a rune circle turns under the summon")
+	summon.queue_free()

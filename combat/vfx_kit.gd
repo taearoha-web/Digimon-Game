@@ -226,7 +226,7 @@ static func impact(parent: Node3D, pos: Vector3, color: Color, scale := 1.0) -> 
 
 ## Glowing orb with a particle trail. Travels in a slight arc; awaitable.
 static func variant_for(vfx: StringName) -> String:
-	return {&"fireball": "flame", &"frost": "shard", &"light": "spark", &"thunder": "spark", &"leaf": "spark"}.get(vfx, "orb")
+	return {&"fireball": "flame", &"frost": "shard", &"light": "spark", &"thunder": "spark", &"leaf": "leaf"}.get(vfx, "orb")
 
 
 static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float, size := 0.5, variant := "orb") -> void:
@@ -255,23 +255,20 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 	trail.scale_amount_max = 1.2
 	match variant:
 		"flame":
-			trail.mesh = _textured_quad(VfxArt.texture("star"), color, 0.5)
-			for i in 3:
-				var flame := _instance(holder, MeshKit.cone(), _glow(Color("ff8a2a"), 0.8), from)
-				flame.scale = Vector3(size * 0.7, size * (2.2 - i * 0.5), size * 0.7)
-				flame.rotation_degrees = Vector3(90, 0, 0)
-				flame.position = Vector3(randf_range(-0.05, 0.05), randf_range(-0.05, 0.05), size * (0.9 + i * 0.35))
+			# A burning core that sheds real flame tongues along its path (below).
+			trail.mesh = _textured_quad(VfxArt.texture("star"), Color("ffb050"), 0.5)
+			halo.material_override = _glow(Color("ff7a1a"), 0.9, false)
+			core.material_override = _glow(Color("fff2b0"), 1.0, false)
 		"shard":
 			trail.mesh = _textured_quad(VfxArt.texture("snow"), color, 0.45)
 			core.visible = false
 			halo.visible = false
-			var shard := _instance(holder, MeshKit.cone(), _glow(color.lerp(Color.WHITE, 0.5), 0.95, false), from)
-			shard.scale = Vector3(size * 0.45, size * 2.4, size * 0.45)
-			shard.rotation_degrees = Vector3(-90, 0, 0)
-			var tail := _instance(holder, MeshKit.cone(), _glow(color, 0.8, false), from)
-			tail.scale = Vector3(size * 0.45, size * 1.2, size * 0.45)
-			tail.rotation_degrees = Vector3(90, 0, 0)
-			tail.position = Vector3(0, 0, size * 1.2)
+			ElementFx.ice_lance(holder, size)
+		"leaf":
+			trail.mesh = _textured_quad(VfxArt.texture("leaf"), Color("8ad860"), 0.45)
+			core.visible = false
+			halo.scale = Vector3.ONE * size * 0.6
+			ElementFx.leaf_swirl(holder, size)
 		"spark":
 			trail.mesh = _textured_quad(VfxArt.texture("star"), color, 0.5)
 			var star_quad := QuadMesh.new()
@@ -289,8 +286,12 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 		VfxBudget.track_light(light)
 	var mid := (from + to) * 0.5 + Vector3(0, minf(0.6, from.distance_to(to) * 0.08), 0)
 	var tween := holder.create_tween()
+	var puffs := {"next": 0.0}
 	tween.tween_method(func(t: float):
-		holder.global_position = from.lerp(mid, t).lerp(mid.lerp(to, t), t), 0.0, 1.0, maxf(duration, 0.05))
+		holder.global_position = from.lerp(mid, t).lerp(mid.lerp(to, t), t)
+		if variant == "flame" and t >= float(puffs.next) and VfxBudget.can_decorate(1):
+			puffs["next"] = t + 0.18
+			ElementFx.flame_puff(parent, holder.global_position, size), 0.0, 1.0, maxf(duration, 0.05))
 	await tween.finished
 	flash(parent, to, color, 1.8 + size * 2.0)
 	sparks(parent, to, color, 16, 3.5, 0.45)

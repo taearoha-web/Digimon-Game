@@ -113,7 +113,7 @@ func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)
-		a.loop_mode = Animation.LOOP_LINEAR if (clip in LOOPING or clip.begins_with("Chibi_")) else Animation.LOOP_NONE
+		a.loop_mode = Animation.LOOP_LINEAR if (clip in LOOPING or clip.begins_with("Chibi_") or clip.begins_with("Fly_")) else Animation.LOOP_NONE
 	FlyClips.add_to(anim, _skeleton)
 	var height := 0.0
 	for mi in model.find_children("*", "MeshInstance3D", true, false):

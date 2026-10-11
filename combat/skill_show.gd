@@ -156,6 +156,27 @@ static func _area(parent: Node3D, skill: Dictionary, look: Dictionary, at: Vecto
 	var style := String(look.style)
 	# Outline follows the real attack radius; vertical accents stay below 5m.
 	VfxArt.crest(parent, at, color, look.family, radius, 0.72, look.phase)
+	# Fire, ice and nature are drawn as the real thing (ElementFx). A meteor's
+	# fire waits for the rock to land; a burst rings the caster instead of
+	# covering them.
+	var element := ElementFx.element_of(skill)
+	var ring := String(skill.shape) == "burst"
+	var wait := 0.55 if String(skill.get("special", "")) == "meteor" else 0.0
+	if element in ["fire", "ice", "vine", "plant"]:
+		var show := func():
+			if not is_instance_valid(parent) or not parent.is_inside_tree():
+				return
+			match element:
+				"fire": ElementFx.fire_field(parent, at, radius, tier, ring)
+				"ice": ElementFx.ice_field(parent, at, radius, tier, ring)
+				"vine": ElementFx.vine_field(parent, at, radius, tier, ring)
+				"plant": ElementFx.plant_field(parent, at, radius, String(ElementFx.PLANT_SKILLS.get(String(skill.id), "sprouts")), tier, ring)
+		if wait > 0.0:
+			parent.get_tree().create_timer(wait).timeout.connect(show, CONNECT_ONE_SHOT)
+		else:
+			show.call()
+		_finish(parent, look, at, radius * 0.6, 8 + tier)
+		return
 	match style:
 		"fire":
 			VfxKit.fire_ring(parent, at, color, radius * 0.8, 8 + tier, 0.5)
