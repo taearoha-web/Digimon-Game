@@ -41,6 +41,21 @@ static func debris(parent: Node3D, pos: Vector3, skill: Dictionary) -> void:
 	if skill.is_empty() or not VfxBudget.can_decorate(1):
 		return
 	var color: Color = skill.get("color", Color.WHITE)
+	# Fire licks the target, ice locks its feet, vines bind it.
+	match ElementFx.element_of(skill):
+		"fire":
+			ElementFx.flame_hit(parent, pos)
+			VfxArt.motes(parent, pos, Color("ffb050"), "ember", 8, 0.6, 1.2, 0.8)
+			return
+		"ice":
+			ElementFx.ice_hit(parent, pos)
+			return
+		"vine":
+			ElementFx.vine_bind(parent, pos)
+			return
+		"plant":
+			VfxArt.motes(parent, pos, Color("8ad860"), "leaf", 10, 0.7, 0.9, 0.9)
+			return
 	match SkillShow.style_of(skill):
 		"fire":
 			VfxArt.motes(parent, pos, Color("ffb050"), "ember", 10, 0.6, 1.2, 0.8)

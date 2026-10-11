@@ -50,6 +50,9 @@ var _fading := false
 var _dead := false
 var _bar: FieldHpBar
 var _book := BuffBook.new()
+var _sigil: MeshInstance3D
+
+const SPIRIT_SHADER := preload("res://shaders/vfx_spirit.gdshader")
 
 
 func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: float, slot: int, slots: int, p_rank := 1) -> void:
@@ -78,15 +81,51 @@ func _ready() -> void:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
 		_visual.setup(String(_kind.model), float(_kind.height), float(_kind.hover), _kind.tint)
+	_spiritify()
 	scale = Vector3.ONE * 0.05
 	create_tween().tween_property(self, "scale", Vector3.ONE * size_mult, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), _kind.color, 2.2 * size_mult)
+	VfxArt.sky_strike(get_parent(), global_position, _kind.color, 0.9 * size_mult, 7.0, 0.45)
 	# Health bar above the head (the node is scaled, so the bar is placed in local units).
 	var top: float = (float(_kind.height) if _kind.has("height") else 1.8) + float(_kind.hover) + 0.5
 	_bar = FieldHpBar.new()
 	_bar.position = Vector3(0, top, 0)
 	_bar.scale = Vector3.ONE * 1.3 / sqrt(size_mult)
 	add_child(_bar)
+
+
+## Summoned allies read as spirits, never as wild monsters: a pulsing glow along
+## their outline in the summon's colour, a rune circle turning under their feet
+## and motes of light rising around them.
+func _spiritify() -> void:
+	var color: Color = _kind.color
+	var glow := ShaderMaterial.new()
+	glow.shader = SPIRIT_SHADER
+	glow.set_shader_parameter("color", color.lightened(0.15))
+	for node in find_children("*", "MeshInstance3D", true, false):
+		(node as MeshInstance3D).material_overlay = glow
+	var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.15), 0.85, false)
+	mat.albedo_texture = VfxArt.texture("rune")
+	_sigil = MeshInstance3D.new()
+	_sigil.mesh = VfxKit.ground_quad()
+	_sigil.material_override = mat
+	_sigil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_sigil.position = Vector3(0, 0.06, 0)
+	_sigil.scale = Vector3.ONE * (0.9 if float(_kind.get("hover", 0.0)) > 0.5 else 1.15)
+	add_child(_sigil)
+	var spin := _sigil.create_tween().set_loops()
+	spin.tween_property(_sigil, "rotation:y", TAU, 6.0).as_relative()
+	var motes := VfxKit._particles(self, Vector3(0, 0.2, 0), color.lightened(0.3), 8, 1.6, false)
+	motes.local_coords = false
+	motes.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	motes.emission_sphere_radius = 0.7
+	motes.direction = Vector3.UP
+	motes.spread = 15.0
+	motes.initial_velocity_min = 0.6
+	motes.initial_velocity_max = 1.2
+	motes.gravity = Vector3.ZERO
+	motes.scale_amount_min = 0.25
+	motes.scale_amount_max = 0.5
 
 
 func _build_blade() -> Node3D:
@@ -193,6 +232,7 @@ func _vanish() -> void:
 		return
 	_fading = true
 	remove_from_group("summons")
+	VfxArt.motes(get_parent(), global_position + Vector3(0, 0.8, 0), _kind.color.lightened(0.3), "star", 10, 0.8, 1.6, 0.9)
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector3.ONE * 0.05, 0.35)
 	tween.tween_callback(queue_free)

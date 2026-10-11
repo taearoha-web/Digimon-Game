@@ -495,7 +495,14 @@ func _field() -> void:
 func _skills() -> void:
 	Game.dismiss_party()
 	_level(100 if job != "" else 12)
-	if job != "":
+	# job "a,b,c,d": put exactly these skills on the bar (any class pool).
+	if job.contains(","):
+		Game.profile["adv"] = 4
+		Game.profile["loadout"] = Array(job.split(","))
+		for id in Game.profile.loadout:
+			Game.profile.skills[id] = 10
+		Game.profile_changed.emit()
+	elif job != "":
 		Game.profile["adv"] = int(job)
 		var bars := {"lancer": ["thrust", "spear_wave", "dragon_lance", "ragnarok_lance"], "summoner": ["alpha_wolves", "ancient_treant", "wind_drake", "elder_dragon"], "archer": ["recall_wolverine", "golden_falcon", "force_of_nature", "tempest"], "mage": ["spirit_elemental", "dancing_sword", "fire_elemental", "armageddon"], "warrior": ["cyclone_strike", "grand_cross", "brandish", "gladiator"], "priest": ["summon_muspell", "divine_judgment", "holy_rain_big", "last_judgement"]}
 		Game.profile["loadout"] = bars[String(class_id)]
