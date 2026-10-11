@@ -11,7 +11,7 @@ config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "GL Compatibility")
 boot_splash/bg_color=Color(0.0470588, 0.0705882, 0.188235, 1)
 boot_splash/show_image=false
-config/icon="res://icon.svg"
+config/icon="res://assets/branding/icon_512.png"
 
 [autoload]
 
