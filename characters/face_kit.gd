@@ -46,6 +46,8 @@ uniform vec4 tint : source_color = vec4(1.0);
 uniform vec3 skin : source_color = vec3(0.95, 0.6, 0.45);
 uniform vec3 skin_ref : source_color = vec3(0.97, 0.8, 0.67);
 uniform float rough = 0.9;
+// Fades the clothes toward white (a shrine maiden's robe); skin is kept.
+uniform float wash = 0.0;
 void fragment() {
 	vec4 c = texture(albedo_tex, UV);
 	float mx = max(c.r, max(c.g, c.b));
@@ -54,6 +56,8 @@ void fragment() {
 	vec3 rgb = c.rgb;
 	if (c.r >= c.g && c.g >= c.b && sat > 0.3 && sat < 0.9 && mx > 0.7) {
 		rgb = min(c.rgb / max(skin_ref, vec3(0.01)) * skin, vec3(1.0));
+	} else {
+		rgb = mix(rgb, vec3(0.62 + 0.38 * dot(rgb, vec3(0.333))), wash);
 	}
 	ALBEDO = rgb * tint.rgb;
 	ROUGHNESS = rough;
@@ -122,6 +126,7 @@ static func skin_material(source: StandardMaterial3D, tint: Color, look: Diction
 	mat.set_shader_parameter("tint", source.albedo_color * StorybookFinish.balanced_tint(tint))
 	mat.set_shader_parameter("skin", skin_color(look))
 	mat.set_shader_parameter("skin_ref", Color("f5b993"))
+	mat.set_shader_parameter("wash", float(look.get("npc_wash", 0.0)))
 	return mat
 
 

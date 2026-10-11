@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "village" in OS.get_cmdline_user_args():
+		await _japan_village()
+		return
 	if "balance" in OS.get_cmdline_user_args():
 		_balance_rules()
 		await _hit_feel()
@@ -110,6 +113,7 @@ func _run() -> void:
 	_balance_rules()
 	await _hit_feel()
 	_weapon_models()
+	await _japan_village()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -146,7 +150,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 14, "eleven villagers, the warp crystal, the ranked-duel desk and the tower keeper")
+	check(town.npcs.size() == 14, "twelve villagers, the daily notice board and the warp crystal")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -1897,3 +1901,51 @@ func _weapon_models() -> void:
 	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")
 	check(ItemLook.look_of(top) == "bow_9" and ItemLook.icon(top) != null, "Lv.91-100 bows are the God Bow with an icon")
 	check(WeaponKit.look_for("sword", 9, 1) == "sword_9" and WeaponKit.look_for("sword", 15, 0) == "sword_9", "star gear above Lv.100 keeps the top model")
+
+
+func _japan_village() -> void:
+	print("== The Japanese village")
+	var town := await _start(&"warrior")
+	var village := town.get_node_or_null("Village")
+	check(village != null, "the village is built")
+	for piece in ["Shrine", "Pagoda", "Dojo", "GeneralStore", "Forge", "Storehouse", "Izakaya", "VillageGate", "SparringRing"]:
+		check(village != null and village.get_node_or_null(piece) != null, "the village has its %s" % piece)
+	check(town.npcs.size() == 14, "twelve villagers, the notice board and the warp crystal")
+	var looks := {}
+	for npc in town.npcs:
+		if npc.visual != null:
+			looks[str(Npc.LOOKS.get(npc.role, {}))] = true
+	check(looks.size() == 12, "every villager looks different (%d looks)" % looks.size())
+	var board: Npc = null
+	for npc in town.npcs:
+		if npc.role == "daily":
+			board = npc
+	check(board is NoticeBoard, "the daily quests hang on a notice board")
+	var hatted: Npc = town.npcs.filter(func(n): return n.role == "storage")[0]
+	check(hatted.visual.find_child("Hat_kasa", true, false) != null, "villagers wear Japanese headwear")
+	var space := town.get_world_3d().direct_space_state
+	var blocked: Array[String] = []
+	for npc in town.npcs:
+		if npc is NoticeBoard or npc.role == "warp":
+			continue
+		var front := Vector3(sin(npc.visual.rotation.y), 0, cos(npc.visual.rotation.y))
+		for spot in [npc.global_position, npc.global_position + front * 2.0]:
+			var q := PhysicsShapeQueryParameters3D.new()
+			var ball := SphereShape3D.new()
+			ball.radius = 0.45
+			q.shape = ball
+			q.transform = Transform3D(Basis(), spot + Vector3(0, 1.0, 0))
+			q.collision_mask = 1
+			if not space.intersect_shape(q, 4).is_empty():
+				blocked.append(npc.role)
+	check(blocked.is_empty(), "no villager or the spot in front of them is inside a wall (%s)" % str(blocked))
+	# Every building is a single merged mesh (one draw call each).
+	var shrine := village.get_node("Shrine") as MeshInstance3D
+	check(shrine != null and shrine.mesh.get_surface_count() <= 2, "a building is one merged mesh")
+	check(town.portals.size() == 1 and town.portals[0].to == &"meadow", "the village gate leads to the meadow")
+	await main.go(&"meadow", true)
+	await _wait(0.4)
+	await main.go(&"town", true)
+	await _wait(0.4)
+	var back: Vector3 = main.zone.hero.global_position
+	check(back.distance_to(JapanVillage.GATE) < 9.0, "coming back from the meadow lands at the village gate")

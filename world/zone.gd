@@ -15,7 +15,7 @@ signal pvp_finished(result: Dictionary)
 signal tower_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
-const TOWN_RADIUS := 38.0
+const TOWN_RADIUS := JapanVillage.RADIUS
 const SAFE_START_RADIUS := 14.0
 const SPAWN_INTERVAL := 1.6
 const DROP_RATE_GEAR := 0.14
@@ -248,59 +248,49 @@ func _make_weather(kind: StringName) -> void:
 
 func _build_town() -> void:
 	Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"))
-	_start = Vector3(0, 0, 14)
-	var paths: Array[PackedVector2Array] = [
-		PackedVector2Array([Vector2(0, -36), Vector2(0, 36)]),
-		PackedVector2Array([Vector2(-36, 0), Vector2(36, 0)]),
-	]
-	Scenery.ground(self, 130.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), paths, 3.0)
-	# Plaza disc
-	var plaza := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 9.0
-	disc.bottom_radius = 9.0
-	disc.height = 0.06
-	disc.radial_segments = 40
-	plaza.mesh = disc
-	plaza.material_override = MeshKit.toon(Color("d7c8b3"))
-	plaza.position = Vector3(0, 0.02, 0)
-	add_child(plaza)
-	var clear: Array[Vector3] = [Vector3(0, 0, 11.0), Vector3(0, 0, 0), Vector3(0, -33, 5.0)]
-	for t in 20:
-		clear.append(Vector3(0, -36 + t * 3.6, 2.6))
-		clear.append(Vector3(-36 + t * 3.6, 0, 2.6))
-	var houses := [
-		[Vector3(-16, 0, -13), 0.4, Color("f2b880"), Color("c0503a"), Vector3(7, 4, 6)],
-		[Vector3(15, 0, -14), -0.5, Color("e8d8a8"), Color("4a78c8"), Vector3(7, 4, 6)],
-		[Vector3(-19, 0, 14), 2.6, Color("d8e0f0"), Color("7a4ac8"), Vector3(7, 4, 6)],
-		[Vector3(18, 0, 15), -2.4, Color("f0d8a0"), Color("3aa86a"), Vector3(8, 4.2, 6.5)],
-		[Vector3(-27, 0, -2), 1.5, Color("f2c8a0"), Color("c87a3a"), Vector3(6, 3.6, 5.5)],
-	]
-	for h in houses:
-		_house(h[0], h[1], h[2], h[3], h[4])
-		clear.append(Vector3(h[0].x, h[0].z, 6.5))
-	Scenery.populate(self, &"meadow", rng, TOWN_RADIUS, clear, 0.8)
+	_start = JapanVillage.START
+	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6)
+	var clear := JapanVillage.build(self, rng)
+	Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.55)
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
-	_fountain(Vector3(0, 0, 0))
-	for lamp in [Vector3(-6, 0, -6), Vector3(6, 0, -6), Vector3(-6, 0, 6), Vector3(6, 0, 6), Vector3(0, 0, -20), Vector3(0, 0, 22)]:
-		_lamp(lamp)
-	portals = [{"to": &"meadow", "pos": Vector3(0, 0, -33), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
+	_petals()
+	portals = [{"to": &"meadow", "pos": JapanVillage.GATE + Vector3(0, 0, 4), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
 	_make_portal(portals[0])
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
-	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-7, 0, -8), "Barbarian")
-	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, Vector3(-11, 0, 5), "Knight")
-	_add_npc("storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", Vector3(15, 0, -4), "Rogue_Hooded")
-	_add_npc("skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", Vector3(-8, 0, 10), "Mage")
-	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", Vector3(11, 0, 2), "Ranger")
-	_add_npc("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน", Vector3(-3, 0, 12), "Rogue_Hooded")
-	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", Vector3(-3, 0, -17), "Knight")
-	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", Vector3(-9, 0, -16), "Mage")
-	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", Vector3(4, 0, -14), "Knight")
-	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", Vector3(-12, 0, -2), "Barbarian")
-	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", Vector3(8, 0, -7), "Rogue")
-	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(0, 0, 8))
-	_add_warp(Vector3(-5.5, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
-	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", Vector3(10, 0, 9), "Rogue_Hooded")
+	var V := JapanVillage
+	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-10, 0, -23), "Mage", Vector3(0, 0, -23))
+	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20))
+	_add_npc("skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", V.DOJO + Vector3(2.5, 0, 9.0), "Mage", V.DOJO + Vector3(2.5, 0, 20))
+	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20))
+	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20))
+	_add_npc("storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20))
+	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
+	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
+	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
+	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30))
+	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0))
+	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6))
+	var board := NoticeBoard.new()
+	board.position = Vector3(6.5, 0, 8.0)
+	board.rotation.y = -0.6
+	add_child(board)
+	board.setup("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน")
+	npcs.append(board)
+	_add_warp(Vector3(-8.0, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
+
+
+## Sakura petals drifting over the village.
+func _petals() -> void:
+	var petals := VfxKit._particles(self, Vector3(0, 9.0, 0), Color("ffc8da"), int(70 * GameSettings.density_scale()) + 20, 7.0, false)
+	petals.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	petals.emission_box_extents = Vector3(38, 1, 38)
+	petals.direction = Vector3(0.4, -1, 0.2)
+	petals.spread = 25.0
+	petals.initial_velocity_min = 0.6
+	petals.initial_velocity_max = 1.2
+	petals.gravity = Vector3(0.2, -0.35, 0.1)
+	petals.scale_amount_min = 0.5
+	petals.scale_amount_max = 0.9
 
 
 func _spawn_party() -> void:
@@ -443,70 +433,6 @@ func _make_boundary_walls(radius: float) -> void:
 		body.add_child(shape)
 
 
-func _house(pos: Vector3, yaw: float, wall: Color, roof: Color, size: Vector3) -> void:
-	var holder := Node3D.new()
-	holder.position = pos
-	holder.rotation.y = yaw
-	add_child(holder)
-	MeshKit.part(holder, MeshKit.box(), MeshKit.toon(wall), Vector3(0, size.y * 0.5, 0), size)
-	# A solid gable closes the old slab gap; timber and window boxes make the
-	# village read as tiny handmade cottages at the normal camera distance.
-	MeshKit.part(holder, MeshKit.prism(), MeshKit.toon(roof.lerp(Color("bba6a5"), 0.22)),
-		Vector3(0, size.y + 0.88, 0), Vector3(size.x + 1.0, 1.9, size.z + 1.0))
-	WorldArt.cottage_details(holder, size, roof)
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	shape.shape = box
-	shape.position = Vector3(0, size.y * 0.5, 0)
-	body.add_child(shape)
-	holder.add_child(body)
-
-
-func _fountain(pos: Vector3) -> void:
-	var holder := Node3D.new()
-	holder.position = pos
-	add_child(holder)
-	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("b8c0d8")), Vector3(0, 0.3, 0), Vector3(3.2, 0.6, 3.2))
-	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("6ec8ff", ), {"emission": 0.4}), Vector3(0, 0.62, 0), Vector3(2.7, 0.06, 2.7))
-	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("b8c0d8")), Vector3(0, 1.1, 0), Vector3(0.45, 1.5, 0.45))
-	MeshKit.part(holder, MeshKit.sphere_low(), MeshKit.toon(Color("9ae0ff"), {"emission": 0.8}), Vector3(0, 2.0, 0), Vector3(0.7, 0.35, 0.7))
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	var shape := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = 1.7
-	cyl.height = 2.0
-	shape.shape = cyl
-	shape.position = Vector3(0, 1.0, 0)
-	body.add_child(shape)
-	holder.add_child(body)
-	var splash := VfxKit._particles(holder, pos + Vector3(0, 2.0, 0), Color("bfe8ff"), 40, 1.2, false)
-	splash.direction = Vector3.UP
-	splash.spread = 25.0
-	splash.initial_velocity_min = 2.0
-	splash.initial_velocity_max = 3.5
-	splash.gravity = Vector3(0, -6.0, 0)
-
-
-func _lamp(pos: Vector3) -> void:
-	var holder := Node3D.new()
-	holder.position = pos
-	add_child(holder)
-	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("4a4a58")), Vector3(0, 1.6, 0), Vector3(0.14, 3.2, 0.14))
-	MeshKit.part(holder, MeshKit.sphere_low(), MeshKit.toon(Color("ffe9a0"), {"emission": 2.0}), Vector3(0, 3.3, 0), Vector3(0.45, 0.45, 0.45))
-	# Real lights cost every mesh around them an extra shading pass: only on "high".
-	if GameSettings.quality >= 2:
-		var light := OmniLight3D.new()
-		light.light_color = Color("ffe9b0")
-		light.light_energy = 0.7
-		light.omni_range = 7.0
-		light.position = Vector3(0, 3.3, 0)
-		holder.add_child(light)
-
-
 func _add_warp(pos: Vector3, title: String) -> void:
 	var stone := WarpStone.new()
 	stone.position = pos
@@ -515,12 +441,12 @@ func _add_warp(pos: Vector3, title: String) -> void:
 	npcs.append(stone)
 
 
-func _add_npc(role: String, npc_name: String, class_id: StringName, title: String, pos: Vector3, model := "") -> void:
+func _add_npc(role: String, npc_name: String, class_id: StringName, title: String, pos: Vector3, model := "", facing := Vector3.INF) -> void:
 	var npc := Npc.new()
 	npc.position = pos
 	add_child(npc)
-	npc.setup(role, npc_name, class_id, title, model)
-	npc.face(_start)
+	npc.setup(role, npc_name, class_id, title, model, Npc.LOOKS.get(role, {}))
+	npc.face(_start if facing == Vector3.INF else facing)
 	npcs.append(npc)
 
 

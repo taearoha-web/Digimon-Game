@@ -376,6 +376,12 @@ func refresh() -> void:
 		outfit_style = String(starter[1])
 		outfit_tint = starter[2]
 		cape = [outfit_style, String(starter[3])] if String(starter[3]) != "" else null
+	# Villagers pick their own outfit: [model, tint, cape part or ""].
+	if look.has("npc_outfit"):
+		var own: Array = look.npc_outfit
+		outfit_style = String(own[0])
+		outfit_tint = own[1]
+		cape = [String(own[0]), String(own[2])] if String(own[2]) != "" else null
 	var glb: String = OUTFIT_GLB[outfit_style]
 	var boots: Variant = equip.get("boots")
 	var armor_nodes: Array = []
@@ -394,6 +400,9 @@ func refresh() -> void:
 		_add_part(preset.head[0], preset.head[1])
 	else:
 		_add_custom_head(helm == null)
+		if look.has("npc_hat") and helm == null:
+			var hat_spec: Array = look.npc_hat
+			_body_nodes[_body_nodes.size() - 1].add_child(JapanKit.hat(String(hat_spec[0]), hat_spec[1]))
 	if preset.has("extra") and armor == null:
 		_add_part(preset.extra[0], preset.extra[1])
 	if armor != null:

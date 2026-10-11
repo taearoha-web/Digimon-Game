@@ -14,6 +14,11 @@ const FLOWER_MODELS := ["Plant_Flowers", "Plant_1", "Petals_1", "Plant_2"]
 ## Per-theme scenery: tree models (weighted), light wall trees, bush / flower /
 ## rock counts and the bush colours. Themes not listed use "meadow".
 const THEME_SETS := {
+	&"village": {
+		"trees": [["MapleTree_4", 3.0], ["NormalTree_5", 2.0], ["PineTree_2", 2.0], ["PineTree_4", 1.0]],
+		"wall": ["PineTree_5", "MapleTree_4", "PineTree_4", "NormalTree_5"],
+		"bushes": 70, "flowers": 60, "rocks": 30, "bush_colors": [Color("e8a0c0"), Color("f4d0dc"), Color("eef0df"), Color("c8a0d8")],
+	},
 	&"desert": {
 		"trees": [["PalmTree_1", 4.0], ["PalmTree_3", 3.0], ["DeadTree_5", 2.0], ["DeadTree_9", 1.5]],
 		"wall": ["PalmTree_1", "DeadTree_5", "PalmTree_3", "DeadTree_9"],
