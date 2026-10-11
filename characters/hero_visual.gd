@@ -208,6 +208,10 @@ func _refresh_chibi() -> void:
 		back.add_child(GearKit.wings(_wing_kind(wings)))
 		EnhanceFx.glow_piece(self, [back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_pose_wings.call_deferred(wing_mode, true)
+	# Each armour piece is a handful of primitives: draw it as one mesh.
+	for node in _body_nodes:
+		if is_instance_valid(node) and String(node.name).begins_with("Chibi") and node.get_child_count() > 0:
+			MeshMerge.merge(node.get_child(0) as Node3D)
 	_make_aura()
 	_hold_gear()
 	_polish()

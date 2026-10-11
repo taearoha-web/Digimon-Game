@@ -55,6 +55,7 @@ var phase := 0
 var _atk_scale := 1.0
 var _base_speed := 2.0
 var _barrage_timer := 9.0
+var _dormant := false
 
 
 func setup(id: StringName, p_level: int, p_home: Vector3, p_hero: Node3D) -> void:
@@ -87,6 +88,8 @@ func _ready() -> void:
 
 	visual = _make_visual()
 	var top := visual.height
+	if not GameSettings.world_shadows():
+		MeshKit.blob_shadow(self, clampf(float(template.height) * 0.55, 0.5, 1.6))
 
 	_label = Label3D.new()
 	_label.text = "Lv.%d %s" % [level, template.name]
@@ -125,6 +128,26 @@ func _make_visual() -> MonsterVisual:
 	v.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)), template.get("tint", Color.WHITE))
 	v.add_to_group("anim_lod")
 	return v
+
+
+## Far from the hero and minding its own business: the monster is hidden and
+## stops thinking, moving and animating until the hero comes near again (the
+## field checks this a few times a second). Fights always keep it awake.
+func set_dormant(on: bool) -> void:
+	if on and (hostile or _returning or _dead or is_boss):
+		on = false
+	if on == _dormant:
+		return
+	_dormant = on
+	visible = not on
+	set_physics_process(not on)
+	visual.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+	if on:
+		velocity = Vector3.ZERO
+
+
+func is_dormant() -> bool:
+	return _dormant
 
 
 func is_dead() -> bool:
@@ -167,6 +190,7 @@ func set_targeted(on: bool) -> void:
 func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = null) -> bool:
 	if _dead:
 		return false
+	set_dormant(false)
 	hp = maxi(0, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
@@ -193,6 +217,7 @@ func provoke(alert_pack := true) -> void:
 	if _dead:
 		return
 	if not hostile:
+		set_dormant(false)
 		hostile = true
 		_returning = false
 		_flash_alert()

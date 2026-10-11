@@ -43,7 +43,7 @@ static func save_settings() -> void:
 
 
 static func view_scale() -> float:
-	return [0.55, 0.8, 1.0][clampi(quality, 0, 2)]
+	return [0.5, 0.7, 1.0][clampi(quality, 0, 2)]
 
 
 static func density_scale() -> float:
@@ -51,15 +51,43 @@ static func density_scale() -> float:
 
 
 static func shadow_distance() -> float:
-	return [0.0, 34.0, 55.0][clampi(quality, 0, 2)]
+	return [0.0, 24.0, 55.0][clampi(quality, 0, 2)]
+
+
+## Tallest the 3D scene is drawn (pixels on the screen's short side). Phones
+## have 2-3x dense screens; drawing every one of those pixels is what stutters,
+## so the 3D view is drawn smaller and stretched while the UI stays sharp.
+const RENDER_HEIGHT := [540, 720, 1440]
+## Directional shadow map size per quality (the shadow is shorter on medium).
+const SHADOW_ATLAS := [1024, 2048, 4096]
+
+
+static func render_scale(window_size: Vector2i) -> float:
+	var short := maxf(float(mini(window_size.x, window_size.y)), 1.0)
+	return clampf(float(RENDER_HEIGHT[clampi(quality, 0, 2)]) / short, 0.35, 1.0)
+
+
+## Fits the 3D resolution to the window (call again when the window resizes).
+static func apply_resolution(tree: SceneTree) -> void:
+	var root := tree.root
+	root.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	root.scaling_3d_scale = render_scale(root.size)
+	RenderingServer.directional_shadow_atlas_set_size(SHADOW_ATLAS[clampi(quality, 0, 2)], true)
+
+
+## Trees, rocks and monsters only cast real shadows on high quality; below that
+## the shadow pass draws just the hero and friends (monsters get a blob shadow).
+static func world_shadows() -> bool:
+	return quality >= 2
 
 
 static func particle_scale() -> float:
 	return [0.4, 0.7, 1.0][clampi(quality, 0, 2)]
 
 
-## Applies the shadow setting to every sun in the running scene.
+## Applies the shadow and resolution settings to the running scene.
 static func apply_live(tree: SceneTree) -> void:
+	apply_resolution(tree)
 	for node in tree.get_nodes_in_group("sun"):
 		var sun := node as DirectionalLight3D
 		sun.shadow_enabled = shadow_distance() > 0.0

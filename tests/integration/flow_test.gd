@@ -47,6 +47,9 @@ func _run() -> void:
 	if "bag" in OS.get_cmdline_user_args():
 		await _bag_tools()
 		return
+	if "perf" in OS.get_cmdline_user_args():
+		await _field_perf()
+		return
 	if "village" in OS.get_cmdline_user_args():
 		await _japan_village()
 		return
@@ -1903,7 +1906,16 @@ func _weapon_models() -> void:
 		"name": "คทาราชวงศ์", "rarity": 0, "level": 35, "class": "mage", "stats": {"atk": 80}, "price": 100}
 	Game._repair_item(mage_staff)
 	check(mage_staff.base == "staff" and mage_staff.name == "คทาราชวงศ์", "a mage's staff stays a staff")
-	check(WeaponKit.book(4).find_children("*", "MeshInstance3D", true, false).size() > 6, "the priest's book is styled per wand tier")
+	var book_verts := func(tier: int) -> int:
+		var book := WeaponKit.book(tier)
+		var total := 0
+		for mi in book.find_children("*", "MeshInstance3D", true, false):
+			var mesh := (mi as MeshInstance3D).mesh
+			for surface in mesh.get_surface_count():
+				total += (mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		book.free()
+		return total
+	check(int(book_verts.call(4)) > int(book_verts.call(0)), "the priest's book is styled per wand tier (sun emblem is richer than the plain ring)")
 	var starter := ItemData.generate(1, &"warrior", RandomNumberGenerator.new(), 0, "weapon")
 	check(ItemLook.look_of(starter) == "sword_0" and String(starter.name).begins_with("ดาบอัศวิน"), "the Lv.1 sword is the Knight Sword (%s)" % starter.name)
 	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")
@@ -2014,6 +2026,47 @@ func _bag_tools() -> void:
 	check(Game.profile.inv.size() == count - 1 or ItemData.is_stackable(Game.profile.inv[0]), "selling from the bag removes the item")
 	check(main.menu._selected_index == 0, "the next item is selected after selling")
 	main.menu.close_menu()
+
+
+func _field_perf() -> void:
+	print("== Field smoothness: resolution cap, sleeping monsters, merged gear")
+	var saved_quality := GameSettings.quality
+	GameSettings.quality = 1
+	check(is_equal_approx(GameSettings.render_scale(Vector2i(1080, 2400)), 720.0 / 1080.0), "phone screen is drawn at 720 px on the short side")
+	check(GameSettings.render_scale(Vector2i(640, 360)) == 1.0, "a small window is never upscaled")
+	GameSettings.quality = 0
+	check(GameSettings.render_scale(Vector2i(1080, 2400)) < 0.51, "low quality draws even fewer pixels")
+	GameSettings.quality = 1
+	check(not GameSettings.world_shadows(), "medium quality: only the hero casts real shadows")
+	var meshes_before := 0
+	var held := WeaponKit.build("lantern_9")
+	var merged := held.find_children("*", "MeshInstance3D", true, false)
+	check(merged.size() <= 4, "a 52-piece lantern is drawn as a few meshes (%d)" % merged.size())
+	held.free()
+	await _start(&"warrior")
+	await main.go(&"meadow", true)
+	var zone: Node = main.zone
+	var hero: Hero = zone.hero
+	await get_tree().create_timer(1.0).timeout
+	var mobs := get_tree().get_nodes_in_group("mobs")
+	check(mobs.size() > 10, "the meadow is populated (%d)" % mobs.size())
+	var far: Mob = null
+	for m in mobs:
+		if (m as Mob).global_position.distance_to(hero.global_position) > 70.0 and not (m as Mob).is_boss:
+			far = m
+			break
+	if far == null:
+		hero.global_position = (mobs[0] as Node3D).global_position + Vector3(95, 0, 0)
+		await get_tree().create_timer(0.6).timeout
+		far = mobs[0]
+	await get_tree().create_timer(0.6).timeout
+	check(far.is_dormant() and not far.visible and not far.is_physics_processing(), "a far monster sleeps (hidden, no physics)")
+	far.take_hit(1, false)
+	check(not far.is_dormant() and far.visible, "a monster that is hit wakes up")
+	hero.global_position = far.global_position + Vector3(3, 0, 0)
+	await get_tree().create_timer(0.6).timeout
+	check(not far.is_dormant(), "a monster near the hero is awake")
+	GameSettings.quality = saved_quality
 
 
 func _element_fx() -> void:
