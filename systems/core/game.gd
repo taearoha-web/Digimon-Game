@@ -1578,6 +1578,60 @@ func sell_item(index: int, count := 1) -> void:
 	remove_item_at(index, qty)
 
 
+## Bag items auto-sell would sell: unworn gear of the chosen grades (bit per
+## rarity in [param mask]) below [param below_level] (0 = any level). Enhanced
+## gear, gear with gems and wings are always kept.
+func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
+	var out: Array[int] = []
+	for i in profile["inv"].size():
+		var item: Dictionary = profile["inv"][i]
+		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":
+			continue
+		if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
+			continue
+		if (mask >> clampi(int(item.get("rarity", 0)), 0, 4)) & 1 == 0:
+			continue
+		if below_level > 0 and int(item.get("level", 1)) >= below_level:
+			continue
+		out.append(i)
+	return out
+
+
+## Sells everything [method auto_sell_indices] picks. Returns {count, gold}.
+func auto_sell(mask: int, below_level: int) -> Dictionary:
+	var picked := auto_sell_indices(mask, below_level)
+	var total := 0
+	for k in range(picked.size() - 1, -1, -1):
+		total += ItemData.sell_price(profile["inv"][picked[k]])
+		profile["inv"].remove_at(picked[k])
+	profile.flags["autosell_mask"] = mask
+	profile.flags["autosell_level"] = below_level
+	if not picked.is_empty():
+		add_gold(total)
+		inventory_changed.emit()
+		say("ขายอัตโนมัติ %d ชิ้น ได้ %d เหรียญ" % [picked.size(), total], &"success")
+	mark_dirty()
+	return {"count": picked.size(), "gold": total}
+
+
+## Grades of dropped gear the hero picks up (bit per rarity; all by default).
+func loot_mask() -> int:
+	return int(profile.get("flags", {}).get("loot_mask", 31))
+
+
+func set_loot_mask(mask: int) -> void:
+	profile.flags["loot_mask"] = clampi(mask, 0, 31)
+	mark_dirty()
+
+
+## Whether a drop is kept: potions, gems, gold and wings always are; gear only
+## when its grade is switched on in the pickup filter.
+func keeps_loot(item: Dictionary) -> bool:
+	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":
+		return true
+	return (loot_mask() >> clampi(int(item.get("rarity", 0)), 0, 4)) & 1 == 1
+
+
 func buy_item(item: Dictionary) -> bool:
 	var price := ItemData.buy_price(item) * (int(item.get("count", 1)) if ItemData.is_stackable(item) else 1)
 	if profile["gold"] < price:

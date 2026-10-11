@@ -41,6 +41,9 @@ func _run() -> void:
 	if "pvp" in OS.get_cmdline_user_args():
 		await _pvp_duel()
 		return
+	if "bag" in OS.get_cmdline_user_args():
+		await _bag_tools()
+		return
 	if "village" in OS.get_cmdline_user_args():
 		await _japan_village()
 		return
@@ -114,6 +117,7 @@ func _run() -> void:
 	await _hit_feel()
 	_weapon_models()
 	await _japan_village()
+	await _bag_tools()
 	await _camera_while_moving()
 	await _touch_scroll()
 	await _jobs()
@@ -1949,3 +1953,60 @@ func _japan_village() -> void:
 	await _wait(0.4)
 	var back: Vector3 = main.zone.hero.global_position
 	check(back.distance_to(JapanVillage.GATE) < 9.0, "coming back from the meadow lands at the village gate")
+
+
+func _bag_tools() -> void:
+	print("== Bag: auto-sell and the pickup filter")
+	await _start(&"warrior")
+	Game.profile["level"] = 60
+	Game.profile["inv"] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	for r in 5:
+		Game.profile.inv.append(ItemData.generate(20, &"warrior", rng, r, "armor"))
+		Game.profile.inv.append(ItemData.generate(55, &"warrior", rng, r, "helm"))
+	var plus_item := ItemData.generate(20, &"warrior", rng, 0, "boots")
+	plus_item["plus"] = 3
+	Game.profile.inv.append(plus_item)
+	var gem_item := ItemData.generate(20, &"warrior", rng, 0, "ring")
+	gem_item["sockets"] = 1
+	gem_item["gems"] = ["ruby_1"]
+	Game.profile.inv.append(gem_item)
+	Game.profile.inv.append(ItemData.wings(rng, "warrior", 0))
+	Game.profile.inv.append(ItemData.potion("hp_s", 5))
+	var common_good := 0b00011
+	var picked := Game.auto_sell_indices(common_good, 30)
+	check(picked.size() == 2, "common + good gear below Lv.30: two pieces (%d)" % picked.size())
+	check(Game.auto_sell_indices(common_good, 0).size() == 4, "any level: four pieces")
+	check(Game.auto_sell_indices(31, 0).size() == 10, "every grade sells the ten plain pieces, never enhanced, gemmed gear or wings")
+	var gold_before := int(Game.profile.gold)
+	var expect := 0
+	for i in Game.auto_sell_indices(31, 30):
+		expect += ItemData.sell_price(Game.profile.inv[i])
+	var result := Game.auto_sell(31, 30)
+	check(int(result.count) == 5 and int(Game.profile.gold) == gold_before + expect and int(result.gold) == expect, "auto-sell sells them all and pays their price")
+	check(Game.profile.inv.size() == 9 and Game.profile.inv.any(func(it): return int(it.get("plus", 0)) == 3) and Game.profile.inv.any(func(it): return it.get("slot", "") == "wings"), "the kept items stay in the bag")
+	check(int(Game.profile.flags.autosell_mask) == 31 and int(Game.profile.flags.autosell_level) == 30, "the auto-sell choice is remembered")
+	check(Game.save_code_roundtrip(), "the save code survives the new settings")
+	# Pickup filter: switched-off grades are left behind, potions and wings never.
+	Game.set_loot_mask(0b11100)
+	check(not Game.keeps_loot(ItemData.generate(10, &"warrior", rng, 1, "armor")) and Game.keeps_loot(ItemData.generate(10, &"warrior", rng, 3, "armor")), "the filter keeps only the chosen grades")
+	check(Game.keeps_loot(ItemData.potion("hp_s", 1)) and Game.keeps_loot(ItemData.wings(rng, "warrior", 0)), "potions and wings are always picked up")
+	await main.go(&"meadow", true)
+	await _wait(0.4)
+	var zone: Zone = main.zone
+	var before := get_tree().get_nodes_in_group("loot").size()
+	zone._spawn_loot(ItemData.generate(10, &"warrior", rng, 0, "armor"), 0, zone.hero.global_position)
+	zone._spawn_loot(ItemData.generate(10, &"warrior", rng, 4, "armor"), 0, zone.hero.global_position)
+	zone._spawn_loot({}, 30, zone.hero.global_position)
+	await _wait(0.1)
+	check(get_tree().get_nodes_in_group("loot").size() == before + 2, "a common drop is left out, a mythic drop and gold appear")
+	Game.set_loot_mask(31)
+	# Selling from the bag keeps the selection on the next item.
+	main.menu.open_menu(&"inventory")
+	main.menu._selected_index = 0
+	var count: int = Game.profile.inv.size()
+	main.menu._sell_selected(1)
+	check(Game.profile.inv.size() == count - 1 or ItemData.is_stackable(Game.profile.inv[0]), "selling from the bag removes the item")
+	check(main.menu._selected_index == 0, "the next item is selected after selling")
+	main.menu.close_menu()
