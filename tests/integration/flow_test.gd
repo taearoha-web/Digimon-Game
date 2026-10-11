@@ -1906,7 +1906,16 @@ func _weapon_models() -> void:
 		"name": "คทาราชวงศ์", "rarity": 0, "level": 35, "class": "mage", "stats": {"atk": 80}, "price": 100}
 	Game._repair_item(mage_staff)
 	check(mage_staff.base == "staff" and mage_staff.name == "คทาราชวงศ์", "a mage's staff stays a staff")
-	check(WeaponKit.book(4).find_children("*", "MeshInstance3D", true, false).size() > 6, "the priest's book is styled per wand tier")
+	var book_verts := func(tier: int) -> int:
+		var book := WeaponKit.book(tier)
+		var total := 0
+		for mi in book.find_children("*", "MeshInstance3D", true, false):
+			var mesh := (mi as MeshInstance3D).mesh
+			for surface in mesh.get_surface_count():
+				total += (mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		book.free()
+		return total
+	check(int(book_verts.call(4)) > int(book_verts.call(0)), "the priest's book is styled per wand tier (sun emblem is richer than the plain ring)")
 	var starter := ItemData.generate(1, &"warrior", RandomNumberGenerator.new(), 0, "weapon")
 	check(ItemLook.look_of(starter) == "sword_0" and String(starter.name).begins_with("ดาบอัศวิน"), "the Lv.1 sword is the Knight Sword (%s)" % starter.name)
 	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")
