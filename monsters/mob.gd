@@ -188,7 +188,7 @@ func set_targeted(on: bool) -> void:
 
 
 ## Damage from the hero. Returns true when it killed the monster.
-func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = null) -> bool:
+func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = null) -> bool:
 	if _dead:
 		return false
 	set_dormant(false)
@@ -196,8 +196,7 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
 	_bar_until = Time.get_ticks_msec() * 0.001 + 6.0
-	BattleVfx.floating_text(get_parent(), top_point(), str(amount) + ("!" if crit else ""),
-			Color("ffd84a") if crit else color, 1.35 if crit else 1.0)
+	BattleVfx.damage_number(get_parent(), top_point(), str(amount) + ("!" if crit else ""), false, 1.35 if crit else 1.0)
 	visual.flash(Color(1, 1, 1))
 	if hp <= 0:
 		_die()
@@ -525,7 +524,7 @@ func _tick_status(delta: float) -> void:
 			hp = maxi(0, hp - amount)
 			_bar.set_ratio(float(hp) / float(max_hp))
 			_bar.visible = true
-			BattleVfx.floating_text(get_parent(), top_point(), str(amount), Color("ff8a3a"), 0.7)
+			BattleVfx.damage_number(get_parent(), top_point(), str(amount), false, 0.7)
 			if hp <= 0:
 				_die()
 

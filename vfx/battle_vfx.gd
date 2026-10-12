@@ -182,7 +182,28 @@ static var _floating_active := 0
 static var text_scale := 1.0
 
 
-static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0) -> void:
+## Damage numbers: what the hero's side deals is yellow-orange, what the hero
+## takes is blood red. Both use the same thick black outline.
+const DAMAGE_DEALT := Color("ffae1a")
+const DAMAGE_TAKEN := Color("d3121f")
+const DAMAGE_OUTLINE := Color(0, 0, 0)
+const DAMAGE_OUTLINE_WIDTH := 34
+
+
+static var _damage_font: FontVariation
+
+
+static func damage_number(parent: Node3D, pos: Vector3, text: String, taken: bool, size := 1.0) -> void:
+	if _damage_font == null:
+		# The heading face drawn heavier, so the colour still reads inside the black edge.
+		_damage_font = FontVariation.new()
+		_damage_font.base_font = load("res://ui/theme/fonts/heading_font.tres")
+		_damage_font.variation_embolden = 1.1
+	floating_text(parent, pos, text, DAMAGE_TAKEN if taken else DAMAGE_DEALT, size, DAMAGE_OUTLINE, DAMAGE_OUTLINE_WIDTH, _damage_font)
+
+
+static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0,
+		outline := Color(0.03, 0.05, 0.14), outline_width := 22, font: Font = null) -> void:
 	# Many hits at once would pile up unreadably: cap the count and spread them out.
 	if _floating_active > 26 and size < 1.2:
 		return
@@ -192,12 +213,12 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	label.text = L10n.t(text)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.font = load("res://ui/theme/fonts/heading_font.tres")
+	label.font = font if font else load("res://ui/theme/fonts/heading_font.tres")
 	label.font_size = int(96 * size)
-	label.outline_size = int(22 * size)
+	label.outline_size = int(outline_width * size)
 	label.pixel_size = 0.0042 * text_scale
 	label.modulate = color
-	label.outline_modulate = Color(0.03, 0.05, 0.14)
+	label.outline_modulate = outline
 	parent.add_child(label)
 	label.global_position = pos
 	label.scale = Vector3.ONE * 0.4
