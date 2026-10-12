@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Toon Tale">
 <meta name="theme-color" content="#0c1230">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest?v=1196b39e2aea">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1196b39e2aea">
+<link rel="icon" type="image/png" sizes="192x192" href="icon.png?v=1196b39e2aea">
 <meta name="description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 6 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
 <meta property="og:title" content="Toon Tale">
 <meta property="og:description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 6 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
@@ -25,6 +25,7 @@
 <title>Toon Tale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="accounts.9a27719da306.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Mitr:wght@400;500&family=Noto+Sans+Thai:wght@400;600&display=swap">
 <style>
   /* Single, deliberate dark look: the game's own "digital night" palette. */
@@ -54,7 +55,7 @@
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
   }
-  /* Godot sizes the canvas to the window (canvasResizePolicy 2). */
+  /* CSS fills the window; the shell bounds the Retina backbuffer separately. */
   #canvas {
     position: fixed;
     inset: 0;
@@ -158,6 +159,13 @@
   .controls b { font: 500 14px/1.3 var(--display); color: var(--text); }
   .foot { margin: 0; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
   .note { margin: 0; font-size: 12px; color: var(--gold); line-height: 1.5; }
+  #session-report { color: var(--text); background: var(--bg-mid); border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer; }
+  .toon-report { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.85); }
+  .toon-report > div { width: min(95vw, 680px); max-height: 90vh; overflow: auto; padding: 16px; border-radius: 16px; background: var(--bg-mid); }
+  .toon-report h2 { margin: 0; }
+  .toon-report p { font-size: 13px; }
+  .toon-report textarea { display: block; box-sizing: border-box; width: 100%; height: 35vh; margin-bottom: 12px; color: var(--text); background: var(--bg-deep); -webkit-user-select: text; user-select: text; font-size: 12px; }
+  .toon-report button { min-height: 44px; margin-right: 10px; padding: 8px 14px; border: 0; border-radius: 8px; cursor: pointer; }
 
   /* Portrait warning (the game is landscape only) */
   #rotate {
@@ -213,14 +221,15 @@
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v0.3.1 · build 506c5115</p>
+    <p class="eyebrow">Web build · v0.9.4 · build 8e8feb1f</p>
     <h1>Toon <span>Tale</span></h1>
-    <p class="lede">ARPG สไตล์การ์ตูนแนว Priston Tale เล่นคนเดียวบนมือถือ: เลือก 6 อาชีพ (นักรบ นักธนู จอมเวท พรีสต์ ผู้เรียกอสูร นักหอก) เปลี่ยนอาชีพสายเฉพาะ ล่ามอนสเตอร์หลายแมพจนถึงเลเวล 100 และต่อด้วยระดับดาว (Paragon) ในแมพปลายเกม Void of Calamity เก็บอุปกรณ์ ตีบวก +10 ฝังอัญมณี ปีกเลเวล 100 ประลอง PvP กับผู้เล่น AI ปีน Void Tower และเซฟได้ 4 ช่อง</p>
+    <p class="lede">ผจญภัย ARPG สไตล์การ์ตูน 6 อาชีพ พัฒนาถึงเลเวล 100 แล้วเดินทางต่อในเส้นทางดาว พร้อม 24 สกิลและปีกเทพ 100 ดาว ใหม่: วิหารบัวดารา ล่าบอสเทพหกปีกเพื่อสะสมชุดและอาวุธ 200 ดาวประจำอาชีพ ใช้ไอดีเดียวเล่นต่อข้ามเครื่องได้</p>
     <button id="play" type="button">เริ่มเล่น</button>
     <div class="progress" aria-live="polite">
       <div class="bar"><i id="bar"></i></div>
       <p class="note" id="fs-note" hidden>iPhone: กดปุ่มแชร์ → "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ</p>
-      <p id="status">ขนาดดาวน์โหลดประมาณ 39 MB · เล่นแนวนอน</p>
+      <p id="status">ขนาดดาวน์โหลดประมาณ 59 MB · เล่นแนวนอน</p>
+      <button id="session-report" type="button" hidden>ดูรายงานการหลุดครั้งก่อน</button>
     </div>
     <ul class="controls">
       <li><b>เดิน</b>ลากจอยวงกลมด้านซ้าย</li>
@@ -243,11 +252,13 @@
 </div>
 
 <script src="index.js"></script>
+<script src="accounts.e32457afe888.js"></script>
+<script src="session.836efc19a211.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 2, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 33863136, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
-  // Compressed copies published next to the page: name -> [file, bytes, mime]
-  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": ["game.506c5115.gz.wasm", 32771979, "application/octet-stream"]};
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 55490752, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
+  // Compressed copies: name -> [file OR ordered file array, total bytes, mime]
+  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.8e8feb1f.part001.gz.wasm", "game.8e8feb1f.part002.gz.wasm", "game.8e8feb1f.part003.gz.wasm", "game.8e8feb1f.part004.gz.wasm"], 53432866, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');
@@ -281,41 +292,69 @@
   // second combined buffer alongside the engine's decompressed WASM/PCK data.
   const nativeFetch = window.fetch.bind(window);
   async function packedResponse(packed, key, init) {
-    const res = await nativeFetch(packed[0], init);
-    if (!res.ok) throw new Error('โหลดไฟล์ไม่สำเร็จ (' + res.status + ')');
-    if (!res.body) throw new Error('เบราว์เซอร์ไม่สามารถอ่านไฟล์เกมได้');
-    const reader = res.body.getReader();
+    const files = Array.isArray(packed[0]) ? packed[0] : [packed[0]];
+    let reader = null, nextFile = 0, cancelled = false;
+    // Open only the next part after consuming the current one. Parts are slices
+    // of ONE gzip stream; neither concatenate them in memory nor inflate each.
+    async function nextBytes() {
+      while (!cancelled) {
+        if (!reader) {
+          if (nextFile === files.length) return { done: true };
+          const res = await nativeFetch(files[nextFile++], init);
+          if (!res.ok) throw new Error('โหลดไฟล์ไม่สำเร็จ (' + res.status + ')');
+          if (!res.body) throw new Error('เบราว์เซอร์ไม่สามารถอ่านไฟล์เกมได้');
+          if (cancelled) { await res.body.cancel(); return { done: true }; }
+          reader = res.body.getReader();
+        }
+        const part = await reader.read();
+        if (!part.done) return part;
+        reader.releaseLock();
+        reader = null;
+      }
+      return { done: true };
+    }
+    async function cancel(reason) {
+      cancelled = true;
+      if (reader) await reader.cancel(reason);
+    }
     let prefix = new Uint8Array(0);
     let size = 0;
-    // Usually one read. Two bytes also handles a very small first network chunk.
-    while (prefix.length < 2) {
-      const part = await reader.read();
-      if (part.done) break;
-      const joined = new Uint8Array(prefix.length + part.value.length);
-      joined.set(prefix); joined.set(part.value, prefix.length); prefix = joined;
-      size += part.value.length;
+    loaded[key] = 0;
+    showProgress();
+    // The gzip magic can straddle both network chunks and published file parts.
+    try {
+      while (prefix.length < 2) {
+        const part = await nextBytes();
+        if (part.done) break;
+        const joined = new Uint8Array(prefix.length + part.value.length);
+        joined.set(prefix); joined.set(part.value, prefix.length); prefix = joined;
+        size += part.value.length;
+      }
+      if (prefix.length < 2) throw new Error('ไฟล์เกมไม่สมบูรณ์ กรุณาลองใหม่');
+    } catch (error) {
+      await cancel(error);
+      throw error;
     }
-    if (prefix.length < 2) throw new Error('ไฟล์เกมไม่สมบูรณ์ กรุณาลองใหม่');
-    loaded[key] = size;
+    loaded[key] = Math.min(size, packed[1]);
     showProgress();
     const compressed = prefix[0] === 0x1f && prefix[1] === 0x8b;
     if (compressed && typeof DecompressionStream !== 'function') {
-      await reader.cancel();
+      await cancel();
       throw new Error('กรุณาอัปเดตเบราว์เซอร์ (iPhone ต้องใช้ iOS 16.4 ขึ้นไป)');
     }
     let stream = new ReadableStream({
       start(controller) { controller.enqueue(prefix); },
       async pull(controller) {
         try {
-          const part = await reader.read();
+          const part = await nextBytes();
           if (part.done) { loaded[key] = packed[1]; showProgress(); controller.close(); return; }
           size += part.value.length;
           loaded[key] = Math.min(size, packed[1]);
           showProgress();
           controller.enqueue(part.value);
-        } catch (error) { controller.error(error); }
+        } catch (error) { await cancel(error); controller.error(error); }
       },
-      cancel(reason) { return reader.cancel(reason); },
+      cancel,
     });
     // Fetch may already have decoded Content-Encoding: gzip; inspect the bytes.
     if (compressed) stream = stream.pipeThrough(new DecompressionStream('gzip'));
@@ -354,7 +393,31 @@
   }
 
   let started = false;
-  function start() {
+  // Godot 4.3 Compatibility cannot scale only its 3D viewport. Own the canvas
+  // through public resize policy 0 instead of modifying the engine or browser
+  // devicePixelRatio. High keeps every art layer with a crisp 1920 px budget.
+  let renderQuality = 1;
+  function resizeGameCanvas() {
+    const canvas = document.getElementById('canvas');
+    const width = Math.max(1, window.innerWidth);
+    const height = Math.max(1, window.innerHeight);
+    const longEdge = [1280, 1600, 1920][renderQuality];
+    const ratio = Math.min(window.devicePixelRatio || 1, longEdge / Math.max(width, height));
+    const renderWidth = Math.max(1, Math.round(width * ratio));
+    const renderHeight = Math.max(1, Math.round(height * ratio));
+    if (canvas.width !== renderWidth) canvas.width = renderWidth;
+    if (canvas.height !== renderHeight) canvas.height = renderHeight;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+  }
+  window.toonSetRenderQuality = function (quality) {
+    renderQuality = Math.max(0, Math.min(2, Math.trunc(Number(quality)) || 0));
+    resizeGameCanvas();
+  };
+  window.addEventListener('resize', resizeGameCanvas);
+  window.addEventListener('pageshow', resizeGameCanvas);
+  resizeGameCanvas();
+  async function start() {
     goFullscreen(); // must run inside the tap
     if (started) return;
     playBtn.disabled = true;
@@ -365,19 +428,30 @@
       fail('เบราว์เซอร์นี้ยังเล่นไม่ได้: ' + missing.join(', '));
       return;
     }
+    try {
+      if (window.toonAccountsReady) await window.toonAccountsReady();
+    } catch (err) {
+      fail('เปิดบัญชีไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      return;
+    }
     started = true;
     for (const key of Object.keys(loaded)) delete loaded[key];
     showProgress();
     const engine = new Engine(GODOT_CONFIG);
     engine.startGame({
       onProgress: function () { /* our own bar tracks the compressed download */ },
+      onPrintError: function () { console.error.apply(console, arguments); window.toonSession.error(Array.from(arguments).join(' ')); },
+      onExit: function () { window.toonSession.end(); },
     }).then(function () {
+      window.toonSession.begin('0.9.4 · build 8e8feb1f', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
+      resizeGameCanvas();
       document.body.classList.add('playing');
       document.getElementById('loader').remove();
       document.getElementById('canvas').focus();
     }, function (err) {
       started = false;
       console.error(err);
+      window.toonSession.error(err);
       fail('เปิดเกมไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' · ลองรีเฟรชหน้า');
     });
   }
