@@ -1015,7 +1015,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		_star_retaliation=true
 	Game.profile.hp = maxi(0, Game.profile.hp - amount)
 	_since_hurt = 0.0
-	BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff5a6e"), 1.1)
+	BattleVfx.damage_number(field, global_position + Vector3(0, 2.4, 0), str(amount), true, 1.1)
 	visual.flash()
 	AudioManager.play_sfx(&"hit_special", -2.0)
 	if Time.get_ticks_msec() >= _cast_until:
