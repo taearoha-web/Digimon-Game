@@ -1,0 +1,45 @@
+TOON TALE — MARTIAL ELITE ART, PRIVATE PREVIEW ONLY
+18 Lv.80–100 skills: warrior, archer, lancer. Actual game publication unchanged.
+
+Design:
+- Original finite shared sculptures: beveled blades, engraved lion shield,
+  animated feathered phoenix, serpentine flame dragon projectiles, rune gates.
+- Gladiator's apparition uses the existing licensed KayKit warrior, baked into
+  one 8,797-triangle surface with a GPU morph between two real sword poses.
+  Reproduce with tools/bake_martial_champion.gd. No per-cast skeleton or lights.
+- Contact decorations are emitted by the real hit hook. Fan skills use actual
+  target projectile paths, not a fake universal line. Meteor Arrow's carrier
+  falls from the sky and its ground effect starts only on the existing hit.
+- Rain has an airborne phase before the existing .55-second ground hit.
+- Shader fade, expanding cuts, feather articulation, burst/dissolve and compact
+  persistent buff motifs share finite owner clocks. Global VfxBudget applies.
+- Basic projectile bodies remain visible at decoration saturation.
+- Existing damage, target counts, cooldowns, MP, ranges and cast delays unchanged.
+  No camera shake/zoom, hitstop, extra combat hit or shadow/light was introduced.
+
+Motion:
+- Authored elite weight/twist/recovery for each skill. Bow sky shots elevate the
+  chest/arms together while keeping the imported feet and grip relationship.
+- Gungnir and Heaven Rend have distinct offline-baked grip paths on all 3 rigs.
+  Reproduce with tools/bake_martial_poses.gd. Runtime does not solve IK.
+- All 18 level/name mappings are retained from ClassData.
+
+Checks:
+- Script loader: 223 files, 0 failures.
+- Choreography: 1,368 cases / 11,568 checks, 0 failures.
+- Weapon motion: 106,539 checks, 0 failures; maximum primary grip error .0020m,
+  support hand distance .0174m. New clips included in full trajectory checks.
+- Presentation: 456 casts across low/medium/high, 0 failures. Tests include staged
+  visibility and shader fade at the middle of every layer's active phase.
+- Lifecycle: 340 casts / 1,732 checks, 0 failures; objects 1,677 -> 1,677.
+- 18 real Hero.use_skill captures: all hit totals match the earlier fixtures.
+- Native OpenGL capture: no script or renderer errors. The dummy renderer emits
+  its pre-existing null-mesh diagnostics in headless tests; these are not used
+  to establish appearance. No native benchmark is claimed as iPhone FPS.
+
+Artifacts: /workspace/toon-artifacts/martial-skill-preview
+- final-frames/showcase.json plus 60 PNG runtime captures
+- martial-v2.mp4: H.264 Main / AAC-LC / yuv420p / 960x540 / 30fps / faststart
+- manifest.json, validation logs, three class review sheets
+- source changes remain in /workspace/toon-art-design pending live approval
+Preview: https://toon-tale-skill-preview.taemongkichi.chatgpt.site

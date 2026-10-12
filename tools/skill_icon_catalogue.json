@@ -1,0 +1,1066 @@
+[
+  {
+    "id": "power_strike",
+    "name": "Power Strike",
+    "family": "vagabond",
+    "palette": "steel",
+    "art_sha256": "c2636f6e24aff1079ebc920c64c52b054710c5f06f876f625a4899b949020228"
+  },
+  {
+    "id": "round_slash",
+    "name": "Round Slash",
+    "family": "vagabond",
+    "palette": "gold",
+    "art_sha256": "45941546958ffbf9c3b27c06edbcc07dfdb51a74b958e4fb96b10ea60f169835"
+  },
+  {
+    "id": "second_wind",
+    "name": "Second Wind",
+    "family": "vagabond",
+    "palette": "wind",
+    "art_sha256": "983775d3a8e2b8cc280063a42caade917f806f86992124222fe35b10d5b5e28d"
+  },
+  {
+    "id": "raving",
+    "name": "Raving",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "b66e7dc1985232dd008b2e61912e677b476c7d0bc6d8fa79ee1deeb4a3ef1a52"
+  },
+  {
+    "id": "impact",
+    "name": "Impact",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "ab498c4d6b0dd7778459878c087581fb822a796fd4aa06271501719890d0c05e"
+  },
+  {
+    "id": "triple_impact",
+    "name": "Triple Impact",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "83a3f920981469eb4dd07652c0703a43f32512db64e02b40b2d6da6cdb9a6363"
+  },
+  {
+    "id": "brutal_swing",
+    "name": "Brutal Swing",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "b25491cd5b19d4be56ec85f79276a76d365d05a1dcd45061216fe63b8e4c43e3"
+  },
+  {
+    "id": "roar",
+    "name": "Roar",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "3044eda13ffc41a692b68f4e32da76e3a8972bfb848ec745c605aa70e5a99086"
+  },
+  {
+    "id": "rage_of_zecram",
+    "name": "Rage of Zecram",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "55786c464db005d68dccfd658b657af8e5623dc52c79b2346895452a683ac8ff"
+  },
+  {
+    "id": "concentration",
+    "name": "Concentration",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "e775ff27bf69015d4748cc274bf4e25f0aa9117a85ce28ac3ad00f5aa01e015f"
+  },
+  {
+    "id": "avenging_crash",
+    "name": "Avenging Crash",
+    "family": "warrior",
+    "palette": "rose",
+    "art_sha256": "feb7c16b1be8d9f32241072c00373eab04c310823d79aac738528a42ff0e78d6"
+  },
+  {
+    "id": "swift_axe",
+    "name": "Swift Axe",
+    "family": "warrior",
+    "palette": "wind",
+    "art_sha256": "a8211b3929a0dfb89fb447cc8799621e85242935728f929a406b6819d06472a4"
+  },
+  {
+    "id": "bone_crash",
+    "name": "Bone Crash",
+    "family": "warrior",
+    "palette": "earth",
+    "art_sha256": "c449c44fae6376c8907ec3dc451232d07d0c3ac85765f817157f76e38f1fce40"
+  },
+  {
+    "id": "destroyer",
+    "name": "Destroyer",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "b21a9220eb78dda88b621b890fb386f00196b7eb5430f2469b5fd2ff0a83be27"
+  },
+  {
+    "id": "berserker",
+    "name": "Berserker",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "70c7c0a6b658a8cd021290c4eeee7dd6d23590b951767bf58f68a75e6a8ae2f5"
+  },
+  {
+    "id": "sword_blast",
+    "name": "Sword Blast",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "f51c6dbaeccafbc9d2bf09f13dcc9b902c757767a1325b692103b4c100bed9d3"
+  },
+  {
+    "id": "holy_valor",
+    "name": "Holy Valor",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "aee43a4bf99d2200144a3b239cafcda7fb06155dcabfba84ba8051171d04084c"
+  },
+  {
+    "id": "cyclone_strike",
+    "name": "Cyclone Strike",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "e9f88fe4848c058f148c4acd8803c2fb283fb4885a4325a5dd225fdaf43f39b3"
+  },
+  {
+    "id": "brandish",
+    "name": "Brandish",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "75194885652c104ccc7c0d223dd41b2983e8519328b71bd94c443c208b7084d3"
+  },
+  {
+    "id": "double_crash",
+    "name": "Double Crash",
+    "family": "warrior",
+    "palette": "steel",
+    "art_sha256": "3a0c2af6249295441c127350b9b678ea31e684d78a5350cbac05011ca7e54396"
+  },
+  {
+    "id": "piercing",
+    "name": "Piercing",
+    "family": "warrior",
+    "palette": "steel",
+    "art_sha256": "cfaf19cffaf3f2b1939aec3fdf16fdbbf77871f1e37b646f967e85dbcaea61c8"
+  },
+  {
+    "id": "drastic_spirit",
+    "name": "Drastic Spirit",
+    "family": "warrior",
+    "palette": "storm",
+    "art_sha256": "11329e4fde69fdc6d5f5fdb78a1712c98e919a9aa20576d3f4200338177a2a41"
+  },
+  {
+    "id": "grand_cross",
+    "name": "Grand Cross",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "02b6b307ecfd379f97e2bb116a46a3435c06a9bfb0286bbf0fee79d3a6ebb1f4"
+  },
+  {
+    "id": "sword_of_justice",
+    "name": "Sword of Justice",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "e3c0935afd263d52467913c52b5673260288931e4e92c819df0cf00f309901ce"
+  },
+  {
+    "id": "godly_shield",
+    "name": "Godly Shield",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "16281c3b78dc9a458b79945b2834dc160f317d8299e86070ab9673dffa4963e9"
+  },
+  {
+    "id": "divine_piercing",
+    "name": "Divine Piercing",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "1c18bd6272a82044c870e693400957dddab93fb83e671f3e7439d61aeca0053b"
+  },
+  {
+    "id": "triumph_of_valhalla",
+    "name": "Triumph of Valhalla",
+    "family": "warrior",
+    "palette": "gold",
+    "art_sha256": "51ca8e9484af516e43b7ab421cd380e4da5992999c800c99f4c77ef8dbdbfea8"
+  },
+  {
+    "id": "gladiator",
+    "name": "Gladiator",
+    "family": "warrior",
+    "palette": "ember",
+    "art_sha256": "ddc73905df504b63ee3539c8ce8e1173f5817a7c8e556f4818f95a859cc67c19"
+  },
+  {
+    "id": "wind_arrow",
+    "name": "Wind Arrow",
+    "family": "archer",
+    "palette": "wind",
+    "art_sha256": "6a5338de3093f1c504eafb94782c71d4e5f1dc04929a7601f36872040dc3a0ac"
+  },
+  {
+    "id": "perfect_aim",
+    "name": "Perfect Aim",
+    "family": "archer",
+    "palette": "gold",
+    "art_sha256": "f1c0b447004e2ea3efacb3899d32d7fff0f2be1cad10fbfc72d0e21031139c94"
+  },
+  {
+    "id": "scout_hawk",
+    "name": "Scout Hawk",
+    "family": "archer",
+    "palette": "earth",
+    "art_sha256": "67e531024a220dd6828eac9b8af9dc172862ab69c9d751b80cd9218c924f3b12"
+  },
+  {
+    "id": "arrow_of_rage",
+    "name": "Arrow of Rage",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "4fa4f7ec315b54cc9f5b920d8d648b0de99c659c6411b4c8f8472f44c0f664a9"
+  },
+  {
+    "id": "avalanche",
+    "name": "Avalanche",
+    "family": "archer",
+    "palette": "wind",
+    "art_sha256": "87c950ee1a2554a43aaa4bcd849735aa796caf8f8e0cdf912908029207f6f109"
+  },
+  {
+    "id": "elemental_shot",
+    "name": "Elemental Shot",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "ee81edbe3062e57838e7f00c4c19c27642020388c7cd4d0b57a5b2b4f02b0e02"
+  },
+  {
+    "id": "golden_falcon",
+    "name": "Golden Falcon",
+    "family": "archer",
+    "palette": "gold",
+    "art_sha256": "33b7e9c57c47ac032a0efa617adb01aeb6a1de629faf7b67b7d7d3f633c11f72"
+  },
+  {
+    "id": "bomb_shot",
+    "name": "Bomb Shot",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "11cbe6feaa423e9c631b6038699a023ff992cdd95c3f406a9c9c188bad9fbe08"
+  },
+  {
+    "id": "perforation",
+    "name": "Perforation",
+    "family": "archer",
+    "palette": "steel",
+    "art_sha256": "f1124873004a6d0aab19bd6322512dc686bd35cd904eb98a75b7004167877879"
+  },
+  {
+    "id": "recall_wolverine",
+    "name": "Recall Wolverine",
+    "family": "archer",
+    "palette": "earth",
+    "art_sha256": "39ee9303f4db330759bf1dab11223d9b7ef0bc99dff791e8617b7a45ae4be724"
+  },
+  {
+    "id": "phoenix_shot",
+    "name": "Phoenix Shot",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "937a1439b26ad7da724117f83d4dbfc495a10236800c9d39f41d385c950a8fb0"
+  },
+  {
+    "id": "dionic_sight",
+    "name": "Dionic Sight",
+    "family": "archer",
+    "palette": "gold",
+    "art_sha256": "a5a7366b346a2cf8d9c43335ae30e80a9443fde9954e7ffe99ac9089cd6c69ee"
+  },
+  {
+    "id": "lethal_sight",
+    "name": "Lethal Sight",
+    "family": "archer",
+    "palette": "rose",
+    "art_sha256": "9f54b63e1014e669ff275efc78ae98833ef91317dc4fb3a8d92d2f9f8ea93c5b"
+  },
+  {
+    "id": "fierce_wind",
+    "name": "Fierce Wind",
+    "family": "archer",
+    "palette": "wind",
+    "art_sha256": "50ba1073baa1dee61e983fcedaf78c8a0df5dc8f58a8d50298015be460f606a2"
+  },
+  {
+    "id": "force_of_nature",
+    "name": "Force of Nature",
+    "family": "archer",
+    "palette": "forest",
+    "art_sha256": "661b9c1f79548c54250bbc68a74113d9f03a2b5c28f9af60fd2762658e136936"
+  },
+  {
+    "id": "ensnare",
+    "name": "Ensnare",
+    "family": "archer",
+    "palette": "forest",
+    "art_sha256": "c0bec0a1fb1cd7e2c55443382a8debaaa563973308db8d525c08915dac6ae34e"
+  },
+  {
+    "id": "hurricane",
+    "name": "Hurricane",
+    "family": "archer",
+    "palette": "wind",
+    "art_sha256": "c5e934cde0ff48e55c03a8ee409adaae2bdab57ac98b46bda0b4630918a19f68"
+  },
+  {
+    "id": "arrow_of_thunder",
+    "name": "Arrow of Thunder",
+    "family": "archer",
+    "palette": "storm",
+    "art_sha256": "afd3a85032f3923bbe2838a92dd7a1163d87cb63ee3c8095e8a882beadf4a56d"
+  },
+  {
+    "id": "tempest",
+    "name": "Tempest",
+    "family": "archer",
+    "palette": "storm",
+    "art_sha256": "25e53de36f69d94c906985e805494f4a7d71da5d0ba86b582a2564b99a7d4479"
+  },
+  {
+    "id": "lightning_arrow",
+    "name": "Lightning Arrow",
+    "family": "archer",
+    "palette": "storm",
+    "art_sha256": "dc2d96cbd51dfe82cdd9c5d731fa0c249519bdbe8e11d6154d478e07ff831fe5"
+  },
+  {
+    "id": "phoenix_rain",
+    "name": "Phoenix Rain",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "925510f141f2bd8a171825cc5644e692dca6a3d9e96ce52489527f25254b1a96"
+  },
+  {
+    "id": "spirit_of_wind",
+    "name": "Spirit of the Wind",
+    "family": "archer",
+    "palette": "wind",
+    "art_sha256": "2cd1c00e2df78b7ee7d6047ef6e7b92cd8e139d20f790ae8098f2ca514ced5b1"
+  },
+  {
+    "id": "dragon_shot",
+    "name": "Dragon Shot",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "b9e6204f93fc4442398236153e5b98985c644f01ff9a80e071a62d8dee32657e"
+  },
+  {
+    "id": "meteor_arrow",
+    "name": "Meteor Arrow",
+    "family": "archer",
+    "palette": "ember",
+    "art_sha256": "b3d4f49d4f28d434500aa7859f0631de0f58d6bbfa0729320e5d811d3d3de6c0"
+  },
+  {
+    "id": "agony",
+    "name": "Agony",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "368d3f84844f0a8d65c166b3264ca2be2b1351ebd32dedfe3e713327f045ab27"
+  },
+  {
+    "id": "fire_bolt",
+    "name": "Fire Bolt",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "fa009fc2248bbbf89a7860b782435cd4fb023d16dfa3197edc0d24cea8ed23f0"
+  },
+  {
+    "id": "zenith",
+    "name": "Zenith",
+    "family": "mage",
+    "palette": "frost",
+    "art_sha256": "ec3e90ee0180c6019e484cd26fedf92a4dfbfaaa814dd7528301d7b355fe9c1b"
+  },
+  {
+    "id": "fire_ball",
+    "name": "Fire Ball",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "74fbdf194598990baad13f2ae019411eaa7aac44a9b2cba995576be1f78c6099"
+  },
+  {
+    "id": "watornado",
+    "name": "Watornado",
+    "family": "mage",
+    "palette": "frost",
+    "art_sha256": "5a6c3177365101a456e0cd9fc5591c733613da0ddd1b44849f8d2bc9fd2c3b4f"
+  },
+  {
+    "id": "enchant_weapon",
+    "name": "Enchant Weapon",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "22be120f4a35c8fdbde7f81526e24519d7e63cf08fdb4e49ef300ca59014d053"
+  },
+  {
+    "id": "dead_ray",
+    "name": "Dead Ray",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "806321514f6ca3283d5aeb445f5ce6e4632211a923cb1e165fbe686dab636054"
+  },
+  {
+    "id": "energy_shield",
+    "name": "Energy Shield",
+    "family": "mage",
+    "palette": "frost",
+    "art_sha256": "c81a735dc772348cb684dd76abb885454c598dc56d40a53e61d7373a76422256"
+  },
+  {
+    "id": "diastrophism",
+    "name": "Diastrophism",
+    "family": "mage",
+    "palette": "earth",
+    "art_sha256": "a92b9933a2c2a5a6988b2c22f46e482310917dc01b8ad76429bb3ea50c3eb913"
+  },
+  {
+    "id": "spirit_elemental",
+    "name": "Spirit Elemental",
+    "family": "mage",
+    "palette": "frost",
+    "art_sha256": "9c04a8da69f0bdec4e58e3492de50893bb89c0256287ce30785775c4c6928d6c"
+  },
+  {
+    "id": "dancing_sword",
+    "name": "Dancing Sword",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "5669dc46efbc120789a96d9a3952fd86cd296c68cf7834b075b26029ba8f067c"
+  },
+  {
+    "id": "flame_wave",
+    "name": "Flame Wave",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "a58b8b030b8ed99755c752521dd2aeb2f5f6dcc2e91486e7e9c442d58c4a53ab"
+  },
+  {
+    "id": "distortion",
+    "name": "Distortion",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "ad738b75660453885cb3fa15d75068919b3a9facd28c491f8d507a80a9e9fcda"
+  },
+  {
+    "id": "fire_elemental",
+    "name": "Fire Elemental",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "a2865f4eff89c8550c64b53a8dd95a60775f452d942ca02f10d97e0a01cbc373"
+  },
+  {
+    "id": "meteo",
+    "name": "Meteo",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "4b594356d8c2958a8f3ffedc4ecac2ad25cdabac8be79f335bdfc850f67bffdb"
+  },
+  {
+    "id": "silraphim",
+    "name": "Silraphim",
+    "family": "mage",
+    "palette": "rose",
+    "art_sha256": "9bf535b937a2d321c5ef3d1c294ef43c2324f4942d683ae773818506b9414f81"
+  },
+  {
+    "id": "slow_speed",
+    "name": "Slow Speed",
+    "family": "mage",
+    "palette": "frost",
+    "art_sha256": "bbb79635c64bab0322c2e9887bedc4aa826a81526229b1a403efae44cc5953f0"
+  },
+  {
+    "id": "vague",
+    "name": "Vague",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "4fc607b68a5632a0cbde0e52b598688d7e3e7a7bb7483b7bef2b8a024520b0c6"
+  },
+  {
+    "id": "thunder_storm",
+    "name": "Thunder Storm",
+    "family": "mage",
+    "palette": "storm",
+    "art_sha256": "e87aad1c94fc009618cfc08979bbb1db6e6e98a0a15926a7a12d7a6effe6703e"
+  },
+  {
+    "id": "hell_meteor",
+    "name": "Hell Meteor",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "a7e6d523eb0b2d13093c9f1b2d6a241b0fa255ce321c662243f544fc085edf3a"
+  },
+  {
+    "id": "ice_storm",
+    "name": "Ice Storm",
+    "family": "mage",
+    "palette": "frost",
+    "art_sha256": "124b193d677b7377598b23529e1186baf626aa1cc82f06104688683da6a084ab"
+  },
+  {
+    "id": "spirit_burst",
+    "name": "Spirit Burst",
+    "family": "mage",
+    "palette": "rose",
+    "art_sha256": "c54e2dedc2cb2f09b6af1355dc375e431ef00e5f68476ae1e2406f1cb4193eed"
+  },
+  {
+    "id": "magic_overdrive",
+    "name": "Magic Overdrive",
+    "family": "mage",
+    "palette": "arcane",
+    "art_sha256": "52f2caad430b50d1894b4425ddc906e6b5606a667c11f85da199bb0ecc7797e2"
+  },
+  {
+    "id": "judgment_ray",
+    "name": "Judgment Ray",
+    "family": "mage",
+    "palette": "gold",
+    "art_sha256": "2b882612a45601083dfdf364020f9a1cc7e73c5fb81f2cae6bd2f6c5e20bfbaa"
+  },
+  {
+    "id": "armageddon",
+    "name": "Armageddon",
+    "family": "mage",
+    "palette": "ember",
+    "art_sha256": "ba8bd8a1106c048da12b482288e1abffabcd923ac879add241649c52633cf9ad"
+  },
+  {
+    "id": "holy_bolt",
+    "name": "Holy Bolt",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "ccc193a5f9affdd285dc0a868283b62483164ad5fe35b601584f6e83267bfefa"
+  },
+  {
+    "id": "healing",
+    "name": "Healing",
+    "family": "priest",
+    "palette": "rose",
+    "art_sha256": "19c9e4e3af668ff5efb4c9b1b51c033d03e46d27076116643668a550e24f5f37"
+  },
+  {
+    "id": "multi_spark",
+    "name": "Multi Spark",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "31b39929bbc0d8387f0f2ec44cbcbc9d4e0d048b241e310cf762847ac157c883"
+  },
+  {
+    "id": "holy_mind",
+    "name": "Holy Mind",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "ce38853f414a5304a9737a9a83d7f54ba31f92a9f29cd018ddc990705560ee42"
+  },
+  {
+    "id": "divine_lightning",
+    "name": "Divine Lightning",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "2325937cb8d07599c331bc6e54d28e20d5ca2cd44311fc61eed9e98791296ce5"
+  },
+  {
+    "id": "holy_reflection",
+    "name": "Holy Reflection",
+    "family": "priest",
+    "palette": "rose",
+    "art_sha256": "b3027a45ff2b5ad9e64b387923883f51b5acf462c70fc509a42bf407d46bcd3a"
+  },
+  {
+    "id": "grand_healing",
+    "name": "Grand Healing",
+    "family": "priest",
+    "palette": "rose",
+    "art_sha256": "25c0ad2ab6c790670d35b493a84a110d4a39022eeb13520e6e2553c0053f8e38"
+  },
+  {
+    "id": "vigor_ball",
+    "name": "Vigor Ball",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "c3148959d63bc83158a7f9e396492b6a09588b785d5801d8b132f44dae076f53"
+  },
+  {
+    "id": "extinction",
+    "name": "Extinction",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "d0e8a572e0c3c2711fc809158b1b4eb5601e58693b057cef1f0a2f2d3b6bcfde"
+  },
+  {
+    "id": "virtual_life",
+    "name": "Virtual Life",
+    "family": "priest",
+    "palette": "rose",
+    "art_sha256": "d74e50ea3c360a3ee5597b3f982133bb3d952dc7cf9c0fb01644812cfd2038f6"
+  },
+  {
+    "id": "glacial_spike",
+    "name": "Glacial Spike",
+    "family": "priest",
+    "palette": "frost",
+    "art_sha256": "7dda1e7fba100245a30c7ea25b957fb18fdaa99d33c3ab103543542e2b929fc6"
+  },
+  {
+    "id": "resurrection",
+    "name": "Resurrection",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "fc465fba835582685bd1f077d78edeba24916ccfe05ec58927e677c5c0b7282e"
+  },
+  {
+    "id": "summon_muspell",
+    "name": "Summon Muspell",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "d2e3b59cec62585a4fde5e727b754e3d4985fbb2a1092f83a219d4c912d7c5d0"
+  },
+  {
+    "id": "regeneration_field",
+    "name": "Regeneration Field",
+    "family": "priest",
+    "palette": "forest",
+    "art_sha256": "fb6ad6f1e07c23398a3c77e9c6979cdf85e2437e848afdc851a057b10266be56"
+  },
+  {
+    "id": "chain_lightning",
+    "name": "Chain Lightning",
+    "family": "priest",
+    "palette": "storm",
+    "art_sha256": "fd933bccfe02ef3f9125b2d06d5e65081e7708f67d9a2768084e8720eff659d1"
+  },
+  {
+    "id": "blessing_aura",
+    "name": "Blessing Aura",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "197822ef3090d655d2e5acf5f56e7a38078db209fe4a595bcbb84281a3617dba"
+  },
+  {
+    "id": "judgement_light",
+    "name": "Judgement",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "ddf6a3ab6fda8eaaf948f4acf984d5bf3f4ccee9632b8b6842e28500a3b219df"
+  },
+  {
+    "id": "hand_of_god",
+    "name": "Hand of God",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "ce9bfc6d50c730b063f9e89244c0b1e57b076b79a368b04687d8600cca67cb88"
+  },
+  {
+    "id": "heaven_light",
+    "name": "Heaven Light",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "0c373a5dfa099c48a52dcf6a6c3204e8a0c57b6b85bfcfdb795cd535b5e7dc86"
+  },
+  {
+    "id": "divine_judgment",
+    "name": "Divine Judgment",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "e1f3ff35ed6342b25c56557bc01a050617184b7c8f6ac276a9bd5e5673ef7254"
+  },
+  {
+    "id": "prayer",
+    "name": "Prayer",
+    "family": "priest",
+    "palette": "rose",
+    "art_sha256": "6467c705d406ab72de7c75615c38ad6df4597db28556a046d68d9c0584608cd4"
+  },
+  {
+    "id": "seraphim_wrath",
+    "name": "Seraphim Wrath",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "846c63904815d40209c461f5978dae0e272c746291fc6b004229eab5a51b7a9c"
+  },
+  {
+    "id": "holy_rain_big",
+    "name": "Holy Rain",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "d356cb811f13d1bbd0359108cdcd4b792139a804ccdfb3b40bf0e19a7e71fb8c"
+  },
+  {
+    "id": "miracle",
+    "name": "Miracle",
+    "family": "priest",
+    "palette": "rose",
+    "art_sha256": "91df705ef55e2c34ef005ed15489793fa5e1e00b79fb3db984418c25e3a36b53"
+  },
+  {
+    "id": "last_judgement",
+    "name": "Last Judgement",
+    "family": "priest",
+    "palette": "gold",
+    "art_sha256": "dd356c5c0acb42d082ae3a34a191db21d6063e708426093330b637bdcebf7596"
+  },
+  {
+    "id": "thorn_shot",
+    "name": "Thorn Shot",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "80546ad4831864b186bafefd4239e36f2dec576baec2421c78530c81c9cea806"
+  },
+  {
+    "id": "spirit_cat",
+    "name": "Spirit Cat",
+    "family": "summoner",
+    "palette": "arcane",
+    "art_sha256": "baa8c0885fc8e124073af247501642605fb91a329bfc6ad47143c42e82066781"
+  },
+  {
+    "id": "forest_blessing",
+    "name": "Forest Blessing",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "c0cd2d003dba0ccc518956e0f528fef6d2d238d62fc747f1931b92507a4755a8"
+  },
+  {
+    "id": "vine_lash",
+    "name": "Vine Lash",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "4675dcf0dcc8e01c46aa33298276353aaf38fc9dfcb0ebfb772257f751c30dc5"
+  },
+  {
+    "id": "entangle",
+    "name": "Entangle",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "d0a7e8aef19ce6ddbb34288ca7eeb0035a624e711df8d0b4735f480b735771b7"
+  },
+  {
+    "id": "wolf_pack",
+    "name": "Wolf Pack",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "2963b247eaf33932c4b9dc7fcae9767cc9333961fdf1ce9743fbe1fb815a076c"
+  },
+  {
+    "id": "regrowth",
+    "name": "Regrowth",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "2184f3e088e1bff0350baec5a7a1a16c1131831be0351e49d6d8d8e9f01b9cbb"
+  },
+  {
+    "id": "spore_burst",
+    "name": "Spore Burst",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "994ec1ed95c8ba7cd0325c63da08b0e91826642041cd8531802e907d1b5ab033"
+  },
+  {
+    "id": "giant_frog",
+    "name": "Giant Frog",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "bd1ae910f06b5abdace90748072e993840feaab948736f282b0aa012e205536f"
+  },
+  {
+    "id": "beast_rage",
+    "name": "Beast Rage",
+    "family": "summoner",
+    "palette": "ember",
+    "art_sha256": "698314a6303134690a48e07d4a20114b1d3247da2a13a42c497103a4e32f61f9"
+  },
+  {
+    "id": "thorn_storm",
+    "name": "Thorn Storm",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "e4ae58042faf741cbe5336b68c618616ec89e711877b58bb5ce6c534b6e0aea4"
+  },
+  {
+    "id": "forest_guardian",
+    "name": "Forest Guardian",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "71981539706f4e6649f773b1a85e4d3596dae8db0c2c6d77856281e2cffc28ac"
+  },
+  {
+    "id": "life_bloom",
+    "name": "Life Bloom",
+    "family": "summoner",
+    "palette": "rose",
+    "art_sha256": "3a3e01b8f9c90d8877e3ecd82dee7255562fcb12c2130c7df280507912235a77"
+  },
+  {
+    "id": "nature_wrath",
+    "name": "Nature's Wrath",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "b3407db4ff18c0936543f6f1521fadb7c58904667b8276d36a47e3fe81936bf8"
+  },
+  {
+    "id": "alpha_wolves",
+    "name": "Alpha Wolves",
+    "family": "summoner",
+    "palette": "gold",
+    "art_sha256": "fe886816bcbf68480e6832d9e4ed8ba1ff9ee8fe092a0cc5fd0bcd82085f40ba"
+  },
+  {
+    "id": "earth_shatter",
+    "name": "Earth Shatter",
+    "family": "summoner",
+    "palette": "earth",
+    "art_sha256": "e06c07a48c625acd1473466c2235330268e4dd77d665fb1b9a88653b0dc17ccd"
+  },
+  {
+    "id": "ancient_treant",
+    "name": "Ancient Treant",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "d35ae1354d9ac1c79919868074482304699e9f677182581a5f1448fe6659ac39"
+  },
+  {
+    "id": "spirit_link",
+    "name": "Spirit Link",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "0dd40080c4746c835a42da4b96797c0daa9eb5bb94b2f41bee6a5f990b980695"
+  },
+  {
+    "id": "sylvan_ray",
+    "name": "Sylvan Ray",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "b115a124734653bd63ccbf2fe387e85287cb8be6a8c62a8216f9a0e73bd256c4"
+  },
+  {
+    "id": "world_tree",
+    "name": "World Tree",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "d1087d655c5136b1f32515787fc64c3ebf2108033067b85960b8d77538e53f5c"
+  },
+  {
+    "id": "wind_drake",
+    "name": "Wind Drake",
+    "family": "summoner",
+    "palette": "wind",
+    "art_sha256": "829467e13ca1abdd9e0d34e75edeabeee8c18903f142064b6b5329efd5a7be93"
+  },
+  {
+    "id": "gaia_blessing",
+    "name": "Gaia's Blessing",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "ebd477642353b51e5a52e84ffeeac8dd636f04cff93fa6d7f48186f173445bf7"
+  },
+  {
+    "id": "primal_legion",
+    "name": "Primal Legion",
+    "family": "summoner",
+    "palette": "forest",
+    "art_sha256": "4ae311b23aa1a77a19c0a4c9df72d338ed5a8875415f2436f6a3c2a708cb8c9b"
+  },
+  {
+    "id": "cataclysm",
+    "name": "Cataclysm",
+    "family": "summoner",
+    "palette": "earth",
+    "art_sha256": "22f2acce1fb37f7efa0f726af4e4381e953aa0d55850959efbf5ba4fd976df8c"
+  },
+  {
+    "id": "elder_dragon",
+    "name": "Elder Dragon",
+    "family": "summoner",
+    "palette": "gold",
+    "art_sha256": "c92ee146f74c456b97a8fad6cfcddcb03529b0deb393a21c9f3659d692f0fab7"
+  },
+  {
+    "id": "thrust",
+    "name": "Thrust",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "8ff50ac7dadb827a9b44fa4960ba9d0494507779733cc03736a924cc953d5c48"
+  },
+  {
+    "id": "stagger",
+    "name": "Stagger",
+    "family": "lancer",
+    "palette": "earth",
+    "art_sha256": "65f676fd26e727415bd0038634a9e5f357f0679c32e7af744e746abfd8435d3e"
+  },
+  {
+    "id": "focus",
+    "name": "Focus",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "4f4c5ec5edc5d21210b12fa53345c52c6cf49b13560b3607e6f46f9ec6428d15"
+  },
+  {
+    "id": "skewer",
+    "name": "Skewer",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "8e1e5d123d4cced1aeec1f3660bd02443717421ed84a6b5c45f488b2d05f662f"
+  },
+  {
+    "id": "whirl",
+    "name": "Whirl",
+    "family": "lancer",
+    "palette": "wind",
+    "art_sha256": "68352b0e62b1e8fe16c4bc64b51578a6aeab7887f9efe2144b959d6e7b07eaa4"
+  },
+  {
+    "id": "charge_dash",
+    "name": "Charge Dash",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "c53b068492d51ea1974c667031471d9cef7b2b9428e9c3b74147aa7a29cf763f"
+  },
+  {
+    "id": "wind_stance",
+    "name": "Wind Stance",
+    "family": "lancer",
+    "palette": "wind",
+    "art_sha256": "62e91c5144b33ea29078c1ae6a428ff421118af69b3205cd5f270dde4ddc9a04"
+  },
+  {
+    "id": "impale",
+    "name": "Impale",
+    "family": "lancer",
+    "palette": "ember",
+    "art_sha256": "282e125721bacd9393d676ac9a0af12a810d808500ddcb2d1879a2be9b798381"
+  },
+  {
+    "id": "spear_wave",
+    "name": "Spear Wave",
+    "family": "lancer",
+    "palette": "frost",
+    "art_sha256": "7c505bbd937018b86a60d3710663eec3ab4d669d0cef3db9fab4363cc60d40c1"
+  },
+  {
+    "id": "iron_resolve",
+    "name": "Iron Resolve",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "dd6aac9d315cd32ad4dc95e0c86e8fd8d01a7b535f6a1446f32b174aae0b3316"
+  },
+  {
+    "id": "spinning_pike",
+    "name": "Spinning Pike",
+    "family": "lancer",
+    "palette": "wind",
+    "art_sha256": "6b8b646707a7ff7e0b38d09abb839dcba035c0cec7af925ce934d3e589592282"
+  },
+  {
+    "id": "hook_strike",
+    "name": "Hook Strike",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "1ebe548eafa93b410a69a5bf25794d0b7c4d1c9ce8edcad1d4c180ff86cb28fe"
+  },
+  {
+    "id": "war_cry",
+    "name": "War Cry",
+    "family": "lancer",
+    "palette": "gold",
+    "art_sha256": "fc298c72697b52f70250febdba4bb3235a7042d5e04a16cc6736c59d9278cabe"
+  },
+  {
+    "id": "dragon_tooth",
+    "name": "Dragon Tooth",
+    "family": "lancer",
+    "palette": "ember",
+    "art_sha256": "9269b9f98662e777b21badbcbd89a7882c89d77d0a362a835703dfdbc4a6a700"
+  },
+  {
+    "id": "typhoon_spear",
+    "name": "Typhoon Spear",
+    "family": "lancer",
+    "palette": "wind",
+    "art_sha256": "9607a944905b22943466907a16f737d7ed39fe23c897615403aec3ea25c26820"
+  },
+  {
+    "id": "lancer_rush",
+    "name": "Lancer Rush",
+    "family": "lancer",
+    "palette": "steel",
+    "art_sha256": "b58b232b37a7e0779fcff0939a8dbc08c00b2fd4658ea8196137ac65ca55d909"
+  },
+  {
+    "id": "vanguard_strike",
+    "name": "Vanguard Strike",
+    "family": "lancer",
+    "palette": "gold",
+    "art_sha256": "d7e37ce35e9c9e842a94d369876ea7073763288a82811e24c5b65efa19301808"
+  },
+  {
+    "id": "sky_pierce",
+    "name": "Sky Pierce",
+    "family": "lancer",
+    "palette": "frost",
+    "art_sha256": "9f80acf11518183ae295e5864d2dbec8e730e83dfd55751e8cf574e99d28e1dc"
+  },
+  {
+    "id": "dragon_stance",
+    "name": "Dragon Stance",
+    "family": "lancer",
+    "palette": "ember",
+    "art_sha256": "802dc79f67ebaa03d3379344eee21f36fe68f8f00c052c56ec053a9696661830"
+  },
+  {
+    "id": "dragon_lance",
+    "name": "Dragon Lance",
+    "family": "lancer",
+    "palette": "ember",
+    "art_sha256": "96882574c7909e13b94271bc7efa6cf6ebdb36c4bd8c32da4d35b01583a8a730"
+  },
+  {
+    "id": "gale_cyclone",
+    "name": "Gale Cyclone",
+    "family": "lancer",
+    "palette": "wind",
+    "art_sha256": "975bf75096a0693d689f9c3fc450a497b99548289c20e166634437b768188301"
+  },
+  {
+    "id": "valkyrie_blessing",
+    "name": "Valkyrie's Blessing",
+    "family": "lancer",
+    "palette": "gold",
+    "art_sha256": "44fbb8395bd64d4ffae2b9cea0800a02adbee1d27ca54cab0cfc5191698aa923"
+  },
+  {
+    "id": "gungnir",
+    "name": "Gungnir",
+    "family": "lancer",
+    "palette": "gold",
+    "art_sha256": "0b5ae6cf574de15e75bdae5598b088e95be4b4db0be17d5912fbe6c47bd0d547"
+  },
+  {
+    "id": "heaven_rend",
+    "name": "Heaven Rend",
+    "family": "lancer",
+    "palette": "frost",
+    "art_sha256": "15ccd3874ebb7208b17eb7ee970f6f593b998becfbc5efe12f25ad6a156cb7a2"
+  },
+  {
+    "id": "ragnarok_lance",
+    "name": "Ragnarok Lance",
+    "family": "lancer",
+    "palette": "ember",
+    "art_sha256": "b5fe8b5c571312512e5da30028d43e2b48e19ebc99d7ed7916dfa1f1611980ce"
+  }
+]

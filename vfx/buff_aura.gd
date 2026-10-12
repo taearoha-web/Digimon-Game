@@ -1,74 +1,79 @@
 class_name BuffAura
 extends Node3D
-## A lasting effect that shows a buff on a character, in the spirit of Priston
-## Tale: a green barrier bubble for defence, a flaring power aura for attack,
-## wind rings for speed and drifting sparkles for critical chance.
-##   kind: "shield" | "power" | "wind" | "spark"
-
-const SHIELD_SHADER := """
+## Skill-specific, open-centre protection. One shared mesh, no emitter or light.
+const AURA_SHADER := """
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never;
-uniform vec4 tint : source_color = vec4(0.4, 1.0, 0.6, 1.0);
-uniform float strength = 1.0;
-varying vec3 wpos;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never;
+uniform vec4 primary : source_color;
+uniform vec4 accent : source_color;
+uniform float phase = 0.0;
+uniform bool grove = false;
+uniform float growth = 1.0;
+varying vec3 local_pos;
 void vertex() {
-	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	local_pos = VERTEX;
+	if (grove) {
+		float reveal = smoothstep(0.0, 1.0, growth * 1.5 - VERTEX.y * 0.13);
+		VERTEX.y *= reveal;
+		if (COLOR.b > 0.5) {
+			VERTEX.y += sin(TIME * 1.2 + VERTEX.x * 3.0) * 0.15;
+		}
+		VERTEX.xz += vec2(sin(TIME * 0.9 + VERTEX.y * 2.0), cos(TIME * 0.8 + VERTEX.x * 2.0)) * 0.018 * VERTEX.y;
+	}
 }
 void fragment() {
-	float fres = pow(1.0 - clamp(abs(dot(normalize(NORMAL), normalize(VIEW))), 0.0, 1.0), 2.0);
-	float sweep = 0.5 + 0.5 * sin(wpos.y * 8.0 - TIME * 2.4);
-	float hex = 0.5 + 0.5 * sin(wpos.x * 9.0 + wpos.z * 5.0 + TIME * 0.8) * sin(wpos.z * 9.0 - wpos.x * 5.0);
-	float a = clamp(fres * 0.85 + sweep * 0.05 + hex * 0.03 + 0.025, 0.0, 1.0) * strength;
-	ALBEDO = tint.rgb * (0.35 + fres * 0.7);
-	ALPHA = a;
+	float edge = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 2.0);
+	float inlay = pow(0.5 + 0.5 * sin(local_pos.y * 15.0 + local_pos.x * 5.0), 8.0);
+	float sweep = pow(0.5 + 0.5 * sin(local_pos.y * 3.0 - TIME * 1.1 + phase), 12.0);
+	ALBEDO = mix(primary.rgb, accent.rgb, clamp(edge * 0.5 + inlay * 0.45 + sweep * 0.3, 0.0, 1.0));
+	ALPHA = 0.40 + edge * 0.24 + inlay * 0.15;
+	if (grove) {
+		ALBEDO = mix(primary.rgb * (0.75 + edge * 0.3), accent.rgb, COLOR.r);
+		ALBEDO += accent.rgb * sweep * 0.18;
+		ALPHA = mix(0.34 + edge * 0.16, 0.78, smoothstep(0.35, 0.65, COLOR.r)) * smoothstep(0.0, 0.22, growth);
+	}
 }
 """
-
-static var _shield_shader: Shader
-
-var kind := "shield"
-## Height of the character it surrounds (feet to top of hair/hat); sizes the barrier.
+static var _shader: Shader
 var body_top := 2.8
-var color := Color("5aff9a")
+var look: Dictionary
+var lane := 0
 var _age := 0.0
-var _spin: Array[Node3D] = []
-var _body: Node3D
-var _base_scale := Vector3.ONE
-var _material: ShaderMaterial
+var _retry := 0.0
+var _body: MeshInstance3D
 
+static func warm_up(parent: Node3D, at: Vector3) -> void:
+	var sample := BuffAura.new()
+	sample.look = BuffArt.profile({"skill_id": "energy_shield"})
+	sample.position = at
+	sample.scale = Vector3.ONE * 0.001
+	parent.add_child(sample)
+	sample.create_tween().tween_interval(0.4).finished.connect(sample.queue_free, CONNECT_ONE_SHOT)
 
-## Keeps the aura nodes of [param host] in step with [param buffs] (dictionaries
-## with until / def / atk / speed / crit / color): defence = barrier, attack =
-## power aura, speed = wind rings, crit = sparkles. [param top] is a Callable
-## returning the body height, used only when an aura is created.
 static func sync(host: Node3D, auras: Dictionary, buffs: Array, now: int, alive: bool, top: Callable) -> void:
 	var wanted := {}
 	if alive:
 		for buff in buffs:
-			if int(buff.until) <= now:
-				continue
-			var color: Color = buff.get("color", Color("ffd84a"))
-			if float(buff.get("def", 0.0)) > 0.0:
-				wanted["shield"] = Color("5aff9a").lerp(color, 0.3)
-			if float(buff.get("atk", 0.0)) > 0.0:
-				wanted["power"] = color
-			if float(buff.get("speed", 0.0)) > 0.0:
-				wanted["wind"] = color
-			if float(buff.get("crit", 0.0)) > 0.0:
-				wanted["spark"] = color
-	for kind in wanted:
-		if not auras.has(kind) or not is_instance_valid(auras[kind]):
+			if int(buff.until) > now:
+				var key := "%s:%s" % [BuffBook.identity(buff), buff.get("ally", false)]
+				wanted[key] = buff
+	# Drop old art immediately, before the new skill enters.
+	for key in auras.keys():
+		if not wanted.has(key):
+			if is_instance_valid(auras[key]):
+				auras[key].hide()
+				auras[key].queue_free()
+			auras.erase(key)
+	var index := 0
+	for key in wanted:
+		if not auras.has(key) or not is_instance_valid(auras[key]):
 			var aura := BuffAura.new()
-			aura.setup(kind, wanted[kind])
+			aura.look = BuffArt.profile(wanted[key])
 			aura.body_top = float(top.call())
+			aura.lane = index
 			host.add_child(aura)
-			auras[kind] = aura
-	for kind in auras.keys():
-		if not wanted.has(kind):
-			if is_instance_valid(auras[kind]):
-				(auras[kind] as Node).queue_free()
-			auras.erase(kind)
-
+			auras[key] = aura
+		index += 1
 
 ## Height from the feet to the highest point of a character's meshes (hair, hat...).
 static func measure_top(root: Node, host: Node3D) -> float:
@@ -82,133 +87,44 @@ static func measure_top(root: Node, host: Node3D) -> float:
 	return clampf(top, 2.0, 4.5)
 
 
-func setup(p_kind: String, p_color: Color) -> void:
-	kind = p_kind
-	color = p_color
-
-
 func _ready() -> void:
-	match kind:
-		"shield": _build_shield()
-		"power": _build_power()
-		"wind": _build_wind()
-		_: _build_spark()
-	scale = Vector3.ONE * 0.2
-	create_tween().tween_property(self, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	rotation.y = float(lane) * 0.61
+	_build()
 
+func _build() -> void:
+	if _body != null or not VfxBudget.can_decorate():
+		return
+	if _shader == null:
+		_shader = Shader.new()
+		_shader.code = AURA_SHADER
+	var mat := ShaderMaterial.new()
+	mat.shader = _shader
+	mat.set_shader_parameter("primary", look.primary)
+	mat.set_shader_parameter("accent", look.accent)
+	mat.set_shader_parameter("phase", float(lane) * 1.7)
+	mat.set_shader_parameter("grove", look.shape == "grove")
+	if look.shape == "grove":
+		mat.set_shader_parameter("growth", 0.0)
+		create_tween().tween_method(func(value: float): mat.set_shader_parameter("growth", value), 0.0, 1.0, 0.85)
+	_body = MeshInstance3D.new()
+	_body.mesh = BuffArt.mesh_for(look)
+	_body.material_override = mat
+	_body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	VfxBudget.track_decoration(_body)
+	add_child(_body)
+	var target := Vector3.ONE * clampf(body_top / 2.8, 0.65, 1.4)
+	target.x *= 1.0 + lane * 0.065
+	target.z *= 1.0 + lane * 0.065
+	_body.scale = target * 0.85
+	_body.create_tween().tween_property(_body, "scale", target, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func _process(delta: float) -> void:
 	_age += delta
-	for node in _spin:
-		node.rotation.y += delta * float(node.get_meta("spin", 1.0))
-	if _material:
-		_material.set_shader_parameter("strength", 0.9 + 0.12 * sin(_age * 3.0))
-	if kind == "shield" and _body:
-		_body.scale = _base_scale * (1.0 + 0.02 * sin(_age * 3.0))
-
-
-func _build_shield() -> void:
-	if _shield_shader == null:
-		_shield_shader = Shader.new()
-		_shield_shader.code = SHIELD_SHADER
-	_material = ShaderMaterial.new()
-	_material.shader = _shield_shader
-	_material.set_shader_parameter("tint", Color(color.r, color.g, color.b, 1.0))
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.0
-	sphere.height = 2.0
-	sphere.radial_segments = 28
-	sphere.rings = 14
-	var mi := MeshInstance3D.new()
-	mi.mesh = sphere
-	mi.material_override = _material
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The hero measures ~2.8 m with its big head: the bubble runs from below the soles to above the hair.
-	var half := body_top * 0.5 + 0.45
-	mi.scale = Vector3(half * 0.9, half, half * 0.9)
-	mi.position = Vector3(0, body_top * 0.5, 0)
-	add_child(mi)
-	_body = mi
-	_base_scale = mi.scale
-	# A glowing base ring where the bubble meets the ground.
-	_ring(Vector3(0, 0.06, 0), half * 0.8, color, 0.7, 1.4)
-
-
-func _build_power() -> void:
-	_ring(Vector3(0, 0.07, 0), 0.8, color, 0.6, 2.4)
-	_ring(Vector3(0, 0.07, 0), 0.5, color.lightened(0.3), 0.45, -3.2)
-	var p := CPUParticles3D.new()
-	p.amount = 22
-	p.lifetime = 1.1
-	p.local_coords = true
-	p.position = Vector3(0, 0.1, 0)
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE_SURFACE
-	p.emission_sphere_radius = 0.55
-	p.direction = Vector3.UP
-	p.spread = 12.0
-	p.initial_velocity_min = 1.6
-	p.initial_velocity_max = 2.6
-	p.gravity = Vector3.ZERO
-	var dot := SphereMesh.new()
-	dot.radius = 0.09
-	dot.height = 0.18
-	dot.radial_segments = 6
-	dot.rings = 3
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = color.lightened(0.2)
-	dot.material = mat
-	p.mesh = dot
-	add_child(p)
-
-
-func _build_wind() -> void:
-	for i in 2:
-		var ring := _ring(Vector3(0, 0.3 + i * 0.45, 0), 0.62 + i * 0.06, color, 0.4, 5.0 + i * 1.6)
-		ring.scale = Vector3(1.0, 0.5, 1.0)
-
-
-func _build_spark() -> void:
-	var p := CPUParticles3D.new()
-	p.amount = 14
-	p.lifetime = 1.4
-	p.local_coords = true
-	p.position = Vector3(0, 1.0, 0)
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 0.75
-	p.direction = Vector3.UP
-	p.spread = 180.0
-	p.initial_velocity_min = 0.2
-	p.initial_velocity_max = 0.7
-	p.gravity = Vector3.ZERO
-	var dot := SphereMesh.new()
-	dot.radius = 0.07
-	dot.height = 0.14
-	dot.radial_segments = 6
-	dot.rings = 3
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 0.95, 0.6)
-	dot.material = mat
-	p.mesh = dot
-	add_child(p)
-
-
-## A flat glowing ring that spins (spin = radians per second).
-func _ring(at: Vector3, radius: float, ring_color: Color, alpha: float, spin: float) -> MeshInstance3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.albedo_color = Color(ring_color.r, ring_color.g, ring_color.b, alpha)
-	var mi := MeshInstance3D.new()
-	mi.mesh = MeshKit.torus()
-	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.position = at
-	mi.scale = Vector3(radius * 2.0, 0.18, radius * 2.0)
-	mi.set_meta("spin", spin)
-	add_child(mi)
-	_spin.append(mi)
-	return mi
+	rotation.y += delta * float(look.spin)
+	if _body:
+		_body.position.y = 0.025 * sin(_age * 1.6 + lane)
+	else:
+		_retry += delta
+		if _retry >= 0.5:
+			_retry = 0.0
+			_build()

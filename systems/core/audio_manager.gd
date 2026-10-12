@@ -25,22 +25,43 @@ var _missing_warned: Dictionary = {}
 var _music_tween: Tween
 var _ambient: AudioStreamPlayer
 var current_ambient_id: StringName = &""
+var sound_play_requests := 0
+var _backgrounded := false
+var _background_audio_states: Dictionary = {}
+
+
+func uses_stream_playback() -> bool:
+	for player in get_children():
+		if player is AudioStreamPlayer and player.playback_type != AudioServer.PLAYBACK_TYPE_STREAM:
+			return false
+	return true
+
+
+## Suspend sound while the browser is hidden; restore each player's prior state.
+func set_backgrounded(hidden: bool) -> void:
+	if hidden == _backgrounded:
+		return
+	_backgrounded = hidden
+	if hidden:
+		for child in get_children():
+			if child is AudioStreamPlayer:
+				_background_audio_states[child.get_instance_id()] = child.stream_paused
+				child.stream_paused = true
+	else:
+		for child in get_children():
+			if child is AudioStreamPlayer and _background_audio_states.has(child.get_instance_id()):
+				child.stream_paused = _background_audio_states[child.get_instance_id()]
+		_background_audio_states.clear()
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_buses()
 	for i in 2:
-		var player := AudioStreamPlayer.new()
-		player.bus = "Music"
-		player.name = "Music%d" % i
+		var player := _make_player("Music%d" % i, "Music")
 		player.finished.connect(_on_music_finished.bind(player))
-		add_child(player)
 		_music_players.append(player)
-	_ambient = AudioStreamPlayer.new()
-	_ambient.name = "Ambient"
-	_ambient.bus = "SFX"
-	add_child(_ambient)
+	_ambient = _make_player("Ambient", "SFX")
 	for i in SFX_POOL_SIZE:
 		_sfx_pool.append(_make_player("Sfx%d" % i, "SFX"))
 	for i in UI_POOL_SIZE:
@@ -143,6 +164,7 @@ func _play_from_pool(pool: Array[AudioStreamPlayer], dir: String, sfx_id: String
 	player.stream = stream
 	player.volume_db = volume_db
 	player.pitch_scale = 1.0 + randf_range(-pitch_variation, pitch_variation)
+	sound_play_requests += 1
 	player.play()
 
 
@@ -165,6 +187,9 @@ func _get_stream(dir: String, sound_id: StringName) -> AudioStream:
 
 func _make_player(player_name: String, bus: String) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
+	# Godot 4.3's Web Sample path retains two playback objects per play (#96068).
+	# Stream uses the mixer cleanup path. Apply before creating any playback.
+	player.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	player.name = player_name
 	player.bus = bus
 	add_child(player)

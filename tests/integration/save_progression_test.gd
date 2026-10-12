@@ -185,6 +185,14 @@ func _test_settings() -> void:
 	GameSettings._loaded = false
 	GameSettings.quality = -1
 	GameSettings.camera_speed = 1.0
-	GameSettings.vibration = true
 	GameSettings.load_settings()
-	check(GameSettings.quality in [1, 2] and GameSettings.camera_speed == 1.0 and GameSettings.vibration, "malformed settings fall back to usable defaults")
+	check(GameSettings.quality in [1, 2] and GameSettings.camera_speed == 1.0, "malformed settings fall back to usable defaults")
+	file = FileAccess.open(GameSettings.PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify({"quality": 2, "camera_speed": 1.4, "vibration": true, "combat_hitstop": false}))
+	file.close()
+	GameSettings._loaded = false
+	GameSettings.load_settings()
+	check(GameSettings.quality == 2 and is_equal_approx(GameSettings.camera_speed, 1.4) and not GameSettings.combat_hitstop, "legacy vibration setting does not disturb retained preferences")
+	GameSettings.save_settings()
+	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(GameSettings.PATH))
+	check(not saved.has("vibration"), "saved settings retire the removed vibration preference")

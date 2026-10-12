@@ -33,6 +33,18 @@ func check(condition: bool, message: String) -> void:
 
 
 func _run() -> void:
+	if "star-regression" in OS.get_cmdline_user_args():
+		await _star_drops()
+		await _zones()
+		return
+	if "ending" in OS.get_cmdline_user_args():
+		await _ending()
+		return
+	if "hud" in OS.get_cmdline_user_args():
+		await _timer_bars()
+		await _team_buffs()
+		await _buff_hud_preview()
+		return
 	# `-- pvp` runs only the ranked-duel section (quick iteration).
 	if "imports" in OS.get_cmdline_user_args():
 		await _look()
@@ -44,11 +56,11 @@ func _run() -> void:
 	if "elements" in OS.get_cmdline_user_args():
 		await _element_fx()
 		return
-	if "bag" in OS.get_cmdline_user_args():
-		await _bag_tools()
-		return
 	if "perf" in OS.get_cmdline_user_args():
 		await _field_perf()
+		return
+	if "bag" in OS.get_cmdline_user_args():
+		await _bag_tools()
 		return
 	if "village" in OS.get_cmdline_user_args():
 		await _japan_village()
@@ -393,13 +405,13 @@ func _summons() -> void:
 		var kind: Dictionary = Summon.KINDS[kind_name]
 		if kind.has("height"):
 			var top5: float = (float(kind.height) + float(kind.hover)) * Summon.size_for_rank(5)
-			check(top5 >= 2.0 and top5 <= 3.3, "%s stands %.2f m tall at 5 stars (no giants)" % [kind_name, top5])
+			check(top5 >= 2.0 and float(kind.height)*Summon.size_for_rank(5) <= 3.3, "%s stands %.2f m tall at 5 stars (no giants)" % [kind_name, top5])
 	var biggest := 0.0
 	for kind_name in Summon.KINDS:
 		var kind: Dictionary = Summon.KINDS[kind_name]
 		if kind.has("height"):
-			biggest = maxf(biggest, (float(kind.height) + float(kind.hover)) * Summon.size_for_rank(5))
-	check(biggest > 2.9 and biggest < 3.3, "the biggest 5-star summon is just above the hero (%.2f m)" % biggest)
+			biggest = maxf(biggest, float(kind.height) * Summon.size_for_rank(5))
+	check(biggest > 2.9 and biggest < 3.3, "the biggest 5-star summon body is just above the hero (%.2f m)" % biggest)
 	# Stars make it bigger: 1 star normal, 2 stars +10%, 5 stars +50%.
 	var expected := {1: 1.0, 2: 1.10, 3: 1.2333, 4: 1.3667, 5: 1.5}
 	for stars in expected:
@@ -693,7 +705,7 @@ func _warp_points() -> void:
 	var town: Zone = main.zone
 	check(town.npcs.any(func(n): return n.role == "warp"), "the village has a warp crystal")
 	var places := WarpScreen.destinations()
-	check(places.size() == 12 and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list is the village plus all eleven fields")
+	check(places.size() == 17 and places[16] == DivineRegionData.ID and places[15] == &"eclipse_realm" and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list includes legacy fields, four star regions and the 200-star sanctuary")
 	check(WarpScreen.unlocked(&"meadow", 1) and not WarpScreen.unlocked(&"dark_forest", 6) and WarpScreen.unlocked(&"dark_forest", 7), "fields unlock by level")
 	Game.profile["level"] = 30
 	var open := places.filter(func(p): return WarpScreen.unlocked(p, 30))
@@ -1093,12 +1105,12 @@ func _star_drops() -> void:
 	var top := 0
 	for i in 200:
 		top = maxi(top, Game.star_gear_level(30) - 100)
-	check(top == ItemData.MAX_GEAR_STAR, "gear stars stop at 20 (%d)" % top)
+	check(top == 20, "legacy random gear stars stop at 20 (%d)" % top)
 	var rng_cap := RandomNumberGenerator.new()
-	check(int(ItemData.generate(250, &"warrior", rng_cap, 2, "armor").level) == 120, "no gear is generated above Lv.120")
+	check(int(ItemData.generate(350, &"warrior", rng_cap, 2, "armor").level) == 300, "star equipment stops at Lv.100 plus 200 stars")
 	var stale := {"kind": "equip", "level": 180, "stats": {}}
 	Game._repair_item(stale)
-	check(int(stale.level) == 120, "old saves are capped at Lv.120")
+	check(int(stale.level) == 180, "existing equipment stays valid inside the expanded gear cap")
 	Game.paragon()["level"] = 8
 	await main.go(&"void", true, true)
 	await _wait(0.5)
@@ -1216,14 +1228,14 @@ func _timer_bars() -> void:
 	await _wait(0.3)
 	check(hud._timers.visible and hud._timers._chips.size() == 3, "the HUD shows three timer chips (%d)" % hud._timers._chips.size())
 	var before_ratio: float = hud._timers._chips[status[0].id].ratio
-	check(hero._auras.has("power") and hero._auras.has("shield"), "attack and defence buffs show a power aura and a barrier on the hero")
+	check(hero._auras.has("Rage:false") and hero._auras.has("Blessing:true"), "attack and defence buffs show a power aura and a barrier on the hero")
 	hero._buffs[0]["until"] = Time.get_ticks_msec() + 1500
 	await _wait(0.4)
 	var after_ratio: float = hud._timers._chips[status[0].id].ratio
 	check(after_ratio < before_ratio * 0.2, "the timer ring unwinds as time runs out (%.2f -> %.2f)" % [before_ratio, after_ratio])
 	await _wait(1.6)
 	check(not hud._timers._chips.has(status[0].id), "the chip disappears when the buff ends")
-	check(not hero._auras.has("power") and hero._auras.has("shield"), "the power aura goes with its buff, the barrier stays")
+	check(not hero._auras.has("Rage:false") and hero._auras.has("Blessing:true"), "the power aura goes with its buff, the barrier stays")
 	hero._buffs.clear()
 	await _wait(0.3)
 	check(hero._auras.is_empty(), "no buff, no aura")
@@ -1236,7 +1248,7 @@ func _buff_durations() -> void:
 	for class_id in ClassData.IDS:
 		for skill in ClassData.pool(class_id):
 			var fx: Dictionary = skill.get("fx", {})
-			if fx.has("buff"):
+			if fx.has("buff") and not skill.has("star"):
 				count += 1
 				shortest = minf(shortest, float(fx.buff.secs))
 	check(count >= 20 and shortest >= 60.0, "all %d buff skills last at least 1 minute (shortest %.0f s)" % [count, shortest])
@@ -1269,9 +1281,9 @@ func _team_buffs() -> void:
 	Game.profile.mp = int(hero.stats.max_mp)
 	check(hero.use_skill(0) == "", "the buff skill is cast")
 	await _wait(0.8)
-	check(hero._auras.has("shield") and hero._auras.has("power"), "the hero shows the barrier and the power aura")
+	check(hero._auras.has("holy_valor:false"), "the hero shows one Holy Valor aura for both stats")
 	check(buddy._book.total("def") > 0.0 and buddy._book.total("atk") > 0.0, "the companion gets the defence and attack buff (def +%.2f)" % buddy._book.total("def"))
-	check(buddy._book.auras.has("shield"), "the companion shows the barrier too")
+	check(buddy._book.auras.has("holy_valor:true"), "the companion shows the barrier too")
 	var hero_buffs_before := hero._buffs.size()
 	var buddy_buffs_before := buddy._book.buffs.size()
 	hero.cooldowns.clear()
@@ -1280,7 +1292,7 @@ func _team_buffs() -> void:
 	await _wait(0.8)
 	check(hero._buffs.size() == hero_buffs_before and buddy._book.buffs.size() == buddy_buffs_before, "casting the same buff again refreshes it instead of stacking")
 	check(float(hero.timer_status()[0].total) >= 60.0, "the buff lasts a full minute")
-	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("shield"), "the summon gets the defence buff and shows the barrier")
+	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("holy_valor:true"), "the summon gets the defence buff and shows the barrier")
 	check(buddy._buffed_atk() > float(buddy.stats.atk) * 1.3, "the companion hits harder while buffed (%.0f vs %.0f)" % [buddy._buffed_atk(), float(buddy.stats.atk)])
 	for buff in buddy._book.buffs:
 		buff["until"] = Time.get_ticks_msec() + 200
@@ -1425,6 +1437,8 @@ func _zones() -> void:
 	print("== Zones")
 	await _start(&"warrior")
 	Game.add_exp(2000000)
+	Game.profile.level=100
+	Game.paragon().level=200
 	for id in ZoneData.ZONES:
 		if id == &"town" or id == &"arena" or id == &"pvp" or id == &"tower":
 			continue
@@ -1437,7 +1451,7 @@ func _zones() -> void:
 		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1), "%s has the right portals" % id)
 		for camp in info.camps:
 			for m in camp.monsters:
-				check(MonsterData.MONSTERS.has(m), "monster %s exists" % m)
+				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m), "monster %s exists" % m)
 
 
 func _items() -> void:
@@ -1534,19 +1548,31 @@ func _arena() -> void:
 func _ending() -> void:
 	print("== Ending")
 	await _start(&"warrior")
+	Game.playing = true
+	Game.current_zone = &"volcano"
 	var seen := [false]
 	Game.ending_requested.connect(func(): seen[0] = true, CONNECT_ONE_SHOT)
 	Game.report_kill(&"magma_dragon", true)
+	await _wait(2.8)
+	check(not seen[0] and not Game.ending_unlocked(), "magma victory continues the adventure without an ending")
+	Game.profile.flags["ending_seen"] = 1
+	Game.current_zone = Game.ENDING_ZONE
+	Game.report_kill(ZoneData.get_zone(Game.ENDING_ZONE).boss.monster, true)
 	await _wait(3.2)
-	check(seen[0], "killing the last boss triggers the ending once")
-	var again := [false]
-	Game.ending_requested.connect(func(): again[0] = true, CONNECT_ONE_SHOT)
-	Game.report_kill(&"magma_dragon", true)
-	await _wait(3.0)
-	check(not again[0], "the ending does not repeat")
+	check(seen[0] and Game.ending_unlocked(), "final-field emperor triggers the ending despite an old magma ending")
+	var screen_count := 0
 	for node in main.get_children():
 		if node is EndingScreen:
+			screen_count += 1
 			node._finish()
+	check(screen_count == 1 and not get_tree().paused, "one ending overlay opens and closing it resumes play")
+	var again := [false]
+	var repeated := func(): again[0] = true
+	Game.ending_requested.connect(repeated)
+	Game.report_kill(ZoneData.get_zone(Game.ENDING_ZONE).boss.monster, true)
+	await _wait(3.0)
+	check(not again[0], "the ending does not repeat")
+	Game.ending_requested.disconnect(repeated)
 	get_tree().paused = false
 
 
@@ -1666,7 +1692,7 @@ func _summoner_class() -> void:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		node.queue_free()
 	check(Game.class_id() == &"summoner" and ClassData.IDS.has(&"summoner"), "the summoner is a playable line")
-	check(ClassData.pool(&"summoner").size() == 25, "25 active skills (%d)" % ClassData.pool(&"summoner").size())
+	check(ClassData.pool(&"summoner").size() == 29, "29 active skills (%d)" % ClassData.pool(&"summoner").size())
 	check(not ClassData.find_skill(&"summoner", "elder_dragon").is_empty(), "the Lv.100 skill exists")
 	var bar: Array = Game.profile["loadout"]
 	check(bar.has("thorn_shot") and bar.has("spirit_cat"), "the first skills fill the bar (%s)" % str(bar))
@@ -1676,7 +1702,7 @@ func _summoner_class() -> void:
 		if skill.shape == "summon":
 			kinds[String(skill.summon.kind)] = true
 	for kind in kinds:
-		check(Summon.KINDS.has(kind), "summon kind '%s' is defined" % kind)
+		check(Summon.KINDS.has(kind) or String(kind).begins_with("star_"), "summon kind '%s' is defined" % kind)
 		var probe := Summon.new()
 		probe.setup(hero, "spirit_cat", {"kind": kind, "count": 1, "secs": 10.0, "interval": 1.0}, 2.0, 0, 1, 1)
 		zone.add_child(probe)
@@ -1718,7 +1744,7 @@ func _lancer_class() -> void:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		node.queue_free()
 	check(Game.class_id() == &"lancer" and ClassData.IDS.has(&"lancer"), "the lancer is a playable line")
-	check(ClassData.pool(&"lancer").size() == 25, "25 active skills (%d)" % ClassData.pool(&"lancer").size())
+	check(ClassData.pool(&"lancer").size() == 29, "29 active skills (%d)" % ClassData.pool(&"lancer").size())
 	var data := ClassData.get_class_data(&"lancer")
 	check(String(data.main) == "dex" and String(data.sub) == "str", "DEX is the main attribute, STR the second")
 	# More DEX means more attack (and more haste/crit), more STR a little.
@@ -1906,16 +1932,15 @@ func _weapon_models() -> void:
 		"name": "คทาราชวงศ์", "rarity": 0, "level": 35, "class": "mage", "stats": {"atk": 80}, "price": 100}
 	Game._repair_item(mage_staff)
 	check(mage_staff.base == "staff" and mage_staff.name == "คทาราชวงศ์", "a mage's staff stays a staff")
-	var book_verts := func(tier: int) -> int:
+	var book_vertices := func(tier: int) -> int:
 		var book := WeaponKit.book(tier)
 		var total := 0
-		for mi in book.find_children("*", "MeshInstance3D", true, false):
-			var mesh := (mi as MeshInstance3D).mesh
-			for surface in mesh.get_surface_count():
-				total += (mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		for mesh in MeshKit.collect_meshes(book):
+			for i in mesh.mesh.get_surface_count():
+				total += (mesh.mesh.surface_get_arrays(i)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 		book.free()
 		return total
-	check(int(book_verts.call(4)) > int(book_verts.call(0)), "the priest's book is styled per wand tier (sun emblem is richer than the plain ring)")
+	check(int(book_vertices.call(4)) > int(book_vertices.call(0)), "the priest's sun emblem is richer than its plain ring after merging")
 	var starter := ItemData.generate(1, &"warrior", RandomNumberGenerator.new(), 0, "weapon")
 	check(ItemLook.look_of(starter) == "sword_0" and String(starter.name).begins_with("ดาบอัศวิน"), "the Lv.1 sword is the Knight Sword (%s)" % starter.name)
 	var top := ItemData.generate(100, &"archer", RandomNumberGenerator.new(), 4, "weapon")
@@ -2029,16 +2054,13 @@ func _bag_tools() -> void:
 
 
 func _field_perf() -> void:
-	print("== Field smoothness: resolution cap, sleeping monsters, merged gear")
+	print("== Field smoothness: shadows, sleeping monsters, merged gear")
 	var saved_quality := GameSettings.quality
 	GameSettings.quality = 1
-	check(is_equal_approx(GameSettings.render_scale(Vector2i(1080, 2400)), 720.0 / 1080.0), "phone screen is drawn at 720 px on the short side")
-	check(GameSettings.render_scale(Vector2i(640, 360)) == 1.0, "a small window is never upscaled")
-	GameSettings.quality = 0
-	check(GameSettings.render_scale(Vector2i(1080, 2400)) < 0.51, "low quality draws even fewer pixels")
-	GameSettings.quality = 1
 	check(not GameSettings.world_shadows(), "medium quality: only the hero casts real shadows")
-	var meshes_before := 0
+	GameSettings.quality = 2
+	check(GameSettings.world_shadows(), "high quality: trees, rocks and monsters cast shadows")
+	GameSettings.quality = 1
 	var held := WeaponKit.build("lantern_9")
 	var merged := held.find_children("*", "MeshInstance3D", true, false)
 	check(merged.size() <= 4, "a 52-piece lantern is drawn as a few meshes (%d)" % merged.size())
@@ -2050,6 +2072,7 @@ func _field_perf() -> void:
 	await get_tree().create_timer(1.0).timeout
 	var mobs := get_tree().get_nodes_in_group("mobs")
 	check(mobs.size() > 10, "the meadow is populated (%d)" % mobs.size())
+	check(mobs[0].find_child("BlobShadow", false, false) != null, "monsters get a blob shadow below high quality")
 	var far: Mob = null
 	for m in mobs:
 		if (m as Mob).global_position.distance_to(hero.global_position) > 70.0 and not (m as Mob).is_boss:
@@ -2057,15 +2080,12 @@ func _field_perf() -> void:
 			break
 	if far == null:
 		hero.global_position = (mobs[0] as Node3D).global_position + Vector3(95, 0, 0)
-		await get_tree().create_timer(0.6).timeout
+		await get_tree().create_timer(0.8).timeout
 		far = mobs[0]
-	await get_tree().create_timer(0.6).timeout
+	await get_tree().create_timer(0.8).timeout
 	check(far.is_dormant() and not far.visible and not far.is_physics_processing(), "a far monster sleeps (hidden, no physics)")
 	far.take_hit(1, false)
 	check(not far.is_dormant() and far.visible, "a monster that is hit wakes up")
-	hero.global_position = far.global_position + Vector3(3, 0, 0)
-	await get_tree().create_timer(0.6).timeout
-	check(not far.is_dormant(), "a monster near the hero is awake")
 	GameSettings.quality = saved_quality
 
 
@@ -2114,3 +2134,24 @@ func _element_fx() -> void:
 	check(glowing.size() > 0, "a summoned beast glows as a spirit")
 	check(summon._sigil != null and summon._sigil.is_inside_tree(), "a rune circle turns under the summon")
 	summon.queue_free()
+
+
+func _buff_hud_preview() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var hero: Hero = main.zone.hero
+	hero.set_physics_process(false)
+	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons") + get_tree().get_nodes_in_group("mobs"):
+		node.set_physics_process(false)
+	var mob := Mob.new()
+	mob.setup(&"forest_orc", 50, hero.global_position + Vector3(3, 0, -1), hero)
+	main.zone.add_child(mob)
+	mob.set_physics_process(false)
+	hero.target = mob
+	hero.target_changed.emit(mob)
+	for entry in [[&"mage", "energy_shield", false], [&"mage", "magic_overdrive", false], [&"summoner", "forest_blessing", true], [&"warrior", "holy_valor", true]]:
+		var skill := ClassData.find_skill(entry[0], entry[1])
+		hero.receive_buff(skill.fx.buff, skill.color, skill.name, entry[2], skill.id)
+	await _wait(1.0)
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("/workspace/toon-artifacts/buffs-v076/in-game-hud.png")

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: arcane_prism. Hand-authored vector art. --><defs>
+ <radialGradient id="bg" cx=".38" cy=".3" r=".8"><stop stop-color="#7038b8"/><stop offset=".65" stop-color="#231f4b"/><stop offset="1" stop-color="#10192e"/></radialGradient>
+ <linearGradient id="main" x2=".65" y2="1"><stop stop-color="#fff2ff"/><stop offset=".4" stop-color="#c59bff"/><stop offset="1" stop-color="#7038b8"/></linearGradient>
+ <linearGradient id="lit" x2=".2" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#fff2ff"/></linearGradient>
+ <linearGradient id="blade" x2=".9" y2="1"><stop stop-color="#ffffff"/><stop offset=".47" stop-color="#fff2ff"/><stop offset="1" stop-color="#c59bff"/></linearGradient>
+ <linearGradient id="gold" x2=".8" y2="1"><stop stop-color="#fff9d7"/><stop offset=".4" stop-color="#f7d885"/><stop offset="1" stop-color="#af793c"/></linearGradient>
+ <linearGradient id="deep" x2=".65" y2="1"><stop stop-color="#231f4b"/><stop offset="1" stop-color="#101729"/></linearGradient>
+ <radialGradient id="gem" cx=".3" cy=".2" r=".9"><stop stop-color="#ffffff"/><stop offset=".4" stop-color="#c59bff"/><stop offset="1" stop-color="#7038b8"/></radialGradient>
+ <clipPath id="clip"><circle cx="128" cy="128" r="117"/></clipPath>
+ </defs>
+ <circle cx="128" cy="128" r="123" fill="#10172a"/>
+ <circle cx="128" cy="128" r="119" fill="url(#bg)" stroke="url(#gold)" stroke-width="3"/>
+ <g clip-path="url(#clip)">
+ <path d="M26 190 L147 25 L224 54 L88 228Z" fill="#c59bff" opacity=".075"/>
+ <path d="M126 123 L40 81 M126 123 L63 197 M126 123 L218 169 M126 123 L182 43" fill="none" stroke="#c59bff" stroke-width="14" stroke-linejoin="round" stroke-linecap="round" opacity=".28"/><path d="M111 120 L35 80" fill="none" stroke="#78deff" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" /><path d="M118 143 L57 204" fill="none" stroke="#ffb67a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" /><path d="M140 145 L222 169" fill="none" stroke="#ff85ce" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" /><path d="M143 113 L184 39" fill="none" stroke="#ffe59b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" /><path d="M129 46 L194 159 L121 202 L65 141Z" fill="url(#main)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M129 46 L134 132 L65 141Z" fill="#f8efff" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M134 132 L194 159 L121 202Z" fill="#754acf" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M129 46 L194 159 L134 132Z" fill="#b4e5ff" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M65 141 L134 132 L121 202 M134 132 L194 159" fill="none" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><g transform="translate(134 131) rotate(0) scale(0.57)" ><path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g>
+ </g>
+ <path d="M30 96 A101 101 0 0 1 106 28" fill="none" stroke="#fff2ff" stroke-width="2" opacity=".5"/>
+ </svg>

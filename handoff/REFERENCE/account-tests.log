@@ -1,0 +1,21 @@
+✔ registration stores salted PBKDF2 hashes and hash-only secrets, cookie flags and no caching (84.28768ms)
+✔ existing IDs collide safely, concurrent duplicate register is atomic and malformed credentials rejected (94.200109ms)
+✔ login works across independent devices, wrong and missing IDs have identical errors (125.961466ms)
+✔ unauthenticated, spoofed account and cross-account access cannot access saves (40.337705ms)
+✔ shared-cookie account switches reject stale-tab save/read/history/restore/logout even at matching revisions (87.722907ms)
+✔ four-slot saves preserve profiles and CAS prevents stale and concurrent device overwrite (64.377172ms)
+✔ last five snapshots are bounded; restoring creates a new revision and stale restore is rejected (33.614847ms)
+✔ logout revokes current device only; expired sessions are rejected (40.6059ms)
+✔ recovery resets password, rotates single-use recovery code and revokes all existing sessions (102.557961ms)
+✔ persistent atomic IP rate limits apply to signup/login/reset without targeted ID lockout (726.634111ms)
+✔ same-origin JSON-only writes block CSRF; request sizes, malformed JSON and unsupported methods bounded (18.603801ms)
+✔ malformed, oversized and dangerous save structures are rejected without changing previous save (84.566824ms)
+✔ database failures return safe service unavailable JSON without leaking database or credentials (0.913727ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1514.453741

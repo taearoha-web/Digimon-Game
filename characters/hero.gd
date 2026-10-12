@@ -28,6 +28,9 @@ var safe_zone := false
 var field_radius := 56.0
 
 var move_input := Vector2.ZERO
+var _star_combo_target := 0
+var _star_combo_count := 0
+var _star_retaliation := false
 var target: Mob
 ## Auto-attack mode: keeps hitting the target and picks the next one itself.
 var engaged := false
@@ -39,6 +42,7 @@ var _auto_radius := 10.0
 var _auto_timer := 0.0
 var stats: Dictionary = {}
 var cooldowns: Dictionary = {}
+var last_cast_id := ""
 var potion_cd := 0.0
 
 var _buffs: Array[Dictionary] = []
@@ -55,7 +59,6 @@ var _invulnerable_until := 0
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 var _facing := 0.0
 var _quiet := false
-var _buff_emitter: CPUParticles3D
 
 
 func _ready() -> void:
@@ -85,6 +88,7 @@ func _ready() -> void:
 
 ## Changes the hero's weapon / hat / outfit when the worn items change.
 func _on_inventory_changed() -> void:
+	if not is_inside_tree() or is_queued_for_deletion(): return
 	var sig := _equipment_signature()
 	if sig != _equip_sig:
 		_equip_sig = sig
@@ -93,6 +97,7 @@ func _on_inventory_changed() -> void:
 
 ## A glowing ring under the feet of a hero who has changed jobs.
 func _update_job_ring() -> void:
+	if not is_inside_tree() or is_queued_for_deletion(): return
 	var job := StringName("%s|%d" % [Game.class_id(), Game.adv()])
 	if job == _ring_job:
 		return
@@ -126,7 +131,7 @@ func _equipment_signature() -> String:
 
 
 func refresh_stats() -> void:
-	var totals := {"atk": 0.0, "def": 0.0, "speed": 0.0, "crit": 0.0}
+	var totals := {"atk": 0.0, "def": 0.0, "speed": 0.0, "crit": 0.0, "dodge": 0.0}
 	var now := Time.get_ticks_msec()
 	for key in totals:
 		var values: Array = []
@@ -150,9 +155,7 @@ func set_facing(yaw: float) -> void:
 	visual.rotation.y = yaw
 
 
-## Defence buffs wrap the hero in a green barrier, attack buffs flare a power
-## aura, speed buffs spin wind rings and crit buffs scatter sparkles. Each kind
-## lives as long as at least one buff of that kind is active.
+## Each active skill owns its authored aura, removed with its actual stats.
 func _sync_auras(now: int) -> void:
 	BuffAura.sync(self, _auras, _buffs, now, not _dead, _body_top)
 
@@ -172,7 +175,7 @@ func timer_status() -> Array:
 		var left := (float(buff.until) - float(now)) / 1000.0
 		if left <= 0.0:
 			continue
-		var key := "buff:%s:%s" % [buff.get("name", ""), buff.get("ally", false)]
+		var key := "buff:%s:%s" % [BuffBook.identity(buff), buff.get("ally", false)]
 		if seen.has(key):
 			var entry: Dictionary = out[seen[key]]
 			if left > float(entry.left):
@@ -189,7 +192,7 @@ func timer_status() -> Array:
 			glyph = "wind"
 		elif float(buff.get("crit", 0.0)) > 0.0:
 			glyph = "spark"
-		out.append({"id": key, "glyph": glyph, "name": String(buff.get("name", "บัฟ")), "color": buff.get("color", Color("ffd84a")), "left": left,
+		out.append({"id": key, "glyph": glyph, "name": String(buff.get("name", "บัฟ")), "color": BuffArt.profile(buff).primary, "left": left,
 				"total": float(buff.get("total", left)), "kind": "buff", "ally": bool(buff.get("ally", false)), "count": 1, "hp": 1.0})
 	for summon in _summons:
 		if not is_instance_valid(summon) or summon.is_dead():
@@ -318,7 +321,7 @@ func _auto_cast(hp_rate: float) -> void:
 			"self":
 				if fx.has("heal") and hp_rate > (0.55 if not fx.has("buff") else 0.75):
 					continue
-				if fx.has("buff") and not fx.has("heal") and not _buffs.is_empty():
+				if fx.has("buff") and not fx.has("heal") and (BuffBook.group_count(_buffs, false) >= BuffBook.GROUP_LIMIT or BuffBook.contains(_buffs, String(skill.id), false)):
 					continue
 			"summon":
 				if _summons_alive(skill.id) > 0:
@@ -441,6 +444,7 @@ func _physics_process(delta: float) -> void:
 ## Flying wings lift the hero off the ground (the shadow stays below) with a
 ## gentle bob; standing or folded wings bring it back down.
 func _hover(delta: float, moving: bool) -> void:
+	if has_meta("star_airborne"): return
 	var flying := visual.has_wings() and visual.wing_mode == HeroVisual.WING_FLY
 	visual.set_wing_moving(moving)
 	var lift := 0.0
@@ -474,8 +478,6 @@ func _tick_timers(delta: float) -> void:
 	if expired:
 		_buffs = _buffs.filter(func(b): return b.until > now)
 		refresh_stats()
-		if _buffs.is_empty() and _buff_emitter:
-			_buff_emitter.emitting = false
 	_sync_auras(now)
 	# Regeneration: MP always, HP once out of combat (faster in the village).
 	var hp_rate := 0.02 if safe_zone else (0.006 if _since_hurt > 4.0 else 0.0)
@@ -618,7 +620,7 @@ func rank_mult(skill: Dictionary) -> float:
 
 
 func mp_cost(skill: Dictionary) -> int:
-	return int(ceil(float(skill.mp) * (1.0 + 0.04 * float(Game.effective_rank(skill) - 1))))
+	return int(ceil(float(skill.mp) * (1.0 + 0.04 * float(Game.effective_rank(skill) - 1)) * (0.88 if StarProgression.has_full_set(Game.profile, "mage") else 1.0)))
 
 
 func cooldown_of(skill: Dictionary) -> float:
@@ -660,6 +662,10 @@ func use_skill(index: int) -> String:
 		return "locked"
 	if float(cooldowns.get(skill.id, 0.0)) > 0.0:
 		return "cooldown"
+	if Time.get_ticks_msec() < _cast_until: return "casting"
+	if bool(skill.get("requires_wings", false)) and not visual.has_wings():
+		message.emit("ต้องสวมปีกก่อนใช้สกิลนี้")
+		return "wings"
 	if int(Game.profile.mp) < mp_cost(skill):
 		message.emit("MP ไม่พอ!")
 		return "mp"
@@ -676,46 +682,77 @@ func use_skill(index: int) -> String:
 
 
 func _cast(skill: Dictionary) -> void:
+	if _dead or Time.get_ticks_msec() < _cast_until: return
+	if not Game.skill_unlocked(skill) or float(cooldowns.get(skill.id,0.0)) > 0.0: return
+	if bool(skill.get("requires_wings",false)) and not visual.has_wings(): return
 	var cost := mp_cost(skill)
 	if int(Game.profile.mp) < cost:
 		return
 	Game.profile.mp -= cost
+	last_cast_id=String(skill.id)
 	cooldowns[skill.id] = cooldown_of(skill)
 	_since_hurt = minf(_since_hurt, 1.0)
 	skill_fired.emit(Game.class_data().skills.find(skill))
 	skill = _ranked(skill)
+	if skill.has("star"):
+		if _valid_target(target): _face(_flat(target.global_position-global_position), 1.0, 60.0)
+		var star_aim := target.global_position if _valid_target(target) else global_position
+		var star_duration := StarSkillSequence.launch(self, skill, target, star_aim)
+		_cast_until = Time.get_ticks_msec() + int(star_duration * 1000.0)
+		AudioManager.play_sfx(&"skill_start", -5.0)
+		Game.daily_progress("skills", 1)
+		return
 	var delay := float(skill.hit_delay) * (1.0 - _haste())
-	visual.action(skill.anim, 1.0 / maxf(1.0 - _haste(), 0.5))
+	visual.skill_action(skill, delay)
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 90
 	if target and _valid_target(target):
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
 	AudioManager.play_sfx(&"skill_start", -4.0)
 	Game.daily_progress("skills", 1)
-	var snapshot := target
+	var snapshot: WeakRef = weakref(target) if is_instance_valid(target) else null
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var color: Color = skill.color
 	# Wind-up effect while the cast animation plays.
-	SkillShow.anticipate(field, skill, global_position, delay)
+	SkillShow.anticipate(field, skill, global_position, delay, aim, visual)
+	if String(skill.id) == "judgment_ray":
+		JudgmentRaySequence.launch(field, self, target, delay, _judgment_hit.bind(skill), visual)
+		return
 	if skill.shape == "blast":
-		VfxKit.ground_circle(field, Vector3(aim.x, global_position.y, aim.z), color, float(skill.radius), delay + 0.2)
+		var landing := 0.55 if String(skill.get("special", "")) in ["meteor", "rain"] else 0.0
+		SkillInk.telegraph(field, skill, Vector3(aim.x, global_position.y, aim.z), float(skill.radius), delay + landing)
 	elif skill.shape == "burst":
-		VfxKit.ground_circle(field, global_position, color, float(skill.radius) * 0.5, delay)
-	get_tree().create_timer(delay).timeout.connect(func(): _resolve(skill, snapshot, aim), CONNECT_ONE_SHOT)
+		SkillInk.telegraph(field, skill, global_position, float(skill.radius), delay)
+	# Bind the wind-up to this hero; leaving a zone discards unfinished casts.
+	var cast := create_tween()
+	cast.tween_interval(delay)
+	cast.tween_callback(_finish_cast.bind(skill, snapshot, aim, weakref(field)))
+
+
+func _finish_cast(skill: Dictionary, target_ref: WeakRef, aim: Vector3, field_ref: WeakRef) -> void:
+	var cast_field := field_ref.get_ref() as Node3D
+	if _dead or not is_instance_valid(cast_field) or cast_field != field or cast_field.is_queued_for_deletion():
+		return
+	var mob := target_ref.get_ref() as Mob if target_ref != null else null
+	_resolve(skill, mob, aim)
 
 
 func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
-	if _dead:
+	if _dead or not is_instance_valid(field) or field.is_queued_for_deletion():
+		return
+	if String(skill.id) == "judgment_ray":
+		JudgmentRaySequence.launch(field, self, mob, 0.001, _judgment_hit.bind(skill))
 		return
 	var color: Color = skill.color
 	var mult: float = float(skill.get("mult", 0.0)) * rank_mult(skill)
-	var origin := global_position + Vector3(0, 1.3, 0)
+	var origin := visual.skill_emission_position()
 	var forward := Vector3(sin(_facing), 0, cos(_facing))
 	var show_center := global_position
 	if String(skill.shape) in ["single", "chain", "fan"] and _valid_target(mob):
 		show_center = mob.global_position
 	elif String(skill.shape) == "blast":
 		show_center = Vector3(mob.global_position.x if _valid_target(mob) else aim.x, 0.0, mob.global_position.z if _valid_target(mob) else aim.z)
-	SkillShow.play(field, skill, show_center, global_position, camera_rig)
+	if String(skill.id) not in ["armageddon", "thunder_storm"]:
+		SkillShow.play(field, skill, show_center, global_position)
 	match String(skill.shape):
 		"self":
 			_apply_self_fx(skill)
@@ -727,15 +764,12 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			if bool(skill.get("projectile", false)):
 				_shoot(skill, mob, mult, origin, 1.0)
 			else:
-				VfxKit.slash_arc(field, global_position + forward * 1.2 + Vector3(0, 1.0, 0), _facing, color, 3.0, -0.4)
-				VfxKit.sparks(field, mob.hit_point(), color, 20, 4.5, 0.5)
 				_deal(mob, mult, color, skill.vfx, true, skill)
 				if skill.has("pierce"):
 					var spec: Dictionary = skill.pierce
 					var tip := mob.global_position + Vector3(0, 1.0, 0)
 					VfxKit.arrow(field, color, origin, tip + (tip - origin).normalized() * float(spec.get("len", 6.0)) * 0.6, 0.28)
 					for extra in Pierce.victims(get_tree(), global_position, mob.global_position, spec, mob):
-						VfxKit.sparks(field, extra.hit_point(), color, 12, 3.5, 0.4)
 						_deal(extra, mult * float(spec.get("k", 0.7)), color, skill.vfx, true, skill)
 		"fan":
 			var list := mobs_in_range(float(skill.range))
@@ -746,7 +780,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			for i in mini(count, maxi(list.size(), 1)):
 				var victim: Mob = list[i] if i < list.size() else mob
 				if _valid_target(victim):
-					_shoot(skill, victim, mult, origin + Vector3(0, 0, 0) + forward.rotated(Vector3.UP, (i - 1) * 0.0), 1.0)
+					_shoot(skill, victim, mult, origin, 1.0)
 			if list.is_empty():
 				for i in count:
 					var angle := (i - 1) * 0.25
@@ -754,11 +788,11 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		"chain":
 			var hit: Array[Mob] = []
 			var current := mob
-			var from := origin + forward * 0.8
+			var from := origin
 			for i in int(skill.hits):
 				if not _valid_target(current):
 					break
-				VfxKit.lightning(field, from, current.hit_point(), color)
+				SkillTableau.link(field, skill, from, current.hit_point())
 				_deal(current, mult * pow(0.85, i), color, skill.vfx, true, skill)
 				hit.append(current)
 				from = current.hit_point()
@@ -774,11 +808,6 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				current = next
 		"burst":
 			var radius := float(skill.radius)
-			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, radius * 1.15)
-			if skill.get("special", "") == "spin":
-				for i in 3:
-					VfxKit.slash_arc(field, global_position + Vector3(0, 0.9 + i * 0.2, 0), _facing + i * 2.1, color, 3.4, 0.0)
-			_shake(0.2)
 			var hits := 0
 			for victim in mobs_in_range(radius + 0.6):
 				_deal(victim, mult, color, skill.vfx, true, skill)
@@ -790,23 +819,28 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			if _valid_target(mob):
 				center = Vector3(mob.global_position.x, 0.0, mob.global_position.z)
 			var radius := float(skill.radius)
-			if skill.get("special", "") == "meteor":
-				VfxKit.meteor(field, center, color, 0.55, radius, func(): _blast_damage(skill, center, radius, mult))
+			if String(skill.id) == "thunder_storm":
+				ThunderStormSequence.launch(field, self, center, radius, _storm_candidates, _storm_hit.bind(skill, mult))
+			elif String(skill.id) == "armageddon":
+				ArmageddonSequence.launch(field, self, center, radius, mult, _armageddon_impact.bind(skill))
+			elif skill.get("special", "") == "meteor":
+				VfxKit.meteor(field, center, color, 0.55, radius, func(): _blast_damage(skill, center, radius, mult), String(skill.id) == "hell_meteor")
 			elif skill.get("special", "") == "rain":
 				_arrow_rain(skill, center, radius, mult)
 			else:
-				VfxKit.shockwave(field, center + Vector3(0, 0.1, 0), color, radius)
 				_blast_damage(skill, center, radius, mult)
+
+
+func _judgment_hit(victim: Node3D, skill: Dictionary) -> void:
+	if victim is Mob and _valid_target(victim):
+		_deal(victim, float(skill.mult) * rank_mult(skill), skill.color, skill.vfx, true, skill)
 
 
 func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: float) -> void:
 	var color: Color = skill.color
 	var to := mob.hit_point()
 	var flight := clampf(from.distance_to(to) / 20.0, 0.12, 0.6)
-	if Game.class_id() == &"archer":
-		VfxKit.arrow(field, color, from, to, flight)
-	else:
-		VfxKit.projectile(field, color, from, to, flight, 0.5 * scale, VfxKit.variant_for(skill.vfx))
+	SkillTableau.flight(field, skill, from, to, flight, scale)
 	get_tree().create_timer(flight).timeout.connect(func():
 		if _dead:
 			return
@@ -817,12 +851,19 @@ func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: floa
 	, CONNECT_ONE_SHOT)
 
 
-func _blast_damage(skill: Dictionary, center: Vector3, radius: float, mult: float) -> void:
-	_shake(0.3)
+func _armageddon_impact(index: int, center: Vector3, radius: float, mult: float, skill: Dictionary) -> void:
+	if _dead or not is_instance_valid(field) or field.is_queued_for_deletion():
+		return
+	# The main impact knocks enemies back. Repeated fragments do not push them
+	# out of their own damage areas, but still apply damage, crits and burn.
+	_blast_damage(skill, center, radius, mult, index == 0)
+
+
+func _blast_damage(skill: Dictionary, center: Vector3, radius: float, mult: float, knockback := true) -> void:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		var victim := node as Mob
 		if victim and not victim.is_dead() and _flat(victim.global_position - center).length() <= radius + victim.body_radius():
-			_deal(victim, mult, skill.color, skill.vfx, true, skill)
+			_deal(victim, mult, skill.color, skill.vfx, knockback, skill)
 
 
 func _arrow_rain(skill: Dictionary, center: Vector3, radius: float, mult: float) -> void:
@@ -836,7 +877,6 @@ func _arrow_rain(skill: Dictionary, center: Vector3, radius: float, mult: float)
 	get_tree().create_timer(0.55).timeout.connect(func():
 		if _dead:
 			return
-		VfxKit.shockwave(field, center + Vector3(0, 0.1, 0), color, radius * 0.9)
 		_blast_damage(skill, center, radius, mult)
 	, CONNECT_ONE_SHOT)
 
@@ -859,7 +899,6 @@ func _summon(skill: Dictionary, mult: float) -> void:
 		var oldest: Summon = _summons.pop_front()
 		if is_instance_valid(oldest):
 			oldest.queue_free()
-	VfxKit.aura(field, global_position, skill.color)
 	BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), String(skill.name), skill.color, 0.6)
 
 
@@ -877,36 +916,25 @@ func _apply_self_fx(skill: Dictionary) -> void:
 	if fx.has("heal"):
 		_heal(float(fx.heal))
 	if fx.has("buff"):
-		receive_buff(fx.buff, color, String(skill.name))
-		_share_buff(fx.buff, color, String(skill.name))
+		receive_buff(fx.buff, color, String(skill.name), false, String(skill.id))
+		_share_buff(fx.buff, color, String(skill.name), String(skill.id))
 
 
 ## Buff skills reach the whole team: companions and summoned creatures get them too.
-func _share_buff(buff: Dictionary, color: Color, label: String) -> void:
+func _share_buff(buff: Dictionary, color: Color, label: String, skill_id := "") -> void:
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
 		if is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
-			node.receive_party_buff(buff, color, label)
+			node.receive_party_buff(buff, color, label, skill_id)
 
 
 ## A buff from a skill or from a companion: {atk, def, speed, crit, secs}.
-func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally := false) -> void:
-	var buff: Dictionary = buff_data.duplicate()
-	buff["until"] = Time.get_ticks_msec() + int(float(buff.secs) * 1000.0)
-	buff["name"] = label if label != "" else "บัฟ"
-	buff["color"] = color
-	buff["total"] = float(buff.secs)
-	buff["ally"] = from_ally
-	# Casting the same buff again refreshes it instead of stacking a second copy.
-	_buffs = _buffs.filter(func(b): return not (String(b.get("name", "")) == String(buff.name) and bool(b.get("ally", false)) == from_ally))
-	_buffs.append(buff)
+func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally := false, skill_id := "") -> void:
+	var prepared := buff_data.duplicate()
+	if prepared.has("shield"): prepared["shield_left"] = int(float(stats.max_hp)*float(prepared.shield))
+	_buffs = BuffBook.insert(_buffs, prepared, color, label, from_ally, skill_id)
 	refresh_stats()
-	if _buff_emitter == null:
-		_buff_emitter = VfxKit.buff_emitter(self, color)
-	_buff_emitter.color_ramp = null
-	(_buff_emitter.mesh.material as StandardMaterial3D).albedo_color = Color(color.r, color.g, color.b, 0.9)
-	_buff_emitter.emitting = true
-	VfxKit.aura(field, global_position, color)
-	VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, 3.0)
+	_sync_auras(Time.get_ticks_msec())
+	# Persistent buff halo and the skill silhouette carry this feedback.
 	if label != "":
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), label, color, 0.6)
 	AudioManager.play_sfx(&"buff")
@@ -917,14 +945,14 @@ func receive_heal(fraction: float) -> void:
 	_heal(fraction)
 
 
-func _heal(fraction: float) -> void:
-	var amount := int(float(stats.max_hp) * fraction)
+func _heal(fraction: float, share := true) -> void:
+	var amount := int(float(stats.max_hp) * fraction * (1.2 if StarProgression.has_full_set(Game.profile,"priest") else 1.0))
 	var before: int = Game.profile.hp
 	Game.profile.hp = mini(stats.max_hp, Game.profile.hp + amount)
 	VfxKit.heal(field, global_position)
 	BattleVfx.floating_text(field, global_position + Vector3(0, 2.6, 0), "+%d" % (Game.profile.hp - before), Color("6dff9a"), 1.0)
 	for node in get_tree().get_nodes_in_group("companions"):
-		if node.has_method("heal_fraction") and node.global_position.distance_to(global_position) < 9.0:
+		if share and node.has_method("heal_fraction") and node.global_position.distance_to(global_position) < 9.0:
 			node.heal_fraction(fraction * 0.6)
 	AudioManager.play_sfx(&"heal")
 
@@ -934,18 +962,29 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	if not _valid_target(mob):
 		return
 	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08)
+	if _star_retaliation and not skill.is_empty() and StarProgression.has_full_set(Game.profile,"warrior"):
+		raw *= 1.2
+		_star_retaliation = false
+	if StarProgression.has_full_set(Game.profile,"archer"):
+		if _star_combo_target != mob.get_instance_id(): _star_combo_target=mob.get_instance_id(); _star_combo_count=0
+		_star_combo_count+=1
+		if _star_combo_count>=6: raw*=1.25; _star_combo_count=0
 	var crit := randf() < float(stats.crit)
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
-	VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
+	if skill.has("star"):
+		pass # StarSkillSequence owns exactly one authored impact per contact beat.
+	elif not skill.is_empty():
+		SkillTableau.contact(field, skill, mob.hit_point())
+	else:
+		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
 	var killed := mob.take_hit(amount, crit, color)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
 	var stop := HitFeel.stop_for(crit, mult if not skill.is_empty() else 0.0)
 	if stop > 0.0:
 		HitFeel.hitstop(get_tree(), stop)
 	HitFeel.debris(field, mob.hit_point(), skill)
-	_shake(0.12 if crit else 0.05)
 	if killed:
 		return
 	if melee:
@@ -970,13 +1009,15 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
+	amount = BuffBook.absorb(_buffs, amount)
+	if StarProgression.has_full_set(Game.profile,"warrior"):
+		amount=int(ceil(amount*0.9))
+		_star_retaliation=true
 	Game.profile.hp = maxi(0, Game.profile.hp - amount)
 	_since_hurt = 0.0
 	BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff5a6e"), 1.1)
 	visual.flash()
 	AudioManager.play_sfx(&"hit_special", -2.0)
-	_shake(0.14)
-	GameSettings.vibrate(35)
 	if Time.get_ticks_msec() >= _cast_until:
 		visual.action("Hit_A", 1.2)
 	if Game.profile.hp <= 0:
@@ -1010,11 +1051,6 @@ func level_up_fx() -> void:
 	AudioManager.play_sfx(&"level_up")
 
 
-func _shake(strength: float) -> void:
-	if camera_rig:
-		camera_rig.shake(strength)
-
-
 func _flat(v: Vector3) -> Vector3:
 	v.y = 0.0
 	return v
@@ -1024,3 +1060,11 @@ func _flat(v: Vector3) -> Vector3:
 func _look() -> Dictionary:
 	var look: Dictionary = Game.profile.get("look", {})
 	return look if look.has("gender") else {"gender": 0}
+
+
+func _storm_candidates() -> Array:
+	return get_tree().get_nodes_in_group("mobs")
+
+func _storm_hit(victim: Node3D, skill: Dictionary, mult: float) -> void:
+	if victim is Mob and not victim.is_dead():
+		_deal(victim, mult, skill.color, skill.vfx, false, skill)

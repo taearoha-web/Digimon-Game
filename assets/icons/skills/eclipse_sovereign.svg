@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: eclipse_sovereign. Hand-authored vector art. --><defs>
+ <radialGradient id="bg" cx=".38" cy=".3" r=".8"><stop stop-color="#287478"/><stop offset=".65" stop-color="#142b46"/><stop offset="1" stop-color="#10192e"/></radialGradient>
+ <linearGradient id="main" x2=".65" y2="1"><stop stop-color="#e8fff8"/><stop offset=".4" stop-color="#62e6c5"/><stop offset="1" stop-color="#287478"/></linearGradient>
+ <linearGradient id="lit" x2=".2" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#e8fff8"/></linearGradient>
+ <linearGradient id="blade" x2=".9" y2="1"><stop stop-color="#ffffff"/><stop offset=".47" stop-color="#e8fff8"/><stop offset="1" stop-color="#62e6c5"/></linearGradient>
+ <linearGradient id="gold" x2=".8" y2="1"><stop stop-color="#fff9d7"/><stop offset=".4" stop-color="#f7d885"/><stop offset="1" stop-color="#af793c"/></linearGradient>
+ <linearGradient id="deep" x2=".65" y2="1"><stop stop-color="#142b46"/><stop offset="1" stop-color="#101729"/></linearGradient>
+ <radialGradient id="gem" cx=".3" cy=".2" r=".9"><stop stop-color="#ffffff"/><stop offset=".4" stop-color="#62e6c5"/><stop offset="1" stop-color="#287478"/></radialGradient>
+ <clipPath id="clip"><circle cx="128" cy="128" r="117"/></clipPath>
+ </defs>
+ <circle cx="128" cy="128" r="123" fill="#10172a"/>
+ <circle cx="128" cy="128" r="119" fill="url(#bg)" stroke="url(#gold)" stroke-width="3"/>
+ <g clip-path="url(#clip)">
+ <path d="M26 190 L147 25 L224 54 L88 228Z" fill="#62e6c5" opacity=".075"/>
+ <circle cx="128" cy="99" r="70" fill="#15223a" stroke="url(#gold)" stroke-width="7" /><path d="M77 52 Q155 2 190 90 Q177 41 137 34 Q107 29 77 52Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M80 118 Q41 110 38 71 L70 94 L72 52 L97 91 L112 105 L145 105 L160 91 L184 52 L184 94 L216 71 Q214 111 177 118 L172 168 L148 187 L128 215 L108 187 L84 168Z" fill="url(#main)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M98 111 L128 131 L159 111 L153 169 L128 198 L103 169Z" fill="url(#deep)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M97 127 L117 135 L109 145 L97 138Z M159 127 L139 135 L147 145 L159 138Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M115 155 L141 155 L128 170Z" fill="url(#gold)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M103 95 L99 76 L116 82 L128 59 L140 82 L157 76 L153 95Z" fill="url(#gold)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><g transform="translate(128 84) rotate(0) scale(0.3)" ><path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g>
+ </g>
+ <path d="M30 96 A101 101 0 0 1 106 28" fill="none" stroke="#e8fff8" stroke-width="2" opacity=".5"/>
+ </svg>

@@ -15,20 +15,20 @@ const VIEW_DISTANCE := 85.0
 ## Per theme: leaf colours by material-name prefix, bark and rock colours.
 const THEMES := {
 	&"meadow": {
-		"PineTree_Leaves": [Color("436b58"), Color("91b084")],
-		"MapleTree_Leaves": [Color("698754"), Color("c4c991")],
-		"NormalTree_Leaves": [Color("50795a"), Color("a7bd80")],
-		"BirchTree_Leaves": [Color("789366"), Color("d0d69c")],
-		"Bush_Leaves": [Color("537951"), Color("a1b97c")],
-		"PalmTree_Leaves": [Color("537e60"), Color("acc890")],
-		"Grass": [Color("638758"), Color("a5bc7c")],
-		"Bark": Color("886957"), "BirchBark": Color("d8d2c4"), "PalmBark": Color("9a7448"),
-		"Rock": [Color("9aa3b8"), Color("77906a")],
+		"PineTree_Leaves": [Color("274f42"), Color("65926d")],
+		"MapleTree_Leaves": [Color("43673b"), Color("8da654")],
+		"NormalTree_Leaves": [Color("356042"), Color("7e9e58")],
+		"BirchTree_Leaves": [Color("537843"), Color("a6b567")],
+		"Bush_Leaves": [Color("3c613b"), Color("7c9954")],
+		"PalmTree_Leaves": [Color("356b48"), Color("8aaa63")],
+		"Grass": [Color("557846"), Color("8ea760")],
+		"Bark": Color("775744"), "BirchBark": Color("bfc5b2"), "PalmBark": Color("886a42"),
+		"Rock": [Color("87949a"), Color("627b50")],
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
 	# The Japanese village: broadleaf crowns bloom as sakura, pines stay green.
 	&"village": {
-		"PineTree_Leaves": [Color("3f6a52"), Color("8aae7c")],
+		"PineTree_Leaves": [Color("305640"), Color("73985c")],
 		"MapleTree_Leaves": [Color("e58aa8"), Color("ffe1ea")],
 		"NormalTree_Leaves": [Color("e894b0"), Color("ffe6ee")],
 		"BirchTree_Leaves": [Color("f0a8c0"), Color("fff0f4")],
@@ -40,11 +40,11 @@ const THEMES := {
 		"Flowers": [Color("ffffff"), Color("ffffff")],
 	},
 	&"digital": {
-		"PineTree_Leaves": [Color("3e676d"), Color("8bbbb2")],
-		"MapleTree_Leaves": [Color("71658c"), Color("b9a6db")],
-		"NormalTree_Leaves": [Color("4b7773"), Color("9bc9b1")],
-		"BirchTree_Leaves": [Color("638d9e"), Color("b5d3df")],
-		"Bush_Leaves": [Color("496c60"), Color("8bb29c")],
+		"PineTree_Leaves": [Color("31565b"), Color("709d92")],
+		"MapleTree_Leaves": [Color("5a4b77"), Color("9b83bd")],
+		"NormalTree_Leaves": [Color("355e58"), Color("78a58a")],
+		"BirchTree_Leaves": [Color("456a80"), Color("8fb7c5")],
+		"Bush_Leaves": [Color("3a5b4b"), Color("759782")],
 		"PalmTree_Leaves": [Color("577e86"), Color("a4c9c8")],
 		"Grass": [Color("466c5b"), Color("92b5a0")],
 		"Bark": Color("5a4a6e"), "BirchBark": Color("a99cc4"), "PalmBark": Color("6e5a8a"),
@@ -162,8 +162,17 @@ const THEMES := {
 }
 
 static var _cache: Dictionary = {}
+const CACHE_LIMIT := 48
 static var _foliage_shader: Shader
 static var _rock_shader: Shader
+static var _bark_materials: Dictionary = {}
+
+
+## Scene meshes keep their own references. Dropping cache ownership releases
+## palettes from previously visited maps without changing anything still drawn.
+static func release_cache() -> void:
+	_cache.clear()
+	_bark_materials.clear()
 
 
 ## Mesh parts of a model: [{ "mesh": ArrayMesh, "xform": Transform3D }].
@@ -194,6 +203,8 @@ static func get_parts(model: String, theme: StringName = &"meadow") -> Array:
 		root.free()
 	else:
 		push_warning("NatureKit: missing model %s" % model)
+	if _cache.size() >= CACHE_LIMIT:
+		_cache.erase(_cache.keys()[0])
 	_cache[key] = parts
 	return parts
 
@@ -235,9 +246,28 @@ static func place(parent: Node3D, node_name: String, model: String, theme: Strin
 			mmi.multimesh = mm
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if (shadows and GameSettings.world_shadows()) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mmi.visibility_range_end = view_distance * GameSettings.view_scale()
-			mmi.custom_aabb = AABB(Vector3(cell.x * CHUNK - 8.0, -30.0, cell.y * CHUNK - 8.0), Vector3(CHUNK + 16.0, 80.0, CHUNK + 16.0))
+			var centre := Vector3((cell.x + 0.5) * CHUNK, 10.0, (cell.y + 0.5) * CHUNK)
+			mmi.custom_aabb = chunk_bounds(part.mesh, transforms, indices, centre, part.xform)
 			holder.add_child(mmi)
 	return holder
+
+
+## Tight bounds for static instances, with space for the vertex shader's wind.
+## Keep the previous chunk centre so distance culling uses the same reference
+## point; only empty space around the visible geometry is removed.
+static func chunk_bounds(mesh: Mesh, transforms: Array[Transform3D], indices: Array,
+		centre: Vector3, model_xform := Transform3D.IDENTITY) -> AABB:
+	# Foliage displaces <= 0.045 m and grass <= 0.075 m in mesh-local space.
+	# Expanding before transforming also covers rotated/nonuniformly scaled tips.
+	var local_bounds := mesh.get_aabb().grow(0.1)
+	var bounds := AABB()
+	for j in indices.size():
+		var instance_bounds: AABB = (transforms[indices[j]] * model_xform) * local_bounds
+		bounds = instance_bounds if j == 0 else bounds.merge(instance_bounds)
+	if indices.is_empty():
+		return AABB(centre, Vector3.ZERO)
+	var reach := (bounds.position - centre).abs().max((bounds.end - centre).abs())
+	return AABB(centre - reach, reach * 2.0)
 
 
 static func _material_for(material_name: String, theme: StringName, model_height: float) -> Material:
@@ -247,10 +277,24 @@ static func _material_for(material_name: String, theme: StringName, model_height
 		rock.shader = _get_rock_shader()
 		rock.set_shader_parameter("stone_color", colors.Rock[0])
 		rock.set_shader_parameter("moss_color", colors.Rock[1])
+		var amount := 0.58
+		if theme == &"desert" or theme == &"volcano" or theme == &"abyss" or theme == &"void":
+			amount = 0.22
+		elif theme == &"snow":
+			amount = 0.72
+		rock.set_shader_parameter("moss_amount", amount)
 		return rock
 	if material_name.ends_with("Bark") or material_name.ends_with("Trunk"):
 		var tone: Color = colors.BirchBark if material_name.begins_with("Birch") else (colors.PalmBark if material_name.begins_with("Palm") else colors.Bark)
-		return MeshKit.toon(tone)
+		var bark_key := tone.to_html()
+		if not _bark_materials.has(bark_key):
+			var bark := StandardMaterial3D.new()
+			bark.albedo_color = tone
+			bark.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+			bark.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+			bark.roughness = 1.0
+			_bark_materials[bark_key] = bark
+		return _bark_materials[bark_key]
 	var key := material_name if colors.has(material_name) else ("Bush_Leaves" if material_name.begins_with("Bush") else "NormalTree_Leaves")
 	if material_name == "Flowers":
 		key = "Flowers"
@@ -260,8 +304,9 @@ static func _material_for(material_name: String, theme: StringName, model_height
 	mat.set_shader_parameter("base_color", pair[0])
 	mat.set_shader_parameter("top_color", pair[1])
 	mat.set_shader_parameter("height_ref", model_height)
+	mat.set_shader_parameter("canopy_light", 0.90 if theme == &"snow" else 0.76)
 	var is_flower := material_name == "Flowers"
-	mat.set_shader_parameter("tint_strength", 1.0 if is_flower else 0.12)
+	mat.set_shader_parameter("tint_strength", 1.0 if is_flower else 0.22)
 	mat.set_shader_parameter("sway", 0.018 if material_name.begins_with("Bush") or is_flower else 0.045)
 	return mat
 

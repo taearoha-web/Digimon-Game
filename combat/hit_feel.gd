@@ -12,6 +12,9 @@ static var _last_stop := 0
 ## Freezes the game for [param seconds] of real time (very slow time, not a pause,
 ## so input and UI keep running). Never chains: AoE hits share one stop.
 static func hitstop(tree: SceneTree, seconds: float) -> void:
+	GameSettings.load_settings()
+	if not GameSettings.combat_hitstop:
+		return
 	if _stopped or tree == null:
 		return
 	var now := Time.get_ticks_msec()

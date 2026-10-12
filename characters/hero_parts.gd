@@ -13,6 +13,10 @@ const DIR := "res://assets/models/characters/"
 static var _cache: Dictionary = {}
 
 
+static func release_cache() -> void:
+	_cache.clear()
+
+
 static func get_part(glb: String, node_name: String) -> Dictionary:
 	var key := glb + "|" + node_name
 	if _cache.has(key):

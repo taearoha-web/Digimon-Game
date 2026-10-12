@@ -25,6 +25,7 @@ var _think := 0.2
 var _atk_boost := 1.0
 var _def_boost := 1.0
 var _buff_until := 0.0
+var _buff_art := BuffBook.new()
 var _base_def := 1.0
 var _dodge := 0.0
 var _potions := 0
@@ -86,6 +87,7 @@ func start_fight() -> void:
 
 
 func stop_fight() -> void:
+	_buff_art.clear(self)
 	duel_over = true
 	_frozen = true
 	hostile = false
@@ -110,6 +112,7 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 
 
 func _die() -> void:
+	_buff_art.clear(self)
 	super._die()
 	duel_over = true
 
@@ -175,6 +178,7 @@ func _chase(target: Node3D, delta: float, _speed_factor: float) -> Vector3:
 
 
 func _tick(delta: float) -> void:
+	_buff_art.tick(self, not is_dead() and not duel_over, func(): return BuffAura.measure_top(_rv, self))
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_potion_cd = maxf(0.0, _potion_cd - delta)
 	mp = minf(float(rstats.max_mp), mp + float(rstats.max_mp) * 0.025 * delta)
@@ -268,10 +272,14 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 		VfxKit.danger_circle(get_parent(), Vector3(global_position.x, 0.0, global_position.z), float(skill.radius), delay)
 	visual.flash(Color(1.0, 0.35, 0.25), minf(delay, 0.5))
 	if _rv and _rv.hero_visual:
-		_rv.hero_visual.action(String(skill.anim), 1.0)
+		_rv.hero_visual.skill_action(skill, delay)
+		SkillShow.anticipate(get_parent(), skill, global_position, delay, aim, _rv.hero_visual)
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 80
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
 	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
+	if String(skill.id) == "judgment_ray":
+		JudgmentRaySequence.launch(get_parent(), self, target, delay, _storm_hit.bind(float(skill.mult), color), _rv.hero_visual if _rv else null)
+		return
 	get_tree().create_timer(delay).timeout.connect(func():
 		if is_instance_valid(self) and not _dead and not duel_over:
 			_resolve(skill, target, aim)
@@ -288,7 +296,13 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	var center := global_position
 	if alive and shape in ["single", "chain", "fan", "blast"]:
 		center = Vector3(aim.x, 0.0, aim.z) if shape == "blast" else Vector3(target.global_position.x, 0.0, target.global_position.z)
-	SkillShow.play(field, skill, center, global_position, null)
+	if String(skill.id) == "judgment_ray":
+		JudgmentRaySequence.launch(field, self, target, 0.001, _storm_hit.bind(mult, color))
+		return
+	if String(skill.id) == "thunder_storm":
+		ThunderStormSequence.launch(field, self, Vector3(aim.x, 0, aim.z), float(skill.radius), _victims, _storm_hit.bind(mult, color))
+		return
+	SkillShow.play(field, skill, center, global_position)
 	match shape:
 		"self":
 			if fx.has("heal"):
@@ -299,7 +313,10 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_def_boost = 1.0 + float(buff.get("def", 0.0))
 				stats["def"] = _base_def * _def_boost
 				_buff_until = Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0)
-				VfxKit.aura(field, global_position, color)
+				_buff_art.buffs.clear()
+				var display_buff := buff.duplicate()
+				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
+				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id))
 		"burst":
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, float(skill.radius) * 1.15)
 			if fx.has("heal"):
@@ -378,3 +395,7 @@ func _basic_attack(target: Node3D) -> void:
 		elif _flat_distance(target.global_position) <= float(attack.range) + 1.4:
 			_hit(target, mult, color)
 	, CONNECT_ONE_SHOT)
+
+
+func _storm_hit(victim: Node3D, mult: float, color: Color) -> void:
+	_hit(victim, mult, color)

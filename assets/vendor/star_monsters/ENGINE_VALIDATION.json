@@ -1,0 +1,201 @@
+{
+  "checks": 96,
+  "errors": 0,
+  "models": [
+    {
+      "bounds": [
+        1.06166625022888,
+        2.67669725418091,
+        5.88305521011353
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Fox"
+    },
+    {
+      "bounds": [
+        1.4589786529541,
+        4.27408504486084,
+        4.39731121063232
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Deer"
+    },
+    {
+      "bounds": [
+        2.53608465194702,
+        4.2223653793335,
+        4.84315156936646
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Stag"
+    },
+    {
+      "bounds": [
+        1.26553785800934,
+        5.39758777618408,
+        4.29938983917236
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Alpaca"
+    },
+    {
+      "bounds": [
+        0.989964604377747,
+        3.19106912612915,
+        3.8891966342926
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Husky"
+    },
+    {
+      "bounds": [
+        1.06519985198975,
+        2.68101239204407,
+        5.55308818817139
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Wolf"
+    },
+    {
+      "bounds": [
+        2.51344704627991,
+        4.58667230606079,
+        8.06698417663574
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Bull"
+    },
+    {
+      "bounds": [
+        1.40693616867065,
+        4.82394647598267,
+        5.67611408233643
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Horse_White"
+    },
+    {
+      "bounds": [
+        1.93818306922913,
+        2.16611361503601,
+        0.912233471870422
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Skeleton_Minion"
+    },
+    {
+      "bounds": [
+        1.94250631332397,
+        3.2879319190979,
+        1.15279388427734
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Skeleton_Rogue"
+    },
+    {
+      "bounds": [
+        1.93818306922913,
+        2.58832192420959,
+        1.73530435562134
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Skeleton_Mage"
+    },
+    {
+      "bounds": [
+        1.94250655174255,
+        2.16611361503601,
+        1.45877087116241
+      ],
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "model": "Skeleton_Warrior"
+    }
+  ],
+  "method": "Godot 4.3 GLTFDocument append_from_file/generate_scene in isolated project, sampled each of six clips, native OpenGL screenshot; main importer cache not touched",
+  "render_capture": "/workspace/toon-artifacts/star-monster-sources/new-models.png",
+  "hardware": "llvmpipe software OpenGL, no phone performance claim"
+}

@@ -1,0 +1,122 @@
+{
+  "version": "0.9.4",
+  "build": "afb9ddca",
+  "previousBuild": "6419e9b9",
+  "scope": "original-body class colour outfits",
+  "packed": {
+    "index.wasm": [
+      "engine.d0b30e03.gz.wasm",
+      7975981,
+      "application/wasm"
+    ],
+    "index.pck": [
+      [
+        "game.afb9ddca.part001.gz.wasm",
+        "game.afb9ddca.part002.gz.wasm",
+        "game.afb9ddca.part003.gz.wasm",
+        "game.afb9ddca.part004.gz.wasm"
+      ],
+      53184954,
+      "application/octet-stream"
+    ]
+  },
+  "physicalIPhoneTested": false,
+  "commit_sha": "a2be4a0a6f66781941eb9d3e2ab2fbc8a3682eea",
+  "archive": "/workspace/toon-artifacts/divine-dye-094/site-v094.tar.gz",
+  "archiveBytes": 174839189,
+  "archiveSHA256": "52027ea04a6ef4bcfa11d6f350701dfd24df2ef1a3b34e1f1645e4006befc5d6",
+  "site_version": 26,
+  "saved_version": "appgprj_6ac6f5fbcec88191b19bdb49b957124c~appgver_343883d77fcc819187034d9b8752e17f",
+  "deployment_id": "appgdep_6acc847a6080819193c9a7b30d9986f5",
+  "status": "succeeded",
+  "url": "https://toon-tale.taemongkichi.chatgpt.site",
+  "verifiedHTTP": [
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 22970,
+      "sha256": "eecf387631bc3b1c7a23ef77a5100bc1f487a64deaeb0c3b6b9af26a88aae16b"
+    },
+    {
+      "path": "/session.836efc19a211.js",
+      "status": 200,
+      "bytes": 13016,
+      "sha256": "836efc19a211dec3a0384b7b24756b0797a418d086f3cfc5ea1c98d7c6ca7a2b"
+    },
+    {
+      "path": "/api/account/session",
+      "status": 200,
+      "bytes": 13,
+      "sha256": "2e7fe66d0f26a4cc5aaad5f34dba496c7988c175f79b24dcfa414a1dba289c0a"
+    },
+    {
+      "path": "/star-expansion/",
+      "status": 200,
+      "bytes": 36456,
+      "sha256": "26b6da3be6b757a08845d2ee62c107ec6fd9306621143e9ad17a39cb0ec0b191"
+    },
+    {
+      "path": "/divine-sanctum/",
+      "status": 200,
+      "bytes": 10465,
+      "sha256": "e416ad88c7572ca37166f041cf957fe28cff952c839b39f1f33f7414b117365f"
+    },
+    {
+      "path": "/divine-sanctum/gallery.js",
+      "status": 200,
+      "bytes": 555,
+      "sha256": "f235bfea2a3c7acd30aa021f753ec197d9a36ac8010ae4f986959508ee11573b"
+    },
+    {
+      "path": "/divine-sanctum/warrior-boy-094.webp",
+      "status": 200,
+      "bytes": 39336,
+      "sha256": "3fc77bf12c527f806788ff8187a73ee5c4fa3844d5a57205b1310240aef95eee"
+    },
+    {
+      "path": "/divine-sanctum/summoner-girl-094.webp",
+      "status": 200,
+      "bytes": 39824,
+      "sha256": "cddd04571048442a6a149150e16b4ea87a71420677421cc8ecc8acab76b157c6"
+    },
+    {
+      "path": "/divine-sanctum/LotusSeraph.webp",
+      "status": 200,
+      "bytes": 31880,
+      "sha256": "3b2268ef0c2bf9caef6e2f567d1a80139673cf65ccd3c760f749aa80031a21af"
+    },
+    {
+      "path": "/game.afb9ddca.part001.gz.wasm",
+      "status": 200,
+      "bytes": 16777216,
+      "sha256": "c147f1aa626cc8f0e044161af55e5de4c015b083fa44df6f00c049632b526618"
+    },
+    {
+      "path": "/game.afb9ddca.part002.gz.wasm",
+      "status": 200,
+      "bytes": 16777216,
+      "sha256": "b8d691e49f6e06516016064d89516a9574994edb12300b4279a330ef89cca0fb"
+    },
+    {
+      "path": "/game.afb9ddca.part003.gz.wasm",
+      "status": 200,
+      "bytes": 16777216,
+      "sha256": "bb5e53476379b36d532a5370b91623116878fcffe81340f6d5a2edcfeddb8ab0"
+    },
+    {
+      "path": "/game.afb9ddca.part004.gz.wasm",
+      "status": 200,
+      "bytes": 2853306,
+      "sha256": "687b559c347be302e20db9bc80f2a89ac4acb8bcdb4c8a15fc3d26a17fce1c28"
+    }
+  ],
+  "verification": {
+    "scriptResources": 264,
+    "nativeOutfitChecks": 1734,
+    "maskChecks": 118997,
+    "portraitChecks": 16,
+    "dropSaveRegressionChecks": 2739,
+    "browserUIAutomated": false,
+    "physicalIPhoneTested": false
+  }
+}

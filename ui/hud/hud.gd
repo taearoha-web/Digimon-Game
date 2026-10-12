@@ -4,7 +4,8 @@ extends CanvasLayer
 ##   left            joystick
 ##   bottom          eight skills in one row, big Attack button at the right
 ##   far right       HP potion, MP potion, auto and target in a vertical column
-##   top left        hero panel (HP, MP, EXP) and the locked-on monster
+##   top left        hero panel, self / ally buffs, companions
+##   top centre      target or boss health
 ##   top right       gold, zone name, menu
 ## All state is read from [Game] and the hero every frame.
 
@@ -39,7 +40,7 @@ var _hp_label: Label
 var _mp_bar: ProgressBar
 var _mp_label: Label
 var _exp_bar: ProgressBar
-var _badge: Label
+var _portrait: HeroPortrait
 var _badge_panel: PanelContainer
 var _target_panel: PanelContainer
 var _boss_panel: PanelContainer
@@ -101,12 +102,16 @@ func _ready() -> void:
 	_combat_controls = [attack_button, hp_potion, mp_potion, target_button, auto_button]
 	_combat_controls.append_array(skill_slots)
 	Game.gold_changed.connect(func(_g): _refresh_gold())
+	# Equipment can change while the menu pauses gameplay. The portrait's
+	# one-shot capture also runs safely during that pause.
+	Game.inventory_changed.connect(_refresh_portrait)
 	_save_label = UIUtil.label("บันทึกอัตโนมัติ", &"SmallLabel")
 	_save_label.modulate.a = 0.0
-	_save_label.anchor_left = 0.5
-	_save_label.anchor_right = 0.5
-	_save_label.offset_left = -70.0
-	_save_label.offset_top = 6.0
+	_save_label.anchor_left = 1.0
+	_save_label.anchor_right = 1.0
+	_save_label.offset_left = -270.0
+	_save_label.offset_right = -140.0
+	_save_label.offset_top = 70.0
 	_save_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(_save_label)
 	Game.autosaved.connect(_flash_saved)
@@ -124,6 +129,10 @@ func _flash_saved() -> void:
 func bind(p_zone: Zone) -> void:
 	zone = p_zone
 	hero = zone.hero
+	# Show the new zone's status on the next frame, without carrying the old
+	# hero's timer phase or a partially elapsed HUD refresh across travel.
+	_refresh_in = 0.0
+	_timer_elapsed = 0.0
 	minimap.zone = zone
 	minimap.visible = true
 	# One link to the current hero (bind runs for every zone), and a thumb that is
@@ -181,20 +190,27 @@ func show_death(visible_flag: bool) -> void:
 
 
 var _refresh_in := 0.0
+var _timer_elapsed := 0.0
 var _stick_link := Callable()
 
 
 func _process(delta: float) -> void:
 	if hero == null or not is_instance_valid(hero) or Game.profile.is_empty():
 		return
-	# Bars, labels and skill buttons change slowly: refresh them 20 times a second
-	# instead of every frame (less text and layout work on phones).
+	# Status snapshots and timer chips share the 20 Hz HUD refresh. Building the
+	# buff/summon dictionaries and redrawing their text every rendered frame is
+	# unnecessary during combat. Accumulate real elapsed time so warning pulses
+	# keep their speed when the render rate changes.
+	_timer_elapsed += delta
 	_refresh_in -= delta
-	if _refresh_in <= 0.0:
-		_refresh_in = 0.05
+	if _refresh_in <= 0.000001:
+		# Preserve the remainder, avoiding refresh-rate drift at 60/120 Hz. After
+		# a long frame, one snapshot is enough; skip missed work rather than loop.
+		_refresh_in = maxf(_refresh_in + 0.05, 0.0)
 		_refresh()
+		_update_timers(_timer_elapsed)
+		_timer_elapsed = 0.0
 	_update_tracker(delta)
-	_update_timers(delta)
 
 
 func _refresh() -> void:
@@ -205,12 +221,18 @@ func _refresh() -> void:
 		_badge_class = class_id
 		var data := Game.class_data()
 		var style := StyleBoxFlat.new()
-		style.bg_color = data.color
-		style.set_corner_radius_all(30)
-		style.set_border_width_all(3)
-		style.border_color = Color.WHITE
+		style.bg_color = (data.color as Color).darkened(0.65)
+		style.set_corner_radius_all(36)
+		style.set_border_width_all(2)
+		style.border_color = (data.color as Color).lerp(Color.WHITE, 0.65)
+		style.content_margin_left = 4
+		style.content_margin_top = 4
+		style.content_margin_right = 4
+		style.content_margin_bottom = 4
 		_badge_panel.add_theme_stylebox_override("panel", style)
-		_badge.text = String(data.badge)
+	# The portrait captures the actual head gear when its appearance changes,
+	# then displays the cached image without an ongoing 3D render.
+	_refresh_portrait()
 	_name_label.text = String(p.name)
 	_update_party()
 	_update_wing_row()
@@ -260,9 +282,8 @@ func _refresh_target() -> void:
 		_target_name.add_theme_color_override("font_color", Color("ffd84a") if mob.is_boss else Color.WHITE)
 
 
-## Buff / summon countdown chips at the top centre (pushed below the boss bar when it shows).
+## Buff / summon countdown rows below the hero status card.
 func _update_timers(delta: float) -> void:
-	_timers.offset_top = 92.0 if _boss_panel.visible else 6.0
 	if hero == null or not is_instance_valid(hero) or zone == null or zone.is_town:
 		_timers.update_entries([], delta)
 		return
@@ -280,6 +301,12 @@ func _update_boss_bar() -> void:
 				boss = mob
 				break
 	_boss_panel.visible = boss != null
+	if boss != null and hero.target == boss:
+		_target_panel.hide()
+	elif boss != null:
+		_target_panel.offset_top = 92.0
+	else:
+		_target_panel.offset_top = 8.0
 	if boss == null:
 		return
 	var phase_text: String = ["", "  (เรียกพวก)", "  (คลั่ง!)"][clampi(boss.phase, 0, 2)]
@@ -330,13 +357,8 @@ func _build_tracker(frame: Control) -> void:
 
 func _build_boss_bar(frame: Control) -> void:
 	_build_tracker(frame)
-	_timers = TimerBars.new()
-	_timers.anchor_left = 0.5
-	_timers.anchor_right = 0.5
-	_timers.offset_top = 8
-	frame.add_child(_timers)
 	_boss_panel = UIUtil.panel(&"HudPanel")
-	_boss_panel.anchor_left = 0.3
+	_boss_panel.anchor_left = 0.33
 	_boss_panel.anchor_right = 0.7
 	_boss_panel.offset_top = 8
 	_boss_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -346,6 +368,8 @@ func _build_boss_bar(frame: Control) -> void:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_boss_panel.add_child(col)
 	_boss_name = UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_boss_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_boss_name.clip_text = true
 	_boss_name.add_theme_color_override("font_color", Color("ffd84a"))
 	col.add_child(_boss_name)
 	_boss_bar = _bar(&"HPBar", 16)
@@ -367,6 +391,11 @@ func _update_target_frame() -> void:
 func _refresh_gold() -> void:
 	if _gold_label and not Game.profile.is_empty():
 		_gold_label.text = "%d" % int(Game.profile.gold)
+
+
+func _refresh_portrait() -> void:
+	if _portrait != null and not Game.profile.is_empty():
+		_portrait.refresh_profile(Game.profile)
 
 
 func _on_interact_changed(label: String) -> void:
@@ -391,13 +420,17 @@ func _build_status(frame: Control) -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(row)
 	_badge_panel = PanelContainer.new()
-	_badge_panel.custom_minimum_size = Vector2(60, 60)
+	_badge_panel.custom_minimum_size = Vector2(72, 72)
+	_badge_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_badge_panel)
-	_badge = UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_badge.add_theme_font_size_override("font_size", 28)
-	_badge_panel.add_child(_badge)
+	_portrait = HeroPortrait.new()
+	_portrait.name = "HeroPortrait"
+	_portrait.custom_minimum_size = Vector2(64, 64)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_badge_panel.add_child(_portrait)
 	var info := UIUtil.vbox(3)
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -446,11 +479,16 @@ func _build_status(frame: Control) -> void:
 	_target_panel.custom_minimum_size = Vector2(350, 0)
 	_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_target_panel.visible = false
-	column.add_child(_target_panel)
+	_target_panel.anchor_left = 0.33
+	_target_panel.anchor_right = 0.70
+	_target_panel.offset_top = 8
+	frame.add_child(_target_panel)
 	var tcol := UIUtil.vbox(3)
 	tcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_target_panel.add_child(tcol)
 	_target_name = UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_target_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_target_name.clip_text = true
 	tcol.add_child(_target_name)
 	var trow := UIUtil.hbox(6)
 	trow.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -461,6 +499,8 @@ func _build_status(frame: Control) -> void:
 	_target_hp.custom_minimum_size = Vector2(110, 0)
 	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	trow.add_child(_target_hp)
+	_timers = TimerBars.new()
+	column.add_child(_timers)
 	_build_party(column)
 	_build_wing_row(column)
 	minimap = Minimap.new()
@@ -722,12 +762,15 @@ func _small_button(icon_path: String, accent: Color, center_rel: Vector2) -> Tou
 func _build_banner(frame: Control) -> void:
 	_build_boss_bar(frame)
 	_banner = UIUtil.label("", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	_banner.add_theme_font_size_override("font_size", 46)
-	_banner.anchor_left = 0.2
-	_banner.anchor_right = 0.8
-	_banner.anchor_top = 0.2
-	_banner.anchor_bottom = 0.2
-	_banner.offset_bottom = 70
+	_banner.add_theme_font_size_override("font_size", 28)
+	_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.anchor_left = 0.33
+	_banner.anchor_right = 0.70
+	_banner.anchor_top = 0.0
+	_banner.anchor_bottom = 0.0
+	_banner.offset_top = 174
+	_banner.offset_bottom = 244
 	_banner.modulate.a = 0.0
 	frame.add_child(_banner)
 

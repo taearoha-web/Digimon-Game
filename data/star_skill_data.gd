@@ -1,0 +1,70 @@
+class_name StarSkillData
+extends RefCounted
+## Authored post-cap skills. `mult` is TOTAL damage for the timed sequence.
+## Skill rank never changes the promised ten swords or six Heartseeker contacts.
+const IDS := {
+	&"warrior": ["lionfang_cleave", "crown_breaker", "royal_vanguard", "celestial_swordfall"],
+	&"archer": ["moonpiercer", "hunters_verdict", "sylph_step", "celestial_hunt"],
+	&"lancer": ["spiral_impaler", "heartseeker", "aegis_formation", "worldsplitter"],
+	&"mage": ["arcane_prism", "crystal_prison", "astral_convergence", "genesis_nova"],
+	&"priest": ["sanctified_chain", "seraph_aegis", "sacred_sanctuary", "dawn_salvation"],
+	&"summoner": ["moonwolf_pact", "leviathan_surge", "spirit_court", "eclipse_sovereign"],
+}
+const NAMES := {
+	&"warrior": ["Lionfang Cleave", "Crown Breaker", "Royal Vanguard", "Celestial Swordfall"],
+	&"archer": ["Moonpiercer", "Hunter's Verdict", "Sylph Step", "Celestial Hunt"],
+	&"lancer": ["Spiral Impaler", "Heartseeker", "Aegis Formation", "Worldsplitter"],
+	&"mage": ["Arcane Prism", "Crystal Prison", "Astral Convergence", "Genesis Nova"],
+	&"priest": ["Sanctified Chain", "Seraph's Aegis", "Sacred Sanctuary", "Dawn of Salvation"],
+	&"summoner": ["Moonwolf Pact", "Leviathan's Surge", "Spirit Court", "Eclipse Sovereign"],
+}
+const DESCS := {
+	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 18 วิ", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่"],
+	&"archer": ["ศรทะลวงจันทรา • ศรเงินทะลุศัตรูเป็นแนวตรง", "ศรตัดสินนักล่า • ยิงเป้าหมายเดียว 3 นัด นัดสุดท้ายแรงเป็นสองเท่า", "ก้าวแห่งภูตลม • วิ่งเร็ว +25% หลบ +15% โจมตี +35% นาน 16 วิ", "ล่าหมู่ดาว • ล็อกศัตรูในวง ยิง 3 ระลอก ก่อนศรปิดฉากใส่เป้าหมายหลัก"],
+	&"lancer": ["หอกเกลียวทะลวง • แทงผ่านแนวศัตรู 3 จังหวะ", "หอกเจาะหัวใจ • แทงเร็ว 5 ครั้ง ปิดด้วยแทงหนัก 1 ครั้ง รวม 6 ฮิต", "กระบวนทัพพิทักษ์ • ลดความเสียหายทีม 28% ป้องกัน +45% นาน 16 วิ", "หอกแยกพิภพ • หอกปะทุตามแนวรอยแยก 4 ระลอก"],
+	&"mage": ["ปริซึมเวท • ยิงพลัง 4 ธาตุใส่เป้าหมายเดียว", "คุกผลึกเหมันต์ • ชะลอในวง ผลึกระเบิด 2 จังหวะ", "บรรจบแห่งดวงดาว • ดึงศัตรูทั่วไปเข้าศูนย์กลาง ระเบิด 3 ระลอก", "โนวากำเนิดธาตุ • รวม 4 ธาตุเป็นแกนพลัง ปล่อยคลื่น 4 ระลอก"],
+	&"priest": ["สายใยศักดิ์สิทธิ์ • แสงเชื่อมศัตรูสูงสุด 5 ตัว ฟื้น HP ทีม 12%", "ปีกพิทักษ์เซราฟ • โล่ทีมดูดซับ 25% ของ HP สูงสุด นาน 18 วิ", "วิหารศักดิ์สิทธิ์ • วงฟื้น HP 6% ทุก 2 วิ นาน 10 วิ ช่วยต้านความเสียหาย 15%", "รุ่งอรุณแห่งการกอบกู้ • คลื่นศักดิ์สิทธิ์ 3 ครั้ง ทำดาเมจหมู่และฟื้น HP ทีมรวม 30%"],
+	&"summoner": ["พันธสัญญาหมาป่าจันทรา • หมาป่าโจมตีเป้าหมายหลัก นาน 24 วิ", "กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง", "ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 18 วิ", "ราชันแห่งคราส • เรียกราชันอสูร 24 วิ กรงเล็บ กระทืบ และพลังคราสก่อนจากไป"],
+}
+
+static func pool(cls: StringName) -> Array:
+	var out: Array = []
+	if not IDS.has(cls): return out
+	for i in 4:
+		var melee := cls in [&"warrior", &"lancer"]
+		var s := {"id": IDS[cls][i], "name": NAMES[cls][i], "desc": DESCS[cls][i], "class": cls,
+			"level": 100, "star": (i + 1) * 50, "mp": [100, 140, 170, 240][i], "cd": [14.0, 19.0, 32.0, 48.0][i],
+			"shape": "blast", "range": 12.0, "radius": 6.5 + i * 0.6, "mult": [15.0, 23.0, 25.0, 38.0][i],
+			"hit_delay": [0.48, 0.62, 0.8, 1.2][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
+			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
+			"icon": "star", "gesture": "thrust" if cls == &"lancer" else "cleave" if melee else "aim" if cls == &"archer" else "raise"}
+		match String(s.id):
+			"lionfang_cleave": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"cross_cut"}, true)
+			"crown_breaker": s.merge({"shape":"single", "range":3.5, "gesture":"execution", "fx":{"shred": [0.2,6.0]}}, true)
+			"royal_vanguard": s.merge({"shape":"self", "mult":0.0, "gesture":"ward", "fx":{"buff":{"def":0.6,"guard":0.22,"secs":18.0}}},true)
+			"celestial_swordfall": s.merge({"requires_wings":true,"hit_delay":1.6,"gesture":"raise", "radius":8.0},true)
+			"moonpiercer": s.merge({"shape":"single","range":14.0,"line":true,"width":1.5,"length":18.0},true)
+			"hunters_verdict": s.merge({"shape":"single","range":14.0,"mult":27.0,"gesture":"volley"},true)
+			"sylph_step": s.merge({"shape":"self","mult":0.0,"gesture":"weave","fx":{"buff":{"atk":0.35,"speed":0.25,"dodge":0.15,"secs":16.0}}},true)
+			"celestial_hunt": s["gesture"]="skyshot"
+			"spiral_impaler": s.merge({"shape":"single","range":6.0,"line":true,"width":1.7,"length":13.0},true)
+			"heartseeker": s.merge({"shape":"single","range":4.8,"mult":27.0},true)
+			"aegis_formation": s.merge({"shape":"self","mult":0.0,"gesture":"ward","fx":{"buff":{"def":0.45,"guard":0.28,"secs":16.0}}},true)
+			"worldsplitter": s.merge({"shape":"burst","radius":10.0,"gesture":"ground_slam"},true)
+			"arcane_prism": s.merge({"shape":"single","range":12.0,"gesture":"bolt"},true)
+			"crystal_prison": s["fx"]={"slow":4.0}
+			"astral_convergence": s["gesture"]="channel"
+			"genesis_nova": s["gesture"]="channel"
+			"sanctified_chain": s.merge({"shape":"chain","hits":5,"mult":13.0,"gesture":"bolt"},true)
+			"seraph_aegis": s.merge({"shape":"self","mult":0.0,"gesture":"prayer","fx":{"buff":{"shield":0.25,"secs":18.0}}},true)
+			"sacred_sanctuary": s.merge({"shape":"self","mult":0.0,"gesture":"prayer","radius":8.0,"fx":{"buff":{"guard":0.15,"secs":10.0}}},true)
+			"dawn_salvation": s["gesture"]="channel"
+			"moonwolf_pact": s.merge({"shape":"summon","gesture":"invoke","mult":16.0,"summon":{"kind":"star_wolf","count":1,"secs":24.0}},true)
+			"leviathan_surge": s.merge({"shape":"burst","radius":10.0,"gesture":"raise"},true)
+			"spirit_court": s.merge({"shape":"self","mult":0.0,"gesture":"invoke","fx":{"buff":{"atk":0.55,"def":0.4,"secs":18.0}}},true)
+			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"star_sovereign","count":1,"secs":24.0}},true)
+		out.append(s)
+	return out
+
+static func unlock_label(skill: Dictionary) -> String:
+	return "ดาว %d" % int(skill.star) if skill.has("star") else "Lv.%d" % int(skill.get("level",1))

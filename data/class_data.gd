@@ -278,7 +278,7 @@ static func tier_of(class_id: StringName, adv: int) -> int:
 
 
 ## The first unlocked skills fill the empty bar slots.
-static func default_loadout(class_id: StringName, level: int, current: Array = [], tier := 3) -> Array:
+static func default_loadout(class_id: StringName, level: int, current: Array = [], tier := 3, stars := 0) -> Array:
 	var out: Array = []
 	for i in SLOTS:
 		out.append(String(current[i]) if i < current.size() else "")
@@ -286,10 +286,10 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 	# Drop ids that no longer belong to this class or are not unlocked.
 	for i in SLOTS:
 		var skill := find_skill(class_id, out[i])
-		if skill.is_empty() or int(skill.level) > level or skill_tier(skill) > tier or out.find(out[i]) != i:
+		if skill.is_empty() or int(skill.level) > level or skill_tier(skill) > tier or int(skill.get("star", 0)) > stars or out.find(out[i]) != i:
 			out[i] = ""
 	for skill in pool_skills:
-		if int(skill.level) > level or skill_tier(skill) > tier or out.has(skill.id):
+		if int(skill.level) > level or skill_tier(skill) > tier or int(skill.get("star", 0)) > stars or out.has(skill.id):
 			continue
 		var empty := out.find("")
 		if empty < 0:
@@ -438,13 +438,13 @@ static func _build_pools() -> void:
 		_sk(m, "silraphim", "Silraphim", "ATK +50% DEF +30% นาน 1 นาที", 64, 70, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "def": 0.3, "secs": 60.0}}, "color": Color("ffd0ff"), "icon": "bless"}),
 		_sk(m, "slow_speed", "Slow Speed", "เวทหน่วงเวลา ศัตรูช้าลงมาก 6 วินาที", 68, 72, 12.0, "blast", 8.0, {"radius": 7.0, "fx": {"slow": 6.0}, "vfx": &"frost", "color": Color("7fdcff"), "icon": "ice"}),
 		_sk(m, "vague", "Vague", "ร่างพร่าเลือน DEF +70% วิ่งเร็ว +20% นาน 1 นาที", 72, 78, 40.0, "self", 0.0, {"fx": {"buff": {"def": 0.7, "speed": 0.2, "secs": 60.0}}, "color": Color("b79bff"), "icon": "shield"}),
-		_sk(m, "thunder_storm", "Thunder Storm", "พายุสายฟ้ากระโดดฟาดศัตรู 8 ตัว", 76, 86, 12.0, "chain", 6.2, {"hits": 8, "color": Color("fff06a"), "icon": "bolt"}),
+		_sk(m, "thunder_storm", "Thunder Storm", "เมฆพายุสุ่มผ่าศัตรูสูงสุด 5 ตัวต่อระลอก รวม 3 ระลอก ห่างกัน 0.75 วินาที รัศมีเท่า Ice Storm", 76, 86, 12.0, "blast", 6.2, {"radius": 9.0, "vfx": &"thunder", "color": Color("dceaff"), "icon": "bolt"}),
 		_sk(m, "hell_meteor", "Hell Meteor", "อุกกาบาตนรกถล่มพื้นที่กว้าง ติดไฟแรง", 80, 110, 18.0, "blast", 16.0, {"radius": 9.0, "special": "meteor", "fx": {"burn": [0.5, 6.0]}, "vfx": &"fireball", "color": Color("ff3a2a"), "icon": "meteor"}),
 		_sk(m, "ice_storm", "Ice Storm", "พายุน้ำแข็งถล่มพื้นที่กว้าง ศัตรูช้าลง", 84, 112, 16.0, "blast", 15.0, {"radius": 9.0, "fx": {"slow": 5.0}, "vfx": &"frost", "color": Color("aaf0ff"), "icon": "ice"}),
-		_sk(m, "spirit_burst", "Spirit Burst", "วิญญาณระเบิดรอบตัวสร้างความเสียหายมหาศาล", 88, 120, 16.0, "burst", 14.0, {"radius": 9.0, "vfx": &"fireball", "color": Color("ffb04a"), "icon": "nova"}),
+		_sk(m, "spirit_burst", "Spirit Burst", "วิญญาณระเบิดรอบตัวสร้างความเสียหายมหาศาล", 88, 120, 16.0, "burst", 14.0, {"radius": 9.0, "vfx": &"light", "color": Color("b698f2"), "icon": "nova"}),
 		_sk(m, "magic_overdrive", "Magic Overdrive", "ATK +90% คริ +15% นาน 1 นาที", 92, 120, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.9, "crit": 0.15, "secs": 60.0}}, "color": Color("ffd0ff"), "icon": "bless"}),
-		_sk(m, "judgment_ray", "Judgment Ray", "รังสีพิพากษาจากสวรรค์ใส่ศัตรูตัวเดียว", 96, 130, 12.0, "single", 24.0, {"range": 14.0, "vfx": &"thunder", "color": Color("fff0a0"), "icon": "bolt"}),
-		_sk(m, "armageddon", "Armageddon", "วันสิ้นโลก อุกกาบาตมหาศาลถล่มทั้งพื้นที่", 100, 180, 24.0, "blast", 22.0, {"radius": 11.0, "special": "meteor", "fx": {"burn": [0.7, 8.0]}, "vfx": &"fireball", "color": Color("ff2a1a"), "icon": "meteor"}),
+		_sk(m, "judgment_ray", "Judgment Ray", "เปิดตราพิพากษาบนฟ้า เรียกเสาแสงทองขาวลงใส่เป้าหมายเดียวอย่างรุนแรง 1 ครั้ง", 96, 130, 12.0, "single", 24.0, {"range": 14.0, "projectile": false, "hit_delay": 1.05, "vfx": &"light", "color": Color("fff0a0"), "icon": "bolt"}),
+		_sk(m, "armageddon", "Armageddon", "อุกกาบาตยักษ์ถล่มพื้น แตกเป็นสะเก็ดไฟ 10 ลูก ระเบิดทีละลูกทุก 0.5 วินาที ทำความเสียหายและเผาไหม้ทุกฮิต", 100, 180, 24.0, "blast", 22.0, {"radius": 11.0, "special": "meteor", "fx": {"burn": [0.7, 8.0]}, "vfx": &"fireball", "color": Color("ff2a1a"), "icon": "meteor"}),
 	]
 	var p := &"priest"
 	_pools[p] = [
@@ -536,3 +536,6 @@ static func _build_pools() -> void:
 		_sk(l, "heaven_rend", "Heaven Rend", "ฟาดหอกฉีกฟ้า ศัตรูรอบตัวมึนงง 1.2 วินาที", 96, 118, 16.0, "burst", 21.0, {"radius": 9.0, "fx": {"stun": 1.2}, "special": "spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "spin"}),
 		_sk(l, "ragnarok_lance", "Ragnarok Lance", "หอกแห่งวันสิ้นโลก แทงทะลุศัตรู 10 ตัว", 100, 140, 14.0, "single", 26.0, {"range": 5.5, "pierce": pc.call(10, 15.0, 1.8, 0.8), "vfx": &"light", "color": Color("ffd84a"), "icon": "sword"}),
 	]
+
+	for star_class in IDS:
+		_pools[star_class].append_array(StarSkillData.pool(star_class))

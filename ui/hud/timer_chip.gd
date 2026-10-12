@@ -4,7 +4,7 @@ extends Control
 ## left, and a ring that unwinds around the disc as the time runs out. The ring
 ## turns red and the chip pulses when only a little time is left.
 
-const SIZE := 66.0
+const SIZE := 38.0
 const WARN_RATIO := 0.2
 
 var accent := Color.WHITE
@@ -16,29 +16,34 @@ var ally := false
 var count := 1
 var summon := false
 var _pulse := 0.0
+var _illustration: Texture2D
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(SIZE + 14.0, SIZE + 34.0)
+	custom_minimum_size = Vector2(132.0, 40.0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func show_values(entry: Dictionary, delta: float) -> void:
 	accent = entry.color
 	glyph = String(entry.get("glyph", "power"))
-	title = String(entry.name)
+	var next_title := String(entry.name)
+	if next_title != title:
+		title = next_title
+		_illustration = SkillIcons.for_name(title)
 	var left := maxf(float(entry.left), 0.0)
 	ratio = clampf(left / maxf(float(entry.total), 0.001), 0.0, 1.0)
 	time_text = _format(left)
 	ally = bool(entry.ally)
 	summon = String(entry.kind) == "summon"
+	custom_minimum_size = Vector2(66, 58) if summon else Vector2(132, 40)
 	count = int(entry.count)
 	_pulse = fmod(_pulse + delta * 7.0, TAU)
 	queue_redraw()
 
 
 func _draw() -> void:
-	var c := Vector2(size.x * 0.5, SIZE * 0.5 + 2.0)
+	var c := Vector2(33.0 if summon else SIZE * 0.5, SIZE * 0.5 + 1.0)
 	var warn := ratio < WARN_RATIO
 	var throb := 1.0 + (0.05 * sin(_pulse) if warn else 0.0)
 	var r := SIZE * 0.5 * throb
@@ -47,29 +52,45 @@ func _draw() -> void:
 		ring_color = accent.lerp(Color("ff3a2a"), 0.6 + 0.4 * (0.5 + 0.5 * sin(_pulse)))
 	draw_circle(c + Vector2(0, 3), r, Color(0, 0, 0, 0.3))
 	draw_circle(c, r, Color(0.03, 0.06, 0.17, 0.88))
-	draw_arc(c, r - 3.0, 0.0, TAU, 48, Color(1, 1, 1, 0.14), 5.0, true)
+	draw_arc(c, r - 1.5, 0.0, TAU, 48, Color(1, 1, 1, 0.14), 2.5, true)
 	# The remaining time: starts full at 12 o'clock and unwinds clockwise.
 	if ratio > 0.002:
-		draw_arc(c, r - 3.0, -PI * 0.5, -PI * 0.5 + TAU * ratio, 64, ring_color, 5.0, true)
-	draw_circle(c, r - 8.0, Color(accent.r, accent.g, accent.b, 0.16))
-	_draw_glyph(c + Vector2(0, -8), 10.0, accent.lerp(Color.WHITE, 0.35))
-	_text(time_text, c + Vector2(0, 14), 15, Color(1, 1, 1, 0.96))
+		draw_arc(c, r - 1.5, -PI * 0.5, -PI * 0.5 + TAU * ratio, 64, ring_color, 2.5, true)
+	draw_circle(c, r - 4.0, Color(accent.r, accent.g, accent.b, 0.16))
+	if _illustration:
+		var extent := Vector2.ONE * (r - 4.0) * 2.0
+		draw_texture_rect(_illustration, Rect2(c - extent * 0.5, extent), false)
+	else:
+		_draw_glyph(c + Vector2(0, -8), 10.0, accent.lerp(Color.WHITE, 0.35))
+	_text(time_text, Vector2(33, 55) if summon else Vector2(86, 35), 13, Color(1, 1, 1, 0.96), 64 if summon else 88)
 	if ally:
 		draw_circle(c + Vector2(r * 0.72, -r * 0.72), 8.0, Color("5aff9a"))
 		_text("+", c + Vector2(r * 0.72, -r * 0.72 + 5), 13, Color(0.02, 0.1, 0.05))
 	if summon and count > 1:
 		draw_circle(c + Vector2(r * 0.72, r * 0.72), 9.0, Color(0.05, 0.1, 0.3))
 		_text("×%d" % count, c + Vector2(r * 0.72, r * 0.72 + 5), 12, Color.WHITE)
-	_text(title, Vector2(size.x * 0.5, SIZE + 22.0), 13, Color(1, 1, 1, 0.9))
+	if not summon:
+		_text(title, Vector2(86, 16), 12, Color(1, 1, 1, 0.9), 88)
 
 
-func _text(text: String, at: Vector2, font_size: int, color: Color) -> void:
+static var _time_style: StyleBoxFlat
+
+
+static func _time_backing() -> StyleBoxFlat:
+	if _time_style == null:
+		_time_style = StyleBoxFlat.new()
+		_time_style.bg_color = Color(0.03, 0.05, 0.13, 0.85)
+		_time_style.set_corner_radius_all(7)
+	return _time_style
+
+
+func _text(text: String, at: Vector2, font_size: int, color: Color, max_width := 132.0) -> void:
 	var font := get_theme_default_font()
 	if font == null:
 		return
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var clipped := text
-	while width > size.x + 6.0 and clipped.length() > 3:
+	while width > max_width and clipped.length() > 3:
 		clipped = clipped.substr(0, clipped.length() - 2)
 		width = font.get_string_size(clipped + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	if clipped != text:

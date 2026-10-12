@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["star_path", "เส้นทางดาว"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -22,8 +22,12 @@ var _detail: VBoxContainer
 ## Buttons for the selected item, pinned above the scrolling detail text.
 var _actions: VBoxContainer
 var _item_buttons: Array[Dictionary] = []
+var _bag_scroll: TouchScroll
+## Keep each stat's typed quantity when the menu refreshes after allocation.
+var _stat_amounts: Dictionary = {}
 ## Opened from the blacksmith: items can be enhanced and socketed.
 var forge_mode := false
+var _star_tier := 50
 
 
 func _ready() -> void:
@@ -55,7 +59,7 @@ func _ready() -> void:
 	tabs.custom_minimum_size = Vector2(190, 0)
 	row.add_child(tabs)
 	for tab in TABS:
-		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 66))
+		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54))
 		b.pressed.connect(func(): show_tab(StringName(tab[0])))
 		tabs.add_child(b)
 		_tab_buttons[StringName(tab[0])] = b
@@ -90,6 +94,7 @@ func close_menu() -> void:
 
 
 func show_tab(tab: StringName) -> void:
+	_bag_scroll = null
 	current_tab = tab
 	_selected_index = -1
 	_selected_slot = ""
@@ -97,6 +102,8 @@ func show_tab(tab: StringName) -> void:
 
 
 func _rebuild() -> void:
+	var bag_y := _bag_scroll.retained_vertical_position() if is_instance_valid(_bag_scroll) else 0
+	_bag_scroll = null
 	for key in _tab_buttons:
 		_tab_buttons[key].disabled = key == current_tab
 	UIUtil.clear(_content)
@@ -107,6 +114,9 @@ func _rebuild() -> void:
 		&"quests": _build_quests()
 		&"achievements": _build_achievements()
 		&"settings": _build_settings()
+		&"star_path": StarPathPanel.build(_content,_star_tier,func(value: int): _star_tier=value; _rebuild())
+	if is_instance_valid(_bag_scroll):
+		_bag_scroll.restore_vertical_position(bag_y)
 
 
 # ---------------------------------------------------------------------------
@@ -130,19 +140,62 @@ func _build_character() -> void:
 	left.add_child(UIUtil.label("%s  Lv.%d  (%s)" % [p.name, p.level, data.name], &"HeaderLabel"))
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
+	left.add_child(UIUtil.label("กรอกจำนวนแต้ม แล้วกดเพิ่มที่ค่าสถานะที่ต้องการ", &"SmallLabel"))
 	var names := {"str": "STR พลัง", "int": "INT ปัญญา", "dex": "DEX ความคล่อง", "vit": "VIT ความทนทาน"}
 	var notes := {"str": "เพิ่มพลังโจมตีของนักรบ (และนักหอกเล็กน้อย)", "int": "เพิ่มพลังเวทและ MP", "dex": "เพิ่มพลังโจมตีของนักธนู/นักหอก คริติคอล หลบหลีก และความเร็วสกิล", "vit": "เพิ่ม HP และพลังป้องกัน"}
 	for key in ["str", "int", "dex", "vit"]:
+		var block := UIUtil.vbox(3)
+		left.add_child(block)
 		var line := UIUtil.hbox(10)
-		left.add_child(line)
+		block.add_child(line)
 		var label := UIUtil.label("%s  %d" % [names[key], int(stats.attrs[key])], &"BoldLabel")
 		label.custom_minimum_size = Vector2(250, 0)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(label)
-		var plus := UIUtil.button("+", &"PrimaryButton", Vector2(70, 56))
-		plus.disabled = int(p.points) <= 0
-		plus.pressed.connect(func(): Game.spend_point(key))
+		var amount := LineEdit.new()
+		amount.name = "StatAmount_" + key
+		amount.custom_minimum_size = Vector2(116, 56)
+		amount.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		amount.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+		amount.max_length = 9
+		amount.placeholder_text = "จำนวน"
+		amount.text = String(_stat_amounts.get(key, "1"))
+		amount.editable = int(p.points) > 0
+		amount.select_all_on_focus = true
+		line.add_child(amount)
+		var plus := UIUtil.button("เพิ่ม", &"PrimaryButton", Vector2(100, 56))
+		plus.name = "StatAdd_" + key
 		line.add_child(plus)
-		line.add_child(UIUtil.label(notes[key], &"SmallLabel"))
+		var note := UIUtil.label(notes[key], &"SmallLabel")
+		note.name = "StatNote_" + key
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		block.add_child(note)
+		var validate := func():
+			var count := _stat_amount(amount.text)
+			plus.disabled = count <= 0 or count > int(p.points)
+			note.text = notes[key]
+			note.remove_theme_color_override("font_color")
+			if int(p.points) > 0 and plus.disabled:
+				note.text = "กรอกจำนวนเต็มตั้งแต่ 1 ถึง %d แต้ม" % int(p.points)
+				note.add_theme_color_override("font_color", UIPalette.WARNING)
+		amount.text_changed.connect(func(text: String):
+			_stat_amounts[key] = text
+			validate.call())
+		if OS.has_feature("web"):
+			# Godot 4.3's experimental phone keyboard uses set_text without
+			# emitting text_changed. Sync only the focused input while editing.
+			var keyboard_sync := Timer.new()
+			keyboard_sync.wait_time = 0.05
+			amount.add_child(keyboard_sync)
+			keyboard_sync.timeout.connect(func():
+				if String(_stat_amounts.get(key, "1")) != amount.text:
+					_stat_amounts[key] = amount.text
+					validate.call())
+			amount.focus_entered.connect(keyboard_sync.start)
+			amount.focus_exited.connect(keyboard_sync.stop)
+		plus.pressed.connect(func(): _apply_stat_amount(key, amount, plus))
+		amount.text_submitted.connect(func(_text: String): _apply_stat_amount(key, amount, plus))
+		validate.call()
 	if int(p.level) >= Game.MAX_LEVEL:
 		_build_paragon(left)
 	var right := UIUtil.vbox(6)
@@ -162,6 +215,32 @@ func _build_character() -> void:
 		r.add_child(k)
 		r.add_child(UIUtil.label(line[1], &"BoldLabel"))
 		right.add_child(r)
+
+
+## Reject fractions, signs and malformed pasted text instead of rounding them.
+static func _stat_amount(text: String) -> int:
+	var value := text.strip_edges()
+	if value.is_empty() or value.length() > 9:
+		return 0
+	for digit in value:
+		if digit < "0" or digit > "9":
+			return 0
+	return value.to_int()
+
+
+func _apply_stat_amount(key: String, amount: LineEdit, plus: Button) -> void:
+	if plus.disabled or not amount.is_inside_tree():
+		return
+	var count := _stat_amount(amount.text)
+	_stat_amounts[key] = amount.text
+	# Hide the phone keyboard before the profile signal replaces this row.
+	plus.disabled = true
+	amount.release_focus()
+	if Game.spend_point(key, count):
+		if not Game.save():
+			Game.say("อัปแต้มแล้ว แต่ยังบันทึกไม่ได้ ระบบจะลองบันทึกให้อีกครั้ง", &"warning")
+	else:
+		_rebuild()
 
 
 func _exp_text() -> String:
@@ -268,6 +347,8 @@ func _build_inventory() -> void:
 	filter.visible = not forge_mode
 	middle.add_child(UIUtil.label("แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel"))
 	var scroll := TouchScroll.new()
+	_bag_scroll = scroll
+	scroll.name = "BagScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	middle.add_child(scroll)
@@ -655,17 +736,23 @@ func _build_skills() -> void:
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
-	box.add_child(UIUtil.label("แถบสกิล: เลือกใส่ได้ 4 ช่อง   •   แต้มสกิล %d (ไปอัปที่ปรมาจารย์สกิลในหมู่บ้าน)" % int(Game.profile.skill_points), &"SubHeaderLabel"))
+	box.add_child(UIUtil.label("แถบสกิล: เลือกใส่ได้ %d ช่อง   •   แต้มสกิล %d (ไปอัปที่ปรมาจารย์สกิลในหมู่บ้าน)" % [ClassData.SLOTS, int(Game.profile.skill_points)], &"SubHeaderLabel"))
 	var bar_row := UIUtil.hbox(8)
 	box.add_child(bar_row)
 	var bar: Array = Game.loadout_skills()
 	for i in bar.size():
 		var slot_panel := UIUtil.panel(&"CardPanel")
 		slot_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var slot_content := UIUtil.vbox(4)
+		slot_panel.add_child(slot_content)
+		if not bar[i].is_empty():
+			var portrait := SkillIcons.portrait(bar[i], 44.0)
+			portrait.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			slot_content.add_child(portrait)
 		var slot_label := UIUtil.label("%d. %s" % [i + 1, bar[i].name if not bar[i].is_empty() else "— ว่าง —"], &"BoldLabel")
 		slot_label.clip_text = true
 		slot_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		slot_panel.add_child(slot_label)
+		slot_content.add_child(slot_label)
 		bar_row.add_child(slot_panel)
 	var pool: Array = Game.skill_pool()
 	for skill in pool:
@@ -673,6 +760,7 @@ func _build_skills() -> void:
 		box.add_child(panel)
 		var line := UIUtil.hbox(10)
 		panel.add_child(line)
+		line.add_child(SkillIcons.portrait(skill))
 		var info := UIUtil.vbox(2)
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(info)
@@ -872,13 +960,13 @@ func _build_settings() -> void:
 			Game.say("ตั้งคุณภาพ: %s (ต้นไม้และหญ้าจะเปลี่ยนเมื่อเข้าแมพใหม่)" % GameSettings.QUALITY_NAMES[i], &"info")
 			_rebuild())
 		q_line.add_child(qb)
-	var vib := CheckButton.new()
-	vib.text = "สั่นเมื่อโดนตี (มือถือ)"
-	vib.button_pressed = GameSettings.vibration
-	vib.toggled.connect(func(on: bool):
-		GameSettings.vibration = on
+	var hitstop := CheckButton.new()
+	hitstop.text = "ชะลอภาพเมื่อโจมตีหนัก (ปิดเพื่อเล่นต่อเนื่อง)"
+	hitstop.button_pressed = GameSettings.combat_hitstop
+	hitstop.toggled.connect(func(on: bool):
+		GameSettings.combat_hitstop = on
 		GameSettings.save_settings())
-	box.add_child(vib)
+	box.add_child(hitstop)
 	var save := UIUtil.button("บันทึกเกม", &"PrimaryButton", Vector2(320, 66))
 	save.pressed.connect(func():
 		if Game.save():
@@ -886,11 +974,19 @@ func _build_settings() -> void:
 		else:
 			Game.say("บันทึกไม่สำเร็จ กรุณาสำรองรหัสเซฟ", &"warning"))
 	box.add_child(save)
+	if OS.has_feature("web"):
+		var account := UIUtil.button("บัญชี / เซฟออนไลน์", &"PrimaryButton", Vector2(320, 66))
+		account.pressed.connect(Game.open_cloud_account)
+		box.add_child(account)
+		var report := UIUtil.button("รายงานการหลุด", &"", Vector2(320, 66))
+		report.pressed.connect(func():
+			JavaScriptBridge.eval("if (window.toonSession) window.toonSession.showReport();", true))
+		box.add_child(report)
 	# Save backup: the save lives in this browser only, so offer copy / paste.
 	var backup := UIUtil.button("สำรอง / นำเข้าเซฟ", &"", Vector2(320, 66))
 	backup.pressed.connect(_open_backup)
 	box.add_child(backup)
-	if int(Game.profile.flags.get("ending_seen", 0)) > 0:
+	if Game.ending_unlocked():
 		var ending := UIUtil.button("ดูตอนจบอีกครั้ง", &"", Vector2(320, 66))
 		ending.pressed.connect(func():
 			close_menu()

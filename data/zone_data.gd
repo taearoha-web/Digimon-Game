@@ -2,7 +2,7 @@ class_name ZoneData
 extends RefCounted
 ## Hunting fields and the town: levels, monsters, spawn spots and the boss.
 
-const ZONES := {
+const BASE_ZONES := {
 	&"town": {"name": "หมู่บ้านมิสต์วูด", "scene": "town", "safe": true, "music": &"title"},
 	&"meadow": {
 		"name": "ทุ่งหญ้ามิสต์วูด", "scene": "field", "level": [1, 6], "music": &"field", "theme": &"meadow", "ambience": &"water",
@@ -180,5 +180,22 @@ const ZONES := {
 }
 
 
+static var ZONES: Dictionary = {}
+
+static func ensure() -> void:
+	if not ZONES.is_empty(): return
+	ZONES = BASE_ZONES.duplicate(true)
+	ZONES[&"void"]["next"] = &"dawn_forest"
+	ZONES.merge(StarProgression.zones())
+	ZONES[&"eclipse_realm"]["next"] = DivineRegionData.ID
+	ZONES[DivineRegionData.ID] = DivineRegionData.zone()
+
 static func get_zone(id: StringName) -> Dictionary:
+	ensure()
 	return ZONES.get(id, ZONES[&"meadow"])
+
+static func access_reason(id: StringName, level: int, stars: int) -> String:
+	var z := get_zone(id)
+	if level < int(z.get("level", [1,1])[0]): return "ต้องเลเวล %d" % int(z.level[0])
+	if stars < int(z.get("star", 0)): return "ต้องเลเวล 100 ดาว %d" % int(z.star)
+	return ""

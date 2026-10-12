@@ -75,6 +75,7 @@ func _ready() -> void:
 	else:
 		_build_field()
 	VfxArt.warm_up()
+	if int(Game.paragon().level)>=50: StarGeometry.warm()
 	_spawn_hero()
 	if not is_town:
 		VfxKit.warm_shaders(self, hero.global_position)
@@ -103,7 +104,6 @@ func _ready() -> void:
 ## Models farther than this from the camera stop animating (they are tiny and
 ## half-hidden by fog); a phone saves a skeleton update per model that way.
 const ANIM_RADIUS := [24.0, 34.0, 48.0]
-## Monsters farther than this from the hero sleep (hidden, no AI or physics).
 const AWAKE_RADIUS := [36.0, 44.0, 72.0]
 var _lod_timer := 0.0
 
@@ -119,15 +119,13 @@ func _update_anim_lod() -> void:
 		var player: Variant = model.get("anim") if model else null
 		if player is AnimationPlayer and is_instance_valid(player):
 			(player as AnimationPlayer).active = model.global_position.distance_squared_to(from) < limit * limit
-	if hero == null or not is_instance_valid(hero):
+	if not is_instance_valid(hero):
 		return
 	var awake: float = AWAKE_RADIUS[clampi(GameSettings.quality, 0, 2)]
-	var center := hero.global_position
 	for node in get_tree().get_nodes_in_group("mobs"):
 		var mob := node as Mob
 		if mob:
-			var d := Vector2(mob.global_position.x - center.x, mob.global_position.z - center.z).length()
-			# A little slack so a monster on the edge does not blink in and out.
+			var d := Vector2(mob.global_position.x - hero.global_position.x, mob.global_position.z - hero.global_position.z).length()
 			if d > awake + 4.0:
 				mob.set_dormant(true)
 			elif d < awake:
@@ -139,7 +137,7 @@ func _process(delta: float) -> void:
 		return
 	_lod_timer -= delta
 	if _lod_timer <= 0.0:
-		_lod_timer = 0.25
+		_lod_timer = 0.4
 		_update_anim_lod()
 	_interact_timer -= delta
 	if _interact_timer <= 0.0:
@@ -166,6 +164,7 @@ func _process(delta: float) -> void:
 
 func _build_pvp() -> void:
 	PvpArena.build(self, rng)
+	SpecialStageArt.decorate_pvp(self)
 	_start = Vector3(-PvpArena.SPAWN_X, 0, 0)
 	_make_boundary_walls(PvpArena.RADIUS + 1.5)
 
@@ -175,6 +174,9 @@ func _build_field() -> void:
 	var sky: Color = data.sky
 	var fog: Color = data.get("fog", sky.lerp(Color.WHITE, 0.35))
 	Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)))
+	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID:
+		_build_star_field()
+		return
 	_start = Vector3(-FIELD_RADIUS + 8.0, 0, 0)
 	var ground_color: Color = data.ground
 	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(-FIELD_RADIUS, 0), Vector2(-20, 4), Vector2(0, -2), Vector2(26, 6), Vector2(FIELD_RADIUS, 0)])]
@@ -182,7 +184,7 @@ func _build_field() -> void:
 	for camp in data.camps:
 		clearings.append(Vector3(camp.pos.x, camp.pos.y, float(camp.radius)))
 	Scenery.ground(self, 130.0, ground_color.darkened(0.13), ground_color.lightened(0.025), int(data.get("seed", 5)),
-			data.get("path_color", Color("c5b394")), paths, 2.8, clearings)
+			data.get("path_color", Color("c5b394")), paths, 2.8, clearings, theme)
 	_boss_spot = Vector3(30, 0, 26)
 	var clear: Array[Vector3] = [
 		Vector3(_start.x, _start.z, 6.0), Vector3(FIELD_RADIUS - 8.0, 0, 6.0), Vector3(_boss_spot.x, _boss_spot.z, 9.0),
@@ -197,8 +199,14 @@ func _build_field() -> void:
 		camp["mobs"] = []
 		_camps.append(camp)
 		clear.append(Vector3(c.pos.x, c.pos.y, float(c.radius) + 2.0))
+	# Keep the paved/sand encounter courts open; foliage belongs at their edges.
+	if is_tower or bool(data.get("arena", false)):
+		clear.append(Vector3(0, 0, 42.0))
 	Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)))
 	WorldArt.landscape(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
+	WorldArt.region_edges(self, theme, FIELD_RADIUS, int(data.get("seed", 5)), clear)
+	if is_tower or bool(data.get("arena", false)):
+		SpecialStageArt.build(self, zone_id)
 	if data.has("boss"):
 		WorldArt.boss_landmark(self, theme, _boss_spot)
 	for camp in _camps:
@@ -218,6 +226,37 @@ func _build_field() -> void:
 		_add_warp(_start + Vector3(3.5, 0, -5.0), "วาปกลับเมือง / ข้ามแมพ")
 		_add_warp(Vector3(FIELD_RADIUS - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
 	_make_weather(StringName(data.get("weather", &"")))
+
+
+func _build_star_field() -> void:
+	var divine := zone_id == DivineRegionData.ID
+	var layout := DivineRegionArt.layout() if divine else StarRegionArt.layout(zone_id)
+	_start = layout.spawn
+	_boss_spot = layout.boss_pos
+	if divine: DivineRegionArt.build(self)
+	else: StarRegionArt.build(self, zone_id)
+	for source in data.camps:
+		var camp: Dictionary = source.duplicate(true)
+		camp["mobs"] = []
+		_camps.append(camp)
+	var prev: StringName = data.prev
+	var back := _start + _start.normalized() * 3.5
+	portals = [{"to":prev,"pos":back,"label":String(ZoneData.get_zone(prev).name),"level":100}]
+	if String(data.next) != "":
+		var next := ZoneData.get_zone(data.next)
+		portals.append({"to":data.next,"pos":layout.exit,"label":"%s • ดาว %d" % [next.name,int(next.star)],"level":100})
+	for portal in portals: _make_portal(portal)
+	_add_warp(_start + Vector3(3.5,0,-3.5), "วาปกลับเมือง / ข้ามแมพ")
+	_make_boundary_walls(55.0)
+	if int(data.boss.get("star",0)) == 200:
+		var label := Label3D.new()
+		label.text = "วิหารบัวดารา • ดรอปชุดเทพ 200 ดาว" if divine else "บัลลังก์สุริยคราส • ดาว 200"
+		label.position = _boss_spot + Vector3(0,4,0)
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.font_size = 48
+		label.pixel_size = 0.005
+		label.visibility_range_end = 32
+		add_child(label)
 
 
 ## Falling snow or rising embers that follow the hero (cheap CPU particles).
@@ -265,7 +304,7 @@ func _make_weather(kind: StringName) -> void:
 func _build_town() -> void:
 	Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"))
 	_start = JapanVillage.START
-	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6)
+	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6, [], &"village")
 	var clear := JapanVillage.build(self, rng)
 	Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.55)
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
@@ -477,9 +516,10 @@ func _check_portals(delta: float) -> void:
 		d.y = 0.0
 		if d.length() < 2.6:
 			near = true
-			if Game.profile.level < int(portal.level):
+			var reason := ZoneData.access_reason(portal.to, int(Game.profile.level), int(Game.paragon().level))
+			if not reason.is_empty():
 				if _portal_hold == 0.0:
-					Game.say("ต้องเลเวล %d ขึ้นไปถึงจะเข้าได้" % int(portal.level), &"warning")
+					Game.say(reason, &"warning")
 				_portal_hold = 0.001
 				continue
 			_portal_hold += delta
@@ -593,7 +633,7 @@ func _make_camp_marker(camp: Dictionary) -> void:
 
 
 func _tick_boss(delta: float) -> void:
-	if not data.has("boss"):
+	if not data.has("boss") or int(Game.paragon().level) < int(data.boss.get("star",0)):
 		return
 	if _boss != null and is_instance_valid(_boss) and not _boss.is_dead():
 		return
@@ -636,7 +676,8 @@ func _on_mob_died(mob: Mob) -> void:
 	_kills += 1
 	var level_gap: int = Game.profile.level - mob.level
 	var exp_scale := 1.0 if level_gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(level_gap - 4))
-	var exp_gain := int(round(float(mob.stats.exp) * exp_scale))
+	var region_boost := 1.0 + maxf(0.0, float(data.get("gear_star",0)) / 25.0)
+	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost))
 	Game.add_exp(exp_gain)
 	Game.party_add_exp(exp_gain)
 	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), "+%d EXP" % exp_gain, Color("66e0ff"), 0.8)
@@ -652,6 +693,12 @@ func _drop_loot(mob: Mob) -> void:
 	_spawn_loot({}, gold, from)
 	var boss := mob.is_boss
 	var class_id := Game.class_id()
+	if zone_id == DivineRegionData.ID:
+		_divine_loot(mob, from)
+		return
+	if StarProgression.is_region(zone_id):
+		_star_loot(mob, from)
+		return
 	# Rich zones (the Lv.100 void) override the default drop odds.
 	var loot: Dictionary = data.get("loot", {})
 	var boost := float(loot.get("rarity_boost", 0.0))
@@ -691,6 +738,38 @@ func _drop_loot(mob: Mob) -> void:
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
 		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
+
+
+func _divine_loot(mob: Mob, from: Vector3) -> void:
+	for item in DivineGearData.drops(Game.class_id(), mob.is_boss, bool(mob.template.get("elite", false)), rng):
+		_spawn_loot(item, 0, from)
+	if mob.is_boss:
+		_spawn_loot(ItemData.potion("hp_xl", 3), 0, from)
+		_spawn_loot(ItemData.potion("mp_xl", 3), 0, from)
+		_spawn_loot(_random_gem(100, 1), 0, from)
+		Game.say("เทพพิทักษ์มอบอุปกรณ์ 200 ดาวประจำอาชีพ 2 ชิ้น!", &"quest")
+	elif rng.randf() < 0.35:
+		_spawn_loot(ItemData.potion("hp_xl" if rng.randf() < 0.55 else "mp_xl", 1), 0, from)
+
+
+func _star_loot(mob: Mob, from: Vector3) -> void:
+	var stars := int(data.gear_star)
+	var elite := bool(mob.template.get("elite",false))
+	var amount := 10 if mob.is_boss else (3 if elite else 1)
+	StarProgression.award_material(stars,amount)
+	if mob.is_boss or (elite and rng.randf()<0.15):
+		StarProgression.award_material(stars,1,true)
+		Game.say("ได้รับแก่นบอสแห่งดวงดาว %d" % stars,&"quest")
+	if mob.is_boss or rng.randf() < (0.25 if elite else 0.06):
+		var slots := ["weapon","armor","helm","boots","ring","amulet"]
+		for i in (2 if mob.is_boss else 1):
+			_spawn_loot(StarProgression.item(Game.class_id(),stars,slots[rng.randi()%slots.size()],rng),0,from)
+	if rng.randf()<StarWingData.drop_chance(zone_id,mob.is_boss,elite):
+		_spawn_loot(StarWingData.item(String(Game.class_id()),rng),0,from)
+		Game.say("ปีกเทพ 100 ดาวประจำอาชีพตกแล้ว!",&"quest")
+	if rng.randf()<0.35 or mob.is_boss:
+		_spawn_loot(ItemData.potion("hp_xl" if rng.randf()<0.55 else "mp_xl",3 if mob.is_boss else 1),0,from)
+	if mob.is_boss: _spawn_loot(_random_gem(100,1),0,from)
 
 
 ## Gear level of a drop. Star zones (the Lv.100 void and tower) drop gear above

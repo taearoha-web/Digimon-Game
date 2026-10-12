@@ -10,6 +10,11 @@ extends RefCounted
 ## shadow casting) go into separate merged meshes.
 
 static var _cache := {}
+const CACHE_LIMIT := 64
+
+
+static func release_cache() -> void:
+	_cache.clear()
 
 
 ## Merges the pieces under [param root] in place. With a [param cache_key] the
@@ -60,6 +65,8 @@ static func merge(root: Node3D, cache_key := "") -> int:
 			(mi as Node).queue_free()
 			removed += 1
 	if cache_key != "" and cached.is_empty():
+		if _cache.size() >= CACHE_LIMIT:
+			_cache.erase(_cache.keys()[0])
 		_cache[cache_key] = built
 	return removed
 

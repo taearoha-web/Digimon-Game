@@ -91,6 +91,8 @@ const MONSTERS := {
 
 
 static func get_monster(id: StringName) -> Dictionary:
+	if DivineRegionData.has_monster(id): return DivineRegionData.monster(id)
+	if StarMonsters.has(id): return StarMonsters.get_monster(id)
 	return MONSTERS.get(id, MONSTERS[&"pink_slime"])
 
 

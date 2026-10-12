@@ -1,7 +1,8 @@
 extends Node3D
 ## Rendered contact sheet, independent of saves and combat AI.
 ## godot --path . res://tests/tools/skill_gallery.tscn -- /tmp/skills.png [all|warrior|archer|mage|priest|vagabond]
-## Omit the class for a representative eight-skill sheet; 'all' captures 102.
+## Omit the class for a representative eight-skill sheet; 'all' captures 152.
+## The second argument also accepts comma-separated skill IDs.
 
 var camera: Camera3D
 var caption: Label
@@ -53,7 +54,7 @@ func _ready() -> void:
 	var examples := ["brutal_swing", "godly_shield", "hurricane", "force_of_nature", "flame_wave", "energy_shield", "grand_healing", "glacial_spike"]
 	for family in SkillShow.FAMILY_COLORS:
 		for skill in ClassData.pool(StringName(family)):
-			if (args.size() > 1 and (args[1] == "all" or args[1] == family)) or (args.size() == 1 and skill.id in examples):
+			if (args.size() > 1 and (args[1] == "all" or args[1] == family or String(skill.id) in args[1].split(","))) or (args.size() == 1 and skill.id in examples):
 				chosen.append(skill)
 	var frames: Array[Image] = []
 	for skill in chosen:
@@ -62,20 +63,30 @@ func _ready() -> void:
 		add_child(fx)
 		var hero := HeroVisual.new()
 		fx.add_child(hero)
-		hero.setup(StringName(family))
+		hero.setup(StringName(family), "", true, {}, {"gender": 1 if family in ["mage", "priest", "summoner"] else 0})
 		hero.position = Vector3.ZERO
-		hero.rotation_degrees.y = 25
+		hero.rotation_degrees.y = 90
 		var target := Vector3(2.5, 0, 0)
 		camera.size = maxf(8.5, float(skill.get("radius", 2.0)) * 2.15)
+		if bool(SkillShow.profile_for(skill).ultimate):
+			camera.size = maxf(camera.size, 14.0)
 		caption.text = "%s  /  %s" % [family.capitalize(), String(skill.name)]
 		await get_tree().create_timer(0.12).timeout
 		SkillShow._recent_shows.clear()
-		SkillShow.anticipate(fx, skill, Vector3.ZERO, 0.25)
-		await get_tree().create_timer(0.25).timeout
+		var release := float(skill.hit_delay)
+		hero.skill_action(skill, release)
+		SkillShow.anticipate(fx, skill, Vector3.ZERO, release, target)
+		await get_tree().create_timer(release).timeout
 		SkillShow.play(fx, skill, target, Vector3.ZERO)
 		if bool(skill.get("projectile", false)):
-			VfxKit.projectile(fx, skill.color, Vector3(0, 1.2, 0), target + Vector3(0, 1, 0), 0.36, 0.3, VfxKit.variant_for(skill.vfx))
-		await get_tree().create_timer(0.26).timeout
+			SkillTableau.flight(fx, skill, Vector3(0, 1.2, 0), target + Vector3(0, 1, 0), 0.36)
+		var wait := 0.19
+		if String(skill.id) == "armageddon":
+			ArmageddonSequence.launch(fx, hero, target, float(skill.radius), float(skill.mult), func(_i: int, _p: Vector3, _r: float, _m: float): pass)
+			wait = 1.42
+		elif String(skill.get("special", "")) in ["meteor", "rain"]:
+			wait = 0.74
+		await get_tree().create_timer(wait).timeout
 		await RenderingServer.frame_post_draw
 		var frame := get_viewport().get_texture().get_image()
 		frame.resize(540, 360, Image.INTERPOLATE_LANCZOS)

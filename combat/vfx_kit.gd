@@ -11,6 +11,8 @@ static var _soft_particle: Mesh
 
 
 static var _soft_texture: Texture2D
+static var _fade_gradient: Gradient
+static var _flight_meshes: Dictionary = {}
 
 
 ## Unshaded translucent material. [param additive] glows over dark backgrounds;
@@ -55,11 +57,28 @@ static func ground_quad() -> PlaneMesh:
 ## Draws both energy modes once, invisibly, so the first real cast does not
 ## stall while the browser compiles the shader.
 static func warm_shaders(parent: Node3D, pos: Vector3) -> void:
+	MeteorArt.warm_shaders(parent, pos)
+	ThunderStormArt.warm_up(parent, pos)
+	JudgmentRayArt.warm_up(parent, pos)
+	# Six immutable unit-size trail templates cover every runtime projectile.
+	for strand in 2:
+		_flight_ribbon_mesh(2.7, false, strand)
+		_flight_ribbon_mesh(2.7, true, strand)
+		_flight_ribbon_mesh(4.5, false, strand)
 	for mode in 2:
 		var mat := energy(Color(1, 1, 1, 0.01), mode, {"fade": 0.01})
 		var mi := _instance(parent, ground_quad() if mode == 0 else _crescent_mesh(), mat, pos + Vector3(0, 0.05, 0))
 		mi.scale = Vector3.ONE * 0.2
 		mi.get_tree().create_timer(0.4).timeout.connect(mi.queue_free)
+	var recipe := SkillArtDirection.recipe_for({"id": "power_strike"})
+	var brush := VfxArt._art_material(recipe)
+	brush.set_shader_parameter("fade", 0.001)
+	brush.set_shader_parameter("progress", 1.0)
+	var sample := _instance(parent, VfxArt._signature_mesh("cut", 1, -0.55), brush, pos + Vector3(0, 0.05, 0))
+	sample.scale = Vector3.ONE * 0.1
+	sample.create_tween().tween_interval(0.4).finished.connect(sample.queue_free)
+	SpellSpectacle.warm_up(parent, pos)
+	BuffAura.warm_up(parent, pos)
 
 
 ## Round, soft-edged dot used for every particle and orb halo.
@@ -130,13 +149,17 @@ static func _crescent_mesh() -> ArrayMesh:
 
 static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, lifetime: float, one_shot := true) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.4, 0.4)
+	# Every hit uses the same immutable quad. Independent emitter overrides
+	# preserve colour/billboarding while avoiding a new GPU mesh on every burst.
+	if _soft_particle == null:
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.4, 0.4)
+		_soft_particle = quad
 	var mat := _glow(color, 1.0)
 	mat.albedo_texture = soft_dot()
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	quad.material = mat
-	p.mesh = quad
+	p.mesh = _soft_particle
+	p.material_override = mat
 	var reserved := VfxBudget.track_particles(p, amount)
 	p.lifetime = lifetime
 	p.one_shot = one_shot
@@ -162,10 +185,13 @@ static func _textured_quad(tex: Texture2D, color: Color, size: float) -> QuadMes
 
 
 static func _fade_ramp() -> Gradient:
-	var g := Gradient.new()
-	g.set_color(0, Color(1, 1, 1, 1))
-	g.set_color(1, Color(1, 1, 1, 0))
-	return g
+	# Emitters only read this white-to-transparent ramp; their colours are in
+	# independent materials. Avoid allocating it again for every hit or trail.
+	if _fade_gradient == null:
+		_fade_gradient = Gradient.new()
+		_fade_gradient.set_color(0, Color(1, 1, 1, 1))
+		_fade_gradient.set_color(1, Color(1, 1, 1, 0))
+	return _fade_gradient
 
 
 ## Spark burst: [param amount] glowing bits flying out from [param pos].
@@ -182,49 +208,140 @@ static func sparks(parent: Node3D, pos: Vector3, color: Color, amount := 22, spe
 
 ## A quick bright blob (billboard) that swells and fades: the "pop" of every hit.
 static func flash(parent: Node3D, pos: Vector3, color: Color, size := 2.2, duration := 0.28) -> void:
+	if not VfxBudget.can_decorate(2):
+		return
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
-	var core_mat := _glow(Color(1, 1, 1), 1.0)
+	var core_mat := _glow(color.lerp(Color("fff2d5"), 0.50), 0.70, false)
 	core_mat.albedo_texture = soft_dot()
 	core_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	var mat := _glow(color, 1.0)
+	var mat := _glow(color, 0.65)
 	mat.albedo_texture = soft_dot()
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	var halo := _instance(parent, quad, mat, pos)
+	VfxBudget.track_decoration(halo)
 	halo.scale = Vector3.ONE * size * 0.4
 	var core := _instance(parent, quad, core_mat, pos)
-	core.scale = Vector3.ONE * size * 0.25
+	VfxBudget.track_decoration(core)
+	core.scale = Vector3.ONE * size * 0.16
 	var tween := halo.create_tween().set_parallel(true)
-	tween.tween_property(halo, "scale", Vector3.ONE * size * 1.3, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(halo, "scale", Vector3.ONE * size * 0.90, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
-	tween.tween_property(core, "scale", Vector3.ONE * size * 0.7, duration * 0.8)
+	tween.tween_property(core, "scale", Vector3.ONE * size * 0.42, duration * 0.8)
 	tween.tween_property(core_mat, "albedo_color:a", 0.0, duration * 0.8)
 	tween.chain().tween_callback(func():
 		halo.queue_free()
 		core.queue_free())
 
 
-## Standard hit: flash + sparks + a small ring.
+## Contact-only feedback. Called by damage delivery and completed projectile flights.
+## Concentrated colored cores stay readable against both snow and grass.
 static func impact(parent: Node3D, pos: Vector3, color: Color, scale := 1.0) -> void:
-	flash(parent, pos, color, 2.0 * scale)
-	VfxArt.star_flash(parent, pos, color, 2.4 * scale, 0.3)
-	sparks(parent, pos, color, int(18 * scale), 5.0 * scale, 0.5)
-	sparks(parent, pos, Color.WHITE, int(8 * scale), 3.0 * scale, 0.35)
-	var mat := _glow(color, 0.9, false)
-	var ring := _instance(parent, MeshKit.torus(), mat, pos)
-	ring.scale = Vector3.ONE * 0.2
-	ring.rotation = Vector3(randf() * 0.8, randf() * TAU, randf() * 0.8)
+	flash(parent, pos, color, 1.8 * scale, 0.23)
+	impact_fan(parent, pos, color, scale, "spark")
+	sparks(parent, pos, color, int(12 * scale), 5.2 * scale, 0.48)
+
+
+## Public elemental impact: visual only, never applies or schedules damage.
+## The originating projectile calls this on arrival, never on launch.
+static func element_impact(parent: Node3D, pos: Vector3, color: Color, style: String, scale := 1.0) -> void:
+	if not is_instance_valid(parent) or not parent.is_inside_tree():
+		return
+	impact(parent, pos, color, scale)
+	match style:
+		"flame", "fire":
+			ElementFx.flame_hit(parent, pos)
+			impact_smoke(parent, pos, Color("bd694d"), scale * 1.5)
+			impact_fan(parent, pos, Color("ffd477"), scale * 1.2, "flame")
+		"shard", "ice":
+			ElementFx.shatter(parent, pos, scale * 0.9, 5)
+			impact_fan(parent, pos, Color("adefff"), scale * 1.15, "diamond")
+		"leaf", "vine", "plant":
+			impact_fan(parent, pos, Color("b7f39b"), scale * 1.35, "leaf")
+			VfxArt.motes(parent, pos, Color("e5f3ad"), "petal", 8, 0.3 * scale, 0.0, 0.75)
+		"spark", "light", "thunder":
+			impact_ring(parent, pos, color, 1.3 * scale, 0.38)
+			impact_fan(parent, pos, color.lerp(Color("fff0ba"), 0.35), scale * 1.2, "diamond")
+		"arrow":
+			impact_ring(parent, pos, color, 0.9 * scale, 0.25)
+		_:
+			impact_ring(parent, pos, color, scale, 0.3)
+
+
+## A real 3D pressure ring: the oblique silhouette survives low game cameras.
+static func impact_ring(parent: Node3D, pos: Vector3, color: Color, radius: float, duration := 0.4) -> void:
+	if not VfxBudget.can_decorate():
+		return
+	var mat := energy(color, 0, {"ring_radius": 0.64, "ring_width": 0.12, "fill": 0.0, "flow": 2.8})
+	var ring := _instance(parent, ground_quad(), mat, pos)
+	VfxBudget.track_decoration(ring)
+	ring.rotation = Vector3(0.48, randf() * TAU, 0.25)
+	ring.scale = Vector3.ONE * radius * 0.16
 	var tween := ring.create_tween().set_parallel(true)
-	tween.tween_property(ring, "scale", Vector3.ONE * 1.5 * scale, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.25)
+	tween.tween_property(ring, "scale", Vector3.ONE * radius * 1.65, duration).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tween.tween_method(func(v: float): mat.set_shader_parameter("progress", v), 0.0, 1.0, duration)
+	tween.tween_method(func(v: float): mat.set_shader_parameter("fade", v), 0.9, 0.0, duration)
 	tween.chain().tween_callback(ring.queue_free)
+
+
+## Directional petal / spark cards separate the hit into a sharp initial burst
+## and long colored streaks. Each card has its own tracked, short-lived carrier.
+static func impact_fan(parent: Node3D, pos: Vector3, color: Color, scale: float, kind := "spark") -> void:
+	var count := VfxBudget.count(7, 3)
+	for i in count:
+		if not VfxBudget.can_decorate():
+			break
+		var angle := TAU * float(i) / float(count) + 0.23
+		var direction := Vector3(cos(angle), sin(angle) * 0.65 + 0.25, sin(angle * 1.7) * 0.5).normalized()
+		var mat := _glow(color, 0.88, false)
+		mat.albedo_texture = VfxArt.texture(kind)
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.22, 0.95) * scale
+		var ray := _instance(parent, quad, mat, pos)
+		VfxBudget.track_decoration(ray)
+		var camera := parent.get_viewport().get_camera_3d()
+		if camera != null:
+			ray.global_basis = camera.global_basis
+		ray.rotate_object_local(Vector3.FORWARD, angle - PI * 0.5)
+		ray.scale = Vector3.ONE * 0.25
+		var life := 0.3 + float(i % 3) * 0.055
+		var tween := ray.create_tween().set_parallel(true)
+		tween.tween_property(ray, "global_position", pos + direction * scale * 1.65, life).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ray, "scale", Vector3.ONE, life * 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(mat, "albedo_color:a", 0.0, life * 0.65).set_delay(life * 0.35)
+		tween.chain().tween_callback(ray.queue_free)
+
+
+## A restrained puff with a textured edge gives impacts weight without hiding
+## damage text or enemy warnings. Both particle amount and lifetime are bounded.
+static func impact_smoke(parent: Node3D, pos: Vector3, color: Color, size := 1.0) -> void:
+	var smoke := _particles(parent, pos, color, 8, 0.65)
+	var mat := _glow(color, 0.34, false)
+	mat.albedo_texture = VfxArt.texture("smoke")
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * 0.95 * size
+	quad.material = mat
+	smoke.mesh = quad
+	smoke.direction = Vector3.UP
+	smoke.spread = 110.0
+	smoke.initial_velocity_min = 0.8 * size
+	smoke.initial_velocity_max = 2.4 * size
+	smoke.gravity = Vector3(0, 0.45, 0)
+	smoke.scale_amount_min = 0.55
+	smoke.scale_amount_max = 1.05
+	var expansion := Curve.new()
+	expansion.add_point(Vector2(0, 0.15))
+	expansion.add_point(Vector2(0.4, 0.8))
+	expansion.add_point(Vector2(1, 1.2))
+	smoke.scale_amount_curve = expansion
 
 
 # ---------------------------------------------------------------------------
 # Projectiles
 # ---------------------------------------------------------------------------
 
-## Glowing orb with a particle trail. Travels in a slight arc; awaitable.
+## Glowing orb with a particle trail. Flight and cleanup belong to its carrier.
 static func variant_for(vfx: StringName) -> String:
 	return {&"fireball": "flame", &"frost": "shard", &"light": "spark", &"thunder": "spark", &"leaf": "leaf"}.get(vfx, "orb")
 
@@ -234,54 +351,46 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 	parent.add_child(holder)
 	holder.global_position = from
 	if from.distance_to(to) > 0.05:
-		holder.look_at_from_position(from, to, Vector3.UP)
-	var core := _instance(holder, MeshKit.sphere(), _glow(Color(1, 1, 1), 1.0), from)
-	core.scale = Vector3.ONE * size * 0.6
-	var halo := _instance(holder, MeshKit.sphere(), _glow(color, 0.9, false), from)
-	halo.scale = Vector3.ONE * size * 1.1
-	var glow_quad := QuadMesh.new()
-	glow_quad.size = Vector2.ONE * size * 4.5
-	var glow_mat := _glow(color, 0.8)
-	glow_mat.albedo_texture = soft_dot()
-	glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	_instance(holder, glow_quad, glow_mat, from)
-	var trail := _particles(holder, from, color, 36, 0.4, false)
-	trail.direction = Vector3.ZERO
-	trail.spread = 25.0
-	trail.initial_velocity_min = 0.0
-	trail.initial_velocity_max = 0.5
-	trail.gravity = Vector3.ZERO
-	trail.scale_amount_min = 0.6
-	trail.scale_amount_max = 1.2
+		var up := Vector3.RIGHT if absf((to - from).normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP
+		holder.look_at(to, up)
+	# This single essential silhouette is never budget-gated. Decorative trails
+	# may vanish during crowds; projectile timing and visibility never do.
+	var pearl := color.lerp(Color("fff0cf"), 0.38)
 	match variant:
-		"flame":
-			# A burning core that sheds real flame tongues along its path (below).
-			trail.mesh = _textured_quad(VfxArt.texture("star"), Color("ffb050"), 0.5)
-			halo.material_override = _glow(Color("ff7a1a"), 0.9, false)
-			core.material_override = _glow(Color("fff2b0"), 1.0, false)
-		"shard":
-			trail.mesh = _textured_quad(VfxArt.texture("snow"), color, 0.45)
-			core.visible = false
-			halo.visible = false
-			ElementFx.ice_lance(holder, size)
-		"leaf":
-			trail.mesh = _textured_quad(VfxArt.texture("leaf"), Color("8ad860"), 0.45)
-			core.visible = false
-			halo.scale = Vector3.ONE * size * 0.6
-			ElementFx.leaf_swirl(holder, size)
-		"spark":
-			trail.mesh = _textured_quad(VfxArt.texture("star"), color, 0.5)
-			var star_quad := QuadMesh.new()
-			star_quad.size = Vector2.ONE * size * 3.2
-			var star_mat := _glow(color.lerp(Color.WHITE, 0.4), 1.0)
-			star_mat.albedo_texture = VfxArt.texture("star")
-			star_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-			_instance(holder, star_quad, star_mat, from)
+		"shard": ElementFx.ice_lance(holder, size * 1.15)
+		"leaf": ElementFx.leaf_swirl(holder, size * 1.15)
+		_:
+			var core := _instance(holder, MeshKit.sphere_low(), _glow(pearl, 0.94, false), from)
+			core.scale = Vector3(size * 0.6, size * 0.6, size * 1.1)
+			if variant == "flame":
+				core.material_override = _glow(Color("ffc365"), 0.97, false)
+	if VfxBudget.can_decorate():
+		var glow_quad := QuadMesh.new()
+		glow_quad.size = Vector2.ONE * size * 4.2
+		var glow_mat := _glow(color, 0.33, false)
+		glow_mat.albedo_texture = VfxArt.texture("flare")
+		glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		var glow := _instance(holder, glow_quad, glow_mat, from)
+		VfxBudget.track_decoration(glow)
+	flight_ribbons(holder, color, size, 2.7, variant == "flame")
+	var trail := _particles(holder, from, color, 24, 0.42, false)
+	trail.direction = Vector3.ZERO
+	trail.spread = 35.0
+	trail.initial_velocity_min = 0.0
+	trail.initial_velocity_max = 0.8
+	trail.gravity = Vector3.ZERO
+	trail.scale_amount_min = 0.45
+	trail.scale_amount_max = 0.95
+	match variant:
+		"flame": trail.mesh = _textured_quad(VfxArt.texture("flame"), Color("ff9449"), 0.85)
+		"shard": trail.mesh = _textured_quad(VfxArt.texture("snow"), color, 0.48)
+		"leaf": trail.mesh = _textured_quad(VfxArt.texture("leaf"), Color("a8eb91"), 0.55)
+		_: trail.mesh = _textured_quad(VfxArt.texture("spark"), pearl, 0.54)
 	if VfxBudget.can_light():
 		var light := OmniLight3D.new()
 		light.light_color = color
-		light.light_energy = 0.65
-		light.omni_range = 2.8
+		light.light_energy = 0.5
+		light.omni_range = 3.1
 		holder.add_child(light)
 		VfxBudget.track_light(light)
 	var mid := (from + to) * 0.5 + Vector3(0, minf(0.6, from.distance_to(to) * 0.08), 0)
@@ -289,69 +398,94 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 	var puffs := {"next": 0.0}
 	tween.tween_method(func(t: float):
 		holder.global_position = from.lerp(mid, t).lerp(mid.lerp(to, t), t)
-		if variant == "flame" and t >= float(puffs.next) and VfxBudget.can_decorate(1):
-			puffs["next"] = t + 0.18
-			ElementFx.flame_puff(parent, holder.global_position, size), 0.0, 1.0, maxf(duration, 0.05))
-	await tween.finished
-	flash(parent, to, color, 1.8 + size * 2.0)
-	sparks(parent, to, color, 16, 3.5, 0.45)
-	holder.queue_free()
+		if variant == "flame" and t >= float(puffs.next) and VfxBudget.can_decorate():
+			puffs["next"] = t + 0.24
+			ElementFx.flame_puff(parent, holder.global_position, size * 1.2), 0.0, 1.0, maxf(duration, 0.05))
+	# Bound to the flight carrier: unloading a zone cancels arrival and releases
+	# all resources immediately, without a suspended coroutine retaining them.
+	tween.tween_callback(func():
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			element_impact(parent, to, color, variant, 0.7 + size * 0.65)
+		holder.queue_free())
 
 
-## A streaking bolt (arrows): stretched glowing capsule pointed along its path.
+## Two dimensional ribbons coil around a volumetric head and trail behind it.
+## Each whole helix is one draw call, rather than dozens of orbiting meshes.
+static func flight_ribbons(holder: Node3D, color: Color, size: float, length: float, flame := false) -> void:
+	for strand in (1 if VfxBudget.quality() == 0 else 2):
+		if not VfxBudget.can_decorate():
+			break
+		var ribbon_color := color.lerp(Color("fff0c8"), float(strand) * 0.32)
+		var mat := energy(ribbon_color, 1, {"flow": 3.0, "noise_scale": 2.8, "progress": 0.0})
+		var ribbon := _instance(holder, _flight_ribbon_mesh(length, flame, strand), mat, holder.global_position)
+		ribbon.scale = Vector3.ONE * size
+		VfxBudget.track_decoration(ribbon)
+		# _instance sets world position only, leaving the carrier rotation intact.
+		var spin := ribbon.create_tween().set_loops()
+		spin.tween_property(ribbon, "rotation:z", TAU, 0.42 + strand * 0.07).as_relative()
+
+
+static func _flight_ribbon_mesh(length: float, flame: bool, strand: int) -> ArrayMesh:
+	var key := var_to_bytes([length, flame, strand]).hex_encode()
+	if _flight_meshes.has(key):
+		return _flight_meshes[key]
+	# All coordinates and brush widths were multiplied by projectile size.
+	# A unit template plus instance scale therefore retains the authored art.
+	var path: Array[Vector3] = []
+	for i in 25:
+		var t := float(i) / 24.0
+		var angle := t * TAU * 1.3 + float(strand) * PI
+		var r := 0.32 + t * 0.7
+		path.append(Vector3(cos(angle) * r, sin(angle) * r, t * length))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	VfxArt._append_brush(st, path, 0.3 if flame else 0.17)
+	var mesh := st.commit()
+	# Runtime uses only lengths 2.7 and 4.5; bound future callers as well.
+	if _flight_meshes.size() >= 16:
+		_flight_meshes.erase(_flight_meshes.keys()[0])
+	_flight_meshes[key] = mesh
+	return mesh
+
+
+## A feathered arrow with a tapered shaft and two defined barbs.
 static func arrow(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float) -> void:
 	var dir := (to - from)
 	if dir.length() < 0.01:
 		return
-	var mi := _instance(parent, MeshKit.box(), _glow(color.lerp(Color.WHITE, 0.4), 1.0), from)
-	mi.scale = Vector3(0.07, 0.07, 1.5)
-	var trail := _instance(mi, MeshKit.box(), _glow(color, 0.35), from)
-	trail.scale = Vector3(2.6, 2.6, 3.0)
-	trail.position = Vector3(0, 0, -1.3)
-	mi.look_at_from_position(from, to, Vector3.UP)
-	var tween := mi.create_tween()
-	tween.tween_property(mi, "global_position", to, maxf(duration, 0.05))
-	await tween.finished
-	flash(parent, to, color, 1.6, 0.22)
-	sparks(parent, to, color, 12, 3.5, 0.35)
-	mi.queue_free()
+	# A tapered shaft and two barbs read as an arrow, including with particles
+	# disabled. This mesh is the flight carrier, so it is never budget-gated.
+	var look := {"primary": color.lerp(Color("a9d8bd"), 0.16), "accent": color.lerp(Color("fff2cf"), 0.62), "shade": color.darkened(0.26)}
+	var mat := VfxArt._art_material(look)
+	mat.set_shader_parameter("progress", 1.0)
+	var carrier := Node3D.new()
+	parent.add_child(carrier)
+	carrier.global_position = from
+	carrier.look_at(to, Vector3.RIGHT if absf(dir.normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP)
+	var arrow_mesh := _instance(carrier, VfxArt._signature_mesh("arrow", 1, 0.0), mat, from)
+	arrow_mesh.rotation.y = PI
+	arrow_mesh.scale = Vector3(0.78, 0.78, 1.65)
+	arrow_mesh.position.z = 1.35
+	flight_ribbons(carrier, color, 0.45, 4.5)
+	var trail := _particles(carrier, from, color, 14, 0.25, false)
+	trail.mesh = _textured_quad(VfxArt.texture("spark"), color, 0.32)
+	trail.direction = Vector3.ZERO
+	trail.gravity = Vector3.ZERO
+	trail.initial_velocity_max = 0.18
+	trail.scale_amount_min = 0.4
+	trail.scale_amount_max = 0.8
+	var tween := carrier.create_tween()
+	tween.tween_property(carrier, "global_position", to, maxf(duration, 0.05))
+	tween.tween_callback(func():
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			element_impact(parent, to, color, "arrow", 0.72)
+		carrier.queue_free())
 
 
 ## A jagged lightning bolt between two points that flashes and fades.
 static func lightning(parent: Node3D, from: Vector3, to: Vector3, color: Color) -> void:
-	var points: Array[Vector3] = [from]
-	var segments := VfxBudget.count(7, 3)
-	var up := Vector3.UP
-	var side := (to - from).cross(up).normalized()
-	for i in range(1, segments):
-		var t := float(i) / segments
-		var jitter := side * randf_range(-0.45, 0.45) + up * randf_range(-0.3, 0.3)
-		points.append(from.lerp(to, t) + jitter)
-	points.append(to)
-	var holder := Node3D.new()
-	parent.add_child(holder)
-	var mats: Array[StandardMaterial3D] = []
-	for i in points.size() - 1:
-		var a := points[i]
-		var b := points[i + 1]
-		var mat := _glow(color.lerp(Color.WHITE, 0.5), 1.0)
-		mats.append(mat)
-		var mi := _instance(holder, MeshKit.box(), mat, (a + b) * 0.5)
-		mi.scale = Vector3(0.14, 0.14, a.distance_to(b) + 0.1)
-		mi.look_at_from_position((a + b) * 0.5, b, Vector3.UP)
-		var glow_mat := _glow(color, 0.5)
-		mats.append(glow_mat)
-		var glow := _instance(holder, MeshKit.box(), glow_mat, (a + b) * 0.5)
-		glow.scale = Vector3(0.5, 0.5, a.distance_to(b) + 0.1)
-		glow.look_at_from_position((a + b) * 0.5, b, Vector3.UP)
-	flash(parent, to, color, 2.4)
-	sparks(parent, to, color, 14, 3.5, 0.4)
-	var tween := holder.create_tween()
-	tween.tween_interval(0.12)
-	tween.tween_method(func(a: float):
-		for m in mats:
-			m.albedo_color.a = minf(m.albedo_color.a, a), 1.0, 0.0, 0.3)
-	tween.tween_callback(holder.queue_free)
+	VfxArt.painted_lightning(parent, from, to, color)
+	element_impact(parent, to, color, "thunder", 0.8)
 
 
 # ---------------------------------------------------------------------------
@@ -360,47 +494,20 @@ static func lightning(parent: Node3D, from: Vector3, to: Vector3, color: Color) 
 
 ## Crescent sword slash in front of a hero facing [param yaw].
 static func slash_arc(parent: Node3D, pos: Vector3, yaw: float, color: Color, size := 2.0, tilt := 0.0) -> void:
-	var mat := _glow(color, 0.55, false)
-	var flow := energy(color, 1, {"flow": 3.0, "noise_scale": 4.0})
-	var streak := _instance(parent, _crescent_mesh(), flow, pos + Vector3(0, 0.05, 0))
-	streak.rotation = Vector3(0, yaw, tilt)
-	streak.scale = Vector3.ONE * size * 0.7
-	var st := streak.create_tween().set_parallel(true)
-	st.tween_property(streak, "scale", Vector3.ONE * size * 1.3, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	st.tween_method(func(v: float): flow.set_shader_parameter("progress", v), 0.0, 1.0, 0.3)
-	st.tween_method(func(v: float): flow.set_shader_parameter("fade", v), 1.0, 0.0, 0.22).set_delay(0.1)
-	st.chain().tween_callback(streak.queue_free)
-	var core_mat := _glow(Color(1, 1, 1), 1.0)
-	var mi := _instance(parent, _crescent_mesh(), mat, pos)
-	mi.rotation = Vector3(0, yaw, tilt)
-	mi.scale = Vector3.ONE * size * 0.6
-	var core := _instance(parent, _crescent_mesh(), core_mat, pos + Vector3(0, 0.03, 0))
-	core.rotation = mi.rotation
-	core.scale = mi.scale * 0.8
-	var glow_mat := _glow(color, 0.5)
-	var glow := _instance(parent, _crescent_mesh(), glow_mat, pos + Vector3(0, -0.03, 0))
-	glow.rotation = mi.rotation
-	glow.scale = mi.scale * 1.25
-	var tween := mi.create_tween().set_parallel(true)
-	tween.tween_property(mi, "scale", Vector3.ONE * size * 1.15, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(core, "scale", Vector3.ONE * size * 0.95, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(glow, "scale", Vector3.ONE * size * 1.45, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.25).set_delay(0.08)
-	tween.tween_property(core_mat, "albedo_color:a", 0.0, 0.2).set_delay(0.05)
-	tween.tween_property(glow_mat, "albedo_color:a", 0.0, 0.25).set_delay(0.05)
-	tween.chain().tween_callback(func():
-		mi.queue_free()
-		core.queue_free()
-		glow.queue_free())
+	VfxArt.painted_slash(parent, pos, yaw, color, size, tilt)
 
 
 static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
+	if not VfxBudget.can_decorate(2):
+		return
 	# A wave of flowing energy that rushes out over the ground and burns away.
 	var wave_mat := energy(color, 0, {"ring_radius": 0.82, "ring_width": 0.2, "flow": 2.4, "fill": 0.18})
 	var wave := _instance(parent, ground_quad(), wave_mat, pos + Vector3(0, 0.06, 0))
+	VfxBudget.track_decoration(wave)
 	wave.scale = Vector3(0.25, 1, 0.25)
 	var ring_mat := _glow(color.lerp(Color.WHITE, 0.5), 0.6, false)
 	var ring := _instance(parent, MeshKit.torus(), ring_mat, pos)
+	VfxBudget.track_decoration(ring)
 	ring.scale = Vector3(0.3, 0.3, 0.3)
 	var tween := wave.create_tween().set_parallel(true)
 	tween.tween_property(wave, "scale", Vector3(radius * 1.15, 1, radius * 1.15), 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -468,18 +575,33 @@ static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, wi
 
 
 ## Falls from the sky onto [param pos]; [param on_hit] is called at impact.
-static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float, radius: float, on_hit: Callable) -> void:
+static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float, radius: float, on_hit: Callable, sculpted := false) -> void:
+	if sculpted:
+		# Same gameplay callback and fall time; the elite art replaces the old cylinder.
+		var carrier := Node3D.new()
+		carrier.name = "SculptedMeteorCarrier"
+		parent.add_child(carrier)
+		MeteorArt.descent(carrier, pos, radius, fall_time)
+		var clock := carrier.create_tween()
+		clock.tween_interval(fall_time)
+		clock.tween_callback(func():
+			on_hit.call()
+			carrier.queue_free())
+		return
 	var start := pos + Vector3(-5.0, 18.0, -3.0)
 	var rock := _instance(parent, MeshKit.sphere_low(), _glow(Color(1.0, 0.9, 0.6), 1.0), start)
 	rock.scale = Vector3.ONE * 1.8
-	var halo := _instance(rock, MeshKit.sphere(), _glow(color, 0.85, false), start)
-	halo.scale = Vector3.ONE * 1.35
-	var glow_quad := QuadMesh.new()
-	glow_quad.size = Vector2.ONE * 7.0
-	var glow_mat := _glow(color, 0.9)
-	glow_mat.albedo_texture = soft_dot()
-	glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	_instance(rock, glow_quad, glow_mat, start)
+	if VfxBudget.can_decorate(2):
+		var halo := _instance(rock, MeshKit.sphere(), _glow(color, 0.52, false), start)
+		VfxBudget.track_decoration(halo)
+		halo.scale = Vector3.ONE * 1.22
+		var glow_quad := QuadMesh.new()
+		glow_quad.size = Vector2.ONE * 5.0
+		var glow_mat := _glow(color, 0.45, false)
+		glow_mat.albedo_texture = VfxArt.texture("flare")
+		glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		var glow := _instance(rock, glow_quad, glow_mat, start)
+		VfxBudget.track_decoration(glow)
 	var trail := _particles(rock, start, color, 70, 0.8, false)
 	trail.gravity = Vector3(0, 2.0, 0)
 	trail.spread = 30.0
@@ -506,8 +628,11 @@ static func heal(parent: Node3D, pos: Vector3, color := Color("6dff9a")) -> void
 	flash(parent, pos + Vector3(0, 1.0, 0), color, 3.2, 0.5)
 	pillar(parent, pos, color, 4.5, 1.6, 0.7)
 	for i in VfxBudget.count(4):
+		if not VfxBudget.can_decorate():
+			break
 		var mat := _glow(color, 0.9, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
+		VfxBudget.track_decoration(ring)
 		ring.scale = Vector3(1.1, 0.3, 1.1)
 		var tween := ring.create_tween().set_parallel(true)
 		tween.tween_property(ring, "global_position:y", pos.y + 2.4, 0.9).set_delay(i * 0.14)
@@ -530,8 +655,11 @@ static func aura(parent: Node3D, pos: Vector3, color: Color) -> void:
 	flash(parent, pos + Vector3(0, 1.0, 0), color, 4.0, 0.55)
 	pillar(parent, pos, color, 6.0, 2.2, 0.9)
 	for i in VfxBudget.count(5):
+		if not VfxBudget.can_decorate():
+			break
 		var mat := _glow(color, 0.95, false)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
+		VfxBudget.track_decoration(ring)
 		ring.scale = Vector3(1.0, 0.28, 1.0)
 		var tween := ring.create_tween().set_parallel(true)
 		tween.tween_property(ring, "global_position:y", pos.y + 2.6, 0.9).set_delay(i * 0.12)
@@ -562,8 +690,11 @@ static func buff_emitter(hero: Node3D, color: Color) -> CPUParticles3D:
 static func level_up(parent: Node3D, pos: Vector3) -> void:
 	pillar(parent, pos, Color("ffe27a"), 9.0, 1.4, 1.0)
 	for i in 4:
+		if not VfxBudget.can_decorate():
+			break
 		var mat := _glow(Color("fff2a0"), 0.9)
 		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.1, 0))
+		VfxBudget.track_decoration(ring)
 		ring.scale = Vector3(1.0, 0.2, 1.0)
 		var tween := ring.create_tween().set_parallel(true)
 		tween.tween_property(ring, "global_position:y", pos.y + 3.2, 1.0).set_delay(i * 0.15)
@@ -622,9 +753,12 @@ static func spikes(parent: Node3D, center: Vector3, radius: float, color: Color,
 static func slam(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
 	shockwave(parent, pos + Vector3(0, 0.12, 0), color, radius)
 	for i in 6:
+		if not VfxBudget.can_decorate():
+			break
 		var angle := i * TAU / 6.0 + randf() * 0.3
 		var mat := _glow(Color(0.28, 0.18, 0.1), 0.6, false)
 		var crack := _instance(parent, MeshKit.box(), mat, pos + Vector3(0, 0.05, 0))
+		VfxBudget.track_decoration(crack)
 		crack.rotation.y = -angle
 		crack.scale = Vector3(0.1, 0.02, 0.05)
 		var length := radius * randf_range(0.7, 1.0)
@@ -664,34 +798,15 @@ static func column_rain(parent: Node3D, center: Vector3, radius: float, color: C
 
 ## Stacked spinning rings that rise around [param pos]: a whirlwind / power-up column.
 static func vortex(parent: Node3D, pos: Vector3, color: Color, height := 3.0, duration := 0.7) -> void:
-	for i in VfxBudget.count(4):
-		var mat := _glow(color, 0.8, false)
-		var ring := _instance(parent, MeshKit.torus(), mat, pos + Vector3(0, 0.2, 0))
-		var r := 0.9 + i * 0.25
-		ring.scale = Vector3(r, r * 0.25, r)
-		var tween := ring.create_tween().set_parallel(true)
-		tween.tween_property(ring, "position:y", pos.y + height * (0.4 + 0.2 * i), duration).set_delay(i * 0.05)
-		tween.tween_property(ring, "rotation:y", TAU * (2.0 if i % 2 == 0 else -2.0), duration)
-		tween.tween_property(ring, "scale", Vector3(r * 1.6, r * 0.2, r * 1.6), duration)
-		tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.8).set_delay(duration * 0.25)
-		tween.chain().tween_callback(ring.queue_free)
+	VfxArt.ribbon_spiral(parent, pos, color, height, 2.8, duration, 1.25)
+	impact_ring(parent, pos + Vector3.UP * 0.25, color, 1.5, duration)
 
 
-## Radial rays and a flash: a crisp "critical" burst for single-target skills.
+## Radial textured rays: a crisp critical-hit burst with separated colored tips.
 static func star_burst(parent: Node3D, pos: Vector3, color: Color, size := 2.2) -> void:
-	flash(parent, pos, Color(1, 1, 1), size * 1.4, 0.3)
-	for i in 8:
-		var angle := i * TAU / 8.0
-		var mat := _glow(color, 0.9, false)
-		var ray := _instance(parent, MeshKit.box(), mat, pos)
-		ray.rotation = Vector3(0, 0, angle)
-		ray.scale = Vector3(0.05, 0.05, 0.05)
-		ray.look_at_from_position(pos, pos + Vector3(cos(angle), sin(angle) * 0.6, 0.4), Vector3.UP)
-		var tween := ray.create_tween().set_parallel(true)
-		tween.tween_property(ray, "scale", Vector3(0.05, 0.05, size * 0.9), 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tween.tween_property(ray, "position", pos + Vector3(cos(angle), sin(angle) * 0.6, 0.4).normalized() * size * 0.7, 0.16)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.26)
-		tween.chain().tween_callback(ray.queue_free)
+	flash(parent, pos, color.lerp(Color("fff1ce"), 0.35), size * 1.1, 0.28)
+	impact_fan(parent, pos, color, size * 0.8, "spark")
+	impact_ring(parent, pos, color, size * 0.7, 0.35)
 
 
 ## A ring of upright flames around [param center] (fire fields).

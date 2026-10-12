@@ -1,0 +1,33 @@
+{
+  "version": "0.9.4",
+  "build": "afb9ddca",
+  "fresh_source_import_completed": true,
+  "fresh_source_checks": {
+    "resources": 264,
+    "failures": 0
+  },
+  "packed_source_drop_save_checks": {
+    "checks": 2739,
+    "failures": 0
+  },
+  "backend_tests": {
+    "tests": 13,
+    "failures": 0
+  },
+  "portable_worker_routing": "PASS",
+  "compiled_web_matches_published_game": true,
+  "all_source_gd_files_match_current_workspace": true,
+  "catalog": {
+    "skill_pools": 7,
+    "skills": 176,
+    "monsters": 99,
+    "zones": 20
+  },
+  "production_db_records_included": false,
+  "secrets_included": false,
+  "physical_iphone_performance_tested": false,
+  "notes": [
+    "A clean first editor import may report missing imported fonts before creating the import cache; the subsequent source check and integration scene both passed.",
+    "Native LOD generation reported an existing degenerate-face warning; native release visual review had passed."
+  ]
+}

@@ -21,8 +21,8 @@ const KINDS := {
 	"frog": {"model": "big/Frog", "height": 1.5, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": true, "speed": 4.6, "range": 7.0, "color": Color("7fe07a")},
 	"guardian": {"model": "big/Monkroose", "height": 2.0, "hover": 0.0, "tint": Color(1.3, 1.1, 0.8), "ranged": false, "speed": 5.0, "range": 2.4, "color": Color("c8a070")},
 	"treant": {"model": "big/MushroomKing", "height": 2.1, "hover": 0.0, "tint": Color(0.8, 1.4, 0.6), "ranged": false, "speed": 4.4, "range": 2.6, "color": Color("b0e070")},
-	"drake": {"model": "flying/Dragon", "height": 1.2, "hover": 0.9, "tint": Color(0.7, 1.5, 1.2), "ranged": true, "speed": 6.0, "range": 8.5, "color": Color("7affd0")},
-	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 1.35, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
+	"drake": {"model": "flying/Dragon", "height": 1.5, "hover": 0.9, "tint": Color(0.7, 1.5, 1.2), "ranged": true, "speed": 6.0, "range": 8.5, "color": Color("7affd0")},
+	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 1.95, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
 	"sword": {"proc": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
 }
 
@@ -46,6 +46,8 @@ var _slots := 1
 var _target: Mob
 var _attack_timer := 0.5
 var _age := 0.0
+var _star_attack_index := 0
+var _star_departed := false
 var _fading := false
 var _dead := false
 var _bar: FieldHpBar
@@ -68,6 +70,10 @@ func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: 
 	_slot = slot
 	_slots = maxi(slots, 1)
 	_kind = KINDS.get(String(spec.get("kind", "wolf")), KINDS["wolf"])
+	if String(spec.get("kind","")).begins_with("star_"):
+		var monster := StarMonsters.get_monster(&"crystal_wolf" if spec.kind=="star_wolf" else &"eclipse_sovereign")
+		_kind={"model":monster.model,"height":1.8 if spec.kind=="star_wolf" else 3.0,"hover":0.0,"tint":Color("b7e9ff") if spec.kind=="star_wolf" else Color("c9adf0"),"ranged":false,"speed":6.8,"range":2.8,"color":Color("a1dfff") if spec.kind=="star_wolf" else Color("bf86ff")}
+
 
 
 func _ready() -> void:
@@ -81,11 +87,31 @@ func _ready() -> void:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
 		_visual.setup(String(_kind.model), float(_kind.height), float(_kind.hover), _kind.tint)
+		if String(spec.get("kind", "")).begins_with("star_"):
+			StarMonsterArt.attach(_visual, StarMonsters.get_monster(&"crystal_wolf" if spec.kind=="star_wolf" else &"eclipse_sovereign"))
 	_spiritify()
+	if skill_id in ["wind_drake", "elder_dragon", "primal_legion"]:
+		var crest := MeshInstance3D.new()
+		crest.name = "AncientSummonCrest"
+		crest.mesh = EliteSkillArt.geometry("crown" if skill_id == "elder_dragon" else "seal")
+		var entry := ClassData.find_skill(&"summoner", skill_id)
+		crest.material_override = EliteSkillArt.material(EliteSkillArt.palette(entry))
+		crest.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		crest.position.y = float(_kind.height) + float(_kind.hover) + 0.10 if skill_id == "elder_dragon" else 0.04
+		crest.scale = Vector3.ONE * (0.38 if skill_id == "elder_dragon" else 0.70)
+		add_child(crest)
 	scale = Vector3.ONE * 0.05
 	create_tween().tween_property(self, "scale", Vector3.ONE * size_mult, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), _kind.color, 2.2 * size_mult)
-	VfxArt.sky_strike(get_parent(), global_position, _kind.color, 0.9 * size_mult, 7.0, 0.45)
+	# A small gate at the actual creature, instead of a seven-metre light pillar.
+	for family in SkillShow.FAMILY_COLORS:
+		var entry := ClassData.find_skill(StringName(family), skill_id)
+		if not entry.is_empty():
+			var look := SkillShow.profile_for(entry)
+			var arrival := SpellSpectacle._root(get_parent(), global_position, "CreatureArrival")
+			var mat := SpellSpectacle._material(look, 0.7)
+			SkillCraft.portal(arrival, look, mat, 0.8 * size_mult, 0.65)
+			SpellSpectacle._finish(arrival, mat, 0.7)
+			break
 	# Health bar above the head (the node is scaled, so the bar is placed in local units).
 	var top: float = (float(_kind.height) if _kind.has("height") else 1.8) + float(_kind.hover) + 0.5
 	_bar = FieldHpBar.new()
@@ -158,6 +184,9 @@ func _process(delta: float) -> void:
 	_age += delta
 	life -= delta
 	_book.tick(self, not _dead and not _fading, func(): return (float(_kind.height) if _kind.has("height") else 1.6) + float(_kind.hover))
+	if skill_id=="eclipse_sovereign" and life<=0.7 and not _star_departed and not _dead:
+		_star_departed=true
+		_star_wave(3.0,7.5,2)
 	if life <= 0.0 and not _fading:
 		_vanish()
 	if _fading:
@@ -204,9 +233,10 @@ func is_dead() -> bool:
 
 ## Buff skills of the hero reach summons too: the aura shows, defence and speed
 ## apply (attack and crit already come through the hero's own stats).
-func receive_party_buff(buff: Dictionary, color: Color, label := "") -> void:
-	_book.add(buff, color, label)
-	VfxKit.aura(get_parent(), global_position, color)
+func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id := "") -> void:
+	var prepared := buff.duplicate()
+	if prepared.has("shield"): prepared["shield_left"]=int(max_hp*float(prepared.shield))
+	_book.add(prepared, color, label, true, skill_id)
 
 
 ## Monsters hit summons like any other ally.
@@ -214,6 +244,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if _dead or _fading or not is_instance_valid(hero):
 		return
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(hero.stats.def) * 0.6 * (1.0 + _book.total("def"))))))
+	amount = BuffBook.absorb(_book.buffs,amount)
 	hp = maxi(0, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	BattleVfx.floating_text(get_parent(), global_position + Vector3(0, (float(_kind.hover) + 1.8) * size_mult, 0), str(amount), Color("ff7a8a"), 1.0)
@@ -270,15 +301,24 @@ func _pick_target() -> Mob:
 
 
 func _attack() -> void:
+	if skill_id=="eclipse_sovereign":
+		_star_attack_index+=1
+		if _star_attack_index%3==0:
+			_attack_timer=1.8
+			if _visual: _visual.action("attack",550)
+			var beat := create_tween()
+			beat.tween_interval(0.4)
+			beat.tween_callback(func(): if not _dead and not _fading: _star_wave(1.2,5.0,1))
+			return
 	_attack_timer = float(spec.get("interval", 1.0))
 	var mob := _target
 	var color: Color = _kind.color
 	if _visual:
 		_visual.action("attack", 380)
 	var strike := func():
-		if not _valid(mob) or not is_instance_valid(hero):
+		if _dead or _fading or not _valid(mob) or not is_instance_valid(hero) or hero.is_dead():
 			return
-		var raw: float = float(hero.stats.atk) * damage_mult * HIT_SHARE * randf_range(0.92, 1.08)
+		var raw: float = float(hero.stats.atk) * damage_mult * HIT_SHARE * randf_range(0.92, 1.08) * (1.15 if StarProgression.has_full_set(Game.profile,"summoner") else 1.0)
 		var crit := randf() < float(hero.stats.crit)
 		if crit:
 			raw *= HeroStats.CRIT_DAMAGE
@@ -295,3 +335,13 @@ func _attack() -> void:
 		get_tree().create_timer(flight).timeout.connect(strike, CONNECT_ONE_SHOT)
 	else:
 		get_tree().create_timer(0.18).timeout.connect(strike, CONNECT_ONE_SHOT)
+
+func _star_wave(power: float, radius: float, index: int) -> void:
+	if not is_instance_valid(hero) or hero.is_dead(): return
+	var entry:=ClassData.find_skill(&"summoner","eclipse_sovereign")
+	StarSkillArt.strike(get_parent(),entry,global_position,index,hero.global_position)
+	for node in get_tree().get_nodes_in_group("mobs"):
+		var mob:=node as Mob
+		if mob and not mob.is_dead() and mob.global_position.distance_to(global_position)<=radius+mob.body_radius():
+			var raw:float=float(hero.stats.atk)*damage_mult*HIT_SHARE*power*(1.15 if StarProgression.has_full_set(Game.profile,"summoner") else 1.0)
+			mob.take_hit(maxi(1,int(HeroStats.mitigate(raw,float(mob.stats.def)))),false,_kind.color,hero)

@@ -1,0 +1,73 @@
+{
+  "collection": "Lotus Sanctum original divine monsters",
+  "source": "Original procedural mesh and rig artwork authored for Toon Tale; no third-party models or textures.",
+  "generator": "create_divine_monsters.py",
+  "front": "Godot +Z / Blender -Y",
+  "materials": "6 opaque PBR palette surfaces; no textures",
+  "models": [
+    {
+      "name": "LotusSprite",
+      "triangles": 1744,
+      "surfaces": 6,
+      "vertices": 1188,
+      "bones": 6,
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "bytes": 110924
+    },
+    {
+      "name": "JadeQilin",
+      "triangles": 2786,
+      "surfaces": 6,
+      "vertices": 1843,
+      "bones": 8,
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "bytes": 152756
+    },
+    {
+      "name": "TempleGuardian",
+      "triangles": 3108,
+      "surfaces": 5,
+      "vertices": 1994,
+      "bones": 7,
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "bytes": 154920
+    },
+    {
+      "name": "LotusSeraph",
+      "triangles": 7768,
+      "surfaces": 6,
+      "vertices": 5876,
+      "bones": 12,
+      "clips": [
+        "Idle",
+        "Walk",
+        "Run",
+        "Punch",
+        "HitReact",
+        "Death"
+      ],
+      "bytes": 393656
+    }
+  ]
+}

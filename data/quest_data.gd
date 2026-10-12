@@ -28,7 +28,7 @@ const QUESTS := {
 		"items": [["hp_l", 8], ["mp_l", 8]], "gear": [32, 3], "zone": "snow", "next": "lava"},
 	"lava": {"name": "ออร์คลาวาอาละวาด", "desc": "ออร์คลาวาออกจากปล่องภูเขาไฟมาเผาไร่ ไปหยุดพวกมัน", "target": "fire_orc", "count": 14, "level": 32,
 		"items": [["hp_l", 8], ["mp_l", 8]], "zone": "volcano", "next": "magma"},
-	"magma": {"name": "มังกรแมกมาจ้าวภูเขาไฟ", "desc": "จ้าวแห่งภูเขาไฟรอเจ้าอยู่ที่ใจกลางปล่อง นี่คือบททดสอบสุดท้าย", "target": "magma_dragon", "count": 1, "level": 40,
+	"magma": {"name": "มังกรแมกมาจ้าวภูเขาไฟ", "desc": "จ้าวแห่งภูเขาไฟรอเจ้าอยู่ที่ใจกลางปล่อง ปราบมันแล้วเดินทางต่อสู่สุสานจันทร์เลือด", "target": "magma_dragon", "count": 1, "level": 40,
 		"items": [["hp_l", 10], ["mp_l", 10]], "gear": [42, 3], "zone": "volcano", "next": "bones"},
 	"bones": {"name": "กองทัพอัศวินกระดูก", "desc": "อัศวินกระดูกลุกจากสุสานจันทร์เลือด ไปปราบพวกมัน", "target": "bone_knight", "count": 15, "level": 44,
 		"items": [["hp_xl", 10], ["mp_xl", 10]], "zone": "graveyard", "next": "bone_lord"},
@@ -48,7 +48,7 @@ const QUESTS := {
 		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [92, 3], "zone": "sky", "next": "hell"},
 	"hell": {"name": "ขุมนรกอเวจี", "desc": "ออร์คปีศาจบุกขึ้นมาจากขุมนรก ไปปิดประตูนรก", "target": "hell_orc", "count": 15, "level": 92,
 		"items": [["mp_xxl", 10], ["hp_xxl", 10]], "zone": "abyss", "next": "abyss_dragon"},
-	"abyss_dragon": {"name": "ราชามังกรอเวจี", "desc": "จ้าวแห่งขุมนรกคือศัตรูสุดท้ายของโลก ปราบมัน และกลายเป็นตำนาน", "target": "abyss_dragon", "count": 1, "level": 100,
+	"abyss_dragon": {"name": "ราชามังกรอเวจี", "desc": "จ้าวแห่งขุมนรกขวางทางสู่ห้วงจักรวาลวิบัติ ปราบมันแล้วเผชิญหน้ากับจักรพรรดิแห่งห้วงวิบัติ", "target": "abyss_dragon", "count": 1, "level": 100,
 		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [100, 3], "zone": "abyss", "next": ""},
 }
 

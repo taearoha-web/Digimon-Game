@@ -1,0 +1,23 @@
+{
+  "source": "https://kenney.nl/assets/particle-pack",
+  "license": "CC0-1.0",
+  "retrieved": "2026-10-11",
+  "files": {
+    "smoke_01.png": "e8724c219e8d35859167fc0a7e207e13c72ccf0c29704909b9bb3d3dc71c6cf7",
+    "smoke_04.png": "2db2f69874cdb1e5203f2f86803d5debde30402590cf50a810afaba882184616",
+    "smoke_07.png": "f7419fa4f11e346d0fb36a17ecbf616083c6962633c7847d92119c994ed9b4e4",
+    "flame_01.png": "92a70bcb90b1e21c57b2dae42843135703b2e988abee97433f84c3119723d144",
+    "flame_05.png": "4c5cc587260010e4bb58b03cc2561ca0e96409e7db25ea4183cd3fb1d0237dc8",
+    "fire_01.png": "9727a9743ac6ab8dd4dd79f5fc5b0266290efae45f4d4452279eb5e4bcf3a978",
+    "spark_01.png": "5902da3a324cad0a4b5a88ce1e3c9cc18fee50922c358ce93d8c9f1ad7708f0a",
+    "spark_04.png": "3cba35b80a97c12283a8ecd41780a0412194de14562cbffc7f04e9157183f772",
+    "flare_01.png": "254f5bd4f0548612bf29305d27899efdee8cb8d8306292761ebbddebd3e57935",
+    "magic_01.png": "398479ea280c8161d0b6d509ca97eefb27e989c7832b404abcb65faae3e922ff",
+    "circle_02.png": "8a2112a6a5610c7cdcbfe8af0a5162b42dfb3431c63f494743945337b7981e51",
+    "twirl_01.png": "ba3f4996a5a91ea3cba6817a9b4770a385a82ef0b9350cbda5c0f140d182af7e",
+    "scorch_01.png": "ea72697696638786ccd4795a346d177b1b6a904331b5536a7e85a7ed927b93a5",
+    "dirt_01.png": "6827a0a32a293ec9570fb98d63963b8dd6e6aaba9e1096afad932e93a378bea9",
+    "star_05.png": "1e8ab968178e507824ab28353c0ffffa918ae3adbcf89513d3db50a17b7bc8a2",
+    "LICENSE.txt": "f9e70b81d8cc07c4e07c9f2eff1d94fd371a06070b18cb67c651c41158ec2975"
+  }
+}

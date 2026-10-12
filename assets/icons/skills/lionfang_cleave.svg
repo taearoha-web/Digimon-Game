@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: lionfang_cleave. Hand-authored vector art. --><defs>
+ <radialGradient id="bg" cx=".38" cy=".3" r=".8"><stop stop-color="#a75025"/><stop offset=".65" stop-color="#362547"/><stop offset="1" stop-color="#10192e"/></radialGradient>
+ <linearGradient id="main" x2=".65" y2="1"><stop stop-color="#fff9d6"/><stop offset=".4" stop-color="#ffd36b"/><stop offset="1" stop-color="#a75025"/></linearGradient>
+ <linearGradient id="lit" x2=".2" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#fff9d6"/></linearGradient>
+ <linearGradient id="blade" x2=".9" y2="1"><stop stop-color="#ffffff"/><stop offset=".47" stop-color="#fff9d6"/><stop offset="1" stop-color="#ffd36b"/></linearGradient>
+ <linearGradient id="gold" x2=".8" y2="1"><stop stop-color="#fff9d7"/><stop offset=".4" stop-color="#f7d885"/><stop offset="1" stop-color="#af793c"/></linearGradient>
+ <linearGradient id="deep" x2=".65" y2="1"><stop stop-color="#362547"/><stop offset="1" stop-color="#101729"/></linearGradient>
+ <radialGradient id="gem" cx=".3" cy=".2" r=".9"><stop stop-color="#ffffff"/><stop offset=".4" stop-color="#ffd36b"/><stop offset="1" stop-color="#a75025"/></radialGradient>
+ <clipPath id="clip"><circle cx="128" cy="128" r="117"/></clipPath>
+ </defs>
+ <circle cx="128" cy="128" r="123" fill="#10172a"/>
+ <circle cx="128" cy="128" r="119" fill="url(#bg)" stroke="url(#gold)" stroke-width="3"/>
+ <g clip-path="url(#clip)">
+ <path d="M26 190 L147 25 L224 54 L88 228Z" fill="#ffd36b" opacity=".075"/>
+ <path d="M29 173 Q18 67 178 33 Q83 75 82 117 Q75 153 29 173Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M36 181 Q121 245 221 106 Q185 184 126 197Z" fill="url(#main)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><g transform="translate(135 130) rotate(0) scale(0.86)" ><path d="M0 -75 L21 -63 L45 -67 L48 -44 L68 -29 L60 -4 L69 17 L48 36 L40 63 L17 62 L0 80 L-17 62 L-40 63 L-48 36 L-69 17 L-60 -4 L-68 -29 L-48 -44 L-45 -67 L-21 -63Z" fill="url(#gold)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M-38 -34 L-47 -47 L-23 -47 L0 -37 L23 -47 L47 -47 L38 -34 L39 8 L23 34 L0 45 L-23 34 L-39 8Z" fill="url(#main)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M-30 -14 L-10 -7 L-18 1 L-30 -3Z M30 -14 L10 -7 L18 1 L30 -3Z" fill="#17243c" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M-20 14 Q0 2 20 14 L14 33 L0 45 L-14 33Z" fill="url(#lit)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M-9 13 L9 13 L0 22Z" fill="#17243c" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M0 22 L0 30 M-11 30 Q0 40 11 30" fill="none" stroke="#795535" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g><path d="M38 165 Q35 92 108 64" fill="none" stroke="url(#main)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+ </g>
+ <path d="M30 96 A101 101 0 0 1 106 28" fill="none" stroke="#fff9d6" stroke-width="2" opacity=".5"/>
+ </svg>
