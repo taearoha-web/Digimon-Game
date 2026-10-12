@@ -31,7 +31,7 @@ func _ready() -> void:
 		for j in heroes.size():
 			(heroes[j] as Node3D).visible = i == j
 		var h: Node3D = heroes[i]
-		for view in [["front", Vector3(0, 1.0, 5.2), -6.0, 25.0], ["side", Vector3(0, 1.0, 5.2), -6.0, 90.0], ["top", Vector3(0, 5.5, 0.01), -90.0, 0.0]]:
+		for view in [["front", Vector3(0, 0.9, 3.6), -4.0, 30.0], ["side", Vector3(0, 0.9, 3.6), -4.0, 90.0], ["back", Vector3(0, 1.6, 3.4), -18.0, 215.0]]:
 			h.rotation_degrees.y = float(view[3])
 			cam.position = h.position + (view[1] as Vector3); cam.rotation_degrees = Vector3(float(view[2]), 0, 0)
 			for f in 3:
