@@ -80,12 +80,29 @@
     const native = message.match(/\(((?:scene|servers|core|drivers|platform)\/[a-z0-9_\/]{1,160}\.(?:cpp|h)):([0-9]{1,6})\)/i);
     return native ? {file: native[1], line: Number(native[2])} : {};
   }
+  // Engine function that reported the fault ("at: get_path (scene/main/node.cpp:835)"):
+  // a fixed identifier of the engine, never a message, node name or save value.
+  function safeFunction(message) {
+    const m = message.match(/^\s*at:\s+([A-Za-z_][A-Za-z0-9_:~]{0,60})\s*\(/);
+    return m ? m[1] : null;
+  }
   function recordError(value) {
     if (!current) return;
     const message = String(value || '').slice(0, 4096), location = safeLocation(message);
     // Godot prints a fault and its "at:" location as separate callbacks.
     if (/^\s*at:/.test(message) && pendingError && Date.now() - pendingError.at <= 2000) {
-      Object.assign(pendingError.item, location); persist(); return;
+      Object.assign(pendingError.item, location);
+      const fn = safeFunction(message);
+      if (fn) pendingError.item.fn = fn;
+      persist(); return;
+    }
+    // A GDScript backtrace line ("[0] func _x (res://combat/a.gd:12)") names the game
+    // code that triggered the fault. Keep only the first one: file and line.
+    if (/^\s*(?:GDScript backtrace.*|\[\d+\]\s+.*)$/.test(message) && pendingError && Date.now() - pendingError.at <= 2000) {
+      if (!pendingError.item.script && location.file && location.file.startsWith('res://')) {
+        pendingError.item.script = {file: location.file, line: location.line}; persist();
+      }
+      return;
     }
     const category = errorCategory(message), issue = safeIssue(message);
     if (category === 'engine_warning') current.warningCount = (current.warningCount || 0) + 1;
