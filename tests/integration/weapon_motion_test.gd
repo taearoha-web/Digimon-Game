@@ -5,6 +5,7 @@ var checks := 0
 var failures: Array[String] = []
 var max_grip_error := 0.0
 var max_support_error := 0.0
+var min_torso_clearance := 9.0
 var min_pole_up := 1.0
 var _source_grips: Dictionary = {}
 
@@ -23,6 +24,32 @@ func pose(hero: HeroVisual, clip: String, fraction: float) -> void:
 	hero.anim.seek(hero.anim.get_animation(hero.current).length * fraction, true)
 	hero.anim.pause()
 	hero._skeleton.force_update_all_bone_transforms()
+
+
+## Smallest distance from the spear's shaft line (butt to tip) to the hips-neck
+## axis, in units of a conservative torso radius (0.3 x shoulder span). Below 1
+## means the shaft passes through the body.
+func torso_clearance(hero: HeroVisual, asset: Node3D) -> float:
+	var s := hero._skeleton
+	var chibi := s.find_bone("RightHand") >= 0
+	var bone := func(n: String) -> Vector3:
+		return s.global_transform * s.get_bone_global_pose(s.find_bone(n)).origin
+	var low: Vector3 = bone.call("Hips" if chibi else "hips")
+	var high: Vector3 = bone.call("Neck" if chibi else "head")
+	var radius := 0.3 * (bone.call("LeftUpperArm" if chibi else "upperarm.l") as Vector3).distance_to(bone.call("RightUpperArm" if chibi else "upperarm.r"))
+	var span := Vector2(INF, -INF)
+	for mi in asset.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		var t := asset.global_transform.affine_inverse() * m.global_transform
+		var b := t * m.get_aabb()
+		span = Vector2(minf(span.x, b.position.y), maxf(span.y, b.end.y))
+	var transform := posed_transform(asset)
+	var best := INF
+	for k in 41:
+		var p := transform * Vector3(0, lerpf(span.x, span.y, float(k) / 40.0), 0)
+		var on_axis := Geometry3D.get_closest_point_to_segment(p, low, high)
+		best = minf(best, p.distance_to(on_axis) / radius)
+	return best
 
 
 func palm(hero: HeroVisual, side: String) -> Vector3:
@@ -157,6 +184,13 @@ func _ready() -> void:
 						var error := (offset - axis * offset.dot(axis)).length()
 						max_support_error = maxf(max_support_error, error)
 						check(error < 0.035, "%s %s frame%d support hand %.4fm from shaft" % [tag, clip, frame, error])
+						# The whole shaft, tail included, must pass outside the torso.
+						var clearance := torso_clearance(hero, asset)
+						min_torso_clearance = minf(min_torso_clearance, clearance)
+						# Walking, standing, thrusts and slashes must clear it fully; the
+						# short guard/skill swings may graze the torso's edge.
+						var needed := 0.55 if (String(clip).begins_with("Martial_") or String(clip).begins_with("Block")) else 1.0
+						check(clearance > needed, "%s %s frame%d spear shaft clears the torso (%.2f)" % [tag, clip, frame, clearance])
 					if family == &"archer" and String(clip).begins_with("2H_Ranged_"):
 						var bow_basis := posed_transform(asset).basis.orthonormalized()
 						check(bow_basis.y.dot(Vector3.UP) > 0.995 and bow_basis.z.dot(Vector3.BACK) > 0.995, tag + " bow stays upright and aims forward")
@@ -195,7 +229,7 @@ func _ready() -> void:
 			check(hero.current == "Running_A" and is_equal_approx(hero.anim.speed_scale, 1.2), tag + " resumes latest movement after recovery")
 			hero.free()
 			print("CHECKED: ", tag)
-	print("WEAPON MOTION: %s | %d checks, %d failures | max grip %.4fm, support %.4fm, min pole up %.4f" % ["PASS" if failures.is_empty() else "FAIL", checks, failures.size(), max_grip_error, max_support_error, min_pole_up])
+	print("WEAPON MOTION: %s | %d checks, %d failures | max grip %.4fm, support %.4fm, min pole up %.4f, spear torso clearance %.2f" % ["PASS" if failures.is_empty() else "FAIL", checks, failures.size(), max_grip_error, max_support_error, min_pole_up, min_torso_clearance])
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		FileAccess.open(args[0], FileAccess.WRITE).store_string(JSON.stringify({"checks": checks, "failures": failures, "grip_error": max_grip_error, "support_error": max_support_error, "pole_up": min_pole_up}, "\t"))

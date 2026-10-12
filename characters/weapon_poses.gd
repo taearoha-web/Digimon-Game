@@ -62,7 +62,8 @@ static func _bake(original: AnimationLibrary, skeleton: Skeleton3D, family: Stri
 
 static func _rig(skeleton: Skeleton3D, corrections: Dictionary, gear_scale: float) -> Dictionary:
 	var chibi := skeleton.find_bone("RightHand") >= 0
-	var rig := {"scale": gear_scale, "chest": skeleton.find_bone("Chest" if chibi else "chest")}
+	var rig := {"scale": gear_scale, "chest": skeleton.find_bone("Chest" if chibi else "chest"),
+		"hips": skeleton.find_bone("Hips" if chibi else "hips"), "neck": skeleton.find_bone("Neck" if chibi else "head")}
 	for side in ["r", "l"]:
 		var prefix := "Right" if side == "r" else "Left"
 		var arm := {
@@ -169,6 +170,147 @@ static func _shared_grip(skeleton: Skeleton3D, local: Array[Transform3D], rig: D
 				target = centre + offset.normalized() * reach
 	return target
 
+## Shaft clearance (in torso radii) wanted when baking, and the most the spear
+## may turn further across the body to get it.
+const SPEAR_CLEARANCE := 1.15
+
+
+## One adjustment per clip, (extra turn across the body in degrees, extra lift
+## of the spear head in degrees, outward shift of the main hand in arm units,
+## grip width in arm lengths):
+## the smallest change that keeps the whole shaft out of the torso in every
+## sampled frame, or the clearest one when none fully does.
+static func _spear_tune(source: Animation, skeleton: Skeleton3D, tracks: Dictionary, rig: Dictionary, idle_globals: Array[Transform3D], name: String, steps: int, carry: bool, spear: bool) -> Vector4:
+	var best := Vector4(0, 0, 0, 0.62)
+	var best_cost := INF
+	var clearest := Vector4(0, 0, 0, 0.62)
+	var clearest_value := -INF
+	var stride := 1 if name.begins_with("Martial_") else 3
+	var arm_bones: Array[int] = []
+	for side in ["r", "l"]:
+		for key in ["upper", "lower", "hand"]:
+			arm_bones.append(int(rig[side][key]))
+	for turn in [0.0, 10.0, 20.0, 30.0, 40.0]:
+		for lift in [0.0, 10.0, -10.0, 20.0]:
+			for out in [0.0, 0.1, 0.2, 0.3]:
+				for grip in [0.62, 0.5, 0.4]:
+					var tune := Vector4(float(turn), float(lift), float(out), float(grip))
+					var worst := INF
+					var steady := true
+					var last: Array[Quaternion] = []
+					for k in range(0, steps + 1, stride):
+						var time := source.length * float(k) / float(steps)
+						var local := _frame(source, skeleton, tracks, time)
+						var global := _globals(skeleton, local)
+						var chest: Transform3D = global[rig.chest]
+						var body := (chest.basis * skeleton.get_bone_global_rest(rig.chest).basis.inverse()).orthonormalized()
+						_prepare_arms(rig, body, chest.basis * idle_globals[rig.chest].basis.inverse(), idle_globals)
+						var result := _spear_hold(skeleton, local, rig, body, chest, name, time, float(k) / float(steps), source.length, carry, spear, tune)
+						worst = minf(worst, result.x)
+						# The support hand must stay on the shaft and no elbow may
+						# flip between neighbouring samples.
+						if result.y > 0.05:
+							steady = false
+						var now: Array[Quaternion] = []
+						for bone in arm_bones:
+							now.append(local[bone].basis.get_rotation_quaternion())
+						if not last.is_empty():
+							for i in now.size():
+								if absf(now[i].dot(last[i])) < cos(0.45 / 2.0) * (1.0 if stride == 1 else 0.0):
+									steady = false
+						last = now
+					if not steady:
+						continue
+					if worst > clearest_value:
+						clearest_value = worst
+						clearest = tune
+					var cost: float = turn + absf(lift) + out * 100.0 + (0.62 - grip) * 60.0
+					if worst >= SPEAR_CLEARANCE and cost < best_cost:
+						best_cost = cost
+						best = tune
+	return best if best_cost < INF else clearest
+
+
+static func _prepare_arms(rig: Dictionary, body: Basis, reference_turn: Basis, idle_globals: Array[Transform3D]) -> void:
+	for side in ["r", "l"]:
+		var arm: Dictionary = rig[side]
+		arm["pole"] = body * Vector3(float(arm.side), -0.7, -0.6)
+		# A stable reference twist prevents the shortest-arc solve from
+		# rolling an elbow when the original attack crosses 180 degrees.
+		arm["upper_basis"] = reference_turn * idle_globals[arm.upper].basis
+		arm["lower_basis"] = reference_turn * idle_globals[arm.lower].basis
+		arm["upper_direction"] = reference_turn * (idle_globals[arm.lower].origin - idle_globals[arm.upper].origin).normalized()
+		arm["lower_direction"] = reference_turn * (idle_globals[arm.hand].origin - idle_globals[arm.lower].origin).normalized()
+
+
+## Two-handed spear hold for one frame. Returns (x) how far the whole shaft,
+## tail included, stays from the hips-neck axis, in units of a torso radius
+## (0.3 x shoulder span), and (y) how far the support hand is off the shaft,
+## in arm lengths, so the bake can pick an adjustment that keeps both right.
+static func _spear_hold(skeleton: Skeleton3D, local: Array[Transform3D], rig: Dictionary, body: Basis, chest: Transform3D, name: String, time: float, phase: float, length: float, carry: bool, spear: bool, tune: Vector4) -> Vector2:
+	# Measured in the torso's size, not the arm's: a short-armed rig reaches
+	# as far as it can rather than holding the spear closer to its chest.
+	var global := _globals(skeleton, local)
+	var arm_length: float = maxf(rig.r.length, 0.76 * global[rig.l.upper].origin.distance_to(global[rig.r.upper].origin))
+	var extra_turn := tune.x
+	var lift := tune.y
+	# The chibi's arms are shorter than the spear's tail behind the main
+	# grip, so a spear pointing straight ahead always ran through the
+	# torso. Both holds turn the shaft across the body instead: the tail
+	# passes the right hip, the head points forward-left, and the support
+	# hand takes a wide grip further up the shaft.
+	var shaft := func(yaw_deg: float, pitch_deg: float) -> Vector3:
+		var yaw := deg_to_rad(yaw_deg)
+		var pitch := deg_to_rad(pitch_deg)
+		return (body * Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch))).normalized()
+	var pulse := sin(PI * phase) if spear and not carry else 0.0
+	# Carry: a diagonal port-arms hold. Fight: a low forward guard.
+	var axis: Vector3 = shaft.call(52.0 + extra_turn, 50.0 + lift) if carry else shaft.call(50.0 + extra_turn, 20.0 + lift)
+	var right := chest.origin + body * (Vector3(-0.20, -0.25, 0.60) if carry else Vector3(-0.45, -0.18, 0.36)) * arm_length
+	right += axis * pulse * 0.10 * arm_length
+	if name=="Martial_GroundSlam":
+		var gather := smoothstep(0.0,0.25,time)
+		var strike := smoothstep(0.25,0.46,time)
+		var recover := smoothstep(0.55,length,time)
+		# Raised to head height, not overhead, and struck down at a shallow angle:
+		# steeper swings brought the tail through the neck and flipped the elbows.
+		var pitch := lerpf(0.85*gather,-0.30,strike)*(1.0-recover) + 0.35*recover
+		axis=shaft.call(50.0 + extra_turn, rad_to_deg(pitch) + lift)
+		right=chest.origin+body*Vector3(-0.45,-0.16+0.30*gather*(1.0-strike),0.30+0.10*strike)*arm_length
+	elif name=="Martial_SpearThrow":
+		var gather := smoothstep(0.0,0.44,time)
+		var strike := smoothstep(0.44,0.72,time)
+		var recover := smoothstep(0.80,length,time)
+		var pitch := lerpf(0.52*gather,0.10,strike)*(1.0-recover) + 0.35*recover
+		axis=shaft.call(lerpf(50.0, 42.0, strike*(1.0-recover)) + extra_turn, rad_to_deg(pitch) + lift)
+		right=chest.origin+body*Vector3(-0.45,lerpf(-0.18+0.30*gather,-0.18,strike),lerpf(0.34-0.10*gather,0.48,strike))*arm_length
+	right += body * Vector3(-tune.z, 0, 0) * arm_length
+	var item_basis := _along(axis, body * Vector3.RIGHT)
+	# The support hand slides up the shaft only as far as its own arm reaches.
+	var spacing := float(rig.r.length) * tune.w
+	right = _shared_grip(skeleton, local, rig, right, {"r": item_basis, "l": item_basis}, {"r": Vector3.ZERO, "l": axis * spacing}, {"r": "spear", "l": "spear"})
+	_hold(skeleton, local, rig.r, right, item_basis, "spear")
+	# Resolve the support hand from the actual main grip after reach clamping.
+	global = _globals(skeleton, local)
+	var grip: Vector3 = global[rig.r.slot].origin
+	var support := grip + axis * spacing
+	_hold(skeleton, local, rig.l, support, item_basis, "spear")
+	global = _globals(skeleton, local)
+	var low: Vector3 = global[rig.hips].origin
+	var high: Vector3 = global[rig.neck].origin
+	var radius := 0.3 * global[rig.l.upper].origin.distance_to(global[rig.r.upper].origin)
+	var grip_now: Vector3 = global[rig.r.slot].origin
+	var nearest := INF
+	# Spear models: 0.65 (scaled) behind the grip, up to 2.0 ahead.
+	for k in 41:
+		var along := lerpf(-0.65, 2.0, float(k) / 40.0) * float(rig.scale)
+		var p := grip_now + axis * along
+		nearest = minf(nearest, p.distance_to(Geometry3D.get_closest_point_to_segment(p, low, high)) / radius)
+	# How far the support hand ended up from the shaft line (reach clamping).
+	var offset: Vector3 = global[rig.l.slot].origin - grip_now
+	var miss := (offset - axis * offset.dot(axis)).length() / arm_length
+	return Vector2(nearest, miss)
+
 
 static func _along(axis: Vector3, right := Vector3.RIGHT) -> Basis:
 	var y := axis.normalized()
@@ -201,6 +343,11 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 		output_tracks[bone] = track
 	var steps := maxi(12, ceili(source.length * SAMPLES))
 	var moving := name.begins_with("Running") or name.begins_with("Walking") or name == "Fly_Forward"
+	# The spear turns further across the body when this clip's torso motion
+	# would bring the shaft through it. One turn per clip keeps the arms steady.
+	var spear_tune := Vector4(0, 0, 0, 0.62)
+	if family == &"lancer":
+		spear_tune = _spear_tune(source, skeleton, tracks, rig, idle_globals, name, steps, carry, spear)
 	for k in steps + 1:
 		var time := source.length * float(k) / float(steps)
 		var phase := float(k) / float(steps)
@@ -210,16 +357,7 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 		var chest: Transform3D = global[rig.chest]
 		var body := (chest.basis * skeleton.get_bone_global_rest(rig.chest).basis.inverse()).orthonormalized()
 		var arm_length: float = rig.r.length
-		var reference_turn := chest.basis * idle_globals[rig.chest].basis.inverse()
-		for side in ["r", "l"]:
-			var arm: Dictionary = rig[side]
-			arm["pole"] = body * Vector3(float(arm.side), -0.7, -0.6)
-			# A stable reference twist prevents the shortest-arc solve from
-			# rolling an elbow when the original attack crosses 180 degrees.
-			arm["upper_basis"] = reference_turn * idle_globals[arm.upper].basis
-			arm["lower_basis"] = reference_turn * idle_globals[arm.lower].basis
-			arm["upper_direction"] = reference_turn * (idle_globals[arm.lower].origin - idle_globals[arm.upper].origin).normalized()
-			arm["lower_direction"] = reference_turn * (idle_globals[arm.hand].origin - idle_globals[arm.lower].origin).normalized()
+		_prepare_arms(rig, body, chest.basis * idle_globals[rig.chest].basis.inverse(), idle_globals)
 		if carry:
 			# Restrained arm swing leaves the original hips, breathing and gait.
 			for side in ["r", "l"]:
@@ -259,32 +397,7 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 			else:
 				_hold(skeleton, local, rig.l, target, bow_basis, "bow")
 		if family == &"lancer":
-			var pulse := sin(PI * phase) if spear and not carry else 0.0
-			var axis := body * Vector3(0.13, 0.52 if carry else 0.10, 1.0).normalized()
-			var right := chest.origin + body * Vector3(-0.08, -0.36, 0.25 + pulse * 0.10) * arm_length
-			if name=="Martial_GroundSlam":
-				var gather := smoothstep(0.0,0.25,time)
-				var strike := smoothstep(0.25,0.46,time)
-				var recover := smoothstep(0.55,source.length,time)
-				var pitch := lerpf(1.25*gather,-0.75,strike)*(1.0-recover)
-				axis=body*Vector3(0.13,sin(pitch),cos(pitch)).normalized()
-				right=chest.origin+body*Vector3(-0.08,-0.16+0.48*gather*(1.0-strike),0.26+0.14*strike)*arm_length
-			elif name=="Martial_SpearThrow":
-				var gather := smoothstep(0.0,0.44,time)
-				var strike := smoothstep(0.44,0.72,time)
-				var recover := smoothstep(0.80,source.length,time)
-				var pitch := lerpf(0.52*gather,0.04,strike)*(1.0-recover)
-				axis=body*Vector3(0.13,sin(pitch),cos(pitch)).normalized()
-				right=chest.origin+body*Vector3(-0.08,lerpf(-0.26+0.40*gather,-0.22,strike),lerpf(0.28-0.18*gather,0.45,strike))*arm_length
-			var item_basis := _along(axis, body * Vector3.RIGHT)
-			var spacing := arm_length * 0.28
-			right = _shared_grip(skeleton, local, rig, right, {"r": item_basis, "l": item_basis}, {"r": Vector3.ZERO, "l": axis * spacing}, {"r": "spear", "l": "spear"})
-			_hold(skeleton, local, rig.r, right, item_basis, "spear")
-			# Resolve the support hand from the actual main grip after reach clamping.
-			global = _globals(skeleton, local)
-			var grip: Vector3 = global[rig.r.slot].origin
-			var support := grip + axis * spacing
-			_hold(skeleton, local, rig.l, support, item_basis, "spear")
+			_spear_hold(skeleton, local, rig, body, chest, name, time, phase, source.length, carry, spear, spear_tune)
 		for bone in arm_bones:
 			result.rotation_track_insert_key(output_tracks[bone], time, local[bone].basis.get_rotation_quaternion())
 	return result
