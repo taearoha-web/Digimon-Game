@@ -191,7 +191,7 @@ static func recipe_for(skill: Dictionary) -> Dictionary:
 	var level := int(skill.get("level", 1))
 	return {"recipe": recipe[0], "palette": recipe[1], "strokes": recipe[2],
 		"curvature": recipe[3], "tempo": recipe[4], "primary": colors[0],
-		"accent": colors[1], "shade": colors[2], "art_mapped": RECIPES.has(id),
+		"accent": colors[1], "shade": colors[2], "art_mapped": RECIPES.has(id) or StarSkillArt.MOTIFS.has(id),
 		"layers": clampi(2 + level / 25, 2, 6), "ultimate": level >= 100,
 		"impact_weight": 0.55 + float(level) * 0.018,
 		"linger": 0.65 + float(level) * 0.009}
