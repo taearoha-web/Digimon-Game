@@ -106,7 +106,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"def": def,
 		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
-		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge), 0.0, 0.35),
+		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
 		"haste": clampf(float(attrs.dex) * HASTE_PER_DEX + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
 	}
 

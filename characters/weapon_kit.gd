@@ -2,8 +2,8 @@ class_name WeaponKit
 extends RefCounted
 ## Held weapons and shields: modelled GLBs, one per gear tier (Lv.1-10 of each
 ## kind). A look id is "<kind>_<tier>", e.g. "staff_7". Every weapon is placed
-## with its grip at the origin and its tip along +Y (bows lie in the XZ plane),
-## the same convention as the KayKit weapon models. A few code-built props stay
+## with its real grip at the origin and its long axis along +Y. Held-weapon
+## mounts adapt these authored axes to the rig. A few code-built props stay
 ## (the priest's book) together with the mesh helpers other kits share.
 
 ## The mage carries the staff, the priest a short wand (with a matching book) and
@@ -14,18 +14,21 @@ const GOLD := Color("ffc93c")
 
 ## Modelled weapons (assets/models/weapons/<file>_<0-9>.glb), one per gear tier:
 ## Lv.1 is the starter weapon, Lv.10 the godly one. Each entry turns the model
-## into this kit's convention (grip at the origin, blade along +Y, bows in XZ).
+## into this kit's convention (grip at the origin, long axis along +Y).
 const MODEL_DIR := "res://assets/models/weapons/"
 const MODEL_TIERS := 10
 const MODELS := {
-	"sword": {"file": "sword", "scale": 1.45, "offset": Vector3(0, -0.22, 0)},
-	"staff": {"file": "staff", "scale": 2.0, "offset": Vector3(0, 0.1, 0)},
-	"wand": {"file": "wand", "scale": 1.7, "offset": Vector3(0, 0.05, 0)},
-	"lantern": {"file": "lantern", "scale": 1.9, "offset": Vector3(0, 0.1, 0)},
+	"sword": {"file": "sword", "scale": 1.45, "offset": Vector3.ZERO},
+	"staff": {"file": "staff", "scale": 2.0, "offset": Vector3.ZERO},
+	"wand": {"file": "wand", "scale": 1.7, "offset": Vector3.ZERO},
+	# Turn every lantern 180 degrees around its shaft, keeping the grip and
+	# upright pose unchanged. Shared by heroes, companions and gear previews.
+	"lantern": {"file": "lantern", "scale": 1.9, "offset": Vector3.ZERO, "basis": [Vector3(-1, 0, 0), Vector3.UP, Vector3(0, 0, -1)]},
 	# The summoner's grimoire: not an item, it follows the lantern's tier.
 	"tome": {"file": "tome", "scale": 2.1, "offset": Vector3.ZERO},
-	"bow": {"file": "bow", "scale": 2.2, "offset": Vector3(0, -0.25, 0), "basis": [Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0)]},
-	"shield": {"file": "shield", "scale": 1.0, "offset": Vector3.ZERO},
+	"bow": {"file": "bow", "scale": 2.2, "offset": Vector3.ZERO},
+	# The handle is on the back of the shield, below its visual centre.
+	"shield": {"file": "shield", "scale": 1.0, "offset": Vector3(0, 0.024, 0.064)},
 	"spear": {"file": "spear", "scale": 1.3, "offset": Vector3.ZERO},
 }
 
@@ -39,7 +42,7 @@ static func designs(kind: String) -> int:
 	return MODEL_TIERS if MODELS.has(kind) else 0
 
 
-static func _model(kind: String, index: int) -> Node3D:
+static func _model(kind: String, index: int, merge_gear := true) -> Node3D:
 	var spec: Dictionary = MODELS[kind]
 	var path := "%s%s_%d.glb" % [MODEL_DIR, spec.file, clampi(index, 0, MODEL_TIERS - 1)]
 	var root := Node3D.new()
@@ -51,13 +54,25 @@ static func _model(kind: String, index: int) -> Node3D:
 	if spec.has("basis"):
 		var cols: Array = spec.basis
 		basis = Basis(cols[0], cols[1], cols[2])
-	model.transform = Transform3D(basis.scaled(Vector3.ONE * float(spec.scale)), basis * (spec.offset as Vector3) * float(spec.scale))
-	MeshMerge.merge(model, path)
+	var offset: Vector3 = spec.offset
+	if kind == "shield":
+		# Round, kite and crest shields put their handles at different heights.
+		# Locate the real horizontal back handle, including every tier's offset.
+		for node in model.find_children("*", "MeshInstance3D", true, false):
+			var mesh := node as MeshInstance3D
+			var box := mesh.get_aabb()
+			if box.size.x > 0.18 and box.size.x < 0.23 and box.size.y < 0.05 and box.get_center().z < -0.055:
+				offset = -(mesh.transform * box.get_center())
+				break
+	model.transform = Transform3D(basis.scaled(Vector3.ONE * float(spec.scale)), basis * offset * float(spec.scale))
+	if merge_gear:
+		MeshMerge.merge(model, path)
 	root.add_child(model)
 	return root
 
 
 static func build(look: String) -> Node3D:
+	if look.begins_with("divine_"): return DivineGearArt.build(look)
 	var parts := look.rsplit("_", true, 1)
 	var kind := parts[0] if MODELS.has(parts[0]) else "sword"
 	var node := _model(kind, int(parts[1]) if parts.size() > 1 else 0)
@@ -166,7 +181,7 @@ const BOOK_STYLES := [
 ]
 
 
-static func book(tier := 0) -> Node3D:
+static func book(tier := 0, merge_gear := true) -> Node3D:
 	var style: Dictionary = BOOK_STYLES[clampi(tier, 0, BOOK_STYLES.size() - 1)]
 	var cover: Color = style.cover
 	var trim: Color = style.trim
@@ -217,5 +232,9 @@ static func book(tier := 0) -> Node3D:
 		_:
 			_p(root, MeshKit.torus(), trim, face, Vector3(0.18, 0.18, 0.18), Vector3(90, 0, 0))
 			_p(root, MeshKit.sphere_low(), gem, face, Vector3(0.09, 0.09, 0.05), Vector3.ZERO, glow)
-	MeshMerge.merge(root, "book_%d" % tier)
+	# Fingers wrap over the upper edge, rather than entering the cover's centre.
+	for child in root.get_children():
+		(child as Node3D).position.y -= 0.24
+	if merge_gear:
+		MeshMerge.merge(root, "book_%d" % tier)
 	return root

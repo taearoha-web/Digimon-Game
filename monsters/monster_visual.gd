@@ -38,7 +38,8 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	current = ""
 	busy_until = 0
 	_motion_weight = 0.0
-	var packed := load(DIR + model_path + ".gltf") as PackedScene
+	var path := DIR + model_path + ".glb" if ResourceLoader.exists(DIR + model_path + ".glb") else DIR + model_path + ".gltf"
+	var packed := load(path) as PackedScene
 	if packed == null:
 		push_error("MonsterVisual: missing %s" % model_path)
 		return

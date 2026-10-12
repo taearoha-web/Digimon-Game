@@ -4,8 +4,8 @@ config_version=5
 [application]
 
 config/name="Toon Tale"
-config/description="A solo cartoon action RPG for the phone browser: four classes, hunting fields, loot and bosses."
-config/version="0.3.1"
+config/description="A solo cartoon action RPG for the phone browser: six classes, hunting fields, loot and bosses."
+config/version="0.9.4"
 run/main_scene="res://scenes/main.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "GL Compatibility")
@@ -17,6 +17,11 @@ config/icon="res://assets/branding/icon_512.png"
 
 Game="*res://systems/core/game.gd"
 AudioManager="*res://systems/core/audio_manager.gd"
+
+[audio]
+
+general/default_playback_type=0
+general/default_playback_type.web=0
 
 [display]
 

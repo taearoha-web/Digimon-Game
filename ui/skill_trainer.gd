@@ -1,7 +1,7 @@
 class_name SkillTrainer
 extends CanvasLayer
 ## The Skill Master: spend skill points (and gold) to raise skills up to five
-## stars. Skills unlock by level; which four go on the bar is picked in the menu.
+## stars. Skills unlock by level; the eight bar slots are picked in the menu.
 
 signal closed()
 
@@ -90,6 +90,8 @@ func _row(skill: Dictionary, passive: bool) -> Control:
 	var panel := UIUtil.panel(&"CardPanel")
 	var line := UIUtil.hbox(12)
 	panel.add_child(line)
+	if not passive:
+		line.add_child(SkillIcons.portrait(skill))
 	var info := UIUtil.vbox(2)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)

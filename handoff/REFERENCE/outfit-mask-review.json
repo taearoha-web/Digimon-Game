@@ -1,0 +1,29 @@
+{
+	"cache": {
+		"builds": 18,
+		"entries": 12,
+		"limit": 12
+	},
+	"checks": 118997,
+	"failures": [],
+	"regions": {
+		"boy": {
+			"boot_only_safe": 2727,
+			"boots": 1967,
+			"fingers": 239,
+			"gloves": 588,
+			"hand_gloves_low_original_red": 191,
+			"head": 9896,
+			"pants": 2716
+		},
+		"girl": {
+			"boot_only_safe": 2568,
+			"boots": 1700,
+			"fingers": 224,
+			"gloves": 396,
+			"hand_gloves_low_original_red": 85,
+			"head": 11952,
+			"pants": 2019
+		}
+	}
+}

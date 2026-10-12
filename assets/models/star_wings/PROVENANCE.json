@@ -1,0 +1,541 @@
+{
+  "schema": 1,
+  "source": "User-supplied archive ปีก ดาว100.rar",
+  "archiveSha256": "448691fc8c7e0f75744db9b04a7f935b82801b9573187d9d77f39fd6b62e38a7",
+  "rights": "User supplied these assets and requested their integration; no third-party license assertion is added.",
+  "preparedOn": "2026-10-12",
+  "tool": "Blender 4.3.2",
+  "process": [
+    "Retain original model-space orientation, rig pivot coordinates, design and material colors.",
+    "Weld coincident vertices per original part at distance 1e-7 before reduction; this repairs disconnected triangle topology for simplification.",
+    "Keep parts with <=96 triangles intact; reduce denser parts to max(64, 18 percent original triangles).",
+    "Join geometry into one skinned mesh with original shared materials.",
+    "Export original Idle, Flap, Glide, Fold, Unfold and HaloSpin clips as NLA tracks, resampling every 2 frames.",
+    "Render transparent 512x512 PNG item icons from the optimized model."
+  ],
+  "runtimeNotes": [
+    "Parent root must be named Wings_<class> so HeroVisual finds AnimationPlayer.",
+    "Loop Idle, Flap and Glide; Fold is the original held folded pose; Unfold is a 1-second transition.",
+    "Idle/Flap/Glide/Fold include the original halo rotation; separate HaloSpin is retained but not required.",
+    "Model coordinates match legacy chibi-space wing attachment. New wings are intentionally larger than level-100 wings.",
+    "No textures or external URIs are introduced."
+  ],
+  "assets": [
+    {
+      "class": "warrior",
+      "sourceFile": "ปีกเทพ_นักดาบ_ปีกพันดาบเทวะ/ปีกพันดาบเทวะ.glb",
+      "outputFile": "wings_warrior.glb",
+      "sourceMetrics": {
+        "bytes": 3565168,
+        "sha256": "1052d3b3bf8bd204569a1c1da7597201a1024fc22d59dccfb51aa8c8ca071d7b",
+        "gzipBytes": 643570,
+        "nodes": 404,
+        "meshes": 396,
+        "surfaces": 396,
+        "triangles": 70820,
+        "vertices": 86980,
+        "materials": 7,
+        "joints": 8,
+        "clips": [
+          "Idle",
+          "Flap",
+          "Glide",
+          "Fold",
+          "Unfold",
+          "HaloSpin"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.7653207778930664,
+            0.7653207778930664
+          ],
+          [
+            0.08411403000354767,
+            1.3904645442962646
+          ],
+          [
+            -0.6220887899398804,
+            -0.06013087183237076
+          ]
+        ]
+      },
+      "gameMetrics": {
+        "bytes": 3655708,
+        "sha256": "69c2856e2222f4da943632d50e117754a0b8e32226cf3abf77a4dd1d2c05bb02",
+        "gzipBytes": 666313,
+        "nodes": 10,
+        "meshes": 1,
+        "surfaces": 7,
+        "triangles": 26806,
+        "vertices": 76826,
+        "materials": 7,
+        "joints": 8,
+        "clips": [
+          "HaloSpin",
+          "Unfold",
+          "Fold",
+          "Glide",
+          "Flap",
+          "Idle"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.7652657628059387,
+            0.7652657628059387
+          ],
+          [
+            0.08411403000354767,
+            1.3903887271881104
+          ],
+          [
+            -0.6213115453720093,
+            -0.05953270569443703
+          ]
+        ]
+      },
+      "icon": {
+        "file": "assets/icons/items/star_wings_warrior_100.png",
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGBA",
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "sha256": "bd6e1d35eb9c4b17c91b1312e700af1f455028fa70b153539224dd09453c69cc"
+      }
+    },
+    {
+      "class": "archer",
+      "sourceFile": "ปีกเทพ_นักธนู_ปีกพฤกษาเทพ/ปีกพฤกษาเทพ.glb",
+      "outputFile": "wings_archer.glb",
+      "sourceMetrics": {
+        "bytes": 3655924,
+        "sha256": "dbf7d23f1a6772591fe16ebc310e070b3bd2a9c5d36445a52866ddac29e9a818",
+        "gzipBytes": 517730,
+        "nodes": 236,
+        "meshes": 228,
+        "surfaces": 228,
+        "triangles": 45760,
+        "vertices": 92848,
+        "materials": 14,
+        "joints": 8,
+        "clips": [
+          "Idle",
+          "Flap",
+          "Glide",
+          "Fold",
+          "Unfold",
+          "HaloSpin"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.69842529296875,
+            0.69842529296875
+          ],
+          [
+            0.16837410628795624,
+            1.388023018836975
+          ],
+          [
+            -0.6220173835754395,
+            -0.07247777283191681
+          ]
+        ]
+      },
+      "gameMetrics": {
+        "bytes": 2284396,
+        "sha256": "d0520e416ef60967782a93e691b76b89b2bbae43fb7bf541777a05f97d7532fc",
+        "gzipBytes": 413038,
+        "nodes": 10,
+        "meshes": 1,
+        "surfaces": 14,
+        "triangles": 15690,
+        "vertices": 46988,
+        "materials": 14,
+        "joints": 8,
+        "clips": [
+          "HaloSpin",
+          "Unfold",
+          "Fold",
+          "Glide",
+          "Flap",
+          "Idle"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.69842529296875,
+            0.69842529296875
+          ],
+          [
+            0.16837412118911743,
+            1.388023018836975
+          ],
+          [
+            -0.6220173835754395,
+            -0.07330973446369171
+          ]
+        ]
+      },
+      "icon": {
+        "file": "assets/icons/items/star_wings_archer_100.png",
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGBA",
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "sha256": "aa10f0143007a01775b351a77908f234fbbad7e620b319d229093ff099b269f3"
+      }
+    },
+    {
+      "class": "lancer",
+      "sourceFile": "ปีกเทพ_นักหอก_ปีกมังกรเทพเพลิง/ปีกมังกรเทพเพลิง.glb",
+      "outputFile": "wings_lancer.glb",
+      "sourceMetrics": {
+        "bytes": 654040,
+        "sha256": "11566cdb4f39d4cf477bcb25fdfe36f14aa248e80ac3f08cae8db3642f7e970c",
+        "gzipBytes": 138532,
+        "nodes": 170,
+        "meshes": 162,
+        "surfaces": 162,
+        "triangles": 16056,
+        "vertices": 11400,
+        "materials": 9,
+        "joints": 8,
+        "clips": [
+          "Idle",
+          "Flap",
+          "Glide",
+          "Fold",
+          "Unfold",
+          "HaloSpin"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.7320898175239563,
+            0.7320898175239563
+          ],
+          [
+            0.07500000298023224,
+            1.3936409950256348
+          ],
+          [
+            -0.6991040110588074,
+            -0.06692572683095932
+          ]
+        ]
+      },
+      "gameMetrics": {
+        "bytes": 867052,
+        "sha256": "003946bb8bc2b5859709c64f1086a450f15eca56684bad386595f3e587572b93",
+        "gzipBytes": 143986,
+        "nodes": 10,
+        "meshes": 1,
+        "surfaces": 9,
+        "triangles": 5950,
+        "vertices": 16258,
+        "materials": 9,
+        "joints": 8,
+        "clips": [
+          "HaloSpin",
+          "Unfold",
+          "Fold",
+          "Glide",
+          "Flap",
+          "Idle"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.7320898175239563,
+            0.7320898175239563
+          ],
+          [
+            0.07500000298023224,
+            1.3936409950256348
+          ],
+          [
+            -0.6991040110588074,
+            -0.06734547764062881
+          ]
+        ]
+      },
+      "icon": {
+        "file": "assets/icons/items/star_wings_lancer_100.png",
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGBA",
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "sha256": "134b958d4c8a88abefeb4ab85852c3108830fecd5d45008ab994040f086db88e"
+      }
+    },
+    {
+      "class": "mage",
+      "sourceFile": "ปีกเทพ_นักเวทย์_ปีกนภาจักรวาล/ปีกนภาจักรวาล.glb",
+      "outputFile": "wings_mage.glb",
+      "sourceMetrics": {
+        "bytes": 922948,
+        "sha256": "7c620b2229bb549e1f301ed279d254e7f9dba439e7e46b06ae056ac676b35efb",
+        "gzipBytes": 155831,
+        "nodes": 215,
+        "meshes": 207,
+        "surfaces": 207,
+        "triangles": 21848,
+        "vertices": 17640,
+        "materials": 12,
+        "joints": 8,
+        "clips": [
+          "Idle",
+          "Flap",
+          "Glide",
+          "Fold",
+          "Unfold",
+          "HaloSpin"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.7506668567657471,
+            0.7506668567657471
+          ],
+          [
+            0.19200000166893005,
+            1.3415000438690186
+          ],
+          [
+            -0.6500278115272522,
+            -0.07616288959980011
+          ]
+        ]
+      },
+      "gameMetrics": {
+        "bytes": 991428,
+        "sha256": "1641a5960b247bd7d9945b3607703d0f645d8dddb76f5dfd3a351871ed572f1c",
+        "gzipBytes": 176920,
+        "nodes": 10,
+        "meshes": 1,
+        "surfaces": 12,
+        "triangles": 7078,
+        "vertices": 18828,
+        "materials": 12,
+        "joints": 8,
+        "clips": [
+          "HaloSpin",
+          "Unfold",
+          "Fold",
+          "Glide",
+          "Flap",
+          "Idle"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.7506923079490662,
+            0.7506923079490662
+          ],
+          [
+            0.19232936203479767,
+            1.3415000438690186
+          ],
+          [
+            -0.6500278115272522,
+            -0.07638023048639297
+          ]
+        ]
+      },
+      "icon": {
+        "file": "assets/icons/items/star_wings_mage_100.png",
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGBA",
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "sha256": "75e56787efd7212e85d2becbba064800cd5e737890d51fa1ab6f952a78c2e9dd"
+      }
+    },
+    {
+      "class": "priest",
+      "sourceFile": "ปีกเทพ_พรีสต์_ปีกเซราฟิมหกปีก/ปีกเซราฟิมหกปีก.glb",
+      "outputFile": "wings_priest.glb",
+      "sourceMetrics": {
+        "bytes": 6903676,
+        "sha256": "8de621fba6fc26a01e816638062edc7c4f08fa2d26ac1937c0ccf0caedd701ea",
+        "gzipBytes": 1039087,
+        "nodes": 398,
+        "meshes": 390,
+        "surfaces": 390,
+        "triangles": 80524,
+        "vertices": 180446,
+        "materials": 9,
+        "joints": 8,
+        "clips": [
+          "Idle",
+          "Flap",
+          "Glide",
+          "Fold",
+          "Unfold",
+          "HaloSpin"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.6375288963317871,
+            0.6375288963317871
+          ],
+          [
+            0.07500000298023224,
+            1.3377512693405151
+          ],
+          [
+            -0.5507964491844177,
+            -0.05781520903110504
+          ]
+        ]
+      },
+      "gameMetrics": {
+        "bytes": 3408160,
+        "sha256": "a2327a0f14f7ca1465fc88e26f62efdfc2d1a8ef3c890ee722b7233b83d8027e",
+        "gzipBytes": 713677,
+        "nodes": 10,
+        "meshes": 1,
+        "surfaces": 9,
+        "triangles": 23997,
+        "vertices": 71527,
+        "materials": 9,
+        "joints": 8,
+        "clips": [
+          "HaloSpin",
+          "Unfold",
+          "Fold",
+          "Glide",
+          "Flap",
+          "Idle"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.637497067451477,
+            0.637497067451477
+          ],
+          [
+            0.07500000298023224,
+            1.337400197982788
+          ],
+          [
+            -0.5505549907684326,
+            -0.05760926008224487
+          ]
+        ]
+      },
+      "icon": {
+        "file": "assets/icons/items/star_wings_priest_100.png",
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGBA",
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "sha256": "1e0acd41c4b478c6f7edb76500a59efbeaab7e5d21af72e959c82c064a797de1"
+      }
+    },
+    {
+      "class": "summoner",
+      "sourceFile": "ปีกเทพ_นักอัญเชิญ_ปีกราชินีผีเสื้อวิญญาณ/ปีกราชินีผีเสื้อวิญญาณ.glb",
+      "outputFile": "wings_summoner.glb",
+      "sourceMetrics": {
+        "bytes": 1345556,
+        "sha256": "bf4cbe60b45d5c5a3f68400ff54151c0fcb7c7e18039ceffdc9fbf47c28e1f43",
+        "gzipBytes": 340217,
+        "nodes": 274,
+        "meshes": 266,
+        "surfaces": 266,
+        "triangles": 42382,
+        "vertices": 28190,
+        "materials": 10,
+        "joints": 8,
+        "clips": [
+          "Idle",
+          "Flap",
+          "Glide",
+          "Fold",
+          "Unfold",
+          "HaloSpin"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.6560718417167664,
+            0.6560718417167664
+          ],
+          [
+            -0.0728355348110199,
+            1.0915952920913696
+          ],
+          [
+            -0.5684724450111389,
+            -0.0649271085858345
+          ]
+        ]
+      },
+      "gameMetrics": {
+        "bytes": 1803240,
+        "sha256": "27ba60000d60a07a4a6ab1bc1a74d450866e517a6e8f7ee232813dcd75b5d860",
+        "gzipBytes": 342747,
+        "nodes": 10,
+        "meshes": 1,
+        "surfaces": 10,
+        "triangles": 14150,
+        "vertices": 36364,
+        "materials": 10,
+        "joints": 8,
+        "clips": [
+          "HaloSpin",
+          "Unfold",
+          "Fold",
+          "Glide",
+          "Flap",
+          "Idle"
+        ],
+        "modelSpaceBounds": [
+          [
+            -0.6560718417167664,
+            0.6560718417167664
+          ],
+          [
+            -0.07284694164991379,
+            1.0915952920913696
+          ],
+          [
+            -0.5684724450111389,
+            -0.0649271085858345
+          ]
+        ]
+      },
+      "icon": {
+        "file": "assets/icons/items/star_wings_summoner_100.png",
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGBA",
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "sha256": "706746e357f04a6c37290ee5ea240a6c9e51c10295b8d497963a24c6c053b646"
+      }
+    }
+  ]
+}

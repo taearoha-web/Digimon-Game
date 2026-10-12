@@ -19,6 +19,9 @@ var _shards := 0
 var _gold := 0
 var _end_timer := 0.0
 var _result: Dictionary = {}
+var _pending: Array[Dictionary] = []
+var last_spawn_ms := 0.0
+var peak_spawn_ms := 0.0
 
 
 func setup(p_zone: Node3D, p_hero: Hero, p_start: int) -> void:
@@ -35,11 +38,20 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not is_instance_valid(hero) or not is_instance_valid(zone):
+		queue_free()
+		return
 	match state:
 		"intro", "rest":
 			_timer -= delta
 			if _timer <= 0.0:
 				_start_floor()
+		"spawning":
+			if hero.is_dead():
+				_discard_pending_wave()
+				_end()
+			else:
+				_spawn_one()
 		"fight":
 			_mobs = _mobs.filter(func(m): return is_instance_valid(m) and not m.is_dead())
 			if hero.is_dead():
@@ -54,7 +66,10 @@ func _process(delta: float) -> void:
 
 
 func _start_floor() -> void:
-	state = "fight"
+	if state == "spawning": return
+	state = "spawning"
+	_mobs.clear()
+	_pending.clear()
 	var plan := TowerData.spec(floor_no, _rng)
 	zone.banner_requested.emit(("ชั้น %d · บอส!" if plan.boss else "ชั้น %d") % floor_no)
 	var hp_m := TowerData.hp_mult(floor_no)
@@ -64,16 +79,48 @@ func _start_floor() -> void:
 		var angle := TAU * float(i) / float(ids.size()) + _rng.randf() * 0.4
 		var spot := hero.global_position + Vector3(cos(angle), 0, sin(angle)) * _rng.randf_range(9.0, 14.0)
 		spot.y = 0.0
-		var mob := Mob.new()
-		mob.setup(ids[i], 100, spot, hero)
-		mob.stats["hp"] = int(float(mob.stats.hp) * hp_m)
-		mob.stats["atk"] = int(float(mob.stats.atk) * atk_m)
-		mob.hp = int(mob.stats.hp)
-		mob.max_hp = mob.hp
-		mob.position = spot + Vector3(0, 0.3, 0)
-		zone.add_child(mob)
-		mob.provoke(false)
-		_mobs.append(mob)
+		_pending.append({"id":ids[i],"spot":spot,"hp":hp_m,"atk":atk_m})
+
+
+## Instantiate at most ONE model per rendered frame, even after a long frame.
+## The complete wave becomes targetable together; no early kill/reward exploit.
+func _spawn_one() -> void:
+	if _pending.is_empty(): return
+	var start := Time.get_ticks_usec()
+	var entry:Dictionary = _pending.pop_front()
+	var mob := Mob.new()
+	mob.setup(entry.id,100,entry.spot,hero)
+	mob.stats["hp"] = int(float(mob.stats.hp)*float(entry.hp))
+	mob.stats["atk"] = int(float(mob.stats.atk)*float(entry.atk))
+	mob.hp=int(mob.stats.hp);mob.max_hp=mob.hp
+	mob.position=entry.spot+Vector3(0,0.3,0)
+	zone.add_child(mob)
+	mob.visible=false
+	mob.process_mode=Node.PROCESS_MODE_DISABLED
+	mob.remove_from_group("mobs")
+	mob.visual.remove_from_group("anim_lod")
+	_mobs.append(mob)
+	last_spawn_ms=float(Time.get_ticks_usec()-start)/1000.0
+	peak_spawn_ms=maxf(peak_spawn_ms,last_spawn_ms)
+	if _pending.is_empty():
+		for ready_mob in _mobs:
+			ready_mob.add_to_group("mobs")
+			ready_mob.visual.add_to_group("anim_lod")
+			ready_mob.visible=true
+			ready_mob.process_mode=Node.PROCESS_MODE_INHERIT
+			ready_mob.provoke(false)
+		state="fight"
+
+
+func _discard_pending_wave() -> void:
+	_pending.clear()
+	for mob in _mobs:
+		if is_instance_valid(mob): mob.queue_free()
+	_mobs.clear()
+
+
+func _exit_tree() -> void:
+	if state=="spawning": _discard_pending_wave()
 
 
 func _clear_floor() -> void:

@@ -8,6 +8,13 @@ static var _outlines: Dictionary = {}
 const CACHE_LIMIT := 384
 
 
+static func release_cache() -> void:
+	# Cached overrides retain imported monster / outfit atlas textures even after
+	# the last scene using them is gone. Live meshes own their overrides directly.
+	_materials.clear()
+	_outlines.clear()
+
+
 ## Several older outfit/monster palettes used HDR tints. Keep their hue while
 ## preventing bright coloured fabric from turning into a featureless white patch.
 static func balanced_tint(tint: Color) -> Color:

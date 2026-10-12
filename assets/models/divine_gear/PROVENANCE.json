@@ -1,0 +1,1032 @@
+{
+  "source": "User-uploaded ชุด+อาวุธ200ดาว.rar",
+  "ownership": "User-supplied assets; no claim of public-domain rights or third-party redistribution license.",
+  "pipeline": "Blender 4.3: weld coincident vertices BEFORE simplification; preserve closed surfaces, normals and sharp silhouette creases; sample skin weights from existing boy/girl rigs; consolidate duplicate material surfaces; retain source lantern/book armatures and animation clips. Godot API mounts models at canonical grip origins and binds clothes to hero skeleton; fallback bone-roll mapping for KayKit.",
+  "files": [
+    {
+      "file": "warrior_boy_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/เสื้อ.glb",
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/กางเกง.glb",
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/ถุงมือ.glb"
+      ],
+      "source_triangles": 24540,
+      "triangles": 8826,
+      "surfaces": 6,
+      "skinned": true,
+      "bytes": 351936,
+      "sha256": "241c6d0d6ea7d0e2b6134545051acc6215a299aec1363241967d3865222aaed2",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_boy_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/หมวก.glb"
+      ],
+      "source_triangles": 9024,
+      "triangles": 3251,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 151176,
+      "sha256": "93061c2b698b3bc3c229cd758325ff96c3eaa10d5408e68228841fd3343c46eb",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_boy_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/รองเท้า.glb"
+      ],
+      "source_triangles": 8120,
+      "triangles": 2916,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 126132,
+      "sha256": "33ac5eb97e3e61136e7a17ff7e1044934dccb3e960a0a4e970d04a4f569c155c",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_girl_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/เสื้อ.glb",
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/กางเกง.glb",
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/ถุงมือ.glb"
+      ],
+      "source_triangles": 24540,
+      "triangles": 8827,
+      "surfaces": 6,
+      "skinned": true,
+      "bytes": 345792,
+      "sha256": "b01665fc760ed8e7e08f57865a94e271620e420f606e81461865d2375efc0e7d",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_girl_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/หมวก.glb"
+      ],
+      "source_triangles": 9024,
+      "triangles": 3251,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 150308,
+      "sha256": "4e17740ac296240ceb64457a5169426116b795bc4db3b223b8e92de6073b7735",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_girl_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/รองเท้า.glb"
+      ],
+      "source_triangles": 8120,
+      "triangles": 2915,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 124244,
+      "sha256": "92366c9312ceaacf9ef9ae80b5021ee6e5dc160d964a0d887b65d053f26aa483",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_boy_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/เสื้อ.glb",
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/กางเกง.glb",
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/ถุงมือ.glb"
+      ],
+      "source_triangles": 24204,
+      "triangles": 8667,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 365044,
+      "sha256": "ae9a80930231d820f53fcd92c1c38ed4d9c73f9ea61fc3b33511acf622c0ece9",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_boy_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/หมวก.glb"
+      ],
+      "source_triangles": 6140,
+      "triangles": 2172,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 108772,
+      "sha256": "7fc36d408d9f7dd8c15727cfadd7fe55dc48f55d06c213c726a770f9819ac9da",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_boy_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/รองเท้า.glb"
+      ],
+      "source_triangles": 7352,
+      "triangles": 2644,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 129588,
+      "sha256": "a78f04fd621190e5e1cf44a5a89ae7e6e9df86f54884c634a0de02af4acf083e",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_girl_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/เสื้อ.glb",
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/กางเกง.glb",
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/ถุงมือ.glb"
+      ],
+      "source_triangles": 24204,
+      "triangles": 8667,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 357752,
+      "sha256": "b8b129b46037830f3eaf474bad1d2ede770c7212570ad4eb49acc15c88fc59e0",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_girl_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/หมวก.glb"
+      ],
+      "source_triangles": 6140,
+      "triangles": 2172,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 107904,
+      "sha256": "b724d4d80672cfdf517d48cedaca4aaf6bfaddfc5b93efe315966643af456ace",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_girl_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/รองเท้า.glb"
+      ],
+      "source_triangles": 7352,
+      "triangles": 2646,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 127368,
+      "sha256": "efbd84a015ac608b74c6571da79e0ed78714df4945691032e5280c4393c981d0",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_boy_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/เสื้อ.glb",
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/กางเกง.glb",
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/ถุงมือ.glb"
+      ],
+      "source_triangles": 20292,
+      "triangles": 7358,
+      "surfaces": 6,
+      "skinned": true,
+      "bytes": 301144,
+      "sha256": "7e51ee98fe0eca92c9e54598d15d9b1ce0fe34de4421086ca1c1c71e54bf1622",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_boy_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/หมวก.glb"
+      ],
+      "source_triangles": 5448,
+      "triangles": 1989,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 100604,
+      "sha256": "7d4b09889c1c848c6dcc046e93b3e5a6fef1491407e3d23e63e8cad40fabddeb",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_boy_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/รองเท้า.glb"
+      ],
+      "source_triangles": 6224,
+      "triangles": 2256,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 104652,
+      "sha256": "6578aad3f373c2638e8acd1f53069df0cd0e7404ac785c6d3fc20ab716e3be9c",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_girl_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/เสื้อ.glb",
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/กางเกง.glb",
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/ถุงมือ.glb"
+      ],
+      "source_triangles": 20292,
+      "triangles": 7359,
+      "surfaces": 6,
+      "skinned": true,
+      "bytes": 294780,
+      "sha256": "b2560e844a999539b283dc938708da10b968082f83d9efab8d582f73d50f79b0",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_girl_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/หมวก.glb"
+      ],
+      "source_triangles": 5448,
+      "triangles": 1989,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 99736,
+      "sha256": "f0c795ed3bb052a82b745d554e830c598166eebc539b2ff801182aa85439780d",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_girl_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/รองเท้า.glb"
+      ],
+      "source_triangles": 6224,
+      "triangles": 2255,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 102768,
+      "sha256": "6751d65adc43a3f33cdd23546c5a000cb822f31678272555b4012a828f41ca68",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_boy_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/เสื้อ.glb",
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/กางเกง.glb",
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/ถุงมือ.glb"
+      ],
+      "source_triangles": 24100,
+      "triangles": 8675,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 368448,
+      "sha256": "cbdfc61fa5a9e7ac02455422f38414bd6177b886137c620828870fac1e23873f",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_boy_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/หมวก.glb"
+      ],
+      "source_triangles": 4584,
+      "triangles": 1644,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 91376,
+      "sha256": "ea4db8f4aa127201d548101fdc47d24d1dabcc897be2deab49d4e96c758edf1a",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_boy_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/รองเท้า.glb"
+      ],
+      "source_triangles": 5112,
+      "triangles": 1968,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 95880,
+      "sha256": "d197b1a5dde6d75c055865920d7194f048d2a60254891b7b7e4ed3d892495d4c",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_girl_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/เสื้อ.glb",
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/กางเกง.glb",
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/ถุงมือ.glb"
+      ],
+      "source_triangles": 24100,
+      "triangles": 8677,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 362444,
+      "sha256": "688fd47843047ed133a787c458b96875f5633ce756b46e238f70ffb44a2a3d8e",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_girl_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/หมวก.glb"
+      ],
+      "source_triangles": 4584,
+      "triangles": 1644,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 90504,
+      "sha256": "551c04268f89ea46aca760fe62c6d02a83227b22d0e03b3764967b833619a97a",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_girl_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/รองเท้า.glb"
+      ],
+      "source_triangles": 5112,
+      "triangles": 1968,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 94256,
+      "sha256": "5b566b75382c2c371d4abc45bc792f5c3d7a0581af43a09a4c0e20d5d737406d",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_boy_armor.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/เสื้อ.glb",
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/กางเกง.glb",
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/ถุงมือ.glb"
+      ],
+      "source_triangles": 27460,
+      "triangles": 9871,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 406896,
+      "sha256": "89aa97d86269d1638e12b376d9f7c74e050c0670546529353ef888d987ed91d1",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_boy_helm.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/หมวก.glb"
+      ],
+      "source_triangles": 7464,
+      "triangles": 2672,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 129164,
+      "sha256": "2d31cdc682c0a47e7ad8190fb89241d4109c1d9b2804d5201e8e2568b52db11c",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_boy_boots.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/รองเท้า.glb"
+      ],
+      "source_triangles": 7032,
+      "triangles": 2652,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 120856,
+      "sha256": "3259ca60758b346aacece29114a272aeeb998afd408e1bbf7b037015a4f17fbf",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_girl_armor.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/เสื้อ.glb",
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/กางเกง.glb",
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/ถุงมือ.glb"
+      ],
+      "source_triangles": 27460,
+      "triangles": 9873,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 400672,
+      "sha256": "030d5f6adf6f061950c2934e2befbfacf9b1f4ea6016a3c560d0a1671a9e4e2f",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_girl_helm.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/หมวก.glb"
+      ],
+      "source_triangles": 7464,
+      "triangles": 2672,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 128296,
+      "sha256": "d700036f523ff56c61b942df6e26fa16f123f22625ae22fd8c80712fc3d1d543",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_girl_boots.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/รองเท้า.glb"
+      ],
+      "source_triangles": 7032,
+      "triangles": 2652,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 119236,
+      "sha256": "50e9b68797c48cae2a9d458c663233d6b7192f76c3558209187f215c1758ea81",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "summoner_boy_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/เสื้อ.glb",
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/กางเกง.glb",
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/ถุงมือ.glb"
+      ],
+      "source_triangles": 24100,
+      "triangles": 8675,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 368428,
+      "sha256": "ecca99226ba5fe7a145f830d4d3071656d3e2e664701a2bef5a3452056ec43b9",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "summoner_boy_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/หมวก.glb"
+      ],
+      "source_triangles": 6140,
+      "triangles": 2172,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 108768,
+      "sha256": "3f3d97a9be9eaa56535a7620186c3089c24103bc779a60f452e47b8aeb124325",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "summoner_boy_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/รองเท้า.glb"
+      ],
+      "source_triangles": 5112,
+      "triangles": 1968,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 95864,
+      "sha256": "2216890d0a0919a12c45bbffee1bec3b9aa0f7d9e239c8348bf065454912b30d",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "summoner_girl_armor.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/เสื้อ.glb",
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/กางเกง.glb",
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/ถุงมือ.glb"
+      ],
+      "source_triangles": 24100,
+      "triangles": 8677,
+      "surfaces": 5,
+      "skinned": true,
+      "bytes": 362428,
+      "sha256": "b891b760d2d8144deafd636895231145693a0a1bc42ef20aedaa1854f4eab9df",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "summoner_girl_helm.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/หมวก.glb"
+      ],
+      "source_triangles": 6140,
+      "triangles": 2172,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 107900,
+      "sha256": "c9fbbcd4f874ef40d1eca8d12269a7375d0376958b2a86d52bda9329d59e8698",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "summoner_girl_boots.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/รองเท้า.glb"
+      ],
+      "source_triangles": 5112,
+      "triangles": 1968,
+      "surfaces": 4,
+      "skinned": true,
+      "bytes": 94244,
+      "sha256": "4c2b634ec0ad395e7525461eac5de8bb4884019c47a00d0f2bd55421951a1a85",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_sword.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/อาวุธ/ดาบพันดาบเทวะ.glb"
+      ],
+      "source_triangles": 14754,
+      "triangles": 8020,
+      "surfaces": 9,
+      "skinned": false,
+      "bytes": 238064,
+      "sha256": "a7b58ba74cc75c0f562fa83c8171121862481bb57ff415f1b7deb7cd3c64e6e6",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "warrior_shield.glb",
+      "sources": [
+        "ชุดเทพ_นักดาบ_พันดาบเทวะ/อาวุธ/โล่พันดาบเทวะ.glb"
+      ],
+      "source_triangles": 13132,
+      "triangles": 6178,
+      "surfaces": 7,
+      "skinned": false,
+      "bytes": 172652,
+      "sha256": "e6632184c31a4f0b3429f398dca0791bd0acc3547e3e09d3a4eb5c1cc5a772a4",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "archer_bow.glb",
+      "sources": [
+        "ชุดเทพ_นักธนู_พฤกษาเทพ/อาวุธ/ธนูพฤกษาเทพ.glb"
+      ],
+      "source_triangles": 13752,
+      "triangles": 5912,
+      "surfaces": 14,
+      "skinned": false,
+      "bytes": 165068,
+      "sha256": "eab90292990e3030faf1a53e67ee3acfe4d4483d612530401db91d812fae73f0",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "lancer_spear.glb",
+      "sources": [
+        "ชุดเทพ_นักหอก_มังกรเทพเพลิง/อาวุธ/หอกมังกรเทพเพลิง.glb"
+      ],
+      "source_triangles": 7638,
+      "triangles": 4040,
+      "surfaces": 12,
+      "skinned": false,
+      "bytes": 119648,
+      "sha256": "94fd50a50ca11982ce454e2fd782575bea5154834fcaa6c93e9726ee64fb5b4f",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "mage_staff.glb",
+      "sources": [
+        "ชุดเทพ_นักเวทย์_นภาจักรวาล/อาวุธ/คทานภาจักรวาล.glb"
+      ],
+      "source_triangles": 15768,
+      "triangles": 6869,
+      "surfaces": 9,
+      "skinned": false,
+      "bytes": 182248,
+      "sha256": "6af3b62c778575601860a46644d4d21471e3968bf85a7b1b6d06190d9400ecb1",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_wand.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/อาวุธ/คทาเซราฟิม.glb"
+      ],
+      "source_triangles": 19976,
+      "triangles": 7828,
+      "surfaces": 8,
+      "skinned": false,
+      "bytes": 174704,
+      "sha256": "aae45b3454a50c15b804e0781a104f87a04235a9d062d0105c487b806a22734c",
+      "meshes": 1,
+      "animations": []
+    },
+    {
+      "file": "priest_book.glb",
+      "sources": [
+        "ชุดเทพ_พรีสต์_เซราฟิม/อาวุธ/คัมภีร์เซราฟิม.glb"
+      ],
+      "source_triangles": 10708,
+      "triangles": 4576,
+      "surfaces": 6,
+      "skinned": true,
+      "bytes": 303340,
+      "sha256": "6dae762153c79d854af64fc08cee7f87e6d9d4d2e75fff4654a9607388ed3d06",
+      "meshes": 1,
+      "animations": [
+        "Cast",
+        "Close",
+        "Flip",
+        "Idle",
+        "Open"
+      ]
+    },
+    {
+      "file": "summoner_lantern.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/อาวุธ/โคมราชินีผีเสื้อ.glb"
+      ],
+      "source_triangles": 23228,
+      "triangles": 9594,
+      "surfaces": 13,
+      "skinned": true,
+      "bytes": 393016,
+      "sha256": "dbc30c0d170afe10171b76bd8a461e5c6a7f7ab1d2e45ea1b8e18e06dceff577",
+      "meshes": 1,
+      "animations": [
+        "Cast",
+        "Idle",
+        "Swing"
+      ]
+    },
+    {
+      "file": "summoner_tome.glb",
+      "sources": [
+        "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/อาวุธ/คัมภีร์ราชินีผีเสื้อ.glb"
+      ],
+      "source_triangles": 8284,
+      "triangles": 4094,
+      "surfaces": 9,
+      "skinned": true,
+      "bytes": 285284,
+      "sha256": "befc37a6e1a73a037b64642f80dc6e2defbced828df7be8b48d63bdd3459b730",
+      "meshes": 1,
+      "animations": [
+        "Cast",
+        "Close",
+        "Flip",
+        "Idle",
+        "Open"
+      ]
+    }
+  ],
+  "totals": {
+    "source_triangles": 572136,
+    "shipping_triangles": 217871,
+    "shipping_surfaces": 257,
+    "shipping_bytes": 9029384,
+    "glbs": 45
+  },
+  "source_archive_sha256": "b9c07af13247005cc3b3e0e8e2e2456450548b05ced47a132d937716a5e48dec",
+  "source_files": [
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/กางเกง.glb",
+      "sha256": "3386ff665d50eabdbb690c6e83000ddf4ea76967457130150cc0643d4d18e564",
+      "bytes": 177076
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/ถุงมือ.glb",
+      "sha256": "a0bb4c9d7ec241d83dfdf29455082d4241f73e2e5396407e854b5a5681081581",
+      "bytes": 57016
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/รองเท้า.glb",
+      "sha256": "6b3bdb794e049c29eb77a861e4c71761bafcdbd2d14e076dfa00c3a210f4ea1e",
+      "bytes": 151808
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/หมวก.glb",
+      "sha256": "68b460cd80fe5a5b93255fdd96c9aa8a215ba9840ff5262753e23be667f492d3",
+      "bytes": 293988
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/ชาย/เสื้อ.glb",
+      "sha256": "169a4a46f3830d4d065c1c0361b85d31cb56f7d45ec31d6dbf3f73fa724111b0",
+      "bytes": 224620
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/กางเกง.glb",
+      "sha256": "516b3e4136aca5ff849490327e9bee819b34f64e0117b45788004cfb7c839d44",
+      "bytes": 177076
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/ถุงมือ.glb",
+      "sha256": "9c5d56a7b2fe0ab03bffde8769fcb5877953c81169e94c0d41876f4700ea4c6b",
+      "bytes": 57012
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/รองเท้า.glb",
+      "sha256": "cdcb222dffd0ef04729deef4760cc469aca2cd1bf90ff7d240a860c9cc113f2e",
+      "bytes": 151804
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/หมวก.glb",
+      "sha256": "68b460cd80fe5a5b93255fdd96c9aa8a215ba9840ff5262753e23be667f492d3",
+      "bytes": 293988
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/ชุด/หญิง/เสื้อ.glb",
+      "sha256": "d6d974690b1fd2eecd40a80dc37fa02b779d7b31bd0023e10b3a974889872ca8",
+      "bytes": 224632
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/อาวุธ/ดาบพันดาบเทวะ.glb",
+      "sha256": "ceb6338c1c09459170ad5aa9bcd1fd4384dd36f3b438a4f0f48bb82a78ba456a",
+      "bytes": 417052
+    },
+    {
+      "file": "ชุดเทพ_นักดาบ_พันดาบเทวะ/อาวุธ/โล่พันดาบเทวะ.glb",
+      "sha256": "8e47b1daec63d9f35ad9e25dbdcd282e6f0f0b89c3569aebb56a1138b4b64e72",
+      "bytes": 287420
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/กางเกง.glb",
+      "sha256": "f0937ab0c826e25f7ce20a78b3f84113cb4a9562b4e179870761d334e8b895e9",
+      "bytes": 135012
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/ถุงมือ.glb",
+      "sha256": "45ac9cc7207c02f3f2c5a73bbb21cc2cfd5f79006d5a25f576699dfd0ec8b631",
+      "bytes": 52080
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/รองเท้า.glb",
+      "sha256": "9995d14b2c3d434c727143886aa75bd2cd56400c19f6df89f6f329fc6ab06b19",
+      "bytes": 83992
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/หมวก.glb",
+      "sha256": "abb717e24ac6ccd81f205a71db509482353a54ebdca9f5a1463ba1064349d051",
+      "bytes": 214348
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/ชาย/เสื้อ.glb",
+      "sha256": "3d4bcb1771a526bfbc9048e2c45e0146df118b8e23e0cfee27e382b75dba51ea",
+      "bytes": 208316
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/กางเกง.glb",
+      "sha256": "aa334fc0114a27079ab94aa324987ff2c98a5b096ed852e33d91b32cdfcfe24f",
+      "bytes": 135024
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/ถุงมือ.glb",
+      "sha256": "5845086dd7bd5d5de6f8319dfc6cf38033a50dba771d3c217a21788983f02934",
+      "bytes": 52084
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/รองเท้า.glb",
+      "sha256": "792e4d933869d9fceabd45233fb6c928fb7400a4b1383a7f873dea40b0ab17c7",
+      "bytes": 83992
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/หมวก.glb",
+      "sha256": "abb717e24ac6ccd81f205a71db509482353a54ebdca9f5a1463ba1064349d051",
+      "bytes": 214348
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/ชุด/หญิง/เสื้อ.glb",
+      "sha256": "5b7393ca2bdbdf9ceab229dc6645d4b24e1d3b21b2bf7fb8a867250ed5368d92",
+      "bytes": 208328
+    },
+    {
+      "file": "ชุดเทพ_นักธนู_พฤกษาเทพ/อาวุธ/ธนูพฤกษาเทพ.glb",
+      "sha256": "0e77b74259df462a8d1d505231f4b8d3600116022dcf57e24a25996dc5181730",
+      "bytes": 287832
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/กางเกง.glb",
+      "sha256": "4ba8632ae0bddc2f6364ef12c2bd53c25cdd068386444c7490b7b310f99c73dc",
+      "bytes": 96636
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/ถุงมือ.glb",
+      "sha256": "0aaddb2b689a629eadf6b16c262efc8dcaf6c1cb668a1292e0af86a8e6c9bc4e",
+      "bytes": 59264
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/รองเท้า.glb",
+      "sha256": "24edf007c8962cfba8efc1776bb756f45cd0d94dbe3f932f0c2457cc6a80bcd1",
+      "bytes": 77960
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/หมวก.glb",
+      "sha256": "4a65e5d4f67c644481ae03272e941ff849831ab62231fa3bf364d46712171fc6",
+      "bytes": 188888
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/ชาย/เสื้อ.glb",
+      "sha256": "0be28fa1c1f43739ac59efdac3aeddfdf42b3e7f3c171f071fa9315ae714f890",
+      "bytes": 155012
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/กางเกง.glb",
+      "sha256": "96e4ba3fd7452c1f8c7e643cfe0be5248028db38490af2bccfa5162ba0449b02",
+      "bytes": 96636
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/ถุงมือ.glb",
+      "sha256": "e5deaeac46af280413ea968e4ecca9ec3d070be5f21a3d0ae0b6b4b2fb24ff3a",
+      "bytes": 59260
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/รองเท้า.glb",
+      "sha256": "e31407e7ed05c5f255c207bd93e90043067bfa592185f2585b2b4692c5ed6f68",
+      "bytes": 77952
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/หมวก.glb",
+      "sha256": "4a65e5d4f67c644481ae03272e941ff849831ab62231fa3bf364d46712171fc6",
+      "bytes": 188888
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/ชุด/หญิง/เสื้อ.glb",
+      "sha256": "b7979d31dff2fd1010888d3f323588ecceb4d9f8758a0f418f93315ea4cd3094",
+      "bytes": 155016
+    },
+    {
+      "file": "ชุดเทพ_นักหอก_มังกรเทพเพลิง/อาวุธ/หอกมังกรเทพเพลิง.glb",
+      "sha256": "6b8e942d8caa6cafa0c2b87e1c51c058157f26c5e5305aee4366e93c46bcc3d3",
+      "bytes": 142612
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/กางเกง.glb",
+      "sha256": "df01ee869eafa97a47435e6b39a92a20f0e8bf63261eb19652a883c387fabd5e",
+      "bytes": 110900
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/ถุงมือ.glb",
+      "sha256": "7b3415377b6cb29b0ca8af8acdd5ccd80c3df5b142aa98154858e5ea1f8e25f6",
+      "bytes": 46460
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/รองเท้า.glb",
+      "sha256": "8ec623df58c3863cc696a23af2f00af5feb0ca9323956be94eb5ca19b25b96fe",
+      "bytes": 71724
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/หมวก.glb",
+      "sha256": "0f451fe4ae4b60fd18d7ccf914b23edd0382140669aadce1cdd2158fa5b75682",
+      "bytes": 214340
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/ชาย/เสื้อ.glb",
+      "sha256": "7b53b3c0953fb86d0dd3c23ca2cb737e9573c979ca48f7acca71b2928d89890e",
+      "bytes": 182000
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/กางเกง.glb",
+      "sha256": "1f6197fb8eb3cf314c651d6110490564644c6e4e00e2011f79adff3ed635bd58",
+      "bytes": 110908
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/ถุงมือ.glb",
+      "sha256": "e53d069ec49bfd40d2458636078d2f8fd9d43a08386c390381ba2b17c3077d09",
+      "bytes": 46456
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/รองเท้า.glb",
+      "sha256": "3dcfd8cfed29d04c46c67f9b72f2b3639a583a028a5bad2a15d0c87fb1a11b44",
+      "bytes": 71728
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/หมวก.glb",
+      "sha256": "0f451fe4ae4b60fd18d7ccf914b23edd0382140669aadce1cdd2158fa5b75682",
+      "bytes": 214340
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/ชุด/หญิง/เสื้อ.glb",
+      "sha256": "da16dac80f2c5dd81e9af2fc3e85d7450a4cb1068dfeb117ad0c9ccc776d5aa6",
+      "bytes": 181992
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/อาวุธ/คัมภีร์ราชินีผีเสื้อ.glb",
+      "sha256": "b87cb33b762230d575daa18ff44a37d5000f3fcdc5bb0230420bc24d4a4dd0c7",
+      "bytes": 341256
+    },
+    {
+      "file": "ชุดเทพ_นักอัญเชิญ_ราชินีผีเสื้อ/อาวุธ/โคมราชินีผีเสื้อ.glb",
+      "sha256": "1992078814bfe61557bc55128b661b0711ba7712f4cd72de906eac2c51ec0b2a",
+      "bytes": 771180
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/กางเกง.glb",
+      "sha256": "44d02148701d7bfa332a6145ca5aacbcafa2f874a59bb50bd3f191db71b28e25",
+      "bytes": 110908
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/ถุงมือ.glb",
+      "sha256": "2b1b98343b04ad62680e32d43416dcdb96a5fcb148ff2ac68b735940964dcc75",
+      "bytes": 46480
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/รองเท้า.glb",
+      "sha256": "16b9f04be3ab9a6e48f43c9804d4927f613c076021a0739bfaaeb4a4e7eae078",
+      "bytes": 71740
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/หมวก.glb",
+      "sha256": "fe18f872cb96a1a2f4e6d0e10aa3ac3c21ec7de552d73c2ecca617282631ba01",
+      "bytes": 84640
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/ชาย/เสื้อ.glb",
+      "sha256": "6081a3405e04cd3d5d1fce4908b258042df9b983d159202b56824007de2e9bd8",
+      "bytes": 182024
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/กางเกง.glb",
+      "sha256": "297494ba18870a998769c3cdb2b5717a1e39a265e9ea3eabc8c16c2034cd9a16",
+      "bytes": 110912
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/ถุงมือ.glb",
+      "sha256": "793135611b62d452f5db67004e9767267a31f5063fbd9c24d39916b5189f6e19",
+      "bytes": 46476
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/รองเท้า.glb",
+      "sha256": "119e26da1191d8aa2cbc75d582cb1c20d27ff088074792b014d139e5e9b94a40",
+      "bytes": 71748
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/หมวก.glb",
+      "sha256": "fe18f872cb96a1a2f4e6d0e10aa3ac3c21ec7de552d73c2ecca617282631ba01",
+      "bytes": 84640
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/ชุด/หญิง/เสื้อ.glb",
+      "sha256": "68ba841757dd8a065a98f71b175ee9a063816d4dc3ed957f530fab3a271c8d22",
+      "bytes": 182016
+    },
+    {
+      "file": "ชุดเทพ_นักเวทย์_นภาจักรวาล/อาวุธ/คทานภาจักรวาล.glb",
+      "sha256": "ee941e9db24c201827c72f73659dd9201ad054a38872ac7be81384e182ec2c5e",
+      "bytes": 293420
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/กางเกง.glb",
+      "sha256": "36fe6a850fda7306bd79f672327f82baf2a746ebf4e04b60980f5b5a7c69d820",
+      "bytes": 186464
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/ถุงมือ.glb",
+      "sha256": "75f3b1089634bd78b5d45dd6d485ffed60276e3f6bfd91d2ad977b18ff5a4e44",
+      "bytes": 46448
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/รองเท้า.glb",
+      "sha256": "e7ae2297410f323192ca661b1552800ccc49d7787638381d99a72405d6b269b3",
+      "bytes": 147532
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/หมวก.glb",
+      "sha256": "7bf0d248a2e311479aa4d6a054124a51fdc9e2943278b90af35dbda7ba00c849",
+      "bytes": 178116
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/ชาย/เสื้อ.glb",
+      "sha256": "32400e549a3bae8345277bf6634b9e92d646e27d4d28769291eec1cba5885211",
+      "bytes": 246700
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/กางเกง.glb",
+      "sha256": "fb4453b8f50513c6f9605f3fc1cd878d88f8e1316aeb6560d32b573a76355f35",
+      "bytes": 186468
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/ถุงมือ.glb",
+      "sha256": "30dcc5bdf11e68fb111e0a481872ac0d12940bad4fc826c3d766530ad6ecee9c",
+      "bytes": 46444
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/รองเท้า.glb",
+      "sha256": "9364ae97cf4350ca8c67a08b4b8b3dca4abe01301646bf5a60c62d2f3bc967f5",
+      "bytes": 147536
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/หมวก.glb",
+      "sha256": "7bf0d248a2e311479aa4d6a054124a51fdc9e2943278b90af35dbda7ba00c849",
+      "bytes": 178116
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/ชุด/หญิง/เสื้อ.glb",
+      "sha256": "838718bf062f3d3144bf13fc569ec59ac82468086adb771590b1f1522495d242",
+      "bytes": 246692
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/อาวุธ/คทาเซราฟิม.glb",
+      "sha256": "532940663d55df0551dfdd64910d2ed4a3708a6148c220ffc4e0fe430ed0b885",
+      "bytes": 379384
+    },
+    {
+      "file": "ชุดเทพ_พรีสต์_เซราฟิม/อาวุธ/คัมภีร์เซราฟิม.glb",
+      "sha256": "83f727149082b0a0728a2dc384c16ea7661f0b9cc470b1cf82bab476e4338261",
+      "bytes": 589256
+    }
+  ]
+}

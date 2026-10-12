@@ -1,0 +1,162 @@
+{
+  "schema": 1,
+  "checks": "GLB header/length/hash, binary view bounds, six clips with monotonic positive-duration timelines",
+  "files": [
+    {
+      "file": "Fox.glb",
+      "valid": true,
+      "triangles": 1848,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.067,
+        "Run": 0.567,
+        "Punch": 1.333,
+        "HitReact": 0.667,
+        "Death": 1.067
+      }
+    },
+    {
+      "file": "Deer.glb",
+      "valid": true,
+      "triangles": 2098,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.167,
+        "Run": 0.533,
+        "Punch": 0.8,
+        "HitReact": 0.467,
+        "Death": 0.833
+      }
+    },
+    {
+      "file": "Stag.glb",
+      "valid": true,
+      "triangles": 3670,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.167,
+        "Run": 0.533,
+        "Punch": 0.8,
+        "HitReact": 0.467,
+        "Death": 1.1
+      }
+    },
+    {
+      "file": "Alpaca.glb",
+      "valid": true,
+      "triangles": 2060,
+      "clip_seconds": {
+        "Idle": 4.167,
+        "Walk": 1.458,
+        "Run": 0.667,
+        "Punch": 1.0,
+        "HitReact": 0.583,
+        "Death": 1.042
+      }
+    },
+    {
+      "file": "Husky.glb",
+      "valid": true,
+      "triangles": 1920,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.067,
+        "Run": 0.567,
+        "Punch": 1.2,
+        "HitReact": 0.667,
+        "Death": 1.067
+      }
+    },
+    {
+      "file": "Wolf.glb",
+      "valid": true,
+      "triangles": 1962,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.067,
+        "Run": 0.567,
+        "Punch": 1.333,
+        "HitReact": 0.667,
+        "Death": 1.067
+      }
+    },
+    {
+      "file": "Bull.glb",
+      "valid": true,
+      "triangles": 2418,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.167,
+        "Run": 0.6,
+        "Punch": 1.033,
+        "HitReact": 0.667,
+        "Death": 1.0
+      }
+    },
+    {
+      "file": "Horse_White.glb",
+      "valid": true,
+      "triangles": 2182,
+      "clip_seconds": {
+        "Idle": 3.333,
+        "Walk": 1.167,
+        "Run": 0.6,
+        "Punch": 1.033,
+        "HitReact": 0.667,
+        "Death": 1.0
+      }
+    },
+    {
+      "file": "Skeleton_Minion.glb",
+      "valid": true,
+      "triangles": 5288,
+      "clip_seconds": {
+        "Idle": 1.067,
+        "Walk": 1.067,
+        "Run": 0.8,
+        "Punch": 1.067,
+        "HitReact": 0.667,
+        "Death": 0.8
+      }
+    },
+    {
+      "file": "Skeleton_Rogue.glb",
+      "valid": true,
+      "triangles": 5278,
+      "clip_seconds": {
+        "Idle": 1.067,
+        "Walk": 1.067,
+        "Run": 0.8,
+        "Punch": 1.167,
+        "HitReact": 0.667,
+        "Death": 0.8
+      }
+    },
+    {
+      "file": "Skeleton_Mage.glb",
+      "valid": true,
+      "triangles": 4588,
+      "clip_seconds": {
+        "Idle": 1.067,
+        "Walk": 1.067,
+        "Run": 0.8,
+        "Punch": 0.933,
+        "HitReact": 0.667,
+        "Death": 0.8
+      }
+    },
+    {
+      "file": "Skeleton_Warrior.glb",
+      "valid": true,
+      "triangles": 5934,
+      "clip_seconds": {
+        "Idle": 1.067,
+        "Walk": 1.067,
+        "Run": 0.8,
+        "Punch": 1.067,
+        "HitReact": 0.667,
+        "Death": 0.8
+      }
+    }
+  ]
+}

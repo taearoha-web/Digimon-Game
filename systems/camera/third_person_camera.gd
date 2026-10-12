@@ -5,7 +5,8 @@ extends Node3D
 ## Hierarchy (built in code): self (follows target) -> Yaw -> Pitch ->
 ## SpringArm3D (collision, avoids clipping into geometry) -> Camera3D.
 ## Rotated by touch drags (TouchCameraArea), right-mouse drag, Q/E keys and
-## zoomed by pinch / mouse wheel. Sensitivity comes from Settings.
+## zoomed only by pinch / mouse wheel. Combat never shakes or zooms the camera.
+## Sensitivity comes from Settings.
 
 @export var target: Node3D
 @export var height_offset := 1.15
@@ -24,8 +25,8 @@ extends Node3D
 
 var yaw := 0.0
 var camera: Camera3D
-## Field combat: the locked-on monster. The camera drifts towards it and backs
-## off a little so the whole fight stays in frame (the player still steers yaw).
+## Field combat: gently frame the locked-on monster at the player's chosen
+## distance (the player still steers yaw).
 var combat_focus: Node3D
 
 var _yaw_node: Node3D
@@ -33,7 +34,6 @@ var _pitch_node: Node3D
 var _arm: SpringArm3D
 var _target_distance := 6.0
 var _mouse_rotating := false
-var _shake_strength := 0.0
 var _focus_blend := 0.0
 
 
@@ -64,17 +64,6 @@ func _ready() -> void:
 	snap_to_target()
 
 
-## A quick zoom-in kick for heavy skills.
-func punch(fov_add := 5.0) -> void:
-	if camera == null:
-		return
-	var base := base_fov
-	var tween := create_tween()
-	tween.tween_property(camera, "fov", base - fov_add, 0.08).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(camera, "fov", base, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	shake(0.35)
-
-
 func snap_to_target() -> void:
 	if target:
 		global_position = target.global_position + Vector3.UP * height_offset
@@ -102,10 +91,6 @@ func zoom(amount: float) -> void:
 	_target_distance = clampf(_target_distance - amount, min_distance, max_distance)
 
 
-func shake(strength := 0.25) -> void:
-	_shake_strength = maxf(_shake_strength, strength)
-
-
 func _physics_process(delta: float) -> void:
 	var focusing := combat_focus != null and is_instance_valid(combat_focus)
 	_focus_blend = lerpf(_focus_blend, 1.0 if focusing else 0.0, 1.0 - exp(-2.5 * delta))
@@ -122,14 +107,7 @@ func _physics_process(delta: float) -> void:
 		zoom(6.0 * delta)
 	if Input.is_action_pressed("camera_zoom_out"):
 		zoom(-6.0 * delta)
-	_arm.spring_length = lerpf(_arm.spring_length, _target_distance + 2.0 * _focus_blend, 1.0 - exp(-8.0 * delta))
-	if _shake_strength > 0.001:
-		camera.h_offset = randf_range(-1.0, 1.0) * _shake_strength
-		camera.v_offset = randf_range(-1.0, 1.0) * _shake_strength
-		_shake_strength = lerpf(_shake_strength, 0.0, 1.0 - exp(-10.0 * delta))
-	else:
-		camera.h_offset = 0.0
-		camera.v_offset = 0.0
+	_arm.spring_length = lerpf(_arm.spring_length, _target_distance, 1.0 - exp(-8.0 * delta))
 
 
 func _unhandled_input(event: InputEvent) -> void:

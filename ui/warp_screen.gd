@@ -58,6 +58,7 @@ func _ready() -> void:
 
 ## Every place the crystal can send the hero, in travel order.
 static func destinations() -> Array[StringName]:
+	ZoneData.ensure()
 	var out: Array[StringName] = [&"town"]
 	var id: StringName = &"meadow"
 	while id != &"" and ZoneData.ZONES.has(id) and not out.has(id):
@@ -68,7 +69,7 @@ static func destinations() -> Array[StringName]:
 
 static func unlocked(zone_id: StringName, level: int) -> bool:
 	var z := ZoneData.get_zone(zone_id)
-	return not z.has("level") or level >= int(z.level[0])
+	return ZoneData.access_reason(zone_id, level, int(Game.paragon().level)).is_empty()
 
 
 func open_warp() -> void:
@@ -112,8 +113,12 @@ func _row(id: StringName, level: int) -> Control:
 		name_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
 	info.add_child(name_label)
 	var detail := "ปลอดภัย · ร้านค้า · เซฟจุดฟื้นฟู" if id == &"town" else "มอนสเตอร์ Lv.%d–%d · บอสประจำแมพ" % [int(z.level[0]), int(z.level[1])]
+	if z.has("star"):
+		detail = "ดาว %d+ · วัตถุดิบสร้างอุปกรณ์ดาว %d" % [int(z.star), int(z.gear_star)]
+	if id == DivineRegionData.ID:
+		detail = "ดาว 200 · ชุดเทพและอาวุธประจำอาชีพ · บอสให้ 2 ชิ้น"
 	if not open:
-		detail = "ล็อก · ต้องเลเวล %d ขึ้นไป" % int(z.level[0])
+		detail = "ล็อก · " + ZoneData.access_reason(id, level, int(Game.paragon().level))
 	info.add_child(UIUtil.label(detail, &"SmallLabel"))
 	var go := UIUtil.button("วาป" if open and not is_here else ("อยู่ที่นี่" if is_here else "ล็อก"), &"PrimaryButton", Vector2(130, 52))
 	go.disabled = is_here or not open

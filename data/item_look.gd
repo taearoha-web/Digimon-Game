@@ -69,6 +69,7 @@ static func _kind_of_base(base: String) -> String:
 
 ## Look id of an item (icon file name).
 static func look_of(item: Dictionary) -> String:
+	if StarGearData.is_star(item): return StarGearData.look_of(item)
 	if item.get("kind", "") != "equip":
 		return ""
 	var slot: String = item.slot
@@ -94,6 +95,10 @@ static func weapon_look(item: Variant, default_kind: StringName) -> String:
 
 
 static func armor_look(item: Dictionary) -> Dictionary:
+	if StarGearData.is_star(item):
+		var cls := StarGearData.item_class(item)
+		var style: String = StarGearData.OUTFITS.get(cls,"knight")
+		return {"style":style,"tint":DivineOutfitArt.palette(cls).body if DivineGearData.is_item(item) else StarGearArt.cloth(cls,int(item.star_tier)),"cape":null}
 	var tier := _tier(item)
 	var style: String = ARMOR_STYLES[tier][_variant(item)]
 	return {"style": style, "tint": ARMOR_TINTS[tier], "cape": CAPES.get(style)}
@@ -144,6 +149,7 @@ static func all_icon_ids() -> Array[String]:
 
 ## The Node3D rendered for an icon, oriented so it reads well from the front.
 static func build_icon_node(id: String) -> Node3D:
+	if id.begins_with("star_"): return StarGearArt.build_icon_node(id)
 	var kind := id.rsplit("_", true, 1)[0]
 	var holder := Node3D.new()
 	if kind in WeaponKit.KINDS:

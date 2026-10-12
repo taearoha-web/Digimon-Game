@@ -1,6 +1,90 @@
+# Latest handoff: v0.9.4 · build afb9ddca
+
+This snapshot includes all changes through 12 October 2026. Read `../START_HERE_FOR_CLAUDE.md` and `../VERSION.json` first. The older release history below is preserved as historical documentation. Current source/data and `docs/play` are the latest complete version.
+
 # Toon Tale
 
-A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3** and the GL Compatibility renderer. Version **0.3.1** refines the storybook visuals, mobile controls, skill effects, progression and save recovery.
+A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3** and the GL Compatibility renderer. Version **0.7.7** releases cached resources after map changes and shares hit-particle geometry to reduce long-session memory pressure. Version **0.7.6** gives all 35 buff skills distinct persistent art, separates two self buffs from two incoming ally buffs, and groups status effects below the hero with enemy health at the top centre. Bag and merchant lists retain their position after selling. The 0.7.4 art update refines all 152 skill presentations with weapon-bound charges, weighted motion, elemental surfaces and staged dissolves. The ending remains at the final Void Emperor. All 152 illustrated skill icons, authored effects, release-synchronized choreography and corrected weapon grips remain available, alongside numeric stat allocation, equipped head portraits and cloud accounts. Combat has no camera shake, automatic zoom or phone vibration. Armageddon retains eleven real hits spaced 0.5 seconds apart.
+
+## Version 0.7.9
+
+- A v0.7.8 iPhone report shows WASM heap capacity growing from 144,703,488 to 619,511,808 bytes while objects increase from roughly 5,190 to 17,569, with stable node/resource counts and visible foreground play in Void. This narrows the investigation beyond scene cache retention.
+- Godot 4.3's default Web **Sample** audio path retains playback objects after repeated sounds ([confirmed engine issue #96068](https://github.com/godotengine/godot/issues/96068), [engine fix #96572](https://github.com/godotengine/godot/pull/96572)). Toon Tale now forces **Stream** playback for music, ambience, SFX and UI, and overrides the Web project default. Project settings use `0=Stream`, unlike the player's enum `1=Stream`.
+- On the same Godot 4.3 binary, 1,000 WAV plays in forced Sample mode retain 2,000 objects. The shipped mixed WAV/Ogg fixture retains 2,248 objects in Sample mode and 0 in the configured Stream mode. It repeats actual pool playback and validates every music/ambient/SFX/UI player's configuration. This reproduces the engine retention path on native; it does not prove the iPhone reload cause or substitute for a physical-device test.
+- Session reports now include a sound-play counter and the observed player playback mode, so a further device run can check whether objects stabilize. Graphics, effect art, saves and gameplay timing are unchanged by this audio fix.
+
+## Version 0.7.8
+
+- Adapt static weapon/accessory mesh merging and distant-monster dormancy from Claude's [field-performance PR #81](https://github.com/taearoha-web/Digimon-Game/pull/81). High-quality art geometry, textures and nearby combat remain unchanged. Merged gear caches are limited to 64 entries and released on zone unload. Bosses, active fights, returning or burning monsters stay awake.
+- The iPhone restart was reported again after v0.7.7 during unattended auto-hunting. Its cause is still unconfirmed; native skill cleanup tests do not reproduce a WebKit process restart.
+- Hidden browser pages pause combat and audio while preserving an already-open menu/account pause. Visible gameplay requests an optional screen wake lock; iOS/battery policy may deny it. Auto-hunting does not continue while the app is hidden or locked.
+- Poll the account/background/report pause mask as a primitive number instead of parsing the full account JSON five times per second.
+- A local diagnostic ring retains at most 60 recent samples, 24 events and 24,000 characters per session record. It captures WASM heap capacity (not live allocation), Godot counters, visibility, render size, zone and hunting state. GPU/video counters may be unavailable on the Web and are not total device memory. It records context loss and coarse error categories without error text, credentials or save content. No automatic upload is performed.
+- After an interrupted session, the loader offers **ดูรายงานการหลุดครั้งก่อน**. The same report is available under **ตั้งค่า → รายงานการหลุด**. Copy and share it for diagnosis. Reloads and intentional app closure can also leave an interrupted record; it is not proof of an out-of-memory crash.
+- `tests/tools/long_hunt.tscn -- OUT.json 900 meadow mage` exercises actual auto-hunt, HUD, drops and saves at time scale 1 with separate wall and simulation clocks. Run only with isolated XDG save folders. Software GL can advance simulation slower than wall time; neither result verifies an iPhone.
+
+## Version 0.7.7
+
+- Leaving a map or returning to the title drops static ownership of its nature meshes, character material overrides, outfit parts and scenery palettes. Live nodes retain their exact materials and textures; high-quality art is preserved. Nature and generated palette caches are bounded even while a map is active.
+- Hit particles reuse one immutable GPU quad with independent colour/material overrides, avoiding a new mesh allocation for every burst.
+- The 12-map GL test measures resources after each map is removed: final retained video memory fell from 126,565,224 to 70,093,799 bytes. These native software-renderer measurements identify avoidable retention, but do not establish the cause of an iPhone process restart or guarantee that iOS cannot discard the game.
+- `session_memory_test` exercises 608 naturally expiring skill casts without deleting their containing field. Object/resource/orphan counts must remain stable after warmup. `travel_memory` captures comparable empty-scene snapshots after real map transitions.
+
+## Version 0.7.6
+
+- Judgment Ray is now a dedicated single-target celestial verdict: an engraved heaven seal, tilted orbital rings, a tracking target seal, a descending gold/ivory column, an expanding impact wave and dissolving rune fragments. A 1.05-second base invocation raises and lowers the staff onto the real hit frame; DEX haste remaps both motion and damage together. It still deals exactly one hit with unchanged damage scaling, base MP 130, cooldown 12 seconds and range 14. Hero, companion and rival share the guarded sequence. Target/caster death, interruption, zone changes and duel completion cancel pending damage; pause freezes all phases. Shared meshes and budgeted ornaments preserve the essential column and seals at every quality.
+- Thunder Storm art uses a taller, sculpted smoke-grey cloud with rolling mist, drifting surface detail and gold/blue electrical veins that pulse with each wave. Broad gold lightning has a pale core, layered blue corona, branching arcs and expanding impact fractures. The smoke-grey ground seal has concentric borders, 24 lightning runes, counter-turning star geometry and a mist band; its outer boundary matches the damage radius. Cloud motion and seal rotation freeze on pause. Shared cached geometry and globally budgeted flourishes keep overlapping effects bounded; essential lightning and the range seal remain visible when that budget is full. No lights, camera effects or full-screen flashes are added.
+- Thunder Storm now forms one smoke-grey cloud over an Ice Storm-sized area (base radius 9, same rank scaling). Three waves independently choose up to five distinct living enemies each, 0.75 seconds apart; targets may recur across waves. Each strike deals the original 6.2× attack multiplier before rank/crit/defence. MP and cooldown are charged once. Pausing freezes the sequence; caster death, leaving the zone or ending a duel cancels it.
+- Each character receives at most **2 self-cast skill buffs + 2 ally skill buffs**, independently. A third replaces the oldest in its own group immediately. Recasting the same skill refreshes its duration/potency and moves it to newest; multiple stats still cost one slot. Summons and instant healing do not consume buff slots.
+- 35 authored persistent silhouettes: steel shield plates, cyan energy hexagons, gold sacred protection, violet mirages, leaf wards, blossoms, feathers, claws, blades and focus eyes. Casting and persistent palettes match. No universal green bubble.
+- Forest Blessing grows four intertwined vine arches with broad translucent leaves, gold veins, blooming flower crowns, drifting fireflies and an opening botanical seal. The character remains visible through the centre.
+- Shared cached geometry, one bounded decorative mesh per active buff, no persistent particles/lights, material prewarming, immediate removal on overwrite/expiry. Companion self buffs now share the stat stack with incoming buffs.
+- Own and ally buff rows (with `n/2` counts) sit below the hero status card; summons wrap into compact chips. Target HP moves to top centre; a selected boss uses the boss bar without a duplicate. Safe-area layout and existing manual camera controls are retained.
+- Verified with actual Godot GL rendering and isolated saves. Native software-renderer results do not establish iPhone frame rate.
+
+## Version 0.7.5
+
+- Selling from the bag or merchant preserves the scroll position, including several inventory/gold notifications in the same frame. The buy and sell lists retain their positions independently.
+- Removing the last row clamps to the new end of the list; empty bags return to zero. Entering a different menu tab starts normally, and fresh touch/mouse input takes priority over a pending restoration.
+- `sale_scroll_test` presses the real sale controls while paused and checks consecutive rendered frames, repeated sales, selection, exact proceeds, stacked items, bottom-of-list removal and empty lists.
+
+## Version 0.7.4
+
+- All 152 skills share a four-beat presentation: weapon-bound preparation, weighted release, skill-appropriate contact and an independent painted dissolve. Nineteen gesture mappings preserve the exact contact frame under haste, with smoother recovery; rivals share the same motion system.
+- Projectiles now start at the equipped weapon socket for heroes and companions. Charges follow the live skeleton, cancel with an interrupted animation or deleted caster, and freeze with pause. Socket geometry refreshes when equipment changes.
+- Sword ribbons have fine layered edges; elemental projectiles use crystals, halos or flame tails. Ice grows as faceted shafts with narrow ground fractures and scattering chips; shields unfold; wind coils rise; wings spread; healing petals open; summoned creatures emerge through open gates at their actual positions.
+- Surface treatment distinguishes ice fissures, flowing fire, organic veins and arcane filigree. Every cast dissolves its own materials. Removed duplicate broad shockwaves and summon pillars improve battlefield readability without hiding real projectile bodies or wind-up range warnings.
+- Armageddon's rock cracks widen during descent and its ten fragments scatter along varied arcs. Damage, eleven-hit count, 0.5-second cadence and camera stability are preserved.
+- Geometry is shared and prewarmed. Existing low/medium/high limits remain; no postprocessing, new lights or higher particle limits are needed. `skill_craft_test` checks real equipped sockets on three rigs, cast interruption, pause and material isolation. `combat_perf` accepts an optional `overlap` flag for 48 overlapping presentation casts alongside the six real ultimate casts.
+
+## Version 0.7.3
+
+- The ending plays after defeating the Void Emperor in the final Void field. Magma Dragon, Abyss Dragon and the emperor's tower appearances do not trigger it.
+- Finale narration and earlier quest descriptions follow the full journey. Boss rewards and quest progression are preserved.
+- A separate completion flag lets characters who saw the former magma ending earn the final-stage ending. The replay button unlocks with this new victory; it survives saves and backup transfers.
+- The victory delay waits through pause menus and cannot leak into a different save or a departed field.
+
+## Version 0.7.2
+
+- Combat holds the player's chosen zoom: skills never pulse the field of view, and target locking no longer pulls the camera back. Manual pinch/wheel zoom and camera collision avoidance remain available.
+- All hit, critical-hit, received-damage and area-impact camera shake is removed, including every Armageddon fragment. Skill art, hit timing and damage are unchanged.
+- Phone vibration and its Settings toggle are removed. Older saved vibration preferences are ignored; existing graphics and camera settings still load.
+
+## Version 0.7.1
+
+- Swords, staffs and wands use their actual handle origins. Shields face outward and attach at the back handle of each of their ten models. Priests hold books at the upper edge, and bows attach to the left hand with the right hand at the string.
+- Standing, walking, running and flying use class-specific carry poses. Casters bend the elbow to keep long staffs and lanterns upright with a small forward lean; the hanging lantern stays in front. Spear attacks share a reachable grip between both hands and use a stable elbow bend.
+- Starting a skill blends from the current pose; recovery resumes the latest movement request. Running cadence responds when movement speed changes without restarting the clip. Contact times, damage, cooldowns and animation lengths are preserved.
+- `WeaponPoses` loads 21 small baked arm-track libraries (one per rig/class). The authoring solve runs offline via `tools/bake_weapon_poses.gd`; no runtime IK, skeleton duplication or new per-frame gear solver is added.
+- `weapon_motion_test` checks all ten weapon tiers against actual grip geometry, samples full motion loops and spear/bow attacks, and checks transitions. `tests/tools/weapon_motion_review.tscn` captures equipped front/side/rear poses; `weapon_motion_showcase.tscn` records movement and attacks from the actual renderer.
+
+## Version 0.7.0
+
+- All 152 active skills have distinct original illustrated icons, keyed by skill ID. The hotbar, loadout picker, trainer and buff/summon timers share the same cached 192px art. `tools/make_skill_icons.py` authors the vector sources with explicit per-skill compositions; `skill_icons_test` checks every imported raster, uniqueness and real HUD cooldown/locked states.
+- `SkillChoreography` explicitly maps all 152 skills to 19 gestures and 35 visual signatures. The existing animation clips are sampled so their contact frame matches the actual release, including haste; recovery restores locomotion and hit/death actions can interrupt safely.
+- `SkillTableau` replaces universal layers with effects appropriate to each skill: broad sword cuts, spear thrusts, feathered bow shots, water spirals, ice crowns, forked lightning, flowering heals, woodland spirits and staged ultimates. Shared geometry and two lightweight ink shaders keep the existing quality budgets.
+- Projectile bodies and range indicators survive budget saturation. Decorative rain/meteor impacts follow the real damage timing; hero and companion differences are respected. Spell art never schedules damage or modifies skill stats.
+- Validation fixtures: `skill_choreography_test`, `skill_presentation_test`, `vfx_mesh_cache_test`, `armageddon_test`, and `tests/tools/skill_art_showcase.tscn`. The showcase captures actual hero casts, with optional Godot movie output.
 
 ## Play
 
@@ -9,13 +93,51 @@ A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3*
 - Far-right vertical controls, top to bottom: HP potion, MP potion, auto hunting, target switch. Walk manually to stop auto hunting.
 - Menu / I: character, equipment, skills, quests, achievements and settings. H/M use potions; Tab switches targets.
 
-Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage or Priest at **Lv.10**. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
+Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage, Priest, Summoner or Lancer at **Lv.10**. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
 
 ## Adventure
 
 Travel from Mistwood village through ten hunting fields to Lv.100, with the Void field available for endgame adventures. Equip weapons and outfits that appear on the hero, enhance equipment to +10, socket gems, collect set bonuses and earn wings. Travel with one AI companion with follow, aggressive or guard behavior. The village provides shops, storage, healing, skill training, quests and travel crystals.
 
 After Lv.100, earn **Paragon** levels, collect star equipment in the Void, and climb the **Void Tower**. Ranked arena opponents are **AI**, not online players; stronger ranks can heal and dodge. Daily quests and achievements provide additional goals.
+
+## Version 0.6.0
+
+- On the hosted Toon Tale site, create a game ID (3–24 lowercase letters, digits or underscores) and password (10–128 characters), then use the same account on another phone or computer. Passwords are hashed server-side; browser sessions use secure, HttpOnly cookies.
+- Existing four-slot local saves can be imported into an account after reviewing character summaries. Guest characters remain separate from account characters. Save revisions prevent another device from silently overwriting newer progress.
+- Offline drafts stay on the device and retry when connected. Conflicting progress asks which whole save to use and keeps a local backup; gold and items are never merged automatically. One game tab per browser owns the save filesystem.
+- Keep the recovery code shown during registration: it resets a forgotten password and revokes old sessions. Settings → บัญชี / เซฟออนไลน์ opens account status, manual sync and logout.
+- Cloud accounts require the site's Worker/D1 backend; a standalone static/GitHub Pages export retains local play and backup-code transfer, but cannot provide online login by itself.
+
+## Version 0.5.2
+
+- Browser/mobile combat defaults to continuous motion. The optional cinematic hitstop is available under Settings; graphics quality does not control it.
+- High quality retains the authored effect layers, with a 1920 px canvas long-edge budget rather than full 3x Retina resolution. Medium/low use 1600/1280 px; changes apply immediately and input follows the canvas rectangle after rotation.
+- Reuses bounded caches of skill meshes, prebuilds authored templates during field loading, and warms meteor shaders before combat. Animated material instances remain independent.
+- Buff/summon HUD timers refresh at 20 Hz. Terrain shares identical vertices, and foliage bounds omit empty space while retaining wind movement and distance-culling centres.
+- The illustrated Toon Tale iPhone home-screen icon remains available in the web build.
+
+## Version 0.5.1
+
+- All ten summoner lantern designs rotate 180 degrees around the shaft so the hanging orb faces forward; shared by heroes, companions and equipment previews. Existing saves receive the fix automatically.
+- Armageddon keeps all eleven hits and their damage, with **0.5 seconds between hits**. Fragment flight, fuse and cleanup timing follow the same cadence.
+
+## Version 0.5.0
+
+- All **152 active skills** use class-specific 3D shapes, textured particles and layered cast/impact timing. Higher unlock levels add more layers, bounded by graphics quality and effect budgets.
+- Six final skills have distinct silhouettes: descending swords, a phoenix arrow, Armageddon, winged cathedral light, an elder dragon and a spiral lance. Projectile impacts happen on arrival.
+- **Armageddon** drops a giant meteor, then detonates **10 fragments at one-second intervals**. All eleven hits cause real area damage through the existing critical-hit, rank and burn systems; MP and cooldown are charged once. Each fragment deals 12% of the main hit, totaling 2.2 times the previous direct damage if every hit connects. Burn refreshes the existing status rather than stacking ten independent burns.
+- Caster death, field changes and pause safely stop or suspend the cast. Cosmetic saturation does not suppress damage or essential projectile silhouettes.
+- Uses original, unmodified **CC0** particle textures from **Kenney** and **RPicster**; licenses, source URLs and SHA-256 manifests are included under `assets/vfx/`.
+- Actual-character animation capture and Hero/Companion combat tests cover the new sequence, cancellation, rank scaling and resource cleanup.
+
+## Version 0.4.0
+
+- Authored palettes, silhouettes and animation timing for all **152 active skills** across Vagabond and all six professions. Painted sword arcs, feathered arrows, petal healing, winged blessings, layered wards and elemental fire, ice and vines.
+- All **11 hunting fields**, the **Void Tower**, **wave arena** and **ranked coliseum** receive surface and environment treatments. Natural vegetation clusters, irregular trails, layered mountain silhouettes, shoreline habitats and regional boss landmarks distinguish the fields; special arenas have their own architecture and worn surfaces.
+- The expanded Japanese village, six-class equipment, wings and existing gameplay from the latest upstream version are preserved.
+- Every decorative elemental mesh respects graphics-quality budgets, including delayed shards and ground effects. Essential projectile visuals and combat resolution retain their original lifetimes.
+- Art catalogue tools capture every active skill and all 15 locations from the actual renderer. Headless checks cover recipe completeness, effect budgets and scene cleanup.
 
 ## Version 0.3.1
 
@@ -45,13 +167,23 @@ godot --path .
 godot --headless --path . -s res://tools/check_scripts.gd
 godot --headless --path . -s res://tests/integration/character_finish_test.gd
 godot --headless --path . res://tests/integration/save_progression_test.tscn
+godot --headless --fixed-fps 60 --path . res://tests/integration/armageddon_test.tscn
 godot --headless --path . res://tests/integration/skill_presentation_test.tscn
+godot --headless --path . res://tests/integration/art_direction_test.tscn -- skills
+godot --headless --path . res://tests/integration/element_fx_budget_test.tscn
+godot --headless --path . res://tests/integration/scenery_bounds_test.tscn
+godot --headless --path . res://tests/integration/vfx_mesh_cache_test.tscn
+godot --headless --path . res://tests/integration/smooth_hitstop_test.tscn
+godot --headless --path . res://tests/integration/flow_test.tscn -- hud
 godot --headless --path . res://tests/tools/ui_polish_review.tscn
 godot --headless --path . res://tests/integration/flow_test.tscn
 node tools/test_web_loader.mjs
+node tools/test_web_resolution.mjs
 ```
 
 Tests create and delete game saves: run them with a separate `XDG_DATA_HOME` on Linux. The GitHub Actions workflow pins Godot 4.3 and isolates save, UI and integration fixtures. Character checks cover blinking, hair geometry and material reuse; the headless UI check verifies touch-control spacing and all eight populated skill slots. The balance simulator is a rough combat estimate, not a complete playthrough: `godot --headless --path . -s res://tools/balance.gd`.
+
+For rendered Armageddon verification, omit `--headless` and retain `--fixed-fps 60`. This fixture accelerates gameplay eightfold; fixed frame steps keep checks inside the meteor descent and first-impact windows even on a slow software renderer. The same assertions cover all eleven damage events, casting costs, pause, cancellation and visual cleanup.
 
 ## Build the browser game
 
@@ -67,9 +199,22 @@ python3 tools/package_web.py --pages docs/play
 
 ## Visual review
 
-Actual captures from the updated game: [heroes](docs/screenshots/v0.3.0/heroes.png), [representative skill effects](docs/screenshots/v0.3.0/skills.png), [eight-slot HUD](docs/screenshots/v0.3.1/hud.png), and [inventory](docs/screenshots/v0.3.0/inventory.png).
+Version 0.5.0 actual combat frames: [Armageddon](docs/screenshots/v0.5.0/armageddon.jpg), [Gladiator](docs/screenshots/v0.5.0/gladiator.jpg), [Meteor Arrow](docs/screenshots/v0.5.0/meteor_arrow.jpg), [Last Judgement](docs/screenshots/v0.5.0/last_judgement.jpg), [Elder Dragon](docs/screenshots/v0.5.0/elder_dragon.jpg), [Ragnarok Lance](docs/screenshots/v0.5.0/ragnarok_lance.jpg).
+
+Record the actual level-100 heroes and combat effects as PNG animation frames:
 
 ```bash
+godot --path . --fixed-fps 24 res://tests/tools/spectacle_showcase.tscn -- /tmp/toon-spectacle ultimates 24 1280 720 2
+```
+
+
+Version 0.4.0 captures: [all 15 locations](docs/screenshots/v0.4.0/all-stages.jpg), [Warrior](docs/screenshots/v0.4.0/skills-warrior.jpg), [Archer](docs/screenshots/v0.4.0/skills-archer.jpg), [Mage](docs/screenshots/v0.4.0/skills-mage.jpg), [Priest](docs/screenshots/v0.4.0/skills-priest.jpg), [Summoner](docs/screenshots/v0.4.0/skills-summoner.jpg), [Lancer](docs/screenshots/v0.4.0/skills-lancer.jpg), and [eight-skill HUD](docs/screenshots/v0.4.0/hud.png).
+
+Earlier captures: [heroes](docs/screenshots/v0.3.0/heroes.png), [representative skill effects](docs/screenshots/v0.3.0/skills.png), [eight-slot HUD](docs/screenshots/v0.3.1/hud.png), and [inventory](docs/screenshots/v0.3.0/inventory.png).
+
+```bash
+godot --rendering-driver opengl3 --path . res://tests/tools/art_catalog.tscn -- /tmp/toon-art zones all 2
+godot --rendering-driver opengl3 --path . res://tests/tools/art_catalog.tscn -- /tmp/toon-art skills all 2
 godot --rendering-driver opengl3 --path . res://tests/tools/tour.tscn -- /tmp/toon-shots warrior field
 godot --rendering-driver opengl3 --path . res://tests/tools/look_preview.tscn -- /tmp/heroes.png classes
 godot --rendering-driver opengl3 --path . res://tests/tools/monster_preview.tscn -- /tmp/monsters.png zone:meadow

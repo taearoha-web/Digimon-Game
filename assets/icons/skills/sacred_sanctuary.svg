@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: sacred_sanctuary. Hand-authored vector art. --><defs>
+ <radialGradient id="bg" cx=".38" cy=".3" r=".8"><stop stop-color="#96703a"/><stop offset=".65" stop-color="#243b55"/><stop offset="1" stop-color="#10192e"/></radialGradient>
+ <linearGradient id="main" x2=".65" y2="1"><stop stop-color="#ffffff"/><stop offset=".4" stop-color="#f2d68b"/><stop offset="1" stop-color="#96703a"/></linearGradient>
+ <linearGradient id="lit" x2=".2" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+ <linearGradient id="blade" x2=".9" y2="1"><stop stop-color="#ffffff"/><stop offset=".47" stop-color="#ffffff"/><stop offset="1" stop-color="#f2d68b"/></linearGradient>
+ <linearGradient id="gold" x2=".8" y2="1"><stop stop-color="#fff9d7"/><stop offset=".4" stop-color="#f7d885"/><stop offset="1" stop-color="#af793c"/></linearGradient>
+ <linearGradient id="deep" x2=".65" y2="1"><stop stop-color="#243b55"/><stop offset="1" stop-color="#101729"/></linearGradient>
+ <radialGradient id="gem" cx=".3" cy=".2" r=".9"><stop stop-color="#ffffff"/><stop offset=".4" stop-color="#f2d68b"/><stop offset="1" stop-color="#96703a"/></radialGradient>
+ <clipPath id="clip"><circle cx="128" cy="128" r="117"/></clipPath>
+ </defs>
+ <circle cx="128" cy="128" r="123" fill="#10172a"/>
+ <circle cx="128" cy="128" r="119" fill="url(#bg)" stroke="url(#gold)" stroke-width="3"/>
+ <g clip-path="url(#clip)">
+ <path d="M26 190 L147 25 L224 54 L88 228Z" fill="#f2d68b" opacity=".075"/>
+ <ellipse cx="128" cy="207" rx="87" ry="17" fill="none" stroke="url(#gold)" stroke-width="4" /><path d="M47 189 L47 105 Q128 -13 209 105 L209 189 L189 189 L189 107 Q128 18 67 107 L67 189Z" fill="url(#gold)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M84 195 L84 115 Q128 53 172 115 L172 195Z" fill="url(#deep)" stroke="url(#lit)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M56 109 L56 180 M200 109 L200 180" fill="none" stroke="url(#lit)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" /><path d="M100 181 Q128 145 157 181 L150 195 L108 195Z" fill="url(#blade)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M128 170 L128 123" fill="none" stroke="url(#lit)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" /><g transform="translate(128 115) rotate(0) scale(0.72)" ><path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g><g transform="translate(87 67) rotate(0) scale(0.27)" ><path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g><g transform="translate(170 67) rotate(0) scale(0.27)" ><path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g>
+ </g>
+ <path d="M30 96 A101 101 0 0 1 106 28" fill="none" stroke="#ffffff" stroke-width="2" opacity=".5"/>
+ </svg>

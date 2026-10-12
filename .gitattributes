@@ -8,3 +8,6 @@
 *.otf binary
 *.glb binary
 *.res binary
+
+# Preserve original CC0 license bytes used by asset provenance hashes.
+assets/vfx/*/LICENSE.txt -text

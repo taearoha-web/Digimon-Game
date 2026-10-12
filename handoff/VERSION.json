@@ -1,0 +1,22 @@
+{
+  "name": "Toon Tale",
+  "version": "0.9.4",
+  "build": "afb9ddca",
+  "prepared_date": "2026-10-12",
+  "prepared_timezone": "Asia/Bangkok",
+  "published_origin": "https://toon-tale.taemongkichi.chatgpt.site",
+  "game_engine": "Godot 4.3 stable",
+  "renderer": "GL Compatibility",
+  "web_thread_support": false,
+  "site_source_commit": "a2be4a0a6f66781941eb9d3e2ab2fbc8a3682eea",
+  "contents": [
+    "complete current Godot source including untracked updates",
+    "current packaged web build only",
+    "asset provenance and licenses",
+    "account backend and schema",
+    "hosting adapters and guides"
+  ],
+  "production_database_records_included": false,
+  "secrets_included": false,
+  "physical_iphone_performance_verified": false
+}

@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/RPicster/Godot-particle-and-vfx-textures",
+  "license": "CC0-1.0",
+  "retrieved": "2026-10-11",
+  "files": {
+    "effect_1.png": "d04e5fd666df65d919f832ecbe20a169888a0fc5c489ccd4167d35454dbc6f88",
+    "effect_2.png": "a4490299f5dc1c1aec08509cf040b450f21c42f7e10ba63d2344a51cdcf8a1b1",
+    "effect_3.png": "fa1e53532476be9611b3a7af940aca88ffdd24ca120eddcb17b3ea5e243f0070",
+    "effect_4.png": "1e758417c35bbe2cb837cf577e107349752cff7a3abb6f0e169a9d426d9b5565",
+    "spotlight_1.png": "ee447c7a1cc2b390e689486fc0ed504bf8b7aa2d098193c4ef3f77eb5ed30196",
+    "spotlight_2.png": "e1de1f4301b319acae9ff8360f2e734beba83f1944c13d71f3024d7c18b05c8d",
+    "spotlight_4.png": "261d98cb7f7033c5ab013787ce97afdfc608a4e610b1bb6b5ffcb45c69a84a64",
+    "spotlight_5.png": "b592404ca95d27cfe7e12b017db7569fd74b4f3b154286ff3fc4dc6b97651658",
+    "spotlight_8.png": "0db278626d53dbc9678298ff654208efc8cd5fbff97e50f28ca0f449ce5724e5",
+    "LICENSE.txt": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+  }
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: moonwolf_pact. Hand-authored vector art. --><defs>
+ <radialGradient id="bg" cx=".38" cy=".3" r=".8"><stop stop-color="#287478"/><stop offset=".65" stop-color="#142b46"/><stop offset="1" stop-color="#10192e"/></radialGradient>
+ <linearGradient id="main" x2=".65" y2="1"><stop stop-color="#e8fff8"/><stop offset=".4" stop-color="#62e6c5"/><stop offset="1" stop-color="#287478"/></linearGradient>
+ <linearGradient id="lit" x2=".2" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#e8fff8"/></linearGradient>
+ <linearGradient id="blade" x2=".9" y2="1"><stop stop-color="#ffffff"/><stop offset=".47" stop-color="#e8fff8"/><stop offset="1" stop-color="#62e6c5"/></linearGradient>
+ <linearGradient id="gold" x2=".8" y2="1"><stop stop-color="#fff9d7"/><stop offset=".4" stop-color="#f7d885"/><stop offset="1" stop-color="#af793c"/></linearGradient>
+ <linearGradient id="deep" x2=".65" y2="1"><stop stop-color="#142b46"/><stop offset="1" stop-color="#101729"/></linearGradient>
+ <radialGradient id="gem" cx=".3" cy=".2" r=".9"><stop stop-color="#ffffff"/><stop offset=".4" stop-color="#62e6c5"/><stop offset="1" stop-color="#287478"/></radialGradient>
+ <clipPath id="clip"><circle cx="128" cy="128" r="117"/></clipPath>
+ </defs>
+ <circle cx="128" cy="128" r="123" fill="#10172a"/>
+ <circle cx="128" cy="128" r="119" fill="url(#bg)" stroke="url(#gold)" stroke-width="3"/>
+ <g clip-path="url(#clip)">
+ <path d="M26 190 L147 25 L224 54 L88 228Z" fill="#62e6c5" opacity=".075"/>
+ <path d="M184 37 Q135 55 137 90 Q145 118 175 115 Q136 142 111 116 Q83 76 126 43 Q156 25 184 37Z" fill="url(#blade)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><ellipse cx="126" cy="204" rx="80" ry="14" fill="none" stroke="url(#main)" stroke-width="3" /><path d="M63 197 L68 157 L86 133 L88 99 L75 68 L107 86 L126 67 L131 104 L158 88 L176 94 L155 113 L161 122 L138 137 L126 155 L132 197 L108 207Z" fill="url(#main)" stroke="#101a32" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M108 94 L126 83 L124 115 L147 107 L135 128 L116 140 L104 181 L79 192 L81 158 L97 132Z" fill="url(#blade)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M130 113 L145 110 L138 120Z" fill="#14233c" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><path d="M160 91 L176 94 L163 104Z" fill="#182440" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /><g transform="translate(190 139) rotate(0) scale(0.55)" ><path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="url(#lit)" stroke="none" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" /></g>
+ </g>
+ <path d="M30 96 A101 101 0 0 1 106 28" fill="none" stroke="#e8fff8" stroke-width="2" opacity=".5"/>
+ </svg>

@@ -1,0 +1,9 @@
+{
+  "capture_engine": "Godot 4.3 Compatibility / llvmpipe",
+  "checks": 1734,
+  "classes": 6,
+  "failures": 0,
+  "iphone_fps_measured": false,
+  "nonweapon_icons": 18,
+  "rigs": 3
+}

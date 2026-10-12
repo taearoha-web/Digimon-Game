@@ -15,15 +15,21 @@ const VINE_SHADER := preload("res://shaders/vfx_vine.gdshader")
 ## Skills whose nature magic is vines, and those that grow plants.
 const VINE_SKILLS := ["entangle", "ensnare", "thorn_storm", "cataclysm"]
 const PLANT_SKILLS := {"world_tree": "tree", "spore_burst": "spores", "nature_wrath": "sprouts", "sylvan_ray": "sprouts"}
-const BARK := Color("4f7a2a")
-const THORN := Color("6a2a1e")
-const LEAF := Color("4fae3c")
-const LEAF_LIGHT := Color("8ad860")
+const BARK := Color("537849")
+const THORN := Color("98644f")
+const LEAF := Color("53aa77")
+const LEAF_LIGHT := Color("b2d991")
 
 static var _flame_quad: QuadMesh
 static var _crystal_mesh: ArrayMesh
 static var _shard_mesh: ArrayMesh
 static var _leaf_mesh: ArrayMesh
+
+
+## Check at the primitive boundary: callers can saturate the budget between
+## two field elements or while a delayed crystal is waiting to shatter.
+static func _can_add(parent: Node3D, cost := 1) -> bool:
+	return is_instance_valid(parent) and parent.is_inside_tree() and not parent.is_queued_for_deletion() and VfxBudget.can_decorate(cost)
 
 
 ## The element a skill's effects are drawn as.
@@ -55,6 +61,8 @@ static func _flame_mesh() -> QuadMesh:
 
 ## One flame tongue standing at [param pos]: flares up, flickers, burns away.
 static func flame(parent: Node3D, pos: Vector3, width: float, height: float, duration := 0.9, delay := 0.0) -> MeshInstance3D:
+	if not _can_add(parent):
+		return null
 	var mat := ShaderMaterial.new()
 	mat.shader = FLAME_SHADER
 	mat.set_shader_parameter("seed", randf() * 40.0)
@@ -65,6 +73,7 @@ static func flame(parent: Node3D, pos: Vector3, width: float, height: float, dur
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+	VfxBudget.track_decoration(mi)
 	mi.global_position = pos
 	mi.scale = Vector3(width, height * 0.4, width)
 	var tween := mi.create_tween()
@@ -81,12 +90,12 @@ static func flame(parent: Node3D, pos: Vector3, width: float, height: float, dur
 
 ## A field of fire over a blast area (or a ring of it around the caster).
 static func fire_field(parent: Node3D, center: Vector3, radius: float, tier := 1, ring := false) -> void:
-	if not VfxBudget.can_decorate(2):
+	if not _can_add(parent, 2):
 		return
 	var count := VfxBudget.count(7 + tier * 2, 4)
 	var r := minf(radius, 6.0)
 	if not ring:
-		VfxBudget.track_decoration(flame(parent, center, 2.2 + tier * 0.1, 3.4 + tier * 0.25, 1.1))
+		flame(parent, center, 2.2 + tier * 0.1, 3.4 + tier * 0.25, 1.1)
 	for i in count:
 		var angle := TAU * float(i) / float(count) + randf_range(-0.25, 0.25)
 		var dist := r * (randf_range(0.65, 0.95) if ring else sqrt(randf_range(0.08, 1.0)))
@@ -94,6 +103,11 @@ static func fire_field(parent: Node3D, center: Vector3, radius: float, tier := 1
 		flame(parent, p, randf_range(1.1, 1.7), randf_range(1.6, 2.8), randf_range(0.8, 1.1), randf_range(0.0, 0.18))
 	_scorch(parent, center, r)
 	_heat_glow(parent, center, r)
+	# Smoke and a colored pressure edge sell the volume of a fire eruption;
+	# they use the shared budget and never create damage or persistent nodes.
+	VfxKit.impact_smoke(parent, center + Vector3.UP * 0.35, Color("9e6d70"), minf(r * 0.45, 2.4))
+	if tier >= 3:
+		VfxKit.impact_ring(parent, center + Vector3.UP * 0.3, Color("f99b4d"), r * 0.78, 0.58)
 	VfxArt.motes(parent, center + Vector3(0, 0.3, 0), Color("ffb050"), "ember", 16 + tier * 3, r, 1.8, 1.3)
 
 
@@ -112,9 +126,12 @@ static func flame_puff(parent: Node3D, pos: Vector3, size := 0.5) -> void:
 
 ## Orange firelight spilling over the ground under the flames.
 static func _heat_glow(parent: Node3D, center: Vector3, radius: float) -> void:
-	var mat := VfxKit._glow(Color(1.0, 0.45, 0.1), 0.55)
+	if not _can_add(parent):
+		return
+	var mat := VfxKit._glow(Color("e99b52"), 0.24, false)
 	mat.albedo_texture = VfxKit.soft_dot()
 	var mi := VfxKit._instance(parent, VfxKit.ground_quad(), mat, center + Vector3(0, 0.05, 0))
+	VfxBudget.track_decoration(mi)
 	mi.scale = Vector3(radius * 1.2, 1, radius * 1.2)
 	var tween := mi.create_tween()
 	tween.tween_interval(0.7)
@@ -123,9 +140,12 @@ static func _heat_glow(parent: Node3D, center: Vector3, radius: float) -> void:
 
 
 static func _scorch(parent: Node3D, center: Vector3, radius: float) -> void:
-	var mat := VfxKit._glow(Color(0.16, 0.08, 0.05), 0.55, false)
-	mat.albedo_texture = VfxKit.soft_dot()
+	if not _can_add(parent):
+		return
+	var mat := VfxKit._glow(Color("705245"), 0.3, false)
+	mat.albedo_texture = SpectacleAssets.tex("scorch")
 	var mi := VfxKit._instance(parent, VfxKit.ground_quad(), mat, center + Vector3(0, 0.03, 0))
+	VfxBudget.track_decoration(mi)
 	mi.scale = Vector3(radius * 0.9, 1, radius * 0.9)
 	var tween := mi.create_tween()
 	tween.tween_interval(0.9)
@@ -183,12 +203,15 @@ static func _crystal_material(fade := 1.0) -> ShaderMaterial:
 
 ## One crystal bursting out of the ground, holding, then shattering.
 static func crystal(parent: Node3D, pos: Vector3, width: float, height: float, tilt: Vector3, hold := 0.7, delay := 0.0) -> void:
+	if not _can_add(parent):
+		return
 	var mat := _crystal_material()
 	var mi := MeshInstance3D.new()
 	mi.mesh = crystal_mesh()
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+	VfxBudget.track_decoration(mi)
 	mi.global_position = pos
 	mi.rotation = tilt
 	mi.scale = Vector3(width * 0.4, 0.01, width * 0.4)
@@ -207,15 +230,18 @@ static func crystal(parent: Node3D, pos: Vector3, width: float, height: float, t
 
 ## Ice fragments flying apart from [param pos].
 static func shatter(parent: Node3D, pos: Vector3, size: float, count := 5) -> void:
-	if parent == null or not VfxBudget.can_decorate(1):
+	if not _can_add(parent):
 		return
 	var mat := _crystal_material()
-	for i in count:
+	for i in VfxBudget.count(count):
+		if not _can_add(parent):
+			break
 		var mi := MeshInstance3D.new()
 		mi.mesh = _shard()
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(mi)
+		VfxBudget.track_decoration(mi)
 		mi.global_position = pos
 		mi.scale = Vector3.ONE * size * randf_range(0.18, 0.32)
 		mi.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
@@ -231,7 +257,7 @@ static func shatter(parent: Node3D, pos: Vector3, size: float, count := 5) -> vo
 
 ## A forest of ice crystals over a blast area.
 static func ice_field(parent: Node3D, center: Vector3, radius: float, tier := 1, ring := false) -> void:
-	if not VfxBudget.can_decorate(2):
+	if not _can_add(parent, 2):
 		return
 	var r := minf(radius, 6.0)
 	var count := VfxBudget.count(7 + tier * 2, 4)
@@ -245,6 +271,9 @@ static func ice_field(parent: Node3D, center: Vector3, radius: float, tier := 1,
 		var lean := Vector3(sin(angle), 0, -cos(angle)) * randf_range(0.15, 0.45)
 		crystal(parent, p, randf_range(0.65, 1.05), randf_range(1.6, 2.8), Vector3(lean.x, randf() * TAU, lean.z), randf_range(0.55, 0.8), randf_range(0.0, 0.15))
 	_frost(parent, center, r)
+	if tier >= 3:
+		VfxKit.impact_ring(parent, center + Vector3.UP * 0.45, Color("a0e4ec"), r * 0.72, 0.6)
+	VfxKit.impact_smoke(parent, center + Vector3.UP * 0.2, Color("9bced9"), minf(r * 0.4, 2.0))
 	VfxArt.motes(parent, center + Vector3(0, 0.2, 0), Color("e8f8ff"), "snow", 14 + tier * 3, r, 0.8, 1.3)
 
 
@@ -258,9 +287,12 @@ static func ice_hit(parent: Node3D, pos: Vector3) -> void:
 
 
 static func _frost(parent: Node3D, center: Vector3, radius: float) -> void:
-	var mat := VfxKit._glow(Color("b8e4ff"), 0.32, false)
+	if not _can_add(parent):
+		return
+	var mat := VfxKit._glow(Color("96d4de"), 0.28, false)
 	mat.albedo_texture = VfxArt.texture("snow")
 	var mi := VfxKit._instance(parent, VfxKit.ground_quad(), mat, center + Vector3(0, 0.04, 0))
+	VfxBudget.track_decoration(mi)
 	mi.scale = Vector3(radius, 1, radius)
 	mi.rotation.y = randf() * TAU
 	var tween := mi.create_tween()
@@ -269,7 +301,8 @@ static func _frost(parent: Node3D, center: Vector3, radius: float) -> void:
 	tween.tween_callback(mi.queue_free)
 
 
-## A spinning ice lance (projectile body), pointing along -z of [param holder].
+## A spinning ice lance (essential projectile silhouette), pointing along -z.
+## Its gameplay carrier owns cleanup; decorative saturation must not hide it.
 static func ice_lance(holder: Node3D, size: float) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = crystal_mesh()
@@ -341,18 +374,26 @@ static func _thorn(st: SurfaceTool, at: Vector3, dir: Vector3, length: float, v:
 			st.add_vertex(p)
 
 
-## A leaf (flat double-sided diamond) at [param at], spreading along [param dir].
+## A gently folded leaf/petal. Its raised center and fine vein catch light,
+## while UV.y stays the growth coordinate shared with its stem.
 static func _leaf(st: SurfaceTool, at: Vector3, dir: Vector3, size: float, v: float, color := LEAF) -> void:
 	var side := dir.cross(Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT).normalized() * size * 0.32
 	var tip := at + dir * size
 	var mid := at + dir * size * 0.45
 	var n := side.cross(dir).normalized()
-	for tri in [[at, mid + side, tip], [at, tip, mid - side]]:
-		for p in tri:
-			st.set_color(color.lerp(LEAF_LIGHT, 0.4 if p == tip else 0.0))
-			st.set_uv(Vector2(0, v))
-			st.set_normal(n)
-			st.add_vertex(p)
+	var ridge := mid + n * size * 0.08
+	var verts: Array[Vector3] = [at, mid + side, tip, mid - side, ridge]
+	var across := [0.5, 1.0, 0.5, 0.0, 0.5]
+	var tip_color := color.lerp(LEAF_LIGHT, 0.35) if color.g > color.r else color.lightened(0.14)
+	for tri in [[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]]:
+		var normal := (verts[tri[1]] - verts[tri[0]]).cross(verts[tri[2]] - verts[tri[0]]).normalized()
+		if normal.dot(n) < 0.0:
+			normal = -normal
+		for index in tri:
+			st.set_color(tip_color if index == 2 or index == 4 else color)
+			st.set_uv(Vector2(across[index], v))
+			st.set_normal(normal)
+			st.add_vertex(verts[index])
 
 
 ## A vine winding up a helix around [param center], with thorns and leaves.
@@ -380,12 +421,15 @@ static func vine_mesh(radius: float, height: float, turns: float, phase: float) 
 
 ## A vine bursting from the ground at [param pos]: grows, holds, withers away.
 static func vine(parent: Node3D, pos: Vector3, radius: float, height: float, hold := 1.0, delay := 0.0) -> void:
+	if not _can_add(parent):
+		return
 	var mat := _grow_material()
 	var mi := MeshInstance3D.new()
 	mi.mesh = vine_mesh(radius, height, randf_range(1.2, 1.8), randf() * TAU)
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+	VfxBudget.track_decoration(mi)
 	mi.global_position = pos
 	var tween := mi.create_tween()
 	if delay > 0.0:
@@ -399,7 +443,7 @@ static func vine(parent: Node3D, pos: Vector3, radius: float, height: float, hol
 
 ## Thorny vines erupting over a blast area, wrapping whoever stands there.
 static func vine_field(parent: Node3D, center: Vector3, radius: float, tier := 1, ring := false) -> void:
-	if not VfxBudget.can_decorate(2):
+	if not _can_add(parent, 2):
 		return
 	var r := minf(radius, 6.0)
 	var count := VfxBudget.count(5 + tier, 3)
@@ -419,9 +463,12 @@ static func vine_bind(parent: Node3D, pos: Vector3) -> void:
 
 
 static func _dirt(parent: Node3D, center: Vector3, radius: float) -> void:
-	var mat := VfxKit._glow(Color(0.3, 0.22, 0.12), 0.5, false)
-	mat.albedo_texture = VfxKit.soft_dot()
+	if not _can_add(parent):
+		return
+	var mat := VfxKit._glow(Color("786443"), 0.28, false)
+	mat.albedo_texture = SpectacleAssets.tex("dirt")
 	var mi := VfxKit._instance(parent, VfxKit.ground_quad(), mat, center + Vector3(0, 0.03, 0))
+	VfxBudget.track_decoration(mi)
 	mi.scale = Vector3(radius * 0.8, 1, radius * 0.8)
 	var tween := mi.create_tween()
 	tween.tween_interval(1.0)
@@ -454,12 +501,15 @@ static func sprout_mesh(height: float, flower: Color) -> ArrayMesh:
 
 
 static func _grow(parent: Node3D, mesh: Mesh, pos: Vector3, hold: float, delay := 0.0, grow_time := 0.45) -> MeshInstance3D:
+	if not _can_add(parent):
+		return null
 	var mat := _grow_material()
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+	VfxBudget.track_decoration(mi)
 	mi.global_position = pos
 	mi.rotation.y = randf() * TAU
 	var tween := mi.create_tween()
@@ -502,24 +552,31 @@ static func tree_mesh(height: float) -> ArrayMesh:
 
 ## Nature magic over an area: a world tree, mushrooms with spores, or sprouts.
 static func plant_field(parent: Node3D, center: Vector3, radius: float, kind := "sprouts", tier := 1, ring := false) -> void:
-	if not VfxBudget.can_decorate(2):
+	if not _can_add(parent, 2):
 		return
 	var r := minf(radius, 6.0)
 	match kind:
 		"tree":
 			_grow(parent, tree_mesh(5.5 + tier * 0.4), center, 1.1, 0.0, 0.6)
-			for i in VfxBudget.count(6, 3):
-				var a := TAU * float(i) / 6.0
+			var roots := VfxBudget.count(6, 3)
+			for i in roots:
+				var a := TAU * float(i) / float(roots)
 				vine(parent, center + Vector3(cos(a), 0, sin(a)) * r * 0.75, 0.3, 1.4, 0.9, 0.2)
 		"spores":
-			for i in VfxBudget.count(7 + tier, 4):
-				var a := TAU * float(i) / float(7 + tier) + randf() * 0.4
+			var mushrooms := VfxBudget.count(7 + tier, 4)
+			for i in mushrooms:
+				if not _can_add(parent):
+					break
+				var a := TAU * float(i) / float(mushrooms) + randf() * 0.4
 				var p := center + Vector3(cos(a), 0, sin(a)) * r * randf_range(0.45, 0.9)
 				_mushroom(parent, p, randf_range(1.1, 1.8), randf_range(0.0, 0.2))
 			VfxArt.motes(parent, center + Vector3(0, 0.5, 0), Color("e8f080"), "star", 22 + tier * 3, r, 2.2, 1.6)
 		_:
-			for i in VfxBudget.count(7 + tier * 2, 4):
-				var a := TAU * float(i) / float(7 + tier * 2) + randf() * 0.4
+			var sprouts := VfxBudget.count(7 + tier * 2, 4)
+			for i in sprouts:
+				if not _can_add(parent):
+					break
+				var a := TAU * float(i) / float(sprouts) + randf() * 0.4
 				var dist := r * (randf_range(0.55, 0.95) if ring else sqrt(randf_range(0.05, 1.0)))
 				var flower: Color = [Color("ff9ac8"), Color("fff0a0"), Color("b8a0ff"), Color("ffffff")][i % 4]
 				_grow(parent, sprout_mesh(randf_range(1.4, 2.3), flower), center + Vector3(cos(a), 0, sin(a)) * dist, randf_range(0.7, 1.0), randf_range(0.0, 0.2))
@@ -527,13 +584,18 @@ static func plant_field(parent: Node3D, center: Vector3, radius: float, kind := 
 
 
 static func _mushroom(parent: Node3D, pos: Vector3, size: float, delay: float) -> void:
+	if not _can_add(parent, 5):
+		return
 	var holder := Node3D.new()
 	parent.add_child(holder)
 	holder.global_position = pos
 	MeshKit.part(holder, MeshKit.cylinder(), MeshKit.toon(Color("f4ead0")), Vector3(0, 0.3, 0) * size, Vector3(0.22, 0.6, 0.22) * size)
-	MeshKit.part(holder, MeshKit.hemisphere(), MeshKit.toon([Color("e8463a"), Color("c88aff"), Color("f0b040")][randi() % 3]), Vector3(0, 0.55, 0) * size, Vector3(0.75, 0.6, 0.75) * size)
+	MeshKit.part(holder, MeshKit.hemisphere(), MeshKit.toon([Color("d8757e"), Color("b795d8"), Color("e0b45b")][randi() % 3]), Vector3(0, 0.55, 0) * size, Vector3(0.75, 0.6, 0.75) * size)
 	for k in 3:
-		MeshKit.part(holder, MeshKit.sphere_low(), MeshKit.toon(Color.WHITE), Vector3(cos(k * 2.1) * 0.22, 0.72, sin(k * 2.1) * 0.22) * size, Vector3.ONE * 0.12 * size)
+		MeshKit.part(holder, MeshKit.sphere_low(), MeshKit.toon(Color("fff2d2")), Vector3(cos(k * 2.1) * 0.22, 0.72, sin(k * 2.1) * 0.22) * size, Vector3.ONE * 0.12 * size)
+	for part in holder.get_children():
+		VfxBudget.track_decoration(part)
+		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	holder.scale = Vector3(1, 0.01, 1)
 	var tween := holder.create_tween()
 	tween.tween_interval(delay)
@@ -556,7 +618,8 @@ static func leaf_mesh() -> ArrayMesh:
 	return _leaf_mesh
 
 
-## Spinning leaves (projectile body) carried by [param holder].
+## Spinning leaves (essential projectile silhouette) carried by [param holder].
+## Its gameplay carrier owns cleanup; decorative saturation must not hide it.
 static func leaf_swirl(holder: Node3D, size: float) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
@@ -580,6 +643,8 @@ static func leaf_swirl(holder: Node3D, size: float) -> void:
 
 ## Compile the element shaders while a zone loads so the first cast never hitches.
 static func warm(parent: Node3D, pos: Vector3) -> void:
+	if not _can_add(parent, 3):
+		return
 	var holder := Node3D.new()
 	parent.add_child(holder)
 	holder.global_position = pos + Vector3(0, -20, 0)
@@ -590,4 +655,7 @@ static func warm(parent: Node3D, pos: Vector3) -> void:
 		mi.mesh = _flame_mesh()
 		mi.material_override = mat
 		holder.add_child(mi)
-	holder.get_tree().create_timer(0.5).timeout.connect(holder.queue_free)
+		VfxBudget.track_decoration(mi)
+	var cleanup := holder.create_tween()
+	cleanup.tween_interval(0.5)
+	cleanup.tween_callback(holder.queue_free)

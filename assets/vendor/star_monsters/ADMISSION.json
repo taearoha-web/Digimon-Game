@@ -1,0 +1,221 @@
+{
+  "package_id": "toon-tale-star-monsters-cc0-v1",
+  "project": "/workspace/toon-art-design",
+  "destination": "/workspace/toon-art-design/assets/models/monsters/star",
+  "source_license": "CC0-1.0",
+  "blockers": [],
+  "new_files": 12,
+  "authorization": "User explicitly requested importing free 3D monsters for this game expansion.",
+  "validation": "Closed roster SHA-256, glTF v2 binary structure and semantic animation aliases verified before write.",
+  "copied_sha256_verified": true,
+  "engine_import_verified": true,
+  "receipt_type": "Custom fallback, game-dev unavailable",
+  "files": [
+    {
+      "file": "Fox.glb",
+      "bytes": 906516,
+      "sha256": "b34fb53cab2fcf218b7089c50701e5ec3e28e8a3f4b45cb0e6a4f51ba3a877d9",
+      "triangles": 1848,
+      "surfaces": 5,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Fox.glb"
+    },
+    {
+      "file": "Deer.glb",
+      "bytes": 847336,
+      "sha256": "04bc32561fb42333844f5728e9f7fcf8358231dc7022ba80914c66c8e2828687",
+      "triangles": 2098,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Deer.glb"
+    },
+    {
+      "file": "Stag.glb",
+      "bytes": 802072,
+      "sha256": "775c20340e23c9de3aee58dfb80c48351ee0622449d23e94c6880cbecdecad1c",
+      "triangles": 3670,
+      "surfaces": 6,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Stag.glb"
+    },
+    {
+      "file": "Alpaca.glb",
+      "bytes": 430860,
+      "sha256": "18ec0cb7a2187e9ff8850feea65e4f3ed953f30d7985cf3b9262e0d952dfabbb",
+      "triangles": 2060,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Alpaca.glb"
+    },
+    {
+      "file": "Husky.glb",
+      "bytes": 877324,
+      "sha256": "fcb8ef2eeb52cf9de59666c7863e1ee5557f0cb85a1012dc3924ff6604b8c21b",
+      "triangles": 1920,
+      "surfaces": 5,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Husky.glb"
+    },
+    {
+      "file": "Wolf.glb",
+      "bytes": 916868,
+      "sha256": "80ffd4ec7486d209dd705795fda0de1a2d98e9e3496713ff89713863d1040520",
+      "triangles": 1962,
+      "surfaces": 4,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Wolf.glb"
+    },
+    {
+      "file": "Bull.glb",
+      "bytes": 823224,
+      "sha256": "af1a56935c191ef4840e6e0a54cb0d345d9eb62dec267f05a44a4148367f978c",
+      "triangles": 2418,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Bull.glb"
+    },
+    {
+      "file": "Horse_White.glb",
+      "bytes": 910528,
+      "sha256": "349eef3c472edf38b66c6b5c307ceb3d855fcd31269bb81b26728c148b98f214",
+      "triangles": 2182,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Horse_White.glb"
+    },
+    {
+      "file": "Skeleton_Minion.glb",
+      "bytes": 570480,
+      "sha256": "81524ce7b2654de0d9d36f232e7b4e63467709d45c1b974d6e46b20ca4ca5a6c",
+      "triangles": 5288,
+      "surfaces": 9,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "1H_Melee_Attack_Slice_Horizontal",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Skeleton_Minion.glb"
+    },
+    {
+      "file": "Skeleton_Rogue.glb",
+      "bytes": 582480,
+      "sha256": "66a2a2866623dc93978d11f6abcd24cf385b97c1e56e2d562fb935435f0b2db4",
+      "triangles": 5278,
+      "surfaces": 10,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "Dualwield_Melee_Attack_Slice",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Skeleton_Rogue.glb"
+    },
+    {
+      "file": "Skeleton_Mage.glb",
+      "bytes": 518460,
+      "sha256": "6d4fb8af431b7e10e33df869c777650798c9034fdf53cbf27b35e6ce0df994e0",
+      "triangles": 4588,
+      "surfaces": 9,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "Spellcast_Shoot",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Skeleton_Mage.glb"
+    },
+    {
+      "file": "Skeleton_Warrior.glb",
+      "bytes": 619452,
+      "sha256": "63b6c647f70901ff7855245ab5d7d89b8ee2ee8114e3410c64ffd982ac6f247d",
+      "triangles": 5934,
+      "surfaces": 10,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "1H_Melee_Attack_Slice_Horizontal",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true,
+      "path": "assets/models/monsters/star/Skeleton_Warrior.glb"
+    }
+  ],
+  "engine_import_method": "GLTFDocument runtime import/generate_scene, Godot 4.3 in isolated project",
+  "runtime_render_verified": true
+}

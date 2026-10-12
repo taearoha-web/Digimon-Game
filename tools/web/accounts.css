@@ -1,0 +1,81 @@
+/* Kept above the rotate hint so signing in works in either orientation. */
+#toon-account-layer {
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  overflow: auto; overscroll-behavior: contain;
+  color: #f8f5ff; background: rgba(8, 13, 36, .96);
+  background-image: radial-gradient(ellipse at 5% 10%, rgba(95, 107, 255, .24), transparent 55%), radial-gradient(ellipse at 95% 90%, rgba(36, 218, 219, .15), transparent 55%);
+  font-family: "Noto Sans Thai", "Mitr", system-ui, sans-serif;
+  -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
+  touch-action: auto;
+}
+#toon-account-layer[hidden] { display: none; }
+#toon-account-layer *, #toon-account-layer *::before, #toon-account-layer *::after { box-sizing: border-box; }
+#toon-account-layer .ta-card {
+  width: min(100%, 480px); margin-block: auto;
+  padding: 24px; border: 1px solid #4a4b7a; border-radius: 28px;
+  background: linear-gradient(150deg, #202b53, #171e3c 70%);
+  box-shadow: 0 28px 90px #0008, inset 0 1px 0 #ffffff16;
+}
+#toon-account-layer .ta-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+#toon-account-layer .ta-brand img { width: 84px; height: 84px; flex: none; object-fit: cover; border-radius: 22px; box-shadow: 0 7px 22px #080c2580; }
+#toon-account-layer .ta-eyebrow { display: block; color: #fff2be; font: 600 23px/1.2 "Fredoka", "Mitr", sans-serif; letter-spacing: .05em; }
+#toon-account-layer .ta-brand p { color: #c3c9e7; font-size: 12px; line-height: 1.7; margin: 6px 0 0; }
+#toon-account-layer h2 { font-size: 23px; font-weight: 600; line-height: 1.5; margin: 0 0 10px; }
+#toon-account-layer h3 { color: #c3d7ff; font-size: 15px; margin: 8px 0; }
+#toon-account-layer .ta-intro { color: #c8cfe8; font-size: 14px; line-height: 1.75; margin: 0 0 16px; }
+#toon-account-layer .ta-label { display: block; font-weight: 600; font-size: 13px; margin: 12px 0 6px; color: #e3e8ff; }
+#toon-account-layer input:not([type=checkbox]), #toon-account-layer select {
+  display: block; width: 100%; min-height: 50px; padding: 11px 14px;
+  color: #fff; border: 1px solid #53608c; border-radius: 13px;
+  background: #10192f; outline: none; font: 400 16px/1.5 "Noto Sans Thai", system-ui, sans-serif;
+  -webkit-user-select: text; user-select: text;
+}
+#toon-account-layer input::placeholder { color: #8c99be; }
+#toon-account-layer input:focus, #toon-account-layer select:focus { border-color: #89e1ed; box-shadow: 0 0 0 3px #67d9ed20; }
+#toon-account-layer .ta-password { position: relative; }
+#toon-account-layer .ta-password input { padding-right: 72px; }
+#toon-account-layer .ta-eye { position: absolute; inset: 3px 3px 3px auto; min-width: 60px; border: 0; border-radius: 10px; background: #263657; color: #cae8ff; font-size: 12px; cursor: pointer; }
+#toon-account-layer .ta-hint, #toon-account-layer .ta-foot { color: #aab6d9; font-size: 11px; line-height: 1.8; margin: 10px 0 0; }
+#toon-account-layer .ta-foot { text-align: center; margin-top: 16px; }
+#toon-account-layer .ta-actions { display: grid; gap: 10px; }
+#toon-account-layer .ta-button { width: 100%; min-height: 50px; padding: 12px 17px; border: 1px solid transparent; border-radius: 14px; font: 600 14px/1.5 "Noto Sans Thai", system-ui, sans-serif; cursor: pointer; transition: filter .15s; }
+#toon-account-layer .ta-button.primary { color: #14202d; background: linear-gradient(120deg,#82ecdf,#9dbbff); box-shadow: 0 4px 16px #72d9da22; }
+#toon-account-layer .ta-button.secondary { color: #e0e7ff; border-color: #4e628b; background: #263553; }
+#toon-account-layer .ta-button.quiet { color: #bac8eb; background: transparent; }
+#toon-account-layer .ta-button:active { filter: brightness(.88); }
+#toon-account-layer .ta-button:focus-visible, #toon-account-layer button:focus-visible { outline: 3px solid #b6f7ff; outline-offset: 3px; }
+#toon-account-layer .ta-button:disabled, #toon-account-layer button:disabled { cursor: wait; opacity: .6; }
+#toon-account-layer .ta-submit { margin-top: 16px; }
+#toon-account-layer .ta-auth-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin: 7px -8px 0; }
+#toon-account-layer .ta-auth-links button { padding: 10px 8px; min-height: 44px; color: #aacbff; background: none; border: none; font: 400 12px/1.5 "Noto Sans Thai", sans-serif; cursor: pointer; }
+#toon-account-layer .ta-feedback { min-height: 1.6em; color: #9ce6d8; font-size: 12px; line-height: 1.7; margin: 12px 0; }
+#toon-account-layer .ta-feedback.error { color: #ffbbc6; }
+#toon-account-layer .ta-heroes { display: grid; gap: 8px; margin: 12px 0; }
+#toon-account-layer .ta-hero { display: flex; align-items: center; gap: 11px; padding: 12px; border: 1px solid #3d4b70; border-radius: 14px; background: #10182e70; }
+#toon-account-layer .ta-slot { display: grid; place-items: center; width: 34px; height: 38px; flex: none; color: #fff0b4; background: #364166; border-radius: 10px; font-weight: 600; }
+#toon-account-layer .ta-hero strong { display: block; color: #f7f2ff; font-size: 14px; overflow-wrap: anywhere; }
+#toon-account-layer .ta-hero small { display: block; color: #aebcde; font-size: 11px; margin-top: 3px; }
+#toon-account-layer .ta-empty { color: #99a8ce; font-size: 13px; padding: 12px; border: 1px dashed #4b5779; border-radius: 12px; }
+#toon-account-layer .ta-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#toon-account-layer .ta-compare .ta-hero { padding: 9px; gap: 7px; }
+#toon-account-layer .ta-compare .ta-slot { width: 23px; height: 30px; }
+#toon-account-layer .ta-recovery { color: #d6f7e9 !important; font-family: ui-monospace, monospace !important; font-size: 14px !important; letter-spacing: .03em; }
+#toon-account-layer .ta-check { display: flex; gap: 9px; align-items: center; margin-top: 15px; font-size: 13px; line-height: 1.7; }
+#toon-account-layer .ta-check input { width: 22px; height: 22px; accent-color: #80ded4; }
+#toon-account-layer .ta-status-line { display: flex; align-items: flex-start; gap: 9px; color: #cddaf4; font-size: 13px; line-height: 1.8; }
+#toon-account-layer .ta-status-dot { margin-top: 8px; width: 8px; height: 8px; border-radius: 50%; background: #82ecdf; flex: none; }
+#toon-account-layer .ta-status-dot.pending { background: #ffd182; }
+@media (orientation: landscape) and (max-height: 540px) {
+  #toon-account-layer { place-items: start center; padding-block: 14px; }
+  #toon-account-layer .ta-card { width: min(100%, 580px); padding: 20px; border-radius: 22px; }
+  #toon-account-layer .ta-brand { margin-bottom: 13px; gap: 12px; }
+  #toon-account-layer .ta-brand img { width: 56px; height: 56px; border-radius: 15px; }
+  #toon-account-layer .ta-brand p { margin-top: 3px; }
+  #toon-account-layer h2 { font-size: 21px; }
+  #toon-account-layer .ta-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #toon-account-layer .ta-actions > .ta-button:first-child:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 370px) { #toon-account-layer .ta-card { padding: 18px; } #toon-account-layer .ta-compare { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { #toon-account-layer * { transition: none !important; } }

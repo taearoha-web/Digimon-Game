@@ -111,6 +111,10 @@ func _stock() -> Array[Dictionary]:
 
 
 func _rebuild() -> void:
+	var buy_scroll := _buy_box.get_parent() as TouchScroll
+	var sell_scroll := _sell_box.get_parent() as TouchScroll
+	var buy_y := buy_scroll.retained_vertical_position()
+	var sell_y := sell_scroll.retained_vertical_position()
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)
 	UIUtil.clear(_buy_box)
 	UIUtil.clear(_sell_box)
@@ -124,6 +128,8 @@ func _rebuild() -> void:
 		_sell_box.add_child(_row(item, price, "ขาย", func(): Game.sell_item(i)))
 	if empty:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
+	buy_scroll.restore_vertical_position(buy_y)
+	sell_scroll.restore_vertical_position(sell_y)
 
 
 func _row(item: Dictionary, price: int, action_label: String, action: Callable) -> Control:

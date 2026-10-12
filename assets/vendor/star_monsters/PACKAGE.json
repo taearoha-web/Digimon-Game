@@ -1,0 +1,302 @@
+{
+  "schema": 1,
+  "package_id": "toon-tale-star-monsters-cc0-v1",
+  "license": "CC0-1.0",
+  "authors": [
+    "Quaternius",
+    "Kay Lousberg"
+  ],
+  "sources": [
+    {
+      "file": "Fox.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Fox.gltf",
+      "sha256": "2f36e3c9c75ecddda85c5f9944e98ee1e88e7c679a546534aff1cea8ecde64c7",
+      "bytes": 3163174
+    },
+    {
+      "file": "Deer.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Deer.gltf",
+      "sha256": "b8afd0647e7a74332ce802c8326dfefe1a2b76da67ab925a631aaddb5ae9bdd4",
+      "bytes": 3288813
+    },
+    {
+      "file": "Stag.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Stag.gltf",
+      "sha256": "170b964909d16d1ab4d428b1d714f25016913d32481acd9c3d62923192583be6",
+      "bytes": 3224724
+    },
+    {
+      "file": "Alpaca.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Alpaca.gltf",
+      "sha256": "5009bfa756c7b7af5e02263d47a6d9088cadaada2240b41b4e87f31327b0e063",
+      "bytes": 1435679
+    },
+    {
+      "file": "Husky.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Husky.gltf",
+      "sha256": "0cfd85ddfcc5c07caf1bdeb296b21017b0da4c8558a92086daf4a172e0bf8d97",
+      "bytes": 3059335
+    },
+    {
+      "file": "Wolf.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Wolf.gltf",
+      "sha256": "cc02e9d128b5715f352ee8bea086f97a35f1d875d240de99b0f9f2775c37d415",
+      "bytes": 3175890
+    },
+    {
+      "file": "Bull.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Bull.gltf",
+      "sha256": "535da2992eb125d517725159a2eddeb520b72595bcb3021985fc43d2c84bff76",
+      "bytes": 3110158
+    },
+    {
+      "file": "Horse_White.gltf",
+      "url": "https://raw.githubusercontent.com/benjaminpjones/catch-the-animal/cf8e52eeb64429a210cebb4b12fe62b3ab06af2b/models/glTF/Horse_White.gltf",
+      "sha256": "f137ee67bd565244f7441f35b5594a597588cda8b60ab109e2041cf13c58e1dd",
+      "bytes": 3607730
+    },
+    {
+      "file": "Skeleton_Minion.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/15b62b9bad122f72926c10fb14d622c73819fa54/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Minion.glb",
+      "sha256": "6ffc003f895bed0b074791e0e490846210a2e2f8fc7da300aba53cc185f95968",
+      "bytes": 4814296
+    },
+    {
+      "file": "Skeleton_Rogue.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/15b62b9bad122f72926c10fb14d622c73819fa54/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Rogue.glb",
+      "sha256": "4003f2b77891bb56f7e0de7d555abcb497aebbcaee35b614211f16275f9ccae3",
+      "bytes": 4827024
+    },
+    {
+      "file": "Skeleton_Mage.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/15b62b9bad122f72926c10fb14d622c73819fa54/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Mage.glb",
+      "sha256": "e05b0f5cfa395271c9f75fd07c0a0613c56f401ece4ab644e080001a79971075",
+      "bytes": 4761048
+    },
+    {
+      "file": "Skeleton_Warrior.glb",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/15b62b9bad122f72926c10fb14d622c73819fa54/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb",
+      "sha256": "178b6fda810b814c250d8a2010c24dfd9b458b9006dd323353e620b7ff118bbe",
+      "bytes": 4863620
+    },
+    {
+      "file": "LICENSE-KayKit-Skeletons.txt",
+      "url": "https://raw.githubusercontent.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0/15b62b9bad122f72926c10fb14d622c73819fa54/LICENSE.txt",
+      "sha256": "5d822abca4e08c5a91d329e5372b3dc605cba8d994f752cb0f7dfdb7a0a79954",
+      "bytes": 914
+    },
+    {
+      "file": "quaternius-animals-license.html",
+      "url": "https://quaternius.com/packs/ultimateanimatedanimals.html",
+      "sha256": "cff83a95676549b244a26626a77e630d9ac8d95b0348f5e2e2c53ca821af4391",
+      "bytes": 15479
+    }
+  ],
+  "source_pages": [
+    "https://quaternius.com/packs/ultimateanimatedanimals.html",
+    "https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0"
+  ],
+  "mirror_note": "Quaternius official Google Drive download reported quota exceeded. Animal source bytes were downloaded from the pinned public mirror, with license corroborated on the original author pack page. Mirror commit cf8e52eeb64429a210cebb4b12fe62b3ab06af2b",
+  "files": [
+    {
+      "file": "Fox.glb",
+      "bytes": 906516,
+      "sha256": "b34fb53cab2fcf218b7089c50701e5ec3e28e8a3f4b45cb0e6a4f51ba3a877d9",
+      "triangles": 1848,
+      "surfaces": 5,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Deer.glb",
+      "bytes": 847336,
+      "sha256": "04bc32561fb42333844f5728e9f7fcf8358231dc7022ba80914c66c8e2828687",
+      "triangles": 2098,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Stag.glb",
+      "bytes": 802072,
+      "sha256": "775c20340e23c9de3aee58dfb80c48351ee0622449d23e94c6880cbecdecad1c",
+      "triangles": 3670,
+      "surfaces": 6,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Alpaca.glb",
+      "bytes": 430860,
+      "sha256": "18ec0cb7a2187e9ff8850feea65e4f3ed953f30d7985cf3b9262e0d952dfabbb",
+      "triangles": 2060,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Husky.glb",
+      "bytes": 877324,
+      "sha256": "fcb8ef2eeb52cf9de59666c7863e1ee5557f0cb85a1012dc3924ff6604b8c21b",
+      "triangles": 1920,
+      "surfaces": 5,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Wolf.glb",
+      "bytes": 916868,
+      "sha256": "80ffd4ec7486d209dd705795fda0de1a2d98e9e3496713ff89713863d1040520",
+      "triangles": 1962,
+      "surfaces": 4,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Bull.glb",
+      "bytes": 823224,
+      "sha256": "af1a56935c191ef4840e6e0a54cb0d345d9eb62dec267f05a44a4148367f978c",
+      "triangles": 2418,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Horse_White.glb",
+      "bytes": 910528,
+      "sha256": "349eef3c472edf38b66c6b5c307ceb3d855fcd31269bb81b26728c148b98f214",
+      "triangles": 2182,
+      "surfaces": 7,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walk",
+        "Run": "Gallop",
+        "Punch": "Attack_Headbutt",
+        "HitReact": "Idle_HitReact1",
+        "Death": "Death"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Skeleton_Minion.glb",
+      "bytes": 570480,
+      "sha256": "81524ce7b2654de0d9d36f232e7b4e63467709d45c1b974d6e46b20ca4ca5a6c",
+      "triangles": 5288,
+      "surfaces": 9,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "1H_Melee_Attack_Slice_Horizontal",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Skeleton_Rogue.glb",
+      "bytes": 582480,
+      "sha256": "66a2a2866623dc93978d11f6abcd24cf385b97c1e56e2d562fb935435f0b2db4",
+      "triangles": 5278,
+      "surfaces": 10,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "Dualwield_Melee_Attack_Slice",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Skeleton_Mage.glb",
+      "bytes": 518460,
+      "sha256": "6d4fb8af431b7e10e33df869c777650798c9034fdf53cbf27b35e6ce0df994e0",
+      "triangles": 4588,
+      "surfaces": 9,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "Spellcast_Shoot",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true
+    },
+    {
+      "file": "Skeleton_Warrior.glb",
+      "bytes": 619452,
+      "sha256": "63b6c647f70901ff7855245ab5d7d89b8ee2ee8114e3410c64ffd982ac6f247d",
+      "triangles": 5934,
+      "surfaces": 10,
+      "clips": {
+        "Idle": "Idle",
+        "Walk": "Walking_A",
+        "Run": "Running_A",
+        "Punch": "1H_Melee_Attack_Slice_Horizontal",
+        "HitReact": "Hit_A",
+        "Death": "Death_A"
+      },
+      "base_model_new_to_project": true
+    }
+  ],
+  "validation": {
+    "gltf_structure": true,
+    "animation_aliases": true,
+    "closed_hash_roster": true,
+    "engine_import": false,
+    "runtime_render": false
+  },
+  "tooling_note": "game-dev CLI unavailable on PATH and searched local installation paths. Canonical package and explicit SHA-256 validation/admission used; no CLI receipt claimed."
+}

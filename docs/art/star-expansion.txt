@@ -1,0 +1,47 @@
+Toon Tale 0.9.0 — Star Expansion
+
+Release build: 14ab7ff7
+Public game: https://toon-tale.taemongkichi.chatgpt.site/
+Native capture gallery: /star-expansion/
+
+SCOPE
+24 new skills, six classes; unlock at Lv.100 and stars 50/100/150/200. Existing eight equipped slots are retained. Two self buffs plus two ally buffs are retained. Camera shake and skill zoom remain disabled.
+
+Four regions: Dawn Forest (star 1), Crystal Valley (50), Sky Citadel (100), Eclipse Realm (150). Final Eclipse boss requires 200 and now owns the ending. Each region has four camps, four regular enemy types, two elites, and one boss. New 12 CC0 model bases: Quaternius animated animals and KayKit skeletons; provenance/license/hash checks are in assets/vendor/star_monsters.
+
+Gear: 24 class weapons, 24 class outfit families; six craft slots per class/tier. As of v0.9.2 the four shared star wing tiers are retired. Six uploaded class wings drop in all four regions (ordinary 0.5%, elite 3%, boss 20%), require Lv.100 and 100 stars, and cannot be crafted. Original Lv.100 class wings remain available. Weapon/armor/helm/boots from the same class and tier grant a four-piece bonus. Star materials and boss cores persist in save flags. Recipes deduct materials and gold atomically. Rewards can be claimed once per milestone, including old saves already past the milestone.
+
+SKILLS
+warrior / 50: Lionfang Cleave — คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ
+warrior / 100: Crown Breaker — ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ
+warrior / 150: Royal Vanguard — แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 18 วิ
+warrior / 200: Celestial Swordfall — ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่
+archer / 50: Moonpiercer — ศรทะลวงจันทรา • ศรเงินทะลุศัตรูเป็นแนวตรง
+archer / 100: Hunter's Verdict — ศรตัดสินนักล่า • ยิงเป้าหมายเดียว 3 นัด นัดสุดท้ายแรงเป็นสองเท่า
+archer / 150: Sylph Step — ก้าวแห่งภูตลม • วิ่งเร็ว +25% หลบ +15% โจมตี +35% นาน 16 วิ
+archer / 200: Celestial Hunt — ล่าหมู่ดาว • ล็อกศัตรูในวง ยิง 3 ระลอก ก่อนศรปิดฉากใส่เป้าหมายหลัก
+mage / 50: Arcane Prism — ปริซึมเวท • ยิงพลัง 4 ธาตุใส่เป้าหมายเดียว
+mage / 100: Crystal Prison — คุกผลึกเหมันต์ • ชะลอในวง ผลึกระเบิด 2 จังหวะ
+mage / 150: Astral Convergence — บรรจบแห่งดวงดาว • ดึงศัตรูทั่วไปเข้าศูนย์กลาง ระเบิด 3 ระลอก
+mage / 200: Genesis Nova — โนวากำเนิดธาตุ • รวม 4 ธาตุเป็นแกนพลัง ปล่อยคลื่น 4 ระลอก
+priest / 50: Sanctified Chain — สายใยศักดิ์สิทธิ์ • แสงเชื่อมศัตรูสูงสุด 5 ตัว ฟื้น HP ทีม 12%
+priest / 100: Seraph's Aegis — ปีกพิทักษ์เซราฟ • โล่ทีมดูดซับ 25% ของ HP สูงสุด นาน 18 วิ
+priest / 150: Sacred Sanctuary — วิหารศักดิ์สิทธิ์ • วงฟื้น HP 6% ทุก 2 วิ นาน 10 วิ ช่วยต้านความเสียหาย 15%
+priest / 200: Dawn of Salvation — รุ่งอรุณแห่งการกอบกู้ • คลื่นศักดิ์สิทธิ์ 3 ครั้ง ทำดาเมจหมู่และฟื้น HP ทีมรวม 30%
+summoner / 50: Moonwolf Pact — พันธสัญญาหมาป่าจันทรา • หมาป่าโจมตีเป้าหมายหลัก นาน 24 วิ
+summoner / 100: Leviathan's Surge — กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง
+summoner / 150: Spirit Court — ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 18 วิ
+summoner / 200: Eclipse Sovereign — ราชันแห่งคราส • เรียกราชันอสูร 24 วิ กรงเล็บ กระทืบ และพลังคราสก่อนจากไป
+lancer / 50: Spiral Impaler — หอกเกลียวทะลวง • แทงผ่านแนวศัตรู 3 จังหวะ
+lancer / 100: Heartseeker — หอกเจาะหัวใจ • แทงเร็ว 5 ครั้ง ปิดด้วยแทงหนัก 1 ครั้ง รวม 6 ฮิต
+lancer / 150: Aegis Formation — กระบวนทัพพิทักษ์ • ลดความเสียหายทีม 28% ป้องกัน +45% นาน 16 วิ
+lancer / 200: Worldsplitter — หอกแยกพิภพ • หอกปะทุตามแนวรอยแยก 4 ระลอก
+
+ART AND TIMING
+Owner-bound StarSkillSequence clocks synchronize actual damage, casts, carriers and strikes. Telegraph -> launch -> contact -> dissolve; combo follow-ups restart weapon motion before contact. Reusable geometry with 2/4/6 decorative layers by quality, no new dynamic lights. Real damage does not depend on a decorative VFX allocation succeeding. Swordfall ascends 5 m, holds the complete sword arm skyward, and drops 10 copies of the currently equipped sword at 0.24-second spacing with 0.42-second flights. Heartseeker has five fast stabs plus one heavy final stab.
+
+VALIDATION
+241 scripts/resources loaded without failure. 1,011 star-integration assertions passed; 528 skill presentation casts passed; full flow passed; 176 save assertions passed; 13 account test cases passed. 144 repeated/cancelled star casts passed 366 lifecycle checks. Warm object count plateaued; no evidence from this fixture of accumulating runtime objects. Native in-game captures include all 24 skills in three phases, four maps in real gameplay/overview, boss warnings, enemy rosters and four gear tiers.
+
+LIMITATIONS
+Native rendering used llvmpipe software, so this does not measure actual iPhone FPS or prove long-session iOS crash freedom. Headless dummy renderer emits mesh warnings; native checks were also run. Two ~350 KB cached textures are reported at native engine shutdown in lifecycle testing; runtime object counts plateaued.

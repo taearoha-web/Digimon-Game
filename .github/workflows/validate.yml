@@ -35,6 +35,14 @@ jobs:
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/save_progression_test.tscn
       - name: Audit every skill and graphics quality
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/skill_presentation_test.tscn
+      - name: Validate Armageddon hits, resource use, pause and scene cleanup
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-armageddon
+        run: Godot_v4.3-stable_linux.x86_64 --headless --fixed-fps 60 --path . res://tests/integration/armageddon_test.tscn
+      - name: Validate every authored skill recipe
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/art_direction_test.tscn -- skills
+      - name: Validate elemental geometry budgets and cleanup
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/element_fx_budget_test.tscn
       - name: Validate mobile control layout and populated HUD
         env:
           XDG_DATA_HOME: /tmp/toon-ci-ui
@@ -44,4 +52,14 @@ jobs:
           XDG_DATA_HOME: /tmp/toon-ci-flow
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/flow_test.tscn
       - name: Test streaming web loader
-        run: node tools/test_web_loader.mjs
+        run: |
+          node tools/test_web_loader.mjs
+          node tools/test_web_session.mjs
+      - name: Check gear geometry and distant monsters
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-field-efficiency
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/field_efficiency_test.tscn
+      - name: Check repeated sound playback does not retain objects
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-audio-playback
+        run: Godot_v4.3-stable_linux.x86_64 --headless --max-fps 60 --audio-driver Dummy --path . res://tests/integration/audio_playback_memory_test.tscn

@@ -29,8 +29,8 @@ const LEGACY_WAND_NAMES := ["คทาไม้", "คทาเงิน", "ค�
 ## Wing types from before class wings (old saves are converted on load).
 const LEGACY_WING_KINDS: Array[String] = ["atk", "def", "hp", "matk"]
 const WING_DROP_LEVEL := 100
-## Gear stars stop at 20 (Lv.100 + 20 = Lv.120), so gear chasing has an end.
-const MAX_GEAR_STAR := 20
+## Legacy random drops remain capped at 20; authored star equipment reaches 200.
+const MAX_GEAR_STAR := 200
 const MAX_GEAR_LEVEL := 100 + MAX_GEAR_STAR
 const RARITY_NAMES := ["ธรรมดา", "ดี", "หายาก", "ในตำนาน", "เทพนิยาย"]
 const RARITY_COLORS := [Color("e6ecff"), Color("5ab8ff"), Color("ffc93c"), Color("c46bff"), Color("ff4a5e")]
@@ -133,6 +133,11 @@ static func set_id_for(slot: String, rarity: int, tier: int) -> String:
 
 
 static func set_label(set_id: String) -> String:
+	if set_id.begins_with("divine_"):
+		return DivineGearData.set_label(set_id.get_slice("_", 1))
+	if set_id.begins_with("star_"):
+		var parts := set_id.split("_")
+		return StarGearData.set_label(parts[1], int(parts[2])) if parts.size() == 3 else ""
 	return SET_NAMES[clampi(int(set_id.trim_prefix("set")), 0, 9)] if set_id != "" else ""
 
 
@@ -325,6 +330,12 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	var lines := stat_lines(item)
 	if item.get("kind", "") != "equip":
 		return lines
+	if StarGearData.is_star(item):
+		lines.append("อุปกรณ์แห่งดวงดาว %d" % int(item.star_tier))
+		if DivineGearData.is_item(item):
+			lines.append("ดรอปเฉพาะวิหารบัวดารา • เลเวล 100 และ 200 ดาว")
+			if item.slot == "armor": lines.append("ชุดครบเสื้อ กางเกง และถุงมือ • ใช้ได้ทั้งตัวละครชายและหญิง")
+		if String(item.get("set", "")).begins_with("star_") or DivineGearData.is_item(item): lines.append(StarProgression.set_bonus_text(String(item.star_class)))
 	var plus := int(item.get("plus", 0))
 	if plus > 0:
 		var look_name: String = EnhanceFx.NAMES[EnhanceFx.grade(plus)]

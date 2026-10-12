@@ -36,14 +36,10 @@ const KAYKIT_WINGS := Transform3D(Vector3(2.2, 0, 0), Vector3(0, 2.2, 0), Vector
 const CHIBI_BONES := {"chest": "Chest", "head": "Head", "wrist.l": "LeftHand", "wrist.r": "RightHand",
 	"lowerleg.l": "LeftLowerLeg", "lowerleg.r": "RightLowerLeg"}
 
-## A spear is carried slanted forward, point up (pitch, yaw, roll in degrees).
 ## Wing poses: open and idling, flying (flap in place, glide when moving), folded.
 const WING_STAND := 0
 const WING_FLY := 1
 const WING_FOLD := 2
-static var spear_tilt := Vector3(-48.0, 22.0, 0.0)
-## A lantern staff is held upright so the lantern hangs from its crook.
-static var lantern_tilt := Vector3(0.0, 0.0, -75.0)
 static var _shared_library: AnimationLibrary
 
 var class_id: StringName = &"warrior"
@@ -68,10 +64,28 @@ var chibi := false
 var wing_mode := WING_STAND
 var _wing_moving := false
 var _gear_scale := 1.0
+var skill_generation := 0
+var _emission_grip: Node3D
+var _emission_point := Vector3.ZERO
+var _emission_bone := -1
+var _skill_pose: Dictionary = {}
+var _skill_chest := -1
+var _skill_clock := 0.0
+var _skill_release := 0.0
+var _skill_rest := Transform3D.IDENTITY
+var _skill_start: Array[Transform3D] = []
+var _skill_base: Array[Transform3D] = []
+var _locomotion := "Idle"
+var _locomotion_speed := 1.0
 
 
 ## p_model: wear another character's stock look (villagers); armed=false = no weapon.
 func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_look := {}) -> void:
+	_cancel_skill_motion()
+	busy_until = 0
+	current = ""
+	_locomotion = "Idle"
+	_locomotion_speed = 1.0
 	class_id = p_class
 	look = p_look
 	for child in get_children():
@@ -89,11 +103,15 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 	for child in _skeleton.get_children():
 		child.free()
 	anim = _borrow_animations()
+	MartialClips.prepare(anim)
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)
 		a.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
 	# KayKit rigs report a tall bind-pose box; the standing body is ~2.2 units.
 	model.scale = Vector3.ONE * (HEIGHT / 2.2)
+	_gear_scale = 1.0
+	if armed:
+		WeaponPoses.install(anim, _skeleton, class_id, BASE_MODEL, {}, _gear_scale)
 	_head_bone = _skeleton.find_bone("head")
 	set_process(_head_bone >= 0)
 	equip = p_equip
@@ -111,6 +129,7 @@ func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 	add_child(model)
 	_skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
 	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	MartialClips.prepare(anim)
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)
 		a.loop_mode = Animation.LOOP_LINEAR if (clip in LOOPING or clip.begins_with("Chibi_") or clip.begins_with("Fly_")) else Animation.LOOP_NONE
@@ -120,6 +139,8 @@ func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 		height = maxf(height, (mi as MeshInstance3D).get_aabb().size.y)
 	model.scale = Vector3.ONE * (CHIBI_HEIGHT / maxf(height, 0.1))
 	_gear_scale = (HEIGHT / 2.2) / model.scale.x
+	if armed:
+		WeaponPoses.install(anim, _skeleton, class_id, CHIBI_MODELS[gender], {"r": _slot_fix("handslot.r"), "l": _slot_fix("handslot.l")}, _gear_scale)
 	_head_bone = -1
 	set_process(false)
 	equip = p_equip
@@ -183,19 +204,28 @@ func _refresh_chibi() -> void:
 	_dress_chibi(armor)
 	var armor_nodes: Array = []
 	if armor != null:
-		armor_nodes = _chibi_armor(ItemLook.tier_of(armor))
-	if helm != null:
+		armor_nodes = _divine_slot(armor) if DivineGearData.is_item(armor) else (_star_armor(armor) if StarGearData.is_star(armor) else _chibi_armor(ItemLook.tier_of(armor)))
+	if DivineGearData.is_item(helm):
+		var crown_nodes := _divine_slot(helm)
+		EnhanceFx.glow_piece(self, crown_nodes, int(helm.get("plus", 0)), Vector3(0,2.2,0), 0.25)
+	elif helm != null:
 		var crown := _chibi_attach("Head", "ChibiHelm")
-		ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
+		if StarGearData.is_star(helm): crown.add_child(StarGearArt.armor_piece("helm",StarGearData.item_class(helm),int(helm.star_tier)))
+		else: ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
 		EnhanceFx.glow_piece(self, [crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
 	var boot_nodes: Array = []
-	if boots != null:
+	if DivineGearData.is_item(boots):
+		boot_nodes = _divine_slot(boots)
+	elif boots != null:
 		for side in ["Left", "Right"]:
 			var cuff := _chibi_attach(side + "LowerLeg", "ChibiBoots")
-			ChibiGear.boot_cuff(cuff, ItemLook.tier_of(boots))
+			if StarGearData.is_star(boots): cuff.add_child(StarGearArt.armor_piece("boots",StarGearData.item_class(boots),int(boots.star_tier)))
+			else: ChibiGear.boot_cuff(cuff, ItemLook.tier_of(boots))
 			boot_nodes.append(cuff.get_parent())
 	if equip.get("amulet") != null:
-		ChibiGear.pendant(_chibi_attach("Chest", "ChibiAmulet"), ItemLook.tier_of(equip.amulet))
+		if StarGearData.is_star(equip.amulet): _star_piece("amulet","Chest",equip.amulet)
+		else: ChibiGear.pendant(_chibi_attach("Chest", "ChibiAmulet"), ItemLook.tier_of(equip.amulet))
+	if StarGearData.is_star(equip.get("ring")): _star_piece("ring","LeftHand",equip.ring)
 	EnhanceFx.glow_piece(self, armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.1, 0), 0.4)
 	EnhanceFx.glow_piece(self, boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
 	var wings: Variant = equip.get("wings")
@@ -205,10 +235,10 @@ func _refresh_chibi() -> void:
 		var chest := _skeleton.find_bone("Chest")
 		if chest >= 0:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
-		back.add_child(GearKit.wings(_wing_kind(wings)))
+		back.add_child(StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings)))
 		EnhanceFx.glow_piece(self, [back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_pose_wings.call_deferred(wing_mode, true)
-	# Each armour piece is a handful of primitives: draw it as one mesh.
+	# Fold only static accessories on each bone, keeping the skeleton and wing animation intact.
 	for node in _body_nodes:
 		if is_instance_valid(node) and String(node.name).begins_with("Chibi") and node.get_child_count() > 0:
 			MeshMerge.merge(node.get_child(0) as Node3D)
@@ -302,6 +332,41 @@ func _chibi_attach(bone: String, node_name: String) -> Node3D:
 	return frame
 
 
+func _star_piece(part: String, bone: String, item: Dictionary, side := 1.0) -> Node3D:
+	var aliases := {"Chest":"chest","Head":"head","Hips":"hips","LeftHand":"wrist.l","LeftUpperArm":"upperarm.l","RightUpperArm":"upperarm.r","LeftLowerLeg":"lowerleg.l","RightLowerLeg":"lowerleg.r"}
+	var frame := _chibi_attach(bone if chibi else String(aliases.get(bone,bone)), "ChibiStar_" + part)
+	var piece := StarGearArt.armor_piece(part,StarGearData.item_class(item),int(item.star_tier),side)
+	if not chibi: piece.scale = Vector3.ONE * 2.2
+	frame.add_child(piece)
+	return frame.get_parent() as Node3D
+
+func _star_armor(item: Dictionary) -> Array:
+	return [_star_piece("chest","Chest",item),_star_piece("belt","Hips",item),
+		_star_piece("pauldron","LeftUpperArm",item,1.0),_star_piece("pauldron","RightUpperArm",item,-1.0)]
+
+
+func _divine_slot(item: Dictionary) -> Array:
+	# Match the original level 1–100 silhouette: dye the existing body and use
+	# small bone-mounted trims. Uploaded held weapons keep their real models.
+	match String(item.slot):
+		"armor":
+			return [_divine_dye_piece("chest", "Chest", item), _divine_dye_piece("belt", "Hips", item),
+				_divine_dye_piece("pauldron", "LeftUpperArm", item, 1.0), _divine_dye_piece("pauldron", "RightUpperArm", item, -1.0)]
+		"helm": return [_divine_dye_piece("helm", "Head", item)]
+		"boots": return [_divine_dye_piece("boots", "LeftLowerLeg", item), _divine_dye_piece("boots", "RightLowerLeg", item)]
+	return []
+
+
+func _divine_dye_piece(part: String, bone: String, item: Dictionary, side := 1.0) -> Node3D:
+	var aliases := {"Chest":"chest", "Head":"head", "Hips":"hips", "LeftUpperArm":"upperarm.l", "RightUpperArm":"upperarm.r", "LeftLowerLeg":"lowerleg.l", "RightLowerLeg":"lowerleg.r"}
+	var frame := _chibi_attach(bone if chibi else String(aliases.get(bone, bone)), "ChibiDivineDye_" + part)
+	var piece := Node3D.new()
+	frame.add_child(piece)
+	DivineOutfitArt.decorate(piece, part, StarGearData.item_class(item), side)
+	if not chibi: piece.scale = Vector3.ONE * 2.2
+	return frame.get_parent() as Node3D
+
+
 func _chibi_armor(tier: int) -> Array:
 	var nodes: Array = []
 	for side in [1.0, -1.0]:
@@ -320,11 +385,18 @@ func _chibi_armor(tier: int) -> Array:
 
 ## Recolours the outfit for the armour tier (no armour: the model's own colours).
 func _dress_chibi(armor: Variant) -> void:
+	var boots: Variant = equip.get("boots")
+	var divine_armor := DivineGearData.is_item(armor)
+	var divine_boots := DivineGearData.is_item(boots)
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi.skin == null or mi.mesh == null:
 			continue
-		var source := mi.mesh.surface_get_material(0) as StandardMaterial3D
+		# Always start from the imported body, even after repeated equipment swaps.
+		var source_mesh: Mesh = mi.get_meta("outfit_source_mesh", mi.mesh)
+		mi.set_meta("outfit_source_mesh", source_mesh)
+		mi.mesh = OutfitDye.masked_mesh(source_mesh, mi.skin, _skeleton) if divine_armor or divine_boots else source_mesh
+		var source := source_mesh.surface_get_material(0) as StandardMaterial3D
 		if source == null:
 			continue
 		var mat := ShaderMaterial.new()
@@ -332,11 +404,22 @@ func _dress_chibi(armor: Variant) -> void:
 		mat.set_shader_parameter("albedo_tex", source.albedo_texture)
 		if armor != null:
 			var tier := ItemLook.tier_of(armor)
-			mat.set_shader_parameter("outfit_color", ChibiGear.cloth(tier))
-			mat.set_shader_parameter("outfit_amount", 0.5 + 0.04 * float(tier))
-			mat.set_shader_parameter("sheen", 0.0 if tier < 2 else 0.2 + 0.08 * float(tier))
-			if tier >= 7:
+			var cloth: Color = DivineOutfitArt.palette(StarGearData.item_class(armor)).body if divine_armor else (StarGearArt.cloth(StarGearData.item_class(armor),int(armor.star_tier)) if StarGearData.is_star(armor) else ChibiGear.cloth(tier))
+			mat.set_shader_parameter("outfit_color", cloth)
+			mat.set_shader_parameter("outfit_amount", 0.96 if divine_armor else 0.5 + 0.04 * float(tier))
+			mat.set_shader_parameter("sheen", 0.22 if divine_armor else (0.0 if tier < 2 else 0.2 + 0.08 * float(tier)))
+			if tier >= 7 and not divine_armor:
 				mat.set_shader_parameter("glow_color", ChibiGear.cloth(tier) * 0.35)
+		if divine_armor or divine_boots:
+			mat.set_shader_parameter("part_masks_enabled", true)
+		if divine_armor:
+			var palette := DivineOutfitArt.palette(StarGearData.item_class(armor))
+			for part in ["pants", "gloves"]:
+				mat.set_shader_parameter(part + "_color", palette[part])
+				mat.set_shader_parameter(part + "_amount", 0.96)
+		if divine_boots:
+			mat.set_shader_parameter("boots_color", DivineOutfitArt.palette(StarGearData.item_class(boots)).boots)
+			mat.set_shader_parameter("boots_amount", 0.96)
 		if GameSettings.quality > 0:
 			mat.next_pass = StorybookFinish.outline(0.012 * _gear_scale)
 		mi.material_override = mat
@@ -392,8 +475,11 @@ func refresh() -> void:
 	var boot_nodes: Array = []
 	for piece in OUTFIT_PARTS:
 		var piece_tint := outfit_tint
+		if DivineGearData.is_item(armor) and piece.begins_with("Leg"):
+			piece_tint = DivineOutfitArt.palette(StarGearData.item_class(armor)).pants
 		if boots != null and piece.begins_with("Leg"):
-			piece_tint *= ItemLook.boots_tint(boots)
+			if DivineGearData.is_item(boots): piece_tint = DivineOutfitArt.palette(StarGearData.item_class(boots)).boots
+			else: piece_tint *= ItemLook.boots_tint(boots)
 		var part := _add_part(glb, "%s_%s" % [glb, piece], piece_tint)
 		if part != null:
 			(boot_nodes if piece.begins_with("Leg") else armor_nodes).append(part)
@@ -409,7 +495,11 @@ func refresh() -> void:
 			_body_nodes[_body_nodes.size() - 1].add_child(JapanKit.hat(String(hat_spec[0]), hat_spec[1]))
 	if preset.has("extra") and armor == null:
 		_add_part(preset.extra[0], preset.extra[1])
-	if armor != null:
+	if DivineGearData.is_item(armor):
+		armor_nodes.append_array(_divine_slot(armor))
+	elif StarGearData.is_star(armor):
+		armor_nodes.append_array(_star_armor(armor))
+	elif armor != null:
 		_wear_flourish(ItemLook.tier_of(armor))
 		var flourish := _body_nodes[_body_nodes.size() - 1] if not _body_nodes.is_empty() and ItemLook.tier_of(armor) >= 2 else null
 		if flourish != null:
@@ -420,7 +510,7 @@ func refresh() -> void:
 		back.name = "Wings"
 		back.bone_name = "chest"
 		_skeleton.add_child(back)
-		var w := GearKit.wings(_wing_kind(wings))
+		var w := StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings))
 		w.transform = KAYKIT_WINGS
 		back.add_child(w)
 		_body_nodes.append(back)
@@ -429,7 +519,12 @@ func refresh() -> void:
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)
-	if helm != null:
+	if DivineGearData.is_item(helm):
+		var crown_nodes := _divine_slot(helm)
+		EnhanceFx.glow_piece(self, crown_nodes, int(helm.get("plus", 0)), Vector3(0,1.85,0), 0.25)
+	elif StarGearData.is_star(helm):
+		_star_piece("helm","Head",helm)
+	elif helm != null:
 		var hat := ItemLook.helm_look(helm)
 		var before_count := _body_nodes.size()
 		var worn_part: Node = _wear_hat(hat)
@@ -505,7 +600,13 @@ func _polish_material(source: Material, outlined: bool) -> Material:
 ## Boots show as cuffs on both lower legs, an amulet as a necklace.
 func _wear_trinkets() -> void:
 	var boots: Variant = equip.get("boots")
-	if boots != null:
+	if DivineGearData.is_item(boots):
+		var boot_nodes := _divine_slot(boots)
+		EnhanceFx.glow_piece(self, boot_nodes, int(boots.get("plus", 0)), Vector3(0,0.25,0), 0.4)
+	elif StarGearData.is_star(boots):
+		_star_piece("boots","LeftLowerLeg",boots)
+		_star_piece("boots","RightLowerLeg",boots)
+	elif boots != null:
 		var tier := ItemLook.tier_of(boots)
 		for side in [1.0, -1.0]:
 			var attach := BoneAttachment3D.new()
@@ -515,7 +616,9 @@ func _wear_trinkets() -> void:
 			attach.add_child(GearKit.boot_cuff(tier, side))
 			_body_nodes.append(attach)
 	var ring: Variant = equip.get("ring")
-	if ring != null:
+	if StarGearData.is_star(ring):
+		_star_piece("ring","LeftHand",ring)
+	elif ring != null:
 		var ring_attach := BoneAttachment3D.new()
 		ring_attach.name = "RingBand"
 		ring_attach.bone_name = "wrist.l"
@@ -524,7 +627,9 @@ func _wear_trinkets() -> void:
 		_body_nodes.append(ring_attach)
 	_make_aura()
 	var amulet: Variant = equip.get("amulet")
-	if amulet != null:
+	if StarGearData.is_star(amulet):
+		_star_piece("amulet","Chest",amulet)
+	elif amulet != null:
 		var attach := BoneAttachment3D.new()
 		attach.name = "Amulet"
 		attach.bone_name = "chest"
@@ -571,7 +676,7 @@ func _make_aura() -> void:
 	var tier := _top_tier()
 	if tier >= 6:
 		color = GearKit.TIERS_METAL[tier].lerp(Color("ffd870"), 0.35)
-		if tier >= 8:
+		if tier >= 8 and not StarGearData.is_star(equip.get("helm")):
 			var halo := BoneAttachment3D.new()
 			halo.name = "Halo"
 			halo.bone_name = _bone("head")
@@ -671,7 +776,17 @@ func _hold_gear() -> void:
 		return
 	var data := ClassData.get_class_data(class_id)
 	var weapon_look := ItemLook.weapon_look(equip.get("weapon"), StringName(data.weapon_kind))
-	_hold(weapon_look, "handslot.r", int(equip.get("weapon", {}).get("plus", 0)))
+	_hold(weapon_look, WeaponGrip.hand_for(String(data.weapon_kind)), int(equip.get("weapon", {}).get("plus", 0)))
+	if DivineGearData.is_item(equip.get("weapon")):
+		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome"}.get(class_id, "")
+		if offhand != "": _hold("divine_%s_%s_200" % [offhand, class_id], "handslot.l")
+		return
+	var star := StarGearData.is_star(equip.get("weapon"))
+	var tier := int(equip.weapon.star_tier) if star else (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0)
+	if star:
+		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome"}.get(class_id, "")
+		if offhand != "": _hold("star_%s_%d" % [offhand,tier],"handslot.l")
+		return
 	match class_id:
 		&"warrior":
 			_hold("shield_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
@@ -683,7 +798,12 @@ func _hold_gear() -> void:
 
 func _hold(look: String, bone: String, plus := 0) -> void:
 	var item: Node3D
-	if look.begins_with("shield"):
+	var kind := StarGearData.kind_from_look(look)
+	if look.begins_with("divine_"):
+		item = DivineGearArt.build(look)
+	elif look.begins_with("star_"):
+		item = StarGearArt.build(look)
+	elif look.begins_with("shield"):
 		item = WeaponKit.shield(look)
 	elif look.begins_with("book_"):
 		item = WeaponKit.book(int(look.trim_prefix("book_")))
@@ -694,23 +814,39 @@ func _hold(look: String, bone: String, plus := 0) -> void:
 	attach.bone_name = bone
 	_skeleton.add_child(attach)
 	var pivot := Node3D.new()
-	pivot.rotation = Vector3(0, PI, 0)
-	if look.begins_with("spear"):
-		pivot.rotation_degrees = Vector3(0, 180.0, 0) + spear_tilt
-	elif look.begins_with("lantern"):
-		pivot.rotation_degrees = Vector3(0, 180.0, 0) + lantern_tilt
+	pivot.name = "Grip"
+	pivot.basis = WeaponGrip.mount(kind)
 	if chibi:
 		pivot.basis = _slot_fix(bone) * pivot.basis
 	pivot.scale = Vector3.ONE * _gear_scale
 	attach.add_child(pivot)
 	pivot.add_child(item)
+	if kind not in ["shield","book","tome"]:
+		_emission_grip = pivot
+		_emission_bone = _skeleton.find_bone(bone)
+		var bounds := AABB()
+		var first := true
+		for mesh_node in item.find_children("*", "MeshInstance3D", true, false):
+			var mesh := mesh_node as MeshInstance3D
+			var relative := pivot.global_transform.affine_inverse() * mesh.global_transform
+			var box := relative * mesh.get_aabb()
+			bounds = box if first else bounds.merge(box)
+			first = false
+		_emission_point = Vector3.ZERO if kind == "bow" else Vector3(bounds.get_center().x, bounds.end.y * 0.94, bounds.get_center().z)
 	if plus > 0:
 		EnhanceFx.on_item(item, plus)
 	_hold_nodes.append(attach)
 
 
-## The free Adventurers 2.0 characters ship without animations; they share the
-## Knight's rig, so give them the Knight's clips.
+## Sample the current skeleton directly: BoneAttachment updates can otherwise
+## lag a manually sampled animation by one frame. Equipment rebuilds this socket.
+func skill_emission_position() -> Vector3:
+	if is_instance_valid(_emission_grip) and is_instance_valid(_skeleton) and _emission_bone >= 0:
+		return _skeleton.global_transform * _skeleton.get_bone_global_pose(_emission_bone) * _emission_grip.transform * _emission_point
+	return global_position + Vector3(0, 1.3, 0)
+
+
+## Stock Adventurers share the Knight animation library.
 func _borrow_animations() -> AnimationPlayer:
 	var rig := model.get_node_or_null("Rig_Medium")
 	rig.name = "Rig"
@@ -728,7 +864,8 @@ func _borrow_animations() -> AnimationPlayer:
 
 
 ## Big head = cuter. Scales the head bone after the animation has posed it.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_advance_skill_motion(delta)
 	if is_instance_valid(_face):
 		_face.asleep = current.begins_with("Death") or current.begins_with("Lie")
 	if _skeleton == null or _head_bone < 0:
@@ -744,6 +881,12 @@ func has_clip(clip: String) -> bool:
 
 ## Loops a locomotion clip (ignored while a one-shot action is still playing).
 func play(clip: String, blend := 0.15, speed := 1.0) -> void:
+	# Movement keeps arriving during a cast. Resume the latest request rather
+	# than inserting an idle frame between the recovery and a running pose.
+	_locomotion = clip
+	_locomotion_speed = speed
+	if not _skill_pose.is_empty():
+		return
 	if flying() and FLY_CLIPS.has(clip) and anim != null and anim.has_animation(FLY_CLIPS[clip]):
 		clip = FLY_CLIPS[clip]
 		speed = 1.0
@@ -755,15 +898,16 @@ func play(clip: String, blend := 0.15, speed := 1.0) -> void:
 		return
 	if Time.get_ticks_msec() < busy_until:
 		return
+	anim.speed_scale = speed
 	if current == clip and anim.is_playing():
 		return
 	current = clip
-	anim.speed_scale = speed
 	anim.play(clip, blend)
 
 
 ## Plays an action once; locomotion resumes afterwards.
 func action(clip: String, speed := 1.0, blend := 0.08) -> float:
+	_cancel_skill_motion()
 	if anim == null or not anim.has_animation(clip):
 		return 0.0
 	var length := anim.get_animation(clip).length / maxf(speed, 0.1)
@@ -775,6 +919,7 @@ func action(clip: String, speed := 1.0, blend := 0.08) -> float:
 
 
 func hold_last_frame(clip: String) -> void:
+	_cancel_skill_motion()
 	if anim and anim.has_animation(clip):
 		busy_until = Time.get_ticks_msec() + 3_600_000
 		current = clip
@@ -783,8 +928,124 @@ func hold_last_frame(clip: String) -> void:
 
 
 func release() -> void:
+	_cancel_skill_motion()
 	busy_until = 0
 	current = ""
+
+
+## Both rigs use the same source clips. Seek a paused clip so its authored
+## contact frame coincides with the actual release, even with DEX haste.
+## Only the visual model moves: no collision, targeting or gameplay root motion.
+func skill_action(skill: Dictionary, release_time: float) -> void:
+	_cancel_skill_motion()
+	var cue := SkillChoreography.cue_for(skill)
+	var clip := String(cue.clip)
+	if not has_clip(clip):
+		action(String(skill.get("anim", "Spellcast_Shoot")))
+		return
+	_skill_pose = cue
+	_skill_chest = _skeleton.find_bone("Chest" if chibi else "chest") if cue.has("upper_pitch") else -1
+	set_process(true)
+	_skill_clock = 0.0
+	_skill_release = maxf(release_time, 0.01)
+	_skill_rest = model.transform
+	_skill_start.clear()
+	for bone in _skeleton.get_bone_count():
+		_skill_start.append(_skeleton.get_bone_pose(bone))
+	current = clip
+	busy_until = Time.get_ticks_msec() + int((_skill_release + float(cue.recovery)) * 1000.0)
+	anim.speed_scale = 1.0
+	# A paused player cannot advance a cross-fade: leaving a blend here would
+	# freeze its old idle pose while the seek clock appears to move correctly.
+	# Imported clips omit constant rest tracks. Reset them before capturing the
+	# cast's base, otherwise a raised running knee survives into a standing cast.
+	_skeleton.reset_bone_poses()
+	anim.play(clip, 0.0)
+	anim.seek(0.0, true)
+	anim.pause()
+	_skill_base.clear()
+	for bone in _skeleton.get_bone_count():
+		_skill_base.append(_skeleton.get_bone_pose(bone))
+	_blend_skill_start(0.0)
+
+
+func _advance_skill_motion(delta: float) -> void:
+	if _skill_pose.is_empty() or not is_instance_valid(model) or anim == null:
+		return
+	_skill_clock += delta
+	var recovery := float(_skill_pose.recovery)
+	var length := anim.get_animation(current).length
+	# Restore constant tracks while blending. Animated tracks are then sampled
+	# by AnimationPlayer; once the short blend ends this loop is empty.
+	for bone in _skill_base.size():
+		_skeleton.set_bone_pose(bone, _skill_base[bone])
+	anim.seek(SkillChoreography.source_time(_skill_pose, _skill_clock, _skill_release, length), true)
+	_blend_skill_start(smoothstep(0.0, minf(0.10, _skill_release * 0.4), _skill_clock))
+	var windup := clampf(_skill_clock / _skill_release, 0.0, 1.0)
+	var follow := clampf((_skill_clock - _skill_release) / recovery, 0.0, 1.0)
+	var pulse := sin(windup * PI * 0.5) * (1.0 - smoothstep(0.0, 1.0, follow))
+	var recoil := sin(follow * PI) * 0.045
+	var pose := _skill_rest
+	pose.basis = Basis(Vector3.RIGHT, float(_skill_pose.lean) * pulse) * pose.basis
+	pose.origin += Vector3(0, float(_skill_pose.lift) * pulse, float(_skill_pose.step) * pulse - recoil)
+	if bool(_skill_pose.get("elite", false)):
+		var gather := sin(windup * PI) * (1.0 - follow)
+		var strike := smoothstep(0.64, 1.0, windup) * (1.0 - smoothstep(0.0, 1.0, follow))
+		var twist := float(_skill_pose.get("twist", 0.0))
+		pose.basis = Basis(Vector3.UP, twist * (gather - strike * 0.55)) * pose.basis
+		pose.origin.y -= float(_skill_pose.get("crouch", 0.0)) * gather
+	model.transform = pose
+	if _skill_chest >= 0:
+		# Elevate the entire bow/arm chain together; keep feet and grip alignment.
+		var chest_rotation := _skeleton.get_bone_pose_rotation(_skill_chest)
+		_skeleton.set_bone_pose_rotation(_skill_chest,chest_rotation * Quaternion(Vector3.RIGHT,float(_skill_pose.upper_pitch)*pulse))
+	if bool(_skill_pose.get("sky_sword",false)):
+		_point_sword_sky()
+	if _skill_clock >= _skill_release + recovery:
+		_cancel_skill_motion()
+		busy_until = 0
+		current = ""
+		play(_locomotion, 0.14, _locomotion_speed)
+
+
+func _blend_skill_start(weight: float) -> void:
+	if weight >= 1.0:
+		_skill_start.clear()
+		_skill_base.clear()
+		return
+	for bone in _skill_start.size():
+		_skeleton.set_bone_pose(bone, _skill_start[bone].interpolate_with(_skeleton.get_bone_pose(bone), weight))
+
+
+## Turn the complete sword arm at its shoulder, preserving the hand/socket.
+## The raised pose remains steady through the tenth falling sword, then lowers.
+func _point_sword_sky() -> void:
+	var arm := _skeleton.find_bone("RightUpperArm" if chibi else "upperarm.r")
+	if arm<0 or _emission_bone<0 or not is_instance_valid(_emission_grip): return
+	var weight := smoothstep(_skill_release*0.45,_skill_release*0.90,_skill_clock)*(1.0-smoothstep(_skill_release+2.62,_skill_release+3.4,_skill_clock))
+	var hand := _skeleton.get_bone_global_pose(_emission_bone)
+	var axis := (hand.basis*_emission_grip.basis.y).normalized()
+	var up := (_skeleton.global_basis.inverse()*Vector3.UP).normalized()
+	var turn := Quaternion.IDENTITY.slerp(Quaternion(axis,up),weight)
+	var posed := _skeleton.get_bone_global_pose(arm)
+	posed.basis=Basis(turn)*posed.basis
+	var parent := _skeleton.get_bone_parent(arm)
+	var parent_pose := _skeleton.get_bone_global_pose(parent) if parent>=0 else Transform3D.IDENTITY
+	# Godot bone poses are parent-relative transforms including the rest pose,
+	# not a delta from rest. Subtracting rest twists the original KayKit rig.
+	_skeleton.set_bone_pose(arm,parent_pose.affine_inverse()*posed)
+
+
+func _cancel_skill_motion() -> void:
+	skill_generation += 1
+	if not _skill_pose.is_empty() and is_instance_valid(model):
+		model.transform = _skill_rest
+	_skill_pose.clear()
+	_skill_start.clear()
+	_skill_base.clear()
+	_skill_clock = 0.0
+	if chibi:
+		set_process(false)
 
 
 func flash(color := Color(1, 0.35, 0.35), duration := 0.18) -> void:

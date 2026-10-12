@@ -20,7 +20,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator) -> void:
 	for sun in zone.get_tree().get_nodes_in_group("sun"):
 		(sun as Node3D).rotation_degrees = Vector3(-34, -58, 0)
 		(sun as DirectionalLight3D).light_energy = 0.52
-	Scenery.ground(zone, 130.0, Color("b49a6a"), Color("c8ae7c"), 31, Color("c8ae7c"), [], 2.0)
+	Scenery.ground(zone, 130.0, Color("b49a6a"), Color("c8ae7c"), 31, Color("c8ae7c"), [], 2.0, [], &"desert")
 	_floor(zone)
 	_stands(zone, rng)
 	_crowd(zone, rng)

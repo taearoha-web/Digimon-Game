@@ -23,8 +23,6 @@ var _traveling := false
 
 func _ready() -> void:
 	GameSettings.load_settings()
-	GameSettings.apply_resolution(get_tree())
-	get_tree().root.size_changed.connect(func(): GameSettings.apply_resolution(get_tree()))
 	InputSetup.ensure_defaults()
 	var fade_layer := CanvasLayer.new()
 	fade_layer.layer = 90
@@ -169,10 +167,24 @@ func _clear_zone() -> void:
 	if zone:
 		zone.queue_free()
 		zone = null
+	# An iPhone home-screen app has a limited process budget. Keep the authored
+	# meshes/materials on live nodes, but stop retaining every visited map in
+	# static caches after travel or returning to the title screen.
+	NatureKit.release_cache()
+	StorybookFinish.release_cache()
+	HeroParts.release_cache()
+	MeshKit.release_material_cache()
+	WorldArt.release_material_cache()
+	MeshMerge.release_cache()
 
 
 ## warp = true arrives at the field's start (not at the portal you came through).
 func go(zone_id: StringName, instant := false, warping := false) -> void:
+	var access := ZoneData.access_reason(zone_id, int(Game.profile.get("level", 1)), int(Game.paragon().level))
+	if not access.is_empty():
+		Game.say(access, &"warning")
+		if instant: zone_id = &"town"
+		else: return
 	if _traveling:
 		return
 	_traveling = true

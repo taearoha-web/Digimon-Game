@@ -6,7 +6,12 @@ extends RefCounted
 
 static var _meshes: Dictionary = {}
 static var _materials: Dictionary = {}
+const MATERIAL_CACHE_LIMIT := 192
 static var _shadow_texture: Texture2D
+
+
+static func release_material_cache() -> void:
+	_materials.clear()
 
 
 static func sphere() -> Mesh:
@@ -143,6 +148,8 @@ static func toon(color: Color, opts := {}) -> StandardMaterial3D:
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED if opts.get("double_sided", false) else BaseMaterial3D.CULL_BACK
 	if opts.get("double_sided", false):
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if _materials.size() >= MATERIAL_CACHE_LIMIT:
+		_materials.erase(_materials.keys()[0])
 	_materials[key] = mat
 	return mat
 

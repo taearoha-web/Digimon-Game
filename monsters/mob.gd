@@ -44,6 +44,8 @@ var _attack_timer := 1.0
 var _slam_timer := SLAM_INTERVAL * 0.6
 var _stun := 0.0
 var _slow := 0.0
+var _shred_time := 0.0
+var _unshredded_def := 0.0
 var _burn_dps := 0.0
 var _burn_time := 0.0
 var _burn_tick := 0.0
@@ -87,6 +89,7 @@ func _ready() -> void:
 	add_child(shape)
 
 	visual = _make_visual()
+	if StarMonsters.has(monster_id): StarMonsterArt.attach(visual, template)
 	var top := visual.height
 	if not GameSettings.world_shadows():
 		MeshKit.blob_shadow(self, clampf(float(template.height) * 0.55, 0.5, 1.6))
@@ -130,11 +133,9 @@ func _make_visual() -> MonsterVisual:
 	return v
 
 
-## Far from the hero and minding its own business: the monster is hidden and
-## stops thinking, moving and animating until the hero comes near again (the
-## field checks this a few times a second). Fights always keep it awake.
+## Stop distant idle monsters while keeping fights, returning enemies and bosses awake.
 func set_dormant(on: bool) -> void:
-	if on and (hostile or _returning or _dead or is_boss):
+	if on and (hostile or _returning or _dead or is_boss or _burn_time > 0.0):
 		on = false
 	if on == _dormant:
 		return
@@ -216,8 +217,8 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 func provoke(alert_pack := true) -> void:
 	if _dead:
 		return
+	set_dormant(false)
 	if not hostile:
-		set_dormant(false)
 		hostile = true
 		_returning = false
 		_flash_alert()
@@ -319,7 +320,7 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var reach := (7.0 if ranged else 1.5 + body_radius() * 1.2)
 	_attack_timer -= delta
 	_slam_timer -= delta
-	if phase >= 1:
+	if phase >= 1 and not StarMonsters.has(monster_id) and not DivineRegionData.has_monster(monster_id):
 		_barrage_timer -= delta
 		if _barrage_timer <= 0.0:
 			_barrage_timer = 9.0 if phase == 1 else 6.0
@@ -362,6 +363,12 @@ func _animate(horizontal: Vector3, delta: float, chase: Node3D) -> void:
 
 
 func _begin_attack() -> void:
+	if DivineRegionData.has_monster(monster_id):
+		DivineAttack.start(self)
+		return
+	if StarMonsters.has(monster_id):
+		StarAttack.start(self)
+		return
 	_winding = true
 	visual.flash(Color(1.0, 0.25, 0.2), WINDUP)
 	var squash := create_tween()
@@ -429,6 +436,12 @@ func _nearest_victim() -> Node3D:
 
 
 func _begin_slam() -> void:
+	if DivineRegionData.has_monster(monster_id):
+		DivineAttack.start(self, true)
+		return
+	if StarMonsters.has(monster_id):
+		StarAttack.start(self,true)
+		return
 	_winding = true
 	_slam_timer = SLAM_INTERVAL
 	var radius := 5.5
@@ -498,6 +511,9 @@ func _meteor_barrage(target: Node3D) -> void:
 
 
 func _tick_status(delta: float) -> void:
+	if _shred_time > 0.0:
+		_shred_time -= delta
+		if _shred_time <= 0.0: stats.def = _unshredded_def
 	if _slow > 0.0:
 		_slow -= delta
 	if _burn_time > 0.0:
@@ -562,3 +578,8 @@ func _flat_distance_from(a: Vector3, b: Vector3) -> float:
 	var d := a - b
 	d.y = 0.0
 	return d.length()
+
+func apply_shred(fraction: float, seconds: float) -> void:
+	if _shred_time <= 0.0: _unshredded_def = float(stats.def)
+	_shred_time = seconds
+	stats.def = _unshredded_def*(1.0-clampf(fraction,0.0,0.35))

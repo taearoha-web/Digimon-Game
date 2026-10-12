@@ -1,0 +1,30 @@
+TOON TALE — ELITE SKILL ART, LOCAL PREVIEW
+Scope: the 36 Lv.80–100 skills, six per class. No live deployment.
+
+Runtime:
+- EliteSkillArt replaces the generic high-level stack with 32 cached sculptural
+  meshes. Every temporary layer is budgeted, shader materials are per-cast, and
+  one finite owner clock controls scale, movement and dissolve.
+- Low/medium/high use at most 2/4/6 layers per cast. Global VfxBudget still applies.
+  No added full-screen pass, texture download, shadow caster or dynamic light.
+- Original damage, targets, range, mana, cooldown and hit timing remain owned by
+  Hero / Companion / their dedicated sequences. Armageddon retains 11 hits at
+  0.5-second intervals; Judgment Ray retains one hit on one target.
+- Hell Meteor uses the same landing callback with a sculpted meteor carrier.
+  A field unload cancels its bound tween. Decorative saturation never drops its
+  essential incoming body or callback.
+- Spirit Burst changes only vfx and colour in the skill data to match its arcane
+  identity. No damage/stat change.
+- Elite choreography uses existing skeleton clips with authored three-phase
+  timing and local visual weight transfer. Actor position and camera are untouched.
+- Eight elite supports have distinct lasting one-mesh motifs. Summon visuals
+  enlarge Wind Drake and Elder Dragon without changing combat stats or rank scaling.
+
+Preview source: /workspace/toon-artifacts/elite-skill-preview/capture.gd
+Capture uses real Hero.use_skill(), isolated save directories, fixed seed, five
+training enemies and a fixed camera during each cast. Large effects get a wider
+static preview framing. The production camera is not changed.
+
+Validation logs and PDF / MP4 / offline HTML are in the same artifact directory.
+Native llvmpipe captures establish appearance and lifecycle behaviour, not iPhone
+FPS. A device performance pass remains necessary before a live release.

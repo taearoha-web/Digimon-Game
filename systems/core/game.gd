@@ -36,6 +36,9 @@ const MAX_LEVEL := 100
 const MAX_SKILL_RANK := 5
 const MAX_SAVE_BYTES := 1048576
 const MAX_SAVE_NUMBER := 1000000000000
+const ENDING_ZONE := &"eclipse_realm"
+## Separate from the legacy magma ending, so old saves can earn the real finale.
+const ENDING_FLAG := "eclipse_ending_seen"
 ## Area skills (burst / blast) grow this much wider per extra star.
 const RADIUS_PER_STAR := 0.08
 
@@ -45,15 +48,35 @@ var current_zone: StringName = &"town"
 var rng := RandomNumberGenerator.new()
 var _autosave_timer := 0.0
 var _dirty := false
+## The browser owns authentication and async uploads. The game only sends
+## committed local snapshots and pauses while its account dialog is visible.
+const CLOUD_STATUS_INTERVAL := 0.2
+var _cloud_status_timer := 0.0
+var _cloud_modal_paused := false
+var _cloud_previous_pause := false
+var _web_next_sample_msec := 0
+var last_save_work_ms := 0.0
+var peak_save_work_ms := 0.0
 
 
 func _ready() -> void:
+	ZoneData.ensure()
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
 
 
 func _process(delta: float) -> void:
+	if OS.has_feature("web"):
+		_cloud_status_timer += delta
+		if _cloud_status_timer >= CLOUD_STATUS_INTERVAL:
+			_cloud_status_timer = fmod(_cloud_status_timer, CLOUD_STATUS_INTERVAL)
+			_poll_cloud_modal()
+		if Time.get_ticks_msec() >= _web_next_sample_msec:
+			_web_next_sample_msec = Time.get_ticks_msec() + 5000
+			_record_web_session_sample()
+	if _cloud_modal_paused:
+		return
 	if not has_profile:
 		return
 	profile["play_time"] = float(profile.get("play_time", 0.0)) + delta
@@ -72,6 +95,8 @@ func _notification(what: int) -> void:
 			or what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if has_profile:
 			save()
+		if OS.has_feature("web"):
+			_poll_cloud_modal()
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +164,7 @@ func loadout() -> Array:
 
 ## Keeps the bar valid and puts newly unlocked skills into empty slots.
 func fill_loadout() -> void:
-	profile["loadout"] = ClassData.default_loadout(class_id(), int(profile.get("level", 1)), profile.get("loadout", []), class_tier())
+	profile["loadout"] = ClassData.default_loadout(class_id(), int(profile.get("level", 1)), profile.get("loadout", []), class_tier(), int(paragon().level))
 
 
 ## Puts a skill on a bar slot; a skill already on the bar swaps places.
@@ -298,6 +323,7 @@ func import_code(code: String, target_slot := -1) -> bool:
 	_autosave_timer = 0.0
 	_party_gear.clear()
 	_remember_slot()
+	_queue_cloud_save()
 	profile_changed.emit()
 	inventory_changed.emit()
 	quest_changed.emit()
@@ -432,6 +458,7 @@ func should_resume() -> bool:
 func save() -> bool:
 	if not has_profile:
 		return false
+	var work_started := Time.get_ticks_usec()
 	# Keep the last successful metadata and the dirty state until commit succeeds.
 	var snapshot := profile.duplicate(true)
 	snapshot["zone"] = String(current_zone)
@@ -439,6 +466,7 @@ func save() -> bool:
 	snapshot["saved_at"] = int(Time.get_unix_time_from_system())
 	if not _write_profile(snapshot, slot):
 		_dirty = true
+		_note_save_work(work_started)
 		return false
 	profile["zone"] = snapshot.zone
 	profile["resume"] = snapshot.resume
@@ -446,7 +474,14 @@ func save() -> bool:
 	_remember_slot()
 	_autosave_timer = 0.0
 	_dirty = false
+	_queue_cloud_save()
+	_note_save_work(work_started)
 	return true
+
+
+func _note_save_work(started: int) -> void:
+	last_save_work_ms=float(Time.get_ticks_usec()-started)/1000.0
+	peak_save_work_ms=maxf(peak_save_work_ms,last_save_work_ms)
 
 
 ## Same-directory rename keeps the previous save intact if writing fails.
@@ -488,11 +523,115 @@ func load_game(from_slot := -1) -> bool:
 
 func delete_save(for_slot := -1) -> void:
 	var target := slot if for_slot < 1 else for_slot
-	if has_save(target):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path(target)))
+	if target < 1 or target > SLOT_COUNT:
+		return
+	var existed := has_save(target)
+	if existed and DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path(target))) != OK:
+		return
 	if target == slot:
 		has_profile = false
 		profile = {}
+	if existed:
+		_queue_cloud_save()
+
+
+## Read every committed slot, without repairing or mutating its saved data.
+## Empty / invalid slots stay absent, so deleting a slot reaches the cloud too.
+func build_cloud_bundle() -> Dictionary:
+	var slots: Dictionary = {}
+	for i in range(1, SLOT_COUNT + 1):
+		var saved := _read_slot(i)
+		if not saved.is_empty():
+			slots[String.num_int64(i)] = saved
+	return {"slots": slots, "selectedSlot": clampi(slot, 1, SLOT_COUNT)}
+
+
+## JSON-encode the already serialized bundle as one JavaScript string value.
+## Player names and imported strings must never become executable source.
+func _cloud_save_script(serialized_bundle: String) -> String:
+	var argument := JSON.stringify(serialized_bundle).replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+	return "if (typeof window.toonCloudSave === 'function') { window.toonCloudSave(%s); }" % argument
+
+
+func _queue_cloud_save() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval(_cloud_save_script(JSON.stringify(build_cloud_bundle())), true)
+
+
+func open_cloud_account() -> void:
+	if not OS.has_feature("web"):
+		return
+	# Commit before opening the panel; account switching itself is handled by
+	# the browser, which suppresses old-session uploads before replacing saves.
+	if not _save_before_cloud_account():
+		return
+	JavaScriptBridge.eval("if (typeof window.toonOpenAccountPanel === 'function') { window.toonOpenAccountPanel(); }", true)
+	_poll_cloud_modal()
+
+
+func _save_before_cloud_account() -> bool:
+	if has_profile and not save():
+		say("บันทึกไม่สำเร็จ กรุณาสำรองรหัสเซฟก่อนเปลี่ยนบัญชี", &"warning")
+		return false
+	return true
+
+
+func _poll_cloud_modal() -> void:
+	var raw: Variant = JavaScriptBridge.eval("typeof window.toonRuntimePauseMask === 'function' ? window.toonRuntimePauseMask() : (typeof window.toonCloudStatus === 'function' ? window.toonCloudStatus() : null)", true)
+	if raw is float or raw is int:
+		_apply_web_pause_mask(int(raw))
+		return
+	if not raw is String:
+		return
+	var status: Variant = JSON.parse_string(raw)
+	if status is Dictionary and status.get("modalOpen") is bool:
+		_set_cloud_modal_open(status.modalOpen)
+
+
+func _apply_web_pause_mask(mask: int) -> void:
+	AudioManager.set_backgrounded((mask & 1) != 0)
+	_set_cloud_modal_open(mask != 0)
+
+
+func _record_web_session_sample() -> void:
+	var hero := get_tree().get_first_node_in_group("hero")
+	var sample := {"staticBytes": int(Performance.get_monitor(Performance.MEMORY_STATIC)),
+		"videoBytes": int(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)),
+		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"objects": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+		"resources": int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),
+		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
+		"fps": Engine.get_frames_per_second(), "quality": GameSettings.quality,
+		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+		"renderObjects": int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
+		"processMs": Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		"physicsMs": Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+		"soundPlayRequests": AudioManager.sound_play_requests,
+		"saveWorkMs": last_save_work_ms, "savePeakMs": peak_save_work_ms,
+		"audioStreamMode": AudioManager.uses_stream_playback(),
+		"zone": String(current_zone), "class": String(class_id()),
+		"loot": get_tree().get_nodes_in_group("loot").size(),
+		"auto": hero is Hero and hero.auto, "kills": int(profile.get("kills", 0)),
+		"saveAgeSeconds": maxi(0, int(Time.get_unix_time_from_system()) - int(profile.get("saved_at", Time.get_unix_time_from_system())))}
+	if hero is Hero:
+		sample["lastSkill"]=hero.last_cast_id
+		if hero.field is Zone and hero.field.tower_run:
+			var run:TowerRun=hero.field.tower_run
+			sample.merge({"towerFloor":run.floor_no,"towerState":run.state,"pendingSpawns":run._pending.size(),"spawnWorkMs":run.last_spawn_ms,"spawnPeakMs":run.peak_spawn_ms})
+	JavaScriptBridge.eval("if (window.toonSession) window.toonSession.sample(%s);" % JSON.stringify(JSON.stringify(sample)), true)
+
+
+func _set_cloud_modal_open(open: bool) -> void:
+	if open == _cloud_modal_paused:
+		return
+	if open:
+		_cloud_previous_pause = get_tree().paused
+		get_tree().paused = true
+	else:
+		get_tree().paused = _cloud_previous_pause
+	_cloud_modal_paused = open
 
 
 ## Reject wrong types before any typed gameplay code can touch imported JSON.
@@ -622,6 +761,12 @@ func _valid_item(value: Variant) -> bool:
 	for key in ["uid", "name", "class", "set", "base"]:
 		if not item.get(key, "") is String:
 			return false
+	if item.has("star_tier"):
+		if not _valid_integer(item.star_tier, 50, 200) or not StarProgression.TIERS.has(int(item.star_tier)) or not ClassData.IDS.has(StringName(item.get("star_class", ""))): return false
+	if item.has("collection"):
+		if not DivineGearData.is_item(item) or not DivineGearData.SLOTS.has(item.slot): return false
+		if item.get("star_tier") != 200 or item.get("level") != 300 or item.get("class") != item.get("star_class"): return false
+		if item.get("set") != DivineGearData.set_id(String(item.get("class", ""))): return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
 	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
@@ -707,6 +852,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	for item in data.inv + data.storage + data.equip.values():
 		if item is Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
+	StarWingData.migrate_profile(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -753,7 +899,7 @@ func _migrate_skills(data: Dictionary) -> void:
 			data.skills.erase(skill_id)
 	if not data.get("loadout") is Array:
 		data["loadout"] = ["", "", "", "", "", "", "", ""]
-	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, int(data.get("adv", 0))))
+	data["loadout"] = ClassData.default_loadout(cls, int(data["level"]), data["loadout"], ClassData.tier_of(cls, int(data.get("adv", 0))), int(data.get("paragon", {}).get("level", 0)))
 
 
 ## Weapon kinds of the spell casters (converted between when a class's kind changes).
@@ -1028,7 +1174,7 @@ func tower_reroll_wings(item: Dictionary) -> String:
 		return "ใช้กับปีกเท่านั้น"
 	if int(tower().shards) < TowerData.COST_REROLL:
 		return "ผลึกไม่พอ (ต้องใช้ %d)" % TowerData.COST_REROLL
-	var fresh := ItemData.wings(rng, String(item.get("wing", "warrior")))
+	var fresh := StarWingData.item(String(item.get("wing","warrior")),rng) if StarWingData.is_wing(item) else ItemData.wings(rng, String(item.get("wing", "warrior")))
 	tower_spend(TowerData.COST_REROLL)
 	item["stats"] = fresh.stats
 	item["rarity"] = fresh.rarity
@@ -1118,6 +1264,9 @@ func _add_paragon_exp(amount: int) -> void:
 		p["exp"] = 0
 	exp_changed.emit()
 	if gained > 0:
+		fill_loadout()
+		if int(p.level) in StarProgression.TIERS:
+			say("ปลดล็อกสกิลและอุปกรณ์ดาว %d — เปิดเมนู เส้นทางดาว" % int(p.level), &"success")
 		paragon_leveled.emit(int(p.level))
 		profile_changed.emit()
 		check_achievements()
@@ -1131,7 +1280,7 @@ func star_gear_level(bonus := 0) -> int:
 	if rng.randf() < 0.15:
 		return MAX_LEVEL
 	var star := int(paragon().level) + rng.randi_range(1, 8) + bonus
-	return MAX_LEVEL + clampi(star, 1, ItemData.MAX_GEAR_STAR)
+	return MAX_LEVEL + clampi(star, 1, 20)
 
 
 func paragon_spend(key: String) -> bool:
@@ -1167,11 +1316,14 @@ func paragon_reset() -> bool:
 	return true
 
 
-func spend_point(attr: String) -> bool:
-	if profile["points"] <= 0 or not profile["attrs"].has(attr):
+## Allocate the requested number atomically, retaining the one-point default.
+func spend_point(attr: String, amount: int = 1) -> bool:
+	if amount <= 0 or profile.is_empty() or attr not in ["str", "int", "dex", "vit"]:
 		return false
-	profile["points"] -= 1
-	profile["attrs"][attr] += 1
+	if amount > int(profile["points"]) or not profile["attrs"].has(attr):
+		return false
+	profile["points"] = int(profile["points"]) - amount
+	profile["attrs"][attr] = int(profile["attrs"][attr]) + amount
 	profile_changed.emit()
 	mark_dirty()
 	return true
@@ -1182,7 +1334,7 @@ func skill_rank(skill_id: String) -> int:
 
 
 func skill_unlocked(skill: Dictionary) -> bool:
-	return profile["level"] >= int(skill.level) and class_tier() >= ClassData.skill_tier(skill)
+	return profile["level"] >= int(skill.level) and class_tier() >= ClassData.skill_tier(skill) and int(paragon().level) >= int(skill.get("star", 0))
 
 
 ## 0 Vagabond, 1 line (Lv.10), then 2..5 for the four advancements (Lv.20/40/60/80).
@@ -1192,6 +1344,8 @@ func class_tier() -> int:
 
 ## Why a skill cannot be used yet ("" when it can).
 func skill_lock_reason(skill: Dictionary) -> String:
+	if skill.has("star") and int(paragon().level) < int(skill.star):
+		return "ปลดล็อกที่เลเวล 100 ดาว %d" % int(skill.star)
 	if profile["level"] < int(skill.level):
 		return "ปลดล็อกที่เลเวล %d" % int(skill.level)
 	var need := ClassData.skill_tier(skill)
@@ -1667,6 +1821,10 @@ func set_quest(quest_id: String, status: String, progress := -1) -> void:
 	mark_dirty()
 
 
+func ending_unlocked() -> bool:
+	return int(profile.get("flags", {}).get(ENDING_FLAG, 0)) > 0
+
+
 ## Counts a kill for every active quest hunting this monster.
 func report_kill(monster_id: StringName, is_boss := false) -> void:
 	profile["kills"] = int(profile["kills"]) + 1
@@ -1684,9 +1842,18 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 		quest_changed.emit()
 	if is_boss:
 		profile["boss_kills"][String(monster_id)] = int(profile["boss_kills"].get(String(monster_id), 0)) + 1
-	if is_boss and monster_id == &"magma_dragon" and int(profile["flags"].get("ending_seen", 0)) == 0:
-		profile["flags"]["ending_seen"] = 1
-		get_tree().create_timer(2.5).timeout.connect(func(): ending_requested.emit())
+	# The same emperor also appears in the tower; only the final field ends
+	# the adventure. An old magma ending must not suppress this first victory.
+	if is_boss and current_zone == ENDING_ZONE and monster_id == ZoneData.get_zone(ENDING_ZONE).boss.monster and not ending_unlocked():
+		profile["flags"][ENDING_FLAG] = 1
+		var victorious_profile := profile
+		var victorious_slot := slot
+		# Wait for menus to close, and never show another character's finale
+		# after a save switch, import, or departure during the victory delay.
+		get_tree().create_timer(2.5, false).timeout.connect(func():
+			if has_profile and playing and slot == victorious_slot and is_same(profile, victorious_profile) and current_zone == ENDING_ZONE:
+				ending_requested.emit()
+		, CONNECT_ONE_SHOT)
 	daily_progress("kills", 1)
 	daily_progress("zone_kills", 1)
 	if is_boss:
