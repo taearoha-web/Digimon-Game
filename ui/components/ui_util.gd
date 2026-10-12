@@ -146,10 +146,34 @@ static func spacer(horizontal := true) -> Control:
 	return c
 
 
+## Empties [param node] at once (the next rebuild sees no old children).
+## The old children wait, hidden, under an in-tree holder until they are freed
+## at the end of the frame. A list is often rebuilt by one of its own buttons:
+## on a phone the button fires on the emulated mouse release, and the touch
+## release that follows still goes to that button. Godot 4.3 then checks
+## can_process() on it, which fails ("!is_inside_tree()") for a node that is
+## out of the tree but not yet freed.
 static func clear(node: Node) -> void:
+	var holder := _discard_holder(node)
 	for child in node.get_children():
 		node.remove_child(child)
+		if holder:
+			if child is CanvasItem:
+				(child as CanvasItem).hide()
+			holder.add_child(child)
 		child.queue_free()
+
+
+static func _discard_holder(node: Node) -> Node:
+	if not node.is_inside_tree():
+		return null
+	var root := node.get_tree().root
+	var holder := root.get_node_or_null(^"UIDiscard")
+	if holder == null:
+		holder = Node.new()
+		holder.name = "UIDiscard"
+		root.add_child(holder)
+	return holder
 
 
 ## Full-rect animated cartoon sky background.
