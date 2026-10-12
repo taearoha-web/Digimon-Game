@@ -23,8 +23,14 @@ repo → Actions → "Deploy to Cloudflare (game + accounts)" → Run workflow
 
 เสร็จแล้วเกมอยู่ที่ `https://toon-tale.<subdomain>.workers.dev/`
 
+## ถ้ามีฐานข้อมูลบัญชีเดิมอยู่ใน Cloudflare ของคุณแล้ว
+ตอนกด Run workflow ใส่ **existing_database_id** (D1 → ฐานข้อมูลนั้น → คัดลอก Database ID) ระบบจะใช้ฐานเดิม ไม่สร้างใหม่
+และถ้าฐานเดิมมีตารางครบอยู่แล้ว ให้ปิด **apply_migrations** เพื่อไม่แตะโครงสร้างตาราง
+(ข้อมูลผู้เล่นบนเว็บเดิมที่โฮสต์โดยแพลตฟอร์มอื่นจะไม่ย้ายมาเอง ถ้าไม่ได้อยู่ใน Cloudflare ของคุณ ต้องส่งออก/นำเข้าแยกต่างหาก)
+
 ## ตรวจหลัง deploy
-- เปิด `/api/account/session` ต้องได้ `{"user":null}`
+- workflow ทดสอบให้เองตอนจบ: หน้าเกมโหลดได้และ `/api/account/session` ตอบ `{"user":null}` (ดูผลที่ Summary ของ run)
+- เปิด `/api/account/session` ด้วยตัวเองก็ได้ ต้องได้ `{"user":null}`
 - สมัครไอดีทดสอบ (ใช้ชื่อทดสอบ ไม่ใช้ข้อมูลผู้เล่นจริง) → ออกจากระบบ → เข้าใหม่ → เซฟข้ามเครื่อง
 - รหัสกู้คืน (recoveryCode) แสดงตอนสมัครครั้งเดียว ให้ผู้เล่นจดไว้
 

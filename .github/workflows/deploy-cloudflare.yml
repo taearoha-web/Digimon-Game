@@ -15,6 +15,14 @@ on:
         description: Worker name (becomes <name>.<your-subdomain>.workers.dev)
         default: toon-tale
         required: true
+      existing_database_id:
+        description: Optional. Attach to an existing D1 database id instead of finding/creating one by name
+        default: ''
+        required: false
+      apply_migrations:
+        description: Create the account tables (already-applied migrations are skipped). Turn off for a database that already has them
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -32,6 +40,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DB_NAME: ${{ inputs.database_name }}
       WORKER_NAME: ${{ inputs.worker_name }}
+      EXISTING_DB_ID: ${{ inputs.existing_database_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,21 +48,30 @@ jobs:
           node-version: '22'
       - name: Check secrets
         run: |
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing secret CLOUDFLARE_API_TOKEN"; exit 1; }
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing secret CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
       - name: Account backend tests
         working-directory: hosting/accounts
         run: node tests/account.test.mjs
       - name: Check the game files fit Workers static assets (25 MiB each)
         run: |
           big=$(find docs/play -type f -size +25M)
-          if [ -n "$big" ]; then echo "Too large for Workers assets:"; echo "$big"; exit 1; fi
+          if [ -n "$big" ]; then echo "::error::Too large for Workers assets:"; echo "$big"; exit 1; fi
       - name: Install wrangler
         working-directory: hosting/worker
         run: npm install --no-audit --no-fund
+      - name: Check the Cloudflare token and account
+        working-directory: hosting/worker
+        run: |
+          npx wrangler whoami || { echo "::error::Cloudflare rejected the token. Check CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID and the token permissions (Workers Scripts: Edit, D1: Edit)."; exit 1; }
       - name: Find or create the D1 database
         working-directory: hosting/worker
         run: |
+          if [ -n "$EXISTING_DB_ID" ]; then
+            echo "Using the existing D1 database id given as input"
+            echo "DB_ID=$EXISTING_DB_ID" >> "$GITHUB_ENV"
+            exit 0
+          fi
           find_id() {
             npx wrangler d1 list --json > /tmp/d1.json
             node -e "const l=JSON.parse(require('fs').readFileSync('/tmp/d1.json','utf8'));const d=l.find(x=>x.name===process.env.DB_NAME);console.log(d?(d.uuid||d.id||''):'')"
@@ -63,8 +81,10 @@ jobs:
             echo "Creating D1 database $DB_NAME"
             npx wrangler d1 create "$DB_NAME"
             DB_ID=$(find_id)
+          else
+            echo "Found existing D1 database $DB_NAME"
           fi
-          test -n "$DB_ID" || { echo "Could not determine the D1 database id"; exit 1; }
+          test -n "$DB_ID" || { echo "::error::Could not determine the D1 database id"; exit 1; }
           echo "DB_ID=$DB_ID" >> "$GITHUB_ENV"
       - name: Write wrangler.jsonc
         working-directory: hosting/worker
@@ -78,8 +98,30 @@ jobs:
             fs.writeFileSync('wrangler.jsonc',JSON.stringify(c,null,2));
           "
       - name: Apply database migrations (already-applied ones are skipped)
+        if: ${{ inputs.apply_migrations }}
         working-directory: hosting/worker
         run: npx wrangler d1 migrations apply "$DB_NAME" --remote
       - name: Deploy the Worker (game + /api/account/*)
         working-directory: hosting/worker
-        run: npx wrangler deploy
+        run: |
+          npx wrangler deploy 2>&1 | tee /tmp/deploy.log
+          URL=$(grep -oE 'https://[A-Za-z0-9._-]+\.workers\.dev' /tmp/deploy.log | head -1)
+          if [ -z "$URL" ]; then
+            echo "::warning::Deployed, but no workers.dev URL was printed (a custom domain may be in use, or the workers.dev subdomain is not set up yet: Cloudflare dashboard > Workers & Pages)."
+          else
+            echo "SITE_URL=$URL" >> "$GITHUB_ENV"
+          fi
+      - name: Smoke test the live site
+        if: ${{ env.SITE_URL != '' }}
+        run: |
+          sleep 8
+          echo "Site: $SITE_URL"
+          code=$(curl -s -o /tmp/index.html -w '%{http_code}' "$SITE_URL/")
+          echo "GET / -> $code"
+          test "$code" = "200" || { echo "::error::The game page did not load (HTTP $code)"; exit 1; }
+          grep -qi "toon tale" /tmp/index.html || { echo "::error::The page does not look like Toon Tale"; exit 1; }
+          body=$(curl -s "$SITE_URL/api/account/session")
+          echo "GET /api/account/session -> $body"
+          echo "$body" | grep -q '"user":null' || { echo "::error::The account API did not answer {\"user\":null} (is the D1 binding named DB and are the tables created?)"; exit 1; }
+          echo "### Toon Tale is live: $SITE_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Game and account API both answered correctly." >> "$GITHUB_STEP_SUMMARY"
