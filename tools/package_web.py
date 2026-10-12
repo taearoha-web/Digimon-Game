@@ -168,6 +168,8 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         icon.resize((size, size), Image.LANCZOS).save(os.path.join(pages_dir, name), optimize=True)
         icon_urls[name] = f"{name}?v={icon_hash}"
     Image.open(os.path.join(BRANDING, "og_image.png")).convert("RGB").save(os.path.join(pages_dir, "og.jpg"), quality=88, optimize=True)
+    with open(os.path.join(pages_dir, "og.jpg"), "rb") as f:
+        og_hash = hashlib.sha256(f.read()).hexdigest()[:12]
     manifest = {
         "name": TITLE,
         "short_name": "Toon Tale",
@@ -208,11 +210,11 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         f'<meta property="og:description" content="{DESCRIPTION}">\n'
         '<meta property="og:type" content="website">\n'
         f'<meta property="og:url" content="{PAGES_URL}">\n'
-        f'<meta property="og:image" content="{PAGES_URL}og.jpg">\n'
+        f'<meta property="og:image" content="{PAGES_URL}og.jpg?v={og_hash}">\n'
         '<meta property="og:image:width" content="1200">\n'
         '<meta property="og:image:height" content="630">\n'
         '<meta name="twitter:card" content="summary_large_image">\n'
-        f'<meta name="twitter:image" content="{PAGES_URL}og.jpg">\n'
+        f'<meta name="twitter:image" content="{PAGES_URL}og.jpg?v={og_hash}">\n'
         '<style>body{margin:0}[hidden]{display:none!important}</style>\n'
     )
     shell = shell.replace("Your browser does not support the canvas tag.", "เบราว์เซอร์นี้เปิดเกมไม่ได้ ลองเปิดด้วย Safari หรือ Chrome")
