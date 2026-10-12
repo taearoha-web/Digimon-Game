@@ -118,6 +118,14 @@ d.window.toonSession.error('ERROR: Condition "!is_inside_tree()" is true. Return
 d.window.toonSession.error('   at: get_global_transform (scene/3d/node_3d.cpp:345)');
 diagnostic = JSON.parse(diagnosticStorage.get('toon_session_v1'));
 check(diagnostic.events.at(-1).issue === 'outside_tree' && diagnostic.events.at(-1).file === 'scene/3d/node_3d.cpp', 'native engine locations are retained without arbitrary message text');
+check(diagnostic.events.at(-1).fn === 'get_global_transform', 'the engine function that reported a fault is retained');
+d.window.toonSession.error('USER ERROR: Condition "!is_inside_tree()" is true. Returning: NodePath() secret-password');
+d.window.toonSession.error('   at: get_path (scene/main/node.cpp:835)');
+d.window.toonSession.error('   GDScript backtrace (most recent call first):');
+d.window.toonSession.error('       [0] _spawn (res://combat/skill_show.gd:88) secret-password');
+d.window.toonSession.error('       [1] _cast (res://characters/hero.gd:301)');
+diagnostic = JSON.parse(diagnosticStorage.get('toon_session_v1'));
+check(diagnostic.events.at(-1).fn === 'get_path' && diagnostic.events.at(-1).script.file === 'res://combat/skill_show.gd' && diagnostic.events.at(-1).script.line === 88 && !JSON.stringify(diagnostic).includes('secret'), 'the first game-script backtrace line is retained as file and line only');
 for (let i=0;i<100;i++) d.window.toonSession.error(`SCRIPT ERROR: Invalid call at res://combat/test_${i}.gd:42 password=secret-password https://example.test/?token=secret-token`);
 diagnostic = JSON.parse(diagnosticStorage.get('toon_session_v1'));
 check(diagnostic.events.length === 24 && !JSON.stringify(diagnostic).includes('secret') && !JSON.stringify(diagnostic).includes('example.test'), 'distinct errors are bounded and no raw message, token, URL or account data persists');
