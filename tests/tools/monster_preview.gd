@@ -29,6 +29,8 @@ func _ready() -> void:
 		if zone_mode:
 			var t: Dictionary = MonsterData.get_monster(ids[i])
 			v.setup(names[i], minf(float(t.height), 3.2), float(t.get("hover", 0.0)) * 0.5, t.get("tint", Color.WHITE))
+			if StarMonsters.has(ids[i]):
+				StarMonsterArt.attach(v, t)
 		else:
 			v.setup(names[i], 2.4, 0.0)
 		v.position = Vector3((i % per_row) * 4.0 - (per_row - 1) * 2.0, 0, -float(i / per_row) * 4.5)
