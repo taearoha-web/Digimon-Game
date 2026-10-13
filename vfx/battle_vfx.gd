@@ -95,6 +95,7 @@ static func ring(parent: Node3D, pos: Vector3, color: Color, size := 1.5) -> voi
 	var mi := MeshInstance3D.new()
 	mi.mesh = MeshKit.torus()
 	var mat := StandardMaterial3D.new()
+	MaterialKeeper.keep(mat)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color

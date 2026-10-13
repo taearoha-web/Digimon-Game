@@ -205,6 +205,7 @@ func _bolt_layer(points: PackedVector3Array, width: float, color: Color, label: 
 	bolt.mesh = SpellSpectacle._tube_mesh(points, width)
 	bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat := StandardMaterial3D.new()
+	MaterialKeeper.keep(mat)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color

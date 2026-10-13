@@ -26,7 +26,7 @@ static func _glow(color: Color, alpha := 1.0, additive := true) -> StandardMater
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.albedo_color = Color(color.r, color.g, color.b, alpha)
 	m.disable_fog = true
-	return m
+	return MaterialKeeper.keep(m) as StandardMaterial3D
 
 
 const ENERGY_SHADER := preload("res://shaders/vfx_energy.gdshader")

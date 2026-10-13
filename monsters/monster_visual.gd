@@ -152,6 +152,7 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 		return
 	var meshes := model.find_children("*", "MeshInstance3D", true, false)
 	var overlay := StandardMaterial3D.new()
+	MaterialKeeper.keep(overlay)
 	overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD

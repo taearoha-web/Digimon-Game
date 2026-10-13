@@ -622,6 +622,7 @@ static func leaf_mesh() -> ArrayMesh:
 ## Its gameplay carrier owns cleanup; decorative saturation must not hide it.
 static func leaf_swirl(holder: Node3D, size: float) -> void:
 	var mat := StandardMaterial3D.new()
+	MaterialKeeper.keep(mat)
 	mat.vertex_color_use_as_albedo = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED

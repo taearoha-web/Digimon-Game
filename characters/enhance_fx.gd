@@ -41,7 +41,7 @@ static func _glow_material(color: Color, alpha: float) -> StandardMaterial3D:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.albedo_color = Color(color.r, color.g, color.b, alpha)
-	return m
+	return MaterialKeeper.keep(m) as StandardMaterial3D
 
 
 static func _sparkles(parent: Node3D, pos: Vector3, color: Color, amount: int, radius: float, size: float, rise: float, lifetime := 1.1) -> CPUParticles3D:
@@ -49,6 +49,7 @@ static func _sparkles(parent: Node3D, pos: Vector3, color: Color, amount: int, r
 	var quad := QuadMesh.new()
 	quad.size = Vector2(size, size)
 	var mat := StandardMaterial3D.new()
+	MaterialKeeper.keep(mat)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
