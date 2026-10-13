@@ -52,7 +52,9 @@ func _ready() -> void:
 	p.mp = 1000000000
 	hero.set_auto(true)
 	var mobs := get_tree().get_nodes_in_group("mobs").size()
-	print("ZONE %s class %s mobs=%d quality=%d" % [zone_id, cls, mobs, GameSettings.quality])
+	print("ZONE %s class %s mobs=%d quality=%d | video=%.0fMB texture=%.0fMB buffer=%.0fMB static=%.0fMB" % [zone_id, cls, mobs, GameSettings.quality,
+		Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+		Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
 	_on = true
 	_t0 = Time.get_ticks_usec()
 	var start := Time.get_ticks_msec()
