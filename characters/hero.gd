@@ -892,7 +892,7 @@ func _summon(skill: Dictionary, mult: float) -> void:
 	var count := int(spec.get("count", 1)) + (1 if Game.effective_rank(skill) >= 5 and int(spec.get("count", 1)) > 1 else 0)
 	for i in count:
 		var s := Summon.new()
-		s.setup(self, String(skill.id), spec, mult, i, count, maxi(1, Game.effective_rank(skill)))
+		s.setup(self, String(skill.id), spec, mult * HeroStats.SKILL_POWER, i, count, maxi(1, Game.effective_rank(skill)))
 		field.add_child(s)
 		_summons.append(s)
 	while _summons.size() > 5:
@@ -962,6 +962,8 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	if not _valid_target(mob):
 		return
 	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08)
+	if not skill.is_empty():
+		raw *= HeroStats.SKILL_POWER
 	if _star_retaliation and not skill.is_empty() and StarProgression.has_full_set(Game.profile,"warrior"):
 		raw *= 1.2
 		_star_retaliation = false

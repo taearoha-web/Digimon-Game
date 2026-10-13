@@ -96,15 +96,62 @@ static func get_monster(id: StringName) -> Dictionary:
 	return MONSTERS.get(id, MONSTERS[&"pink_slime"])
 
 
-## Level curve shared by every monster; the template multiplies it.
+## Per-field balance, measured with tests/tools/balance_probe.tscn against a
+## hero in the middle of the field's levels wearing gear fit for it:
+## [normal HP, normal attack, boss HP, boss attack] multipliers. Aims: a normal
+## monster falls to 3 (meadow) .. 14 (void) basic hits, 25-35 in the star
+## regions; it needs about 25 .. 14 hits to bring the hero down, a boss 8 .. 5;
+## a boss takes 12 .. 90 strongest-skill hits.
+const ZONE_TUNING := {
+	&"meadow": [0.8427, 0.9152, 0.1354, 0.5725],
+	&"dark_forest": [0.5666, 0.8712, 0.1904, 0.765],
+	&"desert": [0.5263, 1.6776, 0.238, 1.7212],
+	&"snow": [0.3953, 2.185, 0.2123, 2.3275],
+	&"volcano": [0.3648, 2.9296, 0.1736, 3.3829],
+	&"graveyard": [0.254, 3.0382, 0.1726, 3.8443],
+	&"swamp": [0.1936, 4.1495, 0.1662, 5.2171],
+	&"storm": [0.2138, 4.7835, 0.2019, 6.5071],
+	&"sky": [0.1834, 6.5075, 0.2146, 11.2283],
+	&"abyss": [0.1246, 6.7121, 0.1692, 12.0917],
+	&"void": [0.0398, 4.6806, 0.1336, 7.24],
+	&"dawn_forest": [0.0978, 23.2094, 0.1172, 20.1817],
+	&"crystal_valley": [0.094, 35.4653, 0.1069, 31.8467],
+	&"sky_citadel": [0.1095, 48.1081, 0.1488, 42.37],
+	&"eclipse_realm": [0.1033, 65.8753, 0.1196, 63.786],
+	&"lotus_sanctum": [0.0638, 75.8607, 0.1463, 73.344],
+}
+static var _home_zone := {}
+
+
+## The field a monster lives in (its first camp or boss slot), for ZONE_TUNING.
+static func home_zone(id: StringName) -> StringName:
+	if _home_zone.is_empty():
+		ZoneData.ensure()
+		for zone_id in ZoneData.ZONES:
+			if not ZONE_TUNING.has(zone_id):
+				continue
+			var zone: Dictionary = ZoneData.ZONES[zone_id]
+			for camp in zone.get("camps", []):
+				for mid in camp.monsters:
+					if not _home_zone.has(mid): _home_zone[mid] = zone_id
+			if zone.has("boss") and not _home_zone.has(zone.boss.monster):
+				_home_zone[zone.boss.monster] = zone_id
+	return _home_zone.get(id, &"")
+
+
+## Level curve shared by every monster; the template and its field's tuning
+## multiply it.
 static func stats_for(id: StringName, level: int) -> Dictionary:
 	var m := get_monster(id)
 	var boss := bool(m.get("boss", false))
+	var tune: Array = ZONE_TUNING.get(home_zone(id), [1.0, 1.0, 1.0, 1.0])
+	var hp_tune := float(tune[2] if boss else tune[0])
+	var atk_tune := float(tune[3] if boss else tune[1])
 	# Past Lv.50 the stat curve climbs at 60% speed so Lv.100 stays playable.
 	var eff := float(level) if level <= 50 else 50.0 + float(level - 50) * 0.55
 	return {
-		"hp": int(round((38.0 + eff * eff * 3.0 + eff * 26.0) * float(m.hp) * 1.3)),
-		"atk": int(round((5.0 + eff * 3.1) * float(m.atk) * 1.45)),
+		"hp": maxi(1, int(round((38.0 + eff * eff * 3.0 + eff * 26.0) * float(m.hp) * 1.3 * hp_tune))),
+		"atk": maxi(1, int(round((5.0 + eff * 3.1) * float(m.atk) * 1.45 * atk_tune))),
 		"def": int(round((1.0 + eff * 1.5) * float(m.def))),
 		"exp": int(round((10.0 + level * 9.0) * 1.15 * (8.0 if boss else 1.0) * float(m.get("exp", 1.0)))),
 		"gold": int(round((3.0 + level * 3.0) * (10.0 if boss else 1.0) * float(m.get("gold", 1.0)))),

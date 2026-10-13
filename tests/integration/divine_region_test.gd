@@ -5,7 +5,6 @@ var failures := 0
 class RecordingZone:
 	extends Zone
 	var items: Array[Dictionary] = []
-	func _ready() -> void: pass
 	func _spawn_loot(item: Dictionary, _gold: int, _from: Vector3) -> void:
 		if item.get("kind", "") == "equip": items.append(item)
 
@@ -16,6 +15,14 @@ class QuietMob:
 func check(ok: bool, note: String) -> void:
 	checks += 1
 	if not ok: failures += 1; printerr("FAIL ", note)
+
+## The stat a slot is worn for: attack (or magic attack) on a weapon,
+## defence on armour, helm and boots.
+func _power(item: Dictionary) -> float:
+	var stats: Dictionary = item.get("stats", {})
+	if String(item.get("slot", "")) == "weapon":
+		return float(stats.get("atk", 0)) + float(stats.get("matk", 0))
+	return float(stats.get("def", 0))
 
 func profile(cls: StringName) -> void:
 	Game.new_profile(cls, "Divine collection QA")
@@ -103,23 +110,47 @@ func _ready() -> void:
 		mob.is_boss = true
 		zone.add_child(mob)
 		mob.set_physics_process(false)
-		for i in 100:
-			zone.items.clear()
-			zone._drop_loot(mob)
-			check(zone.items.size() == 2, "actual boss loot guarantees two")
-			check(zone.items[0].slot != zone.items[1].slot, "boss slots distinct")
-			for item in zone.items:
-				check(item.collection == DivineGearData.COLLECTION and item["class"] == String(cls), "actual own-class drop routes correctly")
+		# Divine pieces are rare; the sanctuary's 200-star jewellery is not.
+		var divine := func() -> Array:
+			return zone.items.filter(func(it): return it is Dictionary and it.get("collection", "") == DivineGearData.COLLECTION)
+		var jewels := func() -> Array:
+			return zone.items.filter(func(it): return it is Dictionary and int(it.get("star_tier", 0)) == 200 and not it.has("collection") and it.get("slot", "") in ["ring", "amulet"])
+		zone.items.clear()
+		for i in 400: zone._drop_loot(mob)
+		var boss_divine: int = divine.call().size()
+		check(boss_divine > 80 and boss_divine < 160, "boss gives a divine piece about 30%% of the time (%d/400)" % boss_divine)
+		check(jewels.call().size() == 400, "every boss gives a 200-star ring or amulet")
+		for item in divine.call():
+			check(item["class"] == String(cls), "actual own-class drop routes correctly")
 		mob.is_boss = false
 		zone.items.clear()
-		for i in 1200: zone._drop_loot(mob)
-		check(zone.items.size() > 20 and zone.items.size() < 80, "ordinary drops are rolled")
+		for i in 4000: zone._drop_loot(mob)
+		var normal_divine: int = divine.call().size()
+		check(normal_divine >= 5 and normal_divine < 45, "ordinary divine drops are rare (%d/4000)" % normal_divine)
+		check(jewels.call().size() > 300 and jewels.call().size() < 520, "ordinary jewellery ~10%% (%d/4000)" % jewels.call().size())
 		mob.template.elite = true
 		zone.items.clear()
-		for i in 1200: zone._drop_loot(mob)
-		check(zone.items.size() > 140 and zone.items.size() < 290, "elite drops are more frequent")
+		for i in 2000: zone._drop_loot(mob)
+		var elite_divine: int = divine.call().size()
+		check(elite_divine > 50 and elite_divine < 115, "elite divine drops ~4%% (%d/2000)" % elite_divine)
 		zone.free()
 	check(looks.size() == 24, "24 unique equipment icons across six classes")
+	# The divine set is the strongest gear: its lowest roll beats the best roll
+	# of any other piece (mythic Lv.300, 200-star set) in the same slot.
+	for cls in ClassData.IDS:
+		for slot in DivineGearData.SLOTS:
+			var best := 0.0
+			for i in 60:
+				for other in [ItemData.generate(300, cls, rng, 4, slot), StarProgression.item(cls, 200, slot, rng)]:
+					best = maxf(best, _power(other))
+			var weakest := INF
+			for i in 30:
+				weakest = minf(weakest, _power(DivineGearData.item(cls, slot, rng)))
+			check(weakest > best, "divine %s %s is the strongest (%.0f > %.0f)" % [cls, slot, weakest, best])
+	# Stars stop at 200: no 201-star level, gear or requirement exists.
+	check(Game.PARAGON_MAX == 200 and ItemData.MAX_GEAR_STAR == 200 and ItemData.MAX_GEAR_LEVEL == 300, "200 stars is the ceiling")
+	check(int(ItemData.generate(999, &"warrior", rng, 4, "weapon").level) == 300, "gear level clamps at 300 (200 stars)")
+	check(int(DivineGearData.item(&"mage", "armor", rng).star_tier) == 200 and StarProgression.TIERS.max() == 200, "no star tier above 200")
 	check(DivineGearData.item(&"mage", "wings", rng).is_empty(), "no unrequested 200-star wings")
 	Game.has_profile = false
 	print("DIVINE REGION: ", checks, " checks, ", failures, " failures")

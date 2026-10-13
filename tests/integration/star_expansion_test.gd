@@ -44,20 +44,16 @@ func _ready()->void:
 				var item:=StarProgression.item(cls,tier,slot,Game.rng)
 				check(Game._valid_item(item),"valid generated item "+String(item.name))
 				check(ItemLook.icon(item)!=null,"item icon "+ItemLook.look_of(item))
-			Game.paragon().level=tier
-			check(StarProgression.claim(tier),"milestone first claim")
-			check(not StarProgression.claim(tier),"milestone not duplicated")
-			Game.profile.flags["star_mat_%d"%tier]=1000
-			Game.profile.flags["star_core_%d"%tier]=100
-			var before:=int(Game.profile.gold)
-			check(StarProgression.craft(tier,"weapon"),"craft funded recipe")
-			check(int(Game.profile.gold)==before-int(StarProgression.cost(tier,"weapon").gold),"craft exact cost")
+			check(StarProgression.random_item(cls,tier,Game.rng).get("star_tier",0)==tier,"random drop keeps its tier")
+		# Milestone skill points arrive by themselves, once each.
+		Game.profile.level=100
+		Game.paragon().level=120
+		var points:=int(Game.profile.skill_points)
+		check(StarProgression.grant_milestones(Game.profile)==2,"50 and 100 star milestones paid")
+		check(int(Game.profile.skill_points)==points+4,"two skill points per milestone")
+		check(StarProgression.grant_milestones(Game.profile)==0,"milestones not duplicated")
 		Game.paragon().level=200
 		check(Game.save_code_roundtrip(),"new gear/materials transfer roundtrip "+String(cls))
-		Game.profile.flags["star_mat_200"]=0
-		var snapshot:=Game.profile.duplicate(true)
-		check(not StarProgression.craft(200,"wings"),"unfunded craft rejected")
-		check(snapshot==Game.profile,"rejected craft leaves profile intact")
 	for rig in 3:
 		for cls in ClassData.IDS:
 			profile(cls)
@@ -90,9 +86,10 @@ func _ready()->void:
 	profile(&"warrior")
 	var menu:=GameMenu.new()
 	add_child(menu)
-	menu.open_menu(&"star_path")
-	check(menu._content.find_children("*","Button",true,false).size()>=12,"star forge menu built")
-	menu.close_menu();menu.queue_free();await menu.tree_exited
+	var tab_ids:Array=[]
+	for tab in GameMenu.TABS: tab_ids.append(String(tab[0]))
+	check(not tab_ids.has("star_path"),"no star path menu: star gear only drops")
+	menu.queue_free();await menu.tree_exited
 	for quality in 3:
 		GameSettings.quality=quality
 		for cls in ClassData.IDS:

@@ -869,6 +869,8 @@ func _repair(data: Dictionary) -> Dictionary:
 		if int(para.level) == PARAGON_MAX:
 			para["exp"] = 0
 		data["exp"] = 0
+	# Milestone skill points used to be claimed in the retired Star Path menu.
+	StarProgression.grant_milestones(data)
 	if data.has("party"):
 		data["party"] = data.party.slice(0, 1)
 		for member in data.party:
@@ -1265,8 +1267,8 @@ func _add_paragon_exp(amount: int) -> void:
 	exp_changed.emit()
 	if gained > 0:
 		fill_loadout()
-		if int(p.level) in StarProgression.TIERS:
-			say("ปลดล็อกสกิลและอุปกรณ์ดาว %d — เปิดเมนู เส้นทางดาว" % int(p.level), &"success")
+		if StarProgression.grant_milestones(profile) > 0:
+			say("ถึงดาว %d! ปลดล็อกสกิลดาวใหม่ (ดูที่เมนูสกิล) และได้แต้มสกิล +2" % int(p.level), &"success")
 		paragon_leveled.emit(int(p.level))
 		profile_changed.emit()
 		check_achievements()

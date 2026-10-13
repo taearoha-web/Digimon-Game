@@ -8,6 +8,11 @@ const PLUS_BONUS := 0.05
 ## Crit chance stops here (gear crit used to reach 80% at the end of the game).
 const MAX_CRIT := 0.5
 const CRIT_DAMAGE := 1.6
+## Skill damage relative to the authored multipliers. Measured with
+## tests/tools/balance_probe.tscn: at 1.0 the strongest skill one-shot a
+## normal monster on every field (100-230% of its HP); at 0.4 it takes 2-3
+## casts while basic attacks keep their pace.
+const SKILL_POWER := 0.4
 ## DEX makes skills and attacks quicker: 1% per 10 DEX, at most 40%.
 const HASTE_PER_DEX := 0.001
 const MAX_HASTE := 0.4
