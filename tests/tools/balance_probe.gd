@@ -55,6 +55,7 @@ func _ready() -> void:
 		for cls in ClassData.IDS:
 			rows.append(_measure(cls, cp))
 	_print(rows)
+	_arena()
 	if "check" in OS.get_cmdline_user_args():
 		print("BALANCE CHECK: %s | %d failures" % ["PASS" if failures == 0 else "FAIL", failures])
 		get_tree().quit(failures)
@@ -159,3 +160,46 @@ func _band(cp: String, key: String, value: float) -> void:
 	if not ok:
 		failures += 1
 		printerr("FAIL %s %s = %.2f is out of its band" % [cp, key, value])
+
+
+## Arena / ranked duel: a hero against PvpData's AI opponent at the bottom,
+## middle and top of the ladder. Both sides use their strongest unlocked
+## skill (rank 3) and basic attacks.
+func _arena() -> void:
+	for level in [30, 60, 100]:
+		for rp in [0, PvpData.STEP_RP * PvpData.MAX_STEP / 2, PvpData.STEP_RP * PvpData.MAX_STEP]:
+			var hero_skill := []
+			var rival_skill := []
+			var hero_basic := []
+			for cls in ClassData.IDS:
+				var stats := _hero(cls, level, 0, "lv")
+				var info := PvpData.make_opponent(level, rp, rng, cls)
+				var base := HeroStats.compute(info.profile)
+				var r_hp := float(base.max_hp) * float(info.mults.hp)
+				var r_atk := float(base.atk) * float(info.mults.atk)
+				var r_def := float(base.def) * float(info.mults.def)
+				var mine := _best_skill(cls, level, 1.3)
+				var theirs := _best_skill(StringName(info.member["class"]), int(info.member.level), 1.0)
+				hero_basic.append(r_hp / maxf(HeroStats.mitigate(float(stats.atk), r_def), 1.0))
+				hero_skill.append(r_hp / maxf(HeroStats.mitigate(float(stats.atk) * mine, r_def), 1.0))
+				rival_skill.append(float(stats.max_hp) / maxf(HeroStats.mitigate(r_atk * theirs, float(stats.def)), 1.0))
+			var med := func(a: Array) -> float:
+				a.sort()
+				return (float(a[2]) + float(a[3])) * 0.5
+			var line := "ARENA Lv%d rp%d basic=%.2f skill=%.2f rival_skill=%.2f" % [level, rp, med.call(hero_basic), med.call(hero_skill), med.call(rival_skill)]
+			print(line)
+			# Duels last: no side falls to one or two skills, none drags on.
+			if med.call(hero_skill) < 4.0 or med.call(hero_skill) > 20.0 or med.call(rival_skill) < 4.0 or med.call(rival_skill) > 25.0:
+				failures += 1
+				printerr("FAIL arena out of band: " + line)
+
+
+## Strongest unlocked skill multiplier as dealt in combat (rank multiplier,
+## SKILL_POWER), at least a basic attack.
+func _best_skill(cls: StringName, level: int, rank: float) -> float:
+	var best := 1.0
+	var tier := ClassData.tier_of(cls, JobData.adv_for_level(level))
+	for skill in ClassData.pool(cls):
+		if int(skill.level) <= level and ClassData.skill_tier(skill) <= tier and not skill.has("star"):
+			best = maxf(best, float(skill.mult) * rank * HeroStats.SKILL_POWER)
+	return best

@@ -278,7 +278,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
 	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
 	if String(skill.id) == "judgment_ray":
-		JudgmentRaySequence.launch(get_parent(), self, target, delay, _storm_hit.bind(float(skill.mult), color), _rv.hero_visual if _rv else null)
+		JudgmentRaySequence.launch(get_parent(), self, target, delay, _storm_hit.bind(float(skill.mult) * HeroStats.SKILL_POWER, color), _rv.hero_visual if _rv else null)
 		return
 	get_tree().create_timer(delay).timeout.connect(func():
 		if is_instance_valid(self) and not _dead and not duel_over:
@@ -288,7 +288,8 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 
 func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	var color: Color = skill.color
-	var mult := float(skill.get("mult", 0.0))
+	# Skills hit with the same SKILL_POWER as the hero's own.
+	var mult := float(skill.get("mult", 0.0)) * HeroStats.SKILL_POWER
 	var field := get_parent()
 	var shape := String(skill.shape)
 	var fx: Dictionary = skill.get("fx", {})

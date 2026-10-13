@@ -181,7 +181,7 @@ func _actual_cast(use_companion: bool, rank: int, saturated: bool) -> void:
 	check(outside.amounts.is_empty(), label + ": outside target receives no damage")
 	check(near.burn_applications == 11, label + ": each hit applies the existing fire status")
 	check(near.hp == 10000000 - _sum(near.amounts), label + ": all damage reaches real Mob HP")
-	var expected_main := 100.0 * float(skill.mult) * (1.0 if use_companion else 1.0 + 0.15 * float(rank - 1))
+	var expected_main := 100.0 * HeroStats.SKILL_POWER * float(skill.mult) * (1.0 if use_companion else 1.0 + 0.15 * float(rank - 1))
 	for i in near.amounts.size():
 		var expected := expected_main * (1.0 if i == 0 else 0.12)
 		check(float(near.amounts[i]) >= expected * 0.92 - 1.0 and float(near.amounts[i]) <= expected * 1.08 + 1.0,
