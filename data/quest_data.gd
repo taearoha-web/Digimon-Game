@@ -49,27 +49,94 @@ const QUESTS := {
 	"hell": {"name": "ขุมนรกอเวจี", "desc": "ออร์คปีศาจบุกขึ้นมาจากขุมนรก ไปปิดประตูนรก", "target": "hell_orc", "count": 15, "level": 92,
 		"items": [["mp_xxl", 10], ["hp_xxl", 10]], "zone": "abyss", "next": "abyss_dragon"},
 	"abyss_dragon": {"name": "ราชามังกรอเวจี", "desc": "จ้าวแห่งขุมนรกขวางทางสู่ห้วงจักรวาลวิบัติ ปราบมันแล้วเผชิญหน้ากับจักรพรรดิแห่งห้วงวิบัติ", "target": "abyss_dragon", "count": 1, "level": 100,
-		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [100, 3], "zone": "abyss", "next": ""},
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "gear": [100, 3], "zone": "abyss", "next": "void_golems"},
+	# After Lv.100 the elder's work is gated by ★ (Paragon) instead of level.
+	"void_golems": {"name": "ยักษ์หินห้วงว่างเปล่า", "desc": "ยักษ์หินจากห้วงจักรวาลวิบัติเดินขวางทางผู้กล้า ไปทุบพวกมันให้แตก", "target": "void_golem", "count": 15, "level": 100,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "void", "next": "void_emperor"},
+	"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "desc": "จักรพรรดิผู้กลืนดวงดาวรออยู่ใจกลางห้วงวิบัติ ปราบมันแล้วประตูสู่ดินแดนแห่งดวงดาวจะเปิด", "target": "void_emperor", "count": 1, "level": 100,
+		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "gear": [100, 4], "zone": "void", "next": "dawn_crabs"},
+	"dawn_crabs": {"name": "ปูกลีบอรุณบุกป่า", "desc": "ปูกลีบอรุณยึดลำธารในป่าแสงอรุณ ไล่พวกมันออกไป", "target": "dawn_fox", "count": 15, "level": 100, "star": 1,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "dawn_forest", "next": "dawn_bunnies"},
+	"dawn_bunnies": {"name": "กระต่ายหมัดจอมป่วน", "desc": "กระต่ายหมัดอรุณต่อยนักเดินทางล้มระเนระนาด สั่งสอนพวกมันหน่อย", "target": "dawn_bunny", "count": 15, "level": 100, "star": 10,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "dawn_forest", "next": "dawn_skulls"},
+	"dawn_skulls": {"name": "กะโหลกหนามพฤกษา", "desc": "กะโหลกหนามเฝ้าดงหนามลึกในป่า ปราบพวกมันเพื่อเปิดทางสู่ราชันมังกร", "target": "dawn_thornhart", "count": 5, "level": 100, "star": 20,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "dawn_forest", "next": "dawn_dragon"},
+	"dawn_dragon": {"name": "อรุณศิลา ราชันมังกรพฤกษา", "desc": "ราชันมังกรผู้ครองป่าแสงอรุณ ปราบมันแล้วรับวัตถุดิบชุดดาวจากผู้ใหญ่บ้าน", "target": "dawn_ancient_stag", "count": 1, "level": 100, "star": 30,
+		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "star_mat": [50, 20, 2], "zone": "dawn_forest", "next": "crystal_wolves"},
+	"crystal_wolves": {"name": "หมาป่าเขี้ยวคราม", "desc": "ฝูงหมาป่าเขี้ยวครามล่าคนในหุบเขาผลึก ไปหยุดพวกมัน", "target": "crystal_wolf", "count": 15, "level": 100, "star": 50,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "crystal_valley", "next": "crystal_yetis"},
+	"crystal_yetis": {"name": "เยติผลึกน้ำแข็ง", "desc": "เยติผลึกถล่มเหมืองคริสตัลของหมู่บ้าน ขึ้นไปจัดการ", "target": "crystal_yeti", "count": 15, "level": 100, "star": 60,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "crystal_valley", "next": "crystal_behemoths"},
+	"crystal_behemoths": {"name": "เบฮีมอธเขาผลึก", "desc": "เบฮีมอธเกราะผลึกปิดทางเข้าลานราชัน ทลายพวกมันลง", "target": "crystal_behemoth", "count": 5, "level": 100, "star": 70,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "crystal_valley", "next": "crystal_king"},
+	"crystal_king": {"name": "ไครโอฮอร์น ราชันผลึกคราม", "desc": "ราชันผลึกผู้แช่แข็งทั้งหุบเขา ปราบมันแล้วรับวัตถุดิบชุดดาว", "target": "crystal_horn_king", "count": 1, "level": 100, "star": 80,
+		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "star_mat": [100, 20, 2], "zone": "crystal_valley", "next": "sky_wardens"},
+	"sky_wardens": {"name": "ผู้พิทักษ์วิหารฟ้า", "desc": "ผู้พิทักษ์วิหารฟ้าคลั่งและไล่ฟันผู้มาเยือนนครลอยฟ้า ไปสงบพวกมัน", "target": "sky_warden", "count": 15, "level": 100, "star": 100,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "sky_citadel", "next": "sky_spirits"},
+	"sky_spirits": {"name": "ภูตวายุนภา", "desc": "ภูตวายุก่อพายุรอบนครลอยฟ้า สลายพวกมันก่อนนครจะร่วง", "target": "sky_wind_spirit", "count": 15, "level": 100, "star": 110,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "sky_citadel", "next": "sky_commanders"},
+	"sky_commanders": {"name": "แม่ทัพปีกสุริยัน", "desc": "แม่ทัพปีกสุริยันนำทัพเฝ้าบัลลังก์ฟ้า ปราบพวกมันเพื่อไปถึงราชัน", "target": "sky_high_warden", "count": 5, "level": 100, "star": 120,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "sky_citadel", "next": "sky_king"},
+	"sky_king": {"name": "เอเธอเรียน ราชันปีกสวรรค์", "desc": "ราชันปีกสวรรค์ผู้ครองนครลอยฟ้า ปราบมันแล้วรับวัตถุดิบชุดดาว", "target": "sky_celestial_king", "count": 1, "level": 100, "star": 130,
+		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "star_mat": [150, 20, 2], "zone": "sky_citadel", "next": "eclipse_knights"},
+	"eclipse_knights": {"name": "อัศวินเกราะราตรี", "desc": "อัศวินเกราะราตรีตั้งค่ายที่ประตูอาณาจักรสุริยคราส ฝ่าแนวของพวกมัน", "target": "eclipse_warrior", "count": 15, "level": 100, "star": 150,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "eclipse_realm", "next": "eclipse_wraiths"},
+	"eclipse_wraiths": {"name": "วิญญาณกะโหลกคราส", "desc": "วิญญาณกะโหลกคราสดูดแสงดาวจนฟ้ามืด ส่งพวกมันกลับสู่ความว่างเปล่า", "target": "eclipse_wraith", "count": 15, "level": 100, "star": 160,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "eclipse_realm", "next": "eclipse_dreadknights"},
+	"eclipse_dreadknights": {"name": "ขุนพลเกราะคราส", "desc": "ขุนพลเกราะคราสคุ้มกันราชันสุริยคราส ล้มพวกมันให้หมด", "target": "eclipse_dreadknight", "count": 5, "level": 100, "star": 175,
+		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "eclipse_realm", "next": "eclipse_sovereign"},
+	"eclipse_sovereign": {"name": "น็อกซ์ออเรล ราชันสุริยคราส", "desc": "ราชันสุริยคราสจะปรากฏต่อผู้มีดาว 200 เท่านั้น ปราบมันเพื่อนำแสงกลับคืนสู่โลก", "target": "eclipse_sovereign", "count": 1, "level": 100, "star": 200,
+		"items": [["hp_xxl", 20], ["mp_xxl", 20]], "star_mat": [200, 20, 2], "zone": "eclipse_realm", "next": "lotus_monks"},
+	"lotus_monks": {"name": "นักพรตวานรหยก", "desc": "นักพรตวานรหยกขวางทางเข้าวิหารบัวดารา พิสูจน์ฝีมือให้พวกมันเห็น", "target": "jade_monk", "count": 15, "level": 100, "star": 200,
+		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_guardians"},
+	"lotus_guardians": {"name": "โกเลมพิทักษ์วิหาร", "desc": "โกเลมทองคำเฝ้าศาลาในวิหาร ทลายพวกมันเพื่อไปพบเทพพิทักษ์", "target": "temple_guardian", "count": 5, "level": 100, "star": 200,
+		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_seraph"},
+	"lotus_seraph": {"name": "ออเรเลีย ราชันปีกบัวดารา", "desc": "บททดสอบสุดท้ายของวีรบุรุษ: ปราบราชันปีกบัวดาราผู้เฝ้าวิหาร", "target": "lotus_seraph", "count": 1, "level": 100, "star": 200,
+		"items": [["hp_xxl", 25], ["mp_xxl", 25]], "star_mat": [200, 30, 3], "zone": "lotus_sanctum", "next": ""},
 }
 
-const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs", "ghosts", "dragon", "wolves", "sand_dragon", "yetis", "yeti_king", "lava", "magma", "bones", "bone_lord", "toxic", "toad_king", "thunder", "storm_dragon", "angels", "gold_dragon", "hell", "abyss_dragon"]
+const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs", "ghosts", "dragon", "wolves", "sand_dragon", "yetis", "yeti_king", "lava", "magma", "bones", "bone_lord", "toxic", "toad_king", "thunder", "storm_dragon", "angels", "gold_dragon", "hell", "abyss_dragon",
+	"void_golems", "void_emperor", "dawn_crabs", "dawn_bunnies", "dawn_skulls", "dawn_dragon",
+	"crystal_wolves", "crystal_yetis", "crystal_behemoths", "crystal_king",
+	"sky_wardens", "sky_spirits", "sky_commanders", "sky_king",
+	"eclipse_knights", "eclipse_wraiths", "eclipse_dreadknights", "eclipse_sovereign",
+	"lotus_monks", "lotus_guardians", "lotus_seraph"]
 
 
 ## Meadow keeps its introductory rewards. Later turn-ins pay a predictable
 ## fraction of a level, with a larger boss bonus, including the Paragon finale.
-static func reward_for_level(level: int, boss: bool) -> Dictionary:
+## Past Lv.100 a ★ quest pays about one ★ of Paragon EXP (two for a boss).
+static func reward_for_level(level: int, boss: bool, star := 0) -> Dictionary:
 	var lv := clampi(level, 1, 100)
+	if star > 0:
+		var need := float(HeroStats.exp_to_next(100)) * (1.0 + 0.02 * float(star))
+		return {
+			"exp": int(round(need * (2.0 if boss else 1.0))),
+			# Gold grows gently with ★ so the richest turn-in (a 200★ boss, about
+			# 89k) stays inside the late-game upgrade economy (at most 100k).
+			"gold": int(round(50.0 * pow(100.0, 1.45) * (1.0 + float(star) / 400.0) * (1.5 if boss else 1.0))),
+		}
 	return {
 		"exp": int(round(float(HeroStats.exp_to_next(lv)) * (1.5 if boss else 0.9))),
 		"gold": int(round(50.0 * pow(float(lv), 1.45) * (1.75 if boss else 1.0))),
 	}
 
 
+## A quest is open once the hero is one level short of it and has its ★.
+static func unlock_problem(quest: Dictionary) -> String:
+	var star := int(quest.get("star", 0))
+	if star > 0 and int(Game.paragon().level) < star:
+		return "งานนี้ต้องใช้ดาว %d ขึ้นไป กลับมาเมื่อพร้อมนะ" % star
+	if int(Game.profile.level) < int(quest.level) - 1:
+		return "งานนี้ยังอันตรายเกินไปสำหรับเจ้า กลับมาเมื่อถึงเลเวล %d นะ" % (int(quest.level) - 1)
+	return ""
+
+
 static func get_quest(id: String) -> Dictionary:
 	if not QUESTS.has(id):
 		return {}
 	var quest: Dictionary = QUESTS[id].duplicate(true)
-	var reward := reward_for_level(int(quest.level), int(quest.count) == 1)
+	var reward := reward_for_level(int(quest.level), int(quest.count) == 1, int(quest.get("star", 0)))
 	quest["exp"] = int(quest.get("exp", reward.exp))
 	quest["gold"] = int(quest.get("gold", reward.gold))
 	return quest

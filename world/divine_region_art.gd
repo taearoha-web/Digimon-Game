@@ -13,7 +13,7 @@ static var _petal_mesh: Mesh
 
 static func layout(_zone_id: StringName = &"lotus_sanctum") -> Dictionary:
 	return {"spawn": Vector3(0, 0, 44), "boss_pos": Vector3(0, 0, -26), "exit": Vector3(40, 0, -28),
-		"camp_positions": [Vector2(-23, 20), Vector2(24, 18), Vector2(-23, -10), Vector2(25, -9)],
+		"camp_positions": [Vector2(-23, 20), Vector2(24, 18), Vector2(-23, -10), Vector2(25, -9), Vector2(-38, -22)],
 		"paths": [PackedVector2Array([Vector2(0, 49), Vector2(0, 24), Vector2(0, 2), Vector2(0, -26)]),
 			PackedVector2Array([Vector2(-23, 20), Vector2(0, 24), Vector2(24, 18)]),
 			PackedVector2Array([Vector2(-23, -10), Vector2(0, 2), Vector2(25, -9), Vector2(40, -28)])]}

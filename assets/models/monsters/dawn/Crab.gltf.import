@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bk5ugf4eh38u1"
-path="res://.godot/imported/Fox.glb-88ea18bc0af6520cae1358a02d59c762.scn"
+uid="uid://d22h3j0p3ht0p"
+path="res://.godot/imported/Crab.gltf-f48cb534197c9940e576acab38c5f031.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/star/Fox.glb"
-dest_files=["res://.godot/imported/Fox.glb-88ea18bc0af6520cae1358a02d59c762.scn"]
+source_file="res://assets/models/monsters/dawn/Crab.gltf"
+dest_files=["res://.godot/imported/Crab.gltf-f48cb534197c9940e576acab38c5f031.scn"]
 
 [params]
 

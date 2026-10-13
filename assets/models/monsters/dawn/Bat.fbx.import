@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://wtbm7jka2sh7"
-path="res://.godot/imported/LotusSprite.glb-b3ebea440b2e2b0c30fbd3b0233bfc6b.scn"
+uid="uid://b8xlsoikndcgc"
+path="res://.godot/imported/Bat.fbx-be2b5b0131bcd1fdfb9e693426a7ca10.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/divine/LotusSprite.glb"
-dest_files=["res://.godot/imported/LotusSprite.glb-b3ebea440b2e2b0c30fbd3b0233bfc6b.scn"]
+source_file="res://assets/models/monsters/dawn/Bat.fbx"
+dest_files=["res://.godot/imported/Bat.fbx-be2b5b0131bcd1fdfb9e693426a7ca10.scn"]
 
 [params]
 
@@ -27,10 +27,11 @@ meshes/force_disable_compression=false
 skins/use_named_skins=true
 animation/import=true
 animation/fps=30
-animation/trimming=false
+animation/trimming=true
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
 _subresources={}
-gltf/naming_version=1
-gltf/embedded_image_handling=1
+fbx/importer=0
+fbx/allow_geometry_helper_nodes=false
+fbx/embedded_image_handling=1

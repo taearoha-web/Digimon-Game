@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cle7mmky722oo"
-path="res://.godot/imported/Deer.glb-17ce76fd5e91f6215b1fec1552ce4368.scn"
+uid="uid://ct3xorm2nmonl"
+path="res://.godot/imported/Bee.gltf-0ba9e784182b3f1e80039793cf0360bc.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/star/Deer.glb"
-dest_files=["res://.godot/imported/Deer.glb-17ce76fd5e91f6215b1fec1552ce4368.scn"]
+source_file="res://assets/models/monsters/dawn/Bee.gltf"
+dest_files=["res://.godot/imported/Bee.gltf-0ba9e784182b3f1e80039793cf0360bc.scn"]
 
 [params]
 

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dw50tfmj14oxr"
-path="res://.godot/imported/JadeQilin.glb-e9e026d34eee0bd06f690adbb0f1b920.scn"
+uid="uid://c6dbaji02gu58"
+path="res://.godot/imported/Dragon.fbx-bf094d1265d80c123bc6c7714718b04c.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/divine/JadeQilin.glb"
-dest_files=["res://.godot/imported/JadeQilin.glb-e9e026d34eee0bd06f690adbb0f1b920.scn"]
+source_file="res://assets/models/monsters/dawn/Dragon.fbx"
+dest_files=["res://.godot/imported/Dragon.fbx-bf094d1265d80c123bc6c7714718b04c.scn"]
 
 [params]
 
@@ -27,10 +27,11 @@ meshes/force_disable_compression=false
 skins/use_named_skins=true
 animation/import=true
 animation/fps=30
-animation/trimming=false
+animation/trimming=true
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
 _subresources={}
-gltf/naming_version=1
-gltf/embedded_image_handling=1
+fbx/importer=0
+fbx/allow_geometry_helper_nodes=false
+fbx/embedded_image_handling=1

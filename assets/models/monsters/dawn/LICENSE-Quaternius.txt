@@ -1,0 +1,15 @@
+Dawn forest monsters (Toon Tale)
+
+Bee.gltf, Crab.gltf, Enemy.gltf, Skull.gltf
+  Ultimate Platformer Pack by Quaternius (Dec 2021), Enemies/glTF
+Bunny.gltf
+  Ultimate Platformer Pack by Quaternius (Dec 2021), Character/glTF/Character.gltf (renamed)
+  https://quaternius.itch.io/ultimate-platformer-pack
+
+Bat.fbx, Slime.fbx, Dragon.fbx
+  Animated Monster Pack by Quaternius, FBX
+  https://quaternius.itch.io/lowpoly-animated-monsters
+
+License: CC0 1.0 Universal (Public Domain Dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+Files are unmodified; colours are adjusted in game data.

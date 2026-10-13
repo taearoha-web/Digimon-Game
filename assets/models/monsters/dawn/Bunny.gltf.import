@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://8c340783fjxo"
-path="res://.godot/imported/Stag.glb-d87368b0bf59e45a69bdd5d1646ee2b4.scn"
+uid="uid://cxlpcnrqjc05n"
+path="res://.godot/imported/Bunny.gltf-a4f0bebad93f9a0aacbd843478e4b1ae.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/star/Stag.glb"
-dest_files=["res://.godot/imported/Stag.glb-d87368b0bf59e45a69bdd5d1646ee2b4.scn"]
+source_file="res://assets/models/monsters/dawn/Bunny.gltf"
+dest_files=["res://.godot/imported/Bunny.gltf-a4f0bebad93f9a0aacbd843478e4b1ae.scn"]
 
 [params]
 

@@ -18,25 +18,25 @@ static func layout(zone_id: StringName) -> Dictionary:
 	match zone_id:
 		&"dawn_forest":
 			return {"spawn": Vector3(-43, 0, 24), "boss_pos": Vector3(28, 0, -25), "exit": Vector3(43, 0, -21),
-				"camp_positions": [Vector2(-27, 14), Vector2(-12, -14), Vector2(11, 18), Vector2(29, 3)],
+				"camp_positions": [Vector2(-27, 14), Vector2(-12, -14), Vector2(11, 18), Vector2(29, 3), Vector2(-30, -24)],
 				"paths": [PackedVector2Array([Vector2(-46, 24), Vector2(-28, 22), Vector2(-7, 3), Vector2(13, 4), Vector2(28, -14), Vector2(45, -21)]),
 					PackedVector2Array([Vector2(-12, -14), Vector2(-7, 3), Vector2(11, 18)]),
 					PackedVector2Array([Vector2(13, 4), Vector2(29, 3)])]}
 		&"crystal_valley":
 			return {"spawn": Vector3(-42, 0, -26), "boss_pos": Vector3(27, 0, 26), "exit": Vector3(42, 0, 24),
-				"camp_positions": [Vector2(-24, -18), Vector2(-18, 14), Vector2(10, -14), Vector2(25, 8)],
+				"camp_positions": [Vector2(-24, -18), Vector2(-18, 14), Vector2(10, -14), Vector2(25, 8), Vector2(-2, 27)],
 				"paths": [PackedVector2Array([Vector2(-44, -27), Vector2(-24, -18), Vector2(-8, -2), Vector2(10, 2), Vector2(25, 8), Vector2(42, 24)]),
 					PackedVector2Array([Vector2(-18, 14), Vector2(-8, -2), Vector2(10, -14)]),
 					PackedVector2Array([Vector2(25, 8), Vector2(27, 26)])]}
 		&"sky_citadel":
 			return {"spawn": Vector3(0, 0, 43), "boss_pos": Vector3(0, 0, -30), "exit": Vector3(38, 0, -25),
-				"camp_positions": [Vector2(-24, 18), Vector2(23, 17), Vector2(-23, -10), Vector2(24, -12)],
+				"camp_positions": [Vector2(-24, 18), Vector2(23, 17), Vector2(-23, -10), Vector2(24, -12), Vector2(-36, 3)],
 				"paths": [PackedVector2Array([Vector2(0, 47), Vector2(0, 23), Vector2(0, 0), Vector2(0, -30)]),
 					PackedVector2Array([Vector2(-24, 18), Vector2(0, 23), Vector2(23, 17)]),
 					PackedVector2Array([Vector2(-23, -10), Vector2(0, 0), Vector2(24, -12), Vector2(40, -25)])]}
 		&"eclipse_realm":
 			return {"spawn": Vector3(-42, 0, 30), "boss_pos": Vector3(25, 0, -24), "exit": Vector3(41, 0, -27),
-				"camp_positions": [Vector2(-28, 15), Vector2(-21, -12), Vector2(0, 16), Vector2(17, -2)],
+				"camp_positions": [Vector2(-28, 15), Vector2(-21, -12), Vector2(0, 16), Vector2(17, -2), Vector2(26, 22)],
 				"paths": [PackedVector2Array([Vector2(-44, 31), Vector2(-28, 15), Vector2(-9, 4), Vector2(17, -2), Vector2(25, -24), Vector2(43, -27)]),
 					PackedVector2Array([Vector2(-21, -12), Vector2(-9, 4), Vector2(0, 16)])]}
 	return {}

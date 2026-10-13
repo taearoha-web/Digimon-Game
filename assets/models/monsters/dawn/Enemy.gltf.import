@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bdscipashgdu0"
-path="res://.godot/imported/TempleGuardian.glb-60ea2bfee9ca2d4449f9da82d0ab9e95.scn"
+uid="uid://ccptbus7jtr3g"
+path="res://.godot/imported/Enemy.gltf-c899b9a5e5491dc774bb8a4dfcc465c5.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/divine/TempleGuardian.glb"
-dest_files=["res://.godot/imported/TempleGuardian.glb-60ea2bfee9ca2d4449f9da82d0ab9e95.scn"]
+source_file="res://assets/models/monsters/dawn/Enemy.gltf"
+dest_files=["res://.godot/imported/Enemy.gltf-c899b9a5e5491dc774bb8a4dfcc465c5.scn"]
 
 [params]
 

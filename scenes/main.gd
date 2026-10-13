@@ -459,8 +459,9 @@ func _talk_elder() -> void:
 	var name_text := "ผู้ใหญ่บ้านโชคดี"
 	match status:
 		"new":
-			if Game.profile.level < int(quest.level) - 1:
-				dialog.say(name_text, "งานนี้ยังอันตรายเกินไปสำหรับเจ้า กลับมาเมื่อถึงเลเวล %d นะ" % (int(quest.level) - 1))
+			var problem := QuestData.unlock_problem(quest)
+			if problem != "":
+				dialog.say(name_text, problem)
 				return
 			dialog.say(name_text, "เควสต์: %s\n%s\n\nเป้าหมาย: ปราบ %s จำนวน %d ตัว" % [quest.name, quest.desc, MonsterData.get_monster(StringName(quest.target)).name, int(quest.count)], [
 				{"label": "รับเควสต์", "action": func():
@@ -487,6 +488,12 @@ func _reward_quest(quest_id: String) -> void:
 		var item := ItemData.generate(int(quest.gear[0]), Game.class_id(), rng, int(quest.gear[1]), "weapon")
 		Game.add_item(item)
 		Game.say("ได้รับ %s!" % ItemData.name_of(item), &"quest")
+	if quest.has("star_mat"):
+		var tier := int(quest.star_mat[0])
+		StarProgression.award_material(tier, int(quest.star_mat[1]))
+		StarProgression.award_material(tier, int(quest.star_mat[2]), true)
+		var index := StarProgression.TIERS.find(tier)
+		Game.say("ได้รับ%s ×%d และแก่นบอส ×%d (ชุดดาว %d)" % [StarProgression.MATERIALS[index], int(quest.star_mat[1]), int(quest.star_mat[2]), tier], &"quest")
 	AudioManager.play_sfx(&"quest_complete")
 	Game.say("เควสต์สำเร็จ! EXP +%d เหรียญ +%d" % [int(quest.exp), int(quest.gold)], &"success")
 	Game.save()
