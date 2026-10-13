@@ -1,7 +1,7 @@
 extends Node3D
 ## Actual Hero._cast footage and stills on a deterministic field. Does not use
 ## the user's saves. Optional Godot --write-movie captures the same live casts.
-## godot --path . res://tests/tools/skill_art_showcase.tscn -- OUT_DIR [ids,comma,separated] [late]
+## godot --path . res://tests/tools/skill_art_showcase.tscn -- OUT_DIR [ids,comma,separated|every] [late]
 class Dummy extends Mob:
 	var hits := 0
 	func take_hit(amount: int, critical: bool, color := Color.WHITE, attacker: Node = null) -> bool:
@@ -59,8 +59,13 @@ func _ready() -> void:
 	var selected := ["grand_cross", "gladiator", "phoenix_shot", "meteor_arrow", "watornado", "ice_storm", "last_judgement", "spirit_cat", "world_tree", "elder_dragon", "ragnarok_lance", "armageddon"]
 	if args.size() > 1 and args[1] != "late":
 		selected = Array(args[1].split(","))
+	if args.size() > 1 and args[1] == "every":
+		selected = []
+		for family in [ClassData.START] + ClassData.IDS:
+			for skill in ClassData.pool(family):
+				selected.append(String(skill.id))
 	for id in selected:
-		for family in ClassData.IDS:
+		for family in [ClassData.START] + ClassData.IDS:
 			var skill := ClassData.find_skill(family, id)
 			if not skill.is_empty():
 				await _case(family, skill)
