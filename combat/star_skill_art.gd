@@ -5,18 +5,20 @@ extends Node3D
 ## Geometry is finite/shared; materials live only as long as their mesh node.
 const SHADER := preload("res://shaders/star_skill.gdshader")
 const COLORS := {
-	"lionfang_cleave":["f6b64e","fff5bb","823e38"], "crown_breaker":["e7ac61","fff5cf","593553"],
-	"royal_vanguard":["e5b552","fff8d3","733b45"], "celestial_swordfall":["edc56b","ffffdc","8063a2"],
-	"moonpiercer":["a3d4f7","ffffff","57638f"], "hunters_verdict":["67daba","fff4bd","285671"],
-	"sylph_step":["87e8ae","f4ffe8","377783"], "celestial_hunt":["84adfa","fff2b0","383c85"],
-	"spiral_impaler":["52d5da","ebffff","36529c"], "heartseeker":["ef6682","fff3c3","583467"],
-	"aegis_formation":["82bce9","ffffd8","425384"], "worldsplitter":["8289ed","fff5ab","433976"],
-	"arcane_prism":["ad92f9","fff9f0","473377"], "crystal_prison":["65d0f1","eeffff","395a9c"],
-	"astral_convergence":["9f8bf1","ffedb1","483169"], "genesis_nova":["d5a4fb","fff9de","57397b"],
-	"sanctified_chain":["f6d38a","ffffe9","80705a"], "seraph_aegis":["e9d6a7","ffffff","6e80a1"],
-	"sacred_sanctuary":["a3ded0","ffffd9","577e98"], "dawn_salvation":["f4ca7d","ffffe3","ae6a81"],
-	"moonwolf_pact":["8dbde7","f9fcff","425479"], "leviathan_surge":["4cdad3","effff9","266894"],
-	"spirit_court":["b0e390","fff1bf","42738b"], "eclipse_sovereign":["a388d8","ffe6a7","43325f"]
+	# Each star skill wears its own saturated signature colour, so the
+	# twenty read apart at a glance: [primary, bright core, deep shade].
+	"lionfang_cleave":["ff9a1f","fff0a0","8a2a10"], "crown_breaker":["e8324a","ffe08a","5a1030"],
+	"royal_vanguard":["3a7bff","ffe58a","1c2a6e"], "celestial_swordfall":["ffc83a","fffbe0","6a3fd0"],
+	"moonpiercer":["8fb8ff","f4f8ff","2c3a8a"], "hunters_verdict":["1fd38a","f0ffd0","0d5a4a"],
+	"sylph_step":["3ff0d0","eafffb","177a8a"], "celestial_hunt":["5a6bff","fff1a0","1f1e6e"],
+	"spiral_impaler":["18d8ff","eaffff","15468f"], "heartseeker":["ff2a4f","ffd6dc","5a0a22"],
+	"aegis_formation":["4aa8ff","fff2b0","1e3f78"], "worldsplitter":["8a5cff","ffd88a","2e1b5e"],
+	"arcane_prism":["c04dff","fbeaff","3a0f6a"], "crystal_prison":["2fb8ff","eaffff","10307a"],
+	"astral_convergence":["6f5bff","ffe08a","22145e"], "genesis_nova":["ff4fb0","fff0d0","4a1060"],
+	"sanctified_chain":["ffc23a","fffbe0","8a5a20"], "seraph_aegis":["ff8ad0","fff4fb","6a3a8a"],
+	"sacred_sanctuary":["2fe0a0","f2fff6","1f6a6a"], "dawn_salvation":["ff7a4a","fff0c0","a03060"],
+	"moonwolf_pact":["6aa0ff","eef4ff","22306a"], "leviathan_surge":["10c8d8","dafffa","0a4a7a"],
+	"spirit_court":["9be03a","fff6b0","2f6a3a"], "eclipse_sovereign":["a040ff","ffd27a","2a0a4a"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
