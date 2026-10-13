@@ -711,6 +711,8 @@ func _valid_profile(data: Dictionary) -> bool:
 			return false
 		if not member.get("name", "") is String or not _valid_integer(member.get("level", 1), 1, MAX_LEVEL) or not _valid_integer(member.get("exp", 0)):
 			return false
+		if not _valid_integer(member.get("stars", 0), 0, PARAGON_MAX) or not _valid_integer(member.get("star_exp", 0)):
+			return false
 		if member.get("stance", "follow") not in STANCES or member.get("trait", "brave") not in TRAIT_NAMES:
 			return false
 		for key in ["potions", "mp_potions", "hp", "mp"]:
@@ -877,6 +879,8 @@ func _repair(data: Dictionary) -> Dictionary:
 			member["name"] = member.get("name", "เพื่อนร่วมทาง")
 			member["level"] = int(member.get("level", 1))
 			member["exp"] = int(member.get("exp", 0))
+			member["stars"] = clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
+			member["star_exp"] = maxi(0, int(member.get("star_exp", 0)))
 	for entry in data.get("daily", {}).get("quests", []):
 		entry["progress"] = int(entry.get("progress", 0))
 		entry["claimed"] = bool(entry.get("claimed", false))
@@ -1027,6 +1031,8 @@ func ensure_party() -> void:
 		for member in profile["party"]:
 			member["level"] = maxi(1, int(member.get("level", 1)))
 			member["exp"] = int(member.get("exp", 0))
+			member["stars"] = clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
+			member["star_exp"] = maxi(0, int(member.get("star_exp", 0)))
 		return
 	recruit(&"mage" if class_id() == &"priest" else &"priest", false)
 
@@ -1073,29 +1079,75 @@ func party() -> Array:
 
 ## A fake profile so [HeroStats] can work out a companion's stats.
 func party_profile(member: Dictionary) -> Dictionary:
-	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "adv": JobData.adv_for_level(int(member.level))}
+	var stars := party_stars(member)
+	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "adv": JobData.adv_for_level(int(member.level)),
+		"paragon": {"level": stars, "alloc": party_star_alloc(stars)}}
+
+
+## A companion's ★ (0-200): it earns them from Lv.100 on, like the hero.
+func party_stars(member: Dictionary) -> int:
+	return clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
+
+
+## The ★ points a companion spends by itself: half into attack, then health,
+## defence and critical, up to each stat's cap.
+func party_star_alloc(stars: int) -> Dictionary:
+	var alloc := {}
+	var spend := stars
+	for key in ["atk", "hp", "def", "crit"]:
+		var put := mini(spend / 2 if key == "atk" else spend, int(PARAGON_STATS[key][2]))
+		alloc[key] = put
+		spend -= put
+	return alloc
+
+
+## EXP a companion needs for its next ★ (the hero's own curve).
+func party_star_need(member: Dictionary) -> int:
+	var stars := party_stars(member)
+	if stars >= PARAGON_MAX:
+		return 0
+	return int(float(HeroStats.exp_to_next(MAX_LEVEL)) * (1.0 + 0.02 * float(stars)))
+
+
+## The star tier of gear a companion wears: none below 50 stars.
+func party_gear_tier(member: Dictionary) -> int:
+	var tier := 0
+	for t in StarProgression.TIERS:
+		if party_stars(member) >= t:
+			tier = t
+	return tier
 
 
 ## Gear that grows with the companion's level (same pieces until the next tier).
+## Past Lv.100 it wears the star set that matches its stars.
 func party_equip(member: Dictionary) -> Dictionary:
+	var stars := party_stars(member)
+	var gear_tier := party_gear_tier(member)
 	var tier := ItemData.tier_for(int(member.level))
-	var key := "%s|%d|%d" % [member.name, tier, int(member.level) / 3]
+	var key := "%s|%d|%d|%d|%d" % [member.name, tier, int(member.level) / 3, gear_tier, 1 if stars > 0 else 0]
 	if _party_gear.has(key):
 		return _party_gear[key]
 	var local := RandomNumberGenerator.new()
 	local.seed = hash(key)
 	var gear := {}
 	for slot in ["weapon", "armor", "helm"]:
-		gear[slot] = ItemData.generate(maxi(1, int(member.level)), StringName(member["class"]), local, 1, slot)
+		if gear_tier > 0:
+			gear[slot] = StarProgression.item(StringName(member["class"]), gear_tier, slot, local)
+		elif stars > 0:
+			gear[slot] = ItemData.generate(MAX_LEVEL + mini(stars, 20), StringName(member["class"]), local, 1, slot)
+		else:
+			gear[slot] = ItemData.generate(maxi(1, int(member.level)), StringName(member["class"]), local, 1, slot)
 	_party_gear[key] = gear
 	return gear
 
 
-## Every kill's EXP goes to the whole party too: they level up together.
+## Every kill's EXP goes to the whole party too: they level up together, and
+## from Lv.100 they earn ★ up to 200 just like the hero.
 func party_add_exp(amount: int) -> void:
 	for i in party().size():
 		var member: Dictionary = profile["party"][i]
 		if int(member.level) >= MAX_LEVEL:
+			_party_add_star_exp(i, member, amount)
 			continue
 		member["exp"] = int(member.exp) + amount
 		var gained := false
@@ -1109,7 +1161,20 @@ func party_add_exp(amount: int) -> void:
 	mark_dirty()
 
 
-## Companions never fall far behind the hero's level.
+func _party_add_star_exp(i: int, member: Dictionary, amount: int) -> void:
+	if party_stars(member) >= PARAGON_MAX:
+		return
+	member["star_exp"] = int(member.get("star_exp", 0)) + amount
+	var gained := false
+	while party_stars(member) < PARAGON_MAX and int(member.star_exp) >= party_star_need(member):
+		member["star_exp"] = int(member.star_exp) - party_star_need(member)
+		member["stars"] = party_stars(member) + 1
+		gained = true
+	if gained:
+		party_leveled.emit(i, int(member.level))
+
+
+## Companions never fall far behind the hero's level (or, past Lv.100, stars).
 func party_catch_up() -> void:
 	for i in party().size():
 		var member: Dictionary = profile["party"][i]
@@ -1118,6 +1183,11 @@ func party_catch_up() -> void:
 			member["level"] = floor_level
 			member["exp"] = 0
 			party_leveled.emit(i, floor_level)
+		var floor_stars := maxi(0, int(paragon().level) - 2) if int(profile["level"]) >= MAX_LEVEL else 0
+		if int(member.level) >= MAX_LEVEL and party_stars(member) < floor_stars:
+			member["stars"] = floor_stars
+			member["star_exp"] = 0
+			party_leveled.emit(i, int(member.level))
 	party_changed.emit()
 
 
