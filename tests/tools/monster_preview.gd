@@ -14,7 +14,9 @@ func _ready() -> void:
 	if zone_mode:
 		var zone := ZoneData.get_zone(StringName(args[1].substr(5)))
 		for camp in zone.camps:
-			ids.append_array(camp.monsters)
+			for id in camp.monsters:
+				if not ids.has(id):
+					ids.append(id)
 		if zone.has("boss"):
 			ids.append(zone.boss.monster)
 		for id in ids:

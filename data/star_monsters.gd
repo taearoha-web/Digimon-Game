@@ -1,14 +1,15 @@
 class_name StarMonsters
 extends RefCounted
 ## Star-region bestiary: 12 newly licensed animated base models, 28 encounters.
-## Lists are ordered: four normal enemies, two elites, one regional boss.
+## Lists are ordered: four normal enemies, two elites, one regional boss, then
+## (from 50 stars on) a fifth normal enemy for the fifth farm camp.
 ## Source provenance and closed SHA-256 roster: assets/vendor/star_monsters/.
 
 const REGIONS := {
 	&"dawn_forest": [&"dawn_fox", &"dawn_deer", &"dawn_stag", &"dawn_alpaca", &"dawn_thornhart", &"dawn_spirit_fox", &"dawn_ancient_stag"],
-	&"crystal_valley": [&"crystal_husky", &"crystal_wolf", &"crystal_bull", &"crystal_alpaca", &"crystal_fang", &"crystal_behemoth", &"crystal_horn_king"],
-	&"sky_citadel": [&"sky_pegasus", &"sky_cloud_alpaca", &"sky_warden", &"sky_oracle", &"sky_storm_pegasus", &"sky_high_warden", &"sky_celestial_king"],
-	&"eclipse_realm": [&"eclipse_minion", &"eclipse_rogue", &"eclipse_mage", &"eclipse_warrior", &"eclipse_reaper", &"eclipse_dreadknight", &"eclipse_sovereign"],
+	&"crystal_valley": [&"crystal_husky", &"crystal_wolf", &"crystal_bull", &"crystal_alpaca", &"crystal_fang", &"crystal_behemoth", &"crystal_horn_king", &"crystal_yeti"],
+	&"sky_citadel": [&"sky_pegasus", &"sky_cloud_alpaca", &"sky_warden", &"sky_oracle", &"sky_storm_pegasus", &"sky_high_warden", &"sky_celestial_king", &"sky_wind_spirit"],
+	&"eclipse_realm": [&"eclipse_minion", &"eclipse_rogue", &"eclipse_mage", &"eclipse_warrior", &"eclipse_reaper", &"eclipse_dreadknight", &"eclipse_sovereign", &"eclipse_wraith"],
 }
 const MONSTERS := {
 	&"dawn_fox": {"name":"จิ้งจอกกลีบอรุณ", "model":"star/Fox", "height":1.7, "hp":1.1, "atk":1.05, "def":0.9, "speed":3.1, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":1, "decor":"leaf", "color":Color("c7ed96"), "behavior":"pounce"},
@@ -39,7 +40,15 @@ const MONSTERS := {
 	&"eclipse_reaper": {"name":"ผู้เก็บเกี่ยวแสงดาว", "model":"star/Skeleton_Mage", "height":2.8, "hp":3.2, "atk":2.2, "def":1.4, "speed":2.7, "aggro":true, "attack":"ranged", "region":"eclipse_realm", "min_star":170, "elite":true, "decor":"eclipse_reaper", "weapon":"staff_4", "color":Color("d59dff"), "behavior":"void_bolt"},
 	&"eclipse_dreadknight": {"name":"ขุนพลเกราะคราส", "model":"star/Skeleton_Warrior", "height":3.1, "hp":4.3, "atk":2.0, "def":1.9, "speed":2.7, "aggro":true, "attack":"melee", "region":"eclipse_realm", "min_star":175, "elite":true, "decor":"eclipse_knight", "weapon":"sword_4", "color":Color("ae91d9"), "behavior":"cleave"},
 	&"eclipse_sovereign": {"name":"น็อกซ์ออเรล ราชันสุริยคราส", "model":"star/Skeleton_Warrior", "height":4.8, "hp":25.0, "atk":2.9, "def":2.2, "speed":2.8, "aggro":true, "attack":"melee", "region":"eclipse_realm", "min_star":200, "boss":true, "final_boss":true, "decor":"eclipse_king", "weapon":"sword_4", "color":Color("eac28a"), "behavior":"eclipse_crown"},
+	&"crystal_yeti": {"name":"เยติผลึกน้ำแข็ง", "model":"big/Yeti", "height":2.5, "hp":1.5, "atk":1.35, "def":1.4, "speed":2.4, "aggro":true, "attack":"melee", "region":"crystal_valley", "min_star":60, "decor":"crystal", "color":Color("9fe3ff"), "tint":Color(0.8,1.0,1.25), "behavior":"cleave"},
+	&"sky_wind_spirit": {"name":"ภูตวายุนภา", "model":"flying/Hywirl", "height":1.9, "hover":1.0, "hp":1.2, "atk":1.6, "def":1.0, "speed":2.9, "aggro":true, "attack":"ranged", "region":"sky_citadel", "min_star":110, "decor":"sky_guard", "color":Color("bfe6ff"), "tint":Color(1.1,1.08,1.2), "behavior":"wind_bolt"},
+	&"eclipse_wraith": {"name":"วิญญาณกะโหลกคราส", "model":"flying/Ghost_Skull", "height":2.0, "hover":1.0, "hp":1.25, "atk":1.75, "def":1.0, "speed":2.8, "aggro":true, "attack":"ranged", "region":"eclipse_realm", "min_star":160, "decor":"eclipse_sigil", "color":Color("c58aff"), "tint":Color(0.85,0.7,1.15), "behavior":"void_bolt"},
 }
+
+## From 50 stars on (crystal valley, sky citadel, eclipse realm) every monster
+## has ten times the health it was designed with.
+const TOUGH_REGIONS := [&"crystal_valley", &"sky_citadel", &"eclipse_realm"]
+const TOUGH_HP := 10.0
 
 static func ids_for(zone_id: StringName) -> Array:
 	return REGIONS.get(zone_id, []).duplicate()
@@ -48,4 +57,7 @@ static func has(id: StringName) -> bool:
 	return MONSTERS.has(id)
 
 static func get_monster(id: StringName) -> Dictionary:
-	return MONSTERS.get(id, {}).duplicate(true)
+	var m: Dictionary = MONSTERS.get(id, {}).duplicate(true)
+	if StringName(m.get("region", "")) in TOUGH_REGIONS:
+		m.hp = float(m.hp) * TOUGH_HP
+	return m

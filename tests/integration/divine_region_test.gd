@@ -36,11 +36,14 @@ func _ready() -> void:
 	check(StarProgression.REGIONS.size() == 4, "four milestone regions retained")
 	check(StarWingData.drop_chance(DivineRegionData.ID, true, false) == 0, "new map adds no wing tiers or wing drops")
 	var new_zone := ZoneData.get_zone(DivineRegionData.ID)
-	check(new_zone.camps.size() == 4 and new_zone.boss.monster == &"lotus_seraph", "new camp and boss definitions")
+	check(new_zone.camps.size() == 5 and new_zone.boss.monster == &"lotus_seraph", "five farm camps and boss definitions")
+	for camp in new_zone.camps:
+		check(int(camp.count) == 10, "ten monsters per farm camp")
 	for id in DivineRegionData.MONSTERS:
 		var data := MonsterData.get_monster(id)
 		check(data.name == DivineRegionData.MONSTERS[id].name, "monster dispatch " + String(id))
-		check(ResourceLoader.exists("res://assets/models/monsters/%s.glb" % data.model), "monster model " + String(id))
+		check(ResourceLoader.exists("res://assets/models/monsters/%s.glb" % data.model) or ResourceLoader.exists("res://assets/models/monsters/%s.gltf" % data.model), "monster model " + String(id))
+		check(is_equal_approx(float(data.hp), float(DivineRegionData.MONSTERS[id].hp) * 10.0), "ten times health " + String(id))
 		var stats := MonsterData.stats_for(id, 160)
 		check(stats.hp > 0 and stats.atk > 0 and stats.def > 0, "valid battle stats")
 	var rng := RandomNumberGenerator.new()
