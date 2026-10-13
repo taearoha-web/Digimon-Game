@@ -36,6 +36,7 @@ func _make_quad(color: Color, width: float, height: float, priority: int) -> Mes
 	var quad := QuadMesh.new()
 	quad.size = Vector2(width, height)
 	var material := StandardMaterial3D.new()
+	MaterialKeeper.keep(material)
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	material.albedo_color = color

@@ -207,6 +207,7 @@ static func _stone_material(heat := 1.0, seed := 0.0) -> ShaderMaterial:
 
 static func _color(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
+	MaterialKeeper.keep(mat)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color
