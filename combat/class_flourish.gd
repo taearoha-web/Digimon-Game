@@ -65,6 +65,9 @@ static func _alive(parent: Node3D) -> bool:
 
 ## Primary / bright core colours: the skill's element, tinted by its own colour.
 static func colors(skill: Dictionary) -> Array:
+	if skill.has("star") and StarSkillArt.handles(skill):
+		var look := StarSkillArt.look(skill)
+		return [look.primary, look.accent, look.shade]
 	var style := SkillShow.style_of(skill)
 	var own: Color = skill.get("color", Color.WHITE)
 	var pair: Array = ELEMENT_COLORS.get(style, [own, own.lerp(Color.WHITE, 0.7)])
@@ -182,8 +185,10 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 
 
 ## Star skills (non-mage): every contact beat of StarSkillSequence gets the
-## line's finish on top of its authored silhouette. Beats sharing a frame
-## (a chain of victims) share one flourish.
+## line's finish in the skill's own signature colour (StarSkillArt.COLORS),
+## with columns of that colour instead of a generic white light. Beats sharing
+## a frame (a chain of victims) share one flourish. The 200-star skills open
+## with an apex: a sky seal, a crown of columns and a double wave.
 static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
 	if skill.is_empty() or not skill.has("star") or SkillShow.family_of(skill) == "mage":
 		return
@@ -195,48 +200,94 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 		return
 	_last_contact[key] = now
 	parent = _holder(parent, key)
-	var c := colors(skill)
+	var look := StarSkillArt.look(skill)
+	var c: Array = [look.primary, look.accent, look.shade]
 	var family := SkillShow.family_of(skill)
-	var s := 1.7 + 0.15 * float(mini(index, 3))
+	var star := int(skill.get("star", 50))
+	var apex := star >= 200
+	var s := 1.5 + float(star) / 200.0 * 0.6 + 0.12 * float(mini(index, 3))
 	var ground := Vector3(point.x, 0.0, point.z)
-	var flat := Vector3(point.x - source.x, 0.0, point.z - source.z)
+	var feet := Vector3(source.x, 0.0, source.z)
+	var flat := ground - feet
 	var yaw := atan2(flat.x, flat.z) if flat.length_squared() > 0.01 else 0.0
+	var radius := clampf(float(skill.get("radius", 3.0)), 2.0, 8.0)
 	match String(skill.shape):
-		"self":
+		"self", "summon":
 			if index == 0:
-				_ascend(parent, skill, c, ground, scale_of(skill))
+				var at := ground if String(skill.shape) == "self" else feet
+				_star_ascend(parent, c, at, s, family, apex)
 			return
-		"summon":
-			if index == 0:
-				_summoning(parent, skill, c, Vector3(source.x, 0.0, source.z), scale_of(skill))
-			return
-	var radius := clampf(float(skill.get("radius", 3.0)), 2.0, 7.0)
+	if apex and index == 0:
+		_apex(parent, c, ground, radius, family)
 	VfxKit.flash(parent, ground + Vector3.UP, c[1], 2.2 * s, 0.32)
 	VfxArt.star_flash(parent, ground + Vector3.UP, c[0], 2.4 * s, 0.45)
 	VfxKit.shockwave(parent, ground + Vector3.UP * 0.08, c[0], radius * 0.85)
+	_colour_column(parent, ground, c, 0.9 * s, 10.0 + 4.0 * float(star) / 200.0)
 	match family:
 		"warrior":
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, -0.9, c[0], c[1], 2.4 * s, 0.0, 1.3)
-			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 0.9, c[0], c[1], 2.2 * s, 0.06, -1.3)
+			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 0.9, c[2].lerp(c[0], 0.5), c[1], 2.2 * s, 0.06, -1.3)
 			VfxKit.slam(parent, ground, c[0], radius * 0.7)
 		"lancer":
-			var from := Vector3(source.x, 1.1, source.z)
-			if (ground - Vector3(source.x, 0.0, source.z)).length() > 1.0 and _room(4):
-				VfxArt.beam(parent, from, ground + Vector3.UP * 1.0, c[0], 0.7, 0.3)
-				VfxArt.beam(parent, from, ground + Vector3.UP * 1.0, c[1], 0.22, 0.22)
+			if flat.length() > 1.0 and _room(4):
+				VfxArt.beam(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], 0.75, 0.3)
+				VfxArt.beam(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[1], 0.22, 0.22)
 			_crescent(parent, ground + Vector3.UP, yaw, 0.2, c[0], c[1], 2.0 * s, 0.0, 2.0)
 		"archer":
 			_arrow_storm(parent, skill, c, ground, radius * 0.7, 4 + index)
 			if _room(3):
-				VfxArt.beam(parent, Vector3(source.x, 1.3, source.z), ground + Vector3.UP, c[1], 0.3, 0.24)
+				VfxArt.beam(parent, feet + Vector3.UP * 1.3, ground + Vector3.UP, c[0], 0.32, 0.24)
 		"priest":
-			if _room(4):
-				VfxArt.sky_strike(parent, ground, c[0], 1.3, 15.0, 0.55)
 			VfxArt.rune_circle(parent, ground, c[0], radius * 0.7, 0.9, 1.0)
+			VfxArt.motes(parent, ground, c[1], "petal", 18, radius * 0.5, 0.6, 1.2)
 		"summoner":
 			VfxKit.vortex(parent, ground, c[0], 3.5, 0.8)
 			VfxArt.motes(parent, ground, c[1], "leaf", 22, radius * 0.5, 0.4, 1.2)
-	_element(parent, skill, c, ground, 1.8)
+	VfxArt.motes(parent, ground, c[0], "light", 14, radius * 0.5, 0.4, 1.0)
+
+
+## A column of the skill's own colour: a wide tinted shaft around a bright core.
+static func _colour_column(parent: Node3D, at: Vector3, c: Array, width: float, height: float) -> void:
+	if not _room(2):
+		return
+	VfxKit.pillar(parent, at, c[0], height, width * 1.6, 0.6)
+	VfxKit.pillar(parent, at, c[1], height * 1.1, width * 0.5, 0.45)
+
+
+## Star buffs and pacts: a seal, a shaft and a spiral in the skill's colours.
+static func _star_ascend(parent: Node3D, c: Array, at: Vector3, s: float, family: String, apex: bool) -> void:
+	VfxArt.rune_circle(parent, at, c[0], 2.0 * s, 1.3, 1.0)
+	VfxArt.crest(parent, at, c[0], family, 1.7 * s, 1.1, randf() * TAU)
+	_colour_column(parent, at, c, 1.1 * s, 9.0)
+	VfxArt.ribbon_spiral(parent, at, c[1], 4.0, 3.0, 1.1, 1.0 * s)
+	VfxKit.impact_ring(parent, at + Vector3.UP * 0.2, c[0], 2.6 * s, 0.7)
+	VfxArt.motes(parent, at, c[1], "light", 26, 1.2 * s, 0.3, 1.5)
+	if apex:
+		_apex(parent, c, at, 6.0, family)
+
+
+## The 200-star opening: a seal in the sky, a crown of eight columns, a double
+## wave across the whole area and the line's crest burning on the ground.
+static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: String) -> void:
+	var r := clampf(radius, 5.0, 9.0)
+	VfxArt.rune_circle(parent, at, c[0], r, 1.6, -1.0)
+	VfxArt.crest(parent, at, c[1], family, r * 0.8, 1.4, randf() * TAU)
+	if _room(2):
+		var sky := Node3D.new()
+		parent.add_child(sky)
+		sky.global_position = at + Vector3.UP * 7.0
+		VfxArt.rune_circle(sky, at + Vector3.UP * 7.0, c[1], r * 0.7, 1.4, 1.5)
+	VfxKit.flash(parent, at + Vector3.UP * 1.5, c[1], 7.0, 0.45)
+	VfxKit.shockwave(parent, at + Vector3.UP * 0.1, c[0], r * 1.1)
+	VfxKit.get_ring_delay(parent, at, c[1], r * 0.8, 0.18)
+	var phase := randf() * TAU
+	for i in 8:
+		var angle := phase + TAU * float(i) / 8.0
+		var spot := at + Vector3(cos(angle), 0.0, sin(angle)) * r * 0.85
+		parent.create_tween().tween_interval(0.05 * i).finished.connect(func():
+			if _alive(parent):
+				_colour_column(parent, spot, c, 0.6, 12.0), CONNECT_ONE_SHOT)
+	VfxArt.motes(parent, at, c[1], "light", 40, r * 0.6, 0.5, 1.8)
 
 
 ## A glowing core and a spark trail riding a projectile (arrows, holy bolts,
