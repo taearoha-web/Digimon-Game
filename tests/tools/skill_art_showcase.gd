@@ -1,7 +1,7 @@
 extends Node3D
 ## Actual Hero._cast footage and stills on a deterministic field. Does not use
 ## the user's saves. Optional Godot --write-movie captures the same live casts.
-## godot --path . res://tests/tools/skill_art_showcase.tscn -- OUT_DIR [ids,comma,separated|every] [late]
+## godot --path . res://tests/tools/skill_art_showcase.tscn -- OUT_DIR [ids,comma,separated|every] [late] [medium]
 class Dummy extends Mob:
 	var hits := 0
 	func take_hit(amount: int, critical: bool, color := Color.WHITE, attacker: Node = null) -> bool:
@@ -25,7 +25,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	Game.set_process(false)
 	GameSettings.load_settings()
-	GameSettings.quality = 2
+	GameSettings.quality = 1 if "medium" in args else 2
 	GameSettings.combat_hitstop = false
 	get_window().size = Vector2i(960, 540)
 	get_window().content_scale_size = Vector2i(960, 540)
@@ -57,7 +57,7 @@ func _ready() -> void:
 	subtitle.add_theme_constant_override("shadow_offset_y", 2)
 	layer.add_child(subtitle)
 	var selected := ["grand_cross", "gladiator", "phoenix_shot", "meteor_arrow", "watornado", "ice_storm", "last_judgement", "spirit_cat", "world_tree", "elder_dragon", "ragnarok_lance", "armageddon"]
-	if args.size() > 1 and args[1] != "late":
+	if args.size() > 1 and not args[1] in ["late", "medium"]:
 		selected = Array(args[1].split(","))
 	if args.size() > 1 and args[1] == "every":
 		selected = []
