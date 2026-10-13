@@ -36,10 +36,30 @@ static func zones() -> Dictionary:
 static func region_index(id: StringName) -> int:
 	return REGIONS.find(id)
 
+## One shared roll on a piece's stats. The gap between two star tiers is at
+## least 12%, wider than the (ROLL_MAX / ROLL_MIN) spread, so the weakest
+## piece of a tier still beats the best piece of the tier below in every stat.
+const ROLL_MIN := 0.96
+const ROLL_MAX := 1.04
+const GEAR_RARITY := 3
+## Bonus lines a ★ piece carries, spread evenly over hp, mp, crit, atk and def.
+const BONUS_LINES := 3.0
+
+## The shared roll of a freshly generated piece, taken from its own random stats
+## so that making a star piece draws no more random numbers than it always did.
+static func roll_of(piece: Dictionary) -> float:
+	return lerpf(ROLL_MIN,ROLL_MAX,float(hash(JSON.stringify(piece.get("stats",{}))) % 1000)/999.0)
+
+static func tier_stats(slot: String, stars: int, roll: float) -> Dictionary:
+	return ItemData.tiered_stats(slot, 100 + stars, GEAR_RARITY, BONUS_LINES, roll)
+
 static func item(cls: StringName, stars: int, slot: String, rng: RandomNumberGenerator) -> Dictionary:
 	if not TIERS.has(stars) or not ClassData.IDS.has(cls) or not ItemData.EQUIP_SLOTS.has(slot): return {}
 	if slot=="wings": return StarWingData.item(String(cls),rng) if stars==100 else {}
 	var result := ItemData.generate(100+stars,cls,rng,3,slot)
+	# Tier decides the grade, not luck: every stat is the tier's fixed value
+	# times one small roll, so a higher-star piece is better in every stat.
+	result["stats"] = tier_stats(slot,stars,roll_of(result))
 	result.merge({"star_tier":stars,"star_class":String(cls),"star_set":StarGearData.set_id(String(cls),stars),
 		"level":100+stars,"name":StarGearData.item_name(slot,String(cls),stars),"class":String(cls)},true)
 	result["set"] = StarGearData.set_id(String(cls),stars) if slot in ["weapon","armor","helm","boots"] else ""

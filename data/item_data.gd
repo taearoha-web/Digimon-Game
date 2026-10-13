@@ -177,6 +177,58 @@ static func gear_power(level: int) -> float:
 		return 4.0 + float(level) * 2.2
 	return 224.0 + float(level - 100) * 0.9
 
+## The slot's own stats before any bonus line. [param roll] only scales the
+## attack of a weapon and the defence of an armour, as it always has.
+static func main_stats(slot: String, level: int, rarity: int, roll := 1.0) -> Dictionary:
+	var power := gear_power(level)
+	var stats := {}
+	match slot:
+		"weapon":
+			stats["atk"] = int(round(power * rarity_mult(rarity, 0.22) * roll))
+		"armor":
+			stats["def"] = int(round(power * 0.75 * rarity_mult(rarity, 0.2) * roll))
+			stats["hp"] = int(round(level * 5.0 * rarity_mult(rarity, 0.2)))
+		"helm":
+			stats["def"] = int(round(power * 0.4 * rarity_mult(rarity, 0.2)))
+			stats["hp"] = int(round(level * 3.0 * rarity_mult(rarity, 0.2)))
+		"boots":
+			stats["def"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
+			stats["hp"] = int(round(level * 2.0 * rarity_mult(rarity, 0.2)))
+		"ring":
+			stats["atk"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
+			stats["crit"] = snappedf(0.01 + level * 0.0004 * (1.0 + rarity * 0.3), 0.001)
+		"amulet":
+			stats["mp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
+			stats["hp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
+	return stats
+
+
+## What one bonus line adds to [param key].
+static func bonus_line(key: String, level: int) -> Variant:
+	var power := gear_power(level)
+	match key:
+		"hp": return int(level * 4.0 + 6)
+		"mp": return int(level * 2.0 + 4)
+		"crit": return snappedf(0.006 + level * 0.0002, 0.001)
+		"atk": return int(power * 0.12 + 1)
+		_: return int(power * 0.1 + 1)
+
+
+## Stats of a piece whose grade is fixed by its tier instead of by luck: the
+## slot's own stats plus the bonus lines spread evenly over all five stats
+## ([param lines] of them, the average a random piece would carry), then one
+## shared [param roll] on everything. Every stat therefore grows with the
+## level, so a piece of a higher tier is better in each stat as long as the
+## roll spread (about 8%) is smaller than the gap between the tiers.
+static func tiered_stats(slot: String, level: int, rarity: int, lines: float, roll: float) -> Dictionary:
+	var stats := main_stats(slot, level, rarity)
+	for key in ["hp", "mp", "crit", "atk", "def"]:
+		var extra: float = float(bonus_line(key, level)) * lines / 5.0
+		stats[key] = float(stats.get(key, 0)) + extra
+	for key in stats:
+		stats[key] = snappedf(float(stats[key]) * roll, 0.001) if key == "crit" else int(round(float(stats[key]) * roll))
+	return stats
+
 
 static func generate(level: int, class_id: StringName, rng: RandomNumberGenerator, rarity := -1, slot := "") -> Dictionary:
 	level = clampi(level, 1, MAX_GEAR_LEVEL)
@@ -195,34 +247,12 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 	var base := base_for(slot, class_id)
 	var tier := tier_for(level)
 	var power := gear_power(level)
-	var stats := {}
-	match slot:
-		"weapon":
-			stats["atk"] = int(round(power * rarity_mult(rarity, 0.22) * rng.randf_range(0.92, 1.08)))
-		"armor":
-			stats["def"] = int(round(power * 0.75 * rarity_mult(rarity, 0.2) * rng.randf_range(0.92, 1.08)))
-			stats["hp"] = int(round(level * 5.0 * rarity_mult(rarity, 0.2)))
-		"helm":
-			stats["def"] = int(round(power * 0.4 * rarity_mult(rarity, 0.2)))
-			stats["hp"] = int(round(level * 3.0 * rarity_mult(rarity, 0.2)))
-		"boots":
-			stats["def"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
-			stats["hp"] = int(round(level * 2.0 * rarity_mult(rarity, 0.2)))
-		"ring":
-			stats["atk"] = int(round(power * 0.3 * rarity_mult(rarity, 0.2)))
-			stats["crit"] = snappedf(0.01 + level * 0.0004 * (1.0 + rarity * 0.3), 0.001)
-		"amulet":
-			stats["mp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
-			stats["hp"] = int(round(level * 4.0 * rarity_mult(rarity, 0.2)))
+	var stats := main_stats(slot, level, rarity, rng.randf_range(0.92, 1.08) if slot in ["weapon", "armor"] else 1.0)
 	var bonus_pool := ["hp", "mp", "crit", "atk", "def"]
 	for i in rarity:
 		var key: String = bonus_pool[rng.randi() % bonus_pool.size()]
-		match key:
-			"hp": stats[key] = int(stats.get(key, 0)) + int(level * 4.0 + 6)
-			"mp": stats[key] = int(stats.get(key, 0)) + int(level * 2.0 + 4)
-			"crit": stats[key] = snappedf(float(stats.get(key, 0.0)) + 0.006 + level * 0.0002, 0.001)
-			"atk": stats[key] = int(stats.get(key, 0)) + int(power * 0.12 + 1)
-			"def": stats[key] = int(stats.get(key, 0)) + int(power * 0.1 + 1)
+		var total: Variant = stats.get(key, 0) + bonus_line(key, level)
+		stats[key] = snappedf(float(total), 0.001) if key == "crit" else total
 	var names: Array = NAMES[base]
 	var base_name: String = names[tier]
 	var adjective: String = RARITY_ADJ[rarity]

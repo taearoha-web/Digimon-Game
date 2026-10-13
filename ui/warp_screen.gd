@@ -116,7 +116,7 @@ func _row(id: StringName, level: int) -> Control:
 	if z.has("star"):
 		detail = "ดาว %d+ · วัตถุดิบสร้างอุปกรณ์ดาว %d" % [int(z.star), int(z.gear_star)]
 	if id == DivineRegionData.ID:
-		detail = "ดาว 200 · ชุดเทพและอาวุธประจำอาชีพ · บอสให้ 2 ชิ้น"
+		detail = "ดาว 200 · ชุดเทพประจำอาชีพ แรงที่สุด ดรอปยากสุด 0.5%"
 	if not open:
 		detail = "ล็อก · " + ZoneData.access_reason(id, level, int(Game.paragon().level))
 	info.add_child(UIUtil.label(detail, &"SmallLabel"))
