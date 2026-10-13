@@ -30,10 +30,12 @@ const ELEMENT_COLORS := {
 const OWN_COLUMN := ["judgment_ray"]
 
 static var _last_contact: Dictionary = {}
+## Off switch for performance comparisons (tests/tools/skill_perf_probe).
+static var enabled := true
 
 
 static func handles(skill: Dictionary) -> bool:
-	return not skill.is_empty() and not skill.has("star")
+	return enabled and not skill.is_empty() and not skill.has("star")
 
 
 ## 0 at Lv.1, 1 at Lv.100.
@@ -84,6 +86,65 @@ static func landing(skill: Dictionary) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Quality-aware primitives. CPU particles are updated on the CPU every frame,
+# which on a phone's web build is the dearest part of an effect; below High
+# quality the flourish keeps its light, rings and columns but sheds them.
+# ---------------------------------------------------------------------------
+
+static func _rich() -> bool:
+	return VfxBudget.quality() >= 2
+
+
+static func _motes(parent: Node3D, pos: Vector3, color: Color, kind: String, count := 24, radius := 2.0, height := 0.0, lifetime := 1.4) -> void:
+	if _rich():
+		VfxArt.motes(parent, pos, color, kind, count, radius, height, lifetime)
+
+
+static func _sparks(parent: Node3D, pos: Vector3, color: Color, amount := 22, speed := 4.0, lifetime := 0.55) -> void:
+	if _rich():
+		VfxKit.sparks(parent, pos, color, amount, speed, lifetime)
+
+
+## A pressure wave over the ground; its spark spray only at High quality.
+static func _wave(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
+	if _rich():
+		VfxKit.shockwave(parent, pos, color, radius)
+	else:
+		VfxKit.impact_ring(parent, pos + Vector3.UP * 0.05, color, radius * 0.75, 0.42)
+
+
+static func _late_wave(parent: Node3D, pos: Vector3, color: Color, radius: float, delay: float) -> void:
+	parent.create_tween().tween_interval(delay).finished.connect(func():
+		if _alive(parent):
+			_wave(parent, pos + Vector3.UP * 0.1, color, radius), CONNECT_ONE_SHOT)
+
+
+## Ground break: cracks and dust at High quality, a heavy ring otherwise.
+static func _slam(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
+	if _rich():
+		VfxKit.slam(parent, pos, color, radius)
+	else:
+		_wave(parent, pos + Vector3.UP * 0.1, color, radius)
+
+
+## A shaft of light striking down (its sparks and wave only at High quality).
+static func _sky(parent: Node3D, pos: Vector3, color: Color, width := 1.4, height := 14.0, duration := 0.5) -> void:
+	if _rich():
+		VfxArt.sky_strike(parent, pos, color, width, height, duration)
+	elif _room(2):
+		VfxKit.pillar(parent, pos, color, height, width, duration)
+		VfxArt.star_flash(parent, pos + Vector3.UP * 0.6, color, width * 3.0)
+
+
+## Real flames (each with embers and smoke) only at High quality.
+static func _fire(parent: Node3D, center: Vector3, radius: float, tier := 1, ring := false) -> void:
+	if _rich():
+		ElementFx.fire_field(parent, center, radius, tier, ring)
+	else:
+		VfxKit.impact_ring(parent, center + Vector3.UP * 0.1, Color("ff8a3a"), radius * 0.8, 0.5)
+
+
+# ---------------------------------------------------------------------------
 # Entry points
 # ---------------------------------------------------------------------------
 
@@ -96,7 +157,7 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 	var s := scale_of(skill)
 	var family := SkillShow.family_of(skill)
 	VfxArt.rune_circle(parent, origin, c[0], 1.1 * s, duration + 0.15, 1.5)
-	VfxArt.motes(parent, origin, c[1], "light", int(8 + 10 * power(skill)), 0.9 * s, 0.2, duration + 0.35)
+	_motes(parent, origin, c[1], "light", int(8 + 10 * power(skill)), 0.9 * s, 0.2, duration + 0.35)
 	if family in ["warrior", "vagabond", "lancer"] and power(skill) >= 0.3:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 1.2 * s, duration)
 
@@ -165,21 +226,21 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.3)
 	VfxArt.star_flash(parent, at, c[1], 2.6 * s, 0.45)
 	var ground := Vector3(at.x, 0.06, at.z)
-	VfxKit.shockwave(parent, ground + Vector3.UP * 0.05, c[0], 1.3 * s)
+	_wave(parent, ground + Vector3.UP * 0.05, c[0], 1.3 * s)
 	match style:
 		"holy", "heal":
 			if _room(4) and not String(skill.get("id", "")) in OWN_COLUMN:
-				VfxArt.sky_strike(parent, ground, c[0], 0.5 + p * 0.6, 7.0 + p * 5.0, 0.42)
+				_sky(parent, ground, c[0], 0.5 + p * 0.6, 7.0 + p * 5.0, 0.42)
 		"arcane":
-			VfxArt.motes(parent, at, c[1], "diamond", int(10 + 10 * p), 0.7 * s, 0.4, 0.9)
+			_motes(parent, at, c[1], "diamond", int(10 + 10 * p), 0.7 * s, 0.4, 0.9)
 			VfxArt.rune_circle(parent, ground, c[0], 1.2 * s, 0.6, 2.0)
 		"thunder":
 			if _room(3):
 				VfxArt.painted_lightning(parent, at + Vector3(0.6, 7.0, -0.4), at, c[1])
 		"fire":
-			VfxArt.motes(parent, at, Color("ffb050"), "ember", int(10 + 10 * p), 0.6 * s, 0.4, 0.9)
+			_motes(parent, at, Color("ffb050"), "ember", int(10 + 10 * p), 0.6 * s, 0.4, 0.9)
 		"wind":
-			VfxArt.motes(parent, at, c[1], "leaf", int(8 + 8 * p), 0.7 * s, 0.3, 0.8)
+			_motes(parent, at, c[1], "leaf", int(8 + 8 * p), 0.7 * s, 0.3, 0.8)
 		"leaf":
 			VfxArt.bloom(parent, ground, c[0], "leaf", 0.9 * s, 6, 0.7, randf() * TAU)
 	if family in ["warrior", "vagabond", "lancer"] and _room(2):
@@ -194,7 +255,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 ## a frame (a chain of victims) share one flourish. The 200-star skills open
 ## with an apex: a sky seal, a crown of columns and a double wave.
 static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
-	if skill.is_empty() or not skill.has("star"):
+	if not enabled or skill.is_empty() or not skill.has("star"):
 		return
 	if not _alive(parent) or not _room(4):
 		return
@@ -225,13 +286,13 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 		_apex(parent, c, ground, radius, family)
 	VfxKit.flash(parent, ground + Vector3.UP, c[1], 2.2 * s, 0.32)
 	VfxArt.star_flash(parent, ground + Vector3.UP, c[0], 2.4 * s, 0.45)
-	VfxKit.shockwave(parent, ground + Vector3.UP * 0.08, c[0], radius * 0.85)
+	_wave(parent, ground + Vector3.UP * 0.08, c[0], radius * 0.85)
 	_colour_column(parent, ground, c, 0.9 * s, 10.0 + 4.0 * float(star) / 200.0)
 	match family:
 		"warrior":
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, -0.9, c[0], c[1], 2.4 * s, 0.0, 1.3)
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 0.9, c[2].lerp(c[0], 0.5), c[1], 2.2 * s, 0.06, -1.3)
-			VfxKit.slam(parent, ground, c[0], radius * 0.7)
+			_slam(parent, ground, c[0], radius * 0.7)
 		"lancer":
 			if flat.length() > 1.0 and _room(4):
 				_lance_streak(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], c[1], 1.5, 0.4)
@@ -242,16 +303,16 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 				_lance_streak(parent, feet + Vector3.UP * 1.3, ground + Vector3.UP, c[0], c[1], 0.8, 0.34)
 		"priest":
 			VfxArt.rune_circle(parent, ground, c[0], radius * 0.7, 0.9, 1.0)
-			VfxArt.motes(parent, ground, c[1], "petal", 18, radius * 0.5, 0.6, 1.2)
+			_motes(parent, ground, c[1], "petal", 18, radius * 0.5, 0.6, 1.2)
 		"summoner":
 			VfxKit.vortex(parent, ground, c[0], 3.5, 0.8)
-			VfxArt.motes(parent, ground, c[1], "leaf", 22, radius * 0.5, 0.4, 1.2)
+			_motes(parent, ground, c[1], "leaf", 22, radius * 0.5, 0.4, 1.2)
 		"mage":
 			VfxArt.rune_circle(parent, ground, c[0], radius * 0.75, 1.0, -1.5)
-			VfxArt.motes(parent, ground, c[1], "diamond", 24, radius * 0.5, 0.6, 1.2)
+			_motes(parent, ground, c[1], "diamond", 24, radius * 0.5, 0.6, 1.2)
 			if _room(3):
 				VfxArt.ribbon_spiral(parent, ground, c[0], 4.0, 2.5, 0.8, 1.1 * s)
-	VfxArt.motes(parent, ground, c[0], "light", 14, radius * 0.5, 0.4, 1.0)
+	_motes(parent, ground, c[0], "light", 14, radius * 0.5, 0.4, 1.0)
 
 
 ## A column of the skill's own colour: a wide tinted shaft around a bright core.
@@ -269,7 +330,7 @@ static func _star_ascend(parent: Node3D, c: Array, at: Vector3, s: float, family
 	_colour_column(parent, at, c, 1.1 * s, 9.0)
 	VfxArt.ribbon_spiral(parent, at, c[1], 4.0, 3.0, 1.1, 1.0 * s)
 	VfxKit.impact_ring(parent, at + Vector3.UP * 0.2, c[0], 2.6 * s, 0.7)
-	VfxArt.motes(parent, at, c[1], "light", 26, 1.2 * s, 0.3, 1.5)
+	_motes(parent, at, c[1], "light", 26, 1.2 * s, 0.3, 1.5)
 	if apex:
 		_apex(parent, c, at, 6.0, family)
 
@@ -286,8 +347,8 @@ static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: 
 		sky.global_position = at + Vector3.UP * 7.0
 		VfxArt.rune_circle(sky, at + Vector3.UP * 7.0, c[1], r * 0.7, 1.4, 1.5)
 	VfxKit.flash(parent, at + Vector3.UP * 1.5, c[1], 7.0, 0.45)
-	VfxKit.shockwave(parent, at + Vector3.UP * 0.1, c[0], r * 1.1)
-	VfxKit.get_ring_delay(parent, at, c[1], r * 0.8, 0.18)
+	_wave(parent, at + Vector3.UP * 0.1, c[0], r * 1.1)
+	_late_wave(parent, at, c[1], r * 0.8, 0.18)
 	var phase := randf() * TAU
 	for i in 8:
 		var angle := phase + TAU * float(i) / 8.0
@@ -295,7 +356,7 @@ static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: 
 		parent.create_tween().tween_interval(0.05 * i).finished.connect(func():
 			if _alive(parent):
 				_colour_column(parent, spot, c, 0.6, 12.0), CONNECT_ONE_SHOT)
-	VfxArt.motes(parent, at, c[1], "light", 40, r * 0.6, 0.5, 1.8)
+	_motes(parent, at, c[1], "light", 40, r * 0.6, 0.5, 1.8)
 
 
 ## A glowing core and a spark trail riding a projectile (arrows, holy bolts,
@@ -317,6 +378,8 @@ static func flight_glow(root: Node3D, skill: Dictionary, size := 1.0) -> void:
 	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(core)
 	VfxBudget.track_decoration(core)
+	if not _rich():
+		return
 	var trail := VfxKit._particles(root, root.global_position, c[1], int(14 + 12 * power(skill)), 0.32, false)
 	trail.direction = Vector3.ZERO
 	trail.spread = 180.0
@@ -346,9 +409,9 @@ static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3
 	VfxKit.flash(parent, at, c[1], 3.2 * s, 0.3)
 	_element(parent, skill, c, Vector3(center.x, 0.0, center.z), 1.6 * s)
 	if skill.get("fx", {}).has("stun") or recipe in ["quake", "guard"] or p >= 0.5:
-		VfxKit.slam(parent, Vector3(center.x, 0.0, center.z), c[0], 2.2 * s)
+		_slam(parent, Vector3(center.x, 0.0, center.z), c[0], 2.2 * s)
 	if p >= 0.8 and _room(4):
-		VfxArt.sky_strike(parent, Vector3(center.x, 0.0, center.z), c[1], 0.9 * s, 12.0, 0.5)
+		_sky(parent, Vector3(center.x, 0.0, center.z), c[1], 0.9 * s, 12.0, 0.5)
 
 
 ## Lancer thrust: a lance of light down the spear line, rings racing along it,
@@ -371,7 +434,7 @@ static func _thrust(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 	VfxKit.star_burst(parent, tip, c[0], 1.8 * s)
 	_element(parent, skill, c, Vector3(center.x, 0.0, center.z), 1.5 * s)
 	if skill.get("fx", {}).has("stun"):
-		VfxKit.slam(parent, Vector3(center.x, 0.0, center.z), c[0], 2.0 * s)
+		_slam(parent, Vector3(center.x, 0.0, center.z), c[0], 2.0 * s)
 	if p >= 0.7 and _room(4):
 		var mid := (start + tip) * 0.5
 		var spiral := Node3D.new()
@@ -381,7 +444,7 @@ static func _thrust(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 		spiral.rotate_object_local(Vector3.RIGHT, -PI * 0.5)
 		VfxArt.ribbon_spiral(spiral, spiral.global_position, c[1], length, 3.0, 0.5, 0.55 * s)
 		spiral.create_tween().tween_interval(0.7).finished.connect(spiral.queue_free, CONNECT_ONE_SHOT)
-		VfxKit.shockwave(parent, Vector3(mid.x, 0.08, mid.z), c[0], 1.8 * s)
+		_wave(parent, Vector3(mid.x, 0.08, mid.z), c[0], 1.8 * s)
 
 
 ## Spin / roar around the caster: a full ring of energy crescents, a wave over
@@ -396,34 +459,34 @@ static func _whirl(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3,
 		var count := 3 + int(p * 3.0)
 		for i in count:
 			_crescent(parent, at + Vector3.UP * (0.15 * (i % 2)), TAU * float(i) / float(count), 0.15 * (1 if i % 2 == 0 else -1), c[0], c[1], r * 0.62, i * 0.04, 2.2)
-	VfxKit.shockwave(parent, origin + Vector3.UP * 0.1, c[0], r)
+	_wave(parent, origin + Vector3.UP * 0.1, c[0], r)
 	if _room(2):
-		VfxKit.get_ring_delay(parent, origin, c[1], r * 0.7, 0.14)
+		_late_wave(parent, origin, c[1], r * 0.7, 0.14)
 	VfxKit.flash(parent, at, c[1], 3.0 * s, 0.3)
 	match style:
 		"wind":
 			VfxKit.vortex(parent, origin, c[0], 3.5 * s, 0.8)
-			VfxArt.motes(parent, origin, c[1], "leaf", int(14 + 12 * p), r * 0.6, 0.4, 1.1)
+			_motes(parent, origin, c[1], "leaf", int(14 + 12 * p), r * 0.6, 0.4, 1.1)
 		"holy", "heal":
 			if _room(4):
-				VfxArt.sky_strike(parent, origin, c[0], 1.0 * s, 14.0, 0.6)
+				_sky(parent, origin, c[0], 1.0 * s, 14.0, 0.6)
 			VfxArt.rune_circle(parent, origin, c[0], r * 0.6, 1.0, 1.0)
 			_column_ring(parent, origin, c, r * 0.75, 4 + int(p * 4.0), 0.06)
 		"leaf":
-			VfxArt.motes(parent, origin, c[0], "leaf", int(14 + 12 * p), r * 0.6, 0.4, 1.1)
+			_motes(parent, origin, c[0], "leaf", int(14 + 12 * p), r * 0.6, 0.4, 1.1)
 		"fire":
 			if EliteSkillArt.handles(skill):
-				ElementFx.fire_field(parent, origin, r, 3, true)
+				_fire(parent, origin, r, 3, true)
 		"thunder":
 			_bolt_ring(parent, origin, c, r * 0.7, 3 + int(p * 3.0))
 		"arcane":
 			VfxArt.rune_circle(parent, origin, c[0], r * 0.7, 1.1, -1.5)
-			VfxArt.motes(parent, origin, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.2)
+			_motes(parent, origin, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.2)
 			VfxKit.vortex(parent, origin, c[0], 3.0 * s, 0.8)
 		"ice":
-			VfxArt.motes(parent, origin, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
+			_motes(parent, origin, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
 	if skill.get("fx", {}).has("stun") or style == "earth":
-		VfxKit.slam(parent, origin, c[0], r * 0.85)
+		_slam(parent, origin, c[0], r * 0.85)
 	if p >= 0.75:
 		VfxArt.crest(parent, origin, c[0], family, r * 0.75, 0.9, randf() * TAU)
 
@@ -436,30 +499,30 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 	var r := minf(radius, 10.0)
 	var ground := Vector3(center.x, 0.0, center.z)
 	VfxArt.rune_circle(parent, ground, c[0], r * 0.75, 1.1, -1.0)
-	VfxKit.shockwave(parent, ground + Vector3.UP * 0.1, c[0], r)
+	_wave(parent, ground + Vector3.UP * 0.1, c[0], r)
 	VfxKit.flash(parent, ground + Vector3.UP * 1.0, c[1], 3.4 * s, 0.32)
 	if String(skill.get("special", "")) == "rain":
 		_arrow_storm(parent, skill, c, ground, r, 6 + int(p * 10.0))
 	match style:
 		"holy", "heal":
 			if _room(4):
-				VfxArt.sky_strike(parent, ground, c[0], 1.2 * s, 16.0, 0.6)
+				_sky(parent, ground, c[0], 1.2 * s, 16.0, 0.6)
 			_column_ring(parent, ground, c, r * 0.65, 4 + int(p * 6.0), 0.08)
 		"thunder":
 			_bolt_ring(parent, ground, c, r * 0.6, 3 + int(p * 4.0))
 		"fire":
 			if EliteSkillArt.handles(skill):
-				ElementFx.fire_field(parent, ground, r, 3)
-			VfxArt.motes(parent, ground, Color("ffb050"), "ember", int(16 + 14 * p), r * 0.6, 0.5, 1.3)
+				_fire(parent, ground, r, 3)
+			_motes(parent, ground, Color("ffb050"), "ember", int(16 + 14 * p), r * 0.6, 0.5, 1.3)
 		"leaf", "wind":
-			VfxArt.motes(parent, ground, c[0], "leaf", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
+			_motes(parent, ground, c[0], "leaf", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
 		"ice":
-			VfxArt.motes(parent, ground, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
+			_motes(parent, ground, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
 		"arcane":
-			VfxArt.motes(parent, ground, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
+			_motes(parent, ground, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
 			_column_ring(parent, ground, c, r * 0.6, 3 + int(p * 4.0), 0.07)
 	if skill.get("fx", {}).has("stun") or style == "earth":
-		VfxKit.slam(parent, ground, c[0], r * 0.8)
+		_slam(parent, ground, c[0], r * 0.8)
 	if p >= 0.75:
 		VfxArt.crest(parent, ground, c[0], SkillShow.family_of(skill), r * 0.85, 1.0, randf() * TAU)
 
@@ -487,7 +550,7 @@ static func _release(parent: Node3D, skill: Dictionary, c: Array, origin: Vector
 	if _room(1):
 		_spear_ring(parent, at, forward, c[0], 0.9 * s)
 	if power(skill) >= 0.4:
-		VfxKit.sparks(parent, at, c[1], int(10 + 14 * power(skill)), 4.0 * s, 0.4)
+		_sparks(parent, at, c[1], int(10 + 14 * power(skill)), 4.0 * s, 0.4)
 
 
 ## Buffs and heals: a seal blazes under the caster, a column of light rises,
@@ -501,11 +564,11 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 	VfxKit.pillar(parent, origin, c[0], 5.0 + 4.0 * p, 1.4 * s, 0.9)
 	VfxArt.ribbon_spiral(parent, origin, c[1], 3.0 + 1.5 * p, 2.5, 1.0, 0.9 * s)
 	VfxArt.star_flash(parent, origin + Vector3.UP * (2.4 + p), c[1], 2.6 * s, 0.5)
-	VfxArt.motes(parent, origin, c[1], "heart" if heal else "light", int(12 + 14 * p), 1.0 * s, 0.3, 1.4)
+	_motes(parent, origin, c[1], "heart" if heal else "light", int(12 + 14 * p), 1.0 * s, 0.3, 1.4)
 	if p >= 0.5:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 2.4 * s, 0.6)
 	if p >= 0.8 and _room(4):
-		VfxArt.sky_strike(parent, origin, c[1], 1.0 * s, 14.0, 0.7)
+		_sky(parent, origin, c[1], 1.0 * s, 14.0, 0.7)
 
 
 ## Summons: a summoning seal and a gate of light where each creature arrives.
@@ -522,9 +585,9 @@ static func _summoning(parent: Node3D, skill: Dictionary, c: Array, origin: Vect
 		var gate := origin + Vector3(cos(angle), 0.0, sin(angle)) * 1.6
 		VfxKit.pillar(parent, gate, c[0], 4.0 + 3.0 * p, 0.9 * s, 0.8)
 		VfxArt.star_flash(parent, gate + Vector3.UP * 0.8, c[1], 2.0 * s, 0.4)
-	VfxArt.motes(parent, origin, c[1], "leaf" if family in ["summoner", "archer"] else "light", int(12 + 14 * p), 1.4 * s, 0.3, 1.3)
+	_motes(parent, origin, c[1], "leaf" if family in ["summoner", "archer"] else "light", int(12 + 14 * p), 1.4 * s, 0.3, 1.3)
 	if p >= 0.8 and _room(4):
-		VfxArt.sky_strike(parent, origin, c[0], 1.2 * s, 15.0, 0.7)
+		_sky(parent, origin, c[0], 1.2 * s, 15.0, 0.7)
 
 
 # ---------------------------------------------------------------------------
@@ -671,10 +734,10 @@ static func _arrow_storm(parent: Node3D, skill: Dictionary, c: Array, center: Ve
 static func _element(parent: Node3D, skill: Dictionary, c: Array, ground: Vector3, size: float) -> void:
 	match SkillShow.style_of(skill):
 		"fire":
-			ElementFx.fire_field(parent, ground, size, 2, true)
+			_fire(parent, ground, size, 2, true)
 		"holy", "heal":
 			if _room(4):
-				VfxArt.sky_strike(parent, ground, c[0], 0.7 * size * 0.6, 10.0, 0.45)
+				_sky(parent, ground, c[0], 0.7 * size * 0.6, 10.0, 0.45)
 		"thunder":
 			if _room(3):
 				VfxArt.painted_lightning(parent, ground + Vector3(0.5, 8.0, 0.2), ground + Vector3.UP, c[1])
@@ -684,4 +747,4 @@ static func _element(parent: Node3D, skill: Dictionary, c: Array, ground: Vector
 			ElementFx.shatter(parent, ground + Vector3.UP, size * 0.6, 5)
 		"arcane":
 			VfxArt.rune_circle(parent, ground, c[0], size, 0.8, 2.0)
-			VfxArt.motes(parent, ground + Vector3.UP, c[1], "diamond", 14, size * 0.5, 0.3, 0.9)
+			_motes(parent, ground + Vector3.UP, c[1], "diamond", 14, size * 0.5, 0.3, 0.9)
