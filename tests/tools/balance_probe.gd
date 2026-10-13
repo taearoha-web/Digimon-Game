@@ -41,10 +41,14 @@ var failures := 0
 const AIM := {
 	"meadow": [3, 12], "dark_forest": [4, 15], "desert": [5, 18], "snow": [6, 20],
 	"volcano": [7, 22], "graveyard": [8, 24], "swamp": [9, 26], "storm": [10, 28],
-	"sky": [11, 30], "abyss": [12, 32], "void": [14, 40], "dawn_forest": [25, 60],
-	"crystal_valley": [28, 65], "sky_citadel": [30, 70], "eclipse_realm": [32, 80],
-	"lotus_sanctum": [35, 90],
+	"sky": [11, 30], "abyss": [12, 32], "void": [28, 80], "dawn_forest": [62, 150],
+	"crystal_valley": [84, 195], "sky_citadel": [105, 245], "eclipse_realm": [128, 320],
+	"lotus_sanctum": [175, 450],
 }
+## Fields from Lv.100 whose monsters carry x2..x5 health (MonsterData.LATE_HP):
+## their aims above are the earlier ones times that, and a skill takes a smaller
+## share of a monster's health.
+const LATE := ["void", "dawn_forest", "crystal_valley", "sky_citadel", "eclipse_realm", "lotus_sanctum", "lotus_divine"]
 
 
 func _ready() -> void:
@@ -153,7 +157,7 @@ func _band(cp: String, key: String, value: float) -> void:
 	match key:
 		"basic": ok = not AIM.has(cp) or absf(value / float(AIM[cp][0]) - 1.0) <= 0.3
 		"boss": ok = not AIM.has(cp) or absf(value / float(AIM[cp][1]) - 1.0) <= 0.3
-		"skill_pct": ok = cp == "meadow" or (value >= 25.0 and value <= 100.0)
+		"skill_pct": ok = cp == "meadow" or (value >= (8.0 if cp in LATE else 25.0) and value <= 100.0)
 		"die_n": ok = value >= 10.0 and value <= 40.0
 		"die_b": ok = value >= 3.0 and value <= 15.0
 		"max_hit": ok = value <= 120000.0

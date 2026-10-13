@@ -65,8 +65,42 @@ static func is_mythic_roll(piece: Dictionary) -> bool:
 static func mythic_roll_of(piece: Dictionary) -> float:
 	return lerpf(MYTHIC_ROLL_MIN,MYTHIC_ROLL_MAX,float(_luck(piece) % 1000)/999.0)
 
+## The highest star count the older random gear reaches (Lv.100 + 20 stars).
+const LEGACY_TOP_LEVEL := 120
+## The stats that define a slot, the ones the ladder guarantees in full.
+const DEFINING := {"weapon": ["atk"], "armor": ["def"], "helm": ["def"], "boots": ["def"], "ring": ["atk", "crit"], "amulet": ["hp", "mp"]}
+## The weakest 50-star piece beats the best older piece by at least this much.
+const LEGACY_MARGIN := 1.03
+static var _boosts := {}
+
+## Highest value an older random piece (Lv.1-120, any rarity, best roll, all four
+## bonus lines on this one stat) can reach for [param key] in [param slot].
+static func legacy_ceiling(slot: String, key: String) -> float:
+	var best := 0.0
+	for level in range(1, LEGACY_TOP_LEVEL + 1):
+		var main := ItemData.main_stats(slot, level, 4, 1.08)
+		best = maxf(best, float(main.get(key, 0)) + 4.0 * float(ItemData.bonus_line(key, level)))
+	return best
+
+## How much a slot's star stats are lifted so that even the weakest 50-star
+## piece beats the best older piece in every defining stat. One factor per slot
+## keeps each stat's proportions, and every tier gets it so the ladder up to
+## 200 stars keeps its steps.
+static func slot_boost(slot: String) -> float:
+	if not _boosts.has(slot):
+		var base := ItemData.tiered_stats(slot, 100 + TIERS[0], GEAR_RARITY, BONUS_LINES, ROLL_MIN)
+		var boost := 1.0
+		for key in DEFINING.get(slot, []):
+			boost = maxf(boost, legacy_ceiling(slot, key) * LEGACY_MARGIN / maxf(float(base.get(key, 1)), 0.0001))
+		_boosts[slot] = boost
+	return float(_boosts[slot])
+
 static func tier_stats(slot: String, stars: int, roll: float) -> Dictionary:
-	return ItemData.tiered_stats(slot, 100 + stars, GEAR_RARITY, BONUS_LINES, roll)
+	return ItemData.tiered_stats(slot, 100 + stars, GEAR_RARITY, BONUS_LINES, roll * slot_boost(slot))
+
+## The best a 200-star piece can roll in [param slot]: what the class set must clear.
+static func top_stats(slot: String) -> Dictionary:
+	return tier_stats(slot, TIERS[-1], MYTHIC_ROLL_MAX)
 
 static func item(cls: StringName, stars: int, slot: String, rng: RandomNumberGenerator) -> Dictionary:
 	if not TIERS.has(stars) or not ClassData.IDS.has(cls) or not ItemData.EQUIP_SLOTS.has(slot): return {}

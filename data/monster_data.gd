@@ -120,6 +120,12 @@ const ZONE_TUNING := {
 	&"eclipse_realm": [0.1033, 65.8753, 0.1196, 63.786],
 	&"lotus_sanctum": [0.0638, 75.8607, 0.1463, 73.344],
 }
+## From Lv.100 on monsters carry more health on top of ZONE_TUNING, growing from
+## the Lv.100 void to the 200-star Lotus Sanctum (x2 .. x5 of what they had).
+const LATE_HP := {
+	&"void": 2.0, &"dawn_forest": 2.5, &"crystal_valley": 3.0,
+	&"sky_citadel": 3.5, &"eclipse_realm": 4.0, &"lotus_sanctum": 5.0,
+}
 static var _home_zone := {}
 
 
@@ -145,7 +151,7 @@ static func stats_for(id: StringName, level: int) -> Dictionary:
 	var m := get_monster(id)
 	var boss := bool(m.get("boss", false))
 	var tune: Array = ZONE_TUNING.get(home_zone(id), [1.0, 1.0, 1.0, 1.0])
-	var hp_tune := float(tune[2] if boss else tune[0])
+	var hp_tune := float(tune[2] if boss else tune[0]) * float(LATE_HP.get(home_zone(id), 1.0))
 	var atk_tune := float(tune[3] if boss else tune[1])
 	# Past Lv.50 the stat curve climbs at 60% speed so Lv.100 stays playable.
 	var eff := float(level) if level <= 50 else 50.0 + float(level - 50) * 0.55
