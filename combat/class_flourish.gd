@@ -86,31 +86,42 @@ static func landing(skill: Dictionary) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Quality-aware primitives. CPU particles are updated on the CPU every frame,
-# which on a phone's web build is the dearest part of an effect; below High
-# quality the flourish keeps its light, rings and columns but sheds them.
+# GPU-only primitives. CPU particles are updated on the CPU every frame,
+# which on a phone's web build is the dearest part of an effect, so the
+# flourish never creates a CPUParticles3D: motes, sparks, dust and embers
+# are ShaderBurst cards, flames are shader quads, waves are energy rings.
 # ---------------------------------------------------------------------------
 
 static func _rich() -> bool:
 	return VfxBudget.quality() >= 2
 
 
+## Motes and sparks are GPU bursts (ShaderBurst): one draw call and no CPU
+## simulation, so they stay at every quality level.
 static func _motes(parent: Node3D, pos: Vector3, color: Color, kind: String, count := 24, radius := 2.0, height := 0.0, lifetime := 1.4) -> void:
-	if _rich():
-		VfxArt.motes(parent, pos, color, kind, count, radius, height, lifetime)
+	var at := pos + Vector3.UP * height
+	match kind:
+		"snow":
+			ShaderBurst.emit(parent, at, color, "snow", count, "fall", 4.5, radius, lifetime, 0.45)
+		"leaf", "petal":
+			ShaderBurst.emit(parent, at, color, kind, count, "burst", 3.5, radius, lifetime, 0.5, 1.6)
+		"ember":
+			ShaderBurst.emit(parent, at, color, "star", count, "rise", 3.0, radius, lifetime, 0.3)
+		_:
+			ShaderBurst.emit(parent, at, color, "star" if kind == "light" else kind, count, "rise", 2.2, radius, lifetime, 0.38)
 
 
 static func _sparks(parent: Node3D, pos: Vector3, color: Color, amount := 22, speed := 4.0, lifetime := 0.55) -> void:
-	if _rich():
-		VfxKit.sparks(parent, pos, color, amount, speed, lifetime)
+	ShaderBurst.emit(parent, pos, color, "star", amount, "burst", speed, 0.2, lifetime, 0.32, 5.0)
 
 
-## A pressure wave over the ground; its spark spray only at High quality.
+## A pressure wave over the ground with a GPU spark spray; High quality adds
+## a second, wider ring.
 static func _wave(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
+	VfxKit.impact_ring(parent, pos + Vector3.UP * 0.05, color, radius * 0.75, 0.42)
+	_sparks(parent, pos + Vector3.UP * 0.3, color, 18, radius * 1.4, 0.6)
 	if _rich():
-		VfxKit.shockwave(parent, pos, color, radius)
-	else:
-		VfxKit.impact_ring(parent, pos + Vector3.UP * 0.05, color, radius * 0.75, 0.42)
+		VfxKit.impact_ring(parent, pos + Vector3.UP * 0.08, color.lerp(Color.WHITE, 0.4), radius, 0.55)
 
 
 static func _late_wave(parent: Node3D, pos: Vector3, color: Color, radius: float, delay: float) -> void:
@@ -119,29 +130,35 @@ static func _late_wave(parent: Node3D, pos: Vector3, color: Color, radius: float
 			_wave(parent, pos + Vector3.UP * 0.1, color, radius), CONNECT_ONE_SHOT)
 
 
-## Ground break: cracks and dust at High quality, a heavy ring otherwise.
+## Ground break: a heavy wave, a second wave and a puff of GPU dust.
 static func _slam(parent: Node3D, pos: Vector3, color: Color, radius: float) -> void:
-	if _rich():
-		VfxKit.slam(parent, pos, color, radius)
-	else:
-		_wave(parent, pos + Vector3.UP * 0.1, color, radius)
+	_wave(parent, pos + Vector3.UP * 0.1, color, radius)
+	_late_wave(parent, pos, color, radius * 0.6, 0.12)
+	ShaderBurst.emit(parent, pos + Vector3.UP * 0.2, Color("d8c0a0"), "smoke", 14, "burst", radius * 0.6, 0.5, 0.8, 0.9, 2.5)
 
 
-## A shaft of light striking down (its sparks and wave only at High quality).
+## A shaft of light striking down onto [param pos].
 static func _sky(parent: Node3D, pos: Vector3, color: Color, width := 1.4, height := 14.0, duration := 0.5) -> void:
-	if _rich():
-		VfxArt.sky_strike(parent, pos, color, width, height, duration)
-	elif _room(2):
-		VfxKit.pillar(parent, pos, color, height, width, duration)
-		VfxArt.star_flash(parent, pos + Vector3.UP * 0.6, color, width * 3.0)
+	if not _room(3):
+		return
+	VfxKit.pillar(parent, pos, color, height, width, duration)
+	VfxKit.pillar(parent, pos, Color.WHITE.lerp(color, 0.35), height, width * 0.35, duration * 0.8)
+	VfxArt.star_flash(parent, pos + Vector3.UP * 0.6, color, width * 3.0)
+	_wave(parent, pos + Vector3.UP * 0.1, color, width * 2.4)
 
 
-## Real flames (each with embers and smoke) only at High quality.
+## A ring of shader flames (no smoke or ember emitters) with GPU embers.
 static func _fire(parent: Node3D, center: Vector3, radius: float, tier := 1, ring := false) -> void:
-	if _rich():
-		ElementFx.fire_field(parent, center, radius, tier, ring)
-	else:
-		VfxKit.impact_ring(parent, center + Vector3.UP * 0.1, Color("ff8a3a"), radius * 0.8, 0.5)
+	var count := (5 if not ring else 6) + (3 if _rich() else 0) + mini(tier, 3)
+	var r := minf(radius, 6.0)
+	if not ring:
+		ElementFx.flame(parent, center, 1.8, 2.8, 1.0)
+	for i in count:
+		var angle := TAU * float(i) / float(count) + randf_range(-0.3, 0.3)
+		var dist := r * (randf_range(0.6, 0.9) if ring else sqrt(randf_range(0.05, 0.8)))
+		ElementFx.flame(parent, center + Vector3(cos(angle), 0, sin(angle)) * dist, randf_range(1.0, 1.5), randf_range(1.5, 2.5), 0.9, randf_range(0.0, 0.15))
+	VfxKit.impact_ring(parent, center + Vector3.UP * 0.1, Color("ff8a3a"), r * 0.8, 0.5)
+	_motes(parent, center, Color("ffb050"), "ember", 16 + tier * 3, r * 0.6, 0.3, 1.1)
 
 
 # ---------------------------------------------------------------------------
@@ -359,7 +376,7 @@ static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: 
 	_motes(parent, at, c[1], "light", 40, r * 0.6, 0.5, 1.8)
 
 
-## A glowing core and a spark trail riding a projectile (arrows, holy bolts,
+## A glowing core riding a projectile (arrows, holy bolts,
 ## thorns). The carrier owns flight and arrival; this only rides along.
 static func flight_glow(root: Node3D, skill: Dictionary, size := 1.0) -> void:
 	if not handles(skill) or not is_instance_valid(root) or not _room(1):
@@ -378,16 +395,7 @@ static func flight_glow(root: Node3D, skill: Dictionary, size := 1.0) -> void:
 	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(core)
 	VfxBudget.track_decoration(core)
-	if not _rich():
-		return
-	var trail := VfxKit._particles(root, root.global_position, c[1], int(14 + 12 * power(skill)), 0.32, false)
-	trail.direction = Vector3.ZERO
-	trail.spread = 180.0
-	trail.gravity = Vector3.ZERO
-	trail.initial_velocity_min = 0.0
-	trail.initial_velocity_max = 0.4
-	trail.scale_amount_min = 1.0 * s
-	trail.scale_amount_max = 2.0 * s
+
 
 
 # ---------------------------------------------------------------------------
