@@ -488,12 +488,12 @@ func _reward_quest(quest_id: String) -> void:
 		var item := ItemData.generate(int(quest.gear[0]), Game.class_id(), rng, int(quest.gear[1]), "weapon")
 		Game.add_item(item)
 		Game.say("ได้รับ %s!" % ItemData.name_of(item), &"quest")
-	if quest.has("star_mat"):
-		var tier := int(quest.star_mat[0])
-		StarProgression.award_material(tier, int(quest.star_mat[1]))
-		StarProgression.award_material(tier, int(quest.star_mat[2]), true)
-		var index := StarProgression.TIERS.find(tier)
-		Game.say("ได้รับ%s ×%d และแก่นบอส ×%d (ชุดดาว %d)" % [StarProgression.MATERIALS[index], int(quest.star_mat[1]), int(quest.star_mat[2]), tier], &"quest")
+	if quest.has("star_gear"):
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var piece := StarProgression.random_item(Game.class_id(), int(quest.star_gear), rng)
+		Game.add_item(piece)
+		Game.say("ได้รับ %s!" % ItemData.name_of(piece), &"quest")
 	AudioManager.play_sfx(&"quest_complete")
 	Game.say("เควสต์สำเร็จ! EXP +%d เหรียญ +%d" % [int(quest.exp), int(quest.gold)], &"success")
 	Game.save()

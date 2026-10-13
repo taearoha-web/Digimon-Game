@@ -64,10 +64,6 @@ func _ready()->void:
 		check(legacy==legacy_before,"level 100 original preserved")
 		check(Game.save_code_roundtrip(),"new wings transfer save roundtrip")
 		for tier in [50,150,200]:check(StarProgression.item(cls,tier,"wings",rng).is_empty(),"retired tiers cannot be generated")
-		for tier in [50,100,150,200]:
-			var snapshot:=Game.profile.duplicate(true)
-			check(not StarProgression.craft(tier,"wings"),"drop-only cannot be forged")
-			check(snapshot==Game.profile,"rejected forge no deductions")
 		# A pre-100-star player keeps a valid pair and their investment even with full bags.
 		setup(cls,50)
 		Game.profile.equip.wings=retired(String(cls),50)

@@ -1,9 +1,9 @@
 class_name StarProgression
 extends RefCounted
-## Persistent rewards use numeric flags, already supported by old/cloud saves.
+## ★ regions, their gear tiers and milestone rewards. Star gear only drops
+## (no forge); milestones use numeric flags supported by old/cloud saves.
 const REGIONS: Array[StringName] = [&"dawn_forest", &"crystal_valley", &"sky_citadel", &"eclipse_realm"]
 const TITLES := ["ป่าแสงอรุณ", "หุบเขาผลึกคราม", "นครลอยฟ้า", "อาณาจักรสุริยคราส"]
-const MATERIALS := ["เกสรแสงอรุณ", "ผลึกคราม", "โลหะเมฆา", "เศษสุริยคราส"]
 const TIERS := [50, 100, 150, 200]
 const ENTRY := [1, 50, 100, 150]
 
@@ -36,14 +36,6 @@ static func zones() -> Dictionary:
 static func region_index(id: StringName) -> int:
 	return REGIONS.find(id)
 
-static func material_count(stars: int, core := false) -> int:
-	return int(Game.profile.get("flags",{}).get("star_%s_%d" % ["core" if core else "mat",stars],0))
-
-static func award_material(stars: int, count: int, core := false) -> void:
-	var key := "star_%s_%d" % ["core" if core else "mat", stars]
-	Game.profile.flags[key] = material_count(stars,core) + maxi(count,0)
-	Game.mark_dirty()
-
 static func item(cls: StringName, stars: int, slot: String, rng: RandomNumberGenerator) -> Dictionary:
 	if not TIERS.has(stars) or not ClassData.IDS.has(cls) or not ItemData.EQUIP_SLOTS.has(slot): return {}
 	if slot=="wings": return StarWingData.item(String(cls),rng) if stars==100 else {}
@@ -54,50 +46,26 @@ static func item(cls: StringName, stars: int, slot: String, rng: RandomNumberGen
 	result["look"]=StarGearData.look_of(result)
 	return result
 
-static func cost(stars: int, slot: String) -> Dictionary:
-	if slot=="wings": return {}
-	return {"material":50 if slot=="weapon" else 35,
-		"core":2 if slot=="weapon" else 1,"gold":10000+stars*400}
+## Each ★ milestone (50/100/150/200) grants 2 skill points once, by itself.
+## Works on any profile dictionary, so loading an old save pays what it is owed.
+static func grant_milestones(profile: Dictionary) -> int:
+	if int(profile.get("level", 0)) < 100:
+		return 0
+	var stars := int(profile.get("paragon", {}).get("level", 0))
+	if not profile.get("flags") is Dictionary:
+		profile["flags"] = {}
+	var granted := 0
+	for tier in TIERS:
+		var key := "star_reward_%d" % tier
+		if stars >= tier and int(profile.flags.get(key, 0)) == 0:
+			profile.flags[key] = 1
+			profile["skill_points"] = int(profile.get("skill_points", 0)) + 2
+			granted += 1
+	return granted
 
-static func craft_problem(stars: int, slot: String) -> String:
-	if slot=="wings": return "ปีก 100 ดาวดรอปจากมอนสเตอร์ใน 4 ดินแดนใหม่เท่านั้น"
-	if not TIERS.has(stars) or not ItemData.EQUIP_SLOTS.has(slot): return "สูตรไม่ถูกต้อง"
-	if int(Game.profile.level)<100 or int(Game.paragon().level)<stars: return "ต้องเลเวล 100 และดาว %d" % stars
-	if Game.inventory_free()<=0: return "กระเป๋าเต็ม"
-	var price := cost(stars,slot)
-	if material_count(stars)<int(price.material) or material_count(stars,true)<int(price.core): return "วัตถุดิบหรือแก่นบอสไม่พอ"
-	if int(Game.profile.gold)<int(price.gold): return "เหรียญไม่พอ"
-	return ""
-
-static func craft(stars: int, slot: String) -> bool:
-	var problem := craft_problem(stars,slot)
-	if not problem.is_empty():
-		Game.say(problem,&"warning")
-		return false
-	var result := item(Game.class_id(),stars,slot,Game.rng)
-	if result.is_empty(): return false
-	var price := cost(stars,slot)
-	# All preconditions precede mutation; no signal or await interrupts deduction.
-	Game.profile.flags["star_mat_%d" % stars]=material_count(stars)-int(price.material)
-	Game.profile.flags["star_core_%d" % stars]=material_count(stars,true)-int(price.core)
-	Game.profile.gold-=int(price.gold)
-	Game.profile.inv.append(result)
-	Game.mark_dirty()
-	Game.gold_changed.emit(Game.profile.gold)
-	Game.inventory_changed.emit()
-	Game.say("สร้าง %s สำเร็จ" % result.name,&"success")
-	Game.save()
-	return true
-
-static func claim(stars: int) -> bool:
-	var key := "star_reward_%d" % stars
-	if not TIERS.has(stars) or int(Game.profile.level)<100 or int(Game.paragon().level)<stars or int(Game.profile.flags.get(key,0))!=0: return false
-	Game.profile.flags[key]=1
-	Game.profile.skill_points+=2
-	award_material(stars,25)
-	Game.profile_changed.emit()
-	Game.save()
-	return true
+## A random piece of this ★ tier's gear for the class (no wings).
+static func random_item(cls: StringName, stars: int, rng: RandomNumberGenerator) -> Dictionary:
+	return item(cls, stars, ItemData.SLOTS[rng.randi() % ItemData.SLOTS.size()], rng)
 
 static func set_bonus_text(cls: String) -> String:
 	return {"warrior":"4 ชิ้น: รับความเสียหายลด 10% และหลังรับการโจมตี สกิลถัดไปแรงขึ้น 20%",

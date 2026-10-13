@@ -741,8 +741,13 @@ func _drop_loot(mob: Mob) -> void:
 
 
 func _divine_loot(mob: Mob, from: Vector3) -> void:
-	for item in DivineGearData.drops(Game.class_id(), mob.is_boss, bool(mob.template.get("elite", false)), rng):
+	var elite := bool(mob.template.get("elite", false))
+	for item in DivineGearData.drops(Game.class_id(), mob.is_boss, elite, rng):
 		_spawn_loot(item, 0, from)
+	# The divine set has no jewellery: the sanctuary adds 200★ rings and amulets.
+	if mob.is_boss or rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
+		var slot := "ring" if rng.randf() < 0.5 else "amulet"
+		_spawn_loot(StarProgression.item(Game.class_id(), 200, slot, rng), 0, from)
 	if mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_xl", 3), 0, from)
@@ -752,18 +757,25 @@ func _divine_loot(mob: Mob, from: Vector3) -> void:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf() < 0.55 else "mp_xl", 1), 0, from)
 
 
+## Chance that a ★ region kill drops a piece of that region's ★ gear.
+const STAR_GEAR_NORMAL := 0.10
+const STAR_GEAR_ELITE := 0.40
+
+
 func _star_loot(mob: Mob, from: Vector3) -> void:
+	# Each region drops its own ★ tier of class gear (weapon, armor, helm,
+	# boots, ring, amulet). There is no forge: farming is the only source.
 	var stars := int(data.gear_star)
 	var elite := bool(mob.template.get("elite",false))
-	var amount := 10 if mob.is_boss else (3 if elite else 1)
-	StarProgression.award_material(stars,amount)
-	if mob.is_boss or (elite and rng.randf()<0.15):
-		StarProgression.award_material(stars,1,true)
-		Game.say("ได้รับแก่นบอสแห่งดวงดาว %d" % stars,&"quest")
-	if mob.is_boss or rng.randf() < (0.25 if elite else 0.06):
-		var slots := ["weapon","armor","helm","boots","ring","amulet"]
-		for i in (2 if mob.is_boss else 1):
-			_spawn_loot(StarProgression.item(Game.class_id(),stars,slots[rng.randi()%slots.size()],rng),0,from)
+	var pieces := 0
+	if mob.is_boss:
+		pieces = 3
+	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
+		pieces = 1
+	for i in pieces:
+		_spawn_loot(StarProgression.random_item(Game.class_id(),stars,rng),0,from)
+	if pieces > 0 and mob.is_boss:
+		Game.say("บอสมอบอุปกรณ์ดาว %d ประจำอาชีพ %d ชิ้น!" % [stars, pieces],&"quest")
 	if rng.randf()<StarWingData.drop_chance(zone_id,mob.is_boss,elite):
 		_spawn_loot(StarWingData.item(String(Game.class_id()),rng),0,from)
 		Game.say("ปีกเทพ 100 ดาวประจำอาชีพตกแล้ว!",&"quest")

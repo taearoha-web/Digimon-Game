@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["star_path", "เส้นทางดาว"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -27,7 +27,6 @@ var _bag_scroll: TouchScroll
 var _stat_amounts: Dictionary = {}
 ## Opened from the blacksmith: items can be enhanced and socketed.
 var forge_mode := false
-var _star_tier := 50
 
 
 func _ready() -> void:
@@ -114,7 +113,6 @@ func _rebuild() -> void:
 		&"quests": _build_quests()
 		&"achievements": _build_achievements()
 		&"settings": _build_settings()
-		&"star_path": StarPathPanel.build(_content,_star_tier,func(value: int): _star_tier=value; _rebuild())
 	if is_instance_valid(_bag_scroll):
 		_bag_scroll.restore_vertical_position(bag_y)
 

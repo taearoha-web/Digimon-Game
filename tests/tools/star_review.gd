@@ -56,9 +56,6 @@ func maps()->void:
 		await capture("boss-"+String(id))
 		hud.queue_free();zone.queue_free();await zone.tree_exited
 	make_profile(&"mage")
-	var menu:=GameMenu.new();add_child(menu);menu.open_menu(&"star_path")
-	await capture("star-forge")
-	menu.close_menu();menu.queue_free();await menu.tree_exited
 func gear()->void:
 	cam.size=12;cam.position=Vector3(5,4,12);cam.look_at(Vector3(0,1.5,0))
 	for stars in StarProgression.TIERS:

@@ -48,18 +48,21 @@ func _ready() -> void:
 	var boss := QuestData.get_quest("dawn_dragon")
 	check(int(boss.exp) > int(normal.exp), "a boss quest pays more")
 	check(int(QuestData.get_quest("lotus_monks").exp) > int(normal.exp), "later stars pay more")
-	# Turning in a boss quest grants that region's star materials.
+	# Turning in a boss quest grants a piece of that region's star gear.
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await get_tree().process_frame
 	Game.profile.level = 100
 	Game.paragon().level = 30
-	var before := StarProgression.material_count(50)
-	var cores := StarProgression.material_count(50, true)
+	var bag: int = Game.profile.inv.size()
 	Game.set_quest("dawn_dragon", "active", 0)
 	Game.report_kill(&"dawn_ancient_stag", true)
 	check(Game.quest_status("dawn_dragon") == "ready", "boss kill finishes the quest")
 	main._reward_quest("dawn_dragon")
-	check(StarProgression.material_count(50) == before + 20 and StarProgression.material_count(50, true) == cores + 2, "boss quest pays star materials")
+	var star_pieces := 0
+	for item in Game.profile.inv.slice(bag):
+		if item is Dictionary and int(item.get("star_tier", 0)) == 50:
+			star_pieces += 1
+	check(star_pieces == 1, "boss quest pays a 50-star gear piece")
 	print("QUEST CHAIN: %s | %d quests, %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", QuestData.ORDER.size(), checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
