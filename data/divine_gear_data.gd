@@ -39,6 +39,11 @@ static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> D
 	var stats: Dictionary = ItemData.tiered_stats(slot, ItemData.MAX_GEAR_LEVEL, 4, MYTHIC_LINES, StarProgression.roll_of(result))
 	for key in stats:
 		stats[key] = snappedf(float(stats[key]) * PREMIUM, 0.001) if key == "crit" else int(ceil(float(stats[key]) * PREMIUM))
+	# And clearly above the best 200-star piece in every stat, whatever the roll.
+	var top := StarProgression.top_stats(slot)
+	for key in top:
+		var floor_value := float(top[key]) * 1.1
+		stats[key] = maxf(float(stats.get(key, 0)), snappedf(floor_value, 0.001)) if key == "crit" else maxi(int(stats.get(key, 0)), int(ceil(floor_value)))
 	result["stats"] = stats
 	# Never left to luck: the slot's main stat clears the best roll any other
 	# piece can reach (mythic Lv.300 with every bonus line on it) by 15%.

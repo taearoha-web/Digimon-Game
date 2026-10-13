@@ -44,6 +44,14 @@ func _ready() -> void:
 				for key in STAT_KEYS:
 					check(float(higher.lo[key]) > float(lower.hi[key]),
 						"%s %s %s: %d* weakest %.3f beats %d* best %.3f" % [cls, slot, key, StarProgression.TIERS[t], higher.lo[key], StarProgression.TIERS[t - 1], lower.hi[key]])
+			# The older random gear (up to Lv.100 + 20 stars, mythic included) is
+			# below the weakest 50-star piece in every defining stat of the slot.
+			var legacy := _range(func(): return ItemData.generate(rng.randi_range(1, StarProgression.LEGACY_TOP_LEVEL), cls, rng, 4, slot))
+			var top_legacy := _range(func(): return ItemData.generate(StarProgression.LEGACY_TOP_LEVEL, cls, rng, 4, slot))
+			for key in StarProgression.DEFINING[slot]:
+				var ceiling := StarProgression.legacy_ceiling(slot, key)
+				check(float(ranges[50].lo[key]) > ceiling, "%s %s %s: 50* weakest %.3f beats the older gear's best possible %.3f" % [cls, slot, key, ranges[50].lo[key], ceiling])
+				check(float(ranges[50].lo[key]) > float(legacy.hi[key]) and float(ranges[50].lo[key]) > float(top_legacy.hi[key]), "%s %s %s: 50* beats sampled Lv.120 mythic" % [cls, slot, key])
 			if slot in DivineGearData.SLOTS:
 				var divine := _range(func(): return DivineGearData.item(cls, slot, rng))
 				for key in STAT_KEYS:
