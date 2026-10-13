@@ -6,14 +6,16 @@ extends Node3D
 
 const DIR := "res://assets/models/monsters/"
 const CLIP_ALIASES := {
-	"idle": ["Idle", "Flying_Idle"],
-	"walk": ["Walk", "Flying_Idle"],
-	"run": ["Run", "Fast_Flying", "Walk"],
-	"attack": ["Bite_Front", "Punch", "Headbutt"],
-	"hurt": ["HitRecieve", "HitReact"],
+	"idle": ["Idle", "Flying_Idle", "Flying"],
+	"walk": ["Walk", "Flying_Idle", "Flying"],
+	"run": ["Run", "Fast_Flying", "Walk", "Flying"],
+	"attack": ["Bite_Front", "Punch", "Headbutt", "Attack"],
+	"hurt": ["HitRecieve", "HitReact", "Hit"],
 	"die": ["Death"],
 }
 const LOOPING: Array[String] = ["idle", "walk", "run"]
+## Models whose front is not +Z, turned at load so they face where they walk.
+const FACING_FIX := {"dawn/Slime": -PI * 0.5}
 
 var model: Node3D
 var anim: AnimationPlayer
@@ -38,12 +40,16 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	current = ""
 	busy_until = 0
 	_motion_weight = 0.0
-	var path := DIR + model_path + ".glb" if ResourceLoader.exists(DIR + model_path + ".glb") else DIR + model_path + ".gltf"
+	var path := DIR + model_path + ".gltf"
+	for ext in [".glb", ".fbx"]:
+		if ResourceLoader.exists(DIR + model_path + ext):
+			path = DIR + model_path + ext
 	var packed := load(path) as PackedScene
 	if packed == null:
 		push_error("MonsterVisual: missing %s" % model_path)
 		return
 	model = packed.instantiate() as Node3D
+	model.rotation.y += float(FACING_FIX.get(model_path, 0.0))
 	add_child(model)
 	var box := _bounds(model)
 	# Bind-pose bounds include T-posed arms and spread wings: size by height/depth.
@@ -60,9 +66,21 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	_apply_finish(tint, fit)
 	anim = _find_player(model)
 	if anim:
+		# Older FBX packs name clips "BatArmature|Bat_Flying": match them by the
+		# part after the armature and the model's own name.
+		var names := {}
+		var base := model_path.get_file()
+		for clip in anim.get_animation_list():
+			var short := String(clip).get_slice("|", String(clip).get_slice_count("|") - 1)
+			if short.begins_with(base + "_"):
+				short = short.substr(base.length() + 1)
+			if not names.has(short):
+				names[short] = clip
+			names[String(clip)] = clip
 		for key in CLIP_ALIASES:
-			for clip in CLIP_ALIASES[key]:
-				if anim.has_animation(clip):
+			for alias in CLIP_ALIASES[key]:
+				if names.has(alias):
+					var clip: StringName = names[alias]
 					_clips[key] = clip
 					var a := anim.get_animation(clip)
 					a.loop_mode = Animation.LOOP_LINEAR if key in LOOPING else Animation.LOOP_NONE

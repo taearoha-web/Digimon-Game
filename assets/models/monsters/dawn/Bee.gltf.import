@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bk5ugf4eh38u1"
-path="res://.godot/imported/Fox.glb-88ea18bc0af6520cae1358a02d59c762.scn"
+uid="uid://ct3xorm2nmonl"
+path="res://.godot/imported/Bee.gltf-0ba9e784182b3f1e80039793cf0360bc.scn"
 
 [deps]
 
-source_file="res://assets/models/monsters/star/Fox.glb"
-dest_files=["res://.godot/imported/Fox.glb-88ea18bc0af6520cae1358a02d59c762.scn"]
+source_file="res://assets/models/monsters/dawn/Bee.gltf"
+dest_files=["res://.godot/imported/Bee.gltf-0ba9e784182b3f1e80039793cf0360bc.scn"]
 
 [params]
 

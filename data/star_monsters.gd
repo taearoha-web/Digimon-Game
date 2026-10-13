@@ -1,6 +1,8 @@
 class_name StarMonsters
 extends RefCounted
-## Star-region bestiary: 12 newly licensed animated base models, 28 encounters.
+## Star-region bestiary. Dawn forest uses CC0 Quaternius cartoon enemies
+## (Ultimate Platformer Pack, Animated Monster Pack); later regions use the
+## licensed animals/skeletons listed in assets/vendor/star_monsters/.
 ## Lists are ordered: four normal enemies, two elites, one regional boss, then
 ## (from 50 stars on) a fifth normal enemy for the fifth farm camp.
 ## Source provenance and closed SHA-256 roster: assets/vendor/star_monsters/.
@@ -12,13 +14,13 @@ const REGIONS := {
 	&"eclipse_realm": [&"eclipse_minion", &"eclipse_rogue", &"eclipse_mage", &"eclipse_warrior", &"eclipse_reaper", &"eclipse_dreadknight", &"eclipse_sovereign", &"eclipse_wraith"],
 }
 const MONSTERS := {
-	&"dawn_fox": {"name":"จิ้งจอกกลีบอรุณ", "model":"star/Fox", "height":1.7, "hp":1.1, "atk":1.05, "def":0.9, "speed":3.1, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":1, "decor":"leaf", "color":Color("c7ed96"), "behavior":"pounce"},
-	&"dawn_deer": {"name":"กวางละอองแสง", "model":"star/Deer", "height":2.1, "hp":1.2, "atk":1.0, "def":1.05, "speed":2.7, "aggro":false, "attack":"melee", "region":"dawn_forest", "min_star":1, "decor":"flower", "color":Color("ffe3a1"), "behavior":"headbutt"},
-	&"dawn_stag": {"name":"กวางเขาเถาวัลย์", "model":"star/Stag", "height":2.6, "hp":1.45, "atk":1.2, "def":1.1, "speed":2.6, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":5, "decor":"antler", "color":Color("8cdbae"), "behavior":"charge"},
-	&"dawn_alpaca": {"name":"อัลปาก้าดอกไม้", "model":"star/Alpaca", "height":1.9, "hp":1.25, "atk":1.15, "def":1.0, "speed":2.3, "aggro":false, "attack":"ranged", "region":"dawn_forest", "min_star":5, "decor":"flower", "color":Color("ffb9d7"), "behavior":"pollen"},
-	&"dawn_thornhart": {"name":"เขี้ยวหนามผู้พิทักษ์", "model":"star/Stag", "height":3.0, "hp":3.2, "atk":1.6, "def":1.5, "speed":2.8, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":20, "elite":true, "decor":"thorn_crown", "color":Color("83e2af"), "behavior":"charge"},
-	&"dawn_spirit_fox": {"name":"จิ้งจอกวิญญาณอรุณ", "model":"star/Fox", "height":2.3, "hp":2.7, "atk":1.8, "def":1.25, "speed":3.4, "aggro":true, "attack":"ranged", "region":"dawn_forest", "min_star":25, "elite":true, "decor":"spirit", "color":Color("ffc78b"), "tint":Color(1.15,0.94,0.8), "behavior":"pollen"},
-	&"dawn_ancient_stag": {"name":"อรุณศิลา ราชันกวางพฤกษา", "model":"star/Stag", "height":4.8, "hp":17.0, "atk":2.3, "def":1.8, "speed":2.8, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":40, "boss":true, "decor":"forest_king", "color":Color("e1c77c"), "behavior":"root_ring"},
+	&"dawn_fox": {"name":"ปูกลีบอรุณ", "model":"dawn/Crab", "height":1.5, "hp":1.1, "atk":1.05, "def":0.9, "speed":3.1, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":1, "color":Color("c7ed96"), "behavior":"pounce"},
+	&"dawn_deer": {"name":"ภูตเขาใบไม้", "model":"dawn/Enemy", "height":1.7, "hp":1.2, "atk":1.0, "def":1.05, "speed":2.7, "aggro":false, "attack":"melee", "region":"dawn_forest", "min_star":1, "color":Color("ffe3a1"), "behavior":"headbutt"},
+	&"dawn_stag": {"name":"ค้างคาวรุ่งอรุณ", "model":"dawn/Bat", "height":2.1, "hover":1.0, "hp":1.45, "atk":1.2, "def":1.1, "speed":2.6, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":5, "color":Color("8cdbae"), "behavior":"charge"},
+	&"dawn_alpaca": {"name":"ผึ้งเกสรอรุณ", "model":"dawn/Bee", "height":1.6, "hover":1.1, "hp":1.25, "atk":1.15, "def":1.0, "speed":2.3, "aggro":false, "attack":"ranged", "region":"dawn_forest", "min_star":5, "color":Color("ffb9d7"), "behavior":"pollen"},
+	&"dawn_thornhart": {"name":"กะโหลกหนามพฤกษา", "model":"dawn/Skull", "height":2.6, "hp":3.2, "atk":1.6, "def":1.5, "speed":2.8, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":20, "elite":true, "color":Color("83e2af"), "behavior":"charge"},
+	&"dawn_spirit_fox": {"name":"สไลม์วิญญาณอรุณ", "model":"dawn/Slime", "height":2.2, "hp":2.7, "atk":1.8, "def":1.25, "speed":3.4, "aggro":true, "attack":"ranged", "region":"dawn_forest", "min_star":25, "elite":true, "color":Color("ffc78b"), "tint":Color(1.1,1.0,0.85), "behavior":"pollen"},
+	&"dawn_ancient_stag": {"name":"อรุณศิลา ราชันมังกรพฤกษา", "model":"dawn/Dragon", "height":4.8, "hover":0.6, "hp":17.0, "atk":2.3, "def":1.8, "speed":2.8, "aggro":true, "attack":"melee", "region":"dawn_forest", "min_star":40, "boss":true, "color":Color("e1c77c"), "behavior":"root_ring"},
 	&"crystal_husky": {"name":"ฮัสกี้ผลึกหิมะ", "model":"star/Husky", "height":1.9, "hp":1.2, "atk":1.2, "def":1.0, "speed":3.2, "aggro":true, "attack":"melee", "region":"crystal_valley", "min_star":50, "decor":"crystal", "color":Color("a9eaff"), "behavior":"pounce"},
 	&"crystal_wolf": {"name":"หมาป่าเขี้ยวคราม", "model":"star/Wolf", "height":2.1, "hp":1.3, "atk":1.4, "def":1.05, "speed":3.4, "aggro":true, "attack":"melee", "region":"crystal_valley", "min_star":50, "decor":"crystal", "color":Color("8dc5ff"), "behavior":"pounce"},
 	&"crystal_bull": {"name":"กระทิงเกราะผลึก", "model":"star/Bull", "height":2.7, "hp":1.9, "atk":1.3, "def":1.6, "speed":2.2, "aggro":true, "attack":"melee", "region":"crystal_valley", "min_star":55, "decor":"crystal_mantle", "color":Color("b6b4ff"), "behavior":"charge"},
