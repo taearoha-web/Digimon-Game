@@ -234,13 +234,12 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			VfxKit.slam(parent, ground, c[0], radius * 0.7)
 		"lancer":
 			if flat.length() > 1.0 and _room(4):
-				VfxArt.beam(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], 0.75, 0.3)
-				VfxArt.beam(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[1], 0.22, 0.22)
+				_lance_streak(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], c[1], 1.5, 0.4)
 			_crescent(parent, ground + Vector3.UP, yaw, 0.2, c[0], c[1], 2.0 * s, 0.0, 2.0)
 		"archer":
 			_arrow_storm(parent, skill, c, ground, radius * 0.7, 4 + index)
 			if _room(3):
-				VfxArt.beam(parent, feet + Vector3.UP * 1.3, ground + Vector3.UP, c[0], 0.32, 0.24)
+				_lance_streak(parent, feet + Vector3.UP * 1.3, ground + Vector3.UP, c[0], c[1], 0.8, 0.34)
 		"priest":
 			VfxArt.rune_circle(parent, ground, c[0], radius * 0.7, 0.9, 1.0)
 			VfxArt.motes(parent, ground, c[1], "petal", 18, radius * 0.5, 0.6, 1.2)
@@ -361,8 +360,7 @@ static func _thrust(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 	var start := origin + Vector3.UP * 1.1 + forward * 0.6
 	var tip := start + forward * length
 	if _room(4):
-		VfxArt.beam(parent, start, tip, c[0], (0.45 + p * 0.55) * s * 0.8, 0.32)
-		VfxArt.beam(parent, start, tip, c[1], 0.16 * s, 0.22)
+		_lance_streak(parent, start, tip, c[0], c[1], (0.6 + p * 0.5) * s, 0.4)
 	var rings := 2 + int(p * 3.0)
 	for i in rings:
 		var at := start + forward * length * (0.25 + 0.7 * float(i) / float(maxi(rings - 1, 1)))
@@ -477,7 +475,7 @@ static func _volley(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 			break
 		var angle := yaw + (float(i) - float(hits - 1) * 0.5) * (0.9 / float(hits))
 		var dir := Vector3(sin(angle), 0.0, cos(angle))
-		VfxArt.beam(parent, start + dir * 0.6, start + dir * reach, c[0], 0.16 + power(skill) * 0.14, 0.22)
+		_lance_streak(parent, start + dir * 0.6, start + dir * reach, c[0], c[1], 0.22 + power(skill) * 0.18, 0.28)
 
 
 ## Projectile release: a flare and a ring of force at the bow, wand or lantern.
@@ -561,6 +559,56 @@ static func _crescent(parent: Node3D, at: Vector3, yaw: float, tilt: float, colo
 	tween.chain().tween_callback(blade.queue_free)
 
 
+## A lance of flowing energy from [param from] to [param to] in the skill's
+## colour: it shoots out from the caster, tapers to a point and burns away.
+## Alpha-mixed (not additive), so overlapping layers keep their hue instead of
+## burning to a white slab.
+static func _lance_streak(parent: Node3D, from: Vector3, to: Vector3, color: Color, core: Color, width: float, duration: float) -> void:
+	var dir := to - from
+	if dir.length() < 0.2 or not _room(1):
+		return
+	var mat := VfxKit.energy(color, 1, {"noise_scale": 2.2, "flow": 4.0})
+	mat.set_shader_parameter("core", color.lerp(core, 0.55))
+	var lance := VfxKit._instance(parent, _streak_mesh(), mat, from)
+	VfxBudget.track_decoration(lance)
+	lance.look_at(to, Vector3.RIGHT if absf(dir.normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP)
+	lance.scale = Vector3(width, width, dir.length() * 0.25)
+	var tween := lance.create_tween().set_parallel(true)
+	tween.tween_property(lance, "scale:z", dir.length(), duration * 0.35).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tween.tween_method(func(v: float): mat.set_shader_parameter("progress", v), 0.0, 1.0, duration)
+	tween.tween_method(func(v: float): mat.set_shader_parameter("fade", v), 1.0, 0.0, duration * 0.6).set_delay(duration * 0.4)
+	tween.chain().tween_callback(lance.queue_free)
+
+
+static var _streak: ArrayMesh
+
+## Two crossed tapering blades along -Z (length 1, width 1): U runs along the
+## lance, V from the bright centre line (0) to the soft edge (1).
+static func _streak_mesh() -> ArrayMesh:
+	if _streak != null:
+		return _streak
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var steps := 14
+	for axis in [Vector3.RIGHT, Vector3.UP]:
+		for i in steps:
+			var t0 := float(i) / steps
+			var t1 := float(i + 1) / steps
+			# Full width near the caster, a sharp point at the tip.
+			var w0 := 0.5 * (1.0 - pow(t0, 1.6)) * minf(1.0, t0 * 6.0 + 0.35)
+			var w1 := 0.5 * (1.0 - pow(t1, 1.6)) * minf(1.0, t1 * 6.0 + 0.35)
+			var c0 := Vector3(0, 0, -t0)
+			var c1 := Vector3(0, 0, -t1)
+			for side in [-1.0, 1.0]:
+				var e0: Vector3 = c0 + axis * w0 * side
+				var e1: Vector3 = c1 + axis * w1 * side
+				for corner in [[c0, t0, 0.0], [e0, t0, 1.0], [c1, t1, 0.0], [c1, t1, 0.0], [e0, t0, 1.0], [e1, t1, 1.0]]:
+					st.set_uv(Vector2(corner[1], corner[2]))
+					st.add_vertex(corner[0])
+	_streak = st.commit()
+	return _streak
+
+
 ## A ring of force standing across [param forward] (bow release, spear wake).
 static func _spear_ring(parent: Node3D, at: Vector3, forward: Vector3, color: Color, size: float) -> void:
 	if not _room(1):
@@ -615,7 +663,7 @@ static func _arrow_storm(parent: Node3D, skill: Dictionary, c: Array, center: Ve
 			if holy:
 				VfxKit.pillar(parent, spot, c[1], 8.0, 0.3, 0.3)
 			else:
-				VfxArt.beam(parent, spot + Vector3(0.8, 7.0, 0.3), spot + Vector3.UP * 0.1, c[0], 0.18, 0.2)
+				_lance_streak(parent, spot + Vector3(0.8, 7.0, 0.3), spot + Vector3.UP * 0.1, c[0], c[1], 0.3, 0.24)
 			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.9, 0.28), CONNECT_ONE_SHOT)
 
 
