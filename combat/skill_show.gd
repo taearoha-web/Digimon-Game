@@ -82,6 +82,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, durat
 		if visual:
 			SkillCharge.launch(parent, visual, look, duration)
 		return
+	ClassFlourish.charge(parent, skill, origin, duration)
 	SkillTableau.anticipate(parent, skill, look, origin, duration, aim, visual)
 	EliteSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 
@@ -98,6 +99,8 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	if EliteSkillArt.handles(skill):
 		var wait := impact_delay if impact_delay >= 0.0 else (0.55 if String(skill.get("special", "")) in ["meteor", "rain"] else 0.0)
 		EliteSkillArt.play(parent, skill, center, origin, wait)
+		var now_ms := Time.get_ticks_msec()
+		ClassFlourish.cast(parent, skill, center, origin, _recent_shows.filter(func(t: int): return now_ms - t < 1000).size())
 		return
 	var look := profile_for(skill)
 	var shape := String(skill.shape)
@@ -130,6 +133,8 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 				_area(parent, skill, look, at, radius, tier)
 		"single": _single(parent, skill, look, center, origin, tier)
 		"fan", "chain": _multi(parent, skill, look, origin, center, tier)
+	# Authored layers claim the budget first; the grand finish comes on top.
+	ClassFlourish.cast(parent, skill, center, origin, crowd)
 
 
 ## Preserve the public crowd limiter used by the integration suite.

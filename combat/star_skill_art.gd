@@ -240,6 +240,7 @@ static func launch(caster: Node3D, skill: Dictionary, point: Vector3, duration :
 ## giant scenery sculptures. index is the zero-based actual hit number.
 static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0, source := Vector3.ZERO) -> StarSkillArt:
 	if not handles(skill) or not VfxBudget.can_decorate(): return null
+	ClassFlourish.star_beat(parent, skill, point, index, source)
 	var id := String(skill.id)
 	var colors := look(skill)
 	var art := _root(parent,point,1.6,"StarContact_"+id)

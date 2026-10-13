@@ -24,9 +24,12 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> Node3D:
 	if MartialSkillArt.handles(skill):
-		return MartialSkillArt.flight(parent,skill,from,to,seconds,size)
+		var martial := MartialSkillArt.flight(parent,skill,from,to,seconds,size)
+		ClassFlourish.flight_glow(martial, skill, size)
+		return martial
 	var look := SkillShow.profile_for(skill)
 	var root := SpellSpectacle._root(parent, from, "SkillFlight_" + String(skill.id))
+	ClassFlourish.flight_glow(root, skill, size)
 	var direction := to - from
 	if direction.length_squared() > 0.001:
 		root.look_at(to, Vector3.RIGHT if absf(direction.normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP, true)
@@ -67,6 +70,7 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 	return root
 
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
+	ClassFlourish.contact(parent, skill, at)
 	if MartialSkillArt.handles(skill):
 		MartialSkillArt.contact(parent,skill,at)
 		return
