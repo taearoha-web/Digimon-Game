@@ -602,7 +602,8 @@ func _update_party() -> void:
 			continue
 		var member: Dictionary = party[i]
 		var data := ClassData.get_class_data(StringName(member["class"]))
-		var key := "%s|%d" % [member.name, int(member.level)]
+		var key := "%s|%d|%d" % [member.name, int(member.level), Game.party_stars(member)]
+		var level_text := "Lv.%d%s" % [int(member.level), " ★%d" % Game.party_stars(member) if Game.party_stars(member) > 0 else ""]
 		if key != entry.key:
 			entry["key"] = key
 			var style := StyleBoxFlat.new()
@@ -612,8 +613,8 @@ func _update_party() -> void:
 			style.border_color = Color.WHITE
 			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
 			(entry.letter as Label).text = String(data.badge)
-			(entry.title as Label).text = "%s  Lv.%d" % [member.name, int(member.level)]
-		entry["name_text"] = "%s  Lv.%d" % [member.name, int(member.level)]
+			(entry.title as Label).text = "%s  %s" % [member.name, level_text]
+		entry["name_text"] = "%s  %s" % [member.name, level_text]
 		(entry.title as Label).text = "%s  ยา×%d  [%s]" % [entry.name_text, int(member.get("potions", 5)), Game.STANCE_NAMES[String(member.get("stance", "follow"))]]
 		var bar := entry.bar as ProgressBar
 		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
@@ -623,8 +624,12 @@ func _update_party() -> void:
 		else:
 			UIUtil.set_bar(bar, 1, 1)
 		var exp_bar := entry.exp as ProgressBar
-		exp_bar.max_value = float(HeroStats.exp_to_next(int(member.level)))
-		exp_bar.value = float(member.exp)
+		if int(member.level) >= Game.MAX_LEVEL:
+			exp_bar.max_value = float(maxi(1, Game.party_star_need(member)))
+			exp_bar.value = float(member.get("star_exp", 0)) if Game.party_stars(member) < Game.PARAGON_MAX else exp_bar.max_value
+		else:
+			exp_bar.max_value = float(HeroStats.exp_to_next(int(member.level)))
+			exp_bar.value = float(member.exp)
 
 
 func _build_top_right(frame: Control) -> void:

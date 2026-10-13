@@ -85,7 +85,12 @@ func _ready() -> void:
 
 
 func _signature() -> String:
-	return "%s|%d" % [member.name, int(member.level) / 3]
+	return "%s|%d|%d" % [member.name, int(member.level) / 3, Game.party_stars(member) / 10]
+
+
+func _level_text() -> String:
+	var stars := Game.party_stars(member)
+	return "%s Lv.%d%s" % [member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
 
 
 func refresh() -> void:
@@ -94,7 +99,7 @@ func refresh() -> void:
 	stats = HeroStats.compute(Game.party_profile(member))
 	var pp := Game.party_profile(member)
 	data = JobData.resolve(StringName(member["class"]), int(pp.adv))
-	_label.text = "%s Lv.%d" % [member.name, int(member.level)]
+	_label.text = _level_text()
 	var sig := _signature()
 	if sig != _equip_sig:
 		_equip_sig = sig
@@ -207,7 +212,7 @@ func _revive() -> void:
 	visual.release()
 	visual.play("Idle")
 	global_position = hero.global_position + Vector3(3.0, 0.3, -0.6).rotated(Vector3.UP, hero.camera_rig.yaw if hero.camera_rig else 0.0)
-	_label.text = "%s Lv.%d" % [member.name, int(member.level)]
+	_label.text = _level_text()
 	VfxKit.level_up(field, global_position)
 	BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "กลับมาสู้!", Color("8ff0ff"), 1.2)
 	_update_bar()
