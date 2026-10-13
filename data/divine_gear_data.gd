@@ -68,8 +68,8 @@ const DROP_BOSS := 0.30
 ## non-divine piece can roll: Lv.300 mythic, top random roll, all four bonus
 ## lines on that stat. Mirrors ItemData.generate.
 static func best_other_roll(slot: String) -> float:
+	var power := ItemData.gear_power(ItemData.MAX_GEAR_LEVEL)
 	var level := float(ItemData.MAX_GEAR_LEVEL)
-	var power := 4.0 + level * 2.2
 	match slot:
 		"weapon": return power * ItemData.rarity_mult(4, 0.22) * 1.08 + 4.0 * (power * 0.12 + 1.0)
 		"armor": return power * 0.75 * ItemData.rarity_mult(4, 0.2) * 1.08 + 4.0 * (power * 0.1 + 1.0)

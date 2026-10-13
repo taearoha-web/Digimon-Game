@@ -419,6 +419,8 @@ func _shoot(mob: Mob, mult: float, color: Color, vfx: StringName, skill: Variant
 
 func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, skill: Variant) -> void:
 	var raw := _buffed_atk() * mult * randf_range(0.92, 1.08)
+	if skill is Dictionary and not skill.is_empty():
+		raw *= HeroStats.SKILL_POWER
 	var crit := randf() < float(stats.crit) + _book.total("crit")
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE

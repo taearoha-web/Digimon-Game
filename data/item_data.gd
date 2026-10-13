@@ -169,6 +169,15 @@ static func roll_rarity(rng: RandomNumberGenerator, boost := 0.0) -> int:
 	return 0
 
 
+## Base stat power of gear. Up to Lv.100 it grows 2.2 per level; star gear
+## (Lv.101-300, worn with ★) grows 0.9 per level so a 200-star piece is about
+## 1.8x a Lv.100 one, not 3x: damage numbers stay readable at the top.
+static func gear_power(level: int) -> float:
+	if level <= 100:
+		return 4.0 + float(level) * 2.2
+	return 224.0 + float(level - 100) * 0.9
+
+
 static func generate(level: int, class_id: StringName, rng: RandomNumberGenerator, rarity := -1, slot := "") -> Dictionary:
 	level = clampi(level, 1, MAX_GEAR_LEVEL)
 	if slot == "":
@@ -185,7 +194,7 @@ static func generate(level: int, class_id: StringName, rng: RandomNumberGenerato
 		rarity = roll_rarity(rng)
 	var base := base_for(slot, class_id)
 	var tier := tier_for(level)
-	var power := 4.0 + level * 2.2
+	var power := gear_power(level)
 	var stats := {}
 	match slot:
 		"weapon":
