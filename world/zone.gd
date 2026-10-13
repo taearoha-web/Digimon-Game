@@ -548,7 +548,7 @@ func _update_interact() -> void:
 	for npc in npcs:
 		if npc.role == "elder":
 			var quest_id := QuestData.current_quest()
-			npc.marker.visible = quest_id != "" and Game.quest_status(quest_id) in ["new", "ready"] and Game.profile.level >= int(QuestData.get_quest(quest_id).get("level", 1)) - 1
+			npc.marker.visible = quest_id != "" and Game.quest_status(quest_id) in ["new", "ready"] and QuestData.unlock_problem(QuestData.get_quest(quest_id)) == ""
 	interact_changed.emit(label)
 
 

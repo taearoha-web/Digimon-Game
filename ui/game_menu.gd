@@ -850,7 +850,8 @@ func _build_quests() -> void:
 		var col := UIUtil.vbox(2)
 		panel.add_child(col)
 		var state_text: String = {"new": "ยังไม่ได้รับ", "active": "กำลังทำ", "ready": "เสร็จแล้ว — กลับไปรายงาน", "done": "สำเร็จแล้ว เสร็จแล้ว"}[status]
-		var title := UIUtil.label("%s  (Lv.%d+)  — %s" % [quest.name, int(quest.level), state_text], &"BoldLabel")
+		var gate := "ดาว %d+" % int(quest.star) if int(quest.get("star", 0)) > 0 else "Lv.%d+" % int(quest.level)
+		var title := UIUtil.label("%s  (%s)  — %s" % [quest.name, gate, state_text], &"BoldLabel")
 		if status == "done":
 			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
 		col.add_child(title)
