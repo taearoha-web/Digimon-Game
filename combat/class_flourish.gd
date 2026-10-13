@@ -1,14 +1,14 @@
 class_name ClassFlourish
 extends RefCounted
-## The grand finishing layer for every active skill except the mage's (whose
-## fire fields, meteors and storms already carry the scene) and the star
-## skills (StarSkillSequence). It adds light, energy and real elements over the
-## authored silhouettes, in each line's own language:
+## The grand finishing layer for every active skill of every line, star
+## skills included. It adds light, energy and real elements over the authored
+## silhouettes, in each line's own language:
 ##   warrior / vagabond  layered energy crescents, crosses and ground breaks
 ##   lancer              a thrust of light down the spear line, spiral wakes
 ##   archer              bow flare, bursting arrivals, glowing arrow storms
 ##   priest              heaven-sent columns, halos and sanctified circles
 ##   summoner            summoning seals, spirit vortices, bursts of growth
+##   mage                arcane seals, prism shards, elemental bursts
 ## Size grows with the skill's level; Lv.100 skills get an extra beat.
 ## Cosmetic only: it never selects victims, deals damage or changes timing,
 ## and an area skill's impact waits for the same landing beat as its damage.
@@ -24,15 +24,16 @@ const ELEMENT_COLORS := {
 	"thunder": [Color("8fb6ff"), Color("fffbd0")], "wind": [Color("4fe6c0"), Color("efffff")],
 	"ice": [Color("6fd8ff"), Color("f2feff")], "leaf": [Color("7ee060"), Color("f4ffd0")],
 	"heal": [Color("6dffa8"), Color("f0fff4")], "earth": [Color("d8a060"), Color("fff0c8")],
+	"arcane": [Color("a070ff"), Color("f4e8ff")],
 }
+## Skills whose dedicated sequence already owns a column of light.
+const OWN_COLUMN := ["judgment_ray"]
 
 static var _last_contact: Dictionary = {}
 
 
 static func handles(skill: Dictionary) -> bool:
-	if skill.is_empty() or skill.has("star"):
-		return false
-	return SkillShow.family_of(skill) != "mage"
+	return not skill.is_empty() and not skill.has("star")
 
 
 ## 0 at Lv.1, 1 at Lv.100.
@@ -167,8 +168,11 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 	VfxKit.shockwave(parent, ground + Vector3.UP * 0.05, c[0], 1.3 * s)
 	match style:
 		"holy", "heal":
-			if _room(4):
+			if _room(4) and not String(skill.get("id", "")) in OWN_COLUMN:
 				VfxArt.sky_strike(parent, ground, c[0], 0.5 + p * 0.6, 7.0 + p * 5.0, 0.42)
+		"arcane":
+			VfxArt.motes(parent, at, c[1], "diamond", int(10 + 10 * p), 0.7 * s, 0.4, 0.9)
+			VfxArt.rune_circle(parent, ground, c[0], 1.2 * s, 0.6, 2.0)
 		"thunder":
 			if _room(3):
 				VfxArt.painted_lightning(parent, at + Vector3(0.6, 7.0, -0.4), at, c[1])
@@ -190,7 +194,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 ## a frame (a chain of victims) share one flourish. The 200-star skills open
 ## with an apex: a sky seal, a crown of columns and a double wave.
 static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
-	if skill.is_empty() or not skill.has("star") or SkillShow.family_of(skill) == "mage":
+	if skill.is_empty() or not skill.has("star"):
 		return
 	if not _alive(parent) or not _room(4):
 		return
@@ -243,6 +247,11 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 		"summoner":
 			VfxKit.vortex(parent, ground, c[0], 3.5, 0.8)
 			VfxArt.motes(parent, ground, c[1], "leaf", 22, radius * 0.5, 0.4, 1.2)
+		"mage":
+			VfxArt.rune_circle(parent, ground, c[0], radius * 0.75, 1.0, -1.5)
+			VfxArt.motes(parent, ground, c[1], "diamond", 24, radius * 0.5, 0.6, 1.2)
+			if _room(3):
+				VfxArt.ribbon_spiral(parent, ground, c[0], 4.0, 2.5, 0.8, 1.1 * s)
 	VfxArt.motes(parent, ground, c[0], "light", 14, radius * 0.5, 0.4, 1.0)
 
 
@@ -409,6 +418,12 @@ static func _whirl(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3,
 				ElementFx.fire_field(parent, origin, r, 3, true)
 		"thunder":
 			_bolt_ring(parent, origin, c, r * 0.7, 3 + int(p * 3.0))
+		"arcane":
+			VfxArt.rune_circle(parent, origin, c[0], r * 0.7, 1.1, -1.5)
+			VfxArt.motes(parent, origin, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.2)
+			VfxKit.vortex(parent, origin, c[0], 3.0 * s, 0.8)
+		"ice":
+			VfxArt.motes(parent, origin, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
 	if skill.get("fx", {}).has("stun") or style == "earth":
 		VfxKit.slam(parent, origin, c[0], r * 0.85)
 	if p >= 0.75:
@@ -442,6 +457,9 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 			VfxArt.motes(parent, ground, c[0], "leaf", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
 		"ice":
 			VfxArt.motes(parent, ground, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
+		"arcane":
+			VfxArt.motes(parent, ground, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
+			_column_ring(parent, ground, c, r * 0.6, 3 + int(p * 4.0), 0.07)
 	if skill.get("fx", {}).has("stun") or style == "earth":
 		VfxKit.slam(parent, ground, c[0], r * 0.8)
 	if p >= 0.75:
@@ -616,3 +634,6 @@ static func _element(parent: Node3D, skill: Dictionary, c: Array, ground: Vector
 			VfxKit.vortex(parent, ground, c[0], 2.6, 0.6)
 		"ice":
 			ElementFx.shatter(parent, ground + Vector3.UP, size * 0.6, 5)
+		"arcane":
+			VfxArt.rune_circle(parent, ground, c[0], size, 0.8, 2.0)
+			VfxArt.motes(parent, ground + Vector3.UP, c[1], "diamond", 14, size * 0.5, 0.3, 0.9)
