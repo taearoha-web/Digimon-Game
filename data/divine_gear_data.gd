@@ -6,6 +6,8 @@ const COLLECTION := "lotus_200"
 const STARS := 200
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots"]
 const PREMIUM := 1.4
+## Mythic gear carries four bonus lines (spread over hp, mp, crit, atk, def).
+const MYTHIC_LINES := 4.0
 const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ"}
 const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม"}
 
@@ -31,13 +33,13 @@ static func look_of(item: Dictionary) -> String:
 static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> Dictionary:
 	if not THEMES.has(String(cls)) or not SLOTS.has(slot): return {}
 	var result := ItemData.generate(300, cls, rng, 4, slot)
-	# The strongest gear in the game: mythic Lv.300 rolls times PREMIUM, so even
-	# the lowest roll beats the best roll of any other piece in the same slot.
-	# Magic classes carry explicit magic power, physical classes attack; both
-	# are understood by HeroStats.compute.
-	var stats: Dictionary = result.stats
+	# The strongest gear in the game: the same fixed-by-tier stats as the 200-star
+	# set but at mythic grade with all four bonus lines, times PREMIUM. Every
+	# stat, not just the main one, is far above the best 200-star roll.
+	var stats: Dictionary = ItemData.tiered_stats(slot, ItemData.MAX_GEAR_LEVEL, 4, MYTHIC_LINES, rng.randf_range(StarProgression.ROLL_MIN, StarProgression.ROLL_MAX))
 	for key in stats:
 		stats[key] = snappedf(float(stats[key]) * PREMIUM, 0.001) if key == "crit" else int(ceil(float(stats[key]) * PREMIUM))
+	result["stats"] = stats
 	# Never left to luck: the slot's main stat clears the best roll any other
 	# piece can reach (mythic Lv.300 with every bonus line on it) by 15%.
 	var main := "atk" if slot == "weapon" else "def"

@@ -51,6 +51,8 @@ jobs:
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/ui_rebuild_tap_test.tscn
       - name: Check effect materials keep their shaders compiled
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/material_keeper_test.tscn
+      - name: Check star gear is graded by tier and the class set is best
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/gear_tier_order_test.tscn
       - name: Check the elder's quest chain past Lv.99
         env:
           XDG_DATA_HOME: /tmp/toon-ci-quests
