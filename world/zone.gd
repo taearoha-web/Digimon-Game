@@ -744,6 +744,7 @@ func _divine_loot(mob: Mob, from: Vector3) -> void:
 	var elite := bool(mob.template.get("elite", false))
 	for item in DivineGearData.drops(Game.class_id(), mob.is_boss, elite, rng):
 		_spawn_loot(item, 0, from)
+		Game.say("ชุดเทพประจำอาชีพ 200 ดาวตกแล้ว!", &"quest")
 	# The divine set has no jewellery: the sanctuary adds 200★ rings and amulets.
 	if mob.is_boss or rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
 		var slot := "ring" if rng.randf() < 0.5 else "amulet"
@@ -752,7 +753,6 @@ func _divine_loot(mob: Mob, from: Vector3) -> void:
 		_spawn_loot(ItemData.potion("hp_xl", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_xl", 3), 0, from)
 		_spawn_loot(_random_gem(100, 1), 0, from)
-		Game.say("เทพพิทักษ์มอบอุปกรณ์ 200 ดาวประจำอาชีพ 2 ชิ้น!", &"quest")
 	elif rng.randf() < 0.35:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf() < 0.55 else "mp_xl", 1), 0, from)
 
