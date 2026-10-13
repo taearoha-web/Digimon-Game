@@ -74,6 +74,8 @@ func _case(family: StringName, skill: Dictionary) -> void:
 	Game.profile.level = 100
 	Game.profile.adv = 4
 	Game.paragon().level = int(skill.get("star", 0))
+	if bool(skill.get("requires_wings", false)):
+		Game.profile.equip["wings"] = ItemData.wings(Game.rng, String(family), 3)
 	Game.profile.skills[String(skill.id)] = 1
 	Game.profile.loadout[0] = String(skill.id)
 	Game.profile.hp = 100000
