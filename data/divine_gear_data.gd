@@ -36,7 +36,7 @@ static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> D
 	# The strongest gear in the game: the same fixed-by-tier stats as the 200-star
 	# set but at mythic grade with all four bonus lines, times PREMIUM. Every
 	# stat, not just the main one, is far above the best 200-star roll.
-	var stats: Dictionary = ItemData.tiered_stats(slot, ItemData.MAX_GEAR_LEVEL, 4, MYTHIC_LINES, rng.randf_range(StarProgression.ROLL_MIN, StarProgression.ROLL_MAX))
+	var stats: Dictionary = ItemData.tiered_stats(slot, ItemData.MAX_GEAR_LEVEL, 4, MYTHIC_LINES, StarProgression.roll_of(result))
 	for key in stats:
 		stats[key] = snappedf(float(stats[key]) * PREMIUM, 0.001) if key == "crit" else int(ceil(float(stats[key]) * PREMIUM))
 	result["stats"] = stats
