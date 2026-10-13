@@ -6,7 +6,7 @@ extends Node
 ##   godot --headless --path . res://tests/integration/gear_tier_order_test.tscn
 var failures := 0
 var checks := 0
-const SAMPLES := 300
+const SAMPLES := 600
 const STAT_KEYS := ["atk", "def", "hp", "mp", "crit"]
 
 
@@ -49,6 +49,21 @@ func _ready() -> void:
 				for key in STAT_KEYS:
 					check(float(divine.lo[key]) > float(ranges[200].hi[key]),
 						"%s %s %s: class set weakest %.3f beats 200* best %.3f" % [cls, slot, key, divine.lo[key], ranges[200].hi[key]])
+	# Mythic (red) star pieces exist, are rare, and keep their tier's ordering:
+	# the sweeps above already include them, so check that they really appear.
+	var mythic := 0
+	var total := 0
+	for stars in StarProgression.TIERS:
+		for i in 1500:
+			var piece := StarProgression.item(&"warrior", stars, "weapon", rng)
+			total += 1
+			if int(piece.rarity) == ItemData.RARITY_NAMES.size() - 1:
+				mythic += 1
+				check(int(piece.sockets) == ItemData.sockets_for(4), "mythic star piece has three sockets")
+			else:
+				check(int(piece.rarity) == 3, "other star pieces stay legendary")
+	var share := float(mythic) / float(total)
+	check(share > 0.05 and share < 0.11, "about 8%% of star pieces are mythic (%.3f)" % share)
 	check(is_equal_approx(DivineGearData.drop_chance(false), 0.005), "the class set drops from an ordinary enemy only 0.5%")
 	check(DivineGearData.drop_chance(false) < Zone.STAR_GEAR_NORMAL / 10.0, "rarer than a star-tier piece by far")
 	print("GEAR TIER ORDER: ", "PASS" if failures == 0 else "FAIL", " | ", checks, " checks, ", failures, " failures")
