@@ -112,7 +112,9 @@ static func reward_for_level(level: int, boss: bool, star := 0) -> Dictionary:
 		var need := float(HeroStats.exp_to_next(100)) * (1.0 + 0.02 * float(star))
 		return {
 			"exp": int(round(need * (2.0 if boss else 1.0))),
-			"gold": int(round(50.0 * pow(100.0, 1.45) * (1.0 + float(star) / 100.0) * (1.75 if boss else 1.0))),
+			# Gold grows gently with ★ so the richest turn-in (a 200★ boss, about
+			# 89k) stays inside the late-game upgrade economy (at most 100k).
+			"gold": int(round(50.0 * pow(100.0, 1.45) * (1.0 + float(star) / 400.0) * (1.5 if boss else 1.0))),
 		}
 	return {
 		"exp": int(round(float(HeroStats.exp_to_next(lv)) * (1.5 if boss else 0.9))),
