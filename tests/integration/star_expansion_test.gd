@@ -77,16 +77,15 @@ func _ready()->void:
 		var id:StringName=StarProgression.REGIONS[i]
 		check(ZoneData.access_reason(id,100,int(StarProgression.ENTRY[i])-1)!="","region gate below")
 		check(ZoneData.access_reason(id,100,int(StarProgression.ENTRY[i]))=="","region gate at")
-		check(StarMonsters.ids_for(id).size()==(7 if i==0 else 8),"region roster")
+		check(StarMonsters.ids_for(id).size()==8,"region roster")
 		var zone:=ZoneData.get_zone(id)
-		check(zone.camps.size()==(4 if i==0 else 5),"farm camps")
-		if i>0:
-			for camp in zone.camps:
-				check(int(camp.count)==10,"ten monsters per farm camp")
-			for mid in StarMonsters.ids_for(id):
-				check(is_equal_approx(float(StarMonsters.get_monster(mid).hp),float(StarMonsters.MONSTERS[mid].hp)*10.0),"ten times health "+String(mid))
-				var model:String="res://assets/models/monsters/"+String(StarMonsters.MONSTERS[mid].model)
-				check(ResourceLoader.exists(model+".glb") or ResourceLoader.exists(model+".gltf"),"model "+String(mid))
+		check(zone.camps.size()==5,"farm camps")
+		for camp in zone.camps:
+			check(int(camp.count)==10,"ten monsters per farm camp")
+		for mid in StarMonsters.ids_for(id):
+			check(is_equal_approx(float(StarMonsters.get_monster(mid).hp),float(StarMonsters.MONSTERS[mid].hp)*10.0),"ten times health "+String(mid))
+			var model:String="res://assets/models/monsters/"+String(StarMonsters.MONSTERS[mid].model)
+			check(ResourceLoader.exists(model+".glb") or ResourceLoader.exists(model+".gltf") or ResourceLoader.exists(model+".fbx"),"model "+String(mid))
 		check(StarRegionArt.layout(id).spawn.length()<53,"reachable start")
 	profile(&"warrior")
 	var menu:=GameMenu.new()

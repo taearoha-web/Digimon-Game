@@ -18,7 +18,7 @@ static func layout(zone_id: StringName) -> Dictionary:
 	match zone_id:
 		&"dawn_forest":
 			return {"spawn": Vector3(-43, 0, 24), "boss_pos": Vector3(28, 0, -25), "exit": Vector3(43, 0, -21),
-				"camp_positions": [Vector2(-27, 14), Vector2(-12, -14), Vector2(11, 18), Vector2(29, 3)],
+				"camp_positions": [Vector2(-27, 14), Vector2(-12, -14), Vector2(11, 18), Vector2(29, 3), Vector2(-30, -24)],
 				"paths": [PackedVector2Array([Vector2(-46, 24), Vector2(-28, 22), Vector2(-7, 3), Vector2(13, 4), Vector2(28, -14), Vector2(45, -21)]),
 					PackedVector2Array([Vector2(-12, -14), Vector2(-7, 3), Vector2(11, 18)]),
 					PackedVector2Array([Vector2(13, 4), Vector2(29, 3)])]}

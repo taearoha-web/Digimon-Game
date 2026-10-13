@@ -47,4 +47,4 @@ In v0.9.4, the divine wardrobe uses colour masks on the original chibi body and 
 
 Lotus Sanctum monsters reuse the CC0 Quaternius Ultimate Monsters models already in `assets/models/monsters/` (Ghost, YellowDragon, Frog, Monkroose, Armabee_Evolved, Goleling_Evolved, Alpaking_Evolved), tinted in data. `world/divine_region_art.gd` and the divine attack effects are original project geometry. Repeated scenery is batched. Native software rendering checks do not establish iPhone performance.
 
-`assets/models/monsters/dawn/` holds the dawn forest monsters: Bee, Crab, Enemy and Skull from the Quaternius Ultimate Platformer Pack, and Bat, Slime and Dragon from the Quaternius Animated Monster Pack. All CC0 1.0; see the LICENSE file in that folder. They replace the realistic Fox, Deer and Stag models.
+`assets/models/monsters/dawn/` holds the dawn forest monsters: Bee, Crab, Enemy, Skull and the Character (as Bunny) from the Quaternius Ultimate Platformer Pack, and Bat, Slime and Dragon from the Quaternius Animated Monster Pack. All CC0 1.0; see the LICENSE file in that folder. They replace the realistic Fox, Deer and Stag models.

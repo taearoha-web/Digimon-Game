@@ -18,20 +18,14 @@ static func zones() -> Dictionary:
 		var layout := StarRegionArt.layout(id)
 		var monsters := StarMonsters.ids_for(id)
 		var camps: Array = []
-		if i == 0:
-			for k in 4:
-				var ids: Array = [monsters[k]]
-				if k >= 2: ids.append(monsters[k + 2])
-				camps.append({"name": String(StarMonsters.get_monster(monsters[k]).name),"monsters":ids,"levels":[100 + i * 12,108 + i * 12],"pos":layout.camp_positions[k],"radius":8.0,"count":5})
-		else:
-			# From 50 stars on: five farm camps of ten, one kind each like the
-			# older fields. The last two also hold an elite now and then.
-			var normals: Array = [monsters[0], monsters[1], monsters[2], monsters[3], monsters[7]]
-			for k in 5:
-				var ids: Array = [normals[k]]
-				if k == 3: ids = [normals[k], normals[k], normals[k], monsters[4]]
-				elif k == 4: ids = [normals[k], normals[k], normals[k], monsters[5]]
-				camps.append({"name": String(StarMonsters.get_monster(normals[k]).name),"monsters":ids,"levels":[100 + i * 12,108 + i * 12],"pos":layout.camp_positions[k],"radius":9.0,"count":10})
+		# Five farm camps of ten, one kind each like the older fields. The last
+		# two also hold an elite now and then.
+		var normals: Array = [monsters[0], monsters[1], monsters[2], monsters[3], monsters[7]]
+		for k in 5:
+			var ids: Array = [normals[k]]
+			if k == 3: ids = [normals[k], normals[k], normals[k], monsters[4]]
+			elif k == 4: ids = [normals[k], normals[k], normals[k], monsters[5]]
+			camps.append({"name": String(StarMonsters.get_monster(normals[k]).name),"monsters":ids,"levels":[100 + i * 12,108 + i * 12],"pos":layout.camp_positions[k],"radius":9.0,"count":10})
 		result[id] = {"name":TITLES[i],"scene":"field","theme":id,"star_region":true,"star":ENTRY[i],"gear_star":TIERS[i],
 			"level":[100,100],"music":&"forest" if i in [0,3] else &"field","sky":skies[i],"ground":Color("79a28b"),
 			"fog":skies[i].lightened(0.15),"ambient":Color("c6d6f0"),"sun":Color("fff0ce"),"camps":camps,
