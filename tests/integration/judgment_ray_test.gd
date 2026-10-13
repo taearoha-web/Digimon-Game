@@ -77,7 +77,7 @@ func _ready() -> void:
 	seq.set_process(false)
 	seq._process(0.25)
 	check(mobs[0].hits==1 and mobs[1].hits==0,"pillar deals exactly one hit; adjacent enemy untouched")
-	check(mobs[0].damage>=1473 and mobs[0].damage<=1731,"real single hit retains expected rank-one damage roll")
+	check(mobs[0].damage>=int(1473*HeroStats.SKILL_POWER)-1 and mobs[0].damage<=int(1731*HeroStats.SKILL_POWER)+1,"real single hit retains expected rank-one damage roll")
 	check(seq.art._beam.visible and is_equal_approx(seq.art._beam.scale.y,JudgmentRayArt.HEIGHT),"pillar reaches ground on the damage frame")
 	seq._process(0.4)
 	check(mobs[0].hits==1 and mobs[1].hits==0,"shockwave and rune fragments add no damage")
