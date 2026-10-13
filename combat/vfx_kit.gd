@@ -170,7 +170,8 @@ static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, 
 	parent.add_child(p)
 	p.global_position = pos
 	if one_shot:
-		parent.get_tree().create_timer(lifetime + 0.3).timeout.connect(p.queue_free)
+		# Node-bound: an emitter freed with its scene leaves no pending timer.
+		p.create_tween().tween_interval(lifetime + 0.3).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
 	return p
 
 

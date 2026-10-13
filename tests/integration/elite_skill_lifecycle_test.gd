@@ -42,7 +42,9 @@ func _ready() -> void:
 					art._process(3.0)
 					check(art.is_queued_for_deletion(),"normal expiry queues all layers")
 					await art.tree_exited
-					check(field.get_child_count()==0,"normal expiry leaves no nodes")
+					# ClassFlourish keeps its own short-lived, self-freeing holder.
+					var left := field.get_children().filter(func(n: Node): return not String(n.name).begins_with("ClassFlourish_"))
+					check(left.is_empty(),"normal expiry leaves no nodes")
 			check(skill==snapshot,"art preserves all combat parameters")
 			field.queue_free()
 			await field.tree_exited

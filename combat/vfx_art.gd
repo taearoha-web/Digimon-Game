@@ -291,7 +291,7 @@ static func motes(parent: Node3D, pos: Vector3, color: Color, kind: String, coun
 	parent.add_child(p)
 	p.global_position = pos + Vector3(0, height, 0)
 	p.emitting = reserved
-	parent.get_tree().create_timer(lifetime + 0.4).timeout.connect(p.queue_free)
+	p.create_tween().tween_interval(lifetime + 0.4).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
 
 
 ## A thick light column that slams down, with a flare and a ring at its foot.
