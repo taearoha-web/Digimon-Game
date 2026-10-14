@@ -16,6 +16,12 @@ const CLIP_ALIASES := {
 const LOOPING: Array[String] = ["idle", "walk", "run"]
 ## Models whose front is not +Z, turned at load so they face where they walk.
 const FACING_FIX := {"dawn/Slime": -PI * 0.5}
+## Models whose file carries one clip only: extra clip names, either the file's own clip ("")
+## or a saved Animation resource, plus how fast a clip plays (the demon's punch is 1.1 s long).
+const EXTRA_CLIPS := {
+	"summon/ChibiDemon": {"Idle": "", "Walk": "", "Run": "", "Attack": "res://assets/models/monsters/summon/ChibiDemon_punch.res"},
+}
+const CLIP_SPEED := {"summon/ChibiDemon": {"attack": 2.4}}
 
 var model: Node3D
 var anim: AnimationPlayer
@@ -24,6 +30,7 @@ var current := ""
 var busy_until := 0
 
 var _clips: Dictionary = {}
+var _clip_speed: Dictionary = {}
 var _tween: Tween
 var _rest_scale := Vector3.ONE
 var _ground_offset := 0.0
@@ -52,6 +59,8 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	model.rotation.y += float(FACING_FIX.get(model_path, 0.0))
 	add_child(model)
 	var box := _bounds(model)
+	if maxf(box.size.y, box.size.z) < 0.05:
+		box = _bone_bounds(model, box)
 	# Bind-pose bounds include T-posed arms and spread wings: size by height/depth.
 	var measured := maxf(maxf(box.size.y, box.size.z), 0.001)
 	var fit := target_height / measured
@@ -65,6 +74,9 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	height = target_height + hover
 	_apply_finish(tint, fit)
 	anim = _find_player(model)
+	_clip_speed = CLIP_SPEED.get(model_path, {})
+	if anim and EXTRA_CLIPS.has(model_path):
+		_add_extra_clips(model_path)
 	if anim:
 		# Older FBX packs name clips "BatArmature|Bat_Flying": match them by the
 		# part after the armature and the model's own name.
@@ -87,6 +99,18 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 					break
 	play("idle")
 	set_process(true)
+
+
+func _add_extra_clips(model_path: String) -> void:
+	var own := anim.get_animation_list()
+	if own.is_empty():
+		return
+	var lib := anim.get_animation_library("")
+	for clip in EXTRA_CLIPS[model_path]:
+		var path: String = EXTRA_CLIPS[model_path][clip]
+		var res: Animation = anim.get_animation(own[0]) if path == "" else load(path) as Animation
+		if res != null and not lib.has_animation(clip):
+			lib.add_animation(clip, res)
 
 
 ## The same soft illustrated finish as the heroes, with a satin gloss reserved
@@ -126,7 +150,7 @@ func play(key: String, speed := 1.0) -> void:
 	if current == key and anim.is_playing():
 		return
 	current = key
-	anim.speed_scale = speed
+	anim.speed_scale = speed * float(_clip_speed.get(key, 1.0))
 	anim.play(_clips[key], 0.15)
 
 
@@ -135,7 +159,7 @@ func action(key: String, lock_ms := 450, speed := 1.0) -> void:
 		return
 	busy_until = Time.get_ticks_msec() + lock_ms
 	current = key
-	anim.speed_scale = speed
+	anim.speed_scale = speed * float(_clip_speed.get(key, 1.0))
 	anim.play(_clips[key], 0.06)
 
 
@@ -183,6 +207,28 @@ static func _bounds(node: Node3D) -> AABB:
 		var b := t * m.get_aabb()
 		box = b if first else box.merge(b)
 		first = false
+	return box
+
+
+## Rigs exported in centimetres (Mixamo) keep their mesh bounds in a different unit
+## from the skeleton: measure the bones instead, with room for horns and soles.
+static func _bone_bounds(node: Node3D, fallback: AABB) -> AABB:
+	var skeletons := node.find_children("*", "Skeleton3D", true, false)
+	if skeletons.is_empty():
+		return fallback
+	var sk := skeletons[0] as Skeleton3D
+	var t := Transform3D.IDENTITY
+	var n: Node = sk
+	while n != null and n != node:
+		if n is Node3D:
+			t = (n as Node3D).transform * t
+		n = n.get_parent()
+	var box := AABB()
+	for i in sk.get_bone_count():
+		var p := t * sk.get_bone_global_rest(i).origin
+		box = AABB(p, Vector3.ZERO) if i == 0 else box.expand(p)
+	box.position += Vector3(-0.05, -0.04, -0.05)
+	box.size += Vector3(0.1, 0.16, 0.1)
 	return box
 
 
