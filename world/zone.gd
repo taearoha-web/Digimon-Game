@@ -56,7 +56,37 @@ var _start := Vector3.ZERO
 var _kills := 0
 
 
+## Build-time phases of the last zone (label, milliseconds), filled only while
+## `phase_log` is on: tests/tools/zone_switch_probe.gd turns it on to find what a zone change costs.
+static var phase_log := false
+static var phases: Array = []
+var _phase_t := 0
+
+## Main.go builds a zone in slices, one per frame, behind the black fade (a phone otherwise
+## stalls for a second or more at every zone change). Left off, the zone is complete as
+## soon as it enters the tree, which is what tests and tools rely on.
+var staged := false
+signal built
+var is_built := false
+
+
+func _slice() -> void:
+	if staged and is_inside_tree():
+		await FrameSlicer.pace(get_tree())
+
+
+func _phase(label: String) -> void:
+	if not phase_log:
+		return
+	var now := Time.get_ticks_usec()
+	if _phase_t > 0:
+		phases.append([label, snappedf(float(now - _phase_t) / 1000.0, 0.1)])
+	_phase_t = now
+
+
 func _ready() -> void:
+	_phase("")
+	FrameSlicer.begin()
 	rng.randomize()
 	# Every monster that enters the zone (spawned or scripted) pays out when it dies.
 	child_entered_tree.connect(func(node: Node):
@@ -68,20 +98,31 @@ func _ready() -> void:
 	is_town = bool(data.get("safe", false))
 	is_pvp = bool(data.get("pvp", false))
 	is_tower = bool(data.get("tower", false))
+	await _slice()
 	if is_town:
-		_build_town()
+		await _build_town()
 	elif is_pvp:
 		_build_pvp()
 	else:
-		_build_field()
-	VfxArt.warm_up()
+		await _build_field()
+	_phase("build_world")
+	await _slice()
+	await VfxArt.warm_up(get_tree() if staged else null)
 	if int(Game.paragon().level)>=50: StarGeometry.warm()
+	_phase("warm_art")
+	await _slice()
 	_spawn_hero()
+	_phase("spawn_hero")
+	await _slice()
 	if not is_town:
-		VfxKit.warm_shaders(self, hero.global_position)
+		await VfxKit.warm_shaders(self, hero.global_position, get_tree() if staged else null)
+		await _slice()
 		ElementFx.warm(self, hero.global_position)
+	_phase("warm_shaders")
+	await _slice()
 	if not is_pvp:
 		_spawn_party()
+		_phase("spawn_party")
 	else:
 		pvp_match = PvpMatch.new()
 		pvp_match.setup(self, hero)
@@ -93,12 +134,20 @@ func _ready() -> void:
 		tower_run.setup(self, hero, tower_start_floor)
 		tower_run.finished.connect(func(result: Dictionary): tower_finished.emit(result))
 		add_child(tower_run)
+	await _slice()
 	AudioManager.play_music(data.get("music", &"field"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
+	_phase("audio")
 	if not is_town:
+		var spawned := 0
 		for camp in _camps:
 			for i in int(camp.count):
 				_spawn_in_camp(camp, true)
+				spawned += 1
+				await _slice()
+	_phase("spawn_mobs")
+	is_built = true
+	built.emit()
 
 
 ## Models farther than this from the camera stop animating (they are tiny and
@@ -133,7 +182,7 @@ func _update_anim_lod() -> void:
 
 
 func _process(delta: float) -> void:
-	if hero == null:
+	if hero == null or not is_built:
 		return
 	_lod_timer -= delta
 	if _lod_timer <= 0.0:
@@ -183,6 +232,8 @@ func _build_field() -> void:
 	var clearings: Array[Vector3] = []
 	for camp in data.camps:
 		clearings.append(Vector3(camp.pos.x, camp.pos.y, float(camp.radius)))
+	_phase("env")
+	await _slice()
 	Scenery.ground(self, 130.0, ground_color.darkened(0.13), ground_color.lightened(0.025), int(data.get("seed", 5)),
 			data.get("path_color", Color("c5b394")), paths, 2.8, clearings, theme)
 	_boss_spot = Vector3(30, 0, 26)
@@ -202,9 +253,17 @@ func _build_field() -> void:
 	# Keep the paved/sand encounter courts open; foliage belongs at their edges.
 	if is_tower or bool(data.get("arena", false)):
 		clear.append(Vector3(0, 0, 42.0))
-	Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)))
+	_phase("ground")
+	await _slice()
+	await Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)), true, get_tree() if staged else null)
+	_phase("populate")
+	await _slice()
 	WorldArt.landscape(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
+	_phase("landscape")
+	await _slice()
 	WorldArt.region_edges(self, theme, FIELD_RADIUS, int(data.get("seed", 5)), clear)
+	_phase("edges")
+	await _slice()
 	if is_tower or bool(data.get("arena", false)):
 		SpecialStageArt.build(self, zone_id)
 	if data.has("boss"):
@@ -304,10 +363,15 @@ func _make_weather(kind: StringName) -> void:
 func _build_town() -> void:
 	Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"))
 	_start = JapanVillage.START
+	await _slice()
 	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6, [], &"village")
+	await _slice()
 	var clear := JapanVillage.build(self, rng)
-	Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.55)
+	await _slice()
+	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.55, true, get_tree() if staged else null)
+	await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
+	await _slice()
 	_petals()
 	portals = [{"to": &"meadow", "pos": JapanVillage.GATE + Vector3(0, 0, 4), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
 	_make_portal(portals[0])
