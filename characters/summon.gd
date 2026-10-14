@@ -2,11 +2,11 @@ class_name Summon
 extends Node3D
 ## A creature or floating blade the hero calls with a summoner skill. It follows
 ## the hero, picks the hero's target (or the nearest monster) and attacks. It
-## has its own health bar, monsters can attack it, and it lasts 3 minutes or
+## has its own health bar, monsters can attack it, and it lasts 2 minutes or
 ## until it is killed. Its size is 100% at 1 star, 110% at 2 stars and 150% at 5 stars (even steps between).
 
-## Seconds a summon stays (3 minutes).
-const LIFETIME := 180.0
+## Seconds a summon stays (2 minutes, every summon skill).
+const LIFETIME := 120.0
 
 ## Heights are chosen so that a 5-star summon (150%) stands a little taller than the
 ## hero (~2.8 m with hair, ~2.0 m body): the biggest kinds top out around 3.0-3.2 m.
