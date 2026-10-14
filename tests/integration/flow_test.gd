@@ -383,7 +383,7 @@ func _summons() -> void:
 	for child in field_zone.get_children():
 		if child is Summon:
 			wolf = child
-	check(wolf != null and wolf.life > 150.0 and wolf.life <= 180.0 and wolf.max_hp > 0 and wolf._bar != null, "a summon lasts 3 minutes and has a health bar (%d HP)" % (wolf.max_hp if wolf else 0))
+	check(wolf != null and wolf.life > 100.0 and wolf.life <= 120.0 and wolf.max_hp > 0 and wolf._bar != null, "a summon lasts 2 minutes and has a health bar (%d HP)" % (wolf.max_hp if wolf else 0))
 	check(wolf != null and wolf.is_in_group("summons") and not wolf.is_dead(), "summons are in their own group")
 	var mob_view := Mob.new()
 	mob_view.setup(&"pink_slime", 5, Vector3(0, 0, 0), hero)
@@ -403,20 +403,20 @@ func _summons() -> void:
 	# Balance: at 5 stars a summon is a little taller than the hero (about 2.8 m with hair), never huge.
 	for kind_name in Summon.KINDS:
 		var kind: Dictionary = Summon.KINDS[kind_name]
-		if kind.has("height"):
+		if kind.has("height") and not bool(kind.get("giant", false)) and not bool(kind.get("legend", false)):
 			var top5: float = (float(kind.height) + float(kind.hover)) * Summon.size_for_rank(5)
 			check(top5 >= 2.0 and float(kind.height)*Summon.size_for_rank(5) <= 3.3, "%s stands %.2f m tall at 5 stars (no giants)" % [kind_name, top5])
 	var biggest := 0.0
 	for kind_name in Summon.KINDS:
 		var kind: Dictionary = Summon.KINDS[kind_name]
-		if kind.has("height"):
+		if kind.has("height") and not bool(kind.get("giant", false)) and not bool(kind.get("legend", false)):
 			biggest = maxf(biggest, float(kind.height) * Summon.size_for_rank(5))
 	check(biggest > 2.9 and biggest < 3.3, "the biggest 5-star summon body is just above the hero (%.2f m)" % biggest)
 	# Stars make it bigger: 1 star normal, 2 stars +10%, 5 stars +50%.
 	var expected := {1: 1.0, 2: 1.10, 3: 1.2333, 4: 1.3667, 5: 1.5}
 	for stars in expected:
 		var probe := Summon.new()
-		probe.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 180.0}, 1.0, 0, 1, stars)
+		probe.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 120.0}, 1.0, 0, 1, stars)
 		check(absf(probe.size_mult - float(expected[stars])) < 0.002, "%d star(s) -> %d%% size" % [stars, int(round(float(expected[stars]) * 100.0))])
 		probe.free()
 	Game.profile.skills["recall_wolverine"] = 4
@@ -1225,7 +1225,7 @@ func _timer_bars() -> void:
 	for entry in with_summon:
 		if entry.kind == "summon":
 			summon_entry = entry
-	check(not summon_entry.is_empty() and int(summon_entry.count) == 2 and float(summon_entry.left) > 150.0 and float(summon_entry.total) == 180.0, "the summons show one 3-minute timer for the pair")
+	check(not summon_entry.is_empty() and int(summon_entry.count) == 2 and float(summon_entry.left) > 100.0 and float(summon_entry.total) == 120.0, "the summons show one 3-minute timer for the pair")
 	await _wait(0.3)
 	check(hud._timers.visible and hud._timers._chips.size() == 3, "the HUD shows three timer chips (%d)" % hud._timers._chips.size())
 	var before_ratio: float = hud._timers._chips[status[0].id].ratio
@@ -1271,7 +1271,7 @@ func _team_buffs() -> void:
 	Game.profile.mp = 99999
 	var buddy: Companion = zone.companions[0]
 	var wolf := Summon.new()
-	wolf.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 180.0, "interval": 0.9}, 2.0, 0, 1, 1)
+	wolf.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 120.0, "interval": 0.9}, 2.0, 0, 1, 1)
 	zone.add_child(wolf)
 	hero._summons.append(wolf)
 	await _wait(0.4)

@@ -2,28 +2,37 @@ class_name Summon
 extends Node3D
 ## A creature or floating blade the hero calls with a summoner skill. It follows
 ## the hero, picks the hero's target (or the nearest monster) and attacks. It
-## has its own health bar, monsters can attack it, and it lasts 3 minutes or
+## has its own health bar, monsters can attack it, and it lasts 2 minutes or
 ## until it is killed. Its size is 100% at 1 star, 110% at 2 stars and 150% at 5 stars (even steps between).
 
-## Seconds a summon stays (3 minutes).
-const LIFETIME := 180.0
+## Seconds a summon stays (2 minutes, every summon skill).
+const LIFETIME := 120.0
 
 ## Heights are chosen so that a 5-star summon (150%) stands a little taller than the
 ## hero (~2.8 m with hair, ~2.0 m body): the biggest kinds top out around 3.0-3.2 m.
+## The archer's spirit wolf is the one deliberate giant ("giant": true), three times the size it was first shown at.
 const KINDS := {
 	"falcon": {"model": "flying/Pigeon", "height": 0.8, "hover": 1.2, "tint": Color(1.6, 1.3, 0.5), "ranged": true, "speed": 7.0, "range": 7.0, "color": Color("ffd84a")},
 	"wolf": {"model": "blob/Dog", "height": 1.4, "hover": 0.0, "tint": Color(0.85, 0.95, 1.3), "ranged": false, "speed": 6.5, "range": 1.8, "color": Color("bfe0ff")},
 	"beast": {"model": "big/Dino", "height": 1.95, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
-	"elemental": {"model": "flying/Ghost", "height": 1.2, "hover": 0.7, "tint": Color(0.7, 1.2, 1.7), "ranged": true, "speed": 5.0, "range": 8.0, "color": Color("7fe3ff")},
-	"fire_elemental": {"model": "flying/Ghost", "height": 1.4, "hover": 0.7, "tint": Color(1.8, 0.7, 0.3), "ranged": true, "speed": 5.0, "range": 8.5, "color": Color("ff7a2a")},
-	"muspell": {"model": "big/Yeti", "height": 2.1, "hover": 0.0, "tint": Color(0.7, 0.95, 1.6), "ranged": false, "speed": 4.8, "range": 2.6, "color": Color("aaf0ff")},
+	"elemental": {"model": "flying/Ghost", "height": 1.2, "hover": 0.7, "tint": Color(0.7, 1.2, 1.7), "ranged": true, "speed": 5.0, "range": 8.0, "color": Color("7fe3ff"), "eye_fire": Color("4aa8ff")},
+	# Chibi Demon (assets/models/monsters/summon): floats on its swimming idle, throws fire with a punch.
+	"fire_elemental": {"model": "summon/ChibiDemon", "height": 2.15, "hover": 0.5, "tint": Color.WHITE, "ranged": true, "speed": 5.0, "range": 8.5, "color": Color("ff7a2a")},
+	"muspell": {"model": "cute/Penguin", "height": 1.9, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 4.8, "range": 2.6, "color": Color("aaf0ff")},
+	# The archer's wolves: the realistic wolf, three times the size of the wolf the summoner keeps.
+	"spirit_wolf": {"giant": true, "model": "star/Wolf", "height": 4.5, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 6.5, "range": 3.6, "color": Color("bfe0ff")},
+	# Legend summons of the summoner's star skills: hand-made models (decimated, re-baked and rigged
+	# by tools/rig/build_rig.py). "legend" lets them stand taller than the hero.
+	"wind_king": {"legend": true, "model": "summon/WindKing", "height": 3.4, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 6.4, "range": 3.4, "color": Color("7affb8")},
+	"poseidon": {"legend": true, "model": "summon/Poseidon", "height": 3.6, "hover": 0.0, "tint": Color.WHITE, "ranged": true, "speed": 5.6, "range": 9.0, "color": Color("5cc8ff")},
+	"cactus": {"model": "cute/Cactus", "height": 1.95, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
 	"cat": {"model": "blob/Cat", "height": 1.4, "hover": 0.0, "tint": Color(1.5, 1.2, 0.8), "ranged": false, "speed": 7.0, "range": 1.7, "color": Color("ffd8a0")},
 	"frog": {"model": "big/Frog", "height": 1.5, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": true, "speed": 4.6, "range": 7.0, "color": Color("7fe07a")},
 	"guardian": {"model": "big/Monkroose", "height": 2.0, "hover": 0.0, "tint": Color(1.3, 1.1, 0.8), "ranged": false, "speed": 5.0, "range": 2.4, "color": Color("c8a070")},
 	"treant": {"model": "big/MushroomKing", "height": 2.1, "hover": 0.0, "tint": Color(0.8, 1.4, 0.6), "ranged": false, "speed": 4.4, "range": 2.6, "color": Color("b0e070")},
 	"drake": {"model": "flying/Dragon", "height": 1.5, "hover": 0.9, "tint": Color(0.7, 1.5, 1.2), "ranged": true, "speed": 6.0, "range": 8.5, "color": Color("7affd0")},
 	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 1.95, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
-	"sword": {"proc": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
+	"sword": {"proc": true, "real_sword": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
 }
 
 var hero: Hero
@@ -55,6 +64,11 @@ var _book := BuffBook.new()
 var _sigil: MeshInstance3D
 
 const SPIRIT_SHADER := preload("res://shaders/vfx_spirit.gdshader")
+## The three sword models a Dancing Sword cycles through, and how long they stand on screen.
+const SWORD_MODELS: Array[String] = ["res://assets/models/weapons/sword_5.glb", "res://assets/models/weapons/sword_7.glb", "res://assets/models/weapons/sword_9.glb"]
+const SWORD_LENGTH := 2.4
+## Where a spirit flame sits on the face, as a fraction of body height (x is the half spacing).
+const EYE_FIRE := Vector3(0.125, 0.62, 0.17)
 
 
 func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: float, slot: int, slots: int, p_rank := 1) -> void:
@@ -70,9 +84,6 @@ func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: 
 	_slot = slot
 	_slots = maxi(slots, 1)
 	_kind = KINDS.get(String(spec.get("kind", "wolf")), KINDS["wolf"])
-	if String(spec.get("kind","")).begins_with("star_"):
-		var monster := StarMonsters.get_monster(&"crystal_wolf" if spec.kind=="star_wolf" else &"eclipse_sovereign")
-		_kind={"model":monster.model,"height":1.8 if spec.kind=="star_wolf" else 3.0,"hover":0.0,"tint":Color("b7e9ff") if spec.kind=="star_wolf" else Color("c9adf0"),"ranged":false,"speed":6.8,"range":2.8,"color":Color("a1dfff") if spec.kind=="star_wolf" else Color("bf86ff")}
 
 
 
@@ -87,9 +98,9 @@ func _ready() -> void:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
 		_visual.setup(String(_kind.model), float(_kind.height), float(_kind.hover), _kind.tint)
-		if String(spec.get("kind", "")).begins_with("star_"):
-			StarMonsterArt.attach(_visual, StarMonsters.get_monster(&"crystal_wolf" if spec.kind=="star_wolf" else &"eclipse_sovereign"))
 	_spiritify()
+	if _kind.has("eye_fire"):
+		_add_eye_fire()
 	if skill_id in ["wind_drake", "elder_dragon", "primal_legion"]:
 		var crest := MeshInstance3D.new()
 		crest.name = "AncientSummonCrest"
@@ -122,13 +133,15 @@ func _ready() -> void:
 
 ## Summoned allies read as spirits, never as wild monsters: a pulsing glow along
 ## their outline in the summon's colour, a rune circle turning under their feet
-## and motes of light rising around them.
+## and a halo with sparkles around the body (see SummonAura).
 func _spiritify() -> void:
 	var color: Color = _kind.color
 	var glow := ShaderMaterial.new()
 	glow.shader = SPIRIT_SHADER
 	glow.set_shader_parameter("color", color.lightened(0.15))
 	for node in find_children("*", "MeshInstance3D", true, false):
+		if _blade and _blade.is_ancestor_of(node) and bool(_kind.get("real_sword", false)):
+			continue
 		(node as MeshInstance3D).material_overlay = glow
 	var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.15), 0.85, false)
 	mat.albedo_texture = VfxArt.texture("rune")
@@ -141,22 +154,25 @@ func _spiritify() -> void:
 	add_child(_sigil)
 	var spin := _sigil.create_tween().set_loops()
 	spin.tween_property(_sigil, "rotation:y", TAU, 6.0).as_relative()
-	var motes := VfxKit._particles(self, Vector3(0, 0.2, 0), color.lightened(0.3), 8, 1.6, false)
-	motes.local_coords = false
-	motes.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	motes.emission_sphere_radius = 0.7
-	motes.direction = Vector3.UP
-	motes.spread = 15.0
-	motes.initial_velocity_min = 0.6
-	motes.initial_velocity_max = 1.2
-	motes.gravity = Vector3.ZERO
-	motes.scale_amount_min = 0.25
-	motes.scale_amount_max = 0.5
+	SummonAura.attach(self, String(spec.get("kind", "wolf")), _kind, rank)
 
 
 func _build_blade() -> Node3D:
 	var root := Node3D.new()
 	root.position.y = float(_kind.hover)
+	if bool(_kind.get("real_sword", false)):
+		var scene := load(SWORD_MODELS[_slot % SWORD_MODELS.size()]) as PackedScene
+		if scene:
+			var sword := scene.instantiate() as Node3D
+			root.add_child(sword)
+			# Point down and centre the sword on the spinning root, 2.4 m long.
+			var box := MonsterVisual._bounds(sword)
+			var fit := SWORD_LENGTH / maxf(maxf(box.size.x, maxf(box.size.y, box.size.z)), 0.001)
+			sword.scale = Vector3.ONE * fit
+			sword.rotation_degrees.z = 180.0
+			var c := box.get_center() * fit
+			sword.position = Vector3(c.x, c.y, -c.z)
+			return root
 	var blade := MeshInstance3D.new()
 	blade.mesh = MeshKit.prism()
 	blade.material_override = MeshKit.toon(Color("e6f4ff"), {"emission": 1.4})
@@ -170,6 +186,54 @@ func _build_blade() -> Node3D:
 	guard.position.y = 0.78
 	root.add_child(guard)
 	return root
+
+
+## A spirit flame burning in each eye (blue for the Spirit Elemental): a bright
+## core and a flickering billboard flame. Positions are fractions of the body height.
+func _add_eye_fire() -> void:
+	var color: Color = _kind.eye_fire
+	var h := float(_kind.height)
+	var flame_mat := VfxKit._glow(Color(color.r * 1.8, color.g * 1.6, color.b * 2.2), 1.0, true)
+	flame_mat.albedo_texture = VfxArt.texture("flame")
+	flame_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var halo_mat := VfxKit._glow(Color(color.r * 1.2, color.g * 1.4, color.b * 1.8), 0.9, true)
+	halo_mat.albedo_texture = VfxArt.texture("flare")
+	halo_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var core_mat := VfxKit._glow(color.lerp(Color.WHITE, 0.35), 1.0, true)
+	for side in [-1.0, 1.0]:
+		var eye := Node3D.new()
+		eye.name = "EyeFireL" if side < 0.0 else "EyeFireR"
+		eye.position = Vector3(float(side) * EYE_FIRE.x * h, float(_kind.hover) + EYE_FIRE.y * h, EYE_FIRE.z * h)
+		_visual.add_child(eye)
+		var core := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = 0.05 * h
+		ball.height = 0.10 * h
+		ball.radial_segments = 8
+		ball.rings = 4
+		core.mesh = ball
+		core.material_override = core_mat
+		core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		eye.add_child(core)
+		var halo := MeshInstance3D.new()
+		var halo_quad := QuadMesh.new()
+		halo_quad.size = Vector2(0.4, 0.4) * h
+		halo.mesh = halo_quad
+		halo.material_override = halo_mat
+		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		eye.add_child(halo)
+		var flame := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.45, 0.62) * h
+		quad.center_offset = Vector3(0, 0.22 * h, 0)
+		flame.mesh = quad
+		flame.material_override = flame_mat
+		flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		eye.add_child(flame)
+		var flicker := flame.create_tween().set_loops()
+		flicker.tween_interval(randf() * 0.12)
+		flicker.tween_property(flame, "scale", Vector3(0.85, 1.25, 1.0), 0.16)
+		flicker.tween_property(flame, "scale", Vector3(1.1, 0.85, 1.0), 0.13)
 
 
 func _formation() -> Vector3:

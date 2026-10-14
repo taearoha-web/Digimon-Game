@@ -17,8 +17,8 @@ const COLORS := {
 	"astral_convergence":["6f5bff","ffe08a","22145e"], "genesis_nova":["ff4fb0","fff0d0","4a1060"],
 	"sanctified_chain":["ffc23a","fffbe0","8a5a20"], "seraph_aegis":["ff8ad0","fff4fb","6a3a8a"],
 	"sacred_sanctuary":["2fe0a0","f2fff6","1f6a6a"], "dawn_salvation":["ff7a4a","fff0c0","a03060"],
-	"moonwolf_pact":["6aa0ff","eef4ff","22306a"], "leviathan_surge":["10c8d8","dafffa","0a4a7a"],
-	"spirit_court":["9be03a","fff6b0","2f6a3a"], "eclipse_sovereign":["a040ff","ffd27a","2a0a4a"]
+	"moonwolf_pact":["5fe0a0","f4ffe6","1d5a3e"], "leviathan_surge":["10c8d8","dafffa","0a4a7a"],
+	"spirit_court":["9be03a","fff6b0","2f6a3a"], "eclipse_sovereign":["2fa8ff","e8fcff","0b2a6e"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -26,7 +26,7 @@ const MOTIFS := {
 	"spiral_impaler":"drill", "heartseeker":"heart", "aegis_formation":"phalanx", "worldsplitter":"worldroot",
 	"arcane_prism":"prism", "crystal_prison":"prison", "astral_convergence":"planets", "genesis_nova":"genesis",
 	"sanctified_chain":"rosary", "seraph_aegis":"seraph", "sacred_sanctuary":"chapel", "dawn_salvation":"sunrise",
-	"moonwolf_pact":"wolf", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"sovereign"
+	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan"
 }
 const SUPPORT := ["royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 var age := 0.0
@@ -358,8 +358,8 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("feathers",colors,Vector3.UP*0.2,Vector3(radius*0.7,4,radius*0.7),Vector3.ZERO,1.9,{"travel":Vector3.UP*1.0})
 			impact_size=radius
 		"moonwolf_pact":
-			art.add("moon",colors,Vector3(0,1.0,-0.6),Vector3.ONE*1.7,Vector3(PI/2,0,0),1.2,{"initial":0.55})
-			art.add("wolf",colors,Vector3(0,0,-1),Vector3.ONE*1.4,Vector3.ZERO,1.1,{"initial":0.6,"travel":Vector3(0,0,1.6),"decay":0.7})
+			art.add("sylph",colors,Vector3(0,1.0,-0.6),Vector3.ONE*1.7,Vector3.ZERO,1.2,{"initial":0.55,"spin":0.8})
+			art.add("feathers",colors,Vector3(0,0.2,-0.4),Vector3(1.6,3,1.6),Vector3.ZERO,1.1,{"travel":Vector3(0,0.8,1.2),"decay":0.7})
 			art.add("shards",colors,at,Vector3.ONE*1.8,Vector3.ZERO,1.2)
 		"leviathan_surge":
 			art.add("leviathan",colors,Vector3(0,0.8,-1),Vector3.ONE*2.2,Vector3.ZERO,1.4,{"initial":0.55,"travel":Vector3(0,0,2.5),"decay":0.65})
@@ -372,8 +372,8 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			impact_size=radius
 		"eclipse_sovereign":
 			if index==0:
-				art.add("sovereign",colors,Vector3(0,0,-0.6),Vector3.ONE*2.5,Vector3.ZERO,1.5,{"initial":0.7,"travel":Vector3(0,0,1.5),"decay":0.65})
-				art.add("moon",colors,Vector3(0,2,-1),Vector3.ONE*3.0,Vector3(PI/2,0,0),1.5,{"initial":0.9,"spin":0.05})
+				art.add("leviathan",colors,Vector3(0,0.8,-0.6),Vector3.ONE*2.6,Vector3.ZERO,1.5,{"initial":0.6,"travel":Vector3(0,0,2.0),"decay":0.65})
+				art.add("sunrise",colors,Vector3.UP*0.08,Vector3.ONE*3.0,Vector3.ZERO,1.5,{"initial":0.2})
 			elif index%3==1:
 				art.add("fang",colors,Vector3.UP*1.0,Vector3(radius,2,radius),Vector3.ZERO,0.8,{"initial":0.6,"turn":Vector3(0,0.6,0)})
 			else:
