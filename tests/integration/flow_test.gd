@@ -403,13 +403,13 @@ func _summons() -> void:
 	# Balance: at 5 stars a summon is a little taller than the hero (about 2.8 m with hair), never huge.
 	for kind_name in Summon.KINDS:
 		var kind: Dictionary = Summon.KINDS[kind_name]
-		if kind.has("height") and not bool(kind.get("giant", false)):
+		if kind.has("height") and not bool(kind.get("giant", false)) and not bool(kind.get("legend", false)):
 			var top5: float = (float(kind.height) + float(kind.hover)) * Summon.size_for_rank(5)
 			check(top5 >= 2.0 and float(kind.height)*Summon.size_for_rank(5) <= 3.3, "%s stands %.2f m tall at 5 stars (no giants)" % [kind_name, top5])
 	var biggest := 0.0
 	for kind_name in Summon.KINDS:
 		var kind: Dictionary = Summon.KINDS[kind_name]
-		if kind.has("height") and not bool(kind.get("giant", false)):
+		if kind.has("height") and not bool(kind.get("giant", false)) and not bool(kind.get("legend", false)):
 			biggest = maxf(biggest, float(kind.height) * Summon.size_for_rank(5))
 	check(biggest > 2.9 and biggest < 3.3, "the biggest 5-star summon body is just above the hero (%.2f m)" % biggest)
 	# Stars make it bigger: 1 star normal, 2 stars +10%, 5 stars +50%.

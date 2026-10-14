@@ -21,6 +21,10 @@ const KINDS := {
 	"muspell": {"model": "cute/Penguin", "height": 1.9, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 4.8, "range": 2.6, "color": Color("aaf0ff")},
 	# The archer's wolves: the realistic wolf, three times the size of the wolf the summoner keeps.
 	"spirit_wolf": {"giant": true, "model": "star/Wolf", "height": 4.5, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 6.5, "range": 3.6, "color": Color("bfe0ff")},
+	# Legend summons of the summoner's star skills: hand-made models (decimated, re-baked and rigged
+	# by tools/rig/build_rig.py). "legend" lets them stand taller than the hero.
+	"wind_king": {"legend": true, "model": "summon/WindKing", "height": 3.4, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 6.4, "range": 3.4, "color": Color("7affb8")},
+	"poseidon": {"legend": true, "model": "summon/Poseidon", "height": 3.6, "hover": 0.0, "tint": Color.WHITE, "ranged": true, "speed": 5.6, "range": 9.0, "color": Color("5cc8ff")},
 	"cactus": {"model": "cute/Cactus", "height": 1.95, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
 	"cat": {"model": "blob/Cat", "height": 1.4, "hover": 0.0, "tint": Color(1.5, 1.2, 0.8), "ranged": false, "speed": 7.0, "range": 1.7, "color": Color("ffd8a0")},
 	"frog": {"model": "big/Frog", "height": 1.5, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": true, "speed": 4.6, "range": 7.0, "color": Color("7fe07a")},
@@ -80,9 +84,6 @@ func setup(p_hero: Hero, p_skill_id: String, p_spec: Dictionary, p_damage_mult: 
 	_slot = slot
 	_slots = maxi(slots, 1)
 	_kind = KINDS.get(String(spec.get("kind", "wolf")), KINDS["wolf"])
-	if String(spec.get("kind","")).begins_with("star_"):
-		var monster := StarMonsters.get_monster(&"crystal_wolf" if spec.kind=="star_wolf" else &"eclipse_sovereign")
-		_kind={"model":monster.model,"height":1.8 if spec.kind=="star_wolf" else 3.0,"hover":0.0,"tint":Color("b7e9ff") if spec.kind=="star_wolf" else Color("c9adf0"),"ranged":false,"speed":6.8,"range":2.8,"color":Color("a1dfff") if spec.kind=="star_wolf" else Color("bf86ff")}
 
 
 
@@ -97,8 +98,6 @@ func _ready() -> void:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
 		_visual.setup(String(_kind.model), float(_kind.height), float(_kind.hover), _kind.tint)
-		if String(spec.get("kind", "")).begins_with("star_"):
-			StarMonsterArt.attach(_visual, StarMonsters.get_monster(&"crystal_wolf" if spec.kind=="star_wolf" else &"eclipse_sovereign"))
 	_spiritify()
 	if _kind.has("eye_fire"):
 		_add_eye_fire()

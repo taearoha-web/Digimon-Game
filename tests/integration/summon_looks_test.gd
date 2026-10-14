@@ -52,6 +52,24 @@ func _ready() -> void:
 		if kind != "spirit_wolf":
 			check(not bool(Summon.KINDS[kind].get("giant", false)), "%s is not a giant" % kind)
 
+	# The summoner's star skills call the two legends (hand-made models, rigged and animated).
+	check(_kind_of(&"summoner", "moonwolf_pact") == "wind_king", "the 50-star summon is the Wind Monkey King")
+	check(_kind_of(&"summoner", "eclipse_sovereign") == "poseidon", "the 200-star summon is Poseidon")
+	for legend in ["wind_king", "poseidon"]:
+		var lv := MonsterVisual.new()
+		add_child(lv)
+		var lk: Dictionary = Summon.KINDS[legend]
+		lv.setup(String(lk.model), float(lk.height), float(lk.hover), lk.tint)
+		check(bool(lk.get("legend", false)), "%s is marked a legend" % legend)
+		for key in ["idle", "walk", "run", "attack", "hurt", "die"]:
+			check(lv._clips.has(key), "%s has a %s clip" % [legend, key])
+		var tris := 0
+		for mi in lv.model.find_children("*", "MeshInstance3D", true, false):
+			tris += (mi as MeshInstance3D).mesh.get_faces().size() / 3
+		check(tris > 0 and tris <= 22000, "%s stays within the phone budget (%d triangles)" % [legend, tris])
+		check(lv.model.find_children("*", "Skeleton3D", true, false).size() == 1, "%s is rigged" % legend)
+		lv.queue_free()
+
 	# The summoner keeps every look it had.
 	var kept := {"wolf_pack": "wolf", "giant_frog": "frog", "forest_guardian": "guardian", "alpha_wolves": "wolf", "ancient_treant": "treant", "wind_drake": "drake", "primal_legion": "beast", "elder_dragon": "elder_dragon", "spirit_cat": "cat"}
 	for id in kept:

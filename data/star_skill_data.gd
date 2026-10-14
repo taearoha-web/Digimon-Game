@@ -16,7 +16,7 @@ const NAMES := {
 	&"lancer": ["Spiral Impaler", "Heartseeker", "Aegis Formation", "Worldsplitter"],
 	&"mage": ["Arcane Prism", "Crystal Prison", "Astral Convergence", "Genesis Nova"],
 	&"priest": ["Sanctified Chain", "Seraph's Aegis", "Sacred Sanctuary", "Dawn of Salvation"],
-	&"summoner": ["Moonwolf Pact", "Leviathan's Surge", "Spirit Court", "Eclipse Sovereign"],
+	&"summoner": ["Wind Monkey King", "Leviathan's Surge", "Spirit Court", "Poseidon, Lord of Tides"],
 }
 const DESCS := {
 	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 18 วิ", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่"],
@@ -24,7 +24,7 @@ const DESCS := {
 	&"lancer": ["หอกเกลียวทะลวง • แทงผ่านแนวศัตรู 3 จังหวะ", "หอกเจาะหัวใจ • แทงเร็ว 5 ครั้ง ปิดด้วยแทงหนัก 1 ครั้ง รวม 6 ฮิต", "กระบวนทัพพิทักษ์ • ลดความเสียหายทีม 28% ป้องกัน +45% นาน 16 วิ", "หอกแยกพิภพ • หอกปะทุตามแนวรอยแยก 4 ระลอก"],
 	&"mage": ["ปริซึมเวท • ยิงพลัง 4 ธาตุใส่เป้าหมายเดียว", "คุกผลึกเหมันต์ • ชะลอในวง ผลึกระเบิด 2 จังหวะ", "บรรจบแห่งดวงดาว • ดึงศัตรูทั่วไปเข้าศูนย์กลาง ระเบิด 3 ระลอก", "โนวากำเนิดธาตุ • รวม 4 ธาตุเป็นแกนพลัง ปล่อยคลื่น 4 ระลอก"],
 	&"priest": ["สายใยศักดิ์สิทธิ์ • แสงเชื่อมศัตรูสูงสุด 5 ตัว ฟื้น HP ทีม 12%", "ปีกพิทักษ์เซราฟ • โล่ทีมดูดซับ 25% ของ HP สูงสุด นาน 18 วิ", "วิหารศักดิ์สิทธิ์ • วงฟื้น HP 6% ทุก 2 วิ นาน 10 วิ ช่วยต้านความเสียหาย 15%", "รุ่งอรุณแห่งการกอบกู้ • คลื่นศักดิ์สิทธิ์ 3 ครั้ง ทำดาเมจหมู่และฟื้น HP ทีมรวม 30%"],
-	&"summoner": ["พันธสัญญาหมาป่าจันทรา • หมาป่าโจมตีเป้าหมายหลัก นาน 24 วิ", "กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง", "ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 18 วิ", "ราชันแห่งคราส • เรียกราชันอสูร 24 วิ กรงเล็บ กระทืบ และพลังคราสก่อนจากไป"],
+	&"summoner": ["ราชาวานรวายุ • อัญเชิญราชาวานรแห่งสายลม ฟาดกระบองใส่เป้าหมายหลัก นาน 24 วิ", "กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง", "ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 18 วิ", "โพไซดอนจ้าวสมุทร • อัญเชิญจ้าวสมุทร 24 วิ ยิงพลังน้ำ ซัดคลื่นทุกจังหวะที่ 3 และคลื่นยักษ์ก่อนจากไป"],
 }
 
 static func pool(cls: StringName) -> Array:
@@ -59,10 +59,10 @@ static func pool(cls: StringName) -> Array:
 			"seraph_aegis": s.merge({"shape":"self","mult":0.0,"gesture":"prayer","fx":{"buff":{"shield":0.25,"secs":18.0}}},true)
 			"sacred_sanctuary": s.merge({"shape":"self","mult":0.0,"gesture":"prayer","radius":8.0,"fx":{"buff":{"guard":0.15,"secs":10.0}}},true)
 			"dawn_salvation": s["gesture"]="channel"
-			"moonwolf_pact": s.merge({"shape":"summon","gesture":"invoke","mult":16.0,"summon":{"kind":"star_wolf","count":1,"secs":24.0}},true)
+			"moonwolf_pact": s.merge({"shape":"summon","gesture":"invoke","mult":16.0,"summon":{"kind":"wind_king","count":1,"secs":24.0}},true)
 			"leviathan_surge": s.merge({"shape":"burst","radius":10.0,"gesture":"raise"},true)
 			"spirit_court": s.merge({"shape":"self","mult":0.0,"gesture":"invoke","fx":{"buff":{"atk":0.55,"def":0.4,"secs":18.0}}},true)
-			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"star_sovereign","count":1,"secs":24.0}},true)
+			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":24.0}},true)
 		out.append(s)
 	return out
 
