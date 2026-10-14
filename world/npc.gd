@@ -59,9 +59,10 @@ func setup(p_role: String, p_name: String, p_class: StringName, p_title := "", p
 	marker = Label3D.new()
 	marker.text = "!"
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	marker.pixel_size = 0.012
-	marker.font_size = 90
-	marker.outline_size = 20
+	# Same atlas size as the monster alert mark (64/16): one glyph cache instead of two.
+	marker.pixel_size = 0.012 * 90.0 / 64.0
+	marker.font_size = 64
+	marker.outline_size = 16
 	marker.modulate = Color("ffd84a")
 	marker.position = Vector3(0, 4.0, 0)
 	marker.visible = false
