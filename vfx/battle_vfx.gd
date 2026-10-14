@@ -177,6 +177,7 @@ static func projectile(parent: Node3D, vfx_id: StringName, from: Vector3, to: Ve
 
 ## Floating number / text above a combatant.
 static var _floating_active := 0
+const FLOATING_FONT_SIZE := 72
 
 
 ## World-space size of floating texts and name tags: the field camera is far away.
@@ -215,9 +216,11 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.font = font if font else load("res://ui/theme/fonts/heading_font.tres")
-	label.font_size = int(96 * size)
-	label.outline_size = int(outline_width * size)
-	label.pixel_size = 0.0042 * text_scale
+	# One glyph-atlas size per font: every distinct (font size, outline) pair builds its own
+	# 1024px atlas pages, so the text is drawn at a fixed size and scaled in the world instead.
+	label.font_size = FLOATING_FONT_SIZE
+	label.outline_size = int(outline_width * FLOATING_FONT_SIZE / 96.0)
+	label.pixel_size = 0.0042 * text_scale * size * 96.0 / FLOATING_FONT_SIZE
 	label.modulate = color
 	label.outline_modulate = outline
 	parent.add_child(label)
