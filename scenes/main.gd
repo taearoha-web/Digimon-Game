@@ -10,6 +10,7 @@ var trainer: SkillTrainer
 var storage: StorageScreen
 var warp: WarpScreen
 var pvp_screen: PvpScreen
+var guildwar_screen: GuildWarScreen
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -68,6 +69,10 @@ func _ready() -> void:
 	add_child(pvp_screen)
 	pvp_screen.challenge_requested.connect(func(): go(&"pvp", false, true))
 	pvp_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	guildwar_screen = GuildWarScreen.new()
+	add_child(guildwar_screen)
+	guildwar_screen.enter_requested.connect(func(): go(&"guildwar", false, true))
+	guildwar_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -213,6 +218,7 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	z.npc_interact.connect(_on_npc)
 	z.hero_died.connect(_on_hero_died)
 	z.pvp_finished.connect(func(result: Dictionary): pvp_screen.show_result(result))
+	z.guildwar_finished.connect(func(result: Dictionary): guildwar_screen.show_result(result))
 	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
@@ -243,6 +249,8 @@ func show_ending() -> void:
 
 
 func _on_hero_died() -> void:
+	if Game.current_zone == &"guildwar":
+		return  # the war itself brings the hero back to its base (GuildWarMatch)
 	hud.show_death(true)
 	await get_tree().create_timer(2.6).timeout
 	var stats := Game.stats_now()
@@ -265,7 +273,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -313,6 +321,8 @@ func _on_npc(role: String) -> void:
 			warp.open_warp()
 		"pvp":
 			pvp_screen.open_lobby()
+		"guildwar":
+			guildwar_screen.open_lobby()
 		"tower":
 			tower_screen.open_lobby()
 		"arena":

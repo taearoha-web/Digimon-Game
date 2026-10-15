@@ -166,36 +166,36 @@ func _band(cp: String, key: String, value: float) -> void:
 		printerr("FAIL %s %s = %.2f is out of its band" % [cp, key, value])
 
 
-## Arena / ranked duel: a hero against PvpData's AI opponent at the bottom,
-## middle and top of the ladder. Both sides use their strongest unlocked
-## skill (rank 3) and basic attacks.
+## Arena / ranked duel: the AI is a Lv.100 / 200-star player on every rank (only its gear
+## grade differs), so the probe pits that opponent against a mirror of itself (same class and
+## grade) at the bottom, middle and top of the ladder. Both sides use their strongest skill and
+## basic attacks under the war's damage scale: duels last, no side falls to a couple of casts.
 func _arena() -> void:
-	for level in [30, 60, 100]:
-		for rp in [0, PvpData.STEP_RP * PvpData.MAX_STEP / 2, PvpData.STEP_RP * PvpData.MAX_STEP]:
-			var hero_skill := []
-			var rival_skill := []
-			var hero_basic := []
-			for cls in ClassData.IDS:
-				var stats := _hero(cls, level, 0, "lv")
-				var info := PvpData.make_opponent(level, rp, rng, cls)
-				var base := HeroStats.compute(info.profile)
-				var r_hp := float(base.max_hp) * float(info.mults.hp)
-				var r_atk := float(base.atk) * float(info.mults.atk)
-				var r_def := float(base.def) * float(info.mults.def)
-				var mine := _best_skill(cls, level, 1.3)
-				var theirs := _best_skill(StringName(info.member["class"]), int(info.member.level), 1.0)
-				hero_basic.append(r_hp / maxf(HeroStats.mitigate(float(stats.atk), r_def), 1.0))
-				hero_skill.append(r_hp / maxf(HeroStats.mitigate(float(stats.atk) * mine, r_def), 1.0))
-				rival_skill.append(float(stats.max_hp) / maxf(HeroStats.mitigate(r_atk * theirs, float(stats.def)), 1.0))
-			var med := func(a: Array) -> float:
-				a.sort()
-				return (float(a[2]) + float(a[3])) * 0.5
-			var line := "ARENA Lv%d rp%d basic=%.2f skill=%.2f rival_skill=%.2f" % [level, rp, med.call(hero_basic), med.call(hero_skill), med.call(rival_skill)]
-			print(line)
-			# Duels last: no side falls to one or two skills, none drags on.
-			if med.call(hero_skill) < 4.0 or med.call(hero_skill) > 20.0 or med.call(rival_skill) < 4.0 or med.call(rival_skill) > 25.0:
-				failures += 1
-				printerr("FAIL arena out of band: " + line)
+	for rp in [0, PvpData.STEP_RP * PvpData.MAX_STEP / 2, PvpData.STEP_RP * PvpData.MAX_STEP]:
+		var skill_hits := []
+		var basic_hits := []
+		for cls in ClassData.IDS:
+			var info := PvpData.make_opponent(100, rp, rng, cls)
+			var mine := GuildWarData.make_fighter(cls, int(info.grade), "mirror", rng)
+			var me := HeroStats.compute(mine.profile)
+			var base := HeroStats.compute(info.profile)
+			var theirs := _best_skill(StringName(info.member["class"]), 100, 1.0)
+			var scale := GuildWarData.damage_scale
+			var per_hit := func(atk: float, mult: float, def: float, hp: float) -> float:
+				return hp / maxf(minf(HeroStats.mitigate(atk * mult, def) * scale, hp * BurstGuard.HIT_CAP), 1.0)
+			skill_hits.append(per_hit.call(float(me.atk), _best_skill(cls, 100, 1.0), float(base.def), float(base.max_hp)))
+			basic_hits.append(per_hit.call(float(me.atk), 1.0, float(base.def), float(base.max_hp)))
+			var _unused: float = theirs
+		skill_hits.sort()
+		basic_hits.sort()
+		var med_skill: float = (float(skill_hits[2]) + float(skill_hits[3])) * 0.5
+		var med_basic: float = (float(basic_hits[2]) + float(basic_hits[3])) * 0.5
+		var line := "ARENA rp%d grade=%d basic=%.1f skill=%.1f hits to fall" % [rp, PvpData.grade_of(rp), med_basic, med_skill]
+		print(line)
+		# 5 hits is the floor (hit cap 20%); a duel should not drag past ~25 skill casts.
+		if med_skill < 5.0 or med_skill > 25.0 or med_basic < 5.0 or med_basic > 150.0:
+			failures += 1
+			printerr("FAIL arena out of band: " + line)
 
 
 ## Strongest unlocked skill multiplier as dealt in combat (rank multiplier,

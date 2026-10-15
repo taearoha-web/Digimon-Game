@@ -33,9 +33,12 @@ func _ready() -> void:
 	var stats := Game.stats_now()
 	Game.profile.hp = stats.max_hp
 	Game.profile.mp = stats.max_mp
+	BurstGuard.clear()
 	rival = Rival.new()
 	var tier := PvpData.tier_of(rp)
 	rival.setup_rival(_info, Vector3.ZERO, hero, "[%s]" % tier.name)
+	rival.war_scale = GuildWarData.damage_scale
+	rival._potions = 0  # the hero cannot drink in the arena, so neither does the AI
 	rival.position = Vector3(PvpArena.SPAWN_X, 0.3, 0.0)
 	zone.add_child(rival)
 	rival.visual.rotation.y = -PI * 0.5

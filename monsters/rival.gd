@@ -33,6 +33,11 @@ var _potion_cd := 0.0
 var _strafe := 1.0
 var _strafe_timer := 0.0
 var _rv: RivalVisual
+## Everything this fighter deals and takes is multiplied (see GuildWarData.damage_scale): set
+## by the guild war and by ranked duels, where 200-star defence would otherwise make a fall take minutes.
+var war_scale := 1.0
+## Floating skill names over a cast (off in the guild war: ten fighters would bury the screen).
+var announce_skills := true
 
 
 func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: String) -> void:
@@ -108,7 +113,7 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 	if randf() < _dodge:
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return false
-	return super.take_hit(amount, crit, color, attacker)
+	return super.take_hit(int(ceil(float(amount) * war_scale)), crit, color, attacker)
 
 
 func _die() -> void:
@@ -276,7 +281,8 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 		SkillShow.anticipate(get_parent(), skill, global_position, delay, aim, _rv.hero_visual)
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 80
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
-	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
+	if announce_skills:
+		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
 	if String(skill.id) == "judgment_ray":
 		JudgmentRaySequence.launch(get_parent(), self, target, delay, _storm_hit.bind(float(skill.mult) * HeroStats.SKILL_POWER, color), _rv.hero_visual if _rv else null)
 		return
@@ -355,10 +361,17 @@ func _victims() -> Array[Node3D]:
 func _hit(victim: Node3D, mult: float, color: Color) -> void:
 	if not _alive(victim):
 		return
-	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08)
+	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08) * war_scale
 	if randf() < float(rstats.crit):
 		raw *= HeroStats.CRIT_DAMAGE
 	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
+	# With the war scale on, the hero is protected like every fighter: no single hit or combo
+	# takes more than BurstGuard allows, however many enemies strike at once.
+	if war_scale > 1.0 and victim == hero and "stats" in hero:
+		var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(hero.stats.def)))))
+		var allowed := BurstGuard.take(hero.get_instance_id(), amount, int(hero.stats.max_hp))
+		if allowed < amount:
+			raw *= float(allowed) / float(amount)
 	victim.take_damage(raw, self)
 
 

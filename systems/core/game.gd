@@ -803,7 +803,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	data["name"] = String(data.get("name", "นักเดินทาง")).strip_edges().left(80)
 	data["play_time"] = float(data.get("play_time", 0.0))
 	var zone := StringName(data.get("zone", "town"))
-	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower"] else "town"
+	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower", &"guildwar"] else "town"
 	if data.get("look") is Dictionary:
 		data["look"] = FaceKit.repair(data["look"])
 	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "pvp"]:
@@ -2131,6 +2131,28 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 		"opponent_class": String(info.member["class"]), "rp_before": before, "rp_after": after, "delta": after - before,
 		"gold": gold, "exp": exp_gain, "promoted": promoted, "item": item_name, "streak": int(p.streak),
 	}
+
+
+## Ends a guild war: gold and EXP by result and our own falls, and the record in the flags.
+func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deaths: int, our_guild: String, their_guild: String) -> Dictionary:
+	var level := int(profile.level)
+	var gold := GuildWarData.gold_reward(won, kills)
+	var exp_gain := GuildWarData.exp_reward(level, won)
+	add_gold(gold)
+	add_exp(exp_gain)
+	flag_add("gw_played")
+	flag_add("gw_wins" if won else "gw_losses")
+	flag_add("gw_kills", kills)
+	flag_max("gw_best_kills", kills)
+	var stats := stats_now()
+	profile["hp"] = stats.max_hp
+	profile["mp"] = stats.max_mp
+	check_achievements()
+	mark_dirty()
+	save()
+	return {"won": won, "score_us": score_us, "score_them": score_them, "kills": kills, "deaths": deaths, "gold": gold, "exp": exp_gain,
+		"our_guild": our_guild, "their_guild": their_guild, "wins": int(profile.flags.get("gw_wins", 0)), "losses": int(profile.flags.get("gw_losses", 0)),
+		"best_kills": int(profile.flags.get("gw_best_kills", 0))}
 
 
 func flag_add(key: String, amount := 1) -> void:
