@@ -175,8 +175,14 @@ static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, 
 	parent.add_child(p)
 	p.global_position = pos
 	if one_shot:
-		# Node-bound: an emitter freed with its scene leaves no pending timer.
-		p.create_tween().tween_interval(lifetime + 0.3).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
+		if reserved:
+			# Node-bound: an emitter freed with its scene leaves no pending timer.
+			p.create_tween().tween_interval(lifetime + 0.3).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
+		else:
+			# The VFX budget is spent: this burst is never shown. VfxBudget disabled the node, and a
+			# disabled node's tween never runs, so it would sit in the scene for good (a big fight
+			# leaked thousands of them); free it at the end of the frame instead.
+			p.queue_free()
 	return p
 
 

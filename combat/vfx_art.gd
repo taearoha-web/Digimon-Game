@@ -295,7 +295,10 @@ static func motes(parent: Node3D, pos: Vector3, color: Color, kind: String, coun
 	parent.add_child(p)
 	p.global_position = pos + Vector3(0, height, 0)
 	p.emitting = reserved
-	p.create_tween().tween_interval(lifetime + 0.4).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
+	if reserved:
+		p.create_tween().tween_interval(lifetime + 0.4).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
+	else:
+		p.queue_free()  # budget spent: never shown, and a disabled node's tween would never free it
 
 
 ## A thick light column that slams down, with a flare and a ring at its foot.

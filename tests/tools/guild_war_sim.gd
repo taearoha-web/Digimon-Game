@@ -6,6 +6,17 @@ var _kills: Array[String] = []
 var _hit_max := 0.0
 var _finished := false
 var _tick := 0
+var _census0: Dictionary = {}
+
+
+func _census(root: Node) -> Dictionary:
+	var out := {}
+	for node in root.find_children("*", "", true, false):
+		var key := String(node.get_class())
+		if node.get_script() != null:
+			key += ":" + String(node.get_script().get_global_name())
+		out[key] = int(out.get(key, 0)) + 1
+	return out
 
 
 func _ready() -> void:
@@ -54,10 +65,30 @@ func _ready() -> void:
 		if m.state == "fight" and hero.target == null:
 			hero.set_auto(true)
 		_tick += 1
+		if _tick == 60:
+			_census0 = _census(zone)
 		if _tick % 10 == 0:
 			print("  dbg ", GuildFighter.dbg)
 			print("  t+%ds state=%s left=%d score=%s hero_hp=%d" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp)])
 	Engine.time_scale = 1.0
+	var now := _census(zone)
+	var grow: Array = []
+	for key in now:
+		grow.append([key, int(now[key]) - int(_census0.get(key, 0)), int(now[key])])
+	grow.sort_custom(func(a, b): return a[1] > b[1])
+	print("NODE GROWTH since 30s (total nodes now %d):" % int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
+	for g in grow.slice(0, 14):
+		print("  GROW %-40s +%d (now %d)" % [g[0], g[1], g[2]])
+	var sig := {}
+	for node in zone.find_children("*", "CPUParticles3D", true, false):
+		var cp := node as CPUParticles3D
+		var par := cp.get_parent()
+		var k := "%s/%s amount=%d life=%.2f one_shot=%s emitting=%s" % [par.get_class(), String(par.name).substr(0, 24), cp.amount, cp.lifetime, cp.one_shot, cp.emitting]
+		sig[k] = int(sig.get(k, 0)) + 1
+	var sk: Array = sig.keys()
+	sk.sort_custom(func(a, b): return sig[a] > sig[b])
+	for k in sk.slice(0, 8):
+		print("  PARTICLES %5d  %s" % [sig[k], k])
 	for line in _kills.slice(0, 40):
 		print("  ", line)
 	print("score ", m.score, " hero kills ", m.hero_kills, " deaths ", m.hero_deaths, " overtime ", m.overtime, " finished ", _finished)
