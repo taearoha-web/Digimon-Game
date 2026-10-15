@@ -20,7 +20,7 @@ const MAX_SAME_CLASS := 2
 ## Everything hurts this many times more in a war. A 200-star fighter's defence cuts almost
 ## all damage (against monsters that is what keeps the game steady), so between two such
 ## fighters a fall would take minutes; this brings a fall to about 15-30 seconds.
-static var damage_scale := 8.0
+static var damage_scale := 6.0
 ## Total power of the two guilds may differ by at most this share.
 const BALANCE_TOLERANCE := 0.06
 

@@ -162,7 +162,7 @@ func _war(staged: bool) -> void:
 		tries += 1
 	check(m.state in ["ending", "done"], "%s: the next fall ends the war" % label)
 	m._end_timer = 0.05
-	await _frames(6)
+	await get_tree().create_timer(0.4).timeout
 	check(finished.done, "%s: the war reports its result" % label)
 	var r: Dictionary = finished.result
 	check(bool(r.get("won", false)) and int(r.get("score_us", 0)) > int(r.get("score_them", 0)), "%s: we won on the sudden-death fall" % label)
