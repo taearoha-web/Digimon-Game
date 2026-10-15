@@ -31,6 +31,7 @@ func _ready() -> void:
 	await _arena_opponents()
 	await _war(false)
 	await _war(true)
+	await _resume()
 	print("GUILD WAR MATCH: %d checks, %d failures" % [checks, failures.size()])
 	if failures.is_empty():
 		print("PASS")
@@ -119,6 +120,8 @@ func _war(staged: bool) -> void:
 		guard += 1
 	check(enemy.is_dead() and m.score[0] == score_before + 1, "%s: a fall scores a point for our guild" % label)
 	check(feed_lines.size() >= 1, "%s: the fall reaches the kill feed" % label)
+	var ckpt := Game.guildwar_checkpoint()
+	check(not ckpt.is_empty() and int(ckpt.seed) == m.roll_seed and int(ckpt.us) == m.score[0] and int(ckpt.them) == m.score[1], "%s: a score is kept in the save at once" % label)
 	check(m.hero_kills == 1, "%s: our own fall is credited to the hero" % label)
 	enemy.respawn_left = 0.0
 	await _frames(4)
@@ -130,6 +133,7 @@ func _war(staged: bool) -> void:
 	var deaths_before := m.hero_deaths
 	var enemy_score := m.score[1]
 	hero._invulnerable_until = 0
+	hero.stats["dodge"] = 0.0
 	Game.profile.hp = 1
 	hero.take_damage(1.0e9)
 	check(hero.is_dead() and m.hero_deaths == deaths_before + 1 and m.score[1] == enemy_score + 1, "%s: the hero's fall scores for the rivals" % label)
@@ -171,5 +175,64 @@ func _war(staged: bool) -> void:
 	check(bool(r.get("won", false)) and int(r.get("score_us", 0)) > int(r.get("score_them", 0)), "%s: we won on the sudden-death fall" % label)
 	check(int(r.get("gold", 0)) >= GuildWarData.gold_reward(true, 0) and int(Game.profile.gold) >= gold_before + int(r.gold), "%s: the reward is paid" % label)
 	check((r.get("rows", []) as Array).size() == 10, "%s: the scoreboard lists the hero and nine fighters" % label)
+	check(Game.guildwar_checkpoint().is_empty(), "%s: a finished war leaves nothing to resume" % label)
 	zone.queue_free()
 	await _frames(3)
+
+
+## A war cut off by the phone throwing the page away comes back with the same guilds,
+## clock and score.
+func _resume() -> void:
+	Game.current_zone = &"guildwar"
+	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)
+	var ckpt := Game.guildwar_checkpoint()
+	check(int(ckpt.seed) == 123456 and int(ckpt.time_left) == 777 and int(ckpt.us) == 7 and int(ckpt.them) == 5 and not ckpt.overtime, "resume: the checkpoint reads back")
+	Game.profile.flags["gw_r_at"] = int(Time.get_unix_time_from_system()) - Game.GW_CKPT_LIFETIME - 5
+	check(Game.guildwar_checkpoint().is_empty(), "resume: an old checkpoint is dropped")
+	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)
+	var lineups: Array = []
+	for round_no in 2:
+		Game.guildwar_resuming = true
+		var zone := Zone.new()
+		zone.zone_id = &"guildwar"
+		add_child(zone)
+		var m: GuildWarMatch = zone.gw_match
+		check(m != null and m.resumed and not Game.guildwar_resuming, "resume %d: the match knows it is a resume" % round_no)
+		check(m.roll_seed == 123456 and int(m.time_left) == 777 and m.score == [7, 5] and m.hero_kills == 3 and m.hero_deaths == 2, "resume %d: clock and score are back" % round_no)
+		check(m.state == "intro" and m._timer < GuildWarMatch.COUNTDOWN, "resume %d: a short countdown" % round_no)
+		var names := []
+		for f in m.all_fighters():
+			names.append("%s|%s|%d" % [f.rival_name, String(f.member["class"]), f.grade])
+		lineups.append(names)
+		zone.queue_free()
+		await _frames(3)
+	check(lineups[0] == lineups[1], "resume: the same seed brings the same two guilds")
+	# The desk offers the unfinished war next to a new one.
+	var screen := GuildWarScreen.new()
+	add_child(screen)
+	await _frames(2)
+	screen.open_lobby()
+	await _frames(2)
+	var texts: Array[String] = []
+	_collect_buttons(screen, texts)
+	check(texts.any(func(t: String): return t.begins_with("ต่อสงครามเดิม · 7 : 5 · เหลือ 12:57")), "resume: the lobby offers the unfinished war")
+	check(texts.any(func(t: String): return t.begins_with("เริ่มสงครามใหม่")), "resume: and a fresh one")
+	screen.close_screen()
+	screen.queue_free()
+	await _frames(2)
+	# A new war starts clean.
+	Game.guildwar_resuming = false
+	var fresh := Zone.new()
+	fresh.zone_id = &"guildwar"
+	add_child(fresh)
+	check(fresh.gw_match != null and not fresh.gw_match.resumed and fresh.gw_match.score == [0, 0] and fresh.gw_match.time_left == GuildWarData.DURATION, "resume: a new war starts from zero")
+	check(Game.guildwar_checkpoint().is_empty(), "resume: starting a new war drops the old checkpoint")
+	fresh.queue_free()
+	await _frames(3)
+
+
+func _collect_buttons(node: Node, out: Array[String]) -> void:
+	if node is Button:
+		out.append((node as Button).text)
+	for child in node.get_children():
+		_collect_buttons(child, out)
