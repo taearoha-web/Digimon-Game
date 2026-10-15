@@ -76,6 +76,8 @@ func _war(staged: bool) -> void:
 		return
 	check(zone.is_built and zone.hero != null, "%s: zone is built" % label)
 	check(m.allies.size() == 4 and m.enemies.size() == 5, "%s: hero + 4 allies against 5" % label)
+	check(Game.potion_count(GuildWarData.SUPPLY_POTION) == GuildWarData.SUPPLY_COUNT, "%s: the hero gets the war rations" % label)
+	check(ItemData.POTIONS[GuildWarData.SUPPLY_POTION].hp == 5000, "%s: a war potion restores 5,000 HP" % label)
 	check(get_tree().get_nodes_in_group("mobs").size() == 5, "%s: only the rival guild is a monster to the hero" % label)
 	check(get_tree().get_nodes_in_group("companions").size() == 4, "%s: allies stand with the hero" % label)
 	for f in m.allies:
@@ -173,9 +175,11 @@ func _war(staged: bool) -> void:
 	check(finished.done, "%s: the war reports its result" % label)
 	var r: Dictionary = finished.result
 	check(bool(r.get("won", false)) and int(r.get("score_us", 0)) > int(r.get("score_them", 0)), "%s: we won on the sudden-death fall" % label)
-	check(int(r.get("gold", 0)) >= GuildWarData.gold_reward(true, 0) and int(Game.profile.gold) >= gold_before + int(r.gold), "%s: the reward is paid" % label)
+	check(int(r.get("gold", 0)) >= GuildWarData.gold_reward(true) and int(Game.profile.gold) >= gold_before + int(r.gold), "%s: the reward is paid" % label)
 	check((r.get("rows", []) as Array).size() == 10, "%s: the scoreboard lists the hero and nine fighters" % label)
 	check(Game.guildwar_checkpoint().is_empty(), "%s: a finished war leaves nothing to resume" % label)
+	check(GuildWarData.gold_reward(true) == 1000000 and GuildWarData.gold_reward(false) == 500000, "%s: 1,000,000 for a win, 500,000 for a loss" % label)
+	check(int(r.gold) == 1000000 and Game.potion_count(GuildWarData.SUPPLY_POTION) == 0, "%s: a win pays 1,000,000 and the rations are handed back" % label)
 	zone.queue_free()
 	await _frames(3)
 

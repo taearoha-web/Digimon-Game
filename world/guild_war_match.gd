@@ -84,6 +84,7 @@ func build(tree: SceneTree = null) -> void:
 		var fighter := _spawn(roster.enemy[i], GuildFighter.TEAM_ENEMY, Vector3(SPAWN_X, 0.3, z), enemy_name)
 		enemies.append(fighter)
 		await FrameSlicer.pace(tree)
+	Game.guildwar_issue_supply()
 	if not saved.is_empty():
 		_restore(saved)
 	else:

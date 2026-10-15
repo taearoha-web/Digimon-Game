@@ -2169,6 +2169,23 @@ func guildwar_checkpoint() -> Dictionary:
 			"overtime": int(flags.get("gw_r_ot", 0)) == 1}
 
 
+## War rations: tops the bag up to GuildWarData.SUPPLY_COUNT war potions.
+func guildwar_issue_supply() -> void:
+	var missing := GuildWarData.SUPPLY_COUNT - potion_count(GuildWarData.SUPPLY_POTION)
+	if missing > 0:
+		add_item(ItemData.potion(GuildWarData.SUPPLY_POTION, missing))
+
+
+## What is left of the rations goes back to the guild when the war ends.
+func guildwar_return_supply() -> void:
+	for i in range(profile["inv"].size() - 1, -1, -1):
+		var item: Dictionary = profile["inv"][i]
+		if item.get("kind", "") == "potion" and item.id == GuildWarData.SUPPLY_POTION:
+			profile["inv"].remove_at(i)
+	inventory_changed.emit()
+	mark_dirty()
+
+
 func guildwar_clear_checkpoint() -> void:
 	var flags: Dictionary = profile["flags"]
 	for key in GW_CKPT_KEYS:
@@ -2179,8 +2196,9 @@ func guildwar_clear_checkpoint() -> void:
 ## Ends a guild war: gold and EXP by result and our own falls, and the record in the flags.
 func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deaths: int, our_guild: String, their_guild: String) -> Dictionary:
 	guildwar_clear_checkpoint()
+	guildwar_return_supply()
 	var level := int(profile.level)
-	var gold := GuildWarData.gold_reward(won, kills)
+	var gold := GuildWarData.gold_reward(won)
 	var exp_gain := GuildWarData.exp_reward(level, won)
 	add_gold(gold)
 	add_exp(exp_gain)

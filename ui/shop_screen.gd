@@ -100,6 +100,7 @@ func _stock() -> Array[Dictionary]:
 		stock.append(ItemData.potion("hp_xl"))
 		stock.append(ItemData.potion("mp_xl"))
 	if level >= 70:
+		stock.append(ItemData.potion("hp_war"))
 		stock.append(ItemData.potion("hp_xxl"))
 		stock.append(ItemData.potion("mp_xxl"))
 	stock.append(ItemData.potion("town_scroll"))
