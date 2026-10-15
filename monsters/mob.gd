@@ -134,6 +134,11 @@ func _make_visual() -> MonsterVisual:
 
 
 ## Stop distant idle monsters while keeping fights, returning enemies and bosses awake.
+## How far from home a hostile monster chases (guild-war fighters never give up).
+func _leash() -> float:
+	return LEASH
+
+
 func set_dormant(on: bool) -> void:
 	if on and (hostile or _returning or _dead or is_boss or _burn_time > 0.0):
 		on = false
@@ -280,7 +285,7 @@ func _physics_process(delta: float) -> void:
 			hostile = true
 			_flash_alert()
 		if hostile:
-			if _flat_distance(home) > LEASH or distance > LEASH + 12.0:
+			if _flat_distance(home) > _leash() or distance > _leash() + 12.0:
 				hostile = false
 				_returning = true
 				_winding = false

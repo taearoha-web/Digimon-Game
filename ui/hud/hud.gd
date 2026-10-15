@@ -58,6 +58,7 @@ var _banner: Label
 var _death_panel: ColorRect
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
+var _gw_hud: GuildWarHud
 var _party_cards: Array[Dictionary] = []
 ## Wing pose chips (fly / stand / fold) under the companion card, shown while wings are worn.
 var _wing_row: HBoxContainer
@@ -159,6 +160,15 @@ func bind(p_zone: Zone) -> void:
 	_target_panel.visible = false
 	_death_panel.visible = false
 	_on_interact_changed("")
+	if _gw_hud != null:
+		_gw_hud.queue_free()
+		_gw_hud = null
+	if zone.gw_match != null:
+		_gw_hud = GuildWarHud.new()
+		_frame.add_child(_gw_hud)
+		_gw_hud.bind(zone.gw_match)
+		zone.gw_match.hero_down.connect(func(_s: float): show_death(true))
+		zone.gw_match.hero_back.connect(func(): show_death(false))
 
 
 func set_controls_visible(value: bool) -> void:
@@ -293,7 +303,7 @@ func _update_timers(delta: float) -> void:
 ## Wide bar at the top while a boss that noticed the hero is alive nearby.
 func _update_boss_bar() -> void:
 	var boss: Mob = null
-	if hero and not zone.is_town:
+	if hero and not zone.is_town and zone.gw_match == null:
 		for node in get_tree().get_nodes_in_group("mobs"):
 			var mob := node as Mob
 			if mob and mob.is_boss and mob.hostile and not mob.is_dead() \

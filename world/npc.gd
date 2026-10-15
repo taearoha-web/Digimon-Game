@@ -25,6 +25,8 @@ const LOOKS := {
 		"npc_outfit": ["Barbarian", Color(1.4, 1.2, 0.6), ""], "npc_hat": ["hachimaki", Color("2f4f8a")]},
 	"pvp": {"gender": 1, "skin": 2, "hair": 4, "hair_color": 0, "eyes": 4, "eye_color": 1, "nose": 0, "mouth": 1,
 		"npc_outfit": ["Knight", Color(0.6, 0.85, 1.6), "Knight_Cape"], "npc_hat": ["hachimaki", Color("f4f0e8")]},
+	"guildwar": {"gender": 0, "skin": 3, "hair": 5, "hair_color": 3, "eyes": 1, "eye_color": 2, "nose": 2, "mouth": 3,
+		"npc_outfit": ["Knight", Color(1.5, 0.7, 0.6), "Knight_Cape"], "npc_hat": ["hachimaki", Color("c43a2e")]},
 	"tower": {"gender": 0, "skin": 7, "hair": 2, "hair_color": 8, "eyes": 2, "eye_color": 4, "nose": 0, "mouth": 1,
 		"npc_outfit": ["Rogue", Color(0.55, 0.5, 0.75), "Rogue_Cape"], "npc_hat": ["kasa", Color.WHITE]},
 	"healer": {"gender": 1, "skin": 0, "hair": 6, "hair_color": 0, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0,

@@ -172,6 +172,10 @@ const BASE_ZONES := {
 		"name": "โคลีเซียมจัดอันดับ", "scene": "field", "level": [10, 100], "music": &"battle", "pvp": true,
 		"tree_density": 0.0, "camps": [], "sky": Color("4d63c8"), "ground": Color("d6c08a"), "prev": &"town", "next": &"",
 	},
+	&"guildwar": {
+		"name": "สงครามกิลด์ · โคลีเซียม", "scene": "field", "level": [100, 100], "music": &"battle", "pvp": true, "guildwar": true,
+		"tree_density": 0.0, "camps": [], "sky": Color("4d63c8"), "ground": Color("d6c08a"), "prev": &"town", "next": &"",
+	},
 	&"arena": {
 		"name": "สนามประลองกล้าหาญ", "scene": "field", "level": [1, 100], "music": &"battle", "theme": &"meadow", "arena": true,
 		"tree_density": 0.15, "camps": [],
