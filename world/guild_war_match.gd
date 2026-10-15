@@ -37,6 +37,12 @@ var roster: Dictionary = {}
 var orb_position := Vector3.ZERO
 var orb_active := false
 
+## Seed of the line-ups: the same seed brings the same two guilds back after a resume.
+var roll_seed := 0
+var resumed := false
+
+const CHECKPOINT_EVERY := 10.0
+var _ckpt_timer := CHECKPOINT_EVERY
 var _timer := COUNTDOWN
 var _count := 4
 var _end_timer := 0.0
@@ -55,7 +61,15 @@ func setup(p_zone: Node3D, p_hero: Hero) -> void:
 ## fighters so a zone change does not stall (see FrameSlicer).
 func build(tree: SceneTree = null) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	var saved := Game.guildwar_checkpoint() if Game.guildwar_resuming else {}
+	Game.guildwar_resuming = false
+	if saved.is_empty():
+		rng.randomize()
+		roll_seed = int(rng.seed & 0x7fffffff)
+		rng.seed = roll_seed
+	else:
+		roll_seed = int(saved.seed)
+		rng.seed = roll_seed
 	roster = GuildWarData.roll_match(rng)
 	ally_name = roster.ally_name
 	enemy_name = roster.enemy_name
@@ -70,8 +84,33 @@ func build(tree: SceneTree = null) -> void:
 		var fighter := _spawn(roster.enemy[i], GuildFighter.TEAM_ENEMY, Vector3(SPAWN_X, 0.3, z), enemy_name)
 		enemies.append(fighter)
 		await FrameSlicer.pace(tree)
+	if not saved.is_empty():
+		_restore(saved)
+	else:
+		Game.guildwar_clear_checkpoint()
 	zone.banner_requested.emit("สงครามกิลด์ · %s ปะทะ %s" % [ally_name, enemy_name])
+	if resumed:
+		Game.say("ต่อสงครามเดิม: คะแนน %d : %d เหลือเวลา %d นาที — ศึกถูกเก็บไว้ทุก 10 วินาที" % [score[0], score[1], int(ceil(time_left / 60.0))], &"quest")
+		return
 	Game.say("สงครามกิลด์ 30 นาที: ทีมเราคุณ + เพื่อน AI 4 คน สู้กับกิลด์ %s 5 คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [enemy_name, int(GuildWarData.RESPAWN)], &"quest")
+
+
+## Picks up a war that was cut off: the clock and the score come back, everybody starts
+## again from their base after a short countdown.
+func _restore(saved: Dictionary) -> void:
+	resumed = true
+	time_left = clampf(float(saved.time_left), 1.0, GuildWarData.DURATION)
+	overtime = bool(saved.overtime)
+	score = [int(saved.us), int(saved.them)]
+	hero_kills = int(saved.kills)
+	hero_deaths = int(saved.deaths)
+	_timer = 3.2
+	_count = 3
+	_orb_timer = 20.0
+
+
+func save_checkpoint() -> void:
+	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths)
 
 
 func _spawn(info: Dictionary, team: int, at: Vector3, guild: String) -> GuildFighter:
@@ -108,6 +147,7 @@ func _process(delta: float) -> void:
 				AudioManager.play_sfx(&"coin", -2.0)
 			if _timer <= 0.0:
 				state = "fight"
+				save_checkpoint()
 				for f in all_fighters():
 					f.start_fight()
 				zone.banner_requested.emit("สู้!!")
@@ -122,6 +162,10 @@ func _process(delta: float) -> void:
 
 
 func _tick_fight(delta: float) -> void:
+	_ckpt_timer -= delta
+	if _ckpt_timer <= 0.0:
+		_ckpt_timer = CHECKPOINT_EVERY
+		save_checkpoint()
 	if not overtime:
 		time_left -= delta
 		if time_left <= 0.0:
@@ -183,6 +227,7 @@ func _on_hero_died() -> void:
 
 
 func _after_score() -> void:
+	save_checkpoint()
 	if overtime and score[0] != score[1]:
 		_end()
 

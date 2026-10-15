@@ -2133,8 +2133,52 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 	}
 
 
+## The war in progress, kept in the save so a page the phone threw away in the background
+## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
+## is the clock and the score. Plain ints in the flags, so it travels with every save.
+const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at"]
+const GW_CKPT_LIFETIME := 6 * 3600
+## Set by the lobby's "continue" button; the next guild war zone takes it.
+var guildwar_resuming := false
+
+
+func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int) -> void:
+	var flags: Dictionary = profile["flags"]
+	flags["gw_r_seed"] = rng_seed
+	flags["gw_r_time"] = int(ceil(time_left))
+	flags["gw_r_us"] = int(score[0])
+	flags["gw_r_them"] = int(score[1])
+	flags["gw_r_kills"] = kills
+	flags["gw_r_deaths"] = deaths
+	flags["gw_r_ot"] = 1 if overtime else 0
+	flags["gw_r_at"] = int(Time.get_unix_time_from_system())
+	mark_dirty()
+
+
+## The unfinished war, or {} when there is none (or it is too old to matter).
+func guildwar_checkpoint() -> Dictionary:
+	if not has_profile:
+		return {}
+	var flags: Dictionary = profile.get("flags", {})
+	if not flags.has("gw_r_seed") or not flags.has("gw_r_at"):
+		return {}
+	if int(Time.get_unix_time_from_system()) - int(flags["gw_r_at"]) > GW_CKPT_LIFETIME:
+		return {}
+	return {"seed": int(flags["gw_r_seed"]), "time_left": float(flags.get("gw_r_time", 0)), "us": int(flags.get("gw_r_us", 0)),
+			"them": int(flags.get("gw_r_them", 0)), "kills": int(flags.get("gw_r_kills", 0)), "deaths": int(flags.get("gw_r_deaths", 0)),
+			"overtime": int(flags.get("gw_r_ot", 0)) == 1}
+
+
+func guildwar_clear_checkpoint() -> void:
+	var flags: Dictionary = profile["flags"]
+	for key in GW_CKPT_KEYS:
+		flags.erase(key)
+	mark_dirty()
+
+
 ## Ends a guild war: gold and EXP by result and our own falls, and the record in the flags.
 func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deaths: int, our_guild: String, their_guild: String) -> Dictionary:
+	guildwar_clear_checkpoint()
 	var level := int(profile.level)
 	var gold := GuildWarData.gold_reward(won, kills)
 	var exp_gain := GuildWarData.exp_reward(level, won)

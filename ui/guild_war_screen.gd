@@ -103,12 +103,22 @@ func _build_lobby() -> void:
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
 	left.add_child(UIUtil.spacer(false))
-	var go := UIUtil.button("เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 80))
 	var blocked := int(Game.profile.level) < MIN_LEVEL
+	var saved := Game.guildwar_checkpoint()
+	if not saved.is_empty() and not blocked:
+		var left_sec := int(saved.time_left)
+		var again := UIUtil.button("ต่อสงครามเดิม · %d : %d · เหลือ %d:%02d" % [saved.us, saved.them, left_sec / 60, left_sec % 60], &"PrimaryButton", Vector2(0, 80))
+		again.pressed.connect(func():
+			Game.guildwar_resuming = true
+			close_screen()
+			enter_requested.emit())
+		left.add_child(again)
+	var go := UIUtil.button("เริ่มสงครามใหม่!" if not saved.is_empty() else "เข้าสู่สงคราม!", &"" if not saved.is_empty() else &"PrimaryButton", Vector2(0, 80 if saved.is_empty() else 56))
 	go.disabled = blocked
 	if blocked:
 		go.text = "ต้องเลเวล %d ขึ้นไป" % MIN_LEVEL
 	go.pressed.connect(func():
+		Game.guildwar_resuming = false
 		close_screen()
 		enter_requested.emit())
 	left.add_child(go)
