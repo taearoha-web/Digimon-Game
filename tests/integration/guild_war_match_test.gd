@@ -89,6 +89,9 @@ func _war(staged: bool) -> void:
 	check(m.state == "fight", "%s: the fight begins after the countdown" % label)
 	for f in m.all_fighters():
 		f._guard_until = 0
+		# Freeze the AI so the checks below see only what they cause (on a slow machine the
+		# fighters would otherwise reach each other and score extra falls in between).
+		f.set_physics_process(false)
 	# Damage rules: the war scale applies, one hit is capped, a combo is capped.
 	var enemy: GuildFighter = m.enemies[0]
 	var max_hp := enemy.max_hp
@@ -117,7 +120,7 @@ func _war(staged: bool) -> void:
 	check(enemy.is_dead() and m.score[0] == score_before + 1, "%s: a fall scores a point for our guild" % label)
 	check(feed_lines.size() >= 1, "%s: the fall reaches the kill feed" % label)
 	check(m.hero_kills == 1, "%s: our own fall is credited to the hero" % label)
-	enemy.respawn_left = 0.01
+	enemy.respawn_left = 0.0
 	await _frames(4)
 	await get_tree().create_timer(0.1).timeout
 	check(not enemy.is_dead() and enemy.hp == enemy.max_hp, "%s: the fighter is back at full health" % label)
