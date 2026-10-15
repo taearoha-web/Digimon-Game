@@ -10,11 +10,15 @@ static var _spiral_meshes: Dictionary = {}
 
 
 ## Generate every texture once (call while a zone loads so the first cast never hitches).
-static func warm_up() -> void:
+## With a `slicer` (the SceneTree) the work yields a frame every few items, so the first
+## zone of a session does not stall the page in one go.
+static func warm_up(slicer: SceneTree = null) -> void:
 	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer"]:
 		texture(kind)
+		await FrameSlicer.pace(slicer)
 	for recipe in SkillArtDirection.RECIPES.values():
 		_signature_mesh(String(recipe[0]), VfxBudget.count(int(recipe[2]), 1), float(recipe[3]))
+		await FrameSlicer.pace(slicer)
 
 
 static func texture(kind: String) -> Texture2D:

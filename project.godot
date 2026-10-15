@@ -49,3 +49,4 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 gl_compatibility/item_buffer_size=2048
+mesh_lod/lod_change/threshold_pixels=2.0

@@ -132,31 +132,59 @@ static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Co
 	# ground mesh gives soft paths without textures, decals or extra draw calls.
 	var cells := 104
 	var step := half_size * 2.0 / cells
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_normal(Vector3.UP)
+	# Adjacent cells share their corner attributes, so each grid node is
+	# evaluated once and the triangles index into it (same triangles, same
+	# terrain masks and painted look as the old per-corner build, ~5x cheaper).
+	var nodes := cells + 1
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
+	verts.resize(nodes * nodes)
+	normals.resize(nodes * nodes)
+	uvs.resize(nodes * nodes)
+	uv2s.resize(nodes * nodes)
+	for ix in nodes:
+		var x: float = -half_size + ix * step
+		for iz in nodes:
+			var z: float = -half_size + iz * step
+			var clearing_mask := 0.0
+			for clearing in clearings:
+				var cd := Vector2(x - clearing.x, z - clearing.y).length()
+				var edge := clearing.z + noise.get_noise_2d(x * 2.0, z * 2.0) * 1.2
+				var blend := 1.0 - smoothstep(edge * 0.56, edge, cd)
+				clearing_mask = maxf(clearing_mask, blend)
+			var k := ix * nodes + iz
+			verts[k] = Vector3(x, 0, z)
+			normals[k] = Vector3.UP
+			uvs[k] = Vector2(x, z)
+			uv2s[k] = Vector2(_path_distance(Vector2(x, z), paths), clearing_mask)
+	var indices := PackedInt32Array()
+	indices.resize(cells * cells * 6)
+	var w := 0
 	for ix in cells:
 		for iz in cells:
-			var corners := [Vector2(ix, iz), Vector2(ix + 1, iz), Vector2(ix, iz + 1), Vector2(ix + 1, iz), Vector2(ix + 1, iz + 1), Vector2(ix, iz + 1)]
-			for c in corners:
-				var x: float = -half_size + c.x * step
-				var z: float = -half_size + c.y * step
-				var clearing_mask := 0.0
-				for clearing in clearings:
-					var cd := Vector2(x - clearing.x, z - clearing.y).length()
-					var edge := clearing.z + noise.get_noise_2d(x * 2.0, z * 2.0) * 1.2
-					var blend := 1.0 - smoothstep(edge * 0.56, edge, cd)
-					clearing_mask = maxf(clearing_mask, blend)
-				var d := _path_distance(Vector2(x, z), paths)
-				st.set_uv(Vector2(x, z))
-				st.set_uv2(Vector2(d, clearing_mask))
-				st.add_vertex(Vector3(x, 0, z))
-	# Adjacent cells carry identical corner attributes. Share those vertices
-	# without changing any triangles, terrain masks or the painted appearance.
-	st.index()
+			var a := ix * nodes + iz
+			var b := a + nodes
+			indices[w] = a
+			indices[w + 1] = b
+			indices[w + 2] = a + 1
+			indices[w + 3] = b
+			indices[w + 4] = b + 1
+			indices[w + 5] = a + 1
+			w += 6
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var ground_mesh := ArrayMesh.new()
+	ground_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var mi := MeshInstance3D.new()
 	mi.name = "Ground"
-	mi.mesh = st.commit()
+	mi.mesh = ground_mesh
 	# A perfectly flat floor receives shadows but never needs to cast them.
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat := ShaderMaterial.new()
@@ -203,7 +231,7 @@ static func _path_distance(p: Vector2, paths: Array[PackedVector2Array]) -> floa
 
 ## clear: Array of Vector3(x, z, radius) areas to keep free of scenery.
 static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float,
-		clear: Array[Vector3], tree_density := 1.0, with_colliders := true) -> void:
+		clear: Array[Vector3], tree_density := 1.0, with_colliders := true, slicer: SceneTree = null) -> void:
 	var occupied: Array[Vector3] = clear.duplicate()
 	var body := StaticBody3D.new()
 	body.name = "Colliders"
@@ -215,9 +243,14 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 	habitat.seed = int(rng.seed % 2147483647)
 	habitat.frequency = 0.072
 	habitat.fractal_octaves = 2
+	# With a `slicer` (the zone's tree) layers build in time-budgeted slices, so a zone change
+	# never freezes the page for one long stretch.
 	_trees(parent, body, theme, rng, play_radius, occupied, tree_density, with_colliders, habitat)
+	await FrameSlicer.pace(slicer)
 	_bushes(parent, theme, rng, play_radius, occupied, habitat)
+	await FrameSlicer.pace(slicer)
 	_rocks(parent, body, theme, rng, play_radius, occupied, with_colliders, habitat)
+	await FrameSlicer.pace(slicer)
 	_grass(parent, theme, rng, play_radius, occupied, habitat)
 
 

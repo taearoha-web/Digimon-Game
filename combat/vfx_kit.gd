@@ -56,10 +56,13 @@ static func ground_quad() -> PlaneMesh:
 
 ## Draws both energy modes once, invisibly, so the first real cast does not
 ## stall while the browser compiles the shader.
-static func warm_shaders(parent: Node3D, pos: Vector3) -> void:
+static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null) -> void:
 	MeteorArt.warm_shaders(parent, pos)
+	await FrameSlicer.pace(slicer)
 	ThunderStormArt.warm_up(parent, pos)
+	await FrameSlicer.pace(slicer)
 	JudgmentRayArt.warm_up(parent, pos)
+	await FrameSlicer.pace(slicer)
 	# Six immutable unit-size trail templates cover every runtime projectile.
 	for strand in 2:
 		_flight_ribbon_mesh(2.7, false, strand)
@@ -77,7 +80,9 @@ static func warm_shaders(parent: Node3D, pos: Vector3) -> void:
 	var sample := _instance(parent, VfxArt._signature_mesh("cut", 1, -0.55), brush, pos + Vector3(0, 0.05, 0))
 	sample.scale = Vector3.ONE * 0.1
 	sample.create_tween().tween_interval(0.4).finished.connect(sample.queue_free)
+	await FrameSlicer.pace(slicer)
 	SpellSpectacle.warm_up(parent, pos)
+	await FrameSlicer.pace(slicer)
 	BuffAura.warm_up(parent, pos)
 
 

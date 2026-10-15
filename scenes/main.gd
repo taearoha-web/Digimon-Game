@@ -189,7 +189,9 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 		return
 	_traveling = true
 	var from_zone := String(Game.current_zone)
-	if not instant:
+	if instant:
+		_fade.modulate.a = 1.0  # black while the zone builds, then it fades in like any other trip
+	else:
 		await _fade_to(1.0, 0.35)
 	if dialog.is_open:
 		dialog.close()
@@ -205,14 +207,21 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	z.name = "Zone"
 	z.zone_id = zone_id
 	z.tower_start_floor = _tower_floor
+	z.staged = true
 	add_child(z)
-	zone = z
 	z.travel_requested.connect(func(to: StringName): go(to))
 	z.npc_interact.connect(_on_npc)
 	z.hero_died.connect(_on_hero_died)
 	z.pvp_finished.connect(func(result: Dictionary): pvp_screen.show_result(result))
 	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
+	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
+	# then let two frames draw it once (first-draw shader/texture work) before fading in.
+	if not z.is_built:
+		await z.built
+	zone = z
+	await get_tree().process_frame
+	await get_tree().process_frame
 	hud.bind(z)
 	hud.visible = true
 	Game.save()
