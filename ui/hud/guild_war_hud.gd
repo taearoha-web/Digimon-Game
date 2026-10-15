@@ -28,7 +28,7 @@ func _ready() -> void:
 	top.anchor_right = 0.5
 	top.offset_left = -250
 	top.offset_right = 250
-	top.offset_top = 6
+	top.offset_top = 74  # below the target / boss bar that sits at the top centre
 	add_child(top)
 	var board := UIUtil.panel(&"HudPanel")
 	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -55,7 +55,9 @@ func _ready() -> void:
 			cell.custom_minimum_size = Vector2(96, 0)
 			cell.add_theme_constant_override("separation", 0)
 			var name_label := UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
-			name_label.add_theme_font_size_override("font_size", 13)
+			name_label.add_theme_font_size_override("font_size", 14)
+			name_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+			name_label.add_theme_constant_override("outline_size", 5)
 			name_label.clip_text = true
 			cell.add_child(name_label)
 			var bar := ProgressBar.new()

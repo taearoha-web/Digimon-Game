@@ -153,7 +153,7 @@ func _build_result(result: Dictionary) -> void:
 			if int(r.team) != team:
 				continue
 			var line := UIUtil.hbox(10)
-			var name_label := UIUtil.label("%s  ·  %s" % [r.name, GuildWarData.grade_label(int(r.grade))], &"SmallLabel")
+			var name_label := UIUtil.label("%s  ·  %s" % [r.name, GuildWarData.grade_label(int(r.grade)) if int(r.grade) >= 0 else "ตัวละครของคุณ"], &"SmallLabel")
 			name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			name_label.add_theme_color_override("font_color", Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a"))
 			line.add_child(name_label)

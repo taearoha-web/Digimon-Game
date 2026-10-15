@@ -7,7 +7,8 @@ extends RefCounted
 const STEP_RP := 100
 const MAX_STEP := 16
 const TIME_LIMIT := 150.0
-const MIN_LEVEL := 10
+## Ranked duels use the war's rules: Lv.100 with 200 stars on both sides.
+const MIN_LEVEL := 100
 
 ## divs = how many divisions (III, II, I) the tier has.
 const TIERS: Array[Dictionary] = [
@@ -79,18 +80,21 @@ static func progress(rp: int) -> float:
 	return float(rp % STEP_RP) / float(STEP_RP)
 
 
-## How sharp the AI is at this rank: 0 (Copper III) .. 1 (Legend).
-static func difficulty(rp: int) -> float:
-	return float(step(rp)) / float(MAX_STEP)
+## Every rank faces the same kind of opponent: a Lv.100, 200-star player, equally sharp.
+## Ranks differ only in the gear it wears (see grade_of).
+static func difficulty(_rp: int) -> float:
+	return GuildWarData.SKILL
 
 
-static func stars(rp: int) -> int:
-	return 1 + int(round(difficulty(rp) * 4.0))
+## The opponent's gear grade at this rank: a plain 50-star set at the bottom, then 100, 150
+## and 200 stars with wings, and the class's divine set with wings at the top.
+static func grade_of(rp: int) -> int:
+	var grades := GuildWarData.GRADES
+	return grades[clampi(step(rp) * grades.size() / (MAX_STEP + 1), 0, grades.size() - 1)]
 
 
-static func opponent_level(hero_level: int, rp: int) -> int:
-	var delta := int(round(lerpf(-3.0, 3.0, difficulty(rp))))
-	return clampi(hero_level + delta, MIN_LEVEL, 100)
+static func opponent_level(_hero_level: int, _rp: int) -> int:
+	return GuildWarData.LEVEL
 
 
 # --- Results ----------------------------------------------------------------------
@@ -113,38 +117,12 @@ static func exp_reward(level: int, rp: int, won: bool) -> int:
 
 # --- The AI opponent ----------------------------------------------------------------
 
-## Duels should last: the AI opponent carries extra HP and a little less
-## attack than a hero of its level (measured in tests/tools/balance_probe).
-## The ladder only narrows the gap: low ranks are easier, never a one-shot.
-const DUEL_HP := 0.95
-const DUEL_ATK := 0.8
-
-## A fake hero for the AI: { member, profile, mults, difficulty }.
-static func make_opponent(hero_level: int, rp: int, rng: RandomNumberGenerator, avoid_class: StringName = &"") -> Dictionary:
-	var t := difficulty(rp)
-	var level := opponent_level(hero_level, rp)
+## A full AI player for the rank: { member, profile, mults, difficulty, look, grade, power }.
+static func make_opponent(_hero_level: int, rp: int, rng: RandomNumberGenerator, avoid_class: StringName = &"") -> Dictionary:
 	var classes: Array[StringName] = []
 	for id in ClassData.IDS:
 		classes.append(id)
 	var class_id: StringName = classes[rng.randi() % classes.size()]
 	if class_id == avoid_class and rng.randf() < 0.5:
 		class_id = classes[rng.randi() % classes.size()]
-	var adv := JobData.adv_for_level(level)
-	var data := JobData.resolve(class_id, adv)
-	var points := int(3.0 * float(level - 1) * lerpf(0.7, 1.0, t))
-	var attrs := {"str": 0, "int": 0, "dex": 0, "vit": 0}
-	attrs[String(data.main)] = int(points * 0.6)
-	attrs["vit"] = int(points * 0.4)
-	var rarity := clampi(2 + step(rp) / 8, 2, 4)
-	var equip := {}
-	for slot in ItemData.SLOTS:
-		equip[slot] = ItemData.generate(level, class_id, rng, rarity, slot)
-	var name: String = NAMES[rng.randi() % NAMES.size()]
-	var member := {"class": String(class_id), "name": name, "level": level}
-	return {
-		"member": member,
-		"profile": {"class": String(class_id), "level": level, "attrs": attrs, "equip": equip, "adv": adv},
-		"mults": {"hp": DUEL_HP * lerpf(1.0, 1.15, t), "atk": DUEL_ATK * lerpf(0.85, 1.0, t), "def": lerpf(0.85, 1.05, t)},
-		"difficulty": t,
-		"look": FaceKit.random_look(rng),
-	}
+	return GuildWarData.make_fighter(class_id, grade_of(rp), NAMES[rng.randi() % NAMES.size()], rng)

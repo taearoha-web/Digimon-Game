@@ -20,6 +20,9 @@ const BASE_RADIUS := 7.0
 ## Counters for tests/tools/guild_war_sim.gd.
 static var dbg := {"recv": 0, "dmg": 0, "dodged": 0, "guard": 0, "basic": 0, "cast": 0, "hits_out": 0}
 
+## Area attacks in the air, so enemies can step out of them like a person (after a reaction time).
+static var _dangers: Array = []
+
 signal fell(fighter: GuildFighter, killer: Node)
 signal slew_hero(fighter: GuildFighter)
 
@@ -40,6 +43,8 @@ var _retreating := false
 var _grudge := 0.0
 ## Set by the match: a place to run to (the power orb) while no enemy is close.
 var orb_goal: Variant = null
+var _react_at := 0
+var _ignore_danger := false
 
 
 ## info: GuildWarData.make_fighter(). `title` is the guild tag shown before the name.
@@ -50,6 +55,8 @@ func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vecto
 	spawn_point = p_spawn
 	rally_point = Vector3(p_spawn.x * 0.35, 0.0, 0.0)
 	setup_rival(info, p_spawn, p_hero, title)
+	war_scale = GuildWarData.damage_scale
+	announce_skills = false
 	_potions = 3
 	_dodge = clampf(float(rstats.get("dodge", 0.0)), 0.0, 0.18)
 
@@ -61,6 +68,9 @@ func _ready() -> void:
 	if team == TEAM_ALLY:
 		remove_from_group("mobs")
 		add_to_group("companions")
+	# Just the name, coloured by guild (the full "[guild] name" overlapped when fighters bunched up).
+	_label.text = String(member.name)
+	_label.font_size = 36
 	_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
 	_label.visibility_range_end = 30.0
 	_start_guard()
@@ -185,7 +195,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 		dbg.dodged += 1
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return false
-	return _receive(int(ceil(float(amount) * GuildWarData.damage_scale)), crit, attacker if attacker != null else hero)
+	return _receive(int(ceil(float(amount) * war_scale)), crit, attacker if attacker != null else hero)
 
 
 ## Raw damage from another fighter or a monster's strike (defence still to apply).
@@ -299,6 +309,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
+	var dodge_step := _dodge_area(delta)
+	if dodge_step != Vector3.ZERO:
+		return dodge_step
 	var ratio := hp_ratio()
 	if not _retreating and ratio < RETREAT_BELOW and (_potions <= 0 or _potion_cd > 0.0):
 		_retreating = true
@@ -309,6 +322,58 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if orb_goal != null and not _frozen and _flat_distance(target.global_position) > 9.0:
 		return _run_to(orb_goal as Vector3, delta)
 	return super._chase(target, delta, speed_factor)
+
+
+## A person sees the warning ring and walks out of it after a beat; sometimes does not.
+func _dodge_area(delta: float) -> Vector3:
+	if _frozen or Time.get_ticks_msec() < _cast_until:
+		return Vector3.ZERO
+	var now := Time.get_ticks_msec()
+	for danger in _dangers:
+		if int(danger.team) == team or now > int(danger.until):
+			continue
+		var from_center := global_position - (danger.center as Vector3)
+		from_center.y = 0.0
+		if from_center.length() > float(danger.radius) + 0.5:
+			continue
+		if _react_at == 0:
+			_react_at = now + randi_range(250, 480)
+			_ignore_danger = randf() < 0.15
+		if now < _react_at or _ignore_danger:
+			return Vector3.ZERO
+		_tick(delta)
+		var away := from_center.normalized() if from_center.length() > 0.05 else Vector3(1, 0, 0)
+		_yaw = lerp_angle(_yaw, atan2(away.x, away.z), 1.0 - exp(-10.0 * delta))
+		visual.rotation.y = _yaw
+		return away * float(rstats.speed)
+	_react_at = 0
+	return Vector3.ZERO
+
+
+func _cast(skill: Dictionary, target: Node3D) -> void:
+	var shape := String(skill.shape)
+	if shape in ["burst", "blast"] and is_instance_valid(target):
+		var at := target.global_position if shape == "blast" else global_position
+		var wait := maxf(float(skill.hit_delay), lerpf(1.25, 0.65, difficulty))
+		_dangers.append({"center": Vector3(at.x, 0.0, at.z), "radius": float(skill.radius), "until": Time.get_ticks_msec() + int(wait * 1000.0) + 250, "team": team})
+		if _dangers.size() > 24:
+			_dangers = _dangers.filter(func(d): return Time.get_ticks_msec() <= int(d.until))
+	super._cast(skill, target)
+
+
+## A healer casts when an ally nearby is hurt, not only when it is.
+func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float) -> float:
+	var fx: Dictionary = skill.get("fx", {})
+	if shape == "self" and fx.has("heal"):
+		var lowest := own_ratio
+		for ally in _teammates():
+			if _flat_distance(ally.global_position) < 9.0:
+				if ally is GuildFighter:
+					lowest = minf(lowest, (ally as GuildFighter).hp_ratio())
+				elif ally == hero and "stats" in hero:
+					lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
+		return 10.0 if lowest < 0.55 else 0.0
+	return super._score(skill, shape, distance, own_ratio)
 
 
 func _run_to(point: Vector3, delta: float) -> Vector3:
@@ -401,24 +466,12 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				ally.receive_party_buff(skill.fx.buff, skill.color, String(skill.name), String(skill.id))
 
 
-## A strike at `victim`; the hero is protected by the same burst cap as every AI.
+## A strike at `victim` (scale and the hero's burst cap are in Rival._hit).
 func _hit(victim: Node3D, mult: float, color: Color) -> void:
-	if not _alive(victim):
-		return
+	var was_alive := _alive(victim)
 	dbg.hits_out += 1
-	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08) * GuildWarData.damage_scale
-	if randf() < float(rstats.crit):
-		raw *= HeroStats.CRIT_DAMAGE
-	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
-	var is_hero := victim == hero
-	if is_hero:
-		var def := float(hero.stats.def)
-		var amount := maxi(1, int(round(HeroStats.mitigate(raw, def))))
-		var allowed := BurstGuard.take(hero.get_instance_id(), amount, int(hero.stats.max_hp))
-		if allowed < amount:
-			raw *= float(allowed) / float(amount)
-	victim.take_damage(raw, self)
-	if is_hero and not _alive(victim):
+	super._hit(victim, mult, color)
+	if was_alive and victim == hero and not _alive(victim):
 		slew_hero.emit(self)
 
 

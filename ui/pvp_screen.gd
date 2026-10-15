@@ -133,7 +133,7 @@ func _build_lobby() -> void:
 	var total := int(p.wins) + int(p.losses)
 	var rate := int(round(float(p.wins) * 100.0 / float(maxi(1, total))))
 	left.add_child(UIUtil.label("ชนะ %d · แพ้ %d (%d%%) · ชนะติด %d (สูงสุด %d)" % [p.wins, p.losses, rate, p.streak, p.best_streak], &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
-	var rules := UIUtil.label("• ดวลตัวต่อตัวกับผู้เล่น AI ในสนามโคลีเซียม เวลา %d วินาที\n• ชนะ +%d RP (ชนะติดกันได้โบนัส) · แพ้ −%d RP · หมดเวลานับว่าแพ้\n• แพ้แล้วตกได้แค่ดิวิชัน ไม่ตกลีก\n• ห้ามใช้ยา · สกิล ซัมมอน และบัฟใช้ได้เต็มที่\n• ขึ้นลีกใหม่ได้รางวัลเหรียญก้อนใหญ่และอุปกรณ์" % [
+	var rules := UIUtil.label("• ดวลตัวต่อตัวกับผู้เล่น AI เลเวล 100 · 200★ ในสนามโคลีเซียม เวลา %d วินาที (ยิ่งแรงก์สูง ยิ่งใส่ชุด/ปีกดีขึ้น)\n• ชนะ +%d RP (ชนะติดกันได้โบนัส) · แพ้ −%d RP · หมดเวลานับว่าแพ้\n• แพ้แล้วตกได้แค่ดิวิชัน ไม่ตกลีก\n• ห้ามใช้ยา · สกิล ซัมมอน และบัฟใช้ได้เต็มที่\n• ขึ้นลีกใหม่ได้รางวัลเหรียญก้อนใหญ่และอุปกรณ์" % [
 			int(PvpData.TIME_LIMIT), PvpData.rp_change(true, false, 0), -PvpData.rp_change(false, false, 0)], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
@@ -151,7 +151,7 @@ func _build_lobby() -> void:
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
-	right.add_child(UIUtil.label("บันไดแรงก์ — ยิ่งสูงยิ่งเจอคู่ต่อสู้เก่ง", &"SubHeaderLabel"))
+	right.add_child(UIUtil.label("บันไดแรงก์ — คู่ต่อสู้ Lv.100 · 200★ เหมือนกันทุกขั้น ต่างกันที่ชุด อาวุธ และปีก", &"SubHeaderLabel"))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -178,9 +178,7 @@ func _ladder_row(step_index: int, mine: int) -> Control:
 	name_label.add_theme_color_override("font_color", tier.color)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(name_label)
-	var level := PvpData.opponent_level(int(Game.profile.level), step_index * PvpData.STEP_RP)
-	var stars := "ความเก่ง %d/5" % PvpData.stars(step_index * PvpData.STEP_RP)
-	line.add_child(UIUtil.label("คู่ต่อสู้ Lv.%d  %s" % [level, stars], &"SmallLabel"))
+	line.add_child(UIUtil.label("คู่ต่อสู้ Lv.100 · 200★  %s" % GuildWarData.grade_label(PvpData.grade_of(step_index * PvpData.STEP_RP)), &"SmallLabel"))
 	if step_index == mine:
 		line.add_child(UIUtil.label("◀ คุณอยู่ที่นี่", &"BoldLabel"))
 		panel.modulate = Color(1.2, 1.15, 0.9)

@@ -21,6 +21,11 @@ func _ready() -> void:
 	Game.profile.level = 100
 	Game.profile.adv = 4
 	Game.profile["paragon"] = {"level": 200, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(200)}
+	var gear_rng := RandomNumberGenerator.new()
+	gear_rng.seed = 11
+	for slot in ItemData.SLOTS:
+		Game.profile.equip[slot] = StarProgression.item(cls, 150, slot, gear_rng)
+	Game.profile.equip["wings"] = StarWingData.item(String(cls), gear_rng)
 	Game.current_zone = &"guildwar"
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"

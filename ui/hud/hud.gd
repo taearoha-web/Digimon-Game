@@ -56,6 +56,8 @@ var _gold_label: Label
 var _zone_label: Label
 var _banner: Label
 var _death_panel: ColorRect
+var _death_title: Label
+var _death_sub: Label
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _gw_hud: GuildWarHud
@@ -159,6 +161,8 @@ func bind(p_zone: Zone) -> void:
 	show_banner(String(zone.data.name))
 	_target_panel.visible = false
 	_death_panel.visible = false
+	_death_title.text = "คุณพ่ายแพ้…"
+	_death_sub.text = "กำลังกลับหมู่บ้านเพื่อพักฟื้น"
 	_on_interact_changed("")
 	if _gw_hud != null:
 		_gw_hud.queue_free()
@@ -167,7 +171,7 @@ func bind(p_zone: Zone) -> void:
 		_gw_hud = GuildWarHud.new()
 		_frame.add_child(_gw_hud)
 		_gw_hud.bind(zone.gw_match)
-		zone.gw_match.hero_down.connect(func(_s: float): show_death(true))
+		zone.gw_match.hero_down.connect(func(_s: float): show_death(true, "คุณล้มลง!", "รอเกิดใหม่ที่ฐาน"))
 		zone.gw_match.hero_back.connect(func(): show_death(false))
 
 
@@ -192,7 +196,9 @@ func show_banner(text: String) -> void:
 	tween.tween_property(_banner, "modulate:a", 0.0, 0.6)
 
 
-func show_death(visible_flag: bool) -> void:
+func show_death(visible_flag: bool, title := "คุณพ่ายแพ้…", sub := "กำลังกลับหมู่บ้านเพื่อพักฟื้น") -> void:
+	_death_title.text = title
+	_death_sub.text = sub
 	_death_panel.visible = visible_flag
 	if visible_flag:
 		_death_panel.modulate.a = 0.0
@@ -798,12 +804,14 @@ func _build_death_overlay() -> void:
 	_death_panel.visible = false
 	_root.add_child(_death_panel)
 	var label := UIUtil.label("คุณพ่ายแพ้…", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_death_title = label
 	label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	label.offset_left = -300
 	label.offset_right = 300
 	label.offset_top = -50
 	_death_panel.add_child(label)
 	var sub := UIUtil.label("กำลังกลับหมู่บ้านเพื่อพักฟื้น", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_death_sub = sub
 	sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	sub.offset_left = -300
 	sub.offset_right = 300

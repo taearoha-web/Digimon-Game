@@ -133,6 +133,9 @@ func _tick_fight(delta: float) -> void:
 			else:
 				_end()
 				return
+	for f in all_fighters():
+		if f.is_dead() and f.respawn_left <= 0.0:
+			f.respawn()
 	if hero_respawn_left > 0.0:
 		hero_respawn_left -= delta
 		if hero_respawn_left <= 0.0:
@@ -299,7 +302,7 @@ func _end() -> void:
 		_orb_node = null
 	orb_active = false
 	var won := score[0] > score[1]
-	var rows: Array = []
+	var rows: Array = [{"name": "คุณ", "class": String(Game.class_id()), "team": GuildFighter.TEAM_ALLY, "kills": hero_kills, "deaths": hero_deaths, "assists": 0, "grade": -1}]
 	for f in all_fighters():
 		rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade})
 	_result = Game.guildwar_finish(won, score[0], score[1], hero_kills, hero_deaths, ally_name, enemy_name)
