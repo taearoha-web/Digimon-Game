@@ -367,6 +367,29 @@
   }
 
   let started = false;
+  // iOS suspends or "interrupts" a page's audio context (a call, a notification, the silent
+  // switch, another app). Godot then stops mixing, so keep every context the engine makes and
+  // wake it on the next touch or when the page comes back.
+  const audioContexts = [];
+  (function () {
+    const Native = window.AudioContext || window.webkitAudioContext;
+    if (!Native) return;
+    class TrackedContext extends Native {
+      constructor(...args) { super(...args); audioContexts.push(this); }
+    }
+    window.AudioContext = TrackedContext;
+    if (window.webkitAudioContext) window.webkitAudioContext = TrackedContext;
+  }());
+  function wakeAudio() {
+    for (const ctx of audioContexts) {
+      if (ctx.state !== 'running' && ctx.state !== 'closed') { try { ctx.resume().catch(function () {}); } catch (_) {} }
+    }
+  }
+  window.toonAudioState = function () { return audioContexts.length ? audioContexts[0].state : 'none'; };
+  ['pointerdown', 'touchend', 'keydown'].forEach(function (name) { document.addEventListener(name, wakeAudio, { capture: true, passive: true }); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') wakeAudio(); });
+  window.addEventListener('pageshow', wakeAudio);
+
   // Godot 4.3 Compatibility cannot scale only its 3D viewport. Own the canvas
   // through public resize policy 0 instead of modifying the engine or browser
   // devicePixelRatio. High keeps every art layer with a crisp 1920 px budget.

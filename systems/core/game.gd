@@ -610,8 +610,9 @@ func _record_web_session_sample() -> void:
 		"physicsMs": Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
 		"soundPlayRequests": AudioManager.sound_play_requests,
 		"saveWorkMs": last_save_work_ms, "savePeakMs": peak_save_work_ms,
-		"audioStreamMode": AudioManager.uses_stream_playback(),
+		"audioStreamMode": AudioManager.uses_stream_playback(), "audioStallSeconds": minf(AudioServer.get_time_since_last_mix(), 3600.0),
 		"zone": String(current_zone), "class": String(class_id()),
+		"audioState": str(JavaScriptBridge.eval("window.toonAudioState ? window.toonAudioState() : 'none'", true)),
 		"loot": get_tree().get_nodes_in_group("loot").size(),
 		"auto": hero is Hero and hero.auto, "kills": int(profile.get("kills", 0)),
 		"saveAgeSeconds": maxi(0, int(Time.get_unix_time_from_system()) - int(profile.get("saved_at", Time.get_unix_time_from_system())))}
