@@ -13,6 +13,12 @@ const EXTENSIONS := ["ogg", "wav", "mp3"]
 const SFX_POOL_SIZE := 10
 const UI_POOL_SIZE := 3
 const BUSES := ["Music", "SFX", "UI"]
+## The browser can suspend its audio context (a call, a notification, the silent switch, a tab
+## switch on iOS). While it is suspended nothing mixes, so no playback ever finishes and every
+## sound played would stay in memory for good (about 110 KB each: a fight made 11 objects and
+## 0.75 MB a second until the phone killed the page). Past this long without a mix, sounds are
+## not started at all.
+const MIX_STALL_SECONDS := 0.75
 
 var current_music_id: StringName = &""
 
@@ -35,6 +41,11 @@ func uses_stream_playback() -> bool:
 		if player is AudioStreamPlayer and player.playback_type != AudioServer.PLAYBACK_TYPE_STREAM:
 			return false
 	return true
+
+
+## True when the audio mixer has not run for a while (web: suspended audio context).
+func mixer_stalled() -> bool:
+	return OS.has_feature("web") and AudioServer.get_time_since_last_mix() > MIX_STALL_SECONDS
 
 
 ## Suspend sound while the browser is hidden; restore each player's prior state.
@@ -150,6 +161,8 @@ func has_sound(sfx_id: StringName) -> bool:
 
 func _play_from_pool(pool: Array[AudioStreamPlayer], dir: String, sfx_id: StringName, volume_db: float, pitch_variation: float) -> void:
 	if sfx_id == &"":
+		return
+	if mixer_stalled():
 		return
 	var stream := _get_stream(dir, sfx_id)
 	if stream == null:
