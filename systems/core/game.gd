@@ -110,7 +110,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
+		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -657,13 +657,13 @@ func _valid_profile(data: Dictionary) -> bool:
 	for key in ["resume", "job3"]:
 		if data.has(key) and not data[key] is bool:
 			return false
-	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "pvp", "tower", "paragon", "ach", "look", "daily"]:
+	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "boss_pity", "pvp", "tower", "paragon", "ach", "look", "daily"]:
 		if data.has(key) and not data[key] is Dictionary:
 			return false
 	for key in ["inv", "storage", "loadout", "party"]:
 		if data.has(key) and not data[key] is Array:
 			return false
-	for key in ["attrs", "skills", "boss_kills", "pvp", "tower", "look"]:
+	for key in ["attrs", "skills", "boss_kills", "boss_pity", "pvp", "tower", "look"]:
 		for value in data.get(key, {}).values():
 			if not _valid_integer(value):
 				return false
@@ -761,7 +761,7 @@ func _valid_item(value: Variant) -> bool:
 		return _valid_integer(item.get("count", 1), 1) and (ItemData.POTIONS.has(item.get("id")) if item.kind == "potion" else _valid_gem_id(item.get("id")))
 	if item.get("kind") != "equip" or not ItemData.EQUIP_SLOTS.has(item.get("slot")):
 		return false
-	for key in ["uid", "name", "class", "set", "base"]:
+	for key in ["uid", "name", "class", "set", "base", "boss"]:
 		if not item.get(key, "") is String:
 			return false
 	if item.has("star_tier"):
@@ -807,7 +807,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower", &"guildwar"] else "town"
 	if data.get("look") is Dictionary:
 		data["look"] = FaceKit.repair(data["look"])
-	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "pvp"]:
+	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "boss_pity", "pvp"]:
 		if not data.get(key) is Dictionary:
 			data[key] = {}
 	if not data.get("inv") is Array:
@@ -834,6 +834,8 @@ func _repair(data: Dictionary) -> Dictionary:
 			data["flags"][key] = int(data["flags"][key])
 	for key in data["pvp"]:
 		data["pvp"][key] = int(data["pvp"][key])
+	for key in data["boss_pity"]:
+		data["boss_pity"][key] = maxi(0, int(data["boss_pity"][key]))
 	if not data.get("tower") is Dictionary:
 		data["tower"] = {}
 	for key in data["tower"]:
@@ -1210,6 +1212,15 @@ func tower() -> Dictionary:
 	for key in ["best", "shards", "runs", "best_before"]:
 		t[key] = int(t.get(key, 0))
 	return t
+
+
+## Kills of a field boss since its last chase piece (see BossLootData); the dictionary
+## is the save's own, so changes persist with the next save.
+func boss_pity() -> Dictionary:
+	if not profile.get("boss_pity") is Dictionary:
+		profile["boss_pity"] = {}
+	mark_dirty()
+	return profile["boss_pity"]
 
 
 func tower_add_shards(amount: int) -> void:
