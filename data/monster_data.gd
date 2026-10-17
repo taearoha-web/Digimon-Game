@@ -9,6 +9,7 @@ extends RefCounted
 ##   aggro  true = attacks on sight, false = fights back when hit
 ##   attack "melee" or "ranged"; color = projectile/ring colour
 ##   boss   boss monsters are bigger, tougher and hit harder
+##   behavior / behavior2  field boss signature move, and its phase-2 variant (see BossAttack)
 
 const MONSTERS := {
 	&"pink_slime": {"name": "สไลม์ชมพู", "model": "blob/PinkBlob", "height": 1.0, "hp": 0.8, "atk": 0.8, "def": 0.8, "speed": 1.8, "aggro": false, "attack": "melee"},
@@ -17,76 +18,76 @@ const MONSTERS := {
 	&"yellow_frog": {"name": "กบพิษสีเหลือง", "model": "big/Frog", "height": 1.2, "hp": 1.1, "atk": 1.0, "def": 1.0, "speed": 2.2, "aggro": false, "attack": "melee"},
 	&"cactus_hat": {"name": "กระบองเพชรหมวกใหญ่", "model": "blob/Cactoro", "height": 1.3, "hp": 1.2, "atk": 1.1, "def": 1.2, "speed": 1.8, "aggro": true, "attack": "ranged", "color": Color("6fe36b")},
 	&"mush_baby": {"name": "เห็ดน้อยจอมซน", "model": "blob/Mushnub", "height": 1.2, "hp": 1.0, "atk": 1.0, "def": 1.0, "speed": 1.9, "aggro": false, "attack": "melee"},
-	&"mush_king": {"name": "ราชาเห็ดยักษ์", "model": "big/MushroomKing", "height": 2.9, "hp": 9.0, "atk": 1.7, "def": 1.6, "speed": 2.0, "aggro": true, "attack": "melee", "boss": true},
+	&"mush_king": {"name": "ราชาเห็ดยักษ์", "model": "big/MushroomKing", "height": 2.9, "hp": 9.0, "atk": 1.7, "def": 1.6, "speed": 2.0, "aggro": true, "attack": "melee", "boss": true, "behavior": "spore_bloom", "behavior2": "cap_stomp"},
 	&"forest_orc": {"name": "ออร์คป่า", "model": "big/Orc", "height": 1.8, "hp": 1.3, "atk": 1.2, "def": 1.2, "speed": 2.3, "aggro": true, "attack": "melee"},
 	&"skull_orc": {"name": "ออร์คกะโหลก", "model": "big/Orc_Skull", "height": 1.9, "hp": 1.5, "atk": 1.3, "def": 1.3, "speed": 2.3, "aggro": true, "attack": "melee"},
 	&"shadow_ninja": {"name": "นินจาเงา", "model": "big/Ninja", "height": 1.7, "hp": 1.0, "atk": 1.5, "def": 1.0, "speed": 3.2, "aggro": true, "attack": "melee"},
 	&"poison_bee": {"name": "ผึ้งพิษ", "model": "flying/Armabee", "height": 1.0, "hp": 0.9, "atk": 1.1, "def": 0.9, "speed": 2.8, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("c9e84a")},
 	&"ghost": {"name": "ผีเงาม่วง", "model": "flying/Ghost", "height": 1.5, "hp": 1.1, "atk": 1.3, "def": 0.9, "speed": 2.4, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("b08aff")},
-	&"fire_dragon": {"name": "มังกรเพลิงผู้พิทักษ์", "model": "flying/Dragon_Evolved", "height": 3.2, "hp": 11.0, "atk": 1.9, "def": 1.7, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.8, "color": Color("ff6a2a")},
+	&"fire_dragon": {"name": "มังกรเพลิงผู้พิทักษ์", "model": "flying/Dragon_Evolved", "height": 3.2, "hp": 11.0, "atk": 1.9, "def": 1.7, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.8, "color": Color("ff6a2a"), "behavior": "flame_breath", "behavior2": "flame_fan"},
 	# Desert
 	&"sand_dino": {"name": "ไดโนทราย", "model": "big/Dino", "height": 1.9, "hp": 1.4, "atk": 1.2, "def": 1.2, "speed": 2.4, "aggro": true, "attack": "melee", "tint": Color(1.25, 1.05, 0.7)},
 	&"giant_cactus": {"name": "กระบองเพชรยักษ์", "model": "big/Cactoro", "height": 2.1, "hp": 1.5, "atk": 1.2, "def": 1.4, "speed": 1.9, "aggro": true, "attack": "ranged", "color": Color("8fe36b")},
 	&"sand_wolf": {"name": "หมาป่าทราย", "model": "blob/Dog", "height": 1.2, "hp": 1.0, "atk": 1.3, "def": 1.0, "speed": 3.5, "aggro": true, "attack": "melee", "tint": Color(1.2, 1.0, 0.75)},
 	&"desert_wizard": {"name": "พ่อมดทะเลทราย", "model": "blob/Wizard", "height": 1.6, "hp": 1.0, "atk": 1.5, "def": 1.0, "speed": 2.2, "aggro": true, "attack": "ranged", "color": Color("ffb04a")},
 	&"sand_birb": {"name": "นกทรายจอมจิก", "model": "blob/Birb", "height": 1.3, "hp": 0.9, "atk": 1.3, "def": 0.9, "speed": 3.1, "aggro": true, "attack": "melee", "tint": Color(1.3, 1.0, 0.6)},
-	&"sand_dragon": {"name": "มังกรทะเลทราย", "model": "flying/Dragon", "height": 3.4, "hp": 11.0, "atk": 1.9, "def": 1.7, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.8, "color": Color("ffc24a"), "tint": Color(1.4, 1.1, 0.6)},
+	&"sand_dragon": {"name": "มังกรทะเลทราย", "model": "flying/Dragon", "height": 3.4, "hp": 11.0, "atk": 1.9, "def": 1.7, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.8, "color": Color("ffc24a"), "tint": Color(1.4, 1.1, 0.6), "behavior": "quicksand", "behavior2": "sand_cross"},
 	# Snow
 	&"snow_bunny": {"name": "กระต่ายหิมะ", "model": "big/Bunny", "height": 1.4, "hp": 1.2, "atk": 1.2, "def": 1.1, "speed": 3.0, "aggro": false, "attack": "melee", "tint": Color(0.95, 1.0, 1.2)},
 	&"yeti": {"name": "เยติ", "model": "big/Yeti", "height": 2.4, "hp": 1.7, "atk": 1.4, "def": 1.3, "speed": 2.3, "aggro": true, "attack": "melee"},
 	&"ice_fish": {"name": "ปลาน้ำแข็งลอยฟ้า", "model": "big/Fish", "height": 1.3, "hp": 1.0, "atk": 1.4, "def": 1.0, "speed": 2.6, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("7fe3ff"), "tint": Color(0.7, 1.0, 1.4)},
 	&"snow_pigeon": {"name": "นกพิราบหิมะ", "model": "flying/Pigeon", "height": 1.1, "hp": 0.9, "atk": 1.3, "def": 0.9, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.3, "color": Color("e8f6ff"), "tint": Color(1.0, 1.05, 1.25)},
 	&"ice_bee": {"name": "ผึ้งน้ำแข็ง", "model": "flying/Armabee_Evolved", "height": 1.3, "hp": 1.1, "atk": 1.4, "def": 1.0, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("8fe8ff"), "tint": Color(0.7, 0.95, 1.4)},
-	&"yeti_king": {"name": "ราชายักษ์หิมะ", "model": "big/Yeti", "height": 4.0, "hp": 12.0, "atk": 2.0, "def": 1.8, "speed": 2.2, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.95, 1.4)},
+	&"yeti_king": {"name": "ราชายักษ์หิมะ", "model": "big/Yeti", "height": 4.0, "hp": 12.0, "atk": 2.0, "def": 1.8, "speed": 2.2, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.95, 1.4), "behavior": "freeze_ring", "behavior2": "avalanche"},
 	# Volcano
 	&"fire_orc": {"name": "ออร์คลาวา", "model": "blob/Orc", "height": 2.1, "hp": 1.5, "atk": 1.4, "def": 1.3, "speed": 2.4, "aggro": true, "attack": "melee", "tint": Color(1.5, 0.6, 0.5)},
 	&"lava_dino": {"name": "มังกรน้อยลาวา", "model": "big/Birb", "height": 2.2, "hp": 1.55, "atk": 1.4, "def": 1.3, "speed": 2.5, "aggro": true, "attack": "melee", "tint": Color(2.4, 1.0, 0.6)},
 	&"ember_ghost": {"name": "วิญญาณถ่านเพลิง", "model": "flying/Glub_Evolved", "height": 1.6, "hp": 1.2, "atk": 1.5, "def": 1.0, "speed": 2.5, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("ff7a2a"), "tint": Color(1.6, 0.8, 0.4)},
 	&"magma_wizard": {"name": "จอมเวทแมกมา", "model": "flying/Hywirl", "height": 1.7, "hp": 1.2, "atk": 1.6, "def": 1.1, "speed": 2.2, "aggro": true, "attack": "ranged", "color": Color("ff5a2a"), "tint": Color(1.6, 0.6, 0.4), "hover": 1.0},
 	&"flame_bee": {"name": "ค้างคาวเปลวไฟ", "model": "flying/Goleling_Evolved", "height": 1.4, "hp": 1.1, "atk": 1.5, "def": 1.0, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("ffa03a"), "tint": Color(1.6, 0.8, 0.4)},
-	&"magma_dragon": {"name": "มังกรแมกมาจ้าวภูเขาไฟ", "model": "flying/Dragon_Evolved", "height": 4.4, "hp": 14.0, "atk": 2.2, "def": 2.0, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.9, "color": Color("ff4a2a"), "tint": Color(1.5, 0.55, 0.45)},
+	&"magma_dragon": {"name": "มังกรแมกมาจ้าวภูเขาไฟ", "model": "flying/Dragon_Evolved", "height": 4.4, "hp": 14.0, "atk": 2.2, "def": 2.0, "speed": 2.6, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.9, "color": Color("ff4a2a"), "tint": Color(1.5, 0.55, 0.45), "behavior": "lava_lines", "behavior2": "magma_geysers"},
 	# Bloody graveyard
 	&"bone_knight": {"name": "อัศวินกระดูก", "model": "big/Tribal", "height": 2.3, "hp": 2.0, "atk": 1.7, "def": 1.6, "speed": 2.6, "aggro": true, "attack": "melee", "tint": Color(1.3, 1.3, 1.2)},
 	&"grave_ghost": {"name": "วิญญาณสุสาน", "model": "flying/Ghost_Skull", "height": 1.7, "hp": 1.6, "atk": 1.9, "def": 1.1, "speed": 2.8, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("8aa0ff"), "tint": Color(0.9, 1.0, 1.4)},
 	&"blood_bat": {"name": "ค้างคาวเลือด", "model": "flying/Goleling", "height": 1.5, "hp": 1.4, "atk": 1.9, "def": 1.1, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.3, "color": Color("ff4a5a"), "tint": Color(1.6, 0.5, 0.5)},
 	&"ghoul_hound": {"name": "แมวผีดิบ", "model": "blob/Cat", "height": 1.6, "hp": 1.7, "atk": 1.8, "def": 1.3, "speed": 3.9, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.2, 0.8)},
 	&"grave_witch": {"name": "แม่มดสุสาน", "model": "flying/Squidle", "height": 1.8, "hp": 1.5, "atk": 2.1, "def": 1.2, "speed": 2.4, "aggro": true, "attack": "ranged", "color": Color("b06aff"), "tint": Color(0.9, 0.6, 1.4), "hover": 1.0},
-	&"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "model": "big/Orc_Skull", "height": 4.4, "hp": 16.0, "atk": 2.6, "def": 2.2, "speed": 2.6, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.7, 0.7)},
+	&"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "model": "big/Orc_Skull", "height": 4.4, "hp": 16.0, "atk": 2.6, "def": 2.2, "speed": 2.6, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.7, 0.7), "behavior": "bone_spikes", "behavior2": "bone_rain"},
 	# Poison swamp
 	&"toxic_frog": {"name": "กบพิษมรณะ", "model": "big/Frog", "height": 1.8, "hp": 2.1, "atk": 1.9, "def": 1.5, "speed": 2.8, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.4, 0.6)},
 	&"swamp_dino": {"name": "อสุรกายหนอง", "model": "big/Alien", "height": 2.5, "hp": 2.3, "atk": 2.0, "def": 1.7, "speed": 2.7, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.3, 0.7)},
 	&"mud_fish": {"name": "ปลาโคลนพิษ", "model": "blob/Fish", "height": 1.6, "hp": 1.7, "atk": 2.1, "def": 1.2, "speed": 2.9, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("9ae04a"), "tint": Color(0.8, 1.2, 0.5)},
 	&"venom_mush": {"name": "เห็ดพิษร้าย", "model": "blob/Mushnub_Evolved", "height": 1.9, "hp": 2.0, "atk": 1.9, "def": 1.6, "speed": 2.3, "aggro": true, "attack": "melee", "tint": Color(1.3, 0.7, 1.3)},
 	&"plague_bee": {"name": "แมลงโรคระบาด", "model": "flying/Glub", "height": 1.4, "hp": 1.5, "atk": 2.2, "def": 1.2, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("b8e04a"), "tint": Color(0.8, 1.4, 0.5)},
-	&"toad_king": {"name": "ราชากบพิษ", "model": "big/Frog", "height": 4.4, "hp": 18.0, "atk": 2.8, "def": 2.4, "speed": 2.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.6, 1.3)},
+	&"toad_king": {"name": "ราชากบพิษ", "model": "big/Frog", "height": 4.4, "hp": 18.0, "atk": 2.8, "def": 2.4, "speed": 2.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.6, 1.3), "behavior": "tongue_lash", "behavior2": "poison_pools"},
 	# Storm peaks
 	&"thunder_golem": {"name": "ยักษ์หินสายฟ้า", "model": "big/BlueDemon", "height": 3.0, "hp": 2.6, "atk": 2.2, "def": 2.0, "speed": 2.5, "aggro": true, "attack": "melee", "tint": Color(1.4, 1.4, 0.7)},
 	&"volt_pigeon": {"name": "นกสายฟ้า", "model": "blob/Pigeon", "height": 1.4, "hp": 1.7, "atk": 2.4, "def": 1.3, "speed": 3.7, "aggro": true, "attack": "ranged", "hover": 1.4, "color": Color("fff06a"), "tint": Color(0.7, 1.3, 2.2)},
 	&"storm_ninja": {"name": "นินจาพายุ", "model": "blob/Ninja", "height": 2.1, "hp": 1.9, "atk": 2.6, "def": 1.4, "speed": 3.9, "aggro": true, "attack": "melee", "tint": Color(0.7, 0.9, 1.5)},
 	&"volt_bunny": {"name": "ลิงสายฟ้า", "model": "big/Monkroose", "height": 1.8, "hp": 2.0, "atk": 2.3, "def": 1.6, "speed": 3.5, "aggro": true, "attack": "melee", "tint": Color(1.4, 1.3, 0.6)},
 	&"storm_wizard": {"name": "จอมเวทพายุ", "model": "flying/Alpaking", "height": 1.9, "hp": 1.8, "atk": 2.7, "def": 1.4, "speed": 2.5, "aggro": true, "attack": "ranged", "color": Color("7ab8ff"), "tint": Color(0.6, 0.9, 1.6), "hover": 1.0},
-	&"storm_dragon": {"name": "มังกรสายฟ้าคำราม", "model": "flying/Dragon", "height": 4.6, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.9, "color": Color("7ab8ff"), "tint": Color(0.7, 1.1, 1.8)},
+	&"storm_dragon": {"name": "มังกรสายฟ้าคำราม", "model": "flying/Dragon", "height": 4.6, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.9, "color": Color("7ab8ff"), "tint": Color(0.7, 1.1, 1.8), "behavior": "chain_lightning", "behavior2": "thunder_cage"},
 	# Sunken sky city
 	&"fallen_angel": {"name": "ทูตสวรรค์ตกต่ำ", "model": "flying/Demon", "height": 2.0, "hp": 2.3, "atk": 2.9, "def": 1.6, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.1, "color": Color("ffd84a"), "tint": Color(1.8, 1.6, 0.8)},
 	&"gold_birb": {"name": "นกทองคำ", "model": "blob/Birb", "height": 1.8, "hp": 2.2, "atk": 2.8, "def": 1.6, "speed": 3.8, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.5, 0.6)},
 	&"sun_dino": {"name": "มังกรน้อยสุริยะ", "model": "cute/YellowDragon", "height": 2.8, "hp": 3.0, "atk": 2.7, "def": 2.2, "speed": 2.9, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.6, 0.9)},
 	&"sky_hound": {"name": "กวางเมฆา", "model": "cute/Deer", "height": 1.9, "hp": 2.6, "atk": 2.9, "def": 1.9, "speed": 4.2, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.8, 2.0)},
 	&"sky_priest": {"name": "นักบวชมืดเมฆา", "model": "flying/Alpaking_Evolved", "height": 2.0, "hp": 2.3, "atk": 3.2, "def": 1.7, "speed": 2.6, "aggro": true, "attack": "ranged", "color": Color("fff0a0"), "tint": Color(1.6, 1.5, 0.9), "hover": 1.0},
-	&"gold_dragon": {"name": "มังกรทองเทพเจ้า", "model": "flying/Dragon_Evolved", "height": 5.0, "hp": 24.0, "atk": 3.3, "def": 3.0, "speed": 2.9, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.0, "color": Color("ffd84a"), "tint": Color(1.8, 1.4, 0.5)},
+	&"gold_dragon": {"name": "มังกรทองเทพเจ้า", "model": "flying/Dragon_Evolved", "height": 5.0, "hp": 24.0, "atk": 3.3, "def": 3.0, "speed": 2.9, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.0, "color": Color("ffd84a"), "tint": Color(1.8, 1.4, 0.5), "behavior": "solar_wedge", "behavior2": "sun_pillars"},
 	# Abyss of hell
 	&"hell_orc": {"name": "ออร์คปีศาจ", "model": "big/Demon", "height": 2.8, "hp": 3.4, "atk": 3.2, "def": 2.5, "speed": 2.9, "aggro": true, "attack": "melee", "tint": Color(1.2, 0.5, 0.5)},
 	&"abyss_ghost": {"name": "ผีนรกอเวจี", "model": "flying/Ghost", "height": 2.2, "hp": 2.8, "atk": 3.6, "def": 1.8, "speed": 3.1, "aggro": true, "attack": "ranged", "hover": 1.1, "color": Color("ff4a6a"), "tint": Color(1.8, 0.4, 0.6)},
 	&"demon_ninja": {"name": "นักรบเผ่าปีศาจ", "model": "big/Tribal", "height": 2.4, "hp": 2.6, "atk": 3.9, "def": 1.9, "speed": 4.3, "aggro": true, "attack": "melee", "tint": Color(1.4, 0.5, 0.6)},
 	&"hell_dino": {"name": "สัตว์ประหลาดนรก", "model": "blob/GreenSpikyBlob", "height": 3.2, "hp": 3.6, "atk": 3.3, "def": 2.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(1.6, 0.4, 0.4)},
 	&"hell_wizard": {"name": "ปีศาจหนวดนรก", "model": "cute/Cthulhu", "height": 2.2, "hp": 2.8, "atk": 4.0, "def": 2.0, "speed": 2.7, "aggro": true, "attack": "ranged", "color": Color("ff3a5a"), "tint": Color(2.0, 0.7, 0.8)},
-	&"abyss_dragon": {"name": "ราชามังกรอเวจี", "model": "flying/Dragon_Evolved", "height": 5.8, "hp": 30.0, "atk": 3.8, "def": 3.5, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.1, "color": Color("ff2a4a"), "tint": Color(1.2, 0.3, 0.4)},
+	&"abyss_dragon": {"name": "ราชามังกรอเวจี", "model": "flying/Dragon_Evolved", "height": 5.8, "hp": 30.0, "atk": 3.8, "def": 3.5, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.1, "color": Color("ff2a4a"), "tint": Color(1.2, 0.3, 0.4), "behavior": "inferno_spiral", "behavior2": "inferno_twin"},
 	# Void of calamity (Lv.100 endgame farm): huge HP, heavy hits, rich drops.
 	&"void_golem": {"name": "ยักษ์หินห้วงว่างเปล่า", "model": "big/BlueDemon", "height": 3.6, "hp": 6.5, "atk": 4.6, "def": 4.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(0.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0},
 	&"star_wraith": {"name": "วิญญาณดาวดับ", "model": "flying/Ghost_Skull", "height": 2.8, "hp": 5.5, "atk": 5.6, "def": 3.4, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("9a7aff"), "tint": Color(0.8, 0.6, 2.0), "exp": 4.0, "gold": 5.0},
 	&"rift_stalker": {"name": "นักล่าช่องมิติ", "model": "big/Ninja", "height": 3.0, "hp": 6.0, "atk": 6.0, "def": 3.8, "speed": 4.8, "aggro": true, "attack": "melee", "tint": Color(0.5, 1.7, 1.9), "exp": 4.0, "gold": 5.0},
 	&"tentacle_horror": {"name": "อสูรหนวดอนันต์", "model": "cute/Cthulhu", "height": 3.2, "hp": 7.0, "atk": 5.2, "def": 4.0, "speed": 3.0, "aggro": true, "attack": "ranged", "color": Color("ff5af0"), "tint": Color(1.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0},
 	&"nova_drake": {"name": "มังกรน้อยซูเปอร์โนวา", "model": "cute/YellowDragon", "height": 3.6, "hp": 7.5, "atk": 5.0, "def": 4.4, "speed": 3.4, "aggro": true, "attack": "melee", "tint": Color(1.9, 0.5, 0.9), "exp": 4.0, "gold": 5.0},
-	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "big/Demon", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0},
+	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "big/Demon", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0, "behavior": "rift_trail", "behavior2": "event_horizon"},
 }
 
 

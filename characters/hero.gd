@@ -12,6 +12,7 @@ signal auto_changed(on: bool)
 
 const TARGET_RANGE := 16.0
 const POTION_COOLDOWN := 1.2
+const SLOW_FACTOR := 0.6
 ## How high flying wings lift the hero.
 const FLY_HEIGHT := 0.9
 ## Forward lean (radians) while flying on the move.
@@ -52,6 +53,7 @@ var _attack_timer := 0.0
 var _combo := 0
 var _cast_until := 0
 var _since_hurt := 99.0
+var _slow_until := 0
 var _regen_hp := 0.0
 var _regen_mp := 0.0
 var _dead := false
@@ -424,6 +426,8 @@ func _physics_process(delta: float) -> void:
 			desired = _auto_step(delta)
 		else:
 			desired = _combat_step(delta)
+	if Time.get_ticks_msec() < _slow_until:
+		desired *= SLOW_FACTOR
 	velocity.x = lerpf(velocity.x, desired.x, 1.0 - exp(-16.0 * delta))
 	velocity.z = lerpf(velocity.z, desired.z, 1.0 - exp(-16.0 * delta))
 	velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
@@ -1003,6 +1007,15 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 # ---------------------------------------------------------------------------
 # Taking damage, dying
 # ---------------------------------------------------------------------------
+
+## A boss move chills / mires the hero: walking speed drops for [param seconds].
+func apply_slow(seconds: float) -> void:
+	if _dead:
+		return
+	if Time.get_ticks_msec() >= _slow_until:
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.7, 0), "ช้าลง!", Color("9fe8ff"), 0.9)
+	_slow_until = maxi(_slow_until, Time.get_ticks_msec() + int(seconds * 1000.0))
+
 
 func take_damage(raw: float, _attacker: Node = null) -> void:
 	if _dead or Time.get_ticks_msec() < _invulnerable_until or safe_zone:

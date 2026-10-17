@@ -57,6 +57,7 @@ var phase := 0
 var _atk_scale := 1.0
 var _base_speed := 2.0
 var _barrage_timer := 9.0
+var _boss_moves := 0
 var _dormant := false
 
 
@@ -302,6 +303,7 @@ func _physics_process(delta: float) -> void:
 				hp = max_hp
 				_bar.set_ratio(1.0)
 				phase = 0
+				_boss_moves = 0
 				_atk_scale = 1.0
 				_speed = _base_speed
 			else:
@@ -324,7 +326,7 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var reach := (7.0 if ranged else 1.5 + body_radius() * 1.2)
 	_attack_timer -= delta
 	_slam_timer -= delta
-	if phase >= 1 and not StarMonsters.has(monster_id) and not DivineRegionData.has_monster(monster_id):
+	if phase >= 1 and not StarMonsters.has(monster_id) and not DivineRegionData.has_monster(monster_id) and not BossAttack.has_moves(template):
 		_barrage_timer -= delta
 		if _barrage_timer <= 0.0:
 			_barrage_timer = 9.0 if phase == 1 else 6.0
@@ -446,6 +448,9 @@ func _begin_slam() -> void:
 	if StarMonsters.has(monster_id):
 		StarAttack.start(self,true)
 		return
+	if BossAttack.has_moves(template):
+		BossAttack.start(self)
+		return
 	_winding = true
 	_slam_timer = SLAM_INTERVAL
 	var radius := 5.5
@@ -483,7 +488,12 @@ func _check_phase() -> void:
 		_speed *= 1.25
 		visual.flash(Color(1.0, 0.2, 0.15), 1.0)
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.9, 0), "คลั่ง!", Color("ff4a4a"), 1.5)
-		Game.say("%s คลั่งแล้ว! ระวังอุกกาบาต" % String(template.name), &"warning")
+		if BossAttack.has_moves(template) and BossAttack.MOVES.has(String(template.get("behavior2", ""))):
+			_boss_moves = 0
+			_slam_timer = minf(_slam_timer, 2.0)
+			Game.say("%s คลั่งแล้ว! ท่าใหม่ \"%s\"" % [String(template.name), BossAttack.title(String(template.behavior2))], &"warning")
+		else:
+			Game.say("%s คลั่งแล้ว! ระวังอุกกาบาต" % String(template.name), &"warning")
 	else:
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.9, 0), "เรียกพวก!", Color("ffd84a"), 1.4)
 		Game.say("%s ร้องเรียกลูกสมุน!" % String(template.name), &"warning")
