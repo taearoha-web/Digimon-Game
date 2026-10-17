@@ -777,12 +777,18 @@ func _drop_loot(mob: Mob) -> void:
 	var loot: Dictionary = data.get("loot", {})
 	var boost := float(loot.get("rarity_boost", 0.0))
 	if boss:
+		# The field's own boss follows its drop table: its own slots, a favourite
+		# gem and chase pieces with a pity counter. Tower / arena bosses do not.
+		var table := mob == _boss and BossLootData.has(mob.monster_id)
 		var best := maxi(1, int(loot.get("boss_min_rarity", 3 if loot.has("boss_items") else 1)))
 		for i in int(loot.get("boss_items", 3)):
 			var rarity := maxi(1, ItemData.roll_rarity(rng, maxf(0.3, boost * 5.0)))
 			if i < 2:
 				rarity = maxi(rarity, best)
-			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity), 0, from)
+			var slot := BossLootData.slot_for(mob.monster_id, i) if table else ""
+			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity, slot), 0, from)
+		if table:
+			_boss_chase(mob, from, class_id, loot)
 		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)):
 			_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
@@ -794,7 +800,10 @@ func _drop_loot(mob: Mob) -> void:
 		_spawn_loot(ItemData.potion("hp_xl" if top else "hp_m", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_xl" if top else "mp_m", 2), 0, from)
 		for i in (4 if loot.has("boss_items") else 2):
-			_spawn_loot(_random_gem(mob.level, 1), 0, from)
+			var gem := _random_gem(mob.level, 1)
+			if table:
+				gem = ItemData.gem(BossLootData.gem_kind(mob.monster_id, rng), int(String(gem.id).split("_")[1]))
+			_spawn_loot(gem, 0, from)
 		return
 	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)):
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
@@ -812,6 +821,16 @@ func _drop_loot(mob: Mob) -> void:
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
 		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
+
+
+## Chase pieces of a field boss; every miss raises the next kill's chance.
+func _boss_chase(mob: Mob, from: Vector3, class_id: StringName, loot: Dictionary) -> void:
+	var won := BossLootData.roll_chases(mob.monster_id, Game.boss_pity(), _gear_level(mob, loot), class_id, rng)
+	for item in won:
+		_spawn_loot(item, 0, from)
+		Game.say("%s มอบ %s ที่รอคอย!" % [String(mob.template.name), ItemData.name_of(item)], &"quest")
+	if won.is_empty():
+		Game.say("โชคสะสม: อีก %d ครั้งจะได้ของหายากแน่นอน" % BossLootData.kills_left(mob.monster_id, Game.boss_pity()), &"info")
 
 
 func _divine_loot(mob: Mob, from: Vector3) -> void:

@@ -334,10 +334,12 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-9.0 * delta))
 		visual.rotation.y = _yaw
+	# Dashing / leaping monsters start their move from farther away.
+	var trigger := maxf(reach, MobAttack.trigger_range(template)) if MobAttack.knows(template) else reach
 	if is_boss and _slam_timer <= 0.0 and distance < 9.0 and not _winding:
 		_begin_slam()
-	elif distance <= reach and _attack_timer <= 0.0 and not _winding:
-		_begin_attack()
+	elif distance <= trigger and _attack_timer <= 0.0 and not _winding:
+		_begin_attack(distance <= reach)
 	if _winding or distance <= reach * 0.85:
 		return Vector3.ZERO
 	return to.normalized() * _speed * 1.7 * speed_factor
@@ -368,12 +370,17 @@ func _animate(horizontal: Vector3, delta: float, chase: Node3D) -> void:
 		visual.play("idle")
 
 
-func _begin_attack() -> void:
+func _begin_attack(in_reach := true) -> void:
 	if DivineRegionData.has_monster(monster_id):
 		DivineAttack.start(self)
 		return
 	if StarMonsters.has(monster_id):
 		StarAttack.start(self)
+		return
+	if MobAttack.knows(template) and MobAttack.launch(self):
+		return
+	if not in_reach:
+		_attack_timer = 0.5
 		return
 	_winding = true
 	visual.flash(Color(1.0, 0.25, 0.2), WINDUP)

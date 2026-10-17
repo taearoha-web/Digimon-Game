@@ -91,7 +91,7 @@ static func start(actor: Mob) -> void:
 
 
 func _ready() -> void:
-	var info: Dictionary = MOVES[move]
+	var info := _info()
 	style = String(info.style)
 	slow = float(info.slow)
 	var victim: Node3D = mob._victim
@@ -104,7 +104,7 @@ func _ready() -> void:
 		heading = (victim as CharacterBody3D).velocity * Vector3(1, 0, 1)
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	shots = plan(move, origin, forward, hero_pos, heading, rng)
+	shots = _build(origin, forward, hero_pos, heading, rng)
 	var first := 99.0
 	for shot in shots:
 		last_impact = maxf(last_impact, float(shot.at))
@@ -116,11 +116,28 @@ func _ready() -> void:
 	mob.get_parent().add_child(warned)
 	for shot in shots:
 		VfxKit.danger_circle(warned, shot.pos, float(shot.r), float(shot.at))
-	var color: Color = STYLE_COLORS[style]
 	mob.visual.flash(Color(1.0, 0.3, 0.2), first)
 	mob.visual.action("attack", int((last_impact + 0.4) * 1000.0))
 	mob._anim_lock = Time.get_ticks_msec() + int((last_impact + 0.4) * 1000.0)
-	BattleVfx.floating_text(mob.get_parent(), mob.top_point() + Vector3(0, 0.9, 0), title(move), color, 1.1)
+	_announce()
+
+
+## Hooks for the plain-monster version (MobAttack).
+func _info() -> Dictionary:
+	return MOVES[move]
+
+
+func _build(origin: Vector3, forward: Vector3, hero_pos: Vector3, heading: Vector3, rng: RandomNumberGenerator) -> Array[Dictionary]:
+	return plan(move, origin, forward, hero_pos, heading, rng)
+
+
+func _announce() -> void:
+	BattleVfx.floating_text(mob.get_parent(), mob.top_point() + Vector3(0, 0.9, 0), title(move), STYLE_COLORS[style], 1.1)
+
+
+## Moves the monster during its windup (dashes and leaps).
+func _motion(_delta: float) -> void:
+	pass
 
 
 func _process(delta: float) -> void:
@@ -131,6 +148,7 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	age += delta
+	_motion(delta)
 	for i in shots.size():
 		if not landed[i] and age >= float(shots[i].at):
 			landed[i] = true
