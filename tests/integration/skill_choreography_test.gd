@@ -21,7 +21,7 @@ func _ready() -> void:
 	var count := 0
 	for family in SkillShow.FAMILY_COLORS:
 		count += ClassData.pool(StringName(family)).size()
-	check(seen.size() == count and count == 152, "exactly the complete 152-skill catalogue")
+	check(seen.size() == count and count == 177, "exactly the complete 177-skill catalogue")
 	for rig in 3:
 		for family in SkillShow.FAMILY_COLORS:
 			var visual := HeroVisual.new()
