@@ -435,16 +435,47 @@ func _line() -> void:
 	await _shot("menu_skills_vagabond")
 
 
+## Every field with the real combat camera, the widest view the player can
+## pull (max distance, flattest pitch) and a high overview; <job> may be a
+## comma-separated list of zone ids (default: five late fields).
 func _zones() -> void:
 	_level(100)
-	for id in [&"graveyard", &"swamp", &"storm", &"sky", &"abyss"]:
+	var ids: Array = [&"graveyard", &"swamp", &"storm", &"sky", &"abyss"]
+	if job != "":
+		ids = Array(job.split(",")).map(func(s: String): return StringName(s))
+	for id in ids:
 		await main.go(id, true)
 		await _wait(1.5)
 		var z: Zone = main.zone
-		z.hero.global_position = Vector3(-20, 0.2, -12)
+		# The hero stands in the first camp for the shot; the monsters hold still.
+		if not z.is_town:
+			z.hero.global_position = Vector3(-20, 0.2, -12)
+			z._spawn_timer = 999.0
 		z.camera_rig.snap_to_target()
-		await _wait(1.0)
+		await _wait(0.4)
+		for mob in get_tree().get_nodes_in_group("mobs"):
+			mob.set_physics_process(false)
+		await _wait(0.6)
 		await _shot("zone_%s" % id)
+		print("%s draw calls: %d objects: %d primitives: %d" % [id,
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+		z.camera_rig.pitch_degrees = z.camera_rig.max_pitch
+		z.camera_rig.zoom(-40.0)
+		z.camera_rig._apply_rotation()
+		await _wait(1.2)
+		await _shot("wide_%s" % id)
+		var cam := Camera3D.new()
+		z.add_child(cam)
+		cam.fov = 54
+		cam.far = 350
+		var focus := Vector3(-2, 2, -6) if z.is_town else Vector3(-15, 1, -9)
+		cam.global_position = focus + (Vector3(30, 24, 40) if z.is_town else Vector3(23, 18, 29))
+		cam.look_at(focus, Vector3.UP)
+		cam.make_current()
+		await _wait(0.6)
+		await _shot("over_%s" % id)
 
 
 func _town() -> void:

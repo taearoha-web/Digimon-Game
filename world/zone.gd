@@ -42,8 +42,41 @@ var npcs: Array[Npc] = []
 var companions: Array[Companion] = []
 var current_interact: Dictionary = {}
 
+## Ambient life per weather preset: layers of untracked CPUParticles3D that
+## follow the hero and never draw from the combat VFX budget. Keys: amount (x
+## particle_scale), life, size (float or Vector2), color, add (additive), dir,
+## spread, speed [min, max], gravity, y (emitter height), box (half extents),
+## scale [min, max], pulse (flicker over the lifetime), ring (ring texture),
+## upright (streaks stay vertical).
+const WEATHER := {
+	&"snow": [{"amount": 110, "life": 7.0, "size": 0.16, "color": Color(1, 1, 1, 0.7), "dir": Vector3(0.15, -1, 0.05), "spread": 12.0, "speed": [1.6, 2.6], "y": 14.0}],
+	&"embers": [{"amount": 48, "life": 4.5, "size": 0.12, "color": Color(1.0, 0.72, 0.45, 0.7), "add": true, "dir": Vector3(0.1, 1, 0.1), "spread": 20.0, "speed": [0.8, 2.2], "y": 0.4}],
+	&"petals": [
+		{"amount": 42, "life": 6.5, "size": Vector2(0.16, 0.11), "color": Color("ffc8da"), "dir": Vector3(0.5, -1, 0.2), "spread": 30.0, "speed": [0.5, 1.1], "gravity": Vector3(0.3, -0.2, 0.1), "y": 9.0, "scale": [0.6, 1.0]},
+		{"amount": 36, "life": 8.0, "size": 0.07, "color": Color(1.0, 0.95, 0.7, 0.6), "add": true, "dir": Vector3(0.3, 0.1, 0.1), "spread": 60.0, "speed": [0.2, 0.6], "y": 1.5, "box": Vector3(26, 1.2, 26), "pulse": true},
+	],
+	&"fireflies": [{"amount": 46, "life": 6.0, "size": 0.12, "color": Color(0.75, 1.0, 0.5, 0.9), "add": true, "dir": Vector3(0, 0.2, 0), "spread": 80.0, "speed": [0.2, 0.5], "y": 1.2, "box": Vector3(26, 1.0, 26), "pulse": true}],
+	&"sand": [{"amount": 64, "life": 5.0, "size": Vector2(0.22, 0.08), "color": Color(0.9, 0.8, 0.6, 0.45), "dir": Vector3(1, 0.05, 0.2), "spread": 10.0, "speed": [3.0, 5.0], "y": 0.8, "box": Vector3(26, 1.0, 26), "scale": [0.6, 1.6]}],
+	&"rain": [{"amount": 170, "life": 1.3, "size": Vector2(0.04, 0.55), "color": Color(0.8, 0.9, 1.0, 0.5), "dir": Vector3(0.25, -1, 0.05), "spread": 3.0, "speed": [16.0, 20.0], "y": 16.0, "upright": true}],
+	&"wisps": [{"amount": 30, "life": 7.0, "size": 0.26, "color": Color(0.6, 0.8, 1.0, 0.5), "add": true, "dir": Vector3(0, 0.3, 0), "spread": 70.0, "speed": [0.2, 0.5], "y": 1.0, "box": Vector3(26, 0.8, 26), "pulse": true}],
+	&"brimstone": [
+		{"amount": 44, "life": 4.5, "size": 0.12, "color": Color(1.0, 0.5, 0.4, 0.7), "add": true, "dir": Vector3(0.1, 1, 0.1), "spread": 20.0, "speed": [0.8, 2.2], "y": 0.4},
+		{"amount": 20, "life": 7.0, "size": 0.3, "color": Color(1.0, 0.35, 0.4, 0.45), "add": true, "dir": Vector3(0, 0.3, 0), "spread": 70.0, "speed": [0.2, 0.5], "y": 1.0, "box": Vector3(26, 0.8, 26), "pulse": true},
+	],
+	&"runes": [
+		{"amount": 30, "life": 7.0, "size": 0.34, "color": Color(0.7, 0.55, 1.0, 0.7), "add": true, "dir": Vector3(0, 1, 0), "spread": 15.0, "speed": [0.3, 0.7], "y": 0.6, "box": Vector3(26, 0.5, 26), "ring": true, "pulse": true},
+		{"amount": 36, "life": 4.5, "size": 0.1, "color": Color(0.77, 0.7, 1.0, 0.6), "add": true, "dir": Vector3(0.1, 1, 0.1), "spread": 20.0, "speed": [0.8, 2.2], "y": 0.4},
+	],
+	&"motes": [
+		{"amount": 44, "life": 7.0, "size": 0.1, "color": Color(1.0, 0.9, 0.55, 0.8), "add": true, "dir": Vector3(0.2, 0.3, 0.1), "spread": 60.0, "speed": [0.2, 0.6], "y": 2.0, "box": Vector3(26, 1.5, 26), "pulse": true},
+		{"amount": 18, "life": 9.0, "size": Vector2(0.12, 0.3), "color": Color(1.0, 1.0, 1.0, 0.9), "dir": Vector3(0.4, -1, 0.2), "spread": 35.0, "speed": [0.3, 0.7], "gravity": Vector3(0.4, -0.15, 0.2), "y": 10.0, "scale": [0.6, 1.0]},
+	],
+}
+
 var _spawn_timer := 0.0
-var _weather: CPUParticles3D
+var _weather: Node3D
+var _env: WorldEnvironment
+var _ambient_base := 0.33
 var _arena_wave := 0
 var _arena_state := "wait"
 var _arena_timer := 4.0
@@ -227,11 +260,21 @@ func _build_pvp() -> void:
 	_make_boundary_walls(PvpArena.RADIUS + 1.5)
 
 
+## The sky and air of this zone (Scenery.environment / sky_dressing "look").
+func _sky_look() -> Dictionary:
+	var look := {"theme": StringName(data.get("theme", &"meadow")), "sun_size": float(data.get("sun_size", 1.0)),
+		"moon": bool(data.get("moon", false)), "sun_color": data.get("sun", Color(1.0, 0.96, 0.88))}
+	if data.has("sky_palette"):
+		look["palette"] = data.sky_palette
+	return look
+
+
 func _build_field() -> void:
 	var theme: StringName = data.theme
 	var sky: Color = data.sky
 	var fog: Color = data.get("fog", sky.lerp(Color.WHITE, 0.35))
-	Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)))
+	_env = Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)), _sky_look())
+	_ambient_base = _env.environment.ambient_light_energy
 	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID:
 		_build_star_field()
 		return
@@ -243,7 +286,7 @@ func _build_field() -> void:
 		clearings.append(Vector3(camp.pos.x, camp.pos.y, float(camp.radius)))
 	_phase("env")
 	await _slice()
-	Scenery.ground(self, 130.0, ground_color.darkened(0.13), ground_color.lightened(0.025), int(data.get("seed", 5)),
+	Scenery.ground(self, 130.0, ground_color.darkened(0.16), ground_color.lightened(0.07), int(data.get("seed", 5)),
 			data.get("path_color", Color("c5b394")), paths, 2.8, clearings, theme)
 	_boss_spot = Vector3(30, 0, 26)
 	var clear: Array[Vector3] = [
@@ -268,12 +311,16 @@ func _build_field() -> void:
 	_phase("populate")
 	await _slice()
 	WorldArt.landscape(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
+	var special := is_tower or bool(data.get("arena", false))
+	if not special:
+		WorldArt.silhouettes(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
+	Scenery.sky_dressing(self, theme, _sky_look(), FIELD_RADIUS, int(data.get("seed", 5)))
 	_phase("landscape")
 	await _slice()
-	WorldArt.region_edges(self, theme, FIELD_RADIUS, int(data.get("seed", 5)), clear)
+	WorldArt.region_edges(self, theme, FIELD_RADIUS, int(data.get("seed", 5)), clear, not special)
 	_phase("edges")
 	await _slice()
-	if is_tower or bool(data.get("arena", false)):
+	if special:
 		SpecialStageArt.build(self, zone_id)
 	if data.has("boss"):
 		WorldArt.boss_landmark(self, theme, _boss_spot)
@@ -327,61 +374,115 @@ func _build_star_field() -> void:
 		add_child(label)
 
 
-## Falling snow or rising embers that follow the hero (cheap CPU particles).
+## Snow, embers, petals, fireflies, rain... that follow the hero (cheap CPU
+## particles, see WEATHER). Storm rain also flashes the sky now and then.
 func _make_weather(kind: StringName) -> void:
-	if kind == &"":
+	var layers: Array = WEATHER.get(kind, [])
+	if layers.is_empty():
 		return
-	_weather = CPUParticles3D.new()
-	_weather.amount = maxi(1, int((110 if kind == &"snow" else 48) * GameSettings.particle_scale()))
-	_weather.lifetime = 7.0 if kind == &"snow" else 4.5
-	_weather.preprocess = _weather.lifetime
-	_weather.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	_weather.emission_box_extents = Vector3(26, 0.5, 26)
-	_weather.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_weather = Node3D.new()
+	_weather.name = "Weather"
+	add_child(_weather)
+	for layer in layers:
+		_weather.add_child(_weather_layer(layer))
+	if kind == &"rain":
+		_storm_flash()
+
+
+static var _ring_texture: Texture2D
+
+
+func _weather_layer(spec: Dictionary) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = maxi(1, int(float(spec.amount) * GameSettings.particle_scale()))
+	p.lifetime = float(spec.life)
+	p.lifetime_randomness = 0.35
+	p.preprocess = p.lifetime
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = spec.get("box", Vector3(26, 0.5, 26))
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.16, 0.16) if kind == &"snow" else Vector2(0.12, 0.12)
+	var size: Variant = spec.size
+	quad.size = size if size is Vector2 else Vector2(size, size)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_color = Color(1, 1, 1, 0.7) if kind == &"snow" else Color(1.0, 0.72, 0.45, 0.7)
-	if StringName(data.get("theme", &"")) == &"void":
-		mat.albedo_color = Color(0.77, 0.7, 1.0, 0.6)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y if spec.get("upright", false) else BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_color = spec.color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = VfxKit.soft_dot()
-	if kind == &"embers":
+	if spec.get("ring", false):
+		if _ring_texture == null:
+			var gradient := Gradient.new()
+			gradient.offsets = PackedFloat32Array([0.0, 0.5, 0.66, 0.84, 1.0])
+			gradient.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
+			var tex := GradientTexture2D.new()
+			tex.gradient = gradient
+			tex.fill = GradientTexture2D.FILL_RADIAL
+			tex.fill_from = Vector2(0.5, 0.5)
+			tex.fill_to = Vector2(1.0, 0.5)
+			tex.width = 64
+			tex.height = 64
+			_ring_texture = tex
+		mat.albedo_texture = _ring_texture
+	else:
+		mat.albedo_texture = VfxKit.soft_dot()
+	if spec.get("add", false):
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	quad.material = mat
-	_weather.mesh = quad
-	if kind == &"snow":
-		_weather.direction = Vector3(0.15, -1, 0.05)
-		_weather.spread = 12.0
-		_weather.initial_velocity_min = 1.6
-		_weather.initial_velocity_max = 2.6
-		_weather.gravity = Vector3.ZERO
-		_weather.position.y = 14.0
-	else:
-		_weather.direction = Vector3(0.1, 1, 0.1)
-		_weather.spread = 20.0
-		_weather.initial_velocity_min = 0.8
-		_weather.initial_velocity_max = 2.2
-		_weather.gravity = Vector3.ZERO
-		_weather.position.y = 0.4
-	add_child(_weather)
+	p.mesh = quad
+	p.direction = spec.dir
+	p.spread = float(spec.spread)
+	p.initial_velocity_min = float(spec.speed[0])
+	p.initial_velocity_max = float(spec.speed[1])
+	p.gravity = spec.get("gravity", Vector3.ZERO)
+	p.position.y = float(spec.y)
+	if spec.has("scale"):
+		p.scale_amount_min = float(spec.scale[0])
+		p.scale_amount_max = float(spec.scale[1])
+	if spec.get("pulse", false):
+		# Each mote fades in, flickers twice and fades out; different ages
+		# flicker at different moments, so the swarm never pulses in step.
+		var ramp := Gradient.new()
+		ramp.offsets = PackedFloat32Array([0.0, 0.15, 0.35, 0.5, 0.7, 0.85, 1.0])
+		ramp.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0.25), Color(1, 1, 1, 1), Color(1, 1, 1, 0.3), Color(1, 1, 1, 0.9), Color(1, 1, 1, 0)])
+		p.color_ramp = ramp
+	return p
+
+
+## A sheet-lightning flash: the ambient light and fog brighten for a moment,
+## then the next flash is scheduled 5-13 s later. No lights are involved.
+func _storm_flash() -> void:
+	if _env == null or not is_inside_tree():
+		return
+	var env := _env.environment
+	var fog := env.fog_light_color
+	var tween := create_tween()
+	tween.tween_property(env, "ambient_light_energy", _ambient_base * 3.4, 0.05)
+	tween.parallel().tween_property(env, "fog_light_color", fog.lightened(0.5), 0.05)
+	tween.tween_property(env, "ambient_light_energy", _ambient_base * 1.5, 0.08)
+	tween.tween_property(env, "ambient_light_energy", _ambient_base * 3.0, 0.05)
+	tween.tween_property(env, "ambient_light_energy", _ambient_base, 0.4)
+	tween.parallel().tween_property(env, "fog_light_color", fog, 0.4)
+	tween.tween_interval(rng.randf_range(5.0, 13.0))
+	tween.tween_callback(_storm_flash)
 
 
 func _build_town() -> void:
-	Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"))
+	var look := {"theme": &"village", "palette": [Color("6fa8dc"), Color("b6d4ea"), Color("f3e9dc")], "sun_size": 1.1,
+		"sun_color": Color("fff0d5"), "cloud_range": Vector2(100.0, 150.0), "cloud_height": Vector2(12.0, 24.0)}
+	_env = Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"), look)
 	_start = JapanVillage.START
 	await _slice()
 	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6, [], &"village")
 	await _slice()
 	var clear := JapanVillage.build(self, rng)
 	await _slice()
-	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.55, true, get_tree() if staged else null)
+	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null)
 	await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
+	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)
 	await _slice()
 	_petals()
+	JapanVillage.life(self, rng)
 	portals = [{"to": &"meadow", "pos": JapanVillage.GATE + Vector3(0, 0, 4), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
 	_make_portal(portals[0])
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
@@ -408,18 +509,17 @@ func _build_town() -> void:
 	_add_warp(Vector3(-8.0, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
 
 
-## Sakura petals drifting over the village.
+## Sakura petals drifting over the village: an untracked weather layer (it
+## follows the hero, and it never takes particles from the combat budget).
 func _petals() -> void:
-	var petals := VfxKit._particles(self, Vector3(0, 9.0, 0), Color("ffc8da"), int(70 * GameSettings.density_scale()) + 20, 7.0, false)
-	petals.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	petals.emission_box_extents = Vector3(38, 1, 38)
-	petals.direction = Vector3(0.4, -1, 0.2)
-	petals.spread = 25.0
-	petals.initial_velocity_min = 0.6
-	petals.initial_velocity_max = 1.2
-	petals.gravity = Vector3(0.2, -0.35, 0.1)
-	petals.scale_amount_min = 0.5
-	petals.scale_amount_max = 0.9
+	_weather = Node3D.new()
+	_weather.name = "Weather"
+	add_child(_weather)
+	var spec: Dictionary = WEATHER[&"petals"][0].duplicate()
+	spec["amount"] = 250
+	spec["life"] = 7.5
+	spec["box"] = Vector3(30, 1.0, 30)
+	_weather.add_child(_weather_layer(spec))
 
 
 func _spawn_party() -> void:

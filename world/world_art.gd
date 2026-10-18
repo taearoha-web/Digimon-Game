@@ -31,8 +31,13 @@ static func landscape(parent: Node3D, theme: StringName, radius: float, seed_val
 
 
 static func region_edges(parent: Node3D, theme: StringName, radius: float, seed_value: int,
-		clearings: Array[Vector3] = []) -> void:
-	RegionArt.build(parent, theme, radius, seed_value, clearings)
+		clearings: Array[Vector3] = [], with_stream := false) -> void:
+	RegionArt.build(parent, theme, radius, seed_value, clearings, with_stream)
+
+
+## Big per-theme shapes between the tree wall and the first ridge.
+static func silhouettes(parent: Node3D, theme: StringName, radius: float, seed_value: int) -> void:
+	RegionArt.silhouettes(parent, theme, radius, seed_value)
 
 
 static func boss_landmark(parent: Node3D, theme: StringName, boss_spot: Vector3) -> void:
