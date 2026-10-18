@@ -76,19 +76,19 @@ vec3 apply_look(vec3 base, float skin_texel, vec2 uv) {
 	// keeps the strands: light colours lift the dark source, highlights stay.
 	float hair = smoothstep(0.25, 0.4, area.r) * (1.0 - skin) * (1.0 - smoothstep(0.25, 0.4, area.g)) * hair_amount;
 	c = mix(c, hair_color.rgb * clamp(0.38 + lum * 2.3, 0.0, 1.35), hair);
-	// Iris: the coloured part of the eye area, dark at the top and lighter below
+	// Iris: the coloured part of the eyeball, dark at the top and lighter below
 	// (that lower glow is warm and light like skin, but amber rather than pink).
-	// The white, the highlights and the near-black lashes and outline stay.
+	// The white, the highlights, the lashes, the liner and the lids stay.
 	float dark_iris = (1.0 - smoothstep(0.32, 0.5, lum)) * (1.0 - skin);
 	// Measured on both bodies: eye-area skin is light (lum 0.6+) with blue at 60-70%
 	// of red; the iris glow is darker (lum 0.4-0.55) with blue at 40-60% of red.
 	float blue_ratio = base.b / max(base.r, 0.01);
 	float glow_iris = (1.0 - smoothstep(0.58, 0.64, blue_ratio)) * smoothstep(0.2, 0.3, sat) * (1.0 - smoothstep(0.56, 0.63, lum));
-	// G: 1 = the iris core, 0.5 = the rest of the eye (lids). The light glow only
-	// counts in the core, where the lid's similar shading cannot be.
-	float eye_area = smoothstep(0.25, 0.4, area.g);
-	glow_iris *= smoothstep(0.7, 0.85, area.g);
-	float iris = eye_area * max(dark_iris, glow_iris) * smoothstep(0.05, 0.12, lum) * eye_amount;
+	// G: 1 = the iris core, 0.5 = the rest of the eye (lids, lashes, liner). Only
+	// the eyeball's iris takes the eye colour; everything around it keeps its own.
+	float core = smoothstep(0.7, 0.85, area.g);
+	float iris = core * max(dark_iris, glow_iris) * smoothstep(0.05, 0.12, lum) * eye_amount;
+	glow_iris *= core;
 	skin *= 1.0 - glow_iris;
 	c = mix(c, eye_color.rgb * (0.3 + lum * 2.0), iris);
 	// Skin tone by ratio to the texture's own skin, keeping its shading.
