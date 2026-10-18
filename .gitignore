@@ -37,3 +37,4 @@ Thumbs.db
 hosting/worker/wrangler.jsonc
 hosting/worker/node_modules/
 hosting/worker/.wrangler/
+__pycache__/

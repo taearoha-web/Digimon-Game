@@ -37,6 +37,9 @@ var _revive_timer := 0.0
 var _invulnerable_until := 0
 var _since_hurt := 99.0
 var _bar: FieldHpBar
+var _summons: Array = []
+var _slow_until := 0
+const SUMMON_LIMIT := 3
 
 
 func setup(p_member: Dictionary, p_index: int, p_hero: Hero, p_field: Node3D) -> void:
@@ -181,6 +184,41 @@ func _drink_mp(amount: float) -> void:
 	mp = minf(float(stats.max_mp), mp + amount)
 	BattleVfx.floating_text(field, global_position + Vector3(0, 3.1, 0), "ดื่มยามานา!", Color("7ab0ff"), 0.9)
 	AudioManager.play_sfx(&"heal", -4.0)
+
+
+## A boss or a legend summon mires the companion: half speed for a while.
+func apply_slow(seconds: float) -> void:
+	if _dead:
+		return
+	_slow_until = maxi(_slow_until, Time.get_ticks_msec() + int(seconds * 1000.0))
+
+
+func _summons_alive(skill_id: String) -> int:
+	_summons = _summons.filter(func(s): return is_instance_valid(s) and not s.is_dead())
+	var n := 0
+	for s in _summons:
+		if s.skill_id == skill_id:
+			n += 1
+	return n
+
+
+## Calls the skill's creatures beside the companion (the same skill's earlier ones are replaced).
+func _summon(skill: Dictionary, mult: float) -> void:
+	var spec: Dictionary = skill.summon
+	_summons = _summons.filter(func(s): return is_instance_valid(s) and not s.is_dead())
+	for old in _summons.duplicate():
+		if old.skill_id == skill.id:
+			old.queue_free()
+			_summons.erase(old)
+	var count := int(spec.get("count", 1))
+	var p_rank := maxi(1, int(Game.party_profile(member).get("skills", {}).get(skill.id, 1)))
+	for i in count:
+		if _summons.size() >= SUMMON_LIMIT:
+			break
+		var s := Summon.new()
+		s.setup(self, String(skill.id), spec, mult * HeroStats.SKILL_POWER, i, count, p_rank)
+		field.add_child(s)
+		_summons.append(s)
 
 
 func heal_fraction(fraction: float) -> void:
@@ -472,8 +510,6 @@ func _try_skills(distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	for skill in skills:
-		if String(skill.shape) == "summon":
-			continue
 		if skill.has("star") or int(skill.level) > int(member.level) + 9 or ClassData.skill_tier(skill) > _tier() or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, distance, hero_hp)
@@ -494,6 +530,11 @@ func _tier() -> int:
 func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
 	match String(skill.shape):
+		"summon":
+			# A summoner companion fights through its creatures: call them as soon as there is a fight.
+			if hero.target == null or _summons_alive(String(skill.id)) > 0 or _summons.size() >= SUMMON_LIMIT:
+				return 0.0
+			return 9.0 + float(skill.get("mult", 1.0)) * 0.2
 		"self":
 			if fx.has("heal") and (hero_hp < 0.55 or float(hp) / float(max_hp) < 0.45):
 				return 10.0
@@ -570,6 +611,8 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 	match String(skill.shape):
 		"self":
 			_apply_self(skill)
+		"summon":
+			_summon(skill, mult)
 		"single":
 			if not alive:
 				return

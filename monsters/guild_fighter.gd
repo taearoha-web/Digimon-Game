@@ -113,6 +113,10 @@ func under_guard() -> bool:
 	return Time.get_ticks_msec() < _guard_until
 
 
+func _summons_are_enemies() -> bool:
+	return team == TEAM_ENEMY
+
+
 # ---------------------------------------------------------------------------
 # Who it can hurt, and who it chooses
 # ---------------------------------------------------------------------------

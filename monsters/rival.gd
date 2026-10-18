@@ -38,6 +38,10 @@ var _rv: RivalVisual
 var war_scale := 1.0
 ## Floating skill names over a cast (off in the guild war: ten fighters would bury the screen).
 var announce_skills := true
+## Creatures this fighter has called (SummonMob on the enemy side, Summon beside the hero).
+var _summons: Array = []
+## At most this many summons alive per AI fighter.
+const SUMMON_LIMIT := 3
 
 
 func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: String) -> void:
@@ -96,6 +100,61 @@ func stop_fight() -> void:
 	duel_over = true
 	_frozen = true
 	hostile = false
+	_dismiss_summons()
+
+
+func _dismiss_summons() -> void:
+	for s in _summons:
+		if is_instance_valid(s):
+			s.queue_free()
+	_summons.clear()
+
+
+## Stars of this fighter (star skills need them, like for the hero).
+func _stars() -> int:
+	return int(_profile.get("paragon", {}).get("level", 0))
+
+
+## Enemy fighters' creatures are monsters (SummonMob); a GuildFighter of our guild calls allies.
+func _summons_are_enemies() -> bool:
+	return true
+
+
+func _summons_alive(skill_id: String) -> int:
+	_summons = _summons.filter(func(s): return is_instance_valid(s) and not s.is_dead())
+	var n := 0
+	for s in _summons:
+		if s.skill_id == skill_id:
+			n += 1
+	return n
+
+
+## Calls the skill's creatures beside this fighter (the same skill's earlier ones are replaced).
+func _summon(skill: Dictionary) -> void:
+	var spec: Dictionary = skill.summon
+	_summons = _summons.filter(func(s): return is_instance_valid(s) and not s.is_dead())
+	for old in _summons.duplicate():
+		if old.skill_id == skill.id:
+			old.queue_free()
+			_summons.erase(old)
+	var count := int(spec.get("count", 1))
+	var p_rank := maxi(1, int(_profile.get("skills", {}).get(skill.id, 1)))
+	var mult := float(skill.get("mult", 1.0)) * HeroStats.SKILL_POWER
+	for i in count:
+		if _summons.size() >= SUMMON_LIMIT:
+			break
+		var node: Node3D
+		if _summons_are_enemies():
+			var m := SummonMob.new()
+			m.setup_summon(self, String(skill.id), spec, mult, i, count, p_rank)
+			m.position = global_position + m._formation()
+			node = m
+		else:
+			var s := Summon.new()
+			s.setup(self, String(skill.id), spec, mult, i, count, p_rank)
+			node = s
+		get_parent().add_child(node)
+		_summons.append(node)
 
 
 func _check_phase() -> void:
@@ -118,6 +177,7 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 
 func _die() -> void:
 	_buff_art.clear(self)
+	_dismiss_summons()
 	super._die()
 	duel_over = true
 
@@ -226,7 +286,7 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 	var hp_ratio := float(hp) / float(max_hp)
 	for skill in class_data.skills:
 		var shape := String(skill.shape)
-		if shape == "summon" or int(skill.level) > level or ClassData.skill_tier(skill) > _tier():
+		if int(skill.level) > level or ClassData.skill_tier(skill) > _tier() or int(skill.get("star", 0)) > _stars():
 			continue
 		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
@@ -246,6 +306,11 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 func _score(skill: Dictionary, shape: String, distance: float, hp_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
 	match shape:
+		"summon":
+			# A summoner's strength: call its creatures early, the strongest first.
+			if distance > 18.0 or _summons_alive(String(skill.id)) > 0 or _summons.size() >= SUMMON_LIMIT:
+				return 0.0
+			return 9.0 + float(skill.get("mult", 1.0)) * 0.2
 		"self":
 			if fx.has("heal"):
 				return 10.0 if hp_ratio < 0.5 else 0.0
@@ -285,6 +350,12 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
 	if String(skill.id) == "judgment_ray":
 		JudgmentRaySequence.launch(get_parent(), self, target, delay, _storm_hit.bind(float(skill.mult) * HeroStats.SKILL_POWER, color), _rv.hero_visual if _rv else null)
+		return
+	if shape == "summon":
+		get_tree().create_timer(minf(delay, 0.6)).timeout.connect(func():
+			if is_instance_valid(self) and not _dead and not duel_over:
+				_summon(skill)
+		, CONNECT_ONE_SHOT)
 		return
 	get_tree().create_timer(delay).timeout.connect(func():
 		if is_instance_valid(self) and not _dead and not duel_over:

@@ -246,6 +246,17 @@ func apply_slow(seconds: float) -> void:
 	_slow = maxf(_slow, seconds)
 
 
+## Frozen solid (Poseidon's ice): held like a stun, with a frost tint for as long as it lasts.
+func apply_freeze(seconds: float) -> void:
+	if is_boss:
+		seconds *= 0.4
+	_stun = maxf(_stun, seconds)
+	_winding = false
+	visual.flash(Color(0.55, 0.85, 1.0), maxf(_stun, 0.5))
+	ElementFx.ice_hit(get_parent(), hit_point())
+	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.4, 0), "แข็ง!", Color("bff4ff"), 0.85)
+
+
 func apply_burn(dps: float, seconds: float) -> void:
 	_burn_dps = maxf(_burn_dps, dps)
 	_burn_time = maxf(_burn_time, seconds)

@@ -12,6 +12,8 @@ const CLIP_ALIASES := {
 	"attack": ["Bite_Front", "Punch", "Headbutt", "Attack"],
 	"hurt": ["HitRecieve", "HitReact", "Hit"],
 	"die": ["Death"],
+	"skill1": ["Skill1"],
+	"skill2": ["Skill2"],
 }
 const LOOPING: Array[String] = ["idle", "walk", "run"]
 ## Models whose front is not +Z, turned at load so they face where they walk.

@@ -4,7 +4,7 @@ extends Node3D
 ## Shared, finite mesh library; 2–6 budgeted draws per cast, one animation clock.
 ## A layer is a batched sculpture, not one node per feather, rune or shard.
 const SHADER := preload("res://shaders/elite_skill.gdshader")
-const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree wind_drake gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance"
+const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance"
 static var _meshes: Dictionary = {}
 const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts"
 
@@ -185,7 +185,13 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer("tree" if id=="world_tree" else "roots",look,Vector3.ZERO,Vector3(radius*0.7,6.8 if id=="world_tree" else 4,radius*0.7),Vector3.ZERO,d,1.6,Vector3.ZERO,0,0.12)
 			art.layer("branches",look,Vector3(0,0.07,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
 			art.layer("leaves",look,Vector3(0,1.5,0),Vector3(radius*0.8,2,radius*0.8),Vector3.ZERO,d,1.65,Vector3.UP*1.2,0.35)
-		"wind_drake","primal_legion","elder_dragon":
+		"fairy_spirit":
+			# A small gate of light, the fairy's wings rising from it and a lotus of healing underneath.
+			art.layer("gate",look,Vector3(0,0.1,1),Vector3.ONE*1.8,Vector3.ZERO,d,1.4)
+			art.layer("wings",look,Vector3(0,1.3,1.2),Vector3.ONE*1.3,Vector3.ZERO,d,1.2,Vector3(0,0.5,0.3))
+			art.layer("lotus",look,Vector3(0,0.07,1),Vector3.ONE*2.4,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.1)
+			art.layer("feathers",look,Vector3(0,1.0,1),Vector3(1.6,2,1.6),Vector3.ZERO,d,1.6,Vector3.UP*0.8,0.2)
+		"primal_legion","elder_dragon":
 			var elder := id=="elder_dragon"
 			art.layer("gate",look,Vector3(0,0.1,1),Vector3.ONE*(3 if elder else 2.2),Vector3.ZERO,d,1.4)
 			art.layer("dragon" if id!="primal_legion" else "beasts",look,Vector3(0,1.7,1.4),Vector3.ONE*(2.9 if elder else 1.9),Vector3.ZERO,d,1.1,Vector3(0,0.2,0.6))

@@ -28,6 +28,7 @@ const THEME := {
 	"elder_dragon": ["spiral", "star", Color("ffe27a"), 18, 0.36, 1.3],
 	"wind_king": ["spiral", "leaf", Color("d8ffe6"), 22, 0.42, 1.5],
 	"poseidon": ["rise", "snow", Color("c8f2ff"), 24, 0.40, 1.1],
+	"fairy": ["orbit", "heart", Color("ffd6f0"), 16, 0.30, 1.2],
 }
 
 

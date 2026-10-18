@@ -23,7 +23,7 @@ func _ready() -> void:
 	# Every kind with a model loads and builds a visual.
 	for kind in Summon.KINDS:
 		var k: Dictionary = Summon.KINDS[kind]
-		if bool(k.get("proc", false)):
+		if bool(k.get("proc", false)) or String(k.get("model", "")) == "":
 			continue
 		var model := String(k.model)
 		var v := MonsterVisual.new()
@@ -71,7 +71,7 @@ func _ready() -> void:
 		lv.queue_free()
 
 	# The summoner keeps every look it had.
-	var kept := {"wolf_pack": "wolf", "giant_frog": "frog", "forest_guardian": "guardian", "alpha_wolves": "wolf", "ancient_treant": "treant", "wind_drake": "drake", "primal_legion": "beast", "elder_dragon": "elder_dragon", "spirit_cat": "cat"}
+	var kept := {"wolf_pack": "wolf", "giant_frog": "frog", "forest_guardian": "guardian", "alpha_wolves": "wolf", "ancient_treant": "treant", "fairy_spirit": "fairy", "primal_legion": "beast", "elder_dragon": "elder_dragon", "spirit_cat": "cat"}
 	for id in kept:
 		check(_kind_of(&"summoner", id) == kept[id], "summoner %s keeps its %s" % [id, kept[id]])
 	check(String(Summon.KINDS.wolf.model) == "blob/Dog" and String(Summon.KINDS.beast.model) == "big/Dino", "the summoner's wolf and beast models are untouched")

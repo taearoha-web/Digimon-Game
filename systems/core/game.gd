@@ -895,8 +895,22 @@ func _repair(data: Dictionary) -> Dictionary:
 
 ## Saves from before the Priston Tale skill system: refund the skill points
 ## spent on the old skills and start with a fresh bar.
+## Skills that changed id: the rank and the bar slot carry over.
+const RENAMED_SKILLS := {"wind_drake": "fairy_spirit"}
+
+
 func _migrate_skills(data: Dictionary) -> void:
 	var cls := StringName(data.get("class", "warrior"))
+	for old in RENAMED_SKILLS:
+		var now: String = RENAMED_SKILLS[old]
+		if data.skills.has(old):
+			if not data.skills.has(now):
+				data.skills[now] = data.skills[old]
+			data.skills.erase(old)
+		if data.get("loadout") is Array:
+			for i in (data["loadout"] as Array).size():
+				if data["loadout"][i] == old:
+					data["loadout"][i] = now
 	var valid := {}
 	for skill in ClassData.pool(cls):
 		valid[skill.id] = true

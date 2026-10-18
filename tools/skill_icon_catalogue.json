@@ -854,11 +854,11 @@
     "art_sha256": "d1087d655c5136b1f32515787fc64c3ebf2108033067b85960b8d77538e53f5c"
   },
   {
-    "id": "wind_drake",
-    "name": "Wind Drake",
+    "id": "fairy_spirit",
+    "name": "Fairy Spirit",
     "family": "summoner",
-    "palette": "wind",
-    "art_sha256": "829467e13ca1abdd9e0d34e75edeabeee8c18903f142064b6b5329efd5a7be93"
+    "palette": "rose",
+    "art_sha256": "218388dc6a6293f6649a32f5e46b77756872e390e2a3837be8937805dbb85e80"
   },
   {
     "id": "gaia_blessing",
