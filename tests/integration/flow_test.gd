@@ -840,7 +840,8 @@ func _wings() -> void:
 	var wing_hp := ItemData.wings(rng, "warrior", 4)
 	Game.profile.inv.append(wing_hp)
 	Game.equip_from_bag(Game.profile.inv.size() - 1)
-	check(int(Game.stats_now().max_hp) >= hp_before + int(wing_hp.stats.hp) - 1, "mythic wings add their HP")
+	# The new pair replaces wing_a, which may have rolled HP of its own.
+	check(int(Game.stats_now().max_hp) >= hp_before - int(wing_a.stats.get("hp", 0)) + int(wing_hp.stats.hp) - 1, "mythic wings add their HP")
 	check(Game.profile.equip.wings.uid == wing_hp.uid, "the wing slot holds the new pair")
 	var shown: Node = main.zone.hero.visual.find_child("Wings_warrior", true, false)
 	check(shown != null, "the hero wears the warrior wing model")
