@@ -1,16 +1,14 @@
 class_name ClassSelect
 extends CanvasLayer
 ## Character creator: every hero starts as a Vagabond in the stock outfit; the
-## player picks gender, hair, skin tone, eyes, nose and mouth and a name. The
+## player picks the body (boy or girl), one of its three styles (ChibiLook) and may
+## change the hair colour, skin tone, eye colour and accessory, then a name. The
 ## sword / bow / mage / priest line is chosen later, at Lv.10.
 
 signal confirmed(class_id: StringName, hero_name: String, look: Dictionary)
 signal cancelled()
 
-const ROWS := [
-	["hair", "ทรงผม"], ["hair_color", "สีผม"], ["skin", "สีผิว"], ["eyes", "ทรงตา"],
-	["eye_color", "สีตา"], ["nose", "จมูก"], ["mouth", "ปาก"], ["outfit", "ชุด"],
-]
+const ROWS := [["hair_tint", "สีผม"], ["skin_tone", "สีผิว"], ["eye_tint", "สีตา"], ["acc", "ประดับ"]]
 
 var look: Dictionary = FaceKit.default_look()
 var _preview: HeroVisual
@@ -19,6 +17,7 @@ var _pivot: Node3D
 var _spin_dragging := false
 var _value_labels: Dictionary = {}
 var _gender_buttons: Array[Button] = []
+var _style_buttons: Array[Button] = []
 var _rng := RandomNumberGenerator.new()
 var _body: BoxContainer
 var _stage: HeroPreview
@@ -63,7 +62,7 @@ func _ready() -> void:
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage_col.add_child(_stage)
 	_pivot = _stage._pivot
-	stage_col.add_child(UIUtil.label("ลากเพื่อหมุน · เลือกเด็กชายหรือเด็กหญิง", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	stage_col.add_child(UIUtil.label("ลากเพื่อหมุน · เลือกตัวละคร แล้วปรับสีได้", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
 
 	var backing := UIUtil.panel(&"GlassPanel")
 	backing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -85,12 +84,18 @@ func _ready() -> void:
 		gender_row.add_child(button)
 		_gender_buttons.append(button)
 	var random_button := UIUtil.button("สุ่มลุค", &"GhostButton", Vector2(120, 54))
-	random_button.pressed.connect(func():
-		look = FaceKit.random_look(_rng)
-		_refresh())
+	random_button.pressed.connect(_randomize)
 	gender_row.add_child(random_button)
-	# The heroes are finished chibi models now: face and hair come with the model.
-	random_button.visible = false
+	right.add_child(UIUtil.label("ตัวละคร", &"BoldLabel"))
+	var style_row := UIUtil.hbox(8)
+	right.add_child(style_row)
+	for i in ChibiLook.count("style"):
+		var button := UIUtil.button("", &"ChoiceButton", Vector2(120, 54))
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.clip_text = true
+		button.pressed.connect(func(): _set_style(i))
+		style_row.add_child(button)
+		_style_buttons.append(button)
 
 	_grid = GridContainer.new()
 	_grid.columns = 2
@@ -99,8 +104,7 @@ func _ready() -> void:
 	right.add_child(_grid)
 	for row in ROWS:
 		_grid.add_child(_option_row(String(row[0]), String(row[1])))
-	_grid.visible = false
-	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก เมื่อเลเวล 10", &"SmallLabel")
+	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก / โล่ เมื่อเลเวล 10", &"SmallLabel")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(note)
 	right.add_child(UIUtil.label("ชื่อฮีโร่", &"BoldLabel"))
@@ -154,17 +158,35 @@ func _set_gender(g: int) -> void:
 		return
 	look["gender"] = g
 	look["hair"] = 0
+	ChibiLook.apply_style(look, int(look.get("style", 0)))
 	_refresh()
 
 
+func _set_style(style: int) -> void:
+	ChibiLook.apply_style(look, style)
+	_refresh()
+
+
+## A random style with random colours (an accessory one time in two).
+func _randomize() -> void:
+	look["gender"] = _rng.randi() % 2
+	ChibiLook.apply_style(look, _rng.randi() % ChibiLook.count("style"))
+	for key in ["skin_tone", "hair_tint", "eye_tint"]:
+		look[key] = 1 + _rng.randi() % (ChibiLook.count(key) - 1)
+	look["acc"] = 0 if _rng.randf() < 0.5 else 1 + _rng.randi() % (ChibiLook.count("acc") - 1)
+	_refresh()
+
+
+## Steps a part through its values; tints pass "สีเดิม" (the original texture, 0).
 func _step(key: String, delta: int) -> void:
-	var count := FaceKit.option_count(key, int(look.gender))
-	look[key] = posmod(int(look[key]) + delta, count)
+	look[key] = posmod(int(look.get(key, 0)) + delta, ChibiLook.count(key))
 	_refresh()
 
 
 func _value_text(key: String) -> String:
 	var i := int(look[key])
+	if key in ChibiLook.KEYS:
+		return ChibiLook.value_name(key, i)
 	match key:
 		"hair": return "%s  (%d/%d)" % [FaceKit.HAIR_NAMES[int(look.gender)][i], i + 1, FaceKit.option_count(key, int(look.gender))]
 		"hair_color": return FaceKit.HAIR_COLOR_NAMES[i]
@@ -181,14 +203,16 @@ func _refresh() -> void:
 	look = FaceKit.repair(look)
 	for g in _gender_buttons.size():
 		_gender_buttons[g].disabled = int(look.gender) == g
+	for i in _style_buttons.size():
+		_style_buttons[i].text = ChibiLook.style_name(int(look.gender), i)
+		_style_buttons[i].disabled = int(look.get("style", 0)) == i
 	for key in _value_labels:
 		var label: Label = _value_labels[key]
 		label.text = _value_text(key)
 		var tint := UIPalette.TEXT
-		match key:
-			"hair_color": tint = FaceKit.HAIR_COLORS[int(look.hair_color)].lerp(Color.WHITE, 0.6)
-			"skin": tint = FaceKit.SKINS[int(look.skin)].lerp(Color.WHITE, 0.4)
-			"eye_color": tint = FaceKit.EYE_COLORS[int(look.eye_color)].lerp(Color.WHITE, 0.65)
+		var color: Variant = ChibiLook.tint(key, int(look.get(key, 0)))
+		if color is Color:
+			tint = (color as Color).lerp(Color.WHITE, 0.3 if key == "skin_tone" else 0.45)
 		label.add_theme_color_override("font_color", tint)
 	_stage.show_hero(ClassData.START, {}, "", look)
 	_preview = _stage.visual

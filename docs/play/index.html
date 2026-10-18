@@ -11,9 +11,9 @@
 <link rel="manifest" href="manifest.webmanifest?v=1196b39e2aea">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1196b39e2aea">
 <link rel="icon" type="image/png" sizes="192x192" href="icon.png?v=1196b39e2aea">
-<meta name="description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 6 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
+<meta name="description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 7 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
 <meta property="og:title" content="Toon Tale">
-<meta property="og:description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 6 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
+<meta property="og:description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 7 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://taearoha-web.github.io/Digimon-Game/play/">
 <meta property="og:image" content="https://taearoha-web.github.io/Digimon-Game/play/og.jpg?v=78530e7783fe">
@@ -221,14 +221,14 @@
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v0.9.4 · build e28f3b06</p>
+    <p class="eyebrow">Web build · v0.9.4 · build 57410c24</p>
     <h1>Toon <span>Tale</span></h1>
-    <p class="lede">ผจญภัย ARPG สไตล์การ์ตูน 6 อาชีพ พัฒนาถึงเลเวล 100 แล้วเดินทางต่อในเส้นทางดาว พร้อม 24 สกิลและปีกเทพ 100 ดาว ใหม่: วิหารบัวดารา ล่าบอสเทพหกปีกเพื่อสะสมชุดและอาวุธ 200 ดาวประจำอาชีพ ใช้ไอดีเดียวเล่นต่อข้ามเครื่องได้</p>
+    <p class="lede">ผจญภัย ARPG สไตล์การ์ตูน 7 อาชีพ พัฒนาถึงเลเวล 100 แล้วเดินทางต่อในเส้นทางดาว พร้อม 28 สกิลและปีกเทพ 100 ดาว ใหม่: วิหารบัวดารา ล่าบอสเทพหกปีกเพื่อสะสมชุดและอาวุธ 200 ดาวประจำอาชีพ ใช้ไอดีเดียวเล่นต่อข้ามเครื่องได้</p>
     <button id="play" type="button">เริ่มเล่น</button>
     <div class="progress" aria-live="polite">
       <div class="bar"><i id="bar"></i></div>
       <p class="note" id="fs-note" hidden>iPhone: กดปุ่มแชร์ → "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดเกมจากไอคอน จะเล่นได้เต็มจอ</p>
-      <p id="status">ขนาดดาวน์โหลดประมาณ 67 MB · เล่นแนวนอน</p>
+      <p id="status">ขนาดดาวน์โหลดประมาณ 70 MB · เล่นแนวนอน</p>
       <button id="session-report" type="button" hidden>ดูรายงานการหลุดครั้งก่อน</button>
     </div>
     <ul class="controls">
@@ -256,9 +256,9 @@
 <script src="session.e4c1d28459ee.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 64378608, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 67412416, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
   // Compressed copies: name -> [file OR ordered file array, total bytes, mime]
-  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.e28f3b06.part001.gz.wasm", "game.e28f3b06.part002.gz.wasm", "game.e28f3b06.part003.gz.wasm", "game.e28f3b06.part004.gz.wasm"], 62092790, "application/octet-stream"]};
+  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.57410c24.part001.gz.wasm", "game.57410c24.part002.gz.wasm", "game.57410c24.part003.gz.wasm", "game.57410c24.part004.gz.wasm"], 65072719, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');
@@ -466,7 +466,7 @@
       onPrintError: function () { console.error.apply(console, arguments); window.toonSession.error(Array.from(arguments).join(' ')); },
       onExit: function () { window.toonSession.end(); },
     }).then(function () {
-      window.toonSession.begin('0.9.4 · build e28f3b06', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
+      window.toonSession.begin('0.9.4 · build 57410c24', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
       resizeGameCanvas();
       document.body.classList.add('playing');
       document.getElementById('loader').remove();

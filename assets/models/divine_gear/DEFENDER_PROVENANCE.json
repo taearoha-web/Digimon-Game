@@ -1,0 +1,262 @@
+{
+ "source": "User-uploaded ผู้พิทักษ์_Defender_ครบชุด.zip and ผู้พิทักษ์_200ดาว.zip (Dropbox /Tae/Toontale/Defender)",
+ "ownership": "User-supplied assets; no claim of public-domain rights or third-party redistribution license.",
+ "pipeline": "tools/defender_import.py: gather primitives (shields posed to rest and unrigged, grip bone 'Shield' moved to the origin), merge by material, weld coincident vertices, meshoptimizer simplify to a triangle budget, crease-angle normals (50 deg). Clothes and wings keep the supplied skin (bind poses match the game's chibi rig); wings keep their clips.",
+ "files": [
+  {
+   "file": "weapons/greatshield_0.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv10_ฝึกหัด/อาวุธ/ปราการไม้เหล็ก.glb"
+   ],
+   "source_triangles": 34716,
+   "triangles": 3235,
+   "surfaces": 6,
+   "skinned": false,
+   "animations": false,
+   "bytes": 86884,
+   "sha256": "5b94cf4af17d565b4dbe485697cf71761637154fc74e64bd628c6ef8fc3df6ac"
+  },
+  {
+   "file": "weapons/greatshield_1.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv20_เหล็กกล้า/อาวุธ/ป้อมปราการเหล็กกล้า.glb"
+   ],
+   "source_triangles": 34528,
+   "triangles": 3218,
+   "surfaces": 7,
+   "skinned": false,
+   "animations": false,
+   "bytes": 93440,
+   "sha256": "1d9dd39f14a1c826e5b8d7d3258b14849ba51a6dabe6c4ddc797a0d3d339eff2"
+  },
+  {
+   "file": "weapons/greatshield_2.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv30_มิธริล/อาวุธ/กำแพงมิธริลคมใบ.glb"
+   ],
+   "source_triangles": 36436,
+   "triangles": 3247,
+   "surfaces": 8,
+   "skinned": false,
+   "animations": false,
+   "bytes": 94188,
+   "sha256": "d59c94d9b4dfc0141342fced37dcb9aabb21229b14a7c43629db8c3c2c57aa4b"
+  },
+  {
+   "file": "weapons/greatshield_3.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv40_ราชวงศ์/อาวุธ/ปราการราชองครักษ์.glb"
+   ],
+   "source_triangles": 39900,
+   "triangles": 3215,
+   "surfaces": 8,
+   "skinned": false,
+   "animations": false,
+   "bytes": 103084,
+   "sha256": "64380867a85ce9dae0e3f790987e882ad105b4478b3cf3cf2243f07c19137984"
+  },
+  {
+   "file": "weapons/greatshield_4.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv50_มังกรเพลิง/อาวุธ/ป้อมเกล็ดมังกรเพลิง.glb"
+   ],
+   "source_triangles": 43968,
+   "triangles": 3265,
+   "surfaces": 8,
+   "skinned": false,
+   "animations": false,
+   "bytes": 116540,
+   "sha256": "ebf2a182e6d5304bcf47e24758909de4e8db9fd8a24ed8c4991283c18e4efc7d"
+  },
+  {
+   "file": "weapons/greatshield_5.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv60_น้ำแข็ง/อาวุธ/ป้อมธารน้ำแข็ง.glb"
+   ],
+   "source_triangles": 31216,
+   "triangles": 3221,
+   "surfaces": 8,
+   "skinned": false,
+   "animations": false,
+   "bytes": 83092,
+   "sha256": "1db4139cf357877fe1fb9baf5a22afc85dedb7ec4e15bd556669539aae0600a1"
+  },
+  {
+   "file": "weapons/greatshield_6.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv70_เงามืด/อาวุธ/ปราการเงาอเวจี.glb"
+   ],
+   "source_triangles": 43924,
+   "triangles": 3253,
+   "surfaces": 8,
+   "skinned": false,
+   "animations": false,
+   "bytes": 104904,
+   "sha256": "c8c69a1cf8c8dfd851aab2d54ae70ab1ce8ade3e0345fb3d0d780806641d3dc4"
+  },
+  {
+   "file": "weapons/greatshield_7.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv80_ศักดิ์สิทธิ์/อาวุธ/กำแพงตะวันศักดิ์สิทธิ์.glb"
+   ],
+   "source_triangles": 49652,
+   "triangles": 3312,
+   "surfaces": 9,
+   "skinned": false,
+   "animations": false,
+   "bytes": 116948,
+   "sha256": "518ca91b52d601e483f5f45899a1bab7ce9ba400a1fc5365bd4a0d2086f5701c"
+  },
+  {
+   "file": "weapons/greatshield_8.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv90_สายฟ้า/อาวุธ/ป้อมอัสนีบาต.glb"
+   ],
+   "source_triangles": 37852,
+   "triangles": 3204,
+   "surfaces": 8,
+   "skinned": false,
+   "animations": false,
+   "bytes": 100404,
+   "sha256": "dc2e12ecbc54cde4c85a85cb9b8b01187c89e9da71e147607b0fc89e71479d56"
+  },
+  {
+   "file": "weapons/greatshield_9.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ชุดผู้พิทักษ์_Lv100_เทพเจ้า/อาวุธ/อีจิสเทพพิทักษ์.glb"
+   ],
+   "source_triangles": 64796,
+   "triangles": 3234,
+   "surfaces": 9,
+   "skinned": false,
+   "animations": false,
+   "bytes": 113216,
+   "sha256": "0cc706d2633d753c8d3324e433bf28a90d4137501987700b23b51e225a7c3b8e"
+  },
+  {
+   "file": "divine_gear/defender_boy_armor.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/ชาย/เสื้อ.glb",
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/ชาย/กางเกง.glb"
+   ],
+   "source_triangles": 57936,
+   "triangles": 8854,
+   "surfaces": 7,
+   "skinned": true,
+   "animations": false,
+   "bytes": 461964,
+   "sha256": "ecd1755285cea8c0cdba875ce7aea694ec656592234b05a7eb41fda4c2e2da6b"
+  },
+  {
+   "file": "divine_gear/defender_boy_helm.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/ชาย/หมวก.glb"
+   ],
+   "source_triangles": 18336,
+   "triangles": 3294,
+   "surfaces": 5,
+   "skinned": true,
+   "animations": false,
+   "bytes": 182752,
+   "sha256": "7811dd7347598552f3b20a36c94e7e19b67fe09e5822c7eb1c0b99ba43f99391"
+  },
+  {
+   "file": "divine_gear/defender_boy_boots.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/ชาย/รองเท้า.glb"
+   ],
+   "source_triangles": 12912,
+   "triangles": 2913,
+   "surfaces": 5,
+   "skinned": true,
+   "animations": false,
+   "bytes": 160172,
+   "sha256": "21b82852874f1d0356c7e11d8fceaec3d0ab0d543864cdb1ec8b8ea10831ac56"
+  },
+  {
+   "file": "divine_gear/defender_girl_armor.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/หญิง/เสื้อ.glb",
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/หญิง/กางเกง.glb"
+   ],
+   "source_triangles": 54304,
+   "triangles": 8856,
+   "surfaces": 7,
+   "skinned": true,
+   "animations": false,
+   "bytes": 456732,
+   "sha256": "cd5963586669ac824908493e517ae3f3ab6defbe75511ecf5d2feaeb70d42b05"
+  },
+  {
+   "file": "divine_gear/defender_girl_helm.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/หญิง/หมวก.glb"
+   ],
+   "source_triangles": 18336,
+   "triangles": 3294,
+   "surfaces": 5,
+   "skinned": true,
+   "animations": false,
+   "bytes": 182396,
+   "sha256": "e96ca35c5c83e33060ad8afd46b934f9a37eed682db91f01e585a21fa11edb40"
+  },
+  {
+   "file": "divine_gear/defender_girl_boots.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/ชุด/หญิง/รองเท้า.glb"
+   ],
+   "source_triangles": 12912,
+   "triangles": 2914,
+   "surfaces": 5,
+   "skinned": true,
+   "animations": false,
+   "bytes": 159532,
+   "sha256": "b7b8f328bd423ffe2aba016bd3b6d51c4eda2cd25fca9c45f2724a9cf18edd69"
+  },
+  {
+   "file": "divine_gear/defender_greatshield.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ชุดผู้พิทักษ์_200ดาว_ดาราจักรนิรันดร์/อาวุธ/ป้อมดาราจักรนิรันดร์.glb"
+   ],
+   "source_triangles": 85084,
+   "triangles": 4570,
+   "surfaces": 11,
+   "skinned": false,
+   "animations": false,
+   "bytes": 159140,
+   "sha256": "e5bb8c767f5a2c7db389b606bad3d62fb8f42a89b1bee5353daa622650ba5063"
+  },
+  {
+   "file": "wings/wings_defender.glb",
+   "sources": [
+    "ผู้พิทักษ์_Defender/ปีกผู้พิทักษ์_Lv100_ปีกอีจิสเทพพิทักษ์/ปีกอีจิสเทพพิทักษ์.glb"
+   ],
+   "source_triangles": 147712,
+   "triangles": 4120,
+   "surfaces": 11,
+   "skinned": true,
+   "animations": true,
+   "bytes": 418636,
+   "sha256": "df7c01844857f4ef47c0466a7f8f5698b7bc48ca0ec3dce8397c18adec47a24e"
+  },
+  {
+   "file": "star_wings/wings_defender.glb",
+   "sources": [
+    "ผู้พิทักษ์_200ดาว/ปีกผู้พิทักษ์_200ดาว_ปีกเทพดาราจักรนิรันดร์/ปีกเทพดาราจักรนิรันดร์.glb"
+   ],
+   "source_triangles": 109896,
+   "triangles": 6020,
+   "surfaces": 15,
+   "skinned": true,
+   "animations": true,
+   "bytes": 628356,
+   "sha256": "72b41f8d4bbaf8a0693ebe824f9f93f7ccf2eccc958b848b7db92a9504a8d8a4"
+  }
+ ],
+ "totals": {
+  "source_triangles": 934416,
+  "shipping_triangles": 77239,
+  "shipping_bytes": 3822380,
+  "glbs": 19
+ }
+}

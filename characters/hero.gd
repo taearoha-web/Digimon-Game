@@ -1002,6 +1002,8 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		mob.apply_slow(float(fx.slow))
 	if fx.has("burn"):
 		mob.apply_burn(float(stats.atk) * float(fx.burn[0]) * rank_mult(skill), float(fx.burn[1]))
+	if fx.has("taunt") and mob.has_method("taunt"):
+		mob.taunt(self, float(fx.taunt))
 
 
 # ---------------------------------------------------------------------------
@@ -1025,6 +1027,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		return
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
 	amount = BuffBook.absorb(_buffs, amount)
+	_reflect(amount, _attacker)
 	if StarProgression.has_full_set(Game.profile,"warrior"):
 		amount=int(ceil(amount*0.9))
 		_star_retaliation=true
@@ -1037,6 +1040,23 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		visual.action("Hit_A", 1.2)
 	if Game.profile.hp <= 0:
 		_die()
+
+
+## Thorn buffs (the Defender's Thorn Guard, Unbreakable): a share of the damage
+## taken goes back to the attacker. Reflected damage never reflects again, and
+## against players (rivals, guild fighters) it is halved.
+func _reflect(taken: int, attacker: Node) -> void:
+	var share := BuffBook.reflect(_buffs)
+	if share <= 0.0 or attacker == null or not is_instance_valid(attacker) or not attacker.has_method("take_hit"):
+		return
+	if attacker.has_method("is_dead") and attacker.is_dead():
+		return
+	if attacker is Rival:
+		share *= 0.5
+	var back := maxi(1, int(round(float(taken) * share)))
+	attacker.take_hit(back, false, Color("ffb46a"), null)
+	if attacker is Node3D:
+		VfxKit.sparks(field, (attacker as Node3D).global_position + Vector3(0, 1.0, 0), Color("ffb46a"), 8, 3.0, 0.35)
 
 
 func _die() -> void:

@@ -482,6 +482,9 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		var fx: Dictionary = skill.get("fx", {})
 		if fx.has("stun"):
 			mob.apply_stun(float(fx.stun))
+		if fx.has("taunt") and mob.has_method("taunt"):
+			# A Defender companion draws the fight off the hero.
+			mob.taunt(self, float(fx.taunt))
 		if fx.has("slow"):
 			mob.apply_slow(float(fx.slow))
 		if fx.has("burn"):
@@ -529,6 +532,9 @@ func _tier() -> int:
 
 func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
+	# A provoke is worth most while the hero is the one being hurt.
+	if fx.has("taunt") and hero_hp < 0.6 and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
+		return 8.5
 	match String(skill.shape):
 		"summon":
 			# A summoner companion fights through its creatures: call them as soon as there is a fight.

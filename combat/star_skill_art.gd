@@ -18,7 +18,9 @@ const COLORS := {
 	"sanctified_chain":["ffc23a","fffbe0","8a5a20"], "seraph_aegis":["ff8ad0","fff4fb","6a3a8a"],
 	"sacred_sanctuary":["2fe0a0","f2fff6","1f6a6a"], "dawn_salvation":["ff7a4a","fff0c0","a03060"],
 	"moonwolf_pact":["5fe0a0","f4ffe6","1d5a3e"], "leviathan_surge":["10c8d8","dafffa","0a4a7a"],
-	"spirit_court":["9be03a","fff6b0","2f6a3a"], "eclipse_sovereign":["2fa8ff","e8fcff","0b2a6e"]
+	"spirit_court":["9be03a","fff6b0","2f6a3a"], "eclipse_sovereign":["2fa8ff","e8fcff","0b2a6e"],
+	"titan_shieldbreak":["ffa64a","fff2c8","6a3412"], "judgment_rebound":["ffe15a","fffbe0","5a4a10"],
+	"eternal_aegis":["5fb4ff","f0f8ff","1a3a7a"], "heavens_bulwark":["8fd0ff","fffbe8","2a3f8a"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -26,9 +28,10 @@ const MOTIFS := {
 	"spiral_impaler":"drill", "heartseeker":"heart", "aegis_formation":"phalanx", "worldsplitter":"worldroot",
 	"arcane_prism":"prism", "crystal_prison":"prison", "astral_convergence":"planets", "genesis_nova":"genesis",
 	"sanctified_chain":"rosary", "seraph_aegis":"seraph", "sacred_sanctuary":"chapel", "dawn_salvation":"sunrise",
-	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan"
+	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan",
+	"titan_shieldbreak":"worldroot", "judgment_rebound":"crown", "eternal_aegis":"phalanx", "heavens_bulwark":"celestial"
 }
-const SUPPORT := ["royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
+const SUPPORT := ["eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 var age := 0.0
 var lifetime := 1.0
 var layers: Array[Dictionary] = []
@@ -185,6 +188,12 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		"lionfang_cleave":
 			art.add("lion",colors,Vector3(0,1.5,-0.35),Vector3.ONE*0.75,Vector3.ZERO,time,opts)
 			art.add("fang",colors,Vector3(0,0.08,0),Vector3.ONE*radius*0.6,Vector3.ZERO,time,opts)
+		"titan_shieldbreak", "heavens_bulwark":
+			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*(1.4 if id=="titan_shieldbreak" else 2.2),Vector3.ZERO,time,opts)
+			art.add("celestial" if id=="heavens_bulwark" else "fang",colors,Vector3.UP*0.08,Vector3.ONE*radius*0.7,Vector3.ZERO,time,opts)
+		"judgment_rebound":
+			art.add("crown",colors,local_target+Vector3.UP*1.6,Vector3.ONE*0.9,Vector3.ZERO,time,opts)
+			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius*0.8,Vector3.ZERO,time,opts)
 		"spiral_impaler":
 			art.add("drill",colors,Vector3(0,1.1,0.6),Vector3.ONE*0.65,Vector3.ZERO,time,{"spin":0,"turn":Vector3(0,0,TAU),"initial":0.15,"grow_time":0.9,"decay":0.95})
 		"worldsplitter":
@@ -312,6 +321,24 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("streak",colors,Vector3.UP*1.2,Vector3(1,1,1.8 if final else 0.85),Vector3.ZERO,0.32,{"initial":1,"travel":Vector3(0,0,0.5)})
 			if final: art.add("shards",colors,Vector3.UP*0.4,Vector3(1.8,2.6,1.8),Vector3.ZERO,0.85,{"travel":Vector3.UP*0.5})
 			impact_size=2.2 if final else 0.5
+		"titan_shieldbreak":
+			art.add("worldroot",colors,at,Vector3(radius,2.2,radius),Vector3.ZERO,1.3,{"initial":0.15,"grow_time":0.2,"decay":0.62})
+			art.add("martial/fault",colors,at+Vector3.UP*0.015,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.08,"grow_time":0.3})
+			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*1.6,Vector3.ZERO,1.0,{"initial":0.4})
+			impact_size=radius
+		"judgment_rebound":
+			art.add("crown",colors,Vector3.UP*1.8,Vector3.ONE*1.3,Vector3.ZERO,0.8,{"initial":0.7,"travel":Vector3.UP*0.3,"turn":Vector3(0,1.2,0)})
+			art.add("shards",colors,Vector3.UP*0.4,Vector3(radius*0.6,2.4,radius*0.6),Vector3.ZERO,1.0,{"travel":Vector3.UP*0.4})
+			impact_size=radius*0.7
+		"eternal_aegis":
+			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.4,Vector3.ZERO,1.7,{"initial":0.12,"fade_in":0.08})
+			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.7,{"initial":0.5,"spin":0.15})
+			impact_size=radius
+		"heavens_bulwark":
+			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.6,{"initial":0.6,"spin":0.2})
+			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.6,Vector3.ZERO,1.4,{"initial":0.2})
+			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.4,radius*0.7),Vector3.ZERO,1.6,{"travel":Vector3.UP*0.7})
+			impact_size=radius
 		"aegis_formation":
 			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.0,Vector3.ZERO,1.5,{"initial":0.15,"fade_in":0.08})
 			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.5})

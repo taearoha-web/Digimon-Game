@@ -1062,5 +1062,180 @@
     "family": "lancer",
     "palette": "ember",
     "art_sha256": "b5fe8b5c571312512e5da30028d43e2b48e19ebc99d7ed7916dfa1f1611980ce"
+  },
+  {
+    "id": "shield_bash",
+    "name": "Shield Bash",
+    "family": "defender",
+    "palette": "steel",
+    "art_sha256": "d4ea750e7625b15c0f085045c624c2da25547fb20b7ae45f4138d02d7ce8b55d"
+  },
+  {
+    "id": "brace",
+    "name": "Brace",
+    "family": "defender",
+    "palette": "steel",
+    "art_sha256": "7c0cf6a24bca9a5273978109a5b47bab395d7fcf20e4108fa93416e8ec1cb27b"
+  },
+  {
+    "id": "shield_slam",
+    "name": "Shield Slam",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "95e55989a62297f9e692d53c4b127cebe260322139774faf5cae36ec1bf04b7f"
+  },
+  {
+    "id": "provoke",
+    "name": "Provoke",
+    "family": "defender",
+    "palette": "ember",
+    "art_sha256": "3a528e437c9925115f78757af1cbe18b865c87e37270241bf18bad4b1582869c"
+  },
+  {
+    "id": "ground_quake",
+    "name": "Ground Quake",
+    "family": "defender",
+    "palette": "earth",
+    "art_sha256": "bc8f76a5eaa5b91627c537db8d83e1c8d4a810f446666b76400bc9d1e88d5dce"
+  },
+  {
+    "id": "shield_toss",
+    "name": "Shield Toss",
+    "family": "defender",
+    "palette": "steel",
+    "art_sha256": "b53c7c4bcd33087b81178e90202134666950ae43dcca9cd082d5b26e3b50a4d5"
+  },
+  {
+    "id": "iron_wall",
+    "name": "Iron Wall",
+    "family": "defender",
+    "palette": "steel",
+    "art_sha256": "6f521d36e7615172cb90c8cfb4acdf49b6b2185ec6bf7429b53cd29f8f9b7211"
+  },
+  {
+    "id": "bulwark_charge",
+    "name": "Bulwark Charge",
+    "family": "defender",
+    "palette": "steel",
+    "art_sha256": "2f325c0de49540b6b28edbdf8a20660d4d26b5d9c2a3ea782b29da58db2d9625"
+  },
+  {
+    "id": "thorn_guard",
+    "name": "Thorn Guard",
+    "family": "defender",
+    "palette": "ember",
+    "art_sha256": "296135c32f42b65bb1a4b7c418e474919dc87e068c917da60464921327d70ecf"
+  },
+  {
+    "id": "quake_slam",
+    "name": "Quake Slam",
+    "family": "defender",
+    "palette": "earth",
+    "art_sha256": "ba75c2506a2e9dc9b57ac6e04684125fdda150818df0573fcf32f7d42fa59900"
+  },
+  {
+    "id": "aegis_strike",
+    "name": "Aegis Strike",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "39c7780f73f00852e9e0819f458827f2cc429600210d73bf89856796221622bc"
+  },
+  {
+    "id": "guardian_oath",
+    "name": "Guardian's Oath",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "e1b8dd73d37cab1080616b79ecacaf2b327fcb6c3755ef1a424a630fd7e546fa"
+  },
+  {
+    "id": "shield_wave",
+    "name": "Shield Wave",
+    "family": "defender",
+    "palette": "frost",
+    "art_sha256": "af5a7ddd7b79e2f9a9843f82b1a34134c1a62fd1356cd2c1fcd869795fb156c3"
+  },
+  {
+    "id": "shockwave_wall",
+    "name": "Shockwave Wall",
+    "family": "defender",
+    "palette": "frost",
+    "art_sha256": "56211ba65155fbc8de4cc49f105821343746e340a5c1ea8a24c45aab94a342fe"
+  },
+  {
+    "id": "titan_quake",
+    "name": "Titan Quake",
+    "family": "defender",
+    "palette": "earth",
+    "art_sha256": "a9bdbb4255b8e568e2c85b6b65197ec49a3f37e9e463938ce738dea4a90a0ab8"
+  },
+  {
+    "id": "bastion_crush",
+    "name": "Bastion Crush",
+    "family": "defender",
+    "palette": "steel",
+    "art_sha256": "e68f9d6c734ea1ad2df4894b3e79cc86e64fa68271b3ea7fa0e67950ff001747"
+  },
+  {
+    "id": "rebound_storm",
+    "name": "Rebound Storm",
+    "family": "defender",
+    "palette": "frost",
+    "art_sha256": "31ad5025d26c932a8b0f0554b99d913a574f2241f16739511efbf759ee9afe92"
+  },
+  {
+    "id": "grand_provoke",
+    "name": "Grand Provoke",
+    "family": "defender",
+    "palette": "ember",
+    "art_sha256": "d974d46096fafe109c976f0c572f76b4da4548a191ef265f418176709670c922"
+  },
+  {
+    "id": "unbreakable",
+    "name": "Unbreakable",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "a32f89c31070e12b84d394aef1653d7d19160ff7a2673533a7479977f826e29f"
+  },
+  {
+    "id": "holy_rampart",
+    "name": "Holy Rampart",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "b42ef1e0f2e1eaa757cf537e3103eda31476406c71a53776fd906b91013fca3f"
+  },
+  {
+    "id": "judgment_shield",
+    "name": "Judgment Shield",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "839621f48ade85f48c140f1479dc45866e1cfc9f3e25a5eb5a25f8f7224ef75a"
+  },
+  {
+    "id": "aegis_of_ages",
+    "name": "Aegis of Ages",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "587d1116195b3be299de6c4817e8e7a10dbf267493fbd64af47c29bc68c23d5c"
+  },
+  {
+    "id": "meteor_shield",
+    "name": "Meteor Shield",
+    "family": "defender",
+    "palette": "ember",
+    "art_sha256": "444103eb95ae9671509826de3e99aeb3eb1f0c9033e11d121f339b298cacef13"
+  },
+  {
+    "id": "sanctuary_wall",
+    "name": "Sanctuary Wall",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "d051f5bbe379fa9518a0804bc2e3c93e99065e9df55d9b89d511457b36be55b9"
+  },
+  {
+    "id": "world_bastion",
+    "name": "World Bastion",
+    "family": "defender",
+    "palette": "gold",
+    "art_sha256": "a12cf3d474f492b98c1ea01041c2526fc680cb780c836497049a9bf219d6f451"
   }
 ]

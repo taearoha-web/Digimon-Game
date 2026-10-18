@@ -234,6 +234,19 @@ func provoke(alert_pack := true) -> void:
 				m.provoke(false)
 
 
+## The Defender's provoke: this monster turns on [param by] for [param seconds]
+## (bosses for 40% of it), whatever it was chasing.
+func taunt(by: Node3D, seconds: float) -> void:
+	if _dead or by == null or not is_instance_valid(by):
+		return
+	if is_boss:
+		seconds *= 0.4
+	_victim = by
+	_victim_timer = maxf(_victim_timer, seconds)
+	provoke(false)
+	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.7, 0), "ยั่วยุ!", Color("ff9a6a"), 0.7)
+
+
 func apply_stun(seconds: float) -> void:
 	if is_boss:
 		seconds *= 0.4

@@ -92,7 +92,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, look: Dictionary, orig
 		# Socket light owns the wind-up; only a low, open grounding mark remains.
 		if family in ["mage", "priest", "summoner"]:
 			SkillInk.mark(root, look, Vector3(0, 0.035, 0), 0.9 + float(look.tier) * 0.08, time)
-	elif family in ["warrior", "vagabond", "lancer"]:
+	elif family in ["warrior", "vagabond", "lancer", "defender"]:
 		SkillInk.ribbon(root, look, Vector3(0, 1.1, 0.4), 0.8, 0, Vector3(0, 0, -0.7), time)
 	elif family == "archer":
 		var reticle := SkillInk.mark(root, look, Vector3(0, 1.35, 0.75), 0.6, time, 2)

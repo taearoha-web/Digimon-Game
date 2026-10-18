@@ -18,11 +18,15 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	_setup()
 	var ids: Array[String] = ItemLook.all_icon_ids()
+	# "ids=a,b,c" renders exactly those looks (star_/divine_ looks included).
+	if prefix.begins_with("ids="):
+		ids.assign(prefix.trim_prefix("ids=").split(","))
+		prefix = ""
 	var images: Array[Image] = []
 	for id in ids:
 		if prefix != "" and not id.begins_with(prefix):
 			continue
-		var node := ItemLook.build_icon_node(id)
+		var node := _divine_node(id) if id.begins_with("divine_") else ItemLook.build_icon_node(id)
 		if node == null:
 			continue
 		var img := await _render(node)
@@ -83,6 +87,20 @@ func _render(node: Node3D) -> Image:
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	return viewport.get_texture().get_image()
+
+
+## A divine piece: the weapon model, or the boy's skinned clothing at its bind pose.
+func _divine_node(id: String) -> Node3D:
+	var bits := id.split("_")
+	var holder := Node3D.new()
+	if bits[1] in ["armor", "helm", "boots"]:
+		var path := DivineGearArt.DIR + "%s_boy_%s.glb" % [bits[2], bits[1]]
+		holder.add_child((load(path) as PackedScene).instantiate())
+		holder.rotation_degrees.y = 20.0
+	else:
+		holder.add_child(WeaponKit.build(id))
+		holder.rotation_degrees.z = -12.0
+	return holder
 
 
 func _bounds(root: Node3D) -> AABB:

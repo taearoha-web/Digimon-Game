@@ -213,6 +213,9 @@ func _refresh_chibi() -> void:
 		if StarGearData.is_star(helm): crown.add_child(StarGearArt.armor_piece("helm",StarGearData.item_class(helm),int(helm.star_tier)))
 		else: ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
 		EnhanceFx.glow_piece(self, [crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
+	var acc := int(look.get("acc", 0))
+	if acc > 0:
+		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
 	var boot_nodes: Array = []
 	if DivineGearData.is_item(boots):
 		boot_nodes = _divine_slot(boots)
@@ -402,6 +405,7 @@ func _dress_chibi(armor: Variant) -> void:
 		var mat := ShaderMaterial.new()
 		mat.shader = CHIBI_OUTFIT
 		mat.set_shader_parameter("albedo_tex", source.albedo_texture)
+		ChibiLook.set_material(mat, look, int(look.get("gender", 0)))
 		if armor != null:
 			var tier := ItemLook.tier_of(armor)
 			var cloth: Color = DivineOutfitArt.palette(StarGearData.item_class(armor)).body if divine_armor else (StarGearArt.cloth(StarGearData.item_class(armor),int(armor.star_tier)) if StarGearData.is_star(armor) else ChibiGear.cloth(tier))

@@ -6,6 +6,9 @@ extends RefCounted
 
 static func mount(kind: String) -> Basis:
 	match kind:
+		"greatshield":
+			# The Defender braces its great shield in front: face forward, not out to the side.
+			return Basis(Vector3.FORWARD, PI * 0.5) * Basis(Vector3.UP, -PI * 0.5)
 		"shield", "book", "tome":
 			# Face away from the left arm; top points towards the elbow.
 			return Basis(Vector3.FORWARD, PI * 0.5)
@@ -16,4 +19,4 @@ static func mount(kind: String) -> Basis:
 
 
 static func hand_for(kind: String) -> String:
-	return "handslot.l" if kind in ["bow", "shield", "book", "tome"] else "handslot.r"
+	return "handslot.l" if kind in ["bow", "shield", "greatshield", "book", "tome"] else "handslot.r"

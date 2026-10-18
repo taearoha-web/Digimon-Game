@@ -117,7 +117,7 @@ func _ready()->void:
 						hero.visual._advance_skill_motion(0.05)
 						peak=maxf(peak,hero.visual.position.y)
 						if seq.is_queued_for_deletion():break
-					var expected:int={"lionfang_cleave":2,"crown_breaker":2,"celestial_swordfall":10,"moonpiercer":1,"hunters_verdict":3,"celestial_hunt":4,"spiral_impaler":3,"heartseeker":6,"worldsplitter":4,"arcane_prism":4,"crystal_prison":2,"astral_convergence":3,"genesis_nova":4,"sanctified_chain":1,"dawn_salvation":3,"leviathan_surge":3}.get(skill.id,0)
+					var expected:int={"lionfang_cleave":2,"crown_breaker":2,"celestial_swordfall":10,"moonpiercer":1,"hunters_verdict":3,"celestial_hunt":4,"spiral_impaler":3,"heartseeker":6,"worldsplitter":4,"arcane_prism":4,"crystal_prison":2,"astral_convergence":3,"genesis_nova":4,"sanctified_chain":1,"dawn_salvation":3,"leviathan_surge":3,"titan_shieldbreak":2,"judgment_rebound":3,"heavens_bulwark":4}.get(skill.id,0)
 					check(target.contacts==expected,"actual contacts %s: %d vs %d" % [skill.id,target.contacts,expected])
 					if skill.id=="celestial_swordfall":check(peak>=4.99,"ascends five meters")
 					if skill.shape=="summon":check(hero._summons.size()==1 and is_equal_approx(hero._summons[0].life,120.0),"summon lives 2 minutes")

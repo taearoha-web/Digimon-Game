@@ -4,12 +4,12 @@ extends RefCounted
 ## (50/100/150/200), independently of the legacy equipment tier 0..9.
 
 const TIERS: Array[int] = [50, 100, 150, 200]
-const CLASSES: Array[String] = ["warrior", "archer", "lancer", "mage", "priest", "summoner"]
+const CLASSES: Array[String] = ["warrior", "archer", "lancer", "mage", "priest", "summoner", "defender"]
 const ARMOR_SLOTS: Array[String] = ["armor", "helm", "boots", "ring", "amulet"]
-const WEAPON_KIND := {"warrior": "sword", "archer": "bow", "lancer": "spear", "mage": "staff", "priest": "wand", "summoner": "lantern"}
+const WEAPON_KIND := {"warrior": "sword", "archer": "bow", "lancer": "spear", "mage": "staff", "priest": "wand", "summoner": "lantern", "defender": "greatshield"}
 const THEME_NAMES := ["อรุณพฤกษา", "ผลึกคราม", "ราชันนภา", "สุริยคราส"]
-const CLASS_NAMES := {"warrior": "ราชสีห์", "archer": "นักล่าจันทรา", "lancer": "มังกร", "mage": "จอมอาคม", "priest": "เซราฟ", "summoner": "ราชันภูต"}
-const OUTFITS := {"warrior": "knight", "archer": "ranger", "lancer": "knight", "mage": "mage", "priest": "mage", "summoner": "rogue"}
+const CLASS_NAMES := {"warrior": "ราชสีห์", "archer": "นักล่าจันทรา", "lancer": "มังกร", "mage": "จอมอาคม", "priest": "เซราฟ", "summoner": "ราชันภูต", "defender": "ป้อมปราการ"}
+const OUTFITS := {"warrior": "knight", "archer": "ranger", "lancer": "knight", "mage": "mage", "priest": "mage", "summoner": "rogue", "defender": "knight"}
 const WEAPON_NAMES := {
 	"sword": ["ดาบเขี้ยวสิงห์อรุณ", "ดาบผลึกเจ็ดประกาย", "ดาบราชันเวหา", "ดาบจักรพรรดิคราส"],
 	"bow": ["ธนูกิ่งพฤกษา", "ธนูปีกผลึก", "ธนูพิณนภา", "ธนูจันทราคราส"],
@@ -17,6 +17,7 @@ const WEAPON_NAMES := {
 	"staff": ["คทาดอกไม้อรุณ", "คทาปริซึมคราม", "คทาวงโคจรดารา", "คทาประตูสุริยคราส"],
 	"wand": ["คทาบุปผาศรัทธา", "คทากางเขนผลึก", "คทาปีกเสราฟ", "คทารุ่งอรุณนิรันดร์"],
 	"lantern": ["โคมดอกบัววิญญาณ", "โคมกรงผลึก", "โคมวิหารนภา", "โคมราชันคราส"],
+	"greatshield": ["โล่ปราการพฤกษา", "โล่ป้อมผลึกคราม", "โล่ปราการนภา", "โล่ป้อมสุริยคราส"],
 }
 const SET_INTENT := {
 	"warrior": "เกราะแนวหน้า เสริมการฟันหลังป้องกัน",
@@ -25,6 +26,7 @@ const SET_INTENT := {
 	"mage": "ประสานธาตุ เสริมพลังเวทและมานา",
 	"priest": "พิทักษ์และฟื้นฟู เสริมการช่วยเหลือฝ่ายเรา",
 	"summoner": "พันธสัญญาภูต เสริมผู้ร่ายและอสูร",
+	"defender": "กำแพงหน้าทัพ เสริมการคุมฝูงและป้องกันทีม",
 }
 
 
@@ -98,7 +100,7 @@ static func palette(stars: int, class_id := "warrior") -> Dictionary:
 		{"metal": Color("d8a454"), "edge": Color("ffedbe"), "cloth": Color("382749"), "gem": Color("e4a1ff"), "dark": Color("221f35")},
 	]
 	var p: Dictionary = palettes[index(stars)].duplicate()
-	var accents := {"warrior": Color("d06b49"), "archer": Color("49886d"), "lancer": Color("386781"), "mage": Color("7253a4"), "priest": Color("e3d3a3"), "summoner": Color("487887")}
+	var accents := {"warrior": Color("d06b49"), "archer": Color("49886d"), "lancer": Color("386781"), "mage": Color("7253a4"), "priest": Color("e3d3a3"), "summoner": Color("487887"), "defender": Color("4a6f9a")}
 	p["cloth"] = (p.cloth as Color).lerp(accents.get(class_id, accents.warrior), 0.42)
 	return p
 

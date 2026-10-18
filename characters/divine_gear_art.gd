@@ -3,8 +3,8 @@ extends RefCounted
 ## The supplied 200-star wardrobe, with deformation transferred onto the existing
 ## boy/girl hero rigs. No per-frame script, lights, particles or mesh rebuilding.
 const DIR := "res://assets/models/divine_gear/"
-const KINDS := {"warrior":"sword", "archer":"bow", "lancer":"spear", "mage":"staff", "priest":"wand", "summoner":"lantern"}
-const COLORS := {"warrior":Color("eceaff"),"archer":Color("438954"),"lancer":Color("991f28"),"mage":Color("242b6b"),"priest":Color("eee7e0"),"summoner":Color("613965")}
+const KINDS := {"warrior":"sword", "archer":"bow", "lancer":"spear", "mage":"staff", "priest":"wand", "summoner":"lantern", "defender":"greatshield"}
+const COLORS := {"warrior":Color("eceaff"),"archer":Color("438954"),"lancer":Color("991f28"),"mage":Color("242b6b"),"priest":Color("eee7e0"),"summoner":Color("613965"),"defender":Color("2a3f74")}
 const KAY_BONES := {"Hips":"hips","Spine":"spine","Chest":"chest","Neck":"head","Head":"head",
 	"LeftShoulder":"upperarm.l","RightShoulder":"upperarm.r","LeftUpperArm":"upperarm.l","RightUpperArm":"upperarm.r",
 	"LeftLowerArm":"lowerarm.l","RightLowerArm":"lowerarm.r","LeftHand":"wrist.l","RightHand":"wrist.r",
@@ -38,7 +38,7 @@ static func _held(cls: String, kind: String) -> Node3D:
 	if not ResourceLoader.exists(path): return root
 	var model := (load(path) as PackedScene).instantiate() as Node3D
 	root.add_child(model)
-	var size := {"sword":1.45,"bow":1.28,"spear":1.4,"staff":1.28,"wand":1.65,"lantern":1.9,"shield":0.9,"book":1.5,"tome":1.5}
+	var size := {"sword":1.45,"bow":1.28,"spear":1.4,"staff":1.28,"wand":1.65,"lantern":1.9,"shield":0.9,"book":1.5,"tome":1.5,"greatshield":1.15}
 	model.scale = Vector3.ONE * float(size.get(kind,1.0))
 	# Source lantern bulb is on +X; face it forward (+Z) around its shaft.
 	if kind == "lantern": model.rotation.y = -PI * 0.5

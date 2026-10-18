@@ -6,6 +6,13 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3** and the GL Compatibility renderer. Version **0.7.7** releases cached resources after map changes and shares hit-particle geometry to reduce long-session memory pressure. Version **0.7.6** gives all 35 buff skills distinct persistent art, separates two self buffs from two incoming ally buffs, and groups status effects below the hero with enemy health at the top centre. Bag and merchant lists retain their position after selling. The 0.7.4 art update refines all 152 skill presentations with weapon-bound charges, weighted motion, elemental surfaces and staged dissolves. The ending remains at the final Void Emperor. All 152 illustrated skill icons, authored effects, release-synchronized choreography and corrected weapon grips remain available, alongside numeric stat allocation, equipped head portraits and cloud accounts. Combat has no camera shake, automatic zoom or phone vibration. Armageddon retains eleven real hits spaced 0.5 seconds apart.
 
+## Hero looks: six characters on two bodies (October 2026)
+
+- The creator offers three characters per body (boy: ฮีโร่ดั้งเดิม, นักล่าเงินจันทร์, อัศวินทองฟ้า; girl: นักผจญภัยดั้งเดิม, เจ้าหญิงซากุระ, ภูตป่าดำขลับ), and each part can be changed alone: hair colour (9), skin tone (6), eye colour (6) and an accessory (bow, flower clip, glasses, gold earrings). No new model ships: download size and memory are unchanged.
+- `characters/chibi_look.gd` holds the palettes, styles and accessories. `shaders/chibi_outfit.gdshader` recolours the body's own texture inside a baked mask, `assets/models/heroes/chibi_*_look_mask.png` (R: hair and brow geometry 255, the rest of the head 128; G: the eye 128, the iris 255, painted per texel from its 3D position so the lids, lashes and liner keep their colour), which `tools/chibi_look_mask.py` bakes from the rig's Hair_*/Brow_*/Eye_* skin weights and the eyes' 3D position.
+- Look keys `style`, `skin_tone`, `hair_tint`, `eye_tint`, `acc` are 0 for the original texture (save validation accepts no negative numbers), so existing saves look exactly as before. Rivals and guild fighters wear one of the three styles, picked without drawing extra random numbers.
+- `tests/integration/chibi_look_test.tscn` (80 checks). Previews: `tests/tools/chibi_look_preview.tscn -- OUT_DIR styles|hair_tint|skin_tone|eye_tint|acc face|full|back` with `tools/chibi_look_sheet.py`, and `tests/tools/creator_shot.tscn`.
+
 ## Session report: summary first (October 2026)
 
 - A pasted **รายงานการหลุด** is often cut short by the chat app (an iPhone report of a 19-minute session arrived with only its first 6 minutes). The report now opens with `previousSummary`: how the session ended, its error counts, every recorded event, the first and the last five samples, the growth between them, and a one-line-per-sample `timeline` (seconds, WASM heap, video memory, objects, nodes, fps, worst frame, visibility, zone). Even a truncated paste then shows the whole session's trend. `node tools/test_web_session.mjs` covers the shape.
@@ -99,7 +106,7 @@ A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3*
 - Far-right vertical controls, top to bottom: HP potion, MP potion, auto hunting, target switch. Walk manually to stop auto hunting.
 - Menu / I: character, equipment, skills, quests, achievements and settings. H/M use potions; Tab switches targets.
 
-Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage, Priest, Summoner or Lancer at **Lv.10**. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
+Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage, Priest, Summoner, Lancer or Defender at **Lv.10**. The Defender fights with one great shield: it bashes, quakes the ground, provokes enemies onto itself and reflects their blows. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
 
 ## Adventure
 
