@@ -129,7 +129,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	var root := SpellSpectacle._root(parent, at, "SkillContact_" + String(skill.id))
 	var mat := SpellSpectacle._material(look, 0.78)
 	var style := String(look.style)
-	var melee := String(look.signature) in ["cleave", "cross", "blade", "lance", "world_spear", "cyclone", "sword_court"]
+	var melee := String(look.signature) in ["cleave", "cross", "blade", "lance", "world_spear", "cyclone", "sword_court", "greatshield", "shieldquake", "shieldflight"]
 	if melee:
 		SkillInk.ribbon(root, look, Vector3.ZERO, (0.58 + float(look.tier) * 0.045) * weight, 0, Vector3(PI * 0.5, 0, float(look.curvature)), 0.24 * linger)
 	else:

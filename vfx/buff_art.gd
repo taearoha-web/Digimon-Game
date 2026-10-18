@@ -9,7 +9,7 @@ const RECIPES := {
 	"seraph_aegis": ["seraph","ffe2a0","ffffff",4,1.2,1.5,0.0],
 	"sacred_sanctuary": ["chapel","ffd7a0","fffcea",4,1.1,0.6,0.0],
 	"spirit_court": ["court","b69be9","ffe3bc",4,1.1,1.0,0.12],
-	"eternal_aegis": ["shield","8fc6ff","f0f8ff",6,1.1,1.2,0.0],
+	"eternal_aegis": ["rampart","5fb4ff","f0f8ff",8,1.15,1.0,0.0],
 	"concentration": ["blade", "ffad56", "fff1b0", 3, 0.83, 0.65, 0.14],
 	"swift_axe": ["blade", "6ae8bd", "fff0b0", 2, 1.04, 0.42, 0.8],
 	"berserker": ["flame", "ff504a", "ffbd60", 5, 0.85, 0.6, -0.24],
@@ -46,11 +46,11 @@ const RECIPES := {
 	"dragon_stance": ["hex", "efa257", "ffdc92", 4, 1.12, 1.0, 0.16],
 	"valkyrie_blessing": ["wing", "f2d5a0", "e9f4ff", 5, 1.1, 1.55, 0.0],
 	"brace": ["shield", "9fc4e8", "eef6ff", 2, 0.92, 0.9, 0.0],
-	"iron_wall": ["shield", "a8c8e8", "f2f8ff", 6, 1.08, 1.0, -0.06],
-	"thorn_guard": ["claw", "e8925a", "ffe2c0", 6, 1.0, 0.9, -0.3],
+	"iron_wall": ["rampart", "a8c8e8", "f2f8ff", 8, 1.08, 0.55, -0.06],
+	"thorn_guard": ["thorns", "e8925a", "ffe2c0", 6, 1.0, 0.9, -0.3],
 	"guardian_oath": ["cross", "fff0b0", "ffffff", 5, 1.0, 1.25, 0.1],
-	"unbreakable": ["hex", "ffd27a", "fff6d8", 8, 1.14, 1.2, -0.08],
-	"aegis_of_ages": ["shield", "ffffff", "d9e8ff", 7, 1.2, 1.45, 0.05],
+	"unbreakable": ["citadel", "ffd27a", "fff6d8", 8, 1.14, 0.6, -0.08],
+	"aegis_of_ages": ["aegis", "e4f1ff", "ffffff", 7, 1.2, 1.45, 0.05],
 	"sanctuary_wall": ["crown", "ffe9a0", "fffbe8", 5, 1.12, 1.35, 0.1],
 }
 static var _meshes: Dictionary = {}
@@ -99,7 +99,7 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 		build.generate_normals()
 		_meshes[id]=build.commit()
 		return _meshes[id]
-	var elite_shapes := {"godly_shield":"bastion", "triumph_of_valhalla":"banners", "spirit_of_wind":"helix", "magic_overdrive":"astrolabe", "prayer":"lotus", "miracle":"cathedral", "gaia_blessing":"branches", "valkyrie_blessing":"wings", "eternal_aegis":"bastion"}
+	var elite_shapes := {"godly_shield":"bastion", "triumph_of_valhalla":"banners", "spirit_of_wind":"helix", "magic_overdrive":"astrolabe", "prayer":"lotus", "miracle":"cathedral", "gaia_blessing":"branches", "valkyrie_blessing":"wings", "eternal_aegis":"rampart", "aegis_of_ages":"aegis", "sanctuary_wall":"cathedral"}
 	if elite_shapes.has(id):
 		var build := SurfaceTool.new()
 		build.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -112,6 +112,14 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 			at.y = 1.1
 		elif id == "prayer":
 			size.y = 0.45
+		elif id == "eternal_aegis":
+			# The star shield wall: a wide rampart of great shields around the whole party.
+			size = Vector3(1.3, 1.05, 1.3)
+		elif id == "aegis_of_ages":
+			size = Vector3.ONE * 1.45
+			at.y = 0.05
+		elif id == "sanctuary_wall":
+			size = Vector3(1.35, 1.5, 1.35)
 		_append_tinted(build, EliteSkillArt.geometry(elite_shapes[id]), Transform3D(Basis.from_scale(size), at), 0.3)
 		build.generate_normals()
 		_meshes[id] = build.commit()
@@ -160,6 +168,18 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 			"claw":
 				for j in 3:
 					_append(st, SpellSpectacle._crystal_mesh(), basis.rotated(basis.z, -0.3), pos + basis.x * (j - 1) * 0.16, Vector3(0.055, 0.44 - abs(j - 1) * 0.1, 0.04))
+			"rampart", "citadel":
+				# A wall of great shields edge to edge, crenellated; the citadel adds spires and a crown arc.
+				_append(st, EliteSkillArt.geometry("greatshield"), basis, pos, Vector3(0.36, 0.42, 0.3))
+				_arc(st, radius, float(look.height) + 0.44, angle - TAU / n * 0.48, angle + TAU / n * 0.48, 0.03)
+				if look.shape == "citadel":
+					_append(st, SpellSpectacle._crystal_mesh(), basis, pos + Vector3.UP * 0.62, Vector3(0.07, 0.22, 0.07))
+					_arc(st, radius * 0.72, float(look.height) + 0.98, angle, angle + TAU / n * 0.9, 0.022)
+			"thorns":
+				# A shield bristling with three spikes pointing out at whoever strikes it.
+				_append(st, SkillTableau.shield_mesh(), basis, pos, Vector3(0.34, 0.52, 0.3))
+				for j in 3:
+					_append(st, SpellSpectacle._crystal_mesh(), basis.rotated(basis.x, PI * 0.5), pos + basis.z * 0.12 + basis.x * (j - 1) * 0.17 + Vector3.UP * 0.12 * (j % 2), Vector3(0.05, 0.32, 0.05))
 			"crown":
 				_append(st, SkillTableau.shield_mesh(), basis, pos, Vector3(0.18, 0.38, 0.18))
 				_arc(st, radius, float(look.height) - 0.25, angle, angle + TAU / n * 0.94, 0.024)

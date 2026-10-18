@@ -6,7 +6,7 @@ extends Node3D
 const SHADER := preload("res://shaders/elite_skill.gdshader")
 const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion"
 static var _meshes: Dictionary = {}
-const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts"
+const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains"
 
 static func warm_geometry() -> void:
 	for kind in GEOMETRY_KINDS.split(" "):
@@ -33,6 +33,7 @@ static func palette(skill: Dictionary) -> Dictionary:
 		"grand_cross":["eab875","fff4c9","895149"],"sword_of_justice":["ead28d","fff9db","795c64"],"divine_piercing":["9edbf4","fff2bc","456497"],"judgment_ray":["edcc7a","fff7db","785d68"],"ice_storm":["63c9ff","e7ffff","304eaa"],"hell_meteor":["f77746","fff3a0","7d243f"],
 		"meteor_arrow":["ff9763","fff8b9","783568"],"phoenix_rain":["ffb345","fff5bf","c04758"],
 		"lightning_arrow":["74c9ff","fff39c","514690"],"elder_dragon":["57c6ad","ffe9a0","285463"],
+		"holy_rampart":["ffd25a","fffbe3","8a5a24"],"judgment_shield":["ffcf4d","fffbe0","7a4a20"],"aegis_of_ages":["dceeff","ffffff","3a5a9a"],"meteor_shield":["ff9a48","fff3c0","7a2a30"],"sanctuary_wall":["ffd36a","fffbe8","8a5a40"],"world_bastion":["ffc83a","fff9d8","6a4a1a"],
 		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"]}
 	colors = overrides.get(String(skill.id), colors)
 	look.primary = Color(colors[0]); look.accent = Color(colors[1]); look.shade = Color(colors[2])
@@ -79,6 +80,8 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 		art.layer(kind,look,Vector3(0,0.9,0.7),Vector3(0.7,2.7,0.7),Vector3(0.65,0,-0.3),0,duration,Vector3.ZERO,0.0,0.18)
 	elif family == "archer":
 		art.layer("wings",look,Vector3(0,1.3,0.6),Vector3.ONE*0.75,Vector3.ZERO,0,duration,Vector3.ZERO,0.0,0.18)
+	elif family == "defender":
+		art.layer("shield_outline",look,Vector3(0,0.08,0),Vector3.ONE*1.5,Vector3.ZERO,0,duration,Vector3.ZERO,0.0,0.12)
 	else:
 		var kind := "branches" if family == "summoner" else "seal"
 		art.layer(kind,look,Vector3(0,0.08,0),Vector3.ONE*1.25,Vector3.ZERO,0,duration,Vector3.ZERO,0.12,0.12)
@@ -198,28 +201,55 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer("seal",look,Vector3(0,0.08,1),Vector3.ONE*(4 if elder else 3),Vector3.ZERO,d,1.55,Vector3.ZERO,-0.1)
 			if elder:
 				art.layer("crown",look,Vector3(0,4.5,1),Vector3.ONE*2,Vector3.ZERO,d,1.4)
-		"holy_rampart","world_bastion":
-			# A ring of great shields rises around the Defender; the ground cracks under it.
-			var ultimate := id=="world_bastion"
-			art.layer("bastion",look,Vector3.ZERO,Vector3(radius*0.6,2.6 if ultimate else 2.0,radius*0.6),Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,0.1)
-			art.layer("fractures",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
-			art.layer("pillars" if ultimate else "seal",look,Vector3.ZERO if ultimate else Vector3(0,0.1,0),Vector3(radius*0.7,4.5,radius*0.7) if ultimate else Vector3.ONE*radius*0.8,Vector3.ZERO,d,1.1,Vector3.UP*0.8 if ultimate else Vector3.ZERO,0.0 if ultimate else 0.12)
-			if ultimate:
-				art.layer("crown",look,Vector3(0,0.15,0),Vector3.ONE*radius*0.45,Vector3.ZERO,d,1.6,Vector3.UP*1.2,0.2)
+		"holy_rampart":
+			# The wall of light rises from the ground around the Defender, an aegis dome closes over it and the floor caves in.
+			art.layer("rampart",look,Vector3.ZERO,Vector3(radius*0.62,3.0,radius*0.62),Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,1.0,false,{"drop":-3.2,"land":0.18,"decay":0.6})
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,0.3)
+			art.layer("aegis",look,Vector3.ZERO,Vector3.ONE*radius*0.8,Vector3.ZERO,d+0.05,1.45,Vector3.ZERO,0.15,0.6,false,{"fade_in":0.12,"decay":0.55})
+			art.layer("pillars",look,Vector3.ZERO,Vector3(radius*0.7,4.5,radius*0.7),Vector3.ZERO,d,1.0,Vector3.UP*0.8,0.0,0.0)
+			art.layer("shield_outline",look,Vector3(0,0.1,0),Vector3.ONE*radius*1.4,Vector3.ZERO,d,0.9,Vector3.ZERO,0.0,0.2)
+			art.layer("stars",look,Vector3(0,1,0),Vector3(radius*0.8,3,radius*0.8),Vector3.ZERO,d,1.6,Vector3.UP*1.2)
 		"judgment_shield":
-			# A seal of judgment stands over the target, then the shield cracks the ground under it.
+			# The great shield falls face-down from the sky onto the victim; the seal of judgment hangs over the crater.
 			var reach := maxf(2.0,delta.length())
-			art.layer("seal",look,Vector3(0,2.2,reach),Vector3.ONE*2.2,Vector3(PI/2,0,0),d,0.95,Vector3(0,-1.2,0),0.9)
-			art.layer("cut",look,Vector3(0,1.6,reach*0.8),Vector3.ONE*3.4,Vector3(0,0,-0.25),d,0.8,Vector3(0,0,0.8))
-			art.layer("fractures",look,Vector3(0,0.09,reach),Vector3.ONE*2.8,Vector3.ZERO,d,1.4)
+			art.layer("greatshield",look,Vector3(0,0.9,reach),Vector3(2.3,2.6,2.3),Vector3(PI/2,0,0),d,1.3,Vector3.ZERO,0.0,1.0,false,{"drop":4.0,"land":0.17,"decay":0.6})
+			art.layer("crater_ring",look,Vector3(0,0.07,reach),Vector3.ONE*3.2,Vector3.ZERO,d+0.15,1.3,Vector3.ZERO,0.0,0.25)
+			art.layer("seal",look,Vector3(0,2.8,reach),Vector3.ONE*2.4,Vector3.ZERO,d,1.2,Vector3.ZERO,0.8,0.5,false,{"fade_in":0.1})
+			art.layer("shield_outline",look,Vector3(0,0.1,reach),Vector3.ONE*3.8,Vector3.ZERO,d+0.15,0.9,Vector3.ZERO,0.0,0.3)
+			art.layer("stars",look,Vector3(0,0.5,reach),Vector3(2.2,2.5,2.2),Vector3.ZERO,d+0.15,1.3,Vector3.UP*1.0)
+		"aegis_of_ages":
+			# A white and blue aegis grows out of the raised shield over the caster, ringed by a rampart.
+			art.layer("aegis",look,Vector3(0,0.05,0),Vector3.ONE*3.4,Vector3.ZERO,d,1.6,Vector3.ZERO,0.2,0.2,false,{"decay":0.6})
+			art.layer("rampart",look,Vector3.ZERO,Vector3(2.5,1.9,2.5),Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,1.0,false,{"drop":-2.0,"land":0.18})
+			art.layer("greatshield",look,Vector3(0,1.5,0.8),Vector3.ONE*1.6,Vector3.ZERO,d,1.0,Vector3(0,0.7,0),0.0,0.5,false,{"face_camera":true})
+			art.layer("seal",look,Vector3(0,0.07,0),Vector3.ONE*3.0,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)
+			art.layer("stars",look,Vector3(0,0.3,0),Vector3(2.6,3,2.6),Vector3.ZERO,d,1.65,Vector3.UP*1.2)
 		"meteor_shield":
-			# The Defender drops like a comet into the crowd.
-			art.layer("comet",look,Vector3(0,0.6,0),Vector3(2.0,4.2,2.0),Vector3(0,0,0.15),d,1.05)
-			art.layer("bastion",look,Vector3.ZERO,Vector3(radius*0.55,1.8,radius*0.55),Vector3.ZERO,d,1.35,Vector3.ZERO,0.0,0.1)
-			art.layer("fractures",look,Vector3(0,0.09,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
+			# The Defender's shield comes down like a comet; the crater opens and a rampart bursts up at the landing.
+			art.layer("greatshield",look,Vector3(0,1.5,0),Vector3.ONE*2.4,Vector3(0.25,0,0),d,1.0,Vector3.ZERO,0.0,1.0,false,{"drop":4.5,"land":0.12,"decay":0.55,"front":2,"face_camera":true})
+			art.layer("comet",look,Vector3(0,1.0,0),Vector3(2.4,4.6,2.4),Vector3(0,0,0.15),d,1.0,Vector3.ZERO,0.0,1.0,false,{"drop":4.5,"land":0.12,"decay":0.45})
+			art.layer("crater_ring",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d+0.1,1.5,Vector3.ZERO,0.0,0.2)
+			art.layer("rampart",look,Vector3.ZERO,Vector3(radius*0.6,2.6,radius*0.6),Vector3.ZERO,d+0.1,1.25,Vector3.ZERO,0.0,1.0,false,{"drop":-2.8,"land":0.14,"decay":0.5})
+			art.layer("shield_outline",look,Vector3(0,0.1,0),Vector3.ONE*radius*1.5,Vector3.ZERO,d+0.1,0.9,Vector3.ZERO,0.0,0.2)
+			art.layer("stars",look,Vector3(0,0.6,0),Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,d+0.1,1.5,Vector3.UP*1.4)
+		"sanctuary_wall":
+			# A cathedral of gold with a rampart at its base, sealed under an aegis.
+			art.layer("cathedral",look,Vector3.ZERO,Vector3(2.6,4.2,2.6),Vector3.ZERO,d,1.6,Vector3.ZERO,0.0,0.25)
+			art.layer("rampart",look,Vector3.ZERO,Vector3(2.2,2.0,2.2),Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,1.0,false,{"drop":-2.1,"land":0.18})
+			art.layer("aegis",look,Vector3.ZERO,Vector3.ONE*3.2,Vector3.ZERO,d+0.05,1.5,Vector3.ZERO,0.1,0.5,false,{"fade_in":0.12,"decay":0.55})
+			art.layer("seal",look,Vector3(0,0.07,0),Vector3.ONE*2.9,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)
+			art.layer("stars",look,Vector3(0,0.3,0),Vector3(2.4,2.5,2.4),Vector3.ZERO,d,1.65,Vector3.UP*1.0)
+		"world_bastion":
+			# The shield is planted in the world: three rampart rings rise in turn, chains anchor the field and a crown settles.
+			art.layer("greatshield",look,Vector3(0,2.6,0),Vector3.ONE*2.6,Vector3.ZERO,d,1.65,Vector3.ZERO,0.0,1.0,false,{"drop":-5.4,"land":0.2,"decay":0.65,"front":2,"face_camera":true})
+			for i in 3:
+				var f: float=[0.4,0.7,1.0][i]
+				art.layer("rampart",look,Vector3.ZERO,Vector3(radius*f,2.2+i*0.7,radius*f),Vector3.ZERO,d+i*0.12,1.5-i*0.1,Vector3.ZERO,0.0,1.0,false,{"drop":-(2.4+i*0.7),"land":0.16,"decay":0.55})
+			art.layer("chains",look,Vector3(0,0.12,0),Vector3.ONE*radius,Vector3.ZERO,d+0.2,1.4,Vector3.ZERO,0.0,0.2)
+			art.layer("crown",look,Vector3(0,4.8,0),Vector3.ONE*2.4,Vector3.ZERO,d+0.15,1.45,Vector3.UP*0.6,0.4)
 		_:
-			# Eight lasting support skills: each uses its own batched relief.
-			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","aegis_of_ages":"bastion","sanctuary_wall":"cathedral"}
+			# Lasting support skills: each uses its own batched relief.
+			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings"}
 			var kind: String = shapes.get(id,"seal")
 			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe"] else 0,0.25)
 			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)
@@ -247,6 +277,10 @@ func layer(kind: String, look: Dictionary, at: Vector3, size: Vector3, angles :=
 		flame.set_shader_parameter("ember", Color("cd3c26"))
 		flame.set_shader_parameter("gold", Color("ffd173"))
 		node.material_override = flame
+	# Hero silhouettes draw after the translucent ground rings around them, which
+	# would otherwise paint over the plate (every layer is depth_draw_never).
+	if kind in ["greatshield","comet"] or style.has("front"):
+		node.material_override.render_priority=int(style.get("front",1))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(node)
 	VfxBudget.track_decoration(node)
@@ -276,6 +310,12 @@ func _draw() -> void:
 		node.rotation=data.angles+Vector3.UP*t*float(data.spin)
 		node.rotation+=(style.get("turn",Vector3.ZERO) as Vector3)*smoothstep(0.0,0.65,t)
 		node.rotation.z+=sin(t*TAU)*float(style.get("flap",0))
+		if bool(style.get("face_camera",false)) and is_inside_tree():
+			# A planted shield turns its face to the gameplay camera, like the star emblems.
+			var camera := get_viewport().get_camera_3d()
+			if camera:
+				var toward := global_basis.inverse()*(camera.global_position-node.global_position)
+				node.rotation.y=atan2(toward.x,toward.z)
 		node.position=data.at+(data.travel as Vector3)*(1.0-smoothstep(0.0,1.0,t) if bool(data.reverse) else t)
 		if style.has("drop"):
 			node.position.y+=float(style.drop)*(1.0-smoothstep(0.0,maxf(0.01,float(style.land)),age-float(data.start)))
@@ -467,6 +507,78 @@ static func geometry(kind: String) -> ArrayMesh:
 			for i in 3:
 				var a := TAU*i/3.0
 				_append(st,SkillTableau.creature_mesh("wolf"),Vector3(sin(a),0,cos(a)),Vector3.ONE*0.8,Vector3(0,a,0),0.15+i*0.2)
+		"greatshield":
+			# A heater great shield, +Y up and +Z face: layered plate, gold rim, two inlaid rims, a cross and a boss crystal.
+			_append(st,SkillTableau.shield_mesh(),Vector3.ZERO,Vector3(1,1,0.7),Vector3.ZERO,0.1)
+			_line(st,_heater(1.0,0.19),0.045,1)
+			_line(st,_heater(0.78,0.22),0.02,0.85)
+			_line(st,_heater(0.52,0.235),0.014,0.6)
+			_line(st,PackedVector3Array([Vector3(0,0.72,0.24),Vector3(0,-0.72,0.24)]),0.03,0.9)
+			_line(st,PackedVector3Array([Vector3(-0.5,0.3,0.24),Vector3(0.5,0.3,0.24)]),0.03,0.9)
+			_append(st,SpellSpectacle._crystal_mesh(),Vector3(0,0.1,0.26),Vector3(0.22,0.3,0.22),Vector3(PI/2,0,0),1)
+		"shield_outline":
+			# The same heater drawn flat on the ground (+Y normal, top towards +Z): a rim, an inlay and the boss ring.
+			var flat := PackedVector3Array()
+			var inner := PackedVector3Array()
+			for p in _heater(1.0,0.0):
+				flat.append(Vector3(p.x,0,p.y))
+				inner.append(Vector3(p.x*0.8,0,p.y*0.8))
+			_line(st,flat,0.02,1)
+			_line(st,inner,0.009,0.7)
+			_ring_at(st,Vector3.ZERO,0.16,0.012)
+		"rampart":
+			# Eight great shields edge to edge in a ring, a crenellated top and gold rims above and below.
+			for i in 8:
+				var a := TAU*i/8.0
+				var r := Vector3(sin(a),0,cos(a))
+				_append(st,geometry("greatshield"),r+Vector3.UP*0.5,Vector3(0.47,0.5,0.35),Vector3(0,a,0),0.3)
+			for i in 16:
+				var a := TAU*(i+0.5)/16.0
+				_append(st,SpellSpectacle._crystal_mesh(),Vector3(sin(a),1.04,cos(a)),Vector3(0.08,0.12,0.06),Vector3(0,a,0),0.9)
+			_ring(st,1.0,0.03,0.022,1)
+			_ring(st,1.0,0.98,0.016,1)
+		"aegis":
+			# A half dome of latitude rings and meridian arcs with a boss crystal at the crown.
+			_ring(st,1.0,0.02,0.03,1)
+			for lat in [0.26,0.61,0.96,1.31]:
+				_ring(st,cos(lat),sin(lat),0.012,0.6,48)
+			for i in 8:
+				var a := TAU*i/8.0
+				var pts := PackedVector3Array()
+				for j in 13:
+					var lat := PI*0.5*float(j)/12.0
+					pts.append(Vector3(sin(a)*cos(lat),sin(lat),cos(a)*cos(lat)))
+				_line(st,pts,0.02,0.85)
+			_append(st,SpellSpectacle._crystal_mesh(),Vector3(0,1.02,0),Vector3(0.12,0.25,0.12),Vector3.ZERO,1)
+		"crater_ring":
+			# Fractures radiating from the centre, a raised rim of wedges and chunks thrown past it.
+			for i in 10:
+				var a := TAU*i/10.0
+				var r := Vector3(sin(a),0,cos(a))
+				var side := Vector3(cos(a),0,-sin(a))
+				_line(st,PackedVector3Array([r*0.12,r*0.4+side*0.08,r*0.62-side*0.1,r*(0.78+float(i%3)*0.08)]),0.018,0.85)
+			_ring(st,0.82,0.06,0.03,0.8)
+			for i in 12:
+				var a := TAU*(i+0.5)/12.0
+				var r := Vector3(sin(a),0,cos(a))
+				_append(st,SpellSpectacle._crystal_mesh(),r*0.82+Vector3.UP*0.08,Vector3(0.16,0.22+float(i%2)*0.08,0.12),Vector3(cos(a)*0.6,0,-sin(a)*0.6),0.3)
+				if i%3!=0:
+					_append(st,SpellSpectacle._crystal_mesh(),r*(1.02+float(i%3)*0.09)+Vector3.UP*0.03,Vector3(0.07,0.12,0.07),Vector3(cos(a)*1.2,0,-sin(a)*1.2),0.55)
+		"chains":
+			# Six radial chains of alternating links running out to anchor crystals at the rim.
+			for i in 6:
+				var a := TAU*i/6.0
+				var r := Vector3(sin(a),0,cos(a))
+				var side := Vector3(cos(a),0,-sin(a))
+				for k in 9:
+					var c := r*(0.12+k*0.1)
+					var across := Vector3.UP if k%2==0 else side
+					var pts := PackedVector3Array()
+					for j in 11:
+						var t := TAU*j/10.0
+						pts.append(c+r*cos(t)*0.055+across*sin(t)*0.032)
+					_line(st,pts,0.009,0.85 if k%2==0 else 0.4)
+				_append(st,SpellSpectacle._crystal_mesh(),r*1.0+Vector3.UP*0.08,Vector3(0.1,0.26,0.1),Vector3.ZERO,1)
 	st.generate_normals()
 	var mesh := st.commit()
 	_meshes[kind]=mesh
@@ -478,3 +590,10 @@ static func _ring_at(st: SurfaceTool, pos: Vector3, radius: float, width: float)
 		var a := TAU*i/24.0
 		pts.append(pos+Vector3(sin(a)*radius,0.02,cos(a)*radius))
 	_line(st,pts,width,1)
+
+## The closed heater rim of SkillTableau.shield_mesh at [param size], pushed to depth [param z].
+static func _heater(size: float, z: float) -> PackedVector3Array:
+	var rim := PackedVector3Array()
+	for p in [Vector2(0,1),Vector2(-0.45,0.86),Vector2(-0.82,0.57),Vector2(-0.76,0.1),Vector2(-0.66,-0.37),Vector2(-0.36,-0.74),Vector2(0,-1),Vector2(0.36,-0.74),Vector2(0.66,-0.37),Vector2(0.76,0.1),Vector2(0.82,0.57),Vector2(0.45,0.86),Vector2(0,1)]:
+		rim.append(Vector3(p.x*size,p.y*size,z))
+	return rim

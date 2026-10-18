@@ -7,6 +7,9 @@ static var _creatures: Dictionary = {}
 static var _lightning: ArrayMesh
 static var _shield_shape: ArrayMesh
 static var _sculpt_parts: Dictionary = {}
+## Casting visual per skill id (WeakRef) from the wind-up, so the release can stamp the real equipped shield.
+static var _casters: Dictionary = {}
+static var _bounces: Dictionary = {}
 
 static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) -> void:
 	var look := SkillShow.profile_for(skill)
@@ -15,6 +18,9 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 		return
 	var direction := to - from
 	if direction.length_squared() < 0.001:
+		return
+	if String(look.signature) == "shieldflight":
+		_shield_bounce(parent, skill, look, from, to)
 		return
 	var root := SpellSpectacle._root(parent, (from + to) * 0.5, "SkillLink_" + String(skill.id))
 	root.look_at(to, Vector3.RIGHT if absf(direction.normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP, true)
@@ -114,6 +120,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, look: Dictionary, orig
 		return
 	if visual:
 		SkillCharge.launch(parent, visual, look, duration)
+		_casters[String(skill.id)] = weakref(visual)
 	var root := SpellSpectacle._root(parent, origin, "SkillWindup_" + String(skill.id))
 	var dir := aim - origin
 	if Vector2(dir.x, dir.z).length_squared() > 0.001:
@@ -147,7 +154,7 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 	var shape := String(skill.shape)
 	var travelling := bool(skill.get("projectile", false)) or shape in ["fan", "chain"]
 	var self_cast := shape in ["self", "summon", "burst"]
-	var directed := String(look.signature) in ["cleave", "cross", "lance", "world_spear", "blade"] and shape == "single"
+	var directed := String(look.signature) in ["cleave", "cross", "lance", "world_spear", "blade", "greatshield", "shieldquake"] and shape == "single"
 	var root := SpellSpectacle._root(parent, origin if travelling or self_cast or directed else center, "SpellSpectacle_" + String(skill.id))
 	var dir := center - origin
 	if Vector2(dir.x, dir.z).length_squared() > 0.001:
@@ -208,6 +215,14 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 				SpellSpectacle._phoenix(root, mat, 2.7, true)
 		"shield":
 			_shield(root, mat, core, tier)
+		"greatshield":
+			_greatshield(root, skill, look, core_look, shade, tier, dir.length(), duration)
+		"challenge":
+			_challenge(root, skill, look, mat, shade, tier, radius, duration)
+		"shieldquake":
+			_shieldquake(root, skill, look, core, shade, tier, radius, dir.length(), duration)
+		"shieldflight":
+			_shield_release(root, skill, look, tier)
 		"focus", "rune":
 			SpellSpectacle._orbit(root, mat, mini(tier, 2))
 			_crown(root, core, 1.3, 3 + tier / 2, false)
@@ -272,13 +287,13 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 			SkillInk.mark(root, look, Vector3(0, 5.6, 0), 2.6, 1.0, 1, true)
 	if layers >= 4 and tier >= 2 and crowd < 2:
 		match signature:
-			"cleave", "cross", "cyclone", "blade", "lance", "world_spear", "arrow", "comet", "thorn", "beam", "lightning", "sword_court":
+			"cleave", "cross", "cyclone", "blade", "lance", "world_spear", "arrow", "comet", "thorn", "beam", "lightning", "sword_court", "greatshield", "shieldquake", "challenge":
 				_crown(root, core, 1.1 + layers * 0.15, layers, false)
 			"wings", "phoenix", "sun", "cathedral", "lotus", "spores", "rain":
 				SpellSpectacle._phoenix(root, shade, 1.0 + layers * 0.3, false)
 			_:
 				SpellSpectacle._helix(root, core, 0.85 + layers * 0.12, 2.3 + layers * 0.25, 1)
-	if not travelling and signature not in ["cleave", "cross", "lance", "blade", "fault", "frost", "dragon", "elder_dragon"]:
+	if not travelling and signature not in ["cleave", "cross", "lance", "blade", "fault", "frost", "dragon", "elder_dragon", "greatshield", "shieldquake"]:
 		SkillInk.mark(root, look, Vector3(0, 0.045, 0), radius if shape in ["burst", "blast"] else 1.45 + tier * 0.12, minf(duration, 1.0))
 	# One small accent emitter, never the old six universal particle layers.
 	if tier >= 2 and crowd < 3:
@@ -341,6 +356,204 @@ static func _shield(root: Node3D, mat: Material, core: Material, tier: int) -> v
 		var wing := SpellSpectacle._mesh(root, SpellSpectacle._wing_mesh(), core, Vector3(0, 1.0 + i * 0.36, 0.87))
 		if wing:
 			wing.scale = Vector3(0.8, 0.6, 0.25)
+
+## The caster's real great shield (captured once per equipment refresh) when the
+## wind-up came from a Defender visual; the sculpted heater otherwise.
+static func shield_silhouette(skill: Dictionary) -> Mesh:
+	var ref: WeakRef = _casters.get(String(skill.id))
+	var visual := ref.get_ref() as HeroVisual if ref else null
+	if is_instance_valid(visual) and String(visual.class_id) == "defender":
+		return StarSkillArt.equipped_sword(visual)
+	return EliteSkillArt.geometry("greatshield")
+
+
+## One shield plate in the elite relief shader, fading on the same clock as the root.
+static func _plate(root: Node3D, mesh: Mesh, look: Dictionary, at: Vector3, size: Vector3, angles: Vector3, duration: float, front := false) -> MeshInstance3D:
+	var relief := EliteSkillArt.material(look)
+	# The shield itself draws after the translucent ground rings, never under them.
+	relief.render_priority = 1 if front else 0
+	var plate := SpellSpectacle._mesh(root, mesh, relief, at)
+	if plate == null:
+		return null
+	plate.name = "ShieldPlate"
+	plate.scale = size
+	plate.rotation = angles
+	var tw := root.create_tween()
+	tw.tween_method(func(age: float): relief.set_shader_parameter("age", age), 0.0, duration, duration * 0.62)
+	tw.tween_method(func(value: float): relief.set_shader_parameter("fade", value), 1.0, 0.0, duration * 0.38)
+	return plate
+
+
+## Shield-outline shockwave spreading over the ground at [param at].
+static func _shield_wave(root: Node3D, look: Dictionary, at: Vector3, radius: float, duration: float, delay := 0.0, lift := 0.07) -> void:
+	var wave := _plate(root, EliteSkillArt.geometry("shield_outline"), look, at + Vector3.UP * lift, Vector3.ONE * 0.3, Vector3.ZERO, duration + delay)
+	if wave:
+		var tw := wave.create_tween()
+		if delay > 0.0:
+			tw.tween_interval(delay)
+		tw.tween_property(wave, "scale", Vector3.ONE * radius, 0.38).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+
+
+## Shield Bash / Slam / Aegis Strike: the real shield is stamped face-first in
+## front of the hero, its face flashes and a shield-outline shockwave spreads at
+## the target. Bulwark Charge rides the lane upright; Shield Wave launches it flat.
+static func _greatshield(root: Node3D, skill: Dictionary, look: Dictionary, core_look: Dictionary, shade: Material, tier: int, reach: float, duration: float) -> void:
+	var silhouette := shield_silhouette(skill)
+	var size := 1.25 + tier * 0.12
+	reach = maxf(reach, 1.6)
+	if skill.has("pierce"):
+		var length := clampf(float(skill.pierce.get("len", 8.0)), 4.0, 12.0)
+		var flat := String(skill.id) == "shield_wave"
+		var plate := _plate(root, silhouette, look, Vector3(0, 0.75 if flat else 1.1, 0.8), Vector3.ONE * size * 1.15, Vector3(-PI * 0.5, 0, 0) if flat else Vector3.ZERO, duration, true)
+		if plate:
+			var tw := plate.create_tween().set_parallel(true)
+			tw.tween_property(plate, "position:z", length, duration * 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			if flat:
+				tw.tween_property(plate, "rotation:y", TAU * 1.5, duration * 0.6)
+		SkillInk.ribbon(root, core_look, Vector3(0, 1.0, length * 0.15), length * 0.6, 2, Vector3(0, 0, 0.4), 0.48)
+		if flat:
+			_shield_wave(root, look, Vector3(0, 0, length * 0.55), 2.4 + tier * 0.2, duration, 0.12)
+		else:
+			var lane := _plate(root, EliteSkillArt.geometry("lane"), look, Vector3(0, 0.08, 0), Vector3(1.3, length / 10.0, length / 10.0), Vector3.ZERO, duration)
+			if lane:
+				lane.name = "ChargeLane"
+			for z in [length * 0.5, length]:
+				var crack := _plate(root, EliteSkillArt.geometry("fractures"), look, Vector3(0, 0.07, z), Vector3.ONE * (1.4 + tier * 0.15), Vector3.ZERO, duration)
+				if crack:
+					crack.name = "ChargeFracture"
+		return
+	var plate := _plate(root, silhouette, look, Vector3(0, 1.3, 0.9), Vector3.ONE * size, Vector3.ZERO, duration, true)
+	if plate:
+		plate.scale = Vector3(0.08, size, size)
+		plate.create_tween().tween_property(plate, "scale", Vector3.ONE * size, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# The face flash: a brighter copy swelling off the plate and burning out quickly.
+	var flash_mat := SpellSpectacle._material(core_look, 0.85)
+	var flash := SpellSpectacle._mesh(root, silhouette, flash_mat, Vector3(0, 1.3, 0.95))
+	if flash:
+		flash.scale = Vector3.ONE * size * 1.04
+		var tw := flash.create_tween().set_parallel(true)
+		tw.tween_property(flash, "scale", Vector3.ONE * size * 1.3, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_method(func(value: float): flash_mat.set_shader_parameter("fade", value), 1.0, 0.0, 0.3)
+	_shield_wave(root, look, Vector3(0, 0, reach), 2.2 + tier * 0.3, duration)
+	var spot := Node3D.new()
+	root.add_child(spot)
+	spot.position = Vector3(0, 0, reach)
+	SpellSpectacle._ground_shards(spot, shade, 0.9 + tier * 0.12, 3 + tier / 2)
+
+
+## Provoke / Grand Provoke: the shield is knocked, two red-copper rings roll out
+## with the Defender's crest and ribbons flare outwards to every enemy.
+static func _challenge(root: Node3D, skill: Dictionary, look: Dictionary, mat: Material, shade: Material, tier: int, radius: float, duration: float) -> void:
+	for i in 2:
+		var ring := SpellSpectacle._mesh(root, SpellSpectacle._halo_mesh(), mat if i == 0 else shade, Vector3(0, 0.2 + i * 0.7, 0))
+		if ring:
+			ring.rotation.x = PI * 0.5
+			ring.scale = Vector3(0.4, 0.4, 2.5)
+			var tw := ring.create_tween()
+			tw.tween_interval(i * 0.08)
+			tw.tween_property(ring, "scale", Vector3(radius, radius, 2.5) * (1.0 - i * 0.18), 0.42).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	VfxArt.crest(root, root.global_position, look.primary, "defender", radius * 0.6, duration, float(look.phase))
+	SkillInk.ribbon(root, look, Vector3(0, 0.9, 0), radius * 0.8, 1, Vector3.ZERO, 0.62)
+	_shield_wave(root, look, Vector3.ZERO, radius * 1.6, duration, 0.05)
+	var plate := _plate(root, shield_silhouette(skill), look, Vector3(0, 1.3, 0.75), Vector3.ONE * (1.4 + tier * 0.12), Vector3(0.35, 0, 0), duration * 0.8, true)
+	if plate:
+		var tw := plate.create_tween()
+		tw.tween_property(plate, "rotation:x", -0.15, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(plate, "rotation:x", 0.1, 0.3)
+
+
+## The quake family: the shield is driven into the ground, a crater opens and
+## shards fly, all scaled by the real radius (Titan Quake adds a rising rampart).
+## Shockwave Wall pushes three shield-outline rings out; Bastion Crush presses
+## the shield face-down onto its single victim.
+static func _shieldquake(root: Node3D, skill: Dictionary, look: Dictionary, core: Material, shade: Material, tier: int, radius: float, reach: float, duration: float) -> void:
+	var id := String(skill.id)
+	var silhouette := shield_silhouette(skill)
+	if id == "shockwave_wall":
+		var plate := _plate(root, silhouette, look, Vector3(0, 1.2, 0.5), Vector3.ONE * (1.1 + tier * 0.1), Vector3.ZERO, duration, true)
+		if plate:
+			plate.create_tween().tween_property(plate, "position:z", 1.3, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		for i in 3:
+			_shield_wave(root, look, Vector3.ZERO, radius * (2.0 - i * 0.25), duration, i * 0.09, 0.07 + i * 0.45)
+		SkillInk.mark(root, look, Vector3(0, 0.05, 0), radius, 0.65, 1)
+		return
+	if String(skill.shape) == "single":
+		reach = maxf(reach, 1.6)
+		var plate := _plate(root, silhouette, look, Vector3(0, 3.2, reach), Vector3.ONE * (1.5 + tier * 0.12), Vector3(PI * 0.5, 0, 0), duration, true)
+		if plate:
+			plate.create_tween().tween_property(plate, "position:y", 0.9, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		var crater := _plate(root, EliteSkillArt.geometry("crater_ring"), look, Vector3(0, 0.06, reach), Vector3.ONE * 0.4, Vector3.ZERO, duration)
+		if crater:
+			crater.name = "CrushCrater"
+			crater.create_tween().tween_property(crater, "scale", Vector3.ONE * (1.6 + tier * 0.15), 0.16).set_delay(0.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		var spot := Node3D.new()
+		root.add_child(spot)
+		spot.position = Vector3(0, 0, reach)
+		SpellSpectacle._ground_shards(spot, shade, 1.1 + tier * 0.1, 4)
+		return
+	var crater := _plate(root, EliteSkillArt.geometry("crater_ring"), look, Vector3(0, 0.06, 0), Vector3.ONE * radius * 0.35, Vector3.ZERO, duration)
+	if crater:
+		crater.name = "QuakeCrater"
+		crater.create_tween().tween_property(crater, "scale", Vector3.ONE * radius * 1.05, 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var plate := _plate(root, silhouette, look, Vector3(0, 2.4, 0.9), Vector3.ONE * (1.4 + tier * 0.15 + radius * 0.16), Vector3(0.45, 0, 0), duration, true)
+	if plate:
+		var tw := plate.create_tween().set_parallel(true)
+		tw.tween_property(plate, "position:y", 0.5, 0.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		tw.tween_property(plate, "rotation:x", 1.1, 0.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	SpellSpectacle._ground_shards(root, shade, radius * 0.72, 4 + tier)
+	_crown(root, core, radius * 0.55, 3 + tier / 2, false)
+	if id == "titan_quake":
+		var rampart := _plate(root, EliteSkillArt.geometry("rampart"), look, Vector3(0, -2.3, 0), Vector3(radius * 0.8, 2.2, radius * 0.8), Vector3.ZERO, duration, true)
+		if rampart:
+			rampart.name = "TitanRampart"
+			rampart.create_tween().tween_property(rampart, "position:y", 0.0, 0.16).set_delay(0.04).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	SkillInk.mark(root, look, Vector3(0, 0.05, 0), radius, 0.65, 1)
+
+
+## Shield Toss / Rebound Storm release: the shield spins away from the hand.
+static func _shield_release(root: Node3D, skill: Dictionary, look: Dictionary, tier: int) -> void:
+	var plate := _plate(root, shield_silhouette(skill), look, Vector3(0, 1.3, 0.6), Vector3.ONE * (0.9 + tier * 0.08), Vector3(-PI * 0.5, 0, 0), 0.45, true)
+	if plate:
+		var tw := plate.create_tween().set_parallel(true)
+		tw.tween_property(plate, "rotation:y", TAU * 2.0, 0.45)
+		tw.tween_property(plate, "position:z", 2.6, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	SkillInk.ribbon(root, look, Vector3(0, 1.2, 0.6), 1.3, 2, Vector3(0, 0, PI * 0.5), 0.45)
+
+
+## One bounce of the thrown shield between two victims: the spinning plate flies
+## the link while a ribbon streak marks the path. Links of one cast are staggered
+## so the shield visibly visits each victim in turn (damage already landed).
+static func _shield_bounce(parent: Node3D, skill: Dictionary, look: Dictionary, from: Vector3, to: Vector3) -> void:
+	if not VfxBudget.can_decorate():
+		return
+	var id := String(skill.id)
+	var now := Time.get_ticks_msec()
+	var order: Dictionary = _bounces.get(id, {"ms": -1000, "n": 0})
+	var n := int(order.n) + 1 if now - int(order.ms) < 120 else 0
+	_bounces[id] = {"ms": now, "n": n}
+	var delay := n * 0.13
+	var seconds := clampf(from.distance_to(to) / 16.0, 0.1, 0.22)
+	var root := SpellSpectacle._root(parent, from, "ShieldBounce_" + id)
+	root.look_at(to, Vector3.RIGHT if absf((to - from).normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP, true)
+	root.visible = delay <= 0.0
+	var plate := _plate(root, shield_silhouette(skill), look, Vector3.ZERO, Vector3.ONE * 0.85, Vector3(-PI * 0.5, 0, 0), delay + seconds + 0.2, true)
+	var tw := root.create_tween()
+	if delay > 0.0:
+		tw.tween_interval(delay)
+		tw.tween_callback(func(): root.visible = true)
+	tw.tween_property(root, "global_position", to, seconds)
+	if plate:
+		root.create_tween().tween_property(plate, "rotation:y", TAU * 1.5, delay + seconds)
+	tw.tween_callback(func():
+		if is_instance_valid(parent) and parent.is_inside_tree():
+			var streak := SpellSpectacle._root(parent, (from + to) * 0.5, "ShieldStreak_" + id)
+			streak.look_at(to, Vector3.RIGHT if absf((to - from).normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP, true)
+			SkillInk.ribbon(streak, look, Vector3.ZERO, from.distance_to(to) * 0.5, 2, Vector3.ZERO, 0.28)
+			SkillInk.ribbon(streak, look, Vector3.ZERO, from.distance_to(to) * 0.5, 2, Vector3(0, 0, PI * 0.5), 0.28)
+			streak.create_tween().tween_interval(0.3).finished.connect(streak.queue_free, CONNECT_ONE_SHOT))
+	tw.tween_interval(0.2)
+	tw.tween_callback(root.queue_free)
+
 
 static func _fire(root: Node3D, mat: Material, core: Material, tier: int, radius: float, travelling: bool) -> void:
 	var orb := SpellSpectacle._mesh(root, SpellSpectacle._sphere_mesh(), core, Vector3(0, 1.15, 0))
