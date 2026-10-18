@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
-## Hero classes: the Vagabond (Lv.1-9) and the four lines chosen at Lv.10 (sword,
-## bow, mage, priest, summoner). Each class has a pool of active skills modelled on
+## Hero classes: the Vagabond (Lv.1-9) and the lines chosen at Lv.10 (sword,
+## bow, mage, priest, summoner, spear, great shield). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -19,14 +19,14 @@ const START: StringName = &"vagabond"
 const LINE_LEVEL := 10
 const SLOTS := 8
 ## The four lines picked at Lv.10 (also the AI companion classes).
-const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer"]
+const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender"]
 
 const CLASSES := {
 	&"vagabond": {
 		"name": "นักเดินทาง",
 		"title": "ผู้ยังไม่เลือกเส้นทาง",
 		"badge": "V",
-		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช หรือผู้เรียกอสูร หรือนักหอก",
+		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช ผู้เรียกอสูร นักหอก หรือสายโล่",
 		"model": "Rogue",
 		"weapon": "sword_1handed",
 		"offhand": "",
@@ -168,6 +168,27 @@ const CLASSES := {
 			"anims": ["2H_Melee_Attack_Stab", "2H_Melee_Attack_Slice", "2H_Melee_Attack_Stab"],
 		},
 	},
+	&"defender": {
+		"name": "สายโล่",
+		"title": "กำแพงเหล็กผู้ไม่ถอย",
+		"badge": "D",
+		"desc": "สายโล่ — ถือโล่ใหญ่ใบเดียวเป็นทั้งเกราะและอาวุธ ฟาดโล่ ทุบพื้น พุ่งชน ขว้างโล่เด้งหลายตัว ยั่วยุศัตรูให้มารุมตัวเองและสะท้อนความเสียหายกลับ ทนที่สุดในเกม (STR ตีแรง VIT เสริมพลังโจมตีเป็นรอง)",
+		"model": "Knight",
+		"weapon": "greatshield",
+		"offhand": "",
+		"weapon_kind": "greatshield",
+		"color": Color("6fa8dc"),
+		"main": "str",
+		"sub": "vit",
+		"base": {"str": 10, "int": 3, "dex": 4, "vit": 15},
+		"gain": {"str": 2, "int": 0, "dex": 1, "vit": 3},
+		"hp_mult": 1.45,
+		"mp_mult": 0.75,
+		"attack": {
+			"range": 2.6, "interval": 0.9, "mult": 1.0, "hit_delay": 0.26, "projectile": false, "vfx": &"impact",
+			"anims": ["Block_Attack", "2H_Melee_Attack_Slice", "Block_Attack"],
+		},
+	},
 }
 
 
@@ -225,6 +246,14 @@ const PASSIVES := {
 		{"id": "iron_stance", "name": "Iron Stance", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
 		{"id": "dragon_fang", "name": "Dragon Fang", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "valkyrie_heart", "name": "Valkyrie's Heart", "desc": "HP +4% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "speed": 0.02}},
+	],
+	&"defender": [
+		{"id": "shield_mastery", "name": "Shield Mastery", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 10, "bonus": {"def": 0.04}},
+		{"id": "iron_body", "name": "Iron Body", "desc": "HP สูงสุด +5% ต่อดาว", "level": 20, "bonus": {"hp": 0.05}},
+		{"id": "bash_mastery", "name": "Bash Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 30, "bonus": {"atk": 0.025}},
+		{"id": "stalwart", "name": "Stalwart", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
+		{"id": "heavy_impact", "name": "Heavy Impact", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
+		{"id": "living_fortress", "name": "Living Fortress", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
 	],
 }
 
@@ -309,7 +338,7 @@ static func damage_curve(level: int) -> float:
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
 	mult *= damage_curve(level)
-	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer"
+	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
 	match shape:
@@ -535,6 +564,34 @@ static func _build_pools() -> void:
 		_sk(l, "gungnir", "Gungnir", "ขว้างหอกเทพเจ้า ทะลุศัตรู 5 ตัวเป็นแนวยาว", 92, 110, 13.0, "single", 17.0, {"range": 13.0, "pierce": pc.call(5, 15.0, 1.8), "vfx": &"light", "color": Color("fff0a0"), "icon": "arrow"}),
 		_sk(l, "heaven_rend", "Heaven Rend", "ฟาดหอกฉีกฟ้า ศัตรูรอบตัวมึนงง 1.2 วินาที", 96, 118, 16.0, "burst", 21.0, {"radius": 9.0, "fx": {"stun": 1.2}, "special": "spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "spin"}),
 		_sk(l, "ragnarok_lance", "Ragnarok Lance", "หอกแห่งวันสิ้นโลก แทงทะลุศัตรู 10 ตัว", 100, 140, 14.0, "single", 26.0, {"range": 5.5, "pierce": pc.call(10, 15.0, 1.8, 0.8), "vfx": &"light", "color": Color("ffd84a"), "icon": "sword"}),
+	]
+	var d := &"defender"
+	_pools[d] = [
+		_sk(d, "shield_bash", "Shield Bash", "ฟาดขอบโล่ใส่ศัตรูตัวเดียว", 10, 10, 3.0, "single", 2.6, {"anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "shield"}),
+		_sk(d, "brace", "Brace", "ตั้งโล่รับ ลดความเสียหายที่ได้รับ 15% DEF +20% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"guard": 0.15, "def": 0.2, "secs": 60.0}}, "anim": "Blocking", "color": Color("9fc4e8"), "icon": "shield"}),
+		_sk(d, "shield_slam", "Shield Slam", "กระแทกหน้าโล่ใส่ศัตรู มึนงง 1.5 วินาที", 14, 16, 6.0, "single", 3.8, {"fx": {"stun": 1.5}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
+		_sk(d, "provoke", "Provoke", "เคาะโล่ท้าทาย ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 4 วินาที", 17, 18, 14.0, "burst", 1.5, {"radius": 7.0, "fx": {"taunt": 4.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff9a6a"), "icon": "roar"}),
+		_sk(d, "ground_quake", "Ground Quake", "ทุบโล่ลงพื้น ศัตรูรอบตัวช้าลง 2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.5, "fx": {"slow": 2.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("d8b98a"), "icon": "nova"}),
+		_sk(d, "shield_toss", "Shield Toss", "ขว้างโล่เด้งไปโดนศัตรู 3 ตัวแล้วกลับมือ", 24, 24, 9.0, "chain", 2.6, {"hits": 3, "range": 9.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "triple"}),
+		_sk(d, "iron_wall", "Iron Wall", "กำแพงเหล็ก DEF +50% ลดความเสียหาย 15% นาน 1 นาที (ส่งถึงทีม)", 27, 26, 32.0, "self", 0.0, {"fx": {"buff": {"def": 0.5, "guard": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("a8c8e8"), "icon": "shield"}),
+		_sk(d, "bulwark_charge", "Bulwark Charge", "ยกโล่พุ่งชนทะลุแนวศัตรู 3 ตัว มึนงงสั้นๆ", 31, 28, 8.0, "single", 4.8, {"range": 8.0, "fx": {"stun": 0.6}, "pierce": pc.call(3, 8.0, 1.6), "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffb04a"), "icon": "boots"}),
+		_sk(d, "thorn_guard", "Thorn Guard", "โล่หนาม สะท้อนความเสียหาย 20% กลับใส่ผู้โจมตี DEF +20% นาน 1 นาที", 35, 30, 34.0, "self", 0.0, {"fx": {"buff": {"reflect": 0.2, "def": 0.2, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffb46a"), "icon": "shield"}),
+		_sk(d, "quake_slam", "Quake Slam", "ทุบพื้นสั่นสะเทือน ศัตรูรอบตัวมึนงง 1.2 วินาที", 39, 38, 12.0, "burst", 4.0, {"radius": 5.2, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("e8c08a"), "icon": "spin"}),
+		_sk(d, "aegis_strike", "Aegis Strike", "ฟาดโล่สุดแรงใส่ศัตรูตัวเดียว", 43, 40, 9.0, "single", 6.6, {"range": 3.2, "anim": "Block_Attack", "vfx": &"impact", "color": Color("9fd0ff"), "icon": "shield"}),
+		_sk(d, "guardian_oath", "Guardian's Oath", "สาบานผู้พิทักษ์ ฟื้น HP 20% และโล่ดูดซับ 15% ของ HP สูงสุด นาน 1 นาที", 47, 44, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"shield": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("fff0b0"), "icon": "heal"}),
+		_sk(d, "shield_wave", "Shield Wave", "ฟาดโล่ส่งคลื่นพลังทะลุศัตรู 5 ตัว", 52, 48, 9.0, "single", 6.5, {"range": 9.0, "pierce": pc.call(5, 11.0, 1.6), "anim": "Block_Attack", "vfx": &"impact", "color": Color("b8e0ff"), "icon": "arrow"}),
+		_sk(d, "shockwave_wall", "Shockwave Wall", "ดันโล่สร้างคลื่นกระแทกรอบตัว ศัตรูกระเด็นและมึนงง 0.8 วินาที", 56, 52, 11.0, "burst", 6.0, {"radius": 6.0, "fx": {"stun": 0.8}, "anim": "2H_Melee_Attack_Spin", "vfx": &"impact", "color": Color("9fe8ff"), "icon": "nova"}),
+		_sk(d, "titan_quake", "Titan Quake", "ทุบพสุธาด้วยโล่ยักษ์ ศัตรูรอบตัวมึนงง 1 วินาที", 60, 62, 12.0, "burst", 6.5, {"radius": 6.5, "fx": {"stun": 1.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ffb06a"), "icon": "spin"}),
+		_sk(d, "bastion_crush", "Bastion Crush", "กดโล่บดขยี้ศัตรูตัวเดียว", 64, 60, 8.0, "single", 10.5, {"range": 3.4, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ff8a5a"), "icon": "shield"}),
+		_sk(d, "rebound_storm", "Rebound Storm", "ขว้างโล่เด้งรัวไปโดนศัตรู 5 ตัว", 68, 66, 11.0, "chain", 5.0, {"hits": 5, "range": 10.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("c8e4ff"), "icon": "triple"}),
+		_sk(d, "grand_provoke", "Grand Provoke", "ท้ารบทั้งสนาม ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 5 วินาที", 72, 70, 16.0, "burst", 2.0, {"radius": 8.0, "fx": {"taunt": 5.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff7a4a"), "icon": "roar"}),
+		_sk(d, "unbreakable", "Unbreakable", "ไม่มีวันแตก DEF +80% ฟื้น HP 30% สะท้อนความเสียหาย 25% นาน 1 นาที", 76, 76, 42.0, "self", 0.0, {"fx": {"heal": 0.3, "buff": {"def": 0.8, "reflect": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffd27a"), "icon": "shield"}),
+		_sk(d, "holy_rampart", "Holy Rampart", "กำแพงแสงระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 80, 90, 16.0, "burst", 10.5, {"radius": 7.5, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
+		_sk(d, "judgment_shield", "Judgment Shield", "ฟาดโล่แห่งคำพิพากษาใส่ศัตรูตัวเดียว", 84, 92, 10.0, "single", 14.5, {"range": 3.6, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("fff0a0"), "icon": "shield"}),
+		_sk(d, "aegis_of_ages", "Aegis of Ages", "อีจิสนิรันดร์ DEF +100% ฟื้น HP 40% โล่ดูดซับ 25% ของ HP นาน 1 นาที", 88, 90, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 1.0, "shield": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffffff"), "icon": "shield"}),
+		_sk(d, "meteor_shield", "Meteor Shield", "กระโดดทุบโล่ลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 100, 14.0, "blast", 12.0, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "hit_delay": 0.55, "vfx": &"impact", "color": Color("ffb04a"), "icon": "meteor"}),
+		_sk(d, "sanctuary_wall", "Sanctuary Wall", "กำแพงวิหาร ATK +40% ลดความเสียหาย 25% นาน 1 นาที (ส่งถึงทีม)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "guard": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffe9a0"), "icon": "bless"}),
+		_sk(d, "world_bastion", "World Bastion", "ปักโล่ลงพิภพ คลื่นป้อมปราการถล่มรอบตัว ศัตรูมึนงง 2 วินาทีแล้วหันมาโจมตีคุณ", 100, 130, 16.0, "burst", 20.0, {"radius": 9.0, "fx": {"stun": 2.0, "taunt": 4.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("ffd84a"), "icon": "nova"}),
 	]
 
 	for star_class in IDS:

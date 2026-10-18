@@ -91,6 +91,17 @@ func clear(host: Node3D) -> void:
 	BuffAura.sync(host, auras, buffs, Time.get_ticks_msec(), false, func(): return 2.0)
 
 ## A protection skill occupies its existing self/ally slot, including its shield.
+## Share of damage taken that active buffs send back (thorns); the strongest wins, at most 40%.
+static func reflect(entries: Array, now := -1) -> float:
+	if now < 0:
+		now = Time.get_ticks_msec()
+	var best := 0.0
+	for entry in entries:
+		if int(entry.get("until", 0)) > now:
+			best = maxf(best, float(entry.get("reflect", 0.0)))
+	return minf(best, 0.4)
+
+
 static func absorb(entries: Array, incoming: int) -> int:
 	var now := Time.get_ticks_msec()
 	var guards: Array=[]

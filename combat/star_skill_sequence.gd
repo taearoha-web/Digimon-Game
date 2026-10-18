@@ -23,7 +23,7 @@ static func launch(hero: Hero, data: Dictionary, target: Mob, aim: Vector3) -> f
 	seq.center=Vector3(aim.x,0,aim.z)
 	seq.origin=hero.global_position
 	seq.forward=Vector3(sin(hero._facing),0,cos(hero._facing))
-	seq.aerial=String(data.id)=="celestial_swordfall"
+	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark"]
 	seq._plan()
 	hero.add_child(seq)
 	return minf(seq.end,2.4) if String(data.id)=="sacred_sanctuary" else seq.end
@@ -34,6 +34,9 @@ func _plan() -> void:
 	var beats: Array = [0.0]
 	match id:
 		"lionfang_cleave": beats=[0.0,0.26]
+		"titan_shieldbreak": beats=[0.0,0.42]
+		"judgment_rebound": beats=[0.0,0.30,0.60]
+		"heavens_bulwark": beats=[0.0,0.36,0.72,1.2]
 		"crown_breaker": beats=[0.0,0.46]
 		"hunters_verdict": beats=[0.0,0.26,0.68]
 		"heartseeker": beats=[0.0,0.17,0.34,0.51,0.68,1.12]
@@ -49,7 +52,7 @@ func _plan() -> void:
 				events.append({"at":release+i*0.24+0.42,"index":i,"count":10})
 			end=release+9*0.24+0.42+0.8
 			return
-	var carriers := id in ["moonpiercer","hunters_verdict","arcane_prism","sanctified_chain","spiral_impaler","leviathan_surge","celestial_hunt"]
+	var carriers := id in ["judgment_rebound","moonpiercer","hunters_verdict","arcane_prism","sanctified_chain","spiral_impaler","leviathan_surge","celestial_hunt"]
 	var flight := 0.28 if carriers else 0.0
 	for i in beats.size():
 		var at := release+float(beats[i])

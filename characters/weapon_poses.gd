@@ -364,7 +364,7 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				var arm: Dictionary = rig[side]
 				var sign_side := -1.0 if side == "r" else 1.0
 				var amplitude := 0.13 if moving else 0.015
-				if side == "l" and family in [&"warrior", &"priest", &"summoner"]:
+				if side == "l" and family in [&"warrior", &"priest", &"summoner", &"defender"]:
 					amplitude *= 0.35
 				for joint in ["upper", "lower", "hand"]:
 					var bone: int = arm[joint]

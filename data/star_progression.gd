@@ -148,7 +148,8 @@ static func set_bonus_text(cls: String) -> String:
 		"lancer":"4 ชิ้น: สกิลหอกดาวฮิตที่ 3 เป็นต้นไปแรงขึ้น 15%",
 		"mage":"4 ชิ้น: ใช้ MP ลด 12%",
 		"priest":"4 ชิ้น: พลังฟื้นฟูเพิ่ม 20%",
-		"summoner":"4 ชิ้น: อสูรอัญเชิญทำดาเมจเพิ่ม 15%"}.get(cls,"")
+		"summoner":"4 ชิ้น: อสูรอัญเชิญทำดาเมจเพิ่ม 15%",
+		"defender":"4 ชิ้น: สกิลยั่วยุและสกิลทุบพื้นให้โล่ดูดซับ 5% ของ HP"}.get(cls,"")
 
 static func has_full_set(profile: Dictionary, cls: String) -> bool:
 	var counts := {}

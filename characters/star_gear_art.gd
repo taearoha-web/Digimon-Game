@@ -37,10 +37,13 @@ static func build(look: String) -> Node3D:
 			"staff": _staff(b, p, tier)
 			"wand": _wand(b, p, tier)
 			"lantern": _lantern(b, p, tier)
+			"greatshield": _shield(b, p, tier)
 			"shield": _shield(b, p, tier)
 			"book", "tome": _book(b, p, tier)
 		_store(look, b)
 	_attach(root, look)
+	# The Defender's great shield is the warrior's star shield, grown to its size.
+	if kind == "greatshield": root.scale = Vector3.ONE * 1.55
 	root.set_meta("star_gear", true)
 	root.set_meta("weapon_kind", kind)
 	return root

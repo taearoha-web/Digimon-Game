@@ -8,8 +8,8 @@ const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots"]
 const PREMIUM := 1.4
 ## Mythic gear carries four bonus lines (spread over hp, mp, crit, atk, def).
 const MYTHIC_LINES := 4.0
-const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ"}
-const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม"}
+const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ", "defender":"ดาราจักรนิรันดร์"}
+const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่"}
 
 static func is_item(value: Variant) -> bool:
 	return value is Dictionary and value.get("collection", "") == COLLECTION
@@ -56,6 +56,7 @@ static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> D
 		match cls:
 			&"warrior": stats.def += 200; stats.hp += 1000
 			&"lancer": stats["atk"] = int(stats.get("atk", 0)) + 200; stats.hp += 600
+			&"defender": stats.def += 80; stats.hp += 900
 			&"archer": stats["atk"] = int(stats.get("atk", 0)) + 240; stats["crit"] = float(stats.get("crit", 0)) + 0.03
 			&"mage": stats["matk"] = int(stats.get("matk", 0)) + 240; stats["mp"] = int(stats.get("mp", 0)) + 1000
 			&"priest": stats.hp += 1300; stats["mp"] = int(stats.get("mp", 0)) + 1000

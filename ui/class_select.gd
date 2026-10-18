@@ -104,7 +104,7 @@ func _ready() -> void:
 	right.add_child(_grid)
 	for row in ROWS:
 		_grid.add_child(_option_row(String(row[0]), String(row[1])))
-	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก เมื่อเลเวล 10", &"SmallLabel")
+	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก / โล่ เมื่อเลเวล 10", &"SmallLabel")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(note)
 	right.add_child(UIUtil.label("ชื่อฮีโร่", &"BoldLabel"))

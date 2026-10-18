@@ -8,7 +8,7 @@ extends RefCounted
 
 ## The mage carries the staff, the priest a short wand (with a matching book) and
 ## the summoner a lantern staff (with the grimoire of the same tier, see TOME).
-const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear"]
+const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear", "greatshield"]
 
 const GOLD := Color("ffc93c")
 
@@ -30,6 +30,9 @@ const MODELS := {
 	# The handle is on the back of the shield, below its visual centre.
 	"shield": {"file": "shield", "scale": 1.0, "offset": Vector3(0, 0.024, 0.064)},
 	"spear": {"file": "spear", "scale": 1.3, "offset": Vector3.ZERO},
+	# The Defender's great shield: the import puts its back handle at the origin,
+	# face towards +Z and top towards +Y, like the warrior's shields.
+	"greatshield": {"file": "greatshield", "scale": 1.6, "offset": Vector3.ZERO},
 }
 
 

@@ -4,7 +4,7 @@ extends RefCounted
 ## dynamic light or particle emitter is needed. Meshes are immutable and shared.
 const SIGIL := preload("res://shaders/skill_sigil.gdshader")
 const RIBBON := preload("res://shaders/skill_ribbon.gdshader")
-const MOTIFS := {"vagabond": 0.0, "warrior": 1.0, "archer": 2.0, "mage": 3.0, "priest": 4.0, "summoner": 0.0, "lancer": 1.0}
+const MOTIFS := {"vagabond": 0.0, "warrior": 1.0, "archer": 2.0, "mage": 3.0, "priest": 4.0, "summoner": 0.0, "lancer": 1.0, "defender": 1.0}
 static var _meshes: Dictionary = {}
 
 ## A gameplay range cue is essential feedback, never a budgeted decoration.

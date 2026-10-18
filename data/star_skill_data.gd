@@ -9,6 +9,7 @@ const IDS := {
 	&"mage": ["arcane_prism", "crystal_prison", "astral_convergence", "genesis_nova"],
 	&"priest": ["sanctified_chain", "seraph_aegis", "sacred_sanctuary", "dawn_salvation"],
 	&"summoner": ["moonwolf_pact", "leviathan_surge", "spirit_court", "eclipse_sovereign"],
+	&"defender": ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"],
 }
 const NAMES := {
 	&"warrior": ["Lionfang Cleave", "Crown Breaker", "Royal Vanguard", "Celestial Swordfall"],
@@ -17,6 +18,7 @@ const NAMES := {
 	&"mage": ["Arcane Prism", "Crystal Prison", "Astral Convergence", "Genesis Nova"],
 	&"priest": ["Sanctified Chain", "Seraph's Aegis", "Sacred Sanctuary", "Dawn of Salvation"],
 	&"summoner": ["Wind Monkey King", "Leviathan's Surge", "Spirit Court", "Poseidon, Lord of Tides"],
+	&"defender": ["Titan Shieldbreak", "Judgment Rebound", "Eternal Aegis", "Heaven's Bulwark"],
 }
 const DESCS := {
 	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 1 นาที", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่"],
@@ -25,18 +27,19 @@ const DESCS := {
 	&"mage": ["ปริซึมเวท • ยิงพลัง 4 ธาตุใส่เป้าหมายเดียว", "คุกผลึกเหมันต์ • ชะลอในวง ผลึกระเบิด 2 จังหวะ", "บรรจบแห่งดวงดาว • ดึงศัตรูทั่วไปเข้าศูนย์กลาง ระเบิด 3 ระลอก", "โนวากำเนิดธาตุ • รวม 4 ธาตุเป็นแกนพลัง ปล่อยคลื่น 4 ระลอก"],
 	&"priest": ["สายใยศักดิ์สิทธิ์ • แสงเชื่อมศัตรูสูงสุด 5 ตัว ฟื้น HP ทีม 12%", "ปีกพิทักษ์เซราฟ • โล่ทีมดูดซับ 25% ของ HP สูงสุด นาน 1 นาที", "วิหารศักดิ์สิทธิ์ • วงฟื้น HP 6% ทุก 2 วิ นาน 10 วิ และต้านความเสียหาย 15% นาน 1 นาที", "รุ่งอรุณแห่งการกอบกู้ • คลื่นศักดิ์สิทธิ์ 3 ครั้ง ทำดาเมจหมู่และฟื้น HP ทีมรวม 30%"],
 	&"summoner": ["ราชาวานรวายุ • อัญเชิญราชาวานรแห่งสายลม 2 นาที ฟาดกระบองระยะประชิด • สกิล 1 พายุวานร โจมตีหมู่รอบตัว • สกิล 2 กระบองฟาดพื้น โจมตีหมู่และมึน 5 วิ", "กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง", "ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 1 นาที", "โพไซดอนจ้าวสมุทร • อัญเชิญจ้าวสมุทร 2 นาที ยิงลูกน้ำระยะไกล • สกิล 1 คลื่นน้ำวน โจมตีหมู่และมึน 5 วิ • สกิล 2 ผลึกน้ำแข็ง โจมตีหมู่และแช่แข็ง 5 วิ • คลื่นยักษ์ก่อนจากไป"],
+	&"defender": ["โล่ไททันพิฆาต • ทุบพื้นด้วยโล่ยักษ์ 2 จังหวะ มึน 1.5 วิ", "โล่พิพากษาเด้ง • ขว้างโล่แสงถล่มพื้นที่ 3 ครั้ง ลดเกราะ 20% นาน 6 วิ", "อีจิสอมตะ • ทีมในระยะลดความเสียหาย 30% ป้องกัน +50% โล่ดูดซับ 20% ของ HP นาน 1 นาที", "ปราการสวรรค์ • ต้องสวมปีก บินขึ้นแล้วกระแทกโล่แสงยักษ์ลงพื้น 4 ระลอก ศัตรูมึนและหันมาโจมตีคุณ"],
 }
 
 static func pool(cls: StringName) -> Array:
 	var out: Array = []
 	if not IDS.has(cls): return out
 	for i in 4:
-		var melee := cls in [&"warrior", &"lancer"]
+		var melee := cls in [&"warrior", &"lancer", &"defender"]
 		var s := {"id": IDS[cls][i], "name": NAMES[cls][i], "desc": DESCS[cls][i], "class": cls,
 			"level": 100, "star": (i + 1) * 50, "mp": [100, 140, 170, 240][i], "cd": [14.0, 19.0, 32.0, 48.0][i],
 			"shape": "blast", "range": 12.0, "radius": 6.5 + i * 0.6, "mult": [15.0, 23.0, 25.0, 38.0][i],
-			"hit_delay": [0.48, 0.62, 0.8, 1.2][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
-			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
+			"hit_delay": [0.48, 0.62, 0.8, 1.2][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
+			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("a8d0ff") if cls == &"defender" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
 			"icon": "star", "gesture": "thrust" if cls == &"lancer" else "cleave" if melee else "aim" if cls == &"archer" else "raise"}
 		match String(s.id):
 			"lionfang_cleave": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"cross_cut"}, true)
@@ -62,6 +65,10 @@ static func pool(cls: StringName) -> Array:
 			"moonwolf_pact": s.merge({"shape":"summon","gesture":"invoke","mult":16.0,"summon":{"kind":"wind_king","count":1,"secs":120.0}},true)
 			"leviathan_surge": s.merge({"shape":"burst","radius":10.0,"gesture":"raise"},true)
 			"spirit_court": s.merge({"shape":"self","mult":0.0,"gesture":"invoke","fx":{"buff":{"atk":0.55,"def":0.4,"secs":60.0}}},true)
+			"titan_shieldbreak": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"ground_slam", "fx":{"stun":1.5}}, true)
+			"judgment_rebound": s.merge({"shape":"blast", "range":12.0, "radius":6.0, "gesture":"cleave", "fx":{"shred":[0.2,6.0]}}, true)
+			"eternal_aegis": s.merge({"shape":"self", "mult":0.0, "gesture":"ward", "radius":8.0, "fx":{"buff":{"guard":0.3, "def":0.5, "shield":0.2, "secs":60.0}}}, true)
+			"heavens_bulwark": s.merge({"shape":"burst", "requires_wings":true, "hit_delay":1.3, "radius":10.0, "gesture":"ground_slam", "fx":{"stun":1.5, "taunt":4.0}}, true)
 			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":120.0}},true)
 		out.append(s)
 	return out
