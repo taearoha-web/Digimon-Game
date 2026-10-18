@@ -4,16 +4,21 @@ render_mode cull_disabled, diffuse_burley, specular_disabled;
 
 uniform vec4 tip_color : source_color = vec4(0.62, 0.92, 0.45, 1.0);
 uniform float sway = 0.075;
+// Per-zone wind strength; the tips move at most ~1.5 x sway (see NatureKit.chunk_bounds).
+uniform float gust = 1.0;
 
 varying float meadow_wave;
 
 void vertex() {
 	vec3 world_origin = MODEL_MATRIX[3].xyz;
 	float h = clamp(VERTEX.y, 0.0, 1.0);
+	float front = sin(TIME * 0.23 + world_origin.x * 0.012 + world_origin.z * 0.009) * 0.5 + 0.5;
+	float strength = min(gust * (0.6 + front * 0.55), 1.5);
 	float wave = sin(TIME * 1.8 + world_origin.x * 0.35 + world_origin.z * 0.27);
+	float flutter = sin(TIME * 6.0 + world_origin.x * 1.7 + world_origin.z * 1.3) * 0.12;
 	meadow_wave = sin(world_origin.x * 0.18 + world_origin.z * 0.13 + TIME * 0.6);
-	VERTEX.x += wave * sway * h * h;
-	VERTEX.z += cos(TIME * 1.3 + world_origin.z * 0.31) * sway * 0.6 * h * h;
+	VERTEX.x += (wave + flutter) * sway * strength * h * h;
+	VERTEX.z += cos(TIME * 1.3 + world_origin.z * 0.31) * sway * 0.6 * strength * h * h;
 }
 
 void fragment() {

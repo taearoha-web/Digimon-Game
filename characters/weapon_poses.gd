@@ -398,6 +398,15 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				_hold(skeleton, local, rig.l, target, bow_basis, "bow")
 		if family == &"lancer":
 			_spear_hold(skeleton, local, rig, body, chest, name, time, phase, source.length, carry, spear, spear_tune)
+		if family == &"defender" and carry:
+			# The great shield is carried out in front of the left shoulder, its
+			# face forward as at rest, so it never lies across the arm or the hip.
+			global = _globals(skeleton, local)
+			var shoulder: Vector3 = global[rig.l.upper].origin
+			var target := shoulder + Vector3(0.12, -0.52, 0.64) * arm_length
+			target.z += sway * arm_length * (0.03 if moving else 0.01)
+			var shield_basis: Basis = idle_globals[rig.l.slot].basis * (rig.l.correction as Basis) * WeaponGrip.mount("greatshield")
+			_hold(skeleton, local, rig.l, target, shield_basis, "greatshield")
 		for bone in arm_bones:
 			result.rotation_track_insert_key(output_tracks[bone], time, local[bone].basis.get_rotation_quaternion())
 	return result

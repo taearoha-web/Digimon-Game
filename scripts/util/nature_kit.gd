@@ -257,9 +257,10 @@ static func place(parent: Node3D, node_name: String, model: String, theme: Strin
 ## point; only empty space around the visible geometry is removed.
 static func chunk_bounds(mesh: Mesh, transforms: Array[Transform3D], indices: Array,
 		centre: Vector3, model_xform := Transform3D.IDENTITY) -> AABB:
-	# Foliage displaces <= 0.045 m and grass <= 0.075 m in mesh-local space.
-	# Expanding before transforming also covers rotated/nonuniformly scaled tips.
-	var local_bounds := mesh.get_aabb().grow(0.1)
+	# Foliage displaces <= 0.09 m and grass <= 0.12 m in mesh-local space at the
+	# strongest zone gust (foliage/grass_sway shaders). Expanding before
+	# transforming also covers rotated/nonuniformly scaled tips.
+	var local_bounds := mesh.get_aabb().grow(0.16)
 	var bounds := AABB()
 	for j in indices.size():
 		var instance_bounds: AABB = (transforms[indices[j]] * model_xform) * local_bounds
@@ -308,7 +309,15 @@ static func _material_for(material_name: String, theme: StringName, model_height
 	var is_flower := material_name == "Flowers"
 	mat.set_shader_parameter("tint_strength", 1.0 if is_flower else 0.22)
 	mat.set_shader_parameter("sway", 0.018 if material_name.begins_with("Bush") or is_flower else 0.045)
+	mat.set_shader_parameter("gust", gust_for(theme))
 	return mat
+
+
+## Per-zone wind strength for the foliage and grass shaders (1 = a meadow breeze).
+static func gust_for(theme: StringName) -> float:
+	const GUSTS := {&"storm": 1.6, &"snow": 1.3, &"sky": 1.3, &"desert": 1.2, &"swamp": 0.75, &"graveyard": 0.9,
+		&"void": 0.7, &"abyss": 0.85, &"volcano": 0.9, &"digital": 0.85, &"village": 0.9}
+	return float(GUSTS.get(theme, 1.0))
 
 
 static func _get_foliage_shader() -> Shader:

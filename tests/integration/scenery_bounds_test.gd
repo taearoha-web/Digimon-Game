@@ -28,8 +28,9 @@ func _ready() -> void:
 			for x in [source.position.x, source.end.x]:
 				for y in [source.position.y, source.end.y]:
 					for z in [source.position.z, source.end.z]:
-						for dx in [-0.075, 0.075]:
-							for dz in [-0.045, 0.045]:
+						# Strongest zone gust: grass tips 0.12 m, foliage 0.09 m (see NatureKit.chunk_bounds).
+						for dx in [-0.12, 0.12]:
+							for dz in [-0.08, 0.08]:
 								var displaced := Vector3(x + dx, y, z + dz)
 								var world_point: Vector3 = placement * model_xform * displaced
 								check(bounds.has_point(world_point), "transformed windy corner remains visible")

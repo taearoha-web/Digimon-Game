@@ -24,6 +24,8 @@ var _slots := 1
 var _move_cds: Dictionary = {}
 var _heal_timer := 3.0
 var _expired := false
+var _age := 0.0
+var _twirl: Tween
 
 
 func setup_summon(p_caster: Rival, p_skill_id: String, p_spec: Dictionary, p_damage_mult: float, slot: int, slots: int, p_rank := 1) -> void:
@@ -42,7 +44,7 @@ func setup_summon(p_caster: Rival, p_skill_id: String, p_spec: Dictionary, p_dam
 	war_scale = p_caster.war_scale
 	monster_id = &"summon"
 	level = p_caster.level
-	home = p_caster.global_position + _formation()
+	home = p_caster.global_position + (_fairy_spot() if is_fairy() else _formation())
 	var rs: Dictionary = p_caster.rstats
 	var legend := bool(_kind.get("legend", false))
 	var share := Summon.LEGEND_HP_SHARE if legend else Summon.HP_SHARE
@@ -67,17 +69,6 @@ func is_fairy() -> bool:
 	return bool(_kind.get("fairy", false))
 
 
-func _make_visual() -> MonsterVisual:
-	if is_fairy():
-		var fairy := FairyVisual.new()
-		add_child(fairy)
-		fairy.setup_fairy()
-		fairy.position.y = float(_kind.hover)
-		fairy.add_to_group("anim_lod")
-		return fairy
-	return super._make_visual()
-
-
 func _ready() -> void:
 	super._ready()
 	if caster and caster.is_in_group("gw_team1"):
@@ -88,6 +79,8 @@ func _ready() -> void:
 	glow.set_shader_parameter("color", (_kind.color as Color).lightened(0.15))
 	for node in visual.find_children("*", "MeshInstance3D", true, false):
 		(node as MeshInstance3D).material_overlay = glow
+	if _kind.has("paint"):
+		Summon.repaint(visual, _kind.paint)
 	SummonAura.attach(visual, _kind_id, _kind, rank)
 	get_tree().create_timer(0.45).timeout.connect(func():
 		if is_instance_valid(self) and is_instance_valid(visual):
@@ -97,7 +90,16 @@ func _ready() -> void:
 
 func _formation() -> Vector3:
 	var angle := TAU * float(_slot) / float(_slots) - PI * 0.5
-	return Vector3(cos(angle), 0.0, sin(angle)) * (1.7 if is_fairy() else 2.6)
+	return Vector3(cos(angle), 0.0, sin(angle)) * 2.6
+
+
+## The enemy fairy's spot: the mirror of Summon._fairy_spot around her caster, 2.0 m
+## behind the way the caster faces (so beyond him from whoever he fights), sweeping
+## the same slow pendulum.
+func _fairy_spot() -> Vector3:
+	var yaw := float(caster._yaw) if caster else 0.0
+	var a := sin(_age * 0.45) * deg_to_rad(70.0)
+	return Vector3(sin(a) * Summon.FAIRY_ORBIT, 0.0, -cos(a) * Summon.FAIRY_ORBIT).rotated(Vector3.UP, yaw)
 
 
 func _caster_alive() -> bool:
@@ -185,18 +187,22 @@ func _deliver(victim: Node3D, raw: float, max_distance := 99.0) -> void:
 	victim.take_damage(raw, self)
 
 
+## Like Summon._tick_fairy: she drifts sideways to her spot behind the caster, always
+## facing the hero (her caster's foe), hovering with a bob, and heals on her clock.
 func _tick_fairy(delta: float) -> void:
-	var goal := home + _formation()
+	_age += delta
+	var goal := home + _fairy_spot()
 	var to := goal - global_position
 	to.y = 0.0
 	var desired := Vector3.ZERO
-	if to.length() > 0.6:
+	if to.length() > Summon.FAIRY_DEADBAND:
 		desired = to.normalized() * _speed * 1.8
-		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-9.0 * delta))
+	var face := (hero.global_position if hero and is_instance_valid(hero) else home) - global_position
+	if face.length_squared() > 0.001:
+		_yaw = lerp_angle(_yaw, atan2(face.x, face.z), 1.0 - exp(-9.0 * delta))
+	if _twirl == null or not _twirl.is_running():
 		visual.rotation.y = _yaw
-		visual.play("run")
-	else:
-		visual.play("idle")
+	visual.play("idle")
 	var horizontal := Vector3(velocity.x, 0, velocity.z).move_toward(desired, 12.0 * delta)
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
@@ -206,7 +212,7 @@ func _tick_fairy(delta: float) -> void:
 	_heal_timer -= delta
 	if _heal_timer <= 0.0:
 		_heal_timer = Summon.FAIRY_EVERY
-		visual.action("attack", 700)
+		_twirl = Summon.fairy_twirl(visual)
 		var color: Color = _kind.color
 		VfxKit.impact_ring(get_parent(), global_position + Vector3(0, 0.7, 0), color, 3.0, 0.8)
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.6, 0), "ฮีล +%d%%" % int(Summon.FAIRY_HEAL * 100.0), color, 0.9)

@@ -9,6 +9,7 @@ extends RefCounted
 ##   west    the dojo and the village head's house
 ##   south   homes, a koi pond with a red bridge, rice fields and the village gate
 ## Returns the [x, z, radius] circles kept free of random trees and rocks.
+## [method life] then adds what moves: wandering villagers, animals, smoke.
 
 const RADIUS := 56.0
 ## Where things stand, shared with the zone (NPC spots sit in front of these).
@@ -37,18 +38,26 @@ static func paths() -> Array[PackedVector2Array]:
 	]
 
 
+## Lantern flames collected from every piece while building (for the halos).
+static var _halos: Array = []
+
+
 static func build(zone: Node3D, rng: RandomNumberGenerator) -> Array[Vector3]:
 	var clear: Array[Vector3] = []
 	var root := Node3D.new()
 	root.name = "Village"
 	zone.add_child(root)
+	_halos = []
 	_plaza(root, clear)
 	_shrine_quarter(root, clear)
 	_market(root, clear)
 	_west(root, clear)
 	_south(root, clear, rng)
 	_streets_clear(clear)
+	_hedge(root, clear)
+	_orchards(root, rng)
 	_mountain(root)
+	_lantern_halos(root)
 	return clear
 
 
@@ -57,8 +66,25 @@ static func _piece(root: Node3D, node_name: String, pos: Vector3, yaw: float, bu
 	b.xform = Transform3D(Basis(Vector3.UP, yaw), pos)
 	build.call(b)
 	b.commit(root, node_name)
+	_halos.append_array(b.lights)
 	if collider_size != Vector3.ZERO:
 		JapanKit.collider(root, pos + Basis(Vector3.UP, yaw) * (collider_offset + Vector3(0, collider_size.y * 0.5, 0)), collider_size, yaw)
+
+
+## One additive MultiMesh of soft warm dots over every lantern flame: the glow
+## of the town at a single draw call, no lights.
+static func _lantern_halos(root: Node3D) -> void:
+	if _halos.is_empty():
+		return
+	var transforms: Array[Transform3D] = []
+	var colors: Array[Color] = []
+	for entry in _halos:
+		transforms.append(Transform3D(Basis.from_scale(Vector3.ONE * 1.7), entry[0]))
+		colors.append(Color(entry[1], 0.42))
+		transforms.append(Transform3D(Basis.from_scale(Vector3.ONE * 0.7), entry[0]))
+		colors.append(Color((entry[1] as Color).lightened(0.3), 0.55))
+	var halos := Scenery._billboards(root, "LanternHalos", transforms, colors, true)
+	halos.visibility_range_end = 70.0 * GameSettings.view_scale()
 
 
 static func _plaza(root: Node3D, clear: Array[Vector3]) -> void:
@@ -69,16 +95,32 @@ static func _plaza(root: Node3D, clear: Array[Vector3]) -> void:
 	disc.height = 0.06
 	disc.radial_segments = 40
 	plaza.mesh = disc
-	plaza.material_override = MeshKit.toon(Color("cdbfa8"))
+	# Flagstones: the shader lays slabs in world metres over the plain disc.
+	var flags := ShaderMaterial.new()
+	flags.shader = load("res://shaders/stone_flags.gdshader")
+	flags.set_shader_parameter("stone_color", Color("d2c4ab"))
+	flags.set_shader_parameter("mortar_color", Color("8e8372"))
+	plaza.material_override = flags
 	plaza.position = Vector3(0, 0.02, 0)
 	root.add_child(plaza)
-	# The great sakura on a round stone planter, ringed by stone lanterns.
+	# The great sakura on a round stone planter, ringed by stone lanterns and
+	# four flower beds at the plaza's edge.
 	_piece(root, "SakuraPlanter", Vector3.ZERO, 0.0, func(b: JapanKit.Batch):
 		b.cyl(Vector3(0, 0.35, 0), 2.6, 0.7, JapanKit.STONE, Vector3.ZERO, 16)
 		b.cyl(Vector3(0, 0.71, 0), 2.3, 0.04, Color("6a5a40"), Vector3.ZERO, 16)
 		for i in 4:
 			var a := TAU * i / 4.0 + PI * 0.25
 			JapanKit.toro(b, Vector3(cos(a), 0, sin(a)) * 7.6, 0.9)
+		for i in 4:
+			var a := TAU * i / 4.0 + PI * 0.25
+			var c := Vector3(cos(a), 0, sin(a)) * (PLAZA_RADIUS - 1.6)
+			b.cyl(c + Vector3(0, 0.18, 0), 1.5, 0.36, JapanKit.STONE_DARK, Vector3.ZERO, 12)
+			b.cyl(c + Vector3(0, 0.37, 0), 1.3, 0.04, Color("5a4a36"), Vector3.ZERO, 12)
+			for j in 7:
+				var fa := TAU * j / 7.0 + i
+				var fp := c + Vector3(cos(fa) * 0.8, 0.5, sin(fa) * 0.8)
+				b.ball(fp, Vector3(0.42, 0.34, 0.42), Color("6f9a52"))
+				b.ball(fp + Vector3(0, 0.2, 0), Vector3(0.22, 0.2, 0.22), [Color("f08aa8"), Color("f6d35a"), Color("f4f0e6"), Color("c89ae8")][(i + j) % 4])
 		, Vector3(5.0, 2.0, 5.0))
 	NatureKit.place(root, "GreatSakura", "MapleTree_1", &"village", [Transform3D(Basis.from_scale(Vector3.ONE * 2.4), Vector3(0, 0.6, 0))], [], true, 120.0)
 	clear.append(Vector3(0, 0, PLAZA_RADIUS + 1.0))
@@ -121,29 +163,31 @@ static func _shrine_quarter(root: Node3D, clear: Array[Vector3]) -> void:
 
 
 static func _market(root: Node3D, clear: Array[Vector3]) -> void:
-	_piece(root, "GeneralStore", SHOP, 0.0, func(b): JapanKit.shop(b, 9.0, 6.5, Color("2f4f8a")), Vector3(9.2, 6.0, 6.6))
+	_piece(root, "GeneralStore", SHOP, 0.0, func(b): JapanKit.shop(b, 9.0, 6.5, Color("2f4f8a"), JapanKit.WOOD_DARK, 2, "coin"), Vector3(9.2, 6.0, 6.6))
 	_piece(root, "Forge", FORGE, 0.0, func(b: JapanKit.Batch):
-		JapanKit.shop(b, 8.0, 6.5, Color("8a2f2a"), JapanKit.WOOD_DARK, 1)
+		JapanKit.shop(b, 8.0, 6.5, Color("8a2f2a"), JapanKit.WOOD_DARK, 1, "hammer")
 		# Chimney, anvil and a glowing hearth.
 		b.box(Vector3(2.6, 5.0, -1.6), Vector3(1.0, 4.0, 1.0), JapanKit.STONE_DARK)
 		b.box(Vector3(-3.6, 0.55, 4.4), Vector3(0.9, 0.5, 0.45), Color("3a3a42"))
 		b.box(Vector3(-3.6, 0.2, 4.4), Vector3(0.45, 0.4, 0.4), Color("2a2a30"))
 		b.box(Vector3(3.1, 0.9, 3.95), Vector3(1.2, 0.8, 0.6), Color("ff8a3a"), Vector3.ZERO, true)
 		, Vector3(8.2, 6.0, 6.6))
-	var smoke := VfxKit._particles(root, FORGE + Vector3(2.6, 7.2, -1.6), Color(0.75, 0.75, 0.78, 0.5), 14, 3.0, false)
-	smoke.direction = Vector3.UP
-	smoke.spread = 12.0
-	smoke.initial_velocity_min = 0.6
-	smoke.initial_velocity_max = 1.1
-	smoke.gravity = Vector3(0.25, 0.15, 0.0)
 	_piece(root, "Storehouse", KURA, PI, func(b): JapanKit.kura(b, 7.0, 5.5, 4.2), Vector3(7.4, 6.0, 5.9))
 	_piece(root, "Izakaya", IZAKAYA, PI, func(b: JapanKit.Batch):
-		JapanKit.shop(b, 8.0, 6.5, Color("b8352e"), Color("b8352e"), 1)
+		JapanKit.shop(b, 8.0, 6.5, Color("b8352e"), Color("b8352e"), 1, "cup")
 		for x in [-3.0, 3.0]:
 			JapanKit.chochin(b, Vector3(x, 2.6, 3.9), Color("e8463a"), 1.4)
+		# Kitchen chimney at the back.
+		b.box(Vector3(-2.4, 4.6, -1.8), Vector3(0.8, 2.6, 0.8), JapanKit.STONE_DARK)
 		, Vector3(8.2, 6.0, 6.6))
 	for p in [SHOP, FORGE, KURA, IZAKAYA]:
 		clear.append(Vector3(p.x, p.z, 6.5))
+	# Two market stalls on the street between the shops.
+	for spec in [[Vector3(26.5, 0, -3.0), 0.0, Color("e8c050"), [Color("e8a040"), Color("c8d070"), Color("e86a5a")]],
+			[Vector3(26.5, 0, 3.0), PI, Color("2f4f8a"), [Color("f0e0b0"), Color("8ac8e8"), Color("e8a040")]]]:
+		var pos: Vector3 = spec[0]
+		_piece(root, "Stall", pos, spec[1], func(b: JapanKit.Batch): JapanKit.stall(b, 3.4, 1.8, spec[2], spec[3]), Vector3(3.6, 2.0, 1.4), Vector3(0, 0, 0.3))
+		clear.append(Vector3(pos.x, pos.z, 2.8))
 	_piece(root, "MarketLanterns", Vector3.ZERO, 0.0, func(b: JapanKit.Batch):
 		for x in [14.0, 26.5, 39.0]:
 			JapanKit.lantern_line(b, Vector3(x, 0, -4.6), Vector3(x, 0, 4.6), 5, [Color("e8463a"), Color("f6efe0"), Color("f0b040")])
@@ -253,6 +297,45 @@ static func _south(root: Node3D, clear: Array[Vector3], rng: RandomNumberGenerat
 	NatureKit.place(root, "StreetSakura", "NormalTree_5", &"village", trees)
 
 
+## A clipped hedge ring around the village, open at the gate and both ends of
+## the main street, and skipping anything already standing there (one mesh).
+static func _hedge(root: Node3D, clear: Array[Vector3]) -> void:
+	var b := JapanKit.Batch.new()
+	var r := 52.5
+	var count := int(TAU * r / 3.3)
+	for i in count:
+		var a := TAU * i / count
+		var p := Vector3(cos(a) * r, 0, sin(a) * r)
+		# Gaps: the south gate (+z), the east and west street ends.
+		if absf(wrapf(a - PI * 0.5, -PI, PI)) < 0.17 or absf(wrapf(a, -PI, PI)) < 0.1 or absf(wrapf(a - PI, -PI, PI)) < 0.1:
+			continue
+		var blocked := false
+		for c in clear:
+			if Vector2(p.x, p.z).distance_to(Vector2(c.x, c.y)) < c.z + 1.0:
+				blocked = true
+		if blocked:
+			continue
+		var yaw := -rad_to_deg(a) + 90.0
+		b.box(p + Vector3(0, 0.55, 0), Vector3(3.1, 1.1, 1.0), Color("4f7a44") if i % 3 != 0 else Color("5c8a4c"), Vector3(0, yaw, 0))
+		b.box(p + Vector3(0, 1.12, 0), Vector3(2.9, 0.16, 0.8), Color("6a9a58"), Vector3(0, yaw, 0))
+	if not b.is_empty():
+		var mi := b.commit(root, "Hedge", false)
+		mi.visibility_range_end = 0.0
+
+
+## Sakura orchards in tidy rows outside the hedge, south-east and south-west.
+static func _orchards(root: Node3D, rng: RandomNumberGenerator) -> void:
+	var trees: Array[Transform3D] = []
+	for corner in [Vector2(46, 44), Vector2(-50, 40)]:
+		for i in 4:
+			for j in 3:
+				var p: Vector2 = corner + Vector2(i * 5.2 * signf(corner.x), j * 5.4) + Vector2(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.5, 0.5))
+				if p.length() < RADIUS + 2.0:
+					continue
+				trees.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.95, 1.15)), Vector3(p.x, 0, p.y)))
+	NatureKit.place(root, "Orchards", "MapleTree_4", &"village", trees, [], false, 110.0)
+
+
 ## Keeps the streets free of random trees and rocks.
 static func _streets_clear(clear: Array[Vector3]) -> void:
 	for line in paths():
@@ -265,11 +348,83 @@ static func _streets_clear(clear: Array[Vector3]) -> void:
 				clear.append(Vector3(p.x, p.y, 4.5))
 
 
-## A snow-capped peak far behind the shrine.
+## Snow-capped peaks far behind the shrine and along the eastern and western
+## horizons (one mesh).
 static func _mountain(root: Node3D) -> void:
 	var b := JapanKit.Batch.new()
-	b.xform = Transform3D(Basis.IDENTITY, Vector3(-20, -2.0, -150))
-	b.cone(Vector3(0, 26, 0), 70.0, 56.0, Color("7f93ad"))
-	b.cone(Vector3(0, 46.5, 0), 26.4, 15.0, Color("f4f6fa"))
+	for spec in [[Vector3(-20, -2.0, -150), 70.0, 56.0, Color("7f93ad")], [Vector3(-110, -2.0, -110), 52.0, 40.0, Color("8a9cb4")],
+			[Vector3(70, -2.0, -150), 46.0, 34.0, Color("8ea0b8")], [Vector3(150, -2.0, -40), 56.0, 38.0, Color("98a8be")],
+			[Vector3(-160, -2.0, 30), 60.0, 36.0, Color("9aaabf")]]:
+		var pos: Vector3 = spec[0]
+		var r: float = spec[1]
+		var h: float = spec[2]
+		b.cone(pos + Vector3(0, h * 0.46, 0), r, h, spec[3])
+		b.cone(pos + Vector3(0, h * 0.83, 0), r * 0.38, h * 0.27, Color("f4f6fa"))
 	var mi := b.commit(root, "Mountain", false)
 	mi.visibility_range_end = 0.0
+
+
+## What moves in the village: chimney and incense smoke, villagers walking
+## their rounds between the plaza, market and shrine, a chicken and a cat.
+## None of it joins Zone.npcs (the Talk button and the role count are unchanged).
+static func life(zone: Node3D, rng: RandomNumberGenerator) -> void:
+	var root := Node3D.new()
+	root.name = "VillageLife"
+	zone.add_child(root)
+	_smoke(root, FORGE + Vector3(2.6, 7.2, -1.6), 14, Color(0.75, 0.75, 0.78, 0.5), 1.0)
+	_smoke(root, IZAKAYA + Vector3(2.4, 6.0, 1.8), 10, Color(0.85, 0.85, 0.88, 0.45), 0.8)
+	for spec in [[Vector3(28, 0, 40), -0.4], [Vector3(-40, 0, 24), 0.9]]:
+		var pos: Vector3 = spec[0]
+		_smoke(root, pos + Basis(Vector3.UP, spec[1]) * Vector3(1.5, 6.4, -1.0), 8, Color(0.8, 0.8, 0.82, 0.4), 0.7)
+	_smoke(root, SHRINE + Vector3(0, 2.3, 3.2), 6, Color(0.9, 0.9, 0.95, 0.35), 0.35)
+	var loops := [
+		[Vector2(3, 6), Vector2(10, 1), Vector2(20, 0.5), Vector2(30, 0), Vector2(38, 2), Vector2(40, 14), Vector2(30, 0.5), Vector2(14, -1)],
+		[Vector2(-3, 8), Vector2(-1, -4), Vector2(0.5, -16), Vector2(-0.5, -28), Vector2(1, -36), Vector2(8, -36), Vector2(-1, -30), Vector2(-2, -12)],
+		[Vector2(-5, 1), Vector2(-14, 0.5), Vector2(-24, -0.5), Vector2(-36, 0), Vector2(-42, 1), Vector2(-30, 0.5), Vector2(-18, -1)],
+		[Vector2(1, 14), Vector2(0, 22), Vector2(-2, 27), Vector2(-12, 27.5), Vector2(-22, 28), Vector2(-10, 27), Vector2(1, 30), Vector2(0, 40), Vector2(-1, 24)],
+	]
+	var outfits := [["Rogue", Color(0.9, 0.8, 0.6), ""], ["Mage", Color(0.7, 0.85, 0.75), ""], ["Ranger", Color(1.3, 0.8, 0.7), ""], ["Knight", Color(0.75, 0.75, 0.95), ""]]
+	var hats := [["kasa", Color.WHITE], ["tenugui", Color("5a7ad8")], ["hachimaki", Color("f4f0e8")], ["ribbon", Color("e8463a")]]
+	for i in mini(loops.size(), Villager.MAX_WALKERS):
+		var walker := Villager.new()
+		root.add_child(walker)
+		walker.setup_person(FaceKit.random_look(rng), outfits[i], hats[i], loops[i], rng)
+	var hen := Villager.new()
+	root.add_child(hen)
+	hen.setup_animal("blob/Chicken", 0.55, Vector2(20, 44), 3.0, 0.9, rng)
+	var cat := Villager.new()
+	root.add_child(cat)
+	cat.setup_animal("blob/Cat", 0.5, Vector2(36.5, 16.5), 3.0, 1.3, rng)
+
+
+## Untracked chimney / incense smoke (never charged to the combat VFX budget).
+static func _smoke(parent: Node3D, pos: Vector3, amount: int, color: Color, size: float) -> void:
+	var p := CPUParticles3D.new()
+	p.amount = maxi(2, int(amount * GameSettings.particle_scale()))
+	p.lifetime = 3.2
+	p.lifetime_randomness = 0.3
+	p.preprocess = 3.0
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.5, 0.5) * size
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_color = color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_texture = VfxKit.soft_dot()
+	quad.material = mat
+	p.mesh = quad
+	p.direction = Vector3.UP
+	p.spread = 12.0
+	p.initial_velocity_min = 0.6
+	p.initial_velocity_max = 1.1
+	p.gravity = Vector3(0.25, 0.15, 0.0)
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.6
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	ramp.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
+	p.color_ramp = ramp
+	p.position = pos
+	parent.add_child(p)
