@@ -17,3 +17,18 @@ skin weights and the clips MonsterVisual plays (Idle, Walk, Run, Attack, HitReac
    body as a whole: hover, lean, twist, breathe, a free arm and the head.
 
 The 18 MB sources are not kept in the repository.
+
+## Clips and the rig check (no source needed)
+
+`rerig_legend.py` rebuilds a shipped glb in place: it keeps the mesh and texture,
+recomputes the skin weights (`legend_weights.py`: hands and feet skinned as the end of
+the forearm / shin, smoothing over the welded surface so UV-seam copies never crack,
+and the weapon rigid with the chest only above the hand, bending into the cloth below)
+and authors the clips (`legend_clips.py`: Idle, Walk, Run, Attack, Skill1, Skill2,
+HitReact, Death). It then skins every clip and writes `rig_report.json`: the largest
+and 99.9th-percentile change of a mesh edge's length in centimetres (a tear shows
+there first). The free arm is capped at 12 degrees because its sleeve is fused to the
+leg; the big motions (sweeps, spins, slams) are carried by the hips and chest.
+
+    python3 tools/rig/rerig_legend.py assets/models/monsters/summon/WindKing.glb tools/rig/windking.json tools/rig/rig_report.json
+    python3 tools/rig/rerig_legend.py assets/models/monsters/summon/Poseidon.glb tools/rig/poseidon.json tools/rig/rig_report.json

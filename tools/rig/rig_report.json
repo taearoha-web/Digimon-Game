@@ -1,0 +1,147 @@
+{
+ "WindKing": {
+  "verts": 19870,
+  "tris": 20000,
+  "clips": [
+   "Idle",
+   "Walk",
+   "Run",
+   "Attack",
+   "Skill1",
+   "Skill2",
+   "HitReact",
+   "Death"
+  ],
+  "stretch": {
+   "Idle": {
+    "shear_max_cm": 1.64,
+    "shear_p999_cm": 0.84,
+    "stretch_p999": 1.182
+   },
+   "Walk": {
+    "shear_max_cm": 1.74,
+    "shear_p999_cm": 1.2,
+    "stretch_p999": 1.263
+   },
+   "Run": {
+    "shear_max_cm": 2.61,
+    "shear_p999_cm": 1.82,
+    "stretch_p999": 1.451
+   },
+   "Attack": {
+    "shear_max_cm": 7.07,
+    "shear_p999_cm": 4.46,
+    "stretch_p999": 1.94
+   },
+   "Skill1": {
+    "shear_max_cm": 6.63,
+    "shear_p999_cm": 4.15,
+    "stretch_p999": 1.901
+   },
+   "Skill2": {
+    "shear_max_cm": 9.23,
+    "shear_p999_cm": 5.28,
+    "stretch_p999": 2.211
+   },
+   "HitReact": {
+    "shear_max_cm": 1.86,
+    "shear_p999_cm": 0.68,
+    "stretch_p999": 1.139
+   },
+   "Death": {
+    "shear_max_cm": 0.0,
+    "shear_p999_cm": 0.0,
+    "stretch_p999": 1.0
+   },
+   "worst_shear_cm": 9.23
+  }
+ },
+ "Poseidon": {
+  "verts": 22656,
+  "tris": 20000,
+  "clips": [
+   "Idle",
+   "Walk",
+   "Run",
+   "Attack",
+   "Skill1",
+   "Skill2",
+   "HitReact",
+   "Death"
+  ],
+  "stretch": {
+   "Idle": {
+    "shear_max_cm": 2.06,
+    "shear_p999_cm": 1.01,
+    "stretch_p999": 1.215
+   },
+   "Walk": {
+    "shear_max_cm": 1.94,
+    "shear_p999_cm": 1.07,
+    "stretch_p999": 1.269
+   },
+   "Run": {
+    "shear_max_cm": 3.14,
+    "shear_p999_cm": 1.7,
+    "stretch_p999": 1.404
+   },
+   "Attack": {
+    "shear_max_cm": 8.54,
+    "shear_p999_cm": 4.44,
+    "stretch_p999": 1.941
+   },
+   "Skill1": {
+    "shear_max_cm": 11.04,
+    "shear_p999_cm": 5.32,
+    "stretch_p999": 2.238
+   },
+   "Skill2": {
+    "shear_max_cm": 11.1,
+    "shear_p999_cm": 5.17,
+    "stretch_p999": 2.255
+   },
+   "HitReact": {
+    "shear_max_cm": 1.87,
+    "shear_p999_cm": 0.87,
+    "stretch_p999": 1.143
+   },
+   "Death": {
+    "shear_max_cm": 0.0,
+    "shear_p999_cm": 0.0,
+    "stretch_p999": 1.0
+   },
+   "worst_shear_cm": 11.1
+  }
+ },
+ "_shipped_before": {
+  "note": "the glb files before this rebuild, measured with the same check (their own weights and arm amplitudes)",
+  "WindKing": {
+   "Idle": {
+    "shear_max_cm": 2.79,
+    "shear_p999_cm": 1.38
+   },
+   "Run": {
+    "shear_max_cm": 4.19,
+    "shear_p999_cm": 2.4
+   },
+   "Attack": {
+    "shear_max_cm": 20.56,
+    "shear_p999_cm": 12.14
+   }
+  },
+  "Poseidon": {
+   "Idle": {
+    "shear_max_cm": 2.61,
+    "shear_p999_cm": 1.31
+   },
+   "Run": {
+    "shear_max_cm": 4.6,
+    "shear_p999_cm": 2.28
+   },
+   "Attack": {
+    "shear_max_cm": 40.01,
+    "shear_p999_cm": 18.35
+   }
+  }
+ }
+}

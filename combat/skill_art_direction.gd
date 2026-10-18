@@ -150,7 +150,7 @@ const RECIPES := {
 	"spirit_link": ["sigil", "bloom", 6, 0.55, 1.02],
 	"sylvan_ray": ["arrow", "grove", 4, 0.20, 0.68],
 	"world_tree": ["vines", "grove", 8, 0.95, 1.15],
-	"wind_drake": ["wings", "gale", 6, -0.50, 1.10],
+	"fairy_spirit": ["bloom", "grace", 6, 0.60, 1.10],
 	"gaia_blessing": ["bloom", "bloom", 8, 0.95, 1.18],
 	"primal_legion": ["summon", "grove", 8, -0.60, 1.12],
 	"cataclysm": ["vines", "grove", 8, -0.95, 1.02],

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdphfbqlrjh68"
-path="res://.godot/imported/wind_drake.svg-4659f0b1e407fcbe50fda43f0a242528.ctex"
+uid="uid://cmu4e0vw61y6l"
+path="res://.godot/imported/fairy_spirit.svg-c3d930dcc16f69b60db2b5dd9a288f74.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/skills/wind_drake.svg"
-dest_files=["res://.godot/imported/wind_drake.svg-4659f0b1e407fcbe50fda43f0a242528.ctex"]
+source_file="res://assets/icons/skills/fairy_spirit.svg"
+dest_files=["res://.godot/imported/fairy_spirit.svg-c3d930dcc16f69b60db2b5dd9a288f74.ctex"]
 
 [params]
 

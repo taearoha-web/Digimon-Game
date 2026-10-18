@@ -437,7 +437,7 @@ add("summoner", [
     ("spirit_link","forest",chain()+o("cat",-42,-19,.63)+o("heart",37,27,.61)),
     ("sylvan_ray","forest",thorns()+o("ray",s=.99,a=28)+o("flower",-39,51,.38)),
     ("world_tree","forest",ring(1.13,6)+o("tree",s=1.13)+star(0,-77,18)+o("orb",-53,13,.13)+o("orb",48,-6,.13)),
-    ("wind_drake","wind",o("wings",s=1.13)+o("dragon",s=.89)+wind()),
+    ("fairy_spirit","rose",o("wings",s=1.08)+o("heart",0,6,.52)+o("orb",0,-4,.3)+star(-46,-58,14)+star(50,-50,12)+star(0,70,10)),
     ("gaia_blessing","forest",o("hand",-34,33,.6,-24)+o("hand",37,32,.6,28)+o("orb",0,-9,.84)+o("tree",0,-8,.53)),
     ("primal_legion","forest",o("wolf",-49,-11,.55,-16)+o("frog",45,12,.55,10)+o("cat",-16,38,.58)+o("hawk",0,-43,.64)),
     ("cataclysm","earth",o("ground",y=36,s=1.09)+o("flame",-41,-9,.69,-24)+o("crystal",16,-24,.89,17)+o("bolt",51,11,.53)),
