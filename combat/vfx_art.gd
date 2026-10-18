@@ -13,7 +13,7 @@ static var _spiral_meshes: Dictionary = {}
 ## With a `slicer` (the SceneTree) the work yields a frame every few items, so the first
 ## zone of a session does not stall the page in one go.
 static func warm_up(slicer: SceneTree = null) -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender"]:
 		texture(kind)
 		await FrameSlicer.pace(slicer)
 	for recipe in SkillArtDirection.RECIPES.values():
@@ -183,6 +183,12 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, tip_pts[i], tip_pts[(i + 1) % tip_pts.size()])))
 			a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, Vector2(0, 0.0), Vector2(0, 0.58))))
 			a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, Vector2(-0.22, 0.1), Vector2(0.22, 0.1))))
+		"defender":
+			# A heater shield with a boss in the middle.
+			var rim := [Vector2(-0.42, -0.5), Vector2(0.42, -0.5), Vector2(0.4, 0.05), Vector2(0, 0.58), Vector2(-0.4, 0.05)]
+			for i in rim.size():
+				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, rim[i], rim[(i + 1) % rim.size()])))
+			a = maxf(a, smoothstep(0.16, 0.12, p.distance_to(Vector2(0, -0.08))))
 		"summoner":
 			# A paw: one pad and four toes.
 			a = maxf(a, smoothstep(0.30, 0.26, p.distance_to(Vector2(0, 0.18))) * 0.9)

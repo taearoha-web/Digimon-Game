@@ -27,7 +27,7 @@ static func palette(skill: Dictionary) -> Dictionary:
 	var colors: Array = {
 		"warrior":["ed825d","fff2b3","6b223d"], "archer":["5fe6c5","fff0a6","204367"],
 		"mage":["ac81fb","f3d6ff","343470"], "priest":["f7cd75","fff9de","936158"],
-		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"]
+		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"], "defender":["8fc1ff","fff4cc","2c4570"]
 	}.get(String(look.family), ["90dbff","ffffff","234567"])
 	var overrides: Dictionary = {
 		"grand_cross":["eab875","fff4c9","895149"],"sword_of_justice":["ead28d","fff9db","795c64"],"divine_piercing":["9edbf4","fff2bc","456497"],"judgment_ray":["edcc7a","fff7db","785d68"],"ice_storm":["63c9ff","e7ffff","304eaa"],"hell_meteor":["f77746","fff3a0","7d243f"],

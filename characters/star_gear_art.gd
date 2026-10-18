@@ -77,9 +77,9 @@ static func build_icon_node(look: String) -> Node3D:
 	var bits := look.split("_")
 	var cls := String(bits[2]) if bits.size() > 3 else "warrior"
 	var root := Node3D.new()
-	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome"]:
+	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield"]:
 		root.add_child(build(look))
-		root.rotation_degrees.z = -27.0 if kind != "bow" and kind != "shield" else -12.0
+		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
 		return root
 	if kind == "wings":
 		root.add_child(wings(stars, cls))
@@ -398,7 +398,7 @@ static func _book(b: Dictionary, p: Dictionary, t: int) -> void:
 
 
 static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
-	var heavy := cls in ["warrior", "lancer"]
+	var heavy := cls in ["warrior", "lancer", "defender"]
 	var plate: Array[Vector2] = [Vector2(-0.108, 0.084), Vector2(0, 0.061), Vector2(0.108, 0.084), Vector2(0.086, -0.065), Vector2(0, -0.103), Vector2(-0.086, -0.065)]
 	_shape(b, plate, Vector3(0, 0, 0.074), 0.027, p.metal if heavy else p.cloth)
 	for side in [-1.0, 1.0]:
@@ -420,6 +420,9 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 	elif cls == "summoner":
 		for side in [-1.0, 1.0]:
 			_ring_at(b, Vector3(side * 0.053, 0.02, 0.124), 0.023, 0.004, p.metal)
+	elif cls == "defender":
+		# A small heater shield on the breastplate.
+		_shape(b, [Vector2(-0.04, 0.04), Vector2(0.04, 0.04), Vector2(0.036, -0.01), Vector2(0, -0.05), Vector2(-0.036, -0.01)], Vector3(0, 0.03, 0.118), 0.008, p.edge)
 	if t >= 2:
 		for side in [-1.0, 1.0]:
 			_feather(b, Vector3(side * 0.078, 0.084, 0.041), 0.1, 0.028, side * -0.65, p.edge)
@@ -428,7 +431,7 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 
 
 static func _pauldron(b: Dictionary, p: Dictionary, t: int, cls: String, side: float) -> void:
-	var heavy := cls in ["warrior", "lancer"]
+	var heavy := cls in ["warrior", "lancer", "defender"]
 	var size := Vector3(0.138, 0.085, 0.127) if heavy else Vector3(0.111, 0.06, 0.108)
 	_part(b, MeshKit.hemisphere(), p.metal if heavy else p.cloth, Vector3(side * 0.01, 0.01, 0), size, Vector3(0, 0, side * -15))
 	for k in 2 + t:
@@ -439,6 +442,9 @@ static func _pauldron(b: Dictionary, p: Dictionary, t: int, cls: String, side: f
 		_feather(b, Vector3(side * 0.072, 0.055, 0), 0.11, 0.028, side * -0.55, p.metal)
 	if cls == "summoner":
 		_ring_at(b, Vector3(side * 0.064, -0.01, 0.01), 0.03, 0.005, p.metal)
+	if cls == "defender":
+		# A second, broader plate over the shoulder.
+		_part(b, MeshKit.hemisphere(), p.metal.darkened(0.12), Vector3(side * 0.03, -0.012, 0), Vector3(0.16, 0.07, 0.14), Vector3(0, 0, side * -28))
 
 
 static func _belt(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
@@ -446,7 +452,7 @@ static func _belt(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 	_gem(b, Vector3(0, 0.087, 0.136), Vector3(0.042, 0.044, 0.01), p)
 	for side in [-1.0, 1.0]:
 		var length := 0.15 if cls in ["mage", "priest", "summoner"] else 0.09
-		_feather(b, Vector3(side * 0.09, 0.01, 0.106), length + t * 0.01, 0.075, side * -0.12, p.metal if cls in ["warrior", "lancer"] else p.cloth)
+		_feather(b, Vector3(side * 0.09, 0.01, 0.106), length + t * 0.01, 0.075, side * -0.12, p.metal if cls in ["warrior", "lancer", "defender"] else p.cloth)
 		_line(b, [Vector3(side * 0.115, 0.065, 0.115), Vector3(side * 0.117, -length * 0.35, 0.115)], 0.0035, p.edge)
 
 

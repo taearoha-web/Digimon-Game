@@ -5,6 +5,7 @@ extends RefCounted
 ## silhouettes, in each line's own language:
 ##   warrior / vagabond  layered energy crescents, crosses and ground breaks
 ##   lancer              a thrust of light down the spear line, spiral wakes
+##   defender            shield slams, quake rings, walls of light
 ##   archer              bow flare, bursting arrivals, glowing arrow storms
 ##   priest              heaven-sent columns, halos and sanctified circles
 ##   summoner            summoning seals, spirit vortices, bursts of growth
@@ -175,7 +176,7 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 	var family := SkillShow.family_of(skill)
 	VfxArt.rune_circle(parent, origin, c[0], 1.1 * s, duration + 0.15, 1.5)
 	_motes(parent, origin, c[1], "light", int(8 + 10 * power(skill)), 0.9 * s, 0.2, duration + 0.35)
-	if family in ["warrior", "vagabond", "lancer"] and power(skill) >= 0.3:
+	if family in ["warrior", "vagabond", "lancer", "defender"] and power(skill) >= 0.3:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 1.2 * s, duration)
 
 
@@ -260,7 +261,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 			_motes(parent, at, c[1], "leaf", int(8 + 8 * p), 0.7 * s, 0.3, 0.8)
 		"leaf":
 			VfxArt.bloom(parent, ground, c[0], "leaf", 0.9 * s, 6, 0.7, randf() * TAU)
-	if family in ["warrior", "vagabond", "lancer"] and _room(2):
+	if family in ["warrior", "vagabond", "lancer", "defender"] and _room(2):
 		# A crossing pair of energy cuts stamped on the victim.
 		_crescent(parent, at, randf() * TAU, 1.1, c[0], c[1], 1.3 * s, 0.0, 0.6)
 		_crescent(parent, at, randf() * TAU, -1.1, c[0], c[1], 1.1 * s, 0.05, -0.6)
@@ -310,6 +311,10 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, -0.9, c[0], c[1], 2.4 * s, 0.0, 1.3)
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 0.9, c[2].lerp(c[0], 0.5), c[1], 2.2 * s, 0.06, -1.3)
 			_slam(parent, ground, c[0], radius * 0.7)
+		"defender":
+			# The great shield comes down: a heavy slam and a wall of light ringing it.
+			_slam(parent, ground, c[0], radius * 0.8)
+			VfxArt.rune_circle(parent, ground, c[1], radius * 0.6, 0.8, 0.6)
 		"lancer":
 			if flat.length() > 1.0 and _room(4):
 				_lance_streak(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], c[1], 1.5, 0.4)
@@ -463,7 +468,7 @@ static func _whirl(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3,
 	var family := SkillShow.family_of(skill)
 	var r := minf(radius, 9.0)
 	var at := origin + Vector3.UP * 0.9
-	if family in ["warrior", "vagabond", "lancer"] or String(skill.get("special", "")) == "spin":
+	if family in ["warrior", "vagabond", "lancer", "defender"] or String(skill.get("special", "")) == "spin":
 		var count := 3 + int(p * 3.0)
 		for i in count:
 			_crescent(parent, at + Vector3.UP * (0.15 * (i % 2)), TAU * float(i) / float(count), 0.15 * (1 if i % 2 == 0 else -1), c[0], c[1], r * 0.62, i * 0.04, 2.2)
