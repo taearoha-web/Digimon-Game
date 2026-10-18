@@ -40,9 +40,9 @@ const THEME_SETS := {
 		"bushes": 20, "flowers": 0, "rocks": 130, "bush_colors": [Color("4a4a5a"), Color("5a6a62"), Color("3a3a48")],
 	},
 	&"swamp": {
-		"trees": [["PalmTree_1", 3.0], ["PalmTree_3", 3.0], ["DeadTree_5", 2.0], ["NormalTree_3", 1.5]],
-		"wall": ["PalmTree_1", "DeadTree_9", "PalmTree_3", "DeadTree_5"],
-		"bushes": 70, "flowers": 10, "rocks": 50, "bush_colors": [Color("5a8a3a"), Color("7a9a48"), Color("4a6a30")],
+		"trees": [["NormalTree_3", 3.0], ["DeadTree_9", 3.0], ["DeadTree_5", 2.0], ["MapleTree_4", 1.0]],
+		"wall": ["NormalTree_3", "DeadTree_9", "MapleTree_4", "DeadTree_5"],
+		"bushes": 70, "flowers": 10, "rocks": 36, "bush_colors": [Color("5a8a3a"), Color("7a9a48"), Color("4a6a30")],
 	},
 	&"storm": {
 		"trees": [["PineTree_1", 2.0], ["PineTree_5", 2.0], ["DeadTree_5", 2.0]],
@@ -71,18 +71,46 @@ const THEME_SETS := {
 	},
 }
 
+## Per-theme air: fog density and how far the fog colour leans toward the sun
+## (warm, 1) or the sky (cool, 0). Bright open zones get thin, warm haze; dark
+## zones a thicker cool veil that separates the ridges from the field.
+const ATMOSPHERE := {
+	&"meadow": [0.0019, 0.35], &"digital": [0.0030, 0.0], &"desert": [0.0014, 0.6], &"snow": [0.0016, 0.0],
+	&"volcano": [0.0030, 0.7], &"graveyard": [0.0032, 0.0], &"swamp": [0.0034, 0.2], &"storm": [0.0028, 0.0],
+	&"sky": [0.0013, 0.5], &"abyss": [0.0030, 0.6], &"void": [0.0026, 0.0], &"village": [0.0017, 0.4],
+}
+## The third ground colour per theme: [colour, amount, glow] (see terrain_art.gdshader).
+const ACCENTS := {
+	&"meadow": [Color("9fb860"), 0.5, 0.0], &"village": [Color("a3bf7a"), 0.4, 0.0], &"digital": [Color("7a6f9c"), 0.45, 0.0],
+	&"desert": [Color("c49a6a"), 0.35, 0.0], &"snow": [Color("b8cfea"), 0.5, 0.3], &"volcano": [Color("ff6a1e"), 0.12, 1.0],
+	&"graveyard": [Color("4e5566"), 0.4, 0.0], &"swamp": [Color("2f4a46"), 0.6, 0.0], &"storm": [Color("4a5563"), 0.4, 0.0],
+	&"sky": [Color("f2d98a"), 0.4, 0.0], &"abyss": [Color("2e1a2c"), 0.55, 0.0], &"void": [Color("8a5cff"), 0.35, 1.0],
+}
+const MOONS := {&"abyss": Color("ff7a66"), &"graveyard": Color("f6f0dc"), &"void": Color("c8b8ff"), &"digital": Color("ece2ff")}
+
 static var _tuft: ArrayMesh
 static var _terrain_shader: Shader
+static var _glow_mat: StandardMaterial3D
+static var _prop_meshes: Dictionary = {}
 
 
-static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambient: Color, sun_color := Color(1.0, 0.96, 0.88)) -> void:
+## Sky, fog, ambient and the sun. `look` (from ZoneData) may carry "palette"
+## [zenith, mid, horizon], "sun_size" (0 hides the sun disc), "moon", "theme"
+## (for ATMOSPHERE) and "glow" (default on at quality 2).
+static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambient: Color, sun_color := Color(1.0, 0.96, 0.88),
+		look := {}) -> WorldEnvironment:
+	var palette: Array = look.get("palette", [sky_color, sky_color.lerp(fog_color, 0.5), fog_color])
+	var sun_size := float(look.get("sun_size", 1.0))
+	var theme := StringName(look.get("theme", &""))
+	var air: Array = ATMOSPHERE.get(theme, [0.0023, 0.3])
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = sky_color
-	sky_material.sky_horizon_color = fog_color
-	sky_material.ground_bottom_color = fog_color.darkened(0.2)
-	sky_material.ground_horizon_color = fog_color
-	sky_material.sun_angle_max = 3.5
-	sky_material.sky_curve = 0.34
+	sky_material.sky_top_color = palette[0]
+	sky_material.sky_horizon_color = palette[2]
+	sky_material.ground_bottom_color = (palette[2] as Color).darkened(0.25)
+	sky_material.ground_horizon_color = palette[2]
+	sky_material.sun_angle_max = 2.0 + 4.0 * sun_size if sun_size > 0.0 else 0.0
+	sky_material.sun_curve = 0.3
+	sky_material.sky_curve = 0.24
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	var env := Environment.new()
@@ -91,22 +119,31 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	# A cool fill preserves detail in shadow; warm direct light gives the
 	# characters and soft foliage distinct, readable planes in Compatibility.
-	env.ambient_light_color = ambient.lerp(Color("b6c8df"), 0.30)
-	env.ambient_light_energy = 0.37
+	env.ambient_light_color = ambient.lerp(Color("b6c8df"), 0.38)
+	env.ambient_light_energy = 0.33
 	env.fog_enabled = true
-	# Blue-grey distance is an atmospheric layer, rather than a white veil over
-	# the foreground. It separates the cool hills from warm meadow highlights.
-	env.fog_light_color = fog_color.lerp(sky_color, 0.6).lerp(Color("779ba6"), 0.12)
-	env.fog_density = 0.0023
-	env.fog_sky_affect = 0.28
-	env.glow_enabled = false
+	# The distance veil is graded per zone: warm zones fog toward the sun, cool
+	# zones toward the mid sky, so hills separate from the field in both.
+	var warm := float(air[1])
+	env.fog_light_color = fog_color.lerp(palette[1], 0.45).lerp(sun_color, warm * 0.35).lerp(Color("779ba6"), (1.0 - warm) * 0.12)
+	env.fog_density = float(air[0])
+	env.fog_sky_affect = 0.28 + (1.0 - warm) * 0.14
+	GameSettings.load_settings()
+	# Soft-light glow on high quality only: lanterns, lava, crystals and
+	# portals bloom while skin and cloth stay under the threshold.
+	env.glow_enabled = GameSettings.quality >= 2 and bool(look.get("glow", true))
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	env.glow_hdr_threshold = 1.05
+	env.glow_intensity = 0.55
+	env.glow_strength = 0.85
+	env.glow_bloom = 0.0
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	parent.add_child(world_env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-42, -32, 0)
 	sun.light_color = sun_color
-	sun.light_energy = 0.44
+	sun.light_energy = 0.6
 	GameSettings.load_settings()
 	sun.shadow_enabled = GameSettings.shadow_distance() > 0.0
 	sun.directional_shadow_max_distance = maxf(GameSettings.shadow_distance(), 1.0)
@@ -118,6 +155,131 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	sun.shadow_opacity = 0.68
 	sun.shadow_blur = 1.5
 	parent.add_child(sun)
+	return world_env
+
+
+## The sky's furniture: a slowly turning ring of soft cloud puffs, the sun (or
+## the moon and stars) and a haze band at the ridge base. Three draw calls,
+## no particles. `radius` is the play radius; everything stays within 150 m.
+static func sky_dressing(parent: Node3D, theme: StringName, look: Dictionary, radius: float, seed_value := 3) -> Node3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value * 131 + 7
+	var palette: Array = look.get("palette", [Color("5f9bd9"), Color("a9cfe9"), Color("eef0d8")])
+	var sun_size := float(look.get("sun_size", 1.0))
+	var night := bool(look.get("moon", false)) or sun_size <= 0.0
+	var holder := Node3D.new()
+	holder.name = "SkyDressing"
+	parent.add_child(holder)
+	# Clouds: each cloud is 3-5 overlapping billboard puffs in one MultiMesh.
+	var cloud_count: int = [7, 10, 14][clampi(GameSettings.quality, 0, 2)]
+	var puffs: Array[Transform3D] = []
+	var puff_colors: Array[Color] = []
+	# Two tones per cloud: a bluish underside and white tops, so the puffs read
+	# against a pale horizon as well as a deep sky.
+	var tint: Color = look.get("cloud_color", (palette[1] as Color).lightened(0.1 if night else 0.3))
+	var top_tint := tint.lightened(0.35 if night else 0.75)
+	var range_r: Vector2 = look.get("cloud_range", Vector2(radius + 12.0, radius + 42.0))
+	var range_y: Vector2 = look.get("cloud_height", Vector2(30.0, 46.0))
+	for i in cloud_count:
+		var angle := TAU * (float(i) + rng.randf() * 0.6) / float(cloud_count)
+		var r := rng.randf_range(range_r.x, range_r.y)
+		var centre := Vector3(cos(angle) * r, rng.randf_range(range_y.x, range_y.y), sin(angle) * r)
+		var width := rng.randf_range(14.0, 26.0)
+		var alpha := rng.randf_range(0.6, 0.85) * (0.7 if night else 1.0)
+		var across := Vector3(cos(angle + PI * 0.5), 0, sin(angle + PI * 0.5))
+		for j in rng.randi_range(3, 5):
+			var t := float(j) / 4.0 - 0.5
+			var w := width * rng.randf_range(0.45, 0.8)
+			var puff := centre + across * t * width * 0.9 + Vector3(0, rng.randf_range(-1.5, 2.5) - absf(t) * 3.0, 0)
+			puffs.append(Transform3D(Basis.from_scale(Vector3(w, w * rng.randf_range(0.5, 0.7), 1.0)), puff))
+			puff_colors.append(Color(tint, alpha * rng.randf_range(0.8, 1.0)))
+			puffs.append(Transform3D(Basis.from_scale(Vector3(w * 0.7, w * 0.5, 1.0)), puff + Vector3(0, w * 0.22, 0)))
+			puff_colors.append(Color(top_tint, alpha * 0.9))
+	var clouds := _billboards(holder, "Clouds", puffs, puff_colors, false)
+	var drift := clouds.create_tween().set_loops()
+	drift.tween_property(clouds, "rotation:y", TAU, 900.0).from(0.0)
+	# Sun or moon, with a halo, and stars at night.
+	var dots: Array[Transform3D] = []
+	var dot_colors: Array[Color] = []
+	var sun_dir := Basis.from_euler(Vector3(deg_to_rad(-42.0), deg_to_rad(-32.0), 0)).z
+	var sun_pos := sun_dir * (radius + 50.0)
+	if sun_size > 0.0:
+		var warm: Color = look.get("sun_color", Color("fff1c8"))
+		dots.append(Transform3D(Basis.from_scale(Vector3.ONE * 7.0 * sun_size), sun_pos))
+		dot_colors.append(Color(warm.lightened(0.3), 1.0))
+		dots.append(Transform3D(Basis.from_scale(Vector3.ONE * 26.0 * sun_size), sun_pos))
+		dot_colors.append(Color(warm, 0.28))
+	if night:
+		var moon: Color = MOONS.get(theme, Color("f6f0dc"))
+		var moon_pos := Vector3(-sun_pos.x * 0.8, sun_pos.y * 0.9, sun_pos.z * 0.8)
+		dots.append(Transform3D(Basis.from_scale(Vector3.ONE * 6.5), moon_pos))
+		dot_colors.append(Color(moon, 1.0))
+		dots.append(Transform3D(Basis.from_scale(Vector3.ONE * 22.0), moon_pos))
+		dot_colors.append(Color(moon, 0.22))
+		var star_count: int = [24, 44, 70][clampi(GameSettings.quality, 0, 2)]
+		for i in star_count:
+			var a := rng.randf() * TAU
+			var pitch := rng.randf_range(0.3, 1.3)
+			var d := radius + rng.randf_range(20.0, 48.0)
+			var star := Vector3(cos(a) * cos(pitch), sin(pitch), sin(a) * cos(pitch)) * d
+			dots.append(Transform3D(Basis.from_scale(Vector3.ONE * rng.randf_range(0.5, 1.2)), star))
+			dot_colors.append(Color(Color("ffffff").lerp(moon, rng.randf() * 0.5), rng.randf_range(0.5, 1.0)))
+	if not dots.is_empty():
+		_billboards(holder, "SkyDots", dots, dot_colors, true)
+	# Haze: a vertical band at the ridge base, horizon colour fading upward.
+	var haze := SurfaceTool.new()
+	haze.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var haze_r := radius + 30.0
+	var haze_color: Color = palette[2]
+	var segments := 48
+	for i in segments:
+		for c in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]:
+			var a := TAU * float(i + c.x) / segments
+			var y := -1.0 if c.y == 0 else 17.0
+			haze.set_color(Color(haze_color, 0.72 if c.y == 0 else 0.0))
+			haze.add_vertex(Vector3(cos(a) * haze_r, y, sin(a) * haze_r))
+	var band := MeshInstance3D.new()
+	band.name = "Haze"
+	band.mesh = haze.commit()
+	var band_mat := StandardMaterial3D.new()
+	band_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	band_mat.vertex_color_use_as_albedo = true
+	band_mat.vertex_color_is_srgb = true
+	band_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	band_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	band_mat.no_depth_test = false
+	band.material_override = band_mat
+	band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(band)
+	holder.set_meta("visual_only", true)
+	return holder
+
+
+static func _billboards(parent: Node3D, node_name: String, transforms: Array[Transform3D], colors: Array[Color], additive: bool) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = MeshKit.quad()
+	mm.instance_count = transforms.size()
+	for i in transforms.size():
+		mm.set_instance_transform(i, transforms[i])
+		mm.set_instance_color(i, colors[i])
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if additive else BaseMaterial3D.BLEND_MODE_MIX
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_keep_scale = true
+	mat.albedo_texture = VfxKit.soft_dot()
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = node_name
+	mmi.multimesh = mm
+	mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mmi)
+	return mmi
 
 
 ## Hand-painted terrain treatment over a genuinely flat physics floor.
@@ -200,11 +362,15 @@ static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Co
 		shadow_tone = color_a.lerp(Color("5c794d"), 0.30)
 	mat.set_shader_parameter("ground_shadow", shadow_tone)
 	mat.set_shader_parameter("ground_sun", sun_tone)
+	var accent: Array = ACCENTS.get(theme, ACCENTS[&"meadow"])
+	mat.set_shader_parameter("accent_color", accent[0])
+	mat.set_shader_parameter("accent_amount", accent[1])
+	mat.set_shader_parameter("accent_glow", accent[2])
 	mat.set_shader_parameter("soil_color", path_color.darkened(0.075))
 	mat.set_shader_parameter("path_width", maxf(path_width, 0.1))
 	mat.set_shader_parameter("seed_offset", float(seed_value % 997) * 13.7)
 	var kinds := {&"desert": 1, &"snow": 2, &"volcano": 3, &"swamp": 4,
-		&"graveyard": 5, &"storm": 5, &"void": 6, &"abyss": 6, &"digital": 6}
+		&"graveyard": 5, &"storm": 5, &"abyss": 5, &"void": 6, &"digital": 6}
 	mat.set_shader_parameter("surface_kind", int(kinds.get(theme, 0)))
 	mi.material_override = mat
 	parent.add_child(mi)
@@ -250,6 +416,8 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 	_bushes(parent, theme, rng, play_radius, occupied, habitat)
 	await FrameSlicer.pace(slicer)
 	_rocks(parent, body, theme, rng, play_radius, occupied, with_colliders, habitat)
+	await FrameSlicer.pace(slicer)
+	theme_props(parent, theme, rng, play_radius, occupied, habitat)
 	await FrameSlicer.pace(slicer)
 	_grass(parent, theme, rng, play_radius, occupied, habitat)
 
@@ -433,6 +601,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/grass_sway.gdshader")
 	mat.set_shader_parameter("tip_color", high)
+	mat.set_shader_parameter("gust", NatureKit.gust_for(theme))
 	var holder := Node3D.new()
 	holder.name = "Grass"
 	parent.add_child(holder)
@@ -489,6 +658,248 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		var cs: Array[Color] = []
 		cs.assign(flower_colors[model])
 		NatureKit.place(parent, "Flowers_" + model, model, theme, ts, cs, false, 45.0)
+
+
+## Props that say which land this is, scattered inside the play radius but
+## outside every clear circle (camps, trail, portals): no colliders, one
+## MultiMesh per prop kind, counts scaled by the density setting.
+static func theme_props(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float,
+		occupied: Array[Vector3], habitat: FastNoiseLite) -> void:
+	var holder := Node3D.new()
+	holder.name = "ThemeProps"
+	parent.add_child(holder)
+	var p: Array = WorldArt.PALETTES.get(theme, WorldArt.PALETTES[&"meadow"])
+	match theme:
+		&"volcano":
+			_scatter(holder, "BasaltColumns", _prop("basalt"), [Color("3a3034"), Color("4a3c40"), Color("2e2628")], rng, play_radius, occupied, habitat, 14, 1.6, 3, Vector3(0.8, 1.6, 0.8), Vector3(1.3, 3.2, 1.3))
+			_scatter(holder, "LavaRocks", _prop("lava_rock"), [Color("ff7a2a"), Color("ffb040"), Color("ff5a1a")], rng, play_radius, occupied, habitat, 30, 0.7, 2, Vector3(0.7, 0.4, 0.7), Vector3(1.4, 0.7, 1.4), true)
+		&"graveyard":
+			_tomb_rows(holder, rng, play_radius, occupied)
+		&"abyss":
+			_scatter(holder, "BoneSpikes", _prop("spike"), [Color("e8dcc8"), Color("d8c8b0"), Color("f0e8d8")], rng, play_radius, occupied, habitat, 34, 0.8, 3, Vector3(0.4, 2.4, 0.4), Vector3(0.7, 4.6, 0.7))
+			_scatter(holder, "RedCrystals", _prop("crystal"), [Color("ff3a4a"), Color("ff6a6a"), Color("d82a48")], rng, play_radius, occupied, habitat, 24, 0.8, 3, Vector3(0.6, 1.2, 0.6), Vector3(1.0, 2.4, 1.0), true)
+		&"void":
+			var shards := _scatter(holder, "FloatingShards", _prop("shard"), [Color("b08aff"), Color("8a5cff"), Color("d8c0ff")], rng, play_radius, occupied, habitat, 28, 0.9, 1, Vector3(0.45, 1.4, 0.45), Vector3(0.8, 2.6, 0.8), true, Vector2(1.8, 3.6))
+			var bob := shards.create_tween().set_loops()
+			bob.tween_property(shards, "position:y", 0.5, 2.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			bob.tween_property(shards, "position:y", -0.3, 2.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			_scatter(holder, "RuneCircles", _prop("rune_ring"), [Color("8a5cff"), Color("c080ff")], rng, play_radius, occupied, habitat, 10, 2.4, 1, Vector3(2.0, 1.0, 2.0), Vector3(3.2, 1.0, 3.2), true)
+		&"swamp":
+			_scatter(holder, "MossMounds", _prop("mound"), [Color("4f7a3a"), Color("5e8a42"), Color("3f6a34")], rng, play_radius, occupied, habitat, 36, 0.9, 2, Vector3(1.0, 0.45, 0.9), Vector3(2.2, 0.8, 1.9))
+			_scatter(holder, "Mushrooms", _prop("mushroom"), [Color("c8664a"), Color("e0b050"), Color("8aa0d8"), Color("d8d0b8")], rng, play_radius, occupied, habitat, 30, 0.5, 3, Vector3(0.5, 0.5, 0.5), Vector3(1.1, 1.2, 1.1))
+			_scatter(holder, "LilyPools", _prop("pool"), [Color("2f4a46"), Color("35524a")], rng, play_radius, occupied, habitat, 8, 2.8, 1, Vector3(2.2, 1.0, 1.8), Vector3(3.4, 1.0, 2.8))
+		&"desert":
+			_scatter(holder, "Cacti", _prop("cactus"), [Color("5f9a4a"), Color("6fa852"), Color("4f8a44")], rng, play_radius, occupied, habitat, 26, 0.7, 2, Vector3(0.8, 0.9, 0.8), Vector3(1.3, 1.8, 1.3))
+			_scatter(holder, "Bones", _prop("bones"), [Color("efe6d2"), Color("e0d4bc")], rng, play_radius, occupied, habitat, 10, 1.4, 1, Vector3(1.2, 1.0, 1.2), Vector3(2.0, 1.4, 2.0))
+		&"snow":
+			_scatter(holder, "IceCrystals", _prop("crystal"), [Color("bfe4ff"), Color("dff2ff"), Color("9fd0f0")], rng, play_radius, occupied, habitat, 22, 0.8, 3, Vector3(0.6, 1.0, 0.6), Vector3(1.1, 2.2, 1.1), true)
+		&"storm":
+			_scatter(holder, "ChargedCrystals", _prop("crystal"), [Color("f4e27a"), Color("fff2a0"), Color("d8c850")], rng, play_radius, occupied, habitat, 16, 0.8, 3, Vector3(0.5, 0.9, 0.5), Vector3(0.9, 1.8, 0.9), true)
+		&"sky":
+			_scatter(holder, "BrokenColumns", _prop("column"), [p[1], p[0].lightened(0.1), Color("f4ecd8")], rng, play_radius, occupied, habitat, 14, 1.0, 2, Vector3(0.9, 1.2, 0.9), Vector3(1.3, 3.4, 1.3))
+		&"digital":
+			_scatter(holder, "GlowShrooms", _prop("mushroom"), [Color("6adfd0"), Color("9ad8ff"), Color("c88aff")], rng, play_radius, occupied, habitat, 32, 0.5, 3, Vector3(0.5, 0.5, 0.5), Vector3(1.0, 1.1, 1.0), true)
+			_scatter(holder, "DuskCrystals", _prop("crystal"), [Color("b08aff"), Color("8ad0ff")], rng, play_radius, occupied, habitat, 10, 0.9, 2, Vector3(0.7, 1.4, 0.7), Vector3(1.1, 2.6, 1.1), true)
+		&"meadow", &"village":
+			_scatter(holder, "Stumps", _prop("stump"), [Color("8c6a4c"), Color("7a5a40")], rng, play_radius, occupied, habitat, 12, 0.8, 1, Vector3(0.9, 0.7, 0.9), Vector3(1.4, 1.2, 1.4))
+			_scatter(holder, "Mushrooms", _prop("mushroom"), [Color("e8705a"), Color("f0c060"), Color("f4ecd8")], rng, play_radius, occupied, habitat, 16, 0.4, 3, Vector3(0.35, 0.35, 0.35), Vector3(0.7, 0.8, 0.7))
+	if holder.get_child_count() == 0:
+		holder.queue_free()
+
+
+## Places `count` * density clusters of `mesh`; each cluster holds up to
+## `per_cluster` instances tinted from `colors`, scaled between `lo` and `hi`.
+static func _scatter(parent: Node3D, node_name: String, mesh: Mesh, colors: Array, rng: RandomNumberGenerator, play_radius: float,
+		occupied: Array[Vector3], habitat: FastNoiseLite, count: int, footprint: float, per_cluster: int, lo: Vector3, hi: Vector3,
+		glow := false, height := Vector2.ZERO) -> MultiMeshInstance3D:
+	var transforms: Array[Transform3D] = []
+	var tints: Array[Color] = []
+	var clusters := int(ceil(float(count) * GameSettings.density_scale()))
+	var attempts := 0
+	while clusters > 0 and attempts < count * 12:
+		attempts += 1
+		var centre := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
+		if centre.length() > play_radius - 2.0 or not _free(centre, footprint, occupied):
+			continue
+		if rng.randf() > smoothstep(-0.55, 0.35, habitat.get_noise_2dv(centre + Vector2(-40, 25))):
+			continue
+		clusters -= 1
+		var base_tint: Color = colors[rng.randi() % colors.size()]
+		for j in rng.randi_range(1, per_cluster):
+			var p := centre if j == 0 else centre + Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * footprint * 1.4
+			if p.length() > play_radius - 1.0 or (j > 0 and not _free(p, footprint * 0.5, occupied)):
+				continue
+			var s := Vector3(rng.randf_range(lo.x, hi.x), rng.randf_range(lo.y, hi.y), rng.randf_range(lo.z, hi.z))
+			var tilt := Vector3(rng.randf_range(-0.12, 0.12), rng.randf() * TAU, rng.randf_range(-0.12, 0.12)) if height != Vector2.ZERO else Vector3(0, rng.randf() * TAU, 0)
+			var y := rng.randf_range(height.x, height.y) if height != Vector2.ZERO else 0.0
+			transforms.append(Transform3D(Basis.from_euler(tilt).scaled(s), Vector3(p.x, y, p.y)))
+			tints.append(base_tint.lerp(colors[rng.randi() % colors.size()], rng.randf() * 0.5))
+			occupied.append(Vector3(p.x, p.y, footprint * 0.6))
+	return _prop_batch(parent, node_name, mesh, transforms, tints, glow)
+
+
+static func _prop_batch(parent: Node3D, node_name: String, mesh: Mesh, transforms: Array[Transform3D], tints: Array[Color], glow: bool) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = transforms.size()
+	for i in transforms.size():
+		mm.set_instance_transform(i, transforms[i])
+		mm.set_instance_color(i, tints[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = node_name
+	mmi.multimesh = mm
+	mmi.material_override = glow_material() if glow else RegionArt._colored_material()
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.visibility_range_end = 70.0 * GameSettings.view_scale()
+	parent.add_child(mmi)
+	return mmi
+
+
+## Rows of tombstones with short fence runs between them (graveyard field).
+static func _tomb_rows(parent: Node3D, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3]) -> void:
+	var tombs: Array[Transform3D] = []
+	var tomb_tints: Array[Color] = []
+	var fences: Array[Transform3D] = []
+	var fence_tints: Array[Color] = []
+	var rows := int(ceil(9.0 * GameSettings.density_scale()))
+	var attempts := 0
+	while rows > 0 and attempts < 80:
+		attempts += 1
+		var start := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
+		var dir := Vector2.from_angle(rng.randf() * TAU)
+		var length := rng.randi_range(3, 5)
+		var fits := true
+		for i in length:
+			var p := start + dir * i * 1.6
+			if p.length() > play_radius - 2.0 or not _free(p, 0.9, occupied):
+				fits = false
+		if not fits:
+			continue
+		rows -= 1
+		var yaw := -dir.angle() + PI * 0.5
+		for i in length:
+			var p := start + dir * i * 1.6
+			var s := rng.randf_range(0.7, 1.1)
+			tombs.append(Transform3D(Basis.from_euler(Vector3(rng.randf_range(-0.08, 0.08), yaw + rng.randf_range(-0.2, 0.2), rng.randf_range(-0.1, 0.1))).scaled(Vector3.ONE * s), Vector3(p.x, 0, p.y)))
+			tomb_tints.append(Color("8c8ea0").lerp(Color("5c6072"), rng.randf()))
+			occupied.append(Vector3(p.x, p.y, 0.6))
+		var side := dir.orthogonal() * 1.3
+		var mid := start + dir * (length - 1) * 0.8
+		var f := mid + side
+		fences.append(Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(length * 1.6, 1.0, 1.0)), Vector3(f.x, 0, f.y)))
+		fence_tints.append(Color("4a4650"))
+	_prop_batch(parent, "Tombstones", _prop("tomb"), tombs, tomb_tints, false)
+	_prop_batch(parent, "IronFences", _prop("fence"), fences, fence_tints, false)
+
+
+## Unshaded-looking emissive vertex colours: the instance tint is the glow.
+static func glow_material() -> StandardMaterial3D:
+	if _glow_mat == null:
+		_glow_mat = StandardMaterial3D.new()
+		_glow_mat.vertex_color_use_as_albedo = true
+		_glow_mat.vertex_color_is_srgb = true
+		_glow_mat.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+		_glow_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		_glow_mat.roughness = 1.0
+		_glow_mat.emission_enabled = true
+		_glow_mat.emission = Color.WHITE
+		_glow_mat.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		_glow_mat.emission_energy_multiplier = 1.3
+	return _glow_mat
+
+
+## Small prop meshes built from primitives (JapanKit.Batch), unit sized so the
+## instance scale sets their height; colours are pale tones multiplied by the
+## instance tint.
+static func _prop(kind: String) -> ArrayMesh:
+	if _prop_meshes.has(kind):
+		return _prop_meshes[kind]
+	var b := JapanKit.Batch.new()
+	var pale := Color("ffffff")
+	var shade := Color("c0c0c0")
+	match kind:
+		"basalt":
+			b.cyl(Vector3(0, 0.5, 0), 0.5, 1.0, pale, Vector3.ZERO, 6)
+			b.cyl(Vector3(0, 1.0, 0), 0.52, 0.04, shade, Vector3.ZERO, 6)
+		"lava_rock":
+			b.ball(Vector3(0, 0.3, 0), Vector3(1.0, 0.8, 1.0), pale)
+		"spike":
+			b.cone(Vector3(0, 0.5, 0), 0.5, 1.0, pale)
+			b.cone(Vector3(0.28, 0.25, 0.1), 0.25, 0.55, shade, Vector3(0, 0, -28))
+		"crystal":
+			b.cone(Vector3(0, 0.62, 0), 0.42, 0.76, pale)
+			b.cone(Vector3(0, 0.12, 0), 0.42, 0.24, pale, Vector3(180, 0, 0))
+			b.cone(Vector3(0.36, 0.35, 0.1), 0.22, 0.5, shade, Vector3(0, 0, -32))
+		"shard":
+			b.cone(Vector3(0, 0.75, 0), 0.5, 0.5, pale)
+			b.cone(Vector3(0, 0.25, 0), 0.5, 0.5, shade, Vector3(180, 0, 0))
+		"rune_ring":
+			for i in 16:
+				var a := TAU * i / 16.0
+				b.box(Vector3(cos(a) * 0.5, 0.025, sin(a) * 0.5), Vector3(0.2, 0.03, 0.06), pale, Vector3(0, -rad_to_deg(a), 0))
+			for i in 4:
+				var a := TAU * i / 4.0 + PI * 0.25
+				b.box(Vector3(cos(a) * 0.3, 0.025, sin(a) * 0.3), Vector3(0.08, 0.03, 0.08), shade, Vector3(0, 45, 0))
+		"mound":
+			b.ball(Vector3(0, 0.0, 0), Vector3(1.0, 1.0, 1.0), pale)
+		"mushroom":
+			b.cyl(Vector3(0, 0.3, 0), 0.12, 0.6, Color("f0e6d0"), Vector3.ZERO, 6)
+			b.ball(Vector3(0, 0.62, 0), Vector3(0.7, 0.42, 0.7), pale)
+			for i in 3:
+				var a := TAU * i / 3.0
+				b.ball(Vector3(cos(a) * 0.2, 0.78, sin(a) * 0.2), Vector3(0.12, 0.05, 0.12), Color("fff6e8"))
+		"pool":
+			b.cyl(Vector3(0, 0.015, 0), 0.5, 0.03, pale, Vector3.ZERO, 16)
+			for i in 4:
+				var a := TAU * i / 4.0 + 0.6
+				b.cyl(Vector3(cos(a) * 0.28, 0.035, sin(a) * 0.2), 0.08, 0.02, Color("6fa05a"), Vector3.ZERO, 8)
+			b.ball(Vector3(0.1, 0.06, -0.08), Vector3(0.08, 0.06, 0.08), Color("f0a0c0"))
+		"cactus":
+			b.cyl(Vector3(0, 0.5, 0), 0.16, 1.0, pale, Vector3.ZERO, 8)
+			b.ball(Vector3(0, 1.0, 0), Vector3(0.32, 0.2, 0.32), pale)
+			b.cyl(Vector3(0.32, 0.5, 0), 0.1, 0.3, shade, Vector3(0, 0, 90), 6)
+			b.cyl(Vector3(0.44, 0.68, 0), 0.1, 0.4, shade, Vector3.ZERO, 6)
+			b.cyl(Vector3(-0.28, 0.38, 0), 0.09, 0.26, shade, Vector3(0, 0, 90), 6)
+			b.cyl(Vector3(-0.38, 0.52, 0), 0.09, 0.32, shade, Vector3.ZERO, 6)
+		"bones":
+			b.cyl(Vector3(0, 0.1, 0), 0.07, 1.0, pale, Vector3(0, 0, 90), 6)
+			for x in [-0.5, 0.5]:
+				b.ball(Vector3(x, 0.1, 0), Vector3(0.2, 0.2, 0.2), pale)
+			b.ball(Vector3(0.1, 0.22, 0.5), Vector3(0.42, 0.4, 0.46), pale)
+			for x in [-0.1, 0.1]:
+				b.box(Vector3(0.1 + x, 0.24, 0.72), Vector3(0.08, 0.1, 0.04), Color("3a3030"))
+			for i in 3:
+				b.cyl(Vector3(-0.3 + i * 0.25, 0.3, -0.5), 0.03, 0.5, shade, Vector3(70, 0, 0), 5)
+		"column":
+			b.cyl(Vector3(0, 0.45, 0), 0.5, 0.9, pale, Vector3.ZERO, 10)
+			b.box(Vector3(0, 0.06, 0), Vector3(1.3, 0.12, 1.3), shade)
+			b.box(Vector3(0.1, 0.96, 0.05), Vector3(0.7, 0.14, 0.6), shade, Vector3(4, 20, -6))
+		"stump":
+			b.cyl(Vector3(0, 0.5, 0), 0.5, 1.0, pale, Vector3.ZERO, 8)
+			b.cyl(Vector3(0, 1.0, 0), 0.46, 0.03, Color("e8d8b8"), Vector3.ZERO, 8)
+			for i in 3:
+				var a := TAU * i / 3.0 + 0.4
+				b.box(Vector3(cos(a) * 0.5, 0.12, sin(a) * 0.5), Vector3(0.5, 0.24, 0.28), shade, Vector3(0, -rad_to_deg(a), 0))
+		"tomb":
+			b.box(Vector3(0, 0.9, 0), Vector3(1.2, 1.8, 0.4), pale)
+			b.cyl(Vector3(0, 1.8, 0), 0.6, 0.4, pale, Vector3(90, 0, 0), 10)
+			b.box(Vector3(0, 1.2, -0.22), Vector3(0.08, 0.7, 0.03), shade)
+			b.box(Vector3(0, 1.35, -0.22), Vector3(0.45, 0.08, 0.03), shade)
+			b.box(Vector3(0, 0.12, 0), Vector3(1.5, 0.24, 0.8), shade)
+		"fence":
+			# Unit length along x; two posts with pointed heads and two rails.
+			for x in [-0.5, 0.0, 0.5]:
+				b.box(Vector3(x, 0.55, 0), Vector3(0.025, 1.1, 0.025), pale)
+				b.cone(Vector3(x, 1.18, 0), 0.03, 0.16, pale)
+			for y in [0.45, 0.95]:
+				b.box(Vector3(0, y, 0), Vector3(1.0, 0.03, 0.02), pale)
+			for i in 7:
+				b.box(Vector3(-0.42 + i * 0.14, 0.6, 0), Vector3(0.012, 0.9, 0.012), shade)
+	var mesh := b.mesh()
+	_prop_meshes[kind] = mesh
+	return mesh
 
 
 static func _tuft_mesh() -> ArrayMesh:

@@ -19,6 +19,7 @@ const PALETTES := {
 	"grove": [Color("8be260"), Color("f0ffc7"), Color("297c71")],
 	"earth": [Color("cb986d"), Color("ffe3a5"), Color("78465a")],
 	"steel": [Color("6bcfff"), Color("f1fffc"), Color("3e5d9f")],
+	"fairy": [Color("ff9ad2"), Color("fff4fb"), Color("8c3f7a")],
 }
 
 const RECIPES := {
@@ -150,7 +151,7 @@ const RECIPES := {
 	"spirit_link": ["sigil", "bloom", 6, 0.55, 1.02],
 	"sylvan_ray": ["arrow", "grove", 4, 0.20, 0.68],
 	"world_tree": ["vines", "grove", 8, 0.95, 1.15],
-	"fairy_spirit": ["bloom", "grace", 6, 0.60, 1.10],
+	"fairy_spirit": ["bloom", "fairy", 6, 0.60, 1.10],
 	"gaia_blessing": ["bloom", "bloom", 8, 0.95, 1.18],
 	"primal_legion": ["summon", "grove", 8, -0.60, 1.12],
 	"cataclysm": ["vines", "grove", 8, -0.95, 1.02],

@@ -29,9 +29,12 @@ const KINDS := {
 	# The king fights with his staff up close; Poseidon throws water from afar. Both have two skills (LegendMoves).
 	"wind_king": {"legend": true, "model": "summon/WindKing", "height": 3.4, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 6.4, "range": 3.4, "color": Color("7affb8"), "name": "ราชาวานรวายุ"},
 	"poseidon": {"legend": true, "model": "summon/Poseidon", "height": 3.6, "hover": 0.0, "tint": Color.WHITE, "ranged": true, "speed": 5.6, "range": 9.0, "color": Color("5cc8ff"), "projectile": "orb", "name": "โพไซดอน"},
-	# The Fairy Spirit: the chibi girl with the summoner's spirit-butterfly wings (FairyVisual).
-	# She never fights: she keeps close to her summoner and heals (see _tick_fairy).
-	"fairy": {"legend": true, "fairy": true, "model": "", "height": 1.5, "hover": 1.1, "tint": Color.WHITE, "ranged": false, "speed": 6.5, "range": 0.0, "color": Color("ffb6e6"), "name": "ภูตินางฟ้า"},
+	# The Fairy Spirit: the round bee (dawn/Bee, Flying loop) painted pink, with sparkle wings,
+	# a crown ring and hearts. She never fights: she sweeps slowly around the far side of
+	# her summoner 2 m out (never between the camera and the hero) and heals (see _tick_fairy).
+	# "paint" recolours the model's own materials by name (the bee's golden body cannot be
+	# tinted pink by a multiply: StorybookFinish caps the tint's peak at 1.22).
+	"fairy": {"legend": true, "fairy": true, "model": "dawn/Bee", "height": 1.0, "hover": 1.3, "tint": Color(1.7, 0.98, 1.3), "paint": {"Main": Color("ff9cd2"), "Wings": Color("f6e4ff"), "Tongue": Color("d04a7a")}, "ranged": false, "speed": 6.5, "range": 0.0, "color": Color("ffb6e6"), "name": "ภูตินางฟ้า"},
 	"cactus": {"model": "cute/Cactus", "height": 1.95, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
 	"cat": {"model": "blob/Cat", "height": 1.4, "hover": 0.0, "tint": Color(1.5, 1.2, 0.8), "ranged": false, "speed": 7.0, "range": 1.7, "color": Color("ffd8a0")},
 	"frog": {"model": "big/Frog", "height": 1.5, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": true, "speed": 4.6, "range": 7.0, "color": Color("7fe07a")},
@@ -51,6 +54,10 @@ const FAIRY_EVERY := 10.0
 const FAIRY_HEAL := 0.2
 const FAIRY_ALLY_HEAL := 0.1
 const FAIRY_ALLY_RADIUS := 6.0
+## How far from her summoner the fairy flies (world metres, whatever her stars) and the
+## slack before she drifts after her moving spot.
+const FAIRY_ORBIT := 2.0
+const FAIRY_DEADBAND := 0.35
 
 ## Who called it: the hero, a companion or an allied guild fighter (Rival). [member hero]
 ## is set only for the hero's own summons (star-set bonus, HUD).
@@ -119,22 +126,21 @@ func is_fairy() -> bool:
 
 func _ready() -> void:
 	add_to_group("summons")
-	var around := _formation()
+	var around := _fairy_spot() if is_fairy() else _formation()
 	global_position = summoner.global_position + around
 	if bool(_kind.get("proc", false)):
 		_blade = _build_blade()
 		add_child(_blade)
-	elif is_fairy():
-		var fairy := FairyVisual.new()
-		add_child(fairy)
-		fairy.setup_fairy()
-		fairy.position.y = float(_kind.hover)
-		_visual = fairy
 	else:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
 		_visual.setup(String(_kind.model), float(_kind.height), float(_kind.hover), _kind.tint)
+		if _kind.has("paint"):
+			repaint(_visual, _kind.paint)
 	_spiritify()
+	if is_fairy() and _visual:
+		# After the spirit glow: the wing cards keep their own cut-out edge.
+		_fairy_wings()
 	if _kind.has("eye_fire"):
 		_add_eye_fire()
 	if skill_id in ["elder_dragon", "primal_legion"]:
@@ -179,6 +185,10 @@ func _spiritify() -> void:
 		if _blade and _blade.is_ancestor_of(node) and bool(_kind.get("real_sword", false)):
 			continue
 		(node as MeshInstance3D).material_overlay = glow
+	SummonAura.attach(self, _kind_id, _kind, rank)
+	if is_fairy():
+		# The fairy flies: no rune turning on the ground under her.
+		return
 	var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.15), 0.85, false)
 	mat.albedo_texture = VfxArt.texture("rune")
 	_sigil = MeshInstance3D.new()
@@ -190,7 +200,54 @@ func _spiritify() -> void:
 	add_child(_sigil)
 	var spin := _sigil.create_tween().set_loops()
 	spin.tween_property(_sigil, "rotation:y", TAU, 6.0).as_relative()
-	SummonAura.attach(self, _kind_id, _kind, rank)
+
+
+## Recolours the surfaces of [param visual]'s model whose imported material is named in
+## [param paint] (name -> colour), keeping the storybook finish and outline of each.
+static func repaint(visual: MonsterVisual, paint: Dictionary) -> void:
+	if visual == null or visual.model == null:
+		return
+	for node in visual.model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var source := mi.mesh.surface_get_material(i)
+			var finish := mi.get_surface_override_material(i) as StandardMaterial3D
+			if source == null or finish == null or not paint.has(source.resource_name):
+				continue
+			var painted := finish.duplicate() as StandardMaterial3D
+			painted.albedo_color = paint[source.resource_name]
+			mi.set_surface_override_material(i, painted)
+
+
+## Two small fairy wings fanned back in a V behind the bee's body: heart cards in her
+## colour, the point at the body and the lobes sweeping up and out, beating softly.
+## Cosmetic: they come as a pair or not at all (low quality drops them).
+func _fairy_wings() -> void:
+	if VfxBudget.count(2, 0) < 2 or not VfxBudget.can_decorate(2):
+		return
+	var color: Color = _kind.color
+	var h := float(_kind.height)
+	var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.6), 0.96, false)
+	mat.albedo_texture = VfxArt.texture("heart")
+	for i in 2:
+		var side := -1.0 if i == 0 else 1.0
+		var wing := MeshInstance3D.new()
+		wing.name = "FairyWingL" if side < 0.0 else "FairyWingR"
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.62, 0.92) * h
+		quad.center_offset = Vector3(0, 0.36 * h, 0)
+		wing.mesh = quad
+		wing.material_override = mat
+		wing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		wing.position = Vector3(side * 0.22 * h, float(_kind.hover) + 0.58 * h, -0.22 * h)
+		wing.rotation = Vector3(0.0, side * 0.75, -side * (PI * 0.5 - 0.6))
+		_visual.add_child(wing)
+		VfxBudget.track_decoration(wing)
+		var beat := wing.create_tween().set_loops()
+		beat.tween_property(wing, "scale", Vector3(1.0, 0.84, 1.0), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		beat.tween_property(wing, "scale", Vector3(1.0, 1.08, 1.0), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _build_blade() -> Node3D:
@@ -274,8 +331,25 @@ func _add_eye_fire() -> void:
 
 func _formation() -> Vector3:
 	var angle := TAU * float(_slot) / float(_slots) + PI * 0.5
-	var spread := 1.7 if is_fairy() else 2.6 + 1.2 * (size_mult - 1.0)
+	var spread := 2.6 + 1.2 * (size_mult - 1.0)
 	return Vector3(cos(angle), 0.0, sin(angle)) * spread
+
+
+## Where the fairy belongs, relative to her summoner: 2.0 m out (world units, whatever
+## her stars) on the far side from the camera, sweeping a slow pendulum of +-70 degrees
+## so she never sits between the camera and the hero. The game camera hangs at local +Z
+## of its yaw, so -Z turned by that yaw is beyond the hero (companions use the same
+## trick); without a camera rig the summoner's facing stands in.
+func _fairy_spot() -> Vector3:
+	var yaw := 0.0
+	if "camera_rig" in summoner and summoner.camera_rig:
+		yaw = float(summoner.camera_rig.yaw)
+	elif "_facing" in summoner:
+		yaw = float(summoner._facing)
+	else:
+		yaw = summoner.rotation.y
+	var a := sin(_age * 0.45) * deg_to_rad(70.0)
+	return Vector3(sin(a) * FAIRY_ORBIT, 0.0, -cos(a) * FAIRY_ORBIT).rotated(Vector3.UP, yaw)
 
 
 # ---------------------------------------------------------------------------
@@ -381,27 +455,26 @@ func _process(delta: float) -> void:
 		_attack()
 
 
-## The Fairy Spirit keeps close to her summoner and heals on her clock.
+## The Fairy Spirit sweeps around the far side of her summoner (_fairy_spot) and heals
+## on her clock. She always faces the summoner's target, else the summoner, and
+## drifts sideways to her spot (the bee's Flying loop reads fine strafing).
 func _tick_fairy(delta: float) -> void:
-	var goal := summoner.global_position + _formation()
+	var goal := summoner.global_position + _fairy_spot()
 	var to := goal - global_position
 	to.y = 0.0
-	if to.length() > 0.6:
-		var step := minf(to.length() - 0.4, float(_kind.speed) * delta * 1.4)
+	if to.length() > FAIRY_DEADBAND:
+		var step := minf(to.length() - FAIRY_DEADBAND * 0.5, float(_kind.speed) * delta * 1.4)
 		global_position += to.normalized() * maxf(step, 0.0)
-		_face(to, delta)
-		if _visual:
-			_visual.play("run")
-	else:
-		var face := summoner.global_position - global_position
-		if "target" in summoner and _valid(summoner.target):
-			face = summoner.target.global_position - global_position
-		_face(face, delta)
-		if _visual:
-			_visual.play("idle")
+	var face := summoner.global_position - global_position
+	if "target" in summoner and _valid(summoner.target):
+		face = summoner.target.global_position - global_position
+	_face(face, delta)
+	if _visual:
+		_visual.play("idle")
 	global_position.y = summoner.global_position.y
 	if _visual:
-		_visual.position.y = float(_kind.hover) + sin(_age * 2.2) * 0.12
+		# The body already carries its hover (MonsterVisual); this is only the bob.
+		_visual.position.y = sin(_age * 2.2) * 0.12
 	_heal_timer -= delta
 	if _heal_timer <= 0.0:
 		_heal_timer = FAIRY_EVERY
@@ -412,7 +485,7 @@ func _tick_fairy(delta: float) -> void:
 ## then allies standing close to her (+10%).
 func _fairy_heal() -> void:
 	if _visual:
-		_visual.action("attack", 700)
+		fairy_twirl(_visual)
 	var field := get_parent()
 	var color: Color = _kind.color
 	VfxKit.impact_ring(field, global_position + Vector3(0, float(_kind.hover) * 0.6, 0), color, FAIRY_ALLY_RADIUS * 0.55, 0.8)
@@ -426,6 +499,17 @@ func _fairy_heal() -> void:
 			continue
 		if (node as Node3D).global_position.distance_to(global_position) <= FAIRY_ALLY_RADIUS:
 			node.heal_fraction(FAIRY_ALLY_HEAL)
+
+
+## The fairy's heal pose: a happy squash-and-spin of the body (1.0 -> 1.25 -> 1.0 and one
+## full turn in 0.5 s) instead of the bee's bite lunge. Shared with the enemy fairy.
+static func fairy_twirl(body: Node3D) -> Tween:
+	var rest := body.scale
+	var tween := body.create_tween().set_parallel()
+	tween.tween_property(body, "rotation:y", TAU, 0.5).as_relative().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(body, "scale", rest * 1.25, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_property(body, "scale", rest, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return tween
 
 
 ## Summons heal too (the fairy's allies, a priest's touch).

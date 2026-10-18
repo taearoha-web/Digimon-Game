@@ -106,6 +106,11 @@ static func portal(root: Node3D, look: Dictionary, core: Material, radius: float
 		var rune := SpellSpectacle._mesh(gate, SpellSpectacle._crystal_mesh(), core, Vector3(side * radius, 0, 0))
 		if rune:
 			rune.scale = Vector3(0.12, 0.26, 0.12)
+	# Two standing arches flank the ring on the ground: the gate the creature steps through.
+	var arch := SpellSpectacle._mesh(gate, EliteSkillArt.geometry("gate"), core, Vector3(0, -1.25, 0))
+	if arch:
+		arch.scale = Vector3.ONE * radius * 1.35
+		arch.rotation.y = PI * 0.5
 	gate.scale = Vector3(0.01, 0.7, 1)
 	var tw := gate.create_tween()
 	tw.tween_property(gate, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -113,18 +118,24 @@ static func portal(root: Node3D, look: Dictionary, core: Material, radius: float
 	tw.tween_property(gate, "scale", Vector3(0.01, 1.15, 1), 0.24)
 	return gate
 
-static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
+## Sized by the recipe's impact_weight, held for its linger; a critical hit
+## adds a fan of the element's cards. Cosmetic: the hit was already decided.
+static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
 	if not VfxBudget.can_decorate():
 		return
 	var look := SkillShow.profile_for(skill)
+	var weight := clampf(float(look.impact_weight), 0.5, 2.4)
+	var linger := clampf(float(look.linger), 0.6, 1.6)
 	var root := SpellSpectacle._root(parent, at, "SkillContact_" + String(skill.id))
 	var mat := SpellSpectacle._material(look, 0.78)
 	var style := String(look.style)
 	var melee := String(look.signature) in ["cleave", "cross", "blade", "lance", "world_spear", "cyclone", "sword_court"]
 	if melee:
-		SkillInk.ribbon(root, look, Vector3.ZERO, 0.58 + float(look.tier) * 0.045, 0, Vector3(PI * 0.5, 0, float(look.curvature)), 0.24)
+		SkillInk.ribbon(root, look, Vector3.ZERO, (0.58 + float(look.tier) * 0.045) * weight, 0, Vector3(PI * 0.5, 0, float(look.curvature)), 0.24 * linger)
 	else:
-		SkillInk.mark(root, look, Vector3.ZERO, 0.48 + float(look.tier) * 0.065, 0.28, 1, true)
+		SkillInk.mark(root, look, Vector3.ZERO, (0.48 + float(look.tier) * 0.065) * weight, 0.28 * linger, 1, true)
+	if crit:
+		VfxKit.impact_fan(parent, at, look.accent, 0.7 * weight, "petal" if style in ["holy", "heal", "leaf", "wind"] else ("flame" if style == "fire" else "diamond"))
 	# Only a few physical fragments per victim; no emitter explosion for every
 	# target of an AoE. A single bloom/snow/fire fragment still tells the element.
 	var count := mini(VfxBudget.count(3, 1), maxi(1, (VfxBudget.decoration_limit() - int(VfxBudget.counters().decorations)) / 8))
@@ -136,5 +147,5 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 			var angle := float(look.phase) + i * TAU / count
 			var end := Vector3(sin(angle) * 0.6, 0.2 if style == "fire" else -0.35, cos(angle) * 0.6)
 			chip.rotation = Vector3(angle, 0, angle * 0.3)
-			chip.create_tween().tween_method(func(t: float): chip.position = end * t + Vector3.UP * sin(t * PI) * 0.3, 0.0, 1.0, 0.4)
-	SpellSpectacle._finish(root, mat, 0.42)
+			chip.create_tween().tween_method(func(t: float): chip.position = end * t + Vector3.UP * sin(t * PI) * 0.3, 0.0, 1.0, 0.4 * linger)
+	SpellSpectacle._finish(root, mat, 0.42 * linger)

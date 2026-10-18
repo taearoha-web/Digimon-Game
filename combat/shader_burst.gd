@@ -11,9 +11,10 @@ static var _meshes: Dictionary = {}
 
 
 ## [param kind] picks the card texture (VfxArt.texture: star, leaf, petal,
-## snow, diamond, heart, flame, spark...). Returns nothing; frees itself.
+## snow, diamond, heart, flame, spark...). [param push] throws every card
+## along one direction (debris after a blow). Returns nothing; frees itself.
 static func emit(parent: Node3D, pos: Vector3, color: Color, kind := "star", count := 20, mode := "burst",
-		speed := 4.0, radius := 1.0, lifetime := 0.8, size := 0.4, gravity := 3.0) -> void:
+		speed := 4.0, radius := 1.0, lifetime := 0.8, size := 0.4, gravity := 3.0, push := Vector3.ZERO) -> void:
 	if not is_instance_valid(parent) or not parent.is_inside_tree() or not VfxBudget.can_decorate():
 		return
 	var n := clampi(VfxBudget.count(count, 4), 4, 48)
@@ -27,12 +28,13 @@ static func emit(parent: Node3D, pos: Vector3, color: Color, kind := "star", cou
 	mat.set_shader_parameter("size", size)
 	mat.set_shader_parameter("gravity", gravity)
 	mat.set_shader_parameter("rise", 0.9 if kind in ["leaf", "petal", "heart"] else 0.45)
+	mat.set_shader_parameter("push", push)
 	var mi := MeshInstance3D.new()
 	mi.name = "ShaderBurst"
 	mi.mesh = _mesh(n)
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var reach := speed * 1.6 + radius + size + 1.0
+	var reach := speed * 1.6 + radius + size + 1.0 + push.length() * 1.6
 	mi.custom_aabb = AABB(Vector3(-reach, -reach, -reach), Vector3.ONE * reach * 2.0)
 	parent.add_child(mi)
 	mi.global_position = pos

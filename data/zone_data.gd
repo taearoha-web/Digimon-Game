@@ -17,6 +17,7 @@ const BASE_ZONES := {
 		],
 		"boss": {"monster": &"mush_king", "level": 8, "respawn": 120.0},
 		"sky": Color("9fc5df"), "ground": Color("91aa77"), "prev": &"town", "next": &"dark_forest",
+		"sky_palette": [Color("5f9bd9"), Color("a9cfe9"), Color("eef0d8")], "sun_size": 1.0, "weather": &"petals",
 	},
 	&"dark_forest": {
 		"name": "ป่าเงาม่วง", "scene": "field", "level": [7, 14], "music": &"forest", "theme": &"digital", "ambience": &"hum",
@@ -32,6 +33,7 @@ const BASE_ZONES := {
 		"sky": Color("4d456d"), "ground": Color("617c71"),
 		"fog": Color("7e7398"), "ambient": Color(0.7, 0.75, 1.0), "sun": Color(0.85, 0.8, 1.0), "path_color": Color("958aab"), "seed": 9,
 		"prev": &"meadow", "next": &"desert",
+		"sky_palette": [Color("2d2550"), Color("5c4f85"), Color("9a86b0")], "sun_size": 0.5, "moon": true, "weather": &"fireflies",
 	},
 	&"desert": {
 		"name": "ทะเลทรายตะวันเดือด", "scene": "field", "level": [15, 22], "music": &"field", "theme": &"desert", "ambience": &"wind",
@@ -46,6 +48,7 @@ const BASE_ZONES := {
 		"boss": {"monster": &"sand_dragon", "level": 24, "respawn": 180.0},
 		"sky": Color("b7cad9"), "ground": Color("d9ba8c"), "fog": Color("efdcc1"), "ambient": Color(1.0, 0.95, 0.85), "sun": Color(1.0, 0.93, 0.75),
 		"path_color": Color("bea17d"), "seed": 4, "prev": &"dark_forest", "next": &"snow",
+		"sky_palette": [Color("5d95c8"), Color("c0ccd4"), Color("f4e2c0")], "sun_size": 1.6, "weather": &"sand",
 	},
 	&"snow": {
 		"name": "ภูเขาน้ำแข็งนิรันดร์", "scene": "field", "level": [23, 30], "music": &"forest", "theme": &"snow", "weather": &"snow", "ambience": &"wind",
@@ -60,6 +63,7 @@ const BASE_ZONES := {
 		"boss": {"monster": &"yeti_king", "level": 32, "respawn": 200.0},
 		"sky": Color("9cc4f0"), "ground": Color("e4eef8"), "fog": Color("e6f2ff"), "ambient": Color(0.88, 0.94, 1.0), "sun": Color(0.96, 0.98, 1.0),
 		"path_color": Color("a8bcd4"), "seed": 6, "prev": &"desert", "next": &"volcano",
+		"sky_palette": [Color("6aa4e8"), Color("b9d4f2"), Color("eef4fc")], "sun_size": 0.9,
 	},
 	&"volcano": {
 		"name": "ปล่องภูเขาไฟคลั่ง", "scene": "field", "level": [31, 40], "music": &"forest", "theme": &"volcano", "weather": &"embers", "ambience": &"fire",
@@ -74,6 +78,7 @@ const BASE_ZONES := {
 		"boss": {"monster": &"magma_dragon", "level": 42, "respawn": 240.0},
 		"sky": Color("614646"), "ground": Color("6e595c"), "fog": Color("a46e60"), "ambient": Color(1.0, 0.62, 0.48), "sun": Color(1.0, 0.58, 0.38),
 		"path_color": Color("947568"), "seed": 8, "prev": &"snow", "next": &"graveyard",
+		"sky_palette": [Color("3a2630"), Color("6c3f3c"), Color("b4634a")], "sun_size": 1.3,
 	},
 	&"graveyard": {
 		"name": "สุสานจันทร์เลือด", "scene": "field", "level": [41, 52], "music": &"forest", "theme": &"graveyard", "ambience": &"hum",
@@ -88,6 +93,7 @@ const BASE_ZONES := {
 		"boss": {"monster": &"bone_lord", "level": 54, "respawn": 260.0},
 		"sky": Color("3b3b55"), "ground": Color("626474"), "fog": Color("69657f"), "ambient": Color(0.6, 0.62, 0.9), "sun": Color(0.7, 0.7, 1.0),
 		"path_color": Color("92909d"), "seed": 21, "prev": &"volcano", "next": &"swamp",
+		"sky_palette": [Color("181a30"), Color("34365a"), Color("6d6a86")], "sun_size": 0.0, "moon": true, "weather": &"wisps",
 	},
 	&"swamp": {
 		"name": "หนองน้ำพิษมรณะ", "scene": "field", "level": [53, 64], "music": &"forest", "theme": &"swamp", "ambience": &"water",
@@ -102,6 +108,7 @@ const BASE_ZONES := {
 		"boss": {"monster": &"toad_king", "level": 66, "respawn": 280.0},
 		"sky": Color("435a59"), "ground": Color("667e69"), "fog": Color("82988a"), "ambient": Color(0.7, 0.85, 0.6), "sun": Color(0.85, 1.0, 0.7),
 		"path_color": Color("9caa83"), "seed": 22, "prev": &"graveyard", "next": &"storm",
+		"sky_palette": [Color("3b5a62"), Color("6f8d84"), Color("aebfa0")], "sun_size": 0.7, "weather": &"fireflies",
 	},
 	&"storm": {
 		"name": "ภูผาสายฟ้าคำราม", "scene": "field", "level": [65, 76], "music": &"field", "theme": &"storm", "ambience": &"wind",
@@ -116,6 +123,7 @@ const BASE_ZONES := {
 		"boss": {"monster": &"storm_dragon", "level": 78, "respawn": 300.0},
 		"sky": Color("34425a"), "ground": Color("586470"), "fog": Color("7088a0"), "ambient": Color(0.75, 0.82, 1.0), "sun": Color(0.9, 0.95, 1.0),
 		"path_color": Color("7a8494"), "seed": 23, "prev": &"swamp", "next": &"sky",
+		"sky_palette": [Color("2a3650"), Color("4e617d"), Color("8aa0b4")], "sun_size": 0.0, "weather": &"rain",
 	},
 	&"sky": {
 		"name": "นครเมฆาสวรรค์ล่ม", "scene": "field", "level": [77, 88], "music": &"title", "theme": &"sky", "ambience": &"wind",
@@ -130,9 +138,10 @@ const BASE_ZONES := {
 		"boss": {"monster": &"gold_dragon", "level": 90, "respawn": 320.0},
 		"sky": Color("8ac0f0"), "ground": Color("e8e0b8"), "fog": Color("f0e8c0"), "ambient": Color(1.0, 0.95, 0.85), "sun": Color(1.0, 0.96, 0.8),
 		"path_color": Color("c8b878"), "seed": 24, "prev": &"storm", "next": &"abyss",
+		"sky_palette": [Color("4f98e8"), Color("9fcbf2"), Color("fdf1cf")], "sun_size": 1.4, "weather": &"motes",
 	},
 	&"abyss": {
-		"name": "ขุมนรกอเวจี", "scene": "field", "level": [89, 100], "music": &"forest", "theme": &"abyss", "ambience": &"fire", "weather": &"embers",
+		"name": "ขุมนรกอเวจี", "scene": "field", "level": [89, 100], "music": &"forest", "theme": &"abyss", "ambience": &"fire", "weather": &"brimstone",
 		"tree_density": 0.5,
 		"camps": [
 			{"name": "ค่ายออร์คปีศาจ", "monsters": [&"hell_orc"], "levels": [89, 93], "pos": Vector2(-26, -15), "radius": 10.0, "count": 10},
@@ -144,9 +153,10 @@ const BASE_ZONES := {
 		"boss": {"monster": &"abyss_dragon", "level": 100, "respawn": 60.0},
 		"sky": Color("43313f"), "ground": Color("5e4658"), "fog": Color("84556c"), "ambient": Color(0.9, 0.5, 0.55), "sun": Color(1.0, 0.45, 0.5),
 		"path_color": Color("916e82"), "seed": 25, "prev": &"sky", "next": &"void",
+		"sky_palette": [Color("2a1225"), Color("5a2338"), Color("9a4a5c")], "sun_size": 0.0, "moon": true,
 	},
 	&"void": {
-		"name": "ห้วงจักรวาลวิบัติ", "scene": "field", "level": [100, 100], "music": &"battle", "theme": &"void", "weather": &"embers", "ambience": &"hum",
+		"name": "ห้วงจักรวาลวิบัติ", "scene": "field", "level": [100, 100], "music": &"battle", "theme": &"void", "weather": &"runes", "ambience": &"hum",
 		"tree_density": 0.4,
 		"camps": [
 			{"name": "ลานยักษ์หินว่างเปล่า", "monsters": [&"void_golem"], "levels": [100, 100], "pos": Vector2(-26, -15), "radius": 10.0, "count": 8},
@@ -160,6 +170,7 @@ const BASE_ZONES := {
 		"loot": {"stars": true, "gear": 0.30, "rarity_boost": 0.07, "gem": 0.2, "potion": 0.5, "wing": 0.006, "shard": 0.03, "boss_shards": 10, "boss_wing": 0.6, "boss_items": 4},
 		"sky": Color("292942"), "ground": Color("4c4669"), "fog": Color("716795"), "ambient": Color(0.65, 0.5, 1.0), "sun": Color(0.85, 0.6, 1.0),
 		"path_color": Color("877ca7"), "seed": 31, "prev": &"abyss", "next": &"",
+		"sky_palette": [Color("120f2a"), Color("2f2358"), Color("6b5aa0")], "sun_size": 0.0, "moon": true,
 	},
 	&"tower": {
 		"name": "หอคอยห้วงวิบัติ", "scene": "field", "level": [100, 100], "music": &"battle", "theme": &"void", "weather": &"embers", "ambience": &"hum",
@@ -167,6 +178,7 @@ const BASE_ZONES := {
 		"loot": {"stars": true, "gear": 0.22, "rarity_boost": 0.06, "gem": 0.15, "potion": 0.35, "wing": 0.004, "boss_wing": 0.5, "boss_items": 4},
 		"sky": Color("292942"), "ground": Color("4c4669"), "fog": Color("716795"), "ambient": Color(0.65, 0.5, 1.0), "sun": Color(0.85, 0.6, 1.0),
 		"path_color": Color("877ca7"), "seed": 33, "prev": &"town", "next": &"",
+		"sky_palette": [Color("120f2a"), Color("2f2358"), Color("6b5aa0")], "sun_size": 0.0, "moon": true,
 	},
 	&"pvp": {
 		"name": "โคลีเซียมจัดอันดับ", "scene": "field", "level": [10, 100], "music": &"battle", "pvp": true,

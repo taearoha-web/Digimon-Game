@@ -2,6 +2,7 @@ extends Node3D
 ## Rendered contact sheet, independent of saves and combat AI.
 ## godot --path . res://tests/tools/skill_gallery.tscn -- /tmp/skills.png [all|warrior|archer|mage|priest|vagabond]
 ## Omit the class for a representative eight-skill sheet; 'all' captures 152.
+## Melee single-target skills also show their hit layer on the target.
 ## The second argument also accepts comma-separated skill IDs.
 
 var camera: Camera3D
@@ -57,13 +58,17 @@ func _ready() -> void:
 			if (args.size() > 1 and (args[1] == "all" or args[1] == family or String(skill.id) in args[1].split(","))) or (args.size() == 1 and skill.id in examples):
 				chosen.append(skill)
 	var frames: Array[Image] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 918
 	for skill in chosen:
 		var family := SkillShow.family_of(skill)
 		var fx := Node3D.new()
 		add_child(fx)
 		var hero := HeroVisual.new()
 		fx.add_child(hero)
-		hero.setup(StringName(family), "", true, {}, {"gender": 1 if family in ["mage", "priest", "summoner"] else 0})
+		# Gear of the skill's level, so the sheet shows the real weapon tier.
+		var gear := {"weapon": ItemData.generate(int(skill.get("level", 1)), StringName(family), rng, 2, "weapon")}
+		hero.setup(StringName(family), "", true, gear, {"gender": 1 if family in ["mage", "priest", "summoner"] else 0})
 		hero.position = Vector3.ZERO
 		hero.rotation_degrees.y = 90
 		var target := Vector3(2.5, 0, 0)
@@ -80,6 +85,10 @@ func _ready() -> void:
 		SkillShow.play(fx, skill, target, Vector3.ZERO)
 		if bool(skill.get("projectile", false)):
 			SkillTableau.flight(fx, skill, Vector3(0, 1.2, 0), target + Vector3(0, 1, 0), 0.36)
+		elif String(skill.shape) == "single":
+			# The hit layer a real victim would receive (a crit for the fuller version).
+			await get_tree().create_timer(0.06).timeout
+			SkillTableau.contact(fx, skill, target + Vector3(0, 0.9, 0), true)
 		var wait := 0.19
 		if String(skill.id) == "armageddon":
 			ArmageddonSequence.launch(fx, hero, target, float(skill.radius), float(skill.mult), func(_i: int, _p: Vector3, _r: float, _m: float): pass)

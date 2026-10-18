@@ -9,6 +9,7 @@ const RECIPES := {
 	"seraph_aegis": ["seraph","ffe2a0","ffffff",4,1.2,1.5,0.0],
 	"sacred_sanctuary": ["chapel","ffd7a0","fffcea",4,1.1,0.6,0.0],
 	"spirit_court": ["court","b69be9","ffe3bc",4,1.1,1.0,0.12],
+	"eternal_aegis": ["shield","8fc6ff","f0f8ff",6,1.1,1.2,0.0],
 	"concentration": ["blade", "ffad56", "fff1b0", 3, 0.83, 0.65, 0.14],
 	"swift_axe": ["blade", "6ae8bd", "fff0b0", 2, 1.04, 0.42, 0.8],
 	"berserker": ["flame", "ff504a", "ffbd60", 5, 0.85, 0.6, -0.24],
@@ -98,7 +99,7 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 		build.generate_normals()
 		_meshes[id]=build.commit()
 		return _meshes[id]
-	var elite_shapes := {"godly_shield":"bastion", "triumph_of_valhalla":"banners", "spirit_of_wind":"helix", "magic_overdrive":"astrolabe", "prayer":"lotus", "miracle":"cathedral", "gaia_blessing":"branches", "valkyrie_blessing":"wings"}
+	var elite_shapes := {"godly_shield":"bastion", "triumph_of_valhalla":"banners", "spirit_of_wind":"helix", "magic_overdrive":"astrolabe", "prayer":"lotus", "miracle":"cathedral", "gaia_blessing":"branches", "valkyrie_blessing":"wings", "eternal_aegis":"bastion"}
 	if elite_shapes.has(id):
 		var build := SurfaceTool.new()
 		build.begin(Mesh.PRIMITIVE_TRIANGLES)
