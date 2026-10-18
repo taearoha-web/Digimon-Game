@@ -9,6 +9,9 @@ uniform vec4 top_color : source_color = vec4(0.55, 0.82, 0.36, 1.0);
 uniform float height_ref = 5.0;
 uniform float sway = 0.05;
 uniform float wind_speed = 1.4;
+// Per-zone wind strength (storm 1.6, swamp 0.8). Together with the gust wave
+// and flutter the crown moves at most ~1.9 x sway, inside NatureKit.chunk_bounds.
+uniform float gust = 1.0;
 // 0 = ignore the instance colour, 1 = use it as the albedo.
 uniform float tint_strength = 0.2;
 uniform float canopy_light = 0.76;
@@ -24,10 +27,16 @@ void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	foliage_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	up_facing = normalize(mat3(MODEL_MATRIX) * NORMAL).y;
-	float gust = sin(TIME * 0.42 + origin.x * 0.07 + origin.z * 0.11);
-	float wave = sin(TIME * wind_speed + origin.x * 0.31 + origin.z * 0.27 + VERTEX.y) * (0.72 + gust * 0.28);
-	VERTEX.x += wave * sway * rel_height * rel_height;
-	VERTEX.z += cos(TIME * wind_speed * 0.8 + origin.z * 0.29) * sway * 0.6 * rel_height * rel_height;
+	// A slow, field-wide gust front rolls across the map; every tree breathes
+	// with it while keeping its own small sway phase.
+	float front = sin(TIME * 0.23 + origin.x * 0.012 + origin.z * 0.009) * 0.5 + 0.5;
+	float strength = gust * (0.55 + front * 0.6);
+	float local_gust = sin(TIME * 0.42 + origin.x * 0.07 + origin.z * 0.11);
+	float wave = sin(TIME * wind_speed + origin.x * 0.31 + origin.z * 0.27 + VERTEX.y) * (0.72 + local_gust * 0.28);
+	float flutter = sin(TIME * 5.5 + VERTEX.x * 3.1 + VERTEX.y * 2.3 + origin.z) * 0.18 * strength;
+	VERTEX.x += (wave * strength + flutter) * sway * rel_height * rel_height;
+	VERTEX.z += cos(TIME * wind_speed * 0.8 + origin.z * 0.29) * sway * 0.6 * strength * rel_height * rel_height;
+	VERTEX.y += flutter * sway * 0.4 * rel_height;
 }
 
 void fragment() {

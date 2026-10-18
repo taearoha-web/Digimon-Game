@@ -33,17 +33,27 @@ class Batch:
 	var _glow_normals := PackedVector3Array()
 	var _glow_colors := PackedColorArray()
 	var _glow_indices := PackedInt32Array()
+	var _cloth_verts := PackedVector3Array()
+	var _cloth_normals := PackedVector3Array()
+	var _cloth_colors := PackedColorArray()
+	var _cloth_indices := PackedInt32Array()
 	## Applied to everything added (a building's position and turn).
 	var xform := Transform3D.IDENTITY
+	## Lantern flames added so far: [world position, colour], for the halo layer.
+	var lights: Array = []
 
-	func add(mesh_arrays: Array, local: Transform3D, color: Color, glow := false) -> void:
+	## `weight`, when given, sends the primitive to the cloth surface: it maps a
+	## vertex (in the piece's local space) to how freely it sways, 0..1.
+	func add(mesh_arrays: Array, local: Transform3D, color: Color, glow := false, weight := Callable()) -> void:
 		var t := xform * local
-		var verts: PackedVector3Array = t * (mesh_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array)
+		var unit: PackedVector3Array = mesh_arrays[Mesh.ARRAY_VERTEX]
+		var verts: PackedVector3Array = t * unit
 		var nb := Transform3D(t.basis.inverse().transposed(), Vector3.ZERO)
 		var normals: PackedVector3Array = nb * (mesh_arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array)
 		var src_idx: PackedInt32Array = mesh_arrays[Mesh.ARRAY_INDEX]
 		var flip := t.basis.determinant() < 0.0
-		var dv := _glow_verts if glow else _verts
+		var cloth := weight.is_valid()
+		var dv := _cloth_verts if cloth else (_glow_verts if glow else _verts)
 		var base := dv.size()
 		var idx := PackedInt32Array()
 		idx.resize(src_idx.size())
@@ -54,7 +64,14 @@ class Batch:
 		var cols := PackedColorArray()
 		cols.resize(verts.size())
 		cols.fill(color)
-		if glow:
+		if cloth:
+			for i in verts.size():
+				cols[i].a = clampf(float(weight.call(local * unit[i])), 0.0, 1.0)
+			_cloth_verts.append_array(verts)
+			_cloth_normals.append_array(normals)
+			_cloth_colors.append_array(cols)
+			_cloth_indices.append_array(idx)
+		elif glow:
 			_glow_verts.append_array(verts)
 			_glow_normals.append_array(normals)
 			_glow_colors.append_array(cols)
@@ -77,6 +94,14 @@ class Batch:
 	func ball(pos: Vector3, size: Vector3, color: Color, glow := false) -> void:
 		add(JapanKit.arrays("ball"), JapanKit.place(pos, size, Vector3.ZERO), color, glow)
 
+	## A swaying cloth panel (banner, noren strip, awning); see [method add].
+	func cloth(pos: Vector3, size: Vector3, color: Color, weight: Callable, rot := Vector3.ZERO) -> void:
+		add(JapanKit.arrays("box"), JapanKit.place(pos, size, rot), color, false, weight)
+
+	## Remembers a lantern flame for the village's halo layer.
+	func light(pos: Vector3, color: Color) -> void:
+		lights.append([xform * pos, color])
+
 	## A hipped roof: a four-sided frustum over [param w] x [param d] (its ridge
 	## length set by [param ridge], 0..1 of the width), turned by [param yaw].
 	func roof(pos: Vector3, w: float, d: float, h: float, color: Color, ridge := 0.35, yaw := 0.0) -> void:
@@ -84,10 +109,20 @@ class Batch:
 		add(JapanKit.arrays(key), JapanKit.place(pos, Vector3(w, h, d), Vector3(0, yaw, 0)), color)
 
 	func is_empty() -> bool:
-		return _verts.is_empty() and _glow_verts.is_empty()
+		return _verts.is_empty() and _glow_verts.is_empty() and _cloth_verts.is_empty()
 
 	## Adds the mesh to [param parent] (cast shadows unless [param shadows] is false).
 	func commit(parent: Node3D, node_name: String, shadows := true) -> MeshInstance3D:
+		var mi := MeshInstance3D.new()
+		mi.name = node_name
+		mi.mesh = mesh()
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = 95.0 * GameSettings.view_scale()
+		parent.add_child(mi)
+		return mi
+
+	## The batch as one ArrayMesh (solid, glow and cloth surfaces), e.g. for a MultiMesh.
+	func mesh() -> ArrayMesh:
 		var mesh := ArrayMesh.new()
 		if not _verts.is_empty():
 			var a := []
@@ -107,18 +142,22 @@ class Batch:
 			g[Mesh.ARRAY_INDEX] = _glow_indices
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, g)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, JapanKit.glow_material())
-		var mi := MeshInstance3D.new()
-		mi.name = node_name
-		mi.mesh = mesh
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.visibility_range_end = 95.0 * GameSettings.view_scale()
-		parent.add_child(mi)
-		return mi
+		if not _cloth_verts.is_empty():
+			var c := []
+			c.resize(Mesh.ARRAY_MAX)
+			c[Mesh.ARRAY_VERTEX] = _cloth_verts
+			c[Mesh.ARRAY_NORMAL] = _cloth_normals
+			c[Mesh.ARRAY_COLOR] = _cloth_colors
+			c[Mesh.ARRAY_INDEX] = _cloth_indices
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, c)
+			mesh.surface_set_material(mesh.get_surface_count() - 1, JapanKit.cloth_material())
+		return mesh
 
 
 static var _arrays: Dictionary = {}
 static var _solid: StandardMaterial3D
 static var _glow: StandardMaterial3D
+static var _cloth: ShaderMaterial
 
 
 static func arrays(key: String) -> Array:
@@ -220,6 +259,27 @@ static func glow_material() -> StandardMaterial3D:
 	return _glow
 
 
+## Vertex-coloured cloth that sways in the wind (COLOR.a = freedom to move).
+static func cloth_material() -> ShaderMaterial:
+	if _cloth == null:
+		_cloth = ShaderMaterial.new()
+		_cloth.shader = load("res://shaders/cloth_sway.gdshader")
+	return _cloth
+
+
+## Banner fabric: pinned along the pole (x = pole_x) and loosest at the bottom
+## free corner. `top` is the rod height, `w` / `h` the cloth size.
+static func banner_weight(pole_x: float, top: float, w: float, h: float) -> Callable:
+	return func(v: Vector3) -> float:
+		return clampf((v.x - pole_x) / w, 0.0, 1.0) * clampf(0.35 + (top - v.y) / h * 0.65, 0.0, 1.0)
+
+
+## Hanging cloth (noren, awning fringe): pinned at `top`, free `h` below it.
+static func hanging_weight(top: float, h: float) -> Callable:
+	return func(v: Vector3) -> float:
+		return pow(clampf((top - v.y) / h, 0.0, 1.0), 1.2)
+
+
 ## A solid box collider at [param center] (local to [param parent]).
 static func collider(parent: Node3D, center: Vector3, size: Vector3, yaw := 0.0) -> void:
 	var body := StaticBody3D.new()
@@ -285,7 +345,7 @@ static func _shoji(b: Batch, pos: Vector3, size: Vector3) -> void:
 
 ## A shop front (machiya): a house with an open counter, a noren curtain over
 ## the door and a hanging sign board.
-static func shop(b: Batch, w: float, d: float, noren: Color, sign_color := WOOD_DARK, floors := 2) -> void:
+static func shop(b: Batch, w: float, d: float, noren: Color, sign_color := WOOD_DARK, floors := 2, icon := "") -> void:
 	house(b, w, d, 2.8, TILE, floors)
 	var front := d * 0.5 + 0.06
 	# Open counter with goods.
@@ -293,14 +353,34 @@ static func shop(b: Batch, w: float, d: float, noren: Color, sign_color := WOOD_
 	b.box(Vector3(-w * 0.22, 1.0, front + 0.45), Vector3(w * 0.42, 0.14, 0.8), WOOD_LIGHT)
 	for i in 4:
 		b.ball(Vector3(-w * 0.36 + i * w * 0.09, 1.18, front + 0.45), Vector3(0.32, 0.26, 0.32), [Color("e8a040"), Color("c8d070"), Color("e86a5a"), Color("f0e0b0")][i])
-	# Noren: split cloth strips over the doorway with a white crest.
+	# Noren: split cloth strips over the doorway with a white crest, swaying.
+	var hang := hanging_weight(2.95, 1.0)
 	for i in 4:
-		b.box(Vector3(w * 0.2 + (i - 1.5) * 0.42, 2.45, front + 0.12), Vector3(0.38, 1.0, 0.04), noren)
-	b.ball(Vector3(w * 0.2, 2.55, front + 0.16), Vector3(0.45, 0.45, 0.04), Color("fff6e8"))
+		b.cloth(Vector3(w * 0.2 + (i - 1.5) * 0.42, 2.45, front + 0.12), Vector3(0.38, 1.0, 0.04), noren, hang)
+	b.cloth(Vector3(w * 0.2, 2.55, front + 0.16), Vector3(0.45, 0.45, 0.02), Color("fff6e8"), hang)
 	b.box(Vector3(w * 0.2, 2.98, front + 0.12), Vector3(1.8, 0.07, 0.07), WOOD_DARK)
-	# Sign board on the eave.
+	# Sign board on the eave, with the trade's icon.
 	b.box(Vector3(0, 3.55, front + 0.3), Vector3(w * 0.5, 0.6, 0.12), sign_color)
 	b.box(Vector3(0, 3.55, front + 0.37), Vector3(w * 0.42, 0.42, 0.02), GOLD.darkened(0.15))
+	sign_icon(b, icon, Vector3(0, 3.55, front + 0.42))
+
+
+## A trade icon on a sign board: "coin", "hammer", "cup" (sake), "scroll".
+static func sign_icon(b: Batch, icon: String, pos: Vector3) -> void:
+	match icon:
+		"coin":
+			b.cyl(pos, 0.2, 0.05, Color("f6d060"), Vector3(90, 0, 0), 12)
+			b.box(pos + Vector3(0, 0, 0.03), Vector3(0.08, 0.08, 0.02), Color("b07820"))
+		"hammer":
+			b.box(pos + Vector3(0.05, 0.12, 0), Vector3(0.34, 0.14, 0.12), Color("50505a"))
+			b.cyl(pos + Vector3(0, -0.06, 0), 0.03, 0.32, Color("8a5a30"), Vector3(0, 0, 14), 6)
+		"cup":
+			b.cyl(pos + Vector3(-0.1, -0.02, 0), 0.1, 0.22, Color("f4f0e6"), Vector3.ZERO, 8)
+			b.cyl(pos + Vector3(-0.1, 0.1, 0), 0.08, 0.02, Color("e8463a"), Vector3.ZERO, 8)
+			b.ball(pos + Vector3(0.14, 0.02, 0), Vector3(0.16, 0.22, 0.08), Color("e8463a"), true)
+		"scroll":
+			b.cyl(pos, 0.07, 0.36, Color("f4ead0"), Vector3(0, 0, 90), 8)
+			b.box(pos + Vector3(0, -0.02, 0.02), Vector3(0.2, 0.1, 0.02), Color("2a2a30"))
 
 
 ## A white storehouse (kura): thick plaster walls, a checker tile skirt
@@ -412,6 +492,7 @@ static func toro(b: Batch, pos: Vector3, scale := 1.0) -> void:
 	b.cyl(pos + Vector3(0, 0.75, 0) * s, 0.16 * s, 0.9 * s, STONE, Vector3.ZERO, 6)
 	b.box(pos + Vector3(0, 1.25, 0) * s, Vector3(0.75, 0.15, 0.75) * s, STONE)
 	b.box(pos + Vector3(0, 1.58, 0) * s, Vector3(0.5, 0.5, 0.5) * s, Color("ffe3a0"), Vector3.ZERO, true)
+	b.light(pos + Vector3(0, 1.58, 0) * s, Color("ffd890"))
 	for x in [-1.0, 1.0]:
 		for z in [-1.0, 1.0]:
 			b.box(pos + Vector3(x * 0.24, 1.58, z * 0.24) * s, Vector3(0.08, 0.52, 0.08) * s, STONE)
@@ -422,6 +503,7 @@ static func toro(b: Batch, pos: Vector3, scale := 1.0) -> void:
 ## A paper lantern (chochin) hanging at [param pos].
 static func chochin(b: Batch, pos: Vector3, color := Color("e8463a"), size := 1.0) -> void:
 	b.ball(pos, Vector3(0.42, 0.58, 0.42) * size, color.lightened(0.15), true)
+	b.light(pos, color.lightened(0.3))
 	b.cyl(pos + Vector3(0, 0.3, 0) * size, 0.14 * size, 0.08 * size, Color("2a2a2a"), Vector3.ZERO, 6)
 	b.cyl(pos - Vector3(0, 0.3, 0) * size, 0.14 * size, 0.08 * size, Color("2a2a2a"), Vector3.ZERO, 6)
 
@@ -475,9 +557,39 @@ static func fence(b: Batch, from: Vector3, to: Vector3) -> void:
 ## A tall nobori banner on a pole.
 static func banner(b: Batch, pos: Vector3, color: Color) -> void:
 	b.cyl(pos + Vector3(0, 2.2, 0), 0.06, 4.4, WOOD_DARK, Vector3.ZERO, 6)
-	b.box(pos + Vector3(0.38, 2.6, 0), Vector3(0.7, 2.8, 0.03), color)
+	var weight := banner_weight(pos.x + 0.03, pos.y + 4.0, 0.7, 2.8)
+	b.cloth(pos + Vector3(0.38, 2.6, 0), Vector3(0.7, 2.8, 0.03), color, weight)
 	b.box(pos + Vector3(0.38, 4.0, 0), Vector3(0.8, 0.05, 0.05), WOOD_DARK)
-	b.box(pos + Vector3(0.38, 2.6, 0.02), Vector3(0.22, 2.2, 0.01), Color("fff6e0"))
+	b.cloth(pos + Vector3(0.38, 2.6, 0.02), Vector3(0.22, 2.2, 0.01), Color("fff6e0"), weight)
+
+
+## A market stall: four posts under a cloth awning, a counter with crates and
+## fruit, and a short noren along the front eave. Front = +z.
+static func stall(b: Batch, w: float, d: float, awning: Color, goods: Array) -> void:
+	for x in [-0.5, 0.5]:
+		for z in [-0.5, 0.5]:
+			b.cyl(Vector3(x * w, 1.25, z * d), 0.07, 2.5, WOOD_DARK, Vector3.ZERO, 6)
+	b.box(Vector3(0, 0.85, d * 0.15), Vector3(w * 0.95, 0.1, d * 0.6), WOOD_LIGHT)
+	b.box(Vector3(0, 0.45, d * 0.15), Vector3(w * 0.9, 0.7, d * 0.5), WOOD)
+	var top := 2.55
+	b.cloth(Vector3(0, top, 0), Vector3(w + 0.6, 0.06, d + 0.6), awning, func(v: Vector3) -> float:
+		return clampf(absf(v.z) / (d * 0.5 + 0.3) - 0.5, 0.0, 1.0) * 0.6)
+	var hang := hanging_weight(top, 0.5)
+	for i in int(w / 0.5):
+		b.cloth(Vector3(-w * 0.5 + 0.25 + i * 0.5, top - 0.26, d * 0.5 + 0.3), Vector3(0.44, 0.5, 0.03), awning if i % 2 == 0 else Color("f6efe0"), hang)
+	for i in goods.size():
+		var x := -w * 0.35 + i * (w * 0.7 / maxf(goods.size() - 1, 1))
+		if i % 2 == 0:
+			b.box(Vector3(x, 1.12, d * 0.1), Vector3(0.55, 0.45, 0.55), Color("b8905a"))
+			for j in 4:
+				b.ball(Vector3(x - 0.15 + (j % 2) * 0.3, 1.42, d * 0.1 - 0.15 + (j / 2) * 0.3), Vector3(0.22, 0.22, 0.22), goods[i])
+		else:
+			b.box(Vector3(x, 0.98, d * 0.2), Vector3(0.6, 0.16, 0.5), Color("d8c8a0"))
+			for j in 3:
+				b.ball(Vector3(x - 0.18 + j * 0.18, 1.16, d * 0.2), Vector3(0.2, 0.2, 0.2), goods[i])
+	# A crate or two beside the stall.
+	b.box(Vector3(w * 0.5 + 0.5, 0.3, d * 0.3), Vector3(0.6, 0.6, 0.6), Color("a07a48"), Vector3(0, 20, 0))
+	b.box(Vector3(-w * 0.5 - 0.45, 0.25, -d * 0.1), Vector3(0.5, 0.5, 0.5), Color("8a6a40"), Vector3(0, -15, 0))
 
 
 ## A covered well with a wooden roof.
@@ -535,17 +647,12 @@ static func pond_rim(b: Batch, radius: Vector2, rng: RandomNumberGenerator) -> v
 		b.cyl(Vector3(cos(a) * radius.x * r, 0.08, sin(a) * radius.y * r), 0.35, 0.03, Color("5a9a4a"), Vector3.ZERO, 8)
 
 
+## The pond surface: the same rippling, foam-edged water as the fields' coves.
 static func water(parent: Node3D, pos: Vector3, radius: Vector2) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.0
-	disc.bottom_radius = 1.0
-	disc.height = 0.05
-	disc.radial_segments = 28
-	mi.mesh = disc
-	mi.scale = Vector3(radius.x, 1.0, radius.y)
+	mi.mesh = RegionArt._oval_mesh(radius, 0.0)
 	mi.position = pos + Vector3(0, 0.06, 0)
-	mi.material_override = MeshKit.toon(Color(0.42, 0.66, 0.78, 0.82), {"alpha": 0.82})
+	mi.material_override = RegionArt._water_material(&"village")
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
