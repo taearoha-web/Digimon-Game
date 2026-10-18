@@ -471,6 +471,34 @@ add("lancer", [
     ("ragnarok_lance","ember",o("ground",y=47,s=.98)+o("wings",0,-13,1.16)+o("spear",s=1.26)+o("dragon",0,36,.47)+rays(6)),
 ])
 
+add("defender", [
+    ("shield_bash","steel",o("slash",s=.86,a=-30)+o("shield",14,4,.9,-18)),
+    ("brace","steel",ring(.8,40)+o("shield",s=1.02)),
+    ("shield_slam","gold",rays(8)+o("shield",s=.88,a=12)+star(46,-50,20)+star(-48,40,14)),
+    ("provoke","ember",rays(9)+o("shield",-14,6,.78,-10)+o("eye",34,-40,.42)),
+    ("ground_quake","earth",o("ground",y=38,s=.96)+o("crack",0,30,.7)+o("shield",0,-22,.7,180)),
+    ("shield_toss","steel",o("vortex",s=.92)+o("buckler",8,-6,.72,30)+wind()),
+    ("iron_wall","steel",o("shield",-40,8,.62)+o("shield",40,8,.62)+o("shield",0,-4,.78)),
+    ("bulwark_charge","steel",wind()+o("shield",14,0,.86,24)+o("boot",-44,44,.42,18)),
+    ("thorn_guard","ember",thorns()+o("shield",s=.84)),
+    ("quake_slam","earth",o("crack",s=1.06)+o("shield",0,-16,.74,180)+star(-50,50,18)+star(52,46,16)),
+    ("aegis_strike","gold",o("slash",s=1.1,a=40)+o("shield",-6,6,.86,-28)+rays(5)),
+    ("guardian_oath","gold",o("hand",-40,32,.55,-22)+o("shield",0,-6,.8)+o("heart",0,-6,.3)),
+    ("shield_wave","frost",o("ray",s=1.04,a=90)+o("shield",-36,4,.66,-12)),
+    ("shockwave_wall","frost",ring(1.05)+ring(.7)+o("shield",s=.74)),
+    ("titan_quake","earth",o("ground",y=42,s=1.08)+o("crack",0,18,.95)+o("hammer",0,-30,.6,180)+o("shield",-44,-36,.42)),
+    ("bastion_crush","steel",o("crack",0,24,.9)+o("shield",0,-10,.98,180)+o("slash",s=.7,a=90)),
+    ("rebound_storm","frost",o("vortex",s=1.04)+o("buckler",-52,-30,.42,-20)+o("buckler",50,-26,.42,20)+o("buckler",0,40,.46)),
+    ("grand_provoke","ember",rays(12)+o("helmet",s=.7)+o("shield",-46,20,.5,-14)+o("shield",46,20,.5,14)),
+    ("unbreakable","gold",o("crystal",0,-4,.9)+o("shield",s=.92,opacity=.9)+star(0,-70,18)),
+    ("holy_rampart","gold",rays(10)+ring(.95,30)+o("shield",-44,0,.5)+o("shield",44,0,.5)+o("shield",0,-10,.66)),
+    ("judgment_shield","gold",o("cross",0,-44,.6)+o("shield",0,12,.86)+o("ray",s=.8,a=0)),
+    ("aegis_of_ages","gold",o("wings",s=1.1)+o("shield",0,4,.76)+o("hourglass",0,-62,.3)),
+    ("meteor_shield","ember",o("meteor",-30,-30,.7,30)+o("shield",18,20,.8,-20)+o("ground",y=58,s=.8)),
+    ("sanctuary_wall","gold",o("crown",0,-56,.44)+o("shield",-36,10,.6)+o("shield",36,10,.6)+o("orb",0,22,.4)),
+    ("world_bastion","gold",o("ground",y=46,s=1.04)+o("wings",0,-20,1.0)+o("shield",0,0,.92)+o("crown",0,-66,.36)+rays(6)),
+])
+
 
 def document(palette, picture):
     dark, mid, main, light = PALETTES[palette]
@@ -502,10 +530,10 @@ def main():
     source = (ROOT / 'data/class_data.gd').read_text()
     # Both regular and summon helpers are the actual runtime catalogue source.
     catalogue = re.findall(r'(?:_sk\(\w+,|sm\.call\()\s*"([a-z_]+)",\s*"([^"]+)"', source)
-    assert len(catalogue) == 152, len(catalogue)
+    assert len(catalogue) == 177, len(catalogue)
     assert set(RECIPES) == {s[0] for s in catalogue}, (set(RECIPES) ^ {s[0] for s in catalogue})
     scenes = [r[2] for r in RECIPES.values()]
-    assert len(set(scenes)) == 152, "Duplicate illustration even before colors/backgrounds"
+    assert len(set(scenes)) == 177, "Duplicate illustration even before colors/backgrounds"
     names = dict(catalogue)
     manifest = []
     for skill, (family, palette, picture) in RECIPES.items():

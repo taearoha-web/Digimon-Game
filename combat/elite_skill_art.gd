@@ -4,7 +4,7 @@ extends Node3D
 ## Shared, finite mesh library; 2–6 budgeted draws per cast, one animation clock.
 ## A layer is a batched sculpture, not one node per feather, rune or shard.
 const SHADER := preload("res://shaders/elite_skill.gdshader")
-const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance"
+const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion"
 static var _meshes: Dictionary = {}
 const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts"
 
@@ -198,9 +198,28 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer("seal",look,Vector3(0,0.08,1),Vector3.ONE*(4 if elder else 3),Vector3.ZERO,d,1.55,Vector3.ZERO,-0.1)
 			if elder:
 				art.layer("crown",look,Vector3(0,4.5,1),Vector3.ONE*2,Vector3.ZERO,d,1.4)
+		"holy_rampart","world_bastion":
+			# A ring of great shields rises around the Defender; the ground cracks under it.
+			var ultimate := id=="world_bastion"
+			art.layer("bastion",look,Vector3.ZERO,Vector3(radius*0.6,2.6 if ultimate else 2.0,radius*0.6),Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,0.1)
+			art.layer("fractures",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
+			art.layer("pillars" if ultimate else "seal",look,Vector3.ZERO if ultimate else Vector3(0,0.1,0),Vector3(radius*0.7,4.5,radius*0.7) if ultimate else Vector3.ONE*radius*0.8,Vector3.ZERO,d,1.1,Vector3.UP*0.8 if ultimate else Vector3.ZERO,0.0 if ultimate else 0.12)
+			if ultimate:
+				art.layer("crown",look,Vector3(0,0.15,0),Vector3.ONE*radius*0.45,Vector3.ZERO,d,1.6,Vector3.UP*1.2,0.2)
+		"judgment_shield":
+			# A seal of judgment stands over the target, then the shield cracks the ground under it.
+			var reach := maxf(2.0,delta.length())
+			art.layer("seal",look,Vector3(0,2.2,reach),Vector3.ONE*2.2,Vector3(PI/2,0,0),d,0.95,Vector3(0,-1.2,0),0.4)
+			art.layer("cut",look,Vector3(0,1.6,reach*0.8),Vector3.ONE*3.4,Vector3(0,0,-0.25),d,0.8,Vector3(0,0,0.8))
+			art.layer("fractures",look,Vector3(0,0.09,reach),Vector3.ONE*2.8,Vector3.ZERO,d,1.4)
+		"meteor_shield":
+			# The Defender drops like a comet into the crowd.
+			art.layer("comet",look,Vector3(0,0.6,0),Vector3(2.0,4.2,2.0),Vector3(0,0,0.15),d,1.05)
+			art.layer("bastion",look,Vector3.ZERO,Vector3(radius*0.55,1.8,radius*0.55),Vector3.ZERO,d,1.35,Vector3.ZERO,0.0,0.1)
+			art.layer("fractures",look,Vector3(0,0.09,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
 		_:
 			# Eight lasting support skills: each uses its own batched relief.
-			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings"}
+			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","aegis_of_ages":"bastion","sanctuary_wall":"cathedral"}
 			var kind: String = shapes.get(id,"seal")
 			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe"] else 0,0.25)
 			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.1)

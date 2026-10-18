@@ -38,13 +38,13 @@ const GROUPS := {
 	"cleave/cleave": "power_strike destroyer sword_of_justice",
 	"cross/cross_cut": "raving triple_impact avenging_crash grand_cross",
 	"cleave/draw_cut": "brandish",
-	"shield/shield": "impact stagger",
+	"shield/shield": "impact stagger shield_bash shield_slam bulwark_charge aegis_strike",
 	"roar/resolve": "roar war_cry",
 	"focus/resolve": "concentration berserker focus beast_rage",
 	"wind/weave": "swift_axe wind_stance",
 	"fault/cleave": "bone_crash double_crash",
 	"blade/draw_cut": "sword_blast piercing divine_piercing",
-	"shield/ward": "holy_valor drastic_spirit godly_shield iron_resolve dragon_stance",
+	"shield/ward": "holy_valor drastic_spirit godly_shield iron_resolve dragon_stance brace iron_wall thorn_guard unbreakable",
 	"wings/resolve": "triumph_of_valhalla valkyrie_blessing",
 	"sword_court/cleave": "gladiator",
 	"arrow/aim": "wind_arrow perfect_aim elemental_shot perforation lethal_sight",
@@ -99,6 +99,17 @@ const GROUPS := {
 	"wings/thrust": "lancer_rush",
 	"lance/sky_spear": "sky_pierce",
 	"world_spear/sky_spear": "ragnarok_lance",
+	"roar/shield": "provoke grand_provoke",
+	"fault/ground_slam": "ground_quake quake_slam titan_quake world_bastion",
+	"cyclone/spear_throw": "shield_toss rebound_storm",
+	"fault/whirl": "shockwave_wall",
+	"blade/shield": "shield_wave",
+	"fault/execution": "bastion_crush",
+	"wings/ward": "guardian_oath aegis_of_ages",
+	"sun/storm_spin": "holy_rampart",
+	"judgment/execution": "judgment_shield",
+	"meteor/ground_slam": "meteor_shield",
+	"cathedral/ward": "sanctuary_wall",
 }
 
 ## Elite gestures add distinct weight transfer and controlled follow-through.
@@ -140,6 +151,12 @@ const ELITE_MOTION := {
 	"gungnir": ["spear_throw", -.30, .02, .30, .10],
 	"heaven_rend": ["ground_slam", .22, .03, .25, .14],
 	"ragnarok_lance": ["sky_spear", -.34, .02, .40, .17],
+	"holy_rampart": ["storm_spin", .26, .03, .00, .10],
+	"judgment_shield": ["execution", -.32, .03, .30, .15],
+	"aegis_of_ages": ["ward", -.06, .06, .00, .05],
+	"meteor_shield": ["ground_slam", .10, .16, .38, .18],
+	"sanctuary_wall": ["ward", .06, .05, .00, .04],
+	"world_bastion": ["ground_slam", -.20, .06, .10, .20],
 }
 
 static var _cues: Dictionary = {}
