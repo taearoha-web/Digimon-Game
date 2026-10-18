@@ -98,8 +98,11 @@ static func _material(look: Dictionary, opacity := 0.93) -> ShaderMaterial:
 	mat.set_shader_parameter("shade", look.shade)
 	mat.set_shader_parameter("pulse", float(look.phase))
 	mat.set_shader_parameter("opacity", opacity)
+	# The authored palette picks the surface: flame burns in waves, frost and
+	# tide crack, grove and bloom carry leaf veins, grace and gold sparkle.
+	var palettes := {"flame": 2.0, "frost": 1.0, "tide": 1.0, "steel": 1.0, "grove": 3.0, "bloom": 3.0, "grace": 4.0, "gold": 4.0, "arcane": 4.0, "storm": 4.0}
 	var surfaces := {"ice": 1.0, "fire": 2.0, "leaf": 3.0, "heal": 3.0, "holy": 4.0, "arcane": 4.0, "thunder": 4.0}
-	mat.set_shader_parameter("surface_style", surfaces.get(String(look.get("style", "phys")), 0.0))
+	mat.set_shader_parameter("surface_style", palettes.get(String(look.get("palette", "")), surfaces.get(String(look.get("style", "phys")), 0.0)))
 	return mat
 
 

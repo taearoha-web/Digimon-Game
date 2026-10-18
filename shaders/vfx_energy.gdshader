@@ -6,6 +6,8 @@ render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabl
 
 uniform vec4 color : source_color = vec4(1.0, 0.6, 0.2, 1.0);
 uniform vec4 core : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+// Outer-edge tint (the palette shade); its alpha is the mix weight.
+uniform vec4 shade : source_color = vec4(0.0, 0.0, 0.0, 0.0);
 uniform int mode = 0;
 uniform float progress : hint_range(0.0, 1.0) = 0.0;
 uniform float fade : hint_range(0.0, 1.0) = 1.0;
@@ -36,6 +38,7 @@ float fbm(vec2 p) {
 void fragment() {
 	float t = TIME * flow + seed;
 	float energy = 0.0;
+	float outer = 0.0;
 	if (mode == 0) {
 		vec2 p = UV * 2.0 - 1.0;
 		float r = length(p);
@@ -51,6 +54,7 @@ void fragment() {
 		float inner = (1.0 - smoothstep(0.0, rr, r)) * fill * smoothstep(0.35, 0.9, n);
 		energy = band * (0.7 + 0.8 * n) + inner;
 		energy *= 1.0 - smoothstep(0.92, 1.0, r);
+		outer = smoothstep(0.0, w, d);
 	} else {
 		float u = UV.x;
 		float v = UV.y;
@@ -58,8 +62,10 @@ void fragment() {
 		float edge = 1.0 - smoothstep(0.0, 0.85, v);
 		float ends = smoothstep(0.0, 0.12, u) * (1.0 - smoothstep(0.7 - progress * 0.5, 1.0, u));
 		energy = edge * ends * (0.7 + 1.2 * n);
+		outer = 1.0 - smoothstep(0.0, 0.28, v);
 	}
 	float hot = smoothstep(1.0, 1.5, energy);
-	ALBEDO = mix(color.rgb * 1.15, core.rgb, hot);
+	vec3 ink = mix(color.rgb * 1.15, shade.rgb, outer * shade.a * 0.8);
+	ALBEDO = mix(ink, core.rgb, hot);
 	ALPHA = clamp(energy * 1.2, 0.0, 1.0) * fade * color.a;
 }

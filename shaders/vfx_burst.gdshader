@@ -15,6 +15,8 @@ uniform float radius = 1.0;
 uniform float size = 0.35;
 uniform float gravity = 4.0;
 uniform float rise = 0.4;
+// Extra velocity shared by every card (debris thrown on along a blow).
+uniform vec3 push = vec3(0.0);
 
 varying float fade;
 
@@ -27,7 +29,7 @@ void vertex() {
 	if (mode == 0) {
 		vec3 dir = normalize(seed + vec3(0.0, rise, 0.0) + vec3(0.0001));
 		float s = speed * (0.45 + 0.55 * fract(r * 7.13));
-		p = dir * s * (t - 0.5 * t * t) * 1.6 - vec3(0.0, gravity * t * t, 0.0);
+		p = dir * s * (t - 0.5 * t * t) * 1.6 - vec3(0.0, gravity * t * t, 0.0) + push * (t - 0.5 * t * t) * 1.6;
 	} else if (mode == 1) {
 		vec2 disc = seed.xz * radius;
 		float h = speed * t * (0.5 + r);

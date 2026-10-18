@@ -69,13 +69,14 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 	tw.tween_callback(root.queue_free)
 	return root
 
-static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
-	ClassFlourish.contact(parent, skill, at)
+## [param crit] only adds a fan of light; damage was already decided.
+static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
+	ClassFlourish.contact(parent, skill, at, crit)
 	if MartialSkillArt.handles(skill):
 		MartialSkillArt.contact(parent,skill,at)
 		return
 	if String(skill.id) != "judgment_ray":
-		SkillCraft.contact(parent, skill, at)
+		SkillCraft.contact(parent, skill, at, crit)
 
 static func anticipate(parent: Node3D, skill: Dictionary, look: Dictionary, origin: Vector3, duration: float, aim: Vector3, visual: HeroVisual = null) -> void:
 	if not VfxBudget.can_decorate():
@@ -131,9 +132,12 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 	shade_look.accent = look.primary
 	var shade := SpellSpectacle._material(shade_look)
 	var radius := minf(float(skill.get("radius", 2.8)) * 0.66, 4.8)
-	var duration := 0.48 + float(look.tempo) * 0.34 + tier * 0.045
+	var duration := (0.48 + float(look.tempo) * 0.34 + tier * 0.045) * clampf(float(look.linger), 0.7, 1.5)
 	if bool(look.ultimate):
 		duration = 1.35
+	# The recipe's layer count (2 at Lv.1, 6 at Lv.100) adds a second pass
+	# above the silhouette from Lv.50: a helix, a crown or a phoenix.
+	var layers := clampi(int(look.layers), 2, 6)
 	var signature := String(look.signature)
 	if shape == "summon":
 		root.translate_object_local(Vector3(0, 0, 1.4))
@@ -231,6 +235,14 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 			SpellSpectacle._judgement(root, mat, 3)
 			SpellSpectacle._phoenix(root, core, 2.4, false)
 			SkillInk.mark(root, look, Vector3(0, 5.6, 0), 2.6, 1.0, 1, true)
+	if layers >= 4 and tier >= 2 and crowd < 2:
+		match signature:
+			"cleave", "cross", "cyclone", "blade", "lance", "world_spear", "arrow", "comet", "thorn", "beam", "lightning", "sword_court":
+				_crown(root, core, 1.1 + layers * 0.15, layers, false)
+			"wings", "phoenix", "sun", "cathedral", "lotus", "spores", "rain":
+				SpellSpectacle._phoenix(root, shade, 1.0 + layers * 0.3, false)
+			_:
+				SpellSpectacle._helix(root, core, 0.85 + layers * 0.12, 2.3 + layers * 0.25, 1)
 	if not travelling and signature not in ["cleave", "cross", "lance", "blade", "fault", "frost", "dragon", "elder_dragon"]:
 		SkillInk.mark(root, look, Vector3(0, 0.045, 0), radius if shape in ["burst", "blast"] else 1.45 + tier * 0.12, minf(duration, 1.0))
 	# One small accent emitter, never the old six universal particle layers.

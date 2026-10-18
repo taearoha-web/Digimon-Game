@@ -1909,7 +1909,7 @@ func _hit_feel() -> void:
 	HitFeel.hitstop(get_tree(), 0.05)
 	await get_tree().create_timer(0.2, true, false, true).timeout
 	check(is_equal_approx(Engine.time_scale, 1.0), "time runs normally again right after")
-	var mat := VfxKit.energy(Color("ff9a4a"), 0)
+	var mat := VfxKit.energy(Color("ff9a4a"), Color.WHITE, 0)
 	check(mat.shader != null and mat.get_shader_parameter("mode") == 0, "energy effects use the flowing shader")
 
 

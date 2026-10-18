@@ -272,14 +272,14 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			return art
 	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign"]:
 		art.add("impact",colors,at,Vector3.ONE*1.15,Vector3.ZERO,0.50,{"initial":0.10})
-		art.add("shards",colors,Vector3.UP*0.25,Vector3.ONE*0.75,Vector3.ZERO,0.65,{"travel":Vector3.UP*0.4,"initial":0.7})
+		art.add("shards",colors,Vector3.UP*0.25,Vector3.ONE*0.75,Vector3.ZERO,0.65,{"travel":Vector3.UP*0.4,"initial":0.7,"orbit":0.12,"orbit_speed":3.0,"pulse":true})
 		art._draw()
 		return art
 	match id:
 		"lionfang_cleave":
 			art.add("lion",colors,Vector3(0,1.5,-0.3),Vector3.ONE*1.8,Vector3.ZERO,0.75,{"travel":Vector3(0,0,1.4),"initial":0.55,"decay":0.4})
 			art.add("fang",colors,Vector3(0,0.25,0),Vector3(radius,1.4,radius),Vector3.ZERO,0.7,{"initial":0.5,"turn":Vector3(0,0.6,0)})
-			art.add("shards",colors,at,Vector3(radius*0.6,1.8,radius*0.6),Vector3.ZERO,1.0,{"travel":Vector3.UP*0.45})
+			art.add("shards",colors,at,Vector3(radius*0.6,1.8,radius*0.6),Vector3.ZERO,1.0,{"travel":Vector3.UP*0.45,"pulse":true})
 		"crown_breaker":
 			art.add("crown",colors,Vector3.UP*2.0,Vector3.ONE*(1.65 if index>0 else 0.95),Vector3.ZERO,0.85,{"initial":0.75,"travel":Vector3.UP*0.3,"turn":Vector3(0.25,0.4,0.2)})
 			art.add("martial/sweep",colors,Vector3.UP*1.2,Vector3.ONE*(2.8 if index>0 else 1.4),Vector3(PI/2,0,0.4),0.50,{"initial":0.4,"spin":1.6})
@@ -349,22 +349,22 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("shards",colors,Vector3.UP*0.2,Vector3(radius*0.65,4,radius*0.65),Vector3.ZERO,1.6,{"travel":Vector3.UP*0.65})
 			impact_size=radius
 		"arcane_prism":
-			art.add("prism",colors,Vector3.UP*1.4,Vector3.ONE*1.45,Vector3(0.3,0,0.2),0.75,{"initial":0.18,"spin":1.4,"spectral":1.0})
-			art.add("shards",colors,Vector3.UP*0.3,Vector3(1.6,2.4,1.6),Vector3.ZERO,1.0,{"spectral":1.0})
+			art.add("prism",colors,Vector3.UP*1.4,Vector3.ONE*1.45,Vector3(0.3,0,0.2),0.75,{"initial":0.18,"spin":1.4,"spectral":1.0,"pulse":true})
+			art.add("shards",colors,Vector3.UP*0.3,Vector3(1.6,2.4,1.6),Vector3.ZERO,1.0,{"spectral":1.0,"orbit":0.2,"orbit_speed":2.2})
 		"crystal_prison":
 			art.add("prison",colors,at,Vector3(radius,2.2,radius),Vector3.ZERO,1.8,{"initial":0.1,"grow_time":0.22,"decay":0.80})
-			art.add("shards",colors,Vector3.UP*0.2,Vector3(radius*0.80,3,radius*0.80),Vector3.ZERO,1.6,{"delay":0.25,"travel":Vector3.UP*0.25,"initial":0.6})
+			art.add("shards",colors,Vector3.UP*0.2,Vector3(radius*0.80,3,radius*0.80),Vector3.ZERO,1.6,{"delay":0.25,"travel":Vector3.UP*0.25,"initial":0.6,"pulse":true})
 			impact_size=radius
 		"astral_convergence":
 			art.add("planets",colors,Vector3.UP*2.0,Vector3.ONE*radius*0.65,Vector3.ZERO,1.8,{"initial":1.15,"spin":0.9,"spectral":1.0})
 			art.add("constellation",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.8,{"initial":1.1,"spin":-0.2})
-			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,2.5,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8,"spectral":1.0})
+			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,2.5,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8,"spectral":1.0,"orbit":0.25,"orbit_speed":1.6})
 			impact_size=radius
 		"genesis_nova":
 			art.add("genesis",colors,Vector3.UP*3.0,Vector3.ONE*radius*0.55,Vector3.ZERO,1.6,{"initial":0.35,"spin":0.8,"spectral":1.0,"decay":0.45})
 			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.8,{"initial":0.08,"grow_time":0.35,"spin":0.20,"spectral":1.0})
 			art.add("sunrise",colors,Vector3.UP*0.3,Vector3.ONE*radius*1.08,Vector3.ZERO,1.4,{"initial":0.02,"delay":0.15,"spectral":1.0})
-			art.add("shards",colors,Vector3.UP*0.4,Vector3(radius*0.7,4,radius*0.7),Vector3.ZERO,1.8,{"travel":Vector3.UP*0.6,"spectral":1.0})
+			art.add("shards",colors,Vector3.UP*0.4,Vector3(radius*0.7,4,radius*0.7),Vector3.ZERO,1.8,{"travel":Vector3.UP*0.6,"spectral":1.0,"orbit":0.3,"orbit_speed":1.2,"pulse":true})
 			impact_size=radius
 		"sanctified_chain":
 			art.add("sunrise",colors,Vector3.UP*1.1,Vector3.ONE*0.8,Vector3(PI/2,0,0),0.7,{"initial":0.08})
@@ -407,7 +407,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 				art.add("sunrise",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.1,{"initial":0.1})
 				art.add("shards",colors,at,Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,1.3,{"travel":Vector3.UP*0.6})
 			impact_size=radius
-	art.add("impact",colors,at,Vector3.ONE*impact_size,Vector3.ZERO,0.8,{"initial":0.04,"opacity":0.75})
+	art.add("impact",colors,at,Vector3.ONE*impact_size,Vector3.ZERO,0.8,{"initial":0.04,"opacity":0.75,"spectral":1.0 if id in ["arcane_prism","genesis_nova","astral_convergence"] else 0.0})
 	art._draw()
 	return art
 

@@ -26,14 +26,14 @@ static func palette(skill: Dictionary) -> Dictionary:
 	var look := SkillShow.profile_for(skill).duplicate()
 	var colors: Array = {
 		"warrior":["ed825d","fff2b3","6b223d"], "archer":["5fe6c5","fff0a6","204367"],
-		"mage":["ac81fb","f3d6ff","343470"], "priest":["f7cd75","fff9de","936158"],
+		"mage":["ac81fb","f3d6ff","343470"], "priest":["f6bd3f","fff6d0","8a4160"],
 		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"], "defender":["8fc1ff","fff4cc","2c4570"]
 	}.get(String(look.family), ["90dbff","ffffff","234567"])
 	var overrides: Dictionary = {
 		"grand_cross":["eab875","fff4c9","895149"],"sword_of_justice":["ead28d","fff9db","795c64"],"divine_piercing":["9edbf4","fff2bc","456497"],"judgment_ray":["edcc7a","fff7db","785d68"],"ice_storm":["63c9ff","e7ffff","304eaa"],"hell_meteor":["f77746","fff3a0","7d243f"],
 		"meteor_arrow":["ff9763","fff8b9","783568"],"phoenix_rain":["ffb345","fff5bf","c04758"],
 		"lightning_arrow":["74c9ff","fff39c","514690"],"elder_dragon":["57c6ad","ffe9a0","285463"],
-		"cataclysm":["46b497","f4d694","34436b"],"prayer":["a8e7d7","fff4d6","427c86"]}
+		"cataclysm":["46b497","f4d694","34436b"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"]}
 	colors = overrides.get(String(skill.id), colors)
 	look.primary = Color(colors[0]); look.accent = Color(colors[1]); look.shade = Color(colors[2])
 	if skill.get("fx", {}).has("buff"):
@@ -114,13 +114,13 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	match id:
 		"grand_cross":
 			for side in [-1.0,1.0]:
-				art.layer("sword",look,Vector3(side*1.25,0.1,2),Vector3(0.9,3.7,0.9),Vector3(0,0,side*0.8),d,0.95)
+				art.layer("sword",look,Vector3(side*1.25,0.1,2),Vector3(0.9,3.7,0.9),Vector3(0,0,side*0.8),d,0.95,Vector3.ZERO,0.0,0.65,false,{"turn":Vector3(0,0,-side*0.45)})
 			for side in [-1.0,1.0]:
 				art.layer("cut",look,Vector3(0,1.4,2),Vector3(2.8,2.8,2.8),Vector3(0,0,side*0.8),d,0.85,Vector3(0,0,0.65))
 			art.layer("fractures",look,Vector3(0,0.06,2.5),Vector3.ONE*3,Vector3.ZERO,d,1.3)
 		"sword_of_justice","gladiator":
 			var ultimate := id=="gladiator"
-			art.layer("sword",look,Vector3(0,0.5,2.7),Vector3(2.8 if ultimate else 2.1,5.4 if ultimate else 4.2,1.8),Vector3(0,0,0.2),d,0.65,Vector3(0,1,0),0,0.8,true)
+			art.layer("sword",look,Vector3(0,0.5,2.7),Vector3(2.8 if ultimate else 2.1,5.4 if ultimate else 4.2,1.8),Vector3(0,0,0.2),d,0.65,Vector3(0,1,0),0,0.8,true,{"turn":Vector3(0,0,-0.35)})
 			art.layer("cut",look,Vector3(0,1.7,2),Vector3.ONE*(4.3 if ultimate else 3.2),Vector3(0,0,-0.3),d,0.8,Vector3(0,0,0.9))
 			art.layer("fractures",look,Vector3(0,0.09,delta.length()),Vector3.ONE*2.6,Vector3.ZERO,d,1.4)
 			if ultimate:
@@ -147,11 +147,11 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		"lightning_arrow":
 			art.layer("bow",look,Vector3(0,1.5,0.6),Vector3.ONE*2,Vector3.ZERO,d,0.7)
 			art.layer("lightning",look,Vector3(0,1.4,1),Vector3(0.7,0.7,maxf(delta.length(),4.0)),Vector3.ZERO,d,0.7)
-			art.layer("seal",look,Vector3(0,1.4,0.8),Vector3.ONE*1.5,Vector3(PI/2,0,0),d,1.0)
+			art.layer("seal",look,Vector3(0,1.4,0.8),Vector3.ONE*1.5,Vector3(PI/2,0,0),d,1.0,Vector3.ZERO,0.5)
 		"dragon_shot":
 			art.layer("dragon",look,Vector3(0,1.4,2),Vector3.ONE*2.8,Vector3.ZERO,d,1.2,Vector3(0,0,3))
 			art.layer("bow",look,Vector3(0,1.5,0.8),Vector3.ONE*2.0,Vector3.ZERO,d,0.7)
-			art.layer("feathers",look,Vector3(0,1,2),Vector3(3,2,3),Vector3.ZERO,d,1.3,Vector3(0,0,2))
+			art.layer("feathers",look,Vector3(0,1,2),Vector3(3,2,3),Vector3.ZERO,d,1.3,Vector3(0,0,2),0.3)
 		"meteor_arrow":
 			art.layer("spear",look,Vector3(0,4.7,0),Vector3(0.8,4.7,0.8),Vector3(PI,0,-0.18),d,0.7)
 			art.layer("comet",look,Vector3(0,0.7,0),Vector3(1.2,3.5,1.2),Vector3(0,0,0.18),d,1.05)
@@ -163,7 +163,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		"ice_storm":
 			art.layer("crystals",look,Vector3.ZERO,Vector3(radius*0.86,5.3,radius*0.86),Vector3.ZERO,d,1.45,Vector3.ZERO,0,0.15)
 			art.layer("snowflake",look,Vector3(0,0.09,0),Vector3.ONE*radius*0.92,Vector3.ZERO,d,1.5)
-			art.layer("feathers",look,Vector3(0,2.8,0),Vector3(radius*0.8,1.8,radius*0.8),Vector3.ZERO,d,1.5,Vector3.UP*0.8,0.6)
+			art.layer("feathers",look,Vector3(0,2.8,0),Vector3(radius*0.8,1.8,radius*0.8),Vector3.ZERO,d,1.5,Vector3.UP*1.6,0.6,0.65,true)
 		"spirit_burst":
 			for tilt in [Vector3.ZERO,Vector3(0.55,0,0.5),Vector3(-0.55,0,-0.5)]:
 				art.layer("astrolabe",look,Vector3(0,2,0),Vector3.ONE*radius*0.55,tilt,d,1.4,Vector3.ZERO,0.5)
@@ -171,16 +171,16 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		"divine_judgment","holy_rain_big","last_judgement":
 			var ultimate := id=="last_judgement"
 			art.layer("cathedral",look,Vector3.ZERO,Vector3(radius*0.65,6.8 if ultimate else 4.8,radius*0.65),Vector3.ZERO,d,1.5)
-			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5,Vector3.ZERO,0.08)
+			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5,Vector3.ZERO,0.25)
 			art.layer("rain" if id=="holy_rain_big" else "pillars",look,Vector3.ZERO,Vector3(radius*0.6,5.6,radius*0.6),Vector3.ZERO,d,0.85,Vector3.UP*1.3,0,1,true)
-			art.layer("feathers",look,Vector3(0,2,0),Vector3(radius*0.65,2,radius*0.65),Vector3.ZERO,d,1.65,Vector3.UP*0.6,0.2)
+			art.layer("feathers",look,Vector3(0,1.2,0),Vector3(radius*0.65,2,radius*0.65),Vector3.ZERO,d,1.65,Vector3.UP*2.2,0.35,0.65,true)
 			if ultimate:
 				art.layer("wings",look,Vector3(0,6.8,0),Vector3.ONE*3.2,Vector3.ZERO,d,1.4)
 				art.layer("seal",look,Vector3(0,6.8,0),Vector3.ONE*radius*0.6,Vector3.ZERO,d,1.4,Vector3.ZERO,-0.1)
 		"seraphim_wrath":
-			art.layer("wings",look,Vector3(0,2.1,0.5),Vector3.ONE*2.6,Vector3.ZERO,d,1.25)
-			art.layer("sword",look,Vector3(0,1.4,1),Vector3(1,7,1),Vector3(PI/2,0,0),d,0.8,Vector3(0,0,1.5))
-			art.layer("feathers",look,Vector3(0,1.7,1),Vector3(3,2,3),Vector3.ZERO,d,1.4,Vector3(0,0,2))
+			art.layer("wings",look,Vector3(0,2.1,0.5),Vector3.ONE*2.6,Vector3.ZERO,d,1.25,Vector3.ZERO,0.0,0.65,false,{"flap":0.08})
+			art.layer("sword",look,Vector3(0,1.4,1),Vector3(1,7,1),Vector3(PI/2,0,0),d,0.8,Vector3(0,0,1.5),0.0,0.65,false,{"turn":Vector3(0,0,1.2)})
+			art.layer("feathers",look,Vector3(0,3.4,1),Vector3(3,2,3),Vector3.ZERO,d,1.4,Vector3(0,2.0,2),0.4,0.65,true)
 		"world_tree","cataclysm":
 			art.layer("tree" if id=="world_tree" else "roots",look,Vector3.ZERO,Vector3(radius*0.7,6.8 if id=="world_tree" else 4,radius*0.7),Vector3.ZERO,d,1.6,Vector3.ZERO,0,0.12)
 			art.layer("branches",look,Vector3(0,0.07,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
@@ -209,7 +209,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		"judgment_shield":
 			# A seal of judgment stands over the target, then the shield cracks the ground under it.
 			var reach := maxf(2.0,delta.length())
-			art.layer("seal",look,Vector3(0,2.2,reach),Vector3.ONE*2.2,Vector3(PI/2,0,0),d,0.95,Vector3(0,-1.2,0),0.4)
+			art.layer("seal",look,Vector3(0,2.2,reach),Vector3.ONE*2.2,Vector3(PI/2,0,0),d,0.95,Vector3(0,-1.2,0),0.9)
 			art.layer("cut",look,Vector3(0,1.6,reach*0.8),Vector3.ONE*3.4,Vector3(0,0,-0.25),d,0.8,Vector3(0,0,0.8))
 			art.layer("fractures",look,Vector3(0,0.09,reach),Vector3.ONE*2.8,Vector3.ZERO,d,1.4)
 		"meteor_shield":
@@ -222,7 +222,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","aegis_of_ages":"bastion","sanctuary_wall":"cathedral"}
 			var kind: String = shapes.get(id,"seal")
 			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe"] else 0,0.25)
-			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.1)
+			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)
 			art.layer("leaves" if id=="gaia_blessing" else "stars",look,Vector3(0,0.3,0),Vector3(2,2.5,2),Vector3.ZERO,d,1.65,Vector3.UP*1.0)
 	art._draw()
 
@@ -358,7 +358,7 @@ static func geometry(kind: String) -> ArrayMesh:
 				_line(st,PackedVector3Array([Vector3(0,0.2,0),Vector3(side*0.7,0.8,0),Vector3(side*1.4,1.15,0)]),0.035,1)
 				for i in 9:
 					var f := float(i)/8
-					_feather(st,Vector3(side*(0.18+f*1.15),0.2+f*0.75,0),Vector3(0.46,0.9-f*0.15,0.4),Vector3(0,0,side*(0.65+f*0.55)),0.16+float(i%3)*0.25)
+					_feather(st,Vector3(side*(0.18+f*1.15),0.2+f*0.75,0),Vector3(0.46,0.9-f*0.15,0.4),Vector3(0,0,side*(0.65+f*0.55)),0.08+float(i%3)*0.18)
 			if kind=="phoenix":
 				_append(st,SpellSpectacle._crystal_mesh(),Vector3(0,0.15,0.12),Vector3(0.24,0.7,0.2),Vector3.ZERO,0.7)
 				for i in 5:
@@ -442,6 +442,10 @@ static func geometry(kind: String) -> ArrayMesh:
 				var pos := Vector3(sin(a)*r,float(i%7)/7,cos(a)*r)
 				if kind=="stars":
 					_append(st,SpellSpectacle._crystal_mesh(),pos,Vector3(0.018,0.075,0.018),Vector3.ZERO,1)
+				elif kind=="feathers":
+					# Bright accent vanes with a dark shade quill: no beige paper.
+					_feather(st,pos,Vector3(0.18,0.13,0.18),Vector3(0.6,a,0.8),0.1+float(i%3)*0.15)
+					_append(st,SpellSpectacle._crystal_mesh(),pos+Vector3(0,0.02,0),Vector3(0.012,0.09,0.012),Vector3(0.6,a,0.8),1.0)
 				else:
 					_feather(st,pos,Vector3(0.18,0.13,0.18),Vector3(0.6,a,0.8),float(i%3)*0.3)
 		"fractures","lane":

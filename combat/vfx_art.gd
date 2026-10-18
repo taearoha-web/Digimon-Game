@@ -28,7 +28,7 @@ static func texture(kind: String) -> Texture2D:
 		return SpectacleAssets.tex(kind)
 	if _tex.has(kind):
 		return _tex[kind]
-	var size := 160 if kind == "rune" or kind.begins_with("crest_") else 64
+	var size := 160 if kind == "rune" else (192 if kind.begins_with("crest_") else 64)
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	for y in size:
 		for x in size:
@@ -150,54 +150,63 @@ static func _diamond_alpha(p: Vector2) -> float:
 
 
 ## Class emblems use generous negative space, so enemy telegraphs stay legible.
+## Strokes are drawn 5-7 px wide at the texture's 192 px, so every one of the
+## eight seals still reads once mipmapped on a phone.
 static func _crest_alpha(p: Vector2, family: String) -> float:
 	var r := p.length()
-	var a := maxf(_band(r, 0.92, 0.018), _band(r, 0.82, 0.012) * 0.65)
+	var a := maxf(_band(r, 0.92, 0.03), _band(r, 0.80, 0.02) * 0.7)
 	var angle := atan2(p.y, p.x)
+	var line := 0.06
+	var fine := 0.05
 	match family:
 		"warrior":
 			var vertices := [Vector2(-0.39, -0.42), Vector2(0.39, -0.42), Vector2(0.34, 0.15), Vector2(0, 0.56), Vector2(-0.34, 0.15)]
 			for i in vertices.size():
-				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, vertices[i], vertices[(i + 1) % vertices.size()])))
-			a = maxf(a, smoothstep(0.028, 0.01, _seg_dist(p, Vector2(0, -0.25), Vector2(0, 0.35))))
+				a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, vertices[i], vertices[(i + 1) % vertices.size()])))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(0, -0.25), Vector2(0, 0.35))))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(-0.16, -0.05), Vector2(0.16, -0.05))))
 		"archer":
-			a = maxf(a, _band(r, 0.55, 0.024) if absf(p.x) > 0.22 else 0.0)
+			a = maxf(a, _band(r, 0.55, 0.035) if absf(p.x) > 0.22 else 0.0)
 			for k in 8:
 				var c := ang_point(0.57, 35.0 + float(k) * 45.0)
-				a = maxf(a, smoothstep(0.10, 0.065, p.distance_to(c)))
-			a = maxf(a, smoothstep(0.032, 0.01, _seg_dist(p, Vector2(0, 0.38), Vector2(0, -0.4))))
+				a = maxf(a, smoothstep(0.11, 0.07, p.distance_to(c)))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(0, 0.38), Vector2(0, -0.4))))
 			for sign_x in [-1.0, 1.0]:
-				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, Vector2(0, -0.4), Vector2(sign_x * 0.2, -0.12))))
+				a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(0, -0.4), Vector2(sign_x * 0.2, -0.12))))
 		"mage":
-			a = maxf(a, _band(r, 0.52, 0.024))
+			a = maxf(a, _band(r, 0.52, 0.035))
 			for k in 5:
-				a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, ang_point(0.51, k * 72.0 - 90.0), ang_point(0.51, (k + 2) * 72.0 - 90.0))))
+				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, ang_point(0.51, k * 72.0 - 90.0), ang_point(0.51, (k + 2) * 72.0 - 90.0))))
 		"priest":
-			a = maxf(a, _band(r, 0.23, 0.024))
+			a = maxf(a, _band(r, 0.22, 0.035))
 			var petal_edge := 0.43 + 0.13 * cos(angle * 6.0)
-			a = maxf(a, _band(r, petal_edge, 0.028))
+			a = maxf(a, _band(r, petal_edge, 0.04))
 		"lancer":
 			# A spearhead pointing up over a crossing shaft.
 			var tip_pts := [Vector2(0, -0.58), Vector2(0.2, -0.12), Vector2(0, 0.02), Vector2(-0.2, -0.12)]
 			for i in tip_pts.size():
-				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, tip_pts[i], tip_pts[(i + 1) % tip_pts.size()])))
-			a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, Vector2(0, 0.0), Vector2(0, 0.58))))
-			a = maxf(a, smoothstep(0.03, 0.01, _seg_dist(p, Vector2(-0.22, 0.1), Vector2(0.22, 0.1))))
+				a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, tip_pts[i], tip_pts[(i + 1) % tip_pts.size()])))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(0, 0.0), Vector2(0, 0.58))))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(-0.22, 0.1), Vector2(0.22, 0.1))))
 		"defender":
-			# A heater shield with a boss in the middle.
+			# A heater shield with a boss in the middle and a cross on its face.
 			var rim := [Vector2(-0.42, -0.5), Vector2(0.42, -0.5), Vector2(0.4, 0.05), Vector2(0, 0.58), Vector2(-0.4, 0.05)]
 			for i in rim.size():
-				a = maxf(a, smoothstep(0.035, 0.012, _seg_dist(p, rim[i], rim[(i + 1) % rim.size()])))
-			a = maxf(a, smoothstep(0.16, 0.12, p.distance_to(Vector2(0, -0.08))))
+				a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, rim[i], rim[(i + 1) % rim.size()])))
+			a = maxf(a, smoothstep(0.17, 0.12, p.distance_to(Vector2(0, -0.08))))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(0, -0.38), Vector2(0, 0.42))))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(-0.28, -0.08), Vector2(0.28, -0.08))))
 		"summoner":
 			# A paw: one pad and four toes.
-			a = maxf(a, smoothstep(0.30, 0.26, p.distance_to(Vector2(0, 0.18))) * 0.9)
+			a = maxf(a, smoothstep(0.30, 0.25, p.distance_to(Vector2(0, 0.18))) * 0.9)
 			for toe in [Vector2(-0.36, -0.12), Vector2(-0.14, -0.38), Vector2(0.14, -0.38), Vector2(0.36, -0.12)]:
-				a = maxf(a, smoothstep(0.13, 0.09, p.distance_to(toe)))
+				a = maxf(a, smoothstep(0.14, 0.09, p.distance_to(toe)))
 		_:
-			a = maxf(a, _band(absf(p.x) + absf(p.y), 0.48, 0.028))
+			# Traveller: a compass diamond with a smaller one turning inside.
+			a = maxf(a, _band(absf(p.x) + absf(p.y), 0.48, 0.04))
+			a = maxf(a, _band(maxf(absf(p.x), absf(p.y)), 0.22, 0.035))
 	for k in 4:
-		a = maxf(a, smoothstep(0.048, 0.022, p.distance_to(ang_point(0.72, k * 90.0))))
+		a = maxf(a, smoothstep(0.06, 0.03, p.distance_to(ang_point(0.72, k * 90.0))))
 	return a
 
 
@@ -428,15 +437,15 @@ static func crest(parent: Node3D, pos: Vector3, color: Color, family: String, ra
 		return
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE * 2.0
-	var mat := VfxKit._glow(color, 0.8, false)
+	var mat := VfxKit._glow(color, 0.92, false)
 	mat.albedo_texture = texture("crest_" + family)
 	var seal := VfxKit._instance(parent, quad, mat, pos + Vector3(0, 0.085, 0))
 	VfxBudget.track_decoration(seal)
 	seal.rotation = Vector3(-PI * 0.5, 0, phase)
 	seal.scale = Vector3.ONE * radius * 0.55
 	var tween := seal.create_tween().set_parallel(true)
-	tween.tween_property(seal, "scale", Vector3.ONE * radius, minf(duration * 0.35, 0.22)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(seal, "rotation:z", phase + 0.25, duration)
+	tween.tween_property(seal, "scale", Vector3.ONE * radius, minf(duration * 0.35, 0.22)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(seal, "rotation:z", phase + 0.45, duration)
 	tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.5).set_delay(duration * 0.5)
 	tween.chain().tween_callback(seal.queue_free)
 

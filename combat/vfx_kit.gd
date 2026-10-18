@@ -6,6 +6,7 @@ extends RefCounted
 ## particles (cheap on phones) and frees itself.
 
 static var _crescent: ArrayMesh
+static var _column: ArrayMesh
 static var _disc: CylinderMesh
 static var _soft_particle: Mesh
 
@@ -30,15 +31,18 @@ static func _glow(color: Color, alpha := 1.0, additive := true) -> StandardMater
 
 
 const ENERGY_SHADER := preload("res://shaders/vfx_energy.gdshader")
+const COLUMN_SHADER := preload("res://shaders/vfx_column.gdshader")
 static var _ground_quad: PlaneMesh
 
 
 ## Flowing-noise material (shaders/vfx_energy.gdshader). mode 0 ring, 1 band.
-static func energy(color: Color, mode: int, params := {}) -> ShaderMaterial:
+## [param core] is the hot centre (the palette accent, never a cream lerp);
+## params.shade tints the outer edge.
+static func energy(color: Color, core: Color, mode: int, params := {}) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = ENERGY_SHADER
 	m.set_shader_parameter("color", color)
-	m.set_shader_parameter("core", color.lerp(Color.WHITE, 0.55))
+	m.set_shader_parameter("core", core)
 	m.set_shader_parameter("mode", mode)
 	m.set_shader_parameter("seed", randf() * 50.0)
 	for key in params:
@@ -69,10 +73,13 @@ static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null)
 		_flight_ribbon_mesh(2.7, true, strand)
 		_flight_ribbon_mesh(4.5, false, strand)
 	for mode in 2:
-		var mat := energy(Color(1, 1, 1, 0.01), mode, {"fade": 0.01})
+		var mat := energy(Color(1, 1, 1, 0.01), Color.WHITE, mode, {"fade": 0.01})
 		var mi := _instance(parent, ground_quad() if mode == 0 else _crescent_mesh(), mat, pos + Vector3(0, 0.05, 0))
 		mi.scale = Vector3.ONE * 0.2
 		mi.get_tree().create_timer(0.4).timeout.connect(mi.queue_free)
+	var shaft := _instance(parent, _column_mesh(), column_material(Color(1, 1, 1, 0.01), Color.WHITE, 0.01), pos)
+	shaft.scale = Vector3.ONE * 0.2
+	shaft.get_tree().create_timer(0.4).timeout.connect(shaft.queue_free)
 	var recipe := SkillArtDirection.recipe_for({"id": "power_strike"})
 	var brush := VfxArt._art_material(recipe)
 	brush.set_shader_parameter("fade", 0.001)
@@ -150,6 +157,47 @@ static func _crescent_mesh() -> ArrayMesh:
 				st.add_vertex(corner[0])
 		_crescent = st.commit()
 	return _crescent
+
+
+## An open shaft (radius 0.5, foot at y 0, top at y 1) that tapers upward and
+## flares at its foot. V runs 0 at the foot to 1 at the top for the falloff.
+static func _column_mesh() -> ArrayMesh:
+	if _column == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var segments := 16
+		var rings := 6
+		for j in rings:
+			var v0 := float(j) / rings
+			var v1 := float(j + 1) / rings
+			var r0 := 0.5 * (1.0 - 0.3 * v0) + 0.3 * pow(1.0 - v0, 12.0)
+			var r1 := 0.5 * (1.0 - 0.3 * v1) + 0.3 * pow(1.0 - v1, 12.0)
+			for i in segments:
+				var a0 := TAU * float(i) / segments
+				var a1 := TAU * float(i + 1) / segments
+				var u0 := float(i) / segments
+				var u1 := float(i + 1) / segments
+				var p00 := Vector3(sin(a0) * r0, v0, cos(a0) * r0)
+				var p10 := Vector3(sin(a1) * r0, v0, cos(a1) * r0)
+				var p01 := Vector3(sin(a0) * r1, v1, cos(a0) * r1)
+				var p11 := Vector3(sin(a1) * r1, v1, cos(a1) * r1)
+				for corner in [[p00, u0, v0], [p01, u0, v1], [p10, u1, v0], [p10, u1, v0], [p01, u0, v1], [p11, u1, v1]]:
+					st.set_normal(Vector3(corner[0].x, 0.0, corner[0].z).normalized())
+					st.set_uv(Vector2(corner[1], corner[2]))
+					st.add_vertex(corner[0])
+		_column = st.commit()
+	return _column
+
+
+## Glowing-shaft material (shaders/vfx_column.gdshader).
+static func column_material(color: Color, core: Color, fade := 1.0) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = COLUMN_SHADER
+	m.set_shader_parameter("color", color)
+	m.set_shader_parameter("core", core)
+	m.set_shader_parameter("fade", fade)
+	m.set_shader_parameter("seed", randf() * 50.0)
+	return m
 
 
 static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, lifetime: float, one_shot := true) -> CPUParticles3D:
@@ -281,10 +329,10 @@ static func element_impact(parent: Node3D, pos: Vector3, color: Color, style: St
 
 
 ## A real 3D pressure ring: the oblique silhouette survives low game cameras.
-static func impact_ring(parent: Node3D, pos: Vector3, color: Color, radius: float, duration := 0.4) -> void:
+static func impact_ring(parent: Node3D, pos: Vector3, color: Color, radius: float, duration := 0.4, core := Color.WHITE, shade := Color.TRANSPARENT) -> void:
 	if not VfxBudget.can_decorate():
 		return
-	var mat := energy(color, 0, {"ring_radius": 0.64, "ring_width": 0.12, "fill": 0.0, "flow": 2.8})
+	var mat := energy(color, core, 0, {"ring_radius": 0.64, "ring_width": 0.12, "fill": 0.0, "flow": 2.8, "shade": shade})
 	var ring := _instance(parent, ground_quad(), mat, pos)
 	VfxBudget.track_decoration(ring)
 	ring.rotation = Vector3(0.48, randf() * TAU, 0.25)
@@ -428,7 +476,7 @@ static func flight_ribbons(holder: Node3D, color: Color, size: float, length: fl
 		if not VfxBudget.can_decorate():
 			break
 		var ribbon_color := color.lerp(Color("fff0c8"), float(strand) * 0.32)
-		var mat := energy(ribbon_color, 1, {"flow": 3.0, "noise_scale": 2.8, "progress": 0.0})
+		var mat := energy(ribbon_color, ribbon_color.lerp(Color.WHITE, 0.55), 1, {"flow": 3.0, "noise_scale": 2.8, "progress": 0.0})
 		var ribbon := _instance(holder, _flight_ribbon_mesh(length, flame, strand), mat, holder.global_position)
 		ribbon.scale = Vector3.ONE * size
 		VfxBudget.track_decoration(ribbon)
@@ -513,7 +561,7 @@ static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float)
 	if not VfxBudget.can_decorate(2):
 		return
 	# A wave of flowing energy that rushes out over the ground and burns away.
-	var wave_mat := energy(color, 0, {"ring_radius": 0.82, "ring_width": 0.2, "flow": 2.4, "fill": 0.18})
+	var wave_mat := energy(color, color.lerp(Color.WHITE, 0.55), 0, {"ring_radius": 0.82, "ring_width": 0.2, "flow": 2.4, "fill": 0.18})
 	var wave := _instance(parent, ground_quad(), wave_mat, pos + Vector3(0, 0.06, 0))
 	VfxBudget.track_decoration(wave)
 	wave.scale = Vector3(0.25, 1, 0.25)
@@ -542,7 +590,7 @@ static func ground_circle(parent: Node3D, pos: Vector3, color: Color, radius: fl
 	var inner := _instance(parent, MeshKit.torus(), inner_mat, pos + Vector3(0, 0.07, 0))
 	inner.scale = Vector3(radius * 0.6, radius * 0.12, radius * 0.6)
 	# A swirling energy ring fills the area while the spell gathers.
-	var fill_mat := energy(color, 0, {"ring_radius": 0.86, "ring_width": 0.1, "flow": 1.2, "swirl": 1.0, "fill": 0.22, "noise_scale": 6.0})
+	var fill_mat := energy(color, color.lerp(Color.WHITE, 0.55), 0, {"ring_radius": 0.86, "ring_width": 0.1, "flow": 1.2, "swirl": 1.0, "fill": 0.22, "noise_scale": 6.0})
 	var fill := _instance(parent, ground_quad(), fill_mat, pos + Vector3(0, 0.04, 0))
 	fill.scale = Vector3(radius * 1.05, 1, radius * 1.05)
 	var tween := outer.create_tween().set_parallel(true)
@@ -573,16 +621,20 @@ static func danger_circle(parent: Node3D, pos: Vector3, radius: float, duration:
 		fill.queue_free())
 
 
-static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, width := 0.9, duration := 0.6) -> void:
+## A soft shaft of light over [param pos]: a glowing core, a rim, upward
+## scroll and a flared ring at its foot (shaders/vfx_column.gdshader), one
+## tracked draw. [param core] is the hot centre; the palette accent reads best.
+static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, width := 0.9, duration := 0.6, core := Color.WHITE) -> void:
 	if not VfxBudget.can_decorate():
 		return
-	var mat := _glow(color, 0.28, false)
-	var mi := _instance(parent, MeshKit.cylinder(), mat, pos + Vector3(0, height * 0.5, 0))
+	var mat := column_material(color, core)
+	var mi := _instance(parent, _column_mesh(), mat, pos)
 	VfxBudget.track_decoration(mi)
-	mi.scale = Vector3(width, height, width)
+	mi.scale = Vector3(width * 0.35, height, width * 0.35)
 	var tween := mi.create_tween().set_parallel(true)
-	tween.tween_property(mi, "scale", Vector3(width * 0.15, height, width * 0.15), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
+	tween.tween_property(mi, "scale", Vector3(width, height, width), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mi, "scale", Vector3(width * 0.45, height * 1.08, width * 0.45), duration * 0.7).set_delay(duration * 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_method(func(v: float): mat.set_shader_parameter("fade", v), 1.0, 0.0, duration * 0.65).set_delay(duration * 0.35)
 	tween.chain().tween_callback(mi.queue_free)
 
 

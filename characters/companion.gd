@@ -469,7 +469,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
 	if skill is Dictionary and not skill.is_empty():
-		SkillTableau.contact(field, skill, mob.hit_point())
+		SkillTableau.contact(field, skill, mob.hit_point(), crit)
 	else:
 		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.3 if crit else 0.9)
 	damage_dealt += amount

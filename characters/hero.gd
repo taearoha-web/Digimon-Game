@@ -982,7 +982,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	if skill.has("star"):
 		pass # StarSkillSequence owns exactly one authored impact per contact beat.
 	elif not skill.is_empty():
-		SkillTableau.contact(field, skill, mob.hit_point())
+		SkillTableau.contact(field, skill, mob.hit_point(), crit)
 	else:
 		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
 	var killed := mob.take_hit(amount, crit, color)
