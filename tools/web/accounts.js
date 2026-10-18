@@ -210,7 +210,7 @@
     buttons.forEach(spec => {
       const button = document.createElement('button'); button.type = 'button'; button.textContent = spec.label;
       button.className = 'ta-button ' + (spec.kind || 'primary');
-      button.addEventListener('click',() => action(spec.run)); actions.appendChild(button);
+      button.addEventListener('pointerdown',clearSelection); button.addEventListener('click',() => action(spec.run)); actions.appendChild(button);
     });
     requestAnimationFrame(() => { const el = overlay.querySelector(opts.focus || 'button,input'); if (el) el.focus({preventScroll:true}); });
     return overlay;
@@ -227,6 +227,9 @@
     const el = overlay && overlay.querySelector('.ta-feedback');
     if (el) { el.textContent = text; el.classList.toggle('error',isError); }
   }
+  // iOS keeps a text selection alive over the dialog; its first tap on a button only
+  // dismisses it, so drop any selection before running an action.
+  function clearSelection() { const sel = window.getSelection && window.getSelection(); if (sel && sel.rangeCount) sel.removeAllRanges(); }
   async function action(fn) {
     const current = overlay;
     if (current) current.querySelectorAll('button').forEach(el => el.disabled = true);
@@ -296,8 +299,8 @@
   }
   function showRecovery(user,code) {
     panel('เก็บรหัสกู้บัญชีของคุณ','<p class="ta-intro">บัญชี <strong>' + escaped(user.username) + '</strong> พร้อมแล้ว รหัสนี้ใช้ตั้งรหัสผ่านใหม่เมื่อลืมรหัสผ่าน ให้เก็บไว้ในที่ส่วนตัว</p><label class="ta-label" for="ta-code">รหัสกู้บัญชี (แสดงครั้งเดียว)</label><input id="ta-code" class="ta-recovery" readonly value="' + escaped(code) + '"><label class="ta-check"><input type="checkbox" id="ta-kept"> ฉันเก็บรหัสกู้บัญชีแล้ว</label>',[
-      {label:'คัดลอกรหัส',kind:'secondary',run:async () => { const input = overlay.querySelector('#ta-code'); input.select(); if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code); else if (!document.execCommand('copy')) throw new Error('แตะรหัสค้างไว้แล้วเลือกคัดลอก'); feedback('คัดลอกแล้ว เก็บไว้ในที่ส่วนตัว',false); }},
-      {label:'ไปต่อ',run:async () => { if (!overlay.querySelector('#ta-kept').checked) throw new Error('กรุณาเก็บรหัสกู้บัญชี และติ๊กช่องยืนยันก่อน'); await authenticated(user); }}
+      {label:'คัดลอกรหัส',kind:'secondary',run:async () => { const input = overlay.querySelector('#ta-code'); input.select(); if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code); else if (!document.execCommand('copy')) throw new Error('แตะรหัสค้างไว้แล้วเลือกคัดลอก'); const kept = overlay.querySelector('#ta-kept'); if (kept) kept.checked = true; feedback('คัดลอกแล้ว เก็บไว้ในที่ส่วนตัว',false); }},
+      {label:'ไปต่อ',run:async () => { clearSelection(); if (!overlay.querySelector('#ta-kept').checked) throw new Error('กรุณาเก็บรหัสกู้บัญชี และติ๊กช่องยืนยันก่อน'); await authenticated(user); }}
     ]);
   }
   async function authenticated(user) {

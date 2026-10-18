@@ -62,7 +62,9 @@
 #toon-account-layer .ta-compare .ta-hero { padding: 9px; gap: 7px; }
 #toon-account-layer .ta-compare .ta-slot { width: 23px; height: 30px; }
 #toon-account-layer .ta-recovery { color: #d6f7e9 !important; font-family: ui-monospace, monospace !important; font-size: 14px !important; letter-spacing: .03em; }
-#toon-account-layer .ta-check { display: flex; gap: 9px; align-items: center; margin-top: 15px; font-size: 13px; line-height: 1.7; }
+#toon-account-layer .ta-check { display: flex; gap: 9px; align-items: center; margin-top: 15px; min-height: 44px; font-size: 13px; line-height: 1.7; cursor: pointer; }
+/* Taps on the tick box and the buttons must not start a text selection (iOS then swallows the next tap). */
+#toon-account-layer .ta-check, #toon-account-layer button, #toon-account-layer .ta-label { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
 #toon-account-layer .ta-check input { width: 22px; height: 22px; accent-color: #80ded4; }
 #toon-account-layer .ta-status-line { display: flex; align-items: flex-start; gap: 9px; color: #cddaf4; font-size: 13px; line-height: 1.8; }
 #toon-account-layer .ta-status-dot { margin-top: 8px; width: 8px; height: 8px; border-radius: 50%; background: #82ecdf; flex: none; }
