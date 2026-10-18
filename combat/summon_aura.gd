@@ -28,7 +28,7 @@ const THEME := {
 	"elder_dragon": ["spiral", "star", Color("ffe27a"), 18, 0.36, 1.3],
 	"wind_king": ["spiral", "leaf", Color("d8ffe6"), 22, 0.42, 1.5],
 	"poseidon": ["rise", "snow", Color("c8f2ff"), 24, 0.40, 1.1],
-	"fairy": ["orbit", "heart", Color("ffd6f0"), 16, 0.30, 1.2],
+	"fairy": ["orbit", "heart", Color("ff9ed6"), 10, 0.20, 1.2],
 }
 
 
@@ -54,16 +54,19 @@ static func attach(summon: Node3D, kind_id: String, kind: Dictionary, rank: int)
 	_layer(root, int(MODES[theme[0]]), String(theme[1]), tint, int(theme[3]) + stars, float(theme[4]), float(theme[5]), height, hover, body_r)
 	if kind_id == "muspell":
 		_crown(root, color, height, hover)
+	elif kind_id == "fairy":
+		_crown(root, color, height, hover, Color(1.0, 0.75, 0.9))
 
 
-## A soft pulsing glow of the creature's colour behind its body.
+## A soft pulsing glow of the creature's colour behind its body. Small bodies (the
+## fairy bee) get a ~1 m glow instead of the 1.8 m floor that would swallow them.
 static func _halo(root: Node3D, color: Color, height: float, hover: float) -> void:
-	var mat := VfxKit._glow(Color(color.r, color.g, color.b), 0.7, true)
+	var mat := VfxKit._glow(Color(color.r, color.g, color.b), 0.7 if height >= 1.2 else 0.5, true)
 	mat.albedo_texture = VfxArt.texture("flare")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.no_depth_test = false
 	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * clampf(height * 1.7, 1.8, 5.0)
+	quad.size = Vector2.ONE * (clampf(height * 1.0, 0.9, 1.2) if height < 1.2 else clampf(height * 1.7, 1.8, 5.0))
 	var halo := MeshInstance3D.new()
 	halo.name = "Halo"
 	halo.mesh = quad
@@ -98,19 +101,21 @@ static func _layer(root: Node3D, mode: int, texture: String, color: Color, count
 	root.add_child(mi)
 
 
-## A turning halo of light above the head (the guardian penguin).
-static func _crown(root: Node3D, color: Color, height: float, hover: float) -> void:
+## A turning halo of light above the head: gold for the guardian penguin, pink for the
+## fairy ([param glow]), sized to the body so a 1 m bee wears a small ring.
+static func _crown(root: Node3D, color: Color, height: float, hover: float, glow := Color(1.0, 0.92, 0.55)) -> void:
 	var ring := MeshInstance3D.new()
 	ring.name = "Crown"
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.34
-	torus.outer_radius = 0.42
+	var fit := clampf(height / 1.9, 0.55, 1.0)
+	torus.inner_radius = 0.34 * fit
+	torus.outer_radius = 0.42 * fit
 	torus.rings = 16
 	torus.ring_segments = 6
 	ring.mesh = torus
-	ring.material_override = VfxKit._glow(Color(1.0, 0.92, 0.55), 0.95, true)
+	ring.material_override = VfxKit._glow(glow, 0.95, true)
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	ring.position = Vector3(0, hover + height + 0.25, 0)
+	ring.position = Vector3(0, hover + height + 0.25 * fit, 0)
 	ring.rotation_degrees = Vector3(18, 0, 0)
 	root.add_child(ring)
 	var bob := ring.create_tween().set_loops()
