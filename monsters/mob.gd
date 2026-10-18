@@ -27,6 +27,7 @@ var hero: Node3D
 var hostile := false
 var _victim: Node3D
 var _victim_timer := 0.0
+var _taunt_chain: TauntChain
 var is_boss := false
 var visual: MonsterVisual
 
@@ -245,6 +246,13 @@ func taunt(by: Node3D, seconds: float) -> void:
 	_victim_timer = maxf(_victim_timer, seconds)
 	provoke(false)
 	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.7, 0), "ยั่วยุ!", Color("ff9a6a"), 0.7)
+	# The challenge made visible: the monster flares red and a light chain binds it to the shield.
+	if is_instance_valid(visual):
+		visual.flash(Color("ff5a3a"), 0.3)
+	if is_instance_valid(_taunt_chain):
+		_taunt_chain.left = maxf(_taunt_chain.left, seconds)
+	else:
+		_taunt_chain = TauntChain.link(self, by, seconds)
 
 
 func apply_stun(seconds: float) -> void:
@@ -581,6 +589,8 @@ func _die() -> void:
 	_dead = true
 	hostile = false
 	set_targeted(false)
+	if is_instance_valid(_taunt_chain):
+		_taunt_chain.queue_free()
 	_label.visible = false
 	_bar.visible = false
 	_alert.visible = false

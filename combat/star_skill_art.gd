@@ -29,9 +29,12 @@ const MOTIFS := {
 	"arcane_prism":"prism", "crystal_prison":"prison", "astral_convergence":"planets", "genesis_nova":"genesis",
 	"sanctified_chain":"rosary", "seraph_aegis":"seraph", "sacred_sanctuary":"chapel", "dawn_salvation":"sunrise",
 	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan",
-	"titan_shieldbreak":"worldroot", "judgment_rebound":"crown", "eternal_aegis":"phalanx", "heavens_bulwark":"celestial"
+	"titan_shieldbreak":"titan_shield", "judgment_rebound":"crown", "eternal_aegis":"shield_ring", "heavens_bulwark":"titan_shield"
 }
 const SUPPORT := ["eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
+const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
+## The Defender's captured great shield from the latest telegraph/launch, so contacts (which have no caster) can drop the real shield.
+static var _recent_shield: Mesh
 var age := 0.0
 var lifetime := 1.0
 var layers: Array[Dictionary] = []
@@ -92,6 +95,8 @@ func add_mesh(geometry: Mesh, label: String, colors: Dictionary, at: Vector3, si
 	for key in ["primary","accent","shade"]: mat.set_shader_parameter(key,colors[key])
 	mat.set_shader_parameter("opacity",float(style.get("opacity",0.94)))
 	mat.set_shader_parameter("spectral",float(style.get("spectral",0)))
+	# A falling shield or carrier draws after the translucent seals it lands among.
+	if bool(style.get("front",false)): mat.render_priority=1
 	node.material_override=mat
 	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(node)
@@ -168,6 +173,7 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		art.generation_ref=weakref(visual)
 		art.generation=visual.skill_generation
 	_face(art,origin,point)
+	if id in DEFENDER: _recent_shield=equipped_sword(caster)
 	var opts := {"initial":0.12,"grow_time":0.85,"fade_in":0.15,"decay":0.94,"opacity":0.78}
 	var local_target := art.to_local(point)
 	var radius := clampf(float(skill.get("radius",4)),1.5,9.0)
@@ -189,11 +195,11 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 			art.add("lion",colors,Vector3(0,1.5,-0.35),Vector3.ONE*0.75,Vector3.ZERO,time,opts)
 			art.add("fang",colors,Vector3(0,0.08,0),Vector3.ONE*radius*0.6,Vector3.ZERO,time,opts)
 		"titan_shieldbreak", "heavens_bulwark":
-			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*(1.4 if id=="titan_shieldbreak" else 2.2),Vector3.ZERO,time,opts)
-			art.add("celestial" if id=="heavens_bulwark" else "fang",colors,Vector3.UP*0.08,Vector3.ONE*radius*0.7,Vector3.ZERO,time,opts)
+			art.add("shield_ring",colors,Vector3(0,0.1,0),Vector3.ONE*(1.6 if id=="titan_shieldbreak" else 2.4),Vector3.ZERO,time,opts)
+			art.add("titan_shield",colors,Vector3(0,1.6,0.6),Vector3.ONE*(0.8 if id=="titan_shieldbreak" else 1.1),Vector3.ZERO,time,{"initial":0.2,"grow_time":0.8,"fade_in":0.15,"decay":0.95,"travel":Vector3.UP*(0.6 if id=="titan_shieldbreak" else 2.5)})
 		"judgment_rebound":
 			art.add("crown",colors,local_target+Vector3.UP*1.6,Vector3.ONE*0.9,Vector3.ZERO,time,opts)
-			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius*0.8,Vector3.ZERO,time,opts)
+			art.add("shield_ring",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius*0.6,Vector3.ZERO,time,opts)
 		"spiral_impaler":
 			art.add("drill",colors,Vector3(0,1.1,0.6),Vector3.ONE*0.65,Vector3.ZERO,time,{"spin":0,"turn":Vector3(0,0,TAU),"initial":0.15,"grow_time":0.9,"decay":0.95})
 		"worldsplitter":
@@ -239,7 +245,12 @@ static func launch(caster: Node3D, skill: Dictionary, point: Vector3, duration :
 	var angles := Vector3(PI/2,0,0) if kind=="martial/arrow" else Vector3.ZERO
 	var size := Vector3.ONE*(2.0 if id=="leviathan_surge" else 0.7)
 	if kind=="martial/arrow": size=Vector3(0.65,2.5,0.65)
-	art.add(kind,colors,Vector3.ZERO,size,angles,duration,{"initial":1,"travel":travel,"decay":0.98,"spectral":1.0 if id=="arcane_prism" else 0.0})
+	if id=="judgment_rebound":
+		# The Defender's own great shield spins across the field; every carrier of the cast is the same captured mesh.
+		_recent_shield=equipped_sword(caster)
+		art.add_mesh(_recent_shield,"EquippedGreatshield",colors,Vector3.ZERO,Vector3.ONE*1.3,Vector3(-PI/2,0,0),duration,{"initial":1,"travel":travel,"decay":0.98,"spin":16.0,"front":true})
+	else:
+		art.add(kind,colors,Vector3.ZERO,size,angles,duration,{"initial":1,"travel":travel,"decay":0.98,"spectral":1.0 if id=="arcane_prism" else 0.0})
 	art.add("streak",colors,Vector3.ZERO,Vector3(1.0,1.0,1.6),Vector3.ZERO,duration,{"initial":1,"travel":travel,"decay":0.95,"opacity":0.65})
 	if id=="leviathan_surge": art.add("fang",colors,Vector3(0,-1.0,0),Vector3(2.8,1.8,2.8),Vector3.ZERO,duration,{"initial":0.6,"travel":travel,"decay":0.98})
 	if id=="moonpiercer": art.add("moon",colors,Vector3.ZERO,Vector3.ONE*0.9,Vector3(PI/2,0,0),duration,{"initial":1,"travel":travel,"decay":0.95})
@@ -270,7 +281,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("feathers" if id=="dawn_salvation" else "shards",colors,Vector3.UP*0.2,Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,1.5,{"travel":Vector3.UP*0.8})
 			art._draw()
 			return art
-	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign"]:
+	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark"]:
 		art.add("impact",colors,at,Vector3.ONE*1.15,Vector3.ZERO,0.50,{"initial":0.10})
 		art.add("shards",colors,Vector3.UP*0.25,Vector3.ONE*0.75,Vector3.ZERO,0.65,{"travel":Vector3.UP*0.4,"initial":0.7,"orbit":0.12,"orbit_speed":3.0,"pulse":true})
 		art._draw()
@@ -322,22 +333,38 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			if final: art.add("shards",colors,Vector3.UP*0.4,Vector3(1.8,2.6,1.8),Vector3.ZERO,0.85,{"travel":Vector3.UP*0.5})
 			impact_size=2.2 if final else 0.5
 		"titan_shieldbreak":
-			art.add("worldroot",colors,at,Vector3(radius,2.2,radius),Vector3.ZERO,1.3,{"initial":0.15,"grow_time":0.2,"decay":0.62})
-			art.add("martial/fault",colors,at+Vector3.UP*0.015,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.08,"grow_time":0.3})
-			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*1.6,Vector3.ZERO,1.0,{"initial":0.4})
+			# Two slams: the titan shield drops face-down and cracks a crater, then the second blow splits the fault open.
+			if index==0:
+				art.add("titan_shield",colors,Vector3(0,4.9,0),Vector3.ONE*3.2,Vector3(PI/2,0,0),0.9,{"initial":1.0,"travel":Vector3.DOWN*4.2,"accelerate":true,"grow_time":0.01,"decay":0.75,"front":true})
+				art.add("martial/crater",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.2,{"initial":0.1,"grow_time":0.25,"delay":0.1})
+			else:
+				art.add("titan_shield",colors,Vector3(0,0.7,0),Vector3.ONE*3.2,Vector3(PI/2,0,0),0.9,{"initial":1.35,"grow_time":0.12,"decay":0.6,"front":true})
+				art.add("martial/fault",colors,at+Vector3.UP*0.015,Vector3.ONE*radius*1.1,Vector3.ZERO,1.5,{"initial":0.08,"grow_time":0.3})
+				art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.0,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.7})
 			impact_size=radius
 		"judgment_rebound":
-			art.add("crown",colors,Vector3.UP*1.8,Vector3.ONE*1.3,Vector3.ZERO,0.8,{"initial":0.7,"travel":Vector3.UP*0.3,"turn":Vector3(0,1.2,0)})
+			# Every rebound: the great shield rings off the victim under a crown halo.
+			art.add_mesh(_recent_shield if _recent_shield else StarGeometry.mesh("titan_shield"),"ReboundShield",colors,Vector3.UP*1.4,Vector3.ONE*2.0,Vector3(-PI/2,0,0),0.5,{"initial":1.0,"spin":14.0,"decay":0.7,"front":true})
+			art.add("crown",colors,Vector3.UP*2.2,Vector3.ONE*(1.8+index*0.3),Vector3.ZERO,0.8,{"initial":0.7,"travel":Vector3.UP*0.3,"turn":Vector3(0,1.2,0)})
 			art.add("shards",colors,Vector3.UP*0.4,Vector3(radius*0.6,2.4,radius*0.6),Vector3.ZERO,1.0,{"travel":Vector3.UP*0.4})
 			impact_size=radius*0.7
 		"eternal_aegis":
-			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.4,Vector3.ZERO,1.7,{"initial":0.12,"fade_in":0.08})
-			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.7,{"initial":0.5,"spin":0.15})
+			art.add("shield_ring",colors,Vector3(0,0.1,0),Vector3.ONE*radius*0.55,Vector3.ZERO,1.7,{"initial":0.12,"fade_in":0.08,"spin":0.1})
+			art.add_mesh(EliteSkillArt.geometry("aegis"),"AegisDome",colors,at,Vector3.ONE*radius*0.9,Vector3.ZERO,1.7,{"initial":0.55,"grow_time":0.22,"opacity":0.7,"spin":0.15})
+			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.7,{"initial":0.5,"spin":-0.1})
 			impact_size=radius
 		"heavens_bulwark":
-			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.6,{"initial":0.6,"spin":0.2})
-			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.6,Vector3.ZERO,1.4,{"initial":0.2})
-			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.4,radius*0.7),Vector3.ZERO,1.6,{"travel":Vector3.UP*0.7})
+			# Four titan shields fall around the centre, one per beat; the last beat chains the field to the Defender.
+			var spot := Vector3(sin(index*TAU/4.0),0,cos(index*TAU/4.0))*radius*0.5
+			art.add("titan_shield",colors,spot+Vector3.UP*0.7,Vector3.ONE*3.0,Vector3(PI/2,0,0),1.0,{"initial":1.3,"grow_time":0.12,"decay":0.65,"front":true})
+			art.add("martial/crater",colors,spot+Vector3.UP*0.06,Vector3.ONE*4.0,Vector3.ZERO,1.2,{"initial":0.1,"grow_time":0.25})
+			if index<3:
+				var next := Vector3(sin((index+1)*TAU/4.0),0,cos((index+1)*TAU/4.0))*radius*0.5
+				art.add("titan_shield",colors,next+Vector3.UP*7.0,Vector3.ONE*3.0,Vector3(PI/2,0,0),0.36 if index<2 else 0.48,{"initial":1.0,"grow_time":0.01,"travel":Vector3.DOWN*6.2,"accelerate":true,"decay":0.98,"front":true})
+			else:
+				art.add_mesh(EliteSkillArt.geometry("chains"),"BulwarkChains",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.6,{"initial":0.2,"grow_time":0.3})
+				art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.6,{"initial":0.6,"spin":0.2})
+			art.add("shards",colors,spot+Vector3.UP*0.3,Vector3(2.2,3.0,2.2),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.7})
 			impact_size=radius
 		"aegis_formation":
 			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.0,Vector3.ZERO,1.5,{"initial":0.15,"fade_in":0.08})
@@ -429,7 +456,11 @@ static func buff(caster: Node3D, skill: Dictionary, duration: float) -> StarSkil
 	if id=="sacred_sanctuary": scale_v=Vector3(1.4,0.5,1.4)
 	art.add(kind,colors,Vector3(0,y,-0.35),scale_v,Vector3.ZERO,duration,{"initial":0.45,"fade_in":0.01,"decay":0.98,"opacity":0.70,"spin":0.4 if id in ["sylph_step","spirit_court"] else 0.0,"pulse":true})
 	if VfxBudget.quality()>0:
-		art.add("moon" if id=="sylph_step" else "reticle",colors,Vector3.UP*0.06,Vector3.ONE*0.85,Vector3.ZERO,duration,{"initial":0.8,"fade_in":0.01,"decay":0.98,"opacity":0.40,"spin":-0.15})
+		if id=="eternal_aegis":
+			# The aegis dome over the whole party follows the caster for the buff's life.
+			art.add_mesh(EliteSkillArt.geometry("aegis"),"AegisDome",colors,Vector3(0,0.05,0),Vector3.ONE*minf(float(skill.get("radius",8.0)),8.0),Vector3.ZERO,duration,{"initial":0.3,"grow_time":0.06,"fade_in":0.01,"decay":0.98,"opacity":0.32,"spin":0.08,"pulse":true})
+		else:
+			art.add("moon" if id=="sylph_step" else "reticle",colors,Vector3.UP*0.06,Vector3.ONE*0.85,Vector3.ZERO,duration,{"initial":0.8,"fade_in":0.01,"decay":0.98,"opacity":0.40,"spin":-0.15})
 	art._draw()
 	return art
 
