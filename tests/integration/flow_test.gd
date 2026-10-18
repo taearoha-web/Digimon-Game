@@ -206,6 +206,12 @@ func _play_class(class_id: StringName) -> void:
 			hero.use_potion("hp")
 		Game.profile.mp = maxi(Game.profile.mp, 30)
 	check(_alive(pack) == 0, "pack defeated in %.1fs (hp %d/%d)" % [elapsed, Game.profile.hp, hero.stats.max_hp])
+	if _alive(pack) > 0:
+		# What the fight looked like when it stalled (this check fails now and then on CI).
+		print("  pack stalled: hero at %s target %s engaged %s auto %s | moves active %d | mobs in 16 m %d" % [hero.global_position, hero.target.name if hero.target else "none", hero.engaged, hero.auto, MobAttack.active_count(), hero.mobs_in_range().size()])
+		for m in pack:
+			if is_instance_valid(m):
+				print("  pack: %s hp %d/%d hostile %s dormant %s winding %s stun %.1f returning %s dist %.1f y %.2f" % [m.monster_id, m.hp, m.max_hp, m.hostile, m.is_dormant(), m._winding, m._stun, m._returning, hero.global_position.distance_to(m.global_position), m.global_position.y])
 	await _wait(2.0)
 	check(Game.profile.exp > exp_before or Game.profile.level > level_before, "EXP gained")
 	check(Game.profile.gold > gold_before, "gold picked up (%d -> %d)" % [gold_before, Game.profile.gold])
@@ -1502,7 +1508,13 @@ func _goals() -> void:
 	check(d.quests.size() == 3, "three daily quests")
 	var again := Game.daily()
 	check(again.quests[0].id == d.quests[0].id, "daily quests stay the same within a day")
+	# The day's set is seeded by the date; "zone_kills" only counts out in a field, so take
+	# the first daily that can progress from the village.
 	var entry: Dictionary = d.quests[0]
+	for candidate in d.quests:
+		if Game.daily_template(candidate.id).kind != "zone_kills":
+			entry = candidate
+			break
 	var kind: String = Game.daily_template(entry.id).kind
 	Game.daily_progress(kind, 9999)
 	check(int(entry.progress) >= Game.daily_target(entry), "daily progress completes")
