@@ -71,7 +71,9 @@ static var _skin_shader: Shader
 
 
 static func default_look() -> Dictionary:
-	return {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0, "outfit": 0}
+	var look := {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0, "outfit": 0}
+	look.merge(ChibiLook.defaults())
+	return look
 
 
 static func option_count(key: String, gender: int) -> int:
@@ -93,6 +95,9 @@ static func random_look(rng: RandomNumberGenerator) -> Dictionary:
 	look["gender"] = rng.randi() % 2
 	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth", "outfit"]:
 		look[key] = rng.randi() % option_count(key, int(look["gender"]))
+	# Rivals and fighters wear one of the chibi styles, picked from the values above
+	# so the random sequence (and every seeded guild war) is unchanged.
+	ChibiLook.apply_style(look, int(look["hair"]) % ChibiLook.count("style"))
 	return look
 
 
@@ -105,6 +110,7 @@ static func repair(look: Dictionary) -> Dictionary:
 	out["gender"] = clampi(int(out["gender"]), 0, 1)
 	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth", "outfit"]:
 		out[key] = clampi(int(out[key]), 0, option_count(key, int(out["gender"])) - 1)
+	ChibiLook.repair_into(out, look)
 	return out
 
 

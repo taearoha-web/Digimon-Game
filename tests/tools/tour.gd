@@ -46,10 +46,7 @@ func run() -> void:
 	await _wait(0.8)
 	await _shot("class_select")
 	main.class_screen._set_gender(1)
-	main.class_screen.look["hair"] = 1
-	main.class_screen.look["skin"] = 5
-	main.class_screen.look["mouth"] = 2
-	main.class_screen._refresh()
+	main.class_screen._set_style(1)
 	await _wait(0.6)
 	await _shot("class_select_mage")
 	if tour == "faces":
