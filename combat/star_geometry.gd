@@ -2,7 +2,7 @@ class_name StarGeometry
 extends RefCounted
 ## Fixed vocabulary for the twenty-four astral skills. Every recipe is merged
 ## into one indexed surface; casts share these meshes and never bake particles.
-const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers"
+const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring"
 static var cache: Dictionary = {}
 
 static func warm() -> void:
@@ -272,6 +272,24 @@ static func mesh(kind: String) -> ArrayMesh:
 				var a := float(i)*2.399963
 				var r := 0.25+float(i%5)*0.16
 				_gem(st,Vector3(sin(a)*r,0.05+float(i%4)*0.21,cos(a)*r),Vector3(0.025,0.09+float(i%3)*0.02,0.025),Vector3(sin(a)*0.6,0,cos(a)*0.6),0.2+float(i%4)*0.25)
+		"titan_shield":
+			# The colossal heater of the Defender's star skills: the great shield with a spiked rim, flanges and a sun boss.
+			EliteSkillArt._append(st,EliteSkillArt.geometry("greatshield"),Vector3.ZERO,Vector3.ONE,Vector3.ZERO,0.25)
+			for i in 10:
+				var a := -1.1+2.2*float(i)/9.0
+				_gem(st,Vector3(sin(a)*0.98,cos(a)*0.98,0.1),Vector3(0.09,0.24,0.06),Vector3(0,0,-a),0.9)
+			for s in [-1.0,1.0]:
+				MartialGeometry.feather(st,Vector3(s*0.7,0.45,0.05),Vector3(s*1.35,0.9,0.0),0.16,0.6)
+				MartialGeometry.feather(st,Vector3(s*0.75,0.2,0.05),Vector3(s*1.2,0.35,0.0),0.11,0.35)
+			_orb(st,Vector3(0,0.1,0.27),Vector3(0.26,0.26,0.1),0.95)
+			_gem(st,Vector3(0,1.18,0.05),Vector3(0.12,0.32,0.08),Vector3.ZERO,1)
+		"shield_ring":
+			# Twelve small shields facing out around a seal: the ward of the shield wall.
+			_seal(st,16,0.9)
+			_ring(st,1.12,0,0.02,1)
+			for i in 12:
+				var a := TAU*i/12.0
+				EliteSkillArt._append(st,EliteSkillArt.geometry("greatshield"),Vector3(sin(a),0.28,cos(a))*Vector3(1.02,1,1.02),Vector3(0.22,0.26,0.2),Vector3(0,a,0),0.35+float(i%2)*0.4)
 		"feathers":
 			for i in 12:
 				var a := float(i)*2.399963

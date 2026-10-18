@@ -54,6 +54,7 @@ var _combo := 0
 var _cast_until := 0
 var _since_hurt := 99.0
 var _slow_until := 0
+var _reflect_ms := 0
 var _regen_hp := 0.0
 var _regen_mp := 0.0
 var _dead := false
@@ -1057,6 +1058,20 @@ func _reflect(taken: int, attacker: Node) -> void:
 	attacker.take_hit(back, false, Color("ffb46a"), null)
 	if attacker is Node3D:
 		VfxKit.sparks(field, (attacker as Node3D).global_position + Vector3(0, 1.0, 0), Color("ffb46a"), 8, 3.0, 0.35)
+		_reflect_flash(attacker as Node3D)
+
+
+## The mirror on the shield: a flash at the great shield and a spark lane racing
+## back to the attacker. Rate-limited so a crowd of hits stays one flash.
+func _reflect_flash(attacker: Node3D) -> void:
+	var now := Time.get_ticks_msec()
+	if now - _reflect_ms < 150 or not is_instance_valid(visual) or not VfxBudget.can_decorate(3):
+		return
+	_reflect_ms = now
+	var shield := visual.skill_emission_position()
+	VfxKit.flash(field, shield, Color("fff1c8"), 1.6, 0.18)
+	VfxArt.star_flash(field, shield, Color("ffd27a"), 1.5, 0.3)
+	ClassFlourish._lance_streak(field, shield, attacker.global_position + Vector3.UP, Color("ffb46a"), Color("fff1c8"), 0.5, 0.3)
 
 
 func _die() -> void:

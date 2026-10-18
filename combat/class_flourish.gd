@@ -184,8 +184,10 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 	var family := SkillShow.family_of(skill)
 	VfxArt.crest(parent, origin, c[0], family, 1.1 * s, duration + 0.15, randf() * TAU)
 	_motes(parent, origin, c[1], "light", int(8 + 10 * power(skill)), 0.9 * s, 0.2, duration + 0.35)
-	if family in ["warrior", "vagabond", "lancer", "defender"] and power(skill) >= 0.3:
+	if family in ["warrior", "vagabond", "lancer"] and power(skill) >= 0.3:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 1.2 * s, duration, c[1], c[2])
+	elif family == "defender" and power(skill) >= 0.3:
+		_shield_wave(parent, origin, 0.0, c, 1.6 * s, duration + 0.1)
 
 
 ## Release: called once per cast by SkillShow.play (hero, companions, rivals).
@@ -288,11 +290,14 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 			_motes(parent, at, c[1], "leaf", int(8 + 8 * p), 0.7 * s, 0.3, 0.8)
 		"leaf":
 			VfxArt.bloom(parent, ground, c[0], "leaf", 0.9 * s, 6, 0.7, randf() * TAU)
-	if family in ["warrior", "vagabond", "lancer", "defender"] and _room(2):
+	if family in ["warrior", "vagabond", "lancer"] and _room(2):
 		# A crossing pair of energy cuts stamped on the victim, across the blow.
 		var yaw := atan2(forward.x, forward.z) + PI * 0.5
 		_crescent(parent, at, yaw, 1.1, c[0], c[1], 1.3 * s * weight, 0.0, 0.6, c[2])
 		_crescent(parent, at, yaw + 0.4, -1.1, c[0], c[1], 1.1 * s * weight, 0.05, -0.6, c[2])
+	elif family == "defender" and _room(2):
+		# One plate of the great shield flashes on the victim: a blow with the face, not a cut.
+		_plate_flash(parent, at, atan2(forward.x, forward.z), c, 0.8 * s * weight)
 
 
 ## Star skills (non-mage): every contact beat of StarSkillSequence gets the
@@ -341,9 +346,9 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 0.9, c[2].lerp(c[0], 0.5), c[1], 2.2 * s, 0.06, -1.3, c[2])
 			_slam(parent, ground, c[0], radius * 0.7, c[1], c[2])
 		"defender":
-			# The great shield comes down: a heavy slam and a wall of light ringing it.
+			# The great shield comes down: a heavy slam and a shield-outline wave spreading from it.
 			_slam(parent, ground, c[0], radius * 0.8, c[1], c[2])
-			VfxArt.rune_circle(parent, ground, c[1], radius * 0.6, 0.8, 0.6)
+			_shield_wave(parent, ground, yaw, c, radius * 0.9, 0.7)
 		"lancer":
 			if flat.length() > 1.0 and _room(4):
 				_lance_streak(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], c[1], 1.5, 0.4)
@@ -481,11 +486,17 @@ static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3
 	var recipe := String(SkillArtDirection.RECIPES.get(id, ["cut"])[0])
 	var cross := recipe in ["crosscut", "guard"] or p >= 0.6
 	var elite := EliteSkillArt.handles(skill)
+	var defender := SkillShow.family_of(skill) == "defender"
 	var layers := 2 + int(p * 2.0)
-	for i in layers:
-		var tilt: float = [-0.7, 0.8, -0.2, 0.45][i % 4]
-		_crescent(parent, at + Vector3.UP * 0.12 * i, yaw + randf_range(-0.2, 0.2), tilt, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.25 + 0.15 * i) * s, i * 0.05, 1.2 if i % 2 == 0 else -1.2, c[2])
-	if cross:
+	if defender:
+		# The shield face lands flat on the victim and its outline rolls over the ground.
+		_plate_flash(parent, at, yaw, c, 1.1 * s)
+		_shield_wave(parent, ground, yaw, c, 2.4 * s, 0.6)
+	else:
+		for i in layers:
+			var tilt: float = [-0.7, 0.8, -0.2, 0.45][i % 4]
+			_crescent(parent, at + Vector3.UP * 0.12 * i, yaw + randf_range(-0.2, 0.2), tilt, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.25 + 0.15 * i) * s, i * 0.05, 1.2 if i % 2 == 0 else -1.2, c[2])
+	if cross and not defender:
 		VfxArt.cross_slash(parent, at, yaw, c[1], 1.5 * s)
 	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.26)
 	# The cut lands: the line's stamp, a puff of dust and a ring at the feet.
@@ -557,7 +568,11 @@ static func _whirl(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3,
 	var family := SkillShow.family_of(skill)
 	var r := minf(radius, 9.0)
 	var at := origin + Vector3.UP * 0.9
-	if family in ["warrior", "vagabond", "lancer", "defender"] or String(skill.get("special", "")) == "spin":
+	if family == "defender":
+		# Expanding shield-outline rings instead of sword crescents.
+		for i in 3:
+			_shield_wave(parent, origin + Vector3.UP * 0.35 * i, TAU * float(i) / 3.0, c, r * (0.55 + 0.25 * i), 0.55 + 0.1 * i, i * 0.07)
+	elif family in ["warrior", "vagabond", "lancer"] or String(skill.get("special", "")) == "spin":
 		var count := 3 + int(p * 3.0)
 		for i in count:
 			_crescent(parent, at + Vector3.UP * (0.15 * (i % 2)), TAU * float(i) / float(count), 0.15 * (1 if i % 2 == 0 else -1), c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], r * 0.62, i * 0.04, 2.2, c[2])
@@ -605,7 +620,8 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 	if p >= 0.75:
 		VfxArt.rune_circle(parent, ground, c[2].lerp(c[0], 0.5), r * 0.85, 1.1, -1.0)
 	_wave(parent, ground + Vector3.UP * 0.1, c[0], r, c[1], c[2])
-	VfxKit.flash(parent, ground + Vector3.UP * 1.0, c[1], 3.4 * s, 0.32)
+	# The Defender's landing keeps its shield readable under a smaller flash.
+	VfxKit.flash(parent, ground + Vector3.UP * 1.0, c[1], (2.0 if family == "defender" else 3.4) * s, 0.32)
 	if String(skill.get("special", "")) == "rain":
 		_arrow_storm(parent, skill, c, ground, r, 6 + int(p * 10.0))
 	match style:
@@ -699,9 +715,13 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 		VfxArt.rune_circle(parent, origin, c[2].lerp(c[0], 0.5), 2.1 * s, 1.2, 1.0)
 	VfxKit.pillar(parent, origin, c[0], 5.0 + 4.0 * p, 1.4 * s, 0.9, c[1])
 	match family:
-		"warrior", "lancer", "defender":
+		"warrior", "lancer":
 			for i in 3:
 				_crescent(parent, origin + Vector3.UP * (0.5 + 0.55 * i), TAU * float(i) / 3.0, 0.2, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.5 - 0.15 * i) * s, 0.05 * i, 2.4, c[2])
+		"defender":
+			# Shield outlines climb the column: the wall of light rising around the Defender.
+			for i in 3:
+				_shield_wave(parent, origin + Vector3.UP * (0.25 + 0.5 * i), TAU * float(i) / 3.0, c, (1.6 - 0.2 * i) * s, 0.7, 0.06 * i)
 		"mage":
 			var halo := Node3D.new()
 			parent.add_child(halo)
@@ -839,6 +859,25 @@ static func _crescent(parent: Node3D, at: Vector3, yaw: float, tilt: float, colo
 	tween.tween_method(func(v: float): mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.2).set_delay(0.16)
 	tween.tween_property(glow_mat, "albedo_color:a", 0.0, 0.28).set_delay(0.08)
 	tween.chain().tween_callback(blade.queue_free)
+
+
+## The Defender's language: a shield-outline wave (the heater rim drawn flat)
+## spreading over the ground at [param at], and a plate of the great shield
+## flashing on a victim. Both are single relief layers in the flourish palette.
+static func _shield_wave(parent: Node3D, at: Vector3, yaw: float, c: Array, size: float, seconds: float, delay := 0.0) -> void:
+	if not _room(2):
+		return
+	var art := _relief(parent, at, yaw, seconds + delay, "ShieldWave")
+	art.layer("shield_outline", _look(c), Vector3(0, 0.07, 0), Vector3.ONE * size, Vector3.ZERO, delay, seconds, Vector3.ZERO, 0.0, 0.15, false, {"decay": 0.45})
+	art._draw()
+
+
+static func _plate_flash(parent: Node3D, at: Vector3, yaw: float, c: Array, size: float) -> void:
+	if not _room(2):
+		return
+	var art := _relief(parent, at, yaw, 0.6, "ShieldPlate")
+	art.layer("greatshield", _look(c), Vector3(0, 0.1, -0.3), Vector3.ONE * size, Vector3(0.2, 0, 0), 0.0, 0.6, Vector3(0, 0.15, 0.25), 0.0, 0.5, false, {"decay": 0.65, "front": true})
+	art._draw()
 
 
 ## A lance of flowing energy from [param from] to [param to] in the skill's
