@@ -64,6 +64,19 @@ static func _alive(parent: Node3D) -> bool:
 	return is_instance_valid(parent) and parent.is_inside_tree() and not parent.is_queued_for_deletion()
 
 
+## A short-lived EliteSkillArt root inside the holder, facing [param yaw]: the
+## elite mesh library (feathers, lanes, spears, branches, the martial bow and
+## sweep) at every level, in the flourish palette. Freed with the holder.
+static func _relief(parent: Node3D, at: Vector3, yaw: float, seconds: float, label: String) -> EliteSkillArt:
+	var art := EliteSkillArt._root(parent, at, seconds, "Relief_" + label)
+	art.rotation.y = yaw
+	return art
+
+
+static func _look(c: Array) -> Dictionary:
+	return {"primary": c[0], "accent": c[1], "shade": c[2]}
+
+
 ## The authored palette triple [primary, accent, shade] (SkillArtDirection,
 ## BuffArt for lasting buffs, StarSkillArt for star skills): saturated body,
 ## bright core, dark edge. Nothing here drifts towards cream.
@@ -192,6 +205,8 @@ static func cast(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	var flat := Vector3(center.x - origin.x, 0.0, center.z - origin.z)
 	var yaw := atan2(flat.x, flat.z) if flat.length_squared() > 0.01 else 0.0
 	var family := SkillShow.family_of(skill)
+	if family == "archer":
+		_bow_flash(parent, origin, yaw, c, s)
 	match String(skill.shape):
 		"self":
 			_ascend(parent, skill, c, origin, s)
@@ -312,6 +327,7 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			if index == 0:
 				var at := ground if String(skill.shape) == "self" else feet
 				_star_ascend(parent, c, at, s, family, apex)
+				_legend_arrival(parent, skill, at, s)
 			return
 	if apex and index == 0:
 		_apex(parent, c, ground, radius, family)
@@ -370,6 +386,39 @@ static func _star_ascend(parent: Node3D, c: Array, at: Vector3, s: float, family
 		_apex(parent, c, at, 6.0, family)
 
 
+## The legends arrive in their own element, bigger with the star count: Poseidon
+## rises on pillars of tide inside rings of waves and spray; the Wind Monkey
+## King lands inside a gale that tears the leaves off the ground.
+static func _legend_arrival(parent: Node3D, skill: Dictionary, at: Vector3, s: float) -> void:
+	match String(skill.id):
+		"eclipse_sovereign":
+			var tide: Array = SkillArtDirection.PALETTES.tide
+			var phase := randf() * TAU
+			for i in 6:
+				var angle := phase + TAU * float(i) / 6.0
+				var spot := at + Vector3(cos(angle), 0.0, sin(angle)) * 2.6 * s
+				parent.create_tween().tween_interval(0.06 * i).finished.connect(func():
+					if _alive(parent):
+						_colour_column(parent, spot, tide, 0.75 * s, 9.0 + 3.0 * s)
+						VfxArt.star_flash(parent, spot + Vector3.UP * 0.5, tide[1], 1.8, 0.35), CONNECT_ONE_SHOT)
+			_wave(parent, at + Vector3.UP * 0.1, tide[0], 4.5 * s, tide[1], tide[2])
+			_late_wave(parent, at, tide[1], 3.4 * s, 0.2, Color.WHITE, tide[2])
+			_late_wave(parent, at, tide[0], 5.2 * s, 0.42, tide[1], tide[2])
+			_motes(parent, at, tide[1], "snow", 32, 2.6 * s, 0.0, 1.9)
+			ShaderBurst.emit(parent, at + Vector3.UP * 0.3, tide[1], "diamond", 30, "rise", 5.5, 2.0 * s, 1.3, 0.3)
+		"moonwolf_pact":
+			var gale: Array = SkillArtDirection.PALETTES.gale
+			var leaf: Color = SkillArtDirection.PALETTES.grove[0]
+			VfxKit.vortex(parent, at, gale[0], 5.0 + 1.5 * s, 1.1)
+			if _room(2):
+				VfxArt.ribbon_spiral(parent, at, leaf, 5.0, 3.0, 1.0, 1.6 * s)
+			_wave(parent, at + Vector3.UP * 0.1, gale[0], 3.6 * s, gale[1], gale[2])
+			_motes(parent, at, leaf, "leaf", 44, 2.4 * s, 0.5, 1.7)
+			_motes(parent, at, gale[1], "leaf", 28, 1.4 * s, 1.8, 1.4)
+			ShaderBurst.emit(parent, at + Vector3.UP * 0.4, leaf, "leaf", 36, "rise", 5.0, 1.8 * s, 1.7, 0.6, 1.5)
+			ShaderBurst.emit(parent, at + Vector3.UP * 2.5, SkillArtDirection.PALETTES.grove[1], "leaf", 24, "burst", 4.0, 1.0 * s, 1.4, 0.5, 1.0)
+
+
 ## The 200-star opening: a seal in the sky, a crown of eight columns, a double
 ## wave across the whole area and the line's crest burning on the ground.
 static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: String) -> void:
@@ -420,24 +469,44 @@ static func flight_glow(root: Node3D, skill: Dictionary, size := 1.0) -> void:
 # Shapes
 # ---------------------------------------------------------------------------
 
-## Melee single target: layered energy crescents through the foe, a cross for
-## the heavy cuts, a ground break for stuns and the strongest blows.
+## Melee single target: grounded cuts. Energy crescents anchored on the foe
+## along the blow, a cross for the heavy cuts, the line's stamp, dust and a
+## ring at the feet; from Lv.40 the martial sweep and cut of the elite look,
+## a ground break for stuns and the strongest blows.
 static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3, yaw: float, s: float) -> void:
 	var p := power(skill)
-	var at := center + Vector3.UP * 1.0
-	var recipe := String(SkillArtDirection.RECIPES.get(String(skill.id), ["cut"])[0])
-	var layers := 2 + int(p * 3.0)
+	var id := String(skill.id)
+	var ground := Vector3(center.x, 0.0, center.z)
+	var at := center + Vector3.UP * 0.6
+	var recipe := String(SkillArtDirection.RECIPES.get(id, ["cut"])[0])
+	var cross := recipe in ["crosscut", "guard"] or p >= 0.6
+	var elite := EliteSkillArt.handles(skill)
+	var layers := 2 + int(p * 2.0)
 	for i in layers:
-		var tilt: float = [-0.95, 0.95, -0.25, 0.55, -1.35][i % 5]
-		_crescent(parent, at, yaw + PI * 0.5 + randf_range(-0.3, 0.3), tilt, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (2.2 + 0.25 * i) * s, i * 0.06, 1.2 if i % 2 == 0 else -1.2, c[2])
-	if recipe in ["crosscut", "guard"] or p >= 0.6:
-		VfxArt.cross_slash(parent, at, yaw + PI * 0.5, c[1], 2.6 * s)
-	VfxKit.flash(parent, at, c[1], 3.2 * s, 0.3)
-	_element(parent, skill, c, Vector3(center.x, 0.0, center.z), 1.6 * s)
+		var tilt: float = [-0.7, 0.8, -0.2, 0.45][i % 4]
+		_crescent(parent, at + Vector3.UP * 0.12 * i, yaw + randf_range(-0.2, 0.2), tilt, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.25 + 0.15 * i) * s, i * 0.05, 1.2 if i % 2 == 0 else -1.2, c[2])
+	if cross:
+		VfxArt.cross_slash(parent, at, yaw, c[1], 1.5 * s)
+	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.26)
+	# The cut lands: the line's stamp, a puff of dust and a ring at the feet.
+	if _room(2):
+		SkillInk.mark(parent, SkillShow.profile_for(skill), ground + Vector3.UP * 0.03, 1.0 * s, 0.55, 1)
+	ShaderBurst.emit(parent, ground + Vector3.UP * 0.15, Color("d8c0a0"), "smoke", 12, "burst", 2.0 * s, 0.4, 0.7, 0.7, 2.5)
+	VfxKit.impact_ring(parent, ground + Vector3.UP * 0.05, c[0], 1.4 * s, 0.4, c[1], c[2])
+	# Elite cuts already carry their own sculpted sword and fractures.
+	if p >= 0.4 and not elite and _room(3):
+		var art := _relief(parent, ground, yaw, 0.8, id)
+		var look := _look(c)
+		art.layer("martial/sweep", look, Vector3(0, 0.9, 0.3), Vector3.ONE * 1.1 * s, Vector3(0.12, 0, 0.1), 0.0, 0.6, Vector3.ZERO, 3.2, 0.55, false, {"martial": true, "opacity": 0.9, "decay": 0.4})
+		art.layer("cut", look, Vector3(0, 1.0, 0.3), Vector3.ONE * 1.5 * s, Vector3(0, 0, 0.7 if cross else -0.3), 0.04, 0.6, Vector3(0, 0, 0.5), 0.0, 0.6)
+		if cross:
+			art.layer("martial/cross", look, Vector3(0, 0.12, 0), Vector3.ONE * 1.3 * s, Vector3.ZERO, 0.0, 0.8, Vector3.ZERO, 0.0, 0.2, false, {"martial": true})
+		art._draw()
+	_element(parent, skill, c, ground, 1.6 * s)
 	if skill.get("fx", {}).has("stun") or recipe in ["quake", "guard"] or p >= 0.5:
-		_slam(parent, Vector3(center.x, 0.0, center.z), c[0], 2.2 * s, c[1], c[2])
-	if p >= 0.8 and _room(4):
-		_sky(parent, Vector3(center.x, 0.0, center.z), c[0], 0.9 * s, 12.0, 0.5, c[1])
+		_slam(parent, ground, c[0], 2.2 * s, c[1], c[2])
+	if p >= 0.8 and not elite and _room(4):
+		_sky(parent, ground, c[0], 0.9 * s, 12.0, 0.5, c[1])
 
 
 ## Lancer thrust: a lance of light down the spear line, rings racing along it,
@@ -458,10 +527,17 @@ static func _thrust(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 				_spear_ring(parent, at, forward, c[0], (0.9 + 0.25 * i) * s), CONNECT_ONE_SHOT)
 	VfxKit.flash(parent, center + Vector3.UP, c[1], 3.0 * s, 0.28)
 	VfxKit.star_burst(parent, tip, c[0], 1.8 * s)
+	if not EliteSkillArt.handles(skill) and _room(3):
+		# The elite lane fractures under the thrust and a spear of light rides it to the tip.
+		var art := _relief(parent, Vector3(origin.x, 0.0, origin.z), yaw, 1.0, String(skill.id))
+		var look := _look(c)
+		art.layer("lane", look, Vector3(0, 0.08, 0), Vector3(0.9 + 0.5 * p, length / 10.0, length / 10.0), Vector3.ZERO, 0.0, 0.9, Vector3.ZERO, 0.0, 0.4)
+		art.layer("spear", look, Vector3(0, 1.1, 0.6), Vector3(0.7 + 0.5 * p, 2.2 + 1.2 * p, 0.7 + 0.5 * p) * s * 0.6, Vector3(PI * 0.5, 0, 0), 0.0, 0.45, Vector3(0, 0, length), 0.0, 0.8, false, {"decay": 0.5})
+		art._draw()
 	_element(parent, skill, c, Vector3(center.x, 0.0, center.z), 1.5 * s)
 	if skill.get("fx", {}).has("stun"):
 		_slam(parent, Vector3(center.x, 0.0, center.z), c[0], 2.0 * s, c[1], c[2])
-	if p >= 0.7 and _room(4):
+	if p >= 0.3 and _room(4):
 		var mid := (start + tip) * 0.5
 		var spiral := Node3D.new()
 		parent.add_child(spiral)
@@ -554,30 +630,60 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 		_slam(parent, ground, c[0], r * 0.8, c[1], c[2])
 
 
-## Fan: a flare at the bow / hand and a spread of streaks along every lane.
+## Fan: a flare at the bow / hand and a spread of streaks along every lane
+## (the archer's lanes in gale and gold, every other line in its own palette).
 static func _volley(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3, yaw: float, s: float) -> void:
 	_release(parent, skill, c, origin, yaw, s)
 	var hits := clampi(int(skill.get("hits", 3)), 3, 10)
 	var reach := minf(float(skill.get("range", 10.0)) * 0.55, 7.0)
 	var start := origin + Vector3.UP * 1.2
+	var archer := SkillShow.family_of(skill) == "archer"
+	var lane: Color = SkillArtDirection.PALETTES.gale[0] if archer else c[0]
+	var tip: Color = SkillArtDirection.PALETTES.gold[1] if archer else c[1]
 	for i in hits:
 		if not _room(2):
 			break
 		var angle := yaw + (float(i) - float(hits - 1) * 0.5) * (0.9 / float(hits))
 		var dir := Vector3(sin(angle), 0.0, cos(angle))
-		_lance_streak(parent, start + dir * 0.6, start + dir * reach, c[0], c[1], 0.22 + power(skill) * 0.18, 0.28)
+		_lance_streak(parent, start + dir * 0.6, start + dir * reach, lane, tip, 0.22 + power(skill) * 0.18, 0.28)
 
 
-## Projectile release: a flare and a ring of force at the bow, wand or lantern.
+## Projectile release: a flare and a ring of force at the bow, wand or lantern,
+## growing with the level. Mages add a burst of shards and a second ring; the
+## archer's arrow leaves a gale-and-gold lane.
 static func _release(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3, yaw: float, s: float) -> void:
+	var p := power(skill)
 	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
 	var at := origin + Vector3.UP * 1.25 + forward * 0.7
-	VfxKit.flash(parent, at, c[1], 2.2 * s, 0.24)
-	VfxArt.star_flash(parent, at, c[0], 2.4 * s, 0.32)
+	VfxKit.flash(parent, at, c[1], (1.6 + 1.4 * p) * s, 0.24)
+	VfxArt.star_flash(parent, at, c[0], (1.8 + 1.4 * p) * s, 0.32)
 	if _room(1):
-		_spear_ring(parent, at, forward, c[0], 0.9 * s)
-	if power(skill) >= 0.4:
-		_sparks(parent, at, c[1], int(10 + 14 * power(skill)), 4.0 * s, 0.4)
+		_spear_ring(parent, at, forward, c[0], (0.7 + 0.6 * p) * s)
+	if p >= 0.4:
+		_sparks(parent, at, c[1], int(10 + 14 * p), 4.0 * s, 0.4)
+	match SkillShow.family_of(skill):
+		"mage":
+			_motes(parent, at, c[1], "diamond", int(6 + 12 * p), 0.5 * s, 0.0, 0.7)
+			if p >= 0.3 and _room(2):
+				parent.create_tween().tween_interval(0.08).finished.connect(func():
+					if _alive(parent):
+						_spear_ring(parent, at + forward * 0.4, forward, c[2].lerp(c[0], 0.5), (1.0 + 1.0 * p) * s), CONNECT_ONE_SHOT)
+		"archer":
+			if String(skill.shape) == "single" and _room(2):
+				var reach := minf(float(skill.get("range", 10.0)) * 0.5, 6.0)
+				_lance_streak(parent, at, at + forward * reach, SkillArtDirection.PALETTES.gale[0], SkillArtDirection.PALETTES.gold[1], 0.3 + 0.2 * p, 0.3)
+
+
+## The bow blazes at the hand on every archer release: the martial bow of the
+## elite look, briefly, and a sparkle at the grip.
+static func _bow_flash(parent: Node3D, origin: Vector3, yaw: float, c: Array, s: float) -> void:
+	if not _room(2):
+		return
+	var hand := origin + Vector3.UP * 1.3
+	var art := _relief(parent, hand, yaw, 0.5, "bow")
+	art.layer("martial/bow", _look(c), Vector3(0, 0, 0.55), Vector3.ONE * (0.7 + 0.15 * s), Vector3(0, 0, PI * 0.5), 0.0, 0.45, Vector3.ZERO, 0.0, 0.75, false, {"martial": true, "opacity": 0.9, "decay": 0.3})
+	art._draw()
+	VfxArt.star_flash(parent, hand + Vector3(sin(yaw), 0.0, cos(yaw)) * 0.55, c[1], 1.4 * s, 0.3)
 
 
 ## Buffs and heals: the line's crest blazes under the caster and a column of
@@ -614,19 +720,50 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 	_motes(parent, origin, c[1], "heart" if heal else "light", int(12 + 14 * p), 1.0 * s, 0.3, 1.4)
 	if p >= 0.5:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 2.4 * s, 0.6, c[1], c[2])
+	if heal or family == "priest":
+		_grace(parent, skill, c, origin, s, p)
 	# Elite buffs already raise their own relief; a second sky shaft only whites them out.
 	if p >= 0.8 and not EliteSkillArt.handles(skill) and _room(4):
 		_sky(parent, origin, c[0], 1.0 * s, 14.0, 0.7, c[1])
 
 
+## Heals and holy buffs: a lotus of petals opens at the feet (unless the
+## authored silhouette is already one) and feathers of light drift down around
+## the column, the elite relief in the grace palette for the priest.
+static func _grace(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3, s: float, p: float) -> void:
+	if not _room(4):
+		return
+	var look := SkillShow.profile_for(skill)
+	if String(look.signature) != "lotus":
+		var lotus := SpellSpectacle._root(parent, origin, "FlourishLotus")
+		var mat := SpellSpectacle._material(look, 0.85)
+		var core_look := look.duplicate()
+		core_look.primary = c[1]
+		core_look.shade = c[0]
+		var shade_look := look.duplicate()
+		shade_look.primary = c[2]
+		shade_look.accent = c[0]
+		SkillTableau._lotus(lotus, mat, SpellSpectacle._material(core_look), SpellSpectacle._material(shade_look), 1 + int(p * 3.0), false)
+		lotus.scale = Vector3.ONE * (0.8 + 0.5 * p)
+		SpellSpectacle._finish(lotus, mat, 0.9 + 0.4 * p)
+	var feathers: Array = SkillArtDirection.PALETTES.grace if SkillShow.family_of(skill) == "priest" else c
+	var art := _relief(parent, origin, randf() * TAU, 1.5, "feathers")
+	art.layer("feathers", _look(feathers), Vector3(0, 0.5, 0), Vector3(2.0 + 0.8 * p, 2.4, 2.0 + 0.8 * p) * s * 0.7, Vector3.ZERO, 0.0, 1.4, Vector3.UP * (1.8 + p), 0.3, 0.8, true)
+	art._draw()
+
+
 ## Summons: a summoning seal and a gate of light where each creature arrives.
+## The summoner's gate is alive: sprouts under it, branches crawling out and
+## leaves rising on a grove vortex. The archer's hawks rise as a bird of light;
+## the legends arrive in their own way (_legend_gate).
 static func _summoning(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3, s: float) -> void:
 	var p := power(skill)
 	var family := SkillShow.family_of(skill)
+	var id := String(skill.id)
 	VfxArt.crest(parent, origin, c[0], family, 2.2 * s, 1.1, randf() * TAU)
 	if p >= 0.75:
 		VfxArt.rune_circle(parent, origin, c[2].lerp(c[0], 0.5), 2.7 * s, 1.3, -1.0)
-	VfxKit.vortex(parent, origin, c[1], 3.0 + 2.0 * p, 0.9)
+	VfxKit.vortex(parent, origin, SkillArtDirection.PALETTES.grove[0] if family == "summoner" else c[1], 3.0 + 2.0 * p, 0.9)
 	var count := mini(int(skill.get("summon", {}).get("count", 1)), 3)
 	var phase := randf() * TAU
 	for i in count:
@@ -634,9 +771,42 @@ static func _summoning(parent: Node3D, skill: Dictionary, c: Array, origin: Vect
 		var gate := origin + Vector3(cos(angle), 0.0, sin(angle)) * 1.6
 		VfxKit.pillar(parent, gate, c[0], 4.0 + 3.0 * p, 0.9 * s, 0.8, c[1])
 		VfxArt.star_flash(parent, gate + Vector3.UP * 0.8, c[1], 2.0 * s, 0.4)
+	if family == "summoner":
+		ElementFx.plant_field(parent, origin, minf((1.4 + 1.0 * p) * s, 3.2), "sprouts", 1 + int(p * 3.0), true)
+		if _room(3):
+			# Branches crawl out around the gate and leaves lift off them; both stay
+			# low and open so the creature's own silhouette is what reads.
+			var art := _relief(parent, origin, randf() * TAU, 1.6, id)
+			var look := _look(c)
+			art.layer("branches", look, Vector3(0, 0.07, 0), Vector3.ONE * (1.5 + 0.8 * p), Vector3.ZERO, 0.0, 1.3, Vector3.ZERO, 0.0, 0.15)
+			art.layer("leaves", look, Vector3(0, 0.3, 0), Vector3(1.0, 1.5, 1.0) * (1.0 + 0.5 * p), Vector3.ZERO, 0.05, 1.5, Vector3.UP * (1.2 + p), 0.4, 0.5)
+			art._draw()
+	elif family == "archer" and _room(2):
+		var art := _relief(parent, origin, randf() * TAU, 1.3, id)
+		art.layer("phoenix", _look(c), Vector3(0, 1.4, 0.6), Vector3.ONE * (1.1 + 0.5 * p) * s, Vector3.ZERO, 0.0, 1.1, Vector3.UP * (1.2 + p), 0.0, 0.5, false, {"flap": 0.12})
+		art._draw()
+	_legend_gate(parent, id, c, origin, s, p)
 	_motes(parent, origin, c[1], "leaf" if family in ["summoner", "archer"] else "light", int(12 + 14 * p), 1.4 * s, 0.3, 1.3)
-	if p >= 0.8 and _room(4):
+	# Elite summons raise their own gate and relief; a sky shaft only whites them out.
+	if p >= 0.8 and not EliteSkillArt.handles(skill) and _room(4):
 		_sky(parent, origin, c[0], 1.2 * s, 15.0, 0.7, c[1])
+
+
+## The elite summons arrive as the legends they are: the Fairy Spirit under a
+## shower of pink petals and sparkles, the Elder Dragon between gold columns
+## and a double wave (its gate, dragon and crown are the elite relief).
+static func _legend_gate(parent: Node3D, id: String, c: Array, origin: Vector3, s: float, p: float) -> void:
+	match id:
+		"fairy_spirit":
+			ShaderBurst.emit(parent, origin + Vector3.UP * 3.6, c[0], "petal", 28, "fall", 3.5, 2.0 * s, 1.8, 0.45)
+			ShaderBurst.emit(parent, origin + Vector3.UP * 3.0, c[1], "star", 22, "fall", 2.5, 1.6 * s, 1.6, 0.3)
+			ShaderBurst.emit(parent, origin + Vector3.UP * 0.4, c[0].lerp(c[1], 0.4), "heart", 14, "rise", 2.2, 1.0 * s, 1.4, 0.35)
+			VfxKit.impact_ring(parent, origin + Vector3.UP * 0.1, c[0], 2.2 * s, 0.7, c[1], c[2])
+		"elder_dragon":
+			_column_ring(parent, origin, c, 2.8 * s, 6, 0.06)
+			_wave(parent, origin + Vector3.UP * 0.1, c[0], 4.0 * s, c[1], c[2])
+			_late_wave(parent, origin, c[1], 3.0 * s, 0.22, Color.WHITE, c[2])
+			_motes(parent, origin, c[1], "light", int(20 + 12 * p), 2.0 * s, 0.5, 1.6)
 
 
 # ---------------------------------------------------------------------------

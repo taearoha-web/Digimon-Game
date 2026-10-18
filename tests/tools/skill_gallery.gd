@@ -58,13 +58,17 @@ func _ready() -> void:
 			if (args.size() > 1 and (args[1] == "all" or args[1] == family or String(skill.id) in args[1].split(","))) or (args.size() == 1 and skill.id in examples):
 				chosen.append(skill)
 	var frames: Array[Image] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 918
 	for skill in chosen:
 		var family := SkillShow.family_of(skill)
 		var fx := Node3D.new()
 		add_child(fx)
 		var hero := HeroVisual.new()
 		fx.add_child(hero)
-		hero.setup(StringName(family), "", true, {}, {"gender": 1 if family in ["mage", "priest", "summoner"] else 0})
+		# Gear of the skill's level, so the sheet shows the real weapon tier.
+		var gear := {"weapon": ItemData.generate(int(skill.get("level", 1)), StringName(family), rng, 2, "weapon")}
+		hero.setup(StringName(family), "", true, gear, {"gender": 1 if family in ["mage", "priest", "summoner"] else 0})
 		hero.position = Vector3.ZERO
 		hero.rotation_degrees.y = 90
 		var target := Vector3(2.5, 0, 0)

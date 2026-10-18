@@ -33,7 +33,7 @@ static func palette(skill: Dictionary) -> Dictionary:
 		"grand_cross":["eab875","fff4c9","895149"],"sword_of_justice":["ead28d","fff9db","795c64"],"divine_piercing":["9edbf4","fff2bc","456497"],"judgment_ray":["edcc7a","fff7db","785d68"],"ice_storm":["63c9ff","e7ffff","304eaa"],"hell_meteor":["f77746","fff3a0","7d243f"],
 		"meteor_arrow":["ff9763","fff8b9","783568"],"phoenix_rain":["ffb345","fff5bf","c04758"],
 		"lightning_arrow":["74c9ff","fff39c","514690"],"elder_dragon":["57c6ad","ffe9a0","285463"],
-		"cataclysm":["46b497","f4d694","34436b"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"]}
+		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"]}
 	colors = overrides.get(String(skill.id), colors)
 	look.primary = Color(colors[0]); look.accent = Color(colors[1]); look.shade = Color(colors[2])
 	if skill.get("fx", {}).has("buff"):

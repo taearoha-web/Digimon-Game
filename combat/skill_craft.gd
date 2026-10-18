@@ -106,6 +106,11 @@ static func portal(root: Node3D, look: Dictionary, core: Material, radius: float
 		var rune := SpellSpectacle._mesh(gate, SpellSpectacle._crystal_mesh(), core, Vector3(side * radius, 0, 0))
 		if rune:
 			rune.scale = Vector3(0.12, 0.26, 0.12)
+	# Two standing arches flank the ring on the ground: the gate the creature steps through.
+	var arch := SpellSpectacle._mesh(gate, EliteSkillArt.geometry("gate"), core, Vector3(0, -1.25, 0))
+	if arch:
+		arch.scale = Vector3.ONE * radius * 1.35
+		arch.rotation.y = PI * 0.5
 	gate.scale = Vector3(0.01, 0.7, 1)
 	var tw := gate.create_tween()
 	tw.tween_property(gate, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)

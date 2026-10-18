@@ -43,30 +43,61 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(body)
 	var grand := 1.7 if bool(look.ultimate) else 1.0
+	var style := String(look.style)
 	if arrow:
 		body.scale = Vector3(0.23, 1.45 + float(look.tier) * 0.08, 0.23) * size * grand
 		body.rotation.x = PI * 0.5
 	else:
-		body.scale = Vector3(0.24, 0.24, 0.42) * size * grand
+		# A spell body big enough to read in flight, with coiling ribbons behind it.
+		body.scale = Vector3(0.45, 0.45, 0.7) * size * grand
+		var trail := Node3D.new()
+		root.add_child(trail)
+		trail.rotation.y = PI
+		VfxKit.flight_ribbons(trail, look.primary, 0.45 * size * grand, 2.7, style == "fire")
 	for i in (2 if VfxBudget.quality() > 0 else 1):
 		SkillInk.ribbon(root, look, Vector3(0, 0, -0.85 * grand), 1.15 * size * grand, 2, Vector3(0, 0, PI * i * 0.5), seconds)
-	if String(look.style) in ["holy", "heal", "arcane"]:
+	if style in ["holy", "heal", "arcane"]:
 		var halo := SpellSpectacle._mesh(root, SpellSpectacle._halo_mesh(), body.material_override)
 		if halo:
-			halo.scale = Vector3.ONE * 0.38 * size
+			halo.scale = Vector3.ONE * (0.38 if arrow else 0.6) * size
 			halo.rotation.x = PI * 0.5
-	elif String(look.style) == "fire":
+	elif style == "fire":
 		var tail := SpellSpectacle._mesh(root, SpellSpectacle._crystal_mesh(), body.material_override, Vector3(0, 0, -0.45))
 		if tail:
 			tail.rotation.x = -PI * 0.5
 			tail.scale = Vector3(0.18, 0.8, 0.18) * size
+	elif style == "ice" and not arrow and VfxBudget.can_decorate():
+		# A real ice lance spins ahead of the crystal (the element made physical).
+		ElementFx.ice_lance(root, 0.4 * size * grand)
+		var lance := root.get_child(root.get_child_count() - 1) as MeshInstance3D
+		lance.rotation_degrees.x = 90.0
+		VfxBudget.track_decoration(lance)
 	if String(look.signature) in ["phoenix", "comet"]:
 		var wings := SpellSpectacle._mesh(root, SpellSpectacle._wing_mesh(), SpellSpectacle._material(look))
 		if wings:
 			wings.scale = Vector3(0.7, 0.5, 0.35) * grand
+	if not arrow and VfxBudget.can_light():
+		var light := OmniLight3D.new()
+		light.light_color = look.primary
+		light.light_energy = 0.6
+		light.omni_range = 3.5
+		root.add_child(light)
+		VfxBudget.track_light(light)
+	var family := String(look.family)
 	var tw := root.create_tween()
 	tw.tween_property(root, "global_position", to, seconds)
-	tw.tween_callback(root.queue_free)
+	if style == "fire" and not arrow:
+		# Flames shed along the path, like the old fireball carrier.
+		var puffs := {"next": 0.15}
+		tw.parallel().tween_method(func(t: float):
+			if t >= float(puffs.next) and is_instance_valid(root) and root.is_inside_tree():
+				puffs["next"] = t + 0.22
+				ElementFx.flame_puff(parent, root.global_position, 0.45 * size), 0.0, 1.0, seconds)
+	tw.tween_callback(func():
+		# The archer's arrival bursts into a fan of light; the carrier owns the rest.
+		if family == "archer" and is_instance_valid(parent) and parent.is_inside_tree():
+			VfxKit.impact_fan(parent, to, look.accent, 0.75 * size, "spark")
+		root.queue_free())
 	return root
 
 ## [param crit] only adds a fan of light; damage was already decided.
@@ -180,6 +211,7 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 		"focus", "rune":
 			SpellSpectacle._orbit(root, mat, mini(tier, 2))
 			_crown(root, core, 1.3, 3 + tier / 2, false)
+			_astrolabe(root, look, 1.5 + tier * 0.2, duration)
 		"roar":
 			for i in 2:
 				SkillInk.ribbon(root, look, Vector3(0, 0.65 + i * 0.8, 0), radius, 1, Vector3.ZERO, 0.62, i * 0.06)
@@ -213,8 +245,11 @@ static func render(parent: Node3D, skill: Dictionary, look: Dictionary, center: 
 		"lotus", "spores":
 			_lotus(root, mat, core, shade, tier, signature == "spores")
 		"sun":
+			# A real sun: the orb and halo, a second halo turning around it and a
+			# hot core of light striking down through it, instead of a flat sigil.
 			SpellSpectacle._solar(root, core, 3.4, mini(tier, 2))
-			SkillInk.mark(root, look, Vector3(0, 2.2, 0), 1.65 + tier * 0.12, 0.72, 1, true)
+			_sun_halo(root, mat, 3.4 * 0.66, tier, duration)
+			VfxKit.pillar(root, root.global_position, look.accent, 6.0 + tier, 0.3 + tier * 0.05, duration * 0.8, Color.WHITE)
 		"wings", "phoenix":
 			SpellSpectacle._phoenix(root, mat, 2.0 + tier * 0.35, signature == "phoenix")
 			SpellSpectacle._phoenix(root, core, 1.25 + tier * 0.20, false)
@@ -259,6 +294,36 @@ static func _crown(root: Node3D, mat: Material, radius: float, count: int, falli
 			shard.scale = Vector3(0.09, 1.25 if falling else 0.45, 0.09)
 			var tw := shard.create_tween()
 			tw.tween_property(shard, "position:y", 0.3 if falling else 1.8, 0.24 if falling else 0.58).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN if falling else Tween.EASE_OUT)
+
+## A second, tilted astrolabe ring (the elite mesh) spinning over the caster,
+## drawn spectral like the star prisms.
+static func _astrolabe(root: Node3D, look: Dictionary, radius: float, duration: float) -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = StarSkillArt.SHADER
+	for key in ["primary", "accent", "shade"]:
+		mat.set_shader_parameter(key, look[key])
+	mat.set_shader_parameter("spectral", 1.0)
+	mat.set_shader_parameter("opacity", 0.9)
+	var ring := SpellSpectacle._mesh(root, EliteSkillArt.geometry("astrolabe"), mat, Vector3(0, 1.6, 0))
+	if ring == null:
+		return
+	ring.rotation = Vector3(0.55, 0.0, 0.25)
+	ring.scale = Vector3.ONE * radius * 0.3
+	var tw := ring.create_tween().set_parallel(true)
+	tw.tween_property(ring, "scale", Vector3.ONE * radius, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ring, "rotation:y", TAU * 0.6, duration)
+	tw.tween_method(func(v: float): mat.set_shader_parameter("age", v), 0.0, duration, duration)
+	tw.tween_method(func(v: float): mat.set_shader_parameter("fade", v), 1.0, 0.0, duration * 0.4).set_delay(duration * 0.6)
+
+
+## A second halo turning around the sun, tilted so it reads as a ring.
+static func _sun_halo(root: Node3D, mat: Material, height: float, tier: int, duration: float) -> void:
+	var halo := SpellSpectacle._mesh(root, SpellSpectacle._halo_mesh(), mat, Vector3(0, height, 0))
+	if halo:
+		halo.scale = Vector3.ONE * (1.4 + tier * 0.25)
+		halo.rotation = Vector3(1.15, 0.0, 0.35)
+		halo.create_tween().tween_property(halo, "rotation:y", TAU * 0.75, duration)
+
 
 static func _shield(root: Node3D, mat: Material, core: Material, tier: int) -> void:
 	var plate := SpellSpectacle._mesh(root, shield_mesh(), core, Vector3(0, 1.35, 0.8))
