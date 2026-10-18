@@ -146,9 +146,26 @@
   function releaseWake() {
     if (wake) { const held = wake; wake = null; held.release().catch(() => {}); }
   }
+  // Pasted reports get cut short by chat apps, so the facts that explain an
+  // interruption come first: how it ended, its errors, and its last minutes.
+  const mb = (bytes) => Number.isFinite(bytes) ? Math.round(bytes / 1048576) + 'M' : '-';
+  function summary(record) {
+    if (!record) return null;
+    const last = record.samples.at(-1), first = record.samples[0];
+    return { version: record.version, ios: record.ios, standalone: record.standalone, status: record.status,
+      seconds: Math.round((record.lastSeenAt - record.startedAt) / 1000),
+      errorCount: record.errorCount || 0, warningCount: record.warningCount || 0, lastErrorCategory: record.lastErrorCategory || null,
+      contextLost: record.contextLost === true, events: record.events,
+      firstSample: first || null, lastSamples: record.samples.slice(-5),
+      // One short line per sample: the whole session's trend in a few hundred bytes.
+      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} ${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
+      growth: first && last && last !== first ? { seconds: last.seconds - first.seconds, wasmBytes: (last.wasmBytes || 0) - (first.wasmBytes || 0),
+        videoBytes: (last.videoBytes || 0) - (first.videoBytes || 0), nodes: (last.nodes || 0) - (first.nodes || 0),
+        objects: (last.objects || 0) - (first.objects || 0), resources: (last.resources || 0) - (first.resources || 0) } : null };
+  }
   function report() {
     return JSON.stringify({ note: 'An interrupted record does not prove an out-of-memory crash. Reports stay on this device until shared.',
-      previousSession: previous, currentSession: current }, null, 2);
+      previousSummary: summary(previous), previousSession: previous, currentSession: current }, null, 2);
   }
   function showReport() {
     if (reportOpen) return;

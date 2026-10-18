@@ -72,6 +72,11 @@ reopened.window.toonSession.showReport();
 check(reopened.window.toonRuntimePauseMask() === 4, 'a report pauses gameplay');
 const textarea = reopened.elements.find(e => e.tag === 'textarea');
 check(JSON.parse(textarea.value).previousSession.samples.length === 60, 'the previous report survives until it can be shared');
+const pasted = JSON.parse(textarea.value);
+check(Object.keys(pasted)[1] === 'previousSummary' && pasted.previousSummary.status === 'running' && pasted.previousSummary.lastSamples.length === 5 &&
+  pasted.previousSummary.events.length === pasted.previousSession.events.length && pasted.previousSummary.growth.seconds > 0 &&
+  pasted.previousSummary.timeline.length === 60 && /^\d+s wasm=\d+M video=/.test(pasted.previousSummary.timeline[0]),
+  'the summary (how it ended, errors, last minutes) comes first so a cut-off paste still explains the interruption');
 await reopened.elements.find(e => e.textContent === 'คัดลอกรายงาน').onclick();
 check(reopened.navigator.copied === textarea.value, 'the report copy button uses the full bounded report');
 reopened.elements.find(e => e.textContent === 'ปิด').onclick();
