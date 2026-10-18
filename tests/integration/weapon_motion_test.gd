@@ -145,7 +145,7 @@ func _ready() -> void:
 				hero.refresh()
 				for clip in ["Idle", "Running_A", attack]:
 					pose(hero, clip, 0.35)
-					var error := grip(held(hero, kind), kind).distance_to(palm(hero, "l" if kind == "bow" else "r"))
+					var error := grip(held(hero, kind), kind).distance_to(palm(hero, WeaponGrip.hand_for(kind).trim_prefix("handslot.")))
 					max_grip_error = maxf(max_grip_error, error)
 					check(error < 0.015, "%s tier%d %s actual grip %.4fm" % [tag, tier, clip, error])
 					if family == &"warrior":
