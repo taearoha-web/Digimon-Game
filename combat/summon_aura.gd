@@ -59,14 +59,14 @@ static func attach(summon: Node3D, kind_id: String, kind: Dictionary, rank: int)
 
 
 ## A soft pulsing glow of the creature's colour behind its body. Small bodies (the
-## fairy bee) get a ~1 m glow instead of the 1.8 m floor that would swallow them.
+## tiny fairy) get a glow under a metre instead of the 1.8 m floor that would swallow them.
 static func _halo(root: Node3D, color: Color, height: float, hover: float) -> void:
 	var mat := VfxKit._glow(Color(color.r, color.g, color.b), 0.7 if height >= 1.2 else 0.5, true)
 	mat.albedo_texture = VfxArt.texture("flare")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.no_depth_test = false
 	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * (clampf(height * 1.0, 0.9, 1.2) if height < 1.2 else clampf(height * 1.7, 1.8, 5.0))
+	quad.size = Vector2.ONE * (clampf(height * 1.15, 0.7, 1.2) if height < 1.2 else clampf(height * 1.7, 1.8, 5.0))
 	var halo := MeshInstance3D.new()
 	halo.name = "Halo"
 	halo.mesh = quad
@@ -102,7 +102,7 @@ static func _layer(root: Node3D, mode: int, texture: String, color: Color, count
 
 
 ## A turning halo of light above the head: gold for the guardian penguin, pink for the
-## fairy ([param glow]), sized to the body so a 1 m bee wears a small ring.
+## fairy ([param glow]), sized to the body so the tiny fairy wears a small ring.
 static func _crown(root: Node3D, color: Color, height: float, hover: float, glow := Color(1.0, 0.92, 0.55)) -> void:
 	var ring := MeshInstance3D.new()
 	ring.name = "Crown"

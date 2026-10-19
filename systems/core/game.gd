@@ -111,6 +111,8 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
 		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
+		# No companion yet: the hero picks one at the companion broker in the village.
+		"party": [],
 	}
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
@@ -719,6 +721,11 @@ func _valid_profile(data: Dictionary) -> bool:
 		for key in ["potions", "mp_potions", "hp", "mp"]:
 			if not _valid_integer(member.get(key, 0)):
 				return false
+		if not member.get("look", {}) is Dictionary:
+			return false
+		for value in member.get("look", {}).values():
+			if not _valid_integer(value):
+				return false
 	if data.has("daily"):
 		var daily_data: Dictionary = data.daily
 		if not daily_data.get("chest", false) is bool:
@@ -1027,6 +1034,29 @@ func party_gender(member: Dictionary) -> int:
 	return 1 if String(member.get("name", "")) in PARTY_GIRLS else 0
 
 
+## The looks rolled for a companion when hired: hair, eye and skin colour each drawn
+## from the whole chibi palette (0, the body's own colour, included).
+const PARTY_LOOK_KEYS := ["hair_tint", "eye_tint", "skin_tone"]
+
+
+func party_random_look() -> Dictionary:
+	var look := {}
+	for key in PARTY_LOOK_KEYS:
+		look[key] = randi() % ChibiLook.count(key)
+	return look
+
+
+## What a companion's chibi wears: the body from its name and its rolled colours
+## (companions hired before looks were rolled keep the body's own colours).
+func party_look(member: Dictionary) -> Dictionary:
+	var look := {"gender": party_gender(member)}
+	var rolled: Variant = member.get("look", {})
+	if rolled is Dictionary:
+		for key in PARTY_LOOK_KEYS:
+			look[key] = clampi(int(rolled.get(key, 0)), 0, ChibiLook.count(key) - 1)
+	return look
+
+
 const PARTY_BLURBS := {
 	&"warrior": "นักรบเกราะหนา ยืนหน้าคอยรับดาเมจ",
 	&"archer": "นักธนู ยิงไกลและคริติคอลสูง",
@@ -1039,8 +1069,9 @@ const PARTY_BLURBS := {
 var _party_gear: Dictionary = {}
 
 
-## One AI companion. New and old saves without a party get a default one
-## (a priest, or a mage for a priest); older saves with two keep the first.
+## One AI companion. A new hero starts alone and hires one at the broker (recruit);
+## old saves made before the party existed get a default one (a priest, or a mage
+## for a priest); older saves with two keep the first.
 func ensure_party() -> void:
 	var party: Variant = profile.get("party")
 	if party is Array:
@@ -1058,7 +1089,8 @@ func ensure_party() -> void:
 ## Hire a companion of the given class (replaces the current one).
 func recruit(c: StringName, announce := true) -> void:
 	var names: Array = PARTY_NAMES[c]
-	profile["party"] = [{"class": String(c), "name": names[randi() % names.size()], "level": maxi(1, int(profile["level"]) - 1), "exp": 0, "stance": "follow", "trait": ["brave", "careful"][randi() % 2]}]
+	profile["party"] = [{"class": String(c), "name": names[randi() % names.size()], "level": maxi(1, int(profile["level"]) - 1), "exp": 0, "stance": "follow", "trait": ["brave", "careful"][randi() % 2],
+		"look": party_random_look()}]
 	mark_dirty()
 	party_changed.emit()
 	if announce:

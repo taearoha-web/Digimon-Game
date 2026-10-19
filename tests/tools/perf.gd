@@ -23,7 +23,8 @@ func _ready() -> void:
 	Game.profile["loadout"] = ClassData.default_loadout(class_id, 100, [], ClassData.tier_of(class_id, 4))
 	for skill in ClassData.pool(class_id):
 		Game.profile.skills[skill.id] = 10
-	Game.ensure_party()
+	if Game.party().is_empty():
+		Game.recruit(&"priest", false)
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null

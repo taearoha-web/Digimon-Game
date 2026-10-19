@@ -155,6 +155,7 @@ func _start(class_id: StringName) -> Zone:
 		main.title_screen = null
 	Game.delete_save()
 	Game.new_profile(class_id, "ทดสอบ")
+	check(Game.party().is_empty(), "a new hero starts without a companion")
 	if class_id != ClassData.START:
 		# Lines start at Lv.10 in the real game; the tests jump straight there.
 		Game.profile["level"] = ClassData.LINE_LEVEL
@@ -162,6 +163,8 @@ func _start(class_id: StringName) -> Zone:
 		var stats := Game.stats_now()
 		Game.profile.hp = stats.max_hp
 		Game.profile.mp = stats.max_mp
+	# The flows below fight beside the companion a player hires at the broker.
+	Game.recruit(&"mage" if class_id == &"priest" else &"priest", false)
 	main.hud.visible = true
 	main._traveling = false
 	await main.go(&"town", true)
@@ -1433,6 +1436,13 @@ func _party() -> void:
 	await _wait(0.4)
 	check(zone.companions.size() == 1 and zone.companions[0].member["class"] == "mage", "recruiting swaps the companion")
 	check(String(Game.party()[0]["class"]) == "mage", "party data updated")
+	var rolled: Dictionary = Game.party()[0].get("look", {})
+	check(rolled.has("hair_tint") and rolled.has("eye_tint") and rolled.has("skin_tone"), "a hired companion gets rolled hair, eye and skin colours")
+	var seen := {}
+	for i in 12:
+		Game.recruit(&"mage", false)
+		seen[str(Game.party_look(Game.party()[0]))] = true
+	check(seen.size() > 1, "every hire rolls a new look (%d looks in 12 hires)" % seen.size())
 	Game.dismiss_party()
 	await _wait(0.4)
 	check(zone.companions.is_empty() and Game.party().is_empty(), "dismissing leaves nobody")

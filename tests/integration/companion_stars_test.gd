@@ -21,6 +21,7 @@ func _member() -> Dictionary:
 func _ready() -> void:
 	for cls in ClassData.IDS:
 		Game.new_profile(cls, "Companion stars QA")
+		Game.recruit(&"mage" if cls == &"priest" else &"priest", false)
 		Game.profile.level = 100
 		Game.profile.adv = 4
 		var buddy := _member()
@@ -54,6 +55,7 @@ func _ready() -> void:
 		check(not Game._valid_profile(broken), "201 stars is rejected")
 	# Catching up: a companion left behind follows the hero's stars.
 	Game.new_profile(&"warrior", "Catch-up QA")
+	Game.recruit(&"priest", false)
 	Game.profile.level = 100
 	Game.profile.paragon = {"level": 120, "exp": 0, "points": 120, "spent": 0, "alloc": {}}
 	var late := _member()
