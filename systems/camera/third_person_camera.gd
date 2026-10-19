@@ -37,7 +37,6 @@ var _mouse_rotating := false
 var _focus_blend := 0.0
 ## A short push of the camera on heavy hits (Camera3D offsets, so the spring
 ## arm's own placement is untouched); decays on its own.
-var _kick := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -111,21 +110,6 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_pressed("camera_zoom_out"):
 		zoom(-6.0 * delta)
 	_arm.spring_length = lerpf(_arm.spring_length, _target_distance, 1.0 - exp(-8.0 * delta))
-	if _kick.length_squared() > 0.000001:
-		_kick = _kick.lerp(Vector2.ZERO, 1.0 - exp(-12.0 * delta))
-		if _kick.length_squared() < 0.000001:
-			_kick = Vector2.ZERO
-		camera.h_offset = _kick.x
-		camera.v_offset = _kick.y
-
-
-## Nudges the camera sideways and down by up to [param strength] metres; the
-## impact of a critical or a heavy skill, felt as well as seen.
-func kick(strength: float) -> void:
-	if strength <= 0.0 or camera == null:
-		return
-	_kick += Vector2(randf_range(-1.0, 1.0), randf_range(-0.9, -0.3)) * strength
-	_kick = _kick.limit_length(0.45)
 
 
 func _unhandled_input(event: InputEvent) -> void:

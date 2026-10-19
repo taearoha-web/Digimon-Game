@@ -10,6 +10,7 @@ var _root: Control
 var _box: VBoxContainer
 var _info: Label
 var _gold: Label
+var _scroll: TouchScroll
 
 
 func _ready() -> void:
@@ -54,6 +55,7 @@ func _ready() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	column.add_child(scroll)
+	_scroll = scroll
 	_box = UIUtil.vbox(6)
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_box)
@@ -78,12 +80,23 @@ func close_trainer() -> void:
 
 func _rebuild() -> void:
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)
-	_info.text = "แต้มสกิลที่ใช้ได้: %d   (ดาวละ 1 แต้ม + เหรียญ, สูงสุด %d ดาว: แรงขึ้น 15%% และวงกว้างขึ้น 8%% ต่อดาว)" % [int(Game.profile.skill_points), Game.MAX_SKILL_RANK]
+	_info.text = "แต้มสกิลที่ใช้ได้: %d   (ดาวละ 1 แต้ม + เหรียญ, สูงสุด %d ดาว)\nทุกดาว: ดาเมจ +%d%%  รัศมี +%d%%  คูลดาวน์ -%d%%  ฮีล +%d%%  บัฟ +%d%%  มึน/ช้า/ยั่วยุ +%d%%  MP +%d%%  (ดาว 3 และ 5 เพิ่มเป้า/ลูกธนู)" % [
+			int(Game.profile.skill_points), Game.MAX_SKILL_RANK, _pct(SkillRank.POWER_PER_STAR), _pct(SkillRank.RADIUS_PER_STAR),
+			_pct(SkillRank.CD_PER_STAR), _pct(SkillRank.HEAL_PER_STAR), _pct(SkillRank.BUFF_PER_STAR), _pct(SkillRank.CONTROL_PER_STAR), _pct(SkillRank.MP_PER_STAR)]
+	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Upgrading rebuilds the list: keep the page where the player was.
+	var keep_y := _scroll.retained_vertical_position() if is_instance_valid(_scroll) else 0
 	UIUtil.clear(_box)
 	for skill in Game.skill_pool():
 		_box.add_child(_row(skill, false))
 	for skill in Game.passive_pool():
 		_box.add_child(_row(skill, true))
+	if is_instance_valid(_scroll):
+		_scroll.restore_vertical_position(keep_y)
+
+
+static func _pct(value: float) -> int:
+	return int(round(value * 100.0))
 
 
 func _row(skill: Dictionary, passive: bool) -> Control:
@@ -109,12 +122,12 @@ func _row(skill: Dictionary, passive: bool) -> Control:
 	else:
 		var lock := UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel")
 		title_row.add_child(lock)
-	var text := String(skill.desc) if passive else "%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)]
-	if not passive and String(skill.shape) in ["burst", "blast"]:
-		text += "  •  รัศมี %.1f (ดาวละ +%d%%)" % [float(skill.radius) * Game.radius_scale(rank), int(Game.RADIUS_PER_STAR * 100.0)]
+	var shown := maxi(rank, 1)
+	var text := String(skill.desc) if passive else "%s  •  MP %d  •  คูลดาวน์ %.1f วิ" % [skill.desc, SkillRank.mp(skill, shown), SkillRank.cooldown(skill, shown)]
 	var desc := UIUtil.label(text, &"SmallLabel")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(desc)
+	info.add_child(SkillRankTable.build(SkillRank.passive_table(skill) if passive else SkillRank.table(skill), rank))
 	var cost := Game.skill_upgrade_cost(skill)
 	var maxed := rank >= Game.MAX_SKILL_RANK
 	var button := UIUtil.button("เต็มแล้ว" if maxed else ("ล็อก" if not unlocked else "อัป %d" % cost), &"PrimaryButton", Vector2(150, 56))

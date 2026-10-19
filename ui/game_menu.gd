@@ -795,9 +795,15 @@ func _build_skills() -> void:
 			title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
 		else:
 			title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
-		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.0f วิ" % [skill.desc, int(skill.mp), float(skill.cd)], &"SmallLabel")
+		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.1f วิ" % [skill.desc, SkillRank.mp(skill, maxi(rank, 1)), SkillRank.cooldown(skill, maxi(rank, 1))], &"SmallLabel")
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(desc)
+		var upcoming := SkillRank.next_changes(SkillRank.table(skill), rank)
+		if unlocked and not upcoming.is_empty():
+			var next := UIUtil.label("อัปเป็นดาว %d ที่ครูฝึกสกิล: %s" % [rank + 1, ",  ".join(upcoming)], &"SmallLabel")
+			next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			next.add_theme_color_override("font_color", UIPalette.SUCCESS)
+			info.add_child(next)
 		var equipped := Game.loadout().find(skill.id)
 		for slot in ClassData.SLOTS:
 			var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(48, 52))

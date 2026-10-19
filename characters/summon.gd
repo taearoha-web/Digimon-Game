@@ -110,7 +110,7 @@ func setup(p_summoner: Node3D, p_skill_id: String, p_spec: Dictionary, p_damage_
 	_kind_id = String(spec.get("kind", "wolf"))
 	_kind = KINDS.get(_kind_id, KINDS["wolf"])
 	var share := LEGEND_HP_SHARE if bool(_kind.get("legend", false)) else HP_SHARE
-	max_hp = maxi(300, int(round(float(_summoner_stats().max_hp) * share * (1.0 + 0.6 * float(rank - 1)))))
+	max_hp = maxi(300, int(round(float(_summoner_stats().max_hp) * share * SkillRank.summon_hp_scale(rank))))
 	hp = max_hp
 	_slot = slot
 	_slots = maxi(slots, 1)
