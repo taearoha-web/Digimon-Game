@@ -1421,14 +1421,18 @@ func star_gear_level(bonus := 0) -> int:
 	return MAX_LEVEL + clampi(star, 1, 20)
 
 
-func paragon_spend(key: String) -> bool:
+## Spends up to `count` points on one stat (fewer when points or the stat cap run out).
+func paragon_spend(key: String, count := 1) -> bool:
 	var p := paragon()
 	var info: Array = PARAGON_STATS.get(key, [])
-	if info.is_empty() or int(p.points) <= 0 or int(p.alloc[key]) >= int(info[2]):
+	if info.is_empty() or count <= 0:
 		return false
-	p["points"] = int(p.points) - 1
-	p["spent"] = int(p.spent) + 1
-	p["alloc"][key] = int(p.alloc[key]) + 1
+	var put := mini(count, mini(int(p.points), int(info[2]) - int(p.alloc[key])))
+	if put <= 0:
+		return false
+	p["points"] = int(p.points) - put
+	p["spent"] = int(p.spent) + put
+	p["alloc"][key] = int(p.alloc[key]) + put
 	clamp_vitals()
 	profile_changed.emit()
 	mark_dirty()

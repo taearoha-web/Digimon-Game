@@ -22,7 +22,9 @@ var _detail: VBoxContainer
 ## Buttons for the selected item, pinned above the scrolling detail text.
 var _actions: VBoxContainer
 var _item_buttons: Array[Dictionary] = []
-var _bag_scroll: TouchScroll
+## The tab's main scroll list; a rebuild (after a sale, a point spent, ...)
+## puts it back where it was instead of jumping to the top.
+var _page_scroll: TouchScroll
 ## Keep each stat's typed quantity when the menu refreshes after allocation.
 var _stat_amounts: Dictionary = {}
 ## Opened from the blacksmith: items can be enhanced and socketed.
@@ -93,7 +95,7 @@ func close_menu() -> void:
 
 
 func show_tab(tab: StringName) -> void:
-	_bag_scroll = null
+	_page_scroll = null
 	current_tab = tab
 	_selected_index = -1
 	_selected_slot = ""
@@ -101,8 +103,8 @@ func show_tab(tab: StringName) -> void:
 
 
 func _rebuild() -> void:
-	var bag_y := _bag_scroll.retained_vertical_position() if is_instance_valid(_bag_scroll) else 0
-	_bag_scroll = null
+	var keep_y := _page_scroll.retained_vertical_position() if is_instance_valid(_page_scroll) else 0
+	_page_scroll = null
 	for key in _tab_buttons:
 		_tab_buttons[key].disabled = key == current_tab
 	UIUtil.clear(_content)
@@ -113,8 +115,8 @@ func _rebuild() -> void:
 		&"quests": _build_quests()
 		&"achievements": _build_achievements()
 		&"settings": _build_settings()
-	if is_instance_valid(_bag_scroll):
-		_bag_scroll.restore_vertical_position(bag_y)
+	if is_instance_valid(_page_scroll):
+		_page_scroll.restore_vertical_position(keep_y)
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +134,7 @@ func _build_character() -> void:
 	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	row.add_child(left_scroll)
+	_page_scroll = left_scroll
 	var left := UIUtil.vbox(8)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_scroll.add_child(left)
@@ -251,6 +254,15 @@ func _exp_text() -> String:
 	return "%d / %d" % [p.exp, HeroStats.exp_to_next(p.level)]
 
 
+## Paragon buttons per stat: +1, +5, +10 and 0 = everything that still fits.
+const PARAGON_STEPS := [1, 5, 10, 0]
+
+
+func _spend_paragon(key: String, count: int) -> void:
+	if Game.paragon_spend(key, count) and not Game.save():
+		Game.say("อัปแต้มแล้ว แต่ยังบันทึกไม่ได้ ระบบจะลองบันทึกให้อีกครั้ง", &"warning")
+
+
 ## Paragon points (after Lv.100): permanent bonuses with a gold refund button.
 func _build_paragon(parent: Control) -> void:
 	var para := Game.paragon()
@@ -261,16 +273,24 @@ func _build_paragon(parent: Control) -> void:
 	for key in Game.PARAGON_STATS:
 		var info: Array = Game.PARAGON_STATS[key]
 		var used := int(para.alloc[key])
-		var line := UIUtil.hbox(8)
-		parent.add_child(line)
+		var block := UIUtil.vbox(3)
+		parent.add_child(block)
+		var line := UIUtil.hbox(6)
+		block.add_child(line)
 		var label := UIUtil.label("%s %d/%d" % [info[0], used, int(info[2])], &"BoldLabel")
-		label.custom_minimum_size = Vector2(250, 0)
+		label.custom_minimum_size = Vector2(200, 0)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(label)
-		var plus := UIUtil.button("+", &"PrimaryButton", Vector2(70, 48))
-		plus.disabled = int(para.points) <= 0 or used >= int(info[2])
-		plus.pressed.connect(func(): Game.paragon_spend(key))
-		line.add_child(plus)
-		line.add_child(UIUtil.label(String(info[3]).replace("%%", "%"), &"SmallLabel"))
+		var room := mini(int(para.points), int(info[2]) - used)
+		for step in PARAGON_STEPS:
+			# A step larger than what is left spends what is left.
+			var count := room if step == 0 else mini(int(step), room)
+			var plus := UIUtil.button("สุด" if step == 0 else "+%d" % int(step), &"PrimaryButton", Vector2(68, 52))
+			plus.name = "Paragon_%s_%s" % [key, "max" if step == 0 else str(step)]
+			plus.disabled = room <= 0
+			plus.pressed.connect(func(): _spend_paragon(key, count))
+			line.add_child(plus)
+		block.add_child(UIUtil.label(String(info[3]).replace("%%", "%"), &"SmallLabel"))
 	if int(para.spent) > 0:
 		var reset := UIUtil.button("คืนแต้มทั้งหมด (%d เหรียญ)" % Game.paragon_reset_cost(), &"", Vector2(0, 48))
 		reset.pressed.connect(func():
@@ -345,7 +365,7 @@ func _build_inventory() -> void:
 	filter.visible = not forge_mode
 	middle.add_child(UIUtil.label("แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel"))
 	var scroll := TouchScroll.new()
-	_bag_scroll = scroll
+	_page_scroll = scroll
 	scroll.name = "BagScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -731,6 +751,7 @@ func _build_skills() -> void:
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_content.add_child(scroll)
+	_page_scroll = scroll
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
@@ -817,6 +838,7 @@ func _build_quests() -> void:
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_content.add_child(scroll)
+	_page_scroll = scroll
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
@@ -869,6 +891,7 @@ func _build_achievements() -> void:
 	var scroll := TouchScroll.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(scroll)
+	_page_scroll = scroll
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
@@ -907,6 +930,7 @@ func _build_settings() -> void:
 	var scroll := TouchScroll.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(scroll)
+	_page_scroll = scroll
 	var box := UIUtil.vbox(12)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
