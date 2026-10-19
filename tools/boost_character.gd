@@ -64,6 +64,8 @@ func _run() -> int:
 
 ## Boosts the one character named [param wanted] (and of class [param cls] when
 ## given) inside [param bundle], in place. Returns {slot, before} or {error}.
+## A starter-class (vagabond) hero of that name also matches: it takes the class
+## through the game's own class change, as it would at the class trainer.
 static func boost_bundle(bundle: Dictionary, wanted: String, cls := "") -> Dictionary:
 	if not bundle.get("slots") is Dictionary:
 		return {"error": "the input is not a save bundle"}
@@ -71,7 +73,8 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "") -> Dicti
 	for key in bundle.slots:
 		var hero: Variant = bundle.slots[key]
 		if hero is Dictionary and String(hero.get("name", "")).strip_edges().to_lower() == wanted.strip_edges().to_lower():
-			if cls == "" or String(hero.get("class", "")) == cls:
+			var has := String(hero.get("class", ""))
+			if cls == "" or has == cls or (has == String(ClassData.START) and ClassData.IDS.has(StringName(cls))):
 				found.append(String(key))
 	if found.size() != 1:
 		return {"error": "expected exactly one character named %s%s, found %d" % [wanted, "" if cls == "" else " (" + cls + ")", found.size()]}
@@ -84,6 +87,10 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "") -> Dicti
 	Game.has_profile = true
 	var before := "Lv.%d ★%d" % [int(Game.profile.level), int(Game.paragon().level)]
 	_level_up()
+	if cls != "" and Game.class_id() != StringName(cls) and not Game.change_class(StringName(cls)):
+		Game.profile = keep[0]
+		Game.has_profile = keep[1]
+		return {"error": "could not change the class to " + cls}
 	_dress()
 	var stats := Game.stats_now()
 	Game.profile["hp"] = int(stats.max_hp)

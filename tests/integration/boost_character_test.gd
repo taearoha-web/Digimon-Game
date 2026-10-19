@@ -47,6 +47,15 @@ func _ready() -> void:
 	check(old_weapon.is_empty() or kept, "the old weapon moves to the bag")
 	check(Game._valid_profile(hero), "the result passes the save check")
 	check(bundle.slots["1"] == untouched, "other characters are untouched")
+	# A hero still in the starter class takes the asked class the game's own way.
+	Game.new_profile(ClassData.START, "Assotix", FaceKit.default_look())
+	Game.add_exp(9000)
+	var starter: Dictionary = JSON.parse_string(JSON.stringify({"slots": {"1": Game.profile}, "selectedSlot": 1}))
+	var changed := Boost.boost_bundle(starter, "Assotix", "defender")
+	var convert: Dictionary = starter.slots["1"]
+	check(not changed.has("error") and String(convert["class"]) == "defender", "a vagabond becomes a defender (%s)" % str(changed))
+	check(int(convert.level) == 100 and int(convert.paragon.level) == 200 and DivineGearData.is_item(convert.equip.weapon) and String(convert.equip.weapon["class"]) == "defender", "and gets the same boost")
+	check(Game._valid_profile(convert), "the converted hero passes the save check")
 	Game.profile = hero
 	Game.has_profile = true
 	var stats := Game.stats_now()
