@@ -69,6 +69,16 @@ func is_fairy() -> bool:
 	return bool(_kind.get("fairy", false))
 
 
+func _make_visual() -> MonsterVisual:
+	if is_fairy():
+		var fairy := FairyVisual.new()
+		add_child(fairy)
+		fairy.setup_fairy(float(_kind.hover))
+		fairy.add_to_group("anim_lod")
+		return fairy
+	return super._make_visual()
+
+
 func _ready() -> void:
 	super._ready()
 	if caster and caster.is_in_group("gw_team1"):
@@ -79,12 +89,10 @@ func _ready() -> void:
 	glow.set_shader_parameter("color", (_kind.color as Color).lightened(0.15))
 	for node in visual.find_children("*", "MeshInstance3D", true, false):
 		(node as MeshInstance3D).material_overlay = glow
-	if _kind.has("paint"):
-		Summon.repaint(visual, _kind.paint)
 	SummonAura.attach(visual, _kind_id, _kind, rank)
 	get_tree().create_timer(0.45).timeout.connect(func():
 		if is_instance_valid(self) and is_instance_valid(visual):
-			create_tween().tween_property(visual, "scale", Vector3.ONE * size_mult, 0.25)
+			create_tween().tween_property(visual, "scale", Vector3.ONE * (1.0 if is_fairy() else size_mult), 0.25)
 		, CONNECT_ONE_SHOT)
 
 
@@ -212,6 +220,7 @@ func _tick_fairy(delta: float) -> void:
 	_heal_timer -= delta
 	if _heal_timer <= 0.0:
 		_heal_timer = Summon.FAIRY_EVERY
+		visual.action("attack", 700)
 		_twirl = Summon.fairy_twirl(visual)
 		var color: Color = _kind.color
 		VfxKit.impact_ring(get_parent(), global_position + Vector3(0, 0.7, 0), color, 3.0, 0.8)

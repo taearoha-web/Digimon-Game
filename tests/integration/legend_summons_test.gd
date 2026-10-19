@@ -171,10 +171,12 @@ func _fairy(hero: Hero) -> void:
 	check(ResourceLoader.exists("res://assets/icons/skills/fairy_spirit.svg"), "the fairy has an icon")
 	var f := _summon_for(hero, "fairy_spirit", "fairy")
 	await get_tree().process_frame
-	check(f.is_fairy() and f._visual is MonsterVisual and f._visual.model != null, "the fairy is a monster body with a loaded model")
-	check(String(Summon.KINDS.fairy.model) == "dawn/Bee", "she is the cute bee (dawn/Bee)")
-	check(f._visual._clips.has("idle") and f._visual._clips.has("attack"), "the bee has idle and attack clips")
-	check(float(Summon.KINDS.fairy.hover) > 1.0 and f._visual.model.position.y > 1.0, "she hovers above the ground (%.2f m)" % f._visual.model.position.y)
+	check(f.is_fairy() and f._visual is FairyVisual, "the fairy is a tiny fairy girl (FairyVisual)")
+	var body: HeroVisual = (f._visual as FairyVisual).hero_visual
+	check(body != null and body.has_wings() and body.flying(), "she flies on her wings")
+	check(body.current == "Fly_Hover", "she hovers on the fly clip (%s)" % body.current)
+	check(f._visual.height < 0.9 and f.scale.x <= 1.0, "she is tiny (%.2f m)" % f._visual.height)
+	check(float(Summon.KINDS.fairy.hover) > 1.0 and body.position.y > 1.0, "she hovers above the ground (%.2f m)" % body.position.y)
 	check(f.find_children("SummonAura", "Node3D", true, false).size() == 1, "she carries an aura")
 	check(f.find_children("Crown", "MeshInstance3D", true, false).size() == 1, "she wears a crown ring")
 	check(f._sigil == null, "no rune circle turns on the ground under a flying fairy")
@@ -185,7 +187,7 @@ func _fairy(hero: Hero) -> void:
 	for i in 30:
 		f._process(0.1)
 	check(f.global_position.distance_to(hero.global_position) < 3.5, "she keeps beside her summoner (%.1f m)" % f.global_position.distance_to(hero.global_position))
-	check(f._visual.model.position.y > 1.0 and absf(f._visual.position.y) < 0.2, "she still hovers after following (%.2f m, bob %.2f)" % [f._visual.model.position.y, f._visual.position.y])
+	check(body.position.y > 1.0 and absf(f._visual.position.y) < 0.2, "she still hovers after following (%.2f m, bob %.2f)" % [body.position.y, f._visual.position.y])
 	var ally := _summon_for(hero, "wolf_pack", "wolf")
 	ally.global_position = hero.global_position + Vector3(2, 0, 0)
 	ally.hp = int(ally.max_hp * 0.5)

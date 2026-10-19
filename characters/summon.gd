@@ -29,12 +29,10 @@ const KINDS := {
 	# The king fights with his staff up close; Poseidon throws water from afar. Both have two skills (LegendMoves).
 	"wind_king": {"legend": true, "model": "summon/WindKing", "height": 3.4, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 6.4, "range": 3.4, "color": Color("7affb8"), "name": "ราชาวานรวายุ"},
 	"poseidon": {"legend": true, "model": "summon/Poseidon", "height": 3.6, "hover": 0.0, "tint": Color.WHITE, "ranged": true, "speed": 5.6, "range": 9.0, "color": Color("5cc8ff"), "projectile": "orb", "name": "โพไซดอน"},
-	# The Fairy Spirit: the round bee (dawn/Bee, Flying loop) painted pink, with sparkle wings,
-	# a crown ring and hearts. She never fights: she sweeps slowly around the far side of
-	# her summoner 2 m out (never between the camera and the hero) and heals (see _tick_fairy).
-	# "paint" recolours the model's own materials by name (the bee's golden body cannot be
-	# tinted pink by a multiply: StorybookFinish caps the tint's peak at 1.22).
-	"fairy": {"legend": true, "fairy": true, "model": "dawn/Bee", "height": 1.0, "hover": 1.3, "tint": Color(1.7, 0.98, 1.3), "paint": {"Main": Color("ff9cd2"), "Wings": Color("f6e4ff"), "Tongue": Color("d04a7a")}, "ranged": false, "speed": 6.5, "range": 0.0, "color": Color("ffb6e6"), "name": "ภูตินางฟ้า"},
+	# The Fairy Spirit: a tiny winged fairy girl (FairyVisual, about 0.9 m), with a crown
+	# ring and hearts. She never fights: she sweeps slowly around the far side of her
+	# summoner 2 m out (never between the camera and the hero) and heals (see _tick_fairy).
+	"fairy": {"legend": true, "fairy": true, "model": "", "height": 0.88, "hover": 1.3, "tint": Color.WHITE, "ranged": false, "speed": 6.5, "range": 0.0, "color": Color("ffb6e6"), "name": "ภูตินางฟ้า"},
 	"cactus": {"model": "cute/Cactus", "height": 1.95, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 5.2, "range": 2.2, "color": Color("7aff8a")},
 	"cat": {"model": "blob/Cat", "height": 1.4, "hover": 0.0, "tint": Color(1.5, 1.2, 0.8), "ranged": false, "speed": 7.0, "range": 1.7, "color": Color("ffd8a0")},
 	"frog": {"model": "big/Frog", "height": 1.5, "hover": 0.0, "tint": Color(0.7, 1.4, 0.7), "ranged": true, "speed": 4.6, "range": 7.0, "color": Color("7fe07a")},
@@ -131,16 +129,16 @@ func _ready() -> void:
 	if bool(_kind.get("proc", false)):
 		_blade = _build_blade()
 		add_child(_blade)
+	elif is_fairy():
+		var fairy := FairyVisual.new()
+		add_child(fairy)
+		fairy.setup_fairy(float(_kind.hover))
+		_visual = fairy
 	else:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
 		_visual.setup(String(_kind.model), float(_kind.height), float(_kind.hover), _kind.tint)
-		if _kind.has("paint"):
-			repaint(_visual, _kind.paint)
 	_spiritify()
-	if is_fairy() and _visual:
-		# After the spirit glow: the wing cards keep their own cut-out edge.
-		_fairy_wings()
 	if _kind.has("eye_fire"):
 		_add_eye_fire()
 	if skill_id in ["elder_dragon", "primal_legion"]:
@@ -154,7 +152,8 @@ func _ready() -> void:
 		crest.scale = Vector3.ONE * (0.38 if skill_id == "elder_dragon" else 0.70)
 		add_child(crest)
 	scale = Vector3.ONE * 0.05
-	create_tween().tween_property(self, "scale", Vector3.ONE * size_mult, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# The fairy stays tiny whatever her stars.
+	create_tween().tween_property(self, "scale", Vector3.ONE * (1.0 if is_fairy() else size_mult), 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# A small gate at the actual creature, instead of a seven-metre light pillar.
 	for family in SkillShow.FAMILY_COLORS:
 		var entry := ClassData.find_skill(StringName(family), skill_id)
@@ -200,54 +199,6 @@ func _spiritify() -> void:
 	add_child(_sigil)
 	var spin := _sigil.create_tween().set_loops()
 	spin.tween_property(_sigil, "rotation:y", TAU, 6.0).as_relative()
-
-
-## Recolours the surfaces of [param visual]'s model whose imported material is named in
-## [param paint] (name -> colour), keeping the storybook finish and outline of each.
-static func repaint(visual: MonsterVisual, paint: Dictionary) -> void:
-	if visual == null or visual.model == null:
-		return
-	for node in visual.model.find_children("*", "MeshInstance3D", true, false):
-		var mi := node as MeshInstance3D
-		if mi.mesh == null:
-			continue
-		for i in mi.mesh.get_surface_count():
-			var source := mi.mesh.surface_get_material(i)
-			var finish := mi.get_surface_override_material(i) as StandardMaterial3D
-			if source == null or finish == null or not paint.has(source.resource_name):
-				continue
-			var painted := finish.duplicate() as StandardMaterial3D
-			painted.albedo_color = paint[source.resource_name]
-			mi.set_surface_override_material(i, painted)
-
-
-## Two small fairy wings fanned back in a V behind the bee's body: heart cards in her
-## colour, the point at the body and the lobes sweeping up and out, beating softly.
-## Cosmetic: they come as a pair or not at all (low quality drops them).
-func _fairy_wings() -> void:
-	if VfxBudget.count(2, 0) < 2 or not VfxBudget.can_decorate(2):
-		return
-	var color: Color = _kind.color
-	var h := float(_kind.height)
-	var mat := VfxKit._glow(color.lerp(Color.WHITE, 0.6), 0.96, false)
-	mat.albedo_texture = VfxArt.texture("heart")
-	for i in 2:
-		var side := -1.0 if i == 0 else 1.0
-		var wing := MeshInstance3D.new()
-		wing.name = "FairyWingL" if side < 0.0 else "FairyWingR"
-		var quad := QuadMesh.new()
-		quad.size = Vector2(0.62, 0.92) * h
-		quad.center_offset = Vector3(0, 0.36 * h, 0)
-		wing.mesh = quad
-		wing.material_override = mat
-		wing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		wing.position = Vector3(side * 0.22 * h, float(_kind.hover) + 0.58 * h, -0.22 * h)
-		wing.rotation = Vector3(0.0, side * 0.75, -side * (PI * 0.5 - 0.6))
-		_visual.add_child(wing)
-		VfxBudget.track_decoration(wing)
-		var beat := wing.create_tween().set_loops()
-		beat.tween_property(wing, "scale", Vector3(1.0, 0.84, 1.0), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		beat.tween_property(wing, "scale", Vector3(1.0, 1.08, 1.0), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _build_blade() -> Node3D:
@@ -457,7 +408,7 @@ func _process(delta: float) -> void:
 
 ## The Fairy Spirit sweeps around the far side of her summoner (_fairy_spot) and heals
 ## on her clock. She always faces the summoner's target, else the summoner, and
-## drifts sideways to her spot (the bee's Flying loop reads fine strafing).
+## drifts sideways to her spot (the hovering clip reads fine strafing).
 func _tick_fairy(delta: float) -> void:
 	var goal := summoner.global_position + _fairy_spot()
 	var to := goal - global_position
@@ -485,6 +436,7 @@ func _tick_fairy(delta: float) -> void:
 ## then allies standing close to her (+10%).
 func _fairy_heal() -> void:
 	if _visual:
+		_visual.action("attack", 700)
 		fairy_twirl(_visual)
 	var field := get_parent()
 	var color: Color = _kind.color
@@ -502,7 +454,7 @@ func _fairy_heal() -> void:
 
 
 ## The fairy's heal pose: a happy squash-and-spin of the body (1.0 -> 1.25 -> 1.0 and one
-## full turn in 0.5 s) instead of the bee's bite lunge. Shared with the enemy fairy.
+## full turn in 0.5 s) while she raises her hands. Shared with the enemy fairy.
 static func fairy_twirl(body: Node3D) -> Tween:
 	var rest := body.scale
 	var tween := body.create_tween().set_parallel()

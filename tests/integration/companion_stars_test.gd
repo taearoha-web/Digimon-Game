@@ -21,6 +21,7 @@ func _member() -> Dictionary:
 func _ready() -> void:
 	for cls in ClassData.IDS:
 		Game.new_profile(cls, "Companion stars QA")
+		Game.recruit(&"mage" if cls == &"priest" else &"priest", false)
 		Game.profile.level = 100
 		Game.profile.adv = 4
 		var buddy := _member()
