@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {handleAccountRequest} from '../server/accounts.js';
+import {handleAccountRequest, validateBundle} from '../server/accounts.js';
 import {D1Sqlite} from './d1-sqlite.mjs';
 
 const ORIGIN = 'https://toon-tale.example';
@@ -298,18 +298,58 @@ test('database failures return safe service unavailable JSON without leaking dat
   assert.equal((await handleAccountRequest(new Request(`${ORIGIN}/api/account/session`), {})).status, 503);
 });
 
-test('every class the game ships (data/class_data.gd) can be saved online', async t => {
+async function shippedClasses() {
   const {readFile} = await import('node:fs/promises');
   const source = await readFile(new URL('../../../data/class_data.gd', import.meta.url), 'utf8');
   const ids = [...source.match(/^const IDS: Array\[StringName\] = \[(.*)\]$/m)[1].matchAll(/&"([a-z_]+)"/g)].map(m => m[1]);
   const start = source.match(/^const START(?:: StringName)? :?= &"([a-z_]+)"$/m)[1];
   assert.ok(ids.includes('defender') && ids.length >= 7, ids.join(','));
+  return [start, ...ids];
+}
+
+test('every class the game ships (data/class_data.gd) can be saved online', async t => {
   const {register, call} = harness(t);
   const account = await register();
   let revision = 0;
-  for (const cls of [start, ...ids]) {
+  for (const cls of await shippedClasses()) {
     const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle({...sample(), class: cls})}});
     assert.equal(saved.status, 200, `${cls}: ${JSON.stringify(saved.body)}`);
     revision = saved.body.revision;
+  }
+});
+
+// Saves written by the game itself (Game.save) for every class at Lv.1, Lv.23
+// after the class change and Lv.100 with stars, companion, gear, gems, wings,
+// dailies, duels, tower and guild war progress. Regenerate after a save format
+// change with: XDG_DATA_HOME=$(mktemp -d) godot --headless --path . res://tests/tools/save_fixtures.tscn
+// (TOON_SAVE_FIXTURES points the test at a freshly generated file instead.)
+test('real game-generated saves of every class pass validation and round-trip unchanged', async t => {
+  const {readFile} = await import('node:fs/promises');
+  const path = process.env.TOON_SAVE_FIXTURES ?? new URL('./fixtures/game_profiles.json', import.meta.url);
+  const fixtures = JSON.parse(await readFile(path, 'utf8'));
+  const classes = await shippedClasses();
+  assert.deepEqual(fixtures.classes, classes, 'the fixture file covers other classes than data/class_data.gd: regenerate it');
+  const profiles = Object.entries(fixtures.profiles);
+  assert.ok(profiles.length >= classes.length * 2, `only ${profiles.length} fixture profiles`);
+  for (const cls of classes) {
+    for (const stage of cls === classes[0] ? ['vagabond_lv5'] : [`${cls}_new`, `${cls}_lv23`, `${cls}_lv100_star`]) {
+      assert.ok(fixtures.profiles[stage]?.class === cls, `fixture ${stage} is missing or not a ${cls}`);
+    }
+  }
+  const {register, call} = harness(t);
+  const account = await register();
+  let revision = 0;
+  for (const [key, profile] of profiles) {
+    assert.doesNotThrow(() => validateBundle({slots: {'1': profile}, selectedSlot: 1}), `${key} (${profile.class} Lv.${profile.level})`);
+  }
+  // Four at a time, as a full account of four characters would be saved.
+  for (let i = 0; i < profiles.length; i += 4) {
+    const group = profiles.slice(i, i + 4);
+    const full = {slots: Object.fromEntries(group.map(([, profile], n) => [String(n + 1), profile])), selectedSlot: group.length};
+    const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: full}});
+    assert.equal(saved.status, 200, `${group.map(([key]) => key).join(', ')}: ${JSON.stringify(saved.body)}`);
+    revision = saved.body.revision;
+    const stored = await call('save', {cookie: account.cookie});
+    assert.deepEqual(stored.body.bundle, full, `${group.map(([key]) => key).join(', ')} changed on the way through the server`);
   }
 });

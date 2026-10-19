@@ -20,7 +20,12 @@ const bundle = (name,level,saved_at=100) => ({slots:{'1':hero(name,level,saved_a
 const users = new Map(), sessions = new Map();
 let sequence=0, posts=0, delayedLogout, releaseLogout;
 let dropNextPost = false;
+// rejectPost: the production validator's answer to a save it refuses (e.g. a class
+// it does not know). driftOnPost: another device commits between the GET and
+// the POST, so every compare-and-swap loses.
+let rejectPost = null, driftOnPost = false;
 const headers = [];
+const defender = (level,saved_at) => ({version:1,name:'Assotix',class:'defender',level,gold:1200,equip:{},inv:[],party:[{class:'priest',name:'นีน่า',level:level-1}],saved_at});
 const server = http.createServer(async (req,res) => {
   function json(status,data) { res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data)); }
   if (req.url === '/accounts.js') {res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(js);return;}
@@ -46,7 +51,9 @@ const server = http.createServer(async (req,res) => {
   if(route==='save'&&req.method==='GET')return json(200,{userId:current.id,revision:current.revision,bundle:current.bundle,updatedAt:Date.now()});
   if(route==='save') {
     posts++;
-    if(data.expectedRevision!==current.revision)return failure(409,'revision_conflict','Conflict');
+    if(rejectPost)return failure(rejectPost.status,rejectPost.code,rejectPost.message);
+    if(driftOnPost)current.revision++;
+    if(data.expectedRevision!==current.revision)return failure(409,'save_conflict','A newer save exists. Load it before saving again.');
     current.bundle=data.bundle;current.revision++;
     return json(200,{revision:current.revision,updatedAt:Date.now()});
   }
@@ -178,6 +185,63 @@ try {
   await poll(()=>users.get('hero_two').bundle.slots['1'].level===10,'reconnect upload');
   await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'reconnect acknowledgement');
   ok((await cache(page,'account:u_other')).dirty===false,'reconnect acknowledges revision and clears durable draft');
+  // The owner's report: this phone holds a Defender Lv.23 the server never got
+  // (uploads failed), another device then saved a Vagabond Lv.12. On the start
+  // screen the player picks "use this device's save instead of the online one".
+  const two=users.get('hero_two');
+  await page.route('**/api/account/save',route=>route.request().method()==='POST'?route.abort('failed'):route.continue());
+  const phone={slots:{'1':defender(23,3000)},selectedSlot:1};
+  await page.evaluate(p=>new Promise((resolve,reject)=>{const r=indexedDB.open('/userfs');r.onsuccess=()=>{const db=r.result,tx=db.transaction('FILE_DATA','readwrite');tx.objectStore('FILE_DATA').put({timestamp:new Date(),mode:33188,contents:new TextEncoder().encode(JSON.stringify(p))},'/userfs/godot/app_userdata/Toon Tale/toon_tale_slot_1.json');tx.oncomplete=()=>{db.close();resolve()};tx.onerror=reject};r.onerror=reject}),phone.slots['1']);
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify(phone));
+  await poll(async()=>{const c=await cache(page,'account:u_other');return c.dirty===true&&c.bundle.slots['1'].level===23;},'unsent defender draft');
+  const stuckRevision=two.revision;
+  await page.unroute('**/api/account/save');
+  // 1. Same revision, but the server refuses the save: the player must see the
+  // server's reason on the conflict screen, not land back on the login form.
+  rejectPost={status:400,code:'invalid_save',message:'The character class, level or save version is invalid.'};
+  await page.reload();
+  await page.getByRole('heading',{name:'พบเซฟใหม่จากอีกเครื่อง'}).waitFor();
+  let note=await page.locator('.ta-feedback').innerText();
+  ok(note.includes('HTTP 400')&&note.includes('invalid_save')&&note.includes(rejectPost.message),'refused auto-upload names HTTP code, server code and detail: '+note);
+  ok((await page.locator('.ta-compare').innerText()).includes('สายโล่'),'the conflict screen names the defender class');
+  ok(two.revision===stuckRevision&&two.bundle.slots['1'].level===10,'a refused auto-upload changes nothing online');
+  // 2. Another device saved meanwhile; the explicit choice is refused the same way.
+  two.bundle=bundle('Assotix',12,3500);two.bundle.slots['1'].class='vagabond';two.revision++;
+  await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).click();
+  await poll(async()=>(await page.locator('.ta-feedback').innerText()).includes('HTTP 400'),'refusal shown');
+  note=await page.locator('.ta-feedback').innerText();
+  ok(note.includes('invalid_save')&&note.includes(rejectPost.message),'refused replacement shows the server detail: '+note);
+  ok(await page.getByRole('heading',{name:'พบเซฟใหม่จากอีกเครื่อง'}).isVisible(),'the choice stays on screen after a refusal');
+  ok(await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).isEnabled(),'buttons are usable again after a refusal');
+  ok(two.bundle.slots['1'].level===12&&!(await page.evaluate(()=>window.ready)),'a refused replacement leaves the online save and does not start the game');
+  const kept=await cache(page,'account:u_other');
+  ok(kept.dirty===true&&kept.bundle.slots['1'].level===23&&(await local(page)).level===23,'the local defender stays untouched after a refusal');
+  // 3. Compare-and-swap keeps losing (the other device is still uploading): say so.
+  rejectPost=null;driftOnPost=true;
+  await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).click();
+  await poll(async()=>(await page.locator('.ta-feedback').innerText()).includes('HTTP 409'),'conflict loop is reported');
+  ok((await page.locator('.ta-compare').innerText()).includes('เลเวล 12'),'the re-read online save is shown with the 409 note');
+  ok(two.bundle.slots['1'].level===12,'a lost compare-and-swap changes nothing online');
+  // 4. The server accepts: the online save becomes the phone's defender and the game starts with it.
+  driftOnPost=false;const revisionBefore=two.revision;
+  await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  ok(two.bundle.slots['1'].class==='defender'&&two.bundle.slots['1'].level===23&&two.revision===revisionBefore+1,'the local defender replaced the online save at the next revision');
+  ok((await local(page)).level===23&&(await local(page)).class==='defender','the game starts with the defender installed');
+  const settled=await cache(page,'account:u_other');
+  ok(settled.dirty===false&&settled.revision===two.revision,'the draft is acknowledged at the server revision');
+  ok((await cache(page,'backups:account:u_other')).some(x=>x.bundle.slots['1'].level===12&&x.bundle.slots['1'].class==='vagabond'),'the replaced online save is backed up on this device');
+  // 5. "Play this device's save now, send it later" starts the game at once and uploads afterwards.
+  await page.route('**/api/account/save',route=>route.request().method()==='POST'?route.abort('failed'):route.continue());
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':defender(24,4000)},selectedSlot:1}));
+  await poll(async()=>{const c=await cache(page,'account:u_other');return c.dirty===true&&c.bundle.slots['1'].level===24;},'second unsent defender draft');
+  two.bundle=bundle('Assotix',13,4500);two.bundle.slots['1'].class='vagabond';two.revision++;
+  await page.unroute('**/api/account/save');await page.reload();
+  await page.getByRole('heading',{name:'พบเซฟใหม่จากอีกเครื่อง'}).waitFor();
+  await page.getByRole('button',{name:'เล่นเซฟในเครื่องก่อน ค่อยส่งออนไลน์ภายหลัง',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  ok((await local(page)).level===24,'deferring the upload still starts the game with the local save');
+  await poll(()=>two.bundle.slots['1'].level===24&&two.bundle.slots['1'].class==='defender','deferred upload');
+  await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'deferred upload acknowledged');
+  ok((await cache(page,'account:u_other')).revision===two.revision,'the deferred upload is acknowledged at the server revision');
   await page.evaluate(()=>toonOpenAccountPanel());await page.setViewportSize({width:956,height:440});
   if(screenshotDir)await page.screenshot({path:screenshotDir+'/account-landscape.png',fullPage:true});
   ok(await page.locator('.ta-card').evaluate(el=>el.scrollWidth<=el.clientWidth),'landscape card has no horizontal overflow');
