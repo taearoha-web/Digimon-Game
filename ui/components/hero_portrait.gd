@@ -1,8 +1,10 @@
 class_name HeroPortrait
 extends TextureRect
-## A still portrait of the same head and head accessories as the real hero.
-## Only appearance changes create a temporary, single-frame 3D capture. During
-## play the HUD displays a normal texture, with no extra running viewport.
+## A half-body portrait of the real hero: the chosen look (hair, eyes, skin,
+## accessory), the worn outfit and head gear, from the chest up. Only appearance
+## changes create a temporary 3D capture of two stills (eyes open and closed);
+## during play the HUD shows a normal texture and blinks by swapping the two,
+## with no extra running viewport.
 
 const CAPTURE_SIZE := 192
 const CACHE_LIMIT := 12
@@ -11,9 +13,16 @@ const BARE_HEADS: Array[Texture2D] = [
 	preload("res://assets/ui/portraits/hero_girl.png"),
 ]
 
+## Seconds between blinks (a random pick in this range) and how long the eyes
+## stay closed.
+const BLINK_EVERY := Vector2(2.6, 5.2)
+const BLINK_HOLD := 0.13
+## How far the eye bones squash for the closed frame.
+const CLOSED_EYE := 0.12
+
+## key -> [eyes open, eyes closed] textures.
 static var _textures: Dictionary = {}
 static var _texture_order: Array[String] = []
-static var _head_meshes: Dictionary = {}
 static var _live_instances := 0
 
 var _wanted_key := ""
@@ -29,6 +38,12 @@ var _frames_left := 0
 var _visual: HeroVisual
 var _camera: Camera3D
 var _post_draw := Callable()
+## Capture stage: 0 eyes open, 1 eyes closed.
+var _stage := 0
+var _open_image: ImageTexture
+var _closed: Texture2D
+var _open: Texture2D
+var _blink: Timer
 
 
 func _enter_tree() -> void:
@@ -40,6 +55,11 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_process(false)
 	visibility_changed.connect(_on_visibility_changed)
+	_blink = Timer.new()
+	_blink.one_shot = true
+	_blink.timeout.connect(_on_blink)
+	add_child(_blink)
+	_blink.start(randf_range(BLINK_EVERY.x, BLINK_EVERY.y))
 	_schedule_capture()
 
 
@@ -52,15 +72,16 @@ func _exit_tree() -> void:
 		# Keep them while another portrait is active, then release the cache and
 		# this last texture reference together when the last owner leaves.
 		texture = null
+		_open = null
+		_closed = null
 		_shown_key = ""
 		_textures.clear()
 		_texture_order.clear()
-		_head_meshes.clear()
 
 
 ## The HUD may call this on every status refresh; unchanged appearances do no
 ## scene construction, rendering or image readback. UID/stat-only item changes
-## also share an image because they do not change the chibi head's appearance.
+## also share an image because they do not change what the bust shows.
 func refresh_profile(profile: Dictionary) -> void:
 	var key := appearance_key(profile)
 	if key == _wanted_key:
@@ -68,31 +89,36 @@ func refresh_profile(profile: Dictionary) -> void:
 	_wanted_key = key
 	_generation += 1
 	_cancel_capture()
-	var look: Dictionary = profile.get("look", {})
-	var gender := clampi(int(look.get("gender", 0)), 0, 1)
-	var equipment: Dictionary = profile.get("equip", {})
-	_pending_profile = {"look": {"gender": gender}, "equip": equipment.duplicate(true)}
+	var look := FaceKit.repair(profile.get("look", {}))
+	var equipment: Dictionary = profile.get("equip", {}).duplicate(true)
+	# The bust shows the outfit and head gear; wings and weapons stay out of frame.
+	equipment.erase("wings")
+	equipment.erase("weapon")
+	_pending_profile = {"class": StringName(profile.get("class", ClassData.START)), "look": look, "equip": equipment}
 	if _textures.has(key):
-		texture = _textures[key]
+		_show(_textures[key])
 		_shown_key = key
 		_touch_cache(key)
 	else:
 		# Never leave the previous character's portrait visible while capturing a
 		# newly selected save, and give first entry an immediate image to display.
-		texture = BARE_HEADS[gender]
+		_show([BARE_HEADS[int(look.gender)], null])
 		_shown_key = ""
 	_schedule_capture()
 
 
 static func appearance_key(profile: Dictionary) -> String:
-	var look: Dictionary = profile.get("look", {})
-	var gender := clampi(int(look.get("gender", 0)), 0, 1)
+	var look := FaceKit.repair(profile.get("look", {}))
+	var looks: PackedStringArray = []
+	for part in look:
+		looks.append("%s=%d" % [part, int(look[part])])
+	looks.sort()
 	var equipment: Dictionary = profile.get("equip", {})
-	var helm: Variant = equipment.get("helm")
-	var helm_tier := ItemLook.tier_of(helm) if helm is Dictionary else -1
-	# Star circlets have class-specific shapes and colours even at equal tiers.
-	var helm_style := ItemLook.look_of(helm) if StarGearData.is_star(helm) else str(helm_tier)
-	var grade := EnhanceFx.grade(int(helm.get("plus", 0))) if helm is Dictionary else 0
+	var dress: PackedStringArray = []
+	for slot in ["armor", "helm", "boots"]:
+		var piece: Variant = equipment.get(slot)
+		if piece is Dictionary:
+			dress.append("%s:%s:%d" % [slot, ItemLook.look_of(piece), EnhanceFx.grade(int(piece.get("plus", 0)))])
 	var halo_tier := -1
 	if GameSettings.quality > 0:
 		for slot in ["weapon", "armor", "helm", "boots"]:
@@ -101,7 +127,23 @@ static func appearance_key(profile: Dictionary) -> String:
 				var tier := ItemLook.tier_of(piece)
 				if tier >= 8:
 					halo_tier = maxi(halo_tier, tier)
-	return "%d|%s|%d|%d|%d" % [gender, helm_style, grade, halo_tier, int(GameSettings.quality > 0)]
+	return "%s|%s|%s|%d|%d" % [String(profile.get("class", "")), ",".join(looks), ",".join(dress), halo_tier, int(GameSettings.quality > 0)]
+
+
+func _show(pair: Array) -> void:
+	_open = pair[0]
+	_closed = pair[1]
+	texture = _open
+
+
+## Close the eyes for a moment, then open them and wait for the next blink.
+func _on_blink() -> void:
+	if _closed != null and texture == _open and is_visible_in_tree():
+		texture = _closed
+		_blink.start(BLINK_HOLD)
+		return
+	texture = _open
+	_blink.start(randf_range(BLINK_EVERY.x, BLINK_EVERY.y))
 
 
 func _on_visibility_changed() -> void:
@@ -128,7 +170,7 @@ func _capture_pending(runner_id: int) -> void:
 		return
 	var key := _wanted_key
 	if _textures.has(key):
-		texture = _textures[key]
+		_show(_textures[key])
 		_shown_key = key
 		_touch_cache(key)
 		_cancel_capture()
@@ -152,13 +194,11 @@ func _capture_pending(runner_id: int) -> void:
 	viewport.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(viewport)
 	_add_lighting(viewport)
-	var look: Dictionary = profile.get("look", {})
-	var gender := clampi(int(look.get("gender", 0)), 0, 1)
 	var visual := HeroVisual.new()
 	_visual = visual
 	viewport.add_child(visual)
-	visual.setup(ClassData.START, "", false, profile.get("equip", {}), {"gender": gender})
-	_isolate_head(visual, gender)
+	visual.setup(profile.get("class", ClassData.START), "", false, profile.get("equip", {}), profile.get("look", {}))
+	_isolate_bust(visual)
 	visual.anim.play("Idle")
 	visual.anim.seek(0.0, true)
 	visual.anim.pause()
@@ -173,6 +213,8 @@ func _capture_pending(runner_id: int) -> void:
 	# Keep rendering disabled until they are settled; only the final still is
 	# drawn. These scene updates continue while the equipment menu pauses play.
 	_frames_left = 2
+	_stage = 0
+	_open_image = null
 	set_process(true)
 
 
@@ -184,7 +226,8 @@ func _process(_delta: float) -> void:
 	_frames_left -= 1
 	if _frames_left > 0:
 		return
-	_frame_head(_camera, _visual)
+	if _stage == 0:
+		_frame_bust(_camera, _visual)
 	# The component has no member coroutine awaiting an external signal. This
 	# one-shot callback disconnects automatically if the HUD is destroyed, and
 	# explicit cancellation also removes it on hide or equipment changes.
@@ -206,11 +249,22 @@ func _finish_capture(runner_id: int, key: String, generation: int) -> void:
 	var rendered: ImageTexture = null
 	if image != null and not image.is_empty():
 		rendered = ImageTexture.create_from_image(image)
+	if _stage == 0 and rendered != null:
+		# Second still: the same pose with the eyes closed, for the blink.
+		_open_image = rendered
+		_stage = 1
+		_close_eyes(_visual)
+		_frames_left = 2
+		set_process(true)
+		return
+	var pair: Array = [_open_image, rendered] if _stage == 1 else [rendered, null]
+	if pair[0] == null:
+		pair = [rendered, null]
 	_cancel_capture()
-	if rendered != null:
-		_store_texture(key, rendered)
+	if pair[0] != null:
+		_store_texture(key, pair)
 		if generation == _generation and key == _wanted_key:
-			texture = rendered
+			_show(pair)
 			_shown_key = key
 	elif generation == _generation:
 		# Do not retry a failed renderer readback on every HUD refresh.
@@ -235,6 +289,8 @@ func _cancel_capture() -> void:
 	_capture_key = ""
 	_capture_generation = -1
 	_capturing = false
+	_stage = 0
+	_open_image = null
 
 
 func _release_viewport(expected: SubViewport = null) -> void:
@@ -267,119 +323,48 @@ static func _add_lighting(viewport: SubViewport) -> void:
 	viewport.add_child(fill)
 
 
-static func _isolate_head(visual: HeroVisual, gender: int) -> void:
+## Only the body and what it wears stay: auras, particles and the wings (on
+## their own bone attachments) are left out of the still.
+static func _isolate_bust(visual: HeroVisual) -> void:
 	var skeleton := visual.model.find_child("Skeleton3D", true, false) as Skeleton3D
-	var head := skeleton.find_bone("Head")
-	# Head accessories have exactly the same bone transforms as the world hero.
-	# All other equipment, full-body auras and particles are outside this crop.
 	for child in skeleton.get_children():
-		if child is BoneAttachment3D and not (child.name in ["ChibiHelm", "ChibiStar_helm", "ChibiDivineDye_helm", "Halo"]):
+		if child is BoneAttachment3D and (String(child.name).contains("Wing") or String(child.name).begins_with("Held_")):
 			child.free()
 	for child in visual.get_children():
 		if child != visual.model:
 			child.free()
-	for node in visual.model.find_children("*", "MeshInstance3D", true, false):
-		var instance := node as MeshInstance3D
-		if instance.skin == null or instance.mesh == null:
-			continue
-		var cache_key := "%d|%s" % [gender, visual.model.get_path_to(instance)]
-		if not _head_meshes.has(cache_key):
-			_head_meshes[cache_key] = _crop_head_mesh(instance, skeleton, head)
-		var cropped: ArrayMesh = _head_meshes[cache_key]
-		instance.mesh = cropped
-		instance.visible = cropped != null and cropped.get_surface_count() > 0
 
 
-## The immutable cropped meshes are built once per gender. Retain the original
-## skin and vertex arrays but only triangles whose three vertices are weighted
-## to the Head subtree, including all facial and hair descendants.
-static func _crop_head_mesh(instance: MeshInstance3D, skeleton: Skeleton3D, head: int) -> ArrayMesh:
-	var head_binds: Dictionary = {}
-	for bind in instance.skin.get_bind_count():
-		var bone := skeleton.find_bone(instance.skin.get_bind_name(bind))
-		if bone < 0:
-			bone = instance.skin.get_bind_bone(bind)
-		while bone >= 0:
-			if bone == head:
-				head_binds[bind] = true
-				break
-			bone = skeleton.get_bone_parent(bone)
-	var source := instance.mesh
-	var cropped := ArrayMesh.new()
-	var bounds := AABB()
-	var has_bounds := false
-	for surface in source.get_surface_count():
-		var arrays := source.surface_get_arrays(surface)
-		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
-		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-		if vertices.is_empty() or bones.is_empty() or weights.is_empty():
-			continue
-		var stride := bones.size() / vertices.size()
-		var included: PackedByteArray = []
-		included.resize(vertices.size())
-		for vertex in vertices.size():
-			var head_weight := 0.0
-			for slot in stride:
-				var at := vertex * stride + slot
-				if head_binds.has(bones[at]):
-					head_weight += weights[at]
-			included[vertex] = 1 if head_weight >= 0.45 else 0
-		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-		if indices.is_empty():
-			for index in vertices.size():
-				indices.append(index)
-		var kept: PackedInt32Array = []
-		for triangle in range(0, indices.size() - 2, 3):
-			if included[indices[triangle]] and included[indices[triangle + 1]] and included[indices[triangle + 2]]:
-				for corner in 3:
-					var index := indices[triangle + corner]
-					kept.append(index)
-					if has_bounds:
-						bounds = bounds.expand(vertices[index])
-					else:
-						bounds = AABB(vertices[index], Vector3.ZERO)
-						has_bounds = true
-		if kept.is_empty():
-			continue
-		arrays[Mesh.ARRAY_INDEX] = kept
-		cropped.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, source.surface_get_format(surface) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
-		cropped.surface_set_material(cropped.get_surface_count() - 1, source.surface_get_material(surface))
-	if has_bounds:
-		# The retained vertex arrays also contain unused body vertices. Their old
-		# bounds must not pull the portrait camera down to the missing torso.
-		cropped.custom_aabb = bounds.grow(0.015)
-	return cropped
+## The eye bones carry the middle of each eye: squashed flat they read as shut.
+static func _close_eyes(visual: HeroVisual) -> void:
+	var skeleton := visual.model.find_child("Skeleton3D", true, false) as Skeleton3D
+	for eye in ["Eye_L", "Eye_R"]:
+		var bone := skeleton.find_bone(eye)
+		if bone >= 0:
+			skeleton.set_bone_pose_scale(bone, Vector3(1.0, CLOSED_EYE, 1.0))
 
 
-static func _frame_head(camera: Camera3D, visual: HeroVisual) -> void:
-	var bounds := AABB()
-	var has_bounds := false
+## Chest up: from just under the chest bone to the top of the hair, head gear or
+## halo, centred on the body.
+static func _frame_bust(camera: Camera3D, visual: HeroVisual) -> void:
+	var skeleton := visual.model.find_child("Skeleton3D", true, false) as Skeleton3D
+	var top := -INF
 	for node in visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		if mesh.mesh == null or not mesh.visible:
 			continue
-		var local_box := mesh.get_aabb()
-		# ArrayMesh.get_aabb() retains unused body vertices even when its custom
-		# rendering bounds are head-only. Use those explicit crop bounds here.
-		if mesh.skin != null and mesh.mesh is ArrayMesh:
-			local_box = (mesh.mesh as ArrayMesh).custom_aabb
-		var box: AABB = mesh.global_transform * local_box
-		if has_bounds:
-			bounds = bounds.merge(box)
-		else:
-			bounds = box
-			has_bounds = true
-	if not has_bounds:
-		camera.size = 1.16
-		camera.position = Vector3(-0.03, 1.96, 5.0)
-		return
-	var center := bounds.get_center()
-	camera.size = maxf(1.16, maxf(bounds.size.x, bounds.size.y) * 1.16)
-	# A small downward angle lets horizontal circlets and halos read as rings
-	# rather than thin edge-on lines while keeping the face almost frontal.
-	var distance := maxf(5.0, bounds.size.z + 3.0)
-	camera.position = center + Vector3(0, distance * tan(deg_to_rad(7.0)), distance)
+		top = maxf(top, (mesh.global_transform * mesh.get_aabb()).end.y)
+	var head := skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("Head")).origin
+	var chest := skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("Spine")).origin
+	if not is_finite(top) or top < head.y:
+		top = head.y + (head.y - chest.y) * 1.4
+	var bottom := chest.y
+	var height := top - bottom
+	# A little air above the hair, crown or halo; the chest runs off the bottom.
+	camera.size = height * 1.14
+	var center := Vector3(head.x, bottom + height * 0.53, head.z)
+	var distance := 5.0
+	camera.position = center + Vector3(0, distance * tan(deg_to_rad(5.0)), distance)
 	camera.look_at(center, Vector3.UP)
 
 
@@ -388,7 +373,7 @@ static func _touch_cache(key: String) -> void:
 	_texture_order.append(key)
 
 
-static func _store_texture(key: String, rendered: ImageTexture) -> void:
+static func _store_texture(key: String, rendered: Array) -> void:
 	_textures[key] = rendered
 	_touch_cache(key)
 	while _texture_order.size() > CACHE_LIMIT:
