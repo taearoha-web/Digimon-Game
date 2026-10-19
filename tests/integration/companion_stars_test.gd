@@ -55,6 +55,7 @@ func _ready() -> void:
 		check(not Game._valid_profile(broken), "201 stars is rejected")
 	# Catching up: a companion left behind follows the hero's stars.
 	Game.new_profile(&"warrior", "Catch-up QA")
+	Game.recruit(&"priest", false)
 	Game.profile.level = 100
 	Game.profile.paragon = {"level": 120, "exp": 0, "points": 120, "spent": 0, "alloc": {}}
 	var late := _member()
