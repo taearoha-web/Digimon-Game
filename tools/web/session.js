@@ -56,7 +56,9 @@
     if (/memory access out of bounds/i.test(message)) return 'wasm_bounds_error';
     if (/unreachable|runtimeerror|abort\(/i.test(message)) return 'runtime_abort';
     if (/^\s*WARNING:/i.test(message)) return 'engine_warning';
-    if (/^\s*SCRIPT ERROR:/i.test(message)) return 'script_error';
+    if (/^\s*(?:USER )?SCRIPT ERROR:/i.test(message)) return 'script_error';
+    // Release builds prefix a script's own runtime faults with "USER ERROR:".
+    if (/^\s*USER ERROR:/i.test(message)) return 'script_runtime_error';
     if (/^\s*ERROR:/i.test(message)) return 'engine_error';
     return 'runtime_error';
   }
@@ -64,6 +66,7 @@
   // store raw messages, identifiers, URLs, query strings, stacks or save data.
   function safeIssue(message) {
     for (const [pattern, code] of [
+      [/Lambda capture .{0,20} was freed/i, 'freed_capture'],
       [/previously freed|freed instance/i, 'freed_instance'],
       [/!is_inside_tree|outside.*scene tree/i, 'outside_tree'],
       [/null instance|Parameter .{0,40} is null/i, 'null_instance'],
@@ -77,7 +80,7 @@
   function safeLocation(message) {
     const path = message.match(/res:\/\/((?:characters|combat|data|monsters|scenes|systems|ui|vfx|world)\/[a-z0-9_\/]{1,120}\.gd):([0-9]{1,6})/i);
     if (path) return {file: 'res://' + path[1], line: Number(path[2])};
-    const native = message.match(/\(((?:scene|servers|core|drivers|platform)\/[a-z0-9_\/]{1,160}\.(?:cpp|h)):([0-9]{1,6})\)/i);
+    const native = message.match(/\(((?:scene|servers|core|drivers|platform|modules|main)\/[a-z0-9_\/]{1,160}\.(?:cpp|h)):([0-9]{1,6})\)/i);
     return native ? {file: native[1], line: Number(native[2])} : {};
   }
   // Engine function that reported the fault ("at: get_path (scene/main/node.cpp:835)"):
