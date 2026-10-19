@@ -129,14 +129,16 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	env.fog_density = float(air[0])
 	env.fog_sky_affect = 0.28 + (1.0 - warm) * 0.14
 	GameSettings.load_settings()
-	# Soft-light glow on high quality only: lanterns, lava, crystals and
-	# portals bloom while skin and cloth stay under the threshold.
-	env.glow_enabled = GameSettings.quality >= 2 and bool(look.get("glow", true))
+	# Soft-light glow on medium and high quality: skill cores, lanterns, lava,
+	# crystals and portals bloom while skin and cloth stay under the threshold.
+	# Medium keeps one blur level and a gentler intensity for phones.
+	env.glow_enabled = GameSettings.quality >= 1 and bool(look.get("glow", true))
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	env.glow_hdr_threshold = 1.05
-	env.glow_intensity = 0.55
+	env.glow_hdr_threshold = 0.96
+	env.glow_intensity = 0.55 if GameSettings.quality >= 2 else 0.42
 	env.glow_strength = 0.85
 	env.glow_bloom = 0.0
+	env.set("glow_levels/5", GameSettings.quality >= 2)
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	parent.add_child(world_env)

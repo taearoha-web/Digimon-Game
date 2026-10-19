@@ -75,7 +75,7 @@ const CLASSES := {
 		"main": "dex",
 		"base": {"str": 5, "int": 4, "dex": 14, "vit": 8},
 		"gain": {"str": 0, "int": 1, "dex": 3, "vit": 1},
-		"hp_mult": 0.95,
+		"hp_mult": 1.05,
 		"mp_mult": 0.9,
 		"attack": {
 			"range": 11.0, "interval": 0.85, "mult": 1.0, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
@@ -96,7 +96,7 @@ const CLASSES := {
 		"main": "int",
 		"base": {"str": 3, "int": 15, "dex": 6, "vit": 6},
 		"gain": {"str": 0, "int": 3, "dex": 1, "vit": 1},
-		"hp_mult": 0.8,
+		"hp_mult": 0.9,
 		"mp_mult": 1.5,
 		"attack": {
 			"range": 9.5, "interval": 0.95, "mult": 1.0, "hit_delay": 0.3, "projectile": true, "vfx": &"impact",
@@ -138,7 +138,7 @@ const CLASSES := {
 		"main": "int",
 		"base": {"str": 4, "int": 13, "dex": 6, "vit": 9},
 		"gain": {"str": 0, "int": 3, "dex": 1, "vit": 2},
-		"hp_mult": 0.95,
+		"hp_mult": 1.0,
 		"mp_mult": 1.4,
 		"attack": {
 			"range": 9.0, "interval": 0.9, "mult": 1.0, "hit_delay": 0.3, "projectile": true, "vfx": &"leaf",
@@ -443,7 +443,7 @@ static func _build_pools() -> void:
 		_sk(a, "tempest", "Tempest", "ห่าลูกศรพายุถล่มพื้นที่กว้าง", 80, 96, 16.0, "blast", 14.0, {"radius": 8.0, "special": "rain", "color": Color("ffd84a"), "vfx": &"leaf", "icon": "rain"}),
 		_sk(a, "lightning_arrow", "Lightning Arrow", "ลูกศรสายฟ้าฟาดศัตรูตัวเดียว", 84, 92, 10.0, "single", 19.0, {"range": 18.0, "vfx": &"thunder", "color": Color("fff06a"), "icon": "bolt"}),
 		_sk(a, "phoenix_rain", "Phoenix Rain", "ฝนลูกศรเพลิงฟีนิกซ์ ติดไฟรุนแรง", 88, 104, 18.0, "blast", 15.0, {"radius": 8.5, "special": "rain", "fx": {"burn": [0.5, 6.0]}, "vfx": &"fireball", "color": Color("ff6a2a"), "icon": "fire"}),
-		_sk(a, "spirit_of_wind", "Spirit of the Wind", "วิ่งเร็ว +40% ATK +50% คริ +15% นาน 1 นาที", 92, 100, 45.0, "self", 0.0, {"fx": {"buff": {"speed": 0.4, "atk": 0.5, "crit": 0.15, "secs": 60.0}}, "color": Color("7affd0"), "icon": "boots"}),
+		_sk(a, "spirit_of_wind", "Spirit of the Wind", "วิ่งเร็ว +40% ATK +60% คริ +15% นาน 1 นาที", 92, 100, 45.0, "self", 0.0, {"fx": {"buff": {"speed": 0.4, "atk": 0.6, "crit": 0.15, "secs": 60.0}}, "color": Color("7affd0"), "icon": "boots"}),
 		_sk(a, "dragon_shot", "Dragon Shot", "ลูกศรมังกร 10 ดอกพุ่งใส่ศัตรู", 96, 118, 16.0, "fan", 6.5, {"hits": 10, "range": 14.0, "vfx": &"fireball", "color": Color("ff8a3a"), "icon": "triple"}),
 		_sk(a, "meteor_arrow", "Meteor Arrow", "ลูกศรอุกกาบาตจากฟ้า พลังทำลายล้างสูงสุด", 100, 140, 15.0, "single", 28.0, {"range": 20.0, "vfx": &"fireball", "fx": {"burn": [0.6, 6.0]}, "color": Color("ff5a2a"), "icon": "meteor"}),
 	]
@@ -477,7 +477,7 @@ static func _build_pools() -> void:
 	]
 	var p := &"priest"
 	_pools[p] = [
-		_sk(p, "holy_bolt", "Holy Bolt", "ลำแสงศักดิ์สิทธิ์โจมตีศัตรูตัวเดียว", 10, 10, 3.0, "single", 2.9, {"color": Color("fff2a0"), "icon": "light"}),
+		_sk(p, "holy_bolt", "Holy Bolt", "ลำแสงศักดิ์สิทธิ์โจมตีศัตรูตัวเดียว", 10, 10, 3.0, "single", 3.2, {"color": Color("fff2a0"), "icon": "light"}),
 		_sk(p, "healing", "Healing", "ฟื้นฟู HP ของตัวเอง 40%", 10, 14, 9.0, "self", 0.0, {"fx": {"heal": 0.4}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("6dff9a"), "icon": "heal"}),
 		_sk(p, "multi_spark", "Multi Spark", "ยิงลูกประกายสายฟ้า 4 ลูก", 14, 18, 7.0, "fan", 2.0, {"hits": 4, "vfx": &"thunder", "color": Color("fff06a"), "icon": "triple"}),
 		_sk(p, "holy_mind", "Holy Mind", "จิตศักดิ์สิทธิ์ ทำร้ายและทำให้ศัตรูช้าลง 4 วินาที", 17, 20, 10.0, "single", 3.4, {"fx": {"slow": 4.0}, "color": Color("ffe9a0"), "icon": "light"}),
@@ -539,7 +539,7 @@ static func _build_pools() -> void:
 	var pc := func(n: int, length: float, width := 1.3, keep := 0.7) -> Dictionary:
 		return {"n": n, "len": length, "w": width, "k": keep}
 	_pools[l] = [
-		_sk(l, "thrust", "Thrust", "แทงหอกใส่ศัตรูตัวเดียว ทะลุไปโดนตัวหลังอีก 2 ตัว", 10, 9, 3.0, "single", 3.0, {"pierce": pc.call(2, 6.5), "color": Color("9ad8ff"), "icon": "sword"}),
+		_sk(l, "thrust", "Thrust", "แทงหอกใส่ศัตรูตัวเดียว ทะลุไปโดนตัวหลังอีก 2 ตัว", 10, 9, 4.0, "single", 3.0, {"pierce": pc.call(2, 6.5), "color": Color("9ad8ff"), "icon": "sword"}),
 		_sk(l, "stagger", "Stagger", "ด้ามหอกกระแทก ศัตรูมึนงง 1.2 วินาที", 10, 12, 6.0, "single", 3.2, {"fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
 		_sk(l, "focus", "Focus", "จดจ่อ คริติคอล +15% ATK +10% นาน 1 นาที", 13, 16, 28.0, "self", 0.0, {"fx": {"buff": {"crit": 0.15, "atk": 0.1, "secs": 60.0}}, "color": Color("ffd27a"), "icon": "roar"}),
 		_sk(l, "skewer", "Skewer", "แทงเสียบทะลุแนวตรง 3 ตัว", 16, 18, 6.0, "single", 4.2, {"pierce": pc.call(3, 7.5), "color": Color("8fd0ff"), "icon": "sword"}),
@@ -572,26 +572,26 @@ static func _build_pools() -> void:
 		_sk(d, "shield_slam", "Shield Slam", "กระแทกหน้าโล่ใส่ศัตรู มึนงง 1.5 วินาที", 14, 16, 6.0, "single", 3.8, {"fx": {"stun": 1.5}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
 		_sk(d, "provoke", "Provoke", "เคาะโล่ท้าทาย ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 4 วินาที", 17, 18, 14.0, "burst", 1.5, {"radius": 7.0, "fx": {"taunt": 4.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff9a6a"), "icon": "roar"}),
 		_sk(d, "ground_quake", "Ground Quake", "ทุบโล่ลงพื้น ศัตรูรอบตัวช้าลง 2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.5, "fx": {"slow": 2.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("d8b98a"), "icon": "nova"}),
-		_sk(d, "shield_toss", "Shield Toss", "ขว้างโล่เด้งไปโดนศัตรู 3 ตัวแล้วกลับมือ", 24, 24, 9.0, "chain", 2.6, {"hits": 3, "range": 9.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "triple"}),
+		_sk(d, "shield_toss", "Shield Toss", "ขว้างโล่เด้งไปโดนศัตรู 3 ตัวแล้วกลับมือ", 24, 24, 9.0, "chain", 3.0, {"hits": 3, "range": 9.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "triple"}),
 		_sk(d, "iron_wall", "Iron Wall", "กำแพงเหล็ก DEF +50% ลดความเสียหาย 15% นาน 1 นาที (ส่งถึงทีม)", 27, 26, 32.0, "self", 0.0, {"fx": {"buff": {"def": 0.5, "guard": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("a8c8e8"), "icon": "shield"}),
 		_sk(d, "bulwark_charge", "Bulwark Charge", "ยกโล่พุ่งชนทะลุแนวศัตรู 3 ตัว มึนงงสั้นๆ", 31, 28, 8.0, "single", 4.8, {"range": 8.0, "fx": {"stun": 0.6}, "pierce": pc.call(3, 8.0, 1.6), "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffb04a"), "icon": "boots"}),
 		_sk(d, "thorn_guard", "Thorn Guard", "โล่หนาม สะท้อนความเสียหาย 20% กลับใส่ผู้โจมตี DEF +20% นาน 1 นาที", 35, 30, 34.0, "self", 0.0, {"fx": {"buff": {"reflect": 0.2, "def": 0.2, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffb46a"), "icon": "shield"}),
 		_sk(d, "quake_slam", "Quake Slam", "ทุบพื้นสั่นสะเทือน ศัตรูรอบตัวมึนงง 1.2 วินาที", 39, 38, 12.0, "burst", 4.0, {"radius": 5.2, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("e8c08a"), "icon": "spin"}),
-		_sk(d, "aegis_strike", "Aegis Strike", "ฟาดโล่สุดแรงใส่ศัตรูตัวเดียว", 43, 40, 9.0, "single", 6.6, {"range": 3.2, "anim": "Block_Attack", "vfx": &"impact", "color": Color("9fd0ff"), "icon": "shield"}),
+		_sk(d, "aegis_strike", "Aegis Strike", "ฟาดโล่สุดแรงใส่ศัตรูตัวเดียว", 43, 40, 8.0, "single", 7.4, {"range": 3.2, "anim": "Block_Attack", "vfx": &"impact", "color": Color("9fd0ff"), "icon": "shield"}),
 		_sk(d, "guardian_oath", "Guardian's Oath", "สาบานผู้พิทักษ์ ฟื้น HP 20% และโล่ดูดซับ 15% ของ HP สูงสุด นาน 1 นาที", 47, 44, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"shield": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("fff0b0"), "icon": "heal"}),
 		_sk(d, "shield_wave", "Shield Wave", "ฟาดโล่ส่งคลื่นพลังทะลุศัตรู 5 ตัว", 52, 48, 9.0, "single", 6.5, {"range": 9.0, "pierce": pc.call(5, 11.0, 1.6), "anim": "Block_Attack", "vfx": &"impact", "color": Color("b8e0ff"), "icon": "arrow"}),
 		_sk(d, "shockwave_wall", "Shockwave Wall", "ดันโล่สร้างคลื่นกระแทกรอบตัว ศัตรูกระเด็นและมึนงง 0.8 วินาที", 56, 52, 11.0, "burst", 6.0, {"radius": 6.0, "fx": {"stun": 0.8}, "anim": "2H_Melee_Attack_Spin", "vfx": &"impact", "color": Color("9fe8ff"), "icon": "nova"}),
-		_sk(d, "titan_quake", "Titan Quake", "ทุบพสุธาด้วยโล่ยักษ์ ศัตรูรอบตัวมึนงง 1 วินาที", 60, 62, 12.0, "burst", 6.5, {"radius": 6.5, "fx": {"stun": 1.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ffb06a"), "icon": "spin"}),
-		_sk(d, "bastion_crush", "Bastion Crush", "กดโล่บดขยี้ศัตรูตัวเดียว", 64, 60, 8.0, "single", 10.5, {"range": 3.4, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ff8a5a"), "icon": "shield"}),
-		_sk(d, "rebound_storm", "Rebound Storm", "ขว้างโล่เด้งรัวไปโดนศัตรู 5 ตัว", 68, 66, 11.0, "chain", 5.0, {"hits": 5, "range": 10.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("c8e4ff"), "icon": "triple"}),
+		_sk(d, "titan_quake", "Titan Quake", "ทุบพสุธาด้วยโล่ยักษ์ ศัตรูรอบตัวมึนงง 1 วินาที", 60, 62, 12.0, "burst", 7.5, {"radius": 6.5, "fx": {"stun": 1.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ffb06a"), "icon": "spin"}),
+		_sk(d, "bastion_crush", "Bastion Crush", "กดโล่บดขยี้ศัตรูตัวเดียว", 64, 60, 8.0, "single", 12.0, {"range": 3.4, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ff8a5a"), "icon": "shield"}),
+		_sk(d, "rebound_storm", "Rebound Storm", "ขว้างโล่เด้งรัวไปโดนศัตรู 5 ตัว", 68, 66, 11.0, "chain", 5.6, {"hits": 5, "range": 10.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("c8e4ff"), "icon": "triple"}),
 		_sk(d, "grand_provoke", "Grand Provoke", "ท้ารบทั้งสนาม ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 5 วินาที", 72, 70, 16.0, "burst", 2.0, {"radius": 8.0, "fx": {"taunt": 5.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff7a4a"), "icon": "roar"}),
 		_sk(d, "unbreakable", "Unbreakable", "ไม่มีวันแตก DEF +80% ฟื้น HP 30% สะท้อนความเสียหาย 25% นาน 1 นาที", 76, 76, 42.0, "self", 0.0, {"fx": {"heal": 0.3, "buff": {"def": 0.8, "reflect": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffd27a"), "icon": "shield"}),
-		_sk(d, "holy_rampart", "Holy Rampart", "กำแพงแสงระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 80, 90, 16.0, "burst", 10.5, {"radius": 7.5, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
-		_sk(d, "judgment_shield", "Judgment Shield", "ฟาดโล่แห่งคำพิพากษาใส่ศัตรูตัวเดียว", 84, 92, 10.0, "single", 14.5, {"range": 3.6, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("fff0a0"), "icon": "shield"}),
+		_sk(d, "holy_rampart", "Holy Rampart", "กำแพงแสงระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 80, 90, 16.0, "burst", 11.5, {"radius": 7.5, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
+		_sk(d, "judgment_shield", "Judgment Shield", "ฟาดโล่แห่งคำพิพากษาใส่ศัตรูตัวเดียว", 84, 92, 10.0, "single", 17.0, {"range": 3.6, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("fff0a0"), "icon": "shield"}),
 		_sk(d, "aegis_of_ages", "Aegis of Ages", "อีจิสนิรันดร์ DEF +100% ฟื้น HP 40% โล่ดูดซับ 25% ของ HP นาน 1 นาที", 88, 90, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 1.0, "shield": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffffff"), "icon": "shield"}),
-		_sk(d, "meteor_shield", "Meteor Shield", "กระโดดทุบโล่ลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 100, 14.0, "blast", 12.0, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "hit_delay": 0.55, "vfx": &"impact", "color": Color("ffb04a"), "icon": "meteor"}),
+		_sk(d, "meteor_shield", "Meteor Shield", "กระโดดทุบโล่ลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 100, 14.0, "blast", 13.5, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "hit_delay": 0.55, "vfx": &"impact", "color": Color("ffb04a"), "icon": "meteor"}),
 		_sk(d, "sanctuary_wall", "Sanctuary Wall", "กำแพงวิหาร ATK +40% ลดความเสียหาย 25% นาน 1 นาที (ส่งถึงทีม)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "guard": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffe9a0"), "icon": "bless"}),
-		_sk(d, "world_bastion", "World Bastion", "ปักโล่ลงพิภพ คลื่นป้อมปราการถล่มรอบตัว ศัตรูมึนงง 2 วินาทีแล้วหันมาโจมตีคุณ", 100, 130, 16.0, "burst", 20.0, {"radius": 9.0, "fx": {"stun": 2.0, "taunt": 4.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("ffd84a"), "icon": "nova"}),
+		_sk(d, "world_bastion", "World Bastion", "ปักโล่ลงพิภพ คลื่นป้อมปราการถล่มรอบตัว ศัตรูมึนงง 2 วินาทีแล้วหันมาโจมตีคุณ", 100, 130, 16.0, "burst", 23.0, {"radius": 9.0, "fx": {"stun": 2.0, "taunt": 4.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("ffd84a"), "icon": "nova"}),
 	]
 
 	for star_class in IDS:

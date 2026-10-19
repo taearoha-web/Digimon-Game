@@ -58,12 +58,12 @@ static func pool(cls: StringName) -> Array:
 			"crystal_prison": s["fx"]={"slow":4.0}
 			"astral_convergence": s["gesture"]="channel"
 			"genesis_nova": s["gesture"]="channel"
-			"sanctified_chain": s.merge({"shape":"chain","hits":5,"mult":13.0,"gesture":"bolt"},true)
+			"sanctified_chain": s.merge({"shape":"chain","hits":5,"mult":17.0,"gesture":"bolt"},true)
 			"seraph_aegis": s.merge({"shape":"self","mult":0.0,"gesture":"prayer","fx":{"buff":{"shield":0.25,"secs":60.0}}},true)
 			"sacred_sanctuary": s.merge({"shape":"self","mult":0.0,"gesture":"prayer","radius":8.0,"fx":{"buff":{"guard":0.15,"secs":60.0}}},true)
 			"dawn_salvation": s["gesture"]="channel"
 			"moonwolf_pact": s.merge({"shape":"summon","gesture":"invoke","mult":16.0,"summon":{"kind":"wind_king","count":1,"secs":120.0}},true)
-			"leviathan_surge": s.merge({"shape":"burst","radius":10.0,"gesture":"raise"},true)
+			"leviathan_surge": s.merge({"shape":"burst","radius":10.0,"mult":28.0,"gesture":"raise"},true)
 			"spirit_court": s.merge({"shape":"self","mult":0.0,"gesture":"invoke","fx":{"buff":{"atk":0.55,"def":0.4,"secs":60.0}}},true)
 			"titan_shieldbreak": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"ground_slam", "fx":{"stun":1.5}}, true)
 			"judgment_rebound": s.merge({"shape":"blast", "range":12.0, "radius":6.0, "gesture":"cleave", "fx":{"shred":[0.2,6.0]}}, true)

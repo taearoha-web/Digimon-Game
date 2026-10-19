@@ -1640,6 +1640,29 @@ func _systems() -> void:
 	Game.add_gold(500)
 	check(Game.buy_item(ItemData.potion("hp_m", 2)), "buy potions")
 	check(Game.profile.gold < gold + 500, "gold spent")
+	# The 20,000 HP potion: sold from Lv.100, the biggest heal, picked for a big wound.
+	var god: Dictionary = ItemData.POTIONS["hp_god"]
+	check(int(god.hp) == 20000 and int(god.price) > int(ItemData.POTIONS["hp_xxl"].price), "ยาเลือดมหาเทพ restores 20,000 HP and costs the most")
+	var shop := ShopScreen.new()
+	main.add_child(shop)
+	var saved_level: int = Game.profile.level
+	Game.profile["level"] = 99
+	check(shop._stock().filter(func(it): return it.get("id", "") == "hp_god").is_empty(), "the shop keeps it until Lv.100")
+	Game.profile["level"] = 100
+	check(not shop._stock().filter(func(it): return it.get("id", "") == "hp_god").is_empty(), "Lv.100 heroes can buy it")
+	Game.profile["level"] = saved_level
+	shop.queue_free()
+	Game.profile["inv"].append(ItemData.potion("hp_god", 1))
+	Game.profile["inv"].append(ItemData.potion("hp_s", 1))
+	var full: int = Game.stats_now().max_hp
+	Game.profile["hp"] = maxi(1, full - 15000)
+	var picked := Game.quick_potion("hp")
+	check(picked == "hp_god" or full - 15000 <= 0, "a 15,000 HP wound picks the 20,000 potion (%s)" % picked)
+	Game.profile["hp"] = full
+	for i in range(Game.profile.inv.size() - 1, -1, -1):
+		if Game.profile.inv[i].get("kind", "") == "potion" and Game.profile.inv[i].id in ["hp_god", "hp_s"]:
+			Game.remove_item_at(i)
+	check(Game._valid_profile(Game.profile) and ItemLook.icon(ItemData.potion("hp_god")) != null, "the save check and the icon know the new potion")
 	var inv_before: int = Game.profile.inv.size()
 	Game.sell_item(Game.profile.inv.size() - 1)
 	check(Game.profile.inv.size() <= inv_before, "sell an item")

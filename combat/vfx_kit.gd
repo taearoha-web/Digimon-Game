@@ -284,6 +284,9 @@ static func flash(parent: Node3D, pos: Vector3, color: Color, size := 2.2, durat
 	var core := _instance(parent, quad, core_mat, pos)
 	VfxBudget.track_decoration(core)
 	core.scale = Vector3.ONE * size * 0.16
+	# Bigger flashes radiate: a spinning sunburst behind the halo.
+	if size >= 1.8:
+		VfxArt.rays_burst(parent, pos, color, size * 1.6, duration * 1.3)
 	var tween := halo.create_tween().set_parallel(true)
 	tween.tween_property(halo, "scale", Vector3.ONE * size * 0.90, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
