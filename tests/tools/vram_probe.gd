@@ -61,6 +61,19 @@ func _ready() -> void:
 	if fighters.size() > 0:
 		var one := _mesh_report(fighters[0], {})
 		print("VRAM mesh one fighter: instances %d distinct %d %.2f MB; fighters %d" % [one.instances, one.distinct, float(one.bytes) / 1e6, fighters.size()])
+		# Every distinct mesh of that fighter: what the bytes are made of.
+		var listed := {}
+		var walk2: Array[Node] = [fighters[0]]
+		while not walk2.is_empty():
+			var n2: Node = walk2.pop_back()
+			for ch in n2.get_children():
+				walk2.append(ch)
+			var mesh2: Mesh = (n2 as MeshInstance3D).mesh if n2 is MeshInstance3D else null
+			if mesh2 == null or listed.has(mesh2.get_rid()):
+				continue
+			listed[mesh2.get_rid()] = true
+			print("VRAM fighter mesh %6.3f MB surfaces %2d %-40s node %s / %s" % [float(_mesh_bytes(mesh2)) / 1e6, mesh2.get_surface_count(),
+				mesh2.resource_path if mesh2.resource_path != "" else mesh2.resource_name, n2.name, n2.get_parent().name if n2.get_parent() else ""])
 	var seen := {}
 	var stack: Array[Node] = [get_tree().root]
 	while not stack.is_empty():
