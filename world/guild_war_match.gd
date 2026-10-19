@@ -1,6 +1,6 @@
 class_name GuildWarMatch
 extends Node
-## One guild war: the hero and four AI allies against five AI rivals for 30 minutes.
+## One guild war: the hero and seven AI allies against eight AI rivals for 30 minutes.
 ## Every fall scores a point for the other guild and the fallen return to their base
 ## after a few seconds, so everybody keeps fighting. A power orb appears mid-arena
 ## every minute (both guilds race for it), the base heals, and a tie at the bell goes
@@ -13,6 +13,13 @@ signal hero_back()
 signal orb_changed(active: bool)
 
 const SPAWN_X := PvpArena.SPAWN_X
+## Each guild lines up in two rows of four (ours: four in front, three behind the hero's
+## row), this far apart sideways and front to back, so sixteen fighters never overlap.
+const ROW_SLOTS := 4
+const ROW_GAP := 4.0
+const ROW_DEPTH := 3.4
+## Our rows stand this much behind the hero's spot, the hero at the front and centre.
+const ALLY_SETBACK := 1.8
 const COUNTDOWN := 4.2
 const ORB_FIRST := 45.0
 const ORB_EVERY := 60.0
@@ -75,13 +82,11 @@ func build(tree: SceneTree = null) -> void:
 	enemy_name = roster.enemy_name
 	BurstGuard.clear()
 	for i in roster.ally.size():
-		var z := (float(i) - 1.5) * 3.6
-		var fighter := _spawn(roster.ally[i], GuildFighter.TEAM_ALLY, Vector3(-SPAWN_X - 1.5, 0.3, z), ally_name)
+		var fighter := _spawn(roster.ally[i], GuildFighter.TEAM_ALLY, spawn_slot(GuildFighter.TEAM_ALLY, i, roster.ally.size()), ally_name)
 		allies.append(fighter)
 		await FrameSlicer.pace(tree)
 	for i in roster.enemy.size():
-		var z := (float(i) - 2.0) * 3.6
-		var fighter := _spawn(roster.enemy[i], GuildFighter.TEAM_ENEMY, Vector3(SPAWN_X, 0.3, z), enemy_name)
+		var fighter := _spawn(roster.enemy[i], GuildFighter.TEAM_ENEMY, spawn_slot(GuildFighter.TEAM_ENEMY, i, roster.enemy.size()), enemy_name)
 		enemies.append(fighter)
 		await FrameSlicer.pace(tree)
 	Game.guildwar_issue_supply()
@@ -93,7 +98,20 @@ func build(tree: SceneTree = null) -> void:
 	if resumed:
 		Game.say("ต่อสงครามเดิม: คะแนน %d : %d เหลือเวลา %d นาที — ศึกถูกเก็บไว้ทุก 10 วินาที" % [score[0], score[1], int(ceil(time_left / 60.0))], &"quest")
 		return
-	Game.say("สงครามกิลด์ 30 นาที: ทีมเราคุณ + เพื่อน AI 4 คน สู้กับกิลด์ %s 5 คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [enemy_name, int(GuildWarData.RESPAWN)], &"quest")
+	Game.say("สงครามกิลด์ 30 นาที: ทีมเราคุณ + เพื่อน AI %d คน สู้กับกิลด์ %s %d คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [GuildWarData.TEAM_SIZE - 1, enemy_name, GuildWarData.TEAM_SIZE, int(GuildWarData.RESPAWN)], &"quest")
+
+
+## Where fighter `index` of a guild of `count` stands: rows of ROW_SLOTS across the arena's
+## z axis, the first row nearest the centre line, each row centred on z = 0. Our guild
+## stands behind the hero's spot at (-SPAWN_X, 0), the rivals from SPAWN_X outwards.
+static func spawn_slot(team: int, index: int, count: int) -> Vector3:
+	var row := index / ROW_SLOTS
+	var col := index % ROW_SLOTS
+	var in_row := mini(ROW_SLOTS, count - row * ROW_SLOTS)
+	var z := (float(col) - (float(in_row) - 1.0) * 0.5) * ROW_GAP
+	var depth := float(row) * ROW_DEPTH + (ALLY_SETBACK if team == GuildFighter.TEAM_ALLY else 0.0)
+	var x := -(SPAWN_X + depth) if team == GuildFighter.TEAM_ALLY else SPAWN_X + depth
+	return Vector3(x, 0.3, z)
 
 
 ## Picks up a war that was cut off: the clock and the score come back, everybody starts
