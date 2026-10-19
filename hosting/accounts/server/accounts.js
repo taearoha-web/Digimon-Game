@@ -193,7 +193,7 @@ function validateProfile(profile) {
   if (ENCODER.encode(JSON.stringify(profile)).byteLength > MAX_PROFILE_BYTES) fail(413, 'save_too_large', 'Each character save must be at most 1 MiB.');
 }
 
-function validateBundle(bundle) {
+export function validateBundle(bundle) {
   if (!dictionary(bundle) || !dictionary(bundle.slots) || !integer(bundle.selectedSlot, 1, 4)) fail(400, 'invalid_save', 'Send four character slots and a selected slot from 1 to 4.');
   validateJsonTree(bundle);
   for (const [slot, profile] of Object.entries(bundle.slots)) {

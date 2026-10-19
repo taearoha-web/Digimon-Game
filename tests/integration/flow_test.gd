@@ -1001,6 +1001,11 @@ func _paragon() -> void:
 		if Game.paragon_spend("crit"):
 			bought += 1
 	check(bought == cap, "a stat stops at its cap (%d)" % bought)
+	Game.paragon()["points"] = 7
+	var haste0 := int(Game.paragon().alloc.haste)
+	check(Game.paragon_spend("haste", 5) and int(Game.paragon().alloc.haste) == haste0 + 5 and int(Game.paragon().points) == 2, "several points can be spent at once")
+	check(Game.paragon_spend("haste", 10) and int(Game.paragon().points) == 0 and int(Game.paragon().alloc.haste) == haste0 + 7, "a big step spends only the points left")
+	check(not Game.paragon_spend("haste", 1) and not Game.paragon_spend("atk", 0), "nothing to spend is refused")
 	Game.profile["gold"] = 10000000
 	check(Game.paragon_reset() and int(Game.paragon().spent) == 0 and int(Game.paragon().alloc.atk) == 0, "points can be reset for gold")
 	Game.paragon()["level"] = Game.PARAGON_MAX - 1

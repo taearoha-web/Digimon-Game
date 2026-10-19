@@ -17,6 +17,13 @@ func no_visible_jump(scroll: TouchScroll, expected: int) -> void:
 		await RenderingServer.frame_post_draw
 		check(scroll.scroll_vertical == expected, "rendered frame retains sale position")
 
+## The character page's own list, found in the tree (not through the menu's bookkeeping).
+func character_scroll(menu: GameMenu) -> TouchScroll:
+	for node in menu._content.find_children("*", "TouchScroll", true, false):
+		if not node.is_queued_for_deletion():
+			return node
+	return null
+
 func fill_bag() -> void:
 	Game.profile.inv.clear()
 	var rng := RandomNumberGenerator.new()
@@ -37,9 +44,9 @@ func _ready() -> void:
 	add_child(menu)
 	menu.open_menu(&"inventory")
 	await settle()
-	check(menu._bag_scroll.get_v_scroll_bar().max_value > menu._bag_scroll.size.y, "fixture bag scrolls")
-	menu._bag_scroll.scroll_vertical = 550
-	var before := menu._bag_scroll.scroll_vertical
+	check(menu._page_scroll.get_v_scroll_bar().max_value > menu._page_scroll.size.y, "fixture bag scrolls")
+	menu._page_scroll.scroll_vertical = 550
+	var before := menu._page_scroll.scroll_vertical
 	check(before > 100, "fixture starts below the first page")
 	menu._selected_index = 28
 	menu._refresh_detail()
@@ -55,9 +62,9 @@ func _ready() -> void:
 		check(sell != null, "bag sale action is available")
 		if sell:
 			sell.pressed.emit()
-		await no_visible_jump(menu._bag_scroll, before)
+		await no_visible_jump(menu._page_scroll, before)
 		await settle()
-		check(menu._bag_scroll.scroll_vertical == before, "repeated bag sale retains scroll")
+		check(menu._page_scroll.scroll_vertical == before, "repeated bag sale retains scroll")
 		check(Game.profile.inv.size() == count - 1 and Game.profile.gold == gold + price, "exactly one correct sale per press")
 		check(menu._selected_index == 28, "next item stays selected")
 	# Several notifications before layout must not replace the saved offset with zero.
@@ -65,11 +72,36 @@ func _ready() -> void:
 	Game.profile_changed.emit()
 	Game.quest_changed.emit()
 	await settle()
-	check(menu._bag_scroll.scroll_vertical == before, "back-to-back rebuilds retain pending position")
+	check(menu._page_scroll.scroll_vertical == before, "back-to-back rebuilds retain pending position")
 	menu.show_tab(&"character")
 	menu.show_tab(&"inventory")
 	await settle()
-	check(menu._bag_scroll.scroll_vertical == 0, "new tab visit does not inherit a stale pending restore")
+	check(menu._page_scroll.scroll_vertical == 0, "new tab visit does not inherit a stale pending restore")
+	# Star points: the character page keeps its place after each press, and a press can spend many points.
+	Game.profile["paragon"] = {"level": 200, "exp": 0, "points": 200, "spent": 0, "alloc": {}}
+	menu.show_tab(&"character")
+	await settle()
+	var page := character_scroll(menu)
+	check(page.get_v_scroll_bar().max_value > page.size.y, "character fixture scrolls")
+	page.scroll_vertical = int(page.get_v_scroll_bar().max_value)
+	var char_y := page.scroll_vertical
+	check(char_y > 100, "character fixture starts below the first page")
+	for name in ["Paragon_def_10", "Paragon_def_5", "Paragon_def_1"]:
+		var points := int(Game.paragon().points)
+		var press := menu.find_child(name, true, false) as Button
+		check(press != null and not press.disabled, "%s is available" % name)
+		if press:
+			press.pressed.emit()
+		await no_visible_jump(character_scroll(menu), char_y)
+		await settle()
+		check(character_scroll(menu).scroll_vertical == char_y, "%s keeps the character page in place" % name)
+		check(points - int(Game.paragon().points) == int(name.get_slice("_", 2)), "%s spends that many points" % name)
+	var top := menu.find_child("Paragon_hp_max", true, false) as Button
+	if top:
+		top.pressed.emit()
+	await settle()
+	check(int(Game.paragon().alloc.hp) == int(Game.PARAGON_STATS.hp[2]), "max fills the stat to its cap")
+	check((menu.find_child("Paragon_hp_1", true, false) as Button).disabled, "a full stat disables its buttons")
 	menu.close_menu()
 	menu.queue_free()
 	await settle()

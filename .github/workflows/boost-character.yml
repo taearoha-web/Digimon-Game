@@ -1,0 +1,84 @@
+name: Boost one game character (owner only)
+
+# Manual only, and only for people with write access to this repository.
+# Raises ONE named character of a game account to Lv.100 and 200 stars and dresses it in the best
+# gear of its class (divine set, mythic 200-star ring and amulet, mythic star wings), all at +10.
+# The game's own code (tools/boost_character.tscn) does the levelling, so stat, skill and star points
+# are what the hero would have earned; the replaced gear goes to the bag. Other characters are not
+# touched, the previous save is kept as a snapshot, and nothing is written if the game saved in between.
+# Close the game first; on the next start pick "ใช้เซฟออนไลน์ล่าสุด" if the save screen asks.
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: Game ID (account) that owns the character
+        required: true
+      character:
+        description: Character name, exactly as shown in the game
+        required: true
+      class:
+        description: The character's class (a safety check), e.g. defender
+        default: defender
+        required: true
+      confirm:
+        description: Type BOOST to confirm
+        required: true
+      database_name:
+        description: D1 database name
+        default: toon-tale-accounts
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boost-character
+  cancel-in-progress: false
+
+jobs:
+  boost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DB_NAME: ${{ inputs.database_name }}
+      TARGET_USER: ${{ inputs.username }}
+      TARGET_NAME: ${{ inputs.character }}
+      TARGET_CLASS: ${{ inputs.class }}
+      CONFIRM: ${{ inputs.confirm }}
+      XDG_DATA_HOME: /tmp/toon-boost-data
+    steps:
+      - name: Check the request
+        run: |
+          test "$CONFIRM" = "BOOST" || { echo "::error::Type BOOST in the confirm field."; exit 1; }
+          echo "$TARGET_USER" | grep -Eq '^[a-z0-9_]{3,24}$' || { echo "::error::Invalid game ID."; exit 1; }
+          echo "$TARGET_CLASS" | grep -Eq '^[a-z_]{3,24}$' || { echo "::error::Invalid class."; exit 1; }
+          echo "$DB_NAME" | grep -Eq '^[A-Za-z0-9_-]{1,64}$' || { echo "::error::Invalid database name."; exit 1; }
+          test -n "$TARGET_NAME" || { echo "::error::Enter the character name."; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Godot 4.3
+        run: |
+          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          echo /tmp/godot >> "$GITHUB_PATH"
+      - name: Import assets
+        run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path . > /tmp/import.log 2>&1 || { tail -50 /tmp/import.log; exit 1; }
+      - name: Fetch the online save
+        run: |
+          mkdir -p /tmp/boost
+          node hosting/worker/boost-character.mjs fetch "$TARGET_USER" /tmp/boost
+      - name: Boost the character with the game's own code
+        run: |
+          Godot_v4.3-stable_linux.x86_64 --headless --path . res://tools/boost_character.tscn -- \
+            --in /tmp/boost/bundle.json --out /tmp/boost/boosted.json --name "$TARGET_NAME" --class "$TARGET_CLASS" 2>&1 | tee /tmp/boost/log.txt
+          grep -q '^BOOST: slot ' /tmp/boost/log.txt || { echo "::error::The boost did not run; see the log above."; exit 1; }
+          test -s /tmp/boost/boosted.json
+      - name: Save it online
+        run: |
+          node hosting/worker/boost-character.mjs apply /tmp/boost /tmp/boost/boosted.json
+          rm -rf /tmp/boost
