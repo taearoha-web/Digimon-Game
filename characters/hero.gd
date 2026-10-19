@@ -986,8 +986,6 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	var stop := HitFeel.stop_for(crit, mult if not skill.is_empty() else 0.0)
 	if stop > 0.0:
 		HitFeel.hitstop(get_tree(), stop)
-		if camera_rig:
-			camera_rig.kick(stop * 2.4)
 	HitFeel.debris(field, mob.hit_point(), skill)
 	if killed:
 		return
