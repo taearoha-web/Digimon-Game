@@ -455,14 +455,12 @@ static func flight_glow(root: Node3D, skill: Dictionary, size := 1.0) -> void:
 		return
 	var c := colors(skill)
 	var s := scale_of(skill) * size
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 1.25 * s
 	var mat := VfxKit._glow(c[0], 0.8)
 	mat.albedo_texture = VfxArt.texture("flare")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	var core := MeshInstance3D.new()
 	core.name = "FlourishFlightGlow"
-	core.mesh = quad
+	core.mesh = VfxKit.quad(Vector2.ONE * 1.25 * s)
 	core.material_override = mat
 	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(core)

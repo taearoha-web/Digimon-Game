@@ -236,8 +236,7 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 static func rune_circle(parent: Node3D, pos: Vector3, color: Color, radius: float, duration := 0.9, spin := 1.0) -> void:
 	if not VfxBudget.can_decorate(2):
 		return
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 2.0
+	var quad := VfxKit.quad(Vector2.ONE * 2.0)
 	# Alpha-blended (not additive) so the lines keep their colour on bright grass.
 	var mat := VfxKit._glow(color.darkened(0.12), 0.95, false)
 	mat.albedo_texture = texture("rune")
@@ -264,16 +263,15 @@ static func rune_circle(parent: Node3D, pos: Vector3, color: Color, radius: floa
 ## Floating particles that suit the element: ember, snow, leaf, petal, light.
 static func motes(parent: Node3D, pos: Vector3, color: Color, kind: String, count := 24, radius := 2.0, height := 0.0, lifetime := 1.4) -> void:
 	var p := CPUParticles3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.38, 0.38)
 	var mat := VfxKit._glow(color, 1.0, kind in ["ember", "light"])
 	match kind:
 		"snow": mat.albedo_texture = texture("snow")
 		"leaf", "petal", "heart", "flame", "diamond": mat.albedo_texture = texture(kind)
 		_: mat.albedo_texture = texture("star")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED if kind != "leaf" else BaseMaterial3D.BILLBOARD_ENABLED
-	quad.material = mat
-	p.mesh = quad
+	# The emitter's override carries the per-cast material, so the card is shared.
+	p.material_override = mat
+	p.mesh = VfxKit.quad(Vector2(0.38, 0.38))
 	var reserved := VfxBudget.track_particles(p, count)
 	p.lifetime = lifetime
 	p.one_shot = true
@@ -392,8 +390,7 @@ static func beam(parent: Node3D, from: Vector3, to: Vector3, color: Color, width
 static func star_flash(parent: Node3D, pos: Vector3, color: Color, size := 2.0, duration := 0.35) -> void:
 	if not VfxBudget.can_decorate():
 		return
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
+	var quad := VfxKit.quad(Vector2.ONE)
 	var mat := VfxKit._glow(color.lerp(Color("fff3d5"), 0.24), 0.82, false)
 	mat.albedo_texture = texture("star")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -411,8 +408,7 @@ static func star_flash(parent: Node3D, pos: Vector3, color: Color, size := 2.0, 
 static func rays_burst(parent: Node3D, pos: Vector3, color: Color, size := 2.0, duration := 0.3, spin := 0.9) -> void:
 	if not VfxBudget.can_decorate():
 		return
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
+	var quad := VfxKit.quad(Vector2.ONE)
 	var mat := VfxKit._glow(color.lerp(Color("fff6e0"), 0.3), 0.9)
 	mat.albedo_texture = texture("rays")
 	var mi := VfxKit._instance(parent, quad, mat, pos)
@@ -476,8 +472,7 @@ static func _spiral_mesh(height: float, turns: float, radius: float, strand: int
 static func crest(parent: Node3D, pos: Vector3, color: Color, family: String, radius := 1.8, duration := 0.65, phase := 0.0) -> void:
 	if not VfxBudget.can_decorate():
 		return
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 2.0
+	var quad := VfxKit.quad(Vector2.ONE * 2.0)
 	var mat := VfxKit._glow(color, 0.92, false)
 	mat.albedo_texture = texture("crest_" + family)
 	var seal := VfxKit._instance(parent, quad, mat, pos + Vector3(0, 0.085, 0))
@@ -499,8 +494,7 @@ static func bloom(parent: Node3D, pos: Vector3, color: Color, kind: String, radi
 			break
 		var angle := TAU * float(i) / float(visible_count) + phase
 		var direction := Vector3(cos(angle), 0, sin(angle))
-		var quad := QuadMesh.new()
-		quad.size = Vector2(0.45, 0.75)
+		var quad := VfxKit.quad(Vector2(0.45, 0.75))
 		var mat := VfxKit._glow(color, 0.8, false)
 		mat.albedo_texture = texture(kind)
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED

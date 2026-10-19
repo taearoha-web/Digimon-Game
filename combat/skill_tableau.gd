@@ -62,10 +62,8 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 		for k in 2:
 			if not VfxBudget.can_decorate():
 				break
-			var streak_quad := QuadMesh.new()
-			streak_quad.size = Vector2(0.75, 3.4) * size * grand
 			var streak := MeshInstance3D.new()
-			streak.mesh = streak_quad
+			streak.mesh = VfxKit.quad(Vector2(0.75, 3.4) * size * grand)
 			streak.material_override = streak_mat
 			streak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			root.add_child(streak)
@@ -132,13 +130,12 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 ## accent colour riding the carrier (freed with it).
 static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: bool) -> void:
 	var p := CPUParticles3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.5, 0.5) * size
 	var mat := VfxKit._glow(look.accent.lerp(Color.WHITE, 0.3), 1.0)
 	mat.albedo_texture = VfxArt.texture("star")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	quad.material = mat
-	p.mesh = quad
+	# The emitter's override carries the per-flight material; the card is shared.
+	p.material_override = mat
+	p.mesh = VfxKit.quad(Vector2(0.5, 0.5) * size)
 	var reserved := VfxBudget.track_particles(p, 12 if arrow else 18)
 	if not reserved:
 		p.queue_free()

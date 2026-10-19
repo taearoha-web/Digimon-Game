@@ -65,4 +65,11 @@ static func track_light(node: OmniLight3D) -> void:
 
 
 static func counters() -> Dictionary:
-	return {"particles": _particles, "decorations": _decorations, "lights": _lights, "pressure": MemoryGuard.pressure}
+	return {"particles": _particles, "decorations": _decorations, "lights": _lights}
+
+
+## The counters plus the memory pressure level (for the web session samples).
+static func report() -> Dictionary:
+	var out := counters()
+	out["pressure"] = MemoryGuard.pressure
+	return out

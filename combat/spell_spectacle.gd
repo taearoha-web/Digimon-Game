@@ -10,6 +10,8 @@ static var _meshes: Dictionary = {}
 ## stay independent. The ceiling also bounds future dynamic recipe parameters.
 const TUBE_CACHE_LIMIT := 128
 static var _tube_meshes: Dictionary = {}
+## One textured card per particle kind; its colour comes from the emitter's ramp.
+static var _particle_cards: Dictionary = {}
 
 
 static func warm_up(parent: Node3D, at: Vector3) -> void:
@@ -157,6 +159,13 @@ static func _particles(parent: Node3D, look: Dictionary, at: Vector3, kind: Stri
 	p.scale_amount_max = 0.72 if kind != "smoke" else 1.6
 	p.angular_velocity_min = -65.0
 	p.angular_velocity_max = 65.0
+	p.mesh = _particle_card(kind)
+	parent.add_child(p)
+	p.position = at
+	if not VfxBudget.track_particles(p, amount):
+		p.queue_free()
+		return
+	# Only a burst that is shown gets its colour ramp.
 	var gradient := Gradient.new()
 	var bright: Color = look.accent
 	var color: Color = look.primary
@@ -166,21 +175,24 @@ static func _particles(parent: Node3D, look: Dictionary, at: Vector3, kind: Stri
 	gradient.offsets = PackedFloat32Array([0.0, 0.18, 0.66, 1.0])
 	gradient.colors = PackedColorArray([Color(bright, 0.0), Color(bright, 0.82), Color(color, 0.68), Color(color, 0.0)])
 	p.color_ramp = gradient
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * (0.62 if kind != "smoke" else 1.2)
+	p.emitting = true
+	p.create_tween().tween_interval(life + 0.15).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
+
+
+## The card is white with vertex colours, so one mesh and material per kind
+## serve every cast; nothing mutates them afterwards.
+static func _particle_card(kind: String) -> QuadMesh:
+	if _particle_cards.has(kind):
+		return _particle_cards[kind]
+	var card := QuadMesh.new()
+	card.size = Vector2.ONE * (0.62 if kind != "smoke" else 1.2)
 	var material := VfxKit._glow(Color.WHITE, 1.0, kind in ["spark", "flare"])
 	material.vertex_color_use_as_albedo = true
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	material.albedo_texture = SpectacleAssets.tex(kind)
-	quad.material = material
-	p.mesh = quad
-	parent.add_child(p)
-	p.position = at
-	if not VfxBudget.track_particles(p, amount):
-		p.queue_free()
-		return
-	p.emitting = true
-	p.create_tween().tween_interval(life + 0.15).finished.connect(p.queue_free, CONNECT_ONE_SHOT)
+	card.material = material
+	_particle_cards[kind] = card
+	return card
 
 
 static func _weapon(root: Node3D, mat: Material, kind: String, length: float, count: int) -> void:

@@ -65,21 +65,24 @@ static func _halo(root: Node3D, color: Color, height: float, hover: float) -> vo
 	mat.albedo_texture = VfxArt.texture("flare")
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.no_depth_test = false
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * (clampf(height * 1.15, 0.7, 1.2) if height < 1.2 else clampf(height * 1.7, 1.8, 5.0))
 	var halo := MeshInstance3D.new()
 	halo.name = "Halo"
-	halo.mesh = quad
+	halo.mesh = VfxKit.quad(Vector2.ONE * (clampf(height * 1.15, 0.7, 1.2) if height < 1.2 else clampf(height * 1.7, 1.8, 5.0)))
 	halo.material_override = mat
 	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	halo.position = Vector3(0, hover + height * 0.5, -0.1)
 	root.add_child(halo)
+	# The halo marks the summon, so it is always drawn; it is counted so that
+	# memory pressure trims other decorations around it.
+	VfxBudget.track_decoration(halo)
 	var pulse := halo.create_tween().set_loops()
 	pulse.tween_property(halo, "scale", Vector3.ONE * 1.12, 1.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	pulse.tween_property(halo, "scale", Vector3.ONE * 0.9, 1.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 static func _layer(root: Node3D, mode: int, texture: String, color: Color, count: int, size: float, speed: float, height: float, hover: float, radius: float) -> void:
+	if not VfxBudget.can_decorate():
+		return
 	var n := clampi(VfxBudget.count(count, 4), 4, 32)
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
@@ -99,25 +102,26 @@ static func _layer(root: Node3D, mode: int, texture: String, color: Color, count
 	var reach := height * 1.6 + radius * 2.0 + 2.0
 	mi.custom_aabb = AABB(Vector3(-reach, -1.0, -reach), Vector3(reach * 2.0, reach * 2.0 + height, reach * 2.0))
 	root.add_child(mi)
+	VfxBudget.track_decoration(mi)
 
 
 ## A turning halo of light above the head: gold for the guardian penguin, pink for the
 ## fairy ([param glow]), sized to the body so the tiny fairy wears a small ring.
 static func _crown(root: Node3D, color: Color, height: float, hover: float, glow := Color(1.0, 0.92, 0.55)) -> void:
+	if not VfxBudget.can_decorate():
+		return
 	var ring := MeshInstance3D.new()
 	ring.name = "Crown"
-	var torus := TorusMesh.new()
 	var fit := clampf(height / 1.9, 0.55, 1.0)
-	torus.inner_radius = 0.34 * fit
-	torus.outer_radius = 0.42 * fit
-	torus.rings = 16
-	torus.ring_segments = 6
-	ring.mesh = torus
+	# One shared torus, fitted to the body by the node scale (same radii as before).
+	ring.mesh = VfxKit.torus_mesh(0.34, 0.42, 16, 6)
+	ring.scale = Vector3.ONE * fit
 	ring.material_override = VfxKit._glow(glow, 0.95, true)
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ring.position = Vector3(0, hover + height + 0.25 * fit, 0)
 	ring.rotation_degrees = Vector3(18, 0, 0)
 	root.add_child(ring)
+	VfxBudget.track_decoration(ring)
 	var bob := ring.create_tween().set_loops()
 	bob.tween_property(ring, "position:y", ring.position.y + 0.1, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	bob.tween_property(ring, "position:y", ring.position.y, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)

@@ -607,7 +607,7 @@ func _record_web_session_sample() -> void:
 		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
 		"fps": Engine.get_frames_per_second(), "quality": GameSettings.quality,
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
-		"vfx": VfxBudget.counters(), "materialsHeld": MaterialKeeper.held(),
+		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
 		"renderObjects": int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
