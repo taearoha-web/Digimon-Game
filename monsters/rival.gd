@@ -346,6 +346,9 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 		SkillShow.anticipate(get_parent(), skill, global_position, delay, aim, _rv.hero_visual)
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 80
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
+	var cast_sound := SkillSound.cast(skill)
+	if cast_sound != &"skill_start":
+		AudioManager.play_sfx(cast_sound, -8.0)
 	if announce_skills:
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
 	if String(skill.id) == "judgment_ray":
@@ -381,6 +384,9 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		ThunderStormSequence.launch(field, self, Vector3(aim.x, 0, aim.z), float(skill.radius), _victims, _storm_hit.bind(mult, color))
 		return
 	SkillShow.play(field, skill, center, global_position)
+	var landing_sound := SkillSound.landing(skill)
+	if landing_sound != &"":
+		AudioManager.play_sfx(landing_sound, -8.0)
 	match shape:
 		"self":
 			if fx.has("heal"):

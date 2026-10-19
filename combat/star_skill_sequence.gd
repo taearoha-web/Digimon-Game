@@ -144,6 +144,10 @@ func _area(h: Hero, point: Vector3, radius: float) -> Array[Mob]:
 func _hit(h: Hero, index: int, count: int) -> void:
 	var id:=String(skill.id)
 	var target:=victim_ref.get_ref() as Mob if victim_ref!=null else null
+	# The release lands on the first beat, every later beat gets a lighter hit; a Defender's
+	# shield art adds its own clang / quake / ring under the release.
+	AudioManager.play_sfx(SkillSound.star_beat(index), -3.0 if index==0 else -8.0)
+	if index==0 and SkillSound.landing(skill)!=&"": AudioManager.play_sfx(SkillSound.landing(skill), -6.0)
 	if String(skill.shape)=="summon":
 		h._summon(skill,float(skill.mult)*h.rank_mult(skill))
 		StarSkillArt.strike(h.field,skill,center,index,origin)

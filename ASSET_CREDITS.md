@@ -10,7 +10,8 @@
 | `assets/icons/**` | Hand-written SVG for this project | Project |
 | `assets/vfx/kenney-particles/**` | [Particle Pack 1.1 by Kenney](https://kenney.nl/assets/particle-pack) | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |
 | `assets/vfx/rpicster/**` | [Godot Particle and VFX Textures by RPicster](https://github.com/RPicster/Godot-particle-and-vfx-textures), 256 px alpha textures | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |
-| `audio/**` | Synthesized by `tools/generate_placeholder_audio.py` | Project |
+| `audio/sfx/*.wav` | Synthesized by `tools/generate_placeholder_audio.py` and `tools/generate_skill_sfx.py` | Project |
+| `audio/music/*.ogg` | One original track per place, synthesized by `tools/generate_zone_music.py` (Ogg Vorbis) | Project |
 
 The nature pack ships without textures; `NatureKit` and `shaders/foliage.gdshader` / `rock.gdshader`
 recolour it procedurally.

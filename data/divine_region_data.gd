@@ -38,6 +38,6 @@ static func zone() -> Dictionary:
 		if i >= 3: ids = [normals[i], normals[i], normals[i], &"temple_guardian"]
 		camps.append({"name":names[i], "monsters":ids, "levels":[158,166], "pos":positions[i], "radius":9.0, "count":10})
 	return {"name":TITLE, "scene":"field", "theme":ID, "divine_region":true, "star":200, "gear_star":200,
-		"level":[100,100], "music":&"title", "ambience":&"water", "sky":Color("746995"), "fog":Color("c3a8c4"),
+		"level":[100,100], "music":ID, "ambience":&"water", "sky":Color("746995"), "fog":Color("c3a8c4"),
 		"ambient":Color("d9d7e9"), "sun":Color("ffefd9"), "ground":Color("aab7b7"), "camps":camps,
 		"boss":{"monster":&"lotus_seraph", "level":175, "respawn":120.0, "star":200}, "prev":&"eclipse_realm", "next":&""}

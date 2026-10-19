@@ -2,8 +2,9 @@
 """Synthesises ORIGINAL placeholder audio for the prototype.
 
 Everything here is generated from simple waveforms (no samples, no copyrighted
-material). Output: audio/sfx/*.wav and audio/music/*.wav (mono, 16-bit).
-Music files carry a WAV 'smpl' loop chunk so Godot imports them as loops.
+material). Output: audio/sfx/*.wav (mono, 16-bit). The music lives in
+tools/generate_zone_music.py and the Defender / fairy / star sounds in
+tools/generate_skill_sfx.py; both import the helpers from this file.
 
 Replace any file with final audio using the same name (see
 docs/ASSET_REPLACEMENT.md). Usage:  python3 tools/generate_placeholder_audio.py
@@ -198,116 +199,15 @@ def build_sfx():
     sfx("coin", coin)
 
 
-# ---------------------------------------------------------------------------
-# Music (simple original chiptune loops)
-# ---------------------------------------------------------------------------
-
-def render_song(bpm, bars, chords, melody, bass_kind="tri", lead_kind="square", drums=True, swing=0.0, lead_duty=0.25,
-                pad=True, lead_vol=0.16):
-    beat = 60.0 / bpm
-    length = bars * 4 * beat
-    buf = [0.0] * int(length * MUSIC_RATE + 1)
-    R = MUSIC_RATE
-    for bar in range(bars):
-        chord = chords[bar % len(chords)]
-        t0 = bar * 4 * beat
-        # Bass: root on beats 1 and 3, fifth on 2 and 4.
-        root = note_freq(chord[0])
-        for b in range(4):
-            f = root if b % 2 == 0 else root * 1.5
-            tone(buf, R, t0 + b * beat, beat * 0.9, f / 2, bass_kind, 0.28, a=0.005, d=0.08, s=0.6, r=0.05)
-        # Arpeggio pad.
-        if pad:
-            for s in range(8):
-                n = chord[s % len(chord)]
-                tone(buf, R, t0 + s * beat * 0.5, beat * 0.45, note_freq(n), "tri", 0.07, a=0.01, d=0.1, s=0.5, r=0.08)
-        if drums:
-            for b in range(4):
-                bt = t0 + b * beat
-                if b % 2 == 0:
-                    tone(buf, R, bt, 0.12, 120, "sine", 0.45, 45, a=0.001, d=0.05, s=0.3, r=0.05)
-                else:
-                    noise_burst(buf, R, bt, 0.12, 0.22, decay=25, lowpass=0.7)
-                noise_burst(buf, R, bt + beat * 0.5 + swing * beat, 0.04, 0.08, decay=60, lowpass=0.95)
-    # Melody: list of (beat_position, length_in_beats, note)
-    for pos, dur, n in melody:
-        if n is None:
-            continue
-        tone(buf, R, pos * beat, dur * beat * 0.92, note_freq(n), lead_kind, lead_vol, duty=lead_duty, a=0.005, d=0.06, s=0.75,
-             r=0.05, vibrato=0.006)
-    return buf[: int(length * R)]
-
-
-def seq(notes, start=0.0):
-    """[(dur, note), ...] -> [(pos, dur, note)]"""
-    out = []
-    pos = start
-    for dur, n in notes:
-        out.append((pos, dur, n))
-        pos += dur
-    return out
-
-
-def build_music():
-    # Title: gentle, hopeful (C major), 96 BPM, 8 bars x2.
-    title_chords = [["C4", "E4", "G4"], ["A3", "C4", "E4"], ["F3", "A3", "C4"], ["G3", "B3", "D4"]]
-    title_mel = seq([(1, "E5"), (1, "G5"), (2, "C6"), (1, "B5"), (1, "A5"), (2, "E5"),
-                     (1, "F5"), (1, "A5"), (1, "C6"), (1, "A5"), (2, "G5"), (2, None),
-                     (1, "E5"), (1, "G5"), (2, "C6"), (1, "D6"), (1, "C6"), (2, "A5"),
-                     (1, "F5"), (1, "E5"), (1, "D5"), (1, "B4"), (4, "C5")] * 2)
-    write_wav(os.path.join(MUSIC_DIR, "title.wav"), render_song(96, 16, title_chords, title_mel, drums=False, lead_kind="tri", lead_vol=0.22), MUSIC_RATE, loop=True)
-
-    # Field: bouncy adventure (G major), 112 BPM, 16 bars.
-    field_chords = [["G3", "B3", "D4"], ["E3", "G3", "B3"], ["C4", "E4", "G4"], ["D4", "F#4", "A4"]]
-    field_mel = seq([(0.5, "D5"), (0.5, "G5"), (1, "B5"), (0.5, "A5"), (0.5, "G5"), (1, "E5"),
-                     (0.5, "E5"), (0.5, "G5"), (1, "B5"), (1, "A5"), (1, None),
-                     (0.5, "C5"), (0.5, "E5"), (1, "G5"), (0.5, "A5"), (0.5, "G5"), (1, "E5"),
-                     (0.5, "F#5"), (0.5, "A5"), (1, "D6"), (1, "C6"), (1, "A5")] * 4)
-    write_wav(os.path.join(MUSIC_DIR, "field.wav"), render_song(112, 16, field_chords, field_mel, swing=0.08), MUSIC_RATE, loop=True)
-
-    # Battle: driving (A minor), 150 BPM, 16 bars.
-    battle_chords = [["A3", "C4", "E4"], ["F3", "A3", "C4"], ["G3", "B3", "D4"], ["E3", "G#3", "B3"]]
-    battle_mel = seq([(0.5, "A5"), (0.5, "E5"), (0.5, "A5"), (0.5, "C6"), (1, "B5"), (1, "A5"),
-                      (0.5, "F5"), (0.5, "A5"), (0.5, "C6"), (0.5, "F6"), (2, "E6"),
-                      (0.5, "D6"), (0.5, "B5"), (0.5, "G5"), (0.5, "B5"), (1, "D6"), (1, "C6"),
-                      (0.5, "B5"), (0.5, "G#5"), (0.5, "E5"), (0.5, "G#5"), (2, "B5")] * 4)
-    write_wav(os.path.join(MUSIC_DIR, "battle.wav"), render_song(150, 16, battle_chords, battle_mel, bass_kind="square", lead_duty=0.3, lead_vol=0.14), MUSIC_RATE, loop=True)
-
-    # Victory fanfare (not looped).
-    R = MUSIC_RATE
-    buf = []
-    for i, (t, d, n) in enumerate([(0, 0.15, "C5"), (0.15, 0.15, "C5"), (0.3, 0.15, "C5"), (0.45, 0.45, "C5"), (0.9, 0.45, "Ab4"),
-                                   (1.35, 0.45, "Bb4"), (1.8, 0.3, "C5"), (2.1, 0.15, "Bb4"), (2.25, 1.2, "C5")]):
-        tone(buf, R, t, d, note_freq(n), "square", 0.2, duty=0.3)
-        tone(buf, R, t, d, note_freq(n) / 2, "tri", 0.25)
-    write_wav(os.path.join(MUSIC_DIR, "victory.wav"), buf, R)
-
-    # Defeat jingle.
-    buf = []
-    for t, d, n in [(0, 0.4, "E5"), (0.4, 0.4, "D5"), (0.8, 0.4, "C5"), (1.2, 1.2, "B4")]:
-        tone(buf, R, t, d, note_freq(n), "tri", 0.3, vibrato=0.01)
-        tone(buf, R, t, d, note_freq(n) / 2, "sine", 0.2)
-    write_wav(os.path.join(MUSIC_DIR, "defeat.wav"), buf, R)
-
-    # Forest: calm and curious (E minor / D), 92 BPM, 16 bars. Appended last so
-    # the seeded noise used by earlier tracks stays byte-identical.
-    forest_chords = [["E3", "G3", "B3"], ["C4", "E4", "G4"], ["D4", "F#4", "A4"], ["B3", "D4", "F#4"]]
-    forest_mel = seq([(1, "B4"), (0.5, "E5"), (0.5, "F#5"), (1, "G5"), (1, "F#5"),
-                      (1, "E5"), (0.5, "G5"), (0.5, "A5"), (2, "B5"),
-                      (1, "A5"), (0.5, "F#5"), (0.5, "D5"), (1, "E5"), (1, "F#5"),
-                      (1.5, "D#5"), (0.5, "E5"), (1, "F#5"), (1, None)] * 4)
-    write_wav(os.path.join(MUSIC_DIR, "forest.wav"), render_song(92, 16, forest_chords, forest_mel, lead_kind="tri", swing=0.12,
-              lead_vol=0.2), MUSIC_RATE, loop=True)
+# Music: one Ogg Vorbis loop per place is composed by tools/generate_zone_music.py
+# (it imports the helpers above); the skill sounds live in tools/generate_skill_sfx.py.
 
 
 if __name__ == "__main__":
     os.makedirs(SFX_DIR, exist_ok=True)
-    os.makedirs(MUSIC_DIR, exist_ok=True)
     build_sfx()
-    build_music()
     total = 0
-    for d in (SFX_DIR, MUSIC_DIR):
-        for f in sorted(os.listdir(d)):
-            if f.endswith(".wav"):
-                total += os.path.getsize(os.path.join(d, f))
-    print("audio generated, total %.1f KB" % (total / 1024))
+    for f in sorted(os.listdir(SFX_DIR)):
+        if f.endswith(".wav"):
+            total += os.path.getsize(os.path.join(SFX_DIR, f))
+    print("sfx generated, total %.1f KB" % (total / 1024))

@@ -177,7 +177,7 @@ func _ready() -> void:
 		tower_run.finished.connect(func(result: Dictionary): tower_finished.emit(result))
 		add_child(tower_run)
 	await _slice()
-	AudioManager.play_music(data.get("music", &"field"))
+	AudioManager.play_music(data.get("music", &"meadow"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
 	_phase("audio")
 	if not is_town:
