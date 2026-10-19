@@ -26,6 +26,9 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 	root.look_at(to, Vector3.RIGHT if absf(direction.normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP, true)
 	SkillInk.ribbon(root, look, Vector3.ZERO, direction.length() * 0.5, 2, Vector3.ZERO, 0.25)
 	SkillInk.ribbon(root, look, Vector3.ZERO, direction.length() * 0.5, 2, Vector3(0, 0, PI * 0.5), 0.25)
+	# A hot lance of the skill's energy down the link and a star where it lands.
+	ClassFlourish._lance_streak(parent, from, to, look.primary, look.accent, 0.3, 0.32)
+	VfxArt.star_flash(parent, to, look.accent, 1.6, 0.3)
 	root.create_tween().tween_interval(0.3).finished.connect(root.queue_free, CONNECT_ONE_SHOT)
 
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> Node3D:
@@ -53,6 +56,24 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 	if arrow:
 		body.scale = Vector3(0.23, 1.45 + float(look.tier) * 0.08, 0.23) * size * grand
 		body.rotation.x = PI * 0.5
+		# A comet streak behind the arrow (two crossed flare quads along the flight).
+		var streak_mat := VfxKit._glow(look.primary.lerp(look.accent, 0.45), 0.95)
+		streak_mat.albedo_texture = VfxArt.texture("flare")
+		for k in 2:
+			if not VfxBudget.can_decorate():
+				break
+			var streak_quad := QuadMesh.new()
+			streak_quad.size = Vector2(0.75, 3.4) * size * grand
+			var streak := MeshInstance3D.new()
+			streak.mesh = streak_quad
+			streak.material_override = streak_mat
+			streak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			root.add_child(streak)
+			VfxBudget.track_decoration(streak)
+			streak.position = Vector3(0, 0, -1.1 * size * grand)
+			streak.rotation.x = PI * 0.5
+			if k == 1:
+				streak.rotate_object_local(Vector3.UP, PI * 0.5)
 	else:
 		# A spell body big enough to read in flight, with coiling ribbons behind it.
 		body.scale = Vector3(0.45, 0.45, 0.7) * size * grand
@@ -89,6 +110,7 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 		light.omni_range = 3.5
 		root.add_child(light)
 		VfxBudget.track_light(light)
+	_sparkle_trail(root, look, size * grand, arrow)
 	var family := String(look.family)
 	var tw := root.create_tween()
 	tw.tween_property(root, "global_position", to, seconds)
@@ -105,6 +127,41 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 			VfxKit.impact_fan(parent, to, look.accent, 0.75 * size, "spark")
 		root.queue_free())
 	return root
+
+## Glitter shed along a projectile's path: a small continuous emitter of the
+## accent colour riding the carrier (freed with it).
+static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: bool) -> void:
+	var p := CPUParticles3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.5, 0.5) * size
+	var mat := VfxKit._glow(look.accent.lerp(Color.WHITE, 0.3), 1.0)
+	mat.albedo_texture = VfxArt.texture("star")
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	quad.material = mat
+	p.mesh = quad
+	var reserved := VfxBudget.track_particles(p, 12 if arrow else 18)
+	if not reserved:
+		p.queue_free()
+		return
+	p.lifetime = 0.45
+	p.one_shot = false
+	p.local_coords = false
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.18 * size
+	p.direction = Vector3.ZERO
+	p.spread = 180.0
+	p.initial_velocity_min = 0.3
+	p.initial_velocity_max = 1.1
+	p.gravity = Vector3(0, -0.6, 0)
+	p.scale_amount_min = 0.45
+	p.scale_amount_max = 0.9
+	p.angle_min = -180.0
+	p.angle_max = 180.0
+	p.color_ramp = VfxKit._fade_ramp()
+	root.add_child(p)
+	p.position = Vector3(0, 0, -0.3 * size)
+	p.emitting = true
+
 
 ## [param crit] only adds a fan of light; damage was already decided.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:

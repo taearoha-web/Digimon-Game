@@ -28,7 +28,7 @@ static func texture(kind: String) -> Texture2D:
 		return SpectacleAssets.tex(kind)
 	if _tex.has(kind):
 		return _tex[kind]
-	var size := 160 if kind == "rune" else (192 if kind.begins_with("crest_") else 64)
+	var size := 160 if kind == "rune" else (192 if kind.begins_with("crest_") else (128 if kind == "rays" else 64))
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	for y in size:
 		for x in size:
@@ -44,6 +44,7 @@ static func texture(kind: String) -> Texture2D:
 					var edge := p.length() + 0.085 * sin(p.x * 18.0) * sin(p.y * 13.0)
 					a = smoothstep(0.98, 0.15, edge) * (0.64 + sin(p.x * 7.0 + p.y * 5.0) * 0.14)
 				"leaf": a = _leaf_alpha(p)
+				"rays": a = _rays_alpha(p)
 				"snow": a = _snow_alpha(p)
 				"diamond": a = _diamond_alpha(p)
 				"heart":
@@ -113,6 +114,23 @@ static func _star_alpha(p: Vector2) -> float:
 	var diag := Vector2((p.x + p.y) * 0.707, (p.x - p.y) * 0.707)
 	var cross2 := clampf(1.0 - r, 0.0, 1.0) * (1.0 / (1.0 + 140.0 * absf(diag.x) * absf(diag.y))) * 0.5
 	return core + cross + cross2
+
+
+## A sunburst: uneven spokes (three overlaid spoke counts) fading to the rim
+## around a hot centre. Spun and scaled, it is the radiance of every release
+## and impact flash.
+static func _rays_alpha(p: Vector2) -> float:
+	var r := p.length()
+	if r > 1.0:
+		return 0.0
+	var angle := atan2(p.y, p.x)
+	var spokes := 0.0
+	spokes = maxf(spokes, pow(maxf(cos(angle * 7.0), 0.0), 14.0))
+	spokes = maxf(spokes, pow(maxf(cos(angle * 11.0 + 1.3), 0.0), 30.0) * 0.7)
+	spokes = maxf(spokes, pow(maxf(cos(angle * 5.0 + 2.6), 0.0), 8.0) * 0.5)
+	var falloff := pow(1.0 - r, 1.6)
+	var core := pow(clampf(1.0 - r * 2.2, 0.0, 1.0), 2.0)
+	return spokes * falloff * 1.1 + core
 
 
 static func _leaf_alpha(p: Vector2) -> float:
@@ -385,6 +403,29 @@ static func star_flash(parent: Node3D, pos: Vector3, color: Color, size := 2.0, 
 	var tween := mi.create_tween().set_parallel(true)
 	tween.tween_property(mi, "scale", Vector3.ONE * size, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(mat, "albedo_color:a", 0.0, duration).set_delay(duration * 0.3)
+	tween.chain().tween_callback(mi.queue_free)
+
+
+## A spinning sunburst facing the camera: swells from a point, turns a little
+## and fades. One tracked quad; the radiance behind every bigger flash.
+static func rays_burst(parent: Node3D, pos: Vector3, color: Color, size := 2.0, duration := 0.3, spin := 0.9) -> void:
+	if not VfxBudget.can_decorate():
+		return
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var mat := VfxKit._glow(color.lerp(Color("fff6e0"), 0.3), 0.9)
+	mat.albedo_texture = texture("rays")
+	var mi := VfxKit._instance(parent, quad, mat, pos)
+	VfxBudget.track_decoration(mi)
+	var camera := parent.get_viewport().get_camera_3d()
+	if camera != null:
+		mi.global_basis = camera.global_basis
+	mi.rotate_object_local(Vector3.FORWARD, randf() * TAU)
+	mi.scale = Vector3.ONE * size * 0.3
+	var tween := mi.create_tween().set_parallel(true)
+	tween.tween_property(mi, "scale", Vector3.ONE * size, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_method(func(v: float): mi.rotate_object_local(Vector3.FORWARD, v), 0.0, spin * 0.06, duration)
+	tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.7).set_delay(duration * 0.3)
 	tween.chain().tween_callback(mi.queue_free)
 
 

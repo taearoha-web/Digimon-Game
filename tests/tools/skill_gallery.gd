@@ -1,6 +1,6 @@
 extends Node3D
 ## Rendered contact sheet, independent of saves and combat AI.
-## godot --path . res://tests/tools/skill_gallery.tscn -- /tmp/skills.png [all|warrior|archer|mage|priest|vagabond]
+## godot --path . res://tests/tools/skill_gallery.tscn -- /tmp/skills.png [all|warrior|archer|mage|priest|vagabond] [glow]
 ## Omit the class for a representative eight-skill sheet; 'all' captures 152.
 ## Melee single-target skills also show their hit layer on the target.
 ## The second argument also accepts comma-separated skill IDs.
@@ -25,6 +25,14 @@ func _ready() -> void:
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("e3f1ef")
 	environment.ambient_light_energy = 0.8
+	if "glow" in args:
+		# The zones' own glow (world/scenery.gd, medium quality and up).
+		environment.glow_enabled = true
+		environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+		environment.glow_hdr_threshold = 0.96
+		environment.glow_intensity = 0.42
+		environment.glow_strength = 0.85
+		environment.set("glow_levels/5", false)
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)

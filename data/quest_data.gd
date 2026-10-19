@@ -88,11 +88,11 @@ const QUESTS := {
 	"eclipse_sovereign": {"name": "น็อกซ์ออเรล ราชันสุริยคราส", "desc": "ราชันสุริยคราสจะปรากฏต่อผู้มีดาว 200 เท่านั้น ปราบมันเพื่อนำแสงกลับคืนสู่โลก", "target": "eclipse_sovereign", "count": 1, "level": 100, "star": 200,
 		"items": [["hp_xxl", 20], ["mp_xxl", 20]], "star_gear": 200, "zone": "eclipse_realm", "next": "lotus_monks"},
 	"lotus_monks": {"name": "นักพรตวานรหยก", "desc": "นักพรตวานรหยกขวางทางเข้าวิหารบัวดารา พิสูจน์ฝีมือให้พวกมันเห็น", "target": "jade_monk", "count": 15, "level": 100, "star": 200,
-		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_guardians"},
+		"items": [["hp_god", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_guardians"},
 	"lotus_guardians": {"name": "โกเลมพิทักษ์วิหาร", "desc": "โกเลมทองคำเฝ้าศาลาในวิหาร ทลายพวกมันเพื่อไปพบเทพพิทักษ์", "target": "temple_guardian", "count": 5, "level": 100, "star": 200,
-		"items": [["hp_xxl", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_seraph"},
+		"items": [["hp_god", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_seraph"},
 	"lotus_seraph": {"name": "ออเรเลีย ราชันปีกบัวดารา", "desc": "บททดสอบสุดท้ายของวีรบุรุษ: ปราบราชันปีกบัวดาราผู้เฝ้าวิหาร", "target": "lotus_seraph", "count": 1, "level": 100, "star": 200,
-		"items": [["hp_xxl", 25], ["mp_xxl", 25]], "star_gear": 200, "zone": "lotus_sanctum", "next": ""},
+		"items": [["hp_god", 25], ["mp_xxl", 25]], "star_gear": 200, "zone": "lotus_sanctum", "next": ""},
 }
 
 const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs", "ghosts", "dragon", "wolves", "sand_dragon", "yetis", "yeti_king", "lava", "magma", "bones", "bone_lord", "toxic", "toad_king", "thunder", "storm_dragon", "angels", "gold_dragon", "hell", "abyss_dragon",

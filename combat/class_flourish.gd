@@ -495,7 +495,9 @@ static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3
 	else:
 		for i in layers:
 			var tilt: float = [-0.7, 0.8, -0.2, 0.45][i % 4]
-			_crescent(parent, at + Vector3.UP * 0.12 * i, yaw + randf_range(-0.2, 0.2), tilt, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.25 + 0.15 * i) * s, i * 0.05, 1.2 if i % 2 == 0 else -1.2, c[2])
+			_crescent(parent, at + Vector3.UP * 0.12 * i, yaw + randf_range(-0.2, 0.2), tilt, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.5 + 0.18 * i) * s, i * 0.05, 1.2 if i % 2 == 0 else -1.2, c[2])
+		# Glitter thrown off the cut.
+		VfxArt.motes(parent, at, c[1], "star", 10, 0.8 * s, 0.4, 0.75)
 	if cross and not defender:
 		VfxArt.cross_slash(parent, at, yaw, c[1], 1.5 * s)
 	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.26)

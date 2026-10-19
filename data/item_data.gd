@@ -60,6 +60,7 @@ const POTIONS := {
 	"hp_xl": {"name": "ยาเลือดยักษ์", "desc": "ฟื้นฟู HP 3,000", "hp": 3000, "price": 600, "color": Color("c0102f")},
 	"hp_war": {"name": "ยาเลือดสงคราม", "desc": "ฟื้นฟู HP 5,000", "hp": 5000, "price": 1500, "color": Color("d8142f")},
 	"hp_xxl": {"name": "ยาเลือดเทพ", "desc": "ฟื้นฟู HP 9,000", "hp": 9000, "price": 1800, "color": Color("a00828")},
+	"hp_god": {"name": "ยาเลือดมหาเทพ", "desc": "ฟื้นฟู HP 20,000", "hp": 20000, "price": 4000, "color": Color("7a0a2a")},
 	"mp_xl": {"name": "ยามานายักษ์", "desc": "ฟื้นฟู MP 1,200", "mp": 1200, "price": 600, "color": Color("1038c0")},
 	"mp_xxl": {"name": "ยามานาเทพ", "desc": "ฟื้นฟู MP 3,600", "mp": 3600, "price": 1800, "color": Color("0828a0")},
 	"mp_s": {"name": "ยามานาเล็ก", "desc": "ฟื้นฟู MP 60", "mp": 60, "price": 25, "color": Color("5a9bff")},

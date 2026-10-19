@@ -42,7 +42,7 @@ const AIM := {
 	"meadow": [3, 12], "dark_forest": [4, 15], "desert": [5, 18], "snow": [6, 20],
 	"volcano": [7, 22], "graveyard": [8, 24], "swamp": [9, 26], "storm": [10, 28],
 	"sky": [11, 30], "abyss": [12, 32], "void": [28, 80], "dawn_forest": [62, 150],
-	"crystal_valley": [84, 195], "sky_citadel": [105, 245], "eclipse_realm": [128, 320],
+	"crystal_valley": [84, 195], "sky_citadel": [105, 245], "eclipse_realm": [120, 285],
 	"lotus_sanctum": [175, 450],
 }
 ## Fields from Lv.100 whose monsters carry x2..x5 health (MonsterData.LATE_HP):
@@ -122,7 +122,7 @@ func _measure(cls: StringName, cp: Array) -> Dictionary:
 	var skill_boss := HeroStats.mitigate(float(stats.atk) * best, float(boss.def))
 	var hurt_n := HeroStats.mitigate(float(normal.atk), float(stats.def))
 	var hurt_b := HeroStats.mitigate(float(boss.atk) * 1.6, float(stats.def))
-	return {"cp": cp[0], "cls": String(cls), "atk": int(stats.atk), "hp": int(stats.max_hp),
+	return {"cp": cp[0], "cls": String(cls), "atk": int(stats.atk), "hp": int(stats.max_hp), "def": int(stats.def), "dodge": float(stats.dodge),
 		"mob_hp": int(normal.hp), "boss_hp": int(boss.hp),
 		"basic": float(normal.hp) / maxf(basic, 1.0), "skill_pct": 100.0 * skill_hit / float(normal.hp),
 		"boss": float(boss.hp) / maxf(skill_boss, 1.0), "max_hit": int(skill_hit * HeroStats.CRIT_DAMAGE),
@@ -144,9 +144,9 @@ func _print(rows: Array) -> void:
 			line += " %s=%.2f" % [key, median]
 			_band(cp, key, median)
 		print(line)
-	print("BALANCE checkpoint | class | atk | hp | mob_hp | basic | skill% | max_hit | boss | die_n | die_b")
+	print("BALANCE checkpoint | class | atk | hp | def | dodge | mob_hp | basic | skill% | max_hit | boss | die_n | die_b")
 	for r in rows:
-		print("BALANCE %s | %s | %d | %d | %d | %.1f | %.0f%% | %d | %.1f | %.1f | %.1f" % [r.cp, r.cls, r.atk, r.hp, r.mob_hp,
+		print("BALANCE %s | %s | %d | %d | %d | %.0f%% | %d | %.1f | %.0f%% | %d | %.1f | %.1f | %.1f" % [r.cp, r.cls, r.atk, r.hp, r.def, r.dodge * 100.0, r.mob_hp,
 			r.basic, r.skill_pct, r.max_hit, r.boss, r.die_n, r.die_b])
 
 

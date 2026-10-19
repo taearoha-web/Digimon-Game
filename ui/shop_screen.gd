@@ -103,6 +103,8 @@ func _stock() -> Array[Dictionary]:
 		stock.append(ItemData.potion("hp_war"))
 		stock.append(ItemData.potion("hp_xxl"))
 		stock.append(ItemData.potion("mp_xxl"))
+	if level >= 100:
+		stock.append(ItemData.potion("hp_god"))
 	stock.append(ItemData.potion("town_scroll"))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%d|%s" % [ItemData.tier_for(level), Game.profile.class])
