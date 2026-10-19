@@ -221,7 +221,7 @@
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v0.9.4 · build f82c27c0</p>
+    <p class="eyebrow">Web build · v0.9.4 · build 7acedb34</p>
     <h1>Toon <span>Tale</span></h1>
     <p class="lede">ผจญภัย ARPG สไตล์การ์ตูน 7 อาชีพ พัฒนาถึงเลเวล 100 แล้วเดินทางต่อในเส้นทางดาว พร้อม 28 สกิลและปีกเทพ 100 ดาว ใหม่: วิหารบัวดารา ล่าบอสเทพหกปีกเพื่อสะสมชุดและอาวุธ 200 ดาวประจำอาชีพ ใช้ไอดีเดียวเล่นต่อข้ามเครื่องได้</p>
     <button id="play" type="button">เริ่มเล่น</button>
@@ -256,9 +256,9 @@
 <script src="session.e4c1d28459ee.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 67527808, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 67527344, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
   // Compressed copies: name -> [file OR ordered file array, total bytes, mime]
-  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.f82c27c0.part001.gz.wasm", "game.f82c27c0.part002.gz.wasm", "game.f82c27c0.part003.gz.wasm", "game.f82c27c0.part004.gz.wasm"], 65180879, "application/octet-stream"]};
+  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.7acedb34.part001.gz.wasm", "game.7acedb34.part002.gz.wasm", "game.7acedb34.part003.gz.wasm", "game.7acedb34.part004.gz.wasm"], 65180217, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');
@@ -466,7 +466,7 @@
       onPrintError: function () { console.error.apply(console, arguments); window.toonSession.error(Array.from(arguments).join(' ')); },
       onExit: function () { window.toonSession.end(); },
     }).then(function () {
-      window.toonSession.begin('0.9.4 · build f82c27c0', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
+      window.toonSession.begin('0.9.4 · build 7acedb34', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
       resizeGameCanvas();
       document.body.classList.add('playing');
       document.getElementById('loader').remove();

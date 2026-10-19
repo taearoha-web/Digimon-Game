@@ -1187,6 +1187,13 @@ func party_equip(member: Dictionary) -> Dictionary:
 			gear[slot] = ItemData.generate(MAX_LEVEL + mini(stars, 20), StringName(member["class"]), local, 1, slot)
 		else:
 			gear[slot] = ItemData.generate(maxi(1, int(member.level)), StringName(member["class"]), local, 1, slot)
+	# Wings once the companion reaches the wing level, like the hero: its class's
+	# Lv.100 wings, then the star wings from 100 stars.
+	if int(member.level) >= ItemData.WING_DROP_LEVEL:
+		if stars >= StarWingData.REQUIRED_STARS:
+			gear["wings"] = StarWingData.item(String(member["class"]), local, 3)
+		else:
+			gear["wings"] = ItemData.wings(local, String(member["class"]), 3)
 	_party_gear[key] = gear
 	return gear
 

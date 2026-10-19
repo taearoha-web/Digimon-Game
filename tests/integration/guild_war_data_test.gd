@@ -1,6 +1,6 @@
 extends Node
 ## Guild war rosters: 5 v 5 (hero + 4 allies against 5), every AI Lv.100 with 200 stars,
-## gear from a 50-star set up to the divine class set, wings from 100 stars, both guilds
+## gear from a 50-star set up to the divine class set, everyone in wings, both guilds
 ## about equally strong, no class stacked.
 ## godot --headless --path . res://tests/integration/guild_war_data_test.tscn
 var failures: Array[String] = []
@@ -40,7 +40,7 @@ func _ready() -> void:
 					grades_seen[grade] = true
 					var equip: Dictionary = f.profile.equip
 					check(equip.has("weapon") and equip.has("armor") and equip.has("helm") and equip.has("boots"), "full gear")
-					check(equip.has("wings") == (grade >= 100), "wings exactly from the 100-star grade up (grade %d)" % grade)
+					check(equip.has("wings") and StarWingData.is_wing(equip.wings) == (grade >= StarWingData.REQUIRED_STARS), "everyone wears wings: Lv.100 class wings below 100 stars, star wings from there (grade %d)" % grade)
 					check(DivineGearData.is_item(equip.weapon) == (grade == GuildWarData.DIVINE), "divine set exactly at the top grade")
 					if grade < GuildWarData.DIVINE:
 						check(StarGearData.item_tier(equip.weapon) == grade, "weapon matches the grade")

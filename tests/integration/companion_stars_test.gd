@@ -45,6 +45,9 @@ func _ready() -> void:
 			last_gear = tier
 			var weapon: Dictionary = Game.party_equip(buddy).weapon
 			check((int(weapon.get("star_tier", 0)) == tier), "%s: wears the %d* set at %d*" % [cls, tier, target])
+			var wings: Variant = Game.party_equip(buddy).get("wings")
+			check(wings is Dictionary and String(wings.wing) == String(buddy["class"]), "%s: a Lv.100 companion wears its class wings (%d*)" % [cls, target])
+			check(wings is Dictionary and StarWingData.is_wing(wings) == (target >= StarWingData.REQUIRED_STARS), "%s: star wings exactly from %d*" % [cls, StarWingData.REQUIRED_STARS])
 		check(Game.party_stars(buddy) == 200, "%s: reaches 200 stars" % cls)
 		check(Game.party_star_need(buddy) == 0, "no EXP needed past 200")
 		Game.party_add_exp(HeroStats.exp_to_next(100) * 50)
@@ -68,5 +71,6 @@ func _ready() -> void:
 	late["stars"] = 0
 	Game.party_catch_up()
 	check(Game.party_stars(late) == 0, "below Lv.100 nobody has stars")
+	check(not Game.party_equip(late).has("wings"), "no wings below Lv.100")
 	print("COMPANION STARS: ", "PASS" if failures == 0 else "FAIL", " | ", checks, " checks, ", failures, " failures")
 	get_tree().quit(failures)

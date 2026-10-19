@@ -297,3 +297,19 @@ test('database failures return safe service unavailable JSON without leaking dat
   assert.ok(!body.includes('SELECT'));
   assert.equal((await handleAccountRequest(new Request(`${ORIGIN}/api/account/session`), {})).status, 503);
 });
+
+test('every class the game ships (data/class_data.gd) can be saved online', async t => {
+  const {readFile} = await import('node:fs/promises');
+  const source = await readFile(new URL('../../../data/class_data.gd', import.meta.url), 'utf8');
+  const ids = [...source.match(/^const IDS: Array\[StringName\] = \[(.*)\]$/m)[1].matchAll(/&"([a-z_]+)"/g)].map(m => m[1]);
+  const start = source.match(/^const START(?:: StringName)? :?= &"([a-z_]+)"$/m)[1];
+  assert.ok(ids.includes('defender') && ids.length >= 7, ids.join(','));
+  const {register, call} = harness(t);
+  const account = await register();
+  let revision = 0;
+  for (const cls of [start, ...ids]) {
+    const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle({...sample(), class: cls})}});
+    assert.equal(saved.status, 200, `${cls}: ${JSON.stringify(saved.body)}`);
+    revision = saved.body.revision;
+  }
+});

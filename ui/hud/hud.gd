@@ -436,13 +436,13 @@ func _build_status(frame: Control) -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(row)
 	_badge_panel = PanelContainer.new()
-	_badge_panel.custom_minimum_size = Vector2(72, 72)
+	_badge_panel.custom_minimum_size = Vector2(84, 84)
 	_badge_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_badge_panel)
 	_portrait = HeroPortrait.new()
 	_portrait.name = "HeroPortrait"
-	_portrait.custom_minimum_size = Vector2(64, 64)
+	_portrait.custom_minimum_size = Vector2(76, 76)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE

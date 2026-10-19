@@ -25,10 +25,11 @@ static var damage_scale := 6.0
 const BALANCE_TOLERANCE := 0.06
 
 ## Gear grades, weakest first: stars of the star set, or DIVINE for the class's divine
-## set. Wings come with 100 stars and up (they unlock there).
+## set. Everyone wears wings: the class's Lv.100 wings on the 50-star grade, the
+## star wings from 100 stars up (they unlock there).
 const DIVINE := 300
 const GRADES: Array[int] = [50, 100, 150, 200, DIVINE]
-const GRADE_NAMES := {50: "ชุด 50★", 100: "ชุด 100★ + ปีก", 150: "ชุด 150★ + ปีก", 200: "ชุด 200★ + ปีก", DIVINE: "ชุดประจำอาชีพ + ปีก"}
+const GRADE_NAMES := {50: "ชุด 50★ + ปีก Lv.100", 100: "ชุด 100★ + ปีก", 150: "ชุด 150★ + ปีก", 200: "ชุด 200★ + ปีก", DIVINE: "ชุดประจำอาชีพ + ปีก"}
 
 const GUILDS := ["อัศวินอรุณ", "เงาจันทรา", "มังกรเพลิง", "สายฟ้าฟ้าคราม", "ราชสีห์ทอง", "หมาป่าพายุ", "ผีเสื้อราตรี", "ดาบนภา"]
 
@@ -45,6 +46,8 @@ static func make_fighter(class_id: StringName, grade: int, name: String, rng: Ra
 			equip[slot] = StarProgression.item(class_id, mini(grade, STARS), slot, gear_rng)
 	if grade >= StarWingData.REQUIRED_STARS:
 		equip["wings"] = StarWingData.item(String(class_id), gear_rng)
+	else:
+		equip["wings"] = ItemData.wings(gear_rng, String(class_id), 3)
 	var data := JobData.resolve(class_id, JobData.adv_for_level(LEVEL))
 	# A full Lv.100 character: every stat point spent, 60% on the main stat, 40% vitality.
 	var points := Game.STAT_POINTS_PER_LEVEL * (LEVEL - 1)
