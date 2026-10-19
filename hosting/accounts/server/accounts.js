@@ -9,7 +9,7 @@ const MAX_BUNDLE_BYTES = 1_800_000;
 const MAX_REQUEST_BYTES = MAX_BUNDLE_BYTES + 8192;
 const ENCODER = new TextEncoder();
 const EMPTY_BUNDLE = JSON.stringify({slots: {}, selectedSlot: 1});
-const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer']);
+const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender']);
 const COMMON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store, private',
