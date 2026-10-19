@@ -10,6 +10,7 @@ func _bake() -> void:
 	WeaponPoses.authoring = true
 	var families: Array[StringName] = [ClassData.START]
 	families.append_array(ClassData.IDS)
+	var baked := 0
 	for rig in 3:
 		for family in families:
 			var hero := HeroVisual.new()
@@ -17,5 +18,6 @@ func _bake() -> void:
 			hero.setup(family, "", true, {}, {} if rig == 2 else {"gender": rig})
 			print("BAKED: rig %d / %s" % [rig, family])
 			hero.free()
-	print("WEAPON POSES: 21 rig/class libraries baked")
+			baked += 1
+	print("WEAPON POSES: %d rig/class libraries baked" % baked)
 	quit()

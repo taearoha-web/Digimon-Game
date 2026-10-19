@@ -75,6 +75,14 @@ static func _rig(skeleton: Skeleton3D, corrections: Dictionary, gear_scale: floa
 		arm["slot_local"] = skeleton.get_bone_global_rest(arm.hand).affine_inverse() * skeleton.get_bone_global_rest(arm.slot)
 		arm["correction"] = corrections.get(side, Basis.IDENTITY)
 		arm["side"] = -1.0 if side == "r" else 1.0
+		# The bones from the hand slot up to (not including) the wrist: KayKit
+		# animates its hand and slot separately from the wrist.
+		var chain: Array[int] = []
+		var link: int = arm.slot
+		while link >= 0 and link != int(arm.hand):
+			chain.append(link)
+			link = skeleton.get_bone_parent(link)
+		arm["chain"] = chain if link == int(arm.hand) else []
 		arm["length"] = skeleton.get_bone_rest(arm.lower).origin.length() + skeleton.get_bone_rest(arm.hand).origin.length()
 		rig[side] = arm
 	return rig
@@ -145,12 +153,36 @@ static func _hold(skeleton: Skeleton3D, local: Array[Transform3D], arm: Dictiona
 	bend = bend.normalized()
 	var elbow_target := shoulder + forward * along + bend * sqrt(maxf(0.0, first * first - along * along))
 	var wrist_target := shoulder + forward * distance
-	var upper_turn := Quaternion(arm.upper_direction, (elbow_target - shoulder).normalized())
-	_rotation(skeleton, local, arm.upper, Basis(upper_turn) * (arm.upper_basis as Basis))
+	# Swing both bones so that the elbow's hinge axis follows the idle one: a
+	# shortest arc alone rolls the elbow over (and the wrist with it) between
+	# two neighbouring frames once the arm swings nearly opposite its idle
+	# direction, as the KayKit rig's overhead chop and throw do.
+	var hinge := (elbow_target - shoulder).cross(wrist_target - elbow_target)
+	_rotation(skeleton, local, arm.upper, _swing(arm.upper_direction, arm.hinge, (elbow_target - shoulder).normalized(), hinge) * (arm.upper_basis as Basis))
 	global = _globals(skeleton, local)
-	var lower_turn := Quaternion(arm.lower_direction, (wrist_target - global[arm.lower].origin).normalized())
-	_rotation(skeleton, local, arm.lower, Basis(lower_turn) * (arm.lower_basis as Basis))
+	_rotation(skeleton, local, arm.lower, _swing(arm.lower_direction, arm.hinge, (wrist_target - global[arm.lower].origin).normalized(), hinge) * (arm.lower_basis as Basis))
 	_rotation(skeleton, local, arm.hand, hand_basis)
+
+
+## Rotation taking the unit direction [param from] to [param to] whose roll
+## also takes the bend-plane normal [param from_hinge] onto [param to_hinge].
+## Fully determined by the two bend planes, so it stays continuous where a
+## shortest arc would not; a straight (hinge-less) arm keeps the shortest arc.
+static func _swing(from: Vector3, from_hinge: Vector3, to: Vector3, to_hinge: Vector3) -> Basis:
+	var start := _bend_frame(from, from_hinge)
+	var finish := _bend_frame(to, to_hinge)
+	if start == Basis.IDENTITY or finish == Basis.IDENTITY:
+		return Basis(Quaternion(from, to))
+	return finish * start.inverse()
+
+
+static func _bend_frame(direction: Vector3, hinge: Vector3) -> Basis:
+	var x := direction.normalized()
+	var y := hinge - x * hinge.dot(x)
+	if y.length() < 0.001:
+		return Basis.IDENTITY
+	y = y.normalized()
+	return Basis(x, y, x.cross(y))
 
 
 ## The chibi has short arms. Project a shared weapon grip into both arms'
@@ -228,6 +260,10 @@ static func _spear_tune(source: Animation, skeleton: Skeleton3D, tracks: Diction
 					if worst >= SPEAR_CLEARANCE and cost < best_cost:
 						best_cost = cost
 						best = tune
+	if best_cost == INF and clearest_value == -INF:
+		# Every adjustment flipped an elbow or lost the support hand: the baked
+		# clip will fail weapon_motion_test, so say so at bake time.
+		push_warning("WeaponPoses: no steady spear hold for %s on this rig" % name)
 	return best if best_cost < INF else clearest
 
 
@@ -241,6 +277,8 @@ static func _prepare_arms(rig: Dictionary, body: Basis, reference_turn: Basis, i
 		arm["lower_basis"] = reference_turn * idle_globals[arm.lower].basis
 		arm["upper_direction"] = reference_turn * (idle_globals[arm.lower].origin - idle_globals[arm.upper].origin).normalized()
 		arm["lower_direction"] = reference_turn * (idle_globals[arm.hand].origin - idle_globals[arm.lower].origin).normalized()
+		# The idle elbow's hinge axis (its arm bends 30-55 degrees on every rig).
+		arm["hinge"] = reference_turn * (idle_globals[arm.lower].origin - idle_globals[arm.upper].origin).cross(idle_globals[arm.hand].origin - idle_globals[arm.lower].origin).normalized()
 
 
 ## Two-handed spear hold for one frame. Returns (x) how far the whole shaft,
@@ -248,9 +286,15 @@ static func _prepare_arms(rig: Dictionary, body: Basis, reference_turn: Basis, i
 ## (0.3 x shoulder span), and (y) how far the support hand is off the shaft,
 ## in arm lengths, so the bake can pick an adjustment that keeps both right.
 static func _spear_hold(skeleton: Skeleton3D, local: Array[Transform3D], rig: Dictionary, body: Basis, chest: Transform3D, name: String, time: float, phase: float, length: float, carry: bool, spear: bool, tune: Vector4) -> Vector2:
+	# Both hands close on the shaft: the source's one-handed hand and slot
+	# twists (a sword chop snaps the slot 0.5 rad in one frame) would only
+	# have to be undone at the wrist, flipping it and dragging the arm along.
+	for side in ["r", "l"]:
+		for bone in rig[side].chain:
+			local[bone].basis = skeleton.get_bone_rest(bone).basis
+	var global := _globals(skeleton, local)
 	# Measured in the torso's size, not the arm's: a short-armed rig reaches
 	# as far as it can rather than holding the spear closer to its chest.
-	var global := _globals(skeleton, local)
 	var arm_length: float = maxf(rig.r.length, 0.76 * global[rig.l.upper].origin.distance_to(global[rig.r.upper].origin))
 	var extra_turn := tune.x
 	var lift := tune.y
@@ -330,6 +374,8 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 	for side in ["r", "l"]:
 		for key in ["upper", "lower", "hand"]:
 			arm_bones.append(int(rig[side][key]))
+		if family == &"lancer":
+			arm_bones.append_array(rig[side].chain)
 	var output_tracks := {}
 	var prefix := String(source.track_get_path(0)).split(":")[0]
 	for bone in arm_bones:
