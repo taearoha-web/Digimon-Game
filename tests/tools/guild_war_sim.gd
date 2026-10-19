@@ -74,7 +74,7 @@ func _ready() -> void:
 		if _tick == 60:
 			_census0 = _census(zone)
 		if _tick % 10 == 0:
-			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size())
+			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " objects ", int(Performance.get_monitor(Performance.OBJECT_COUNT)), " resources ", int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)), " orphans ", int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size())
 			print("  t+%ds state=%s left=%d score=%s hero_hp=%d" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp)])
 	Engine.time_scale = 1.0
 	var now := _census(zone)

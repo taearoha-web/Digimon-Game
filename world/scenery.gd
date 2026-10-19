@@ -132,7 +132,10 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	# Soft-light glow on medium and high quality: skill cores, lanterns, lava,
 	# crystals and portals bloom while skin and cloth stay under the threshold.
 	# Medium keeps one blur level and a gentler intensity for phones.
-	env.glow_enabled = GameSettings.quality >= 1 and bool(look.get("glow", true))
+	# Phones and the web build keep glow for high quality only: its extra render
+	# targets and passes cost memory and frame time where both are scarce.
+	var glow_quality := 2 if (OS.has_feature("web") or OS.has_feature("mobile")) else 1
+	env.glow_enabled = GameSettings.quality >= glow_quality and bool(look.get("glow", true))
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	env.glow_hdr_threshold = 0.96
 	env.glow_intensity = 0.55 if GameSettings.quality >= 2 else 0.42
