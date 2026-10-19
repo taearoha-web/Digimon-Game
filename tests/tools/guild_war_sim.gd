@@ -52,6 +52,12 @@ func _ready() -> void:
 		_finished = true
 		print("RESULT won=%s score %d:%d kills=%d deaths=%d gold=%d exp=%d" % [r.won, r.score_us, r.score_them, r.kills, r.deaths, r.gold, r.exp]))
 	var hero := zone.hero
+	var fighters := m.all_fighters().size()
+	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, 2 * GuildWarData.TEAM_SIZE - 1, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	if fighters != 2 * GuildWarData.TEAM_SIZE - 1:
+		printerr("FAIL: %d fighters" % fighters)
+		get_tree().quit(1)
+		return
 	print("GUILDS ", m.ally_name, " vs ", m.enemy_name, " power ", int(m.roster.ally_power), " : ", int(m.roster.enemy_power))
 	for f in m.all_fighters():
 		print("  %s %-14s %-9s grade=%3d hp=%6d atk=%5.0f def=%4.0f" % ["A" if f.team == 0 else "E", f.rival_name, f.member["class"], f.grade, f.max_hp, f.rstats.atk, f.rstats.def])
@@ -68,7 +74,7 @@ func _ready() -> void:
 		if _tick == 60:
 			_census0 = _census(zone)
 		if _tick % 10 == 0:
-			print("  dbg ", GuildFighter.dbg)
+			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size())
 			print("  t+%ds state=%s left=%d score=%s hero_hp=%d" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp)])
 	Engine.time_scale = 1.0
 	var now := _census(zone)

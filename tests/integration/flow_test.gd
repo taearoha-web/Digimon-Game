@@ -1245,11 +1245,12 @@ func _timer_bars() -> void:
 	check(hud._timers.visible and hud._timers._chips.size() == 3, "the HUD shows three timer chips (%d)" % hud._timers._chips.size())
 	var before_ratio: float = hud._timers._chips[status[0].id].ratio
 	check(hero._auras.has("Rage:false") and hero._auras.has("Blessing:true"), "attack and defence buffs show a power aura and a barrier on the hero")
-	hero._buffs[0]["until"] = Time.get_ticks_msec() + 1500
+	var rage_ends := Time.get_ticks_msec() + 1500
+	hero._buffs[0]["until"] = rage_ends
 	await _wait(0.4)
 	var after_ratio: float = hud._timers._chips[status[0].id].ratio
 	check(after_ratio < before_ratio * 0.2, "the timer ring unwinds as time runs out (%.2f -> %.2f)" % [before_ratio, after_ratio])
-	await _wait(1.6)
+	await _wait_clock(rage_ends)
 	check(not hud._timers._chips.has(status[0].id), "the chip disappears when the buff ends")
 	check(not hero._auras.has("Rage:false") and hero._auras.has("Blessing:true"), "the power aura goes with its buff, the barrier stays")
 	hero._buffs.clear()
@@ -1310,9 +1311,10 @@ func _team_buffs() -> void:
 	check(float(hero.timer_status()[0].total) >= 60.0, "the buff lasts a full minute")
 	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("holy_valor:true"), "the summon gets the defence buff and shows the barrier")
 	check(buddy._buffed_atk() > float(buddy.stats.atk) * 1.3, "the companion hits harder while buffed (%.0f vs %.0f)" % [buddy._buffed_atk(), float(buddy.stats.atk)])
+	var buddy_buffs_end := Time.get_ticks_msec() + 200
 	for buff in buddy._book.buffs:
-		buff["until"] = Time.get_ticks_msec() + 200
-	await _wait(0.6)
+		buff["until"] = buddy_buffs_end
+	await _wait_clock(buddy_buffs_end)
 	check(buddy._book.auras.is_empty() and buddy._book.total("def") == 0.0, "the companion's buff and auras end with the buff")
 
 
@@ -1696,6 +1698,17 @@ func _systems() -> void:
 
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
+
+
+## Buffs and summons expire on the engine clock (Time.get_ticks_msec), while
+## scene timers count fixed frames: a headless --fixed-fps run outpaces real
+## time, so a frame-time wait can end before a clock deadline. Wait for the
+## clock to pass [param until_msec], then a few frames for the HUD refresh
+## (20 Hz) and the physics tick that drops expired buffs and their auras.
+func _wait_clock(until_msec: int) -> void:
+	while Time.get_ticks_msec() <= until_msec:
+		await get_tree().process_frame
+	await _wait(0.2)
 
 
 ## Imports now rebuild the live zone via a deferred signal. Finish that travel

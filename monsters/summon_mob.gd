@@ -222,10 +222,12 @@ func _tick_fairy(delta: float) -> void:
 		_heal_timer = Summon.FAIRY_EVERY
 		visual.action("attack", 700)
 		_twirl = Summon.fairy_twirl(visual)
+		AudioManager.play_sfx(&"fairy_twirl", -9.0)
 		var color: Color = _kind.color
 		VfxKit.impact_ring(get_parent(), global_position + Vector3(0, 0.7, 0), color, 3.0, 0.8)
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.6, 0), "ฮีล +%d%%" % int(Summon.FAIRY_HEAL * 100.0), color, 0.9)
 		caster._heal(Summon.FAIRY_HEAL)
+		AudioManager.play_sfx(&"fairy_heal", -6.0)
 
 
 ## War-scaled like its summoner's own body, and in a war or duel one hit and one pile-on

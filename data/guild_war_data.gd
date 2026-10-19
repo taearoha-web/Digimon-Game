@@ -1,13 +1,14 @@
 class_name GuildWarData
 extends RefCounted
-## Guild war: two guilds of five fight for 30 minutes. Our guild is the hero plus four
-## AI players, the rival guild is five AI players. Every AI is Lv.100 with 200 stars,
+## Guild war: two guilds of eight fight for 30 minutes. Our guild is the hero plus seven
+## AI players, the rival guild is eight AI players. Every AI is Lv.100 with 200 stars,
 ## a random class and a gear grade from a plain 50-star set up to the class's divine
 ## set with wings, built from the same star gear a real player can wear (so the
-## AI is as strong as a player in the same gear). Our four allies are picked so both
-## guilds field about the same total power; the hero fights with the real character.
+## AI is as strong as a player in the same gear). Our seven allies are random, the rival
+## line-up is picked so both guilds field about the same total power; the hero fights
+## with the real character.
 
-const TEAM_SIZE := 5
+const TEAM_SIZE := 8
 const DURATION := 1800.0
 ## A fallen fighter comes back at its base this many seconds later.
 const RESPAWN := 8.0
@@ -15,8 +16,11 @@ const LEVEL := 100
 const STARS := 200
 ## How sharp the AI plays (0..1, see Rival): quick to react, a few human slips.
 const SKILL := 0.9
-## Same class at most this many times in one guild.
+## Same class at most this many times in one guild (the hero counts for ours).
 const MAX_SAME_CLASS := 2
+## Every guild fields at least one of these (a healer or a summoner) so eight fighters
+## are a team with support, not eight duelists.
+const SUPPORT_CLASSES: Array[StringName] = [&"priest", &"summoner"]
 ## Everything hurts this many times more in a war. A 200-star fighter's defence cuts almost
 ## all damage (against monsters that is what keeps the game steady), so between two such
 ## fighters a fall would take minutes; this brings a fall to about 15-30 seconds.
@@ -76,7 +80,7 @@ static func hero_power() -> float:
 	return power_of(Game.stats_now())
 
 
-## The two guilds: { ally: [4 fighters], enemy: [5 fighters], ally_name, enemy_name, ally_power, enemy_power }.
+## The two guilds: { ally: [TEAM_SIZE - 1 fighters], enemy: [TEAM_SIZE fighters], ally_name, enemy_name, ally_power, enemy_power }.
 ## Classes and grades are random; the rival line-up is picked to match our guild's total power.
 static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) -> Dictionary:
 	if power_of_hero < 0.0:
@@ -99,27 +103,29 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 	for id in classes:
 		for grade in GRADES:
 			pool["%s|%d" % [id, grade]] = make_fighter(id, grade, "", rng)
-	# Our four allies are random; the rival guild is the best of many random line-ups at
+	# Our seven allies are random; the rival guild is the best of many random line-ups at
 	# matching hero + allies in total power, so a match is never lopsided before it starts.
-	var best: Array = _pick_team(rng, classes, pool, TEAM_SIZE - 1, [hero_class])
+	# Line-ups are weighed as pool keys and only the chosen one is copied into fighters.
+	var best: Array = _materialize(rng, pool, _pick_keys(rng, classes, TEAM_SIZE - 1, [hero_class]))
 	var ally_power := power_of_hero
 	for f in best:
 		ally_power += float(f.power)
-	var enemy: Array = []
+	var enemy_keys: Array[String] = []
 	var enemy_power := 0.0
 	var best_gap := INF
 	for attempt in 300:
-		var line_up := _pick_team(rng, classes, pool, TEAM_SIZE, [])
+		var keys := _pick_keys(rng, classes, TEAM_SIZE, [])
 		var total := 0.0
-		for f in line_up:
-			total += float(f.power)
+		for key in keys:
+			total += float(pool[key].power)
 		var gap := absf(total - ally_power) / ally_power
 		if gap < best_gap:
 			best_gap = gap
-			enemy = line_up
+			enemy_keys = keys
 			enemy_power = total
 		if gap < BALANCE_TOLERANCE * 0.4:
 			break
+	var enemy: Array = _materialize(rng, pool, enemy_keys)
 	var all_fighters := enemy + best
 	for f in all_fighters:
 		f.member["name"] = take_name.call()
@@ -130,22 +136,44 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 	return {"ally": best, "enemy": enemy, "ally_name": guild_a, "enemy_name": guild_b, "ally_power": ally_power, "enemy_power": enemy_power}
 
 
-static func _pick_team(rng: RandomNumberGenerator, classes: Array[StringName], pool: Dictionary, count: int, already: Array) -> Array:
-	var team: Array = []
+## A line-up as pool keys ("class|grade"): random classes and grades, no class more than
+## MAX_SAME_CLASS times (`already` holds classes that are on the team before the draw, the
+## hero's for our guild) and at least one support class among the team and `already`.
+static func _pick_keys(rng: RandomNumberGenerator, classes: Array[StringName], count: int, already: Array) -> Array[String]:
+	var keys: Array[String] = []
 	var counts := {}
+	var has_support := false
 	for id in already:
 		counts[id] = int(counts.get(id, 0)) + 1
-	while team.size() < count:
-		var id: StringName = classes[rng.randi() % classes.size()]
-		if int(counts.get(id, 0)) >= MAX_SAME_CLASS:
-			continue
+		has_support = has_support or StringName(id) in SUPPORT_CLASSES
+	# One random slot is reserved for support unless the draw has brought some by then
+	# (a support class with room is always there: none has been drawn yet).
+	var support_at := rng.randi() % count
+	for slot in count:
+		var id: StringName
+		while true:
+			id = SUPPORT_CLASSES[rng.randi() % SUPPORT_CLASSES.size()] if slot == support_at and not has_support else classes[rng.randi() % classes.size()]
+			if int(counts.get(id, 0)) < MAX_SAME_CLASS:
+				break
+		has_support = has_support or id in SUPPORT_CLASSES
 		counts[id] = int(counts.get(id, 0)) + 1
 		var grade: int = GRADES[rng.randi() % GRADES.size()]
-		var source: Dictionary = pool["%s|%d" % [id, grade]]
-		var copy := source.duplicate(true)
+		keys.append("%s|%d" % [id, grade])
+	return keys
+
+
+## Fighters for a line-up of pool keys: each a copy of the pool's candidate with its own face.
+static func _materialize(rng: RandomNumberGenerator, pool: Dictionary, keys: Array[String]) -> Array:
+	var team: Array = []
+	for key in keys:
+		var copy: Dictionary = (pool[key] as Dictionary).duplicate(true)
 		copy["look"] = FaceKit.random_look(rng)
 		team.append(copy)
 	return team
+
+
+static func is_support(class_id: StringName) -> bool:
+	return class_id in SUPPORT_CLASSES
 
 
 static func grade_label(grade: int) -> String:
@@ -160,9 +188,10 @@ static func gold_reward(won: bool) -> int:
 
 
 ## War rations: the hero starts every war with this many war potions (+5,000 HP each),
-## topped up from the bag, and what is left is handed back when the war ends.
+## topped up from the bag, and what is left is handed back when the war ends. Eight
+## rivals focus the hero more often than five did, so the ration grew with the guilds.
 const SUPPLY_POTION := "hp_war"
-const SUPPLY_COUNT := 30
+const SUPPLY_COUNT := 40
 
 
 ## EXP (stars at Lv.100) for a finished war.

@@ -5,7 +5,10 @@
   'use strict';
   const FILE_ROOT = '/userfs/godot/app_userdata/Toon Tale';
   const CACHE_DB = 'toon_tale_accounts_v1';
-  const CLASS_NAMES = {warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก'};
+  const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่'};
+  // A request waits longer the more it carries: a full four-character save is
+  // close to 1 MB and mobile uplinks are slow. 15 s, plus 1 s per 10 kB, at most 60 s.
+  const REQUEST_TIMEOUT_MS = 15000, REQUEST_TIMEOUT_MAX_MS = 60000;
   const state = {user:null, revision:0, pending:false, conflict:false, offline:false, syncing:false, error:'', accountChanged:false, authExpired:false, panelOpen:false};
   let cacheDB, userFS, overlay, readyPromise, readyResolve, started = false;
   let draft = null, conflictSave = null, uploadPromise = null, saveTimer, initDone = false;
@@ -151,7 +154,8 @@
   }
   async function api(path,options = {}) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(),15000);
+    const bodyBytes = typeof options.body === 'string' ? options.body.length : 0;
+    const timeout = setTimeout(() => controller.abort(),Math.min(REQUEST_TIMEOUT_MAX_MS,REQUEST_TIMEOUT_MS + Math.ceil(bodyBytes / 10000) * 1000));
     try {
       const ownerHeader = /^(save|history|restore|logout)(?:\/|$)/.test(path) && state.user ? {'X-Toon-Account-ID':String(state.user.id)} : {};
       const response = await fetch('/api/account/' + path,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal,headers:{'Content-Type':'application/json',...ownerHeader,...(options.headers || {})}});
@@ -159,9 +163,11 @@
       const data = type.includes('application/json') ? await response.json() : {};
       if (!response.ok) {
         const detail = data.error && typeof data.error === 'object' ? data.error : {};
-        const error = new Error(detail.message || data.message || (typeof data.error === 'string' ? data.error : '') || 'ระบบบัญชีไม่พร้อมใช้งาน');
+        const serverMessage = detail.message || data.message || (typeof data.error === 'string' ? data.error : '');
+        const error = new Error(serverMessage || 'ระบบบัญชีไม่พร้อมใช้งาน');
         error.status = response.status;
         error.code = detail.code || data.code || '';
+        error.serverMessage = serverMessage;
         error.data = data;
         if (error.code === 'account_changed') accountChanged();
         else if (response.status === 401 && /^(save|history|restore|logout)(?:\/|$)/.test(path) && state.user) sessionExpired();
@@ -178,19 +184,34 @@
       throw error;
     } finally { clearTimeout(timeout); }
   }
+  // "HTTP 400 invalid_save: The character field hp is invalid." — the server's
+  // own words, so a refused save can be reported and fixed instead of guessed at.
+  function serverDetail(error) {
+    if (!error || !error.status) return '';
+    return ' (HTTP ' + error.status + (error.code ? ' ' + error.code : '') + (error.serverMessage ? ': ' + error.serverMessage : '') + ')';
+  }
   function thaiError(error) {
+    if (!error) return 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
     if (error.name === 'QuotaExceededError') return 'พื้นที่เก็บข้อมูลในเครื่องไม่พอ กรุณาเพิ่มพื้นที่แล้วลองใหม่ เซฟเดิมจะไม่ถูกลบ';
     if (error.code === 'account_changed') return 'บัญชีถูกเปลี่ยนในอีกแท็บ เซฟในเครื่องยังอยู่ กรุณาเปิดหน้าล็อกอินใหม่';
-    if (error.code === 'username_taken') return 'ไอดีนี้ถูกใช้แล้ว กรุณาเลือกไอดีอื่น';
+    if (error.code === 'username_taken' || error.code === 'id_unavailable') return 'ไอดีนี้ถูกใช้แล้ว กรุณาเลือกไอดีอื่น';
     if (error.code === 'invalid_recovery') return 'ไอดีหรือรหัสกู้บัญชีไม่ถูกต้อง';
     if (error.code === 'invalid_credentials') return 'ไอดีหรือรหัสผ่านไม่ถูกต้อง';
-    if (error.code === 'save_too_large') return 'เซฟมีขนาดเกินที่ระบบออนไลน์รองรับ เซฟในเครื่องยังอยู่';
+    if (error.code === 'invalid_username') return 'ไอดีใช้ได้เฉพาะ a–z, 0–9 และ _ จำนวน 3–24 ตัว';
+    if (error.code === 'invalid_password') return 'รหัสผ่านต้องยาว 10–128 ตัว';
+    if (error.code === 'save_too_large') return 'เซฟมีขนาดเกินที่ระบบออนไลน์รองรับ เซฟในเครื่องยังอยู่' + serverDetail(error);
+    if (error.code === 'invalid_save' || error.code === 'invalid_revision') return 'เซิร์ฟเวอร์ไม่รับเซฟนี้ เซฟในเครื่องยังอยู่ กรุณาแจ้งเจ้าของเกมพร้อมข้อความนี้' + serverDetail(error);
+    if (error.code === 'save_conflict') return 'มีเซฟใหม่จากอีกเครื่อง เซฟในเครื่องยังอยู่' + serverDetail(error);
     if (error.status === 401) return 'ไอดีหรือรหัสผ่านไม่ถูกต้อง หรือหมดเวลาล็อกอินแล้ว';
-    if (error.status === 409) return 'ไอดีนี้ถูกใช้แล้ว หรือมีเซฟใหม่จากอีกเครื่อง';
+    if (error.status === 409) return 'ไอดีนี้ถูกใช้แล้ว หรือมีเซฟใหม่จากอีกเครื่อง' + serverDetail(error);
     if (error.status === 429) return 'ลองบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่';
-    if (error.status === 400) return error.message || 'กรุณาตรวจไอดีและรหัสผ่าน';
+    if (error.status === 403) return 'เซิร์ฟเวอร์ไม่รับคำขอจากหน้านี้ กรุณาเปิดเกมจากเว็บไซต์หลัก' + serverDetail(error);
+    if (error.status === 400) return 'เซิร์ฟเวอร์ไม่รับข้อมูลนี้' + serverDetail(error);
+    if (error.status >= 500) return 'เซิร์ฟเวอร์ไม่พร้อม กรุณาลองอีกครั้ง เซฟในเครื่องยังอยู่' + serverDetail(error);
+    if (error.status) return 'ระบบบัญชีตอบกลับผิดพลาด เซฟในเครื่องยังอยู่' + serverDetail(error);
+    if (error.name === 'AbortError') return 'รอเซิร์ฟเวอร์นานเกินไป (เครือข่ายช้า) เซฟในเครื่องยังอยู่ กรุณาลองใหม่';
     if (state.offline || !navigator.onLine) return 'เชื่อมต่อไม่ได้ เซฟในเครื่องยังอยู่ กรุณาตรวจอินเทอร์เน็ต';
-    return error.status >= 500 ? 'เซิร์ฟเวอร์ไม่พร้อม กรุณาลองอีกครั้ง' : error.message;
+    return error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
   }
   function panel(title,body,buttons = [],opts = {}) {
     if (!overlay) {
@@ -323,10 +344,13 @@
           const result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision:revision,bundle:cached.bundle})});
           return finish(user,cached.bundle,result.revision);
         } catch (error) {
-          if (error.code === 'account_changed') return;
+          if (error.code === 'account_changed' || error.status === 401) return;
           if (error.status === 409) return showConflict(await api('save'),true);
           if (state.offline) return offerOffline(user,cached);
-          throw error;
+          // A refused upload (e.g. 400 invalid_save) must not strand the player
+          // at the login form: show both saves with the server's reason, so they
+          // can retry, keep playing from the online copy or report the message.
+          return showConflict(cloud,true,thaiError(error));
         }
       }
       return showConflict(cloud,true);
@@ -371,29 +395,44 @@
       {label:'ใช้บัญชีอื่น / เล่นในเครื่อง',kind:'quiet',run:() => credentialsScreen()}
     ]);
   }
-  async function showConflict(cloud,beforeStart = false) {
+  // `note` is shown under the buttons: why the previous attempt did not go
+  // through. Every failure here leaves the local save and its draft untouched.
+  async function showConflict(cloud,beforeStart = false,note = '') {
     state.conflict = true; state.pending = true; conflictSave = cloud;
-    const local = copy(draft.bundle), server = bundleOf(cloud.bundle || blank());
+    if (note) state.error = note;
+    const local = copy(draft.bundle), server = bundleOf(cloud.bundle || blank()), revision = Number(cloud.revision) || 0;
     panel('พบเซฟใหม่จากอีกเครื่อง','<p class="ta-intro">มีความคืบหน้าสองชุด กรุณาเลือกชุดที่จะเล่นต่อ ตัวละครและไอเทมจะใช้ทั้งชุด ไม่มีการรวมข้อมูลอัตโนมัติ สำเนาอีกชุดจะเก็บในเครื่องนี้</p><div class="ta-compare"><div><h3>ในเครื่องนี้</h3>' + summaries(local) + '</div><div><h3>ออนไลน์ล่าสุด</h3>' + summaries(server) + '</div></div>',[
       {label:'ใช้เซฟออนไลน์ล่าสุด',run:async () => {
         if (started) transitioning = true;
         await backup(identity(state.user),local,'ก่อนเลือกเซฟออนไลน์');
-        draft = {bundle:server,revision:cloud.revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
-        state.conflict = false; state.pending = false;
-        if (beforeStart) await finish(state.user,server,cloud.revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:server}); location.reload(); }
+        draft = {bundle:server,revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
+        state.conflict = false; state.pending = false; state.error = '';
+        if (beforeStart) await finish(state.user,server,revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:server}); location.reload(); }
       }},
       {label:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',kind:'secondary',run:async () => {
         if (started) transitioning = true;
+        feedback('กำลังส่งเซฟในเครื่องขึ้นออนไลน์…',false);
         await backup(identity(state.user),server,'ก่อนแทนเซฟออนไลน์ด้วยเซฟในเครื่อง');
-        try {
-          const result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision:cloud.revision,bundle:local})});
-          draft = {bundle:local,revision:result.revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
-          state.conflict = false; state.pending = false;
-          if (beforeStart) await finish(state.user,local,result.revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:local}); location.reload(); }
-        } catch (error) { if (error.code === 'account_changed') { transitioning = false; return; } if (error.status === 409) { transitioning = false; return showConflict(await api('save'),beforeStart); } throw error; }
+        let result;
+        try { result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision:revision,bundle:local})}); }
+        catch (error) {
+          transitioning = false;
+          if (error.code === 'account_changed' || error.status === 401) return;
+          if (error.status === 409) {
+            // The online copy moved again (another device is still uploading, or
+            // this screen was stale). Re-read it and say so instead of a silent redraw.
+            return showConflict(await api('save'),beforeStart,'ยังส่งไม่ได้: ออนไลน์มีเซฟใหม่กว่าอีกครั้ง ' + serverDetail(error).trim() + ' ถ้าอีกเครื่องยังเปิดเกมอยู่ ให้ปิดก่อน แล้วตรวจรายการด้านบนและกดยืนยันอีกครั้ง');
+          }
+          throw error;
+        }
+        draft = {bundle:local,revision:result.revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
+        state.conflict = false; state.pending = false; state.error = '';
+        if (beforeStart) await finish(state.user,local,result.revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:local}); location.reload(); }
       }},
-      ...(!beforeStart ? [{label:'กลับเข้าเกม เก็บเซฟไว้ในเครื่องก่อน',kind:'quiet',run:closePanel}] : [])
+      ...(beforeStart ? [{label:'เล่นเซฟในเครื่องก่อน ค่อยส่งออนไลน์ภายหลัง',kind:'quiet',run:() => finish(state.user,local,revision,true)}]
+        : [{label:'กลับเข้าเกม เก็บเซฟไว้ในเครื่องก่อน',kind:'quiet',run:closePanel}])
     ],{foot:'เลือกเซฟในเครื่องจะแทนข้อมูลออนไลน์ล่าสุด โปรดตรวจชื่อและเลเวลก่อนยืนยัน'});
+    if (note) feedback(note);
   }
   function scheduleUpload(delay = 1200) {
     clearTimeout(saveTimer);

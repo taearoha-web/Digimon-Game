@@ -32,6 +32,14 @@ node tests/account.test.mjs
 
 ต้องใช้ Node 24+ สำหรับ SQLite built-in ของชุดทดสอบ
 
+ชุดทดสอบนี้เล่นเซฟที่เกมสร้างเองของทุกอาชีพ (`tests/fixtures/game_profiles.json` สร้างโดย `tests/tools/save_fixtures.tscn`: Vagabond, ทุกอาชีพที่ Lv.1 / Lv.23 หลังเปลี่ยนอาชีพ / Lv.100 พร้อมดาว เพื่อน AI ของสวมใส่ อัญมณี ปีก เควสต์รายวัน ดวล หอคอย กิลด์วอร์) ผ่านตัวตรวจเซฟของเซิร์ฟเวอร์ ถ้าเปลี่ยนรูปแบบเซฟหรือเพิ่มอาชีพ ให้สร้างไฟล์ใหม่แล้ว commit:
+
+```sh
+XDG_DATA_HOME=$(mktemp -d) godot --headless --path . res://tests/tools/save_fixtures.tscn
+```
+
+สำคัญ: การแก้ `server/accounts.js` (เช่นเพิ่มอาชีพใน `CLASSES`) มีผลกับผู้เล่นก็ต่อเมื่อรัน workflow "Deploy to Cloudflare" ใหม่เท่านั้น จนกว่าจะ deploy ผู้เล่นจะเห็น "เซิร์ฟเวอร์ไม่รับเซฟนี้ (HTTP 400 invalid_save: ...)" ในหน้าบัญชี
+
 ข้อกำหนดสำคัญ: Secure/HttpOnly/SameSite cookie, exact Origin check และ X-Toon-Account-ID ต้องคงไว้ ทั้ง frontend/backend ที่แนบมารองรับแล้ว ไม่เปลี่ยนเป็นการส่งพาสเวิร์ดหรือ token ผ่าน URL และไม่เปิด cross-origin wildcard เพื่อแก้ login
 
 ## 2. ใช้ hosting เดิมแบบ Sites/Vinext

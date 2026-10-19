@@ -75,17 +75,44 @@ func _war(staged: bool) -> void:
 	if m == null:
 		return
 	check(zone.is_built and zone.hero != null, "%s: zone is built" % label)
-	check(m.allies.size() == 4 and m.enemies.size() == 5, "%s: hero + 4 allies against 5" % label)
-	check(Game.potion_count(GuildWarData.SUPPLY_POTION) == GuildWarData.SUPPLY_COUNT, "%s: the hero gets the war rations" % label)
+	var n := GuildWarData.TEAM_SIZE
+	check(n == 8 and m.allies.size() == n - 1 and m.enemies.size() == n, "%s: hero + 7 allies against 8" % label)
+	check(Game.potion_count(GuildWarData.SUPPLY_POTION) == GuildWarData.SUPPLY_COUNT and GuildWarData.SUPPLY_COUNT == 40, "%s: the hero gets the war rations (40)" % label)
 	check(ItemData.POTIONS[GuildWarData.SUPPLY_POTION].hp == 5000, "%s: a war potion restores 5,000 HP" % label)
-	check(get_tree().get_nodes_in_group("mobs").size() == 5, "%s: only the rival guild is a monster to the hero" % label)
-	check(get_tree().get_nodes_in_group("companions").size() == 4, "%s: allies stand with the hero" % label)
+	check(get_tree().get_nodes_in_group("mobs").size() == n, "%s: only the rival guild is a monster to the hero" % label)
+	check(get_tree().get_nodes_in_group("companions").size() == n - 1, "%s: allies stand with the hero" % label)
 	for f in m.allies:
 		check(not f.is_in_group("mobs") and f.team == GuildFighter.TEAM_ALLY and f.is_in_group("gw_team0"), "ally is on our side only")
 	for f in m.enemies:
 		check(f.is_in_group("mobs") and f.is_in_group("gw_team1"), "rival is a monster on the other side")
 	check(m.state == "intro", "%s: starts with the countdown" % label)
 	var hero: Hero = zone.hero
+	# Sixteen fighters stand alive in two rows of four per guild, nobody on top of anybody,
+	# everybody well inside the wall, our guild behind the hero and the rivals across the line.
+	var alive := 0
+	var standing: Array[Node3D] = [hero]
+	for f in m.all_fighters():
+		if not f.is_dead() and f.hp == f.max_hp:
+			alive += 1
+		standing.append(f)
+		check(f.global_position.distance_to(f.spawn_point) < 0.5, "%s: %s starts on its mark" % [label, f.rival_name])
+		check(Vector2(f.global_position.x, f.global_position.z).length() < PvpArena.RADIUS - 6.0, "%s: %s starts well inside the arena" % [label, f.rival_name])
+		check((f.global_position.x < -GuildWarMatch.SPAWN_X) if f.team == GuildFighter.TEAM_ALLY else (f.global_position.x >= GuildWarMatch.SPAWN_X), "%s: %s is on its guild's side" % [label, f.rival_name])
+	check(alive == 2 * n - 1, "%s: all %d fighters are alive and whole at the start" % [label, 2 * n - 1])
+	var closest := 1.0e9
+	for a in standing.size():
+		for b in range(a + 1, standing.size()):
+			closest = minf(closest, standing[a].global_position.distance_to(standing[b].global_position))
+	check(closest >= 2.5, "%s: nobody spawns on top of anybody (closest pair %.1f m)" % [label, closest])
+	var rows := {}
+	for f in m.enemies:
+		rows[snappedf(f.global_position.x, 0.1)] = int(rows.get(snappedf(f.global_position.x, 0.1), 0)) + 1
+	check(rows.size() == 2 and rows.values().all(func(c: int): return c == 4), "%s: the rivals stand in two rows of four (%s)" % [label, rows])
+	for side in [m.allies, m.enemies]:
+		var has_support: bool = side == m.allies and GuildWarData.is_support(Game.class_id())
+		for f in side:
+			has_support = has_support or f.is_healer() or f.fighter_class() == &"summoner"
+		check(has_support, "%s: each guild fields a healer or a summoner" % label)
 	# The countdown, then the fight.
 	m._timer = 0.05
 	await _frames(6)
@@ -176,7 +203,7 @@ func _war(staged: bool) -> void:
 	var r: Dictionary = finished.result
 	check(bool(r.get("won", false)) and int(r.get("score_us", 0)) > int(r.get("score_them", 0)), "%s: we won on the sudden-death fall" % label)
 	check(int(r.get("gold", 0)) >= GuildWarData.gold_reward(true) and int(Game.profile.gold) >= gold_before + int(r.gold), "%s: the reward is paid" % label)
-	check((r.get("rows", []) as Array).size() == 10, "%s: the scoreboard lists the hero and nine fighters" % label)
+	check((r.get("rows", []) as Array).size() == 2 * n, "%s: the scoreboard lists the hero and fifteen fighters" % label)
 	check(Game.guildwar_checkpoint().is_empty(), "%s: a finished war leaves nothing to resume" % label)
 	check(GuildWarData.gold_reward(true) == 1000000 and GuildWarData.gold_reward(false) == 500000, "%s: 1,000,000 for a win, 500,000 for a loss" % label)
 	check(int(r.gold) == 1000000 and Game.potion_count(GuildWarData.SUPPLY_POTION) == 0, "%s: a win pays 1,000,000 and the rations are handed back" % label)

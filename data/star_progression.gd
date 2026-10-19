@@ -27,7 +27,7 @@ static func zones() -> Dictionary:
 			elif k == 4: ids = [normals[k], normals[k], normals[k], monsters[5]]
 			camps.append({"name": String(StarMonsters.get_monster(normals[k]).name),"monsters":ids,"levels":[100 + i * 12,108 + i * 12],"pos":layout.camp_positions[k],"radius":9.0,"count":10})
 		result[id] = {"name":TITLES[i],"scene":"field","theme":id,"star_region":true,"star":ENTRY[i],"gear_star":TIERS[i],
-			"level":[100,100],"music":&"forest" if i in [0,3] else &"field","sky":skies[i],"ground":Color("79a28b"),
+			"level":[100,100],"music":id,"sky":skies[i],"ground":Color("79a28b"),
 			"fog":skies[i].lightened(0.15),"ambient":Color("c6d6f0"),"sun":Color("fff0ce"),"camps":camps,
 			"boss":{"monster":monsters[6],"level":110+i*15,"respawn":110.0,"star":200 if i==3 else ENTRY[i]},
 			"prev":&"void" if i==0 else REGIONS[i-1],"next":REGIONS[i+1] if i<3 else &"","ambience":&"water" if i==0 else &"wind"}
