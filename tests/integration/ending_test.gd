@@ -25,6 +25,9 @@ func _ready() -> void:
 	Game.set_quest("magma", "active", 0)
 	check(not Game.ending_unlocked(), "legacy magma ending does not unlock the final-stage replay")
 	check(_replay_button() == null, "legacy magma save has no finale replay button")
+	# Every field boss other than the ending's: the base fields, the star
+	# regions before the ending and the post-story sanctuary after it.
+	ZoneData.ensure()
 	var earlier_bosses := 0
 	for zone_id in ZoneData.ZONES:
 		var zone := ZoneData.get_zone(zone_id)
@@ -33,7 +36,13 @@ func _ready() -> void:
 		Game.current_zone = zone_id
 		Game.report_kill(zone.boss.monster, true)
 		earlier_bosses += 1
-	check(earlier_bosses == 14, "all fourteen earlier field bosses were exercised")
+	var expected_bosses := 0
+	for zone_id in ZoneData.BASE_ZONES:
+		if ZoneData.BASE_ZONES[zone_id].has("boss"):
+			expected_bosses += 1
+	expected_bosses += StarProgression.REGIONS.size() - 1 # star regions before the ending field
+	expected_bosses += 1 # the post-story sanctuary (DivineRegionData)
+	check(earlier_bosses >= 14 and earlier_bosses == expected_bosses, "all %d earlier field bosses were exercised (%d found)" % [expected_bosses, earlier_bosses])
 	check(Game.quest_status("magma") == "ready" and Game.quest_state("magma").progress == 1, "magma quest progress still reaches its turn-in state")
 	check(QuestData.get_quest("magma").next == "bones", "magma quest still leads into the graveyard")
 	check(int(Game.profile.boss_kills.get("magma_dragon", 0)) == 1, "magma victory is still counted")
@@ -45,8 +54,22 @@ func _ready() -> void:
 	check(endings == 0 and not Game.ending_unlocked(), "earlier bosses, tower emperor and non-boss kills never end the game")
 	check(Game.save() and Game.load_game(), "legacy progress saves and reloads")
 	check(int(Game.profile.flags.get("ending_seen", 0)) == 1 and not Game.ending_unlocked(), "old completion flag survives without blocking the new finale")
+	# The travel chain runs from the first meadow through every star region to
+	# the ending field. Only post-story sanctuaries (an equipment hunt, no
+	# story) may follow it, and the chain ends there.
+	var chain: Array[StringName] = []
+	var cursor: StringName = &"meadow"
+	while not String(cursor).is_empty() and not chain.has(cursor):
+		chain.append(cursor)
+		cursor = StringName(ZoneData.get_zone(cursor).get("next", &""))
+	var ending_index := chain.find(Game.ENDING_ZONE)
 	var final_field := ZoneData.get_zone(Game.ENDING_ZONE)
-	check(final_field.boss.monster == &"eclipse_sovereign" and String(final_field.next).is_empty(), "ending destination is the final field in the travel chain")
+	check(ending_index >= 0 and Game.ENDING_ZONE == StarProgression.REGIONS[-1] and final_field.boss.monster == &"eclipse_sovereign", "ending destination is the last star region in the travel chain")
+	var post_story_only := ending_index >= 0 and String(cursor).is_empty()
+	for later in chain.slice(ending_index + 1):
+		if not bool(ZoneData.get_zone(later).get("divine_region", false)):
+			post_story_only = false
+	check(post_story_only, "only post-story sanctuaries follow the ending field, and the chain ends there (%s)" % str(chain.slice(ending_index + 1)))
 	Game.report_kill(final_field.boss.monster, true)
 	Game.report_kill(final_field.boss.monster, true)
 	check(Game.ending_unlocked(), "final field victory unlocks replay immediately")
