@@ -181,6 +181,9 @@ func _clear_zone() -> void:
 	MeshKit.release_material_cache()
 	WorldArt.release_material_cache()
 	MeshMerge.release_cache()
+	StarGearArt.release_cache()
+	DivineGearArt.release_cache()
+	OutfitDye.clear_cache()
 
 
 ## warp = true arrives at the field's start (not at the portal you came through).

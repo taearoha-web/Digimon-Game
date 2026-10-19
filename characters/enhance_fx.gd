@@ -58,7 +58,9 @@ static func _sparkles(parent: Node3D, pos: Vector3, color: Color, amount: int, r
 	mat.albedo_color = color
 	quad.material = mat
 	p.mesh = quad
-	p.amount = amount
+	# Persistent gear sparkles follow the quality and memory pressure like every
+	# other decoration (they do not reserve budget: a worn piece lasts the zone).
+	p.amount = VfxBudget.count(amount)
 	p.lifetime = lifetime
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = radius
@@ -155,12 +157,15 @@ static func on_item(item: Node3D, plus: int) -> void:
 		spin.tween_property(orbit, "rotation:y", TAU, 1.6 if g == 3 else 0.9).from(0.0)
 	if g == 4:
 		_flames(item, center, 0.1, 12)
-		var light := OmniLight3D.new()
-		light.light_color = color
-		light.light_energy = 0.9
-		light.omni_range = 4.5
-		light.position = center
-		item.add_child(light)
+		# One of the three effect lights, high quality only (never one per fighter in a war).
+		if VfxBudget.can_light():
+			var light := OmniLight3D.new()
+			light.light_color = color
+			light.light_energy = 0.9
+			light.omni_range = 4.5
+			light.position = center
+			item.add_child(light)
+			VfxBudget.track_light(light)
 
 
 ## A rune ring at the feet and (for +7 and up) a body aura, sized by the best + worn.
@@ -215,10 +220,14 @@ static func can_enhance(item: Dictionary) -> bool:
 ## Every enhanced piece glows by itself: an additive overlay on its own meshes
 ## (stronger and faster-pulsing with the grade) plus a little sparkle at its spot.
 ## spot = where on the body the sparkles rise (visual space).
-static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
+## Returns the holder of the sparkles and the pulse tween (null when nothing
+## glows): the caller keeps it with the outfit so a re-dress frees it; before,
+## every equipment refresh stacked another set of emitters and an endless tween
+## on the visual for the rest of the zone.
+static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> Node3D:
 	var g := grade(plus)
 	if g == 0:
-		return
+		return null
 	var color := COLORS[g]
 	var overlay := _glow_material(color, [0.0, 0.05, 0.08, 0.11, 0.15][g])
 	var found := false
@@ -229,14 +238,18 @@ static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, sp
 			m.material_overlay = overlay
 			found = true
 	if not found:
-		return
+		return null
+	var holder := Node3D.new()
+	holder.name = "PieceGlow"
+	owner.add_child(holder)
 	var base_a: float = overlay.albedo_color.a
 	var speed: float = [0.0, 1.8, 1.3, 0.9, 0.5][g]
-	var pulse := owner.create_tween().set_loops()
+	var pulse := holder.create_tween().set_loops()
 	pulse.tween_property(overlay, "albedo_color:a", base_a * 1.8, speed).set_trans(Tween.TRANS_SINE)
 	pulse.tween_property(overlay, "albedo_color:a", base_a * 0.45, speed).set_trans(Tween.TRANS_SINE)
-	if GameSettings.quality > 0 and g >= 2:
-		var p := _sparkles(owner, spot, color, [0, 0, 5, 8, 12][g], spread, 0.1, 0.5 + 0.1 * g, 0.9)
+	if GameSettings.quality > 0 and g >= 2 and MemoryGuard.pressure < 2:
+		var p := _sparkles(holder, spot, color, [0, 0, 5, 8, 12][g], spread, 0.1, 0.5 + 0.1 * g, 0.9)
 		p.name = "PieceSparkles"
-		if g == 4:
-			_flames(owner, spot, spread * 0.8, 6)
+		if g == 4 and MemoryGuard.pressure == 0:
+			_flames(holder, spot, spread * 0.8, 6)
+	return holder

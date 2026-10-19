@@ -70,6 +70,7 @@ static func particle_scale() -> float:
 ## Applies the shadow setting to every sun in the running scene.
 static func apply_live(tree: SceneTree) -> void:
 	_apply_web_render_quality()
+	MemoryGuard.apply_render(tree)
 	for node in tree.get_nodes_in_group("sun"):
 		var sun := node as DirectionalLight3D
 		sun.shadow_enabled = shadow_distance() > 0.0

@@ -12,6 +12,11 @@ const KAY_BONES := {"Hips":"hips","Spine":"spine","Chest":"chest","Neck":"head",
 	"LeftFoot":"foot.l","RightFoot":"foot.r","LeftToes":"toes.l","RightToes":"toes.r"}
 static var _wear_cache: Dictionary = {}
 
+
+## Dropped when a zone is left (Main._clear_zone): the next wearer rebuilds its entry.
+static func release_cache() -> void:
+	_wear_cache.clear()
+
 static func cloth(cls: String) -> Color:
 	return COLORS.get(cls, COLORS.warrior)
 

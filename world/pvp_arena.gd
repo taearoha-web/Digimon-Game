@@ -198,6 +198,27 @@ static func _crowd(zone: Node3D, rng: RandomNumberGenerator) -> void:
 	holder.add_child(animator)
 
 
+## Scenery fire that lasts the whole match: scaled by the quality setting but
+## never reserved in the combat particle budget (fourteen torches would hold a
+## third of it for the whole war, starving the skills).
+static func _torch_fire(parent: Node3D, color: Color) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.4, 0.4)
+	var mat := VfxKit._glow(color, 1.0)
+	mat.albedo_texture = VfxKit.soft_dot()
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	quad.material = mat
+	p.mesh = quad
+	p.amount = VfxBudget.count(10)
+	p.lifetime = 0.9
+	p.local_coords = false
+	p.color_ramp = VfxKit._fade_ramp()
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(p)
+	return p
+
+
 ## Torch pillars in front of the wall, a few with real light.
 static func _pillars(zone: Node3D) -> void:
 	var holder := Node3D.new()
@@ -218,14 +239,16 @@ static func _pillars(zone: Node3D) -> void:
 		MeshKit.part(pillar, MeshKit.cylinder(), MeshKit.toon(Color("3a3340")), Vector3(0, 7.4, 0), Vector3(1.5, 0.5, 1.5))
 		var flame := MeshKit.part(pillar, MeshKit.sphere_low(), MeshKit.toon(Color("ff9a3a"), {"emission": 3.0}), Vector3(0, 8.0, 0), Vector3(0.9, 1.3, 0.9))
 		flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var fire := VfxKit._particles(pillar, pos + Vector3(0, 7.9, 0), Color("ffb04a"), 14, 0.9, false)
+		var fire := _torch_fire(pillar, Color("ffb04a"))
 		fire.position = Vector3(0, 7.9, 0)
 		fire.direction = Vector3.UP
 		fire.spread = 12.0
 		fire.initial_velocity_min = 0.8
 		fire.initial_velocity_max = 1.6
 		fire.gravity = Vector3(0, 1.0, 0)
-		if i % 4 == 1:
+		# Real torch light on high quality only: four extra lights over sixteen
+		# fighters cost frame time where phones have none to spare.
+		if i % 4 == 1 and GameSettings.quality >= 2:
 			var light := OmniLight3D.new()
 			light.light_color = Color("ffae5a")
 			light.light_energy = 1.1

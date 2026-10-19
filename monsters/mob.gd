@@ -437,7 +437,12 @@ func _strike() -> void:
 		var to: Vector3 = victim.global_position + Vector3(0, 1.0, 0)
 		var flight := clampf(from.distance_to(to) / 13.0, 0.15, 0.6)
 		VfxKit.projectile(get_parent(), color, from, to, flight, 0.42)
-		get_tree().create_timer(flight).timeout.connect(func(): _deliver(victim, raw), CONNECT_ONE_SHOT)
+		var victim_ref: WeakRef = weakref(victim)
+		get_tree().create_timer(flight).timeout.connect(func():
+			var hit_victim: Node3D = victim_ref.get_ref() as Node3D
+			if hit_victim != null:
+				_deliver(hit_victim, raw)
+		, CONNECT_ONE_SHOT)
 	else:
 		_deliver(victim, raw, 1.5 + body_radius() * 1.2 + 1.0)
 

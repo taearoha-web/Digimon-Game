@@ -360,9 +360,11 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 				_summon(skill)
 		, CONNECT_ONE_SHOT)
 		return
+	# The target is held weakly: a summon it points at may be freed before the hit lands.
+	var target_ref: WeakRef = weakref(target)
 	get_tree().create_timer(delay).timeout.connect(func():
 		if is_instance_valid(self) and not _dead and not duel_over:
-			_resolve(skill, target, aim)
+			_resolve(skill, target_ref.get_ref() as Node3D, aim)
 	, CONNECT_ONE_SHOT)
 
 
@@ -461,9 +463,11 @@ func _shoot_at(victim: Node3D, mult: float, color: Color, vfx: StringName) -> vo
 		VfxKit.arrow(field, color, from, to, flight)
 	else:
 		VfxKit.projectile(field, color, from, to, flight, 0.35, VfxKit.variant_for(vfx))
+	var victim_ref: WeakRef = weakref(victim)
 	get_tree().create_timer(flight).timeout.connect(func():
-		if is_instance_valid(self) and not _dead and not duel_over:
-			_hit(victim, mult, color)
+		var hit_victim: Node3D = victim_ref.get_ref() as Node3D
+		if is_instance_valid(self) and not _dead and not duel_over and hit_victim != null:
+			_hit(hit_victim, mult, color)
 	, CONNECT_ONE_SHOT)
 
 
@@ -478,13 +482,15 @@ func _basic_attack(target: Node3D) -> void:
 	_cast_until = Time.get_ticks_msec() + int(float(attack.hit_delay) * 1000.0) + 60
 	var color: Color = attack.get("color", Color.WHITE)
 	var mult := float(attack.mult)
+	var target_ref: WeakRef = weakref(target)
 	get_tree().create_timer(float(attack.hit_delay)).timeout.connect(func():
-		if not is_instance_valid(self) or _dead or duel_over or target == null or not is_instance_valid(target):
+		var victim: Node3D = target_ref.get_ref() as Node3D
+		if not is_instance_valid(self) or _dead or duel_over or victim == null:
 			return
 		if bool(attack.projectile):
-			_shoot_at(target, mult, color, attack.vfx)
-		elif _flat_distance(target.global_position) <= float(attack.range) + 1.4:
-			_hit(target, mult, color)
+			_shoot_at(victim, mult, color, attack.vfx)
+		elif _flat_distance(victim.global_position) <= float(attack.range) + 1.4:
+			_hit(victim, mult, color)
 	, CONNECT_ONE_SHOT)
 
 

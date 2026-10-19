@@ -427,10 +427,11 @@ func _basic_attack() -> void:
 	_combo += 1
 	visual.action(clip, maxf(visual.anim.get_animation(clip).length / (float(attack.interval) * 0.9), 1.0) if visual.has_clip(clip) else 1.0)
 	_cast_until = Time.get_ticks_msec() + int(float(attack.hit_delay) * 1000.0) + 60
-	var mob := target
+	var mob_ref: WeakRef = weakref(target)
 	var color: Color = attack.get("color", Color.WHITE)
 	get_tree().create_timer(float(attack.hit_delay)).timeout.connect(func():
-		if not is_instance_valid(mob) or mob.is_dead() or not is_instance_valid(self):
+		var mob: Mob = mob_ref.get_ref() as Mob
+		if mob == null or mob.is_dead() or not is_instance_valid(self):
 			return
 		if bool(attack.projectile):
 			_shoot(mob, float(attack.mult), color, attack.vfx, null)
@@ -454,9 +455,11 @@ func _shoot(mob: Mob, mult: float, color: Color, vfx: StringName, skill: Variant
 		VfxKit.arrow(field, color, from, to, flight)
 	else:
 		VfxKit.projectile(field, color, from, to, flight, 0.35, VfxKit.variant_for(vfx))
+	var mob_ref: WeakRef = weakref(mob)
 	get_tree().create_timer(flight).timeout.connect(func():
-		if is_instance_valid(mob) and not mob.is_dead():
-			_deal(mob, mult, color, vfx, false, skill)
+		var victim: Mob = mob_ref.get_ref() as Mob
+		if victim != null and not victim.is_dead():
+			_deal(victim, mult, color, vfx, false, skill)
 	, CONNECT_ONE_SHOT)
 
 

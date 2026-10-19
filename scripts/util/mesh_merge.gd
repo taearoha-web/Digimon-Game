@@ -37,6 +37,11 @@ static func merge(root: Node3D, cache_key := "") -> int:
 			groups[key] = []
 			order.append(key)
 		(groups[key] as Array).append(mi)
+	# "auto": the key is the pieces themselves (meshes, materials, placement), so
+	# every fighter wearing the same look shares one merged mesh instead of
+	# baking its own copy (a guild war held sixteen copies of each piece).
+	if cache_key == "auto":
+		cache_key = _pieces_key(root, order, groups)
 	var cached: Array = _cache.get(cache_key, []) if cache_key != "" else []
 	var built: Array = []
 	var removed := 0
@@ -69,6 +74,25 @@ static func merge(root: Node3D, cache_key := "") -> int:
 			_cache.erase(_cache.keys()[0])
 		_cache[cache_key] = built
 	return removed
+
+
+static func _pieces_key(root: Node3D, order: Array, groups: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for key in order:
+		var members: Array = groups[key]
+		var ids: PackedStringArray = []
+		for mi in members:
+			var piece := mi as MeshInstance3D
+			var t := _relative(piece, root)
+			var mats: PackedStringArray = []
+			for i in piece.mesh.get_surface_count():
+				var m := piece.get_active_material(i)
+				mats.append(str(m.get_instance_id()) if m else "0")
+			var fine := Vector3.ONE * 0.001
+			ids.append("%d:%s:%s:%s,%s,%s" % [piece.mesh.get_instance_id(), ",".join(mats), str(t.origin.snapped(fine)),
+				str(t.basis.x.snapped(fine)), str(t.basis.y.snapped(fine)), str(t.basis.z.snapped(fine))])
+		parts.append("%d|%s" % [members.size(), "|".join(ids)])
+	return "auto:%d" % hash(";".join(parts))
 
 
 static func _collect(node: Node, root: Node3D, out: Array[MeshInstance3D]) -> void:

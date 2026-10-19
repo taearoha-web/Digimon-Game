@@ -13,16 +13,18 @@ static func quality() -> int:
 	return clampi(GameSettings.quality, 0, 2)
 
 
+## Decorative counts shrink with the quality setting and, while memory is
+## tight (MemoryGuard.pressure), with the pressure level too.
 static func count(requested: int, minimum := 1) -> int:
-	return maxi(minimum, int(ceil(float(requested) * [0.35, 0.65, 1.0][quality()])))
+	return maxi(minimum, int(ceil(float(requested) * [0.35, 0.65, 1.0][quality()] * MemoryGuard.effect_scale())))
 
 
 static func particle_limit() -> int:
-	return [120, 240, 420][quality()]
+	return int([120, 240, 420][quality()] * MemoryGuard.effect_scale())
 
 
 static func decoration_limit() -> int:
-	return [28, 54, 88][quality()]
+	return int([28, 54, 88][quality()] * MemoryGuard.effect_scale())
 
 
 ## Emitters release their reservation even when a zone is removed mid-effect.
@@ -53,7 +55,7 @@ static func track_decoration(node: Node) -> void:
 
 
 static func can_light() -> bool:
-	return quality() == 2 and _lights < 3
+	return quality() == 2 and MemoryGuard.pressure == 0 and _lights < 3
 
 
 static func track_light(node: OmniLight3D) -> void:
@@ -63,4 +65,4 @@ static func track_light(node: OmniLight3D) -> void:
 
 
 static func counters() -> Dictionary:
-	return {"particles": _particles, "decorations": _decorations, "lights": _lights}
+	return {"particles": _particles, "decorations": _decorations, "lights": _lights, "pressure": MemoryGuard.pressure}

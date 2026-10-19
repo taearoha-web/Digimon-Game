@@ -67,6 +67,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	MemoryGuard.tick(get_tree(), delta)
 	if OS.has_feature("web"):
 		_cloud_status_timer += delta
 		if _cloud_status_timer >= CLOUD_STATUS_INTERVAL:
@@ -605,6 +606,8 @@ func _record_web_session_sample() -> void:
 		"resources": int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),
 		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
 		"fps": Engine.get_frames_per_second(), "quality": GameSettings.quality,
+		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
+		"vfx": VfxBudget.counters(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
 		"renderObjects": int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),

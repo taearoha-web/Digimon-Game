@@ -161,7 +161,8 @@
       contextLost: record.contextLost === true, events: record.events,
       firstSample: first || null, lastSamples: record.samples.slice(-5),
       // One short line per sample: the whole session's trend in a few hundred bytes.
-      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} ${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
+      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} p=${s.pressure ?? '-'} ${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
+      pressureRaises: last ? (last.pressureRaises ?? null) : null,
       growth: first && last && last !== first ? { seconds: last.seconds - first.seconds, wasmBytes: (last.wasmBytes || 0) - (first.wasmBytes || 0),
         videoBytes: (last.videoBytes || 0) - (first.videoBytes || 0), nodes: (last.nodes || 0) - (first.nodes || 0),
         objects: (last.objects || 0) - (first.objects || 0), resources: (last.resources || 0) - (first.resources || 0) } : null };

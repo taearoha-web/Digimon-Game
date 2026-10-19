@@ -584,13 +584,15 @@ func _hit(mob: Mob, raw: float) -> void:
 func _attack() -> void:
 	_attack_timer = float(spec.get("interval", 1.0))
 	var mob := _target
+	var mob_ref: WeakRef = weakref(mob)
 	var color: Color = _kind.color
 	if _visual:
 		_visual.action("attack", 380 if not bool(_kind.get("legend", false)) else 700)
 	var strike := func():
-		if _dead or _fading or not _valid(mob) or not _summoner_alive():
+		var victim: Mob = mob_ref.get_ref() as Mob
+		if _dead or _fading or not _valid(victim) or not _summoner_alive():
 			return
-		_hit(mob, _basic_raw())
+		_hit(victim, _basic_raw())
 		if spec.has("heal") and not is_fairy():
 			_summoner_heal(float(spec.heal))
 	if bool(_kind.ranged):
