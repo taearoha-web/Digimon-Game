@@ -52,7 +52,7 @@ func _arena_opponents() -> void:
 		check(grade == PvpData.grade_of(rp), "rank %d: grade follows the rank" % step)
 		check(is_equal_approx(float(info.difficulty), GuildWarData.SKILL), "rank %d: same sharpness on every rank" % step)
 		check(is_equal_approx(float(info.mults.hp), 1.0) and is_equal_approx(float(info.mults.atk), 1.0) and is_equal_approx(float(info.mults.def), 1.0), "rank %d: no stat handicap, like a real player" % step)
-		check(info.profile.equip.has("wings") == (grade >= 100), "rank %d: wings exactly from the 100-star grade" % step)
+		check(info.profile.equip.has("wings") and StarWingData.is_wing(info.profile.equip.wings) == (grade >= StarWingData.REQUIRED_STARS), "rank %d: everyone in wings, star wings from the 100-star grade" % step)
 		skills[grade] = true
 		last_grade = grade
 	check(PvpData.grade_of(0) == 50 and PvpData.grade_of(PvpData.STEP_RP * PvpData.MAX_STEP) == GuildWarData.DIVINE, "the ladder runs from the 50-star set to the divine set")
