@@ -52,9 +52,21 @@ func _ready() -> void:
 	await main.go(&"guildwar", false, true)
 	await _wait(1.0)
 	await _shot("arena_intro")
-	await _wait(5.5)
-	await _shot("fight_start")
+	# Both guilds' rows from above the centre line, before anybody moves.
 	var zone: Zone = main.zone
+	var overhead := Camera3D.new()
+	zone.add_child(overhead)
+	overhead.global_position = Vector3(0.0, 34.0, 26.0)
+	overhead.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
+	overhead.fov = 62.0
+	var play_camera := get_viewport().get_camera_3d()
+	overhead.current = true
+	await _wait(0.3)
+	await _shot("formation")
+	play_camera.current = true
+	overhead.queue_free()
+	await _wait(5.2)
+	await _shot("fight_start")
 	zone.hero.global_position = Vector3(-4.0, 0.3, 0.0)
 	zone.hero.set_auto(true)
 	for t in 4:
@@ -65,5 +77,5 @@ func _ready() -> void:
 	zone.gw_match.time_left = 1.0
 	await _wait(6.0)
 	await _shot("result")
-	print("SCORE ", zone.gw_match.score, " fighters ", zone.gw_match.all_fighters().size())
+	print("SCORE ", zone.gw_match.score, " fighters ", zone.gw_match.all_fighters().size(), " expected ", 2 * GuildWarData.TEAM_SIZE - 1)
 	get_tree().quit()

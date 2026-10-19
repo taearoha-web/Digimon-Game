@@ -53,7 +53,8 @@ func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vecto
 	grade = int(info.get("grade", 0))
 	guild_name = title
 	spawn_point = p_spawn
-	rally_point = Vector3(p_spawn.x * 0.35, 0.0, 0.0)
+	# Each holds its own lane of the arena's half, so eight do not pile up on the centre line.
+	rally_point = Vector3(p_spawn.x * 0.35, 0.0, p_spawn.z * 0.6)
 	setup_rival(info, p_spawn, p_hero, title)
 	war_scale = GuildWarData.damage_scale
 	announce_skills = false
@@ -150,7 +151,7 @@ func _teammates() -> Array[Node3D]:
 
 
 ## Closest enemy, but like a person: finish the weak, go for the healer, share the
-## attention (not all five on one) and do not flip target every moment.
+## attention (not all eight on one) and do not flip target every moment.
 func _nearest_victim() -> Node3D:
 	var best: Node3D = null
 	var best_score := -1.0e9
@@ -286,7 +287,8 @@ func respawn() -> void:
 	hostile = true
 	collision_layer = 1 << 2
 	velocity = Vector3.ZERO
-	global_position = spawn_point + Vector3(randf_range(-2.0, 2.0), 0.3, randf_range(-2.0, 2.0))
+	# A small step off the mark: the slots are ROW_GAP apart, so neighbours never overlap.
+	global_position = spawn_point + Vector3(randf_range(-1.2, 1.2), 0.3, randf_range(-1.2, 1.2))
 	_label.visible = true
 	_bar.set_ratio(1.0)
 	_bar.visible = false
@@ -360,7 +362,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 		var at := target.global_position if shape == "blast" else global_position
 		var wait := maxf(float(skill.hit_delay), lerpf(1.25, 0.65, difficulty))
 		_dangers.append({"center": Vector3(at.x, 0.0, at.z), "radius": float(skill.radius), "until": Time.get_ticks_msec() + int(wait * 1000.0) + 250, "team": team})
-		if _dangers.size() > 24:
+		if _dangers.size() > 40:
 			_dangers = _dangers.filter(func(d): return Time.get_ticks_msec() <= int(d.until))
 	super._cast(skill, target)
 
