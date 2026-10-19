@@ -413,7 +413,10 @@ func _fall_back(delta: float) -> Vector3:
 
 ## With nobody to fight (the other side is waiting to respawn) it holds its half.
 func _wander(delta: float) -> Vector3:
-	if orb_goal != null and not _frozen:
+	# During the countdown everybody holds their mark (no walking to the rally point).
+	if _frozen:
+		return Vector3.ZERO
+	if orb_goal != null:
 		return _run_to(orb_goal as Vector3, delta)
 	_tick(delta)
 	var to := rally_point - global_position
