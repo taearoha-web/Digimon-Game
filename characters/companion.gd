@@ -574,6 +574,9 @@ func _cast(skill: Dictionary) -> void:
 	var aim := target.global_position if target and is_instance_valid(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
 	var snapshot: WeakRef = weakref(target) if is_instance_valid(target) else null
 	SkillShow.anticipate(field, skill, global_position, delay, aim, visual)
+	var cast_sound := SkillSound.cast(skill)
+	if cast_sound != &"skill_start":
+		AudioManager.play_sfx(cast_sound, -8.0)
 	if String(skill.id) == "judgment_ray":
 		JudgmentRaySequence.launch(field, self, target, delay, _judgment_hit.bind(skill), visual)
 		return
@@ -614,6 +617,9 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		# resolve immediately. Share the art while respecting that real clock.
 		var landing := 0.5 if String(skill.shape) == "blast" and skill.vfx == &"fireball" else 0.0
 		SkillShow.play(field, skill, show_center, global_position, landing)
+	var landing_sound := SkillSound.landing(skill)
+	if landing_sound != &"":
+		AudioManager.play_sfx(landing_sound, -8.0)
 	match String(skill.shape):
 		"self":
 			_apply_self(skill)

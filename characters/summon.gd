@@ -438,12 +438,14 @@ func _fairy_heal() -> void:
 	if _visual:
 		_visual.action("attack", 700)
 		fairy_twirl(_visual)
+	AudioManager.play_sfx(&"fairy_twirl", -5.0)
 	var field := get_parent()
 	var color: Color = _kind.color
 	VfxKit.impact_ring(field, global_position + Vector3(0, float(_kind.hover) * 0.6, 0), color, FAIRY_ALLY_RADIUS * 0.55, 0.8)
 	VfxArt.motes(field, global_position + Vector3(0, float(_kind.hover), 0), color.lightened(0.3), "heart", 10, 0.4, 1.4, 1.0)
 	BattleVfx.floating_text(field, global_position + Vector3(0, float(_kind.hover) + 1.6, 0), "ฮีล +%d%%" % int(FAIRY_HEAL * 100.0), color, 0.9)
 	_summoner_heal(FAIRY_HEAL)
+	AudioManager.play_sfx(&"fairy_heal", -2.0)
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
 		if node == self or node == summoner or not is_instance_valid(node) or not node.has_method("heal_fraction"):
 			continue

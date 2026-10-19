@@ -704,7 +704,7 @@ func _cast(skill: Dictionary) -> void:
 		var star_aim := target.global_position if _valid_target(target) else global_position
 		var star_duration := StarSkillSequence.launch(self, skill, target, star_aim)
 		_cast_until = Time.get_ticks_msec() + int(star_duration * 1000.0)
-		AudioManager.play_sfx(&"skill_start", -5.0)
+		AudioManager.play_sfx(SkillSound.cast(skill), -5.0)
 		Game.daily_progress("skills", 1)
 		return
 	var delay := float(skill.hit_delay) * (1.0 - _haste())
@@ -712,7 +712,7 @@ func _cast(skill: Dictionary) -> void:
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 90
 	if target and _valid_target(target):
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
-	AudioManager.play_sfx(&"skill_start", -4.0)
+	AudioManager.play_sfx(SkillSound.cast(skill), -4.0)
 	Game.daily_progress("skills", 1)
 	var snapshot: WeakRef = weakref(target) if is_instance_valid(target) else null
 	var aim := target.global_position if _valid_target(target) else global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
@@ -758,6 +758,9 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		show_center = Vector3(mob.global_position.x if _valid_target(mob) else aim.x, 0.0, mob.global_position.z if _valid_target(mob) else aim.z)
 	if String(skill.id) not in ["armageddon", "thunder_storm"]:
 		SkillShow.play(field, skill, show_center, global_position)
+	var landing_sound := SkillSound.landing(skill)
+	if landing_sound != &"":
+		AudioManager.play_sfx(landing_sound, -2.0)
 	match String(skill.shape):
 		"self":
 			_apply_self_fx(skill)

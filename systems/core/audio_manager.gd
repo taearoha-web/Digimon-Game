@@ -4,6 +4,8 @@ extends Node
 ## Sounds are looked up by id using a folder convention, so replacing a
 ## placeholder is just dropping a file with the same name:
 ##   res://audio/sfx/<id>.ogg|.wav     res://audio/music/<id>.ogg|.wav
+## Music is one Ogg Vorbis loop per place (tools/generate_zone_music.py); skill sounds
+## come from tools/generate_placeholder_audio.py and tools/generate_skill_sfx.py.
 ## Buses: Master, Music, SFX, UI (created at runtime if the layout lacks them).
 
 const SFX_DIR := "res://audio/sfx"
@@ -19,6 +21,8 @@ const BUSES := ["Music", "SFX", "UI"]
 ## 0.75 MB a second until the phone killed the page). Past this long without a mix, sounds are
 ## not started at all.
 const MIX_STALL_SECONDS := 0.75
+## Music that plays once (then restarts from _on_music_finished) instead of looping seamlessly.
+const JINGLES: Array[StringName] = [&"victory", &"defeat"]
 
 var current_music_id: StringName = &""
 
@@ -96,6 +100,9 @@ func play_music(music_id: StringName, fade_time := 1.0) -> void:
 	if old_player.playing:
 		_music_tween.tween_property(old_player, "volume_db", -40.0, fade_time)
 	if stream != null:
+		if stream is AudioStreamOggVorbis:
+			# Ogg loops are flagged in the .import too; keep it true in code so a re-import cannot lose it.
+			(stream as AudioStreamOggVorbis).loop = music_id not in JINGLES
 		new_player.stream = stream
 		new_player.volume_db = -40.0
 		new_player.play()
