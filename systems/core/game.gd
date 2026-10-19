@@ -40,7 +40,7 @@ const ENDING_ZONE := &"eclipse_realm"
 ## Separate from the legacy magma ending, so old saves can earn the real finale.
 const ENDING_FLAG := "eclipse_ending_seen"
 ## Area skills (burst / blast) grow this much wider per extra star.
-const RADIUS_PER_STAR := 0.08
+const RADIUS_PER_STAR := SkillRank.RADIUS_PER_STAR
 
 var profile: Dictionary = {}
 var has_profile := false
@@ -1503,7 +1503,7 @@ func effective_rank(skill: Dictionary) -> int:
 
 ## Radius multiplier of an area skill at a star rank.
 func radius_scale(rank: int) -> float:
-	return 1.0 + RADIUS_PER_STAR * float(maxi(rank, 1) - 1)
+	return SkillRank.radius_scale(rank)
 
 
 ## Gold the Skill Master charges to raise a skill from its current rank.

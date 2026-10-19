@@ -621,15 +621,15 @@ func _basic_attack() -> void:
 
 
 func rank_mult(skill: Dictionary) -> float:
-	return 1.0 + 0.15 * float(Game.effective_rank(skill) - 1)
+	return SkillRank.power(Game.effective_rank(skill))
 
 
 func mp_cost(skill: Dictionary) -> int:
-	return int(ceil(float(skill.mp) * (1.0 + 0.04 * float(Game.effective_rank(skill) - 1)) * (0.88 if StarProgression.has_full_set(Game.profile, "mage") else 1.0)))
+	return int(ceil(float(skill.mp) * SkillRank.mp_scale(Game.effective_rank(skill)) * (0.88 if StarProgression.has_full_set(Game.profile, "mage") else 1.0)))
 
 
 func cooldown_of(skill: Dictionary) -> float:
-	return float(skill.cd) * (1.0 - 0.03 * float(Game.effective_rank(skill) - 1)) * (1.0 - _haste())
+	return SkillRank.cooldown(skill, Game.effective_rank(skill)) * (1.0 - _haste())
 
 
 ## Share of time DEX cuts from cooldowns, wind-ups and the basic attack interval.
@@ -637,17 +637,9 @@ func _haste() -> float:
 	return float(stats.get("haste", 0.0))
 
 
-## The skill with its area and target counts grown by the star rank.
+## The skill as cast at its star rank: area, targets, heal, buffs and control grown.
 func _ranked(skill: Dictionary) -> Dictionary:
-	var rank := Game.effective_rank(skill)
-	if rank <= 1:
-		return skill
-	var grown := skill.duplicate()
-	if grown.has("radius"):
-		grown["radius"] = float(skill.radius) * Game.radius_scale(rank)
-	if String(skill.shape) in ["chain", "fan"] and grown.has("hits"):
-		grown["hits"] = int(skill.hits) + (1 if rank >= 3 else 0) + (1 if rank >= 5 else 0)
-	return grown
+	return SkillRank.scaled(skill, Game.effective_rank(skill))
 
 
 func cooldown_ratio(skill: Dictionary) -> float:
@@ -897,7 +889,7 @@ func _summon(skill: Dictionary, mult: float) -> void:
 		if old.skill_id == skill.id:
 			old.queue_free()
 			_summons.erase(old)
-	var count := int(spec.get("count", 1)) + (1 if Game.effective_rank(skill) >= 5 and int(spec.get("count", 1)) > 1 else 0)
+	var count := SkillRank.summon_count(skill, Game.effective_rank(skill))
 	for i in count:
 		var s := Summon.new()
 		s.setup(self, String(skill.id), spec, mult * HeroStats.SKILL_POWER, i, count, maxi(1, Game.effective_rank(skill)))

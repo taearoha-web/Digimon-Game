@@ -20,7 +20,7 @@ static func group_count(entries: Array, ally: bool, now := -1) -> int:
 		now = Time.get_ticks_msec()
 	var count := 0
 	for buff in entries:
-		if int(buff.until) > now and bool(buff.get("ally", false)) == ally:
+		if int(buff.until) > now and bool(buff.get("ally", false)) == ally and not bool(buff.get("overheal", false)):
 			count += 1
 	return count
 
@@ -40,9 +40,9 @@ static func insert(entries: Array, data: Dictionary, color: Color, label: String
 	for entry in entries:
 		if int(entry.until) > now and not (bool(entry.get("ally", false)) == ally and identity(entry) == id):
 			next.append(entry)
-	while group_count(next, ally, now) >= GROUP_LIMIT:
+	while group_count(next, ally, now) >= GROUP_LIMIT and not bool(data.get("overheal", false)):
 		for i in next.size():
-			if bool(next[i].get("ally", false)) == ally:
+			if bool(next[i].get("ally", false)) == ally and not bool(next[i].get("overheal", false)):
 				next.remove_at(i)
 				break
 	var buff := data.duplicate(true)
