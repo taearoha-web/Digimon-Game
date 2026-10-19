@@ -34,6 +34,7 @@ var busy_until := 0
 var _clips: Dictionary = {}
 var _clip_speed: Dictionary = {}
 var _tween: Tween
+var _flash_restore: Dictionary = {}
 var _rest_scale := Vector3.ONE
 var _ground_offset := 0.0
 var _hover := 0.0
@@ -183,16 +184,29 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	overlay.albedo_color = Color(color.r, color.g, color.b, 0.8)
-	for mi in meshes:
-		(mi as MeshInstance3D).material_overlay = overlay
 	if _tween:
 		_tween.kill()
+		_restore_overlays()
+	for mi in meshes:
+		var mesh := mi as MeshInstance3D
+		if mesh.material_overlay != null and mesh.material_overlay != overlay:
+			_flash_restore[mesh] = mesh.material_overlay
+		mesh.material_overlay = overlay
 	_tween = create_tween()
 	_tween.tween_property(overlay, "albedo_color:a", 0.0, duration)
 	_tween.tween_callback(func():
 		for mi in meshes:
 			if is_instance_valid(mi):
-				(mi as MeshInstance3D).material_overlay = null)
+				(mi as MeshInstance3D).material_overlay = null
+		_restore_overlays())
+
+
+## Overlays a flash covered (a summon's spirit glow) come back when it fades.
+func _restore_overlays() -> void:
+	for mesh in _flash_restore:
+		if is_instance_valid(mesh) and is_instance_valid(_flash_restore[mesh]):
+			(mesh as MeshInstance3D).material_overlay = _flash_restore[mesh]
+	_flash_restore.clear()
 
 
 static func _bounds(node: Node3D) -> AABB:

@@ -134,8 +134,7 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	# Medium keeps one blur level and a gentler intensity for phones.
 	# Phones and the web build keep glow for high quality only: its extra render
 	# targets and passes cost memory and frame time where both are scarce.
-	var glow_quality := 2 if (OS.has_feature("web") or OS.has_feature("mobile")) else 1
-	env.glow_enabled = GameSettings.quality >= glow_quality and bool(look.get("glow", true))
+	env.glow_enabled = MemoryGuard.glow_allowed() and bool(look.get("glow", true))
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	env.glow_hdr_threshold = 0.96
 	env.glow_intensity = 0.55 if GameSettings.quality >= 2 else 0.42
@@ -144,7 +143,10 @@ static func environment(parent: Node3D, sky_color: Color, fog_color: Color, ambi
 	env.set("glow_levels/5", GameSettings.quality >= 2)
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
+	world_env.add_to_group("world_env")
+	world_env.set_meta("glow_look", bool(look.get("glow", true)))
 	parent.add_child(world_env)
+	MemoryGuard.apply_render(null)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-42, -32, 0)
 	sun.light_color = sun_color

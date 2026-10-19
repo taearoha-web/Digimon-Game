@@ -122,6 +122,45 @@ static func _instance(parent: Node3D, mesh: Mesh, material: Material, pos: Vecto
 	return mi
 
 
+## Shared per-hit primitives. A hit used to build its own QuadMesh (a new GPU
+## buffer each time); on the web the wasm heap only grows, so the churn of a
+## long fight fragmented it. Sizes are rounded to a millimetre and the caches
+## are cleared once they hold 128 shapes, so unusual sizes cannot pile up.
+## Callers never mutate a shared mesh (size, material); they scale the node.
+const SHARED_MESH_LIMIT := 128
+static var _shared_quads: Dictionary = {}
+static var _shared_tori: Dictionary = {}
+static var _smoke_expansion: Curve
+
+
+static func quad(size: Vector2) -> QuadMesh:
+	var key := Vector2i(roundi(size.x * 1000.0), roundi(size.y * 1000.0))
+	if _shared_quads.has(key):
+		return _shared_quads[key]
+	if _shared_quads.size() >= SHARED_MESH_LIMIT:
+		# Dropping a reference never invalidates a mesh that is still drawn.
+		_shared_quads.clear()
+	var mesh := QuadMesh.new()
+	mesh.size = size
+	_shared_quads[key] = mesh
+	return mesh
+
+
+static func torus_mesh(inner: float, outer: float, rings := 16, ring_segments := 8) -> TorusMesh:
+	var key := [roundi(inner * 1000.0), roundi(outer * 1000.0), rings, ring_segments]
+	if _shared_tori.has(key):
+		return _shared_tori[key]
+	if _shared_tori.size() >= SHARED_MESH_LIMIT:
+		_shared_tori.clear()
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = inner
+	mesh.outer_radius = outer
+	mesh.rings = rings
+	mesh.ring_segments = ring_segments
+	_shared_tori[key] = mesh
+	return mesh
+
+
 static func _disc_mesh() -> CylinderMesh:
 	if _disc == null:
 		_disc = CylinderMesh.new()
@@ -234,14 +273,26 @@ static func _particles(parent: Node3D, pos: Vector3, color: Color, amount: int, 
 	return p
 
 
+## The textured card a trail emitter draws. Mesh and material are immutable
+## (no caller tweens them), so one pair per texture / colour / size serves
+## every trail of that look; the cache is cleared once it holds 128 cards.
+static var _textured_quads: Dictionary = {}
+
+
 static func _textured_quad(tex: Texture2D, color: Color, size: float) -> QuadMesh:
-	var quad := QuadMesh.new()
-	quad.size = Vector2(size, size)
+	var key := [tex.get_instance_id() if tex != null else 0, Color(color).to_rgba32(), roundi(size * 1000.0)]
+	if _textured_quads.has(key):
+		return _textured_quads[key]
+	if _textured_quads.size() >= SHARED_MESH_LIMIT:
+		_textured_quads.clear()
+	var card := QuadMesh.new()
+	card.size = Vector2(size, size)
 	var mat := _glow(color, 1.0)
 	mat.albedo_texture = tex
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	quad.material = mat
-	return quad
+	card.material = mat
+	_textured_quads[key] = card
+	return card
 
 
 static func _fade_ramp() -> Gradient:
@@ -270,18 +321,17 @@ static func sparks(parent: Node3D, pos: Vector3, color: Color, amount := 22, spe
 static func flash(parent: Node3D, pos: Vector3, color: Color, size := 2.2, duration := 0.28) -> void:
 	if not VfxBudget.can_decorate(2):
 		return
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
+	var card := quad(Vector2.ONE)
 	var core_mat := _glow(color.lerp(Color("fff2d5"), 0.50), 0.70, false)
 	core_mat.albedo_texture = soft_dot()
 	core_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	var mat := _glow(color, 0.65)
 	mat.albedo_texture = soft_dot()
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	var halo := _instance(parent, quad, mat, pos)
+	var halo := _instance(parent, card, mat, pos)
 	VfxBudget.track_decoration(halo)
 	halo.scale = Vector3.ONE * size * 0.4
-	var core := _instance(parent, quad, core_mat, pos)
+	var core := _instance(parent, card, core_mat, pos)
 	VfxBudget.track_decoration(core)
 	core.scale = Vector3.ONE * size * 0.16
 	# Bigger flashes radiate: a spinning sunburst behind the halo.
@@ -358,9 +408,7 @@ static func impact_fan(parent: Node3D, pos: Vector3, color: Color, scale: float,
 		var direction := Vector3(cos(angle), sin(angle) * 0.65 + 0.25, sin(angle * 1.7) * 0.5).normalized()
 		var mat := _glow(color, 0.88, false)
 		mat.albedo_texture = VfxArt.texture(kind)
-		var quad := QuadMesh.new()
-		quad.size = Vector2(0.22, 0.95) * scale
-		var ray := _instance(parent, quad, mat, pos)
+		var ray := _instance(parent, VfxKit.quad(Vector2(0.22, 0.95) * scale), mat, pos)
 		VfxBudget.track_decoration(ray)
 		var camera := parent.get_viewport().get_camera_3d()
 		if camera != null:
@@ -379,13 +427,10 @@ static func impact_fan(parent: Node3D, pos: Vector3, color: Color, scale: float,
 ## damage text or enemy warnings. Both particle amount and lifetime are bounded.
 static func impact_smoke(parent: Node3D, pos: Vector3, color: Color, size := 1.0) -> void:
 	var smoke := _particles(parent, pos, color, 8, 0.65)
-	var mat := _glow(color, 0.34, false)
-	mat.albedo_texture = VfxArt.texture("smoke")
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE * 0.95 * size
-	quad.material = mat
-	smoke.mesh = quad
+	# The emitter draws with the soft-dot override _particles gave it (an
+	# override replaces any material on the mesh), so the puff only needs its
+	# bigger shared card; a textured material here would never be rendered.
+	smoke.mesh = quad(Vector2.ONE * 0.95 * size)
 	smoke.direction = Vector3.UP
 	smoke.spread = 110.0
 	smoke.initial_velocity_min = 0.8 * size
@@ -393,11 +438,12 @@ static func impact_smoke(parent: Node3D, pos: Vector3, color: Color, size := 1.0
 	smoke.gravity = Vector3(0, 0.45, 0)
 	smoke.scale_amount_min = 0.55
 	smoke.scale_amount_max = 1.05
-	var expansion := Curve.new()
-	expansion.add_point(Vector2(0, 0.15))
-	expansion.add_point(Vector2(0.4, 0.8))
-	expansion.add_point(Vector2(1, 1.2))
-	smoke.scale_amount_curve = expansion
+	if _smoke_expansion == null:
+		_smoke_expansion = Curve.new()
+		_smoke_expansion.add_point(Vector2(0, 0.15))
+		_smoke_expansion.add_point(Vector2(0.4, 0.8))
+		_smoke_expansion.add_point(Vector2(1, 1.2))
+	smoke.scale_amount_curve = _smoke_expansion
 
 
 # ---------------------------------------------------------------------------
@@ -428,12 +474,10 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 			if variant == "flame":
 				core.material_override = _glow(Color("ffc365"), 0.97, false)
 	if VfxBudget.can_decorate():
-		var glow_quad := QuadMesh.new()
-		glow_quad.size = Vector2.ONE * size * 4.2
 		var glow_mat := _glow(color, 0.33, false)
 		glow_mat.albedo_texture = VfxArt.texture("flare")
 		glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		var glow := _instance(holder, glow_quad, glow_mat, from)
+		var glow := _instance(holder, quad(Vector2.ONE * size * 4.2), glow_mat, from)
 		VfxBudget.track_decoration(glow)
 	flight_ribbons(holder, color, size, 2.7, variant == "flame")
 	var trail := _particles(holder, from, color, 24, 0.42, false)
@@ -585,25 +629,33 @@ static func shockwave(parent: Node3D, pos: Vector3, color: Color, radius: float)
 
 
 ## A rune circle on the ground (two spinning rings + soft fill) for area casts.
+## The outer ring marks the area (boss attacks linger on it), so it is always
+## drawn and only counted; the inner ring and the swirling fill are decorative.
 static func ground_circle(parent: Node3D, pos: Vector3, color: Color, radius: float, duration: float) -> void:
 	var outer_mat := _glow(color, 0.9, false)
 	var outer := _instance(parent, MeshKit.torus(), outer_mat, pos + Vector3(0, 0.06, 0))
+	VfxBudget.track_decoration(outer)
 	outer.scale = Vector3(radius, radius * 0.16, radius)
+	var tween := outer.create_tween().set_parallel(true)
+	tween.tween_property(outer, "rotation:y", TAU, duration)
+	tween.tween_property(outer_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
+	tween.chain().tween_callback(outer.queue_free)
+	if not VfxBudget.can_decorate(2):
+		return
 	var inner_mat := _glow(color, 0.6, false)
 	var inner := _instance(parent, MeshKit.torus(), inner_mat, pos + Vector3(0, 0.07, 0))
+	VfxBudget.track_decoration(inner)
 	inner.scale = Vector3(radius * 0.6, radius * 0.12, radius * 0.6)
 	# A swirling energy ring fills the area while the spell gathers.
 	var fill_mat := energy(color, color.lerp(Color.WHITE, 0.55), 0, {"ring_radius": 0.86, "ring_width": 0.1, "flow": 1.2, "swirl": 1.0, "fill": 0.22, "noise_scale": 6.0})
 	var fill := _instance(parent, ground_quad(), fill_mat, pos + Vector3(0, 0.04, 0))
+	VfxBudget.track_decoration(fill)
 	fill.scale = Vector3(radius * 1.05, 1, radius * 1.05)
-	var tween := outer.create_tween().set_parallel(true)
-	tween.tween_property(outer, "rotation:y", TAU, duration)
-	tween.tween_property(inner, "rotation:y", -TAU, duration)
-	tween.tween_property(outer_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
-	tween.tween_property(inner_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
-	tween.tween_method(func(v: float): fill_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
-	tween.chain().tween_callback(func():
-		outer.queue_free()
+	var detail := inner.create_tween().set_parallel(true)
+	detail.tween_property(inner, "rotation:y", -TAU, duration)
+	detail.tween_property(inner_mat, "albedo_color:a", 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
+	detail.tween_method(func(v: float): fill_mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.25).set_delay(maxf(duration - 0.25, 0.0))
+	detail.chain().tween_callback(func():
 		inner.queue_free()
 		fill.queue_free())
 
@@ -662,12 +714,10 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 		var halo := _instance(rock, MeshKit.sphere(), _glow(color, 0.52, false), start)
 		VfxBudget.track_decoration(halo)
 		halo.scale = Vector3.ONE * 1.22
-		var glow_quad := QuadMesh.new()
-		glow_quad.size = Vector2.ONE * 5.0
 		var glow_mat := _glow(color, 0.45, false)
 		glow_mat.albedo_texture = VfxArt.texture("flare")
 		glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		var glow := _instance(rock, glow_quad, glow_mat, start)
+		var glow := _instance(rock, quad(Vector2.ONE * 5.0), glow_mat, start)
 		VfxBudget.track_decoration(glow)
 	var trail := _particles(rock, start, color, 70, 0.8, false)
 	trail.gravity = Vector3(0, 2.0, 0)
@@ -786,6 +836,8 @@ static func loot_beam(parent: Node3D, color: Color, height := 3.0) -> MeshInstan
 	mi.scale = Vector3(0.18, height, 0.18)
 	mi.position = Vector3(0, height * 0.5, 0)
 	parent.add_child(mi)
+	# Always shown (it marks the drop) but counted, so pressure trims other decorations.
+	VfxBudget.track_decoration(mi)
 	return mi
 
 

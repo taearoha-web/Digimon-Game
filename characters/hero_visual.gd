@@ -57,6 +57,7 @@ var _skeleton: Skeleton3D
 var _body_nodes: Array[Node] = []
 var _hold_nodes: Array[Node] = []
 var _tween: Tween
+var _flash_restore: Dictionary = {}
 var _face: FaceExpression
 ## True for the rigged chibi models; gear built for KayKit units is scaled by _gear_scale.
 var chibi := false
@@ -207,12 +208,12 @@ func _refresh_chibi() -> void:
 		armor_nodes = _divine_slot(armor) if DivineGearData.is_item(armor) else (_star_armor(armor) if StarGearData.is_star(armor) else _chibi_armor(ItemLook.tier_of(armor)))
 	if DivineGearData.is_item(helm):
 		var crown_nodes := _divine_slot(helm)
-		EnhanceFx.glow_piece(self, crown_nodes, int(helm.get("plus", 0)), Vector3(0,2.2,0), 0.25)
+		_glow_piece(crown_nodes, int(helm.get("plus", 0)), Vector3(0,2.2,0), 0.25)
 	elif helm != null:
 		var crown := _chibi_attach("Head", "ChibiHelm")
 		if StarGearData.is_star(helm): crown.add_child(StarGearArt.armor_piece("helm",StarGearData.item_class(helm),int(helm.star_tier)))
 		else: ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
-		EnhanceFx.glow_piece(self, [crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
+		_glow_piece([crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
 	var acc := int(look.get("acc", 0))
 	if acc > 0:
 		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
@@ -229,8 +230,8 @@ func _refresh_chibi() -> void:
 		if StarGearData.is_star(equip.amulet): _star_piece("amulet","Chest",equip.amulet)
 		else: ChibiGear.pendant(_chibi_attach("Chest", "ChibiAmulet"), ItemLook.tier_of(equip.amulet))
 	if StarGearData.is_star(equip.get("ring")): _star_piece("ring","LeftHand",equip.ring)
-	EnhanceFx.glow_piece(self, armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.1, 0), 0.4)
-	EnhanceFx.glow_piece(self, boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
+	_glow_piece(armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.1, 0), 0.4)
+	_glow_piece(boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
 	var wings: Variant = equip.get("wings")
 	if wings is Dictionary:
 		# The wing models share the chibi's model space: undo the chest's rest pose.
@@ -239,12 +240,12 @@ func _refresh_chibi() -> void:
 		if chest >= 0:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
 		back.add_child(StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings)))
-		EnhanceFx.glow_piece(self, [back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_glow_piece([back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_pose_wings.call_deferred(wing_mode, true)
 	# Fold only static accessories on each bone, keeping the skeleton and wing animation intact.
 	for node in _body_nodes:
 		if is_instance_valid(node) and String(node.name).begins_with("Chibi") and node.get_child_count() > 0:
-			MeshMerge.merge(node.get_child(0) as Node3D)
+			MeshMerge.merge(node.get_child(0) as Node3D, "auto")
 	_make_aura()
 	_hold_gear()
 	_polish()
@@ -436,6 +437,13 @@ func set_equipment(p_equip: Dictionary) -> void:
 	refresh()
 
 
+## Enhancement glow of one worn piece, kept with the outfit so a re-dress frees it.
+func _glow_piece(nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
+	var made := EnhanceFx.glow_piece(self, nodes, plus, spot, spread)
+	if made != null:
+		_body_nodes.append(made)
+
+
 func refresh() -> void:
 	_face = null
 	for n in _body_nodes:
@@ -518,14 +526,14 @@ func refresh() -> void:
 		w.transform = KAYKIT_WINGS
 		back.add_child(w)
 		_body_nodes.append(back)
-		EnhanceFx.glow_piece(self, [back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_glow_piece([back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_pose_wings.call_deferred(wing_mode, true)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
 		_add_part(cape[0], cape[1], cape_tint)
 	if DivineGearData.is_item(helm):
 		var crown_nodes := _divine_slot(helm)
-		EnhanceFx.glow_piece(self, crown_nodes, int(helm.get("plus", 0)), Vector3(0,1.85,0), 0.25)
+		_glow_piece(crown_nodes, int(helm.get("plus", 0)), Vector3(0,1.85,0), 0.25)
 	elif StarGearData.is_star(helm):
 		_star_piece("helm","Head",helm)
 	elif helm != null:
@@ -537,7 +545,7 @@ func refresh() -> void:
 			hat_nodes.append(worn_part)
 		elif _body_nodes.size() > before_count:
 			hat_nodes.append(_body_nodes[_body_nodes.size() - 1])
-		EnhanceFx.glow_piece(self, hat_nodes, int(helm.get("plus", 0)), Vector3(0, 1.85, 0), 0.25)
+		_glow_piece(hat_nodes, int(helm.get("plus", 0)), Vector3(0, 1.85, 0), 0.25)
 	elif preset.has("hat") and look.is_empty():
 		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
 	var cuff_start := _body_nodes.size()
@@ -546,8 +554,8 @@ func refresh() -> void:
 		for n in _body_nodes.slice(cuff_start):
 			if n is BoneAttachment3D and (n as BoneAttachment3D).name == "Boots":
 				boot_nodes.append(n)
-	EnhanceFx.glow_piece(self, armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.0, 0), 0.4)
-	EnhanceFx.glow_piece(self, boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.25, 0), 0.4)
+	_glow_piece(armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.0, 0), 0.4)
+	_glow_piece(boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.25, 0), 0.4)
 	_hold_gear()
 	_polish()
 
@@ -606,7 +614,7 @@ func _wear_trinkets() -> void:
 	var boots: Variant = equip.get("boots")
 	if DivineGearData.is_item(boots):
 		var boot_nodes := _divine_slot(boots)
-		EnhanceFx.glow_piece(self, boot_nodes, int(boots.get("plus", 0)), Vector3(0,0.25,0), 0.4)
+		_glow_piece(boot_nodes, int(boots.get("plus", 0)), Vector3(0,0.25,0), 0.4)
 	elif StarGearData.is_star(boots):
 		_star_piece("boots","LeftLowerLeg",boots)
 		_star_piece("boots","RightLowerLeg",boots)
@@ -706,7 +714,7 @@ func _make_aura() -> void:
 	quad.material = mat
 	p.mesh = quad
 	var grand := maxi(tier - 5, 0)
-	p.amount = 14 + grand * 10 + (best * 3 if best >= 4 else 0)
+	p.amount = VfxBudget.count(14 + grand * 10 + (best * 3 if best >= 4 else 0))
 	p.lifetime = 1.5 + 0.1 * float(grand)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.55 + 0.08 * float(grand)
@@ -1062,13 +1070,27 @@ func flash(color := Color(1, 0.35, 0.35), duration := 0.18) -> void:
 	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	overlay.albedo_color = Color(color.r, color.g, color.b, 0.7)
-	for mi in meshes:
-		(mi as MeshInstance3D).material_overlay = overlay
+	# A hit flash sits on top of whatever overlay a piece already wears (enhancement
+	# glow, a summon's spirit light) and hands it back afterwards.
 	if _tween:
 		_tween.kill()
+		_restore_overlays()
+	for mi in meshes:
+		var mesh := mi as MeshInstance3D
+		if mesh.material_overlay != null and mesh.material_overlay != overlay:
+			_flash_restore[mesh] = mesh.material_overlay
+		mesh.material_overlay = overlay
 	_tween = create_tween()
 	_tween.tween_property(overlay, "albedo_color:a", 0.0, duration)
 	_tween.tween_callback(func():
 		for mi in meshes:
 			if is_instance_valid(mi):
-				(mi as MeshInstance3D).material_overlay = null)
+				(mi as MeshInstance3D).material_overlay = null
+		_restore_overlays())
+
+
+func _restore_overlays() -> void:
+	for mesh in _flash_restore:
+		if is_instance_valid(mesh) and is_instance_valid(_flash_restore[mesh]):
+			(mesh as MeshInstance3D).material_overlay = _flash_restore[mesh]
+	_flash_restore.clear()

@@ -262,21 +262,24 @@ func layer(kind: String, look: Dictionary, at: Vector3, size: Vector3, angles :=
 	var node := MeshInstance3D.new()
 	node.name = kind.capitalize()
 	node.mesh = MartialGeometry.mesh(kind.trim_prefix("martial/")) if kind.begins_with("martial/") else geometry(kind)
-	node.material_override = material(look)
-	if bool(style.get("martial",false)):
-		var mat := ShaderMaterial.new()
-		mat.shader=MartialSkillArt.SHADER
-		for key in ["primary","accent","shade"]: mat.set_shader_parameter(key,look[key])
-		mat.set_shader_parameter("opacity",float(style.get("opacity",0.95)))
-		node.material_override=mat
-	if kind in ["tree", "roots", "leaves"]:
-		(node.material_override as ShaderMaterial).set_shader_parameter("opacity", 0.68)
+	# Only the material this layer draws with is built (the comet's flame wins
+	# over a martial brush, which wins over the elite relief).
 	if kind == "comet":
 		var flame := ShaderMaterial.new()
 		flame.shader = MeteorArt.FLAME_SHADER
 		flame.set_shader_parameter("ember", Color("cd3c26"))
 		flame.set_shader_parameter("gold", Color("ffd173"))
 		node.material_override = flame
+	elif bool(style.get("martial",false)):
+		var mat := ShaderMaterial.new()
+		mat.shader=MartialSkillArt.SHADER
+		for key in ["primary","accent","shade"]: mat.set_shader_parameter(key,look[key])
+		mat.set_shader_parameter("opacity",float(style.get("opacity",0.95)))
+		node.material_override=mat
+	else:
+		node.material_override = material(look)
+	if kind in ["tree", "roots", "leaves"]:
+		(node.material_override as ShaderMaterial).set_shader_parameter("opacity", 0.68)
 	# Hero silhouettes draw after the translucent ground rings around them, which
 	# would otherwise paint over the plate (every layer is depth_draw_never).
 	if kind in ["greatshield","comet"] or style.has("front"):

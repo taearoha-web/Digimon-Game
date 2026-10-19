@@ -9,6 +9,10 @@ const IMPACT_SHADER := preload("res://shaders/thunder_impact.gdshader")
 const WISP_SHADER := preload("res://shaders/thunder_wisp.gdshader")
 static var _cloud_mesh: ArrayMesh
 static var _wisp_mesh: ArrayMesh
+## Bolt tubes keyed by their rounded path and width: repeated strikes on the
+## same spot reuse the geometry instead of building a new tube per layer.
+const BOLT_CACHE_LIMIT := 48
+static var _bolt_meshes: Dictionary = {}
 var radius := 9.0
 var cloud: MeshInstance3D
 var _mat: ShaderMaterial
@@ -101,6 +105,8 @@ func _ready() -> void:
 	cloud.scale = Vector3(radius, 3.5, radius)
 	cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(cloud)
+	# Always drawn (the storm's silhouette) but counted against the shared budget.
+	VfxBudget.track_decoration(cloud)
 	if VfxBudget.can_decorate():
 		var wisp := MeshInstance3D.new()
 		wisp.name = "ThunderStormRollingMist"
@@ -126,6 +132,7 @@ func _ready() -> void:
 	seal.scale = Vector3.ONE * (radius / 0.94)
 	seal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(seal)
+	VfxBudget.track_decoration(seal)
 	var tw := create_tween()
 	tw.tween_method(_set_fade, 0.0, 1.0, 0.5)
 	tw.tween_interval(1.55)
@@ -202,7 +209,7 @@ func _bolt_layer(points: PackedVector3Array, width: float, color: Color, label: 
 		return
 	var bolt := MeshInstance3D.new()
 	bolt.name = label
-	bolt.mesh = SpellSpectacle._tube_mesh(points, width)
+	bolt.mesh = bolt_mesh(points, width)
 	bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat := StandardMaterial3D.new()
 	MaterialKeeper.keep(mat)
@@ -218,3 +225,21 @@ func _bolt_layer(points: PackedVector3Array, width: float, color: Color, label: 
 	tw.tween_interval(0.13)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.24)
 	tw.tween_callback(bolt.queue_free)
+
+
+static func bolt_mesh(points: PackedVector3Array, width: float) -> ArrayMesh:
+	var rounded := PackedInt32Array()
+	for point in points:
+		rounded.append(roundi(point.x * 100.0))
+		rounded.append(roundi(point.y * 100.0))
+		rounded.append(roundi(point.z * 100.0))
+	rounded.append(roundi(width * 1000.0))
+	var key := var_to_bytes(rounded).hex_encode()
+	if _bolt_meshes.has(key):
+		return _bolt_meshes[key]
+	if _bolt_meshes.size() >= BOLT_CACHE_LIMIT:
+		# Dropping a reference never invalidates a bolt that is still drawn.
+		_bolt_meshes.erase(_bolt_meshes.keys()[0])
+	var mesh := SpellSpectacle._tube_mesh(points, width)
+	_bolt_meshes[key] = mesh
+	return mesh

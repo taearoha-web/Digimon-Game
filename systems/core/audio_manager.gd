@@ -201,7 +201,10 @@ func _get_stream(dir: String, sound_id: StringName) -> AudioStream:
 	if stream == null and not _missing_warned.has(key):
 		_missing_warned[key] = true
 		print_verbose("AudioManager: no audio for '%s' (placeholder slot)" % key)
-	_stream_cache[key] = stream
+	# Music is half a megabyte a track and played one at a time: the player
+	# holds the current one, the rest may go. Sound effects stay cached.
+	if dir != MUSIC_DIR:
+		_stream_cache[key] = stream
 	return stream
 
 

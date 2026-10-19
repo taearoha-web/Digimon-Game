@@ -23,6 +23,9 @@ const PRESETS := {
 
 static var _particle_mesh: Mesh
 static var _particle_material: StandardMaterial3D
+## Fade ramps keyed by colour: emitters only read them, so bursts of the same
+## colour share one instead of allocating a Gradient per hit (cleared at 128).
+static var _ramps: Dictionary = {}
 
 
 static func preset_color(vfx_id: StringName) -> Color:
@@ -224,15 +227,17 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	label.modulate = color
 	label.outline_modulate = outline
 	parent.add_child(label)
+	# Released when the label leaves the tree, whether its tween freed it or the
+	# zone was unloaded under it; a callback alone left the count stuck high and
+	# small numbers stopped appearing for good in long sessions.
+	label.tree_exited.connect(func(): _floating_active = maxi(0, _floating_active - 1), CONNECT_ONE_SHOT)
 	label.global_position = pos
 	label.scale = Vector3.ONE * 0.4
 	var tween := label.create_tween()
 	tween.tween_property(label, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(label, "global_position", pos + Vector3(0, 0.9, 0), 0.9).set_ease(Tween.EASE_OUT)
 	tween.tween_property(label, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(func():
-		_floating_active = maxi(0, _floating_active - 1)
-		label.queue_free())
+	tween.tween_callback(label.queue_free)
 
 
 static func stat_arrows(parent: Node3D, pos: Vector3, up: bool) -> void:
@@ -274,10 +279,7 @@ static func _make_particles(parent: Node3D, pos: Vector3, color: Color, amount: 
 	p.one_shot = one_shot
 	p.explosiveness = 0.9 if one_shot else 0.0
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var gradient := Gradient.new()
-	gradient.set_color(0, color.lightened(0.3))
-	gradient.set_color(1, Color(color.r, color.g, color.b, 0.0))
-	p.color_ramp = gradient
+	p.color_ramp = _fade_ramp(color)
 	parent.add_child(p)
 	p.position = pos if parent is Node3D and not one_shot else Vector3.ZERO
 	if one_shot:
@@ -287,6 +289,19 @@ static func _make_particles(parent: Node3D, pos: Vector3, color: Color, amount: 
 		if not reserved:
 			p.queue_free()
 	return p
+
+
+static func _fade_ramp(color: Color) -> Gradient:
+	var key := color.to_rgba32()
+	if _ramps.has(key):
+		return _ramps[key]
+	if _ramps.size() >= 128:
+		_ramps.clear()
+	var gradient := Gradient.new()
+	gradient.set_color(0, color.lightened(0.3))
+	gradient.set_color(1, Color(color.r, color.g, color.b, 0.0))
+	_ramps[key] = gradient
+	return gradient
 
 
 static func _flash_light(parent: Node3D, pos: Vector3, color: Color, energy := 2.0) -> void:

@@ -593,12 +593,14 @@ func _basic_attack() -> void:
 	_combo += 1
 	var length := visual.action(clip, maxf(visual.anim.get_animation(clip).length / (float(attack.interval) * 0.9), 1.0) if visual.has_clip(clip) else 1.0)
 	_cast_until = Time.get_ticks_msec() + int(float(attack.hit_delay) * 1000.0) + 60
-	var mob := target
+	# The target is held weakly: it can be freed (a summon, a vanished fighter) before the hit lands.
+	var mob_ref: WeakRef = weakref(target)
 	var delay := float(attack.hit_delay)
 	var color: Color = attack.get("color", Color.WHITE)
 	AudioManager.play_sfx(&"hit_physical" if not bool(attack.projectile) else &"hit_special", -6.0)
 	if bool(attack.projectile):
 		get_tree().create_timer(delay).timeout.connect(func():
+			var mob: Mob = mob_ref.get_ref() as Mob
 			if not _valid_target(mob) or _dead:
 				return
 			var from := global_position + Vector3(0, 1.3, 0) + Vector3(sin(_facing), 0, cos(_facing)) * 0.6
@@ -608,10 +610,13 @@ func _basic_attack() -> void:
 				VfxKit.arrow(field, color, from, to, flight)
 			else:
 				VfxKit.projectile(field, color, from, to, flight, 0.3, VfxKit.variant_for(attack.vfx))
-			get_tree().create_timer(flight).timeout.connect(func(): _deal(mob, float(attack.mult), color, attack.vfx, false), CONNECT_ONE_SHOT)
+			get_tree().create_timer(flight).timeout.connect(func():
+				_deal(mob_ref.get_ref() as Mob, float(attack.mult), color, attack.vfx, false)
+			, CONNECT_ONE_SHOT)
 		, CONNECT_ONE_SHOT)
 	else:
 		get_tree().create_timer(delay).timeout.connect(func():
+			var mob: Mob = mob_ref.get_ref() as Mob
 			if _dead or not _valid_target(mob):
 				return
 			VfxKit.slash_arc(field, global_position + Vector3(sin(_facing), 0, cos(_facing)) * 1.1 + Vector3(0, 1.0, 0), _facing, Color("fff2d0"), 2.0,
@@ -841,13 +846,15 @@ func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: floa
 	var to := mob.hit_point()
 	var flight := clampf(from.distance_to(to) / 20.0, 0.12, 0.6)
 	SkillTableau.flight(field, skill, from, to, flight, scale)
+	var mob_ref: WeakRef = weakref(mob)
 	get_tree().create_timer(flight).timeout.connect(func():
 		if _dead:
 			return
-		if _valid_target(mob):
+		var victim: Mob = mob_ref.get_ref() as Mob
+		if _valid_target(victim):
 			if skill.get("special", "") == "boom":
-				VfxKit.shockwave(field, mob.global_position + Vector3(0, 0.15, 0), color, 2.2)
-			_deal(mob, mult, color, skill.vfx, true, skill)
+				VfxKit.shockwave(field, victim.global_position + Vector3(0, 0.15, 0), color, 2.2)
+			_deal(victim, mult, color, skill.vfx, true, skill)
 	, CONNECT_ONE_SHOT)
 
 
