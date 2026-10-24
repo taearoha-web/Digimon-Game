@@ -12,10 +12,13 @@ func settle() -> void:
 	for i in 5:
 		await get_tree().process_frame
 
-func no_visible_jump(scroll: TouchScroll, expected: int) -> void:
+## [param scroll] is the list itself or a Callable returning it: a screen rebuilds once at
+## the end of the frame, so the list shown after a press is read again every frame.
+func no_visible_jump(scroll: Variant, expected: int) -> void:
 	for frame in 3:
 		await RenderingServer.frame_post_draw
-		check(scroll.scroll_vertical == expected, "rendered frame retains sale position")
+		var shown: TouchScroll = scroll.call() if scroll is Callable else scroll
+		check(shown.scroll_vertical == expected, "rendered frame retains sale position")
 
 ## The character page's own list, found in the tree (not through the menu's bookkeeping).
 func character_scroll(menu: GameMenu) -> TouchScroll:
@@ -62,7 +65,7 @@ func _ready() -> void:
 		check(sell != null, "bag sale action is available")
 		if sell:
 			sell.pressed.emit()
-		await no_visible_jump(menu._page_scroll, before)
+		await no_visible_jump(func(): return menu._page_scroll, before)
 		await settle()
 		check(menu._page_scroll.scroll_vertical == before, "repeated bag sale retains scroll")
 		check(Game.profile.inv.size() == count - 1 and Game.profile.gold == gold + price, "exactly one correct sale per press")
@@ -92,7 +95,7 @@ func _ready() -> void:
 		check(press != null and not press.disabled, "%s is available" % name)
 		if press:
 			press.pressed.emit()
-		await no_visible_jump(character_scroll(menu), char_y)
+		await no_visible_jump(func(): return character_scroll(menu), char_y)
 		await settle()
 		check(character_scroll(menu).scroll_vertical == char_y, "%s keeps the character page in place" % name)
 		check(points - int(Game.paragon().points) == int(name.get_slice("_", 2)), "%s spends that many points" % name)

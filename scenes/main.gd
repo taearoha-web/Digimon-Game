@@ -254,6 +254,7 @@ func show_ending() -> void:
 func _on_hero_died() -> void:
 	if Game.current_zone == &"guildwar":
 		return  # the war itself brings the hero back to its base (GuildWarMatch)
+	var fallen_in := zone
 	hud.show_death(true)
 	await get_tree().create_timer(2.6).timeout
 	var stats := Game.stats_now()
@@ -264,6 +265,14 @@ func _on_hero_died() -> void:
 	if lost > 0:
 		Game.say("เสียเหรียญ %d จากการพ่ายแพ้" % lost, &"warning")
 	hud.show_death(false)
+	# A trip started meanwhile (a town scroll used from the bag during the pause) finishes
+	# first; forcing a second trip on top of it built two zones at once.
+	var guard := 0
+	while _traveling and guard < 900:
+		await get_tree().process_frame
+		guard += 1
+	if zone != fallen_in and zone != null:
+		return
 	_traveling = false
 	await go(&"town")
 

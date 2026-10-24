@@ -11,7 +11,7 @@ const port = server.address().port;
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl', ...(process.env.SUSPENDED ? [] : ['--autoplay-policy=no-user-gesture-required'])] });
 const page = await browser.newPage({ viewport: { width: Number(process.env.VW || 640), height: Number(process.env.VH || 300) } });
 let done = false;
-page.on('console', m => { const t = m.text(); if (/SWITCH|PROBE|PERF|SCRIPT ERROR|ERROR/.test(t)) console.log(t.slice(0, 1200)); if (/PERF done/.test(t)) done = true; });
+page.on('console', m => { const t = m.text(); if (/SWITCH|PROBE|PERF|SCRIPT ERROR|ERROR|SAMPLE|PHASE|ROUND|CENSUS|GROWTH|MODE SOAK|FAIL|PASS/.test(t)) console.log(t.slice(0, 1200)); if (/PERF done/.test(t)) done = true; });
 page.on('pageerror', e => console.log('PAGEERROR', String(e).slice(0, 300)));
 await page.goto(`http://localhost:${port}/index.html?${query}`);
 const t0 = Date.now();

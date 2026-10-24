@@ -52,8 +52,8 @@ func _ready() -> void:
 	column.add_child(row)
 	_buy_box = _make_list(row, "ซื้อ")
 	_sell_box = _make_list(row, "ขาย (กระเป๋าของคุณ)")
-	Game.inventory_changed.connect(func(): if is_open: _rebuild())
-	Game.gold_changed.connect(func(_g): if is_open: _rebuild())
+	Game.inventory_changed.connect(_queue_rebuild)
+	Game.gold_changed.connect(func(_g): _queue_rebuild())
 
 
 func _make_list(row: Control, title: String) -> VBoxContainer:
@@ -82,6 +82,9 @@ func open_shop() -> void:
 func close_shop() -> void:
 	is_open = false
 	_root.visible = false
+	# A closed screen keeps nothing: its lists are built again when it opens.
+	UIUtil.clear(_buy_box)
+	UIUtil.clear(_sell_box)
 	get_tree().paused = false
 	closed.emit()
 
@@ -112,6 +115,21 @@ func _stock() -> Array[Dictionary]:
 		stock.append(ItemData.generate(maxi(1, level), Game.class_id(), rng, 0 if rng.randf() < 0.65 else 1, slot))
 	return stock
 
+
+
+## Several signals usually fire for one action (an upgrade changes the skill points and
+## the gold, a sale the bag and the gold); rebuild once, at the end of the frame.
+var _rebuild_queued := false
+
+
+func _queue_rebuild() -> void:
+	if not is_open or _rebuild_queued:
+		return
+	_rebuild_queued = true
+	(func():
+		_rebuild_queued = false
+		if is_open:
+			_rebuild()).call_deferred()
 
 func _rebuild() -> void:
 	var buy_scroll := _buy_box.get_parent() as TouchScroll

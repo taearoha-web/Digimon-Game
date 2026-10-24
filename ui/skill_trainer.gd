@@ -59,8 +59,8 @@ func _ready() -> void:
 	_box = UIUtil.vbox(6)
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_box)
-	Game.profile_changed.connect(func(): if is_open: _rebuild())
-	Game.gold_changed.connect(func(_g): if is_open: _rebuild())
+	Game.profile_changed.connect(_queue_rebuild)
+	Game.gold_changed.connect(func(_g): _queue_rebuild())
 
 
 func open_trainer() -> void:
@@ -74,9 +74,26 @@ func open_trainer() -> void:
 func close_trainer() -> void:
 	is_open = false
 	_root.visible = false
+	# A closed screen keeps nothing: its lists are built again when it opens.
+	UIUtil.clear(_box)
 	get_tree().paused = false
 	closed.emit()
 
+
+
+## Several signals usually fire for one action (an upgrade changes the skill points and
+## the gold, a sale the bag and the gold); rebuild once, at the end of the frame.
+var _rebuild_queued := false
+
+
+func _queue_rebuild() -> void:
+	if not is_open or _rebuild_queued:
+		return
+	_rebuild_queued = true
+	(func():
+		_rebuild_queued = false
+		if is_open:
+			_rebuild()).call_deferred()
 
 func _rebuild() -> void:
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)

@@ -72,9 +72,9 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_child(_content)
-	Game.profile_changed.connect(func(): if is_open: _rebuild())
-	Game.inventory_changed.connect(func(): if is_open: _rebuild())
-	Game.quest_changed.connect(func(): if is_open: _rebuild())
+	Game.profile_changed.connect(_queue_rebuild)
+	Game.inventory_changed.connect(_queue_rebuild)
+	Game.quest_changed.connect(_queue_rebuild)
 
 
 func open_menu(tab: StringName = &"inventory") -> void:
@@ -89,6 +89,8 @@ func close_menu() -> void:
 	forge_mode = false
 	is_open = false
 	_root.visible = false
+	# A closed screen keeps nothing: its lists are built again when it opens.
+	UIUtil.clear(_content)
 	get_tree().paused = false
 	AudioManager.play_ui(&"ui_cancel")
 	closed.emit()
@@ -101,6 +103,21 @@ func show_tab(tab: StringName) -> void:
 	_selected_slot = ""
 	_rebuild()
 
+
+
+## Several signals usually fire for one action (an upgrade changes the skill points and
+## the gold, a sale the bag and the gold); rebuild once, at the end of the frame.
+var _rebuild_queued := false
+
+
+func _queue_rebuild() -> void:
+	if not is_open or _rebuild_queued:
+		return
+	_rebuild_queued = true
+	(func():
+		_rebuild_queued = false
+		if is_open:
+			_rebuild()).call_deferred()
 
 func _rebuild() -> void:
 	var keep_y := _page_scroll.retained_vertical_position() if is_instance_valid(_page_scroll) else 0

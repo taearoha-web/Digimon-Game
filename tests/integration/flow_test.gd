@@ -1430,6 +1430,7 @@ func _party() -> void:
 	buddy._cast_until = 0
 	await _wait(0.5)
 	check(buddy.hp > int(buddy.max_hp * 0.4) and int(buddy.member.potions) == 4, "companion drinks a potion when low (%d left)" % int(buddy.member.potions))
+	buddy.stats["dodge"] = 0.0  # a random dodge would swallow the test hits
 	buddy.take_damage(1.0, null)
 	check(buddy.hp < buddy.max_hp, "companion can be hurt")
 	buddy._invulnerable_until = 0
