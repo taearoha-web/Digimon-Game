@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Synthesised sound effects for the Defender's shield skills, the Fairy Spirit
-and the star skills (original, simple waveforms; the helpers come from
+"""Synthesised sound effects for the Defender's shield skills, the Assassin's
+twin daggers, the Fairy Spirit and the star skills (original, simple waveforms; the helpers come from
 generate_placeholder_audio.py). Each file is a short 22 kHz mono WAV under 40 KB.
 
   shield_bash   metal clang (shield edge hits)         shield_quake  ground thud + rumble
@@ -8,6 +8,9 @@ generate_placeholder_audio.py). Each file is a short 22 kHz mono WAV under 40 KB
   shield_holy   bright choir chime (holy shield arts)  fairy_heal    sparkle chime
   fairy_twirl   soft bell flourish                     star_charge   rising shimmer (wind-up)
   star_release  big impact with a sub boom             star_beat     per-beat hit
+  blade_swish   twin dagger swish + ting (cuts)        blade_throw   whistling knives (throws)
+  shadow_vanish smoke puff + dark whoosh (vanish)      venom_hiss    bubbling hiss (poison)
+  shadow_dark   deep reversed swell + boom (night arts)
 
 Usage: python3 tools/generate_skill_sfx.py    (writes audio/sfx/<name>.wav)
 """
@@ -110,10 +113,52 @@ def star_beat(b):
     tone(b, R, 0.02, 0.2, note_freq("B6"), "sine", 0.08, a=0.002, d=0.05, s=0.3, r=0.12)
 
 
+def blade_swish(b):
+    for k, start in enumerate((0.0, 0.09)):                      # two daggers, one after the other
+        noise_burst(b, R, start, 0.16, 0.55, decay=16, lowpass=0.3 + 0.1 * k)
+        tone(b, R, start + 0.05, 0.22, 3900 - 500 * k, "sine", 0.12, 3700 - 500 * k, a=0.002, d=0.06, s=0.3, r=0.12)
+        tone(b, R, start + 0.05, 0.18, 5300 - 600 * k, "sine", 0.05, a=0.002, d=0.05, s=0.2, r=0.1)
+    tone(b, R, 0.0, 0.1, 260, "sine", 0.25, 120, a=0.001, d=0.04, s=0.3, r=0.04)
+
+
+def blade_throw(b):
+    for k in range(3):                                            # knives whistle past
+        start = k * 0.07
+        tone(b, R, start, 0.26, 2600 + 300 * k, "sine", 0.11, 1500 + 200 * k, a=0.01, d=0.06, s=0.6, r=0.12)
+        noise_burst(b, R, start, 0.22, 0.3, decay=11, lowpass=0.22)
+    noise_burst(b, R, 0.26, 0.06, 0.4, decay=50, lowpass=0.8)      # thunk
+    metal(b, 0.26, 2400, 0.12, decay=0.25)
+
+
+def shadow_vanish(b):
+    noise_burst(b, R, 0.0, 0.5, 0.7, decay=6, lowpass=0.08)       # smoke puff
+    noise_burst(b, R, 0.0, 0.1, 0.35, decay=30, lowpass=0.6)
+    tone(b, R, 0.02, 0.45, 520, "sine", 0.16, 90, a=0.01, d=0.1, s=0.6, r=0.2, vibrato=0.01)
+    tone(b, R, 0.1, 0.4, 1240, "tri", 0.05, 620, a=0.04, d=0.1, s=0.4, r=0.2)
+
+
+def venom_hiss(b):
+    noise_burst(b, R, 0.0, 0.7, 0.45, decay=3.5, lowpass=0.85)    # hiss
+    for i in range(6):                                            # bubbles
+        f = 300 + random.random() * 500
+        tone(b, R, 0.05 + i * 0.09, 0.08, f, "sine", 0.12, f * 1.8, a=0.002, d=0.03, s=0.3, r=0.03)
+
+
+def shadow_dark(b):
+    tone(b, R, 0.0, 0.42, 70, "saw", 0.14, 140, a=0.35, d=0.02, s=0.9, r=0.03)   # reversed swell
+    noise_burst(b, R, 0.0, 0.42, 0.12, decay=0.6, lowpass=0.12)
+    noise_burst(b, R, 0.42, 0.34, 0.7, decay=10, lowpass=0.35)   # release
+    tone(b, R, 0.42, 0.42, 82, "sine", 0.8, 30, a=0.001, d=0.15, s=0.5, r=0.2)
+    for i, n in enumerate(["D5", "F5", "A#5"]):
+        tone(b, R, 0.44 + i * 0.03, 0.3, note_freq(n), "tri", 0.07, a=0.005, d=0.1, s=0.3, r=0.18)
+
+
 SOUNDS = {
     "shield_bash": shield_bash, "shield_quake": shield_quake, "shield_taunt": shield_taunt,
     "shield_throw": shield_throw, "shield_holy": shield_holy, "fairy_heal": fairy_heal,
     "fairy_twirl": fairy_twirl, "star_charge": star_charge, "star_release": star_release, "star_beat": star_beat,
+    "blade_swish": blade_swish, "blade_throw": blade_throw, "shadow_vanish": shadow_vanish, "venom_hiss": venom_hiss,
+    "shadow_dark": shadow_dark,
 }
 
 

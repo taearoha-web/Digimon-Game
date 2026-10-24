@@ -7,6 +7,7 @@ extends RefCounted
 const PALETTES := {
 	"warrior": {"body":Color("e5e8ee"), "pants":Color("394857"), "gloves":Color("697b8a"), "boots":Color("465564"), "metal":Color("e4c88e"), "gem":Color("8ecede")},
 	"archer": {"body":Color("488875"), "pants":Color("2d514b"), "gloves":Color("786447"), "boots":Color("4a5747"), "metal":Color("c6b37c"), "gem":Color("90d6ab")},
+	"assassin": {"body":Color("2e2448"), "pants":Color("1e1a30"), "gloves":Color("3a2c54"), "boots":Color("241d38"), "metal":Color("6e52a8"), "gem":Color("ff5a86")},
 	"defender": {"body":Color("3a4f86"), "pants":Color("2a3456"), "gloves":Color("4a5a80"), "boots":Color("2e3550"), "metal":Color("d8c48a"), "gem":Color("9fd6ff")},
 	"lancer": {"body":Color("9e4754"), "pants":Color("4c3440"), "gloves":Color("6b4945"), "boots":Color("4e3d43"), "metal":Color("d1a07b"), "gem":Color("eab297")},
 	"mage": {"body":Color("414c81"), "pants":Color("34354f"), "gloves":Color("736480"), "boots":Color("42445d"), "metal":Color("b3bdd4"), "gem":Color("bba5e4")},

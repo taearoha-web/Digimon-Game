@@ -424,6 +424,18 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				var pitch := deg_to_rad(12.0 if family != &"priest" else 30.0) + sway * 0.035
 				var item_basis := _along(Vector3(0, cos(pitch), sin(pitch)), Vector3.FORWARD)
 				_hold(skeleton, local, rig.r, target, item_basis, "wand" if family == &"priest" else "staff")
+		if family == &"assassin" and carry:
+			# Twin daggers held low in front, points forward and a little out,
+			# edges up and down: the stance of a hunter ready to lunge.
+			global = _globals(skeleton, local)
+			for side in ["r", "l"]:
+				var arm: Dictionary = rig[side]
+				var out := -1.0 if side == "r" else 1.0
+				var shoulder: Vector3 = global[arm.upper].origin
+				var target := shoulder + Vector3(out * 0.08, -0.6, 0.48) * arm_length
+				target.y += sway * out * arm_length * (0.04 if moving else 0.012)
+				var blade_basis := _along(Vector3(out * 0.32, -0.18, 1.0), Vector3.UP)
+				_hold(skeleton, local, arm, target, blade_basis, "dagger")
 		if family == &"archer":
 			global = _globals(skeleton, local)
 			var shoulder: Vector3 = global[rig.l.upper].origin

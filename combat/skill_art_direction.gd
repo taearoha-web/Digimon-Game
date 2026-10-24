@@ -20,6 +20,9 @@ const PALETTES := {
 	"earth": [Color("cb986d"), Color("ffe3a5"), Color("78465a")],
 	"steel": [Color("6bcfff"), Color("f1fffc"), Color("3e5d9f")],
 	"fairy": [Color("ff9ad2"), Color("fff4fb"), Color("8c3f7a")],
+	"shadow": [Color("9a6bff"), Color("f1e6ff"), Color("261340")],
+	"nightblood": [Color("ff4f7b"), Color("ffe3ec"), Color("3d0d2c")],
+	"venom": [Color("8be260"), Color("f4ffd9"), Color("3a2a5c")],
 }
 
 const RECIPES := {
@@ -208,6 +211,32 @@ const RECIPES := {
 	"meteor_shield": ["quake", "flame", 7, -0.80, 0.90],
 	"sanctuary_wall": ["crown", "gold", 7, 0.15, 1.10],
 	"world_bastion": ["quake", "gold", 8, 0.70, 1.15],
+	# Assassin: twin crescent cuts, smoke, venom and violet night with a crimson edge.
+	"twin_fang": ["crosscut", "shadow", 2, -0.65, 0.34],
+	"shadow_veil": ["gale", "shadow", 4, 0.55, 0.82],
+	"venom_edge": ["cut", "venom", 2, 0.70, 0.38],
+	"shadow_step": ["lance", "shadow", 2, -0.30, 0.40],
+	"blade_flurry": ["sweep", "shadow", 4, 0.75, 0.52],
+	"fan_of_knives": ["arrow", "shadow", 5, 0.20, 0.46],
+	"killing_focus": ["crown", "nightblood", 4, -0.30, 0.78],
+	"backstab": ["cut", "nightblood", 2, -1.00, 0.42],
+	"smoke_bomb": ["ember", "shadow", 6, 0.40, 0.70],
+	"night_raid": ["crosscut", "shadow", 4, 0.85, 0.55],
+	"crimson_cut": ["cut", "nightblood", 3, 0.95, 0.46],
+	"shadow_clone": ["wings", "shadow", 5, 0.40, 0.95],
+	"phantom_daggers": ["arrow", "nightblood", 4, 0.00, 0.48],
+	"deadly_venom": ["vines", "venom", 6, 0.70, 0.82],
+	"thousand_cuts": ["sweep", "nightblood", 7, -0.80, 0.70],
+	"throat_slit": ["cut", "nightblood", 2, -1.20, 0.40],
+	"shadow_dance": ["crosscut", "shadow", 6, -0.75, 0.66],
+	"death_mark": ["sigil", "nightblood", 6, 0.30, 0.86],
+	"night_lord": ["crown", "shadow", 6, 0.20, 1.00],
+	"eclipse_fang": ["crosscut", "nightblood", 5, -0.90, 0.62],
+	"abyss_vortex": ["gale", "shadow", 7, -0.85, 0.96],
+	"phantom_legion": ["arrow", "shadow", 8, 0.55, 0.72],
+	"midnight_execution": ["meteor", "nightblood", 6, -0.70, 0.88],
+	"shadow_sovereign": ["wings", "nightblood", 7, 0.60, 1.10],
+	"oblivion_requiem": ["sweep", "shadow", 8, 0.95, 1.15],
 }
 
 

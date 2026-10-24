@@ -140,7 +140,8 @@ func _print(rows: Array) -> void:
 		for key in ["basic", "skill_pct", "boss", "die_n", "die_b", "max_hit"]:
 			var values: Array = by_zone[cp].map(func(r): return float(r[key]))
 			values.sort()
-			var median: float = (float(values[2]) + float(values[3])) * 0.5
+			var half := values.size() / 2
+			var median: float = float(values[half]) if values.size() % 2 == 1 else (float(values[half - 1]) + float(values[half])) * 0.5
 			line += " %s=%.2f" % [key, median]
 			_band(cp, key, median)
 		print(line)

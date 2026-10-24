@@ -1237,5 +1237,180 @@
     "family": "defender",
     "palette": "gold",
     "art_sha256": "a12cf3d474f492b98c1ea01041c2526fc680cb780c836497049a9bf219d6f451"
+  },
+  {
+    "id": "twin_fang",
+    "name": "Twin Fang",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "9b349d46bab14bc422481275f5dd2959c2048137c33fee7acf174c42a1eedad8"
+  },
+  {
+    "id": "shadow_veil",
+    "name": "Shadow Veil",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "f48cccea7ce3c676973652db11e8a102206a5961a9bfbef9d9c890fcc9bc4b3f"
+  },
+  {
+    "id": "venom_edge",
+    "name": "Venom Edge",
+    "family": "assassin",
+    "palette": "venom",
+    "art_sha256": "2fbc3549043c7ddb300ae4f99490af45686f6a2c4c2f99773828b574f237738c"
+  },
+  {
+    "id": "shadow_step",
+    "name": "Shadow Step",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "417cb208a0f06dee1cd969a3d9401a1eab141690604b2209fd8d180e17fa3722"
+  },
+  {
+    "id": "blade_flurry",
+    "name": "Blade Flurry",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "cd2888c1482f12e614f59f1f3c5f447b08f2c60f545c924cccdbba359431b86c"
+  },
+  {
+    "id": "fan_of_knives",
+    "name": "Fan of Knives",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "40b4ff0578c1bcf8e47585aa3deee877e82b34e01fcfb86793edab1f4650af3e"
+  },
+  {
+    "id": "killing_focus",
+    "name": "Killing Focus",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "1e1c73d93d31fbbefef6d02a2a5131e08befbfeb61f8db2a324673c728c96336"
+  },
+  {
+    "id": "backstab",
+    "name": "Backstab",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "b028d7badffe2153e975bcb127694e97bf262230f3f35dc94e9374e7ca76e58f"
+  },
+  {
+    "id": "smoke_bomb",
+    "name": "Smoke Bomb",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "e0f4229763996666217794ab0ee28902304ca2fc897e8d4514422b8a19bebe98"
+  },
+  {
+    "id": "night_raid",
+    "name": "Night Raid",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "5aac1b0be4f4da7ea0baf62f684ce768f581fa90ec62590c1a72ec7f09dac61a"
+  },
+  {
+    "id": "crimson_cut",
+    "name": "Crimson Cut",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "bcb19bd8d96208328bdc74df442b2833aa8d34157bfaa818e3fea3e783c7e5be"
+  },
+  {
+    "id": "shadow_clone",
+    "name": "Shadow Clone",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "58dde7dfb9cc4c1a03c4d45629e9012a1376f36ba621a4da018ff80f4967e731"
+  },
+  {
+    "id": "phantom_daggers",
+    "name": "Phantom Daggers",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "ab2ebd6c172f278019bb0de285ed15db692e18022ab1d71aa3beb72589bd4f3e"
+  },
+  {
+    "id": "deadly_venom",
+    "name": "Deadly Venom",
+    "family": "assassin",
+    "palette": "venom",
+    "art_sha256": "e26907023cf3273ad9a35d5585c6fd2b73b36deeb21afe16c3f5f2910c6aa9b5"
+  },
+  {
+    "id": "thousand_cuts",
+    "name": "Thousand Cuts",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "9080740ea34a3caa1ca71a6321d2feeb2d4b3231c1fec5949500632c8b2d0c6a"
+  },
+  {
+    "id": "throat_slit",
+    "name": "Throat Slit",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "21b6e6e3765ca0d0966537f6e61b0256063012978c237e9232b9e4c7dd8cc777"
+  },
+  {
+    "id": "shadow_dance",
+    "name": "Shadow Dance",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "4964bc8a024f5a5e98ceecf78c1370c30f6c94aa25c7519e89e89a21889ad0a0"
+  },
+  {
+    "id": "death_mark",
+    "name": "Death Mark",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "800b9dd6e71df04fd16e86ae48a738af25648458da96501abde8dec813d067d9"
+  },
+  {
+    "id": "night_lord",
+    "name": "Night Lord",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "86cb37ef8cddd4d41e074ca393884a458397d23eb4f2d9a76a6fef16a8e3f1dd"
+  },
+  {
+    "id": "eclipse_fang",
+    "name": "Eclipse Fang",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "3bc4e5f924bd66a571603093a72dd69bc9bf0f9506eecbf27f544783806b4b52"
+  },
+  {
+    "id": "abyss_vortex",
+    "name": "Abyss Vortex",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "d16a272faea52514d48ed5eba227a2104e361b3834083a4fc9310106e69a1c4e"
+  },
+  {
+    "id": "phantom_legion",
+    "name": "Phantom Legion",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "f236c60d83e825034b12acd1fd8127956bae0fa25b0e9107faf8fa4e2fef5dac"
+  },
+  {
+    "id": "midnight_execution",
+    "name": "Midnight Execution",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "e8e0e2b250dfc090da25be9f7549a1d52542873160667268527d72162a78e645"
+  },
+  {
+    "id": "shadow_sovereign",
+    "name": "Shadow Sovereign",
+    "family": "assassin",
+    "palette": "blood",
+    "art_sha256": "07701ee79ac775e2c23b8d689ae768aef62758949c1068202b77beab5de21ae8"
+  },
+  {
+    "id": "oblivion_requiem",
+    "name": "Oblivion Requiem",
+    "family": "assassin",
+    "palette": "night",
+    "art_sha256": "24058f22875e0ea0d55b1565a84c67a3f468a114dc25ef1a24cbb596e4b5bff9"
   }
 ]

@@ -14,7 +14,7 @@ extends Node
 
 const DEFAULT_OUT := "res://hosting/accounts/tests/fixtures/game_profiles.json"
 const NAMES := {&"vagabond": "Assotix", &"warrior": "บราโว่", &"archer": "ลูน่า", &"mage": "มิกะ", &"priest": "นีน่า",
-	&"summoner": "ไลรา", &"lancer": "เรย์", &"defender": "Assotix"}
+	&"summoner": "ไลรา", &"lancer": "เรย์", &"defender": "Assotix", &"assassin": "ยามิ"}
 
 var profiles := {}
 var failures := 0

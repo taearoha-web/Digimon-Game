@@ -24,6 +24,9 @@ PALETTES = {
     "rose": ("331e45", "ac508d", "ffa9d8", "fff5df"),
     "storm": ("23244e", "6754b7", "bbbdff", "fff7b0"),
     "earth": ("302b34", "997149", "e7b76c", "fff2c4"),
+    "night": ("120c26", "4a2d82", "9a6bff", "f1e6ff"),
+    "blood": ("2a0a1c", "8a1f45", "ff4f7b", "ffe3ec"),
+    "venom": ("102a26", "3a6b3a", "8be260", "f4ffd9"),
 }
 
 
@@ -250,8 +253,16 @@ OBJECTS = {
     "mushroom": path("M-16 8 L16 8 L23 71 Q0 86 -23 71Z", "url(#metal)") + path("M-74 12 Q-70 -71 0 -73 Q70 -71 74 12 Q0 37 -74 12Z") + ellipse(-30, -24, 15, 13, "url(#light)", "none") + ellipse(19, -44, 11, fill="url(#light)", stroke="none") + ellipse(42, -3, 9, fill="url(#light)", stroke="none"),
     "boot": path("M-39 -66 L19 -66 L17 -6 L50 13 Q69 27 61 53 Q19 77 -43 57 L-45 20Z", "url(#metal)") + path("M-33 -60 L11 -60 L11 -41 L-33 -41Z M-38 44 Q15 61 61 36 L61 54 Q18 77 -43 58Z", "url(#gold)") + line("M-9 -30 L15 -24 M-12 -9 L13 -4", "url(#main)", 5),
     "bow": path("M-39 -79 Q53 -47 21 0 Q54 51 -39 81 L-28 63 Q14 37 3 1 Q13 -40 -27 -61Z", "url(#gold)") + line("M-36 -72 L-4 0 L-36 72", "url(#metal)", 3),
+    "dagger": path("M0 -78 Q14 -46 11 14 L-11 14 Q-14 -46 0 -78Z", "url(#metal)") + path("M0 -70 L0 12 L9 12 Q11 -40 0 -70Z", "url(#main)", "none") + path("M-30 14 Q0 26 30 14 L26 26 L-26 26Z", "url(#gold)") + path("M-6 26 L6 26 L7 56 L-7 56Z", "url(#rock)") + ellipse(0, 60, 8, 7, "url(#gold)"),
+    "moon": path("M22 -72 A74 74 0 1 0 22 72 A58 58 0 1 1 22 -72Z", "url(#light)") + line("M-30 -46 Q-52 0 -30 46", "#ffffff", 3),
+    "smoke": ellipse(-38, 12, 30, 23, "url(#rock)", "#151c35", 2.5) + ellipse(38, 14, 30, 22, "url(#rock)", "#151c35", 2.5) + ellipse(0, -10, 40, 33, "url(#rock)", "#151c35", 2.5) + line("M-46 6 Q-36 -6 -24 4 M-8 -22 Q6 -34 18 -20 M28 10 Q40 0 50 12", "url(#light)", 3),
+    "drop": path("M0 -70 Q42 -10 34 26 Q24 62 0 62 Q-24 62 -34 26 Q-42 -10 0 -70Z") + path("M-14 8 Q-20 30 -6 42", "none", "#ffffff", 5),
+    "mask": path("M-56 -10 Q-58 -76 0 -80 Q58 -76 56 -10 Q54 46 0 74 Q-54 46 -56 -10Z", "url(#rock)") + path("M-40 -6 Q0 -26 40 -6 L36 22 Q0 40 -36 22Z", "#1c1530") + path("M-30 2 L-8 6 L-12 14 L-30 10Z M30 2 L8 6 L12 14 L30 10Z", "url(#light)", "none"),
     "chalice": path("M-44 -57 L44 -57 Q49 -2 10 17 L9 51 L36 63 L36 72 L-36 72 L-36 63 L-9 51 L-10 17 Q-49 -2 -44 -57Z", "url(#gold)") + ellipse(0, -55, 43, 12, "url(#main)") + star(0, -15, 17),
 }
+
+
+OBJECTS["twin"] = group(OBJECTS["dagger"], -18, 6, .8, 32) + group(OBJECTS["dagger"], 18, 6, .8, -32)
 
 
 def o(name, x=0, y=0, s=1, a=0, opacity=1):
@@ -499,6 +510,42 @@ add("defender", [
     ("world_bastion","gold",o("ground",y=46,s=1.04)+o("wings",0,-20,1.0)+o("shield",0,0,.92)+o("crown",0,-66,.36)+rays(6)),
 ])
 
+add("assassin", [
+    ("twin_fang","night",o("slash",-10,-12,.8)+o("twin",0,4,.92)),
+    ("shadow_veil","night",o("smoke",0,24,1.0)+o("mask",0,-14,.62)+wind()),
+    ("venom_edge","venom",o("dagger",-8,0,.95,24)+o("drop",42,-36,.38)+o("drop",-44,40,.28)),
+    ("shadow_step","night",wind()+o("boot",-38,40,.44,18)+o("dagger",22,-8,.86,40)+o("smoke",-50,30,.45)),
+    ("blade_flurry","night",ring()+o("dagger",0,0,.86)+o("dagger",0,0,.86,120)+o("dagger",0,0,.86,240)),
+    ("fan_of_knives","night",fan("dagger",5,110,.8,30)+star(0,-70,12)),
+    ("killing_focus","blood",ring(.86)+o("eye",s=.82)+o("dagger",0,52,.4,90)),
+    ("backstab","blood",o("mask",-20,-6,.7)+o("dagger",30,10,.9,-150)+star(44,-48,16)),
+    ("smoke_bomb","night",o("smoke",0,10,1.15)+o("orb",0,-40,.32)+rays(7)),
+    ("night_raid","night",o("moon",30,-40,.5)+o("slash",-10,10,.82,20)+o("slash",12,-6,.7,-150)+o("dagger",-30,30,.5,40)),
+    ("crimson_cut","blood",o("slash",s=1.05,a=-20)+o("dagger",10,4,.86,-40)+o("drop",-46,44,.26)),
+    ("shadow_clone","night",o("smoke",0,52,.8)+o("mask",-34,0,.56,0,.45)+o("mask",34,0,.56,0,.45)+o("mask",0,-6,.7)),
+    ("phantom_daggers","blood",o("ray",s=.7,a=90,opacity=.6)+o("dagger",-40,0,.55,90)+o("dagger",0,0,.6,90)+o("dagger",40,0,.55,90)),
+    ("deadly_venom","venom",o("smoke",0,22,1.05)+o("skull",0,-28,.5)+o("drop",46,-50,.3)),
+    ("thousand_cuts","blood",ring(1.0)+ring(.62)+o("slash",s=.7,a=30)+o("slash",s=.7,a=210)+o("twin",0,0,.55)),
+    ("throat_slit","blood",o("slash",0,-10,.9,170)+o("dagger",-14,14,.84,-60)+star(40,-40,14)),
+    ("shadow_dance","night",o("moon",0,-6,.85)+fan("dagger",3,140,.42,-4)),
+    ("death_mark","blood",o("sigil",s=.95)+o("skull",0,-4,.52)+o("crack",0,40,.4)),
+    ("night_lord","night",rays(8)+o("moon",0,14,.7)+o("crown",0,-50,.5)),
+    ("eclipse_fang","blood",o("orb",0,-30,.6)+o("moon",0,-30,.66)+o("twin",0,24,.8)),
+    ("abyss_vortex","night",o("vortex",s=1.05)+o("dagger",0,0,.45,45)+star(-50,-50,16)),
+    ("phantom_legion","night",o("wings",0,-10,1.05)+fan("dagger",7,150,.4,22)),
+    ("midnight_execution","blood",o("ground",y=52,s=.9)+o("moon",0,-56,.5)+o("dagger",0,0,1.0,180)),
+    ("shadow_sovereign","blood",o("wings",0,0,1.1)+o("mask",0,6,.62)+o("crown",0,-56,.36)),
+    ("oblivion_requiem","night",rays(12)+o("vortex",s=.8,opacity=.85)+o("moon",0,0,.6)+fan("dagger",4,300,.38)),
+])
+
+# Star skills keep their own medallions beside the class catalogue (not part of its manifest).
+STAR_RECIPES = {
+    "umbral_lacerate": ("night", o("moon",0,-10,.9)+o("slash",0,0,.9,30)+o("slash",0,0,.9,210)+o("twin",0,20,.6)),
+    "shadow_execution": ("blood", rays(10)+o("moon",0,-30,.6)+o("dagger",0,10,1.0,180)+star(-46,44,18)),
+    "veil_of_night": ("night", o("wings",0,-10,.9,0,.5)+o("smoke",0,30,1.0)+o("mask",0,0,.55)+o("moon",-20,-46,.4)),
+    "eclipse_requiem": ("night", o("ground",y=58,s=.85)+o("orb",0,-54,.48)+o("moon",0,-54,.54)+rain("dagger",4,.42)),
+}
+
 
 def document(palette, picture):
     dark, mid, main, light = PALETTES[palette]
@@ -530,10 +577,10 @@ def main():
     source = (ROOT / 'data/class_data.gd').read_text()
     # Both regular and summon helpers are the actual runtime catalogue source.
     catalogue = re.findall(r'(?:_sk\(\w+,|sm\.call\()\s*"([a-z_]+)",\s*"([^"]+)"', source)
-    assert len(catalogue) == 177, len(catalogue)
+    assert len(catalogue) == 202, len(catalogue)
     assert set(RECIPES) == {s[0] for s in catalogue}, (set(RECIPES) ^ {s[0] for s in catalogue})
     scenes = [r[2] for r in RECIPES.values()]
-    assert len(set(scenes)) == 177, "Duplicate illustration even before colors/backgrounds"
+    assert len(set(scenes)) == 202, "Duplicate illustration even before colors/backgrounds"
     names = dict(catalogue)
     manifest = []
     for skill, (family, palette, picture) in RECIPES.items():
@@ -542,6 +589,8 @@ def main():
         manifest.append({'id':skill,'name':names[skill],'family':family,'palette':palette,
                          'art_sha256':hashlib.sha256(picture.encode()).hexdigest()})
     (ROOT / 'tools/skill_icon_catalogue.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    for skill, (palette, picture) in STAR_RECIPES.items():
+        (OUT / f'{skill}.svg').write_text(document(palette,picture))
     print(f'Authored {len(manifest)} distinct skill illustrations; {sum(p.stat().st_size for p in OUT.glob("*.svg")):,} SVG bytes.')
 
 

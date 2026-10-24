@@ -134,7 +134,7 @@ func _ready() -> void:
 		var elite_divine: int = divine.call().size()
 		check(elite_divine > 50 and elite_divine < 115, "elite divine drops ~4%% (%d/2000)" % elite_divine)
 		zone.free()
-	check(looks.size() == 28, "28 unique equipment icons across seven classes")
+	check(looks.size() == 4 * ClassData.IDS.size(), "four unique equipment icons per class")
 	# The divine set is the strongest gear: its lowest roll beats the best roll
 	# of any other piece (mythic Lv.300, 200-star set) in the same slot.
 	for cls in ClassData.IDS:
