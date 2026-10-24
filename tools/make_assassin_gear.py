@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Author the Assassin's models procedurally (original geometry, no external art).
 
-usage: python3 tools/make_assassin_gear.py [OUT_ROOT]      (OUT_ROOT defaults to assets/models)
+usage: python3 tools/make_assassin_gear.py [--wings] [OUT_ROOT]   (OUT_ROOT defaults to assets/models;
+       --wings rewrites only the two wing pairs)
 
 What it writes (same layout and conventions as the other classes):
   weapons/dagger_<0-9>.glb             Lv.10..100 daggers, static, grip at the origin, blade up +Y
   divine_gear/assassin_dagger.glb      the 200-star eclipse dagger, static
-  wings/wings_assassin.glb             Lv.100 shadow wings, skinned to the class wing rig + its clips
-  star_wings/wings_assassin.glb        star wings with the eclipse halo, skinned + clips
+  wings/wings_assassin.glb             Lv.100 night wings (main + under wing, kunai fan, tendrils), skinned + clips
+  star_wings/wings_assassin.glb        star wings: the same grown, a phantom double and the eclipse halo
 
 Weapons follow WeaponKit: the real grip sits at the origin, the long axis along
 +Y and the blade's flat faces towards +-Z. Wings reuse the armature, bind poses
@@ -25,7 +26,9 @@ import sys
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "assets", "models")
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+WINGS_ONLY = "--wings" in sys.argv[1:]
+OUT = ARGS[0] if ARGS else os.path.join(ROOT, "assets", "models")
 
 
 def lin(hex_color):
@@ -45,15 +48,16 @@ def material(color, metal=0.25, rough=0.4, glow=None, glow_amount=1.0, alpha=1.0
 
 
 class Mesh:
-    """Triangle soup per material. Skinned meshes carry one weight row per vertex."""
+    """Triangle soup per material. Skinned meshes carry one weight row per vertex;
+    parts drawn by a runtime shader carry a UV per vertex (see sheet())."""
 
     def __init__(self):
         self.parts = {}
 
     def _part(self, key):
-        return self.parts.setdefault(key, {"p": [], "n": [], "w": []})
+        return self.parts.setdefault(key, {"p": [], "n": [], "w": [], "uv": []})
 
-    def tri(self, key, a, b, c, weights=None, normal=None):
+    def tri(self, key, a, b, c, weights=None, normal=None, uv=None):
         a, b, c = np.asarray(a, float), np.asarray(b, float), np.asarray(c, float)
         n = np.cross(b - a, c - a) if normal is None else np.asarray(normal, float)
         length = np.linalg.norm(n)
@@ -61,22 +65,24 @@ class Mesh:
             return
         n = n / length
         part = self._part(key)
-        for v in (a, b, c):
+        for k, v in enumerate((a, b, c)):
             part["p"].append(v)
             part["n"].append(n)
             part["w"].append(weights(v) if weights else None)
+            part["uv"].append(uv[k] if uv is not None else None)
 
     def quad(self, key, a, b, c, d, weights=None):
         self.tri(key, a, b, c, weights)
         self.tri(key, a, c, d, weights)
 
-    def smooth_tri(self, key, verts, normals, weights=None):
+    def smooth_tri(self, key, verts, normals, weights=None, uvs=None):
         part = self._part(key)
-        for v, n in zip(verts, normals):
+        for k, (v, n) in enumerate(zip(verts, normals)):
             part["p"].append(np.asarray(v, float))
             nn = np.asarray(n, float)
             part["n"].append(nn / max(np.linalg.norm(nn), 1e-12))
             part["w"].append(weights(v) if weights else None)
+            part["uv"].append(uvs[k] if uvs is not None else None)
 
 
 # ---------------------------------------------------------------------------
@@ -466,11 +472,17 @@ def weld(part, skinned):
     if skinned:
         w = np.asarray([x for x in part["w"]], np.float32)
         cols.append(np.round(w * 1e3))
+    has_uv = any(x is not None for x in part["uv"])
+    if has_uv:
+        uv = np.asarray([x if x is not None else (0.0, 0.0) for x in part["uv"]], np.float32)
+        cols.append(np.round(uv * 1e4))
     key = np.concatenate(cols, axis=1)
     _, first, inverse = np.unique(key, axis=0, return_index=True, return_inverse=True)
     out = {"p": p[first], "n": n[first], "i": inverse.reshape(-1).astype(np.uint32)}
     if skinned:
         out["w"] = np.asarray(part["w"], np.float32)[first]
+    if has_uv:
+        out["uv"] = uv[first]
     return out
 
 
@@ -498,6 +510,8 @@ def primitives(mesh, mats, w, joints=None):
             continue
         v = weld(part, joints is not None)
         attrs = {"POSITION": w.add(v["p"], 5126, "VEC3", 34962, True), "NORMAL": w.add(v["n"], 5126, "VEC3", 34962)}
+        if "uv" in v:
+            attrs["TEXCOORD_0"] = w.add(v["uv"], 5126, "VEC2", 34962)
         if joints is not None:
             weights = v["w"]
             order = np.argsort(-weights, axis=1)[:, :4]
@@ -508,7 +522,8 @@ def primitives(mesh, mats, w, joints=None):
             attrs["WEIGHTS_0"] = w.add(we.astype(np.float32), 5126, "VEC4", 34962)
         big = len(v["p"]) > 65535
         idx = w.add(v["i"].astype(np.uint32 if big else np.uint16), 5125 if big else 5123, "SCALAR", 34963)
-        materials.append(mats[key])
+        # Named, so a runtime dresser can find the parts it re-shades (ShadowWingArt).
+        materials.append(dict(mats[key], name=key))
         prims.append({"attributes": attrs, "indices": idx, "material": len(materials) - 1})
         tris += len(v["i"]) // 3
     return prims, materials, tris
@@ -616,90 +631,251 @@ def fixed_weight(joint_index, name):
     return weights
 
 
-def membrane(m, key, wrist, tip_a, tip_b, weights, scallop=0.2, bulge=0.03, n=6, core=None, vein=None):
-    """A wing panel fanning from the wrist between two finger tips, its trailing edge scalloped inward.
-    core: a darker material for the inner half; vein: a glowing rib down the middle of the panel."""
-    grid = []
-    for i in range(n + 1):
-        u = i / n
-        row = []
-        for j in range(n + 1):
-            v = j / n
-            edge = tip_a + (tip_b - tip_a) * v
-            pull = 1.0 - scallop * math.sin(math.pi * v) * (u ** 2)
-            p = wrist + (edge - wrist) * u * pull
-            p = p + np.array([0.0, 0.0, -bulge * math.sin(math.pi * v) * math.sin(math.pi * u)])
+# Layers, back to front as a camera behind the hero sees one side:
+#   phantom (star)  a huge ghostly double of the main wing, drawn additively
+#   under           a smaller second wing hanging below the main one
+#   main            five (star: six) fingers of torn membrane on clawed bones
+#   blades          a fan of kunai "feathers" lying over the membrane
+#   wisps           shadow tendrils trailing from the lower edges
+# Membranes, phantom, wisps and the halo's flames carry UVs (x: wrist -> trailing
+# edge or root -> tip, y: across) for ShadowWingArt's animated shaders; every
+# other part keeps its plain glTF material.
+
+def bezier(a, k, b, t):
+    return a * (1 - t) ** 2 + k * 2 * t * (1 - t) + b * t * t
+
+
+def finger(wr, tip, sx, arch=0.07):
+    """A bat finger from the wrist to its tip, bowed towards the wing's leading edge."""
+    d = tip - wr
+    lead = np.array([-d[1], d[0], 0.0]) * sx
+    knuckle = wr + d * 0.5 + lead * arch
+    return lambda t: bezier(wr, knuckle, tip, t)
+
+
+def sheet(m, key, grid, uvs, weights):
+    """Smooth-shaded triangles over a grid of points (rows x cols), one UV per point."""
+    P = np.asarray(grid, float)
+    rows, cols = P.shape[0], P.shape[1]
+    N = np.zeros_like(P)
+    for i in range(rows):
+        for j in range(cols):
+            du = P[min(i + 1, rows - 1), j] - P[max(i - 1, 0), j]
+            dv = P[i, min(j + 1, cols - 1)] - P[i, max(j - 1, 0)]
+            n = np.cross(du, dv)
+            N[i, j] = n / max(np.linalg.norm(n), 1e-9)
+    for i in range(rows):
+        for j in range(cols):
+            if np.linalg.norm(N[i, j]) < 0.5:
+                N[i, j] = N[min(i + 1, rows - 1), j]
+    for i in range(rows - 1):
+        for j in range(cols - 1):
+            for tri in (((i, j), (i + 1, j), (i + 1, j + 1)), ((i, j), (i + 1, j + 1), (i, j + 1))):
+                pts = [P[a] for a in tri]
+                if np.linalg.norm(np.cross(pts[1] - pts[0], pts[2] - pts[0])) < 1e-10:
+                    continue
+                m.smooth_tri(key, pts, [N[a] for a in tri], weights, [uvs[a[0]][a[1]] for a in tri])
+
+
+def membrane(m, key, wr, fa, fb, weights, rows=6, cols=8, scallop=0.18, tears=(), billow=0.035, z=0.0):
+    """A wing panel fanning from the wrist between two finger curves, its trailing edge
+    scalloped and torn (tears: (across 0..1, depth, half width) notches). Returns the
+    trailing edge, where the hem runs."""
+    grid, uvs = [], []
+    for i in range(rows + 1):
+        u = i / rows
+        row, uvrow = [], []
+        for j in range(cols + 1):
+            v = j / cols
+            torn = sum(d * max(0.0, 1.0 - abs(v - c) / w) for c, d, w in tears)
+            pull = 1.0 - (scallop * math.sin(math.pi * v) + torn) * u ** 2.2
+            p = wr + (fa(u) * (1 - v) + fb(u) * v - wr) * pull
+            p = p + np.array([0.0, 0.0, z * u - billow * math.sin(math.pi * v) * math.sin(math.pi * u * 0.9)])
             row.append(p)
+            uvrow.append((u, v))
         grid.append(row)
-    for i in range(n):
-        for j in range(n):
-            part = core if core and i < n // 2 else key
-            m.quad(part, grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1], weights)
-    if vein:
-        mid = [grid[i][n // 2] + np.array([0.0, 0.0, 0.002]) for i in range(1, n + 1)]
-        tube(m, vein, mid, [0.0035] * len(mid), sides=4, caps=False, weights=weights)
-    return [grid[n][j] for j in range(n + 1)]
+        uvs.append(uvrow)
+    sheet(m, key, grid, uvs, weights)
+    return grid[rows]
 
 
-def bat_wing(m, side, pos, jidx, star=False):
-    names = ["Wing_%s_1" % side, "Wing_%s_2" % side, "Wing_%s_3" % side]
+def ribbon(m, key, start, length, sx, weights, width=0.035, sway=0.05, phase=0.0, segs=8):
+    """A shadow tendril hanging from start: a camera-facing ribbon that narrows to a
+    point and curls; UV x runs root -> tip."""
+    grid, uvs = [], []
+    for k in range(segs + 1):
+        s = k / segs
+        c = start + np.array([sx * (0.04 * s + sway * math.sin(s * math.pi * 1.4 + phase) * s), -length * s, -0.03 * s])
+        w = width * (1.0 - s) ** 0.7 + 0.0015
+        grid.append([c - np.array([w * 0.5, 0, 0]), c + np.array([w * 0.5, 0, 0])])
+        uvs.append([(s, 0.0), (s, 1.0)])
+    sheet(m, key, grid, uvs, weights)
+
+
+def kunai(m, base, d, across, length, width, weights, body="blade", edge="edge", guard=None):
+    """A flat throwing-knife feather: a double faceted blade with glowing cutting edges."""
+    d = d / np.linalg.norm(d)
+    across = across - d * np.dot(across, d)
+    across = across / np.linalg.norm(across)
+    n = np.cross(d, across)
+    pts = [base - across * width * 0.28, base + d * length * 0.3 - across * width, base + d * length,
+           base + d * length * 0.3 + across * width, base + across * width * 0.28]
+    for face in (1.0, -1.0):
+        peak = base + d * length * 0.34 + n * width * 0.35 * face
+        for i in range(len(pts)):
+            a, b = pts[i], pts[(i + 1) % len(pts)]
+            if np.dot(np.cross(b - a, peak - a), n * face) < 0:
+                a, b = b, a
+            m.tri(body, a, b, peak, weights)
+    tube(m, edge, [pts[1], pts[2], pts[3]], [0.0038, 0.0016, 0.0038], sides=3, caps=False, weights=weights)
+    if guard:
+        tube(m, guard, [base - across * width * 0.95, base + across * width * 0.95], [0.0045, 0.0045], sides=4, weights=weights)
+
+
+def crescent(m, key, centre, right, up, radius, thick, weights, alpha=1.9, segs=10):
+    """A flat crescent moon (horns along +-up, belly towards +right), bevelled on both faces."""
+    right, up = np.asarray(right, float), np.asarray(up, float)
+    n = np.cross(right, up)
+    outer, inner, ridge_pts = [], [], []
+    for k in range(segs + 1):
+        th = -alpha / 2 + alpha * k / segs
+        t = thick * math.cos(th / alpha * math.pi)
+        d = right * math.cos(th) + up * math.sin(th)
+        outer.append(centre + d * radius)
+        inner.append(centre + d * (radius - t))
+        ridge_pts.append(t)
+    for face in (1.0, -1.0):
+        for k in range(segs):
+            r0 = (outer[k] + inner[k]) * 0.5 + n * ridge_pts[k] * 0.4 * face
+            r1 = (outer[k + 1] + inner[k + 1]) * 0.5 + n * ridge_pts[k + 1] * 0.4 * face
+            for a, b, c in ((outer[k], outer[k + 1], r1), (outer[k], r1, r0), (inner[k], r0, r1), (inner[k], r1, inner[k + 1])):
+                if np.dot(np.cross(b - a, c - a), n * face) < 0:
+                    b, c = c, b
+                m.tri(key, a, b, c, weights)
+
+
+def bat_wing(m, side, pos, jidx, star):
     sx = 1.0 if side == "L" else -1.0
+    names = ["Wing_%s_1" % side, "Wing_%s_2" % side, "Wing_%s_3" % side]
     weights = wing_weights(jidx, pos, names)
-    sh = pos[names[0]]
-    el = pos[names[1]]
-    wr = pos[names[2]] + np.array([0.05 * sx, 0.05, -0.03])
-    grow = 1.22 if star else 1.0
-    tips = [np.array([x * sx, y, z]) for x, y, z in ([0.34, 1.04, -0.33], [0.56, 0.93, -0.42], [0.62, 0.68, -0.45], [0.48, 0.47, -0.39])]
+    sh, el = pos[names[0]], pos[names[1]]
+    X = lambda x, y, z: np.array([x * sx, y, z])
+    wr = pos[names[2]] + X(0.05, 0.05, -0.03)
+    grow = 1.24 if star else 1.0
+    tips = [X(0.30, 1.24, -0.36), X(0.52, 1.13, -0.43), X(0.68, 0.93, -0.47), X(0.71, 0.67, -0.47), X(0.56, 0.44, -0.42)]
     if star:
-        tips.insert(1, np.array([0.47 * sx, 1.04, -0.38]))
+        tips.insert(1, X(0.42, 1.21, -0.40))
     tips = [wr + (t - wr) * grow for t in tips]
-    base = np.array([0.07 * sx, 0.43, -0.11])
-    # Membranes: between consecutive fingers, then from the last finger back to the body.
-    edges = []
-    for a, b in zip(tips[:-1], tips[1:]):
-        edges.append(membrane(m, "membrane", wr, a, b, weights, scallop=0.22, core="core", vein="vein"))
-    edges.append(membrane(m, "membrane", wr, tips[-1], base, weights, scallop=0.3, bulge=0.02, core="core"))
-    # Sparks of night caught in the membranes.
-    for k, (a, b) in enumerate(zip(tips[:-1], tips[1:])):
-        spot = wr + ((a + b) * 0.5 - wr) * (0.55 + 0.12 * (k % 2)) + np.array([0, 0, 0.004])
-        gem(m, "glow", spot, (0.009, 0.014, 0.004), weights=weights)
-    # The arm and the finger bones.
-    tube(m, "strut", [sh, el, wr], [0.016, 0.015, 0.013], sides=7, weights=weights)
-    for t in tips:
-        mid = wr + (t - wr) * 0.55 + np.array([0, 0, -0.01])
-        tube(m, "strut", [wr, mid, t], [0.011, 0.008, 0.002], sides=6, weights=weights)
-        sphere(m, "glow", t, 0.012, rings=4, seg=6, weights=weights)
-    # The thumb claw and a gem at the wrist.
-    tube(m, "claw", [wr, wr + np.array([0.02 * sx, 0.06, 0.02]), wr + np.array([0.0, 0.1, 0.05])], [0.014, 0.009, 0.001], sides=6, weights=weights)
-    gem(m, "glow", wr + np.array([0, 0, 0.012]), (0.018, 0.026, 0.012), weights=weights)
-    # A glowing hem along every scalloped trailing edge (doubled in crimson on the star pair).
-    for edge in edges:
-        tube(m, "hem", edge, [0.0045] * len(edge), sides=4, caps=False, weights=weights)
-        if star:
-            inner = [wr + (p - wr) * 0.93 for p in edge]
-            tube(m, "corona", inner, [0.003] * len(inner), sides=4, caps=False, weights=weights)
+    fingers = [finger(wr, t, sx) for t in tips]
+    base = X(0.08, 0.40, -0.12)
+    to_base = lambda t: wr + (base - wr) * t
+    # Phantom: the same wing, larger and torn deeper, a ghost of night behind the real one.
     if star:
-        for t in tips[:3]:
-            # Spurs of gold at the leading finger joints.
-            tube(m, "gold", [t, t + (t - wr) * 0.12 + np.array([0, 0.02, 0])], [0.008, 0.001], sides=5, weights=weights)
+        ghost = [finger(wr, wr + (t - wr) * 1.32 + np.array([0, 0, 0.05]), sx, 0.09) for t in tips]
+        for k, (fa, fb) in enumerate(zip(ghost[:-1], ghost[1:])):
+            membrane(m, "phantom", wr, fa, fb, weights, rows=4, cols=6, scallop=0.24,
+                     tears=((0.5, 0.16, 0.2),) if k % 2 == 0 else ((0.3, 0.1, 0.14), (0.72, 0.14, 0.16)), billow=0.02, z=0.04)
+    # Main wing: panels between consecutive fingers, then from the last finger back to the body.
+    hems = []
+    tear_sets = [((0.42, 0.10, 0.12),), ((0.62, 0.14, 0.14),), ((0.3, 0.08, 0.1), (0.7, 0.12, 0.12)), ((0.5, 0.1, 0.16),), ((0.38, 0.12, 0.12),)]
+    for k, (fa, fb) in enumerate(zip(fingers[:-1], fingers[1:])):
+        hems.append(membrane(m, "membrane", wr, fa, fb, weights, tears=tear_sets[k % len(tear_sets)]))
+    hems.append(membrane(m, "membrane", wr, fingers[-1], to_base, weights, scallop=0.32, tears=((0.3, 0.1, 0.12), (0.62, 0.08, 0.1)), billow=0.02))
+    for edge in hems:
+        tube(m, "corona" if star else "hem", edge, [0.0038] * len(edge), sides=3, caps=False, weights=weights)
+    # Under wing: three shorter fingers hanging from the elbow below the main wing.
+    ug = 1.18 if star else 1.0
+    anchor = el + X(0.03, -0.07, -0.05)
+    under_tips = [anchor + (t - anchor) * ug for t in (X(0.46, 0.38, -0.36), X(0.50, 0.17, -0.35), X(0.32, 0.04, -0.29))]
+    under = [finger(anchor, t, sx, 0.05) for t in under_tips]
+    under_base = X(0.07, 0.27, -0.11)
+    under_edges = [membrane(m, "under", anchor, fa, fb, weights, rows=5, cols=7, scallop=0.2, tears=((0.5, 0.12, 0.16),))
+                   for fa, fb in zip(under[:-1], under[1:])]
+    under_edges.append(membrane(m, "under", anchor, under[-1], lambda t: anchor + (under_base - anchor) * t, weights, rows=5, cols=6, scallop=0.3))
+    for edge in under_edges:
+        tube(m, "hem", edge, [0.0032] * len(edge), sides=3, caps=False, weights=weights)
+    for f in under:
+        tube(m, "strut", [f(t) for t in (0.0, 0.35, 0.7, 1.0)], [0.01, 0.008, 0.005, 0.0015], sides=5, weights=weights)
+    # Bones: arm, fingers with knuckles, hooked claws at the tips.
+    tube(m, "strut", [sh, el, wr], [0.02, 0.017, 0.015], sides=7, weights=weights)
+    for f, t in zip(fingers, tips):
+        tube(m, "strut", [f(s) for s in (0.0, 0.3, 0.55, 0.8, 1.0)], [0.013, 0.011, 0.009, 0.006, 0.002], sides=5, weights=weights)
+        sphere(m, "gold" if star else "strut", f(0.55), 0.013, rings=3, seg=6, weights=weights)
+        d = (t - f(0.92)) / np.linalg.norm(t - f(0.92))
+        hook = np.array([d[1], -d[0], 0.0]) * sx
+        tube(m, "claw", [t, t + d * 0.03 + hook * 0.006, t + d * 0.05 + hook * 0.022], [0.006, 0.004, 0.0005], sides=4, caps=False, weights=weights)
+    # Spikes along the top of the arm and a crescent blade crowning the wrist.
+    for k, s in enumerate((0.25, 0.55, 0.85)):
+        p = sh + (wr - sh) * s
+        tube(m, "claw" if star else "strut", [p, p + X(-0.03, 0.05 + 0.012 * k, -0.025)], [0.009, 0.0008], sides=4, weights=weights)
+    # The crescent cups the wrist, belly down, horns raised.
+    radius = 0.07 if star else 0.055
+    belly = X(-0.33, -0.94, 0.0)
+    crescent(m, "blade", wr - belly * (radius + 0.008) + np.array([0, 0, -0.03]), belly, np.cross([0.0, 0.0, 1.0], belly), radius,
+             0.028 if star else 0.022, weights)
+    gem(m, "glow", wr + np.array([0, 0, -0.018]), (0.013, 0.02, 0.01), weights=weights)
+    # The kunai fan: blades over the inner membrane, one (star: two) per panel.
+    for k, (fa, fb) in enumerate(zip(fingers[:-1], fingers[1:])):
+        mid = (fa(1.0) + fb(1.0)) * 0.5
+        d = mid - wr
+        across = np.cross(d, np.array([0.0, 0.0, 1.0]))
+        lift = np.array([0.0, 0.0, -0.022])
+        kunai(m, wr + d * 0.16 + lift, d, across, np.linalg.norm(d) * (0.46 if k % 2 == 0 else 0.38), 0.026, weights,
+              guard="gold" if star else None)
+        if star:
+            side_dir = (fa(1.0) * 0.7 + fb(1.0) * 0.3) - wr
+            kunai(m, wr + side_dir * 0.2 + lift * 1.3, side_dir, np.cross(side_dir, np.array([0.0, 0.0, 1.0])),
+                  np.linalg.norm(side_dir) * 0.28, 0.02, weights)
+    # Shadow tendrils from the lowest edges.
+    low = hems[-2]
+    for k, (edge, at) in enumerate(((low, 0.35), (low, 0.75), (hems[-1], 0.3))):
+        p = edge[int(round(at * (len(edge) - 1)))]
+        ribbon(m, "wisp", p, (0.36 if star else 0.28) * (1.0 - 0.18 * k), sx, weights, width=0.04 if star else 0.034, phase=k * 1.7)
+    p = under_tips[1]
+    ribbon(m, "wisp", p, 0.3 if star else 0.22, sx, weights, width=0.03, phase=0.9)
+    # Mount at the shoulder blade.
+    sphere(m, "strut", sh + np.array([0, 0, -0.01]), 0.03, rings=4, seg=8, weights=weights)
+    gem(m, "claw", sh + np.array([0, 0, -0.036]), (0.008, 0.012, 0.006), weights=weights)
+
+
+# Where the eclipse halo hangs: centred on the head, just behind it (chibi model space).
+HALO_CENTRE = (0.0, 0.84, -0.30)
 
 
 def eclipse_halo(m, centre, weights):
-    """The star wings' halo: an open eclipse ring (dark rim, crimson corona, violet
-    outer ring) with gold rays; its centre stays open so the head always shows."""
+    """The star wings' halo, a black sun framing the head: a thin eclipse ring rimmed
+    in crimson, a corona of flames (ShadowWingArt spins them about HALO_CENTRE), an
+    outer gold ring set with crescent moons, and four long gold rays. Open in the
+    middle, so the head always shows."""
     c = np.asarray(centre, float)
-    torus(m, "sun", c, (0, 0, 1), 0.2, 0.014, seg=32, sides=6, weights=weights)
-    torus(m, "corona", c, (0, 0, 1), 0.225, 0.011, seg=32, sides=6, weights=weights)
-    torus(m, "glow", c, (0, 0, 1), 0.28, 0.005, seg=36, sides=5, weights=weights)
-    for k in range(12):
-        a = 2 * math.pi * k / 12
-        long = 0.1 if k % 2 == 0 else 0.055
-        d = np.array([math.cos(a), math.sin(a), 0.0])
-        tube(m, "gold", [c + d * 0.29, c + d * (0.29 + long)], [0.01 if k % 2 == 0 else 0.007, 0.001], sides=5, weights=weights)
+    torus(m, "strut", c, (0, 0, 1), 0.25, 0.009, seg=32, sides=4, weights=weights)
+    torus(m, "corona", c, (0, 0, 1), 0.236, 0.004, seg=32, sides=3, weights=weights)
+    torus(m, "gold", c, (0, 0, 1), 0.40, 0.0042, seg=36, sides=3, weights=weights)
+    rng = np.random.default_rng(11)
+    flames = 24
+    for k in range(flames):
+        a0 = 2 * math.pi * k / flames
+        length = (0.13 if k % 2 == 0 else 0.075) * (0.8 + 0.4 * rng.random())
+        grid, uvs = [], []
+        for s_i in range(4):
+            s = s_i / 3
+            a = a0 + 0.24 * s * s
+            r = 0.255 + length * s
+            w = 0.038 * (1.0 - s) ** 0.8 + 0.001
+            d = np.array([math.cos(a), math.sin(a), 0.0])
+            t = np.array([-math.sin(a), math.cos(a), 0.0])
+            grid.append([c + d * r - t * w * 0.5, c + d * r + t * w * 0.5])
+            uvs.append([(s, 0.0), (s, 1.0)])
+        sheet(m, "flare", grid, uvs, weights)
     for k in range(6):
-        a = 2 * math.pi * k / 6 + math.pi / 6
+        a = 2 * math.pi * k / 6 + math.pi / 2
         d = np.array([math.cos(a), math.sin(a), 0.0])
-        gem(m, "corona", c + d * 0.25 + np.array([0, 0, 0.01]), (0.011, 0.018, 0.007), weights=weights)
+        t = np.array([-math.sin(a), math.cos(a), 0.0])
+        crescent(m, "glow", c + d * 0.40 + np.array([0, 0, -0.004]), d, t, 0.034, 0.014, weights, segs=8)
+    for k in range(4):
+        a = 2 * math.pi * k / 4 + math.pi / 4
+        d = np.array([math.cos(a), math.sin(a), 0.0])
+        tube(m, "gold", [c + d * 0.41, c + d * 0.47, c + d * 0.56], [0.006, 0.004, 0.0006], sides=4, weights=weights)
 
 
 def wings(source, star):
@@ -710,32 +886,37 @@ def wings(source, star):
     m = Mesh()
     for side in ("L", "R"):
         bat_wing(m, side, pos, jidx, star)
+    # Fallback looks; ShadowWingArt swaps membrane/under/wisp/phantom/flare for animated shaders.
     mats = {
-        "membrane": material("4a2c86" if not star else "5a2f8e", 0.0, 0.55, glow="6a3ac0", glow_amount=0.25, alpha=0.84, double=True),
-        "core": material("1c0f33" if not star else "2a0f3a", 0.0, 0.6, glow="2a1450", glow_amount=0.15, alpha=0.9, double=True),
-        "vein": material("b58cff", 0.0, 0.3, glow="9a6bff", glow_amount=1.0),
-        "strut": material("1e1630" if not star else "2a2046", 0.45, 0.35),
+        "membrane": material("4a2c86" if not star else "5a2f8e", 0.0, 0.55, glow="6a3ac0", glow_amount=0.25, alpha=0.9, double=True),
+        "under": material("3a1f66", 0.0, 0.55, glow="4a2a80", glow_amount=0.2, alpha=0.9, double=True),
+        "wisp": material("5a2f8e", 0.0, 0.5, glow="9a6bff", glow_amount=0.5, alpha=0.55, double=True),
+        "phantom": material("7a4ad8", 0.0, 0.5, glow="9a6bff", glow_amount=0.6, alpha=0.3, double=True),
+        "flare": material("ff3a6e", 0.0, 0.3, glow="ff3a6e", glow_amount=1.5, alpha=0.75, double=True),
+        "strut": material("1e1630" if not star else "241a3c", 0.45, 0.35),
         "claw": material("ff4f7b", 0.2, 0.3, glow="ff4f7b", glow_amount=0.8),
-        "glow": material("c9a7ff", 0.0, 0.3, glow="b58cff", glow_amount=1.4),
-        "hem": material("9a6bff", 0.0, 0.3, glow="9a6bff", glow_amount=1.2),
-        "gold": material("ffd36b", 0.7, 0.25, glow="ffb84a", glow_amount=0.3),
-        "sun": material("05030a", 0.2, 0.5),
+        "glow": material("e4d6ff", 0.0, 0.3, glow="c9a7ff", glow_amount=1.4),
+        "hem": material("b58cff", 0.0, 0.3, glow="9a6bff", glow_amount=1.4),
+        "blade": material("8a7fb8", 0.35, 0.3, glow="5a4a96", glow_amount=0.55),
+        "edge": material("efe4ff" if not star else "ffb3cb", 0.0, 0.3, glow="c9a7ff" if not star else "ff5c8a", glow_amount=1.8),
+        "gold": material("ffd36b", 0.75, 0.25, glow="ffb84a", glow_amount=0.35),
         "corona": material("ff3a6e", 0.0, 0.3, glow="ff3a6e", glow_amount=1.6),
     }
-    if star and "WingHalo" in jidx:
-        eclipse_halo(m, pos["WingHalo"], fixed_weight(jidx, "WingHalo"))
+    if star:
+        eclipse_halo(m, HALO_CENTRE, fixed_weight(jidx, "WingsRoot"))
     return m, mats
 
 
 def main():
     report = []
-    for tier in range(10):
-        m, mats = dagger(tier)
-        size, tris = write_static(os.path.join(OUT, "weapons", "dagger_%d.glb" % tier), m, mats, "dagger_%d" % tier)
-        report.append(("weapons/dagger_%d.glb" % tier, tris, size))
-    m, mats = divine_dagger()
-    size, tris = write_static(os.path.join(OUT, "divine_gear", "assassin_dagger.glb"), m, mats, "assassin_dagger")
-    report.append(("divine_gear/assassin_dagger.glb", tris, size))
+    if not WINGS_ONLY:
+        for tier in range(10):
+            m, mats = dagger(tier)
+            size, tris = write_static(os.path.join(OUT, "weapons", "dagger_%d.glb" % tier), m, mats, "dagger_%d" % tier)
+            report.append(("weapons/dagger_%d.glb" % tier, tris, size))
+        m, mats = divine_dagger()
+        size, tris = write_static(os.path.join(OUT, "divine_gear", "assassin_dagger.glb"), m, mats, "assassin_dagger")
+        report.append(("divine_gear/assassin_dagger.glb", tris, size))
     for folder, star in (("wings", False), ("star_wings", True)):
         source = os.path.join(OUT, folder, "wings_mage.glb")
         m, mats = wings(source, star)
