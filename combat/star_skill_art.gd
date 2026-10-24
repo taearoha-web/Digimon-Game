@@ -20,7 +20,9 @@ const COLORS := {
 	"moonwolf_pact":["5fe0a0","f4ffe6","1d5a3e"], "leviathan_surge":["10c8d8","dafffa","0a4a7a"],
 	"spirit_court":["9be03a","fff6b0","2f6a3a"], "eclipse_sovereign":["2fa8ff","e8fcff","0b2a6e"],
 	"titan_shieldbreak":["ffa64a","fff2c8","6a3412"], "judgment_rebound":["ffe15a","fffbe0","5a4a10"],
-	"eternal_aegis":["5fb4ff","f0f8ff","1a3a7a"], "heavens_bulwark":["8fd0ff","fffbe8","2a3f8a"]
+	"eternal_aegis":["5fb4ff","f0f8ff","1a3a7a"], "heavens_bulwark":["8fd0ff","fffbe8","2a3f8a"],
+	"umbral_lacerate":["9a5cff","f6eaff","2a0f4e"], "shadow_execution":["ff3a6e","ffe0ea","4a0828"],
+	"veil_of_night":["6a5cff","eae6ff","1a1450"], "eclipse_requiem":["c04dff","ffe6ff","220a3e"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -29,12 +31,16 @@ const MOTIFS := {
 	"arcane_prism":"prism", "crystal_prison":"prison", "astral_convergence":"planets", "genesis_nova":"genesis",
 	"sanctified_chain":"rosary", "seraph_aegis":"seraph", "sacred_sanctuary":"chapel", "dawn_salvation":"sunrise",
 	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan",
-	"titan_shieldbreak":"titan_shield", "judgment_rebound":"crown", "eternal_aegis":"shield_ring", "heavens_bulwark":"titan_shield"
+	"titan_shieldbreak":"titan_shield", "judgment_rebound":"crown", "eternal_aegis":"shield_ring", "heavens_bulwark":"titan_shield",
+	"umbral_lacerate":"fang", "shadow_execution":"moon", "veil_of_night":"constellation", "eclipse_requiem":"moon"
 }
-const SUPPORT := ["eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
+const SUPPORT := ["veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
+const ASSASSIN := ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"]
 ## The Defender's captured great shield from the latest telegraph/launch, so contacts (which have no caster) can drop the real shield.
 static var _recent_shield: Mesh
+## The Assassin's captured dagger from the latest telegraph: the shadow daggers of its contacts.
+static var _recent_dagger: Mesh
 var age := 0.0
 var lifetime := 1.0
 var layers: Array[Dictionary] = []
@@ -174,6 +180,9 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		art.generation=visual.skill_generation
 	_face(art,origin,point)
 	if id in DEFENDER: _recent_shield=equipped_sword(caster)
+	if id in ASSASSIN:
+		_recent_dagger=equipped_sword(caster)
+		ShadowSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	var opts := {"initial":0.12,"grow_time":0.85,"fade_in":0.15,"decay":0.94,"opacity":0.78}
 	var local_target := art.to_local(point)
 	var radius := clampf(float(skill.get("radius",4)),1.5,9.0)
@@ -188,7 +197,13 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		"moonpiercer":
 			art.add("moon",colors,Vector3(0,1.45,0.6),Vector3.ONE*1.20,Vector3(PI/2,0,0),time,opts)
 			art.add("martial/arrow",colors,Vector3(0,1.45,0.1),Vector3(0.4,1.7,0.4),Vector3(PI/2,0,0),time,opts)
-		"hunters_verdict", "heartseeker", "crown_breaker":
+		"umbral_lacerate":
+			art.add("moon",colors,Vector3(0,1.6,-0.3),Vector3.ONE*0.9,Vector3(PI/2,0,0),time,opts)
+			art.add("fang",colors,Vector3(0,0.08,0),Vector3.ONE*radius*0.6,Vector3.ZERO,time,opts)
+		"eclipse_requiem":
+			art.add("moon",colors,local_target+Vector3.UP*8,Vector3.ONE*radius*0.8,Vector3.ZERO,time,{"initial":0.25,"grow_time":0.90,"fade_in":0.15,"spin":0.1,"decay":0.98})
+			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius,Vector3.ZERO,time,opts)
+		"hunters_verdict", "heartseeker", "crown_breaker", "shadow_execution":
 			art.add(String(MOTIFS[id]),colors,local_target+Vector3.UP*1.3,Vector3.ONE*1.0,Vector3(PI/2 if id!="crown_breaker" else 0,0,0),time,opts)
 			art.add("streak",colors,Vector3(0,1.3,0.6),Vector3(0.8,0.8,0.7),Vector3(0,0,PI/2),time,opts)
 		"lionfang_cleave":
@@ -263,6 +278,7 @@ static func launch(caster: Node3D, skill: Dictionary, point: Vector3, duration :
 static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0, source := Vector3.ZERO) -> StarSkillArt:
 	if not handles(skill) or not VfxBudget.can_decorate(): return null
 	ClassFlourish.star_beat(parent, skill, point, index, source)
+	if String(skill.id) in ASSASSIN: ShadowSkillArt.star(parent, skill, point, index, source)
 	var id := String(skill.id)
 	var colors := look(skill)
 	var art := _root(parent,point,1.6,"StarContact_"+id)
@@ -281,7 +297,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("feathers" if id=="dawn_salvation" else "shards",colors,Vector3.UP*0.2,Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,1.5,{"travel":Vector3.UP*0.8})
 			art._draw()
 			return art
-	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark"]:
+	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark","umbral_lacerate","shadow_execution","eclipse_requiem"]:
 		art.add("impact",colors,at,Vector3.ONE*1.15,Vector3.ZERO,0.50,{"initial":0.10})
 		art.add("shards",colors,Vector3.UP*0.25,Vector3.ONE*0.75,Vector3.ZERO,0.65,{"travel":Vector3.UP*0.4,"initial":0.7,"orbit":0.12,"orbit_speed":3.0,"pulse":true})
 		art._draw()
@@ -366,6 +382,39 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 				art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.6,{"initial":0.6,"spin":0.2})
 			art.add("shards",colors,spot+Vector3.UP*0.3,Vector3(2.2,3.0,2.2),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.7})
 			impact_size=radius
+		"umbral_lacerate":
+			# Two crossing sweeps of violet night, a ring of fang cuts and shards thrown up; the second beat turns the cross.
+			for side in [-1.0,1.0]:
+				art.add("martial/sweep",colors,Vector3.UP*1.1,Vector3.ONE*radius*0.75,Vector3(PI/2,index*0.8,side*0.55),0.6,{"initial":0.35,"spin":side*2.2})
+			art.add("fang",colors,Vector3(0,0.2,0),Vector3(radius,1.4,radius),Vector3.ZERO,0.7,{"initial":0.5,"turn":Vector3(0,0.6 if index==0 else -0.6,0)})
+			art.add("shards",colors,at,Vector3(radius*0.6,1.8,radius*0.6),Vector3.ZERO,1.0,{"travel":Vector3.UP*0.45,"pulse":true})
+			impact_size=radius*0.8
+		"shadow_execution":
+			# Five quick crescent cuts under the night moon, then the execution: a full moon and a burst of shards.
+			var final := index>=5
+			art.add("moon",colors,Vector3.UP*1.2,Vector3.ONE*(1.9 if final else 0.6+index*0.1),Vector3(PI/2,0,index*0.7),0.5,{"initial":0.9,"turn":Vector3(0,0,0.5)})
+			art.add("martial/sweep",colors,Vector3.UP*1.1,Vector3.ONE*(2.6 if final else 1.2),Vector3(PI/2,0,(index%2*2-1)*0.7),0.4,{"initial":0.4,"spin":3.0})
+			if final: art.add("shards",colors,Vector3.UP*0.4,Vector3(1.8,2.6,1.8),Vector3.ZERO,0.85,{"travel":Vector3.UP*0.5})
+			impact_size=2.2 if final else 0.5
+		"veil_of_night":
+			art.add("moon",colors,Vector3.UP*2.4,Vector3.ONE*1.5,Vector3.ZERO,1.6,{"initial":0.2,"spin":0.3})
+			art.add("constellation",colors,at,Vector3.ONE*radius*0.7,Vector3.ZERO,1.6,{"initial":0.3,"spin":-0.15})
+			art.add("feathers",colors,Vector3.UP*0.3,Vector3(2.0,2.4,2.0),Vector3.ZERO,1.5,{"travel":Vector3.UP*0.6})
+			impact_size=radius*0.7
+		"eclipse_requiem":
+			# Each wave: three copies of the Assassin's own dagger fall point-first out of the eclipse.
+			var dagger: Mesh = _recent_dagger if _recent_dagger else MartialGeometry.mesh("blade")
+			var bounds := dagger.get_aabb()
+			var size := 2.4/maxf(0.1,bounds.size.y)
+			for k in 3:
+				var a := float(index*3+k)*2.39996
+				var spot := Vector3(sin(a),0,cos(a))*radius*(0.25+0.2*float(k))
+				art.add_mesh(dagger,"ShadowDagger",colors,spot+Vector3(0,6.5+bounds.end.y*size,0),Vector3.ONE*size,Vector3(PI,a,0),0.38,{"initial":1.0,"travel":Vector3(0,-6.5,0),"accelerate":true,"fade_in":0.015,"decay":0.96,"front":true})
+			art.add("martial/crater",colors,at,Vector3.ONE*radius*(0.6+0.1*index),Vector3.ZERO,1.0,{"initial":0.1,"grow_time":0.25,"delay":0.3})
+			if index>=4:
+				art.add("moon",colors,Vector3.UP*0.1,Vector3.ONE*radius,Vector3.ZERO,1.4,{"initial":0.3,"spin":0.2})
+				art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.2,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8})
+			impact_size=radius*0.7
 		"aegis_formation":
 			art.add("phalanx",colors,Vector3(0,0.1,0),Vector3.ONE*2.0,Vector3.ZERO,1.5,{"initial":0.15,"fade_in":0.08})
 			art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.5})

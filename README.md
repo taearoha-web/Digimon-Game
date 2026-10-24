@@ -106,7 +106,7 @@ A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3*
 - Far-right vertical controls, top to bottom: HP potion, MP potion, auto hunting, target switch. Walk manually to stop auto hunting.
 - Menu / I: character, equipment, skills, quests, achievements and settings. H/M use potions; Tab switches targets.
 
-Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage, Priest, Summoner, Lancer or Defender at **Lv.10**. The Defender fights with one great shield: it bashes, quakes the ground, provokes enemies onto itself and reflects their blows. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
+Every hero begins as a **Vagabond**. Customize face, hair, skin and outfit, then choose Warrior, Archer, Mage, Priest, Summoner, Lancer, Defender or Assassin at **Lv.10**. The Defender fights with one great shield: it bashes, quakes the ground, provokes enemies onto itself and reflects their blows. The Assassin fights with twin daggers out of the shadows: the fastest attacks and hardest critical hits, shadow steps, poison, thrown knives and smoke, with its own daggers, star and divine sets and bat-winged shadow wings (models authored by `tools/make_assassin_gear.py`). Every Assassin skill also gets a layered shadow composition (`combat/shadow_skill_art.gd`): phantom assassins, crossing crescent cuts, flying and falling daggers, a crescent moon, a black sun, rifts, death sigils, smoke shells, bat wings and dagger crowns. Advance at **Lv.20 / 40 / 60 / 80**. Arrange eight skills from each class's active skill pool and upgrade passive skills.
 
 ## Adventure
 

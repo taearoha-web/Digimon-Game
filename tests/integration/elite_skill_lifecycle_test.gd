@@ -17,7 +17,7 @@ func _ready() -> void:
 		for skill in ClassData.pool(family):
 			if int(skill.level)>=80 and not skill.has("star"):
 				catalogue.append(skill)
-	check(catalogue.size()==42,"all 42 elite skills selected")
+	check(catalogue.size()==48,"all 48 elite skills selected")
 	var baseline := -1
 	var final_count := -1
 	for cycle in 10:
@@ -42,8 +42,8 @@ func _ready() -> void:
 					art._process(3.0)
 					check(art.is_queued_for_deletion(),"normal expiry queues all layers")
 					await art.tree_exited
-					# ClassFlourish keeps its own short-lived, self-freeing holder.
-					var left := field.get_children().filter(func(n: Node): return not String(n.name).begins_with("ClassFlourish_"))
+					# ClassFlourish and the Assassin's ShadowSkillArt keep their own short-lived, self-freeing roots.
+					var left := field.get_children().filter(func(n: Node): return not String(n.name).begins_with("ClassFlourish_") and not String(n.name).begins_with("ShadowArt_"))
 					check(left.is_empty(),"normal expiry leaves no nodes")
 			check(skill==snapshot,"art preserves all combat parameters")
 			field.queue_free()

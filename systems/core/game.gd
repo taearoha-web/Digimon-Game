@@ -1029,9 +1029,9 @@ func add_exp(amount: int) -> void:
 # AI party: two companions that fight beside the hero and share EXP
 # ---------------------------------------------------------------------------
 
-const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"], &"summoner": ["ไลรา", "เฟิร์น"], &"lancer": ["เรย์", "ซากุระ"], &"defender": ["ไททัน", "พลอย"]}
+const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"], &"summoner": ["ไลรา", "เฟิร์น"], &"lancer": ["เรย์", "ซากุระ"], &"defender": ["ไททัน", "พลอย"], &"assassin": ["เคน", "ยามิ"]}
 ## Which chibi model a companion wears (0 boy, 1 girl), from its name.
-const PARTY_GIRLS := ["ลูน่า", "ฟ้า", "มิกะ", "เจน", "นีน่า", "ใบบัว", "ไลรา", "เฟิร์น", "ซากุระ"]
+const PARTY_GIRLS := ["ลูน่า", "ฟ้า", "มิกะ", "เจน", "นีน่า", "ใบบัว", "ไลรา", "เฟิร์น", "ซากุระ", "ยามิ"]
 
 
 func party_gender(member: Dictionary) -> int:
@@ -1069,6 +1069,7 @@ const PARTY_BLURBS := {
 	&"summoner": "ผู้เรียกอสูร เรียกสัตว์ป่ามาช่วยรบ",
 	&"lancer": "นักหอก แทงทะลุหลายตัว ตีไว",
 	&"defender": "สายโล่ ทนที่สุด ยั่วยุศัตรูและป้องกันทีม",
+	&"assassin": "นักฆ่ามีดคู่ ตีเร็ว คริติคอลแรง หลบเก่ง",
 }
 var _party_gear: Dictionary = {}
 
