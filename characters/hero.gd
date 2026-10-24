@@ -981,6 +981,8 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	var crit := randf() < float(stats.crit)
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
+		if StarProgression.has_full_set(Game.profile,"assassin"):
+			raw *= 1.25
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
 	if skill.has("star"):
 		pass # StarSkillSequence owns exactly one authored impact per contact beat.

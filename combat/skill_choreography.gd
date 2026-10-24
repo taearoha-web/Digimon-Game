@@ -31,6 +31,11 @@ const GESTURES := {
 	"thrust": ["2H_Melee_Attack_Stab", 0.72, 0.31, -0.13, 0.0, 0.22],
 	"spear_sweep": ["2H_Melee_Attack_Slice", 0.48, 0.36, -0.08, 0.04, 0.10],
 	"sky_spear": ["2H_Melee_Attack_Stab", 0.72, 0.49, -0.20, 0.16, 0.26],
+	"dual_chop": ["Dualwield_Melee_Attack_Chop", 0.52, 0.30, -0.10, 0.02, 0.18],
+	"stab": ["1H_Melee_Attack_Stab", 0.40, 0.30, -0.14, 0.0, 0.22],
+	"lunge": ["1H_Melee_Attack_Stab", 0.40, 0.36, -0.22, 0.02, 0.42],
+	"fling": ["1H_Melee_Attack_Slice_Horizontal", 0.28, 0.32, -0.04, 0.02, 0.04],
+	"vanish": ["Dodge_Backward", 0.18, 0.36, 0.08, 0.04, -0.12],
 }
 
 ## signature / gesture : explicit skill IDs, including support and summon skills.
@@ -40,13 +45,13 @@ const GROUPS := {
 	"cleave/draw_cut": "brandish",
 	"shield/shield": "impact stagger",
 	"greatshield/shield": "shield_bash shield_slam aegis_strike bulwark_charge shield_wave",
-	"roar/resolve": "roar war_cry",
-	"focus/resolve": "concentration berserker focus beast_rage",
+	"roar/resolve": "roar war_cry night_lord",
+	"focus/resolve": "concentration berserker focus beast_rage killing_focus",
 	"wind/weave": "swift_axe wind_stance",
 	"fault/cleave": "bone_crash double_crash",
 	"blade/draw_cut": "sword_blast piercing divine_piercing",
 	"shield/ward": "holy_valor drastic_spirit godly_shield iron_resolve dragon_stance brace iron_wall thorn_guard unbreakable",
-	"wings/resolve": "triumph_of_valhalla valkyrie_blessing",
+	"wings/resolve": "triumph_of_valhalla valkyrie_blessing shadow_sovereign",
 	"sword_court/cleave": "gladiator",
 	"arrow/aim": "wind_arrow perfect_aim elemental_shot perforation lethal_sight",
 	"arrow/volley": "arrow_of_rage fierce_wind dragon_shot",
@@ -94,7 +99,7 @@ const GROUPS := {
 	"tree/invoke": "ancient_treant world_tree",
 	"elder_dragon/channel": "elder_dragon",
 	"lance/thrust": "thrust skewer charge_dash impale spear_wave dragon_tooth vanguard_strike dragon_lance gungnir",
-	"cyclone/whirl": "round_slash brutal_swing rage_of_zecram cyclone_strike whirl spinning_pike",
+	"cyclone/whirl": "round_slash brutal_swing rage_of_zecram cyclone_strike whirl spinning_pike blade_flurry thousand_cuts",
 	"cleave/spear_sweep": "hook_strike heaven_rend",
 	"wind/spear_sweep": "typhoon_spear gale_cyclone",
 	"wings/thrust": "lancer_rush",
@@ -110,6 +115,18 @@ const GROUPS := {
 	"judgment/execution": "judgment_shield",
 	"meteor/ground_slam": "meteor_shield",
 	"cathedral/ward": "sanctuary_wall",
+	"cross/dual_chop": "twin_fang night_raid shadow_dance eclipse_fang",
+	"cleave/dual_chop": "crimson_cut",
+	"blade/stab": "venom_edge backstab throat_slit",
+	"lance/lunge": "shadow_step",
+	"blade/fling": "fan_of_knives phantom_daggers phantom_legion",
+	"wind/vanish": "shadow_veil smoke_bomb",
+	"rune/vanish": "shadow_clone",
+	"spores/fling": "deadly_venom",
+	"rune/dual_chop": "death_mark",
+	"vortex/whirl": "abyss_vortex",
+	"fault/execution": "midnight_execution",
+	"cyclone/storm_spin": "oblivion_requiem",
 }
 
 ## Elite gestures add distinct weight transfer and controlled follow-through.
@@ -157,6 +174,12 @@ const ELITE_MOTION := {
 	"meteor_shield": ["ground_slam", .10, .55, .38, .18],
 	"sanctuary_wall": ["ward", .06, .05, .00, .04],
 	"world_bastion": ["ground_slam", -.20, .06, .10, .20],
+	"eclipse_fang": ["dual_chop", -.30, .03, .32, .12],
+	"abyss_vortex": ["storm_spin", .30, .04, .00, .10],
+	"phantom_legion": ["fling", .26, .03, .06, .08],
+	"midnight_execution": ["execution", -.34, .10, .36, .16],
+	"shadow_sovereign": ["resolve", .12, .06, .00, .05],
+	"oblivion_requiem": ["storm_spin", .36, .05, .02, .12],
 }
 
 static var _cues: Dictionary = {}

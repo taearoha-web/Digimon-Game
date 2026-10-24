@@ -38,12 +38,15 @@ static func build(look: String) -> Node3D:
 			"wand": _wand(b, p, tier)
 			"lantern": _lantern(b, p, tier)
 			"greatshield": _shield(b, p, tier)
+			"dagger": _dagger(b, p, tier)
 			"shield": _shield(b, p, tier)
 			"book", "tome": _book(b, p, tier)
 		_store(look, b)
 	_attach(root, look)
 	# The Defender's great shield is the warrior's star shield, grown to its size.
 	if kind == "greatshield": root.scale = Vector3.ONE * 1.55
+	# The Assassin's star daggers are short blades, one in each hand.
+	if kind == "dagger": root.scale = Vector3.ONE * 0.62
 	root.set_meta("star_gear", true)
 	root.set_meta("weapon_kind", kind)
 	return root
@@ -77,7 +80,7 @@ static func build_icon_node(look: String) -> Node3D:
 	var bits := look.split("_")
 	var cls := String(bits[2]) if bits.size() > 3 else "warrior"
 	var root := Node3D.new()
-	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield"]:
+	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger"]:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
 		return root
@@ -254,6 +257,35 @@ static func _sword(b: Dictionary, p: Dictionary, t: int) -> void:
 		_gem(b, Vector3(0, 1.25, 0.09), Vector3(0.11, 0.19, 0.03), p)
 
 
+## The Assassin's star dagger (one per hand): a short grip, a guard of swept
+## feathers and a blade that grows from a leaf to a crystal, a crescent and a kris.
+static func _dagger(b: Dictionary, p: Dictionary, t: int) -> void:
+	_shaft(b, p, -0.2, 0.2, 0.1)
+	_gem(b, Vector3(0, -0.24, 0), Vector3(0.13, 0.17, 0.07), p)
+	var w := [0.15, 0.13, 0.16, 0.17][t] as float
+	var blade: Array[Vector2] = [Vector2(-w, 0.24), Vector2(-w * 1.15, 0.55), Vector2(-w * 0.6, 0.95), Vector2(0, 1.25), Vector2(w * 0.6, 0.95), Vector2(w * 1.15, 0.55), Vector2(w, 0.24)]
+	if t == 1:
+		blade = [Vector2(-w, 0.24), Vector2(-w * 0.7, 0.5), Vector2(-w * 1.2, 0.72), Vector2(-w * 0.5, 0.86), Vector2(0, 1.3), Vector2(w * 0.5, 0.86), Vector2(w * 1.2, 0.72), Vector2(w * 0.7, 0.5), Vector2(w, 0.24)]
+	elif t == 2:
+		blade = [Vector2(-w, 0.24), Vector2(-w * 0.95, 0.62), Vector2(-w * 0.2, 1.02), Vector2(w * 0.65, 1.34), Vector2(w * 0.85, 1.0), Vector2(w * 1.1, 0.6), Vector2(w, 0.24)]
+	elif t == 3:
+		blade = [Vector2(-w, 0.24), Vector2(-w * 1.25, 0.45), Vector2(-w * 0.7, 0.62), Vector2(-w * 1.2, 0.8), Vector2(-w * 0.55, 0.98), Vector2(0, 1.38), Vector2(w * 0.55, 0.98), Vector2(w * 1.2, 0.8), Vector2(w * 0.7, 0.62), Vector2(w * 1.25, 0.45), Vector2(w, 0.24)]
+	_shape(b, blade, Vector3.ZERO, 0.06, p.edge)
+	_line(b, [Vector3(0, 0.3, 0.07), Vector3(w * 0.2 if t == 2 else 0.0, 0.95, 0.04), Vector3(w * 0.5 if t == 2 else 0.0, 1.18, 0.01)], 0.016, p.gem, true)
+	for side in [-1.0, 1.0]:
+		_feather(b, Vector3(side * 0.2, 0.24, 0), 0.42, 0.13, side * -1.25, p.metal)
+		if t >= 1:
+			_feather(b, Vector3(side * 0.16, 0.18, -0.02), 0.3, 0.09, side * -2.1, p.dark)
+		if t >= 2:
+			for k in 2:
+				_feather(b, Vector3(side * (0.16 + k * 0.07), 0.32 + k * 0.05, -0.025), 0.32 - k * 0.06, 0.08, side * -0.75, p.edge)
+	_gem(b, Vector3(0, 0.25, 0.1), Vector3(0.15, 0.2, 0.07), p)
+	if t == 3:
+		# The eclipse: a dark ring round the guard with a bright rim.
+		_ring_at(b, Vector3(0, 0.25, 0.02), 0.24, 0.04, p.dark)
+		_ring_at(b, Vector3(0, 0.25, 0.04), 0.27, 0.014, p.gem, Vector3(90, 0, 0), true)
+
+
 static func _spear(b: Dictionary, p: Dictionary, t: int) -> void:
 	_shaft(b, p, -0.68, 1.2, 0.065)
 	_feather(b, Vector3(0, 1.6, 0), 0.9 + t * 0.04, 0.22 + t * 0.015, 0.0, p.edge)
@@ -420,6 +452,12 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 	elif cls == "summoner":
 		for side in [-1.0, 1.0]:
 			_ring_at(b, Vector3(side * 0.053, 0.02, 0.124), 0.023, 0.004, p.metal)
+	elif cls == "assassin":
+		# Two daggers crossed on the breast under a crescent.
+		for side in [-1.0, 1.0]:
+			_line(b, [Vector3(side * -0.045, 0.07, 0.122), Vector3(side * 0.035, -0.035, 0.122)], 0.006, p.edge)
+			_line(b, [Vector3(side * 0.025, -0.012, 0.124), Vector3(side * 0.045, -0.032, 0.124)], 0.005, p.metal)
+		_ring_at(b, Vector3(0, 0.075, 0.12), 0.022, 0.004, p.gem, Vector3(90, 0, 0), true)
 	elif cls == "defender":
 		# A small heater shield on the breastplate.
 		_shape(b, [Vector2(-0.04, 0.04), Vector2(0.04, 0.04), Vector2(0.036, -0.01), Vector2(0, -0.05), Vector2(-0.036, -0.01)], Vector3(0, 0.03, 0.118), 0.008, p.edge)
@@ -483,6 +521,10 @@ static func _helm(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 		elif cls == "priest":
 			_part(b, MeshKit.box(), p.edge, Vector3(0, 0.267, 0.198), Vector3(0.013, 0.093, 0.013))
 			_part(b, MeshKit.box(), p.edge, Vector3(0, 0.281, 0.198), Vector3(0.055, 0.013, 0.013))
+		elif cls == "assassin":
+			# A half mask over the brow with a crescent at its peak.
+			_shape(b, [Vector2(-0.11, 0.0), Vector2(-0.05, 0.03), Vector2(0, 0.012), Vector2(0.05, 0.03), Vector2(0.11, 0.0), Vector2(0.06, -0.025), Vector2(-0.06, -0.025)], Vector3(0, 0.215, 0.2), 0.01, p.dark)
+			_feather(b, Vector3(0, 0.27, 0.19), 0.07, 0.03, 0, p.edge)
 	if t == 1:
 		for side in [-1.0, 1.0]:
 			_gem(b, Vector3(side * 0.115, 0.236, 0.169), Vector3(0.027, 0.071, 0.012), p, side * -0.32)
@@ -543,4 +585,7 @@ static func _class_badge(b: Dictionary, center: Vector3, s: float, cls: String, 
 			for side in [-1.0, 1.0]:
 				_feather(b, center + Vector3(side * s * 0.78, s * 0.35, 0), s * 1.5, s * 0.86, side * -0.5, p.cloth)
 				_feather(b, center + Vector3(side * s * 0.65, -s * 0.65, 0), s * 1.2, s * 0.68, side * 0.5, p.metal)
-
+		"assassin":
+			# Two daggers crossed point-up.
+			for side in [-1.0, 1.0]:
+				_feather(b, center + Vector3(side * s * 0.3, s * 0.1, 0), s * 2.4, s * 0.42, side * 0.62, p.edge)

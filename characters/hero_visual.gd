@@ -789,15 +789,16 @@ func _hold_gear() -> void:
 	var data := ClassData.get_class_data(class_id)
 	var weapon_look := ItemLook.weapon_look(equip.get("weapon"), StringName(data.weapon_kind))
 	_hold(weapon_look, WeaponGrip.hand_for(String(data.weapon_kind)), int(equip.get("weapon", {}).get("plus", 0)))
+	var plus := int(equip.get("weapon", {}).get("plus", 0))
 	if DivineGearData.is_item(equip.get("weapon")):
-		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome"}.get(class_id, "")
-		if offhand != "": _hold("divine_%s_%s_200" % [offhand, class_id], "handslot.l")
+		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
+		if offhand != "": _hold("divine_%s_%s_200" % [offhand, class_id], "handslot.l", plus if offhand == "dagger" else 0, true)
 		return
 	var star := StarGearData.is_star(equip.get("weapon"))
 	var tier := int(equip.weapon.star_tier) if star else (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0)
 	if star:
-		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome"}.get(class_id, "")
-		if offhand != "": _hold("star_%s_%d" % [offhand,tier],"handslot.l")
+		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
+		if offhand != "": _hold("star_%s_%d" % [offhand,tier],"handslot.l", plus if offhand == "dagger" else 0, true)
 		return
 	match class_id:
 		&"warrior":
@@ -806,9 +807,13 @@ func _hold_gear() -> void:
 			_hold("book_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
 		&"summoner":
 			_hold("tome_%d" % (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0), "handslot.l")
+		&"assassin":
+			# The twin of the main dagger, in the left hand.
+			_hold(weapon_look, "handslot.l", plus, true)
 
 
-func _hold(look: String, bone: String, plus := 0) -> void:
+## [param offhand]: a second held piece; the skill emission point stays on the main weapon.
+func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	var item: Node3D
 	var kind := StarGearData.kind_from_look(look)
 	if look.begins_with("divine_"):
@@ -833,7 +838,7 @@ func _hold(look: String, bone: String, plus := 0) -> void:
 	pivot.scale = Vector3.ONE * _gear_scale
 	attach.add_child(pivot)
 	pivot.add_child(item)
-	if kind not in ["shield","book","tome"]:
+	if kind not in ["shield","book","tome"] and not offhand:
 		_emission_grip = pivot
 		_emission_bone = _skeleton.find_bone(bone)
 		var bounds := AABB()

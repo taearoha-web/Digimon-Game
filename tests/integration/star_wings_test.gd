@@ -90,10 +90,10 @@ func _ready()->void:
 		mob.free();zone.free()
 	check(StarWingData.drop_chance(&"void",true,true)==0.0,"old regions never drop new wings")
 	var catalogue:=StarGearData.catalogue().filter(func(i):return i.slot=="wings")
-	check(catalogue.size()==6,"only six class wings in new catalogue")
+	check(catalogue.size()==ClassData.IDS.size(),"one class wing per class in new catalogue")
 	var looks:Dictionary={}
 	for item in catalogue:looks[item.look]=true;check(int(item.star_tier)==100 and item["class"]!="","catalogue only 100-star class wings")
-	check(looks.size()==6,"six distinct icon ids")
+	check(looks.size()==ClassData.IDS.size(),"one distinct icon id per class")
 	Game.has_profile=false
 	print("STAR WINGS: ",checks," checks, ",failures," failures")
 	get_tree().quit(failures)

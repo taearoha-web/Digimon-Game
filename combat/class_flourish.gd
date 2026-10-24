@@ -6,6 +6,7 @@ extends RefCounted
 ##   warrior / vagabond  layered energy crescents, crosses and ground breaks
 ##   lancer              a thrust of light down the spear line, spiral wakes
 ##   defender            shield slams, quake rings, walls of light
+##   assassin            twin crossing cuts, shadow smoke, violet night and a crimson edge
 ##   archer              bow flare, bursting arrivals, glowing arrow storms
 ##   priest              heaven-sent columns, halos and sanctified circles
 ##   summoner            summoning seals, spirit vortices, bursts of growth
@@ -188,6 +189,9 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 1.2 * s, duration, c[1], c[2])
 	elif family == "defender" and power(skill) >= 0.3:
 		_shield_wave(parent, origin, 0.0, c, 1.6 * s, duration + 0.1)
+	elif family == "assassin":
+		# The shadows gather round the caster's feet before the blades move.
+		_shadow_smoke(parent, origin, c, 0.7 * s, 10 + int(10 * power(skill)), "rise")
 
 
 ## Release: called once per cast by SkillShow.play (hero, companions, rivals).
@@ -298,6 +302,12 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	elif family == "defender" and _room(2):
 		# One plate of the great shield flashes on the victim: a blow with the face, not a cut.
 		_plate_flash(parent, at, atan2(forward.x, forward.z), c, 0.8 * s * weight)
+	elif family == "assassin" and _room(2):
+		# Two daggers: a thin X of violet and crimson cuts, then the victim bleeds shadow.
+		var yaw := atan2(forward.x, forward.z) + PI * 0.5
+		_crescent(parent, at, yaw, 0.95, c[0], c[1], 1.0 * s * weight, 0.0, 0.9, c[2])
+		_crescent(parent, at, yaw, -0.95, SkillArtDirection.PALETTES.nightblood[0], c[1], 1.0 * s * weight, 0.04, -0.9, c[2])
+		_shadow_smoke(parent, at - Vector3.UP * 0.4, c, 0.5 * s, 8 + int(6 * p))
 
 
 ## Star skills (non-mage): every contact beat of StarSkillSequence gets the
@@ -349,6 +359,12 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			# The great shield comes down: a heavy slam and a shield-outline wave spreading from it.
 			_slam(parent, ground, c[0], radius * 0.8, c[1], c[2])
 			_shield_wave(parent, ground, yaw, c, radius * 0.9, 0.7)
+		"assassin":
+			# Twin crescents cross over the mark, shadow bursts out of it and daggers fall.
+			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 1.0, c[0], c[1], 2.2 * s, 0.0, 1.4, c[2])
+			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, -1.0, SkillArtDirection.PALETTES.nightblood[0], c[1], 2.2 * s, 0.07, -1.4, c[2])
+			_shadow_smoke(parent, ground, c, radius * 0.35, 24)
+			_dagger_rain(parent, c, ground, radius * 0.7, 4 + index)
 		"lancer":
 			if flat.length() > 1.0 and _room(4):
 				_lance_streak(parent, feet + Vector3.UP * 1.1, ground + Vector3.UP, c[0], c[1], 1.5, 0.4)
@@ -482,7 +498,8 @@ static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3
 	var ground := Vector3(center.x, 0.0, center.z)
 	var at := center + Vector3.UP * 0.6
 	var recipe := String(SkillArtDirection.RECIPES.get(id, ["cut"])[0])
-	var cross := recipe in ["crosscut", "guard"] or p >= 0.6
+	var assassin := SkillShow.family_of(skill) == "assassin"
+	var cross := recipe in ["crosscut", "guard"] or p >= 0.6 or assassin
 	var elite := EliteSkillArt.handles(skill)
 	var defender := SkillShow.family_of(skill) == "defender"
 	var layers := 2 + int(p * 2.0)
@@ -498,6 +515,9 @@ static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3
 		VfxArt.motes(parent, at, c[1], "star", 10, 0.8 * s, 0.4, 0.75)
 	if cross and not defender:
 		VfxArt.cross_slash(parent, at, yaw, c[1], 1.5 * s)
+	if assassin:
+		# The blades pass through and leave the foe in a cloud of night.
+		_shadow_smoke(parent, at, c, 0.7 * s, 14 + int(10 * p))
 	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.26)
 	# The cut lands: the line's stamp, a puff of dust and a ring at the feet.
 	if _room(2):
@@ -572,11 +592,13 @@ static func _whirl(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3,
 		# Expanding shield-outline rings instead of sword crescents.
 		for i in 3:
 			_shield_wave(parent, origin + Vector3.UP * 0.35 * i, TAU * float(i) / 3.0, c, r * (0.55 + 0.25 * i), 0.55 + 0.1 * i, i * 0.07)
-	elif family in ["warrior", "vagabond", "lancer"] or String(skill.get("special", "")) == "spin":
-		var count := 3 + int(p * 3.0)
+	elif family in ["warrior", "vagabond", "lancer", "assassin"] or String(skill.get("special", "")) == "spin":
+		var count := 3 + int(p * 3.0) + (2 if family == "assassin" else 0)
 		for i in count:
 			_crescent(parent, at + Vector3.UP * (0.15 * (i % 2)), TAU * float(i) / float(count), 0.15 * (1 if i % 2 == 0 else -1), c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], r * 0.62, i * 0.04, 2.2, c[2])
 	_wave(parent, origin + Vector3.UP * 0.1, c[0], r, c[1], c[2])
+	if family == "assassin":
+		_shadow_smoke(parent, origin, c, r * 0.45, 18 + int(14 * p))
 	if _room(2):
 		_late_wave(parent, origin, c[1], r * 0.7, 0.14, Color.WHITE, c[2])
 	VfxKit.flash(parent, at, c[1], 3.0 * s, 0.3)
@@ -624,6 +646,10 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 	VfxKit.flash(parent, ground + Vector3.UP * 1.0, c[1], (2.0 if family == "defender" else 3.4) * s, 0.32)
 	if String(skill.get("special", "")) == "rain":
 		_arrow_storm(parent, skill, c, ground, r, 6 + int(p * 10.0))
+	if family == "assassin":
+		# Daggers of shadow fall point-first over the area out of a cloud of night.
+		_shadow_smoke(parent, ground, c, r * 0.4, 16 + int(12 * p))
+		_dagger_rain(parent, c, ground, r, 4 + int(p * 8.0))
 	match style:
 		"holy", "heal":
 			if _room(4):
@@ -722,6 +748,11 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 			# Shield outlines climb the column: the wall of light rising around the Defender.
 			for i in 3:
 				_shield_wave(parent, origin + Vector3.UP * (0.25 + 0.5 * i), TAU * float(i) / 3.0, c, (1.6 - 0.2 * i) * s, 0.7, 0.06 * i)
+		"assassin":
+			# The caster melts into the dark: smoke rising round a violet and crimson spiral.
+			_shadow_smoke(parent, origin, c, 0.9 * s, 22, "rise")
+			VfxArt.ribbon_spiral(parent, origin, c[1], 3.0 + 1.5 * p, 3.0, 1.0, 0.8 * s)
+			VfxArt.ribbon_spiral(parent, origin, SkillArtDirection.PALETTES.nightblood[0], 2.4 + 1.5 * p, 2.0, 1.0, 1.0 * s)
 		"mage":
 			var halo := Node3D.new()
 			parent.add_child(halo)
@@ -985,6 +1016,27 @@ static func _arrow_storm(parent: Node3D, skill: Dictionary, c: Array, center: Ve
 			else:
 				_lance_streak(parent, spot + Vector3(0.8, 7.0, 0.3), spot + Vector3.UP * 0.1, c[0], c[1], 0.3, 0.24)
 			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.9, 0.28), CONNECT_ONE_SHOT)
+
+
+## The Assassin's night: a cloud of dark smoke cards tinted from the shade
+## towards the skill colour, with a few bright motes drifting out of it.
+static func _shadow_smoke(parent: Node3D, at: Vector3, c: Array, radius: float, count := 16, mode := "burst") -> void:
+	if not _room(1):
+		return
+	ShaderBurst.emit(parent, at + Vector3.UP * 0.3, c[2].lerp(c[0], 0.3), "smoke", count, mode, 1.8 + radius, radius, 0.95, 0.9, 1.5 if mode == "burst" else 0.0)
+	_motes(parent, at, c[0], "spark", maxi(6, count / 2), radius, 0.4, 0.9)
+
+
+## Shadow daggers raining point-first on an area: dark streaks with a bright tip.
+static func _dagger_rain(parent: Node3D, c: Array, center: Vector3, radius: float, count: int) -> void:
+	for i in count:
+		var angle := randf() * TAU
+		var spot := center + Vector3(cos(angle), 0.0, sin(angle)) * sqrt(randf()) * radius * 0.9
+		parent.create_tween().tween_interval(0.035 * i).finished.connect(func():
+			if not _alive(parent) or not _room(2):
+				return
+			_lance_streak(parent, spot + Vector3(-0.5, 6.5, 0.4), spot + Vector3.UP * 0.1, c[0], SkillArtDirection.PALETTES.nightblood[1], 0.26, 0.22)
+			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.8, 0.26, c[1], c[2]), CONNECT_ONE_SHOT)
 
 
 ## The element made physical at a hit point (fire flames, holy light, frost).

@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
 ## Hero classes: the Vagabond (Lv.1-9) and the lines chosen at Lv.10 (sword,
-## bow, mage, priest, summoner, spear, great shield). Each class has a pool of active skills modelled on
+## bow, mage, priest, summoner, spear, great shield, twin daggers). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -19,7 +19,7 @@ const START: StringName = &"vagabond"
 const LINE_LEVEL := 10
 const SLOTS := 8
 ## The four lines picked at Lv.10 (also the AI companion classes).
-const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender"]
+const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin"]
 
 const CLASSES := {
 	&"vagabond": {
@@ -189,6 +189,27 @@ const CLASSES := {
 			"anims": ["Block_Attack", "2H_Melee_Attack_Slice", "Block_Attack"],
 		},
 	},
+	&"assassin": {
+		"name": "นักฆ่า",
+		"title": "เงาที่ไม่มีใครเห็น",
+		"badge": "A",
+		"desc": "นักฆ่า — ถือมีดคู่ หลอมตัวกับเงามืด ตีเร็วที่สุดและคริติคอลแรงที่สุด ก้าวเงาไปหลังศัตรู ปาดคอ ใส่พิษ ขว้างมีดเงา แล้วหายไปในควัน (DEX ตีแรงและคริ)",
+		"model": "Rogue",
+		"weapon": "dagger",
+		"offhand": "dagger",
+		"weapon_kind": "dagger",
+		"color": Color("9a6bff"),
+		"main": "dex",
+		"base": {"str": 7, "int": 3, "dex": 13, "vit": 8},
+		"gain": {"str": 1, "int": 0, "dex": 3, "vit": 2},
+		"hp_mult": 1.05,
+		"mp_mult": 0.8,
+		"crit_bonus": 0.08,
+		"attack": {
+			"range": 2.4, "interval": 0.58, "mult": 0.82, "hit_delay": 0.18, "projectile": false, "vfx": &"slash",
+			"anims": ["Dualwield_Melee_Attack_Chop", "1H_Melee_Attack_Stab", "1H_Melee_Attack_Slice_Diagonal"],
+		},
+	},
 }
 
 
@@ -254,6 +275,14 @@ const PASSIVES := {
 		{"id": "stalwart", "name": "Stalwart", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
 		{"id": "heavy_impact", "name": "Heavy Impact", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "living_fortress", "name": "Living Fortress", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
+	],
+	&"assassin": [
+		{"id": "dagger_mastery", "name": "Dagger Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "shadow_footwork", "name": "Shadow Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
+		{"id": "lethal_precision", "name": "Lethal Precision", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
+		{"id": "evasive_instinct", "name": "Evasive Instinct", "desc": "หลบหลีก +1% ต่อดาว", "level": 40, "bonus": {"dodge": 0.01}},
+		{"id": "killer_instinct", "name": "Killer Instinct", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
+		{"id": "night_stalker", "name": "Night Stalker", "desc": "คริติคอล +1% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"crit": 0.01, "speed": 0.02}},
 	],
 }
 
@@ -338,14 +367,14 @@ static func damage_curve(level: int) -> float:
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
 	mult *= damage_curve(level)
-	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender"
+	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender" or cls == &"assassin"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
 	match shape:
 		"single":
 			skill["range"] = 4.2 if cls == &"lancer" else 2.9 if melee else (10.5 if caster else 13.0)
 			skill["projectile"] = not melee
-			skill["anim"] = "2H_Melee_Attack_Stab" if cls == &"lancer" else "1H_Melee_Attack_Chop" if melee else ("Spellcast_Shoot" if caster else "2H_Ranged_Shoot")
+			skill["anim"] = "2H_Melee_Attack_Stab" if cls == &"lancer" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "1H_Melee_Attack_Chop" if melee else ("Spellcast_Shoot" if caster else "2H_Ranged_Shoot")
 			skill["hit_delay"] = 0.25 if melee else (0.3 if caster else 0.2)
 			skill["vfx"] = &"slash" if melee else (&"light" if cls == &"priest" else (&"leaf" if cls == &"summoner" else &"impact"))
 		"burst":
@@ -592,6 +621,39 @@ static func _build_pools() -> void:
 		_sk(d, "meteor_shield", "Meteor Shield", "กระโดดทุบโล่ลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 100, 14.0, "blast", 13.5, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "hit_delay": 0.55, "vfx": &"impact", "color": Color("ffb04a"), "icon": "meteor"}),
 		_sk(d, "sanctuary_wall", "Sanctuary Wall", "กำแพงวิหาร ATK +40% ลดความเสียหาย 25% นาน 1 นาที (ส่งถึงทีม)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "guard": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffe9a0"), "icon": "bless"}),
 		_sk(d, "world_bastion", "World Bastion", "ปักโล่ลงพิภพ คลื่นป้อมปราการถล่มรอบตัว ศัตรูมึนงง 2 วินาทีแล้วหันมาโจมตีคุณ", 100, 130, 16.0, "burst", 23.0, {"radius": 9.0, "fx": {"stun": 2.0, "taunt": 4.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("ffd84a"), "icon": "nova"}),
+	]
+
+	# Assassin: twin daggers and the shadows. Violet night, a crimson edge for the kills.
+	var n := &"assassin"
+	var night := Color("9a6bff")
+	var blood := Color("ff4f7b")
+	var venom := Color("8be260")
+	_pools[n] = [
+		_sk(n, "twin_fang", "Twin Fang", "ฟันมีดคู่ไขว้ใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 10, 8, 2.6, "single", 2.8, {"color": night, "icon": "sword"}),
+		_sk(n, "shadow_veil", "Shadow Veil", "ม่านเงาห่อตัว หลบ +10% วิ่งเร็ว +15% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"dodge": 0.1, "speed": 0.15, "secs": 60.0}}, "anim": "Dodge_Backward", "color": night, "icon": "boots"}),
+		_sk(n, "venom_edge", "Venom Edge", "แทงคมพิษ ศัตรูติดพิษเสียเลือดต่อเนื่อง 5 วินาที", 14, 14, 5.0, "single", 3.4, {"fx": {"burn": [0.3, 5.0]}, "anim": "1H_Melee_Attack_Stab", "color": venom, "icon": "sword"}),
+		_sk(n, "shadow_step", "Shadow Step", "ก้าวเงาวาร์ปไปหลังศัตรูไกลถึง 8 เมตรแล้วแทงซ้ำ", 17, 16, 7.0, "single", 4.0, {"range": 8.0, "anim": "1H_Melee_Attack_Stab", "color": night, "icon": "boots"}),
+		_sk(n, "blade_flurry", "Blade Flurry", "หมุนมีดคู่เป็นพายุใบมีดรอบตัว", 20, 20, 8.0, "burst", 2.6, {"radius": 4.2, "special": "spin", "color": night, "icon": "spin"}),
+		_sk(n, "fan_of_knives", "Fan of Knives", "ขว้างมีดเงาแผ่เป็นพัด 5 เล่ม", 24, 22, 8.0, "fan", 2.6, {"hits": 5, "range": 11.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
+		_sk(n, "killing_focus", "Killing Focus", "จิตนักฆ่า คริติคอล +15% ATK +25% นาน 1 นาที", 27, 24, 30.0, "self", 0.0, {"fx": {"buff": {"crit": 0.15, "atk": 0.25, "secs": 60.0}}, "color": blood, "icon": "roar"}),
+		_sk(n, "backstab", "Backstab", "แทงทะลุหลังศัตรูตัวเดียว ความเสียหายรุนแรง", 31, 28, 7.0, "single", 6.0, {"range": 3.0, "anim": "1H_Melee_Attack_Stab", "color": blood, "icon": "sword"}),
+		_sk(n, "smoke_bomb", "Smoke Bomb", "ปาระเบิดควัน ศัตรูรอบตัวมึนงง 1.2 วินาทีและช้าลง", 35, 30, 16.0, "burst", 1.8, {"radius": 5.0, "fx": {"stun": 1.2, "slow": 3.0}, "anim": "Dodge_Backward", "vfx": &"impact", "color": Color("b8a8d8"), "icon": "nova"}),
+		_sk(n, "night_raid", "Night Raid", "หายตัวเข้าเงา ฟันกระโดดไปมาใส่ศัตรู 4 ตัว", 39, 36, 10.0, "chain", 3.8, {"hits": 4, "range": 9.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
+		_sk(n, "crimson_cut", "Crimson Cut", "ฟันคมโลหิตใส่ศัตรูตัวเดียว เลือดไหลต่อเนื่อง 5 วินาที", 43, 40, 8.0, "single", 7.6, {"range": 3.1, "fx": {"burn": [0.4, 5.0]}, "color": blood, "icon": "sword"}),
+		_sk(n, "shadow_clone", "Shadow Clone", "ร่างเงาสะท้อนการโจมตี ATK +40% หลบ +15% นาน 1 นาที", 47, 44, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
+		_sk(n, "phantom_daggers", "Phantom Daggers", "ขว้างมีดเงาพุ่งทะลุศัตรู 5 ตัวเป็นแนวยาว", 52, 48, 9.0, "single", 6.4, {"range": 10.0, "pierce": pc.call(5, 12.0, 1.4), "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "arrow"}),
+		_sk(n, "deadly_venom", "Deadly Venom", "โปรยหมอกพิษมรณะใส่ฝูงศัตรู ติดพิษและช้าลง", 56, 52, 11.0, "blast", 5.4, {"radius": 4.8, "range": 10.0, "fx": {"burn": [0.45, 6.0], "slow": 3.0}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": venom, "icon": "nova"}),
+		_sk(n, "thousand_cuts", "Thousand Cuts", "พันคมเงาฟันกระจายรอบตัว", 60, 60, 12.0, "burst", 7.8, {"radius": 6.2, "special": "spin", "color": night, "icon": "spin"}),
+		_sk(n, "throat_slit", "Throat Slit", "ปาดคอศัตรูตัวเดียวในพริบตา มึนงง 0.8 วินาที", 64, 60, 8.0, "single", 12.6, {"range": 3.3, "fx": {"stun": 0.8}, "color": blood, "icon": "sword"}),
+		_sk(n, "shadow_dance", "Shadow Dance", "ระบำเงา ฟันกระโดดต่อเนื่องใส่ศัตรู 6 ตัว", 68, 66, 11.0, "chain", 5.4, {"hits": 6, "range": 10.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
+		_sk(n, "death_mark", "Death Mark", "ประทับตรามรณะลงพื้น ศัตรูในวงเกราะลดลง 20% นาน 8 วินาที", 72, 70, 13.0, "blast", 6.2, {"radius": 6.0, "range": 11.0, "fx": {"shred": [0.2, 8.0]}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": blood, "icon": "nova"}),
+		_sk(n, "night_lord", "Night Lord", "จ้าวราตรี ATK +45% คริติคอล +20% วิ่งเร็ว +15% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.45, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
+		_sk(n, "eclipse_fang", "Eclipse Fang", "เขี้ยวสุริยคราส ฟันมีดคู่ฉีกศัตรูตัวเดียวขาดสะบั้น", 80, 90, 10.0, "single", 17.0, {"range": 3.5, "vfx": &"slash", "color": blood, "icon": "sword"}),
+		_sk(n, "abyss_vortex", "Abyss Vortex", "วังวนนรกดูดศัตรูรอบตัว ช้าลงและถูกฉีกต่อเนื่อง", 84, 96, 14.0, "burst", 14.0, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "color": night, "icon": "spin"}),
+		_sk(n, "phantom_legion", "Phantom Legion", "กองทัพเงาขว้างมีดพุ่งออก 8 ทิศ", 88, 96, 13.0, "fan", 5.6, {"hits": 8, "range": 12.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
+		_sk(n, "midnight_execution", "Midnight Execution", "ประหารเที่ยงคืน กระโจนลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 104, 14.0, "blast", 14.0, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "Dualwield_Melee_Attack_Chop", "hit_delay": 0.5, "vfx": &"impact", "color": blood, "icon": "meteor"}),
+		_sk(n, "shadow_sovereign", "Shadow Sovereign", "ราชันแห่งเงา ATK +70% คริติคอล +25% หลบ +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.7, "crit": 0.25, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "bless"}),
+		_sk(n, "oblivion_requiem", "Oblivion Requiem", "บทเพลงลืมเลือน เงามืดปะทุฉีกทุกสิ่งรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 24.0, {"radius": 9.0, "fx": {"stun": 1.5}, "special": "spin", "vfx": &"slash", "color": blood, "icon": "nova"}),
 	]
 
 	for star_class in IDS:

@@ -52,6 +52,12 @@ const RECIPES := {
 	"unbreakable": ["citadel", "ffd27a", "fff6d8", 8, 1.14, 0.6, -0.08],
 	"aegis_of_ages": ["aegis", "e4f1ff", "ffffff", 7, 1.2, 1.45, 0.05],
 	"sanctuary_wall": ["crown", "ffe9a0", "fffbe8", 5, 1.12, 1.35, 0.1],
+	"veil_of_night": ["constellation", "6a5cff", "eae6ff", 4, 1.1, 0.9, 0.1],
+	"shadow_veil": ["moon", "9a6bff", "efe4ff", 3, 1.0, 1.0, 0.5],
+	"killing_focus": ["eye", "ff4f7b", "ffe0ea", 2, 0.9, 1.5, 0.2],
+	"shadow_clone": ["twin_dagger", "8a5cff", "f0e6ff", 4, 1.05, 0.9, -0.3],
+	"night_lord": ["moon", "b18cff", "fff0ff", 5, 1.12, 1.4, 0.15],
+	"shadow_sovereign": ["twin_dagger", "ff4f7b", "ffe3ec", 6, 1.15, 1.3, 0.25],
 }
 static var _meshes: Dictionary = {}
 static var _names: Dictionary = {}
@@ -77,7 +83,7 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 	var id: String = look.id
 	if _meshes.has(id):
 		return _meshes[id]
-	var star_shapes := {"royal_vanguard":"banners","sylph_step":"sylph","aegis_formation":"phalanx","seraph_aegis":"seraph","sacred_sanctuary":"chapel","spirit_court":"court"}
+	var star_shapes := {"royal_vanguard":"banners","sylph_step":"sylph","aegis_formation":"phalanx","seraph_aegis":"seraph","sacred_sanctuary":"chapel","spirit_court":"court","veil_of_night":"constellation"}
 	if star_shapes.has(id):
 		var build := SurfaceTool.new()
 		build.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -180,6 +186,19 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 				_append(st, SkillTableau.shield_mesh(), basis, pos, Vector3(0.34, 0.52, 0.3))
 				for j in 3:
 					_append(st, SpellSpectacle._crystal_mesh(), basis.rotated(basis.x, PI * 0.5), pos + basis.z * 0.12 + basis.x * (j - 1) * 0.17 + Vector3.UP * 0.12 * (j % 2), Vector3(0.05, 0.32, 0.05))
+			"twin_dagger":
+				# The Assassin's two blades crossed point-up, each with a short guard.
+				for side in [-1.0, 1.0]:
+					var blade := basis.rotated(basis.z, 0.5 * side)
+					_append(st, SpellSpectacle._crystal_mesh(), blade, pos, Vector3(0.06, 0.5, 0.04))
+					_bar(st, pos - blade.y * 0.2 - blade.x * 0.1, pos - blade.y * 0.2 + blade.x * 0.1, 0.03)
+			"moon":
+				# A crescent moon facing out: a broad outer arc and a thin inner one.
+				for k in 6:
+					var a := lerpf(-1.25, 1.25, float(k) / 6.0)
+					var b := lerpf(-1.25, 1.25, float(k + 1) / 6.0)
+					_bar(st, pos + basis * Vector3(sin(a) * 0.34, cos(a) * 0.34, 0), pos + basis * Vector3(sin(b) * 0.34, cos(b) * 0.34, 0), 0.05)
+					_bar(st, pos + basis * Vector3(sin(a) * 0.24, cos(a) * 0.27 - 0.02, 0.02), pos + basis * Vector3(sin(b) * 0.24, cos(b) * 0.27 - 0.02, 0.02), 0.02)
 			"crown":
 				_append(st, SkillTableau.shield_mesh(), basis, pos, Vector3(0.18, 0.38, 0.18))
 				_arc(st, radius, float(look.height) - 0.25, angle, angle + TAU / n * 0.94, 0.024)
