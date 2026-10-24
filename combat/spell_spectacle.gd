@@ -37,6 +37,7 @@ static func warm_up(parent: Node3D, at: Vector3) -> void:
 ## Higher quality retains exactly the same vertices, normals and silhouettes.
 static func warm_geometry() -> void:
 	EliteSkillArt.warm_geometry()
+	ShadowSkillArt.warm_geometry()
 	BuffArt.warm_geometry()
 	SkillInk.warm_geometry()
 	SkillCraft.warm_geometry()

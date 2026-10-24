@@ -163,6 +163,7 @@ static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: b
 ## [param crit] only adds a fan of light; damage was already decided.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
 	ClassFlourish.contact(parent, skill, at, crit)
+	ShadowSkillArt.contact(parent, skill, at)
 	if MartialSkillArt.handles(skill):
 		MartialSkillArt.contact(parent,skill,at)
 		return
