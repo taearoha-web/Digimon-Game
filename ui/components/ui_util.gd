@@ -164,16 +164,42 @@ static func clear(node: Node) -> void:
 		child.queue_free()
 
 
+static var _discard: Node
+static var _discard_pending := false
+
+
 static func _discard_holder(node: Node) -> Node:
 	if not node.is_inside_tree():
 		return null
+	if is_instance_valid(_discard) and _discard.is_inside_tree():
+		return _discard
 	var root := node.get_tree().root
-	var holder := root.get_node_or_null(^"UIDiscard")
-	if holder == null:
-		holder = Node.new()
-		holder.name = "UIDiscard"
-		root.add_child(holder)
-	return holder
+	var found := root.get_node_or_null(^"UIDiscard")
+	if found != null:
+		_discard = found
+		return found
+	# A list built while the root is still adding the main scene's children cannot
+	# add the holder (add_child fails and would leave it orphaned for good): it goes
+	# in at the end of the frame, and until then the old children are simply freed.
+	if not _discard_pending:
+		_discard_pending = true
+		(func(): install_discard_holder(root)).call_deferred()
+	return null
+
+
+## Puts the holder under the root. Game calls it once the first frame has started
+## (the root is free then), so the holder is there before any button can be tapped.
+static func install_discard_holder(root: Node) -> void:
+	_discard_pending = false
+	if is_instance_valid(_discard) and _discard.is_inside_tree():
+		return
+	var found := root.get_node_or_null(^"UIDiscard")
+	if found != null:
+		_discard = found
+		return
+	_discard = Node.new()
+	_discard.name = "UIDiscard"
+	root.add_child(_discard)
 
 
 ## Full-rect animated cartoon sky background.

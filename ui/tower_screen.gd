@@ -58,12 +58,14 @@ func open_lobby() -> void:
 func close_screen() -> void:
 	is_open = false
 	_root.visible = false
+	# A closed screen keeps nothing: its lists are built again when it opens.
+	_clear()
 	get_tree().paused = false
 
 
 func _clear() -> void:
-	for child in _body.get_children():
-		child.queue_free()
+	# UIUtil.clear keeps a tapped button in the tree until it is freed (phone touch release).
+	UIUtil.clear(_body)
 
 
 func _column() -> VBoxContainer:

@@ -64,6 +64,7 @@ func _ready() -> void:
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
+	(func(): UIUtil.install_discard_holder(get_tree().root)).call_deferred()
 
 
 func _process(delta: float) -> void:

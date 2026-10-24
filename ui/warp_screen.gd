@@ -83,6 +83,8 @@ func open_warp() -> void:
 func close_warp() -> void:
 	is_open = false
 	_root.visible = false
+	# A closed screen keeps nothing: its lists are built again when it opens.
+	UIUtil.clear(_list)
 	get_tree().paused = false
 
 
