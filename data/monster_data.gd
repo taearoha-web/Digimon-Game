@@ -115,13 +115,15 @@ const ZONE_TUNING := {
 	&"storm": [0.2138, 4.7835, 0.2019, 6.5071],
 	&"sky": [0.1834, 6.5075, 0.2146, 11.2283],
 	&"abyss": [0.1246, 6.7121, 0.1692, 12.0917],
-	&"void": [0.0398, 4.6806, 0.1336, 7.24],
-	&"dawn_forest": [0.0978, 23.2094, 0.1172, 20.1817],
-	&"crystal_valley": [0.094, 35.4653, 0.1069, 31.8467],
-	&"sky_citadel": [0.1095, 48.1081, 0.1488, 42.37],
-	&"eclipse_realm": [0.1033, 65.8753, 0.1196, 63.786],
+	&"void": [0.0398, 4.6806, 0.147, 7.24],
+	&"dawn_forest": [0.0978, 23.2094, 0.1348, 20.1817],
+	&"crystal_valley": [0.094, 35.4653, 0.1497, 31.8467],
+	&"sky_citadel": [0.1095, 48.1081, 0.186, 42.37],
+	&"eclipse_realm": [0.1033, 65.8753, 0.134, 63.786],
 	&"lotus_sanctum": [0.0638, 75.8607, 0.1463, 73.344],
 }
+## Late bosses gained boss health (index 2) when single-target skills began to
+## out-hit area skills (ClassData.SINGLE_EDGE), so boss fights keep their length.
 ## From Lv.100 on monsters carry more health on top of ZONE_TUNING, growing from
 ## the Lv.100 void to the 200-star Lotus Sanctum (x2 .. x5 of what they had).
 const LATE_HP := {
