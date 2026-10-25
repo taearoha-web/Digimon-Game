@@ -72,7 +72,7 @@ static func pool(cls: StringName) -> Array:
 			"judgment_rebound": s.merge({"shape":"blast", "range":12.0, "radius":6.0, "gesture":"cleave", "fx":{"shred":[0.2,6.0]}}, true)
 			"eternal_aegis": s.merge({"shape":"self", "mult":0.0, "gesture":"ward", "radius":8.0, "fx":{"buff":{"guard":0.3, "def":0.5, "shield":0.2, "secs":60.0}}}, true)
 			"heavens_bulwark": s.merge({"shape":"burst", "requires_wings":true, "hit_delay":1.3, "radius":10.0, "gesture":"ground_slam", "fx":{"stun":1.5, "taunt":4.0}}, true)
-			"umbral_lacerate": s.merge({"shape":"burst", "range":5.0, "radius":5.0, "mult":9.0, "gesture":"cross_cut", "fx":{"burn":[0.35,5.0]}}, true)
+			"umbral_lacerate": s.merge({"shape":"burst", "range":5.0, "radius":5.0, "mult":10.0, "gesture":"cross_cut", "fx":{"burn":[0.35,5.0]}}, true)
 			"shadow_execution": s.merge({"shape":"single", "range":3.6, "mult":27.0, "gesture":"execution", "fx":{"shred":[0.2,6.0]}}, true)
 			"veil_of_night": s.merge({"shape":"self", "mult":0.0, "gesture":"weave", "radius":8.0, "anim":"Dodge_Backward", "fx":{"buff":{"crit":0.2, "dodge":0.15, "atk":0.4, "secs":60.0}}}, true)
 			"eclipse_requiem": s.merge({"shape":"burst", "requires_wings":true, "hit_delay":1.4, "radius":6.5, "mult":24.0, "gesture":"raise", "fx":{"stun":1.5}}, true)
