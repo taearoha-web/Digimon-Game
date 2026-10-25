@@ -38,7 +38,9 @@ func _ready() -> void:
 		main.title_screen.queue_free()
 		main.title_screen = null
 	main.hud.visible = true
-	Engine.time_scale = 3.0
+	# Real time: cast locks (Hero._cast_until) run on the wall clock, so a faster
+	# time scale would throttle skills against basic attacks.
+	Engine.time_scale = 1.0
 	var rows := []
 	for entry in classes:
 		var parts := String(entry).split(":")
