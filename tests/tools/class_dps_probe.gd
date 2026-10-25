@@ -2,7 +2,7 @@ extends Node
 ## Real-combat damage per second of every class at the end of the game: a Lv.100,
 ## ★200 hero, every job advancement, the boost tool's best +10 gear, a standard
 ## build (two thirds of the stat points in the main stat, the rest in VIT; star
-## points as balance_probe spends them) and every skill at rank 5, hunting on auto
+## points as balance_probe spends them) and every skill and passive at rank 5, hunting on auto
 ## in one field for a fixed stretch of game time. Counts the health it takes off
 ## monsters (its summons included), so attack speed, crits, skills, cooldowns and
 ## the auto-caster all show.
@@ -104,7 +104,7 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 		para.alloc[key] = put
 		spend -= put
 	para.points = spend
-	for skill in ClassData.pool(cls):
+	for skill in ClassData.pool(cls) + ClassData.PASSIVES.get(cls, []):
 		p.skills[String(skill.id)] = SkillRank.MAX
 	p.party = []
 	p.loadout = best_bar(cls)

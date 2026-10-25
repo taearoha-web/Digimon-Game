@@ -1006,7 +1006,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	if fx.has("slow"):
 		mob.apply_slow(float(fx.slow))
 	if fx.has("burn"):
-		mob.apply_burn(float(stats.atk) * float(fx.burn[0]) * rank_mult(skill), float(fx.burn[1]))
+		mob.apply_burn(HeroStats.burn_dps(float(stats.atk) * rank_mult(skill), float(fx.burn[0]), float(mob.stats.def)), float(fx.burn[1]))
 	if fx.has("taunt") and mob.has_method("taunt"):
 		mob.taunt(self, float(fx.taunt))
 

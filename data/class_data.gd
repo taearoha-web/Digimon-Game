@@ -77,6 +77,7 @@ const CLASSES := {
 		"gain": {"str": 0, "int": 1, "dex": 3, "vit": 1},
 		"hp_mult": 1.05,
 		"mp_mult": 0.9,
+		"base_crit": 0.15,
 		"attack": {
 			"range": 11.0, "interval": 0.85, "mult": 1.0, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
 			"color": Color("e8e0c0"),
@@ -162,7 +163,6 @@ const CLASSES := {
 		"gain": {"str": 1, "int": 0, "dex": 3, "vit": 2},
 		"hp_mult": 1.15,
 		"mp_mult": 0.8,
-		"crit_bonus": 0.04,
 		"attack": {
 			"range": 3.8, "interval": 0.72, "mult": 1.0, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
 			"anims": ["2H_Melee_Attack_Stab", "2H_Melee_Attack_Slice", "2H_Melee_Attack_Stab"],
@@ -204,7 +204,7 @@ const CLASSES := {
 		"gain": {"str": 1, "int": 0, "dex": 3, "vit": 2},
 		"hp_mult": 1.05,
 		"mp_mult": 0.8,
-		"crit_bonus": 0.08,
+		"base_crit": 0.15,
 		"attack": {
 			"range": 2.4, "interval": 0.58, "mult": 0.82, "hit_delay": 0.18, "projectile": false, "vfx": &"slash",
 			"anims": ["Dualwield_Melee_Attack_Chop", "1H_Melee_Attack_Stab", "1H_Melee_Attack_Slice_Diagonal"],

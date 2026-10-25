@@ -5,16 +5,26 @@ extends RefCounted
 const MOVE_SPEED := 5.4
 ## Each +1 of enhancement adds this share of the item's stats (+50% at +10).
 const PLUS_BONUS := 0.05
-## Crit chance stops here (gear crit used to reach 80% at the end of the game).
-const MAX_CRIT := 0.5
+## Crit chance: every class starts at BASE_CRIT (archer and assassin at their
+## class "base_crit"); DEX, gear, job advancement, passives, star points and
+## buffs add to it, up to 100%.
+const MAX_CRIT := 1.0
+const BASE_CRIT := 0.10
+const CRIT_PER_DEX := 0.00025
+## Items carry crit as a rating (the values they have always stored); this share
+## of it is crit chance, so a full +10 set of the best gear gives about 30%.
+## Socketed topaz gems count in full.
+const GEAR_CRIT_SCALE := 0.2
 const CRIT_DAMAGE := 1.6
 ## Skill damage relative to the authored multipliers. Measured with
 ## tests/tools/balance_probe.tscn: at 1.0 the strongest skill one-shot a
 ## normal monster on every field (100-230% of its HP); at 0.4 it takes 2-3
 ## casts while basic attacks keep their pace.
 const SKILL_POWER := 0.4
-## DEX makes skills and attacks quicker: 1% per 10 DEX, at most 40%.
-const HASTE_PER_DEX := 0.001
+## DEX makes skills and attacks quicker with diminishing returns: the haste
+## approaches MAX_HASTE, half of it at HASTE_HALF_DEX (about 13% at 130 DEX, 27%
+## at 600). Star points add on top, up to MAX_HASTE.
+const HASTE_HALF_DEX := 280.0
 const MAX_HASTE := 0.4
 
 
@@ -40,7 +50,7 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 		var item: Dictionary = profile["equip"][slot]
 		var boost := 1.0 + PLUS_BONUS * float(item.get("plus", 0))
 		for key in item.get("stats", {}):
-			total[key] = total.get(key, 0.0) + float(item.stats[key]) * (boost if key != "crit" else 1.0 + 0.04 * float(item.get("plus", 0)))
+			total[key] = total.get(key, 0.0) + float(item.stats[key]) * (boost if key != "crit" else (1.0 + 0.04 * float(item.get("plus", 0))) * GEAR_CRIT_SCALE)
 		for gem_id in item.get("gems", []):
 			var info := ItemData.gem_info({"id": gem_id})
 			total[info.stat] = total.get(info.stat, 0.0) + float(info.value)
@@ -109,13 +119,19 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp))) + int(gear.mp),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(0.05 + attrs.dex * 0.002 + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
+		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
-		"haste": clampf(float(attrs.dex) * HASTE_PER_DEX + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
+		"haste": clampf(MAX_HASTE * float(attrs.dex) / (float(attrs.dex) + HASTE_HALF_DEX) + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
 	}
 
 
 ## Damage after the target's defence: 100 / (100 + def).
 static func mitigate(raw: float, defence: float) -> float:
 	return raw * 100.0 / (100.0 + maxf(defence, 0.0))
+
+
+## Burn / poison / bleed per second a skill leaves: its share of attack per
+## second, reduced by the target's defence like the hit itself.
+static func burn_dps(atk: float, per_second: float, defence: float) -> float:
+	return mitigate(atk * per_second, defence)
