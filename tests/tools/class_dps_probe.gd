@@ -7,6 +7,8 @@ extends Node
 ## monsters (its summons included), so attack speed, crits, skills, cooldowns and
 ## the auto-caster all show.
 ##   godot --headless --path . res://tests/tools/class_dps_probe.tscn -- [SECONDS] [ZONE] [class,class...]
+## A class written as class:skill+skill runs with only those skills on its bar
+## (class: alone = basic attacks only), to see what each skill adds.
 ## Prints one DPS line per class, then each class relative to the median.
 const Boost := preload("res://tools/boost_character.gd")
 
@@ -31,8 +33,10 @@ func _ready() -> void:
 	main.hud.visible = true
 	Engine.time_scale = 3.0
 	var rows := []
-	for cls in classes:
-		rows.append(await _measure(StringName(cls), zone_id, seconds))
+	for entry in classes:
+		var parts := String(entry).split(":")
+		var bar: Variant = Array(parts[1].split("+", false)) if parts.size() > 1 else null
+		rows.append(await _measure(StringName(parts[0]), zone_id, seconds, bar))
 	Engine.time_scale = 1.0
 	var values := rows.map(func(r): return float(r.dps))
 	values.sort()
@@ -41,6 +45,7 @@ func _ready() -> void:
 	for r in rows:
 		print("DPS %-9s %8.0f /s  x%.2f of median | atk %d crit %.0f%% haste %.0f%% dodge %.0f%% hp %d def %d" % [r.cls, r.dps, float(r.dps) / maxf(median, 1.0),
 			r.atk, r.crit * 100.0, r.haste * 100.0, r.dodge * 100.0, r.hp, r.def])
+		print("BAR %-9s %s" % [r.cls, r.bar])
 	get_tree().quit()
 
 
@@ -55,7 +60,32 @@ func _physics_process(_delta: float) -> void:
 		_last_hp[id] = mob.hp
 
 
-func _measure(cls: StringName, zone_id: StringName, seconds: float) -> Dictionary:
+## The bar an endgame player runs: the six hardest-hitting unlocked attacks
+## (damage per second of cooldown, area skills counted as three targets,
+## summons included) and the two self buffs with the most attack.
+static func best_bar(cls: StringName) -> Array:
+	var tier := Game.class_tier()
+	var stars := int(Game.paragon().level)
+	var attacks := []
+	var buffs := []
+	for skill in ClassData.pool(cls):
+		if int(skill.level) > int(Game.profile.level) or ClassData.skill_tier(skill) > tier or int(skill.get("star", 0)) > stars:
+			continue
+		var fx: Dictionary = skill.get("fx", {})
+		if float(skill.mult) > 0.0:
+			var targets := 3.0 if String(skill.shape) in ["burst", "blast", "fan", "chain"] or skill.has("pierce") else 1.0
+			attacks.append([float(skill.mult) * targets / maxf(float(skill.cd), 1.0), String(skill.id)])
+		elif fx.has("buff") and float(fx.buff.get("atk", 0.0)) > 0.0:
+			buffs.append([float(fx.buff.atk), String(skill.id)])
+	attacks.sort_custom(func(a, b): return a[0] > b[0])
+	buffs.sort_custom(func(a, b): return a[0] > b[0])
+	var bar := attacks.slice(0, 6).map(func(e): return e[1]) + buffs.slice(0, 2).map(func(e): return e[1])
+	while bar.size() < ClassData.SLOTS:
+		bar.append("")
+	return bar
+
+
+func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Variant = null) -> Dictionary:
 	Game.new_profile(cls, "DPS", FaceKit.default_look())
 	var bundle := {"slots": {"1": Game.profile.duplicate(true)}, "selectedSlot": 1}
 	var result := Boost.boost_bundle(bundle, "DPS", String(cls))
@@ -77,8 +107,11 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float) -> Dictionar
 	for skill in ClassData.pool(cls):
 		p.skills[String(skill.id)] = SkillRank.MAX
 	p.party = []
-	p.loadout = ["", "", "", "", "", "", "", ""]
-	Game.fill_loadout()
+	p.loadout = best_bar(cls)
+	if only is Array:
+		p.loadout = only + []
+		while p.loadout.size() < ClassData.SLOTS:
+			p.loadout.append("")
 	await main.go(zone_id, true)
 	await get_tree().create_timer(0.5).timeout
 	var hero: Hero = main.zone.hero
@@ -98,5 +131,5 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float) -> Dictionar
 		t += 0.5
 		Game.profile.hp = hero.stats.max_hp
 		Game.profile.mp = hero.stats.max_mp
-	return {"cls": String(cls), "dps": _dealt / seconds, "atk": int(stats.atk), "crit": float(stats.crit), "haste": float(stats.haste),
+	return {"cls": String(cls), "bar": ",".join(Game.profile.loadout), "dps": _dealt / seconds, "atk": int(stats.atk), "crit": float(stats.crit), "haste": float(stats.haste),
 		"dodge": float(stats.dodge), "hp": int(stats.max_hp), "def": int(stats.def)}
