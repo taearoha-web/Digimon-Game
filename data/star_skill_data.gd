@@ -77,6 +77,7 @@ static func pool(cls: StringName) -> Array:
 			"veil_of_night": s.merge({"shape":"self", "mult":0.0, "gesture":"weave", "radius":8.0, "anim":"Dodge_Backward", "fx":{"buff":{"crit":0.2, "dodge":0.15, "atk":0.4, "secs":60.0}}}, true)
 			"eclipse_requiem": s.merge({"shape":"burst", "requires_wings":true, "hit_delay":1.4, "radius":6.5, "mult":18.0, "gesture":"raise", "fx":{"stun":1.5}}, true)
 			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":120.0}},true)
+		s["mult"] = float(s.mult) * ClassData.skill_tune(cls, 100, true, String(s.shape))
 		out.append(s)
 	return out
 

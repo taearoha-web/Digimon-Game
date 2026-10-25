@@ -358,6 +358,38 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 
 # --- skill table -----------------------------------------------------------
 
+## Single-target skills finish an enemy harder than area skills hit each enemy:
+## every single-target skill (and summon) carries SINGLE_EDGE, every area skill
+## (burst, blast, fan, chain) AREA_SHARE, on top of its authored multiplier.
+const SINGLE_EDGE := 1.15
+const AREA_SHARE := 0.7
+## Per-class damage tuning, measured with tests/tools/class_dps_probe.tscn
+## (real-time fights against one target and a pack of six at Lv.26, Lv.70 and
+## Lv.100 ★200, each class with its strongest bar): [single-target, area]
+## factors for skills unlocked at Lv.1-45, Lv.46-85 and Lv.86-100 / star skills,
+## so no class stands out in either fight at any stage.
+const TUNE := {
+	&"warrior": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"archer": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"mage": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"priest": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"summoner": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"lancer": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"defender": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+	&"assassin": [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+}
+const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
+
+
+## The tuning factor of a class's skill: its band (by unlock level; star
+## skills belong to the last band) and whether it strikes one target or an area.
+static func skill_tune(cls: StringName, level: int, star: bool, shape: String) -> float:
+	var area := shape in AREA_SHAPES
+	var band := 2 if star or level > 85 else (1 if level > 45 else 0)
+	var table: Array = TUNE.get(cls, [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]])
+	return float(table[band][1 if area else 0]) * (AREA_SHARE if area else SINGLE_EDGE)
+
+
 ## High-level skills hit a lot harder on paper; the damage audit showed them
 ## one-shooting their own zones with farmed gear. Their multiplier fades from
 ## 100% at Lv.20 to 65% at Lv.100 (summons included).
@@ -366,7 +398,7 @@ static func damage_curve(level: int) -> float:
 
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
-	mult *= damage_curve(level)
+	mult *= damage_curve(level) * skill_tune(cls, level, false, shape)
 	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender" or cls == &"assassin"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}

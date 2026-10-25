@@ -110,10 +110,12 @@ func _run(zone: Node, hero: Hero, camp: Dictionary, count: int, seconds: float) 
 	return _dealt / seconds
 
 
-## The bar an endgame player runs: the six hardest-hitting unlocked attacks
-## (damage per second of cooldown, area skills counted as three targets,
-## summons included) and the two self buffs with the most attack.
-static func best_bar(cls: StringName) -> Array:
+## The bar a player runs for the fight at hand: against one target ("single")
+## the six attacks with the most damage per second of cooldown that reach a lone
+## enemy (blasts, fans and chains hit it once; bursts are not cast on one target),
+## against a pack ("pack") the six with the most over six enemies; plus the two
+## self buffs with the most attack. Summons count in both.
+static func best_bar(cls: StringName, mode := "pack") -> Array:
 	var tier := Game.class_tier()
 	var stars := int(Game.paragon().level)
 	var attacks := []
@@ -122,8 +124,22 @@ static func best_bar(cls: StringName) -> Array:
 		if int(skill.level) > int(Game.profile.level) or ClassData.skill_tier(skill) > tier or int(skill.get("star", 0)) > stars:
 			continue
 		var fx: Dictionary = skill.get("fx", {})
+		var shape := String(skill.shape)
 		if float(skill.mult) > 0.0:
-			var targets := 3.0 if String(skill.shape) in ["burst", "blast", "fan", "chain"] or skill.has("pierce") else 1.0
+			var targets := 1.0
+			if mode == "single":
+				if shape == "burst":
+					continue
+			else:
+				match shape:
+					"burst", "blast": targets = 6.0
+					"fan": targets = minf(float(skill.get("hits", 1)), 6.0)
+					"chain":
+						targets = 0.0
+						for i in mini(int(skill.get("hits", 1)), 6):
+							targets += pow(0.85, i)
+					"summon": targets = 2.0
+					_: targets = 3.0 if skill.has("pierce") or skill.has("line") else 1.0
 			attacks.append([float(skill.mult) * targets / maxf(float(skill.cd), 1.0), String(skill.id)])
 		elif fx.has("buff") and float(fx.buff.get("atk", 0.0)) > 0.0:
 			buffs.append([float(fx.buff.atk), String(skill.id)])
@@ -170,11 +186,12 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 		if int(skill.level) <= int(p.level):
 			p.skills[String(skill.id)] = SkillRank.MAX
 	p.party = []
-	p.loadout = best_bar(cls)
+	var fixed: Array = []
 	if only is Array:
-		p.loadout = only + []
-		while p.loadout.size() < ClassData.SLOTS:
-			p.loadout.append("")
+		fixed = only + []
+		while fixed.size() < ClassData.SLOTS:
+			fixed.append("")
+	p.loadout = fixed if only is Array else best_bar(cls, "single")
 	await main.go(zone_id, true)
 	await get_tree().create_timer(0.5).timeout
 	var zone: Node = main.zone
@@ -193,6 +210,8 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 	hero.set_auto(true)
 	var stats := HeroStats.compute(Game.profile)
 	var single: float = await _run(zone, hero, ground, 1, seconds)
+	var single_bar := ",".join(Game.profile.loadout)
+	Game.profile.loadout = fixed if only is Array else best_bar(cls, "pack")
 	var pack: float = await _run(zone, hero, ground, 6, seconds)
-	return {"cls": String(cls), "bar": ",".join(Game.profile.loadout), "single": single, "pack": pack, "atk": int(stats.atk), "crit": float(stats.crit), "haste": float(stats.haste),
+	return {"cls": String(cls), "bar": single_bar + " / " + ",".join(Game.profile.loadout), "single": single, "pack": pack, "atk": int(stats.atk), "crit": float(stats.crit), "haste": float(stats.haste),
 		"dodge": float(stats.dodge), "hp": int(stats.max_hp), "def": int(stats.def)}

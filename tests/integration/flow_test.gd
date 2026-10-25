@@ -1947,7 +1947,7 @@ func _balance_rules() -> void:
 	check(BuffBook.stack([]) == 0.0 and BuffBook.stack([0.4]) == 0.4, "one buff counts in full")
 	check(is_equal_approx(ClassData.damage_curve(20), 1.0) and is_equal_approx(ClassData.damage_curve(100), 0.65), "skill damage fades from 100% (Lv.20) to 65% (Lv.100)")
 	var gladiator := ClassData.find_skill(&"warrior", "gladiator")
-	check(absf(float(gladiator.mult) - 26.0 * 0.65) < 0.01, "Lv.100 skills carry the curve (Gladiator x%.1f)" % float(gladiator.mult))
+	check(absf(float(gladiator.mult) - 26.0 * 0.65 * ClassData.skill_tune(&"warrior", 100, false, String(gladiator.shape))) < 0.01, "Lv.100 skills carry the curve and the class tuning (Gladiator x%.1f)" % float(gladiator.mult))
 	check(HeroStats.MAX_CRIT == 1.0 and HeroStats.PLUS_BONUS == 0.05, "crit can reach 100%, +10 gear gives +50%")
 	check(HeroStats.BASE_CRIT == 0.1 and float(ClassData.CLASSES[&"archer"].base_crit) == 0.15 and float(ClassData.CLASSES[&"assassin"].base_crit) == 0.15, "crit starts at 10% (archer and assassin 15%)")
 	for cls in ClassData.IDS:
