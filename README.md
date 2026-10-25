@@ -13,6 +13,14 @@ A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3*
 - Look keys `style`, `skin_tone`, `hair_tint`, `eye_tint`, `acc` are 0 for the original texture (save validation accepts no negative numbers), so existing saves look exactly as before. Rivals and guild fighters wear one of the three styles, picked without drawing extra random numbers.
 - `tests/integration/chibi_look_test.tscn` (80 checks). Previews: `tests/tools/chibi_look_preview.tscn -- OUT_DIR styles|hair_tint|skin_tone|eye_tint|acc face|full|back` with `tools/chibi_look_sheet.py`, and `tests/tools/creator_shot.tscn`.
 
+## Critical hits and class balance (October 2026)
+
+- **Critical chance** starts at **10%** for every class (**15%** for Archer and Assassin) and can reach **100%**. DEX adds 0.025% per point, gear crit counts at a fifth of the rating items carry (a full +10 set of the best gear gives about 30%; socketed topaz counts in full), job advancement adds half of what it used to, then passives, star points and buffs. Typical totals: about 15% (Archer/Assassin about 34%) at Lv.30, 20–35% (45–60%) at Lv.100, 45–60% (75–90%) with ★200 gear, up to 100% under crit buffs (`systems/core/hero_stats.gd`).
+- DEX speeds attacks and skills with diminishing returns (about 13% at 130 DEX, 27% at 600, towards 40%), so DEX classes no longer sit at the speed cap.
+- Burn, poison and bleed per second are reduced by the target's defence like the hit itself (they used to ignore it, which made area poisons dominate the late fields).
+- **Assassin** is a single-target killer again, not the strongest area class: basic attack ×0.5, lower area skills (Oblivion Requiem, Abyss Vortex, Midnight Execution, Umbral Lacerate, Eclipse Requiem), Night Lord ATK +35%, Shadow Sovereign ATK +55%, 4-piece star set crits +10%.
+- `tests/tools/class_dps_probe.tscn -- SECONDS ZONE [classes] [LEVEL]` measures every class's real-time damage per second on a fixed training ground (one target, then a pack of six) with the strongest bar a player would run. After the changes the Assassin sits at ×0.98 / ×0.92 of the class median (single / pack) at Lv.26, ×1.47 / ×1.00 at Lv.70 and ×1.33 / ×0.93 at Lv.100 ★200 (it was about ×2.4 overall).
+
 ## Session report: summary first (October 2026)
 
 - A pasted **รายงานการหลุด** is often cut short by the chat app (an iPhone report of a 19-minute session arrived with only its first 6 minutes). The report now opens with `previousSummary`: how the session ended, its error counts, every recorded event, the first and the last five samples, the growth between them, and a one-line-per-sample `timeline` (seconds, WASM heap, video memory, objects, nodes, fps, worst frame, visibility, zone). Even a truncated paste then shows the whole session's trend. `node tools/test_web_session.mjs` covers the shape.
