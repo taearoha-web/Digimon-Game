@@ -79,7 +79,7 @@ const CLASSES := {
 		"mp_mult": 0.9,
 		"base_crit": 0.15,
 		"attack": {
-			"range": 11.0, "interval": 0.85, "mult": 1.0, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
+			"range": 11.0, "interval": 0.85, "mult": 0.85, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
 			"color": Color("e8e0c0"),
 			"anims": ["2H_Ranged_Shoot"],
 		},
@@ -164,7 +164,7 @@ const CLASSES := {
 		"hp_mult": 1.15,
 		"mp_mult": 0.8,
 		"attack": {
-			"range": 3.8, "interval": 0.72, "mult": 1.0, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
+			"range": 3.8, "interval": 0.72, "mult": 0.88, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
 			"anims": ["2H_Melee_Attack_Stab", "2H_Melee_Attack_Slice", "2H_Melee_Attack_Stab"],
 		},
 	},
@@ -366,17 +366,17 @@ const AREA_SHARE := 0.7
 ## Per-class damage tuning, measured with tests/tools/class_dps_probe.tscn
 ## (real-time fights against one target and a pack of six at Lv.26, Lv.70 and
 ## Lv.100 ★200, each class with its strongest bar): [single-target, area]
-## factors for skills unlocked at Lv.1-45, Lv.46-85 and Lv.86-100 / star skills,
+## factors for skills unlocked at Lv.1-35, Lv.36-75 and Lv.76-100 / star skills,
 ## so no class stands out in either fight at any stage.
 const TUNE := {
-	&"warrior": [[1.054, 1.054], [0.705, 0.705], [1.413, 1.5]],
-	&"archer": [[0.718, 0.718], [0.707, 0.707], [0.809, 0.809]],
-	&"mage": [[0.714, 0.658], [1.33, 0.804], [1.57, 0.805]],
-	&"priest": [[1.515, 1.515], [1.147, 1.147], [2.5, 1.754]],
-	&"summoner": [[0.959, 0.959], [1.432, 1.432], [0.806, 0.806]],
-	&"lancer": [[0.792, 0.792], [0.729, 0.925], [0.888, 0.888]],
-	&"defender": [[1.34, 1.34], [1.475, 1.771], [2.245, 1.741]],
-	&"assassin": [[1.015, 1.015], [0.887, 0.887], [0.978, 0.978]],
+	&"warrior": [[1.05, 1.05], [0.583, 0.583], [1.487, 1.579]],
+	&"archer": [[0.6, 0.6], [0.661, 0.661], [0.771, 0.771]],
+	&"mage": [[0.648, 0.576], [1.521, 0.662], [1.637, 0.839]],
+	&"priest": [[1.608, 1.608], [1.141, 1.141], [2.5, 2.008]],
+	&"summoner": [[0.96, 0.96], [1.491, 1.491], [0.873, 0.873]],
+	&"lancer": [[0.717, 0.717], [0.69, 0.876], [0.779, 0.779]],
+	&"defender": [[1.345, 1.345], [1.603, 1.925], [2.5, 1.77]],
+	&"assassin": [[1.022, 1.022], [0.889, 0.889], [0.984, 0.984]],
 }
 const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 
@@ -385,7 +385,7 @@ const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 ## skills belong to the last band) and whether it strikes one target or an area.
 static func skill_tune(cls: StringName, level: int, star: bool, shape: String) -> float:
 	var area := shape in AREA_SHAPES
-	var band := 2 if star or level > 85 else (1 if level > 45 else 0)
+	var band := 2 if star or level > 75 else (1 if level > 35 else 0)
 	var table: Array = TUNE.get(cls, [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]])
 	return float(table[band][1 if area else 0]) * (AREA_SHARE if area else SINGLE_EDGE)
 
