@@ -79,7 +79,7 @@ const CLASSES := {
 		"mp_mult": 0.9,
 		"base_crit": 0.15,
 		"attack": {
-			"range": 11.0, "interval": 0.85, "mult": 0.85, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
+			"range": 11.0, "interval": 0.85, "mult": 0.8, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
 			"color": Color("e8e0c0"),
 			"anims": ["2H_Ranged_Shoot"],
 		},
@@ -164,7 +164,7 @@ const CLASSES := {
 		"hp_mult": 1.15,
 		"mp_mult": 0.8,
 		"attack": {
-			"range": 3.8, "interval": 0.72, "mult": 0.88, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
+			"range": 3.8, "interval": 0.72, "mult": 0.8, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
 			"anims": ["2H_Melee_Attack_Stab", "2H_Melee_Attack_Slice", "2H_Melee_Attack_Stab"],
 		},
 	},
@@ -369,14 +369,14 @@ const AREA_SHARE := 0.7
 ## factors for skills unlocked at Lv.1-35, Lv.36-75 and Lv.76-100 / star skills,
 ## so no class stands out in either fight at any stage.
 const TUNE := {
-	&"warrior": [[1.058, 1.058], [0.539, 0.539], [1.407, 1.544]],
-	&"archer": [[0.712, 0.712], [0.623, 0.623], [0.724, 0.724]],
-	&"mage": [[0.593, 0.527], [1.947, 0.54], [2.391, 0.882]],
-	&"priest": [[1.676, 1.676], [1.112, 1.112], [1.703, 1.889]],
-	&"summoner": [[0.953, 0.953], [1.601, 1.484], [0.936, 0.936]],
-	&"lancer": [[0.794, 0.794], [0.66, 0.838], [0.755, 0.755]],
-	&"defender": [[1.417, 1.417], [1.618, 1.943], [2.174, 1.749]],
-	&"assassin": [[1.003, 1.003], [0.887, 0.887], [0.949, 0.949]],
+	&"warrior": [[1.072, 1.072], [0.509, 0.509], [1.316, 1.448]],
+	&"archer": [[0.7, 0.7], [0.604, 0.604], [0.695, 0.695]],
+	&"mage": [[0.54, 0.48], [1.739, 0.482], [2.5, 0.979]],
+	&"priest": [[1.698, 1.698], [1.036, 1.036], [1.704, 1.89]],
+	&"summoner": [[0.927, 0.927], [1.577, 1.462], [0.921, 0.921]],
+	&"lancer": [[0.76, 0.76], [0.641, 0.852], [0.8, 0.8]],
+	&"defender": [[1.401, 1.401], [1.615, 1.939], [1.957, 1.574]],
+	&"assassin": [[0.984, 0.984], [0.871, 0.871], [0.884, 0.884]],
 }
 const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 
