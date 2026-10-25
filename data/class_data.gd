@@ -369,14 +369,14 @@ const AREA_SHARE := 0.7
 ## factors for skills unlocked at Lv.1-45, Lv.46-85 and Lv.86-100 / star skills,
 ## so no class stands out in either fight at any stage.
 const TUNE := {
-	&"warrior": [[1.049, 1.049], [0.817, 0.817], [1.299, 1.379]],
-	&"archer": [[0.84, 0.84], [0.798, 0.798], [0.815, 0.815]],
-	&"mage": [[0.823, 0.79], [1.072, 0.863], [1.304, 0.848]],
-	&"priest": [[1.352, 1.352], [1.12, 1.12], [2.5, 1.402]],
-	&"summoner": [[0.97, 0.97], [1.265, 1.265], [0.856, 0.856]],
-	&"lancer": [[0.893, 0.893], [0.825, 0.985], [0.91, 0.91]],
-	&"defender": [[1.227, 1.227], [1.269, 1.425], [1.764, 1.532]],
-	&"assassin": [[1.017, 1.017], [0.912, 0.912], [1.015, 1.015]],
+	&"warrior": [[1.054, 1.054], [0.705, 0.705], [1.413, 1.5]],
+	&"archer": [[0.718, 0.718], [0.707, 0.707], [0.809, 0.809]],
+	&"mage": [[0.714, 0.658], [1.33, 0.804], [1.57, 0.805]],
+	&"priest": [[1.515, 1.515], [1.147, 1.147], [2.5, 1.754]],
+	&"summoner": [[0.959, 0.959], [1.432, 1.432], [0.806, 0.806]],
+	&"lancer": [[0.792, 0.792], [0.729, 0.925], [0.888, 0.888]],
+	&"defender": [[1.34, 1.34], [1.475, 1.771], [2.245, 1.741]],
+	&"assassin": [[1.015, 1.015], [0.887, 0.887], [0.978, 0.978]],
 }
 const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 
@@ -554,10 +554,10 @@ static func _build_pools() -> void:
 		_sk(p, "regeneration_field", "Regeneration Field", "ฟื้นฟู HP 50% DEF +30% นาน 1 นาที", 56, 76, 28.0, "self", 0.0, {"fx": {"heal": 0.5, "buff": {"def": 0.3, "secs": 60.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("6dff9a"), "icon": "heal"}),
 		_sk(p, "chain_lightning", "Chain Lightning", "สายฟ้าสวรรค์ฟาดศัตรู 8 ตัว", 60, 70, 11.0, "chain", 5.5, {"hits": 8, "color": Color("fff06a"), "icon": "bolt"}),
 		_sk(p, "blessing_aura", "Blessing Aura", "ATK +50% DEF +40% นาน 1 นาที", 64, 84, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "def": 0.4, "secs": 60.0}}, "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),
-		_sk(p, "judgement_light", "Judgement", "แสงพิพากษาตกใส่พื้นที่", 68, 80, 12.0, "blast", 10.0, {"radius": 7.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
+		_sk(p, "judgement_light", "Judgement", "แสงพิพากษาผ่าลงใส่ศัตรูตัวเดียว", 68, 80, 12.0, "single", 10.0, {"projectile": false, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
 		_sk(p, "hand_of_god", "Hand of God", "มือพระเจ้า ฟื้นฟู HP 90%", 72, 96, 24.0, "self", 0.0, {"fx": {"heal": 0.9}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
 		_sk(p, "heaven_light", "Heaven Light", "แสงสวรรค์ถล่มรอบตัว ฟื้นฟู HP 15%", 76, 100, 14.0, "burst", 10.5, {"radius": 8.0, "fx": {"heal": 0.15}, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
-		_sk(p, "divine_judgment", "Divine Judgment", "คำพิพากษาแห่งสวรรค์ ศัตรูมึนงง 1.5 วินาที", 80, 110, 16.0, "blast", 15.0, {"radius": 9.0, "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
+		_sk(p, "divine_judgment", "Divine Judgment", "คำพิพากษาแห่งสวรรค์ผ่าลงศัตรูตัวเดียว มึนงง 1.5 วินาที", 80, 110, 16.0, "single", 15.0, {"projectile": false, "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
 		_sk(p, "prayer", "Prayer", "สวดมนต์ ฟื้นฟู HP 100% และ DEF +50% นาน 1 นาที", 84, 120, 50.0, "self", 0.0, {"fx": {"heal": 1.0, "buff": {"def": 0.5, "secs": 60.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
 		_sk(p, "seraphim_wrath", "Seraphim Wrath", "ลูกแสงเสราฟิม 9 ลูกพุ่งใส่ศัตรู", 88, 118, 14.0, "fan", 5.5, {"hits": 9, "color": Color("fff0a0"), "icon": "triple"}),
 		_sk(p, "holy_rain_big", "Holy Rain", "ฝนแสงศักดิ์สิทธิ์ถล่มพื้นที่กว้างมาก", 92, 130, 18.0, "blast", 16.0, {"radius": 10.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
