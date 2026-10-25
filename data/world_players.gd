@@ -11,9 +11,9 @@ extends RefCounted
 ## village at the start and end of a session and otherwise hunts in the field that fits
 ## its level (WorldPresence shows it there, fighting the field's monsters for real).
 
-## The world opened here (unix seconds; 25 Oct 2026, 22:00 Thai time): every world
+## The world opened here (unix seconds; 26 Oct 2026, 07:00 Thai time): every world
 ## player started at Lv.1.
-const START_UNIX := 1792940400
+const START_UNIX := 1792972800
 ## Schedules run on Thai time.
 const TZ := 7 * 3600
 const DAY := 86400
