@@ -46,7 +46,7 @@ static func pool(cls: StringName) -> Array:
 			"icon": "star", "gesture": "thrust" if cls == &"lancer" else "cleave" if melee else "aim" if cls == &"archer" else "raise"}
 		match String(s.id):
 			"lionfang_cleave": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"cross_cut"}, true)
-			"crown_breaker": s.merge({"shape":"single", "range":3.5, "gesture":"execution", "fx":{"shred": [0.2,6.0]}}, true)
+			"crown_breaker": s.merge({"shape":"single", "range":3.5, "mult":27.0, "gesture":"execution", "fx":{"shred": [0.2,6.0]}}, true)
 			"royal_vanguard": s.merge({"shape":"self", "mult":0.0, "gesture":"ward", "fx":{"buff":{"def":0.6,"guard":0.22,"secs":60.0}}},true)
 			"celestial_swordfall": s.merge({"requires_wings":true,"hit_delay":1.6,"gesture":"raise", "radius":8.0},true)
 			"moonpiercer": s.merge({"shape":"single","range":14.0,"line":true,"width":1.5,"length":18.0},true)
