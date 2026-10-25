@@ -1,7 +1,7 @@
 // One-off owner tool used by .github/workflows/boost-character.yml. Talks to D1 through the
 // Cloudflare REST API (bound parameters, so a full save never hits the SQL statement size limit).
 //   node boost-character.mjs fetch <username> <dir>      writes <dir>/bundle.json and <dir>/meta.json
-//   node boost-character.mjs apply <dir> <boosted.json>   (boosted.json = {slot, profile} from tools/boost_character.tscn)
+//   node boost-character.mjs apply <dir> <boosted.json>   (boosted.json = {slot, profile, created} from tools/boost_character.tscn)
 // apply checks the save with the same rules as the game server, keeps a snapshot of the save it
 // replaces, and only writes if nobody saved in between (compare-and-swap on the revision).
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -46,7 +46,10 @@ if (command === 'fetch') {
   const meta = JSON.parse(readFileSync(`${a}/meta.json`, 'utf8'));
   const next = JSON.parse(readFileSync(`${a}/bundle.json`, 'utf8'));
   const boosted = JSON.parse(readFileSync(b, 'utf8'));
-  if (!next.slots?.[boosted.slot]) throw new Error('The boosted slot is not in the fetched save');
+  if (!/^[1-4]$/.test(String(boosted.slot))) throw new Error('The boosted slot must be 1 to 4');
+  // A created character fills a slot that was free when the save was fetched; any other boost replaces one.
+  if (boosted.created ? next.slots?.[boosted.slot] : !next.slots?.[boosted.slot])
+    throw new Error(boosted.created ? 'The slot for the new character is no longer free' : 'The boosted slot is not in the fetched save');
   next.slots[boosted.slot] = boosted.profile;
   const bundle = validateBundle(next);
   const now = Math.floor(Date.now() / 1000);
@@ -59,7 +62,7 @@ if (command === 'fetch') {
     SELECT user_id, revision, bundle, updated_at FROM toon_saves WHERE user_id = ? AND revision = ?`, [meta.userId, rows[0].revision]);
   await query(id, `DELETE FROM toon_save_snapshots WHERE user_id = ? AND revision NOT IN
     (SELECT revision FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT 5)`, [meta.userId, meta.userId]);
-  console.log(`Saved revision ${rows[0].revision} (was ${meta.revision}). The previous save is kept as a snapshot.`);
+  console.log(`Saved revision ${rows[0].revision} (was ${meta.revision})${boosted.created ? `, new character in slot ${boosted.slot}` : ''}. The previous save is kept as a snapshot.`);
 } else {
   throw new Error('usage: fetch <username> <dir> | apply <dir> <boosted.json>');
 }
