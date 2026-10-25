@@ -66,6 +66,7 @@ static func build(cls: String) -> Node3D:
 	for mesh in root.find_children("*","MeshInstance3D",true,false):
 		mesh.set_meta("no_outline",true)
 		mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if cls=="assassin": ShadowWingArt.dress(root,true)
 	var player:=root.find_child("AnimationPlayer",true,false) as AnimationPlayer
 	if player!=null:
 		for clip in ["Idle","Flap","Glide"]:

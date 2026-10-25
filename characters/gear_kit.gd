@@ -135,6 +135,8 @@ static func wings(kind: String) -> Node3D:
 	# Thin membranes and feathers: an outline shell would draw dark stripes across them.
 	for mi in root.find_children("*", "MeshInstance3D", true, false):
 		mi.set_meta("no_outline", true)
+	if kind == "assassin":
+		ShadowWingArt.dress(root, false)
 	var player := root.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if player != null and player.has_animation("Idle"):
 		for clip in ["Idle", "Flap", "Glide"]:
