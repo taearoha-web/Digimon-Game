@@ -68,9 +68,15 @@ func _physics_process(_delta: float) -> void:
 		_last_hp[id] = mob.hp
 
 
-## Fills the training ground up to [param count] dummies around the camp centre.
+## Fills the training ground up to [param count] dummies around the camp centre;
+## anything else that walks in (the zone's boss, a wanderer) is removed, so area
+## skills only ever see the dummies.
 func _fill(zone: Node, hero: Hero, camp: Dictionary, count: int) -> void:
 	_dummies = _dummies.filter(func(m): return is_instance_valid(m) and not m.is_dead())
+	for node in get_tree().get_nodes_in_group("mobs"):
+		if not _dummies.has(node) and not node.is_queued_for_deletion():
+			node.remove_from_group("mobs")
+			node.queue_free()
 	var center := Vector3(camp.pos.x, 0, camp.pos.y)
 	var level := int((int(camp.levels[0]) + int(camp.levels[1])) / 2)
 	while _dummies.size() < count:
