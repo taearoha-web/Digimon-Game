@@ -102,11 +102,12 @@ func _build_lobby() -> void:
 	left.add_child(UIUtil.label("สถิติของคุณ", &"SubHeaderLabel"))
 	left.add_child(UIUtil.label("ชนะ %d · แพ้ %d\nล้มศัตรูรวม %d ครั้ง · สูงสุดในศึกเดียว %d" % [wins, losses, int(flags.get("gw_kills", 0)), int(flags.get("gw_best_kills", 0))], &"SmallLabel"))
 	var n := GuildWarData.TEAM_SIZE
-	var rules := UIUtil.label("• %d ต่อ %d: คุณกับเพื่อน AI %d คน สู้กับกิลด์ศัตรู AI %d คน เวลา 30 นาที\n• ทุกคนสุ่มอาชีพ เลเวล 100 · 200 ดาว ใส่ชุดตั้งแต่ 50 ดาวถึงชุดประจำอาชีพพร้อมปีก (แต่ละกิลด์มีผู้รักษาหรือผู้อัญเชิญอย่างน้อย 1 คน)\n• ล้มศัตรูได้ 1 คะแนน ถูกล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที (ฐานฟื้นเลือดเร็ว)\n• ออร์บพลังปรากฏกลางสนามทุก 1 นาที ใครเก็บได้ทีมนั้นโจมตี/ป้องกันเพิ่ม 20 วินาที\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสมอ = ต่อเวลา ใครล้มก่อนชนะ · ใช้ยาและสกิลได้เต็มที่\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 1,000,000 · แพ้ เหรียญ 500,000" % [n, n, n - 1, n, int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
+	var mine := Game.guild()
+	var rules := UIUtil.label("• Alpha ปะทะ Neverdie %d ต่อ %d: คุณกับสมาชิกกิลด์ %d คน สู้กับอีกกิลด์ %d คน เวลา 30 นาที (คนที่ออนไลน์อยู่ลงก่อน)\n• กติกาสงคราม: ทุกคนสู้ที่เลเวล 100 · 200 ดาว ใส่ชุดตามที่ตัวเองไปถึง (50 ดาวจนถึงชุดประจำอาชีพพร้อมปีก)\n• ล้มศัตรูได้ 1 คะแนน ถูกล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที (ฐานฟื้นเลือดเร็ว)\n• ออร์บพลังปรากฏกลางสนามทุก 1 นาที ใครเก็บได้ทีมนั้นโจมตี/ป้องกันเพิ่ม 20 วินาที\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสมอ = ต่อเวลา ใครล้มก่อนชนะ · ใช้ยาและสกิลได้เต็มที่\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 1,000,000 · แพ้ เหรียญ 500,000" % [n, n, n - 1, n, int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
 	left.add_child(UIUtil.spacer(false))
-	var blocked := int(Game.profile.level) < MIN_LEVEL
+	var blocked := int(Game.profile.level) < MIN_LEVEL or mine == 0
 	var saved := Game.guildwar_checkpoint()
 	if not saved.is_empty() and not blocked:
 		var left_sec := int(saved.time_left)
@@ -119,7 +120,7 @@ func _build_lobby() -> void:
 	var go := UIUtil.button("เริ่มสงครามใหม่!" if not saved.is_empty() else "เข้าสู่สงคราม!", &"" if not saved.is_empty() else &"PrimaryButton", Vector2(0, 80 if saved.is_empty() else 56))
 	go.disabled = blocked
 	if blocked:
-		go.text = "ต้องเลเวล %d ขึ้นไป" % MIN_LEVEL
+		go.text = "ต้องเลเวล %d ขึ้นไป" % MIN_LEVEL if int(Game.profile.level) < MIN_LEVEL else "เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน"
 	go.pressed.connect(func():
 		Game.guildwar_resuming = false
 		close_screen()
@@ -128,17 +129,30 @@ func _build_lobby() -> void:
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
-	right.add_child(UIUtil.label("ระดับชุดของนักรบ AI (สุ่มทั้งสองกิลด์ ความแข็งแกร่งรวมสองฝั่งสมดุลกัน)", &"SubHeaderLabel"))
-	for grade in GuildWarData.GRADES:
-		var panel := UIUtil.panel(&"CardPanel")
-		var line := UIUtil.hbox(10)
-		panel.add_child(line)
-		var name_label := UIUtil.label(GuildWarData.grade_label(grade), &"BoldLabel")
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if grade == GuildWarData.DIVINE:
-			name_label.add_theme_color_override("font_color", Color("ffd84a"))
-		line.add_child(name_label)
-		right.add_child(panel)
+	var t := WorldPresence.clock()
+	right.add_child(UIUtil.label("สมาชิกสองกิลด์ (ชุดที่ใส่ลงสงคราม)" if mine == 0 else "กิลด์ของคุณ: %s" % WorldPlayers.guild_name(mine), &"SubHeaderLabel"))
+	var scroll := TouchScroll.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(scroll)
+	var list := UIUtil.vbox(4)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for g in ([mine, WorldPlayers.other_guild(mine)] if mine > 0 else [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]):
+		var head_label := UIUtil.label("กิลด์ %s%s" % [WorldPlayers.guild_name(g), " (ฝั่งเรา)" if g == mine else (" (คู่แข่ง)" if mine > 0 else "")], &"BoldLabel")
+		head_label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS[g])
+		list.add_child(head_label)
+		for i in WorldPlayers.members(g):
+			var s := WorldPlayers.state(i, t)
+			var row_line := UIUtil.hbox(8)
+			var who := UIUtil.label("%s %s · %s" % ["●" if bool(s.online) else "○", s.name, ClassData.get_class_data(StringName(s["class"])).name], &"SmallLabel")
+			who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row_line.add_child(who)
+			var grade_label := UIUtil.label("%s · %s" % [WorldPlayers.level_text(s), GuildWarData.grade_label(int(s.grade))], &"SmallLabel")
+			if int(s.grade) == GuildWarData.DIVINE:
+				grade_label.add_theme_color_override("font_color", Color("ffd84a"))
+			row_line.add_child(grade_label)
+			list.add_child(row_line)
 
 
 func _build_result(result: Dictionary) -> void:

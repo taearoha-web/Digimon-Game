@@ -63,7 +63,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(StringName(member["class"]), "", true, Game.party_equip(member), Game.party_look(member))
+	visual.setup(StringName(member["class"]), "", true, _party_equip(), _visual_look())
 	_equip_sig = _signature()
 	MeshKit.blob_shadow(self, 0.8)
 	_label = Label3D.new()
@@ -99,14 +99,14 @@ func _level_text() -> String:
 func refresh() -> void:
 	if not is_instance_valid(visual):
 		return
-	stats = HeroStats.compute(Game.party_profile(member))
-	var pp := Game.party_profile(member)
+	var pp := _party_profile()
+	stats = HeroStats.compute(pp)
 	data = JobData.resolve(StringName(member["class"]), int(pp.adv))
 	_label.text = _level_text()
 	var sig := _signature()
 	if sig != _equip_sig:
 		_equip_sig = sig
-		visual.set_equipment(Game.party_equip(member))
+		visual.set_equipment(_party_equip())
 	mp = minf(mp, float(stats.max_mp))
 	var ratio := float(hp) / float(max_hp) if max_hp > 0 else 1.0
 	max_hp = int(stats.max_hp)
@@ -211,7 +211,7 @@ func _summon(skill: Dictionary, mult: float) -> void:
 			old.queue_free()
 			_summons.erase(old)
 	var count := int(spec.get("count", 1))
-	var p_rank := maxi(1, int(Game.party_profile(member).get("skills", {}).get(skill.id, 1)))
+	var p_rank := maxi(1, int(_party_profile().get("skills", {}).get(skill.id, 1)))
 	for i in count:
 		if _summons.size() >= SUMMON_LIMIT:
 			break
@@ -411,6 +411,38 @@ func _flat(v: Vector3) -> Vector3:
 	return v
 
 
+# Whom the companion looks after is the hero; a world player (FieldPlayer) answers
+# these for itself.
+func _visual_look() -> Dictionary:
+	return Game.party_look(member)
+
+
+func _party_profile() -> Dictionary:
+	return Game.party_profile(member)
+
+
+func _party_equip() -> Dictionary:
+	return Game.party_equip(member)
+
+
+## The HP share of whoever the companion protects.
+func _ally_hp_ratio() -> float:
+	return float(Game.profile.hp) / float(maxi(1, hero.stats.max_hp))
+
+
+## Whether there is a fight worth a buff or a summon.
+func _in_combat() -> bool:
+	return hero.target != null
+
+
+func _heal_allies(fraction: float) -> void:
+	hero.receive_heal(fraction)
+
+
+func _buff_allies(buff: Dictionary, color: Color, label: String, skill_id: String) -> void:
+	hero.receive_buff(buff, color, label, true, skill_id)
+
+
 # ---------------------------------------------------------------------------
 # Attacks
 # ---------------------------------------------------------------------------
@@ -492,6 +524,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 			mob.apply_slow(float(fx.slow))
 		if fx.has("burn"):
 			mob.apply_burn(HeroStats.burn_dps(_buffed_atk(), float(fx.burn[0]), float(mob.stats.def)), float(fx.burn[1]))
+			mob.burn_source = self
 
 
 func _mobs_near(center: Vector3, radius: float) -> Array[Mob]:
@@ -511,7 +544,7 @@ func _mobs_near(center: Vector3, radius: float) -> Array[Mob]:
 func _try_skills(distance: float) -> bool:
 	if Time.get_ticks_msec() < _cast_until:
 		return false
-	var hero_hp := float(Game.profile.hp) / float(maxi(1, hero.stats.max_hp))
+	var hero_hp := _ally_hp_ratio()
 	var skills: Array = data.skills
 	var best: Dictionary = {}
 	var best_score := 0.0
@@ -541,13 +574,13 @@ func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	match String(skill.shape):
 		"summon":
 			# A summoner companion fights through its creatures: call them as soon as there is a fight.
-			if hero.target == null or _summons_alive(String(skill.id)) > 0 or _summons.size() >= SUMMON_LIMIT:
+			if not _in_combat() or _summons_alive(String(skill.id)) > 0 or _summons.size() >= SUMMON_LIMIT:
 				return 0.0
 			return 9.0 + float(skill.get("mult", 1.0)) * 0.2
 		"self":
 			if fx.has("heal") and (hero_hp < 0.55 or float(hp) / float(max_hp) < 0.45):
 				return 10.0
-			if fx.has("buff") and not fx.has("heal") and BuffBook.group_count(_book.buffs, false) < BuffBook.GROUP_LIMIT and not BuffBook.contains(_book.buffs, String(skill.id), false) and hero.target != null:
+			if fx.has("buff") and not fx.has("heal") and BuffBook.group_count(_book.buffs, false) < BuffBook.GROUP_LIMIT and not BuffBook.contains(_book.buffs, String(skill.id), false) and _in_combat():
 				return 6.0
 			if fx.has("buff") and fx.has("heal") and hero_hp < 0.7:
 				return 8.0
@@ -670,7 +703,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				_deal(victim, mult, color, skill.vfx, true, skill)
 			var fx: Dictionary = skill.get("fx", {})
 			if fx.has("heal"):
-				hero.receive_heal(float(fx.heal) * 0.6)
+				_heal_allies(float(fx.heal) * 0.6)
 				heal_fraction(float(fx.heal) * 0.6)
 		"blast":
 			var center := Vector3(aim.x, 0.0, aim.z)
@@ -702,12 +735,12 @@ func _apply_self(skill: Dictionary) -> void:
 	var fx: Dictionary = skill.get("fx", {})
 	var color: Color = skill.color
 	if fx.has("heal"):
-		hero.receive_heal(float(fx.heal))
+		_heal_allies(float(fx.heal))
 		heal_fraction(float(fx.heal))
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
-		hero.receive_buff(buff, color, String(skill.name), true, String(skill.id))
+		_buff_allies(buff, color, String(skill.name), String(skill.id))
 		_book.add(buff, color, String(skill.name), false, String(skill.id))
 		# Persistent buff halo and the skill silhouette carry this feedback.
 

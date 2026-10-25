@@ -16,6 +16,9 @@ signal guildwar_finished(result: Dictionary)
 signal tower_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
+## The hunting fields (Lv.1 meadow to the Lv.100 void) are wider, with their outer camps
+## (ZoneData.OUTER_CAMPS); the tower and the arena keep FIELD_RADIUS.
+const HUNT_RADIUS := 74.0
 const TOWN_RADIUS := JapanVillage.RADIUS
 const SAFE_START_RADIUS := 14.0
 const SPAWN_INTERVAL := 1.6
@@ -40,6 +43,10 @@ var rng := RandomNumberGenerator.new()
 var portals: Array[Dictionary] = []
 var npcs: Array[Npc] = []
 var companions: Array[Companion] = []
+## Playable radius of this field (see HUNT_RADIUS).
+var field_radius := FIELD_RADIUS
+## The world players online here (see WorldPresence); none in duels, the tower or the arena.
+var presence: WorldPresence
 var current_interact: Dictionary = {}
 
 ## Ambient life per weather preset: layers of untracked CPUParticles3D that
@@ -188,6 +195,11 @@ func _ready() -> void:
 				spawned += 1
 				await _slice()
 	_phase("spawn_mobs")
+	if WorldPresence.enabled and not is_pvp and not is_tower and not bool(data.get("arena", false)):
+		presence = WorldPresence.new()
+		presence.setup(self)
+		add_child(presence)
+		_phase("world_players")
 	is_built = true
 	built.emit()
 
@@ -278,9 +290,20 @@ func _build_field() -> void:
 	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID:
 		_build_star_field()
 		return
-	_start = Vector3(-FIELD_RADIUS + 8.0, 0, 0)
+	if not is_tower and not bool(data.get("arena", false)):
+		field_radius = HUNT_RADIUS
+	_start = Vector3(-field_radius + 8.0, 0, 0)
 	var ground_color: Color = data.ground
-	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(-FIELD_RADIUS, 0), Vector2(-20, 4), Vector2(0, -2), Vector2(26, 6), Vector2(FIELD_RADIUS, 0)])]
+	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(-field_radius, 0), Vector2(-20, 4), Vector2(0, -2), Vector2(26, 6), Vector2(field_radius, 0)])]
+	# Side trails from the main path out to the outer camps.
+	for camp in data.camps:
+		if camp.get("outer", false):
+			var to := Vector2(camp.pos.x, camp.pos.y)
+			var from: Vector2 = paths[0][0]
+			for p in paths[0]:
+				if p.distance_to(to) < from.distance_to(to):
+					from = p
+			paths.append(PackedVector2Array([from, from.lerp(to, 0.5) + Vector2(3, -3), to]))
 	var clearings: Array[Vector3] = []
 	for camp in data.camps:
 		clearings.append(Vector3(camp.pos.x, camp.pos.y, float(camp.radius)))
@@ -290,12 +313,13 @@ func _build_field() -> void:
 			data.get("path_color", Color("c5b394")), paths, 2.8, clearings, theme)
 	_boss_spot = Vector3(30, 0, 26)
 	var clear: Array[Vector3] = [
-		Vector3(_start.x, _start.z, 6.0), Vector3(FIELD_RADIUS - 8.0, 0, 6.0), Vector3(_boss_spot.x, _boss_spot.z, 9.0),
+		Vector3(_start.x, _start.z, 6.0), Vector3(field_radius - 8.0, 0, 6.0), Vector3(_boss_spot.x, _boss_spot.z, 9.0),
 	]
-	for i in paths[0].size() - 1:
-		for t in 8:
-			var p := paths[0][i].lerp(paths[0][i + 1], t / 8.0)
-			clear.append(Vector3(p.x, p.y, 2.2))
+	for path in paths:
+		for i in path.size() - 1:
+			for t in 8:
+				var p := path[i].lerp(path[i + 1], t / 8.0)
+				clear.append(Vector3(p.x, p.y, 2.2))
 	_camps.clear()
 	for c in data.camps:
 		var camp: Dictionary = c.duplicate()
@@ -307,17 +331,17 @@ func _build_field() -> void:
 		clear.append(Vector3(0, 0, 42.0))
 	_phase("ground")
 	await _slice()
-	await Scenery.populate(self, theme, rng, FIELD_RADIUS, clear, float(data.get("tree_density", 1.0)), true, get_tree() if staged else null)
+	await Scenery.populate(self, theme, rng, field_radius, clear, float(data.get("tree_density", 1.0)), true, get_tree() if staged else null)
 	_phase("populate")
 	await _slice()
-	WorldArt.landscape(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
+	WorldArt.landscape(self, theme, field_radius, int(data.get("seed", 5)))
 	var special := is_tower or bool(data.get("arena", false))
 	if not special:
-		WorldArt.silhouettes(self, theme, FIELD_RADIUS, int(data.get("seed", 5)))
-	Scenery.sky_dressing(self, theme, _sky_look(), FIELD_RADIUS, int(data.get("seed", 5)))
+		WorldArt.silhouettes(self, theme, field_radius, int(data.get("seed", 5)))
+	Scenery.sky_dressing(self, theme, _sky_look(), field_radius, int(data.get("seed", 5)))
 	_phase("landscape")
 	await _slice()
-	WorldArt.region_edges(self, theme, FIELD_RADIUS, int(data.get("seed", 5)), clear, not special)
+	WorldArt.region_edges(self, theme, field_radius, int(data.get("seed", 5)), clear, not special)
 	_phase("edges")
 	await _slice()
 	if special:
@@ -331,15 +355,15 @@ func _build_field() -> void:
 	portals = [{"to": prev, "pos": _start + Vector3(-3.0, 0, 0), "label": String(ZoneData.get_zone(prev).name), "level": 1}]
 	if next != &"":
 		var next_data := ZoneData.get_zone(next)
-		portals.append({"to": next, "pos": Vector3(FIELD_RADIUS - 6.0, 0, 0), "label": "%s (Lv.%d+)" % [next_data.name, int(next_data.level[0])], "level": int(next_data.level[0])})
+		portals.append({"to": next, "pos": Vector3(field_radius - 6.0, 0, 0), "label": "%s (Lv.%d+)" % [next_data.name, int(next_data.level[0])], "level": int(next_data.level[0])})
 	for portal in portals:
 		_make_portal(portal)
-	_make_boundary_walls(FIELD_RADIUS + 1.0)
+	_make_boundary_walls(field_radius + 1.0)
 	if is_tower:
 		_start = Vector3(0, 0, 0)
 	if not bool(data.get("arena", false)) and not is_tower:
 		_add_warp(_start + Vector3(3.5, 0, -5.0), "วาปกลับเมือง / ข้ามแมพ")
-		_add_warp(Vector3(FIELD_RADIUS - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
+		_add_warp(Vector3(field_radius - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
 	_make_weather(StringName(data.get("weather", &"")))
 
 
@@ -496,6 +520,7 @@ func _build_town() -> void:
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
 	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
+	_add_npc("guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING)
 	_add_npc("guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "สงครามกิลด์ %d ต่อ %d · 30 นาที" % [GuildWarData.TEAM_SIZE, GuildWarData.TEAM_SIZE], V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING)
 	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30))
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0))
@@ -558,7 +583,7 @@ func _spawn_hero() -> void:
 	hero.name = "Hero"
 	hero.field = self
 	hero.safe_zone = is_town
-	hero.field_radius = TOWN_RADIUS if is_town else (PvpArena.RADIUS if is_pvp else FIELD_RADIUS)
+	hero.field_radius = TOWN_RADIUS if is_town else (PvpArena.RADIUS if is_pvp else field_radius)
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":
@@ -598,6 +623,11 @@ func _spawn_hero() -> void:
 			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
+
+
+## Where someone walking into this zone appears (the hero's arrival point).
+func entrance() -> Vector3:
+	return _start
 
 
 ## Where to appear after arriving from another zone.
@@ -847,18 +877,25 @@ func _on_mob_died(mob: Mob) -> void:
 		if is_instance_valid(hero) and hero.target == mob:
 			hero.set_target(null)
 		return
+	if is_instance_valid(hero) and hero.target == mob:
+		hero.set_target(null)
+	# A world player's kill is its own: the hero earns EXP by its share of the damage,
+	# and the kill (loot, quests) only when it dealt most of it.
+	var share := mob.party_share()
+	if share <= 0.0:
+		return
 	_kills += 1
 	var level_gap: int = Game.profile.level - mob.level
 	var exp_scale := 1.0 if level_gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(level_gap - 4))
 	var region_boost := 1.0 + maxf(0.0, float(data.get("gear_star",0)) / 25.0)
-	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost))
+	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost * share))
 	Game.add_exp(exp_gain)
 	Game.party_add_exp(exp_gain)
 	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), "+%d EXP" % exp_gain, Color("66e0ff"), 0.8)
+	if share < 0.5:
+		return
 	Game.report_kill(mob.monster_id, mob.is_boss)
 	_drop_loot(mob)
-	if is_instance_valid(hero) and hero.target == mob:
-		hero.set_target(null)
 
 
 func _drop_loot(mob: Mob) -> void:

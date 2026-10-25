@@ -37,6 +37,8 @@ var allies: Array[GuildFighter] = []
 var enemies: Array[GuildFighter] = []
 var ally_name := ""
 var enemy_name := ""
+## Unix time the war began (the guild members' progress is taken at this moment).
+var started_at := 0
 var hero_kills := 0
 var hero_deaths := 0
 var hero_respawn_left := 0.0
@@ -77,7 +79,13 @@ func build(tree: SceneTree = null) -> void:
 	else:
 		roll_seed = int(saved.seed)
 		rng.seed = roll_seed
-	roster = GuildWarData.roll_match(rng)
+	# The hero's guild fights the other one with its real members (as they were when the
+	# war began); a hero without a guild gets two guilds of hired fighters.
+	started_at = int(saved.get("t0", 0)) if not saved.is_empty() and int(saved.get("t0", 0)) > 0 else int(WorldPresence.clock())
+	if Game.guild() > 0:
+		roster = GuildWarData.roll_guild_match(rng, Game.guild(), float(started_at))
+	else:
+		roster = GuildWarData.roll_match(rng)
 	ally_name = roster.ally_name
 	enemy_name = roster.enemy_name
 	BurstGuard.clear()
@@ -98,7 +106,8 @@ func build(tree: SceneTree = null) -> void:
 	if resumed:
 		Game.say("ต่อสงครามเดิม: คะแนน %d : %d เหลือเวลา %d นาที — ศึกถูกเก็บไว้ทุก 10 วินาที" % [score[0], score[1], int(ceil(time_left / 60.0))], &"quest")
 		return
-	Game.say("สงครามกิลด์ 30 นาที: ทีมเราคุณ + เพื่อน AI %d คน สู้กับกิลด์ %s %d คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [GuildWarData.TEAM_SIZE - 1, enemy_name, GuildWarData.TEAM_SIZE, int(GuildWarData.RESPAWN)], &"quest")
+	var side := "กิลด์ %s: คุณ + สมาชิกกิลด์" % ally_name if bool(roster.get("guilds", false)) else "ทีมเราคุณ + เพื่อน AI"
+	Game.say("สงครามกิลด์ 30 นาที: %s %d คน สู้กับกิลด์ %s %d คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [side, GuildWarData.TEAM_SIZE - 1, enemy_name, GuildWarData.TEAM_SIZE, int(GuildWarData.RESPAWN)], &"quest")
 
 
 ## Where fighter `index` of a guild of `count` stands: rows of ROW_SLOTS across the arena's
@@ -129,7 +138,7 @@ func _restore(saved: Dictionary) -> void:
 
 
 func save_checkpoint() -> void:
-	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths)
+	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at)
 
 
 func _spawn(info: Dictionary, team: int, at: Vector3, guild: String) -> GuildFighter:

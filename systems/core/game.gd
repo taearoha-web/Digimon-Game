@@ -20,6 +20,7 @@ signal achievement_unlocked(name: String)
 signal ending_requested()
 signal screen_flash(color: Color, strength: float)
 signal profile_imported()
+signal guild_changed()
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
@@ -2213,15 +2214,17 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## The war in progress, kept in the save so a page the phone threw away in the background
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
-const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at"]
+const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0"]
 const GW_CKPT_LIFETIME := 6 * 3600
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
 var guildwar_resuming := false
 
 
-func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int) -> void:
+func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int, started_at := 0) -> void:
 	var flags: Dictionary = profile["flags"]
 	flags["gw_r_seed"] = rng_seed
+	# When the war began: the guilds line up as their members were at that moment.
+	flags["gw_r_t0"] = started_at
 	flags["gw_r_time"] = int(ceil(time_left))
 	flags["gw_r_us"] = int(score[0])
 	flags["gw_r_them"] = int(score[1])
@@ -2243,7 +2246,34 @@ func guildwar_checkpoint() -> Dictionary:
 		return {}
 	return {"seed": int(flags["gw_r_seed"]), "time_left": float(flags.get("gw_r_time", 0)), "us": int(flags.get("gw_r_us", 0)),
 			"them": int(flags.get("gw_r_them", 0)), "kills": int(flags.get("gw_r_kills", 0)), "deaths": int(flags.get("gw_r_deaths", 0)),
-			"overtime": int(flags.get("gw_r_ot", 0)) == 1}
+			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0))}
+
+
+# ---------------------------------------------------------------------------
+# Guild: Alpha or Neverdie, with the world players (WorldPlayers)
+# ---------------------------------------------------------------------------
+
+const GUILD_FLAG := "guild"
+## A guild takes heroes from this level on.
+const GUILD_LEVEL := 100
+
+
+## The hero's guild (WorldPlayers.ALPHA / NEVERDIE), 0 before joining one.
+func guild() -> int:
+	if not has_profile:
+		return 0
+	var g := int(profile.get("flags", {}).get(GUILD_FLAG, 0))
+	return g if WorldPlayers.GUILD_NAMES.has(g) else 0
+
+
+## Joins (or moves to) a guild at the guild registrar, from Lv.100. False if already in it.
+func join_guild(g: int) -> bool:
+	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g) or guild() == g or int(profile.level) < GUILD_LEVEL:
+		return false
+	profile["flags"][GUILD_FLAG] = g
+	mark_dirty()
+	guild_changed.emit()
+	return true
 
 
 ## War rations: tops the bag up to GuildWarData.SUPPLY_COUNT war potions.

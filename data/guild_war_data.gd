@@ -136,6 +136,49 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 	return {"ally": best, "enemy": enemy, "ally_name": guild_a, "enemy_name": guild_b, "ally_power": ally_power, "enemy_power": enemy_power}
 
 
+## The war between the two guilds of the world (WorldPlayers): the hero and seven of its
+## guild against eight of the other, each member with its own class, name, face and the
+## gear grade its progress has reached at time t (everyone fights at Lv.100 ★200, war
+## rules). Online members are picked first, then the strongest; the rival guild sends the
+## eight of its ten whose total power comes closest to ours.
+static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, power_of_hero: float = -1.0) -> Dictionary:
+	if power_of_hero < 0.0:
+		power_of_hero = hero_power()
+	var ours: Array = []
+	for i in WorldPlayers.members(guild):
+		ours.append(WorldPlayers.fighter(i, t, rng))
+	var theirs: Array = []
+	for i in WorldPlayers.members(WorldPlayers.other_guild(guild)):
+		theirs.append(WorldPlayers.fighter(i, t, rng))
+	ours.sort_custom(func(a, b):
+		if bool(a.online) != bool(b.online):
+			return bool(a.online)
+		return float(a.power) > float(b.power))
+	var ally: Array = ours.slice(0, TEAM_SIZE - 1)
+	var ally_power := power_of_hero
+	for f in ally:
+		ally_power += float(f.power)
+	# Every way to leave the rest of the rival guild at home; the closest total power goes.
+	var enemy: Array = theirs.slice(0, TEAM_SIZE)
+	var size := mini(TEAM_SIZE, theirs.size())
+	var best_gap := INF
+	for mask in 1 << theirs.size():
+		var team: Array = []
+		var total := 0.0
+		for k in theirs.size():
+			if mask & (1 << k):
+				team.append(theirs[k])
+				total += float(theirs[k].power)
+		if team.size() == size and absf(total - ally_power) < best_gap:
+			best_gap = absf(total - ally_power)
+			enemy = team
+	var enemy_power := 0.0
+	for f in enemy:
+		enemy_power += float(f.power)
+	return {"ally": ally, "enemy": enemy, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(WorldPlayers.other_guild(guild)),
+		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true}
+
+
 ## A line-up as pool keys ("class|grade"): random classes and grades, no class more than
 ## MAX_SAME_CLASS times (`already` holds classes that are on the team before the draw, the
 ## hero's for our guild) and at least one support class among the team and `already`.

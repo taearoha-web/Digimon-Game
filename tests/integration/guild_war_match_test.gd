@@ -238,7 +238,8 @@ func _resume() -> void:
 		zone.queue_free()
 		await _frames(3)
 	check(lineups[0] == lineups[1], "resume: the same seed brings the same two guilds")
-	# The desk offers the unfinished war next to a new one.
+	# The desk (for a hero in a guild) offers the unfinished war next to a new one.
+	Game.join_guild(WorldPlayers.ALPHA)
 	var screen := GuildWarScreen.new()
 	add_child(screen)
 	await _frames(2)

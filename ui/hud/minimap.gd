@@ -55,6 +55,10 @@ func _draw() -> void:
 	for buddy in zone.companions:
 		if is_instance_valid(buddy):
 			_dot(c, _to_map(buddy.global_position, origin, yaw), Color("5af0ff") if not buddy.is_dead() else Color("667788"), 4.0)
+	for node in zone.get_tree().get_nodes_in_group("world_players"):
+		var other := node as FieldPlayer
+		if other and other.visible and not other.is_dead():
+			_dot(c, _to_map(other.global_position, origin, yaw), WorldPlayers.GUILD_COLORS.get(int(WorldPlayers.entry(other.world_index).guild), Color.WHITE), 3.5)
 	# The hero: an arrow showing where they face relative to the camera.
 	var facing := zone.hero._facing - yaw
 	var dir := Vector2(sin(facing), -cos(facing))
