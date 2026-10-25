@@ -206,7 +206,7 @@ const CLASSES := {
 		"mp_mult": 0.8,
 		"base_crit": 0.15,
 		"attack": {
-			"range": 2.4, "interval": 0.58, "mult": 0.65, "hit_delay": 0.18, "projectile": false, "vfx": &"slash",
+			"range": 2.4, "interval": 0.58, "mult": 0.5, "hit_delay": 0.18, "projectile": false, "vfx": &"slash",
 			"anims": ["Dualwield_Melee_Attack_Chop", "1H_Melee_Attack_Stab", "1H_Melee_Attack_Slice_Diagonal"],
 		},
 	},
@@ -647,13 +647,13 @@ static func _build_pools() -> void:
 		_sk(n, "throat_slit", "Throat Slit", "ปาดคอศัตรูตัวเดียวในพริบตา มึนงง 0.8 วินาที", 64, 60, 8.0, "single", 12.6, {"range": 3.3, "fx": {"stun": 0.8}, "color": blood, "icon": "sword"}),
 		_sk(n, "shadow_dance", "Shadow Dance", "ระบำเงา ฟันกระโดดต่อเนื่องใส่ศัตรู 6 ตัว", 68, 66, 11.0, "chain", 4.4, {"hits": 6, "range": 10.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
 		_sk(n, "death_mark", "Death Mark", "ประทับตรามรณะลงพื้น ศัตรูในวงเกราะลดลง 20% นาน 8 วินาที", 72, 70, 13.0, "blast", 4, {"radius": 6.0, "range": 11.0, "fx": {"shred": [0.2, 8.0]}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": blood, "icon": "nova"}),
-		_sk(n, "night_lord", "Night Lord", "จ้าวราตรี ATK +45% คริติคอล +20% วิ่งเร็ว +15% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.45, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
+		_sk(n, "night_lord", "Night Lord", "จ้าวราตรี ATK +35% คริติคอล +20% วิ่งเร็ว +15% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
 		_sk(n, "eclipse_fang", "Eclipse Fang", "เขี้ยวสุริยคราส ฟันมีดคู่ฉีกศัตรูตัวเดียวขาดสะบั้น", 80, 90, 10.0, "single", 17.0, {"range": 3.5, "vfx": &"slash", "color": blood, "icon": "sword"}),
-		_sk(n, "abyss_vortex", "Abyss Vortex", "วังวนนรกดูดศัตรูรอบตัว ช้าลงและถูกฉีกต่อเนื่อง", 84, 96, 14.0, "burst", 8.5, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "color": night, "icon": "spin"}),
+		_sk(n, "abyss_vortex", "Abyss Vortex", "วังวนนรกดูดศัตรูรอบตัว ช้าลงและถูกฉีกต่อเนื่อง", 84, 96, 14.0, "burst", 6, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "color": night, "icon": "spin"}),
 		_sk(n, "phantom_legion", "Phantom Legion", "กองทัพเงาขว้างมีดพุ่งออก 8 ทิศ", 88, 96, 13.0, "fan", 4, {"hits": 8, "range": 12.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
-		_sk(n, "midnight_execution", "Midnight Execution", "ประหารเที่ยงคืน กระโจนลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 104, 14.0, "blast", 8.5, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "Dualwield_Melee_Attack_Chop", "hit_delay": 0.5, "vfx": &"impact", "color": blood, "icon": "meteor"}),
-		_sk(n, "shadow_sovereign", "Shadow Sovereign", "ราชันแห่งเงา ATK +70% คริติคอล +25% หลบ +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.7, "crit": 0.25, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "bless"}),
-		_sk(n, "oblivion_requiem", "Oblivion Requiem", "บทเพลงลืมเลือน เงามืดปะทุฉีกทุกสิ่งรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 15, {"radius": 9.0, "fx": {"stun": 1.5}, "special": "spin", "vfx": &"slash", "color": blood, "icon": "nova"}),
+		_sk(n, "midnight_execution", "Midnight Execution", "ประหารเที่ยงคืน กระโจนลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 104, 14.0, "blast", 6, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "Dualwield_Melee_Attack_Chop", "hit_delay": 0.5, "vfx": &"impact", "color": blood, "icon": "meteor"}),
+		_sk(n, "shadow_sovereign", "Shadow Sovereign", "ราชันแห่งเงา ATK +55% คริติคอล +25% หลบ +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.25, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "bless"}),
+		_sk(n, "oblivion_requiem", "Oblivion Requiem", "บทเพลงลืมเลือน เงามืดปะทุฉีกทุกสิ่งรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 10.5, {"radius": 9.0, "fx": {"stun": 1.5}, "special": "spin", "vfx": &"slash", "color": blood, "icon": "nova"}),
 	]
 
 	for star_class in IDS:
