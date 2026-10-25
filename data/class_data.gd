@@ -77,8 +77,9 @@ const CLASSES := {
 		"gain": {"str": 0, "int": 1, "dex": 3, "vit": 1},
 		"hp_mult": 1.05,
 		"mp_mult": 0.9,
+		"base_crit": 0.15,
 		"attack": {
-			"range": 11.0, "interval": 0.85, "mult": 1.0, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
+			"range": 11.0, "interval": 0.85, "mult": 0.8, "hit_delay": 0.2, "projectile": true, "vfx": &"impact",
 			"color": Color("e8e0c0"),
 			"anims": ["2H_Ranged_Shoot"],
 		},
@@ -99,7 +100,7 @@ const CLASSES := {
 		"hp_mult": 0.9,
 		"mp_mult": 1.5,
 		"attack": {
-			"range": 9.5, "interval": 0.95, "mult": 1.0, "hit_delay": 0.3, "projectile": true, "vfx": &"impact",
+			"range": 9.5, "interval": 0.95, "mult": 1.1, "hit_delay": 0.3, "projectile": true, "vfx": &"impact",
 			"color": Color("b79bff"),
 			"anims": ["Spellcast_Shoot"],
 		},
@@ -162,9 +163,8 @@ const CLASSES := {
 		"gain": {"str": 1, "int": 0, "dex": 3, "vit": 2},
 		"hp_mult": 1.15,
 		"mp_mult": 0.8,
-		"crit_bonus": 0.04,
 		"attack": {
-			"range": 3.8, "interval": 0.72, "mult": 1.0, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
+			"range": 3.8, "interval": 0.72, "mult": 0.8, "hit_delay": 0.2, "projectile": false, "vfx": &"slash",
 			"anims": ["2H_Melee_Attack_Stab", "2H_Melee_Attack_Slice", "2H_Melee_Attack_Stab"],
 		},
 	},
@@ -204,9 +204,9 @@ const CLASSES := {
 		"gain": {"str": 1, "int": 0, "dex": 3, "vit": 2},
 		"hp_mult": 1.05,
 		"mp_mult": 0.8,
-		"crit_bonus": 0.08,
+		"base_crit": 0.15,
 		"attack": {
-			"range": 2.4, "interval": 0.58, "mult": 0.82, "hit_delay": 0.18, "projectile": false, "vfx": &"slash",
+			"range": 2.4, "interval": 0.58, "mult": 0.5, "hit_delay": 0.18, "projectile": false, "vfx": &"slash",
 			"anims": ["Dualwield_Melee_Attack_Chop", "1H_Melee_Attack_Stab", "1H_Melee_Attack_Slice_Diagonal"],
 		},
 	},
@@ -358,6 +358,38 @@ static func default_loadout(class_id: StringName, level: int, current: Array = [
 
 # --- skill table -----------------------------------------------------------
 
+## Single-target skills finish an enemy harder than area skills hit each enemy:
+## every single-target skill (and summon) carries SINGLE_EDGE, every area skill
+## (burst, blast, fan, chain) AREA_SHARE, on top of its authored multiplier.
+const SINGLE_EDGE := 1.15
+const AREA_SHARE := 0.7
+## Per-class damage tuning, measured with tests/tools/class_dps_probe.tscn
+## (real-time fights against one target and a pack of six at Lv.26, Lv.70 and
+## Lv.100 ★200, each class with its strongest bar): [single-target, area]
+## factors for skills unlocked at Lv.1-35, Lv.36-75 and Lv.76-100 / star skills,
+## so no class stands out in either fight at any stage.
+const TUNE := {
+	&"warrior": [[1.016, 1.016], [0.403, 0.403], [1.032, 1.183]],
+	&"archer": [[0.527, 0.527], [0.515, 0.515], [0.676, 0.676]],
+	&"mage": [[0.441, 0.36], [1.33, 0.34], [1.73, 0.789]],
+	&"priest": [[1.718, 1.718], [0.74, 0.74], [1.8, 1.8]],
+	&"summoner": [[0.872, 0.872], [1.499, 1.385], [1.087, 1.242]],
+	&"lancer": [[0.691, 0.691], [0.553, 0.737], [0.793, 0.793]],
+	&"defender": [[1.395, 1.395], [1.647, 1.796], [1.8, 1.61]],
+	&"assassin": [[0.922, 0.922], [0.834, 0.834], [0.809, 0.809]],
+}
+const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
+
+
+## The tuning factor of a class's skill: its band (by unlock level; star
+## skills belong to the last band) and whether it strikes one target or an area.
+static func skill_tune(cls: StringName, level: int, star: bool, shape: String) -> float:
+	var area := shape in AREA_SHAPES
+	var band := 2 if star or level > 75 else (1 if level > 35 else 0)
+	var table: Array = TUNE.get(cls, [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]])
+	return float(table[band][1 if area else 0]) * (AREA_SHARE if area else SINGLE_EDGE)
+
+
 ## High-level skills hit a lot harder on paper; the damage audit showed them
 ## one-shooting their own zones with farmed gear. Their multiplier fades from
 ## 100% at Lv.20 to 65% at Lv.100 (summons included).
@@ -366,7 +398,7 @@ static func damage_curve(level: int) -> float:
 
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
-	mult *= damage_curve(level)
+	mult *= damage_curve(level) * skill_tune(cls, level, false, shape)
 	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender" or cls == &"assassin"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
@@ -522,10 +554,10 @@ static func _build_pools() -> void:
 		_sk(p, "regeneration_field", "Regeneration Field", "ฟื้นฟู HP 50% DEF +30% นาน 1 นาที", 56, 76, 28.0, "self", 0.0, {"fx": {"heal": 0.5, "buff": {"def": 0.3, "secs": 60.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("6dff9a"), "icon": "heal"}),
 		_sk(p, "chain_lightning", "Chain Lightning", "สายฟ้าสวรรค์ฟาดศัตรู 8 ตัว", 60, 70, 11.0, "chain", 5.5, {"hits": 8, "color": Color("fff06a"), "icon": "bolt"}),
 		_sk(p, "blessing_aura", "Blessing Aura", "ATK +50% DEF +40% นาน 1 นาที", 64, 84, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "def": 0.4, "secs": 60.0}}, "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),
-		_sk(p, "judgement_light", "Judgement", "แสงพิพากษาตกใส่พื้นที่", 68, 80, 12.0, "blast", 10.0, {"radius": 7.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
+		_sk(p, "judgement_light", "Judgement", "แสงพิพากษาผ่าลงใส่ศัตรูตัวเดียว", 68, 80, 12.0, "single", 10.0, {"projectile": false, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
 		_sk(p, "hand_of_god", "Hand of God", "มือพระเจ้า ฟื้นฟู HP 90%", 72, 96, 24.0, "self", 0.0, {"fx": {"heal": 0.9}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
 		_sk(p, "heaven_light", "Heaven Light", "แสงสวรรค์ถล่มรอบตัว ฟื้นฟู HP 15%", 76, 100, 14.0, "burst", 10.5, {"radius": 8.0, "fx": {"heal": 0.15}, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
-		_sk(p, "divine_judgment", "Divine Judgment", "คำพิพากษาแห่งสวรรค์ ศัตรูมึนงง 1.5 วินาที", 80, 110, 16.0, "blast", 15.0, {"radius": 9.0, "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
+		_sk(p, "divine_judgment", "Divine Judgment", "คำพิพากษาแห่งสวรรค์ผ่าลงศัตรูตัวเดียว มึนงง 1.5 วินาที", 80, 110, 16.0, "single", 15.0, {"projectile": false, "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
 		_sk(p, "prayer", "Prayer", "สวดมนต์ ฟื้นฟู HP 100% และ DEF +50% นาน 1 นาที", 84, 120, 50.0, "self", 0.0, {"fx": {"heal": 1.0, "buff": {"def": 0.5, "secs": 60.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
 		_sk(p, "seraphim_wrath", "Seraphim Wrath", "ลูกแสงเสราฟิม 9 ลูกพุ่งใส่ศัตรู", 88, 118, 14.0, "fan", 5.5, {"hits": 9, "color": Color("fff0a0"), "icon": "triple"}),
 		_sk(p, "holy_rain_big", "Holy Rain", "ฝนแสงศักดิ์สิทธิ์ถล่มพื้นที่กว้างมาก", 92, 130, 18.0, "blast", 16.0, {"radius": 10.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
@@ -633,27 +665,27 @@ static func _build_pools() -> void:
 		_sk(n, "shadow_veil", "Shadow Veil", "ม่านเงาห่อตัว หลบ +10% วิ่งเร็ว +15% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"dodge": 0.1, "speed": 0.15, "secs": 60.0}}, "anim": "Dodge_Backward", "color": night, "icon": "boots"}),
 		_sk(n, "venom_edge", "Venom Edge", "แทงคมพิษ ศัตรูติดพิษเสียเลือดต่อเนื่อง 5 วินาที", 14, 14, 5.0, "single", 3.4, {"fx": {"burn": [0.3, 5.0]}, "anim": "1H_Melee_Attack_Stab", "color": venom, "icon": "sword"}),
 		_sk(n, "shadow_step", "Shadow Step", "ก้าวเงาวาร์ปไปหลังศัตรูไกลถึง 8 เมตรแล้วแทงซ้ำ", 17, 16, 7.0, "single", 4.0, {"range": 8.0, "anim": "1H_Melee_Attack_Stab", "color": night, "icon": "boots"}),
-		_sk(n, "blade_flurry", "Blade Flurry", "หมุนมีดคู่เป็นพายุใบมีดรอบตัว", 20, 20, 8.0, "burst", 2.6, {"radius": 4.2, "special": "spin", "color": night, "icon": "spin"}),
-		_sk(n, "fan_of_knives", "Fan of Knives", "ขว้างมีดเงาแผ่เป็นพัด 5 เล่ม", 24, 22, 8.0, "fan", 2.6, {"hits": 5, "range": 11.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
+		_sk(n, "blade_flurry", "Blade Flurry", "หมุนมีดคู่เป็นพายุใบมีดรอบตัว", 20, 20, 8.0, "burst", 2.4, {"radius": 4.2, "special": "spin", "color": night, "icon": "spin"}),
+		_sk(n, "fan_of_knives", "Fan of Knives", "ขว้างมีดเงาแผ่เป็นพัด 5 เล่ม", 24, 22, 8.0, "fan", 2.4, {"hits": 5, "range": 11.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
 		_sk(n, "killing_focus", "Killing Focus", "จิตนักฆ่า คริติคอล +15% ATK +25% นาน 1 นาที", 27, 24, 30.0, "self", 0.0, {"fx": {"buff": {"crit": 0.15, "atk": 0.25, "secs": 60.0}}, "color": blood, "icon": "roar"}),
 		_sk(n, "backstab", "Backstab", "แทงทะลุหลังศัตรูตัวเดียว ความเสียหายรุนแรง", 31, 28, 7.0, "single", 6.0, {"range": 3.0, "anim": "1H_Melee_Attack_Stab", "color": blood, "icon": "sword"}),
-		_sk(n, "smoke_bomb", "Smoke Bomb", "ปาระเบิดควัน ศัตรูรอบตัวมึนงง 1.2 วินาทีและช้าลง", 35, 30, 16.0, "burst", 1.8, {"radius": 5.0, "fx": {"stun": 1.2, "slow": 3.0}, "anim": "Dodge_Backward", "vfx": &"impact", "color": Color("b8a8d8"), "icon": "nova"}),
-		_sk(n, "night_raid", "Night Raid", "หายตัวเข้าเงา ฟันกระโดดไปมาใส่ศัตรู 4 ตัว", 39, 36, 10.0, "chain", 3.8, {"hits": 4, "range": 9.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
+		_sk(n, "smoke_bomb", "Smoke Bomb", "ปาระเบิดควัน ศัตรูรอบตัวมึนงง 1.2 วินาทีและช้าลง", 35, 30, 16.0, "burst", 1.2, {"radius": 5.0, "fx": {"stun": 1.2, "slow": 3.0}, "anim": "Dodge_Backward", "vfx": &"impact", "color": Color("b8a8d8"), "icon": "nova"}),
+		_sk(n, "night_raid", "Night Raid", "หายตัวเข้าเงา ฟันกระโดดไปมาใส่ศัตรู 4 ตัว", 39, 36, 10.0, "chain", 3.6, {"hits": 4, "range": 9.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
 		_sk(n, "crimson_cut", "Crimson Cut", "ฟันคมโลหิตใส่ศัตรูตัวเดียว เลือดไหลต่อเนื่อง 5 วินาที", 43, 40, 8.0, "single", 7.6, {"range": 3.1, "fx": {"burn": [0.4, 5.0]}, "color": blood, "icon": "sword"}),
 		_sk(n, "shadow_clone", "Shadow Clone", "ร่างเงาสะท้อนการโจมตี ATK +40% หลบ +15% นาน 1 นาที", 47, 44, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
 		_sk(n, "phantom_daggers", "Phantom Daggers", "ขว้างมีดเงาพุ่งทะลุศัตรู 5 ตัวเป็นแนวยาว", 52, 48, 9.0, "single", 6.4, {"range": 10.0, "pierce": pc.call(5, 12.0, 1.4), "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "arrow"}),
-		_sk(n, "deadly_venom", "Deadly Venom", "โปรยหมอกพิษมรณะใส่ฝูงศัตรู ติดพิษและช้าลง", 56, 52, 11.0, "blast", 5.4, {"radius": 4.8, "range": 10.0, "fx": {"burn": [0.45, 6.0], "slow": 3.0}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": venom, "icon": "nova"}),
-		_sk(n, "thousand_cuts", "Thousand Cuts", "พันคมเงาฟันกระจายรอบตัว", 60, 60, 12.0, "burst", 7.8, {"radius": 6.2, "special": "spin", "color": night, "icon": "spin"}),
+		_sk(n, "deadly_venom", "Deadly Venom", "โปรยหมอกพิษมรณะใส่ฝูงศัตรู ติดพิษและช้าลง", 56, 52, 11.0, "blast", 4.4, {"radius": 4.8, "range": 10.0, "fx": {"burn": [0.45, 6.0], "slow": 3.0}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": venom, "icon": "nova"}),
+		_sk(n, "thousand_cuts", "Thousand Cuts", "พันคมเงาฟันกระจายรอบตัว", 60, 60, 12.0, "burst", 6.4, {"radius": 6.2, "special": "spin", "color": night, "icon": "spin"}),
 		_sk(n, "throat_slit", "Throat Slit", "ปาดคอศัตรูตัวเดียวในพริบตา มึนงง 0.8 วินาที", 64, 60, 8.0, "single", 12.6, {"range": 3.3, "fx": {"stun": 0.8}, "color": blood, "icon": "sword"}),
-		_sk(n, "shadow_dance", "Shadow Dance", "ระบำเงา ฟันกระโดดต่อเนื่องใส่ศัตรู 6 ตัว", 68, 66, 11.0, "chain", 5.4, {"hits": 6, "range": 10.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
-		_sk(n, "death_mark", "Death Mark", "ประทับตรามรณะลงพื้น ศัตรูในวงเกราะลดลง 20% นาน 8 วินาที", 72, 70, 13.0, "blast", 6.2, {"radius": 6.0, "range": 11.0, "fx": {"shred": [0.2, 8.0]}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": blood, "icon": "nova"}),
-		_sk(n, "night_lord", "Night Lord", "จ้าวราตรี ATK +45% คริติคอล +20% วิ่งเร็ว +15% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.45, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
+		_sk(n, "shadow_dance", "Shadow Dance", "ระบำเงา ฟันกระโดดต่อเนื่องใส่ศัตรู 6 ตัว", 68, 66, 11.0, "chain", 5, {"hits": 6, "range": 10.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"slash", "color": night, "icon": "triple"}),
+		_sk(n, "death_mark", "Death Mark", "ประทับตรามรณะลงพื้น ศัตรูในวงเกราะลดลง 20% นาน 8 วินาที", 72, 70, 13.0, "blast", 5, {"radius": 6.0, "range": 11.0, "fx": {"shred": [0.2, 8.0]}, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": blood, "icon": "nova"}),
+		_sk(n, "night_lord", "Night Lord", "จ้าวราตรี ATK +35% คริติคอล +20% วิ่งเร็ว +15% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "color": night, "icon": "roar"}),
 		_sk(n, "eclipse_fang", "Eclipse Fang", "เขี้ยวสุริยคราส ฟันมีดคู่ฉีกศัตรูตัวเดียวขาดสะบั้น", 80, 90, 10.0, "single", 17.0, {"range": 3.5, "vfx": &"slash", "color": blood, "icon": "sword"}),
-		_sk(n, "abyss_vortex", "Abyss Vortex", "วังวนนรกดูดศัตรูรอบตัว ช้าลงและถูกฉีกต่อเนื่อง", 84, 96, 14.0, "burst", 14.0, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "color": night, "icon": "spin"}),
-		_sk(n, "phantom_legion", "Phantom Legion", "กองทัพเงาขว้างมีดพุ่งออก 8 ทิศ", 88, 96, 13.0, "fan", 5.6, {"hits": 8, "range": 12.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
-		_sk(n, "midnight_execution", "Midnight Execution", "ประหารเที่ยงคืน กระโจนลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 104, 14.0, "blast", 14.0, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "Dualwield_Melee_Attack_Chop", "hit_delay": 0.5, "vfx": &"impact", "color": blood, "icon": "meteor"}),
-		_sk(n, "shadow_sovereign", "Shadow Sovereign", "ราชันแห่งเงา ATK +70% คริติคอล +25% หลบ +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.7, "crit": 0.25, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "bless"}),
-		_sk(n, "oblivion_requiem", "Oblivion Requiem", "บทเพลงลืมเลือน เงามืดปะทุฉีกทุกสิ่งรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 24.0, {"radius": 9.0, "fx": {"stun": 1.5}, "special": "spin", "vfx": &"slash", "color": blood, "icon": "nova"}),
+		_sk(n, "abyss_vortex", "Abyss Vortex", "วังวนนรกดูดศัตรูรอบตัว ช้าลงและถูกฉีกต่อเนื่อง", 84, 96, 14.0, "burst", 6, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "color": night, "icon": "spin"}),
+		_sk(n, "phantom_legion", "Phantom Legion", "กองทัพเงาขว้างมีดพุ่งออก 8 ทิศ", 88, 96, 13.0, "fan", 4, {"hits": 8, "range": 12.0, "anim": "Dualwield_Melee_Attack_Chop", "vfx": &"impact", "color": night, "icon": "triple"}),
+		_sk(n, "midnight_execution", "Midnight Execution", "ประหารเที่ยงคืน กระโจนลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 104, 14.0, "blast", 6, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "Dualwield_Melee_Attack_Chop", "hit_delay": 0.5, "vfx": &"impact", "color": blood, "icon": "meteor"}),
+		_sk(n, "shadow_sovereign", "Shadow Sovereign", "ราชันแห่งเงา ATK +55% คริติคอล +25% หลบ +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.25, "dodge": 0.15, "secs": 60.0}}, "color": night, "icon": "bless"}),
+		_sk(n, "oblivion_requiem", "Oblivion Requiem", "บทเพลงลืมเลือน เงามืดปะทุฉีกทุกสิ่งรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 10.5, {"radius": 9.0, "fx": {"stun": 1.5}, "special": "spin", "vfx": &"slash", "color": blood, "icon": "nova"}),
 	]
 
 	for star_class in IDS:

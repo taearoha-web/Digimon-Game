@@ -31,8 +31,10 @@ func _ready() -> void:
 	Game.profile.skills["judgment_ray"]=1
 	Game.profile.loadout[0]="judgment_ray"
 	var skill:=ClassData.find_skill(&"mage","judgment_ray")
+	# Class balance scales the multiplier (ClassData.skill_tune); the base design stays 24.
+	var tune:=ClassData.skill_tune(&"mage",96,false,"single")
 	check(skill.shape=="single" and not skill.projectile,"one target; no travelling projectile")
-	check(skill.mp==130 and skill.cd==12.0 and is_equal_approx(skill.mult,24.0*ClassData.damage_curve(96)),"unchanged mana, cooldown and damage curve")
+	check(skill.mp==130 and skill.cd==12.0 and is_equal_approx(skill.mult,24.0*ClassData.damage_curve(96)*tune),"unchanged mana, cooldown and damage curve")
 	var field:=Node3D.new()
 	add_child(field)
 	var hero:=Hero.new()
@@ -77,7 +79,7 @@ func _ready() -> void:
 	seq.set_process(false)
 	seq._process(0.25)
 	check(mobs[0].hits==1 and mobs[1].hits==0,"pillar deals exactly one hit; adjacent enemy untouched")
-	check(mobs[0].damage>=int(1473*HeroStats.SKILL_POWER)-1 and mobs[0].damage<=int(1731*HeroStats.SKILL_POWER)+1,"real single hit retains expected rank-one damage roll")
+	check(mobs[0].damage>=int(1473*HeroStats.SKILL_POWER*tune)-1 and mobs[0].damage<=int(1731*HeroStats.SKILL_POWER*tune)+1,"real single hit retains expected rank-one damage roll")
 	check(seq.art._beam.visible and is_equal_approx(seq.art._beam.scale.y,JudgmentRayArt.HEIGHT),"pillar reaches ground on the damage frame")
 	seq._process(0.4)
 	check(mobs[0].hits==1 and mobs[1].hits==0,"shockwave and rune fragments add no damage")

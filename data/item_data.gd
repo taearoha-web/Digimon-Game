@@ -366,7 +366,7 @@ static func stat_lines(item: Dictionary) -> Array[String]:
 	if stats.has("hp"): lines.append("HP +%d" % int(stats.hp))
 	if stats.has("matk"): lines.append("พลังโจมตีเวทย์ +%d (ใช้กับสายเวทย์/นักบวช)" % int(stats.matk))
 	if stats.has("mp"): lines.append("MP +%d" % int(stats.mp))
-	if stats.has("crit"): lines.append("คริติคอล +%.1f%%" % (float(stats.crit) * 100.0))
+	if stats.has("crit"): lines.append("คริติคอล +%.1f%%" % (float(stats.crit) * HeroStats.GEAR_CRIT_SCALE * 100.0))
 	return lines
 
 

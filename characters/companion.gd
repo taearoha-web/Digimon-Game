@@ -491,7 +491,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		if fx.has("slow"):
 			mob.apply_slow(float(fx.slow))
 		if fx.has("burn"):
-			mob.apply_burn(_buffed_atk() * float(fx.burn[0]), float(fx.burn[1]))
+			mob.apply_burn(HeroStats.burn_dps(_buffed_atk(), float(fx.burn[0]), float(mob.stats.def)), float(fx.burn[1]))
 
 
 func _mobs_near(center: Vector3, radius: float) -> Array[Mob]:
