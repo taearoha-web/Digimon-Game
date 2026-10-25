@@ -1654,6 +1654,31 @@ func _systems() -> void:
 	Game.profile["level"] = 100
 	check(not shop._stock().filter(func(it): return it.get("id", "") == "hp_god").is_empty(), "Lv.100 heroes can buy it")
 	Game.profile["level"] = saved_level
+	# Potions and scrolls are bought in lots: + steps the count, one press buys them all.
+	var bulk := shop._bulk_row(ItemData.potion("hp_s"))
+	shop.add_child(bulk)
+	var unit := ItemData.buy_price(ItemData.potion("hp_s"))
+	Game.add_gold(unit * 10)
+	(bulk.find_child("QtyPlus", true, false) as Button).pressed.emit()
+	(bulk.find_child("QtyPlus", true, false) as Button).pressed.emit()
+	var buy_lot := bulk.find_child("Buy", true, false) as Button
+	check((bulk.find_child("QtyCount", true, false) as Label).text == "×10" and buy_lot.text == "ซื้อ %d" % (unit * 10), "+ steps the lot to 10 bottles and shows the total")
+	var gold_before: int = Game.profile.gold
+	var bottles := Game.potion_count("hp_s")
+	buy_lot.pressed.emit()
+	check(Game.potion_count("hp_s") == bottles + 10 and int(Game.profile.gold) == gold_before - unit * 10, "one press buys 10 bottles at 10x the price")
+	(bulk.find_child("QtyMinus", true, false) as Button).pressed.emit()
+	check((bulk.find_child("QtyCount", true, false) as Label).text == "×5", "− steps back down")
+	# A full bag tops up a stack it carries but keeps the gold for a new kind.
+	var saved_inv: Array = Game.profile.inv.duplicate(true)
+	Game.profile["inv"] = Game.profile.inv.filter(func(e): return not (e.get("kind", "") == "potion" and e.id == "mp_s"))
+	while Game.inventory_free() > 0:
+		Game.profile.inv.append(ItemData.generate(5, &"warrior", rng, 0, "weapon"))
+	Game.add_gold(unit * 5 + int(ItemData.POTIONS["mp_s"].price) * 5)
+	gold_before = Game.profile.gold
+	check(not Game.buy_item(ItemData.potion("mp_s", 5)) and int(Game.profile.gold) == gold_before, "a full bag keeps the gold for a potion it cannot hold")
+	check(Game.buy_item(ItemData.potion("hp_s", 5)) and Game.potion_count("hp_s") == bottles + 15, "a full bag still tops up a stack it already carries")
+	Game.profile["inv"] = saved_inv
 	shop.queue_free()
 	Game.profile["inv"].append(ItemData.potion("hp_god", 1))
 	Game.profile["inv"].append(ItemData.potion("hp_s", 1))
