@@ -2254,6 +2254,8 @@ func guildwar_checkpoint() -> Dictionary:
 # ---------------------------------------------------------------------------
 
 const GUILD_FLAG := "guild"
+## A guild takes heroes from this level on.
+const GUILD_LEVEL := 100
 
 
 ## The hero's guild (WorldPlayers.ALPHA / NEVERDIE), 0 before joining one.
@@ -2264,9 +2266,9 @@ func guild() -> int:
 	return g if WorldPlayers.GUILD_NAMES.has(g) else 0
 
 
-## Joins (or moves to) a guild at the guild registrar. False if already in it.
+## Joins (or moves to) a guild at the guild registrar, from Lv.100. False if already in it.
 func join_guild(g: int) -> bool:
-	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g) or guild() == g:
+	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g) or guild() == g or int(profile.level) < GUILD_LEVEL:
 		return false
 	profile["flags"][GUILD_FLAG] = g
 	mark_dirty()

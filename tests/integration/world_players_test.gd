@@ -191,6 +191,8 @@ func _field() -> void:
 
 func _guild() -> void:
 	Game.new_profile(&"warrior", "Guild QA", FaceKit.default_look())
+	Game.profile.level = Game.GUILD_LEVEL - 1
+	check(not Game.join_guild(WorldPlayers.ALPHA) and Game.guild() == 0, "no guild before Lv.%d" % Game.GUILD_LEVEL)
 	Game.profile.level = 100
 	Game.profile.adv = 4
 	check(Game.guild() == 0, "a new hero has no guild")
@@ -225,6 +227,12 @@ func _guild() -> void:
 
 func _screens() -> void:
 	Game.new_profile(&"warrior", "Registrar QA", FaceKit.default_look())
+	Game.profile.level = 60
+	main.guild_screen.open_screen()
+	await get_tree().process_frame
+	var locked := main.guild_screen.find_child("JoinAlpha", true, false) as Button
+	check(locked != null and locked.disabled and locked.text.contains("100"), "below Lv.100 the registrar only shows the rosters")
+	main.guild_screen.close_screen()
 	Game.profile.level = 100
 	Game.profile.adv = 4
 	main.guildwar_screen.open_lobby()

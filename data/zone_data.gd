@@ -196,11 +196,48 @@ const BASE_ZONES := {
 }
 
 
+## The hunting fields grew (Zone.HUNT_RADIUS): four more camps each in the outer ring, the
+## field's own monsters two kinds at a time, a few levels wide inside the field's band. The
+## field bosses stay as they were.
+const OUTER_SPOTS: Array[Vector2] = [Vector2(-48, -36), Vector2(-44, 38), Vector2(14, -48), Vector2(52, -34)]
+const OUTER_CAMPS := {
+	&"meadow": [["ทุ่งไก่ป่าริมลำธาร", [&"pink_slime", &"wild_chicken"], [1, 4]], ["หนองกบหลังเนิน", [&"wild_chicken", &"yellow_frog"], [2, 5]],
+		["ป่าเห็ดชายทุ่ง", [&"yellow_frog", &"mush_baby"], [3, 6]], ["เนินกระบองเพชรใหญ่", [&"mush_baby", &"cactus_hat"], [4, 6]]],
+	&"dark_forest": [["ค่ายออร์คชายป่า", [&"forest_orc", &"poison_bee"], [7, 10]], ["โพรงผึ้งเงา", [&"poison_bee", &"skull_orc"], [8, 11]],
+		["ลานฝึกนินจาร้าง", [&"skull_orc", &"shadow_ninja"], [10, 13]], ["สุสานวิญญาณลึก", [&"shadow_ninja", &"ghost"], [11, 14]]],
+	&"desert": [["โอเอซิสนกทราย", [&"sand_birb", &"sand_wolf"], [15, 18]], ["เนินทรายหมาป่า", [&"sand_wolf", &"giant_cactus"], [16, 19]],
+		["ซากเมืองไดโนทราย", [&"giant_cactus", &"sand_dino"], [18, 21]], ["หอพ่อมดทรายเก่า", [&"sand_dino", &"desert_wizard"], [19, 22]]],
+	&"snow": [["ลานหิมะกระต่าย", [&"snow_bunny", &"snow_pigeon"], [23, 26]], ["หน้าผานกพิราบหิมะ", [&"snow_pigeon", &"ice_fish"], [24, 27]],
+		["ทะเลสาบน้ำแข็ง", [&"ice_fish", &"yeti"], [26, 29]], ["ยอดเขาเยติ", [&"yeti", &"ice_bee"], [27, 30]]],
+	&"volcano": [["ลานผึ้งไฟ", [&"flame_bee", &"ember_ghost"], [31, 34]], ["หุบวิญญาณเถ้าถ่าน", [&"ember_ghost", &"fire_orc"], [33, 36]],
+		["บ่อลาวาไดโน", [&"fire_orc", &"lava_dino"], [35, 38]], ["ปล่องจอมเวทแมกมา", [&"lava_dino", &"magma_wizard"], [37, 40]]],
+	&"graveyard": [["ป้อมอัศวินกระดูก", [&"bone_knight", &"blood_bat"], [41, 45]], ["หอระฆังค้างคาว", [&"blood_bat", &"grave_ghost"], [43, 47]],
+		["ลานผีเร่ร่อน", [&"grave_ghost", &"ghoul_hound"], [46, 50]], ["โบสถ์แม่มดร้าง", [&"ghoul_hound", &"grave_witch"], [48, 52]]],
+	&"swamp": [["ลำธารกบพิษ", [&"toxic_frog", &"plague_bee"], [53, 57]], ["รังแมลงใต้ราก", [&"plague_bee", &"venom_mush"], [55, 59]],
+		["บึงเห็ดยักษ์", [&"venom_mush", &"swamp_dino"], [57, 61]], ["โคลนลึกอสุรกาย", [&"swamp_dino", &"mud_fish"], [60, 64]]],
+	&"storm": [["ทุ่งหญ้าฟ้าผ่า", [&"volt_bunny", &"volt_pigeon"], [65, 69]], ["รังนกพายุ", [&"volt_pigeon", &"storm_ninja"], [67, 71]],
+		["เหมืองยักษ์หิน", [&"storm_ninja", &"thunder_golem"], [69, 73]], ["แท่นบูชาสายฟ้า", [&"thunder_golem", &"storm_wizard"], [72, 76]]],
+	&"sky": [["ระเบียงนกทอง", [&"gold_birb", &"fallen_angel"], [77, 81]], ["สวนลอยฟ้าร้าง", [&"fallen_angel", &"sun_dino"], [79, 83]],
+		["ลานกวางสุริยะ", [&"sun_dino", &"sky_hound"], [81, 85]], ["หอระฆังเมฆา", [&"sky_hound", &"sky_priest"], [84, 88]]],
+	&"abyss": [["ประตูนรกชั้นนอก", [&"hell_orc", &"abyss_ghost"], [89, 93]], ["ธารวิญญาณเพลิง", [&"abyss_ghost", &"demon_ninja"], [91, 95]],
+		["ลานประลองปีศาจ", [&"demon_ninja", &"hell_dino"], [93, 97]], ["หอคอยหนวดปีศาจ", [&"hell_dino", &"hell_wizard"], [96, 100]]],
+	&"void": [["เศษดาวลอยคว้าง", [&"void_golem", &"star_wraith"], [100, 100]], ["ทางเดินมิติแตก", [&"star_wraith", &"rift_stalker"], [100, 100]],
+		["บ่อหนวดอนันต์", [&"rift_stalker", &"tentacle_horror"], [100, 100]], ["แกนซูเปอร์โนวา", [&"tentacle_horror", &"nova_drake"], [100, 100]]],
+}
+## Monsters per outer camp (the Lv.100 void keeps its smaller camps).
+const OUTER_COUNT := 8
+const OUTER_COUNT_VOID := 6
+
 static var ZONES: Dictionary = {}
 
 static func ensure() -> void:
 	if not ZONES.is_empty(): return
 	ZONES = BASE_ZONES.duplicate(true)
+	for id in OUTER_CAMPS:
+		var extra: Array = OUTER_CAMPS[id]
+		for k in extra.size():
+			ZONES[id]["camps"].append({"name": extra[k][0], "monsters": extra[k][1], "levels": extra[k][2], "pos": OUTER_SPOTS[k],
+				"radius": 9.0, "count": OUTER_COUNT_VOID if id == &"void" else OUTER_COUNT, "outer": true})
 	ZONES[&"void"]["next"] = &"dawn_forest"
 	ZONES.merge(StarProgression.zones())
 	ZONES[&"eclipse_realm"]["next"] = DivineRegionData.ID

@@ -95,6 +95,8 @@ func _build() -> void:
 	head.add_child(close)
 	var mine := Game.guild()
 	var status := "คุณอยู่กิลด์ %s · ลงสงครามกิลด์กับเพื่อนร่วมกิลด์ได้ที่ผู้บัญชาการสงครามกิลด์" % WorldPlayers.guild_name(mine) if mine > 0 else "คุณยังไม่มีกิลด์ — เลือกเข้ากิลด์ใดกิลด์หนึ่ง แล้วไปลงสงครามกิลด์กับเพื่อนร่วมกิลด์ได้"
+	if mine == 0 and int(Game.profile.level) < Game.GUILD_LEVEL:
+		status = "เข้ากิลด์ได้ตั้งแต่เลเวล %d (ตอนนี้เลเวล %d) — ดูรายชื่อสมาชิกได้ก่อน" % [Game.GUILD_LEVEL, int(Game.profile.level)]
 	var line := UIUtil.label(status, &"SmallLabel")
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(line)
@@ -135,6 +137,9 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	join.name = "Join%s" % WorldPlayers.guild_name(g)
 	if mine == g:
 		join.text = "กิลด์ของคุณ"
+		join.disabled = true
+	elif int(Game.profile.level) < Game.GUILD_LEVEL:
+		join.text = "เข้ากิลด์ได้ตั้งแต่เลเวล %d" % Game.GUILD_LEVEL
 		join.disabled = true
 	else:
 		join.text = "เข้าร่วมกิลด์ %s" % WorldPlayers.guild_name(g) if mine == 0 else "ย้ายไปกิลด์ %s" % WorldPlayers.guild_name(g)

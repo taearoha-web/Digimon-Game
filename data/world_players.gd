@@ -270,6 +270,7 @@ static func hunting_zone(level: int, stars: int, _divine := false) -> StringName
 			if stars >= int(StarProgression.ENTRY[k]):
 				at = StarProgression.REGIONS[k]
 		return at
+	ZoneData.ensure()
 	for id in ZoneData.ZONES:
 		var z: Dictionary = ZoneData.ZONES[id]
 		if String(z.get("scene", "")) != "field" or z.get("pvp", false) or z.get("arena", false) or z.get("tower", false) or z.has("star"):
