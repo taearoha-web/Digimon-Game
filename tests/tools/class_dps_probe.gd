@@ -8,7 +8,9 @@ extends Node
 ## alive for a fixed stretch of game time, so every class meets the same targets.
 ## Counts the health it takes off them (summons included), so attack speed, crits,
 ## skills, cooldowns, area reach and the auto-caster all show.
-##   godot --headless --path . res://tests/tools/class_dps_probe.tscn -- [SECONDS] [ZONE] [class,class...]
+##   godot --headless --path . res://tests/tools/class_dps_probe.tscn -- [SECONDS] [ZONE] [class,class...] [LEVEL]
+## LEVEL below 100 builds that level's hero instead: no stars, rare +5 gear of the
+## level (as balance_probe dresses it) and the skills unlocked by then.
 ## A class written as class:skill+skill runs with only those skills on its bar
 ## (class: alone = basic attacks only), to see what each skill adds.
 ## Prints single-target and pack DPS per class, each relative to its median.
@@ -18,13 +20,15 @@ var main: Node
 var _last_hp := {}
 var _dealt := 0.0
 var _dummies: Array[Mob] = []
+var _level := 100
 
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var seconds := float(args[0]) if args.size() > 0 else 60.0
 	var zone_id := StringName(args[1]) if args.size() > 1 else &"lotus_sanctum"
-	var classes: Array = Array(args[2].split(",")) if args.size() > 2 else ClassData.IDS.map(func(c): return String(c))
+	var classes: Array = Array(args[2].split(",")) if args.size() > 2 and args[2] != "" else ClassData.IDS.map(func(c): return String(c))
+	_level = int(args[3]) if args.size() > 3 else 100
 	InputSetup.ensure_defaults()
 	GameSettings.load_settings()
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
@@ -131,10 +135,22 @@ static func best_bar(cls: StringName) -> Array:
 
 func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Variant = null) -> Dictionary:
 	Game.new_profile(cls, "DPS", FaceKit.default_look())
-	var bundle := {"slots": {"1": Game.profile.duplicate(true)}, "selectedSlot": 1}
-	var result := Boost.boost_bundle(bundle, "DPS", String(cls))
-	assert(not result.has("error"), str(result))
-	Game.profile = bundle.slots["1"]
+	if _level >= 100:
+		var bundle := {"slots": {"1": Game.profile.duplicate(true)}, "selectedSlot": 1}
+		var result := Boost.boost_bundle(bundle, "DPS", String(cls))
+		assert(not result.has("error"), str(result))
+		Game.profile = bundle.slots["1"]
+	else:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 4242
+		Game.profile.level = _level
+		Game.profile.adv = JobData.adv_for_level(_level)
+		Game.profile.points = Game.STAT_POINTS_PER_LEVEL * (_level - 1)
+		Game.profile.equip = {}
+		for slot in ItemData.SLOTS:
+			var item := ItemData.generate(_level, cls, rng, 2, slot)
+			item.plus = 5
+			Game.profile.equip[slot] = item
 	var p := Game.profile
 	var main_stat := String(JobData.resolve(cls, int(p.adv)).main)
 	var points := int(p.points)
@@ -149,7 +165,8 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 		spend -= put
 	para.points = spend
 	for skill in ClassData.pool(cls) + ClassData.PASSIVES.get(cls, []):
-		p.skills[String(skill.id)] = SkillRank.MAX
+		if int(skill.level) <= int(p.level):
+			p.skills[String(skill.id)] = SkillRank.MAX
 	p.party = []
 	p.loadout = best_bar(cls)
 	if only is Array:
