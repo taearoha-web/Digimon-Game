@@ -1,0 +1,281 @@
+extends Node
+## The world players: twenty fixed people in two guilds whose progress follows their daily
+## schedules (the same at a given time on every device) from Lv.1 to ★200; the online ones
+## hunt for real in the field that fits them, their kills are their own; the hero joins
+## Alpha or Neverdie at the registrar and the guild war lines up the two guilds' members.
+##   godot --headless --path . res://tests/integration/world_players_test.tscn
+var failures := 0
+var checks := 0
+var main: Node
+
+
+func check(ok: bool, message: String) -> void:
+	checks += 1
+	if not ok:
+		failures += 1
+		printerr("FAIL: ", message)
+
+
+func _ready() -> void:
+	_roster()
+	_progress()
+	await _field()
+	_guild()
+	await _screens()
+	print("WORLD PLAYERS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
+	get_tree().quit(0 if failures == 0 else 1)
+
+
+func _roster() -> void:
+	check(WorldPlayers.size() == 20, "twenty world players")
+	var names := {}
+	var classes := {}
+	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
+		var members := WorldPlayers.members(g)
+		check(members.size() == 10, "%s has ten members" % WorldPlayers.guild_name(g))
+		var support := false
+		for i in members:
+			support = support or GuildWarData.is_support(StringName(WorldPlayers.entry(i)["class"]))
+		check(support, "%s has a healer or a summoner" % WorldPlayers.guild_name(g))
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		names[String(e.name)] = true
+		classes[StringName(e["class"])] = true
+		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
+		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
+		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
+	check(names.size() == 20, "every name is different")
+	check(classes.size() == ClassData.IDS.size(), "every class is played")
+	check(WorldPlayers.guild_name(WorldPlayers.ALPHA) == "Alpha" and WorldPlayers.guild_name(WorldPlayers.NEVERDIE) == "Neverdie", "the guilds are Alpha and Neverdie")
+
+
+func _progress() -> void:
+	var start := float(WorldPlayers.START_UNIX)
+	var day := 86400.0
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		var before := WorldPlayers.state(i, start - 3600.0)
+		check(int(before.level) == 1 and int(before.stars) == 0 and not bool(before.online), "%s: Lv.1 and offline before the world opens" % e.name)
+		check(WorldPlayers.state(i, start + 3.3 * day) == WorldPlayers.state(i, start + 3.3 * day), "%s: the same state for the same moment" % e.name)
+		var last_level := 1
+		var last_stars := 0
+		var steady := true
+		var zones_ok := true
+		var t := start
+		while t < start + 160.0 * day:
+			var s := WorldPlayers.state(i, t)
+			if int(s.level) < last_level or int(s.stars) < last_stars:
+				steady = false
+			last_level = int(s.level)
+			last_stars = int(s.stars)
+			var place := String(s.place)
+			if place != "" and place != "town" and ZoneData.access_reason(StringName(place), int(s.level), int(s.stars)) != "":
+				zones_ok = false
+			if bool(s.online) != (place != ""):
+				zones_ok = false
+			t += day * 0.37
+		check(steady, "%s: level and stars only ever go up" % e.name)
+		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
+		var end := WorldPlayers.state(i, start + 160.0 * day)
+		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
+		var early := WorldPlayers.state(i, start + 0.5 * day)
+		check(int(early.level) < 100, "%s: no Lv.100 in the first twelve hours (%d)" % [e.name, int(early.level)])
+		var week := WorldPlayers.played_minutes(i, start + 28.0 * day) / 60.0 / 4.0
+		check(week > 5.0 and week < 70.0, "%s: plays %.0f hours a week" % [e.name, week])
+		if String(e.style) == "hardcore":
+			check(int(WorldPlayers.state(i, start + 21.0 * day).stars) == 200, "%s: a hardcore player reaches ★200 within three weeks" % e.name)
+	check(int(WorldPlayers.progress_for(0.0, 0.3).level) == 1, "no play, Lv.1")
+	var full := WorldPlayers.progress_for(1e9, 0.3)
+	check(int(full.level) == 100 and int(full.stars) == 200 and bool(full.divine), "endless play stops at ★200 with the divine set")
+	# Evenings are busy: someone is always on at 21:00 Thai time.
+	var busy := true
+	for d in range(1, 30):
+		var at: float = (floor((start + WorldPlayers.TZ) / day) + float(d)) * day - WorldPlayers.TZ + 21.0 * 3600.0
+		var on := 0
+		for i in WorldPlayers.size():
+			on += 1 if bool(WorldPlayers.state(i, at).online) else 0
+		busy = busy and on >= 3
+	check(busy, "at least three players online every evening")
+
+
+## A moment (offset from now) when world player `want` is hunting in a field, and that field.
+func _hunting_moment(from: float) -> Array:
+	var t := from
+	while t < from + 40.0 * 86400.0:
+		for i in WorldPlayers.size():
+			var s := WorldPlayers.state(i, t)
+			var place := String(s.place)
+			if bool(s.online) and place != "town" and place != "" and int(s.level) >= 3 and int(s.level) < 60:
+				var after := WorldPlayers.state(i, t + 300.0)
+				if String(after.place) == place:
+					return [t, i, StringName(place)]
+		t += 600.0
+	return []
+
+
+func _field() -> void:
+	WorldPresence.enabled = true
+	InputSetup.ensure_defaults()
+	GameSettings.load_settings()
+	Game.new_profile(&"warrior", "World QA", FaceKit.default_look())
+	Game.profile.level = 60
+	Game.profile.adv = 3
+	Game.profile.party = []
+	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	add_child(main)
+	await get_tree().create_timer(0.3).timeout
+	if main.title_screen:
+		main.title_screen.queue_free()
+		main.title_screen = null
+	var moment := _hunting_moment(float(WorldPlayers.START_UNIX) + 3600.0)
+	check(not moment.is_empty(), "someone hunts in a field at some point")
+	if moment.is_empty():
+		return
+	WorldPresence.clock_offset = float(moment[0]) - WorldPlayers.now()
+	await main.go(moment[2], true)
+	await get_tree().create_timer(1.0).timeout
+	var zone: Zone = main.zone
+	check(zone.presence != null, "a hunting field shows the world players")
+	var bots := get_tree().get_nodes_in_group("world_players")
+	check(bots.size() >= 1 and bots.size() <= WorldPresence.LIMITS[2], "online players stand in the field (%d)" % bots.size())
+	var shown_index := -1
+	for node in bots:
+		var bot := node as FieldPlayer
+		check(bot != null and not bot.is_in_group("companions"), "a world player is not the hero's companion")
+		var s := WorldPlayers.state(bot.world_index, WorldPresence.clock())
+		check(String(s.place) == String(zone.zone_id) and int(bot.member.level) == int(s.level), "%s is here at its scheduled level" % bot.member.name)
+		check(String(bot._label.text).begins_with("[%s] %s" % [WorldPlayers.guild_name(int(s.guild)), s.name]), "the name tag shows the guild and name")
+		if int(bot.world_index) == int(moment[1]):
+			shown_index = bot.world_index
+	check(shown_index >= 0 or bots.size() == WorldPresence.LIMITS[clampi(GameSettings.quality, 0, 2)], "the scheduled player is shown (or the field is full)")
+	# Keep the hero out of the fight: whatever dies is the world players' kill.
+	var hero: Hero = zone.hero
+	hero._invulnerable_until = Time.get_ticks_msec() + 600000
+	hero.global_position = zone.entrance() + Vector3(0, 0.2, 0)
+	var exp_before := int(Game.profile.exp)
+	var level_before := int(Game.profile.level)
+	var potions_before := Game.total_potions("hp")
+	var died := [0]
+	for node in get_tree().get_nodes_in_group("mobs"):
+		(node as Mob).died.connect(func(m: Mob):
+			if m.party_share() <= 0.0:
+				died[0] += 1)
+	var dealt := 0
+	for i in 40:
+		await get_tree().create_timer(0.5).timeout
+		for node in get_tree().get_nodes_in_group("mobs"):
+			dealt += (node as Mob).others_damage
+	check(dealt > 0 or died[0] > 0, "world players fight the field's monsters")
+	check(int(Game.profile.exp) == exp_before and int(Game.profile.level) == level_before, "their kills give the hero no EXP")
+	check(Game.total_potions("hp") == potions_before, "they drink their own potions, never the hero's")
+	# Damage shares: a monster the hero mostly hurt is the hero's kill.
+	var mob := Mob.new()
+	mob.setup(&"forest_orc", 10, Vector3(200, 0, 200), hero)
+	zone.add_child(mob)
+	var bot0: Node = bots[0]
+	mob.take_hit(30, false, Color.WHITE, bot0)
+	mob.take_hit(70, false, Color.WHITE, hero)
+	check(is_equal_approx(mob.party_share(), 0.7), "damage shares split the kill (%.2f)" % mob.party_share())
+	mob.queue_free()
+	# Hours later the session is over: the players log off.
+	WorldPresence.clock_offset += 6.0 * 3600.0
+	zone.presence.sync(false)
+	await get_tree().process_frame
+	var still := 0
+	for i in zone.presence.shown:
+		var s := WorldPlayers.state(int(i), WorldPresence.clock())
+		still += 0 if bool(s.online) and String(s.place) == String(zone.zone_id) else 1
+	check(still == 0, "only players still here remain after the clock moves")
+	WorldPresence.clock_offset = 0.0
+
+
+func _guild() -> void:
+	Game.new_profile(&"warrior", "Guild QA", FaceKit.default_look())
+	Game.profile.level = 100
+	Game.profile.adv = 4
+	check(Game.guild() == 0, "a new hero has no guild")
+	check(Game.join_guild(WorldPlayers.NEVERDIE) and Game.guild() == WorldPlayers.NEVERDIE, "joins Neverdie")
+	check(not Game.join_guild(WorldPlayers.NEVERDIE), "already in it")
+	check(Game.join_guild(WorldPlayers.ALPHA) and Game.guild() == WorldPlayers.ALPHA, "moves to Alpha")
+	check(not Game.join_guild(7) and Game.guild() == WorldPlayers.ALPHA, "no third guild")
+	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with a guild is valid")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var t := float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0
+	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
+	check(m.ally.size() == GuildWarData.TEAM_SIZE - 1 and m.enemy.size() == GuildWarData.TEAM_SIZE, "seven allies and eight rivals")
+	check(m.ally_name == "Alpha" and m.enemy_name == "Neverdie", "Alpha against Neverdie")
+	var ok_sides := true
+	var online_first := true
+	var seen_offline := false
+	for f in m.ally:
+		ok_sides = ok_sides and int(WorldPlayers.entry(int(f.world)).guild) == WorldPlayers.ALPHA
+		online_first = online_first and (bool(f.online) or true) and not (bool(f.online) and seen_offline)
+		seen_offline = seen_offline or not bool(f.online)
+		check(String(f.member.name) == String(WorldPlayers.entry(int(f.world)).name) and int(f.grade) == int(WorldPlayers.state(int(f.world), t).grade), "%s fights under its own name in its own gear" % f.member.name)
+	for f in m.enemy:
+		ok_sides = ok_sides and int(WorldPlayers.entry(int(f.world)).guild) == WorldPlayers.NEVERDIE
+	check(ok_sides, "each side is its guild's members")
+	check(online_first, "online members are picked first")
+	var again := RandomNumberGenerator.new()
+	again.seed = 77
+	var m2 := GuildWarData.roll_guild_match(again, WorldPlayers.ALPHA, t)
+	check(m2.enemy.map(func(f): return f.member.name) == m.enemy.map(func(f): return f.member.name), "the same seed and moment give the same war")
+
+
+func _screens() -> void:
+	Game.new_profile(&"warrior", "Registrar QA", FaceKit.default_look())
+	Game.profile.level = 100
+	Game.profile.adv = 4
+	main.guildwar_screen.open_lobby()
+	await get_tree().process_frame
+	var go_button: Button = null
+	for b in main.guildwar_screen.find_children("*", "Button", true, false):
+		if String((b as Button).text).contains("กิลด์ที่นายทะเบียน"):
+			go_button = b
+	check(go_button != null and go_button.disabled, "no war before joining a guild")
+	main.guildwar_screen.close_screen()
+	main.guild_screen.open_screen()
+	await get_tree().process_frame
+	var join := main.guild_screen.find_child("JoinNeverdie", true, false) as Button
+	check(join != null and not join.disabled, "the registrar offers Neverdie")
+	join.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(Game.guild() == WorldPlayers.NEVERDIE, "the button joins Neverdie")
+	var mine := main.guild_screen.find_child("JoinNeverdie", true, false) as Button
+	check(mine != null and mine.disabled and mine.text == "กิลด์ของคุณ", "the screen shows the hero's guild")
+	var cards: int = main.guild_screen.find_children("*", "PanelContainer", true, false).size()
+	check(cards >= 21, "both rosters and the hero are listed (%d cards)" % cards)
+	main.guild_screen.close_screen()
+	main.guildwar_screen.open_lobby()
+	await get_tree().process_frame
+	var ready := false
+	for b in main.guildwar_screen.find_children("*", "Button", true, false):
+		if String((b as Button).text) == "เข้าสู่สงคราม!" and not (b as Button).disabled:
+			ready = true
+	check(ready, "in a guild the war can start")
+	main.guildwar_screen.close_screen()
+	# The war itself: Neverdie's members on our side, Alpha's across.
+	await main.go(&"guildwar", true)
+	await get_tree().create_timer(0.5).timeout
+	var war: GuildWarMatch = main.zone.gw_match
+	check(war != null and war.ally_name == "Neverdie" and war.enemy_name == "Alpha", "the war is Neverdie against Alpha")
+	if war != null:
+		var ours := true
+		for f in war.allies:
+			ours = ours and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.NEVERDIE
+		var theirs := true
+		for f in war.enemies:
+			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.ALPHA
+		check(war.allies.size() == GuildWarData.TEAM_SIZE - 1 and ours, "our side is seven Neverdie members")
+		check(war.enemies.size() == GuildWarData.TEAM_SIZE and theirs, "across stand eight Alpha members")
+		check(war.started_at > 0, "the war remembers when it began")
+	await main.go(&"town", true)
+
+
+func _index_of(who: String) -> int:
+	for i in WorldPlayers.size():
+		if String(WorldPlayers.entry(i).name) == who:
+			return i
+	return 0

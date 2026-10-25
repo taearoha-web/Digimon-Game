@@ -11,6 +11,7 @@ var storage: StorageScreen
 var warp: WarpScreen
 var pvp_screen: PvpScreen
 var guildwar_screen: GuildWarScreen
+var guild_screen: GuildScreen
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -73,6 +74,8 @@ func _ready() -> void:
 	add_child(guildwar_screen)
 	guildwar_screen.enter_requested.connect(func(): go(&"guildwar", false, true))
 	guildwar_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	guild_screen = GuildScreen.new()
+	add_child(guild_screen)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -285,7 +288,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or guild_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -335,6 +338,12 @@ func _on_npc(role: String) -> void:
 			pvp_screen.open_lobby()
 		"guildwar":
 			guildwar_screen.open_lobby()
+		"guild":
+			var mine := Game.guild()
+			var text := "โลกนี้มีสองกิลด์ใหญ่ Alpha กับ Neverdie สมาชิกกิลด์ละ %d คน เล่นตามเวลาของตัวเองทุกวันตั้งแต่เลเวล 1 ไปจนถึง 200 ดาว เจอตัวจริงได้ตามแมพที่เขาล่าอยู่ เลือกเข้ากิลด์ไหน ก็ลงสงครามกิลด์กับเพื่อนร่วมกิลด์นั้น" % WorldPlayers.members(WorldPlayers.ALPHA).size()
+			if mine > 0:
+				text = "เจ้าอยู่กิลด์ %s แล้ว ดูรายชื่อสมาชิก ใครออนไลน์อยู่แมพไหน หรือจะย้ายกิลด์ก็ได้" % WorldPlayers.guild_name(mine)
+			dialog.say("นายทะเบียนกิลด์", text, [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_screen()}, {"label": "ไว้ก่อน"}])
 		"tower":
 			tower_screen.open_lobby()
 		"arena":

@@ -49,6 +49,12 @@ var _shred_time := 0.0
 var _unshredded_def := 0.0
 var _burn_dps := 0.0
 var _burn_time := 0.0
+## Damage taken from the hero's side and from world players (FieldPlayer): EXP and loot go
+## to the hero by its share, like kill credit between real players.
+var party_damage := 0
+var others_damage := 0
+## Who set the burn now ticking (its damage is credited like a hit).
+var burn_source: Node
 var _burn_tick := 0.0
 var _anim_lock := 0
 var _bar_until := 0.0
@@ -199,6 +205,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 	if _dead:
 		return false
 	set_dormant(false)
+	_credit(attacker, mini(amount, hp))
 	hp = maxi(0, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
@@ -218,6 +225,19 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 		_victim_timer = 3.0
 	provoke()
 	return false
+
+
+func _credit(attacker: Node, amount: int) -> void:
+	if is_instance_valid(attacker) and attacker.is_in_group("world_players"):
+		others_damage += amount
+	else:
+		party_damage += amount
+
+
+## The hero's side's share of the damage this monster took (1 when untouched).
+func party_share() -> float:
+	var total := party_damage + others_damage
+	return 1.0 if total <= 0 else float(party_damage) / float(total)
 
 
 func provoke(alert_pack := true) -> void:
@@ -467,6 +487,9 @@ func _targets() -> Array[Node3D]:
 	for node in get_tree().get_nodes_in_group("companions"):
 		if _alive(node as Node3D):
 			out.append(node as Node3D)
+	for node in get_tree().get_nodes_in_group("world_players"):
+		if _alive(node as Node3D):
+			out.append(node as Node3D)
 	for node in get_tree().get_nodes_in_group("summons"):
 		if _alive(node as Node3D):
 			out.append(node as Node3D)
@@ -580,6 +603,7 @@ func _tick_status(delta: float) -> void:
 		if _burn_tick >= 0.5:
 			_burn_tick -= 0.5
 			var amount := maxi(1, int(_burn_dps * 0.5))
+			_credit(burn_source, mini(amount, hp))
 			hp = maxi(0, hp - amount)
 			_bar.set_ratio(float(hp) / float(max_hp))
 			_bar.visible = true

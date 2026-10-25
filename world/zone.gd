@@ -40,6 +40,8 @@ var rng := RandomNumberGenerator.new()
 var portals: Array[Dictionary] = []
 var npcs: Array[Npc] = []
 var companions: Array[Companion] = []
+## The world players online here (see WorldPresence); none in duels, the tower or the arena.
+var presence: WorldPresence
 var current_interact: Dictionary = {}
 
 ## Ambient life per weather preset: layers of untracked CPUParticles3D that
@@ -188,6 +190,11 @@ func _ready() -> void:
 				spawned += 1
 				await _slice()
 	_phase("spawn_mobs")
+	if WorldPresence.enabled and not is_pvp and not is_tower and not bool(data.get("arena", false)):
+		presence = WorldPresence.new()
+		presence.setup(self)
+		add_child(presence)
+		_phase("world_players")
 	is_built = true
 	built.emit()
 
@@ -496,6 +503,7 @@ func _build_town() -> void:
 	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
 	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
+	_add_npc("guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING)
 	_add_npc("guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "สงครามกิลด์ %d ต่อ %d · 30 นาที" % [GuildWarData.TEAM_SIZE, GuildWarData.TEAM_SIZE], V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING)
 	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30))
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0))
@@ -598,6 +606,11 @@ func _spawn_hero() -> void:
 			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
+
+
+## Where someone walking into this zone appears (the hero's arrival point).
+func entrance() -> Vector3:
+	return _start
 
 
 ## Where to appear after arriving from another zone.
@@ -847,18 +860,25 @@ func _on_mob_died(mob: Mob) -> void:
 		if is_instance_valid(hero) and hero.target == mob:
 			hero.set_target(null)
 		return
+	if is_instance_valid(hero) and hero.target == mob:
+		hero.set_target(null)
+	# A world player's kill is its own: the hero earns EXP by its share of the damage,
+	# and the kill (loot, quests) only when it dealt most of it.
+	var share := mob.party_share()
+	if share <= 0.0:
+		return
 	_kills += 1
 	var level_gap: int = Game.profile.level - mob.level
 	var exp_scale := 1.0 if level_gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(level_gap - 4))
 	var region_boost := 1.0 + maxf(0.0, float(data.get("gear_star",0)) / 25.0)
-	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost))
+	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost * share))
 	Game.add_exp(exp_gain)
 	Game.party_add_exp(exp_gain)
 	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), "+%d EXP" % exp_gain, Color("66e0ff"), 0.8)
+	if share < 0.5:
+		return
 	Game.report_kill(mob.monster_id, mob.is_boss)
 	_drop_loot(mob)
-	if is_instance_valid(hero) and hero.target == mob:
-		hero.set_target(null)
 
 
 func _drop_loot(mob: Mob) -> void:
