@@ -4,7 +4,12 @@ extends CanvasLayer
 
 signal closed()
 
+## Bottle counts the − and + buttons step through for potions and scrolls.
+const QTY_STEPS := [1, 5, 10, 20, 50, 99]
+
 var is_open := false
+## Chosen count per stackable item id; kept between visits.
+var _qty := {}
 var _root: Control
 var _buy_box: VBoxContainer
 var _sell_box: VBoxContainer
@@ -140,7 +145,10 @@ func _rebuild() -> void:
 	UIUtil.clear(_buy_box)
 	UIUtil.clear(_sell_box)
 	for item in _stock():
-		_buy_box.add_child(_row(item, ItemData.buy_price(item), "ซื้อ", func(): Game.buy_item(item.duplicate(true))))
+		if ItemData.is_stackable(item):
+			_buy_box.add_child(_bulk_row(item))
+		else:
+			_buy_box.add_child(_row(item, ItemData.buy_price(item), "ซื้อ", func(): Game.buy_item(item.duplicate(true))))
 	var empty := true
 	for i in Game.profile.inv.size():
 		var item: Dictionary = Game.profile.inv[i]
@@ -151,6 +159,46 @@ func _rebuild() -> void:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
 	buy_scroll.restore_vertical_position(buy_y)
 	sell_scroll.restore_vertical_position(sell_y)
+
+
+## A potion or scroll: − and + pick how many bottles, the button buys them all at once.
+func _bulk_row(item: Dictionary) -> Control:
+	var id := String(item.id)
+	var panel := _row(item, ItemData.buy_price(item), "ซื้อ", func():
+		var lot := item.duplicate(true)
+		lot["count"] = int(_qty.get(id, 1))
+		Game.buy_item(lot))
+	var buy := panel.find_child("Buy", true, false) as Button
+	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var stepper := UIUtil.hbox(6)
+	stepper.name = "Qty"
+	(panel.find_child("Info", true, false) as Control).add_child(stepper)
+	var minus := UIUtil.button("−", &"", Vector2(64, 52))
+	minus.name = "QtyMinus"
+	var count := UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	count.name = "QtyCount"
+	count.custom_minimum_size = Vector2(72, 0)
+	var plus := UIUtil.button("+", &"", Vector2(64, 52))
+	plus.name = "QtyPlus"
+	stepper.add_child(minus)
+	stepper.add_child(count)
+	stepper.add_child(plus)
+	var refresh := func():
+		var n := int(_qty.get(id, 1))
+		var total := ItemData.buy_price(item) * n
+		count.text = "×%d" % n
+		buy.text = "ซื้อ %d" % total
+		buy.disabled = int(Game.profile.gold) < total
+		minus.disabled = n <= QTY_STEPS[0]
+		plus.disabled = n >= QTY_STEPS[-1]
+	var step := func(dir: int):
+		var at := QTY_STEPS.find(int(_qty.get(id, 1)))
+		_qty[id] = QTY_STEPS[clampi((at if at >= 0 else 0) + dir, 0, QTY_STEPS.size() - 1)]
+		refresh.call()
+	minus.pressed.connect(step.bind(-1))
+	plus.pressed.connect(step.bind(1))
+	refresh.call()
+	return panel
 
 
 func _row(item: Dictionary, price: int, action_label: String, action: Callable) -> Control:
@@ -164,6 +212,7 @@ func _row(item: Dictionary, price: int, action_label: String, action: Callable) 
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	line.add_child(icon)
 	var info := UIUtil.vbox(1)
+	info.name = "Info"
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)
 	var qty := " ×%d" % int(item.count) if ItemData.is_stackable(item) and int(item.get("count", 1)) > 1 else ""
@@ -179,6 +228,7 @@ func _row(item: Dictionary, price: int, action_label: String, action: Callable) 
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(detail)
 	var button := UIUtil.button("%s %d" % [action_label, price], &"PrimaryButton" if action_label == "ซื้อ" else &"", Vector2(150, 56))
+	button.name = "Buy" if action_label == "ซื้อ" else "Sell"
 	if action_label == "ซื้อ" and int(Game.profile.gold) < price:
 		button.disabled = true
 	button.pressed.connect(func():

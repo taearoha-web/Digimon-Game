@@ -68,6 +68,7 @@ A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3*
 ## Version 0.7.5
 
 - Selling from the bag or merchant preserves the scroll position, including several inventory/gold notifications in the same frame. The buy and sell lists retain their positions independently.
+- Potions and the town scroll are bought in lots: − and + on the merchant row step through 1, 5, 10, 20, 50 and 99 bottles, and the buy button shows and charges the total. A full bag still tops up a potion it already carries; a new kind needs a free slot (no gold is taken otherwise).
 - Removing the last row clamps to the new end of the list; empty bags return to zero. Entering a different menu tab starts normally, and fresh touch/mouse input takes priority over a pending restoration.
 - `sale_scroll_test` presses the real sale controls while paused and checks consecutive rendered frames, repeated sales, selection, exact proceeds, stacked items, bottom-of-list removal and empty lists.
 

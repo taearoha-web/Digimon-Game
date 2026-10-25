@@ -1938,7 +1938,9 @@ func buy_item(item: Dictionary) -> bool:
 	if profile["gold"] < price:
 		say("เหรียญไม่พอ", &"warning")
 		return false
-	if not ItemData.is_stackable(item) and inventory_free() <= 0:
+	# Potions stack onto a bottle already in the bag; a new kind needs a free slot.
+	var stacks: bool = ItemData.is_stackable(item) and profile["inv"].any(func(e): return e.get("kind", "") == item.get("kind", "") and e.get("id") == item.id)
+	if not stacks and inventory_free() <= 0:
 		say("กระเป๋าเต็ม", &"warning")
 		return false
 	spend_gold(price)
