@@ -2,19 +2,22 @@ extends Node
 ## Real-combat damage per second of every class at the end of the game: a Lv.100,
 ## ★200 hero, every job advancement, the boost tool's best +10 gear, a standard
 ## build (two thirds of the stat points in the main stat, the rest in VIT; star
-## points as balance_probe spends them) and every skill and passive at rank 5, hunting on auto
-## in one field for a fixed stretch of game time. Counts the health it takes off
-## monsters (its summons included), so attack speed, crits, skills, cooldowns and
-## the auto-caster all show.
+## points as balance_probe spends them) and every skill and passive at rank 5, fighting
+## on auto. The zone's camps are emptied and the hero fights a training ground of the
+## zone's first monster: one (boss-like single target), then a pack of six, each kept
+## alive for a fixed stretch of game time, so every class meets the same targets.
+## Counts the health it takes off them (summons included), so attack speed, crits,
+## skills, cooldowns, area reach and the auto-caster all show.
 ##   godot --headless --path . res://tests/tools/class_dps_probe.tscn -- [SECONDS] [ZONE] [class,class...]
 ## A class written as class:skill+skill runs with only those skills on its bar
 ## (class: alone = basic attacks only), to see what each skill adds.
-## Prints one DPS line per class, then each class relative to the median.
+## Prints single-target and pack DPS per class, each relative to its median.
 const Boost := preload("res://tools/boost_character.gd")
 
 var main: Node
 var _last_hp := {}
 var _dealt := 0.0
+var _dummies: Array[Mob] = []
 
 
 func _ready() -> void:
@@ -38,26 +41,61 @@ func _ready() -> void:
 		var bar: Variant = Array(parts[1].split("+", false)) if parts.size() > 1 else null
 		rows.append(await _measure(StringName(parts[0]), zone_id, seconds, bar))
 	Engine.time_scale = 1.0
-	var values := rows.map(func(r): return float(r.dps))
-	values.sort()
-	var half := values.size() / 2
-	var median: float = float(values[half]) if values.size() % 2 == 1 else (float(values[half - 1]) + float(values[half])) * 0.5
+	var medians := {}
+	for key in ["single", "pack"]:
+		var values := rows.map(func(r): return float(r[key]))
+		values.sort()
+		var half := values.size() / 2
+		medians[key] = float(values[half]) if values.size() % 2 == 1 else (float(values[half - 1]) + float(values[half])) * 0.5
 	for r in rows:
-		print("DPS %-9s %8.0f /s  x%.2f of median | atk %d crit %.0f%% haste %.0f%% dodge %.0f%% hp %d def %d" % [r.cls, r.dps, float(r.dps) / maxf(median, 1.0),
+		print("DPS %-9s single %7.0f /s x%.2f | pack of 6 %7.0f /s x%.2f | atk %d crit %.0f%% haste %.0f%% dodge %.0f%% hp %d def %d" % [r.cls,
+			r.single, float(r.single) / maxf(medians.single, 1.0), r.pack, float(r.pack) / maxf(medians.pack, 1.0),
 			r.atk, r.crit * 100.0, r.haste * 100.0, r.dodge * 100.0, r.hp, r.def])
 		print("BAR %-9s %s" % [r.cls, r.bar])
 	get_tree().quit()
 
 
+## Counts what the dummies lost since the last frame and heals them back to full.
 func _physics_process(_delta: float) -> void:
-	for node in get_tree().get_nodes_in_group("mobs"):
-		var mob := node as Mob
-		if mob == null:
+	for mob in _dummies:
+		if not is_instance_valid(mob):
 			continue
 		var id := mob.get_instance_id()
 		if _last_hp.has(id) and mob.hp < int(_last_hp[id]):
 			_dealt += float(int(_last_hp[id]) - mob.hp)
+		if not mob.is_dead():
+			mob.hp = mob.max_hp
 		_last_hp[id] = mob.hp
+
+
+## Fills the training ground up to [param count] dummies around the camp centre.
+func _fill(zone: Node, hero: Hero, camp: Dictionary, count: int) -> void:
+	_dummies = _dummies.filter(func(m): return is_instance_valid(m) and not m.is_dead())
+	var center := Vector3(camp.pos.x, 0, camp.pos.y)
+	var level := int((int(camp.levels[0]) + int(camp.levels[1])) / 2)
+	while _dummies.size() < count:
+		var angle := TAU * _dummies.size() / float(count)
+		var spot := center + (Vector3.ZERO if count == 1 else Vector3(cos(angle), 0, sin(angle)) * 2.2)
+		var mob := Mob.new()
+		mob.setup(StringName(camp.monsters[0]), level, spot, hero)
+		mob.position = spot + Vector3(0, 0.3, 0)
+		zone.add_child(mob)
+		_dummies.append(mob)
+
+
+func _run(zone: Node, hero: Hero, camp: Dictionary, count: int, seconds: float) -> float:
+	_fill(zone, hero, camp, count)
+	await get_tree().create_timer(2.5).timeout
+	_last_hp.clear()
+	_dealt = 0.0
+	var t := 0.0
+	while t < seconds:
+		await get_tree().create_timer(0.5).timeout
+		t += 0.5
+		_fill(zone, hero, camp, count)
+		Game.profile.hp = hero.stats.max_hp
+		Game.profile.mp = hero.stats.max_mp
+	return _dealt / seconds
 
 
 ## The bar an endgame player runs: the six hardest-hitting unlocked attacks
@@ -114,22 +152,22 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 			p.loadout.append("")
 	await main.go(zone_id, true)
 	await get_tree().create_timer(0.5).timeout
-	var hero: Hero = main.zone.hero
-	if not main.zone._camps.is_empty():
-		var camp: Dictionary = main.zone._camps[0]
-		hero.global_position = Vector3(camp.pos.x, 0.2, camp.pos.y)
-	hero._invulnerable_until = Time.get_ticks_msec() + int(seconds * 1000.0) + 60000
+	var zone: Node = main.zone
+	var hero: Hero = zone.hero
+	# Empty every camp and stop its respawns: only the dummies stand in the field.
+	for camp in zone._camps:
+		camp.count = 0
+		for mob in camp.mobs:
+			if is_instance_valid(mob):
+				mob.queue_free()
+		camp.mobs = []
+	_dummies.clear()
+	var ground: Dictionary = zone._camps[0]
+	hero.global_position = Vector3(ground.pos.x, 0.2, ground.pos.y - 3.0)
+	hero._invulnerable_until = Time.get_ticks_msec() + int(seconds * 2000.0) + 60000
 	hero.set_auto(true)
-	# Let the first pull happen, then count.
-	await get_tree().create_timer(3.0).timeout
-	_last_hp.clear()
-	_dealt = 0.0
 	var stats := HeroStats.compute(Game.profile)
-	var t := 0.0
-	while t < seconds:
-		await get_tree().create_timer(0.5).timeout
-		t += 0.5
-		Game.profile.hp = hero.stats.max_hp
-		Game.profile.mp = hero.stats.max_mp
-	return {"cls": String(cls), "bar": ",".join(Game.profile.loadout), "dps": _dealt / seconds, "atk": int(stats.atk), "crit": float(stats.crit), "haste": float(stats.haste),
+	var single: float = await _run(zone, hero, ground, 1, seconds)
+	var pack: float = await _run(zone, hero, ground, 6, seconds)
+	return {"cls": String(cls), "bar": ",".join(Game.profile.loadout), "single": single, "pack": pack, "atk": int(stats.atk), "crit": float(stats.crit), "haste": float(stats.haste),
 		"dodge": float(stats.dodge), "hp": int(stats.max_hp), "def": int(stats.def)}
