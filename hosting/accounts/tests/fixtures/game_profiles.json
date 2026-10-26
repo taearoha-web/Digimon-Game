@@ -8,7 +8,8 @@
 		"summoner",
 		"lancer",
 		"defender",
-		"assassin"
+		"assassin",
+		"darklord"
 	],
 	"generatedBy": "tests/tools/save_fixtures.gd",
 	"profiles": {
@@ -49,7 +50,7 @@
 			"class": "archer",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -58,8 +59,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -95,7 +96,7 @@
 						"hp": 4054,
 						"mp": 3500
 					},
-					"uid": "6adcc61d5b7f"
+					"uid": "6adf710279cd"
 				},
 				"armor": {
 					"base": "armor",
@@ -121,7 +122,7 @@
 						"hp": 3280,
 						"mp": 382
 					},
-					"uid": "6adcc61ddea7"
+					"uid": "6adf71027d7c"
 				},
 				"boots": {
 					"base": "boots",
@@ -147,7 +148,7 @@
 						"hp": 2025,
 						"mp": 437
 					},
-					"uid": "6adcc61d4267"
+					"uid": "6adf710259f8"
 				},
 				"helm": {
 					"base": "helm",
@@ -173,7 +174,7 @@
 						"hp": 2424,
 						"mp": 407
 					},
-					"uid": "6adcc61ddf86"
+					"uid": "6adf7102bf01"
 				},
 				"ring": {
 					"base": "ring",
@@ -201,7 +202,7 @@
 						"hp": 921,
 						"mp": 461
 					},
-					"uid": "6adcc61d4dec"
+					"uid": "6adf710278b4"
 				},
 				"weapon": {
 					"base": "bow",
@@ -227,7 +228,7 @@
 						"hp": 760,
 						"mp": 381
 					},
-					"uid": "6adcc61da97b"
+					"uid": "6adf7102468b"
 				},
 				"wings": {
 					"base": "wings",
@@ -253,17 +254,17 @@
 						"hp": 1844,
 						"mp": 668
 					},
-					"uid": "6adcc61d8f34",
+					"uid": "6adf71024764",
 					"wing": "archer"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 7,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -316,15 +317,15 @@
 						"def": 13,
 						"hp": 39
 					},
-					"uid": "6adcc61c708b"
+					"uid": "6adf71011e56"
 				},
 				{
-					"base": "staff",
-					"class": "mage",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 14,
-					"name": "คทาเหล็กกล้า",
+					"name": "หอกเหล็กกล้า",
 					"plus": 0,
 					"price": 174,
 					"rarity": 0,
@@ -334,7 +335,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61cd033"
+					"uid": "6adf7101391e"
 				},
 				{
 					"base": "armor",
@@ -354,15 +355,15 @@
 						"def": 38,
 						"hp": 102
 					},
-					"uid": "6adcc61c01dc"
+					"uid": "6adf7101b51b"
 				},
 				{
-					"base": "dagger",
-					"class": "assassin",
+					"base": "staff",
+					"class": "mage",
 					"gems": [],
 					"kind": "equip",
 					"level": 13,
-					"name": "มีดคู่เหล็กกล้า ชั้นดี",
+					"name": "คทาเหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 342,
 					"rarity": 1,
@@ -373,7 +374,7 @@
 						"atk": 41,
 						"hp": 58
 					},
-					"uid": "6adcc61c1134"
+					"uid": "6adf7101767b"
 				},
 				{
 					"base": "boots",
@@ -392,7 +393,7 @@
 						"def": 12,
 						"hp": 34
 					},
-					"uid": "6adcc61c4825"
+					"uid": "6adf7101a148"
 				},
 				{
 					"base": "ring",
@@ -411,7 +412,7 @@
 						"atk": 16,
 						"crit": 0.019
 					},
-					"uid": "6adcc61c89aa"
+					"uid": "6adf7101aa43"
 				},
 				{
 					"base": "bow",
@@ -429,7 +430,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61c24a1"
+					"uid": "6adf7101e157"
 				},
 				{
 					"base": "helm",
@@ -449,7 +450,7 @@
 						"def": 19,
 						"hp": 58
 					},
-					"uid": "6adcc61c435d"
+					"uid": "6adf7101f3db"
 				},
 				{
 					"base": "bow",
@@ -467,15 +468,15 @@
 					"stats": {
 						"atk": 18
 					},
-					"uid": "6adcc61c4476"
+					"uid": "6adf7101f270"
 				},
 				{
-					"base": "lantern",
-					"class": "summoner",
+					"base": "dagger",
+					"class": "assassin",
 					"gems": [],
 					"kind": "equip",
 					"level": 12,
-					"name": "โคมเหล็กผูกวิญญาณ ชั้นดี",
+					"name": "มีดคู่เหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 319,
 					"rarity": 1,
@@ -486,7 +487,7 @@
 						"atk": 35,
 						"crit": 0.008
 					},
-					"uid": "6adcc61c120d"
+					"uid": "6adf7101db95"
 				},
 				{
 					"base": "helm",
@@ -506,7 +507,7 @@
 						"def": 24,
 						"hp": 76
 					},
-					"uid": "6adcc61c4e5d"
+					"uid": "6adf7101a5e2"
 				},
 				{
 					"base": "boots",
@@ -525,7 +526,7 @@
 						"def": 5,
 						"hp": 12
 					},
-					"uid": "6adcc61c7bb2"
+					"uid": "6adf7101058b"
 				},
 				{
 					"count": 20,
@@ -533,27 +534,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "bow",
-					"class": "archer",
+					"base": "armor",
+					"class": "",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "ธนูมิธริล ล้ำค่า",
+					"name": "เสื้อเกราะโซ่ ล้ำค่า",
 					"plus": 0,
 					"price": 873,
 					"rarity": 2,
 					"set": "set2",
-					"slot": "weapon",
+					"slot": "armor",
 					"sockets": 1,
 					"stats": {
-						"atk": 82,
-						"hp": 98
+						"crit": 0.011,
+						"def": 65,
+						"hp": 161
 					},
-					"uid": "6adcc61c1c0b"
+					"uid": "6adf71013733"
 				},
 				{
 					"count": 1,
-					"id": "topaz_0",
+					"id": "sapphire_0",
 					"kind": "gem"
 				},
 				{
@@ -587,7 +589,7 @@
 						"def": 6,
 						"hp": 98
 					},
-					"uid": "6adcc61c4124"
+					"uid": "6adf71018c68"
 				},
 				{
 					"base": "armor",
@@ -608,7 +610,7 @@
 						"hp": 184,
 						"mp": 50
 					},
-					"uid": "6adcc61c6bf1"
+					"uid": "6adf7101c10d"
 				},
 				{
 					"base": "helm",
@@ -628,7 +630,7 @@
 						"hp": 110,
 						"mp": 50
 					},
-					"uid": "6adcc61c74ec"
+					"uid": "6adf71014a27"
 				},
 				{
 					"base": "boots",
@@ -648,7 +650,7 @@
 						"def": 26,
 						"hp": 270
 					},
-					"uid": "6adcc61cac00"
+					"uid": "6adf71019796"
 				},
 				{
 					"base": "ring",
@@ -669,7 +671,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61cbe84"
+					"uid": "6adf710185c9"
 				},
 				{
 					"base": "amulet",
@@ -690,7 +692,7 @@
 						"hp": 147,
 						"mp": 147
 					},
-					"uid": "6adcc61cbd19"
+					"uid": "6adf710124b6"
 				},
 				{
 					"base": "wings",
@@ -710,7 +712,7 @@
 						"crit": 0.023,
 						"hp": 615
 					},
-					"uid": "6adcc61ca63e",
+					"uid": "6adf71010c98",
 					"wing": "archer"
 				},
 				{
@@ -738,7 +740,7 @@
 						"hp": 1328,
 						"mp": 665
 					},
-					"uid": "6adcc61d77cf"
+					"uid": "6adf710283b4"
 				},
 				{
 					"count": 1,
@@ -794,23 +796,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "mage",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 0,
-						"hair_tint": 3,
-						"skin_tone": 2
-					},
-					"name": "เจน",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -836,7 +822,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853533,
+			"saved_at": 1793028354,
 			"skill_points": 127,
 			"skills": {
 				"arrow_of_rage": 2,
@@ -867,7 +853,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61cfcea"
+					"uid": "6adf71018b3b"
 				}
 			],
 			"tower": {
@@ -905,7 +891,7 @@
 			"class": "archer",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -914,8 +900,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -946,7 +932,7 @@
 						"hp": 147,
 						"mp": 147
 					},
-					"uid": "6adcc61cbd19"
+					"uid": "6adf710124b6"
 				},
 				"armor": {
 					"base": "armor",
@@ -967,7 +953,7 @@
 						"hp": 184,
 						"mp": 50
 					},
-					"uid": "6adcc61c6bf1"
+					"uid": "6adf7101c10d"
 				},
 				"boots": {
 					"base": "boots",
@@ -987,7 +973,7 @@
 						"def": 26,
 						"hp": 270
 					},
-					"uid": "6adcc61cac00"
+					"uid": "6adf71019796"
 				},
 				"helm": {
 					"base": "helm",
@@ -1007,7 +993,7 @@
 						"hp": 110,
 						"mp": 50
 					},
-					"uid": "6adcc61c74ec"
+					"uid": "6adf71014a27"
 				},
 				"ring": {
 					"base": "ring",
@@ -1028,7 +1014,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61cbe84"
+					"uid": "6adf710185c9"
 				},
 				"weapon": {
 					"base": "bow",
@@ -1051,7 +1037,7 @@
 						"def": 6,
 						"hp": 98
 					},
-					"uid": "6adcc61c4124"
+					"uid": "6adf71018c68"
 				},
 				"wings": {
 					"base": "wings",
@@ -1071,26 +1057,31 @@
 						"crit": 0.023,
 						"hp": 615
 					},
-					"uid": "6adcc61ca63e",
+					"uid": "6adf71010c98",
 					"wing": "archer"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 5,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853532,
+				"gw_r_at": 1793028353,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -1135,15 +1126,15 @@
 						"def": 13,
 						"hp": 39
 					},
-					"uid": "6adcc61c708b"
+					"uid": "6adf71011e56"
 				},
 				{
-					"base": "staff",
-					"class": "mage",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 14,
-					"name": "คทาเหล็กกล้า",
+					"name": "หอกเหล็กกล้า",
 					"plus": 0,
 					"price": 174,
 					"rarity": 0,
@@ -1153,7 +1144,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61cd033"
+					"uid": "6adf7101391e"
 				},
 				{
 					"base": "armor",
@@ -1173,15 +1164,15 @@
 						"def": 38,
 						"hp": 102
 					},
-					"uid": "6adcc61c01dc"
+					"uid": "6adf7101b51b"
 				},
 				{
-					"base": "dagger",
-					"class": "assassin",
+					"base": "staff",
+					"class": "mage",
 					"gems": [],
 					"kind": "equip",
 					"level": 13,
-					"name": "มีดคู่เหล็กกล้า ชั้นดี",
+					"name": "คทาเหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 342,
 					"rarity": 1,
@@ -1192,7 +1183,7 @@
 						"atk": 41,
 						"hp": 58
 					},
-					"uid": "6adcc61c1134"
+					"uid": "6adf7101767b"
 				},
 				{
 					"base": "boots",
@@ -1211,7 +1202,7 @@
 						"def": 12,
 						"hp": 34
 					},
-					"uid": "6adcc61c4825"
+					"uid": "6adf7101a148"
 				},
 				{
 					"base": "ring",
@@ -1230,7 +1221,7 @@
 						"atk": 16,
 						"crit": 0.019
 					},
-					"uid": "6adcc61c89aa"
+					"uid": "6adf7101aa43"
 				},
 				{
 					"base": "bow",
@@ -1248,7 +1239,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61c24a1"
+					"uid": "6adf7101e157"
 				},
 				{
 					"base": "helm",
@@ -1268,7 +1259,7 @@
 						"def": 19,
 						"hp": 58
 					},
-					"uid": "6adcc61c435d"
+					"uid": "6adf7101f3db"
 				},
 				{
 					"base": "bow",
@@ -1286,15 +1277,15 @@
 					"stats": {
 						"atk": 18
 					},
-					"uid": "6adcc61c4476"
+					"uid": "6adf7101f270"
 				},
 				{
-					"base": "lantern",
-					"class": "summoner",
+					"base": "dagger",
+					"class": "assassin",
 					"gems": [],
 					"kind": "equip",
 					"level": 12,
-					"name": "โคมเหล็กผูกวิญญาณ ชั้นดี",
+					"name": "มีดคู่เหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 319,
 					"rarity": 1,
@@ -1305,7 +1296,7 @@
 						"atk": 35,
 						"crit": 0.008
 					},
-					"uid": "6adcc61c120d"
+					"uid": "6adf7101db95"
 				},
 				{
 					"base": "helm",
@@ -1325,7 +1316,7 @@
 						"def": 24,
 						"hp": 76
 					},
-					"uid": "6adcc61c4e5d"
+					"uid": "6adf7101a5e2"
 				},
 				{
 					"base": "boots",
@@ -1344,7 +1335,7 @@
 						"def": 5,
 						"hp": 12
 					},
-					"uid": "6adcc61c7bb2"
+					"uid": "6adf7101058b"
 				},
 				{
 					"count": 20,
@@ -1352,27 +1343,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "bow",
-					"class": "archer",
+					"base": "armor",
+					"class": "",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "ธนูมิธริล ล้ำค่า",
+					"name": "เสื้อเกราะโซ่ ล้ำค่า",
 					"plus": 0,
 					"price": 873,
 					"rarity": 2,
 					"set": "set2",
-					"slot": "weapon",
+					"slot": "armor",
 					"sockets": 1,
 					"stats": {
-						"atk": 82,
-						"hp": 98
+						"crit": 0.011,
+						"def": 65,
+						"hp": 161
 					},
-					"uid": "6adcc61c1c0b"
+					"uid": "6adf71013733"
 				},
 				{
 					"count": 1,
-					"id": "topaz_0",
+					"id": "sapphire_0",
 					"kind": "gem"
 				}
 			],
@@ -1419,23 +1411,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "mage",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 0,
-						"hair_tint": 3,
-						"skin_tone": 2
-					},
-					"name": "เจน",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -1461,7 +1437,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853532,
+			"saved_at": 1793028353,
 			"skill_points": 20,
 			"skills": {
 				"arrow_of_rage": 2,
@@ -1492,7 +1468,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61cfcea"
+					"uid": "6adf71018b3b"
 				}
 			],
 			"tower": {
@@ -1538,7 +1514,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61de490"
+					"uid": "6adf7102b109"
 				}
 			},
 			"exp": 0,
@@ -1617,7 +1593,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853533,
+			"saved_at": 1793028354,
 			"skill_points": 1,
 			"skills": {
 
@@ -1666,7 +1642,7 @@
 			"class": "assassin",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -1675,8 +1651,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -1712,7 +1688,7 @@
 						"hp": 4059,
 						"mp": 3504
 					},
-					"uid": "6adcc61f2aab"
+					"uid": "6adf7107d216"
 				},
 				"armor": {
 					"base": "armor",
@@ -1738,7 +1714,7 @@
 						"hp": 3293,
 						"mp": 383
 					},
-					"uid": "6adcc61f6302"
+					"uid": "6adf7107a798"
 				},
 				"boots": {
 					"base": "boots",
@@ -1764,7 +1740,7 @@
 						"hp": 2138,
 						"mp": 461
 					},
-					"uid": "6adcc61fcd64"
+					"uid": "6adf7107a0da"
 				},
 				"helm": {
 					"base": "helm",
@@ -1790,7 +1766,7 @@
 						"hp": 2413,
 						"mp": 405
 					},
-					"uid": "6adcc61fc655"
+					"uid": "6adf71076ee7"
 				},
 				"ring": {
 					"base": "ring",
@@ -1818,7 +1794,7 @@
 						"hp": 927,
 						"mp": 465
 					},
-					"uid": "6adcc61f64f5"
+					"uid": "6adf7107751b"
 				},
 				"weapon": {
 					"base": "dagger",
@@ -1844,7 +1820,7 @@
 						"hp": 752,
 						"mp": 377
 					},
-					"uid": "6adcc61fef4c"
+					"uid": "6adf71075480"
 				},
 				"wings": {
 					"base": "wings",
@@ -1870,17 +1846,17 @@
 						"hp": 2225,
 						"mp": 562
 					},
-					"uid": "6adcc61f1d35",
+					"uid": "6adf7107c5ec",
 					"wing": "assassin"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 9,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -1933,7 +1909,7 @@
 						"def": 13,
 						"hp": 30
 					},
-					"uid": "6adcc61f948b"
+					"uid": "6adf71064a38"
 				},
 				{
 					"base": "armor",
@@ -1952,7 +1928,7 @@
 						"def": 19,
 						"hp": 55
 					},
-					"uid": "6adcc61f4b2f"
+					"uid": "6adf7106a5d9"
 				},
 				{
 					"base": "helm",
@@ -1971,7 +1947,7 @@
 						"def": 10,
 						"hp": 47
 					},
-					"uid": "6adcc61fffb8"
+					"uid": "6adf71067c93"
 				},
 				{
 					"base": "armor",
@@ -1992,7 +1968,7 @@
 						"hp": 77,
 						"mp": 26
 					},
-					"uid": "6adcc61fc4fe"
+					"uid": "6adf71060fcd"
 				},
 				{
 					"base": "armor",
@@ -2011,7 +1987,7 @@
 						"def": 32,
 						"hp": 85
 					},
-					"uid": "6adcc61f51df"
+					"uid": "6adf71068da4"
 				},
 				{
 					"base": "amulet",
@@ -2030,7 +2006,7 @@
 						"hp": 32,
 						"mp": 32
 					},
-					"uid": "6adcc61fbf3a"
+					"uid": "6adf710677c9"
 				},
 				{
 					"base": "dagger",
@@ -2048,7 +2024,7 @@
 					"stats": {
 						"atk": 35
 					},
-					"uid": "6adcc61f1085"
+					"uid": "6adf71061d18"
 				},
 				{
 					"base": "armor",
@@ -2067,7 +2043,7 @@
 						"def": 13,
 						"hp": 30
 					},
-					"uid": "6adcc61f1192"
+					"uid": "6adf7106ae13"
 				},
 				{
 					"base": "armor",
@@ -2086,7 +2062,7 @@
 						"def": 53,
 						"hp": 132
 					},
-					"uid": "6adcc61f194c"
+					"uid": "6adf71068e94"
 				},
 				{
 					"base": "armor",
@@ -2105,7 +2081,7 @@
 						"def": 32,
 						"hp": 85
 					},
-					"uid": "6adcc61fe82e"
+					"uid": "6adf71065f5b"
 				},
 				{
 					"base": "armor",
@@ -2124,7 +2100,7 @@
 						"def": 29,
 						"hp": 85
 					},
-					"uid": "6adcc61fe345"
+					"uid": "6adf71066a87"
 				},
 				{
 					"base": "helm",
@@ -2144,7 +2120,7 @@
 						"def": 18,
 						"hp": 54
 					},
-					"uid": "6adcc61f8554"
+					"uid": "6adf7106e37d"
 				},
 				{
 					"count": 20,
@@ -2165,20 +2141,14 @@
 					"slot": "armor",
 					"sockets": 1,
 					"stats": {
-						"atk": 7,
 						"crit": 0.011,
-						"def": 62,
-						"hp": 161
+						"def": 53,
+						"hp": 259
 					},
-					"uid": "6adcc61fd29f"
+					"uid": "6adf7106e8b4"
 				},
 				{
-					"count": 1,
-					"id": "sapphire_0",
-					"kind": "gem"
-				},
-				{
-					"count": 1,
+					"count": 2,
 					"id": "ruby_0",
 					"kind": "gem"
 				},
@@ -2208,7 +2178,7 @@
 						"def": 6,
 						"hp": 98
 					},
-					"uid": "6adcc61fbec7"
+					"uid": "6adf710666f8"
 				},
 				{
 					"base": "armor",
@@ -2228,7 +2198,7 @@
 						"hp": 282,
 						"mp": 100
 					},
-					"uid": "6adcc61f9e11"
+					"uid": "6adf71066457"
 				},
 				{
 					"base": "helm",
@@ -2249,7 +2219,7 @@
 						"hp": 110,
 						"mp": 50
 					},
-					"uid": "6adcc61f14df"
+					"uid": "6adf7106d55d"
 				},
 				{
 					"base": "boots",
@@ -2270,7 +2240,7 @@
 						"hp": 172,
 						"mp": 50
 					},
-					"uid": "6adcc61fdd8f"
+					"uid": "6adf7106547a"
 				},
 				{
 					"base": "ring",
@@ -2290,7 +2260,7 @@
 						"crit": 0.038,
 						"hp": 98
 					},
-					"uid": "6adcc61f0094"
+					"uid": "6adf7106572e"
 				},
 				{
 					"base": "amulet",
@@ -2311,7 +2281,7 @@
 						"hp": 147,
 						"mp": 197
 					},
-					"uid": "6adcc61ff589"
+					"uid": "6adf7106eed2"
 				},
 				{
 					"base": "wings",
@@ -2331,7 +2301,7 @@
 						"def": 54,
 						"hp": 459
 					},
-					"uid": "6adcc61f0bea",
+					"uid": "6adf710629cd",
 					"wing": "assassin"
 				},
 				{
@@ -2359,7 +2329,7 @@
 						"hp": 1346,
 						"mp": 674
 					},
-					"uid": "6adcc61f0c37"
+					"uid": "6adf710709b4"
 				},
 				{
 					"count": 1,
@@ -2420,23 +2390,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "warrior",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 1,
-						"hair_tint": 7,
-						"skin_tone": 1
-					},
-					"name": "ทอม",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -2462,7 +2416,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853535,
+			"saved_at": 1793028359,
 			"skill_points": 127,
 			"skills": {
 				"shadow_step": 2,
@@ -2493,7 +2447,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61f0ccb"
+					"uid": "6adf7106172f"
 				}
 			],
 			"tower": {
@@ -2531,7 +2485,7 @@
 			"class": "assassin",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -2540,8 +2494,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -2572,7 +2526,7 @@
 						"hp": 147,
 						"mp": 197
 					},
-					"uid": "6adcc61ff589"
+					"uid": "6adf7106eed2"
 				},
 				"armor": {
 					"base": "armor",
@@ -2592,7 +2546,7 @@
 						"hp": 282,
 						"mp": 100
 					},
-					"uid": "6adcc61f9e11"
+					"uid": "6adf71066457"
 				},
 				"boots": {
 					"base": "boots",
@@ -2613,7 +2567,7 @@
 						"hp": 172,
 						"mp": 50
 					},
-					"uid": "6adcc61fdd8f"
+					"uid": "6adf7106547a"
 				},
 				"helm": {
 					"base": "helm",
@@ -2634,7 +2588,7 @@
 						"hp": 110,
 						"mp": 50
 					},
-					"uid": "6adcc61f14df"
+					"uid": "6adf7106d55d"
 				},
 				"ring": {
 					"base": "ring",
@@ -2654,7 +2608,7 @@
 						"crit": 0.038,
 						"hp": 98
 					},
-					"uid": "6adcc61f0094"
+					"uid": "6adf7106572e"
 				},
 				"weapon": {
 					"base": "dagger",
@@ -2677,7 +2631,7 @@
 						"def": 6,
 						"hp": 98
 					},
-					"uid": "6adcc61fbec7"
+					"uid": "6adf710666f8"
 				},
 				"wings": {
 					"base": "wings",
@@ -2697,26 +2651,31 @@
 						"def": 54,
 						"hp": 459
 					},
-					"uid": "6adcc61f0bea",
+					"uid": "6adf710629cd",
 					"wing": "assassin"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 5,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853535,
+				"gw_r_at": 1793028358,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -2761,7 +2720,7 @@
 						"def": 13,
 						"hp": 30
 					},
-					"uid": "6adcc61f948b"
+					"uid": "6adf71064a38"
 				},
 				{
 					"base": "armor",
@@ -2780,7 +2739,7 @@
 						"def": 19,
 						"hp": 55
 					},
-					"uid": "6adcc61f4b2f"
+					"uid": "6adf7106a5d9"
 				},
 				{
 					"base": "helm",
@@ -2799,7 +2758,7 @@
 						"def": 10,
 						"hp": 47
 					},
-					"uid": "6adcc61fffb8"
+					"uid": "6adf71067c93"
 				},
 				{
 					"base": "armor",
@@ -2820,7 +2779,7 @@
 						"hp": 77,
 						"mp": 26
 					},
-					"uid": "6adcc61fc4fe"
+					"uid": "6adf71060fcd"
 				},
 				{
 					"base": "armor",
@@ -2839,7 +2798,7 @@
 						"def": 32,
 						"hp": 85
 					},
-					"uid": "6adcc61f51df"
+					"uid": "6adf71068da4"
 				},
 				{
 					"base": "amulet",
@@ -2858,7 +2817,7 @@
 						"hp": 32,
 						"mp": 32
 					},
-					"uid": "6adcc61fbf3a"
+					"uid": "6adf710677c9"
 				},
 				{
 					"base": "dagger",
@@ -2876,7 +2835,7 @@
 					"stats": {
 						"atk": 35
 					},
-					"uid": "6adcc61f1085"
+					"uid": "6adf71061d18"
 				},
 				{
 					"base": "armor",
@@ -2895,7 +2854,7 @@
 						"def": 13,
 						"hp": 30
 					},
-					"uid": "6adcc61f1192"
+					"uid": "6adf7106ae13"
 				},
 				{
 					"base": "armor",
@@ -2914,7 +2873,7 @@
 						"def": 53,
 						"hp": 132
 					},
-					"uid": "6adcc61f194c"
+					"uid": "6adf71068e94"
 				},
 				{
 					"base": "armor",
@@ -2933,7 +2892,7 @@
 						"def": 32,
 						"hp": 85
 					},
-					"uid": "6adcc61fe82e"
+					"uid": "6adf71065f5b"
 				},
 				{
 					"base": "armor",
@@ -2952,7 +2911,7 @@
 						"def": 29,
 						"hp": 85
 					},
-					"uid": "6adcc61fe345"
+					"uid": "6adf71066a87"
 				},
 				{
 					"base": "helm",
@@ -2972,7 +2931,7 @@
 						"def": 18,
 						"hp": 54
 					},
-					"uid": "6adcc61f8554"
+					"uid": "6adf7106e37d"
 				},
 				{
 					"count": 20,
@@ -2993,16 +2952,15 @@
 					"slot": "armor",
 					"sockets": 1,
 					"stats": {
-						"atk": 7,
 						"crit": 0.011,
-						"def": 62,
-						"hp": 161
+						"def": 53,
+						"hp": 259
 					},
-					"uid": "6adcc61fd29f"
+					"uid": "6adf7106e8b4"
 				},
 				{
 					"count": 1,
-					"id": "sapphire_0",
+					"id": "ruby_0",
 					"kind": "gem"
 				}
 			],
@@ -3049,23 +3007,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "warrior",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 1,
-						"hair_tint": 7,
-						"skin_tone": 1
-					},
-					"name": "ทอม",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -3091,7 +3033,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853535,
+			"saved_at": 1793028358,
 			"skill_points": 20,
 			"skills": {
 				"shadow_step": 2,
@@ -3122,7 +3064,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61f0ccb"
+					"uid": "6adf7106172f"
 				}
 			],
 			"tower": {
@@ -3168,7 +3110,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61f814e"
+					"uid": "6adf710798c2"
 				}
 			},
 			"exp": 0,
@@ -3247,7 +3189,1596 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853535,
+			"saved_at": 1793028359,
+			"skill_points": 1,
+			"skills": {
+
+			},
+			"storage": [],
+			"tower": {
+
+			},
+			"version": 1,
+			"zone": "town"
+		},
+		"darklord_lv100_star": {
+			"ach": {
+				"boss1": true,
+				"first_blood": true,
+				"legend": true,
+				"lv10": true,
+				"lv100": true,
+				"lv30": true,
+				"lv50": true,
+				"mythic": true,
+				"para10": true,
+				"para100": true,
+				"para50": true,
+				"plus7": true,
+				"pvp1": true,
+				"rich": true,
+				"tower10": true,
+				"tower30": true,
+				"tower60": true
+			},
+			"adv": 0,
+			"attrs": {
+				"dex": 0,
+				"int": 0,
+				"str": 4,
+				"vit": 2
+			},
+			"bag_slots": 50,
+			"boss_kills": {
+				"mush_king": 1
+			},
+			"boss_pity": {
+				"mush_king": 2
+			},
+			"class": "darklord",
+			"daily": {
+				"chest": true,
+				"date": "2026-10-26",
+				"quests": [
+					{
+						"claimed": true,
+						"id": "zone_kills",
+						"progress": 22
+					},
+					{
+						"claimed": true,
+						"id": "gold",
+						"progress": 1120
+					},
+					{
+						"claimed": true,
+						"id": "boss",
+						"progress": 1
+					}
+				],
+				"zone": "meadow"
+			},
+			"deaths": 2,
+			"equip": {
+				"amulet": {
+					"base": "amulet",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_amulet_darklord_100",
+					"name": "สร้อยราชันอีกาผลึกคราม",
+					"plus": 0,
+					"price": 6751,
+					"rarity": 3,
+					"set": "",
+					"slot": "amulet",
+					"sockets": 2,
+					"star_class": "darklord",
+					"star_set": "star_darklord_100",
+					"star_tier": 100,
+					"stats": {
+						"atk": 52,
+						"crit": 0.063,
+						"def": 44,
+						"hp": 4054,
+						"mp": 3500
+					},
+					"uid": "6adf7107bd8b"
+				},
+				"armor": {
+					"base": "armor",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_armor_darklord_100",
+					"name": "เกราะราชันอีกาผลึกคราม",
+					"plus": 0,
+					"price": 6751,
+					"rarity": 3,
+					"set": "star_darklord_100",
+					"slot": "armor",
+					"sockets": 2,
+					"star_class": "darklord",
+					"star_set": "star_darklord_100",
+					"star_tier": 100,
+					"stats": {
+						"atk": 36,
+						"crit": 0.043,
+						"def": 620,
+						"hp": 3262,
+						"mp": 379
+					},
+					"uid": "6adf71079497"
+				},
+				"boots": {
+					"base": "boots",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_boots_darklord_100",
+					"name": "รองเท้าราชันอีกาผลึกคราม",
+					"plus": 0,
+					"price": 6751,
+					"rarity": 3,
+					"set": "star_darklord_100",
+					"slot": "boots",
+					"sockets": 2,
+					"star_class": "darklord",
+					"star_set": "star_darklord_100",
+					"star_tier": 100,
+					"stats": {
+						"atk": 42,
+						"crit": 0.05,
+						"def": 311,
+						"hp": 2052,
+						"mp": 443
+					},
+					"uid": "6adf7107e6ee"
+				},
+				"helm": {
+					"base": "helm",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_helm_darklord_100",
+					"name": "มงกุฎราชันอีกาผลึกคราม",
+					"plus": 0,
+					"price": 8101,
+					"rarity": 4,
+					"set": "star_darklord_100",
+					"slot": "helm",
+					"sockets": 3,
+					"star_class": "darklord",
+					"star_set": "star_darklord_100",
+					"star_tier": 100,
+					"stats": {
+						"atk": 41,
+						"crit": 0.049,
+						"def": 392,
+						"hp": 2571,
+						"mp": 432
+					},
+					"uid": "6adf7107e5e1"
+				},
+				"ring": {
+					"base": "ring",
+					"class": "darklord",
+					"gems": [
+						"emerald_2"
+					],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_ring_darklord_100",
+					"name": "แหวนราชันอีกาผลึกคราม",
+					"plus": 0,
+					"price": 6751,
+					"rarity": 3,
+					"set": "",
+					"slot": "ring",
+					"sockets": 2,
+					"star_class": "darklord",
+					"star_set": "star_darklord_100",
+					"star_tier": 100,
+					"stats": {
+						"atk": 328,
+						"crit": 0.358,
+						"def": 36,
+						"hp": 914,
+						"mp": 458
+					},
+					"uid": "6adf7107eea8"
+				},
+				"weapon": {
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_scepter_100",
+					"name": "คทาราชันผลึกคราม",
+					"plus": 9,
+					"price": 22458,
+					"rarity": 4,
+					"set": "star_darklord_100",
+					"slot": "weapon",
+					"sockets": 3,
+					"star_class": "darklord",
+					"star_set": "star_darklord_100",
+					"star_tier": 100,
+					"stats": {
+						"atk": 889,
+						"crit": 0.045,
+						"def": 31,
+						"hp": 791,
+						"mp": 396
+					},
+					"uid": "6adf7107273c"
+				},
+				"wings": {
+					"base": "wings",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 200,
+					"look": "star_wings_darklord_100",
+					"name": "ผ้าคลุมจักรพรรดิอีกาทมิฬ แห่งเทพนิยาย",
+					"plus": 0,
+					"price": 110000,
+					"rarity": 4,
+					"set": "",
+					"slot": "wings",
+					"sockets": 3,
+					"star_class": "darklord",
+					"star_tier": 100,
+					"star_wing_revision": 1,
+					"stats": {
+						"atk": 684,
+						"crit": 0.08,
+						"def": 222,
+						"hp": 2349,
+						"mp": 644
+					},
+					"uid": "6adf7107b8a2",
+					"wing": "darklord"
+				}
+			},
+			"exp": 0,
+			"flags": {
+				"arena_day": "2026-10-26",
+				"best_plus": 9,
+				"best_streak": 1,
+				"dailies": 3,
+				"daily_last": "2026-10-26",
+				"daily_streak": 1,
+				"gems_set": 2,
+				"got_legend": 1,
+				"got_mythic": 1,
+				"gw_best_kills": 6,
+				"gw_kills": 6,
+				"gw_played": 2,
+				"gw_wins": 1,
+				"loot_mask": 5,
+				"paragon_level": 104,
+				"pvp_best_step": 0,
+				"pvp_wins": 1,
+				"star_reward_100": 1,
+				"star_reward_50": 1,
+				"tower_best": 60,
+				"wing_mode": 1
+			},
+			"gold": 6001978,
+			"hp": 4073,
+			"inv": [
+				{
+					"count": 5,
+					"id": "hp_s",
+					"kind": "potion"
+				},
+				{
+					"count": 3,
+					"id": "mp_s",
+					"kind": "potion"
+				},
+				{
+					"count": 1,
+					"id": "town_scroll",
+					"kind": "potion"
+				},
+				{
+					"base": "ring",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 12,
+					"name": "แหวนเงิน",
+					"plus": 0,
+					"price": 152,
+					"rarity": 0,
+					"set": "",
+					"slot": "ring",
+					"sockets": 0,
+					"stats": {
+						"atk": 9,
+						"crit": 0.015
+					},
+					"uid": "6adf71072248"
+				},
+				{
+					"base": "armor",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 8,
+					"name": "เสื้อผ้าหนา ชั้นดี",
+					"plus": 0,
+					"price": 226,
+					"rarity": 1,
+					"set": "",
+					"slot": "armor",
+					"sockets": 0,
+					"stats": {
+						"def": 21,
+						"hp": 48
+					},
+					"uid": "6adf7107e20f"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 18,
+					"name": "รองเท้าหนัง",
+					"plus": 0,
+					"price": 218,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 13,
+						"hp": 36
+					},
+					"uid": "6adf71079424"
+				},
+				{
+					"base": "staff",
+					"class": "mage",
+					"gems": [],
+					"kind": "equip",
+					"level": 14,
+					"name": "คทาเหล็กกล้า ชั้นดี",
+					"plus": 0,
+					"price": 365,
+					"rarity": 1,
+					"set": "set1",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 43,
+						"mp": 32
+					},
+					"uid": "6adf7107736e"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "คทาราชันมิธริล",
+					"plus": 0,
+					"price": 273,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 56
+					},
+					"uid": "6adf7107ea3b"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 16,
+					"name": "รองเท้าหนัง",
+					"plus": 0,
+					"price": 196,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 12,
+						"hp": 32
+					},
+					"uid": "6adf7107b2ec"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 6,
+					"name": "รองเท้าผ้า",
+					"plus": 0,
+					"price": 86,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 5,
+						"hp": 12
+					},
+					"uid": "6adf7107d5f0"
+				},
+				{
+					"base": "helm",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 17,
+					"name": "หมวกหนัง",
+					"plus": 0,
+					"price": 207,
+					"rarity": 0,
+					"set": "",
+					"slot": "helm",
+					"sockets": 0,
+					"stats": {
+						"def": 17,
+						"hp": 51
+					},
+					"uid": "6adf7107cae6"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "คทาราชันมิธริล",
+					"plus": 0,
+					"price": 273,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 57
+					},
+					"uid": "6adf7107e146"
+				},
+				{
+					"base": "armor",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 12,
+					"name": "เสื้อหนัง ชั้นดี",
+					"plus": 0,
+					"price": 319,
+					"rarity": 1,
+					"set": "set1",
+					"slot": "armor",
+					"sockets": 0,
+					"stats": {
+						"def": 28,
+						"hp": 126
+					},
+					"uid": "6adf710769e8"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 11,
+					"name": "รองเท้าหนัง",
+					"plus": 0,
+					"price": 141,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 8,
+						"hp": 22
+					},
+					"uid": "6adf7107208c"
+				},
+				{
+					"base": "amulet",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 21,
+					"name": "สร้อยทอง",
+					"plus": 0,
+					"price": 251,
+					"rarity": 0,
+					"set": "",
+					"slot": "amulet",
+					"sockets": 0,
+					"stats": {
+						"hp": 84,
+						"mp": 84
+					},
+					"uid": "6adf7107d515"
+				},
+				{
+					"count": 20,
+					"id": "hp_m",
+					"kind": "potion"
+				},
+				{
+					"base": "helm",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "หมวกเหล็ก ล้ำค่า",
+					"plus": 0,
+					"price": 873,
+					"rarity": 2,
+					"set": "set2",
+					"slot": "helm",
+					"sockets": 1,
+					"stats": {
+						"crit": 0.011,
+						"def": 31,
+						"hp": 195
+					},
+					"uid": "6adf71079a5b"
+				},
+				{
+					"count": 1,
+					"id": "emerald_0",
+					"kind": "gem"
+				},
+				{
+					"count": 1,
+					"id": "ruby_0",
+					"kind": "gem"
+				},
+				{
+					"count": 1,
+					"id": "ruby_2",
+					"kind": "gem"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [
+						"ruby_1"
+					],
+					"kind": "equip",
+					"level": 23,
+					"name": "คทาราชันมิธริล แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "weapon",
+					"sockets": 2,
+					"stats": {
+						"atk": 94,
+						"def": 6,
+						"hp": 98
+					},
+					"uid": "6adf7107aedd"
+				},
+				{
+					"base": "armor",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "เสื้อเกราะโซ่ แห่งตำนาน",
+					"plus": 6,
+					"price": 2311,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "armor",
+					"sockets": 2,
+					"stats": {
+						"crit": 0.011,
+						"def": 68,
+						"hp": 282
+					},
+					"uid": "6adf710717b8"
+				},
+				{
+					"base": "helm",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "หมวกเหล็ก แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "helm",
+					"sockets": 2,
+					"stats": {
+						"atk": 7,
+						"crit": 0.011,
+						"def": 35,
+						"hp": 208
+					},
+					"uid": "6adf7107477c"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "รองเท้าเหล็ก แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "boots",
+					"sockets": 2,
+					"stats": {
+						"atk": 14,
+						"crit": 0.011,
+						"def": 26,
+						"hp": 74
+					},
+					"uid": "6adf7107997f"
+				},
+				{
+					"base": "ring",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "แหวนทอง แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "",
+					"slot": "ring",
+					"sockets": 2,
+					"stats": {
+						"atk": 26,
+						"crit": 0.027,
+						"mp": 150
+					},
+					"uid": "6adf710702c3"
+				},
+				{
+					"base": "amulet",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "สร้อยทอง แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "",
+					"slot": "amulet",
+					"sockets": 2,
+					"stats": {
+						"crit": 0.011,
+						"hp": 147,
+						"mp": 247
+					},
+					"uid": "6adf71071566"
+				},
+				{
+					"base": "wings",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "ผ้าคลุมราชันอีกา ล้ำค่า",
+					"plus": 0,
+					"price": 37535,
+					"rarity": 2,
+					"set": "",
+					"slot": "wings",
+					"sockets": 1,
+					"stats": {
+						"atk": 192,
+						"crit": 0.021,
+						"hp": 567
+					},
+					"uid": "6adf71076ca6",
+					"wing": "darklord"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"collection": "lotus_200",
+					"gems": [],
+					"kind": "equip",
+					"level": 300,
+					"look": "divine_scepter_darklord_200",
+					"name": "คทาจักรพรรดิอีกาทมิฬ",
+					"plus": 0,
+					"price": 10908,
+					"rarity": 4,
+					"set": "divine_darklord_200",
+					"slot": "weapon",
+					"sockets": 3,
+					"star_class": "darklord",
+					"star_set": "divine_darklord_200",
+					"star_tier": 200,
+					"stats": {
+						"atk": 1337,
+						"crit": 0.073,
+						"def": 46,
+						"hp": 1333,
+						"mp": 668
+					},
+					"uid": "6adf71075ab1"
+				},
+				{
+					"count": 1,
+					"id": "topaz_1",
+					"kind": "gem"
+				},
+				{
+					"count": 1,
+					"id": "amethyst_2",
+					"kind": "gem"
+				},
+				{
+					"count": 1,
+					"id": "topaz_2",
+					"kind": "gem"
+				}
+			],
+			"kills": 31,
+			"level": 100,
+			"loadout": [
+				"force",
+				"critical_damage",
+				"fire_burst",
+				"summon",
+				"",
+				"",
+				"",
+				""
+			],
+			"look": {
+				"acc": 2,
+				"eye_color": 4,
+				"eye_tint": 3,
+				"eyes": 4,
+				"gender": 1,
+				"hair": 5,
+				"hair_color": 9,
+				"hair_tint": 1,
+				"mouth": 0,
+				"nose": 3,
+				"outfit": 3,
+				"skin": 1,
+				"skin_tone": 5,
+				"style": 2
+			},
+			"mp": 1035,
+			"name": "Hero",
+			"paragon": {
+				"alloc": {
+					"atk": 30,
+					"crit": 10,
+					"def": 0,
+					"haste": 0,
+					"hp": 25
+				},
+				"exp": 0,
+				"level": 104,
+				"points": 39,
+				"spent": 65
+			},
+			"party": [],
+			"play_time": 0,
+			"points": 291,
+			"pvp": {
+				"best_streak": 1,
+				"losses": 1,
+				"peak_rp": 28,
+				"rp": 18,
+				"streak": 0,
+				"wins": 1
+			},
+			"quests": {
+				"chickens": {
+					"progress": 10,
+					"status": "ready"
+				},
+				"mush_king": {
+					"progress": 1,
+					"status": "ready"
+				},
+				"slimes": {
+					"progress": 8,
+					"status": "done"
+				}
+			},
+			"resume": true,
+			"saved_at": 1793028359,
+			"skill_points": 127,
+			"skills": {
+				"critical_damage": 2,
+				"fire_burst": 2,
+				"force": 2,
+				"summon": 2
+			},
+			"spawn_override": "",
+			"storage": [
+				{
+					"count": 3,
+					"id": "sapphire_0",
+					"kind": "gem"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 1,
+					"name": "คทาราชันฝึกหัด ของมือใหม่",
+					"plus": 0,
+					"price": 31,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 7
+					},
+					"uid": "6adf7107531f"
+				}
+			],
+			"tower": {
+				"best": 60,
+				"best_before": 0,
+				"runs": 1,
+				"shards": 25
+			},
+			"version": 1,
+			"zone": "town"
+		},
+		"darklord_lv23": {
+			"ach": {
+				"boss1": true,
+				"first_blood": true,
+				"legend": true,
+				"lv10": true,
+				"pvp1": true,
+				"rich": true
+			},
+			"adv": 0,
+			"attrs": {
+				"dex": 0,
+				"int": 0,
+				"str": 4,
+				"vit": 2
+			},
+			"bag_slots": 50,
+			"boss_kills": {
+				"mush_king": 1
+			},
+			"boss_pity": {
+				"mush_king": 2
+			},
+			"class": "darklord",
+			"daily": {
+				"chest": true,
+				"date": "2026-10-26",
+				"quests": [
+					{
+						"claimed": true,
+						"id": "zone_kills",
+						"progress": 22
+					},
+					{
+						"claimed": true,
+						"id": "gold",
+						"progress": 1120
+					},
+					{
+						"claimed": true,
+						"id": "boss",
+						"progress": 1
+					}
+				],
+				"zone": "meadow"
+			},
+			"deaths": 2,
+			"equip": {
+				"amulet": {
+					"base": "amulet",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "สร้อยทอง แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "",
+					"slot": "amulet",
+					"sockets": 2,
+					"stats": {
+						"crit": 0.011,
+						"hp": 147,
+						"mp": 247
+					},
+					"uid": "6adf71071566"
+				},
+				"armor": {
+					"base": "armor",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "เสื้อเกราะโซ่ แห่งตำนาน",
+					"plus": 6,
+					"price": 2311,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "armor",
+					"sockets": 2,
+					"stats": {
+						"crit": 0.011,
+						"def": 68,
+						"hp": 282
+					},
+					"uid": "6adf710717b8"
+				},
+				"boots": {
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "รองเท้าเหล็ก แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "boots",
+					"sockets": 2,
+					"stats": {
+						"atk": 14,
+						"crit": 0.011,
+						"def": 26,
+						"hp": 74
+					},
+					"uid": "6adf7107997f"
+				},
+				"helm": {
+					"base": "helm",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "หมวกเหล็ก แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "helm",
+					"sockets": 2,
+					"stats": {
+						"atk": 7,
+						"crit": 0.011,
+						"def": 35,
+						"hp": 208
+					},
+					"uid": "6adf7107477c"
+				},
+				"ring": {
+					"base": "ring",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "แหวนทอง แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "",
+					"slot": "ring",
+					"sockets": 2,
+					"stats": {
+						"atk": 26,
+						"crit": 0.027,
+						"mp": 150
+					},
+					"uid": "6adf710702c3"
+				},
+				"weapon": {
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [
+						"ruby_1"
+					],
+					"kind": "equip",
+					"level": 23,
+					"name": "คทาราชันมิธริล แห่งตำนาน",
+					"plus": 0,
+					"price": 1173,
+					"rarity": 3,
+					"set": "set2",
+					"slot": "weapon",
+					"sockets": 2,
+					"stats": {
+						"atk": 94,
+						"def": 6,
+						"hp": 98
+					},
+					"uid": "6adf7107aedd"
+				},
+				"wings": {
+					"base": "wings",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "ผ้าคลุมราชันอีกา ล้ำค่า",
+					"plus": 0,
+					"price": 37535,
+					"rarity": 2,
+					"set": "",
+					"slot": "wings",
+					"sockets": 1,
+					"stats": {
+						"atk": 192,
+						"crit": 0.021,
+						"hp": 567
+					},
+					"uid": "6adf71076ca6",
+					"wing": "darklord"
+				}
+			},
+			"exp": 5308,
+			"flags": {
+				"arena_day": "2026-10-26",
+				"best_plus": 6,
+				"best_streak": 1,
+				"dailies": 3,
+				"daily_last": "2026-10-26",
+				"daily_streak": 1,
+				"gems_set": 1,
+				"got_legend": 1,
+				"gw_played": 1,
+				"gw_r_at": 1793028359,
+				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
+				"gw_r_kills": 4,
+				"gw_r_ot": 0,
+				"gw_r_owner": 0,
+				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
+				"gw_r_them": 1,
+				"gw_r_time": 413,
+				"gw_r_us": 3,
+				"loot_mask": 5,
+				"pvp_best_step": 0,
+				"pvp_wins": 1,
+				"tower_best": 7,
+				"wing_mode": 1
+			},
+			"gold": 496649,
+			"hp": 2392,
+			"inv": [
+				{
+					"count": 5,
+					"id": "hp_s",
+					"kind": "potion"
+				},
+				{
+					"count": 3,
+					"id": "mp_s",
+					"kind": "potion"
+				},
+				{
+					"count": 1,
+					"id": "town_scroll",
+					"kind": "potion"
+				},
+				{
+					"base": "ring",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 12,
+					"name": "แหวนเงิน",
+					"plus": 0,
+					"price": 152,
+					"rarity": 0,
+					"set": "",
+					"slot": "ring",
+					"sockets": 0,
+					"stats": {
+						"atk": 9,
+						"crit": 0.015
+					},
+					"uid": "6adf71072248"
+				},
+				{
+					"base": "armor",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 8,
+					"name": "เสื้อผ้าหนา ชั้นดี",
+					"plus": 0,
+					"price": 226,
+					"rarity": 1,
+					"set": "",
+					"slot": "armor",
+					"sockets": 0,
+					"stats": {
+						"def": 21,
+						"hp": 48
+					},
+					"uid": "6adf7107e20f"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 18,
+					"name": "รองเท้าหนัง",
+					"plus": 0,
+					"price": 218,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 13,
+						"hp": 36
+					},
+					"uid": "6adf71079424"
+				},
+				{
+					"base": "staff",
+					"class": "mage",
+					"gems": [],
+					"kind": "equip",
+					"level": 14,
+					"name": "คทาเหล็กกล้า ชั้นดี",
+					"plus": 0,
+					"price": 365,
+					"rarity": 1,
+					"set": "set1",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 43,
+						"mp": 32
+					},
+					"uid": "6adf7107736e"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "คทาราชันมิธริล",
+					"plus": 0,
+					"price": 273,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 56
+					},
+					"uid": "6adf7107ea3b"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 16,
+					"name": "รองเท้าหนัง",
+					"plus": 0,
+					"price": 196,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 12,
+						"hp": 32
+					},
+					"uid": "6adf7107b2ec"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 6,
+					"name": "รองเท้าผ้า",
+					"plus": 0,
+					"price": 86,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 5,
+						"hp": 12
+					},
+					"uid": "6adf7107d5f0"
+				},
+				{
+					"base": "helm",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 17,
+					"name": "หมวกหนัง",
+					"plus": 0,
+					"price": 207,
+					"rarity": 0,
+					"set": "",
+					"slot": "helm",
+					"sockets": 0,
+					"stats": {
+						"def": 17,
+						"hp": 51
+					},
+					"uid": "6adf7107cae6"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "คทาราชันมิธริล",
+					"plus": 0,
+					"price": 273,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 57
+					},
+					"uid": "6adf7107e146"
+				},
+				{
+					"base": "armor",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 12,
+					"name": "เสื้อหนัง ชั้นดี",
+					"plus": 0,
+					"price": 319,
+					"rarity": 1,
+					"set": "set1",
+					"slot": "armor",
+					"sockets": 0,
+					"stats": {
+						"def": 28,
+						"hp": 126
+					},
+					"uid": "6adf710769e8"
+				},
+				{
+					"base": "boots",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 11,
+					"name": "รองเท้าหนัง",
+					"plus": 0,
+					"price": 141,
+					"rarity": 0,
+					"set": "",
+					"slot": "boots",
+					"sockets": 0,
+					"stats": {
+						"def": 8,
+						"hp": 22
+					},
+					"uid": "6adf7107208c"
+				},
+				{
+					"base": "amulet",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 21,
+					"name": "สร้อยทอง",
+					"plus": 0,
+					"price": 251,
+					"rarity": 0,
+					"set": "",
+					"slot": "amulet",
+					"sockets": 0,
+					"stats": {
+						"hp": 84,
+						"mp": 84
+					},
+					"uid": "6adf7107d515"
+				},
+				{
+					"count": 20,
+					"id": "hp_m",
+					"kind": "potion"
+				},
+				{
+					"base": "helm",
+					"class": "",
+					"gems": [],
+					"kind": "equip",
+					"level": 23,
+					"name": "หมวกเหล็ก ล้ำค่า",
+					"plus": 0,
+					"price": 873,
+					"rarity": 2,
+					"set": "set2",
+					"slot": "helm",
+					"sockets": 1,
+					"stats": {
+						"crit": 0.011,
+						"def": 31,
+						"hp": 195
+					},
+					"uid": "6adf71079a5b"
+				},
+				{
+					"count": 1,
+					"id": "emerald_0",
+					"kind": "gem"
+				}
+			],
+			"kills": 31,
+			"level": 23,
+			"loadout": [
+				"force",
+				"critical_damage",
+				"fire_burst",
+				"summon",
+				"",
+				"",
+				"",
+				""
+			],
+			"look": {
+				"acc": 2,
+				"eye_color": 4,
+				"eye_tint": 3,
+				"eyes": 4,
+				"gender": 1,
+				"hair": 5,
+				"hair_color": 9,
+				"hair_tint": 1,
+				"mouth": 0,
+				"nose": 3,
+				"outfit": 3,
+				"skin": 1,
+				"skin_tone": 5,
+				"style": 2
+			},
+			"mp": 564,
+			"name": "Hero",
+			"paragon": {
+				"alloc": {
+					"atk": 0,
+					"crit": 0,
+					"def": 0,
+					"haste": 0,
+					"hp": 0
+				},
+				"exp": 0,
+				"level": 0,
+				"points": 0,
+				"spent": 0
+			},
+			"party": [],
+			"play_time": 0,
+			"points": 60,
+			"pvp": {
+				"best_streak": 1,
+				"losses": 1,
+				"peak_rp": 28,
+				"rp": 18,
+				"streak": 0,
+				"wins": 1
+			},
+			"quests": {
+				"chickens": {
+					"progress": 10,
+					"status": "ready"
+				},
+				"mush_king": {
+					"progress": 1,
+					"status": "ready"
+				},
+				"slimes": {
+					"progress": 8,
+					"status": "done"
+				}
+			},
+			"resume": true,
+			"saved_at": 1793028359,
+			"skill_points": 20,
+			"skills": {
+				"critical_damage": 2,
+				"fire_burst": 2,
+				"force": 2,
+				"summon": 2
+			},
+			"spawn_override": "",
+			"storage": [
+				{
+					"count": 3,
+					"id": "sapphire_0",
+					"kind": "gem"
+				},
+				{
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 1,
+					"name": "คทาราชันฝึกหัด ของมือใหม่",
+					"plus": 0,
+					"price": 31,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 7
+					},
+					"uid": "6adf7107531f"
+				}
+			],
+			"tower": {
+				"best": 7,
+				"best_before": 0,
+				"runs": 1,
+				"shards": 40
+			},
+			"version": 1,
+			"zone": "meadow"
+		},
+		"darklord_new": {
+			"adv": 0,
+			"attrs": {
+				"dex": 0,
+				"int": 0,
+				"str": 0,
+				"vit": 0
+			},
+			"bag_slots": 40,
+			"boss_kills": {
+
+			},
+			"boss_pity": {
+
+			},
+			"class": "darklord",
+			"deaths": 0,
+			"equip": {
+				"weapon": {
+					"base": "scepter",
+					"class": "darklord",
+					"gems": [],
+					"kind": "equip",
+					"level": 1,
+					"name": "คทาราชันฝึกหัด ของมือใหม่",
+					"plus": 0,
+					"price": 31,
+					"rarity": 0,
+					"set": "",
+					"slot": "weapon",
+					"sockets": 0,
+					"stats": {
+						"atk": 6
+					},
+					"uid": "6adf7107a7fc"
+				}
+			},
+			"exp": 0,
+			"flags": {
+
+			},
+			"gold": 150,
+			"hp": 117,
+			"inv": [
+				{
+					"count": 5,
+					"id": "hp_s",
+					"kind": "potion"
+				},
+				{
+					"count": 3,
+					"id": "mp_s",
+					"kind": "potion"
+				},
+				{
+					"count": 1,
+					"id": "town_scroll",
+					"kind": "potion"
+				}
+			],
+			"kills": 0,
+			"level": 1,
+			"loadout": [
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				""
+			],
+			"look": {
+				"acc": 0,
+				"eye_color": 0,
+				"eye_tint": 0,
+				"eyes": 0,
+				"gender": 0,
+				"hair": 0,
+				"hair_color": 1,
+				"hair_tint": 0,
+				"mouth": 0,
+				"nose": 0,
+				"outfit": 0,
+				"skin": 1,
+				"skin_tone": 0,
+				"style": 0
+			},
+			"mp": 44,
+			"name": "ใหม่ darklord",
+			"paragon": {
+				"alloc": {
+					"atk": 0,
+					"crit": 0,
+					"def": 0,
+					"haste": 0,
+					"hp": 0
+				},
+				"exp": 0,
+				"level": 0,
+				"points": 0,
+				"spent": 0
+			},
+			"party": [],
+			"play_time": 0,
+			"points": 0,
+			"pvp": {
+
+			},
+			"quests": {
+
+			},
+			"resume": false,
+			"saved_at": 1793028359,
 			"skill_points": 1,
 			"skills": {
 
@@ -3295,7 +4826,7 @@
 			"class": "defender",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -3304,8 +4835,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -3341,7 +4872,7 @@
 						"hp": 4073,
 						"mp": 3516
 					},
-					"uid": "6adcc61f186e"
+					"uid": "6adf71068719"
 				},
 				"armor": {
 					"base": "armor",
@@ -3367,7 +4898,7 @@
 						"hp": 3298,
 						"mp": 384
 					},
-					"uid": "6adcc61f9765"
+					"uid": "6adf7106921a"
 				},
 				"boots": {
 					"base": "boots",
@@ -3393,7 +4924,7 @@
 						"hp": 2051,
 						"mp": 442
 					},
-					"uid": "6adcc61fcf02"
+					"uid": "6adf710691c2"
 				},
 				"helm": {
 					"base": "helm",
@@ -3419,7 +4950,7 @@
 						"hp": 2439,
 						"mp": 410
 					},
-					"uid": "6adcc61f8b3b"
+					"uid": "6adf710666cd"
 				},
 				"ring": {
 					"base": "ring",
@@ -3447,7 +4978,7 @@
 						"hp": 927,
 						"mp": 464
 					},
-					"uid": "6adcc61f5e11"
+					"uid": "6adf71063f57"
 				},
 				"weapon": {
 					"base": "greatshield",
@@ -3473,7 +5004,7 @@
 						"hp": 746,
 						"mp": 374
 					},
-					"uid": "6adcc61f3a6a"
+					"uid": "6adf7106f882"
 				},
 				"wings": {
 					"base": "wings",
@@ -3499,17 +5030,17 @@
 						"hp": 3002,
 						"mp": 583
 					},
-					"uid": "6adcc61f773b",
+					"uid": "6adf71068303",
 					"wing": "defender"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 6,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -3563,7 +5094,7 @@
 						"def": 50,
 						"hp": 132
 					},
-					"uid": "6adcc61e52f3"
+					"uid": "6adf7105621c"
 				},
 				{
 					"base": "helm",
@@ -3582,7 +5113,7 @@
 						"def": 13,
 						"hp": 39
 					},
-					"uid": "6adcc61e3d18"
+					"uid": "6adf7105abd4"
 				},
 				{
 					"base": "greatshield",
@@ -3600,7 +5131,7 @@
 					"stats": {
 						"atk": 25
 					},
-					"uid": "6adcc61ee266"
+					"uid": "6adf710502be"
 				},
 				{
 					"base": "armor",
@@ -3620,7 +5151,7 @@
 						"def": 36,
 						"hp": 102
 					},
-					"uid": "6adcc61e7362"
+					"uid": "6adf71057c70"
 				},
 				{
 					"base": "boots",
@@ -3639,7 +5170,7 @@
 						"def": 16,
 						"hp": 44
 					},
-					"uid": "6adcc61e53e3"
+					"uid": "6adf7105920a"
 				},
 				{
 					"base": "armor",
@@ -3658,7 +5189,7 @@
 						"def": 39,
 						"hp": 115
 					},
-					"uid": "6adcc61e24aa"
+					"uid": "6adf71052ae2"
 				},
 				{
 					"base": "boots",
@@ -3677,7 +5208,7 @@
 						"def": 11,
 						"hp": 30
 					},
-					"uid": "6adcc61e2fd6"
+					"uid": "6adf7105995a"
 				},
 				{
 					"base": "boots",
@@ -3696,7 +5227,7 @@
 						"def": 12,
 						"hp": 34
 					},
-					"uid": "6adcc61ea8cc"
+					"uid": "6adf71050a1c"
 				},
 				{
 					"base": "greatshield",
@@ -3715,7 +5246,7 @@
 						"atk": 32,
 						"crit": 0.008
 					},
-					"uid": "6adcc61eae03"
+					"uid": "6adf71054e17"
 				},
 				{
 					"base": "armor",
@@ -3734,7 +5265,7 @@
 						"def": 23,
 						"hp": 60
 					},
-					"uid": "6adcc61e19cf"
+					"uid": "6adf7105be20"
 				},
 				{
 					"base": "amulet",
@@ -3753,15 +5284,15 @@
 						"hp": 36,
 						"mp": 36
 					},
-					"uid": "6adcc61e6ce7"
+					"uid": "6adf71053695"
 				},
 				{
-					"base": "spear",
-					"class": "lancer",
+					"base": "bow",
+					"class": "archer",
 					"gems": [],
 					"kind": "equip",
 					"level": 19,
-					"name": "หอกเหล็กกล้า ชั้นดี",
+					"name": "ธนูเหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 480,
 					"rarity": 1,
@@ -3772,7 +5303,7 @@
 						"atk": 53,
 						"mp": 42
 					},
-					"uid": "6adcc61e3436"
+					"uid": "6adf710562b3"
 				},
 				{
 					"count": 20,
@@ -3780,32 +5311,27 @@
 					"kind": "potion"
 				},
 				{
-					"base": "greatshield",
-					"class": "defender",
+					"base": "boots",
+					"class": "",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "โล่กำแพงมิธริลคมใบ แห่งตำนาน",
+					"name": "รองเท้าเหล็ก ล้ำค่า",
 					"plus": 0,
-					"price": 1173,
-					"rarity": 3,
+					"price": 873,
+					"rarity": 2,
 					"set": "set2",
-					"slot": "weapon",
-					"sockets": 2,
+					"slot": "boots",
+					"sockets": 1,
 					"stats": {
-						"atk": 87,
-						"hp": 98,
-						"mp": 100
+						"def": 29,
+						"hp": 64,
+						"mp": 50
 					},
-					"uid": "6adcc61e6629"
+					"uid": "6adf7105c41d"
 				},
 				{
-					"count": 1,
-					"id": "sapphire_0",
-					"kind": "gem"
-				},
-				{
-					"count": 1,
+					"count": 2,
 					"id": "ruby_0",
 					"kind": "gem"
 				},
@@ -3834,7 +5360,7 @@
 						"def": 12,
 						"hp": 98
 					},
-					"uid": "6adcc61e1c7d"
+					"uid": "6adf710539e5"
 				},
 				{
 					"base": "armor",
@@ -3854,7 +5380,7 @@
 						"def": 63,
 						"hp": 282
 					},
-					"uid": "6adcc61eb421"
+					"uid": "6adf7105f560"
 				},
 				{
 					"base": "helm",
@@ -3874,7 +5400,7 @@
 						"hp": 306,
 						"mp": 50
 					},
-					"uid": "6adcc61eef1b"
+					"uid": "6adf71054130"
 				},
 				{
 					"base": "boots",
@@ -3895,7 +5421,7 @@
 						"def": 32,
 						"hp": 74
 					},
-					"uid": "6adcc61e0f87"
+					"uid": "6adf7105fa81"
 				},
 				{
 					"base": "ring",
@@ -3916,7 +5442,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61e6b28"
+					"uid": "6adf71056609"
 				},
 				{
 					"base": "amulet",
@@ -3937,7 +5463,7 @@
 						"hp": 147,
 						"mp": 197
 					},
-					"uid": "6adcc61e41e2"
+					"uid": "6adf71051564"
 				},
 				{
 					"base": "wings",
@@ -3957,7 +5483,7 @@
 						"crit": 0.03,
 						"hp": 593
 					},
-					"uid": "6adcc61ed51b",
+					"uid": "6adf7105e1aa",
 					"wing": "defender"
 				},
 				{
@@ -3985,7 +5511,7 @@
 						"hp": 1335,
 						"mp": 668
 					},
-					"uid": "6adcc61f742c"
+					"uid": "6adf7106f50a"
 				},
 				{
 					"count": 1,
@@ -4036,23 +5562,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "assassin",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 6,
-						"hair_tint": 4,
-						"skin_tone": 1
-					},
-					"name": "ยามิ",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -4078,7 +5588,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853535,
+			"saved_at": 1793028358,
 			"skill_points": 127,
 			"skills": {
 				"brace": 2,
@@ -4109,7 +5619,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61e95b4"
+					"uid": "6adf71055f89"
 				}
 			],
 			"tower": {
@@ -4147,7 +5657,7 @@
 			"class": "defender",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -4156,8 +5666,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -4188,7 +5698,7 @@
 						"hp": 147,
 						"mp": 197
 					},
-					"uid": "6adcc61e41e2"
+					"uid": "6adf71051564"
 				},
 				"armor": {
 					"base": "armor",
@@ -4208,7 +5718,7 @@
 						"def": 63,
 						"hp": 282
 					},
-					"uid": "6adcc61eb421"
+					"uid": "6adf7105f560"
 				},
 				"boots": {
 					"base": "boots",
@@ -4229,7 +5739,7 @@
 						"def": 32,
 						"hp": 74
 					},
-					"uid": "6adcc61e0f87"
+					"uid": "6adf7105fa81"
 				},
 				"helm": {
 					"base": "helm",
@@ -4249,7 +5759,7 @@
 						"hp": 306,
 						"mp": 50
 					},
-					"uid": "6adcc61eef1b"
+					"uid": "6adf71054130"
 				},
 				"ring": {
 					"base": "ring",
@@ -4270,7 +5780,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61e6b28"
+					"uid": "6adf71056609"
 				},
 				"weapon": {
 					"base": "greatshield",
@@ -4292,7 +5802,7 @@
 						"def": 12,
 						"hp": 98
 					},
-					"uid": "6adcc61e1c7d"
+					"uid": "6adf710539e5"
 				},
 				"wings": {
 					"base": "wings",
@@ -4312,26 +5822,31 @@
 						"crit": 0.03,
 						"hp": 593
 					},
-					"uid": "6adcc61ed51b",
+					"uid": "6adf7105e1aa",
 					"wing": "defender"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 5,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853534,
+				"gw_r_at": 1793028357,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -4377,7 +5892,7 @@
 						"def": 50,
 						"hp": 132
 					},
-					"uid": "6adcc61e52f3"
+					"uid": "6adf7105621c"
 				},
 				{
 					"base": "helm",
@@ -4396,7 +5911,7 @@
 						"def": 13,
 						"hp": 39
 					},
-					"uid": "6adcc61e3d18"
+					"uid": "6adf7105abd4"
 				},
 				{
 					"base": "greatshield",
@@ -4414,7 +5929,7 @@
 					"stats": {
 						"atk": 25
 					},
-					"uid": "6adcc61ee266"
+					"uid": "6adf710502be"
 				},
 				{
 					"base": "armor",
@@ -4434,7 +5949,7 @@
 						"def": 36,
 						"hp": 102
 					},
-					"uid": "6adcc61e7362"
+					"uid": "6adf71057c70"
 				},
 				{
 					"base": "boots",
@@ -4453,7 +5968,7 @@
 						"def": 16,
 						"hp": 44
 					},
-					"uid": "6adcc61e53e3"
+					"uid": "6adf7105920a"
 				},
 				{
 					"base": "armor",
@@ -4472,7 +5987,7 @@
 						"def": 39,
 						"hp": 115
 					},
-					"uid": "6adcc61e24aa"
+					"uid": "6adf71052ae2"
 				},
 				{
 					"base": "boots",
@@ -4491,7 +6006,7 @@
 						"def": 11,
 						"hp": 30
 					},
-					"uid": "6adcc61e2fd6"
+					"uid": "6adf7105995a"
 				},
 				{
 					"base": "boots",
@@ -4510,7 +6025,7 @@
 						"def": 12,
 						"hp": 34
 					},
-					"uid": "6adcc61ea8cc"
+					"uid": "6adf71050a1c"
 				},
 				{
 					"base": "greatshield",
@@ -4529,7 +6044,7 @@
 						"atk": 32,
 						"crit": 0.008
 					},
-					"uid": "6adcc61eae03"
+					"uid": "6adf71054e17"
 				},
 				{
 					"base": "armor",
@@ -4548,7 +6063,7 @@
 						"def": 23,
 						"hp": 60
 					},
-					"uid": "6adcc61e19cf"
+					"uid": "6adf7105be20"
 				},
 				{
 					"base": "amulet",
@@ -4567,15 +6082,15 @@
 						"hp": 36,
 						"mp": 36
 					},
-					"uid": "6adcc61e6ce7"
+					"uid": "6adf71053695"
 				},
 				{
-					"base": "spear",
-					"class": "lancer",
+					"base": "bow",
+					"class": "archer",
 					"gems": [],
 					"kind": "equip",
 					"level": 19,
-					"name": "หอกเหล็กกล้า ชั้นดี",
+					"name": "ธนูเหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 480,
 					"rarity": 1,
@@ -4586,7 +6101,7 @@
 						"atk": 53,
 						"mp": 42
 					},
-					"uid": "6adcc61e3436"
+					"uid": "6adf710562b3"
 				},
 				{
 					"count": 20,
@@ -4594,28 +6109,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "greatshield",
-					"class": "defender",
+					"base": "boots",
+					"class": "",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "โล่กำแพงมิธริลคมใบ แห่งตำนาน",
+					"name": "รองเท้าเหล็ก ล้ำค่า",
 					"plus": 0,
-					"price": 1173,
-					"rarity": 3,
+					"price": 873,
+					"rarity": 2,
 					"set": "set2",
-					"slot": "weapon",
-					"sockets": 2,
+					"slot": "boots",
+					"sockets": 1,
 					"stats": {
-						"atk": 87,
-						"hp": 98,
-						"mp": 100
+						"def": 29,
+						"hp": 64,
+						"mp": 50
 					},
-					"uid": "6adcc61e6629"
+					"uid": "6adf7105c41d"
 				},
 				{
 					"count": 1,
-					"id": "sapphire_0",
+					"id": "ruby_0",
 					"kind": "gem"
 				}
 			],
@@ -4662,23 +6177,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "assassin",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 6,
-						"hair_tint": 4,
-						"skin_tone": 1
-					},
-					"name": "ยามิ",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -4704,7 +6203,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853534,
+			"saved_at": 1793028357,
 			"skill_points": 20,
 			"skills": {
 				"brace": 2,
@@ -4735,7 +6234,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61e95b4"
+					"uid": "6adf71055f89"
 				}
 			],
 			"tower": {
@@ -4781,7 +6280,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61fdd06"
+					"uid": "6adf710635ba"
 				}
 			},
 			"exp": 0,
@@ -4860,7 +6359,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853535,
+			"saved_at": 1793028358,
 			"skill_points": 1,
 			"skills": {
 
@@ -4909,7 +6408,7 @@
 			"class": "lancer",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -4918,8 +6417,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -4955,7 +6454,7 @@
 						"hp": 4064,
 						"mp": 3508
 					},
-					"uid": "6adcc61e9f51"
+					"uid": "6adf71055711"
 				},
 				"armor": {
 					"base": "armor",
@@ -4981,7 +6480,7 @@
 						"hp": 3496,
 						"mp": 407
 					},
-					"uid": "6adcc61e587d"
+					"uid": "6adf7105f0fc"
 				},
 				"boots": {
 					"base": "boots",
@@ -5007,7 +6506,7 @@
 						"hp": 2049,
 						"mp": 442
 					},
-					"uid": "6adcc61ec6c7"
+					"uid": "6adf710550d2"
 				},
 				"helm": {
 					"base": "helm",
@@ -5033,7 +6532,7 @@
 						"hp": 2439,
 						"mp": 410
 					},
-					"uid": "6adcc61ef214"
+					"uid": "6adf710559ff"
 				},
 				"ring": {
 					"base": "ring",
@@ -5061,7 +6560,7 @@
 						"hp": 969,
 						"mp": 486
 					},
-					"uid": "6adcc61ef1bc"
+					"uid": "6adf7105239e"
 				},
 				"weapon": {
 					"base": "spear",
@@ -5087,7 +6586,7 @@
 						"hp": 749,
 						"mp": 375
 					},
-					"uid": "6adcc61e2418"
+					"uid": "6adf7105f6b4"
 				},
 				"wings": {
 					"base": "wings",
@@ -5113,17 +6612,17 @@
 						"hp": 2396,
 						"mp": 552
 					},
-					"uid": "6adcc61ee713",
+					"uid": "6adf71052004",
 					"wing": "lancer"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 7,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -5176,7 +6675,7 @@
 						"def": 22,
 						"hp": 54
 					},
-					"uid": "6adcc61e41a5"
+					"uid": "6adf710415c3"
 				},
 				{
 					"base": "boots",
@@ -5195,7 +6694,7 @@
 						"def": 16,
 						"hp": 44
 					},
-					"uid": "6adcc61ec216"
+					"uid": "6adf71048422"
 				},
 				{
 					"base": "ring",
@@ -5214,7 +6713,7 @@
 						"atk": 10,
 						"crit": 0.016
 					},
-					"uid": "6adcc61e0bcf"
+					"uid": "6adf7104588b"
 				},
 				{
 					"base": "lantern",
@@ -5233,7 +6732,7 @@
 						"atk": 30,
 						"mp": 22
 					},
-					"uid": "6adcc61e62b8"
+					"uid": "6adf7104624a"
 				},
 				{
 					"base": "armor",
@@ -5252,7 +6751,7 @@
 						"def": 17,
 						"hp": 45
 					},
-					"uid": "6adcc61edc6a"
+					"uid": "6adf7104e95a"
 				},
 				{
 					"base": "boots",
@@ -5272,7 +6771,7 @@
 						"def": 10,
 						"hp": 26
 					},
-					"uid": "6adcc61ef204"
+					"uid": "6adf7104edf0"
 				},
 				{
 					"base": "boots",
@@ -5292,15 +6791,15 @@
 						"def": 18,
 						"hp": 36
 					},
-					"uid": "6adcc61e8adc"
+					"uid": "6adf710443cb"
 				},
 				{
-					"base": "staff",
-					"class": "mage",
+					"base": "wand",
+					"class": "priest",
 					"gems": [],
 					"kind": "equip",
 					"level": 15,
-					"name": "คทาเหล็กกล้า",
+					"name": "คทาเหล็กศรัทธา",
 					"plus": 0,
 					"price": 185,
 					"rarity": 0,
@@ -5310,7 +6809,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61ef954"
+					"uid": "6adf7104778f"
 				},
 				{
 					"base": "amulet",
@@ -5331,7 +6830,7 @@
 						"hp": 118,
 						"mp": 118
 					},
-					"uid": "6adcc61e6a16"
+					"uid": "6adf7104bb60"
 				},
 				{
 					"base": "amulet",
@@ -5350,7 +6849,7 @@
 						"hp": 28,
 						"mp": 28
 					},
-					"uid": "6adcc61eae11"
+					"uid": "6adf7104116f"
 				},
 				{
 					"base": "helm",
@@ -5369,7 +6868,7 @@
 						"def": 17,
 						"hp": 51
 					},
-					"uid": "6adcc61e1e1b"
+					"uid": "6adf71049005"
 				},
 				{
 					"base": "armor",
@@ -5389,7 +6888,7 @@
 						"def": 58,
 						"hp": 234
 					},
-					"uid": "6adcc61e968f"
+					"uid": "6adf7104fb1f"
 				},
 				{
 					"count": 20,
@@ -5397,28 +6896,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "armor",
-					"class": "",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "เสื้อเกราะโซ่ ล้ำค่า",
+					"name": "หอกมิธริล ล้ำค่า",
 					"plus": 0,
 					"price": 873,
 					"rarity": 2,
 					"set": "set2",
-					"slot": "armor",
+					"slot": "weapon",
 					"sockets": 1,
 					"stats": {
-						"crit": 0.011,
-						"def": 57,
-						"hp": 259
+						"atk": 78,
+						"hp": 98,
+						"mp": 50
 					},
-					"uid": "6adcc61ec2ad"
+					"uid": "6adf71041322"
 				},
 				{
 					"count": 1,
-					"id": "amethyst_0",
+					"id": "emerald_0",
 					"kind": "gem"
 				},
 				{
@@ -5451,7 +6950,7 @@
 						"crit": 0.011,
 						"hp": 98
 					},
-					"uid": "6adcc61e7663"
+					"uid": "6adf7104df93"
 				},
 				{
 					"base": "armor",
@@ -5471,7 +6970,7 @@
 						"def": 71,
 						"hp": 184
 					},
-					"uid": "6adcc61e99df"
+					"uid": "6adf710495af"
 				},
 				{
 					"base": "helm",
@@ -5491,7 +6990,7 @@
 						"hp": 110,
 						"mp": 150
 					},
-					"uid": "6adcc61e555b"
+					"uid": "6adf7104f41f"
 				},
 				{
 					"base": "boots",
@@ -5513,7 +7012,7 @@
 						"hp": 74,
 						"mp": 50
 					},
-					"uid": "6adcc61ea12a"
+					"uid": "6adf7104810e"
 				},
 				{
 					"base": "ring",
@@ -5534,7 +7033,7 @@
 						"hp": 98,
 						"mp": 100
 					},
-					"uid": "6adcc61e5a7c"
+					"uid": "6adf71043111"
 				},
 				{
 					"base": "amulet",
@@ -5554,7 +7053,7 @@
 						"hp": 343,
 						"mp": 147
 					},
-					"uid": "6adcc61ec603"
+					"uid": "6adf7104fcaf"
 				},
 				{
 					"base": "wings",
@@ -5574,7 +7073,7 @@
 						"def": 86,
 						"mp": 237
 					},
-					"uid": "6adcc61e755e",
+					"uid": "6adf71048ad1",
 					"wing": "lancer"
 				},
 				{
@@ -5602,7 +7101,7 @@
 						"hp": 1333,
 						"mp": 668
 					},
-					"uid": "6adcc61ee2fd"
+					"uid": "6adf7105109c"
 				},
 				{
 					"count": 1,
@@ -5658,23 +7157,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "defender",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 5,
-						"hair_tint": 8,
-						"skin_tone": 6
-					},
-					"name": "พลอย",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -5700,7 +7183,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853534,
+			"saved_at": 1793028357,
 			"skill_points": 127,
 			"skills": {
 				"focus": 2,
@@ -5731,7 +7214,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61e4b78"
+					"uid": "6adf7104bc43"
 				}
 			],
 			"tower": {
@@ -5769,7 +7252,7 @@
 			"class": "lancer",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -5778,8 +7261,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -5809,7 +7292,7 @@
 						"hp": 343,
 						"mp": 147
 					},
-					"uid": "6adcc61ec603"
+					"uid": "6adf7104fcaf"
 				},
 				"armor": {
 					"base": "armor",
@@ -5829,7 +7312,7 @@
 						"def": 71,
 						"hp": 184
 					},
-					"uid": "6adcc61e99df"
+					"uid": "6adf710495af"
 				},
 				"boots": {
 					"base": "boots",
@@ -5851,7 +7334,7 @@
 						"hp": 74,
 						"mp": 50
 					},
-					"uid": "6adcc61ea12a"
+					"uid": "6adf7104810e"
 				},
 				"helm": {
 					"base": "helm",
@@ -5871,7 +7354,7 @@
 						"hp": 110,
 						"mp": 150
 					},
-					"uid": "6adcc61e555b"
+					"uid": "6adf7104f41f"
 				},
 				"ring": {
 					"base": "ring",
@@ -5892,7 +7375,7 @@
 						"hp": 98,
 						"mp": 100
 					},
-					"uid": "6adcc61e5a7c"
+					"uid": "6adf71043111"
 				},
 				"weapon": {
 					"base": "spear",
@@ -5914,7 +7397,7 @@
 						"crit": 0.011,
 						"hp": 98
 					},
-					"uid": "6adcc61e7663"
+					"uid": "6adf7104df93"
 				},
 				"wings": {
 					"base": "wings",
@@ -5934,26 +7417,31 @@
 						"def": 86,
 						"mp": 237
 					},
-					"uid": "6adcc61e755e",
+					"uid": "6adf71048ad1",
 					"wing": "lancer"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 4,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853534,
+				"gw_r_at": 1793028356,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -5998,7 +7486,7 @@
 						"def": 22,
 						"hp": 54
 					},
-					"uid": "6adcc61e41a5"
+					"uid": "6adf710415c3"
 				},
 				{
 					"base": "boots",
@@ -6017,7 +7505,7 @@
 						"def": 16,
 						"hp": 44
 					},
-					"uid": "6adcc61ec216"
+					"uid": "6adf71048422"
 				},
 				{
 					"base": "ring",
@@ -6036,7 +7524,7 @@
 						"atk": 10,
 						"crit": 0.016
 					},
-					"uid": "6adcc61e0bcf"
+					"uid": "6adf7104588b"
 				},
 				{
 					"base": "lantern",
@@ -6055,7 +7543,7 @@
 						"atk": 30,
 						"mp": 22
 					},
-					"uid": "6adcc61e62b8"
+					"uid": "6adf7104624a"
 				},
 				{
 					"base": "armor",
@@ -6074,7 +7562,7 @@
 						"def": 17,
 						"hp": 45
 					},
-					"uid": "6adcc61edc6a"
+					"uid": "6adf7104e95a"
 				},
 				{
 					"base": "boots",
@@ -6094,7 +7582,7 @@
 						"def": 10,
 						"hp": 26
 					},
-					"uid": "6adcc61ef204"
+					"uid": "6adf7104edf0"
 				},
 				{
 					"base": "boots",
@@ -6114,15 +7602,15 @@
 						"def": 18,
 						"hp": 36
 					},
-					"uid": "6adcc61e8adc"
+					"uid": "6adf710443cb"
 				},
 				{
-					"base": "staff",
-					"class": "mage",
+					"base": "wand",
+					"class": "priest",
 					"gems": [],
 					"kind": "equip",
 					"level": 15,
-					"name": "คทาเหล็กกล้า",
+					"name": "คทาเหล็กศรัทธา",
 					"plus": 0,
 					"price": 185,
 					"rarity": 0,
@@ -6132,7 +7620,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61ef954"
+					"uid": "6adf7104778f"
 				},
 				{
 					"base": "amulet",
@@ -6153,7 +7641,7 @@
 						"hp": 118,
 						"mp": 118
 					},
-					"uid": "6adcc61e6a16"
+					"uid": "6adf7104bb60"
 				},
 				{
 					"base": "amulet",
@@ -6172,7 +7660,7 @@
 						"hp": 28,
 						"mp": 28
 					},
-					"uid": "6adcc61eae11"
+					"uid": "6adf7104116f"
 				},
 				{
 					"base": "helm",
@@ -6191,7 +7679,7 @@
 						"def": 17,
 						"hp": 51
 					},
-					"uid": "6adcc61e1e1b"
+					"uid": "6adf71049005"
 				},
 				{
 					"base": "armor",
@@ -6211,7 +7699,7 @@
 						"def": 58,
 						"hp": 234
 					},
-					"uid": "6adcc61e968f"
+					"uid": "6adf7104fb1f"
 				},
 				{
 					"count": 20,
@@ -6219,28 +7707,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "armor",
-					"class": "",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "เสื้อเกราะโซ่ ล้ำค่า",
+					"name": "หอกมิธริล ล้ำค่า",
 					"plus": 0,
 					"price": 873,
 					"rarity": 2,
 					"set": "set2",
-					"slot": "armor",
+					"slot": "weapon",
 					"sockets": 1,
 					"stats": {
-						"crit": 0.011,
-						"def": 57,
-						"hp": 259
+						"atk": 78,
+						"hp": 98,
+						"mp": 50
 					},
-					"uid": "6adcc61ec2ad"
+					"uid": "6adf71041322"
 				},
 				{
 					"count": 1,
-					"id": "amethyst_0",
+					"id": "emerald_0",
 					"kind": "gem"
 				}
 			],
@@ -6287,23 +7775,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "defender",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 5,
-						"hair_tint": 8,
-						"skin_tone": 6
-					},
-					"name": "พลอย",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -6329,7 +7801,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853534,
+			"saved_at": 1793028356,
 			"skill_points": 20,
 			"skills": {
 				"focus": 2,
@@ -6360,7 +7832,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61e4b78"
+					"uid": "6adf7104bc43"
 				}
 			],
 			"tower": {
@@ -6406,7 +7878,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61e5505"
+					"uid": "6adf7105ed88"
 				}
 			},
 			"exp": 0,
@@ -6485,7 +7957,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853534,
+			"saved_at": 1793028357,
 			"skill_points": 1,
 			"skills": {
 
@@ -6534,7 +8006,7 @@
 			"class": "mage",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -6543,8 +8015,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -6580,7 +8052,7 @@
 						"hp": 4115,
 						"mp": 3552
 					},
-					"uid": "6adcc61dd544"
+					"uid": "6adf7103cd0b"
 				},
 				"armor": {
 					"base": "armor",
@@ -6606,7 +8078,7 @@
 						"hp": 3244,
 						"mp": 377
 					},
-					"uid": "6adcc61dc71b"
+					"uid": "6adf7103b01d"
 				},
 				"boots": {
 					"base": "boots",
@@ -6632,7 +8104,7 @@
 						"hp": 2025,
 						"mp": 437
 					},
-					"uid": "6adcc61d5839"
+					"uid": "6adf7103456b"
 				},
 				"helm": {
 					"base": "helm",
@@ -6658,7 +8130,7 @@
 						"hp": 2411,
 						"mp": 405
 					},
-					"uid": "6adcc61d4fa4"
+					"uid": "6adf71034dc0"
 				},
 				"ring": {
 					"base": "ring",
@@ -6686,7 +8158,7 @@
 						"hp": 926,
 						"mp": 464
 					},
-					"uid": "6adcc61db185"
+					"uid": "6adf7103bad8"
 				},
 				"weapon": {
 					"base": "staff",
@@ -6712,7 +8184,7 @@
 						"hp": 754,
 						"mp": 378
 					},
-					"uid": "6adcc61d0c86"
+					"uid": "6adf71030411"
 				},
 				"wings": {
 					"base": "wings",
@@ -6738,17 +8210,17 @@
 						"matk": 647,
 						"mp": 1117
 					},
-					"uid": "6adcc61d8083",
+					"uid": "6adf71031cae",
 					"wing": "mage"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 8,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -6801,7 +8273,7 @@
 						"hp": 84,
 						"mp": 84
 					},
-					"uid": "6adcc61d7dbd"
+					"uid": "6adf710219e8"
 				},
 				{
 					"base": "helm",
@@ -6822,7 +8294,7 @@
 						"hp": 88,
 						"mp": 46
 					},
-					"uid": "6adcc61d7568"
+					"uid": "6adf7102d607"
 				},
 				{
 					"base": "ring",
@@ -6841,7 +8313,7 @@
 						"atk": 6,
 						"crit": 0.013
 					},
-					"uid": "6adcc61dead5"
+					"uid": "6adf7102cfed"
 				},
 				{
 					"base": "ring",
@@ -6860,7 +8332,7 @@
 						"atk": 13,
 						"crit": 0.017
 					},
-					"uid": "6adcc61dfd08"
+					"uid": "6adf71020182"
 				},
 				{
 					"base": "amulet",
@@ -6879,7 +8351,7 @@
 						"hp": 72,
 						"mp": 72
 					},
-					"uid": "6adcc61d4cab"
+					"uid": "6adf7102b7dd"
 				},
 				{
 					"base": "helm",
@@ -6899,7 +8371,7 @@
 						"def": 14,
 						"hp": 40
 					},
-					"uid": "6adcc61da8d5"
+					"uid": "6adf71029051"
 				},
 				{
 					"base": "helm",
@@ -6918,15 +8390,15 @@
 						"def": 21,
 						"hp": 66
 					},
-					"uid": "6adcc61da737"
+					"uid": "6adf7102e96a"
 				},
 				{
-					"base": "dagger",
-					"class": "assassin",
+					"base": "sword",
+					"class": "warrior",
 					"gems": [],
 					"kind": "equip",
 					"level": 21,
-					"name": "มีดคู่มิธริล",
+					"name": "ดาบมิธริล",
 					"plus": 0,
 					"price": 251,
 					"rarity": 0,
@@ -6936,7 +8408,7 @@
 					"stats": {
 						"atk": 48
 					},
-					"uid": "6adcc61d2131"
+					"uid": "6adf71024d71"
 				},
 				{
 					"base": "boots",
@@ -6955,7 +8427,7 @@
 						"def": 8,
 						"hp": 22
 					},
-					"uid": "6adcc61d4044"
+					"uid": "6adf7102a754"
 				},
 				{
 					"base": "helm",
@@ -6974,7 +8446,7 @@
 						"def": 8,
 						"hp": 21
 					},
-					"uid": "6adcc61dc456"
+					"uid": "6adf710215a4"
 				},
 				{
 					"base": "amulet",
@@ -6993,7 +8465,7 @@
 						"hp": 72,
 						"mp": 72
 					},
-					"uid": "6adcc61d1031"
+					"uid": "6adf7102713b"
 				},
 				{
 					"base": "amulet",
@@ -7012,7 +8484,7 @@
 						"hp": 72,
 						"mp": 72
 					},
-					"uid": "6adcc61d2252"
+					"uid": "6adf71029dfc"
 				},
 				{
 					"count": 20,
@@ -7020,27 +8492,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "armor",
-					"class": "",
+					"base": "staff",
+					"class": "mage",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "เสื้อเกราะโซ่ ล้ำค่า",
+					"name": "คทามิธริล ล้ำค่า",
 					"plus": 0,
 					"price": 873,
 					"rarity": 2,
 					"set": "set2",
-					"slot": "armor",
+					"slot": "weapon",
 					"sockets": 1,
 					"stats": {
-						"def": 66,
-						"hp": 161
+						"atk": 82,
+						"crit": 0.011,
+						"mp": 50
 					},
-					"uid": "6adcc61d1438"
+					"uid": "6adf710217a9"
 				},
 				{
 					"count": 1,
-					"id": "emerald_0",
+					"id": "sapphire_0",
 					"kind": "gem"
 				},
 				{
@@ -7073,7 +8546,7 @@
 						"def": 6,
 						"hp": 98
 					},
-					"uid": "6adcc61dd751"
+					"uid": "6adf710213ff"
 				},
 				{
 					"base": "armor",
@@ -7093,7 +8566,7 @@
 						"hp": 282,
 						"mp": 50
 					},
-					"uid": "6adcc61d45a1"
+					"uid": "6adf710214de"
 				},
 				{
 					"base": "helm",
@@ -7114,7 +8587,7 @@
 						"hp": 110,
 						"mp": 100
 					},
-					"uid": "6adcc61da138"
+					"uid": "6adf710277be"
 				},
 				{
 					"base": "boots",
@@ -7134,7 +8607,7 @@
 						"def": 32,
 						"hp": 172
 					},
-					"uid": "6adcc61dcdf9"
+					"uid": "6adf71028343"
 				},
 				{
 					"base": "ring",
@@ -7154,7 +8627,7 @@
 						"crit": 0.027,
 						"mp": 100
 					},
-					"uid": "6adcc61d47a6"
+					"uid": "6adf710290d6"
 				},
 				{
 					"base": "amulet",
@@ -7174,7 +8647,7 @@
 						"hp": 245,
 						"mp": 197
 					},
-					"uid": "6adcc61d340e"
+					"uid": "6adf7102c48b"
 				},
 				{
 					"base": "wings",
@@ -7194,7 +8667,7 @@
 						"def": 88,
 						"matk": 251
 					},
-					"uid": "6adcc61de01a",
+					"uid": "6adf7102ad26",
 					"wing": "mage"
 				},
 				{
@@ -7222,7 +8695,7 @@
 						"matk": 1337,
 						"mp": 668
 					},
-					"uid": "6adcc61d5f43"
+					"uid": "6adf710378d8"
 				},
 				{
 					"count": 1,
@@ -7278,23 +8751,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "priest",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 6,
-						"hair_tint": 8,
-						"skin_tone": 4
-					},
-					"name": "นีน่า",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -7320,7 +8777,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853533,
+			"saved_at": 1793028355,
 			"skill_points": 127,
 			"skills": {
 				"agony": 2,
@@ -7351,7 +8808,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61da0b0"
+					"uid": "6adf71025162"
 				}
 			],
 			"tower": {
@@ -7389,7 +8846,7 @@
 			"class": "mage",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -7398,8 +8855,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -7429,7 +8886,7 @@
 						"hp": 245,
 						"mp": 197
 					},
-					"uid": "6adcc61d340e"
+					"uid": "6adf7102c48b"
 				},
 				"armor": {
 					"base": "armor",
@@ -7449,7 +8906,7 @@
 						"hp": 282,
 						"mp": 50
 					},
-					"uid": "6adcc61d45a1"
+					"uid": "6adf710214de"
 				},
 				"boots": {
 					"base": "boots",
@@ -7469,7 +8926,7 @@
 						"def": 32,
 						"hp": 172
 					},
-					"uid": "6adcc61dcdf9"
+					"uid": "6adf71028343"
 				},
 				"helm": {
 					"base": "helm",
@@ -7490,7 +8947,7 @@
 						"hp": 110,
 						"mp": 100
 					},
-					"uid": "6adcc61da138"
+					"uid": "6adf710277be"
 				},
 				"ring": {
 					"base": "ring",
@@ -7510,7 +8967,7 @@
 						"crit": 0.027,
 						"mp": 100
 					},
-					"uid": "6adcc61d47a6"
+					"uid": "6adf710290d6"
 				},
 				"weapon": {
 					"base": "staff",
@@ -7532,7 +8989,7 @@
 						"def": 6,
 						"hp": 98
 					},
-					"uid": "6adcc61dd751"
+					"uid": "6adf710213ff"
 				},
 				"wings": {
 					"base": "wings",
@@ -7552,26 +9009,31 @@
 						"def": 88,
 						"matk": 251
 					},
-					"uid": "6adcc61de01a",
+					"uid": "6adf7102ad26",
 					"wing": "mage"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 5,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853533,
+				"gw_r_at": 1793028354,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -7616,7 +9078,7 @@
 						"hp": 84,
 						"mp": 84
 					},
-					"uid": "6adcc61d7dbd"
+					"uid": "6adf710219e8"
 				},
 				{
 					"base": "helm",
@@ -7637,7 +9099,7 @@
 						"hp": 88,
 						"mp": 46
 					},
-					"uid": "6adcc61d7568"
+					"uid": "6adf7102d607"
 				},
 				{
 					"base": "ring",
@@ -7656,7 +9118,7 @@
 						"atk": 6,
 						"crit": 0.013
 					},
-					"uid": "6adcc61dead5"
+					"uid": "6adf7102cfed"
 				},
 				{
 					"base": "ring",
@@ -7675,7 +9137,7 @@
 						"atk": 13,
 						"crit": 0.017
 					},
-					"uid": "6adcc61dfd08"
+					"uid": "6adf71020182"
 				},
 				{
 					"base": "amulet",
@@ -7694,7 +9156,7 @@
 						"hp": 72,
 						"mp": 72
 					},
-					"uid": "6adcc61d4cab"
+					"uid": "6adf7102b7dd"
 				},
 				{
 					"base": "helm",
@@ -7714,7 +9176,7 @@
 						"def": 14,
 						"hp": 40
 					},
-					"uid": "6adcc61da8d5"
+					"uid": "6adf71029051"
 				},
 				{
 					"base": "helm",
@@ -7733,15 +9195,15 @@
 						"def": 21,
 						"hp": 66
 					},
-					"uid": "6adcc61da737"
+					"uid": "6adf7102e96a"
 				},
 				{
-					"base": "dagger",
-					"class": "assassin",
+					"base": "sword",
+					"class": "warrior",
 					"gems": [],
 					"kind": "equip",
 					"level": 21,
-					"name": "มีดคู่มิธริล",
+					"name": "ดาบมิธริล",
 					"plus": 0,
 					"price": 251,
 					"rarity": 0,
@@ -7751,7 +9213,7 @@
 					"stats": {
 						"atk": 48
 					},
-					"uid": "6adcc61d2131"
+					"uid": "6adf71024d71"
 				},
 				{
 					"base": "boots",
@@ -7770,7 +9232,7 @@
 						"def": 8,
 						"hp": 22
 					},
-					"uid": "6adcc61d4044"
+					"uid": "6adf7102a754"
 				},
 				{
 					"base": "helm",
@@ -7789,7 +9251,7 @@
 						"def": 8,
 						"hp": 21
 					},
-					"uid": "6adcc61dc456"
+					"uid": "6adf710215a4"
 				},
 				{
 					"base": "amulet",
@@ -7808,7 +9270,7 @@
 						"hp": 72,
 						"mp": 72
 					},
-					"uid": "6adcc61d1031"
+					"uid": "6adf7102713b"
 				},
 				{
 					"base": "amulet",
@@ -7827,7 +9289,7 @@
 						"hp": 72,
 						"mp": 72
 					},
-					"uid": "6adcc61d2252"
+					"uid": "6adf71029dfc"
 				},
 				{
 					"count": 20,
@@ -7835,27 +9297,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "armor",
-					"class": "",
+					"base": "staff",
+					"class": "mage",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "เสื้อเกราะโซ่ ล้ำค่า",
+					"name": "คทามิธริล ล้ำค่า",
 					"plus": 0,
 					"price": 873,
 					"rarity": 2,
 					"set": "set2",
-					"slot": "armor",
+					"slot": "weapon",
 					"sockets": 1,
 					"stats": {
-						"def": 66,
-						"hp": 161
+						"atk": 82,
+						"crit": 0.011,
+						"mp": 50
 					},
-					"uid": "6adcc61d1438"
+					"uid": "6adf710217a9"
 				},
 				{
 					"count": 1,
-					"id": "emerald_0",
+					"id": "sapphire_0",
 					"kind": "gem"
 				}
 			],
@@ -7902,23 +9365,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "priest",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 6,
-						"hair_tint": 8,
-						"skin_tone": 4
-					},
-					"name": "นีน่า",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -7944,7 +9391,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853533,
+			"saved_at": 1793028354,
 			"skill_points": 20,
 			"skills": {
 				"agony": 2,
@@ -7975,7 +9422,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61da0b0"
+					"uid": "6adf71025162"
 				}
 			],
 			"tower": {
@@ -8021,7 +9468,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61d7c3c"
+					"uid": "6adf7103773a"
 				}
 			},
 			"exp": 0,
@@ -8100,7 +9547,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853533,
+			"saved_at": 1793028355,
 			"skill_points": 1,
 			"skills": {
 
@@ -8149,7 +9596,7 @@
 			"class": "priest",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -8158,8 +9605,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -8195,7 +9642,7 @@
 						"hp": 4094,
 						"mp": 3534
 					},
-					"uid": "6adcc61dfa63"
+					"uid": "6adf7104deaa"
 				},
 				"armor": {
 					"base": "armor",
@@ -8221,7 +9668,7 @@
 						"hp": 3260,
 						"mp": 379
 					},
-					"uid": "6adcc61d862d"
+					"uid": "6adf7104a32b"
 				},
 				"boots": {
 					"base": "boots",
@@ -8247,7 +9694,7 @@
 						"hp": 2033,
 						"mp": 439
 					},
-					"uid": "6adcc61d851e"
+					"uid": "6adf710438e3"
 				},
 				"helm": {
 					"base": "helm",
@@ -8273,7 +9720,7 @@
 						"hp": 2561,
 						"mp": 430
 					},
-					"uid": "6adcc61d233f"
+					"uid": "6adf71049788"
 				},
 				"ring": {
 					"base": "ring",
@@ -8301,7 +9748,7 @@
 						"hp": 913,
 						"mp": 458
 					},
-					"uid": "6adcc61d4c5a"
+					"uid": "6adf71046796"
 				},
 				"weapon": {
 					"base": "wand",
@@ -8327,7 +9774,7 @@
 						"hp": 754,
 						"mp": 378
 					},
-					"uid": "6adcc61df4fb"
+					"uid": "6adf710416c2"
 				},
 				"wings": {
 					"base": "wings",
@@ -8353,17 +9800,17 @@
 						"matk": 631,
 						"mp": 1099
 					},
-					"uid": "6adcc61d1fee",
+					"uid": "6adf7104d00e",
 					"wing": "priest"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 8,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -8416,7 +9863,7 @@
 						"def": 25,
 						"hp": 70
 					},
-					"uid": "6adcc61d3b1a"
+					"uid": "6adf7103283c"
 				},
 				{
 					"base": "armor",
@@ -8435,7 +9882,7 @@
 						"def": 31,
 						"hp": 80
 					},
-					"uid": "6adcc61db7d6"
+					"uid": "6adf71038188"
 				},
 				{
 					"base": "ring",
@@ -8454,7 +9901,7 @@
 						"atk": 16,
 						"crit": 0.019
 					},
-					"uid": "6adcc61d2df2"
+					"uid": "6adf7103a547"
 				},
 				{
 					"base": "armor",
@@ -8473,7 +9920,7 @@
 						"def": 22,
 						"hp": 60
 					},
-					"uid": "6adcc61d566e"
+					"uid": "6adf71035086"
 				},
 				{
 					"base": "amulet",
@@ -8492,7 +9939,7 @@
 						"hp": 40,
 						"mp": 40
 					},
-					"uid": "6adcc61d8406"
+					"uid": "6adf71032f46"
 				},
 				{
 					"base": "armor",
@@ -8511,7 +9958,7 @@
 						"def": 28,
 						"hp": 80
 					},
-					"uid": "6adcc61de972"
+					"uid": "6adf71034c3f"
 				},
 				{
 					"base": "wand",
@@ -8529,7 +9976,7 @@
 					"stats": {
 						"atk": 45
 					},
-					"uid": "6adcc61d4a99"
+					"uid": "6adf71037f8f"
 				},
 				{
 					"base": "ring",
@@ -8548,7 +9995,7 @@
 						"atk": 6,
 						"crit": 0.013
 					},
-					"uid": "6adcc61d91e4"
+					"uid": "6adf71038e7a"
 				},
 				{
 					"base": "helm",
@@ -8567,15 +10014,15 @@
 						"def": 19,
 						"hp": 60
 					},
-					"uid": "6adcc61de16a"
+					"uid": "6adf7103b088"
 				},
 				{
-					"base": "lantern",
-					"class": "summoner",
+					"base": "staff",
+					"class": "mage",
 					"gems": [],
 					"kind": "equip",
 					"level": 14,
-					"name": "โคมเหล็กผูกวิญญาณ",
+					"name": "คทาเหล็กกล้า",
 					"plus": 0,
 					"price": 174,
 					"rarity": 0,
@@ -8585,7 +10032,7 @@
 					"stats": {
 						"atk": 35
 					},
-					"uid": "6adcc61d7f96"
+					"uid": "6adf710398db"
 				},
 				{
 					"base": "ring",
@@ -8605,15 +10052,15 @@
 						"crit": 0.015,
 						"def": 3
 					},
-					"uid": "6adcc61defd0"
+					"uid": "6adf7103f4f1"
 				},
 				{
-					"base": "greatshield",
-					"class": "defender",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 12,
-					"name": "โล่ป้อมปราการเหล็กกล้า ชั้นดี",
+					"name": "หอกเหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 319,
 					"rarity": 1,
@@ -8624,7 +10071,7 @@
 						"atk": 36,
 						"crit": 0.008
 					},
-					"uid": "6adcc61deaf1"
+					"uid": "6adf710340f5"
 				},
 				{
 					"count": 20,
@@ -8632,27 +10079,27 @@
 					"kind": "potion"
 				},
 				{
-					"base": "helm",
-					"class": "",
+					"base": "wand",
+					"class": "priest",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "หมวกเหล็ก ล้ำค่า",
+					"name": "คทาจันทร์มิธริล แห่งตำนาน",
 					"plus": 0,
-					"price": 873,
-					"rarity": 2,
+					"price": 1173,
+					"rarity": 3,
 					"set": "set2",
-					"slot": "helm",
-					"sockets": 1,
+					"slot": "weapon",
+					"sockets": 2,
 					"stats": {
-						"def": 37,
-						"hp": 195
+						"atk": 101,
+						"crit": 0.022
 					},
-					"uid": "6adcc61dc68d"
+					"uid": "6adf71038d02"
 				},
 				{
 					"count": 1,
-					"id": "topaz_0",
+					"id": "amethyst_0",
 					"kind": "gem"
 				},
 				{
@@ -8686,7 +10133,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61dac13"
+					"uid": "6adf71039459"
 				},
 				{
 					"base": "armor",
@@ -8705,7 +10152,7 @@
 						"def": 75,
 						"hp": 380
 					},
-					"uid": "6adcc61d387d"
+					"uid": "6adf7103e033"
 				},
 				{
 					"base": "helm",
@@ -8725,7 +10172,7 @@
 						"def": 41,
 						"hp": 208
 					},
-					"uid": "6adcc61d2cda"
+					"uid": "6adf7103f254"
 				},
 				{
 					"base": "boots",
@@ -8746,7 +10193,7 @@
 						"hp": 172,
 						"mp": 50
 					},
-					"uid": "6adcc61dce34"
+					"uid": "6adf7103e43a"
 				},
 				{
 					"base": "ring",
@@ -8766,7 +10213,7 @@
 						"crit": 0.038,
 						"def": 6
 					},
-					"uid": "6adcc61dfce7"
+					"uid": "6adf7103dc88"
 				},
 				{
 					"base": "amulet",
@@ -8786,7 +10233,7 @@
 						"hp": 147,
 						"mp": 247
 					},
-					"uid": "6adcc61d73fc"
+					"uid": "6adf7103971e"
 				},
 				{
 					"base": "wings",
@@ -8806,7 +10253,7 @@
 						"matk": 232,
 						"mp": 176
 					},
-					"uid": "6adcc61d6560",
+					"uid": "6adf71031fa7",
 					"wing": "priest"
 				},
 				{
@@ -8834,7 +10281,7 @@
 						"matk": 1337,
 						"mp": 665
 					},
-					"uid": "6adcc61d4d04"
+					"uid": "6adf7104a5c8"
 				},
 				{
 					"count": 1,
@@ -8895,23 +10342,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "summoner",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 1,
-						"hair_tint": 9,
-						"skin_tone": 1
-					},
-					"name": "ไลรา",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -8937,7 +10368,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853533,
+			"saved_at": 1793028356,
 			"skill_points": 127,
 			"skills": {
 				"healing": 2,
@@ -8968,7 +10399,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61daf8c"
+					"uid": "6adf7103f133"
 				}
 			],
 			"tower": {
@@ -9006,7 +10437,7 @@
 			"class": "priest",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -9015,8 +10446,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -9046,7 +10477,7 @@
 						"hp": 147,
 						"mp": 247
 					},
-					"uid": "6adcc61d73fc"
+					"uid": "6adf7103971e"
 				},
 				"armor": {
 					"base": "armor",
@@ -9065,7 +10496,7 @@
 						"def": 75,
 						"hp": 380
 					},
-					"uid": "6adcc61d387d"
+					"uid": "6adf7103e033"
 				},
 				"boots": {
 					"base": "boots",
@@ -9086,7 +10517,7 @@
 						"hp": 172,
 						"mp": 50
 					},
-					"uid": "6adcc61dce34"
+					"uid": "6adf7103e43a"
 				},
 				"helm": {
 					"base": "helm",
@@ -9106,7 +10537,7 @@
 						"def": 41,
 						"hp": 208
 					},
-					"uid": "6adcc61d2cda"
+					"uid": "6adf7103f254"
 				},
 				"ring": {
 					"base": "ring",
@@ -9126,7 +10557,7 @@
 						"crit": 0.038,
 						"def": 6
 					},
-					"uid": "6adcc61dfce7"
+					"uid": "6adf7103dc88"
 				},
 				"weapon": {
 					"base": "wand",
@@ -9149,7 +10580,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61dac13"
+					"uid": "6adf71039459"
 				},
 				"wings": {
 					"base": "wings",
@@ -9169,26 +10600,31 @@
 						"matk": 232,
 						"mp": 176
 					},
-					"uid": "6adcc61d6560",
+					"uid": "6adf71031fa7",
 					"wing": "priest"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 6,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853533,
+				"gw_r_at": 1793028355,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -9233,7 +10669,7 @@
 						"def": 25,
 						"hp": 70
 					},
-					"uid": "6adcc61d3b1a"
+					"uid": "6adf7103283c"
 				},
 				{
 					"base": "armor",
@@ -9252,7 +10688,7 @@
 						"def": 31,
 						"hp": 80
 					},
-					"uid": "6adcc61db7d6"
+					"uid": "6adf71038188"
 				},
 				{
 					"base": "ring",
@@ -9271,7 +10707,7 @@
 						"atk": 16,
 						"crit": 0.019
 					},
-					"uid": "6adcc61d2df2"
+					"uid": "6adf7103a547"
 				},
 				{
 					"base": "armor",
@@ -9290,7 +10726,7 @@
 						"def": 22,
 						"hp": 60
 					},
-					"uid": "6adcc61d566e"
+					"uid": "6adf71035086"
 				},
 				{
 					"base": "amulet",
@@ -9309,7 +10745,7 @@
 						"hp": 40,
 						"mp": 40
 					},
-					"uid": "6adcc61d8406"
+					"uid": "6adf71032f46"
 				},
 				{
 					"base": "armor",
@@ -9328,7 +10764,7 @@
 						"def": 28,
 						"hp": 80
 					},
-					"uid": "6adcc61de972"
+					"uid": "6adf71034c3f"
 				},
 				{
 					"base": "wand",
@@ -9346,7 +10782,7 @@
 					"stats": {
 						"atk": 45
 					},
-					"uid": "6adcc61d4a99"
+					"uid": "6adf71037f8f"
 				},
 				{
 					"base": "ring",
@@ -9365,7 +10801,7 @@
 						"atk": 6,
 						"crit": 0.013
 					},
-					"uid": "6adcc61d91e4"
+					"uid": "6adf71038e7a"
 				},
 				{
 					"base": "helm",
@@ -9384,15 +10820,15 @@
 						"def": 19,
 						"hp": 60
 					},
-					"uid": "6adcc61de16a"
+					"uid": "6adf7103b088"
 				},
 				{
-					"base": "lantern",
-					"class": "summoner",
+					"base": "staff",
+					"class": "mage",
 					"gems": [],
 					"kind": "equip",
 					"level": 14,
-					"name": "โคมเหล็กผูกวิญญาณ",
+					"name": "คทาเหล็กกล้า",
 					"plus": 0,
 					"price": 174,
 					"rarity": 0,
@@ -9402,7 +10838,7 @@
 					"stats": {
 						"atk": 35
 					},
-					"uid": "6adcc61d7f96"
+					"uid": "6adf710398db"
 				},
 				{
 					"base": "ring",
@@ -9422,15 +10858,15 @@
 						"crit": 0.015,
 						"def": 3
 					},
-					"uid": "6adcc61defd0"
+					"uid": "6adf7103f4f1"
 				},
 				{
-					"base": "greatshield",
-					"class": "defender",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 12,
-					"name": "โล่ป้อมปราการเหล็กกล้า ชั้นดี",
+					"name": "หอกเหล็กกล้า ชั้นดี",
 					"plus": 0,
 					"price": 319,
 					"rarity": 1,
@@ -9441,7 +10877,7 @@
 						"atk": 36,
 						"crit": 0.008
 					},
-					"uid": "6adcc61deaf1"
+					"uid": "6adf710340f5"
 				},
 				{
 					"count": 20,
@@ -9449,27 +10885,27 @@
 					"kind": "potion"
 				},
 				{
-					"base": "helm",
-					"class": "",
+					"base": "wand",
+					"class": "priest",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "หมวกเหล็ก ล้ำค่า",
+					"name": "คทาจันทร์มิธริล แห่งตำนาน",
 					"plus": 0,
-					"price": 873,
-					"rarity": 2,
+					"price": 1173,
+					"rarity": 3,
 					"set": "set2",
-					"slot": "helm",
-					"sockets": 1,
+					"slot": "weapon",
+					"sockets": 2,
 					"stats": {
-						"def": 37,
-						"hp": 195
+						"atk": 101,
+						"crit": 0.022
 					},
-					"uid": "6adcc61dc68d"
+					"uid": "6adf71038d02"
 				},
 				{
 					"count": 1,
-					"id": "topaz_0",
+					"id": "amethyst_0",
 					"kind": "gem"
 				}
 			],
@@ -9516,23 +10952,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "summoner",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 1,
-						"hair_tint": 9,
-						"skin_tone": 1
-					},
-					"name": "ไลรา",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -9558,7 +10978,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853533,
+			"saved_at": 1793028355,
 			"skill_points": 20,
 			"skills": {
 				"healing": 2,
@@ -9589,7 +11009,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61daf8c"
+					"uid": "6adf7103f133"
 				}
 			],
 			"tower": {
@@ -9635,7 +11055,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61d679b"
+					"uid": "6adf71042285"
 				}
 			},
 			"exp": 0,
@@ -9714,7 +11134,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853533,
+			"saved_at": 1793028356,
 			"skill_points": 1,
 			"skills": {
 
@@ -9763,7 +11183,7 @@
 			"class": "summoner",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -9772,8 +11192,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -9809,7 +11229,7 @@
 						"hp": 4100,
 						"mp": 3540
 					},
-					"uid": "6adcc61e0dc8"
+					"uid": "6adf710493ad"
 				},
 				"armor": {
 					"base": "armor",
@@ -9835,7 +11255,7 @@
 						"hp": 3285,
 						"mp": 382
 					},
-					"uid": "6adcc61eb606"
+					"uid": "6adf7104a2d5"
 				},
 				"boots": {
 					"base": "boots",
@@ -9861,7 +11281,7 @@
 						"hp": 2049,
 						"mp": 442
 					},
-					"uid": "6adcc61e8aab"
+					"uid": "6adf71041503"
 				},
 				"helm": {
 					"base": "helm",
@@ -9887,7 +11307,7 @@
 						"hp": 2440,
 						"mp": 410
 					},
-					"uid": "6adcc61e0c15"
+					"uid": "6adf71049216"
 				},
 				"ring": {
 					"base": "ring",
@@ -9915,7 +11335,7 @@
 						"hp": 927,
 						"mp": 464
 					},
-					"uid": "6adcc61ef5c5"
+					"uid": "6adf7104901b"
 				},
 				"weapon": {
 					"base": "lantern",
@@ -9941,7 +11361,7 @@
 						"hp": 759,
 						"mp": 381
 					},
-					"uid": "6adcc61e7235"
+					"uid": "6adf7104b002"
 				},
 				"wings": {
 					"base": "wings",
@@ -9967,17 +11387,17 @@
 						"matk": 657,
 						"mp": 1044
 					},
-					"uid": "6adcc61ef15a",
+					"uid": "6adf71041e4f",
 					"wing": "summoner"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 8,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -10030,7 +11450,7 @@
 						"atk": 11,
 						"crit": 0.016
 					},
-					"uid": "6adcc61d9055"
+					"uid": "6adf710455a0"
 				},
 				{
 					"base": "armor",
@@ -10050,7 +11470,7 @@
 						"def": 29,
 						"hp": 72
 					},
-					"uid": "6adcc61deec5"
+					"uid": "6adf7104313c"
 				},
 				{
 					"base": "armor",
@@ -10070,7 +11490,7 @@
 						"hp": 54,
 						"mp": 22
 					},
-					"uid": "6adcc61d7bb4"
+					"uid": "6adf71045faa"
 				},
 				{
 					"base": "amulet",
@@ -10090,7 +11510,7 @@
 						"hp": 96,
 						"mp": 164
 					},
-					"uid": "6adcc61d2bb7"
+					"uid": "6adf7104f0db"
 				},
 				{
 					"base": "armor",
@@ -10109,15 +11529,15 @@
 						"def": 35,
 						"hp": 105
 					},
-					"uid": "6adcc61df755"
+					"uid": "6adf71048ded"
 				},
 				{
-					"base": "bow",
-					"class": "archer",
+					"base": "sword",
+					"class": "warrior",
 					"gems": [],
 					"kind": "equip",
 					"level": 15,
-					"name": "ธนูเหล็กกล้า",
+					"name": "ดาบเหล็กกล้า",
 					"plus": 0,
 					"price": 185,
 					"rarity": 0,
@@ -10127,7 +11547,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61d8577"
+					"uid": "6adf7104efcc"
 				},
 				{
 					"base": "armor",
@@ -10146,7 +11566,7 @@
 						"def": 37,
 						"hp": 100
 					},
-					"uid": "6adcc61d1069"
+					"uid": "6adf7104b708"
 				},
 				{
 					"base": "amulet",
@@ -10165,7 +11585,7 @@
 						"hp": 36,
 						"mp": 36
 					},
-					"uid": "6adcc61d7ec8"
+					"uid": "6adf71046512"
 				},
 				{
 					"base": "boots",
@@ -10184,15 +11604,15 @@
 						"def": 15,
 						"hp": 42
 					},
-					"uid": "6adcc61d5331"
+					"uid": "6adf71048a9c"
 				},
 				{
-					"base": "sword",
-					"class": "warrior",
+					"base": "bow",
+					"class": "archer",
 					"gems": [],
 					"kind": "equip",
 					"level": 22,
-					"name": "ดาบมิธริล ชั้นดี",
+					"name": "ธนูมิธริล ชั้นดี",
 					"plus": 0,
 					"price": 550,
 					"rarity": 1,
@@ -10203,7 +11623,7 @@
 						"atk": 63,
 						"hp": 94
 					},
-					"uid": "6adcc61d5cf0"
+					"uid": "6adf7104b7b2"
 				},
 				{
 					"base": "armor",
@@ -10222,7 +11642,7 @@
 						"def": 31,
 						"hp": 80
 					},
-					"uid": "6adcc61de400"
+					"uid": "6adf7104d249"
 				},
 				{
 					"base": "helm",
@@ -10241,7 +11661,7 @@
 						"def": 14,
 						"hp": 42
 					},
-					"uid": "6adcc61de896"
+					"uid": "6adf71047cb2"
 				},
 				{
 					"count": 20,
@@ -10249,28 +11669,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "amulet",
+					"base": "armor",
 					"class": "",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "สร้อยทอง ล้ำค่า",
+					"name": "เสื้อเกราะโซ่ แห่งเทพนิยาย",
 					"plus": 0,
-					"price": 873,
-					"rarity": 2,
-					"set": "",
-					"slot": "amulet",
-					"sockets": 1,
+					"price": 1474,
+					"rarity": 4,
+					"set": "set2",
+					"slot": "armor",
+					"sockets": 3,
 					"stats": {
 						"atk": 7,
-						"hp": 227,
-						"mp": 129
+						"def": 94,
+						"hp": 340
 					},
-					"uid": "6adcc61d3e71"
+					"uid": "6adf710408b6"
 				},
 				{
 					"count": 1,
-					"id": "emerald_0",
+					"id": "sapphire_0",
 					"kind": "gem"
 				},
 				{
@@ -10302,7 +11722,7 @@
 						"atk": 95,
 						"hp": 294
 					},
-					"uid": "6adcc61d8e53"
+					"uid": "6adf7104eeb4"
 				},
 				{
 					"base": "armor",
@@ -10323,7 +11743,7 @@
 						"hp": 184,
 						"mp": 50
 					},
-					"uid": "6adcc61d18f5"
+					"uid": "6adf71045421"
 				},
 				{
 					"base": "helm",
@@ -10344,7 +11764,7 @@
 						"hp": 110,
 						"mp": 100
 					},
-					"uid": "6adcc61d0466"
+					"uid": "6adf7104b547"
 				},
 				{
 					"base": "boots",
@@ -10364,7 +11784,7 @@
 						"def": 32,
 						"hp": 172
 					},
-					"uid": "6adcc61dbf16"
+					"uid": "6adf7104fc92"
 				},
 				{
 					"base": "ring",
@@ -10385,7 +11805,7 @@
 						"def": 6,
 						"hp": 196
 					},
-					"uid": "6adcc61db6e9"
+					"uid": "6adf71044c19"
 				},
 				{
 					"base": "amulet",
@@ -10406,7 +11826,7 @@
 						"hp": 147,
 						"mp": 147
 					},
-					"uid": "6adcc61d66fe"
+					"uid": "6adf7104ea44"
 				},
 				{
 					"base": "wings",
@@ -10426,7 +11846,7 @@
 						"hp": 541,
 						"matk": 214
 					},
-					"uid": "6adcc61dda39",
+					"uid": "6adf71045a7f",
 					"wing": "summoner"
 				},
 				{
@@ -10454,7 +11874,7 @@
 						"matk": 1337,
 						"mp": 670
 					},
-					"uid": "6adcc61eeba2"
+					"uid": "6adf710409c0"
 				},
 				{
 					"count": 1,
@@ -10515,23 +11935,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "lancer",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 2,
-						"hair_tint": 8,
-						"skin_tone": 2
-					},
-					"name": "ซากุระ",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -10557,7 +11961,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853534,
+			"saved_at": 1793028356,
 			"skill_points": 127,
 			"skills": {
 				"forest_blessing": 2,
@@ -10588,7 +11992,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61d1204"
+					"uid": "6adf710498a0"
 				}
 			],
 			"tower": {
@@ -10606,6 +12010,7 @@
 				"first_blood": true,
 				"legend": true,
 				"lv10": true,
+				"mythic": true,
 				"pvp1": true,
 				"rich": true
 			},
@@ -10626,7 +12031,7 @@
 			"class": "summoner",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -10635,8 +12040,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -10667,7 +12072,7 @@
 						"hp": 147,
 						"mp": 147
 					},
-					"uid": "6adcc61d66fe"
+					"uid": "6adf7104ea44"
 				},
 				"armor": {
 					"base": "armor",
@@ -10688,7 +12093,7 @@
 						"hp": 184,
 						"mp": 50
 					},
-					"uid": "6adcc61d18f5"
+					"uid": "6adf71045421"
 				},
 				"boots": {
 					"base": "boots",
@@ -10708,7 +12113,7 @@
 						"def": 32,
 						"hp": 172
 					},
-					"uid": "6adcc61dbf16"
+					"uid": "6adf7104fc92"
 				},
 				"helm": {
 					"base": "helm",
@@ -10729,7 +12134,7 @@
 						"hp": 110,
 						"mp": 100
 					},
-					"uid": "6adcc61d0466"
+					"uid": "6adf7104b547"
 				},
 				"ring": {
 					"base": "ring",
@@ -10750,7 +12155,7 @@
 						"def": 6,
 						"hp": 196
 					},
-					"uid": "6adcc61db6e9"
+					"uid": "6adf71044c19"
 				},
 				"weapon": {
 					"base": "lantern",
@@ -10771,7 +12176,7 @@
 						"atk": 95,
 						"hp": 294
 					},
-					"uid": "6adcc61d8e53"
+					"uid": "6adf7104eeb4"
 				},
 				"wings": {
 					"base": "wings",
@@ -10791,26 +12196,32 @@
 						"hp": 541,
 						"matk": 214
 					},
-					"uid": "6adcc61dda39",
+					"uid": "6adf71045a7f",
 					"wing": "summoner"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 6,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
+				"got_mythic": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853533,
+				"gw_r_at": 1793028356,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -10820,7 +12231,7 @@
 				"tower_best": 7,
 				"wing_mode": 1
 			},
-			"gold": 496649,
+			"gold": 546649,
 			"hp": 2526,
 			"inv": [
 				{
@@ -10855,7 +12266,7 @@
 						"atk": 11,
 						"crit": 0.016
 					},
-					"uid": "6adcc61d9055"
+					"uid": "6adf710455a0"
 				},
 				{
 					"base": "armor",
@@ -10875,7 +12286,7 @@
 						"def": 29,
 						"hp": 72
 					},
-					"uid": "6adcc61deec5"
+					"uid": "6adf7104313c"
 				},
 				{
 					"base": "armor",
@@ -10895,7 +12306,7 @@
 						"hp": 54,
 						"mp": 22
 					},
-					"uid": "6adcc61d7bb4"
+					"uid": "6adf71045faa"
 				},
 				{
 					"base": "amulet",
@@ -10915,7 +12326,7 @@
 						"hp": 96,
 						"mp": 164
 					},
-					"uid": "6adcc61d2bb7"
+					"uid": "6adf7104f0db"
 				},
 				{
 					"base": "armor",
@@ -10934,15 +12345,15 @@
 						"def": 35,
 						"hp": 105
 					},
-					"uid": "6adcc61df755"
+					"uid": "6adf71048ded"
 				},
 				{
-					"base": "bow",
-					"class": "archer",
+					"base": "sword",
+					"class": "warrior",
 					"gems": [],
 					"kind": "equip",
 					"level": 15,
-					"name": "ธนูเหล็กกล้า",
+					"name": "ดาบเหล็กกล้า",
 					"plus": 0,
 					"price": 185,
 					"rarity": 0,
@@ -10952,7 +12363,7 @@
 					"stats": {
 						"atk": 36
 					},
-					"uid": "6adcc61d8577"
+					"uid": "6adf7104efcc"
 				},
 				{
 					"base": "armor",
@@ -10971,7 +12382,7 @@
 						"def": 37,
 						"hp": 100
 					},
-					"uid": "6adcc61d1069"
+					"uid": "6adf7104b708"
 				},
 				{
 					"base": "amulet",
@@ -10990,7 +12401,7 @@
 						"hp": 36,
 						"mp": 36
 					},
-					"uid": "6adcc61d7ec8"
+					"uid": "6adf71046512"
 				},
 				{
 					"base": "boots",
@@ -11009,15 +12420,15 @@
 						"def": 15,
 						"hp": 42
 					},
-					"uid": "6adcc61d5331"
+					"uid": "6adf71048a9c"
 				},
 				{
-					"base": "sword",
-					"class": "warrior",
+					"base": "bow",
+					"class": "archer",
 					"gems": [],
 					"kind": "equip",
 					"level": 22,
-					"name": "ดาบมิธริล ชั้นดี",
+					"name": "ธนูมิธริล ชั้นดี",
 					"plus": 0,
 					"price": 550,
 					"rarity": 1,
@@ -11028,7 +12439,7 @@
 						"atk": 63,
 						"hp": 94
 					},
-					"uid": "6adcc61d5cf0"
+					"uid": "6adf7104b7b2"
 				},
 				{
 					"base": "armor",
@@ -11047,7 +12458,7 @@
 						"def": 31,
 						"hp": 80
 					},
-					"uid": "6adcc61de400"
+					"uid": "6adf7104d249"
 				},
 				{
 					"base": "helm",
@@ -11066,7 +12477,7 @@
 						"def": 14,
 						"hp": 42
 					},
-					"uid": "6adcc61de896"
+					"uid": "6adf71047cb2"
 				},
 				{
 					"count": 20,
@@ -11074,28 +12485,28 @@
 					"kind": "potion"
 				},
 				{
-					"base": "amulet",
+					"base": "armor",
 					"class": "",
 					"gems": [],
 					"kind": "equip",
 					"level": 23,
-					"name": "สร้อยทอง ล้ำค่า",
+					"name": "เสื้อเกราะโซ่ แห่งเทพนิยาย",
 					"plus": 0,
-					"price": 873,
-					"rarity": 2,
-					"set": "",
-					"slot": "amulet",
-					"sockets": 1,
+					"price": 1474,
+					"rarity": 4,
+					"set": "set2",
+					"slot": "armor",
+					"sockets": 3,
 					"stats": {
 						"atk": 7,
-						"hp": 227,
-						"mp": 129
+						"def": 94,
+						"hp": 340
 					},
-					"uid": "6adcc61d3e71"
+					"uid": "6adf710408b6"
 				},
 				{
 					"count": 1,
-					"id": "emerald_0",
+					"id": "sapphire_0",
 					"kind": "gem"
 				}
 			],
@@ -11142,23 +12553,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "lancer",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 2,
-						"hair_tint": 8,
-						"skin_tone": 2
-					},
-					"name": "ซากุระ",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -11184,8 +12579,8 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853533,
-			"skill_points": 20,
+			"saved_at": 1793028356,
+			"skill_points": 23,
 			"skills": {
 				"forest_blessing": 2,
 				"spirit_cat": 2,
@@ -11215,7 +12610,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61d1204"
+					"uid": "6adf710498a0"
 				}
 			],
 			"tower": {
@@ -11261,7 +12656,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61e54a5"
+					"uid": "6adf7104c470"
 				}
 			},
 			"exp": 0,
@@ -11340,7 +12735,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853534,
+			"saved_at": 1793028356,
 			"skill_points": 1,
 			"skills": {
 
@@ -11372,7 +12767,7 @@
 			},
 			"class": "vagabond",
 			"daily": {
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": false,
@@ -11381,8 +12776,8 @@
 					},
 					{
 						"claimed": false,
-						"id": "kills_a",
-						"progress": 3
+						"id": "gold",
+						"progress": 0
 					},
 					{
 						"claimed": false,
@@ -11410,7 +12805,7 @@
 					"stats": {
 						"atk": 7
 					},
-					"uid": "6adcc61c0586"
+					"uid": "6adf71000586"
 				}
 			},
 			"exp": 217,
@@ -11492,7 +12887,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853532,
+			"saved_at": 1793028352,
 			"skill_points": 5,
 			"skills": {
 
@@ -11541,7 +12936,7 @@
 			"class": "warrior",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -11550,8 +12945,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -11587,7 +12982,7 @@
 						"hp": 4115,
 						"mp": 3552
 					},
-					"uid": "6adcc61c74f8"
+					"uid": "6adf71010a25"
 				},
 				"armor": {
 					"base": "armor",
@@ -11613,7 +13008,7 @@
 						"hp": 3291,
 						"mp": 383
 					},
-					"uid": "6adcc61c858f"
+					"uid": "6adf710188f5"
 				},
 				"boots": {
 					"base": "boots",
@@ -11639,7 +13034,7 @@
 						"hp": 2016,
 						"mp": 435
 					},
-					"uid": "6adcc61c5c6e"
+					"uid": "6adf71011861"
 				},
 				"helm": {
 					"base": "helm",
@@ -11665,7 +13060,7 @@
 						"hp": 2409,
 						"mp": 405
 					},
-					"uid": "6adcc61c56cd"
+					"uid": "6adf7101058c"
 				},
 				"ring": {
 					"base": "ring",
@@ -11693,7 +13088,7 @@
 						"hp": 923,
 						"mp": 463
 					},
-					"uid": "6adcc61cf08f"
+					"uid": "6adf7101e99d"
 				},
 				"weapon": {
 					"base": "sword",
@@ -11719,7 +13114,7 @@
 						"hp": 761,
 						"mp": 381
 					},
-					"uid": "6adcc61c6f79"
+					"uid": "6adf7101a8d1"
 				},
 				"wings": {
 					"base": "wings",
@@ -11745,17 +13140,17 @@
 						"hp": 2860,
 						"mp": 579
 					},
-					"uid": "6adcc61cf1bc",
+					"uid": "6adf7101203b",
 					"wing": "warrior"
 				}
 			},
 			"exp": 0,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 7,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 2,
 				"got_legend": 1,
@@ -11808,15 +13203,15 @@
 						"def": 24,
 						"hp": 60
 					},
-					"uid": "6adcc61c3aea"
+					"uid": "6adf710113c4"
 				},
 				{
-					"base": "greatshield",
-					"class": "defender",
+					"base": "sword",
+					"class": "warrior",
 					"gems": [],
 					"kind": "equip",
 					"level": 11,
-					"name": "โล่ป้อมปราการเหล็กกล้า",
+					"name": "ดาบเหล็กกล้า",
 					"plus": 0,
 					"price": 141,
 					"rarity": 0,
@@ -11826,7 +13221,7 @@
 					"stats": {
 						"atk": 28
 					},
-					"uid": "6adcc61c66b6"
+					"uid": "6adf71013626"
 				},
 				{
 					"base": "armor",
@@ -11845,7 +13240,7 @@
 						"def": 15,
 						"hp": 35
 					},
-					"uid": "6adcc61c5565"
+					"uid": "6adf7101e5e7"
 				},
 				{
 					"base": "boots",
@@ -11864,7 +13259,7 @@
 						"def": 8,
 						"hp": 20
 					},
-					"uid": "6adcc61c0660"
+					"uid": "6adf7101250e"
 				},
 				{
 					"base": "armor",
@@ -11883,7 +13278,7 @@
 						"def": 29,
 						"hp": 80
 					},
-					"uid": "6adcc61cb066"
+					"uid": "6adf710178a0"
 				},
 				{
 					"base": "dagger",
@@ -11901,7 +13296,7 @@
 					"stats": {
 						"atk": 45
 					},
-					"uid": "6adcc61cf9b2"
+					"uid": "6adf7101d595"
 				},
 				{
 					"base": "boots",
@@ -11920,7 +13315,7 @@
 						"def": 6,
 						"hp": 14
 					},
-					"uid": "6adcc61ce330"
+					"uid": "6adf71010162"
 				},
 				{
 					"base": "amulet",
@@ -11939,7 +13334,7 @@
 						"hp": 40,
 						"mp": 40
 					},
-					"uid": "6adcc61c9604"
+					"uid": "6adf7101f010"
 				},
 				{
 					"base": "armor",
@@ -11958,15 +13353,15 @@
 						"def": 17,
 						"hp": 45
 					},
-					"uid": "6adcc61c0e26"
+					"uid": "6adf7101a10b"
 				},
 				{
-					"base": "wand",
-					"class": "priest",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 17,
-					"name": "คทาเหล็กศรัทธา",
+					"name": "หอกเหล็กกล้า",
 					"plus": 0,
 					"price": 207,
 					"rarity": 0,
@@ -11976,7 +13371,7 @@
 					"stats": {
 						"atk": 40
 					},
-					"uid": "6adcc61cee49"
+					"uid": "6adf71014b12"
 				},
 				{
 					"base": "helm",
@@ -11995,7 +13390,7 @@
 						"def": 14,
 						"hp": 42
 					},
-					"uid": "6adcc61c6ae0"
+					"uid": "6adf7101945e"
 				},
 				{
 					"base": "boots",
@@ -12014,7 +13409,7 @@
 						"def": 11,
 						"hp": 30
 					},
-					"uid": "6adcc61c7db5"
+					"uid": "6adf71017ddc"
 				},
 				{
 					"count": 20,
@@ -12036,10 +13431,10 @@
 					"sockets": 1,
 					"stats": {
 						"crit": 0.011,
-						"def": 63,
-						"hp": 161
+						"def": 58,
+						"hp": 259
 					},
-					"uid": "6adcc61c4ef2"
+					"uid": "6adf710130b0"
 				},
 				{
 					"count": 2,
@@ -12071,7 +13466,7 @@
 						"def": 6,
 						"mp": 100
 					},
-					"uid": "6adcc61cf8e4"
+					"uid": "6adf71010122"
 				},
 				{
 					"base": "armor",
@@ -12090,7 +13485,7 @@
 						"def": 78,
 						"hp": 282
 					},
-					"uid": "6adcc61c4b7f"
+					"uid": "6adf71016cab"
 				},
 				{
 					"base": "helm",
@@ -12112,7 +13507,7 @@
 						"hp": 110,
 						"mp": 50
 					},
-					"uid": "6adcc61c7918"
+					"uid": "6adf71010b2e"
 				},
 				{
 					"base": "boots",
@@ -12132,7 +13527,7 @@
 						"def": 38,
 						"hp": 74
 					},
-					"uid": "6adcc61c9b7a"
+					"uid": "6adf71012d2b"
 				},
 				{
 					"base": "ring",
@@ -12153,7 +13548,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61c4b3c"
+					"uid": "6adf71012388"
 				},
 				{
 					"base": "amulet",
@@ -12174,7 +13569,7 @@
 						"hp": 147,
 						"mp": 147
 					},
-					"uid": "6adcc61c8a62"
+					"uid": "6adf71019390"
 				},
 				{
 					"base": "wings",
@@ -12194,7 +13589,7 @@
 						"def": 54,
 						"hp": 497
 					},
-					"uid": "6adcc61cddf4",
+					"uid": "6adf7101e62a",
 					"wing": "warrior"
 				},
 				{
@@ -12222,7 +13617,7 @@
 						"hp": 1342,
 						"mp": 672
 					},
-					"uid": "6adcc61c2662"
+					"uid": "6adf7101f178"
 				},
 				{
 					"count": 1,
@@ -12278,23 +13673,7 @@
 				"points": 39,
 				"spent": 65
 			},
-			"party": [
-				{
-					"class": "archer",
-					"exp": 0,
-					"level": 98,
-					"look": {
-						"eye_tint": 3,
-						"hair_tint": 3,
-						"skin_tone": 4
-					},
-					"name": "ลูน่า",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 291,
 			"pvp": {
@@ -12320,7 +13699,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853532,
+			"saved_at": 1793028353,
 			"skill_points": 127,
 			"skills": {
 				"brutal_swing": 2,
@@ -12351,7 +13730,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61ccc26"
+					"uid": "6adf7100cc26"
 				}
 			],
 			"tower": {
@@ -12389,7 +13768,7 @@
 			"class": "warrior",
 			"daily": {
 				"chest": true,
-				"date": "2026-10-24",
+				"date": "2026-10-26",
 				"quests": [
 					{
 						"claimed": true,
@@ -12398,8 +13777,8 @@
 					},
 					{
 						"claimed": true,
-						"id": "kills_a",
-						"progress": 29
+						"id": "gold",
+						"progress": 1120
 					},
 					{
 						"claimed": true,
@@ -12430,7 +13809,7 @@
 						"hp": 147,
 						"mp": 147
 					},
-					"uid": "6adcc61c8a62"
+					"uid": "6adf71019390"
 				},
 				"armor": {
 					"base": "armor",
@@ -12449,7 +13828,7 @@
 						"def": 78,
 						"hp": 282
 					},
-					"uid": "6adcc61c4b7f"
+					"uid": "6adf71016cab"
 				},
 				"boots": {
 					"base": "boots",
@@ -12469,7 +13848,7 @@
 						"def": 38,
 						"hp": 74
 					},
-					"uid": "6adcc61c9b7a"
+					"uid": "6adf71012d2b"
 				},
 				"helm": {
 					"base": "helm",
@@ -12491,7 +13870,7 @@
 						"hp": 110,
 						"mp": 50
 					},
-					"uid": "6adcc61c7918"
+					"uid": "6adf71010b2e"
 				},
 				"ring": {
 					"base": "ring",
@@ -12512,7 +13891,7 @@
 						"hp": 98,
 						"mp": 50
 					},
-					"uid": "6adcc61c4b3c"
+					"uid": "6adf71012388"
 				},
 				"weapon": {
 					"base": "sword",
@@ -12534,7 +13913,7 @@
 						"def": 6,
 						"mp": 100
 					},
-					"uid": "6adcc61cf8e4"
+					"uid": "6adf71010122"
 				},
 				"wings": {
 					"base": "wings",
@@ -12554,26 +13933,31 @@
 						"def": 54,
 						"hp": 497
 					},
-					"uid": "6adcc61cddf4",
+					"uid": "6adf7101e62a",
 					"wing": "warrior"
 				}
 			},
 			"exp": 5308,
 			"flags": {
-				"arena_day": "2026-10-24",
+				"arena_day": "2026-10-26",
 				"best_plus": 6,
 				"best_streak": 1,
 				"dailies": 3,
-				"daily_last": "2026-10-24",
+				"daily_last": "2026-10-26",
 				"daily_streak": 1,
 				"gems_set": 1,
 				"got_legend": 1,
 				"gw_played": 1,
-				"gw_r_at": 1792853532,
+				"gw_r_at": 1793028353,
 				"gw_r_deaths": 1,
+				"gw_r_g0": 1000,
+				"gw_r_g1": 1000,
+				"gw_r_g2": 1000,
 				"gw_r_kills": 4,
 				"gw_r_ot": 0,
+				"gw_r_owner": 0,
 				"gw_r_seed": 123456789,
+				"gw_r_t0": 0,
 				"gw_r_them": 1,
 				"gw_r_time": 413,
 				"gw_r_us": 3,
@@ -12618,15 +14002,15 @@
 						"def": 24,
 						"hp": 60
 					},
-					"uid": "6adcc61c3aea"
+					"uid": "6adf710113c4"
 				},
 				{
-					"base": "greatshield",
-					"class": "defender",
+					"base": "sword",
+					"class": "warrior",
 					"gems": [],
 					"kind": "equip",
 					"level": 11,
-					"name": "โล่ป้อมปราการเหล็กกล้า",
+					"name": "ดาบเหล็กกล้า",
 					"plus": 0,
 					"price": 141,
 					"rarity": 0,
@@ -12636,7 +14020,7 @@
 					"stats": {
 						"atk": 28
 					},
-					"uid": "6adcc61c66b6"
+					"uid": "6adf71013626"
 				},
 				{
 					"base": "armor",
@@ -12655,7 +14039,7 @@
 						"def": 15,
 						"hp": 35
 					},
-					"uid": "6adcc61c5565"
+					"uid": "6adf7101e5e7"
 				},
 				{
 					"base": "boots",
@@ -12674,7 +14058,7 @@
 						"def": 8,
 						"hp": 20
 					},
-					"uid": "6adcc61c0660"
+					"uid": "6adf7101250e"
 				},
 				{
 					"base": "armor",
@@ -12693,7 +14077,7 @@
 						"def": 29,
 						"hp": 80
 					},
-					"uid": "6adcc61cb066"
+					"uid": "6adf710178a0"
 				},
 				{
 					"base": "dagger",
@@ -12711,7 +14095,7 @@
 					"stats": {
 						"atk": 45
 					},
-					"uid": "6adcc61cf9b2"
+					"uid": "6adf7101d595"
 				},
 				{
 					"base": "boots",
@@ -12730,7 +14114,7 @@
 						"def": 6,
 						"hp": 14
 					},
-					"uid": "6adcc61ce330"
+					"uid": "6adf71010162"
 				},
 				{
 					"base": "amulet",
@@ -12749,7 +14133,7 @@
 						"hp": 40,
 						"mp": 40
 					},
-					"uid": "6adcc61c9604"
+					"uid": "6adf7101f010"
 				},
 				{
 					"base": "armor",
@@ -12768,15 +14152,15 @@
 						"def": 17,
 						"hp": 45
 					},
-					"uid": "6adcc61c0e26"
+					"uid": "6adf7101a10b"
 				},
 				{
-					"base": "wand",
-					"class": "priest",
+					"base": "spear",
+					"class": "lancer",
 					"gems": [],
 					"kind": "equip",
 					"level": 17,
-					"name": "คทาเหล็กศรัทธา",
+					"name": "หอกเหล็กกล้า",
 					"plus": 0,
 					"price": 207,
 					"rarity": 0,
@@ -12786,7 +14170,7 @@
 					"stats": {
 						"atk": 40
 					},
-					"uid": "6adcc61cee49"
+					"uid": "6adf71014b12"
 				},
 				{
 					"base": "helm",
@@ -12805,7 +14189,7 @@
 						"def": 14,
 						"hp": 42
 					},
-					"uid": "6adcc61c6ae0"
+					"uid": "6adf7101945e"
 				},
 				{
 					"base": "boots",
@@ -12824,7 +14208,7 @@
 						"def": 11,
 						"hp": 30
 					},
-					"uid": "6adcc61c7db5"
+					"uid": "6adf71017ddc"
 				},
 				{
 					"count": 20,
@@ -12846,10 +14230,10 @@
 					"sockets": 1,
 					"stats": {
 						"crit": 0.011,
-						"def": 63,
-						"hp": 161
+						"def": 58,
+						"hp": 259
 					},
-					"uid": "6adcc61c4ef2"
+					"uid": "6adf710130b0"
 				},
 				{
 					"count": 1,
@@ -12900,23 +14284,7 @@
 				"points": 0,
 				"spent": 0
 			},
-			"party": [
-				{
-					"class": "archer",
-					"exp": 4977,
-					"level": 23,
-					"look": {
-						"eye_tint": 3,
-						"hair_tint": 3,
-						"skin_tone": 4
-					},
-					"name": "ลูน่า",
-					"stance": "aggressive",
-					"star_exp": 0,
-					"stars": 0,
-					"trait": "careful"
-				}
-			],
+			"party": [],
 			"play_time": 0,
 			"points": 60,
 			"pvp": {
@@ -12942,7 +14310,7 @@
 				}
 			},
 			"resume": true,
-			"saved_at": 1792853532,
+			"saved_at": 1793028353,
 			"skill_points": 20,
 			"skills": {
 				"brutal_swing": 2,
@@ -12973,7 +14341,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61ccc26"
+					"uid": "6adf7100cc26"
 				}
 			],
 			"tower": {
@@ -13019,7 +14387,7 @@
 					"stats": {
 						"atk": 6
 					},
-					"uid": "6adcc61caf7b"
+					"uid": "6adf7101f719"
 				}
 			},
 			"exp": 0,
@@ -13098,7 +14466,7 @@
 
 			},
 			"resume": false,
-			"saved_at": 1792853532,
+			"saved_at": 1793028353,
 			"skill_points": 1,
 			"skills": {
 
