@@ -96,11 +96,18 @@ func zoom(amount: float) -> void:
 func _physics_process(delta: float) -> void:
 	var focusing := combat_focus != null and is_instance_valid(combat_focus)
 	_focus_blend = lerpf(_focus_blend, 1.0 if focusing else 0.0, 1.0 - exp(-2.5 * delta))
-	if target:
+	if target and target.global_position.is_finite():
 		var goal := target.global_position + Vector3.UP * height_offset
-		if focusing and _focus_blend > 0.01:
+		# A broken position on the focused monster must never reach the camera: once the
+		# camera's own position is NaN every later lerp stays NaN and the whole world
+		# vanishes behind the fog colour (the HUD still drawing on top).
+		if focusing and _focus_blend > 0.01 and combat_focus.global_position.is_finite():
 			goal = goal.lerp(combat_focus.global_position + Vector3.UP * height_offset, 0.4 * _focus_blend)
 		global_position = global_position.lerp(goal, 1.0 - exp(-follow_speed * delta))
+		if not global_position.is_finite():
+			global_position = target.global_position + Vector3.UP * height_offset
+	if not is_finite(_focus_blend):
+		_focus_blend = 0.0
 	var key_turn := Input.get_axis("camera_left", "camera_right")
 	if absf(key_turn) > 0.01:
 		yaw -= key_turn * key_rotate_speed * delta * 1.0
@@ -109,7 +116,15 @@ func _physics_process(delta: float) -> void:
 		zoom(6.0 * delta)
 	if Input.is_action_pressed("camera_zoom_out"):
 		zoom(-6.0 * delta)
+	if not is_finite(_target_distance):
+		_target_distance = distance
 	_arm.spring_length = lerpf(_arm.spring_length, _target_distance, 1.0 - exp(-8.0 * delta))
+	if not is_finite(_arm.spring_length):
+		_arm.spring_length = _target_distance
+	if not is_finite(yaw) or not is_finite(pitch_degrees):
+		yaw = 0.0 if not is_finite(yaw) else yaw
+		pitch_degrees = clampf(pitch_degrees, min_pitch, max_pitch) if is_finite(pitch_degrees) else (min_pitch + max_pitch) * 0.5
+		_apply_rotation()
 
 
 func _unhandled_input(event: InputEvent) -> void:

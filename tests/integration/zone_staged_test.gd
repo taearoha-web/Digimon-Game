@@ -35,6 +35,35 @@ func _build(zone_id: StringName, staged: bool) -> Dictionary:
 	return info
 
 
+## A NaN position on the monster the camera leans towards (or on any monster) must not
+## leave the camera at NaN: the world then vanished behind the fog colour for good.
+func _nan_guard() -> void:
+	Game.current_zone = &"dark_forest"
+	var zone := Zone.new()
+	zone.zone_id = &"dark_forest"
+	add_child(zone)
+	var rig: ThirdPersonCamera = zone.camera_rig
+	var broken := Node3D.new()
+	zone.add_child(broken)
+	broken.global_position = Vector3(NAN, 0.0, NAN)
+	rig.combat_focus = broken
+	for i in 10:
+		await get_tree().physics_frame
+	check(rig.global_position.is_finite(), "camera stays finite with a NaN combat focus (%s)" % rig.global_position)
+	rig.global_position = Vector3(NAN, NAN, NAN)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	check(rig.global_position.is_finite(), "a NaN camera recovers onto the hero (%s)" % rig.global_position)
+	var mob: Mob = get_tree().get_nodes_in_group("mobs")[0]
+	mob.global_position = Vector3(NAN, 0.0, NAN)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	check(mob.global_position.is_finite(), "a monster with a NaN position goes back home (%s)" % mob.global_position)
+	zone.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func _ready() -> void:
 	Game.set_process(false)
 	Game.new_profile(&"warrior", "Staged")
@@ -48,6 +77,7 @@ func _ready() -> void:
 			check(sync[key] == sliced[key], "%s: staged and unstaged agree on %s (%s vs %s)" % [zone_id, key, sync[key], sliced[key]])
 		if zone_id != &"town":
 			check(int(sliced.mobs) > 0 and absi(int(sync.mobs) - int(sliced.mobs)) <= 2, "%s: both builds spawn the camps' monsters (%s vs %s)" % [zone_id, sync.mobs, sliced.mobs])
+	await _nan_guard()
 	# Ground: an indexed 104 x 104 grid, two triangles per cell, flat, with terrain data in UV/UV2.
 	var holder := Node3D.new()
 	add_child(holder)
