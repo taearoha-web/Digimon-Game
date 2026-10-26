@@ -315,6 +315,11 @@ func knock_back(from: Vector3, strength := 2.5) -> void:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
+	# A broken move (NaN) puts the monster back home instead of poisoning the camera,
+	# the minimap and every distance check that looks at it.
+	if not global_position.is_finite() or not velocity.is_finite():
+		velocity = Vector3.ZERO
+		global_position = home if home.is_finite() else Vector3.ZERO
 	var now := Time.get_ticks_msec() * 0.001
 	if _bar_until > 0.0 and now > _bar_until and (_ring == null or not _ring.visible):
 		_bar.visible = false
