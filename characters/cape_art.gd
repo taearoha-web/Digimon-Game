@@ -1,7 +1,7 @@
 class_name CapeArt
 extends Node3D
 ## The Dark Lord's cape: worn in the wing slot instead of wings, built in code. A
-## long cape hangs from the shoulders under a capelet of hawk-feather scallops and a
+## long cape hangs from the shoulders under a capelet of feather scallops and a
 ## standing collar; it ripples and its pleats sway as the Lord walks, with the
 ## wings' "fly" mode it streams out behind and floats the Lord, and "fold" gathers
 ## it up out of the way. It answers to the same clips as a wing rig (Idle, Flap,
@@ -9,14 +9,14 @@ extends Node3D
 ## pair of wings. The cloth itself is shaped by shaders/cape.gdshader.
 ##
 ## Two designs:
-##   Lv.100 (ผ้าคลุมราชันเหยี่ยว)            crimson velvet with deep pleats, gold trim
-##                                          and filigree, a gold hawk crest in a ring of
+##   Lv.100 (ผ้าคลุมราชันอีกา)              crimson velvet with deep pleats, gold trim
+##                                          and filigree, a gold raven crest in a ring of
 ##                                          dots, a black capelet of gold-edged feather
 ##                                          scales, a black-and-gold standing collar, ruby
 ##                                          clasps and a quilted black lining
-##   100 stars (ผ้าคลุมจักรพรรดิเหยี่ยวทมิฬ)  galaxy cloth (drifting nebula, twinkling
-##                                          stars), a crowned hawk on a gold sunburst, a hem
-##                                          of hawk feathers whose tips glow, a capelet of
+##   100 stars (ผ้าคลุมจักรพรรดิอีกาทมิฬ)    galaxy cloth (drifting nebula, twinkling
+##                                          stars), a crowned raven on a gold sunburst, a hem
+##                                          of raven feathers whose tips glow, a capelet of
 ##                                          indigo feather scales edged in glowing gold and
 ##                                          a gold collar set with violet gems
 ##

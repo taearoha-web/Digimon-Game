@@ -4,11 +4,11 @@ shader_type spatial;
 // streaming while flying (billow) and the gathering up (fold) all come with true
 // normals, and the toon light shades every pleat. Three kinds of layer:
 //   kind 0  the long cape: flaring from the shoulders, deep pleats, a curved hem
-//   kind 1  the capelet over the shoulders, its hem cut into hawk-feather scallops
+//   kind 1  the capelet over the shoulders, its hem cut into feather scallops
 //   kind 2  the standing collar behind the neck
-// Two styles: 0 royal (Lv.100: crimson velvet, gold filigree, a hawk crest) and
-// 1 star (100 stars: galaxy cloth with twinkling stars, a crowned hawk on a gold
-// sunburst, a hem of glowing hawk feathers, a gold feather mantle).
+// Two styles: 0 royal (Lv.100: crimson velvet, gold filigree, a raven crest) and
+// 1 star (100 stars: galaxy cloth with twinkling stars, a crowned raven on a gold
+// sunburst, a hem of glowing raven feathers, an indigo feather mantle).
 render_mode cull_disabled, diffuse_toon, specular_disabled;
 
 uniform vec4 outer_color : source_color = vec4(0.56, 0.11, 0.16, 1.0);
@@ -141,16 +141,18 @@ float smin(float a, float b, float k) {
 	return mix(b, a, h) - k * h * (1.0 - h);
 }
 
-// A heraldic hawk, displayed: wings raised with five long flight feathers each,
-// head turned in profile with a hooked beak, a fanned tail and open talons.
-// About 0.4 wide, centred on its body; negative inside.
-float hawk(vec2 p) {
+// A heraldic raven, displayed: wings raised with five long fingered flight
+// feathers each, head turned in profile with a heavy beak and shaggy throat, a
+// wedge-shaped tail and open talons. About 0.4 wide, centred on its body;
+// negative inside.
+float raven(vec2 p) {
 	vec2 q = vec2(abs(p.x), p.y);
 	float d = (length((p - vec2(0.0, -0.01)) / vec2(0.045, 0.088)) - 1.0) * 0.045;
 	d = smin(d, length(p - vec2(0.008, 0.098)) - 0.036, 0.02);
-	// The hooked beak, facing right.
-	d = min(d, seg(p, vec2(0.03, 0.104), vec2(0.066, 0.094)) - 0.011);
-	d = min(d, seg(p, vec2(0.066, 0.094), vec2(0.064, 0.074)) - 0.007);
+	// The heavy beak, facing right, and the shaggy throat under it.
+	d = min(d, seg(p, vec2(0.03, 0.102), vec2(0.074, 0.094)) - 0.013);
+	d = min(d, seg(p, vec2(0.074, 0.094), vec2(0.084, 0.088)) - 0.006);
+	d = smin(d, seg(p, vec2(0.02, 0.072), vec2(0.03, 0.058)) - 0.012, 0.01);
 	// Wings: a raised leading edge with feathers hanging and spreading from it.
 	vec2 sh = vec2(0.032, 0.046);
 	vec2 tip = vec2(0.158, 0.148);
@@ -167,11 +169,11 @@ float hawk(vec2 p) {
 	float web = max(seg(q, vec2(0.05, 0.03), vec2(0.12, 0.08)) - 0.045, -(q.y + 0.03));
 	w = smin(w, web, 0.02);
 	d = smin(d, w, 0.012);
-	// The fanned tail.
+	// The wedge-shaped tail: the middle feathers longest.
 	for (int j = 0; j < 5; j++) {
-		float a = -PI * 0.5 + (float(j) - 2.0) * 0.22;
+		float a = -PI * 0.5 + (float(j) - 2.0) * 0.16;
 		vec2 root = vec2(0.0, -0.08);
-		d = min(d, seg(p, root, root + vec2(cos(a), sin(a)) * 0.085) - 0.014);
+		d = min(d, seg(p, root, root + vec2(cos(a), sin(a)) * (0.11 - abs(float(j) - 2.0) * 0.016)) - 0.014);
 	}
 	// Legs and open talons.
 	float leg = seg(q, vec2(0.026, -0.06), vec2(0.056, -0.098)) - 0.009;
@@ -250,7 +252,7 @@ void fragment() {
 		float e_side = min(u, 1.0 - u) * width_here;
 		float e_hem = (1.0 - v) * len_here;
 		vec2 dp = vec2((u - 0.5) * width_here, -v * len_here);
-		// Hem cut-outs: hawk feathers for the star cape, rounded scallops for the capelet.
+		// Hem cut-outs: raven feathers for the star cape, rounded scallops for the capelet.
 		float band_at = 0.0;
 		float feather_paint = 0.0;
 		float feather_x = 0.0;
@@ -282,7 +284,7 @@ void fragment() {
 			col = mix(outer_color.rgb * 1.08, outer_deep.rgb, smoothstep(0.0, 1.0, v));
 		}
 		if (kind > 0.5) {
-			// The capelet: rows of hawk-feather scales, outlined in gold.
+			// The capelet: rows of feather scales, outlined in gold.
 			float rows = 7.0;
 			float rv = dp.y * -rows / max(cape_length, 0.01);
 			float row = floor(rv);
@@ -325,7 +327,7 @@ void fragment() {
 		col = mix(col, trim_col * 0.35, seam);
 		col = mix(col, trim_col, trim);
 		glow += (trim * 0.28 + fil * 0.45) * style;
-		// The feathers of the star hem: violet into a glowing tip, a gold shaft and barbs.
+		// The raven feathers of the star hem: violet into a glowing tip, a gold shaft and barbs.
 		if (feather_paint > 0.5 && kind < 0.5) {
 			float tipness = 1.0 - smoothstep(0.0, 0.75, feather_h);
 			vec3 fcol = mix(outer_color.rgb * 1.3, glow_color.rgb, tipness);
@@ -347,19 +349,19 @@ void fragment() {
 		// The crest on the back.
 		if (crest > 0.5 && kind < 0.5) {
 			vec2 c = (dp - vec2(0.0, -0.47 * cape_length)) / 0.72;
-			float hd = hawk(c);
+			float hd = raven(c);
 			float aa = fwidth(hd) * 1.2;
 			float body = 1.0 - smoothstep(-aa, aa, hd);
 			float outline = smoothstep(aa + 0.004, 0.0, abs(hd + 0.002)) * (1.0 - body * 0.3);
 			// Emboss: lit from the upper left.
 			vec2 grad = vec2(dFdx(hd), dFdy(hd));
 			float lit = clamp(0.5 + dot(normalize(grad + vec2(1e-6)), vec2(-0.6, 0.8)) * 0.5, 0.0, 1.0);
-			vec3 hawk_col = gold_c * mix(0.72, 1.08, lit) * mix(1.0, 0.82, smoothstep(-0.02, 0.0, hd));
+			vec3 raven_col = gold_c * mix(0.72, 1.08, lit) * mix(1.0, 0.82, smoothstep(-0.02, 0.0, hd));
 			float ring = abs(length(c - vec2(0.0, 0.02)) - 0.215) - 0.007;
 			float ring_mask = 1.0 - smoothstep(0.0, fwidth(ring) * 1.5, ring);
 			float dots = smoothstep(0.012, 0.004, length(vec2(fract(atan(c.y - 0.02, c.x) / (2.0 * PI) * 24.0) - 0.5, (length(c - vec2(0.0, 0.02)) - 0.24) * 30.0)));
 			if (style > 0.5) {
-				// A gold sunburst behind the crowned hawk.
+				// A gold sunburst behind the crowned raven.
 				float ang = atan(c.y - 0.02, c.x);
 				float rays = smoothstep(0.35, 0.0, abs(fract(ang / (2.0 * PI) * 16.0) - 0.5)) * smoothstep(0.2, 0.06, length(c)) * smoothstep(0.03, 0.08, length(c));
 				col = mix(col, gold_c, rays * 0.35);
@@ -374,7 +376,7 @@ void fragment() {
 			col = mix(col, trim_col * 0.95, ring_mask);
 			col = mix(col, gold_c, dots * 0.9);
 			col = mix(col, outer_deep.rgb * 0.4, outline * (1.0 - body));
-			col = mix(col, hawk_col, body);
+			col = mix(col, raven_col, body);
 			glow += (body * 0.45 + ring_mask * 0.6 + dots * 0.5) * style;
 		}
 		if (!FRONT_FACING) {

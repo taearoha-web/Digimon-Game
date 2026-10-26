@@ -85,9 +85,9 @@ func _ready() -> void:
 	hp = max_hp
 	mp = float(stats.max_mp)
 	Game.party_changed.connect(refresh)
-	# An AI Dark Lord's hawk always joins its fights.
+	# An AI Dark Lord's raven always joins its fights, hunting on its own (auto).
 	if StringName(member["class"]) == &"darklord":
-		DarkHawk.ensure(self).attack = true
+		DarkRaven.ensure(self).attack = true
 
 
 func _signature() -> String:
@@ -531,16 +531,21 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 			mob.burn_source = self
 
 
-## The hawk goes for this member's target while it fights (DarkHawk).
-func hawk_target() -> Mob:
+## The raven goes for this member's target while it fights (DarkRaven).
+func raven_target() -> Mob:
 	if _dead or not is_instance_valid(target) or target.is_dead():
 		return null
 	return target if _flat(target.global_position - global_position).length() <= 16.0 else null
 
 
-func hawk_strike(mob: Mob) -> void:
-	if not _dead and is_instance_valid(mob) and not mob.is_dead():
-		_deal(mob, Hero.HAWK_MULT, DarkHawk.STRIKE_COLOR, &"slash", false, null)
+func raven_strike(mob: Mob, group := false) -> void:
+	if _dead or not is_instance_valid(mob) or mob.is_dead():
+		return
+	if group:
+		for other in DarkRaven.pack(get_tree(), mob.global_position, DarkRaven.GROUP_RADIUS):
+			_deal(other, Hero.RAVEN_MULT * Hero.GROUP_SHARE, DarkRaven.VIOLET, &"slash", false, null)
+		return
+	_deal(mob, Hero.RAVEN_MULT, DarkRaven.VIOLET, &"slash", false, null)
 
 
 func _mobs_near(center: Vector3, radius: float) -> Array[Mob]:

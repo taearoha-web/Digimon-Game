@@ -263,7 +263,7 @@ func flying() -> bool:
 	return wing_mode == WING_FLY and has_wings()
 
 
-## Where the Dark Lord's hawk grips: on top of the raised left forearm, a little above
+## Where the Dark Lord's raven grips: on top of the raised left forearm, a little above
 ## the wrist (model's own bones, so it follows every pose and the flying lift).
 func perch_point() -> Vector3:
 	if _skeleton != null and is_instance_valid(_skeleton):

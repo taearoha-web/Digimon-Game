@@ -20,6 +20,8 @@ signal interact_pressed()
 const SKILL_SPACING := 94.0
 const SKILL_ROW_Y := -68.0
 const ATTACK_RADIUS := 62.0
+## What the raven mode button announces for each mode (DarkRaven.Mode).
+const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
 var hero: Hero
 var zone: Zone
@@ -31,8 +33,10 @@ var hp_potion: TouchButton
 var mp_potion: TouchButton
 var target_button: TouchButton
 var auto_button: TouchButton
-## The Dark Lord's hawk: attack on its own / come back to the arm.
-var hawk_button: TouchButton
+## The Dark Lord's raven: attack on its own / come back to the arm.
+var raven_button: TouchButton
+## How the raven hunts: single (เดี่ยว), group (หมู่) or auto (ออโต้); tap to cycle.
+var raven_mode_button: TouchButton
 var interact_button: TouchButton
 
 var _root: Control
@@ -281,9 +285,11 @@ func _refresh() -> void:
 		_update_potions()
 		attack_button.set_toggled(hero.engaged)
 		auto_button.set_toggled(hero.auto)
-	hawk_button.visible = hero.hawk != null and not zone.is_town and auto_button.visible
-	if hawk_button.visible:
-		hawk_button.set_toggled(hero.hawk.attack)
+	raven_button.visible = hero.raven != null and not zone.is_town and auto_button.visible
+	raven_mode_button.visible = raven_button.visible
+	if raven_button.visible:
+		raven_button.set_toggled(hero.raven.attack)
+		raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
 	_update_target_frame()
 	_update_boss_bar()
 
@@ -789,16 +795,26 @@ func _build_action_buttons(frame: Control) -> void:
 	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.GOLD, Vector2.ZERO)
 	target_button.pressed.connect(func(): if hero: hero.cycle_target())
 	frame.add_child(target_button)
-	hawk_button = _small_button("", Color("8a4dff"), Vector2.ZERO)
-	hawk_button.toggle_mode = true
-	hawk_button.text = "เหยี่ยว"
-	hawk_button.font_size_override = 17
-	hawk_button.visible = false
-	hawk_button.pressed.connect(func():
-		if hero and hero.hawk:
-			hero.set_hawk_attack(not hero.hawk.attack)
-			Game.say("เหยี่ยว: %s" % ("บุกโจมตีเอง" if hero.hawk.attack else "กลับมาเกาะแขน"), &"info"))
-	frame.add_child(hawk_button)
+	raven_button = _small_button("", Color("8a4dff"), Vector2.ZERO)
+	raven_button.toggle_mode = true
+	raven_button.text = "อีกา"
+	raven_button.font_size_override = 17
+	raven_button.visible = false
+	raven_button.pressed.connect(func():
+		if hero and hero.raven:
+			hero.set_raven_attack(not hero.raven.attack)
+			Game.say("อีกา: %s" % ("บุกโจมตีเอง" if hero.raven.attack else "กลับมาเกาะแขน"), &"info"))
+	frame.add_child(raven_button)
+	raven_mode_button = _small_button("", Color("ffcf5a"), Vector2.ZERO)
+	raven_mode_button.text = DarkRaven.MODE_NAMES[DarkRaven.Mode.AUTO]
+	raven_mode_button.font_size_override = 15
+	raven_mode_button.visible = false
+	raven_mode_button.pressed.connect(func():
+		if hero and hero.raven:
+			hero.set_raven_mode((hero.raven.mode + 1) % 3)
+			raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
+			Game.say("อีกา: %s" % RAVEN_MODE_TIPS[hero.raven.mode], &"info"))
+	frame.add_child(raven_mode_button)
 
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0
@@ -838,8 +854,10 @@ func _layout_actions() -> void:
 	for i in utilities.size():
 		var button: TouchButton = utilities[i]
 		_place_corner(button, positions.utility[i] + Vector2.ONE * button.radius, button.radius)
-	# The hawk button sits just left of the auto button.
-	_place_corner(hawk_button, positions.utility[2] + Vector2(-72, 0) + Vector2.ONE * hawk_button.radius, hawk_button.radius)
+	# The raven button sits just left of the auto button.
+	_place_corner(raven_button, positions.utility[2] + Vector2(-72, 0) + Vector2.ONE * raven_button.radius, raven_button.radius)
+	# Its mode button sits right above it.
+	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
 

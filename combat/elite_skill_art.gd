@@ -302,7 +302,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer("seal",look,Vector3(0,1.5,reach+0.3),Vector3.ONE*2.2,Vector3(PI/2,0,0),d,1.05,Vector3.ZERO,0.7,0.5)
 			art.layer("fractures",look,Vector3(0,0.07,reach),Vector3.ONE*2.6,Vector3.ZERO,d,1.3)
 		"raven_storm":
-			# Wings open behind the Lord and a storm of hawk shadows flies out round him.
+			# Wings open behind the Lord and a storm of raven shadows flies out round him.
 			art.layer("wings",look,Vector3(0,1.5,-0.5),Vector3.ONE*2.4,Vector3.ZERO,d,1.2,Vector3.ZERO,0.0,0.6,false,{"flap":0.1})
 			art.layer("feathers",look,Vector3(0,1.0,0),Vector3(4.0,2.0,4.0),Vector3.ZERO,d,1.1,Vector3.UP*0.6,1.6)
 			art.layer("seal",look,Vector3(0,0.07,0),Vector3.ONE*2.6,Vector3.ZERO,d,1.3,Vector3.ZERO,-0.4)

@@ -164,6 +164,7 @@ static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: b
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
 	ClassFlourish.contact(parent, skill, at, crit)
 	ShadowSkillArt.contact(parent, skill, at)
+	LordSkillArt.contact(parent, skill, at)
 	if MartialSkillArt.handles(skill):
 		MartialSkillArt.contact(parent,skill,at)
 		return

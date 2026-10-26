@@ -8,7 +8,7 @@ const CLASSES: Array[String] = ["warrior", "archer", "lancer", "mage", "priest",
 const ARMOR_SLOTS: Array[String] = ["armor", "helm", "boots", "ring", "amulet"]
 const WEAPON_KIND := {"warrior": "sword", "archer": "bow", "lancer": "spear", "mage": "staff", "priest": "wand", "summoner": "lantern", "defender": "greatshield", "assassin": "dagger", "darklord": "scepter"}
 const THEME_NAMES := ["อรุณพฤกษา", "ผลึกคราม", "ราชันนภา", "สุริยคราส"]
-const CLASS_NAMES := {"warrior": "ราชสีห์", "archer": "นักล่าจันทรา", "lancer": "มังกร", "mage": "จอมอาคม", "priest": "เซราฟ", "summoner": "ราชันภูต", "defender": "ป้อมปราการ", "assassin": "เงาราตรี", "darklord": "ราชันเหยี่ยว"}
+const CLASS_NAMES := {"warrior": "ราชสีห์", "archer": "นักล่าจันทรา", "lancer": "มังกร", "mage": "จอมอาคม", "priest": "เซราฟ", "summoner": "ราชันภูต", "defender": "ป้อมปราการ", "assassin": "เงาราตรี", "darklord": "ราชันอีกา"}
 const OUTFITS := {"warrior": "knight", "archer": "ranger", "lancer": "knight", "mage": "mage", "priest": "mage", "summoner": "rogue", "defender": "knight", "assassin": "rogue", "darklord": "knight"}
 const WEAPON_NAMES := {
 	"sword": ["ดาบเขี้ยวสิงห์อรุณ", "ดาบผลึกเจ็ดประกาย", "ดาบราชันเวหา", "ดาบจักรพรรดิคราส"],
@@ -30,7 +30,7 @@ const SET_INTENT := {
 	"summoner": "พันธสัญญาภูต เสริมผู้ร่ายและอสูร",
 	"defender": "กำแพงหน้าทัพ เสริมการคุมฝูงและป้องกันทีม",
 	"assassin": "เงาสังหาร เสริมความเร็วและคริติคอลรุนแรง",
-	"darklord": "ราชันผู้บัญชาการ เสริมพลังทีมและเหยี่ยวคู่ใจ",
+	"darklord": "ราชันผู้บัญชาการ เสริมพลังทีมและอีกาคู่ใจ",
 }
 
 

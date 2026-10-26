@@ -1,18 +1,18 @@
 extends Node3D
-## The Dark Lord in its gear, with its hawk on the arm: scepters of four tiers, the
+## The Dark Lord in its gear, with its raven on the arm: scepters of four tiers, the
 ## Lv.100 cape standing and floating, the star set with the star cape floating, and
 ## the divine set. Front, back or side.
 ##   godot --rendering-driver opengl3 --path . res://tests/tools/darklord_preview.tscn -- OUT_DIR [VIEW front|back|side] [GENDER]
 
 
-## Stands in for the Lord that owns the hawk (DarkHawk reads `visual`).
+## Stands in for the Lord that owns the raven (DarkRaven reads `visual`).
 class Lord extends Node3D:
 	var visual: HeroVisual
 
-	func hawk_target() -> Mob:
+	func raven_target() -> Mob:
 		return null
 
-	func hawk_strike(_mob: Mob) -> void:
+	func raven_strike(_mob: Mob, _group := false) -> void:
 		pass
 
 	func is_dead() -> bool:
@@ -68,7 +68,7 @@ func _ready() -> void:
 		if int(modes[i]) == HeroVisual.WING_FLY:
 			h.position.y = Hero.FLY_HEIGHT
 		h.rotation_degrees.y = 25 if view == "front" else 0
-		DarkHawk.ensure(lord)
+		DarkRaven.ensure(lord)
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("%s/%s_%s_%d.png" % [out_dir, a, view, i])

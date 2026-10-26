@@ -265,19 +265,12 @@ OBJECTS = {
 
 
 OBJECTS["twin"] = group(OBJECTS["dagger"], -18, 6, .8, 32) + group(OBJECTS["dagger"], 18, 6, .8, -32)
-# The Dark Lord's scepter (an orb in a crown on a short royal shaft) and his hawk.
+# The Dark Lord's scepter (an orb in a crown on a short royal shaft) and his raven.
 OBJECTS["scepter"] = (path("M-5 -20 L5 -20 L6 78 L-6 78Z", "url(#gold)") + ellipse(0, 82, 9, 8, "url(#gold)")
                       + ellipse(0, -44, 24, 24, "url(#orb)") + path("M-26 -54 L-20 -78 L-9 -62 L0 -84 L9 -62 L20 -78 L26 -54Z", "url(#gold)")
                       + path("M-24 -24 Q0 -12 24 -24 L20 -14 Q0 -4 -20 -14Z", "url(#gold)"))
-# The Lord's hawk, displayed: broad wings with fingered flight feathers, a hooked
-# beak, an amber eye and a fanned tail.
-OBJECTS["lordhawk"] = (path("M8 -6 Q40 -42 86 -46 L78 -37 L91 -31 L78 -25 L88 -17 L74 -13 L80 -3 Q44 6 16 12Z", "url(#rock)")
-                       + path("M-8 -6 Q-40 -42 -86 -46 L-78 -37 L-91 -31 L-78 -25 L-88 -17 L-74 -13 L-80 -3 Q-44 6 -16 12Z", "url(#rock)")
-                       + path("M-12 30 L-24 70 L-9 64 L0 76 L9 64 L24 70 L12 30Z", "url(#rock)")
-                       + ellipse(0, 6, 19, 31, "url(#rock)") + ellipse(0, 12, 11, 20, "url(#light)", "none")
-                       + ellipse(5, -30, 15, 14, "url(#rock)") + path("M16 -35 Q32 -35 31 -22 L25 -25 Q21 -21 16 -24Z", "url(#gold)")
-                       + ellipse(9, -32, 4, 4, "#ffb21e", "none") + path("M2 -38 L16 -35 L14 -32 L3 -34Z", "#1b1410", "none")
-                       + line("M14 -8 Q44 -36 80 -42 M-14 -8 Q-44 -36 -80 -42", "url(#light)", 3))
+OBJECTS["raven"] = (path("M-82 -10 Q-40 -46 -8 -14 Q-2 -34 10 -36 Q26 -38 30 -24 L46 -20 L30 -14 Q34 0 22 12 Q60 -36 84 -14 Q60 4 34 22 L40 56 L18 40 L4 60 L-4 38 Q-50 24 -82 -10Z", "url(#rock)")
+                    + ellipse(18, -24, 4, 4, "#ff3a4a", "none") + line("M-66 -10 Q-40 -26 -16 -6 M60 -14 Q40 -2 28 14", "url(#light)", 3))
 
 
 def o(name, x=0, y=0, s=1, a=0, opacity=1):
@@ -562,7 +555,7 @@ add("darklord", [
     ("force_wave","darkforce",fan("ray",3,70,.6,20)+o("scepter",0,40,.5)),
     ("electric_spike","storm",o("spear",0,0,.85,180)+o("bolt",-34,-10,.6)+o("bolt",36,8,.5)),
     ("fire_scream","ember",o("flame",-30,10,.7)+o("flame",30,10,.7)+o("skull",0,-20,.48)),
-    ("birds","darkforce",o("lordhawk",-20,10,.6,-10)+o("lordhawk",28,-26,.48,10)+o("lordhawk",-24,-40,.4,-20)),
+    ("birds","darkforce",o("raven",-20,10,.6,-10)+o("raven",28,-26,.48,10)+o("raven",-24,-40,.4,-20)),
     ("chaos_strike","darkforce",o("slash",s=.95,a=-30)+o("scepter",8,4,.86,-40)),
     ("iron_defense","royal",o("shield",0,6,.92)+o("crown",0,-56,.4)),
     ("commanders_aura","royal",rays(10)+o("crown",0,-10,.72)+o("wings",0,10,.8,0,.6)),
@@ -575,7 +568,7 @@ add("darklord", [
     ("lord_of_command","royal",o("crown",0,-40,.6)+o("shield",0,20,.6)+o("scepter",-46,20,.42,20)+o("scepter",46,20,.42,-20)),
     ("infernal_scream","ember",ring(1.0)+o("flame",0,10,.9)+o("skull",0,-36,.42)+rays(6)),
     ("chaos_sovereign","darkforce",o("vortex",s=.9,opacity=.8)+o("scepter",0,0,1.0,-20)+star(44,-44,16)),
-    ("raven_storm","darkforce",o("vortex",s=.85,opacity=.6)+o("lordhawk",0,-20,.6)+o("lordhawk",-36,24,.42,-30)+o("lordhawk",38,22,.42,30)),
+    ("raven_storm","darkforce",o("vortex",s=.85,opacity=.6)+o("raven",0,-20,.6)+o("raven",-36,24,.42,-30)+o("raven",38,22,.42,30)),
     ("earth_dominion","royal",o("ground",y=46,s=1.04)+o("crack",0,26,.9)+o("crown",0,-46,.5)),
     ("emperors_command","royal",o("wings",0,0,1.1)+o("crown",0,-20,.6)+o("scepter",0,36,.42)),
     ("imperial_judgment","royal",rays(12)+o("crown",0,-50,.5)+o("bolt",-34,10,.5)+o("flame",34,14,.5)+o("orb",0,10,.42)),
@@ -588,7 +581,7 @@ STAR_RECIPES = {
     "veil_of_night": ("night", o("wings",0,-10,.9,0,.5)+o("smoke",0,30,1.0)+o("mask",0,0,.55)+o("moon",-20,-46,.4)),
     "eclipse_requiem": ("night", o("ground",y=58,s=.85)+o("orb",0,-54,.48)+o("moon",0,-54,.54)+rain("dagger",4,.42)),
     "chaos_inferno": ("ember", o("ground",y=56,s=.9)+o("flame",-34,10,.6)+o("flame",34,10,.6)+o("scepter",0,0,.8,180)),
-    "raven_sovereign": ("darkforce", rays(10)+o("lordhawk",0,-6,.95)+o("crown",0,-56,.34)),
+    "raven_sovereign": ("darkforce", rays(10)+o("raven",0,-6,.95)+o("crown",0,-56,.34)),
     "lords_dominion": ("royal", o("wings",0,0,1.0,0,.6)+o("crown",0,-20,.7)+o("shield",-40,30,.42)+o("shield",40,30,.42)),
     "imperial_cataclysm": ("royal", o("ground",y=58,s=.85)+o("crown",0,-56,.42)+rain("bolt",3,.5)+o("flame",0,30,.5)),
 }

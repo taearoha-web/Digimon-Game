@@ -1,17 +1,17 @@
 extends Node3D
-## Close-ups of the Dark Lord's capes and hawk: the Lv.100 cape and the star cape,
+## Close-ups of the Dark Lord's capes and raven: the Lv.100 cape and the star cape,
 ## standing and flying, from behind, three-quarter, side and front.
 ##   godot --rendering-driver opengl3 --path . res://tests/tools/cape_preview.tscn -- OUT_DIR [GENDER]
 ## Writes OUT_DIR/cape_<set>_<mode>_<view>.png.
 
-## Stands in for the Lord that owns the hawk (DarkHawk reads `visual`).
+## Stands in for the Lord that owns the raven (DarkRaven reads `visual`).
 class Lord extends Node3D:
 	var visual: HeroVisual
 
-	func hawk_target() -> Mob:
+	func raven_target() -> Mob:
 		return null
 
-	func hawk_strike(_mob: Mob) -> void:
+	func raven_strike(_mob: Mob, _group := false) -> void:
 		pass
 
 	func is_dead() -> bool:
@@ -53,7 +53,7 @@ func _ready() -> void:
 			var h := HeroVisual.new(); lord.add_child(h)
 			h.setup(a, "", true, plain if set_name == "lv100" else star, look)
 			lord.visual = h
-			DarkHawk.ensure(lord)
+			DarkRaven.ensure(lord)
 			h.set_wing_mode(mode, true)
 			if mode == HeroVisual.WING_FLY:
 				h.position.y = Hero.FLY_HEIGHT * 0.5
@@ -67,20 +67,20 @@ func _ready() -> void:
 				get_viewport().get_texture().get_image().save_png("%s/cape_%s_%s_%s.png" % [out_dir, set_name, mode_name, view])
 			lord.queue_free()
 			await get_tree().process_frame
-	# The hawk alone, close up, in each pose.
+	# The raven alone, close up, in each pose.
 	var owner := Lord.new(); add_child(owner)
-	var hawk := DarkHawk.ensure(owner)
+	var raven := DarkRaven.ensure(owner)
 	await get_tree().process_frame
-	hawk.set_process(false)
-	hawk.global_position = Vector3(0, 1.0, 0)
-	hawk.rotation = Vector3.ZERO
+	raven.set_process(false)
+	raven.global_position = Vector3(0, 1.0, 0)
+	raven.rotation = Vector3.ZERO
 	for pose in ["perch", "glide", "flap", "stoop", "strike"]:
 		for i in 12:
-			hawk._animate(0.1, pose)
+			raven._animate(0.1, pose)
 		for view in [["side", Vector3(2.4, 1.15, 0.0), Vector3(-4, 90, 0)], ["front", Vector3(0.7, 1.25, 2.3), Vector3(-6, 17, 0)], ["top", Vector3(0, 3.3, -0.8), Vector3(-76, 180, 0)]]:
 			cam.position = view[1]
 			cam.rotation_degrees = view[2]
 			await RenderingServer.frame_post_draw
 			await RenderingServer.frame_post_draw
-			get_viewport().get_texture().get_image().save_png("%s/hawk_%s_%s.png" % [out_dir, pose, view[0]])
+			get_viewport().get_texture().get_image().save_png("%s/raven_%s_%s.png" % [out_dir, pose, view[0]])
 	get_tree().quit()

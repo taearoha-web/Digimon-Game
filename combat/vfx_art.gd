@@ -228,7 +228,7 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 			var moon := smoothstep(0.24, 0.21, p.distance_to(Vector2(0, -0.5))) * smoothstep(0.17, 0.2, p.distance_to(Vector2(0.09, -0.55)))
 			a = maxf(a, moon)
 		"darklord":
-			# A crown over a hawk with spread wings.
+			# A crown over a raven with spread wings.
 			for side in [-1.0, 1.0]:
 				a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(0, 0.1), Vector2(side * 0.5, -0.12))))
 				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(side * 0.18, 0.02), Vector2(side * 0.46, 0.06))))
