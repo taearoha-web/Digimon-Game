@@ -140,7 +140,7 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 ## guild against eight of the other, each member with its own class, name, face and the
 ## gear grade its progress has reached at time t (everyone fights at Lv.100 ★200, war
 ## rules). Online members are picked first, then the strongest; the rival guild sends the
-## eight of its ten whose total power comes closest to ours.
+## eight of its first twelve whose total power comes closest to ours.
 static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, power_of_hero: float = -1.0) -> Dictionary:
 	if power_of_hero < 0.0:
 		power_of_hero = hero_power()
@@ -158,18 +158,26 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, p
 	var ally_power := power_of_hero
 	for f in ally:
 		ally_power += float(f.power)
-	# Every way to leave the rest of the rival guild at home; the closest total power goes.
-	var enemy: Array = theirs.slice(0, TEAM_SIZE)
-	var size := mini(TEAM_SIZE, theirs.size())
+	# The rival guild sends the eight whose total power comes closest to ours, chosen among
+	# its first twelve (online first, then the strongest): every way to leave four at home.
+	theirs.sort_custom(func(a, b):
+		if bool(a.online) != bool(b.online):
+			return bool(a.online)
+		return float(a.power) > float(b.power))
+	var pool: Array = theirs.slice(0, LINEUP_POOL)
+	var enemy: Array = pool.slice(0, TEAM_SIZE)
+	var size := mini(TEAM_SIZE, pool.size())
 	var best_gap := INF
-	for mask in 1 << theirs.size():
+	for mask in 1 << pool.size():
+		if _bits(mask) != size:
+			continue
 		var team: Array = []
 		var total := 0.0
-		for k in theirs.size():
+		for k in pool.size():
 			if mask & (1 << k):
-				team.append(theirs[k])
-				total += float(theirs[k].power)
-		if team.size() == size and absf(total - ally_power) < best_gap:
+				team.append(pool[k])
+				total += float(pool[k].power)
+		if absf(total - ally_power) < best_gap:
 			best_gap = absf(total - ally_power)
 			enemy = team
 	var enemy_power := 0.0
@@ -177,6 +185,18 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, p
 		enemy_power += float(f.power)
 	return {"ally": ally, "enemy": enemy, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(WorldPlayers.other_guild(guild)),
 		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true}
+
+
+## How many of the rival guild are weighed for its line-up (online first, then the strongest).
+const LINEUP_POOL := 12
+
+
+static func _bits(n: int) -> int:
+	var c := 0
+	while n > 0:
+		c += n & 1
+		n >>= 1
+	return c
 
 
 ## A line-up as pool keys ("class|grade"): random classes and grades, no class more than

@@ -735,7 +735,9 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 		flash(parent, pos + Vector3(0, 1.0, 0), color, radius * 1.6, 0.4)
 		pillar(parent, pos, color, 8.0, radius * 0.45, 0.55)
 		sparks(parent, pos + Vector3(0, 0.6, 0), Color(1.0, 0.8, 0.4), 60, 9.0, 0.9)
-		on_hit.call()
+		# The caster may have left meanwhile (a world player logging off).
+		if on_hit.is_valid():
+			on_hit.call()
 		rock.queue_free())
 
 

@@ -10,6 +10,10 @@ extends CanvasLayer
 ## All state is read from [Game] and the hero every frame.
 
 signal menu_requested(tab: StringName)
+## The online count was tapped: open the game registry.
+signal registry_requested()
+## A tap on the 3D world that did not turn the camera (Zone.player_at picks who is there).
+signal world_tapped(position: Vector2)
 signal interact_pressed()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
@@ -53,6 +57,8 @@ var _target_name: Label
 var _target_bar: ProgressBar
 var _target_hp: Label
 var _gold_label: Label
+var _online_label: Label
+var _online_in := 0.0
 var _zone_label: Label
 var _banner: Label
 var _death_panel: ColorRect
@@ -82,6 +88,7 @@ func _ready() -> void:
 	camera_area.anchor_left = 0.0
 	camera_area.anchor_right = 1.0
 	camera_area.anchor_bottom = 1.0
+	camera_area.tapped.connect(func(at: Vector2): world_tapped.emit(at))
 	_root.add_child(camera_area)
 	joystick = VirtualJoystick.new()
 	joystick.anchor_top = 0.3
@@ -218,6 +225,10 @@ func _process(delta: float) -> void:
 	# unnecessary during combat. Accumulate real elapsed time so warning pulses
 	# keep their speed when the render rate changes.
 	_timer_elapsed += delta
+	_online_in -= delta
+	if _online_in <= 0.0:
+		_online_in = 5.0
+		update_online()
 	_refresh_in -= delta
 	if _refresh_in <= 0.000001:
 		# Preserve the remainder, avoiding refresh-rate drift at 60/120 Hz. After
@@ -528,16 +539,23 @@ func _build_status(frame: Control) -> void:
 	minimap.offset_bottom = 242
 	frame.add_child(minimap)
 
-## Small cards for the two AI companions: badge, name, level, EXP.
+## "ออนไลน์ N": the world players online now plus the hero.
+func update_online() -> void:
+	if _online_label:
+		_online_label.text = "ออนไลน์ %d" % (WorldPresence.online_count() + 1)
+
+
+## Small cards for the party (world players who joined): badge, name, level, progress.
+## A tap switches that member between follow, aggressive and guard.
 func _build_party(column: Control) -> void:
-	for i in 1:
+	for i in Game.PARTY_MAX:
 		var card := UIUtil.panel(&"HudPanel")
 		card.custom_minimum_size = Vector2(350, 0)
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.gui_input.connect(_tap(func():
-			var stance := Game.cycle_stance()
+			var stance := Game.cycle_stance(i)
 			if stance != "":
-				Game.say("เพื่อน: %s" % Game.STANCE_NAMES[stance], &"info")))
+				Game.say("%s: %s" % [Game.party()[i].name, Game.STANCE_NAMES[stance]], &"info")))
 		column.add_child(card)
 		var row := UIUtil.hbox(8)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -631,7 +649,7 @@ func _update_party() -> void:
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  %s" % [member.name, level_text]
 		entry["name_text"] = "%s  %s" % [member.name, level_text]
-		(entry.title as Label).text = "%s  ยา×%d  [%s]" % [entry.name_text, int(member.get("potions", 5)), Game.STANCE_NAMES[String(member.get("stance", "follow"))]]
+		(entry.title as Label).text = "%s  [%s]" % [entry.name_text, Game.STANCE_NAMES[String(member.get("stance", "follow"))]]
 		var bar := entry.bar as ProgressBar
 		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
 		if buddy:
@@ -639,13 +657,10 @@ func _update_party() -> void:
 			UIUtil.tint_hp_bar(bar, float(buddy.hp) / float(maxi(1, buddy.max_hp)))
 		else:
 			UIUtil.set_bar(bar, 1, 1)
+		# Their own progress to the next level or star (they level on their own schedule).
 		var exp_bar := entry.exp as ProgressBar
-		if int(member.level) >= Game.MAX_LEVEL:
-			exp_bar.max_value = float(maxi(1, Game.party_star_need(member)))
-			exp_bar.value = float(member.get("star_exp", 0)) if Game.party_stars(member) < Game.PARAGON_MAX else exp_bar.max_value
-		else:
-			exp_bar.max_value = float(HeroStats.exp_to_next(int(member.level)))
-			exp_bar.value = float(member.exp)
+		exp_bar.max_value = 1000.0
+		exp_bar.value = float(member.get("frac", 0.0)) * 1000.0
 
 
 func _build_top_right(frame: Control) -> void:
@@ -653,10 +668,25 @@ func _build_top_right(frame: Control) -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.anchor_left = 1.0
 	row.anchor_right = 1.0
-	row.offset_left = -330
+	row.offset_left = -560
 	row.offset_right = 0
 	row.alignment = BoxContainer.ALIGNMENT_END
 	frame.add_child(row)
+	# Who else is playing: the world players online plus the hero; a tap opens the registry.
+	var online := UIUtil.panel(&"HudPanel")
+	online.name = "OnlineChip"
+	online.mouse_filter = Control.MOUSE_FILTER_STOP
+	online.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	online.gui_input.connect(_tap(func(): registry_requested.emit()))
+	var online_row := UIUtil.hbox(6)
+	online_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	online.add_child(online_row)
+	var dot := UIUtil.label("●", &"HudLabel")
+	dot.add_theme_color_override("font_color", Color("6dff9a"))
+	online_row.add_child(dot)
+	_online_label = UIUtil.label("", &"HudLabel")
+	online_row.add_child(_online_label)
+	row.add_child(online)
 	var money := UIUtil.panel(&"HudPanel")
 	money.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	money.size_flags_vertical = Control.SIZE_SHRINK_CENTER

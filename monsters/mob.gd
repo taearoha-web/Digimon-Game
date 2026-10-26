@@ -603,7 +603,10 @@ func _tick_status(delta: float) -> void:
 		if _burn_tick >= 0.5:
 			_burn_tick -= 0.5
 			var amount := maxi(1, int(_burn_dps * 0.5))
-			_credit(burn_source, mini(amount, hp))
+			# The one who lit it may have left the zone since (a world player logging off):
+			# then the burn counts for nobody.
+			if is_instance_valid(burn_source):
+				_credit(burn_source, mini(amount, hp))
 			hp = maxi(0, hp - amount)
 			_bar.set_ratio(float(hp) / float(max_hp))
 			_bar.visible = true
