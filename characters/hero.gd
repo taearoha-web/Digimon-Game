@@ -566,8 +566,13 @@ func _combat_step(delta: float) -> Vector3:
 	if not engaged and _pending.is_empty():
 		return Vector3.ZERO
 	if distance > want_range:
-		_face(to, delta, 16.0)
-		return to.normalized() * float(stats.speed) * 1.05
+		# In the castle siege the way to a target round the moat and walls goes by the
+		# bridge and the gates (SiegeArena.route).
+		var way := to
+		if field is Zone and (field as Zone).gw_match != null:
+			way = _flat(SiegeArena.route(global_position, target.global_position) - global_position)
+		_face(way, delta, 16.0)
+		return way.normalized() * float(stats.speed) * 1.05
 	_face(to, delta, 20.0)
 	if not _pending.is_empty():
 		var skill: Dictionary = _pending

@@ -185,7 +185,7 @@ const BASE_ZONES := {
 		"tree_density": 0.0, "camps": [], "sky": Color("4d63c8"), "ground": Color("d6c08a"), "prev": &"town", "next": &"",
 	},
 	&"guildwar": {
-		"name": "สงครามกิลด์ · โคลีเซียม", "scene": "field", "level": [100, 100], "music": &"guildwar", "pvp": true, "guildwar": true,
+		"name": "สงครามกิลด์ · ชิงปราสาท", "scene": "field", "level": [100, 100], "music": &"guildwar", "pvp": true, "guildwar": true,
 		"tree_density": 0.0, "camps": [], "sky": Color("4d63c8"), "ground": Color("d6c08a"), "prev": &"town", "next": &"",
 	},
 	&"arena": {

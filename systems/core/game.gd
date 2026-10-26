@@ -2195,14 +2195,20 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## The war in progress, kept in the save so a page the phone threw away in the background
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
-const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0"]
+const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner"]
 const GW_CKPT_LIFETIME := 6 * 3600
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
 var guildwar_resuming := false
 
 
-func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int, started_at := 0) -> void:
+## `siege`: {gates: [what is left of each gate, 0..1000], owner: the castle's holder (-1 none, 0 us, 1 them)}.
+func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int, started_at := 0, siege := {}) -> void:
 	var flags: Dictionary = profile["flags"]
+	var left: Array = siege.get("gates", [])
+	for k in 3:
+		flags["gw_r_g%d" % k] = clampi(int(left[k]), 0, 1000) if k < left.size() else 1000
+	# Saved flags are never negative: 0 nobody, 1 us, 2 them.
+	flags["gw_r_owner"] = clampi(int(siege.get("owner", -1)), -1, 1) + 1
 	flags["gw_r_seed"] = rng_seed
 	# When the war began: the guilds line up as their members were at that moment.
 	flags["gw_r_t0"] = started_at
@@ -2227,7 +2233,8 @@ func guildwar_checkpoint() -> Dictionary:
 		return {}
 	return {"seed": int(flags["gw_r_seed"]), "time_left": float(flags.get("gw_r_time", 0)), "us": int(flags.get("gw_r_us", 0)),
 			"them": int(flags.get("gw_r_them", 0)), "kills": int(flags.get("gw_r_kills", 0)), "deaths": int(flags.get("gw_r_deaths", 0)),
-			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0))}
+			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0)),
+			"gates": [int(flags.get("gw_r_g0", 1000)), int(flags.get("gw_r_g1", 1000)), int(flags.get("gw_r_g2", 1000))], "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 2) - 1}
 
 
 # ---------------------------------------------------------------------------

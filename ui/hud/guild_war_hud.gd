@@ -46,7 +46,7 @@ func _ready() -> void:
 	_clock = UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	line.add_child(_clock)
 	_orb = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	_orb.add_theme_color_override("font_color", GuildWarMatch.ORB_COLOR)
+	_orb.add_theme_color_override("font_color", Color("ffe08a"))
 	top.add_child(_orb)
 	for team in 2:
 		var row := UIUtil.hbox(CELL_GAP)
@@ -113,7 +113,9 @@ func _update(_delta: float, force: bool) -> void:
 	_score.text = "%s  %d : %d  %s" % [m.ally_name, m.score[0], m.score[1], m.enemy_name]
 	var left := int(ceil(m.time_left))
 	_clock.text = "ต่อเวลา!" if m.overtime else "%d:%02d" % [left / 60, left % 60]
-	_orb.text = "ออร์บพลังรออยู่กลางสนาม!" if m.orb_active else ""
+	# The castle: which gate stands, who holds the castle, who is taking the altar.
+	_orb.text = m.siege_status() + "\n" + m.sides_status()
+	_orb.add_theme_color_override("font_color", Color("ffe08a") if m.capture.is_empty() else Color("ff9a6a"))
 	for team in 2:
 		var fighters := m.allies if team == 0 else m.enemies
 		for i in GuildWarData.TEAM_SIZE:
@@ -131,7 +133,9 @@ func _update(_delta: float, force: bool) -> void:
 				cell.modulate = Color.WHITE if m.hero_respawn_left <= 0.0 else Color(1, 1, 1, 0.45)
 				UIUtil.tint_hp_bar(bar, bar.value)
 				continue
-			if index < 0 or index >= fighters.size() or not is_instance_valid(fighters[index]):
+			# A smaller war (fewer members at Lv.100) leaves the extra cells out.
+			cell.visible = index >= 0 and index < fighters.size()
+			if not cell.visible or not is_instance_valid(fighters[index]):
 				continue
 			var f: GuildFighter = fighters[index]
 			name_label.text = String(f.member.name)

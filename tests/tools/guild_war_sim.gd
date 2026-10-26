@@ -1,7 +1,10 @@
 extends Node
 ## Plays a guild war in fast forward (headless) to check the fight: who falls, how often,
-## the longest single hit, that the war ends and the result is paid out.
-##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale]
+## the longest single hit, how the siege goes (gates, the altar, the castle's holder), that
+## the war ends and the result is paid out.
+##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale] [damage scale] [mode]
+## mode: "open" starts with the gates down; "guild" fights Alpha against Neverdie with every
+## member (run with TOON_WORLD_DAYS=20 so the guilds are full); "guild_open" both.
 var _kills: Array[String] = []
 var _hit_max := 0.0
 var _finished := false
@@ -37,6 +40,9 @@ func _ready() -> void:
 	for slot in ItemData.SLOTS:
 		Game.profile.equip[slot] = StarProgression.item(cls, 150, slot, gear_rng)
 	Game.profile.equip["wings"] = StarWingData.item(String(cls), gear_rng)
+	var mode := String(args[4]) if args.size() > 4 else ""
+	if mode.contains("guild"):
+		Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.ALPHA
 	Game.current_zone = &"guildwar"
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
@@ -47,14 +53,20 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	m.time_left = seconds
+	# "open": the gates are already down (to watch the fight for the altar).
+	if mode.contains("open"):
+		for g in m.gates:
+			g.set_broken_quietly()
+		m._update_breakable()
 	m.feed.connect(func(text: String, team: int): _kills.append("%3d %s" % [int(seconds - m.time_left), text]))
 	m.finished.connect(func(r: Dictionary):
 		_finished = true
 		print("RESULT won=%s score %d:%d kills=%d deaths=%d gold=%d exp=%d" % [r.won, r.score_us, r.score_them, r.kills, r.deaths, r.gold, r.exp]))
 	var hero := zone.hero
 	var fighters := m.all_fighters().size()
-	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, 2 * GuildWarData.TEAM_SIZE - 1, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
-	if fighters != 2 * GuildWarData.TEAM_SIZE - 1:
+	var expected: int = 2 * GuildWarData.TEAM_SIZE - 1 if not bool(m.roster.get("guilds", false)) else m.roster.ally.size() + m.roster.enemy.size()
+	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, expected, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	if fighters != expected:
 		printerr("FAIL: %d fighters" % fighters)
 		get_tree().quit(1)
 		return
@@ -75,7 +87,7 @@ func _ready() -> void:
 			_census0 = _census(zone)
 		if _tick % 10 == 0:
 			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " objects ", int(Performance.get_monitor(Performance.OBJECT_COUNT)), " resources ", int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)), " orphans ", int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size())
-			print("  t+%ds state=%s left=%d score=%s hero_hp=%d" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp)])
+			print("  t+%ds state=%s left=%d score=%s hero_hp=%d · %s" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp), m.siege_status()])
 	Engine.time_scale = 1.0
 	var now := _census(zone)
 	var grow: Array = []

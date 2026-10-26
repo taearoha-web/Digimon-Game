@@ -3,7 +3,8 @@ extends CanvasLayer
 ## The guild registrar in the village: the two guilds of the world (WorldPlayers), Alpha
 ## and Neverdie, side by side with every member's class, level, stars and whereabouts
 ## (online in which field, or when last seen), and the button to join one or move to the
-## other. The lists follow the members' schedules while the screen is open.
+## other. Members are the players who have reached Lv.100; the lists follow their
+## schedules while the screen is open.
 
 signal closed()
 
@@ -118,7 +119,8 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var states: Array[Dictionary] = []
 	var online := 0
-	for i in WorldPlayers.members(g):
+	# Members are the players who have reached Lv.100 (they join on getting there).
+	for i in WorldPlayers.members_at(g, t):
 		var s := WorldPlayers.state(i, t)
 		states.append(s)
 		online += 1 if bool(s.online) else 0
@@ -132,7 +134,7 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	name_label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS[g])
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(name_label)
-	top.add_child(UIUtil.label("ออนไลน์ %d/%d" % [online, states.size()], &"SmallLabel"))
+	top.add_child(UIUtil.label("สมาชิก %d คน · ออนไลน์ %d" % [states.size(), online], &"SmallLabel"))
 	var join := UIUtil.button("", &"PrimaryButton" if mine != g else &"", Vector2(0, 58))
 	join.name = "Join%s" % WorldPlayers.guild_name(g)
 	if mine == g:
@@ -146,7 +148,7 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 		join.pressed.connect(func():
 			if Game.join_guild(g):
 				AudioManager.play_ui(&"ui_open")
-				Game.say("เข้าร่วมกิลด์ %s แล้ว! เพื่อนร่วมกิลด์ %d คนจะลงสงครามกิลด์กับคุณ" % [WorldPlayers.guild_name(g), WorldPlayers.members(g).size()], &"success"))
+				Game.say("เข้าร่วมกิลด์ %s แล้ว! เพื่อนร่วมกิลด์ %d คนจะลงสงครามกิลด์กับคุณ" % [WorldPlayers.guild_name(g), WorldPlayers.members_at(g, WorldPresence.clock()).size()], &"success"))
 	col.add_child(join)
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -159,6 +161,8 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 		list.add_child(_card(String(Game.profile.get("name", "คุณ")) + " (คุณ)", Game.class_id(), "Lv.%d%s" % [int(Game.profile.level), " ★%d" % int(Game.paragon().level) if int(Game.paragon().level) > 0 else ""], "ออนไลน์ · ตัวละครของคุณ", true))
 	for s in states:
 		list.add_child(_card(String(s.name), StringName(s["class"]), WorldPlayers.level_text(s), WorldPlayers.where_text(s, t), bool(s.online)))
+	if states.is_empty():
+		list.add_child(UIUtil.label("ยังไม่มีผู้เล่นถึงเลเวล %d — ผู้เล่นเข้ากิลด์เมื่อถึงเลเวล %d" % [Game.GUILD_LEVEL, Game.GUILD_LEVEL], &"SmallLabel"))
 	return col
 
 

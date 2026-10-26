@@ -5,7 +5,10 @@ extends Rival
 ## skills hit them), our guild's fighters stand with the hero (group "companions"
 ## so heals and buffs reach them) and are only ever hit by the other side. Fighters
 ## pick targets like a person (focus the weak one, protect the healer, retreat
-## when low), fall back to base to heal, and come back after a short respawn.
+## when low), fall back to their camp to heal, and come back after a short respawn.
+## In the castle siege (GuildWarMatch) they batter the front gate between fights, find
+## their way over the bridge and through the gates (SiegeArena.route), go for whoever is
+## taking the altar, and one of them at a time stands on the altar to take the castle.
 
 const TEAM_ALLY := 0
 const TEAM_ENEMY := 1
@@ -28,11 +31,22 @@ signal slew_hero(fighter: GuildFighter)
 
 var team := TEAM_ENEMY
 var spawn_point := Vector3.ZERO
-var rally_point := Vector3.ZERO
+## The war it fights in, the gate to break (null once all are down), where to stand
+## between fights, and whether it is the one sent onto the altar (capture_role) or
+## standing on it taking the castle (capturing).
+var siege: GuildWarMatch
+var objective: CastleGate
+var goal_point := Vector3.ZERO
+var capture_role := false
+var capturing := false
+## Holding a position (its guild's plan): it only turns on enemies this close (0: anyone).
+var hold_range := 0.0
 var kills := 0
 var deaths := 0
 var assists := 0
 var grade := 0
+## How it is shown in the results: a world player's real level ("Lv.100 ★72"), else its gear grade.
+var tag := ""
 var guild_name := ""
 var respawn_left := 0.0
 
@@ -41,8 +55,6 @@ var _helpers: Dictionary = {}
 var _guard_until := 0
 var _retreating := false
 var _grudge := 0.0
-## Set by the match: a place to run to (the power orb) while no enemy is close.
-var orb_goal: Variant = null
 var _react_at := 0
 var _ignore_danger := false
 
@@ -51,10 +63,10 @@ var _ignore_danger := false
 func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vector3, title: String) -> void:
 	team = p_team
 	grade = int(info.get("grade", 0))
+	tag = String(info.get("tag", ""))
 	guild_name = title
 	spawn_point = p_spawn
-	# Each holds its own lane of the arena's half, so eight do not pile up on the centre line.
-	rally_point = Vector3(p_spawn.x * 0.35, 0.0, p_spawn.z * 0.6)
+	goal_point = SiegeArena.PLAZA
 	setup_rival(info, p_spawn, p_hero, title)
 	war_scale = GuildWarData.damage_scale
 	announce_skills = false
@@ -74,6 +86,9 @@ func _ready() -> void:
 	_label.font_size = 36
 	_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
 	_label.visibility_range_end = 30.0
+	# Fifty fighters on one field: far ones stop animating like far monsters do.
+	if _rv != null and _rv.hero_visual != null:
+		_rv.hero_visual.add_to_group("anim_lod")
 	_start_guard()
 
 
@@ -137,7 +152,18 @@ func _targets() -> Array[Node3D]:
 		for node in get_tree().get_nodes_in_group("gw_team1"):
 			if _alive(node):
 				out.append(node as Node3D)
+	# Both guilds batter the same gate.
+	if objective != null and is_instance_valid(objective) and objective.breakable and not objective.is_dead():
+		out.append(objective)
 	return out
+
+
+## True for someone of the other side standing in its own camp (where it heals and comes back).
+func _in_own_camp(t: Node3D) -> bool:
+	if t is CastleGate:
+		return false
+	var their_camp := Vector3(SiegeArena.BASE_X * (-1.0 if team == TEAM_ENEMY else 1.0), 0, SiegeArena.BASE_Z)
+	return _flat_distance_from(t.global_position, their_camp) < SiegeArena.CAMP_RADIUS
 
 
 func _teammates() -> Array[Node3D]:
@@ -156,11 +182,34 @@ func _nearest_victim() -> Node3D:
 	var best: Node3D = null
 	var best_score := -1.0e9
 	var allies := _teammates()
+	var taker := siege.capturer() if siege != null else null
+	# At the gate it keeps battering: only an enemy close by draws it away.
+	var at_gate := objective != null and is_instance_valid(objective) and objective.breakable and _flat_distance(objective.global_position) < 11.0
+	var my_section := SiegeArena.section(global_position)
 	for t in _targets():
 		var d := _flat_distance(t.global_position)
 		if d > 48.0:
 			continue
+		# The one sent to the altar only fights what is right in its way.
+		if capture_role and d > 6.0 and t != taker:
+			continue
+		# Nobody is chased into the safety of its own camp.
+		if t != taker and _in_own_camp(t):
+			continue
+		if at_gate and not (t is CastleGate) and t != taker and d > 7.0:
+			continue
+		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range:
+			continue
+		# Inside the castle it presses on: it does not go back out for someone far behind.
+		if t != taker and SiegeArena.section(t.global_position) < my_section and d > 9.0:
+			continue
 		var score := -d
+		if t is CastleGate:
+			# The gate waits: anyone of the other guild close by comes first.
+			score -= 10.0
+		elif t == taker:
+			# Whoever is taking the altar must be stopped.
+			score += 30.0
 		var ratio := 1.0
 		if t is GuildFighter:
 			ratio = (t as GuildFighter).hp_ratio()
@@ -275,6 +324,7 @@ func respawn() -> void:
 	_potions = 3
 	_potion_cd = 0.0
 	_retreating = false
+	capturing = false
 	_victim = null
 	BurstGuard.forget(get_instance_id())
 	cooldowns.clear()
@@ -315,6 +365,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
+	if capturing:
+		_tick(delta)
+		return Vector3.ZERO
+	if capture_role and not _frozen and _flat_distance(target.global_position) > 4.0:
+		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
 	var dodge_step := _dodge_area(delta)
 	if dodge_step != Vector3.ZERO:
 		return dodge_step
@@ -325,8 +380,12 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 		_retreating = false
 	if _retreating and not _frozen:
 		return _fall_back(delta)
-	if orb_goal != null and not _frozen and _flat_distance(target.global_position) > 9.0:
-		return _run_to(orb_goal as Vector3, delta)
+	# Across the moat or behind a gate: the way round, unless already in reach.
+	var way := SiegeArena.route(global_position, target.global_position)
+	if not _frozen and _flat_distance_from(way, target.global_position) > 0.5:
+		var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
+		if _flat_distance(target.global_position) > reach + 1.0:
+			return _run_to(way, delta)
 	return super._chase(target, delta, speed_factor)
 
 
@@ -397,7 +456,7 @@ func _run_to(point: Vector3, delta: float) -> Vector3:
 ## Low on health: run home, drink if possible, heal in the base, then return.
 func _fall_back(delta: float) -> Vector3:
 	_tick(delta)
-	var to := spawn_point - global_position
+	var to := SiegeArena.route(global_position, spawn_point) - global_position
 	to.y = 0.0
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))
@@ -411,19 +470,23 @@ func _fall_back(delta: float) -> Vector3:
 	return to.normalized() * float(rstats.speed) * 1.05
 
 
-## With nobody to fight (the other side is waiting to respawn) it holds its half.
+## With nobody to fight it walks to its post: the front gate, round the altar, or (the
+## one sent) onto the altar, the way round the moat and through the broken gates.
 func _wander(delta: float) -> Vector3:
-	# During the countdown everybody holds their mark (no walking to the rally point).
-	if _frozen:
+	# During the countdown everybody holds their mark.
+	if _frozen or capturing:
 		return Vector3.ZERO
-	if orb_goal != null:
-		return _run_to(orb_goal as Vector3, delta)
+	if capture_role:
+		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
 	_tick(delta)
-	var to := rally_point - global_position
+	var way := SiegeArena.route(global_position, goal_point)
+	var to := way - global_position
 	to.y = 0.0
-	if to.length() < 2.5:
+	if _flat_distance(goal_point) < 2.5:
 		return Vector3.ZERO
-	return to.normalized() * float(rstats.speed) * 0.8
+	_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))
+	visual.rotation.y = _yaw
+	return to.normalized() * float(rstats.speed) * 0.9
 
 
 # ---------------------------------------------------------------------------

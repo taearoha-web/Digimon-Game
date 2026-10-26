@@ -1,7 +1,8 @@
 class_name WorldPlayers
 extends RefCounted
-## The other players of the world: 50 people with fixed names, classes and guilds (25 in
-## Alpha, 25 in Neverdie). Nobody runs them on a server. Each keeps a daily play
+## The other players of the world: 50 people with fixed names, classes and guilds (25 go to
+## Alpha, 25 to Neverdie; each joins its guild on reaching Lv.100, like the hero must).
+## Nobody runs them on a server. Each keeps a daily play
 ## schedule set by its play style (Thai time, the same on every device), and what it
 ## has reached is the EXP a real player earns in the hours it played: the auto-hunt rates
 ## tests/tools/pace_probe.gd measured in the real fields, times the player's own
@@ -121,10 +122,25 @@ static func guild_name(guild: int) -> String:
 	return String(GUILD_NAMES.get(guild, ""))
 
 
+## Everyone who joins `guild` once at Lv.100 (the roster's side, whatever their level now).
 static func members(guild: int) -> Array[int]:
 	var out: Array[int] = []
 	for i in ROSTER.size():
 		if int(ROSTER[i].guild) == guild:
+			out.append(i)
+	return out
+
+
+## The guild player i is in at `level`: its roster guild from Lv.100 (Game.GUILD_LEVEL), none before.
+static func guild_at(i: int, level: int) -> int:
+	return int(ROSTER[i].guild) if level >= Game.GUILD_LEVEL else 0
+
+
+## Who is in `guild` at time t: the members who have reached Lv.100.
+static func members_at(guild: int, t: float) -> Array[int]:
+	var out: Array[int] = []
+	for i in members(guild):
+		if int(state(i, t).level) >= Game.GUILD_LEVEL:
 			out.append(i)
 	return out
 
@@ -329,7 +345,8 @@ static func clear_bonus() -> void:
 
 
 ## Everything about player i at time t: the roster entry plus level, stars, online,
-## place (the zone id it stands in, "" offline) and the gear grade it wears.
+## place (the zone id it stands in, "" offline), its guild now (0 below Lv.100; the
+## roster's side is in "joins") and the gear grade it wears.
 static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
@@ -344,6 +361,8 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	var out := e.duplicate()
 	out.merge(p)
 	out["index"] = i
+	out["joins"] = int(e.guild)
+	out["guild"] = guild_at(i, int(p.level))
 	out["online"] = not s.is_empty()
 	out["place"] = place
 	out["grade"] = grade_of(int(p.level), int(p.stars), bool(p.divine))
@@ -641,14 +660,24 @@ static func wing_taste(i: int) -> Array:
 	return [rng.randf_range(0.2, 1.0), rng.randf_range(0.1, 1.4), rng.randf_range(0.05, 0.9)]
 
 
-## Player i as a guild-war fighter (GuildWarData.make_fighter) with its own name and face.
-static func fighter(i: int, t: float, rng: RandomNumberGenerator) -> Dictionary:
+## Player i as a guild-war fighter at time t, as it really is then: its level, stars,
+## stat points, skill ranks and the gear it found (WorldPlayers.profile), its own name and face.
+static func fighter(i: int, t: float, _rng: RandomNumberGenerator = null) -> Dictionary:
 	var s := state(i, t)
-	var f := GuildWarData.make_fighter(StringName(s["class"]), int(s.grade), String(s.name), rng)
-	f["look"] = look(i)
-	f["world"] = i
-	f["online"] = bool(s.online)
-	return f
+	var m := member(i, t)
+	var sheet := profile(m)
+	return {
+		"member": {"class": String(s["class"]), "name": String(s.name), "level": int(s.level)},
+		"profile": sheet,
+		"mults": {"hp": 1.0, "atk": 1.0, "def": 1.0},
+		"difficulty": GuildWarData.SKILL,
+		"look": look(i),
+		"grade": int(s.grade),
+		"tag": level_text(s),
+		"power": GuildWarData.power_of(HeroStats.compute(sheet)),
+		"world": i,
+		"online": bool(s.online),
+	}
 
 
 ## Display line: "Lv.57" or "Lv.100 ★120".
