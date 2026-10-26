@@ -86,6 +86,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, durat
 	SkillTableau.anticipate(parent, skill, look, origin, duration, aim, visual)
 	EliteSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 	ShadowSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
+	LordSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 
 
 ## center: target/area; origin: caster's feet. Hero and companions share this path.
@@ -101,6 +102,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		var wait := impact_delay if impact_delay >= 0.0 else (0.55 if String(skill.get("special", "")) in ["meteor", "rain"] else 0.0)
 		EliteSkillArt.play(parent, skill, center, origin, wait)
 		ShadowSkillArt.play(parent, skill, center, origin, wait)
+		LordSkillArt.play(parent, skill, center, origin, wait)
 		var now_ms := Time.get_ticks_msec()
 		ClassFlourish.cast(parent, skill, center, origin, _recent_shows.filter(func(t: int): return now_ms - t < 1000).size())
 		return
@@ -135,8 +137,10 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 				_area(parent, skill, look, at, radius, tier)
 		"single": _single(parent, skill, look, center, origin, tier)
 		"fan", "chain": _multi(parent, skill, look, origin, center, tier)
-	# The Assassin's shadow sculptures, then the grand finish on top.
+	# The Assassin's shadow sculptures and the Dark Lord's royal ones, then the
+	# grand finish on top.
 	ShadowSkillArt.play(parent, skill, center, origin, wait)
+	LordSkillArt.play(parent, skill, center, origin, wait)
 	ClassFlourish.cast(parent, skill, center, origin, crowd)
 
 

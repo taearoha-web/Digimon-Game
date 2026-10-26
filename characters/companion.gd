@@ -85,7 +85,7 @@ func _ready() -> void:
 	hp = max_hp
 	mp = float(stats.max_mp)
 	Game.party_changed.connect(refresh)
-	# An AI Dark Lord's raven always joins its fights.
+	# An AI Dark Lord's raven always joins its fights, hunting on its own (auto).
 	if StringName(member["class"]) == &"darklord":
 		DarkRaven.ensure(self).attack = true
 
@@ -538,9 +538,14 @@ func raven_target() -> Mob:
 	return target if _flat(target.global_position - global_position).length() <= 16.0 else null
 
 
-func raven_strike(mob: Mob) -> void:
-	if not _dead and is_instance_valid(mob) and not mob.is_dead():
-		_deal(mob, Hero.RAVEN_MULT, DarkRaven.VIOLET, &"slash", false, null)
+func raven_strike(mob: Mob, group := false) -> void:
+	if _dead or not is_instance_valid(mob) or mob.is_dead():
+		return
+	if group:
+		for other in DarkRaven.pack(get_tree(), mob.global_position, DarkRaven.GROUP_RADIUS):
+			_deal(other, Hero.RAVEN_MULT * Hero.GROUP_SHARE, DarkRaven.VIOLET, &"slash", false, null)
+		return
+	_deal(mob, Hero.RAVEN_MULT, DarkRaven.VIOLET, &"slash", false, null)
 
 
 func _mobs_near(center: Vector3, radius: float) -> Array[Mob]:

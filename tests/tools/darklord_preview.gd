@@ -12,7 +12,7 @@ class Lord extends Node3D:
 	func raven_target() -> Mob:
 		return null
 
-	func raven_strike(_mob: Mob) -> void:
+	func raven_strike(_mob: Mob, _group := false) -> void:
 		pass
 
 	func is_dead() -> bool:

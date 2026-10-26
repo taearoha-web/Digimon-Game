@@ -20,6 +20,8 @@ signal interact_pressed()
 const SKILL_SPACING := 94.0
 const SKILL_ROW_Y := -68.0
 const ATTACK_RADIUS := 62.0
+## What the raven mode button announces for each mode (DarkRaven.Mode).
+const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
 var hero: Hero
 var zone: Zone
@@ -33,6 +35,8 @@ var target_button: TouchButton
 var auto_button: TouchButton
 ## The Dark Lord's raven: attack on its own / come back to the arm.
 var raven_button: TouchButton
+## How the raven hunts: single (เดี่ยว), group (หมู่) or auto (ออโต้); tap to cycle.
+var raven_mode_button: TouchButton
 var interact_button: TouchButton
 
 var _root: Control
@@ -282,8 +286,10 @@ func _refresh() -> void:
 		attack_button.set_toggled(hero.engaged)
 		auto_button.set_toggled(hero.auto)
 	raven_button.visible = hero.raven != null and not zone.is_town and auto_button.visible
+	raven_mode_button.visible = raven_button.visible
 	if raven_button.visible:
 		raven_button.set_toggled(hero.raven.attack)
+		raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
 	_update_target_frame()
 	_update_boss_bar()
 
@@ -799,6 +805,18 @@ func _build_action_buttons(frame: Control) -> void:
 			hero.set_raven_attack(not hero.raven.attack)
 			Game.say("อีกา: %s" % ("บุกโจมตีเอง" if hero.raven.attack else "กลับมาเกาะแขน"), &"info"))
 	frame.add_child(raven_button)
+	# Violet like the raven button, with a raven over the mode name, so it never
+	# reads as the auto-hunt button beside it.
+	raven_mode_button = _small_button("res://assets/icons/ui/raven.svg", Color("8a4dff"), Vector2.ZERO)
+	raven_mode_button.text = DarkRaven.MODE_NAMES[DarkRaven.Mode.AUTO]
+	raven_mode_button.font_size_override = 13
+	raven_mode_button.visible = false
+	raven_mode_button.pressed.connect(func():
+		if hero and hero.raven:
+			hero.set_raven_mode((hero.raven.mode + 1) % 3)
+			raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
+			Game.say("อีกา: %s" % RAVEN_MODE_TIPS[hero.raven.mode], &"info"))
+	frame.add_child(raven_mode_button)
 
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0
@@ -840,6 +858,8 @@ func _layout_actions() -> void:
 		_place_corner(button, positions.utility[i] + Vector2.ONE * button.radius, button.radius)
 	# The raven button sits just left of the auto button.
 	_place_corner(raven_button, positions.utility[2] + Vector2(-72, 0) + Vector2.ONE * raven_button.radius, raven_button.radius)
+	# Its mode button sits right above it.
+	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
 

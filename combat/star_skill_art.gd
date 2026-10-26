@@ -40,6 +40,7 @@ const MOTIFS := {
 const SUPPORT := ["lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
 const ASSASSIN := ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"]
+const DARKLORD := ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm"]
 ## The Defender's captured great shield from the latest telegraph/launch, so contacts (which have no caster) can drop the real shield.
 static var _recent_shield: Mesh
 ## The Assassin's captured dagger from the latest telegraph: the shadow daggers of its contacts.
@@ -186,6 +187,7 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 	if id in ASSASSIN:
 		_recent_dagger=equipped_sword(caster)
 		ShadowSkillArt.anticipate(parent,skill,origin,point,time,visual)
+	if id in DARKLORD: LordSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	var opts := {"initial":0.12,"grow_time":0.85,"fade_in":0.15,"decay":0.94,"opacity":0.78}
 	var local_target := art.to_local(point)
 	var radius := clampf(float(skill.get("radius",4)),1.5,9.0)
@@ -288,6 +290,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 	if not handles(skill) or not VfxBudget.can_decorate(): return null
 	ClassFlourish.star_beat(parent, skill, point, index, source)
 	if String(skill.id) in ASSASSIN: ShadowSkillArt.star(parent, skill, point, index, source)
+	if String(skill.id) in DARKLORD: LordSkillArt.star(parent, skill, point, index, source)
 	var id := String(skill.id)
 	var colors := look(skill)
 	var art := _root(parent,point,1.6,"StarContact_"+id)

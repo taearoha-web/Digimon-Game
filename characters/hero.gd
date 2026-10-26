@@ -939,6 +939,9 @@ func _apply_self_fx(skill: Dictionary) -> void:
 
 ## One raven strike: a share of the Lord's attack (the star set makes it hit harder).
 const RAVEN_MULT := 0.45
+## Single mode strikes harder; a group strike lands this share on each of the pack.
+const SINGLE_FOCUS := 1.25
+const GROUP_SHARE := 0.6
 var raven: DarkRaven
 ## Raven strikes so far (tests and the playtest tool read it).
 var raven_strikes := 0
@@ -949,6 +952,7 @@ func _sync_raven() -> void:
 	if Game.class_id() == &"darklord":
 		raven = DarkRaven.ensure(self)
 		raven.attack = bool(int(Game.profile.flags.get("raven_attack", 1)))
+		raven.mode = clampi(int(Game.profile.flags.get("raven_mode", DarkRaven.Mode.AUTO)), 0, 2)
 	elif raven != null:
 		DarkRaven.remove(self)
 		raven = null
@@ -965,27 +969,50 @@ func set_raven_attack(on: bool) -> void:
 		raven.state = DarkRaven.State.RETURN
 
 
-## The raven goes for the hero's target, else the nearest monster within reach.
+## The raven mode button: single, group or auto (DarkRaven.Mode), remembered.
+func set_raven_mode(value: int) -> void:
+	if raven == null:
+		return
+	raven.mode = clampi(value, 0, 2)
+	Game.profile.flags["raven_mode"] = raven.mode
+
+
+## Single and group: the hero's target, else the monster nearest the hero (the
+## fight it is in). Auto: the raven's own prey, the monster nearest the raven
+## anywhere around the hero.
 func raven_target() -> Mob:
-	if _valid_target(target) and _flat(target.global_position - global_position).length() <= 16.0:
+	var own := raven != null and raven.mode == DarkRaven.Mode.AUTO
+	if not own and _valid_target(target) and _flat(target.global_position - global_position).length() <= 16.0:
 		return target
+	var from := raven.global_position if own and raven.is_inside_tree() else global_position
 	var best: Mob = null
-	var best_d := 14.0
+	var best_d := 1.0e9
 	for node in get_tree().get_nodes_in_group("mobs"):
 		var mob := node as Mob
 		if mob and _valid_target(mob) and mob.hostile:
-			var d := _flat(mob.global_position - global_position).length()
+			var reach := _flat(mob.global_position - global_position).length()
+			if reach > (14.0 if own else 8.0):
+				continue
+			var d := _flat(mob.global_position - from).length()
 			if d < best_d:
 				best_d = d
 				best = mob
 	return best
 
 
-func raven_strike(mob: Mob) -> void:
+## One raven strike: a single focused strike, or (group) a share of it on every
+## monster around the one it dives on.
+func raven_strike(mob: Mob, group := false) -> void:
 	if not _valid_target(mob):
 		return
 	var mult := RAVEN_MULT * (1.3 if StarProgression.has_full_set(Game.profile, "darklord") else 1.0)
 	raven_strikes += 1
+	if group:
+		for other in DarkRaven.pack(get_tree(), mob.global_position, DarkRaven.GROUP_RADIUS):
+			_deal(other, mult * GROUP_SHARE, DarkRaven.VIOLET, &"slash", false)
+		return
+	if raven != null and raven.mode == DarkRaven.Mode.SINGLE:
+		mult *= SINGLE_FOCUS
 	_deal(mob, mult, DarkRaven.VIOLET, &"slash", false)
 
 
