@@ -16,13 +16,13 @@ signal released()
 const MOUSE_INDEX := -100
 
 ## Radius of the base ring in canvas units.
-@export var base_radius := 104.0
-@export var knob_radius := 46.0
+@export var base_radius := 80.0
+@export var knob_radius := 35.0
 @export_range(0.0, 0.9) var dead_zone := 0.14
 ## Move the base to where the finger lands (inside the zone) when true.
 @export var follow_touch := false
 ## Distance from the zone's bottom-left corner to the resting centre.
-@export var rest_offset := Vector2(150, -150)
+@export var rest_offset := Vector2(120, -116)
 
 var output := Vector2.ZERO
 var is_active := false

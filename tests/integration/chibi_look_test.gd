@@ -93,6 +93,22 @@ func _ready() -> void:
 	var plain_mat := _body_material(plain)
 	check(plain_mat != null and plain_mat.get_shader_parameter("look_enabled") != true, "the original look leaves the shader off")
 	check(_accessory(plain) == null, "the original look has no accessory")
+	# Hits landing while the last red flash still fades leave no tint behind (a half-faded
+	# flash was kept as a lasting overlay: heroes stayed red until a map change).
+	var piece := plain.model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	for i in 4:
+		plain.flash(Color(1, 0.35, 0.35), 0.2)
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(0.4).timeout
+	check(piece.material_overlay == null, "no hit flash is left on after quick hits (%s)" % piece.material_overlay)
+	var lasting := MeshKit.toon(Color.WHITE)
+	piece.material_overlay = lasting
+	for i in 3:
+		plain.flash(Color(1, 0.35, 0.35), 0.2)
+		await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(0.4).timeout
+	check(piece.material_overlay == lasting, "a lasting overlay comes back after quick hits")
+	piece.material_overlay = null
 	for g in 2:
 		for s in range(1, 3):
 			var look := FaceKit.default_look()

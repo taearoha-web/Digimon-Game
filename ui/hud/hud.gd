@@ -546,28 +546,40 @@ func update_online() -> void:
 
 
 ## Small cards for the party (world players who joined): badge, name, level, progress.
-## A tap switches that member between follow, aggressive and guard.
+## A tap switches that member between follow, aggressive and guard; the cross lets it go.
 func _build_party(column: Control) -> void:
 	for i in Game.PARTY_MAX:
 		var card := UIUtil.panel(&"HudPanel")
-		card.custom_minimum_size = Vector2(350, 0)
+		# Compact: four of these stand above the joystick on a phone.
+		card.custom_minimum_size = Vector2(250, 0)
+		card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		var compact := card.get_theme_stylebox("panel")
+		if compact != null:
+			compact = compact.duplicate()
+			compact.content_margin_left = 6
+			compact.content_margin_right = 6
+			compact.content_margin_top = 3
+			compact.content_margin_bottom = 3
+			card.add_theme_stylebox_override("panel", compact)
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.gui_input.connect(_tap(func():
 			var stance := Game.cycle_stance(i)
 			if stance != "":
 				Game.say("%s: %s" % [Game.party()[i].name, Game.STANCE_NAMES[stance]], &"info")))
 		column.add_child(card)
-		var row := UIUtil.hbox(8)
+		var row := UIUtil.hbox(6)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(row)
 		var badge := PanelContainer.new()
-		badge.custom_minimum_size = Vector2(34, 34)
+		badge.custom_minimum_size = Vector2(24, 24)
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(badge)
 		var letter := UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		letter.add_theme_font_size_override("font_size", 14)
 		badge.add_child(letter)
-		var info := UIUtil.vbox(2)
+		var info := UIUtil.vbox(1)
 		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(info)
@@ -576,11 +588,29 @@ func _build_party(column: Control) -> void:
 		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(title)
-		var bar := _bar(&"HPBar", 9)
+		title.add_theme_font_size_override("font_size", 14)
+		var bar := _bar(&"HPBar", 7)
 		info.add_child(bar)
-		var exp_bar := _bar(&"EXPBar", 4)
+		var exp_bar := _bar(&"EXPBar", 3)
 		info.add_child(exp_bar)
-		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "key": ""})
+		# The cross lets this member go (the card itself changes its stance).
+		var kick := UIUtil.button("✕", &"", Vector2(32, 32))
+		kick.name = "Kick"
+		kick.focus_mode = Control.FOCUS_NONE
+		kick.add_theme_font_size_override("font_size", 15)
+		kick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		kick.pressed.connect(func(): kick_party_member(i))
+		row.add_child(kick)
+		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "kick": kick, "key": ""})
+
+
+## Lets the i-th party member go (the cross on its card); it says goodbye.
+func kick_party_member(i: int) -> void:
+	if i < 0 or i >= Game.world_party.size():
+		return
+	var who: Dictionary = Game.party()[i]
+	Game.party_kick(Game.world_party[i], "%s ออกจากปาร์ตี้แล้ว" % who.name)
+	AudioManager.play_ui(&"ui_cancel")
 
 
 const WING_LABELS := ["ยืน", "บิน", "หุบปีก"]

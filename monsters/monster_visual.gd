@@ -35,6 +35,8 @@ var _clips: Dictionary = {}
 var _clip_speed: Dictionary = {}
 var _tween: Tween
 var _flash_restore: Dictionary = {}
+## The overlay of the hit flash on now (null when none).
+var _flash_overlay: Material
 var _rest_scale := Vector3.ONE
 var _ground_offset := 0.0
 var _hover := 0.0
@@ -184,21 +186,30 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	overlay.albedo_color = Color(color.r, color.g, color.b, 0.8)
+	# A new hit while the last flash is still fading takes that flash off first: kept as
+	# if it were a lasting overlay, its half-faded tint stayed on for good (red heroes).
 	if _tween:
 		_tween.kill()
-		_restore_overlays()
+	_end_flash()
 	for mi in meshes:
 		var mesh := mi as MeshInstance3D
-		if mesh.material_overlay != null and mesh.material_overlay != overlay:
+		if mesh.material_overlay != null:
 			_flash_restore[mesh] = mesh.material_overlay
 		mesh.material_overlay = overlay
+	_flash_overlay = overlay
 	_tween = create_tween()
 	_tween.tween_property(overlay, "albedo_color:a", 0.0, duration)
-	_tween.tween_callback(func():
-		for mi in meshes:
-			if is_instance_valid(mi):
+	_tween.tween_callback(_end_flash)
+
+
+## Takes the hit flash off every piece wearing it and hands back what it covered.
+func _end_flash() -> void:
+	if _flash_overlay != null and is_instance_valid(model):
+		for mi in model.find_children("*", "MeshInstance3D", true, false):
+			if (mi as MeshInstance3D).material_overlay == _flash_overlay:
 				(mi as MeshInstance3D).material_overlay = null
-		_restore_overlays())
+	_flash_overlay = null
+	_restore_overlays()
 
 
 ## Overlays a flash covered (a summon's spirit glow) come back when it fades.
