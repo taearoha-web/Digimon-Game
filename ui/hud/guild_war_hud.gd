@@ -114,7 +114,7 @@ func _update(_delta: float, force: bool) -> void:
 	var left := int(ceil(m.time_left))
 	_clock.text = "ต่อเวลา!" if m.overtime else "%d:%02d" % [left / 60, left % 60]
 	# The castle: which gate stands, who holds the castle, who is taking the altar.
-	_orb.text = m.siege_status()
+	_orb.text = m.siege_status() + "\n" + m.sides_status()
 	_orb.add_theme_color_override("font_color", Color("ffe08a") if m.capture.is_empty() else Color("ff9a6a"))
 	for team in 2:
 		var fighters := m.allies if team == 0 else m.enemies

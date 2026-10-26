@@ -1,8 +1,8 @@
 class_name GuildWarData
 extends RefCounted
 ## Guild war: two guilds fight for 30 minutes. Alpha against Neverdie (roll_guild_match)
-## is fought by the world players who have reached Lv.100, each as it really is (level,
-## stars and the gear it found), up to eight a side, the hero with its real character.
+## is fought by everyone in the two guilds (the world players who have reached Lv.100),
+## each as it really is (level, stars and the gear it found), the hero with its real character.
 ## Hired line-ups (roll_match: eight a side when there is no guild, and the ranked arena's
 ## rivals) are AI at Lv.100 with 200 stars, a random class and a gear grade from a plain
 ## 50-star set up to the class's divine set with wings, built from the same star gear a
@@ -137,13 +137,11 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 	return {"ally": best, "enemy": enemy, "ally_name": guild_a, "enemy_name": guild_b, "ally_power": ally_power, "enemy_power": enemy_power}
 
 
-## The war between the two guilds of the world (WorldPlayers): the hero and its guild's
-## members against the other guild's, everyone as they really are at time t (level, stars,
-## stat points and the gear they found; WorldPlayers.fighter). Only players who reached
-## Lv.100 are in a guild, so both sides field the same number, up to TEAM_SIZE: the hero
-## plus its guild's members, or as many as the rival guild has. Online members are picked
-## first, then the strongest; the rival guild sends those of its first twelve whose total
-## power comes closest to ours. No rival member yet: {} (no war).
+## The war between the two guilds of the world (WorldPlayers): everyone in a guild fights,
+## the hero and all its guild's members against all the other guild's, each as it really
+## is at time t (level, stars, stat points and the gear it found; WorldPlayers.fighter).
+## Only players who reached Lv.100 are in a guild. Online members are listed first, then
+## the strongest. No rival member yet: {} (no war).
 static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, power_of_hero: float = -1.0) -> Dictionary:
 	if power_of_hero < 0.0:
 		power_of_hero = hero_power()
@@ -155,40 +153,19 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, p
 		theirs.append(WorldPlayers.fighter(i, t, rng))
 	if theirs.is_empty():
 		return {}
-	var size := mini(TEAM_SIZE, mini(1 + ours.size(), theirs.size()))
-	ours.sort_custom(func(a, b):
+	var order := func(a, b):
 		if bool(a.online) != bool(b.online):
 			return bool(a.online)
-		return float(a.power) > float(b.power))
-	var ally: Array = ours.slice(0, size - 1)
+		return float(a.power) > float(b.power)
+	ours.sort_custom(order)
+	theirs.sort_custom(order)
 	var ally_power := power_of_hero
-	for f in ally:
+	for f in ours:
 		ally_power += float(f.power)
-	# The rival guild sends the `size` whose total power comes closest to ours, chosen among
-	# its first twelve (online first, then the strongest): every way to leave the rest at home.
-	theirs.sort_custom(func(a, b):
-		if bool(a.online) != bool(b.online):
-			return bool(a.online)
-		return float(a.power) > float(b.power))
-	var pool: Array = theirs.slice(0, LINEUP_POOL)
-	var enemy: Array = pool.slice(0, size)
-	var best_gap := INF
-	for mask in 1 << pool.size():
-		if _bits(mask) != size:
-			continue
-		var team: Array = []
-		var total := 0.0
-		for k in pool.size():
-			if mask & (1 << k):
-				team.append(pool[k])
-				total += float(pool[k].power)
-		if absf(total - ally_power) < best_gap:
-			best_gap = absf(total - ally_power)
-			enemy = team
 	var enemy_power := 0.0
-	for f in enemy:
+	for f in theirs:
 		enemy_power += float(f.power)
-	return {"ally": ally, "enemy": enemy, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(WorldPlayers.other_guild(guild)),
+	return {"ally": ours, "enemy": theirs, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(WorldPlayers.other_guild(guild)),
 		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true}
 
 
@@ -199,18 +176,6 @@ static func guild_war_blocked(guild: int, t: float) -> String:
 	if WorldPlayers.members_at(rival, t).is_empty():
 		return "กิลด์ %s ยังไม่มีสมาชิกถึงเลเวล %d" % [WorldPlayers.guild_name(rival), Game.GUILD_LEVEL]
 	return ""
-
-
-## How many of the rival guild are weighed for its line-up (online first, then the strongest).
-const LINEUP_POOL := 12
-
-
-static func _bits(n: int) -> int:
-	var c := 0
-	while n > 0:
-		c += n & 1
-		n >>= 1
-	return c
 
 
 ## A line-up as pool keys ("class|grade"): random classes and grades, no class more than

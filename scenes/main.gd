@@ -373,7 +373,7 @@ func _on_npc(role: String) -> void:
 		"guild":
 			var mine := Game.guild()
 			var t := WorldPresence.clock()
-			var text := "โลกนี้มีสองกิลด์ใหญ่ Alpha กับ Neverdie ผู้เล่นทุกคนเข้ากิลด์ได้เมื่อถึงเลเวล %d (ตอนนี้ Alpha มีสมาชิก %d คน Neverdie %d คน) ในสงครามกิลด์ทุกคนสู้ด้วยเลเวล ดาว และชุดจริงของตัวเอง ฝั่งละเท่ากันสูงสุด %d คน ถึงเลเวล %d แล้วเลือกเข้ากิลด์ไหน ก็ลงสงครามกับเพื่อนร่วมกิลด์นั้น" % [Game.GUILD_LEVEL, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size(), GuildWarData.TEAM_SIZE, Game.GUILD_LEVEL]
+			var text := "โลกนี้มีสองกิลด์ใหญ่ Alpha กับ Neverdie ผู้เล่นทุกคนเข้ากิลด์ได้เมื่อถึงเลเวล %d (ตอนนี้ Alpha มีสมาชิก %d คน Neverdie %d คน) ในสงครามชิงปราสาททุกคนในกิลด์ลงสนามทั้งหมด สู้ด้วยเลเวล ดาว และชุดจริงของตัวเอง ถึงเลเวล %d แล้วเลือกเข้ากิลด์ไหน ก็ลงสงครามกับเพื่อนร่วมกิลด์นั้น" % [Game.GUILD_LEVEL, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size(), Game.GUILD_LEVEL]
 			if mine > 0:
 				text = "เจ้าอยู่กิลด์ %s แล้ว ดูรายชื่อสมาชิก ใครออนไลน์อยู่แมพไหน หรือจะย้ายกิลด์ก็ได้" % WorldPlayers.guild_name(mine)
 			dialog.say("นายทะเบียนกิลด์", text, [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_screen()}, {"label": "ไว้ก่อน"}])

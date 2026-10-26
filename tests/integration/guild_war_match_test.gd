@@ -111,7 +111,7 @@ func _war(staged: bool) -> void:
 	var rows := {}
 	for f in m.enemies:
 		rows[snappedf(f.global_position.x, 0.1)] = int(rows.get(snappedf(f.global_position.x, 0.1), 0)) + 1
-	check(rows.size() == 2 and rows.values().all(func(c: int): return c == 4), "%s: the rivals stand in two rows of four (%s)" % [label, rows])
+	check(rows.size() == ceili(float(n) / float(GuildWarMatch.ROW_SLOTS)) and int(rows.values().max()) == GuildWarMatch.ROW_SLOTS, "%s: the rivals stand in rows of %d (%s)" % [label, GuildWarMatch.ROW_SLOTS, rows])
 	for side in [m.allies, m.enemies]:
 		var has_support: bool = side == m.allies and GuildWarData.is_support(Game.class_id())
 		for f in side:
@@ -234,9 +234,24 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	var hp0 := gates[0].hp
 	gates[0].take_hit(100, false)
 	check(hp0 - gates[0].hp == int(ceil(100.0 * GuildWarData.damage_scale)), "%s: the war scale applies to the gate" % label)
+	m.plans.assign(["rush", "rush"])
+	m._assign_objectives()
 	var f0: GuildFighter = m.enemies[3]
 	check(f0.objective == gates[0] and f0._targets().has(gates[0]), "%s: the fighters go for the front gate" % label)
-	check(f0.goal_point.distance_to(SiegeArena.gate_front(0)) < 6.0, "%s: and gather in front of it" % label)
+	check(f0.goal_point.distance_to(SiegeArena.gate_front(0)) < 7.0, "%s: and gather in front of it" % label)
+	# Each guild plans for itself: outnumbered it holds the bridge, worn down it regroups.
+	check(m.plan_for(GuildFighter.TEAM_ENEMY) in ["rush", "hold"], "%s: with the gates up a guild rushes them or holds the bridge" % label)
+	for f in m.allies:
+		f._dead = true
+	check(m.plan_for(GuildFighter.TEAM_ALLY) == "regroup", "%s: most of a guild down: it pulls back to regroup" % label)
+	for f in m.allies:
+		f._dead = false
+	m.plans.assign(["hold", "rush"])
+	m._assign_objectives()
+	var holders := m.allies.filter(func(f): return f.objective == null and f.hold_range > 0.0).size()
+	check(holders >= m.allies.size() / 2, "%s: holding the bridge, most keep their post instead of the gate (%d)" % [label, holders])
+	m.plans.assign(["rush", "rush"])
+	m._assign_objectives()
 	check(SiegeArena.route(Vector3(SiegeArena.BASE_X, 0, SiegeArena.BASE_Z), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[0], "%s: from a camp the way to the altar starts at the bridge" % label)
 	check(SiegeArena.route(Vector3(0, 0, -24.0), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[2] and SiegeArena.route(Vector3(0, 0, -24.0), Vector3(-30, 0, 10)) == SiegeArena.CONNECTORS[1], "%s: inside, the way runs through the gates" % label)
 	var lines: Array[String] = []
@@ -247,6 +262,8 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 		check(g.gate_index == 2 or (m.front_gate() == gates[g.gate_index + 1] and gates[g.gate_index + 1].breakable), "%s: the next gate is the one to batter" % label)
 	await _frames(2)
 	check(m.front_gate() == null and m.gates_left() == 0 and lines.size() >= 3, "%s: all three gates down and told" % label)
+	check(gates[2].max_hp > gates[1].max_hp and gates[1].max_hp > gates[0].max_hp, "%s: each gate is tougher than the one before" % label)
+	check(m.plan_for(GuildFighter.TEAM_ENEMY) in ["storm", "split", "regroup"], "%s: with the gates down a guild goes for the altar" % label)
 	check((Game.guildwar_checkpoint().gates as Array) == [0, 0, 0], "%s: broken gates are kept in the save" % label)
 	gates[0].take_hit(1000, false)
 	check(gates[0].is_dead() and gates[0].hp == 0, "%s: a broken gate stays broken" % label)

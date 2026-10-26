@@ -39,6 +39,8 @@ var objective: CastleGate
 var goal_point := Vector3.ZERO
 var capture_role := false
 var capturing := false
+## Holding a position (its guild's plan): it only turns on enemies this close (0: anyone).
+var hold_range := 0.0
 var kills := 0
 var deaths := 0
 var assists := 0
@@ -84,6 +86,9 @@ func _ready() -> void:
 	_label.font_size = 36
 	_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
 	_label.visibility_range_end = 30.0
+	# Fifty fighters on one field: far ones stop animating like far monsters do.
+	if _rv != null and _rv.hero_visual != null:
+		_rv.hero_visual.add_to_group("anim_lod")
 	_start_guard()
 
 
@@ -192,6 +197,8 @@ func _nearest_victim() -> Node3D:
 		if t != taker and _in_own_camp(t):
 			continue
 		if at_gate and not (t is CastleGate) and t != taker and d > 7.0:
+			continue
+		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range:
 			continue
 		# Inside the castle it presses on: it does not go back out for someone far behind.
 		if t != taker and SiegeArena.section(t.global_position) < my_section and d > 9.0:

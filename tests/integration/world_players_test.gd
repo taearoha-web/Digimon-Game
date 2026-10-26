@@ -479,8 +479,7 @@ func _guild() -> void:
 	while WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size() < 2 or WorldPlayers.members_at(WorldPlayers.ALPHA, early).is_empty():
 		early += 3600.0
 	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, early)
-	var want_size := mini(GuildWarData.TEAM_SIZE, mini(1 + WorldPlayers.members_at(WorldPlayers.ALPHA, early).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()))
-	check(not few.is_empty() and few.enemy.size() == want_size and few.ally.size() + 1 == want_size, "a small war is even: %d against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
+	check(not few.is_empty() and few.ally.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, early).size() and few.enemy.size() == WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size(), "everyone in both guilds fights: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
 	var all_100 := true
 	for f in few.ally + few.enemy:
 		all_100 = all_100 and int(f.member.level) >= Game.GUILD_LEVEL
@@ -489,7 +488,7 @@ func _guild() -> void:
 	rng.seed = 77
 	var t := float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0
 	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
-	check(m.ally.size() == GuildWarData.TEAM_SIZE - 1 and m.enemy.size() == GuildWarData.TEAM_SIZE, "seven allies and eight rivals")
+	check(m.ally.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, t).size() and m.enemy.size() == WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size() and m.enemy.size() > GuildWarData.TEAM_SIZE, "everyone in both guilds fights (%d and %d)" % [m.ally.size(), m.enemy.size()])
 	check(m.ally_name == "Alpha" and m.enemy_name == "Neverdie", "Alpha against Neverdie")
 	var ok_sides := true
 	var online_first := true
@@ -581,8 +580,8 @@ func _screens() -> void:
 		var theirs := true
 		for f in war.enemies:
 			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.ALPHA
-		check(war.allies.size() == GuildWarData.TEAM_SIZE - 1 and ours, "our side is seven Neverdie members")
-		check(war.enemies.size() == GuildWarData.TEAM_SIZE and theirs, "across stand eight Alpha members")
+		check(war.allies.size() == WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size() and ours, "our side is every Neverdie member (%d)" % war.allies.size())
+		check(war.enemies.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, float(war.started_at)).size() and theirs, "across stand every Alpha member (%d)" % war.enemies.size())
 		var real_levels := true
 		for f in war.allies + war.enemies:
 			var s := WorldPlayers.state(_index_of(String(f.member.name)), float(war.started_at))

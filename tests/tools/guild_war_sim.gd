@@ -2,7 +2,9 @@ extends Node
 ## Plays a guild war in fast forward (headless) to check the fight: who falls, how often,
 ## the longest single hit, how the siege goes (gates, the altar, the castle's holder), that
 ## the war ends and the result is paid out.
-##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale] [damage scale] [open]
+##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale] [damage scale] [mode]
+## mode: "open" starts with the gates down; "guild" fights Alpha against Neverdie with every
+## member (run with TOON_WORLD_DAYS=20 so the guilds are full); "guild_open" both.
 var _kills: Array[String] = []
 var _hit_max := 0.0
 var _finished := false
@@ -38,6 +40,9 @@ func _ready() -> void:
 	for slot in ItemData.SLOTS:
 		Game.profile.equip[slot] = StarProgression.item(cls, 150, slot, gear_rng)
 	Game.profile.equip["wings"] = StarWingData.item(String(cls), gear_rng)
+	var mode := String(args[4]) if args.size() > 4 else ""
+	if mode.contains("guild"):
+		Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.ALPHA
 	Game.current_zone = &"guildwar"
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
@@ -49,7 +54,7 @@ func _ready() -> void:
 		return
 	m.time_left = seconds
 	# "open": the gates are already down (to watch the fight for the altar).
-	if args.size() > 4 and args[4] == "open":
+	if mode.contains("open"):
 		for g in m.gates:
 			g.set_broken_quietly()
 		m._update_breakable()
@@ -59,8 +64,9 @@ func _ready() -> void:
 		print("RESULT won=%s score %d:%d kills=%d deaths=%d gold=%d exp=%d" % [r.won, r.score_us, r.score_them, r.kills, r.deaths, r.gold, r.exp]))
 	var hero := zone.hero
 	var fighters := m.all_fighters().size()
-	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, 2 * GuildWarData.TEAM_SIZE - 1, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
-	if fighters != 2 * GuildWarData.TEAM_SIZE - 1:
+	var expected: int = 2 * GuildWarData.TEAM_SIZE - 1 if not bool(m.roster.get("guilds", false)) else m.roster.ally.size() + m.roster.enemy.size()
+	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, expected, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	if fighters != expected:
 		printerr("FAIL: %d fighters" % fighters)
 		get_tree().quit(1)
 		return

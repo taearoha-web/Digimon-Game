@@ -1,32 +1,48 @@
 class_name GuildWarMatch
 extends Node
-## One guild war, a castle siege (SiegeArena): the hero and its guild against the other
-## guild for 30 minutes. Each guild comes from its camp (ours on the left, theirs on the
+## One guild war, a castle siege (SiegeArena): the hero and everyone in its guild against
+## everyone in the other guild for 30 minutes. Each guild comes from its camp (ours on the left, theirs on the
 ## right), they meet on the plaza and cross the bridge to the castle, where three gates
 ## (CastleGate) must be broken one after the other; broken gates stay broken. Behind them
 ## is the throne room: whoever stands on the altar for CAPTURE_TIME seconds without falling
 ## takes the castle for its guild, and the other guild may take it back the same way. The
 ## guild holding the castle at the bell wins (with no holder, the most falls; a tie goes to
 ## sudden death). The fallen come back at their camp after a few seconds and walk back.
+## Each guild's AI makes its own plan from how the war stands (plan_for): rush the gate,
+## hold the bridge and strike back, pull back and regroup, storm the altar, split to block
+## the way in while one takes the altar, or defend the castle; plans are told in the feed.
 
 signal finished(result: Dictionary)
 signal feed(text: String, team: int)
 signal hero_down(seconds: float)
 signal hero_back()
 
-## Each guild lines up in rows of four at its camp (ours: four in front, three behind the
-## hero's row), this far apart sideways and front to back, so sixteen fighters never overlap.
-const ROW_SLOTS := 4
-const ROW_GAP := 4.0
+## Each guild lines up in rows of six at its camp (ours behind the hero's spot), this far
+## apart sideways and front to back, so fifty fighters never overlap.
+const ROW_SLOTS := 6
+const ROW_GAP := 3.2
 const ROW_DEPTH := 3.4
 ## Our rows stand this much behind the hero's spot, the hero at the front and centre.
-const ALLY_SETBACK := 1.8
+const ALLY_SETBACK := 2.4
 const COUNTDOWN := 4.2
 ## Seconds on the altar to take the castle.
 const CAPTURE_TIME := 60.0
-## A gate holds out about this long against a whole guild hitting it (its HP is set from
-## the fighters' strength, so a war of weaker members takes as long as one of stronger).
-const GATE_SECONDS := 36.0
+## A gate holds out about this long against both whole guilds hitting it at once (its HP is
+## set from all the fighters' strength, so more or stronger fighters meet a stronger door),
+## each gate harder than the one before.
+const GATE_SECONDS := 60.0
+const GATE_TOUGHNESS: Array[float] = [1.0, 1.25, 1.5]
+## How often a guild looks again at its plan (and at once when a gate falls or the altar changes).
+const PLAN_EVERY := 12.0
+const PLAN_NAMES := {
+	"rush": "รวมพลบุกตีประตู",
+	"hold": "ตั้งรับที่หัวสะพาน รอสวนกลับ",
+	"regroup": "ถอยมารวมพลที่ลานกลาง รอเพื่อนเกิดแล้วค่อยบุก",
+	"storm": "ทั้งกิลด์บุกห้องบัลลังก์ ยึดแท่น",
+	"split": "แบ่งทีม: ครึ่งหนึ่งขวางทางหน้าห้องบัลลังก์ อีกครึ่งคุ้มกันคนยึดแท่น",
+	"defend": "ล้อมแท่นปราสาท ตั้งรับ",
+	"forward": "ตั้งแนวรับหน้าห้องบัลลังก์ ไม่ให้ใครเข้าใกล้แท่น",
+}
 const NEUTRAL_COLOR := Color("fff1b8")
 
 var zone: Node3D
@@ -50,6 +66,9 @@ var roster: Dictionary = {}
 var gates: Array[CastleGate] = []
 var castle_owner := -1
 var capture: Dictionary = {}
+## Each guild's plan now (PLAN_NAMES keys; [ours, theirs]).
+var plans: Array[String] = ["", ""]
+var _plan_timer := 0.0
 
 ## Seed of the line-ups: the same seed brings the same two guilds back after a resume.
 var roll_seed := 0
@@ -192,6 +211,7 @@ func _process(delta: float) -> void:
 				save_checkpoint()
 				for f in all_fighters():
 					f.start_fight()
+				_make_plans()
 				_assign_objectives()
 				zone.banner_requested.emit("บุก!!")
 				AudioManager.play_sfx(&"quest_complete", -2.0)
@@ -227,6 +247,10 @@ func _tick_fight(delta: float) -> void:
 		hero_respawn_left -= delta
 		if hero_respawn_left <= 0.0:
 			_respawn_hero()
+	_plan_timer -= delta
+	if _plan_timer <= 0.0:
+		_plan_timer = PLAN_EVERY
+		_make_plans()
 	_objective_timer -= delta
 	if _objective_timer <= 0.0:
 		_objective_timer = 0.5
@@ -304,11 +328,11 @@ func _raise_castle(saved: Dictionary) -> void:
 		ours += float(f.rstats.atk)
 	for f in enemies:
 		theirs += float(f.rstats.atk)
-	var gate_hp := int(maxf(50000.0, GATE_SECONDS * (ours + theirs) * 0.5 * GuildWarData.damage_scale))
+	var gate_hp := maxf(200000.0, GATE_SECONDS * (ours + theirs) * GuildWarData.damage_scale)
 	var left: Array = saved.get("gates", [])
 	for k in SiegeArena.GATE_Z.size():
 		var gate := CastleGate.new()
-		gate.setup_gate(k, Vector3(0, 0, SiegeArena.GATE_Z[k]), gate_hp, hero)
+		gate.setup_gate(k, Vector3(0, 0, SiegeArena.GATE_Z[k]), int(gate_hp * GATE_TOUGHNESS[k]), hero)
 		gate.position = Vector3(0, 0, SiegeArena.GATE_Z[k])
 		zone.add_child(gate)
 		gate.broken.connect(_on_gate_broken)
@@ -353,6 +377,7 @@ func _update_breakable() -> void:
 
 func _on_gate_broken(gate: CastleGate) -> void:
 	_update_breakable()
+	_make_plans()
 	var text := "ประตูปราสาทชั้นที่ %d พังแล้ว!" % (gate.gate_index + 1)
 	if front_gate() == null:
 		text = "ประตูชั้นสุดท้ายพัง! บุกห้องบัลลังก์ ยืนบนแท่น %d วินาทีเพื่อยึดปราสาท" % int(CAPTURE_TIME)
@@ -362,27 +387,106 @@ func _on_gate_broken(gate: CastleGate) -> void:
 	save_checkpoint()
 
 
-## Who goes where: at a gate, everyone to its front (fighting whoever is there); in the
-## throne room the castle's holder stands round the altar and the other guild sends one
-## fighter onto it while the rest clear the way.
+## How many of a side are standing, and how many it has (our side counts the hero).
+func _strength(team: int) -> Vector2i:
+	var side := allies if team == GuildFighter.TEAM_ALLY else enemies
+	var up := 0
+	for f in side:
+		up += 0 if f.is_dead() else 1
+	var total := side.size()
+	if team == GuildFighter.TEAM_ALLY:
+		total += 1
+		up += 1 if is_instance_valid(hero) and not hero.is_dead() else 0
+	return Vector2i(up, maxi(1, total))
+
+
+## A guild's plan from how the war stands: with the gates up it rushes the gate, or holds
+## the bridge when the other guild has many more standing; with the gates down it storms
+## or splits (one group blocks the way into the throne room) while it does not hold the
+## castle, defends it (on the altar, or forward at the throne room's door when stronger)
+## while it does; it pulls back to regroup when most of it has fallen, until most are back.
+func plan_for(team: int) -> String:
+	var mine := _strength(team)
+	var theirs := _strength(1 - team)
+	var share := float(mine.x) / float(mine.y)
+	var was := plans[team]
+	var holding := castle_owner == team
+	var rival_taking := not capture.is_empty() and int(capture.team) != team
+	if not holding and not rival_taking and (share < 0.4 or (was == "regroup" and share < 0.7)):
+		return "regroup"
+	if front_gate() != null:
+		return "hold" if float(mine.x) < float(theirs.x) * 0.7 else "rush"
+	if holding:
+		return "forward" if mine.x >= theirs.x and not rival_taking else "defend"
+	if rival_taking or mine.x < 6:
+		return "storm"
+	return "split" if mine.x >= theirs.x else "storm"
+
+
+func _make_plans() -> void:
+	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		var plan := plan_for(team)
+		if plan != plans[team]:
+			plans[team] = plan
+			if state == "fight":
+				feed.emit("กิลด์ %s วางแผน: %s" % [team_name(team), PLAN_NAMES[plan]], team)
+
+
+## A spot round `center`: fighter k of a group spread on a ring (or a line across the hall).
+static func _spot(center: Vector3, k: int, radius: float, phase := 0.0) -> Vector3:
+	var angle := TAU * float(k % 10) / 10.0 + phase
+	var ring := radius + float(k / 10) * 1.6
+	return center + Vector3(cos(angle) * ring, 0, sin(angle) * ring * 0.6)
+
+
+## Who goes where under each guild's plan (and who of a guild not holding the castle is
+## sent onto the altar).
 func _assign_objectives() -> void:
 	var gate := front_gate()
-	for side in [allies, enemies]:
+	var throne_door := Vector3(0, 0, SiegeArena.GATE_Z[2] - 3.0)
+	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		var side := allies if team == GuildFighter.TEAM_ALLY else enemies
+		var plan := plans[team] if plans[team] != "" else plan_for(team)
+		var toward := -1.0 if team == GuildFighter.TEAM_ALLY else 1.0
 		var k := 0
 		for f in side:
-			f.objective = gate
 			f.capture_role = false
-			var spread := float(k % 5 - 2) * 1.6
-			if gate != null:
-				f.goal_point = SiegeArena.gate_front(gate.gate_index) + Vector3(spread, 0, float(k / 5) * 2.0)
-			else:
-				var angle := TAU * float(k) / 8.0 + (0.0 if f.team == GuildFighter.TEAM_ALLY else PI / 8.0)
-				f.goal_point = SiegeArena.ALTAR + Vector3(cos(angle), 0, sin(angle)) * (SiegeArena.ALTAR_RADIUS + 2.5)
+			f.hold_range = 0.0
+			f.objective = gate
+			match plan:
+				"regroup":
+					f.objective = null
+					f.hold_range = 14.0
+					f.goal_point = _spot(SiegeArena.PLAZA + Vector3(toward * 16.0, 0, 6.0), k, 4.0)
+				"hold":
+					# Most hold the bridge foot on the plaza; one in four keeps at the gate.
+					if k % 4 != 0:
+						f.objective = null
+						f.hold_range = 16.0
+						f.goal_point = _spot(Vector3(toward * 6.0, 0, -1.0), k, 3.0, PI * 0.5)
+					else:
+						f.goal_point = SiegeArena.gate_front(gate.gate_index) + Vector3(float(k % 5 - 2) * 1.6, 0, 0) if gate != null else SiegeArena.ALTAR
+				"rush":
+					f.goal_point = SiegeArena.gate_front(gate.gate_index) + Vector3(float(k % 7 - 3) * 1.3, 0, float(k / 7) * 1.8) if gate != null else SiegeArena.ALTAR
+				"split":
+					if k % 2 == 0:
+						f.hold_range = 10.0
+						f.goal_point = throne_door + Vector3(float(k % 9 - 4) * 1.4, 0, 0)
+					else:
+						f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.5)
+				"forward":
+					f.hold_range = 12.0
+					f.goal_point = throne_door + Vector3(float(k % 9 - 4) * 1.4, 0, float(k / 9) * -1.6) if k % 3 != 0 else _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 1.5)
+				"defend":
+					f.hold_range = 12.0
+					f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.0, 0.0 if team == GuildFighter.TEAM_ALLY else PI / 10.0)
+				_:
+					f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.5)
 			k += 1
 	if gate != null:
 		return
 	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
-		if castle_owner == team:
+		if castle_owner == team or plans[team] == "regroup":
 			continue
 		if not capture.is_empty() and int(capture.team) == team:
 			if capture.who is GuildFighter:
@@ -402,6 +506,7 @@ func _assign_objectives() -> void:
 				runner = f
 		if runner != null:
 			runner.capture_role = true
+			runner.hold_range = 0.0
 
 
 ## The fighter or hero standing on the altar to take it (null when nobody is).
@@ -451,6 +556,7 @@ func _start_capture(team: int, who: Node3D) -> void:
 		(who as GuildFighter).capturing = true
 	var who_name := "คุณ" if who == hero else (who as GuildFighter).rival_name
 	feed.emit("%s เริ่มยึดแท่นปราสาท! (%d วินาที)" % [who_name, int(CAPTURE_TIME)], team)
+	_make_plans()
 	zone.banner_requested.emit("%s กำลังยึดแท่นปราสาท!" % team_name(team))
 	AudioManager.play_sfx(&"star_charge", -4.0)
 
@@ -471,6 +577,7 @@ func _complete_capture() -> void:
 	capture = {}
 	castle_owner = team
 	_color_crystal()
+	_make_plans()
 	VfxKit.pillar(zone, SiegeArena.ALTAR, _owner_color(), 14.0, 1.6, 1.6)
 	VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.3, 0), _owner_color(), 9.0)
 	zone.banner_requested.emit("กิลด์ %s ยึดปราสาทได้!" % team_name(team))
@@ -516,6 +623,14 @@ func siege_status() -> String:
 	if not capture.is_empty():
 		parts.append("กิลด์ %s กำลังยึด %d/%d วิ" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME)])
 	return " · ".join(parts)
+
+
+## The HUD's second line: who is standing on each side and our guild's plan.
+func sides_status() -> String:
+	var ours := _strength(GuildFighter.TEAM_ALLY)
+	var theirs := _strength(GuildFighter.TEAM_ENEMY)
+	var plan := String(PLAN_NAMES.get(plans[GuildFighter.TEAM_ALLY], ""))
+	return "%s ยืนอยู่ %d/%d · %s ยืนอยู่ %d/%d%s" % [ally_name, ours.x, ours.y, enemy_name, theirs.x, theirs.y, (" · แผนกิลด์เรา: " + plan) if plan != "" else ""]
 
 
 # ---------------------------------------------------------------------------
