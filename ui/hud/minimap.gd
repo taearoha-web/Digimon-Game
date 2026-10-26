@@ -58,7 +58,10 @@ func _draw() -> void:
 	for node in zone.get_tree().get_nodes_in_group("world_players"):
 		var other := node as FieldPlayer
 		if other and other.visible and not other.is_dead():
-			_dot(c, _to_map(other.global_position, origin, yaw), WorldPlayers.GUILD_COLORS.get(int(WorldPlayers.entry(other.world_index).guild), Color.WHITE), 3.5)
+			_dot(c, _to_map(other.global_position, origin, yaw), WorldPlayers.GUILD_COLORS.get(WorldPlayers.guild_at(other.world_index, int(other.member.level)), Color.WHITE), 3.5)
+	# The castle siege: the altar (in its holder's colour) is always on the map, on the rim when far.
+	if zone.gw_match != null:
+		_dot(c, _to_map(SiegeArena.ALTAR, origin, yaw), zone.gw_match._owner_color(), 7.0, true)
 	# The hero: an arrow showing where they face relative to the camera.
 	var facing := zone.hero._facing - yaw
 	var dir := Vector2(sin(facing), -cos(facing))

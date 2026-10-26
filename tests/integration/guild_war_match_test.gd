@@ -1,8 +1,10 @@
 extends Node
-## The guild war end to end (headless): teams and groups, the countdown, the damage rules
-## (war scale, hit cap, burst cap), a fall scoring and the fighter coming back, the hero
-## falling and returning, the power orb, sudden death, the result and its pay-out, and the
-## ranked-duel opponent (Lv.100 / 200 stars, only the gear grows with the rank).
+## The guild war end to end (headless): teams and groups, the camps, the countdown, the
+## damage rules (war scale, hit cap, burst cap), a fall scoring and the fighter coming back,
+## the hero falling and returning to camp, the castle siege (gates broken in order and for
+## good, the way over the bridge, taking the altar and losing it, the holder winning at the
+## bell), sudden death, the result and its pay-out, a resume with the castle as it was, and
+## the ranked-duel opponent (Lv.100 / 200 stars, only the gear grows with the rank).
 ## godot --headless --path . res://tests/integration/guild_war_match_test.tscn
 var failures: Array[String] = []
 var checks := 0
@@ -79,7 +81,8 @@ func _war(staged: bool) -> void:
 	check(n == 8 and m.allies.size() == n - 1 and m.enemies.size() == n, "%s: hero + 7 allies against 8" % label)
 	check(Game.potion_count(GuildWarData.SUPPLY_POTION) == GuildWarData.SUPPLY_COUNT and GuildWarData.SUPPLY_COUNT == 40, "%s: the hero gets the war rations (40)" % label)
 	check(ItemData.POTIONS[GuildWarData.SUPPLY_POTION].hp == 5000, "%s: a war potion restores 5,000 HP" % label)
-	check(get_tree().get_nodes_in_group("mobs").size() == n, "%s: only the rival guild is a monster to the hero" % label)
+	check(get_tree().get_nodes_in_group("mobs").filter(func(x): return x is GuildFighter).size() == n, "%s: only the rival guild is a monster to the hero" % label)
+	check(get_tree().get_nodes_in_group("castle_gates").size() == 3 and m.gates.size() == 3, "%s: the castle has three gates" % label)
 	check(get_tree().get_nodes_in_group("companions").size() == n - 1, "%s: allies stand with the hero" % label)
 	for f in m.allies:
 		check(not f.is_in_group("mobs") and f.team == GuildFighter.TEAM_ALLY and f.is_in_group("gw_team0"), "ally is on our side only")
@@ -96,8 +99,9 @@ func _war(staged: bool) -> void:
 			alive += 1
 		standing.append(f)
 		check(f.global_position.distance_to(f.spawn_point) < 0.5, "%s: %s starts on its mark" % [label, f.rival_name])
-		check(Vector2(f.global_position.x, f.global_position.z).length() < PvpArena.RADIUS - 6.0, "%s: %s starts well inside the arena" % [label, f.rival_name])
-		check((f.global_position.x < -GuildWarMatch.SPAWN_X) if f.team == GuildFighter.TEAM_ALLY else (f.global_position.x >= GuildWarMatch.SPAWN_X), "%s: %s is on its guild's side" % [label, f.rival_name])
+		check(Vector2(f.global_position.x, f.global_position.z).length() < SiegeArena.RADIUS - 6.0, "%s: %s starts well inside the field" % [label, f.rival_name])
+		check((f.global_position.x < -SiegeArena.BASE_X + 0.01) if f.team == GuildFighter.TEAM_ALLY else (f.global_position.x >= SiegeArena.BASE_X - 0.01), "%s: %s starts in its guild's camp" % [label, f.rival_name])
+	check(hero.global_position.distance_to(GuildWarMatch.hero_camp()) < 1.0, "%s: the hero starts in our camp on the left" % label)
 	check(alive == 2 * n - 1, "%s: all %d fighters are alive and whole at the start" % [label, 2 * n - 1])
 	var closest := 1.0e9
 	for a in standing.size():
@@ -170,38 +174,43 @@ func _war(staged: bool) -> void:
 	m.hero_respawn_left = 0.02
 	await _frames(6)
 	check(not hero.is_dead() and int(Game.profile.hp) == int(hero.stats.max_hp), "%s: the hero returns at full health" % label)
-	check(hero.global_position.distance_to(Vector3(-GuildWarMatch.SPAWN_X, 0.3, 0.0)) < 2.0, "%s: at our base" % label)
-	# The power orb.
-	m._orb_timer = 0.0
-	await _frames(3)
-	check(m.orb_active, "%s: the power orb appears" % label)
-	hero.global_position = m.orb_position
-	await _frames(4)
-	check(not m.orb_active and hero._buffs.size() > 0, "%s: taking the orb buffs the hero's guild" % label)
-	# Sudden death: tied at the bell, the next fall wins.
-	m.score = [3, 3]
-	m.time_left = 0.01
-	await _frames(4)
-	check(m.overtime and m.state == "fight", "%s: a tie at the bell goes to sudden death" % label)
+	check(hero.global_position.distance_to(GuildWarMatch.hero_camp()) < 2.0, "%s: back in our camp" % label)
+	await _siege(m, zone, hero, label, staged)
 	var finished := {"done": false, "result": {}}
 	m.finished.connect(func(r: Dictionary):
 		finished.done = true
 		finished.result = r)
-	var foe: GuildFighter = m.enemies[1]
-	for f in m.all_fighters():
-		f._guard_until = 0
-	foe._dodge = 0.0
-	var tries := 0
-	while not foe.is_dead() and tries < 60:
-		BurstGuard.clear()
-		foe.take_hit(foe.max_hp, false)
-		tries += 1
-	check(m.state in ["ending", "done"], "%s: the next fall ends the war" % label)
+	if staged:
+		# The castle's holder wins at the bell, whatever the falls.
+		m.score = [0, 9]
+		m.time_left = 0.01
+		await _frames(4)
+		check(not m.overtime and m.state in ["ending", "done"], "%s: the bell ends a war with a holder" % label)
+	else:
+		# Nobody holds the castle and the falls are tied at the bell: the next fall wins.
+		check(m.castle_owner == -1, "%s: nobody holds the castle yet" % label)
+		m.score = [3, 3]
+		m.time_left = 0.01
+		await _frames(4)
+		check(m.overtime and m.state == "fight", "%s: a tie at the bell goes to sudden death" % label)
+		var foe: GuildFighter = m.enemies[1]
+		for f in m.all_fighters():
+			f._guard_until = 0
+		foe._dodge = 0.0
+		var tries := 0
+		while not foe.is_dead() and tries < 60:
+			BurstGuard.clear()
+			foe.take_hit(foe.max_hp, false)
+			tries += 1
+		check(m.state in ["ending", "done"], "%s: the next fall ends the war" % label)
 	m._end_timer = 0.05
 	await get_tree().create_timer(0.4).timeout
 	check(finished.done, "%s: the war reports its result" % label)
 	var r: Dictionary = finished.result
-	check(bool(r.get("won", false)) and int(r.get("score_us", 0)) > int(r.get("score_them", 0)), "%s: we won on the sudden-death fall" % label)
+	if staged:
+		check(bool(r.get("won", false)) and int(r.get("score_us", 0)) < int(r.get("score_them", 0)) and bool(r.get("castle_ours", false)) and String(r.get("castle", "")) == m.ally_name, "%s: holding the castle wins with fewer falls" % label)
+	else:
+		check(bool(r.get("won", false)) and int(r.get("score_us", 0)) > int(r.get("score_them", 0)) and String(r.get("castle", "x")) == "", "%s: we won on the sudden-death fall" % label)
 	check(int(r.get("gold", 0)) >= GuildWarData.gold_reward(true) and int(Game.profile.gold) >= gold_before + int(r.gold), "%s: the reward is paid" % label)
 	check((r.get("rows", []) as Array).size() == 2 * n, "%s: the scoreboard lists the hero and fifteen fighters" % label)
 	check(Game.guildwar_checkpoint().is_empty(), "%s: a finished war leaves nothing to resume" % label)
@@ -211,8 +220,81 @@ func _war(staged: bool) -> void:
 	await _frames(3)
 
 
+## The castle: the front gate only takes hits (with the war scale), a standing gate blocks
+## the way, broken gates stay broken; the way over the bridge; the hero takes the altar from
+## the interact button, leaving it breaks the hold, a rival on it is stopped by felling it,
+## and (when `take`) a full minute gives our guild the castle.
+func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool) -> void:
+	var gates := m.gates
+	check(m.front_gate() == gates[0] and gates[0].breakable and not gates[1].breakable and not gates[2].breakable, "%s: only the front gate can be battered" % label)
+	check(is_instance_valid(gates[0]._blocker), "%s: a standing gate blocks the way" % label)
+	var hp1 := gates[1].hp
+	gates[1].take_hit(1000, false)
+	check(gates[1].hp == hp1, "%s: a gate behind another takes no hits" % label)
+	var hp0 := gates[0].hp
+	gates[0].take_hit(100, false)
+	check(hp0 - gates[0].hp == int(ceil(100.0 * GuildWarData.damage_scale)), "%s: the war scale applies to the gate" % label)
+	var f0: GuildFighter = m.enemies[3]
+	check(f0.objective == gates[0] and f0._targets().has(gates[0]), "%s: the fighters go for the front gate" % label)
+	check(f0.goal_point.distance_to(SiegeArena.gate_front(0)) < 6.0, "%s: and gather in front of it" % label)
+	check(SiegeArena.route(Vector3(SiegeArena.BASE_X, 0, SiegeArena.BASE_Z), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[0], "%s: from a camp the way to the altar starts at the bridge" % label)
+	check(SiegeArena.route(Vector3(0, 0, -24.0), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[2] and SiegeArena.route(Vector3(0, 0, -24.0), Vector3(-30, 0, 10)) == SiegeArena.CONNECTORS[1], "%s: inside, the way runs through the gates" % label)
+	var lines: Array[String] = []
+	m.feed.connect(func(text: String, _t: int): lines.append(text))
+	for g in gates:
+		g.take_damage(float(g.max_hp) * 2.0)
+		check(g.is_dead() and (not is_instance_valid(g._blocker) or g._blocker.is_queued_for_deletion()), "%s: gate %d breaks and opens" % [label, g.gate_index + 1])
+		check(g.gate_index == 2 or (m.front_gate() == gates[g.gate_index + 1] and gates[g.gate_index + 1].breakable), "%s: the next gate is the one to batter" % label)
+	await _frames(2)
+	check(m.front_gate() == null and m.gates_left() == 0 and lines.size() >= 3, "%s: all three gates down and told" % label)
+	check((Game.guildwar_checkpoint().gates as Array) == [0, 0, 0], "%s: broken gates are kept in the save" % label)
+	gates[0].take_hit(1000, false)
+	check(gates[0].is_dead() and gates[0].hp == 0, "%s: a broken gate stays broken" % label)
+	# The hero on the altar: the interact button takes it; stepping off breaks the hold.
+	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	await _frames(2)
+	check(m.hero_can_capture(), "%s: standing on the altar the hero may take it" % label)
+	zone._update_interact()
+	check(zone.current_interact.has("altar"), "%s: the interact button offers the altar" % label)
+	zone.interact()
+	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ALLY and m.capturer() == hero, "%s: the hero starts taking the castle" % label)
+	await _frames(3)
+	check(float(m.capture.progress) > 0.0 and m.siege_status().contains("กำลังยึด"), "%s: the hold counts up and the HUD tells" % label)
+	hero.global_position = SiegeArena.ALTAR + Vector3(9.0, 0.3, 0)
+	await _frames(3)
+	check(m.capture.is_empty() and m.castle_owner == -1, "%s: stepping off the altar breaks the hold" % label)
+	# A rival sent onto the altar starts taking it; felling it stops it.
+	var foe: GuildFighter = m.enemies[2]
+	foe._guard_until = 0
+	foe._dodge = 0.0
+	foe.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	foe.capture_role = true
+	await _frames(3)
+	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ENEMY and foe.capturing, "%s: a rival on the altar starts taking the castle" % label)
+	check(m.allies.is_empty() or m.allies[0]._targets().has(foe), "%s: our guild can strike the one on the altar" % label)
+	var tries := 0
+	while not foe.is_dead() and tries < 60:
+		BurstGuard.clear()
+		foe.take_hit(foe.max_hp, false)
+		tries += 1
+	await _frames(3)
+	check(foe.is_dead() and m.capture.is_empty() and m.castle_owner == -1, "%s: felling it stops the hold" % label)
+	if not take:
+		hero.global_position = GuildWarMatch.hero_camp()
+		return
+	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	await _frames(2)
+	check(m.hero_can_capture(), "%s: back on the altar the hero may take it again (cap %s owner %d dead %s at %s)" % [label, m.capture, m.castle_owner, hero.is_dead(), hero.global_position])
+	m.start_hero_capture()
+	m.capture["progress"] = GuildWarMatch.CAPTURE_TIME - 0.05
+	await get_tree().create_timer(0.25).timeout
+	check(m.castle_owner == GuildFighter.TEAM_ALLY and m.capture.is_empty(), "%s: a full minute on the altar takes the castle (owner %d capture %s state %s)" % [label, m.castle_owner, m.capture, m.state])
+	check(int(Game.guildwar_checkpoint().owner) == GuildFighter.TEAM_ALLY, "%s: the holder is kept in the save" % label)
+	check(not m.hero_can_capture(), "%s: nothing to take while we hold it" % label)
+
+
 ## A war cut off by the phone throwing the page away comes back with the same guilds,
-## clock and score.
+## clock and score, the broken gates and the castle's holder.
 func _resume() -> void:
 	Game.current_zone = &"guildwar"
 	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)
@@ -238,6 +320,18 @@ func _resume() -> void:
 		zone.queue_free()
 		await _frames(3)
 	check(lineups[0] == lineups[1], "resume: the same seed brings the same two guilds")
+	# The castle as it was: the first gate down, the second half broken, the rivals holding it.
+	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2, 0, {"gates": [0, 500, 1000], "owner": GuildFighter.TEAM_ENEMY})
+	Game.guildwar_resuming = true
+	var back := Zone.new()
+	back.zone_id = &"guildwar"
+	add_child(back)
+	var bm: GuildWarMatch = back.gw_match
+	check(bm != null and bm.gates[0].is_dead() and not bm.gates[1].is_dead() and absi(bm.gates[1].hp - bm.gates[1].max_hp / 2) <= 2 and bm.gates[2].hp == bm.gates[2].max_hp, "resume: the gates come back as they were")
+	check(bm != null and bm.castle_owner == GuildFighter.TEAM_ENEMY and bm.front_gate() == bm.gates[1], "resume: and so does the castle's holder")
+	back.queue_free()
+	await _frames(3)
+	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)
 	# The desk (for a hero in a guild) offers the unfinished war next to a new one, on a day
 	# when the other guild has members at Lv.100 to fight.
 	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 - WorldPlayers.now()

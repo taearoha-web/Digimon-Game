@@ -1,7 +1,8 @@
 extends Node
 ## Plays a guild war in fast forward (headless) to check the fight: who falls, how often,
-## the longest single hit, that the war ends and the result is paid out.
-##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale]
+## the longest single hit, how the siege goes (gates, the altar, the castle's holder), that
+## the war ends and the result is paid out.
+##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale] [damage scale] [open]
 var _kills: Array[String] = []
 var _hit_max := 0.0
 var _finished := false
@@ -47,6 +48,11 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	m.time_left = seconds
+	# "open": the gates are already down (to watch the fight for the altar).
+	if args.size() > 4 and args[4] == "open":
+		for g in m.gates:
+			g.set_broken_quietly()
+		m._update_breakable()
 	m.feed.connect(func(text: String, team: int): _kills.append("%3d %s" % [int(seconds - m.time_left), text]))
 	m.finished.connect(func(r: Dictionary):
 		_finished = true
@@ -75,7 +81,7 @@ func _ready() -> void:
 			_census0 = _census(zone)
 		if _tick % 10 == 0:
 			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " objects ", int(Performance.get_monitor(Performance.OBJECT_COUNT)), " resources ", int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)), " orphans ", int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size())
-			print("  t+%ds state=%s left=%d score=%s hero_hp=%d" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp)])
+			print("  t+%ds state=%s left=%d score=%s hero_hp=%d · %s" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp), m.siege_status()])
 	Engine.time_scale = 1.0
 	var now := _census(zone)
 	var grow: Array = []

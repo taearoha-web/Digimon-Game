@@ -1,6 +1,7 @@
 extends Node
-## Screenshots of the guild war through the real game scenes: lobby, the arena at the start,
-## the fight and the result. xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/guild_war_shots.tscn -- <out_dir> [class]
+## Screenshots of the guild war through the real game scenes: lobby, the castle siege's
+## camp, the battlefield from above, the bridge and gate, the throne room, the hero taking
+## the altar, the fight and the result. xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/guild_war_shots.tscn -- <out_dir> [class]
 var out_dir := "user://shots"
 var main: Node
 var _n := 0
@@ -51,28 +52,50 @@ func _ready() -> void:
 	main.guildwar_screen.close_screen()
 	await main.go(&"guildwar", false, true)
 	await _wait(1.0)
-	await _shot("arena_intro")
-	# Both guilds' rows from above the centre line, before anybody moves.
+	await _shot("camp_intro")
 	var zone: Zone = main.zone
+	var m: GuildWarMatch = zone.gw_match
+	var play_camera := get_viewport().get_camera_3d()
 	var overhead := Camera3D.new()
 	zone.add_child(overhead)
-	overhead.global_position = Vector3(0.0, 34.0, 26.0)
-	overhead.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
-	overhead.fov = 62.0
-	var play_camera := get_viewport().get_camera_3d()
+	overhead.fov = 60.0
+	# The whole battlefield from high above the plaza: camps, moat, bridge, castle.
+	overhead.global_position = Vector3(0.0, 92.0, 62.0)
+	overhead.look_at(Vector3(0.0, 0.0, -14.0), Vector3.UP)
 	overhead.current = true
+	await _wait(0.4)
+	await _shot("battlefield")
+	# The bridge and the first gate.
+	overhead.global_position = Vector3(10.0, 16.0, 6.0)
+	overhead.look_at(Vector3(0.0, 2.0, -18.0), Vector3.UP)
 	await _wait(0.3)
-	await _shot("formation")
+	await _shot("bridge_gate")
+	# The throne room and its altar.
+	for g in m.gates:
+		g.set_broken_quietly()
+	m._update_breakable()
+	overhead.global_position = Vector3(0.0, 22.0, -30.0)
+	overhead.look_at(SiegeArena.ALTAR + Vector3(0, 1.0, 0), Vector3.UP)
+	await _wait(0.3)
+	await _shot("throne_room")
 	play_camera.current = true
 	overhead.queue_free()
 	await _wait(5.2)
 	await _shot("fight_start")
-	zone.hero.global_position = Vector3(-4.0, 0.3, 0.0)
-	zone.hero.set_auto(true)
-	for t in 4:
+	# The hero takes the altar.
+	zone.hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	await _wait(1.0)
+	m.start_hero_capture()
+	await _wait(2.0)
+	await _shot("taking_altar")
+	m.capture["progress"] = GuildWarMatch.CAPTURE_TIME - 0.2
+	await _wait(1.2)
+	await _shot("castle_taken")
+	print("SIEGE ", m.siege_status())
+	for t in 2:
 		await _wait(9.0)
 		var fps := Engine.get_frames_per_second()
-		print("PERF t=%d fps=%d tris=%d draws=%d score=%s hero_hp=%d" % [t, fps, int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)), zone.gw_match.score, int(Game.profile.hp)])
+		print("PERF t=%d fps=%d tris=%d draws=%d score=%s hero_hp=%d" % [t, fps, int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)), m.score, int(Game.profile.hp)])
 		await _shot("fight_%d" % t)
 	zone.gw_match.time_left = 1.0
 	await _wait(6.0)

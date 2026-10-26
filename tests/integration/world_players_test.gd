@@ -216,7 +216,8 @@ func _field() -> void:
 		check(bot != null and not bot.is_in_group("companions"), "a world player is not the hero's companion")
 		var s := WorldPlayers.state(bot.world_index, WorldPresence.clock())
 		check(String(s.place) == String(zone.zone_id) and int(bot.member.level) == int(s.level), "%s is here at its scheduled level" % bot.member.name)
-		check(String(bot._label.text).begins_with("[%s] %s" % [WorldPlayers.guild_name(int(s.guild)), s.name]), "the name tag shows the guild and name")
+		var tag := ("[%s] %s" % [WorldPlayers.guild_name(int(s.guild)), s.name]) if int(s.guild) > 0 else "%s Lv." % s.name
+		check(String(bot._label.text).begins_with(tag), "the name tag shows the name, and the guild from Lv.100 (%s)" % bot._label.text)
 		if int(bot.world_index) == int(moment[1]):
 			shown_index = bot.world_index
 	check(shown_index >= 0 or bots.size() == WorldPresence.LIMITS[clampi(GameSettings.quality, 0, 2)], "the scheduled player is shown (or the field is full)")
@@ -499,7 +500,7 @@ func _guild() -> void:
 		seen_offline = seen_offline or not bool(f.online)
 		var real := WorldPlayers.state(int(f.world), t)
 		var found := WorldPlayers.equip(WorldPlayers.member(int(f.world), t))
-		var same_gear := found.size() == f.profile.equip.size()
+		var same_gear: bool = found.size() == f.profile.equip.size()
 		for slot in found:
 			same_gear = same_gear and f.profile.equip.has(slot) and String(f.profile.equip[slot].name) == String(found[slot].name)
 		check(String(f.member.name) == String(WorldPlayers.entry(int(f.world)).name) and same_gear, "%s fights under its own name in the gear it found" % f.member.name)

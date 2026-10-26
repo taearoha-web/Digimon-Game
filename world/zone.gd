@@ -143,6 +143,8 @@ func _ready() -> void:
 	await _slice()
 	if is_town:
 		await _build_town()
+	elif is_pvp and bool(data.get("guildwar", false)):
+		_build_siege()
 	elif is_pvp:
 		_build_pvp()
 	else:
@@ -270,6 +272,15 @@ func _build_pvp() -> void:
 	SpecialStageArt.decorate_pvp(self)
 	_start = Vector3(-PvpArena.SPAWN_X, 0, 0)
 	_make_boundary_walls(PvpArena.RADIUS + 1.5)
+
+
+## The guild war's castle siege: our guild's camp on the left, the rival's on the right.
+func _build_siege() -> void:
+	var ours: Color = WorldPlayers.GUILD_COLORS.get(Game.guild(), Color("4a8cff"))
+	var theirs: Color = WorldPlayers.GUILD_COLORS.get(WorldPlayers.other_guild(Game.guild()), Color("ff5a4a")) if Game.guild() > 0 else Color("ff5a4a")
+	SiegeArena.build(self, rng, ours, theirs)
+	_start = Vector3(-SiegeArena.BASE_X, 0, SiegeArena.BASE_Z)
+	_make_boundary_walls(SiegeArena.RADIUS + 1.5)
 
 
 ## The sky and air of this zone (Scenery.environment / sky_dressing "look").
@@ -521,7 +532,7 @@ func _build_town() -> void:
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
 	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
 	_add_npc("guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING)
-	_add_npc("guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "สงครามกิลด์ %d ต่อ %d · 30 นาที" % [GuildWarData.TEAM_SIZE, GuildWarData.TEAM_SIZE], V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING)
+	_add_npc("guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท สูงสุด %d ต่อ %d · 30 นาที" % [GuildWarData.TEAM_SIZE, GuildWarData.TEAM_SIZE], V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING)
 	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30))
 	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0))
 	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6))
@@ -608,7 +619,7 @@ func _spawn_hero() -> void:
 	hero.name = "Hero"
 	hero.field = self
 	hero.safe_zone = is_town
-	hero.field_radius = TOWN_RADIUS if is_town else (PvpArena.RADIUS if is_pvp else field_radius)
+	hero.field_radius = TOWN_RADIUS if is_town else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius)
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":
@@ -774,6 +785,10 @@ func _update_interact() -> void:
 	if best:
 		label = "คุย: " + best.display_name
 		current_interact = {"npc": best}
+	elif gw_match != null and gw_match.hero_can_capture():
+		# Standing on the castle's altar: hold it for a minute to take the castle.
+		label = "ยึดแท่นปราสาท"
+		current_interact = {"altar": true}
 	for npc in npcs:
 		if npc.role == "elder":
 			var quest_id := QuestData.current_quest()
@@ -782,6 +797,9 @@ func _update_interact() -> void:
 
 
 func interact() -> void:
+	if current_interact.has("altar") and gw_match != null:
+		gw_match.start_hero_capture()
+		return
 	if current_interact.has("npc"):
 		var npc: Npc = current_interact.npc
 		npc.face(hero.global_position)
@@ -928,7 +946,7 @@ func _on_boss_phase(boss: Mob, _phase: int) -> void:
 
 
 func _on_mob_died(mob: Mob) -> void:
-	if mob is Rival:
+	if mob is Rival or mob is CastleGate:
 		if is_instance_valid(hero) and hero.target == mob:
 			hero.set_target(null)
 		return

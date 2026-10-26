@@ -84,7 +84,7 @@ func _build_lobby() -> void:
 	var column := _fill()
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
-	var title := UIUtil.label("สงครามกิลด์ — โคลีเซียม", &"HeaderLabel")
+	var title := UIUtil.label("สงครามกิลด์ — ชิงปราสาท", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	var close := UIUtil.button("ปิด", &"", Vector2(120, 54))
@@ -103,7 +103,7 @@ func _build_lobby() -> void:
 	left.add_child(UIUtil.label("ชนะ %d · แพ้ %d\nล้มศัตรูรวม %d ครั้ง · สูงสุดในศึกเดียว %d" % [wins, losses, int(flags.get("gw_kills", 0)), int(flags.get("gw_best_kills", 0))], &"SmallLabel"))
 	var n := GuildWarData.TEAM_SIZE
 	var mine := Game.guild()
-	var rules := UIUtil.label("• Alpha ปะทะ Neverdie สูงสุด %d ต่อ %d: คุณกับสมาชิกกิลด์ (สูงสุด %d คน) สู้กับอีกกิลด์จำนวนเท่ากัน ตามจำนวนสมาชิกที่มี เวลา 30 นาที (คนที่ออนไลน์อยู่ลงก่อน)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• ล้มศัตรูได้ 1 คะแนน ถูกล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที (ฐานฟื้นเลือดเร็ว)\n• ออร์บพลังปรากฏกลางสนามทุก 1 นาที ใครเก็บได้ทีมนั้นโจมตี/ป้องกันเพิ่ม 20 วินาที\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสมอ = ต่อเวลา ใครล้มก่อนชนะ · ใช้ยาและสกิลได้เต็มที่\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 1,000,000 · แพ้ เหรียญ 500,000" % [n, n, n - 1, int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
+	var rules := UIUtil.label("• ชิงปราสาท Alpha ปะทะ Neverdie สูงสุด %d ต่อ %d: คุณกับสมาชิกกิลด์ (สูงสุด %d คน) สู้กับอีกกิลด์จำนวนเท่ากัน ตามจำนวนสมาชิกที่มี เวลา 30 นาที (คนที่ออนไลน์อยู่ลงก่อน)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ปะทะกันที่ลานกลาง ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ในห้องบัลลังก์ ยืนบนแท่นแล้วกดยึดให้ครบ %d วินาทีโดยไม่ล้ม = ยึดปราสาท อีกกิลด์ยึดคืนได้แบบเดียวกัน\n• กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายของตัวเองใน %d วินาที แล้วเดินกลับขึ้นไปใหม่ (ค่ายฟื้นเลือดเร็ว)\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 1,000,000 · แพ้ เหรียญ 500,000" % [n, n, n - 1, int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
 	left.add_child(UIUtil.spacer(false))
@@ -169,6 +169,8 @@ func _build_result(result: Dictionary) -> void:
 	column.add_child(heading)
 	var score := "%s  %d  :  %d  %s%s" % [result.our_guild, int(result.score_us), int(result.score_them), result.their_guild, "  (ต่อเวลา)" if bool(result.get("overtime", false)) else ""]
 	column.add_child(UIUtil.label(score, &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	var castle := String(result.get("castle", ""))
+	column.add_child(UIUtil.label("ปราสาทเป็นของกิลด์ %s" % castle if castle != "" else "ไม่มีกิลด์ไหนยึดปราสาทได้ — ตัดสินจากจำนวนคนที่ล้มได้", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	column.add_child(UIUtil.label("คุณล้มศัตรู %d ครั้ง · ถูกล้ม %d ครั้ง   |   รางวัล: เหรียญ +%d · EXP +%d" % [int(result.kills), int(result.deaths), int(result.gold), int(result.exp)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
