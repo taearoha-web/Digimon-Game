@@ -13,6 +13,7 @@ var pvp_screen: PvpScreen
 var guildwar_screen: GuildWarScreen
 var guild_screen: GuildScreen
 var registry: RegistryScreen
+var player_card: PlayerCard
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -80,8 +81,11 @@ func _ready() -> void:
 	registry = RegistryScreen.new()
 	add_child(registry)
 	hud.registry_requested.connect(func():
-		if not (menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or guild_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling):
+		if not _screen_open():
 			registry.open_screen())
+	player_card = PlayerCard.new()
+	add_child(player_card)
+	hud.world_tapped.connect(_on_world_tapped)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -205,6 +209,7 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	if _traveling:
 		return
 	_traveling = true
+	player_card.close_card()
 	var from_zone := String(Game.current_zone)
 	if instant:
 		_fade.modulate.a = 1.0  # black while the zone builds, then it fades in like any other trip
@@ -294,9 +299,29 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or _traveling:
+	if _screen_open():
 		return
+	player_card.close_card()
 	menu.open_menu(tab)
+
+
+## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
+func _screen_open() -> bool:
+	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or _traveling
+
+
+## Walk up to a world player and tap them: their card, to ask them into the party.
+func _on_world_tapped(at: Vector2) -> void:
+	if zone == null or not zone.is_built or _screen_open() or not is_instance_valid(zone.hero) or zone.hero.is_dead():
+		return
+	var p := zone.player_at(at)
+	if p == null:
+		return
+	if not PlayerCard.in_reach(p, zone.hero):
+		Game.say("เดินเข้าไปใกล้ %s อีกหน่อย แล้วแตะที่ตัวอีกครั้ง" % p.member.name, &"info")
+		return
+	player_card.open_card(p, zone.hero)
 
 
 func _on_level_up(level: int) -> void:
@@ -335,7 +360,7 @@ func _on_npc(role: String) -> void:
 			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
 				{"label": "ฝึกสกิล", "action": func(): trainer.open_trainer()}, {"label": "ไว้ก่อน"}])
 		"registry":
-			dialog.say("นายทะเบียนเกม", "สมุดทะเบียนเล่มนี้จดชื่อทุกคนที่เล่นในโลกนี้ อาชีพ เลเวล กิลด์ และใครออนไลน์อยู่ตอนนี้ อยากออกล่ากับใครก็ชวนเข้าปาร์ตี้ได้ (สูงสุด %d คน) คนแปลกหน้าจะตอบรับถ้าเลเวลห่างกันไม่เกิน %d เพื่อนร่วมกิลด์ตอบรับเสมอ" % [Game.PARTY_MAX, Game.PARTY_LEVEL_GAP], [
+			dialog.say("นายทะเบียนเกม", "สมุดทะเบียนเล่มนี้จดชื่อทุกคนที่เล่นในโลกนี้ อาชีพ เลเวล กิลด์ และใครออนไลน์อยู่ที่แมพไหนตอนนี้ อยากออกล่ากับใคร ไปหาเขาที่แมพนั้นแล้วแตะที่ตัวเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ %d คนรวมคุณ แบ่ง EXP กันทุกตัวที่ล้มได้) คนแปลกหน้าจะตอบรับถ้าเลเวลห่างกันไม่เกิน %d เพื่อนร่วมกิลด์ตอบรับเสมอ" % [Game.PARTY_SIZE, Game.PARTY_LEVEL_GAP], [
 				{"label": "เปิดทะเบียน", "action": func(): registry.open_screen()}, {"label": "ดูคนที่ออนไลน์", "action": func(): registry.open_screen("online")}, {"label": "ไว้ก่อน"}])
 		"daily":
 			_talk_daily()
@@ -369,7 +394,7 @@ func _on_npc(role: String) -> void:
 			AudioManager.play_sfx(&"heal")
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
-			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง แตะปุ่มออนไลน์ที่มุมขวาบน (หรือคุยกับนายทะเบียนเกม) แล้วชวนผู้เล่นที่ออนไลน์อยู่เข้าปาร์ตี้ได้สูงสุด 3 คน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
 func _talk_daily() -> void:

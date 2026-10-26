@@ -2,9 +2,10 @@ class_name RegistryScreen
 extends CanvasLayer
 ## The game registry: everyone who plays this world (the hero and the world players) with
 ## class, level and stars, guild and whereabouts, strongest first, filtered by all / online /
-## a guild / the party. Online players can be asked to join the hero's party here
-## (Game.party_invite) and party members let go. Opened from the online count on the HUD
-## and from the registrar in the village; it follows the schedules while open.
+## a guild / the party, so the hero knows where to find someone: a player joins the party
+## when the hero walks up and taps them (PlayerCard). Party members can be let go here.
+## Opened from the online count on the HUD and from the registrar in the village; it
+## follows the schedules while open.
 
 signal closed()
 
@@ -140,7 +141,7 @@ func _build() -> void:
 	var names: PackedStringArray = []
 	for m in Game.party():
 		names.append(String(m.name))
-	var party_line := UIUtil.label("ปาร์ตี้ของคุณ %d/%d: %s · ชวนผู้เล่นที่ออนไลน์เข้าปาร์ตี้ได้จากรายชื่อด้านล่าง" % [names.size(), Game.PARTY_MAX, ", ".join(names) if not names.is_empty() else "ยังไม่มีใคร"], &"SmallLabel")
+	var party_line := UIUtil.label("ปาร์ตี้ของคุณ %d/%d คน (รวมคุณ): %s · อยากชวนใคร ไปหาเขาที่แมพที่เขาอยู่แล้วแตะที่ตัว" % [names.size() + 1, Game.PARTY_SIZE, ", ".join(names) if not names.is_empty() else "ยังไม่มีใคร"], &"SmallLabel")
 	party_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(party_line)
 	var scroll := TouchScroll.new()
@@ -192,18 +193,9 @@ func _row(rank: int, r: Dictionary, t: float) -> Control:
 	var level := UIUtil.label(WorldPlayers.level_text(r), &"BoldLabel")
 	level.custom_minimum_size = Vector2(130, 0)
 	line.add_child(level)
-	if not you:
-		var button: Button
-		if Game.in_party(i):
-			button = UIUtil.button("ออกจากปาร์ตี้", &"", Vector2(170, 52))
-			button.pressed.connect(func(): Game.party_kick(i, "%s ออกจากปาร์ตี้แล้ว" % r.name))
-		else:
-			button = UIUtil.button("ชวนปาร์ตี้", &"PrimaryButton", Vector2(170, 52))
-			button.disabled = not bool(r.online) or Game.party().size() >= Game.PARTY_MAX
-			button.pressed.connect(func():
-				var why := Game.party_invite(i)
-				if why != "":
-					Game.say(why, &"warning"))
+	if not you and Game.in_party(i):
+		var button := UIUtil.button("ออกจากปาร์ตี้", &"", Vector2(170, 52))
+		button.pressed.connect(func(): Game.party_kick(i, "%s ออกจากปาร์ตี้แล้ว" % r.name))
 		button.name = "Party_%d" % i
 		line.add_child(button)
 	return panel

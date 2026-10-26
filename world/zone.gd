@@ -517,7 +517,7 @@ func _build_town() -> void:
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20))
 	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20))
 	_add_npc("storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20))
-	_add_npc("registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ชวนปาร์ตี้", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
+	_add_npc("registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
 	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
 	_add_npc("guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING)
@@ -548,20 +548,41 @@ func _petals() -> void:
 
 
 ## The hero's party: the world players who joined (Game.party_invite) walk with the hero.
+## One standing here joins where it stands; one let go while still online goes back to
+## its own hunting (WorldPresence.release), one who logged off leaves.
 func _spawn_party() -> void:
-	for old in companions:
-		if is_instance_valid(old):
-			old.queue_free()
-	companions.clear()
 	var members := Game.party()
+	var kept: Array[Companion] = []
 	for k in members.size():
-		var buddy := FieldPlayer.new()
-		buddy.party_mode = true
-		buddy.setup_world(Game.world_party[k], members[k], hero, self)
+		var i: int = Game.world_party[k]
+		var buddy: FieldPlayer = null
+		for old in companions:
+			if is_instance_valid(old) and old is FieldPlayer and (old as FieldPlayer).world_index == i:
+				buddy = old
+		if buddy == null and presence != null:
+			buddy = presence.adopt(i)
+			if buddy != null:
+				buddy.join_party(members[k], k)
+		if buddy == null:
+			buddy = FieldPlayer.new()
+			buddy.party_mode = true
+			buddy.setup_world(i, members[k], hero, self)
+			add_child(buddy)
+			buddy.global_position = hero.global_position + Vector3(3.0 - 6.0 * k, 0.3, -0.6)
+		buddy.member = members[k]
 		buddy.index = k
-		add_child(buddy)
-		buddy.global_position = hero.global_position + Vector3(3.0 - 2.0 * k, 0.3, -0.6)
-		companions.append(buddy)
+		kept.append(buddy)
+	for old in companions:
+		if not is_instance_valid(old) or kept.has(old):
+			continue
+		var gone := old as FieldPlayer
+		if gone != null and presence != null and bool(WorldPlayers.state(gone.world_index, WorldPresence.clock()).online):
+			presence.release(gone)
+		elif gone != null:
+			gone.leave()
+		else:
+			old.queue_free()
+	companions = kept
 	if presence != null:
 		presence.sync(false)
 	if not Game.party_leveled.is_connected(_on_party_leveled):
@@ -767,6 +788,36 @@ func interact() -> void:
 		npc_interact.emit(npc.role)
 
 
+## How close a finger must land to a player on screen (canvas pixels, from its body line).
+const TAP_SLOP := 56.0
+
+
+## The world player (hunting here or in the party) drawn under a tap at `screen`, or null.
+func player_at(screen: Vector2) -> FieldPlayer:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return null
+	var best: FieldPlayer = null
+	var best_d := TAP_SLOP
+	var people: Array = get_tree().get_nodes_in_group("world_players")
+	people.append_array(companions)
+	for node in people:
+		var p := node as FieldPlayer
+		if p == null or not is_instance_valid(p) or not p.visible or p.is_queued_for_deletion() or p.get_parent() != self:
+			continue
+		var feet := p.global_position + Vector3(0, 0.2 + p.visual.position.y, 0)
+		var head := p.global_position + Vector3(0, 2.3 + p.visual.position.y, 0)
+		if camera.is_position_behind(feet) or camera.is_position_behind(head):
+			continue
+		var a := camera.unproject_position(feet)
+		var b := camera.unproject_position(head)
+		var d := Geometry2D.get_closest_point_to_segment(screen, a, b).distance_to(screen)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
 # ---------------------------------------------------------------------------
 # Monsters, bosses, drops
 # ---------------------------------------------------------------------------
@@ -889,12 +940,11 @@ func _on_mob_died(mob: Mob) -> void:
 	if share <= 0.0:
 		return
 	_kills += 1
-	var level_gap: int = Game.profile.level - mob.level
-	var exp_scale := 1.0 if level_gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(level_gap - 4))
 	var region_boost := 1.0 + maxf(0.0, float(data.get("gear_star",0)) / 25.0)
-	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost * share))
+	# In a party the EXP is shared by everyone in it (Game.share_party_exp).
+	var exp_gain := Game.share_party_exp(float(mob.stats.exp) * region_boost * share, int(mob.level))
 	Game.add_exp(exp_gain)
-	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), "+%d EXP" % exp_gain, Color("66e0ff"), 0.8)
+	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), ("+%d EXP ปาร์ตี้" if not Game.party().is_empty() else "+%d EXP") % exp_gain, Color("66e0ff"), 0.8)
 	if share < 0.5:
 		return
 	Game.report_kill(mob.monster_id, mob.is_boss)

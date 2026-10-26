@@ -6,12 +6,19 @@ extends Control
 
 signal drag(relative: Vector2)
 signal pinch(amount: float)
+## A quick touch or click that did not turn the camera (to pick someone in the world).
+signal tapped(position: Vector2)
 
 const MOUSE_INDEX := -100
 ## Largest camera drag accepted from one event (px); guards against spikes.
 const MAX_DRAG_STEP := 80.0
+## A tap moves less than this (px) and lifts within TAP_TIME seconds.
+const TAP_MOVE := 18.0
+const TAP_TIME := 0.4
 
 var _touches: Dictionary = {} # index -> position
+## Where and when each finger came down: [position, msec].
+var _downs: Dictionary = {}
 var _pinch_distance := 0.0
 
 
@@ -19,12 +26,28 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
+func _press(index: int, position: Vector2) -> void:
+	_touches[index] = position
+	_downs[index] = [position, Time.get_ticks_msec()] if _touches.size() == 1 else []
+	if _touches.size() > 1:
+		_downs.clear()
+
+
+func _lift(index: int, position: Vector2) -> void:
+	_touches.erase(index)
+	var down: Array = _downs.get(index, [])
+	_downs.erase(index)
+	if down.size() == 2 and _touches.is_empty() and (down[0] as Vector2).distance_to(position) < TAP_MOVE \
+			and Time.get_ticks_msec() - int(down[1]) < int(TAP_TIME * 1000.0):
+		tapped.emit(position)
+
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			_touches[event.index] = event.position
+			_press(event.index, event.position)
 		else:
-			_touches.erase(event.index)
+			_lift(event.index, event.position)
 		_pinch_distance = _current_pinch_distance()
 		accept_event()
 	elif event is InputEventScreenDrag and _touches.has(event.index):
@@ -44,9 +67,9 @@ func _gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
 		if event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT:
 			if event.pressed:
-				_touches[MOUSE_INDEX] = event.position
+				_press(MOUSE_INDEX, event.position)
 			else:
-				_touches.erase(MOUSE_INDEX)
+				_lift(MOUSE_INDEX, event.position)
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			pinch.emit(0.6)
@@ -63,6 +86,7 @@ func _gui_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_VISIBILITY_CHANGED:
 		_touches.clear()
+		_downs.clear()
 
 
 func _current_pinch_distance() -> float:

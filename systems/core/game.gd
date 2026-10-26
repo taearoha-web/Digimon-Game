@@ -482,6 +482,8 @@ func save() -> bool:
 	_autosave_timer = 0.0
 	_dirty = false
 	_queue_cloud_save()
+	# The world players' party EXP is kept with the world, beside the slots.
+	WorldPlayers.store()
 	_note_save_work(work_started)
 	return true
 
@@ -1048,10 +1050,14 @@ func party_look(member: Dictionary) -> Dictionary:
 
 var _party_gear: Dictionary = {}
 
-## At most this many world players join the hero's party.
-const PARTY_MAX := 3
+## A party is at most three people: the hero and two world players.
+const PARTY_SIZE := 3
+const PARTY_MAX := PARTY_SIZE - 1
 ## A world player says yes to a stranger within this many levels (guild mates always do).
 const PARTY_LEVEL_GAP := 20
+## Kill EXP in a party is shared: the pot grows by this much per member and is split
+## evenly between everyone in the party.
+const PARTY_EXP_BONUS := 0.3
 const STANCES := ["follow", "aggressive", "guard"]
 const STANCE_NAMES := {"follow": "ตามติด", "aggressive": "บุกลุย", "guard": "ป้องกัน"}
 const TRAIT_NAMES := {"brave": "กล้าหาญ", "careful": "ระมัดระวัง"}
@@ -1083,7 +1089,7 @@ func party_invite(i: int, force := false) -> String:
 	if world_party.has(i):
 		return "อยู่ในปาร์ตี้แล้ว"
 	if world_party.size() >= PARTY_MAX:
-		return "ปาร์ตี้เต็มแล้ว (สูงสุด %d คน)" % PARTY_MAX
+		return "ปาร์ตี้เต็มแล้ว (ปาร์ตี้ละ %d คนรวมคุณ)" % PARTY_SIZE
 	var t := WorldPresence.clock()
 	var s := WorldPlayers.state(i, t)
 	if not force:
@@ -1094,7 +1100,6 @@ func party_invite(i: int, force := false) -> String:
 			return "%s: เลเวลห่างกันเกินไป ไว้คราวหน้านะ" % s.name
 	var m := WorldPlayers.member(i, t)
 	m["stance"] = "follow"
-	m["frac"] = float(s.frac)
 	_party_members[i] = m
 	world_party.append(i)
 	say("%s เข้าร่วมปาร์ตี้แล้ว!" % s.name, &"success")
@@ -1132,12 +1137,28 @@ func party_refresh(t: float) -> void:
 			continue
 		var m: Dictionary = _party_members[i]
 		var up := int(s.level) > int(m.level) or int(s.stars) > int(m.get("stars", 0))
-		m["level"] = int(s.level)
-		m["stars"] = int(s.stars)
-		m["frac"] = float(s.frac)
+		WorldPlayers.sync_member(m, s)
 		if up:
 			party_leveled.emit(world_party.find(i), int(s.level))
 	party_changed.emit()
+
+
+## How much of a monster's EXP a character of `level` gets (less for monsters far below).
+static func exp_gap_scale(level: int, mob_level: int) -> float:
+	var gap := level - mob_level
+	return 1.0 if gap <= 4 else maxf(0.15, 1.0 - 0.17 * float(gap - 4))
+
+
+## A kill worth `base` EXP shared by the party: everyone gets an even part of the pot
+## (PARTY_EXP_BONUS more per member), each scaled by its own level against the monster's.
+## The members' parts go to them (WorldPlayers.add_exp); returns the hero's.
+func share_party_exp(base: float, mob_level: int) -> int:
+	var n := 1 + world_party.size()
+	var each := base * (1.0 + PARTY_EXP_BONUS * float(n - 1)) / float(n)
+	for i in world_party:
+		var m: Dictionary = _party_members[i]
+		WorldPlayers.add_exp(i, each * exp_gap_scale(int(m.level), mob_level), int(m.level), int(m.get("stars", 0)))
+	return int(round(each * exp_gap_scale(int(profile.level), mob_level)))
 
 
 ## Tap a party card: follow -> aggressive -> guard for that member.

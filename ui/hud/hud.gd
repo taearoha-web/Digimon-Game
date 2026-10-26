@@ -12,6 +12,8 @@ extends CanvasLayer
 signal menu_requested(tab: StringName)
 ## The online count was tapped: open the game registry.
 signal registry_requested()
+## A tap on the 3D world that did not turn the camera (Zone.player_at picks who is there).
+signal world_tapped(position: Vector2)
 signal interact_pressed()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
@@ -86,6 +88,7 @@ func _ready() -> void:
 	camera_area.anchor_left = 0.0
 	camera_area.anchor_right = 1.0
 	camera_area.anchor_bottom = 1.0
+	camera_area.tapped.connect(func(at: Vector2): world_tapped.emit(at))
 	_root.add_child(camera_area)
 	joystick = VirtualJoystick.new()
 	joystick.anchor_top = 0.3

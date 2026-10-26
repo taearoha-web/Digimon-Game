@@ -98,9 +98,25 @@ func sync(initial: bool) -> void:
 	for i in keep:
 		var s: Dictionary = keep[i]
 		if shown.has(i) and is_instance_valid(shown[i]):
-			(shown[i] as FieldPlayer).sync_progress(int(s.level), int(s.stars))
+			(shown[i] as FieldPlayer).sync_progress(s)
 			continue
 		_spawn(i, t, initial)
+
+
+## Player i standing here joins the hero's party where it is (Zone._spawn_party): it is
+## handed over and no longer shown as hunting alone. null when it is not here.
+func adopt(i: int) -> FieldPlayer:
+	var p: Variant = shown.get(i)
+	shown.erase(i)
+	if p == null or not is_instance_valid(p) or (p as Node).is_queued_for_deletion():
+		return null
+	return p as FieldPlayer
+
+
+## A member let go while still online goes back to hunting here.
+func release(p: FieldPlayer) -> void:
+	p.leave_party()
+	shown[p.world_index] = p
 
 
 func _spawn(i: int, t: float, initial: bool) -> void:

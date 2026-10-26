@@ -1452,17 +1452,18 @@ func _party() -> void:
 	Game.dismiss_party()
 	await _wait(0.4)
 	check(zone.companions.is_empty() and Game.party().is_empty(), "dismissing leaves nobody")
-	# Up to three world players walk with the hero, each in its own spot and its own look.
-	for cls in [&"mage", &"archer", &"lancer"]:
+	# A party is three people: two world players walk with the hero, each in its own spot and look.
+	for cls in [&"mage", &"archer"]:
 		Game.party_invite(WorldPlayers.first_of(cls), true)
 	await _wait(0.4)
-	check(zone.companions.size() == 3 and zone.companions[0].member["class"] == "mage" and zone.companions[2].member["class"] == "lancer", "three world players walk with the hero")
-	check(Game.party_invite(WorldPlayers.first_of(&"warrior"), true) != "" and Game.party().size() == Game.PARTY_MAX, "a party holds three")
+	check(Game.PARTY_SIZE == 3 and Game.PARTY_MAX == 2, "a party is the hero and two more")
+	check(zone.companions.size() == 2 and zone.companions[0].member["class"] == "mage" and zone.companions[1].member["class"] == "archer", "two world players walk with the hero")
+	check(Game.party_invite(WorldPlayers.first_of(&"lancer"), true) != "" and Game.party().size() == Game.PARTY_MAX, "a party holds three with the hero")
 	check((zone.companions[0] as FieldPlayer).visual.look == WorldPlayers.look(WorldPlayers.first_of(&"mage")), "a member looks like itself")
-	check(Game.cycle_stance(2) == "aggressive" and String(Game.party()[0].stance) == "follow", "each member has its own stance")
+	check(Game.cycle_stance(1) == "aggressive" and String(Game.party()[0].stance) == "follow", "each member has its own stance")
 	Game.party_kick(WorldPlayers.first_of(&"archer"))
 	await _wait(0.3)
-	check(zone.companions.size() == 2 and not Game.in_party(WorldPlayers.first_of(&"archer")), "a member can be let go")
+	check(zone.companions.size() == 1 and not Game.in_party(WorldPlayers.first_of(&"archer")), "a member can be let go")
 
 
 func _zones() -> void:

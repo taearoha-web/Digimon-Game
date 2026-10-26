@@ -246,11 +246,12 @@ static func efficiency(i: int) -> float:
 	return float(STYLES[String(ROSTER[i].style)].eff) * rng.randf_range(0.88, 1.12)
 
 
-## {level, stars, frac (0..1 to the next step), minutes (played), divine (bool)} for
-## `minutes` of play at efficiency `eff`.
-static func progress_for(minutes: float, eff: float) -> Dictionary:
+## {level, stars, frac (0..1 to the next step), minutes (played), divine (bool),
+## divine_frac (0..1 of the divine set's hours)} for `minutes` of play at efficiency
+## `eff`, plus `extra` probe minutes earned in the hero's party (bonus_work).
+static func progress_for(minutes: float, eff: float, extra := 0.0) -> Dictionary:
 	var steps := _steps()
-	var work := minutes * eff
+	var work := minutes * eff + maxf(0.0, extra)
 	var k := steps.bsearch(work, false) - 1
 	k = clampi(k, 0, steps.size() - 1)
 	var frac := 0.0
@@ -258,8 +259,73 @@ static func progress_for(minutes: float, eff: float) -> Dictionary:
 		frac = clampf((work - steps[k]) / maxf(0.001, steps[k + 1] - steps[k]), 0.0, 0.999)
 	var level := mini(k + 1, Game.MAX_LEVEL)
 	var stars := clampi(k - (Game.MAX_LEVEL - 1), 0, Game.PARAGON_MAX)
-	var divine := stars >= Game.PARAGON_MAX and work - steps[steps.size() - 1] >= DIVINE_HOURS * 60.0 * eff
-	return {"level": level, "stars": stars, "frac": frac, "minutes": minutes, "divine": divine}
+	var divine_need := DIVINE_HOURS * 60.0 * eff
+	var post := work - steps[steps.size() - 1]
+	var divine_frac := clampf(post / maxf(0.001, divine_need), 0.0, 1.0) if stars >= Game.PARAGON_MAX else 0.0
+	return {"level": level, "stars": stars, "frac": frac, "minutes": minutes, "divine": divine_frac >= 1.0, "divine_frac": divine_frac}
+
+
+# --- Party EXP ----------------------------------------------------------------------
+
+## What world players earned in the hero's party is kept with the world on this
+## device, not with a character: a new character meets them as they were.
+const BONUS_PATH := "user://toon_tale_world.json"
+## Kept on disk except in headless runs (tests keep it in memory, so runs stay alike).
+static var persist := DisplayServer.get_name() != "headless"
+## Probe minutes of progress each player (by name) earned in parties.
+static var bonus := {}
+static var _bonus_loaded := false
+static var _bonus_dirty := false
+
+
+static func bonus_work(i: int) -> float:
+	_load_bonus()
+	return float(bonus.get(String(ROSTER[i].name), 0.0))
+
+
+## Player i earns `amount` EXP at its level and stars (its share of a party kill).
+static func add_exp(i: int, amount: float, level: int, stars: int) -> void:
+	if amount <= 0.0 or i < 0 or i >= ROSTER.size():
+		return
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	bonus[key] = float(bonus.get(key, 0.0)) + amount / maxf(1.0, rate(level, stars))
+	_bonus_dirty = true
+
+
+## Writes the party EXP when it changed (Game.save calls this).
+static func store() -> void:
+	if not _bonus_dirty or not persist:
+		return
+	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify({"bonus": bonus}))
+		_bonus_dirty = false
+
+
+static func _load_bonus() -> void:
+	if _bonus_loaded:
+		return
+	_bonus_loaded = true
+	if not persist or not FileAccess.file_exists(BONUS_PATH):
+		return
+	var file := FileAccess.open(BONUS_PATH, FileAccess.READ)
+	if file == null or file.get_length() > 65536:
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary or not parsed.get("bonus") is Dictionary:
+		return
+	for key in parsed.bonus:
+		var value: Variant = parsed.bonus[key]
+		if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
+			bonus[String(key)] = float(value)
+
+
+## Forgets every party EXP (tests).
+static func clear_bonus() -> void:
+	bonus.clear()
+	_bonus_loaded = true
+	_bonus_dirty = true
 
 
 ## Everything about player i at time t: the roster entry plus level, stars, online,
@@ -268,7 +334,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var e: Dictionary = ROSTER[i]
-	var p := progress_for(played_minutes(i, t), efficiency(i))
+	var p := progress_for(played_minutes(i, t), efficiency(i), bonus_work(i))
 	var s := session_at(i, t)
 	var place := ""
 	if not s.is_empty():
@@ -346,20 +412,33 @@ static func look(i: int) -> Dictionary:
 	return l
 
 
-## A party-member dictionary for the field (Companion reads class, name, level, stars).
+## A party-member dictionary for the field (Companion reads class, name, level, stars;
+## the gear it found follows frac and divine_frac too).
 static func member(i: int, t: float = -1.0) -> Dictionary:
 	var s := state(i, t)
 	return {"class": String(s["class"]), "name": String(s.name), "level": int(s.level), "stars": int(s.stars), "exp": 0,
+		"frac": float(s.frac), "divine_frac": float(s.divine_frac),
 		"stance": "aggressive", "trait": "brave", "gender": int(s.gender), "potions": POTIONS, "mp_potions": MP_POTIONS}
 
 
+## Brings a member sheet up to state s; true when it found something new to wear.
+static func sync_member(m: Dictionary, s: Dictionary) -> bool:
+	var before := gear_signature(m)
+	m["level"] = int(s.level)
+	m["stars"] = int(s.stars)
+	m["frac"] = float(s.frac)
+	m["divine_frac"] = float(s.divine_frac)
+	return gear_signature(m) != before
+
+
 ## The character sheet of a world player at its level and stars (for HeroStats): the
-## companion's gear and job, plus every stat point spent like a player does (60% main
-## stat, 40% vitality) and its skills ranked up as it levels.
+## gear it found and its job, plus every stat point spent like a player does (60% main
+## stat, 40% vitality), its star points and its skills ranked up as it levels.
 static func profile(m: Dictionary) -> Dictionary:
-	var p := Game.party_profile(m)
-	p["equip"] = equip(m)
 	var level := int(m.level)
+	var stars := Game.party_stars(m)
+	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for_level(level),
+		"paragon": {"level": stars, "alloc": Game.party_star_alloc(stars)}}
 	var points := Game.STAT_POINTS_PER_LEVEL * (level - 1)
 	var main := String(JobData.resolve(StringName(m["class"]), int(p.adv)).main)
 	var attrs := {"str": 0, "int": 0, "dex": 0, "vit": 0}
@@ -374,40 +453,192 @@ static func profile(m: Dictionary) -> Dictionary:
 	return p
 
 
+# --- What they wear: what they found -----------------------------------------------
+
+## A world player wears what it has picked up, slot by slot, like a player: every level
+## band (10 levels) its monsters drop one piece per slot somewhere in the band, or none
+## at all (MISS: it keeps the older piece through that band); a find has its own rarity
+## and is enhanced a step at a time after it is found (common pieces less). The best piece
+## found so far is worn, so a rare older piece can stay on over a plain newer one. Past
+## Lv.100 the star fields drop the star tiers' pieces, worn some stars after the tier opens;
+## a Lv.100 boss drops the class wings, the star wings come after ★100; in the lotus
+## sanctum the divine pieces turn up one by one until the set is complete. All of it is
+## seeded by the player's name: the same finds on every device at the same moment.
+const FIND_LEVELS := 8.0
+const FIND_STARS := 22.0
+const MISS := 0.22
+const STAR_MISS := 0.12
+## Rarity of a find, common .. mythic (players keep the better drops).
+const FIND_RARITY := [0.16, 0.36, 0.32, 0.13, 0.03]
+## Levels of play per enhancement step after a find, and the step caps by rarity.
+const PLUS_EVERY := 1.4
+const PLUS_CAP := [2, 4, 6, 7, 8]
+## Stars after the wing level the class wings drop, and after ★100 the star wings.
+const WING_STARS := 35.0
+const STAR_WING_STARS := 40.0
+
 static var _gear := {}
+static var _gear_sig := {}
 
 
-## What a world player wears: rare gear of its level enhanced as it goes (+2 to +7, the
-## kind a player farms), every slot; past Lv.100 the star set its stars have reached; the
-## class wings at the wing level, the star wings from ★100. The same pieces until the next
-## tier.
-static func equip(m: Dictionary) -> Dictionary:
+## Where a member sheet is on the way, as one number: Lv.1-100 with the part of the
+## level done, then 100 + stars (to 300).
+static func point_of(m: Dictionary) -> float:
 	var level := int(m.level)
-	var stars := int(m.get("stars", 0))
-	var tier := 0
-	for t in StarProgression.TIERS:
-		if stars >= int(t):
-			tier = int(t)
-	var key := "%s|%d|%d" % [m.name, ItemData.tier_for(level), tier]
+	var frac := clampf(float(m.get("frac", 0.0)), 0.0, 0.999)
+	if level < Game.MAX_LEVEL:
+		return float(level) + frac
+	var stars := clampi(int(m.get("stars", 0)), 0, Game.PARAGON_MAX)
+	return float(Game.MAX_LEVEL + stars) + (frac if stars < Game.PARAGON_MAX else 0.0)
+
+
+static func _find_rng(name: String, slot: String, what: String) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("find|%s|%s|%s" % [name, slot, what])
+	return rng
+
+
+static func _roll_find_rarity(rng: RandomNumberGenerator) -> int:
+	var r := rng.randf()
+	for k in FIND_RARITY.size():
+		r -= float(FIND_RARITY[k])
+		if r <= 0.0:
+			return k
+	return 0
+
+
+## The piece kept for one slot at point p: {} when nothing was found yet, otherwise
+## {"key", "kind" (level / star / divine), "level", "rarity", "plus", "tier", "at"}.
+static func _best_find(name: String, slot: String, p: float, divine_frac: float) -> Dictionary:
+	var best := {}
+	var best_score := -1.0
+	for band in 10:
+		var start := float(band * 10 + 1)
+		if p < start:
+			break
+		var rng := _find_rng(name, slot, "b%d" % band)
+		var at := start + rng.randf() * FIND_LEVELS
+		var rarity := _roll_find_rarity(rng)
+		var missed := rng.randf() < MISS
+		if band == 0 and slot == "weapon":
+			# Everyone sets out with the beginner's weapon.
+			at = 1.0
+			rarity = 0
+			missed = false
+		if missed or p < at:
+			continue
+		var level := clampi(int(at), int(start), int(start) + 9)
+		var plus := mini(int(PLUS_CAP[rarity]), int((p - at) / PLUS_EVERY))
+		var score := ItemData.gear_power(level) * ItemData.rarity_mult(rarity, 0.2) * (1.0 + 0.06 * plus)
+		if score > best_score:
+			best_score = score
+			best = {"key": "b%d" % band, "kind": "level", "level": level, "rarity": rarity, "plus": plus, "at": at}
+	for tier in StarProgression.TIERS:
+		var start := float(Game.MAX_LEVEL + int(tier))
+		if p < start:
+			break
+		var rng := _find_rng(name, slot, "s%d" % tier)
+		var at := start + rng.randf() * FIND_STARS
+		if rng.randf() < STAR_MISS or p < at:
+			continue
+		var score := ItemData.gear_power(Game.MAX_LEVEL + int(tier)) * ItemData.rarity_mult(3, 0.2)
+		if score > best_score:
+			best_score = score
+			best = {"key": "s%d" % tier, "kind": "star", "tier": int(tier), "at": at}
+	if divine_frac > 0.0 and slot in DivineGearData.SLOTS:
+		var rng := _find_rng(name, slot, "divine")
+		if divine_frac >= rng.randf_range(0.12, 1.0):
+			best = {"key": "divine", "kind": "divine", "at": 300.0}
+	return best
+
+
+## The pair of wings found by point p ({} for none yet).
+static func _wing_find(name: String, p: float) -> Dictionary:
+	var start := float(ItemData.WING_DROP_LEVEL)
+	if p < start:
+		return {}
+	var star_rng := _find_rng(name, "wings", "star")
+	var star_at := float(Game.MAX_LEVEL + StarWingData.REQUIRED_STARS) + star_rng.randf() * STAR_WING_STARS
+	if p >= star_at:
+		return {"key": "star_wings", "at": star_at}
+	var rng := _find_rng(name, "wings", "class")
+	var at := start + rng.randf() * WING_STARS
+	return {"key": "wings", "at": at} if p >= at else {}
+
+
+static func _gear_key(m: Dictionary) -> String:
+	return "%s|%d|%d" % [m.name, int(point_of(m) * 4.0), int(float(m.get("divine_frac", 0.0)) * 8.0)]
+
+
+## Which pieces member sheet m wears, as one string (changes when it puts on a new find
+## or enhances one).
+static func gear_signature(m: Dictionary) -> String:
+	var key := _gear_key(m)
+	if not _gear_sig.has(key):
+		equip(m)
+	return String(_gear_sig.get(key, ""))
+
+
+## What member sheet m wears now: its best find per slot (see above).
+static func equip(m: Dictionary) -> Dictionary:
+	var key := _gear_key(m)
 	if _gear.has(key):
 		return _gear[key]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(key)
+	var name := String(m.name)
 	var cls := StringName(m["class"])
+	var p := point_of(m)
+	var divine_frac := float(m.get("divine_frac", 0.0))
 	var gear := {}
+	var sig: PackedStringArray = []
 	for slot in ItemData.SLOTS:
-		var item: Dictionary = StarProgression.item(cls, tier, slot, rng) if tier > 0 else {}
+		var find := _best_find(name, slot, p, divine_frac)
+		if find.is_empty():
+			continue
+		var rng := _find_rng(name, slot, "%s|item" % find.key)
+		var item := {}
+		match String(find.kind):
+			"divine":
+				item = DivineGearData.item(cls, slot, rng)
+			"star":
+				item = StarProgression.item(cls, int(find.tier), slot, rng)
+			_:
+				item = ItemData.generate(int(find.level), cls, rng, int(find.rarity), slot)
+				if find.key == "b0" and slot == "weapon":
+					item["name"] = "%s ของมือใหม่" % ItemData.NAMES[item.base][0]
+				if EnhanceFx.can_enhance(item):
+					item["plus"] = int(find.plus)
 		if item.is_empty():
-			item = ItemData.generate(maxi(1, level), cls, rng, 2, slot)
-			if EnhanceFx.can_enhance(item):
-				item["plus"] = clampi(2 + level / 20, 2, 7)
+			continue
 		gear[slot] = item
-	if level >= ItemData.WING_DROP_LEVEL:
-		gear["wings"] = StarWingData.item(String(cls), rng, 3) if stars >= StarWingData.REQUIRED_STARS else ItemData.wings(rng, String(cls), 3)
-	if _gear.size() > 200:
+		sig.append("%s:%s+%d" % [slot, find.key, int(item.get("plus", 0))])
+	var wings := _wing_find(name, p)
+	if not wings.is_empty():
+		var rng := _find_rng(name, "wings", "%s|item" % wings.key)
+		gear["wings"] = StarWingData.item(String(cls), rng, 3) if wings.key == "star_wings" else ItemData.wings(rng, String(cls), 2 + rng.randi() % 2)
+		sig.append(String(wings.key))
+	if _gear.size() > 400:
 		_gear.clear()
+		_gear_sig.clear()
 	_gear[key] = gear
+	_gear_sig[key] = ",".join(sig)
 	return gear
+
+
+## The newest piece in `after` that `before` did not have (for "picked up" notes), or {}.
+static func new_piece(before: Dictionary, after: Dictionary) -> Dictionary:
+	for slot in after:
+		var was: Variant = before.get(slot)
+		var now_item: Dictionary = after[slot]
+		if not was is Dictionary or String(was.get("name", "")) != String(now_item.get("name", "")) or int(was.get("plus", 0)) != int(now_item.get("plus", 0)):
+			return now_item
+	return {}
+
+
+## How a player likes its wings (weights for stand / fly / fold), always the same.
+static func wing_taste(i: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("wings|%s" % ROSTER[i].name)
+	return [rng.randf_range(0.2, 1.0), rng.randf_range(0.1, 1.4), rng.randf_range(0.05, 0.9)]
 
 
 ## Player i as a guild-war fighter (GuildWarData.make_fighter) with its own name and face.

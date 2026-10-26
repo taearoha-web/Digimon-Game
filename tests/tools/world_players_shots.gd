@@ -1,7 +1,8 @@
 extends Node
 ## Screenshots of the world players through the real game scenes: a field with online
-## players hunting, the village with the guild registrar, the guild roster and the guild
-## war lobby. DAYS moves the clock to that many days after the world opened.
+## players hunting, tapping one to ask it into the party (its card, then the party), the
+## village with the guild registrar, the registry, the guild roster and the guild war
+## lobby. DAYS moves the clock to that many days after the world opened.
 ##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/world_players_shots.tscn -- <out_dir> [DAYS]
 var out_dir := "user://shots"
 var main: Node
@@ -74,7 +75,23 @@ func _ready() -> void:
 	await _shot("field_players")
 	await _wait(6.0)
 	await _shot("field_players_later")
-	# A party of three world players walking and fighting with the hero.
+	# Walk up to a player and tap it: its card, then it joins the party where it stands.
+	bots = get_tree().get_nodes_in_group("world_players")
+	if not bots.is_empty():
+		var bot: FieldPlayer = bots[0]
+		Game.profile["level"] = int(bot.member.level)
+		zone.hero.global_position = bot.global_position + Vector3(-2.5, 0.2, 2.5)
+		await _wait(0.6)
+		var camera := get_viewport().get_camera_3d()
+		main._on_world_tapped(camera.unproject_position(bot.global_position + Vector3(0, 1.2, 0)))
+		await _wait(0.4)
+		await _shot("player_card")
+		if main.player_card.is_open:
+			main.player_card.invite_party()
+		await _wait(0.5)
+		await _shot("joined")
+		main.player_card.close_card()
+	# A party of three: the hero and two world players walking and fighting together.
 	for i in WorldPlayers.size():
 		if Game.party().size() >= Game.PARTY_MAX:
 			break
