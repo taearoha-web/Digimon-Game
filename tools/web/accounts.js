@@ -5,7 +5,7 @@
   'use strict';
   const FILE_ROOT = '/userfs/godot/app_userdata/Toon Tale';
   const CACHE_DB = 'toon_tale_accounts_v1';
-  const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่', assassin:'นักฆ่า'};
+  const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่', assassin:'นักฆ่า', darklord:'ดาร์กลอร์ด'};
   // A request waits longer the more it carries: a full four-character save is
   // close to 1 MB and mobile uplinks are slow. 15 s, plus 1 s per 10 kB, at most 60 s.
   const REQUEST_TIMEOUT_MS = 15000, REQUEST_TIMEOUT_MAX_MS = 60000;

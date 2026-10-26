@@ -11,6 +11,7 @@ const INFO := {
 	"priest": {"name":"ปีกเซราฟิมหกปีก", "stats":{"matk":[510,620],"hp":[2100,2700],"def":[220,280],"mp":[800,1050],"crit":[0.06,0.075]}},
 	"assassin": {"name":"ปีกราชันเงาสุริยคราส", "stats":{"atk":[550,670],"hp":[1700,2150],"def":[170,215],"mp":[460,570],"crit":[0.09,0.105]}},
 	"defender": {"name":"ปีกเทพดาราจักรนิรันดร์", "stats":{"atk":[480,600],"hp":[2300,2800],"def":[240,300],"mp":[450,560],"crit":[0.06,0.075]}},
+	"darklord": {"name":"ผ้าคลุมจักรพรรดิอีกาทมิฬ", "stats":{"atk":[540,660],"hp":[2000,2500],"def":[200,250],"mp":[480,600],"crit":[0.07,0.085]}},
 	"summoner": {"name":"ปีกราชินีผีเสื้อวิญญาณ", "stats":{"matk":[550,670],"hp":[1850,2350],"def":[175,225],"mp":[900,1150],"crit":[0.065,0.08]}},
 }
 
@@ -61,6 +62,8 @@ static func migrate_profile(profile: Dictionary) -> void:
 
 static func build(cls: String) -> Node3D:
 	if not INFO.has(cls): cls="warrior"
+	# The Dark Lord's star "wings" are a floating imperial cape, built in code.
+	if cls=="darklord": return CapeArt.build(true)
 	var root:Node3D=(load(MODEL % cls) as PackedScene).instantiate()
 	root.name="Wings_star_"+cls
 	for mesh in root.find_children("*","MeshInstance3D",true,false):

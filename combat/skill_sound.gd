@@ -8,15 +8,15 @@ extends RefCounted
 ## Defender and Assassin skill ids by sound family (tools/generate_skill_sfx.py renders the files).
 const FAMILIES := {
 	&"shield_bash": ["shield_bash", "shield_slam", "aegis_strike", "bastion_crush", "bulwark_charge", "shield_wave"],
-	&"shield_quake": ["ground_quake", "quake_slam", "titan_quake", "shockwave_wall", "meteor_shield", "titan_shieldbreak", "heavens_bulwark"],
+	&"shield_quake": ["ground_quake", "quake_slam", "titan_quake", "shockwave_wall", "meteor_shield", "titan_shieldbreak", "heavens_bulwark", "earthshake", "earth_dominion", "chaos_inferno"],
 	&"shield_taunt": ["provoke", "grand_provoke"],
 	&"shield_throw": ["shield_toss", "rebound_storm", "judgment_rebound"],
-	&"shield_holy": ["holy_rampart", "judgment_shield", "world_bastion", "guardian_oath", "aegis_of_ages", "sanctuary_wall", "eternal_aegis"],
+	&"shield_holy": ["holy_rampart", "judgment_shield", "world_bastion", "guardian_oath", "aegis_of_ages", "sanctuary_wall", "eternal_aegis", "critical_damage", "iron_defense", "commanders_aura", "lord_of_command", "emperors_command", "lords_dominion", "imperial_judgment"],
 	&"blade_swish": ["twin_fang", "crimson_cut", "blade_flurry", "night_raid", "thousand_cuts", "shadow_dance", "eclipse_fang", "umbral_lacerate", "shadow_execution"],
-	&"blade_throw": ["fan_of_knives", "phantom_daggers", "phantom_legion", "eclipse_requiem"],
-	&"shadow_vanish": ["shadow_veil", "shadow_step", "smoke_bomb", "shadow_clone", "veil_of_night"],
+	&"blade_throw": ["fan_of_knives", "phantom_daggers", "phantom_legion", "eclipse_requiem", "birds", "raven_storm", "raven_sovereign"],
+	&"shadow_vanish": ["shadow_veil", "shadow_step", "smoke_bomb", "shadow_clone", "veil_of_night", "summon"],
 	&"venom_hiss": ["venom_edge", "deadly_venom"],
-	&"shadow_dark": ["killing_focus", "backstab", "throat_slit", "death_mark", "night_lord", "abyss_vortex", "midnight_execution", "shadow_sovereign", "oblivion_requiem"],
+	&"shadow_dark": ["killing_focus", "backstab", "throat_slit", "death_mark", "night_lord", "abyss_vortex", "midnight_execution", "shadow_sovereign", "oblivion_requiem", "force", "force_wave", "chaos_strike", "chaotic_diseier", "royal_crush", "dark_comet", "chaos_sovereign"],
 }
 static var _family_of: Dictionary = {}
 

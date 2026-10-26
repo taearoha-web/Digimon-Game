@@ -75,6 +75,11 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "Wyvern", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "casual"},
 	{"name": "IronWall", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
 	{"name": "โล่ทองคำ", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	# Dark Lords (scepter and raven), added with the class.
+	{"name": "DarkKaiser", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "hardcore"},
+	{"name": "ราชันอีกา", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	{"name": "LordRaven", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "night_owl"},
+	{"name": "จักรพรรดิมืด", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day

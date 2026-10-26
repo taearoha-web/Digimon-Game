@@ -22,7 +22,9 @@ const COLORS := {
 	"titan_shieldbreak":["ffa64a","fff2c8","6a3412"], "judgment_rebound":["ffe15a","fffbe0","5a4a10"],
 	"eternal_aegis":["5fb4ff","f0f8ff","1a3a7a"], "heavens_bulwark":["8fd0ff","fffbe8","2a3f8a"],
 	"umbral_lacerate":["9a5cff","f6eaff","2a0f4e"], "shadow_execution":["ff3a6e","ffe0ea","4a0828"],
-	"veil_of_night":["6a5cff","eae6ff","1a1450"], "eclipse_requiem":["c04dff","ffe6ff","220a3e"]
+	"veil_of_night":["6a5cff","eae6ff","1a1450"], "eclipse_requiem":["c04dff","ffe6ff","220a3e"],
+	"chaos_inferno":["ff5a1f","ffe6a0","5a1020"], "raven_sovereign":["8a4dff","f0e0ff","1e0f3e"],
+	"lords_dominion":["e8b64a","fff4d0","5a3a10"], "imperial_cataclysm":["ffc83a","fff6d8","3a1a6a"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -32,9 +34,10 @@ const MOTIFS := {
 	"sanctified_chain":"rosary", "seraph_aegis":"seraph", "sacred_sanctuary":"chapel", "dawn_salvation":"sunrise",
 	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan",
 	"titan_shieldbreak":"titan_shield", "judgment_rebound":"crown", "eternal_aegis":"shield_ring", "heavens_bulwark":"titan_shield",
-	"umbral_lacerate":"fang", "shadow_execution":"moon", "veil_of_night":"constellation", "eclipse_requiem":"moon"
+	"umbral_lacerate":"fang", "shadow_execution":"moon", "veil_of_night":"constellation", "eclipse_requiem":"moon",
+	"chaos_inferno":"worldroot", "raven_sovereign":"moon", "lords_dominion":"banners", "imperial_cataclysm":"crown"
 }
-const SUPPORT := ["veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
+const SUPPORT := ["lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
 const ASSASSIN := ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"]
 ## The Defender's captured great shield from the latest telegraph/launch, so contacts (which have no caster) can drop the real shield.
@@ -200,6 +203,12 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		"umbral_lacerate":
 			art.add("moon",colors,Vector3(0,1.6,-0.3),Vector3.ONE*0.9,Vector3(PI/2,0,0),time,opts)
 			art.add("fang",colors,Vector3(0,0.08,0),Vector3.ONE*radius*0.6,Vector3.ZERO,time,opts)
+		"imperial_cataclysm":
+			art.add("crown",colors,local_target+Vector3.UP*8,Vector3.ONE*radius*0.5,Vector3.ZERO,time,{"initial":0.25,"grow_time":0.90,"fade_in":0.15,"spin":0.1,"decay":0.98})
+			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius,Vector3.ZERO,time,opts)
+		"raven_sovereign":
+			art.add("moon",colors,local_target+Vector3.UP*1.3,Vector3.ONE*1.0,Vector3(PI/2,0,0),time,opts)
+			art.add("feathers",colors,Vector3(0,1.4,0.4),Vector3.ONE*0.9,Vector3.ZERO,time,{"travel":Vector3.UP*0.6,"decay":0.9,"initial":0.6})
 		"eclipse_requiem":
 			art.add("moon",colors,local_target+Vector3.UP*8,Vector3.ONE*radius*0.8,Vector3.ZERO,time,{"initial":0.25,"grow_time":0.90,"fade_in":0.15,"spin":0.1,"decay":0.98})
 			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius,Vector3.ZERO,time,opts)
@@ -297,7 +306,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("feathers" if id=="dawn_salvation" else "shards",colors,Vector3.UP*0.2,Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,1.5,{"travel":Vector3.UP*0.8})
 			art._draw()
 			return art
-	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark","umbral_lacerate","shadow_execution","eclipse_requiem"]:
+	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark","umbral_lacerate","shadow_execution","eclipse_requiem","chaos_inferno","raven_sovereign","imperial_cataclysm"]:
 		art.add("impact",colors,at,Vector3.ONE*1.15,Vector3.ZERO,0.50,{"initial":0.10})
 		art.add("shards",colors,Vector3.UP*0.25,Vector3.ONE*0.75,Vector3.ZERO,0.65,{"travel":Vector3.UP*0.4,"initial":0.7,"orbit":0.12,"orbit_speed":3.0,"pulse":true})
 		art._draw()
@@ -413,6 +422,37 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("martial/crater",colors,at,Vector3.ONE*radius*(0.6+0.1*index),Vector3.ZERO,1.0,{"initial":0.1,"grow_time":0.25,"delay":0.3})
 			if index>=4:
 				art.add("moon",colors,Vector3.UP*0.1,Vector3.ONE*radius,Vector3.ZERO,1.4,{"initial":0.3,"spin":0.2})
+				art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.2,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8})
+			impact_size=radius*0.7
+		"chaos_inferno":
+			# Two eruptions of dark fire round the Dark Lord: a crater, a ring of burning roots, embers thrown up.
+			art.add("martial/crater",colors,at,Vector3.ONE*radius*(0.8+0.2*index),Vector3.ZERO,1.1,{"initial":0.1,"grow_time":0.22})
+			art.add("worldroot",colors,at,Vector3(radius,2.2+index,radius),Vector3.ZERO,1.2,{"initial":0.2,"grow_time":0.2,"decay":0.6})
+			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.6,2.6,radius*0.6),Vector3.ZERO,1.2,{"travel":Vector3.UP*0.8,"pulse":true})
+			impact_size=radius*0.8
+		"raven_sovereign":
+			# Five raven dives cut the target under a dark moon, then the sovereign raven's final strike.
+			var final := index>=5
+			art.add("moon",colors,Vector3.UP*1.4,Vector3.ONE*(2.0 if final else 0.6+index*0.1),Vector3(PI/2,0,index*0.9),0.5,{"initial":0.9,"turn":Vector3(0,0,-0.5)})
+			art.add("feathers",colors,Vector3.UP*1.2,Vector3.ONE*(2.2 if final else 0.9),Vector3.ZERO,0.7,{"travel":Vector3.UP*0.4,"initial":0.6})
+			art.add("martial/sweep",colors,Vector3.UP*1.1,Vector3.ONE*(2.6 if final else 1.1),Vector3(PI/2,0,(index%2*2-1)*0.6),0.4,{"initial":0.4,"spin":3.0})
+			if final: art.add("shards",colors,Vector3.UP*0.4,Vector3(1.8,2.6,1.8),Vector3.ZERO,0.85,{"travel":Vector3.UP*0.5})
+			impact_size=2.2 if final else 0.5
+		"lords_dominion":
+			art.add("banners",colors,Vector3(0,0.1,-0.4),Vector3.ONE*1.6,Vector3.ZERO,1.7,{"initial":0.08,"fade_in":0.08})
+			art.add("crown",colors,Vector3(0,2.4,0),Vector3.ONE*1.1,Vector3.ZERO,1.5,{"initial":0.3,"travel":Vector3.UP*0.4,"spin":0.4})
+			art.add("celestial",colors,at,Vector3.ONE*radius*0.8,Vector3.ZERO,1.6,{"initial":0.4,"spin":0.15})
+			impact_size=radius*0.7
+		"imperial_cataclysm":
+			# Each wave: a crowned bolt of lightning and dark fire splits the ground; the last wave crowns the whole field.
+			var a := float(index)*2.39996
+			var spot := Vector3(sin(a),0,cos(a))*radius*0.35*float(index%3)
+			art.add("martial/arrow",colors,spot+Vector3(0,4.5,0),Vector3(1.4,8.0,1.4),Vector3.ZERO,0.45,{"initial":1.0,"travel":Vector3.DOWN*3.5,"accelerate":true,"decay":0.9})
+			art.add("martial/crater",colors,spot+Vector3.UP*0.06,Vector3.ONE*radius*0.55,Vector3.ZERO,1.0,{"initial":0.1,"grow_time":0.25})
+			art.add("martial/fault",colors,spot+Vector3.UP*0.02,Vector3.ONE*radius*0.6,Vector3.ZERO,1.2,{"initial":0.08,"grow_time":0.3})
+			if index>=4:
+				art.add("crown",colors,Vector3.UP*3.0,Vector3.ONE*radius*0.4,Vector3.ZERO,1.5,{"initial":0.4,"spin":0.3})
+				art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.5,"spin":0.2})
 				art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.2,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8})
 			impact_size=radius*0.7
 		"aegis_formation":

@@ -410,7 +410,7 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				var arm: Dictionary = rig[side]
 				var sign_side := -1.0 if side == "r" else 1.0
 				var amplitude := 0.13 if moving else 0.015
-				if side == "l" and family in [&"warrior", &"priest", &"summoner", &"defender"]:
+				if side == "l" and family in [&"warrior", &"priest", &"summoner", &"defender", &"darklord"]:
 					amplitude *= 0.35
 				for joint in ["upper", "lower", "hand"]:
 					var bone: int = arm[joint]
@@ -424,6 +424,19 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				var pitch := deg_to_rad(12.0 if family != &"priest" else 30.0) + sway * 0.035
 				var item_basis := _along(Vector3(0, cos(pitch), sin(pitch)), Vector3.FORWARD)
 				_hold(skeleton, local, rig.r, target, item_basis, "wand" if family == &"priest" else "staff")
+		if family == &"darklord" and carry:
+			# The scepter upright in the right hand like a staff; the left forearm
+			# raised level across the body, fist closed: the raven's perch.
+			global = _globals(skeleton, local)
+			var shoulder: Vector3 = global[rig.r.upper].origin
+			var target := shoulder + Vector3(-0.16, -0.54, 0.60) * arm_length
+			target.z += sway * arm_length * (0.045 if moving else 0.015)
+			var pitch := deg_to_rad(16.0) + sway * 0.035
+			_hold(skeleton, local, rig.r, target, _along(Vector3(0, cos(pitch), sin(pitch)), Vector3.FORWARD), "staff")
+			var left: Vector3 = global[rig.l.upper].origin
+			var perch := left + Vector3(-0.22, -0.42, 0.62) * arm_length
+			perch.y += sway * arm_length * (0.02 if moving else 0.008)
+			_hold(skeleton, local, rig.l, perch, _along(Vector3(-0.9, 0.1, 0.4), Vector3.UP), "sword")
 		if family == &"assassin" and carry:
 			# Twin daggers held low in front, points forward and a little out,
 			# edges up and down: the stance of a hunter ready to lunge.

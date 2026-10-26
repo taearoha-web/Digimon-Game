@@ -58,6 +58,12 @@ const RECIPES := {
 	"shadow_clone": ["twin_dagger", "8a5cff", "f0e6ff", 4, 1.05, 0.9, -0.3],
 	"night_lord": ["moon", "b18cff", "fff0ff", 5, 1.12, 1.4, 0.15],
 	"shadow_sovereign": ["twin_dagger", "ff4f7b", "ffe3ec", 6, 1.15, 1.3, 0.25],
+	"critical_damage": ["crown", "e8b64a", "fff4d0", 3, 1.0, 1.6, 0.2],
+	"iron_defense": ["shield", "e8b64a", "fff4d0", 4, 1.05, 1.0, 0.1],
+	"commanders_aura": ["crown", "f0c86a", "fff8e0", 5, 1.05, 1.7, 0.15],
+	"lord_of_command": ["citadel", "e8b64a", "fff6d8", 6, 1.12, 0.8, -0.1],
+	"emperors_command": ["crown", "ffd36b", "fff8dc", 8, 1.18, 1.8, 0.2],
+	"lords_dominion": ["crown", "e8b64a", "fff4d0", 6, 1.15, 1.6, 0.1],
 }
 static var _meshes: Dictionary = {}
 static var _names: Dictionary = {}

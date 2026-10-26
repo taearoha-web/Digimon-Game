@@ -8,7 +8,7 @@ extends RefCounted
 
 ## The mage carries the staff, the priest a short wand (with a matching book) and
 ## the summoner a lantern staff (with the grimoire of the same tier, see TOME).
-const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear", "greatshield", "dagger"]
+const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear", "greatshield", "dagger", "scepter"]
 
 const GOLD := Color("ffc93c")
 
@@ -35,6 +35,8 @@ const MODELS := {
 	"greatshield": {"file": "greatshield", "scale": 1.6, "offset": Vector3.ZERO},
 	# The Assassin's daggers (tools/make_assassin_gear.py): one in each hand.
 	"dagger": {"file": "dagger", "scale": 1.45, "offset": Vector3.ZERO},
+	# The Dark Lord's scepters (tools/make_dark_lord_gear.py): a short royal mace-staff.
+	"scepter": {"file": "scepter", "scale": 1.5, "offset": Vector3.ZERO},
 }
 
 

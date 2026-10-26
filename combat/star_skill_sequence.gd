@@ -23,7 +23,7 @@ static func launch(hero: Hero, data: Dictionary, target: Mob, aim: Vector3) -> f
 	seq.center=Vector3(aim.x,0,aim.z)
 	seq.origin=hero.global_position
 	seq.forward=Vector3(sin(hero._facing),0,cos(hero._facing))
-	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem"]
+	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm"]
 	seq._plan()
 	hero.add_child(seq)
 	return minf(seq.end,2.4) if String(data.id)=="sacred_sanctuary" else seq.end
@@ -40,6 +40,9 @@ func _plan() -> void:
 		"umbral_lacerate": beats=[0.0,0.26]
 		"shadow_execution": beats=[0.0,0.12,0.24,0.36,0.48,0.86]
 		"eclipse_requiem": beats=[0.0,0.32,0.64,0.96,1.36]
+		"chaos_inferno": beats=[0.0,0.3]
+		"raven_sovereign": beats=[0.0,0.14,0.28,0.42,0.56,0.94]
+		"imperial_cataclysm": beats=[0.0,0.32,0.64,0.96,1.36]
 		"crown_breaker": beats=[0.0,0.46]
 		"hunters_verdict": beats=[0.0,0.26,0.68]
 		"heartseeker": beats=[0.0,0.17,0.34,0.51,0.68,1.12]
@@ -59,7 +62,7 @@ func _plan() -> void:
 	var flight := 0.28 if carriers else 0.0
 	for i in beats.size():
 		var at := release+float(beats[i])
-		if i>0 and id in ["heartseeker","hunters_verdict","crown_breaker","spiral_impaler","shadow_execution"]:
+		if i>0 and id in ["heartseeker","hunters_verdict","crown_breaker","spiral_impaler","shadow_execution","raven_sovereign"]:
 			var windup := 0.13 if id in ["heartseeker","shadow_execution"] and i<5 else 0.24
 			events.append({"at":at-windup,"motion":true,"windup":windup})
 		if carriers: events.append({"at":at,"launch":true,"index":i,"flight":flight})
@@ -186,7 +189,7 @@ func _hit(h: Hero, index: int, count: int) -> void:
 	elif String(skill.shape)=="single":
 		if h._valid_target(target) and h._flat(target.global_position-h.global_position).length()<=float(skill.range)+3.0:
 			victims.append(target);point=target.global_position
-		if id in ["heartseeker","shadow_execution"]: share=0.10 if index<5 else 0.50
+		if id in ["heartseeker","shadow_execution","raven_sovereign"]: share=0.10 if index<5 else 0.50
 		elif id=="crown_breaker": share=0.32 if index==0 else 0.68
 		elif id=="hunters_verdict": share=0.25 if index<2 else 0.5
 	elif id=="sanctified_chain":

@@ -101,6 +101,7 @@ func _on_inventory_changed() -> void:
 ## A glowing ring under the feet of a hero who has changed jobs.
 func _update_job_ring() -> void:
 	if not is_inside_tree() or is_queued_for_deletion(): return
+	_sync_raven()
 	var job := StringName("%s|%d" % [Game.class_id(), Game.adv()])
 	if job == _ring_job:
 		return
@@ -925,11 +926,82 @@ func _summons_alive(skill_id: String) -> int:
 func _apply_self_fx(skill: Dictionary) -> void:
 	var fx: Dictionary = skill.get("fx", {})
 	var color: Color = skill.color
+	if fx.has("recall"):
+		recall_party()
 	if fx.has("heal"):
 		_heal(float(fx.heal))
 	if fx.has("buff"):
 		receive_buff(fx.buff, color, String(skill.name), false, String(skill.id))
 		_share_buff(fx.buff, color, String(skill.name), String(skill.id))
+
+
+# --- The Dark Lord's raven and Summon -----------------------------------------
+
+## One raven strike: a share of the Lord's attack (the star set makes it hit harder).
+const RAVEN_MULT := 0.45
+var raven: DarkRaven
+
+
+## A Dark Lord has a raven on the arm; any other class does not.
+func _sync_raven() -> void:
+	if Game.class_id() == &"darklord":
+		raven = DarkRaven.ensure(self)
+		raven.attack = bool(int(Game.profile.flags.get("raven_attack", 1)))
+	elif raven != null:
+		DarkRaven.remove(self)
+		raven = null
+
+
+## The raven button: sends the raven at the hero's target (it then picks fights on
+## its own) or calls it back to the arm. Remembered with the character.
+func set_raven_attack(on: bool) -> void:
+	if raven == null:
+		return
+	raven.attack = on
+	Game.profile.flags["raven_attack"] = 1 if on else 0
+	if not on and raven.state != DarkRaven.State.PERCH:
+		raven.state = DarkRaven.State.RETURN
+
+
+## The raven goes for the hero's target, else the nearest monster within reach.
+func raven_target() -> Mob:
+	if _valid_target(target) and _flat(target.global_position - global_position).length() <= 16.0:
+		return target
+	var best: Mob = null
+	var best_d := 14.0
+	for node in get_tree().get_nodes_in_group("mobs"):
+		var mob := node as Mob
+		if mob and _valid_target(mob) and mob.hostile:
+			var d := _flat(mob.global_position - global_position).length()
+			if d < best_d:
+				best_d = d
+				best = mob
+	return best
+
+
+func raven_strike(mob: Mob) -> void:
+	if not _valid_target(mob):
+		return
+	var mult := RAVEN_MULT * (1.3 if StarProgression.has_full_set(Game.profile, "darklord") else 1.0)
+	_deal(mob, mult, DarkRaven.VIOLET, &"slash", false)
+
+
+## Summon (MU Online): every party member is pulled to the hero's side at once,
+## with a flash where each one left and where it arrives.
+func recall_party() -> void:
+	var k := 0
+	for node in get_tree().get_nodes_in_group("companions"):
+		var ally := node as Node3D
+		if not is_instance_valid(ally) or ally.is_queued_for_deletion():
+			continue
+		var angle := _facing + PI + (float(k) - 1.5) * 0.7
+		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.2
+		VfxKit.flash(field, ally.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
+		ally.global_position = spot + Vector3(0, 0.3, 0)
+		VfxKit.flash(field, spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
+		VfxKit.shockwave(field, spot + Vector3(0, 0.1, 0), Color("8a4dff"), 1.8)
+		k += 1
+	VfxKit.shockwave(field, global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
 
 
 ## Buff skills reach the whole team: companions and summoned creatures get them too.

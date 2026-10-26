@@ -7,6 +7,7 @@ extends RefCounted
 ##   lancer              a thrust of light down the spear line, spiral wakes
 ##   defender            shield slams, quake rings, walls of light
 ##   assassin            twin crossing cuts, shadow smoke, violet night and a crimson edge
+##   darklord            a royal gold crest, dark force motes and crackling bolts round the scepter
 ##   archer              bow flare, bursting arrivals, glowing arrow storms
 ##   priest              heaven-sent columns, halos and sanctified circles
 ##   summoner            summoning seals, spirit vortices, bursts of growth
@@ -192,6 +193,9 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 	elif family == "assassin":
 		# The shadows gather round the caster's feet before the blades move.
 		_shadow_smoke(parent, origin, c, 0.7 * s, 10 + int(10 * power(skill)), "rise")
+	elif family == "darklord" and power(skill) >= 0.3:
+		# Dark force crackles round the Lord before the command is given.
+		_bolt_ring(parent, origin, c, 1.2 * s, 2 + int(power(skill) * 3.0))
 
 
 ## Release: called once per cast by SkillShow.play (hero, companions, rivals).
@@ -359,6 +363,11 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			# The great shield comes down: a heavy slam and a shield-outline wave spreading from it.
 			_slam(parent, ground, c[0], radius * 0.8, c[1], c[2])
 			_shield_wave(parent, ground, yaw, c, radius * 0.9, 0.7)
+		"darklord":
+			# The Lord's command lands: a royal slam, a ring of lightning and a crown of columns.
+			_slam(parent, ground, c[0], radius * 0.8, c[1], c[2])
+			_bolt_ring(parent, ground, c, radius * 0.6, 3 + index)
+			_column_ring(parent, ground, c, radius * 0.55, 4, 0.06)
 		"assassin":
 			# Twin crescents cross over the mark, shadow bursts out of it and daggers fall.
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 1.0, c[0], c[1], 2.2 * s, 0.0, 1.4, c[2])
@@ -748,6 +757,11 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 			# Shield outlines climb the column: the wall of light rising around the Defender.
 			for i in 3:
 				_shield_wave(parent, origin + Vector3.UP * (0.25 + 0.5 * i), TAU * float(i) / 3.0, c, (1.6 - 0.2 * i) * s, 0.7, 0.06 * i)
+		"darklord":
+			# A royal command: a gold and violet spiral climbs the column under a crest.
+			VfxArt.ribbon_spiral(parent, origin, c[1], 3.0 + 1.5 * p, 3.0, 1.0, 0.8 * s)
+			VfxArt.ribbon_spiral(parent, origin, SkillArtDirection.PALETTES.darkforce[0], 2.4 + 1.5 * p, 2.0, 1.0, 1.0 * s)
+			VfxArt.crest(parent, origin, c[0], family, 1.4 * s, 1.2, randf() * TAU)
 		"assassin":
 			# The caster melts into the dark: smoke rising round a violet and crimson spiral.
 			_shadow_smoke(parent, origin, c, 0.9 * s, 22, "rise")

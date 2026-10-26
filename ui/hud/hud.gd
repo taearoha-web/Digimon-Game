@@ -31,6 +31,8 @@ var hp_potion: TouchButton
 var mp_potion: TouchButton
 var target_button: TouchButton
 var auto_button: TouchButton
+## The Dark Lord's raven: attack on its own / come back to the arm.
+var raven_button: TouchButton
 var interact_button: TouchButton
 
 var _root: Control
@@ -279,6 +281,9 @@ func _refresh() -> void:
 		_update_potions()
 		attack_button.set_toggled(hero.engaged)
 		auto_button.set_toggled(hero.auto)
+	raven_button.visible = hero.raven != null and not zone.is_town and auto_button.visible
+	if raven_button.visible:
+		raven_button.set_toggled(hero.raven.attack)
 	_update_target_frame()
 	_update_boss_bar()
 
@@ -614,8 +619,13 @@ func kick_party_member(i: int) -> void:
 
 
 const WING_LABELS := ["ยืน", "บิน", "หุบปีก"]
+## The Dark Lord's cape: walk, float, gather it up.
+const CAPE_LABELS := ["เดิน", "ลอย", "เก็บผ้าคลุม"]
 ## Chip order on screen: fly, stand, fold.
 const WING_ORDER := [HeroVisual.WING_FLY, HeroVisual.WING_STAND, HeroVisual.WING_FOLD]
+
+
+var _cape_shown := false
 
 
 func _build_wing_row(column: Control) -> void:
@@ -642,9 +652,13 @@ func _build_wing_row(column: Control) -> void:
 func _update_wing_row() -> void:
 	var worn := hero != null and is_instance_valid(hero.visual) and hero.visual.has_wings()
 	_wing_row.visible = worn
-	if not worn or hero.visual.wing_mode == _wing_shown:
+	var cape := worn and hero.visual.class_id == &"darklord"
+	if not worn or (hero.visual.wing_mode == _wing_shown and cape == _cape_shown):
 		return
 	_wing_shown = hero.visual.wing_mode
+	_cape_shown = cape
+	for i in _wing_chips.size():
+		(_wing_chips[i].get_child(0) as Label).text = (CAPE_LABELS if cape else WING_LABELS)[WING_ORDER[i]]
 	for i in _wing_chips.size():
 		var active: bool = WING_ORDER[i] == _wing_shown
 		var style := StyleBoxFlat.new()
@@ -775,6 +789,16 @@ func _build_action_buttons(frame: Control) -> void:
 	target_button = _small_button("res://assets/icons/ui/target.svg", UIPalette.GOLD, Vector2.ZERO)
 	target_button.pressed.connect(func(): if hero: hero.cycle_target())
 	frame.add_child(target_button)
+	raven_button = _small_button("", Color("8a4dff"), Vector2.ZERO)
+	raven_button.toggle_mode = true
+	raven_button.text = "อีกา"
+	raven_button.font_size_override = 17
+	raven_button.visible = false
+	raven_button.pressed.connect(func():
+		if hero and hero.raven:
+			hero.set_raven_attack(not hero.raven.attack)
+			Game.say("อีกา: %s" % ("บุกโจมตีเอง" if hero.raven.attack else "กลับมาเกาะแขน"), &"info"))
+	frame.add_child(raven_button)
 
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0
@@ -814,6 +838,8 @@ func _layout_actions() -> void:
 	for i in utilities.size():
 		var button: TouchButton = utilities[i]
 		_place_corner(button, positions.utility[i] + Vector2.ONE * button.radius, button.radius)
+	# The raven button sits just left of the auto button.
+	_place_corner(raven_button, positions.utility[2] + Vector2(-72, 0) + Vector2.ONE * raven_button.radius, raven_button.radius)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
 
