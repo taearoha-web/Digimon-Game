@@ -67,8 +67,8 @@ func _ready() -> void:
 	await _wait(4.0)
 	var zone: Zone = main.zone
 	zone.hero._invulnerable_until = Time.get_ticks_msec() + 600000
-	var bots := get_tree().get_nodes_in_group("world_players")
 	await _wait(4.0)
+	var bots := get_tree().get_nodes_in_group("world_players")
 	if not bots.is_empty():
 		var bot: FieldPlayer = bots[0]
 		zone.hero.global_position = bot.global_position + Vector3(-3.0, 0.2, 5.0)
@@ -93,7 +93,7 @@ func _ready() -> void:
 		await _wait(0.5)
 		await _shot("joined")
 		main.player_card.close_card()
-	# A party of three: the hero and two world players walking and fighting together.
+	# A full party: the hero and four world players walking and fighting together.
 	for i in WorldPlayers.size():
 		if Game.party().size() >= Game.PARTY_MAX:
 			break

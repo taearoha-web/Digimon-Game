@@ -363,8 +363,8 @@ func _pick_target() -> Mob:
 
 func _follow(delta: float) -> Vector3:
 	# Beside the hero (seen from the camera), never between camera and hero: left, right,
-	# then a step ahead for a third party member.
-	var spots := [Vector3(-3.0, 0, -0.6), Vector3(3.0, 0, -0.6), Vector3(0.0, 0, -3.4)]
+	# then a step ahead on either side for the third and fourth party members.
+	var spots := [Vector3(-3.0, 0, -0.6), Vector3(3.0, 0, -0.6), Vector3(-2.2, 0, -3.6), Vector3(2.2, 0, -3.6)]
 	var yaw := hero.camera_rig.yaw if hero.camera_rig else hero._facing
 	var offset: Vector3 = (spots[index % spots.size()] as Vector3).rotated(Vector3.UP, yaw)
 	var spot := hero.global_position + offset

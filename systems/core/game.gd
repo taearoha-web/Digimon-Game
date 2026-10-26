@@ -1051,7 +1051,7 @@ func party_look(member: Dictionary) -> Dictionary:
 var _party_gear: Dictionary = {}
 
 ## A party is at most three people: the hero and two world players.
-const PARTY_SIZE := 3
+const PARTY_SIZE := 5
 const PARTY_MAX := PARTY_SIZE - 1
 ## A world player says yes to a stranger within this many levels (guild mates always do).
 const PARTY_LEVEL_GAP := 20

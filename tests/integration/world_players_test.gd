@@ -295,7 +295,7 @@ func _party() -> void:
 	var hero: Hero = zone.hero
 	hero._invulnerable_until = Time.get_ticks_msec() + 600000
 	check(Game.party().is_empty() and zone.companions.is_empty(), "a hero starts with no party (the hired companion is gone)")
-	check(Game.PARTY_SIZE == 3 and Game.PARTY_MAX == 2, "a party is three people: the hero and two")
+	check(Game.PARTY_SIZE == 5 and Game.PARTY_MAX == 4, "a party is five people: the hero and four")
 	# Walk up to someone hunting here and tap them: their card asks them in.
 	var bot: FieldPlayer = null
 	for i in zone.presence.shown:
@@ -360,7 +360,7 @@ func _party() -> void:
 			check(Game.party_invite(far) == "", "a guild mate always says yes")
 		elif absi(100 - int(far_state.level)) > Game.PARTY_LEVEL_GAP:
 			check(Game.party_invite(far).contains("เลเวลห่าง"), "below Lv.100 it is in no guild yet: no guild mate's yes")
-	# Three people at most: the hero and two.
+	# Five people at most: the hero and four.
 	for i in WorldPlayers.size():
 		if Game.party().size() >= Game.PARTY_MAX:
 			break
@@ -368,9 +368,18 @@ func _party() -> void:
 	var extra := 0
 	while Game.in_party(extra):
 		extra += 1
-	check(Game.party().size() == Game.PARTY_MAX and Game.party_invite(extra, true).contains("3 คน"), "a party holds three with the hero")
+	check(Game.party().size() == Game.PARTY_MAX and Game.party_invite(extra, true).contains("5 คน"), "a party holds five with the hero")
 	await get_tree().create_timer(0.4).timeout
-	check(zone.companions.size() == Game.PARTY_MAX, "both members walk with the hero")
+	check(zone.companions.size() == Game.PARTY_MAX, "every member walks with the hero")
+	# The cross on a member's HUD card lets that member go.
+	var cards: Array = main.hud._party_cards
+	check(cards.size() == Game.PARTY_MAX and (cards[3].card as Control).visible and is_instance_valid(cards[0].get("kick")), "a HUD card with a cross for each of the four members")
+	var first: int = Game.world_party[0]
+	(cards[0].kick as Button).pressed.emit()
+	await get_tree().create_timer(0.4).timeout
+	check(not Game.in_party(first) and Game.party().size() == Game.PARTY_MAX - 1 and zone.companions.size() == Game.PARTY_MAX - 1, "the cross lets the member go")
+	Game.party_invite(first, true)
+	await get_tree().create_timer(0.4).timeout
 	# A kill's EXP is shared: everyone gets an even part of a pot that grows with the party.
 	Game.profile.level = 50
 	Game.profile.exp = 0
@@ -385,7 +394,8 @@ func _party() -> void:
 	var base := float(orc.stats.exp) * (1.0 + maxf(0.0, float(zone.data.get("gear_star", 0)) / 25.0))
 	orc.take_hit(orc.hp + 100, false, Color.WHITE, hero)
 	await get_tree().process_frame
-	var want := int(round(base * (1.0 + Game.PARTY_EXP_BONUS * 2.0) / 3.0))
+	var people := float(ids.size() + 1)
+	var want := int(round(base * (1.0 + Game.PARTY_EXP_BONUS * (people - 1.0)) / people))
 	check(absi(int(Game.profile.exp) - want) <= 1 and int(Game.profile.exp) < int(base), "the hero gets its part of the shared EXP (%d of %d)" % [int(Game.profile.exp), int(base)])
 	var shared := true
 	for k in ids.size():

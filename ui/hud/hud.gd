@@ -546,7 +546,7 @@ func update_online() -> void:
 
 
 ## Small cards for the party (world players who joined): badge, name, level, progress.
-## A tap switches that member between follow, aggressive and guard.
+## A tap switches that member between follow, aggressive and guard; the cross lets it go.
 func _build_party(column: Control) -> void:
 	for i in Game.PARTY_MAX:
 		var card := UIUtil.panel(&"HudPanel")
@@ -580,7 +580,23 @@ func _build_party(column: Control) -> void:
 		info.add_child(bar)
 		var exp_bar := _bar(&"EXPBar", 4)
 		info.add_child(exp_bar)
-		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "key": ""})
+		# The cross lets this member go (the card itself changes its stance).
+		var kick := UIUtil.button("✕", &"", Vector2(44, 44))
+		kick.name = "Kick"
+		kick.focus_mode = Control.FOCUS_NONE
+		kick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		kick.pressed.connect(func(): kick_party_member(i))
+		row.add_child(kick)
+		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "kick": kick, "key": ""})
+
+
+## Lets the i-th party member go (the cross on its card); it says goodbye.
+func kick_party_member(i: int) -> void:
+	if i < 0 or i >= Game.world_party.size():
+		return
+	var who: Dictionary = Game.party()[i]
+	Game.party_kick(Game.world_party[i], "%s ออกจากปาร์ตี้แล้ว" % who.name)
+	AudioManager.play_ui(&"ui_cancel")
 
 
 const WING_LABELS := ["ยืน", "บิน", "หุบปีก"]
