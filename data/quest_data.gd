@@ -109,7 +109,7 @@ const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs
 static func reward_for_level(level: int, boss: bool, star := 0) -> Dictionary:
 	var lv := clampi(level, 1, 100)
 	if star > 0:
-		var need := float(HeroStats.exp_to_next(100)) * (1.0 + 0.02 * float(star))
+		var need := float(HeroStats.star_need(star))
 		return {
 			"exp": int(round(need * (2.0 if boss else 1.0))),
 			# Gold grows gently with ★ so the richest turn-in (a 200★ boss, about

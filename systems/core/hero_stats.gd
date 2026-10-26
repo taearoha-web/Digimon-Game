@@ -32,6 +32,16 @@ static func exp_to_next(level: int) -> int:
 	return int(36.0 * pow(float(level), 1.6))
 
 
+## Past Lv.100 every star asks this much more than a Lv.100 level did (the climb to
+## ★200 is the long farm), and 2% more per star already reached.
+const STAR_EXP := 1.5
+
+
+## EXP from star `star` to the next (★0 -> ★1 is `star` 0).
+static func star_need(star: int) -> int:
+	return int(float(exp_to_next(100)) * STAR_EXP * (1.0 + 0.02 * float(star)))
+
+
 ## Attributes = class base + automatic growth per level + points the player spent.
 static func attributes(profile: Dictionary) -> Dictionary:
 	var data := ClassData.get_class_data(StringName(profile["class"]))

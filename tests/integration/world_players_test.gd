@@ -68,7 +68,7 @@ func _progress() -> void:
 		var steady := true
 		var zones_ok := true
 		var t := start
-		while t < start + 160.0 * day:
+		while t < start + 200.0 * day:
 			var s := WorldPlayers.state(i, t)
 			if int(s.level) < last_level or int(s.stars) < last_stars:
 				steady = false
@@ -82,7 +82,7 @@ func _progress() -> void:
 			t += day * 0.73
 		check(steady, "%s: level and stars only ever go up" % e.name)
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
-		var end := WorldPlayers.state(i, start + 160.0 * day)
+		var end := WorldPlayers.state(i, start + 200.0 * day)
 		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
 		var early := WorldPlayers.state(i, start + 0.5 * day)
 		check(int(early.level) < 100, "%s: no Lv.100 in the first twelve hours (%d)" % [e.name, int(early.level)])

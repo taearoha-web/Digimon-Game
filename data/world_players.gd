@@ -233,7 +233,7 @@ static func _steps() -> PackedFloat64Array:
 		total += float(HeroStats.exp_to_next(level)) / rate(level, 0)
 		table.append(total)
 	for star in Game.PARAGON_MAX:
-		total += float(HeroStats.exp_to_next(Game.MAX_LEVEL)) * (1.0 + 0.02 * float(star)) / rate(Game.MAX_LEVEL, star)
+		total += float(HeroStats.star_need(star)) / rate(Game.MAX_LEVEL, star)
 		table.append(total)
 	_table = table
 	return table
