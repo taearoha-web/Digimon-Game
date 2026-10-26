@@ -5,14 +5,14 @@ usage: python3 tools/make_dark_lord_gear.py [OUT_ROOT]   (OUT_ROOT defaults to a
 
 What it writes (same layout and conventions as the other classes):
   weapons/scepter_<0-9>.glb          Lv.10..100 scepters, static, grip at the origin, head up +Y
-  divine_gear/darklord_scepter.glb  the 200-star emperor's raven scepter, static
+  divine_gear/darklord_scepter.glb  the 200-star emperor's hawk scepter, static
 
 A scepter is a short royal mace-staff: a wrapped grip with a pommel, a shaft with
 collars, and a head that grows grander with each tier (iron flanges, a ring and
 gem, mithril crescents, a royal crown, a dragon's claw round a fire orb, ice
-shards, raven-wing blades round a void orb, a holy halo, lightning prongs, and
-the god-tier crown with floating rings). The cape and the raven are built at
-runtime (CapeArt, DarkRaven). Shares the mesh helpers and GLB writer of
+shards, hawk-wing blades round a void orb, a holy halo, lightning prongs, and
+the god-tier crown with floating rings). The cape and the hawk are built at
+runtime (CapeArt, DarkHawk). Shares the mesh helpers and GLB writer of
 tools/make_assassin_gear.py. Requires numpy.
 """
 import math
@@ -92,7 +92,7 @@ def crown(m, key, y, radius, points=5, height=0.06):
 
 
 def wing_blades(m, key, y, span, rise, count=2, thick=0.012):
-    """Raven-wing blades sweeping out and up from both sides of the head."""
+    """Hawk-wing blades sweeping out and up from both sides of the head."""
     for side in (-1, 1):
         for k in range(count):
             off = k * 0.03
@@ -149,7 +149,7 @@ def scepter(tier):
             gem(m, "metal", tuple(d * 0.06 + np.array([0, top + 0.08 + (k % 2) * 0.03, 0])), (0.012, 0.06, 0.012))
         gem(m, "metal", (0, top + 0.2, 0), (0.016, 0.06, 0.016))
     elif tier == 6:
-        # Raven-wing blades round a void orb.
+        # Hawk-wing blades round a void orb.
         sphere(m, "gem", (0, top + 0.08, 0), 0.045)
         torus(m, "accent", (0, top + 0.08, 0), (0, 0, 1), 0.065, 0.006, seg=24)
         wing_blades(m, "metal", top + 0.06, 0.16, 0.14, count=2)
@@ -173,7 +173,7 @@ def scepter(tier):
             tube(m, "accent", zig, [0.008, 0.007, 0.006, 0.004, 0.001], sides=5)
         flanges(m, "metal", top - 0.02, 6, 0.05, 0.045)
     else:
-        # The god-tier: a crowned violet orb in two crossing gold rings, raven wings and a gem spire.
+        # The god-tier: a crowned violet orb in two crossing gold rings, hawk wings and a gem spire.
         sphere(m, "gem", (0, top + 0.1, 0), 0.055)
         torus(m, "gold", (0, top + 0.1, 0), (0, 0, 1), 0.08, 0.007, seg=28)
         torus(m, "gold", (0, top + 0.1, 0), (1, 0, 0), 0.08, 0.007, seg=28)
@@ -185,8 +185,8 @@ def scepter(tier):
 
 
 def divine_scepter():
-    """The 200-star emperor's raven scepter: black and gold, a crimson void orb held
-    by a raven with spread wings, a floating crown and three orbiting gold rings."""
+    """The 200-star emperor's hawk scepter: black and gold, a crimson void orb held
+    by a hawk with spread wings, a floating crown and three orbiting gold rings."""
     m = Mesh()
     mats = {"metal": material("16101e", 0.6, 0.3), "gold": material("f2c45a", 0.85, 0.2),
             "gem": material("ff2a4a", 0.1, 0.15, glow="ff2a4a", glow_amount=2.0),

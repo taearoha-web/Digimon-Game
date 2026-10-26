@@ -376,7 +376,7 @@ static func _wand(b: Dictionary, p: Dictionary, t: int) -> void:
 	_ring_at(b, top, 0.13, 0.032, p.metal)
 
 
-## The Dark Lord's star scepter: a royal shaft, an orb in a crown, raven-wing
+## The Dark Lord's star scepter: a royal shaft, an orb in a crown, hawk-wing
 ## feathers sweeping out of the head (more and grander with each star tier).
 static func _scepter(b: Dictionary, p: Dictionary, t: int) -> void:
 	_shaft(b, p, -0.3, 0.7, 0.082)
@@ -388,7 +388,7 @@ static func _scepter(b: Dictionary, p: Dictionary, t: int) -> void:
 		var a := TAU * k / 5.0
 		_gem(b, top + Vector3(sin(a) * 0.12, 0.14, cos(a) * 0.12), Vector3(0.05, 0.12, 0.05), p)
 	_ring_at(b, top + Vector3(0, 0.1, 0), 0.13, 0.025, p.metal, Vector3(90, 0, 0))
-	# Raven-wing feathers on both sides.
+	# Hawk-wing feathers on both sides.
 	var feathers := 2 + t
 	for side in [-1.0, 1.0]:
 		for k in feathers:
@@ -485,7 +485,7 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 			_line(b, [Vector3(side * 0.025, -0.012, 0.124), Vector3(side * 0.045, -0.032, 0.124)], 0.005, p.metal)
 		_ring_at(b, Vector3(0, 0.075, 0.12), 0.022, 0.004, p.gem, Vector3(90, 0, 0), true)
 	elif cls == "darklord":
-		# A gold raven with spread wings under a small crown.
+		# A gold hawk with spread wings under a small crown.
 		for side in [-1.0, 1.0]:
 			_feather(b, Vector3(side * 0.035, 0.035, 0.124), 0.07, 0.022, side * -1.1, p.edge)
 		_part(b, MeshKit.sphere_low(), p.edge, Vector3(0, 0.03, 0.126), Vector3(0.022, 0.04, 0.01))
@@ -554,7 +554,7 @@ static func _helm(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 			_part(b, MeshKit.box(), p.edge, Vector3(0, 0.267, 0.198), Vector3(0.013, 0.093, 0.013))
 			_part(b, MeshKit.box(), p.edge, Vector3(0, 0.281, 0.198), Vector3(0.055, 0.013, 0.013))
 		elif cls == "darklord":
-			# A royal circlet with a raven crest and two swept wings.
+			# A royal circlet with a hawk crest and two swept wings.
 			for k in 5:
 				_gem(b, Vector3((k - 2) * 0.04, 0.26 + (0.02 if k == 2 else 0.0), 0.17), Vector3(0.018, 0.045, 0.01), p)
 			for side in [-1.0, 1.0]:
@@ -624,7 +624,7 @@ static func _class_badge(b: Dictionary, center: Vector3, s: float, cls: String, 
 				_feather(b, center + Vector3(side * s * 0.78, s * 0.35, 0), s * 1.5, s * 0.86, side * -0.5, p.cloth)
 				_feather(b, center + Vector3(side * s * 0.65, -s * 0.65, 0), s * 1.2, s * 0.68, side * 0.5, p.metal)
 		"darklord":
-			# A raven with spread wings.
+			# A hawk with spread wings.
 			for side in [-1.0, 1.0]:
 				_feather(b, center + Vector3(side * s * 0.5, s * 0.2, 0), s * 1.8, s * 0.5, side * -1.0, p.edge)
 			_part(b, MeshKit.sphere_low(), p.gem, center, Vector3(s * 0.6, s * 0.9, s * 0.4), Vector3.ZERO, true)

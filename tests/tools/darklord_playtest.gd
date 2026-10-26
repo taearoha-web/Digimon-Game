@@ -1,10 +1,10 @@
 extends Node
-## A Lv.100 ★200 Dark Lord hunting a field with a party: the raven attacking on its
+## A Lv.100 ★200 Dark Lord hunting a field with a party: the hawk attacking on its
 ## own, every skill cast in turn (Summon warps the party), the cape floating, with a
 ## screenshot every few seconds and a check that nothing broke.
 ##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/darklord_playtest.tscn -- OUT_DIR [SECONDS] [ZONE]
 var main: Node
-var raven_hits := 0
+var hawk_hits := 0
 
 
 func _ready() -> void:
@@ -44,12 +44,12 @@ func _ready() -> void:
 	hero.set_wing_mode(HeroVisual.WING_FLY)
 	await get_tree().create_timer(1.0).timeout
 	hero.set_auto(true)
-	hero.set_raven_attack(true)
+	hero.set_hawk_attack(true)
 	var pool := ClassData.pool(&"darklord")
 	var cast_index := 0
 	var start := Time.get_ticks_msec()
 	var k := 0
-	var raven_states := {}
+	var hawk_states := {}
 	while float(Time.get_ticks_msec() - start) / 1000.0 < duration:
 		await get_tree().create_timer(1.5).timeout
 		Game.profile.hp = hero.stats.max_hp
@@ -72,11 +72,11 @@ func _ready() -> void:
 				if ally.global_position.distance_to(hero.global_position) > 6.0:
 					far += 1
 			print("SUMMON: allies still far = %d" % far)
-		raven_states[hero.raven.state] = true
-		var rt: Variant = hero.raven._target_ref.get_ref() if hero.raven._target_ref != null else null
-		print("PLAYTEST t=%d cast=%s raven=%s from_lord=%.1f to_target=%.1f kills=%d" % [k, skill.id, hero.raven.state, hero.raven.global_position.distance_to(hero.global_position), hero.raven.global_position.distance_to((rt as Node3D).global_position) if rt is Node3D else -1.0, int(Game.profile.kills)])
+		hawk_states[hero.hawk.state] = true
+		var rt: Variant = hero.hawk._target_ref.get_ref() if hero.hawk._target_ref != null else null
+		print("PLAYTEST t=%d cast=%s hawk=%s from_lord=%.1f to_target=%.1f kills=%d" % [k, skill.id, hero.hawk.state, hero.hawk.global_position.distance_to(hero.global_position), hero.hawk.global_position.distance_to((rt as Node3D).global_position) if rt is Node3D else -1.0, int(Game.profile.kills)])
 		if k % 2 == 0:
 			get_viewport().get_texture().get_image().save_png("%s/%02d.png" % [out, k / 2])
 		k += 1
-	print("RAVEN STATES SEEN: %s strikes=%d" % [raven_states.keys(), hero.raven_strikes])
+	print("HAWK STATES SEEN: %s strikes=%d" % [hawk_states.keys(), hero.hawk_strikes])
 	get_tree().quit()

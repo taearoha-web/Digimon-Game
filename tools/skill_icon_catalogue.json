@@ -1474,7 +1474,7 @@
     "name": "Birds",
     "family": "darklord",
     "palette": "darkforce",
-    "art_sha256": "b690dbbbc99a4fb381b491286cb1bdc6b8ee07ceb66b80769e8a471311a64867"
+    "art_sha256": "29c63e59e87303cea6b8637c21b2320e0928c8110830c00bdb9173f54cf3381a"
   },
   {
     "id": "chaos_strike",
@@ -1562,10 +1562,10 @@
   },
   {
     "id": "raven_storm",
-    "name": "Raven Storm",
+    "name": "Hawk Storm",
     "family": "darklord",
     "palette": "darkforce",
-    "art_sha256": "98aa3d5953c0a30186d80944d946beaf075ebdc3cf12debac2964ff3dd920c8a"
+    "art_sha256": "fc22f2d125144f5ebca16a2ad1691067981bb13c3c2a00cb70ea573b7d6453b9"
   },
   {
     "id": "earth_dominion",

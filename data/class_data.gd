@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
 ## Hero classes: the Vagabond (Lv.1-9) and the lines chosen at Lv.10 (sword,
-## bow, mage, priest, summoner, spear, great shield, twin daggers, scepter and raven). Each class has a pool of active skills modelled on
+## bow, mage, priest, summoner, spear, great shield, twin daggers, scepter and hawk). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -214,7 +214,7 @@ const CLASSES := {
 		"name": "ดาร์กลอร์ด",
 		"title": "จอมราชันผู้บัญชาการ",
 		"badge": "K",
-		"desc": "ดาร์กลอร์ด — ราชันผู้บัญชาการแบบ MU Online ถือคทาราชันมือหนึ่ง อีกแขนมีอีกาคู่ใจเกาะอยู่ สั่งให้อีกาพุ่งไปโจมตีเองได้ ใช้พลังมืด ไฟ และสายฟ้า สั่นแผ่นดิน เสริมพลังทั้งทีม และวาร์ปเพื่อนทั้งปาร์ตี้มาหาตัวได้ (STR ตีแรง INT เสริมเป็นรอง)",
+		"desc": "ดาร์กลอร์ด — ราชันผู้บัญชาการแบบ MU Online ถือคทาราชันมือหนึ่ง อีกแขนมีเหยี่ยวคู่ใจเกาะอยู่ สั่งให้เหยี่ยวพุ่งไปโจมตีเองได้ ใช้พลังมืด ไฟ และสายฟ้า สั่นแผ่นดิน เสริมพลังทั้งทีม และวาร์ปเพื่อนทั้งปาร์ตี้มาหาตัวได้ (STR ตีแรง INT เสริมเป็นรอง)",
 		"model": "Knight",
 		"weapon": "scepter",
 		"offhand": "",
@@ -309,7 +309,7 @@ const PASSIVES := {
 		{"id": "scepter_mastery", "name": "Scepter Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
 		{"id": "royal_vigor", "name": "Royal Vigor", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
 		{"id": "command_presence", "name": "Command Presence", "desc": "พลังป้องกัน +3% และ MP +3% ต่อดาว", "level": 30, "bonus": {"def": 0.03, "mp": 0.03}},
-		{"id": "raven_bond", "name": "Raven Bond", "desc": "คริติคอล +1.5% ต่อดาว", "level": 40, "bonus": {"crit": 0.015}},
+		{"id": "raven_bond", "name": "Hawk Bond", "desc": "คริติคอล +1.5% ต่อดาว", "level": 40, "bonus": {"crit": 0.015}},
 		{"id": "dark_dominion", "name": "Dark Dominion", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "emperor_will", "name": "Emperor's Will", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
 	],
@@ -718,7 +718,7 @@ static func _build_pools() -> void:
 		_sk(n, "oblivion_requiem", "Oblivion Requiem", "บทเพลงลืมเลือน เงามืดปะทุฉีกทุกสิ่งรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 10.5, {"radius": 9.0, "fx": {"stun": 1.5}, "special": "spin", "vfx": &"slash", "color": blood, "icon": "nova"}),
 	]
 
-	# Dark Lord: the commander of MU Online with a scepter and a raven. Royal gold, dark
+	# Dark Lord: the commander of MU Online with a scepter and a hawk. Royal gold, dark
 	# force violet, fire and the lightning of Electric Spike.
 	var k := &"darklord"
 	var royal := Color("e8b64a")
@@ -735,7 +735,7 @@ static func _build_pools() -> void:
 		_sk(k, "force_wave", "Force Wave", "คลื่นพลังมืด 3 สายแผ่ออกเป็นพัด", 24, 22, 8.0, "fan", 2.3, {"hits": 3, "range": 11.0, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
 		_sk(k, "electric_spike", "Electric Spike", "หอกสายฟ้าฟาดลงแล้วกระโดดไปศัตรู 5 ตัว", 27, 26, 9.0, "chain", 3.0, {"hits": 5, "range": 10.0, "vfx": &"thunder", "color": bolt, "icon": "bolt"}),
 		_sk(k, "fire_scream", "Fire Scream", "คำรามเพลิง ระเบิดไฟใส่ฝูงศัตรู ติดไฟต่อเนื่อง", 31, 30, 10.0, "blast", 3.8, {"radius": 4.6, "range": 10.0, "fx": {"burn": [0.35, 4.0]}, "anim": "Spellcast_Shoot", "hit_delay": 0.45, "vfx": &"fireball", "color": fire, "icon": "fire"}),
-		_sk(k, "birds", "Birds", "ปล่อยฝูงอีกาเงา 5 ตัวโฉบใส่ศัตรูหลายตัว", 35, 30, 9.0, "fan", 2.4, {"hits": 5, "range": 11.0, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
+		_sk(k, "birds", "Birds", "ปล่อยฝูงเหยี่ยวเงา 5 ตัวโฉบใส่ศัตรูหลายตัว", 35, 30, 9.0, "fan", 2.4, {"hits": 5, "range": 11.0, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
 		_sk(k, "chaos_strike", "Chaos Strike", "ฟาดคทาแห่งความโกลาหลใส่ศัตรูตัวเดียว แรงมาก", 39, 34, 7.0, "single", 6.0, {"range": 3.0, "vfx": &"impact", "color": dark, "icon": "sword"}),
 		_sk(k, "iron_defense", "Iron Defense", "เกราะราชัน ทีม DEF +40% ฟื้น HP 15% นาน 1 นาที", 43, 36, 32.0, "self", 0.0, {"fx": {"heal": 0.15, "buff": {"def": 0.4, "secs": 60.0}}, "color": royal, "icon": "shield"}),
 		_sk(k, "commanders_aura", "Commander's Aura", "รัศมีผู้บัญชาการ ทีม ATK +35% DEF +20% นาน 1 นาที", 47, 44, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.35, "def": 0.2, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
@@ -748,7 +748,7 @@ static func _build_pools() -> void:
 		_sk(k, "lord_of_command", "Lord of Command", "จ้าวบัญชาการ ทีม ATK +35% คริ +15% DEF +25% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.15, "def": 0.25, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
 		_sk(k, "infernal_scream", "Infernal Scream", "เสียงคำรามนรก เพลิงพายุถล่มรอบตัว ติดไฟแรง", 80, 90, 13.0, "burst", 6.6, {"radius": 7.0, "fx": {"burn": [0.5, 5.0]}, "anim": "Spellcast_Raise", "vfx": &"fireball", "color": fire, "icon": "nova"}),
 		_sk(k, "chaos_sovereign", "Chaos Sovereign", "ราชันแห่งความโกลาหล ฟาดพลังมืดฉีกศัตรูตัวเดียว", 84, 92, 10.0, "single", 17.0, {"range": 3.6, "vfx": &"impact", "color": dark, "icon": "sword"}),
-		_sk(k, "raven_storm", "Raven Storm", "พายุอีกาเงา 8 ตัวโฉบใส่ศัตรูรอบทิศ", 88, 96, 13.0, "fan", 4, {"hits": 8, "range": 12.0, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
+		_sk(k, "raven_storm", "Hawk Storm", "พายุเหยี่ยวเงา 8 ตัวโฉบใส่ศัตรูรอบทิศ", 88, 96, 13.0, "fan", 4, {"hits": 8, "range": 12.0, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
 		_sk(k, "earth_dominion", "Earth Dominion", "ปกครองพสุธา แผ่นดินแยกถล่มรอบตัว ศัตรูมึนงง 1.5 วินาที", 92, 104, 14.0, "burst", 6, {"radius": 8.0, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": royal, "icon": "nova"}),
 		_sk(k, "emperors_command", "Emperor's Command", "ราชโองการจักรพรรดิ ทีม ATK +55% คริ +20% วิ่งเร็ว +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
 		_sk(k, "imperial_judgment", "Imperial Judgment", "คำพิพากษาจักรพรรดิ พลังมืด ไฟ และสายฟ้าระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 10.5, {"radius": 9.0, "fx": {"stun": 1.5}, "anim": "Spellcast_Raise", "vfx": &"thunder", "color": royal, "icon": "nova"}),

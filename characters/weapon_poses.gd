@@ -426,7 +426,7 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				_hold(skeleton, local, rig.r, target, item_basis, "wand" if family == &"priest" else "staff")
 		if family == &"darklord" and carry:
 			# The scepter upright in the right hand like a staff; the left forearm
-			# raised level across the body, fist closed: the raven's perch.
+			# raised level across the body, fist closed: the hawk's perch.
 			global = _globals(skeleton, local)
 			var shoulder: Vector3 = global[rig.r.upper].origin
 			var target := shoulder + Vector3(-0.16, -0.54, 0.60) * arm_length

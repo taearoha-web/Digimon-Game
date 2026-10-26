@@ -263,7 +263,7 @@ func flying() -> bool:
 	return wing_mode == WING_FLY and has_wings()
 
 
-## Where the Dark Lord's raven perches: on the raised left forearm, a little above
+## Where the Dark Lord's hawk grips: on top of the raised left forearm, a little above
 ## the wrist (model's own bones, so it follows every pose and the flying lift).
 func perch_point() -> Vector3:
 	if _skeleton != null and is_instance_valid(_skeleton):
@@ -273,7 +273,7 @@ func perch_point() -> Vector3:
 			if arm >= 0 and hand >= 0:
 				var from := _skeleton.global_transform * _skeleton.get_bone_global_pose(arm).origin
 				var to := _skeleton.global_transform * _skeleton.get_bone_global_pose(hand).origin
-				return from.lerp(to, 0.7) + Vector3.UP * 0.14
+				return from.lerp(to, 0.7) + Vector3.UP * 0.05
 	return global_position + Vector3(-0.35, 1.25, 0.25)
 
 

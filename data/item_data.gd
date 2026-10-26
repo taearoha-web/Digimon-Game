@@ -23,7 +23,7 @@ const WING_INFO := {
 	"defender": {"name": "ปีกอีจิสเทพพิทักษ์", "stat": "atk", "base": 200, "bonus": ["def", "hp", "crit", "mp"], "color": Color("8fb8e0")},
 	"assassin": {"name": "ปีกเงาราตรี", "stat": "atk", "base": 205, "bonus": ["crit", "hp", "def", "mp"], "color": Color("9a6bff")},
 	# The Dark Lord wears a cape instead of wings: it floats the Lord like wings do.
-	"darklord": {"name": "ผ้าคลุมราชันอีกา", "stat": "atk", "base": 205, "bonus": ["hp", "def", "crit", "mp"], "color": Color("b02a3a")},
+	"darklord": {"name": "ผ้าคลุมราชันเหยี่ยว", "stat": "atk", "base": 205, "bonus": ["hp", "def", "crit", "mp"], "color": Color("b02a3a")},
 	"priest": {"name": "ปีกนางฟ้า", "stat": "matk", "base": 195, "bonus": ["hp", "mp", "def", "crit"], "color": Color("f2d47a")},
 }
 ## Bonus stat ranges a rarity step can add.

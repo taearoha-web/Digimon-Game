@@ -431,7 +431,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.6,2.6,radius*0.6),Vector3.ZERO,1.2,{"travel":Vector3.UP*0.8,"pulse":true})
 			impact_size=radius*0.8
 		"raven_sovereign":
-			# Five raven dives cut the target under a dark moon, then the sovereign raven's final strike.
+			# Five hawk dives cut the target under a dark moon, then the sovereign hawk's final strike.
 			var final := index>=5
 			art.add("moon",colors,Vector3.UP*1.4,Vector3.ONE*(2.0 if final else 0.6+index*0.1),Vector3(PI/2,0,index*0.9),0.5,{"initial":0.9,"turn":Vector3(0,0,-0.5)})
 			art.add("feathers",colors,Vector3.UP*1.2,Vector3.ONE*(2.2 if final else 0.9),Vector3.ZERO,0.7,{"travel":Vector3.UP*0.4,"initial":0.6})
