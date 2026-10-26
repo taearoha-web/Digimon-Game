@@ -51,6 +51,8 @@ func _ready() -> void:
 	Game.new_profile(&"lancer", "ทดสอบ")
 	Game.profile["level"] = 100
 	Game.profile["adv"] = 4
+	# Stars enough for every star field the world players may be hunting in.
+	Game.paragon().level = 200
 	Game.profile.party = []
 	main.title_screen.queue_free()
 	main.title_screen = null
