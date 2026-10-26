@@ -110,14 +110,15 @@ static func _moat(root: Node3D) -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(220.0, MOAT_SOUTH - MOAT_NORTH)
 	water.mesh = plane
-	water.position = Vector3(0, -0.35, (MOAT_SOUTH + MOAT_NORTH) * 0.5)
+	# Just above the field's ground (which runs under it), below the bridge deck.
+	water.position = Vector3(0, 0.05, (MOAT_SOUTH + MOAT_NORTH) * 0.5)
 	water.material_override = RegionArt._water_material(&"village")
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(water)
 	var b := JapanKit.Batch.new()
 	# Stone banks on both sides, and the moat walls nobody can cross but on the bridge.
 	for z in [MOAT_SOUTH, MOAT_NORTH]:
-		b.box(Vector3(0, -0.2, z), Vector3(220.0, 0.7, 0.9), STONE_DARK)
+		b.box(Vector3(0, 0.1, z), Vector3(220.0, 0.5, 0.9), STONE_DARK)
 	b.commit(root, "MoatBanks", false)
 	var mid := (MOAT_SOUTH + MOAT_NORTH) * 0.5
 	var depth := MOAT_SOUTH - MOAT_NORTH
@@ -130,7 +131,7 @@ static func _bridge(root: Node3D) -> void:
 	var b := JapanKit.Batch.new()
 	var length := MOAT_SOUTH - MOAT_NORTH + 3.0
 	var mid := (MOAT_SOUTH + MOAT_NORTH) * 0.5
-	b.box(Vector3(0, 0.02, mid), Vector3(BRIDGE_HALF * 2.0, 0.3, length), PAVING)
+	b.box(Vector3(0, 0.1, mid), Vector3(BRIDGE_HALF * 2.0, 0.3, length), PAVING)
 	for x in [-1.0, 1.0]:
 		b.box(Vector3(x * (BRIDGE_HALF - 0.2), 0.6, mid), Vector3(0.45, 0.9, length), STONE)
 		for z in [MOAT_SOUTH + 1.0, mid, MOAT_NORTH - 1.0]:

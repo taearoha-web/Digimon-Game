@@ -30,7 +30,7 @@ const CAPTURE_TIME := 60.0
 ## A gate holds out about this long against both whole guilds hitting it at once (its HP is
 ## set from all the fighters' strength, so more or stronger fighters meet a stronger door),
 ## each gate harder than the one before.
-const GATE_SECONDS := 60.0
+const GATE_SECONDS := 110.0
 const GATE_TOUGHNESS: Array[float] = [1.0, 1.25, 1.5]
 ## How often a guild looks again at its plan (and at once when a gate falls or the altar changes).
 const PLAN_EVERY := 12.0
@@ -44,6 +44,9 @@ const PLAN_NAMES := {
 	"forward": "ตั้งแนวรับหน้าห้องบัลลังก์ ไม่ให้ใครเข้าใกล้แท่น",
 }
 const NEUTRAL_COLOR := Color("fff1b8")
+## Fighters farther than this from the camera are not drawn (low / medium / high quality):
+## fifty heroes in gear on one field would otherwise cost a phone too much.
+const DRAW_RADIUS := [46.0, 56.0, 70.0]
 
 var zone: Node3D
 var hero: Hero
@@ -80,6 +83,7 @@ var _timer := COUNTDOWN
 var _count := 4
 var _end_timer := 0.0
 var _objective_timer := 0.0
+var _cull_timer := 0.0
 var _crystal: MeshInstance3D
 var _crystal_mat: StandardMaterial3D
 var _hero_killer: GuildFighter
@@ -257,6 +261,22 @@ func _tick_fight(delta: float) -> void:
 		_assign_objectives()
 	_tick_capture(delta)
 	_pulse_crystal(delta)
+	_cull_timer -= delta
+	if _cull_timer <= 0.0:
+		_cull_timer = 0.25
+		_cull_far()
+
+
+## Only fighters near the camera are drawn (they keep fighting either way).
+func _cull_far() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var limit: float = DRAW_RADIUS[clampi(GameSettings.quality, 0, 2)]
+	var from := camera.global_position
+	for f in all_fighters():
+		if is_instance_valid(f.visual):
+			f.visual.visible = f.global_position.distance_squared_to(from) < limit * limit
 
 
 func team_name(team: int) -> String:
@@ -630,7 +650,7 @@ func sides_status() -> String:
 	var ours := _strength(GuildFighter.TEAM_ALLY)
 	var theirs := _strength(GuildFighter.TEAM_ENEMY)
 	var plan := String(PLAN_NAMES.get(plans[GuildFighter.TEAM_ALLY], ""))
-	return "%s ยืนอยู่ %d/%d · %s ยืนอยู่ %d/%d%s" % [ally_name, ours.x, ours.y, enemy_name, theirs.x, theirs.y, (" · แผนกิลด์เรา: " + plan) if plan != "" else ""]
+	return "ยืนอยู่ %d/%d : %d/%d%s" % [ours.x, ours.y, theirs.x, theirs.y, (" · แผนเรา: " + plan) if plan != "" else ""]
 
 
 # ---------------------------------------------------------------------------

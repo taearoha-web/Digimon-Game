@@ -1,7 +1,7 @@
 extends Node
 ## Screenshots of the guild war through the real game scenes: lobby, the castle siege's
 ## camp, the battlefield from above, the bridge and gate, the throne room, the hero taking
-## the altar, the fight and the result. xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/guild_war_shots.tscn -- <out_dir> [class]
+## the altar, the fight and the result. xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/guild_war_shots.tscn -- <out_dir> [class] [guild]
 var out_dir := "user://shots"
 var main: Node
 var _n := 0
@@ -40,6 +40,9 @@ func _ready() -> void:
 		Game.profile.equip[slot] = StarProgression.item(cls, 200, slot, gear_rng)
 	Game.profile.equip["wings"] = StarWingData.item(String(cls), gear_rng)
 	Game.profile.hp = Game.stats_now().max_hp
+	# "guild": Alpha against Neverdie with every member (run with TOON_WORLD_DAYS=20 so both guilds are full).
+	if args.size() > 2 and String(args[2]) == "guild":
+		Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.ALPHA
 	main.title_screen.queue_free()
 	main.title_screen = null
 	main.hud.visible = true
