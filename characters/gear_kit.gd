@@ -130,6 +130,9 @@ static func armor_flourish(tier: int) -> Node3D:
 static func wings(kind: String) -> Node3D:
 	if not ItemData.WING_INFO.has(kind):
 		kind = "warrior"
+	# The Dark Lord wears a cape instead of wings (it floats him the same way).
+	if kind == "darklord":
+		return CapeArt.build(false)
 	var root := (load(WING_MODEL % kind) as PackedScene).instantiate() as Node3D
 	root.name = "Wings_" + kind
 	# Thin membranes and feathers: an outline shell would draw dark stripes across them.

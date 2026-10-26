@@ -39,6 +39,7 @@ static func build(look: String) -> Node3D:
 			"lantern": _lantern(b, p, tier)
 			"greatshield": _shield(b, p, tier)
 			"dagger": _dagger(b, p, tier)
+			"scepter": _scepter(b, p, tier)
 			"shield": _shield(b, p, tier)
 			"book", "tome": _book(b, p, tier)
 		_store(look, b)
@@ -80,7 +81,7 @@ static func build_icon_node(look: String) -> Node3D:
 	var bits := look.split("_")
 	var cls := String(bits[2]) if bits.size() > 3 else "warrior"
 	var root := Node3D.new()
-	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger"]:
+	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger", "scepter"]:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
 		return root
@@ -375,6 +376,31 @@ static func _wand(b: Dictionary, p: Dictionary, t: int) -> void:
 	_ring_at(b, top, 0.13, 0.032, p.metal)
 
 
+## The Dark Lord's star scepter: a royal shaft, an orb in a crown, raven-wing
+## feathers sweeping out of the head (more and grander with each star tier).
+static func _scepter(b: Dictionary, p: Dictionary, t: int) -> void:
+	_shaft(b, p, -0.3, 0.7, 0.082)
+	var top := Vector3(0, 0.86, 0)
+	_ring_at(b, top + Vector3(0, -0.12, 0), 0.11, 0.03, p.metal, Vector3(90, 0, 0))
+	_part(b, MeshKit.sphere_low(), p.gem, top, Vector3.ONE * (0.2 + 0.03 * t), Vector3.ZERO, true)
+	# A crown over the orb.
+	for k in 5:
+		var a := TAU * k / 5.0
+		_gem(b, top + Vector3(sin(a) * 0.12, 0.14, cos(a) * 0.12), Vector3(0.05, 0.12, 0.05), p)
+	_ring_at(b, top + Vector3(0, 0.1, 0), 0.13, 0.025, p.metal, Vector3(90, 0, 0))
+	# Raven-wing feathers on both sides.
+	var feathers := 2 + t
+	for side in [-1.0, 1.0]:
+		for k in feathers:
+			_feather(b, top + Vector3(side * (0.13 + k * 0.05), -0.02 + k * 0.035, 0), 0.32 - k * 0.025, 0.07, side * -(0.5 + k * 0.18), p.edge if k % 2 == 0 else p.metal)
+	if t >= 2:
+		_ring_at(b, top, 0.27, 0.025, p.edge, Vector3(0, 0, 0))
+	if t >= 3:
+		_ring_at(b, top, 0.3, 0.02, p.metal, Vector3(90, 30, 0))
+		_gem(b, top + Vector3(0, 0.34, 0), Vector3(0.07, 0.16, 0.05), p)
+	_gem(b, Vector3(0, 0.45, 0.05), Vector3(0.08, 0.16, 0.03), p)
+
+
 static func _lantern(b: Dictionary, p: Dictionary, t: int) -> void:
 	_shaft(b, p, -0.85, 1.12, 0.085)
 	_line(b, [Vector3(0, 1.06, 0), Vector3(-0.06, 1.43, 0), Vector3(-0.29, 1.61, 0), Vector3(-0.59, 1.48, 0), Vector3(-0.64, 1.19, 0)], 0.046, p.metal)
@@ -458,6 +484,12 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 			_line(b, [Vector3(side * -0.045, 0.07, 0.122), Vector3(side * 0.035, -0.035, 0.122)], 0.006, p.edge)
 			_line(b, [Vector3(side * 0.025, -0.012, 0.124), Vector3(side * 0.045, -0.032, 0.124)], 0.005, p.metal)
 		_ring_at(b, Vector3(0, 0.075, 0.12), 0.022, 0.004, p.gem, Vector3(90, 0, 0), true)
+	elif cls == "darklord":
+		# A gold raven with spread wings under a small crown.
+		for side in [-1.0, 1.0]:
+			_feather(b, Vector3(side * 0.035, 0.035, 0.124), 0.07, 0.022, side * -1.1, p.edge)
+		_part(b, MeshKit.sphere_low(), p.edge, Vector3(0, 0.03, 0.126), Vector3(0.022, 0.04, 0.01))
+		_ring_at(b, Vector3(0, 0.08, 0.12), 0.018, 0.004, p.gem, Vector3(90, 0, 0), true)
 	elif cls == "defender":
 		# A small heater shield on the breastplate.
 		_shape(b, [Vector2(-0.04, 0.04), Vector2(0.04, 0.04), Vector2(0.036, -0.01), Vector2(0, -0.05), Vector2(-0.036, -0.01)], Vector3(0, 0.03, 0.118), 0.008, p.edge)
@@ -521,6 +553,12 @@ static func _helm(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 		elif cls == "priest":
 			_part(b, MeshKit.box(), p.edge, Vector3(0, 0.267, 0.198), Vector3(0.013, 0.093, 0.013))
 			_part(b, MeshKit.box(), p.edge, Vector3(0, 0.281, 0.198), Vector3(0.055, 0.013, 0.013))
+		elif cls == "darklord":
+			# A royal circlet with a raven crest and two swept wings.
+			for k in 5:
+				_gem(b, Vector3((k - 2) * 0.04, 0.26 + (0.02 if k == 2 else 0.0), 0.17), Vector3(0.018, 0.045, 0.01), p)
+			for side in [-1.0, 1.0]:
+				_feather(b, Vector3(side * 0.13, 0.25, 0.1), 0.11, 0.03, side * -0.9, p.metal)
 		elif cls == "assassin":
 			# A half mask over the brow with a crescent at its peak.
 			_shape(b, [Vector2(-0.11, 0.0), Vector2(-0.05, 0.03), Vector2(0, 0.012), Vector2(0.05, 0.03), Vector2(0.11, 0.0), Vector2(0.06, -0.025), Vector2(-0.06, -0.025)], Vector3(0, 0.215, 0.2), 0.01, p.dark)
@@ -585,6 +623,11 @@ static func _class_badge(b: Dictionary, center: Vector3, s: float, cls: String, 
 			for side in [-1.0, 1.0]:
 				_feather(b, center + Vector3(side * s * 0.78, s * 0.35, 0), s * 1.5, s * 0.86, side * -0.5, p.cloth)
 				_feather(b, center + Vector3(side * s * 0.65, -s * 0.65, 0), s * 1.2, s * 0.68, side * 0.5, p.metal)
+		"darklord":
+			# A raven with spread wings.
+			for side in [-1.0, 1.0]:
+				_feather(b, center + Vector3(side * s * 0.5, s * 0.2, 0), s * 1.8, s * 0.5, side * -1.0, p.edge)
+			_part(b, MeshKit.sphere_low(), p.gem, center, Vector3(s * 0.6, s * 0.9, s * 0.4), Vector3.ZERO, true)
 		"assassin":
 			# Two daggers crossed point-up.
 			for side in [-1.0, 1.0]:

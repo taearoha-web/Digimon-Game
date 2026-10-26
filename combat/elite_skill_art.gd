@@ -4,7 +4,7 @@ extends Node3D
 ## Shared, finite mesh library; 2–6 budgeted draws per cast, one animation clock.
 ## A layer is a batched sculpture, not one node per feather, rune or shard.
 const SHADER := preload("res://shaders/elite_skill.gdshader")
-const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion eclipse_fang abyss_vortex phantom_legion midnight_execution shadow_sovereign oblivion_requiem"
+const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion eclipse_fang abyss_vortex phantom_legion midnight_execution shadow_sovereign oblivion_requiem infernal_scream chaos_sovereign raven_storm earth_dominion emperors_command imperial_judgment"
 static var _meshes: Dictionary = {}
 const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains"
 
@@ -27,14 +27,14 @@ static func palette(skill: Dictionary) -> Dictionary:
 	var colors: Array = {
 		"warrior":["ed825d","fff2b3","6b223d"], "archer":["5fe6c5","fff0a6","204367"],
 		"mage":["ac81fb","f3d6ff","343470"], "priest":["f6bd3f","fff6d0","8a4160"],
-		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"], "defender":["8fc1ff","fff4cc","2c4570"], "assassin":["9a6bff","f4e6ff","2a1240"]
+		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"], "defender":["8fc1ff","fff4cc","2c4570"], "assassin":["9a6bff","f4e6ff","2a1240"], "darklord":["e8b64a","fff4d0","4a1020"]
 	}.get(String(look.family), ["90dbff","ffffff","234567"])
 	var overrides: Dictionary = {
 		"grand_cross":["eab875","fff4c9","895149"],"sword_of_justice":["ead28d","fff9db","795c64"],"divine_piercing":["9edbf4","fff2bc","456497"],"judgment_ray":["edcc7a","fff7db","785d68"],"ice_storm":["63c9ff","e7ffff","304eaa"],"hell_meteor":["f77746","fff3a0","7d243f"],
 		"meteor_arrow":["ff9763","fff8b9","783568"],"phoenix_rain":["ffb345","fff5bf","c04758"],
 		"lightning_arrow":["74c9ff","fff39c","514690"],"elder_dragon":["57c6ad","ffe9a0","285463"],
 		"holy_rampart":["ffd25a","fffbe3","8a5a24"],"judgment_shield":["ffcf4d","fffbe0","7a4a20"],"aegis_of_ages":["dceeff","ffffff","3a5a9a"],"meteor_shield":["ff9a48","fff3c0","7a2a30"],"sanctuary_wall":["ffd36a","fffbe8","8a5a40"],"world_bastion":["ffc83a","fff9d8","6a4a1a"],
-		"eclipse_fang":["ff4f7b","ffe6ee","3d0d2c"],"midnight_execution":["ff5a86","fff0f4","2a0a28"],"oblivion_requiem":["a77bff","fff0ff","1c0d33"],
+		"eclipse_fang":["ff4f7b","ffe6ee","3d0d2c"],"infernal_scream":["ff6a2a","fff0b0","6a1a20"],"chaos_sovereign":["8a4dff","f0e2ff","2a0f4a"],"raven_storm":["8a4dff","f0e2ff","1e0f3e"],"imperial_judgment":["e8b64a","fff6d8","3a1a6a"],"midnight_execution":["ff5a86","fff0f4","2a0a28"],"oblivion_requiem":["a77bff","fff0ff","1c0d33"],
 		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"]}
 	colors = overrides.get(String(skill.id), colors)
 	look.primary = Color(colors[0]); look.accent = Color(colors[1]); look.shade = Color(colors[2])
@@ -83,6 +83,9 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 		art.layer("wings",look,Vector3(0,1.3,0.6),Vector3.ONE*0.75,Vector3.ZERO,0,duration,Vector3.ZERO,0.0,0.18)
 	elif family == "defender":
 		art.layer("shield_outline",look,Vector3(0,0.08,0),Vector3.ONE*1.5,Vector3.ZERO,0,duration,Vector3.ZERO,0.0,0.12)
+	elif family == "darklord":
+		# A royal crown gathers over the scepter before the command.
+		art.layer("crown",look,Vector3(0,2.2,0.3),Vector3.ONE*0.9,Vector3.ZERO,0,duration,Vector3.UP*0.3,0.4,0.2)
 	elif family == "assassin":
 		# Two thin crescents gather across the daggers before the blades move.
 		for side in [-1.0,1.0]:
@@ -286,9 +289,39 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.8,Vector3.ZERO,d+0.1,1.4,Vector3.ZERO,0.0,0.25)
 			art.layer("wings",look,Vector3(0,2.2,0),Vector3.ONE*3.0,Vector3.ZERO,d,1.4,Vector3.ZERO,0.0,0.6,false,{"flap":0.1})
 			art.layer("stars",look,Vector3(0,1.0,0),Vector3(radius*0.8,3,radius*0.8),Vector3.ZERO,d,1.6,Vector3.UP*1.4)
+		"infernal_scream":
+			# Hell's roar: a ring of fire climbs round the Lord over a cracked crater.
+			art.layer("helix",look,Vector3.ZERO,Vector3(radius*0.7,3.4,radius*0.7),Vector3.ZERO,d,1.3,Vector3.ZERO,2.0)
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.85,Vector3.ZERO,d,1.4,Vector3.ZERO,0.0,0.25)
+			art.layer("fractures",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5)
+			art.layer("stars",look,Vector3(0,1.0,0),Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,d,1.5,Vector3.UP*1.2)
+		"chaos_sovereign":
+			# The scepter of chaos comes down on one foe: a dark seal over it, the ground torn under it.
+			var reach := maxf(2.0,delta.length())
+			art.layer("sword",look,Vector3(0,2.2,reach-0.3),Vector3(0.8,2.8,0.8),Vector3(0.6,0,0),d,0.7,Vector3(0,-1.2,0.3),0.0,0.6)
+			art.layer("seal",look,Vector3(0,1.5,reach+0.3),Vector3.ONE*2.2,Vector3(PI/2,0,0),d,1.05,Vector3.ZERO,0.7,0.5)
+			art.layer("fractures",look,Vector3(0,0.07,reach),Vector3.ONE*2.6,Vector3.ZERO,d,1.3)
+		"raven_storm":
+			# Wings open behind the Lord and a storm of raven shadows flies out round him.
+			art.layer("wings",look,Vector3(0,1.5,-0.5),Vector3.ONE*2.4,Vector3.ZERO,d,1.2,Vector3.ZERO,0.0,0.6,false,{"flap":0.1})
+			art.layer("feathers",look,Vector3(0,1.0,0),Vector3(4.0,2.0,4.0),Vector3.ZERO,d,1.1,Vector3.UP*0.6,1.6)
+			art.layer("seal",look,Vector3(0,0.07,0),Vector3.ONE*2.6,Vector3.ZERO,d,1.3,Vector3.ZERO,-0.4)
+		"earth_dominion":
+			# The earth obeys: a great crater, fault lines and pillars of rock and light round the Lord.
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5,Vector3.ZERO,0.0,0.25)
+			art.layer("fractures",look,Vector3(0,0.08,0),Vector3.ONE*radius,Vector3.ZERO,d,1.6)
+			art.layer("pillars",look,Vector3.ZERO,Vector3(radius*0.75,2.6,radius*0.75),Vector3.ZERO,d+0.08,1.3,Vector3.ZERO,0.0,0.3)
+			art.layer("crown",look,Vector3(0,0.1,0),Vector3.ONE*radius*0.45,Vector3.ZERO,d+0.12,1.2,Vector3.UP*0.6,0.4)
+		"imperial_judgment":
+			# The emperor's verdict: a crown of light in the sky, columns, a great seal and lightning.
+			art.layer("crown",look,Vector3(0,5.0,0),Vector3.ONE*2.8,Vector3.ZERO,d,1.5,Vector3.UP*0.5,0.4)
+			art.layer("pillars",look,Vector3.ZERO,Vector3(radius*0.8,3.4,radius*0.8),Vector3.ZERO,d,1.4,Vector3.ZERO,0.6,0.3)
+			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.95,Vector3.ZERO,d,1.55,Vector3.ZERO,-0.35)
+			art.layer("lightning",look,Vector3(0,1.5,0),Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,d+0.05,0.9)
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.8,Vector3.ZERO,d+0.1,1.4,Vector3.ZERO,0.0,0.25)
 		_:
 			# Lasting support skills: each uses its own batched relief.
-			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","shadow_sovereign":"wings"}
+			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","shadow_sovereign":"wings","emperors_command":"banners"}
 			var kind: String = shapes.get(id,"seal")
 			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe"] else 0,0.25)
 			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)

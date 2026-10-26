@@ -809,7 +809,13 @@ func _wings() -> void:
 	var values: Array[int] = []
 	for cls in ItemData.WING_INFO:
 		var info: Dictionary = ItemData.WING_INFO[cls]
-		check(ResourceLoader.exists(GearKit.WING_MODEL % cls), "%s wings have a model" % cls)
+		# The Dark Lord's cape is built in code (CapeArt); every other class has a wing GLB.
+		if cls == "darklord":
+			var cape := GearKit.wings(cls)
+			check(cape is CapeArt and cape.get_node_or_null("AnimationPlayer") != null, "darklord cape has a model")
+			cape.free()
+		else:
+			check(ResourceLoader.exists(GearKit.WING_MODEL % cls), "%s wings have a model" % cls)
 		for i in 60:
 			var w := ItemData.wings(rng, cls)
 			rarities[int(w.rarity)] = true

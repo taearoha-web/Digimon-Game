@@ -1,7 +1,7 @@
 class_name WorldPlayers
 extends RefCounted
-## The other players of the world: 50 people with fixed names, classes and guilds (25 go to
-## Alpha, 25 to Neverdie; each joins its guild on reaching Lv.100, like the hero must).
+## The other players of the world: 54 people with fixed names, classes and guilds (27 go to
+## Alpha, 27 to Neverdie; each joins its guild on reaching Lv.100, like the hero must).
 ## Nobody runs them on a server. Each keeps a daily play
 ## schedule set by its play style (Thai time, the same on every device), and what it
 ## has reached is the EXP a real player earns in the hours it played: the auto-hunt rates
@@ -75,6 +75,11 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "Wyvern", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "casual"},
 	{"name": "IronWall", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
 	{"name": "โล่ทองคำ", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	# Dark Lords (scepter and raven), added with the class.
+	{"name": "DarkKaiser", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "hardcore"},
+	{"name": "ราชันอีกา", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	{"name": "LordRaven", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "night_owl"},
+	{"name": "จักรพรรดิมืด", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day

@@ -13,7 +13,7 @@ static var _spiral_meshes: Dictionary = {}
 ## With a `slicer` (the SceneTree) the work yields a frame every few items, so the first
 ## zone of a session does not stall the page in one go.
 static func warm_up(slicer: SceneTree = null) -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender", "crest_assassin"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender", "crest_assassin", "crest_darklord"]:
 		texture(kind)
 		await FrameSlicer.pace(slicer)
 	for recipe in SkillArtDirection.RECIPES.values():
@@ -227,6 +227,18 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 				a = maxf(a, smoothstep(0.07, 0.04, p.distance_to(guard + along * 0.24)))
 			var moon := smoothstep(0.24, 0.21, p.distance_to(Vector2(0, -0.5))) * smoothstep(0.17, 0.2, p.distance_to(Vector2(0.09, -0.55)))
 			a = maxf(a, moon)
+		"darklord":
+			# A crown over a raven with spread wings.
+			for side in [-1.0, 1.0]:
+				a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(0, 0.1), Vector2(side * 0.5, -0.12))))
+				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(side * 0.18, 0.02), Vector2(side * 0.46, 0.06))))
+				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(side * 0.3, -0.04), Vector2(side * 0.42, 0.16))))
+			a = maxf(a, smoothstep(0.12, 0.08, p.distance_to(Vector2(0, 0.14))))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(0, 0.2), Vector2(0, 0.46))))
+			for k in 3:
+				var x := (float(k) - 1.0) * 0.18
+				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(x, -0.36), Vector2(x * 0.7, -0.6))))
+			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(-0.26, -0.36), Vector2(0.26, -0.36))))
 		"summoner":
 			# A paw: one pad and four toes.
 			a = maxf(a, smoothstep(0.30, 0.25, p.distance_to(Vector2(0, 0.18))) * 0.9)

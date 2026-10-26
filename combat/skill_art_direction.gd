@@ -23,6 +23,8 @@ const PALETTES := {
 	"shadow": [Color("9a6bff"), Color("f1e6ff"), Color("261340")],
 	"nightblood": [Color("ff4f7b"), Color("ffe3ec"), Color("3d0d2c")],
 	"venom": [Color("8be260"), Color("f4ffd9"), Color("3a2a5c")],
+	"royal": [Color("e8b64a"), Color("fff4d0"), Color("8a1a2a")],
+	"darkforce": [Color("8a4dff"), Color("f0e2ff"), Color("2a0f4a")],
 }
 
 const RECIPES := {
@@ -237,6 +239,32 @@ const RECIPES := {
 	"midnight_execution": ["meteor", "nightblood", 6, -0.70, 0.88],
 	"shadow_sovereign": ["wings", "nightblood", 7, 0.60, 1.10],
 	"oblivion_requiem": ["sweep", "shadow", 8, 0.95, 1.15],
+	# Dark Lord: royal gold commands, dark force, fire and the lightning of MU Online.
+	"force": ["lance", "darkforce", 2, 0.10, 0.36],
+	"critical_damage": ["crown", "royal", 4, 0.30, 0.80],
+	"fire_burst": ["ember", "flame", 4, 0.40, 0.55],
+	"summon": ["sigil", "darkforce", 5, 0.60, 0.90],
+	"earthshake": ["quake", "royal", 5, -0.40, 0.60],
+	"force_wave": ["arrow", "darkforce", 3, 0.25, 0.46],
+	"electric_spike": ["bolt", "storm", 4, -0.60, 0.50],
+	"fire_scream": ["ember", "flame", 5, 0.70, 0.62],
+	"birds": ["wings", "darkforce", 5, 0.50, 0.58],
+	"chaos_strike": ["cut", "darkforce", 3, -0.90, 0.44],
+	"iron_defense": ["guard", "royal", 5, 0.20, 0.95],
+	"commanders_aura": ["crown", "royal", 5, 0.40, 1.00],
+	"fire_blast": ["lance", "flame", 3, -0.20, 0.50],
+	"plasma_storm": ["bolt", "storm", 6, 0.80, 0.80],
+	"chaotic_diseier": ["arrow", "darkforce", 6, 0.55, 0.62],
+	"royal_crush": ["guard", "royal", 4, -1.00, 0.52],
+	"thunder_lord": ["bolt", "storm", 6, -0.75, 0.66],
+	"dark_comet": ["meteor", "darkforce", 6, -0.60, 0.86],
+	"lord_of_command": ["crown", "royal", 6, 0.25, 1.05],
+	"infernal_scream": ["ember", "flame", 7, 0.85, 0.90],
+	"chaos_sovereign": ["crosscut", "darkforce", 5, -0.95, 0.62],
+	"raven_storm": ["wings", "darkforce", 8, 0.60, 0.74],
+	"earth_dominion": ["quake", "royal", 8, -0.50, 0.92],
+	"emperors_command": ["wings", "royal", 7, 0.50, 1.10],
+	"imperial_judgment": ["sigil", "royal", 8, 0.90, 1.15],
 }
 
 
