@@ -392,11 +392,15 @@ func _party() -> void:
 	zone.add_child(orc)
 	await get_tree().process_frame
 	var base := float(orc.stats.exp) * (1.0 + maxf(0.0, float(zone.data.get("gear_star", 0)) / 25.0))
+	# Measured around the kill alone: a member's kill elsewhere a frame later shares its
+	# EXP with the hero too.
+	Game.profile.exp = 0
 	orc.take_hit(orc.hp + 100, false, Color.WHITE, hero)
+	var gained := int(Game.profile.exp)
 	await get_tree().process_frame
 	var people := float(ids.size() + 1)
 	var want := int(round(base * (1.0 + Game.PARTY_EXP_BONUS * (people - 1.0)) / people))
-	check(absi(int(Game.profile.exp) - want) <= 1 and int(Game.profile.exp) < int(base), "the hero gets its part of the shared EXP (%d of %d)" % [int(Game.profile.exp), int(base)])
+	check(absi(gained - want) <= 1 and gained < int(base), "the hero gets its part of the shared EXP (%d of %d)" % [gained, int(base)])
 	var shared := true
 	for k in ids.size():
 		shared = shared and WorldPlayers.bonus_work(ids[k]) > float(work_before[k])
