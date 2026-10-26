@@ -883,7 +883,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		para["exp"] = int(para.get("exp", 0)) + int(data.exp)
 		para["points"] = int(para.get("points", 0))
 		while int(para.level) < PARAGON_MAX:
-			var need := int(float(HeroStats.exp_to_next(MAX_LEVEL)) * (1.0 + 0.02 * float(para.level)))
+			var need := HeroStats.star_need(int(para.level))
 			if int(para.exp) < need:
 				break
 			para["exp"] = int(para.exp) - need
@@ -1367,7 +1367,7 @@ func paragon_need() -> int:
 	var lv := int(paragon().level)
 	if lv >= PARAGON_MAX:
 		return 0
-	return int(float(HeroStats.exp_to_next(MAX_LEVEL)) * (1.0 + 0.02 * float(lv)))
+	return HeroStats.star_need(lv)
 
 
 func _add_paragon_exp(amount: int) -> void:

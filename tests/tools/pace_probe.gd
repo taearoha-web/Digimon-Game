@@ -38,7 +38,7 @@ static func lifetime_exp(profile: Dictionary) -> float:
 		total += HeroStats.exp_to_next(lv)
 	var para: Dictionary = profile.get("paragon", {})
 	for star in int(para.get("level", 0)):
-		total += float(HeroStats.exp_to_next(Game.MAX_LEVEL)) * (1.0 + 0.02 * float(star))
+		total += float(HeroStats.star_need(star))
 	return total + float(para.get("exp", 0))
 
 
