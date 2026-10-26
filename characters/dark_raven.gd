@@ -14,7 +14,7 @@ extends Node3D
 
 enum State { PERCH, FLY, RETURN }
 
-const SIZE := 0.42
+const SIZE := 0.5
 const SPEED := 13.0
 const STRIKE_EVERY := 0.85
 const LEASH := 22.0

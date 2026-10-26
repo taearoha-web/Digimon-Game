@@ -1412,5 +1412,180 @@
     "family": "assassin",
     "palette": "night",
     "art_sha256": "24058f22875e0ea0d55b1565a84c67a3f468a114dc25ef1a24cbb596e4b5bff9"
+  },
+  {
+    "id": "force",
+    "name": "Force",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "f9f45ddb850bb6f9ecaf5ba1b59dccdc0ddd95703d83a803d3b60e44c3733883"
+  },
+  {
+    "id": "critical_damage",
+    "name": "Critical Damage",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "f3f18ba9cad0ab66227920296b8adf1178199c3f3d46217320dbd84467bbea54"
+  },
+  {
+    "id": "fire_burst",
+    "name": "Fire Burst",
+    "family": "darklord",
+    "palette": "ember",
+    "art_sha256": "e81e2af538693ecd1ff139daea985bb66406f6de1b6643f464bfd1453a48f982"
+  },
+  {
+    "id": "summon",
+    "name": "Summon",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "c180de2e97f700c48dea43e13bc455b5c387a0b27ee67e798eb966e786767952"
+  },
+  {
+    "id": "earthshake",
+    "name": "Earthshake",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "afe84de3251394e3e9da4efc3eff6707d6d581d2dd5879f268014b8a85f8e6e3"
+  },
+  {
+    "id": "force_wave",
+    "name": "Force Wave",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "92da258c27cf4c614f5a5c5892095a11bf5da18ffae1736e9fd6c007dcda1af8"
+  },
+  {
+    "id": "electric_spike",
+    "name": "Electric Spike",
+    "family": "darklord",
+    "palette": "storm",
+    "art_sha256": "0f586ebe9168ce8c35b86692711a8eae05ab4109865db7211fb2e5b34ed42041"
+  },
+  {
+    "id": "fire_scream",
+    "name": "Fire Scream",
+    "family": "darklord",
+    "palette": "ember",
+    "art_sha256": "143a6e616e17638f40bb679dd5d21a06fca11a9a5d0c70f6b10f5e72fa3c712a"
+  },
+  {
+    "id": "birds",
+    "name": "Birds",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "b690dbbbc99a4fb381b491286cb1bdc6b8ee07ceb66b80769e8a471311a64867"
+  },
+  {
+    "id": "chaos_strike",
+    "name": "Chaos Strike",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "28cd7eefdb1d3bbbf7c36c86b5a08c37acf28a57f2a3bde88e7bcc847da3a34b"
+  },
+  {
+    "id": "iron_defense",
+    "name": "Iron Defense",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "7f8a2526f1b8b46145166e586d07dfe3db5d17e56d848a64d10f65a2244de35b"
+  },
+  {
+    "id": "commanders_aura",
+    "name": "Commander's Aura",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "1250091b3692756ed2509e70c9491533bd35b476652235be9304dfd531af73f1"
+  },
+  {
+    "id": "fire_blast",
+    "name": "Fire Blast",
+    "family": "darklord",
+    "palette": "ember",
+    "art_sha256": "ba83ce816e59abc814b82ed3ed004baedc4663f6e93567af05e2f9d52380af11"
+  },
+  {
+    "id": "plasma_storm",
+    "name": "Plasma Storm",
+    "family": "darklord",
+    "palette": "storm",
+    "art_sha256": "c93bde8c488c76b653c69a7f7e22334767d58609ad21e6af14bebff4ddf779d4"
+  },
+  {
+    "id": "chaotic_diseier",
+    "name": "Chaotic Diseier",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "177da042222c71768244b46c4048b4d352b00aa74ad7e72a0e95af48010c0ed3"
+  },
+  {
+    "id": "royal_crush",
+    "name": "Royal Crush",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "1751ba6f122101b0d048a19b90b86df3b9dee3d77b2f13c115239f31f3827cd2"
+  },
+  {
+    "id": "thunder_lord",
+    "name": "Thunder Lord",
+    "family": "darklord",
+    "palette": "storm",
+    "art_sha256": "30d614ff9b8843a60c5835a3a4a794dee898ccac3d64bda2fa50b965a9bed65a"
+  },
+  {
+    "id": "dark_comet",
+    "name": "Dark Comet",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "3ac2dea1ad98fcda40c1ac8b4e95b1434ba21f4786876c1be8ad841a73991ede"
+  },
+  {
+    "id": "lord_of_command",
+    "name": "Lord of Command",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "35397b9fbfb9658939eeb84d15dd4982983d6721b930ae1c2ff71c8f2e06663d"
+  },
+  {
+    "id": "infernal_scream",
+    "name": "Infernal Scream",
+    "family": "darklord",
+    "palette": "ember",
+    "art_sha256": "2f47b60323002580967987a482cc0bf49b83dda5dfde2b9d4ce375d4e5335601"
+  },
+  {
+    "id": "chaos_sovereign",
+    "name": "Chaos Sovereign",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "5a0a0c3cf672fd9a0e8a5dcfe11e520faf4d5fac93968f85b61d569cf5505322"
+  },
+  {
+    "id": "raven_storm",
+    "name": "Raven Storm",
+    "family": "darklord",
+    "palette": "darkforce",
+    "art_sha256": "98aa3d5953c0a30186d80944d946beaf075ebdc3cf12debac2964ff3dd920c8a"
+  },
+  {
+    "id": "earth_dominion",
+    "name": "Earth Dominion",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "321c4b84ed3f4bfc25e8a0e6f3b6b42398040058e420c76e9b037e23e639baf5"
+  },
+  {
+    "id": "emperors_command",
+    "name": "Emperor's Command",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "c98da0fec1660598e79cd3e3079619a2d5e84ca3018700eeb755e2ae90539f40"
+  },
+  {
+    "id": "imperial_judgment",
+    "name": "Imperial Judgment",
+    "family": "darklord",
+    "palette": "royal",
+    "art_sha256": "e39a31dd878ced4333d9ae6ec22a4aa5459e9201c8dc36e012ddd33f7853413f"
   }
 ]

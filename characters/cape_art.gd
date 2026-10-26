@@ -23,6 +23,8 @@ const TOP_Y := 0.79
 const BACK_Z := -0.11
 const LENGTH := 0.76
 const STAR_LENGTH := 0.86
+## Authored size to the chibi's (its model is small: the wings' root sits at y 0.51).
+const FIT := 0.66
 
 ## 0 hangs, 1 streams back and up (flying).
 @export var billow := 0.15:
@@ -36,6 +38,8 @@ const STAR_LENGTH := 0.86
 		_push("fold", value)
 
 var star := false
+## Everything is authored at TOP_Y / BACK_Z and fitted onto the chibi's back by this node.
+var _fit: Node3D
 var _materials: Array[ShaderMaterial] = []
 var _halo: Node3D
 
@@ -49,10 +53,16 @@ static func build(p_star: bool) -> Node3D:
 
 
 func _make() -> void:
+	# The chibi's shoulder blades sit at about y 0.57, z -0.09 in model space.
+	_fit = Node3D.new()
+	_fit.name = "Fit"
+	_fit.scale = Vector3.ONE * FIT
+	_fit.position = Vector3(0, 0.57 - TOP_Y * FIT, -0.09 - BACK_Z * FIT)
+	add_child(_fit)
 	if star:
-		# The violet outer layer over a crimson inner one that shows at the hem.
-		_layer(Color("2a1446"), Color("120a22"), Color("ffcf5a"), STAR_LENGTH, 0.40, 0.70, 1.0, 1.0, 0.0)
-		_layer(Color("8a1a2e"), Color("3a0a14"), Color("ff7a4a"), STAR_LENGTH + 0.06, 0.36, 0.76, 0.0, 0.0, 0.012)
+		# A crimson inner layer, longer, showing at the hem under the violet outer one.
+		_layer(Color("8a1a2e"), Color("3a0a14"), Color("ff7a4a"), STAR_LENGTH + 0.07, 0.36, 0.78, 0.0, 0.0, 0.0)
+		_layer(Color("2a1446"), Color("120a22"), Color("ffcf5a"), STAR_LENGTH, 0.40, 0.70, 1.0, 1.0, 0.02)
 		_mantle(true)
 		_halo = _rune_halo()
 	else:
@@ -141,12 +151,12 @@ func _layer(outer: Color, lining: Color, trim: Color, length: float, top_width: 
 	mat.set_shader_parameter("crest", crest if star else raven)
 	mat.set_shader_parameter("crown", crest)
 	mat.set_shader_parameter("tatter", 1.0 if star else 0.0)
-	mat.set_shader_parameter("phase", behind * 40.0)
+	mat.set_shader_parameter("phase", 0.0)
 	mat.set_shader_parameter("billow", billow)
 	mat.set_shader_parameter("fold", fold)
 	mesh.material_override = mat
 	_materials.append(mat)
-	add_child(mesh)
+	_fit.add_child(mesh)
 
 
 ## The collar the cape hangs from: dark fur for the Lv.100 cape; a gold mantle with
@@ -154,7 +164,7 @@ func _layer(outer: Color, lining: Color, trim: Color, length: float, top_width: 
 func _mantle(gold: bool) -> void:
 	var root := Node3D.new()
 	root.name = "Mantle"
-	add_child(root)
+	_fit.add_child(root)
 	var fur := MeshKit.toon(Color("2a1e1a"))
 	var metal := MeshKit.toon(Color("e8b64a"), {"emission": 0.15})
 	var gem := MeshKit.toon(Color("ff3a4a") if not gold else Color("b06bff"), {"emission": 0.9})
@@ -171,7 +181,7 @@ func _mantle(gold: bool) -> void:
 			_piece(root, MeshKit.cone(), metal, Vector3(side * 0.25, TOP_Y + 0.07, BACK_Z + 0.05), Vector3(0.05, 0.12, 0.05), Vector3(0, 0, -side * 35.0))
 		for i in 7:
 			var a := lerpf(-0.9, 0.9, float(i) / 6.0)
-			_piece(root, MeshKit.box(), metal, Vector3(sin(a) * 0.14, TOP_Y + 0.08, BACK_Z + 0.04 - cos(a) * 0.06), Vector3(0.06, 0.13, 0.02), Vector3(-15, rad_to_deg(a), 0))
+			_piece(root, MeshKit.box(), metal, Vector3(sin(a) * 0.15, TOP_Y + 0.03, BACK_Z + 0.02 - cos(a) * 0.07), Vector3(0.06, 0.07, 0.02), Vector3(-25, rad_to_deg(a), 0))
 	# Two gem clasps where the cape meets the shoulders.
 	for side in [-1.0, 1.0]:
 		_piece(root, MeshKit.cylinder(), metal, Vector3(side * 0.15, TOP_Y - 0.03, BACK_Z + 0.09), Vector3(0.07, 0.02, 0.07), Vector3(90, 0, 0))
@@ -182,8 +192,8 @@ func _mantle(gold: bool) -> void:
 func _rune_halo() -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "RuneHalo"
-	pivot.position = Vector3(0, TOP_Y + 0.12, BACK_Z - 0.22)
-	add_child(pivot)
+	pivot.position = Vector3(0, TOP_Y + 0.02, BACK_Z - 0.36)
+	_fit.add_child(pivot)
 	var glow := MeshKit.toon(Color("ffd36b"), {"emission": 1.6})
 	var violet := MeshKit.toon(Color("b06bff"), {"emission": 1.4})
 	_piece(pivot, MeshKit.torus(), glow, Vector3.ZERO, Vector3(0.42, 0.012, 0.42), Vector3(90, 0, 0))

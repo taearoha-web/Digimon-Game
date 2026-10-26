@@ -27,6 +27,8 @@ PALETTES = {
     "night": ("120c26", "4a2d82", "9a6bff", "f1e6ff"),
     "blood": ("2a0a1c", "8a1f45", "ff4f7b", "ffe3ec"),
     "venom": ("102a26", "3a6b3a", "8be260", "f4ffd9"),
+    "royal": ("2a1418", "8a1a2a", "e8b64a", "fff4d0"),
+    "darkforce": ("140a28", "4a1f8a", "8a4dff", "f0e2ff"),
 }
 
 
@@ -263,6 +265,12 @@ OBJECTS = {
 
 
 OBJECTS["twin"] = group(OBJECTS["dagger"], -18, 6, .8, 32) + group(OBJECTS["dagger"], 18, 6, .8, -32)
+# The Dark Lord's scepter (an orb in a crown on a short royal shaft) and his raven.
+OBJECTS["scepter"] = (path("M-5 -20 L5 -20 L6 78 L-6 78Z", "url(#gold)") + ellipse(0, 82, 9, 8, "url(#gold)")
+                      + ellipse(0, -44, 24, 24, "url(#orb)") + path("M-26 -54 L-20 -78 L-9 -62 L0 -84 L9 -62 L20 -78 L26 -54Z", "url(#gold)")
+                      + path("M-24 -24 Q0 -12 24 -24 L20 -14 Q0 -4 -20 -14Z", "url(#gold)"))
+OBJECTS["raven"] = (path("M-82 -10 Q-40 -46 -8 -14 Q-2 -34 10 -36 Q26 -38 30 -24 L46 -20 L30 -14 Q34 0 22 12 Q60 -36 84 -14 Q60 4 34 22 L40 56 L18 40 L4 60 L-4 38 Q-50 24 -82 -10Z", "url(#rock)")
+                    + ellipse(18, -24, 4, 4, "#ff3a4a", "none") + line("M-66 -10 Q-40 -26 -16 -6 M60 -14 Q40 -2 28 14", "url(#light)", 3))
 
 
 def o(name, x=0, y=0, s=1, a=0, opacity=1):
@@ -538,12 +546,44 @@ add("assassin", [
     ("oblivion_requiem","night",rays(12)+o("vortex",s=.8,opacity=.85)+o("moon",0,0,.6)+fan("dagger",4,300,.38)),
 ])
 
+add("darklord", [
+    ("force","darkforce",o("scepter",-24,10,.8,20)+o("orb",30,-30,.5)+o("ray",30,-30,.5,-30)),
+    ("critical_damage","royal",rays(8)+o("crown",0,-30,.66)+o("scepter",0,30,.5,0)),
+    ("fire_burst","ember",o("flame",0,0,.95)+ring(.9,30)+star(40,-40,14)),
+    ("summon","darkforce",o("sigil",s=1.0)+o("hand",-40,20,.42,-20)+o("hand",40,20,.42,20)+o("orb",0,-10,.36)),
+    ("earthshake","royal",o("ground",y=50,s=1.0)+o("crack",0,30,.8)+o("scepter",0,-14,.72,180)),
+    ("force_wave","darkforce",fan("ray",3,70,.6,20)+o("scepter",0,40,.5)),
+    ("electric_spike","storm",o("spear",0,0,.85,180)+o("bolt",-34,-10,.6)+o("bolt",36,8,.5)),
+    ("fire_scream","ember",o("flame",-30,10,.7)+o("flame",30,10,.7)+o("skull",0,-20,.48)),
+    ("birds","darkforce",o("raven",-20,10,.6,-10)+o("raven",28,-26,.48,10)+o("raven",-24,-40,.4,-20)),
+    ("chaos_strike","darkforce",o("slash",s=.95,a=-30)+o("scepter",8,4,.86,-40)),
+    ("iron_defense","royal",o("shield",0,6,.92)+o("crown",0,-56,.4)),
+    ("commanders_aura","royal",rays(10)+o("crown",0,-10,.72)+o("wings",0,10,.8,0,.6)),
+    ("fire_blast","ember",o("meteor",0,0,.85,-30)+o("scepter",-40,40,.45,40)),
+    ("plasma_storm","storm",o("cloud",0,-40,.9)+o("bolt",-30,20,.5)+o("bolt",10,26,.55)+o("bolt",40,14,.45)),
+    ("chaotic_diseier","darkforce",fan("ray",6,140,.48,10)+o("orb",0,10,.42)),
+    ("royal_crush","royal",o("scepter",0,-6,.95,180)+o("ground",y=58,s=.8)+star(-40,40,16)),
+    ("thunder_lord","storm",o("crown",0,-56,.38)+o("bolt",0,10,.9)+ring(.8,40)),
+    ("dark_comet","darkforce",o("meteor",0,0,1.0,30)+o("orb",30,30,.32)),
+    ("lord_of_command","royal",o("crown",0,-40,.6)+o("shield",0,20,.6)+o("scepter",-46,20,.42,20)+o("scepter",46,20,.42,-20)),
+    ("infernal_scream","ember",ring(1.0)+o("flame",0,10,.9)+o("skull",0,-36,.42)+rays(6)),
+    ("chaos_sovereign","darkforce",o("vortex",s=.9,opacity=.8)+o("scepter",0,0,1.0,-20)+star(44,-44,16)),
+    ("raven_storm","darkforce",o("vortex",s=.85,opacity=.6)+o("raven",0,-20,.6)+o("raven",-36,24,.42,-30)+o("raven",38,22,.42,30)),
+    ("earth_dominion","royal",o("ground",y=46,s=1.04)+o("crack",0,26,.9)+o("crown",0,-46,.5)),
+    ("emperors_command","royal",o("wings",0,0,1.1)+o("crown",0,-20,.6)+o("scepter",0,36,.42)),
+    ("imperial_judgment","royal",rays(12)+o("crown",0,-50,.5)+o("bolt",-34,10,.5)+o("flame",34,14,.5)+o("orb",0,10,.42)),
+])
+
 # Star skills keep their own medallions beside the class catalogue (not part of its manifest).
 STAR_RECIPES = {
     "umbral_lacerate": ("night", o("moon",0,-10,.9)+o("slash",0,0,.9,30)+o("slash",0,0,.9,210)+o("twin",0,20,.6)),
     "shadow_execution": ("blood", rays(10)+o("moon",0,-30,.6)+o("dagger",0,10,1.0,180)+star(-46,44,18)),
     "veil_of_night": ("night", o("wings",0,-10,.9,0,.5)+o("smoke",0,30,1.0)+o("mask",0,0,.55)+o("moon",-20,-46,.4)),
     "eclipse_requiem": ("night", o("ground",y=58,s=.85)+o("orb",0,-54,.48)+o("moon",0,-54,.54)+rain("dagger",4,.42)),
+    "chaos_inferno": ("ember", o("ground",y=56,s=.9)+o("flame",-34,10,.6)+o("flame",34,10,.6)+o("scepter",0,0,.8,180)),
+    "raven_sovereign": ("darkforce", rays(10)+o("raven",0,-6,.95)+o("crown",0,-56,.34)),
+    "lords_dominion": ("royal", o("wings",0,0,1.0,0,.6)+o("crown",0,-20,.7)+o("shield",-40,30,.42)+o("shield",40,30,.42)),
+    "imperial_cataclysm": ("royal", o("ground",y=58,s=.85)+o("crown",0,-56,.42)+rain("bolt",3,.5)+o("flame",0,30,.5)),
 }
 
 
@@ -577,10 +617,10 @@ def main():
     source = (ROOT / 'data/class_data.gd').read_text()
     # Both regular and summon helpers are the actual runtime catalogue source.
     catalogue = re.findall(r'(?:_sk\(\w+,|sm\.call\()\s*"([a-z_]+)",\s*"([^"]+)"', source)
-    assert len(catalogue) == 202, len(catalogue)
+    assert len(catalogue) == 227, len(catalogue)
     assert set(RECIPES) == {s[0] for s in catalogue}, (set(RECIPES) ^ {s[0] for s in catalogue})
     scenes = [r[2] for r in RECIPES.values()]
-    assert len(set(scenes)) == 202, "Duplicate illustration even before colors/backgrounds"
+    assert len(set(scenes)) == 227, "Duplicate illustration even before colors/backgrounds"
     names = dict(catalogue)
     manifest = []
     for skill, (family, palette, picture) in RECIPES.items():

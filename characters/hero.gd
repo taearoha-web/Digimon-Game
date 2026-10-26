@@ -940,6 +940,8 @@ func _apply_self_fx(skill: Dictionary) -> void:
 ## One raven strike: a share of the Lord's attack (the star set makes it hit harder).
 const RAVEN_MULT := 0.45
 var raven: DarkRaven
+## Raven strikes so far (tests and the playtest tool read it).
+var raven_strikes := 0
 
 
 ## A Dark Lord has a raven on the arm; any other class does not.
@@ -983,6 +985,7 @@ func raven_strike(mob: Mob) -> void:
 	if not _valid_target(mob):
 		return
 	var mult := RAVEN_MULT * (1.3 if StarProgression.has_full_set(Game.profile, "darklord") else 1.0)
+	raven_strikes += 1
 	_deal(mob, mult, DarkRaven.VIOLET, &"slash", false)
 
 

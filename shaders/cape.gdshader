@@ -48,9 +48,13 @@ float raven(vec2 p) {
 	float body = length((p - vec2(0.0, -0.02)) / vec2(0.05, 0.11)) - 1.0;
 	float head = length(p - vec2(0.0, 0.11)) / 0.045 - 1.0;
 	// Each wing: a swept crescent rising from the shoulders.
-	vec2 w = q - vec2(0.12, 0.02);
-	w = mat2(vec2(0.86, 0.5), vec2(-0.5, 0.86)) * w;
-	float wing = max(length(w / vec2(0.15, 0.05)) - 1.0, -(length((w - vec2(0.03, -0.05)) / vec2(0.13, 0.045)) - 1.0));
+	vec2 w = q - vec2(0.14, 0.03);
+	w = mat2(vec2(0.97, 0.26), vec2(-0.26, 0.97)) * w;
+	// A broad wing whose lower edge is cut into three feather points.
+	float wing = length(w / vec2(0.17, 0.055)) - 1.0;
+	float notch = sin(w.x * 55.0) * 0.012;
+	wing = max(wing, -(w.y + 0.03 + notch) / 0.03);
+	wing = min(wing, max(length((w - vec2(0.02, -0.03)) / vec2(0.16, 0.05)) - 1.0, -(w.y + 0.07 + notch) / 0.02));
 	// Tail feathers.
 	float tail = max(abs(p.x) - (0.02 + (-0.1 - p.y) * 0.5), max(p.y + 0.1, -0.22 - p.y));
 	return min(min(body, head), min(wing, tail * 12.0));
@@ -86,7 +90,7 @@ void fragment() {
 	vec2 p = vec2(u - 0.5, 0.36 - v) * vec2(1.0, 0.9);
 	float r = raven(p * 1.0);
 	float crest_mask = (1.0 - smoothstep(0.0, 0.08, r)) * crest;
-	float ring = abs(length(p) - 0.2) - 0.008;
+	float ring = abs(length(p) - 0.27) - 0.008;
 	float ring_mask = (1.0 - smoothstep(0.0, 0.006, ring)) * crest;
 	col = mix(col, trim_col * 1.05, max(crest_mask, ring_mask));
 	glow += (crest_mask * 0.35 + ring_mask * 0.5) * star;
