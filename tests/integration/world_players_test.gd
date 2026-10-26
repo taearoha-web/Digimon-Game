@@ -38,7 +38,7 @@ func _roster() -> void:
 	var classes := {}
 	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
 		var members := WorldPlayers.members(g)
-		check(members.size() == 25, "%s has 25 members" % WorldPlayers.guild_name(g))
+		check(members.size() == 27, "%s has 27 members" % WorldPlayers.guild_name(g))
 		var support := false
 		for i in members:
 			support = support or GuildWarData.is_support(StringName(WorldPlayers.entry(i)["class"]))

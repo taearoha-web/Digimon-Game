@@ -1,7 +1,7 @@
 class_name WorldPlayers
 extends RefCounted
-## The other players of the world: 50 people with fixed names, classes and guilds (25 go to
-## Alpha, 25 to Neverdie; each joins its guild on reaching Lv.100, like the hero must).
+## The other players of the world: 54 people with fixed names, classes and guilds (27 go to
+## Alpha, 27 to Neverdie; each joins its guild on reaching Lv.100, like the hero must).
 ## Nobody runs them on a server. Each keeps a daily play
 ## schedule set by its play style (Thai time, the same on every device), and what it
 ## has reached is the EXP a real player earns in the hours it played: the auto-hunt rates
