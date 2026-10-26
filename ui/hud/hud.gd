@@ -805,9 +805,11 @@ func _build_action_buttons(frame: Control) -> void:
 			hero.set_raven_attack(not hero.raven.attack)
 			Game.say("อีกา: %s" % ("บุกโจมตีเอง" if hero.raven.attack else "กลับมาเกาะแขน"), &"info"))
 	frame.add_child(raven_button)
-	raven_mode_button = _small_button("", Color("ffcf5a"), Vector2.ZERO)
+	# Violet like the raven button, with a raven over the mode name, so it never
+	# reads as the auto-hunt button beside it.
+	raven_mode_button = _small_button("res://assets/icons/ui/raven.svg", Color("8a4dff"), Vector2.ZERO)
 	raven_mode_button.text = DarkRaven.MODE_NAMES[DarkRaven.Mode.AUTO]
-	raven_mode_button.font_size_override = 15
+	raven_mode_button.font_size_override = 13
 	raven_mode_button.visible = false
 	raven_mode_button.pressed.connect(func():
 		if hero and hero.raven:

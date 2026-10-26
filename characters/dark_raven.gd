@@ -195,7 +195,7 @@ func _fight(lord: Node3D, target: Mob, delta: float) -> void:
 			_strike_timer = STRIKE_EVERY
 			_dive = 0.0
 			_retarget = 0.0
-			LordSkillArt.raven_peck(target.get_parent() as Node3D, goal, from, group)
+			LordSkillArt.raven_peck(target.get_parent() as Node3D, goal, from, group, GROUP_RADIUS)
 	_fly_to(goal, delta, SPEED * (1.5 if _strike_timer <= 0.0 else 0.8))
 	_bank = lerpf(_bank, 28.0 if _strike_timer > 0.0 else 0.0, minf(1.0, delta * 4.0))
 	_animate(delta, pose)

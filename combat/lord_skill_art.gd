@@ -172,11 +172,12 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 	art._star(id, c, index, radius)
 
 
-## The raven's strike (DarkRaven): on one monster, three claw cuts, feathers
+## The raven's strike: on one monster, three claw cuts, feathers
 ## bursting out and a dark ring; on a pack, a shockwave out to the pack's edge, a
 ## dark vortex, shadow ravens converging on the point and a burst of feathers.
-## [param at] is the body the raven struck, [param from] where it dived from.
-static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool) -> void:
+## [param at] is the body the raven struck, [param from] where it dived from,
+## [param reach] how far round the target a group strike reaches.
+static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, reach := 3.2) -> void:
 	if not _alive(parent) or not VfxBudget.can_decorate((4 if group else 2) + RESERVE):
 		return
 	var now := Time.get_ticks_msec()
@@ -197,7 +198,7 @@ static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool) 
 	if not group:
 		art.layer("shock", true, c, Vector3(0, floor_y, 0), Vector3.ONE * 0.8, Vector3.ZERO, 0.02, 0.45, {"initial": 0.2, "grow": 5.0})
 		return
-	var r := DarkRaven.GROUP_RADIUS
+	var r := reach
 	art.layer("rift", false, c, Vector3(0, floor_y + 0.02, 0), Vector3.ONE * r * 0.55, Vector3.ZERO, 0.0, 0.8, {"initial": 0.3, "opacity": 0.8})
 	art.layer("shock", true, c, Vector3(0, floor_y, 0), Vector3.ONE * r, Vector3.ZERO, 0.0, 0.6, {"initial": 0.15, "grow": 4.0, "opacity": 0.5})
 	art.layer("vortex", true, c, Vector3(0, floor_y + 0.03, 0), Vector3.ONE * r * 0.8, Vector3.ZERO, 0.0, 0.7, {"initial": 0.3, "spin": 6.0, "opacity": 0.5})
