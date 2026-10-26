@@ -517,7 +517,7 @@ func _build_town() -> void:
 	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20))
 	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20))
 	_add_npc("storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20))
-	_add_npc("party", "นายหน้าเพื่อนร่วมทาง", &"archer", "เลือกเพื่อนปาร์ตี้ AI", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
+	_add_npc("registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ชวนปาร์ตี้", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
 	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
 	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
 	_add_npc("guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING)
@@ -547,19 +547,23 @@ func _petals() -> void:
 	_weather.add_child(_weather_layer(spec))
 
 
+## The hero's party: the world players who joined (Game.party_invite) walk with the hero.
 func _spawn_party() -> void:
-	Game.ensure_party()
-	Game.party_catch_up()
 	for old in companions:
 		if is_instance_valid(old):
 			old.queue_free()
 	companions.clear()
-	for i in Game.party().size():
-		var buddy := Companion.new()
-		buddy.setup(Game.party()[i], i, hero, self)
+	var members := Game.party()
+	for k in members.size():
+		var buddy := FieldPlayer.new()
+		buddy.party_mode = true
+		buddy.setup_world(Game.world_party[k], members[k], hero, self)
+		buddy.index = k
 		add_child(buddy)
-		buddy.global_position = hero.global_position + Vector3(3.0, 0.3, -0.6)
+		buddy.global_position = hero.global_position + Vector3(3.0 - 2.0 * k, 0.3, -0.6)
 		companions.append(buddy)
+	if presence != null:
+		presence.sync(false)
 	if not Game.party_leveled.is_connected(_on_party_leveled):
 		Game.party_leveled.connect(_on_party_leveled)
 	if not Game.party_roster_changed.is_connected(_spawn_party):
@@ -890,7 +894,6 @@ func _on_mob_died(mob: Mob) -> void:
 	var region_boost := 1.0 + maxf(0.0, float(data.get("gear_star",0)) / 25.0)
 	var exp_gain := int(round(float(mob.stats.exp) * exp_scale * region_boost * share))
 	Game.add_exp(exp_gain)
-	Game.party_add_exp(exp_gain)
 	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), "+%d EXP" % exp_gain, Color("66e0ff"), 0.8)
 	if share < 0.5:
 		return

@@ -1,8 +1,10 @@
 extends Node
-## The world players: twenty fixed people in two guilds whose progress follows their daily
+## The world players: fifty fixed people in two guilds whose progress follows their daily
 ## schedules (the same at a given time on every device) from Lv.1 to ★200; the online ones
-## hunt for real in the field that fits them, their kills are their own; the hero joins
-## Alpha or Neverdie at the registrar and the guild war lines up the two guilds' members.
+## hunt for real in the field that fits them, their kills are their own; online players join
+## the hero's party; the registry lists everyone; the hero joins Alpha or Neverdie at the
+## registrar and the guild war lines up the two guilds' members. A new character changes
+## nothing about them.
 ##   godot --headless --path . res://tests/integration/world_players_test.tscn
 var failures := 0
 var checks := 0
@@ -20,6 +22,7 @@ func _ready() -> void:
 	_roster()
 	_progress()
 	await _field()
+	await _party()
 	_guild()
 	await _screens()
 	print("WORLD PLAYERS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
@@ -27,12 +30,12 @@ func _ready() -> void:
 
 
 func _roster() -> void:
-	check(WorldPlayers.size() == 20, "twenty world players")
+	check(WorldPlayers.size() == 50, "fifty world players")
 	var names := {}
 	var classes := {}
 	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
 		var members := WorldPlayers.members(g)
-		check(members.size() == 10, "%s has ten members" % WorldPlayers.guild_name(g))
+		check(members.size() == 25, "%s has 25 members" % WorldPlayers.guild_name(g))
 		var support := false
 		for i in members:
 			support = support or GuildWarData.is_support(StringName(WorldPlayers.entry(i)["class"]))
@@ -44,7 +47,7 @@ func _roster() -> void:
 		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
 		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
 		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
-	check(names.size() == 20, "every name is different")
+	check(names.size() == 50, "every name is different")
 	check(classes.size() == ClassData.IDS.size(), "every class is played")
 	check(WorldPlayers.guild_name(WorldPlayers.ALPHA) == "Alpha" and WorldPlayers.guild_name(WorldPlayers.NEVERDIE) == "Neverdie", "the guilds are Alpha and Neverdie")
 
@@ -73,7 +76,7 @@ func _progress() -> void:
 				zones_ok = false
 			if bool(s.online) != (place != ""):
 				zones_ok = false
-			t += day * 0.37
+			t += day * 0.73
 		check(steady, "%s: level and stars only ever go up" % e.name)
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
 		var end := WorldPlayers.state(i, start + 160.0 * day)
@@ -189,6 +192,90 @@ func _field() -> void:
 	WorldPresence.clock_offset = 0.0
 
 
+## A moment after `from` when some world player is online in a field with a level the
+## hero can take, and that player.
+func _online_moment(from: float) -> Array:
+	var t := from
+	while t < from + 20.0 * 86400.0:
+		for i in WorldPlayers.size():
+			var s := WorldPlayers.state(i, t)
+			if bool(s.online) and String(s.place) not in ["", "town"] and int(s.level) >= 5 and int(s.level) < 90:
+				var later := WorldPlayers.state(i, t + 600.0)
+				if bool(later.online):
+					return [t, i]
+		t += 900.0
+	return []
+
+
+func _party() -> void:
+	var moment := _online_moment(float(WorldPlayers.START_UNIX) + 2.0 * 86400.0)
+	check(not moment.is_empty(), "someone is online to party with")
+	if moment.is_empty():
+		return
+	WorldPresence.clock_offset = float(moment[0]) - WorldPlayers.now()
+	var who: int = moment[1]
+	var s := WorldPlayers.state(who, WorldPresence.clock())
+	Game.new_profile(&"warrior", "Party QA", FaceKit.default_look())
+	Game.profile.level = clampi(int(s.level), 10, 99)
+	Game.profile.adv = JobData.adv_for_level(int(Game.profile.level))
+	Game.profile.party = []
+	await main.go(StringName(s.place), true)
+	await get_tree().create_timer(0.8).timeout
+	var zone: Zone = main.zone
+	zone.hero._invulnerable_until = Time.get_ticks_msec() + 600000
+	check(Game.party().is_empty() and zone.companions.is_empty(), "a hero starts with no party (the hired companion is gone)")
+	check(Game.party_invite(who) == "" and Game.in_party(who), "an online player of a near level joins (%s Lv.%d)" % [s.name, int(s.level)])
+	await get_tree().create_timer(0.5).timeout
+	check(zone.companions.size() == 1 and zone.companions[0] is FieldPlayer and (zone.companions[0] as FieldPlayer).party_mode, "the member walks with the hero as a companion")
+	check(zone.companions[0].is_in_group("companions") and not zone.companions[0].is_in_group("world_players"), "its kills count for the party")
+	check(not zone.presence.shown.has(who), "it is not also hunting on its own in the field")
+	check(int(Game.party()[0].level) == int(s.level), "it keeps its own level")
+	# Who can be asked: offline players cannot; strangers far apart in level say no; guild mates say yes.
+	var offline := -1
+	var far := -1
+	for i in WorldPlayers.size():
+		var o := WorldPlayers.state(i, WorldPresence.clock())
+		if not bool(o.online) and offline < 0:
+			offline = i
+		if bool(o.online) and i != who and absi(int(o.level) - int(Game.profile.level)) > Game.PARTY_LEVEL_GAP and far < 0:
+			far = i
+	check(offline >= 0 and Game.party_invite(offline).contains("ออฟไลน์"), "an offline player cannot join")
+	if far >= 0:
+		check(Game.party_invite(far).contains("เลเวลห่าง"), "a stranger far apart in level says no")
+		Game.profile.level = 100
+		Game.join_guild(int(WorldPlayers.entry(far).guild))
+		check(Game.party_invite(far) == "", "a guild mate always says yes")
+	# Three at most.
+	for i in WorldPlayers.size():
+		if Game.party().size() >= Game.PARTY_MAX:
+			break
+		Game.party_invite(i, true)
+	check(Game.party().size() == Game.PARTY_MAX and Game.party_invite(WorldPlayers.size() - 1, true) != "", "a party holds three")
+	await get_tree().create_timer(0.4).timeout
+	check(zone.companions.size() == Game.PARTY_MAX, "all three walk with the hero")
+	# Their sessions end: they leave the party.
+	WorldPresence.clock_offset += 12.0 * 3600.0
+	zone.presence.sync(false)
+	await get_tree().process_frame
+	var left := true
+	for i in Game.world_party:
+		left = left and bool(WorldPlayers.state(i, WorldPresence.clock()).online)
+	check(left, "members whose session ended left the party")
+	# A new character: the world goes on unchanged, the party is gone.
+	var t := WorldPresence.clock()
+	var before := []
+	for i in WorldPlayers.size():
+		before.append(WorldPlayers.state(i, t))
+	Game.new_profile(&"mage", "Brand new", FaceKit.default_look())
+	var after := []
+	for i in WorldPlayers.size():
+		after.append(WorldPlayers.state(i, t))
+	check(before == after, "a new character does not restart the world players")
+	check(Game.party().is_empty(), "a new character starts without a party")
+	WorldPresence.clock_offset = 0.0
+	await main.go(&"town", true)
+
+
 func _guild() -> void:
 	Game.new_profile(&"warrior", "Guild QA", FaceKit.default_look())
 	Game.profile.level = Game.GUILD_LEVEL - 1
@@ -256,6 +343,19 @@ func _screens() -> void:
 	var cards: int = main.guild_screen.find_children("*", "PanelContainer", true, false).size()
 	check(cards >= 21, "both rosters and the hero are listed (%d cards)" % cards)
 	main.guild_screen.close_screen()
+	# The game registry: everyone, the hero among them, online filter and party buttons.
+	main.registry.open_screen()
+	await get_tree().process_frame
+	var rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
+	check(rows == WorldPlayers.size() + 1 and main.registry.find_child("Row_you", true, false) != null, "the registry lists all %d players and the hero (%d rows)" % [WorldPlayers.size() + 1, rows])
+	(main.registry.find_child("Filter_online", true, false) as Button).pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var online_rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
+	check(online_rows == WorldPresence.online_count() + 1, "the online filter shows who is on (%d)" % online_rows)
+	main.registry.close_screen()
+	main.hud.update_online()
+	check(String(main.hud._online_label.text) == "ออนไลน์ %d" % (WorldPresence.online_count() + 1), "the HUD shows how many are online")
 	main.guildwar_screen.open_lobby()
 	await get_tree().process_frame
 	var ready := false

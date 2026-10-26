@@ -163,8 +163,8 @@ func _start(class_id: StringName) -> Zone:
 		var stats := Game.stats_now()
 		Game.profile.hp = stats.max_hp
 		Game.profile.mp = stats.max_mp
-	# The flows below fight beside the companion a player hires at the broker.
-	Game.recruit(&"mage" if class_id == &"priest" else &"priest", false)
+	# The flows below fight beside a world player who joined the hero's party.
+	_join(&"mage" if class_id == &"priest" else &"priest")
 	main.hud.visible = true
 	main._traveling = false
 	await main.go(&"town", true)
@@ -219,13 +219,22 @@ func _play_class(class_id: StringName) -> void:
 	check(Game.profile.exp > exp_before or Game.profile.level > level_before, "EXP gained")
 	check(Game.profile.gold > gold_before, "gold picked up (%d -> %d)" % [gold_before, Game.profile.gold])
 	check(int(Game.profile.kills) >= 3, "kills counted")
-	check(zone.companions.size() == 1, "one AI companion is with the hero")
-	var party_exp: int = int(Game.party()[0].exp) + int(Game.party()[0].level) * 1000
-	check(party_exp > 1000, "companions share the EXP")
+	check(zone.companions.size() == 1 and zone.companions[0] is FieldPlayer, "the party member fights beside the hero")
 	var party_damage := 0
 	for c in zone.companions:
 		party_damage += c.damage_dealt
 	_party_damage_total += party_damage
+
+
+## A world player of the class joins the party alone (a party member of the hero's level,
+## so the fights stay the same whatever day the test runs).
+func _join(cls: StringName) -> void:
+	Game.dismiss_party()
+	check(Game.party_invite(WorldPlayers.first_of(cls), true) == "", "a %s world player joins the party" % cls)
+	var member: Dictionary = Game.party()[0]
+	member["level"] = maxi(1, int(Game.profile.level) - 1)
+	member["stars"] = 0
+	Game.party_changed.emit()
 
 
 func _spawn(zone: Zone, hero: Hero, ids: Array, level: int) -> Array[Mob]:
@@ -1440,23 +1449,20 @@ func _party() -> void:
 	await _wait(0.8)
 	check(not buddy.is_dead() and buddy.hp > 0, "companion gets back up")
 	check(Game.cycle_stance() == "aggressive" and Game.cycle_stance() == "guard" and Game.cycle_stance() == "follow", "stance cycles follow -> aggressive -> guard")
-	Game.recruit(&"mage")
-	await _wait(0.4)
-	check(zone.companions.size() == 1 and zone.companions[0].member["class"] == "mage", "recruiting swaps the companion")
-	check(String(Game.party()[0]["class"]) == "mage", "party data updated")
-	var rolled: Dictionary = Game.party()[0].get("look", {})
-	check(rolled.has("hair_tint") and rolled.has("eye_tint") and rolled.has("skin_tone"), "a hired companion gets rolled hair, eye and skin colours")
-	var seen := {}
-	for i in 12:
-		Game.recruit(&"mage", false)
-		seen[str(Game.party_look(Game.party()[0]))] = true
-	check(seen.size() > 1, "every hire rolls a new look (%d looks in 12 hires)" % seen.size())
 	Game.dismiss_party()
 	await _wait(0.4)
 	check(zone.companions.is_empty() and Game.party().is_empty(), "dismissing leaves nobody")
-	Game.recruit(&"priest")
+	# Up to three world players walk with the hero, each in its own spot and its own look.
+	for cls in [&"mage", &"archer", &"lancer"]:
+		Game.party_invite(WorldPlayers.first_of(cls), true)
+	await _wait(0.4)
+	check(zone.companions.size() == 3 and zone.companions[0].member["class"] == "mage" and zone.companions[2].member["class"] == "lancer", "three world players walk with the hero")
+	check(Game.party_invite(WorldPlayers.first_of(&"warrior"), true) != "" and Game.party().size() == Game.PARTY_MAX, "a party holds three")
+	check((zone.companions[0] as FieldPlayer).visual.look == WorldPlayers.look(WorldPlayers.first_of(&"mage")), "a member looks like itself")
+	check(Game.cycle_stance(2) == "aggressive" and String(Game.party()[0].stance) == "follow", "each member has its own stance")
+	Game.party_kick(WorldPlayers.first_of(&"archer"))
 	await _wait(0.3)
-	check(zone.companions.size() == 1, "can recruit again")
+	check(zone.companions.size() == 2 and not Game.in_party(WorldPlayers.first_of(&"archer")), "a member can be let go")
 
 
 func _zones() -> void:
@@ -1749,7 +1755,7 @@ func _wait_for_import_reload() -> void:
 
 
 func _shared_potions() -> void:
-	print("== Companions share the potion bag")
+	print("== Party members drink their own potions")
 	await _start(&"warrior")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -1762,15 +1768,12 @@ func _shared_potions() -> void:
 	buddy._potion_cd = 0.0
 	buddy._cast_until = 0
 	var before := buddy.hp
+	var stock := int(buddy.member.get("potions", 0))
+	zone.hero.safe_zone = false
 	buddy._use_potions()
-	check(buddy.hp > before, "the companion drinks when low (%d -> %d)" % [before, buddy.hp])
-	check(Game.potion_count("hp_m") == 1, "the potion came from the shared bag")
-	check(int(buddy.member.get("potions", 5)) == 5, "its own free stock was not touched")
-	Game.profile["inv"] = []
-	buddy.hp = int(float(buddy.max_hp) * 0.2)
-	buddy._potion_cd = 0.0
-	buddy._use_potions()
-	check(int(buddy.member.get("potions", 5)) == 4, "with an empty bag it falls back to its own stock")
+	check(buddy.hp > before, "the party member drinks when low (%d -> %d)" % [before, buddy.hp])
+	check(Game.potion_count("hp_m") == 2, "never from the hero's bag")
+	check(int(buddy.member.get("potions", 0)) == stock - 1, "from its own stock")
 
 
 func _summoner_class() -> void:
@@ -1821,8 +1824,8 @@ func _summoner_class() -> void:
 	Game.equip_from_bag(Game.profile.inv.size() - 1)
 	await _wait(0.1)
 	check(hero.visual.find_child("Held_lantern_2", true, false) != null and hero.visual.find_child("Held_tome_2", true, false) != null, "a Lv.21-30 lantern brings the Lv.3 grimoire")
-	Game.recruit(&"summoner")
-	check(Game.party()[0]["class"] == "summoner", "a summoner can be hired as companion")
+	_join(&"summoner")
+	check(Game.party()[0]["class"] == "summoner", "a summoner world player can join the party")
 
 
 func _lancer_class() -> void:
@@ -1895,8 +1898,8 @@ func _lancer_class() -> void:
 	check(lined[0].hp < 100000 and lined[1].hp < 100000 and lined[2].hp < 100000, "the thrust hits the target and two more in the line (%d hit)" % damaged)
 	check(lined[3].hp == 100000, "the fourth monster is beyond its two extra victims")
 	check(off_line.hp == 100000, "a monster off to the side is not hit")
-	Game.recruit(&"lancer")
-	check(Game.party()[0]["class"] == "lancer", "a lancer can be hired as companion")
+	_join(&"lancer")
+	check(Game.party()[0]["class"] == "lancer", "a lancer world player can join the party")
 
 
 func _joystick() -> void:

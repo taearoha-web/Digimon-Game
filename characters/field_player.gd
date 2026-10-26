@@ -6,12 +6,17 @@ extends Companion
 ## alone and moves on to another camp now and then. In the village it strolls between the
 ## shops. Monsters fight it like the hero; when it falls it goes back to the village and
 ## walks in again a while later. Its kills are its own (Mob.party_share).
+## In the hero's party (party_mode, Game.party_invite) it is a companion instead: it walks
+## with the hero from zone to zone, fights what the hero fights, heals and buffs the hero,
+## gets back up beside the hero, and its kills count for the party.
 
 const CAMP_STAY := Vector2(150.0, 330.0)
 const AWAY_AFTER_FALL := 40.0
 const HUNT_REACH := 16.0
 
 var world_index := 0
+## In the hero's party: the companion's own following, targeting and support.
+var party_mode := false
 var zone: Zone
 var _camp: Dictionary = {}
 var _camp_left := 0.0
@@ -35,8 +40,9 @@ func setup_world(p_index: int, p_member: Dictionary, p_hero: Hero, p_zone: Zone)
 
 func _ready() -> void:
 	super._ready()
-	remove_from_group("companions")
-	add_to_group("world_players")
+	if not party_mode:
+		remove_from_group("companions")
+		add_to_group("world_players")
 	_label.modulate = WorldPlayers.GUILD_COLORS.get(int(WorldPlayers.entry(world_index).guild), Color.WHITE)
 	_label.text = _level_text()
 	_pick_camp()
@@ -88,19 +94,25 @@ func leave() -> void:
 # --- Looking after itself --------------------------------------------------------
 
 func _ally_hp_ratio() -> float:
+	if party_mode:
+		return super._ally_hp_ratio()
 	return float(hp) / float(maxi(1, max_hp))
 
 
 func _in_combat() -> bool:
+	if party_mode:
+		return super._in_combat()
 	return target != null and is_instance_valid(target)
 
 
-func _heal_allies(_fraction: float) -> void:
-	pass
+func _heal_allies(fraction: float) -> void:
+	if party_mode:
+		super._heal_allies(fraction)
 
 
-func _buff_allies(_buff: Dictionary, _color: Color, _label_text: String, _skill_id: String) -> void:
-	pass
+func _buff_allies(buff: Dictionary, color: Color, label_text: String, skill_id: String) -> void:
+	if party_mode:
+		super._buff_allies(buff, color, label_text, skill_id)
 
 
 ## Its own potions only (never the hero's bag); the stock refills in the village.
@@ -111,7 +123,7 @@ func _use_potions() -> void:
 		return
 	if _potion_cd > 0.0 or Time.get_ticks_msec() < _cast_until:
 		return
-	if int(member.get("potions", 0)) <= 0 and float(hp) / float(max_hp) < 0.5:
+	if int(member.get("potions", 0)) <= 0 and float(hp) / float(max_hp) < 0.5 and not party_mode:
 		_restocking = true
 	if float(hp) / float(max_hp) < 0.5 and int(member.get("potions", 0)) > 0:
 		member["potions"] = int(member.potions) - 1
@@ -124,6 +136,9 @@ func _use_potions() -> void:
 
 
 func _die() -> void:
+	if party_mode:
+		super._die()
+		return
 	_dead = true
 	target = null
 	_revive_timer = 6.0
@@ -136,6 +151,11 @@ func _die() -> void:
 
 ## After falling: gone to the village for a while, then walks back in from the field's entrance.
 func _revive() -> void:
+	if party_mode:
+		super._revive()
+		member["potions"] = WorldPlayers.POTIONS
+		_label.text = _level_text()
+		return
 	if not _away:
 		_away = true
 		visible = false
@@ -189,6 +209,8 @@ func _camp_center() -> Vector3:
 
 ## Losing and out of potions for now: backs off out of the fight.
 func _fight(delta: float) -> Vector3:
+	if party_mode:
+		return super._fight(delta)
 	if float(hp) / float(max_hp) < 0.25 and (_potion_cd > 0.0 or int(member.get("potions", 0)) <= 0):
 		_flee_until = Time.get_ticks_msec() + 7000
 		target = null
@@ -214,6 +236,8 @@ func _go_shopping() -> void:
 ## Nearest monster of its camp that nobody on the hero's side is fighting (or that is
 ## attacking it); field bosses only when they come for it.
 func _pick_target() -> Mob:
+	if party_mode:
+		return super._pick_target()
 	if hero.safe_zone or _camp.is_empty() or _fleeing():
 		return null
 	var center := _camp_center()
@@ -239,6 +263,8 @@ func _pick_target() -> Mob:
 ## No fight: walk to the camp and drift around in it (in the village, between the shops);
 ## backing off, it runs towards the field's entrance.
 func _follow(delta: float) -> Vector3:
+	if party_mode:
+		return super._follow(delta)
 	if _fleeing() and zone != null:
 		var away := _flat(zone.entrance() - global_position)
 		if away.length() > 2.0:

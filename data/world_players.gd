@@ -1,7 +1,7 @@
 class_name WorldPlayers
 extends RefCounted
-## The other players of the world: 20 people with fixed names, classes and guilds (ten in
-## Alpha, ten in Neverdie). Nobody runs them on a server. Each keeps a daily play
+## The other players of the world: 50 people with fixed names, classes and guilds (25 in
+## Alpha, 25 in Neverdie). Nobody runs them on a server. Each keeps a daily play
 ## schedule set by its play style (Thai time, the same on every device), and what it
 ## has reached is the EXP a real player earns in the hours it played: the auto-hunt rates
 ## tests/tools/pace_probe.gd measured in the real fields, times the player's own
@@ -44,6 +44,36 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
 	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "casual"},
 	{"name": "Raijin", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	{"name": "Ryuu", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "student"},
+	{"name": "ขุนศึกหน้าหวาน", "class": &"warrior", "guild": ALPHA, "gender": 1, "style": "weekend"},
+	{"name": "ปีศาจสีเงิน", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "regular"},
+	{"name": "Gekko", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "night_owl"},
+	{"name": "Momo", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "casual"},
+	{"name": "นางฟ้าตาหวาน", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "regular"},
+	{"name": "หอกทะลวงฟ้า", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "hardcore"},
+	{"name": "Valkyrie", "class": &"lancer", "guild": ALPHA, "gender": 1, "style": "regular"},
+	{"name": "NightHawk", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "night_owl"},
+	{"name": "ไอซ์ซี่", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "casual"},
+	{"name": "พ่อมดน้อยฟ้าใส", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "student"},
+	{"name": "Luna_Mew", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "weekend"},
+	{"name": "หมอผีหมูเด้ง", "class": &"summoner", "guild": ALPHA, "gender": 0, "style": "student"},
+	{"name": "BearTank", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "student"},
+	{"name": "ShieldMaiden", "class": &"defender", "guild": ALPHA, "gender": 1, "style": "hardcore"},
+	{"name": "Ragnar", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
+	{"name": "เสือดาวดำ", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	{"name": "Kurogane", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "student"},
+	{"name": "จิ้งจอกเงา", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
+	{"name": "Seraphine", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "regular"},
+	{"name": "หอกพยัคฆ์", "class": &"lancer", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	{"name": "Akane", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "weekend"},
+	{"name": "ArrowRain", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
+	{"name": "ลูกศรสีชมพู", "class": &"archer", "guild": NEVERDIE, "gender": 1, "style": "student"},
+	{"name": "บะหมี่เวทมนตร์", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	{"name": "Nebula", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "regular"},
+	{"name": "อสูรน้อยหลับยาก", "class": &"summoner", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
+	{"name": "Wyvern", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	{"name": "IronWall", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
+	{"name": "โล่ทองคำ", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "casual"},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
@@ -97,6 +127,14 @@ static func members(guild: int) -> Array[int]:
 		if int(ROSTER[i].guild) == guild:
 			out.append(i)
 	return out
+
+
+## The first world player of a class (for tools and tests), -1 if none.
+static func first_of(cls: StringName) -> int:
+	for i in ROSTER.size():
+		if StringName(ROSTER[i]["class"]) == cls:
+			return i
+	return -1
 
 
 static func other_guild(guild: int) -> int:

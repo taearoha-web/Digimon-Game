@@ -53,16 +53,28 @@ func _process(delta: float) -> void:
 		sync(false)
 
 
+## How many world players are online at time t (the hero not counted).
+static func online_count(t: float = -1.0) -> int:
+	if t < 0.0:
+		t = clock()
+	var n := 0
+	for i in WorldPlayers.size():
+		n += 1 if not WorldPlayers.session_at(i, t).is_empty() else 0
+	return n
+
+
 ## Who should stand here now; spawns arrivals, removes those who left.
 func sync(initial: bool) -> void:
 	if zone == null or not is_instance_valid(zone.hero):
 		return
 	var t := clock()
+	# Party members walk with the hero (Zone companions); those whose session ended leave.
+	Game.party_refresh(t)
 	var here: Array[Dictionary] = []
 	for i in WorldPlayers.size():
 		var s := WorldPlayers.state(i, t)
 		_announce(s)
-		if bool(s.online) and StringName(s.place) == zone.zone_id:
+		if bool(s.online) and StringName(s.place) == zone.zone_id and not Game.in_party(i):
 			here.append(s)
 	# Those already shown stay first, then the roster order turned by the hour so the
 	# same few are not always the ones picked.
@@ -73,7 +85,7 @@ func sync(initial: bool) -> void:
 		if sa != sb:
 			return sa < sb
 		return (int(a.index) - turn + 40) % WorldPlayers.size() < (int(b.index) - turn + 40) % WorldPlayers.size())
-	var limit: int = LIMITS[clampi(GameSettings.quality, 0, 2)]
+	var limit: int = maxi(1, int(LIMITS[clampi(GameSettings.quality, 0, 2)]) - Game.party().size())
 	var keep := {}
 	for k in mini(limit, here.size()):
 		keep[int(here[k].index)] = here[k]

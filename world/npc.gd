@@ -19,7 +19,7 @@ const LOOKS := {
 		"npc_outfit": ["Barbarian", Color(0.85, 0.75, 0.7), ""], "npc_hat": ["hachimaki", Color("d8452e")]},
 	"storage": {"gender": 0, "skin": 2, "hair": 2, "hair_color": 2, "eyes": 2, "eye_color": 3, "nose": 1, "mouth": 1,
 		"npc_outfit": ["Rogue", Color(0.75, 0.95, 0.75), "Rogue_Cape"], "npc_hat": ["kasa", Color.WHITE]},
-	"party": {"gender": 1, "skin": 1, "hair": 1, "hair_color": 11, "eyes": 0, "eye_color": 2, "nose": 0, "mouth": 2,
+	"registry": {"gender": 1, "skin": 1, "hair": 1, "hair_color": 11, "eyes": 0, "eye_color": 2, "nose": 0, "mouth": 2,
 		"npc_outfit": ["Ranger", Color(1.45, 0.75, 0.75), ""], "npc_hat": ["ribbon", Color("e8463a")]},
 	"arena": {"gender": 0, "skin": 5, "hair": 4, "hair_color": 0, "eyes": 4, "eye_color": 0, "nose": 3, "mouth": 4,
 		"npc_outfit": ["Barbarian", Color(1.4, 1.2, 0.6), ""], "npc_hat": ["hachimaki", Color("2f4f8a")]},

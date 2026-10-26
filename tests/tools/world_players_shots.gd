@@ -74,6 +74,14 @@ func _ready() -> void:
 	await _shot("field_players")
 	await _wait(6.0)
 	await _shot("field_players_later")
+	# A party of three world players walking and fighting with the hero.
+	for i in WorldPlayers.size():
+		if Game.party().size() >= Game.PARTY_MAX:
+			break
+		if bool(WorldPlayers.state(i, WorldPresence.clock()).online):
+			Game.party_invite(i, true)
+	await _wait(5.0)
+	await _shot("party")
 	await main.go(&"town", true)
 	await _wait(2.0)
 	for npc in main.zone.npcs:
@@ -81,6 +89,10 @@ func _ready() -> void:
 			main.zone.hero.global_position = npc.global_position + Vector3(0, 0.2, 5.0)
 	await _wait(1.5)
 	await _shot("town_registrar")
+	main.registry.open_screen()
+	await _wait(0.5)
+	await _shot("registry")
+	main.registry.close_screen()
 	main.guild_screen.open_screen()
 	await _wait(0.5)
 	await _shot("guild_roster")

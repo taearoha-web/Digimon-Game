@@ -12,6 +12,7 @@ var warp: WarpScreen
 var pvp_screen: PvpScreen
 var guildwar_screen: GuildWarScreen
 var guild_screen: GuildScreen
+var registry: RegistryScreen
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -76,6 +77,11 @@ func _ready() -> void:
 	guildwar_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	guild_screen = GuildScreen.new()
 	add_child(guild_screen)
+	registry = RegistryScreen.new()
+	add_child(registry)
+	hud.registry_requested.connect(func():
+		if not (menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or guild_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling):
+			registry.open_screen())
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -288,7 +294,7 @@ func use_town_scroll() -> void:
 
 
 func _open_menu(tab: StringName) -> void:
-	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or guild_screen.is_open or tower_screen.is_open or dialog.is_open or _traveling:
+	if menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or _traveling:
 		return
 	menu.open_menu(tab)
 
@@ -328,8 +334,9 @@ func _on_npc(role: String) -> void:
 		"skill":
 			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
 				{"label": "ฝึกสกิล", "action": func(): trainer.open_trainer()}, {"label": "ไว้ก่อน"}])
-		"party":
-			_talk_party()
+		"registry":
+			dialog.say("นายทะเบียนเกม", "สมุดทะเบียนเล่มนี้จดชื่อทุกคนที่เล่นในโลกนี้ อาชีพ เลเวล กิลด์ และใครออนไลน์อยู่ตอนนี้ อยากออกล่ากับใครก็ชวนเข้าปาร์ตี้ได้ (สูงสุด %d คน) คนแปลกหน้าจะตอบรับถ้าเลเวลห่างกันไม่เกิน %d เพื่อนร่วมกิลด์ตอบรับเสมอ" % [Game.PARTY_MAX, Game.PARTY_LEVEL_GAP], [
+				{"label": "เปิดทะเบียน", "action": func(): registry.open_screen()}, {"label": "ดูคนที่ออนไลน์", "action": func(): registry.open_screen("online")}, {"label": "ไว้ก่อน"}])
 		"daily":
 			_talk_daily()
 		"warp":
@@ -362,7 +369,7 @@ func _on_npc(role: String) -> void:
 			AudioManager.play_sfx(&"heal")
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
-			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง ไปหานายหน้าเพื่อนร่วมทางในหมู่บ้าน เลือกอาชีพได้ หน้าตาเพื่อนจะสุ่มทุกครั้ง\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง แตะปุ่มออนไลน์ที่มุมขวาบน (หรือคุยกับนายทะเบียนเกม) แล้วชวนผู้เล่นที่ออนไลน์อยู่เข้าปาร์ตี้ได้สูงสุด 3 คน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
 
 
 func _talk_daily() -> void:
@@ -383,40 +390,6 @@ func _talk_daily() -> void:
 		text = "รับรางวัลแล้ว %d งาน!\n\n%s" % [paid, text]
 		Game.save()
 	dialog.say(speaker, text)
-
-
-func _talk_party() -> void:
-	var speaker := "นายหน้าเพื่อนร่วมทาง"
-	var party := Game.party()
-	var text := "ออกผจญภัยคนเดียวมันเหงานะ! ข้ามีนักผจญภัยฝีมือดีให้ร่วมทางด้วย 1 คน เก่งขึ้นตามเลเวลของเจ้า แต่ก็บาดเจ็บและล้มได้เหมือนกัน"
-	if not party.is_empty():
-		var member: Dictionary = party[0]
-		text += "\n\nตอนนี้เจ้าพา %s (%s Lv.%d นิสัย%s) ไปด้วย\nแตะการ์ดเพื่อนที่มุมซ้ายบนเพื่อสลับ ตามติด/บุกลุย/ป้องกัน" % [member.name, ClassData.get_class_data(StringName(member["class"])).name, int(member.level), Game.TRAIT_NAMES.get(String(member.get("trait", "brave")), "กล้าหาญ")]
-	var options: Array = [{"label": "เลือกเพื่อน", "action": func(): _pick_party()}]
-	if not party.is_empty():
-		options.append({"label": "ให้กลับบ้าน", "action": func():
-			Game.dismiss_party()
-			dialog.say(speaker, "เข้าใจแล้ว ไว้คิดถึงเมื่อไหร่ก็มาหาข้าใหม่นะ")})
-	options.append({"label": "ไว้ก่อน"})
-	dialog.say(speaker, text, options)
-
-
-func _pick_party() -> void:
-	var speaker := "นายหน้าเพื่อนร่วมทาง"
-	var lines: PackedStringArray = []
-	var options: Array = []
-	for id in ClassData.IDS:
-		lines.append("• %s — %s" % [ClassData.get_class_data(id).name, Game.PARTY_BLURBS[id]])
-		options.append({"label": String(ClassData.get_class_data(id).name), "action": func():
-			Game.recruit(id)
-			if zone and zone.hero:
-				VfxKit.level_up(zone, zone.hero.global_position)
-			var member: Dictionary = Game.party()[0]
-			var look := Game.party_look(member)
-			dialog.say(speaker, "ตกลง! %s (%s) จะร่วมทางกับเจ้า เริ่มที่เลเวล %d ดูแลกันดีๆ นะ\nผม%s ตา%s ผิว%s" % [member.name, ClassData.get_class_data(id).name, int(member.level),
-				ChibiLook.value_name("hair_tint", int(look.hair_tint)), ChibiLook.value_name("eye_tint", int(look.eye_tint)), ChibiLook.value_name("skin_tone", int(look.skin_tone))])})
-	options.append({"label": "ย้อนกลับ", "action": func(): _talk_party()})
-	dialog.say(speaker, "เลือกได้ 1 คน (เพื่อนคนเก่าจะกลับบ้านไป):\n" + "\n".join(lines), options)
 
 
 func _talk_job() -> void:

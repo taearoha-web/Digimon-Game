@@ -24,7 +24,7 @@ func _ready() -> void:
 	for skill in ClassData.pool(class_id):
 		Game.profile.skills[skill.id] = 10
 	if Game.party().is_empty():
-		Game.recruit(&"priest", false)
+		Game.party_invite(WorldPlayers.first_of(&"priest"), true)
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null

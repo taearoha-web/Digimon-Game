@@ -115,7 +115,7 @@ func _fullgear_check() -> void:
 		Game.profile.equip[slot] = item
 	Game.profile.equip["wings"] = ItemData.wings(grng, String(class_id))
 	Game.profile.equip["wings"]["plus"] = 10
-	Game.recruit(&"priest")
+	Game.party_invite(WorldPlayers.first_of(&"priest"), true)
 	await main.go(&"meadow", true, true)
 	await _wait(1.0)
 	var hero: Hero = main.zone.hero

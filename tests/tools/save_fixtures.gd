@@ -112,9 +112,6 @@ func _build_line(cls: StringName) -> void:
 	if not Game.change_class(cls):
 		_fail("%s: change_class refused" % cls)
 	_level_to(23)
-	Game.recruit(ClassData.IDS[(ClassData.IDS.find(cls) + 1) % ClassData.IDS.size()])
-	Game.cycle_stance()
-	Game.party_add_exp(5000)
 	Game.spend_point("str", 4)
 	Game.spend_point("vit", 2)
 	Game.add_gold(500000)

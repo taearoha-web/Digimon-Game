@@ -114,9 +114,11 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
 		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
-		# No companion yet: the hero picks one at the companion broker in the village.
+		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
 	}
+	world_party.clear()
+	_party_members.clear()
 	if not look.is_empty():
 		profile["look"] = FaceKit.repair(look)
 	has_profile = true
@@ -204,8 +206,6 @@ func change_class(new_class: StringName) -> bool:
 	var stats := stats_now()
 	profile["hp"] = stats.max_hp
 	profile["mp"] = stats.max_mp
-	if party().is_empty():
-		ensure_party()
 	profile_changed.emit()
 	inventory_changed.emit()
 	party_changed.emit()
@@ -323,6 +323,8 @@ func import_code(code: String, target_slot := -1) -> bool:
 	profile = candidate
 	slot = destination
 	has_profile = true
+	world_party.clear()
+	_party_members.clear()
 	current_zone = StringName(profile.zone)
 	_dirty = false
 	_autosave_timer = 0.0
@@ -516,6 +518,8 @@ func load_game(from_slot := -1) -> bool:
 	slot = target
 	profile = _repair(raw)
 	has_profile = true
+	world_party.clear()
+	_party_members.clear()
 	current_zone = StringName(profile.get("zone", "town"))
 	_dirty = false
 	_autosave_timer = 0.0
@@ -888,14 +892,9 @@ func _repair(data: Dictionary) -> Dictionary:
 		data["exp"] = 0
 	# Milestone skill points used to be claimed in the retired Star Path menu.
 	StarProgression.grant_milestones(data)
+	# The hired AI companion retired: the party is made of world players now (party_invite).
 	if data.has("party"):
-		data["party"] = data.party.slice(0, 1)
-		for member in data.party:
-			member["name"] = member.get("name", "เพื่อนร่วมทาง")
-			member["level"] = int(member.get("level", 1))
-			member["exp"] = int(member.get("exp", 0))
-			member["stars"] = clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
-			member["star_exp"] = maxi(0, int(member.get("star_exp", 0)))
+		data["party"] = []
 	for entry in data.get("daily", {}).get("quests", []):
 		entry["progress"] = int(entry.get("progress", 0))
 		entry["claimed"] = bool(entry.get("claimed", false))
@@ -1020,39 +1019,24 @@ func add_exp(amount: int) -> void:
 		leveled_up.emit(profile["level"])
 		profile_changed.emit()
 		check_achievements()
-		if profile.has("party"):
-			party_catch_up()
 		save()
 	mark_dirty()
 
 
 # ---------------------------------------------------------------------------
-# AI party: two companions that fight beside the hero and share EXP
+# Party: online world players (WorldPlayers) who join the hero for a while
 # ---------------------------------------------------------------------------
 
-const PARTY_NAMES := {&"warrior": ["บราโว่", "ทอม"], &"archer": ["ลูน่า", "ฟ้า"], &"mage": ["มิกะ", "เจน"], &"priest": ["นีน่า", "ใบบัว"], &"summoner": ["ไลรา", "เฟิร์น"], &"lancer": ["เรย์", "ซากุระ"], &"defender": ["ไททัน", "พลอย"], &"assassin": ["เคน", "ยามิ"]}
-## Which chibi model a companion wears (0 boy, 1 girl), from its name.
-const PARTY_GIRLS := ["ลูน่า", "ฟ้า", "มิกะ", "เจน", "นีน่า", "ใบบัว", "ไลรา", "เฟิร์น", "ซากุระ", "ยามิ"]
-
-
+## The chibi body of a companion sheet without a look of its own (0 boy, 1 girl).
 func party_gender(member: Dictionary) -> int:
-	return 1 if String(member.get("name", "")) in PARTY_GIRLS else 0
+	return int(member.get("gender", 0))
 
 
-## The looks rolled for a companion when hired: hair, eye and skin colour each drawn
-## from the whole chibi palette (0, the body's own colour, included).
+## Colours a companion sheet may carry: hair, eye and skin colour from the chibi palette.
 const PARTY_LOOK_KEYS := ["hair_tint", "eye_tint", "skin_tone"]
 
 
-func party_random_look() -> Dictionary:
-	var look := {}
-	for key in PARTY_LOOK_KEYS:
-		look[key] = randi() % ChibiLook.count(key)
-	return look
-
-
-## What a companion's chibi wears: the body from its name and its rolled colours
-## (companions hired before looks were rolled keep the body's own colours).
+## What a companion sheet's chibi wears: the body and its colours.
 func party_look(member: Dictionary) -> Dictionary:
 	var look := {"gender": party_gender(member)}
 	var rolled: Variant = member.get("look", {})
@@ -1062,75 +1046,110 @@ func party_look(member: Dictionary) -> Dictionary:
 	return look
 
 
-const PARTY_BLURBS := {
-	&"warrior": "นักรบเกราะหนา ยืนหน้าคอยรับดาเมจ",
-	&"archer": "นักธนู ยิงไกลและคริติคอลสูง",
-	&"mage": "จอมเวท ตีหมู่แรง แต่เลือดน้อย",
-	&"priest": "พรีสต์ ฮีลและเสริมพลังให้คุณ",
-	&"summoner": "ผู้เรียกอสูร เรียกสัตว์ป่ามาช่วยรบ",
-	&"lancer": "นักหอก แทงทะลุหลายตัว ตีไว",
-	&"defender": "สายโล่ ทนที่สุด ยั่วยุศัตรูและป้องกันทีม",
-	&"assassin": "นักฆ่ามีดคู่ ตีเร็ว คริติคอลแรง หลบเก่ง",
-}
 var _party_gear: Dictionary = {}
 
-
-## One AI companion. A new hero starts alone and hires one at the broker (recruit);
-## old saves made before the party existed get a default one (a priest, or a mage
-## for a priest); older saves with two keep the first.
-func ensure_party() -> void:
-	var party: Variant = profile.get("party")
-	if party is Array:
-		if party.size() > 1:
-			profile["party"] = party.slice(0, 1)
-		for member in profile["party"]:
-			member["level"] = maxi(1, int(member.get("level", 1)))
-			member["exp"] = int(member.get("exp", 0))
-			member["stars"] = clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
-			member["star_exp"] = maxi(0, int(member.get("star_exp", 0)))
-		return
-	recruit(&"mage" if class_id() == &"priest" else &"priest", false)
-
-
-## Hire a companion of the given class (replaces the current one).
-func recruit(c: StringName, announce := true) -> void:
-	var names: Array = PARTY_NAMES[c]
-	profile["party"] = [{"class": String(c), "name": names[randi() % names.size()], "level": maxi(1, int(profile["level"]) - 1), "exp": 0, "stance": "follow", "trait": ["brave", "careful"][randi() % 2],
-		"look": party_random_look()}]
-	mark_dirty()
-	party_changed.emit()
-	if announce:
-		party_roster_changed.emit()
-
-
+## At most this many world players join the hero's party.
+const PARTY_MAX := 3
+## A world player says yes to a stranger within this many levels (guild mates always do).
+const PARTY_LEVEL_GAP := 20
 const STANCES := ["follow", "aggressive", "guard"]
 const STANCE_NAMES := {"follow": "ตามติด", "aggressive": "บุกลุย", "guard": "ป้องกัน"}
 const TRAIT_NAMES := {"brave": "กล้าหาญ", "careful": "ระมัดระวัง"}
 
+## The party, like in an online game, lasts a session: who joined, in order (world player
+## indices). It is not saved; a member leaves when its own session ends (party_refresh)
+## or when the hero changes character.
+var world_party: Array[int] = []
+var _party_members := {}
 
-## Tap the party card: follow -> aggressive -> guard.
-func cycle_stance() -> String:
-	var list := party()
-	if list.is_empty():
-		return ""
-	var member: Dictionary = list[0]
-	var i := STANCES.find(String(member.get("stance", "follow")))
-	member["stance"] = STANCES[(i + 1) % STANCES.size()]
-	mark_dirty()
+
+## The members as companion sheets (class, name, level, stars, stance, potions...).
+func party() -> Array:
+	var out := []
+	for i in world_party:
+		out.append(_party_members[i])
+	return out
+
+
+func in_party(i: int) -> bool:
+	return world_party.has(i)
+
+
+## Asks world player i to join. Returns "" when it joins, otherwise why not (offline,
+## party full, too far apart in level for a stranger). `force` skips the asking (tests).
+func party_invite(i: int, force := false) -> String:
+	if not has_profile or i < 0 or i >= WorldPlayers.size():
+		return "ไม่พบผู้เล่น"
+	if world_party.has(i):
+		return "อยู่ในปาร์ตี้แล้ว"
+	if world_party.size() >= PARTY_MAX:
+		return "ปาร์ตี้เต็มแล้ว (สูงสุด %d คน)" % PARTY_MAX
+	var t := WorldPresence.clock()
+	var s := WorldPlayers.state(i, t)
+	if not force:
+		if not bool(s.online):
+			return "%s ออฟไลน์อยู่" % s.name
+		var mate := guild() > 0 and int(s.guild) == guild()
+		if not mate and absi(int(s.level) - int(profile.level)) > PARTY_LEVEL_GAP:
+			return "%s: เลเวลห่างกันเกินไป ไว้คราวหน้านะ" % s.name
+	var m := WorldPlayers.member(i, t)
+	m["stance"] = "follow"
+	m["frac"] = float(s.frac)
+	_party_members[i] = m
+	world_party.append(i)
+	say("%s เข้าร่วมปาร์ตี้แล้ว!" % s.name, &"success")
 	party_changed.emit()
-	return String(member.stance)
+	party_roster_changed.emit()
+	return ""
 
 
-func dismiss_party() -> void:
-	profile["party"] = []
-	mark_dirty()
+## Member i leaves the party (`why` is said if given).
+func party_kick(i: int, why := "") -> void:
+	if not world_party.has(i):
+		return
+	world_party.erase(i)
+	_party_members.erase(i)
+	if why != "":
+		say(why, &"info")
 	party_changed.emit()
 	party_roster_changed.emit()
 
 
-func party() -> Array:
-	ensure_party()
-	return profile["party"]
+func dismiss_party() -> void:
+	world_party.clear()
+	_party_members.clear()
+	party_changed.emit()
+	party_roster_changed.emit()
+
+
+## Keeps the members' sheets in step with their schedules (levels up on screen) and lets
+## go of those whose session has ended.
+func party_refresh(t: float) -> void:
+	for i in world_party.duplicate():
+		var s := WorldPlayers.state(i, t)
+		if not bool(s.online):
+			party_kick(i, "%s ออกจากเกม — ออกจากปาร์ตี้" % s.name)
+			continue
+		var m: Dictionary = _party_members[i]
+		var up := int(s.level) > int(m.level) or int(s.stars) > int(m.get("stars", 0))
+		m["level"] = int(s.level)
+		m["stars"] = int(s.stars)
+		m["frac"] = float(s.frac)
+		if up:
+			party_leveled.emit(world_party.find(i), int(s.level))
+	party_changed.emit()
+
+
+## Tap a party card: follow -> aggressive -> guard for that member.
+func cycle_stance(k := 0) -> String:
+	var list := party()
+	if k < 0 or k >= list.size():
+		return ""
+	var member: Dictionary = list[k]
+	var i := STANCES.find(String(member.get("stance", "follow")))
+	member["stance"] = STANCES[(i + 1) % STANCES.size()]
+	party_changed.emit()
+	return String(member.stance)
 
 
 ## A fake profile so [HeroStats] can work out a companion's stats.
@@ -1140,7 +1159,7 @@ func party_profile(member: Dictionary) -> Dictionary:
 		"paragon": {"level": stars, "alloc": party_star_alloc(stars)}}
 
 
-## A companion's ★ (0-200): it earns them from Lv.100 on, like the hero.
+## A companion's ★ (0-200).
 func party_stars(member: Dictionary) -> int:
 	return clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
 
@@ -1155,14 +1174,6 @@ func party_star_alloc(stars: int) -> Dictionary:
 		alloc[key] = put
 		spend -= put
 	return alloc
-
-
-## EXP a companion needs for its next ★ (the hero's own curve).
-func party_star_need(member: Dictionary) -> int:
-	var stars := party_stars(member)
-	if stars >= PARAGON_MAX:
-		return 0
-	return int(float(HeroStats.exp_to_next(MAX_LEVEL)) * (1.0 + 0.02 * float(stars)))
 
 
 ## The star tier of gear a companion wears: none below 50 stars.
@@ -1202,56 +1213,6 @@ func party_equip(member: Dictionary) -> Dictionary:
 			gear["wings"] = ItemData.wings(local, String(member["class"]), 3)
 	_party_gear[key] = gear
 	return gear
-
-
-## Every kill's EXP goes to the whole party too: they level up together, and
-## from Lv.100 they earn ★ up to 200 just like the hero.
-func party_add_exp(amount: int) -> void:
-	for i in party().size():
-		var member: Dictionary = profile["party"][i]
-		if int(member.level) >= MAX_LEVEL:
-			_party_add_star_exp(i, member, amount)
-			continue
-		member["exp"] = int(member.exp) + amount
-		var gained := false
-		while int(member.level) < MAX_LEVEL and int(member.exp) >= HeroStats.exp_to_next(int(member.level)):
-			member["exp"] = int(member.exp) - HeroStats.exp_to_next(int(member.level))
-			member["level"] = int(member.level) + 1
-			gained = true
-		if gained:
-			party_leveled.emit(i, int(member.level))
-	party_changed.emit()
-	mark_dirty()
-
-
-func _party_add_star_exp(i: int, member: Dictionary, amount: int) -> void:
-	if party_stars(member) >= PARAGON_MAX:
-		return
-	member["star_exp"] = int(member.get("star_exp", 0)) + amount
-	var gained := false
-	while party_stars(member) < PARAGON_MAX and int(member.star_exp) >= party_star_need(member):
-		member["star_exp"] = int(member.star_exp) - party_star_need(member)
-		member["stars"] = party_stars(member) + 1
-		gained = true
-	if gained:
-		party_leveled.emit(i, int(member.level))
-
-
-## Companions never fall far behind the hero's level (or, past Lv.100, stars).
-func party_catch_up() -> void:
-	for i in party().size():
-		var member: Dictionary = profile["party"][i]
-		var floor_level := maxi(1, int(profile["level"]) - 2)
-		if int(member.level) < floor_level:
-			member["level"] = floor_level
-			member["exp"] = 0
-			party_leveled.emit(i, floor_level)
-		var floor_stars := maxi(0, int(paragon().level) - 2) if int(profile["level"]) >= MAX_LEVEL else 0
-		if int(member.level) >= MAX_LEVEL and party_stars(member) < floor_stars:
-			member["stars"] = floor_stars
-			member["star_exp"] = 0
-			party_leveled.emit(i, int(member.level))
-	party_changed.emit()
 
 
 func exp_ratio() -> float:
@@ -2080,7 +2041,6 @@ func daily_claim_all() -> int:
 		entry["claimed"] = true
 		var reward := GoalsData.reward_for(int(profile["level"]))
 		add_exp(int(reward.exp * bonus))
-		party_add_exp(int(reward.exp * bonus))
 		add_gold(int(reward.gold * bonus))
 		profile["flags"]["dailies"] = int(profile["flags"].get("dailies", 0)) + 1
 		count += 1
