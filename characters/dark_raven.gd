@@ -283,7 +283,7 @@ func _build() -> void:
 	var feet := MeshKit.toon(Color("2a2630"))
 	var gold := MeshKit.toon(Color("f0c058"), {"emission": 0.15})
 	var jess := MeshKit.toon(Color("a01e30"))
-	var tip := MeshKit.toon(VIOLET, {"emission": 0.35})
+	var tip := MeshKit.toon(Color("3d2d6e"))
 	_eyes = (MeshKit.toon(Color("ff3a3a"), {"emission": 1.3}) as StandardMaterial3D).duplicate()
 	_body = Node3D.new()
 	_body.name = "Body"
@@ -329,16 +329,16 @@ func _build() -> void:
 		hand.position = Vector3(side * 0.4, 0, 0)
 		wing.add_child(hand)
 		_piece(hand, MeshKit.sphere_low(), sheen, Vector3(side * 0.04, 0.0, -0.03), Vector3(0.16, 0.026, 0.19))
-		# The five fingered flight feathers, tipped with violet.
+		# The five fingered flight feathers, a violet sheen towards the tips.
 		for k in 5:
-			var ang: float = side * (-2.0 - k * 12.0)
+			var ang: float = side * (4.0 - k * 15.0)
 			var feather := Node3D.new()
-			feather.position = Vector3(side * 0.06, -0.004 * k, -0.01 - k * 0.03)
+			feather.position = Vector3(side * 0.05, -0.004 * k, -0.01 - k * 0.035)
 			feather.rotation_degrees = Vector3(0, ang, 0)
 			hand.add_child(feather)
-			var length := 0.38 - k * 0.035
-			_piece(feather, MeshKit.sphere_low(), dark, Vector3(side * length * 0.5, 0, 0), Vector3(length, 0.016, 0.07))
-			_piece(feather, MeshKit.sphere_low(), tip, Vector3(side * (length - 0.03), 0.002, 0), Vector3(0.05, 0.016, 0.045))
+			var length := 0.42 - k * 0.04
+			_piece(feather, MeshKit.sphere_low(), dark if k % 2 == 0 else black, Vector3(side * length * 0.5, 0, 0), Vector3(length, 0.016, 0.105))
+			_piece(feather, MeshKit.sphere_low(), tip, Vector3(side * (length - 0.07), 0.003, 0), Vector3(0.12, 0.017, 0.08))
 		_wings.append(wing)
 		_hands.append(hand)
 	# The wedge tail: the middle feathers longest.
@@ -351,7 +351,7 @@ func _build() -> void:
 		_tail.add_child(feather)
 		var length := 0.36 - absf(float(k) - 2.0) * 0.05
 		_piece(feather, MeshKit.sphere_low(), black if k != 2 else sheen, Vector3(0, -0.002 * absf(k - 2.0), -length * 0.5), Vector3(0.08, 0.016, length))
-		_piece(feather, MeshKit.sphere_low(), tip, Vector3(0, 0.001, -length + 0.03), Vector3(0.05, 0.017, 0.05))
+		_piece(feather, MeshKit.sphere_low(), tip, Vector3(0, 0.001, -length + 0.06), Vector3(0.07, 0.017, 0.1))
 		_tail_feathers.append(feather)
 	# Legs: feathered thighs, dark shanks, three toes forward and one back, black talons.
 	for side in [-1.0, 1.0]:
