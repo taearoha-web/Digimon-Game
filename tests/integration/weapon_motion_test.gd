@@ -87,8 +87,8 @@ func grip(item: Node3D, kind: String) -> Vector3:
 
 func _source_grip(item: Node3D, kind: String) -> Vector3:
 	match kind:
-		"dagger", "greatshield":
-			# One merged mesh each, authored / imported with the grip at the origin.
+		"dagger", "greatshield", "scepter":
+			# Authored / imported with the grip at the origin.
 			return Vector3.ZERO
 		"sword":
 			for node in item.find_children("*", "MeshInstance3D", true, false):

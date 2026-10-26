@@ -17,7 +17,7 @@ func _ready() -> void:
 		for skill in ClassData.pool(family):
 			if int(skill.level)>=80 and not skill.has("star"):
 				catalogue.append(skill)
-	check(catalogue.size()==48,"all 48 elite skills selected")
+	check(catalogue.size()==54,"all 54 elite skills selected")
 	var baseline := -1
 	var final_count := -1
 	for cycle in 10:
