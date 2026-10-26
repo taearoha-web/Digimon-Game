@@ -8,7 +8,7 @@ extends Mob
 
 signal broken(gate: CastleGate)
 
-const HEIGHT := 6.0
+const HEIGHT := SiegeArena.GATE_H
 
 var gate_index := 0
 ## Only the first gate still standing can be hurt (set by GuildWarMatch).
@@ -50,9 +50,9 @@ func _ready() -> void:
 	_blocker.collision_layer = 1
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(SiegeArena.GATE_HALF * 2.0 + 0.4, 6.0, 1.6)
+	box.size = Vector3(SiegeArena.GATE_HALF * 2.0 + 0.4, HEIGHT, 1.6)
 	shape.shape = box
-	shape.position = Vector3(0, 3.0, 0)
+	shape.position = Vector3(0, HEIGHT * 0.5, 0)
 	_blocker.add_child(shape)
 	add_child(_blocker)
 
@@ -72,10 +72,13 @@ func _make_visual() -> MonsterVisual:
 	var half := SiegeArena.GATE_HALF
 	for side in [-1.0, 1.0]:
 		MeshKit.part(_door, MeshKit.box(), wood, Vector3(side * half * 0.5, HEIGHT * 0.5, 0), Vector3(half - 0.08, HEIGHT, 0.7))
-		for y in [1.0, 3.0, 5.0]:
-			MeshKit.part(_door, MeshKit.box(), iron, Vector3(side * half * 0.5, y, 0.38), Vector3(half - 0.2, 0.28, 0.08))
+		for band in 4:
+			var y := HEIGHT * (0.14 + float(band) * 0.24)
+			MeshKit.part(_door, MeshKit.box(), iron, Vector3(side * half * 0.5, y, 0.38), Vector3(half - 0.2, 0.32, 0.08))
 			for k in 3:
-				MeshKit.part(_door, MeshKit.sphere_low(), stud, Vector3(side * (0.6 + float(k) * 1.4), y, 0.44), Vector3.ONE * 0.22)
+				MeshKit.part(_door, MeshKit.sphere_low(), stud, Vector3(side * (0.7 + float(k) * (half - 1.2) * 0.5), y, 0.44), Vector3.ONE * 0.26)
+		# The great iron ring on each leaf.
+		MeshKit.part(_door, MeshKit.cylinder(), iron, Vector3(side * 0.9, HEIGHT * 0.45, 0.42), Vector3(0.7, 0.08, 0.7), Vector3(90, 0, 0))
 	return v
 
 

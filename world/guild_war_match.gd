@@ -367,7 +367,8 @@ func _raise_castle(saved: Dictionary) -> void:
 	holder.name = "AltarCrystal"
 	holder.position = SiegeArena.ALTAR
 	zone.add_child(holder)
-	_crystal_mat = MeshKit.toon(NEUTRAL_COLOR, {"emission": 1.2}) as StandardMaterial3D
+	# Its own copy: the cached toon material is shared with anything else of that colour.
+	_crystal_mat = (MeshKit.toon(NEUTRAL_COLOR, {"emission": 1.2}) as StandardMaterial3D).duplicate()
 	_crystal = MeshKit.part(holder, MeshKit.sphere_low(), _crystal_mat, Vector3(0, 2.2, 0), Vector3(1.2, 2.4, 1.2))
 	_crystal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_color_crystal()
@@ -618,10 +619,16 @@ func _owner_color() -> Color:
 	return Color("4a8cff") if castle_owner == GuildFighter.TEAM_ALLY else Color("ff5a4a")
 
 
+## The altar's crystal and the castle's banners take the holder's colour.
 func _color_crystal() -> void:
 	if _crystal_mat != null:
 		_crystal_mat.albedo_color = _owner_color()
 		_crystal_mat.emission = _owner_color()
+	var banner: Variant = zone.get_meta(SiegeArena.BANNER_META, null) if zone != null else null
+	if banner is StandardMaterial3D:
+		var tint := _owner_color().lerp(Color.WHITE, 0.35) if castle_owner < 0 else _owner_color()
+		(banner as StandardMaterial3D).albedo_color = tint
+		(banner as StandardMaterial3D).emission = tint
 
 
 func _pulse_crystal(delta: float) -> void:

@@ -68,16 +68,29 @@ func _ready() -> void:
 	overhead.current = true
 	await _wait(0.4)
 	await _shot("battlefield")
+	# The castle from the plaza, from the air, and its stone walls up close.
+	overhead.global_position = Vector3(0.0, 11.0, 34.0)
+	overhead.look_at(Vector3(0.0, 9.0, -40.0), Vector3.UP)
+	await _wait(0.3)
+	await _shot("castle_front")
+	overhead.global_position = Vector3(62.0, 46.0, 22.0)
+	overhead.look_at(Vector3(0.0, 6.0, -46.0), Vector3.UP)
+	await _wait(0.3)
+	await _shot("castle_aerial")
+	overhead.global_position = Vector3(26.0, 4.0, -3.0)
+	overhead.look_at(Vector3(8.0, 5.0, -18.0), Vector3.UP)
+	await _wait(0.3)
+	await _shot("stone_walls")
 	# The bridge and the first gate.
-	overhead.global_position = Vector3(10.0, 16.0, 6.0)
-	overhead.look_at(Vector3(0.0, 2.0, -18.0), Vector3.UP)
+	overhead.global_position = Vector3(12.0, 9.0, 4.0)
+	overhead.look_at(Vector3(0.0, 5.0, -18.0), Vector3.UP)
 	await _wait(0.3)
 	await _shot("bridge_gate")
 	# The throne room and its altar.
 	for g in m.gates:
 		g.set_broken_quietly()
 	m._update_breakable()
-	overhead.global_position = Vector3(0.0, 22.0, -30.0)
+	overhead.global_position = Vector3(7.0, 9.0, -54.0)
 	overhead.look_at(SiegeArena.ALTAR + Vector3(0, 1.0, 0), Vector3.UP)
 	await _wait(0.3)
 	await _shot("throne_room")

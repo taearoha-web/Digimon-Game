@@ -228,6 +228,18 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	var gates := m.gates
 	check(m.front_gate() == gates[0] and gates[0].breakable and not gates[1].breakable and not gates[2].breakable, "%s: only the front gate can be battered" % label)
 	check(is_instance_valid(gates[0]._blocker), "%s: a standing gate blocks the way" % label)
+	# No way round a standing gate: the door, its stone jambs and the walls close the hall.
+	await get_tree().physics_frame
+	var space := zone.get_world_3d().direct_space_state
+	var gaps: Array[float] = []
+	for k in SiegeArena.GATE_Z.size():
+		var z: float = SiegeArena.GATE_Z[k]
+		for i in int(SiegeArena.HALL_HALF * 2.0):
+			var x := -SiegeArena.HALL_HALF + 0.5 + float(i)
+			var ray := PhysicsRayQueryParameters3D.create(Vector3(x, 1.0, z + 4.0), Vector3(x, 1.0, z - 4.0), 1)
+			if space.intersect_ray(ray).is_empty():
+				gaps.append(x)
+	check(gaps.is_empty(), "%s: the gates and walls leave no gap (%s)" % [label, gaps])
 	var hp1 := gates[1].hp
 	gates[1].take_hit(1000, false)
 	check(gates[1].hp == hp1, "%s: a gate behind another takes no hits" % label)
