@@ -48,7 +48,6 @@ func _ready() -> void:
 	if not party_mode:
 		remove_from_group("companions")
 		add_to_group("world_players")
-	_label.modulate = WorldPlayers.GUILD_COLORS.get(int(WorldPlayers.entry(world_index).guild), Color.WHITE)
 	_label.text = _level_text()
 	_worn = _party_equip()
 	_wing_think = _rng.randf_range(0.5, 4.0)
@@ -86,10 +85,12 @@ func refresh() -> void:
 		say(("สวม %s +%d" % [piece.name, plus]) if plus > 0 else ("สวม %s" % piece.name), ItemData.RARITY_COLORS[clampi(int(piece.get("rarity", 0)), 0, 4)])
 
 
+## "[Alpha] Kaito Lv.100 ★44" in the guild's colour; no tag before Lv.100 (no guild yet).
 func _level_text() -> String:
-	var guild := WorldPlayers.guild_name(int(WorldPlayers.entry(world_index).guild))
+	var g := WorldPlayers.guild_at(world_index, int(member.level))
+	_label.modulate = WorldPlayers.GUILD_COLORS.get(g, Color("e8f4ff"))
 	var stars := Game.party_stars(member)
-	return "[%s] %s Lv.%d%s" % [guild, member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
+	return "%s%s Lv.%d%s" % ["[%s] " % WorldPlayers.guild_name(g) if g > 0 else "", member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
 
 
 ## New level, stars or finds from the schedule (WorldPresence): the field sees the

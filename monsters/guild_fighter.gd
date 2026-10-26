@@ -33,6 +33,8 @@ var kills := 0
 var deaths := 0
 var assists := 0
 var grade := 0
+## How it is shown in the results: a world player's real level ("Lv.100 ★72"), else its gear grade.
+var tag := ""
 var guild_name := ""
 var respawn_left := 0.0
 
@@ -51,6 +53,7 @@ var _ignore_danger := false
 func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vector3, title: String) -> void:
 	team = p_team
 	grade = int(info.get("grade", 0))
+	tag = String(info.get("tag", ""))
 	guild_name = title
 	spawn_point = p_spawn
 	# Each holds its own lane of the arena's half, so eight do not pile up on the centre line.

@@ -238,7 +238,9 @@ func _resume() -> void:
 		zone.queue_free()
 		await _frames(3)
 	check(lineups[0] == lineups[1], "resume: the same seed brings the same two guilds")
-	# The desk (for a hero in a guild) offers the unfinished war next to a new one.
+	# The desk (for a hero in a guild) offers the unfinished war next to a new one, on a day
+	# when the other guild has members at Lv.100 to fight.
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 - WorldPlayers.now()
 	Game.join_guild(WorldPlayers.ALPHA)
 	var screen := GuildWarScreen.new()
 	add_child(screen)
@@ -260,6 +262,7 @@ func _resume() -> void:
 	check(fresh.gw_match != null and not fresh.gw_match.resumed and fresh.gw_match.score == [0, 0] and fresh.gw_match.time_left == GuildWarData.DURATION, "resume: a new war starts from zero")
 	check(Game.guildwar_checkpoint().is_empty(), "resume: starting a new war drops the old checkpoint")
 	fresh.queue_free()
+	WorldPresence.clock_offset = 0.0
 	await _frames(3)
 
 

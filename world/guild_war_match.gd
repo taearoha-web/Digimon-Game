@@ -84,7 +84,7 @@ func build(tree: SceneTree = null) -> void:
 	started_at = int(saved.get("t0", 0)) if not saved.is_empty() and int(saved.get("t0", 0)) > 0 else int(WorldPresence.clock())
 	if Game.guild() > 0:
 		roster = GuildWarData.roll_guild_match(rng, Game.guild(), float(started_at))
-	else:
+	if roster.is_empty():
 		roster = GuildWarData.roll_match(rng)
 	ally_name = roster.ally_name
 	enemy_name = roster.enemy_name
@@ -107,7 +107,7 @@ func build(tree: SceneTree = null) -> void:
 		Game.say("ต่อสงครามเดิม: คะแนน %d : %d เหลือเวลา %d นาที — ศึกถูกเก็บไว้ทุก 10 วินาที" % [score[0], score[1], int(ceil(time_left / 60.0))], &"quest")
 		return
 	var side := "กิลด์ %s: คุณ + สมาชิกกิลด์" % ally_name if bool(roster.get("guilds", false)) else "ทีมเราคุณ + เพื่อน AI"
-	Game.say("สงครามกิลด์ 30 นาที: %s %d คน สู้กับกิลด์ %s %d คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [side, GuildWarData.TEAM_SIZE - 1, enemy_name, GuildWarData.TEAM_SIZE, int(GuildWarData.RESPAWN)], &"quest")
+	Game.say("สงครามกิลด์ 30 นาที: %s รวม %d คน สู้กับกิลด์ %s %d คน — ล้มศัตรูให้ได้คะแนนมากกว่า ล้มแล้วเกิดใหม่ที่ฐานใน %d วินาที" % [side, roster.ally.size() + 1, enemy_name, roster.enemy.size(), int(GuildWarData.RESPAWN)], &"quest")
 
 
 ## Where fighter `index` of a guild of `count` stands: rows of ROW_SLOTS across the arena's
@@ -377,7 +377,7 @@ func _end() -> void:
 	var won := score[0] > score[1]
 	var rows: Array = [{"name": "คุณ", "class": String(Game.class_id()), "team": GuildFighter.TEAM_ALLY, "kills": hero_kills, "deaths": hero_deaths, "assists": 0, "grade": -1}]
 	for f in all_fighters():
-		rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade})
+		rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade, "tag": f.tag})
 	_result = Game.guildwar_finish(won, score[0], score[1], hero_kills, hero_deaths, ally_name, enemy_name)
 	_result["rows"] = rows
 	_result["overtime"] = overtime

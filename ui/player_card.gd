@@ -89,7 +89,7 @@ func _build() -> void:
 	var g := int(s.guild)
 	var head := UIUtil.hbox(10)
 	_body.add_child(head)
-	var title := UIUtil.label("[%s] %s" % [WorldPlayers.guild_name(g), s.name], &"HeaderLabel")
+	var title := UIUtil.label(("[%s] %s" % [WorldPlayers.guild_name(g), s.name]) if g > 0 else String(s.name), &"HeaderLabel")
 	title.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS.get(g, Color.WHITE))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)

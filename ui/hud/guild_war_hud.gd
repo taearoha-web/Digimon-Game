@@ -131,7 +131,9 @@ func _update(_delta: float, force: bool) -> void:
 				cell.modulate = Color.WHITE if m.hero_respawn_left <= 0.0 else Color(1, 1, 1, 0.45)
 				UIUtil.tint_hp_bar(bar, bar.value)
 				continue
-			if index < 0 or index >= fighters.size() or not is_instance_valid(fighters[index]):
+			# A smaller war (fewer members at Lv.100) leaves the extra cells out.
+			cell.visible = index >= 0 and index < fighters.size()
+			if not cell.visible or not is_instance_valid(fighters[index]):
 				continue
 			var f: GuildFighter = fighters[index]
 			name_label.text = String(f.member.name)

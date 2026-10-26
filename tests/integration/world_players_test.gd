@@ -353,8 +353,12 @@ func _party() -> void:
 	if far >= 0:
 		check(Game.party_invite(far).contains("เลเวลห่าง"), "a stranger far apart in level says no")
 		Game.profile.level = 100
-		Game.join_guild(int(WorldPlayers.entry(far).guild))
-		check(Game.party_invite(far) == "", "a guild mate always says yes")
+		var far_state := WorldPlayers.state(far, WorldPresence.clock())
+		Game.join_guild(int(far_state.joins))
+		if int(far_state.guild) > 0:
+			check(Game.party_invite(far) == "", "a guild mate always says yes")
+		elif absi(100 - int(far_state.level)) > Game.PARTY_LEVEL_GAP:
+			check(Game.party_invite(far).contains("เลเวลห่าง"), "below Lv.100 it is in no guild yet: no guild mate's yes")
 	# Three people at most: the hero and two.
 	for i in WorldPlayers.size():
 		if Game.party().size() >= Game.PARTY_MAX:
@@ -455,6 +459,31 @@ func _guild() -> void:
 	check(Game.join_guild(WorldPlayers.ALPHA) and Game.guild() == WorldPlayers.ALPHA, "moves to Alpha")
 	check(not Game.join_guild(7) and Game.guild() == WorldPlayers.ALPHA, "no third guild")
 	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with a guild is valid")
+	# A world player joins its guild on reaching Lv.100: no guild (and no tag) before.
+	var day := 86400.0
+	var start := float(WorldPlayers.START_UNIX)
+	var joins_at_100 := true
+	for i in WorldPlayers.size():
+		for at in [start + 0.4 * day, start + 2.0 * day, start + 6.0 * day, start + 30.0 * day]:
+			var s := WorldPlayers.state(i, at)
+			var want := int(WorldPlayers.entry(i).guild) if int(s.level) >= Game.GUILD_LEVEL else 0
+			joins_at_100 = joins_at_100 and int(s.guild) == want and int(s.joins) == int(WorldPlayers.entry(i).guild)
+	check(joins_at_100, "a world player is in its guild from Lv.100 on, in none before")
+	var opening := start + 0.4 * day
+	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "on the first day nobody is in a guild yet")
+	var none_rng := RandomNumberGenerator.new()
+	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, opening).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) != "", "no rival members, no war")
+	# Early on the guilds are small: both sides field the same number.
+	var early := start + day
+	while WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size() < 2 or WorldPlayers.members_at(WorldPlayers.ALPHA, early).is_empty():
+		early += 3600.0
+	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, early)
+	var want_size := mini(GuildWarData.TEAM_SIZE, mini(1 + WorldPlayers.members_at(WorldPlayers.ALPHA, early).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()))
+	check(not few.is_empty() and few.enemy.size() == want_size and few.ally.size() + 1 == want_size, "a small war is even: %d against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
+	var all_100 := true
+	for f in few.ally + few.enemy:
+		all_100 = all_100 and int(f.member.level) >= Game.GUILD_LEVEL
+	check(all_100, "only members at Lv.100 fight")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
 	var t := float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0
@@ -468,7 +497,13 @@ func _guild() -> void:
 		ok_sides = ok_sides and int(WorldPlayers.entry(int(f.world)).guild) == WorldPlayers.ALPHA
 		online_first = online_first and (bool(f.online) or true) and not (bool(f.online) and seen_offline)
 		seen_offline = seen_offline or not bool(f.online)
-		check(String(f.member.name) == String(WorldPlayers.entry(int(f.world)).name) and int(f.grade) == int(WorldPlayers.state(int(f.world), t).grade), "%s fights under its own name in its own gear" % f.member.name)
+		var real := WorldPlayers.state(int(f.world), t)
+		var found := WorldPlayers.equip(WorldPlayers.member(int(f.world), t))
+		var same_gear := found.size() == f.profile.equip.size()
+		for slot in found:
+			same_gear = same_gear and f.profile.equip.has(slot) and String(f.profile.equip[slot].name) == String(found[slot].name)
+		check(String(f.member.name) == String(WorldPlayers.entry(int(f.world)).name) and same_gear, "%s fights under its own name in the gear it found" % f.member.name)
+		check(int(f.profile.level) == int(real.level) and int(f.profile.paragon.level) == int(real.stars) and String(f.tag) == WorldPlayers.level_text(real), "%s fights at its real level and stars (%s)" % [f.member.name, f.tag])
 	for f in m.enemy:
 		ok_sides = ok_sides and int(WorldPlayers.entry(int(f.world)).guild) == WorldPlayers.NEVERDIE
 	check(ok_sides, "each side is its guild's members")
@@ -480,6 +515,8 @@ func _guild() -> void:
 
 
 func _screens() -> void:
+	# Twenty days in: both guilds have their members at Lv.100.
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0 - WorldPlayers.now()
 	Game.new_profile(&"warrior", "Registrar QA", FaceKit.default_look())
 	Game.profile.level = 60
 	main.guild_screen.open_screen()
@@ -545,8 +582,14 @@ func _screens() -> void:
 			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.ALPHA
 		check(war.allies.size() == GuildWarData.TEAM_SIZE - 1 and ours, "our side is seven Neverdie members")
 		check(war.enemies.size() == GuildWarData.TEAM_SIZE and theirs, "across stand eight Alpha members")
+		var real_levels := true
+		for f in war.allies + war.enemies:
+			var s := WorldPlayers.state(_index_of(String(f.member.name)), float(war.started_at))
+			real_levels = real_levels and String(f.tag) == WorldPlayers.level_text(s)
+		check(real_levels, "every fighter is at its real level and stars")
 		check(war.started_at > 0, "the war remembers when it began")
 	await main.go(&"town", true)
+	WorldPresence.clock_offset = 0.0
 
 
 func _index_of(who: String) -> int:

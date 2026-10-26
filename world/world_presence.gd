@@ -145,10 +145,12 @@ func _announce(s: Dictionary) -> void:
 		return
 	var was: Array = _seen[i]
 	_seen[i] = now
-	var tag := "[%s] %s" % [WorldPlayers.guild_name(int(s.guild)), s.name]
+	var tag := ("[%s] %s" % [WorldPlayers.guild_name(int(s.guild)), s.name]) if int(s.guild) > 0 else String(s.name)
 	for lv in ANNOUNCE_LEVELS:
 		if int(was[0]) < lv and int(now[0]) >= lv:
 			Game.say("ประกาศ: %s ถึงเลเวล %d แล้ว!" % [tag, lv], &"info")
+	if int(was[0]) < Game.GUILD_LEVEL and int(now[0]) >= Game.GUILD_LEVEL:
+		Game.say("ประกาศ: %s เข้าร่วมกิลด์ %s แล้ว!" % [s.name, WorldPlayers.guild_name(int(s.joins))], &"quest")
 	for st in ANNOUNCE_STARS:
 		if int(was[1]) < st and int(now[1]) >= st:
 			Game.say("ประกาศ: %s ถึง %d ดาวแล้ว!" % [tag, st], &"quest")
