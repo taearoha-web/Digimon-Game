@@ -7,9 +7,10 @@ extends Node3D
 ## The painting looks down at the platform at about 19 degrees (its circle
 ## ellipses are roughly 1:3), so the camera does too: a hero's feet are where the
 ## ray through the circle's centre meets the ground plane, and the hero is scaled to
-## the circle's on-screen width. Every aspect ratio crops the painting like a
-## "cover" fit around KEEP (all ten circles, the heads above them and the steps), and
-## a tall screen shows the painting's full width on its sky colour.
+## the circle's on-screen width. Every aspect ratio fits the painting around KEEP
+## (all ten circles, the name plates above them, room for the button bar): a cover
+## fit where that crops nothing of KEEP, otherwise KEEP's full width (tall screens)
+## or height (very wide phone browsers), with the painting mirrored at its edges.
 
 const IMAGE_PATH := "res://assets/ui/title_stage.jpg"
 const IMAGE_SIZE := Vector2(1536, 1024)
@@ -34,6 +35,7 @@ const GEM_Y := [352.0, 605.0]
 const GEM_HALF := Vector2(25, 37)
 const BACKDROP_SHADER := preload("res://shaders/title_stage.gdshader")
 const SKY := Color("4f9be6")
+const DEFENDER_TURN := 38.0
 const GOLD := Color("ffd36a")
 
 var camera: Camera3D
@@ -100,31 +102,36 @@ func layout(canvas: Vector2) -> void:
 	_canvas = canvas
 	image_rect = cover_rect(canvas)
 	# The backdrop quad exactly under the painting's screen rectangle, facing the camera.
-	var a := camera.project_position(image_rect.position, BACKDROP_DEPTH)
-	var b := camera.project_position(image_rect.position + Vector2(image_rect.size.x, 0), BACKDROP_DEPTH)
-	var c := camera.project_position(image_rect.position + Vector2(0, image_rect.size.y), BACKDROP_DEPTH)
+	# The backdrop quad fills the whole screen, facing the camera; the shader places the
+	# painting on it at image_rect and mirrors it beyond its edges.
+	var a := camera.project_position(Vector2.ZERO, BACKDROP_DEPTH)
+	var b := camera.project_position(Vector2(canvas.x, 0), BACKDROP_DEPTH)
+	var c := camera.project_position(Vector2(0, canvas.y), BACKDROP_DEPTH)
 	(_backdrop.mesh as QuadMesh).size = Vector2(a.distance_to(b), a.distance_to(c))
-	_backdrop.global_transform = Transform3D(camera.global_basis, camera.project_position(image_rect.get_center(), BACKDROP_DEPTH))
+	_backdrop.global_transform = Transform3D(camera.global_basis, camera.project_position(canvas * 0.5, BACKDROP_DEPTH))
+	var mat := _backdrop.material_override as ShaderMaterial
+	mat.set_shader_parameter("image_uv", Vector4(image_rect.position.x / canvas.x, image_rect.position.y / canvas.y,
+			image_rect.size.x / canvas.x, image_rect.size.y / canvas.y))
 	for slot in heroes:
 		_place(int(slot))
 
 
 ## Where the painting lies on a canvas: a cover fit centred on KEEP; a screen too
-## narrow for KEEP's width gets the full width of KEEP instead (sky above and below).
+## narrow for KEEP's width gets KEEP's full width, one too wide for its height gets
+## KEEP's full height (the painting is mirrored past its edges either way).
 static func cover_rect(canvas: Vector2) -> Rect2:
 	var scale := maxf(canvas.x / IMAGE_SIZE.x, canvas.y / IMAGE_SIZE.y)
 	if canvas.x / scale < KEEP.size.x:
 		scale = canvas.x / KEEP.size.x
+	if canvas.y / scale < KEEP.size.y:
+		scale = canvas.y / KEEP.size.y
 	var view := canvas / scale
 	var centre := KEEP.get_center()
 	if view.x <= IMAGE_SIZE.x:
 		centre.x = clampf(centre.x, view.x * 0.5, IMAGE_SIZE.x - view.x * 0.5)
 	else:
 		centre.x = IMAGE_SIZE.x * 0.5
-	if view.y < KEEP.size.y:
-		# A very wide screen: keep the heads, give up more of the steps below.
-		centre.y = KEEP.position.y + view.y * 0.5 + (KEEP.size.y - view.y) * 0.3
-	elif view.y <= IMAGE_SIZE.y:
+	if view.y <= IMAGE_SIZE.y:
 		centre.y = clampf(centre.y, view.y * 0.5, IMAGE_SIZE.y - view.y * 0.5)
 	else:
 		centre.y = IMAGE_SIZE.y * 0.5
@@ -178,7 +185,10 @@ func add_hero(slot: int, overview: Dictionary, arrival := false) -> void:
 	root.add_child(visual)
 	visual.setup(StringName(overview.get("class", ClassData.START)), "", true, overview.get("equip", {}), overview.get("look", {}))
 	var height := HeroVisual.CHIBI_HEIGHT if visual.chibi else HeroVisual.HEIGHT
-	heroes[slot] = {"root": root, "visual": visual, "shadow": shadow, "height": height, "scale": 1.0, "feet": Vector3.ZERO}
+	# A Defender holds its great shield square in front: turn it a little so the
+	# shield swings to the side and the face shows.
+	var turn := deg_to_rad(DEFENDER_TURN) if String(overview.get("class", "")) == "defender" else 0.0
+	heroes[slot] = {"root": root, "visual": visual, "shadow": shadow, "height": height, "scale": 1.0, "feet": Vector3.ZERO, "turn": turn}
 	_place(slot)
 	if arrival:
 		_arrive(slot)
@@ -214,7 +224,7 @@ func _place(slot: int) -> void:
 	(entry.visual as Node3D).scale = Vector3.ONE * scale
 	# Face the camera, as the circles face the viewer.
 	var to_camera := camera.global_position - feet
-	(entry.visual as Node3D).rotation.y = atan2(to_camera.x, to_camera.z)
+	(entry.visual as Node3D).rotation.y = atan2(to_camera.x, to_camera.z) + float(entry.get("turn", 0.0))
 	(entry.shadow as Node3D).scale = Vector3.ONE * scale * 1.25
 
 
@@ -224,7 +234,8 @@ func head_screen(slot: int) -> Vector2:
 		return spot_screen(slot)
 	var entry: Dictionary = heroes[slot]
 	var root: Node3D = entry.root
-	var top: Vector3 = entry.feet + Vector3.UP * float(entry.height) * float(entry.scale) * root.scale.y
+	# The arrival stretches the hero tall for a moment; the plate stays at its real height.
+	var top: Vector3 = entry.feet + Vector3.UP * float(entry.height) * float(entry.scale) * minf(root.scale.y, 1.0)
 	return camera.unproject_position(top)
 
 
@@ -265,6 +276,8 @@ func select(slot: int) -> void:
 	else:
 		mat.set_shader_parameter("old_amount", 0.0)
 	selected = next
+	if previous > 0 and previous != selected and heroes.has(previous):
+		_idle(heroes[previous].visual)
 	if selected > 0:
 		_set_spot(mat, "", selected)
 	mat.set_shader_parameter("amount", 0.0)
@@ -274,9 +287,28 @@ func select(slot: int) -> void:
 		_glow_tween.tween_method(func(v: float): mat.set_shader_parameter("amount", v), 0.0, 1.0, 0.28).set_trans(Tween.TRANS_SINE)
 	if selected == 0:
 		return
-	var visual: HeroVisual = heroes[selected].visual
-	if visual.anim and visual.anim.has_animation("Cheer"):
-		visual.action("Cheer")
+	_cheer(heroes[selected].visual)
+
+
+## One round of the cheer (the clip loops), then back to standing.
+func _cheer(visual: HeroVisual) -> void:
+	if visual.anim == null or not visual.anim.has_animation("Cheer"):
+		return
+	var length := visual.action("Cheer")
+	var back := visual.create_tween()
+	back.tween_interval(maxf(length, 0.4))
+	back.tween_callback(func(): if visual.current == "Cheer": _idle(visual))
+	visual.set_meta("cheer_tween", back)
+
+
+func _idle(visual: HeroVisual) -> void:
+	if not is_instance_valid(visual):
+		return
+	var pending: Variant = visual.get_meta("cheer_tween", null)
+	if pending is Tween and (pending as Tween).is_valid():
+		(pending as Tween).kill()
+	visual.release()
+	visual.play("Idle")
 
 
 ## How gold the selected circle is now (0..1).
@@ -307,6 +339,4 @@ func _arrive(slot: int) -> void:
 	var tween := root.create_tween()
 	tween.tween_interval(0.18)
 	tween.tween_property(root, "scale", Vector3.ONE, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	var visual: HeroVisual = entry.visual
-	if visual.anim and visual.anim.has_animation("Cheer"):
-		visual.action("Cheer")
+	_cheer(entry.visual)

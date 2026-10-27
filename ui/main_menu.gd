@@ -59,6 +59,10 @@ func _ready() -> void:
 	_selected = Game.last_slot()
 	_root.resized.connect(_layout)
 	AudioManager.play_music(&"title")
+	# The painting and the bar are right from the first frame; the heroes follow.
+	_read_slots()
+	_refresh()
+	_layout()
 	# One frame later: a zone being left is freed by then (one camera, one environment).
 	await get_tree().process_frame
 	if not is_inside_tree():
@@ -145,16 +149,20 @@ func _layout() -> void:
 
 ## Reads every slot once and puts its hero on its circle, one hero per frame so a
 ## phone never stalls on ten models at once.
-func _build_heroes() -> void:
-	_building = true
+func _read_slots() -> void:
 	_slots.clear()
 	for i in range(1, Game.SLOT_COUNT + 1):
 		var overview := Game.slot_overview(i)
 		if not overview.is_empty():
 			_slots[i] = overview
-	if not _slots.has(_selected):
-		_selected = arrival_slot if _slots.has(arrival_slot) else (int(_slots.keys().min()) if not _slots.is_empty() else 0)
-	_refresh()
+	if _slots.has(arrival_slot):
+		_selected = arrival_slot
+	elif not _slots.has(_selected):
+		_selected = int(_slots.keys().min()) if not _slots.is_empty() else 0
+
+
+func _build_heroes() -> void:
+	_building = true
 	for i in range(1, Game.SLOT_COUNT + 1):
 		if not _slots.has(i) or not is_inside_tree():
 			continue
@@ -176,18 +184,25 @@ func _make_plate(slot: int) -> void:
 		(_plates[slot] as Node).queue_free()
 	var info: Dictionary = _slots[slot]
 	var cls := JobData.resolve(StringName(info["class"]), int(info.adv))
+	# One compact line, never wider than its circle: ten plates in two rows stay apart
+	# and clear of the circles behind them.
 	var plate := PanelContainer.new()
 	plate.name = "Plate%d" % slot
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var line := UIUtil.vbox(-4)
+	plate.clip_contents = true
+	var line := UIUtil.hbox(6)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.add_child(line)
-	var who := UIUtil.label(String(info.name), &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	who.add_theme_font_size_override("font_size", 17)
+	var who := UIUtil.label(String(info.name), &"BoldLabel")
+	who.add_theme_font_size_override("font_size", 15)
 	who.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	who.clip_text = true
+	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	who.name = "Name"
 	line.add_child(who)
-	var lv := UIUtil.label("Lv.%d%s" % [int(info.level), "  ★%d" % int(info.stars) if int(info.get("stars", 0)) > 0 else ""], &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	lv.add_theme_font_size_override("font_size", 14)
+	var lv := UIUtil.label("Lv.%d%s" % [int(info.level), " ★%d" % int(info.stars) if int(info.get("stars", 0)) > 0 else ""], &"SmallLabel")
+	lv.add_theme_font_size_override("font_size", 13)
 	lv.add_theme_color_override("font_color", cls.color.lightened(0.45))
 	lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(lv)
@@ -223,9 +238,20 @@ func _update_plates() -> void:
 		if not is_instance_valid(plate):
 			continue
 		var head := stage.head_screen(int(slot))
-		var size := plate.get_combined_minimum_size()
+		var size := _plate_size(plate, int(slot))
 		plate.size = size
 		plate.position = Vector2(head.x - size.x * 0.5, head.y - size.y - 4.0)
+
+
+## The plate's natural width (whole name) capped at its circle's width.
+func _plate_size(plate: Control, slot: int) -> Vector2:
+	var natural := plate.get_combined_minimum_size()
+	var who := plate.find_child("Name", true, false) as Label
+	var full := natural.x
+	if who:
+		var font := who.get_theme_font(&"font")
+		full += font.get_string_size(who.text, HORIZONTAL_ALIGNMENT_LEFT, -1, who.get_theme_font_size(&"font_size")).x
+	return Vector2(minf(full, maxf(stage.spot_width(slot) * 0.98, 90.0)), natural.y)
 
 
 func _refresh() -> void:
@@ -247,7 +273,7 @@ func _refresh() -> void:
 		_hint.text = "%s · เวลาเล่น %s" % [ZoneData.get_zone(StringName(info.zone)).name, UIUtil.format_play_time(float(info.play_time))]
 	elif count == 0:
 		_name.text = "ลานแห่งฮีโร่ยังว่างอยู่"
-		_detail.text = "สร้างฮีโร่ตัวแรก แล้วเขาจะมายืนที่จุด 1"
+		_detail.text = "สร้างฮีโร่ตัวแรก แล้วเขาจะมายืนที่จุด %d" % maxi(free, 1)
 		_detail.add_theme_color_override("font_color", TitleStage.GOLD)
 		_hint.text = "ฮีโร่ตัวต่อไปยืนจุดถัดไปตามเลข สูงสุด %d ตัว" % Game.SLOT_COUNT
 	else:

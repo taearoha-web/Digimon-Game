@@ -4,7 +4,7 @@ extends Node
 ##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/title_stage_shots.tscn -- OUT_DIR
 ## Run with an isolated XDG_DATA_HOME: it writes and deletes the ten save slots.
 
-const SIZES := [Vector2i(1688, 780), Vector2i(1280, 720), Vector2i(1024, 768), Vector2i(2400, 1000)]
+const SIZES := [Vector2i(1688, 780), Vector2i(1280, 720), Vector2i(1024, 768), Vector2i(2400, 960), Vector2i(2520, 900), Vector2i(800, 1000)]
 const CLASSES: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"warrior"]
 
 

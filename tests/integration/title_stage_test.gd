@@ -8,7 +8,9 @@ var failures := 0
 var checks := 0
 var main: Node
 
-const SHAPES := [Vector2(1280, 720), Vector2(1688, 780), Vector2(1024, 768), Vector2(2400, 1000), Vector2(800, 1000)]
+## Desktop 16:9, phone app 2.16, tablet 4:3, a phone browser under its toolbar (2.5),
+## an ultrawide window (2.8) and a portrait window.
+const SHAPES := [Vector2(1280, 720), Vector2(1688, 780), Vector2(1024, 768), Vector2(2400, 960), Vector2(2016, 720), Vector2(800, 1000)]
 
 
 func check(ok: bool, message: String) -> void:
@@ -46,8 +48,7 @@ func _check_cover() -> void:
 		var rect := TitleStage.cover_rect(canvas)
 		var s := rect.size.x / TitleStage.IMAGE_SIZE.x
 		check(is_equal_approx(rect.size.y / TitleStage.IMAGE_SIZE.y, s), "%s: the painting keeps its aspect" % canvas)
-		var covers: bool = rect.position.x <= 0.5 and rect.end.x >= canvas.x - 0.5
-		check(covers, "%s: the painting spans the full width" % canvas)
+		check(rect.position.y <= 0.5 or rect.end.y >= canvas.y - 0.5 or rect.position.x <= 0.5, "%s: the painting fills one axis (mirrored past its edges on the other)" % canvas)
 		for slot in range(1, 11):
 			var spot: Array = TitleStage.SPOTS[slot - 1]
 			var at: Vector2 = rect.position + (spot[0] as Vector2) * s
@@ -139,6 +140,16 @@ func _check_heroes() -> void:
 	check((mat.get_shader_parameter("circle_centre") as Vector2).distance_to((TitleStage.SPOTS[2][0] as Vector2) / TitleStage.IMAGE_SIZE) < 0.001, "the gold circle is circle 3")
 	check(is_zero_approx(float(mat.get_shader_parameter("old_amount"))), "the circle picked before is blue again")
 	check(menu._play.visible and menu._delete.visible and menu._name.text == "สาม", "the bar shows the selected hero")
+	var cheering: HeroVisual = stage.heroes[3].visual
+	check(cheering.current == "Cheer", "the picked hero cheers")
+	menu._on_tap(stage.spot_screen(2) + Vector2(0, -20))
+	check(menu._selected == 2 and (stage.heroes[3].visual as HeroVisual).current != "Cheer", "the hero picked before stops cheering")
+	await get_tree().create_timer(4.0).timeout
+	check((stage.heroes[2].visual as HeroVisual).current != "Cheer", "the cheer plays once, then the hero stands again")
+	var defender: Node3D = stage.heroes[7].visual
+	var warrior: Node3D = stage.heroes[1].visual
+	check(absf(wrapf(defender.rotation.y - warrior.rotation.y, -PI, PI)) > deg_to_rad(20.0), "the Defender turns its shield aside")
+	menu._on_tap(stage.spot_screen(3) + Vector2(0, -20))
 	var played := [0]
 	menu.continue_pressed.connect(func(slot: int): played[0] = slot)
 	menu._play.pressed.emit()

@@ -289,6 +289,11 @@ func _on_hero_died() -> void:
 		guard += 1
 	if zone != fallen_in and zone != null:
 		return
+	# Back at the character select (the player quit during the pause): keep the revive,
+	# but never build the town under the title.
+	if title_screen != null or not Game.playing:
+		Game.save()
+		return
 	_traveling = false
 	await go(&"town")
 
