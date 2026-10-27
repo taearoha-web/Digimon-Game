@@ -40,6 +40,7 @@ static func build(look: String) -> Node3D:
 			"greatshield": _shield(b, p, tier)
 			"dagger": _dagger(b, p, tier)
 			"scepter": _scepter(b, p, tier)
+			"lute": _lute(b, p, tier)
 			"shield": _shield(b, p, tier)
 			"book", "tome": _book(b, p, tier)
 		_store(look, b)
@@ -48,6 +49,8 @@ static func build(look: String) -> Node3D:
 	if kind == "greatshield": root.scale = Vector3.ONE * 1.55
 	# The Assassin's star daggers are short blades, one in each hand.
 	if kind == "dagger": root.scale = Vector3.ONE * 0.62
+	# The star lute is drawn at x1.5 the tier lutes' raw size; held at their size.
+	if kind == "lute": root.scale = Vector3.ONE * float(WeaponKit.MODELS.lute.scale) / 1.5
 	root.set_meta("star_gear", true)
 	root.set_meta("weapon_kind", kind)
 	return root
@@ -81,7 +84,7 @@ static func build_icon_node(look: String) -> Node3D:
 	var bits := look.split("_")
 	var cls := String(bits[2]) if bits.size() > 3 else "warrior"
 	var root := Node3D.new()
-	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger", "scepter"]:
+	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger", "scepter", "lute"]:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
 		return root
@@ -401,6 +404,123 @@ static func _scepter(b: Dictionary, p: Dictionary, t: int) -> void:
 	_gem(b, Vector3(0, 0.45, 0.05), Vector3(0.08, 0.16, 0.03), p)
 
 
+## The soundboard of the star lute (held units): a pear, widest low, narrowing into
+## the neck, the held outline of the tier lutes (tools/make_bard_gear.py).
+const LUTE_PEAR: Array[Vector2] = [Vector2(0.0, -0.105), Vector2(0.041, -0.122), Vector2(0.104, -0.171), Vector2(0.171, -0.244), Vector2(0.198, -0.33), Vector2(0.183, -0.416), Vector2(0.14, -0.489), Vector2(0.076, -0.538), Vector2(0.0, -0.555), Vector2(-0.076, -0.538), Vector2(-0.14, -0.489), Vector2(-0.183, -0.416), Vector2(-0.198, -0.33), Vector2(-0.171, -0.244), Vector2(-0.104, -0.171), Vector2(-0.041, -0.122)]
+
+
+## The Bard's star lute: a pear-bodied lute on a short neck with its pegbox bent back,
+## strings of light and a rosette over the sound hole at WeaponKit.LUTE_ROSETTE, the
+## emission point of every lute look. ★50 dawn leaf wood twined with vines and leaves,
+## ★100 a crystal bowl ringed with shards, ★150 sky gold with feathered wings and a
+## halo, ★200 an eclipse: a dark bowl, a black sun in a corona of gold rays and a halo.
+## Like the tier lutes, the big pieces sit at the body's sides, clear of the face.
+static func _lute(b: Dictionary, p: Dictionary, t: int) -> void:
+	var body: Color = [p.cloth.lerp(Color("8a5a32"), 0.45), p.gem.darkened(0.2), p.metal, p.dark][t]
+	var board: Color = [Color("ecd2a0"), p.edge.lerp(p.gem, 0.45), p.edge, p.dark.lightened(0.22)][t]
+	var leaf := Color("7cc46a").lerp(p.gem, 0.3)
+	var face := 0.02
+	var rose := Vector3(0, -0.30, face + 0.006)
+	var tip := Vector3(0, 0.44, -0.1)
+	# The bowl behind the soundboard (a broad lower half and a narrow shoulder) and the
+	# neck: bare where the left hand closes, |y| < 0.07.
+	_part(b, MeshKit.hemisphere(), body, Vector3(0, -0.375, face - 0.002), Vector3(0.39, 0.5, 0.36), Vector3(-90, 0, 0), t == 1)
+	_part(b, MeshKit.hemisphere(), body, Vector3(0, -0.215, face - 0.002), Vector3(0.27, 0.36, 0.24), Vector3(-90, 0, 0), t == 1)
+	_part(b, MeshKit.cylinder(), p.dark if t != 3 else p.metal.darkened(0.45), Vector3(0, 0.1, -0.006), Vector3(0.05, 0.46, 0.042))
+	_part(b, MeshKit.box(), p.dark.darkened(0.35), Vector3(0, 0.12, 0.013), Vector3(0.044, 0.4, 0.008))
+	for y in [0.1, 0.16, 0.22, 0.27, -0.09]:
+		_part(b, MeshKit.box(), p.metal, Vector3(0, y, 0.018), Vector3(0.046, 0.006, 0.004))
+	# The soundboard, bound in gold.
+	_plate(b, LUTE_PEAR, face + 0.001, board)
+	var rim: Array[Vector3] = []
+	for point in LUTE_PEAR:
+		rim.append(Vector3(point.x, point.y, face + 0.003))
+	rim.append(rim[0])
+	_line(b, rim, 0.006, p.metal)
+	# The pegbox bent back, three pegs a side.
+	_line(b, [Vector3(0, 0.31, -0.006), Vector3(0, 0.38, -0.045), tip], 0.022, p.dark)
+	for k in 3:
+		for s in [-1.0, 1.0]:
+			_part(b, MeshKit.sphere_low(), p.metal, Vector3(s * 0.034, 0.34 + k * 0.032, -0.02 - k * 0.027), Vector3.ONE * 0.018)
+	# The rosette over a dark sound hole, the bridge and the strings of light.
+	_part(b, MeshKit.cylinder(), p.dark.darkened(0.6), rose - Vector3(0, 0, 0.003), Vector3(0.085, 0.004, 0.085), Vector3(90, 0, 0))
+	_ring_at(b, rose, 0.052, 0.01, p.metal)
+	_part(b, MeshKit.box(), p.metal, Vector3(0, -0.465, face + 0.006), Vector3(0.1, 0.012, 0.012))
+	for k in 6:
+		var x := (float(k) - 2.5) * 0.007
+		_line(b, [Vector3(x * 0.8, 0.31, 0.022), Vector3(x * 1.6, -0.465, face + 0.012)], 0.0035, p.edge, true)
+	match t:
+		0:  # dawn leaf wood: a vine up the neck, a crown of leaves, leafy wings and a flower
+			_line(b, [Vector3(0.026, -0.08, 0.004), Vector3(-0.026, 0.05, 0.014), Vector3(0.026, 0.17, 0.006), Vector3(-0.026, 0.28, 0.014)], 0.006, leaf.darkened(0.3))
+			for k in 3:
+				_feather(b, tip + Vector3(-0.04 + k * 0.04, 0.03, 0), 0.13, 0.055, 0.6 - k * 0.6, leaf)
+			for s in [-1.0, 1.0]:
+				for k in 3:
+					_feather(b, Vector3(s * (0.2 + k * 0.03), -0.3 - k * 0.045, face - 0.004 - k * 0.002), 0.15 - k * 0.02, 0.06, s * -(1.25 + k * 0.35), leaf if k != 1 else leaf.lightened(0.25))
+			for k in 5:
+				var a := TAU * k / 5.0
+				_feather(b, rose + Vector3(sin(a) * 0.03, cos(a) * 0.03, 0.006), 0.05, 0.03, -a, p.edge)
+			_gem(b, rose + Vector3(0, 0, 0.01), Vector3(0.03, 0.03, 0.01), p)
+		1:  # crystal: shards round the rosette, crystal clusters on the rim, an icicle crown
+			for k in 6:
+				var a := TAU * k / 6.0 + 0.3
+				_gem(b, rose + Vector3(sin(a) * 0.085, cos(a) * 0.085, 0.006), Vector3(0.02, 0.05, 0.01), p, -a)
+			for s in [-1.0, 1.0]:
+				_gem(b, Vector3(s * 0.05, 0.33, -0.03), Vector3(0.012, 0.05, 0.01), p)
+				for k in 3:
+					_gem(b, Vector3(s * (0.2 + k * 0.012), -0.27 - k * 0.07, face - 0.01), Vector3(0.03, 0.12 - k * 0.025, 0.012), p, s * (PI * 0.42 + k * 0.25))
+			for k in 3:
+				_gem(b, tip + Vector3(-0.03 + k * 0.03, 0.05 + (0.02 if k == 1 else 0.0), 0.0), Vector3(0.02, 0.08 + (0.03 if k == 1 else 0.0), 0.012), p)
+			for k in 3:
+				_gem(b, Vector3(-0.03 + k * 0.03, -0.59 - (0.02 if k == 1 else 0.0), face - 0.01), Vector3(0.018, 0.06, 0.01), p)
+		2:  # sky gold: feathered wings at the body's sides and small wings at the pegbox
+			for s in [-1.0, 1.0]:
+				for k in 2:
+					_feather(b, tip + Vector3(s * (0.05 + k * 0.035), 0.01 - k * 0.02, -0.01), 0.13 - k * 0.025, 0.05, s * -(1.0 + k * 0.35), p.edge if k == 0 else p.metal)
+				for k in 5:
+					_feather(b, Vector3(s * (0.19 + k * 0.035), -0.27 - k * 0.012, face - 0.006 - k * 0.002), 0.24 - k * 0.012, 0.065, s * -(1.05 + k * 0.22), p.edge if k % 2 == 0 else p.metal)
+			_gem(b, rose + Vector3(0, 0, 0.004), Vector3(0.05, 0.05, 0.01), p)
+			_ring_at(b, tip + Vector3(0, 0.06, 0.0), 0.11, 0.01, p.gem, Vector3(70, 0, 0), true)
+		3:  # eclipse: a dark bowl, a black sun in the rosette, a corona of gold rays round
+			# the whole body, dark-and-gold wings and a halo behind the pegbox
+			for k in 12:
+				var a := TAU * k / 12.0
+				_gem(b, rose + Vector3(sin(a) * 0.08, cos(a) * 0.08, 0.006), Vector3(0.016, 0.05 + 0.02 * float(k % 2), 0.008), p, -a)
+			_part(b, MeshKit.sphere_low(), p.dark.darkened(0.5), rose + Vector3(0, 0, 0.004), Vector3(0.05, 0.05, 0.02))
+			_ring_at(b, rose + Vector3(0, 0, 0.006), 0.03, 0.006, p.gem, Vector3(90, 0, 0), true)
+			for k in 14:
+				var a := PI * (0.32 + 1.36 * float(k) / 13.0)
+				var at := Vector3(sin(a) * 0.2, -0.33 + cos(a) * 0.21, face - 0.012)
+				_feather(b, at, 0.09 + 0.04 * float(k % 2), 0.035, -a, p.metal if k % 2 == 0 else p.edge, k % 2 == 1)
+			for s in [-1.0, 1.0]:
+				for k in 4:
+					_feather(b, Vector3(s * (0.2 + k * 0.04), -0.26 - k * 0.015, face - 0.008 - k * 0.002), 0.25 - k * 0.025, 0.065, s * -(1.1 + k * 0.28), p.metal if k % 2 == 0 else p.dark.lightened(0.3))
+			_ring_at(b, tip + Vector3(0, 0.06, 0.0), 0.15, 0.014, p.edge, Vector3(70, 0, 0), true)
+			_gem(b, tip + Vector3(0, 0.08, 0.01), Vector3(0.05, 0.08, 0.02), p)
+	if t >= 2:  # two floating note charms beside the body
+		for s in [-1.0, 1.0]:
+			_part(b, MeshKit.sphere_low(), p.gem, Vector3(s * 0.3, -0.52, 0.02), Vector3(0.04, 0.03, 0.02), Vector3(0, 0, -25), true)
+			_line(b, [Vector3(s * 0.3 + 0.017, -0.515, 0.02), Vector3(s * 0.3 + 0.017, -0.42, 0.02)], 0.005, p.edge, true)
+
+
+## A flat polygon in XY at depth z, in one colour (the material draws both faces).
+static func _plate(b: Dictionary, points: Array[Vector2], z: float, color: Color, glow := false) -> void:
+	var layer := "glow" if glow else "solid"
+	var st: SurfaceTool = b[layer]
+	var middle := Vector2.ZERO
+	for point in points:
+		middle += point
+	middle /= float(points.size())
+	for i in points.size():
+		var a: Vector2 = points[i]
+		var c: Vector2 = points[(i + 1) % points.size()]
+		for vertex in [Vector3(middle.x, middle.y, z), Vector3(a.x, a.y, z), Vector3(c.x, c.y, z)]:
+			st.set_color(color)
+			st.set_normal(Vector3.BACK)
+			st.add_vertex(vertex)
+		b[layer + "_count"] += 3
+
+
 static func _lantern(b: Dictionary, p: Dictionary, t: int) -> void:
 	_shaft(b, p, -0.85, 1.12, 0.085)
 	_line(b, [Vector3(0, 1.06, 0), Vector3(-0.06, 1.43, 0), Vector3(-0.29, 1.61, 0), Vector3(-0.59, 1.48, 0), Vector3(-0.64, 1.19, 0)], 0.046, p.metal)
@@ -465,7 +585,7 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 	_gem(b, Vector3(0, 0.035, 0.12), Vector3(0.028, 0.044, 0.012), p)
 	# The rear cape is split, leaving a clear central wing-root channel.
 	for side in [-1.0, 1.0]:
-		var length := 0.26 if cls in ["mage", "priest", "summoner"] else 0.2
+		var length := 0.26 if cls in ["mage", "priest", "summoner", "bard"] else 0.2
 		_shape(b, [Vector2(-0.047, 0.07), Vector2(0.047, 0.07), Vector2(0.058, -length), Vector2(0, -length + 0.032), Vector2(-0.055, -length)], Vector3(side * 0.062, 0, -0.105), 0.006, p.cloth)
 		_line(b, [Vector3(side * 0.1, 0.055, -0.114), Vector3(side * 0.116, -length + 0.02, -0.114)], 0.004, p.metal)
 	if cls == "mage":
@@ -490,6 +610,14 @@ static func _chest(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 			_feather(b, Vector3(side * 0.035, 0.035, 0.124), 0.07, 0.022, side * -1.1, p.edge)
 		_part(b, MeshKit.sphere_low(), p.edge, Vector3(0, 0.03, 0.126), Vector3(0.022, 0.04, 0.01))
 		_ring_at(b, Vector3(0, 0.08, 0.12), 0.018, 0.004, p.gem, Vector3(90, 0, 0), true)
+	elif cls == "bard":
+		# A gold lyre on the breast, strings of light, a gem at its foot.
+		for side in [-1.0, 1.0]:
+			_line(b, [Vector3(side * 0.012, 0.0, 0.125), Vector3(side * 0.03, 0.03, 0.126), Vector3(side * 0.028, 0.06, 0.126), Vector3(side * 0.036, 0.078, 0.125)], 0.004, p.edge)
+		_line(b, [Vector3(-0.028, 0.066, 0.127), Vector3(0.028, 0.066, 0.127)], 0.0035, p.metal)
+		for x in [-0.01, 0.0, 0.01]:
+			_line(b, [Vector3(x, 0.004, 0.127), Vector3(x, 0.064, 0.127)], 0.0015, p.edge, true)
+		_gem(b, Vector3(0, -0.006, 0.128), Vector3(0.018, 0.016, 0.006), p)
 	elif cls == "defender":
 		# A small heater shield on the breastplate.
 		_shape(b, [Vector2(-0.04, 0.04), Vector2(0.04, 0.04), Vector2(0.036, -0.01), Vector2(0, -0.05), Vector2(-0.036, -0.01)], Vector3(0, 0.03, 0.118), 0.008, p.edge)
@@ -512,6 +640,8 @@ static func _pauldron(b: Dictionary, p: Dictionary, t: int, cls: String, side: f
 		_feather(b, Vector3(side * 0.072, 0.055, 0), 0.11, 0.028, side * -0.55, p.metal)
 	if cls == "summoner":
 		_ring_at(b, Vector3(side * 0.064, -0.01, 0.01), 0.03, 0.005, p.metal)
+	if cls == "bard":
+		_ring_at(b, Vector3(side * 0.06, 0.0, 0.02), 0.022, 0.004, p.gem, Vector3(90, 0, 0), true)
 	if cls == "defender":
 		# A second, broader plate over the shoulder.
 		_part(b, MeshKit.hemisphere(), p.metal.darkened(0.12), Vector3(side * 0.03, -0.012, 0), Vector3(0.16, 0.07, 0.14), Vector3(0, 0, side * -28))
@@ -521,7 +651,7 @@ static func _belt(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 	_ring_at(b, Vector3(0, 0.09, -0.005), 0.145, 0.035, p.dark, Vector3.ZERO)
 	_gem(b, Vector3(0, 0.087, 0.136), Vector3(0.042, 0.044, 0.01), p)
 	for side in [-1.0, 1.0]:
-		var length := 0.15 if cls in ["mage", "priest", "summoner"] else 0.09
+		var length := 0.15 if cls in ["mage", "priest", "summoner", "bard"] else 0.09
 		_feather(b, Vector3(side * 0.09, 0.01, 0.106), length + t * 0.01, 0.075, side * -0.12, p.metal if cls in ["warrior", "lancer", "defender"] else p.cloth)
 		_line(b, [Vector3(side * 0.115, 0.065, 0.115), Vector3(side * 0.117, -length * 0.35, 0.115)], 0.0035, p.edge)
 
@@ -559,6 +689,11 @@ static func _helm(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 				_gem(b, Vector3((k - 2) * 0.04, 0.26 + (0.02 if k == 2 else 0.0), 0.17), Vector3(0.018, 0.045, 0.01), p)
 			for side in [-1.0, 1.0]:
 				_feather(b, Vector3(side * 0.13, 0.25, 0.1), 0.11, 0.03, side * -0.9, p.metal)
+		elif cls == "bard":
+			# A jaunty plume swept back over the left ear; the brow stays clear.
+			for k in 3:
+				_feather(b, Vector3(0.15 + k * 0.012, 0.30 + k * 0.04, -0.06 - k * 0.025), 0.17 - k * 0.025, 0.045, 0.95 + k * 0.18, p.edge if k % 2 == 0 else p.cloth)
+			_gem(b, Vector3(0.16, 0.255, 0.05), Vector3(0.022, 0.03, 0.008), p)
 		elif cls == "assassin":
 			# A half mask over the brow with a crescent at its peak.
 			_shape(b, [Vector2(-0.11, 0.0), Vector2(-0.05, 0.03), Vector2(0, 0.012), Vector2(0.05, 0.03), Vector2(0.11, 0.0), Vector2(0.06, -0.025), Vector2(-0.06, -0.025)], Vector3(0, 0.215, 0.2), 0.01, p.dark)
@@ -628,6 +763,13 @@ static func _class_badge(b: Dictionary, center: Vector3, s: float, cls: String, 
 			for side in [-1.0, 1.0]:
 				_feather(b, center + Vector3(side * s * 0.5, s * 0.2, 0), s * 1.8, s * 0.5, side * -1.0, p.edge)
 			_part(b, MeshKit.sphere_low(), p.gem, center, Vector3(s * 0.6, s * 0.9, s * 0.4), Vector3.ZERO, true)
+		"bard":
+			# A beamed pair of eighth notes.
+			for k in 2:
+				var x := (float(k) - 0.5) * s * 0.9
+				_part(b, MeshKit.sphere_low(), p.gem, center + Vector3(x, -s * 0.45 + k * s * 0.15, 0), Vector3(s * 0.55, s * 0.4, s * 0.3), Vector3(0, 0, -25), true)
+				_line(b, [center + Vector3(x + s * 0.24, -s * 0.4 + k * s * 0.15, 0), center + Vector3(x + s * 0.24, s * 0.75 + k * s * 0.15, 0)], s * 0.07, p.edge)
+			_line(b, [center + Vector3(-s * 0.21, s * 0.75, 0), center + Vector3(s * 0.69, s * 0.9, 0)], s * 0.14, p.metal)
 		"assassin":
 			# Two daggers crossed point-up.
 			for side in [-1.0, 1.0]:

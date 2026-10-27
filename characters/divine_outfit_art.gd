@@ -9,6 +9,7 @@ const PALETTES := {
 	"archer": {"body":Color("488875"), "pants":Color("2d514b"), "gloves":Color("786447"), "boots":Color("4a5747"), "metal":Color("c6b37c"), "gem":Color("90d6ab")},
 	"assassin": {"body":Color("2e2448"), "pants":Color("1e1a30"), "gloves":Color("3a2c54"), "boots":Color("241d38"), "metal":Color("6e52a8"), "gem":Color("ff5a86")},
 	"darklord": {"body":Color("5a1424"), "pants":Color("1e1418"), "gloves":Color("2a1a22"), "boots":Color("221418"), "metal":Color("e8b64a"), "gem":Color("b06bff")},
+	"bard": {"body":Color("7a1e4e"), "pants":Color("1e1424"), "gloves":Color("3a1a30"), "boots":Color("2a1622"), "metal":Color("f0c870"), "gem":Color("7fe8ff")},
 	"defender": {"body":Color("3a4f86"), "pants":Color("2a3456"), "gloves":Color("4a5a80"), "boots":Color("2e3550"), "metal":Color("d8c48a"), "gem":Color("9fd6ff")},
 	"lancer": {"body":Color("9e4754"), "pants":Color("4c3440"), "gloves":Color("6b4945"), "boots":Color("4e3d43"), "metal":Color("d1a07b"), "gem":Color("eab297")},
 	"mage": {"body":Color("414c81"), "pants":Color("34354f"), "gloves":Color("736480"), "boots":Color("42445d"), "metal":Color("b3bdd4"), "gem":Color("bba5e4")},

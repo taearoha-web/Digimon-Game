@@ -12,11 +12,12 @@ static func mount(kind: String) -> Basis:
 		"shield", "book", "tome":
 			# Face away from the left arm; top points towards the elbow.
 			return Basis(Vector3.FORWARD, PI * 0.5)
-		"bow":
-			# The left arm holds the bow; the right hand draws its string.
+		"bow", "lute":
+			# The left arm holds the bow (the lute's neck); the right hand draws its
+			# string (strums the lute).
 			return Basis(Vector3.RIGHT, PI * 0.5)
 	return Basis(Vector3.UP, PI)
 
 
 static func hand_for(kind: String) -> String:
-	return "handslot.l" if kind in ["bow", "shield", "greatshield", "book", "tome"] else "handslot.r"
+	return "handslot.l" if kind in ["bow", "shield", "greatshield", "book", "tome", "lute"] else "handslot.r"
