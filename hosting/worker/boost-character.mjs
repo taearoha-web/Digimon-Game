@@ -46,7 +46,7 @@ if (command === 'fetch') {
   const meta = JSON.parse(readFileSync(`${a}/meta.json`, 'utf8'));
   const next = JSON.parse(readFileSync(`${a}/bundle.json`, 'utf8'));
   const boosted = JSON.parse(readFileSync(b, 'utf8'));
-  if (!/^[1-4]$/.test(String(boosted.slot))) throw new Error('The boosted slot must be 1 to 4');
+  if (!/^(?:[1-9]|10)$/.test(String(boosted.slot))) throw new Error('The boosted slot must be 1 to 10');
   // A created character fills a slot that was free when the save was fetched; any other boost replaces one.
   if (boosted.created ? next.slots?.[boosted.slot] : !next.slots?.[boosted.slot])
     throw new Error(boosted.created ? 'The slot for the new character is no longer free' : 'The boosted slot is not in the fetched save');

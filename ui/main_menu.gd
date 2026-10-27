@@ -7,6 +7,8 @@ signal continue_pressed(slot: int)
 
 var _selected := 0
 var _row: GridContainer
+var _scroll: TouchScroll
+var _first_build := true
 var _play: Button
 var _delete: Button
 var _hint: Label
@@ -72,13 +74,18 @@ func _ready() -> void:
 	saves.size_flags_stretch_ratio = 1.35
 	_body.add_child(saves)
 	saves.add_child(UIUtil.label("เลือกการผจญภัย", &"HeaderLabel"))
+	# Ten slots do not fit a phone screen: the cards sit in a list you can flick.
+	_scroll = TouchScroll.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	saves.add_child(_scroll)
 	_row = GridContainer.new()
 	_row.columns = 2
-	_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_row.add_theme_constant_override("h_separation", 12)
 	_row.add_theme_constant_override("v_separation", 12)
-	saves.add_child(_row)
+	_scroll.add_child(_row)
 	_hint = UIUtil.label("", &"SmallLabel")
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	saves.add_child(_hint)
@@ -110,9 +117,15 @@ func _layout() -> void:
 
 
 func _rebuild() -> void:
+	var kept := _scroll.retained_vertical_position()
 	UIUtil.clear(_row)
 	for i in range(1, Game.SLOT_COUNT + 1):
 		_row.add_child(_card(i))
+	if _first_build:
+		# Open with the selected slot in view (its row, two cards to a row).
+		_first_build = false
+		kept = (_selected - 1) / 2 * 160
+	_scroll.restore_vertical_position(kept)
 	var info := Game.slot_info(_selected)
 	var used := not info.is_empty()
 	_play.text = "ออกผจญภัยต่อ" if used else "สร้างฮีโร่ใหม่"

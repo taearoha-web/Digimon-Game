@@ -63,21 +63,21 @@ func _test_full_bundle() -> void:
 		probe.profile["cloud_bridge_test_payload"] = {"unicode": "สระไม้เอก: ก่ ข้ 💫", "values": [i, null, true, {"nested": "\n\t\\\""}]}
 		probe.profile["gold"] = i * 777
 		check(probe.save(), "slot %d saves successfully" % i)
-	check(probe.requests.size() == 5, "new profile and each successful save request a cloud snapshot")
+	check(probe.requests.size() == probe.SLOT_COUNT + 1, "new profile and each successful save request a cloud snapshot")
 	var disk_before: Dictionary = {}
 	for i in range(1, probe.SLOT_COUNT + 1):
 		disk_before[str(i)] = FileAccess.get_file_as_string(probe.save_path(i))
 	var profile_before := probe.profile.duplicate(true)
 	var bundle := probe.build_cloud_bundle()
-	check(bundle.slots.size() == 4 and bundle.selectedSlot == 4, "bundle includes all four slots and selected slot")
+	check(bundle.slots.size() == probe.SLOT_COUNT and bundle.selectedSlot == probe.SLOT_COUNT, "bundle includes every slot and the selected slot")
 	for i in range(1, probe.SLOT_COUNT + 1):
 		check(bundle.slots[str(i)] == JSON.parse_string(disk_before[str(i)]), "slot %d data stays exact, including unknown fields" % i)
 		check(FileAccess.get_file_as_string(probe.save_path(i)) == disk_before[str(i)], "building a bundle leaves slot %d unchanged" % i)
-	check(probe.profile == profile_before and probe.slot == 4, "building a bundle leaves the active profile and selection unchanged")
+	check(probe.profile == profile_before and probe.slot == probe.SLOT_COUNT, "building a bundle leaves the active profile and selection unchanged")
 	bundle.slots["1"].gold = 0
 	check(probe._read_slot(1).gold == 777, "bundle dictionaries are independent of persisted data")
 	probe.slot = 99
-	check(probe.build_cloud_bundle().selectedSlot == 4, "selected slot is clamped to the supported range")
+	check(probe.build_cloud_bundle().selectedSlot == probe.SLOT_COUNT, "selected slot is clamped to the supported range")
 	probe.slot = 4
 	var file := FileAccess.open(probe.save_path(3), FileAccess.WRITE)
 	file.store_string("{\"class\":\"missing\",\"level\":1}")
@@ -111,7 +111,7 @@ func _test_failed_commits() -> void:
 	check(dir.remove(temporary) == OK, "fixture removes the blocked temporary path")
 	check(not probe.import_code("not a save", 2), "invalid import is rejected")
 	check(probe.requests.size() == requests_before, "invalid import never requests a cloud upload")
-	probe.delete_save(9)
+	probe.delete_save(probe.SLOT_COUNT + 1)
 	check(probe.requests.size() == requests_before, "out-of-range deletion never requests a cloud upload")
 	check(probe._save_before_cloud_account(), "successful local commit permits the account panel")
 	check(probe.requests.size() == requests_before + 1, "opening an account panel queues the successfully committed latest progress")
@@ -127,7 +127,7 @@ func _test_import_and_delete() -> void:
 	requests_before = probe.requests.size()
 	probe.delete_save(1)
 	check(probe.requests.size() == requests_before + 1, "successful deletion queues one snapshot")
-	check(not probe.requests.back().slots.has("1") and probe.requests.back().slots.size() == 3, "deletion snapshot removes only the deleted slot")
+	check(not probe.requests.back().slots.has("1") and probe.requests.back().slots.size() == probe.SLOT_COUNT - 1, "deletion snapshot removes only the deleted slot")
 	probe.delete_save(1)
 	check(probe.requests.size() == requests_before + 1, "deleting an already-empty slot produces no duplicate request")
 	var current := probe.profile.duplicate(true)

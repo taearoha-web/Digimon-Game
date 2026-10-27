@@ -77,8 +77,11 @@ func _ready() -> void:
 	check(int(fresh.equip.ring.plus) == 0 and int(fresh.equip.amulet.plus) == 0 and int(fresh.equip.ring.rarity) == 4 and int(fresh.equip.amulet.rarity) == 4, "mythic ring and amulet at +0")
 	check(Game._valid_profile(fresh), "the new character passes the save check")
 	check(roster.slots["1"] == kept_slots["1"] and roster.slots["3"] == kept_slots["3"], "the other slots are untouched")
-	var full: Dictionary = JSON.parse_string(JSON.stringify({"slots": {"1": other, "2": other, "3": other, "4": other}, "selectedSlot": 1}))
-	check(Boost.boost_bundle(full, "มีดมาร", "assassin", true).has("error"), "no new character when all four slots are taken")
+	var every := {}
+	for n in range(1, Game.SLOT_COUNT + 1):
+		every[str(n)] = other
+	var full: Dictionary = JSON.parse_string(JSON.stringify({"slots": every, "selectedSlot": 1}))
+	check(Boost.boost_bundle(full, "มีดมาร", "assassin", true).has("error"), "no new character when every slot is taken")
 	var again := Boost.boost_bundle(roster, "มีดมาร", "assassin", true, 0)
 	check(again.get("slot") == "2" and again.get("created") == false and roster.slots.size() == 3, "running it again boosts the same character, no duplicate")
 	Game.profile = hero

@@ -97,7 +97,7 @@ func _test_import_destinations() -> void:
 	var previous_file := FileAccess.get_file_as_string(Game.save_path(1))
 	check(Game.preview_import(code(incoming)).zone == "snow", "preview reports destination zone")
 	check(Game.profile == original, "preview leaves current profile intact")
-	check(not Game.import_code(code(incoming), 5), "out-of-range destination refused")
+	check(not Game.import_code(code(incoming), Game.SLOT_COUNT + 1), "out-of-range destination refused")
 	check(Game.import_code(code(incoming), 2), "backup imports into chosen slot")
 	check(Game.slot == 2 and Game.current_zone == &"snow" and Game.profile.zone == "snow", "import restores matching zone and destination")
 	check(int(Game.profile.hp) == int(Game.stats_now().max_hp) and int(Game.profile.mp) == int(Game.stats_now().max_mp), "import clamps vitals")

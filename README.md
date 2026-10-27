@@ -169,7 +169,7 @@ After Lv.100, earn **Paragon** levels (★1–200: each star costs 1.5× the EXP
 ## Version 0.6.0
 
 - On the hosted Toon Tale site, create a game ID (3–24 lowercase letters, digits or underscores) and password (10–128 characters), then use the same account on another phone or computer. Passwords are hashed server-side; browser sessions use secure, HttpOnly cookies.
-- Existing four-slot local saves can be imported into an account after reviewing character summaries. Guest characters remain separate from account characters. Save revisions prevent another device from silently overwriting newer progress.
+- Existing local saves (ten character slots, `Game.SLOT_COUNT`; the title screen lists them in a flick-scrolling list and the account server accepts slots 1–10) can be imported into an account after reviewing character summaries. Guest characters remain separate from account characters. Save revisions prevent another device from silently overwriting newer progress.
 - Offline drafts stay on the device and retry when connected. Conflicting progress asks which whole save to use and keeps a local backup; gold and items are never merged automatically. One game tab per browser owns the save filesystem.
 - Keep the recovery code shown during registration: it resets a forgotten password and revokes old sessions. Settings → บัญชี / เซฟออนไลน์ opens account status, manual sync and logout.
 - Cloud accounts require the site's Worker/D1 backend; a standalone static/GitHub Pages export retains local play and backup-code transfer, but cannot provide online login by itself.

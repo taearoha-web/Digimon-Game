@@ -3,6 +3,8 @@ const ITERATIONS = 100_000;
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const COOKIE = '__Host-toon_session';
 const MAX_PROFILE_BYTES = 1_048_576;
+// Character slots per account (Game.SLOT_COUNT in the game).
+const MAX_SLOTS = 10;
 // D1 limits each row / string to approximately 2 MB. Leave space for revision,
 // user ID and timestamp columns, and return an explicit size error beforehand.
 const MAX_BUNDLE_BYTES = 1_800_000;
@@ -194,10 +196,10 @@ function validateProfile(profile) {
 }
 
 export function validateBundle(bundle) {
-  if (!dictionary(bundle) || !dictionary(bundle.slots) || !integer(bundle.selectedSlot, 1, 4)) fail(400, 'invalid_save', 'Send four character slots and a selected slot from 1 to 4.');
+  if (!dictionary(bundle) || !dictionary(bundle.slots) || !integer(bundle.selectedSlot, 1, MAX_SLOTS)) fail(400, 'invalid_save', `Send up to ${MAX_SLOTS} character slots and a selected slot from 1 to ${MAX_SLOTS}.`);
   validateJsonTree(bundle);
   for (const [slot, profile] of Object.entries(bundle.slots)) {
-    if (!/^[1-4]$/.test(slot)) fail(400, 'invalid_save', 'Character slots must be numbered 1 to 4.');
+    if (!/^(?:[1-9]|10)$/.test(slot)) fail(400, 'invalid_save', `Character slots must be numbered 1 to ${MAX_SLOTS}.`);
     validateProfile(profile);
   }
   const serialized = JSON.stringify({slots: bundle.slots, selectedSlot: bundle.selectedSlot});

@@ -24,7 +24,7 @@ signal guild_changed()
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
-const SLOT_COUNT := 4
+const SLOT_COUNT := 10
 const META_PATH := "user://toon_tale_meta.json"
 const SAVE_VERSION := 1
 const AUTOSAVE_INTERVAL := 10.0
@@ -353,7 +353,7 @@ func save_code_roundtrip() -> bool:
 	return not restored.is_empty() and JSON.parse_string(JSON.stringify(restored)) == JSON.parse_string(JSON.stringify(_repair(snapshot)))
 
 
-## Which of the 4 save slots (1..4) the current profile belongs to.
+## Which of the save slots (1..SLOT_COUNT) the current profile belongs to.
 var slot := 1
 
 
@@ -380,7 +380,7 @@ func any_save() -> bool:
 	return false
 
 
-## The first empty slot, or 0 when all four are taken.
+## The first empty slot, or 0 when every slot is taken.
 func free_slot() -> int:
 	for i in range(1, SLOT_COUNT + 1):
 		if not has_save(i):
