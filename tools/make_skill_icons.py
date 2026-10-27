@@ -29,6 +29,9 @@ PALETTES = {
     "venom": ("102a26", "3a6b3a", "8be260", "f4ffd9"),
     "royal": ("2a1418", "8a1a2a", "e8b64a", "fff4d0"),
     "darkforce": ("140a28", "4a1f8a", "8a4dff", "f0e2ff"),
+    "melody": ("2a0f22", "8a2a5e", "ff8fcf", "ffe6f4"),
+    "dissonance": ("1a0b2e", "5a2a9a", "b07aff", "f4e8ff"),
+    "lament": ("141a3a", "3d5aa8", "8fb8ff", "eef3ff"),
 }
 
 
@@ -271,6 +274,38 @@ OBJECTS["scepter"] = (path("M-5 -20 L5 -20 L6 78 L-6 78Z", "url(#gold)") + ellip
                       + path("M-24 -24 Q0 -12 24 -24 L20 -14 Q0 -4 -20 -14Z", "url(#gold)"))
 OBJECTS["raven"] = (path("M-82 -10 Q-40 -46 -8 -14 Q-2 -34 10 -36 Q26 -38 30 -24 L46 -20 L30 -14 Q34 0 22 12 Q60 -36 84 -14 Q60 4 34 22 L40 56 L18 40 L4 60 L-4 38 Q-50 24 -82 -10Z", "url(#rock)")
                     + ellipse(18, -24, 4, 4, "#ff3a4a", "none") + line("M-66 -10 Q-40 -26 -16 -6 M60 -14 Q40 -2 28 14", "url(#light)", 3))
+# The Bard: a lute, notes, a clef, a stave, a lyre and a war drum.
+OBJECTS["note"] = (group(ellipse(0, 0, 27, 19, "url(#main)"), -16, 50, 1, -22)
+                   + path("M5 46 L5 -72 L15 -72 L15 42Z", "url(#gold)")
+                   + path("M15 -72 Q50 -52 46 -18 Q42 6 30 16 Q40 -10 32 -30 Q24 -44 15 -44Z", "url(#gold)")
+                   + line("M-34 44 Q-28 36 -16 38", "#ffffff", 4))
+OBJECTS["notes"] = (group(ellipse(0, 0, 23, 16, "url(#main)"), -40, 52, 1, -22) + group(ellipse(0, 0, 23, 16, "url(#main)"), 36, 38, 1, -22)
+                    + path("M-26 46 L-26 -48 L-17 -50 L-17 44Z", "url(#gold)") + path("M50 32 L50 -64 L59 -66 L59 30Z", "url(#gold)")
+                    + path("M-26 -50 L59 -68 L59 -48 L-26 -30Z", "url(#gold)")
+                    + line("M-56 46 Q-50 40 -40 42", "#ffffff", 4))
+OBJECTS["treble"] = (line("M8 82 Q-8 92 -18 80 Q-24 66 -8 62 Q8 62 6 78 L4 -64 Q4 -92 20 -86 Q32 -76 20 -54 L-26 -4 Q-48 22 -28 44 Q-8 62 18 48 Q36 34 24 12 Q12 -4 -6 6 Q-20 18 -4 32", "url(#gold)", 10)
+                     + line("M4 -64 Q4 -88 18 -84", "#ffffff", 3) + ellipse(-12, 72, 8, fill="url(#gold)"))
+OBJECTS["stave"] = "".join(line(f"M-88 {y - 4} Q-44 {y - 20} 0 {y - 4} Q44 {y + 12} 88 {y - 4}", "url(#light)", 3.2) for y in (-32, -16, 0, 16, 32))
+OBJECTS["lute"] = (path("M0 -8 Q46 -6 48 38 Q48 84 0 88 Q-48 84 -48 38 Q-46 -6 0 -8Z", "url(#gold)")
+                   + path("M0 2 Q36 4 38 38 Q38 76 0 78 Q-38 76 -38 38 Q-36 4 0 2Z", "url(#main)")
+                   + ellipse(0, 30, 14, None, "#1c1030", "url(#light)", 3)
+                   + path("M-16 62 L16 62 L14 69 L-14 69Z", "url(#rock)")
+                   + path("M-7 -8 L-6 -72 L6 -72 L7 -8Z", "url(#rock)")
+                   + path("M-6 -72 L6 -72 L-14 -94 L-25 -88Z", "url(#gold)")
+                   + line("M-9 -82 L-18 -78 M-15 -88 L-24 -84", "url(#light)", 3)
+                   + line("M-3 -70 L-4 64 M0 -70 L0 64 M3 -70 L4 64", "#fff8e8", 1.6))
+OBJECTS["lyre"] = (path("M-30 64 Q-58 30 -46 -10 Q-38 -40 -58 -64 Q-30 -70 -26 -40 Q-22 -6 -14 30 L-12 64Z", "url(#gold)")
+                   + path("M30 64 Q58 30 46 -10 Q38 -40 58 -64 Q30 -70 26 -40 Q22 -6 14 30 L12 64Z", "url(#gold)")
+                   + path("M-46 -42 L46 -42 L44 -32 L-44 -32Z", "url(#gold)")
+                   + path("M-40 60 Q0 76 40 60 L38 76 Q0 90 -38 76Z", "url(#main)")
+                   + line("M-18 -32 L-18 64 M-6 -32 L-6 66 M6 -32 L6 66 M18 -32 L18 64", "#fff8e8", 2.5)
+                   + ellipse(0, -37, 7, fill="url(#orb)"))
+OBJECTS["drum"] = (path("M-58 -24 L58 -24 L52 54 Q0 70 -52 54Z", "url(#gold)")
+                   + line("M-54 -16 L-36 50 L-18 -14 L0 58 L18 -14 L36 50 L54 -16", "url(#main)", 4)
+                   + ellipse(0, -24, 58, 16, "url(#light)")
+                   + line("M-62 -78 L14 -30 M62 -78 L-14 -30", "url(#gold)", 8)
+                   + line("M-58 -76 L-30 -58 M58 -76 L30 -58", "#ffffff", 2.5)
+                   + ellipse(-64, -80, 9, fill="url(#light)") + ellipse(64, -80, 9, fill="url(#light)"))
 
 
 def o(name, x=0, y=0, s=1, a=0, opacity=1):
@@ -574,6 +609,35 @@ add("darklord", [
     ("imperial_judgment","royal",rays(12)+o("crown",0,-50,.5)+o("bolt",-34,10,.5)+o("flame",34,14,.5)+o("orb",0,10,.42)),
 ])
 
+add("bard", [
+    ("staccato_shot", "melody", o("note", -10, 6, .8, -15) + o("ray", 34, -26, .45, 40) + star(40, -50, 12)),
+    ("valor_march", "melody", o("boot", -14, 26, .55) + o("notes", 22, -30, .6, 10) + o("note", -46, -40, .4, -20)),
+    ("resonance", "melody", ring(1.0, 34) + ring(.72, 34) + o("lute", 0, -10, .82, -24)),
+    ("sorrow_note", "lament", o("drop", -38, -34, .4) + o("note", 8, 10, .82, -10) + o("drop", 46, 34, .3)),
+    ("discord", "dissonance", o("note", -20, 0, .78, 25) + o("crack", 30, 10, .62, -10) + o("note", 40, -46, .36, -40, .7)),
+    ("iron_ballad", "gold", o("shield", 0, 8, .9) + o("lyre", 0, 4, .46)),
+    ("triad_chord", "melody", line("M-70 40 Q0 -20 70 40", "url(#light)", 4) + o("note", -46, 16, .5, -24) + o("note", 0, -10, .56) + o("note", 46, 16, .5, 24)),
+    ("echo_chain", "frost", chain() + o("note", -54, -44, .36) + o("note", 0, 0, .38, 10) + o("note", 52, 40, .36, -10)),
+    ("war_drum", "earth", o("ground", y=52, s=.9) + o("drum", 0, -8, .78) + o("crack", 0, 52, .5)),
+    ("heartstring", "melody", line("M-80 62 L80 -62", "url(#light)", 4) + o("heart", 0, 6, .8) + o("note", 24, -16, .5, 30)),
+    ("virtuoso", "melody", rays(10) + o("treble", 0, 2, .78) + star(44, -46, 16)),
+    ("heroic_anthem", "gold", rays(12) + o("notes", 0, 10, .7) + o("orb", 0, -56, .32)),
+    ("slumber_lullaby", "frost", o("moon", -18, -8, .8) + o("note", 42, -36, .38, 20) + o("note", 46, 26, .32, -10) + star(-50, -52, 10)),
+    ("lament", "lament", o("cloud", 0, -46, .8) + o("drop", -40, 30, .32) + o("drop", 40, 30, .32) + o("note", 0, 34, .5, -15)),
+    ("cascade", "melody", wind() + o("note", -50, -40, .36, -30) + o("note", -14, -10, .4, -10) + o("note", 22, 20, .42, 10) + o("note", 56, 48, .36, 30)),
+    ("sanctuary_serenade", "gold", rays(8) + o("chalice", 0, 22, .7) + o("lyre", 0, -42, .42)),
+    ("fortissimo", "melody", rays(12) + ring(.7, 0) + o("notes", 0, 0, .62, -8)),
+    ("shattering_rhapsody", "storm", o("stave", 0, 0, 1.0) + o("bolt", 0, -4, .7)),
+    ("maestro_fervor", "gold", o("flame", 0, 10, .8) + o("treble", 0, 6, .5) + star(42, -50, 14)),
+    ("grand_dissonance", "dissonance", rays(8) + o("lyre", 0, 0, .84) + o("crack", 0, 4, .9)),
+    ("aria_of_ruin", "melody", o("ray", 0, -10, .9) + o("treble", -30, 10, .58, -10) + star(38, 40, 16)),
+    ("eternal_echo", "frost", ring(1.0) + o("note", 70, 0, .28) + o("note", 49, 33, .28) + o("note", 0, 46, .28) + o("note", -49, 33, .28)
+                                         + o("note", -70, 0, .28) + o("note", -49, -33, .28) + o("note", 0, -46, .28) + o("note", 49, -33, .28)),
+    ("thunder_crescendo", "storm", o("drum", 0, 22, .66) + o("bolt", -42, -36, .46) + o("bolt", 42, -36, .46, 10)),
+    ("hymn_of_legends", "gold", rays(12) + o("lyre", 0, 12, .66) + o("crown", 0, -54, .38)),
+    ("grand_finale", "melody", o("ground", y=60, s=.9) + o("ray", -50, -12, .5, -20) + o("ray", 50, -12, .5, 20) + o("lyre", 0, -4, .72) + star(0, -70, 12)),
+])
+
 # Star skills keep their own medallions beside the class catalogue (not part of its manifest).
 STAR_RECIPES = {
     "umbral_lacerate": ("night", o("moon",0,-10,.9)+o("slash",0,0,.9,30)+o("slash",0,0,.9,210)+o("twin",0,20,.6)),
@@ -584,6 +648,10 @@ STAR_RECIPES = {
     "raven_sovereign": ("darkforce", rays(10)+o("raven",0,-6,.95)+o("crown",0,-56,.34)),
     "lords_dominion": ("royal", o("wings",0,0,1.0,0,.6)+o("crown",0,-20,.7)+o("shield",-40,30,.42)+o("shield",40,30,.42)),
     "imperial_cataclysm": ("royal", o("ground",y=58,s=.85)+o("crown",0,-56,.42)+rain("bolt",3,.5)+o("flame",0,30,.5)),
+    "starlight_overture": ("melody", rays(10) + star(-40, -32, 16) + star(36, -46, 12) + star(8, 18, 14) + o("note", -14, 36, .4) + o("note", 46, 10, .34)),
+    "heartbreak_sonata": ("melody", o("heart", 0, 0, .8) + o("stave", 0, 0, .8) + o("crack", 0, 0, .5)),
+    "celestial_stage": ("gold", o("wings", 0, -10, .9, 0, .5) + o("ground", y=58, s=.9) + o("lyre", 0, -10, .8)),
+    "cosmic_encore": ("dissonance", ring(.9, 40) + o("orb", -46, -46, .3) + o("orb", 52, 38, .22) + o("wings", 0, -6, .95) + o("lute", 0, -2, .58, -20)),
 }
 
 
@@ -617,10 +685,10 @@ def main():
     source = (ROOT / 'data/class_data.gd').read_text()
     # Both regular and summon helpers are the actual runtime catalogue source.
     catalogue = re.findall(r'(?:_sk\(\w+,|sm\.call\()\s*"([a-z_]+)",\s*"([^"]+)"', source)
-    assert len(catalogue) == 227, len(catalogue)
+    assert len(catalogue) == 252, len(catalogue)
     assert set(RECIPES) == {s[0] for s in catalogue}, (set(RECIPES) ^ {s[0] for s in catalogue})
     scenes = [r[2] for r in RECIPES.values()]
-    assert len(set(scenes)) == 227, "Duplicate illustration even before colors/backgrounds"
+    assert len(set(scenes)) == 252, "Duplicate illustration even before colors/backgrounds"
     names = dict(catalogue)
     manifest = []
     for skill, (family, palette, picture) in RECIPES.items():

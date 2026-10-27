@@ -5,7 +5,7 @@ extends RefCounted
 
 const FAMILY_COLORS := {
 	"vagabond": Color("f3cc8d"), "warrior": Color("ffac8f"),
-	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"), "summoner": Color("b4f08c"), "lancer": Color("9ad8ff"), "defender": Color("a8c8f0"), "assassin": Color("c4a8ff"), "darklord": Color("f0cc80"),
+	"archer": Color("98e6c4"), "mage": Color("c4adff"), "priest": Color("ffe8a8"), "summoner": Color("b4f08c"), "lancer": Color("9ad8ff"), "defender": Color("a8c8f0"), "assassin": Color("c4a8ff"), "darklord": Color("f0cc80"), "bard": Color("ffc2e0"),
 }
 const ELEMENT_COLORS := {
 	"fire": Color("ffab79"), "ice": Color("a8e5ff"), "holy": Color("ffe7ac"),
@@ -87,6 +87,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, durat
 	EliteSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 	ShadowSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 	LordSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
+	BardSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 
 
 ## center: target/area; origin: caster's feet. Hero and companions share this path.
@@ -103,6 +104,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		EliteSkillArt.play(parent, skill, center, origin, wait)
 		ShadowSkillArt.play(parent, skill, center, origin, wait)
 		LordSkillArt.play(parent, skill, center, origin, wait)
+		BardSkillArt.play(parent, skill, center, origin, wait)
 		var now_ms := Time.get_ticks_msec()
 		ClassFlourish.cast(parent, skill, center, origin, _recent_shows.filter(func(t: int): return now_ms - t < 1000).size())
 		return
@@ -137,10 +139,11 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 				_area(parent, skill, look, at, radius, tier)
 		"single": _single(parent, skill, look, center, origin, tier)
 		"fan", "chain": _multi(parent, skill, look, origin, center, tier)
-	# The Assassin's shadow sculptures and the Dark Lord's royal ones, then the
-	# grand finish on top.
+	# The Assassin's shadow sculptures, the Dark Lord's royal ones and the Bard's
+	# concert of light, then the grand finish on top.
 	ShadowSkillArt.play(parent, skill, center, origin, wait)
 	LordSkillArt.play(parent, skill, center, origin, wait)
+	BardSkillArt.play(parent, skill, center, origin, wait)
 	ClassFlourish.cast(parent, skill, center, origin, crowd)
 
 

@@ -36,7 +36,7 @@ func _ready() -> void:
 			if not output.is_empty():
 				check(img.save_png(output.path_join(String(skill.id) + ".png")) == OK, "save preview: " + String(skill.id))
 			count += 1
-	check(count == 263, "all 263 active skills covered (227 class skills, 36 star skills)")
+	check(count == 292, "all 292 active skills covered (252 class skills, 40 star skills)")
 	check(SkillIcons.for_skill({}) == null, "empty slot safely returns null")
 	check(SkillIcons.for_id("../game") == null, "path is not an icon ID")
 	check(SkillIcons.for_id("future_skill") == null, "new skill can use the developer fallback")

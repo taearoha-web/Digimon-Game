@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Synthesised sound effects for the Defender's shield skills, the Assassin's
-twin daggers, the Fairy Spirit and the star skills (original, simple waveforms; the helpers come from
+twin daggers, the Bard's lute, songs and drums, the Fairy Spirit and the star skills (original, simple waveforms; the helpers come from
 generate_placeholder_audio.py). Each file is a short 22 kHz mono WAV under 40 KB.
 
   shield_bash   metal clang (shield edge hits)         shield_quake  ground thud + rumble
@@ -11,6 +11,8 @@ generate_placeholder_audio.py). Each file is a short 22 kHz mono WAV under 40 KB
   blade_swish   twin dagger swish + ting (cuts)        blade_throw   whistling knives (throws)
   shadow_vanish smoke puff + dark whoosh (vanish)      venom_hiss    bubbling hiss (poison)
   shadow_dark   deep reversed swell + boom (night arts)
+  lute_strum    bright A-major lute strum (notes)      song_rise     strum + rising sung pad (songs)
+  song_discord  tritone pluck + beating saws (discord) drum_boom     war-drum flam + deep kick (drums)
 
 Usage: python3 tools/generate_skill_sfx.py    (writes audio/sfx/<name>.wav)
 """
@@ -153,12 +155,73 @@ def shadow_dark(b):
         tone(b, R, 0.44 + i * 0.03, 0.3, note_freq(n), "tri", 0.07, a=0.005, d=0.1, s=0.3, r=0.18)
 
 
+def pluck(b, start, dur, freq, vol, bright=0.8, damp=1.6, k=10):
+    """A plucked string: additive partials 1/k^(1/bright), each fading faster than the last
+    (the zone-music lute timbre, stdlib only, no random)."""
+    n0, n = int(start * R), int(dur * R)
+    if n0 + n > len(b):
+        b.extend([0.0] * (n0 + n - len(b)))
+    parts = [(i, (1.0 / i ** (1.0 / bright)), (2.2 + 1.6 * i) * damp) for i in range(1, k + 1) if freq * i < R * 0.45]
+    norm = sum(a for _, a, _ in parts)
+    tail = int(0.04 * R)
+    for s in range(n):
+        t = s / R
+        v = sum(a * math.exp(-d * t) * math.sin(2 * math.pi * freq * i * t) for i, a, d in parts)
+        att = min(1.0, t / 0.0015)
+        rel = min(1.0, (n - s) / tail)
+        b[n0 + s] += v / norm * vol * att * rel
+
+
+def lute_strum(b):
+    """A bright three-string strum (A major, low to high), pick ticks and the body knock."""
+    for i, nm in enumerate(["E4", "A4", "C#5", "E5"]):
+        noise_burst(b, R, i * 0.018, 0.012, 0.18, decay=220, lowpass=0.9)
+        pluck(b, i * 0.018, 0.46 - i * 0.018, note_freq(nm), 0.52, bright=0.85, damp=1.4)
+    tone(b, R, 0.0, 0.07, 190, "sine", 0.32, 120, a=0.001, d=0.03, s=0.3, r=0.03)
+    pluck(b, 0.09, 0.36, note_freq("A5"), 0.24, bright=1.1, damp=1.8)
+
+
+def song_rise(b):
+    """A song begins: a soft strum, a rising sung pad (D5 -> G5) over a G major chord, then
+    a music-box sparkle climbing to the top."""
+    for i, nm in enumerate(["G3", "D4", "G4", "B4"]):
+        pluck(b, i * 0.03, 0.8 - i * 0.03, note_freq(nm), 0.3, bright=0.8, damp=1.0)
+    for det in (0.995, 1.005):
+        tone(b, R, 0.05, 0.75, note_freq("D5") * det, "tri", 0.14, note_freq("G5") * det, a=0.28, d=0.1, s=0.85, r=0.25, vibrato=0.012)
+        tone(b, R, 0.05, 0.75, note_freq("B4") * det, "sine", 0.11, note_freq("D5") * det, a=0.3, d=0.1, s=0.8, r=0.25, vibrato=0.01)
+    for i, nm in enumerate(["G5", "B5", "D6", "G6", "B6"]):
+        pluck(b, 0.32 + i * 0.07, 0.42 - i * 0.04, note_freq(nm), 0.18, bright=1.3, damp=2.2)
+    noise_burst(b, R, 0.0, 0.82, 0.035, decay=1.5, lowpass=0.97)
+
+
+def song_discord(b):
+    """An out-of-tune clash: a tritone pluck, beating detuned saws, a bent-down whine and grit."""
+    pluck(b, 0.0, 0.55, note_freq("C5"), 0.42, bright=0.9, damp=1.2)
+    pluck(b, 0.012, 0.55, note_freq("F#5"), 0.4, bright=0.9, damp=1.2)
+    for f in (311.0, 329.0, 349.0):
+        tone(b, R, 0.02, 0.5, f, "saw", 0.07, f * 0.94, a=0.02, d=0.1, s=0.7, r=0.2, vibrato=0.03)
+    tone(b, R, 0.05, 0.42, 880, "sine", 0.14, 600, a=0.01, d=0.1, s=0.6, r=0.18, vibrato=0.025)
+    noise_burst(b, R, 0.0, 0.3, 0.3, decay=9, lowpass=0.35)
+
+
+def drum_boom(b):
+    """A war drum: a flam (grace hit then the main hit), a deep pitch-dropping kick, the skin
+    slap and a short room rumble."""
+    tone(b, R, 0.0, 0.14, 150, "sine", 0.26, 70, a=0.001, d=0.05, s=0.3, r=0.06)
+    noise_burst(b, R, 0.0, 0.05, 0.16, decay=60, lowpass=0.4)
+    tone(b, R, 0.06, 0.42, 118, "sine", 0.48, 42, a=0.001, d=0.12, s=0.55, r=0.22)
+    tone(b, R, 0.06, 0.18, 230, "tri", 0.15, 110, a=0.001, d=0.06, s=0.3, r=0.08)
+    noise_burst(b, R, 0.06, 0.12, 0.32, decay=30, lowpass=0.3)
+    noise_burst(b, R, 0.1, 0.48, 0.16, decay=5.5, lowpass=0.05)
+
+
 SOUNDS = {
     "shield_bash": shield_bash, "shield_quake": shield_quake, "shield_taunt": shield_taunt,
     "shield_throw": shield_throw, "shield_holy": shield_holy, "fairy_heal": fairy_heal,
     "fairy_twirl": fairy_twirl, "star_charge": star_charge, "star_release": star_release, "star_beat": star_beat,
     "blade_swish": blade_swish, "blade_throw": blade_throw, "shadow_vanish": shadow_vanish, "venom_hiss": venom_hiss,
     "shadow_dark": shadow_dark,
+    "lute_strum": lute_strum, "song_rise": song_rise, "song_discord": song_discord, "drum_boom": drum_boom,
 }
 
 

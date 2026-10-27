@@ -1587,5 +1587,180 @@
     "family": "darklord",
     "palette": "royal",
     "art_sha256": "e39a31dd878ced4333d9ae6ec22a4aa5459e9201c8dc36e012ddd33f7853413f"
+  },
+  {
+    "id": "staccato_shot",
+    "name": "Staccato Shot",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "b1d283c5206d8fe5ff2d9cef61189eb9a96f38f05b8d2004418a819014aba62e"
+  },
+  {
+    "id": "valor_march",
+    "name": "Valor March",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "cf65785cd851e68494e1058fcd3a51af63946aff5b9333cb433c28ca3e2c0d21"
+  },
+  {
+    "id": "resonance",
+    "name": "Resonance",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "eaf811b69859a4868143fbcd0ff0d9fd7cac13010ebeffaad6a791c4abdef52b"
+  },
+  {
+    "id": "sorrow_note",
+    "name": "Sorrow Note",
+    "family": "bard",
+    "palette": "lament",
+    "art_sha256": "08eb62b4f02a5596de663a858b132382818964c40b58ed8ea405afc6ac02eb50"
+  },
+  {
+    "id": "discord",
+    "name": "Discord",
+    "family": "bard",
+    "palette": "dissonance",
+    "art_sha256": "492244edb47d9a518b905b2dc9acfe1b2681e63d29b6800134f5a84836422798"
+  },
+  {
+    "id": "iron_ballad",
+    "name": "Iron Ballad",
+    "family": "bard",
+    "palette": "gold",
+    "art_sha256": "aae7b973209c394eea4f2c71bb95aefdc907e735c821028683a0d0e4c550f6b7"
+  },
+  {
+    "id": "triad_chord",
+    "name": "Triad Chord",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "f12df39a47a38d7d5f301006877dd3ae5125fa0a31364cfce85e7a50e7282ef2"
+  },
+  {
+    "id": "echo_chain",
+    "name": "Echo Chain",
+    "family": "bard",
+    "palette": "frost",
+    "art_sha256": "850254df25b3e26a8fee8819a2d1d45b98e8ef3c28743caf9b45880a0ea0c71c"
+  },
+  {
+    "id": "war_drum",
+    "name": "War Drum",
+    "family": "bard",
+    "palette": "earth",
+    "art_sha256": "c89475aee5acb5031be04df9ca1c76f233be88fba87585156f7e189942b53f80"
+  },
+  {
+    "id": "heartstring",
+    "name": "Heartstring",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "4977d7e7b395d3d7a53de51d3f222b70df0cc329c0c89fb81fe02db61fe93eba"
+  },
+  {
+    "id": "virtuoso",
+    "name": "Virtuoso",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "acd16b5458cfaf798497dae4d2bb57267f7e1fddecebf6fd8db237f9d30f45bc"
+  },
+  {
+    "id": "heroic_anthem",
+    "name": "Heroic Anthem",
+    "family": "bard",
+    "palette": "gold",
+    "art_sha256": "ad3344eb2c63b9f8c317d5b128a6fcc94ecbc2b0c52ead95d3c8164753851626"
+  },
+  {
+    "id": "slumber_lullaby",
+    "name": "Slumber Lullaby",
+    "family": "bard",
+    "palette": "frost",
+    "art_sha256": "0f3371023ff97b28e73099d05c9c9c4c50869c9d08ebc48de8b7aeb3c11a68f4"
+  },
+  {
+    "id": "lament",
+    "name": "Lament",
+    "family": "bard",
+    "palette": "lament",
+    "art_sha256": "14b925a38b16ed8516a9789d1557707c0afdbee90de9c438602c73d3632652cc"
+  },
+  {
+    "id": "cascade",
+    "name": "Cascade of Notes",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "fd85f3098463117333ba50ad8d4aa95b256a634566d47901d421415df82928de"
+  },
+  {
+    "id": "sanctuary_serenade",
+    "name": "Sanctuary Serenade",
+    "family": "bard",
+    "palette": "gold",
+    "art_sha256": "4d6c9ed35828c84e7208840789f52e66aa4b743e59c9817a8c22d2c523e54e5c"
+  },
+  {
+    "id": "fortissimo",
+    "name": "Fortissimo",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "540a3fa7198b028388b7ff4066a1382ef18f67ca2a638c0e966f030fd31c1373"
+  },
+  {
+    "id": "shattering_rhapsody",
+    "name": "Shattering Rhapsody",
+    "family": "bard",
+    "palette": "storm",
+    "art_sha256": "03c450d530cc1dd326536633a8b07e47cc61d05483a860aae6aaa6c5f093cf5d"
+  },
+  {
+    "id": "maestro_fervor",
+    "name": "Maestro's Fervor",
+    "family": "bard",
+    "palette": "gold",
+    "art_sha256": "dabeca3a4cc3da1598bb3afa8a5cc35ef7ec99cc840e7947dadefba9fb56c84c"
+  },
+  {
+    "id": "grand_dissonance",
+    "name": "Grand Dissonance",
+    "family": "bard",
+    "palette": "dissonance",
+    "art_sha256": "618f8896fdeb2a436fe592a18777e9033d99c001d5cb3693587de0920ae98f5b"
+  },
+  {
+    "id": "aria_of_ruin",
+    "name": "Aria of Ruin",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "77db33cbe87fa5b1aabd8d1cfc08357d18207438af257dc62cc1371128a729cd"
+  },
+  {
+    "id": "eternal_echo",
+    "name": "Eternal Echo",
+    "family": "bard",
+    "palette": "frost",
+    "art_sha256": "f693029fe81a861dc5f3d811138c2b967065001f9c2210d94bf0faca1596acd0"
+  },
+  {
+    "id": "thunder_crescendo",
+    "name": "Thunder Crescendo",
+    "family": "bard",
+    "palette": "storm",
+    "art_sha256": "00f5f9d76c33a90f6cd122e71a342ba8c31f752aaa25a8bbbf8fe3173a09fb1c"
+  },
+  {
+    "id": "hymn_of_legends",
+    "name": "Hymn of Legends",
+    "family": "bard",
+    "palette": "gold",
+    "art_sha256": "5ceb509376ecf1047d51f48780f8f66a7856abcd59c5b6b278595980d442d5ab"
+  },
+  {
+    "id": "grand_finale",
+    "name": "Grand Finale",
+    "family": "bard",
+    "palette": "melody",
+    "art_sha256": "f8f540a71099cc6fd39f09d72109a5018172be2d0a3d47c02422cdd4885fbd3a"
   }
 ]

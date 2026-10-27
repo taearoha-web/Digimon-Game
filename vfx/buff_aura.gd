@@ -117,6 +117,9 @@ func _build() -> void:
 	target.z *= 1.0 + lane * 0.065
 	_body.scale = target * 0.85
 	_body.create_tween().tween_property(_body, "scale", target, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if look.shape == "note" and VfxBudget.quality() > 0 and is_inside_tree():
+		# A Bard's song reaches this member: a puff of notes rises round them (one GPU draw, gone in 0.9 s).
+		ShaderBurst.emit(self, global_position + Vector3.UP * 1.1, look.primary, "note", 8, "rise", 1.4, 0.6, 0.9, 0.3)
 
 func _process(delta: float) -> void:
 	_age += delta

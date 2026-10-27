@@ -25,6 +25,10 @@ const PALETTES := {
 	"venom": [Color("8be260"), Color("f4ffd9"), Color("3a2a5c")],
 	"royal": [Color("e8b64a"), Color("fff4d0"), Color("8a1a2a")],
 	"darkforce": [Color("8a4dff"), Color("f0e2ff"), Color("2a0f4a")],
+	# Bard: rose music, the violet discord that cracks armour, the blue lament that saps strength.
+	"melody": [Color("ff8fcf"), Color("fff0f8"), Color("6a1a4a")],
+	"dissonance": [Color("b07aff"), Color("f2e6ff"), Color("2a1040")],
+	"lament": [Color("8fb8ff"), Color("f0f6ff"), Color("3a2a7a")],
 }
 
 const RECIPES := {
@@ -265,6 +269,32 @@ const RECIPES := {
 	"earth_dominion": ["quake", "royal", 8, -0.50, 0.92],
 	"emperors_command": ["wings", "royal", 7, 0.50, 1.10],
 	"imperial_judgment": ["sigil", "royal", 8, 0.90, 1.15],
+	# Bard: a lute, notes and songs; violet discords crack armour, blue laments sap strength.
+	"staccato_shot": ["arrow", "melody", 2, 0.12, 0.34],
+	"valor_march": ["bloom", "melody", 4, 0.45, 0.85],
+	"resonance": ["tide", "melody", 3, 0.55, 0.50],
+	"sorrow_note": ["lance", "lament", 2, 0.30, 0.40],
+	"discord": ["sigil", "dissonance", 4, 0.60, 0.55],
+	"iron_ballad": ["guard", "gold", 4, 0.30, 0.85],
+	"triad_chord": ["sweep", "melody", 3, 0.35, 0.40],
+	"echo_chain": ["bolt", "frost", 3, 0.50, 0.45],
+	"war_drum": ["quake", "gold", 4, 0.25, 0.50],
+	"heartstring": ["lance", "melody", 3, 0.15, 0.40],
+	"virtuoso": ["wings", "melody", 5, 0.40, 0.80],
+	"heroic_anthem": ["sun", "gold", 6, 0.45, 0.90],
+	"slumber_lullaby": ["rain", "frost", 5, 0.55, 0.70],
+	"lament": ["rain", "lament", 5, 0.65, 0.60],
+	"cascade": ["gale", "melody", 5, 0.50, 0.50],
+	"sanctuary_serenade": ["guard", "grace", 6, 0.50, 0.95],
+	"fortissimo": ["roar", "melody", 4, 0.20, 0.48],
+	"shattering_rhapsody": ["bolt", "dissonance", 6, 0.55, 0.62],
+	"maestro_fervor": ["wings", "gold", 6, 0.40, 0.90],
+	"grand_dissonance": ["sigil", "dissonance", 8, 0.70, 0.85],
+	"aria_of_ruin": ["lance", "melody", 6, 0.20, 0.70],
+	"eternal_echo": ["bolt", "frost", 7, 0.55, 0.65],
+	"thunder_crescendo": ["quake", "storm", 8, 0.60, 0.90],
+	"hymn_of_legends": ["crown", "gold", 8, 0.50, 1.00],
+	"grand_finale": ["sun", "melody", 9, 0.85, 1.20],
 }
 
 
