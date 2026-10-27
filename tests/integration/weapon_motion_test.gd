@@ -87,7 +87,7 @@ func grip(item: Node3D, kind: String) -> Vector3:
 
 func _source_grip(item: Node3D, kind: String) -> Vector3:
 	match kind:
-		"dagger", "greatshield", "scepter":
+		"dagger", "greatshield", "scepter", "lute":
 			# Authored / imported with the grip at the origin.
 			return Vector3.ZERO
 		"sword":
@@ -166,6 +166,11 @@ func _ready() -> void:
 						clips.append(String(clip))
 			if family == &"archer":
 				clips.append("2H_Ranged_Shooting")
+			if family == &"bard":
+				# The lute stays on the neck through the stance and every clip it plays.
+				for clip in ["Spellcasting"] + WeaponPoses.BARD_LEFT_CLIPS:
+					if clip not in clips:
+						clips.append(clip)
 			for clip in clips:
 				var last: Array[Quaternion] = []
 				for frame in 61:
