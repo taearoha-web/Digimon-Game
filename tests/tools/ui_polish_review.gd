@@ -14,7 +14,7 @@ func _ready() -> void:
 	var main := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await get_tree().create_timer(0.3).timeout
-	_check(main.title_screen._preview != null, "title uses a live selected hero preview")
+	_check(main.title_screen.stage != null and main.title_screen.stage.camera != null, "title shows the hero platform stage")
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null

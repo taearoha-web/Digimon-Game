@@ -407,11 +407,29 @@ func slot_info(for_slot: int) -> Dictionary:
 	var raw := _read_slot(for_slot)
 	if raw.is_empty():
 		return {}
+	return _slot_summary(raw)
+
+
+## slot_info plus the look and worn gear (slot_profile_preview) from one read of the
+## file: the character select shows all ten slots at once.
+func slot_overview(for_slot: int) -> Dictionary:
+	var raw := _read_slot(for_slot)
+	if raw.is_empty():
+		return {}
+	var out := _slot_summary(raw)
+	var repaired := _repair(raw)
+	out["look"] = repaired.get("look", {})
+	out["equip"] = repaired.equip
+	return out
+
+
+func _slot_summary(raw: Dictionary) -> Dictionary:
 	return {
 		"class": String(raw.get("class", "warrior")), "name": String(raw.get("name", "?")),
 		"level": int(raw.get("level", 1)), "adv": int(raw.get("adv", 0)), "zone": String(raw.get("zone", "town")),
 		"play_time": float(raw.get("play_time", 0.0)), "saved_at": int(raw.get("saved_at", 0)),
 		"rank": int(raw.get("pvp", {}).get("rp", 0)) if raw.get("pvp", {}) is Dictionary else 0,
+		"stars": int(raw.get("paragon", {}).get("level", 0)) if raw.get("paragon", {}) is Dictionary else 0,
 	}
 
 

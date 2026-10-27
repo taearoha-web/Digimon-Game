@@ -127,13 +127,17 @@ func _reload_imported_profile() -> void:
 	Game.playing = true
 	await go(Game.current_zone, false, true)
 
-func _show_title() -> void:
+## [param arrival]: a hero was just created in that slot and lands on its circle.
+func _show_title(arrival := 0) -> void:
 	_clear_zone()
 	hud.visible = false
 	if class_screen:
 		class_screen.queue_free()
 		class_screen = null
+	if title_screen:
+		title_screen.queue_free()
 	var screen := MainMenu.new()
+	screen.arrival_slot = arrival
 	title_screen = screen
 	add_child(screen)
 	screen.new_game_pressed.connect(_show_class_select)
@@ -148,14 +152,12 @@ func _show_class_select(slot: int) -> void:
 	var screen := ClassSelect.new()
 	class_screen = screen
 	add_child(screen)
-	screen.cancelled.connect(_show_title)
+	screen.cancelled.connect(func(): _show_title())
+	# The new hero is saved in its slot and lands on its circle of the character
+	# select (slot N on circle N); "เริ่มผจญภัย" then starts the game.
 	screen.confirmed.connect(func(class_id: StringName, hero_name: String, look: Dictionary):
 		Game.new_profile(class_id, hero_name, look)
-		screen.queue_free()
-		class_screen = null
-		hud.visible = true
-		Game.playing = true
-		await go(&"town", true))
+		_show_title(slot))
 
 
 func _continue(slot: int) -> void:
