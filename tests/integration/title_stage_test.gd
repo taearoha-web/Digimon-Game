@@ -78,7 +78,7 @@ func _check_empty() -> void:
 	check(not menu._play.visible and not menu._delete.visible, "nothing to play or delete without a hero")
 	check(menu._create.visible and not menu._create.disabled, "the create button is there")
 	var backdrop: MeshInstance3D = menu.stage.get_node("Backdrop")
-	var tex: Texture2D = (backdrop.material_override as StandardMaterial3D).albedo_texture
+	var tex: Texture2D = (backdrop.material_override as ShaderMaterial).get_shader_parameter("image")
 	check(tex != null and tex.get_width() == 1536 and tex.get_height() == 1024, "the painting is the backdrop")
 	var emitted := [0]
 	menu.new_game_pressed.connect(func(slot: int): emitted[0] = slot)
@@ -132,7 +132,12 @@ func _check_heroes() -> void:
 	await frames(3)
 	check(menu._selected == 1 or stage.heroes.has(menu._selected), "a hero is selected")
 	menu._on_tap(stage.spot_screen(3) + Vector2(0, -20))
-	check(menu._selected == 3 and stage.selected == 3 and stage._ring.visible, "tapping hero 3 selects it and lights its circle")
+	check(menu._selected == 3 and stage.selected == 3, "tapping hero 3 selects it")
+	await get_tree().create_timer(0.5).timeout
+	var mat := (stage.get_node("Backdrop") as MeshInstance3D).material_override as ShaderMaterial
+	check(is_equal_approx(stage.gold_amount(), 1.0), "hero 3's circle has turned gold")
+	check((mat.get_shader_parameter("circle_centre") as Vector2).distance_to((TitleStage.SPOTS[2][0] as Vector2) / TitleStage.IMAGE_SIZE) < 0.001, "the gold circle is circle 3")
+	check(is_zero_approx(float(mat.get_shader_parameter("old_amount"))), "the circle picked before is blue again")
 	check(menu._play.visible and menu._delete.visible and menu._name.text == "สาม", "the bar shows the selected hero")
 	var played := [0]
 	menu.continue_pressed.connect(func(slot: int): played[0] = slot)

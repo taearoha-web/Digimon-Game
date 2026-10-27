@@ -29,6 +29,10 @@ const BACKDROP_DEPTH := 120.0
 const HERO_TO_CIRCLE := 0.78
 ## Height / width of the painted circle ellipses, back row and front row.
 const ROW_FLATTENING := [0.29, 0.34]
+## Centre (px) of the number crystal above each row's circles, and its half-size.
+const GEM_Y := [352.0, 605.0]
+const GEM_HALF := Vector2(25, 37)
+const BACKDROP_SHADER := preload("res://shaders/title_stage.gdshader")
 const SKY := Color("4f9be6")
 const GOLD := Color("ffd36a")
 
@@ -40,8 +44,7 @@ var selected := 0
 var image_rect := Rect2()
 var _backdrop: MeshInstance3D
 var _texture: Texture2D
-var _ring: Node3D
-var _ring_tween: Tween
+var _glow_tween: Tween
 var _canvas := Vector2(1280, 720)
 
 
@@ -80,17 +83,13 @@ func _ready() -> void:
 	_backdrop.name = "Backdrop"
 	var quad := QuadMesh.new()
 	_backdrop.mesh = quad
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_texture = _texture
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	mat.disable_receive_shadows = true
+	# The painting's own shader turns the selected hero's blue circle gold.
+	var mat := ShaderMaterial.new()
+	mat.shader = BACKDROP_SHADER
+	mat.set_shader_parameter("image", _texture)
 	_backdrop.material_override = mat
 	_backdrop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_backdrop)
-	_ring = _make_ring()
-	_ring.visible = false
-	add_child(_ring)
 
 
 ## Fits the painting and every hero to a canvas of [param canvas] (the viewport's
@@ -108,8 +107,6 @@ func layout(canvas: Vector2) -> void:
 	_backdrop.global_transform = Transform3D(camera.global_basis, camera.project_position(image_rect.get_center(), BACKDROP_DEPTH))
 	for slot in heroes:
 		_place(int(slot))
-	if selected > 0 and heroes.has(selected):
-		_place_ring(selected)
 
 
 ## Where the painting lies on a canvas: a cover fit centred on KEEP; a screen too
@@ -251,60 +248,51 @@ func slot_at(point: Vector2) -> int:
 	return best
 
 
-## Lights the circle under [param slot] (0 clears it) and lets that hero cheer.
+## Turns the circle under [param slot] gold (0: none) and lets that hero cheer; the
+## circle selected before fades back to blue.
 func select(slot: int) -> void:
-	if slot == selected and (slot == 0 or _ring.visible):
+	var next := slot if heroes.has(slot) else 0
+	if next == selected and (next == 0 or gold_amount() > 0.0):
 		return
-	selected = slot if heroes.has(slot) else 0
-	_ring.visible = selected > 0
+	var mat := _backdrop.material_override as ShaderMaterial
+	if _glow_tween:
+		_glow_tween.kill()
+	# The old gold circle becomes the fading set; the new one fades in.
+	var previous := selected
+	if previous > 0:
+		_set_spot(mat, "old_", previous)
+		mat.set_shader_parameter("old_amount", float(mat.get_shader_parameter("amount")))
+	else:
+		mat.set_shader_parameter("old_amount", 0.0)
+	selected = next
+	if selected > 0:
+		_set_spot(mat, "", selected)
+	mat.set_shader_parameter("amount", 0.0)
+	_glow_tween = create_tween().set_parallel()
+	_glow_tween.tween_method(func(v: float): mat.set_shader_parameter("old_amount", v), float(mat.get_shader_parameter("old_amount")), 0.0, 0.22)
+	if selected > 0:
+		_glow_tween.tween_method(func(v: float): mat.set_shader_parameter("amount", v), 0.0, 1.0, 0.28).set_trans(Tween.TRANS_SINE)
 	if selected == 0:
 		return
-	_place_ring(selected)
 	var visual: HeroVisual = heroes[selected].visual
 	if visual.anim and visual.anim.has_animation("Cheer"):
 		visual.action("Cheer")
 
 
-func _place_ring(slot: int) -> void:
-	var entry: Dictionary = heroes[slot]
-	var feet: Vector3 = entry.feet
-	_ring.global_position = Vector3(feet.x, 0.03, feet.z)
-	# Sized on screen to the painted ellipse: its width, and its height from the
-	# painting's own flattening (the painting is nearly orthographic, the camera is not).
-	var right := Vector3(camera.global_basis.x.x, 0.0, camera.global_basis.x.z).normalized()
-	var ahead := Vector3(-camera.global_basis.z.x, 0.0, -camera.global_basis.z.z).normalized()
-	var at := camera.unproject_position(feet)
-	var px_across := absf(camera.unproject_position(feet + right).x - at.x)
-	var px_deep := absf(camera.unproject_position(feet + ahead).y - at.y)
-	var width := spot_width(slot) * 0.5
-	var height := width * float(ROW_FLATTENING[0 if slot <= 5 else 1])
-	_ring.basis = Basis(right * (width / maxf(px_across, 0.001)), Vector3.UP, -ahead * (height / maxf(px_deep, 0.001)))
+## How gold the selected circle is now (0..1).
+func gold_amount() -> float:
+	return float((_backdrop.material_override as ShaderMaterial).get_shader_parameter("amount"))
 
 
-## A gold ring of light hugging the painted circle, breathing slowly.
-func _make_ring() -> Node3D:
-	var holder := Node3D.new()
-	holder.name = "SelectRing"
-	var ring := MeshInstance3D.new()
-	ring.mesh = VfxKit.torus_mesh(0.9, 1.0, 48, 6)
-	ring.scale = Vector3(1.0, 0.02, 1.0)
-	# Alpha-blended, not additive: added onto the painted blue-white circle a gold
-	# glow turns white.
-	ring.material_override = VfxKit._glow(Color("ffb22e"), 0.9, false)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	holder.add_child(ring)
-	var glow := MeshInstance3D.new()
-	glow.mesh = VfxKit.quad(Vector2(2.3, 2.3))
-	var gmat := VfxKit._glow(Color("ffc24a"), 0.55)
-	gmat.albedo_texture = VfxKit.soft_dot()
-	glow.material_override = gmat
-	glow.rotation_degrees = Vector3(-90, 0, 0)
-	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	holder.add_child(glow)
-	_ring_tween = holder.create_tween().set_loops()
-	_ring_tween.tween_property(gmat, "albedo_color:a", 0.25, 0.9).set_trans(Tween.TRANS_SINE)
-	_ring_tween.tween_property(gmat, "albedo_color:a", 0.6, 0.9).set_trans(Tween.TRANS_SINE)
-	return holder
+## Where circle [param slot] and its number crystal are in the painting, as UV.
+func _set_spot(mat: ShaderMaterial, prefix: String, slot: int) -> void:
+	var spot: Array = SPOTS[slot - 1]
+	var centre: Vector2 = spot[0]
+	var half := Vector2(float(spot[1]) * 0.5, float(spot[1]) * 0.5 * float(ROW_FLATTENING[0 if slot <= 5 else 1]))
+	mat.set_shader_parameter(prefix + "circle_centre", centre / IMAGE_SIZE)
+	mat.set_shader_parameter(prefix + "circle_half", half / IMAGE_SIZE)
+	mat.set_shader_parameter(prefix + "gem_centre", Vector2(centre.x, float(GEM_Y[0 if slot <= 5 else 1])) / IMAGE_SIZE)
+	mat.set_shader_parameter(prefix + "gem_half", GEM_HALF / IMAGE_SIZE)
 
 
 ## The new hero lands in a column of light on its circle.
