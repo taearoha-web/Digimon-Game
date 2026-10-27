@@ -108,6 +108,12 @@ func _progress() -> void:
 ## Everyone starts as a Vagabond and takes the roster's class at Lv.10, like a player at
 ## the Job Master; a member sheet follows the change and says so.
 func _vagabonds() -> void:
+	# A freshly reopened world: everyone a beginner, a Vagabond, in no guild.
+	var fresh := true
+	for i in WorldPlayers.size():
+		var f := WorldPlayers.state(i, float(WorldPlayers.START_UNIX) + 60.0)
+		fresh = fresh and int(f.level) <= 3 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
+	check(fresh, "when the world opens everyone is a beginner Vagabond with no guild")
 	for i in WorldPlayers.size():
 		var e := WorldPlayers.entry(i)
 		var before := {}

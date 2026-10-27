@@ -13,9 +13,10 @@ extends RefCounted
 ## its level (WorldPresence shows it there, fighting the field's monsters for real).
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
 
-## The world opened here (unix seconds; 26 Oct 2026, 07:00 Thai time): every world
-## player started at Lv.1.
-const START_UNIX := 1792972800
+## The world (re)opened here (unix seconds; 27 Oct 2026, 22:10 Thai time): every world
+## player starts again at Lv.1 as a Vagabond with no guild. Moving this resets them all
+## (the party EXP kept on a device belongs to one opening and is dropped with it).
+const START_UNIX := 1793113800
 ## Schedules run on Thai time.
 const TZ := 7 * 3600
 const DAY := 86400
@@ -326,7 +327,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"bonus": bonus}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus}))
 		_bonus_dirty = false
 
 
@@ -341,6 +342,10 @@ static func _load_bonus() -> void:
 		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary or not parsed.get("bonus") is Dictionary:
+		return
+	# Party EXP from an earlier opening of the world is forgotten.
+	if int(parsed.get("start", 0)) != START_UNIX:
+		_bonus_dirty = true
 		return
 	for key in parsed.bonus:
 		var value: Variant = parsed.bonus[key]
