@@ -115,8 +115,8 @@ func _war(staged: bool) -> void:
 	for side in [m.allies, m.enemies]:
 		var has_support: bool = side == m.allies and GuildWarData.is_support(Game.class_id())
 		for f in side:
-			has_support = has_support or f.is_healer() or f.fighter_class() == &"summoner"
-		check(has_support, "%s: each guild fields a healer or a summoner" % label)
+			has_support = has_support or GuildWarData.is_support(f.fighter_class())
+		check(has_support, "%s: each guild fields a support (a healer, a summoner or a bard)" % label)
 	# The countdown, then the fight.
 	m._timer = 0.05
 	await _frames(6)

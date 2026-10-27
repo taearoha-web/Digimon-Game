@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
 ## Hero classes: the Vagabond (Lv.1-9) and the lines chosen at Lv.10 (sword,
-## bow, mage, priest, summoner, spear, great shield, twin daggers, scepter and raven). Each class has a pool of active skills modelled on
+## bow, mage, priest, summoner, spear, great shield, twin daggers, scepter and raven, lute). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -19,14 +19,14 @@ const START: StringName = &"vagabond"
 const LINE_LEVEL := 10
 const SLOTS := 8
 ## The four lines picked at Lv.10 (also the AI companion classes).
-const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord"]
+const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
 
 const CLASSES := {
 	&"vagabond": {
 		"name": "นักเดินทาง",
 		"title": "ผู้ยังไม่เลือกเส้นทาง",
 		"badge": "V",
-		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช ผู้เรียกอสูร นักหอก หรือสายโล่",
+		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช ผู้เรียกอสูร นักหอก สายโล่ นักฆ่ามีดคู่ ดาร์กลอร์ด หรือนักดนตรี",
 		"model": "Rogue",
 		"weapon": "sword_1handed",
 		"offhand": "",
@@ -231,6 +231,27 @@ const CLASSES := {
 			"anims": ["1H_Melee_Attack_Chop", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal"],
 		},
 	},
+	&"bard": {
+		"name": "นักดนตรี",
+		"title": "ผู้บรรเลงพิณพเนจร",
+		"badge": "B",
+		"desc": "นักดนตรี — ดีดพิณยิงโน้ตใส่ศัตรู บรรเลงเพลงเสริมพลังทั้งปาร์ตี้ (เพลงมีช่องของตัวเอง ไม่แย่งช่องบัฟใคร) ทำให้ศัตรูเกราะแตกและอ่อนแรง กล่อมฝูงศัตรูให้หลับ ปิดม่านด้วยมหาคอนเสิร์ต (INT ตีแรง DEX เสริมเป็นรอง)",
+		"model": "Ranger",
+		"weapon": "lute",
+		"offhand": "",
+		"weapon_kind": "lute",
+		"color": Color("ff6fb5"),
+		"main": "int",
+		"sub": "dex",
+		"base": {"str": 4, "int": 13, "dex": 8, "vit": 8},
+		"gain": {"str": 0, "int": 3, "dex": 1, "vit": 2},
+		"hp_mult": 1.05,
+		"mp_mult": 1.25,
+		"attack": {
+			"range": 9.0, "interval": 0.9, "mult": 1.0, "hit_delay": 0.28, "projectile": true, "vfx": &"light",
+			"color": Color("ffb3dc"), "anims": ["Spellcast_Shoot"],
+		},
+	},
 }
 
 
@@ -312,6 +333,14 @@ const PASSIVES := {
 		{"id": "raven_bond", "name": "Raven Bond", "desc": "คริติคอล +1.5% ต่อดาว", "level": 40, "bonus": {"crit": 0.015}},
 		{"id": "dark_dominion", "name": "Dark Dominion", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "emperor_will", "name": "Emperor's Will", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
+	],
+	&"bard": [
+		{"id": "lute_mastery", "name": "Lute Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "breath_control", "name": "Breath Control", "desc": "MP สูงสุด +5% ต่อดาว", "level": 20, "bonus": {"mp": 0.05}},
+		{"id": "stage_presence", "name": "Stage Presence", "desc": "HP สูงสุด +4% ต่อดาว", "level": 30, "bonus": {"hp": 0.04}},
+		{"id": "perfect_pitch", "name": "Perfect Pitch", "desc": "คริติคอล +1.5% ต่อดาว", "level": 40, "bonus": {"crit": 0.015}},
+		{"id": "harmonic_power", "name": "Harmonic Power", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
+		{"id": "standing_ovation", "name": "Standing Ovation", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
 	],
 }
 
@@ -407,6 +436,7 @@ const TUNE := {
 	&"defender": [[1.395, 1.395], [1.647, 1.796], [1.8, 1.61]],
 	&"assassin": [[0.922, 0.922], [0.834, 0.834], [0.809, 0.809]],
 	&"darklord": [[0.95, 0.95], [0.85, 0.85], [0.95, 0.95]],
+	&"bard": [[0.80, 0.95], [0.95, 0.70], [0.92, 0.72]],
 }
 const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 
@@ -430,7 +460,7 @@ static func damage_curve(level: int) -> float:
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
 	mult *= damage_curve(level) * skill_tune(cls, level, false, shape)
 	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender" or cls == &"assassin" or cls == &"darklord"
-	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner"
+	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner" or cls == &"bard"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
 	match shape:
 		"single":
@@ -752,6 +782,47 @@ static func _build_pools() -> void:
 		_sk(k, "earth_dominion", "Earth Dominion", "ปกครองพสุธา แผ่นดินแยกถล่มรอบตัว ศัตรูมึนงง 1.5 วินาที", 92, 104, 14.0, "burst", 6, {"radius": 8.0, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": royal, "icon": "nova"}),
 		_sk(k, "emperors_command", "Emperor's Command", "ราชโองการจักรพรรดิ ทีม ATK +55% คริ +20% วิ่งเร็ว +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
 		_sk(k, "imperial_judgment", "Imperial Judgment", "คำพิพากษาจักรพรรดิ พลังมืด ไฟ และสายฟ้าระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 100, 130, 16.0, "burst", 10.5, {"radius": 9.0, "fx": {"stun": 1.5}, "anim": "Spellcast_Raise", "vfx": &"thunder", "color": royal, "icon": "nova"}),
+	]
+
+	# Bard: a lute, notes and songs. Rose and gold for the music, violet for the
+	# discords that crack armour, pale blue for the laments that sap strength.
+	var b := &"bard"
+	var rose := Color("ff6fb5")  # songs, the class accent
+	var tone := Color("ffb3dc")  # notes
+	var gilt := Color("f0c870")  # drums, ward songs
+	var disso := Color("b07aff")  # armour-cracking discords (shred)
+	var sorrow := Color("8fb8ff")  # strength-sapping laments (weaken)
+	var aqua := Color("9fe8ff")  # serenades, echoes
+	var tempest := Color("c79bff")  # thunder
+	var shine := Color("ffd36b")  # the great song
+	var dream := Color("a8c8ff")  # the lullaby
+	var note := {"projectile": true, "anim": "Spellcast_Shoot"}  # no vfx here: merged() never overwrites
+	_pools[b] = [
+		_sk(b, "staccato_shot", "Staccato Shot", "ดีดพิณยิงโน้ตแหลมพุ่งใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 10, 8, 2.6, "single", 2.8, note.merged({"range": 10.0, "hit_delay": 0.28, "vfx": &"light", "color": tone, "icon": "light"})),
+		_sk(b, "valor_march", "Valor March", "เพลง: มาร์ชกล้าหาญ ทั้งปาร์ตี้ ATK +15% วิ่งเร็ว +12% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"atk": 0.15, "speed": 0.12, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"aura", "color": rose, "icon": "bless"}),
+		_sk(b, "resonance", "Resonance", "ดีดคอร์ดก้องกังวาน คลื่นเสียงระเบิดรอบศัตรูเป้าหมาย ช้าลง 2 วินาที", 13, 14, 6.0, "blast", 2.6, {"radius": 3.8, "range": 10.0, "hit_delay": 0.42, "anim": "Spellcast_Shoot", "fx": {"slow": 2.0}, "vfx": &"impact", "color": tone, "icon": "nova"}),
+		_sk(b, "sorrow_note", "Sorrow Note", "โน้ตเศร้าสร้อยพุ่งใส่ศัตรูตัวเดียว ศัตรูอ่อนแรง โจมตีเบาลง 15% นาน 6 วินาที", 16, 16, 8.0, "single", 1.9, note.merged({"range": 10.0, "hit_delay": 0.3, "fx": {"weaken": [0.15, 6.0]}, "vfx": &"debuff", "color": sorrow, "icon": "light"})),
+		_sk(b, "discord", "Discord", "ดีดเสียงไม่ประสาน คลื่นเสียงเพี้ยนระเบิดใส่ฝูงศัตรู เกราะแตก 15% นาน 8 วินาที", 20, 20, 9.0, "blast", 2.4, {"radius": 4.2, "range": 10.0, "hit_delay": 0.45, "anim": "Spellcast_Shoot", "fx": {"shred": [0.15, 8.0]}, "vfx": &"debuff", "color": disso, "icon": "nova"}),
+		_sk(b, "iron_ballad", "Iron Ballad", "เพลง: บัลลาดเหล็กกล้า ฟื้นฟู HP 15% ทั้งปาร์ตี้ DEF +30% ลดความเสียหายที่ได้รับ 8% นาน 1 นาที", 24, 22, 30.0, "self", 0.0, {"fx": {"heal": 0.15, "buff": {"def": 0.3, "guard": 0.08, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"heal", "color": gilt, "icon": "shield"}),
+		_sk(b, "triad_chord", "Triad Chord", "ดีดคอร์ดสามเสียง ยิงโน้ต 3 ลูกแผ่เป็นพัด", 27, 26, 8.0, "fan", 2.5, {"hits": 3, "range": 11.0, "hit_delay": 0.26, "anim": "Spellcast_Shoot", "vfx": &"light", "color": tone, "icon": "triple"}),
+		_sk(b, "echo_chain", "Echo Chain", "โน้ตก้องสะท้อนกระโดดไปหาศัตรูสูงสุด 5 ตัว", 31, 30, 9.0, "chain", 3.0, {"hits": 5, "range": 10.0, "hit_delay": 0.3, "anim": "Spellcast_Shoot", "vfx": &"light", "color": aqua, "icon": "bolt"}),
+		_sk(b, "war_drum", "War Drum", "กระทืบเท้าตามจังหวะกลองศึก คลื่นเสียงกระหึ่มรอบตัว ศัตรูมึนงง 1.2 วินาที", 35, 30, 12.0, "burst", 2.6, {"radius": 5.0, "hit_delay": 0.4, "anim": "1H_Melee_Attack_Chop", "fx": {"stun": 1.2}, "vfx": &"impact", "color": gilt, "icon": "nova"}),
+		_sk(b, "heartstring", "Heartstring", "ดีดสายใจ โน้ตทรงพลังพุ่งใส่ศัตรูตัวเดียว ช้าลง 3 วินาที", 39, 34, 7.0, "single", 6.0, note.merged({"range": 10.0, "hit_delay": 0.32, "fx": {"slow": 3.0}, "vfx": &"light", "color": rose, "icon": "light"})),
+		_sk(b, "virtuoso", "Virtuoso", "ฝีมือขั้นเทพ (เฉพาะตัวเอง ไม่ใช่เพลง ใช้คู่กับเพลงได้) ATK +25% คริติคอล +12% นาน 1 นาที", 43, 36, 32.0, "self", 0.0, {"fx": {"buff": {"atk": 0.25, "crit": 0.12, "self_only": true, "secs": 60.0}}, "anim": "Spellcasting", "vfx": &"aura", "color": rose, "icon": "roar"}),
+		_sk(b, "heroic_anthem", "Heroic Anthem", "เพลง: เพลงชาติวีรชน ทั้งปาร์ตี้ ATK +40% คริติคอล +10% นาน 1 นาที", 47, 44, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "crit": 0.1, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"aura", "color": rose, "icon": "bless"}),
+		_sk(b, "slumber_lullaby", "Slumber Lullaby", "เพลงกล่อมนิทราโปรยโน้ตลงพื้นที่ ศัตรูหลับมึนงง 1.8 วินาที", 52, 50, 14.0, "blast", 3.6, {"radius": 5.5, "range": 11.0, "hit_delay": 0.5, "anim": "Spellcast_Long", "fx": {"stun": 1.8}, "vfx": &"aura", "color": dream, "icon": "rain"}),
+		_sk(b, "lament", "Lament", "บทเพลงคร่ำครวญถล่มฝูงศัตรู ศัตรูช้าลง 3 วินาทีและอ่อนแรง โจมตีเบาลง 20% นาน 8 วินาที", 56, 54, 12.0, "blast", 4.4, {"radius": 5.2, "range": 11.0, "hit_delay": 0.5, "anim": "Spellcast_Long", "fx": {"slow": 3.0, "weaken": [0.2, 8.0]}, "vfx": &"debuff", "color": sorrow, "icon": "nova"}),
+		_sk(b, "cascade", "Cascade of Notes", "โน้ตดนตรี 6 ลูกพรั่งพรูเป็นสายน้ำใส่ศัตรูหลายตัว", 60, 60, 11.0, "fan", 5.0, {"hits": 6, "range": 12.0, "hit_delay": 0.28, "anim": "Spellcast_Shoot", "vfx": &"light", "color": tone, "icon": "triple"}),
+		_sk(b, "sanctuary_serenade", "Sanctuary Serenade", "เพลง: เซเรเนดแห่งวิหาร ฟื้นฟู HP 25% ทั้งปาร์ตี้ DEF +40% ลดความเสียหายที่ได้รับ 12% โล่ดูดซับ 10% ของ HP นาน 1 นาที", 64, 70, 40.0, "self", 0.0, {"fx": {"heal": 0.25, "buff": {"def": 0.4, "guard": 0.12, "shield": 0.1, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"heal", "color": aqua, "icon": "shield"}),
+		_sk(b, "fortissimo", "Fortissimo", "ฟอร์ติสซิโม เสียงดังสุดขีดกระแทกศัตรูตัวเดียวทันที มึนงง 0.8 วินาที", 68, 64, 8.0, "single", 12.0, {"range": 10.0, "projectile": false, "hit_delay": 0.36, "anim": "Spellcast_Shoot", "fx": {"stun": 0.8}, "vfx": &"impact", "color": rose, "icon": "nova"}),
+		_sk(b, "shattering_rhapsody", "Shattering Rhapsody", "ราพโซดีสายฟ้าฟาดตามจังหวะถล่มฝูงศัตรู เกราะแตก 22% นาน 8 วินาที และช้าลง 3 วินาที", 72, 70, 13.0, "blast", 5.0, {"radius": 6.0, "range": 11.0, "hit_delay": 0.55, "anim": "Spellcast_Long", "fx": {"shred": [0.22, 8.0], "slow": 3.0}, "vfx": &"thunder", "color": tempest, "icon": "bolt"}),
+		_sk(b, "maestro_fervor", "Maestro's Fervor", "ไฟแห่งวาทยกร (เฉพาะตัวเอง ไม่ใช่เพลง ใช้คู่กับเพลงได้) ฟื้นฟู HP 20% ATK +35% คริติคอล +15% วิ่งเร็ว +12% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.15, "speed": 0.12, "self_only": true, "secs": 60.0}}, "anim": "Spellcasting", "vfx": &"aura", "color": gilt, "icon": "roar"}),
+		_sk(b, "grand_dissonance", "Grand Dissonance", "มหาเสียงไม่ประสานถล่มพื้นที่กว้าง ศัตรูเกราะแตก 25% และอ่อนแรง 20% นาน 8 วินาที", 80, 96, 15.0, "blast", 6.4, {"radius": 7.0, "range": 11.0, "hit_delay": 0.6, "anim": "Spellcast_Long", "fx": {"shred": [0.25, 8.0], "weaken": [0.2, 8.0]}, "vfx": &"debuff", "color": disso, "icon": "nova"}),
+		_sk(b, "aria_of_ruin", "Aria of Ruin", "อาเรียแห่งหายนะ โน้ตเสียงสูงสุดขีดผ่าลงศัตรูตัวเดียวอย่างรุนแรง", 84, 92, 10.0, "single", 17.0, {"range": 11.0, "projectile": false, "hit_delay": 0.6, "anim": "Spellcast_Raise", "vfx": &"light", "color": rose, "icon": "light"}),
+		_sk(b, "eternal_echo", "Eternal Echo", "เสียงก้องนิรันดร์ โน้ตสะท้อนกระโดดไปหาศัตรูสูงสุด 8 ตัว", 88, 96, 13.0, "chain", 4.8, {"hits": 8, "range": 12.0, "hit_delay": 0.3, "anim": "Spellcast_Shoot", "vfx": &"light", "color": aqua, "icon": "bolt"}),
+		_sk(b, "thunder_crescendo", "Thunder Crescendo", "เครสเชนโดสายฟ้า กลองฟ้าคำรามรอบตัว ศัตรูมึนงง 1.2 วินาทีและอ่อนแรง 24% นาน 8 วินาที", 92, 104, 14.0, "burst", 5.6, {"radius": 8.0, "hit_delay": 0.45, "anim": "1H_Melee_Attack_Chop", "fx": {"stun": 1.2, "weaken": [0.24, 8.0]}, "vfx": &"thunder", "color": tempest, "icon": "nova"}),
+		_sk(b, "hymn_of_legends", "Hymn of Legends", "เพลง: บทเพลงแห่งตำนาน ทั้งปาร์ตี้ ATK +55% คริติคอล +20% วิ่งเร็ว +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.2, "speed": 0.15, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"aura", "color": shine, "icon": "bless"}),
+		_sk(b, "grand_finale", "Grand Finale", "มหาคอนเสิร์ตปิดม่าน เวทีแสงและเสียงระเบิดถล่มพื้นที่กว้างมาก ศัตรูมึนงง 1.5 วินาที เกราะแตก 20% และอ่อนแรง 20% นาน 8 วินาที", 100, 140, 18.0, "blast", 10.5, {"radius": 9.5, "range": 12.0, "hit_delay": 0.9, "anim": "Spellcast_Long", "fx": {"stun": 1.5, "shred": [0.2, 8.0], "weaken": [0.2, 8.0]}, "vfx": &"light", "color": rose, "icon": "nova"}),
 	]
 
 	for star_class in IDS:
