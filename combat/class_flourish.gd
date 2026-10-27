@@ -8,6 +8,7 @@ extends RefCounted
 ##   defender            shield slams, quake rings, walls of light
 ##   assassin            twin crossing cuts, shadow smoke, violet night and a crimson edge
 ##   darklord            a royal gold crest, dark force motes and crackling bolts round the scepter
+##   bard                rose and gold notes, staff lines spiralling up a column, a lyre crest
 ##   archer              bow flare, bursting arrivals, glowing arrow storms
 ##   priest              heaven-sent columns, halos and sanctified circles
 ##   summoner            summoning seals, spirit vortices, bursts of growth
@@ -196,6 +197,9 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 	elif family == "darklord" and power(skill) >= 0.3:
 		# Dark force crackles round the Lord before the command is given.
 		_bolt_ring(parent, origin, c, 1.2 * s, 2 + int(power(skill) * 3.0))
+	elif family == "bard" and power(skill) >= 0.3:
+		# A ring of notes rises round the lute before the song or the strike.
+		_motes(parent, origin + Vector3.UP * 0.9, c[0], "note", 6 + int(power(skill) * 6.0), 0.7 * s, 0.0, duration + 0.4)
 
 
 ## Release: called once per cast by SkillShow.play (hero, companions, rivals).
@@ -312,6 +316,9 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 		_crescent(parent, at, yaw, 0.95, c[0], c[1], 1.0 * s * weight, 0.0, 0.9, c[2])
 		_crescent(parent, at, yaw, -0.95, SkillArtDirection.PALETTES.nightblood[0], c[1], 1.0 * s * weight, 0.04, -0.9, c[2])
 		_shadow_smoke(parent, at - Vector3.UP * 0.4, c, 0.5 * s, 8 + int(6 * p))
+	elif family == "bard" and _room(2):
+		# Every hit throws a few notes off the struck foe.
+		_motes(parent, at, c[0], "note", 7 if crit else 4, 0.3, 0.2, 0.6)
 
 
 ## Star skills (non-mage): every contact beat of StarSkillSequence gets the
@@ -368,6 +375,12 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			_slam(parent, ground, c[0], radius * 0.8, c[1], c[2])
 			_bolt_ring(parent, ground, c, radius * 0.6, 3 + index)
 			_column_ring(parent, ground, c, radius * 0.55, 4, 0.06)
+		"bard":
+			# A beat of the concert: notes thrown up on every beat, and on the first five columns
+			# like a staff of light (later beats stay light so the finale keeps its budget).
+			if index == 0:
+				_column_ring(parent, ground, c, radius * 0.5, 5, 0.06)
+			_motes(parent, ground, c[0], "note", 14 + 2 * index, radius * 0.45, 0.5, 1.2)
 		"assassin":
 			# Twin crescents cross over the mark, shadow bursts out of it and daggers fall.
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 1.0, c[0], c[1], 2.2 * s, 0.0, 1.4, c[2])
@@ -719,6 +732,9 @@ static func _release(parent: Node3D, skill: Dictionary, c: Array, origin: Vector
 				parent.create_tween().tween_interval(0.08).finished.connect(func():
 					if _alive(parent):
 						_spear_ring(parent, at + forward * 0.4, forward, c[2].lerp(c[0], 0.5), (1.0 + 1.0 * p) * s), CONNECT_ONE_SHOT)
+		"bard":
+			# The note leaves the rosette in a puff of little notes.
+			_motes(parent, at, c[0], "note", int(4 + 6 * p), 0.4 * s, 0.0, 0.6)
 		"archer":
 			if String(skill.shape) == "single" and _room(2):
 				var reach := minf(float(skill.get("range", 10.0)) * 0.5, 6.0)
@@ -762,6 +778,12 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 			VfxArt.ribbon_spiral(parent, origin, c[1], 3.0 + 1.5 * p, 3.0, 1.0, 0.8 * s)
 			VfxArt.ribbon_spiral(parent, origin, SkillArtDirection.PALETTES.darkforce[0], 2.4 + 1.5 * p, 2.0, 1.0, 1.0 * s)
 			VfxArt.crest(parent, origin, c[0], family, 1.4 * s, 1.2, randf() * TAU)
+		"bard":
+			# The song climbs: staff lines of rose and gold spiral up the column under the lyre crest.
+			VfxArt.ribbon_spiral(parent, origin, c[0], 3.0 + 1.5 * p, 2.5, 1.1, 0.8 * s)
+			VfxArt.ribbon_spiral(parent, origin, SkillArtDirection.PALETTES.gold[0], 2.4 + 1.5 * p, 2.0, 1.1, 1.05 * s)
+			VfxArt.crest(parent, origin, c[0], family, 1.4 * s, 1.2, randf() * TAU)
+			_motes(parent, origin, c[0], "note", int(10 + 12 * p), 1.0 * s, 0.4, 1.6)
 		"assassin":
 			# The caster melts into the dark: smoke rising round a violet and crimson spiral.
 			_shadow_smoke(parent, origin, c, 0.9 * s, 22, "rise")

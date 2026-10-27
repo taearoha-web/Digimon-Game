@@ -19,9 +19,9 @@ const STARS := 200
 const SKILL := 0.9
 ## Same class at most this many times in one guild (the hero counts for ours).
 const MAX_SAME_CLASS := 2
-## Every guild fields at least one of these (a healer or a summoner) so eight fighters
+## Every guild fields at least one of these (a healer, a summoner or a bard) so eight fighters
 ## are a team with support, not eight duelists.
-const SUPPORT_CLASSES: Array[StringName] = [&"priest", &"summoner"]
+const SUPPORT_CLASSES: Array[StringName] = [&"priest", &"summoner", &"bard"]
 ## Everything hurts this many times more in a war. A 200-star fighter's defence cuts almost
 ## all damage (against monsters that is what keeps the game steady), so between two such
 ## fighters a fall would take minutes; this brings a fall to about 15-30 seconds.

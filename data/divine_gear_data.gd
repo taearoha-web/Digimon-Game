@@ -8,8 +8,8 @@ const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots"]
 const PREMIUM := 1.4
 ## Mythic gear carries four bonus lines (spread over hp, mp, crit, atk, def).
 const MYTHIC_LINES := 4.0
-const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ", "defender":"ดาราจักรนิรันดร์", "assassin":"ราตรีสุริยคราส", "darklord":"จักรพรรดิอีกาทมิฬ"}
-const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่", "assassin":"มีดคู่", "darklord":"คทา"}
+const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ", "defender":"ดาราจักรนิรันดร์", "assassin":"ราตรีสุริยคราส", "darklord":"จักรพรรดิอีกาทมิฬ", "bard":"คีตาสวรรค์"}
+const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่", "assassin":"มีดคู่", "darklord":"คทา", "bard":"พิณ"}
 
 static func is_item(value: Variant) -> bool:
 	return value is Dictionary and value.get("collection", "") == COLLECTION
@@ -49,7 +49,7 @@ static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> D
 	# piece can reach (mythic Lv.300 with every bonus line on it) by 15%.
 	var main := "atk" if slot == "weapon" else "def"
 	stats[main] = maxi(int(stats.get(main, 0)), int(ceil(best_other_roll(slot) * 1.15)))
-	if cls in [&"mage", &"priest", &"summoner"] and stats.has("atk"):
+	if cls in [&"mage", &"priest", &"summoner", &"bard"] and stats.has("atk"):
 		stats["matk"] = stats.atk
 		stats.erase("atk")
 	if slot == "armor":
@@ -63,6 +63,7 @@ static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> D
 			&"mage": stats["matk"] = int(stats.get("matk", 0)) + 240; stats["mp"] = int(stats.get("mp", 0)) + 1000
 			&"priest": stats.hp += 1300; stats["mp"] = int(stats.get("mp", 0)) + 1000
 			&"summoner": stats["matk"] = int(stats.get("matk", 0)) + 200; stats.hp += 800
+			&"bard": stats["matk"] = int(stats.get("matk", 0)) + 200; stats.hp += 700
 	result.merge({"collection":COLLECTION, "star_tier":STARS, "star_class":String(cls), "class":String(cls),
 		"star_set":set_id(String(cls)), "set":set_id(String(cls)), "name":item_name(String(cls), slot)}, true)
 	result["look"] = look_of(result)

@@ -76,7 +76,7 @@ func _row(skill: Dictionary) -> Dictionary:
 			group = mult * SUMMON_HIT_SHARE * hits * float(spec.get("count", 1))
 			mult = mult * SUMMON_HIT_SHARE
 			notes.append("x%d every %.1fs" % [int(spec.get("count", 1)), float(spec.get("interval", 1.0))])
-	for key in ["stun", "slow", "burn", "taunt", "shred"]:
+	for key in ["stun", "slow", "burn", "taunt", "shred", "weaken"]:
 		if fx.has(key):
 			notes.append("%s %s" % [key, str(fx[key])])
 	if fx.has("heal"):
@@ -84,7 +84,8 @@ func _row(skill: Dictionary) -> Dictionary:
 	if fx.has("buff"):
 		var parts: PackedStringArray = []
 		for key in fx.buff:
-			if key != "secs":
+			# Flags such as "song" or "self_only" are bools, not strengths.
+			if key != "secs" and (fx.buff[key] is float or fx.buff[key] is int):
 				parts.append("%s %+d%%" % [key, int(round(float(fx.buff[key]) * 100.0))])
 		notes.append("buff %s %ds" % [" ".join(parts), int(fx.buff.get("secs", 0))])
 	return {"id": String(skill.id), "lv": int(skill.level), "star": int(skill.get("star", 0)), "kind": shape, "mult": mult, "group": group,

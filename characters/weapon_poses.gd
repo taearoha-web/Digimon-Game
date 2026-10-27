@@ -6,6 +6,9 @@ extends RefCounted
 
 const SAMPLES := 30.0
 const DIRECTORY := "res://assets/animations/weapon_poses/"
+## The Bard's clips (besides the stance, Spellcasting) in which only the left hand is
+## posed, holding the lute's neck below the chin.
+const BARD_LEFT_CLIPS := ["Cheer", "Spellcast_Shoot", "Spellcast_Raise", "Spellcast_Long", "1H_Melee_Attack_Chop", "Martial_GroundSlam"]
 ## Set only by tools/bake_weapon_poses.gd. Shipping builds load small baked
 ## arm tracks; creating a hero never performs animation sampling or IK.
 static var authoring := false
@@ -55,8 +58,13 @@ static func _bake(original: AnimationLibrary, skeleton: Skeleton3D, family: Stri
 		var carry := String(name) in ["Idle", "Running_A", "Running_B", "Walking_A", "Walking_B", "Fly_Hover", "Fly_Forward"] or (family == &"lancer" and String(name) == "2H_Melee_Idle")
 		var bow_shot := family == &"archer" and String(name) in ["2H_Ranged_Shoot", "2H_Ranged_Shooting"]
 		var spear := family == &"lancer" and (String(name).begins_with("2H_Melee_") or String(name).begins_with("Martial_") or String(name) in ["Block_Attack", "Blocking"])
-		if carry or bow_shot or spear:
-			library.add_animation(name, _build(source, original, skeleton, family, rig, String(name), carry, bow_shot, spear))
+		# The Bard keeps playing while it casts: both hands on the lute in the stance
+		# clip, the left hand alone on its neck in every other clip it plays (the right
+		# arm keeps its conducting, casting or chopping motion).
+		var bard_song := family == &"bard" and String(name) == "Spellcasting"
+		var bard_left := family == &"bard" and String(name) in BARD_LEFT_CLIPS
+		if carry or bow_shot or spear or bard_song or bard_left:
+			library.add_animation(name, _build(source, original, skeleton, family, rig, String(name), carry, bow_shot, spear, bard_song, bard_left))
 	return library
 
 
@@ -362,7 +370,65 @@ static func _along(axis: Vector3, right := Vector3.RIGHT) -> Basis:
 	return Basis(x, y, x.cross(y)).orthonormalized()
 
 
-static func _build(source: Animation, library: AnimationLibrary, skeleton: Skeleton3D, family: StringName, rig: Dictionary, name: String, carry: bool, bow_shot: bool, spear: bool) -> Animation:
+## Where the Bard holds its lute, per rig kind (the chibi's arms are short for its
+## torso, the KayKit body's long): "rose" is the rosette from the point between the
+## shoulders in the chest's frame (skeleton units), "neck" the direction of the neck,
+## "strum" where the right hand plays on the lute (held lute units from the neck grip).
+const BARD_HOLD := {
+	"chibi": {"rose": Vector3(-0.09, -0.135, 0.16), "neck": Vector3(0.86, 0.5, -0.08), "strum": Vector3(0.0, -0.31, 0.06)},
+	"kaykit": {"rose": Vector3(-0.2, -0.24, 0.64), "neck": Vector3(0.86, 0.5, -0.12), "strum": Vector3(0.0, -0.36, 0.07)},
+}
+
+
+## The Bard's lute, held across the body for one frame: the left hand on the neck, the
+## bowl before the belly and right hip, the neck up and out to the hero's left (never
+## across the face) and the soundboard facing forward. In the carry and stance clips
+## the right hand strums the strings; in [param bard_left] clips only the left arm is
+## posed and the right keeps its own motion. Placed in the chest's frame (+X the hero's
+## left, +Y up, +Z forward), so the lute turns with the body; all motion follows
+## [param phase], so loops close.
+static func _bard_hold(skeleton: Skeleton3D, local: Array[Transform3D], rig: Dictionary, body: Basis, name: String, phase: float, sway: float, moving: bool, bard_song: bool, bard_left: bool) -> void:
+	var global := _globals(skeleton, local)
+	var hold: Dictionary = BARD_HOLD["chibi" if skeleton.find_bone("RightHand") >= 0 else "kaykit"]
+	var centre: Vector3 = (global[rig.l.upper].origin + global[rig.r.upper].origin) * 0.5
+	var span: float = global[rig.l.upper].origin.distance_to(global[rig.r.upper].origin)
+	var rose: Vector3 = hold.rose
+	var neck: Vector3 = hold.neck
+	match name:
+		"Cheer":
+			# Held up at the chest, bouncing with the cheer; the right arm conducts.
+			rose += Vector3(0.02, 0.06 + 0.03 * sin(TAU * phase), 0.0) * span
+			neck = neck.lerp(Vector3(0.7, 0.7, -0.05), 0.5)
+		"Spellcast_Raise", "Spellcast_Long":
+			# Lifted out to the hero's left at chest height, tilted outward (at most 45 degrees).
+			var lift := smoothstep(0.12, 0.38, phase) * (1.0 - smoothstep(0.80, 0.96, phase))
+			rose += Vector3(0.3, 0.2, -0.05) * span * lift
+			neck = neck.lerp(Vector3(0.82, 0.55, 0.1), lift)
+		"Spellcast_Shoot":
+			# A small recoil as the note leaves the sound hole.
+			rose.z -= 0.08 * span * exp(-pow((phase - 0.41) / 0.08, 2.0))
+		"1H_Melee_Attack_Chop", "Martial_GroundSlam":
+			# Dips with the stomp of the war drum.
+			rose.y -= 0.1 * span * exp(-pow((phase - 0.43) / 0.10, 2.0))
+		_:
+			rose.y += sway * span * (0.04 if moving else 0.015)
+	# x points down to the hero's left, so z = x × y faces forward.
+	var lute_basis := body * _along(neck.normalized(), Vector3(0.7, -0.7, 0.0))
+	var scale := float(rig.scale)
+	var grip := centre + body * rose - lute_basis * WeaponKit.LUTE_ROSETTE * scale
+	if bard_left:
+		_hold(skeleton, local, rig.l, grip, lute_basis, "lute")
+		return
+	# The right hand over the strings, strumming (twice a loop in the stance).
+	var beat := sin(TAU * phase * (2.0 if bard_song else 1.0))
+	var strum := lute_basis * ((hold.strum as Vector3) + Vector3((0.05 if bard_song else 0.025) * beat, 0.0, 0.0)) * scale
+	var right_item: Basis = global[rig.r.slot].basis * (rig.r.correction as Basis) * WeaponGrip.mount("sword")
+	grip = _shared_grip(skeleton, local, rig, grip, {"l": lute_basis, "r": right_item}, {"l": Vector3.ZERO, "r": strum}, {"l": "lute", "r": "sword"})
+	_hold(skeleton, local, rig.l, grip, lute_basis, "lute")
+	_hold(skeleton, local, rig.r, grip + strum, right_item, "sword")
+
+
+static func _build(source: Animation, library: AnimationLibrary, skeleton: Skeleton3D, family: StringName, rig: Dictionary, name: String, carry: bool, bow_shot: bool, spear: bool, bard_song := false, bard_left := false) -> Animation:
 	var result := Animation.new()
 	result.length = source.length
 	result.loop_mode = source.loop_mode
@@ -437,6 +503,8 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 			var perch := left + Vector3(-0.22, -0.42, 0.62) * arm_length
 			perch.y += sway * arm_length * (0.02 if moving else 0.008)
 			_hold(skeleton, local, rig.l, perch, _along(Vector3(-0.9, 0.1, 0.4), Vector3.UP), "sword")
+		if family == &"bard" and (carry or bard_song or bard_left):
+			_bard_hold(skeleton, local, rig, body, name, phase, sway, moving, bard_song, bard_left)
 		if family == &"assassin" and carry:
 			# Twin daggers held low in front, points forward and a little out,
 			# edges up and down: the stance of a hunter ready to lunge.

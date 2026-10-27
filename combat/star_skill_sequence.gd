@@ -23,7 +23,7 @@ static func launch(hero: Hero, data: Dictionary, target: Mob, aim: Vector3) -> f
 	seq.center=Vector3(aim.x,0,aim.z)
 	seq.origin=hero.global_position
 	seq.forward=Vector3(sin(hero._facing),0,cos(hero._facing))
-	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm"]
+	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm","cosmic_encore"]
 	seq._plan()
 	hero.add_child(seq)
 	return minf(seq.end,2.4) if String(data.id)=="sacred_sanctuary" else seq.end
@@ -43,6 +43,9 @@ func _plan() -> void:
 		"chaos_inferno": beats=[0.0,0.3]
 		"raven_sovereign": beats=[0.0,0.14,0.28,0.42,0.56,0.94]
 		"imperial_cataclysm": beats=[0.0,0.32,0.64,0.96,1.36]
+		"starlight_overture": beats=[0.0,0.30,0.60]
+		"heartbreak_sonata": beats=[0.0,0.14,0.28,0.42,0.56,0.94]
+		"cosmic_encore": beats=[0.0,0.32,0.64,0.96,1.36]
 		"crown_breaker": beats=[0.0,0.46]
 		"hunters_verdict": beats=[0.0,0.26,0.68]
 		"heartseeker": beats=[0.0,0.17,0.34,0.51,0.68,1.12]
@@ -58,11 +61,11 @@ func _plan() -> void:
 				events.append({"at":release+i*0.24+0.42,"index":i,"count":10})
 			end=release+9*0.24+0.42+0.8
 			return
-	var carriers := id in ["judgment_rebound","moonpiercer","hunters_verdict","arcane_prism","sanctified_chain","spiral_impaler","leviathan_surge","celestial_hunt"]
+	var carriers := id in ["judgment_rebound","moonpiercer","hunters_verdict","arcane_prism","sanctified_chain","spiral_impaler","leviathan_surge","celestial_hunt","starlight_overture","heartbreak_sonata"]
 	var flight := 0.28 if carriers else 0.0
 	for i in beats.size():
 		var at := release+float(beats[i])
-		if i>0 and id in ["heartseeker","hunters_verdict","crown_breaker","spiral_impaler","shadow_execution","raven_sovereign"]:
+		if i>0 and id in ["heartseeker","hunters_verdict","crown_breaker","spiral_impaler","shadow_execution","raven_sovereign","heartbreak_sonata"]:
 			var windup := 0.13 if id in ["heartseeker","shadow_execution"] and i<5 else 0.24
 			events.append({"at":at-windup,"motion":true,"windup":windup})
 		if carriers: events.append({"at":at,"launch":true,"index":i,"flight":flight})
@@ -209,6 +212,5 @@ func _hit(h: Hero, index: int, count: int) -> void:
 		if id in ["heartseeker","spiral_impaler"] and index>=2 and StarProgression.has_full_set(Game.profile,"lancer"): damage*=1.15
 		if id=="sanctified_chain": StarSkillArt.strike(h.field,skill,mob.global_position,0,origin)
 		h._deal(mob,damage,skill.color,skill.vfx,false,skill)
-		if not mob.is_dead() and skill.get("fx",{}).has("shred"): mob.apply_shred(0.2,6.0)
 	if id=="sanctified_chain" and not victims.is_empty(): _team_heal(h,0.12)
 	if id=="dawn_salvation": _team_heal(h,0.10)

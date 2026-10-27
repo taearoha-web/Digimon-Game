@@ -865,7 +865,9 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 			var box := relative * mesh.get_aabb()
 			bounds = box if first else bounds.merge(box)
 			first = false
-		_emission_point = Vector3.ZERO if kind == "bow" else Vector3(bounds.get_center().x, bounds.end.y * 0.94, bounds.get_center().z)
+		# Arrows leave the bow's grip, songs and notes the lute's rosette (the sound hole of
+		# every lute look: tier models, star and divine), spells the weapon's head.
+		_emission_point = Vector3.ZERO if kind == "bow" else (WeaponKit.LUTE_ROSETTE if kind == "lute" else Vector3(bounds.get_center().x, bounds.end.y * 0.94, bounds.get_center().z))
 	if plus > 0:
 		EnhanceFx.on_item(item, plus)
 	_hold_nodes.append(attach)

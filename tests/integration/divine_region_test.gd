@@ -77,7 +77,7 @@ func _ready() -> void:
 			Game.profile.inv.append(item)
 			check(Game.equip_from_bag(0), "equip actual bag item")
 			if slot == "weapon":
-				check(item.stats.has("matk" if cls in [&"mage",&"priest",&"summoner"] else "atk"), "class damage stat")
+				check(item.stats.has("matk" if cls in [&"mage",&"priest",&"summoner",&"bard"] else "atk"), "class damage stat")
 			var damaged := item.duplicate(true)
 			damaged.level = 200
 			check(not Game._valid_item(damaged), "import cannot bypass collection gate")

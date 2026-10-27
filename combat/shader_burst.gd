@@ -27,7 +27,7 @@ static func emit(parent: Node3D, pos: Vector3, color: Color, kind := "star", cou
 	mat.set_shader_parameter("radius", radius)
 	mat.set_shader_parameter("size", size)
 	mat.set_shader_parameter("gravity", gravity)
-	mat.set_shader_parameter("rise", 0.9 if kind in ["leaf", "petal", "heart"] else 0.45)
+	mat.set_shader_parameter("rise", 0.9 if kind in ["leaf", "petal", "heart", "note"] else 0.45)
 	mat.set_shader_parameter("push", push)
 	var mi := MeshInstance3D.new()
 	mi.name = "ShaderBurst"

@@ -55,6 +55,13 @@ var _cast_until := 0
 var _since_hurt := 99.0
 var _slow_until := 0
 var _reflect_ms := 0
+## Marks an enemy Bard (arena rival, guild fighter) put on the hero: DEF / ATK
+## down by a fraction until a time (ms); players feel half of a monster's mark.
+var _enemy_shred := 0.0
+var _enemy_shred_until := 0
+var _enemy_weaken := 0.0
+var _enemy_weaken_until := 0
+var _mark_word_at := {}
 var _regen_hp := 0.0
 var _regen_mp := 0.0
 var _dead := false
@@ -188,7 +195,9 @@ func timer_status() -> Array:
 			continue
 		seen[key] = out.size()
 		var glyph := "power"
-		if float(buff.get("def", 0.0)) > 0.0:
+		if BuffBook.is_song(buff):
+			glyph = "note"
+		elif float(buff.get("def", 0.0)) > 0.0:
 			glyph = "shield"
 		elif float(buff.get("atk", 0.0)) > 0.0:
 			glyph = "power"
@@ -197,7 +206,7 @@ func timer_status() -> Array:
 		elif float(buff.get("crit", 0.0)) > 0.0:
 			glyph = "spark"
 		out.append({"id": key, "glyph": glyph, "name": String(buff.get("name", "บัฟ")), "color": BuffArt.profile(buff).primary, "left": left,
-				"total": float(buff.get("total", left)), "kind": "buff", "ally": bool(buff.get("ally", false)), "count": 1, "hp": 1.0})
+				"total": float(buff.get("total", left)), "kind": "buff", "ally": bool(buff.get("ally", false)), "song": BuffBook.is_song(buff), "count": 1, "hp": 1.0})
 	for summon in _summons:
 		if not is_instance_valid(summon) or summon.is_dead():
 			continue
@@ -222,6 +231,16 @@ func has_buff() -> bool:
 		if buff.until > now:
 			return true
 	return false
+
+
+## The song playing on the hero (its own or a party Bard's), or {}.
+func song_entry() -> Dictionary:
+	return BuffBook.song_of(_buffs)
+
+
+## Seconds left of the hero's song (0 without one): AI Bards never sing over a long one.
+func song_left() -> float:
+	return BuffBook.song_left(_buffs)
 
 
 # ---------------------------------------------------------------------------
@@ -310,10 +329,15 @@ func _auto_think() -> void:
 		_auto_cast(hp_rate)
 
 
-## Picks the next skill off the bar that makes sense right now.
+## Picks the next skill off the bar that makes sense right now. A song plays when
+## the song slot is (nearly) empty, so the first song on the bar is the default and a
+## running song is never cut short, except by a healing song when badly hurt. A skill
+## whose marks (shred / weaken) are already on the target waits, and is cast only when
+## nothing later on the bar can be.
 func _auto_cast(hp_rate: float) -> void:
 	var skills: Array = Game.class_data().skills
 	var crowd := mobs_in_range(7.0).size()
+	var fallback := -1
 	for i in skills.size():
 		var skill: Dictionary = skills[i]
 		if skill.is_empty() or not Game.skill_unlocked(skill):
@@ -321,20 +345,35 @@ func _auto_cast(hp_rate: float) -> void:
 		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or int(Game.profile.mp) < mp_cost(skill):
 			continue
 		var fx: Dictionary = skill.get("fx", {})
+		var marks := Mob.carries_mark(fx)
 		match String(skill.shape):
 			"self":
-				if fx.has("heal") and hp_rate > (0.55 if not fx.has("buff") else 0.75):
-					continue
-				if fx.has("buff") and not fx.has("heal") and (BuffBook.group_count(_buffs, false) >= BuffBook.GROUP_LIMIT or BuffBook.contains(_buffs, String(skill.id), false)):
-					continue
+				if BuffBook.is_song_skill(skill):
+					var swap := fx.has("heal") and hp_rate < 0.45 and BuffBook.identity(song_entry()) != String(skill.id)
+					if song_left() >= 3.0 and not swap:
+						continue
+				else:
+					var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)
+					if fx.has("heal") and not stance and hp_rate > (0.55 if not fx.has("buff") else 0.75):
+						continue
+					if fx.has("buff") and (not fx.has("heal") or stance) and (BuffBook.group_count(_buffs, false) >= BuffBook.GROUP_LIMIT or BuffBook.contains(_buffs, String(skill.id), false)):
+						continue
 			"summon":
 				if _summons_alive(skill.id) > 0:
 					continue
 			"burst":
-				if crowd < 2:
+				# A marking burst also opens on a lone monster that is still unmarked.
+				if crowd < 2 and not (marks and mobs_in_range(float(_ranked(skill).radius)).size() >= 1 and Mob.lacks_mark(target, fx, 2.0)):
 					continue
+		# (Star skills are nukes first: their marks never hold them back.)
+		if marks and crowd < 3 and not skill.has("star") and not Mob.lacks_mark(target, fx, 2.0):
+			if fallback < 0:
+				fallback = i
+			continue
 		use_skill(i)
 		return
+	if fallback >= 0:
+		use_skill(fallback)
 
 
 func set_target(mob: Mob) -> void:
@@ -923,16 +962,26 @@ func _summons_alive(skill_id: String) -> int:
 	return n
 
 
+## The Bard's full star set: its songs ring this much stronger for everyone they reach.
+const SONG_SET_BOOST := 1.15
+
+
 func _apply_self_fx(skill: Dictionary) -> void:
 	var fx: Dictionary = skill.get("fx", {})
 	var color: Color = skill.color
 	if fx.has("recall"):
 		recall_party()
 	if fx.has("heal"):
-		_heal(float(fx.heal))
+		# A stance (self_only) keeps its heal to the caster too.
+		_heal(float(fx.heal), not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)))
 	if fx.has("buff"):
-		receive_buff(fx.buff, color, String(skill.name), false, String(skill.id))
-		_share_buff(fx.buff, color, String(skill.name), String(skill.id))
+		var buff: Dictionary = fx.buff
+		if BuffBook.is_song(buff) and StarProgression.has_full_set(Game.profile, "bard"):
+			buff = BuffBook.boost_song(buff, SONG_SET_BOOST)
+		receive_buff(buff, color, String(skill.name), false, String(skill.id))
+		# A stance (self_only) is the caster's own; every other buff reaches the team.
+		if not BuffBook.is_self_only(buff):
+			_share_buff(buff, color, String(skill.name), String(skill.id))
 
 
 # --- The Dark Lord's raven and Summon -----------------------------------------
@@ -1075,7 +1124,7 @@ func _heal(fraction: float, share := true) -> void:
 func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, skill := {}) -> void:
 	if not _valid_target(mob):
 		return
-	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08)
+	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08) * (1.0 - _enemy_mark("weaken"))
 	if not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
 	if _star_retaliation and not skill.is_empty() and StarProgression.has_full_set(Game.profile,"warrior"):
@@ -1117,6 +1166,11 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		mob.burn_source = self
 	if fx.has("taunt") and mob.has_method("taunt"):
 		mob.taunt(self, float(fx.taunt))
+	# Marks (the Bard, Death Mark, star skills): armour cracked, strength sapped.
+	if fx.get("shred") is Array:
+		mob.apply_shred(float(fx.shred[0]), float(fx.shred[1]))
+	if fx.get("weaken") is Array:
+		mob.apply_weaken(float(fx.weaken[0]), float(fx.weaken[1]))
 
 
 # ---------------------------------------------------------------------------
@@ -1138,7 +1192,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, effective_def()))))
 	amount = BuffBook.absorb(_buffs, amount)
 	_reflect(amount, _attacker)
 	if StarProgression.has_full_set(Game.profile,"warrior"):
@@ -1153,6 +1207,55 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		visual.action("Hit_A", 1.2)
 	if Game.profile.hp <= 0:
 		_die()
+
+
+## DEF the hero mitigates with: lower while an enemy Bard's armour crack is on it.
+func effective_def() -> float:
+	return float(stats.def) * (1.0 - _enemy_mark("shred"))
+
+
+## The strength of an enemy mark on the hero right now (0 once it ran out).
+func _enemy_mark(key: String) -> float:
+	var now := Time.get_ticks_msec()
+	if key == "shred":
+		return _enemy_shred if now < _enemy_shred_until else 0.0
+	if key == "weaken":
+		return _enemy_weaken if now < _enemy_weaken_until else 0.0
+	return 0.0
+
+
+## Seconds left of an enemy mark on the hero (enemy Bards do not mark it twice).
+func debuff_left(key: String) -> float:
+	var until := _enemy_shred_until if key == "shred" else (_enemy_weaken_until if key == "weaken" else 0)
+	return maxf(0.0, float(until - Time.get_ticks_msec()) / 1000.0)
+
+
+## An enemy Bard's mark (arena rival, guild fighter; monsters never mark): a player
+## feels half of it for 40% of the time, the stronger mark wins, and it wears off on
+## its own (a new zone builds a new hero).
+func apply_enemy_debuff(key: String, fraction: float, seconds: float) -> void:
+	if _dead or safe_zone or not (key in Mob.MARKS):
+		return
+	var cap := Mob.SHRED_CAP if key == "shred" else Mob.WEAKEN_CAP
+	var f := clampf(fraction, 0.0, cap) * Mob.PLAYER_MARK
+	if f <= 0.0 or seconds <= 0.0:
+		return
+	var current := _enemy_mark(key)
+	if f + 0.0001 < current:
+		return
+	var now := Time.get_ticks_msec()
+	var until := now + int(seconds * Mob.PLAYER_MARK_TIME * 1000.0)
+	if key == "shred":
+		_enemy_shred = f
+		_enemy_shred_until = maxi(_enemy_shred_until, until)
+	else:
+		_enemy_weaken = f
+		_enemy_weaken_until = maxi(_enemy_weaken_until, until)
+	if f > current + 0.0001 and now - int(_mark_word_at.get(key, -100000)) >= 1200 and Mob.mark_word_ok():
+		_mark_word_at[key] = now
+		var word: Array = Mob.MARK_WORDS[key]
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.35 + float(word[2]), 0), String(word[0]), word[1], 0.7)
+		visual.flash(word[1], 0.25)
 
 
 ## Thorn buffs (the Defender's Thorn Guard, Unbreakable): a share of the damage
@@ -1190,6 +1293,8 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	_enemy_shred_until = 0
+	_enemy_weaken_until = 0
 	set_auto(false)
 	engaged = false
 	_pending = {}

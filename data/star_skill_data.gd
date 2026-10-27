@@ -12,6 +12,7 @@ const IDS := {
 	&"defender": ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"],
 	&"assassin": ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"],
 	&"darklord": ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm"],
+	&"bard": ["starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore"],
 }
 const NAMES := {
 	&"warrior": ["Lionfang Cleave", "Crown Breaker", "Royal Vanguard", "Celestial Swordfall"],
@@ -23,6 +24,7 @@ const NAMES := {
 	&"defender": ["Titan Shieldbreak", "Judgment Rebound", "Eternal Aegis", "Heaven's Bulwark"],
 	&"assassin": ["Umbral Lacerate", "Shadow Execution", "Veil of Night", "Eclipse Requiem"],
 	&"darklord": ["Chaos Inferno", "Raven Sovereign", "Lord's Dominion", "Imperial Cataclysm"],
+	&"bard": ["Starlight Overture", "Heartbreak Sonata", "Celestial Stage", "Cosmic Encore"],
 }
 const DESCS := {
 	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 1 นาที", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่"],
@@ -34,6 +36,7 @@ const DESCS := {
 	&"defender": ["โล่ไททันพิฆาต • ทุบพื้นด้วยโล่ยักษ์ 2 จังหวะ มึน 1.5 วิ", "โล่พิพากษาเด้ง • ขว้างโล่แสงถล่มพื้นที่ 3 ครั้ง ลดเกราะ 20% นาน 6 วิ", "อีจิสอมตะ • ทีมในระยะลดความเสียหาย 30% ป้องกัน +50% โล่ดูดซับ 20% ของ HP นาน 1 นาที", "ปราการสวรรค์ • ต้องสวมปีก บินขึ้นแล้วกระแทกโล่แสงยักษ์ลงพื้น 4 ระลอก ศัตรูมึนและหันมาโจมตีคุณ"],
 	&"assassin": ["คมเงาฉีกสะบั้น • ฟันมีดคู่ไขว้เป็นกากบาทรอบตัว 2 จังหวะ ศัตรูติดเลือดไหล 5 วิ", "ประหารเงา • ฟันเป้าหมายเดียวต่อเนื่อง 6 ฮิต ฮิตสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "ม่านราตรี • ทีมในระยะคริติคอล +20% หลบ +15% โจมตี +40% นาน 1 นาที", "บทเพลงสุริยคราส • ต้องสวมปีก บินขึ้นกลางฟ้ามืด โปรยมีดเงาลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ"],
 	&"darklord": ["นรกโกลาหล • คทาปักพื้น เพลิงมืดปะทุเป็นวงรอบตัว 2 จังหวะ ศัตรูติดไฟ 5 วิ", "ราชันอีกา • อีกาเงายักษ์โฉบเป้าหมายเดียว 6 ครั้ง ครั้งสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "อาณาจักรแห่งลอร์ด • ทีมในระยะโจมตี +45% ป้องกัน +35% คริติคอล +10% นาน 1 นาที", "มหาวิบัติจักรพรรดิ • ต้องสวมผ้าคลุม ลอยขึ้นกลางฟ้า ฟาดสายฟ้าและเพลิงมืดลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ"],
+	&"bard": ["โหมโรงแสงดาว • โน้ตดาวตกถล่มพื้นที่เป้าหมาย 3 จังหวะ ศัตรูอ่อนแรง 15% นาน 6 วิ", "โซนาตาสลายใจ • ยิงโน้ตใส่เป้าหมายเดียวต่อเนื่อง 6 จังหวะ จังหวะสุดท้ายแรงสุด เกราะแตก 25% นาน 8 วิ", "เวทีสรวงสวรรค์ • ไม่ใช่เพลง ใช้คู่กับเพลงได้ ทีมในระยะโจมตี +45% ป้องกัน +35% คริ +10% ลดดาเมจ 8% นาน 1 นาที", "อังกอร์แห่งจักรวาล • ต้องสวมปีก บินขึ้นบรรเลงกลางฟ้า ห่าดาวโน้ต 5 ระลอกถล่มพื้นที่ มึน 1.5 วิ ศัตรูอ่อนแรง 20% นาน 8 วิ"],
 }
 
 static func pool(cls: StringName) -> Array:
@@ -44,8 +47,8 @@ static func pool(cls: StringName) -> Array:
 		var s := {"id": IDS[cls][i], "name": NAMES[cls][i], "desc": DESCS[cls][i], "class": cls,
 			"level": 100, "star": (i + 1) * 50, "mp": [100, 140, 170, 240][i], "cd": [14.0, 19.0, 32.0, 48.0][i],
 			"shape": "blast", "range": 12.0, "radius": 6.5 + i * 0.6, "mult": [15.0, 23.0, 25.0, 38.0][i],
-			"hit_delay": [0.48, 0.62, 0.8, 1.2][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "Spellcast_Raise" if cls == &"darklord" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
-			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("a8d0ff") if cls == &"defender" else Color("b58cff") if cls == &"assassin" else Color("e8b64a") if cls == &"darklord" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
+			"hit_delay": [0.48, 0.62, 0.8, 1.2][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "Spellcast_Raise" if cls == &"darklord" else "Spellcast_Raise" if cls == &"bard" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
+			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("a8d0ff") if cls == &"defender" else Color("b58cff") if cls == &"assassin" else Color("e8b64a") if cls == &"darklord" else Color("ff9ad2") if cls == &"bard" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
 			"icon": "star", "gesture": "thrust" if cls == &"lancer" else "cleave" if melee else "aim" if cls == &"archer" else "raise"}
 		match String(s.id):
 			"lionfang_cleave": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"cross_cut"}, true)
@@ -83,6 +86,12 @@ static func pool(cls: StringName) -> Array:
 			"raven_sovereign": s.merge({"shape":"single", "range":10.0, "mult":27.0, "gesture":"bolt", "fx":{"shred":[0.2,6.0]}}, true)
 			"lords_dominion": s.merge({"shape":"self", "mult":0.0, "gesture":"invoke", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "secs":60.0}}}, true)
 			"imperial_cataclysm": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":38.0, "gesture":"raise", "fx":{"stun":1.5}}, true)
+			# Bard: the overture calls star-notes from the sky (raise), the sonata is a tense strum,
+			# the stage a song (serenade) and the encore a long crescendo.
+			"starlight_overture": s.merge({"shape":"blast", "range":12.0, "radius":6.5, "mult":14.0, "gesture":"raise", "fx":{"weaken":[0.15,6.0]}}, true)
+			"heartbreak_sonata": s.merge({"shape":"single", "range":12.0, "mult":27.0, "gesture":"strum", "fx":{"shred":[0.25,8.0]}}, true)
+			"celestial_stage": s.merge({"shape":"self", "mult":0.0, "gesture":"serenade", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "guard":0.08, "secs":60.0}}}, true)
+			"cosmic_encore": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":36.0, "gesture":"crescendo", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
 			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":120.0}},true)
 		s["mult"] = float(s.mult) * ClassData.skill_tune(cls, 100, true, String(s.shape))
 		out.append(s)

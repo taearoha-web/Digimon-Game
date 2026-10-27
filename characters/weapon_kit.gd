@@ -8,7 +8,7 @@ extends RefCounted
 
 ## The mage carries the staff, the priest a short wand (with a matching book) and
 ## the summoner a lantern staff (with the grimoire of the same tier, see TOME).
-const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear", "greatshield", "dagger", "scepter"]
+const KINDS: Array[String] = ["sword", "bow", "staff", "wand", "lantern", "spear", "greatshield", "dagger", "scepter", "lute"]
 
 const GOLD := Color("ffc93c")
 
@@ -37,7 +37,13 @@ const MODELS := {
 	"dagger": {"file": "dagger", "scale": 1.45, "offset": Vector3.ZERO},
 	# The Dark Lord's scepters (tools/make_dark_lord_gear.py): a short royal mace-staff.
 	"scepter": {"file": "scepter", "scale": 1.5, "offset": Vector3.ZERO},
+	# The Bard's lutes (tools/make_bard_gear.py): the neck grip at the origin, neck up +Y, soundboard +Z.
+	"lute": {"file": "lute", "scale": 1.75, "offset": Vector3.ZERO},
 }
+## The lute's rosette (its sound hole) from the neck grip, in held units: the tier
+## lutes at their MODELS scale, the divine lute and the star lutes (StarGearArt._lute)
+## all put it here. Songs and notes leave from it; the Bard's right hand strums by it.
+const LUTE_ROSETTE := Vector3(0.0, -0.35, 0.035)
 
 
 static func has_model(kind: String) -> bool:

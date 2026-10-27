@@ -57,6 +57,7 @@ var _retreating := false
 var _grudge := 0.0
 var _react_at := 0
 var _ignore_danger := false
+var _sings := -1
 
 
 ## info: GuildWarData.make_fighter(). `title` is the guild tag shown before the name.
@@ -100,6 +101,18 @@ func is_healer() -> bool:
 	return fighter_class() == &"priest"
 
 
+## A Bard (its class plays songs): the other guild goes for it, a little less than for
+## a healer, and it is not the one sent onto the altar.
+func sings() -> bool:
+	if _sings < 0:
+		_sings = 0
+		for skill in class_data.get("skills", []):
+			if BuffBook.is_song_skill(skill):
+				_sings = 1
+				break
+	return _sings == 1
+
+
 func is_ranged() -> bool:
 	return float(class_data.attack.range) > 5.0
 
@@ -127,6 +140,17 @@ func _start_guard() -> void:
 
 func under_guard() -> bool:
 	return Time.get_ticks_msec() < _guard_until
+
+
+## A fighter fresh from its base (spawn guard) shrugs off marks as it shrugs off hits.
+func _markable() -> bool:
+	return super._markable() and not under_guard()
+
+
+## The tag keeps its team colour (the only friend-or-foe cue in a guild war); the
+## floating words and the flash still show a mark.
+func _tint_marks() -> void:
+	pass
 
 
 func _summons_are_enemies() -> bool:
@@ -215,6 +239,8 @@ func _nearest_victim() -> Node3D:
 			ratio = (t as GuildFighter).hp_ratio()
 			if (t as GuildFighter).is_healer():
 				score += 4.0
+			elif (t as GuildFighter).sings():
+				score += 2.0
 			if (t as GuildFighter).under_guard():
 				score -= 14.0
 		elif t == hero:
@@ -332,8 +358,8 @@ func respawn() -> void:
 	_stun = 0.0
 	_atk_boost = 1.0
 	_def_boost = 1.0
-	stats["def"] = _base_def
 	_buff_until = 0.0
+	_clear_marks()
 	hostile = true
 	collision_layer = 1 << 2
 	velocity = Vector3.ZERO
@@ -426,7 +452,8 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	super._cast(skill, target)
 
 
-## A healer casts when an ally nearby is hurt, not only when it is.
+## A healer casts when an ally nearby is hurt, not only when it is; a song is
+## worth a little more with teammates around to hear it.
 func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
 	if shape == "self" and fx.has("heal"):
@@ -438,7 +465,15 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 				elif ally == hero and "stats" in hero:
 					lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
 		return 10.0 if lowest < 0.55 else 0.0
-	return super._score(skill, shape, distance, own_ratio)
+	var score := super._score(skill, shape, distance, own_ratio)
+	if score > 0.0 and BuffBook.is_song_skill(skill):
+		var near := 0
+		for ally in _teammates():
+			if _flat_distance(ally.global_position) <= 12.0:
+				near += 1
+		if near >= 2:
+			score += 0.5
+	return score
 
 
 func _run_to(point: Vector3, delta: float) -> Vector3:
@@ -523,7 +558,7 @@ func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id :=
 		return
 	_atk_boost = maxf(_atk_boost, 1.0 + float(buff.get("atk", 0.0)))
 	_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
-	stats["def"] = _base_def * _def_boost
+	_sync_def()
 	_buff_until = maxf(_buff_until, Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 	var display := buff.duplicate()
 	display.secs = minf(float(buff.get("secs", 20.0)), 30.0)
@@ -533,16 +568,35 @@ func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id :=
 func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	super._resolve(skill, target, aim)
 	if String(skill.shape) == "self" and skill.get("fx", {}).has("buff"):
+		var buff: Dictionary = skill.fx.buff
+		# A stance (self_only) stays on the fighter who cast it.
+		if BuffBook.is_self_only(buff):
+			return
 		for ally in _teammates():
-			if _flat_distance(ally.global_position) <= 12.0 and ally.has_method("receive_party_buff"):
-				ally.receive_party_buff(skill.fx.buff, skill.color, String(skill.name), String(skill.id))
+			if _flat_distance(ally.global_position) > 12.0:
+				continue
+			if ally.has_method("receive_party_buff"):
+				ally.receive_party_buff(buff, skill.color, String(skill.name), String(skill.id))
+			elif ally == hero and BuffBook.is_song(buff) and ally.has_method("receive_buff") and not _hero_own_song():
+				# A song of our guild's Bard reaches the hero too, for at most 30 s like any fighter's buff.
+				var song := buff.duplicate()
+				song["secs"] = minf(float(buff.get("secs", 20.0)), 30.0)
+				ally.receive_buff(song, skill.color, String(skill.name), true, String(skill.id))
 
 
-## A strike at `victim` (scale and the hero's burst cap are in Rival._hit).
-func _hit(victim: Node3D, mult: float, color: Color) -> void:
+## Whether the hero plays its own song (a Bard): an AI fighter never sings over it.
+func _hero_own_song() -> bool:
+	if not hero.has_method("song_entry"):
+		return false
+	var song: Dictionary = hero.song_entry()
+	return not song.is_empty() and not bool(song.get("ally", false))
+
+
+## A strike at `victim` (scale, the hero's burst cap and marks are in Rival._hit).
+func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	var was_alive := _alive(victim)
 	dbg.hits_out += 1
-	super._hit(victim, mult, color)
+	super._hit(victim, mult, color, fx)
 	if was_alive and victim == hero and not _alive(victim):
 		slew_hero.emit(self)
 

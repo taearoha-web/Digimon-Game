@@ -39,7 +39,7 @@ NOTE_PAGES = "iPhone: กดปุ่มแชร์ → \"เพิ่มไป
 TITLE = "Toon Tale"
 ## Where the site is published (link previews need absolute image URLs).
 PAGES_URL = "https://taearoha-web.github.io/Digimon-Game/play/"
-DESCRIPTION = "Toon Tale ผจญภัย ARPG แนวการ์ตูน 9 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง"
+DESCRIPTION = "Toon Tale ผจญภัย ARPG แนวการ์ตูน 10 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง"
 BRANDING = os.path.join(ROOT, "assets", "branding")
 PACKED = {  # Godot file -> (published gzip name, MIME of the inflated data)
     "index.wasm": ("engine.gz.wasm", "application/wasm"),

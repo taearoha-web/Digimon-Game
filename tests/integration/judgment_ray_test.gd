@@ -10,7 +10,7 @@ class RivalDummy extends Rival:
 	var hits := 0
 	func _ready() -> void:
 		set_physics_process(false)
-	func _hit(_victim: Node3D, _mult: float, _color: Color) -> void:
+	func _hit(_victim: Node3D, _mult: float, _color: Color, _fx := {}) -> void:
 		hits+=1
 var checks := 0
 var failures := 0

@@ -6,6 +6,7 @@ class_name SkillRank
 ## Every star raises the skill:
 ##   damage +15% (burn and summon hits too), area +8%, cooldown -3%,
 ##   heal +10% (beyond full HP the rest becomes a 1-minute shield), buff strength +8%, stun / slow / taunt time +6%,
+##   armour break (shred) and weaken strength +6% (capped at 35% / 30%; their seconds never change),
 ##   summon HP +60%; chains and fans gain a target at ★3 and ★5,
 ##   multi-creature summons gain one at ★5. MP cost rises 4% a star.
 ## Passive skills add their bonus once per star.
@@ -24,6 +25,9 @@ const SUMMON_HP_PER_STAR := 0.6
 const SKILL_POWER := 0.4
 const SUMMON_HIT_SHARE := 0.14
 const BUFF_LABELS := {"atk": "โจมตี", "def": "ป้องกัน", "speed": "ความเร็ว", "crit": "คริ", "shield": "โล่", "reflect": "สะท้อน", "guard": "ลดดาเมจ", "dodge": "หลบ"}
+## Monster debuffs [fraction, secs]: shred lowers DEF, weaken lowers ATK. The star
+## rank grows the fraction (like control time) up to these caps.
+const DEBUFF_CAPS := {"shred": 0.35, "weaken": 0.30}
 const PASSIVE_LABELS := {"atk": "โจมตี", "def": "ป้องกัน", "hp": "HP สูงสุด", "mp": "MP สูงสุด", "crit": "คริ", "speed": "ความเร็ว", "dodge": "หลบ"}
 
 
@@ -116,12 +120,21 @@ static func scaled_fx(fx: Dictionary, rank: int) -> Dictionary:
 	for key in ["stun", "slow", "taunt"]:
 		if out.has(key) and (out[key] is float or out[key] is int):
 			out[key] = float(fx[key]) * control_scale(rank)
+	for key in DEBUFF_CAPS:
+		if fx.get(key) is Array and (fx[key] as Array).size() >= 2:
+			out[key] = [debuff_fraction(fx, key, rank), float(fx[key][1])]
 	if fx.get("buff") is Dictionary:
 		var buff: Dictionary = out.buff
+		# Only numbers grow: flags such as "song" or "self_only" (bools) pass through as they are.
 		for key in fx.buff:
 			if key != "secs" and (fx.buff[key] is float or fx.buff[key] is int):
 				buff[key] = float(buff[key]) - float(fx.buff[key]) + float(fx.buff[key]) * buff_scale(rank)
 	return out
+
+
+## A debuff's fraction ([param key] "shred" or "weaken") at [param rank], capped.
+static func debuff_fraction(fx: Dictionary, key: String, rank: int) -> float:
+	return minf(float(fx[key][0]) * control_scale(rank), float(DEBUFF_CAPS[key]))
 
 
 ## The part of a heal past full HP at [param rank] (it becomes a shield).
@@ -171,6 +184,10 @@ static func table(skill: Dictionary) -> Array:
 		rows.append(["ช้าลง (วิ)", _each(func(r): return "%.1f" % (float(fx.slow) * control_scale(r)))])
 	if fx.has("taunt"):
 		rows.append(["ยั่วยุ (วิ)", _each(func(r): return "%.1f" % (float(fx.taunt) * control_scale(r)))])
+	if fx.get("shred") is Array and (fx.shred as Array).size() >= 2:
+		rows.append(["ลดเกราะศัตรู (%d วิ)" % int(fx.shred[1]), _each(func(r): return "-%d%%" % int(round(debuff_fraction(fx, "shred", r) * 100.0)))])
+	if fx.get("weaken") is Array and (fx.weaken as Array).size() >= 2:
+		rows.append(["ศัตรูอ่อนแรง (%d วิ)" % int(fx.weaken[1]), _each(func(r): return "-%d%%" % int(round(debuff_fraction(fx, "weaken", r) * 100.0)))])
 	rows.append(["คูลดาวน์ (วิ)", _each(func(r): return "%.1f" % cooldown(skill, r))])
 	rows.append(["MP", _each(func(r): return str(mp(skill, r)))])
 	return rows

@@ -13,6 +13,7 @@ const INFO := {
 	"defender": {"name":"ปีกเทพดาราจักรนิรันดร์", "stats":{"atk":[480,600],"hp":[2300,2800],"def":[240,300],"mp":[450,560],"crit":[0.06,0.075]}},
 	"darklord": {"name":"ผ้าคลุมจักรพรรดิอีกาทมิฬ", "stats":{"atk":[540,660],"hp":[2000,2500],"def":[200,250],"mp":[480,600],"crit":[0.07,0.085]}},
 	"summoner": {"name":"ปีกราชินีผีเสื้อวิญญาณ", "stats":{"matk":[550,670],"hp":[1850,2350],"def":[175,225],"mp":[900,1150],"crit":[0.065,0.08]}},
+	"bard": {"name":"ปีกซิมโฟนีดารา", "stats":{"matk":[540,650],"hp":[1800,2300],"def":[180,225],"mp":[820,1050],"crit":[0.07,0.085]}},
 }
 
 static func is_wing(item: Dictionary) -> bool:
@@ -70,6 +71,7 @@ static func build(cls: String) -> Node3D:
 		mesh.set_meta("no_outline",true)
 		mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if cls=="assassin": ShadowWingArt.dress(root,true)
+	elif cls=="bard": SongWingArt.dress(root,true)
 	var player:=root.find_child("AnimationPlayer",true,false) as AnimationPlayer
 	if player!=null:
 		for clip in ["Idle","Flap","Glide"]:
