@@ -95,7 +95,8 @@ func _ready() -> void:
 			check(SkillShow.profile_for(skill).primary == look.primary, "cast/aura palette match " + id)
 	check(count == BuffArt.RECIPES.size(), "complete buff catalog")
 	await settle()
-	check(VfxBudget.counters().decorations <= 4, "persistent hero art at most four draws")
+	# Four buffs here; a Bard song adds one more lane of its own (bard_song_test checks five).
+	check(VfxBudget.counters().decorations <= 4, "persistent hero art at most four draws plus one song")
 	check(VfxBudget.counters().particles == 0 and VfxBudget.counters().lights == 0, "buff persistence adds no particles or lights")
 	# HUD geometry at phone and desktop landscape aspect ratios.
 	var hud := HUD.new()

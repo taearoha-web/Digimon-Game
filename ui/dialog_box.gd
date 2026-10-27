@@ -8,7 +8,9 @@ var is_open := false
 var _panel: PanelContainer
 var _speaker: Label
 var _text: Label
-var _buttons: HBoxContainer
+var _text_scroll: TouchScroll
+## The answers wrap onto more rows (the Job Master offers a dozen), right-aligned.
+var _buttons: HFlowContainer
 
 
 func _ready() -> void:
@@ -32,6 +34,8 @@ func _ready() -> void:
 	_panel.offset_right = 480
 	_panel.offset_top = -270
 	_panel.offset_bottom = -12
+	# More rows of answers make the panel taller upwards, never off the bottom edge.
+	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_panel.visible = false
 	frame.add_child(_panel)
 	var column := UIUtil.vbox(10)
@@ -43,12 +47,15 @@ func _ready() -> void:
 	text_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_scroll.custom_minimum_size = Vector2(0, 90)
 	column.add_child(text_scroll)
+	_text_scroll = text_scroll
 	_text = UIUtil.label("", &"BoldLabel")
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_scroll.add_child(_text)
-	_buttons = UIUtil.hbox(14)
-	_buttons.alignment = BoxContainer.ALIGNMENT_END
+	_buttons = HFlowContainer.new()
+	_buttons.add_theme_constant_override("h_separation", 14)
+	_buttons.add_theme_constant_override("v_separation", 10)
+	_buttons.alignment = FlowContainer.ALIGNMENT_END
 	column.add_child(_buttons)
 
 
@@ -60,8 +67,13 @@ func say(speaker: String, text: String, options: Array = []) -> void:
 	UIUtil.clear(_buttons)
 	if options.is_empty():
 		options = [{"label": "ตกลง", "action": Callable()}]
+	# A long list (the Job Master's dozen lines) gets slimmer buttons in two rows, and
+	# the panel grows upwards to keep the text readable above them.
+	var many := options.size() > 6
+	var button_size := Vector2(126, 48) if many else Vector2(140, 52)
+	_text_scroll.custom_minimum_size.y = 130.0 if many else 90.0
 	for option in options:
-		var b := UIUtil.button(String(option.label), &"PrimaryButton" if option == options[0] else &"", Vector2(140, 52))
+		var b := UIUtil.button(String(option.label), &"PrimaryButton" if option == options[0] else &"", button_size)
 		var action: Callable = option.get("action", Callable())
 		b.pressed.connect(func():
 			close()

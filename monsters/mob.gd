@@ -15,6 +15,25 @@ const WINDUP := 0.5
 const PACK_RADIUS := 6.0
 const SLAM_INTERVAL := 8.0
 const BARRAGE_METEORS := 4
+## Marks (the Bard's discords and laments, the Assassin's Death Mark, star skills):
+## [fraction, secs] that crack the armour (shred: DEF down) or sap the strength
+## (weaken: ATK down). One of each per monster, the stronger wins; bosses shake a
+## weaken off in 40% of the time, players (rivals, guild fighters, the hero in the
+## arena) feel half of a mark for 40% of the time.
+const MARKS := ["shred", "weaken"]
+const SHRED_CAP := 0.35
+const WEAKEN_CAP := 0.30
+const BOSS_WEAKEN_TIME := 0.4
+const PLAYER_MARK := 0.5
+const PLAYER_MARK_TIME := 0.4
+## Word, colour and height over the head shown when a mark lands or grows.
+const MARK_WORDS := {"shred": ["เกราะแตก!", Color("ff7ad9"), 0.55], "weaken": ["อ่อนแรง!", Color("9fb4ff"), 0.85]}
+## Name tag tints while marked: cracked, sapped, both.
+const MARK_TINTS := [Color("ffb0e6"), Color("b8c8ff"), Color("d8b0ff")]
+## Mark words across every monster in one physics frame (a whole pack is hit at once).
+const MARK_WORDS_PER_FRAME := 3
+static var _word_frame := -1
+static var _words := 0
 
 var monster_id: StringName = &"pink_slime"
 var template: Dictionary = {}
@@ -47,6 +66,13 @@ var _stun := 0.0
 var _slow := 0.0
 var _shred_time := 0.0
 var _unshredded_def := 0.0
+var _shred := 0.0
+var _weaken := 0.0
+var _weaken_time := 0.0
+var _unweakened_atk := 0.0
+## When each mark last showed its word (msec), and the tag's own colour while tinted.
+var _word_at := {}
+var _label_color: Variant = null
 var _burn_dps := 0.0
 var _burn_time := 0.0
 ## Damage taken from the hero's side and from world players (FieldPlayer): EXP and loot go
@@ -599,7 +625,18 @@ func _meteor_barrage(target: Node3D) -> void:
 func _tick_status(delta: float) -> void:
 	if _shred_time > 0.0:
 		_shred_time -= delta
-		if _shred_time <= 0.0: stats.def = _unshredded_def
+		if _shred_time <= 0.0:
+			_shred_time = 0.0
+			_shred = 0.0
+			stats.def = _unshredded_def
+			_tint_marks()
+	if _weaken_time > 0.0:
+		_weaken_time -= delta
+		if _weaken_time <= 0.0:
+			_weaken_time = 0.0
+			_weaken = 0.0
+			stats.atk = _unweakened_atk
+			_tint_marks()
 	if _slow > 0.0:
 		_slow -= delta
 	if _burn_time > 0.0:
@@ -671,7 +708,115 @@ func _flat_distance_from(a: Vector3, b: Vector3) -> float:
 	d.y = 0.0
 	return d.length()
 
+
+# --- Marks: shred (DEF down) and weaken (ATK down) ---------------------------------
+
+## Armour cracked: DEF drops by [param fraction] (at most 35%) for [param seconds].
+## An equal or stronger mark takes over and keeps the longer time; a weaker one is
+## ignored while the stronger runs. Expiry gives the DEF back.
 func apply_shred(fraction: float, seconds: float) -> void:
-	if _shred_time <= 0.0: _unshredded_def = float(stats.def)
-	_shred_time = seconds
-	stats.def = _unshredded_def*(1.0-clampf(fraction,0.0,0.35))
+	var f := clampf(fraction, 0.0, SHRED_CAP)
+	if _dead or f <= 0.0 or seconds <= 0.0:
+		return
+	if _shred_time <= 0.0:
+		_unshredded_def = float(stats.def)
+		_shred = 0.0
+	if f + 0.0001 < _shred:
+		return
+	var stronger := f > _shred + 0.0001
+	_shred = f
+	_shred_time = maxf(_shred_time, seconds)
+	stats.def = _unshredded_def * (1.0 - _shred)
+	_mark_feedback("shred", stronger)
+
+
+## Strength sapped: ATK (every strike, slam, meteor and boss move reads it) drops by
+## [param fraction] (at most 30%) for [param seconds] (bosses 40% of it). The same
+## stronger-wins rule as the armour crack.
+func apply_weaken(fraction: float, seconds: float) -> void:
+	var f := clampf(fraction, 0.0, WEAKEN_CAP)
+	if _dead or f <= 0.0 or seconds <= 0.0:
+		return
+	if is_boss:
+		seconds *= BOSS_WEAKEN_TIME
+	if _weaken_time <= 0.0:
+		_unweakened_atk = float(stats.atk)
+		_weaken = 0.0
+	if f + 0.0001 < _weaken:
+		return
+	var stronger := f > _weaken + 0.0001
+	_weaken = f
+	_weaken_time = maxf(_weaken_time, seconds)
+	stats.atk = _unweakened_atk * (1.0 - _weaken)
+	_mark_feedback("weaken", stronger)
+
+
+## Seconds left of a mark ("shred" / "weaken"), 0 without it. The AI reads it so it
+## does not mark again what is still marked.
+func debuff_left(key: String) -> float:
+	if key == "shred":
+		return maxf(_shred_time, 0.0)
+	if key == "weaken":
+		return maxf(_weaken_time, 0.0)
+	return 0.0
+
+
+## Whether [param fx] (a skill's effects) leaves a mark.
+static func carries_mark(fx: Dictionary) -> bool:
+	return fx.get("shred") is Array or fx.get("weaken") is Array
+
+
+## True when [param target] lacks one of the marks [param fx] leaves, or keeps it
+## for [param margin] seconds at most. What cannot be marked (a summon) never lacks one.
+static func lacks_mark(target: Variant, fx: Dictionary, margin: float) -> bool:
+	if target == null or not is_instance_valid(target) or not (target as Object).has_method("debuff_left"):
+		return false
+	for key in MARKS:
+		if fx.get(key) is Array and float(target.debuff_left(key)) <= margin:
+			return true
+	return false
+
+
+## At most MARK_WORDS_PER_FRAME mark words in one physics frame, over every monster.
+static func mark_word_ok() -> bool:
+	var frame := Engine.get_physics_frames()
+	if frame != _word_frame:
+		_word_frame = frame
+		_words = 0
+	if _words >= MARK_WORDS_PER_FRAME:
+		return false
+	_words += 1
+	return true
+
+
+## A mark landed: the tag is tinted, and a new or stronger mark shows its word and a
+## flash (each mark at most once in 1.2 s; refreshing the same mark shows nothing).
+func _mark_feedback(key: String, stronger: bool) -> void:
+	_tint_marks()
+	if not stronger or not is_inside_tree() or not (get_parent() is Node3D):
+		return
+	var now := Time.get_ticks_msec()
+	if now - int(_word_at.get(key, -100000)) < 1200 or not mark_word_ok():
+		return
+	_word_at[key] = now
+	var word: Array = MARK_WORDS[key]
+	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, float(word[2]), 0), String(word[0]), word[1], 0.7)
+	if is_instance_valid(visual):
+		visual.flash(word[1], 0.25)
+
+
+## The name tag while marked: pink cracked, blue sapped, violet both; its own colour
+## (boss gold, guild colours) comes back when the marks end.
+func _tint_marks() -> void:
+	if _label == null:
+		return
+	var cracked := debuff_left("shred") > 0.0
+	var sapped := debuff_left("weaken") > 0.0
+	if not cracked and not sapped:
+		if _label_color != null:
+			_label.modulate = _label_color
+			_label_color = null
+		return
+	if _label_color == null:
+		_label_color = _label.modulate
+	_label.modulate = MARK_TINTS[2 if cracked and sapped else (0 if cracked else 1)]

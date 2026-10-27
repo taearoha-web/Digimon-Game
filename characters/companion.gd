@@ -445,6 +445,28 @@ func _heal_allies(fraction: float) -> void:
 
 func _buff_allies(buff: Dictionary, color: Color, label: String, skill_id: String) -> void:
 	hero.receive_buff(buff, color, label, true, skill_id)
+	# A Bard's song reaches the whole party: the other members and every summon too
+	# (other buffs stay the hero's, as they always were).
+	if not BuffBook.is_song(buff) or not is_inside_tree():
+		return
+	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
+		if node != self and is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
+			node.receive_party_buff(buff, color, label, skill_id)
+
+
+## The song the party plays (the hero's song slot holds it), or {}.
+func _song_entry() -> Dictionary:
+	return hero.song_entry()
+
+
+func _song_left() -> float:
+	return hero.song_left()
+
+
+## Whether the song playing is the hero's own: an AI Bard never sings over a player's song.
+func _hero_sings() -> bool:
+	var song := _song_entry()
+	return not song.is_empty() and not bool(song.get("ally", false))
 
 
 # ---------------------------------------------------------------------------
@@ -524,6 +546,10 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		if fx.has("taunt") and mob.has_method("taunt"):
 			# A Defender companion draws the fight off the hero.
 			mob.taunt(self, float(fx.taunt))
+		if fx.get("shred") is Array:
+			mob.apply_shred(float(fx.shred[0]), float(fx.shred[1]))
+		if fx.get("weaken") is Array:
+			mob.apply_weaken(float(fx.weaken[0]), float(fx.weaken[1]))
 		if fx.has("slow"):
 			mob.apply_slow(float(fx.slow))
 		if fx.has("burn"):
@@ -589,6 +615,43 @@ func _tier() -> int:
 
 func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
+	if BuffBook.is_song_skill(skill):
+		return _song_score(skill, hero_hp)
+	var score := _shape_score(skill, distance, hero_hp)
+	# A marking skill (shred / weaken) opens the fight while the target is unmarked,
+	# and waits behind the other skills while its marks are still up.
+	if Mob.carries_mark(fx) and _mark_in_reach(skill, distance):
+		if Mob.lacks_mark(target, fx, 1.0):
+			return maxf(score, 6.5) + (0.5 if target.is_boss else 0.0)
+		return maxf(0.5, score - 2.0)
+	return score
+
+
+## A song for the party: never over the player's own song or over one with 10 s
+## left (two AI Bards do not take turns), the strongest attack song first in a fight,
+## and a healing song at once when the hero is badly hurt.
+func _song_score(skill: Dictionary, hero_hp: float) -> float:
+	var fx: Dictionary = skill.fx
+	if _hero_sings():
+		return 0.0
+	if fx.has("heal") and hero_hp < 0.45 and BuffBook.identity(_song_entry()) != String(skill.id):
+		return 10.0
+	if _song_left() >= 10.0 or not _in_combat():
+		return 0.0
+	return 7.0 + float(fx.buff.get("atk", 0.0)) + 0.5 * float(fx.buff.get("crit", 0.0)) + 0.001 * float(member.get("level", 1))
+
+
+## Whether a marking skill would reach the target now (a burst needs a monster in its ring).
+func _mark_in_reach(skill: Dictionary, distance: float) -> bool:
+	if target == null or not is_instance_valid(target) or target.is_dead():
+		return false
+	if String(skill.shape) == "burst":
+		return not _mobs_near(global_position, float(skill.radius)).is_empty()
+	return distance <= float(skill.get("range", 3.0))
+
+
+func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
+	var fx: Dictionary = skill.get("fx", {})
 	# A provoke is worth most while the hero is the one being hurt.
 	if fx.has("taunt") and hero_hp < 0.6 and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
 		return 8.5
@@ -601,7 +664,9 @@ func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 		"self":
 			if fx.has("heal") and (hero_hp < 0.55 or float(hp) / float(max_hp) < 0.45):
 				return 10.0
-			if fx.has("buff") and not fx.has("heal") and BuffBook.group_count(_book.buffs, false) < BuffBook.GROUP_LIMIT and not BuffBook.contains(_book.buffs, String(skill.id), false) and _in_combat():
+			# A stance (self_only) counts as a plain buff even when it also heals.
+			var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)
+			if fx.has("buff") and (not fx.has("heal") or stance) and BuffBook.group_count(_book.buffs, false) < BuffBook.GROUP_LIMIT and not BuffBook.contains(_book.buffs, String(skill.id), false) and _in_combat():
 				return 6.0
 			if fx.has("buff") and fx.has("heal") and hero_hp < 0.7:
 				return 8.0
@@ -763,7 +828,9 @@ func _apply_self(skill: Dictionary) -> void:
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
-		_buff_allies(buff, color, String(skill.name), String(skill.id))
+		# A stance (self_only) stays on the one who cast it.
+		if not BuffBook.is_self_only(buff):
+			_buff_allies(buff, color, String(skill.name), String(skill.id))
 		_book.add(buff, color, String(skill.name), false, String(skill.id))
 		# Persistent buff halo and the skill silhouette carry this feedback.
 

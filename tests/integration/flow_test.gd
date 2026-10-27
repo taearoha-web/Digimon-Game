@@ -692,7 +692,7 @@ func _save_slots() -> void:
 	for i in range(1, Game.SLOT_COUNT + 1):
 		Game.delete_save(i)
 	check(not Game.any_save() and Game.free_slot() == 1, "all ten slots start empty")
-	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"warrior"]
+	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
 	for i in Game.SLOT_COUNT:
 		Game.slot = i + 1
 		Game.new_profile(classes[i], "ฮีโร่%d" % (i + 1))
