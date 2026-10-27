@@ -458,7 +458,7 @@ static func impact_smoke(parent: Node3D, pos: Vector3, color: Color, size := 1.0
 
 ## Glowing orb with a particle trail. Flight and cleanup belong to its carrier.
 static func variant_for(vfx: StringName) -> String:
-	return {&"fireball": "flame", &"frost": "shard", &"light": "spark", &"thunder": "spark", &"leaf": "leaf"}.get(vfx, "orb")
+	return {&"fireball": "flame", &"frost": "shard", &"light": "spark", &"thunder": "spark", &"leaf": "leaf", &"note": "note"}.get(vfx, "orb")
 
 
 static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3, duration: float, size := 0.5, variant := "orb") -> void:

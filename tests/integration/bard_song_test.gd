@@ -148,6 +148,9 @@ func _auras_and_hud() -> void:
 	hero.receive_buff(valor.fx.buff, valor.color, valor.name, true, "valor_march")
 	await settle()
 	check(hero._buffs.size() == 5 and hero._auras.size() == 5, "four buffs plus one song give five auras (%d)" % hero._auras.size())
+	# The song's arrival puff of notes (BuffAura, medium quality and up) is gone in 0.9 s;
+	# what stays is the persistent art.
+	await get_tree().create_timer(1.2).timeout
 	var budget := VfxBudget.counters()
 	check(budget.decorations <= 5 and budget.particles == 0 and budget.lights == 0, "persistent hero art at most four draws plus one song, no particles or lights (%s)" % str(budget))
 	var status := hero.timer_status()

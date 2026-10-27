@@ -248,7 +248,7 @@ const CLASSES := {
 		"hp_mult": 1.05,
 		"mp_mult": 1.25,
 		"attack": {
-			"range": 9.0, "interval": 0.9, "mult": 1.0, "hit_delay": 0.28, "projectile": true, "vfx": &"light",
+			"range": 9.0, "interval": 0.9, "mult": 1.0, "hit_delay": 0.28, "projectile": true, "vfx": &"note",
 			"color": Color("ffb3dc"), "anims": ["Spellcast_Shoot"],
 		},
 	},
