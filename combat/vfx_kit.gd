@@ -94,6 +94,8 @@ static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null)
 	await FrameSlicer.pace(slicer)
 	LordSkillArt.warm_up(parent, pos)
 	await FrameSlicer.pace(slicer)
+	BardSkillArt.warm_up(parent, pos)
+	await FrameSlicer.pace(slicer)
 	BuffAura.warm_up(parent, pos)
 
 
@@ -478,10 +480,11 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 			if variant == "flame":
 				core.material_override = _glow(Color("ffc365"), 0.97, false)
 	if VfxBudget.can_decorate():
-		var glow_mat := _glow(color, 0.33, false)
-		glow_mat.albedo_texture = VfxArt.texture("flare")
+		var glow_mat := _glow(color, 0.33 if variant != "note" else 0.85, false)
+		# The Bard's note flies as a glowing eighth-note card round the pearl.
+		glow_mat.albedo_texture = VfxArt.texture("note" if variant == "note" else "flare")
 		glow_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		var glow := _instance(holder, quad(Vector2.ONE * size * 4.2), glow_mat, from)
+		var glow := _instance(holder, quad(Vector2.ONE * size * (2.6 if variant == "note" else 4.2)), glow_mat, from)
 		VfxBudget.track_decoration(glow)
 	flight_ribbons(holder, color, size, 2.7, variant == "flame")
 	var trail := _particles(holder, from, color, 24, 0.42, false)
@@ -496,6 +499,7 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 		"flame": trail.mesh = _textured_quad(VfxArt.texture("flame"), Color("ff9449"), 0.85)
 		"shard": trail.mesh = _textured_quad(VfxArt.texture("snow"), color, 0.48)
 		"leaf": trail.mesh = _textured_quad(VfxArt.texture("leaf"), Color("a8eb91"), 0.55)
+		"note": trail.mesh = _textured_quad(VfxArt.texture("note"), pearl, 0.5)
 		_: trail.mesh = _textured_quad(VfxArt.texture("spark"), pearl, 0.54)
 	if VfxBudget.can_light():
 		var light := OmniLight3D.new()

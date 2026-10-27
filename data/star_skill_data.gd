@@ -86,11 +86,12 @@ static func pool(cls: StringName) -> Array:
 			"raven_sovereign": s.merge({"shape":"single", "range":10.0, "mult":27.0, "gesture":"bolt", "fx":{"shred":[0.2,6.0]}}, true)
 			"lords_dominion": s.merge({"shape":"self", "mult":0.0, "gesture":"invoke", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "secs":60.0}}}, true)
 			"imperial_cataclysm": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":38.0, "gesture":"raise", "fx":{"stun":1.5}}, true)
-			# Bard: sonata / stage / encore use bolt / resolve / channel until SkillChoreography.GESTURES gains strum / serenade / crescendo.
-			"starlight_overture": s.merge({"shape":"blast", "range":12.0, "radius":6.5, "mult":14.0, "gesture":"channel", "fx":{"weaken":[0.15,6.0]}}, true)
-			"heartbreak_sonata": s.merge({"shape":"single", "range":12.0, "mult":27.0, "gesture":"bolt", "fx":{"shred":[0.25,8.0]}}, true)
-			"celestial_stage": s.merge({"shape":"self", "mult":0.0, "gesture":"resolve", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "guard":0.08, "secs":60.0}}}, true)
-			"cosmic_encore": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":36.0, "gesture":"channel", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
+			# Bard: the overture calls star-notes from the sky (raise), the sonata is a tense strum,
+			# the stage a song (serenade) and the encore a long crescendo.
+			"starlight_overture": s.merge({"shape":"blast", "range":12.0, "radius":6.5, "mult":14.0, "gesture":"raise", "fx":{"weaken":[0.15,6.0]}}, true)
+			"heartbreak_sonata": s.merge({"shape":"single", "range":12.0, "mult":27.0, "gesture":"strum", "fx":{"shred":[0.25,8.0]}}, true)
+			"celestial_stage": s.merge({"shape":"self", "mult":0.0, "gesture":"serenade", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "guard":0.08, "secs":60.0}}}, true)
+			"cosmic_encore": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":36.0, "gesture":"crescendo", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
 			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":120.0}},true)
 		s["mult"] = float(s.mult) * ClassData.skill_tune(cls, 100, true, String(s.shape))
 		out.append(s)

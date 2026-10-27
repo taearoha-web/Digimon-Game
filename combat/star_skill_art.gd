@@ -24,7 +24,9 @@ const COLORS := {
 	"umbral_lacerate":["9a5cff","f6eaff","2a0f4e"], "shadow_execution":["ff3a6e","ffe0ea","4a0828"],
 	"veil_of_night":["6a5cff","eae6ff","1a1450"], "eclipse_requiem":["c04dff","ffe6ff","220a3e"],
 	"chaos_inferno":["ff5a1f","ffe6a0","5a1020"], "raven_sovereign":["8a4dff","f0e0ff","1e0f3e"],
-	"lords_dominion":["e8b64a","fff4d0","5a3a10"], "imperial_cataclysm":["ffc83a","fff6d8","3a1a6a"]
+	"lords_dominion":["e8b64a","fff4d0","5a3a10"], "imperial_cataclysm":["ffc83a","fff6d8","3a1a6a"],
+	"starlight_overture":["ffc24a","fff2cc","7a4a8a"], "heartbreak_sonata":["ff5aa0","ffe0f0","3a0a28"],
+	"celestial_stage":["ffc24a","fff2cc","5a2a40"], "cosmic_encore":["c79bff","fff4ff","2a1050"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -35,12 +37,14 @@ const MOTIFS := {
 	"moonwolf_pact":"sylph", "leviathan_surge":"leviathan", "spirit_court":"court", "eclipse_sovereign":"leviathan",
 	"titan_shieldbreak":"titan_shield", "judgment_rebound":"crown", "eternal_aegis":"shield_ring", "heavens_bulwark":"titan_shield",
 	"umbral_lacerate":"fang", "shadow_execution":"moon", "veil_of_night":"constellation", "eclipse_requiem":"moon",
-	"chaos_inferno":"worldroot", "raven_sovereign":"moon", "lords_dominion":"banners", "imperial_cataclysm":"crown"
+	"chaos_inferno":"worldroot", "raven_sovereign":"moon", "lords_dominion":"banners", "imperial_cataclysm":"crown",
+	"starlight_overture":"constellation", "heartbreak_sonata":"heart", "celestial_stage":"lyre", "cosmic_encore":"planets"
 }
-const SUPPORT := ["lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
+const SUPPORT := ["celestial_stage", "lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
 const ASSASSIN := ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"]
 const DARKLORD := ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm"]
+const BARD := ["starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore"]
 ## The Defender's captured great shield from the latest telegraph/launch, so contacts (which have no caster) can drop the real shield.
 static var _recent_shield: Mesh
 ## The Assassin's captured dagger from the latest telegraph: the shadow daggers of its contacts.
@@ -188,6 +192,7 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		_recent_dagger=equipped_sword(caster)
 		ShadowSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if id in DARKLORD: LordSkillArt.anticipate(parent,skill,origin,point,time,visual)
+	if id in BARD: BardSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	var opts := {"initial":0.12,"grow_time":0.85,"fade_in":0.15,"decay":0.94,"opacity":0.78}
 	var local_target := art.to_local(point)
 	var radius := clampf(float(skill.get("radius",4)),1.5,9.0)
@@ -214,7 +219,15 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		"eclipse_requiem":
 			art.add("moon",colors,local_target+Vector3.UP*8,Vector3.ONE*radius*0.8,Vector3.ZERO,time,{"initial":0.25,"grow_time":0.90,"fade_in":0.15,"spin":0.1,"decay":0.98})
 			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius,Vector3.ZERO,time,opts)
-		"hunters_verdict", "heartseeker", "crown_breaker", "shadow_execution":
+		"starlight_overture":
+			# The overture: a constellation gathers high over the target, a celestial seal under it.
+			art.add("constellation",colors,local_target+Vector3.UP*6,Vector3.ONE*radius,Vector3.ZERO,time,{"initial":0.25,"grow_time":0.90,"fade_in":0.15,"spin":0.12,"decay":0.98})
+			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius,Vector3.ZERO,time,opts)
+		"cosmic_encore":
+			# The encore: the planets turn high over the field, a celestial seal under them.
+			art.add("planets",colors,local_target+Vector3.UP*8,Vector3.ONE*radius*0.6,Vector3.ZERO,time,{"initial":0.25,"grow_time":0.90,"fade_in":0.15,"spin":0.1,"decay":0.98,"spectral":1.0})
+			art.add("celestial",colors,local_target+Vector3.UP*0.08,Vector3.ONE*radius,Vector3.ZERO,time,opts)
+		"hunters_verdict", "heartseeker", "crown_breaker", "shadow_execution", "heartbreak_sonata":
 			art.add(String(MOTIFS[id]),colors,local_target+Vector3.UP*1.3,Vector3.ONE*1.0,Vector3(PI/2 if id!="crown_breaker" else 0,0,0),time,opts)
 			art.add("streak",colors,Vector3(0,1.3,0.6),Vector3(0.8,0.8,0.7),Vector3(0,0,PI/2),time,opts)
 		"lionfang_cleave":
@@ -291,6 +304,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 	ClassFlourish.star_beat(parent, skill, point, index, source)
 	if String(skill.id) in ASSASSIN: ShadowSkillArt.star(parent, skill, point, index, source)
 	if String(skill.id) in DARKLORD: LordSkillArt.star(parent, skill, point, index, source)
+	if String(skill.id) in BARD: BardSkillArt.star(parent, skill, point, index, source)
 	var id := String(skill.id)
 	var colors := look(skill)
 	var art := _root(parent,point,1.6,"StarContact_"+id)
@@ -309,7 +323,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			art.add("feathers" if id=="dawn_salvation" else "shards",colors,Vector3.UP*0.2,Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,1.5,{"travel":Vector3.UP*0.8})
 			art._draw()
 			return art
-	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark","umbral_lacerate","shadow_execution","eclipse_requiem","chaos_inferno","raven_sovereign","imperial_cataclysm"]:
+	if index>0 and id not in ["heartseeker","hunters_verdict","crown_breaker","celestial_swordfall","eclipse_sovereign","titan_shieldbreak","judgment_rebound","heavens_bulwark","umbral_lacerate","shadow_execution","eclipse_requiem","chaos_inferno","raven_sovereign","imperial_cataclysm","starlight_overture","heartbreak_sonata","cosmic_encore"]:
 		art.add("impact",colors,at,Vector3.ONE*1.15,Vector3.ZERO,0.50,{"initial":0.10})
 		art.add("shards",colors,Vector3.UP*0.25,Vector3.ONE*0.75,Vector3.ZERO,0.65,{"travel":Vector3.UP*0.4,"initial":0.7,"orbit":0.12,"orbit_speed":3.0,"pulse":true})
 		art._draw()
@@ -456,6 +470,32 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 			if index>=4:
 				art.add("crown",colors,Vector3.UP*3.0,Vector3.ONE*radius*0.4,Vector3.ZERO,1.5,{"initial":0.4,"spin":0.3})
 				art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.5,"spin":0.2})
+				art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.2,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8})
+			impact_size=radius*0.7
+		"starlight_overture":
+			# Each beat a constellation lights on the ground and star shards rise from it.
+			art.add("constellation",colors,Vector3(0,0.1,0),Vector3.ONE*radius*(0.5+0.15*index),Vector3.ZERO,1.2,{"initial":0.3,"spin":0.2})
+			art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.5,2.4,radius*0.5),Vector3.ZERO,1.1,{"travel":Vector3.UP*0.6,"pulse":true})
+			impact_size=radius*0.6
+		"heartbreak_sonata":
+			# Five hearts swell over the foe, then the heartbreak: a great heart, a sweep and a burst of shards.
+			var final := index>=5
+			art.add("heart",colors,Vector3.UP*1.3,Vector3.ONE*(2.0 if final else 0.6+index*0.1),Vector3(PI/2,0,0),0.55,{"initial":0.8,"face_camera":true})
+			art.add("martial/sweep",colors,Vector3.UP*1.1,Vector3.ONE*(2.4 if final else 1.1),Vector3(PI/2,0,(index%2*2-1)*0.6),0.4,{"initial":0.4,"spin":3.0})
+			if final: art.add("shards",colors,Vector3.UP*0.4,Vector3(1.8,2.6,1.8),Vector3.ZERO,0.85,{"travel":Vector3.UP*0.5})
+			impact_size=2.2 if final else 0.5
+		"celestial_stage":
+			# The bandstand of three lyres rises round the Bard on a celestial seal.
+			art.add("lyre",colors,Vector3(0,0.1,0),Vector3.ONE*1.6,Vector3.ZERO,1.8,{"initial":0.15,"fade_in":0.08})
+			art.add("celestial",colors,at,Vector3.ONE*radius*0.8,Vector3.ZERO,1.7,{"initial":0.4,"spin":0.15})
+			impact_size=radius*0.7
+		"cosmic_encore":
+			# Each wave the planets wheel over the field and a crater opens; the last crowns it.
+			art.add("planets",colors,Vector3.UP*2.5,Vector3.ONE*radius*0.35,Vector3.ZERO,1.2,{"initial":0.5,"spin":0.4,"spectral":1.0})
+			art.add("martial/crater",colors,at,Vector3.ONE*radius*(0.55+0.08*index),Vector3.ZERO,1.0,{"initial":0.1,"grow_time":0.25})
+			if index>=4:
+				art.add("celestial",colors,at,Vector3.ONE*radius,Vector3.ZERO,1.5,{"initial":0.5,"spin":0.2})
+				art.add("planets",colors,Vector3.UP*4.0,Vector3.ONE*radius*0.5,Vector3.ZERO,1.5,{"initial":0.4,"spin":0.3,"spectral":1.0})
 				art.add("shards",colors,Vector3.UP*0.3,Vector3(radius*0.7,3.2,radius*0.7),Vector3.ZERO,1.4,{"travel":Vector3.UP*0.8})
 			impact_size=radius*0.7
 		"aegis_formation":

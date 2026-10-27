@@ -2,7 +2,7 @@ class_name StarGeometry
 extends RefCounted
 ## Fixed vocabulary for the twenty-four astral skills. Every recipe is merged
 ## into one indexed surface; casts share these meshes and never bake particles.
-const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring"
+const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre"
 static var cache: Dictionary = {}
 
 static func warm() -> void:
@@ -109,6 +109,22 @@ static func mesh(kind: String) -> ArrayMesh:
 				MartialGeometry.feather(st,Vector3(side*0.75,1.83,0),Vector3(side*1.32,0.73,0.10),0.30,0.30)
 				_line(st,[Vector3(side*0.79,1.70,0.02),Vector3(side*1.12,1.49,0.08),Vector3(side*1.14,1.05,0.10)],0.017,1)
 			_part(st,"shield",Vector3(0,0.90,0.18),Vector3.ONE*0.9)
+		"lyre":
+			# A celestial bandstand: three lyres of light standing round a staff ring, a ten-ray seal inside.
+			for i in 3:
+				var a := TAU*float(i)/3.0
+				var at := Vector3(sin(a),0,cos(a))*0.75
+				var side := Vector3(cos(a),0,-sin(a))
+				for s in [-1.0,1.0]:
+					_line(st,[at+side*s*0.07,at+side*s*0.16+Vector3.UP*0.22,at+side*s*0.15+Vector3.UP*0.44,at+side*s*0.10+Vector3.UP*0.56,at+side*s*0.15+Vector3.UP*0.62],0.018,0.9)
+				_line(st,[at-side*0.13+Vector3.UP*0.52,at+side*0.13+Vector3.UP*0.52],0.014,1.0)
+				for k in 5:
+					var x := (float(k)-2.0)*0.035
+					_line(st,[at+side*x+Vector3.UP*0.04,at+side*x+Vector3.UP*0.52],0.004,0.6)
+				_orb(st,at+Vector3.UP*0.03,Vector3(0.22,0.06,0.08),0.8)
+			for j in 5:
+				_ring(st,0.9+0.025*float(j),0.0,0.005,0.5+0.1*float(j))
+			_seal(st,10,0.55)
 		"celestial":
 			_seal(st,20)
 			_ring(st,1.16,0,0.022,1)

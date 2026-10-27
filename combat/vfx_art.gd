@@ -13,7 +13,7 @@ static var _spiral_meshes: Dictionary = {}
 ## With a `slicer` (the SceneTree) the work yields a frame every few items, so the first
 ## zone of a session does not stall the page in one go.
 static func warm_up(slicer: SceneTree = null) -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender", "crest_assassin", "crest_darklord"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender", "crest_assassin", "crest_darklord", "crest_bard", "note"]:
 		texture(kind)
 		await FrameSlicer.pace(slicer)
 	for recipe in SkillArtDirection.RECIPES.values():
@@ -52,6 +52,13 @@ static func texture(kind: String) -> Texture2D:
 					var h := pow(q.x * q.x + q.y * q.y - 0.42, 3.0) - q.x * q.x * q.y * q.y * q.y
 					a = smoothstep(0.02, -0.02, h)
 				"petal": a = smoothstep(1.0, 0.8, pow(p.x * 1.5, 2.0) + pow(p.y * 0.95, 2.0))
+				"note":
+					# An eighth note: a tilted oval head low left, a stem up its right edge, a flag.
+					var q := (p - Vector2(-0.16, 0.44)).rotated(deg_to_rad(-22.0))
+					a = smoothstep(1.0, 0.8, pow(q.x / 0.32, 2.0) + pow(q.y / 0.22, 2.0))
+					a = maxf(a, smoothstep(0.075, 0.045, _seg_dist(p, Vector2(0.12, 0.40), Vector2(0.12, -0.80))))
+					a = maxf(a, smoothstep(0.075, 0.04, _seg_dist(p, Vector2(0.12, -0.80), Vector2(0.46, -0.46))))
+					a = maxf(a, smoothstep(0.07, 0.035, _seg_dist(p, Vector2(0.46, -0.46), Vector2(0.38, -0.14))))
 				"flame":
 					var width := maxf(0.02, (1.0 - p.y) * (p.y + 1.0) * 0.56)
 					a = smoothstep(width, width * 0.68, absf(p.x + sin(p.y * 3.0) * 0.1)) * smoothstep(-1.0, -0.75, p.y)
@@ -239,6 +246,21 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 				var x := (float(k) - 1.0) * 0.18
 				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(x, -0.36), Vector2(x * 0.7, -0.6))))
 			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(-0.26, -0.36), Vector2(0.26, -0.36))))
+		"bard":
+			# A lyre (two curved arms, a crossbar, four strings) with a beamed pair of notes at its right.
+			var cx := -0.08
+			for side in [-1.0, 1.0]:
+				var arm := [Vector2(cx + side * 0.12, 0.42), Vector2(cx + side * 0.32, 0.20), Vector2(cx + side * 0.34, -0.10), Vector2(cx + side * 0.22, -0.32), Vector2(cx + side * 0.30, -0.46)]
+				for i in arm.size() - 1:
+					a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, arm[i], arm[i + 1])))
+			a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(cx - 0.28, -0.28), Vector2(cx + 0.28, -0.28))))
+			a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(cx - 0.16, 0.44), Vector2(cx + 0.16, 0.44))))
+			for x in [-0.12, -0.04, 0.04, 0.12]:
+				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(cx + x, -0.28), Vector2(cx + x, 0.42))))
+			for head in [Vector2(0.44, 0.02), Vector2(0.60, -0.06)]:
+				a = maxf(a, smoothstep(0.075, 0.05, p.distance_to(head)))
+				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, head + Vector2(0.05, 0.0), head + Vector2(0.05, -0.32))))
+			a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(0.49, -0.30), Vector2(0.65, -0.38))))
 		"summoner":
 			# A paw: one pad and four toes.
 			a = maxf(a, smoothstep(0.30, 0.25, p.distance_to(Vector2(0, 0.18))) * 0.9)

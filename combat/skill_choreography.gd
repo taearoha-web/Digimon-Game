@@ -36,6 +36,10 @@ const GESTURES := {
 	"lunge": ["1H_Melee_Attack_Stab", 0.40, 0.36, -0.22, 0.02, 0.42],
 	"fling": ["1H_Melee_Attack_Slice_Horizontal", 0.28, 0.32, -0.04, 0.02, 0.04],
 	"vanish": ["Dodge_Backward", 0.18, 0.36, 0.08, 0.04, -0.12],
+	# The Bard: a strum over the strings, a song to the party, a long crescendo.
+	"strum": ["Spellcasting", 0.30, 0.40, 0.04, 0.05, 0.0],
+	"serenade": ["Cheer", 0.50, 0.80, 0.06, 0.04, 0.0],
+	"crescendo": ["Spellcast_Long", 1.62, 0.62, -0.07, 0.22, 0.0],
 }
 
 ## signature / gesture : explicit skill IDs, including support and summon skills.
@@ -89,7 +93,7 @@ const GROUPS := {
 	"lotus/prayer": "second_wind healing grand_healing virtual_life regeneration_field hand_of_god prayer regrowth life_bloom gaia_blessing fairy_spirit",
 	"sun/raise": "extinction judgement_light divine_judgment infernal_scream imperial_judgment",
 	"wings/prayer": "resurrection blessing_aura miracle",
-	"rain/raise": "holy_rain_big",
+	"rain/raise": "holy_rain_big slumber_lullaby",
 	"cathedral/channel": "last_judgement",
 	"thorn/bolt": "thorn_shot nature_wrath",
 	"roots/weave": "forest_blessing",
@@ -127,6 +131,18 @@ const GROUPS := {
 	"vortex/whirl": "abyss_vortex",
 	"fault/execution": "midnight_execution",
 	"cyclone/storm_spin": "oblivion_requiem",
+	# The Bard: notes struck off the strings, songs sung to the party, drums and the finale.
+	"rune/strum": "staccato_shot sorrow_note triad_chord",
+	"beam/strum": "heartstring echo_chain aria_of_ruin eternal_echo",
+	"tide/strum": "resonance cascade",
+	"vortex/strum": "discord",
+	"vortex/raise": "lament shattering_rhapsody grand_dissonance",
+	"wings/serenade": "valor_march heroic_anthem hymn_of_legends",
+	"shield/serenade": "iron_ballad sanctuary_serenade",
+	"focus/strum": "virtuoso maestro_fervor",
+	"roar/strum": "fortissimo",
+	"roar/ground_slam": "war_drum thunder_crescendo",
+	"cathedral/crescendo": "grand_finale",
 }
 
 ## Elite gestures add distinct weight transfer and controlled follow-through.
@@ -180,6 +196,12 @@ const ELITE_MOTION := {
 	"midnight_execution": ["execution", -.34, .10, .36, .16],
 	"shadow_sovereign": ["resolve", .12, .06, .00, .05],
 	"oblivion_requiem": ["storm_spin", .36, .05, .02, .12],
+	"grand_dissonance": ["raise", .20, .10, .00, .05],
+	"aria_of_ruin": ["raise", .10, .12, .04, .05],
+	"eternal_echo": ["strum", .16, .04, .00, .04],
+	"thunder_crescendo": ["ground_slam", .15, .04, .10, .10],
+	"hymn_of_legends": ["serenade", .12, .08, .00, .04],
+	"grand_finale": ["crescendo", .25, .16, .00, .06],
 }
 
 static var _cues: Dictionary = {}
@@ -231,7 +253,7 @@ static func source_time(cue: Dictionary, elapsed: float, release: float, length:
 				return lerpf(0.55, 1.59, smoothstep(0.60, 0.78, t))
 			return lerpf(1.59, contact, smoothstep(0.78, 1.0, t))
 		# Gather weight first, accelerate into contact; support spells breathe smoothly.
-		var flowing := String(cue.gesture) in ["weave", "prayer", "invoke", "channel", "ward", "resolve"]
+		var flowing := String(cue.gesture) in ["weave", "prayer", "invoke", "channel", "ward", "resolve", "serenade"]
 		var phase := smoothstep(0.0, 1.0, t) if flowing else t * t * (2.0 - t)
 		if bool(cue.get("elite", false)):
 			# Three readable beats: preparation, held tension, committed release.

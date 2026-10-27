@@ -64,6 +64,16 @@ const RECIPES := {
 	"lord_of_command": ["citadel", "e8b64a", "fff6d8", 6, 1.12, 0.8, -0.1],
 	"emperors_command": ["crown", "ffd36b", "fff8dc", 8, 1.18, 1.8, 0.2],
 	"lords_dominion": ["crown", "e8b64a", "fff4d0", 6, 1.15, 1.6, 0.1],
+	# Bard: every song is a ring of notes (any ally with orbiting notes carries a song); the
+	# solo stances are rose petals and rose wings; the star stage is a bandstand of lyres.
+	"valor_march": ["note", "ff8fcf", "fff0f8", 3, 0.95, 1.5, 0.25],
+	"iron_ballad": ["note", "f0c870", "fff6dc", 4, 1.0, 1.1, -0.15],
+	"virtuoso": ["petal", "ff8fcf", "fff0f8", 4, 0.93, 1.38, 0.2],
+	"heroic_anthem": ["note", "ffb0dc", "fff4fa", 5, 1.05, 1.7, 0.3],
+	"sanctuary_serenade": ["note", "9fe8ff", "f0fcff", 6, 1.1, 1.2, -0.2],
+	"maestro_fervor": ["wing", "ff9ad2", "fff2fa", 6, 1.08, 1.3, 0.15],
+	"hymn_of_legends": ["note", "ffd36b", "fff8dc", 8, 1.2, 1.85, 0.35],
+	"celestial_stage": ["crown", "ffd36b", "fff8e0", 7, 1.16, 1.65, 0.1],
 }
 static var _meshes: Dictionary = {}
 static var _names: Dictionary = {}
@@ -89,7 +99,7 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 	var id: String = look.id
 	if _meshes.has(id):
 		return _meshes[id]
-	var star_shapes := {"royal_vanguard":"banners","sylph_step":"sylph","aegis_formation":"phalanx","seraph_aegis":"seraph","sacred_sanctuary":"chapel","spirit_court":"court","veil_of_night":"constellation"}
+	var star_shapes := {"royal_vanguard":"banners","sylph_step":"sylph","aegis_formation":"phalanx","seraph_aegis":"seraph","sacred_sanctuary":"chapel","spirit_court":"court","veil_of_night":"constellation","celestial_stage":"lyre"}
 	if star_shapes.has(id):
 		var build := SurfaceTool.new()
 		build.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -205,6 +215,13 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 					var b := lerpf(-1.25, 1.25, float(k + 1) / 6.0)
 					_bar(st, pos + basis * Vector3(sin(a) * 0.34, cos(a) * 0.34, 0), pos + basis * Vector3(sin(b) * 0.34, cos(b) * 0.34, 0), 0.05)
 					_bar(st, pos + basis * Vector3(sin(a) * 0.24, cos(a) * 0.27 - 0.02, 0.02), pos + basis * Vector3(sin(b) * 0.24, cos(b) * 0.27 - 0.02, 0.02), 0.02)
+			"note":
+				# An eighth note facing out from the wearer: a tilted oval head, a stem and a flag.
+				var head := pos - basis.x * 0.05
+				_append(st, MeshKit.sphere_low(), basis.rotated(basis.z, -0.4), head, Vector3(0.15, 0.11, 0.07))
+				var top := head + basis.x * 0.07 + Vector3.UP * 0.34
+				_bar(st, head + basis.x * 0.07 + Vector3.UP * 0.03, top, 0.022)
+				_bar(st, top, top + basis.x * 0.11 - Vector3.UP * 0.13, 0.02)
 			"crown":
 				_append(st, SkillTableau.shield_mesh(), basis, pos, Vector3(0.18, 0.38, 0.18))
 				_arc(st, radius, float(look.height) - 0.25, angle, angle + TAU / n * 0.94, 0.024)

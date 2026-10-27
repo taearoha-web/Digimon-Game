@@ -165,6 +165,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	ClassFlourish.contact(parent, skill, at, crit)
 	ShadowSkillArt.contact(parent, skill, at)
 	LordSkillArt.contact(parent, skill, at)
+	BardSkillArt.contact(parent, skill, at)
 	if MartialSkillArt.handles(skill):
 		MartialSkillArt.contact(parent,skill,at)
 		return
@@ -185,7 +186,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, look: Dictionary, orig
 	var time := maxf(duration, 0.08)
 	if visual:
 		# Socket light owns the wind-up; only a low, open grounding mark remains.
-		if family in ["mage", "priest", "summoner"]:
+		if family in ["mage", "priest", "summoner", "bard"]:
 			SkillInk.mark(root, look, Vector3(0, 0.035, 0), 0.9 + float(look.tier) * 0.08, time)
 	elif family in ["warrior", "vagabond", "lancer", "defender", "assassin", "darklord"]:
 		SkillInk.ribbon(root, look, Vector3(0, 1.1, 0.4), 0.8, 0, Vector3(0, 0, -0.7), time)

@@ -4,9 +4,9 @@ extends Node3D
 ## Shared, finite mesh library; 2–6 budgeted draws per cast, one animation clock.
 ## A layer is a batched sculpture, not one node per feather, rune or shard.
 const SHADER := preload("res://shaders/elite_skill.gdshader")
-const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion eclipse_fang abyss_vortex phantom_legion midnight_execution shadow_sovereign oblivion_requiem infernal_scream chaos_sovereign raven_storm earth_dominion emperors_command imperial_judgment"
+const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion eclipse_fang abyss_vortex phantom_legion midnight_execution shadow_sovereign oblivion_requiem infernal_scream chaos_sovereign raven_storm earth_dominion emperors_command imperial_judgment grand_dissonance aria_of_ruin eternal_echo thunder_crescendo hymn_of_legends grand_finale"
 static var _meshes: Dictionary = {}
-const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains"
+const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains stave"
 
 static func warm_geometry() -> void:
 	for kind in GEOMETRY_KINDS.split(" "):
@@ -27,7 +27,7 @@ static func palette(skill: Dictionary) -> Dictionary:
 	var colors: Array = {
 		"warrior":["ed825d","fff2b3","6b223d"], "archer":["5fe6c5","fff0a6","204367"],
 		"mage":["ac81fb","f3d6ff","343470"], "priest":["f6bd3f","fff6d0","8a4160"],
-		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"], "defender":["8fc1ff","fff4cc","2c4570"], "assassin":["9a6bff","f4e6ff","2a1240"], "darklord":["e8b64a","fff4d0","4a1020"]
+		"summoner":["65d9a1","ffe7a5","215b65"], "lancer":["70ccef","fff0ba","334c91"], "defender":["8fc1ff","fff4cc","2c4570"], "assassin":["9a6bff","f4e6ff","2a1240"], "darklord":["e8b64a","fff4d0","4a1020"], "bard":["ff8fcf","fff0f8","4a1036"]
 	}.get(String(look.family), ["90dbff","ffffff","234567"])
 	var overrides: Dictionary = {
 		"grand_cross":["eab875","fff4c9","895149"],"sword_of_justice":["ead28d","fff9db","795c64"],"divine_piercing":["9edbf4","fff2bc","456497"],"judgment_ray":["edcc7a","fff7db","785d68"],"ice_storm":["63c9ff","e7ffff","304eaa"],"hell_meteor":["f77746","fff3a0","7d243f"],
@@ -35,7 +35,8 @@ static func palette(skill: Dictionary) -> Dictionary:
 		"lightning_arrow":["74c9ff","fff39c","514690"],"elder_dragon":["57c6ad","ffe9a0","285463"],
 		"holy_rampart":["ffd25a","fffbe3","8a5a24"],"judgment_shield":["ffcf4d","fffbe0","7a4a20"],"aegis_of_ages":["dceeff","ffffff","3a5a9a"],"meteor_shield":["ff9a48","fff3c0","7a2a30"],"sanctuary_wall":["ffd36a","fffbe8","8a5a40"],"world_bastion":["ffc83a","fff9d8","6a4a1a"],
 		"eclipse_fang":["ff4f7b","ffe6ee","3d0d2c"],"infernal_scream":["ff6a2a","fff0b0","6a1a20"],"chaos_sovereign":["8a4dff","f0e2ff","2a0f4a"],"raven_storm":["8a4dff","f0e2ff","1e0f3e"],"imperial_judgment":["e8b64a","fff6d8","3a1a6a"],"midnight_execution":["ff5a86","fff0f4","2a0a28"],"oblivion_requiem":["a77bff","fff0ff","1c0d33"],
-		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"]}
+		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"],
+		"grand_dissonance":["b07aff","f2e6ff","2a1040"],"thunder_crescendo":["c79bff","f4ecff","2a1250"],"grand_finale":["ff6fb5","fff4fa","4a0f30"]}
 	colors = overrides.get(String(skill.id), colors)
 	look.primary = Color(colors[0]); look.accent = Color(colors[1]); look.shade = Color(colors[2])
 	if skill.get("fx", {}).has("buff"):
@@ -86,6 +87,9 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 	elif family == "darklord":
 		# A royal crown gathers over the scepter before the command.
 		art.layer("crown",look,Vector3(0,2.2,0.3),Vector3.ONE*0.9,Vector3.ZERO,0,duration,Vector3.UP*0.3,0.4,0.2)
+	elif family == "bard":
+		# A staff drum rises behind and round the Bard like a music box.
+		art.layer("stave",look,Vector3(0,0.9,0),Vector3.ONE*1.05,Vector3.ZERO,0,duration,Vector3.UP*0.35,0.5,0.2)
 	elif family == "assassin":
 		# Two thin crescents gather across the daggers before the blades move.
 		for side in [-1.0,1.0]:
@@ -94,7 +98,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 		var kind := "branches" if family == "summoner" else "seal"
 		art.layer(kind,look,Vector3(0,0.08,0),Vector3.ONE*1.25,Vector3.ZERO,0,duration,Vector3.ZERO,0.12,0.12)
 	# Targeted sky attacks arrive at their actual release. No fake late impact.
-	if String(skill.id) in ["meteor_arrow","last_judgement","holy_rain_big","divine_judgment"]:
+	if String(skill.id) in ["meteor_arrow","last_judgement","holy_rain_big","divine_judgment","aria_of_ruin","grand_finale"]:
 		var sky := _root(parent,aim,duration,"EliteSkyCharge")
 		sky.owner_ref=art.owner_ref; sky.generation=art.generation
 		sky.layer("seal",look,Vector3(0,6,0),Vector3.ONE*1.8,Vector3.ZERO,0,duration,Vector3.ZERO,0.2,0.12)
@@ -319,11 +323,50 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.95,Vector3.ZERO,d,1.55,Vector3.ZERO,-0.35)
 			art.layer("lightning",look,Vector3(0,1.5,0),Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,d+0.05,0.9)
 			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.8,Vector3.ZERO,d+0.1,1.4,Vector3.ZERO,0.0,0.25)
+		"grand_dissonance":
+			# The off-key staff: a cracked seal under the field, a tilted staff ring turning overhead, chains of sound.
+			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.95,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.35)
+			art.layer("fractures",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.7,Vector3.ZERO,d,1.5)
+			art.layer("stave",look,Vector3(0,2.6,0),Vector3(radius*0.45,1.6,radius*0.45),Vector3(0.12,0,-0.1),d,1.4,Vector3.ZERO,0.8)
+			art.layer("chains",look,Vector3(0,1,0),Vector3(radius*0.55,2,radius*0.55),Vector3.ZERO,d,1.3,Vector3.ZERO,0.4)
+			art.layer("stars",look,Vector3(0,1.0,0),Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,d,1.5,Vector3.UP*1.2)
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.55,Vector3.ZERO,d+0.1,1.3,Vector3.ZERO,0.0,0.25)
+		"aria_of_ruin":
+			# The aria's column: a helix of light on the foe, a seal, pillars, a turning staff and rising stars.
+			art.layer("helix",look,Vector3.ZERO,Vector3(1.3,5.5,1.3),Vector3.ZERO,d,1.2,Vector3.ZERO,2.6)
+			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*2.8,Vector3.ZERO,d,1.3,Vector3.ZERO,0.5)
+			art.layer("pillars",look,Vector3.ZERO,Vector3(2,4,2),Vector3.ZERO,d,1.1,Vector3.ZERO,0.4,0.3)
+			art.layer("stave",look,Vector3(0,3.2,0),Vector3.ONE*1.2,Vector3.ZERO,d,1.3,Vector3.ZERO,1.2)
+			art.layer("stars",look,Vector3(0,1.0,0),Vector3(2,3,2),Vector3.ZERO,d,1.4,Vector3.UP*1.4)
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*2.4,Vector3.ZERO,d,1.2,Vector3.ZERO,0.0,0.25)
+		"eternal_echo":
+			# The echo that never ends: a staff ring round the first foe, a spiral of light, a seal, stars.
+			art.layer("stave",look,Vector3(0,1,0),Vector3.ONE*1.4,Vector3.ZERO,d,1.3,Vector3.ZERO,1.6)
+			art.layer("helix",look,Vector3.ZERO,Vector3(1.2,3.6,1.2),Vector3.ZERO,d,1.2,Vector3.ZERO,3.0)
+			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*2.4,Vector3.ZERO,d,1.3,Vector3.ZERO,-0.5)
+			art.layer("stars",look,Vector3(0,1.0,0),Vector3(2.2,3,2.2),Vector3.ZERO,d,1.4,Vector3.UP*1.0)
+		"thunder_crescendo":
+			# The sky drum: a crater round the Bard, lightning, a seal and a staff of thunder over him.
+			# A burst rings the caster, so its near side runs under the camera: the solid pieces stay close in.
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.4,Vector3.ZERO,d,1.4,Vector3.ZERO,0.0,0.25)
+			art.layer("lightning",look,Vector3(0,1.5,0),Vector3(radius*0.7,3,radius*0.7),Vector3.ZERO,d+0.05,0.9)
+			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.95,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.35)
+			art.layer("stave",look,Vector3(0,3.4,0),Vector3(radius*0.4,1.6,radius*0.4),Vector3.ZERO,d,1.3,Vector3.ZERO,1.4)
+			art.layer("fractures",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.45,Vector3.ZERO,d,1.5)
+		"grand_finale":
+			# The finale's hall: a cathedral of light over the stage, pillars, a staff in the sky, a crater,
+			# rising stars and the crackle of fireworks.
+			art.layer("cathedral",look,Vector3(0,0.1,0),Vector3(radius*0.45,radius*0.55,radius*0.45),Vector3.ZERO,d,1.6,Vector3.ZERO,0.0,0.25)
+			art.layer("pillars",look,Vector3.ZERO,Vector3(radius*0.8,3.6,radius*0.8),Vector3.ZERO,d,1.4,Vector3.ZERO,0.5,0.3)
+			art.layer("stave",look,Vector3(0,4.0,0),Vector3(radius*0.5,1.8,radius*0.5),Vector3.ZERO,d,1.5,Vector3.ZERO,1.0)
+			art.layer("crater_ring",look,Vector3(0,0.06,0),Vector3.ONE*radius*0.55,Vector3.ZERO,d+0.05,1.4,Vector3.ZERO,0.0,0.25)
+			art.layer("stars",look,Vector3(0,1.0,0),Vector3(radius*0.8,3.5,radius*0.8),Vector3.ZERO,d,1.6,Vector3.UP*1.6)
+			art.layer("lightning",look,Vector3(0,1.5,0),Vector3(radius*0.6,3,radius*0.6),Vector3.ZERO,d+0.08,0.9)
 		_:
 			# Lasting support skills: each uses its own batched relief.
-			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","shadow_sovereign":"wings","emperors_command":"banners"}
+			var shapes := {"godly_shield":"bastion","triumph_of_valhalla":"banners","spirit_of_wind":"helix","magic_overdrive":"astrolabe","prayer":"lotus","miracle":"cathedral","gaia_blessing":"tree","valkyrie_blessing":"wings","shadow_sovereign":"wings","emperors_command":"banners","hymn_of_legends":"stave"}
 			var kind: String = shapes.get(id,"seal")
-			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe"] else 0,0.25)
+			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe","stave"] else 0,0.25)
 			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)
 			art.layer("leaves" if id=="gaia_blessing" else "stars",look,Vector3(0,0.3,0),Vector3(2,2.5,2),Vector3.ZERO,d,1.65,Vector3.UP*1.0)
 	art._draw()
@@ -639,6 +682,20 @@ static func geometry(kind: String) -> ArrayMesh:
 				_append(st,SpellSpectacle._crystal_mesh(),r*0.82+Vector3.UP*0.08,Vector3(0.16,0.22+float(i%2)*0.08,0.12),Vector3(cos(a)*0.6,0,-sin(a)*0.6),0.3)
 				if i%3!=0:
 					_append(st,SpellSpectacle._crystal_mesh(),r*(1.02+float(i%3)*0.09)+Vector3.UP*0.03,Vector3(0.07,0.12,0.07),Vector3(cos(a)*1.2,0,-sin(a)*1.2),0.55)
+		"stave":
+			# Five staff lines round a ring (a music-box drum), open at the back, notes riding them.
+			for j in 5:
+				var pts := PackedVector3Array()
+				for i in 49:
+					var a := lerpf(-2.85,2.85,float(i)/48.0)
+					pts.append(Vector3(sin(a),0.09*j,cos(a)))
+				_line(st,pts,0.008,0.55+0.08*j)
+			for k in 7:
+				var a := lerpf(-2.5,2.5,float(k)/6.0)
+				var p := Vector3(sin(a),0.045+0.09*float(k%4),cos(a))
+				_append(st,SpellSpectacle._sphere_mesh(),p,Vector3(0.06,0.045,0.04),Vector3(0,a,-0.4),1.0)
+				var tangent := Vector3(cos(a),0,-sin(a))
+				_line(st,PackedVector3Array([p+tangent*0.05,p+tangent*0.05+Vector3.UP*0.2]),0.006,0.9)
 		"chains":
 			# Six radial chains of alternating links running out to anchor crystals at the rim.
 			for i in 6:
