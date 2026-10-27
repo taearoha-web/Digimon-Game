@@ -480,7 +480,7 @@ static func _lute(b: Dictionary, p: Dictionary, t: int) -> void:
 				for k in 5:
 					_feather(b, Vector3(s * (0.19 + k * 0.035), -0.27 - k * 0.012, face - 0.006 - k * 0.002), 0.24 - k * 0.012, 0.065, s * -(1.05 + k * 0.22), p.edge if k % 2 == 0 else p.metal)
 			_gem(b, rose + Vector3(0, 0, 0.004), Vector3(0.05, 0.05, 0.01), p)
-			_ring_at(b, tip + Vector3(0, 0.06, 0.0), 0.11, 0.01, p.gem, Vector3(70, 0, 0), true)
+			_ring_at(b, tip + Vector3(0, 0.05, -0.03), 0.1, 0.01, p.metal, Vector3(70, 0, 0))  # a gold halo behind the pegbox (no glow by the face)
 		3:  # eclipse: a dark bowl, a black sun in the rosette, a corona of gold rays round
 			# the whole body, dark-and-gold wings and a halo behind the pegbox
 			for k in 12:
@@ -495,8 +495,8 @@ static func _lute(b: Dictionary, p: Dictionary, t: int) -> void:
 			for s in [-1.0, 1.0]:
 				for k in 4:
 					_feather(b, Vector3(s * (0.2 + k * 0.04), -0.26 - k * 0.015, face - 0.008 - k * 0.002), 0.25 - k * 0.025, 0.065, s * -(1.1 + k * 0.28), p.metal if k % 2 == 0 else p.dark.lightened(0.3))
-			_ring_at(b, tip + Vector3(0, 0.06, 0.0), 0.15, 0.014, p.edge, Vector3(70, 0, 0), true)
-			_gem(b, tip + Vector3(0, 0.08, 0.01), Vector3(0.05, 0.08, 0.02), p)
+			_ring_at(b, tip + Vector3(0, 0.05, -0.03), 0.13, 0.014, p.metal, Vector3(70, 0, 0))  # a gold halo behind the pegbox (no glow by the face)
+			_gem(b, tip + Vector3(0, 0.07, 0.0), Vector3(0.035, 0.06, 0.015), p)
 	if t >= 2:  # two floating note charms beside the body
 		for s in [-1.0, 1.0]:
 			_part(b, MeshKit.sphere_low(), p.gem, Vector3(s * 0.3, -0.52, 0.02), Vector3(0.04, 0.03, 0.02), Vector3(0, 0, -25), true)
@@ -669,6 +669,14 @@ static func _helm(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 		for side in [-1.0, 1.0]:
 			_feather(b, Vector3(side * 0.18, 0.27, -0.055), 0.2, 0.062, side * -0.37, p.dark)
 			_ring_at(b, Vector3(side * 0.192, 0.204, 0.074), 0.035, 0.007, p.metal)
+	elif cls == "bard":
+		# A jaunty plume over the left ear with a gold note pinned at its root. No
+		# feather fans at the temples and nothing that glows by the face: the cheeks
+		# and brow stay clear and readable.
+		for k in 3 + mini(t, 2):
+			_feather(b, Vector3(0.15 + k * 0.012, 0.29 + k * 0.035, -0.06 - k * 0.028), 0.18 - k * 0.022, 0.05, 1.0 + k * 0.16, p.cloth if k % 2 == 0 else p.edge.darkened(0.2))
+		_part(b, MeshKit.sphere_low(), p.metal, Vector3(0.165, 0.25, 0.045), Vector3(0.03, 0.022, 0.012), Vector3(0, 0, -25))
+		_line(b, [Vector3(0.178, 0.254, 0.045), Vector3(0.178, 0.31, 0.04), Vector3(0.195, 0.3, 0.04)], 0.004, p.metal)
 	else:
 		for side in [-1.0, 1.0]:
 			for k in 2 + t:
@@ -689,11 +697,6 @@ static func _helm(b: Dictionary, p: Dictionary, t: int, cls: String) -> void:
 				_gem(b, Vector3((k - 2) * 0.04, 0.26 + (0.02 if k == 2 else 0.0), 0.17), Vector3(0.018, 0.045, 0.01), p)
 			for side in [-1.0, 1.0]:
 				_feather(b, Vector3(side * 0.13, 0.25, 0.1), 0.11, 0.03, side * -0.9, p.metal)
-		elif cls == "bard":
-			# A jaunty plume swept back over the left ear; the brow stays clear.
-			for k in 3:
-				_feather(b, Vector3(0.15 + k * 0.012, 0.30 + k * 0.04, -0.06 - k * 0.025), 0.17 - k * 0.025, 0.045, 0.95 + k * 0.18, p.edge if k % 2 == 0 else p.cloth)
-			_gem(b, Vector3(0.16, 0.255, 0.05), Vector3(0.022, 0.03, 0.008), p)
 		elif cls == "assassin":
 			# A half mask over the brow with a crescent at its peak.
 			_shape(b, [Vector2(-0.11, 0.0), Vector2(-0.05, 0.03), Vector2(0, 0.012), Vector2(0.05, 0.03), Vector2(0.11, 0.0), Vector2(0.06, -0.025), Vector2(-0.06, -0.025)], Vector3(0, 0.215, 0.2), 0.01, p.dark)

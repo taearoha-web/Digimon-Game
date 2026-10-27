@@ -140,6 +140,8 @@ static func wings(kind: String) -> Node3D:
 		mi.set_meta("no_outline", true)
 	if kind == "assassin":
 		ShadowWingArt.dress(root, false)
+	elif kind == "bard":
+		SongWingArt.dress(root, false)
 	var player := root.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if player != null and player.has_animation("Idle"):
 		for clip in ["Idle", "Flap", "Glide"]:

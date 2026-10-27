@@ -9,8 +9,9 @@ What it writes (same layout and conventions as the other classes):
                                 origin, the neck runs up +Y, the soundboard and strings face +Z
   divine_gear/bard_lute.glb     the 200-star lute of the heavenly song, static
   wings/wings_bard.glb          Lv.100 wings of heavenly notes on the mage wing rig (skinned + clips)
-  star_wings/wings_bard.glb     star symphony wings: the same rig, a lyre halo behind the head and a
-                                wheel of notes turning on the rig's WingHalo joint
+  star_wings/wings_bard.glb     star symphony wings: the same rig, grander, with a lower aurora wing,
+                                a lyre behind the head and a circular staff of notes turning on the
+                                rig's WingHalo joint
 
 A lute is a pear-shaped bowl of staves behind a flat soundboard, a short fretted
 neck with its pegbox bent back, a rosette over the sound hole and strings from the
@@ -28,10 +29,14 @@ shoulders point at the hero's chin, so nothing large grows there.
 The wings reuse the armature, bind poses and Unfold / Fold / Glide / Flap / Idle (and
 HaloSpin) clips of the mage's wings, read from the committed assets (never OUT), so
 they fold, flap and glide exactly like every other class's pair; only the skinned
-mesh is new. Every wing is a fan of rose-gold feathers crossed by the five glowing
-lines of a musical staff, with notes on the lines and note heads at the feather
-tips. Material keys are stable (they become glTF material names). Shares the mesh
-helpers and GLB writer of tools/make_assassin_gear.py. Requires numpy.
+mesh is new. Every wing is a great raised angel's wing in three rows (long primaries
+fanned from the hand, secondaries falling from the forearm, rounded coverts over
+their roots), crossed by a ribbon of five gold staff lines with notes on it, with
+notes drifting off its tips; a gold treble clef joins the pair at the back.
+SongWingArt (characters/song_wing_art.gd) shades the feathers, the staff and the
+drifting notes, finding them by material key; the keys are stable (they become glTF
+material names). Shares the mesh helpers and GLB writer of
+tools/make_assassin_gear.py. Requires numpy.
 """
 import math
 import os
@@ -158,13 +163,13 @@ def flat(m, key, outline, centre, depth):
     ridge(m, key, outline, centre, depth, plane=("x", "y"))
 
 
-def star_gem(m, key, centre, outer, inner, points, depth):
+def star_gem(m, key, centre, outer, inner, points, depth, weights=None):
     outline = []
     for k in range(points * 2):
         a = math.pi * k / points
         r = outer if k % 2 == 0 else inner
         outline.append((r * math.sin(a), r * math.cos(a)))
-    flat(m, key, outline, centre, depth)
+    ridge(m, key, outline, centre, depth, plane=("x", "y"), weights=weights)
 
 
 def note_glyph(m, key, centre, size):
@@ -443,11 +448,12 @@ def lute(tier):
             tube(m, "gem", [tuple(tip), tuple(tip + [0.024 * math.sin(a), 0.022, -0.006]), tuple(tip + [0.01 * math.sin(a), 0.04, -0.01]), tuple(tip + [0.036 * math.sin(a), 0.064, -0.014])], [0.0036, 0.003, 0.0022, 0.0004], sides=3)
         star_gem(m, "gem", (0, ROSE[1], 0.0182), 0.024, 0.008, 6, 0.0025)
     if tier == 9:
-        # The god-tier: a crown, a floating halo set with stars behind the pegbox, an
+        # The god-tier: a crown, a floating gold halo set with stars behind the pegbox (solid
+        # gold, not glowing: held, the pegbox is beside the hero's cheek), an
         # eight-point star at the bridge, a halo round the rosette and great wings.
         crown(m, "trim", tip + [0, 0.012, 0], 0.017, points=5, height=0.028)
         hc = tip + np.array([0, 0.04, -0.03])
-        torus(m, "gem", tuple(hc), (0, 0.45, -0.89), 0.08, 0.0042, seg=24, sides=3)
+        torus(m, "trim", tuple(hc), (0, 0.45, -0.89), 0.08, 0.0042, seg=24, sides=3)
         torus(m, "trim", tuple(hc), (0, 0.45, -0.89), 0.092, 0.0022, seg=24, sides=3)
         for k in range(4):
             a = 2 * math.pi * k / 4 + math.pi / 4
@@ -470,7 +476,7 @@ def divine_lute():
     m, mats = lute(9)
     mats.update({"wood": material("fff4e6", 0.5, 0.3), "top": material("fffaf2", 0.35, 0.35),
                  "trim": material("f2c45a", 0.5, 0.28),
-                 "gem": material("ff9ad2", 0.1, 0.15, glow="ff9ad2", glow_amount=2.0),
+                 "gem": material("ff9ad2", 0.1, 0.15, glow="ff9ad2", glow_amount=1.1),
                  "string": material("dff8ff", 0.2, 0.2, glow="dff8ff", glow_amount=1.6),
                  "hole": material("2a1020", 0.0, 0.9)})
     cy = (BODY_TOP + BODY_BOTTOM) * 0.5
@@ -498,47 +504,111 @@ def divine_lute():
 
 
 # ---------------------------------------------------------------------------
-# Wings: rose-gold feathers crossed by a musical staff
+# Wings: great layered feathered wings with a golden staff of music
 # ---------------------------------------------------------------------------
+# One wing, back to front as a camera behind the hero sees it:
+#   aurora (star)  a lower wing of long plumes sweeping out and down under the great wing
+#   primary        long flight feathers fanned from the hand at the wing's top, the
+#                  outermost pointing up, the innermost out
+#   secondary      the forearm's flight feathers falling out and down towards the hip
+#   covert         greater coverts over their roots, a scalloped row of small coverts
+#                  along the arm, the alula at the wrist and scapulars over the root
+#   staff          a ribbon of five gold lines (a musical staff) sweeping along the wing
+#                  in an S and trailing off past the tips, notes sitting on its lines
+#   drift          notes rising off the wing tips and fading (SongWingArt moves them)
+# Each wing is laid out in the left wing's frame (x out from the spine, y up) on a
+# surface that bends back as it reaches out (wing_z), then mirrored for the right.
+# Feathers carry UVs (x: root -> tip; y: across, 0 leading edge, 0.5 on the shaft, 1
+# trailing edge, plus 2 x the feather's number), the staff ribbons (x: along, y:
+# across its lines) and each drifting note (x: its phase) for SongWingArt's shaders;
+# the bones, the clef, the lyre and the notes on the staff keep plain glTF materials.
 
-def feather(m, key, root, direction, normal, length, width, weights, curl=0.04, shaft=None):
-    """One broad feather: a smooth vane rooted at root along direction, lying in the
-    plane with the given normal (the camera side), its edges near parallel to a
-    rounded tip; a raised shaft down its middle. Returns the vane's centre line."""
-    d = np.asarray(direction, float)
-    d /= np.linalg.norm(d)
-    n = np.asarray(normal, float)
-    n = n - d * np.dot(n, d)
-    n /= np.linalg.norm(n)
-    across = np.cross(n, d)
-    centre = lambda t: root + d * length * t + n * (curl * length * t * t)
+def wing_z(x):
+    """Depth of the wing surface x out from the spine: just behind the back at the root,
+    bending back about 35 degrees, flattening out towards the tips."""
+    return -0.07 - 0.75 * x + 0.22 * x * x
+
+
+def unit(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
+
+
+class WingFrame:
+    """The left wing's layout coordinates mapped onto one side: 2D (x out, y up) points
+    scaled about the shoulder, set on the wing surface and lifted towards the camera
+    behind the hero (lift)."""
+
+    def __init__(self, sx, grow):
+        self.sx, self.grow = sx, grow
+        self.origin = np.array([0.045, 0.485])
+
+    def flat(self, p):
+        return self.origin + (np.asarray(p, float) - self.origin) * self.grow
+
+    def at(self, p, lift=0.0):
+        x, y = self.flat(p)
+        return np.array([x * self.sx, y, wing_z(x)]) + self.normal(x) * lift
+
+    def normal(self, x):
+        """The camera side of the wing surface (back and towards the spine)."""
+        return unit([(-0.75 + 0.44 * x) * self.sx, 0.0, -1.0])
+
+    def direction(self, p, degrees):
+        """A direction in the wing surface at p: degrees from straight out towards up."""
+        x = self.flat(p)[0]
+        a = math.radians(degrees)
+        return unit([math.cos(a) * self.sx, math.sin(a), (-0.75 + 0.44 * x) * math.cos(a)])
+
+
+def plume(m, key, root, d, nb, sx, length, width, weights, number, sweep=0.06, curl=None, rounded=False):
+    """One tapered feather from root along d, facing the camera side nb: a narrow
+    leading vane and a broad trailing vane on a shaft raised into a shallow ridge,
+    swept towards the trailing side (sweep) and curled by curl x length at the tip.
+    rounded: a covert's round tip instead of a flight feather's point."""
+    d = unit(d)
+    nb = unit(nb - d * np.dot(nb, d))
+    side = unit(np.cross(nb, d)) * sx
+    curl = -nb * 0.05 if curl is None else np.asarray(curl, float)
+    stations = (0.0, 0.25, 0.5, 0.72, 0.88, 1.0) if rounded else (0.0, 0.14, 0.3, 0.46, 0.6, 0.73, 0.85, 0.94, 1.0)
     grid, uvs = [], []
-    for t in (0.0, 0.12, 0.32, 0.55, 0.74, 0.86, 0.94, 1.0):
-        if t <= 0.78:
-            w = width * (0.45 + 0.55 * min(1.0, t / 0.3))
+    for t in stations:
+        if t < 0.6:
+            w = 0.5 + 0.5 * math.sin(0.5 * math.pi * min(1.0, t / 0.45))
+        elif rounded:
+            w = math.sqrt(max(0.0, 1.0 - ((t - 0.6) / 0.4) ** 2))
         else:
-            w = width * math.sqrt(max(0.0, 1.0 - ((t - 0.78) / 0.22) ** 2))
-        c = centre(t)
-        grid.append([c - across * w + n * 0.1 * w, c - n * 0.06 * width, c + across * w + n * 0.1 * w])
-        uvs.append([(t, 0.0), (t, 0.5), (t, 1.0)])
+            w = ((1.0 - t) / 0.4) ** 0.85
+        w *= width * 0.5
+        c = root + d * length * t + side * sweep * length * t * t + curl * length * t * t
+        grid.append([c - side * w * 0.8 - nb * 0.1 * w, c + nb * 0.16 * w, c + side * w * 1.2 - nb * 0.1 * w])
+        uvs.append([(t, 2.0 * number), (t, 2.0 * number + 0.5), (t, 2.0 * number + 1.0)])
     kit.sheet(m, key, grid, uvs, weights)
-    if shaft:
-        tube(m, shaft, [centre(0.0) - n * 0.08 * width, centre(0.45) - n * 0.08 * width, centre(0.9) - n * 0.06 * width],
-             [width * 0.1, width * 0.08, width * 0.02], sides=3, caps=False, weights=weights)
-    return centre
 
 
-def wing_note(m, key, centre, up, right, size, weights, flag=True, beam=None):
-    """A floating eighth note facing the camera behind the hero (-Z): a tilted head,
-    a stem and a flag (or a beam to a second note's stem top)."""
+def stamp(m, key, build, uv, weights):
+    """Builds a small part (build(mesh, key)) and copies it into m under key with one UV
+    on every vertex, so a shader can move it as a whole."""
+    tmp = Mesh()
+    build(tmp, "x")
+    part, out = tmp.parts["x"], m._part(key)
+    for p, n in zip(part["p"], part["n"]):
+        out["p"].append(p)
+        out["n"].append(n)
+        out["w"].append(weights(p))
+        out["uv"].append(uv)
+
+
+def wing_note(m, key, centre, size, weights, flag=True):
+    """A floating note facing the camera behind the hero (-Z), written the same way
+    round on both wings: a tilted head, a stem and (an eighth note) a flag."""
     c = np.asarray(centre, float)
-    sphere(m, key, tuple(c), size, rings=3, seg=7, squash=(1.35, 0.95, 0.6), weights=weights)
+    up, right = np.array([0.0, 1.0, 0.0]), np.array([-1.0, 0.0, 0.0])
+    sphere(m, key, tuple(c), size, rings=3, seg=6, squash=(1.35, 0.95, 0.6), weights=weights)
     top = c + right * size * 1.15 + up * size * 3.6
-    tube(m, key, [c + right * size * 1.15, top], [size * 0.22, size * 0.18], sides=3, weights=weights)
-    n = np.cross(right, up)
-    if beam is not None:
-        tube(m, key, [top, np.asarray(beam, float)], [size * 0.3, size * 0.3], sides=3, weights=weights)
-    elif flag:
+    tube(m, key, [c + right * size * 1.15, top], [size * 0.24, size * 0.2], sides=3, weights=weights)
+    if flag:
+        n = np.array([0.0, 0.0, -1.0])
         pts = [top, top + right * size * 1.3 - up * size * 0.9, top + right * size * 1.1 - up * size * 1.9, top + right * size * 0.25 - up * size * 1.1]
         for face in (1.0, -1.0):
             peak = (pts[0] + pts[1] + pts[2] + pts[3]) / 4 + n * size * 0.2 * face
@@ -550,129 +620,206 @@ def wing_note(m, key, centre, up, right, size, weights, flag=True, beam=None):
     return top
 
 
-def song_wing(m, side, pos, jidx, star):
-    """One wing of rose-gold (star: white-gold over rose) feathers: broad primaries fanned
-    from the wrist, secondaries along the forearm, two rows of coverts over the roots,
-    the five lines of a musical staff arcing across the fan with notes sitting on them,
-    and glowing note heads at the tips of the longest primaries."""
-    sx = 1.0 if side == "L" else -1.0
-    names = ["Wing_%s_1" % side, "Wing_%s_2" % side, "Wing_%s_3" % side]
-    weights = kit.wing_weights(jidx, pos, names)
-    sh, el = pos[names[0]], pos[names[1]]
-    wr = pos[names[2]] + np.array([0.02 * sx, 0.02, -0.02])
-    grow = 1.22 if star else 1.0
-    X = lambda x, y, z: np.array([x * sx, y, z])
-    normal = X(0.06, -0.04, 1.0)
-    camera = np.array([0.0, 0.0, -1.0])
-
-    def fan(a_deg, back=0.0):
-        """The wing plane's direction at angle a (degrees from out towards up)."""
-        a = math.radians(a_deg)
-        return np.array([math.cos(a) * sx, math.sin(a), -0.16 - 0.1 * (1.0 - (a_deg + 40.0) / 125.0) + back])
-
-    # The arm: shoulder -> elbow -> wrist, gold.
-    tube(m, "strut", [sh, el, wr, wr + fan(80.0) * 0.08 * grow], [0.017, 0.014, 0.012, 0.004], sides=6, weights=weights)
-    # Primaries from the wrist, nearly upright to out-and-down, shingled towards the camera.
-    count = 10 if star else 9
-    lengths = [0.36, 0.45, 0.53, 0.59, 0.62, 0.6, 0.55, 0.48, 0.42, 0.36]
-    primaries = []
-    for k in range(count):
-        t = k / (count - 1)
-        a = 80.0 - 112.0 * t
-        ln = lengths[int(round(t * 9))] * grow
-        root = wr + X(0.012 * t, -0.03 * t, 0.0) + camera * 0.004 * (count - k)
-        f = feather(m, "feather", root, fan(a), normal, ln, 0.05 * grow, weights, curl=0.035, shaft="strut")
-        primaries.append((f, ln, a))
-    # Secondaries along the forearm, falling out and down under the primaries.
-    secondaries = 7 if star else 6
-    for k in range(secondaries):
-        t = k / (secondaries - 1)
-        root = el + (wr - el) * (1.0 - t) + X(0.0, -0.01, 0.0) + camera * (0.002 * k - 0.004)
-        a = -40.0 - 42.0 * t
-        feather(m, "under", root, fan(a, -0.05), normal, (0.36 - 0.1 * t) * grow, 0.052 * grow, weights, curl=0.025)
-    if star:
-        # A lower rose wing behind the fan, spreading out and down from the elbow.
-        for k in range(5):
-            t = k / 4
-            root = el + (wr - el) * (0.6 - 0.6 * t) + X(0.0, -0.03, 0.014)
-            feather(m, "under", root, fan(-28.0 - 30.0 * t, -0.04), normal, (0.46 - 0.08 * t) * grow, 0.05 * grow, weights, curl=0.02)
-    # Coverts over the roots, closest to the camera: a row along the arm and a short row
-    # of scapulars at the shoulder.
-    for k in range(8):
-        t = k / 7
-        root = sh + (wr - sh) * (0.2 + 0.85 * t) + camera * (0.03 + 0.002 * k)
-        a = 50.0 - 115.0 * (1.0 - t) ** 1.2
-        feather(m, "covert", root, fan(a), normal, (0.12 + 0.06 * math.sin(math.pi * t)) * grow, 0.036 * grow, weights, curl=0.02)
-    for k in range(5):
-        t = k / 4
-        root = sh + (el - sh) * (0.1 + 0.8 * t) + camera * (0.05 + 0.002 * k)
-        feather(m, "feather", root, fan(-30.0 - 40.0 * (1.0 - t)), normal, 0.1 * grow, 0.035 * grow, weights, curl=0.015)
-    # The staff: a band of five glowing arcs across the primaries on the camera side,
-    # running only where the feathers reach past it.
-    lines = []
-    for j in range(5):
-        r = (0.27 + 0.032 * j) * grow
-        top = 78.0 if r < 0.33 * grow else 64.0
-        pts = [wr + fan(a) * r + camera * 0.03 for a in np.linspace(top, -30.0, 13)]
-        tube(m, "staff", pts, [0.0028 * grow] * len(pts), sides=3, caps=False, weights=weights)
-        lines.append(pts)
-    up, right = np.array([0.0, 1.0, 0.0]), np.array([-sx, 0.0, 0.0])
-    # Glowing note heads at the tips of the longest primaries.
-    order = sorted(range(len(primaries)), key=lambda k: -primaries[k][1])
-    for k in order[:(5 if star else 3)]:
-        f, ln, a = primaries[k]
-        wing_note(m, "notes", f(1.0) + camera * 0.02, up, right, 0.022 * grow, weights)
-    # Notes sitting on the staff lines (a beamed pair on the star wings).
-    spots = [(3, 1, True), (7, 3, True), (10, 2, False)] if not star else [(2, 1, True), (5, 3, True), (8, 0, True), (10, 2, False), (4, 4, False), (11, 4, True)]
-    for i, line, flagged in spots:
-        p = lines[line][i] + camera * 0.012
-        wing_note(m, "notes", p, up, right, 0.016 * grow, weights, flag=flagged)
-    if star:
-        a, b = lines[1][6] + camera * 0.012, lines[2][7] + camera * 0.012
-        top_b = b + right * 0.016 * grow * 1.15 + up * 0.016 * grow * 3.6
-        wing_note(m, "notes", b, up, right, 0.016 * grow, weights, flag=False)
-        wing_note(m, "notes", a, up, right, 0.016 * grow, weights, beam=top_b)
-    # Mount at the shoulder blade.
-    sphere(m, "strut", sh + np.array([0, 0, -0.01]), 0.028, rings=4, seg=8, weights=weights)
-    gem(m, "notes", sh + np.array([0, 0, -0.036]), (0.009, 0.013, 0.006), weights=weights)
-
-
 def bezier3(p0, p1, p2, p3, t):
     p0, p1, p2, p3 = (np.asarray(p, float) for p in (p0, p1, p2, p3))
     return p0 * (1 - t) ** 3 + p1 * 3 * t * (1 - t) ** 2 + p2 * 3 * t * t * (1 - t) + p3 * t ** 3
 
 
+def lerp_list(values, u):
+    """values sampled evenly over 0..1, read at u."""
+    f = u * (len(values) - 1)
+    i = min(int(f), len(values) - 2)
+    return values[i] + (values[i + 1] - values[i]) * (f - i)
+
+
+# The left wing's layout (x out from the spine, y up; Lv.100 size before WingFrame's
+# grow). The leading edge leaves the shoulder outwards, sweeps up and eases out again
+# in a gentle S to the wing's top, where the hand fans the primaries from out to
+# straight up; the forearm below carries the secondaries, falling to the hip. (The
+# rig's wrist joint is lower, at (0.19, 0.70): everything past it rides that joint.)
+# How far a wing reaches out is held near 0.85: folded, that reach points down.
+EDGE = [(0.05, 0.50), (0.25, 0.60), (0.40, 0.92), (0.58, 1.12)]
+HAND_FROM = 0.6           # where along the edge the hand (the primaries) begins
+PRIMARY_LENGTHS = [0.36, 0.44, 0.49, 0.52, 0.52, 0.51, 0.5, 0.48, 0.46, 0.45, 0.44]
+
+
+def edge(s):
+    """The leading edge, s from the shoulder (0) to the wing's tip (1)."""
+    return bezier3(*EDGE, s)
+
+
+def flight_angle(s):
+    """Direction (degrees from straight out towards up) of the flight feather rooted at
+    edge(s): the secondaries fall out and down, the primaries fan from out to up."""
+    if s < HAND_FROM:
+        return -86.0 + 56.0 * max(0.0, s - 0.06) / (HAND_FROM - 0.06)
+    return -24.0 + 104.0 * (s - HAND_FROM) / (1.0 - HAND_FROM)
+
+
+def primary(u):
+    """Root, direction (degrees) and length of the primary u of the way in from the tip."""
+    s = 1.0 - (1.0 - HAND_FROM) * u
+    return edge(s), flight_angle(s), lerp_list(PRIMARY_LENGTHS, u)
+
+
+def song_wing(m, side, pos, jidx, star, number):
+    """One great wing: primaries, secondaries, coverts, the alula and scapulars, the gold
+    arm, the staff ribbon with its notes, the drifting notes (star: and the aurora wing).
+    number: the first feather number (UV) of this wing."""
+    sx = 1.0 if side == "L" else -1.0
+    names = ["Wing_%s_1" % side, "Wing_%s_2" % side, "Wing_%s_3" % side]
+    weights = kit.wing_weights(jidx, pos, names)
+    f = WingFrame(sx, 1.08 if star else 0.94)
+    n = [number]
+
+    def feather(key, p, degrees, length, width, lift, **kw):
+        root = f.at(p, lift)
+        plume(m, key, root, f.direction(p, degrees), f.normal(f.flat(p)[0]), sx, length * f.grow, width * f.grow, weights, n[0], **kw)
+        n[0] += 1
+
+    def outside(s, by):
+        """The point by ahead of the leading edge at edge(s) (negative: behind it)."""
+        t = edge(min(s + 0.01, 1.0)) - edge(max(s - 0.01, 0.0))
+        t = t / np.linalg.norm(t)
+        return edge(s) + np.array([-t[1], t[0]]) * by
+
+    # The aurora (star): a lower wing of long plumes behind the great one, sweeping out
+    # and down past the trailing edge between the primaries and the secondaries.
+    if star:
+        for k in range(7):
+            u = k / 6
+            feather("aurora", edge(0.5 - 0.3 * u), -34.0 - 28.0 * u, 0.66 - 0.1 * u, 0.1, -0.03 - 0.002 * k, sweep=0.14, curl=f.normal(0.5) * -0.04)
+    # Primaries, outermost first: each inner feather lies over the next outer one.
+    count = 13 if star else 11
+    for i in range(count):
+        p, degrees, length = primary(i / (count - 1))
+        feather("primary", p, degrees, length, 0.1, 0.004 * i, sweep=0.12)
+    # Secondaries along the forearm, falling out and down; their tips sweep back off
+    # the hero's back. Outermost first, so each inner one lies over the next.
+    count = 10 if star else 9
+    for j in range(count):
+        s = HAND_FROM - 0.02 - (HAND_FROM - 0.1) * j / (count - 1)
+        feather("secondary", edge(s), flight_angle(s), 0.5 - 0.16 * j / (count - 1), 0.115, 0.05 + 0.004 * j, sweep=-0.05,
+                curl=np.array([0.0, 0.0, -0.12]) - f.normal(0.1) * 0.02)
+    # Greater coverts over the flight feathers' roots, from the shoulder out to the tip.
+    count = 15 if star else 13
+    for k in range(count):
+        s = 0.07 + 0.9 * k / (count - 1)
+        reach = 0.24 if s < HAND_FROM else 0.24 - 0.08 * (s - HAND_FROM) / (1.0 - HAND_FROM)
+        feather("covert", edge(s), flight_angle(s) + 6.0, reach, 0.09, 0.085 + 0.003 * k, rounded=True, curl=f.normal(0.3) * -0.04)
+    # Small coverts along the leading edge, rounded like scales.
+    count = 12 if star else 10
+    for k in range(count):
+        s = 0.04 + 0.86 * k / (count - 1)
+        feather("covert", outside(s, 0.015), flight_angle(s) + 14.0, 0.115 + 0.02 * math.sin(math.pi * k / (count - 1)), 0.075, 0.12 + 0.002 * k,
+                rounded=True, sweep=0.02)
+    # The alula where the hand begins and scapulars over the root.
+    for k in range(3):
+        s = HAND_FROM + 0.03 * k
+        feather("covert", outside(s, 0.02), flight_angle(s) + 62.0 - 6.0 * k, 0.12 + 0.035 * k, 0.06, 0.14 + 0.003 * k, sweep=0.08)
+    for k in range(4):
+        feather("covert", (0.04 + 0.025 * k, 0.56 - 0.01 * k), -96.0 + 7.0 * k, 0.15, 0.08, 0.15 + 0.004 * k, rounded=True, curl=np.array([0.0, 0.0, -0.08]))
+    # The arm: a gold bone along the leading edge from the shoulder to the tip.
+    bone = [f.at(outside(s, 0.01), 0.11) for s in np.linspace(0.02, 0.97, 9)]
+    tube(m, "strut", bone, [0.016 - 0.0014 * k for k in range(8)] + [0.003], sides=6, weights=weights)
+    sphere(m, "strut", f.at(edge(HAND_FROM), 0.12), 0.02, rings=4, seg=8, weights=weights)
+    gem(m, "notes", f.at(edge(HAND_FROM), 0.14), (0.012, 0.018, 0.008), weights=weights)
+    # The staff: a ribbon of five gold lines in an S just inside the leading edge, from
+    # the shoulder over the coverts and the primaries, its free tail flowing on past the
+    # tip and curling down.
+    curve = [outside(s, -0.14 - 0.04 * s) for s in np.linspace(0.1, 0.96, 20)]
+    end, d = curve[-1], curve[-1] - curve[-2]
+    d = d / np.linalg.norm(d)
+    curve += [bezier3(end, end + d * 0.1, end + d * 0.2 + np.array([0.06, -0.06]), end + d * 0.16 + np.array([0.1, -0.18]), t) for t in np.linspace(0, 1, 9)[1:]]
+    half = 0.034 * f.grow
+    centres = [f.at(p, 0.2) for p in curve]
+    grid, uvs, frames = [], [], []
+    for k, c in enumerate(centres):
+        tangent = unit(centres[min(k + 1, len(centres) - 1)] - centres[max(k - 1, 0)])
+        nb = f.normal(f.flat(curve[k])[0])
+        across = unit(np.cross(nb, tangent))
+        u = k / (len(centres) - 1)
+        twist = math.radians(80.0) * max(0.0, (u - 0.7) / 0.3) ** 1.5
+        across = across * math.cos(twist) + nb * math.sin(twist)
+        grid.append([c - across * half, c + across * half])
+        uvs.append([(u, 0.0), (u, 1.0)])
+        frames.append((c, across))
+    kit.sheet(m, "staff", grid, uvs, weights)
+    # Notes sitting on the staff's lines.
+    spots = [(5, 1), (9, 3), (13, 2), (17, 0)] if not star else [(4, 1), (7, 3), (10, 0), (13, 2), (16, 4), (19, 1)]
+    size = 0.019 * f.grow
+    for k, line in spots:
+        c, across = frames[k]
+        wing_note(m, "notes", c + across * half * (line / 2.0 - 1.0) + np.array([0, 0, -0.012]), size, weights, flag=k % 2 == 1)
+    # Notes drifting off the wing tips: each rises and fades, then starts again.
+    tips = [0, 2, 4, 6, 8, 10][:6 if star else 4]
+    for k, i in enumerate(tips):
+        p, degrees, length = primary(i / 10.0)
+        a = math.radians(degrees)
+        tip = np.array(p) + np.array([math.cos(a), math.sin(a)]) * length * 1.02
+        centre = f.at(tip, 0.06)
+        phase = (k / len(tips) + (0.5 if sx < 0 else 0.0)) % 1.0
+        stamp(m, "drift", lambda mm, key, c=centre, fl=k % 2 == 0: wing_note(mm, key, c, 0.024 * f.grow, None, flag=fl), (phase, 0.0), weights)
+    return n[0]
+
+
+def clef(m, key, origin, scale, weights):
+    """A treble clef in gold at the centre of the back, joining the wings' roots: the
+    bowl spirals out from its centre, the line climbs into the top loop, and the stem
+    falls straight through the bowl to a hook with a ball."""
+    pts = []
+    for k in range(27):
+        th = -0.4 + (2 * math.pi + math.pi / 2 + 0.4) * k / 26
+        r = 0.045 + 0.17 * k / 26
+        pts.append((r * math.cos(th), 0.30 + r * math.sin(th)))
+    pts += [(-0.07, 0.53), (-0.13, 0.59), (-0.15, 0.67), (-0.12, 0.77), (-0.05, 0.87), (0.03, 0.96), (0.07, 1.03), (0.05, 1.07), (0.01, 1.03), (-0.01, 0.94)]
+    pts += [(0.0, 0.8), (0.01, 0.6), (0.02, 0.35), (0.03, 0.1), (0.025, -0.06), (0.0, -0.14), (-0.05, -0.17), (-0.09, -0.15)]
+    o = np.asarray(origin, float)
+    at = lambda p: o + np.array([-p[0] * scale, p[1] * scale, 0.0])
+    radii = [scale * (0.026 + 0.014 * math.sin(math.pi * k / 26)) for k in range(27)] + [scale * 0.024] * 10 + [scale * 0.03] * 8
+    tube(m, key, [at(p) for p in pts], radii, sides=5, weights=weights)
+    sphere(m, key, tuple(at((-0.1, -0.12))), scale * 0.055, rings=4, seg=8, weights=weights)
+
+
 def lyre_halo(m, weights):
-    """The star wings' lyre behind the head: two gold horns curving out and in to curled
-    tips, a yoke across them, seven strings of light and an arc of constellation stars.
-    Open in the middle and behind the head, so the face always shows."""
-    z = -0.31
+    """The star wings' lyre behind the head: two gold horns sweeping out and up into
+    scrolls, a yoke with a star at its crown, seven strings of light and an arc of
+    constellation stars. Open in the middle and behind the head, so the face shows."""
+    z = -0.42
     for s in (-1.0, 1.0):
-        horn = [bezier3((s * 0.08, 0.6, z), (s * 0.34, 0.66, z), (s * 0.34, 0.98, z), (s * 0.22, 1.08, z), t) for t in np.linspace(0, 1, 10)]
-        horn.append(np.array([s * 0.25, 1.13, z]))
-        horn.append(np.array([s * 0.29, 1.12, z]))
-        tube(m, "halo", horn, [0.016, 0.017, 0.016, 0.014, 0.012, 0.011, 0.01, 0.009, 0.008, 0.007, 0.005, 0.002], sides=6, weights=weights)
-        sphere(m, "notes", (s * 0.3, 1.115, z), 0.012, rings=3, seg=6, weights=weights)
-    sphere(m, "halo", (0.0, 0.6, z + 0.005), 0.05, rings=4, seg=10, squash=(1.9, 0.7, 0.5), weights=weights)
-    tube(m, "halo", [(-0.245, 1.035, z), (0.0, 1.05, z), (0.245, 1.035, z)], [0.008, 0.009, 0.008], sides=5, weights=weights)
+        horn = [bezier3((s * 0.07, 0.56, z), (s * 0.42, 0.62, z), (s * 0.42, 1.0, z), (s * 0.27, 1.16, z), t) for t in np.linspace(0, 1, 12)]
+        curl = [np.array([s * (0.27 + 0.045 * math.sin(a)), 1.16 + 0.045 - 0.045 * math.cos(a) + 0.01, z]) for a in np.linspace(0.6, 4.2, 7)]
+        pts = horn + curl
+        radii = [0.02 - 0.012 * k / (len(pts) - 1) for k in range(len(pts))]
+        tube(m, "halo", pts, radii, sides=6, weights=weights)
+        gem(m, "gems", (s * 0.38, 0.8, z - 0.02), (0.016, 0.026, 0.01), weights=weights)
+    sphere(m, "halo", (0.0, 0.56, z + 0.005), 0.05, rings=4, seg=10, squash=(2.0, 0.7, 0.5), weights=weights)
+    tube(m, "halo", [(-0.3, 1.13, z), (0.0, 1.16, z), (0.3, 1.13, z)], [0.009, 0.011, 0.009], sides=5, weights=weights)
+    star_gem(m, "gems", (0.0, 1.21, z - 0.01), 0.05, 0.02, 5, 0.012, weights)
     for k in range(7):
-        x = (k - 3) * 0.032
-        tube(m, "staff", [(x * 0.8, 0.62, z + 0.004), (x * 1.3, 1.04, z + 0.002)], [0.0022, 0.0022], sides=3, caps=False, weights=weights)
-    for k in range(9):
-        a = math.pi * (0.1 + 0.8 * k / 8)
-        gem(m, "notes", (0.4 * math.cos(a), 0.86 + 0.4 * math.sin(a), z - 0.02), (0.012, 0.018, 0.006), weights=weights)
+        x = (k - 3) * 0.04
+        tube(m, "strings", [(x * 0.7, 0.58, z + 0.004), (x * 1.35, 1.14, z + 0.002)], [0.0024, 0.0024], sides=3, caps=False, weights=weights)
+    for k in range(11):
+        a = math.pi * (0.06 + 0.88 * k / 10)
+        r = 0.58 if k % 2 == 0 else 0.53
+        gem(m, "gems", (r * math.cos(a), 0.78 + r * math.sin(a) * 0.82, z - 0.03), (0.014, 0.022, 0.007), weights=weights)
 
 
 def note_wheel(m, centre, weights):
-    """Eight notes on a thin gold ring round the WingHalo joint, turning like a music box."""
+    """A circular staff on the rig's WingHalo joint behind the wings, five gold lines
+    turning like a music box disc with eight notes riding on them."""
     c = np.asarray(centre, float)
-    torus(m, "halo", tuple(c), (0, 0, 1), 0.36, 0.0045, seg=40, sides=4, weights=weights)
-    torus(m, "staff", tuple(c), (0, 0, 1), 0.33, 0.0022, seg=40, sides=3, weights=weights)
-    up, right = np.array([0.0, 1.0, 0.0]), np.array([-1.0, 0.0, 0.0])
+    grid, uvs = [], []
+    for k in range(49):
+        a = 2 * math.pi * k / 48
+        d = np.array([math.cos(a), math.sin(a), 0.0])
+        grid.append([c + d * 0.47, c + d * 0.53])
+        uvs.append([(k / 48, 0.0), (k / 48, 1.0)])
+    kit.sheet(m, "wheel", grid, uvs, weights)
     for k in range(8):
-        a = 2 * math.pi * k / 8
-        p = c + np.array([0.345 * math.cos(a), 0.345 * math.sin(a), -0.01])
-        wing_note(m, "notes", p, up, right, 0.02, weights, flag=k % 2 == 0)
+        a = 2 * math.pi * k / 8 + 0.2
+        r = 0.47 + 0.015 * (k % 5)
+        wing_note(m, "notes", c + np.array([r * math.cos(a), r * math.sin(a), -0.012]), 0.024, weights, flag=k % 2 == 0)
 
 
 def wings(star):
@@ -681,29 +828,42 @@ def wings(star):
     joints = src.g["skins"][0]["joints"]
     jidx = {src.g["nodes"][j]["name"]: k for k, j in enumerate(joints)}
     m = Mesh()
+    number = 0
     for side in ("L", "R"):
-        song_wing(m, side, pos, jidx, star)
+        number = song_wing(m, side, pos, jidx, star, number)
+    fixed = kit.fixed_weight(jidx, "WingsRoot")
+    clef(m, "clef", (0.0, 0.36, -0.17), 0.33 if star else 0.3, fixed)
     if star:
-        lyre_halo(m, kit.fixed_weight(jidx, "WingsRoot"))
-        note_wheel(m, pos["WingHalo"] + np.array([0.0, 0.0, -0.015]), kit.fixed_weight(jidx, "WingHalo"))
+        lyre_halo(m, fixed)
+        note_wheel(m, pos["WingHalo"] + np.array([0.0, 0.0, -0.26]), kit.fixed_weight(jidx, "WingHalo"))
+    # Fallback looks; SongWingArt swaps the feathers, the staff, the wheel and the
+    # drifting notes for its animated shaders.
     if not star:
         mats = {
-            "feather": material("f8c4d2", 0.05, 0.55, glow="f8c4d2", glow_amount=0.12, double=True),
-            "under": material("e08aac", 0.05, 0.55, glow="e08aac", glow_amount=0.1, double=True),
-            "covert": material("f6c0b4", 0.1, 0.5, glow="f6c0b4", glow_amount=0.1, double=True),
-            "strut": material("f0bc74", 0.3, 0.35),
-            "staff": material("ffe6a0", 0.0, 0.3, glow="ffd36b", glow_amount=1.4),
-            "notes": material("ff8fcf", 0.0, 0.25, glow="ff8fcf", glow_amount=1.6),
+            "primary": material("fbe6dc", 0.05, 0.6, double=True),
+            "secondary": material("fcece2", 0.05, 0.6, double=True),
+            "covert": material("fff6ee", 0.05, 0.6, double=True),
+            "strut": material("f0c060", 0.5, 0.3),
+            "clef": material("f2c45a", 0.5, 0.28, glow="ffcf70", glow_amount=0.2),
+            "staff": material("ffd36b", 0.0, 0.3, glow="ffd36b", glow_amount=0.8, alpha=0.6, double=True),
+            "notes": material("ffb8dc", 0.1, 0.3, glow="ff8fcf", glow_amount=0.6),
+            "drift": material("ffc8e8", 0.0, 0.3, glow="ff9ad2", glow_amount=0.9),
         }
     else:
         mats = {
-            "feather": material("f9e9d6", 0.05, 0.55, glow="ffe8d0", glow_amount=0.08, double=True),
-            "under": material("f49ac0", 0.08, 0.5, glow="f49ac0", glow_amount=0.14, double=True),
-            "covert": material("fbdca0", 0.15, 0.4, glow="fbdca0", glow_amount=0.08, double=True),
-            "strut": material("f6cc66", 0.35, 0.3),
-            "staff": material("fff0c0", 0.0, 0.3, glow="ffd36b", glow_amount=1.6),
-            "notes": material("ff9ad2", 0.0, 0.25, glow="ff9ad2", glow_amount=1.8),
-            "halo": material("f2c45a", 0.85, 0.2, glow="ffd36b", glow_amount=0.5),
+            "aurora": material("c8a0f0", 0.05, 0.5, glow="b08af0", glow_amount=0.2, double=True),
+            "primary": material("f4dcf4", 0.05, 0.55, double=True),
+            "secondary": material("f2e2f6", 0.05, 0.55, double=True),
+            "covert": material("fcf6ff", 0.05, 0.55, double=True),
+            "strut": material("f6cc66", 0.5, 0.28),
+            "clef": material("f6cc66", 0.5, 0.25, glow="ffd36b", glow_amount=0.25),
+            "staff": material("ffe08a", 0.0, 0.3, glow="ffd36b", glow_amount=0.9, alpha=0.6, double=True),
+            "wheel": material("ffe08a", 0.0, 0.3, glow="ffd36b", glow_amount=0.9, alpha=0.6, double=True),
+            "notes": material("ffc0e4", 0.1, 0.3, glow="ff9ad2", glow_amount=0.7),
+            "drift": material("e0c8ff", 0.0, 0.3, glow="c8a8ff", glow_amount=1.0),
+            "halo": material("f2c45a", 0.55, 0.25, glow="ffd36b", glow_amount=0.2),
+            "strings": material("fff0c0", 0.0, 0.3, glow="ffe6a0", glow_amount=0.6),
+            "gems": material("e8dcff", 0.1, 0.2, glow="c8b0ff", glow_amount=0.8),
         }
     return m, mats
 
