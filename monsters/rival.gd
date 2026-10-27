@@ -96,6 +96,14 @@ func _make_visual() -> MonsterVisual:
 	return _rv
 
 
+func _ready() -> void:
+	super._ready()
+	# An AI Dark Lord keeps its raven on the arm (dressed for its scepter, DarkRaven);
+	# in a duel or a guild war it does not fly at anyone.
+	if StringName(member.get("class", "")) == &"darklord":
+		DarkRaven.ensure(self)
+
+
 ## The countdown is over: the rival starts fighting.
 func start_fight() -> void:
 	_frozen = false

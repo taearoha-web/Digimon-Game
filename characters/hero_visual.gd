@@ -45,6 +45,8 @@ static var _shared_library: AnimationLibrary
 var class_id: StringName = &"warrior"
 var model_name := ""
 var equip: Dictionary = {}
+## Counts re-dresses (refresh), so followers such as the DarkRaven see a gear change.
+var dressed := 0
 ## Custom face/hair (FaceKit); empty = the stock KayKit head of the class model.
 var look: Dictionary = {}
 var model: Node3D
@@ -461,6 +463,7 @@ func _glow_piece(nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
 
 
 func refresh() -> void:
+	dressed += 1
 	_face = null
 	for n in _body_nodes:
 		if is_instance_valid(n):
