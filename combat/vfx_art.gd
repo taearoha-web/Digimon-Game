@@ -174,6 +174,24 @@ static func _diamond_alpha(p: Vector2) -> float:
 	return smoothstep(0.9, 0.7, d) * (0.65 + 0.35 * (1.0 - absf(p.x)))
 
 
+## The Bard's crest strokes (lyre centred at x -0.08): arm curves, crossbar, top bar and the
+## notes' beam; then the four strings and two stems; then the two note heads.
+const BARD_CREST_LINES := [
+	[Vector2(-0.20, 0.42), Vector2(-0.40, 0.20)], [Vector2(-0.40, 0.20), Vector2(-0.42, -0.10)],
+	[Vector2(-0.42, -0.10), Vector2(-0.30, -0.32)], [Vector2(-0.30, -0.32), Vector2(-0.38, -0.46)],
+	[Vector2(0.04, 0.42), Vector2(0.24, 0.20)], [Vector2(0.24, 0.20), Vector2(0.26, -0.10)],
+	[Vector2(0.26, -0.10), Vector2(0.14, -0.32)], [Vector2(0.14, -0.32), Vector2(0.22, -0.46)],
+	[Vector2(-0.36, -0.28), Vector2(0.20, -0.28)], [Vector2(-0.24, 0.44), Vector2(0.08, 0.44)],
+	[Vector2(0.49, -0.30), Vector2(0.65, -0.38)],
+]
+const BARD_CREST_FINE := [
+	[Vector2(-0.20, -0.28), Vector2(-0.20, 0.42)], [Vector2(-0.12, -0.28), Vector2(-0.12, 0.42)],
+	[Vector2(-0.04, -0.28), Vector2(-0.04, 0.42)], [Vector2(0.04, -0.28), Vector2(0.04, 0.42)],
+	[Vector2(0.49, 0.02), Vector2(0.49, -0.30)], [Vector2(0.65, -0.06), Vector2(0.65, -0.38)],
+]
+const BARD_CREST_HEADS := [Vector2(0.44, 0.02), Vector2(0.60, -0.06)]
+
+
 ## Class emblems use generous negative space, so enemy telegraphs stay legible.
 ## Strokes are drawn 5-7 px wide at the texture's 192 px, so every one of the
 ## eight seals still reads once mipmapped on a phone.
@@ -248,19 +266,14 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 			a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(-0.26, -0.36), Vector2(0.26, -0.36))))
 		"bard":
 			# A lyre (two curved arms, a crossbar, four strings) with a beamed pair of notes at its right.
-			var cx := -0.08
-			for side in [-1.0, 1.0]:
-				var arm := [Vector2(cx + side * 0.12, 0.42), Vector2(cx + side * 0.32, 0.20), Vector2(cx + side * 0.34, -0.10), Vector2(cx + side * 0.22, -0.32), Vector2(cx + side * 0.30, -0.46)]
-				for i in arm.size() - 1:
-					a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, arm[i], arm[i + 1])))
-			a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(cx - 0.28, -0.28), Vector2(cx + 0.28, -0.28))))
-			a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(cx - 0.16, 0.44), Vector2(cx + 0.16, 0.44))))
-			for x in [-0.12, -0.04, 0.04, 0.12]:
-				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, Vector2(cx + x, -0.28), Vector2(cx + x, 0.42))))
-			for head in [Vector2(0.44, 0.02), Vector2(0.60, -0.06)]:
-				a = maxf(a, smoothstep(0.075, 0.05, p.distance_to(head)))
-				a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, head + Vector2(0.05, 0.0), head + Vector2(0.05, -0.32))))
-			a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, Vector2(0.49, -0.30), Vector2(0.65, -0.38))))
+			# The strokes are tested only near the emblem: this runs once per pixel while loading.
+			if p.x > -0.52 and p.x < 0.76 and p.y > -0.56 and p.y < 0.54:
+				for seg in BARD_CREST_LINES:
+					a = maxf(a, smoothstep(line, line * 0.4, _seg_dist(p, seg[0], seg[1])))
+				for seg in BARD_CREST_FINE:
+					a = maxf(a, smoothstep(fine, fine * 0.4, _seg_dist(p, seg[0], seg[1])))
+				for head in BARD_CREST_HEADS:
+					a = maxf(a, smoothstep(0.075, 0.05, p.distance_to(head)))
 		"summoner":
 			# A paw: one pad and four toes.
 			a = maxf(a, smoothstep(0.30, 0.25, p.distance_to(Vector2(0, 0.18))) * 0.9)

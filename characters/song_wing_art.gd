@@ -54,6 +54,22 @@ static func dress(root: Node3D, star: bool) -> void:
 			mi.custom_aabb = BOUNDS
 
 
+## Draws the feather and the glow shader once, out of sight, so the first Bard with wings
+## to walk in (a world player, a guild-war fighter) does not compile them mid-fight.
+static func warm_up(parent: Node3D, at: Vector3) -> void:
+	var still := GameSettings.quality == 0
+	for part in ["primary", "staff"]:
+		var sample := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE * 0.01
+		sample.mesh = quad
+		sample.material_override = material(part, false, still)
+		sample.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sample.position = at
+		parent.add_child(sample)
+		sample.create_tween().tween_interval(0.4).finished.connect(sample.queue_free, CONNECT_ONE_SHOT)
+
+
 static func material(part: String, star: bool, still := false) -> ShaderMaterial:
 	var key := "%s_%s_%s" % [part, "star" if star else "song", "still" if still else "moving"]
 	if not _materials.has(key):
