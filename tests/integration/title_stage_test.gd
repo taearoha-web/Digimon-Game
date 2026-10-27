@@ -180,6 +180,16 @@ func _check_flow() -> void:
 	var menu: MainMenu = main.title_screen
 	var free := Game.free_slot()
 	check(free == 3, "slot 3 is free again after the delete")
+	check(not Game.has_profile and not Game.save(), "on the character select no hero is loaded to be saved")
+	# Open the creator and go back: nothing may land in the empty slot.
+	menu._create.pressed.emit()
+	await frames(2)
+	main.class_screen.cancelled.emit()
+	await frames(4)
+	check(main.title_screen != null and main.class_screen == null, "back from the creator returns to the platform")
+	check(not Game.save() and not Game.has_save(free), "a cancelled creator leaves slot %d empty" % free)
+	await frames(10)
+	menu = main.title_screen
 	menu._create.pressed.emit()
 	await frames(2)
 	check(main.class_screen != null and main.title_screen == null, "create opens the hero creator")

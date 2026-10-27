@@ -136,6 +136,10 @@ func _show_title(arrival := 0) -> void:
 		class_screen = null
 	if title_screen:
 		title_screen.queue_free()
+	# The hero was saved on the way here. On the character select no hero is in play:
+	# nothing may save it again (a lost focus after deleting it would bring it back).
+	Game.playing = false
+	Game.has_profile = false
 	var screen := MainMenu.new()
 	screen.arrival_slot = arrival
 	title_screen = screen
@@ -145,7 +149,6 @@ func _show_title(arrival := 0) -> void:
 
 
 func _show_class_select(slot: int) -> void:
-	Game.slot = slot
 	if title_screen:
 		title_screen.queue_free()
 		title_screen = null
@@ -155,7 +158,10 @@ func _show_class_select(slot: int) -> void:
 	screen.cancelled.connect(func(): _show_title())
 	# The new hero is saved in its slot and lands on its circle of the character
 	# select (slot N on circle N); "เริ่มผจญภัย" then starts the game.
+	# The slot becomes the active one only now: a cancelled creator must not leave the
+	# hero still loaded pointing at an empty slot (a save would copy it there).
 	screen.confirmed.connect(func(class_id: StringName, hero_name: String, look: Dictionary):
+		Game.slot = slot
 		Game.new_profile(class_id, hero_name, look)
 		_show_title(slot))
 

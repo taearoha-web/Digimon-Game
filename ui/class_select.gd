@@ -114,7 +114,8 @@ func _ready() -> void:
 	_name_input.custom_minimum_size = Vector2(0, 58)
 	_name_input.text = "ฮีโร่"
 	right.add_child(_name_input)
-	var go := UIUtil.button("เริ่มผจญภัย!", &"PrimaryButton", Vector2(220, 62))
+	# The hero then stands on its circle of the character select; play starts from there.
+	var go := UIUtil.button("สร้างฮีโร่!", &"PrimaryButton", Vector2(220, 62))
 	go.pressed.connect(_on_confirm)
 	right.add_child(go)
 	root.resized.connect(_layout)

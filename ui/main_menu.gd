@@ -80,7 +80,7 @@ func _build_masthead(frame: Control) -> void:
 	title.add_theme_font_size_override("font_size", 34)
 	_outline(title, 10)
 	titles.add_child(title)
-	var sub := UIUtil.label("เลือกฮีโร่ของคุณ", &"BoldLabel")
+	var sub := UIUtil.label("เลือกฮีโร่ของคุณ  ·  v%s" % ProjectSettings.get_setting("application/config/version", ""), &"BoldLabel")
 	_outline(sub, 6)
 	titles.add_child(sub)
 	_counter = UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_RIGHT)
@@ -193,6 +193,12 @@ func _make_plate(slot: int) -> void:
 	var line := UIUtil.hbox(6)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.add_child(line)
+	# The circle's number leads, so the numbered spots still read with heroes on them.
+	var number := UIUtil.label(str(slot), &"BoldLabel")
+	number.add_theme_font_size_override("font_size", 15)
+	number.add_theme_color_override("font_color", TitleStage.GOLD)
+	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(number)
 	var who := UIUtil.label(String(info.name), &"BoldLabel")
 	who.add_theme_font_size_override("font_size", 15)
 	who.mouse_filter = Control.MOUSE_FILTER_IGNORE
