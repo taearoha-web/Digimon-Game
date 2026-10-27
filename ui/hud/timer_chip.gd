@@ -119,6 +119,13 @@ func _draw_glyph(c: Vector2, r: float, color: Color) -> void:
 				var rad := r if i % 2 == 0 else r * 0.38
 				pts.append(c + Vector2.from_angle(-PI * 0.5 + TAU * float(i) / 8.0) * rad)
 			draw_colored_polygon(pts, color)
+		"note":
+			# A song: an eighth note (head, stem and flag).
+			var head := c + Vector2(-r * 0.22, r * 0.5)
+			var top := head + Vector2(r * 0.36, -r * 1.35)
+			draw_circle(head, r * 0.4, color)
+			draw_line(head + Vector2(r * 0.36, 0), top, color, 3.0, true)
+			draw_polyline(PackedVector2Array([top, top + Vector2(r * 0.6, r * 0.4), top + Vector2(r * 0.45, r * 0.85)]), color, 3.0, true)
 		"summon":
 			draw_circle(c + Vector2(0, r * 0.35), r * 0.55, color)
 			for p in [Vector2(-0.75, -0.2), Vector2(-0.25, -0.75), Vector2(0.25, -0.75), Vector2(0.75, -0.2)]:

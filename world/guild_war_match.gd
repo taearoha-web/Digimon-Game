@@ -521,7 +521,7 @@ func _assign_objectives() -> void:
 		for f in (allies if team == GuildFighter.TEAM_ALLY else enemies):
 			if f.is_dead():
 				continue
-			var d := f._flat_distance(SiegeArena.ALTAR) + (25.0 if f.is_healer() else 0.0)
+			var d := f._flat_distance(SiegeArena.ALTAR) + (25.0 if f.is_healer() or f.sings() else 0.0)
 			if d < best:
 				best = d
 				runner = f

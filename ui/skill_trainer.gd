@@ -97,7 +97,7 @@ func _queue_rebuild() -> void:
 
 func _rebuild() -> void:
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)
-	_info.text = "แต้มสกิลที่ใช้ได้: %d   (ดาวละ 1 แต้ม + เหรียญ, สูงสุด %d ดาว)\nทุกดาว: ดาเมจ +%d%%  รัศมี +%d%%  คูลดาวน์ -%d%%  ฮีล +%d%%  บัฟ +%d%%  มึน/ช้า/ยั่วยุ +%d%%  MP +%d%%  (ดาว 3 และ 5 เพิ่มเป้า/ลูกธนู)" % [
+	_info.text = "แต้มสกิลที่ใช้ได้: %d   (ดาวละ 1 แต้ม + เหรียญ, สูงสุด %d ดาว)\nทุกดาว: ดาเมจ +%d%%  รัศมี +%d%%  คูลดาวน์ -%d%%  ฮีล +%d%%  บัฟ +%d%%  มึน/ช้า/ยั่วยุ/ลดเกราะ/อ่อนแรง +%d%%  MP +%d%%  (ดาว 3 และ 5 เพิ่มเป้า/ลูกธนู)" % [
 			int(Game.profile.skill_points), Game.MAX_SKILL_RANK, _pct(SkillRank.POWER_PER_STAR), _pct(SkillRank.RADIUS_PER_STAR),
 			_pct(SkillRank.CD_PER_STAR), _pct(SkillRank.HEAL_PER_STAR), _pct(SkillRank.BUFF_PER_STAR), _pct(SkillRank.CONTROL_PER_STAR), _pct(SkillRank.MP_PER_STAR)]
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

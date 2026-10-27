@@ -3,7 +3,7 @@ extends CanvasLayer
 ## Character creator: every hero starts as a Vagabond in the stock outfit; the
 ## player picks the body (boy or girl), one of its three styles (ChibiLook) and may
 ## change the hair colour, skin tone, eye colour and accessory, then a name. The
-## sword / bow / mage / priest line is chosen later, at Lv.10.
+## line (one of the ten, sword to lute) is chosen later, at Lv.10.
 
 signal confirmed(class_id: StringName, hero_name: String, look: Dictionary)
 signal cancelled()
@@ -104,7 +104,7 @@ func _ready() -> void:
 	right.add_child(_grid)
 	for row in ROWS:
 		_grid.add_child(_option_row(String(row[0]), String(row[1])))
-	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก / โล่ / มีดคู่ เมื่อเลเวล 10", &"SmallLabel")
+	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก / โล่ / มีดคู่ / คทา / พิณ เมื่อเลเวล 10", &"SmallLabel")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(note)
 	right.add_child(UIUtil.label("ชื่อฮีโร่", &"BoldLabel"))

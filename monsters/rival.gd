@@ -42,6 +42,13 @@ var announce_skills := true
 var _summons: Array = []
 ## At most this many summons alive per AI fighter.
 const SUMMON_LIMIT := 3
+## Marks on this fighter (a player: half strength, 40% of the time; Mob.PLAYER_MARK).
+## Kept apart from Mob's monster marks so the buff and respawn code that rebuilds
+## stats.def never loses or keeps one by mistake: [fraction, until (s)].
+var _rshred := 0.0
+var _rshred_until := 0.0
+var _rweaken := 0.0
+var _rweaken_until := 0.0
 
 
 func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: String) -> void:
@@ -97,6 +104,7 @@ func start_fight() -> void:
 
 func stop_fight() -> void:
 	_buff_art.clear(self)
+	_clear_marks()
 	duel_over = true
 	_frozen = true
 	hostile = false
@@ -163,6 +171,78 @@ func _check_phase() -> void:
 
 func apply_slow(seconds: float) -> void:
 	super.apply_slow(seconds * 0.5)
+
+
+## A Bard's armour crack on a player: half the fraction (at most 17.5%) for 40% of the time.
+func apply_shred(fraction: float, seconds: float) -> void:
+	if _dead or fraction <= 0.0 or seconds <= 0.0:
+		return
+	var now := Time.get_ticks_msec() * 0.001
+	var current := _rshred if now < _rshred_until else 0.0
+	var f := clampf(fraction, 0.0, SHRED_CAP) * PLAYER_MARK
+	if f + 0.0001 < current:
+		return
+	_rshred = f
+	_rshred_until = maxf(_rshred_until, now + seconds * PLAYER_MARK_TIME)
+	_sync_def()
+	_mark_feedback("shred", f > current + 0.0001)
+
+
+## A Bard's lament on a player: half the fraction (at most 15%) for 40% of the time;
+## every hit this fighter lands is that much weaker (Rival._hit).
+func apply_weaken(fraction: float, seconds: float) -> void:
+	if _dead or fraction <= 0.0 or seconds <= 0.0:
+		return
+	var now := Time.get_ticks_msec() * 0.001
+	var current := _weaken_now()
+	var f := clampf(fraction, 0.0, WEAKEN_CAP) * PLAYER_MARK
+	if f + 0.0001 < current:
+		return
+	_rweaken = f
+	_rweaken_until = maxf(_rweaken_until, now + seconds * PLAYER_MARK_TIME)
+	_mark_feedback("weaken", f > current + 0.0001)
+
+
+func debuff_left(key: String) -> float:
+	var now := Time.get_ticks_msec() * 0.001
+	var until := _rshred_until if key == "shred" else (_rweaken_until if key == "weaken" else 0.0)
+	return maxf(0.0, until - now)
+
+
+func _weaken_now() -> float:
+	return _rweaken if Time.get_ticks_msec() * 0.001 < _rweaken_until else 0.0
+
+
+## The only place stats.def is written: base x its own buff x an armour crack.
+func _sync_def() -> void:
+	var cracked := _rshred if Time.get_ticks_msec() * 0.001 < _rshred_until else 0.0
+	stats["def"] = _base_def * _def_boost * (1.0 - cracked)
+
+
+## Ends the marks once their time is up (and gives the DEF and the tag colour back).
+func _expire_marks() -> void:
+	var now := Time.get_ticks_msec() * 0.001
+	var changed := false
+	if _rshred_until > 0.0 and now >= _rshred_until:
+		_rshred = 0.0
+		_rshred_until = 0.0
+		_sync_def()
+		changed = true
+	if _rweaken_until > 0.0 and now >= _rweaken_until:
+		_rweaken = 0.0
+		_rweaken_until = 0.0
+		changed = true
+	if changed:
+		_tint_marks()
+
+
+func _clear_marks() -> void:
+	_rshred = 0.0
+	_rshred_until = 0.0
+	_rweaken = 0.0
+	_rweaken_until = 0.0
+	_sync_def()
+	_tint_marks()
 
 
 ## Higher-ranked fighters dodge some hits; nothing hurts during the countdown.
@@ -253,7 +333,8 @@ func _tick(delta: float) -> void:
 		_buff_until = 0.0
 		_atk_boost = 1.0
 		_def_boost = 1.0
-		stats["def"] = _base_def
+		_sync_def()
+	_expire_marks()
 
 
 func _try_potion() -> bool:
@@ -305,6 +386,21 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 
 func _score(skill: Dictionary, shape: String, distance: float, hp_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
+	var score := _shape_score(skill, shape, distance, hp_ratio)
+	# A marking skill (shred / weaken) is worth more while the target is unmarked.
+	if score > 0.0 and Mob.carries_mark(fx) and Mob.lacks_mark(_victim, fx, 1.0):
+		score += 1.5
+	return score
+
+
+## A song (the Bard's): played when no buff runs, the strongest attack song first.
+func _song_score(skill: Dictionary) -> float:
+	var buff: Dictionary = skill.fx.buff
+	return 6.0 + float(buff.get("atk", 0.0)) + 0.5 * float(buff.get("crit", 0.0)) + 0.001 * float(level)
+
+
+func _shape_score(skill: Dictionary, shape: String, distance: float, hp_ratio: float) -> float:
+	var fx: Dictionary = skill.get("fx", {})
 	match shape:
 		"summon":
 			# A summoner's strength: call its creatures early, the strongest first.
@@ -315,7 +411,9 @@ func _score(skill: Dictionary, shape: String, distance: float, hp_ratio: float) 
 			if fx.has("heal"):
 				return 10.0 if hp_ratio < 0.5 else 0.0
 			if fx.has("buff"):
-				return 6.0 if _buff_until <= 0.0 and distance < 16.0 else 0.0
+				if _buff_until > 0.0 or distance >= 16.0:
+					return 0.0
+				return _song_score(skill) if BuffBook.is_song_skill(skill) else 6.0
 			return 0.0
 		"burst":
 			return 5.0 + float(skill.mult) if distance < float(skill.radius) + 0.6 else 0.0
@@ -397,7 +495,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				var buff: Dictionary = fx.buff
 				_atk_boost = 1.0 + float(buff.get("atk", 0.0))
 				_def_boost = 1.0 + float(buff.get("def", 0.0))
-				stats["def"] = _base_def * _def_boost
+				_sync_def()
 				_buff_until = Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0)
 				_buff_art.buffs.clear()
 				var display_buff := buff.duplicate()
@@ -409,13 +507,13 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_heal(float(fx.heal) * 0.6)
 			for victim in _victims():
 				if _flat_distance(victim.global_position) <= float(skill.radius) + 0.6 + 0.4:
-					_hit(victim, mult, color)
+					_hit(victim, mult, color, fx)
 		"blast":
 			var spot := Vector3(aim.x, 0.0, aim.z)
 			VfxKit.shockwave(field, spot + Vector3(0, 0.1, 0), color, float(skill.radius))
 			for victim in _victims():
 				if _flat_distance_from(victim.global_position, spot) <= float(skill.radius) + 0.4:
-					_hit(victim, mult, color)
+					_hit(victim, mult, color, fx)
 		_:
 			if not alive:
 				return
@@ -425,11 +523,11 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 			elif shape == "chain":
 				total = mult * float(mini(int(skill.get("hits", 3)), 3)) * 0.8
 			if bool(skill.get("projectile", false)) or shape in ["fan", "chain"]:
-				_shoot_at(target, total, color, skill.vfx)
+				_shoot_at(target, total, color, skill.vfx, fx)
 			else:
 				VfxKit.slash_arc(field, global_position + Vector3(sin(_yaw), 0, cos(_yaw)) * 1.2 + Vector3(0, 1.0, 0), _yaw, color, 3.0, -0.4)
 				if _flat_distance(target.global_position) <= float(skill.get("range", 3.0)) + 1.4:
-					_hit(target, total, color)
+					_hit(target, total, color, fx)
 
 
 ## The hero, plus any of its summons.
@@ -437,24 +535,36 @@ func _victims() -> Array[Node3D]:
 	return _targets()
 
 
-func _hit(victim: Node3D, mult: float, color: Color) -> void:
+## One strike; [param fx] (a skill's effects) leaves its marks on a fighter or on the
+## hero (half strength for players), never on the hero's summons.
+func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	if not _alive(victim):
 		return
-	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08) * war_scale
+	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08) * war_scale * (1.0 - _weaken_now())
 	if randf() < float(rstats.crit):
 		raw *= HeroStats.CRIT_DAMAGE
 	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
 	# With the war scale on, the hero is protected like every fighter: no single hit or combo
 	# takes more than BurstGuard allows, however many enemies strike at once.
 	if war_scale > 1.0 and victim == hero and "stats" in hero:
-		var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(hero.stats.def)))))
+		var armour := float(hero.effective_def()) if hero.has_method("effective_def") else float(hero.stats.def)
+		var amount := maxi(1, int(round(HeroStats.mitigate(raw, armour))))
 		var allowed := BurstGuard.take(hero.get_instance_id(), amount, int(hero.stats.max_hp))
 		if allowed < amount:
 			raw *= float(allowed) / float(amount)
 	victim.take_damage(raw, self)
+	if fx.is_empty() or not Mob.carries_mark(fx) or not _alive(victim):
+		return
+	for key in Mob.MARKS:
+		if not (fx.get(key) is Array):
+			continue
+		if victim.has_method("apply_enemy_debuff"):
+			victim.apply_enemy_debuff(key, float(fx[key][0]), float(fx[key][1]))
+		elif victim.has_method("apply_" + key):
+			victim.call("apply_" + key, float(fx[key][0]), float(fx[key][1]))
 
 
-func _shoot_at(victim: Node3D, mult: float, color: Color, vfx: StringName) -> void:
+func _shoot_at(victim: Node3D, mult: float, color: Color, vfx: StringName, fx := {}) -> void:
 	var field := get_parent()
 	var from := global_position + Vector3(0, 1.3, 0) + Vector3(sin(_yaw), 0, cos(_yaw)) * 0.6
 	var to := victim.global_position + Vector3(0, 1.1, 0)
@@ -467,7 +577,7 @@ func _shoot_at(victim: Node3D, mult: float, color: Color, vfx: StringName) -> vo
 	get_tree().create_timer(flight).timeout.connect(func():
 		var hit_victim: Node3D = victim_ref.get_ref() as Node3D
 		if is_instance_valid(self) and not _dead and not duel_over and hit_victim != null:
-			_hit(hit_victim, mult, color)
+			_hit(hit_victim, mult, color, fx)
 	, CONNECT_ONE_SHOT)
 
 

@@ -212,6 +212,5 @@ func _hit(h: Hero, index: int, count: int) -> void:
 		if id in ["heartseeker","spiral_impaler"] and index>=2 and StarProgression.has_full_set(Game.profile,"lancer"): damage*=1.15
 		if id=="sanctified_chain": StarSkillArt.strike(h.field,skill,mob.global_position,0,origin)
 		h._deal(mob,damage,skill.color,skill.vfx,false,skill)
-		if not mob.is_dead() and skill.get("fx",{}).has("shred"): mob.apply_shred(0.2,6.0)
 	if id=="sanctified_chain" and not victims.is_empty(): _team_heal(h,0.12)
 	if id=="dawn_salvation": _team_heal(h,0.10)

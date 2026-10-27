@@ -217,6 +217,19 @@ func _buff_allies(buff: Dictionary, color: Color, label_text: String, skill_id: 
 		super._buff_allies(buff, color, label_text, skill_id)
 
 
+## Hunting alone, a Bard sings for itself: its own song slot.
+func _song_entry() -> Dictionary:
+	return super._song_entry() if party_mode else BuffBook.song_of(_book.buffs)
+
+
+func _song_left() -> float:
+	return super._song_left() if party_mode else BuffBook.song_left(_book.buffs)
+
+
+func _hero_sings() -> bool:
+	return party_mode and super._hero_sings()
+
+
 ## Its own potions only (never the hero's bag); the stock refills in the village.
 func _use_potions() -> void:
 	if hero.safe_zone:

@@ -194,5 +194,19 @@ func apply_burn(_dps: float, _seconds: float) -> void:
 	pass
 
 
+# Nor can a door's armour crack or its strength be sapped (the Bard's marks).
+func apply_shred(_fraction: float, _seconds: float) -> void:
+	pass
+
+
+func apply_weaken(_fraction: float, _seconds: float) -> void:
+	pass
+
+
+## Never "unmarked": the AI does not pick its marking skills for a gate.
+func debuff_left(_key: String) -> float:
+	return INF
+
+
 func set_dormant(_on: bool) -> void:
 	pass
