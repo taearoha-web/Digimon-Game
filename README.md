@@ -4,6 +4,12 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 # Toon Tale
 
+## Character select: the sky platform (October 2026)
+
+- After logging in, the title is a painted sky platform (`assets/ui/title_stage.jpg`) with ten numbered rune circles, 1–5 in the back row and 6–10 in front. The hero of save slot N stands on circle N in 3D (`ui/title_stage.gd`: the painting is a backdrop in front of a camera pitched like the painting, a hero's feet are where the ray through its circle meets the ground, its size follows the circle's width). With no heroes the platform stands empty, as designed.
+- `ui/main_menu.gd`: a one-line plate over each hero ("N name Lv.x ★y"), tap a hero to pick it (its blue circle and number crystal turn gold through `shaders/title_stage.gdshader`, the hero cheers once), and the bar's **+ สร้างตัวละคร** makes the next hero in the first free circle by number. After the creator, the new hero lands on its circle in a column of light and stays selected; **เริ่มผจญภัย** then starts the game.
+- Every screen shape keeps all ten circles, the plates and the bar in view: a cover fit around `TitleStage.KEEP`, KEEP's full width on tall screens and full height on very wide phone browsers, with the painting mirrored past its side edges. `tests/integration/title_stage_test.tscn` (CI) pins it; `tests/tools/title_stage_shots.tscn` renders 0/4/10 heroes at six shapes.
+
 A cute, solo 3D action RPG for landscape phone browsers, built with **Godot 4.3** and the GL Compatibility renderer. Version **0.7.7** releases cached resources after map changes and shares hit-particle geometry to reduce long-session memory pressure. Version **0.7.6** gives all 35 buff skills distinct persistent art, separates two self buffs from two incoming ally buffs, and groups status effects below the hero with enemy health at the top centre. Bag and merchant lists retain their position after selling. The 0.7.4 art update refines all 152 skill presentations with weapon-bound charges, weighted motion, elemental surfaces and staged dissolves. The ending remains at the final Void Emperor. All 152 illustrated skill icons, authored effects, release-synchronized choreography and corrected weapon grips remain available, alongside numeric stat allocation, equipped head portraits and cloud accounts. Combat has no camera shake, automatic zoom or phone vibration. Armageddon retains eleven real hits spaced 0.5 seconds apart.
 
 ## New class: the Dark Lord (ดาร์กลอร์ด, October 2026)
@@ -169,7 +175,7 @@ After Lv.100, earn **Paragon** levels (★1–200: each star costs 1.5× the EXP
 ## Version 0.6.0
 
 - On the hosted Toon Tale site, create a game ID (3–24 lowercase letters, digits or underscores) and password (10–128 characters), then use the same account on another phone or computer. Passwords are hashed server-side; browser sessions use secure, HttpOnly cookies.
-- Existing local saves (ten character slots, `Game.SLOT_COUNT`; the title screen lists them in a flick-scrolling list and the account server accepts slots 1–10) can be imported into an account after reviewing character summaries. Guest characters remain separate from account characters. Save revisions prevent another device from silently overwriting newer progress.
+- Existing local saves (ten character slots, `Game.SLOT_COUNT`; the account client and the account server both carry slots 1–10) can be imported into an account after reviewing character summaries. Guest characters remain separate from account characters. Save revisions prevent another device from silently overwriting newer progress.
 - Offline drafts stay on the device and retry when connected. Conflicting progress asks which whole save to use and keeps a local backup; gold and items are never merged automatically. One game tab per browser owns the save filesystem.
 - Keep the recovery code shown during registration: it resets a forgotten password and revokes old sessions. Settings → บัญชี / เซฟออนไลน์ opens account status, manual sync and logout.
 - Cloud accounts require the site's Worker/D1 backend; a standalone static/GitHub Pages export retains local play and backup-code transfer, but cannot provide online login by itself.
@@ -220,7 +226,7 @@ After Lv.100, earn **Paragon** levels (★1–200: each star costs 1.5× the EXP
 
 ## Saves
 
-Four save slots are stored in the current browser/device. Use **Settings → สำรอง / นำเข้าเซฟ** to copy a backup code before changing devices or clearing browser data. Review the character and destination slot before restoring. Arena/tower backups resume safely in town. Saves are local; there is no account or cloud synchronization.
+Ten save slots are stored in the current browser/device. Use **Settings → สำรอง / นำเข้าเซฟ** to copy a backup code before changing devices or clearing browser data. Review the character and destination slot before restoring. Arena/tower backups resume safely in town. Saves are local; there is no account or cloud synchronization.
 
 ## Run and validate
 

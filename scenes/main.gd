@@ -127,13 +127,21 @@ func _reload_imported_profile() -> void:
 	Game.playing = true
 	await go(Game.current_zone, false, true)
 
-func _show_title() -> void:
+## [param arrival]: a hero was just created in that slot and lands on its circle.
+func _show_title(arrival := 0) -> void:
 	_clear_zone()
 	hud.visible = false
 	if class_screen:
 		class_screen.queue_free()
 		class_screen = null
+	if title_screen:
+		title_screen.queue_free()
+	# The hero was saved on the way here. On the character select no hero is in play:
+	# nothing may save it again (a lost focus after deleting it would bring it back).
+	Game.playing = false
+	Game.has_profile = false
 	var screen := MainMenu.new()
+	screen.arrival_slot = arrival
 	title_screen = screen
 	add_child(screen)
 	screen.new_game_pressed.connect(_show_class_select)
@@ -141,21 +149,21 @@ func _show_title() -> void:
 
 
 func _show_class_select(slot: int) -> void:
-	Game.slot = slot
 	if title_screen:
 		title_screen.queue_free()
 		title_screen = null
 	var screen := ClassSelect.new()
 	class_screen = screen
 	add_child(screen)
-	screen.cancelled.connect(_show_title)
+	screen.cancelled.connect(func(): _show_title())
+	# The new hero is saved in its slot and lands on its circle of the character
+	# select (slot N on circle N); "เริ่มผจญภัย" then starts the game.
+	# The slot becomes the active one only now: a cancelled creator must not leave the
+	# hero still loaded pointing at an empty slot (a save would copy it there).
 	screen.confirmed.connect(func(class_id: StringName, hero_name: String, look: Dictionary):
+		Game.slot = slot
 		Game.new_profile(class_id, hero_name, look)
-		screen.queue_free()
-		class_screen = null
-		hud.visible = true
-		Game.playing = true
-		await go(&"town", true))
+		_show_title(slot))
 
 
 func _continue(slot: int) -> void:
@@ -286,6 +294,11 @@ func _on_hero_died() -> void:
 		await get_tree().process_frame
 		guard += 1
 	if zone != fallen_in and zone != null:
+		return
+	# Back at the character select (the player quit during the pause): keep the revive,
+	# but never build the town under the title.
+	if title_screen != null or not Game.playing:
+		Game.save()
 		return
 	_traveling = false
 	await go(&"town")

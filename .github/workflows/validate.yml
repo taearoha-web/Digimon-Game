@@ -71,6 +71,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-zone-staged
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/zone_staged_test.tscn
+      - name: Check no village rock or tree lands on a villager or the spot in front of them (layouts that walled the elder in)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-village-yard
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/village_yard_test.tscn
       - name: Check the summon looks (new models, eye fire, real swords, Chibi Demon)
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/summon_looks_test.tscn
       - name: Check the hero looks (six styles, colours, accessories, old saves unchanged)
@@ -141,3 +145,7 @@ jobs:
           grep -E "^(PHASE|SAMPLE TOWN|FALL|GROWTH|MODE SOAK|FAIL|PASS|FAILED)|SCRIPT ERROR" /tmp/mode_soak.log || true
           if grep -q "SCRIPT ERROR" /tmp/mode_soak.log; then echo "::error::Script errors while playing the modes"; grep -A2 "SCRIPT ERROR" /tmp/mode_soak.log | head -40; exit 1; fi
           test "$status" = 0
+      - name: Check the character select platform (slot N on circle N, create, select, delete, arrival)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-title-stage
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/title_stage_test.tscn
