@@ -146,9 +146,17 @@ func _check_heroes() -> void:
 	check(menu._selected == 2 and (stage.heroes[3].visual as HeroVisual).current != "Cheer", "the hero picked before stops cheering")
 	await get_tree().create_timer(4.0).timeout
 	check((stage.heroes[2].visual as HeroVisual).current != "Cheer", "the cheer plays once, then the hero stands again")
-	var defender: Node3D = stage.heroes[7].visual
-	var warrior: Node3D = stage.heroes[1].visual
-	check(absf(wrapf(defender.rotation.y - warrior.rotation.y, -PI, PI)) > deg_to_rad(20.0), "the Defender turns its shield aside")
+	var defender: HeroVisual = stage.heroes[7].visual
+	var to_camera := stage.camera.global_position - (stage.heroes[7].feet as Vector3)
+	check(absf(wrapf(defender.rotation.y - atan2(to_camera.x, to_camera.z), -PI, PI)) < 0.01, "the Defender faces the viewer like everyone else")
+	var aside := defender._skeleton.get_node_or_null("ShieldAside") as ShieldAside
+	check(aside != null and aside._upper >= 0 and aside._hand >= 0, "the Defender carries its shield at its side")
+	if aside:
+		var sk := defender._skeleton
+		# Godot 4.3 puts the animated pose back after drawing: read it in skeleton_updated.
+		await sk.skeleton_updated
+		var reach := sk.get_bone_global_pose(aside._hand).origin - sk.get_bone_global_pose(aside._upper).origin
+		check(reach.normalized().dot(ShieldAside.ASIDE.normalized()) > 0.97, "the shield arm points out to the side (%s)" % str(reach.normalized()))
 	menu._on_tap(stage.spot_screen(3) + Vector2(0, -20))
 	var played := [0]
 	menu.continue_pressed.connect(func(slot: int): played[0] = slot)

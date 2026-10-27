@@ -35,7 +35,6 @@ const GEM_Y := [352.0, 605.0]
 const GEM_HALF := Vector2(25, 37)
 const BACKDROP_SHADER := preload("res://shaders/title_stage.gdshader")
 const SKY := Color("4f9be6")
-const DEFENDER_TURN := 38.0
 const GOLD := Color("ffd36a")
 
 var camera: Camera3D
@@ -185,10 +184,14 @@ func add_hero(slot: int, overview: Dictionary, arrival := false) -> void:
 	root.add_child(visual)
 	visual.setup(StringName(overview.get("class", ClassData.START)), "", true, overview.get("equip", {}), overview.get("look", {}))
 	var height := HeroVisual.CHIBI_HEIGHT if visual.chibi else HeroVisual.HEIGHT
-	# A Defender holds its great shield square in front: turn it a little so the
-	# shield swings to the side and the face shows.
-	var turn := deg_to_rad(DEFENDER_TURN) if String(overview.get("class", "")) == "defender" else 0.0
-	heroes[slot] = {"root": root, "visual": visual, "shadow": shadow, "height": height, "scale": 1.0, "feet": Vector3.ZERO, "turn": turn}
+	# A Defender holds its great shield square in front of its body: here it carries
+	# it at its side instead (facing the viewer like everyone else).
+	if String(overview.get("class", "")) == "defender" and visual._skeleton != null:
+		var aside := ShieldAside.new()
+		aside.name = "ShieldAside"
+		visual._skeleton.add_child(aside)
+		aside.setup(visual, visual._skeleton)
+	heroes[slot] = {"root": root, "visual": visual, "shadow": shadow, "height": height, "scale": 1.0, "feet": Vector3.ZERO}
 	_place(slot)
 	if arrival:
 		_arrive(slot)
@@ -224,7 +227,7 @@ func _place(slot: int) -> void:
 	(entry.visual as Node3D).scale = Vector3.ONE * scale
 	# Face the camera, as the circles face the viewer.
 	var to_camera := camera.global_position - feet
-	(entry.visual as Node3D).rotation.y = atan2(to_camera.x, to_camera.z) + float(entry.get("turn", 0.0))
+	(entry.visual as Node3D).rotation.y = atan2(to_camera.x, to_camera.z)
 	(entry.shadow as Node3D).scale = Vector3.ONE * scale * 1.25
 
 
