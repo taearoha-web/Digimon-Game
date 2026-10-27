@@ -23,6 +23,7 @@ func _ready() -> void:
 	WorldPlayers.clear_bonus()
 	_roster()
 	_progress()
+	_vagabonds()
 	_gear()
 	await _field()
 	await _party()
@@ -102,6 +103,33 @@ func _progress() -> void:
 			on += 1 if bool(WorldPlayers.state(i, at).online) else 0
 		busy = busy and on >= 3
 	check(busy, "at least three players online every evening")
+
+
+## Everyone starts as a Vagabond and takes the roster's class at Lv.10, like a player at
+## the Job Master; a member sheet follows the change and says so.
+func _vagabonds() -> void:
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		var before := {}
+		var after := {}
+		var t := float(WorldPlayers.START_UNIX)
+		while t < float(WorldPlayers.START_UNIX) + 40.0 * 86400.0:
+			var s := WorldPlayers.state(i, t)
+			if int(s.level) < ClassData.LINE_LEVEL:
+				before = s
+			else:
+				after = s
+				break
+			t += 600.0
+		if before.is_empty() or after.is_empty():
+			check(false, "%s: reaches Lv.%d within forty days" % [e.name, ClassData.LINE_LEVEL])
+			continue
+		check(StringName(before["class"]) == ClassData.START and StringName(before["job"]) == StringName(e["class"]), "%s: a Vagabond below Lv.%d, job %s kept" % [e.name, ClassData.LINE_LEVEL, e["class"]])
+		check(StringName(after["class"]) == StringName(e["class"]), "%s: takes the %s line at Lv.%d" % [e.name, e["class"], ClassData.LINE_LEVEL])
+		var m := WorldPlayers.member(i, t - 600.0)
+		check(StringName(m["class"]) == ClassData.START, "%s: the member sheet starts as a Vagabond" % e.name)
+		check(WorldPlayers.sync_member(m, after) and StringName(m["class"]) == StringName(e["class"]), "%s: the sheet follows the job change" % e.name)
+		check(not WorldPlayers.equip(m).is_empty(), "%s: dressed in its job's gear" % e.name)
 
 
 ## What they wear is what they found: piece by piece, not a new set at each level band.
@@ -303,6 +331,18 @@ func _party() -> void:
 			bot = zone.presence.shown[i]
 	check(bot != null, "someone hunts here to walk up to")
 	if bot != null:
+		# The Lv.10 job change on the field: new body and, for the Dark Lord, its raven.
+		var line: String = String(bot.member["class"])
+		bot.member["class"] = "darklord"
+		bot.refresh()
+		check(bot.visual.class_id == &"darklord" and bot.get_children().any(func(c): return c is DarkRaven), "a world player that becomes a Dark Lord is rebuilt with its raven")
+		bot.member["class"] = "vagabond"
+		bot.refresh()
+		await get_tree().process_frame
+		check(bot.visual.class_id == &"vagabond" and not bot.get_children().any(func(c): return c is DarkRaven and not c.is_queued_for_deletion()), "a Vagabond has no raven")
+		bot.member["class"] = line
+		bot.refresh()
+		check(bot.visual.class_id == StringName(line), "and back to its own line")
 		Game.profile.level = clampi(int(bot.member.level), 1, 99)
 		hero.global_position = bot.global_position + Vector3(30, 0.2, 0)
 		await get_tree().create_timer(0.3).timeout
