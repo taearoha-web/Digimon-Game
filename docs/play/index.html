@@ -221,7 +221,7 @@
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v0.9.4 · build 4b5099d7</p>
+    <p class="eyebrow">Web build · v0.9.4 · build 7248b36d</p>
     <h1>Toon <span>Tale</span></h1>
     <p class="lede">ผจญภัย ARPG สไตล์การ์ตูน 9 อาชีพ พัฒนาถึงเลเวล 100 แล้วเดินทางต่อในเส้นทางดาว ใหม่: ดาร์กลอร์ด ราชันถือคทาพร้อมอีกาคู่ใจที่สั่งให้บินไปโจมตีอัตโนมัติได้ มีสกิลวาร์ปเรียกเพื่อนทั้งทีม และผ้าคลุมลอยได้แทนปีก ใช้ไอดีเดียวเล่นต่อข้ามเครื่องได้</p>
     <button id="play" type="button">เริ่มเล่น</button>
@@ -239,7 +239,7 @@
       <li><b>คุย / วาร์ป</b>เดินเข้าใกล้ NPC ประตูแสง หรือคริสตัลวาร์ป แล้วกดปุ่มที่โผล่ขึ้นมา</li>
       <li><b>เมนู</b>ปุ่ม ☰ มุมขวาบน (ตัวละคร กระเป๋า สกิล เควสต์) · คอมพิวเตอร์: WASD, Space, 1-8, I</li>
     </ul>
-    <p class="foot">ถ้าไม่มีเสียง ให้ปิดโหมดเงียบของ iPhone · เซฟ 4 ช่องเก็บไว้ในเบราว์เซอร์เครื่องนี้ (กดเริ่มเล่นแล้วเลือกช่อง) · โมเดล KayKit และ Quaternius (CC0) · เสียงสังเคราะห์ขึ้นเอง</p>
+    <p class="foot">ถ้าไม่มีเสียง ให้ปิดโหมดเงียบของ iPhone · เซฟ 10 ช่องเก็บไว้ในเบราว์เซอร์เครื่องนี้ (กดเริ่มเล่นแล้วเลือกช่อง) · โมเดล KayKit และ Quaternius (CC0) · เสียงสังเคราะห์ขึ้นเอง</p>
   </div>
 </div>
 
@@ -252,13 +252,13 @@
 </div>
 
 <script src="index.js"></script>
-<script src="accounts.bb6f7b9e9e74.js"></script>
+<script src="accounts.2aedf035cfb7.js"></script>
 <script src="session.7c584211397f.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 72430544, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 72430816, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
   // Compressed copies: name -> [file OR ordered file array, total bytes, mime]
-  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.4b5099d7.part001.gz.wasm", "game.4b5099d7.part002.gz.wasm", "game.4b5099d7.part003.gz.wasm", "game.4b5099d7.part004.gz.wasm", "game.4b5099d7.part005.gz.wasm"], 69878221, "application/octet-stream"]};
+  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.7248b36d.part001.gz.wasm", "game.7248b36d.part002.gz.wasm", "game.7248b36d.part003.gz.wasm", "game.7248b36d.part004.gz.wasm", "game.7248b36d.part005.gz.wasm"], 69876356, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');
@@ -467,7 +467,7 @@
       onExit: function () { window.toonSession.end(); },
     }).then(function () {
       window.toonHeapBytes = () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : 0;
-      window.toonSession.begin('0.9.4 · build 4b5099d7', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
+      window.toonSession.begin('0.9.4 · build 7248b36d', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
       resizeGameCanvas();
       document.body.classList.add('playing');
       document.getElementById('loader').remove();
