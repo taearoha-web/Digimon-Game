@@ -1459,6 +1459,9 @@ func _party() -> void:
 	await _wait(0.4)
 	check(zone.companions.is_empty() and Game.party().is_empty(), "dismissing leaves nobody")
 	# A party is five people: four world players walk with the hero, each in its own spot and look.
+	# (Weeks into the world, so they have taken their jobs: below Lv.10 everyone is a Vagabond.)
+	var clock_was := WorldPresence.clock_offset
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 40.0 * 86400.0 - WorldPlayers.now()
 	for cls in [&"mage", &"archer", &"priest", &"warrior"]:
 		Game.party_invite(WorldPlayers.first_of(cls), true)
 	await _wait(0.4)
@@ -1470,6 +1473,7 @@ func _party() -> void:
 	Game.party_kick(WorldPlayers.first_of(&"archer"))
 	await _wait(0.3)
 	check(zone.companions.size() == 3 and not Game.in_party(WorldPlayers.first_of(&"archer")), "a member can be let go")
+	WorldPresence.clock_offset = clock_was
 
 
 func _zones() -> void:

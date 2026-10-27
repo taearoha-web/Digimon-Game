@@ -11,10 +11,12 @@ extends RefCounted
 ## on the day the world opened up to Lv.100 ★200. While online a player stands in the
 ## village at the start and end of a session and otherwise hunts in the field that fits
 ## its level (WorldPresence shows it there, fighting the field's monsters for real).
+## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
 
-## The world opened here (unix seconds; 26 Oct 2026, 07:00 Thai time): every world
-## player started at Lv.1.
-const START_UNIX := 1792972800
+## The world (re)opened here (unix seconds; 27 Oct 2026, 22:10 Thai time): every world
+## player starts again at Lv.1 as a Vagabond with no guild. Moving this resets them all
+## (the party EXP kept on a device belongs to one opening and is dropped with it).
+const START_UNIX := 1793113800
 ## Schedules run on Thai time.
 const TZ := 7 * 3600
 const DAY := 86400
@@ -325,7 +327,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"bonus": bonus}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus}))
 		_bonus_dirty = false
 
 
@@ -340,6 +342,10 @@ static func _load_bonus() -> void:
 		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary or not parsed.get("bonus") is Dictionary:
+		return
+	# Party EXP from an earlier opening of the world is forgotten.
+	if int(parsed.get("start", 0)) != START_UNIX:
+		_bonus_dirty = true
 		return
 	for key in parsed.bonus:
 		var value: Variant = parsed.bonus[key]
@@ -371,6 +377,10 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	var out := e.duplicate()
 	out.merge(p)
 	out["index"] = i
+	# Everyone starts as a Vagabond and takes the roster's class (its "job") at Lv.10,
+	# like a player at the Job Master.
+	out["job"] = String(e["class"])
+	out["class"] = String(e["class"]) if int(p.level) >= ClassData.LINE_LEVEL else String(ClassData.START)
 	out["joins"] = int(e.guild)
 	out["guild"] = guild_at(i, int(p.level))
 	out["online"] = not s.is_empty()
@@ -453,11 +463,13 @@ static func member(i: int, t: float = -1.0) -> Dictionary:
 ## Brings a member sheet up to state s; true when it found something new to wear.
 static func sync_member(m: Dictionary, s: Dictionary) -> bool:
 	var before := gear_signature(m)
+	var was := String(m["class"])
+	m["class"] = String(s["class"])
 	m["level"] = int(s.level)
 	m["stars"] = int(s.stars)
 	m["frac"] = float(s.frac)
 	m["divine_frac"] = float(s.divine_frac)
-	return gear_signature(m) != before
+	return was != String(m["class"]) or gear_signature(m) != before
 
 
 ## The character sheet of a world player at its level and stars (for HeroStats): the
@@ -596,7 +608,7 @@ static func _wing_find(name: String, p: float) -> Dictionary:
 
 
 static func _gear_key(m: Dictionary) -> String:
-	return "%s|%d|%d" % [m.name, int(point_of(m) * 4.0), int(float(m.get("divine_frac", 0.0)) * 8.0)]
+	return "%s|%s|%d|%d" % [m.name, m["class"], int(point_of(m) * 4.0), int(float(m.get("divine_frac", 0.0)) * 8.0)]
 
 
 ## Which pieces member sheet m wears, as one string (changes when it puts on a new find

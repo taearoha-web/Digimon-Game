@@ -130,6 +130,9 @@ func _process(delta: float) -> void:
 	var lord := _lord()
 	if lord == null:
 		return
+	if not global_position.is_finite():
+		state = State.PERCH
+		global_position = _perch(lord) if _perch(lord).is_finite() else Vector3.ZERO
 	var dead: bool = lord.call("is_dead") if lord.has_method("is_dead") else false
 	visible = not dead
 	var target := _target_ref.get_ref() as Mob if _target_ref != null else null

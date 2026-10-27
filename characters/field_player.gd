@@ -105,6 +105,13 @@ func sync_progress(s: Dictionary) -> void:
 	_label.text = _level_text() if not _dead else _label.text
 
 
+## Lv.10: the Vagabond takes its line (the body is rebuilt in Companion.refresh).
+func _class_changed() -> void:
+	if visible and not _dead and is_instance_valid(field):
+		VfxKit.level_up(field, global_position)
+		say("เปลี่ยนอาชีพเป็น %s!" % String(ClassData.get_class_data(StringName(member["class"])).name), Color("ffd24a"))
+
+
 ## A line above its head (its answer to an invitation, a new piece of gear).
 func say(text: String, color := Color("fff4c0")) -> void:
 	if is_instance_valid(field):
