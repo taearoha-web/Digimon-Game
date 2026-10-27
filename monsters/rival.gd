@@ -175,7 +175,7 @@ func apply_slow(seconds: float) -> void:
 
 ## A Bard's armour crack on a player: half the fraction (at most 17.5%) for 40% of the time.
 func apply_shred(fraction: float, seconds: float) -> void:
-	if _dead or fraction <= 0.0 or seconds <= 0.0:
+	if not _markable() or fraction <= 0.0 or seconds <= 0.0:
 		return
 	var now := Time.get_ticks_msec() * 0.001
 	var current := _rshred if now < _rshred_until else 0.0
@@ -191,7 +191,7 @@ func apply_shred(fraction: float, seconds: float) -> void:
 ## A Bard's lament on a player: half the fraction (at most 15%) for 40% of the time;
 ## every hit this fighter lands is that much weaker (Rival._hit).
 func apply_weaken(fraction: float, seconds: float) -> void:
-	if _dead or fraction <= 0.0 or seconds <= 0.0:
+	if not _markable() or fraction <= 0.0 or seconds <= 0.0:
 		return
 	var now := Time.get_ticks_msec() * 0.001
 	var current := _weaken_now()
@@ -201,6 +201,17 @@ func apply_weaken(fraction: float, seconds: float) -> void:
 	_rweaken = f
 	_rweaken_until = maxf(_rweaken_until, now + seconds * PLAYER_MARK_TIME)
 	_mark_feedback("weaken", f > current + 0.0001)
+
+
+## Marks only land on a player who can be hurt: not before the start, nor after the end.
+func _markable() -> bool:
+	return not (_dead or _frozen or duel_over)
+
+
+## The marks run out on time even while this player is stunned (Mob skips _chase then).
+func _tick_status(delta: float) -> void:
+	super._tick_status(delta)
+	_expire_marks()
 
 
 func debuff_left(key: String) -> float:

@@ -142,6 +142,17 @@ func under_guard() -> bool:
 	return Time.get_ticks_msec() < _guard_until
 
 
+## A fighter fresh from its base (spawn guard) shrugs off marks as it shrugs off hits.
+func _markable() -> bool:
+	return super._markable() and not under_guard()
+
+
+## The tag keeps its team colour (the only friend-or-foe cue in a guild war); the
+## floating words and the flash still show a mark.
+func _tint_marks() -> void:
+	pass
+
+
 func _summons_are_enemies() -> bool:
 	return team == TEAM_ENEMY
 

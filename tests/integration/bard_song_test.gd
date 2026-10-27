@@ -224,7 +224,21 @@ func _stances() -> void:
 	hero._apply_self_fx(bard("virtuoso"))
 	check(BuffBook.contains(hero._buffs, "virtuoso", false), "the hero's stance is on the hero")
 	check(not BuffBook.contains(buddy._book.buffs, "virtuoso", true) and not BuffBook.contains(wolf._book.buffs, "virtuoso", true), "the hero's stance never reaches the party")
+	# Its heal stays on the caster too (a stance is "เฉพาะตัวเอง").
+	var buddy_spot: Vector3 = buddy.global_position
+	buddy.global_position = hero.global_position + Vector3(1.5, 0, 0)
+	buddy.hp = buddy.max_hp / 2
+	var hero_hp: int = Game.profile.hp
+	Game.profile.hp = hero.stats.max_hp / 2
+	hero._apply_self_fx(bard("maestro_fervor"))
+	check(buddy.hp == buddy.max_hp / 2, "the hero's stance heal reaches nobody else")
+	Game.profile.hp = hero.stats.max_hp / 2
 	singer._apply_self(bard("maestro_fervor"))
+	check(Game.profile.hp == hero.stats.max_hp / 2, "the AI Bard's stance heal reaches nobody else")
+	Game.profile.hp = hero_hp
+	buddy.global_position = buddy_spot
+	hero._buffs.clear()
+	hero._apply_self_fx(bard("virtuoso"))
 	check(BuffBook.contains(singer._book.buffs, "maestro_fervor", false), "the AI Bard's stance is on itself")
 	check(not BuffBook.contains(hero._buffs, "maestro_fervor", true) and not BuffBook.contains(buddy._book.buffs, "maestro_fervor", true), "the AI Bard's stance takes nobody else's slot")
 	check(BuffBook.group_count(hero._buffs, true) == 0 and BuffBook.group_count(hero._buffs, false) == 1, "the hero's slots are untouched by the AI stance")
@@ -367,16 +381,35 @@ func _fighters() -> void:
 	enemy = _fighter(&"bard", GuildFighter.TEAM_ENEMY, Vector3(6, 0, 6), 5)
 	await settle()
 	var base_def := float(enemy._base_def)
+	var team_tint: Color = enemy._label.modulate
 	check(Mob.lacks_mark(enemy, bard("discord").fx, 1.0), "an unmarked fighter lacks the mark")
+	# Marks only land on a player who can be hurt: not in the countdown, not under the spawn guard.
+	enemy._frozen = true
+	enemy.apply_shred(0.3, 8.0)
+	check(enemy.debuff_left("shred") == 0.0 and float(enemy.stats.def) == base_def, "a fighter in the countdown shrugs off a crack")
+	enemy._frozen = false
+	enemy._guard_until = Time.get_ticks_msec() + 5000
+	enemy.apply_weaken(0.3, 8.0)
+	check(enemy.debuff_left("weaken") == 0.0, "a fighter under its spawn guard shrugs off a weaken")
+	enemy._guard_until = 0
 	enemy.apply_shred(0.3, 8.0)
 	check(is_equal_approx(float(enemy.stats.def), base_def * 0.85) and absf(enemy.debuff_left("shred") - 3.2) < 0.05, "a fighter feels half a crack for 40% of the time")
 	check(not Mob.lacks_mark(enemy, bard("discord").fx, 1.0), "debuff_left sees a fighter's crack (the AI's marks-up rule works in war)")
 	enemy.apply_shred(0.9, 8.0)
 	enemy.apply_weaken(0.9, 8.0)
 	check(is_equal_approx(float(enemy.stats.def), base_def * (1.0 - Mob.SHRED_CAP * 0.5)) and is_equal_approx(enemy._weaken_now(), Mob.WEAKEN_CAP * 0.5), "player caps: 17.5% crack, 15% weaken")
-	check(enemy._label.modulate == Mob.MARK_TINTS[2], "a marked fighter's tag is tinted")
+	check(enemy._label.modulate == team_tint, "a marked fighter's tag keeps its team colour (friend or foe stays readable)")
 	enemy._tick(0.1)
 	check(is_equal_approx(float(enemy.stats.def), base_def * 0.825), "the crack survives the fighter's tick")
+	# While stunned a fighter skips _chase / _tick, but its marks still run out on time.
+	var keep_until: float = enemy._rshred_until
+	enemy._rshred_until = Time.get_ticks_msec() * 0.001 - 0.01
+	enemy._stun = 2.0
+	enemy._tick_status(0.1)
+	check(enemy.debuff_left("shred") == 0.0 and is_equal_approx(float(enemy.stats.def), base_def), "a stunned fighter's crack still runs out")
+	enemy._stun = 0.0
+	enemy.apply_shred(0.9, 8.0)
+	check(enemy._rshred_until >= keep_until - 0.1, "and a new crack lands again")
 	enemy.receive_party_buff({"def": 0.2, "atk": 0.1, "secs": 60.0}, Color.WHITE, "QA", "qa_guard")
 	check(is_equal_approx(float(enemy.stats.def), base_def * 1.2 * 0.825), "a buff on a cracked fighter keeps the crack")
 	enemy._rshred_until = Time.get_ticks_msec() * 0.001 - 0.01
@@ -435,6 +468,8 @@ func _hero_marks() -> void:
 	enemy.apply_shred(0.3, 8.0)
 	enemy.stop_fight()
 	check(enemy.debuff_left("shred") == 0.0 and float(enemy.stats.def) == float(enemy._base_def), "a duel's end clears the rival's marks")
+	enemy.apply_shred(0.3, 8.0)
+	check(enemy.debuff_left("shred") == 0.0 and float(enemy.stats.def) == float(enemy._base_def), "and no mark lands after the end (it would never run out)")
 	enemy.queue_free()
 
 

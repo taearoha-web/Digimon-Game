@@ -662,10 +662,10 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 				return 0.0
 			return 9.0 + float(skill.get("mult", 1.0)) * 0.2
 		"self":
-			if fx.has("heal") and (hero_hp < 0.55 or float(hp) / float(max_hp) < 0.45):
-				return 10.0
-			# A stance (self_only) counts as a plain buff even when it also heals.
+			# A stance (self_only) counts as a plain buff even when it also heals: its heal is its own.
 			var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)
+			if fx.has("heal") and ((hero_hp < 0.55 and not stance) or float(hp) / float(max_hp) < 0.45):
+				return 10.0
 			if fx.has("buff") and (not fx.has("heal") or stance) and BuffBook.group_count(_book.buffs, false) < BuffBook.GROUP_LIMIT and not BuffBook.contains(_book.buffs, String(skill.id), false) and _in_combat():
 				return 6.0
 			if fx.has("buff") and fx.has("heal") and hero_hp < 0.7:
@@ -823,7 +823,9 @@ func _apply_self(skill: Dictionary) -> void:
 	if fx.has("recall") and is_instance_valid(hero) and hero.is_inside_tree():
 		hero.recall_party()
 	if fx.has("heal"):
-		_heal_allies(float(fx.heal))
+		# A stance (self_only) keeps its heal to the caster too.
+		if not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)):
+			_heal_allies(float(fx.heal))
 		heal_fraction(float(fx.heal))
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):

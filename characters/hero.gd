@@ -972,7 +972,8 @@ func _apply_self_fx(skill: Dictionary) -> void:
 	if fx.has("recall"):
 		recall_party()
 	if fx.has("heal"):
-		_heal(float(fx.heal))
+		# A stance (self_only) keeps its heal to the caster too.
+		_heal(float(fx.heal), not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)))
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
 		if BuffBook.is_song(buff) and StarProgression.has_full_set(Game.profile, "bard"):
