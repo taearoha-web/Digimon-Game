@@ -15,6 +15,8 @@
   let writeChain = Promise.resolve();
   let transitioning = false;
   const copy = value => JSON.parse(JSON.stringify(value));
+  // Character slots per account (Game.SLOT_COUNT in the game, MAX_SLOTS on the server).
+  const SLOT_COUNT = 10;
   const blank = () => ({slots:{}, selectedSlot:1});
   const identity = user => user ? 'account:' + user.id : 'guest';
   const equal = (a,b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
@@ -27,14 +29,14 @@
     if (typeof value === 'string') value = JSON.parse(value);
     if (!value || !value.slots || typeof value.slots !== 'object' || Array.isArray(value.slots)) throw new Error('รูปแบบเซฟไม่ถูกต้อง');
     const bundle = blank();
-    for (let n = 1; n <= 4; n++) {
+    for (let n = 1; n <= SLOT_COUNT; n++) {
       if (Object.prototype.hasOwnProperty.call(value.slots, String(n))) {
         const profile = value.slots[String(n)];
         if (!profile || typeof profile !== 'object' || Array.isArray(profile)) throw new Error('ข้อมูลตัวละครไม่ถูกต้อง');
         bundle.slots[String(n)] = copy(profile);
       }
     }
-    if (Number.isInteger(value.selectedSlot) && value.selectedSlot >= 1 && value.selectedSlot <= 4) bundle.selectedSlot = value.selectedSlot;
+    if (Number.isInteger(value.selectedSlot) && value.selectedSlot >= 1 && value.selectedSlot <= SLOT_COUNT) bundle.selectedSlot = value.selectedSlot;
     return bundle;
   }
   function escaped(value) {
@@ -78,18 +80,18 @@
   }
   async function getLocalBundle() {
     await storage(true);
-    const names = Array.from({length:4},(_,i) => 'toon_tale_slot_' + (i+1) + '.json').concat('toon_tale_meta.json','toon_tale_save.json');
+    const names = Array.from({length:SLOT_COUNT},(_,i) => 'toon_tale_slot_' + (i+1) + '.json').concat('toon_tale_meta.json','toon_tale_save.json');
     const tx = userFS.transaction('FILE_DATA','readonly'), store = tx.objectStore('FILE_DATA');
     const rows = await Promise.all(names.map(name => request(store.get(FILE_ROOT + '/' + name))));
     const decoder = new TextDecoder(), bundle = blank();
-    rows.slice(0,4).forEach((row,i) => {
+    rows.slice(0,SLOT_COUNT).forEach((row,i) => {
       if (!row || !row.contents) return;
       try { const p = JSON.parse(decoder.decode(row.contents)); if (p && typeof p === 'object' && !Array.isArray(p)) bundle.slots[String(i+1)] = p; } catch (_) { /* Keep unreadable local files untouched until a choice is made. */ }
     });
-    if (!bundle.slots['1'] && rows[5] && rows[5].contents) {
-      try { bundle.slots['1'] = JSON.parse(decoder.decode(rows[5].contents)); } catch (_) {}
+    if (!bundle.slots['1'] && rows[SLOT_COUNT + 1] && rows[SLOT_COUNT + 1].contents) {
+      try { bundle.slots['1'] = JSON.parse(decoder.decode(rows[SLOT_COUNT + 1].contents)); } catch (_) {}
     }
-    try { const meta = JSON.parse(decoder.decode(rows[4].contents)); if (meta.slot >= 1 && meta.slot <= 4) bundle.selectedSlot = meta.slot; } catch (_) {}
+    try { const meta = JSON.parse(decoder.decode(rows[SLOT_COUNT].contents)); if (meta.slot >= 1 && meta.slot <= SLOT_COUNT) bundle.selectedSlot = meta.slot; } catch (_) {}
     return bundleOf(bundle);
   }
   async function installBundle(bundle) {
@@ -100,7 +102,7 @@
     const tx = userFS.transaction('FILE_DATA','readwrite'), store = tx.objectStore('FILE_DATA');
     const now = new Date(), encoder = new TextEncoder();
     for (const path of ['/userfs','/userfs/godot','/userfs/godot/app_userdata',FILE_ROOT]) store.put({timestamp:now,mode:16877},path);
-    for (let n = 1; n <= 4; n++) {
+    for (let n = 1; n <= SLOT_COUNT; n++) {
       const path = FILE_ROOT + '/toon_tale_slot_' + n + '.json';
       if (bundle.slots[String(n)]) store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify(bundle.slots[String(n)]))},path);
       else store.delete(path);
@@ -369,14 +371,14 @@
     }
     if (hasHeroes(serverBundle)) {
       const buttons = [{label:'เล่นต่อจากเซฟออนไลน์',run:() => finish(user,serverBundle,revision)}];
-      if (hasHeroes(guestBundle) && Object.keys(serverBundle.slots).length < 10) buttons.push({label:'นำตัวละครในเครื่องเข้าช่องว่าง',kind:'secondary',run:() => importGuest(user,serverBundle,revision,guestBundle)});
+      if (hasHeroes(guestBundle) && Object.keys(serverBundle.slots).length < SLOT_COUNT) buttons.push({label:'นำตัวละครในเครื่องเข้าช่องว่าง',kind:'secondary',run:() => importGuest(user,serverBundle,revision,guestBundle)});
       panel('ยินดีต้อนรับ ' + user.username,'<p class="ta-intro">ตัวละครในบัญชี พร้อมเล่นต่อบนเครื่องนี้</p>' + summaries(serverBundle),buttons,{foot:'เซฟในเครื่องและของบัญชีอื่นยังเก็บแยกไว้'});
       return;
     }
     await finish(user,serverBundle,revision);
   }
   function importGuest(user,serverBundle,revision,guestBundle) {
-    const empty = [1,2,3,4].filter(n => !serverBundle.slots[String(n)]);
+    const empty = Array.from({length:SLOT_COUNT},(_,i) => i + 1).filter(n => !serverBundle.slots[String(n)]);
     panel('เลือกตัวละครจากเครื่องนี้','<p class="ta-intro">นำเข้าได้ทีละตัว โดยใส่ช่องว่างของบัญชี ตัวละครออนไลน์เดิมจะไม่ถูกเขียนทับ</p>' + '<label class="ta-label" for="ta-import-source">ตัวละครในเครื่อง</label><select id="ta-import-source">' + Object.entries(guestBundle.slots).map(([slot,p]) => '<option value="' + slot + '">' + escaped(p.name || 'นักผจญภัย') + ' · เลเวล ' + escaped(p.level || 1) + '</option>').join('') + '</select><label class="ta-label" for="ta-import-target">ช่องว่างในบัญชี</label><select id="ta-import-target">' + empty.map(n => '<option value="' + n + '">ช่อง ' + n + '</option>').join('') + '</select>',[
       {label:'นำเข้าตัวละครที่เลือก',run:async () => {
         const source = overlay.querySelector('#ta-import-source').value, target = overlay.querySelector('#ta-import-target').value;
@@ -526,7 +528,7 @@
         if (state.user && navigator.onLine) {
           const cloud = await api('save'); current = bundleOf(cloud.bundle || blank()); revision = cloud.revision;
         }
-        panel('ตรวจสำเนาก่อนนำกลับมาใช้','<p class="ta-intro">เลือกสำเนานี้จะแทนตัวละครทั้ง 4 ช่องของ ' + escaped(state.user ? state.user.username : 'เซฟในเครื่อง') + ' จะเก็บชุดปัจจุบันเป็นสำเนาก่อน แล้วเปิดเกมใหม่</p><div class="ta-compare"><div><h3>ชุดปัจจุบัน</h3>' + summaries(current) + '</div><div><h3>สำเนาที่เลือก</h3>' + summaries(entry.bundle) + '</div></div>',[
+        panel('ตรวจสำเนาก่อนนำกลับมาใช้','<p class="ta-intro">เลือกสำเนานี้จะแทนตัวละครทั้ง ' + SLOT_COUNT + ' ช่องของ ' + escaped(state.user ? state.user.username : 'เซฟในเครื่อง') + ' จะเก็บชุดปัจจุบันเป็นสำเนาก่อน แล้วเปิดเกมใหม่</p><div class="ta-compare"><div><h3>ชุดปัจจุบัน</h3>' + summaries(current) + '</div><div><h3>สำเนาที่เลือก</h3>' + summaries(entry.bundle) + '</div></div>',[
           {label:'ยืนยันใช้สำเนานี้และเปิดใหม่',run:async () => {
             transitioning = true; await writeChain;
             await backup(owner,current,'ก่อนนำสำเนากลับมาใช้');

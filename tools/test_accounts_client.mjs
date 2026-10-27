@@ -110,6 +110,12 @@ try {
   ok(posts===before+1,'bursty saves coalesce into one latest upload');
   await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'acknowledged revision');
   ok(!(await page.evaluate(()=>JSON.parse(toonCloudStatus()).pending)),'acknowledged revision clears pending state');
+  // Ten character slots: heroes on circles 5-10 and a selected slot past 4 reach the account.
+  const ten={slots:{'1':hero('Online hero',46,201),'7':hero('Seventh',12,205),'10':hero('Tenth',3,206)},selectedSlot:10};
+  await page.evaluate(b=>toonCloudSave(JSON.stringify(b)),ten);
+  await poll(()=>users.get('hero_one').bundle.slots['10']&&users.get('hero_one').bundle.slots['10'].name==='Tenth','slot 10 upload');
+  ok(users.get('hero_one').bundle.slots['7'].name==='Seventh'&&users.get('hero_one').bundle.selectedSlot===10,'slots 7 and 10 and selected slot 10 reach the account');
+  await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'ten-slot revision acknowledged');
   // A second live game in the same origin must never touch the shared IDB.
   const other=await context.newPage();await other.goto(url);await other.getByRole('heading',{name:'เกมเปิดอยู่ในแท็บอื่น'}).waitFor();
   ok(!(await other.evaluate(()=>window.ready)),'origin-wide lock blocks a second engine');await other.close();
