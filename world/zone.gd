@@ -110,6 +110,8 @@ var _phase_t := 0
 var staged := false
 signal built
 var is_built := false
+## A fixed layout seed rebuilds the same random scenery (tests, bug reports); 0 picks a new one.
+var layout_seed := 0
 
 
 func _slice() -> void:
@@ -129,7 +131,10 @@ func _phase(label: String) -> void:
 func _ready() -> void:
 	_phase("")
 	FrameSlicer.begin()
-	rng.randomize()
+	if layout_seed != 0:
+		rng.seed = layout_seed
+	else:
+		rng.randomize()
 	# Every monster that enters the zone (spawned or scripted) pays out when it dies.
 	child_entered_tree.connect(func(node: Node):
 		var mob := node as Mob
@@ -510,6 +515,13 @@ func _build_town() -> void:
 	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6, [], &"village")
 	await _slice()
 	var clear := JapanVillage.build(self, rng)
+	var villagers := _villagers()
+	for v in villagers:
+		# Random rocks and trees keep off where a villager stands and the ground in front where
+		# the hero walks up to talk (a big rock there walled the elder in on ~1 town in 150).
+		var spot: Vector3 = v[4]
+		var yard: Vector3 = spot + (v[6] - spot).normalized()
+		clear.append(Vector3(yard.x, yard.z, 3.0))
 	await _slice()
 	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null)
 	await _slice()
@@ -521,21 +533,8 @@ func _build_town() -> void:
 	portals = [{"to": &"meadow", "pos": JapanVillage.GATE + Vector3(0, 0, 4), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
 	_make_portal(portals[0])
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
-	var V := JapanVillage
-	_add_npc("elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-10, 0, -23), "Mage", Vector3(0, 0, -23))
-	_add_npc("job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20))
-	_add_npc("skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", V.DOJO + Vector3(2.5, 0, 9.0), "Mage", V.DOJO + Vector3(2.5, 0, 20))
-	_add_npc("shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20))
-	_add_npc("forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20))
-	_add_npc("storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20))
-	_add_npc("registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20))
-	_add_npc("arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING)
-	_add_npc("pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING)
-	_add_npc("guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING)
-	_add_npc("guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · 30 นาที", V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING)
-	_add_npc("tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30))
-	_add_npc("healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0))
-	_add_npc("guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6))
+	for v in villagers:
+		_add_npc(v[0], v[1], v[2], v[3], v[4], v[5], v[6])
 	var board := NoticeBoard.new()
 	board.position = Vector3(6.5, 0, 8.0)
 	board.rotation.y = -0.6
@@ -543,6 +542,27 @@ func _build_town() -> void:
 	board.setup("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน")
 	npcs.append(board)
 	_add_warp(Vector3(-8.0, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
+
+
+## The villagers: role, name, class, title, where they stand, model, the point they face.
+func _villagers() -> Array:
+	var V := JapanVillage
+	return [
+		["elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-10, 0, -23), "Mage", Vector3(0, 0, -23)],
+		["job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20)],
+		["skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", V.DOJO + Vector3(2.5, 0, 9.0), "Mage", V.DOJO + Vector3(2.5, 0, 20)],
+		["shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20)],
+		["forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20)],
+		["storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20)],
+		["registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20)],
+		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING],
+		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING],
+		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING],
+		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · 30 นาที", V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING],
+		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30)],
+		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0)],
+		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
+	]
 
 
 ## Sakura petals drifting over the village: an untracked weather layer (it
