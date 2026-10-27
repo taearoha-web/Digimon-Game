@@ -144,12 +144,12 @@ test('shared-cookie account switches reject stale-tab save/read/history/restore/
   assert.equal((await call('save', {cookie: a.cookie})).body.bundle.slots['1'].level, 80);
 });
 
-test('four-slot saves preserve profiles and CAS prevents stale and concurrent device overwrite', async t => {
+test('ten-slot saves preserve profiles and CAS prevents stale and concurrent device overwrite', async t => {
   const {register, call, DB} = harness(t);
   const account = await register();
   const other = await call('login', {method: 'POST', body: {username: 'toonhero', password: PASSWORD}});
   assert.deepEqual((await call('save', {cookie: account.cookie})).body, {userId: account.body.user.id, revision: 0, bundle: {slots: {}, selectedSlot: 1}, updatedAt: null});
-  const full = {slots: Object.fromEntries([1, 2, 3, 4].map(n => [n, sample(n * 10, `Hero ${n}`)])), selectedSlot: 4};
+  const full = {slots: Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => [n, sample(n * 10, `Hero ${n}`)])), selectedSlot: 10};
   const first = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: full}});
   assert.equal(first.status, 200);
   assert.equal(first.body.revision, 1);
@@ -260,7 +260,7 @@ test('malformed, oversized and dangerous save structures are rejected without ch
   const account = await register();
   await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle()}});
   const invalid = [
-    {slots: [], selectedSlot: 1}, {slots: {'5': sample()}, selectedSlot: 1}, {slots: {}, selectedSlot: 5},
+    {slots: [], selectedSlot: 1}, {slots: {'11': sample()}, selectedSlot: 1}, {slots: {'0': sample()}, selectedSlot: 1}, {slots: {}, selectedSlot: 11},
     bundle({...sample(), class: 'unknown'}), bundle({...sample(), level: 101}), bundle({...sample(), level: '12'}),
     bundle({...sample(), version: 2}), bundle({...sample(), gold: -5}), bundle({...sample(), hp: []}),
     bundle({...sample(), attrs: {int: []}}), bundle({...sample(), inv: ['item']}), bundle({...sample(), equip: {weapon: null}}),
@@ -342,9 +342,9 @@ test('real game-generated saves of every class pass validation and round-trip un
   for (const [key, profile] of profiles) {
     assert.doesNotThrow(() => validateBundle({slots: {'1': profile}, selectedSlot: 1}), `${key} (${profile.class} Lv.${profile.level})`);
   }
-  // Four at a time, as a full account of four characters would be saved.
-  for (let i = 0; i < profiles.length; i += 4) {
-    const group = profiles.slice(i, i + 4);
+  // Ten at a time, as a full account of ten characters would be saved.
+  for (let i = 0; i < profiles.length; i += 10) {
+    const group = profiles.slice(i, i + 10);
     const full = {slots: Object.fromEntries(group.map(([, profile], n) => [String(n + 1), profile])), selectedSlot: group.length};
     const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: full}});
     assert.equal(saved.status, 200, `${group.map(([key]) => key).join(', ')}: ${JSON.stringify(saved.body)}`);

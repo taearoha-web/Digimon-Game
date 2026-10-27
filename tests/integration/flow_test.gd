@@ -688,18 +688,18 @@ func _resume_after_reload() -> void:
 
 
 func _save_slots() -> void:
-	print("== Four save slots")
-	for i in range(1, 5):
+	print("== Ten save slots")
+	for i in range(1, Game.SLOT_COUNT + 1):
 		Game.delete_save(i)
-	check(not Game.any_save() and Game.free_slot() == 1, "all four slots start empty")
-	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer"]
-	for i in 4:
+	check(not Game.any_save() and Game.free_slot() == 1, "all ten slots start empty")
+	var classes: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"warrior"]
+	for i in Game.SLOT_COUNT:
 		Game.slot = i + 1
 		Game.new_profile(classes[i], "ฮีโร่%d" % (i + 1))
 		Game.profile["level"] = 10 + i
 		Game.save()
-	check(Game.free_slot() == 0, "four heroes fill the four slots")
-	for i in 4:
+	check(Game.free_slot() == 0, "ten heroes fill the ten slots")
+	for i in Game.SLOT_COUNT:
 		var info := Game.slot_info(i + 1)
 		check(not info.is_empty() and info["name"] == "ฮีโร่%d" % (i + 1) and int(info["level"]) == 10 + i, "slot %d keeps its own hero" % (i + 1))
 	check(Game.load_game(3) and Game.slot == 3 and Game.class_id() == &"mage", "loading slot 3 gives the mage")
