@@ -24,6 +24,8 @@ var _think := 0.0
 var _book := BuffBook.new()
 var _label: Label3D
 var _equip_sig := ""
+## The class the body was built for (a world player changes job at Lv.10).
+var _built_class: StringName = &""
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 const POTION_STOCK := 5
 const MP_POTION_STOCK := 3
@@ -63,7 +65,8 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	add_child(visual)
-	visual.setup(StringName(member["class"]), "", true, _party_equip(), _visual_look())
+	_built_class = StringName(member["class"])
+	visual.setup(_built_class, "", true, _party_equip(), _visual_look())
 	_equip_sig = _signature()
 	MeshKit.blob_shadow(self, 0.8)
 	_label = Label3D.new()
@@ -85,9 +88,20 @@ func _ready() -> void:
 	hp = max_hp
 	mp = float(stats.max_mp)
 	Game.party_changed.connect(refresh)
-	# An AI Dark Lord's raven always joins its fights, hunting on its own (auto).
-	if StringName(member["class"]) == &"darklord":
+	_sync_raven()
+
+
+## An AI Dark Lord's raven always joins its fights, hunting on its own (auto).
+func _sync_raven() -> void:
+	if _built_class == &"darklord":
 		DarkRaven.ensure(self).attack = true
+	else:
+		DarkRaven.remove(self)
+
+
+## Hook for the field-side announcement of a job change (FieldPlayer).
+func _class_changed() -> void:
+	pass
 
 
 func _signature() -> String:
@@ -107,7 +121,14 @@ func refresh() -> void:
 	data = JobData.resolve(StringName(member["class"]), int(pp.adv))
 	_label.text = _level_text()
 	var sig := _signature()
-	if sig != _equip_sig:
+	if StringName(member["class"]) != _built_class:
+		# The Lv.10 job change of a world player: the new body, weapon and companion pet.
+		_built_class = StringName(member["class"])
+		_equip_sig = sig
+		visual.setup(_built_class, "", true, _party_equip(), _visual_look())
+		_sync_raven()
+		_class_changed()
+	elif sig != _equip_sig:
 		_equip_sig = sig
 		visual.set_equipment(_party_equip())
 	mp = minf(mp, float(stats.max_mp))
@@ -276,6 +297,11 @@ func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id :=
 func _physics_process(delta: float) -> void:
 	if hero == null or not is_instance_valid(hero) or stats.is_empty():
 		return
+	# A broken move (NaN) puts the companion back beside the hero instead of poisoning the
+	# camera, the minimap and every distance check that looks at it.
+	if not global_position.is_finite() or not velocity.is_finite():
+		velocity = Vector3.ZERO
+		global_position = hero.global_position + Vector3(1.5, 0.2, 0.0) if hero.global_position.is_finite() else Vector3.ZERO
 	_book.tick(self, not _dead, func(): return BuffAura.measure_top(visual, self))
 	if _dead:
 		velocity.x = 0.0
