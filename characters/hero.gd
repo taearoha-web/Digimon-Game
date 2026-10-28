@@ -987,7 +987,7 @@ func _apply_self_fx(skill: Dictionary) -> void:
 # --- The Dark Lord's raven and Summon -----------------------------------------
 
 ## One raven strike: a share of the Lord's attack (the star set makes it hit harder).
-const RAVEN_MULT := 0.45
+const RAVEN_MULT := 0.8
 ## Single mode strikes harder; a group strike lands this share on each of the pack.
 const SINGLE_FOCUS := 1.25
 const GROUP_SHARE := 0.6
