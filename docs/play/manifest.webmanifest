@@ -1,27 +1,54 @@
 {
+  "id": "./",
   "name": "Toon Tale",
   "short_name": "Toon Tale",
-  "start_url": ".",
-  "scope": ".",
-  "display": "fullscreen",
+  "description": "Toon Tale ผจญภัย ARPG แนวการ์ตูน 10 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
   "orientation": "landscape",
   "background_color": "#0c1230",
   "theme_color": "#0c1230",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
   "icons": [
     {
       "src": "icon.png?v=1196b39e2aea",
       "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "apple-touch-icon.png?v=1196b39e2aea",
-      "sizes": "180x180",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon-512.png?v=1196b39e2aea",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-192.png?v=1196b39e2aea",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-maskable-512.png?v=1196b39e2aea",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "apple-touch-icon.png?v=1196b39e2aea",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

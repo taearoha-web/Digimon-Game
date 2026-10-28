@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Toon Tale">
 <meta name="theme-color" content="#0c1230">
-<link rel="manifest" href="manifest.webmanifest?v=1196b39e2aea">
+<link rel="manifest" href="manifest.webmanifest?v=23f2bff9c6ec">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1196b39e2aea">
 <link rel="icon" type="image/png" sizes="192x192" href="icon.png?v=1196b39e2aea">
 <meta name="description" content="Toon Tale ผจญภัย ARPG แนวการ์ตูน 10 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง">
@@ -23,10 +23,8 @@
 <meta name="twitter:image" content="https://taearoha-web.github.io/Digimon-Game/play/og.jpg?v=78530e7783fe">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 <title>Toon Tale</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="accounts.e72d966b1892.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Mitr:wght@400;500&family=Noto+Sans+Thai:wght@400;600&display=swap">
+<style>@font-face{font-family:"Fredoka";src:url("font-fredoka.2ba02e68b152.ttf") format("truetype");font-weight:300 700;font-style:normal;font-display:swap}@font-face{font-family:"Mitr";src:url("font-mitr.847340933424.ttf") format("truetype");font-weight:400 500;font-style:normal;font-display:swap}@font-face{font-family:"Noto Sans Thai";src:url("font-noto-sans-thai.5a1c559bb539.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap}</style>
 <style>
   /* Single, deliberate dark look: the game's own "digital night" palette. */
   :root {
@@ -208,6 +206,76 @@
   @media (orientation: portrait) and (max-width: 820px) {
     body.playing #rotate { display: grid; }
   }
+
+  /* Offline status line, update offer and install hints (tools/web/offline.js). */
+  #toon-offline {
+    position: fixed;
+    left: 50%;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    z-index: 110;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 32px);
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(12, 18, 48, 0.88);
+    color: var(--text);
+    font: 400 13px/1.4 var(--body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  #toon-offline[data-state="ready"] { color: #8ff0b0; }
+  #toon-offline[data-state="offline"] { color: var(--gold); border-color: #6b5a1e; }
+  body.playing #toon-offline { top: max(6px, env(safe-area-inset-top, 0px)); bottom: auto; font-size: 12px; padding: 4px 12px; }
+  #toon-update {
+    position: fixed;
+    left: 50%;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    z-index: 111;
+    transform: translateX(-50%);
+    min-height: 40px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--cyan);
+    color: #06202a;
+    font: 600 14px/1 var(--display);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+  body.playing #toon-update { top: auto; bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+  #toon-install-hint {
+    position: fixed;
+    left: 50%;
+    top: max(10px, env(safe-area-inset-top, 0px));
+    z-index: 112;
+    transform: translateX(-50%);
+    width: min(calc(100vw - 32px), 420px);
+    box-sizing: border-box;
+    display: grid;
+    gap: 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--gold);
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--text);
+    font: 400 13px/1.55 var(--body);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  }
+  #toon-install-hint b { color: var(--gold); font: 600 14px/1.4 var(--display); }
+  #toon-install-hint button, #toon-install {
+    justify-self: start;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-mid);
+    color: var(--text);
+    font: 500 14px/1 var(--display);
+    cursor: pointer;
+  }
   @media (prefers-reduced-motion: reduce) {
     .phone { animation: none; transform: rotate(-90deg); }
     .bar i { transition: none; }
@@ -221,7 +289,7 @@
 
 <div id="loader">
   <div class="card">
-    <p class="eyebrow">Web build · v0.9.4 · build 5b2cca55</p>
+    <p class="eyebrow">Web build · v0.9.4 · build 80135aef</p>
     <h1>Toon <span>Tale</span></h1>
     <p class="lede">ผจญภัย ARPG สไตล์การ์ตูน 10 อาชีพ พัฒนาถึงเลเวล 100 แล้วเดินทางต่อในเส้นทางดาว ใหม่: นักดนตรี ดีดพิณบรรเลงเพลงบัฟทั้งทีมโดยไม่แย่งช่องบัฟของใคร โน้ตเพี้ยนทำให้ศัตรูเกราะแตกและอ่อนแรง แล้วปิดม่านด้วยมหาคอนเสิร์ต ใช้ไอดีเดียวเล่นต่อข้ามเครื่องได้</p>
     <button id="play" type="button">เริ่มเล่น</button>
@@ -252,13 +320,15 @@
 </div>
 
 <script src="index.js"></script>
-<script src="accounts.aec4e6dd9219.js"></script>
+<script src="accounts.ffdba3e2a484.js"></script>
 <script src="session.7c584211397f.js"></script>
+<script>window.TOON_OFFLINE = {"build":"b74e1353093b","files":[["./",0,false,true],["accounts.e72d966b1892.css",7674,true,true],["accounts.ffdba3e2a484.js",55594,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.80135aef.part001.gz.wasm",16777216,true,false],["game.80135aef.part002.gz.wasm",16777216,true,false],["game.80135aef.part003.gz.wasm",16777216,true,false],["game.80135aef.part004.gz.wasm",16777216,true,false],["game.80135aef.part005.gz.wasm",5024314,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.a055cf702a50.js",15173,true,true],["session.7c584211397f.js",15915,true,true]],"total":82393186};</script>
+<script src="offline.a055cf702a50.js"></script>
 <script>
 (function () {
-  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 74737664, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
+  const GODOT_CONFIG = {"args": [], "canvasResizePolicy": 0, "ensureCrossOriginIsolationHeaders": false, "executable": "index", "experimentalVK": true, "fileSizes": {"index.pck": 74754768, "index.wasm": 35376909}, "focusCanvas": true, "gdextensionLibs": []};
   // Compressed copies: name -> [file OR ordered file array, total bytes, mime]
-  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.5b2cca55.part001.gz.wasm", "game.5b2cca55.part002.gz.wasm", "game.5b2cca55.part003.gz.wasm", "game.5b2cca55.part004.gz.wasm", "game.5b2cca55.part005.gz.wasm"], 72115436, "application/octet-stream"]};
+  const PACKED = {"index.wasm": ["engine.d0b30e03.gz.wasm", 7975981, "application/wasm"], "index.pck": [["game.80135aef.part001.gz.wasm", "game.80135aef.part002.gz.wasm", "game.80135aef.part003.gz.wasm", "game.80135aef.part004.gz.wasm", "game.80135aef.part005.gz.wasm"], 72133178, "application/octet-stream"]};
 
   const bar = document.getElementById('bar');
   const statusEl = document.getElementById('status');
@@ -449,15 +519,19 @@
     const missing = Engine.getMissingFeatures({ threads: false });
     if (missing.length) {
       fail('เบราว์เซอร์นี้ยังเล่นไม่ได้: ' + missing.join(', '));
+      if (window.toonOffline) window.toonOffline.gameStopped();
       return;
     }
     try {
       if (window.toonAccountsReady) await window.toonAccountsReady();
     } catch (err) {
       fail('เปิดบัญชีไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      if (window.toonOffline) window.toonOffline.gameStopped();
       return;
     }
     started = true;
+    // The game's own download fills the offline cache; pause the background copy meanwhile.
+    if (window.toonOffline) window.toonOffline.gameLoading();
     for (const key of Object.keys(loaded)) delete loaded[key];
     showProgress();
     const engine = new Engine(GODOT_CONFIG);
@@ -467,16 +541,19 @@
       onExit: function () { window.toonSession.end(); },
     }).then(function () {
       window.toonHeapBytes = () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : 0;
-      window.toonSession.begin('0.9.4 · build 5b2cca55', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
+      window.toonSession.begin('0.9.4 · build 80135aef', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
       resizeGameCanvas();
       document.body.classList.add('playing');
       document.getElementById('loader').remove();
       document.getElementById('canvas').focus();
+      if (window.toonOffline) window.toonOffline.gameStarted();
     }, function (err) {
       started = false;
       console.error(err);
       window.toonSession.error(err);
-      fail('เปิดเกมไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' · ลองรีเฟรชหน้า');
+      if (window.toonOffline) window.toonOffline.gameStopped();
+      if (navigator.onLine === false) fail('ออฟไลน์อยู่ และเครื่องนี้ยังโหลดเกมไม่ครบ · ต่ออินเทอร์เน็ตแล้วเปิดเกมอีกครั้ง');
+      else fail('เปิดเกมไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' · ลองรีเฟรชหน้า');
     });
   }
   playBtn.addEventListener('click', start);
