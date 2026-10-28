@@ -73,6 +73,10 @@ func _ready() -> void:
 	MemoryGuard.heap_mb = 240.0
 	MemoryGuard.set_level(MemoryGuard._wanted(2.0), tree)
 	check(MemoryGuard.pressure == 2, "and goes strict above its heap line")
+	MemoryGuard.heap_mb = 1.0
+	MemoryGuard.video_mb = 1.0
+	MemoryGuard.set_level(MemoryGuard._wanted(MemoryGuard.DROP_AFTER_SECONDS * 3.0), tree)
+	check(MemoryGuard.pressure == 2, "an iPhone keeps its raised level (no glow/shadow buffer flips mid-fight)")
 	MemoryGuard.ios_override = 0
 	MemoryGuard.video_mb = 1.0
 	MemoryGuard.heap_mb = 1.0

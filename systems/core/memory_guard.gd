@@ -94,6 +94,10 @@ static func _wanted(step: float) -> int:
 	if level >= pressure:
 		_calm_seconds = 0.0
 		return level
+	# An iPhone keeps a raised level for the session: every change re-allocates glow
+	# and shadow buffers, and switching back and forth during a fight flickered.
+	if ios():
+		return pressure
 	# Lower readings: only come down after a calm stretch below the drop line.
 	var drop_video: float = float(video[1]) if pressure == 1 else float(video[3])
 	var drop_heap: float = float(heap[1]) if pressure == 1 else float(heap[3])

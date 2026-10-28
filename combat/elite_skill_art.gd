@@ -423,7 +423,7 @@ func _draw() -> void:
 		var t := clampf((age-float(data.start))/float(data.seconds),0,1)
 		node.visible=age>=float(data.start) and t<1
 		var rise := 1.0-pow(1.0-minf(t*3.0,1.0),3.0)
-		node.scale = data.size*maxf(0.005,lerpf(float(data.initial),1.0,rise))
+		node.scale = (data.size*maxf(0.005,lerpf(float(data.initial),1.0,rise))).max(Vector3.ONE*0.002)
 		var style: Dictionary=data.get("style",{})
 		node.rotation=data.angles+Vector3.UP*t*float(data.spin)
 		node.rotation+=(style.get("turn",Vector3.ZERO) as Vector3)*smoothstep(0.0,0.65,t)

@@ -86,7 +86,9 @@ func _draw() -> void:
 		if not node.visible:
 			continue
 		var rise := 1.0 - pow(1.0 - minf(t * float(style.get("grow", 4.0)), 1.0), 3.0)
-		node.scale = (data.size as Vector3) * maxf(0.004, lerpf(float(style.get("initial", 0.55)), 1.0, rise))
+		# No axis may reach zero: a singular basis has no inverse, and the GPU's normal
+		# matrix then carries infinities (a phone drew the whole screen in fog colour).
+		node.scale = ((data.size as Vector3) * maxf(0.004, lerpf(float(style.get("initial", 0.55)), 1.0, rise))).max(Vector3.ONE * 0.002)
 		var travel: Vector3 = style.get("travel", Vector3.ZERO)
 		var progress := t * t if bool(style.get("accelerate", false)) else 1.0 - pow(1.0 - t, 2.0)
 		var at: Vector3 = (data.at as Vector3) + travel * progress
