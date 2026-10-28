@@ -32,7 +32,7 @@ func _ready() -> void:
 	var camp: Dictionary = zone._camps[0]
 	hero.global_position = Vector3(camp.pos.x + 3.0, 0.2, camp.pos.y)
 	await get_tree().create_timer(0.5).timeout
-	var skills: Array = Game.class_data().skills
+	var skills: Array = ClassData.pool(cls)
 	for round in 2:
 		for skill in skills:
 			if not skill.has("id") or int(skill.get("level", 1)) > level:

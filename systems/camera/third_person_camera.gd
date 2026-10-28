@@ -93,6 +93,30 @@ func zoom(amount: float) -> void:
 	_target_distance = clampf(_target_distance - amount, min_distance, max_distance)
 
 
+## Every drawn frame: a camera whose own transform turned non-finite (the spring
+## arm's cast, a parent's basis) shows nothing but the fog colour for that frame,
+## the "flat screen" a phone flickers to. Put it back before the frame is drawn.
+func _process(_delta: float) -> void:
+	if camera == null:
+		return
+	var t := camera.global_transform
+	if t.origin.is_finite() and t.basis.x.is_finite() and t.basis.y.is_finite() and t.basis.z.is_finite() and is_finite(camera.fov):
+		return
+	if not global_position.is_finite():
+		global_position = target.global_position + Vector3.UP * height_offset if target and target.global_position.is_finite() else Vector3.ZERO
+	_arm.spring_length = distance
+	_target_distance = distance
+	camera.position = Vector3.ZERO
+	camera.rotation = Vector3.ZERO
+	camera.fov = base_fov
+	_apply_rotation()
+	if not camera.global_transform.origin.is_finite():
+		# The arm's collision answer itself is broken: draw from the arm's base.
+		camera.top_level = true
+		camera.global_transform = Transform3D(_pitch_node.global_basis.orthonormalized(), global_position + _pitch_node.global_basis.z * distance)
+		camera.top_level = false
+
+
 func _physics_process(delta: float) -> void:
 	var focusing := combat_focus != null and is_instance_valid(combat_focus)
 	_focus_blend = lerpf(_focus_blend, 1.0 if focusing else 0.0, 1.0 - exp(-2.5 * delta))
