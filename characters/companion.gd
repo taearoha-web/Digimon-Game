@@ -568,7 +568,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	if skill is Dictionary:
 		var fx: Dictionary = skill.get("fx", {})
 		if fx.has("repel"):
-			mob.shove_out(global_position, float(skill.get("radius", 3.0)))
+			mob.shove_out(global_position, Mob.REPEL_DISTANCE)
 		if fx.has("stun"):
 			mob.apply_stun(float(fx.stun))
 		if fx.has("taunt") and mob.has_method("taunt"):
@@ -678,8 +678,27 @@ func _mark_in_reach(skill: Dictionary, distance: float) -> bool:
 	return distance <= float(skill.get("range", 3.0))
 
 
+## How far a party member may drift from the hero before an AI Dark Lord recalls it.
+const RECALL_DISTANCE := 22.0
+
+
+## A party member (this one included) far from the hero, outside the village.
+func _straggler() -> bool:
+	if hero == null or not is_instance_valid(hero) or hero.safe_zone or hero.is_dead():
+		return false
+	for node in get_tree().get_nodes_in_group("companions"):
+		var ally := node as Node3D
+		if is_instance_valid(ally) and ally.global_position.distance_to(hero.global_position) > RECALL_DISTANCE:
+			return true
+	return false
+
+
 func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
+	# Summon (recall) is never a reflex: an AI Dark Lord casts it on purpose, to pull
+	# back a party member who has fallen far behind the hero.
+	if fx.has("recall"):
+		return 9.5 if _straggler() else 0.0
 	# A provoke is worth most while the hero is the one being hurt.
 	if fx.has("taunt") and hero_hp < 0.6 and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
 		return 8.5

@@ -345,6 +345,9 @@ func _auto_cast(hp_rate: float) -> void:
 		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or int(Game.profile.mp) < mp_cost(skill):
 			continue
 		var fx: Dictionary = skill.get("fx", {})
+		# Summon (recall) pulls the whole party in: only ever on the player's own press.
+		if fx.has("recall"):
+			continue
 		var marks := Mob.carries_mark(fx)
 		match String(skill.shape):
 			"self":
@@ -1073,6 +1076,9 @@ func recall_party() -> void:
 		var ally := node as Node3D
 		if not is_instance_valid(ally) or ally.is_queued_for_deletion():
 			continue
+		# In a guild war the player's Summon gathers its own party, not the whole guild.
+		if not GuildWarMatch.buff_reaches(self, ally):
+			continue
 		var angle := _facing + PI + (float(k) - 1.5) * 0.7
 		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.2
 		VfxKit.flash(field, ally.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
@@ -1159,7 +1165,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		mob.knock_back(global_position, 3.0)
 	var fx: Dictionary = skill.get("fx", {})
 	if fx.has("repel"):
-		mob.shove_out(global_position, float(_ranked(skill).get("radius", 3.0)))
+		mob.shove_out(global_position, Mob.REPEL_DISTANCE)
 	if fx.has("stun"):
 		mob.apply_stun(float(fx.stun))
 	if fx.has("slow"):
