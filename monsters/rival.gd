@@ -420,6 +420,9 @@ func _song_score(skill: Dictionary) -> float:
 
 func _shape_score(skill: Dictionary, shape: String, distance: float, hp_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
+	# Summon (recall) only gathers a party; a rival never spends a turn on it.
+	if fx.has("recall"):
+		return 0.0
 	match shape:
 		"summon":
 			# A summoner's strength: call its creatures early, the strongest first.

@@ -345,6 +345,9 @@ func _auto_cast(hp_rate: float) -> void:
 		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or int(Game.profile.mp) < mp_cost(skill):
 			continue
 		var fx: Dictionary = skill.get("fx", {})
+		# Summon (recall) pulls the whole party in: only ever on the player's own press.
+		if fx.has("recall"):
+			continue
 		var marks := Mob.carries_mark(fx)
 		match String(skill.shape):
 			"self":
