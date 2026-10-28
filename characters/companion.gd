@@ -567,6 +567,8 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		mob.knock_back(global_position, 2.5)
 	if skill is Dictionary:
 		var fx: Dictionary = skill.get("fx", {})
+		if fx.has("repel"):
+			mob.shove_out(global_position, float(skill.get("radius", 3.0)))
 		if fx.has("stun"):
 			mob.apply_stun(float(fx.stun))
 		if fx.has("taunt") and mob.has_method("taunt"):

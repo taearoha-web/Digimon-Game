@@ -329,6 +329,21 @@ func apply_burn(dps: float, seconds: float) -> void:
 	_burn_time = maxf(_burn_time, seconds)
 
 
+## Throws the monster clear of a burst: it slides (walls still stop it) until it stands
+## just outside `radius` from `center`. Bosses hold their ground, as with knock_back.
+func shove_out(center: Vector3, radius: float) -> void:
+	if is_boss:
+		return
+	var dir := global_position - center
+	dir.y = 0.0
+	if dir.length_squared() < 0.001:
+		dir = Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0))
+	var gap := radius + body_radius() + 0.8 - dir.length()
+	if gap > 0.0:
+		# The slide slows by 12 m/s each second (_physics_process): v0 = sqrt(2 a d).
+		velocity += dir.normalized() * sqrt(2.0 * 12.0 * gap)
+
+
 func knock_back(from: Vector3, strength := 2.5) -> void:
 	if is_boss:
 		return

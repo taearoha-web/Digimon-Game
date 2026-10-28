@@ -178,6 +178,10 @@ func knock_back(_from: Vector3, _strength := 2.5) -> void:
 	pass
 
 
+func shove_out(_center: Vector3, _radius: float) -> void:
+	pass
+
+
 func apply_stun(_seconds: float) -> void:
 	pass
 
