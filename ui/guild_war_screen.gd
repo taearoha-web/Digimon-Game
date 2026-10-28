@@ -1,6 +1,7 @@
 class_name GuildWarScreen
 extends CanvasLayer
-## The guild-war desk in the village (rules, your record, "go to war") and the
+## The guild-war desk in the village (rules, your record, "go to war"), the party screen
+## before a new war (pick up to four guild mates into the hero's party of five) and the
 ## scoreboard shown when a war ends.
 
 signal enter_requested()
@@ -11,6 +12,14 @@ const MIN_LEVEL := 100
 var is_open := false
 var _root: Control
 var _body: Control
+## The party screen: our guild mates to pick from ({name, class, level, online}), the
+## names picked (at most PARTY_SIZE - 1), the hero's five places and the list's rows.
+var candidates: Array[Dictionary] = []
+var picks: PackedStringArray = []
+var _slots: Array[Dictionary] = []
+var _rows: Dictionary = {}
+var _party_count: Label
+var _party_note: Label
 
 
 func _ready() -> void:
@@ -60,6 +69,11 @@ func close_screen() -> void:
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	_clear()
+	_slots.clear()
+	_rows.clear()
+	candidates.clear()
+	_party_count = null
+	_party_note = null
 	get_tree().paused = false
 
 
@@ -124,8 +138,7 @@ func _build_lobby() -> void:
 		go.text = "ต้องเลเวล %d ขึ้นไป" % MIN_LEVEL if int(Game.profile.level) < MIN_LEVEL else ("เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน" if mine == 0 else "ยังไม่มีคู่สงคราม: " + no_rival)
 	go.pressed.connect(func():
 		Game.guildwar_resuming = false
-		close_screen()
-		enter_requested.emit())
+		open_party())
 	left.add_child(go)
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -197,11 +210,320 @@ func _build_result(result: Dictionary) -> void:
 	column.add_child(buttons)
 	var again := UIUtil.button("รบอีกครั้ง", &"PrimaryButton", Vector2(320, 76))
 	again.pressed.connect(func():
-		close_screen()
-		enter_requested.emit())
+		Game.guildwar_resuming = false
+		open_party())
 	buttons.add_child(again)
 	var home := UIUtil.button("กลับเมือง", &"", Vector2(260, 76))
 	home.pressed.connect(func():
 		close_screen()
 		go_home_requested.emit())
 	buttons.add_child(home)
+
+
+# ---------------------------------------------------------------------------
+# The party screen: who fights beside the hero
+# ---------------------------------------------------------------------------
+
+const PARTY_SIZE := GuildWarMatch.PARTY_SIZE
+const PICK_COLOR := GuildWarMatch.PARTY_COLOR
+
+
+## Our guild mates at Lv.100 who will fight in the next war: online first, then the
+## strongest (as the war lines them up).
+static func war_mates(guild: int, t: float) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if guild <= 0:
+		return out
+	for i in WorldPlayers.members_at(guild, t):
+		var st := WorldPlayers.state(i, t)
+		out.append({"name": String(st.name), "class": StringName(st["class"]), "level": WorldPlayers.level_text(st), "online": bool(st.online), "rank": int(st.level) * 1000 + int(st.stars)})
+	out.sort_custom(func(a, b):
+		if bool(a.online) != bool(b.online):
+			return bool(a.online)
+		return int(a.rank) > int(b.rank))
+	return out
+
+
+## Before a new war: pick the hero's party (the last war's picks come back pre-chosen).
+func open_party() -> void:
+	is_open = true
+	get_tree().paused = true
+	_root.visible = true
+	candidates = war_mates(Game.guild(), WorldPresence.clock())
+	picks = PackedStringArray()
+	for name in Game.guildwar_party_picks:
+		if picks.size() < PARTY_SIZE - 1 and candidates.any(func(c): return String(c.name) == name):
+			picks.append(name)
+	_build_party()
+
+
+## Taps a guild mate: in the party it leaves, else it joins while there is room.
+func toggle_pick(name: String) -> void:
+	var at := picks.find(name)
+	if at >= 0:
+		picks.remove_at(at)
+		AudioManager.play_ui(&"ui_cancel")
+	elif picks.size() < PARTY_SIZE - 1:
+		picks.append(name)
+	else:
+		Game.say("ปาร์ตี้เต็มแล้ว (%d คน) — ถอดใครออกก่อนจึงเพิ่มได้" % PARTY_SIZE, &"warning")
+		return
+	_refresh_party()
+
+
+## "สุ่มให้": fills the empty places with random guild mates (the picks stay).
+func auto_fill() -> void:
+	var pool: Array = []
+	for c in candidates:
+		if not picks.has(String(c.name)):
+			pool.append(String(c.name))
+	pool.shuffle()
+	while picks.size() < PARTY_SIZE - 1 and not pool.is_empty():
+		picks.append(String(pool.pop_back()))
+	_refresh_party()
+
+
+func clear_picks() -> void:
+	picks = PackedStringArray()
+	_refresh_party()
+
+
+## Goes to war with this party (fewer than four picks is fine: the places stay empty).
+func confirm_party() -> void:
+	Game.guildwar_party_picks = picks.duplicate()
+	Game.guildwar_party_chosen = true
+	Game.guildwar_resuming = false
+	close_screen()
+	enter_requested.emit()
+
+
+func _build_party() -> void:
+	_clear()
+	_slots.clear()
+	_rows.clear()
+	var column := _fill()
+	var head := UIUtil.hbox(14)
+	column.add_child(head)
+	var title := UIUtil.label("จัดปาร์ตี้ก่อนออกรบ", &"HeaderLabel")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var back := UIUtil.button("กลับ", &"", Vector2(120, 54))
+	back.pressed.connect(_build_lobby)
+	head.add_child(back)
+	var rules := UIUtil.label("ปาร์ตี้ละไม่เกิน %d คน · บัฟจากสกิลถึงเฉพาะคนในปาร์ตี้เดียวกัน (ฮีลยังถึงทุกคนที่อยู่ใกล้เหมือนเดิม) · เพื่อนที่ไม่ได้เลือกและกิลด์คู่แข่งจะถูกสุ่มจัดเป็นปาร์ตี้ละไม่เกิน %d คน" % [PARTY_SIZE, PARTY_SIZE], &"SmallLabel")
+	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rules.add_theme_color_override("font_color", UIPalette.TEXT_DIM)
+	column.add_child(rules)
+	var row := UIUtil.hbox(18)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(row)
+	# Left: the hero's five places and the buttons.
+	var left := UIUtil.vbox(6)
+	left.custom_minimum_size = Vector2(430, 0)
+	row.add_child(left)
+	_party_count = UIUtil.label("", &"SubHeaderLabel")
+	_party_count.add_theme_color_override("font_color", PICK_COLOR)
+	left.add_child(_party_count)
+	for k in PARTY_SIZE:
+		left.add_child(_slot_card(k))
+	_party_note = UIUtil.label("", &"SmallLabel")
+	_party_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_party_note.add_theme_color_override("font_color", UIPalette.TEXT_DIM)
+	left.add_child(_party_note)
+	left.add_child(UIUtil.spacer(false))
+	var tools := UIUtil.hbox(10)
+	left.add_child(tools)
+	var fill := UIUtil.button("สุ่มให้", &"AccentButton", Vector2(0, 56))
+	fill.name = "AutoFill"
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.pressed.connect(auto_fill)
+	tools.add_child(fill)
+	var wipe := UIUtil.button("ล้างทั้งหมด", &"", Vector2(0, 56))
+	wipe.name = "ClearPicks"
+	wipe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wipe.pressed.connect(clear_picks)
+	tools.add_child(wipe)
+	var go := UIUtil.button("ยืนยันปาร์ตี้ · เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 72))
+	go.name = "ConfirmParty"
+	go.pressed.connect(confirm_party)
+	left.add_child(go)
+	# Right: our guild mates, tap to add or remove.
+	var right := UIUtil.vbox(6)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(right)
+	right.add_child(UIUtil.label("เพื่อนร่วมกิลด์ %d คน — แตะเพื่อเพิ่ม / ถอด" % candidates.size(), &"SubHeaderLabel"))
+	var scroll := TouchScroll.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(scroll)
+	var list := UIUtil.vbox(6)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	if candidates.is_empty():
+		var none := UIUtil.label("ยังไม่มีเพื่อนร่วมกิลด์ให้เลือก — ระบบจะจัดปาร์ตี้ให้เอง", &"SmallLabel")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		list.add_child(none)
+	for c in candidates:
+		list.add_child(_mate_row(c))
+	_refresh_party()
+
+
+## A round class badge with the class letter.
+static func _badge(class_id: StringName, size := 34.0) -> PanelContainer:
+	var data := ClassData.get_class_data(class_id)
+	var badge := PanelContainer.new()
+	badge.custom_minimum_size = Vector2(size, size)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = data.color
+	style.set_corner_radius_all(int(size * 0.5))
+	style.set_border_width_all(2)
+	style.border_color = Color.WHITE
+	badge.add_theme_stylebox_override("panel", style)
+	var letter := UIUtil.label(String(data.badge), &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	letter.add_theme_font_size_override("font_size", 16)
+	badge.add_child(letter)
+	return badge
+
+
+static func _card_style(color: Color, filled: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color.r, color.g, color.b, 0.18) if filled else Color(0.07, 0.12, 0.19, 0.6)
+	style.border_color = color if filled else Color(1, 1, 1, 0.18)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 10
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	return style
+
+
+## Place k of the hero's party: the hero itself, a pick with "ถอด", or an empty place.
+func _slot_card(k: int) -> Control:
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(0, 50)
+	var line := UIUtil.hbox(10)
+	card.add_child(line)
+	var badge_holder := CenterContainer.new()
+	badge_holder.custom_minimum_size = Vector2(34, 34)
+	line.add_child(badge_holder)
+	var name_label := UIUtil.label("", &"BoldLabel")
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	line.add_child(name_label)
+	var detail := UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	detail.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(detail)
+	var drop := UIUtil.button("ถอด", &"DangerButton", Vector2(76, 40))
+	drop.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	drop.add_theme_font_size_override("font_size", 16)
+	drop.pressed.connect(func():
+		if k - 1 < picks.size():
+			toggle_pick(picks[k - 1]))
+	line.add_child(drop)
+	_slots.append({"card": card, "badge": badge_holder, "name": name_label, "detail": detail, "drop": drop, "key": "?"})
+	return card
+
+
+## One guild mate in the list: a full-width button (badge, name, class, level, state).
+func _mate_row(c: Dictionary) -> Control:
+	var row := Button.new()
+	row.name = "Mate_" + String(c.name)
+	row.focus_mode = Control.FOCUS_NONE
+	row.custom_minimum_size = Vector2(0, 52)
+	row.theme_type_variation = &"ChoiceButton"
+	row.pressed.connect(func():
+		AudioManager.play_ui(&"ui_click")
+		toggle_pick(String(c.name)))
+	var line := UIUtil.hbox(10)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	line.offset_left = 10
+	line.offset_right = -10
+	row.add_child(line)
+	line.add_child(_badge(StringName(c["class"]), 32.0))
+	var who := UIUtil.label("%s %s" % ["●" if bool(c.online) else "○", c.name], &"BoldLabel")
+	who.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	who.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	who.clip_text = true
+	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	line.add_child(who)
+	var info := UIUtil.label("%s · %s" % [ClassData.get_class_data(StringName(c["class"])).name, c.level], &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(info)
+	var state := UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	state.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	state.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	state.custom_minimum_size = Vector2(104, 0)
+	line.add_child(state)
+	_rows[String(c.name)] = {"button": row, "state": state, "who": who}
+	return row
+
+
+func _find_mate(name: String) -> Dictionary:
+	for c in candidates:
+		if String(c.name) == name:
+			return c
+	return {}
+
+
+## The places and the list after a change, in place (the list keeps its scroll).
+func _refresh_party() -> void:
+	if _party_count == null or not is_instance_valid(_party_count):
+		return
+	_party_count.text = "ปาร์ตี้ของคุณ %d/%d" % [picks.size() + 1, PARTY_SIZE]
+	for k in _slots.size():
+		var entry: Dictionary = _slots[k]
+		var mate := {} if k == 0 or k - 1 >= picks.size() else _find_mate(picks[k - 1])
+		var key := "hero" if k == 0 else String(mate.get("name", ""))
+		if key == entry.key:
+			continue
+		entry["key"] = key
+		var holder: Control = entry.badge
+		UIUtil.clear(holder)
+		var card: PanelContainer = entry.card
+		var name_label: Label = entry.name
+		var detail: Label = entry.detail
+		(entry.drop as Control).visible = k > 0 and not mate.is_empty()
+		if k == 0:
+			holder.add_child(_badge(Game.class_id()))
+			name_label.text = "%s (คุณ · หัวหน้า)" % String(Game.profile.get("name", "คุณ"))
+			var stars := int(Game.paragon().level)
+			detail.text = "%s · Lv.%d%s" % [String(Game.class_data().name), int(Game.profile.level), " ★%d" % stars if stars > 0 else ""]
+			card.add_theme_stylebox_override("panel", _card_style(UIPalette.GOLD, true))
+			name_label.add_theme_color_override("font_color", UIPalette.GOLD)
+		elif mate.is_empty():
+			name_label.text = "ว่าง — แตะชื่อเพื่อนทางขวาเพื่อเพิ่ม"
+			detail.text = ""
+			card.add_theme_stylebox_override("panel", _card_style(Color.WHITE, false))
+			name_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
+		else:
+			holder.add_child(_badge(StringName(mate["class"])))
+			name_label.text = String(mate.name)
+			detail.text = "%s · %s" % [ClassData.get_class_data(StringName(mate["class"])).name, mate.level]
+			card.add_theme_stylebox_override("panel", _card_style(PICK_COLOR, true))
+			name_label.add_theme_color_override("font_color", UIPalette.TEXT)
+	var full := picks.size() >= PARTY_SIZE - 1
+	_party_note.text = "ปาร์ตี้เต็มแล้ว พร้อมออกรบ" if full else ("ยืนยันได้เลยแม้เลือกไม่ครบ — ที่ว่างจะว่างไว้ (กด สุ่มให้ เพื่อเติมให้ครบ)" if not candidates.is_empty() else "")
+	for name in _rows:
+		var r: Dictionary = _rows[name]
+		var picked := picks.has(String(name))
+		var state: Label = r.state
+		state.text = "✓ ในปาร์ตี้" if picked else ("เต็ม" if full else "+ เพิ่ม")
+		state.add_theme_color_override("font_color", PICK_COLOR if picked else (UIPalette.TEXT_MUTED if full else UIPalette.CYAN))
+		var row: Button = r.button
+		if picked:
+			var style := _card_style(PICK_COLOR, true)
+			for kind in ["normal", "hover", "pressed"]:
+				row.add_theme_stylebox_override(kind, style)
+		else:
+			for kind in ["normal", "hover", "pressed"]:
+				row.remove_theme_stylebox_override(kind)
+		row.modulate = Color(1, 1, 1, 0.6) if full and not picked else Color.WHITE

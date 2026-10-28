@@ -168,7 +168,7 @@ func _hit(h: Hero, index: int, count: int) -> void:
 				h.receive_buff(fx.buff,skill.color,skill.name,false,skill.id)
 				if id!="sylph_step":
 					for ally in h.get_tree().get_nodes_in_group("companions")+h.get_tree().get_nodes_in_group("summons"):
-						if is_instance_valid(ally) and not ally.is_dead() and ally.global_position.distance_to(origin)<=12.0: ally.receive_party_buff(fx.buff,skill.color,skill.name,skill.id)
+						if is_instance_valid(ally) and not ally.is_dead() and ally.global_position.distance_to(origin)<=12.0 and GuildWarMatch.buff_reaches(h,ally): ally.receive_party_buff(fx.buff,skill.color,skill.name,skill.id)
 		if id=="sacred_sanctuary":
 			# The field belongs to its buff; replacement ends healing immediately.
 			if not BuffBook.contains(h._buffs,id,false): return

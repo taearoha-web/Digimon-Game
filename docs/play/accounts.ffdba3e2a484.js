@@ -157,7 +157,9 @@
   async function api(path,options = {}) {
     const controller = new AbortController();
     const bodyBytes = typeof options.body === 'string' ? options.body.length : 0;
-    const timeout = setTimeout(() => controller.abort(),Math.min(REQUEST_TIMEOUT_MAX_MS,REQUEST_TIMEOUT_MS + Math.ceil(bodyBytes / 10000) * 1000));
+    const limit = options.timeout || Math.min(REQUEST_TIMEOUT_MAX_MS,REQUEST_TIMEOUT_MS + Math.ceil(bodyBytes / 10000) * 1000);
+    const timeout = setTimeout(() => controller.abort(),limit);
+    options = {...options}; delete options.timeout;
     try {
       const ownerHeader = /^(save|history|restore|logout)(?:\/|$)/.test(path) && state.user ? {'X-Toon-Account-ID':String(state.user.id)} : {};
       const response = await fetch('/api/account/' + path,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal,headers:{'Content-Type':'application/json',...ownerHeader,...(options.headers || {})}});
@@ -390,12 +392,31 @@
       {label:'กลับ',kind:'secondary',run:() => chooseAccountSave(user,{bundle:serverBundle,revision})}
     ]);
   }
+  // The account server cannot be reached: never hold the player at a wall.
+  // The last signed-in account's own local copy starts by itself after a few
+  // seconds; its progress stays queued and is sent when the server answers.
+  const OFFLINE_AUTOSTART_SECONDS = 5;
+  function playOffline(user,cached) {
+    state.offline = true;
+    return finish(user,cached.bundle,cached.revision,!!cached.dirty);
+  }
   function offerOffline(user,cached) {
-    panel('เล่นต่อขณะออฟไลน์','<p class="ta-intro">เชื่อมต่อเซฟออนไลน์ไม่ได้ แต่เครื่องนี้มีตัวละครของ <strong>' + escaped(user.username) + '</strong> เมื่อออนไลน์จะตรวจเซฟจากอีกเครื่องก่อนอัปโหลด</p>' + summaries(cached.bundle),[
-      {label:'เล่นเซฟของบัญชีในเครื่องนี้',run:() => finish(user,cached.bundle,cached.revision,!!cached.dirty)},
+    const layer = panel('เล่นต่อขณะออฟไลน์','<p class="ta-intro">เชื่อมต่อเซฟออนไลน์ไม่ได้ แต่เครื่องนี้มีตัวละครของ <strong>' + escaped(user.username) + '</strong> เมื่อออนไลน์จะตรวจเซฟจากอีกเครื่องก่อนอัปโหลด</p>' + summaries(cached.bundle) + '<p class="ta-hint" id="ta-autostart"></p>',[
+      {label:'เล่นเซฟของบัญชีในเครื่องนี้',run:() => playOffline(user,cached)},
       {label:'ลองเชื่อมต่ออีกครั้ง',kind:'secondary',run:() => authenticated(user)},
       {label:'ใช้บัญชีอื่น / เล่นในเครื่อง',kind:'quiet',run:() => credentialsScreen()}
     ]);
+    const card = layer.querySelector('.ta-card');
+    let left = OFFLINE_AUTOSTART_SECONDS;
+    const tick = () => {
+      if (started || layer.hidden || layer.querySelector('.ta-card') !== card) return;
+      const note = card.querySelector('#ta-autostart');
+      if (left <= 0) { action(() => playOffline(user,cached)); return; }
+      if (note) note.textContent = 'จะเริ่มเล่นด้วยเซฟในเครื่องอัตโนมัติใน ' + left + ' วินาที';
+      left--; setTimeout(tick,1000);
+    };
+    card.addEventListener('pointerdown',() => { left = Infinity; const note = card.querySelector('#ta-autostart'); if (note) note.textContent = ''; },{once:true});
+    tick();
   }
   // `note` is shown under the buttons: why the previous attempt did not go
   // through. Every failure here leaves the local save and its draft untouched.
@@ -560,6 +581,8 @@
       ] : [{label:'เข้าสู่ระบบ / สร้างบัญชี',kind:'secondary',run:() => credentialsScreen()}])
     ]);
   };
+  // Resolves once every queued local draft write has reached IndexedDB.
+  window.toonAccountsSettle = () => writeChain.catch(() => {});
   window.toonCloudStatus = () => JSON.stringify({...state,modalOpen:state.panelOpen,user:state.user ? {id:state.user.id,username:state.user.username} : null});
   window.toonCloudModalOpen = () => state.panelOpen;
   window.toonAccountsReady = function () {
@@ -576,9 +599,21 @@
         const staged = await read('stagedSwitch');
         if (staged) { await installBundle(bundleOf(staged.bundle)); await write('activeIdentity',staged.identity); await write('stagedSwitch',null); }
         await preserveActiveFiles(); initDone = true;
-        if (await read('forceGate') || await read('guestMode')) return credentialsScreen();
+        const forceGate = await read('forceGate'), guestMode = await read('guestMode');
+        if (navigator.onLine === false) {
+          // Offline (airplane mode): no login wall. Continue as the last
+          // account or as the local player, whichever was used last.
+          state.offline = true;
+          const last = await read('lastUser');
+          const cached = last && await read(identity(last));
+          if (!forceGate && !guestMode && last && cached) return await playOffline(last,cached);
+          if (!forceGate && guestMode) return await guest();
+          credentialsScreen(); feedback('ออฟไลน์อยู่ · เข้าสู่ระบบได้เมื่อต่ออินเทอร์เน็ต หรือกด "เล่นในเครื่องนี้ก่อน"');
+          return;
+        }
+        if (forceGate || guestMode) return credentialsScreen();
         try {
-          const session = await api('session');
+          const session = await api('session',{timeout:8000});
           if (session.user) return await authenticated(session.user);
           credentialsScreen();
         } catch (error) {
@@ -586,7 +621,10 @@
           state.error = thaiError(error);
           const last = await read('lastUser');
           const cached = last && await read(identity(last));
-          if (state.offline && last && cached) offerOffline(last,cached);
+          // Unreachable = no answer, a timeout, a server outage, or a page
+          // instead of the API (captive portal Wi-Fi).
+          const unreachable = state.offline || !error.status || error.status >= 500;
+          if (unreachable && last && cached) { state.offline = true; offerOffline(last,cached); }
           else { credentialsScreen(); feedback(state.error); }
         }
       } catch (error) {
@@ -597,5 +635,8 @@
   };
   window.addEventListener('online',() => { state.offline = false; scheduleUpload(100); });
   window.addEventListener('offline',() => { state.offline = true; });
-  document.addEventListener('visibilitychange',() => { if (document.visibilityState === 'hidden') flush().catch(() => {}); });
+  document.addEventListener('visibilitychange',() => {
+    if (document.visibilityState === 'hidden') flush().catch(() => {});
+    else if (navigator.onLine) scheduleUpload(500);
+  });
 })();

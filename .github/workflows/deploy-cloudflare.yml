@@ -52,7 +52,9 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing secret CLOUDFLARE_ACCOUNT_ID"; exit 1; }
       - name: Account backend tests
         working-directory: hosting/accounts
-        run: node tests/account.test.mjs
+        run: |
+          node tests/account.test.mjs
+          node tests/static.test.mjs
       - name: Check the game files fit Workers static assets (25 MiB each)
         run: |
           big=$(find docs/play -type f -size +25M)
@@ -123,5 +125,11 @@ jobs:
           body=$(curl -s "$SITE_URL/api/account/session")
           echo "GET /api/account/session -> $body"
           echo "$body" | grep -q '"user":null' || { echo "::error::The account API did not answer {\"user\":null} (is the D1 binding named DB and are the tables created?)"; exit 1; }
+          # Offline web app: the service worker must always be fetched fresh, as JavaScript.
+          sw=$(curl -s -D - -o /tmp/sw.js "$SITE_URL/sw.js")
+          echo "GET /sw.js ->"; echo "$sw" | grep -iE '^(HTTP|cache-control|content-type)' || true
+          echo "$sw" | grep -qiE '^cache-control: no-cache, no-store' || { echo "::error::sw.js must be served with Cache-Control: no-cache, no-store (run_worker_first in hosting/worker/wrangler.example.jsonc)"; exit 1; }
+          echo "$sw" | grep -qiE '^content-type: (text|application)/javascript' || { echo "::error::sw.js must be served as JavaScript"; exit 1; }
+          grep -q "const BUILD = '" /tmp/sw.js || { echo "::error::sw.js is not the generated service worker (rebuild docs/play with tools/package_web.py --pages docs/play)"; exit 1; }
           echo "### Toon Tale is live: $SITE_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "Game and account API both answered correctly." >> "$GITHUB_STEP_SUMMARY"
