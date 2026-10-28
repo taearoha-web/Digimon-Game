@@ -815,3 +815,9 @@ static func _orb(st: SurfaceTool) -> void:
 		var d0 := tilt * Vector3(sin(a0), 0, cos(a0))
 		var d1 := tilt * Vector3(sin(a1), 0, cos(a1))
 		_quad(st, d0 * 0.68, d1 * 0.68, d1 * 0.8, d0 * 0.8, Color(1, 1, 0), Color(1, 1, 0), Color(0.6, 0.6, 0), Color(0.6, 0.6, 0))
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()

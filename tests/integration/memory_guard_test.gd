@@ -57,6 +57,12 @@ func _ready() -> void:
 	check(MemoryGuard.pressure == 1, "between the drop and raise lines the level holds")
 	MemoryGuard.force(-1, tree)
 	check(MemoryGuard.pressure == 0, "force(-1) resets")
+	# Travel drops the skill art meshes cached in the last zone (any class's casts).
+	BuffArt.mesh_for({"id": "sacred_sanctuary"})
+	check(not BuffArt._meshes.is_empty(), "a buff mesh is cached while it is in use")
+	for art in [BuffArt, EliteSkillArt, SpellSpectacle, VfxArt, BardSkillArt, ShadowSkillArt, LordSkillArt, SkillInk, ShaderBurst, ThunderStormArt, VfxKit]:
+		art.release_mesh_cache()
+	check(BuffArt._meshes.is_empty() and EliteSkillArt._meshes.is_empty() and SpellSpectacle._tube_meshes.is_empty() and VfxArt._art_meshes.is_empty(), "travel releases the cached skill art meshes")
 	# An iPhone has its own, lower lines: the readings of the v0.9.4 Dark Lord session
 	# that was closed (199 MB heap, 117 MB video) trim the effects there.
 	MemoryGuard.ios_override = 1

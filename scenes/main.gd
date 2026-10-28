@@ -205,6 +205,19 @@ func _clear_zone() -> void:
 	StarGearArt.release_cache()
 	DivineGearArt.release_cache()
 	OutfitDye.clear_cache()
+	# Skill art meshes of every class seen (world players cast theirs too): ~35 MB of
+	# vertex buffers after a field that a village never needs.
+	BuffArt.release_mesh_cache()
+	EliteSkillArt.release_mesh_cache()
+	SpellSpectacle.release_mesh_cache()
+	VfxArt.release_mesh_cache()
+	BardSkillArt.release_mesh_cache()
+	ShadowSkillArt.release_mesh_cache()
+	LordSkillArt.release_mesh_cache()
+	SkillInk.release_mesh_cache()
+	ShaderBurst.release_mesh_cache()
+	ThunderStormArt.release_mesh_cache()
+	VfxKit.release_mesh_cache()
 
 
 ## warp = true arrives at the field's start (not at the portal you came through).

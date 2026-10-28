@@ -1231,3 +1231,9 @@ static func _pips(st: SurfaceTool, n: int) -> void:
 		var a := TAU * float(k) / float(n)
 		_ground_star(st, Vector3(sin(a), 0.002, cos(a)) * 0.42, 0.08, 0.034, Color(1, 1, 0), 5, a)
 	_ground_ring(st, 0.415, 0.425, 0.0, Color(0.5, 0.5, 0), Color(0.5, 0.5, 0), 40)
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()

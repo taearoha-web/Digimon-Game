@@ -243,3 +243,9 @@ static func bolt_mesh(points: PackedVector3Array, width: float) -> ArrayMesh:
 	var mesh := SpellSpectacle._tube_mesh(points, width)
 	_bolt_meshes[key] = mesh
 	return mesh
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_bolt_meshes.clear()

@@ -729,3 +729,9 @@ static func _heater(size: float, z: float) -> PackedVector3Array:
 	for p in [Vector2(0,1),Vector2(-0.45,0.86),Vector2(-0.82,0.57),Vector2(-0.76,0.1),Vector2(-0.66,-0.37),Vector2(-0.36,-0.74),Vector2(0,-1),Vector2(0.36,-0.74),Vector2(0.66,-0.37),Vector2(0.76,0.1),Vector2(0.82,0.57),Vector2(0.45,0.86),Vector2(0,1)]:
 		rim.append(Vector3(p.x*size,p.y*size,z))
 	return rim
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()
