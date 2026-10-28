@@ -278,6 +278,8 @@ python3 tools/package_web.py --pages docs/play
 
 `build/web_artifact` is suitable for static hosting. `docs/play` adds the web app manifest and iPhone home-screen metadata. Publishing source changes alone does not rebuild the existing browser bundle; export and package it before publishing a release.
 
+`docs/play` is also a fully offline web app: `sw.js` (from `tools/web/sw.js`, with the build id and file list baked in) caches the whole build per version, `tools/web/offline.js` fills that cache in the background, shows the Thai offline status and offers new builds, and the account gate continues as the last signed-in account when there is no network (saves are queued and uploaded on reconnect). `node tools/test_web_offline.mjs` checks it against the packaged site.
+
 ## Visual review
 
 Version 0.5.0 actual combat frames: [Armageddon](docs/screenshots/v0.5.0/armageddon.jpg), [Gladiator](docs/screenshots/v0.5.0/gladiator.jpg), [Meteor Arrow](docs/screenshots/v0.5.0/meteor_arrow.jpg), [Last Judgement](docs/screenshots/v0.5.0/last_judgement.jpg), [Elder Dragon](docs/screenshots/v0.5.0/elder_dragon.jpg), [Ragnarok Lance](docs/screenshots/v0.5.0/ragnarok_lance.jpg).

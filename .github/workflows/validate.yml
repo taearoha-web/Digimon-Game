@@ -114,6 +114,12 @@ jobs:
         run: |
           node tools/test_web_loader.mjs
           node tools/test_web_session.mjs
+      - name: Test the offline web app (service worker caches the build, offline boot without login wall, offline save syncs, update swap)
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node tools/test_web_offline.mjs
+          node hosting/accounts/tests/static.test.mjs
       - name: Check gear geometry and distant monsters
         env:
           XDG_DATA_HOME: /tmp/toon-ci-field-efficiency
