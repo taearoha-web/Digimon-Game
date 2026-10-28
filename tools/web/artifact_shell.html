@@ -1,8 +1,6 @@
 <title>Toon Tale</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="__ACCOUNTS_CSS__">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Mitr:wght@400;500&family=Noto+Sans+Thai:wght@400;600&display=swap">
+<style>__FONT_FACES__</style>
 <style>
   /* Single, deliberate dark look: the game's own "digital night" palette. */
   :root {
@@ -184,6 +182,76 @@
   @media (orientation: portrait) and (max-width: 820px) {
     body.playing #rotate { display: grid; }
   }
+
+  /* Offline status line, update offer and install hints (tools/web/offline.js). */
+  #toon-offline {
+    position: fixed;
+    left: 50%;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    z-index: 110;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 32px);
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(12, 18, 48, 0.88);
+    color: var(--text);
+    font: 400 13px/1.4 var(--body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  #toon-offline[data-state="ready"] { color: #8ff0b0; }
+  #toon-offline[data-state="offline"] { color: var(--gold); border-color: #6b5a1e; }
+  body.playing #toon-offline { top: max(6px, env(safe-area-inset-top, 0px)); bottom: auto; font-size: 12px; padding: 4px 12px; }
+  #toon-update {
+    position: fixed;
+    left: 50%;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    z-index: 111;
+    transform: translateX(-50%);
+    min-height: 40px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--cyan);
+    color: #06202a;
+    font: 600 14px/1 var(--display);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+  body.playing #toon-update { top: auto; bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+  #toon-install-hint {
+    position: fixed;
+    left: 50%;
+    top: max(10px, env(safe-area-inset-top, 0px));
+    z-index: 112;
+    transform: translateX(-50%);
+    width: min(calc(100vw - 32px), 420px);
+    box-sizing: border-box;
+    display: grid;
+    gap: 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--gold);
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--text);
+    font: 400 13px/1.55 var(--body);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  }
+  #toon-install-hint b { color: var(--gold); font: 600 14px/1.4 var(--display); }
+  #toon-install-hint button, #toon-install {
+    justify-self: start;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-mid);
+    color: var(--text);
+    font: 500 14px/1 var(--display);
+    cursor: pointer;
+  }
   @media (prefers-reduced-motion: reduce) {
     .phone { animation: none; transform: rotate(-90deg); }
     .bar i { transition: none; }
@@ -228,6 +296,8 @@
 <script src="index.js"></script>
 <script src="__ACCOUNTS_JS__"></script>
 <script src="__SESSION_JS__"></script>
+<script>window.TOON_OFFLINE = __OFFLINE__;</script>
+<script src="__OFFLINE_JS__"></script>
 <script>
 (function () {
   const GODOT_CONFIG = __GODOT_CONFIG__;
@@ -423,15 +493,19 @@
     const missing = Engine.getMissingFeatures({ threads: false });
     if (missing.length) {
       fail('เบราว์เซอร์นี้ยังเล่นไม่ได้: ' + missing.join(', '));
+      if (window.toonOffline) window.toonOffline.gameStopped();
       return;
     }
     try {
       if (window.toonAccountsReady) await window.toonAccountsReady();
     } catch (err) {
       fail('เปิดบัญชีไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      if (window.toonOffline) window.toonOffline.gameStopped();
       return;
     }
     started = true;
+    // The game's own download fills the offline cache; pause the background copy meanwhile.
+    if (window.toonOffline) window.toonOffline.gameLoading();
     for (const key of Object.keys(loaded)) delete loaded[key];
     showProgress();
     const engine = new Engine(GODOT_CONFIG);
@@ -446,11 +520,14 @@
       document.body.classList.add('playing');
       document.getElementById('loader').remove();
       document.getElementById('canvas').focus();
+      if (window.toonOffline) window.toonOffline.gameStarted();
     }, function (err) {
       started = false;
       console.error(err);
       window.toonSession.error(err);
-      fail('เปิดเกมไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' · ลองรีเฟรชหน้า');
+      if (window.toonOffline) window.toonOffline.gameStopped();
+      if (navigator.onLine === false) fail('ออฟไลน์อยู่ และเครื่องนี้ยังโหลดเกมไม่ครบ · ต่ออินเทอร์เน็ตแล้วเปิดเกมอีกครั้ง');
+      else fail('เปิดเกมไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' · ลองรีเฟรชหน้า');
     });
   }
   playBtn.addEventListener('click', start);

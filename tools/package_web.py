@@ -18,6 +18,14 @@ With --pages DIR it also writes a standalone site (full HTML document with a
 web-app manifest and iOS home-screen tags) for GitHub Pages, e.g. docs/play.
 Opened from an iPhone home-screen icon it runs fullscreen.
 
+The site is an installable, fully offline web app: sw.js (tools/web/sw.js
+with this build's id and file list baked in) caches every file needed to boot
+and play in one cache per build, and tools/web/offline.js fills that cache in
+the background and offers new builds. A _headers file gives Cloudflare the
+cache policy (sw.js / the page always revalidate; content-named files are
+immutable); hosting/accounts/server/static.js applies the same policy when the
+Worker serves a file itself.
+
 Usage:
   godot --headless --path . --export-release "Web" build/web/index.html
   python3 tools/package_web.py [--pages docs/play]
@@ -46,6 +54,19 @@ PACKED = {  # Godot file -> (published gzip name, MIME of the inflated data)
     "index.pck": ("game.gz.wasm", "application/octet-stream"),
 }
 MAX_PART_BYTES = 16 * 1024 * 1024
+# The loader's fonts, published with the page so text keeps its look offline.
+# (family, file in assets/fonts, weight range the file covers)
+FONTS = [
+    ("Fredoka", "Fredoka-Variable.ttf", "300 700"),
+    ("Mitr", "Mitr-Medium.ttf", "400 500"),
+    ("Noto Sans Thai", "NotoSansThai-Variable.ttf", "100 900"),
+]
+SW_TEMPLATE = os.path.join(ROOT, "tools", "web", "sw.js")
+THEME = "#0c1230"
+## Not needed to play (link previews only); everything else is cached offline.
+NOT_PRECACHED = {"index.html", "sw.js", "og.jpg", "_headers"}
+## Content-addressed names: a different content always gets a different name.
+CONTENT_NAMED = re.compile(r"\.[0-9a-f]{8,}\.|\?v=[0-9a-f]{8,}$")
 
 
 def write_packed(data: bytes, out_name: str, output_dir: str,
@@ -118,6 +139,7 @@ def main() -> None:
     # reach installed home-screen apps without replacing their local saves.
     for source_name, placeholder in [("accounts.js", "__ACCOUNTS_JS__"),
                                       ("session.js", "__SESSION_JS__"),
+                                      ("offline.js", "__OFFLINE_JS__"),
                                       ("accounts.css", "__ACCOUNTS_CSS__")]:
         source = os.path.join(ROOT, "tools", "web", source_name)
         with open(source, "rb") as f:
@@ -128,12 +150,23 @@ def main() -> None:
         with open(os.path.join(OUT, published_name), "wb") as f:
             f.write(data)
         shell = shell.replace(placeholder, published_name)
+    faces = []
+    for family, file_name, weights in FONTS:
+        with open(os.path.join(ROOT, "assets", "fonts", file_name), "rb") as f:
+            data = f.read()
+        published_name = "font-%s.%s.ttf" % (re.sub(r"[^a-z0-9]+", "-", family.lower()), hashlib.sha256(data).hexdigest()[:12])
+        with open(os.path.join(OUT, published_name), "wb") as f:
+            f.write(data)
+        faces.append('@font-face{font-family:"%s";src:url("%s") format("truetype");font-weight:%s;font-style:normal;font-display:swap}'
+                     % (family, published_name, weights))
+    shell = shell.replace("__FONT_FACES__", "".join(faces))
     shell = (shell.replace("__GODOT_CONFIG__", json.dumps(config))
              .replace("__PACKED__", json.dumps(packed))
              .replace("__TOTAL_MB__", "%.0f" % (total / 1048576))
              .replace("__VERSION__", "%s · build %s" % (project_version(), build_ids[-1])))
     with open(os.path.join(OUT, "index.html"), "w", encoding="utf-8") as f:
-        f.write(shell.replace("__FULLSCREEN_NOTE__", NOTE_ARTIFACT))
+        # No service worker for the plain static copy: offline.js stays passive.
+        f.write(shell.replace("__FULLSCREEN_NOTE__", NOTE_ARTIFACT).replace("__OFFLINE__", "null"))
 
     for name in sorted(os.listdir(OUT)):
         print("%-24s %8.1f KB" % (name, os.path.getsize(os.path.join(OUT, name)) / 1024))
@@ -167,26 +200,47 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
     for name, size in [("icon.png", 192), ("apple-touch-icon.png", 180), ("icon-512.png", 512)]:
         icon.resize((size, size), Image.LANCZOS).save(os.path.join(pages_dir, name), optimize=True)
         icon_urls[name] = f"{name}?v={icon_hash}"
+    # Maskable: Android crops icons to its own shape. Keep the art inside the
+    # central 80% safe zone over a blurred, enlarged copy of itself.
+    from PIL import ImageFilter
+    for name, size in [("icon-maskable-192.png", 192), ("icon-maskable-512.png", 512)]:
+        back = icon.resize((size, size), Image.LANCZOS).filter(ImageFilter.GaussianBlur(size / 16))
+        inner = round(size * 0.8)
+        back.paste(icon.resize((inner, inner), Image.LANCZOS), ((size - inner) // 2, (size - inner) // 2))
+        back.save(os.path.join(pages_dir, name), optimize=True)
+        icon_urls[name] = f"{name}?v={icon_hash}"
     Image.open(os.path.join(BRANDING, "og_image.png")).convert("RGB").save(os.path.join(pages_dir, "og.jpg"), quality=88, optimize=True)
     with open(os.path.join(pages_dir, "og.jpg"), "rb") as f:
         og_hash = hashlib.sha256(f.read()).hexdigest()[:12]
     manifest = {
+        "id": "./",
         "name": TITLE,
         "short_name": "Toon Tale",
-        "start_url": ".",
-        "scope": ".",
-        "display": "fullscreen",
+        "description": DESCRIPTION,
+        "lang": "th",
+        "dir": "ltr",
+        "start_url": "./",
+        "scope": "./",
+        # Standalone everywhere; browsers that can (Android) hide the status bar too.
+        "display": "standalone",
+        "display_override": ["fullscreen", "standalone"],
+        # project.godot: window/handheld/orientation=4 (sensor landscape).
         "orientation": "landscape",
-        "background_color": "#0c1230",
-        "theme_color": "#0c1230",
+        "background_color": THEME,
+        "theme_color": THEME,
+        "categories": ["games", "entertainment"],
         "icons": [
-            {"src": icon_urls["icon.png"], "sizes": "192x192", "type": "image/png"},
-            {"src": icon_urls["apple-touch-icon.png"], "sizes": "180x180", "type": "image/png"},
-            {"src": icon_urls["icon-512.png"], "sizes": "512x512", "type": "image/png"},
+            {"src": icon_urls["icon.png"], "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icon_urls["icon-512.png"], "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": icon_urls["icon-maskable-192.png"], "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+            {"src": icon_urls["icon-maskable-512.png"], "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+            {"src": icon_urls["apple-touch-icon.png"], "sizes": "180x180", "type": "image/png", "purpose": "any"},
         ],
     }
+    manifest_text = json.dumps(manifest, ensure_ascii=False, indent=2)
     with open(os.path.join(pages_dir, "manifest.webmanifest"), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
+        f.write(manifest_text)
+    manifest_url = "manifest.webmanifest?v=" + hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()[:12]
     # The shell starts with <title>/<link>/<style>; those go into <head>.
     split = shell.index("<canvas")
     head = (
@@ -201,7 +255,7 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n'
         '<meta name="apple-mobile-web-app-title" content="Toon Tale">\n'
         '<meta name="theme-color" content="#0c1230">\n'
-        f'<link rel="manifest" href="manifest.webmanifest?v={icon_hash}">\n'
+        f'<link rel="manifest" href="{manifest_url}">\n'
         f'<link rel="apple-touch-icon" sizes="180x180" href="{icon_urls["apple-touch-icon.png"]}">\n'
         f'<link rel="icon" type="image/png" sizes="192x192" href="{icon_urls["icon.png"]}">\n'
         # What chat apps (LINE, Facebook, Discord...) show for a shared link.
@@ -219,8 +273,73 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
     )
     shell = shell.replace("Your browser does not support the canvas tag.", "เบราว์เซอร์นี้เปิดเกมไม่ได้ ลองเปิดด้วย Safari หรือ Chrome")
     page = head + shell[:split] + "</head>\n<body>\n" + shell[split:] + "\n</body>\n</html>\n"
+    referenced = {url.split("?")[0]: url for url in list(icon_urls.values()) + [manifest_url]}
+    write_offline(pages_dir, page, referenced)
+
+
+def precache_list(pages_dir: str, referenced: dict) -> list:
+    """[url, bytes, content-named, core] for every published file the game needs."""
+    files = [["./", 0, False, True]]
+    for name in sorted(os.listdir(pages_dir)):
+        if name in NOT_PRECACHED or not os.path.isfile(os.path.join(pages_dir, name)):
+            continue
+        url = referenced.get(name, name)
+        files.append([url, os.path.getsize(os.path.join(pages_dir, name)),
+                      bool(CONTENT_NAMED.search(url)), not name.endswith(".gz.wasm")])
+    return files
+
+
+def write_offline(pages_dir: str, page: str, referenced: dict) -> None:
+    """index.html + sw.js sharing one build id, and Cloudflare's _headers."""
+    files = precache_list(pages_dir, referenced)
+    offline = {"build": "__BUILD__", "files": files, "total": sum(f[1] for f in files)}
+    page = page.replace("__OFFLINE__", json.dumps(offline, separators=(",", ":")))
+    # The build id covers every cached byte, so any change makes a new cache.
+    digest = hashlib.sha256(page.encode("utf-8"))
+    for url, *_ in files[1:]:
+        with open(os.path.join(pages_dir, url.split("?")[0]), "rb") as f:
+            digest.update(("\n%s %s" % (url, hashlib.sha256(f.read()).hexdigest())).encode("utf-8"))
+    build = digest.hexdigest()[:12]
     with open(os.path.join(pages_dir, "index.html"), "w", encoding="utf-8") as f:
-        f.write(page)
+        f.write(page.replace("__BUILD__", build))
+    with open(SW_TEMPLATE, encoding="utf-8") as f:
+        worker = f.read()
+    worker = (worker.replace("__BUILD__", build)
+              .replace("__PRECACHE__", json.dumps(files, separators=(",", ":"))))
+    with open(os.path.join(pages_dir, "sw.js"), "w", encoding="utf-8") as f:
+        f.write(worker)
+    # Cloudflare Workers static assets read this file (GitHub Pages ignores it).
+    # Keep it in step with hosting/accounts/server/static.js.
+    with open(os.path.join(pages_dir, "_headers"), "w", encoding="utf-8") as f:
+        f.write(HEADERS)
+    print("offline build %s: %d files, %.1f MB cached" % (build, len(files), offline["total"] / 1048576))
+
+
+HEADERS = """/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+/index.js
+  Cache-Control: no-cache
+/index.audio.worklet.js
+  Cache-Control: no-cache
+/*.gz.wasm
+  Cache-Control: public, max-age=31536000, immutable, no-transform
+/accounts.*
+  Cache-Control: public, max-age=31536000, immutable
+/session.*
+  Cache-Control: public, max-age=31536000, immutable
+/offline.*
+  Cache-Control: public, max-age=31536000, immutable
+/font-*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+"""
 
 
 if __name__ == "__main__":
