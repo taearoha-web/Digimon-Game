@@ -44,6 +44,21 @@ const PLAN_NAMES := {
 	"forward": "ตั้งแนวรับหน้าห้องบัลลังก์ ไม่ให้ใครเข้าใกล้แท่น",
 }
 const NEUTRAL_COLOR := Color("fff1b8")
+## Parties (ปาร์ตี้): everyone in the war fights in a party of at most PARTY_SIZE. The hero
+## picks up to PARTY_SIZE - 1 teammates before the war (GuildWarScreen); everybody else on
+## both sides is dealt into random parties as even in size as can be. A buff (any buff
+## skill: attack, guard, shield, songs...) reaches only the caster's own party; heals
+## reach everyone near as before.
+const PARTY_SIZE := 5
+## The hero's party; the other parties of our guild count up from it, the rival guild's
+## from ENEMY_PARTY_BASE.
+const HERO_PARTY := 0
+const ENEMY_PARTY_BASE := 100
+## Name tags and HUD cells of the hero's party members.
+const PARTY_COLOR := Color("7dff7a")
+
+## The war being fought (null outside the guild war): only then do buffs stop at the party.
+static var current: GuildWarMatch
 ## Fighters farther than this from the camera are not drawn (low / medium / high quality):
 ## fifty heroes in gear on one field would otherwise cost a phone too much.
 const DRAW_RADIUS := [46.0, 56.0, 70.0]
@@ -76,6 +91,12 @@ var _plan_timer := 0.0
 ## Seed of the line-ups: the same seed brings the same two guilds back after a resume.
 var roll_seed := 0
 var resumed := false
+## Our roster's indices the player picked for its party, and whether it picked at all
+## (it did not: the hero is dealt into a random party like everybody else).
+var party_picks: Array[int] = []
+var party_chosen := false
+## Both guilds' parties as roster indices (-1 is the hero), [ours, theirs]; ours[0] is the hero's.
+var party_plan: Array = [[], []]
 
 const CHECKPOINT_EVERY := 10.0
 var _ckpt_timer := CHECKPOINT_EVERY
@@ -117,15 +138,24 @@ func build(tree: SceneTree = null) -> void:
 		roster = GuildWarData.roll_match(rng)
 	ally_name = roster.ally_name
 	enemy_name = roster.enemy_name
+	_take_picks(saved)
+	var party_rng := RandomNumberGenerator.new()
+	party_rng.seed = hash("gw_party|%d" % roll_seed)
+	party_plan = roll_parties(roster.ally.size(), roster.enemy.size(), party_picks, party_chosen, party_rng)
 	BurstGuard.clear()
-	for i in roster.ally.size():
-		var fighter := _spawn(roster.ally[i], GuildFighter.TEAM_ALLY, spawn_slot(GuildFighter.TEAM_ALLY, i, roster.ally.size()), ally_name)
-		allies.append(fighter)
-		await FrameSlicer.pace(tree)
-	for i in roster.enemy.size():
-		var fighter := _spawn(roster.enemy[i], GuildFighter.TEAM_ENEMY, spawn_slot(GuildFighter.TEAM_ENEMY, i, roster.enemy.size()), enemy_name)
-		enemies.append(fighter)
-		await FrameSlicer.pace(tree)
+	# Each guild stands in its camp party by party (the hero's party in the front row).
+	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		var lineup: Array = roster.ally if team == GuildFighter.TEAM_ALLY else roster.enemy
+		var slot := 0
+		for p in (party_plan[team] as Array).size():
+			for i in party_plan[team][p]:
+				if int(i) < 0:
+					continue
+				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p
+				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size()), ally_name if team == GuildFighter.TEAM_ALLY else enemy_name, pid)
+				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
+				slot += 1
+				await FrameSlicer.pace(tree)
 	_raise_castle(saved)
 	Game.guildwar_issue_supply()
 	if not saved.is_empty():
@@ -174,12 +204,149 @@ func save_checkpoint() -> void:
 	var left: Array = []
 	for g in gates:
 		left.append(0 if g.is_dead() else int(ceil(1000.0 * float(g.hp) / float(maxi(1, g.max_hp)))))
-	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner})
+	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner, "picks": party_picks, "chosen": party_chosen})
 
 
-func _spawn(info: Dictionary, team: int, at: Vector3, guild: String) -> GuildFighter:
+# ---------------------------------------------------------------------------
+# Parties
+# ---------------------------------------------------------------------------
+
+## The player's picks: from the checkpoint on a resume, else the names chosen on the
+## party screen (Game.guildwar_party_picks) found in our roster, at most PARTY_SIZE - 1.
+func _take_picks(saved: Dictionary) -> void:
+	party_picks.clear()
+	if not saved.is_empty():
+		party_chosen = bool(saved.get("chosen", false))
+		for i in saved.get("picks", []):
+			if int(i) >= 0 and int(i) < roster.ally.size() and not party_picks.has(int(i)) and party_picks.size() < PARTY_SIZE - 1:
+				party_picks.append(int(i))
+		return
+	party_chosen = Game.guildwar_party_chosen
+	# A pick is for one war: the next war asks again (the names stay to be offered again).
+	Game.guildwar_party_chosen = false
+	if not party_chosen:
+		return
+	for i in roster.ally.size():
+		if party_picks.size() < PARTY_SIZE - 1 and Game.guildwar_party_picks.has(String(roster.ally[i].member.name)):
+			party_picks.append(i)
+
+
+## Splits `members` into ceil(n / PARTY_SIZE) parties in random order, their sizes at
+## most one apart (13 -> 5 4 4; 8 -> 4 4).
+static func split_parties(members: Array, rng: RandomNumberGenerator) -> Array:
+	var pool := members.duplicate()
+	for i in range(pool.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var keep: Variant = pool[i]
+		pool[i] = pool[j]
+		pool[j] = keep
+	var out: Array = []
+	if pool.is_empty():
+		return out
+	var count := ceili(float(pool.size()) / float(PARTY_SIZE))
+	for p in count:
+		out.append([])
+	for i in pool.size():
+		(out[i % count] as Array).append(pool[i])
+	return out
+
+
+## Both guilds' parties as roster indices, [ours, theirs], the hero (-1) in our first.
+## With the player's choice the hero's party is exactly the hero and its picks (a party
+## left short stays short) and the rest of our guild is dealt into random parties; with
+## no choice the hero is dealt with everybody else. The rival guild is always dealt.
+static func roll_parties(ally_count: int, enemy_count: int, picks: Array, chosen: bool, rng: RandomNumberGenerator) -> Array:
+	var ours: Array = []
+	if chosen:
+		var mine: Array = [-1]
+		for i in picks:
+			if int(i) >= 0 and int(i) < ally_count and not mine.has(int(i)) and mine.size() < PARTY_SIZE:
+				mine.append(int(i))
+		ours.append(mine)
+		var rest: Array = []
+		for i in ally_count:
+			if not mine.has(i):
+				rest.append(i)
+		ours.append_array(split_parties(rest, rng))
+	else:
+		var everyone: Array = [-1]
+		for i in ally_count:
+			everyone.append(i)
+		ours = split_parties(everyone, rng)
+		for p in ours.size():
+			if (ours[p] as Array).has(-1):
+				var hers: Array = ours[p]
+				ours.remove_at(p)
+				hers.erase(-1)
+				hers.push_front(-1)
+				ours.push_front(hers)
+				break
+	var everyone_else: Array = []
+	for i in enemy_count:
+		everyone_else.append(i)
+	return [ours, split_parties(everyone_else, rng)]
+
+
+## The party a body in the war belongs to: the hero's (HERO_PARTY) for the hero, a
+## fighter's own, a summon its summoner's; -1 for anything else.
+static func party_of(node: Variant) -> int:
+	if node == null or not is_instance_valid(node):
+		return -1
+	if node is Hero:
+		return HERO_PARTY
+	if node is GuildFighter:
+		return (node as GuildFighter).party
+	if node is Summon:
+		return party_of((node as Summon).summoner)
+	if node is SummonMob:
+		return party_of((node as SummonMob).caster)
+	return -1
+
+
+## True while a guild war is being fought (buffs then keep to the party).
+static func in_war() -> bool:
+	return current != null and is_instance_valid(current)
+
+
+## Whether a buff cast by `caster` reaches `receiver`: always outside the guild war, in it
+## only inside the caster's party (the caster's own buff is always its own).
+static func buff_reaches(caster: Variant, receiver: Variant) -> bool:
+	if not in_war() or caster == receiver:
+		return true
+	var party := party_of(caster)
+	return party >= 0 and party == party_of(receiver)
+
+
+## The fighters in the hero's party (the hero not counted), in party order.
+func hero_party_members() -> Array[GuildFighter]:
+	var out: Array[GuildFighter] = []
+	for f in allies:
+		if is_instance_valid(f) and f.party == HERO_PARTY:
+			out.append(f)
+	return out
+
+
+## Everyone in a party (fighters; the hero for HERO_PARTY is not listed).
+func party_members(party: int) -> Array[GuildFighter]:
+	var out: Array[GuildFighter] = []
+	for f in all_fighters():
+		if is_instance_valid(f) and f.party == party:
+			out.append(f)
+	return out
+
+
+## The party ids of a side, in order.
+func parties_of(team: int) -> Array[int]:
+	var out: Array[int] = []
+	for p in (party_plan[team] as Array).size():
+		out.append(p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p)
+	return out
+
+
+func _spawn(info: Dictionary, team: int, at: Vector3, guild: String, party := -1) -> GuildFighter:
 	var fighter := GuildFighter.new()
 	fighter.setup_fighter(info, team, hero, at, "[%s]" % guild)
+	fighter.party = party
 	fighter.siege = self
 	fighter.position = at
 	zone.add_child(fighter)
@@ -195,6 +362,15 @@ func all_fighters() -> Array[GuildFighter]:
 	out.append_array(allies)
 	out.append_array(enemies)
 	return out
+
+
+func _enter_tree() -> void:
+	current = self
+
+
+func _exit_tree() -> void:
+	if current == self:
+		current = null
 
 
 func _ready() -> void:
@@ -490,7 +666,10 @@ func _assign_objectives() -> void:
 				"rush":
 					f.goal_point = SiegeArena.gate_front(gate.gate_index) + Vector3(float(k % 7 - 3) * 1.3, 0, float(k / 7) * 1.8) if gate != null else SiegeArena.ALTAR
 				"split":
-					if k % 2 == 0:
+					# Party by party (a party keeps together, so its buffs reach it), one by one
+					# when the guild is one party.
+					var half := (f.party % ENEMY_PARTY_BASE) % 2 if (party_plan[team] as Array).size() > 1 else k % 2
+					if half == 0:
 						f.hold_range = 10.0
 						f.goal_point = throne_door + Vector3(float(k % 9 - 4) * 1.4, 0, 0)
 					else:

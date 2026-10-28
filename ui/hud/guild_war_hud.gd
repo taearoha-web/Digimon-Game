@@ -139,7 +139,8 @@ func _update(_delta: float, force: bool) -> void:
 				continue
 			var f: GuildFighter = fighters[index]
 			name_label.text = String(f.member.name)
-			name_label.add_theme_color_override("font_color", ALLY_COLOR if team == 0 else ENEMY_COLOR)
+			# The hero's party in its own green (they stand first in our row).
+			name_label.add_theme_color_override("font_color", GuildWarMatch.PARTY_COLOR if f.in_hero_party() else (ALLY_COLOR if team == 0 else ENEMY_COLOR))
 			bar.value = 0.0 if f.is_dead() else f.hp_ratio()
 			cell.modulate = Color(1, 1, 1, 0.45) if f.is_dead() else Color.WHITE
 			UIUtil.tint_hp_bar(bar, bar.value)

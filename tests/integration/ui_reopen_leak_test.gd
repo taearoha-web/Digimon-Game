@@ -103,7 +103,7 @@ func _screens() -> Dictionary:
 		await _frames(2)
 	for pair in [["shop", main.shop, "open_shop", "close_shop"], ["storage", main.storage, "open_storage", "close_storage"],
 			["trainer", main.trainer, "open_trainer", "close_trainer"], ["warp", main.warp, "open_warp", "close_warp"],
-			["pvp lobby", main.pvp_screen, "open_lobby", "close_screen"], ["guild war lobby", main.guildwar_screen, "open_lobby", "close_screen"],
+			["pvp lobby", main.pvp_screen, "open_lobby", "close_screen"], ["guild war lobby", main.guildwar_screen, "open_lobby", "close_screen"], ["guild war party", main.guildwar_screen, "open_party", "close_screen"],
 			["tower lobby", main.tower_screen, "open_lobby", "close_screen"], ["game registry", main.registry, "open_screen", "close_screen"],
 			["guild registrar", main.guild_screen, "open_screen", "close_screen"]]:
 		var screen: Object = pair[1]

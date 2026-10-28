@@ -1083,10 +1083,11 @@ func recall_party() -> void:
 	VfxKit.shockwave(field, global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
 
 
-## Buff skills reach the whole team: companions and summoned creatures get them too.
+## Buff skills reach the whole team: companions and summoned creatures get them too
+## (in a guild war only the hero's own party and its summons: GuildWarMatch.buff_reaches).
 func _share_buff(buff: Dictionary, color: Color, label: String, skill_id := "") -> void:
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
-		if is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
+		if is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead() and GuildWarMatch.buff_reaches(self, node):
 			node.receive_party_buff(buff, color, label, skill_id)
 
 

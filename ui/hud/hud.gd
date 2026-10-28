@@ -74,6 +74,8 @@ var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _gw_hud: GuildWarHud
 var _party_cards: Array[Dictionary] = []
+## "ปาร์ตี้ของคุณ" above the cards in a guild war (the cards then show the war party).
+var _party_head: Label
 ## Wing pose chips (fly / stand / fold) under the companion card, shown while wings are worn.
 var _wing_row: HBoxContainer
 var _wing_chips: Array[PanelContainer] = []
@@ -559,6 +561,15 @@ func update_online() -> void:
 ## Small cards for the party (world players who joined): badge, name, level, progress.
 ## A tap switches that member between follow, aggressive and guard; the cross lets it go.
 func _build_party(column: Control) -> void:
+	_party_head = UIUtil.label("", &"SmallLabel")
+	_party_head.name = "WarPartyHead"
+	_party_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_head.add_theme_font_size_override("font_size", 15)
+	_party_head.add_theme_color_override("font_color", GuildWarMatch.PARTY_COLOR)
+	_party_head.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_party_head.add_theme_constant_override("outline_size", 5)
+	_party_head.visible = false
+	column.add_child(_party_head)
 	for i in Game.PARTY_MAX:
 		var card := UIUtil.panel(&"HudPanel")
 		# Compact: four of these stand above the joystick on a phone.
@@ -574,6 +585,8 @@ func _build_party(column: Control) -> void:
 			card.add_theme_stylebox_override("panel", compact)
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.gui_input.connect(_tap(func():
+			if _war() != null:
+				return
 			var stance := Game.cycle_stance(i)
 			if stance != "":
 				Game.say("%s: %s" % [Game.party()[i].name, Game.STANCE_NAMES[stance]], &"info")))
@@ -676,7 +689,19 @@ func _update_wing_row() -> void:
 		(_wing_chips[i].get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if active else Color.WHITE)
 
 
+## The guild war being fought in this zone, or null.
+func _war() -> GuildWarMatch:
+	if zone == null or not is_instance_valid(zone) or zone.gw_match == null or not is_instance_valid(zone.gw_match):
+		return null
+	return zone.gw_match
+
+
 func _update_party() -> void:
+	var war := _war()
+	_party_head.visible = war != null
+	if war != null:
+		_update_war_party(war)
+		return
 	var party := Game.party()
 	for i in _party_cards.size():
 		var entry: Dictionary = _party_cards[i]
@@ -684,6 +709,9 @@ func _update_party() -> void:
 		card.visible = i < party.size() and (zone != null)
 		if not card.visible:
 			continue
+		card.modulate = Color.WHITE
+		(entry.kick as Control).visible = true
+		(entry.exp as Control).visible = true
 		var member: Dictionary = party[i]
 		var data := ClassData.get_class_data(StringName(member["class"]))
 		var key := "%s|%d|%d" % [member.name, int(member.level), Game.party_stars(member)]
@@ -711,6 +739,40 @@ func _update_party() -> void:
 		var exp_bar := entry.exp as ProgressBar
 		exp_bar.max_value = 1000.0
 		exp_bar.value = float(member.get("frac", 0.0)) * 1000.0
+
+
+## In a guild war the party cards show the hero's war party: class badge, name and
+## level, HP (a fallen member greyed with its respawn), no stance and no cross.
+func _update_war_party(war: GuildWarMatch) -> void:
+	var members := war.hero_party_members()
+	_party_head.text = "◆ ปาร์ตี้ของคุณ %d/%d · บัฟถึงเฉพาะในปาร์ตี้" % [members.size() + 1, GuildWarMatch.PARTY_SIZE]
+	for i in _party_cards.size():
+		var entry: Dictionary = _party_cards[i]
+		var card: Control = entry.card
+		card.visible = i < members.size()
+		(entry.kick as Control).visible = false
+		(entry.exp as Control).visible = false
+		if not card.visible:
+			continue
+		var f := members[i]
+		var data := ClassData.get_class_data(f.fighter_class())
+		var level_text := String(f.tag) if String(f.tag) != "" else "Lv.%d" % int(f.member.get("level", 100))
+		var key := "gw|%s|%s" % [f.member.name, level_text]
+		if key != entry.key:
+			entry["key"] = key
+			var style := StyleBoxFlat.new()
+			style.bg_color = data.color
+			style.set_corner_radius_all(17)
+			style.set_border_width_all(2)
+			style.border_color = GuildWarMatch.PARTY_COLOR
+			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
+			(entry.letter as Label).text = String(data.badge)
+		var dead := f.is_dead()
+		(entry.title as Label).text = "%s  %s" % [f.member.name, ("ล้ม · เกิดใน %d" % int(ceil(f.respawn_left))) if dead else level_text]
+		card.modulate = Color(1, 1, 1, 0.5) if dead else Color.WHITE
+		var bar := entry.bar as ProgressBar
+		UIUtil.set_bar(bar, 0 if dead else f.hp, maxi(1, f.max_hp))
+		UIUtil.tint_hp_bar(bar, 0.0 if dead else f.hp_ratio())
 
 
 func _build_top_right(frame: Control) -> void:
