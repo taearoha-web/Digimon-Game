@@ -1,7 +1,8 @@
 extends Node
 ## The Dark Lord's Summon (recall the party) is never a reflex: the hero's auto-hunt
 ## never casts it, the player's own press does; an AI Dark Lord in the party casts it
-## only on purpose, when a member has fallen far behind; a rival never does.
+## only on purpose, when a member has fallen far behind; a rival never does. Imperial
+## Judgment's repel throws monsters 3 m clear of the Lord.
 ##   godot --headless --path . res://tests/integration/lord_summon_test.tscn
 var failures := 0
 var checks := 0
@@ -79,5 +80,14 @@ func _ready() -> void:
 		lord.global_position = hero.global_position + Vector3(Companion.RECALL_DISTANCE + 8.0, 0.3, 0)
 		await get_tree().physics_frame
 		check(lord._shape_score(spec, 2.0, 1.0) > 0.0, "an AI Dark Lord Summons on purpose when a member is far behind")
+	# Imperial Judgment's repel throws monsters 3 m clear of the Lord, not to its 9 m ring.
+	var mob: Mob = hero.nearest_mob()
+	if mob != null:
+		mob.velocity = Vector3.ZERO
+		var center := mob.global_position + Vector3(1.0, 0.0, 0.0)
+		mob.shove_out(center, Mob.REPEL_DISTANCE)
+		var slide := Vector2(mob.velocity.x, mob.velocity.z).length_squared() / (2.0 * 12.0)
+		var lands := 1.0 + slide
+		check(absf(lands - (Mob.REPEL_DISTANCE + mob.body_radius())) < 0.05, "a repel throws a monster to 3 m from the Lord (lands %.2f m)" % lands)
 	print("LORD SUMMON: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
