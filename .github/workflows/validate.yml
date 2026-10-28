@@ -117,7 +117,12 @@ jobs:
       - name: Test the offline web app (service worker caches the build, offline boot without login wall, offline save syncs, update swap)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # Playwright cannot install its own Chromium's system deps on this runner OS;
+          # the runner image already ships Chrome, so drive that one.
+          CHROMIUM_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROMIUM_PATH" ]; then npx playwright install chromium; fi
+          export CHROMIUM_PATH
+          echo "browser: ${CHROMIUM_PATH:-playwright chromium}"
           node tools/test_web_offline.mjs
           node hosting/accounts/tests/static.test.mjs
       - name: Check gear geometry and distant monsters
