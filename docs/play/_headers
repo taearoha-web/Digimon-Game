@@ -1,0 +1,24 @@
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+/index.js
+  Cache-Control: no-cache
+/index.audio.worklet.js
+  Cache-Control: no-cache
+/*.gz.wasm
+  Cache-Control: public, max-age=31536000, immutable, no-transform
+/accounts.*
+  Cache-Control: public, max-age=31536000, immutable
+/session.*
+  Cache-Control: public, max-age=31536000, immutable
+/offline.*
+  Cache-Control: public, max-age=31536000, immutable
+/font-*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *

@@ -19,6 +19,8 @@ const RETURN_ABOVE := 0.65
 ## Standing in its own base heals this much of max HP per second.
 const BASE_HEAL := 0.07
 const BASE_RADIUS := 7.0
+## A fighter's buff reaches its party members this close.
+const BUFF_REACH := 12.0
 
 ## Counters for tests/tools/guild_war_sim.gd.
 static var dbg := {"recv": 0, "dmg": 0, "dodged": 0, "guard": 0, "basic": 0, "cast": 0, "hits_out": 0}
@@ -49,6 +51,9 @@ var grade := 0
 var tag := ""
 var guild_name := ""
 var respawn_left := 0.0
+## Its party in the war (GuildWarMatch: our parties from HERO_PARTY, the rivals' from
+## ENEMY_PARTY_BASE; -1 outside a war). Its buffs reach only its own party.
+var party := -1
 
 var _last_attacker: Node
 var _helpers: Dictionary = {}
@@ -83,14 +88,33 @@ func _ready() -> void:
 		remove_from_group("mobs")
 		add_to_group("companions")
 	# Just the name, coloured by guild (the full "[guild] name" overlapped when fighters bunched up).
-	_label.text = String(member.name)
 	_label.font_size = 36
-	_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
+	if in_hero_party():
+		# The hero's party: a diamond before the name and the party's green.
+		_label.text = "◆ " + String(member.name)
+		_label.modulate = GuildWarMatch.PARTY_COLOR
+	else:
+		_label.text = String(member.name)
+		_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
 	_label.visibility_range_end = 30.0
 	# Fifty fighters on one field: far ones stop animating like far monsters do.
 	if _rv != null and _rv.hero_visual != null:
 		_rv.hero_visual.add_to_group("anim_lod")
 	_start_guard()
+
+
+## True for a member of the hero's own party in the war.
+func in_hero_party() -> bool:
+	return team == TEAM_ALLY and party == GuildWarMatch.HERO_PARTY
+
+
+## Its party members (the hero too, when in it) standing within `radius`: whom its buffs reach.
+func party_near(radius: float) -> int:
+	var n := 0
+	for ally in _teammates():
+		if GuildWarMatch.buff_reaches(self, ally) and _flat_distance(ally.global_position) <= radius:
+			n += 1
+	return n
 
 
 func fighter_class() -> StringName:
@@ -466,13 +490,14 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 					lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
 		return 10.0 if lowest < 0.55 else 0.0
 	var score := super._score(skill, shape, distance, own_ratio)
-	if score > 0.0 and BuffBook.is_song_skill(skill):
-		var near := 0
-		for ally in _teammates():
-			if _flat_distance(ally.global_position) <= 12.0:
-				near += 1
+	# A buff reaches only its party: worth more with the party around to take it, less
+	# (it still lifts the caster) when nobody of the party is near.
+	if score > 0.0 and shape == "self" and fx.get("buff") is Dictionary and not BuffBook.is_self_only(fx.buff):
+		var near := party_near(BUFF_REACH)
 		if near >= 2:
-			score += 0.5
+			score += 0.5 if BuffBook.is_song_skill(skill) else 0.8
+		elif near == 0 and GuildWarMatch.in_war():
+			score -= 1.5
 	return score
 
 
@@ -573,15 +598,21 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		if BuffBook.is_self_only(buff):
 			return
 		for ally in _teammates():
-			if _flat_distance(ally.global_position) > 12.0:
+			if _flat_distance(ally.global_position) > BUFF_REACH:
+				continue
+			# In a war a buff stays inside the caster's party.
+			if not GuildWarMatch.buff_reaches(self, ally):
 				continue
 			if ally.has_method("receive_party_buff"):
 				ally.receive_party_buff(buff, skill.color, String(skill.name), String(skill.id))
-			elif ally == hero and BuffBook.is_song(buff) and ally.has_method("receive_buff") and not _hero_own_song():
-				# A song of our guild's Bard reaches the hero too, for at most 30 s like any fighter's buff.
-				var song := buff.duplicate()
-				song["secs"] = minf(float(buff.get("secs", 20.0)), 30.0)
-				ally.receive_buff(song, skill.color, String(skill.name), true, String(skill.id))
+			elif ally == hero and ally.has_method("receive_buff") and (BuffBook.is_song(buff) or GuildWarMatch.in_war()):
+				# A song of our guild's Bard reaches the hero too (never over the hero's own
+				# song), and in a war any buff of the hero's party, for at most 30 s like any fighter's buff.
+				if BuffBook.is_song(buff) and _hero_own_song():
+					continue
+				var shared := buff.duplicate()
+				shared["secs"] = minf(float(buff.get("secs", 20.0)), 30.0)
+				ally.receive_buff(shared, skill.color, String(skill.name), true, String(skill.id))
 
 
 ## Whether the hero plays its own song (a Bard): an AI fighter never sings over it.
