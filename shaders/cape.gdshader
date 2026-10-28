@@ -58,7 +58,10 @@ vec3 shape(vec2 uv, float t) {
 		return c;
 	}
 	// Stowed: the cloth rolls up towards the shoulders and draws in.
-	float vv = v * (1.0 - fold * 0.82);
+	// The normal is found from neighbours a step past the edges (v < 0 above the
+	// shoulders): pow() of a negative number is NaN on Apple GPUs, and a NaN normal
+	// broke whole frames on iPhones, so every base below is kept at or above zero.
+	float vv = max(v, 0.0) * (1.0 - fold * 0.82);
 	float flare = pow(vv, 0.8);
 	float half_w = mix(top_width, hem_width, flare) * 0.5 * mix(1.0, 0.62, fold * v);
 	float len = cape_length * (1.0 + hem_curve * (1.0 - s * s));
@@ -82,7 +85,7 @@ vec3 shape(vec2 uv, float t) {
 	// Streaming back and lifting while flying, the hem flaring wider.
 	float stream = billow * (1.0 - fold) * stiff;
 	// The long cape streams from below the capelet, so it never cuts through it.
-	float from = kind < 0.5 ? clamp((vv - 0.2) / 0.8, 0.0, 1.0) : vv;
+	float from = kind < 0.5 ? clamp((vv - 0.2) / 0.8, 0.0, 1.0) : max(vv, 0.0);
 	p.z -= stream * pow(from, 1.3) * len * 0.85;
 	p.y += stream * pow(from, 2.0) * len * 0.45;
 	p.x *= 1.0 + stream * vv * 0.3;
@@ -95,7 +98,8 @@ void vertex() {
 	vec3 pu = shape(UV + vec2(0.01, 0.0), t) - shape(UV - vec2(0.01, 0.0), t);
 	vec3 pv = shape(UV + vec2(0.0, 0.01), t) - shape(UV - vec2(0.0, 0.01), t);
 	VERTEX = p;
-	NORMAL = normalize(cross(pu, pv));
+	vec3 n = cross(pu, pv);
+	NORMAL = dot(n, n) > 1e-12 ? normalize(n) : vec3(0.0, 0.0, -1.0);
 	cloth = UV;
 	float s = UV.x * 2.0 - 1.0;
 	float sway = sin(t * 0.7 + UV.y * 2.4 + phase) * 0.45;
@@ -187,7 +191,7 @@ float raven(vec2 p) {
 // of a band (x 0..1 across it) and darker edges.
 vec3 gold(vec3 base, float x) {
 	float ridge = 1.0 - abs(x * 2.0 - 1.0);
-	return base * (0.62 + 0.62 * pow(ridge, 0.7));
+	return base * (0.62 + 0.62 * pow(max(ridge, 0.0), 0.7));
 }
 
 // The star cape's cloth: deep space with drifting nebula and twinkling stars.
@@ -246,7 +250,7 @@ void fragment() {
 		ALBEDO = col;
 		EMISSION = glow_rgb * glow;
 	} else {
-		float flare = pow(v, 0.8);
+		float flare = pow(max(v, 0.0), 0.8);
 		float width_here = mix(top_width, hem_width, flare);
 		float len_here = cape_length * (1.0 + hem_curve * (1.0 - s * s));
 		float e_side = min(u, 1.0 - u) * width_here;
