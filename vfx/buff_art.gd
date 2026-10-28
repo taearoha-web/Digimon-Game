@@ -338,3 +338,9 @@ static func _grove_leaf_mesh() -> ArrayMesh:
 	st.generate_normals()
 	_grove_leaf = st.commit()
 	return _grove_leaf
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()

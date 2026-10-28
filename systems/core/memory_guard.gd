@@ -17,6 +17,12 @@ extends RefCounted
 ## [raise above, drop below] in MB, for phones / browsers and for desktops.
 const VIDEO_PHONE := [135.0, 110.0, 170.0, 145.0]   # level 1 raise/drop, level 2 raise/drop
 const HEAP_PHONE := [250.0, 215.0, 310.0, 275.0]
+## An iPhone / iPad (Safari or a home-screen app) closes the page much earlier: a
+## v0.9.4 Dark Lord session was closed at a 199 MB heap and 117 MB of video memory
+## without the guard ever stepping in (its phone lines are 250 / 135), and a native
+## 30-minute soak of the same hunt stays flat, so the budget, not a leak, ran out.
+const VIDEO_IOS := [100.0, 85.0, 130.0, 115.0]
+const HEAP_IOS := [175.0, 155.0, 225.0, 200.0]
 const VIDEO_DESKTOP := [700.0, 600.0, 1000.0, 880.0]
 const HEAP_DESKTOP := [1400.0, 1200.0, 1900.0, 1700.0]
 const TICK_SECONDS := 2.0
@@ -29,11 +35,33 @@ static var raises := 0
 static var _forced := -1
 static var _calm_seconds := 0.0
 static var _accum := 0.0
+## Tests pin the device family: -1 asks the engine, 0 not iOS, 1 iOS.
+static var ios_override := -1
+static var _ios := -1
 static var _heap_script := "typeof window.toonHeapBytes === 'function' ? window.toonHeapBytes() : 0"
 
 
 static func phone() -> bool:
 	return OS.has_feature("web") or OS.has_feature("mobile")
+
+
+static func ios() -> bool:
+	if ios_override >= 0:
+		return ios_override == 1
+	if _ios < 0:
+		var found := OS.has_feature("web_ios") or OS.has_feature("ios")
+		if not found and OS.has_feature("web"):
+			# iPadOS reports a Mac; its touch points give it away.
+			found = bool(JavaScriptBridge.eval("/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)", true))
+		_ios = 1 if found else 0
+	return _ios == 1
+
+
+## [video, heap] lines for this device.
+static func lines() -> Array:
+	if ios():
+		return [VIDEO_IOS, HEAP_IOS]
+	return [VIDEO_PHONE, HEAP_PHONE] if phone() else [VIDEO_DESKTOP, HEAP_DESKTOP]
 
 
 ## Called every frame by Game; does its reading every TICK_SECONDS.
@@ -56,8 +84,8 @@ static func tick(tree: SceneTree, delta: float) -> void:
 static func _wanted(step: float) -> int:
 	if _forced >= 0:
 		return _forced
-	var video: Array = VIDEO_PHONE if phone() else VIDEO_DESKTOP
-	var heap: Array = HEAP_PHONE if phone() else HEAP_DESKTOP
+	var video: Array = lines()[0]
+	var heap: Array = lines()[1]
 	var level := 0
 	if video_mb >= float(video[2]) or heap_mb >= float(heap[2]):
 		level = 2

@@ -960,3 +960,9 @@ static func fire_ring(parent: Node3D, center: Vector3, color: Color, radius: flo
 		tween.parallel().tween_property(mat, "albedo_color:a", 0.0, lifetime * 0.7)
 		tween.tween_callback(flame.queue_free)
 		sparks(parent, pos + Vector3(0, 0.4, 0), color, 4, 2.0, 0.6)
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_flight_meshes.clear()

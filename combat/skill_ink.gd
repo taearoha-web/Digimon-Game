@@ -123,3 +123,9 @@ static func ribbon_mesh(kind: int) -> ArrayMesh:
 	st.generate_normals()
 	_meshes[key] = st.commit()
 	return _meshes[key]
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()

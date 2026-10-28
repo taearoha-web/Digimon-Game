@@ -628,3 +628,10 @@ static func _prism(st: SurfaceTool, lo: Vector3, hi: Vector3) -> void:
 	for face in [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]]:
 		_tri(st, p[face[0]], p[face[1]], p[face[2]])
 		_tri(st, p[face[0]], p[face[2]], p[face[3]])
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()
+	_tube_meshes.clear()
