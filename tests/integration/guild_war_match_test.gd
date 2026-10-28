@@ -126,6 +126,29 @@ func _war(staged: bool) -> void:
 		# Freeze the AI so the checks below see only what they cause (on a slow machine the
 		# fighters would otherwise reach each other and score extra falls in between).
 		f.set_physics_process(false)
+	# A Dark Lord's Summon with a purpose: at the front, it pulls in a damage dealer of
+	# its party who has just come back at the base; with the party around, it does not.
+	var caller: GuildFighter = m.enemies[0]
+	var mates := caller._recall_targets()
+	var dealer: GuildFighter = null
+	for f in mates:
+		if not f.is_healer():
+			dealer = f
+	check(dealer != null, "%s: a fighter has a damage dealer in its party" % label)
+	if dealer != null:
+		var keep := {}
+		for f in [caller] + mates:
+			keep[f] = f.global_position
+		caller.global_position = caller.spawn_point + Vector3(-signf(caller.spawn_point.x) * 40.0, 0.0, 0.0)
+		for f in mates:
+			f.global_position = caller.global_position + Vector3(1.5, 0.0, 0.0)
+		check(not caller.rally_needed(), "%s: with its party around, a fighter does not Summon" % label)
+		dealer.global_position = dealer.spawn_point
+		check(caller.rally_needed(), "%s: a damage dealer back at the base is pulled in by Summon" % label)
+		caller._recall_party()
+		check(dealer.global_position.distance_to(caller.global_position) < 4.0, "%s: Summon brings the party to the caller (%.1f m)" % [label, dealer.global_position.distance_to(caller.global_position)])
+		for f in keep:
+			f.global_position = keep[f]
 	# Damage rules: the war scale applies, one hit is capped, a combo is capped.
 	var enemy: GuildFighter = m.enemies[0]
 	var max_hp := enemy.max_hp

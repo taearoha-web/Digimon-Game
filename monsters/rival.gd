@@ -420,7 +420,8 @@ func _song_score(skill: Dictionary) -> float:
 
 func _shape_score(skill: Dictionary, shape: String, distance: float, hp_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
-	# Summon (recall) only gathers a party; a rival never spends a turn on it.
+	# Summon (recall) only gathers a party: a lone rival (the arena duel) never casts it;
+	# a guild war fighter decides in GuildFighter._score (rally, pull in a fallen one).
 	if fx.has("recall"):
 		return 0.0
 	match shape:

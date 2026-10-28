@@ -1076,6 +1076,9 @@ func recall_party() -> void:
 		var ally := node as Node3D
 		if not is_instance_valid(ally) or ally.is_queued_for_deletion():
 			continue
+		# In a guild war the player's Summon gathers its own party, not the whole guild.
+		if not GuildWarMatch.buff_reaches(self, ally):
+			continue
 		var angle := _facing + PI + (float(k) - 1.5) * 0.7
 		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.2
 		VfxKit.flash(field, ally.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)

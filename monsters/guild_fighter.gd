@@ -476,10 +476,59 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	super._cast(skill, target)
 
 
+## A Dark Lord's Summon (recall) with a purpose: away from its own base (at the front,
+## in the castle), it calls its party to it when a damage dealer has just come back
+## at the base (no long run back in) or when two or more are far off (a rally
+## before an assault). Never as a reflex, and never to move the hero.
+const RALLY_FROM_BASE := 25.0
+const RALLY_FAR := 20.0
+
+
+## Its party in the war (its whole team outside one), the hero never counted.
+func _recall_targets() -> Array[GuildFighter]:
+	var out: Array[GuildFighter] = []
+	for node in get_tree().get_nodes_in_group("gw_team%d" % team):
+		var f := node as GuildFighter
+		if f != null and f != self and _alive(f) and GuildWarMatch.buff_reaches(self, f):
+			out.append(f)
+	return out
+
+
+func rally_needed() -> bool:
+	if _flat_distance(spawn_point) < RALLY_FROM_BASE:
+		return false
+	var far := 0
+	for ally in _recall_targets():
+		if _flat_distance(ally.global_position) < RALLY_FAR:
+			continue
+		far += 1
+		if not ally.is_healer() and ally._flat_distance(ally.spawn_point) < BASE_RADIUS:
+			return true
+	return far >= 2
+
+
+## Summon: the party appears round the caster, a flash where each left and arrived.
+func _recall_party() -> void:
+	var k := 0
+	for ally in _recall_targets():
+		if ally.capturing:
+			continue
+		var angle := _yaw + PI + (float(k) - 1.5) * 0.7
+		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.2
+		VfxKit.flash(get_parent(), ally.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
+		ally.global_position = spot + Vector3(0, 0.3, 0)
+		ally.velocity = Vector3.ZERO
+		VfxKit.flash(get_parent(), spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
+		k += 1
+	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
+
+
 ## A healer casts when an ally nearby is hurt, not only when it is; a song is
 ## worth a little more with teammates around to hear it.
 func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
+	if fx.has("recall"):
+		return 9.5 if rally_needed() else 0.0
 	if shape == "self" and fx.has("heal"):
 		var lowest := own_ratio
 		for ally in _teammates():
@@ -592,6 +641,8 @@ func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id :=
 
 func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	super._resolve(skill, target, aim)
+	if skill.get("fx", {}).has("recall"):
+		_recall_party()
 	if String(skill.shape) == "self" and skill.get("fx", {}).has("buff"):
 		var buff: Dictionary = skill.fx.buff
 		# A stance (self_only) stays on the fighter who cast it.
