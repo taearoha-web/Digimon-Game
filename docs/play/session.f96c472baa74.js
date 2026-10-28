@@ -221,7 +221,7 @@
         for (const key of ['staticBytes', 'videoBytes', 'nodes', 'objects', 'resources', 'orphans', 'loot', 'quality', 'fps', 'auto', 'kills', 'saveAgeSeconds', 'drawCalls', 'triangles', 'renderObjects', 'processMs', 'physicsMs', 'soundPlayRequests', 'audioStreamMode', 'audioStallSeconds']) {
           if (typeof data[key] === 'boolean' || (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)) metrics[key] = data[key];
         }
-        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs']) {
+        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB']) {
           if (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0) metrics[key] = Math.round(data[key] * 100) / 100;
         }
         for (const key of ['zone', 'class', 'towerState', 'lastSkill', 'audioState']) if (typeof data[key] === 'string' && /^[a-z_]{1,48}$/.test(data[key])) metrics[key] = data[key];
