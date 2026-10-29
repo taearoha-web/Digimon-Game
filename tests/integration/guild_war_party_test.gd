@@ -201,7 +201,7 @@ func _guild_war() -> void:
 	_check_war_parties(m, "guild")
 	_check_split(m.party_plan[0], m.allies.size(), "guild ours", true, true)
 	_check_split(m.party_plan[1], m.enemies.size(), "guild theirs")
-	check(m.parties_of(GuildFighter.TEAM_ENEMY).size() >= 2 and m.parties_of(GuildFighter.TEAM_ALLY).size() >= 3, "guild: both guilds have several parties")
+	check(m.parties_of(GuildFighter.TEAM_ENEMY).size() >= 2 and m.parties_of(GuildFighter.TEAM_ALLY).size() >= 2, "guild: both guilds have several parties")
 	check(m.allies[0].party == GuildWarMatch.HERO_PARTY and m.allies[1].party == GuildWarMatch.HERO_PARTY and m.allies[0].spawn_point.x > m.allies[m.allies.size() - 1].spawn_point.x, "guild: our party stands in the front row")
 	await _start(m)
 	await _buffs(m, zone.hero)

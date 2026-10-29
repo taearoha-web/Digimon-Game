@@ -53,14 +53,18 @@ func _ready() -> void:
 		await _wait(0.4)
 	zone.hero.global_position = Vector3(0, 0.2, 15.0)
 	zone.camera_rig.snap_to_target()
-	await _wait(2.5)
+	await _wait(2.0)
+	_talk_near(zone, 3)
+	await _wait(0.6)
 	await _shot("plaza")
 	zone.hero.global_position = Vector3(-20, 0.2, 7.0)
 	zone.camera_rig.snap_to_target()
 	for k in 3:
 		zone.presence.chat_once()
 		await _wait(0.4)
-	await _wait(1.5)
+	await _wait(1.0)
+	_talk_near(zone, 2)
+	await _wait(0.6)
 	await _shot("street")
 	zone.hero.global_position = Vector3(10, 0.2, 10.0)
 	zone.camera_rig.snap_to_target()
@@ -71,3 +75,14 @@ func _ready() -> void:
 	await _shot("registry")
 	main.registry.close_screen()
 	get_tree().quit()
+
+
+## The `count` world players nearest the hero say a line of the world chat (bubbles).
+func _talk_near(zone: Zone, count: int) -> void:
+	var near: Array = get_tree().get_nodes_in_group("world_players")
+	near.sort_custom(func(a, b): return a.global_position.distance_to(zone.hero.global_position) < b.global_position.distance_to(zone.hero.global_position))
+	for p in near.slice(0, count):
+		var s := WorldPlayers.state(p.world_index, WorldPresence.clock())
+		var line := WorldChat.line_for(s, randi())
+		Game.world_chat.emit(String(s.name), line, WorldPlayers.GUILD_COLORS.get(int(s.guild), Color("bfe8ff")))
+		p.bubble(line)

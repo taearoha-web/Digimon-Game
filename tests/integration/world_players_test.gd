@@ -619,7 +619,10 @@ func _screens() -> void:
 	main.registry.open_screen()
 	await get_tree().process_frame
 	var rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
-	check(rows == WorldPlayers.size() + 1 and main.registry.find_child("Row_you", true, false) != null, "the registry lists all %d players and the hero (%d rows)" % [WorldPlayers.size() + 1, rows])
+	var joined := WorldPlayers.size()
+	for i in WorldPlayers.size():
+		joined -= 0 if WorldPresence.clock() >= WorldPlayers.joined_at(i) else 1
+	check(rows == joined + 1 and main.registry.find_child("Row_you", true, false) != null, "the registry lists the %d players who have joined and the hero (%d rows)" % [joined, rows])
 	(main.registry.find_child("Filter_online", true, false) as Button).pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
