@@ -105,13 +105,15 @@ static func _bounds_center(root: Node3D) -> Vector3:
 	return box.get_center() if not first else Vector3(0, 0.5, 0)
 
 
-## Glow and sparkles on a held weapon (or shield).
-static func on_item(item: Node3D, plus: int) -> void:
+## Glow and sparkles on a held weapon (or shield). [param light] is the cheap dressing of
+## the other players seen around (HeroVisual.decor_light): the overlay, halo and orbiting
+## sparks, but no particle emitters, flames or light, which the phone pays for per frame.
+static func on_item(item: Node3D, plus: int, light := false) -> void:
 	var g := grade(plus)
 	if g == 0:
 		return
 	var color := COLORS[g]
-	var rich := GameSettings.quality > 0
+	var rich := GameSettings.quality > 0 and not light
 	var overlay := _glow_material(color, [0.0, 0.07, 0.11, 0.15, 0.2][g])
 	for m in MeshKit.collect_meshes(item):
 		m.material_overlay = overlay
@@ -120,10 +122,11 @@ static func on_item(item: Node3D, plus: int) -> void:
 	var speed: float = [0.0, 1.6, 1.1, 0.8, 0.45][g]
 	pulse.tween_property(overlay, "albedo_color:a", base_a * 1.7, speed).set_trans(Tween.TRANS_SINE)
 	pulse.tween_property(overlay, "albedo_color:a", base_a * 0.5, speed).set_trans(Tween.TRANS_SINE)
-	if not rich:
+	if GameSettings.quality == 0:
 		return
 	var center := _bounds_center(item)
-	_sparkles(item, center, color, [0, 4, 9, 14, 18][g], 0.2 + 0.03 * g, 0.12 + 0.02 * g, 0.5 + 0.1 * g)
+	if rich:
+		_sparkles(item, center, color, [0, 4, 9, 14, 18][g], 0.2 + 0.03 * g, 0.12 + 0.02 * g, 0.5 + 0.1 * g)
 	if g >= 3:
 		var halo := MeshInstance3D.new()
 		var quad := QuadMesh.new()
@@ -155,21 +158,23 @@ static func on_item(item: Node3D, plus: int) -> void:
 			orbit.add_child(orb)
 		var spin := orbit.create_tween().set_loops()
 		spin.tween_property(orbit, "rotation:y", TAU, 1.6 if g == 3 else 0.9).from(0.0)
-	if g == 4:
+	if g == 4 and not light:
 		_flames(item, center, 0.1, 12)
 		# One of the three effect lights, high quality only (never one per fighter in a war).
 		if VfxBudget.can_light():
-			var light := OmniLight3D.new()
-			light.light_color = color
-			light.light_energy = 0.9
-			light.omni_range = 4.5
-			light.position = center
-			item.add_child(light)
-			VfxBudget.track_light(light)
+			var lamp := OmniLight3D.new()
+			lamp.light_color = color
+			lamp.light_energy = 0.9
+			lamp.omni_range = 4.5
+			lamp.position = center
+			item.add_child(lamp)
+			VfxBudget.track_light(lamp)
 
 
 ## A rune ring at the feet and (for +7 and up) a body aura, sized by the best + worn.
-static func on_body(visual: Node3D, plus: int) -> Array[Node]:
+## [param light] (the other players around): the rings and disc, one small sparkle
+## emitter and no beam or flames.
+static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 	var made: Array[Node] = []
 	var g := grade(plus)
 	if g < 2:
@@ -197,8 +202,8 @@ static func on_body(visual: Node3D, plus: int) -> Array[Node]:
 	visual.add_child(disc)
 	made.append(disc)
 	if GameSettings.quality > 0:
-		made.append(_sparkles(visual, Vector3(0, 0.15, 0), color, 8 + 5 * g, 0.7 + 0.1 * g, 0.12, 0.9 + 0.2 * g, 1.3))
-		if g == 4:
+		made.append(_sparkles(visual, Vector3(0, 0.15, 0), color, (4 + g) if light else (8 + 5 * g), 0.7 + 0.1 * g, 0.12, 0.9 + 0.2 * g, 1.3))
+		if g == 4 and not light:
 			var beam := VfxKit.loot_beam(visual, color, 4.0)
 			beam.scale = Vector3(0.12, 4.0, 0.12)
 			made.append(beam)
@@ -224,7 +229,8 @@ static func can_enhance(item: Dictionary) -> bool:
 ## glows): the caller keeps it with the outfit so a re-dress frees it; before,
 ## every equipment refresh stacked another set of emitters and an endless tween
 ## on the visual for the rest of the zone.
-static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> Node3D:
+## [param light] (the other players around) keeps the pulsing overlay only.
+static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, spread := 0.3, light := false) -> Node3D:
 	var g := grade(plus)
 	if g == 0:
 		return null
@@ -247,7 +253,7 @@ static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, sp
 	var pulse := holder.create_tween().set_loops()
 	pulse.tween_property(overlay, "albedo_color:a", base_a * 1.8, speed).set_trans(Tween.TRANS_SINE)
 	pulse.tween_property(overlay, "albedo_color:a", base_a * 0.45, speed).set_trans(Tween.TRANS_SINE)
-	if GameSettings.quality > 0 and g >= 2 and MemoryGuard.pressure < 2:
+	if GameSettings.quality > 0 and g >= 2 and MemoryGuard.pressure < 2 and not light:
 		var p := _sparkles(holder, spot, color, [0, 0, 5, 8, 12][g], spread, 0.1, 0.5 + 0.1 * g, 0.9)
 		p.name = "PieceSparkles"
 		if g == 4 and MemoryGuard.pressure == 0:

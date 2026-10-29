@@ -11,6 +11,8 @@ func _ready() -> void:
 	var class_id := StringName(args[0] if args.size() > 0 else "summoner")
 	var zones: Array = (args[1] if args.size() > 1 else "meadow,desert,volcano,void").split(",")
 	var seconds := float(args[2]) if args.size() > 2 else 12.0
+	# Headless pads every frame to 6.9 ms (low_processor_usage_mode_sleep_usec).
+	OS.low_processor_usage_mode_sleep_usec = 1
 	GameSettings.load_settings()
 	if args.size() > 3:
 		GameSettings.quality = int(args[3])

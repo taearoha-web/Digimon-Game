@@ -103,6 +103,7 @@ func _ready() -> void:
 	for i in 2:
 		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
 	check(RenderWatchdog.step == 2 and GameSettings.quality == 1 and MemoryGuard.pressure == 2, "then medium quality at strict pressure (%d, q%d, p%d)" % [RenderWatchdog.step, GameSettings.quality, MemoryGuard.pressure])
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0) and is_equal_approx(tree.root.scaling_3d_scale, 1.0), "and the world drawn at the canvas size again (%.2f)" % MemoryGuard.scale_3d)
 	RenderWatchdog.spread_override = 0.5
 	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
 	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
@@ -161,7 +162,30 @@ func _ready() -> void:
 	MemoryGuard.tick(tree, 0.1)
 	check(MemoryGuard.video_mb >= 0.0 and MemoryGuard.heap_mb >= 0.0, "tick reads the monitors")
 	var report := MemoryGuard.report()
-	check(report.has("pressure") and report.has("videoMB") and report.has("heapMB"), "report carries the readings")
+	check(report.has("pressure") and report.has("videoMB") and report.has("heapMB") and report.has("scale3d"), "report carries the readings")
+	# The 3D resolution scale: a phone at high quality starts below full size and follows
+	# the frame rate (down a step after a slow stretch, up again after a fast one); the
+	# HUD is untouched and a desktop always draws at 1.0.
+	var phone := MemoryGuard.phone()
+	MemoryGuard.force(-1, tree)
+	MemoryGuard.reset_scale_3d(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, MemoryGuard.SCALE_3D_START if phone else 1.0), "a zone starts at the device's base 3D scale (%.2f)" % MemoryGuard.scale_3d)
+	check(is_equal_approx(tree.root.scaling_3d_scale, MemoryGuard.scale_3d), "the root viewport draws 3D at that scale")
+	MemoryGuard.set_scale_3d(0.9, tree)
+	MemoryGuard.fps_override = 30.0
+	for i in MemoryGuard.SCALE_3D_SLOW_TICKS:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, (0.9 - MemoryGuard.SCALE_3D_STEP) if phone else 0.9), "a slow stretch lowers the scale a step on a phone only (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.fps_override = 30.0
+	for i in 40:
+		MemoryGuard._follow_frame_rate(tree)
+	check(MemoryGuard.scale_3d >= MemoryGuard.SCALE_3D_MIN - 0.001, "the scale never drops under the floor (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.fps_override = 60.0
+	for i in MemoryGuard.SCALE_3D_FAST_TICKS * 12:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0) or not phone, "a fast stretch brings it back up to full size (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.fps_override = -1.0
+	MemoryGuard.reset_scale_3d(tree)
 	zone.queue_free()
 	await get_tree().process_frame
 	print("memory_guard_test: %d checks, %d failures" % [checks, failures])

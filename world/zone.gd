@@ -156,6 +156,7 @@ func _ready() -> void:
 		await _build_field()
 	_phase("build_world")
 	await _slice()
+	MemoryGuard.reset_scale_3d(get_tree())
 	await VfxArt.warm_up(get_tree() if staged else null)
 	if int(Game.paragon().level)>=50: StarGeometry.warm()
 	_phase("warm_art")
@@ -163,10 +164,11 @@ func _ready() -> void:
 	_spawn_hero()
 	_phase("spawn_hero")
 	await _slice()
-	if not is_town:
-		await VfxKit.warm_shaders(self, hero.global_position, get_tree() if staged else null)
-		await _slice()
-		ElementFx.warm(self, hero.global_position)
+	# The village too: the players arriving there bring their wings, glow and level-up
+	# flashes, and a shader compiled on first sight is a hitch on a phone.
+	await VfxKit.warm_shaders(self, hero.global_position, get_tree() if staged else null)
+	await _slice()
+	ElementFx.warm(self, hero.global_position)
 	_phase("warm_shaders")
 	await _slice()
 	if not is_pvp:

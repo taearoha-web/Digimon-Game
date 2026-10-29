@@ -648,13 +648,16 @@ static func warm(parent: Node3D, pos: Vector3) -> void:
 		return
 	var holder := Node3D.new()
 	parent.add_child(holder)
-	holder.global_position = pos + Vector3(0, -20, 0)
+	# In view (a sample under the ground is culled and compiles nothing) but too small to see.
+	holder.global_position = pos + Vector3(0, 0.6, 0)
+	holder.scale = Vector3.ONE * 0.002
 	for shader in [FLAME_SHADER, CRYSTAL_SHADER, VINE_SHADER]:
 		var mat := ShaderMaterial.new()
 		mat.shader = shader
 		var mi := MeshInstance3D.new()
 		mi.mesh = _flame_mesh()
 		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(mi)
 		VfxBudget.track_decoration(mi)
 	var cleanup := holder.create_tween()

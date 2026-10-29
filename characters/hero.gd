@@ -516,8 +516,9 @@ func _tick_timers(delta: float) -> void:
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	potion_cd = maxf(0.0, potion_cd - delta)
 	_since_hurt += delta
-	for id in cooldowns.keys():
-		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+	if not cooldowns.is_empty():
+		for id in cooldowns:
+			cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
 	var now := Time.get_ticks_msec()
 	var expired := false
 	for buff in _buffs:

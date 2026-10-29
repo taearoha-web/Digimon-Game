@@ -61,6 +61,19 @@ static func ground_quad() -> PlaneMesh:
 ## Draws both energy modes once, invisibly, so the first real cast does not
 ## stall while the browser compiles the shader.
 static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null) -> void:
+	# The Compatibility renderer compiles another variant of every material the first
+	# time a point light reaches it: an effect light appears at high quality in the
+	# middle of a fight, so a light shines on the samples (and the hero) while they warm.
+	if GameSettings.quality >= 2:
+		var lit := OmniLight3D.new()
+		lit.light_energy = 0.05
+		lit.omni_range = 6.0
+		lit.shadow_enabled = false
+		lit.position = pos + Vector3(0, 1.5, 0)
+		parent.add_child(lit)
+		lit.get_tree().create_timer(1.6).timeout.connect(lit.queue_free)
+	# The shader-drawn burst cards of every blow (ShaderBurst).
+	ShaderBurst.emit(parent, pos + Vector3(0, 0.3, 0), Color(1, 1, 1, 0.01), "star", 3, "burst")
 	MeteorArt.warm_shaders(parent, pos)
 	await FrameSlicer.pace(slicer)
 	ThunderStormArt.warm_up(parent, pos)

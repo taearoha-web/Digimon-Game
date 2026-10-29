@@ -136,6 +136,9 @@ static func _apply(tree: SceneTree) -> void:
 		if GameSettings.quality > 1:
 			GameSettings.quality = 1
 		MemoryGuard.force(2, tree)
+		# The scaled 3D render (a lower-size colour buffer blitted up) is one more thing
+		# a phone's driver can get wrong: draw the world at the canvas size again.
+		MemoryGuard.set_scale_3d(1.0, tree)
 		GameSettings.apply_live(tree)
 	if step >= 3:
 		for node in tree.get_nodes_in_group("sun"):
