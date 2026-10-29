@@ -35,10 +35,36 @@ static var raises := 0
 static var _forced := -1
 static var _calm_seconds := 0.0
 static var _accum := 0.0
+## An iPhone that stays under this frame rate for LOW_FPS_SECONDS is working its GPU
+## to the limit (a v0.9.4 report: High quality at 1920 px, 18-25 fps for half an hour,
+## then closed by iOS): the guard steps up one level, which also lowers the drawn
+## resolution (render_quality).
+const LOW_FPS := 22.0
+const LOW_FPS_SECONDS := 30.0
+static var _slow_seconds := 0.0
+
 ## Tests pin the device family: -1 asks the engine, 0 not iOS, 1 iOS.
 static var ios_override := -1
 static var _ios := -1
 static var _heap_script := "typeof window.toonHeapBytes === 'function' ? window.toonHeapBytes() : 0"
+
+
+## Tests pin the frame rate (-1 reads the engine).
+static var fps_override := -1.0
+
+
+static func _frame_rate() -> float:
+	return fps_override if fps_override >= 0.0 else Engine.get_frames_per_second()
+
+
+## The web shell's pixel budget (0: 1280 px, 1: 1600 px, 2: 1920 px on the long edge):
+## the chosen quality, one step lower per pressure level on an iPhone, where every
+## drawn pixel costs GPU time and render-target memory.
+static func render_quality() -> int:
+	var q := clampi(GameSettings.quality, 0, 2)
+	if ios():
+		q -= pressure
+	return clampi(q, 0, 2)
 
 
 static func phone() -> bool:
@@ -77,7 +103,15 @@ static func tick(tree: SceneTree, delta: float) -> void:
 		heap_mb = float(raw) / 1048576.0 if (raw is float or raw is int) else 0.0
 	else:
 		heap_mb = float(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576.0
-	set_level(_wanted(step), tree)
+	var wanted := _wanted(step)
+	if ios() and _forced < 0 and wanted < 2 and _frame_rate() < LOW_FPS:
+		_slow_seconds += step
+		if _slow_seconds >= LOW_FPS_SECONDS:
+			_slow_seconds = 0.0
+			wanted = maxi(wanted, pressure + 1)
+	else:
+		_slow_seconds = 0.0
+	set_level(wanted, tree)
 
 
 ## The level the readings ask for, with hysteresis against the current one.
@@ -131,6 +165,7 @@ static func force(level: int, tree: SceneTree) -> void:
 ## zone is built, when the quality changes and when the pressure changes.
 static func apply_render(tree: SceneTree) -> void:
 	GameSettings.load_settings()
+	GameSettings.apply_web_render_quality()
 	var size := shadow_size()
 	# A 16-bit depth map halves the memory and is plenty for a sun over a field.
 	RenderingServer.directional_shadow_atlas_set_size(size, phone() or pressure > 0)

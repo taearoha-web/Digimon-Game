@@ -36,7 +36,7 @@ static func load_settings() -> void:
 	if quality < 0:
 		# First run: phones and browsers get the lighter setting.
 		quality = 1 if (OS.has_feature("web") or OS.has_feature("mobile")) else 2
-	_apply_web_render_quality()
+	apply_web_render_quality()
 
 
 static func save_settings() -> void:
@@ -69,7 +69,6 @@ static func particle_scale() -> float:
 
 ## Applies the shadow setting to every sun in the running scene.
 static func apply_live(tree: SceneTree) -> void:
-	_apply_web_render_quality()
 	MemoryGuard.apply_render(tree)
 	for node in tree.get_nodes_in_group("sun"):
 		var sun := node as DirectionalLight3D
@@ -78,7 +77,8 @@ static func apply_live(tree: SceneTree) -> void:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if quality >= 2 else DirectionalLight3D.SHADOW_ORTHOGONAL
 
 
-## The web shell caps Retina pixel work independently of authored art detail.
-static func _apply_web_render_quality() -> void:
+## The web shell caps Retina pixel work independently of authored art detail (lower
+## on an iPhone under memory pressure: MemoryGuard.render_quality).
+static func apply_web_render_quality() -> void:
 	if OS.has_feature("web"):
-		JavaScriptBridge.eval("if (window.toonSetRenderQuality) window.toonSetRenderQuality(%d);" % clampi(quality, 0, 2))
+		JavaScriptBridge.eval("if (window.toonSetRenderQuality) window.toonSetRenderQuality(%d);" % MemoryGuard.render_quality())

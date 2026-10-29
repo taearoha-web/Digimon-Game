@@ -77,6 +77,21 @@ func _ready() -> void:
 	MemoryGuard.video_mb = 1.0
 	MemoryGuard.set_level(MemoryGuard._wanted(MemoryGuard.DROP_AFTER_SECONDS * 3.0), tree)
 	check(MemoryGuard.pressure == 2, "an iPhone keeps its raised level (no glow/shadow buffer flips mid-fight)")
+	# On an iPhone each level also lowers the drawn resolution (1920 -> 1600 -> 1280 px).
+	GameSettings.quality = 2
+	check(MemoryGuard.render_quality() == 0, "an iPhone at strict pressure draws at the 1280 px budget (%d)" % MemoryGuard.render_quality())
+	MemoryGuard.ios_override = 0
+	check(MemoryGuard.render_quality() == 2, "elsewhere the resolution follows the chosen quality")
+	# A sustained low frame rate on an iPhone steps the guard up (lower resolution, fewer effects).
+	MemoryGuard.ios_override = 1
+	MemoryGuard.force(-1, tree)
+	MemoryGuard.video_mb = 1.0
+	MemoryGuard.heap_mb = 1.0
+	MemoryGuard.fps_override = 18.0
+	for i in 20:
+		MemoryGuard.tick(tree, MemoryGuard.TICK_SECONDS)
+	check(MemoryGuard.pressure >= 1, "an iPhone held under %d fps steps the guard up (%d)" % [int(MemoryGuard.LOW_FPS), MemoryGuard.pressure])
+	MemoryGuard.fps_override = -1.0
 	MemoryGuard.ios_override = 0
 	MemoryGuard.video_mb = 1.0
 	MemoryGuard.heap_mb = 1.0
