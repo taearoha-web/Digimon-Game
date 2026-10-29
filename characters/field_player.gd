@@ -34,6 +34,13 @@ var _rng := RandomNumberGenerator.new()
 ## Wing pose it picks for itself now and then (HeroVisual.WING_*), and when it thinks again.
 var _wing_think := 0.0
 var _worn: Dictionary = {}
+## What it is doing (WorldPlayers.state doing): "stall" keeps a stall in the village.
+var doing := ""
+## Its stall in the village (WorldPresence hands one out) and the way it faces.
+var stall_at := Vector3.INF
+var stall_face := Vector3.FORWARD
+var _bubble: Label3D
+var _sits := false
 
 
 func setup_world(p_index: int, p_member: Dictionary, p_hero: Hero, p_zone: Zone) -> void:
@@ -51,6 +58,8 @@ func _ready() -> void:
 	_label.text = _level_text()
 	_worn = _party_equip()
 	_wing_think = _rng.randf_range(0.5, 4.0)
+	# Some stall keepers sit by their wares (the AFK ones doze).
+	_sits = hash("sit|%s" % member.name) % 3 == 0
 	_pick_camp()
 
 
@@ -90,12 +99,14 @@ func _level_text() -> String:
 	var g := WorldPlayers.guild_at(world_index, int(member.level))
 	_label.modulate = WorldPlayers.GUILD_COLORS.get(g, Color("e8f4ff"))
 	var stars := Game.party_stars(member)
-	return "%s%s Lv.%d%s" % ["[%s] " % WorldPlayers.guild_name(g) if g > 0 else "", member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
+	var line := "%s%s Lv.%d%s" % ["[%s] " % WorldPlayers.guild_name(g) if g > 0 else "", member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
+	return line + ("\n«ร้านค้า»" if doing == "stall" and not party_mode else "")
 
 
 ## New level, stars or finds from the schedule (WorldPresence): the field sees the
 ## level-up and the new piece put on.
 func sync_progress(s: Dictionary) -> void:
+	doing = String(s.get("doing", doing))
 	var up := int(s.level) > int(member.level) or int(s.stars) > int(member.get("stars", 0))
 	var dressed := WorldPlayers.sync_member(member, s)
 	if up and not _dead and visible:
@@ -110,6 +121,42 @@ func _class_changed() -> void:
 	if visible and not _dead and is_instance_valid(field):
 		VfxKit.level_up(field, global_position)
 		say("เปลี่ยนอาชีพเป็น %s!" % String(ClassData.get_class_data(StringName(member["class"])).name), Color("ffd24a"))
+
+
+## Keeping a stall: in the village, not in a party, with a stall handed out.
+func keeps_stall() -> bool:
+	return doing == "stall" and not party_mode and zone != null and zone.is_town and stall_at.is_finite()
+
+
+func _rest_anim() -> String:
+	return "Sit_Floor_Idle" if _sits and keeps_stall() and _flat(stall_at - global_position).length() < 0.8 else "Idle"
+
+
+## A chat bubble over its head for a few seconds (the world chat's line, WorldPresence).
+func bubble(text: String) -> void:
+	if not is_instance_valid(visual) or not visible or _dead:
+		return
+	if is_instance_valid(_bubble):
+		_bubble.queue_free()
+	_bubble = Label3D.new()
+	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_bubble.pixel_size = 0.0042 * BattleVfx.text_scale
+	_bubble.font_size = 40
+	_bubble.outline_size = 10
+	_bubble.modulate = Color("fffbe8")
+	_bubble.outline_modulate = Color(0.1, 0.12, 0.2, 0.95)
+	_bubble.position = Vector3(0, 3.35, 0)
+	_bubble.visibility_range_end = 26.0
+	_bubble.no_depth_test = true
+	_bubble.render_priority = 3
+	_bubble.width = 520.0
+	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_bubble.text = text
+	add_child(_bubble)
+	var fade := _bubble.create_tween()
+	fade.tween_interval(4.0)
+	fade.tween_property(_bubble, "modulate:a", 0.0, 0.6)
+	fade.tween_callback(_bubble.queue_free)
 
 
 ## A line above its head (its answer to an invitation, a new piece of gear).
@@ -160,12 +207,45 @@ func leave() -> void:
 
 # --- Wings ---------------------------------------------------------------------------
 
+## A stall keeper standing at its stall in the village rests: no thinking or moving until
+## something changes (it is hurt, or it is asked into the party).
+const LOD_NEAR := 18.0
+const LOD_FAR := 34.0
+var _lod_check := 0.0
+
+
+func _resting() -> bool:
+	return keeps_stall() and not _dead and hp >= max_hp and _flat(stall_at - global_position).length() < 0.7
+
+
 func _physics_process(delta: float) -> void:
+	_lod_check -= delta
+	if _lod_check <= 0.0:
+		_lod_check = 0.5
+		_update_lod()
+	if _resting() and visual.current == _rest_anim():
+		velocity = Vector3.ZERO
+		return
 	super._physics_process(delta)
 	if stats.is_empty() or not is_instance_valid(visual):
 		return
 	_think_wings(delta)
 	_hover(delta)
+
+
+## Far from the hero (or resting at its stall) it is posed less often.
+func _update_lod() -> void:
+	if not is_instance_valid(visual) or hero == null or not is_instance_valid(hero):
+		return
+	var d := _flat(hero.global_position - global_position).length()
+	var step := 1
+	if party_mode or target != null:
+		step = 1
+	elif d > LOD_FAR:
+		step = 4
+	elif d > LOD_NEAR or _resting():
+		step = 2
+	visual.set_anim_lod(step)
 
 
 ## Picks its wing pose now and then, as it pleases: its own taste (WorldPlayers.wing_taste),
@@ -395,6 +475,14 @@ func _follow(delta: float) -> Vector3:
 		if _restocking:
 			_go_shopping()
 			return Vector3.ZERO
+	if keeps_stall():
+		# At its stall: walks there, then stands (or sits) facing the street.
+		var to_stall := _flat(stall_at - global_position)
+		if to_stall.length() > 0.6:
+			_face(to_stall, delta, 10.0)
+			return to_stall.normalized() * minf(float(stats.speed) * 0.7, to_stall.length() * 4.0)
+		_face(stall_face, delta, 6.0)
+		return Vector3.ZERO
 	_camp_left -= delta
 	if _camp_left <= 0.0:
 		_pick_camp()

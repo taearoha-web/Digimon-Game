@@ -1,0 +1,151 @@
+extends Node
+## The world is never empty: at any moment of the day (every 10 real minutes over two real
+## weeks after the opening, and again a month on) at least MIN_TOWN world players are in
+## the village and enough are online; the world's clock runs WorldPlayers.SPEED times
+## faster than real time; veterans stand where they were brought over from, newcomers
+## arrive on their day; the guild war is capped at TEAM_SIZE a side.
+##   godot --headless --path . res://tests/integration/world_town_test.tscn
+const MIN_TOWN := 20
+const MIN_ONLINE := 22
+
+var failures := 0
+var checks := 0
+
+
+func check(ok: bool, message: String) -> void:
+	checks += 1
+	if not ok:
+		failures += 1
+		printerr("FAIL: ", message)
+
+
+func _ready() -> void:
+	WorldPlayers.clear_bonus()
+	var started := Time.get_ticks_msec()
+	_clock()
+	for from_day in [0.0, 30.0]:
+		_busy(from_day, 14.0)
+	_veterans()
+	_newcomers()
+	_guild_war()
+	print("WORLD TOWN: %s | %d checks, %d failures (%d ms)" % ["PASS" if failures == 0 else "FAIL", checks, failures, Time.get_ticks_msec() - started])
+	get_tree().quit(0 if failures == 0 else 1)
+
+
+func _clock() -> void:
+	var start := float(WorldPlayers.START_UNIX)
+	check(is_equal_approx(WorldPlayers.world_time(start + 3600.0), start + 3600.0 * WorldPlayers.SPEED), "an hour of real time is SPEED hours on the world's clock")
+	check(is_equal_approx(WorldPlayers.real_time(WorldPlayers.world_time(start + 12345.0)), start + 12345.0), "world and real time convert both ways")
+	# The pace of levelling is a real player's: hours played a real week stay sensible.
+	for i in WorldPlayers.size():
+		var week := WorldPlayers.played_minutes(i, start + 28.0 * 86400.0) / 60.0 / 4.0
+		var e := WorldPlayers.entry(i)
+		var top := 170.0 if WorldPlayers.in_town_style(i) else 70.0
+		check(week >= (0.0 if e.has("join") else 4.0) and week < top, "%s (%s): plays %.0f real hours a week" % [e.name, e.style, week])
+
+
+func _busy(from_day: float, days: float) -> void:
+	var start := float(WorldPlayers.START_UNIX) + from_day * 86400.0
+	var low_town := 999
+	var low_online := 999
+	var low_at := 0.0
+	var sum_town := 0.0
+	var samples := 0
+	var t := start
+	while t < start + days * 86400.0:
+		var town := 0
+		var online := 0
+		for i in WorldPlayers.size():
+			var sess := WorldPlayers.session_at(i, t)
+			if sess.is_empty():
+				continue
+			online += 1
+			if WorldPlayers.town_time(i, float(sess[0]), float(sess[1]), t):
+				town += 1
+		if town < low_town:
+			low_town = town
+			low_at = t
+		low_online = mini(low_online, online)
+		sum_town += town
+		samples += 1
+		t += 600.0
+	var hour := fposmod((WorldPlayers.world_time(low_at) + WorldPlayers.TZ) / 3600.0, 24.0)
+	print("day %d+: village at least %d (world %.1f h), on average %.1f; online at least %d" % [int(from_day), low_town, hour, sum_town / samples, low_online])
+	check(low_town >= MIN_TOWN, "day %d+: at least %d players in the village at every moment (%d)" % [int(from_day), MIN_TOWN, low_town])
+	check(low_online >= MIN_ONLINE, "day %d+: at least %d players online at every moment (%d)" % [int(from_day), MIN_ONLINE, low_online])
+
+
+func _veterans() -> void:
+	var start := float(WorldPlayers.START_UNIX)
+	var strong := 0
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		if not e.has("vet"):
+			continue
+		var s := WorldPlayers.state(i, start + 60.0)
+		var point := WorldPlayers.point_of(WorldPlayers.member(i, start + 60.0))
+		var want := minf(float(e.vet), 300.0)
+		check(absf(point - want) <= 1.0, "%s: starts at point %d (%.1f)" % [e.name, int(e.vet), point])
+		if int(e.vet) > 300:
+			check(bool(s.divine), "%s: brings the divine set" % e.name)
+		if int(s.level) >= Game.GUILD_LEVEL and int(e.guild) > 0:
+			strong += 1
+	check(strong >= 16, "veterans make the guild war possible from the opening (%d at Lv.100)" % strong)
+	# The endgame: a divine veteran enhances the set as it plays and spends sessions on
+	# boss hunts, helping in the star fields and keeping a stall.
+	var merlin := -1
+	for i in WorldPlayers.size():
+		if String(WorldPlayers.entry(i).name) == "เทพธิดาแห่งแสง":
+			merlin = i
+	var plus_then := WorldPlayers.divine_plus(WorldPlayers.member(merlin, start + 60.0))
+	var plus_later := WorldPlayers.divine_plus(WorldPlayers.member(merlin, start + 20.0 * 86400.0))
+	check(plus_then >= 1 and plus_later > plus_then and plus_later <= 10, "the divine set is enhanced with play (+%d -> +%d)" % [plus_then, plus_later])
+	var kinds := {}
+	var t := start
+	while t < start + 14.0 * 86400.0:
+		var s := WorldPlayers.state(merlin, t)
+		if bool(s.online):
+			kinds[String(s.doing)] = true
+			check(String(s.place) != "" and (String(s.place) == "town" or ZoneData.access_reason(StringName(s.place), int(s.level), int(s.stars)) == ""), "a divine player goes where it may (%s)" % s.place)
+		t += 900.0
+	check(kinds.has("boss") and kinds.has("help") and kinds.has("stall"), "a divine player hunts bosses, helps and keeps a stall (%s)" % [kinds.keys()])
+
+
+func _newcomers() -> void:
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		if not e.has("join"):
+			continue
+		var at := WorldPlayers.joined_at(i)
+		var before := WorldPlayers.state(i, at - 60.0)
+		check(not bool(before.online) and int(before.level) == 1 and WorldPlayers.played_minutes(i, at - 60.0) == 0.0, "%s: not in the world before its day" % e.name)
+		check(WorldPlayers.where_text(before, at - 60.0) != "", "%s: the registry says it has not come yet" % e.name)
+		var later := WorldPlayers.state(i, at + 7.0 * 86400.0)
+		check(int(later.level) > 1, "%s: levels up after joining (Lv.%d)" % [e.name, int(later.level)])
+
+
+func _guild_war() -> void:
+	Game.new_profile(&"warrior", "Town")
+	Game.profile["level"] = 100
+	Game.join_guild(WorldPlayers.ALPHA)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var t := float(WorldPlayers.START_UNIX) + 3.0 * 86400.0
+	var match := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
+	check(not match.is_empty(), "a guild war can be fought in the first days")
+	if match.is_empty():
+		return
+	check(match.ally.size() == GuildWarData.TEAM_SIZE - 1 and match.enemy.size() == GuildWarData.TEAM_SIZE, "TEAM_SIZE a side (%d + hero, %d)" % [match.ally.size(), match.enemy.size()])
+	# The hero's picks always come along, even past the cap.
+	var last := WorldPlayers.members_at(WorldPlayers.ALPHA, t)
+	var weakest := ""
+	var low := INF
+	for i in last:
+		var f := WorldPlayers.fighter(i, t)
+		if float(f.power) < low:
+			low = float(f.power)
+			weakest = String(f.member.name)
+	Game.guildwar_party_picks = PackedStringArray([weakest])
+	var again := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
+	check(again.ally.any(func(f): return String(f.member.name) == weakest), "a picked teammate is always in the line-up (%s)" % weakest)
+	Game.guildwar_party_picks = PackedStringArray()

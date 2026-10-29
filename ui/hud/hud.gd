@@ -64,6 +64,7 @@ var _target_bar: ProgressBar
 var _target_hp: Label
 var _gold_label: Label
 var _online_label: Label
+var world_chat: WorldChat
 var _online_in := 0.0
 var _zone_label: Label
 var _banner: Label
@@ -112,6 +113,7 @@ func _ready() -> void:
 	_build_top_right(_frame)
 	_build_action_buttons(_frame)
 	_build_banner(_frame)
+	_build_world_chat(_frame)
 	_frame.resized.connect(_layout_actions)
 	_layout_actions()
 	_build_death_overlay()
@@ -551,6 +553,19 @@ func _build_status(frame: Control) -> void:
 	minimap.offset_top = 102
 	minimap.offset_bottom = 242
 	frame.add_child(minimap)
+
+## The world chat (WorldChat): bottom left, above the edge, never in the way of a tap.
+func _build_world_chat(frame: Control) -> void:
+	world_chat = WorldChat.new()
+	world_chat.anchor_top = 1.0
+	world_chat.anchor_bottom = 1.0
+	world_chat.offset_left = 14.0
+	world_chat.offset_right = 470.0
+	world_chat.offset_top = -12.0
+	world_chat.offset_bottom = -12.0
+	world_chat.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	frame.add_child(world_chat)
+
 
 ## "ออนไลน์ N": the world players online now plus the hero.
 func update_online() -> void:

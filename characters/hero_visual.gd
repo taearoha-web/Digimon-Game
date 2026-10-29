@@ -901,11 +901,34 @@ func _borrow_animations() -> AnimationPlayer:
 	return player
 
 
+## Animation level of detail: 1 poses every frame; N > 1 poses every Nth frame with the
+## time gathered since (crowds far from the camera, a stall keeper standing still).
+var anim_lod := 1
+var _lod_frame := 0
+var _lod_time := 0.0
+
+
+func set_anim_lod(step: int) -> void:
+	step = maxi(1, step)
+	if step == anim_lod or anim == null:
+		return
+	anim_lod = step
+	_lod_time = 0.0
+	anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE if step == 1 else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+
+
 ## Big head = cuter. Scales the head bone after the animation has posed it.
 func _process(delta: float) -> void:
 	_advance_skill_motion(delta)
 	if is_instance_valid(_face):
 		_face.asleep = current.begins_with("Death") or current.begins_with("Lie")
+	if anim_lod > 1 and anim != null:
+		_lod_time += delta
+		_lod_frame = (_lod_frame + 1) % anim_lod
+		if _lod_frame != 0:
+			return
+		anim.advance(_lod_time)
+		_lod_time = 0.0
 	if _skeleton == null or _head_bone < 0:
 		return
 	var pose := _skeleton.get_bone_global_pose_no_override(_head_bone)
