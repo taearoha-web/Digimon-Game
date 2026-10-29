@@ -51,9 +51,8 @@ static func backup_now(reason := "daily") -> String:
 ## Every backup, newest first: {dir, time, reason, slots: {"1": {name, class, level, adv}}}.
 static func list() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var names := _backup_names()
-	names.sort()
-	names.reverse()
+	var names := Array(_backup_names())
+	names.sort_custom(func(a: String, b: String) -> bool: return _sort_key(a) > _sort_key(b))
 	for name in names:
 		var dir := ROOT.path_join(name)
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(INDEX_FILE)))
@@ -160,18 +159,33 @@ static func _write_text(path: String, text: String) -> bool:
 	return error == OK
 
 
-## <YYYYMMDD-HHMMSS>-<reason>, with a two-digit suffix when that folder already exists
-## (two backups in one second), so names still sort oldest to newest.
+## <YYYYMMDD-HHMMSS>-<reason>, plus a two-digit suffix when another backup (of any
+## reason) was made in the same second, one above the highest of that second: the
+## names then order the backups as they were made even after some were pruned.
 static func _new_dir(reason: String) -> String:
 	var d := Time.get_datetime_dict_from_system()
-	var base := ROOT.path_join("%04d%02d%02d-%02d%02d%02d-%s" % [d.year, d.month, d.day, d.hour, d.minute, d.second, reason])
-	if not DirAccess.dir_exists_absolute(base):
-		return base
-	for n in range(2, 100):
-		var candidate := "%s-%02d" % [base, n]
-		if not DirAccess.dir_exists_absolute(candidate):
-			return candidate
-	return ""
+	var stamp := "%04d%02d%02d-%02d%02d%02d" % [d.year, d.month, d.day, d.hour, d.minute, d.second]
+	var seq := 0
+	for name in _backup_names():
+		if name.begins_with(stamp + "-"):
+			seq = maxi(seq, _seq_of(name))
+	if seq >= 99:
+		return ""
+	var base := ROOT.path_join("%s-%s" % [stamp, reason])
+	return base if seq == 0 else "%s-%02d" % [base, seq + 1]
+
+
+## The same-second sequence number of a backup folder name (1 without a suffix).
+static func _seq_of(name: String) -> int:
+	var n := name.length()
+	if n > 3 and name[n - 3] == "-" and name.substr(n - 2).is_valid_int():
+		return int(name.substr(n - 2))
+	return 1
+
+
+## Time stamp then sequence: the order the backups were made, whatever their reason.
+static func _sort_key(name: String) -> String:
+	return "%s-%02d" % [name.substr(0, 15), _seq_of(name)]
 
 
 static func _backup_names() -> PackedStringArray:

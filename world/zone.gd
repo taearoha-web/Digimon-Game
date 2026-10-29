@@ -267,8 +267,8 @@ func _process(delta: float) -> void:
 		_spawn_timer = SPAWN_INTERVAL
 		for camp in _camps:
 			_refill_camp(camp)
+		_tick_world_boss()
 	_tick_boss(delta)
-	_tick_world_boss()
 	if bool(data.get("arena", false)):
 		_arena_tick(delta)
 

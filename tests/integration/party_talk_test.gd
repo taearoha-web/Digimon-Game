@@ -32,18 +32,20 @@ func _flat(v: Vector3) -> Vector3:
 
 func _ready() -> void:
 	WorldPlayers.clear_bonus()
-	Game.new_profile(&"warrior", "Talk QA", FaceKit.default_look())
-	Game.profile.level = 40
-	Game.profile.adv = JobData.adv_for_level(40)
-	Game.profile.hp = Game.stats_now().max_hp
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await _wait(0.3)
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null
+	Game.new_profile(&"warrior", "Talk QA", FaceKit.default_look())
+	Game.profile.level = 40
+	Game.profile.adv = JobData.adv_for_level(40)
+	Game.profile.hp = Game.stats_now().max_hp
 	Game.world_chat.connect(func(speaker: String, text: String, _c: Color): chat.append([speaker, text]))
 	Game.toast.connect(func(text: String, _kind: StringName): toasts.append(text))
+	# Weeks into the world, so the members have taken their jobs (below Lv.10 everyone is a Vagabond).
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 40.0 * 86400.0 - WorldPlayers.now()
 	var priest := WorldPlayers.first_of(&"priest")
 	var mage := WorldPlayers.first_of(&"mage")
 	check(Game.party_invite(priest, true) == "" and Game.party_invite(mage, true) == "", "a priest and a mage join the party")

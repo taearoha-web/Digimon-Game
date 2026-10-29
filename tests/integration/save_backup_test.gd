@@ -28,6 +28,7 @@ func _ready() -> void:
 	_test_copy_and_index()
 	_test_order_and_prune()
 	_test_restore()
+	await _test_screen()
 	print("SAVE BACKUP: %d checks, %d failures" % [checks, failures])
 	Game.has_profile = false
 	for i in range(1, Game.SLOT_COUNT + 1):
@@ -76,7 +77,8 @@ func _test_copy_and_index() -> void:
 	_make_hero(3, &"mage", "จอมเวทสำรอง", 12)
 	_make_hero(7, &"archer", "นักธนูสำรอง", 20)
 	var dir := SaveBackup.backup_now("manual")
-	check(dir.begins_with(SaveBackup.ROOT + "/") and dir.get_file().ends_with("-manual"), "backup folder named <stamp>-<reason>: %s" % dir)
+	var stamp := dir.get_file().substr(0, 15)
+	check(dir.begins_with(SaveBackup.ROOT + "/") and stamp.substr(0, 8).is_valid_int() and stamp[8] == "-" and stamp.substr(9).is_valid_int() and dir.get_file().substr(15).begins_with("-manual"), "backup folder named <YYYYMMDD-HHMMSS>-<reason>: %s" % dir)
 	for slot in [1, 3, 7]:
 		var copy := dir.path_join(Game.save_path(slot).get_file())
 		check(FileAccess.file_exists(copy), "slot %d copied" % slot)
@@ -101,11 +103,10 @@ func _test_order_and_prune() -> void:
 	for i in 9:
 		dailies.append(SaveBackup.backup_now("daily"))
 	var listed := SaveBackup.list()
-	print("DEBUG dailies: ", dailies)
-	for e in listed:
-		print("DEBUG listed: ", e.dir, " ", e.reason)
-	for i in range(1, listed.size()):
-		check(listed[i - 1].dir > listed[i].dir, "list is newest first (%s before %s)" % [listed[i - 1].dir.get_file(), listed[i].dir.get_file()])
+	var dirs: Array = listed.map(func(entry: Dictionary) -> String: return entry.dir)
+	check(dirs[0] == dailies[8], "list is newest first")
+	for i in range(3, 9):
+		check(dirs.find(dailies[i]) >= 0 and dirs.find(dailies[i]) < dirs.find(dailies[i - 1]), "list keeps the order made: %s before %s" % [dailies[i].get_file(), dailies[i - 1].get_file()])
 	check(_count("daily") == SaveBackup.KEEP_DAILY, "at most %d daily backups kept (%d)" % [SaveBackup.KEEP_DAILY, _count("daily")])
 	check(not DirAccess.dir_exists_absolute(dailies[0]) and not DirAccess.dir_exists_absolute(dailies[1]), "the oldest dailies were pruned")
 	check(DirAccess.dir_exists_absolute(dailies[8]) and DirAccess.dir_exists_absolute(dailies[2]), "the newest 7 dailies stay")
@@ -177,3 +178,62 @@ func _test_restore() -> void:
 	check(FileAccess.get_file_as_string(Game.save_path(9)) == nine, "a slot the backup lacks is left as it is")
 	check(not SaveBackup.restore_all(broken), "restore_all refuses a backup with a corrupted slot")
 	check(not SaveBackup.restore_all("user://backups/missing-folder"), "restore_all of a missing folder is refused")
+
+
+
+func _buttons(node: Node, text: String) -> Array[Button]:
+	var out: Array[Button] = []
+	for child in node.find_children("*", "Button", true, false):
+		if (child as Button).text == text and (child as Button).is_visible_in_tree():
+			out.append(child)
+	return out
+
+
+## The screen lists the backups newest first, opens one to its heroes, and a restore
+## takes a second tap on the same button, then emits restored.
+func _test_screen() -> void:
+	var screen := BackupScreen.new()
+	add_child(screen)
+	var restored := [0]
+	screen.restored.connect(func(): restored[0] += 1)
+	screen.open_screen()
+	await get_tree().process_frame
+	var backups := SaveBackup.list()
+	check(screen._box.get_child_count() == backups.size(), "one row per backup (%d)" % screen._box.get_child_count())
+	var first := screen._box.get_child(0).find_children("*", "Label", true, false)[0] as Label
+	check(first.text.begins_with(BackupScreen.format_time(int(backups[0].time))) and first.text.ends_with("%d ตัวละคร" % backups[0].slots.size()), "row text: %s" % first.text)
+	check(BackupScreen.reason_text("daily") == "รายวัน" and BackupScreen.reason_text("before-restore") == "ก่อนกู้คืน", "reasons in Thai")
+	check(_buttons(screen, "กู้คืนช่องนี้").is_empty(), "rows start folded")
+	# Open the newest backup that holds slot 7 (restore_all's before-restore copy has it).
+	var target := {}
+	for entry in backups:
+		if entry.slots.has("7"):
+			target = entry
+			break
+	check(not target.is_empty(), "a listed backup holds slot 7")
+	var row_index := backups.find(target)
+	var toggles := _buttons(screen, "ดูตัวละคร")
+	check(toggles.size() == backups.size(), "every row has a toggle")
+	toggles[row_index].pressed.emit()
+	await get_tree().process_frame
+	var per_slot := _buttons(screen, "กู้คืนช่องนี้")
+	check(per_slot.size() == target.slots.size(), "the open row shows one restore button per hero (%d)" % per_slot.size())
+	check(_buttons(screen, "ซ่อน").size() == 1, "the open row can fold again")
+	var keys := target.slots.keys()
+	keys.sort_custom(func(a, b): return int(a) < int(b))
+	var seven := per_slot[keys.find("7")]
+	Game.delete_save(7)
+	seven.pressed.emit()
+	check(seven.text == "แตะอีกครั้งเพื่อยืนยัน" and not Game.has_save(7) and restored[0] == 0, "the first tap only arms the button")
+	seven.pressed.emit()
+	await get_tree().process_frame
+	check(Game.has_save(7) and restored[0] == 1, "the second tap restores slot 7 and emits restored")
+	check(screen._status.text == "กู้คืนจุด 7 แล้ว", "status line: %s" % screen._status.text)
+	check(screen._box.get_child_count() == SaveBackup.list().size(), "the list is rebuilt after the restore")
+	var now_count := SaveBackup.list().size()
+	_buttons(screen, "สำรองตอนนี้")[0].pressed.emit()
+	await get_tree().process_frame
+	check(SaveBackup.list().size() <= now_count + 1 and _count("manual") >= 1 and screen._status.text == "สำรองแล้ว", "สำรองตอนนี้ makes a manual backup")
+	screen.close_screen()
+	check(not screen._root.visible and screen._box.get_child_count() == 0, "a closed screen keeps nothing")
+	screen.queue_free()
