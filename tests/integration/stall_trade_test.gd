@@ -301,7 +301,10 @@ func _prune(i: int, t: float) -> void:
 	Game.profile.flags["stall|%s|%d|3" % [name, w - 7]] = 1
 	Game.profile.flags["stall|NoSuchStall|%d|0" % w] = 1
 	Game.profile.flags["loot_mask"] = 31
-	var now := StallStock.bought_keys().filter(func(k): return k.contains("|%d|" % w) and k.contains(name))
+	var now := StallStock.bought_keys().filter(func(k):
+		var bits := String(k).split("|")
+		var who := _keeper(bits[1])
+		return String(WorldPlayers.entry(who).name) == bits[1] and int(bits[2]) == StallStock.window(who, t))
 	StallStock.open(i, t)
 	var left := StallStock.bought_keys()
 	check(left.size() == now.size() and left.all(func(k): return now.has(k)), "older windows' keys are dropped when a stall opens (%s)" % [left])

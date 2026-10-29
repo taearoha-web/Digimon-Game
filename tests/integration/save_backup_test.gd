@@ -219,7 +219,7 @@ func _test_screen() -> void:
 	var per_slot := _buttons(screen, "กู้คืนช่องนี้")
 	check(per_slot.size() == target.slots.size(), "the open row shows one restore button per hero (%d)" % per_slot.size())
 	check(_buttons(screen, "ซ่อน").size() == 1, "the open row can fold again")
-	var keys := target.slots.keys()
+	var keys: Array = target.slots.keys()
 	keys.sort_custom(func(a, b): return int(a) < int(b))
 	var seven := per_slot[keys.find("7")]
 	Game.delete_save(7)
