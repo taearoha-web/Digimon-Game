@@ -669,3 +669,9 @@ static func _vortex(st: SurfaceTool) -> void:
 			if i > 0:
 				_strip(st, prev, p, 0.16 * (1.0 - t) + 0.02, up, Color(1.0 - t * 0.6, 1, 0), Color(1.0 - t * 0.6, 1.0 - t * 0.4, 0), 0.16 * (1.0 - t - 1.0 / 15.0) + 0.02)
 			prev = p
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()

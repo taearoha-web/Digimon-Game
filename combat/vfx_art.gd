@@ -820,3 +820,10 @@ static func painted_lightning(parent: Node3D, from: Vector3, to: Vector3, color:
 		tween.tween_property(mat, "albedo_color:a", 0.95 if layer == 0 else 0.38, 0.035)
 		tween.tween_property(mat, "albedo_color:a", 0.0, 0.20)
 		tween.tween_callback(bolt.queue_free)
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_spiral_meshes.clear()
+	_art_meshes.clear()

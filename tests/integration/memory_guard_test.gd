@@ -57,6 +57,31 @@ func _ready() -> void:
 	check(MemoryGuard.pressure == 1, "between the drop and raise lines the level holds")
 	MemoryGuard.force(-1, tree)
 	check(MemoryGuard.pressure == 0, "force(-1) resets")
+	# Travel drops the skill art meshes cached in the last zone (any class's casts).
+	BuffArt.mesh_for({"id": "sacred_sanctuary"})
+	check(not BuffArt._meshes.is_empty(), "a buff mesh is cached while it is in use")
+	for art in [BuffArt, EliteSkillArt, SpellSpectacle, VfxArt, BardSkillArt, ShadowSkillArt, LordSkillArt, SkillInk, ShaderBurst, ThunderStormArt, VfxKit]:
+		art.release_mesh_cache()
+	check(BuffArt._meshes.is_empty() and EliteSkillArt._meshes.is_empty() and SpellSpectacle._tube_meshes.is_empty() and VfxArt._art_meshes.is_empty(), "travel releases the cached skill art meshes")
+	# An iPhone has its own, lower lines: the readings of the v0.9.4 Dark Lord session
+	# that was closed (199 MB heap, 117 MB video) trim the effects there.
+	MemoryGuard.ios_override = 1
+	MemoryGuard.video_mb = 117.0
+	MemoryGuard.heap_mb = 199.0
+	MemoryGuard.set_level(MemoryGuard._wanted(2.0), tree)
+	check(MemoryGuard.lines()[0] == MemoryGuard.VIDEO_IOS and MemoryGuard.pressure == 1, "an iPhone trims at the readings of the closed session (%d)" % MemoryGuard.pressure)
+	MemoryGuard.heap_mb = 240.0
+	MemoryGuard.set_level(MemoryGuard._wanted(2.0), tree)
+	check(MemoryGuard.pressure == 2, "and goes strict above its heap line")
+	MemoryGuard.heap_mb = 1.0
+	MemoryGuard.video_mb = 1.0
+	MemoryGuard.set_level(MemoryGuard._wanted(MemoryGuard.DROP_AFTER_SECONDS * 3.0), tree)
+	check(MemoryGuard.pressure == 2, "an iPhone keeps its raised level (no glow/shadow buffer flips mid-fight)")
+	MemoryGuard.ios_override = 0
+	MemoryGuard.video_mb = 1.0
+	MemoryGuard.heap_mb = 1.0
+	MemoryGuard.force(-1, tree)
+	MemoryGuard.ios_override = -1
 	# A built zone registers its environment with the guard and follows the glow rule.
 	Game.new_profile(&"mage", "Guard QA", FaceKit.default_look())
 	Game.profile.level = 100

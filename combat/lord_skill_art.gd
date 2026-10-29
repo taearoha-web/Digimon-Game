@@ -132,7 +132,10 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	art.rotation.y = _yaw(origin, center)
 	var reach := Vector2(center.x - origin.x, center.z - origin.z).length()
 	var radius := float(skill.get("radius", 3.0))
+	# Room for the grandeur layers on top of the skill's own composition.
+	art.cap += int([3, 7, 10][VfxBudget.quality()] * MemoryGuard.effect_scale())
 	art._compose(id, c, reach, radius, maxf(delay, 0.0))
+	art._grandeur(shape, c, reach if shape != "blast" else 0.0, radius, maxf(delay, 0.0), int(skill.get("level", 1)))
 
 
 ## Every hit: a small mark of the skill's element on the victim (one per gap).
@@ -186,17 +189,20 @@ static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, 
 	_last_peck = now
 	var art := _root(parent, at, "LordArt_RavenPeck")
 	art.rotation.y = _yaw(from, at)
-	art.cap = mini(art.cap, 11 if group else 6)
+	art.cap = mini(art.cap, 12 if group else 8)
 	var c := FORCE
 	var floor_y := -0.95
 	for k in 3:
 		var tilt := (float(k) - 1.0) * 0.32
-		art.layer("crescent", true, c if k != 1 else BLOOD, Vector3((float(k) - 1.0) * 0.12, 0.05, 0), Vector3.ONE * 0.75, Vector3(0, 0, 0.9 + tilt), 0.015 * k, 0.3, {"initial": 0.35, "roll": -7.0, "face_camera": true})
+		art.layer("crescent", true, c if k != 1 else BLOOD, Vector3((float(k) - 1.0) * 0.12, 0.05, 0), Vector3.ONE * 1.1, Vector3(0, 0, 0.9 + tilt), 0.015 * k, 0.3, {"initial": 0.35, "roll": -7.0, "face_camera": true})
 	for k in 3:
 		var a := randf() * TAU
 		art.layer("feather", false, c, Vector3.ZERO, Vector3.ONE * 0.45, Vector3(0, a, randf_range(-1.0, 1.0)), 0.02, 0.7, {"initial": 0.9, "travel": Vector3(cos(a), 0.6 + randf() * 0.5, sin(a)) * 0.9, "roll": randf_range(-6.0, 6.0), "face_camera": true, "decay": 0.5})
+	# The talons bite: a burst of dark force where the beak lands.
+	art.layer("orb", true, BLOOD, Vector3.ZERO, Vector3.ONE * 0.7, Vector3.ZERO, 0.0, 0.25, {"initial": 0.2, "grow": 8.0, "opacity": 0.85})
 	if not group:
-		art.layer("shock", true, c, Vector3(0, floor_y, 0), Vector3.ONE * 0.8, Vector3.ZERO, 0.02, 0.45, {"initial": 0.2, "grow": 5.0})
+		art.layer("shock", true, c, Vector3(0, floor_y, 0), Vector3.ONE * 1.3, Vector3.ZERO, 0.02, 0.45, {"initial": 0.2, "grow": 5.0})
+		art.layer("pillar", true, c, Vector3(0, floor_y, 0), Vector3(0.4, 1.8, 0.4), Vector3.ZERO, 0.0, 0.3, {"initial": 0.3, "grow": 7.0, "opacity": 0.6})
 		return
 	var r := reach
 	art.layer("rift", false, c, Vector3(0, floor_y + 0.02, 0), Vector3.ONE * r * 0.55, Vector3.ZERO, 0.0, 0.8, {"initial": 0.3, "opacity": 0.8})
@@ -212,6 +218,59 @@ static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, 
 # ---------------------------------------------------------------------------
 # Compositions
 # ---------------------------------------------------------------------------
+
+## The Lord's majesty over every skill, growing with the skill's level: a great royal
+## seal turning under the blow, a wide shockwave, a column of light (Lv.20), the
+## palette's own crown of power (fire tongues, falling bolts, rising scepters and a
+## crown, or wheeling shadow ravens under an eclipse), a comet from the sky (Lv.60)
+## and an outer counter-turning seal (Lv.80). A buff (self) gathers round the Lord.
+func _grandeur(shape: String, c: Array, reach: float, radius: float, d: float, level: int) -> void:
+	var p := Vector3(0, 0, reach) if shape != "self" else Vector3.ZERO
+	var g := 1.0 + clampf(float(level) / 100.0, 0.0, 1.0) * 0.6
+	var r := clampf(radius, 1.8, 9.5)
+	var ground := p + Vector3(0, 0.04, 0)
+	layer("seal", true, c, ground, Vector3.ONE * maxf(2.2, r * 0.85) * g, Vector3.ZERO, d, 1.1,
+			{"initial": 0.25, "grow": 3.0, "spin": 1.4, "decay": 0.75, "opacity": 0.55})
+	layer("shock", true, c, ground, Vector3.ONE * maxf(3.0, r * 1.35) * g, Vector3.ZERO, d + 0.05, 0.6,
+			{"initial": 0.15, "grow": 4.0, "opacity": 0.5})
+	if level >= 20:
+		layer("pillar", true, c, p, Vector3(1.1, 5.5, 1.1) * g, Vector3.ZERO, d, 0.7,
+				{"initial": 0.3, "grow": 5.0, "decay": 0.6, "opacity": 0.45})
+	var ring := maxf(1.2, r * 0.6)
+	if c == EMBER:
+		for k in 6:
+			var a := float(k) * TAU / 6.0
+			layer("flame", true, c, p + Vector3(sin(a), 0.0, cos(a)) * ring, Vector3(0.9, 1.6, 0.9) * g, Vector3.ZERO, d + 0.03 * k, 0.55,
+					{"initial": 0.3, "grow": 5.0, "face_camera": true, "travel": Vector3(0, 0.6, 0)})
+	elif c == STORM:
+		for k in 3:
+			var a := float(k) * TAU / 3.0 + 0.4
+			layer("bolt", true, c, p + Vector3(sin(a), 0.0, cos(a)) * ring * 0.6, Vector3(0.7, 3.2, 0.7) * g, Vector3(0, 0, 0.15 * (float(k) - 1.0)), d + 0.06 * k, 0.3,
+					{"initial": 0.9, "face_camera": true})
+	elif c == ROYAL:
+		layer("regalia", true, c, p + Vector3(0, 3.0, 0), Vector3.ONE * 0.9 * g, Vector3.ZERO, d, 1.0,
+				{"initial": 0.2, "grow": 2.0, "spin": 1.8, "travel": Vector3(0, 0.5, 0), "decay": 0.8})
+		for k in 4:
+			var a := float(k) * TAU / 4.0 + PI * 0.25
+			layer("scepter", true, c, p + Vector3(sin(a), -0.6, cos(a)) * ring, Vector3.ONE * 0.8 * g, Vector3.ZERO, d + 0.05 * k, 0.7,
+					{"initial": 0.5, "travel": Vector3(0, 1.4, 0), "decay": 0.7})
+	else:
+		layer("eclipse", true, c, p + Vector3(0, 3.4, 0), Vector3.ONE * 1.3 * g, Vector3(PI * 0.5, 0, 0), d, 0.9,
+				{"initial": 0.3, "grow": 3.0, "spin": 2.0, "opacity": 0.7, "face_camera": true})
+		for k in 4:
+			var a := float(k) * TAU / 4.0
+			layer("raven", false, c, p + Vector3(0, 1.0, 0), Vector3.ONE * 0.5 * g, Vector3(0.3, a, 0), d + 0.04 * k, 0.8,
+					{"initial": 0.6, "orbit": ring, "phase": a, "orbit_speed": 5.0, "travel": Vector3(0, 1.6, 0), "flap": 0.3, "decay": 0.6})
+	if level >= 60 and shape != "self":
+		var from := p + Vector3(-2.0, 9.0, -3.0)
+		layer("comet", true, c, from, Vector3.ONE * 0.9 * g, Vector3.ZERO, d, 0.3,
+				{"initial": 0.9, "travel": p + Vector3(0, 0.3, 0) - from, "accelerate": true, "decay": 0.9})
+		layer("orb", true, c, p + Vector3(0, 0.6, 0), Vector3.ONE * 1.4 * g, Vector3.ZERO, d + 0.3, 0.4,
+				{"initial": 0.2, "grow": 6.0, "opacity": 0.8})
+	if level >= 80:
+		layer("seal", true, c, ground + Vector3(0, 0.02, 0), Vector3.ONE * maxf(3.4, r * 1.2) * g, Vector3.ZERO, d + 0.1, 1.2,
+				{"initial": 0.4, "grow": 2.0, "spin": -1.0, "decay": 0.8, "opacity": 0.4})
+
 
 ## A dark lance (comet) from the scepter to [param to], landing after [param flight].
 func _lance(c: Array, to: Vector3, start: float, flight: float, size := 0.55, yaw := 0.0) -> void:
@@ -815,3 +874,9 @@ static func _orb(st: SurfaceTool) -> void:
 		var d0 := tilt * Vector3(sin(a0), 0, cos(a0))
 		var d1 := tilt * Vector3(sin(a1), 0, cos(a1))
 		_quad(st, d0 * 0.68, d1 * 0.68, d1 * 0.8, d0 * 0.8, Color(1, 1, 0), Color(1, 1, 0), Color(0.6, 0.6, 0), Color(0.6, 0.6, 0))
+
+
+## Drops the cached effect meshes (on travel: effects seen in the last zone, cast by any
+## class nearby, need not stay in a phone's memory). Live effects keep their own.
+static func release_mesh_cache() -> void:
+	_meshes.clear()
