@@ -41,7 +41,6 @@ func _ready() -> void:
 	var route := WarpScreen.destinations()
 	check(route[-1] == DivineRegionData.ID and route[-2] == &"eclipse_realm", "warp chain includes post-story sanctuary")
 	check(StarProgression.REGIONS.size() == 4, "four milestone regions retained")
-	check(StarWingData.drop_chance(DivineRegionData.ID, true, false) == 0, "new map adds no wing tiers or wing drops")
 	var new_zone := ZoneData.get_zone(DivineRegionData.ID)
 	check(new_zone.camps.size() == 5 and new_zone.boss.monster == &"lotus_seraph", "five farm camps and boss definitions")
 	for camp in new_zone.camps:

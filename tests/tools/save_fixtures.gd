@@ -191,6 +191,8 @@ func _build_line(cls: StringName) -> void:
 	Game.socket_gem(Game.profile.equip.ring, Game.profile.inv.size() - 1)
 	Game.add_item(ItemData.jewel("purple", 12))
 	Game.add_item(ItemData.jewel("pink", 12))
+	Game.add_item(ItemData.jewel("chaos", 2))
+	Game.add_item(ItemData.jewel("feather", 1))
 	for i in 10:
 		Game.enhance_item(Game.profile.equip.weapon)
 	Game.tower_floor_cleared(60)

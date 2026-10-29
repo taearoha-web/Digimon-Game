@@ -1,7 +1,10 @@
 class_name StarWingData
 extends RefCounted
-## Uploaded class wings: one drop-only collection, always unlocked at 100 stars.
+## Uploaded class wings, always unlocked at 100 stars. They never drop: the forge
+## crafts Lv.100 wings into them with CRAFT_COST jewels (ItemData.JEWELS).
 const REQUIRED_STARS := 100
+const CRAFT_CHANCE := 0.30
+const CRAFT_COST := {"chaos": 1, "feather": 1}
 const MODEL := "res://assets/models/star_wings/wings_%s.glb"
 const INFO := {
 	"warrior": {"name":"ปีกพันดาบเทวะ", "stats":{"atk":[520,620],"hp":[2200,2800],"def":[240,300],"mp":[450,550],"crit":[0.06,0.075]}},
@@ -25,9 +28,9 @@ static func item_name(cls: String) -> String:
 static func look(cls: String) -> String:
 	return "star_wings_%s_100" % (cls if INFO.has(cls) else "warrior")
 
-static func drop_chance(region: StringName, boss: bool, elite: bool) -> float:
-	if not StarProgression.is_region(region): return 0.0
-	return 0.20 if boss else (0.03 if elite else 0.005)
+## Lv.100 wings that the forge can craft into 100★ wings.
+static func can_craft(item: Dictionary) -> bool:
+	return item.get("kind","")=="equip" and item.get("slot","")=="wings" and not is_wing(item) and int(item.get("level",0))>=ItemData.WING_DROP_LEVEL
 
 static func item(cls: String, rng: RandomNumberGenerator, rarity := -1) -> Dictionary:
 	if not INFO.has(cls): cls="warrior"

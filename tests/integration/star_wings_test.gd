@@ -4,8 +4,10 @@ var failures:=0
 class DropZone:
 	extends Zone
 	var wing_drops:Array[Dictionary]=[]
+	var jewels:={}
 	func _spawn_loot(item:Dictionary,_gold:int,_from:Vector3)->void:
 		if item.get("slot","")=="wings": wing_drops.append(item)
+		if item.get("kind","")=="jewel": jewels[item.id]=int(jewels.get(item.id,0))+1
 func check(ok:bool,note:String)->void:
 	checks+=1
 	if not ok: failures+=1;printerr("FAIL ",note)
@@ -74,21 +76,46 @@ func _ready()->void:
 		var worn:Dictionary=Game.profile.equip.wings
 		check(int(worn.level)==100 and not worn.has("star_tier") and worn.uid==worn_uid and worn.plus==7 and worn.gems==["ruby_0"],"locked equipped migration safe when all bags full")
 		check(Game.equip_problem(worn).is_empty() and Game.save_code_roundtrip(),"migrated below-100 profile remains playable and saveable")
-	for region in StarProgression.REGIONS:
-		check(StarWingData.drop_chance(region,false,false)>0.0,"ordinary enemies drop in "+String(region))
-		check(StarWingData.drop_chance(region,true,false)>StarWingData.drop_chance(region,false,true),"boss has highest chance")
 	setup(&"mage")
 	for region in StarProgression.REGIONS:
 		var zone:=DropZone.new();zone.zone_id=region;zone.data=ZoneData.get_zone(region);zone.rng.seed=911
 		var mob:=Mob.new();mob.template={};mob.level=110
 		for i in 1200:zone._star_loot(mob,Vector3.ZERO)
-		check(not zone.wing_drops.is_empty(),"actual ordinary-enemy loot emits wings in "+String(region))
-		zone.wing_drops.clear();mob.is_boss=true
+		mob.is_boss=true
 		for i in 100:zone._star_loot(mob,Vector3.ZERO)
-		check(zone.wing_drops.size()>5 and zone.wing_drops.size()<45,"actual boss drops are rolled, not guaranteed")
-		for drop in zone.wing_drops:check(drop["class"]=="mage" and int(drop.level)==200 and String(drop.look)=="star_wings_mage_100","actual loot uses class-specific 100-star collection")
+		check(zone.wing_drops.is_empty(),"100-star wings never drop in "+String(region))
+		zone.jewels.clear();mob.is_boss=false
+		for i in 30000:zone._drop_jewels(Vector3.ZERO)
+		var stars:=int(zone.data.get("star",0))
+		check(int(zone.jewels.get("chaos",0))>150 and int(zone.jewels.get("chaos",0))<450,"chaos jewels drop about 1%% in %s (%d)"%[region,int(zone.jewels.get("chaos",0))])
+		check((int(zone.jewels.get("feather",0))>0)==(stars>=ItemData.FEATHER_STARS) and int(zone.jewels.get("feather",0))<90,"feathers drop only in fields of 50 stars and up (%s %d★: %d)"%[region,stars,int(zone.jewels.get("feather",0))])
 		mob.free();zone.free()
-	check(StarWingData.drop_chance(&"void",true,true)==0.0,"old regions never drop new wings")
+	# The forge crafts them: Lv.100 wings + a chaos jewel + a feather, 30%.
+	var lv100:=ItemData.wings(Game.rng,"mage",2)
+	lv100["plus"]=4;lv100["gems"]=["ruby_0"]
+	check(StarWingData.can_craft(lv100) and not StarWingData.can_craft(StarWingData.item("mage",rng)),"only Lv.100 wings can be crafted")
+	Game.profile.inv=[lv100]
+	check(Game.craft_star_wings(lv100).begins_with("เพชรไม่พอ"),"crafting needs a chaos jewel and a feather")
+	var made:=0
+	var tries:=400
+	for i in tries:
+		var pair:=ItemData.wings(Game.rng,"warrior",1)
+		pair["plus"]=4;pair["gems"]=["ruby_0"]
+		var uid:String=pair.uid
+		Game.profile.inv=[pair,ItemData.jewel("chaos"),ItemData.jewel("feather")]
+		var result:=Game.craft_star_wings(pair)
+		check(Game.jewel_count("chaos")==0 and Game.jewel_count("feather")==0,"a try uses one chaos jewel and one feather")
+		if result=="ok":
+			made+=1
+			check(StarWingData.is_wing(pair) and pair["class"]=="mage" and int(pair.level)==200 and pair.uid==uid and int(pair.plus)==4 and pair.gems==["ruby_0"],"crafted wings are the class's 100-star wings and keep plus and gems")
+		else:
+			check(result=="fail" and not StarWingData.is_wing(pair) and Game.profile.inv.size()==1,"a failed try keeps the Lv.100 wings")
+	check(made>int(tries*0.22) and made<int(tries*0.38),"about 30%% of tries succeed (%d/%d)"%[made,tries])
+	var worn:=ItemData.wings(Game.rng,"mage",1)
+	Game.profile.equip["wings"]=worn
+	Game.profile.inv=[ItemData.jewel("chaos"),ItemData.jewel("feather")]
+	check(Game.craft_star_wings(worn)!="ok" and Game.jewel_count("chaos")==1,"worn wings must go back to the bag first")
+	Game.profile.equip={};Game.profile.inv=[]
 	var catalogue:=StarGearData.catalogue().filter(func(i):return i.slot=="wings")
 	check(catalogue.size()==ClassData.IDS.size(),"one class wing per class in new catalogue")
 	var looks:Dictionary={}

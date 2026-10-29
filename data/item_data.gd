@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Equipment: { kind:"equip", uid, slot, base, name, rarity, level, class, stats{atk,def,hp,mp,crit}, price }
 ## Potions:   { kind:"potion", id, count }
-## Jewels:    { kind:"jewel", id ("purple" / "pink"), count } spent at the forge (JEWELS)
+## Jewels:    { kind:"jewel", id ("purple" / "pink" / "chaos" / "feather"), count } spent at the forge (JEWELS)
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
 const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก"}
@@ -93,12 +93,19 @@ const MAX_PLUS := 10
 ## Forge jewels, dropped by monsters in every levelling field (JEWEL_DROP per kill):
 ## a purple jewel takes a piece from +0 to +6 and never fails, a pink jewel takes it on
 ## to +7, +8 and +9 at 50%, and +10 takes three purple and two pink at 50%. A failed try
-## uses up the jewels and the piece keeps its grade.
+## uses up the jewels and the piece keeps its grade. A chaos jewel and a feather craft
+## Lv.100 wings into the class's 100★ wings (StarWingData.CRAFT_CHANCE).
 const JEWELS := {
 	"purple": {"name": "เพชรม่วง", "color": Color("b06bff"), "price": 400},
 	"pink": {"name": "เพชรชมพู", "color": Color("ff79c6"), "price": 900},
+	"chaos": {"name": "เพชรชาออส", "color": Color("ffd23f"), "price": 1500},
+	"feather": {"name": "ขนนก", "color": Color("bfe6ff"), "price": 4000},
 }
-const JEWEL_DROP := {"purple": 0.01, "pink": 0.005}
+## Drop chance per kill in every levelling field.
+const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
+## Feathers drop only in fields of FEATHER_STARS stars and up.
+const FEATHER_DROP := 0.001
+const FEATHER_STARS := 50
 
 static var _uid := 0
 

@@ -995,6 +995,7 @@ func _drop_loot(mob: Mob) -> void:
 	var from := mob.global_position
 	var gold: int = int(mob.stats.gold * rng.randf_range(0.7, 1.4))
 	_spawn_loot({}, gold, from)
+	_drop_jewels(from)
 	var boss := mob.is_boss
 	var class_id := Game.class_id()
 	if zone_id == DivineRegionData.ID:
@@ -1034,9 +1035,7 @@ func _drop_loot(mob: Mob) -> void:
 			if table:
 				gem = ItemData.gem(BossLootData.gem_kind(mob.monster_id, rng), int(String(gem.id).split("_")[1]))
 			_spawn_loot(gem, 0, from)
-		_drop_jewels(from)
 		return
-	_drop_jewels(from)
 	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)):
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
 	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)):
@@ -1055,14 +1054,18 @@ func _drop_loot(mob: Mob) -> void:
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
-## Forge jewels: every monster of a levelling field may drop a purple jewel
-## (ItemData.JEWEL_DROP) and a pink one, bosses as well.
+## Forge jewels: every monster of a levelling field may drop a purple, a pink and a
+## chaos jewel (ItemData.JEWEL_DROP), bosses as well; fields of FEATHER_STARS stars
+## and up may also drop a feather.
 func _drop_jewels(from: Vector3) -> void:
 	if is_town or is_pvp:
 		return
-	for id in ["purple", "pink"]:
+	for id in ItemData.JEWEL_DROP:
 		if rng.randf() < float(ItemData.JEWEL_DROP[id]):
 			_spawn_loot(ItemData.jewel(id), 0, from)
+	if int(data.get("star", 0)) >= ItemData.FEATHER_STARS and rng.randf() < ItemData.FEATHER_DROP:
+		_spawn_loot(ItemData.jewel("feather"), 0, from)
+		Game.say("ขนนกตกแล้ว! เอาไปตีปีก 100 ดาวที่ช่างตีเหล็ก", &"quest")
 
 
 ## Chase pieces of a field boss; every miss raises the next kill's chance.
@@ -1111,9 +1114,6 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 		_spawn_loot(StarProgression.random_item(Game.class_id(),stars,rng),0,from)
 	if pieces > 0 and mob.is_boss:
 		Game.say("บอสมอบอุปกรณ์ดาว %d ประจำอาชีพ %d ชิ้น!" % [stars, pieces],&"quest")
-	if rng.randf()<StarWingData.drop_chance(zone_id,mob.is_boss,elite):
-		_spawn_loot(StarWingData.item(String(Game.class_id()),rng),0,from)
-		Game.say("ปีกเทพ 100 ดาวประจำอาชีพตกแล้ว!",&"quest")
 	if rng.randf()<0.35 or mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf()<0.55 else "mp_xl",3 if mob.is_boss else 1),0,from)
 	if mob.is_boss: _spawn_loot(_random_gem(100,1),0,from)

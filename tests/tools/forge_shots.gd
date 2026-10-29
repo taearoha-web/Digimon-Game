@@ -1,6 +1,6 @@
 extends Node
 ## Screenshots of the forge (the jewels in the bag, the enhance button above the
-## scrolling text, after a hit and after a miss).
+## scrolling text, after a hit and after a miss, and the 100★ wing craft).
 ##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/forge_shots.tscn -- <out_dir>
 var out_dir := "user://shots"
 var main: Node
@@ -58,4 +58,19 @@ func _ready() -> void:
 		btn.pressed.emit()
 	await _wait(0.4)
 	await _shot("forge_after_hit")
+	# Lv.100 wings with a chaos jewel and a feather: the 100★ wing craft.
+	Game.add_item(ItemData.wings(rng, "warrior", 2))
+	Game.add_item(ItemData.jewel("chaos", 2))
+	Game.add_item(ItemData.jewel("feather", 2))
+	for i in Game.profile.inv.size():
+		if StarWingData.can_craft(Game.profile.inv[i]):
+			main.menu._selected_index = i
+	main.menu._refresh_detail()
+	await _wait(0.3)
+	await _shot("wing_craft")
+	for b in main.menu.find_children("*", "Button", true, false):
+		if String((b as Button).text).begins_with("ตีปีก"):
+			(b as Button).pressed.emit()
+	await _wait(0.4)
+	await _shot("wing_craft_after")
 	get_tree().quit()

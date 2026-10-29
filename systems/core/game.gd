@@ -1712,6 +1712,35 @@ func enhance_item(item: Dictionary) -> String:
 	return "fail"
 
 
+## Crafts Lv.100 wings in the bag into this class's 100★ wings with a chaos jewel and
+## a feather (StarWingData.CRAFT_COST). Returns "ok", "fail" (the jewels are used up,
+## the wings stay) or a reason. The crafted wings keep their uid, plus and gems.
+func craft_star_wings(item: Dictionary) -> String:
+	if not StarWingData.can_craft(item):
+		return "ใช้ปีกเลเวล 100 เท่านั้น"
+	if not profile["inv"].any(func(piece): return is_same(piece, item)):
+		return "ถอดปีกเก็บเข้ากระเป๋าก่อน"
+	var cost: Dictionary = StarWingData.CRAFT_COST
+	for id in cost:
+		if jewel_count(id) < int(cost[id]):
+			return "เพชรไม่พอ (ต้องใช้ เพชรชาออส %d เม็ด + ขนนก %d ขน)" % [int(cost.chaos), int(cost.feather)]
+	for id in cost:
+		_spend_jewels(id, int(cost[id]))
+	if rng.randf() >= StarWingData.CRAFT_CHANCE:
+		inventory_changed.emit()
+		mark_dirty()
+		return "fail"
+	var fresh := StarWingData.item(String(class_id()), rng)
+	for key in fresh:
+		if key not in ["uid", "plus", "gems", "sockets"]:
+			item[key] = fresh[key]
+	item["sockets"] = maxi(int(fresh.sockets), (item.get("gems", []) as Array).size())
+	inventory_changed.emit()
+	profile_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
 ## Puts the gem at bag index into the item's next free socket.
 func socket_gem(item: Dictionary, gem_index: int) -> bool:
 	if gem_index < 0 or gem_index >= profile["inv"].size():
