@@ -93,6 +93,29 @@ func _ready() -> void:
 	check(MemoryGuard.pressure >= 1, "an iPhone held under %d fps steps the guard up (%d)" % [int(MemoryGuard.LOW_FPS), MemoryGuard.pressure])
 	MemoryGuard.fps_override = -1.0
 	MemoryGuard.ios_override = 0
+	# The flat-screen watchdog: two flat readings in a row take the next fallback step.
+	MemoryGuard.force(-1, tree)
+	GameSettings.quality = 2
+	RenderWatchdog.spread_override = 0.0
+	for i in 2:
+		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	check(RenderWatchdog.step == 1 and RenderWatchdog.flat_count == 2, "two flat frames take the first fallback (camera) (%d)" % RenderWatchdog.step)
+	for i in 2:
+		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	check(RenderWatchdog.step == 2 and GameSettings.quality == 1 and MemoryGuard.pressure == 2, "then medium quality at strict pressure (%d, q%d, p%d)" % [RenderWatchdog.step, GameSettings.quality, MemoryGuard.pressure])
+	RenderWatchdog.spread_override = 0.5
+	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	check(RenderWatchdog.step == 2, "a varied picture takes no further step")
+	RenderWatchdog.spread_override = 0.0
+	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, false)
+	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, false)
+	check(RenderWatchdog.step == 2, "menus and travel fades are never read as a flat screen")
+	RenderWatchdog.spread_override = -1.0
+	RenderWatchdog.step = 0
+	RenderWatchdog.flat_count = 0
+	MemoryGuard.force(-1, tree)
+	GameSettings.quality = 2
 	MemoryGuard.video_mb = 1.0
 	MemoryGuard.heap_mb = 1.0
 	MemoryGuard.force(-1, tree)
