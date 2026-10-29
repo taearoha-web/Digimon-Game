@@ -539,13 +539,15 @@ func _guild() -> void:
 			var want := int(WorldPlayers.entry(i).guild) if int(s.level) >= Game.GUILD_LEVEL else 0
 			joins_at_100 = joins_at_100 and int(s.guild) == want and int(s.joins) == int(WorldPlayers.entry(i).guild)
 	check(joins_at_100, "a world player is in its guild from Lv.100 on, in none before")
-	# The veterans are in their guilds from the opening (before it nobody is), so a war can
-	# be fought on the first day.
+	# Everyone starts at Lv.1, so on the first day nobody is in a guild and there is no war.
 	var opening := start + 0.4 * day
-	check(WorldPlayers.members_at(WorldPlayers.ALPHA, start - day).size() == WorldPlayers.members_at(WorldPlayers.ALPHA, start - day).filter(func(k): return WorldPlayers.entry(k).has("vet")).size(), "before the opening only veterans are in a guild")
+	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "on the first day nobody is in a guild yet")
 	var none_rng := RandomNumberGenerator.new()
-	check(GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) == "", "the veterans' guilds can go to war on the first day")
-	var early := opening
+	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, opening).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) != "", "no rival members, no war")
+	# Early on the guilds are small: everyone at Lv.100 fights.
+	var early := start + day
+	while WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size() < 2 or WorldPlayers.members_at(WorldPlayers.ALPHA, early).is_empty():
+		early += 3600.0
 	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, early)
 	check(not few.is_empty() and few.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, early).size()) and few.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()), "everyone at Lv.100 fights, up to GUILD_SIDE: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
 	var all_100 := true

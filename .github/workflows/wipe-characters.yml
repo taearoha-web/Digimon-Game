@@ -1,0 +1,57 @@
+name: Remove every character of a game account (owner only)
+
+# Manual only, and only for people with write access to this repository.
+# A fresh start for one account: every character slot is emptied (the account, its password and
+# its recovery code stay). The save it replaces is kept as a snapshot (the last five revisions),
+# and nothing is written if the game saved in between. Close the game first; on the next start
+# pick "ใช้เซฟออนไลน์ล่าสุด" if the save screen asks.
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: Game ID (account) whose characters are removed
+        required: true
+      confirm:
+        description: Type WIPE to confirm
+        required: true
+      database_name:
+        description: D1 database name
+        default: toon-tale-accounts
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boost-character
+  cancel-in-progress: false
+
+jobs:
+  wipe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DB_NAME: ${{ inputs.database_name }}
+      TARGET_USER: ${{ inputs.username }}
+      CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - name: Check the request
+        run: |
+          test "$CONFIRM" = "WIPE" || { echo "::error::Type WIPE in the confirm field."; exit 1; }
+          echo "$TARGET_USER" | grep -Eq '^[a-z0-9_]{3,24}$' || { echo "::error::Invalid game ID."; exit 1; }
+          echo "$DB_NAME" | grep -Eq '^[A-Za-z0-9_-]{1,64}$' || { echo "::error::Invalid database name."; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch the online save
+        run: |
+          mkdir -p /tmp/wipe
+          node hosting/worker/boost-character.mjs fetch "$TARGET_USER" /tmp/wipe
+      - name: Remove every character
+        run: |
+          node hosting/worker/boost-character.mjs wipe /tmp/wipe
+          rm -rf /tmp/wipe

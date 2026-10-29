@@ -2,7 +2,7 @@ extends Node
 ## The world is never empty: at any moment of the day (every 10 real minutes over two real
 ## weeks after the opening, and again a month on) at least MIN_TOWN world players are in
 ## the village and enough are online; the world's clock runs WorldPlayers.SPEED times
-## faster than real time; veterans stand where they were brought over from, newcomers
+## faster than real time; everyone starts at Lv.1 at the opening, newcomers
 ## arrive on their day; the guild war fields everyone at Lv.100, up to GUILD_SIDE a side.
 ##   godot --headless --path . res://tests/integration/world_town_test.tscn
 const MIN_TOWN := 20
@@ -77,33 +77,35 @@ func _busy(from_day: float, days: float) -> void:
 
 func _veterans() -> void:
 	var start := float(WorldPlayers.START_UNIX)
-	var strong := 0
+	# A fresh opening: nobody brings a head start, everyone begins at Lv.1.
+	var ahead: Array[String] = []
 	for i in WorldPlayers.size():
-		var e := WorldPlayers.entry(i)
-		if not e.has("vet"):
-			continue
-		var s := WorldPlayers.state(i, start + 60.0)
-		var point := WorldPlayers.point_of(WorldPlayers.member(i, start + 60.0))
-		var want := minf(float(e.vet), 300.0)
-		check(absf(point - want) <= 1.0, "%s: starts at point %d (%.1f)" % [e.name, int(e.vet), point])
-		if int(e.vet) > 300:
-			check(bool(s.divine), "%s: brings the divine set" % e.name)
-		if int(s.level) >= Game.GUILD_LEVEL and int(e.guild) > 0:
-			strong += 1
-	check(strong >= 16, "veterans make the guild war possible from the opening (%d at Lv.100)" % strong)
-	# The endgame: a divine veteran enhances the set as it plays and spends sessions on
-	# boss hunts, helping in the star fields and keeping a stall.
-	var merlin := -1
-	for i in WorldPlayers.size():
-		if String(WorldPlayers.entry(i).name) == "เทพธิดาแห่งแสง":
-			merlin = i
-	var plus_then := WorldPlayers.divine_plus(WorldPlayers.member(merlin, start + 60.0))
-	var plus_later := WorldPlayers.divine_plus(WorldPlayers.member(merlin, start + 20.0 * 86400.0))
-	check(plus_then >= 1 and plus_later > plus_then and plus_later <= 10, "the divine set is enhanced with play (+%d -> +%d)" % [plus_then, plus_later])
+		if WorldPlayers.head_work(i) != 0.0 or int(WorldPlayers.state(i, start + 60.0).level) > 3:
+			ahead.append("%s Lv.%d" % [WorldPlayers.entry(i).name, int(WorldPlayers.state(i, start + 60.0).level)])
+	check(ahead.is_empty(), "when the world opens everyone starts at Lv.1 (%s)" % [ahead])
+	# The endgame: a player who completed the divine set enhances it as it plays and
+	# spends sessions on boss hunts, helping in the star fields and keeping a stall.
+	# The first hardcore player to complete the divine set, from the day it does.
+	var who := -1
+	var t0 := start
+	for d in range(10, 120):
+		t0 = start + float(d) * 86400.0
+		for i in WorldPlayers.size():
+			if String(WorldPlayers.entry(i).style) == "hardcore" and bool(WorldPlayers.state(i, t0).divine):
+				who = i
+				break
+		if who >= 0:
+			break
+	check(who >= 0, "a hardcore player completes the divine set")
+	if who < 0:
+		return
+	var plus_then := WorldPlayers.divine_plus(WorldPlayers.member(who, t0))
+	var plus_later := WorldPlayers.divine_plus(WorldPlayers.member(who, t0 + 20.0 * 86400.0))
+	check(plus_later > plus_then and plus_later <= 10, "the divine set is enhanced with play (+%d -> +%d)" % [plus_then, plus_later])
 	var kinds := {}
-	var t := start
-	while t < start + 14.0 * 86400.0:
-		var s := WorldPlayers.state(merlin, t)
+	var t := t0
+	while t < t0 + 14.0 * 86400.0:
+		var s := WorldPlayers.state(who, t)
 		if bool(s.online):
 			kinds[String(s.doing)] = true
 			check(String(s.place) != "" and (String(s.place) == "town" or ZoneData.access_reason(StringName(s.place), int(s.level), int(s.stars)) == ""), "a divine player goes where it may (%s)" % s.place)
@@ -130,14 +132,16 @@ func _guild_war() -> void:
 	Game.join_guild(WorldPlayers.ALPHA)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	var t := float(WorldPlayers.START_UNIX) + 3.0 * 86400.0
+	var t := float(WorldPlayers.START_UNIX) + 0.4 * 86400.0
+	check(GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t).is_empty(), "a fresh world has no guild war on the first day")
+	t = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0
 	var match := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
-	check(not match.is_empty(), "a guild war can be fought in the first days")
+	check(not match.is_empty(), "a guild war three weeks on")
 	if match.is_empty():
 		return
 	var ours_100 := WorldPlayers.members_at(WorldPlayers.ALPHA, t).size()
 	var theirs_100 := WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size()
-	check(match.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, ours_100) and match.enemy.size() == mini(GuildWarData.GUILD_SIDE, theirs_100) and match.enemy.size() > GuildWarData.TEAM_SIZE, "everyone at Lv.100 fights, up to GUILD_SIDE a side (%d + hero, %d)" % [match.ally.size(), match.enemy.size()])
+	check(match.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, ours_100) and match.enemy.size() == mini(GuildWarData.GUILD_SIDE, theirs_100), "everyone at Lv.100 fights, up to GUILD_SIDE a side (%d + hero, %d)" % [match.ally.size(), match.enemy.size()])
 	# A full guild later on sends GUILD_SIDE.
 	var later := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, float(WorldPlayers.START_UNIX) + 60.0 * 86400.0)
 	check(later.ally.size() == GuildWarData.GUILD_SIDE - 1 and later.enemy.size() == GuildWarData.GUILD_SIDE, "a full guild: %d with the hero against %d" % [later.ally.size() + 1, later.enemy.size()])
