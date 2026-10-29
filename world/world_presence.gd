@@ -151,6 +151,8 @@ func _spawn_arrivals(arrivals: Array[int], t: float, keep: Dictionary) -> void:
 
 ## How many world players this zone shows at once now.
 static func limit_here(town: bool) -> int:
+	if GameSettings.safe_picture:
+		return 0
 	var q := clampi(GameSettings.quality, 0, 2)
 	if not town:
 		return int(LIMITS[q])

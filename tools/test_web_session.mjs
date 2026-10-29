@@ -106,7 +106,7 @@ d.window.toonSession.sample({towerFloor:12,towerState:'spawning',pendingSpawns:8
 d.frame(0);d.frame(16);d.frame(176);
 d.tick();
 let diagnostic = JSON.parse(diagnosticStorage.get('toon_session_v1'));
-check(diagnostic.diagnostics === 2 && diagnostic.navigationType === 'reload', 'new report identifies diagnostic generation and navigation type without calling reload a crash');
+check(diagnostic.diagnostics === 3 && diagnostic.navigationType === 'reload', 'new report identifies diagnostic generation and navigation type without calling reload a crash');
 check(diagnostic.samples.at(-1).framesOver100 === 1 && diagnostic.samples.at(-1).maxFrameMs === 160, 'animation-frame gaps catch stalls between thirty-second snapshots');
 check(diagnostic.samples.at(-1).towerFloor === 12 && diagnostic.samples.at(-1).pendingSpawns === 8 && diagnostic.samples.at(-1).spawnWorkMs === 7.33, 'report retains bounded Tower and work timing fields');
 check(diagnostic.samples.at(-1).metricsAgeSeconds === 30, 'stale engine metrics are explicitly marked');

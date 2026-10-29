@@ -129,6 +129,23 @@ func _ready() -> void:
 	big.queue_free()
 	stand_in.queue_free()
 	await tree.process_frame
+	# The last step: the safe picture (no other players, stalls or lantern glow) and the
+	# zone built again; it stays in the settings until the player switches it off.
+	var safe_before := GameSettings.safe_picture
+	GameSettings.safe_picture = false
+	RenderWatchdog.rebuild_override = true
+	RenderWatchdog.rebuilds = 0
+	RenderWatchdog.spread_override = 0.0
+	for i in 8:
+		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	check(RenderWatchdog.step == RenderWatchdog.STEPS and GameSettings.safe_picture and RenderWatchdog.rebuilds == 1, "flat screens through every step end in the safe picture and one rebuilt zone (step %d, safe %s, rebuilds %d)" % [RenderWatchdog.step, GameSettings.safe_picture, RenderWatchdog.rebuilds])
+	check(WorldPresence.limit_here(true) == 0 and WorldPresence.limit_here(false) == 0, "the safe picture shows no other players")
+	for i in 4:
+		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	check(RenderWatchdog.rebuilds == 1, "and rebuilds the zone only once")
+	GameSettings.safe_picture = safe_before
+	GameSettings.save_settings()
+	RenderWatchdog.rebuild_override = false
 	RenderWatchdog.spread_override = -1.0
 	RenderWatchdog.step = 0
 	RenderWatchdog.flat_count = 0

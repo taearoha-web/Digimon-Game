@@ -29,7 +29,10 @@ func _ready() -> void:
 	_text.fit_content = true
 	_text.scroll_active = false
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_text.autowrap_mode = TextServer.AUTOWRAP_OFF
+	# Long lines wrap inside the panel: with wrapping off, the label's minimum width grew
+	# with the longest line and pushed the panel over the skill slots.
+	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_text.clip_contents = true
 	_text.add_theme_font_size_override("normal_font_size", 17)
 	_text.add_theme_constant_override("outline_size", 4)
