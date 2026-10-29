@@ -58,9 +58,18 @@ func _ready() -> void:
 	Game.world_chat.connect(func(speaker: String, text: String, _c: Color): lines.append([speaker, text]))
 	var chat := AiChat.new()
 	add_child(chat)
-	# Away from the web page with no transport: the line is shown, the hero is told why.
-	var why := chat.submit("สวัสดี", {"index": target, "channel": "direct"})
-	check(why != "", "without the web page the chat says where it works (%s)" % why)
+	# The game's own answers (ChatBrain): free and offline, after a short pause.
+	check(chat.transport is ChatBrain.LocalTransport, "the chat answers in the game by default")
+	(chat.transport as ChatBrain.LocalTransport).delay = Vector2.ZERO
+	var local := []
+	var on_local := func(i: int, text: String, action: String): local.append([i, text, action])
+	chat.replied.connect(on_local)
+	check(chat.submit("สวัสดี", {"index": target, "channel": "direct"}) == "", "a line is sent to the game's own answers")
+	await get_tree().process_frame
+	chat._process(0.1)
+	check(local.size() == 1 and String(local[0][1]) != "" and String(local[0][2]) == "none", "a greeting is answered (%s)" % str(local))
+	chat.replied.disconnect(on_local)
+	chat.history.clear()
 	var fake := FakeTransport.new()
 	chat.transport = fake
 	lines.clear()
@@ -108,6 +117,26 @@ func _ready() -> void:
 	chat.submit("มีใครไปสนามถัดไปบ้าง", {"index": -1, "channel": "world"})
 	var world: Dictionary = fake.sent[-1]
 	check(String(world.channel) == "world", "a world line goes out as one")
+	# The game's own answers read what a line is after.
+	var hunter := {"name": "Kaito", "class": "สายดาบ", "level": 20, "stars": 0, "doing": "hunt", "place": "ป่าเงาม่วง", "guild": "", "inParty": false}
+	var seller := hunter.duplicate()
+	seller["doing"] = "stall"
+	var hero := {"name": "แชทQA", "class": "นักเวทย์", "level": 9, "stars": 0}
+	var ask := func(text: String, who: Dictionary) -> Dictionary:
+		return ChatBrain.reply({"text": text, "player": who, "hero": hero, "history": []})
+	check(String(ask.call("ไปปาร์ตี้กันไหม", hunter).action) == "join_party", "a hunter agrees to party")
+	check(String(ask.call("ไปปาร์ตี้กันไหม", seller).action) == "none", "a stall keeper stays at its stall")
+	check(String(ask.call("มีอะไรขายบ้าง", seller).action) == "open_stall", "a stall keeper opens its stall")
+	check(String(ask.call("มีอะไรขายบ้าง", hunter).action) == "none", "a hunter has no stall")
+	var mate := hunter.duplicate()
+	mate["inParty"] = true
+	check(String(ask.call("บาย ไปก่อนนะ", mate).action) == "leave_party", "a goodbye lets a member leave")
+	check(String(ask.call("ไปปาร์ตี้ไหม", mate).action) == "none", "a member is already in the party")
+	check(String(ask.call("เลเวลเท่าไหร่แล้ว", hunter).reply).contains("Lv.20"), "a player tells its level")
+	var fit := String(ZoneData.get_zone(WorldPlayers.hunting_zone(9, 0)).get("name", ""))
+	check(fit != "" and String(ask.call("เก็บเลเวลที่ไหนดี", hunter).reply).contains(fit), "where to hunt names the field for the hero's level (%s)" % fit)
+	check(String(ask.call("เป็นบอทเหรอ", hunter).reply).contains("AI"), "a player says it is one of the game's AI players")
+	check(String(ask.call("อากาศดีจัง", hunter).reply) != "", "anything else gets small talk")
 	# Long lines are cut before they leave.
 	chat.submit("ก".repeat(500), {"index": target, "channel": "direct"})
 	check(String((fake.sent[-1] as Dictionary).text).length() == 200, "a long line is cut to 200 characters")

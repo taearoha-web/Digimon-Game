@@ -2,13 +2,16 @@ class_name AiChat
 extends Node
 ## Talking to the world players. The hero types a line (an HTML bar on the web page, so
 ## Thai input works on iPhone; a small box elsewhere) to one player (its card's "คุย") or
-## to the world chat; the account server asks the Claude API to answer as that player
-## (hosting/worker/chat.mjs) and the answer comes back above the player's head and in the
-## world chat. The answer may carry an action: join or leave the hero's party, or open the
-## player's stall; the game's own rules still decide (Game.party_invite).
+## to the world chat, and the player answers above its head and in the world chat. The
+## answers are made in the game itself (ChatBrain: free, instant, offline): what the line
+## is after and the player's own state decide the reply, and its action: join or leave the
+## hero's party, or open the player's stall; the game's own rules still decide
+## (Game.party_invite).
 ##
-## The page side is tools/web/accounts.js (toonChatSend/toonChatPoll, toonChatCompose/
-## toonChatComposed). Tests swap `transport` for a stand-in with the same two calls.
+## The transport is anything with send(json) -> id and poll(id) -> answer JSON. The
+## default is ChatBrain.LocalTransport. WebTransport would ask the account server's
+## Claude chat instead (hosting/worker/chat.mjs, tools/web/accounts.js), which costs money
+## per message and needs the owner's API key, so it is not used. Tests use a stand-in.
 
 signal replied(index: int, text: String, action: String)
 signal failed(index: int, message: String)
@@ -31,8 +34,8 @@ var _box: CanvasLayer
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	if transport == null and OS.has_feature("web"):
-		transport = WebTransport.new()
+	if transport == null:
+		transport = ChatBrain.LocalTransport.new()
 
 
 # --- Asking --------------------------------------------------------------------------
@@ -80,9 +83,7 @@ func submit(text: String, target: Dictionary = {}) -> String:
 	else:
 		Game.world_chat.emit(hero_name, text, HERO_COLOR)
 	if transport == null:
-		var why := "คุยกับผู้เล่น AI ได้บนเว็บเกมเมื่อเข้าสู่ระบบบัญชีออนไลน์"
-		Game.say(why, &"info")
-		return why
+		transport = ChatBrain.LocalTransport.new()
 	var body := request_body(i, text, channel)
 	var id := int(transport.call("send", JSON.stringify(body)))
 	_remember(i, "hero", text)
@@ -115,7 +116,8 @@ func responder(text: String) -> int:
 	return near[absi(hash(text)) % near.size()]
 
 
-## The JSON the account server takes (hosting/worker/chat.mjs readChat).
+## What the player is told: the line, who it is and who the hero is, the talk so far
+## (ChatBrain.reply reads it; the same shape as hosting/worker/chat.mjs readChat).
 func request_body(i: int, text: String, channel: String) -> Dictionary:
 	var t := WorldPresence.clock()
 	var s := WorldPlayers.state(i, t)
@@ -186,7 +188,7 @@ func _process(delta: float) -> void:
 			receive(int(wait.index), answer, String(wait.channel))
 
 
-## An answer from the server for world player i: {reply, action} or {error, message}.
+## An answer for world player i: {reply, action} or {error, message}.
 func receive(i: int, answer: Dictionary, channel := "direct") -> void:
 	if answer.has("error"):
 		var message := String(answer.get("message", "ส่งข้อความไม่สำเร็จ"))
@@ -291,7 +293,8 @@ func _open_box(title: String, placeholder: String) -> void:
 	edit.grab_focus()
 
 
-## The web page's side of the chat (tools/web/accounts.js).
+## The account server's Claude chat through the web page (tools/web/accounts.js); not
+## used by default (it costs money per message).
 class WebTransport:
 	extends RefCounted
 
