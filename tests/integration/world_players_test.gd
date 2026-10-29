@@ -230,6 +230,7 @@ func _hunting_moment(from: float) -> Array:
 
 func _field() -> void:
 	WorldPresence.enabled = true
+	GameSettings.show_world_players = true
 	InputSetup.ensure_defaults()
 	GameSettings.load_settings()
 	Game.new_profile(&"warrior", "World QA", FaceKit.default_look())

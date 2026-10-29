@@ -14,6 +14,10 @@ static var combat_hitstop := true
 ## stalls or lantern glow in the zones, so a phone whose world came out as one flat colour
 ## shows the plain world again. Saved with the settings; the player switches it off.
 static var safe_picture := false
+## The world players (AI) walking in the zones. Off by default while the grey village on
+## iPhone is chased down: the world chat, the online count, the registry, parties and
+## guild wars still use them; only their bodies in the zones are left out.
+static var show_world_players := false
 static var _loaded := false
 
 
@@ -39,6 +43,8 @@ static func load_settings() -> void:
 				combat_hitstop = parsed.combat_hitstop
 			if parsed.get("safe_picture") is bool:
 				safe_picture = parsed.safe_picture
+			if parsed.get("show_world_players") is bool:
+				show_world_players = parsed.show_world_players
 	if quality < 0:
 		# First run: phones and browsers get the lighter setting.
 		quality = 1 if (OS.has_feature("web") or OS.has_feature("mobile")) else 2
@@ -48,7 +54,7 @@ static func load_settings() -> void:
 static func save_settings() -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "safe_picture": safe_picture}))
+		file.store_string(JSON.stringify({"quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "safe_picture": safe_picture, "show_world_players": show_world_players}))
 
 
 static func view_scale() -> float:
