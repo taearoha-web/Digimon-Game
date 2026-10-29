@@ -161,7 +161,7 @@
       contextLost: record.contextLost === true, events: record.events,
       firstSample: first || null, lastSamples: record.samples.slice(-5),
       // One short line per sample: the whole session's trend in a few hundred bytes.
-      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} p=${s.pressure ?? '-'} ${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
+      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} p=${s.pressure ?? '-'} ${s.flatScreens ? 'flat=' + s.flatScreens + ' fb=' + (s.renderFallback ?? 0) + ' ' : ''}${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
       pressureRaises: last ? (last.pressureRaises ?? null) : null,
       growth: first && last && last !== first ? { seconds: last.seconds - first.seconds, wasmBytes: (last.wasmBytes || 0) - (first.wasmBytes || 0),
         videoBytes: (last.videoBytes || 0) - (first.videoBytes || 0), nodes: (last.nodes || 0) - (first.nodes || 0),
@@ -221,7 +221,7 @@
         for (const key of ['staticBytes', 'videoBytes', 'nodes', 'objects', 'resources', 'orphans', 'loot', 'quality', 'fps', 'auto', 'kills', 'saveAgeSeconds', 'drawCalls', 'triangles', 'renderObjects', 'processMs', 'physicsMs', 'soundPlayRequests', 'audioStreamMode', 'audioStallSeconds']) {
           if (typeof data[key] === 'boolean' || (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)) metrics[key] = data[key];
         }
-        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB']) {
+        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB', 'renderFallback', 'flatScreens']) {
           if (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0) metrics[key] = Math.round(data[key] * 100) / 100;
         }
         for (const key of ['zone', 'class', 'towerState', 'lastSkill', 'audioState']) if (typeof data[key] === 'string' && /^[a-z_]{1,48}$/.test(data[key])) metrics[key] = data[key];
