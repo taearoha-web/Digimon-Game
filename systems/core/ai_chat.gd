@@ -68,6 +68,10 @@ func submit(text: String, target: Dictionary = {}) -> String:
 	text = text.strip_edges().left(200)
 	if text == "" or target.is_empty():
 		return "พิมพ์ข้อความก่อน"
+	# An order to the party ("ตามมา", "รอตรงนี้", "กลับเมือง") is carried out, not chatted.
+	if PartyTalk.route(text):
+		Game.world_chat.emit(String(Game.profile.get("name", "ฮีโร่")), text, HERO_COLOR)
+		return ""
 	var channel := String(target.get("channel", "direct"))
 	var i := int(target.get("index", -1))
 	if channel == "world" or i < 0:

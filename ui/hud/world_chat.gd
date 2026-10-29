@@ -4,20 +4,20 @@ extends PanelContainer
 ## announcements (Game.world_chat, from WorldPresence). It only shows; it never takes a tap,
 ## so the joystick under it keeps working. line_for picks what a player says.
 
-const LINES := 4
-## A line fades out after this many seconds without a newer one.
-const FADE_AFTER := 40.0
+const LINES := 6
+## The panel's height: room for LINES lines, so the box keeps its size.
+const HEIGHT := 184.0
+const FONT_SIZE := 21
 
 var _text: RichTextLabel
 var _lines: PackedStringArray = []
-var _quiet := 0.0
 
 
 func _ready() -> void:
 	name = "WorldChat"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.03, 0.05, 0.1, 0.42)
+	box.bg_color = Color(0.03, 0.05, 0.1, 0.62)
 	box.set_corner_radius_all(10)
 	box.content_margin_left = 10
 	box.content_margin_right = 10
@@ -26,7 +26,8 @@ func _ready() -> void:
 	add_theme_stylebox_override("panel", box)
 	_text = RichTextLabel.new()
 	_text.bbcode_enabled = true
-	_text.fit_content = true
+	# A box of fixed size: the newest lines show at the bottom, older ones scroll out.
+	_text.fit_content = false
 	_text.scroll_active = false
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Long lines wrap inside the panel: with wrapping off, the label's minimum width grew
@@ -34,20 +35,18 @@ func _ready() -> void:
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_text.clip_contents = true
-	_text.add_theme_font_size_override("normal_font_size", 17)
-	_text.add_theme_constant_override("outline_size", 4)
+	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_text.add_theme_font_size_override("normal_font_size", FONT_SIZE)
+	_text.add_theme_constant_override("outline_size", 6)
+	_text.add_theme_constant_override("line_separation", 2)
 	_text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_text.add_theme_color_override("default_color", Color(1, 1, 1, 0.95))
 	add_child(_text)
+	custom_minimum_size = Vector2(0, HEIGHT)
 	visible = false
 	Game.world_chat.connect(add_line)
 
 
-func _process(delta: float) -> void:
-	if not visible:
-		return
-	_quiet += delta
-	modulate.a = clampf(1.0 - (_quiet - FADE_AFTER) / 3.0, 0.0, 1.0)
 
 
 func add_line(speaker: String, text: String, color: Color) -> void:
@@ -58,8 +57,7 @@ func add_line(speaker: String, text: String, color: Color) -> void:
 	while _lines.size() > LINES:
 		_lines.remove_at(0)
 	_text.text = "\n".join(_lines)
-	_quiet = 0.0
-	modulate.a = 1.0
+	_text.scroll_to_line(maxi(0, _text.get_line_count() - 1))
 	visible = true
 
 

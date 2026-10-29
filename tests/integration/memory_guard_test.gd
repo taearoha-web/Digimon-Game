@@ -210,6 +210,43 @@ func _ready() -> void:
 	for i in MemoryGuard.SCALE_3D_SLOW_TICKS * 4:
 		MemoryGuard._follow_frame_rate(tree)
 	check(is_equal_approx(MemoryGuard.scale_3d, 1.0), "high quality keeps the sharp picture when the frame rate is low (%.2f)" % MemoryGuard.scale_3d)
+	# High comes in two modes on a phone: "สูง (คมชัด)" (high_smooth false) never lowers the
+	# scale; "สูง (ลื่น)" follows the frame rate like medium does. Pinned as a phone so the
+	# check is real on a desktop too.
+	MemoryGuard.phone_override = 1
+	GameSettings.high_smooth = false
+	MemoryGuard.reset_scale_3d(tree)
+	MemoryGuard.fps_override = 20.0
+	for i in MemoryGuard.SCALE_3D_SLOW_TICKS * 4:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0), "high (sharp) does not follow the frame rate on a phone (%.2f)" % MemoryGuard.scale_3d)
+	GameSettings.high_smooth = true
+	for i in MemoryGuard.SCALE_3D_SLOW_TICKS:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0 - MemoryGuard.SCALE_3D_STEP), "high (smooth) follows the frame rate: a slow stretch lowers the scale a step (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.fps_override = 60.0
+	for i in MemoryGuard.SCALE_3D_FAST_TICKS * 2:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0), "and a fast stretch brings it back (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.set_scale_3d(0.8, tree)
+	GameSettings.high_smooth = false
+	MemoryGuard.fps_override = 20.0
+	for i in MemoryGuard.SCALE_3D_SLOW_TICKS * 2:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 0.8), "back on high (sharp) the scale holds where it is until the next zone (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.reset_scale_3d(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0), "a new zone on high (sharp) draws at full size again")
+	# The mode is kept in the settings file.
+	GameSettings.high_smooth = true
+	GameSettings.save_settings()
+	GameSettings.high_smooth = false
+	GameSettings._loaded = false
+	GameSettings.load_settings()
+	check(GameSettings.high_smooth, "the settings file keeps high (smooth)")
+	GameSettings.high_smooth = false
+	GameSettings.save_settings()
+	MemoryGuard.phone_override = -1
+	MemoryGuard.fps_override = 20.0
 	GameSettings.quality = 1
 	check(is_equal_approx(tree.root.scaling_3d_scale, MemoryGuard.scale_3d), "the root viewport draws 3D at that scale")
 	MemoryGuard.set_scale_3d(0.9, tree)

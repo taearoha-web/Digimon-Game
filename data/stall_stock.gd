@@ -11,6 +11,11 @@ extends RefCounted
 ## from that stall until the next restock: Game.profile.flags["stall|<name>|<window>|<k>"]
 ## = 1, and the keys of older windows are dropped when a stall opens (open). A stall
 ## also buys from the hero's bag, paying SELL_BONUS times the merchant's price.
+## The hero can haggle once per lot per window (haggle: a deterministic outcome of the
+## keeper, the window, the lot and the hero's name; "haggle|<name>|<window>|<k>" = code),
+## leave bag things with a keeper to sell for more, paid out later ("consign|<due
+## minute>|<n>" = gold; collect_consignments), and the keepers call out a lot of theirs in
+## the world chat now and then (announcement).
 
 ## Real seconds between two restocks of a stall.
 const RESTOCK := 7200.0
@@ -26,6 +31,22 @@ const GEM_PRICE := [60, 180, 540]
 ## Chances of a stall piece being rare (2), legendary (3) or mythic (4).
 const RARITY_ODDS := [[2, 0.62], [3, 0.3], [4, 0.08]]
 const FLAG := "stall|"
+const HAGGLE_FLAG := "haggle|"
+const CONSIGN_FLAG := "consign|"
+## Haggling: result codes kept in the flags, and the odds (percent) of each.
+const HAGGLE_ACCEPTED := 1
+const HAGGLE_REFUSED := 2
+const HAGGLE_COUNTER := 3
+const HAGGLE_ACCEPT_ODDS := 45
+const HAGGLE_REFUSE_ODDS := 40
+## A stall sells what the hero leaves with it for this much of the merchant's price, paid
+## CONSIGN_MINUTES real minutes later; at most CONSIGN_MAX lots out at once.
+const CONSIGN_BONUS := 1.5
+const CONSIGN_MINUTES := 30
+const CONSIGN_MAX := 8
+const HAGGLE_ACCEPT_LINES := ["ก็ได้ ลดให้ %d%% แต่บอกต่อด้วยนะ", "เอ้า ลด %d%% ให้เป็นพิเศษเลย", "ตกลง ลดให้ %d%% เพราะคุณน่ารัก"]
+const HAGGLE_REFUSE_LINES := ["ขอโทษนะ ราคานี้ต่อไม่ได้แล้วจริง ๆ", "ของดีขนาดนี้ ราคาเต็มเท่านั้นนะ", "ลดไม่ไหวแล้ว หามาเหนื่อยมาก"]
+const HAGGLE_COUNTER_LINES := ["เต็มที่ได้แค่ %d%% นะ เอาไหม", "ลด %d%% พอได้ แต่มากกว่านี้ไม่ไหว"]
 ## Specialities and what a stall of each lays out: gear pieces, consumable lots.
 const KINDS := {
 	"mixed": {"gear": 4, "potions": 1, "jewels": 1},
@@ -71,6 +92,10 @@ static func specialty(i: int) -> String:
 
 static func _flag_key(i: int, w: int, k: int) -> String:
 	return "%s%s|%d|%d" % [FLAG, WorldPlayers.entry(i).name, w, k]
+
+
+static func _haggle_key(i: int, w: int, k: int) -> String:
+	return "%s%s|%d|%d" % [HAGGLE_FLAG, WorldPlayers.entry(i).name, w, k]
 
 
 static func _now(t: float) -> float:
@@ -159,8 +184,68 @@ static func stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 	var flags: Dictionary = Game.profile.get("flags", {})
 	var out: Array[Dictionary] = []
 	for e in full_stock(i, t):
-		if int(flags.get(_flag_key(i, w, int(e.k)), 0)) == 0:
-			out.append(e)
+		if int(flags.get(_flag_key(i, w, int(e.k)), 0)) != 0:
+			continue
+		var off := discount(i, int(e.k), t)
+		if off > 0:
+			e["base"] = int(e.price)
+			e["price"] = maxi(1, int(round(float(e.price) * float(100 - off) / 100.0)))
+		out.append(e)
+	return out
+
+
+## What haggling over lot k of stall i in the window of time t comes to, the same on every
+## try (a hash of the keeper, the window, the lot and the hero's name): {code, percent}.
+static func haggle_outcome(i: int, k: int, t: float = -1.0) -> Dictionary:
+	t = _now(t)
+	var h := absi(hash("haggle|%s|%d|%d|%s" % [WorldPlayers.entry(i).name, window(i, t), k, String(Game.profile.get("name", ""))]))
+	var roll := h % 100
+	var spin := h / 100
+	if roll < HAGGLE_ACCEPT_ODDS:
+		return {"code": HAGGLE_ACCEPTED, "percent": 10 + spin % 11}
+	if roll < HAGGLE_ACCEPT_ODDS + HAGGLE_REFUSE_ODDS:
+		return {"code": HAGGLE_REFUSED, "percent": 0}
+	return {"code": HAGGLE_COUNTER, "percent": 4 + spin % 4}
+
+
+## The haggle code kept for lot k of stall i in this window (0: not haggled yet).
+static func haggled(i: int, k: int, t: float = -1.0) -> int:
+	t = _now(t)
+	return int(Game.profile.get("flags", {}).get(_haggle_key(i, window(i, t), k), 0))
+
+
+## The percent off lot k of stall i the hero haggled (0 without a haggle or when refused).
+static func discount(i: int, k: int, t: float = -1.0) -> int:
+	t = _now(t)
+	return int(haggle_outcome(i, k, t).percent) if haggled(i, k, t) in [HAGGLE_ACCEPTED, HAGGLE_COUNTER] else 0
+
+
+## Whether the hero may still haggle over lot k of stall i (once a lot a window).
+static func can_haggle(i: int, k: int, t: float = -1.0) -> bool:
+	t = _now(t)
+	return haggled(i, k, t) == 0 and stock(i, t).any(func(e): return int(e.k) == k)
+
+
+## The hero haggles over lot k of stall i: the keeper answers in the world chat and the
+## stock shows the new price; {code, percent, text}, empty when it cannot (already haggled
+## in this window, or no such lot).
+static func haggle(i: int, k: int, t: float = -1.0) -> Dictionary:
+	t = _now(t)
+	if not can_haggle(i, k, t):
+		return {}
+	var out := haggle_outcome(i, k, t)
+	var lines: Array = HAGGLE_REFUSE_LINES
+	if int(out.code) == HAGGLE_ACCEPTED:
+		lines = HAGGLE_ACCEPT_LINES
+	elif int(out.code) == HAGGLE_COUNTER:
+		lines = HAGGLE_COUNTER_LINES
+	var text := String(lines[absi(hash("haggle_line|%s|%d" % [WorldPlayers.entry(i).name, k])) % lines.size()])
+	if text.contains("%d"):
+		text = text % int(out.percent)
+	out["text"] = text
+	Game.profile.flags[_haggle_key(i, window(i, t), k)] = int(out.code)
+	Game.mark_dirty()
+	Game.world_chat.emit(String(WorldPlayers.entry(i).name), text, Color("8ff0ff"))
 	return out
 
 
@@ -206,8 +291,109 @@ static func sell(index: int, count := 1) -> bool:
 	return true
 
 
-## A stall opens to the hero at time t: the bought-lot keys of windows gone by (of every
-## stall) are dropped, so the flags never grow.
+## What a stall pays later for one of `item` left with it to sell: more than selling now.
+static func consign_price(item: Dictionary) -> int:
+	var unit := ItemData.unit_sell_price(item)
+	return int(ceil(float(unit) * CONSIGN_BONUS - 0.001)) if unit > 0 else 0
+
+
+## The lots left with the keepers and not yet paid: [{due (real seconds), gold, key}],
+## the soonest first.
+static func consignments() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for key in Game.profile.get("flags", {}):
+		var text := String(key)
+		if not text.begins_with(CONSIGN_FLAG):
+			continue
+		var bits := text.split("|")
+		if bits.size() == 3 and bits[1].is_valid_int():
+			out.append({"due": float(int(bits[1])) * 60.0, "gold": int(Game.profile.flags[key]), "key": text})
+	out.sort_custom(func(a, b): return float(a.due) < float(b.due))
+	return out
+
+
+## The hero leaves bag slot `index` (the whole stack) with a stall to sell: gone from the
+## bag now, its gold (CONSIGN_BONUS times the merchant's price) paid CONSIGN_MINUTES later.
+static func consign(index: int, t: float = -1.0) -> bool:
+	t = _now(t)
+	if index < 0 or index >= Game.profile.inv.size():
+		return false
+	if consignments().size() >= CONSIGN_MAX:
+		Game.say("ฝากขายได้ไม่เกิน %d ชิ้น" % CONSIGN_MAX, &"warning")
+		return false
+	var item: Dictionary = Game.profile.inv[index]
+	var qty := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
+	var gold := consign_price(item) * qty
+	if gold <= 0:
+		Game.say("ของชิ้นนี้ฝากขายไม่ได้", &"warning")
+		return false
+	var due := int(ceil(t / 60.0)) + CONSIGN_MINUTES
+	var n := 0
+	while Game.profile.flags.has("%s%d|%d" % [CONSIGN_FLAG, due, n]):
+		n += 1
+	Game.profile.flags["%s%d|%d" % [CONSIGN_FLAG, due, n]] = gold
+	Game.remove_item_at(index, qty)
+	Game.mark_dirty()
+	Game.say("ฝากขายแล้ว รับ %d เหรียญในอีก %d นาที" % [gold, CONSIGN_MINUTES])
+	return true
+
+
+## Pays the hero every consignment due by time t (and drops malformed keys): the gold paid.
+static func collect_consignments(t: float = -1.0) -> int:
+	t = _now(t)
+	var flags: Dictionary = Game.profile.get("flags", {})
+	var total := 0
+	var drop: Array[String] = []
+	for key in flags:
+		var text := String(key)
+		if not text.begins_with(CONSIGN_FLAG):
+			continue
+		var bits := text.split("|")
+		if bits.size() != 3 or not bits[1].is_valid_int():
+			drop.append(text)
+		elif float(int(bits[1])) * 60.0 <= t:
+			total += maxi(0, int(flags[key]))
+			drop.append(text)
+	for key in drop:
+		flags.erase(key)
+	if total > 0:
+		Game.add_gold(total)
+		Game.say("ได้เงินจากของฝากขาย %d เหรียญ" % total)
+	elif not drop.is_empty():
+		Game.mark_dirty()
+	return total
+
+
+static func _thousands(n: int) -> String:
+	var text := str(n)
+	var out := ""
+	while text.length() > 3:
+		out = "," + text.right(3) + out
+		text = text.left(text.length() - 3)
+	return text + out
+
+
+## Stall keeper i calls out one of the lots it still has at time t for the world chat
+## ("ร้านลุงหมี: มีดาบระดับหายาก Lv.27 ราคา 3,200 แวะดูได้"); "" with nothing left.
+static func announcement(i: int, t: float = -1.0) -> String:
+	t = _now(t)
+	var lots := stock(i, t)
+	if lots.is_empty():
+		return ""
+	var name := String(WorldPlayers.entry(i).name)
+	var e: Dictionary = lots[absi(hash("announce|%s|%d" % [name, int(t / 600.0)])) % lots.size()]
+	var item: Dictionary = e.item
+	var what := ItemData.name_of(item)
+	if String(item.get("kind", "")) == "equip":
+		what = "%sระดับ%s %s" % [what, ItemData.RARITY_NAMES[clampi(int(item.get("rarity", 2)), 0, ItemData.RARITY_NAMES.size() - 1)], ItemData.level_text(int(item.level))]
+	elif int(item.get("count", 1)) > 1:
+		what = "%s ×%d" % [what, int(item.count)]
+	var shop := name if name.begins_with("ร้าน") else "ร้าน" + name
+	return "%s: มี%s ราคา %s แวะดูได้" % [shop, what, _thousands(int(e.price))]
+
+
+## A stall opens to the hero at time t: the bought-lot and haggle keys of windows gone by
+## (of every stall) are dropped, so the flags never grow, and the consignments due are paid.
 static func open(_i: int, t: float = -1.0) -> void:
 	t = _now(t)
 	if _by_name.is_empty():
@@ -217,7 +403,7 @@ static func open(_i: int, t: float = -1.0) -> void:
 	var drop: Array[String] = []
 	for key in flags:
 		var text := String(key)
-		if not text.begins_with(FLAG):
+		if not (text.begins_with(FLAG) or text.begins_with(HAGGLE_FLAG)):
 			continue
 		var bits := text.split("|")
 		var who := int(_by_name.get(bits[1], -1)) if bits.size() == 4 else -1
@@ -227,6 +413,7 @@ static func open(_i: int, t: float = -1.0) -> void:
 		flags.erase(key)
 	if not drop.is_empty():
 		Game.mark_dirty()
+	collect_consignments(t)
 
 
 ## The keys of bought lots kept in the flags now (tests).

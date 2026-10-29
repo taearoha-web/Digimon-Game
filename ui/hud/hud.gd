@@ -19,11 +19,15 @@ signal world_tapped(position: Vector2)
 signal interact_pressed()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
-const SKILL_SPACING := 94.0
+const SKILL_SPACING := 82.0
 const SKILL_ROW_Y := -68.0
 const ATTACK_RADIUS := 62.0
 ## Room the world chat leaves before the first skill slot's centre.
-const SKILL_SLOT_CLEAR := 64.0
+const SKILL_SLOT_CLEAR := 44.0
+## The skill slots' radius (smaller medallions leave the world chat room).
+const SKILL_RADIUS := 32.0
+## The last skill slot's centre from the frame's right edge (clear of the attack button).
+const SKILL_ROW_RIGHT := -194.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
@@ -61,6 +65,10 @@ var _boss_panel: PanelContainer
 var _timers: TimerBars
 var _tracker: Label
 var _tracker_timer := 0.0
+## World event chip under the tracker (WorldEvents.describe), refreshed once a second.
+var _event_chip: PanelContainer
+var _event_label: Label
+var _event_in := 0.0
 var _boss_name: Label
 var _boss_bar: ProgressBar
 var _target_name: Label
@@ -252,6 +260,11 @@ func _process(delta: float) -> void:
 		_update_timers(_timer_elapsed)
 		_timer_elapsed = 0.0
 	_update_tracker(delta)
+	_event_in -= delta
+	if _event_in <= 0.0:
+		_event_in = 1.0
+		_event_label.text = WorldEvents.describe(WorldPresence.clock())
+		_event_chip.visible = _event_label.text != ""
 
 
 func _refresh() -> void:
@@ -399,6 +412,29 @@ func _build_tracker(frame: Control) -> void:
 	_tracker.add_theme_constant_override("outline_size", 6)
 	_tracker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	frame.add_child(_tracker)
+	_event_chip = PanelContainer.new()
+	_event_chip.anchor_left = 1.0
+	_event_chip.anchor_right = 1.0
+	_event_chip.offset_left = -130
+	_event_chip.offset_right = -130
+	_event_chip.offset_top = 314
+	_event_chip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_event_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.12, 0.2, 0.72)
+	style.set_corner_radius_all(14)
+	style.set_border_width_all(2)
+	style.border_color = Color(UIPalette.GOLD, 0.7)
+	style.set_content_margin_all(6)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	_event_chip.add_theme_stylebox_override("panel", style)
+	_event_label = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	_event_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_event_label.add_theme_color_override("font_color", UIPalette.GOLD)
+	_event_chip.add_child(_event_label)
+	_event_chip.visible = false
+	frame.add_child(_event_chip)
 
 
 func _build_boss_bar(frame: Control) -> void:
@@ -926,7 +962,7 @@ static func action_layout(canvas_size: Vector2) -> Dictionary:
 	var spacing := clampf((canvas_size.x - 550.0) / float(ClassData.SLOTS - 1), 80.0, SKILL_SPACING)
 	var centers: Array[Vector2] = []
 	for i in ClassData.SLOTS:
-		centers.append(Vector2(-200.0 - (ClassData.SLOTS - 1 - i) * spacing, SKILL_ROW_Y))
+		centers.append(Vector2(SKILL_ROW_RIGHT - (ClassData.SLOTS - 1 - i) * spacing, SKILL_ROW_Y))
 	var utility: Array[Vector2] = []
 	# Keep the top potion below the minimap, including a phone's safe insets.
 	var utility_spacing := clampf((canvas_size.y - 466.0) / 3.0, 62.0, 72.0)
@@ -941,6 +977,7 @@ func _layout_actions() -> void:
 	var positions := action_layout(_frame.size)
 	for i in skill_slots.size():
 		var slot := skill_slots[i]
+		slot.radius = SKILL_RADIUS
 		slot.name_width = minf(86.0, positions.skill_spacing - 6.0)
 		slot.queue_redraw()
 		_place_corner(slot, positions.skills[i] + Vector2.ONE * slot.radius, slot.radius)
@@ -958,11 +995,15 @@ func _layout_actions() -> void:
 	# whatever the screen's width (a narrow screen gets a narrower chat).
 	if world_chat != null:
 		var first: Vector2 = positions.skills[0]
-		var after_stick := joystick.rest_offset.x + joystick.base_radius + 24.0 if joystick != null else 250.0
+		# Just past the joystick's ring, which is placed on the screen while the chat
+		# lives in the safe-area frame.
+		var after_stick := 250.0
+		if joystick != null:
+			after_stick = joystick.global_position.x + joystick.rest_offset.x + joystick.base_radius + 24.0 - _frame.global_position.x
 		world_chat.offset_left = after_stick
 		world_chat.offset_right = maxf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, after_stick + 160.0)
-		world_chat.custom_minimum_size = Vector2.ZERO
-		world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, 0.0)
+		world_chat.custom_minimum_size = Vector2(0.0, WorldChat.HEIGHT)
+		world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, WorldChat.HEIGHT)
 
 
 func _place_corner(control: Control, offset_from_corner: Vector2, r: float) -> void:

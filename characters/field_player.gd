@@ -52,6 +52,15 @@ const ERRAND_TAGS := {"quest": "ส่งเควส", "enhance": "ตีบว
 const ERRAND_LEAVE := 20.0
 var _bubble: Label3D
 var _sits := false
+## In the party, told to wait ("รอตรงนี้", PartyTalk.command): where it holds until the
+## hero gets HOLD_LEASH away or calls it ("ตามมา").
+var hold_at := Vector3.INF
+const HOLD_LEASH := 28.0
+## In the village, the hero standing this close to a villager and still: the members
+## gather GATHER_BACK behind the hero (each a step aside) instead of beside.
+const GATHER_NEAR := 3.0
+const GATHER_BACK := 2.2
+const GATHER_SIDE := [-0.9, 0.9, -1.8, 1.8]
 
 
 func setup_world(p_index: int, p_member: Dictionary, p_hero: Hero, p_zone: Zone) -> void:
@@ -72,6 +81,8 @@ func _ready() -> void:
 	# Some stall keepers sit by their wares (the AFK ones doze).
 	_sits = hash("sit|%s" % member.name) % 3 == 0
 	_pick_camp()
+	if party_mode:
+		PartyTalk.attach(zone)
 
 
 func _visual_look() -> Dictionary:
@@ -209,12 +220,14 @@ func join_party(m: Dictionary, k: int) -> void:
 	visual.set_far(false)
 	refresh()
 	_label.text = _level_text()
+	PartyTalk.attach(zone)
 
 
 ## Leaves the party but stays in the game: back to hunting a camp of its own.
 func leave_party() -> void:
 	party_mode = false
 	target = null
+	hold_at = Vector3.INF
 	member = member.duplicate()
 	remove_from_group("companions")
 	add_to_group("world_players")
@@ -503,7 +516,7 @@ func _pick_target() -> Mob:
 ## backing off, it runs towards the field's entrance.
 func _follow(delta: float) -> Vector3:
 	if party_mode:
-		return super._follow(delta)
+		return _party_follow(delta)
 	if _fleeing() and zone != null:
 		var away := _flat(zone.entrance() - global_position)
 		if away.length() > 2.0:
@@ -551,3 +564,45 @@ func _follow(delta: float) -> Vector3:
 	_face(to, delta, 10.0)
 	var speed := float(stats.speed) * (1.0 if to.length() > 4.0 else 0.6)
 	return to.normalized() * minf(speed, to.length() * 4.0)
+
+
+## Walking with the hero: holds where it was told to wait until the hero gets far or calls
+## it; in the village, while the hero stands talking to a villager, it gathers behind the
+## hero facing the villager; otherwise its usual spot beside the hero (Companion).
+func _party_follow(delta: float) -> Vector3:
+	if hold_at.is_finite():
+		if _flat(hero.global_position - hold_at).length() > HOLD_LEASH:
+			hold_at = Vector3.INF
+		else:
+			return _walk_to(hold_at, delta, 0.8)
+	var npc := _hero_villager()
+	if npc != null:
+		var back := _flat(hero.global_position - npc.global_position)
+		back = back.normalized() if back.length() > 0.01 else Vector3.BACK
+		var side := back.rotated(Vector3.UP, PI * 0.5)
+		var spot := hero.global_position + back * GATHER_BACK + side * float(GATHER_SIDE[index % GATHER_SIDE.size()])
+		if _flat(spot - global_position).length() < 0.6:
+			_face(_flat(npc.global_position - global_position), delta, 6.0)
+			return Vector3.ZERO
+		return _walk_to(spot, delta, 0.9)
+	return super._follow(delta)
+
+
+## The villager the hero stands still in front of (Zone.current_interact), or null.
+func _hero_villager() -> Npc:
+	if zone == null or not is_instance_valid(zone) or not zone.is_town or hero.is_dead():
+		return null
+	var npc := zone.current_interact.get("npc") as Npc
+	if npc == null or not is_instance_valid(npc):
+		return null
+	if _flat(npc.global_position - hero.global_position).length() > GATHER_NEAR or _flat(hero.velocity).length() > 0.4:
+		return null
+	return npc
+
+
+func _walk_to(spot: Vector3, delta: float, rate: float) -> Vector3:
+	var to := _flat(spot - global_position)
+	if to.length() < 0.6:
+		return Vector3.ZERO
+	_face(to, delta, 10.0)
+	return to.normalized() * minf(float(stats.speed) * rate, to.length() * 4.0)

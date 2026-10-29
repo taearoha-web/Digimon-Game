@@ -92,6 +92,8 @@ var _camps: Array[Dictionary] = []
 var _boss: Mob
 var _boss_timer := 8.0
 var _boss_spot := Vector3.ZERO
+## The world boss of the day (WorldEvents), while its window is on in this field.
+var _wboss: Mob
 var _portal_hold := 0.0
 var _interact_timer := 0.0
 var _start := Vector3.ZERO
@@ -265,6 +267,7 @@ func _process(delta: float) -> void:
 		_spawn_timer = SPAWN_INTERVAL
 		for camp in _camps:
 			_refill_camp(camp)
+		_tick_world_boss()
 	_tick_boss(delta)
 	if bool(data.get("arena", false)):
 		_arena_tick(delta)
@@ -951,6 +954,46 @@ func _tick_boss(delta: float) -> void:
 	Game.say("บอส %s ปรากฏตัวแล้ว!" % MonsterData.get_monster(info.monster).name, &"warning")
 
 
+## The world boss (WorldEvents.boss_now): in its window, in the field of the day, the
+## field's own boss once more at BOSS_HP_SCALE HP beside the boss spot, named บอสโลก.
+## Spawned once a window: defeated, the day's flag (WorldEvents.flag_key) keeps it down.
+func _tick_world_boss() -> void:
+	if not data.has("boss") or bool(data.get("arena", false)) or not Game.has_profile:
+		return
+	if _wboss != null and is_instance_valid(_wboss) and not _wboss.is_dead():
+		return
+	var event := WorldEvents.boss_now(WorldPresence.clock())
+	if event.is_empty() or StringName(event.zone) != zone_id or Game.profile.flags.has(WorldEvents.flag_key(int(event.day))):
+		return
+	if int(Game.paragon().level) < int(data.boss.get("star", 0)):
+		return
+	var info: Dictionary = data.boss
+	var mob := Mob.new()
+	mob.setup(info.monster, int(info.level), _boss_spot, hero)
+	mob.template = mob.template.duplicate()
+	mob.template["name"] = "%s %s" % [WorldEvents.NAME_BOSS, String(mob.template.name)]
+	mob.max_hp = int(float(mob.max_hp) * WorldEvents.BOSS_HP_SCALE)
+	mob.hp = mob.max_hp
+	mob.set_meta("world_boss", int(event.day))
+	mob.position = _boss_spot + Vector3(4.0, 0.3, 2.0)
+	add_child(mob)
+	_wboss = mob
+	banner_requested.emit("%s ปรากฏตัวแล้ว!" % String(mob.template.name))
+	Game.say("%s ปรากฏตัวแล้ว!" % String(mob.template.name), &"warning")
+
+
+## The world boss is down: the day's window is spent; the hero that fought it is paid.
+func _on_world_boss_died(mob: Mob) -> void:
+	Game.profile.flags[WorldEvents.flag_key(int(mob.get_meta("world_boss", 0)))] = 1
+	Game.mark_dirty()
+	if mob.party_share() <= 0.0:
+		return
+	var gold := WorldEvents.BOSS_GOLD_PER_10 * maxi(1, int(Game.profile.level) / 10)
+	Game.add_gold(gold)
+	banner_requested.emit("ปราบบอสโลกแล้ว! +%d เหรียญ" % gold)
+	Game.say("ปราบบอสโลกแล้ว! ได้รับ %d เหรียญ" % gold, &"info")
+
+
 ## Phase 1 and 2 of a boss: a handful of the field's monsters join the fight.
 func _on_boss_phase(boss: Mob, _phase: int) -> void:
 	var ids: Array = []
@@ -976,6 +1019,8 @@ func _on_mob_died(mob: Mob) -> void:
 		return
 	if is_instance_valid(hero) and hero.target == mob:
 		hero.set_target(null)
+	if mob == _wboss:
+		_on_world_boss_died(mob)
 	# A world player's kill is its own: the hero earns EXP by its share of the damage,
 	# and the kill (loot, quests) only when it dealt most of it.
 	var share := mob.party_share()
@@ -995,7 +1040,8 @@ func _on_mob_died(mob: Mob) -> void:
 
 func _drop_loot(mob: Mob) -> void:
 	var from := mob.global_position
-	var gold: int = int(mob.stats.gold * rng.randf_range(0.7, 1.4))
+	# Weekend gold bonus (WorldEvents) on every kill's drop.
+	var gold: int = int(mob.stats.gold * rng.randf_range(0.7, 1.4) * WorldEvents.gold_multiplier(WorldPresence.clock()))
 	_spawn_loot({}, gold, from)
 	_drop_jewels(from)
 	var boss := mob.is_boss

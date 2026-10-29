@@ -25,6 +25,8 @@ var _hint: Label
 var _play: Button
 var _create: Button
 var _delete: Button
+var _backup: Button
+var _backup_screen: BackupScreen
 var _panel: PanelContainer
 var _building := false
 
@@ -120,6 +122,10 @@ func _build_panel(frame: Control) -> void:
 	_hint.clip_text = true
 	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(_hint)
+	_backup = UIUtil.button("สำรอง/กู้คืน", &"GhostButton", Vector2(150, 64))
+	_backup.name = "BackupButton"
+	_backup.pressed.connect(_on_backup)
+	row.add_child(_backup)
 	_delete = UIUtil.button("ลบ", &"GhostButton", Vector2(96, 64))
 	_delete.pressed.connect(_on_delete)
 	row.add_child(_delete)
@@ -338,3 +344,24 @@ func _on_delete() -> void:
 		stage.select(_selected)
 	_style_plates()
 	_refresh()
+
+
+## The device's save backups (SaveBackup); a restore puts the heroes back on their circles.
+func _on_backup() -> void:
+	if _backup_screen == null:
+		_backup_screen = BackupScreen.new()
+		_backup_screen.name = "BackupScreen"
+		add_child(_backup_screen)
+		_backup_screen.restored.connect(_reload_heroes)
+	_backup_screen.open_screen()
+
+
+func _reload_heroes() -> void:
+	for slot in stage.heroes.keys():
+		stage.remove_hero(int(slot), false)
+	for slot in _plates:
+		(_plates[slot] as Node).queue_free()
+	_plates.clear()
+	_read_slots()
+	_refresh()
+	await _build_heroes()

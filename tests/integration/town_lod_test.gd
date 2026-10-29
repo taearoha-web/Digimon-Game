@@ -104,6 +104,43 @@ func _ready() -> void:
 			if (mi as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
 				shadowed += 1
 		check(shadowed == 0, "%s far away casts no shadow (%d meshes do)" % [p.member.name, shadowed])
+	# On a phone a far player also loses its small decoration (hair accessory, rune rings,
+	# halo) and the enhancement glow overlays on its meshes; both come back when it is near.
+	MemoryGuard.phone_override = 1
+	var decorated := 0
+	for p in far:
+		if p.party_mode or p.target != null:
+			continue
+		p.visual.set_far(false)
+		var decor: Array = p.visual._body_nodes.filter(func(n): return is_instance_valid(n) and bool(n.get_meta("far_decor", false)))
+		var overlays := 0
+		for mi in p.visual.find_children("*", "MeshInstance3D", true, false):
+			overlays += 1 if (mi as MeshInstance3D).material_overlay != null else 0
+		p.visual.set_far(true)
+		check(p.visual.far_light, "%s far away on a phone wears the cheap far state" % p.member.name)
+		for n in decor:
+			check(not (n as Node3D).visible, "%s far away on a phone hides its %s" % [p.member.name, n.name])
+		var left := 0
+		for mi in p.visual.find_children("*", "MeshInstance3D", true, false):
+			left += 1 if (mi as MeshInstance3D).material_overlay != null else 0
+		check(left == 0, "%s far away on a phone wears no glow overlay (%d of %d left)" % [p.member.name, left, overlays])
+		if not decor.is_empty() or overlays > 0:
+			decorated += 1
+		p.visual.set_far(false)
+		check(not p.visual.far_light and decor.all(func(n): return (n as Node3D).visible), "%s near again shows its decoration" % p.member.name)
+		var back := 0
+		for mi in p.visual.find_children("*", "MeshInstance3D", true, false):
+			back += 1 if (mi as MeshInstance3D).material_overlay != null else 0
+		check(back == overlays, "%s near again wears its glow overlays (%d of %d)" % [p.member.name, back, overlays])
+		p.visual.set_far(true)
+	print("town_lod_test: %d of %d far players carried decoration or glow to drop" % [decorated, far.size()])
+	MemoryGuard.phone_override = -1
+	for p in far:
+		if not (p.party_mode or p.target != null):
+			p.visual.set_far(false)
+			p.visual.set_far(true)
+			check(not p.visual.far_light, "%s far away on a desktop keeps its decoration" % p.member.name)
+			break
 	for p in near:
 		if p.visual.anim_lod == 1:
 			var shadowed := 0

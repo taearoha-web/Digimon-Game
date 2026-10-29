@@ -1058,9 +1058,22 @@ func _build_settings() -> void:
 			GameSettings.quality = i
 			GameSettings.save_settings()
 			GameSettings.apply_live(get_tree())
-			Game.say("ตั้งคุณภาพ: %s (ต้นไม้และหญ้าจะเปลี่ยนเมื่อเข้าแมพใหม่)" % GameSettings.QUALITY_NAMES[i], &"info")
+			MemoryGuard.reset_scale_3d(get_tree())
+			Game.say("ตั้งคุณภาพ: %s (ต้นไม้และหญ้าจะเปลี่ยนเมื่อเข้าแมพใหม่)" % GameSettings.quality_name(), &"info")
 			_rebuild())
 		q_line.add_child(qb)
+	if GameSettings.quality >= 2:
+		# High comes in two modes: sharp (the 3D scale stays at 1.0) or smooth (on a phone
+		# the 3D scale follows the frame rate like medium does; the HUD stays crisp).
+		var smooth := CheckButton.new()
+		smooth.text = "สูง (ลื่น): ลดความละเอียด 3D อัตโนมัติเมื่อเฟรมตก (ปิด = สูง (คมชัด))"
+		smooth.button_pressed = GameSettings.high_smooth
+		smooth.toggled.connect(func(on: bool):
+			GameSettings.high_smooth = on
+			GameSettings.save_settings()
+			MemoryGuard.reset_scale_3d(get_tree())
+			Game.say("คุณภาพ: %s" % GameSettings.quality_name(), &"info"))
+		box.add_child(smooth)
 	var others := CheckButton.new()
 	others.text = "แสดงผู้เล่นคนอื่น (AI) ในแมพ"
 	others.button_pressed = GameSettings.show_world_players
