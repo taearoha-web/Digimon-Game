@@ -108,6 +108,13 @@
       return;
     }
     const category = errorCategory(message), issue = safeIssue(message);
+    // A shader that failed to compile is named in the engine's own message (the shader's
+    // name and the GLSL line): keep the first few such lines, nothing else.
+    if ((issue === 'shader_error' || issue === 'graphics_error') && current) {
+      const line = message.replace(/\s+/g, ' ').replace(/[^\x20-\x7E]/g, '?').slice(0, 220);
+      current.graphicsErrors = current.graphicsErrors || [];
+      if (current.graphicsErrors.length < 8 && !current.graphicsErrors.includes(line)) current.graphicsErrors.push(line);
+    }
     if (category === 'engine_warning') current.warningCount = (current.warningCount || 0) + 1;
     else { current.lastErrorCategory = category; current.errorCount = (current.errorCount || 0) + 1; }
     const last = current.events.at(-1);
@@ -152,10 +159,32 @@
   // Pasted reports get cut short by chat apps, so the facts that explain an
   // interruption come first: how it ended, its errors, and its last minutes.
   const mb = (bytes) => Number.isFinite(bytes) ? Math.round(bytes / 1048576) + 'M' : '-';
+  // The device's WebGL limits and renderer name (a flat 3D world on one phone and not
+  // another is often a limit the scene shader runs into there).
+  function webglFacts() {
+    try {
+      const probe = document.createElement('canvas');
+      const gl = probe.getContext('webgl2');
+      if (!gl) return { webgl2: false };
+      const info = gl.getExtension('WEBGL_debug_renderer_info');
+      const facts = { webgl2: true,
+        renderer: String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).slice(0, 80),
+        maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE), maxTextureUnits: gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS),
+        maxVertexTextureUnits: gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS),
+        maxVaryings: gl.getParameter(gl.MAX_VARYING_VECTORS), maxVertexUniforms: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+        maxFragmentUniforms: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS), maxUniformBlockSize: gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE),
+        maxSamples: gl.getParameter(gl.MAX_SAMPLES), maxRenderbufferSize: gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+        floatColorBuffer: !!gl.getExtension('EXT_color_buffer_float'), floatLinear: !!gl.getExtension('OES_texture_float_linear') };
+      const lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      return facts;
+    } catch (_) { return { webgl2: null }; }
+  }
   function summary(record) {
     if (!record) return null;
     const last = record.samples.at(-1), first = record.samples[0];
     return { version: record.version, ios: record.ios, standalone: record.standalone, status: record.status,
+      webgl: record.webgl || null, graphicsErrors: record.graphicsErrors || [],
       seconds: Math.round((record.lastSeenAt - record.startedAt) / 1000),
       errorCount: record.errorCount || 0, warningCount: record.warningCount || 0, lastErrorCategory: record.lastErrorCategory || null,
       contextLost: record.contextLost === true, events: record.events,
@@ -209,7 +238,8 @@
       const navigation = window.performance?.getEntriesByType?.('navigation')?.[0]?.type;
       if (['navigate', 'reload', 'back_forward'].includes(navigation)) current.navigationType = navigation;
       current.wasDiscarded = document.wasDiscarded === true;
-      current.diagnostics = 2;
+      current.diagnostics = 3;
+      current.webgl = webglFacts();
       event('started'); snapshot(); timer = setInterval(snapshot, 30000); keepAwake();
       if (window.requestAnimationFrame) raf = window.requestAnimationFrame(frame);
     },
