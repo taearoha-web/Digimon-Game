@@ -14,10 +14,13 @@ static var combat_hitstop := true
 ## stalls or lantern glow in the zones, so a phone whose world came out as one flat colour
 ## shows the plain world again. Saved with the settings; the player switches it off.
 static var safe_picture := false
-## The world players (AI) walking in the zones. Off by default while the grey village on
-## iPhone is chased down: the world chat, the online count, the registry, parties and
-## guild wars still use them; only their bodies in the zones are left out.
-static var show_world_players := false
+## The world players (AI) walking in the zones (settings: switch them off to leave only
+## their bodies out; the world chat, the online count, parties and guild wars stay).
+static var show_world_players := true
+## Settings files older than REV were written while the grey village was chased down
+## (the web build's threaded cull, fixed in project.godot): their hidden world players
+## and the watchdog's safe picture came from that bug, so they are not carried over.
+const REV := 2
 static var _loaded := false
 
 
@@ -41,9 +44,11 @@ static func load_settings() -> void:
 					camera_speed = clampf(float(saved_speed), 0.4, 2.5)
 			if parsed.get("combat_hitstop") is bool:
 				combat_hitstop = parsed.combat_hitstop
-			if parsed.get("safe_picture") is bool:
+			var rev: Variant = parsed.get("rev", 1)
+			var current := (rev is int or rev is float) and is_finite(float(rev)) and int(rev) >= REV
+			if current and parsed.get("safe_picture") is bool:
 				safe_picture = parsed.safe_picture
-			if parsed.get("show_world_players") is bool:
+			if current and parsed.get("show_world_players") is bool:
 				show_world_players = parsed.show_world_players
 	if quality < 0:
 		# First run: phones and browsers get the lighter setting.
@@ -54,7 +59,7 @@ static func load_settings() -> void:
 static func save_settings() -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "safe_picture": safe_picture, "show_world_players": show_world_players}))
+		file.store_string(JSON.stringify({"rev": REV, "quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "safe_picture": safe_picture, "show_world_players": show_world_players}))
 
 
 static func view_scale() -> float:

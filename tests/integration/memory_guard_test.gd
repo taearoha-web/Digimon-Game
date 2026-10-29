@@ -144,6 +144,24 @@ func _ready() -> void:
 		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
 	check(RenderWatchdog.rebuilds == 1, "and rebuilds the zone only once")
 	GameSettings.safe_picture = safe_before
+	# Settings written before the grey-village fix (no "rev") drop their hidden world
+	# players and the watchdog's safe picture; a current file keeps the player's choice.
+	var show_before := GameSettings.show_world_players
+	var old_file := FileAccess.open(GameSettings.PATH, FileAccess.WRITE)
+	old_file.store_string(JSON.stringify({"quality": 2, "safe_picture": true, "show_world_players": false}))
+	old_file.close()
+	GameSettings._loaded = false
+	GameSettings.load_settings()
+	check(GameSettings.show_world_players and not GameSettings.safe_picture, "an old settings file shows the world players again and leaves the safe picture (show %s, safe %s)" % [GameSettings.show_world_players, GameSettings.safe_picture])
+	GameSettings.show_world_players = false
+	GameSettings.save_settings()
+	GameSettings.show_world_players = true
+	GameSettings._loaded = false
+	GameSettings.load_settings()
+	check(not GameSettings.show_world_players, "a current settings file keeps the world players switched off")
+	GameSettings.show_world_players = show_before
+	GameSettings.safe_picture = safe_before
+	GameSettings.quality = 2
 	GameSettings.save_settings()
 	RenderWatchdog.rebuild_override = false
 	RenderWatchdog.spread_override = -1.0
