@@ -46,12 +46,13 @@ check(b.button.hidden && !storage.size, 'opening the loader does not overwrite p
 b.window.toonSession.begin('0.7.8', () => 512 * 1048576);
 await settle();
 check(b.requests() === 1, 'a supported screen wake lock is requested while playing');
-b.window.toonSession.sample({ staticBytes: 100000, auto: true, audioStreamMode: true, soundPlayRequests: 1000, pressure: 1, pressureRaises: 2, heapMB: 199.25, zone: 'meadow', class: 'mage', username: 'secret-user', password: 'secret-password', inv: ['secret-item'] });
+b.window.toonSession.sample({ staticBytes: 100000, auto: true, audioStreamMode: true, soundPlayRequests: 1000, pressure: 1, pressureRaises: 2, heapMB: 199.25, starvedFrames: 3, camOwn: 0, camPitch: -12.5, zone: 'meadow', class: 'mage', username: 'secret-user', password: 'secret-password', inv: ['secret-item'] });
 for (let i = 0; i < 400; i++) b.tick();
 let record = JSON.parse(storage.get('toon_session_v1'));
 check(record.samples.length === 60 && record.samples.at(-1).seconds === 12000, 'hours of play retain only sixty recent samples');
 check(record.samples.at(-1).wasmBytes === 512 * 1048576 && record.samples.at(-1).auto && record.samples.at(-1).audioStreamMode && record.samples.at(-1).soundPlayRequests === 1000, 'heap, auto-hunt and observed audio-mode metrics persist');
 check(record.samples.at(-1).pressure === 1 && record.samples.at(-1).pressureRaises === 2 && record.samples.at(-1).heapMB === 199.25, 'the memory guard level, its raises and heap reading reach the report');
+check(record.samples.at(-1).starvedFrames === 3 && record.samples.at(-1).camOwn === 0 && record.samples.at(-1).camPitch === -12.5, 'the flat-screen watchdog and the drawing camera reach the report');
 check(!JSON.stringify(record).includes('secret'), 'account/save fields never enter the report');
 check(storage.get('toon_session_v1').length <= 24000, 'the persisted diagnostic record has a fixed size budget');
 b.visibility('hidden'); await settle();
