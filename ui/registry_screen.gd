@@ -77,11 +77,13 @@ func _process(delta: float) -> void:
 		_build()
 
 
-## Everyone in the registry at time t: the hero first as a row like the others.
+## Everyone in the registry at time t (newcomers from the day they join): the hero first
+## as a row like the others.
 static func rows(t: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for i in WorldPlayers.size():
-		out.append(WorldPlayers.state(i, t))
+		if t >= WorldPlayers.joined_at(i):
+			out.append(WorldPlayers.state(i, t))
 	if Game.has_profile:
 		out.append({"index": -1, "name": String(Game.profile.get("name", "คุณ")), "class": Game.class_id(), "guild": Game.guild(),
 			"level": int(Game.profile.level), "stars": int(Game.paragon().level), "online": true, "place": String(Game.current_zone), "you": true})

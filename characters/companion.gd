@@ -342,7 +342,12 @@ func _physics_process(delta: float) -> void:
 	if speed > 0.6:
 		visual.play("Running_A", 0.12, clampf(speed / 5.4, 0.8, 1.5))
 	else:
-		visual.play("Idle")
+		visual.play(_rest_anim())
+
+
+## The clip it stands still in (a stall keeper may sit).
+func _rest_anim() -> String:
+	return "Idle"
 
 
 func _pick_target() -> Mob:

@@ -26,6 +26,24 @@ const IZAKAYA := Vector3(33, 0, 10)
 const RING := Vector3(40, 0, 25)
 const ELDER_HOUSE := Vector3(-17, 0, -26)
 const POND := Vector3(-30, 0, 30)
+## Where world players keep their stalls (WorldPresence): round the plaza between its
+## lanterns and flower beds, and along the main street; each faces the street.
+const STALLS: Array[Vector3] = [
+	Vector3(9.4, 0, 3.4), Vector3(3.4, 0, 9.4), Vector3(-3.4, 0, 9.4), Vector3(-9.4, 0, 3.4),
+	Vector3(-9.4, 0, -3.4), Vector3(-3.4, 0, -9.4), Vector3(3.4, 0, -9.4), Vector3(9.4, 0, -3.4),
+	Vector3(-15.0, 0, 3.4), Vector3(-15.0, 0, -3.4), Vector3(-21.0, 0, 3.4), Vector3(-34.0, 0, -3.4),
+	Vector3(14.0, 0, 3.4), Vector3(14.0, 0, -3.4), Vector3(26.5, 0, 3.4), Vector3(-34.0, 0, 3.4),
+	Vector3(3.4, 0, 16.0), Vector3(-3.4, 0, 16.0), Vector3(3.4, 0, -16.0), Vector3(-3.4, 0, -16.0),
+]
+
+
+## The way a stall at `spot` faces: the plaza's centre, or across the street.
+static func stall_face(spot: Vector3) -> Vector3:
+	if Vector2(spot.x, spot.z).length() < PLAZA_RADIUS:
+		return -Vector3(spot.x, 0, spot.z).normalized()
+	if absf(spot.z) < absf(spot.x):
+		return Vector3(0, 0, -signf(spot.z))
+	return Vector3(-signf(spot.x), 0, 0)
 
 ## Main streets (for the ground paths).
 static func paths() -> Array[PackedVector2Array]:

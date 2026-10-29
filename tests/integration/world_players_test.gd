@@ -1,5 +1,5 @@
 extends Node
-## The world players: fifty fixed people in two guilds whose progress follows their daily
+## The world players: fixed people in two guilds (and some in none) whose progress follows their daily
 ## schedules (the same at a given time on every device) from Lv.1 to ★200, wearing what
 ## they found; the online ones hunt for real in the field that fits them, their kills are
 ## their own; the hero walks up to one, taps it and asks it into the party (three people,
@@ -34,12 +34,14 @@ func _ready() -> void:
 
 
 func _roster() -> void:
-	check(WorldPlayers.size() == 58, "fifty-eight world players")
+	check(WorldPlayers.size() >= 140, "a busy world: %d world players" % WorldPlayers.size())
 	var names := {}
 	var classes := {}
+	var sizes := []
 	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
 		var members := WorldPlayers.members(g)
-		check(members.size() == 29, "%s has 29 members" % WorldPlayers.guild_name(g))
+		sizes.append(members.size())
+		check(members.size() >= 29, "%s has %d members" % [WorldPlayers.guild_name(g), members.size()])
 		var support := false
 		for i in members:
 			support = support or GuildWarData.is_support(StringName(WorldPlayers.entry(i)["class"]))
@@ -51,7 +53,8 @@ func _roster() -> void:
 		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
 		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
 		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
-	check(names.size() == 58, "every name is different")
+	check(abs(int(sizes[0]) - int(sizes[1])) <= 2, "the guilds are about as big (%s)" % [sizes])
+	check(names.size() == WorldPlayers.size(), "every name is different")
 	check(classes.size() == ClassData.IDS.size(), "every class is played")
 	check(WorldPlayers.guild_name(WorldPlayers.ALPHA) == "Alpha" and WorldPlayers.guild_name(WorldPlayers.NEVERDIE) == "Neverdie", "the guilds are Alpha and Neverdie")
 
@@ -62,7 +65,8 @@ func _progress() -> void:
 	for i in WorldPlayers.size():
 		var e := WorldPlayers.entry(i)
 		var before := WorldPlayers.state(i, start - 3600.0)
-		check(int(before.level) == 1 and int(before.stars) == 0 and not bool(before.online), "%s: Lv.1 and offline before the world opens" % e.name)
+		var vet := e.has("vet")
+		check((vet or (int(before.level) == 1 and int(before.stars) == 0)) and not bool(before.online), "%s: Lv.1 (a veteran at its old level) and offline before the world opens" % e.name)
 		check(WorldPlayers.state(i, start + 3.3 * day) == WorldPlayers.state(i, start + 3.3 * day), "%s: the same state for the same moment" % e.name)
 		var last_level := 1
 		var last_stars := 0
@@ -86,18 +90,19 @@ func _progress() -> void:
 		var end := WorldPlayers.state(i, start + 200.0 * day)
 		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
 		var early := WorldPlayers.state(i, start + 0.5 * day)
-		check(int(early.level) < 100, "%s: no Lv.100 in the first twelve hours (%d)" % [e.name, int(early.level)])
+		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first twelve hours (%d)" % [e.name, int(early.level)])
+		# Hours a week: world_town_test checks every style, stall keepers and newcomers too.
 		var week := WorldPlayers.played_minutes(i, start + 28.0 * day) / 60.0 / 4.0
-		check(week > 5.0 and week < 70.0, "%s: plays %.0f hours a week" % [e.name, week])
-		if String(e.style) == "hardcore":
+		check(WorldPlayers.in_town_style(i) or e.has("join") or (week > 5.0 and week < 70.0), "%s: plays %.0f hours a week" % [e.name, week])
+		if String(e.style) == "hardcore" and not e.has("join"):
 			check(int(WorldPlayers.state(i, start + 21.0 * day).stars) == 200, "%s: a hardcore player reaches ★200 within three weeks" % e.name)
 	check(int(WorldPlayers.progress_for(0.0, 0.3).level) == 1, "no play, Lv.1")
 	var full := WorldPlayers.progress_for(1e9, 0.3)
 	check(int(full.level) == 100 and int(full.stars) == 200 and bool(full.divine), "endless play stops at ★200 with the divine set")
-	# Evenings are busy: someone is always on at 21:00 Thai time.
+	# Evenings are busy: someone is always on at 21:00 Thai time on the world's clock.
 	var busy := true
 	for d in range(1, 30):
-		var at: float = (floor((start + WorldPlayers.TZ) / day) + float(d)) * day - WorldPlayers.TZ + 21.0 * 3600.0
+		var at := WorldPlayers.real_time((floor((WorldPlayers.world_time(start) + WorldPlayers.TZ) / day) + float(d)) * day - WorldPlayers.TZ + 21.0 * 3600.0)
 		var on := 0
 		for i in WorldPlayers.size():
 			on += 1 if bool(WorldPlayers.state(i, at).online) else 0
@@ -111,11 +116,15 @@ func _vagabonds() -> void:
 	# A freshly reopened world: everyone a beginner, a Vagabond, in no guild.
 	var fresh := true
 	for i in WorldPlayers.size():
+		if WorldPlayers.entry(i).has("vet"):
+			continue
 		var f := WorldPlayers.state(i, float(WorldPlayers.START_UNIX) + 60.0)
 		fresh = fresh and int(f.level) <= 3 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
-	check(fresh, "when the world opens everyone is a beginner Vagabond with no guild")
+	check(fresh, "when the world opens every new player is a beginner Vagabond with no guild")
 	for i in WorldPlayers.size():
 		var e := WorldPlayers.entry(i)
+		if e.has("vet") and int(e.vet) >= ClassData.LINE_LEVEL:
+			continue
 		var before := {}
 		var after := {}
 		var t := float(WorldPlayers.START_UNIX)
@@ -530,16 +539,15 @@ func _guild() -> void:
 			var want := int(WorldPlayers.entry(i).guild) if int(s.level) >= Game.GUILD_LEVEL else 0
 			joins_at_100 = joins_at_100 and int(s.guild) == want and int(s.joins) == int(WorldPlayers.entry(i).guild)
 	check(joins_at_100, "a world player is in its guild from Lv.100 on, in none before")
+	# The veterans are in their guilds from the opening (before it nobody is), so a war can
+	# be fought on the first day.
 	var opening := start + 0.4 * day
-	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "on the first day nobody is in a guild yet")
+	check(WorldPlayers.members_at(WorldPlayers.ALPHA, start - day).size() == WorldPlayers.members_at(WorldPlayers.ALPHA, start - day).filter(func(k): return WorldPlayers.entry(k).has("vet")).size(), "before the opening only veterans are in a guild")
 	var none_rng := RandomNumberGenerator.new()
-	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, opening).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) != "", "no rival members, no war")
-	# Early on the guilds are small: both sides field the same number.
-	var early := start + day
-	while WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size() < 2 or WorldPlayers.members_at(WorldPlayers.ALPHA, early).is_empty():
-		early += 3600.0
+	check(GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) == "", "the veterans' guilds can go to war on the first day")
+	var early := opening
 	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, early)
-	check(not few.is_empty() and few.ally.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, early).size() and few.enemy.size() == WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size(), "everyone in both guilds fights: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
+	check(not few.is_empty() and few.ally.size() == mini(GuildWarData.TEAM_SIZE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, early).size()) and few.enemy.size() == mini(GuildWarData.TEAM_SIZE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()), "both guilds field up to TEAM_SIZE: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
 	var all_100 := true
 	for f in few.ally + few.enemy:
 		all_100 = all_100 and int(f.member.level) >= Game.GUILD_LEVEL
@@ -548,7 +556,7 @@ func _guild() -> void:
 	rng.seed = 77
 	var t := float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0
 	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
-	check(m.ally.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, t).size() and m.enemy.size() == WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size() and m.enemy.size() > GuildWarData.TEAM_SIZE, "everyone in both guilds fights (%d and %d)" % [m.ally.size(), m.enemy.size()])
+	check(m.ally.size() == GuildWarData.TEAM_SIZE - 1 and m.enemy.size() == GuildWarData.TEAM_SIZE and WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size() > GuildWarData.TEAM_SIZE, "a full guild sends TEAM_SIZE (%d and %d)" % [m.ally.size(), m.enemy.size()])
 	check(m.ally_name == "Alpha" and m.enemy_name == "Neverdie", "Alpha against Neverdie")
 	var ok_sides := true
 	var online_first := true
@@ -611,7 +619,10 @@ func _screens() -> void:
 	main.registry.open_screen()
 	await get_tree().process_frame
 	var rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
-	check(rows == WorldPlayers.size() + 1 and main.registry.find_child("Row_you", true, false) != null, "the registry lists all %d players and the hero (%d rows)" % [WorldPlayers.size() + 1, rows])
+	var joined := WorldPlayers.size()
+	for i in WorldPlayers.size():
+		joined -= 0 if WorldPresence.clock() >= WorldPlayers.joined_at(i) else 1
+	check(rows == joined + 1 and main.registry.find_child("Row_you", true, false) != null, "the registry lists the %d players who have joined and the hero (%d rows)" % [joined, rows])
 	(main.registry.find_child("Filter_online", true, false) as Button).pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -640,8 +651,8 @@ func _screens() -> void:
 		var theirs := true
 		for f in war.enemies:
 			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.ALPHA
-		check(war.allies.size() == WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size() and ours, "our side is every Neverdie member (%d)" % war.allies.size())
-		check(war.enemies.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, float(war.started_at)).size() and theirs, "across stand every Alpha member (%d)" % war.enemies.size())
+		check(war.allies.size() == mini(GuildWarData.TEAM_SIZE - 1, WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size()) and ours, "our side is Neverdie's members (%d)" % war.allies.size())
+		check(war.enemies.size() == mini(GuildWarData.TEAM_SIZE, WorldPlayers.members_at(WorldPlayers.ALPHA, float(war.started_at)).size()) and theirs, "across stand Alpha's members (%d)" % war.enemies.size())
 		var real_levels := true
 		for f in war.allies + war.enemies:
 			var s := WorldPlayers.state(_index_of(String(f.member.name)), float(war.started_at))

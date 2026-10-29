@@ -34,6 +34,7 @@ func _ready() -> void:
 		float(rs.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED)) / 1e6,
 		float(rs.get_rendering_info(RenderingServer.RENDERING_INFO_BUFFER_MEM_USED)) / 1e6,
 		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	print("VRAM world players shown %d" % get_tree().get_nodes_in_group("world_players").size())
 	# Mesh buffers per top-level branch of the zone: instances, distinct meshes
 	# (shared geometry counts once) and the vertex + index bytes those hold.
 	var all_meshes := {}

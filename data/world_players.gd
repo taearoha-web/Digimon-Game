@@ -1,16 +1,20 @@
 class_name WorldPlayers
 extends RefCounted
-## The other players of the world: 58 people with fixed names, classes and guilds (29 go to
-## Alpha, 29 to Neverdie; each joins its guild on reaching Lv.100, like the hero must).
-## Nobody runs them on a server. Each keeps a daily play
-## schedule set by its play style (Thai time, the same on every device), and what it
-## has reached is the EXP a real player earns in the hours it played: the auto-hunt rates
+## The other players of the world: fixed people with names, classes and guilds (Alpha,
+## Neverdie, or none; each joins its guild on reaching Lv.100, like the hero must).
+## Nobody runs them on a server. Each keeps a daily play schedule set by its play style
+## (Thai time on the world's clock, which runs SPEED times faster than real time, so the
+## busy evening comes several times a real day), and what it has reached is the EXP a
+## real player earns in the real minutes it played: the auto-hunt rates
 ## tests/tools/pace_probe.gd measured in the real fields, times the player's own
-## efficiency (deaths, trips to town, slower hands than the probe's). So levels, stars,
-## whereabouts and who is online are the same for everyone at a given moment, from Lv.1
-## on the day the world opened up to Lv.100 ★200. While online a player stands in the
-## village at the start and end of a session and otherwise hunts in the field that fits
-## its level (WorldPresence shows it there, fighting the field's monsters for real).
+## efficiency (deaths, trips to town, slower hands than the probe's). Veterans start with
+## the progress they brought from the old world (vet), newcomers log in for the first
+## time some days after the opening (join), stall keepers stay in the village. So levels,
+## stars, whereabouts and who is online are the same for everyone at a given moment.
+## While online a player stands in the village at the start and end of a session and on
+## its trips back to sell, and otherwise hunts in the field that fits its level
+## (WorldPresence shows it there, fighting the field's monsters for real); with the divine
+## set complete it spends its sessions on the endgame (endgame_plan) and enhances the set.
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
 
 ## The world (re)opened here (unix seconds; 27 Oct 2026, 22:10 Thai time): every world
@@ -87,6 +91,99 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "เสียงพิณราตรี", "class": &"bard", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
 	{"name": "SongBird", "class": &"bard", "guild": ALPHA, "gender": 0, "style": "student"},
 	{"name": "นักพิณพเนจร", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	# Veterans (vet: where they already stood when the world reopened, see head_work):
+	# they came over from the old world, so the village has strong players from day one.
+	{"name": "Arthur_TH", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "hardcore", "vet": 300},
+	{"name": "เทพธิดาแห่งแสง", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "regular", "vet": 312},
+	{"name": "KingSlayer", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "hardcore", "vet": 250},
+	{"name": "หอกมังกรฟ้า", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "regular", "vet": 200},
+	{"name": "StarShooter", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "student", "vet": 180},
+	{"name": "Merlin99", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "night_owl", "vet": 330},
+	{"name": "เจ้าแห่งภูติ", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "weekend", "vet": 140},
+	{"name": "GoldenShield", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "daytime", "vet": 160},
+	{"name": "VoidEmperor", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "overseas", "vet": 230},
+	{"name": "พิณทองคำ", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "early", "vet": 120},
+	{"name": "Bloodmoon", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "vet": 315},
+	{"name": "เงามรณะ", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "night_owl", "vet": 280},
+	{"name": "SaintAria", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "regular", "vet": 220},
+	{"name": "Valkyr_X", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "daytime", "vet": 170},
+	{"name": "ธนูเพลิง", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "overseas", "vet": 300},
+	{"name": "ArcaneQueen", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "student", "vet": 190},
+	{"name": "Necro_K", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "weekend", "vet": 130},
+	{"name": "ป้อมเหล็ก", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "regular", "vet": 210},
+	{"name": "ShadowKing", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "vet": 260},
+	{"name": "EchoHarp", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "early", "vet": 110},
+	{"name": "MaxPower", "class": &"warrior", "guild": 0, "gender": 0, "style": "daytime", "vet": 35},
+	{"name": "ปลาทูทอด", "class": &"archer", "guild": 0, "gender": 1, "style": "casual", "vet": 48},
+	{"name": "Kitsune", "class": &"assassin", "guild": 0, "gender": 1, "style": "student", "vet": 62},
+	{"name": "Hikari", "class": &"priest", "guild": 0, "gender": 1, "style": "early", "vet": 75},
+	{"name": "หมูกระทะ", "class": &"mage", "guild": 0, "gender": 0, "style": "overseas", "vet": 88},
+	{"name": "SoloLancer", "class": &"lancer", "guild": 0, "gender": 0, "style": "regular", "vet": 95},
+	{"name": "ต้มยำกุ้ง", "class": &"defender", "guild": 0, "gender": 0, "style": "casual", "vet": 55},
+	{"name": "Ghostie", "class": &"summoner", "guild": 0, "gender": 1, "style": "night_owl", "vet": 42},
+	# Stall keepers and AFK players: they stay in the village the whole session.
+	{"name": "ร้านป้าแดง", "class": &"priest", "guild": 0, "gender": 1, "style": "afk", "vet": 150},
+	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "afk", "vet": 240},
+	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "afk", "vet": 200},
+	{"name": "Shop_Nana", "class": &"mage", "guild": 0, "gender": 1, "style": "afk", "vet": 120},
+	{"name": "ร้านเครื่องเงิน", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "afk", "vet": 180},
+	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "afk", "vet": 105},
+	{"name": "ตลาดนัดเวท", "class": &"summoner", "guild": 0, "gender": 1, "style": "afk", "vet": 90},
+	{"name": "นอนรอบอส", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "afk", "vet": 160},
+	{"name": "LuteSeller", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "afk", "vet": 130},
+	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "afk", "vet": 270},
+	{"name": "แม่ค้าออนไลน์", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "afk", "vet": 140},
+	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "afk", "vet": 70},
+	{"name": "PotionKing", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "afk", "vet": 110},
+	{"name": "ร้านลุงหมี", "class": &"defender", "guild": 0, "gender": 0, "style": "afk", "vet": 85},
+	{"name": "GemTrader", "class": &"assassin", "guild": 0, "gender": 1, "style": "afk", "vet": 175},
+	{"name": "ร้านพิณเสียงใส", "class": &"bard", "guild": NEVERDIE, "gender": 1, "style": "afk", "vet": 95},
+	{"name": "ScrollShop", "class": &"mage", "guild": 0, "gender": 0, "style": "afk", "vet": 125},
+	{"name": "ตาแก่นั่งตกปลา", "class": &"archer", "guild": 0, "gender": 0, "style": "afk", "vet": 60},
+	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "afk", "vet": 115},
+	{"name": "ร้านเกราะพี่โต", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "afk", "vet": 190},
+	{"name": "WingsForSale", "class": &"summoner", "guild": 0, "gender": 0, "style": "afk", "vet": 205},
+	{"name": "นอนเฝ้าร้าน", "class": &"lancer", "guild": 0, "gender": 1, "style": "afk", "vet": 80},
+	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "afk", "vet": 150},
+	{"name": "ร้านยาแม่มด", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "afk", "vet": 100},
+	{"name": "ShopKeeper_Bo", "class": &"defender", "guild": 0, "gender": 0, "style": "afk", "vet": 135},
+	{"name": "ร้านขนมป้าศรี", "class": &"bard", "guild": 0, "gender": 1, "style": "afk", "vet": 45},
+	# Fresh players who play in the daytime, in the early morning or from abroad.
+	{"name": "Mango", "class": &"archer", "guild": 0, "gender": 1, "style": "daytime"},
+	{"name": "ข้าวผัดกะเพรา", "class": &"warrior", "guild": 0, "gender": 0, "style": "early"},
+	{"name": "Sakura_TH", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "overseas"},
+	{"name": "Rocky", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "daytime"},
+	{"name": "นินจาน้อย", "class": &"assassin", "guild": 0, "gender": 0, "style": "overseas"},
+	{"name": "Aqua", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "early"},
+	{"name": "Leo_Lancer", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "daytime"},
+	{"name": "ภูติจิ๋ว", "class": &"summoner", "guild": NEVERDIE, "gender": 1, "style": "overseas"},
+	{"name": "Minnie", "class": &"bard", "guild": 0, "gender": 1, "style": "daytime"},
+	{"name": "Draco", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "early"},
+	{"name": "ชาไข่มุก", "class": &"archer", "guild": NEVERDIE, "gender": 1, "style": "daytime"},
+	{"name": "Pixel", "class": &"mage", "guild": 0, "gender": 0, "style": "overseas"},
+	{"name": "บอสใหญ่ทำงานที่บ้าน", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "daytime", "vet": 140},
+	{"name": "Coffee_Break", "class": &"archer", "guild": 0, "gender": 1, "style": "daytime", "vet": 30},
+	{"name": "แม่บ้านสายตี", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "daytime", "vet": 120},
+	{"name": "Freelancer_Ken", "class": &"lancer", "guild": 0, "gender": 0, "style": "daytime"},
+	{"name": "Tokyo_Thai", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "overseas", "vet": 105},
+	{"name": "ลุงตื่นตีห้า", "class": &"priest", "guild": 0, "gender": 0, "style": "early", "vet": 66},
+	{"name": "NightNurse", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "daytime", "vet": 150},
+	{"name": "เด็กมหาลัยว่างบ่าย", "class": &"bard", "guild": 0, "gender": 0, "style": "daytime"},
+	# Newcomers (join: real days after the opening) and second characters of old hands.
+	{"name": "NewbieTom", "class": &"warrior", "guild": 0, "gender": 0, "style": "casual", "join": 3},
+	{"name": "FirstTimer", "class": &"priest", "guild": 0, "gender": 1, "style": "student", "join": 5},
+	{"name": "Kaito_Bard", "class": &"bard", "guild": ALPHA, "gender": 0, "style": "hardcore", "join": 6},
+	{"name": "สมชายมาใหม่", "class": &"lancer", "guild": 0, "gender": 0, "style": "daytime", "join": 8},
+	{"name": "Zerox_Mage", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "join": 9},
+	{"name": "Lily_New", "class": &"summoner", "guild": 0, "gender": 1, "style": "early", "join": 11},
+	{"name": "น้องแพรวา2", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "regular", "join": 12},
+	{"name": "ShieldBro", "class": &"defender", "guild": 0, "gender": 0, "style": "overseas", "join": 14},
+	{"name": "Melodia_DL", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "hardcore", "join": 15},
+	{"name": "Rookie_Ace", "class": &"assassin", "guild": 0, "gender": 0, "style": "night_owl", "join": 18},
+	{"name": "ArrowKid", "class": &"archer", "guild": 0, "gender": 0, "style": "student", "join": 22},
+	{"name": "หมีน้อยเวทมนตร์", "class": &"mage", "guild": 0, "gender": 1, "style": "casual", "join": 26},
+	{"name": "TuneUp", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "regular", "join": 30},
+	{"name": "NightRaven2", "class": &"darklord", "guild": NEVERDIE, "gender": 1, "style": "night_owl", "join": 35},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
@@ -99,10 +196,26 @@ const STYLES := {
 	"night_owl": {"weekday": [[22.0, 4.0]], "weekend": [[21.0, 5.5]], "jitter": 1.2, "skip": 0.08, "eff": 0.16, "label": "สายนอนดึก"},
 	"weekend": {"weekday": [[21.0, 1.0]], "weekend": [[10.0, 4.0], [19.0, 4.0]], "jitter": 1.0, "skip": 0.35, "eff": 0.15, "label": "สายเสาร์อาทิตย์"},
 	"casual": {"weekday": [[20.0, 1.5]], "weekend": [[15.0, 2.5]], "jitter": 1.5, "skip": 0.25, "eff": 0.13, "label": "เล่นชิลล์"},
+	"daytime": {"weekday": [[9.0, 3.0], [13.0, 4.0]], "weekend": [[10.5, 3.0], [15.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.14, "label": "ว่างกลางวัน"},
+	"early": {"weekday": [[5.5, 2.0], [12.0, 1.0]], "weekend": [[6.5, 3.5], [15.5, 2.0]], "jitter": 0.7, "skip": 0.08, "eff": 0.14, "label": "สายตื่นเช้า"},
+	"overseas": {"weekday": [[1.5, 4.0], [8.0, 2.5]], "weekend": [[1.0, 5.0], [9.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.15, "label": "อยู่ต่างประเทศ"},
+	# Stall keepers / AFK: online most of the day, always in the village (town), slow EXP.
+	# A short break between sessions (each at its own time), so the stalls are always kept.
+	"afk": {"weekday": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "weekend": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "jitter": 0.3, "stretch": [0.96, 1.04], "phase": 8.0, "skip": 0.02, "eff": 0.03, "label": "ตั้งร้าน/AFK", "town": true},
 }
-## Minutes of every session spent in the village: shopping before, selling after.
-const TOWN_BEFORE := 6.0
-const TOWN_AFTER := 4.0
+## The world's clock runs SPEED times faster than real time: a day of the schedules
+## (morning, afternoon, the busy evening, the night) passes every 24 / SPEED real hours,
+## so the busy evening comes round several times a real day. Sessions are set out in
+## world hours; what they earn is the real minutes played, so the pace of levelling stays
+## that of a real player.
+const SPEED := 3.0
+## While playing, a player pops back to the village every TRIP_EVERY real minutes for
+## TRIP minutes (selling, repairs, potions), each at its own offset.
+const TRIP_EVERY := 40.0
+const TRIP := 6.0
+## Real minutes of every session spent in the village: shopping before, selling after.
+const TOWN_BEFORE := 8.0
+const TOWN_AFTER := 5.0
 
 ## EXP per minute of auto-hunting (pace_probe, warrior/mage mean, 60 s each) at each
 ## level in its field, and at Lv.100 by stars in the star fields.
@@ -171,12 +284,27 @@ static func other_guild(guild: int) -> int:
 
 # --- Schedule -------------------------------------------------------------------
 
-## Local day number (Thai time) of a unix time.
-static func day_of(t: float) -> int:
-	return int(floor((t + TZ) / DAY))
+## World time (the schedules' clock) at real unix time t: SPEED times faster from the opening.
+static func world_time(t: float) -> float:
+	return t if t <= START_UNIX else float(START_UNIX) + (t - float(START_UNIX)) * SPEED
 
 
-## The sessions player i plays on local day `day`: [[start, end], ...] in unix seconds.
+## Real unix time of world time w.
+static func real_time(w: float) -> float:
+	return w if w <= START_UNIX else float(START_UNIX) + (w - float(START_UNIX)) / SPEED
+
+
+## Real unix time player i first logs in (newcomers join some days after the opening).
+static func joined_at(i: int) -> float:
+	return float(START_UNIX) + float(ROSTER[i].get("join", 0)) * DAY
+
+
+## Local day number (Thai time) of a world time.
+static func day_of(w: float) -> int:
+	return int(floor((w + TZ) / DAY))
+
+
+## The sessions player i plays on local world day `day`: [[start, end], ...] in world seconds.
 static func sessions_on(i: int, day: int) -> Array:
 	var style: Dictionary = STYLES[String(ROSTER[i].style)]
 	var rng := RandomNumberGenerator.new()
@@ -188,46 +316,93 @@ static func sessions_on(i: int, day: int) -> Array:
 	var plan: Array = style.weekend if weekday >= 5 else style.weekday
 	var out := []
 	var midnight := float(day) * DAY - TZ
+	# Round-the-clock styles keep their own hours (so their breaks never fall together).
+	if style.has("phase"):
+		midnight += float(hash("phase|%s" % ROSTER[i].name) % 1000) / 1000.0 * float(style.phase) * 3600.0
 	var last_end := -INF
 	for slot in plan:
 		var start := midnight + (float(slot[0]) + rng.randf_range(-1.0, 1.0) * float(style.jitter)) * 3600.0
-		var length := float(slot[1]) * rng.randf_range(0.7, 1.3) * 3600.0
+		var stretch: Array = style.get("stretch", [0.7, 1.3])
+		var length := float(slot[1]) * rng.randf_range(float(stretch[0]), float(stretch[1])) * 3600.0
 		start = maxf(start, last_end + 900.0)
 		out.append([start, start + length])
 		last_end = start + length
 	return out
 
 
-## Minutes player i has played between the world's opening and t.
+## World minutes of the sessions of world day `day` between world times lo and hi.
+static func _day_minutes(i: int, day: int, lo: float, hi: float) -> float:
+	var total := 0.0
+	for sess in sessions_on(i, day):
+		var a := maxf(float(sess[0]), lo)
+		var b := minf(float(sess[1]), hi)
+		if b > a:
+			total += (b - a) / 60.0
+	return total
+
+
+## Per player: world minutes played in whole days, cumulated from the day before the opening.
+static var _cum := {}
+
+
+## Real minutes player i has played between joining the world and real time t.
 static func played_minutes(i: int, t: float) -> float:
-	if t <= START_UNIX:
+	var origin := world_time(joined_at(i))
+	var w := world_time(t)
+	if w <= origin:
 		return 0.0
 	var key := "%d|%d" % [i, int(t / 60.0)]
 	if _minutes_cache.has(key):
 		return _minutes_cache[key]
-	if _minutes_cache.size() > 4000:
+	if _minutes_cache.size() > 6000:
 		_minutes_cache.clear()
-	var total := 0.0
-	# A session can run past midnight, so the day before the opening counts too.
-	for day in range(day_of(START_UNIX) - 1, day_of(t) + 1):
-		for s in sessions_on(i, day):
-			var a := maxf(float(s[0]), float(START_UNIX))
-			var b := minf(float(s[1]), t)
-			if b > a:
-				total += (b - a) / 60.0
+	# A session can run past midnight (never past the next one), so the two latest days
+	# are cut at w and every earlier day counts whole.
+	var first := day_of(float(START_UNIX)) - 1
+	var today := day_of(w)
+	var cum: PackedFloat64Array = _cum.get(i, PackedFloat64Array([0.0]))
+	while cum.size() <= today - 1 - first:
+		var d := first + cum.size() - 1
+		cum.append(cum[cum.size() - 1] + _day_minutes(i, d, origin, INF))
+	_cum[i] = cum
+	var total := cum[maxi(0, today - 1 - first)]
+	for d in [today - 1, today]:
+		if d >= first:
+			total += _day_minutes(i, d, origin, w)
+	total /= SPEED
 	_minutes_cache[key] = total
 	return total
 
 
-## The session player i is in at t, or [] when offline.
+## The session player i is in at real time t as [start, end] in real unix seconds, or [] offline.
 static func session_at(i: int, t: float) -> Array:
-	if t < START_UNIX:
+	if t < START_UNIX or t < joined_at(i):
 		return []
-	for day in [day_of(t) - 1, day_of(t)]:
-		for s in sessions_on(i, day):
-			if t >= float(s[0]) and t < float(s[1]):
-				return s
+	var w := world_time(t)
+	var origin := world_time(joined_at(i))
+	for day in [day_of(w) - 1, day_of(w)]:
+		for sess in sessions_on(i, day):
+			if w >= float(sess[0]) and w < float(sess[1]) and float(sess[1]) > origin:
+				return [real_time(maxf(float(sess[0]), origin)), real_time(float(sess[1]))]
 	return []
+
+
+## A stall keeper / AFK player: stays in the village the whole session.
+static func in_town_style(i: int) -> bool:
+	return bool(STYLES[String(ROSTER[i].style)].get("town", false))
+
+
+## Where in a session (real start s0, end s1) player i is at real time t: the village
+## on the way in, on the way out and on its trips back to sell, otherwise out hunting.
+static func town_time(i: int, s0: float, s1: float, t: float) -> bool:
+	if in_town_style(i):
+		return true
+	var since := (t - s0) / 60.0
+	var until := (s1 - t) / 60.0
+	if since < TOWN_BEFORE or until < TOWN_AFTER:
+		return true
+	var offset := float(hash("trip|%s" % ROSTER[i].name) % 1000) / 1000.0 * TRIP_EVERY
+	return fposmod(since + offset, TRIP_EVERY) < TRIP
 
 
 # --- Progress -------------------------------------------------------------------
@@ -290,7 +465,23 @@ static func progress_for(minutes: float, eff: float, extra := 0.0) -> Dictionary
 	var divine_need := DIVINE_HOURS * 60.0 * eff
 	var post := work - steps[steps.size() - 1]
 	var divine_frac := clampf(post / maxf(0.001, divine_need), 0.0, 1.0) if stars >= Game.PARAGON_MAX else 0.0
-	return {"level": level, "stars": stars, "frac": frac, "minutes": minutes, "divine": divine_frac >= 1.0, "divine_frac": divine_frac}
+	# Hours of play since the divine set was complete (the endgame: enhancing it, see equip).
+	var after := maxf(0.0, post - divine_need) / maxf(0.001, 60.0 * eff) if divine_frac >= 1.0 else 0.0
+	return {"level": level, "stars": stars, "frac": frac, "minutes": minutes, "divine": divine_frac >= 1.0, "divine_frac": divine_frac, "after": after}
+
+
+## A veteran's head start in probe minutes: where it stood when the world reopened, as a
+## point (Lv.1-100 = 1-100, ★1-200 = 101-300, past 300 = tenths of the divine set's hours:
+## 310 has just completed it, 330 has played twice as long again since).
+static func head_work(i: int) -> float:
+	var point := int(ROSTER[i].get("vet", 0))
+	if point <= 1:
+		return 0.0
+	var steps := _steps()
+	var work := steps[clampi(point - 1, 0, steps.size() - 1)]
+	if point > 300:
+		work += float(point - 300) / 10.0 * DIVINE_HOURS * 60.0 * efficiency(i)
+	return work
 
 
 # --- Party EXP ----------------------------------------------------------------------
@@ -367,13 +558,18 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var e: Dictionary = ROSTER[i]
-	var p := progress_for(played_minutes(i, t), efficiency(i), bonus_work(i))
+	var p := progress_for(played_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i))
 	var s := session_at(i, t)
 	var place := ""
+	var doing := ""
 	if not s.is_empty():
-		var since := (t - float(s[0])) / 60.0
-		var until := (float(s[1]) - t) / 60.0
-		place = "town" if since < TOWN_BEFORE or until < TOWN_AFTER else String(hunting_zone(int(p.level), int(p.stars), bool(p.divine)))
+		if town_time(i, float(s[0]), float(s[1]), t):
+			place = "town"
+			doing = "stall" if in_town_style(i) else "town"
+		else:
+			var plan := endgame_plan(i, float(s[0]), int(p.level), int(p.stars), bool(p.divine))
+			place = String(plan.place)
+			doing = String(plan.doing)
 	var out := e.duplicate()
 	out.merge(p)
 	out["index"] = i
@@ -385,21 +581,43 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	out["guild"] = guild_at(i, int(p.level))
 	out["online"] = not s.is_empty()
 	out["place"] = place
+	out["doing"] = doing
 	out["grade"] = grade_of(int(p.level), int(p.stars), bool(p.divine))
 	out["last_seen"] = _last_seen(i, t) if s.is_empty() else t
 	return out
 
 
-## When player i last logged off before t (0 if never).
+## When player i last logged off before real time t (0 if never).
 static func _last_seen(i: int, t: float) -> float:
-	var day := day_of(t)
+	var w := world_time(t)
+	var origin := world_time(joined_at(i))
+	var day := day_of(w)
 	for back in 8:
 		var list := sessions_on(i, day - back)
 		for k in range(list.size() - 1, -1, -1):
 			var end := float(list[k][1])
-			if end <= t and end > START_UNIX:
-				return end
+			if end <= w and end > maxf(float(START_UNIX), origin):
+				return real_time(end)
 	return 0.0
+
+
+## What a player does in the session that started at real time s0 (once out of the
+## village): {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
+## the divine set is complete each session is one of the endgame's: the lotus sanctum's
+## boss hunts ("boss"), helping friends in a star field ("help") or keeping a stall in
+## the village ("stall").
+static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
+	var home := hunting_zone(level, stars, divine)
+	if not divine:
+		return {"place": home, "doing": "hunt"}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("plan|%s|%d" % [ROSTER[i].name, int(s0 / 60.0)])
+	var roll := rng.randf()
+	if roll < 0.45:
+		return {"place": home, "doing": "boss"}
+	if roll < 0.75:
+		return {"place": StarProgression.REGIONS[rng.randi() % StarProgression.REGIONS.size()], "doing": "help"}
+	return {"place": &"town", "doing": "stall"}
 
 
 ## The field a player hunts in: the one whose levels fit, then the star fields by stars,
@@ -456,7 +674,7 @@ static func look(i: int) -> Dictionary:
 static func member(i: int, t: float = -1.0) -> Dictionary:
 	var s := state(i, t)
 	return {"class": String(s["class"]), "name": String(s.name), "level": int(s.level), "stars": int(s.stars), "exp": 0,
-		"frac": float(s.frac), "divine_frac": float(s.divine_frac),
+		"frac": float(s.frac), "divine_frac": float(s.divine_frac), "after": float(s.get("after", 0.0)),
 		"stance": "aggressive", "trait": "brave", "gender": int(s.gender), "potions": POTIONS, "mp_potions": MP_POTIONS}
 
 
@@ -469,6 +687,7 @@ static func sync_member(m: Dictionary, s: Dictionary) -> bool:
 	m["stars"] = int(s.stars)
 	m["frac"] = float(s.frac)
 	m["divine_frac"] = float(s.divine_frac)
+	m["after"] = float(s.get("after", 0.0))
 	return was != String(m["class"]) or gear_signature(m) != before
 
 
@@ -608,7 +827,7 @@ static func _wing_find(name: String, p: float) -> Dictionary:
 
 
 static func _gear_key(m: Dictionary) -> String:
-	return "%s|%s|%d|%d" % [m.name, m["class"], int(point_of(m) * 4.0), int(float(m.get("divine_frac", 0.0)) * 8.0)]
+	return "%s|%s|%d|%d|%d" % [m.name, m["class"], int(point_of(m) * 4.0), int(float(m.get("divine_frac", 0.0)) * 8.0), divine_plus(m)]
 
 
 ## Which pieces member sheet m wears, as one string (changes when it puts on a new find
@@ -640,6 +859,8 @@ static func equip(m: Dictionary) -> Dictionary:
 		match String(find.kind):
 			"divine":
 				item = DivineGearData.item(cls, slot, rng)
+				if EnhanceFx.can_enhance(item):
+					item["plus"] = divine_plus(m)
 			"star":
 				item = StarProgression.item(cls, int(find.tier), slot, rng)
 			_:
@@ -663,6 +884,15 @@ static func equip(m: Dictionary) -> Dictionary:
 	_gear[key] = gear
 	_gear_sig[key] = ",".join(sig)
 	return gear
+
+
+## The endgame: after the divine set is complete a player enhances it a grade every
+## DIVINE_PLUS_HOURS hours of play, up to +10.
+const DIVINE_PLUS_HOURS := 3.0
+
+
+static func divine_plus(m: Dictionary) -> int:
+	return clampi(int(float(m.get("after", 0.0)) / DIVINE_PLUS_HOURS), 0, 10)
 
 
 ## The newest piece in `after` that `before` did not have (for "picked up" notes), or {}.
@@ -715,10 +945,18 @@ static func where_text(s: Dictionary, t: float = -1.0) -> String:
 		return "รอเปิดโลก"
 	if bool(s.online):
 		var place := StringName(s.place)
-		return "ออนไลน์ · %s" % (ZoneData.get_zone(place).name if place != &"town" else "หมู่บ้าน")
+		var where: String = ZoneData.get_zone(place).name if place != &"town" else "หมู่บ้าน"
+		match String(s.get("doing", "")):
+			"stall":
+				return "ออนไลน์ · ตั้งร้านใน%s" % where
+			"boss":
+				return "ออนไลน์ · ล่าบอสที่ %s" % where
+			"help":
+				return "ออนไลน์ · พาเพื่อนเก็บดาวที่ %s" % where
+		return "ออนไลน์ · %s" % where
 	var seen := float(s.get("last_seen", 0.0))
 	if seen <= 0.0:
-		return "ยังไม่เคยเข้าเกม"
+		return "ยังไม่เคยเข้าเกม" if t >= joined_at(int(s.get("index", 0))) else "ผู้เล่นใหม่ เข้าเกมเร็ว ๆ นี้"
 	var ago := int((t - seen) / 60.0)
 	if ago < 60:
 		return "ออฟไลน์ · %d นาทีก่อน" % maxi(1, ago)

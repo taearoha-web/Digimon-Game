@@ -522,6 +522,8 @@ func _build_town() -> void:
 		var spot: Vector3 = v[4]
 		var yard: Vector3 = spot + (v[6] - spot).normalized()
 		clear.append(Vector3(yard.x, yard.z, 3.0))
+	for stall in JapanVillage.STALLS:
+		clear.append(Vector3(stall.x, stall.z, 1.6))
 	await _slice()
 	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null)
 	await _slice()

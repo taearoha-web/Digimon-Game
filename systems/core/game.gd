@@ -21,6 +21,8 @@ signal ending_requested()
 signal screen_flash(color: Color, strength: float)
 signal profile_imported()
 signal guild_changed()
+## A line of the world chat (WorldPresence): who says it, what, the name's colour.
+signal world_chat(speaker: String, text: String, color: Color)
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"

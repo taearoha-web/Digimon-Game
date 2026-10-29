@@ -137,11 +137,11 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 	return {"ally": best, "enemy": enemy, "ally_name": guild_a, "enemy_name": guild_b, "ally_power": ally_power, "enemy_power": enemy_power}
 
 
-## The war between the two guilds of the world (WorldPlayers): everyone in a guild fights,
-## the hero and all its guild's members against all the other guild's, each as it really
-## is at time t (level, stars, stat points and the gear it found; WorldPlayers.fighter).
-## Only players who reached Lv.100 are in a guild. Online members are listed first, then
-## the strongest. No rival member yet: {} (no war).
+## The war between the two guilds of the world (WorldPlayers): the hero and its guild's
+## members against the other guild's, TEAM_SIZE a side, each as it really is at time t
+## (level, stars, stat points and the gear it found; WorldPlayers.fighter). Only players
+## who reached Lv.100 are in a guild; online members go first, then the strongest.
+## No rival member yet: {} (no war).
 static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, power_of_hero: float = -1.0) -> Dictionary:
 	if power_of_hero < 0.0:
 		power_of_hero = hero_power()
@@ -157,8 +157,16 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, p
 		if bool(a.online) != bool(b.online):
 			return bool(a.online)
 		return float(a.power) > float(b.power)
-	ours.sort_custom(order)
 	theirs.sort_custom(order)
+	# The hero's own party picks (GuildWarScreen) always come along.
+	var picked := func(f) -> bool: return Game.guildwar_party_picks.has(String(f.member.name))
+	ours.sort_custom(func(a, b):
+		if picked.call(a) != picked.call(b):
+			return picked.call(a)
+		return order.call(a, b))
+	# At most TEAM_SIZE a side (the hero counted on ours): the arena and a phone hold that.
+	ours.resize(mini(ours.size(), TEAM_SIZE - 1))
+	theirs.resize(mini(theirs.size(), TEAM_SIZE))
 	var ally_power := power_of_hero
 	for f in ours:
 		ally_power += float(f.power)

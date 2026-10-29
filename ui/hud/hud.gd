@@ -20,6 +20,8 @@ signal interact_pressed()
 const SKILL_SPACING := 94.0
 const SKILL_ROW_Y := -68.0
 const ATTACK_RADIUS := 62.0
+## Room the world chat leaves before the first skill slot's centre.
+const SKILL_SLOT_CLEAR := 64.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
@@ -64,6 +66,7 @@ var _target_bar: ProgressBar
 var _target_hp: Label
 var _gold_label: Label
 var _online_label: Label
+var world_chat: WorldChat
 var _online_in := 0.0
 var _zone_label: Label
 var _banner: Label
@@ -112,6 +115,7 @@ func _ready() -> void:
 	_build_top_right(_frame)
 	_build_action_buttons(_frame)
 	_build_banner(_frame)
+	_build_world_chat(_frame)
 	_frame.resized.connect(_layout_actions)
 	_layout_actions()
 	_build_death_overlay()
@@ -552,6 +556,20 @@ func _build_status(frame: Control) -> void:
 	minimap.offset_bottom = 242
 	frame.add_child(minimap)
 
+## The world chat (WorldChat): along the bottom edge just right of the joystick's resting
+## place, clear of the skill row; it never takes a tap.
+func _build_world_chat(frame: Control) -> void:
+	world_chat = WorldChat.new()
+	world_chat.anchor_top = 1.0
+	world_chat.anchor_bottom = 1.0
+	world_chat.offset_left = 250.0
+	world_chat.offset_right = 650.0
+	world_chat.offset_top = -12.0
+	world_chat.offset_bottom = -12.0
+	world_chat.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	frame.add_child(world_chat)
+
+
 ## "ออนไลน์ N": the world players online now plus the hero.
 func update_online() -> void:
 	if _online_label:
@@ -924,6 +942,10 @@ func _layout_actions() -> void:
 	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
+	# The world chat ends left of the first skill (narrow screens get a narrower chat).
+	if world_chat != null:
+		var first: Vector2 = positions.skills[0]
+		world_chat.offset_right = clampf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, world_chat.offset_left + 220.0, 650.0)
 
 
 func _place_corner(control: Control, offset_from_corner: Vector2, r: float) -> void:
