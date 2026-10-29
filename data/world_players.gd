@@ -387,7 +387,7 @@ static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
 
 ## The level player i has reached at real time t.
 static func level_at(i: int, t: float) -> int:
-	return int(progress_for(played_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i)).level)
+	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i)).level)
 
 
 ## Whether a skill of player i's class unlocks between real times a and b.
@@ -496,6 +496,10 @@ const BONUS_PATH := "user://toon_tale_world.json"
 static var persist := DisplayServer.get_name() != "headless"
 ## Probe minutes of progress each player (by name) earned in parties.
 static var bonus := {}
+## Real minutes of each player's schedule (by name) spent in the hero's party, and the
+## schedule minutes of those in it now (own_minutes).
+static var skipped := {}
+static var paused := {}
 static var _bonus_loaded := false
 static var _bonus_dirty := false
 
@@ -503,6 +507,56 @@ static var _bonus_dirty := false
 static func bonus_work(i: int) -> float:
 	_load_bonus()
 	return float(bonus.get(String(ROSTER[i].name), 0.0))
+
+
+## Real minutes of player i's own play that count for its progress: its schedule's
+## minutes less the time it spent in the hero's party (where only the party's shared EXP
+## counts, add_exp), frozen while it is in the party now.
+static func own_minutes(i: int, t: float) -> float:
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	var minutes := float(paused[key]) if paused.has(key) else played_minutes(i, t)
+	return maxf(0.0, minutes - float(skipped.get(key, 0.0)))
+
+
+## Player i joins the hero's party at real time t: its own schedule stops counting.
+static func pause_schedule(i: int, t: float) -> void:
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	if not paused.has(key):
+		paused[key] = played_minutes(i, t)
+		_bonus_dirty = true
+
+
+## Player i leaves the hero's party at real time t: the minutes it was away from its
+## schedule are skipped, so it carries on from the level the party left it at.
+static func resume_schedule(i: int, t: float) -> void:
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	if not paused.has(key):
+		return
+	skipped[key] = float(skipped.get(key, 0.0)) + maxf(0.0, played_minutes(i, t) - float(paused[key]))
+	paused.erase(key)
+	_bonus_dirty = true
+
+
+## Every paused schedule resumes at real time t (the party is let go, or the game left
+## with a party: resumed at the time the world file was written).
+static func resume_all(t: float) -> void:
+	_load_bonus()
+	for key in paused.keys():
+		var i := index_of(String(key))
+		if i >= 0:
+			resume_schedule(i, t)
+		else:
+			paused.erase(key)
+
+
+static func index_of(player_name: String) -> int:
+	for i in ROSTER.size():
+		if String(ROSTER[i].name) == player_name:
+			return i
+	return -1
 
 
 ## Player i earns `amount` EXP at its level and stars (its share of a party kill).
@@ -521,7 +575,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus, "skipped": skipped, "paused": paused, "saved": now()}))
 		_bonus_dirty = false
 
 
@@ -545,11 +599,26 @@ static func _load_bonus() -> void:
 		var value: Variant = parsed.bonus[key]
 		if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
 			bonus[String(key)] = float(value)
+	for field in ["skipped", "paused"]:
+		var table: Variant = parsed.get(field, {})
+		if not table is Dictionary:
+			continue
+		for key in table:
+			var value: Variant = table[key]
+			if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
+				(skipped if field == "skipped" else paused)[String(key)] = float(value)
+	# A party does not outlive the game: those who were in it resume from when the file
+	# was written.
+	var saved: Variant = parsed.get("saved", 0.0)
+	if not paused.is_empty() and (saved is float or saved is int):
+		resume_all(float(saved))
 
 
 ## Forgets every party EXP (tests).
 static func clear_bonus() -> void:
 	bonus.clear()
+	skipped.clear()
+	paused.clear()
 	_bonus_loaded = true
 	_bonus_dirty = true
 
@@ -562,7 +631,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var e: Dictionary = ROSTER[i]
-	var p := progress_for(played_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i))
+	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i))
 	var s := session_at(i, t)
 	var place := ""
 	var doing := ""

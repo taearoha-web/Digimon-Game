@@ -462,13 +462,14 @@
 
   // Godot 4.3 Compatibility cannot scale only its 3D viewport. Own the canvas
   // through public resize policy 0 instead of modifying the engine or browser
-  // devicePixelRatio. High keeps every art layer with a crisp 1920 px budget.
+  // devicePixelRatio. High draws at the phone's own resolution (up to 2560 px on the long
+  // edge) so names and the world stay sharp; medium and low trade pixels for speed.
   let renderQuality = 1;
   function resizeGameCanvas() {
     const canvas = document.getElementById('canvas');
     const width = Math.max(1, window.innerWidth);
     const height = Math.max(1, window.innerHeight);
-    const longEdge = [1280, 1600, 1920][renderQuality];
+    const longEdge = [1280, 1600, 2560][renderQuality];
     const ratio = Math.min(window.devicePixelRatio || 1, longEdge / Math.max(width, height));
     const renderWidth = Math.max(1, Math.round(width * ratio));
     const renderHeight = Math.max(1, Math.round(height * ratio));

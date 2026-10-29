@@ -44,14 +44,14 @@ const LOW_FPS_SECONDS := 30.0
 static var _slow_seconds := 0.0
 
 ## The 3D resolution scale on a phone (Viewport.scaling_3d_scale, bilinear): the world is
-## drawn at this share of the canvas and the HUD stays at the full, crisp size. High
-## quality starts at SCALE_3D_START and the scale follows the frame rate from then on,
-## SCALE_3D_STEP at a time between SCALE_3D_MIN and 1.0: a slow stretch (under
-## SCALE_3D_SLOW_FPS for SCALE_3D_SLOW_TICKS readings) lowers it, a fast one (over
-## SCALE_3D_FAST_FPS for SCALE_3D_FAST_TICKS readings) raises it again. Pixels are what
-## an iPhone's GPU pays for: this keeps glow, shadows and every effect while the frame
-## rate stays up. Desktops always draw at 1.0.
-const SCALE_3D_START := 0.85
+## drawn at this share of the canvas and the HUD stays at the full, crisp size. Every zone
+## starts at full size. High quality stays there: it is the sharp picture (names and the
+## world read clearly), and the owner chooses it for that. At medium and low quality the
+## scale follows the frame rate, SCALE_3D_STEP at a time between SCALE_3D_MIN and 1.0: a
+## slow stretch (under SCALE_3D_SLOW_FPS for SCALE_3D_SLOW_TICKS readings) lowers it, a
+## fast one (over SCALE_3D_FAST_FPS for SCALE_3D_FAST_TICKS readings) raises it again.
+## Desktops always draw at 1.0.
+const SCALE_3D_START := 1.0
 const SCALE_3D_MIN := 0.6
 const SCALE_3D_STEP := 0.05
 const SCALE_3D_SLOW_FPS := 46.0
@@ -170,13 +170,14 @@ static func _wanted(step: float) -> int:
 static func base_scale_3d() -> float:
 	if not phone():
 		return 1.0
-	return SCALE_3D_START if GameSettings.quality >= 2 else 1.0
+	return SCALE_3D_START
 
 
 ## One reading of the frame rate: a slow stretch lowers the 3D scale a step, a fast one
-## raises it (phones only; the frame rate is read once a tick, TICK_SECONDS apart).
+## raises it (phones below high quality only; the frame rate is read once a tick,
+## TICK_SECONDS apart).
 static func _follow_frame_rate(tree: SceneTree) -> void:
-	if not phone() or _forced >= 0:
+	if not phone() or _forced >= 0 or GameSettings.quality >= 2:
 		return
 	var fps := _frame_rate()
 	if fps <= 0.0:
