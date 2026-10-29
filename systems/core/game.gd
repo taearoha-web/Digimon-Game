@@ -121,6 +121,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
 	}
+	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
 	if not look.is_empty():
@@ -327,6 +328,7 @@ func import_code(code: String, target_slot := -1) -> bool:
 	profile = candidate
 	slot = destination
 	has_profile = true
+	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
 	current_zone = StringName(profile.zone)
@@ -546,6 +548,7 @@ func load_game(from_slot := -1) -> bool:
 	slot = target
 	profile = _repair(raw)
 	has_profile = true
+	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
 	current_zone = StringName(profile.get("zone", "town"))
@@ -1183,6 +1186,9 @@ func party_invite(i: int, force := false) -> String:
 	m["stance"] = "follow"
 	_party_members[i] = m
 	world_party.append(i)
+	# In the party a member levels by the party's shared EXP only (WorldPlayers.add_exp),
+	# not by its own schedule as well.
+	WorldPlayers.pause_schedule(i, t)
 	say("%s เข้าร่วมปาร์ตี้แล้ว!" % s.name, &"success")
 	party_changed.emit()
 	party_roster_changed.emit()
@@ -1195,6 +1201,7 @@ func party_kick(i: int, why := "") -> void:
 		return
 	world_party.erase(i)
 	_party_members.erase(i)
+	WorldPlayers.resume_schedule(i, WorldPresence.clock())
 	if why != "":
 		say(why, &"info")
 	party_changed.emit()
@@ -1202,6 +1209,7 @@ func party_kick(i: int, why := "") -> void:
 
 
 func dismiss_party() -> void:
+	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
 	party_changed.emit()

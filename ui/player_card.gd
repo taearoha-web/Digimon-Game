@@ -132,11 +132,43 @@ func _build() -> void:
 				who.say(BYE[randi() % BYE.size()]))
 		row.add_child(leave)
 	else:
-		var invite := UIUtil.button("ชวนเข้าปาร์ตี้", &"PrimaryButton", Vector2(300, 60))
+		var invite := UIUtil.button("ชวนเข้าปาร์ตี้", &"PrimaryButton", Vector2(240, 60))
 		invite.name = "Invite"
 		invite.disabled = Game.party().size() >= Game.PARTY_MAX
 		invite.pressed.connect(invite_party)
 		row.add_child(invite)
+	# Talk to them (AI chat), and a stall keeper's wares.
+	var talk_row := UIUtil.hbox(10)
+	_body.add_child(talk_row)
+	var talk := UIUtil.button("คุย", &"", Vector2(160, 60))
+	talk.name = "Talk"
+	talk.pressed.connect(talk_to)
+	talk_row.add_child(talk)
+	if String(s.get("doing", "")) == "stall" and not member:
+		var wares := UIUtil.button("ดูร้าน", &"PrimaryButton", Vector2(200, 60))
+		wares.name = "Stall"
+		wares.pressed.connect(open_stall)
+		talk_row.add_child(wares)
+
+
+## Opens the typing bar to talk to the player on the card (AiChat).
+func talk_to() -> void:
+	if not is_instance_valid(player):
+		return
+	var main := get_parent()
+	if main != null and "ai_chat" in main and main.ai_chat != null:
+		main.ai_chat.talk_to(player.world_index)
+
+
+## Opens a stall keeper's wares (ShopScreen.open_stall).
+func open_stall() -> void:
+	if not is_instance_valid(player):
+		return
+	var i := player.world_index
+	var main := get_parent()
+	close_card()
+	if main != null and "shop" in main and main.shop != null and main.shop.has_method("open_stall"):
+		main.shop.open_stall(i)
 
 
 ## Asks the player on the card to join; it answers above its head.

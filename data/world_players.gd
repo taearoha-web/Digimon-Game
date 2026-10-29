@@ -11,10 +11,13 @@ extends RefCounted
 ## start with a head start (vet, none at present), newcomers log in for the first
 ## time some days after the opening (join), stall keepers stay in the village. So levels,
 ## stars, whereabouts and who is online are the same for everyone at a given moment.
-## While online a player stands in the village at the start and end of a session and on
-## its trips back to sell, and otherwise hunts in the field that fits its level
-## (WorldPresence shows it there, fighting the field's monsters for real); with the divine
-## set complete it spends its sessions on the endgame (endgame_plan) and enhances the set.
+## A player with a play schedule spends its time online levelling: it hunts in the field
+## that fits its level (WorldPresence shows it there, fighting the field's monsters for
+## real) and only comes to the village for short errands (errand_at: a quest, the forge,
+## new skills); with the divine set complete it spends its sessions on the endgame
+## (endgame_plan) and enhances the set. Otherwise the village belongs to the stall keepers
+## (the "afk" style, and divine players taking a break, endgame_plan's "stall"): resting
+## players who sell the good things they found (StallStock).
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
 
 ## The world (re)opened here (unix seconds; 29 Oct 2026, 18:45 Thai time, the reopening
@@ -162,14 +165,6 @@ const STYLES := {
 ## world hours; what they earn is the real minutes played, so the pace of levelling stays
 ## that of a real player.
 const SPEED := 3.0
-## While playing, a player pops back to the village every TRIP_EVERY real minutes for
-## TRIP minutes (selling, repairs, potions), each at its own offset.
-const TRIP_EVERY := 30.0
-const TRIP := 9.0
-## Real minutes of every session spent in the village: shopping before, selling after.
-const TOWN_BEFORE := 8.0
-const TOWN_AFTER := 5.0
-
 ## EXP per minute of auto-hunting (pace_probe, warrior/mage mean, 60 s each) at each
 ## level in its field, and at Lv.100 by stars in the star fields.
 const LEVEL_RATE := [[1, 900], [3, 1146], [10, 2465], [18, 5498], [26, 12453], [35, 14066], [46, 18823], [58, 21692], [70, 29115], [82, 26128], [94, 36727], [100, 36727]]
@@ -345,17 +340,72 @@ static func in_town_style(i: int) -> bool:
 	return bool(STYLES[String(ROSTER[i].style)].get("town", false))
 
 
-## Where in a session (real start s0, end s1) player i is at real time t: the village
-## on the way in, on the way out and on its trips back to sell, otherwise out hunting.
-static func town_time(i: int, s0: float, s1: float, t: float) -> bool:
-	if in_town_style(i):
-		return true
-	var since := (t - s0) / 60.0
-	var until := (s1 - t) / 60.0
-	if since < TOWN_BEFORE or until < TOWN_AFTER:
-		return true
-	var offset := float(hash("trip|%s" % ROSTER[i].name) % 1000) / 1000.0 * TRIP_EVERY
-	return fposmod(since + offset, TRIP_EVERY) < TRIP
+## Whether player i stays in the village at real time t of its session (real start s0,
+## end s1): only a stall keeper does, the whole session. A player with a play schedule
+## spends its time online levelling, but for the short errands below.
+static func town_time(i: int, _s0: float, _s1: float, _t: float) -> bool:
+	return in_town_style(i)
+
+
+## Errands: like a real player, a scheduled player pops back to the village now and then
+## for a few real minutes (ERRAND_MIN-ERRAND_MAX), at most once in every ERRAND_EVERY real
+## minutes of a session, at its own moment: to hand in a quest at the elder ("quest"),
+## to enhance at the blacksmith ("enhance") or to learn skills at the skill master
+## ("skill"; always when a skill of its class unlocked since the stretch began).
+const ERRAND_EVERY := 50.0
+const ERRAND_CHANCE := 0.45
+const ERRAND_MIN := 2.5
+const ERRAND_MAX := 4.0
+const ERRAND_KINDS: Array[String] = ["quest", "enhance", "skill"]
+static var _unlock_levels := {}
+
+
+## The errand player i is on at real time t of the session (real start s0, end s1):
+## {kind, from, until} (real unix seconds), or {} while it hunts.
+static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
+	if in_town_style(i) or t < s0 or t >= s1:
+		return {}
+	var slot := int((t - s0) / 60.0 / ERRAND_EVERY)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("errand|%s|%d|%d" % [ROSTER[i].name, int(s0 / 60.0), slot])
+	var length := rng.randf_range(ERRAND_MIN, ERRAND_MAX)
+	var from := s0 + (float(slot) * ERRAND_EVERY + rng.randf_range(4.0, ERRAND_EVERY - length - 4.0)) * 60.0
+	var until := from + length * 60.0
+	if t < from or t >= until or until > s1 - 120.0:
+		return {}
+	var roll := rng.randf()
+	var pick := rng.randf()
+	var kind := ""
+	if _unlocks_between(i, s0 + float(slot) * ERRAND_EVERY * 60.0, from):
+		kind = "skill"
+	elif roll < ERRAND_CHANCE:
+		kind = "quest" if pick < 0.5 else ("enhance" if pick < 0.88 else "skill")
+	else:
+		return {}
+	return {"kind": kind, "from": from, "until": until}
+
+
+## The level player i has reached at real time t.
+static func level_at(i: int, t: float) -> int:
+	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i)).level)
+
+
+## Whether a skill of player i's class unlocks between real times a and b.
+static func _unlocks_between(i: int, a: float, b: float) -> bool:
+	var before := level_at(i, a)
+	var after := level_at(i, b)
+	if after <= before:
+		return false
+	var cls := StringName(ROSTER[i]["class"]) if after >= ClassData.LINE_LEVEL else ClassData.START
+	if not _unlock_levels.has(cls):
+		var levels := {}
+		for skill in ClassData.pool(cls):
+			levels[int(skill.level)] = true
+		_unlock_levels[cls] = levels
+	for lv in range(before + 1, after + 1):
+		if (_unlock_levels[cls] as Dictionary).has(lv):
+			return true
+	return false
 
 
 # --- Progress -------------------------------------------------------------------
@@ -446,6 +496,10 @@ const BONUS_PATH := "user://toon_tale_world.json"
 static var persist := DisplayServer.get_name() != "headless"
 ## Probe minutes of progress each player (by name) earned in parties.
 static var bonus := {}
+## Real minutes of each player's schedule (by name) spent in the hero's party, and the
+## schedule minutes of those in it now (own_minutes).
+static var skipped := {}
+static var paused := {}
 static var _bonus_loaded := false
 static var _bonus_dirty := false
 
@@ -453,6 +507,56 @@ static var _bonus_dirty := false
 static func bonus_work(i: int) -> float:
 	_load_bonus()
 	return float(bonus.get(String(ROSTER[i].name), 0.0))
+
+
+## Real minutes of player i's own play that count for its progress: its schedule's
+## minutes less the time it spent in the hero's party (where only the party's shared EXP
+## counts, add_exp), frozen while it is in the party now.
+static func own_minutes(i: int, t: float) -> float:
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	var minutes := float(paused[key]) if paused.has(key) else played_minutes(i, t)
+	return maxf(0.0, minutes - float(skipped.get(key, 0.0)))
+
+
+## Player i joins the hero's party at real time t: its own schedule stops counting.
+static func pause_schedule(i: int, t: float) -> void:
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	if not paused.has(key):
+		paused[key] = played_minutes(i, t)
+		_bonus_dirty = true
+
+
+## Player i leaves the hero's party at real time t: the minutes it was away from its
+## schedule are skipped, so it carries on from the level the party left it at.
+static func resume_schedule(i: int, t: float) -> void:
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	if not paused.has(key):
+		return
+	skipped[key] = float(skipped.get(key, 0.0)) + maxf(0.0, played_minutes(i, t) - float(paused[key]))
+	paused.erase(key)
+	_bonus_dirty = true
+
+
+## Every paused schedule resumes at real time t (the party is let go, or the game left
+## with a party: resumed at the time the world file was written).
+static func resume_all(t: float) -> void:
+	_load_bonus()
+	for key in paused.keys():
+		var i := index_of(String(key))
+		if i >= 0:
+			resume_schedule(i, t)
+		else:
+			paused.erase(key)
+
+
+static func index_of(player_name: String) -> int:
+	for i in ROSTER.size():
+		if String(ROSTER[i].name) == player_name:
+			return i
+	return -1
 
 
 ## Player i earns `amount` EXP at its level and stars (its share of a party kill).
@@ -471,7 +575,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus, "skipped": skipped, "paused": paused, "saved": now()}))
 		_bonus_dirty = false
 
 
@@ -495,34 +599,56 @@ static func _load_bonus() -> void:
 		var value: Variant = parsed.bonus[key]
 		if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
 			bonus[String(key)] = float(value)
+	for field in ["skipped", "paused"]:
+		var table: Variant = parsed.get(field, {})
+		if not table is Dictionary:
+			continue
+		for key in table:
+			var value: Variant = table[key]
+			if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
+				(skipped if field == "skipped" else paused)[String(key)] = float(value)
+	# A party does not outlive the game: those who were in it resume from when the file
+	# was written.
+	var saved: Variant = parsed.get("saved", 0.0)
+	if not paused.is_empty() and (saved is float or saved is int):
+		resume_all(float(saved))
 
 
 ## Forgets every party EXP (tests).
 static func clear_bonus() -> void:
 	bonus.clear()
+	skipped.clear()
+	paused.clear()
 	_bonus_loaded = true
 	_bonus_dirty = true
 
 
 ## Everything about player i at time t: the roster entry plus level, stars, online,
-## place (the zone id it stands in, "" offline), its guild now (0 below Lv.100; the
-## roster's side is in "joins") and the gear grade it wears.
+## place (the zone id it stands in, "" offline), doing ("hunt", "boss", "help", "stall",
+## or "errand" with the errand's kind in "errand" and its end in "errand_until"), its
+## guild now (0 below Lv.100; the roster's side is in "joins") and the gear grade it wears.
 static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var e: Dictionary = ROSTER[i]
-	var p := progress_for(played_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i))
+	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i))
 	var s := session_at(i, t)
 	var place := ""
 	var doing := ""
+	var errand := {}
 	if not s.is_empty():
 		if town_time(i, float(s[0]), float(s[1]), t):
 			place = "town"
-			doing = "stall" if in_town_style(i) else "town"
+			doing = "stall"
 		else:
 			var plan := endgame_plan(i, float(s[0]), int(p.level), int(p.stars), bool(p.divine))
 			place = String(plan.place)
 			doing = String(plan.doing)
+			if doing != "stall":
+				errand = errand_at(i, float(s[0]), float(s[1]), t)
+				if not errand.is_empty():
+					place = "town"
+					doing = "errand"
 	var out := e.duplicate()
 	out.merge(p)
 	out["index"] = i
@@ -535,6 +661,8 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	out["online"] = not s.is_empty()
 	out["place"] = place
 	out["doing"] = doing
+	out["errand"] = String(errand.get("kind", ""))
+	out["errand_until"] = float(errand.get("until", 0.0))
 	out["grade"] = grade_of(int(p.level), int(p.stars), bool(p.divine))
 	out["last_seen"] = _last_seen(i, t) if s.is_empty() else t
 	return out
@@ -554,11 +682,11 @@ static func _last_seen(i: int, t: float) -> float:
 	return 0.0
 
 
-## What a player does in the session that started at real time s0 (once out of the
-## village): {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
+## What a player with a play schedule does in the session that started at real time s0:
+## {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
 ## the divine set is complete each session is one of the endgame's: the lotus sanctum's
-## boss hunts ("boss"), helping friends in a star field ("help") or keeping a stall in
-## the village ("stall").
+## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
+## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
 	var home := hunting_zone(level, stars, divine)
 	if not divine:
@@ -907,6 +1035,9 @@ static func level_text(s: Dictionary) -> String:
 	return "Lv.%d%s" % [int(s.level), " ★%d" % int(s.stars) if int(s.stars) > 0 else ""]
 
 
+const ERRAND_TEXT := {"quest": " · ส่งเควส", "enhance": " · ตีบวก", "skill": " · เรียนสกิล"}
+
+
 ## Where a player is, for the guild roster.
 static func where_text(s: Dictionary, t: float = -1.0) -> String:
 	if t < 0.0:
@@ -919,6 +1050,8 @@ static func where_text(s: Dictionary, t: float = -1.0) -> String:
 		match String(s.get("doing", "")):
 			"stall":
 				return "ออนไลน์ · ตั้งร้านใน%s" % where
+			"errand":
+				return "ออนไลน์ · แวะ%s%s" % [where, ERRAND_TEXT.get(String(s.get("errand", "")), "")]
 			"boss":
 				return "ออนไลน์ · ล่าบอสที่ %s" % where
 			"help":

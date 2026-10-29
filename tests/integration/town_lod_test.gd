@@ -3,7 +3,8 @@ extends Node
 ## enhancement dressing (at most one particle emitter, no flames, beams or lights), far
 ## players stop their emitters, cast no shadow and still animate (the manual animation
 ## steps run), the party keeps the full dressing, and the arrivals of a sync come one
-## per frame.
+## per frame. The village shows only stall keepers, each at a stall of its own (never
+## more than there are stalls), and players in on an errand, at their villager.
 var checks := 0
 var failures := 0
 
@@ -33,6 +34,29 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	var players: Array = get_tree().get_nodes_in_group("world_players")
 	check(players.size() >= 10, "the village shows players (%d)" % players.size())
+	check(players.size() <= WorldPresence.limit_here(true), "no more than the village's limit (%d of %d)" % [players.size(), WorldPresence.limit_here(true)])
+	var spots := {}
+	var keepers_shown := 0
+	for node in players:
+		var p := node as FieldPlayer
+		var s := WorldPlayers.state(p.world_index, WorldPresence.clock())
+		check(p.doing in ["stall", "errand"] and String(s.doing) == p.doing and String(s.place) == "town", "%s in the village keeps a stall or runs an errand (%s, %s)" % [p.member.name, p.doing, s.doing])
+		if p.doing == "errand":
+			check(p.on_errand() and p.errand == String(s.errand), "%s is on its %s errand" % [p.member.name, s.errand])
+			continue
+		keepers_shown += 1
+		check(p.stall_at.is_finite() and not spots.has(p.stall_at), "%s has a stall of its own" % p.member.name)
+		spots[p.stall_at] = true
+	check(keepers_shown <= JapanVillage.STALLS.size(), "no more keepers than stalls (%d of %d)" % [keepers_shown, JapanVillage.STALLS.size()])
+	# A day when more keepers are online than there are stalls: still one stall each.
+	var presence0: WorldPresence = zone.presence if "presence" in zone else null
+	if presence0 != null:
+		var keepers := 0
+		for i in WorldPlayers.size():
+			var s := WorldPlayers.state(i, WorldPresence.clock())
+			keepers += 1 if bool(s.online) and String(s.doing) == "stall" else 0
+		print("town_lod_test: %d stall keepers online, %d shown, %d errand runners, %d stalls" % [keepers, keepers_shown, players.size() - keepers_shown, JapanVillage.STALLS.size()])
+		check(presence0._stalls.size() == keepers_shown, "every shown keeper holds a stall (%d shown, %d stalls taken)" % [keepers_shown, presence0._stalls.size()])
 	var emitters := 0
 	var flames := 0
 	var lights := 0

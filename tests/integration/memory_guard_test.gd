@@ -198,13 +198,19 @@ func _ready() -> void:
 	check(MemoryGuard.video_mb >= 0.0 and MemoryGuard.heap_mb >= 0.0, "tick reads the monitors")
 	var report := MemoryGuard.report()
 	check(report.has("pressure") and report.has("videoMB") and report.has("heapMB") and report.has("scale3d"), "report carries the readings")
-	# The 3D resolution scale: a phone at high quality starts below full size and follows
-	# the frame rate (down a step after a slow stretch, up again after a fast one); the
-	# HUD is untouched and a desktop always draws at 1.0.
+	# The 3D resolution scale: every zone starts at full size; high quality stays sharp
+	# (a slow stretch does not lower it); below high a phone follows the frame rate (down
+	# a step after a slow stretch, up again after a fast one); the HUD is untouched and a
+	# desktop always draws at 1.0.
 	var phone := MemoryGuard.phone()
 	MemoryGuard.force(-1, tree)
 	MemoryGuard.reset_scale_3d(tree)
-	check(is_equal_approx(MemoryGuard.scale_3d, MemoryGuard.SCALE_3D_START if phone else 1.0), "a zone starts at the device's base 3D scale (%.2f)" % MemoryGuard.scale_3d)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0), "a zone starts at full size (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.fps_override = 20.0
+	for i in MemoryGuard.SCALE_3D_SLOW_TICKS * 4:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0), "high quality keeps the sharp picture when the frame rate is low (%.2f)" % MemoryGuard.scale_3d)
+	GameSettings.quality = 1
 	check(is_equal_approx(tree.root.scaling_3d_scale, MemoryGuard.scale_3d), "the root viewport draws 3D at that scale")
 	MemoryGuard.set_scale_3d(0.9, tree)
 	MemoryGuard.fps_override = 30.0
@@ -220,6 +226,7 @@ func _ready() -> void:
 		MemoryGuard._follow_frame_rate(tree)
 	check(is_equal_approx(MemoryGuard.scale_3d, 1.0) or not phone, "a fast stretch brings it back up to full size (%.2f)" % MemoryGuard.scale_3d)
 	MemoryGuard.fps_override = -1.0
+	GameSettings.quality = 2
 	MemoryGuard.reset_scale_3d(tree)
 	zone.queue_free()
 	await get_tree().process_frame

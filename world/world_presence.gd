@@ -2,7 +2,9 @@ class_name WorldPresence
 extends Node
 ## Shows the world players (WorldPlayers) who are online in this zone right now: they walk
 ## in, hunt the field's monsters, level up as their schedule says and log off when their
-## session ends; in the village the stall keepers stand at their stalls. Checked every
+## session ends; the village shows only the stall keepers (players taking a break, who
+## sell what they found: StallStock), each at a stall of its own, and the players in on
+## a short errand (WorldPlayers.errand_at), standing at the villager it is for. Checked every
 ## few seconds; lower quality shows fewer at once (and memory pressure fewer still). Also
 ## announces milestones (job advancement levels, Lv.100, star tiers, the divine set, its
 ## enhancement, newcomers) of any world player, wherever it is, like a server message, and
@@ -104,22 +106,37 @@ func sync(initial: bool) -> void:
 		if bool(s.online):
 			_online.append(s)
 		if bool(s.online) and StringName(s.place) == zone.zone_id and not Game.in_party(i):
+			# The village is the stall keepers' and the errand runners' (the scheduled
+			# players otherwise are out levelling).
+			if zone.is_town and String(s.doing) not in ["stall", "errand"]:
+				continue
 			here.append(s)
-	# Those already shown stay first, then the stall keepers (the village's fixtures), then
-	# the roster order turned by the hour so the same few are not always the ones picked.
+	# Those already shown stay first, then the roster order turned by the hour so the same
+	# few are not always the ones picked.
 	var n := WorldPlayers.size()
 	var turn := int(t / 3600.0) % n
 	here.sort_custom(func(a, b):
-		var sa := 0 if shown.has(int(a.index)) else (1 if String(a.doing) == "stall" else 2)
-		var sb := 0 if shown.has(int(b.index)) else (1 if String(b.doing) == "stall" else 2)
+		var sa := 0 if shown.has(int(a.index)) else 1
+		var sb := 0 if shown.has(int(b.index)) else 1
 		if sa != sb:
 			return sa < sb
 		return (int(a.index) - turn + n) % n < (int(b.index) - turn + n) % n)
 	var cap := limit_here(zone.is_town)
 	var limit: int = maxi(1, cap - Game.party().size()) if cap > 0 else 0
 	var keep := {}
-	for k in mini(limit, here.size()):
-		keep[int(here[k].index)] = here[k]
+	if zone.is_town:
+		# Stall keepers first, one a stall (never more than there are stalls), keeping a few
+		# places for the errand runners; the errand runners fill the rest of the limit.
+		var keepers := here.filter(func(s): return String(s.doing) == "stall")
+		var runners := here.filter(func(s): return String(s.doing) == "errand")
+		var seats := mini(limit, mini(JapanVillage.STALLS.size(), limit - mini(ERRAND_SEATS, runners.size())))
+		for k in mini(seats, keepers.size()):
+			keep[int(keepers[k].index)] = keepers[k]
+		for k in mini(limit - keep.size(), runners.size()):
+			keep[int(runners[k].index)] = runners[k]
+	else:
+		for k in mini(limit, here.size()):
+			keep[int(here[k].index)] = here[k]
 	for i in shown.keys():
 		if not keep.has(i):
 			var gone: FieldPlayer = shown[i]
@@ -137,6 +154,8 @@ func sync(initial: bool) -> void:
 			p.sync_progress(s)
 			if p.doing == "stall" and not p.stall_at.is_finite():
 				_give_stall(p)
+			if p.doing == "errand" and (p.errand != String(s.errand) or not p.errand_at.is_finite()):
+				_give_errand(p, s)
 			continue
 		if initial:
 			_spawn(i, t, initial, s)
@@ -197,6 +216,13 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 	if p.doing == "stall" and zone.is_town and _give_stall(p):
 		p.global_position = p.stall_at + Vector3(0, 0.3, 0)
 		return
+	if p.doing == "errand" and zone.is_town and _give_errand(p, s):
+		# Already at the villager when the hero arrives, otherwise in from the warp stone.
+		at = p.errand_at if initial else p.errand_exit
+		p.global_position = at + Vector3(0, 0.3, 0)
+		if not initial:
+			VfxKit.flash(zone, p.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.4)
+		return
 	if initial and not zone.is_town:
 		var camp := p.camp()
 		if not camp.is_empty():
@@ -210,7 +236,7 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 
 
 ## Hands a stall keeper in the village a free stall (its own favourite first); false when
-## every stall is taken (it strolls about instead).
+## every stall is taken (sync never shows more keepers than there are stalls).
 func _give_stall(p: FieldPlayer) -> bool:
 	if not zone.is_town:
 		return false
@@ -223,6 +249,40 @@ func _give_stall(p: FieldPlayer) -> bool:
 			p.stall_at = JapanVillage.STALLS[at]
 			p.stall_face = JapanVillage.stall_face(p.stall_at)
 			return true
+	return false
+
+
+## The villager each errand goes to (Zone._villagers roles).
+const ERRAND_NPC := {"quest": "elder", "enhance": "forge", "skill": "skill"}
+## Places in the village kept for the errand runners while any are about.
+const ERRAND_SEATS := 4
+
+
+## Sends an errand runner to its villager: a spot of its own in front of it (by its name),
+## facing it, and the warp stone to walk back to as the errand ends; false outside the
+## village or without that villager.
+func _give_errand(p: FieldPlayer, s: Dictionary) -> bool:
+	if not zone.is_town:
+		return false
+	p.errand = String(s.get("errand", ""))
+	p.errand_until = float(s.get("errand_until", 0.0))
+	if p._label != null:
+		p._label.text = p._level_text()
+	var role := String(ERRAND_NPC.get(p.errand, ""))
+	for v in zone._villagers():
+		if String(v[0]) != role:
+			continue
+		var pos: Vector3 = v[4]
+		var front := Vector3(v[6].x - pos.x, 0, v[6].z - pos.z).normalized()
+		var side := Vector3(front.z, 0, -front.x)
+		var h := hash("errand_spot|%s" % p.member.name)
+		p.errand_at = pos + front * (2.2 + float(h / 7 % 2) * 1.3) + side * (float(h % 7) - 3.0) * 0.9
+		p.errand_face = -front
+		p.errand_exit = zone.entrance()
+		for npc in zone.npcs:
+			if is_instance_valid(npc) and "role" in npc and String(npc.role) == "warp":
+				p.errand_exit = (npc as Node3D).global_position + side * 1.5
+		return true
 	return false
 
 

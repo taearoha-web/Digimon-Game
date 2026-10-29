@@ -3,6 +3,15 @@
   "version": "0.9.4",
   "private": true,
   "type": "module",
-  "scripts": {"dev": "wrangler dev", "deploy": "wrangler deploy"},
-  "devDependencies": {"wrangler": "4.92.0"}
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node tests/chat.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.92.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.134.0"
+  }
 }

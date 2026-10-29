@@ -408,6 +408,61 @@ async function route(request, env) {
   fail(404, 'not_found', 'Endpoint not found.');
 }
 
+/** The account checks a feature outside this file (the AI chat, hosting/worker/chat.mjs)
+ * runs before it spends anything: a POST from the game's own page, a signed-in session
+ * owned by the account the page says it is, and per-account limits (each [subject, limit,
+ * seconds]: at most `limit` calls in the window). Throws ApiError; answer it with
+ * accountError(). Returns {user, now}. */
+export async function accountGate(request, env, action, limits) {
+  const url = new URL(request.url);
+  if (!env?.DB) fail(503, 'service_unavailable', 'Game accounts are temporarily unavailable.');
+  if (request.method.toUpperCase() !== 'POST') fail(405, 'method_not_allowed', 'Use POST.');
+  if (request.headers.get('origin') !== url.origin) fail(403, 'invalid_origin', 'This request must come from the game website.');
+  const now = Math.floor(Date.now() / 1000);
+  const session = await requireSession(request, env.DB, now);
+  const statements = [];
+  for (const [subject, , seconds] of limits) {
+    const window = Math.floor(now / seconds);
+    const bucket = `${action}:${window}:${await sha256(`${subject}:${session.user.id}`)}`;
+    statements.push(env.DB.prepare(`INSERT INTO toon_rate_limits (bucket, count, expires_at)
+      VALUES (?, 1, ?) ON CONFLICT(bucket) DO UPDATE SET count = MIN(count + 1, 1000000)
+      RETURNING count`).bind(bucket, (window + 1) * seconds));
+  }
+  statements.push(env.DB.prepare('DELETE FROM toon_rate_limits WHERE bucket IN (SELECT bucket FROM toon_rate_limits WHERE expires_at <= ? LIMIT 100)').bind(now));
+  const result = await env.DB.batch(statements);
+  for (let i = 0; i < limits.length; i++) {
+    if (result[i].results[0].count > limits[i][1]) {
+      const retryAfter = (Math.floor(now / limits[i][2]) + 1) * limits[i][2] - now;
+      fail(429, 'too_many_messages', 'Too many messages. Please wait a little.', {retryAfter, limit: limits[i][0]});
+    }
+  }
+  return {user: session.user, now};
+}
+
+/** The JSON answer for an error thrown by accountGate or a feature built on it. */
+export function accountError(error) {
+  if (error instanceof ApiError) {
+    const extra = error.status === 429 ? {'retry-after': String(error.details.retryAfter)} : {};
+    return response({error: {code: error.code, message: error.message}, ...error.details}, error.status, extra);
+  }
+  return response({error: {code: 'service_unavailable', message: 'The service is temporarily unavailable. Please try again.'}}, 503);
+}
+
+/** A JSON answer with the account API's headers. */
+export function accountResponse(body, status = 200) {
+  return response(body, status);
+}
+
+/** Throws the account API's error (status, code, message) from a feature built on it. */
+export function accountFail(status, code, message, details) {
+  fail(status, code, message, details);
+}
+
+/** A request body as JSON, at most maxBytes. */
+export function accountJson(request, maxBytes) {
+  return jsonBody(request, maxBytes);
+}
+
 export async function handleAccountRequest(request, env) {
   try {return await route(request, env);}
   catch (error) {

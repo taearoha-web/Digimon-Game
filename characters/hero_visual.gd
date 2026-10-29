@@ -1151,7 +1151,11 @@ var _flash_mat: StandardMaterial3D
 
 func _flash_targets() -> Array:
 	if not _lod_meshes.is_empty():
-		return _lod_meshes
+		# Gear changed since the list was made: its old pieces are gone.
+		if _lod_meshes.any(func(mi): return not is_instance_valid(mi)):
+			_lod_meshes.assign(_lod_meshes.filter(func(mi): return is_instance_valid(mi)))
+		if not _lod_meshes.is_empty():
+			return _lod_meshes
 	return model.find_children("*", "MeshInstance3D", true, false) if model != null else []
 
 
@@ -1175,6 +1179,8 @@ func flash(color := Color(1, 0.35, 0.35), duration := 0.18) -> void:
 		_tween.kill()
 	_end_flash()
 	for mi in meshes:
+		if not is_instance_valid(mi):
+			continue
 		var mesh := mi as MeshInstance3D
 		if mesh.material_overlay != null and mesh.material_overlay != overlay:
 			_flash_restore[mesh] = mesh.material_overlay

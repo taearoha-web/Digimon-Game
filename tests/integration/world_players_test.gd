@@ -27,6 +27,7 @@ func _ready() -> void:
 	_gear()
 	await _field()
 	await _party()
+	await _errand_visit()
 	_guild()
 	await _screens()
 	print("WORLD PLAYERS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
@@ -72,6 +73,7 @@ func _progress() -> void:
 		var last_stars := 0
 		var steady := true
 		var zones_ok := true
+		var levels_online := true
 		var t := start
 		while t < start + 200.0 * day:
 			var s := WorldPlayers.state(i, t)
@@ -84,8 +86,14 @@ func _progress() -> void:
 				zones_ok = false
 			if bool(s.online) != (place != ""):
 				zones_ok = false
+			# Only a stall keeper (or a divine player on a break, keeping a stall) and a
+			# scheduled player on a short errand are in the village.
+			if place == "town" and not ((String(s.doing) == "stall" and (WorldPlayers.in_town_style(i) or bool(s.divine))) \
+					or (String(s.doing) == "errand" and not WorldPlayers.in_town_style(i) and String(s.errand) in WorldPlayers.ERRAND_KINDS)):
+				levels_online = false
 			t += day * 0.73
 		check(steady, "%s: level and stars only ever go up" % e.name)
+		check(levels_online, "%s: online it levels in a field, the village is for stall keepers and errands" % e.name)
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
 		var end := WorldPlayers.state(i, start + 200.0 * day)
 		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
@@ -486,6 +494,72 @@ func _party() -> void:
 	await _wings(zone)
 	WorldPresence.clock_offset = 0.0
 	await main.go(&"town", true)
+
+
+## A scheduled player on an errand stands at the right villager in the village, and near
+## the end walks back to the warp stone; the village shows nobody else but stall keepers.
+func _errand_visit() -> void:
+	var quality := GameSettings.quality
+	GameSettings.quality = 2
+	var found := []
+	var t := float(WorldPlayers.START_UNIX) + 3.0 * 86400.0
+	while found.is_empty() and t < float(WorldPlayers.START_UNIX) + 6.0 * 86400.0:
+		for i in WorldPlayers.size():
+			var sess := WorldPlayers.session_at(i, t)
+			if sess.is_empty() or Game.in_party(i):
+				continue
+			var e := WorldPlayers.errand_at(i, float(sess[0]), float(sess[1]), t)
+			if not e.is_empty() and float(e.until) - t > 100.0:
+				found = [t, i, e]
+				break
+		t += 120.0
+	check(not found.is_empty(), "someone comes to the village on an errand")
+	if found.is_empty():
+		GameSettings.quality = quality
+		return
+	WorldPresence.clock_offset = float(found[0]) - WorldPlayers.now()
+	await main.go(&"town", true)
+	await get_tree().create_timer(1.0).timeout
+	var zone: Zone = main.zone
+	var who: int = found[1]
+	var kind := String(found[2].kind)
+	var runner: FieldPlayer = null
+	var others_ok := true
+	for node in get_tree().get_nodes_in_group("world_players"):
+		var p := node as FieldPlayer
+		var s := WorldPlayers.state(p.world_index, WorldPresence.clock())
+		others_ok = others_ok and String(s.doing) in ["stall", "errand"] and p.doing == String(s.doing)
+		if p.world_index == who:
+			runner = p
+	check(others_ok, "the village shows only stall keepers and errand runners")
+	check(runner != null, "the errand runner is in the village")
+	if runner == null:
+		GameSettings.quality = quality
+		WorldPresence.clock_offset = 0.0
+		return
+	var role := String(WorldPresence.ERRAND_NPC[kind])
+	var npc_at := Vector3.INF
+	var warp_at := Vector3.INF
+	for npc in zone.npcs:
+		if "role" in npc and String(npc.role) == role:
+			npc_at = (npc as Node3D).global_position
+		if "role" in npc and String(npc.role) == "warp":
+			warp_at = (npc as Node3D).global_position
+	check(runner.errand == kind and runner.on_errand(), "it is on its errand (%s)" % kind)
+	await get_tree().create_timer(2.0).timeout
+	var d := Vector2(runner.global_position.x - npc_at.x, runner.global_position.z - npc_at.z).length()
+	check(d < 5.5, "it stands at the %s for its %s errand (%.1f m)" % [role, kind, d])
+	check(String(runner._label.text).contains(String(FieldPlayer.ERRAND_TAGS[kind])), "its tag says the errand (%s)" % runner._label.text)
+	var line := WorldChat.line_for(WorldPlayers.state(who, WorldPresence.clock()), 3)
+	check(line != "", "it has something to say on its errand (%s)" % line)
+	# Near the end it heads back to the warp stone.
+	WorldPresence.clock_offset += float(found[2].until) - WorldPresence.clock() - 15.0
+	var before := Vector2(runner.global_position.x - warp_at.x, runner.global_position.z - warp_at.z).length()
+	await get_tree().create_timer(2.0).timeout
+	var after := Vector2(runner.global_position.x - warp_at.x, runner.global_position.z - warp_at.z).length() if is_instance_valid(runner) else 0.0
+	check(after < before - 1.0, "near the end it walks back to the warp stone (%.1f -> %.1f m)" % [before, after])
+	GameSettings.quality = quality
+	WorldPresence.clock_offset = 0.0
 
 
 ## A player with wings flies, stands or folds them as it pleases, and flying lifts it.

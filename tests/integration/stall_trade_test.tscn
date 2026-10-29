@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://tests/integration/stall_trade_test.gd" id="1"]
+[node name="StallTradeTest" type="Node"]
+script = ExtResource("1")

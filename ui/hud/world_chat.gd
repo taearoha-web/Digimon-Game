@@ -75,8 +75,9 @@ static func _clean(text: String) -> String:
 
 # --- What players say ----------------------------------------------------------------
 
+## Lines anyone may say; the scheduled players are out levelling, never in the village.
 const ANY := ["สวัสดีทุกคน", "วันนี้มอนเกิดไวดีนะ", "555 เมื่อกี้ล้มเพราะเผลอ", "เน็ตกระตุกนิดหน่อย", "ใครเห็นบอสสนามบ้าง",
-	"ยาเลือดหมดอีกแล้ว", "เพลงหมู่บ้านเพราะจัง", "พักกินข้าวแป๊บ", "ขอบคุณที่ช่วยเมื่อกี้นะ", "ใครอยากเพิ่มเพื่อนบ้าง"]
+	"ยาเลือดใกล้หมดแล้ว ฟาร์มต่ออีกนิด", "เพลง%zone เพราะจัง", "ขอบคุณที่ช่วยเมื่อกี้นะ", "ใครอยากเพิ่มเพื่อนบ้าง"]
 const LOW := ["มีใครพาเก็บเลเวลไหมครับ", "มือใหม่ครับ ฝากตัวด้วย", "%zone มอนเยอะดีจัง", "เลเวลขึ้นช้าจัง ทำไงดี",
 	"อาชีพไหนเก่งสุดครับ", "ใครรู้ทางไปสนามถัดไปบ้าง"]
 const JOB := ["เพิ่งเปลี่ยนอาชีพเป็น%job แล้ว!", "%job สนุกกว่าที่คิด", "ใครเล่น%job บ้าง แนะนำสกิลหน่อย"]
@@ -86,8 +87,16 @@ const HIGH := ["กิลด์ %guild รับสมาชิกเลเว�
 	"ดาวขึ้นช้ามากที่ %zone", "ใครไปเก็บดาวด้วยกันบ้าง", "%guild ต้องชนะกิลด์วอรอบนี้!"]
 const TOP := ["ตีบวกชุดเทพต่อ ใครมีหินขายบ้าง", "รับพาเก็บดาว ทักมาได้", "ล่าบอสวิหารบัววันนี้ได้ของดี",
 	"ชุดเทพครบแล้ว เหลือตีบวกให้ครบ +10", "มือใหม่มาถามได้นะ ยินดีช่วย", "กิลด์ %guild แกร่งที่สุด"]
-const STALL := ["ร้านเปิดแล้ว ยาเลือดราคาถูก", "ขาย%gear ทักได้เลย", "รับซื้ออัญมณีทุกชนิด", "ขายหินตีบวก ของแท้ราคาเป็นมิตร",
-	"AFK อยู่นะ ซื้อของวางเงินไว้ได้", "ร้านนี้ของครบ ยาเลือด ยามานา หิน", "ลดราคาช่วงนี้ แวะมาก่อนออกล่า"]
+## Stall keepers: players taking a break in the village, selling what they found.
+const STALL := ["ร้านเปิดแล้ว ยาเลือดถูกกว่าพ่อค้า", "ขาย%gear ทักได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า", "ขายเพชรตีบวก ของแท้ราคาเป็นมิตร",
+	"AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "ลดราคาช่วงนี้ แวะมาก่อนออกล่า",
+	"ของหายากเพิ่งได้มา แตะที่ตัวแล้วดูร้านได้เลย", "ของชุดใหม่ลงร้านทุกสองชั่วโมง", "เพลงหมู่บ้านเพราะจัง นั่งขายของเพลิน ๆ"]
+## A scheduled player in the village on a short errand, by the errand.
+const ERRAND := {
+	"quest": ["ส่งเควสก่อนนะ", "แวะส่งเควสที่ผู้ใหญ่บ้าน เดี๋ยวกลับไปล่าต่อ", "รับเควสใหม่แล้ว ไปต่อกัน", "เควสนี้ให้ของดีด้วย"],
+	"enhance": ["ตีบวกติด +%plus แล้ว!", "ตีบวกแตกอีกแล้ว", "ลุ้นตีบวกอยู่ เพชรชมพูเหลือเม็ดเดียว", "ตีบวก +%plus ผ่าน! ไปล่าต่อ"],
+	"skill": ["เรียนสกิลใหม่แล้ว", "อัปสกิลเสร็จ ไปลองของที่%field", "ได้สกิลใหม่ที่เลเวล %level แล้ว!"],
+}
 const GEAR := ["พิณ +7", "ดาบ +8", "คทา +6", "โล่ใหญ่ +7", "ธนู +8", "ไม้เท้า +6", "หอก +7", "มีด +8", "ชุดเกราะ +5", "ปีกเลเวล 100"]
 
 
@@ -97,7 +106,10 @@ static func line_for(s: Dictionary, seed_value: int) -> String:
 	rng.seed = seed_value
 	var level := int(s.get("level", 1))
 	var pool: Array = []
-	if String(s.get("doing", "")) == "stall":
+	var errand := String(s.get("errand", ""))
+	if String(s.get("doing", "")) == "errand" and ERRAND.has(errand):
+		pool = ERRAND[errand]
+	elif String(s.get("doing", "")) == "stall":
 		pool = STALL
 	elif bool(s.get("divine", false)):
 		pool = TOP
@@ -109,7 +121,7 @@ static func line_for(s: Dictionary, seed_value: int) -> String:
 		pool = JOB
 	else:
 		pool = LOW
-	if rng.randf() < 0.25:
+	if rng.randf() < (0.1 if String(s.get("doing", "")) in ["stall", "errand"] else 0.25):
 		pool = ANY
 	var line := String(pool[rng.randi() % pool.size()])
 	var place := StringName(s.get("place", ""))
@@ -118,5 +130,8 @@ static func line_for(s: Dictionary, seed_value: int) -> String:
 	if line.contains("%guild") and guild == "":
 		line = String(ANY[rng.randi() % ANY.size()])
 	line = line.replace("%zone", zone_name).replace("%guild", guild).replace("%gear", String(GEAR[rng.randi() % GEAR.size()]))
+	line = line.replace("%plus", str(rng.randi_range(5, 9))).replace("%level", str(level))
+	if line.contains("%field"):
+		line = line.replace("%field", String(ZoneData.get_zone(WorldPlayers.hunting_zone(level, int(s.get("stars", 0)))).get("name", "สนาม")))
 	line = line.replace("%job", String(ClassData.get_class_data(StringName(s.get("class", ClassData.START))).get("name", "")))
 	return line

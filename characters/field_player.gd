@@ -39,6 +39,17 @@ var doing := ""
 ## Its stall in the village (WorldPresence hands one out) and the way it faces.
 var stall_at := Vector3.INF
 var stall_face := Vector3.FORWARD
+## On an errand in the village ("quest", "enhance", "skill"; WorldPresence sends it): the
+## spot in front of the villager, the way it faces there, the warp stone it walks back to
+## and when the errand ends (WorldPresence.clock).
+var errand := ""
+var errand_at := Vector3.INF
+var errand_face := Vector3.FORWARD
+var errand_exit := Vector3.INF
+var errand_until := 0.0
+const ERRAND_TAGS := {"quest": "ส่งเควส", "enhance": "ตีบวก", "skill": "เรียนสกิล"}
+## Seconds before an errand ends that it walks back to the warp stone.
+const ERRAND_LEAVE := 20.0
 var _bubble: Label3D
 var _sits := false
 
@@ -105,6 +116,8 @@ func _level_text() -> String:
 	_label.modulate = WorldPlayers.GUILD_COLORS.get(g, Color("e8f4ff"))
 	var stars := Game.party_stars(member)
 	var line := "%s%s Lv.%d%s" % ["[%s] " % WorldPlayers.guild_name(g) if g > 0 else "", member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
+	if doing == "errand" and not party_mode and ERRAND_TAGS.has(errand):
+		return line + "\n«%s»" % ERRAND_TAGS[errand]
 	return line + ("\n«ร้านค้า»" if doing == "stall" and not party_mode else "")
 
 
@@ -131,6 +144,18 @@ func _class_changed() -> void:
 ## Keeping a stall: in the village, not in a party, with a stall handed out.
 func keeps_stall() -> bool:
 	return doing == "stall" and not party_mode and zone != null and zone.is_town and stall_at.is_finite()
+
+
+## On an errand: in the village, not in a party, with a villager to go to.
+func on_errand() -> bool:
+	return doing == "errand" and not party_mode and zone != null and zone.is_town and errand_at.is_finite()
+
+
+## Where an errand runner heads now: its villager, and the warp stone near the end.
+func errand_goal() -> Vector3:
+	if errand_exit.is_finite() and WorldPresence.clock() > errand_until - ERRAND_LEAVE:
+		return errand_exit
+	return errand_at
 
 
 func _rest_anim() -> String:
@@ -223,6 +248,9 @@ var _lod_check := 0.0
 
 
 func _resting() -> bool:
+	if not _dead and hp >= max_hp and on_errand():
+		var goal := errand_goal()
+		return goal == errand_at and _flat(goal - global_position).length() < 0.7
 	return keeps_stall() and not _dead and hp >= max_hp and _flat(stall_at - global_position).length() < 0.7
 
 
@@ -491,6 +519,16 @@ func _follow(delta: float) -> Vector3:
 			_face(to_stall, delta, 10.0)
 			return to_stall.normalized() * minf(float(stats.speed) * 0.7, to_stall.length() * 4.0)
 		_face(stall_face, delta, 6.0)
+		return Vector3.ZERO
+	if on_errand():
+		# Walks to the villager, stands facing it, and heads back to the warp stone at the end.
+		var goal := errand_goal()
+		var to_goal := _flat(goal - global_position)
+		if to_goal.length() > 0.6:
+			_face(to_goal, delta, 10.0)
+			return to_goal.normalized() * minf(float(stats.speed) * 0.8, to_goal.length() * 4.0)
+		if goal == errand_at:
+			_face(errand_face, delta, 6.0)
 		return Vector3.ZERO
 	_camp_left -= delta
 	if _camp_left <= 0.0:

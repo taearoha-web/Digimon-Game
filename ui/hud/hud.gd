@@ -12,6 +12,8 @@ extends CanvasLayer
 signal menu_requested(tab: StringName)
 ## The online count was tapped: open the game registry.
 signal registry_requested()
+## The chat chip: type a line to the world chat (AiChat).
+signal chat_requested()
 ## A tap on the 3D world that did not turn the camera (Zone.player_at picks who is there).
 signal world_tapped(position: Vector2)
 signal interact_pressed()
@@ -802,6 +804,16 @@ func _build_top_right(frame: Control) -> void:
 	row.offset_right = 0
 	row.alignment = BoxContainer.ALIGNMENT_END
 	frame.add_child(row)
+	# Talk to the world players: a tap opens the typing bar for the world chat.
+	var chat := UIUtil.panel(&"HudPanel")
+	chat.name = "ChatChip"
+	chat.mouse_filter = Control.MOUSE_FILTER_STOP
+	chat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chat.gui_input.connect(_tap(func(): chat_requested.emit()))
+	var chat_label := UIUtil.label("แชท", &"HudLabel")
+	chat_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chat.add_child(chat_label)
+	row.add_child(chat)
 	# Who else is playing: the world players online plus the hero; a tap opens the registry.
 	var online := UIUtil.panel(&"HudPanel")
 	online.name = "OnlineChip"
