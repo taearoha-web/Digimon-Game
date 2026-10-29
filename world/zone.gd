@@ -1034,7 +1034,9 @@ func _drop_loot(mob: Mob) -> void:
 			if table:
 				gem = ItemData.gem(BossLootData.gem_kind(mob.monster_id, rng), int(String(gem.id).split("_")[1]))
 			_spawn_loot(gem, 0, from)
+		_drop_jewels(from)
 		return
+	_drop_jewels(from)
 	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)):
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
 	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)):
@@ -1051,6 +1053,16 @@ func _drop_loot(mob: Mob) -> void:
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
 		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
+
+
+## Forge jewels: every monster of a levelling field may drop a purple jewel
+## (ItemData.JEWEL_DROP) and a pink one, bosses as well.
+func _drop_jewels(from: Vector3) -> void:
+	if is_town or is_pvp:
+		return
+	for id in ["purple", "pink"]:
+		if rng.randf() < float(ItemData.JEWEL_DROP[id]):
+			_spawn_loot(ItemData.jewel(id), 0, from)
 
 
 ## Chase pieces of a field boss; every miss raises the next kill's chance.

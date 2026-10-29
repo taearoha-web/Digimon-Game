@@ -790,12 +790,14 @@ func _valid_item(value: Variant) -> bool:
 	if not value is Dictionary:
 		return false
 	var item: Dictionary = value
-	if item.get("kind") in ["potion", "gem"]:
+	if item.get("kind") in ["potion", "gem", "jewel"]:
 		# Stack items never contain equipment fields. Refuse ambiguous data before
 		# item repair or UI code can accidentally interpret those nested values.
 		for key in ["stats", "gems", "level", "rarity", "price", "plus", "sockets"]:
 			if item.has(key):
 				return false
+		if item.kind == "jewel":
+			return _valid_integer(item.get("count", 1), 1) and ItemData.JEWELS.has(item.get("id"))
 		return _valid_integer(item.get("count", 1), 1) and (ItemData.POTIONS.has(item.get("id")) if item.kind == "potion" else _valid_gem_id(item.get("id")))
 	if item.get("kind") != "equip" or not ItemData.EQUIP_SLOTS.has(item.get("slot")):
 		return false
@@ -1653,7 +1655,33 @@ func add_item(item: Dictionary) -> bool:
 	return true
 
 
-## One forge attempt (+1). Returns "ok", "fail" (gold spent, nothing else lost) or a reason.
+## Jewels of `id` in the bag.
+func jewel_count(id: String) -> int:
+	var n := 0
+	for item in profile["inv"]:
+		if item.get("kind", "") == "jewel" and String(item.get("id", "")) == id:
+			n += int(item.get("count", 1))
+	return n
+
+
+## Takes `count` jewels of `id` from the bag (the caller checked there are enough).
+func _spend_jewels(id: String, count: int) -> void:
+	var left := count
+	for i in range(profile["inv"].size() - 1, -1, -1):
+		var item: Dictionary = profile["inv"][i]
+		if left <= 0:
+			break
+		if item.get("kind", "") != "jewel" or String(item.get("id", "")) != id:
+			continue
+		var take := mini(left, int(item.get("count", 1)))
+		item["count"] = int(item.get("count", 1)) - take
+		left -= take
+		if int(item.count) <= 0:
+			profile["inv"].remove_at(i)
+
+
+## One forge attempt (+1) with jewels (ItemData.JEWELS). Returns "ok", "fail" (the
+## jewels are used up, the piece keeps its grade) or a reason.
 func enhance_item(item: Dictionary) -> String:
 	if item.get("kind", "") != "equip":
 		return "ไอเทมนี้ตีบวกไม่ได้"
@@ -1663,9 +1691,12 @@ func enhance_item(item: Dictionary) -> String:
 	if plus >= ItemData.MAX_PLUS:
 		return "บวกสูงสุดแล้ว"
 	var cost := ItemData.enhance_cost(item)
-	if int(profile["gold"]) < cost:
-		return "เหรียญไม่พอ (ต้องใช้ %d)" % cost
-	add_gold(-cost)
+	for id in cost:
+		if jewel_count(id) < int(cost[id]):
+			return "เพชรไม่พอ (ต้องใช้ %s)" % ItemData.jewel_cost_text(cost)
+	for id in cost:
+		if int(cost[id]) > 0:
+			_spend_jewels(id, int(cost[id]))
 	if rng.randf() < ItemData.enhance_chance(plus):
 		item["plus"] = plus + 1
 		item["price"] = int(int(item.price) * 1.12)
@@ -1928,7 +1959,7 @@ func set_loot_mask(mask: int) -> void:
 	mark_dirty()
 
 
-## Whether a drop is kept: potions, gems, gold and wings always are; gear only
+## Whether a drop is kept: potions, gems, jewels, gold and wings always are; gear only
 ## when its grade is switched on in the pickup filter.
 func keeps_loot(item: Dictionary) -> bool:
 	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":

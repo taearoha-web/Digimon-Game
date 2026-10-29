@@ -5,6 +5,7 @@ extends RefCounted
 ##
 ## Equipment: { kind:"equip", uid, slot, base, name, rarity, level, class, stats{atk,def,hp,mp,crit}, price }
 ## Potions:   { kind:"potion", id, count }
+## Jewels:    { kind:"jewel", id ("purple" / "pink"), count } spent at the forge (JEWELS)
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
 const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก"}
@@ -89,6 +90,15 @@ const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลัง
 const SET_NAMES := ["", "ชุดนักเดินทาง", "ชุดนักล่า", "ชุดอัศวิน", "ชุดเพลิงฟ้า", "ชุดมังกร", "ชุดอสูรสายฟ้า", "ชุดเทวทูต", "ชุดเทพสงคราม", "ชุดตำนานนิรันดร์"]
 const SET_SLOTS := ["weapon", "armor", "helm", "boots"]
 const MAX_PLUS := 10
+## Forge jewels, dropped by monsters in every levelling field (JEWEL_DROP per kill):
+## a purple jewel takes a piece from +0 to +6 and never fails, a pink jewel takes it on
+## to +7, +8 and +9 at 50%, and +10 takes three purple and two pink at 50%. A failed try
+## uses up the jewels and the piece keeps its grade.
+const JEWELS := {
+	"purple": {"name": "เพชรม่วง", "color": Color("b06bff"), "price": 400},
+	"pink": {"name": "เพชรชมพู", "color": Color("ff79c6"), "price": 900},
+}
+const JEWEL_DROP := {"purple": 0.01, "pink": 0.005}
 
 static var _uid := 0
 
@@ -120,7 +130,11 @@ static func potion(id: String, count := 1) -> Dictionary:
 
 
 static func is_stackable(item: Dictionary) -> bool:
-	return item.get("kind", "") in ["potion", "gem"]
+	return item.get("kind", "") in ["potion", "gem", "jewel"]
+
+
+static func jewel(id: String, count := 1) -> Dictionary:
+	return {"kind": "jewel", "id": id, "count": count}
 
 
 static func gem(gem_id: String, size: int, count := 1) -> Dictionary:
@@ -152,13 +166,28 @@ static func set_label(set_id: String) -> String:
 	return SET_NAMES[clampi(int(set_id.trim_prefix("set")), 0, 9)] if set_id != "" else ""
 
 
-## Chance (0-1) and gold cost of the next +1 at the forge.
+## Chance (0-1) of the next +1 at the forge from grade `plus` (see JEWELS).
 static func enhance_chance(plus: int) -> float:
-	return [1.0, 1.0, 1.0, 0.85, 0.8, 0.65, 0.6, 0.45, 0.4, 0.25][clampi(plus, 0, 9)]
+	return 1.0 if plus < 6 else 0.5
 
 
-static func enhance_cost(item: Dictionary) -> int:
-	return int((int(item.get("price", 10)) * 0.4 + 40.0) * (1.0 + int(item.get("plus", 0)) * 0.7))
+## The jewels the next +1 takes, {"purple": n, "pink": n}.
+static func enhance_cost(item: Dictionary) -> Dictionary:
+	var plus := int(item.get("plus", 0))
+	if plus < 6:
+		return {"purple": 1, "pink": 0}
+	if plus < 9:
+		return {"purple": 0, "pink": 1}
+	return {"purple": 3, "pink": 2}
+
+
+## "เพชรม่วง 3 + เพชรชมพู 2" for a cost.
+static func jewel_cost_text(cost: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for id in ["purple", "pink"]:
+		if int(cost.get(id, 0)) > 0:
+			parts.append("%s %d เม็ด" % [JEWELS[id].name, int(cost[id])])
+	return " + ".join(parts)
 
 
 ## Stat multiplier of a rarity; the mythic tier jumps well above legendary.
@@ -318,6 +347,8 @@ static func migrate_wings(item: Dictionary, class_id: String) -> void:
 static func name_of(item: Dictionary) -> String:
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].name
+	if item.get("kind", "") == "jewel":
+		return JEWELS[item.id].name
 	if item.get("kind", "") == "gem":
 		return gem_info(item).name
 	var plus := int(item.get("plus", 0))
@@ -327,6 +358,8 @@ static func name_of(item: Dictionary) -> String:
 static func color_of(item: Dictionary) -> Color:
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].color
+	if item.get("kind", "") == "jewel":
+		return JEWELS[item.id].color
 	if item.get("kind", "") == "gem":
 		return gem_info(item).color
 	return RARITY_COLORS[int(item.get("rarity", 0))]
@@ -342,6 +375,8 @@ static func unit_sell_price(item: Dictionary) -> int:
 
 
 static func sell_price(item: Dictionary) -> int:
+	if item.get("kind", "") == "jewel":
+		return int(JEWELS[item.id].price * 0.4) * int(item.get("count", 1))
 	if item.get("kind", "") == "gem":
 		return 20 * int(pow(3.0, gem_info(item).size)) * int(item.get("count", 1))
 	if item.get("kind", "") == "potion":
@@ -352,6 +387,8 @@ static func sell_price(item: Dictionary) -> int:
 static func buy_price(item: Dictionary) -> int:
 	if item.get("kind", "") == "potion":
 		return int(POTIONS[item.id].price)
+	if item.get("kind", "") == "jewel":
+		return int(JEWELS[item.id].price)
 	return int(int(item.get("price", 1)) * 1.2)
 
 

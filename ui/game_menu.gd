@@ -538,6 +538,13 @@ func _refresh_detail() -> void:
 			sell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			sell.pressed.connect(func(): _sell_selected(1))
 			pair.add_child(sell)
+	elif item.get("kind", "") == "jewel":
+		var how := UIUtil.label("ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง 3 + ชมพู 2 (50%)", &"DimLabel")
+		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_detail.add_child(how)
+		var sell_jewel := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
+		sell_jewel.pressed.connect(func(): _sell_selected(1))
+		target.add_child(sell_jewel)
 	elif item.get("kind", "") == "gem":
 		_detail.add_child(UIUtil.label("ไปที่ช่างตีเหล็กเพื่อใส่ลงช่องในอาวุธ/ชุด", &"DimLabel"))
 		var sell_gem := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
@@ -686,11 +693,22 @@ func _grade_toggle(rarity: int, on: bool, on_text: String, off_text: String) -> 
 
 func _build_forge_buttons(item: Dictionary) -> void:
 	var plus := int(item.get("plus", 0))
+	# The forge sits with the actions above the scrolling text: tapping it again and
+	# again never needs scrolling back down after the screen redraws.
+	var spot: Control = _actions if _actions != null and is_instance_valid(_actions) else _detail
 	if not EnhanceFx.can_enhance(item):
 		_detail.add_child(UIUtil.label("แหวนและสร้อยเป็นของวิเศษคงที่ ตีบวกไม่ได้ (ฝังอัญมณีได้)", &"DimLabel"))
 	elif plus < ItemData.MAX_PLUS:
-		_detail.add_child(UIUtil.label("ค่าตี %d เหรียญ" % ItemData.enhance_cost(item), &"DimLabel"))
+		var cost := ItemData.enhance_cost(item)
+		var enough := true
+		for id in cost:
+			enough = enough and Game.jewel_count(id) >= int(cost[id])
+		var need := UIUtil.label("ใช้ %s · มีเพชรม่วง %d ชมพู %d" % [ItemData.jewel_cost_text(cost), Game.jewel_count("purple"), Game.jewel_count("pink")], &"SmallLabel")
+		need.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		need.add_theme_color_override("font_color", Color("e8dcff") if enough else Color("ff8a8a"))
+		spot.add_child(need)
 		var btn := UIUtil.button("ตีบวก +%d  (%d%%)" % [plus + 1, int(ItemData.enhance_chance(plus) * 100.0)], &"PrimaryButton", Vector2(0, 58))
+		btn.disabled = not enough
 		btn.pressed.connect(func():
 			var result := Game.enhance_item(item)
 			match result:
@@ -703,11 +721,16 @@ func _build_forge_buttons(item: Dictionary) -> void:
 					if g >= 2:
 						Game.screen_flash.emit(EnhanceFx.color_of(new_plus), 0.12 + 0.07 * float(g))
 				"fail":
-					Game.say("ตีบวกพลาด... (เสียแค่เหรียญ ไอเทมไม่หาย)", &"warning")
+					Game.say("ตีบวกพลาด... (เพชรหายไป ไอเทมยังอยู่ที่ +%d)" % int(item.get("plus", 0)), &"warning")
 				_:
 					Game.say(result, &"warning")
+			# Spent jewels can empty a stack ahead of the piece in the bag: keep the piece selected.
+			if _selected_slot == "":
+				_selected_index = Game.profile.inv.find(item)
 			_rebuild())
-		_detail.add_child(btn)
+		spot.add_child(btn)
+	else:
+		_detail.add_child(UIUtil.label("ตีบวกสูงสุด +%d แล้ว" % ItemData.MAX_PLUS, &"DimLabel"))
 	var socketed: Array = item.get("gems", [])
 	for k in socketed.size():
 		var socket_index: int = k
