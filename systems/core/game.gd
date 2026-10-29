@@ -689,6 +689,7 @@ func _record_web_session_sample() -> void:
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
 		"scale3d": MemoryGuard.scale_3d, "emitters": get_tree().root.find_children("*", "CPUParticles3D", true, false).size(),
 		"renderFallback": RenderWatchdog.step, "flatScreens": RenderWatchdog.flat_count,
+		"starvedFrames": RenderWatchdog.starved_count,
 		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
@@ -706,6 +707,7 @@ func _record_web_session_sample() -> void:
 	for key in ["particles", "decorations", "lights"]:
 		if sample.vfx is Dictionary and sample.vfx.has(key):
 			sample[key] = sample.vfx[key]
+	sample.merge(RenderWatchdog.camera_report(get_tree()))
 	if hero is Hero:
 		sample["lastSkill"]=hero.last_cast_id
 		if hero.field is Zone and hero.field.tower_run:

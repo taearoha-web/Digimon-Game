@@ -111,6 +111,23 @@ func _ready() -> void:
 	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, false)
 	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, false)
 	check(RenderWatchdog.step == 2, "menus and travel fades are never read as a flat screen")
+	# A world drawn with almost no triangles counts as a flat screen (no pixel read needed).
+	RenderWatchdog.spread_override = -1.0
+	RenderWatchdog.triangles_override = 7595
+	var big := Node3D.new()
+	add_child(big)
+	for i in RenderWatchdog.STARVED_NODES:
+		big.add_child(Node.new())
+	var stand_in := Node3D.new()
+	stand_in.add_to_group("hero")
+	add_child(stand_in)
+	check(RenderWatchdog.world_starved(tree), "a built world drawn with 7.6k triangles is caught from the counters")
+	RenderWatchdog.triangles_override = 510000
+	check(not RenderWatchdog.world_starved(tree), "a village drawn in full is not")
+	RenderWatchdog.triangles_override = -1
+	big.queue_free()
+	stand_in.queue_free()
+	await tree.process_frame
 	RenderWatchdog.spread_override = -1.0
 	RenderWatchdog.step = 0
 	RenderWatchdog.flat_count = 0
