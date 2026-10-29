@@ -28,7 +28,7 @@ float noise(vec2 p) {
 void fragment() {
 	float v = UV.y;
 	float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
-	float height = pow(1.0 - v, falloff) * smoothstep(0.0, 0.02, v);
+	float height = pow(max(1.0 - v, 0.0), falloff) * smoothstep(0.0, 0.02, v);
 	// Two scrolling bands of energy climb the shaft.
 	float t = TIME * flow + seed;
 	float n = noise(vec2(UV.x * 5.0 + seed, v * 4.0 - t)) * 0.6 + noise(vec2(UV.x * 11.0 - seed, v * 9.0 - t * 1.7)) * 0.4;

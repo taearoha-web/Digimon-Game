@@ -37,7 +37,7 @@ void fragment() {
 		col = mix(vec3(1.0, 0.9, 0.94), accent.rgb, smoothstep(0.0, 0.5, r));
 		alpha = across * (1.0 - r * r) * flicker;
 	} else {
-		float flow = pow(0.5 + 0.5 * sin(r * 9.0 - TIME * 1.8 + a * 5.0), 6.0);
+		float flow = pow(max(0.5 + 0.5 * sin(r * 9.0 - TIME * 1.8 + a * 5.0), 0.0), 6.0);
 		float hem = smoothstep(0.8, 1.0, r);
 		col = mix(primary.rgb, accent.rgb, hem) + vec3(0.25, 0.2, 0.35) * flow * r;
 		alpha = (0.2 + 0.22 * flow * r) * smoothstep(0.05, 0.45, r) + hem * 0.6;

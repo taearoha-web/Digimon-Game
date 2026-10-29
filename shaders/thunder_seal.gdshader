@@ -35,7 +35,7 @@ void fragment() {
 	float jewels = stroke(abs(mod(turn + 0.392699, 0.785398) - 0.392699) * 0.54 + abs(r - 0.54) - 0.048, 0.003);
 	float centre = stroke(r - 0.15, 0.003) + stroke(r - 0.21, 0.002);
 	float ink = clamp(outer + inner + ticks + runes + lattice + spokes + jewels + centre, 0.0, 1.0);
-	float mist = exp(-pow((r - 0.82) * 12.0, 2.0)) * (0.5 + 0.5 * sin(a * 9.0 + r * 65.0 - age * 1.8));
+	float mist = exp(-pow(max((r - 0.82) * 12.0, 0.0), 2.0)) * (0.5 + 0.5 * sin(a * 9.0 + r * 65.0 - age * 1.8));
 	float etching = clamp(runes + lattice + jewels + centre, 0.0, 1.0);
 	// All seal layers remain smoke grey; only the lightning uses gold and blue.
 	vec3 silver = mix(vec3(0.29,0.31,0.33), vec3(0.70,0.72,0.74), etching);

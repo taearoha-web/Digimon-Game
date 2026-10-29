@@ -57,6 +57,10 @@ func _ready() -> void:
 	await main.go(&"town", true)
 	await _wait(3.0)
 	var zone: Zone = main.zone
+	# "fly" as the seventh argument: wings / cape in their flying mode ("ลอย").
+	if args.size() > 6 and args[6] == "fly":
+		zone.hero.set_wing_mode(HeroVisual.WING_FLY)
+		await _wait(1.5)
 	print("TOWN shown ", get_tree().get_nodes_in_group("world_players").size(), " online ", WorldPresence.online_count())
 	# Some lines of chat first, so the HUD's world chat and a few bubbles show.
 	for k in 6:

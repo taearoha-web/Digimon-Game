@@ -302,7 +302,7 @@ void fragment() {
 			glow += scale_line * 0.45 * style;
 		}
 		// Velvet sheen at grazing angles.
-		float fres = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 2.0);
+		float fres = pow(max(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 0.0), 2.0);
 		col *= 0.92 + 0.5 * fres;
 		// Deeper shade inside the pleats.
 		col *= mix(0.78, 1.04, pleat_shade * 0.5 + 0.5);

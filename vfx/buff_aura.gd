@@ -22,9 +22,9 @@ void vertex() {
 	}
 }
 void fragment() {
-	float edge = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 2.0);
-	float inlay = pow(0.5 + 0.5 * sin(local_pos.y * 15.0 + local_pos.x * 5.0), 8.0);
-	float sweep = pow(0.5 + 0.5 * sin(local_pos.y * 3.0 - TIME * 1.1 + phase), 12.0);
+	float edge = pow(max(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 0.0), 2.0);
+	float inlay = pow(max(0.5 + 0.5 * sin(local_pos.y * 15.0 + local_pos.x * 5.0), 0.0), 8.0);
+	float sweep = pow(max(0.5 + 0.5 * sin(local_pos.y * 3.0 - TIME * 1.1 + phase), 0.0), 12.0);
 	ALBEDO = mix(primary.rgb, accent.rgb, clamp(edge * 0.5 + inlay * 0.45 + sweep * 0.3, 0.0, 1.0));
 	ALPHA = 0.40 + edge * 0.24 + inlay * 0.15;
 	if (grove) {

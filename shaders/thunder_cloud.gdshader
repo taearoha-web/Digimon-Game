@@ -32,7 +32,7 @@ void fragment() {
 	float coarse = noise3(q);
 	float detail = noise3(q * 2.7 + coarse);
 	float smoke = coarse * 0.72 + detail * 0.28;
-	float rim = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 2.0);
+	float rim = pow(max(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 0.0), 2.0);
 	float top = smoothstep(-0.55, 0.9, local_pos.y);
 	float lighting = max(0.0, dot(normalize(local_normal), normalize(vec3(-0.4, 0.8, 0.5))));
 	float relief = smoothstep(0.26, 0.77, smoke);
