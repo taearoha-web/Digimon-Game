@@ -124,9 +124,10 @@ func _field() -> void:
 	await _wait(1.6)
 	check(talk.spoken.size() == 1, "the rate limit holds: no second line within the window (%d)" % talk.spoken.size())
 	Game.profile.hp = max_hp
-	# A boss spawns: the other member (the first is on its gap) calls it, after the 4 s gap.
+	# A boss spawns in sight (too far for the members to go for it yet): the other member
+	# (the first is on its gap) calls it, after the 4 s gap.
 	var boss := Mob.new()
-	boss.setup(&"mush_king", 40, hero.global_position + Vector3(6, 0, 0), hero)
+	boss.setup(&"mush_king", 40, hero.global_position + Vector3(30, 0, 0), hero)
 	boss.position = boss.home + Vector3(0, 0.3, 0)
 	zone.add_child(boss)
 	check(boss.is_boss, "the mushroom king is a boss")
@@ -136,7 +137,8 @@ func _field() -> void:
 	check(talk.spoken.size() == 2 and PartyTalk.BOSS_LINES.has(talk.spoken[1][1]), "the boss line fires when a boss spawns (%s)" % [talk.spoken])
 	check(talk.spoken.size() == 2 and talk.spoken[1][0] != talk.spoken[0][0], "a different member says it: the first is still on its own gap")
 	check(chat.size() == 2, "both lines are in the world chat (%d)" % chat.size())
-	boss.queue_free()
+	if is_instance_valid(boss):
+		boss.queue_free()
 	await _wait(0.3)
 	# A member's level-up and the hero standing about.
 	talk.reset_cooldowns()
