@@ -34,7 +34,7 @@ func _ready() -> void:
 
 
 func _roster() -> void:
-	check(WorldPlayers.size() >= 140, "a busy world: %d world players" % WorldPlayers.size())
+	check(WorldPlayers.size() == 99, "ninety-nine world players, a hundred with the hero (%d)" % WorldPlayers.size())
 	var names := {}
 	var classes := {}
 	var sizes := []
