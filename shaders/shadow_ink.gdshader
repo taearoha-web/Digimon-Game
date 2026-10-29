@@ -12,7 +12,7 @@ uniform float opacity = 0.9;
 varying vec3 local;
 void vertex() { local = VERTEX; }
 void fragment() {
-	float rim = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 2.2);
+	float rim = pow(max(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 0.0), 2.2);
 	float inlay = clamp(COLOR.r, 0.0, 1.0);
 	float churn = 0.5 + 0.5 * sin(local.y * 9.0 - age * 6.0 + sin(local.x * 7.0 + age * 2.0) * 1.5);
 	vec3 body = mix(shade.rgb, primary.rgb * 0.55, churn * 0.35 + rim * 0.2);

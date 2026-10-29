@@ -11,11 +11,11 @@ varying vec3 local;
 void vertex() { if (morph >= 0.) { VERTEX = mix(VERTEX,CUSTOM0.xyz,morph); } local = VERTEX; }
 void fragment() {
     float light = clamp(dot(normalize(NORMAL),normalize(vec3(-0.4,0.8,0.6)))*0.5+0.5,0.,1.);
-    float edge = pow(1.-abs(dot(normalize(NORMAL),normalize(VIEW))),2.);
+    float edge = pow(max(1.-abs(dot(normalize(NORMAL),normalize(VIEW))), 0.0),2.);
     float gold = COLOR.r;
     vec3 ink = mix(shade.rgb,primary.rgb,0.32+light*0.68);
     ink = mix(ink,accent.rgb,clamp(gold*0.87+edge*0.20,0.,1.));
-    float band = pow(0.5+0.5*sin(local.y*12.-local.z*4.-age*8.),12.);
+    float band = pow(max(0.5+0.5*sin(local.y*12.-local.z*4.-age*8.), 0.0),12.);
     ink += accent.rgb * band * gold * 0.12;
     float grain = 0.5+0.5*sin(local.x*29.+local.y*17.)*sin(local.z*21.-local.y*11.);
     float cut = smoothstep((1.-fade)*1.1-0.08,(1.-fade)*1.1+0.12,grain);

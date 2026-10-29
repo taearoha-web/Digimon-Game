@@ -2,7 +2,7 @@ extends Node
 ## Screenshots of the busy village through the real game scenes: the plaza with its stall
 ## keepers, players strolling and chat bubbles, the world chat in the HUD, the main street,
 ## and the registry. DAYS moves the clock to that many days after the world opened.
-##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/town_shots.tscn -- <out_dir> [DAYS] [quality]
+##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/town_shots.tscn -- <out_dir> [DAYS] [quality] [class] [level]
 var out_dir := "user://shots"
 var main: Node
 var _n := 0
@@ -35,9 +35,20 @@ func _ready() -> void:
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await _wait(0.5)
-	Game.new_profile(&"bard", "ทดสอบ")
-	Game.profile["level"] = 60
-	Game.profile["adv"] = 3
+	var cls := StringName(args[3]) if args.size() > 3 else &"bard"
+	var level := int(args[4]) if args.size() > 4 else 60
+	Game.new_profile(cls, "ทดสอบ")
+	Game.profile["level"] = level
+	Game.profile["adv"] = JobData.adv_for_level(level)
+	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring"]:
+		Game.profile.equip[slot] = ItemData.generate(level, cls, Game.rng, 3, slot)
+	# "star" / "divine" as the sixth argument: the ★200 set and star wings (or the divine set).
+	var kit := args[5] if args.size() > 5 else ""
+	if kit != "":
+		Game.paragon().level = 200
+		for slot in ["weapon", "armor", "helm", "boots"]:
+			Game.profile.equip[slot] = DivineGearData.item(cls, slot, Game.rng) if kit == "divine" else StarProgression.item(cls, 200, slot, Game.rng)
+		Game.profile.equip["wings"] = StarWingData.item(String(cls), Game.rng, 3)
 	Game.profile.party = []
 	main.title_screen.queue_free()
 	main.title_screen = null
@@ -46,6 +57,10 @@ func _ready() -> void:
 	await main.go(&"town", true)
 	await _wait(3.0)
 	var zone: Zone = main.zone
+	# "fly" as the seventh argument: wings / cape in their flying mode ("ลอย").
+	if args.size() > 6 and args[6] == "fly":
+		zone.hero.set_wing_mode(HeroVisual.WING_FLY)
+		await _wait(1.5)
 	print("TOWN shown ", get_tree().get_nodes_in_group("world_players").size(), " online ", WorldPresence.online_count())
 	# Some lines of chat first, so the HUD's world chat and a few bubbles show.
 	for k in 6:

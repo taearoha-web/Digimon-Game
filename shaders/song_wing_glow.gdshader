@@ -37,7 +37,7 @@ void fragment() {
 		float d = abs(fract(y + 0.5) - 0.5);
 		float w = max(fwidth(y), 0.001);
 		float line = (1.0 - smoothstep(0.07, 0.07 + w * 1.5, d)) * step(-0.3, y) * step(y, lines - 0.7);
-		float pulse = pow(0.5 + 0.5 * sin(UV.x * 16.0 - TIME * 2.4 * motion), 6.0);
+		float pulse = pow(max(0.5 + 0.5 * sin(UV.x * 16.0 - TIME * 2.4 * motion), 0.0), 6.0);
 		float fadeout = mix(1.0, smoothstep(0.0, 0.05, UV.x) * (1.0 - smoothstep(0.86, 1.0, UV.x)), ends);
 		vec3 col = mix(line_color.rgb, vec3(1.0, 0.96, 0.86), pulse * 0.45);
 		ALBEDO = mix(glow_color.rgb, col, line);

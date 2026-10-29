@@ -14,7 +14,7 @@ void vertex() { local = VERTEX; }
 void fragment() {
 	float core = clamp(COLOR.r, 0.0, 1.0);
 	float mask = clamp(COLOR.g, 0.0, 1.0);
-	float stream = pow(0.5 + 0.5 * sin(local.x * 10.0 + local.y * 6.0 + local.z * 4.0 - age * 14.0), 6.0);
+	float stream = pow(max(0.5 + 0.5 * sin(local.x * 10.0 + local.y * 6.0 + local.z * 4.0 - age * 14.0), 0.0), 6.0);
 	vec3 energy = mix(primary.rgb, accent.rgb, core * core) + accent.rgb * stream * 0.3 * mask;
 	float grain = 0.5 + 0.5 * sin(local.x * 19.0 + local.y * 13.0 - age * 3.0) * sin(local.z * 15.0 + local.x * 9.0);
 	float dissolve = smoothstep((1.0 - fade) * 1.1 - 0.1, (1.0 - fade) * 1.1 + 0.1, grain);

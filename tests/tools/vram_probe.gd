@@ -17,6 +17,9 @@ func _ready() -> void:
 	Game.profile.adv = 4
 	Game.profile["paragon"] = {"level": 200, "exp": 0, "points": 0, "spent": 0, "alloc": {}}
 	Game.current_zone = zone_id
+	# "guild" as the third argument: the war between the world's guilds (the hero in Alpha).
+	if args.size() > 2 and args[2] == "guild":
+		Game.join_guild(WorldPlayers.ALPHA)
 	await RenderingServer.frame_post_draw
 	print("VRAM baseline before the zone: video %.1f MB, texture %.1f MB, buffer %.1f MB" % [
 		float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED)) / 1e6,

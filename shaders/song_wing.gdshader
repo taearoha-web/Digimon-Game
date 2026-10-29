@@ -59,7 +59,7 @@ void fragment() {
 	if (motion > 0.0) {
 		// Sound rippling out from the shoulders.
 		float r = length(vec2(abs(local.x), local.y - 0.55));
-		float wave = pow(0.5 + 0.5 * sin(r * 11.0 - TIME * 1.8), 16.0) * motion;
+		float wave = pow(max(0.5 + 0.5 * sin(r * 11.0 - TIME * 1.8), 0.0), 16.0) * motion;
 		light += mix(tip_color.rgb, edge_color.rgb, 0.4) * wave * 0.18 * smoothstep(0.15, 0.8, t);
 	}
 	if (sparkle > 0.0) {
@@ -67,7 +67,7 @@ void fragment() {
 		vec2 id = floor(cell);
 		float h = hash(id);
 		float d = length(fract(cell) - 0.5);
-		float twinkle = 0.4 + 0.6 * pow(0.5 + 0.5 * sin(TIME * 2.6 * motion + h * 50.0), 3.0);
+		float twinkle = 0.4 + 0.6 * pow(max(0.5 + 0.5 * sin(TIME * 2.6 * motion + h * 50.0), 0.0), 3.0);
 		light += vec3(1.0, 0.96, 1.0) * step(0.86, h) * smoothstep(0.22, 0.0, d) * twinkle * sparkle * smoothstep(0.2, 0.5, t);
 	}
 	ALBEDO = col;

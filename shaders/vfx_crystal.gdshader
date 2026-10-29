@@ -16,7 +16,7 @@ void vertex() {
 
 void fragment() {
 	float facing = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-	float fres = pow(1.0 - facing, 2.2);
+	float fres = pow(max(1.0 - facing, 0.0), 2.2);
 	float height_tint = smoothstep(-0.1, 0.95, crystal_position.y);
 	float facet = smoothstep(-0.35, 0.8, crystal_normal.x + crystal_normal.z * 0.65);
 	vec3 body = mix(tint.rgb * 0.78, vec3(0.64, 0.83, 0.88), height_tint * 0.7);
