@@ -103,6 +103,7 @@ func _ready() -> void:
 	for i in 2:
 		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
 	check(RenderWatchdog.step == 2 and GameSettings.quality == 1 and MemoryGuard.pressure == 2, "then medium quality at strict pressure (%d, q%d, p%d)" % [RenderWatchdog.step, GameSettings.quality, MemoryGuard.pressure])
+	check(is_equal_approx(MemoryGuard.scale_3d, 1.0) and is_equal_approx(tree.root.scaling_3d_scale, 1.0), "and the world drawn at the canvas size again (%.2f)" % MemoryGuard.scale_3d)
 	RenderWatchdog.spread_override = 0.5
 	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
 	RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
