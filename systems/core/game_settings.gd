@@ -8,6 +8,10 @@ const PATH := "user://toon_tale_settings.json"
 const QUALITY_NAMES := ["ต่ำ (เครื่องช้า)", "กลาง", "สูง"]
 
 static var quality := -1          # 0 low, 1 medium, 2 high; -1 = not chosen yet
+## High quality comes in two modes: "สูง (คมชัด)" (false: the 3D scale stays at 1.0, the
+## sharp picture) and "สูง (ลื่น)" (true: quality 2 effects, but on a phone the 3D scale
+## follows the frame rate like medium does, MemoryGuard._follow_frame_rate).
+static var high_smooth := false
 static var camera_speed := 1.0
 static var combat_hitstop := true
 ## The safe picture (settings, or the flat-screen watchdog's last step): no other players,
@@ -44,6 +48,8 @@ static func load_settings() -> void:
 					camera_speed = clampf(float(saved_speed), 0.4, 2.5)
 			if parsed.get("combat_hitstop") is bool:
 				combat_hitstop = parsed.combat_hitstop
+			if parsed.get("high_smooth") is bool:
+				high_smooth = parsed.high_smooth
 			var rev: Variant = parsed.get("rev", 1)
 			var current := (rev is int or rev is float) and is_finite(float(rev)) and int(rev) >= REV
 			if current and parsed.get("safe_picture") is bool:
@@ -59,7 +65,19 @@ static func load_settings() -> void:
 static func save_settings() -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"rev": REV, "quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "safe_picture": safe_picture, "show_world_players": show_world_players}))
+		file.store_string(JSON.stringify({"rev": REV, "quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "high_smooth": high_smooth, "safe_picture": safe_picture, "show_world_players": show_world_players}))
+
+
+## The name of the chosen quality as the settings show it (High names its mode).
+static func quality_name() -> String:
+	if quality >= 2:
+		return "สูง (ลื่น)" if high_smooth else "สูง (คมชัด)"
+	return String(QUALITY_NAMES[clampi(quality, 0, 2)])
+
+
+## Whether the 3D scale may follow the frame rate at the chosen quality (phones only).
+static func dynamic_scale() -> bool:
+	return quality < 2 or high_smooth
 
 
 static func view_scale() -> float:

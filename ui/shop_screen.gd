@@ -95,7 +95,9 @@ func open_shop() -> void:
 
 
 ## World player `world_index`'s stall: the good things it found to buy, the bag to sell
-## at the stall's better price.
+## at the stall's better price, or left with the keeper to sell later (StallStock.consign).
+## Every lot can be haggled over once a restock window; the consignments due are paid as
+## the stall opens (StallStock.open).
 func open_stall(world_index: int) -> void:
 	if world_index < 0 or world_index >= WorldPlayers.size():
 		return
@@ -189,12 +191,19 @@ func _rebuild() -> void:
 		var item: Dictionary = Game.profile.inv[i]
 		empty = false
 		if stall >= 0:
-			_sell_box.add_child(_row(item, StallStock.sell_price(item), "ขาย", func(): StallStock.sell(i)))
+			_sell_box.add_child(_consign_row(item, i))
 			continue
 		var price := ItemData.unit_sell_price(item)
 		_sell_box.add_child(_row(item, price, "ขาย", func(): Game.sell_item(i)))
 	if empty:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
+	if stall >= 0:
+		var out := StallStock.consignments()
+		if not out.is_empty():
+			var wait := maxi(1, int(ceil((float(out[0].due) - WorldPresence.clock()) / 60.0)))
+			var note := UIUtil.label("ฝากขายอยู่ %d/%d ชิ้น ได้เงินชิ้นแรกในอีก %d นาที" % [out.size(), StallStock.CONSIGN_MAX, wait], &"DimLabel")
+			note.name = "ConsignNote"
+			_sell_box.add_child(note)
 	buy_scroll.restore_vertical_position(buy_y)
 	sell_scroll.restore_vertical_position(sell_y)
 
@@ -207,12 +216,43 @@ func _stall_rows() -> void:
 		var k := int(e.k)
 		var row := _row(e.item, int(e.price), "ซื้อ", func(): StallStock.buy(who, k))
 		row.name = "Lot_%d" % k
+		var info := row.find_child("Info", true, false) as Control
+		var code := StallStock.haggled(who, k)
+		if code == 0:
+			var haggle := UIUtil.button("ต่อราคา", &"", Vector2(150, 48))
+			haggle.name = "Haggle"
+			haggle.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			haggle.pressed.connect(func():
+				StallStock.haggle(who, k)
+				_queue_rebuild())
+			info.add_child(haggle)
+		else:
+			var off := StallStock.discount(who, k)
+			var said := "ต่อราคาไม่ได้แล้ว" if off <= 0 else "ลดให้แล้ว %d%% (จาก %d)" % [off, int(e.get("base", e.price))]
+			var tag := UIUtil.label(said, &"SmallLabel")
+			tag.name = "Haggled"
+			info.add_child(tag)
 		_buy_box.add_child(row)
 	var minutes := maxi(1, int((StallStock.restock_at(who, WorldPresence.clock()) - WorldPresence.clock()) / 60.0))
 	var note := "ของชุดใหม่มาในอีก %d ชม. %d นาที" % [minutes / 60, minutes % 60] if minutes >= 60 else "ของชุดใหม่มาในอีก %d นาที" % minutes
 	if lots.is_empty():
 		note = "ของหมดแล้ว " + note
 	_buy_box.add_child(UIUtil.label(note, &"DimLabel"))
+
+
+## A bag slot at a stall: sold now at the stall's price, or left with the keeper (the whole
+## stack) to sell for more, paid later.
+func _consign_row(item: Dictionary, index: int) -> Control:
+	var panel := _row(item, StallStock.sell_price(item), "ขาย", func(): StallStock.sell(index))
+	var qty := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
+	var consign := UIUtil.button("ฝากขาย %d" % (StallStock.consign_price(item) * qty), &"", Vector2(150, 56))
+	consign.name = "Consign"
+	consign.disabled = StallStock.consignments().size() >= StallStock.CONSIGN_MAX or StallStock.consign_price(item) <= 0
+	consign.pressed.connect(func():
+		AudioManager.play_sfx(&"coin")
+		StallStock.consign(index))
+	(panel.get_child(0) as Control).add_child(consign)
+	return panel
 
 
 ## A potion or scroll: − and + pick how many bottles, the button buys them all at once.

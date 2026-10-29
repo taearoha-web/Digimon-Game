@@ -45,9 +45,10 @@ static var _slow_seconds := 0.0
 
 ## The 3D resolution scale on a phone (Viewport.scaling_3d_scale, bilinear): the world is
 ## drawn at this share of the canvas and the HUD stays at the full, crisp size. Every zone
-## starts at full size. High quality stays there: it is the sharp picture (names and the
-## world read clearly), and the owner chooses it for that. At medium and low quality the
-## scale follows the frame rate, SCALE_3D_STEP at a time between SCALE_3D_MIN and 1.0: a
+## starts at full size. High quality "สูง (คมชัด)" stays there: it is the sharp picture
+## (names and the world read clearly), and the owner chooses it for that. At medium and
+## low quality, and at high "สูง (ลื่น)" (GameSettings.high_smooth), the scale follows the
+## frame rate, SCALE_3D_STEP at a time between SCALE_3D_MIN and 1.0: a
 ## slow stretch (under SCALE_3D_SLOW_FPS for SCALE_3D_SLOW_TICKS readings) lowers it, a
 ## fast one (over SCALE_3D_FAST_FPS for SCALE_3D_FAST_TICKS readings) raises it again.
 ## Desktops always draw at 1.0.
@@ -65,6 +66,8 @@ static var _scale_applied := -1.0
 
 ## Tests pin the device family: -1 asks the engine, 0 not iOS, 1 iOS.
 static var ios_override := -1
+## Tests pin the phone / browser budget the same way (-1 asks the engine).
+static var phone_override := -1
 static var _ios := -1
 static var _heap_script := "typeof window.toonHeapBytes === 'function' ? window.toonHeapBytes() : 0"
 
@@ -88,6 +91,8 @@ static func render_quality() -> int:
 
 
 static func phone() -> bool:
+	if phone_override >= 0:
+		return phone_override == 1
 	return OS.has_feature("web") or OS.has_feature("mobile")
 
 
@@ -174,10 +179,10 @@ static func base_scale_3d() -> float:
 
 
 ## One reading of the frame rate: a slow stretch lowers the 3D scale a step, a fast one
-## raises it (phones below high quality only; the frame rate is read once a tick,
-## TICK_SECONDS apart).
+## raises it (phones below high quality, or at high "สูง (ลื่น)", only; the frame rate is
+## read once a tick, TICK_SECONDS apart).
 static func _follow_frame_rate(tree: SceneTree) -> void:
-	if not phone() or _forced >= 0 or GameSettings.quality >= 2:
+	if not phone() or _forced >= 0 or not GameSettings.dynamic_scale():
 		return
 	var fps := _frame_rate()
 	if fps <= 0.0:

@@ -67,6 +67,7 @@ func _ready() -> void:
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
+	SaveBackup.maybe_daily()
 	(func(): UIUtil.install_discard_holder(get_tree().root)).call_deferred()
 
 
@@ -509,6 +510,7 @@ func save() -> bool:
 	# The world players' party EXP is kept with the world, beside the slots.
 	WorldPlayers.store()
 	_note_save_work(work_started)
+	SaveBackup.maybe_daily()
 	return true
 
 
@@ -1080,6 +1082,8 @@ func say(text: String, kind: StringName = &"info") -> void:
 func add_exp(amount: int) -> void:
 	if amount <= 0 or not has_profile:
 		return
+	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns.
+	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock())))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return
@@ -1260,6 +1264,15 @@ func cycle_stance(k := 0) -> String:
 	member["stance"] = STANCES[(i + 1) % STANCES.size()]
 	party_changed.emit()
 	return String(member.stance)
+
+
+## The hero's typed order sets every member's stance at once (PartyTalk.command).
+func set_party_stance(stance: String) -> void:
+	if not STANCES.has(stance):
+		return
+	for m in party():
+		m["stance"] = stance
+	party_changed.emit()
 
 
 ## A fake profile so [HeroStats] can work out a companion's stats.

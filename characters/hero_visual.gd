@@ -74,6 +74,9 @@ var decor_light := false
 var _emitters: Array[CPUParticles3D] = []
 var _lod_meshes: Array[MeshInstance3D] = []
 var _far := false
+## The enhancement overlays taken off a far player's meshes on a phone (mesh -> overlay),
+## put back when it comes near again.
+var _far_overlays: Dictionary = {}
 ## Wing pose picked on the HUD (see WING_*); kept across gear changes.
 var wing_mode := WING_STAND
 var _wing_moving := false
@@ -230,6 +233,7 @@ func _refresh_chibi() -> void:
 	var acc := int(look.get("acc", 0))
 	if acc > 0:
 		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
+		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
 	var boot_nodes: Array = []
 	if DivineGearData.is_item(boots):
 		boot_nodes = _divine_slot(boots)
@@ -719,7 +723,9 @@ func _make_aura() -> void:
 	var best := EnhanceFx.best_plus(equip)
 	if best >= 4:
 		color = EnhanceFx.color_of(best)
-		_body_nodes.append_array(EnhanceFx.on_body(self, best, decor_light))
+		for made in EnhanceFx.on_body(self, best, decor_light):
+			made.set_meta("far_decor", true)
+			_body_nodes.append(made)
 	var tier := _top_tier()
 	if tier >= 6:
 		color = GearKit.TIERS_METAL[tier].lerp(Color("ffd870"), 0.35)
@@ -732,6 +738,7 @@ func _make_aura() -> void:
 			if chibi:
 				ring.scale *= _gear_scale
 			halo.add_child(ring)
+			halo.set_meta("far_decor", true)
 			_body_nodes.append(halo)
 	if color.a == 0.0 or decor_light:
 		return
@@ -940,6 +947,9 @@ func set_anim_lod(step: int) -> void:
 
 ## Far from the camera (FieldPlayer LOD): the outfit's particle emitters stop and its
 ## meshes cast no shadow; nobody sees either at that distance, and both cost every frame.
+## On a phone the small decoration goes too (hair accessory, rune rings, disc and halo:
+## "far_decor") and the enhancement glow overlays come off the meshes (one draw of every
+## piece instead of two). The hero never gets here, and a party member is never far.
 func set_far(far: bool) -> void:
 	if far == _far:
 		return
@@ -951,6 +961,46 @@ func set_far(far: bool) -> void:
 	for mi in _lod_meshes:
 		if is_instance_valid(mi) and not bool(mi.get_meta("no_shadow_lod", false)):
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if far else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	if far and MemoryGuard.phone():
+		_strip_far_decor()
+	elif not far:
+		_restore_far_decor()
+
+
+## True while the phone's cheap far state is on (decoration hidden, overlays off).
+var far_light := false
+
+
+func _strip_far_decor() -> void:
+	far_light = true
+	_far_overlays.clear()
+	for n in _body_nodes:
+		if is_instance_valid(n) and n is Node3D and bool(n.get_meta("far_decor", false)):
+			(n as Node3D).visible = false
+	for mi in _lod_meshes:
+		if not is_instance_valid(mi):
+			continue
+		# A hit flash in flight keeps its own overlay; the glow it covered is ours to hold.
+		if _flash_restore.has(mi):
+			_far_overlays[mi] = _flash_restore[mi]
+			_flash_restore.erase(mi)
+		elif mi.material_overlay != null and mi.material_overlay != _flash_overlay:
+			_far_overlays[mi] = mi.material_overlay
+			mi.material_overlay = null
+
+
+func _restore_far_decor() -> void:
+	far_light = false
+	for n in _body_nodes:
+		if is_instance_valid(n) and n is Node3D and bool(n.get_meta("far_decor", false)):
+			(n as Node3D).visible = true
+	for mi in _far_overlays:
+		if is_instance_valid(mi) and is_instance_valid(_far_overlays[mi]):
+			if (mi as MeshInstance3D).material_overlay == _flash_overlay and _flash_overlay != null:
+				_flash_restore[mi] = _far_overlays[mi]
+			else:
+				(mi as MeshInstance3D).material_overlay = _far_overlays[mi]
+	_far_overlays.clear()
 
 
 ## Big head = cuter. Scales the head bone after the animation has posed it.

@@ -19,6 +19,9 @@ const TOWN_LIMITS := [20, 24, 28]
 const TOWN_PRESSURE := [16, 12]
 ## Seconds between two lines of the world chat (randomly 0.6-1.4 times this).
 const CHAT_EVERY := 7.0
+## At most one stall keeper's call about a lot of its (StallStock.announcement) in this
+## many seconds of the world chat.
+const STALL_ANNOUNCE := 90.0
 const ANNOUNCE_LEVELS := [10, 20, 40, 60, 80, 100]
 const ANNOUNCE_STARS := [50, 100, 150, 200]
 
@@ -43,6 +46,8 @@ var zone: Zone
 var shown := {}
 var _timer := 0.0
 var _chat_in := 2.5
+## Engine seconds when a stall keeper last called out a lot.
+var _stall_said_at := -STALL_ANNOUNCE
 ## The online players' states at the last check (the world chat's speakers).
 var _online: Array[Dictionary] = []
 ## Stall (JapanVillage.STALLS index) -> the world player keeping it.
@@ -326,6 +331,8 @@ func _server(text: String, kind: StringName, toast := false) -> void:
 func chat_once() -> void:
 	if _online.is_empty():
 		return
+	if _stall_announcement():
+		return
 	var s: Dictionary = _online[randi() % _online.size()]
 	# Most lines come from players nearby, so the bubbles are seen.
 	var near := shown.keys().filter(func(k): return is_instance_valid(shown[k]))
@@ -341,3 +348,22 @@ func chat_once() -> void:
 	var p: Variant = shown.get(int(s.index))
 	if p != null and is_instance_valid(p):
 		(p as FieldPlayer).bubble(text)
+
+
+## Now and then (at most once in STALL_ANNOUNCE seconds, and about every other chance after
+## that) a stall keeper standing here calls out one of its lots instead of the usual line.
+func _stall_announcement() -> bool:
+	var ticks := float(Time.get_ticks_msec()) / 1000.0
+	if ticks - _stall_said_at < STALL_ANNOUNCE or randf() < 0.5:
+		return false
+	var keepers := shown.keys().filter(func(k): return is_instance_valid(shown[k]) and (shown[k] as FieldPlayer).doing == "stall")
+	if keepers.is_empty():
+		return false
+	var k: int = keepers[randi() % keepers.size()]
+	var text := StallStock.announcement(k)
+	if text == "":
+		return false
+	_stall_said_at = ticks
+	Game.world_chat.emit(String(WorldPlayers.entry(k).name), text, Color("8ff0ff"))
+	(shown[k] as FieldPlayer).bubble(text)
+	return true

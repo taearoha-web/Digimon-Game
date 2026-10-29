@@ -65,6 +65,10 @@ var _boss_panel: PanelContainer
 var _timers: TimerBars
 var _tracker: Label
 var _tracker_timer := 0.0
+## World event chip under the tracker (WorldEvents.describe), refreshed once a second.
+var _event_chip: PanelContainer
+var _event_label: Label
+var _event_in := 0.0
 var _boss_name: Label
 var _boss_bar: ProgressBar
 var _target_name: Label
@@ -256,6 +260,11 @@ func _process(delta: float) -> void:
 		_update_timers(_timer_elapsed)
 		_timer_elapsed = 0.0
 	_update_tracker(delta)
+	_event_in -= delta
+	if _event_in <= 0.0:
+		_event_in = 1.0
+		_event_label.text = WorldEvents.describe(WorldPresence.clock())
+		_event_chip.visible = _event_label.text != ""
 
 
 func _refresh() -> void:
@@ -403,6 +412,29 @@ func _build_tracker(frame: Control) -> void:
 	_tracker.add_theme_constant_override("outline_size", 6)
 	_tracker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	frame.add_child(_tracker)
+	_event_chip = PanelContainer.new()
+	_event_chip.anchor_left = 1.0
+	_event_chip.anchor_right = 1.0
+	_event_chip.offset_left = -130
+	_event_chip.offset_right = -130
+	_event_chip.offset_top = 314
+	_event_chip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_event_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.12, 0.2, 0.72)
+	style.set_corner_radius_all(14)
+	style.set_border_width_all(2)
+	style.border_color = Color(UIPalette.GOLD, 0.7)
+	style.set_content_margin_all(6)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	_event_chip.add_theme_stylebox_override("panel", style)
+	_event_label = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	_event_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_event_label.add_theme_color_override("font_color", UIPalette.GOLD)
+	_event_chip.add_child(_event_label)
+	_event_chip.visible = false
+	frame.add_child(_event_chip)
 
 
 func _build_boss_bar(frame: Control) -> void:

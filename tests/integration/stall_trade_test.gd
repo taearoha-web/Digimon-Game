@@ -4,7 +4,10 @@ extends Node
 ## potions a little cheaper; buying spends the gold, puts the lot in the bag and takes it
 ## off the stall until the restock; the stall pays more than the merchant for the bag's
 ## things; the bought-lot flags of older windows are dropped when a stall opens; the shop
-## screen opens a stall (open_stall) and the merchant (open_shop) as before.
+## screen opens a stall (open_stall) and the merchant (open_shop) as before. Haggling is
+## deterministic, once a lot a window, and its discount applies to the buy; a keeper's
+## announcement names a real lot; consignment takes the item, pays after the due time,
+## at most 8 out at once.
 ##   godot --headless --path . res://tests/integration/stall_trade_test.tscn
 var checks := 0
 var failures := 0
@@ -30,7 +33,10 @@ func _ready() -> void:
 	_stock(i, t)
 	_buy(i, t)
 	_sell(i)
+	_haggle(t)
+	_announce(i, t)
 	_prune(i, t)
+	_consign(i, t)
 	await _screen(_keeper("ร้านเกราะพี่โต"))
 	WorldPresence.clock_offset = 0.0
 	print("STALL TRADE: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
@@ -144,6 +150,150 @@ func _sell(_i: int) -> void:
 	check(int(Game.profile.gold) == gold + 3 * StallStock.sell_price(bottle), "sells several bottles at once")
 
 
+func _haggle(t: float) -> void:
+	# Every lot of every stall: the outcome is the same on every try, and the odds hold.
+	var by_code := {}
+	var accepted := []
+	var refused := []
+	var countered := []
+	for n in WorldPlayers.size():
+		if not WorldPlayers.in_town_style(n):
+			continue
+		for e in StallStock.stock(n, t):
+			var k := int(e.k)
+			var out := StallStock.haggle_outcome(n, k, t)
+			check(out == StallStock.haggle_outcome(n, k, t), "the same haggle outcome every time (%s lot %d)" % [WorldPlayers.entry(n).name, k])
+			by_code[int(out.code)] = int(by_code.get(int(out.code), 0)) + 1
+			match int(out.code):
+				StallStock.HAGGLE_ACCEPTED:
+					check(int(out.percent) >= 10 and int(out.percent) <= 20, "an accepted haggle is 10-20%% off (%d)" % int(out.percent))
+					accepted.append([n, k])
+				StallStock.HAGGLE_REFUSED:
+					check(int(out.percent) == 0, "a refusal gives nothing off")
+					refused.append([n, k])
+				StallStock.HAGGLE_COUNTER:
+					check(int(out.percent) > 0 and int(out.percent) < 10, "a counter-offer is a smaller discount (%d)" % int(out.percent))
+					countered.append([n, k])
+				_:
+					check(false, "an unknown haggle code %d" % int(out.code))
+	var total := accepted.size() + refused.size() + countered.size()
+	print("stall_trade_test: haggle outcomes across the stalls %s" % [by_code])
+	check(total > 40 and accepted.size() > total * 0.3 and refused.size() > total * 0.25 and countered.size() > total * 0.05 and countered.size() < total * 0.3, "about 45%% accept, 40%% refuse, 15%% counter (%s of %d)" % [by_code, total])
+	var hero := String(Game.profile.name)
+	Game.profile.name = "Someone Else"
+	var changed := 0
+	for pair in accepted + refused:
+		if int(StallStock.haggle_outcome(pair[0], pair[1], t).code) != (StallStock.HAGGLE_ACCEPTED if accepted.has(pair) else StallStock.HAGGLE_REFUSED):
+			changed += 1
+	Game.profile.name = hero
+	check(changed > 0, "another hero gets other answers (%d differ)" % changed)
+	# An accepted haggle: the keeper says so in the world chat, the price drops, the buy pays it.
+	var said := []
+	var hear := func(who: String, text: String, color: Color): said.append([who, text, color])
+	Game.world_chat.connect(hear)
+	var a: int = accepted[0][0]
+	var ka: int = accepted[0][1]
+	var base := int(StallStock.full_stock(a, t).filter(func(e): return int(e.k) == ka)[0].price)
+	check(StallStock.can_haggle(a, ka, t), "a lot not haggled over yet can be")
+	var result := StallStock.haggle(a, ka, t)
+	var percent := int(result.get("percent", 0))
+	check(int(result.get("code", 0)) == StallStock.HAGGLE_ACCEPTED and String(result.get("text", "")).contains("%d%%" % percent), "the keeper accepts (%s)" % [result])
+	check(said.size() == 1 and said[0][0] == String(WorldPlayers.entry(a).name) and said[0][1] == result.text and said[0][2] == Color("8ff0ff"), "the keeper's line is in the world chat (%s)" % [said])
+	var key := "haggle|%s|%d|%d" % [WorldPlayers.entry(a).name, StallStock.window(a, t), ka]
+	check(Game.profile.flags.get(key) is int and int(Game.profile.flags[key]) == StallStock.HAGGLE_ACCEPTED, "the haggle is kept in the flags (%s)" % key)
+	var want := maxi(1, int(round(float(base) * float(100 - percent) / 100.0)))
+	var lot: Dictionary = StallStock.stock(a, t).filter(func(e): return int(e.k) == ka)[0]
+	check(int(lot.price) == want and int(lot.get("base", 0)) == base and want < base, "the stock shows the haggled price (%d of %d, %d%% off)" % [int(lot.price), base, percent])
+	check(StallStock.discount(a, ka, t) == percent and not StallStock.can_haggle(a, ka, t) and StallStock.haggle(a, ka, t).is_empty(), "one haggle a lot a window")
+	Game.profile.gold = want + 100
+	check(StallStock.buy(a, ka, t) and int(Game.profile.gold) == 100, "the buy pays the haggled price (%d left)" % int(Game.profile.gold))
+	check(said.size() == 1, "buying says nothing more")
+	# A refusal cannot be tried again in the same window; the price stays.
+	var r: int = refused[0][0]
+	var kr: int = refused[0][1]
+	var full := int(StallStock.stock(r, t).filter(func(e): return int(e.k) == kr)[0].price)
+	result = StallStock.haggle(r, kr, t)
+	check(int(result.get("code", 0)) == StallStock.HAGGLE_REFUSED and said.size() == 2 and said[1][0] == String(WorldPlayers.entry(r).name), "the keeper refuses politely (%s)" % [result])
+	check(StallStock.haggle(r, kr, t).is_empty() and said.size() == 2 and StallStock.haggled(r, kr, t) == StallStock.HAGGLE_REFUSED, "a refused haggle is not tried again in the window")
+	check(int(StallStock.stock(r, t).filter(func(e): return int(e.k) == kr)[0].price) == full and StallStock.discount(r, kr, t) == 0, "a refusal leaves the price")
+	var next := StallStock.restock_at(r, t) + 60.0
+	check(StallStock.can_haggle(r, kr, next), "the next window allows another try")
+	if not countered.is_empty():
+		var c: int = countered[0][0]
+		var kc: int = countered[0][1]
+		var c_base := int(StallStock.stock(c, t).filter(func(e): return int(e.k) == kc)[0].price)
+		result = StallStock.haggle(c, kc, t)
+		check(int(result.get("code", 0)) == StallStock.HAGGLE_COUNTER and int(StallStock.stock(c, t).filter(func(e): return int(e.k) == kc)[0].price) < c_base, "a counter-offer takes a little off (%s)" % [result])
+	Game.world_chat.disconnect(hear)
+	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with haggles is valid")
+
+
+func _announce(i: int, t: float) -> void:
+	var text := StallStock.announcement(i, t)
+	var lots := StallStock.stock(i, t)
+	var named := lots.filter(func(e): return text.contains(ItemData.name_of(e.item)) and text.contains(StallStock._thousands(int(e.price))))
+	check(text.begins_with("ร้าน%s: มี" % WorldPlayers.entry(i).name) and text.ends_with("แวะดูได้") and named.size() >= 1, "an announcement names a real lot and its price (%s)" % text)
+	check(text == StallStock.announcement(i, t + 1.0), "the same call for a while")
+	var armor := _keeper("ร้านเกราะพี่โต")
+	var armor_text := StallStock.announcement(armor, t)
+	var gear := StallStock.stock(armor, t).filter(func(e): return String(e.item.get("kind", "")) == "equip" and armor_text.contains(ItemData.name_of(e.item)))
+	check(armor_text.begins_with("ร้านเกราะพี่โต: มี") and (gear.is_empty() or (armor_text.contains("ระดับ") and armor_text.contains("Lv."))), "a shop's name is not doubled; gear comes with its grade and level (%s)" % armor_text)
+	var w := StallStock.window(i, t)
+	for e in lots:
+		Game.profile.flags["stall|%s|%d|%d" % [WorldPlayers.entry(i).name, w, int(e.k)]] = 1
+	check(StallStock.announcement(i, t) == "", "nothing to call out from an empty stall")
+	for e in lots:
+		Game.profile.flags.erase("stall|%s|%d|%d" % [WorldPlayers.entry(i).name, w, int(e.k)])
+
+
+func _consign(i: int, t: float) -> void:
+	var toasts := []
+	var hear := func(text: String, _kind: StringName): toasts.append(text)
+	Game.toast.connect(hear)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	var item := ItemData.generate(40, &"warrior", rng, 3, "helm")
+	Game.profile.inv.append(item)
+	var index: int = Game.profile.inv.size() - 1
+	var price := StallStock.consign_price(item)
+	check(price > StallStock.sell_price(item) and price == int(ceil(float(ItemData.unit_sell_price(item)) * 1.5 - 0.001)), "a consignment pays 1.5x the merchant (%d > %d)" % [price, StallStock.sell_price(item)])
+	var gold := int(Game.profile.gold)
+	var bag: int = Game.profile.inv.size()
+	check(StallStock.consign(index, t) and Game.profile.inv.size() == bag - 1 and not Game.profile.inv.has(item), "consigning takes the piece from the bag")
+	check(int(Game.profile.gold) == gold, "nothing is paid yet")
+	var due := int(ceil(t / 60.0)) + StallStock.CONSIGN_MINUTES
+	var key := "consign|%d|0" % due
+	check(Game.profile.flags.get(key) is int and int(Game.profile.flags[key]) == price, "the consignment is kept in the flags (%s = %s)" % [key, Game.profile.flags.get(key)])
+	check(StallStock.consignments().size() == 1 and int(StallStock.consignments()[0].gold) == price, "one consignment out")
+	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with consignments is valid")
+	check(StallStock.collect_consignments(float(due) * 60.0 - 61.0) == 0 and int(Game.profile.gold) == gold and Game.profile.flags.has(key), "not paid before the due time")
+	toasts.clear()
+	check(StallStock.collect_consignments(float(due) * 60.0) == price and int(Game.profile.gold) == gold + price and not Game.profile.flags.has(key), "paid when due, the key dropped")
+	check(toasts.any(func(x): return x == "ได้เงินจากของฝากขาย %d เหรียญ" % price), "a toast tells of the gold (%s)" % [toasts])
+	check(StallStock.consignments().is_empty(), "nothing left out")
+	# A stack goes whole; the cap of 8; the stall pays the due ones as it opens.
+	Game.profile.inv.append(ItemData.potion("hp_l", 12))
+	var bottles := StallStock.consign_price(ItemData.potion("hp_l", 1)) * 12
+	check(StallStock.consign(Game.profile.inv.size() - 1, t) and int(Game.profile.flags.get("consign|%d|0" % due, 0)) == bottles, "a stack is consigned whole (%d)" % bottles)
+	var owed := bottles
+	for n in 8:
+		var piece := ItemData.generate(40, &"warrior", rng, 2, "ring")
+		Game.profile.inv.append(piece)
+		var ok := StallStock.consign(Game.profile.inv.size() - 1, t + 60.0 * n)
+		if n < StallStock.CONSIGN_MAX - 1:
+			owed += StallStock.consign_price(piece)
+			check(ok, "consignment %d of %d goes out" % [n + 2, StallStock.CONSIGN_MAX])
+		else:
+			check(not ok and Game.profile.inv[-1] == piece, "no more than %d consignments at once" % StallStock.CONSIGN_MAX)
+	check(StallStock.consignments().size() == StallStock.CONSIGN_MAX, "%d out" % StallStock.CONSIGN_MAX)
+	Game.profile.flags["consign|bad"] = 3
+	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with %d consignments is valid" % StallStock.CONSIGN_MAX)
+	gold = int(Game.profile.gold)
+	StallStock.open(i, t + 60.0 * (StallStock.CONSIGN_MINUTES + 9))
+	check(int(Game.profile.gold) == gold + owed and StallStock.consignments().is_empty() and not Game.profile.flags.has("consign|bad"), "opening a stall pays everything due (%d) and drops a broken key" % owed)
+	Game.toast.disconnect(hear)
+
+
 func _prune(i: int, t: float) -> void:
 	var name := String(WorldPlayers.entry(i).name)
 	var w := StallStock.window(i, t)
@@ -156,8 +306,9 @@ func _prune(i: int, t: float) -> void:
 	var left := StallStock.bought_keys()
 	check(left.size() == now.size() and left.all(func(k): return now.has(k)), "older windows' keys are dropped when a stall opens (%s)" % [left])
 	check(int(Game.profile.flags.get("loot_mask", 0)) == 31, "other flags stay")
+	Game.profile.flags["haggle|%s|%d|1" % [name, w]] = 2
 	StallStock.open(i, StallStock.restock_at(i, t) + StallStock.RESTOCK * 3.0)
-	check(StallStock.bought_keys().is_empty(), "after the restock nothing old is kept")
+	check(StallStock.bought_keys().is_empty() and not Game.profile.flags.keys().any(func(k): return String(k).begins_with("haggle|")), "after the restock nothing old is kept, haggles neither")
 
 
 func _screen(i: int) -> void:
@@ -184,6 +335,28 @@ func _screen(i: int) -> void:
 	await get_tree().process_frame
 	check(int(Game.profile.gold) == gold - int(lots[0].price), "the screen's button buys the lot")
 	check(shop.find_children("Lot_*", "", true, false).size() == lots.size() - 1, "and the lot leaves the list")
+	# Haggling from the screen: the button goes, the price shown is the haggled one.
+	var left := StallStock.stock(i)
+	var row := shop.find_children("Lot_%d" % int(left[0].k), "", true, false)[0] as Control
+	var haggle := row.find_child("Haggle", true, false) as Button
+	check(haggle != null and haggle.text == "ต่อราคา", "a lot offers to haggle")
+	haggle.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	row = shop.find_children("Lot_%d" % int(left[0].k), "", true, false)[0] as Control
+	var after := int(StallStock.stock(i).filter(func(e): return int(e.k) == int(left[0].k))[0].price)
+	check(StallStock.haggled(i, int(left[0].k)) != 0 and row.find_child("Haggle", true, false) == null and row.find_child("Haggled", true, false) != null, "the haggle is done once")
+	check((row.find_child("Buy", true, false) as Button).text == "ซื้อ %d" % after, "the row shows the haggled price (%d)" % after)
+	# Consigning from the screen.
+	var consigns := shop.find_children("*", "Button", true, false).filter(func(b): return String(b.name) == "Consign")
+	check(consigns.size() == Game.profile.inv.size() and consigns.size() > 0, "every bag slot can be consigned (%d)" % consigns.size())
+	var bag_now: int = Game.profile.inv.size()
+	var outstanding := StallStock.consignments().size()
+	(consigns[0] as Button).pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(Game.profile.inv.size() == bag_now - 1 and StallStock.consignments().size() == outstanding + 1, "the button consigns the slot")
+	check(shop.find_child("ConsignNote", true, false) != null, "the sell list tells what is out on consignment")
 	shop.close_shop()
 	check(not get_tree().paused and not shop.is_open, "the stall closes")
 	# The merchant as before.
