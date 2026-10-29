@@ -177,7 +177,9 @@ func _capture_pending(runner_id: int) -> void:
 		return
 	# The headless renderer never emits a useful frame_post_draw signal. Keep
 	# the fallback without queuing a capture that could never complete.
-	if DisplayServer.get_name() == "headless":
+	# An iPhone keeps the drawn bare-head portrait: a second 3D render (a multisampled
+	# SubViewport) as the game starts is the prime suspect for the iPhone's grey world.
+	if DisplayServer.get_name() == "headless" or MemoryGuard.ios():
 		_shown_key = key
 		_cancel_capture()
 		return
@@ -189,7 +191,7 @@ func _capture_pending(runner_id: int) -> void:
 	viewport.size = Vector2i(CAPTURE_SIZE, CAPTURE_SIZE)
 	viewport.own_world_3d = true
 	viewport.transparent_bg = true
-	viewport.msaa_3d = Viewport.MSAA_4X
+	viewport.msaa_3d = Viewport.MSAA_DISABLED if OS.has_feature("web") else Viewport.MSAA_4X
 	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	viewport.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(viewport)
