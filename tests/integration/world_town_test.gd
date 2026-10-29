@@ -3,7 +3,8 @@ extends Node
 ## weeks after the opening, and again a month on) at least MIN_TOWN stall keepers are in
 ## the village and enough are online; the players with a play schedule are never in the
 ## village while online (they level in a field, or play the endgame), only stall keepers
-## stand there (doing "stall"); the world's clock runs WorldPlayers.SPEED times
+## stand there (doing "stall") but for the scheduled players' short errands (a quest, the
+## forge, new skills: doing "errand"); the world's clock runs WorldPlayers.SPEED times
 ## faster than real time; everyone starts at Lv.1 at the opening, newcomers
 ## arrive on their day; the guild war fields everyone at Lv.100, up to GUILD_SIDE a side.
 ##   godot --headless --path . res://tests/integration/world_town_test.tscn
@@ -29,6 +30,7 @@ func _ready() -> void:
 	for from_day in [0.0, 30.0]:
 		_busy(from_day, 14.0)
 	_veterans()
+	_errands()
 	_newcomers()
 	_guild_war()
 	print("WORLD TOWN: %s | %d checks, %d failures (%d ms)" % ["PASS" if failures == 0 else "FAIL", checks, failures, Time.get_ticks_msec() - started])
@@ -93,16 +95,16 @@ func _busy(from_day: float, days: float) -> void:
 			if not bool(s.online):
 				continue
 			var in_town := String(s.place) == "town"
-			if in_town != (String(s.doing) == "stall"):
+			if in_town != (String(s.doing) in ["stall", "errand"]):
 				wrong.append("%s %s/%s" % [s.name, s.place, s.doing])
-			if not WorldPlayers.in_town_style(i) and in_town and not bool(s.divine):
-				wrong.append("%s (%s) in the village" % [s.name, s.style])
-			if WorldPlayers.in_town_style(i) and not in_town:
-				wrong.append("%s (stall keeper) away from the village" % s.name)
-			keepers += 1 if in_town else 0
+			if not WorldPlayers.in_town_style(i) and String(s.doing) == "stall" and not bool(s.divine):
+				wrong.append("%s (%s) keeps a stall" % [s.name, s.style])
+			if WorldPlayers.in_town_style(i) and String(s.doing) != "stall":
+				wrong.append("%s (stall keeper) away from its stall" % s.name)
+			keepers += 1 if String(s.doing) == "stall" else 0
 		stalls_full += 1 if keepers >= JapanVillage.STALLS.size() else 0
 		t += 7200.0
-	check(wrong.is_empty(), "day %d+: only stall keepers are in the village, scheduled players level (%s)" % [int(from_day), wrong.slice(0, 6)])
+	check(wrong.is_empty(), "day %d+: only stall keepers and errand runners are in the village, scheduled players level (%s)" % [int(from_day), wrong.slice(0, 6)])
 	print("day %d+: the village's %d stalls full at %d of %d checks" % [int(from_day), JapanVillage.STALLS.size(), stalls_full, int(days * 12.0)])
 
 
@@ -142,6 +144,66 @@ func _veterans() -> void:
 			check(String(s.place) != "" and (String(s.place) == "town" or ZoneData.access_reason(StringName(s.place), int(s.level), int(s.stars)) == ""), "a divine player goes where it may (%s)" % s.place)
 		t += 900.0
 	check(kinds.has("boss") and kinds.has("help") and kinds.has("stall"), "a divine player hunts bosses, helps and keeps a stall (%s)" % [kinds.keys()])
+
+
+## Errands: scheduled players come to the village now and then for a few minutes, at most
+## once a stretch of WorldPlayers.ERRAND_EVERY minutes, for a quest, the forge or skills
+## (always skills when one unlocked), and hunt the rest of the session.
+func _errands() -> void:
+	var start := float(WorldPlayers.START_UNIX) + 86400.0
+	var kinds := {}
+	var count := 0
+	var town_minutes := 0.0
+	var online_minutes := 0.0
+	var bad: Array[String] = []
+	var skill_unlock := 0
+	for i in WorldPlayers.size():
+		if WorldPlayers.in_town_style(i) or i % 3 != 0:
+			continue
+		var name := String(WorldPlayers.entry(i).name)
+		var last_from := -INF
+		var last_until := -INF
+		var last_session := -1.0
+		var t := start
+		while t < start + 3.0 * 86400.0:
+			var sess := WorldPlayers.session_at(i, t)
+			if sess.is_empty():
+				t += 60.0
+				continue
+			online_minutes += 0.5
+			var e := WorldPlayers.errand_at(i, float(sess[0]), float(sess[1]), t)
+			if not e.is_empty():
+				town_minutes += 0.5
+				if float(e.from) != last_from:
+					count += 1
+					var length := (float(e.until) - float(e.from)) / 60.0
+					var kind := String(e.kind)
+					kinds[kind] = int(kinds.get(kind, 0)) + 1
+					if not kind in WorldPlayers.ERRAND_KINDS:
+						bad.append("%s: kind %s" % [name, kind])
+					if length < WorldPlayers.ERRAND_MIN - 0.01 or length > WorldPlayers.ERRAND_MAX + 0.01:
+						bad.append("%s: %.1f minutes" % [name, length])
+					if float(sess[0]) == last_session and float(e.from) - last_until < 8.0 * 60.0 - 1.0:
+						bad.append("%s: two errands %.0f s apart" % [name, float(e.from) - last_until])
+					if float(e.until) > float(sess[1]) - 60.0:
+						bad.append("%s: an errand runs into the session's end" % name)
+					var s := WorldPlayers.state(i, t)
+					if String(s.place) != "town" or String(s.doing) != "errand" or String(s.errand) != kind or not is_equal_approx(float(s.errand_until), float(e.until)):
+						bad.append("%s: state %s/%s/%s on its errand" % [name, s.place, s.doing, s.errand])
+					var after := WorldPlayers.state(i, float(e.until) + 30.0)
+					if bool(after.online) and String(after.place) == "town" and not bool(after.divine):
+						bad.append("%s: still in the village after its errand" % name)
+					if kind == "skill" and WorldPlayers._unlocks_between(i, float(sess[0]) + floor((float(e.from) - float(sess[0])) / 60.0 / WorldPlayers.ERRAND_EVERY) * WorldPlayers.ERRAND_EVERY * 60.0, float(e.from)):
+						skill_unlock += 1
+					last_from = float(e.from)
+					last_until = float(e.until)
+					last_session = float(sess[0])
+			t += 30.0
+	print("errands: %d in three days for a third of the scheduled players %s, %.1f%% of their online time in the village, %d skill errands at an unlock" % [count, kinds, 100.0 * town_minutes / maxf(1.0, online_minutes), skill_unlock])
+	check(bad.is_empty(), "errands are short, of a real kind, spaced out and inside the session (%s)" % [bad.slice(0, 6)])
+	check(count >= 50 and kinds.size() == 3, "scheduled players run errands of every kind (%d, %s)" % [count, kinds])
+	check(town_minutes / maxf(1.0, online_minutes) < 0.06, "the errands are a small part of the session (%.1f%%)" % (100.0 * town_minutes / maxf(1.0, online_minutes)))
+	check(skill_unlock > 0, "a new skill brings a skill errand (%d)" % skill_unlock)
 
 
 func _newcomers() -> void:
