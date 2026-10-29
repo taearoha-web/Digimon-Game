@@ -192,11 +192,14 @@ func _play_class(class_id: StringName) -> void:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		node.queue_free()
 	await _wait(0.2)
-	hero.global_position = Vector3(-20, 0.2, 0)
+	# Inside the entrance's scenery-free circle: out in the field a random rock or tree
+	# (the layout is rolled per build) now and then stood between the hero and the pack,
+	# or around a spawned slime, and nobody reached anybody for the whole 80 s.
+	hero.global_position = zone.entrance() + Vector3(1.0, 0.2, 0)
 	var level_before: int = Game.profile.level
 	var exp_before: int = Game.profile.exp
 	var gold_before: int = Game.profile.gold
-	var pack := _spawn(zone, hero, [&"pink_slime", &"green_slime", &"pink_slime"], 2)
+	var pack := _spawn(zone, hero, [&"pink_slime", &"green_slime", &"pink_slime"], 2, 2.0, 1.4)
 	await _wait(0.5)
 	hero.tap_attack()
 	check(hero.engaged and hero.target != null, "attack button locks a target")
@@ -212,7 +215,11 @@ func _play_class(class_id: StringName) -> void:
 		if Game.profile.hp < int(hero.stats.max_hp * 0.4):
 			hero.use_potion("hp")
 		Game.profile.mp = maxi(Game.profile.mp, 30)
-	check(_alive(pack) == 0, "pack defeated in %.1fs (hp %d/%d)" % [elapsed, Game.profile.hp, hero.stats.max_hp])
+	var nearest := 1.0e9
+	for m in pack:
+		if is_instance_valid(m):
+			nearest = minf(nearest, hero.global_position.distance_to(m.global_position))
+	check(_alive(pack) == 0, "pack defeated in %.1fs (hp %d/%d, hero at %s, engaged %s, target %s, nearest mob %.1f m)" % [elapsed, Game.profile.hp, hero.stats.max_hp, hero.global_position, hero.engaged, hero.target != null, nearest])
 	if _alive(pack) > 0:
 		# What the fight looked like when it stalled (this check fails now and then on CI).
 		print("  pack stalled: hero at %s target %s engaged %s auto %s | moves active %d | mobs in 16 m %d" % [hero.global_position, hero.target.name if hero.target else "none", hero.engaged, hero.auto, MobAttack.active_count(), hero.mobs_in_range().size()])
@@ -241,11 +248,11 @@ func _join(cls: StringName) -> void:
 	Game.party_changed.emit()
 
 
-func _spawn(zone: Zone, hero: Hero, ids: Array, level: int) -> Array[Mob]:
+func _spawn(zone: Zone, hero: Hero, ids: Array, level: int, ahead := 6.0, gap := 1.4) -> Array[Mob]:
 	var pack: Array[Mob] = []
 	for i in ids.size():
 		var m := Mob.new()
-		m.setup(ids[i], level, hero.global_position + Vector3(6 + i * 1.4, 0, -1 + i), hero)
+		m.setup(ids[i], level, hero.global_position + Vector3(ahead + i * gap, 0, -1 + i), hero)
 		m.position = m.home + Vector3(0, 0.3, 0)
 		zone.add_child(m)
 		pack.append(m)

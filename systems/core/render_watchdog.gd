@@ -8,6 +8,8 @@ extends RefCounted
 ##      fewer effects, a lower drawn resolution on an iPhone)
 ##   3  no sun shadows
 ##   4  the other players (world players, their capes, wings and ravens) are hidden
+##   5  the safe picture (GameSettings.safe_picture, kept in the settings): the zone is
+##      built again without any other player, stall or lantern glow
 ## Every few seconds it reads a sparse grid of the frame's middle band (the HUD sits at
 ## the edges); two flat readings in a row take the next step. The steps taken and the
 ## flat readings go into the session report (renderFallback, flatScreens), so the next
@@ -15,7 +17,7 @@ extends RefCounted
 
 const CHECK_SECONDS := 5.0
 const FLAT_SPREAD := 0.012
-const STEPS := 4
+const STEPS := 5
 
 static var step := 0
 static var flat_count := 0
@@ -122,6 +124,11 @@ static func _keep(tree: SceneTree) -> void:
 			(node as Node3D).visible = false
 
 
+## Tests count the rebuilds instead of travelling.
+static var rebuilds := 0
+static var rebuild_override := false
+
+
 static func _apply(tree: SceneTree) -> void:
 	var hero := tree.get_first_node_in_group("hero")
 	if step >= 1 and hero is Hero and (hero as Hero).camera_rig:
@@ -146,3 +153,12 @@ static func _apply(tree: SceneTree) -> void:
 	if step >= 4:
 		for node in tree.get_nodes_in_group("world_players"):
 			(node as Node3D).visible = false
+	if step >= 5 and not GameSettings.safe_picture:
+		GameSettings.safe_picture = true
+		GameSettings.save_settings()
+		rebuilds += 1
+		if rebuild_override:
+			return
+		var main := tree.current_scene
+		if main != null and main.has_method("go") and Game.has_profile:
+			main.call("go", Game.current_zone, true)

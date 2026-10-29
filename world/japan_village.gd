@@ -92,7 +92,7 @@ static func _piece(root: Node3D, node_name: String, pos: Vector3, yaw: float, bu
 ## One additive MultiMesh of soft warm dots over every lantern flame: the glow
 ## of the town at a single draw call, no lights.
 static func _lantern_halos(root: Node3D) -> void:
-	if _halos.is_empty():
+	if _halos.is_empty() or GameSettings.safe_picture:
 		return
 	var transforms: Array[Transform3D] = []
 	var colors: Array[Color] = []

@@ -10,6 +10,10 @@ const QUALITY_NAMES := ["ต่ำ (เครื่องช้า)", "กลา
 static var quality := -1          # 0 low, 1 medium, 2 high; -1 = not chosen yet
 static var camera_speed := 1.0
 static var combat_hitstop := true
+## The safe picture (settings, or the flat-screen watchdog's last step): no other players,
+## stalls or lantern glow in the zones, so a phone whose world came out as one flat colour
+## shows the plain world again. Saved with the settings; the player switches it off.
+static var safe_picture := false
 static var _loaded := false
 
 
@@ -33,6 +37,8 @@ static func load_settings() -> void:
 					camera_speed = clampf(float(saved_speed), 0.4, 2.5)
 			if parsed.get("combat_hitstop") is bool:
 				combat_hitstop = parsed.combat_hitstop
+			if parsed.get("safe_picture") is bool:
+				safe_picture = parsed.safe_picture
 	if quality < 0:
 		# First run: phones and browsers get the lighter setting.
 		quality = 1 if (OS.has_feature("web") or OS.has_feature("mobile")) else 2
@@ -42,7 +48,7 @@ static func load_settings() -> void:
 static func save_settings() -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop}))
+		file.store_string(JSON.stringify({"quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "safe_picture": safe_picture}))
 
 
 static func view_scale() -> float:

@@ -1061,6 +1061,14 @@ func _build_settings() -> void:
 			Game.say("ตั้งคุณภาพ: %s (ต้นไม้และหญ้าจะเปลี่ยนเมื่อเข้าแมพใหม่)" % GameSettings.QUALITY_NAMES[i], &"info")
 			_rebuild())
 		q_line.add_child(qb)
+	var safe := CheckButton.new()
+	safe.text = "โหมดภาพปลอดภัย (ไม่มีผู้เล่นคนอื่น/ร้านค้า/แสงโคม ใช้เมื่อจอเป็นสีเดียว)"
+	safe.button_pressed = GameSettings.safe_picture
+	safe.toggled.connect(func(on: bool):
+		GameSettings.safe_picture = on
+		GameSettings.save_settings()
+		Game.say("โหมดภาพปลอดภัย: %s (มีผลเมื่อเข้าแมพใหม่)" % ("เปิด" if on else "ปิด"), &"info"))
+	box.add_child(safe)
 	var hitstop := CheckButton.new()
 	hitstop.text = "ชะลอภาพเมื่อโจมตีหนัก (ปิดเพื่อเล่นต่อเนื่อง)"
 	hitstop.button_pressed = GameSettings.combat_hitstop

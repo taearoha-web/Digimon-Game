@@ -942,10 +942,15 @@ func _layout_actions() -> void:
 	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
-	# The world chat ends left of the first skill (narrow screens get a narrower chat).
+	# The world chat sits between the joystick's resting ring and the first skill slot,
+	# whatever the screen's width (a narrow screen gets a narrower chat).
 	if world_chat != null:
 		var first: Vector2 = positions.skills[0]
-		world_chat.offset_right = clampf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, world_chat.offset_left + 220.0, 650.0)
+		var after_stick := joystick.rest_offset.x + joystick.base_radius + 24.0 if joystick != null else 250.0
+		world_chat.offset_left = after_stick
+		world_chat.offset_right = maxf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, after_stick + 160.0)
+		world_chat.custom_minimum_size = Vector2.ZERO
+		world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, 0.0)
 
 
 func _place_corner(control: Control, offset_from_corner: Vector2, r: float) -> void:
