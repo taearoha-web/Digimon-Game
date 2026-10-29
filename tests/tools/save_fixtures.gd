@@ -130,6 +130,8 @@ func _build_line(cls: StringName) -> void:
 		Game.equip_from_bag(Game.profile.inv.find(wings))
 	Game.add_item(ItemData.gem("ruby", 1))
 	Game.socket_gem(Game.profile.equip.weapon, Game.profile.inv.size() - 1)
+	Game.add_item(ItemData.jewel("purple", 8))
+	Game.add_item(ItemData.jewel("pink", 2))
 	for i in 6:
 		Game.enhance_item(Game.profile.equip.armor)
 	# Loot in the bag and the warehouse, potions, quests, kills, bosses, dailies.
@@ -187,6 +189,10 @@ func _build_line(cls: StringName) -> void:
 		Game.add_item(divine)
 	Game.add_item(ItemData.gem("emerald", 2))
 	Game.socket_gem(Game.profile.equip.ring, Game.profile.inv.size() - 1)
+	Game.add_item(ItemData.jewel("purple", 12))
+	Game.add_item(ItemData.jewel("pink", 12))
+	Game.add_item(ItemData.jewel("chaos", 2))
+	Game.add_item(ItemData.jewel("feather", 1))
 	for i in 10:
 		Game.enhance_item(Game.profile.equip.weapon)
 	Game.tower_floor_cleared(60)

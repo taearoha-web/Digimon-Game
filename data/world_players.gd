@@ -682,9 +682,24 @@ const MISS := 0.22
 const STAR_MISS := 0.12
 ## Rarity of a find, common .. mythic (players keep the better drops).
 const FIND_RARITY := [0.16, 0.36, 0.32, 0.13, 0.03]
-## Levels of play per enhancement step after a find, and the step caps by rarity.
+## A find comes from the monster at +0 and is taken to the forge like the hero's gear
+## (ItemData.JEWELS): +1 to +6 come one each PLUS_EVERY levels of play (purple jewels,
+## never failing), +7 to +9 take three times as long each (pink jewels at 50%), and +10
+## as long as all three of those (three purple and two pink at 50%). Star pieces go the
+## same way by stars (STAR_PLUS_EVERY), the divine set by hours (DIVINE_PLUS_HOURS).
 const PLUS_EVERY := 1.4
-const PLUS_CAP := [2, 4, 6, 7, 8]
+const STAR_PLUS_EVERY := 2.5
+
+
+## The forge grade reached after `progress` (levels or stars) of play with one step
+## every `step`.
+static func plus_after(progress: float, step: float) -> int:
+	var steps := progress / maxf(0.001, step)
+	if steps < 6.0:
+		return int(maxf(steps, 0.0))
+	if steps < 15.0:
+		return 6 + int((steps - 6.0) / 3.0)
+	return 9 if steps < 24.0 else 10
 ## Stars after the wing level the class wings drop, and after ★100 the star wings.
 const WING_STARS := 35.0
 const STAR_WING_STARS := 40.0
@@ -740,7 +755,7 @@ static func _best_find(name: String, slot: String, p: float, divine_frac: float)
 		if missed or p < at:
 			continue
 		var level := clampi(int(at), int(start), int(start) + 9)
-		var plus := mini(int(PLUS_CAP[rarity]), int((p - at) / PLUS_EVERY))
+		var plus := plus_after(p - at, PLUS_EVERY)
 		var score := ItemData.gear_power(level) * ItemData.rarity_mult(rarity, 0.2) * (1.0 + 0.06 * plus)
 		if score > best_score:
 			best_score = score
@@ -756,7 +771,7 @@ static func _best_find(name: String, slot: String, p: float, divine_frac: float)
 		var score := ItemData.gear_power(Game.MAX_LEVEL + int(tier)) * ItemData.rarity_mult(3, 0.2)
 		if score > best_score:
 			best_score = score
-			best = {"key": "s%d" % tier, "kind": "star", "tier": int(tier), "at": at}
+			best = {"key": "s%d" % tier, "kind": "star", "tier": int(tier), "at": at, "plus": plus_after(p - at, STAR_PLUS_EVERY)}
 	if divine_frac > 0.0 and slot in DivineGearData.SLOTS:
 		var rng := _find_rng(name, slot, "divine")
 		if divine_frac >= rng.randf_range(0.12, 1.0):
@@ -815,6 +830,8 @@ static func equip(m: Dictionary) -> Dictionary:
 					item["plus"] = divine_plus(m)
 			"star":
 				item = StarProgression.item(cls, int(find.tier), slot, rng)
+				if EnhanceFx.can_enhance(item):
+					item["plus"] = int(find.plus)
 			_:
 				item = ItemData.generate(int(find.level), cls, rng, int(find.rarity), slot)
 				if find.key == "b0" and slot == "weapon":

@@ -109,6 +109,8 @@ static func helm_look(item: Dictionary) -> Dictionary:
 
 
 static func icon(item: Dictionary) -> Texture2D:
+	if item.get("kind", "") == "jewel":
+		return load("res://assets/icons/ui/jewel_%s.svg" % String(item.id)) as Texture2D
 	if item.get("kind", "") == "gem":
 		return icon_for_id("gem_" + String(item.id).split("_")[0])
 	if item.get("kind", "") == "potion":
