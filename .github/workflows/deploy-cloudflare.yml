@@ -3,6 +3,9 @@ name: Deploy to Cloudflare (game + accounts)
 # Manual only. Needs two repository secrets (Settings > Secrets and variables > Actions):
 #   CLOUDFLARE_API_TOKEN   token with Workers Scripts: Edit and D1: Edit
 #   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account id
+# Optional, for talking to the world players (hosting/worker/chat.mjs):
+#   ANTHROPIC_API_KEY      Claude API key; copied into the Worker as a secret on every deploy
+#   CHAT_MODEL             (repository variable, not a secret) model id; default claude-opus-5-5
 # See hosting/CLOUDFLARE_TH.md for the step-by-step guide.
 on:
   workflow_dispatch:
@@ -38,6 +41,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CHAT_MODEL: ${{ vars.CHAT_MODEL }}
       DB_NAME: ${{ inputs.database_name }}
       WORKER_NAME: ${{ inputs.worker_name }}
       EXISTING_DB_ID: ${{ inputs.existing_database_id }}
@@ -62,6 +66,9 @@ jobs:
       - name: Install wrangler
         working-directory: hosting/worker
         run: npm install --no-audit --no-fund
+      - name: AI chat tests
+        working-directory: hosting/worker
+        run: node tests/chat.test.mjs
       - name: Check the Cloudflare token and account
         working-directory: hosting/worker
         run: |
@@ -97,6 +104,7 @@ jobs:
             c.name=process.env.WORKER_NAME;
             c.d1_databases[0].database_name=process.env.DB_NAME;
             c.d1_databases[0].database_id=process.env.DB_ID;
+            if(process.env.CHAT_MODEL) c.vars={...(c.vars||{}),CHAT_MODEL:process.env.CHAT_MODEL};
             fs.writeFileSync('wrangler.jsonc',JSON.stringify(c,null,2));
           "
       - name: Apply database migrations (already-applied ones are skipped)
@@ -113,6 +121,17 @@ jobs:
           else
             echo "SITE_URL=$URL" >> "$GITHUB_ENV"
           fi
+      - name: Give the Worker the Claude API key (AI chat)
+        working-directory: hosting/worker
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::No ANTHROPIC_API_KEY repository secret: the AI chat stays off (the game answers with its own lines)."
+            exit 0
+          fi
+          printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY
+          echo "AI chat key set on the Worker."
       - name: Smoke test the live site
         if: ${{ env.SITE_URL != '' }}
         run: |

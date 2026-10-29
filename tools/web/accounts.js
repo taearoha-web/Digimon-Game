@@ -161,7 +161,7 @@
     const timeout = setTimeout(() => controller.abort(),limit);
     options = {...options}; delete options.timeout;
     try {
-      const ownerHeader = /^(save|history|restore|logout)(?:\/|$)/.test(path) && state.user ? {'X-Toon-Account-ID':String(state.user.id)} : {};
+      const ownerHeader = /^(save|history|restore|logout|chat)(?:\/|$)/.test(path) && state.user ? {'X-Toon-Account-ID':String(state.user.id)} : {};
       const response = await fetch('/api/account/' + path,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal,headers:{'Content-Type':'application/json',...ownerHeader,...(options.headers || {})}});
       const type = response.headers.get('content-type') || '';
       const data = type.includes('application/json') ? await response.json() : {};
@@ -632,6 +632,87 @@
       }
     })();
     return readyPromise;
+  };
+  // --- Talking to the world players (AI chat, hosting/worker/chat.mjs) ----------------
+  // The game sends a line with toonChatSend and polls toonChatPoll for the answer; the
+  // text is typed in an HTML bar (toonChatCompose) so Thai input works on iPhone.
+  const chatReplies = new Map();
+  let chatSeq = 0, composer = null, composed = null;
+  function chatError(error) {
+    if (error.code === 'too_many_messages') return 'คุยเร็วไปหน่อย รอสักครู่แล้วค่อยพิมพ์ใหม่นะ';
+    if (error.code === 'chat_unavailable') return 'ระบบคุยกับผู้เล่น AI ยังไม่เปิดใช้งาน';
+    if (error.code === 'chat_busy' || error.code === 'chat_failed') return 'ตอนนี้ตอบไม่ได้ ลองพิมพ์ใหม่อีกครั้งนะ';
+    if (error.code === 'not_authenticated' || error.code === 'account_changed') return 'เข้าสู่ระบบบัญชีออนไลน์ก่อนถึงจะคุยกับผู้เล่นได้';
+    if (state.offline || !error.status) return 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตก่อนถึงจะคุยได้';
+    return 'ส่งข้อความไม่สำเร็จ ลองใหม่อีกครั้ง';
+  }
+  window.toonChatSend = function (requestJson) {
+    const id = ++chatSeq;
+    chatReplies.set(id, null);
+    if (!state.user) {
+      chatReplies.set(id, JSON.stringify({error:'signed_out', message:'เข้าสู่ระบบบัญชีออนไลน์ก่อนถึงจะคุยกับผู้เล่นได้'}));
+      return id;
+    }
+    api('chat',{method:'POST', body:String(requestJson), timeout:30000})
+      .then(data => chatReplies.set(id, JSON.stringify({reply:String(data.reply || ''), action:String(data.action || 'none')})))
+      .catch(error => chatReplies.set(id, JSON.stringify({error:error.code || 'failed', message:chatError(error)})));
+    return id;
+  };
+  window.toonChatPoll = function (id) {
+    const value = chatReplies.get(Number(id));
+    if (value == null) return '';
+    chatReplies.delete(Number(id));
+    return value;
+  };
+  window.toonChatCompose = function (optionsJson) {
+    let options = {};
+    try { options = JSON.parse(optionsJson || '{}'); } catch (error) { options = {}; }
+    composed = null;
+    if (!composer) {
+      composer = document.createElement('form');
+      composer.id = 'toon-chat-compose';
+      composer.setAttribute('autocomplete','off');
+      composer.style.cssText = 'position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:2147483000;display:none;'
+        + 'width:min(720px,calc(100vw - 24px));box-sizing:border-box;padding:10px;border-radius:14px;background:rgba(10,16,34,.94);'
+        + 'border:1px solid rgba(143,240,255,.5);box-shadow:0 8px 30px rgba(0,0,0,.45);font-family:inherit;color:#fff';
+      composer.innerHTML = '<div data-title style="font-size:15px;margin:0 2px 8px;color:#8ff0ff"></div>'
+        + '<div style="display:flex;gap:8px"><input data-text maxlength="200" enterkeyhint="send" style="flex:1;min-width:0;font-size:17px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:#0b1430;color:#fff">'
+        + '<button type="submit" style="font-size:16px;padding:0 16px;border-radius:10px;border:0;background:#2bb3ff;color:#04122b;font-weight:700">ส่ง</button>'
+        + '<button type="button" data-cancel style="font-size:16px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff">ปิด</button></div>';
+      const input = composer.querySelector('[data-text]');
+      composer.addEventListener('submit', event => {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+        composed = JSON.stringify({text});
+        input.value = '';
+        input.blur();
+        composer.style.display = 'none';
+      });
+      composer.querySelector('[data-cancel]').addEventListener('click', () => {
+        composed = JSON.stringify({cancel:true});
+        input.blur();
+        composer.style.display = 'none';
+      });
+      // Keys typed here belong to the bar, not to the game under it.
+      ['keydown','keyup','keypress'].forEach(type => composer.addEventListener(type, event => event.stopPropagation()));
+      document.body.appendChild(composer);
+    }
+    composer.querySelector('[data-title]').textContent = String(options.title || 'พิมพ์ข้อความ');
+    const input = composer.querySelector('[data-text]');
+    input.placeholder = String(options.placeholder || 'พิมพ์ข้อความ…');
+    composer.style.display = 'block';
+    try { input.focus({preventScroll:true}); } catch (error) { input.focus(); }
+    return true;
+  };
+  window.toonChatComposed = function () {
+    if (composed === null) return '';
+    const value = composed;
+    composed = null;
+    return value;
+  };
+  window.toonChatComposeClose = function () {
+    if (composer) composer.style.display = 'none';
   };
   window.addEventListener('online',() => { state.offline = false; scheduleUpload(100); });
   window.addEventListener('offline',() => { state.offline = true; });

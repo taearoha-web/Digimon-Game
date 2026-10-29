@@ -14,6 +14,7 @@ var guildwar_screen: GuildWarScreen
 var guild_screen: GuildScreen
 var registry: RegistryScreen
 var player_card: PlayerCard
+var ai_chat: AiChat
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -85,6 +86,11 @@ func _ready() -> void:
 			registry.open_screen())
 	player_card = PlayerCard.new()
 	add_child(player_card)
+	ai_chat = AiChat.new()
+	add_child(ai_chat)
+	hud.chat_requested.connect(func():
+		if not _screen_open():
+			ai_chat.talk_world())
 	hud.world_tapped.connect(_on_world_tapped)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
