@@ -2,7 +2,8 @@ class_name WorldPresence
 extends Node
 ## Shows the world players (WorldPlayers) who are online in this zone right now: they walk
 ## in, hunt the field's monsters, level up as their schedule says and log off when their
-## session ends; in the village the stall keepers stand at their stalls. Checked every
+## session ends; the village shows only the stall keepers (players taking a break, who
+## sell what they found: StallStock), each at a stall of its own. Checked every
 ## few seconds; lower quality shows fewer at once (and memory pressure fewer still). Also
 ## announces milestones (job advancement levels, Lv.100, star tiers, the divine set, its
 ## enhancement, newcomers) of any world player, wherever it is, like a server message, and
@@ -104,9 +105,12 @@ func sync(initial: bool) -> void:
 		if bool(s.online):
 			_online.append(s)
 		if bool(s.online) and StringName(s.place) == zone.zone_id and not Game.in_party(i):
+			# The village is the stall keepers' (the scheduled players are out levelling).
+			if zone.is_town and String(s.doing) != "stall":
+				continue
 			here.append(s)
-	# Those already shown stay first, then the stall keepers (the village's fixtures), then
-	# the roster order turned by the hour so the same few are not always the ones picked.
+	# Those already shown stay first, then the stall keepers, then the roster order turned
+	# by the hour so the same few are not always the ones picked.
 	var n := WorldPlayers.size()
 	var turn := int(t / 3600.0) % n
 	here.sort_custom(func(a, b):
@@ -117,6 +121,9 @@ func sync(initial: bool) -> void:
 		return (int(a.index) - turn + n) % n < (int(b.index) - turn + n) % n)
 	var cap := limit_here(zone.is_town)
 	var limit: int = maxi(1, cap - Game.party().size()) if cap > 0 else 0
+	# Every stall keeper shown in the village keeps a stall: no more than there are stalls.
+	if zone.is_town:
+		limit = mini(limit, JapanVillage.STALLS.size())
 	var keep := {}
 	for k in mini(limit, here.size()):
 		keep[int(here[k].index)] = here[k]
@@ -210,7 +217,7 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 
 
 ## Hands a stall keeper in the village a free stall (its own favourite first); false when
-## every stall is taken (it strolls about instead).
+## every stall is taken (sync never shows more keepers than there are stalls).
 func _give_stall(p: FieldPlayer) -> bool:
 	if not zone.is_town:
 		return false

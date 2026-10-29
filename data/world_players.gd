@@ -11,10 +11,12 @@ extends RefCounted
 ## start with a head start (vet, none at present), newcomers log in for the first
 ## time some days after the opening (join), stall keepers stay in the village. So levels,
 ## stars, whereabouts and who is online are the same for everyone at a given moment.
-## While online a player stands in the village at the start and end of a session and on
-## its trips back to sell, and otherwise hunts in the field that fits its level
-## (WorldPresence shows it there, fighting the field's monsters for real); with the divine
-## set complete it spends its sessions on the endgame (endgame_plan) and enhances the set.
+## A player with a play schedule spends every online minute levelling: it hunts in the
+## field that fits its level (WorldPresence shows it there, fighting the field's monsters
+## for real) and never stands about in the village; with the divine set complete it spends
+## its sessions on the endgame (endgame_plan) and enhances the set. The village belongs to
+## the stall keepers (the "afk" style, and divine players taking a break, endgame_plan's
+## "stall"): resting players who sell the good things they found (StallStock).
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
 
 ## The world (re)opened here (unix seconds; 29 Oct 2026, 18:45 Thai time, the reopening
@@ -162,14 +164,6 @@ const STYLES := {
 ## world hours; what they earn is the real minutes played, so the pace of levelling stays
 ## that of a real player.
 const SPEED := 3.0
-## While playing, a player pops back to the village every TRIP_EVERY real minutes for
-## TRIP minutes (selling, repairs, potions), each at its own offset.
-const TRIP_EVERY := 30.0
-const TRIP := 9.0
-## Real minutes of every session spent in the village: shopping before, selling after.
-const TOWN_BEFORE := 8.0
-const TOWN_AFTER := 5.0
-
 ## EXP per minute of auto-hunting (pace_probe, warrior/mage mean, 60 s each) at each
 ## level in its field, and at Lv.100 by stars in the star fields.
 const LEVEL_RATE := [[1, 900], [3, 1146], [10, 2465], [18, 5498], [26, 12453], [35, 14066], [46, 18823], [58, 21692], [70, 29115], [82, 26128], [94, 36727], [100, 36727]]
@@ -345,17 +339,11 @@ static func in_town_style(i: int) -> bool:
 	return bool(STYLES[String(ROSTER[i].style)].get("town", false))
 
 
-## Where in a session (real start s0, end s1) player i is at real time t: the village
-## on the way in, on the way out and on its trips back to sell, otherwise out hunting.
-static func town_time(i: int, s0: float, s1: float, t: float) -> bool:
-	if in_town_style(i):
-		return true
-	var since := (t - s0) / 60.0
-	var until := (s1 - t) / 60.0
-	if since < TOWN_BEFORE or until < TOWN_AFTER:
-		return true
-	var offset := float(hash("trip|%s" % ROSTER[i].name) % 1000) / 1000.0 * TRIP_EVERY
-	return fposmod(since + offset, TRIP_EVERY) < TRIP
+## Whether player i stands in the village at real time t of its session (real start s0,
+## end s1): only a stall keeper does, the whole session. A player with a play schedule
+## spends every minute online levelling (its trips to sell are part of its efficiency).
+static func town_time(i: int, _s0: float, _s1: float, _t: float) -> bool:
+	return in_town_style(i)
 
 
 # --- Progress -------------------------------------------------------------------
@@ -518,7 +506,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	if not s.is_empty():
 		if town_time(i, float(s[0]), float(s[1]), t):
 			place = "town"
-			doing = "stall" if in_town_style(i) else "town"
+			doing = "stall"
 		else:
 			var plan := endgame_plan(i, float(s[0]), int(p.level), int(p.stars), bool(p.divine))
 			place = String(plan.place)
@@ -554,11 +542,11 @@ static func _last_seen(i: int, t: float) -> float:
 	return 0.0
 
 
-## What a player does in the session that started at real time s0 (once out of the
-## village): {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
+## What a player with a play schedule does in the session that started at real time s0:
+## {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
 ## the divine set is complete each session is one of the endgame's: the lotus sanctum's
-## boss hunts ("boss"), helping friends in a star field ("help") or keeping a stall in
-## the village ("stall").
+## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
+## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
 	var home := hunting_zone(level, stars, divine)
 	if not divine:

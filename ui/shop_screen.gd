@@ -1,6 +1,8 @@
 class_name ShopScreen
 extends CanvasLayer
-## The merchant: potions and gear to buy, anything in the bag to sell.
+## The merchant: potions and gear to buy, anything in the bag to sell. The same screen
+## opens a world player's stall (open_stall): its finds (StallStock) on the buy side at
+## the stall's prices, the bag on the sell side at what the stall pays.
 
 signal closed()
 
@@ -14,6 +16,11 @@ var _root: Control
 var _buy_box: VBoxContainer
 var _sell_box: VBoxContainer
 var _gold: Label
+var _title: Label
+var _buy_title: Label
+var _sell_title: Label
+## The world player whose stall is open (WorldPlayers index), -1 for the merchant.
+var stall := -1
 
 
 func _ready() -> void:
@@ -43,9 +50,10 @@ func _ready() -> void:
 	panel.add_child(column)
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
-	var title := UIUtil.label("ร้านค้า", &"HeaderLabel")
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	_title = UIUtil.label("ร้านค้า", &"HeaderLabel")
+	_title.name = "Title"
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_title)
 	_gold = UIUtil.label("", &"SubHeaderLabel")
 	_gold.add_theme_color_override("font_color", UIPalette.GOLD)
 	head.add_child(_gold)
@@ -57,6 +65,8 @@ func _ready() -> void:
 	column.add_child(row)
 	_buy_box = _make_list(row, "ซื้อ")
 	_sell_box = _make_list(row, "ขาย (กระเป๋าของคุณ)")
+	_buy_title = _buy_box.get_parent().get_parent().get_child(0) as Label
+	_sell_title = _sell_box.get_parent().get_parent().get_child(0) as Label
 	Game.inventory_changed.connect(_queue_rebuild)
 	Game.gold_changed.connect(func(_g): _queue_rebuild())
 
@@ -77,6 +87,27 @@ func _make_list(row: Control, title: String) -> VBoxContainer:
 
 
 func open_shop() -> void:
+	stall = -1
+	_title.text = "ร้านค้า"
+	_buy_title.text = "ซื้อ"
+	_sell_title.text = "ขาย (กระเป๋าของคุณ)"
+	_open()
+
+
+## World player `world_index`'s stall: the good things it found to buy, the bag to sell
+## at the stall's better price.
+func open_stall(world_index: int) -> void:
+	if world_index < 0 or world_index >= WorldPlayers.size():
+		return
+	stall = world_index
+	StallStock.open(world_index)
+	_title.text = "ร้านของ %s" % WorldPlayers.entry(world_index).name
+	_buy_title.text = "ของดีที่เก็บมาขาย (%s)" % StallStock.KIND_NAMES[StallStock.specialty(world_index)]
+	_sell_title.text = "ขายให้ร้านนี้ (ให้ราคาดีกว่าพ่อค้า)"
+	_open()
+
+
+func _open() -> void:
 	is_open = true
 	get_tree().paused = true
 	_root.visible = true
@@ -86,6 +117,7 @@ func open_shop() -> void:
 
 func close_shop() -> void:
 	is_open = false
+	stall = -1
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_buy_box)
@@ -144,21 +176,43 @@ func _rebuild() -> void:
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)
 	UIUtil.clear(_buy_box)
 	UIUtil.clear(_sell_box)
-	for item in _stock():
-		if ItemData.is_stackable(item):
-			_buy_box.add_child(_bulk_row(item))
-		else:
-			_buy_box.add_child(_row(item, ItemData.buy_price(item), "ซื้อ", func(): Game.buy_item(item.duplicate(true))))
+	if stall >= 0:
+		_stall_rows()
+	else:
+		for item in _stock():
+			if ItemData.is_stackable(item):
+				_buy_box.add_child(_bulk_row(item))
+			else:
+				_buy_box.add_child(_row(item, ItemData.buy_price(item), "ซื้อ", func(): Game.buy_item(item.duplicate(true))))
 	var empty := true
 	for i in Game.profile.inv.size():
 		var item: Dictionary = Game.profile.inv[i]
 		empty = false
+		if stall >= 0:
+			_sell_box.add_child(_row(item, StallStock.sell_price(item), "ขาย", func(): StallStock.sell(i)))
+			continue
 		var price := ItemData.unit_sell_price(item)
 		_sell_box.add_child(_row(item, price, "ขาย", func(): Game.sell_item(i)))
 	if empty:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
 	buy_scroll.restore_vertical_position(buy_y)
 	sell_scroll.restore_vertical_position(sell_y)
+
+
+## The open stall's lots: each bought whole, gone from the stall until it restocks.
+func _stall_rows() -> void:
+	var who := stall
+	var lots := StallStock.stock(who)
+	for e in lots:
+		var k := int(e.k)
+		var row := _row(e.item, int(e.price), "ซื้อ", func(): StallStock.buy(who, k))
+		row.name = "Lot_%d" % k
+		_buy_box.add_child(row)
+	var minutes := maxi(1, int((StallStock.restock_at(who, WorldPresence.clock()) - WorldPresence.clock()) / 60.0))
+	var note := "ของชุดใหม่มาในอีก %d ชม. %d นาที" % [minutes / 60, minutes % 60] if minutes >= 60 else "ของชุดใหม่มาในอีก %d นาที" % minutes
+	if lots.is_empty():
+		note = "ของหมดแล้ว " + note
+	_buy_box.add_child(UIUtil.label(note, &"DimLabel"))
 
 
 ## A potion or scroll: − and + pick how many bottles, the button buys them all at once.

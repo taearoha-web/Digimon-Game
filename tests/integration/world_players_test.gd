@@ -72,6 +72,7 @@ func _progress() -> void:
 		var last_stars := 0
 		var steady := true
 		var zones_ok := true
+		var levels_online := true
 		var t := start
 		while t < start + 200.0 * day:
 			var s := WorldPlayers.state(i, t)
@@ -84,8 +85,12 @@ func _progress() -> void:
 				zones_ok = false
 			if bool(s.online) != (place != ""):
 				zones_ok = false
+			# Only a stall keeper (or a divine player on a break, keeping a stall) is in the village.
+			if place == "town" and (String(s.doing) != "stall" or not (WorldPlayers.in_town_style(i) or bool(s.divine))):
+				levels_online = false
 			t += day * 0.73
 		check(steady, "%s: level and stars only ever go up" % e.name)
+		check(levels_online, "%s: online it levels in a field, the village is for stall keepers" % e.name)
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
 		var end := WorldPlayers.state(i, start + 200.0 * day)
 		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])

@@ -1,11 +1,14 @@
 extends Node
 ## The world is never empty: at any moment of the day (every 10 real minutes over two real
-## weeks after the opening, and again a month on) at least MIN_TOWN world players are in
-## the village and enough are online; the world's clock runs WorldPlayers.SPEED times
+## weeks after the opening, and again a month on) at least MIN_TOWN stall keepers are in
+## the village and enough are online; the players with a play schedule are never in the
+## village while online (they level in a field, or play the endgame), only stall keepers
+## stand there (doing "stall"); the world's clock runs WorldPlayers.SPEED times
 ## faster than real time; everyone starts at Lv.1 at the opening, newcomers
 ## arrive on their day; the guild war fields everyone at Lv.100, up to GUILD_SIDE a side.
 ##   godot --headless --path . res://tests/integration/world_town_test.tscn
-const MIN_TOWN := 20
+## Stall keepers in the village at every moment (the village has JapanVillage.STALLS stalls).
+const MIN_TOWN := 16
 const MIN_ONLINE := 22
 
 var failures := 0
@@ -51,6 +54,7 @@ func _busy(from_day: float, days: float) -> void:
 	var low_at := 0.0
 	var sum_town := 0.0
 	var samples := 0
+	var scheduled_in_town := 0
 	var t := start
 	while t < start + days * 86400.0:
 		var town := 0
@@ -60,8 +64,11 @@ func _busy(from_day: float, days: float) -> void:
 			if sess.is_empty():
 				continue
 			online += 1
-			if WorldPlayers.town_time(i, float(sess[0]), float(sess[1]), t):
+			var in_town := WorldPlayers.town_time(i, float(sess[0]), float(sess[1]), t)
+			if in_town:
 				town += 1
+			if in_town != WorldPlayers.in_town_style(i):
+				scheduled_in_town += 1
 		if town < low_town:
 			low_town = town
 			low_at = t
@@ -71,8 +78,32 @@ func _busy(from_day: float, days: float) -> void:
 		t += 600.0
 	var hour := fposmod((WorldPlayers.world_time(low_at) + WorldPlayers.TZ) / 3600.0, 24.0)
 	print("day %d+: village at least %d (world %.1f h), on average %.1f; online at least %d" % [int(from_day), low_town, hour, sum_town / samples, low_online])
-	check(low_town >= MIN_TOWN, "day %d+: at least %d players in the village at every moment (%d)" % [int(from_day), MIN_TOWN, low_town])
+	check(low_town >= MIN_TOWN, "day %d+: at least %d stall keepers in the village at every moment (%d)" % [int(from_day), MIN_TOWN, low_town])
 	check(low_online >= MIN_ONLINE, "day %d+: at least %d players online at every moment (%d)" % [int(from_day), MIN_ONLINE, low_online])
+	check(scheduled_in_town == 0, "day %d+: no player with a play schedule spends its session in the village (%d moments)" % [int(from_day), scheduled_in_town])
+	# Where everyone is, every two real hours: online scheduled players are out in a field
+	# (or the endgame), and whoever is in the village keeps a stall.
+	var wrong: Array[String] = []
+	var stalls_full := 0
+	t = start
+	while t < start + days * 86400.0:
+		var keepers := 0
+		for i in WorldPlayers.size():
+			var s := WorldPlayers.state(i, t)
+			if not bool(s.online):
+				continue
+			var in_town := String(s.place) == "town"
+			if in_town != (String(s.doing) == "stall"):
+				wrong.append("%s %s/%s" % [s.name, s.place, s.doing])
+			if not WorldPlayers.in_town_style(i) and in_town and not bool(s.divine):
+				wrong.append("%s (%s) in the village" % [s.name, s.style])
+			if WorldPlayers.in_town_style(i) and not in_town:
+				wrong.append("%s (stall keeper) away from the village" % s.name)
+			keepers += 1 if in_town else 0
+		stalls_full += 1 if keepers >= JapanVillage.STALLS.size() else 0
+		t += 7200.0
+	check(wrong.is_empty(), "day %d+: only stall keepers are in the village, scheduled players level (%s)" % [int(from_day), wrong.slice(0, 6)])
+	print("day %d+: the village's %d stalls full at %d of %d checks" % [int(from_day), JapanVillage.STALLS.size(), stalls_full, int(days * 12.0)])
 
 
 func _veterans() -> void:

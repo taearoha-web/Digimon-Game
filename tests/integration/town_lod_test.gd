@@ -3,7 +3,8 @@ extends Node
 ## enhancement dressing (at most one particle emitter, no flames, beams or lights), far
 ## players stop their emitters, cast no shadow and still animate (the manual animation
 ## steps run), the party keeps the full dressing, and the arrivals of a sync come one
-## per frame.
+## per frame. The village shows only stall keepers, each at a stall of its own, never
+## more than there are stalls.
 var checks := 0
 var failures := 0
 
@@ -33,6 +34,23 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	var players: Array = get_tree().get_nodes_in_group("world_players")
 	check(players.size() >= 10, "the village shows players (%d)" % players.size())
+	check(players.size() <= JapanVillage.STALLS.size(), "no more keepers than stalls (%d of %d)" % [players.size(), JapanVillage.STALLS.size()])
+	var spots := {}
+	for node in players:
+		var p := node as FieldPlayer
+		var s := WorldPlayers.state(p.world_index, WorldPresence.clock())
+		check(p.doing == "stall" and String(s.doing) == "stall" and String(s.place) == "town", "%s in the village keeps a stall (%s, %s)" % [p.member.name, p.doing, s.doing])
+		check(p.stall_at.is_finite() and not spots.has(p.stall_at), "%s has a stall of its own" % p.member.name)
+		spots[p.stall_at] = true
+	# A day when more keepers are online than there are stalls: still one stall each.
+	var presence0: WorldPresence = zone.presence if "presence" in zone else null
+	if presence0 != null:
+		var keepers := 0
+		for i in WorldPlayers.size():
+			var s := WorldPlayers.state(i, WorldPresence.clock())
+			keepers += 1 if bool(s.online) and String(s.doing) == "stall" else 0
+		print("town_lod_test: %d stall keepers online, %d shown, %d stalls" % [keepers, players.size(), JapanVillage.STALLS.size()])
+		check(presence0.shown.size() <= JapanVillage.STALLS.size() and presence0._stalls.size() == presence0.shown.size(), "every shown keeper holds a stall (%d shown, %d stalls taken)" % [presence0.shown.size(), presence0._stalls.size()])
 	var emitters := 0
 	var flames := 0
 	var lights := 0
