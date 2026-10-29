@@ -648,6 +648,7 @@ func _record_web_session_sample() -> void:
 		"fps": Engine.get_frames_per_second(), "quality": GameSettings.quality,
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
 		"renderFallback": RenderWatchdog.step, "flatScreens": RenderWatchdog.flat_count,
+		"starvedFrames": RenderWatchdog.starved_count,
 		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
@@ -662,6 +663,7 @@ func _record_web_session_sample() -> void:
 		"loot": get_tree().get_nodes_in_group("loot").size(),
 		"auto": hero is Hero and hero.auto, "kills": int(profile.get("kills", 0)),
 		"saveAgeSeconds": maxi(0, int(Time.get_unix_time_from_system()) - int(profile.get("saved_at", Time.get_unix_time_from_system())))}
+	sample.merge(RenderWatchdog.camera_report(get_tree()))
 	if hero is Hero:
 		sample["lastSkill"]=hero.last_cast_id
 		if hero.field is Zone and hero.field.tower_run:

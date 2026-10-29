@@ -3,7 +3,7 @@ extends RefCounted
 ## Notices the "flat screen" a phone sometimes shows (the 3D world drawn as one colour,
 ## the HUD still on top) and works its way back to a picture, one step at a time, for
 ## the rest of the session:
-##   1  the camera is put back behind the hero
+##   1  the zone's camera is made the one that draws and put back behind the hero
 ##   2  medium quality and the memory guard's strict level (no glow, small shadow map,
 ##      fewer effects, a lower drawn resolution on an iPhone)
 ##   3  no sun shadows
@@ -23,6 +23,34 @@ static var _flat_run := 0
 static var _accum := 0.0
 ## Tests feed a reading instead of the frame (-1: read the frame).
 static var spread_override := -1.0
+## Checks that found a built world drawn with almost nothing (see world_starved).
+static var starved_count := 0
+## Tests feed the frame's triangle count (-1: the renderer's).
+static var triangles_override := -1
+const STARVED_TRIANGLES := 15000
+const STARVED_NODES := 1500
+
+
+## A zone of a thousand-odd nodes on screen with almost no triangles drawn: the world
+## is loaded but culled away (the wrong camera, or one looking at nothing).
+static func world_starved(tree: SceneTree) -> bool:
+	var triangles := triangles_override if triangles_override >= 0 else int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	return int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) >= STARVED_NODES and triangles < STARVED_TRIANGLES and tree.get_first_node_in_group("hero") != null
+
+
+## The camera that draws and the zone's camera, for the session report.
+static func camera_report(tree: SceneTree) -> Dictionary:
+	var out := {}
+	var cam := tree.root.get_viewport().get_camera_3d()
+	var hero := tree.get_first_node_in_group("hero")
+	var rig: ThirdPersonCamera = (hero as Hero).camera_rig if hero is Hero else null
+	out["camOwn"] = 1 if cam != null and rig != null and cam == rig.camera else 0
+	if cam != null:
+		out["camY"] = snappedf(cam.global_position.y - ((hero as Node3D).global_position.y if hero is Node3D else 0.0), 0.1)
+		out["camPitch"] = snappedf(rad_to_deg(cam.global_basis.get_euler().x), 0.1)
+		out["camDist"] = snappedf(cam.global_position.distance_to((hero as Node3D).global_position) if hero is Node3D else -1.0, 0.1)
+		out["camFar"] = cam.far
+	return out
 
 
 static func tick(tree: SceneTree, delta: float, watching: bool) -> void:
@@ -34,7 +62,13 @@ static func tick(tree: SceneTree, delta: float, watching: bool) -> void:
 	if not watching or step >= STEPS:
 		_flat_run = 0
 		return
-	var spread := spread_override if spread_override >= 0.0 else _frame_spread(tree)
+	# A world that is built but hardly drawn (an iPhone village frame: ~100 draw calls and
+	# 7.6k triangles against 1,300 and 510k for the same village at low quality) is caught
+	# from the renderer's own counters, before any pixel is read.
+	var starved := world_starved(tree)
+	if starved:
+		starved_count += 1
+	var spread := spread_override if spread_override >= 0.0 else (0.0 if starved else _frame_spread(tree))
 	if spread < 0.0:
 		return
 	if spread >= FLAT_SPREAD:
@@ -96,6 +130,8 @@ static func _apply(tree: SceneTree) -> void:
 		if rig.camera:
 			rig.camera.position = Vector3.ZERO
 			rig.camera.rotation = Vector3.ZERO
+			# Another camera (a menu's stage) may have kept the view: the zone's draws again.
+			rig.camera.make_current()
 	if step >= 2:
 		if GameSettings.quality > 1:
 			GameSettings.quality = 1
