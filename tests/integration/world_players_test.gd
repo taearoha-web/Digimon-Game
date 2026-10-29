@@ -547,7 +547,7 @@ func _guild() -> void:
 	check(GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) == "", "the veterans' guilds can go to war on the first day")
 	var early := opening
 	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, early)
-	check(not few.is_empty() and few.ally.size() == mini(GuildWarData.TEAM_SIZE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, early).size()) and few.enemy.size() == mini(GuildWarData.TEAM_SIZE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()), "both guilds field up to TEAM_SIZE: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
+	check(not few.is_empty() and few.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, early).size()) and few.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()), "everyone at Lv.100 fights, up to GUILD_SIDE: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
 	var all_100 := true
 	for f in few.ally + few.enemy:
 		all_100 = all_100 and int(f.member.level) >= Game.GUILD_LEVEL
@@ -556,7 +556,7 @@ func _guild() -> void:
 	rng.seed = 77
 	var t := float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0
 	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
-	check(m.ally.size() == GuildWarData.TEAM_SIZE - 1 and m.enemy.size() == GuildWarData.TEAM_SIZE and WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size() > GuildWarData.TEAM_SIZE, "a full guild sends TEAM_SIZE (%d and %d)" % [m.ally.size(), m.enemy.size()])
+	check(m.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size()) and m.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size()) and m.enemy.size() > GuildWarData.TEAM_SIZE, "everyone at Lv.100 fights, up to GUILD_SIDE a side (%d and %d)" % [m.ally.size(), m.enemy.size()])
 	check(m.ally_name == "Alpha" and m.enemy_name == "Neverdie", "Alpha against Neverdie")
 	var ok_sides := true
 	var online_first := true
@@ -651,8 +651,8 @@ func _screens() -> void:
 		var theirs := true
 		for f in war.enemies:
 			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.ALPHA
-		check(war.allies.size() == mini(GuildWarData.TEAM_SIZE - 1, WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size()) and ours, "our side is Neverdie's members (%d)" % war.allies.size())
-		check(war.enemies.size() == mini(GuildWarData.TEAM_SIZE, WorldPlayers.members_at(WorldPlayers.ALPHA, float(war.started_at)).size()) and theirs, "across stand Alpha's members (%d)" % war.enemies.size())
+		check(war.allies.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size()) and ours, "our side is Neverdie's members (%d)" % war.allies.size())
+		check(war.enemies.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.ALPHA, float(war.started_at)).size()) and theirs, "across stand Alpha's members (%d)" % war.enemies.size())
 		var real_levels := true
 		for f in war.allies + war.enemies:
 			var s := WorldPlayers.state(_index_of(String(f.member.name)), float(war.started_at))

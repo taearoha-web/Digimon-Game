@@ -3,7 +3,7 @@ extends Node
 ## weeks after the opening, and again a month on) at least MIN_TOWN world players are in
 ## the village and enough are online; the world's clock runs WorldPlayers.SPEED times
 ## faster than real time; veterans stand where they were brought over from, newcomers
-## arrive on their day; the guild war is capped at TEAM_SIZE a side.
+## arrive on their day; the guild war fields everyone at Lv.100, up to GUILD_SIDE a side.
 ##   godot --headless --path . res://tests/integration/world_town_test.tscn
 const MIN_TOWN := 20
 const MIN_ONLINE := 22
@@ -135,7 +135,12 @@ func _guild_war() -> void:
 	check(not match.is_empty(), "a guild war can be fought in the first days")
 	if match.is_empty():
 		return
-	check(match.ally.size() == GuildWarData.TEAM_SIZE - 1 and match.enemy.size() == GuildWarData.TEAM_SIZE, "TEAM_SIZE a side (%d + hero, %d)" % [match.ally.size(), match.enemy.size()])
+	var ours_100 := WorldPlayers.members_at(WorldPlayers.ALPHA, t).size()
+	var theirs_100 := WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size()
+	check(match.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, ours_100) and match.enemy.size() == mini(GuildWarData.GUILD_SIDE, theirs_100) and match.enemy.size() > GuildWarData.TEAM_SIZE, "everyone at Lv.100 fights, up to GUILD_SIDE a side (%d + hero, %d)" % [match.ally.size(), match.enemy.size()])
+	# A full guild later on sends GUILD_SIDE.
+	var later := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, float(WorldPlayers.START_UNIX) + 60.0 * 86400.0)
+	check(later.ally.size() == GuildWarData.GUILD_SIDE - 1 and later.enemy.size() == GuildWarData.GUILD_SIDE, "a full guild: %d with the hero against %d" % [later.ally.size() + 1, later.enemy.size()])
 	# The hero's picks always come along, even past the cap.
 	var last := WorldPlayers.members_at(WorldPlayers.ALPHA, t)
 	var weakest := ""

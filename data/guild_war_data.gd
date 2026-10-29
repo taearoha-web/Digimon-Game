@@ -10,6 +10,9 @@ extends RefCounted
 ## total power.
 
 const TEAM_SIZE := 8
+## The war between the world's two guilds: everyone at Lv.100 fights, up to GUILD_SIDE a
+## side (the hero counted on ours).
+const GUILD_SIDE := 25
 const DURATION := 1800.0
 ## A fallen fighter comes back at its base this many seconds later.
 const RESPAWN := 8.0
@@ -138,7 +141,7 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 
 
 ## The war between the two guilds of the world (WorldPlayers): the hero and its guild's
-## members against the other guild's, TEAM_SIZE a side, each as it really is at time t
+## members against the other guild's, up to GUILD_SIDE a side, each as it really is at time t
 ## (level, stars, stat points and the gear it found; WorldPlayers.fighter). Only players
 ## who reached Lv.100 are in a guild; online members go first, then the strongest.
 ## No rival member yet: {} (no war).
@@ -164,9 +167,9 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, p
 		if picked.call(a) != picked.call(b):
 			return picked.call(a)
 		return order.call(a, b))
-	# At most TEAM_SIZE a side (the hero counted on ours): the arena and a phone hold that.
-	ours.resize(mini(ours.size(), TEAM_SIZE - 1))
-	theirs.resize(mini(theirs.size(), TEAM_SIZE))
+	# At most GUILD_SIDE a side (the hero counted on ours).
+	ours.resize(mini(ours.size(), GUILD_SIDE - 1))
+	theirs.resize(mini(theirs.size(), GUILD_SIDE))
 	var ally_power := power_of_hero
 	for f in ours:
 		ally_power += float(f.power)
