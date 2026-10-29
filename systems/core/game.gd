@@ -73,6 +73,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	MemoryGuard.tick(get_tree(), delta)
 	if OS.has_feature("web"):
+		RenderWatchdog.tick(get_tree(), delta, _render_watch_ok())
+	if OS.has_feature("web"):
 		_cloud_status_timer += delta
 		if _cloud_status_timer >= CLOUD_STATUS_INTERVAL:
 			_cloud_status_timer = fmod(_cloud_status_timer, CLOUD_STATUS_INTERVAL)
@@ -665,6 +667,16 @@ func _apply_web_pause_mask(mask: int) -> void:
 	_set_cloud_modal_open(mask != 0)
 
 
+## The flat-screen watchdog only reads a frame of play: a zone, the HUD up, no menu,
+## dialog or travel fade over the world.
+func _render_watch_ok() -> bool:
+	var main := get_tree().current_scene
+	if main == null or not main.has_method("_screen_open") or main.get("zone") == null:
+		return false
+	var hud: Variant = main.get("hud")
+	return hud is CanvasItem and (hud as CanvasItem).visible and not bool(main.call("_screen_open"))
+
+
 func _record_web_session_sample() -> void:
 	var hero := get_tree().get_first_node_in_group("hero")
 	var sample := {"staticBytes": int(Performance.get_monitor(Performance.MEMORY_STATIC)),
@@ -676,6 +688,7 @@ func _record_web_session_sample() -> void:
 		"fps": Engine.get_frames_per_second(), "quality": GameSettings.quality,
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
 		"scale3d": MemoryGuard.scale_3d, "emitters": get_tree().root.find_children("*", "CPUParticles3D", true, false).size(),
+		"renderFallback": RenderWatchdog.step, "flatScreens": RenderWatchdog.flat_count,
 		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
