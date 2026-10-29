@@ -19,11 +19,15 @@ signal world_tapped(position: Vector2)
 signal interact_pressed()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
-const SKILL_SPACING := 94.0
+const SKILL_SPACING := 82.0
 const SKILL_ROW_Y := -68.0
 const ATTACK_RADIUS := 62.0
 ## Room the world chat leaves before the first skill slot's centre.
-const SKILL_SLOT_CLEAR := 64.0
+const SKILL_SLOT_CLEAR := 44.0
+## The skill slots' radius (smaller medallions leave the world chat room).
+const SKILL_RADIUS := 32.0
+## The last skill slot's centre from the frame's right edge (clear of the attack button).
+const SKILL_ROW_RIGHT := -194.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
@@ -926,7 +930,7 @@ static func action_layout(canvas_size: Vector2) -> Dictionary:
 	var spacing := clampf((canvas_size.x - 550.0) / float(ClassData.SLOTS - 1), 80.0, SKILL_SPACING)
 	var centers: Array[Vector2] = []
 	for i in ClassData.SLOTS:
-		centers.append(Vector2(-200.0 - (ClassData.SLOTS - 1 - i) * spacing, SKILL_ROW_Y))
+		centers.append(Vector2(SKILL_ROW_RIGHT - (ClassData.SLOTS - 1 - i) * spacing, SKILL_ROW_Y))
 	var utility: Array[Vector2] = []
 	# Keep the top potion below the minimap, including a phone's safe insets.
 	var utility_spacing := clampf((canvas_size.y - 466.0) / 3.0, 62.0, 72.0)
@@ -941,6 +945,7 @@ func _layout_actions() -> void:
 	var positions := action_layout(_frame.size)
 	for i in skill_slots.size():
 		var slot := skill_slots[i]
+		slot.radius = SKILL_RADIUS
 		slot.name_width = minf(86.0, positions.skill_spacing - 6.0)
 		slot.queue_redraw()
 		_place_corner(slot, positions.skills[i] + Vector2.ONE * slot.radius, slot.radius)
@@ -958,11 +963,15 @@ func _layout_actions() -> void:
 	# whatever the screen's width (a narrow screen gets a narrower chat).
 	if world_chat != null:
 		var first: Vector2 = positions.skills[0]
-		var after_stick := joystick.rest_offset.x + joystick.base_radius + 24.0 if joystick != null else 250.0
+		# Just past the joystick's ring, which is placed on the screen while the chat
+		# lives in the safe-area frame.
+		var after_stick := 250.0
+		if joystick != null:
+			after_stick = joystick.global_position.x + joystick.rest_offset.x + joystick.base_radius + 24.0 - _frame.global_position.x
 		world_chat.offset_left = after_stick
 		world_chat.offset_right = maxf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, after_stick + 160.0)
-		world_chat.custom_minimum_size = Vector2.ZERO
-		world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, 0.0)
+		world_chat.custom_minimum_size = Vector2(0.0, WorldChat.HEIGHT)
+		world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, WorldChat.HEIGHT)
 
 
 func _place_corner(control: Control, offset_from_corner: Vector2, r: float) -> void:
