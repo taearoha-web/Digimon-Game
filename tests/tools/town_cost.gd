@@ -1,6 +1,6 @@
 extends Node
 ## Where the village's CPU time goes: builds the town (with world players when
-## TOON_WORLD_PLAYERS=1) and measures process / physics time with every part on, then
+## TOON_WORLD_PLAYERS=1) and measures the wall time of a frame with every part on, then
 ## with one part switched off at a time (physics server step, each node class's
 ## callbacks, animation, skeleton updates), so the cost of each part is the difference.
 ##   TOON_WORLD_PLAYERS=1 TOON_WORLD_DAYS=3.4 godot --headless --path . res://tests/tools/town_cost.tscn -- [quality] [frames]
@@ -27,7 +27,7 @@ func _ready() -> void:
 	PhysicsServer3D.set_active(false)
 	await _measure("physics server off", base)
 	PhysicsServer3D.set_active(true)
-	for cls in ["FieldPlayer", "Companion", "Hero", "Mob", "Zone", "WorldPresence", "HeroVisual", "AnimationPlayer", "AnimationTree", "Skeleton3D", "GPUParticles3D", "CPUParticles3D", "Camera3D", "Control", "Node3D"]:
+	for cls in ["FieldPlayer", "Hero", "Mob", "Zone", "WorldPresence", "HeroVisual", "FaceExpression", "FieldHpBar", "DarkRaven", "Npc", "Villager", "AnimationPlayer", "Skeleton3D", "GPUParticles3D", "CPUParticles3D", "Label3D", "ThirdPersonCamera", "Control"]:
 		var nodes := _of_class(cls)
 		if nodes.is_empty():
 			continue
@@ -108,20 +108,26 @@ func _census(zone: Node) -> void:
 
 
 func _measure(label: String, base: Array = []) -> Array:
-	var proc: Array[float] = []
-	var phys: Array[float] = []
+	# Wall time between frames: headless runs unthrottled, so this is the CPU cost of
+	# a frame (script, physics, servers) without rendering. The TIME_PROCESS monitors
+	# only report a once-a-second maximum, so they are not used here.
+	var wall: Array[float] = []
 	for i in 30:
 		await get_tree().process_frame
+	var last := Time.get_ticks_usec()
 	for i in frames:
 		await get_tree().process_frame
-		proc.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
-		phys.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
-	proc.sort()
-	phys.sort()
-	var p := proc[proc.size() / 2]
-	var h := phys[phys.size() / 2]
-	var line := "COST %-28s process p50 %6.2f p95 %6.2f | physics p50 %6.2f p95 %6.2f" % [label, p, proc[int(proc.size() * 0.95)], h, phys[int(phys.size() * 0.95)]]
+		var now := Time.get_ticks_usec()
+		wall.append(float(now - last) / 1000.0)
+		last = now
+	wall.sort()
+	var p := wall[wall.size() / 2]
+	var mean := 0.0
+	for v in wall:
+		mean += v
+	mean /= float(wall.size())
+	var line := "COST %-28s frame p50 %6.2f mean %6.2f p95 %6.2f max %6.2f ms" % [label, p, mean, wall[int(wall.size() * 0.95)], wall[-1]]
 	if not base.is_empty():
-		line += " | saves process %5.2f physics %5.2f ms" % [float(base[0]) - p, float(base[1]) - h]
+		line += " | saves p50 %5.2f mean %5.2f ms" % [float(base[0]) - p, float(base[1]) - mean]
 	print(line)
-	return [p, h]
+	return [p, mean]
