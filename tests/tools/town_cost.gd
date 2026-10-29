@@ -13,6 +13,9 @@ func _ready() -> void:
 	GameSettings.load_settings()
 	GameSettings.quality = int(args[0]) if args.size() > 0 else 2
 	frames = int(args[1]) if args.size() > 1 else 300
+	# Headless pads every frame to low_processor_usage_mode_sleep_usec (6.9 ms): take
+	# the padding away so the wall time is the work.
+	OS.low_processor_usage_mode_sleep_usec = 1
 	Game.set_process(false)
 	Game.new_profile(&"warrior", "TownCost", FaceKit.default_look())
 	Game.current_zone = &"town"

@@ -129,6 +129,8 @@ static func stack(values: Array) -> float:
 ## Drops expired buffs and keeps the auras in step. [param top] returns the
 ## height of the body (called only when an aura has to be created).
 func tick(host: Node3D, alive: bool, top: Callable) -> void:
+	if buffs.is_empty() and auras.is_empty():
+		return
 	var now := Time.get_ticks_msec()
 	if not buffs.is_empty():
 		buffs = buffs.filter(func(b): return int(b.until) > now)

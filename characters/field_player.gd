@@ -67,6 +67,11 @@ func _visual_look() -> Dictionary:
 	return WorldPlayers.look(world_index)
 
 
+## The players around wear the cheap enhancement dressing; a party member the full one.
+func _light_decor() -> bool:
+	return not party_mode
+
+
 ## A player's own character: every stat point spent and its skills ranked up (WorldPlayers.profile).
 func _party_profile() -> Dictionary:
 	return WorldPlayers.profile(member)
@@ -175,6 +180,8 @@ func join_party(m: Dictionary, k: int) -> void:
 	_flee_until = 0
 	remove_from_group("world_players")
 	add_to_group("companions")
+	visual.decor_light = false
+	visual.set_far(false)
 	refresh()
 	_label.text = _level_text()
 
@@ -186,6 +193,7 @@ func leave_party() -> void:
 	member = member.duplicate()
 	remove_from_group("companions")
 	add_to_group("world_players")
+	visual.decor_light = true
 	if _dead:
 		_dead = false
 		hp = maxi(1, max_hp / 2)
@@ -246,6 +254,7 @@ func _update_lod() -> void:
 	elif d > LOD_NEAR or _resting():
 		step = 2
 	visual.set_anim_lod(step)
+	visual.set_far(step >= 2 and not party_mode)
 
 
 ## Picks its wing pose now and then, as it pleases: its own taste (WorldPlayers.wing_taste),

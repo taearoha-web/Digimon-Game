@@ -63,6 +63,7 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	model = packed.instantiate() as Node3D
 	model.rotation.y += float(FACING_FIX.get(model_path, 0.0))
 	add_child(model)
+	_flash_meshes.clear()
 	var box := _bounds(model)
 	if maxf(box.size.y, box.size.z) < 0.05:
 		box = _bone_bounds(model, box)
@@ -176,15 +177,29 @@ func hold(key: String) -> void:
 	anim.play(_clips[key], 0.08)
 
 
+## The hit flash's own overlay and the model's meshes, made once: a crowd hit by one
+## blow used to search every model and make a new material per hit.
+var _flash_mat: StandardMaterial3D
+var _flash_meshes: Array = []
+
+
+func _flash_targets() -> Array:
+	if _flash_meshes.is_empty() and model != null:
+		_flash_meshes = model.find_children("*", "MeshInstance3D", true, false)
+	return _flash_meshes
+
+
 func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 	if model == null:
 		return
-	var meshes := model.find_children("*", "MeshInstance3D", true, false)
-	var overlay := StandardMaterial3D.new()
-	MaterialKeeper.keep(overlay)
-	overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var meshes := _flash_targets()
+	if _flash_mat == null:
+		_flash_mat = StandardMaterial3D.new()
+		MaterialKeeper.keep(_flash_mat)
+		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var overlay := _flash_mat
 	overlay.albedo_color = Color(color.r, color.g, color.b, 0.8)
 	# A new hit while the last flash is still fading takes that flash off first: kept as
 	# if it were a lasting overlay, its half-faded tint stayed on for good (red heroes).
@@ -193,7 +208,7 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 	_end_flash()
 	for mi in meshes:
 		var mesh := mi as MeshInstance3D
-		if mesh.material_overlay != null:
+		if mesh.material_overlay != null and mesh.material_overlay != overlay:
 			_flash_restore[mesh] = mesh.material_overlay
 		mesh.material_overlay = overlay
 	_flash_overlay = overlay
@@ -205,8 +220,8 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 ## Takes the hit flash off every piece wearing it and hands back what it covered.
 func _end_flash() -> void:
 	if _flash_overlay != null and is_instance_valid(model):
-		for mi in model.find_children("*", "MeshInstance3D", true, false):
-			if (mi as MeshInstance3D).material_overlay == _flash_overlay:
+		for mi in _flash_targets():
+			if is_instance_valid(mi) and (mi as MeshInstance3D).material_overlay == _flash_overlay:
 				(mi as MeshInstance3D).material_overlay = null
 	_flash_overlay = null
 	_restore_overlays()

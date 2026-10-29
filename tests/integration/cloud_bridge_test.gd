@@ -74,6 +74,12 @@ func _test_full_bundle() -> void:
 		check(bundle.slots[str(i)] == JSON.parse_string(disk_before[str(i)]), "slot %d data stays exact, including unknown fields" % i)
 		check(FileAccess.get_file_as_string(probe.save_path(i)) == disk_before[str(i)], "building a bundle leaves slot %d unchanged" % i)
 	check(probe.profile == profile_before and probe.slot == probe.SLOT_COUNT, "building a bundle leaves the active profile and selection unchanged")
+	# The upload text comes from the cached slot texts and says the same as the bundle
+	# (compared as JSON: parsed numbers are floats).
+	var canon := func(text: String) -> String: return JSON.stringify(JSON.parse_string(text))
+	check(canon.call(probe.cloud_bundle_json()) == canon.call(JSON.stringify(bundle)), "the cached upload text is the bundle")
+	var again := probe.cloud_bundle_json()
+	check(canon.call(again) == canon.call(JSON.stringify(bundle)) and again == probe.cloud_bundle_json(), "and stays the same while nothing changes")
 	bundle.slots["1"].gold = 0
 	check(probe._read_slot(1).gold == 777, "bundle dictionaries are independent of persisted data")
 	probe.slot = 99
@@ -83,6 +89,7 @@ func _test_full_bundle() -> void:
 	file.store_string("{\"class\":\"missing\",\"level\":1}")
 	file.close()
 	check(not probe.build_cloud_bundle().slots.has("3"), "invalid local slots are excluded rather than uploaded")
+	check(not JSON.parse_string(probe.cloud_bundle_json()).slots.has("3"), "a slot file changed behind the cache is read again (excluded here)")
 	check(probe._write_profile(JSON.parse_string(disk_before["3"]), 3), "fixture restores the valid third slot")
 
 

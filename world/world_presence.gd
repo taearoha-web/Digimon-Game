@@ -120,6 +120,7 @@ func sync(initial: bool) -> void:
 	for k in _stalls.keys():
 		if not shown.has(int(_stalls[k])):
 			_stalls.erase(k)
+	var arrivals: Array[int] = []
 	for i in keep:
 		var s: Dictionary = keep[i]
 		if shown.has(i) and is_instance_valid(shown[i]):
@@ -128,7 +129,24 @@ func sync(initial: bool) -> void:
 			if p.doing == "stall" and not p.stall_at.is_finite():
 				_give_stall(p)
 			continue
-		_spawn(i, t, initial, s)
+		if initial:
+			_spawn(i, t, initial, s)
+		else:
+			arrivals.append(i)
+	if not arrivals.is_empty():
+		_spawn_arrivals(arrivals, t, keep)
+
+
+## Building a player (its rig, outfit, gear and glow) is a few milliseconds of work: the
+## arrivals of one sync come one per frame instead of all in the same frame.
+func _spawn_arrivals(arrivals: Array[int], t: float, keep: Dictionary) -> void:
+	for i in arrivals:
+		if zone == null or not is_instance_valid(zone) or not is_inside_tree():
+			return
+		if shown.has(i) and is_instance_valid(shown[i]):
+			continue
+		_spawn(i, t, false, keep[i])
+		await get_tree().process_frame
 
 
 ## How many world players this zone shows at once now.

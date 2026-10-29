@@ -64,6 +64,7 @@ func _ready() -> void:
 	shape.position = Vector3(0, 0.85, 0)
 	add_child(shape)
 	visual = HeroVisual.new()
+	visual.decor_light = _light_decor()
 	add_child(visual)
 	_built_class = StringName(member["class"])
 	visual.setup(_built_class, "", true, _party_equip(), _visual_look())
@@ -322,8 +323,9 @@ func _physics_process(delta: float) -> void:
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_think -= delta
 	mp = minf(float(stats.max_mp), mp + float(stats.max_mp) * 0.02 * delta)
-	for id in cooldowns.keys():
-		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+	if not cooldowns.is_empty():
+		for id in cooldowns:
+			cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
 	var casting := Time.get_ticks_msec() < _cast_until
 	var desired := Vector3.ZERO
 	if _think <= 0.0:
@@ -348,6 +350,11 @@ func _physics_process(delta: float) -> void:
 ## The clip it stands still in (a stall keeper may sit).
 func _rest_anim() -> String:
 	return "Idle"
+
+
+## The cheap enhancement dressing (HeroVisual.decor_light): the party keeps the full one.
+func _light_decor() -> bool:
+	return false
 
 
 func _pick_target() -> Mob:

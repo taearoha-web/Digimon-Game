@@ -43,6 +43,26 @@ const LOW_FPS := 22.0
 const LOW_FPS_SECONDS := 30.0
 static var _slow_seconds := 0.0
 
+## The 3D resolution scale on a phone (Viewport.scaling_3d_scale, bilinear): the world is
+## drawn at this share of the canvas and the HUD stays at the full, crisp size. High
+## quality starts at SCALE_3D_START and the scale follows the frame rate from then on,
+## SCALE_3D_STEP at a time between SCALE_3D_MIN and 1.0: a slow stretch (under
+## SCALE_3D_SLOW_FPS for SCALE_3D_SLOW_TICKS readings) lowers it, a fast one (over
+## SCALE_3D_FAST_FPS for SCALE_3D_FAST_TICKS readings) raises it again. Pixels are what
+## an iPhone's GPU pays for: this keeps glow, shadows and every effect while the frame
+## rate stays up. Desktops always draw at 1.0.
+const SCALE_3D_START := 0.85
+const SCALE_3D_MIN := 0.6
+const SCALE_3D_STEP := 0.05
+const SCALE_3D_SLOW_FPS := 46.0
+const SCALE_3D_SLOW_TICKS := 2
+const SCALE_3D_FAST_FPS := 57.0
+const SCALE_3D_FAST_TICKS := 6
+static var scale_3d := 1.0
+static var _scale_slow := 0
+static var _scale_fast := 0
+static var _scale_applied := -1.0
+
 ## Tests pin the device family: -1 asks the engine, 0 not iOS, 1 iOS.
 static var ios_override := -1
 static var _ios := -1
@@ -104,6 +124,7 @@ static func tick(tree: SceneTree, delta: float) -> void:
 	else:
 		heap_mb = float(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576.0
 	var wanted := _wanted(step)
+	_follow_frame_rate(tree)
 	if ios() and _forced < 0 and wanted < 2 and _frame_rate() < LOW_FPS:
 		_slow_seconds += step
 		if _slow_seconds >= LOW_FPS_SECONDS:
@@ -145,6 +166,60 @@ static func _wanted(step: float) -> int:
 	return pressure
 
 
+## The 3D scale a fresh zone starts from on this device at the chosen quality.
+static func base_scale_3d() -> float:
+	if not phone():
+		return 1.0
+	return SCALE_3D_START if GameSettings.quality >= 2 else 1.0
+
+
+## One reading of the frame rate: a slow stretch lowers the 3D scale a step, a fast one
+## raises it (phones only; the frame rate is read once a tick, TICK_SECONDS apart).
+static func _follow_frame_rate(tree: SceneTree) -> void:
+	if not phone() or _forced >= 0:
+		return
+	var fps := _frame_rate()
+	if fps <= 0.0:
+		return
+	if fps < SCALE_3D_SLOW_FPS:
+		_scale_slow += 1
+		_scale_fast = 0
+		if _scale_slow >= SCALE_3D_SLOW_TICKS and scale_3d > SCALE_3D_MIN + 0.001:
+			_scale_slow = 0
+			set_scale_3d(scale_3d - SCALE_3D_STEP, tree)
+	elif fps > SCALE_3D_FAST_FPS:
+		_scale_fast += 1
+		_scale_slow = 0
+		if _scale_fast >= SCALE_3D_FAST_TICKS and scale_3d < 1.0 - 0.001:
+			_scale_fast = 0
+			set_scale_3d(scale_3d + SCALE_3D_STEP, tree)
+	else:
+		_scale_slow = 0
+		_scale_fast = 0
+
+
+static func set_scale_3d(value: float, tree: SceneTree) -> void:
+	scale_3d = snappedf(clampf(value, SCALE_3D_MIN, 1.0), 0.01)
+	_apply_scale_3d(tree)
+
+
+static func _apply_scale_3d(tree: SceneTree) -> void:
+	if tree == null or tree.root == null:
+		return
+	if is_equal_approx(_scale_applied, scale_3d):
+		return
+	_scale_applied = scale_3d
+	tree.root.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	tree.root.scaling_3d_scale = scale_3d
+
+
+## A new zone (or a quality change) starts again from the device's base scale.
+static func reset_scale_3d(tree: SceneTree) -> void:
+	_scale_slow = 0
+	_scale_fast = 0
+	set_scale_3d(base_scale_3d(), tree)
+
+
 static func set_level(level: int, tree: SceneTree) -> void:
 	level = clampi(level, 0, 2)
 	if level == pressure:
@@ -171,6 +246,7 @@ static func apply_render(tree: SceneTree) -> void:
 	RenderingServer.directional_shadow_atlas_set_size(size, phone() or pressure > 0)
 	if tree == null:
 		return
+	_apply_scale_3d(tree)
 	for node in tree.get_nodes_in_group("world_env"):
 		var env: Environment = (node as WorldEnvironment).environment if node is WorldEnvironment else null
 		if env != null:
@@ -200,4 +276,4 @@ static func effect_scale() -> float:
 
 
 static func report() -> Dictionary:
-	return {"pressure": pressure, "videoMB": snappedf(video_mb, 0.1), "heapMB": snappedf(heap_mb, 0.1), "raises": raises}
+	return {"pressure": pressure, "videoMB": snappedf(video_mb, 0.1), "heapMB": snappedf(heap_mb, 0.1), "raises": raises, "scale3d": scale_3d}

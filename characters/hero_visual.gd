@@ -65,6 +65,15 @@ var _flash_overlay: Material
 var _face: FaceExpression
 ## True for the rigged chibi models; gear built for KayKit units is scaled by _gear_scale.
 var chibi := false
+## The cheap dressing of the other players seen around (set before setup): their
+## enhancement glow keeps the overlays, rings and halos but at most one particle
+## emitter, no flames, beams or lights, and no aura motes. A village of 28 players
+## carried over 200 CPU particle emitters before.
+var decor_light := false
+## The particle emitters and meshes of the current outfit (distance LOD: set_far).
+var _emitters: Array[CPUParticles3D] = []
+var _lod_meshes: Array[MeshInstance3D] = []
+var _far := false
 ## Wing pose picked on the HUD (see WING_*); kept across gear changes.
 var wing_mode := WING_STAND
 var _wing_moving := false
@@ -457,7 +466,7 @@ func set_equipment(p_equip: Dictionary) -> void:
 
 ## Enhancement glow of one worn piece, kept with the outfit so a re-dress frees it.
 func _glow_piece(nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
-	var made := EnhanceFx.glow_piece(self, nodes, plus, spot, spread)
+	var made := EnhanceFx.glow_piece(self, nodes, plus, spot, spread, decor_light)
 	if made != null:
 		_body_nodes.append(made)
 
@@ -595,6 +604,13 @@ func _polish() -> void:
 	var meshes: Array[MeshInstance3D] = []
 	for node in find_children("*", "MeshInstance3D", true, false):
 		meshes.append(node as MeshInstance3D)
+	_lod_meshes = meshes
+	_emitters.clear()
+	for node in find_children("*", "CPUParticles3D", true, false):
+		_emitters.append(node as CPUParticles3D)
+	if _far:
+		_far = false
+		set_far(true)
 	# Thin held gear (bows, staffs) and wings only get the rim light: an outline would swallow it.
 	var held: Array[Node] = []
 	for hold in _hold_nodes:
@@ -703,7 +719,7 @@ func _make_aura() -> void:
 	var best := EnhanceFx.best_plus(equip)
 	if best >= 4:
 		color = EnhanceFx.color_of(best)
-		_body_nodes.append_array(EnhanceFx.on_body(self, best))
+		_body_nodes.append_array(EnhanceFx.on_body(self, best, decor_light))
 	var tier := _top_tier()
 	if tier >= 6:
 		color = GearKit.TIERS_METAL[tier].lerp(Color("ffd870"), 0.35)
@@ -717,7 +733,7 @@ func _make_aura() -> void:
 				ring.scale *= _gear_scale
 			halo.add_child(ring)
 			_body_nodes.append(halo)
-	if color.a == 0.0:
+	if color.a == 0.0 or decor_light:
 		return
 	var p := CPUParticles3D.new()
 	p.name = "Aura"
@@ -872,7 +888,7 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 		# every lute look: tier models, star and divine), spells the weapon's head.
 		_emission_point = Vector3.ZERO if kind == "bow" else (WeaponKit.LUTE_ROSETTE if kind == "lute" else Vector3(bounds.get_center().x, bounds.end.y * 0.94, bounds.get_center().z))
 	if plus > 0:
-		EnhanceFx.on_item(item, plus)
+		EnhanceFx.on_item(item, plus, decor_light)
 	_hold_nodes.append(attach)
 
 
@@ -915,6 +931,26 @@ func set_anim_lod(step: int) -> void:
 	anim_lod = step
 	_lod_time = 0.0
 	anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE if step == 1 else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	# The manual steps are taken in _process, which a chibi switches off at rest.
+	if step > 1:
+		set_process(true)
+	elif chibi and _skill_pose.is_empty():
+		set_process(false)
+
+
+## Far from the camera (FieldPlayer LOD): the outfit's particle emitters stop and its
+## meshes cast no shadow; nobody sees either at that distance, and both cost every frame.
+func set_far(far: bool) -> void:
+	if far == _far:
+		return
+	_far = far
+	for p in _emitters:
+		if is_instance_valid(p):
+			p.emitting = not far
+			p.visible = not far
+	for mi in _lod_meshes:
+		if is_instance_valid(mi) and not bool(mi.get_meta("no_shadow_lod", false)):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if far else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 
 ## Big head = cuter. Scales the head bone after the animation has posed it.
@@ -1105,19 +1141,31 @@ func _cancel_skill_motion() -> void:
 	_skill_start.clear()
 	_skill_base.clear()
 	_skill_clock = 0.0
-	if chibi:
+	if chibi and anim_lod <= 1:
 		set_process(false)
+
+
+## The hit flash's own overlay, made once; the meshes are the outfit's (_lod_meshes).
+var _flash_mat: StandardMaterial3D
+
+
+func _flash_targets() -> Array:
+	if not _lod_meshes.is_empty():
+		return _lod_meshes
+	return model.find_children("*", "MeshInstance3D", true, false) if model != null else []
 
 
 func flash(color := Color(1, 0.35, 0.35), duration := 0.18) -> void:
 	if model == null:
 		return
-	var meshes := model.find_children("*", "MeshInstance3D", true, false)
-	var overlay := StandardMaterial3D.new()
-	MaterialKeeper.keep(overlay)
-	overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var meshes := _flash_targets()
+	if _flash_mat == null:
+		_flash_mat = StandardMaterial3D.new()
+		MaterialKeeper.keep(_flash_mat)
+		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var overlay := _flash_mat
 	overlay.albedo_color = Color(color.r, color.g, color.b, 0.7)
 	# A hit flash sits on top of whatever overlay a piece already wears (enhancement
 	# glow, a summon's spirit light) and hands it back afterwards.
@@ -1128,7 +1176,7 @@ func flash(color := Color(1, 0.35, 0.35), duration := 0.18) -> void:
 	_end_flash()
 	for mi in meshes:
 		var mesh := mi as MeshInstance3D
-		if mesh.material_overlay != null:
+		if mesh.material_overlay != null and mesh.material_overlay != overlay:
 			_flash_restore[mesh] = mesh.material_overlay
 		mesh.material_overlay = overlay
 	_flash_overlay = overlay
@@ -1140,8 +1188,8 @@ func flash(color := Color(1, 0.35, 0.35), duration := 0.18) -> void:
 ## Takes the hit flash off every piece wearing it and hands back what it covered.
 func _end_flash() -> void:
 	if _flash_overlay != null and is_instance_valid(model):
-		for mi in model.find_children("*", "MeshInstance3D", true, false):
-			if (mi as MeshInstance3D).material_overlay == _flash_overlay:
+		for mi in _flash_targets():
+			if is_instance_valid(mi) and (mi as MeshInstance3D).material_overlay == _flash_overlay:
 				(mi as MeshInstance3D).material_overlay = null
 	_flash_overlay = null
 	_restore_overlays()

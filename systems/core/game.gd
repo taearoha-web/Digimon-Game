@@ -521,14 +521,18 @@ func _write_profile(snapshot: Dictionary, destination: int) -> bool:
 	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(snapshot))
+	var text := JSON.stringify(snapshot)
+	file.store_string(text)
 	file.flush()
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
 		return false
 	var dir := DirAccess.open("user://")
-	return dir != null and dir.rename(path.get_file() + ".tmp", path.get_file()) == OK
+	if dir == null or dir.rename(path.get_file() + ".tmp", path.get_file()) != OK:
+		return false
+	_slot_json[destination] = {"stamp": _slot_stamp(destination), "text": text}
+	return true
 
 
 ## Loads a slot (default: the current one) and makes it the active one.
@@ -559,6 +563,7 @@ func delete_save(for_slot := -1) -> void:
 	var existed := has_save(target)
 	if existed and DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path(target))) != OK:
 		return
+	_slot_json.erase(target)
 	if target == slot:
 		has_profile = false
 		profile = {}
@@ -587,7 +592,42 @@ func _cloud_save_script(serialized_bundle: String) -> String:
 func _queue_cloud_save() -> void:
 	if not OS.has_feature("web"):
 		return
-	JavaScriptBridge.eval(_cloud_save_script(JSON.stringify(build_cloud_bundle())), true)
+	JavaScriptBridge.eval(_cloud_save_script(cloud_bundle_json()), true)
+
+
+## The JSON text of every saved slot, kept from the last read or write with the file's
+## stamp (modified time and size): the autosave (every 10 s while playing) used to read,
+## parse and encode all ten slot files again for each upload, a hitch of a frame or two
+## on a phone. A slot file changed by anything else is read again.
+var _slot_json: Dictionary = {}
+
+
+func _slot_stamp(for_slot: int) -> String:
+	var path := save_path(for_slot)
+	if not FileAccess.file_exists(path):
+		return ""
+	var file := FileAccess.open(path, FileAccess.READ)
+	var size := file.get_length() if file != null else -1
+	return "%d:%d" % [FileAccess.get_modified_time(path), size]
+
+
+## build_cloud_bundle() as JSON, from the cached slot texts (the same bytes the server
+## gets either way: JSON.stringify of each slot's validated data).
+func cloud_bundle_json() -> String:
+	var parts: PackedStringArray = []
+	for i in range(1, SLOT_COUNT + 1):
+		var stamp := _slot_stamp(i)
+		var kept: Variant = _slot_json.get(i)
+		if stamp == "":
+			_slot_json.erase(i)
+			continue
+		if kept == null or String(kept.stamp) != stamp:
+			var saved := _read_slot(i)
+			kept = {"stamp": stamp, "text": JSON.stringify(saved) if not saved.is_empty() else ""}
+			_slot_json[i] = kept
+		if String(kept.text) != "":
+			parts.append("\"%d\":%s" % [i, String(kept.text)])
+	return "{\"slots\":{%s},\"selectedSlot\":%d}" % [",".join(parts), clampi(slot, 1, SLOT_COUNT)]
 
 
 func open_cloud_account() -> void:
@@ -635,6 +675,7 @@ func _record_web_session_sample() -> void:
 		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
 		"fps": Engine.get_frames_per_second(), "quality": GameSettings.quality,
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
+		"scale3d": MemoryGuard.scale_3d, "emitters": get_tree().root.find_children("*", "CPUParticles3D", true, false).size(),
 		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
@@ -649,6 +690,9 @@ func _record_web_session_sample() -> void:
 		"loot": get_tree().get_nodes_in_group("loot").size(),
 		"auto": hero is Hero and hero.auto, "kills": int(profile.get("kills", 0)),
 		"saveAgeSeconds": maxi(0, int(Time.get_unix_time_from_system()) - int(profile.get("saved_at", Time.get_unix_time_from_system())))}
+	for key in ["particles", "decorations", "lights"]:
+		if sample.vfx is Dictionary and sample.vfx.has(key):
+			sample[key] = sample.vfx[key]
 	if hero is Hero:
 		sample["lastSkill"]=hero.last_cast_id
 		if hero.field is Zone and hero.field.tower_run:
