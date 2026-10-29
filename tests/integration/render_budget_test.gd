@@ -22,5 +22,10 @@ func _ready() -> void:
 	check(size <= 4096, "canvas item buffers stay small (%d items per buffer)" % size)
 	check(size >= 1024, "canvas item buffers are not starved (%d items per buffer)" % size)
 	check(String(ProjectSettings.get_setting("rendering/renderer/rendering_method", "")) == "gl_compatibility", "the web build uses the compatibility renderer")
+	# The web build has no threads: past this many instances Godot 4.3 splits the cull
+	# into thread jobs and most of the scene drops out (the grey village with many
+	# players around). The web build must always cull on the main thread.
+	var web_cull := int(ProjectSettings.get_setting("rendering/limits/spatial_indexer/threaded_cull_minimum_instances.web", 0))
+	check(web_cull >= 100000, "the web build never splits the scene cull into threads (threshold %d)" % web_cull)
 	print("RENDER BUDGET: ", "PASS" if failures == 0 else "FAIL", " | ", checks, " checks, ", failures, " failures")
 	get_tree().quit(failures)

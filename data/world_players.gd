@@ -17,10 +17,11 @@ extends RefCounted
 ## set complete it spends its sessions on the endgame (endgame_plan) and enhances the set.
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
 
-## The world (re)opened here (unix seconds; 29 Oct 2026, 12:00 Thai time): every world
-## player starts again at Lv.1 as a Vagabond with no guild. Moving this resets them all
-## (the party EXP kept on a device belongs to one opening and is dropped with it).
-const START_UNIX := 1793250000
+## The world (re)opened here (unix seconds; 29 Oct 2026, 18:45 Thai time, the reopening
+## after the grey-village fix): every world player starts again at Lv.1 as a Vagabond
+## with no guild. Moving this resets them all (the party EXP kept on a device belongs to
+## one opening and is dropped with it).
+const START_UNIX := 1793274300
 ## Schedules run on Thai time.
 const TZ := 7 * 3600
 const DAY := 86400
