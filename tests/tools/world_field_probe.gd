@@ -10,6 +10,7 @@ func _ready() -> void:
 	var days := float(args[0]) if args.size() > 0 else 0.05
 	var seconds := float(args[1]) if args.size() > 1 else 90.0
 	WorldPresence.enabled = true
+	GameSettings.show_world_players = true
 	InputSetup.ensure_defaults()
 	GameSettings.load_settings()
 	GameSettings.quality = 2

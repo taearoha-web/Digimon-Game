@@ -26,6 +26,14 @@ static var clock_offset := _days_offset()
 ## Off in headless runs so every other test meets the same field whatever the time of day;
 ## tests of the world players switch it on (so does TOON_WORLD_PLAYERS=1).
 static var enabled := DisplayServer.get_name() != "headless" or OS.get_environment("TOON_WORLD_PLAYERS") == "1"
+## TOON_WORLD_PLAYERS=1 (probes and shots) also shows them in the zones.
+static var _show_env := _apply_show_env()
+
+
+static func _apply_show_env() -> bool:
+	if OS.get_environment("TOON_WORLD_PLAYERS") == "1":
+		GameSettings.show_world_players = true
+	return true
 ## Last progress seen per world player, kept across zones so a milestone is told once.
 static var _seen := {}
 
@@ -107,7 +115,8 @@ func sync(initial: bool) -> void:
 		if sa != sb:
 			return sa < sb
 		return (int(a.index) - turn + n) % n < (int(b.index) - turn + n) % n)
-	var limit: int = maxi(1, limit_here(zone.is_town) - Game.party().size())
+	var cap := limit_here(zone.is_town)
+	var limit: int = maxi(1, cap - Game.party().size()) if cap > 0 else 0
 	var keep := {}
 	for k in mini(limit, here.size()):
 		keep[int(here[k].index)] = here[k]
@@ -151,7 +160,7 @@ func _spawn_arrivals(arrivals: Array[int], t: float, keep: Dictionary) -> void:
 
 ## How many world players this zone shows at once now.
 static func limit_here(town: bool) -> int:
-	if GameSettings.safe_picture:
+	if GameSettings.safe_picture or not GameSettings.show_world_players:
 		return 0
 	var q := clampi(GameSettings.quality, 0, 2)
 	if not town:

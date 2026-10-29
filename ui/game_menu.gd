@@ -1061,6 +1061,14 @@ func _build_settings() -> void:
 			Game.say("ตั้งคุณภาพ: %s (ต้นไม้และหญ้าจะเปลี่ยนเมื่อเข้าแมพใหม่)" % GameSettings.QUALITY_NAMES[i], &"info")
 			_rebuild())
 		q_line.add_child(qb)
+	var others := CheckButton.new()
+	others.text = "แสดงผู้เล่นคนอื่น (AI) ในแมพ"
+	others.button_pressed = GameSettings.show_world_players
+	others.toggled.connect(func(on: bool):
+		GameSettings.show_world_players = on
+		GameSettings.save_settings()
+		Game.say("ผู้เล่นคนอื่นในแมพ: %s (มีผลเมื่อเข้าแมพใหม่)" % ("แสดง" if on else "ซ่อน"), &"info"))
+	box.add_child(others)
 	var safe := CheckButton.new()
 	safe.text = "โหมดภาพปลอดภัย (ไม่มีผู้เล่นคนอื่น/ร้านค้า/แสงโคม ใช้เมื่อจอเป็นสีเดียว)"
 	safe.button_pressed = GameSettings.safe_picture

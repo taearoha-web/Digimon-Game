@@ -22,6 +22,7 @@ func _ready() -> void:
 	WorldPlayers.persist = false
 	# A day on which the village is full of players, with enhanced gear to show.
 	WorldPresence.enabled = true
+	GameSettings.show_world_players = true
 	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 3.4 * 86400.0 - WorldPlayers.now()
 	Game.new_profile(&"warrior", "LOD QA", FaceKit.default_look())
 	Game.current_zone = &"town"
