@@ -49,6 +49,7 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 gl_compatibility/item_buffer_size=2048
+limits/spatial_indexer/threaded_cull_minimum_instances.web=1000000
 lights_and_shadows/directional_shadow/size=2048
 lights_and_shadows/directional_shadow/size.mobile=2048
 lights_and_shadows/positional_shadow/atlas_size=2048
