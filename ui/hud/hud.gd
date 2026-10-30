@@ -416,11 +416,17 @@ func _update_tracker(delta: float) -> void:
 func _place_event_chip() -> void:
 	if _event_chip == null:
 		return
-	var top := TRACKER_TOP
-	if _tracker.visible and _tracker.text != "":
-		top += _tracker.get_combined_minimum_size().y + EVENT_CHIP_GAP
-	_event_chip.offset_top = top
-	_event_chip.offset_bottom = top
+	var tracker_height := _tracker.get_combined_minimum_size().y if _tracker.visible and _tracker.text != "" else -EVENT_CHIP_GAP
+	var rect := event_chip_rect(_frame.size, tracker_height, _event_chip.get_combined_minimum_size())
+	_event_chip.offset_top = rect.position.y
+	_event_chip.offset_bottom = rect.position.y
+
+
+## Where the event chip goes in a safe frame of [param frame_size]: right-aligned with
+## the tracker, EVENT_CHIP_GAP under a tracker [param tracker_height] tall (tracker
+## hidden: -EVENT_CHIP_GAP). Shared with tests/tools/ui_polish_review.gd.
+static func event_chip_rect(frame_size: Vector2, tracker_height: float, chip_size: Vector2) -> Rect2:
+	return Rect2(frame_size.x + TRACKER_RIGHT - chip_size.x, TRACKER_TOP + tracker_height + EVENT_CHIP_GAP, chip_size.x, chip_size.y)
 
 
 func _build_tracker(frame: Control) -> void:

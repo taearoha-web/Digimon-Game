@@ -115,7 +115,10 @@ func _make_backups() -> void:
 		Game.delete_save(i)
 	for entry in SaveBackup.list():
 		SaveBackup._remove_dir(entry.dir)
-	var heroes := [[1, &"warrior", "นักรบตัวอย่าง", 42], [2, &"mage", "ลูน่าผู้เรียกเวทย์ชื่อยาว", 100], [3, &"priest", "พระน้อย", 7]]
+	# Six heroes in each backup: the opened row then outgrows a 720 px canvas, so the shot
+	# also proves the list scrolls.
+	var heroes := [[1, &"warrior", "นักรบตัวอย่าง", 42], [2, &"mage", "ลูน่าผู้เรียกเวทย์ชื่อยาว", 100], [3, &"priest", "พระน้อย", 7],
+		[4, &"archer", "นักธนู", 18], [5, &"warrior", "ดาบสอง", 66], [6, &"mage", "เวทย์สำรอง", 3]]
 	for h in heroes:
 		Game.slot = h[0]
 		Game.new_profile(h[1], h[2])
