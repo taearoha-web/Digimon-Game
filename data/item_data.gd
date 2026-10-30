@@ -133,9 +133,17 @@ const JEWELS := {
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
-## Feathers drop only in fields of FEATHER_STARS stars and up.
+## Feathers drop only in fields of FEATHER_STARS stars and up: 0.1% in the
+## first such field, +0.1% for every further field (every 50 stars).
 const FEATHER_DROP := 0.001
 const FEATHER_STARS := 50
+
+
+## Feather drop chance per kill in a field of `stars` stars (0 below FEATHER_STARS).
+static func feather_chance(stars: int) -> float:
+	if stars < FEATHER_STARS:
+		return 0.0
+	return FEATHER_DROP * float(1 + (stars - FEATHER_STARS) / FEATHER_STARS)
 
 static var _uid := 0
 

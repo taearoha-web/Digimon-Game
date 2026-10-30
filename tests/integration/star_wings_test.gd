@@ -88,8 +88,10 @@ func _ready()->void:
 		for i in 30000:zone._drop_jewels(Vector3.ZERO)
 		var stars:=int(zone.data.get("star",0))
 		check(int(zone.jewels.get("chaos",0))>150 and int(zone.jewels.get("chaos",0))<450,"chaos jewels drop about 1%% in %s (%d)"%[region,int(zone.jewels.get("chaos",0))])
-		check((int(zone.jewels.get("feather",0))>0)==(stars>=ItemData.FEATHER_STARS) and int(zone.jewels.get("feather",0))<90,"feathers drop only in fields of 50 stars and up (%s %d★: %d)"%[region,stars,int(zone.jewels.get("feather",0))])
+		check((int(zone.jewels.get("feather",0))>0)==(stars>=ItemData.FEATHER_STARS) and int(zone.jewels.get("feather",0))<90*max(1,stars/50),"feathers drop only in fields of 50 stars and up (%s %d★: %d)"%[region,stars,int(zone.jewels.get("feather",0))])
 		mob.free();zone.free()
+	# Each deeper feather field adds 0.1%: 50★ 0.1%, 100★ 0.2%, 150★ 0.3%, 200★ 0.4%.
+	check(ItemData.feather_chance(1)==0.0 and is_equal_approx(ItemData.feather_chance(50),0.001) and is_equal_approx(ItemData.feather_chance(100),0.002) and is_equal_approx(ItemData.feather_chance(150),0.003) and is_equal_approx(ItemData.feather_chance(200),0.004),"feather chance climbs 0.1% per field")
 	# The forge crafts them: Lv.100 wings + a chaos jewel + a feather, 30%.
 	var lv100:=ItemData.wings(Game.rng,"mage",2)
 	lv100["plus"]=4;lv100["gems"]=["ruby_0"]

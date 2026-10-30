@@ -1139,7 +1139,7 @@ func _drop_loot(mob: Mob) -> void:
 
 ## Forge jewels: every monster of a levelling field may drop a purple, a pink and a
 ## chaos jewel (ItemData.JEWEL_DROP), bosses as well; fields of FEATHER_STARS stars
-## and up may also drop a feather.
+## and up may also drop a feather, more often the deeper the field.
 func _drop_jewels(from: Vector3) -> void:
 	if is_town or is_pvp:
 		return
@@ -1147,7 +1147,7 @@ func _drop_jewels(from: Vector3) -> void:
 	for id in ItemData.JEWEL_DROP:
 		if rng.randf() < float(ItemData.JEWEL_DROP[id]) * luck:
 			_spawn_loot(ItemData.jewel(id), 0, from)
-	if int(data.get("star", 0)) >= ItemData.FEATHER_STARS and rng.randf() < ItemData.FEATHER_DROP * luck:
+	if rng.randf() < ItemData.feather_chance(int(data.get("star", 0))) * luck:
 		_spawn_loot(ItemData.jewel("feather"), 0, from)
 		Game.say("ขนนกตกแล้ว! เอาไปตีปีก 100 ดาวที่ช่างตีเหล็ก", &"quest")
 
