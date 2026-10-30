@@ -386,12 +386,21 @@ func _pick_target() -> Mob:
 	var stance := String(member.get("stance", "follow"))
 	var best: Mob = null
 	if stance == "aggressive":
-		# Goes after any monster near itself, within reach of the hero.
-		var near_d := 16.0
+		# บุกลุย: hunts on its own anywhere in the field, however far from the hero (the
+		# party shares every kill's EXP wherever it falls, Game.share_party_exp), and
+		# spreads out: a monster another member is already on counts as farther away.
+		if target != null and is_instance_valid(target) and not target.is_dead() \
+				and _flat(target.global_position - global_position).length() < ROAM_REACH:
+			return target
+		var taken := {}
+		for node in get_tree().get_nodes_in_group("companions"):
+			if node != self and node is Companion and (node as Companion).target != null:
+				taken[(node as Companion).target] = true
+		var near_d := ROAM_REACH
 		for node in get_tree().get_nodes_in_group("mobs"):
 			var m := node as Mob
-			if m and not m.is_dead() and _flat(m.global_position - hero.global_position).length() < 24.0:
-				var dd := _flat(m.global_position - global_position).length()
+			if m and not m.is_dead():
+				var dd := _flat(m.global_position - global_position).length() + (ROAM_SHARED if taken.has(m) else 0.0)
 				if dd < near_d:
 					near_d = dd
 					best = m
@@ -734,6 +743,10 @@ func _mark_in_reach(skill: Dictionary, distance: float) -> bool:
 	return distance <= float(skill.get("range", 3.0))
 
 
+## บุกลุย: how far from itself a party member looks for monsters, and how much farther a
+## monster another member already fights counts (so the party spreads out).
+const ROAM_REACH := 70.0
+const ROAM_SHARED := 18.0
 ## How far a party member may drift from the hero before an AI Dark Lord recalls it.
 const RECALL_DISTANCE := 22.0
 
@@ -744,6 +757,9 @@ func _straggler() -> bool:
 		return false
 	for node in get_tree().get_nodes_in_group("companions"):
 		var ally := node as Node3D
+		# A member hunting on its own (บุกลุย) is meant to be far away.
+		if ally is Companion and String((ally as Companion).member.get("stance", "follow")) == "aggressive":
+			continue
 		if is_instance_valid(ally) and ally.global_position.distance_to(hero.global_position) > RECALL_DISTANCE:
 			return true
 	return false

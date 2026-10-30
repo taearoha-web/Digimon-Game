@@ -64,6 +64,8 @@ func _ready() -> void:
 	var m := WorldPlayers.member(idx)
 	m["class"] = "darklord"
 	m["level"] = 100
+	# As Game.party_invite sets it: a new member follows the hero.
+	m["stance"] = "follow"
 	var lord := FieldPlayer.new()
 	lord.party_mode = true
 	lord.setup_world(idx, m, hero, main.zone)
@@ -80,6 +82,10 @@ func _ready() -> void:
 		lord.global_position = hero.global_position + Vector3(Companion.RECALL_DISTANCE + 8.0, 0.3, 0)
 		await get_tree().physics_frame
 		check(lord._shape_score(spec, 2.0, 1.0) > 0.0, "an AI Dark Lord Summons on purpose when a member is far behind")
+		# A member hunting on its own (บุกลุย) is meant to be far: no recall for it.
+		m["stance"] = "aggressive"
+		check(lord._shape_score(spec, 2.0, 1.0) == 0.0, "no Summon for a member hunting far away at บุกลุย")
+		m["stance"] = "follow"
 	# Imperial Judgment's repel throws monsters 3 m clear of the Lord, not to its 9 m ring.
 	var mob: Mob = hero.nearest_mob()
 	if mob != null:

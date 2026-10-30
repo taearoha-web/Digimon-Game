@@ -62,6 +62,20 @@ func _ready() -> void:
 	Game.party_invite(who, true)
 	Game.dismiss_party()
 	check(WorldPlayers.paused.is_empty(), "dismissing the party resumes every schedule")
+	# A kill a party member makes on its own, however far from the hero, is the party's
+	# (all its EXP shared); only an outsider's damage takes a share away.
+	var mob := Mob.new()
+	var member := Node.new()
+	mob._credit(member, 500)
+	check(is_equal_approx(mob.party_share(), 1.0), "a party member's lone kill is all the party's")
+	var outsider := Node.new()
+	outsider.add_to_group("world_players")
+	mob._credit(outsider, 500)
+	check(is_equal_approx(mob.party_share(), 0.5), "an outsider's damage takes its share")
+	check(Companion.ROAM_REACH >= 60.0, "บุกลุย members hunt across the field (%.0f m)" % Companion.ROAM_REACH)
+	mob.free()
+	member.free()
+	outsider.free()
 	_finish()
 
 
