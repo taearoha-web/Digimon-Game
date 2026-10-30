@@ -278,6 +278,7 @@ func _physics_process(delta: float) -> void:
 		_update_lod()
 	if _resting() and visual.current == _rest_anim():
 		velocity = Vector3.ZERO
+		fade_label(delta)
 		return
 	super._physics_process(delta)
 	if stats.is_empty() or not is_instance_valid(visual):

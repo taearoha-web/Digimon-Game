@@ -1,9 +1,11 @@
 extends Node
-## Phone-size layout review: the field HUD (a long world-event chip, a two-line daily
+## Phone-size layout review: the field HUD (a Lv.41 mage with eight skills, four party
+## members, four buffs in three lanes, a long world-event chip, a two-line daily
 ## tracker, the world chat full of long lines) at the iPhone canvas sizes, one of them
 ## with a phone's safe insets, then the BackupScreen with four backups listed. One PNG
 ## per shot in the out dir; every shot prints its key rects and "COLLISION" lines when
-## the chip, the chat or a backup row touches what it must not. Exit code 1 on a
+## the chip, the chat, a party card, a minimap marker or a backup row touches what it
+## must not. Exit code 1 on a
 ## collision so CI can run it too.
 ##   xvfb-run -a -s "-screen 0 2600x1200x24" godot --rendering-driver opengl3 --audio-driver Dummy \
 ##     --path . res://tests/tools/phone_layout_shots.tscn -- <out_dir>
@@ -29,15 +31,36 @@ func _ready() -> void:
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await get_tree().create_timer(0.5).timeout
-	Game.new_profile(&"warrior", "ทดสอบ")
-	Game.profile["level"] = 40
+	Game.new_profile(&"mage", "ลูน่า")
+	Game.profile["level"] = 41
+	Game.profile["adv"] = JobData.adv_for_level(41)
 	Game.fill_loadout()
 	main.title_screen.queue_free()
 	main.title_screen = null
 	main.hud.visible = true
 	Game.playing = true
+	# Days into the world, when players are online: four of them join the party.
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 2.4 * 86400.0 - WorldPlayers.now()
+	var t := WorldPresence.clock()
+	for i in WorldPlayers.size():
+		if Game.world_party.size() >= Game.PARTY_MAX:
+			break
+		if bool(WorldPlayers.state(i, t).online):
+			Game.party_invite(i, true)
 	await main.go(&"meadow", true)
 	await get_tree().create_timer(1.0).timeout
+	var hero: Hero = main.zone.hero
+	# The owner's screen: one own buff, two from friends and a song.
+	for pair in [[&"mage", "zenith", false], [&"warrior", "holy_valor", true], [&"mage", "energy_shield", true], [&"bard", "valor_march", true]]:
+		var s := ClassData.find_skill(pair[0], pair[1])
+		hero.receive_buff(s.fx.buff, s.color, s.name, pair[2], pair[1])
+	await get_tree().create_timer(0.3).timeout
+	var filled := 0
+	for slot in main.hud.skill_slots:
+		filled += 0 if slot.skill.is_empty() else 1
+	print("fixture: party %d | skills %d | buff chips %d" % [Game.world_party.size(), filled, main.hud._timers._chips.size()])
+	if Game.world_party.size() != Game.PARTY_MAX or filled != 8:
+		_collide("fixture: wanted %d party members and 8 skills, got %d and %d" % [Game.PARTY_MAX, Game.world_party.size(), filled])
 	for line in CHAT_LINES:
 		Game.world_chat.emit("ผู้เล่นทดสอบชื่อยาวมาก", line, Color("8ff0ff"))
 	for size in HUD_SIZES:
@@ -105,6 +128,35 @@ func _hud_shot(size: Vector2i, insets: Vector4) -> void:
 	if nearest.distance_to(ring_center) < hud.joystick.base_radius + 8.0:
 		_collide("%s: world chat %s touches the joystick ring at %s" % [tag, chat, ring_center])
 	print("%s chat %s | skill1 %s | ring %s" % [tag, chat, first, ring_center])
+	# The party cards stand clear of the chat (four members on the owner's phone).
+	var shown := 0
+	for entry in hud._party_cards:
+		var card: Control = entry.card
+		if not card.is_visible_in_tree():
+			continue
+		shown += 1
+		var rect := card.get_global_rect()
+		if chat.intersects(rect):
+			_collide("%s: world chat %s covers party card %d %s" % [tag, chat, shown, rect])
+		if rect.end.y > get_viewport().get_visible_rect().size.y:
+			_collide("%s: party card %d %s leaves the canvas" % [tag, shown, rect])
+	if shown != Game.world_party.size():
+		_collide("%s: %d party cards shown for %d members" % [tag, shown, Game.world_party.size()])
+	var buffs := hud._timers.get_global_rect()
+	print("%s buffs %s | cards %d" % [tag, buffs, shown])
+	# Every minimap marker inside the round map (Minimap.drawn holds what the last draw put down).
+	var map_rect := hud.minimap.get_global_rect()
+	var markers: Array = hud.minimap.drawn
+	if markers.is_empty():
+		_collide("%s: the minimap drew no markers" % tag)
+	var outside := 0
+	for mark in markers:
+		var at: Vector2 = mark[0]
+		var r: float = mark[1]
+		if at.distance_to(hud.minimap.size * 0.5) + r > Minimap.RADIUS + 0.5 or not map_rect.encloses(Rect2(map_rect.position + at - Vector2.ONE * r, Vector2.ONE * r * 2.0)):
+			outside += 1
+			_collide("%s: minimap marker at %s (r %.1f) leaves the round map %s" % [tag, at, r, map_rect])
+	print("%s minimap %s | markers %d | outside %d" % [tag, map_rect, markers.size(), outside])
 	if insets != Vector4.ZERO:
 		for side in ["left", "top", "right", "bottom"]:
 			safe.remove_theme_constant_override("margin_" + side)

@@ -35,6 +35,7 @@ func _ready() -> void:
 			filled += 1
 	_check(filled == 8, "all eight skill slots are populated in the capture fixture")
 	await _check_event_chip_live(main.hud)
+	await _check_party_and_buffs(main.hud)
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0 and DisplayServer.get_name() != "headless":
 		DirAccess.make_dir_recursive_absolute(args[0])
@@ -137,6 +138,40 @@ func _check_event_chip_live(hud: HUD) -> void:
 		_check(not chip.intersects(other.get_global_rect()), "live event chip %s clears the %s %s" % [chip, key, other.get_global_rect()])
 	var chat := hud.world_chat.get_global_rect()
 	_check(not chat.intersects(hud.skill_slots[0].get_global_rect().grow(4.0)), "world chat %s clears the first skill" % chat)
+
+
+## The owner's phone: four party members, buffs in three lanes, the world chat below.
+## The skill slots carry no names, the buffs are one compact block, no party card sits
+## under the chat, and every minimap marker stays inside the round map.
+func _check_party_and_buffs(hud: HUD) -> void:
+	_check(hud.skill_slots.all(func(slot: SkillSlot): return not slot.show_name), "field skill slots draw no name under the medallion")
+	_check(hud._timers is HUD.CompactTimers, "the field HUD shows the compact buff block")
+	for i in WorldPlayers.size():
+		if Game.world_party.size() >= Game.PARTY_MAX:
+			break
+		Game.party_invite(i, true)
+	for pair in [[&"mage", "zenith", false], [&"warrior", "holy_valor", true], [&"mage", "energy_shield", true], [&"bard", "valor_march", true]]:
+		var s := ClassData.find_skill(pair[0], pair[1])
+		hud.hero.receive_buff(s.fx.buff, s.color, s.name, pair[2], pair[1])
+	await get_tree().create_timer(0.4).timeout
+	var buffs := hud._timers.get_global_rect()
+	_check(hud._timers.visible and buffs.size.y <= 100.0, "four buffs in three lanes take one compact block (%s)" % buffs)
+	var chat := hud.world_chat.get_global_rect()
+	_check(chat.size.y >= HUD.CHAT_MIN_HEIGHT - 0.5, "world chat keeps its minimum height (%s)" % chat)
+	var shown := 0
+	for entry in hud._party_cards:
+		var card: Control = entry.card
+		if card.is_visible_in_tree():
+			shown += 1
+			_check(not chat.intersects(card.get_global_rect()), "world chat %s clears party card %s" % [chat, card.get_global_rect()])
+	_check(shown == Game.PARTY_MAX, "four party cards shown (%d)" % shown)
+	hud.minimap.queue_redraw()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for mark in hud.minimap.drawn:
+		_check((mark[0] as Vector2).distance_to(hud.minimap.size * 0.5) + float(mark[1]) <= Minimap.RADIUS + 0.5, "minimap marker %s stays inside the round map" % str(mark))
+	hud.hero._buffs.clear()
+	Game.dismiss_party()
 
 
 func _check(ok: bool, label: String) -> void:

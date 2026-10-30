@@ -24,6 +24,8 @@ var _step_timer := 0.0
 var _ring_job: StringName = &""
 var _ring: MeshInstance3D
 var _name_plate: Label3D
+var _self_ring: MeshInstance3D
+const SELF_RING_COLOR := Color("ffd24a")
 var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
@@ -95,6 +97,7 @@ func _ready() -> void:
 	Game.inventory_changed.connect(_on_inventory_changed)
 	Game.profile_changed.connect(_update_job_ring)
 	_update_job_ring()
+	_build_self_ring()
 	_build_name_plate()
 	Game.title_changed.connect(_on_title_changed)
 
@@ -136,6 +139,24 @@ func _on_inventory_changed() -> void:
 	if sig != _equip_sig:
 		_equip_sig = sig
 		visual.set_equipment(Game.profile.equip)
+
+
+## A thin gold ring under the hero's own feet (inside the job ring), so the player finds
+## the hero at once in the middle of a party fight. One unshaded mesh, no shadow.
+func _build_self_ring() -> void:
+	_self_ring = MeshInstance3D.new()
+	_self_ring.name = "SelfRing"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.6
+	torus.outer_radius = 0.68
+	torus.rings = 32
+	torus.ring_segments = 4
+	_self_ring.mesh = torus
+	_self_ring.material_override = MeshKit.toon(SELF_RING_COLOR, {"unshaded": true, "emission": 0.6, "alpha": 0.85})
+	_self_ring.scale = Vector3(1, 0.1, 1)
+	_self_ring.position = Vector3(0, 0.06, 0)
+	_self_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_self_ring)
 
 
 ## A glowing ring under the feet of a hero who has changed jobs.

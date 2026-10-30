@@ -9,6 +9,9 @@ const WORLD_RADIUS := 34.0
 
 var zone: Zone
 var _timer := 0.0
+## What the last draw put down, [position in this control, radius] each (tests check
+## that every marker stays inside the round map).
+var drawn: Array = []
 
 
 func _init() -> void:
@@ -36,14 +39,14 @@ func _draw() -> void:
 	draw_circle(c, RADIUS + 3.0, Color(0.02, 0.04, 0.12, 0.35))
 	draw_circle(c, RADIUS, Color(0.06, 0.1, 0.22, 0.55))
 	draw_arc(c, RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.7), 2.5, true)
+	drawn.clear()
 	if zone == null or not is_instance_valid(zone) or zone.hero == null:
 		return
 	var origin := zone.hero.global_position
 	var yaw := zone.camera_rig.yaw if zone.camera_rig else 0.0
 	for camp in zone._camps:
 		var p := _to_map(Vector3(camp.pos.x, 0, camp.pos.y), origin, yaw)
-		if p.length() < RADIUS * 1.6:
-			draw_arc(c + p, float(camp.radius) * RADIUS / WORLD_RADIUS, 0, TAU, 24, Color(0.5, 1.0, 0.6, 0.35), 1.5, true)
+		_ring(c, p, float(camp.radius) * RADIUS / WORLD_RADIUS, Color(0.5, 1.0, 0.6, 0.35))
 	for portal in zone.portals:
 		_dot(c, _to_map(portal.pos, origin, yaw), Color("5ad0ff"), 5.0, true)
 	for npc in zone.npcs:
@@ -69,10 +72,31 @@ func _draw() -> void:
 	draw_colored_polygon(PackedVector2Array([c + dir * 8.0, c - dir * 5.0 + side * 5.0, c - dir * 5.0 - side * 5.0]), Color("ffffff"))
 
 
+## A hunting camp's ring, only the part that lies inside the round map (a camp near
+## the edge shows as an arc; one beyond it is not drawn).
+func _ring(c: Vector2, p: Vector2, ring_r: float, color: Color) -> void:
+	var inner := RADIUS - 2.5
+	if p.length() - ring_r >= inner:
+		return
+	var run := PackedVector2Array()
+	for i in 33:
+		var q := p + Vector2.from_angle(TAU * float(i) / 32.0) * ring_r
+		if q.length() <= inner:
+			run.append(c + q)
+			drawn.append([c + q, 0.75])
+			continue
+		if run.size() >= 2:
+			draw_polyline(run, color, 1.5, true)
+		run.clear()
+	if run.size() >= 2:
+		draw_polyline(run, color, 1.5, true)
+
+
 func _dot(c: Vector2, p: Vector2, color: Color, r: float, diamond := false) -> void:
-	if p.length() > RADIUS - r:
-		p = p.normalized() * (RADIUS - r)   # keep far things on the rim
+	if p.length() > RADIUS - r - 1.0:
+		p = p.normalized() * (RADIUS - r - 1.0)   # keep far things on the rim
 		color.a = 0.6
+	drawn.append([c + p, r])
 	if diamond:
 		draw_colored_polygon(PackedVector2Array([c + p + Vector2(0, -r), c + p + Vector2(r, 0), c + p + Vector2(0, r), c + p + Vector2(-r, 0)]), color)
 	else:

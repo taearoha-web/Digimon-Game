@@ -42,6 +42,11 @@ var _bar: FieldHpBar
 var _summons: Array = []
 var _slow_until := 0
 const SUMMON_LIMIT := 3
+## The name label's alpha while it fights (a target, or hit in the last LABEL_CALM_AFTER
+## seconds), so the hero stands out in the middle of a party fight; full again when calm.
+const LABEL_BUSY_ALPHA := 0.35
+const LABEL_CALM_AFTER := 4.0
+var _label_alpha := 1.0
 
 
 func setup(p_member: Dictionary, p_index: int, p_hero: Hero, p_field: Node3D) -> void:
@@ -90,6 +95,23 @@ func _ready() -> void:
 	mp = float(stats.max_mp)
 	Game.party_changed.connect(refresh)
 	_sync_raven()
+
+
+## Whether it is in a fight right now (its name label fades then).
+func label_busy() -> bool:
+	if _dead:
+		return false
+	return (target != null and is_instance_valid(target) and not target.is_dead()) or _since_hurt < LABEL_CALM_AFTER
+
+
+## Eases the name label towards LABEL_BUSY_ALPHA in a fight and back to full when calm.
+func fade_label(delta: float) -> void:
+	if not is_instance_valid(_label):
+		return
+	var goal := LABEL_BUSY_ALPHA if label_busy() else 1.0
+	_label_alpha = move_toward(_label_alpha, goal, delta * 2.5)
+	_label.modulate.a = _label_alpha
+	_label.outline_modulate.a = _label_alpha
 
 
 ## An AI Dark Lord's raven always joins its fights, hunting on its own (auto).
@@ -160,7 +182,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	amount = BuffBook.absorb(_book.buffs,amount)
 	hp = maxi(0, hp - amount)
 	_since_hurt = 0.0
-	BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff7a8a"), 1.0)
+	BattleVfx.other_number(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff7a8a"), 1.0)
 	visual.flash()
 	_update_bar()
 	if Time.get_ticks_msec() >= _cast_until:
@@ -304,6 +326,7 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		global_position = hero.global_position + Vector3(1.5, 0.2, 0.0) if hero.global_position.is_finite() else Vector3.ZERO
 	_book.tick(self, not _dead, func(): return BuffAura.measure_top(visual, self))
+	fade_label(delta)
 	if _dead:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -572,7 +595,10 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	else:
 		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.3 if crit else 0.9)
 	damage_dealt += amount
+	# Its numbers are drawn as someone else's (smaller, dimmer, capped): the hero's own read first.
+	BattleVfx.dealing_other = true
 	var killed := mob.take_hit(amount, crit, color, self)
+	BattleVfx.dealing_other = false
 	if killed:
 		return
 	if melee:
