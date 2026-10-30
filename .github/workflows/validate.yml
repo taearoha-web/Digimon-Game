@@ -122,7 +122,7 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-achievements
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/achievements_test.tscn
-      - name: Party talk (members warn when the hero bleeds or a boss appears, once per gap, bubble + world chat under their name, gather behind the hero at a villager, the typed orders ตามมา / รอตรงนี้ / กลับเมือง)
+      - name: Party talk (members warn when the hero bleeds or a boss appears, once per gap, bubble + party chat under their name, gather behind the hero at a villager, the typed orders ตามมา / รอตรงนี้ / กลับเมือง)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-party-talk
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/party_talk_test.tscn
@@ -134,6 +134,10 @@ jobs:
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/party_exp_test.tscn
       - name: Check talking to the world players in the game (request, answers, party actions)
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/ai_chat_test.tscn
+      - name: Party and guild chat (channels apart from the world chat, HUD tabs ทั้งหมด / โลก / ปาร์ตี้ / กิลด์, members answer to the point and each other within the cap and cooldown, notes without a party or guild)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-chat-channels
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_channels_test.tscn
       - name: Check the AI chat with the world players (account gate, limits, request, replies; no real API calls)
         run: |
           cd hosting/worker

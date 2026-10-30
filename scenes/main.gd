@@ -89,9 +89,10 @@ func _ready() -> void:
 	add_child(player_card)
 	ai_chat = AiChat.new()
 	add_child(ai_chat)
+	# The chat chip types to the HUD chat's tab: โลก / ปาร์ตี้ / กิลด์ (ทั้งหมด: the world).
 	hud.chat_requested.connect(func():
 		if not _screen_open():
-			ai_chat.talk_world())
+			ai_chat.talk_channel(hud.world_chat.compose_channel() if hud.world_chat != null else "world"))
 	hud.world_tapped.connect(_on_world_tapped)
 	# The first five minutes of a new hero (steps, hints, a world player as the guide); on
 	# Main so it follows the hero from the village into the first field.
