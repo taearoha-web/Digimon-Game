@@ -77,16 +77,44 @@ const POTIONS := {
 	"town_scroll": {"name": "ใบวาร์ปกลับเมือง", "desc": "วาร์ปกลับหมู่บ้านทันที", "town": true, "price": 120, "color": Color("c9ffb0")},
 }
 
-## Gems that go into equipment sockets. value = stat per gem size step.
+## Gems that go into equipment sockets. Stat gems raise a stat by a share of it (so a
+## gem matters at Lv.10 and at ★200 alike; topaz adds crit chance); special gems give
+## an ability (crit damage, lifesteal, cooldown, EXP and drops). values = by size.
+## Five sizes; three of a size fuse into the next at the forge (Game.fuse_gem).
 const GEMS := {
-	"ruby": {"name": "ทับทิม", "stat": "atk", "values": [4, 10, 22], "color": Color("ff4a5a")},
-	"sapphire": {"name": "ไพลิน", "stat": "mp", "values": [12, 30, 65], "color": Color("4a9bff")},
-	"emerald": {"name": "มรกต", "stat": "hp", "values": [25, 70, 150], "color": Color("4ae07a")},
-	"topaz": {"name": "บุษราคัม", "stat": "crit", "values": [0.008, 0.018, 0.035], "color": Color("ffd23c")},
-	"amethyst": {"name": "อเมทิสต์", "stat": "def", "values": [3, 8, 18], "color": Color("c46bff")},
+	"ruby": {"name": "ทับทิม", "stat": "atk", "values": [0.01, 0.02, 0.035, 0.05, 0.07], "color": Color("ff4a5a"), "special": false},
+	"emerald": {"name": "มรกต", "stat": "hp", "values": [0.015, 0.03, 0.05, 0.07, 0.10], "color": Color("4ae07a"), "special": false},
+	"amethyst": {"name": "อเมทิสต์", "stat": "def", "values": [0.015, 0.03, 0.05, 0.07, 0.10], "color": Color("c46bff"), "special": false},
+	"sapphire": {"name": "ไพลิน", "stat": "matk", "values": [0.01, 0.02, 0.035, 0.05, 0.07], "color": Color("4a9bff"), "special": false},
+	"topaz": {"name": "บุษราคัม", "stat": "crit", "values": [0.005, 0.01, 0.015, 0.02, 0.03], "color": Color("ffd23c"), "special": false},
+	"onyx": {"name": "นิลดำ", "stat": "crit_dmg", "values": [0.05, 0.10, 0.15, 0.22, 0.30], "color": Color("6b6b8a"), "special": true},
+	"pearl": {"name": "มุกจันทรา", "stat": "lifesteal", "values": [0.005, 0.01, 0.015, 0.025, 0.035], "color": Color("f2f0ff"), "special": true},
+	"opal": {"name": "โอปอลกาลเวลา", "stat": "cdr", "values": [0.02, 0.04, 0.06, 0.09, 0.12], "color": Color("7ff0e0"), "special": true},
+	"tourmaline": {"name": "ทัวร์มาลีนนำโชค", "stat": "fortune", "values": [0.03, 0.06, 0.10, 0.15, 0.20], "color": Color("ff8fd8"), "special": true},
 }
-const GEM_SIZES := ["เล็ก", "กลาง", "ใหญ่"]
-const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล", "matk": "พลังโจมตีเวทย์"}
+const STAT_GEMS: Array[String] = ["ruby", "emerald", "amethyst", "sapphire", "topaz"]
+const SPECIAL_GEMS: Array[String] = ["onyx", "pearl", "opal", "tourmaline"]
+const GEM_SIZES := ["เล็ก", "กลาง", "ใหญ่", "สมบูรณ์แบบ", "ตำนาน"]
+const GEM_MAX_SIZE := 4
+## Fusing three gems of a size into the next: chance by the size fused from, and gold.
+const GEM_FUSE_CHANCE := [1.0, 1.0, 0.7, 0.4]
+const GEM_FUSE_GOLD := [200, 800, 3000, 12000]
+## Sockets: rare gear comes with 1, epic 2, legendary 3; a drill (สว่านเจาะ) opens one
+## more on any piece up to MAX_SOCKETS, and +15 opens a fourth.
+const MAX_SOCKETS := 3
+## Three gems of one type filling a piece's sockets resonate: those gems count this much more.
+const GEM_RESONANCE := 0.2
+## Twelve or more of one stat gem worn give its set ability (HeroStats.gem_set).
+const GEM_SET_COUNT := 12
+const GEM_SETS := {
+	"ruby": {"name": "เลือดเดือด", "desc": "HP ต่ำกว่า 30%: พลังโจมตี +25%"},
+	"amethyst": {"name": "ป้อมปราการ", "desc": "HP ต่ำกว่า 50%: พลังป้องกัน +20%"},
+	"emerald": {"name": "ชีวิตอมตะ", "desc": "ฟื้น HP 2% ทุก 5 วินาที"},
+	"sapphire": {"name": "สายน้ำมนตรา", "desc": "ฟื้น MP 2% ทุก 3 วินาที"},
+	"topaz": {"name": "ตาเหยี่ยว", "desc": "คริติคอล +5%"},
+}
+const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล", "matk": "พลังโจมตีเวทย์",
+	"crit_dmg": "ดาเมจคริติคอล", "lifesteal": "ดูดเลือด", "cdr": "ลดคูลดาวน์", "fortune": "EXP และของดรอป"}
 const SET_NAMES := ["", "ชุดนักเดินทาง", "ชุดนักล่า", "ชุดอัศวิน", "ชุดเพลิงฟ้า", "ชุดมังกร", "ชุดอสูรสายฟ้า", "ชุดเทวทูต", "ชุดเทพสงคราม", "ชุดตำนานนิรันดร์"]
 const SET_SLOTS := ["weapon", "armor", "helm", "boots"]
 const MAX_PLUS := 15
@@ -101,6 +129,7 @@ const JEWELS := {
 	"pink": {"name": "เพชรชมพู", "color": Color("ff79c6"), "price": 900},
 	"chaos": {"name": "เพชรชาออส", "color": Color("ffd23f"), "price": 1500},
 	"feather": {"name": "ขนนก", "color": Color("bfe6ff"), "price": 4000},
+	"drill": {"name": "สว่านเจาะ", "color": Color("c9d4e0"), "price": 3000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
@@ -149,12 +178,35 @@ static func gem(gem_id: String, size: int, count := 1) -> Dictionary:
 	return {"kind": "gem", "id": "%s_%d" % [gem_id, size], "count": count}
 
 
-## {name, stat, value, color, size} of a gem item.
+## {name, stat, value, color, size, type, special} of a gem item.
 static func gem_info(item: Dictionary) -> Dictionary:
 	var bits := String(item.id).split("_")
 	var base: Dictionary = GEMS[bits[0]]
-	var size := clampi(int(bits[1]), 0, 2)
-	return {"name": "%s%s" % [base.name, GEM_SIZES[size]], "stat": base.stat, "value": base.values[size], "color": base.color, "size": size, "type": bits[0]}
+	var size := clampi(int(bits[1]), 0, GEM_MAX_SIZE)
+	return {"name": "%s%s" % [base.name, GEM_SIZES[size]], "stat": base.stat, "value": base.values[size], "color": base.color,
+		"size": size, "type": bits[0], "special": bool(base.special)}
+
+
+## "พลังโจมตี +3.5%" for a gem (every gem value is a share).
+static func gem_effect_text(info: Dictionary, scale := 1.0) -> String:
+	return "%s +%s%%" % [STAT_LABELS.get(info.stat, info.stat), String.num(float(info.value) * scale * 100.0, 1).trim_suffix(".0")]
+
+
+## How many sockets a piece can have (MAX_SOCKETS, one more at +15).
+static func max_sockets(item: Dictionary) -> int:
+	return MAX_SOCKETS + (1 if int(item.get("plus", 0)) >= 15 else 0)
+
+
+## True when a piece's sockets are all filled by one gem type (3 or more): resonance.
+static func resonates(item: Dictionary) -> bool:
+	var gems: Array = item.get("gems", [])
+	if gems.size() < 3 or gems.size() < int(item.get("sockets", 0)):
+		return false
+	var first := String(gems[0]).split("_")[0]
+	for g in gems:
+		if String(g).split("_")[0] != first:
+			return false
+	return true
 
 
 static func sockets_for(rarity: int) -> int:
@@ -398,7 +450,8 @@ static func sell_price(item: Dictionary) -> int:
 	if item.get("kind", "") == "jewel":
 		return int(JEWELS[item.id].price * 0.4) * int(item.get("count", 1))
 	if item.get("kind", "") == "gem":
-		return 20 * int(pow(3.0, gem_info(item).size)) * int(item.get("count", 1))
+		var g := gem_info(item)
+		return (40 if g.special else 20) * int(pow(3.0, g.size)) * int(item.get("count", 1))
 	if item.get("kind", "") == "potion":
 		return int(POTIONS[item.id].price * 0.4) * int(item.get("count", 1))
 	return int(int(item.get("price", 1)) * (0.35 + 0.15 * int(item.get("plus", 0))))
@@ -420,7 +473,11 @@ static func stat_lines(item: Dictionary) -> Array[String]:
 		return lines
 	if item.get("kind", "") == "gem":
 		var info := gem_info(item)
-		lines.append("ใส่ช่องอัญมณี: %s +%s" % [STAT_LABELS[info.stat], ("%.1f%%" % (float(info.value) * 100.0)) if info.stat == "crit" else str(info.value)])
+		lines.append("ใส่ช่องอัญมณี: " + gem_effect_text(info))
+		if info.size < GEM_MAX_SIZE:
+			lines.append("รวม 3 เม็ดเป็น%s ที่ช่างตีเหล็ก (สำเร็จ %d%%)" % [GEM_SIZES[info.size + 1], int(GEM_FUSE_CHANCE[info.size] * 100.0)])
+		if GEM_SETS.has(info.type):
+			lines.append("ใส่ครบ %d เม็ดทั้งตัว: %s (%s)" % [GEM_SET_COUNT, GEM_SETS[info.type].name, GEM_SETS[info.type].desc])
 		return lines
 	var stats: Dictionary = item.get("stats", {})
 	if stats.has("atk"): lines.append("พลังโจมตี +%d" % int(stats.atk))
@@ -449,12 +506,17 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · เอฟเฟกต์: %s" % [plus, int(round(plus * HeroStats.PLUS_BONUS * 100.0)), look_name])
 	var sockets := int(item.get("sockets", 0))
 	var gems: Array = item.get("gems", [])
+	var ring := 1.0 + GEM_RESONANCE if resonates(item) else 1.0
 	for i in sockets:
 		if i < gems.size():
 			var info := gem_info({"id": gems[i]})
-			lines.append("ใส่แล้ว %s: %s +%s" % [info.name, STAT_LABELS[info.stat], ("%.1f%%" % (float(info.value) * 100.0)) if info.stat == "crit" else str(info.value)])
+			lines.append("ใส่แล้ว %s: %s" % [info.name, gem_effect_text(info, ring)])
 		else:
 			lines.append("ช่องอัญมณีว่าง")
+	if ring > 1.0:
+		lines.append("อัญมณีสีเดียวกันครบทุกช่อง: พลังอัญมณี +%d%%" % int(GEM_RESONANCE * 100.0))
+	if item.get("kind", "") == "equip" and EnhanceFx.can_enhance(item) and sockets < max_sockets(item):
+		lines.append("เจาะช่องเพิ่มได้ด้วยสว่านเจาะ (%d/%d)" % [sockets, max_sockets(item)])
 	if str(item.get("set", "")) != "":
 		lines.append("เซ็ต: %s (ใส่ 2/3/4 ชิ้นได้โบนัส)" % set_label(item.set))
 	return lines

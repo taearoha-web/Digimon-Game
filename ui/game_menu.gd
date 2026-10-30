@@ -542,7 +542,8 @@ func _refresh_detail() -> void:
 	elif item.get("kind", "") == "jewel":
 		var craft := String(item.get("id", "")) in StarWingData.CRAFT_COST
 		var how := UIUtil.label(("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
-			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง 3 + ชมพู 2 (50%)", &"DimLabel")
+			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
+			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง 3 + ชมพู 2 (50%) · +11 ถึง +15 ใช้เพชรมากขึ้น (40% ลดลงถึง 15%)", &"DimLabel")
 		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_detail.add_child(how)
 		var sell_jewel := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
@@ -550,6 +551,24 @@ func _refresh_detail() -> void:
 		target.add_child(sell_jewel)
 	elif item.get("kind", "") == "gem":
 		_detail.add_child(UIUtil.label("ไปที่ช่างตีเหล็กเพื่อใส่ลงช่องในอาวุธ/ชุด", &"DimLabel"))
+		var info := ItemData.gem_info(item)
+		if info.size < ItemData.GEM_MAX_SIZE:
+			var gem_id := String(item.id)
+			var fuse := UIUtil.button("รวม 3 เม็ด → %s (%d%% · %d เหรียญ)" % [ItemData.GEM_SIZES[info.size + 1], int(float(ItemData.GEM_FUSE_CHANCE[info.size]) * 100.0), int(ItemData.GEM_FUSE_GOLD[info.size])], &"PrimaryButton", Vector2(0, 58))
+			fuse.disabled = int(item.get("count", 1)) < 3
+			fuse.pressed.connect(func():
+				var result := Game.fuse_gem(gem_id)
+				match result:
+					"ok":
+						Game.say("รวมอัญมณีสำเร็จ! ได้%s%s" % [ItemData.GEMS[info.type].name, ItemData.GEM_SIZES[info.size + 1]], &"success")
+						AudioManager.play_sfx(&"level_up")
+					"fail":
+						Game.say("รวมอัญมณีพลาด... เสียไป 1 เม็ด", &"warning")
+					_:
+						Game.say(result, &"warning")
+				_selected_index = -1
+				_rebuild())
+			target.add_child(fuse)
 		var sell_gem := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
 		sell_gem.pressed.connect(func(): _sell_selected(1))
 		target.add_child(sell_gem)
@@ -779,6 +798,18 @@ func _build_forge_buttons(item: Dictionary) -> void:
 				Game.say(result, &"warning")
 			_rebuild())
 		_detail.add_child(take)
+	if EnhanceFx.can_enhance(item) and int(item.get("sockets", 0)) < ItemData.max_sockets(item):
+		var drill := UIUtil.button("เจาะช่องอัญมณีเพิ่ม (สว่านเจาะ 1 · มี %d)" % Game.jewel_count("drill"), &"", Vector2(0, 52))
+		drill.disabled = Game.jewel_count("drill") < 1
+		drill.pressed.connect(func():
+			var result := Game.drill_socket(item)
+			if result == "ok":
+				Game.say("เจาะช่องอัญมณีสำเร็จ! (%d ช่อง)" % int(item.sockets), &"success")
+				AudioManager.play_sfx(&"level_up")
+			else:
+				Game.say(result, &"warning")
+			_rebuild())
+		_detail.add_child(drill)
 	var free := int(item.get("sockets", 0)) - (item.get("gems", []) as Array).size()
 	if free > 0:
 		var seen := {}

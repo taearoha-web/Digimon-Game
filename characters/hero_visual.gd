@@ -266,6 +266,7 @@ func _refresh_chibi() -> void:
 			MeshMerge.merge(node.get_child(0) as Node3D, "auto")
 	_make_aura()
 	_hold_gear()
+	_gem_glows()
 	_polish()
 
 
@@ -483,6 +484,37 @@ func _wing_flair(back: Node3D, plus: int) -> void:
 		_body_nodes.append(made)
 
 
+## Where (visual space) a worn piece's legendary-gem sparkle shines; the weapon's
+## shines at its tip on the held grip instead.
+const GEM_SPOTS := {"armor": Vector3(0, 1.05, 0.12), "helm": Vector3(0, 1.9, 0), "boots": Vector3(0, 0.3, 0.08),
+	"amulet": Vector3(0, 1.35, 0.2), "ring": Vector3(0.38, 0.9, 0.05), "wings": Vector3(0, 1.45, -0.45)}
+
+
+## Every worn piece with a ตำนาน (size 4) gem socketed sparkles softly in that gem's
+## colour (EnhanceFx.gem_sparkle). Kept in _body_nodes so a re-dress frees it;
+## nothing for the other players around (decor_light) or at the lowest quality.
+func _gem_glows() -> void:
+	if decor_light or GameSettings.quality == 0:
+		return
+	for slot in equip:
+		var color := EnhanceFx.legend_gem_color(equip[slot])
+		if color.a <= 0.0:
+			continue
+		var parent: Node3D = self
+		var spot: Vector3 = GEM_SPOTS.get(slot, Vector3(0, 1.0, 0))
+		if slot == "weapon":
+			if not is_instance_valid(_emission_grip):
+				continue
+			parent = _emission_grip
+			spot = _emission_point
+		elif slot == "helm" and chibi:
+			spot = Vector3(0, 2.2, 0)
+		var made := EnhanceFx.gem_sparkle(parent, spot, color, decor_light)
+		if made != null:
+			made.set_meta("gem_glow", String(slot))
+			_body_nodes.append(made)
+
+
 func refresh() -> void:
 	dressed += 1
 	_face = null
@@ -598,6 +630,7 @@ func refresh() -> void:
 	_glow_piece(armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.0, 0), 0.4)
 	_glow_piece(boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.25, 0), 0.4)
 	_hold_gear()
+	_gem_glows()
 	_polish()
 
 

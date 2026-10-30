@@ -55,15 +55,19 @@ static func attributes(profile: Dictionary) -> Dictionary:
 
 static func gear_bonus(profile: Dictionary) -> Dictionary:
 	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "matk": 0.0}
+	var gems := {}
+	var gem_count := {}
 	var sets := {}
 	for slot in profile["equip"]:
 		var item: Dictionary = profile["equip"][slot]
 		var boost := 1.0 + PLUS_BONUS * float(item.get("plus", 0))
 		for key in item.get("stats", {}):
 			total[key] = total.get(key, 0.0) + float(item.stats[key]) * (boost if key != "crit" else (1.0 + 0.04 * float(item.get("plus", 0))) * GEAR_CRIT_SCALE)
+		var ring := 1.0 + ItemData.GEM_RESONANCE if ItemData.resonates(item) else 1.0
 		for gem_id in item.get("gems", []):
 			var info := ItemData.gem_info({"id": gem_id})
-			total[info.stat] = total.get(info.stat, 0.0) + float(info.value)
+			gems[info.stat] = float(gems.get(info.stat, 0.0)) + float(info.value) * ring
+			gem_count[info.type] = int(gem_count.get(info.type, 0)) + 1
 		var set_id := str(item.get("set", ""))
 		if set_id != "":
 			sets[set_id] = int(sets.get(set_id, 0)) + 1
@@ -85,6 +89,13 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 	total["hp"] = int(total.hp)
 	total["mp"] = int(total.mp)
 	total["matk"] = int(total.matk)
+	# Gem shares (ItemData.GEMS) and the set of 12 of one stat gem.
+	total["gems"] = gems
+	var gem_set := ""
+	for type in ItemData.STAT_GEMS:
+		if int(gem_count.get(type, 0)) >= ItemData.GEM_SET_COUNT:
+			gem_set = type
+	total["gem_set"] = gem_set
 	return total
 
 
@@ -112,6 +123,19 @@ static func set_counts(profile: Dictionary) -> Dictionary:
 
 
 ## buffs: { atk, def, speed, crit } fractions (0.3 = +30%).
+## Gem set abilities applied in combat (Hero): ruby +25% ATK under 30% HP, amethyst +20%
+## DEF under 50% HP. Topaz's +5% crit is in compute.
+const GEM_SET_FURY := 0.25
+const GEM_SET_BULWARK := 0.2
+const GEM_SET_HAWK := 0.05
+## Caps on the special gems' totals.
+const MAX_LIFESTEAL := 0.1
+const MAX_CDR := 0.3
+const MAX_FORTUNE := 0.5
+## Onyx crit damage on top of CRIT_DAMAGE (1.6): at most +0.6, crits up to x2.2.
+const MAX_CRIT_DMG := 0.6
+
+
 static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var data := JobData.resolve(StringName(profile["class"]), int(profile.get("adv", 0)))
 	var level: int = profile["level"]
@@ -121,15 +145,25 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var para: Dictionary = (profile.get("paragon", {}) as Dictionary).get("alloc", {}) if profile.get("paragon") is Dictionary else {}
 	var main_stat: int = attrs[data.main]
 	var sub_stat: float = float(attrs[data.sub]) * 0.5 if data.has("sub") else 0.0
-	var atk := (float(main_stat) * 1.0 + sub_stat + level * 1.5 + float(gear.atk) + (float(gear.matk) if String(data.main) == "int" else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.003 * float(para.get("atk", 0)))
-	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0)))
+	var gems: Dictionary = gear.get("gems", {})
+	var caster := String(data.main) == "int"
+	# Ruby raises every class's attack; sapphire a caster's (magic) attack and everyone's MP.
+	var gem_atk := 1.0 + float(gems.get("atk", 0.0)) + (float(gems.get("matk", 0.0)) if caster else 0.0)
+	var atk := (float(main_stat) * 1.0 + sub_stat + level * 1.5 + float(gear.atk) + (float(gear.matk) if caster else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.003 * float(para.get("atk", 0))) * gem_atk
+	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0))) * (1.0 + float(gems.get("def", 0.0)))
+	var gem_set := String(gear.get("gem_set", ""))
 	return {
+		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG),
+		"lifesteal": minf(float(gems.get("lifesteal", 0.0)), MAX_LIFESTEAL),
+		"cdr": minf(float(gems.get("cdr", 0.0)), MAX_CDR),
+		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
+		"gem_set": gem_set,
 		"attrs": attrs,
-		"max_hp": int((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0)))) + int(gear.hp),
-		"max_mp": int((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp))) + int(gear.mp),
+		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0)))),
+		"max_mp": int(((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp)) + float(gear.mp)) * (1.0 + float(gems.get("matk", 0.0)))),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
+		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(gems.get("crit", 0.0)) + (GEM_SET_HAWK if gem_set == "topaz" else 0.0) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
 		"haste": clampf(MAX_HASTE * float(attrs.dex) / (float(attrs.dex) + HASTE_HALF_DEX) + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),

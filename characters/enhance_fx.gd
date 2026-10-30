@@ -704,3 +704,28 @@ static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, sp
 		var p := _sparkles(holder, spot, color, [0, 0, 5, 8, 12][g], spread, 0.1, 0.5 + 0.1 * g, 0.9)
 		p.name = "PieceSparkles"
 	return holder
+
+
+## The colour of the first ตำนาน (size ItemData.GEM_MAX_SIZE) gem socketed in a worn
+## piece, or a transparent colour when it has none.
+static func legend_gem_color(item: Variant) -> Color:
+	if not item is Dictionary:
+		return Color(0, 0, 0, 0)
+	for g in (item as Dictionary).get("gems", []):
+		var id := String(g)
+		if not ItemData.GEMS.has(id.get_slice("_", 0)):
+			continue
+		var info := ItemData.gem_info({"id": id})
+		if int(info.size) >= ItemData.GEM_MAX_SIZE:
+			return info.color
+	return Color(0, 0, 0, 0)
+
+
+## A soft sparkle of a legendary gem (a few small motes in its colour) at [param pos].
+## Null at the lowest quality, under memory pressure or for [param light] visuals.
+static func gem_sparkle(parent: Node3D, pos: Vector3, color: Color, light := false) -> CPUParticles3D:
+	if light or GameSettings.quality == 0 or MemoryGuard.pressure >= 2:
+		return null
+	var p := _sparkles(parent, pos, color.lightened(0.25), 6, 0.22, 0.09, 0.3, 1.3)
+	p.name = "GemSparkle"
+	return p
