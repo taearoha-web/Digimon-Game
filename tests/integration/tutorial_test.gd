@@ -110,6 +110,7 @@ func _fresh_hero() -> void:
 	await main.go(&"meadow", true)
 	await _wait(1.0)
 	check(tut.step == 5 and Game.current_zone == &"meadow", "the first field completes step 4")
+	check(_count(Tutorial.HINTS[4]) == 1 and tut.guide_forced == (expected_guide >= 0), "the trip between zones keeps the tutorial's state")
 	check(_count(Tutorial.HINTS[5]) == 1 and toasts.has(Tutorial.HINTS[5] + " (0/3)"), "step 5 counts the kills in its hint")
 	if expected_guide >= 0:
 		check(_guide_here(), "the guide walks into the field with the hero")
