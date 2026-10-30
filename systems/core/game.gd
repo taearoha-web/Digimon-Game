@@ -23,6 +23,10 @@ signal profile_imported()
 signal guild_changed()
 ## A line of the world chat (WorldPresence): who says it, what, the name's colour.
 signal world_chat(speaker: String, text: String, color: Color)
+## A line of the party or guild chat (AiChat, PartyTalk): "party" or "guild", who says it,
+## what, the name's colour. Only the hero's party / guild sees it; the world chat stays
+## on world_chat. post_chat sends a line to either by its channel.
+signal channel_chat(channel: String, speaker: String, text: String, color: Color)
 ## A world boss fell with the hero's help (Zone emits it; Achievements counts it).
 signal world_boss_defeated(zone: StringName)
 ## A titled achievement (Achievements.TABLE id) was earned just now; the HUD may show a banner.
@@ -75,6 +79,7 @@ func _ready() -> void:
 	_migrate_legacy_save()
 	SaveBackup.maybe_daily()
 	world_chat.connect(_on_world_chat)
+	channel_chat.connect(func(_channel: String, speaker: String, text: String, color: Color): _on_world_chat(speaker, text, color))
 	world_boss_defeated.connect(_on_world_boss_defeated)
 	(func(): UIUtil.install_discard_holder(get_tree().root)).call_deferred()
 
@@ -2330,6 +2335,14 @@ func set_title(index: int) -> bool:
 	mark_dirty()
 	title_changed.emit(Achievements.title_of(profile))
 	return true
+
+
+## A chat line on its channel: "world" goes to world_chat, "party" / "guild" to channel_chat.
+func post_chat(channel: String, speaker: String, text: String, color: Color) -> void:
+	if channel == "party" or channel == "guild":
+		channel_chat.emit(channel, speaker, text, color)
+	else:
+		world_chat.emit(speaker, text, color)
 
 
 func _on_world_chat(speaker: String, _text: String, _color: Color) -> void:
