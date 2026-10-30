@@ -10,6 +10,10 @@ var _party_damage_total := 0
 
 
 func _ready() -> void:
+	# Pin the world clock to 10:00 Thai time: the EXP x2 hours and the world boss (19:00
+	# to 21:00) would otherwise change levels and fields when the test runs in the evening.
+	var tod := WorldEvents.time_of_day(WorldPresence.clock())
+	WorldPresence.clock_offset += float(posmod(10 * 3600 - tod, 86400))
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await get_tree().create_timer(0.3).timeout

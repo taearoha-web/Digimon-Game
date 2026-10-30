@@ -258,6 +258,7 @@ func _refresh_chibi() -> void:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
 		back.add_child(StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings)))
 		_glow_piece([back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_wing_flair(back.get_parent(), int(wings.get("plus", 0)))
 		_pose_wings.call_deferred(wing_mode, true)
 	# Fold only static accessories on each bone, keeping the skeleton and wing animation intact.
 	for node in _body_nodes:
@@ -475,6 +476,13 @@ func _glow_piece(nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
 		_body_nodes.append(made)
 
 
+## Wings at +10 and up: a glow behind them and drifting light feathers (EnhanceFx.wing_flair).
+func _wing_flair(back: Node3D, plus: int) -> void:
+	var made := EnhanceFx.wing_flair(back, plus, Vector3.ZERO, decor_light)
+	if made != null:
+		_body_nodes.append(made)
+
+
 func refresh() -> void:
 	dressed += 1
 	_face = null
@@ -559,6 +567,7 @@ func refresh() -> void:
 		back.add_child(w)
 		_body_nodes.append(back)
 		_glow_piece([back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_wing_flair(back, int(wings.get("plus", 0)))
 		_pose_wings.call_deferred(wing_mode, true)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint
@@ -720,10 +729,12 @@ func _make_aura() -> void:
 		var item: Dictionary = equip[slot]
 		if int(item.get("rarity", 0)) >= 3:
 			color = Color("c46bff")
-	var best := EnhanceFx.best_plus(equip)
-	if best >= 4:
-		color = EnhanceFx.color_of(best)
-		for made in EnhanceFx.on_body(self, best, decor_light):
+	# The body aura is the whole set's: the lowest + of weapon, armour, helm, boots and
+	# wings (each piece still glows by its own +).
+	var whole := EnhanceFx.set_plus(equip)
+	if whole >= EnhanceFx.AURA_STEPS[0]:
+		color = EnhanceFx.color_of(whole)
+		for made in EnhanceFx.on_body(self, whole, decor_light):
 			made.set_meta("far_decor", true)
 			_body_nodes.append(made)
 	var tier := _top_tier()
@@ -756,7 +767,7 @@ func _make_aura() -> void:
 	quad.material = mat
 	p.mesh = quad
 	var grand := maxi(tier - 5, 0)
-	p.amount = VfxBudget.count(14 + grand * 10 + (best * 3 if best >= 4 else 0))
+	p.amount = VfxBudget.count(14 + grand * 10 + EnhanceFx.aura_step(whole) * 2)
 	p.lifetime = 1.5 + 0.1 * float(grand)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.55 + 0.08 * float(grand)

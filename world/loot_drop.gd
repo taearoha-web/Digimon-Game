@@ -133,6 +133,10 @@ func _process(delta: float) -> void:
 		global_position += to.normalized() * delta * 16.0
 		if to.length() < 0.5:
 			_collect()
+	elif _age > 0.5 and String(item.get("kind", "")) == "jewel":
+		# Jewels and feathers fly to the hero from anywhere in the field: a party member
+		# hunting far away (บุกลุย) never loses them to the timeout.
+		_magnet = true
 	elif flat < PICKUP_RADIUS and _age > 0.5:
 		if gold == 0 and not ItemData.is_stackable(item) and Game.inventory_free() <= 0:
 			if int(_age * 2.0) % 6 == 0:

@@ -89,10 +89,11 @@ const GEM_SIZES := ["เล็ก", "กลาง", "ใหญ่"]
 const STAT_LABELS := {"atk": "พลังโจมตี", "def": "พลังป้องกัน", "hp": "HP", "mp": "MP", "crit": "คริติคอล", "matk": "พลังโจมตีเวทย์"}
 const SET_NAMES := ["", "ชุดนักเดินทาง", "ชุดนักล่า", "ชุดอัศวิน", "ชุดเพลิงฟ้า", "ชุดมังกร", "ชุดอสูรสายฟ้า", "ชุดเทวทูต", "ชุดเทพสงคราม", "ชุดตำนานนิรันดร์"]
 const SET_SLOTS := ["weapon", "armor", "helm", "boots"]
-const MAX_PLUS := 10
+const MAX_PLUS := 15
 ## Forge jewels, dropped by monsters in every levelling field (JEWEL_DROP per kill):
 ## a purple jewel takes a piece from +0 to +6 and never fails, a pink jewel takes it on
-## to +7, +8 and +9 at 50%, and +10 takes three purple and two pink at 50%. A failed try
+## to +7, +8 and +9 at 50%, +10 takes three purple and two pink at 50%, and +11 to +15
+## take more of both at falling odds (ENHANCE_HIGH: 40% down to 15%). A failed try
 ## uses up the jewels and the piece keeps its grade. A chaos jewel and a feather craft
 ## Lv.100 wings into the class's 100★ wings (StarWingData.CRAFT_CHANCE).
 const JEWELS := {
@@ -173,9 +174,18 @@ static func set_label(set_id: String) -> String:
 	return SET_NAMES[clampi(int(set_id.trim_prefix("set")), 0, 9)] if set_id != "" else ""
 
 
-## Chance (0-1) of the next +1 at the forge from grade `plus` (see JEWELS).
+## Chance (0-1) of the next +1 at the forge from grade `plus` (see JEWELS): +11 to +15
+## get harder each step (ENHANCE_HIGH).
 static func enhance_chance(plus: int) -> float:
-	return 1.0 if plus < 6 else 0.5
+	if plus < 6:
+		return 1.0
+	if plus < 10:
+		return 0.5
+	return float(ENHANCE_HIGH[clampi(plus - 10, 0, ENHANCE_HIGH.size() - 1)][0])
+
+
+## +11 .. +15: [chance, purple jewels, pink jewels] for the step from +10, +11, ...
+const ENHANCE_HIGH := [[0.4, 4, 3], [0.33, 5, 3], [0.25, 5, 4], [0.2, 6, 4], [0.15, 6, 5]]
 
 
 ## The jewels the next +1 takes, {"purple": n, "pink": n}.
@@ -185,7 +195,10 @@ static func enhance_cost(item: Dictionary) -> Dictionary:
 		return {"purple": 1, "pink": 0}
 	if plus < 9:
 		return {"purple": 0, "pink": 1}
-	return {"purple": 3, "pink": 2}
+	if plus < 10:
+		return {"purple": 3, "pink": 2}
+	var row: Array = ENHANCE_HIGH[clampi(plus - 10, 0, ENHANCE_HIGH.size() - 1)]
+	return {"purple": int(row[1]), "pink": int(row[2])}
 
 
 ## "เพชรม่วง 3 + เพชรชมพู 2" for a cost.
@@ -432,7 +445,7 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		if String(item.get("set", "")).begins_with("star_") or DivineGearData.is_item(item): lines.append(StarProgression.set_bonus_text(String(item.star_class)))
 	var plus := int(item.get("plus", 0))
 	if plus > 0:
-		var look_name: String = EnhanceFx.NAMES[EnhanceFx.grade(plus)]
+		var look_name: String = EnhanceFx.look_name(plus)
 		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · เอฟเฟกต์: %s" % [plus, int(round(plus * HeroStats.PLUS_BONUS * 100.0)), look_name])
 	var sockets := int(item.get("sockets", 0))
 	var gems: Array = item.get("gems", [])
