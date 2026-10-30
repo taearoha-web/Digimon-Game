@@ -54,6 +54,10 @@ const HOT_SCALE := 0.75
 const HOT_FLOOR := 0.65
 const HOT_EFFECTS := 0.6
 static var hot := false
+## Script + physics time over this share of a capped frame also counts as a warm second.
+const HOT_BUSY_SHARE := 0.7
+## Tests feed the script + physics milliseconds (-1 reads the engine).
+static var busy_override := -1.0
 static var hot_seconds := 0.0
 
 ## The 3D resolution scale on a phone (Viewport.scaling_3d_scale, bilinear): the world is
@@ -213,7 +217,7 @@ static func _watch_heat(tree: SceneTree, step: float) -> void:
 	var fps := _frame_rate()
 	# Under the 30 fps cap "warm" means sagging below the cap, not below HOT_FPS.
 	var hot_line := HOT_FPS if Engine.max_fps <= 0 else minf(HOT_FPS, Engine.max_fps * 0.85)
-	if fps > 0.0 and fps < hot_line:
+	if (fps > 0.0 and fps < hot_line) or _cpu_busy():
 		hot_seconds += step
 	else:
 		hot_seconds = maxf(0.0, hot_seconds - step)
@@ -224,6 +228,17 @@ static func _watch_heat(tree: SceneTree, step: float) -> void:
 		set_scale_3d(HOT_SCALE, tree)
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("if (window.toonSession && window.toonSession.mark) window.toonSession.mark('hot');", true)
+
+
+## The game's own work (scripts and physics) fills most of each capped frame: the frame
+## rate holds at the cap while the chip runs flat out (a v0.9.4 report at 30 fps: 26-35 ms
+## of script time a frame for twenty-seven minutes, then iOS closed the page).
+static func _cpu_busy() -> bool:
+	if Engine.max_fps <= 0:
+		return false
+	var busy_ms := busy_override if busy_override >= 0.0 else \
+		(Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)) * 1000.0
+	return busy_ms >= HOT_BUSY_SHARE * 1000.0 / float(Engine.max_fps)
 
 
 ## One reading of the frame rate: a slow stretch lowers the 3D scale a step, a fast one
