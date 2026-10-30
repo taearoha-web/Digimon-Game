@@ -11,8 +11,8 @@ extends RefCounted
 ##   +10 เพลิงแดงขีดสุด    red flames from the ground, a rising ember fountain, four fire orbs
 ##   +11 อัสนีอเมทิสต์     violet flames, lightning arcs, a charged ring
 ##   +12 ปีกแสงเทพ        wings of light, a halo, drifting light feathers
-##   +13 จักรวาลดารา       a nebula, twinkling stars, two planet orbits
-##   +14 มังกรหยกวิญญาณ    a jade spirit dragon coiling up around the body
+##   +13 จักรวาลดารา       nebula wings (violet to pink), twinkling stars, two planet orbits
+##   +14 มังกรหยกวิญญาณ    jade wings of light, a jade spirit dragon coiling up the body
 ##   +15 ตำนานสุริยะรุ้ง     a rainbow sun disc, rainbow wings, a crown of light, petals,
 ##                        and a spiral of light motes winding up the body
 
@@ -274,6 +274,7 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 		7:
 			_body_glow(root, Color("5a3dff"), head, 0.3, 2.8)
 			_body_glow(root, Color("ff4fb8"), head * 1.2, 0.18, 1.8)
+			_wings(root, head, [Color("8a7dff"), Color("c08bff"), Color("ff8fd8"), Color("9fb4ff")], 1.05)
 			_orbit_ring(root, Color("9fb4ff"), head * 0.55, 1.6, 0.0, 3.2, Color("bcd0ff"))
 			_orbit_ring(root, Color("ff9be0"), head * 0.9, 1.45, 0.35, -2.4, Color("ffb8ee"))
 			if rich:
@@ -282,6 +283,7 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 		8:
 			_body_glow(root, color, head, 0.26, 2.3)
 			_ring(root, Color("3dffb0"), 1.4, 0.05, 0.85, 2.4)
+			_wings(root, head, [Color("2affa0"), Color("7dffc4"), Color("19d98a")], 1.1)
 			_dragon(root, head)
 			if rich:
 				_sparkles(root, Vector3(0, head * 0.4, 0), Color("9fffd2"), 14, 0.9, 0.1, 0.9, 1.4)
