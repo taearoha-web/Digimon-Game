@@ -27,6 +27,15 @@ const DROP_RATE_POTION := 0.3
 const DROP_RATE_GEM := 0.07
 ## Chance that the Lv.100 boss drops a pair of wings (it respawns 1 minute after dying).
 const WING_DROP_RATE := 0.35
+## Gem overhaul drops (gem_bonus_drops): special gems (ItemData.SPECIAL_GEMS) and drills
+## (สว่านเจาะ) from ★-field monsters, field bosses and the world boss bounty.
+const SPECIAL_GEM_STAR := 0.01
+const SPECIAL_GEM_BOSS := 0.25
+const DRILL_STAR := 0.003
+const DRILL_BOSS := 0.2
+## A stat gem from a Lv.PERFECT_GEM_LEVEL+ monster (or a ★ field) is สมบูรณ์แบบ (size 3) this often.
+const PERFECT_GEM_CHANCE := 0.05
+const PERFECT_GEM_LEVEL := 80
 
 var zone_id: StringName = &"meadow"
 var data: Dictionary = {}
@@ -1004,6 +1013,12 @@ func _on_world_boss_died(mob: Mob) -> void:
 		Game.say("บอสโลกทิ้ง %s" % String(item.get("name", "")), &"info")
 	else:
 		_spawn_loot(item, 0, mob.global_position)
+	# The bounty also pays a big special gem and drills (gem_bonus_drops).
+	for extra in gem_bonus_drops(&"world_boss", _fortune(), rng):
+		if Game.add_item(extra):
+			Game.say("บอสโลกมอบ %s x%d" % [ItemData.name_of(extra), int(extra.get("count", 1))], &"info")
+		else:
+			_spawn_loot(extra, 0, mob.global_position)
 	if Game.has_signal("world_boss_defeated"):
 		Game.emit_signal("world_boss_defeated", Game.current_zone)
 
@@ -1044,6 +1059,8 @@ func _on_mob_died(mob: Mob) -> void:
 	var region_boost := 1.0 + maxf(0.0, float(data.get("gear_star",0)) / 25.0)
 	# In a party the EXP is shared by everyone in it (Game.share_party_exp).
 	var exp_gain := Game.share_party_exp(float(mob.stats.exp) * region_boost * share, int(mob.level))
+	# Tourmaline gems (fortune) raise the hero's own part only.
+	exp_gain = int(round(float(exp_gain) * (1.0 + _fortune())))
 	Game.add_exp(exp_gain)
 	BattleVfx.floating_text(self, mob.global_position + Vector3(0, mob.visual.height + 1.0, 0), ("+%d EXP ปาร์ตี้" if not Game.party().is_empty() else "+%d EXP") % exp_gain, Color("66e0ff"), 0.8)
 	if share < 0.5:
@@ -1058,6 +1075,9 @@ func _drop_loot(mob: Mob) -> void:
 	var gold: int = int(mob.stats.gold * rng.randf_range(0.7, 1.4) * WorldEvents.gold_multiplier(WorldPresence.clock()))
 	_spawn_loot({}, gold, from)
 	_drop_jewels(from)
+	var source := &"field_boss" if mob == _boss else (&"star" if is_star_field() and not mob.is_boss else &"")
+	for item in gem_bonus_drops(source, _fortune(), rng):
+		_spawn_loot(item, 0, from)
 	var boss := mob.is_boss
 	var class_id := Game.class_id()
 	if zone_id == DivineRegionData.ID:
@@ -1069,6 +1089,7 @@ func _drop_loot(mob: Mob) -> void:
 	# Rich zones (the Lv.100 void) override the default drop odds.
 	var loot: Dictionary = data.get("loot", {})
 	var boost := float(loot.get("rarity_boost", 0.0))
+	var luck := 1.0 + _fortune()
 	if boss:
 		# The field's own boss follows its drop table: its own slots, a favourite
 		# gem and chase pieces with a pity counter. Tower / arena bosses do not.
@@ -1082,7 +1103,7 @@ func _drop_loot(mob: Mob) -> void:
 			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity, slot), 0, from)
 		if table:
 			_boss_chase(mob, from, class_id, loot)
-		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)):
+		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)) * luck:
 			_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
 		if int(loot.get("boss_shards", 0)) > 0:
@@ -1098,20 +1119,20 @@ func _drop_loot(mob: Mob) -> void:
 				gem = ItemData.gem(BossLootData.gem_kind(mob.monster_id, rng), int(String(gem.id).split("_")[1]))
 			_spawn_loot(gem, 0, from)
 		return
-	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)):
+	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)) * luck:
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
-	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)):
+	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)) * luck:
 		var item := ItemData.generate(_gear_level(mob, loot), class_id, rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
 		_spawn_loot(item, 0, from)
-	if rng.randf() < float(loot.get("potion", DROP_RATE_POTION)):
+	if rng.randf() < float(loot.get("potion", DROP_RATE_POTION)) * luck:
 		var tier := "s" if mob.level < 9 else ("m" if mob.level < 22 else "l")
 		if mob.level >= 100:
 			tier = "xl" if rng.randf() < 0.7 else "xxl"
 		_spawn_loot(ItemData.potion(("hp_" if rng.randf() < 0.6 else "mp_") + tier, 1), 0, from)
-	if float(loot.get("shard", 0.0)) > 0.0 and rng.randf() < float(loot.shard):
+	if float(loot.get("shard", 0.0)) > 0.0 and rng.randf() < float(loot.shard) * luck:
 		Game.tower_add_shards(1)
 		BattleVfx.floating_text(self, from + Vector3(0, 1.6, 0), "ผลึกห้วงวิบัติ +1", Color("c58aff"), 0.9)
-	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing):
+	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing) * luck:
 		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
@@ -1122,10 +1143,11 @@ func _drop_loot(mob: Mob) -> void:
 func _drop_jewels(from: Vector3) -> void:
 	if is_town or is_pvp:
 		return
+	var luck := 1.0 + _fortune()
 	for id in ItemData.JEWEL_DROP:
-		if rng.randf() < float(ItemData.JEWEL_DROP[id]):
+		if rng.randf() < float(ItemData.JEWEL_DROP[id]) * luck:
 			_spawn_loot(ItemData.jewel(id), 0, from)
-	if int(data.get("star", 0)) >= ItemData.FEATHER_STARS and rng.randf() < ItemData.FEATHER_DROP:
+	if int(data.get("star", 0)) >= ItemData.FEATHER_STARS and rng.randf() < ItemData.FEATHER_DROP * luck:
 		_spawn_loot(ItemData.jewel("feather"), 0, from)
 		Game.say("ขนนกตกแล้ว! เอาไปตีปีก 100 ดาวที่ช่างตีเหล็ก", &"quest")
 
@@ -1170,7 +1192,7 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 	var pieces := 0
 	if mob.is_boss:
 		pieces = 3
-	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
+	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL) * (1.0 + _fortune()):
 		pieces = 1
 	for i in pieces:
 		_spawn_loot(StarProgression.random_item(Game.class_id(),stars,rng),0,from)
@@ -1193,10 +1215,55 @@ func _gear_level(mob: Mob, loot: Dictionary) -> int:
 	return Game.star_gear_level(bonus)
 
 
+## A stat gem (ItemData.STAT_GEMS: special gems only come from gem_bonus_drops).
+## Lv.PERFECT_GEM_LEVEL+ monsters and ★ fields roll a สมบูรณ์แบบ (size 3) gem now and then.
 func _random_gem(level: int, bonus_size: int) -> Dictionary:
-	var kinds := ItemData.GEMS.keys()
-	var size := clampi((0 if level < 12 else (1 if level < 26 else 2)) + (bonus_size if rng.randf() < 0.5 else 0), 0, 2)
-	return ItemData.gem(String(kinds[rng.randi() % kinds.size()]), size)
+	return random_stat_gem(level, bonus_size, is_star_field(), rng)
+
+
+static func random_stat_gem(level: int, bonus_size: int, star_field: bool, roll: RandomNumberGenerator) -> Dictionary:
+	var kinds := ItemData.STAT_GEMS
+	var size := clampi((0 if level < 12 else (1 if level < 26 else 2)) + (bonus_size if roll.randf() < 0.5 else 0), 0, 2)
+	if (level >= PERFECT_GEM_LEVEL or star_field) and roll.randf() < PERFECT_GEM_CHANCE:
+		size = 3
+	return ItemData.gem(String(kinds[roll.randi() % kinds.size()]), size)
+
+
+## A ★ region (or the divine one): any field of one star or more.
+func is_star_field() -> bool:
+	return bool(data.get("star_region", false)) or bool(data.get("divine_region", false)) or int(data.get("star", 0)) >= 1
+
+
+## The hero's fortune (tourmaline gems): extra EXP share and extra drop-chance share.
+func _fortune() -> float:
+	if is_instance_valid(hero) and hero.stats is Dictionary:
+		return float(hero.stats.get("fortune", 0.0))
+	return 0.0
+
+
+## The gem-overhaul drops of one kill or bounty. [param source]: &"star" (a ★-field
+## monster: special gem size 0-1 at SPECIAL_GEM_STAR, drill at DRILL_STAR), &"field_boss"
+## (special gem size 1-2 at SPECIAL_GEM_BOSS, drill at DRILL_BOSS) or &"world_boss" (one
+## special gem size 2-3 and 1-2 drills, always). Chances grow by (1 + fortune).
+static func gem_bonus_drops(source: StringName, fortune: float, roll: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	var luck := 1.0 + maxf(fortune, 0.0)
+	var specials := ItemData.SPECIAL_GEMS
+	match source:
+		&"star":
+			if roll.randf() < SPECIAL_GEM_STAR * luck:
+				out.append(ItemData.gem(specials[roll.randi() % specials.size()], roll.randi_range(0, 1)))
+			if roll.randf() < DRILL_STAR * luck:
+				out.append(ItemData.jewel("drill"))
+		&"field_boss":
+			if roll.randf() < SPECIAL_GEM_BOSS * luck:
+				out.append(ItemData.gem(specials[roll.randi() % specials.size()], roll.randi_range(1, 2)))
+			if roll.randf() < DRILL_BOSS * luck:
+				out.append(ItemData.jewel("drill"))
+		&"world_boss":
+			out.append(ItemData.gem(specials[roll.randi() % specials.size()], roll.randi_range(2, 3)))
+			out.append(ItemData.jewel("drill", roll.randi_range(1, 2)))
+	return out
 
 
 func _spawn_loot(item: Dictionary, gold: int, from: Vector3) -> void:

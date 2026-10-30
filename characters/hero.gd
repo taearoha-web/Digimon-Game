@@ -17,6 +17,16 @@ const SLOW_FACTOR := 0.6
 const FLY_HEIGHT := 0.9
 ## Forward lean (radians) while flying on the move.
 const FLY_LEAN := 0.38
+const LEECH_TEXT_MS := 700
+## A gem set's Thai note ("เลือดเดือด! ...") shows again only after this long.
+const GEM_NOTE_MS := 15000
+## Emerald set: 2% of max HP every 5 s in combat; sapphire set: 2% of max MP every 3 s.
+const GEM_REGEN_SHARE := 0.02
+const EMERALD_PERIOD := 5.0
+const SAPPHIRE_PERIOD := 3.0
+## Ruby set fires under this share of max HP, amethyst set under BULWARK_HP.
+const FURY_HP := 0.3
+const BULWARK_HP := 0.5
 
 var visual: HeroVisual
 var _equip_sig := ""
@@ -67,6 +77,17 @@ var _enemy_weaken_until := 0
 var _mark_word_at := {}
 var _regen_hp := 0.0
 var _regen_mp := 0.0
+## Lifesteal (pearl gems): healing below 1 HP carried to the next hit, and the "+N"
+## shown at most every LEECH_TEXT_MS (the sum of what was healed meanwhile).
+var _leech_left := 0.0
+var _leech_unshown := 0
+var _leech_text_at := -100000
+## Gem sets (HeroStats gem_set): which conditional set is on, the regen tick and
+## when each set last announced itself.
+var _fury_on := false
+var _bulwark_on := false
+var _gem_regen_time := 0.0
+var _gem_note_at := {}
 var _dead := false
 var _invulnerable_until := 0
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
@@ -604,6 +625,7 @@ func _tick_timers(delta: float) -> void:
 	if _regen_mp >= 1.0:
 		Game.profile.mp = mini(stats.max_mp, Game.profile.mp + int(_regen_mp))
 		_regen_mp -= int(_regen_mp)
+	_gem_set_tick(delta)
 
 
 func _read_move() -> Vector3:
@@ -748,7 +770,7 @@ func mp_cost(skill: Dictionary) -> int:
 
 
 func cooldown_of(skill: Dictionary) -> float:
-	return SkillRank.cooldown(skill, Game.effective_rank(skill)) * (1.0 - _haste())
+	return SkillRank.cooldown(skill, Game.effective_rank(skill)) * (1.0 - _haste()) * (1.0 - float(stats.get("cdr", 0.0)))
 
 
 ## Share of time DEX cuts from cooldowns, wind-ups and the basic attack interval.
@@ -1197,7 +1219,7 @@ func _heal(fraction: float, share := true) -> void:
 func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, skill := {}) -> void:
 	if not _valid_target(mob):
 		return
-	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08) * (1.0 - _enemy_mark("weaken"))
+	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08) * (1.0 - _enemy_mark("weaken")) * gem_atk_mult()
 	if not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
 	if _star_retaliation and not skill.is_empty() and StarProgression.has_full_set(Game.profile,"warrior"):
@@ -1209,7 +1231,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		if _star_combo_count>=6: raw*=1.25; _star_combo_count=0
 	var crit := randf() < float(stats.crit)
 	if crit:
-		raw *= HeroStats.CRIT_DAMAGE
+		raw *= crit_mult()
 		if StarProgression.has_full_set(Game.profile,"assassin"):
 			raw *= 1.1
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
@@ -1220,6 +1242,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	else:
 		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
 	var killed := mob.take_hit(amount, crit, color)
+	_leech(amount)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
 	var stop := HitFeel.stop_for(crit, mult if not skill.is_empty() else 0.0)
 	if stop > 0.0:
@@ -1286,7 +1309,95 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 
 ## DEF the hero mitigates with: lower while an enemy Bard's armour crack is on it.
 func effective_def() -> float:
-	return float(stats.def) * (1.0 - _enemy_mark("shred"))
+	return float(stats.def) * (1.0 - _enemy_mark("shred")) * gem_def_mult()
+
+
+# ---------------------------------------------------------------------------
+# Gem abilities (special gems and 12-gem sets, HeroStats.compute)
+# ---------------------------------------------------------------------------
+
+## Crit multiplier of the hero's hits: HeroStats.CRIT_DAMAGE plus onyx gems (crit_dmg).
+func crit_mult() -> float:
+	return HeroStats.CRIT_DAMAGE + float(stats.get("crit_dmg", 0.0))
+
+
+func _hp_rate() -> float:
+	return float(Game.profile.hp) / maxf(float(stats.get("max_hp", 1)), 1.0)
+
+
+## Ruby set (เลือดเดือด): ATK ×(1 + GEM_SET_FURY) while HP is under FURY_HP.
+func gem_atk_mult() -> float:
+	if String(stats.get("gem_set", "")) == "ruby" and Game.profile.hp > 0 and _hp_rate() < FURY_HP:
+		return 1.0 + HeroStats.GEM_SET_FURY
+	return 1.0
+
+
+## Amethyst set (ป้อมปราการ): DEF ×(1 + GEM_SET_BULWARK) while HP is under BULWARK_HP.
+func gem_def_mult() -> float:
+	if String(stats.get("gem_set", "")) == "amethyst" and Game.profile.hp > 0 and _hp_rate() < BULWARK_HP:
+		return 1.0 + HeroStats.GEM_SET_BULWARK
+	return 1.0
+
+
+## Pearl gems: the hero heals by its share (lifesteal) of the damage it deals.
+## Fractions carry over; the green "+N" is throttled to one every LEECH_TEXT_MS.
+func _leech(dealt: int) -> void:
+	var share := float(stats.get("lifesteal", 0.0))
+	if share <= 0.0 or dealt <= 0 or _dead:
+		return
+	_leech_left += float(dealt) * share
+	if _leech_left < 1.0:
+		return
+	var heal := int(_leech_left)
+	_leech_left -= float(heal)
+	var before: int = Game.profile.hp
+	Game.profile.hp = mini(int(stats.max_hp), before + heal)
+	_leech_unshown += Game.profile.hp - before
+	var now := Time.get_ticks_msec()
+	if _leech_unshown >= 1 and now - _leech_text_at >= LEECH_TEXT_MS and is_instance_valid(field):
+		_leech_text_at = now
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.3, 0), "+%d" % _leech_unshown, Color("6dff9a"), 0.7)
+		_leech_unshown = 0
+
+
+## The worn gem set at work: fury / bulwark switch on and off with HP (a Thai note
+## when one switches on, at most every GEM_NOTE_MS), emerald heals in combat and
+## sapphire restores MP on their periods. Topaz lives in HeroStats.compute.
+func _gem_set_tick(delta: float) -> void:
+	var gem_set := String(stats.get("gem_set", ""))
+	var fury := gem_atk_mult() > 1.0
+	if fury and not _fury_on:
+		_gem_note("ruby", "เลือดเดือด! พลังโจมตี +%d%%" % int(round(HeroStats.GEM_SET_FURY * 100.0)), Color("ff4a5a"))
+	_fury_on = fury
+	var bulwark := gem_def_mult() > 1.0
+	if bulwark and not _bulwark_on:
+		_gem_note("amethyst", "ป้อมปราการ! พลังป้องกัน +%d%%" % int(round(HeroStats.GEM_SET_BULWARK * 100.0)), Color("c46bff"))
+	_bulwark_on = bulwark
+	var period := EMERALD_PERIOD if gem_set == "emerald" else (SAPPHIRE_PERIOD if gem_set == "sapphire" else 0.0)
+	# Emerald heals only in combat (hit or attacking in the last few seconds).
+	if period <= 0.0 or (gem_set == "emerald" and (safe_zone or _since_hurt > 4.0)):
+		_gem_regen_time = 0.0
+		return
+	_gem_regen_time += delta
+	if _gem_regen_time < period:
+		return
+	_gem_regen_time -= period
+	if gem_set == "emerald":
+		var before: int = Game.profile.hp
+		Game.profile.hp = mini(int(stats.max_hp), before + maxi(1, int(float(stats.max_hp) * GEM_REGEN_SHARE)))
+		if Game.profile.hp > before and is_instance_valid(field):
+			BattleVfx.floating_text(field, global_position + Vector3(0, 2.3, 0), "+%d" % (Game.profile.hp - before), Color("4ae07a"), 0.7)
+	else:
+		Game.profile.mp = mini(int(stats.max_mp), Game.profile.mp + maxi(1, int(float(stats.max_mp) * GEM_REGEN_SHARE)))
+
+
+func _gem_note(gem_set: String, text: String, color: Color) -> void:
+	var now := Time.get_ticks_msec()
+	if now - int(_gem_note_at.get(gem_set, -GEM_NOTE_MS)) < GEM_NOTE_MS:
+		return
+	_gem_note_at[gem_set] = now
+	if is_instance_valid(field):
+		BattleVfx.floating_text(field, global_position + Vector3(0, 2.9, 0), text, color, 0.9)
 
 
 ## The strength of an enemy mark on the hero right now (0 once it ran out).
