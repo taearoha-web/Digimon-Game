@@ -368,6 +368,10 @@ func _song_left() -> float:
 	return super._song_left() if party_mode else BuffBook.song_left(_book.buffs)
 
 
+func _song_buffs() -> Array:
+	return super._song_buffs() if party_mode else _book.buffs
+
+
 func _hero_sings() -> bool:
 	return party_mode and super._hero_sings()
 

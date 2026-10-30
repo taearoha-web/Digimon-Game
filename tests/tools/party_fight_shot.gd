@@ -23,11 +23,13 @@ func _ready() -> void:
 	main.title_screen = null
 	main.hud.visible = true
 	Game.playing = true
-	var i := 0
-	while Game.world_party.size() < Game.PARTY_MAX and i < WorldPlayers.size():
-		Game.party_invite(i * 7 % WorldPlayers.size(), true)
-		i += 1
+	var n := 0
+	while Game.world_party.size() < Game.PARTY_MAX and n < WorldPlayers.size():
+		Game.party_invite(n * 7 % WorldPlayers.size(), true)
+		n += 1
+	print("party %d, going" % Game.world_party.size())
 	await main.go(&"meadow", true)
+	print("in meadow")
 	await get_tree().create_timer(1.5).timeout
 	var hero: Hero = main.zone.hero
 	# A pack right in front of the hero (tough, so it lasts the whole shot).

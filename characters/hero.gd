@@ -292,9 +292,14 @@ func song_entry() -> Dictionary:
 	return BuffBook.song_of(_buffs)
 
 
-## Seconds left of the hero's song (0 without one): AI Bards never sing over a long one.
+## Seconds left of the hero's newest song (0 without one).
 func song_left() -> float:
 	return BuffBook.song_left(_buffs)
+
+
+## The buffs songs are counted on (the party's song slots live on the hero).
+func song_buffs() -> Array:
+	return _buffs
 
 
 # ---------------------------------------------------------------------------
@@ -406,8 +411,14 @@ func _auto_cast(hp_rate: float) -> void:
 		match String(skill.shape):
 			"self":
 				if BuffBook.is_song_skill(skill):
-					var swap := fx.has("heal") and hp_rate < 0.45 and BuffBook.identity(song_entry()) != String(skill.id)
-					if song_left() >= 3.0 and not swap:
+					# Two songs play together: sing this one when it is not playing (or about
+					# to end) and a slot is free or the oldest song is about to end; a healing
+					# song comes in at once when badly hurt.
+					var own_left := BuffBook.song_left_of(_buffs, String(skill.id))
+					var swap := fx.has("heal") and hp_rate < 0.45 and own_left <= 0.0
+					var oldest := BuffBook.song_to_replace(_buffs)
+					var full := not oldest.is_empty() and float(oldest.until) - float(Time.get_ticks_msec()) >= 3000.0
+					if not swap and (own_left >= 3.0 or full):
 						continue
 				else:
 					var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)

@@ -524,6 +524,22 @@ func _song_left() -> float:
 	return hero.song_left()
 
 
+## The buffs the party's song slots are counted on (the hero's).
+func _song_buffs() -> Array:
+	return hero.song_buffs()
+
+
+## Whether a song may go in now: a slot is free, or the oldest song (the one a new song
+## would take over from) is not the player's own and, unless `urgent`, is about to end.
+func _song_slot_open(urgent: bool) -> bool:
+	var oldest := BuffBook.song_to_replace(_song_buffs())
+	if oldest.is_empty():
+		return true
+	if not bool(oldest.get("ally", false)):
+		return false
+	return urgent or float(oldest.until) - float(Time.get_ticks_msec()) < 10000.0
+
+
 ## Whether the song playing is the hero's own: an AI Bard never sings over a player's song.
 func _hero_sings() -> bool:
 	var song := _song_entry()
@@ -693,16 +709,15 @@ func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	return score
 
 
-## A song for the party: never over the player's own song or over one with 10 s
-## left (two AI Bards do not take turns), the strongest attack song first in a fight,
-## and a healing song at once when the hero is badly hurt.
+## A song for the party (two play together): never one already playing with 10 s left,
+## never over the player's own song, the strongest attack song first in a fight, and a
+## healing song at once when the hero is badly hurt.
 func _song_score(skill: Dictionary, hero_hp: float) -> float:
 	var fx: Dictionary = skill.fx
-	if _hero_sings():
-		return 0.0
-	if fx.has("heal") and hero_hp < 0.45 and BuffBook.identity(_song_entry()) != String(skill.id):
+	var playing := BuffBook.song_left_of(_song_buffs(), String(skill.id))
+	if fx.has("heal") and hero_hp < 0.45 and playing <= 0.0 and _song_slot_open(true):
 		return 10.0
-	if _song_left() >= 10.0 or not _in_combat():
+	if playing >= 10.0 or not _in_combat() or not _song_slot_open(false):
 		return 0.0
 	return 7.0 + float(fx.buff.get("atk", 0.0)) + 0.5 * float(fx.buff.get("crit", 0.0)) + 0.001 * float(member.get("level", 1))
 
