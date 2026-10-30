@@ -163,6 +163,7 @@ jobs:
           export CHROMIUM_PATH
           echo "browser: ${CHROMIUM_PATH:-playwright chromium}"
           node tools/test_web_offline.mjs
+          node tools/test_accounts_client.mjs
           node hosting/accounts/tests/static.test.mjs
       - name: Check gear geometry and distant monsters
         env:
