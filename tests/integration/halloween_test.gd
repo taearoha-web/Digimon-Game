@@ -63,7 +63,11 @@ func _ready() -> void:
 	at(start)
 	Game.profile.inv = [ItemData.potion("halloween", 2)]
 	check(Game.exp_boost_mult() == 1.0 and Game.exp_boost_text() == "", "no boost before drinking")
+	var atk_before := float(Game.stats_now().atk)
+	check(Game.boost_drop() == 0.0, "no extra drop chance before drinking")
 	check(Game.use_potion_at(0) == "halloween", "drinking the potion")
+	check(is_equal_approx(float(Game.stats_now().atk), atk_before * (1.0 + Game.BOOST_ATK)), "the potion gives +10% attack")
+	check(is_equal_approx(Game.boost_drop(), 0.1), "the potion gives +10% drop chance")
 	var mult := Game.exp_boost_mult()
 	check(mult == 2.0 or mult == 3.0, "EXP x2 or x3 (x%d)" % int(mult))
 	check(Game.potion_count("halloween") == 1, "one potion used up")
@@ -83,6 +87,7 @@ func _ready() -> void:
 	check(Game.exp_boost_mult() == mult and Game.exp_boost_text().contains("1 นาที"), "back at 20:59: one minute left")
 	at(start + 3600)
 	check(Game.exp_boost_mult() == 1.0 and Game.exp_boost_text() == "", "at 21:00 the boost has run out even though the game was closed")
+	check(is_equal_approx(float(Game.stats_now().atk), float(HeroStats.compute(Game.profile).atk)) and Game.boost_drop() == 0.0, "attack and drop bonus end with it")
 	at(thai(2026, 10, 31, 22))
 	Game.profile.exp = 0
 	Game.add_exp(100)

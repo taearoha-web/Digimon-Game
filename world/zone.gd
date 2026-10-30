@@ -1015,7 +1015,7 @@ func _on_world_boss_died(mob: Mob) -> void:
 	else:
 		_spawn_loot(item, 0, mob.global_position)
 	# The bounty also pays a big special gem and drills (gem_bonus_drops).
-	for extra in gem_bonus_drops(&"world_boss", _fortune(), rng):
+	for extra in gem_bonus_drops(&"world_boss", _drop_fortune(), rng):
 		if Game.add_item(extra):
 			Game.say("บอสโลกมอบ %s x%d" % [ItemData.name_of(extra), int(extra.get("count", 1))], &"info")
 		else:
@@ -1077,7 +1077,7 @@ func _drop_loot(mob: Mob) -> void:
 	_spawn_loot({}, gold, from)
 	_drop_jewels(from)
 	var source := &"field_boss" if mob == _boss else (&"star" if is_star_field() and not mob.is_boss else &"")
-	for item in gem_bonus_drops(source, _fortune(), rng):
+	for item in gem_bonus_drops(source, _drop_fortune(), rng):
 		_spawn_loot(item, 0, from)
 	var boss := mob.is_boss
 	var class_id := Game.class_id()
@@ -1090,7 +1090,7 @@ func _drop_loot(mob: Mob) -> void:
 	# Rich zones (the Lv.100 void) override the default drop odds.
 	var loot: Dictionary = data.get("loot", {})
 	var boost := float(loot.get("rarity_boost", 0.0))
-	var luck := 1.0 + _fortune()
+	var luck := 1.0 + _drop_fortune()
 	if boss:
 		# The field's own boss follows its drop table: its own slots, a favourite
 		# gem and chase pieces with a pity counter. Tower / arena bosses do not.
@@ -1144,7 +1144,7 @@ func _drop_loot(mob: Mob) -> void:
 func _drop_jewels(from: Vector3) -> void:
 	if is_town or is_pvp:
 		return
-	var luck := 1.0 + _fortune()
+	var luck := 1.0 + _drop_fortune()
 	for id in ItemData.JEWEL_DROP:
 		if rng.randf() < float(ItemData.JEWEL_DROP[id]) * luck:
 			_spawn_loot(ItemData.jewel(id), 0, from)
@@ -1197,7 +1197,7 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 	var pieces := 0
 	if mob.is_boss:
 		pieces = 3
-	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL) * (1.0 + _fortune()):
+	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL) * (1.0 + _drop_fortune()):
 		pieces = 1
 	for i in pieces:
 		_spawn_loot(StarProgression.random_item(Game.class_id(),stars,rng),0,from)
@@ -1244,6 +1244,11 @@ func _fortune() -> float:
 	if is_instance_valid(hero) and hero.stats is Dictionary:
 		return float(hero.stats.get("fortune", 0.0))
 	return 0.0
+
+
+## Luck of the drops only (not EXP): fortune plus a running Halloween potion's bonus.
+func _drop_fortune() -> float:
+	return _fortune() + Game.boost_drop()
 
 
 ## The gem-overhaul drops of one kill or bounty. [param source]: &"star" (a ★-field
