@@ -121,7 +121,8 @@ func responder(text: String) -> int:
 
 
 ## What the player is told: the line, who it is and who the hero is, the talk so far
-## (ChatBrain.reply reads it; the same shape as hosting/worker/chat.mjs readChat).
+## and the Thai hour (ChatBrain.reply reads it; the same shape as hosting/worker/chat.mjs
+## readChat, plus `hour`).
 func request_body(i: int, text: String, channel: String) -> Dictionary:
 	var t := WorldPresence.clock()
 	var s := WorldPlayers.state(i, t)
@@ -139,6 +140,7 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 	return {
 		"text": text,
 		"channel": channel,
+		"hour": WorldEvents.time_of_day(t) / 3600,
 		"player": {
 			"name": String(s.name),
 			"class": String(ClassData.get_class_data(StringName(s["class"])).get("name", "")),

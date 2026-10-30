@@ -3,6 +3,8 @@ extends Node
 ## transport records what would be sent to the account server and answers like it. The
 ## request carries who the player is and the talk so far, the answer shows in the world
 ## chat, its action goes through the game's own party rules, errors and silence are told.
+## ChatBrain: the intents, the memory of the talk (a second greeting, a yes after the
+## player's own question), the tones by play style, questions back and the explanations.
 
 var checks := 0
 var failures := 0
@@ -137,6 +139,88 @@ func _ready() -> void:
 	check(fit != "" and String(ask.call("เก็บเลเวลที่ไหนดี", hunter).reply).contains(fit), "where to hunt names the field for the hero's level (%s)" % fit)
 	check(String(ask.call("เป็นบอทเหรอ", hunter).reply).contains("AI"), "a player says it is one of the game's AI players")
 	check(String(ask.call("อากาศดีจัง", hunter).reply) != "", "anything else gets small talk")
+	check(ask.call("อากาศดีจัง", hunter) == ask.call("อากาศดีจัง", hunter), "the same line gets the same answer")
+	# Memory of the talk: a second greeting is noticed; a yes completes the player's own
+	# question (read back from its last line), a no lets it go.
+	var talk := func(text: String, who: Dictionary, history: Array) -> Dictionary:
+		return ChatBrain.reply({"text": text, "player": who, "hero": hero, "history": history})
+	var first := String(ask.call("สวัสดี", hunter).reply)
+	var again: Dictionary = talk.call("หวัดดี", hunter, [{"who": "hero", "text": "สวัสดี"}, {"who": "player", "text": first}])
+	check(not first.contains("ทักอีกแล้ว") and String(again.reply).contains("ทักอีกแล้ว 555 มีอะไรให้ช่วยไหม"), "a second greeting in a row is noticed (%s / %s)" % [first, again.reply])
+	var offered: Array = [{"who": "hero", "text": "ไปไหนดี"}, {"who": "player", "text": "เลเวลคุณไปทุ่งหญ้าเลย อยากให้พาไปสนามไหนไหม?"}]
+	var yes: Dictionary = talk.call("ได้เลยครับ", hunter, offered)
+	check(String(yes.action) == "join_party" and String(yes.reply) == "งั้นไปกัน!", "a yes after the party question joins (%s)" % [yes])
+	check(String(talk.call("ได้", seller, offered).action) == "none", "a keeper still keeps its stall")
+	check(String(talk.call("ไม่เอา", hunter, offered).action) == "none" and ChatBrain.NO.has(String(talk.call("ไม่เอา", hunter, offered).reply)), "a no lets it go")
+	check(String(talk.call("ไปปาร์ตี้กันไหม", hunter, offered).action) == "join_party", "a longer line after a question is read as itself")
+	var stall_offer: Array = [{"who": "hero", "text": "ตี้ไหม"}, {"who": "player", "text": ChatBrain.BUSY_STALL[0]}]
+	check(String(talk.call("โอเค", seller, stall_offer).action) == "open_stall", "a yes after the stall offer opens the stall")
+	var help_offer: Array = [{"who": "hero", "text": "หวัดดี"}, {"who": "player", "text": ChatBrain.GREET_AGAIN}]
+	check(String(talk.call("เอาสิ", hunter, help_offer).reply) == ChatBrain.HELP_READY, "a yes after 'anything I can help with' asks for the question")
+	var lv_q: Array = [{"who": "hero", "text": "ดีจ้า"}, {"who": "player", "text": "สวัสดีจ้า! แล้วคุณเลเวลเท่าไหร่แล้ว?"}]
+	check(String(talk.call("25 แล้ว", hunter, lv_q).reply).contains("Lv.25") and String(talk.call("9", hunter, lv_q).reply).contains("Lv.9"), "a level answered is compared with the player's own")
+	check(ChatBrain.short_answer("ได้เลยครับ") == "yes" and ChatBrain.short_answer("โอเคๆ") == "yes" and ChatBrain.short_answer("ไม่ล่ะ") == "no" and ChatBrain.short_answer("ได้ไหม") == "" and ChatBrain.short_answer("เอาของมาขายไหม") == "", "short answers are read, questions are not")
+	# Personality by play style: the same line, another tone.
+	var hard := hunter.duplicate()
+	hard["style"] = "ขาโหด"
+	var chill := hunter.duplicate()
+	chill["style"] = "เล่นชิลล์"
+	var hard_hi := String(ask.call("สวัสดี", hard).reply)
+	var chill_hi := String(ask.call("สวัสดี", chill).reply)
+	check(hard_hi != chill_hi and ChatBrain.TONE_GREET.hardcore.any(func(g): return hard_hi.contains(g)) and ChatBrain.TONE_GREET.casual.any(func(g): return chill_hi.contains(g)), "a hardcore and a casual player greet differently (%s / %s)" % [hard_hi, chill_hi])
+	check(String(ask.call("เลเวลเท่าไหร่", hard).reply).contains("ลุย"), "a hardcore player talks in numbers and ลุย")
+	var newbie := hunter.duplicate()
+	newbie["level"] = 5
+	check(ChatBrain.tone_of(newbie) == "newbie" and ChatBrain.TONE_GREET.newbie.any(func(g): return String(ask.call("สวัสดี", newbie).reply).contains(g)), "a newcomer is humble")
+	check(ChatBrain.tone_of(seller) == "stall" and ChatBrain.TONE_GREET.stall.any(func(g): return String(ask.call("สวัสดี", seller).reply).contains(g)), "a keeper pitches its wares")
+	var owl := hunter.duplicate()
+	owl["style"] = "สายนอนดึก"
+	var sleepy := 0
+	var awake := 0
+	for n in 40:
+		var who := owl.duplicate()
+		who["name"] = "Owl%d" % n
+		var late := String(ChatBrain.reply({"text": "อากาศดีจัง", "player": who, "hero": hero, "history": [], "hour": 1}).reply)
+		var day := String(ChatBrain.reply({"text": "อากาศดีจัง", "player": who, "hero": hero, "history": [], "hour": 14}).reply)
+		if ChatBrain.SUFFIX.night_late.any(func(x): return late.contains(x)):
+			sleepy += 1
+		if ChatBrain.SUFFIX.night_late.any(func(x): return day.contains(x)):
+			awake += 1
+	check(sleepy > 0 and awake == 0, "a night owl is sleepy late at night, not by day (%d/%d)" % [sleepy, awake])
+	# Questions back: on some plain answers, never on orders.
+	var asked := 0
+	var ordered := 0
+	for n in 60:
+		var who := hunter.duplicate()
+		who["name"] = "Hunter%d" % n
+		if String(ask.call("อากาศดีจัง", who).reply).ends_with("?"):
+			asked += 1
+		for line in ["ไปปาร์ตี้กันไหม", "บาย ไปก่อนนะ", "โง่"]:
+			var out: Dictionary = ask.call(line, who)
+			if String(out.reply).ends_with("?") or String(out.reply).ends_with("ไหม"):
+				ordered += 1
+	check(asked >= 8 and asked <= 30, "about 30%% of plain answers ask back (%d of 60)" % asked)
+	check(ordered == 0, "orders and deflections never ask back (%d)" % ordered)
+	# Explaining the game, and the new intents.
+	var plus := String(ask.call("ตีบวกยังไง", hunter).reply)
+	check(plus.contains("+6") and plus.contains("+%d" % ItemData.MAX_PLUS) and plus.contains("50%"), "how to enhance mentions the safe + and the odds (%s)" % plus)
+	var events := String(ask.call("อีเวนต์มีตอนไหน", hunter).reply)
+	check(events.contains(WorldEvents.NAME_EXP) and events.contains("19:00-21:00") and events.contains(WorldEvents.NAME_BOSS) and events.contains("20:30"), "events are explained with their times (%s)" % events)
+	check(String(ask.call("กิลด์เข้ายังไง", hunter).reply).contains("Lv.%d" % Game.GUILD_LEVEL), "how to join a guild names the level")
+	check(String(ask.call("ฝากขายทำไง", hunter).reply).contains("1.5"), "how stalls work names the consignment bonus")
+	check(String(ask.call("ดาวคืออะไร", hunter).reply).contains("★") and String(ask.call("ปาร์ตี้ทำยังไง", hunter).reply).contains("ตามมา"), "stars and parties are explained")
+	check(String(ask.call("ทำยังไงดี", hunter).reply) == ChatBrain.HELP_ANY, "a how without a topic lists them")
+	for text in ChatBrain.HELP_TOPICS.map(func(e): return ChatBrain.help_text(String(e[0]))):
+		check(String(text).length() <= 150, "an explanation fits the bubble (%d)" % String(text).length())
+	check(String(ask.call("อยู่ไหน", hunter).reply).contains("ป่าเงาม่วง"), "where are you names the place")
+	check(String(ask.call("ตอนนี้อยู่ที่ไหน", seller).reply).contains("ร้าน"), "a keeper is at its stall")
+	check(String(ask.call("มาหาหน่อย", hunter).reply).contains("หมู่บ้าน") and String(ask.call("มาหาหน่อย", hunter).action) == "none", "come here: meet in the village")
+	check(String(ask.call("มาเจอกันหน่อย เทรดของ", seller).action) == "open_stall", "come and trade with a keeper opens its stall")
+	var rude: Dictionary = ask.call("โง่จัง", hunter)
+	check(ChatBrain.RUDE.has(String(rude.reply)) and String(rude.action) == "none", "rudeness is deflected politely (%s)" % rude.reply)
+	check(ChatBrain.THANKS_PARTY.has(String(ask.call("ขอบคุณที่พาไปนะ", mate).reply)), "thanks for the party is answered as such")
+	check(ChatBrain.HOWRU.any(func(x): return String(ask.call("เป็นยังไงบ้าง", hunter).reply).contains(x)), "how are you is small talk, not a how-to")
+	check(String(ask.call("บาย ไปก่อนนะ", mate).action) == "leave_party" and String(ask.call("ไปปาร์ตี้กันไหม", hunter).action) == "join_party", "orders still act as before")
 	# Long lines are cut before they leave.
 	chat.submit("ก".repeat(500), {"index": target, "channel": "direct"})
 	check(String((fake.sent[-1] as Dictionary).text).length() == 200, "a long line is cut to 200 characters")
