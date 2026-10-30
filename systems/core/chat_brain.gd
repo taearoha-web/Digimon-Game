@@ -524,7 +524,7 @@ static func help_topic(text: String) -> String:
 static func help_text(topic: String) -> String:
 	match topic:
 		"enhance":
-			return "ตีบวกกับช่างตีเหล็กในหมู่บ้าน ถึง +6 ติดชัวร์ใช้เพชรม่วง +7 ถึง +%d ลุ้น 50%% ใช้เพชรชมพู พลาดแค่เสียเพชร แหวนกับสร้อยตีไม่ได้" % ItemData.MAX_PLUS
+			return "ตีบวกที่ช่างตีเหล็ก ถึง +6 ติดชัวร์ +7 ถึง +10 ลุ้น 50%% +11 ถึง +%d ยากขึ้นเรื่อย ๆ พลาดแค่เสียเพชร ครบชุดได้ออร่า" % ItemData.MAX_PLUS
 		"stars":
 			return "ดาว ★ ได้หลัง Lv.%d เก็บ EXP ต่อเหมือนเลเวล ได้แต้มดาวมาอัปสเตตัส ดาวเยอะถึงเข้าสนามดาวได้" % Game.MAX_LEVEL
 		"guild":

@@ -720,10 +720,12 @@ func _make_aura() -> void:
 		var item: Dictionary = equip[slot]
 		if int(item.get("rarity", 0)) >= 3:
 			color = Color("c46bff")
-	var best := EnhanceFx.best_plus(equip)
-	if best >= 4:
-		color = EnhanceFx.color_of(best)
-		for made in EnhanceFx.on_body(self, best, decor_light):
+	# The body aura is the whole set's: the lowest + of weapon, armour, helm, boots and
+	# wings (each piece still glows by its own +).
+	var whole := EnhanceFx.set_plus(equip)
+	if whole >= EnhanceFx.AURA_STEPS[0]:
+		color = EnhanceFx.color_of(whole)
+		for made in EnhanceFx.on_body(self, whole, decor_light):
 			made.set_meta("far_decor", true)
 			_body_nodes.append(made)
 	var tier := _top_tier()
@@ -756,7 +758,7 @@ func _make_aura() -> void:
 	quad.material = mat
 	p.mesh = quad
 	var grand := maxi(tier - 5, 0)
-	p.amount = VfxBudget.count(14 + grand * 10 + (best * 3 if best >= 4 else 0))
+	p.amount = VfxBudget.count(14 + grand * 10 + EnhanceFx.aura_step(whole) * 2)
 	p.lifetime = 1.5 + 0.1 * float(grand)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.55 + 0.08 * float(grand)
