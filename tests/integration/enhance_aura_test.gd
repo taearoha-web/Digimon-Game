@@ -2,7 +2,7 @@ extends Node
 ## Enhancing to +15 and the set aura: the forge goes to ItemData.MAX_PLUS (15) with
 ## harder steps from +11 (ENHANCE_HIGH); every piece glows by its own +, and the body
 ## aura (nine steps, EnhanceFx.AURA_STEPS) comes only from the whole set's lowest +
-## (weapon, armour, helm, boots, wings).
+## (weapon, armour, helm, boots; wings are not counted).
 ##   godot --headless --path . res://tests/integration/enhance_aura_test.tscn
 
 var checks := 0
@@ -64,24 +64,28 @@ func _ready() -> void:
 		names[EnhanceFx.look_name(p)] = true
 	check(names.size() == 9, "each step has its own name")
 	# The whole set decides the aura: its lowest +, a missing piece counts +0.
-	check(EnhanceFx.set_plus(_gear({"weapon": 15, "armor": 12, "helm": 12, "boots": 11, "wings": 12})) == 11, "the set's lowest + (11)")
-	check(EnhanceFx.set_plus(_gear({"weapon": 15, "armor": 15, "helm": 15, "boots": 15, "wings": null})) == 0, "no wings: no set aura")
+	check(EnhanceFx.set_plus(_gear({"weapon": 15, "armor": 12, "helm": 12, "boots": 11, "wings": 3})) == 11, "the set's lowest + (11), wings not counted")
+	check(EnhanceFx.set_plus(_gear({"weapon": 15, "armor": 15, "helm": 15, "boots": 15, "wings": null})) == 15, "no wings needed for the aura")
+	check(EnhanceFx.set_plus(_gear({"weapon": 15, "armor": 15, "helm": null, "boots": 15})) == 0, "a missing helm counts +0")
 	check(EnhanceFx.set_plus(_gear({"weapon": 15, "armor": 0})) == 0, "one piece at +15 alone gives no aura")
 
 	# Built on a hero: SetAura only with a full set at +5 or more; pieces glow on their own.
-	for case in [[{"weapon": 15}, false], [{"weapon": 5, "armor": 5, "helm": 5, "boots": 5, "wings": 5}, true],
-			[{"weapon": 12, "armor": 12, "helm": 12, "boots": 12, "wings": 12}, true], [{"weapon": 15, "armor": 15, "helm": 15, "boots": 15, "wings": 15}, true]]:
+	for case in [[{"weapon": 15}, false], [{"weapon": 5, "armor": 5, "helm": 5, "boots": 5}, true],
+			[{"weapon": 12, "armor": 12, "helm": 12, "boots": 12}, true], [{"weapon": 15, "armor": 15, "helm": 15, "boots": 15}, true]]:
 		var h := HeroVisual.new()
 		add_child(h)
 		h.setup(&"warrior", "", true, _gear(case[0]), FaceKit.default_look())
 		await get_tree().process_frame
 		var aura := h.find_child("SetAura", true, false)
 		check((aura != null) == bool(case[1]), "set %s -> aura %s" % [case[0], case[1]])
-		if case[0].size() == 5 and int(case[0].weapon) == 12:
+		if case[0].size() == 4 and int(case[0].weapon) == 12:
 			check(aura != null and aura.get_child_count() > 0, "+12 builds its wings")
-		if case[0].size() == 5 and int(case[0].weapon) == 15:
+		if case[0].size() == 4 and int(case[0].weapon) == 15:
 			check(aura != null and aura.get_child_count() >= 6, "+15 builds its sun, wings, crown and rings")
 		h.queue_free()
 		await get_tree().process_frame
+	# Jewels and feathers fly to the hero from anywhere in the field.
+	var src := FileAccess.get_file_as_string("res://world/loot_drop.gd")
+	check(src.contains('== "jewel"') and src.contains("_magnet = true"), "jewel and feather drops fly to the hero from anywhere")
 	print("ENHANCE AURA: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)

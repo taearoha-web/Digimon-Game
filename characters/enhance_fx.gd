@@ -4,16 +4,17 @@ extends RefCounted
 ## Every piece glows by its own +: a pulsing overlay in its aura step's colour, stronger
 ## (grade 1-4) the higher it goes, with sparkles and, at the top, flames on the weapon.
 ## The body aura comes only from the whole set: the lowest + among the weapon, armour,
-## helm, boots and wings (set_plus). It has nine steps (AURA_STEPS):
+## helm and boots (set_plus; wings are not counted). It has nine steps (AURA_STEPS):
 ##   +5  ประกายฟ้า        pale-blue rim glow, thin ring, rising sparkles
 ##   +7  ชีพจรคราม        teal aura, a spinning rune ring
 ##   +9  ทองลุกโชน        golden aura, double ring, halo, three orbiting lights
-##   +10 เพลิงแดงขีดสุด    red flames from the ground, a light pillar, four fire orbs
+##   +10 เพลิงแดงขีดสุด    red flames from the ground, a rising ember fountain, four fire orbs
 ##   +11 อัสนีอเมทิสต์     violet flames, lightning arcs, a charged ring
 ##   +12 ปีกแสงเทพ        wings of light, a halo, drifting light feathers
 ##   +13 จักรวาลดารา       a nebula, twinkling stars, two planet orbits
 ##   +14 มังกรหยกวิญญาณ    a jade spirit dragon coiling up around the body
-##   +15 ตำนานสุริยะรุ้ง     a rainbow sun disc, rainbow wings, a crown of light, petals
+##   +15 ตำนานสุริยะรุ้ง     a rainbow sun disc, rainbow wings, a crown of light, petals,
+##                        and a spiral of light motes winding up the body
 
 const AURA_STEPS: Array[int] = [5, 7, 9, 10, 11, 12, 13, 14, 15]
 const AURA_COLORS: Array[Color] = [Color("a8dcff"), Color("7cc8ff"), Color("36f0d0"), Color("ffc93c"), Color("ff4a28"),
@@ -21,7 +22,7 @@ const AURA_COLORS: Array[Color] = [Color("a8dcff"), Color("7cc8ff"), Color("36f0
 const AURA_NAMES: Array[String] = ["ประกายจาง", "ประกายฟ้า", "ชีพจรคราม", "ทองลุกโชน", "เพลิงแดงขีดสุด",
 	"อัสนีอเมทิสต์", "ปีกแสงเทพ", "จักรวาลดารา", "มังกรหยกวิญญาณ", "ตำนานสุริยะรุ้ง"]
 ## The pieces whose lowest + gives the body aura.
-const SET_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "wings"]
+const SET_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots"]
 ## Kept for older callers: the name of a piece's look by grade.
 const NAMES: Array[String] = ["", "ประกายจาง", "เรืองแสง", "ลุกโชน", "ขีดสุด"]
 
@@ -252,7 +253,7 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 			_ring(root, Color("ff5a30"), 1.35, 0.05, 0.85, 2.6)
 			_orbs(root, Color("ffe0c0"), 4, 1.2, head * 0.5, 1.8, 0.1)
 			if rich:
-				made.append(_pillar(visual, Color("ff6a3c"), head * 2.0))
+				_embers(root, Color("ffb070"), head)
 				_flames(root, Vector3(0, 0.1, 0), 0.9, 22)
 				_sparkles(root, Vector3(0, head * 0.4, 0), Color("ffb070"), 14, 0.8, 0.1, 1.2, 1.2)
 		5:
@@ -260,7 +261,7 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 			_ring(root, Color("c48bff"), 1.38, 0.05, 0.85, 2.2)
 			_lightning(root, Color("e2c8ff"), head, 5)
 			if rich:
-				made.append(_pillar(visual, Color("9a4dff"), head * 2.0))
+				_embers(root, Color("d9b8ff"), head)
 				_flames(root, Vector3(0, 0.1, 0), 0.85, 20, Color("f2e4ff"), Color("a35cff"), Color("4a12b0"))
 				_sparkles(root, Vector3(0, head * 0.4, 0), Color("e2c8ff"), 14, 0.8, 0.1, 1.0, 1.2)
 		6:
@@ -295,7 +296,7 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 			_ring(root, Color.from_hsv(0.1, 0.6, 1.0), 1.45, 0.05, 0.85, 2.0)
 			_ring(root, Color.from_hsv(0.6, 0.6, 1.0), 1.12, 0.07, 0.7, -2.6)
 			if rich:
-				made.append(_pillar(visual, Color("fff0c0"), head * 2.2))
+				_spiral(root, head)
 				_sparkles(root, Vector3(0, head * 0.7, 0), Color("ffd6f0"), 16, 1.1, 0.14, -0.3, 3.0)
 				_sparkles(root, Vector3(0, head * 0.4, 0), Color.WHITE, 14, 0.9, 0.08, 0.8, 1.4)
 	return made
@@ -395,10 +396,33 @@ static func _orbs(root: Node3D, color: Color, count: int, r: float, y: float, pe
 	spin.tween_property(orbit, "rotation:y", TAU, period).from(0.0)
 
 
-static func _pillar(visual: Node3D, color: Color, height: float) -> Node:
-	var beam := VfxKit.loot_beam(visual, color, height)
-	beam.scale = Vector3(0.09, height, 0.09)
-	return beam
+## A fountain of embers rising from the feet past the head (no hard beam).
+static func _embers(root: Node3D, color: Color, head: float) -> void:
+	var p := _sparkles(root, Vector3(0, 0.15, 0), color, 16, 0.5, 0.09, 1.6, 1.5)
+	p.spread = 12.0
+	p.gravity = Vector3(0, 0.6, 0)
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.3
+
+
+## Rainbow light motes winding up around the body (the +15 crown of the aura).
+static func _spiral(root: Node3D, head: float) -> void:
+	var holder := Node3D.new()
+	holder.name = "Spiral"
+	root.add_child(holder)
+	var count := 14
+	for i in count:
+		var t := float(i) / float(count)
+		var a := t * 2.0 * TAU
+		var mote := MeshInstance3D.new()
+		mote.mesh = MeshKit.sphere_low()
+		mote.material_override = _glow_material(Color.from_hsv(t, 0.55, 1.0), 0.95)
+		mote.scale = Vector3.ONE * (0.09 + 0.05 * sin(t * PI))
+		mote.position = Vector3(cos(a) * 0.62, 0.15 + t * (head + 0.2), sin(a) * 0.62)
+		_unshaded(mote)
+		holder.add_child(mote)
+	var spin := holder.create_tween().set_loops()
+	spin.tween_property(holder, "rotation:y", TAU, 3.5).from(0.0)
 
 
 ## Short lightning arcs around the body that jump to new places a few times a second.
