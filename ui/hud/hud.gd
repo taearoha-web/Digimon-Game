@@ -28,6 +28,12 @@ const SKILL_SLOT_CLEAR := 44.0
 const SKILL_RADIUS := 32.0
 ## The last skill slot's centre from the frame's right edge (clear of the attack button).
 const SKILL_ROW_RIGHT := -194.0
+## The tracker and the world-event chip under the minimap: their top and right edge
+## (the minimap's left edge, clear of the raven buttons left of the auto button) and
+## the gap the chip keeps under the tracker's lines.
+const TRACKER_TOP := 252.0
+const TRACKER_RIGHT := -150.0
+const EVENT_CHIP_GAP := 6.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
@@ -65,7 +71,8 @@ var _boss_panel: PanelContainer
 var _timers: TimerBars
 var _tracker: Label
 var _tracker_timer := 0.0
-## World event chip under the tracker (WorldEvents.describe), refreshed once a second.
+## World event chip under the tracker (WorldEvents.describe), refreshed once a second
+## and placed by _place_event_chip under however many tracker lines there are.
 var _event_chip: PanelContainer
 var _event_label: Label
 var _event_in := 0.0
@@ -265,6 +272,7 @@ func _process(delta: float) -> void:
 		_event_in = 1.0
 		_event_label.text = WorldEvents.describe(WorldPresence.clock())
 		_event_chip.visible = _event_label.text != ""
+		_place_event_chip()
 
 
 func _refresh() -> void:
@@ -385,6 +393,7 @@ func _update_tracker(delta: float) -> void:
 	_tracker_timer = 0.5
 	if Game.profile.is_empty() or zone.is_town:
 		_tracker.visible = false
+		_place_event_chip()
 		return
 	_tracker.visible = true
 	var lines: PackedStringArray = []
@@ -399,6 +408,19 @@ func _update_tracker(delta: float) -> void:
 			done += 1
 	lines.append("รายวัน: เสร็จ %d/3" % done)
 	_tracker.text = "\n".join(lines)
+	_place_event_chip()
+
+
+## The event chip sits under the tracker's lines, however many there are (or where
+## the tracker starts when the town hides it), so it never covers the daily text.
+func _place_event_chip() -> void:
+	if _event_chip == null:
+		return
+	var top := TRACKER_TOP
+	if _tracker.visible and _tracker.text != "":
+		top += _tracker.get_combined_minimum_size().y + EVENT_CHIP_GAP
+	_event_chip.offset_top = top
+	_event_chip.offset_bottom = top
 
 
 func _build_tracker(frame: Control) -> void:
@@ -406,8 +428,8 @@ func _build_tracker(frame: Control) -> void:
 	_tracker.anchor_left = 1.0
 	_tracker.anchor_right = 1.0
 	_tracker.offset_left = -480
-	_tracker.offset_right = -130
-	_tracker.offset_top = 252
+	_tracker.offset_right = TRACKER_RIGHT
+	_tracker.offset_top = TRACKER_TOP
 	_tracker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tracker.add_theme_constant_override("outline_size", 6)
 	_tracker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -415,9 +437,9 @@ func _build_tracker(frame: Control) -> void:
 	_event_chip = PanelContainer.new()
 	_event_chip.anchor_left = 1.0
 	_event_chip.anchor_right = 1.0
-	_event_chip.offset_left = -130
-	_event_chip.offset_right = -130
-	_event_chip.offset_top = 314
+	_event_chip.offset_left = TRACKER_RIGHT
+	_event_chip.offset_right = TRACKER_RIGHT
+	_event_chip.offset_top = TRACKER_TOP
 	_event_chip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_event_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()

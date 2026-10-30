@@ -23,6 +23,7 @@ var _equip_sig := ""
 var _step_timer := 0.0
 var _ring_job: StringName = &""
 var _ring: MeshInstance3D
+var _name_plate: Label3D
 var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
@@ -94,6 +95,38 @@ func _ready() -> void:
 	Game.inventory_changed.connect(_on_inventory_changed)
 	Game.profile_changed.connect(_update_job_ring)
 	_update_job_ring()
+	_build_name_plate()
+	Game.title_changed.connect(_on_title_changed)
+
+
+## The hero's name above the head, with the chosen title (Achievements) in brackets
+## above it on a smaller line.
+func _build_name_plate() -> void:
+	_name_plate = Label3D.new()
+	_name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_plate.pixel_size = 0.0034 * BattleVfx.text_scale
+	_name_plate.font_size = 34
+	_name_plate.outline_size = 9
+	_name_plate.modulate = Color("fff4de")
+	_name_plate.outline_modulate = Color(0.1, 0.12, 0.2, 0.9)
+	_name_plate.position = Vector3(0, 2.45, 0)
+	_name_plate.no_depth_test = true
+	_name_plate.render_priority = 2
+	_name_plate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_name_plate)
+	refresh_name_plate()
+
+
+func _on_title_changed(_title: String) -> void:
+	refresh_name_plate()
+
+
+func refresh_name_plate() -> void:
+	if not is_instance_valid(_name_plate):
+		return
+	var hero_name := String(Game.profile.get("name", ""))
+	var title := Achievements.title_of(Game.profile)
+	_name_plate.text = "「%s」\n%s" % [title, hero_name] if title != "" else hero_name
 
 
 ## Changes the hero's weapon / hat / outfit when the worn items change.

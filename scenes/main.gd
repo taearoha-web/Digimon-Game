@@ -15,6 +15,7 @@ var guild_screen: GuildScreen
 var registry: RegistryScreen
 var player_card: PlayerCard
 var ai_chat: AiChat
+var tutorial: Tutorial
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -92,6 +93,11 @@ func _ready() -> void:
 		if not _screen_open():
 			ai_chat.talk_world())
 	hud.world_tapped.connect(_on_world_tapped)
+	# The first five minutes of a new hero (steps, hints, a world player as the guide); on
+	# Main so it follows the hero from the village into the first field.
+	tutorial = Tutorial.new()
+	tutorial.main = self
+	add_child(tutorial)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):

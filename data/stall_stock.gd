@@ -13,8 +13,8 @@ extends RefCounted
 ## also buys from the hero's bag, paying SELL_BONUS times the merchant's price.
 ## The hero can haggle once per lot per window (haggle: a deterministic outcome of the
 ## keeper, the window, the lot and the hero's name; "haggle|<name>|<window>|<k>" = code),
-## leave bag things with a keeper to sell for more, paid out later ("consign|<due
-## minute>|<n>" = gold; collect_consignments), and the keepers call out a lot of theirs in
+## leave bag things (a chosen count of a stack) with a keeper to sell for more, paid out
+## later ("consign|<due minute>|<n>" = gold; collect_consignments), and the keepers call out a lot of theirs in
 ## the world chat now and then (announcement).
 
 ## Real seconds between two restocks of a stall.
@@ -312,9 +312,11 @@ static func consignments() -> Array[Dictionary]:
 	return out
 
 
-## The hero leaves bag slot `index` (the whole stack) with a stall to sell: gone from the
-## bag now, its gold (CONSIGN_BONUS times the merchant's price) paid CONSIGN_MINUTES later.
-static func consign(index: int, t: float = -1.0) -> bool:
+## The hero leaves `count` of bag slot `index` (0: the whole stack; always the piece
+## itself for gear) with a stall to sell: gone from the bag now, the rest of the stack
+## staying, its gold (CONSIGN_BONUS times the merchant's price per unit) paid
+## CONSIGN_MINUTES later.
+static func consign(index: int, count := 0, t: float = -1.0) -> bool:
 	t = _now(t)
 	if index < 0 or index >= Game.profile.inv.size():
 		return false
@@ -322,7 +324,8 @@ static func consign(index: int, t: float = -1.0) -> bool:
 		Game.say("ฝากขายได้ไม่เกิน %d ชิ้น" % CONSIGN_MAX, &"warning")
 		return false
 	var item: Dictionary = Game.profile.inv[index]
-	var qty := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
+	var stack := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
+	var qty := stack if count <= 0 else clampi(count, 1, stack)
 	var gold := consign_price(item) * qty
 	if gold <= 0:
 		Game.say("ของชิ้นนี้ฝากขายไม่ได้", &"warning")

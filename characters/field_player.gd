@@ -52,6 +52,9 @@ const ERRAND_TAGS := {"quest": "ส่งเควส", "enhance": "ตีบว
 const ERRAND_LEAVE := 20.0
 var _bubble: Label3D
 var _sits := false
+## The world boss (WorldEvents): when it may shout again, and where it steps to out of a telegraph.
+var _shout_at := 0.0
+var _dodge_to := Vector3.INF
 ## In the party, told to wait ("รอตรงนี้", PartyTalk.command): where it holds until the
 ## hero gets HOLD_LEASH away or calls it ("ตามมา").
 var hold_at := Vector3.INF
@@ -78,6 +81,7 @@ func _ready() -> void:
 	_label.text = _level_text()
 	_worn = _party_equip()
 	_wing_think = _rng.randf_range(0.5, 4.0)
+	_shout_at = Time.get_ticks_msec() * 0.001 + _rng.randf_range(1.0, 12.0)
 	# Some stall keepers sit by their wares (the AFK ones doze).
 	_sits = hash("sit|%s" % member.name) % 3 == 0
 	_pick_camp()
@@ -463,6 +467,9 @@ func _camp_center() -> Vector3:
 func _fight(delta: float) -> Vector3:
 	if party_mode:
 		return super._fight(delta)
+	var dodge := _dodge_world_boss(delta)
+	if dodge.is_finite():
+		return dodge
 	if float(hp) / float(max_hp) < 0.25 and (_potion_cd > 0.0 or int(member.get("potions", 0)) <= 0):
 		_flee_until = Time.get_ticks_msec() + 7000
 		target = null
@@ -492,6 +499,9 @@ func _pick_target() -> Mob:
 		return super._pick_target()
 	if hero.safe_zone or _camp.is_empty() or _fleeing():
 		return null
+	var wboss := _join_world_boss()
+	if wboss != null:
+		return wboss
 	var center := _camp_center()
 	var reach := float(_camp.radius) + 8.0
 	var best: Mob = null
@@ -512,11 +522,59 @@ func _pick_target() -> Mob:
 	return best
 
 
+# --- The world boss (WorldEvents, WorldBoss) ----------------------------------------
+
+## The field's world boss (Zone._wboss) while it lives, or null.
+func _world_boss() -> Mob:
+	if zone == null or not is_instance_valid(zone):
+		return null
+	var boss: Mob = zone._wboss
+	return boss if boss != null and is_instance_valid(boss) and not boss.is_dead() else null
+
+
+## Hunting here while the world boss is up, it joins in: the boss within
+## WorldEvents.BOSS_JOIN_RANGE is its target, with a shout (bubble and world chat) at
+## most every BOSS_SHOUT_GAP seconds.
+func _join_world_boss() -> Mob:
+	var boss := _world_boss()
+	if boss == null or _flat(boss.global_position - global_position).length() > WorldEvents.BOSS_JOIN_RANGE:
+		return null
+	var now := Time.get_ticks_msec() * 0.001
+	if now >= _shout_at:
+		_shout_at = now + WorldEvents.BOSS_SHOUT_GAP + _rng.randf_range(0.0, 20.0)
+		var text: String = WorldEvents.BOSS_SHOUTS[_rng.randi() % WorldEvents.BOSS_SHOUTS.size()]
+		var g := WorldPlayers.guild_at(world_index, int(member.level))
+		Game.world_chat.emit(String(member.name), text, WorldPlayers.GUILD_COLORS.get(g, Color("bfe8ff")))
+		bubble(text)
+	return boss
+
+
+## Standing in the world boss's telegraph (WorldBoss.inside), it steps 7 m out of it
+## (WorldBoss.escape_point); Vector3.INF when there is nothing to dodge.
+func _dodge_world_boss(delta: float) -> Vector3:
+	var special := WorldBoss.of(_world_boss())
+	if special == null or special.telegraph.is_empty():
+		_dodge_to = Vector3.INF
+		return Vector3.INF
+	if not _dodge_to.is_finite():
+		if not special.inside(global_position):
+			return Vector3.INF
+		_dodge_to = special.escape_point(global_position)
+	var to := _flat(_dodge_to - global_position)
+	if to.length() < 0.6:
+		return Vector3.ZERO
+	_face(to, delta, 14.0)
+	return to.normalized() * float(stats.speed) * 1.2
+
+
 ## No fight: walk to the camp and drift around in it (in the village, between the shops);
 ## backing off, it runs towards the field's entrance.
 func _follow(delta: float) -> Vector3:
 	if party_mode:
 		return _party_follow(delta)
+	var dodge := _dodge_world_boss(delta)
+	if dodge.is_finite():
+		return dodge
 	if _fleeing() and zone != null:
 		var away := _flat(zone.entrance() - global_position)
 		if away.length() > 2.0:

@@ -5,9 +5,13 @@ class_name SaveBackup
 ## holding a copy of every slot file and an index.json (time, reason, per-slot summary).
 ## At most KEEP_DAILY "daily" and KEEP_MANUAL other ("manual", "before-restore") folders
 ## stay; the oldest go first. maybe_daily() backs up once per real day.
+## A restored slot gets saved_at = now and RESTORED_MARKER lists the restored slots, so
+## the web page's cloud sync (tools/web/accounts.js) sees the restored save as the newer
+## one and asks before the online copy could replace it; the page clears the marker.
 
 const ROOT := "user://backups"
 const LAST_DAILY_PATH := "user://backups/last_daily.txt"
+const RESTORED_MARKER := "user://backups/restored.json"
 const INDEX_FILE := "index.json"
 const KEEP_DAILY := 7
 const KEEP_MANUAL := 3
@@ -62,15 +66,18 @@ static func list() -> Array[Dictionary]:
 	return out
 
 
-## Puts the backed-up copy of [param slot] back as the live slot file, after a
-## "before-restore" backup of every current slot. False when the backup is missing or
-## fails Game's validation: the live slot is then untouched.
+## Puts the backed-up copy of [param slot] back as the live slot file (its saved_at set
+## to now), after a "before-restore" backup of every current slot. False when the backup
+## is missing or fails Game's validation: the live slot is then untouched.
 static func restore(dir: String, slot: int) -> bool:
 	var text := _valid_backup_text(dir, slot)
 	if text == "":
 		return false
 	backup_now("before-restore")
-	return _write_slot(slot, text)
+	if not _write_slot(slot, _stamped(text)):
+		return false
+	_mark_restored([slot])
+	return true
 
 
 ## Restores every slot the backup holds (slots it lacks stay as they are).
@@ -86,9 +93,30 @@ static func restore_all(dir: String) -> bool:
 		return false
 	backup_now("before-restore")
 	var ok := true
+	var restored: Array = []
 	for slot in texts:
-		ok = _write_slot(slot, texts[slot]) and ok
+		if _write_slot(slot, _stamped(texts[slot])):
+			restored.append(slot)
+		else:
+			ok = false
+	if not restored.is_empty():
+		_mark_restored(restored)
 	return ok
+
+
+## The restore marker: {time, slots: [int]} of the slots restored since the web page
+## last cleared it (the page reads the same file from the browser's store); {} when none.
+static func restored_marker() -> Dictionary:
+	if not FileAccess.file_exists(RESTORED_MARKER):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(RESTORED_MARKER))
+	if not parsed is Dictionary or not parsed.get("slots") is Array:
+		return {}
+	var slots: Array = []
+	for slot in parsed.slots:
+		if (slot is float or slot is int) and int(slot) >= 1 and int(slot) <= Game.SLOT_COUNT:
+			slots.append(int(slot))
+	return {"time": int(parsed.get("time", 0)), "slots": slots}
 
 
 ## A daily backup, at most once per real (local) day; true when one was made now.
@@ -137,6 +165,26 @@ static func _valid_backup_text(dir: String, slot: int) -> String:
 	if not parsed is Dictionary or not Game._valid_profile(parsed as Dictionary):
 		return ""
 	return text
+
+
+## The validated slot text with saved_at set to now: a restored save is the newest one,
+## so the web page's sync (newest saved_at wins) does not put the online copy back over it.
+static func _stamped(text: String) -> String:
+	var parsed: Variant = JSON.parse_string(text)
+	if not parsed is Dictionary:
+		return text
+	parsed["saved_at"] = int(Time.get_unix_time_from_system())
+	return JSON.stringify(parsed)
+
+
+## Adds [param slots] to RESTORED_MARKER (merged with the slots already listed).
+static func _mark_restored(slots: Array) -> void:
+	var listed: Array = restored_marker().get("slots", [])
+	for slot in slots:
+		if not listed.has(int(slot)):
+			listed.append(int(slot))
+	listed.sort()
+	_write_text(RESTORED_MARKER, JSON.stringify({"time": int(Time.get_unix_time_from_system()), "slots": listed}))
 
 
 ## Same-directory rename, like Game._write_profile: a failed write leaves the slot intact.

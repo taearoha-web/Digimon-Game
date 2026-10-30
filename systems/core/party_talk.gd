@@ -38,6 +38,17 @@ const REGROUP_LINES := ["มาแล้ว!", "ตามไปแล้วน�
 const HOLD_LINES := ["โอเค รอตรงนี้นะ", "ได้ ยืนรอตรงนี้", "รับทราบ ไม่ไปไหน"]
 const HOME_LINES := ["โอเค กลับเมืองกัน", "ได้เลย กลับหมู่บ้านกัน", "ตกลง ไปพักที่เมืองกัน"]
 const IN_TOWN_LINES := ["ก็อยู่ในเมืองแล้วนี่ 555", "อยู่หมู่บ้านอยู่แล้วนะ"]
+## What the tutorial's guide (Tutorial) says at each step of the first five minutes: the
+## greeting when it joins (1), then the hint for the step, and goodbye when it is over (7).
+const GUIDE_LINES := {
+	1: ["สวัสดี! มือใหม่ใช่ไหม เดี๋ยวพาเที่ยวหมู่บ้านนะ"],
+	2: ["ไปหาผู้ใหญ่บ้านก่อนเลย แกมีเควสให้ทำ", "ผู้ใหญ่บ้านอยู่ทางโน้น คุยรับเควสแรกกัน"],
+	3: ["แวะร้านค้าซื้อยาเลือดติดตัวไว้หน่อย", "ก่อนออกสนามซื้อยาเลือดสัก 2-3 ขวดนะ"],
+	4: ["ไปสนามแรกกัน ใช้วาร์ปสโตนตรงกลางหมู่บ้าน", "พร้อมแล้วก็ไปทุ่งหญ้ากันเลย วาร์ปสโตนอยู่นี่"],
+	5: ["ลองล้มมอนสเตอร์ดูสัก 3 ตัว เดี๋ยวช่วยตี", "ตีตัวนี้ก่อน ฉันคุ้มกันให้เอง!"],
+	6: ["ครบแล้ว กลับไปส่งเควสที่ผู้ใหญ่บ้านกัน", "เก่งมาก! กลับหมู่บ้านไปรับรางวัลกันเถอะ"],
+	7: ["เก่งขึ้นเยอะเลย ฉันขอตัวไปล่าต่อนะ โชคดี!", "จบบทสอนแล้ว ที่เหลือลุยเองได้แน่นอน บ๊ายบาย!"],
+}
 ## The hero's typed orders: what they do, and the words that mean them.
 const COMMANDS := [
 	["regroup", ["ตามมา", "ตามฉันมา", "มานี่", "รวมพล", "ตามเรามา"]],
@@ -85,6 +96,12 @@ static func attach(p_zone: Zone) -> PartyTalk:
 ## The hook for the typed chat (AiChat): true when the line was an order to the party.
 static func route(text: String) -> bool:
 	return current != null and is_instance_valid(current) and current.command(text)
+
+
+## A line for the tutorial's guide at `step` (GUIDE_LINES), "" for a step without one.
+static func guide_line(step: int) -> String:
+	var pool: Array = GUIDE_LINES.get(step, [])
+	return "" if pool.is_empty() else String(pool[randi() % pool.size()])
 
 
 func _ready() -> void:

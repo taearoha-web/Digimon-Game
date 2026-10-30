@@ -6,8 +6,8 @@ extends Node
 ## things; the bought-lot flags of older windows are dropped when a stall opens; the shop
 ## screen opens a stall (open_stall) and the merchant (open_shop) as before. Haggling is
 ## deterministic, once a lot a window, and its discount applies to the buy; a keeper's
-## announcement names a real lot; consignment takes the item, pays after the due time,
-## at most 8 out at once.
+## announcement names a real lot; consignment takes the item, or a chosen count of a
+## stack (the screen's − / + stepper), pays after the due time, at most 8 out at once.
 ##   godot --headless --path . res://tests/integration/stall_trade_test.tscn
 var checks := 0
 var failures := 0
@@ -259,7 +259,7 @@ func _consign(i: int, t: float) -> void:
 	check(price > StallStock.sell_price(item) and price == int(ceil(float(ItemData.unit_sell_price(item)) * 1.5 - 0.001)), "a consignment pays 1.5x the merchant (%d > %d)" % [price, StallStock.sell_price(item)])
 	var gold := int(Game.profile.gold)
 	var bag: int = Game.profile.inv.size()
-	check(StallStock.consign(index, t) and Game.profile.inv.size() == bag - 1 and not Game.profile.inv.has(item), "consigning takes the piece from the bag")
+	check(StallStock.consign(index, 0, t) and Game.profile.inv.size() == bag - 1 and not Game.profile.inv.has(item), "consigning takes the piece from the bag")
 	check(int(Game.profile.gold) == gold, "nothing is paid yet")
 	var due := int(ceil(t / 60.0)) + StallStock.CONSIGN_MINUTES
 	var key := "consign|%d|0" % due
@@ -271,18 +271,26 @@ func _consign(i: int, t: float) -> void:
 	check(StallStock.collect_consignments(float(due) * 60.0) == price and int(Game.profile.gold) == gold + price and not Game.profile.flags.has(key), "paid when due, the key dropped")
 	check(toasts.any(func(x): return x == "ได้เงินจากของฝากขาย %d เหรียญ" % price), "a toast tells of the gold (%s)" % [toasts])
 	check(StallStock.consignments().is_empty(), "nothing left out")
-	# A stack goes whole; the cap of 8; the stall pays the due ones as it opens.
-	Game.profile.inv.append(ItemData.potion("hp_l", 12))
-	var bottles := StallStock.consign_price(ItemData.potion("hp_l", 1)) * 12
-	check(StallStock.consign(Game.profile.inv.size() - 1, t) and int(Game.profile.flags.get("consign|%d|0" % due, 0)) == bottles, "a stack is consigned whole (%d)" % bottles)
-	var owed := bottles
-	for n in 8:
+	# Part of a stack: 3 of 10 bottles go, 7 stay, the payout is for 3; the rest can go
+	# whole (count 0) or capped at the stack; the cap of 8; the stall pays the due ones
+	# as it opens.
+	var stack := ItemData.potion("hp_l", 10)
+	Game.profile.inv.append(stack)
+	var slot: int = Game.profile.inv.size() - 1
+	var unit := StallStock.consign_price(ItemData.potion("hp_l", 1))
+	check(StallStock.consign(slot, 3, t) and int(Game.profile.flags.get("consign|%d|0" % due, 0)) == unit * 3, "3 of a stack are consigned for 3 units (%d)" % (unit * 3))
+	check(Game.profile.inv.size() == slot + 1 and Game.profile.inv[slot] == stack and int(stack.count) == 7, "7 bottles stay in the bag (%d)" % int(stack.get("count", 0)))
+	check(StallStock.consign(slot, 99, t) and int(Game.profile.flags.get("consign|%d|1" % due, 0)) == unit * 7 and Game.profile.inv.size() == slot, "a count over the stack consigns the rest whole (%d)" % (unit * 7))
+	Game.profile.inv.append(ItemData.potion("hp_l", 4))
+	check(StallStock.consign(slot, 0, t) and int(Game.profile.flags.get("consign|%d|2" % due, 0)) == unit * 4 and Game.profile.inv.size() == slot, "count 0 is the whole stack (%d)" % (unit * 4))
+	var owed := unit * 14
+	for n in 7:
 		var piece := ItemData.generate(40, &"warrior", rng, 2, "ring")
 		Game.profile.inv.append(piece)
-		var ok := StallStock.consign(Game.profile.inv.size() - 1, t + 60.0 * n)
-		if n < StallStock.CONSIGN_MAX - 1:
+		var ok := StallStock.consign(Game.profile.inv.size() - 1, 1, t + 60.0 * n)
+		if n < StallStock.CONSIGN_MAX - 3:
 			owed += StallStock.consign_price(piece)
-			check(ok, "consignment %d of %d goes out" % [n + 2, StallStock.CONSIGN_MAX])
+			check(ok, "consignment %d of %d goes out" % [n + 4, StallStock.CONSIGN_MAX])
 		else:
 			check(not ok and Game.profile.inv[-1] == piece, "no more than %d consignments at once" % StallStock.CONSIGN_MAX)
 	check(StallStock.consignments().size() == StallStock.CONSIGN_MAX, "%d out" % StallStock.CONSIGN_MAX)
@@ -350,16 +358,50 @@ func _screen(i: int) -> void:
 	var after := int(StallStock.stock(i).filter(func(e): return int(e.k) == int(left[0].k))[0].price)
 	check(StallStock.haggled(i, int(left[0].k)) != 0 and row.find_child("Haggle", true, false) == null and row.find_child("Haggled", true, false) != null, "the haggle is done once")
 	check((row.find_child("Buy", true, false) as Button).text == "ซื้อ %d" % after, "the row shows the haggled price (%d)" % after)
-	# Consigning from the screen.
+	# Consigning from the screen: a piece of gear goes whole, a stack has a stepper.
 	var consigns := shop.find_children("*", "Button", true, false).filter(func(b): return String(b.name) == "Consign")
 	check(consigns.size() == Game.profile.inv.size() and consigns.size() > 0, "every bag slot can be consigned (%d)" % consigns.size())
+	var gear_at := -1
+	for n in Game.profile.inv.size():
+		if not ItemData.is_stackable(Game.profile.inv[n]):
+			gear_at = n
+			break
+	check(gear_at >= 0, "a piece of gear is in the bag")
+	var gear_row := shop.find_child("Bag_%d" % gear_at, true, false) as Control
+	var gear_button := gear_row.find_child("Consign", true, false) as Button
+	check(gear_row.find_child("Qty", true, false) == null and gear_button.text == "ฝากขาย %d" % StallStock.consign_price(Game.profile.inv[gear_at]), "gear has no stepper and goes whole (%s)" % gear_button.text)
 	var bag_now: int = Game.profile.inv.size()
 	var outstanding := StallStock.consignments().size()
-	(consigns[0] as Button).pressed.emit()
+	gear_button.pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	check(Game.profile.inv.size() == bag_now - 1 and StallStock.consignments().size() == outstanding + 1, "the button consigns the slot")
 	check(shop.find_child("ConsignNote", true, false) != null, "the sell list tells what is out on consignment")
+	Game.profile.inv.append(ItemData.potion("mp_xl", 10))
+	Game.inventory_changed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var stack_at: int = Game.profile.inv.size() - 1
+	var stack_row := shop.find_child("Bag_%d" % stack_at, true, false) as Control
+	var stack_button := stack_row.find_child("Consign", true, false) as Button
+	var plus := stack_row.find_child("QtyPlus", true, false) as Button
+	var minus := stack_row.find_child("QtyMinus", true, false) as Button
+	var bottle := StallStock.consign_price(ItemData.potion("mp_xl", 1))
+	check(plus != null and minus != null and minus.disabled and stack_button.text == "ฝากขาย ×1 %d" % bottle, "a stack starts at one bottle with a stepper (%s)" % stack_button.text)
+	plus.pressed.emit()
+	check(stack_button.text == "ฝากขาย ×5 %d" % (bottle * 5) and (stack_row.find_child("QtyCount", true, false) as Label).text == "×5", "+ steps to 5 bottles (%s)" % stack_button.text)
+	plus.pressed.emit()
+	check(stack_button.text == "ฝากขาย ×10 %d" % (bottle * 10) and plus.disabled, "+ is capped at the stack (%s)" % stack_button.text)
+	minus.pressed.emit()
+	outstanding = StallStock.consignments().size()
+	var due_key := StallStock.consignments()[-1].key if outstanding > 0 else ""
+	stack_button.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var out := StallStock.consignments().filter(func(e): return String(e.key) != due_key)
+	check(Game.profile.inv.size() == stack_at + 1 and int(Game.profile.inv[stack_at].count) == 5 and out.size() >= 1 and out.any(func(e): return int(e.gold) == bottle * 5), "the button consigns 5 bottles, 5 stay (%s)" % [out])
+	var again := shop.find_child("Bag_%d" % stack_at, true, false) as Control
+	check(again != null and (again.find_child("Consign", true, false) as Button).text == "ฝากขาย ×5 %d" % (bottle * 5) and (again.find_child("QtyPlus", true, false) as Button).disabled, "the rebuilt row keeps the count, now the whole stack")
 	shop.close_shop()
 	check(not get_tree().paused and not shop.is_open, "the stall closes")
 	# The merchant as before.
