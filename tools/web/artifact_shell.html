@@ -469,7 +469,7 @@
     const canvas = document.getElementById('canvas');
     const width = Math.max(1, window.innerWidth);
     const height = Math.max(1, window.innerHeight);
-    const longEdge = [1280, 1600, 2560][renderQuality];
+    const longEdge = [1280, 2048, 2560][renderQuality];
     const ratio = Math.min(window.devicePixelRatio || 1, longEdge / Math.max(width, height));
     const renderWidth = Math.max(1, Math.round(width * ratio));
     const renderHeight = Math.max(1, Math.round(height * ratio));

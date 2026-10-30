@@ -4,7 +4,7 @@ extends Node
 ## when it stops in front of a villager, warn when the hero's HP drops under 35% (once: the
 ## rate limit holds), call the boss when one spawns (another member, the first still on its
 ## gap), cheer their own level-up, ask to move on when the hero stands about; every line is
-## the member's bubble and a world-chat line under its name; the typed orders "รอตรงนี้",
+## the member's bubble and a party-chat line under its name (Game.channel_chat "party"); the typed orders "รอตรงนี้",
 ## "ตามมา" and "กลับเมือง" are carried out (PartyTalk.command, Game.STANCE_NAMES stances).
 ##   godot --headless --path . res://tests/integration/party_talk_test.tscn
 var failures := 0
@@ -42,7 +42,11 @@ func _ready() -> void:
 	Game.profile.level = 40
 	Game.profile.adv = JobData.adv_for_level(40)
 	Game.profile.hp = Game.stats_now().max_hp
-	Game.world_chat.connect(func(speaker: String, text: String, _c: Color): chat.append([speaker, text]))
+	Game.channel_chat.connect(func(channel: String, speaker: String, text: String, _c: Color):
+		if channel == "party":
+			chat.append([speaker, text]))
+	# The members answering each other (AiChat) is chat_channels_test's; here only PartyTalk.
+	main.ai_chat.react_chance = 0.0
 	Game.toast.connect(func(text: String, _kind: StringName): toasts.append(text))
 	# Weeks into the world, so the members have taken their jobs (below Lv.10 everyone is a Vagabond).
 	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 40.0 * 86400.0 - WorldPlayers.now()
@@ -115,7 +119,7 @@ func _field() -> void:
 		var priest_said := PartyTalk.HERO_LOW_PRIEST.has(first[1])
 		check(PartyTalk.HERO_LOW_LINES.has(first[1]) or priest_said, "it is a low-HP line (%s)" % first[1])
 		check(priest_said and first[0] == String(Game.party()[0].name), "the priest is the one to say it, promising a heal")
-		check(chat.size() == 1 and chat[0][0] == first[0] and chat[0][1] == first[1], "the line reaches the world chat under the member's name")
+		check(chat.size() == 1 and chat[0][0] == first[0] and chat[0][1] == first[1], "the line reaches the party chat under the member's name")
 		var speaker: FieldPlayer = null
 		for m in members:
 			if String((m as FieldPlayer).member.name) == first[0]:
@@ -136,7 +140,7 @@ func _field() -> void:
 	await _wait(2.5)
 	check(talk.spoken.size() == 2 and PartyTalk.BOSS_LINES.has(talk.spoken[1][1]), "the boss line fires when a boss spawns (%s)" % [talk.spoken])
 	check(talk.spoken.size() == 2 and talk.spoken[1][0] != talk.spoken[0][0], "a different member says it: the first is still on its own gap")
-	check(chat.size() == 2, "both lines are in the world chat (%d)" % chat.size())
+	check(chat.size() == 2, "both lines are in the party chat (%d)" % chat.size())
 	if is_instance_valid(boss):
 		boss.queue_free()
 	await _wait(0.3)

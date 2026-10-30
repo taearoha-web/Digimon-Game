@@ -12,6 +12,12 @@ extends RefCounted
 ## keeper pitching its wares, a humble newcomer), and some plain-chat answers end with a
 ## question back so the talk goes on. Everything is picked by hashes of the player, the
 ## line and the length of the talk, so the same line gets the same answer on every device.
+##
+## In the party and guild chats (body.channel "party" / "guild") the line may come from the
+## hero or from another member (body.from, its name): CHANNEL_INTENTS read the party's own
+## talk first (a boss, low HP, a level-up, moving on, a good run, the loot, the guild war),
+## and the answers are a teammate's (a priest offers to heal) or a guild mate's; a line from
+## another member never carries an action.
 
 ## Words that mark what a line is about, checked in this order.
 const INTENTS := [
@@ -61,6 +67,39 @@ const ENHANCE := ["ตีบวกถึง +6 ค่อนข้างปลอ
 const SKILL := ["ไปเรียนสกิลกับครูฝึกในหมู่บ้านได้เลย", "อัปสกิลหลักก่อน แล้วค่อยเก็บสกิลเสริม", "สกิลใหม่ปลดตามเลเวล อย่าลืมไปหาครูฝึกนะ"]
 const IDLE := ["อืม ๆ", "จริงเหรอ 555", "ใช่ ๆ", "น่าสนใจนะ", "ฮ่า ๆ เข้าใจเลย"]
 const NO := ["โอเคจ้า ไม่เป็นไร", "ได้ ตามสบายนะ", "โอเค ไว้คราวหน้า"]
+
+## The party's and guild's own talk, checked before INTENTS in those chats.
+const CHANNEL_INTENTS := [
+	["lowhp", ["เลือดน้อย", "เลือดเหลือน้อย", "เลือดจะหมด", "เลือดหมด", "ฮีล", "heal", "ยาเลือด", "ช่วยด้วย", "hp น้อย", "โดนหนัก"]],
+	["boss", ["บอส", "boss", "มอนหัวหน้า", "ไม่ธรรมดา"]],
+	["levelup", ["เลเวลอัป", "เลเวลอัพ", "เลเวลขึ้น", "เวลอัป", "เวลขึ้น", "level up"]],
+	["war", ["กิลด์วอ", "รบกิลด์", "วอรอบ", "guild war"]],
+	["streak", ["ล้มรัว", "ฟาร์มลื่น", "ตีมันส์", "มันส์"]],
+	["item", ["ไอเทม", "ดรอป", "ได้ของ", "ของหายาก", "item", "loot", "เก็บของ"]],
+	["move", ["ไปต่อ", "ไปล่าต่อ", "ลุยต่อ", "ไปกัน", "พักพอ", "ลุยกัน"]],
+]
+## The answers in the party chat, by CHANNEL_INTENTS (TO_MATE: to another member's line,
+## %name is that member).
+const PARTY_BOSS := ["บอสมาแล้ว! เดี๋ยวช่วยตีบอสเลย", "จัดไป ไปตีบอสกัน!", "โอเค เดี๋ยวกันให้ ตีบอสเลย", "ไปตีบอสกัน ระวังท่าแรงด้วยนะ"]
+const PARTY_BOSS_MATE := ["เห็นบอสแล้ว ๆ รุมเลย!", "รับทราบ ช่วยตีบอสเลย!", "ระวังท่าบอสด้วยนะทุกคน"]
+const PARTY_BOSS_PRIEST := ["ไปตีบอสเลย เดี๋ยวฮีลให้เอง", "ตีบอสได้เลย ฉันคอยฮีลอยู่ข้างหลัง"]
+const PARTY_LOWHP := ["ถอยมาก่อน เดี๋ยวกันให้!", "กินยาเลือดก่อนเลย!", "ระวังนะ ถอยมาข้างหลังก่อน"]
+const PARTY_LOWHP_PRIEST := ["เดี๋ยวฮีลให้! อดทนไว้", "ฮีลให้แล้วนะ ถอยมาก่อน"]
+const PARTY_LOWHP_MATE := ["ถอยมาเลย %name เดี๋ยวกันให้!", "กินยาเลือดก่อน %name เดี๋ยวช่วยดึงมอนไว้"]
+const PARTY_LOWHP_MATE_PRIEST := ["เดี๋ยวฮีลให้นะ %name!", "อดทนไว้ %name ฮีลให้แล้ว!"]
+const PARTY_LEVELUP := ["ยินดีด้วย! เลเวลอัปแล้ว", "เย้ ยินดีด้วยนะ ขึ้นไวมาก", "ยินดีด้วย ไปต่อกัน!"]
+const PARTY_LEVELUP_MATE := ["ยินดีด้วย %name!", "เย้ %name เลเวลอัปแล้ว ยินดีด้วย!", "ยินดีด้วยนะ %name ขึ้นไวจริง"]
+const PARTY_MOVE := ["ไปกัน! พร้อมแล้ว", "โอเค ลุยต่อเลย", "ได้เลย ตามไปนะ"]
+const PARTY_STREAK := ["ฟาร์มดีจริง ไปต่อ!", "มันส์มาก 555 รัวต่อเลย", "รัวจริง ไม่หยุดเลย"]
+const PARTY_ITEM := ["ดรอปดีไหม? ของดีแบ่งกันนะ 555", "เก็บของด้วยนะ เดี๋ยวเต็มกระเป๋า", "ได้ของอะไรดีบ้าง อยากเห็นเลย"]
+const PARTY_GREET := ["หวัดดีหัวหน้าตี้! พร้อมลุยแล้ว", "ดีจ้า ตี้เราพร้อมแล้ว", "หวัดดี~ วันนี้ไปไหนกันดี"]
+const PARTY_GREET_MATE := ["หวัดดี %name!", "ดีจ้า %name"]
+const MATE_IDLE := ["จริง 555", "ใช่ ๆ เห็นด้วย", "โอเค ๆ", "555 ใช่เลย", "%name พูดถูก"]
+const GUILD_GREET := ["หวัดดีเพื่อนกิลด์!", "ดีจ้า ชาว %guild", "มาแล้วเหรอ คนของ %guild!"]
+const GUILD_THANKS := ["ยินดีจ้า คนกันเองทั้งนั้น", "เพื่อนกิลด์ช่วยกันอยู่แล้ว", "ไม่เป็นไรเลย กิลด์เดียวกัน"]
+const GUILD_WAR := ["กิลด์วอรอบหน้ามารวมกันที่หมู่บ้านนะ", "รอบนี้ %guild ต้องชนะ!", "ไปกิลด์วอด้วยแน่นอน"]
+const GUILD_SUFFIX := ["%guild สู้ ๆ", "เพื่อนกิลด์ช่วยกันนะ", "ว่าง ๆ มาล่าด้วยกันนะ"]
+const GUILD_SUFFIX_RATE := 0.35
 
 ## Questions the player asks that a short answer completes: [the question, its kind].
 ## The kind is read back from the player's own last line in the history.
@@ -137,6 +176,14 @@ static func reply(body: Dictionary) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s|%s|%d" % [p.get("name", ""), text, history.size()])
 	var tone := tone_of(p)
+	var channel := String(body.get("channel", ""))
+	var mate := String(body.get("from", ""))
+	if channel == "party" or channel == "guild":
+		var said := _channel_answer(channel, text, mate, p, rng)
+		if not said.is_empty():
+			return said
+		if mate != "":
+			return _mate_answer(text, mate, p, h, history, tone, rng)
 	# A short answer to what the player itself just asked completes it.
 	var asked := last_question(history)
 	if asked != "":
@@ -148,7 +195,92 @@ static func reply(body: Dictionary) -> Dictionary:
 	if String(out.action) == "none" and intent in PLAIN:
 		out.reply = _flavor(String(out.reply), tone, int(body.get("hour", -1)), rng)
 		out.reply = _ask_back(String(out.reply), p, tone, rng)
+	if channel == "guild":
+		out.reply = _guild_flavor(String(out.reply), p, rng)
 	return out
+
+
+# --- The party and guild chats -----------------------------------------------------------
+
+## What a party or guild line is about (CHANNEL_INTENTS), "" when none of it.
+static func channel_intent_of(text: String) -> String:
+	var lower := " %s " % text.to_lower()
+	for entry in CHANNEL_INTENTS:
+		for word in entry[1]:
+			if lower.contains(String(word)):
+				return String(entry[0])
+	return ""
+
+
+## The party's / guild's own answer to a line (`mate`: the member who said it, "" for the
+## hero), {} when the line is not about the party's own talk.
+static func _channel_answer(channel: String, text: String, mate: String, p: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var intent := channel_intent_of(text)
+	var priest := String(p.get("class", "")) == String(ClassData.get_class_data(&"priest").get("name", "-"))
+	var pool: Array = []
+	match intent:
+		"lowhp":
+			if mate != "":
+				pool = PARTY_LOWHP_MATE_PRIEST if priest else PARTY_LOWHP_MATE
+			else:
+				pool = PARTY_LOWHP_PRIEST if priest else PARTY_LOWHP
+		"boss":
+			pool = PARTY_BOSS_PRIEST if priest else (PARTY_BOSS_MATE if mate != "" else PARTY_BOSS)
+		"levelup":
+			pool = PARTY_LEVELUP_MATE if mate != "" else PARTY_LEVELUP
+		"war":
+			pool = GUILD_WAR
+		"streak":
+			pool = PARTY_STREAK
+		"item":
+			pool = PARTY_ITEM
+		"move":
+			pool = PARTY_MOVE
+	if pool.is_empty():
+		var plain := intent_of(text)
+		# "สวัสดีเพื่อนกิลด์", "หวัดดีตี้": a line opening with a hello is a greeting.
+		if plain == "greet" or _opens_with_greet(text):
+			if channel == "guild":
+				pool = GUILD_GREET
+			else:
+				pool = PARTY_GREET_MATE if mate != "" else PARTY_GREET
+		elif plain == "thanks" and channel == "guild":
+			pool = GUILD_THANKS
+	if pool.is_empty():
+		return {}
+	return {"reply": _fill(String(pool[rng.randi() % pool.size()]), mate, p), "action": "none"}
+
+
+static func _opens_with_greet(text: String) -> bool:
+	var lower := text.to_lower().strip_edges()
+	for entry in INTENTS:
+		if String(entry[0]) == "greet":
+			for word in entry[1]:
+				if String(word).length() > 2 and lower.begins_with(String(word)):
+					return true
+	return false
+
+
+## Another member's line answered in the party chat: by what it is about, never an action.
+static func _mate_answer(text: String, mate: String, p: Dictionary, h: Dictionary, history: Array, tone: String, rng: RandomNumberGenerator) -> Dictionary:
+	var intent := intent_of(text)
+	if intent in ["", "party", "shop", "come", "leave", "rude", "bot", "greet"]:
+		return {"reply": _fill(String(MATE_IDLE[rng.randi() % MATE_IDLE.size()]), mate, p), "action": "none"}
+	var out := _answer(intent, text, p, h, history, tone, rng)
+	out.action = "none"
+	return out
+
+
+## A guild mate's answer now and then ends with a word for the guild.
+static func _guild_flavor(reply: String, p: Dictionary, rng: RandomNumberGenerator) -> String:
+	if String(p.get("guild", "")) == "" or reply.ends_with("?") or reply.length() > 110 or rng.randf() >= GUILD_SUFFIX_RATE:
+		return reply
+	return "%s %s" % [reply, _fill(String(GUILD_SUFFIX[rng.randi() % GUILD_SUFFIX.size()]), "", p)]
+
+
+static func _fill(line: String, mate: String, p: Dictionary) -> String:
+	var guild := String(p.get("guild", ""))
+	return line.replace("%name", mate if mate != "" else "เพื่อน").replace("%guild", guild if guild != "" else "กิลด์เรา")
 
 
 ## The answer by intent, before the tone and a question back are added.

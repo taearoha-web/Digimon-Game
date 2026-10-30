@@ -119,10 +119,15 @@ func refresh() -> void:
 		return
 	var now_worn := _party_equip()
 	var piece := WorldPlayers.new_piece(_worn, now_worn)
+	var enhanced := false
+	for slot in _worn:
+		enhanced = enhanced or (now_worn.get(slot) is Dictionary and now_worn[slot] == piece and String((_worn[slot] as Dictionary).get("name", "")) == String(piece.get("name", "")))
 	_worn = now_worn
 	if not piece.is_empty() and visible and not _dead and is_instance_valid(field):
 		var plus := int(piece.get("plus", 0))
-		say(("สวม %s +%d" % [piece.name, plus]) if plus > 0 else ("สวม %s" % piece.name), ItemData.RARITY_COLORS[clampi(int(piece.get("rarity", 0)), 0, 4)])
+		var color: Color = ItemData.RARITY_COLORS[clampi(int(piece.get("rarity", 0)), 0, 4)]
+		# A find is always +0; a higher grade on the same piece came from the forge.
+		say(("ตีบวก %s เป็น +%d สำเร็จ!" % [piece.name, plus]) if plus > 0 and enhanced else ("เก็บได้ %s" % piece.name), color)
 
 
 ## "[Alpha] Kaito Lv.100 ★44" in the guild's colour; no tag before Lv.100 (no guild yet).

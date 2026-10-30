@@ -2,8 +2,8 @@ class_name PartyTalk
 extends Node
 ## The hero's party members talk (FieldPlayer in party_mode): short lines in combat chosen
 ## by what is going on (the hero bleeding, a boss, a kill streak, their own HP, a level-up,
-## the hero standing about in a field), shown as the member's bubble and in the world chat
-## under its name. Rate-limited: a member speaks at most once every MEMBER_GAP seconds, and
+## the hero standing about in a field), shown as the member's bubble and in the party chat
+## (Game.channel_chat "party", where AiChat may have another member answer it) under its name. Rate-limited: a member speaks at most once every MEMBER_GAP seconds, and
 ## no two members within GLOBAL_GAP of each other. One per zone, attached by the first
 ## party member that walks in (attach); `command` answers the hero's typed orders
 ## ("ตามมา", "รอตรงนี้", "กลับเมือง"), `route` is the hook for AiChat.
@@ -277,14 +277,14 @@ func _run(order: String, members: Array) -> void:
 
 # --- Saying it -------------------------------------------------------------------------
 
-## The member's bubble and its line in the world chat; `force` answers an order even when
+## The member's bubble and its line in the party chat; `force` answers an order even when
 ## it just spoke (the gaps still start over).
 func _speak(m: FieldPlayer, text: String, force := false) -> void:
 	if m == null or not is_instance_valid(m) or (not force and not _can_speak(m)):
 		return
 	m.bubble(text)
 	var g := WorldPlayers.guild_at(m.world_index, int(m.member.get("level", 1)))
-	Game.world_chat.emit(String(m.member.get("name", "")), text, WorldPlayers.GUILD_COLORS.get(g, CHAT_COLOR))
+	Game.post_chat("party", String(m.member.get("name", "")), text, WorldPlayers.GUILD_COLORS.get(g, CHAT_COLOR))
 	_last_spoke = _clock
 	_member_ok[m.world_index] = _clock + _rng.randf_range(MEMBER_GAP.x, MEMBER_GAP.y)
 	spoken.append([String(m.member.get("name", "")), text])

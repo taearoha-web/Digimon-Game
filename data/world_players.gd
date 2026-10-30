@@ -816,14 +816,18 @@ const FIND_RARITY := [0.16, 0.36, 0.32, 0.13, 0.03]
 ## never failing), +7 to +9 take three times as long each (pink jewels at 50%), and +10
 ## as long as all three of those (three purple and two pink at 50%). Star pieces go the
 ## same way by stars (STAR_PLUS_EVERY), the divine set by hours (DIVINE_PLUS_HOURS).
-const PLUS_EVERY := 1.4
-const STAR_PLUS_EVERY := 2.5
+## Like the hero, a player never finds a piece already enhanced: every find is +0 and
+## goes up only at the forge, once it has gathered the jewels (ENHANCE_WAIT of play
+## first), and the jewels are shared by every slot, so a grade takes a few levels.
+const PLUS_EVERY := 4.0
+const STAR_PLUS_EVERY := 6.0
+const ENHANCE_WAIT := 1.5
 
 
 ## The forge grade reached after `progress` (levels or stars) of play with one step
 ## every `step`.
 static func plus_after(progress: float, step: float) -> int:
-	var steps := progress / maxf(0.001, step)
+	var steps := (progress - ENHANCE_WAIT) / maxf(0.001, step)
 	if steps < 6.0:
 		return int(maxf(steps, 0.0))
 	if steps < 15.0:

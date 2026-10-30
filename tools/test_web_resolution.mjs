@@ -19,7 +19,7 @@ assert.equal(canvas.style.height, '440px');
 const highPixels = canvas.width * canvas.height;
 assert.ok(highPixels < 0.85 * (956 * 3) * (440 * 3));
 window.toonSetRenderQuality(1);
-assert.equal(canvas.width, 1600);
+assert.equal(canvas.width, 2048);
 window.toonSetRenderQuality(0);
 assert.equal(canvas.width, 1280);
 window.toonSetRenderQuality(2);
