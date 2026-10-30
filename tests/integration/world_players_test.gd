@@ -209,6 +209,16 @@ func _gear() -> void:
 		for slot in again:
 			same = same and fresh.has(slot) and String(fresh[slot].name) == String(again[slot].name) and int(fresh[slot].get("plus", 0)) == int(again[slot].get("plus", 0))
 		check(same, "%s: the same finds on every device" % name)
+	var fresh_plus := 0
+	for i in 20:
+		var name := String(WorldPlayers.ROSTER[i].name)
+		for slot in ItemData.SLOTS:
+			for lv in range(2, 100, 3):
+				var f := WorldPlayers._best_find(name, slot, float(lv) + 0.5, 0.0)
+				if not f.is_empty() and float(lv) + 0.5 - float(f.at) <= WorldPlayers.ENHANCE_WAIT:
+					fresh_plus = maxi(fresh_plus, int(f.get("plus", 0)))
+	check(fresh_plus == 0, "a new find is always +0 like the hero's drops (got +%d)" % fresh_plus)
+	check(WorldPlayers.plus_after(WorldPlayers.ENHANCE_WAIT, WorldPlayers.PLUS_EVERY) == 0 and WorldPlayers.plus_after(WorldPlayers.ENHANCE_WAIT + WorldPlayers.PLUS_EVERY * 2.0, WorldPlayers.PLUS_EVERY) == 2, "grades come only from the forge, one every few levels")
 	check(ok_order, "a slot's piece only ever gets better")
 	check(lagging, "a slot can stay a band or more behind the level (nothing dropped)")
 	check(staggered, "slots change at different levels, one find at a time")
