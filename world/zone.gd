@@ -49,6 +49,7 @@ var pvp_match: PvpMatch
 var hero: Hero
 var camera_rig: ThirdPersonCamera
 var rng := RandomNumberGenerator.new()
+var _event_rng := RandomNumberGenerator.new()
 var portals: Array[Dictionary] = []
 var npcs: Array[Npc] = []
 var companions: Array[Companion] = []
@@ -1150,6 +1151,10 @@ func _drop_jewels(from: Vector3) -> void:
 	if rng.randf() < ItemData.feather_chance(int(data.get("star", 0))) * luck:
 		_spawn_loot(ItemData.jewel("feather"), 0, from)
 		Game.say("ขนนกตกแล้ว! เอาไปตีปีก 100 ดาวที่ช่างตีเหล็ก", &"quest")
+	# Halloween: every monster may drop a Halloween potion. Its own RNG, so the
+	# event leaves the zone's seeded rolls as they are.
+	if WorldEvents.halloween_on(WorldPresence.clock()) and _event_rng.randf() < WorldEvents.HALLOWEEN_DROP:
+		_spawn_loot(ItemData.potion("halloween"), 0, from)
 
 
 ## Chase pieces of a field boss; every miss raises the next kill's chance.

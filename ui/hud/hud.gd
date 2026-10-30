@@ -279,7 +279,12 @@ func _process(delta: float) -> void:
 	_event_in -= delta
 	if _event_in <= 0.0:
 		_event_in = 1.0
-		_event_label.text = WorldEvents.describe(WorldPresence.clock())
+		var t := WorldPresence.clock()
+		var lines := PackedStringArray()
+		for line in [Game.exp_boost_text(), WorldEvents.describe(t), WorldEvents.halloween_text(t)]:
+			if line != "":
+				lines.append(line)
+		_event_label.text = "\n".join(lines)
 		_event_chip.visible = _event_label.text != ""
 		_place_event_chip()
 

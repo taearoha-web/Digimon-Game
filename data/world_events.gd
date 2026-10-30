@@ -25,6 +25,13 @@ const BOSS_DROP_RARITY := 3
 const BOSS_JOIN_RANGE := 40.0
 const BOSS_SHOUT_GAP := 30.0
 const BOSS_SHOUTS := ["รุมบอสโลก!", "บอสโลกมาแล้ว ช่วยกันตี!", "ระวังท่าใหญ่ หลบ!", "ตีบอสโลกกัน!"]
+## Halloween (ฮาโลวีน): until Thai midnight starting 1 Nov 2026 every monster in every
+## field may drop a Halloween potion (ItemData.POTIONS "halloween": a random EXP x2 or
+## x3 for an hour of real time, Game.drink_exp_potion).
+const HALLOWEEN_START := 1793293200
+const HALLOWEEN_END := 1793466000
+const HALLOWEEN_DROP := 0.05
+const NAME_HALLOWEEN := "ฮาโลวีน: น้ำยาฮาโลวีนดรอป 5%"
 const NAME_EXP := "EXP x2"
 const NAME_BOSS := "บอสโลก"
 const NAME_GOLD := "โบนัสทอง +20%"
@@ -95,6 +102,15 @@ static func boss_zone(t: float) -> StringName:
 static func exp_multiplier(t: float) -> float:
 	var s := time_of_day(t)
 	return EXP_MULT if s >= EXP_START and s < EXP_END else 1.0
+
+
+static func halloween_on(t: float) -> bool:
+	return t >= float(HALLOWEEN_START) and t < float(HALLOWEEN_END)
+
+
+## The HUD line of the Halloween event ("" outside it).
+static func halloween_text(t: float) -> String:
+	return "%s เหลือ %s" % [NAME_HALLOWEEN, _span(float(HALLOWEEN_END) - t)] if halloween_on(t) else ""
 
 
 static func gold_multiplier(t: float) -> float:

@@ -118,6 +118,8 @@ static func icon(item: Dictionary) -> Texture2D:
 		return sized if sized != null else icon_for_id("gem_" + bits[0])
 	if item.get("kind", "") == "potion":
 		var pid := String(item.id)
+		if pid == "halloween":
+			return load("res://assets/icons/ui/halloween_potion.svg") as Texture2D
 		var path := "res://assets/icons/ui/heart_potion.svg" if pid.begins_with("hp") else ("res://assets/icons/ui/mana_potion.svg" if pid.begins_with("mp") else "res://assets/icons/ui/quest.svg")
 		return load(path) as Texture2D
 	var id := look_of(item)
