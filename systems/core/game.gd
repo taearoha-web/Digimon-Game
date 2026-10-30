@@ -1128,8 +1128,9 @@ func say(text: String, kind: StringName = &"info") -> void:
 func add_exp(amount: int) -> void:
 	if amount <= 0 or not has_profile:
 		return
-	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns.
-	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock())))
+	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
+	# Halloween potion multiplies on top of it.
+	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return
@@ -2053,6 +2054,46 @@ func in_duel() -> bool:
 	return current_zone == &"pvp"
 
 
+## The Halloween potion's EXP boost, kept in profile.flags as the real (unix) time it
+## ends and its multiplier, so it runs out on time even while the game is closed.
+const BOOST_UNTIL := "xb_until"
+const BOOST_MULT := "xb_mult"
+
+
+## Seconds left on the EXP potion (0 when none is running).
+func exp_boost_left() -> float:
+	if not has_profile:
+		return 0.0
+	return maxf(0.0, float(profile["flags"].get(BOOST_UNTIL, 0)) - WorldPresence.clock())
+
+
+func exp_boost_mult() -> float:
+	if exp_boost_left() <= 0.0:
+		return 1.0
+	return float(clampi(int(profile["flags"].get(BOOST_MULT, 1)), 1, 3))
+
+
+## The HUD line of a running EXP potion ("" when none).
+func exp_boost_text() -> String:
+	var left := exp_boost_left()
+	if left <= 0.0:
+		return ""
+	return "น้ำยาฮาโลวีน EXP x%d เหลือ %d นาที" % [int(exp_boost_mult()), maxi(1, int(ceil(left / 60.0)))]
+
+
+## Drinks a Halloween potion: EXP x2 or x3 for an hour of real time. Refused while
+## one still runs (the potion is kept). Returns the multiplier, or 0.
+func drink_exp_potion() -> int:
+	if exp_boost_left() > 0.0:
+		say("น้ำยาฮาโลวีนยังออกฤทธิ์อยู่ (%s)" % exp_boost_text(), &"warning")
+		return 0
+	var mult: int = ItemData.EXP_BOOST_MULTS[rng.randi() % ItemData.EXP_BOOST_MULTS.size()]
+	profile["flags"][BOOST_UNTIL] = int(round(WorldPresence.clock())) + ItemData.EXP_BOOST_TIME
+	profile["flags"][BOOST_MULT] = mult
+	say("น้ำยาฮาโลวีน: EXP x%d นาน 1 ชั่วโมง!" % mult, &"success")
+	return mult
+
+
 func use_potion_at(index: int) -> String:
 	var item: Dictionary = profile["inv"][index]
 	if item.get("kind", "") != "potion":
@@ -2061,6 +2102,8 @@ func use_potion_at(index: int) -> String:
 		say("ใช้ยาในสนามจัดอันดับไม่ได้", &"warning")
 		return ""
 	var def: Dictionary = ItemData.POTIONS[item.id]
+	if def.has("exp_boost") and drink_exp_potion() == 0:
+		return ""
 	var stats := stats_now()
 	if def.has("hp"):
 		profile["hp"] = mini(stats.max_hp, profile["hp"] + int(def.hp))

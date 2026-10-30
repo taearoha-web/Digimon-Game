@@ -75,7 +75,12 @@ const POTIONS := {
 	"mp_m": {"name": "ยามานากลาง", "desc": "ฟื้นฟู MP 180", "mp": 180, "price": 70, "color": Color("3a7bff")},
 	"mp_l": {"name": "ยามานาใหญ่", "desc": "ฟื้นฟู MP 450", "mp": 450, "price": 180, "color": Color("2050e0")},
 	"town_scroll": {"name": "ใบวาร์ปกลับเมือง", "desc": "วาร์ปกลับหมู่บ้านทันที", "town": true, "price": 120, "color": Color("c9ffb0")},
+	# Halloween event drop only (WorldEvents.HALLOWEEN_DROP), never sold in shops.
+	"halloween": {"name": "น้ำยาฮาโลวีน", "desc": "สุ่ม EXP x2 หรือ x3 นาน 1 ชั่วโมง (นับเวลาจริง ออกจากเกมเวลาก็ยังเดิน)", "exp_boost": true, "price": 500, "color": Color("ff8a1f")},
 }
+## The Halloween potion: EXP x2 or x3 (an even roll) for EXP_BOOST_TIME seconds.
+const EXP_BOOST_MULTS := [2, 3]
+const EXP_BOOST_TIME := 3600
 
 ## Gems that go into equipment sockets. Stat gems raise a stat by a share of it (so a
 ## gem matters at Lv.10 and at ★200 alike; topaz adds crit chance); special gems give
@@ -133,9 +138,17 @@ const JEWELS := {
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
-## Feathers drop only in fields of FEATHER_STARS stars and up.
+## Feathers drop only in fields of FEATHER_STARS stars and up: 0.1% in the
+## first such field, +0.1% for every further field (every 50 stars).
 const FEATHER_DROP := 0.001
 const FEATHER_STARS := 50
+
+
+## Feather drop chance per kill in a field of `stars` stars (0 below FEATHER_STARS).
+static func feather_chance(stars: int) -> float:
+	if stars < FEATHER_STARS:
+		return 0.0
+	return FEATHER_DROP * float(1 + (stars - FEATHER_STARS) / FEATHER_STARS)
 
 static var _uid := 0
 
