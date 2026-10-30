@@ -47,6 +47,11 @@ func _ready() -> void:
 		if is_instance_valid(c):
 			c.global_position = hero.global_position + Vector3(randf_range(-2.5, 2.5), 0.3, randf_range(-1.0, 1.0))
 	hero.target = pack[2]
+	# Let the party close in, then put the hero in the fight (it does not walk on its own
+	# here) and give the camera a moment to follow.
+	await get_tree().create_timer(2.0).timeout
+	hero.global_position = pack[2].global_position + Vector3(0, 0.3, 2.6)
+	await get_tree().create_timer(0.8).timeout
 	# The fight runs a few seconds; the hero's own hits land on the middle one.
 	for i in 16:
 		await get_tree().create_timer(0.25).timeout

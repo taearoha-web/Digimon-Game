@@ -213,7 +213,7 @@ const CRIT_COLOR := Color("ffe23a")
 ## Texts that spawn within STAGGER_RADIUS metres of one spawned less than STAGGER_TIME
 ## seconds ago fan out (sideways and up), so a burst of hits stays readable.
 const STAGGER_RADIUS := 1.1
-const STAGGER_TIME := 0.85
+const STAGGER_TIME := 1.2
 const STAGGER_SIDE := 0.7
 const STAGGER_UP := 0.4
 const _RECENT_MAX := 24
