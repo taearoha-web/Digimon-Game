@@ -60,6 +60,13 @@ const SCALE_3D_SLOW_TICKS := 2
 const SCALE_3D_FAST_FPS := 57.0
 const SCALE_3D_FAST_TICKS := 6
 static var scale_3d := 1.0
+## How low the frame rate may take the 3D scale at each quality: medium keeps the world
+## and the names over the heads readable (0.85), high "ลื่น" 0.8, low goes to SCALE_3D_MIN.
+const SCALE_3D_FLOORS := [SCALE_3D_MIN, 0.85, 0.8]
+
+
+static func scale_3d_floor() -> float:
+	return float(SCALE_3D_FLOORS[clampi(GameSettings.quality, 0, 2)])
 static var _scale_slow := 0
 static var _scale_fast := 0
 static var _scale_applied := -1.0
@@ -80,7 +87,7 @@ static func _frame_rate() -> float:
 	return fps_override if fps_override >= 0.0 else Engine.get_frames_per_second()
 
 
-## The web shell's pixel budget (0: 1280 px, 1: 1600 px, 2: 1920 px on the long edge):
+## The web shell's pixel budget (0: 1280 px, 1: 2048 px, 2: 2560 px on the long edge):
 ## the chosen quality, one step lower per pressure level on an iPhone, where every
 ## drawn pixel costs GPU time and render-target memory.
 static func render_quality() -> int:
@@ -190,7 +197,7 @@ static func _follow_frame_rate(tree: SceneTree) -> void:
 	if fps < SCALE_3D_SLOW_FPS:
 		_scale_slow += 1
 		_scale_fast = 0
-		if _scale_slow >= SCALE_3D_SLOW_TICKS and scale_3d > SCALE_3D_MIN + 0.001:
+		if _scale_slow >= SCALE_3D_SLOW_TICKS and scale_3d > scale_3d_floor() + 0.001:
 			_scale_slow = 0
 			set_scale_3d(scale_3d - SCALE_3D_STEP, tree)
 	elif fps > SCALE_3D_FAST_FPS:
@@ -205,7 +212,7 @@ static func _follow_frame_rate(tree: SceneTree) -> void:
 
 
 static func set_scale_3d(value: float, tree: SceneTree) -> void:
-	scale_3d = snappedf(clampf(value, SCALE_3D_MIN, 1.0), 0.01)
+	scale_3d = snappedf(clampf(value, scale_3d_floor(), 1.0), 0.01)
 	_apply_scale_3d(tree)
 
 
