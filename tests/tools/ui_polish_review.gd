@@ -1,5 +1,6 @@
 extends Node
-## Layout assertions plus an optional fully populated eight-skill screenshot.
+## Layout assertions (the action buttons, the world-event chip under the daily tracker,
+## the world chat) plus an optional fully populated eight-skill screenshot.
 ## Run with a fresh XDG_DATA_HOME to isolate fixture saves.
 ## godot --headless --path . res://tests/tools/ui_polish_review.tscn
 ## godot --path . res://tests/tools/ui_polish_review.tscn -- /absolute/shot-folder
@@ -33,6 +34,8 @@ func _ready() -> void:
 		if not slot.skill.is_empty():
 			filled += 1
 	_check(filled == 8, "all eight skill slots are populated in the capture fixture")
+	await _check_event_chip_live(main.hud)
+	await _check_party_and_buffs(main.hud)
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0 and DisplayServer.get_name() != "headless":
 		DirAccess.make_dir_recursive_absolute(args[0])
@@ -87,6 +90,88 @@ func _check_layout(canvas: Vector2, insets := Vector4.ZERO) -> void:
 		_check(nearest.distance_to(joystick_center) > 104.0 * 1.45, "control %d leaves joystick touch circle clear" % i)
 		for j in range(i + 1, rectangles.size()):
 			_check(not rect.intersects(rectangles[j]), "controls %d and %d do not overlap" % [i, j])
+	# The world-event chip under the daily tracker (two or three lines) with its longest
+	# line: clear of the minimap, the tracker, the utility column (with the dark lord's
+	# raven buttons left of the auto button), the top-right chips and the frame's edge.
+	var others := {"minimap": Rect2(frame.x - 150.0, 102.0, 140.0, 140.0), "top right chips": Rect2(frame.x - 560.0, 0.0, 560.0, 76.0),
+		"raven": Rect2(frame + positions.utility[2] + Vector2(-72.0, 0.0) - Vector2.ONE * 30.8, Vector2.ONE * 61.6),
+		"raven mode": Rect2(frame + positions.utility[2] + Vector2(-72.0, -72.0) - Vector2.ONE * 30.8, Vector2.ONE * 61.6)}
+	for i in positions.utility.size():
+		others["utility %d" % i] = Rect2(frame + positions.utility[i] - Vector2.ONE * 30.8, Vector2.ONE * 61.6)
+	for lines in [2, 3]:
+		var tracker_height := _text_height(&"SmallLabel", lines)
+		others["tracker"] = Rect2(frame.x - 480.0, HUD.TRACKER_TOP, 480.0 + HUD.TRACKER_RIGHT, tracker_height)
+		var chip := HUD.event_chip_rect(frame, tracker_height, Vector2(430.0, _text_height(&"SmallLabel", 1) + 12.0))
+		_check(Rect2(Vector2.ZERO, frame).encloses(chip), "event chip under %d tracker lines stays inside %s safe frame" % [lines, canvas])
+		for key in others:
+			_check(not chip.intersects(others[key]), "event chip under %d tracker lines clears the %s at %s" % [lines, key, canvas])
+
+
+## The height of [param lines] lines of a label of the theme's [param variation].
+func _text_height(variation: StringName, lines: int) -> float:
+	var label := UIUtil.label("\n".join(PackedStringArray(Array(range(lines)).map(func(_i): return "รายวัน: เสร็จ 0/3"))), variation)
+	add_child(label)
+	var height := label.get_combined_minimum_size().y
+	label.queue_free()
+	return height
+
+
+## The real chip with its longest line, placed by the HUD, against the real controls.
+func _check_event_chip_live(hud: HUD) -> void:
+	hud._event_in = 1.0e9
+	hud._event_label.text = "โบนัสทอง +20% · บอสโลกที่ ทุ่งหญ้ามิสต์วูด 12 นาที"
+	hud._event_chip.visible = true
+	hud._tracker_timer = 1.0e9
+	hud._tracker.visible = true
+	hud._tracker.text = "เควสต์: กำจัดหมาป่าเงาในทุ่งหญ้า 7/10\nรายวัน: เสร็จ 1/3"
+	hud._place_event_chip()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var chip := hud._event_chip.get_global_rect()
+	_check(chip.size.x > 300.0 and chip.size.y > 20.0, "event chip grew to its long line (%s)" % chip)
+	var named := {"minimap": hud.minimap, "tracker": hud._tracker, "hp potion": hud.hp_potion, "mp potion": hud.mp_potion, "auto": hud.auto_button,
+		"target": hud.target_button, "raven": hud.raven_button, "raven mode": hud.raven_mode_button,
+		"online chip": hud._frame.find_child("OnlineChip", true, false), "chat chip": hud._frame.find_child("ChatChip", true, false),
+		"gold chip": hud._gold_label.get_parent().get_parent()}
+	for key in named:
+		var other: Control = named[key]
+		_check(not chip.intersects(other.get_global_rect()), "live event chip %s clears the %s %s" % [chip, key, other.get_global_rect()])
+	var chat := hud.world_chat.get_global_rect()
+	_check(not chat.intersects(hud.skill_slots[0].get_global_rect().grow(4.0)), "world chat %s clears the first skill" % chat)
+
+
+## The owner's phone: four party members, buffs in three lanes, the world chat below.
+## The skill slots carry no names, the buffs are one compact block, no party card sits
+## under the chat, and every minimap marker stays inside the round map.
+func _check_party_and_buffs(hud: HUD) -> void:
+	_check(hud.skill_slots.all(func(slot: SkillSlot): return not slot.show_name), "field skill slots draw no name under the medallion")
+	_check(hud._timers is HUD.CompactTimers, "the field HUD shows the compact buff block")
+	for i in WorldPlayers.size():
+		if Game.world_party.size() >= Game.PARTY_MAX:
+			break
+		Game.party_invite(i, true)
+	for pair in [[&"mage", "zenith", false], [&"warrior", "holy_valor", true], [&"mage", "energy_shield", true], [&"bard", "valor_march", true]]:
+		var s := ClassData.find_skill(pair[0], pair[1])
+		hud.hero.receive_buff(s.fx.buff, s.color, s.name, pair[2], pair[1])
+	await get_tree().create_timer(0.4).timeout
+	var buffs := hud._timers.get_global_rect()
+	_check(hud._timers.visible and buffs.size.y <= 100.0, "four buffs in three lanes take one compact block (%s)" % buffs)
+	var chat := hud.world_chat.get_global_rect()
+	_check(chat.size.y >= HUD.CHAT_MIN_HEIGHT - 0.5, "world chat keeps its minimum height (%s)" % chat)
+	var shown := 0
+	for entry in hud._party_cards:
+		var card: Control = entry.card
+		if card.is_visible_in_tree():
+			shown += 1
+			_check(not chat.intersects(card.get_global_rect()), "world chat %s clears party card %s" % [chat, card.get_global_rect()])
+	_check(shown == Game.PARTY_MAX, "four party cards shown (%d)" % shown)
+	hud.minimap.queue_redraw()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for mark in hud.minimap.drawn:
+		_check((mark[0] as Vector2).distance_to(hud.minimap.size * 0.5) + float(mark[1]) <= Minimap.RADIUS + 0.5, "minimap marker %s stays inside the round map" % str(mark))
+	hud.hero._buffs.clear()
+	Game.dismiss_party()
 
 
 func _check(ok: bool, label: String) -> void:

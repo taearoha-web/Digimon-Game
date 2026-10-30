@@ -15,9 +15,16 @@ const EXP_MULT := 2.0
 const BOSS_START := 20 * 3600 + 30 * 60
 const BOSS_LENGTH := 20 * 60
 const WEEKEND_GOLD := 1.2
-## World boss over the field's own: HP, gold reward per Lv.10 of the hero.
+## World boss over the field's own: HP, gold reward per Lv.10 of the hero, the rarity
+## of the piece it drops into the bag (its moves: WorldBoss).
 const BOSS_HP_SCALE := 3.0
 const BOSS_GOLD_PER_10 := 500
+const BOSS_DROP_RARITY := 3
+## World players hunting in the field join in: they go for the boss within this range
+## and shout one of these lines, each at most every BOSS_SHOUT_GAP seconds.
+const BOSS_JOIN_RANGE := 40.0
+const BOSS_SHOUT_GAP := 30.0
+const BOSS_SHOUTS := ["รุมบอสโลก!", "บอสโลกมาแล้ว ช่วยกันตี!", "ระวังท่าใหญ่ หลบ!", "ตีบอสโลกกัน!"]
 const NAME_EXP := "EXP x2"
 const NAME_BOSS := "บอสโลก"
 const NAME_GOLD := "โบนัสทอง +20%"

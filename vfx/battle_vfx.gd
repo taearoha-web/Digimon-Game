@@ -197,22 +197,118 @@ const DAMAGE_OUTLINE_WIDTH := 34
 
 static var _damage_font: FontVariation
 
+## Set by party members and world players around their own hits (Companion._deal), so
+## the numbers they cause are drawn as someone else's: smaller, dimmer and capped.
+static var dealing_other := false
+## Others' numbers drawn at once at most; a new one drops the oldest. The hero's own
+## numbers are never dropped.
+const OTHERS_CAP := 8
+## Others' numbers next to the hero's: this much smaller, and this see-through.
+const OTHERS_SIZE := 0.7
+const OTHERS_ALPHA := 0.72
+## Damage numbers are drawn a little smaller than other floating texts (phones).
+const NUMBER_SIZE := 0.86
+## The hero's own critical hits: gold-yellow and a little bigger still.
+const CRIT_COLOR := Color("ffe23a")
+## Texts that spawn within STAGGER_RADIUS metres of one spawned less than STAGGER_TIME
+## seconds ago fan out (sideways and up), so a burst of hits stays readable.
+const STAGGER_RADIUS := 1.1
+const STAGGER_TIME := 1.2
+const STAGGER_SIDE := 0.7
+const STAGGER_UP := 0.4
+const _RECENT_MAX := 24
+## [base position, spawn seconds] of the latest texts (a small ring of recent spawns).
+static var _recent: Array = []
+## Others' numbers still on screen, oldest first.
+static var _others: Array = []
+## Seconds for the stagger window (tests set it; below 0 the engine clock).
+static var clock_override := -1.0
 
-static func damage_number(parent: Node3D, pos: Vector3, text: String, taken: bool, size := 1.0) -> void:
+
+static func damage_number(parent: Node3D, pos: Vector3, text: String, taken: bool, size := 1.0, other := false) -> Label3D:
 	if _damage_font == null:
 		# The heading face drawn heavier, so the colour still reads inside the black edge.
 		_damage_font = FontVariation.new()
 		_damage_font.base_font = load("res://ui/theme/fonts/heading_font.tres")
 		_damage_font.variation_embolden = 1.1
-	floating_text(parent, pos, text, DAMAGE_TAKEN if taken else DAMAGE_DEALT, size, DAMAGE_OUTLINE, DAMAGE_OUTLINE_WIDTH, _damage_font)
+	other = other or dealing_other
+	# Small ticks (a burn) still give way when the screen is full; real hits never do.
+	if not other and size < 0.75 and _floating_active > 26:
+		return null
+	var color := DAMAGE_TAKEN if taken else DAMAGE_DEALT
+	size *= NUMBER_SIZE
+	if other:
+		size *= OTHERS_SIZE
+		color = color.lerp(Color(0.75, 0.72, 0.68), 0.25)
+		color.a = OTHERS_ALPHA
+	elif not taken and text.ends_with("!"):
+		color = CRIT_COLOR
+		size *= 1.12
+	return _spawn_text(parent, pos, text, color, size, DAMAGE_OUTLINE, DAMAGE_OUTLINE_WIDTH, _damage_font, 2 if other else 1)
+
+
+## A party member's own number (the damage it takes) in its own colour: drawn as others'.
+static func other_number(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0) -> Label3D:
+	color.a = OTHERS_ALPHA
+	return _spawn_text(parent, pos, text, color, size * NUMBER_SIZE * OTHERS_SIZE, Color(0.03, 0.05, 0.14), 22, null, 2)
 
 
 static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Color, size := 1.0,
-		outline := Color(0.03, 0.05, 0.14), outline_width := 22, font: Font = null) -> void:
+		outline := Color(0.03, 0.05, 0.14), outline_width := 22, font: Font = null) -> Label3D:
+	return _spawn_text(parent, pos, text, color, size, outline, outline_width, font, 0)
+
+
+static func _clock() -> float:
+	return clock_override if clock_override >= 0.0 else Time.get_ticks_msec() * 0.001
+
+
+## Where a text spawned at [param pos] goes: the k-th text near recent ones fans out
+## right, left, further right... and a step higher each time (seen from the camera).
+static func stagger(parent: Node3D, pos: Vector3) -> Vector3:
+	var now := _clock()
+	var near := 0
+	var kept: Array = []
+	for r in _recent:
+		if now - float(r[1]) > STAGGER_TIME:
+			continue
+		kept.append(r)
+		var d: Vector3 = r[0] - pos
+		d.y *= 0.5
+		if d.length() < STAGGER_RADIUS:
+			near += 1
+	_recent = kept
+	_recent.append([pos, now])
+	while _recent.size() > _RECENT_MAX:
+		_recent.pop_front()
+	if near == 0:
+		return pos
+	var k := (near - 1) % 6 + 1
+	var side := Vector3.RIGHT
+	var cam: Camera3D = parent.get_viewport().get_camera_3d() if parent and parent.is_inside_tree() else null
+	if cam:
+		side = cam.global_transform.basis.x
+		side.y = 0.0
+		side = side.normalized() if side.length() > 0.01 else Vector3.RIGHT
+	var lane := float(ceili(k / 2.0))
+	var dir_sign := 1.0 if k % 2 == 1 else -1.0
+	var unit := text_scale * 0.6
+	return pos + side * (dir_sign * lane * STAGGER_SIDE * unit) + Vector3(0, k * STAGGER_UP * unit, 0)
+
+
+## Kind: 0 a text, 1 the hero's own number (never dropped), 2 someone else's number.
+static func _spawn_text(parent: Node3D, pos: Vector3, text: String, color: Color, size: float,
+		outline: Color, outline_width: int, font: Font, kind: int) -> Label3D:
+	if parent == null or not is_instance_valid(parent):
+		return null
 	# Many hits at once would pile up unreadably: cap the count and spread them out.
-	if _floating_active > 26 and size < 1.2:
-		return
-	pos += Vector3(randf_range(-0.35, 0.35), randf_range(0.0, 0.25), randf_range(-0.35, 0.35))
+	if kind == 0 and _floating_active > 26 and size < 1.2:
+		return null
+	if kind == 2:
+		_others = _others.filter(func(l): return is_instance_valid(l) and not l.is_queued_for_deletion())
+		while _others.size() >= OTHERS_CAP:
+			var oldest: Label3D = _others.pop_front()
+			oldest.queue_free()
+	pos = stagger(parent, pos) + Vector3(randf_range(-0.08, 0.08), randf_range(0.0, 0.08), randf_range(-0.08, 0.08))
 	_floating_active += 1
 	var label := Label3D.new()
 	label.text = L10n.t(text)
@@ -225,7 +321,14 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	label.outline_size = int(outline_width * FLOATING_FONT_SIZE / 96.0)
 	label.pixel_size = 0.0042 * text_scale * size * 96.0 / FLOATING_FONT_SIZE
 	label.modulate = color
+	if kind == 2:
+		outline.a *= OTHERS_ALPHA
 	label.outline_modulate = outline
+	# The hero's own numbers draw over others' when they cross.
+	label.render_priority = 3 if kind == 1 else (1 if kind == 2 else 2)
+	if kind == 2:
+		label.set_meta(&"other", true)
+		_others.append(label)
 	parent.add_child(label)
 	# Released when the label leaves the tree, whether its tween freed it or the
 	# zone was unloaded under it; a callback alone left the count stuck high and
@@ -238,6 +341,7 @@ static func floating_text(parent: Node3D, pos: Vector3, text: String, color: Col
 	tween.parallel().tween_property(label, "global_position", pos + Vector3(0, 0.9, 0), 0.9).set_ease(Tween.EASE_OUT)
 	tween.tween_property(label, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(label.queue_free)
+	return label
 
 
 static func stat_arrows(parent: Node3D, pos: Vector3, up: bool) -> void:

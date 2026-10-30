@@ -977,12 +977,18 @@ func _tick_world_boss() -> void:
 	mob.set_meta("world_boss", int(event.day))
 	mob.position = _boss_spot + Vector3(4.0, 0.3, 2.0)
 	add_child(mob)
+	# Its special moves (telegraphed) and roars live on a WorldBoss node.
+	var special := WorldBoss.new()
+	special.setup(mob, self)
+	mob.add_child(special)
 	_wboss = mob
 	banner_requested.emit("%s ปรากฏตัวแล้ว!" % String(mob.template.name))
 	Game.say("%s ปรากฏตัวแล้ว!" % String(mob.template.name), &"warning")
 
 
-## The world boss is down: the day's window is spent; the hero that fought it is paid.
+## The world boss is down: the day's window is spent (Game.world_boss_defeated for the
+## achievements); the hero that fought it is paid the bounty and a rarity-3 piece for
+## its class goes into the bag (on the ground when the bag is full).
 func _on_world_boss_died(mob: Mob) -> void:
 	Game.profile.flags[WorldEvents.flag_key(int(mob.get_meta("world_boss", 0)))] = 1
 	Game.mark_dirty()
@@ -990,8 +996,16 @@ func _on_world_boss_died(mob: Mob) -> void:
 		return
 	var gold := WorldEvents.BOSS_GOLD_PER_10 * maxi(1, int(Game.profile.level) / 10)
 	Game.add_gold(gold)
-	banner_requested.emit("ปราบบอสโลกแล้ว! +%d เหรียญ" % gold)
-	Game.say("ปราบบอสโลกแล้ว! ได้รับ %d เหรียญ" % gold, &"info")
+	var zone_name := String(data.get("name", ""))
+	banner_requested.emit("ปราบบอสโลกที่ %s แล้ว! +%d เหรียญ" % [zone_name, gold])
+	Game.say("ปราบบอสโลกที่ %s แล้ว! ได้รับ %d เหรียญ" % [zone_name, gold], &"info")
+	var item := ItemData.generate(int(Game.profile.level), Game.class_id(), rng, WorldEvents.BOSS_DROP_RARITY)
+	if Game.add_item(item):
+		Game.say("บอสโลกทิ้ง %s" % String(item.get("name", "")), &"info")
+	else:
+		_spawn_loot(item, 0, mob.global_position)
+	if Game.has_signal("world_boss_defeated"):
+		Game.emit_signal("world_boss_defeated", Game.current_zone)
 
 
 ## Phase 1 and 2 of a boss: a handful of the field's monsters join the fight.

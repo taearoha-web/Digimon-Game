@@ -10,7 +10,8 @@ signal closed()
 const QTY_STEPS := [1, 5, 10, 20, 50, 99]
 
 var is_open := false
-## Chosen count per stackable item id; kept between visits.
+## Chosen count per stackable item id (merchant buys) or "consign|<id>" (stall
+## consignments); kept between visits.
 var _qty := {}
 var _root: Control
 var _buy_box: VBoxContainer
@@ -240,19 +241,67 @@ func _stall_rows() -> void:
 	_buy_box.add_child(UIUtil.label(note, &"DimLabel"))
 
 
-## A bag slot at a stall: sold now at the stall's price, or left with the keeper (the whole
-## stack) to sell for more, paid later.
+## A bag slot at a stall: sold now at the stall's price, or left with the keeper to sell
+## for more, paid later: a stack with − and + picking how many (capped at the stack),
+## a piece of gear whole.
 func _consign_row(item: Dictionary, index: int) -> Control:
 	var panel := _row(item, StallStock.sell_price(item), "ขาย", func(): StallStock.sell(index))
-	var qty := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
-	var consign := UIUtil.button("ฝากขาย %d" % (StallStock.consign_price(item) * qty), &"", Vector2(150, 56))
+	panel.name = "Bag_%d" % index
+	var unit := StallStock.consign_price(item)
+	var stack := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
+	var key := "consign|%s" % String(item.get("id", ""))
+	var consign := UIUtil.button("ฝากขาย %d" % unit, &"", Vector2(150, 56))
 	consign.name = "Consign"
-	consign.disabled = StallStock.consignments().size() >= StallStock.CONSIGN_MAX or StallStock.consign_price(item) <= 0
+	var full := StallStock.consignments().size() >= StallStock.CONSIGN_MAX or unit <= 0
+	var refresh := func():
+		var n := clampi(int(_qty.get(key, 1)), 1, stack)
+		_qty[key] = n
+		consign.text = "ฝากขาย ×%d %d" % [n, unit * n] if stack > 1 else "ฝากขาย %d" % unit
+		consign.disabled = full
 	consign.pressed.connect(func():
 		AudioManager.play_sfx(&"coin")
-		StallStock.consign(index))
+		StallStock.consign(index, clampi(int(_qty.get(key, 1)), 1, stack)))
 	(panel.get_child(0) as Control).add_child(consign)
+	if stack > 1:
+		var steps := QTY_STEPS.filter(func(n): return int(n) < stack)
+		steps.append(stack)
+		# A count kept from an earlier visit may not fit this stack: back to one bottle.
+		if not steps.has(int(_qty.get(key, 1))):
+			_qty[key] = 1
+		_stepper(panel.find_child("Info", true, false) as Control, key, steps, refresh)
+	refresh.call()
 	return panel
+
+
+## − and + under a row's name, stepping the count kept in _qty[key] through `steps`;
+## `refresh` redraws the row for the count.
+func _stepper(info: Control, key: String, steps: Array, refresh: Callable) -> void:
+	var stepper := UIUtil.hbox(6)
+	stepper.name = "Qty"
+	info.add_child(stepper)
+	var minus := UIUtil.button("−", &"", Vector2(64, 52))
+	minus.name = "QtyMinus"
+	var count := UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	count.name = "QtyCount"
+	count.custom_minimum_size = Vector2(72, 0)
+	var plus := UIUtil.button("+", &"", Vector2(64, 52))
+	plus.name = "QtyPlus"
+	stepper.add_child(minus)
+	stepper.add_child(count)
+	stepper.add_child(plus)
+	var show := func():
+		var n := int(_qty.get(key, 1))
+		count.text = "×%d" % n
+		minus.disabled = n <= int(steps[0])
+		plus.disabled = n >= int(steps[-1])
+		refresh.call()
+	var step := func(dir: int):
+		var at := steps.find(int(_qty.get(key, 1)))
+		_qty[key] = int(steps[clampi((at if at >= 0 else 0) + dir, 0, steps.size() - 1)])
+		show.call()
+	minus.pressed.connect(step.bind(-1))
+	plus.pressed.connect(step.bind(1))
+	show.call()
 
 
 ## A potion or scroll: − and + pick how many bottles, the button buys them all at once.
@@ -264,34 +313,12 @@ func _bulk_row(item: Dictionary) -> Control:
 		Game.buy_item(lot))
 	var buy := panel.find_child("Buy", true, false) as Button
 	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var stepper := UIUtil.hbox(6)
-	stepper.name = "Qty"
-	(panel.find_child("Info", true, false) as Control).add_child(stepper)
-	var minus := UIUtil.button("−", &"", Vector2(64, 52))
-	minus.name = "QtyMinus"
-	var count := UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	count.name = "QtyCount"
-	count.custom_minimum_size = Vector2(72, 0)
-	var plus := UIUtil.button("+", &"", Vector2(64, 52))
-	plus.name = "QtyPlus"
-	stepper.add_child(minus)
-	stepper.add_child(count)
-	stepper.add_child(plus)
 	var refresh := func():
 		var n := int(_qty.get(id, 1))
 		var total := ItemData.buy_price(item) * n
-		count.text = "×%d" % n
 		buy.text = "ซื้อ %d" % total
 		buy.disabled = int(Game.profile.gold) < total
-		minus.disabled = n <= QTY_STEPS[0]
-		plus.disabled = n >= QTY_STEPS[-1]
-	var step := func(dir: int):
-		var at := QTY_STEPS.find(int(_qty.get(id, 1)))
-		_qty[id] = QTY_STEPS[clampi((at if at >= 0 else 0) + dir, 0, QTY_STEPS.size() - 1)]
-		refresh.call()
-	minus.pressed.connect(step.bind(-1))
-	plus.pressed.connect(step.bind(1))
-	refresh.call()
+	_stepper(panel.find_child("Info", true, false) as Control, id, QTY_STEPS, refresh)
 	return panel
 
 

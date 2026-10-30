@@ -4,6 +4,9 @@
 (function () {
   'use strict';
   const FILE_ROOT = '/userfs/godot/app_userdata/Toon Tale';
+  // Written by the game's SaveBackup.restore (user://backups/restored.json): the slots
+  // restored from an offline backup since this page last cleared it, see restoreMarker.
+  const RESTORE_MARKER = FILE_ROOT + '/backups/restored.json';
   const CACHE_DB = 'toon_tale_accounts_v1';
   const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่', assassin:'นักฆ่า', darklord:'ดาร์กลอร์ด', bard:'นักดนตรี'};
   // A request waits longer the more it carries: a full four-character save is
@@ -94,6 +97,20 @@
     try { const meta = JSON.parse(decoder.decode(rows[SLOT_COUNT].contents)); if (meta.slot >= 1 && meta.slot <= SLOT_COUNT) bundle.selectedSlot = meta.slot; } catch (_) {}
     return bundleOf(bundle);
   }
+  // {time, slots:[n]} when the game restored a slot from one of its offline backups and
+  // the choice between that save and the online one has not been made yet, else null.
+  // Only before Godot starts (like installBundle, which clears the marker).
+  async function restoreMarker() {
+    await storage(true);
+    const row = await request(userFS.transaction('FILE_DATA','readonly').objectStore('FILE_DATA').get(RESTORE_MARKER));
+    if (!row || !row.contents) return null;
+    try {
+      const marker = JSON.parse(new TextDecoder().decode(row.contents));
+      if (!marker || typeof marker !== 'object') return null;
+      const slots = (Array.isArray(marker.slots) ? marker.slots : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= SLOT_COUNT);
+      return {time:Number(marker.time) || 0,slots};
+    } catch (_) { return null; }
+  }
   async function installBundle(bundle) {
     // Only before Godot starts (or after a full page reload). Its in-memory
     // filesystem must never be changed beneath a running game.
@@ -110,6 +127,8 @@
     }
     store.delete(FILE_ROOT + '/toon_tale_save.json');
     store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify({slot:bundle.selectedSlot}))},FILE_ROOT + '/toon_tale_meta.json');
+    // Whatever starts now was chosen with the restored save in view: the marker is spent.
+    store.delete(RESTORE_MARKER);
     await completed(tx);
   }
   async function preserveActiveFiles() {
@@ -343,6 +362,11 @@
     if (cached && cached.dirty) {
       draft = cached;
       if (equal(cached.bundle,serverBundle)) return finish(user,serverBundle,revision);
+      // A slot restored from an offline backup in the game (saved_at = the restore
+      // time, so preserveActiveFiles made it this dirty draft) is never sent up or
+      // replaced by the online copy without asking; the restored save is the default.
+      const restored = await restoreMarker();
+      if (restored && newest(cached.bundle) > newest(serverBundle)) return showConflict(cloud,true,'',restored);
       if (cached.revision === revision) {
         try {
           const result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision:revision,bundle:cached.bundle})});
@@ -420,41 +444,49 @@
   }
   // `note` is shown under the buttons: why the previous attempt did not go
   // through. Every failure here leaves the local save and its draft untouched.
-  async function showConflict(cloud,beforeStart = false,note = '') {
+  // `restored` (restoreMarker()) means the local save was just restored from one of
+  // the game's offline backups: the screen says so and the restored save is the
+  // default (first, primary) button; the online copy is the second choice.
+  async function showConflict(cloud,beforeStart = false,note = '',restored = null) {
     state.conflict = true; state.pending = true; conflictSave = cloud;
     if (note) state.error = note;
     const local = copy(draft.bundle), server = bundleOf(cloud.bundle || blank()), revision = Number(cloud.revision) || 0;
-    panel('พบเซฟใหม่จากอีกเครื่อง','<p class="ta-intro">มีความคืบหน้าสองชุด กรุณาเลือกชุดที่จะเล่นต่อ ตัวละครและไอเทมจะใช้ทั้งชุด ไม่มีการรวมข้อมูลอัตโนมัติ สำเนาอีกชุดจะเก็บในเครื่องนี้</p><div class="ta-compare"><div><h3>ในเครื่องนี้</h3>' + summaries(local) + '</div><div><h3>ออนไลน์ล่าสุด</h3>' + summaries(server) + '</div></div>',[
-      {label:'ใช้เซฟออนไลน์ล่าสุด',run:async () => {
-        if (started) transitioning = true;
-        await backup(identity(state.user),local,'ก่อนเลือกเซฟออนไลน์');
-        draft = {bundle:server,revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
-        state.conflict = false; state.pending = false; state.error = '';
-        if (beforeStart) await finish(state.user,server,revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:server}); location.reload(); }
-      }},
-      {label:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',kind:'secondary',run:async () => {
-        if (started) transitioning = true;
-        feedback('กำลังส่งเซฟในเครื่องขึ้นออนไลน์…',false);
-        await backup(identity(state.user),server,'ก่อนแทนเซฟออนไลน์ด้วยเซฟในเครื่อง');
-        let result;
-        try { result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision:revision,bundle:local})}); }
-        catch (error) {
-          transitioning = false;
-          if (error.code === 'account_changed' || error.status === 401) return;
-          if (error.status === 409) {
-            // The online copy moved again (another device is still uploading, or
-            // this screen was stale). Re-read it and say so instead of a silent redraw.
-            return showConflict(await api('save'),beforeStart,'ยังส่งไม่ได้: ออนไลน์มีเซฟใหม่กว่าอีกครั้ง ' + serverDetail(error).trim() + ' ถ้าอีกเครื่องยังเปิดเกมอยู่ ให้ปิดก่อน แล้วตรวจรายการด้านบนและกดยืนยันอีกครั้ง');
-          }
-          throw error;
+    const useOnline = {label:'ใช้เซฟออนไลน์ล่าสุด',kind:restored ? 'secondary' : 'primary',run:async () => {
+      if (started) transitioning = true;
+      await backup(identity(state.user),local,restored ? 'เซฟที่กู้คืน ก่อนเลือกเซฟออนไลน์' : 'ก่อนเลือกเซฟออนไลน์');
+      draft = {bundle:server,revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
+      state.conflict = false; state.pending = false; state.error = '';
+      if (beforeStart) await finish(state.user,server,revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:server}); location.reload(); }
+    }};
+    const useLocal = {label:restored ? 'ใช้เซฟที่กู้คืน (ส่งขึ้นออนไลน์)' : 'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',kind:restored ? 'primary' : 'secondary',run:async () => {
+      if (started) transitioning = true;
+      feedback('กำลังส่งเซฟในเครื่องขึ้นออนไลน์…',false);
+      await backup(identity(state.user),server,'ก่อนแทนเซฟออนไลน์ด้วยเซฟในเครื่อง');
+      let result;
+      try { result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision:revision,bundle:local})}); }
+      catch (error) {
+        transitioning = false;
+        if (error.code === 'account_changed' || error.status === 401) return;
+        if (error.status === 409) {
+          // The online copy moved again (another device is still uploading, or
+          // this screen was stale). Re-read it and say so instead of a silent redraw.
+          return showConflict(await api('save'),beforeStart,'ยังส่งไม่ได้: ออนไลน์มีเซฟใหม่กว่าอีกครั้ง ' + serverDetail(error).trim() + ' ถ้าอีกเครื่องยังเปิดเกมอยู่ ให้ปิดก่อน แล้วตรวจรายการด้านบนและกดยืนยันอีกครั้ง',restored);
         }
-        draft = {bundle:local,revision:result.revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
-        state.conflict = false; state.pending = false; state.error = '';
-        if (beforeStart) await finish(state.user,local,result.revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:local}); location.reload(); }
-      }},
-      ...(beforeStart ? [{label:'เล่นเซฟในเครื่องก่อน ค่อยส่งออนไลน์ภายหลัง',kind:'quiet',run:() => finish(state.user,local,revision,true)}]
-        : [{label:'กลับเข้าเกม เก็บเซฟไว้ในเครื่องก่อน',kind:'quiet',run:closePanel}])
-    ],{foot:'เลือกเซฟในเครื่องจะแทนข้อมูลออนไลน์ล่าสุด โปรดตรวจชื่อและเลเวลก่อนยืนยัน'});
+        throw error;
+      }
+      draft = {bundle:local,revision:result.revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
+      state.conflict = false; state.pending = false; state.error = '';
+      if (beforeStart) await finish(state.user,local,result.revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:local}); location.reload(); }
+    }};
+    const later = beforeStart ? {label:'เล่นเซฟในเครื่องก่อน ค่อยส่งออนไลน์ภายหลัง',kind:'quiet',run:() => finish(state.user,local,revision,true)}
+      : {label:'กลับเข้าเกม เก็บเซฟไว้ในเครื่องก่อน',kind:'quiet',run:closePanel};
+    const slotsNote = restored && restored.slots.length ? ' (ช่อง ' + escaped(restored.slots.join(', ')) + ')' : '';
+    const intro = restored
+      ? '<p class="ta-intro">คุณเพิ่งกู้คืนเซฟในเครื่อง — จะใช้เซฟที่กู้คืนหรือเซฟออนไลน์?</p><p class="ta-hint">เซฟที่กู้คืนจากสำเนาสำรองในเครื่องนี้' + slotsNote + ' ยังไม่ได้ส่งขึ้นออนไลน์ ตัวละครและไอเทมจะใช้ทั้งชุด ไม่มีการรวมข้อมูลอัตโนมัติ สำเนาอีกชุดจะเก็บในเครื่องนี้</p>'
+      : '<p class="ta-intro">มีความคืบหน้าสองชุด กรุณาเลือกชุดที่จะเล่นต่อ ตัวละครและไอเทมจะใช้ทั้งชุด ไม่มีการรวมข้อมูลอัตโนมัติ สำเนาอีกชุดจะเก็บในเครื่องนี้</p>';
+    panel(restored ? 'เซฟที่กู้คืน หรือเซฟออนไลน์' : 'พบเซฟใหม่จากอีกเครื่อง',intro + '<div class="ta-compare"><div><h3>' + (restored ? 'ที่กู้คืนในเครื่องนี้' : 'ในเครื่องนี้') + '</h3>' + summaries(local) + '</div><div><h3>ออนไลน์ล่าสุด</h3>' + summaries(server) + '</div></div>',
+      restored ? [useLocal,useOnline,later] : [useOnline,useLocal,later],
+      {foot:restored ? 'เซฟที่กู้คืนจะแทนข้อมูลออนไลน์ล่าสุด เลือกเซฟออนไลน์แทนได้ถ้ากู้คืนผิดชุด' : 'เลือกเซฟในเครื่องจะแทนข้อมูลออนไลน์ล่าสุด โปรดตรวจชื่อและเลเวลก่อนยืนยัน'});
     if (note) feedback(note);
   }
   function scheduleUpload(delay = 1200) {

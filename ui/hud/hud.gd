@@ -26,8 +26,18 @@ const ATTACK_RADIUS := 62.0
 const SKILL_SLOT_CLEAR := 44.0
 ## The skill slots' radius (smaller medallions leave the world chat room).
 const SKILL_RADIUS := 32.0
+## The world chat shrinks (never below this) so the party cards above it stay clear.
+const CHAT_MIN_HEIGHT := 120.0
+## The gap the world chat keeps under the last party card (or wing chips).
+const CHAT_CARD_GAP := 8.0
 ## The last skill slot's centre from the frame's right edge (clear of the attack button).
 const SKILL_ROW_RIGHT := -194.0
+## The tracker and the world-event chip under the minimap: their top and right edge
+## (the minimap's left edge, clear of the raven buttons left of the auto button) and
+## the gap the chip keeps under the tracker's lines.
+const TRACKER_TOP := 252.0
+const TRACKER_RIGHT := -150.0
+const EVENT_CHIP_GAP := 6.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
 
@@ -65,7 +75,8 @@ var _boss_panel: PanelContainer
 var _timers: TimerBars
 var _tracker: Label
 var _tracker_timer := 0.0
-## World event chip under the tracker (WorldEvents.describe), refreshed once a second.
+## World event chip under the tracker (WorldEvents.describe), refreshed once a second
+## and placed by _place_event_chip under however many tracker lines there are.
 var _event_chip: PanelContainer
 var _event_label: Label
 var _event_in := 0.0
@@ -94,6 +105,10 @@ var _wing_row: HBoxContainer
 var _wing_chips: Array[PanelContainer] = []
 var _wing_shown := -1
 var minimap: Minimap
+## The left column under the hero panel: buffs, party cards, wing chips.
+var _status_column: VBoxContainer
+## The world chat's height right now (WorldChat.HEIGHT, less when the party column is long).
+var _chat_height := WorldChat.HEIGHT
 
 
 var _save_label: Label
@@ -259,12 +274,14 @@ func _process(delta: float) -> void:
 		_refresh()
 		_update_timers(_timer_elapsed)
 		_timer_elapsed = 0.0
+		_fit_chat()
 	_update_tracker(delta)
 	_event_in -= delta
 	if _event_in <= 0.0:
 		_event_in = 1.0
 		_event_label.text = WorldEvents.describe(WorldPresence.clock())
 		_event_chip.visible = _event_label.text != ""
+		_place_event_chip()
 
 
 func _refresh() -> void:
@@ -385,6 +402,7 @@ func _update_tracker(delta: float) -> void:
 	_tracker_timer = 0.5
 	if Game.profile.is_empty() or zone.is_town:
 		_tracker.visible = false
+		_place_event_chip()
 		return
 	_tracker.visible = true
 	var lines: PackedStringArray = []
@@ -399,6 +417,25 @@ func _update_tracker(delta: float) -> void:
 			done += 1
 	lines.append("รายวัน: เสร็จ %d/3" % done)
 	_tracker.text = "\n".join(lines)
+	_place_event_chip()
+
+
+## The event chip sits under the tracker's lines, however many there are (or where
+## the tracker starts when the town hides it), so it never covers the daily text.
+func _place_event_chip() -> void:
+	if _event_chip == null:
+		return
+	var tracker_height := _tracker.get_combined_minimum_size().y if _tracker.visible and _tracker.text != "" else -EVENT_CHIP_GAP
+	var rect := event_chip_rect(_frame.size, tracker_height, _event_chip.get_combined_minimum_size())
+	_event_chip.offset_top = rect.position.y
+	_event_chip.offset_bottom = rect.position.y
+
+
+## Where the event chip goes in a safe frame of [param frame_size]: right-aligned with
+## the tracker, EVENT_CHIP_GAP under a tracker [param tracker_height] tall (tracker
+## hidden: -EVENT_CHIP_GAP). Shared with tests/tools/ui_polish_review.gd.
+static func event_chip_rect(frame_size: Vector2, tracker_height: float, chip_size: Vector2) -> Rect2:
+	return Rect2(frame_size.x + TRACKER_RIGHT - chip_size.x, TRACKER_TOP + tracker_height + EVENT_CHIP_GAP, chip_size.x, chip_size.y)
 
 
 func _build_tracker(frame: Control) -> void:
@@ -406,8 +443,8 @@ func _build_tracker(frame: Control) -> void:
 	_tracker.anchor_left = 1.0
 	_tracker.anchor_right = 1.0
 	_tracker.offset_left = -480
-	_tracker.offset_right = -130
-	_tracker.offset_top = 252
+	_tracker.offset_right = TRACKER_RIGHT
+	_tracker.offset_top = TRACKER_TOP
 	_tracker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tracker.add_theme_constant_override("outline_size", 6)
 	_tracker.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -415,9 +452,9 @@ func _build_tracker(frame: Control) -> void:
 	_event_chip = PanelContainer.new()
 	_event_chip.anchor_left = 1.0
 	_event_chip.anchor_right = 1.0
-	_event_chip.offset_left = -130
-	_event_chip.offset_right = -130
-	_event_chip.offset_top = 314
+	_event_chip.offset_left = TRACKER_RIGHT
+	_event_chip.offset_right = TRACKER_RIGHT
+	_event_chip.offset_top = TRACKER_TOP
 	_event_chip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_event_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()
@@ -494,6 +531,7 @@ func _build_status(frame: Control) -> void:
 	var column := UIUtil.vbox(8)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(column)
+	_status_column = column
 	var panel := UIUtil.panel(&"HudPanel")
 	panel.custom_minimum_size = Vector2(350, 0)
 	panel.gui_input.connect(_tap(func(): menu_requested.emit(&"character")))
@@ -581,7 +619,7 @@ func _build_status(frame: Control) -> void:
 	_target_hp.custom_minimum_size = Vector2(110, 0)
 	_target_hp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	trow.add_child(_target_hp)
-	_timers = TimerBars.new()
+	_timers = CompactTimers.new()
 	column.add_child(_timers)
 	_build_party(column)
 	_build_wing_row(column)
@@ -904,6 +942,9 @@ func _build_action_buttons(frame: Control) -> void:
 	for i in ClassData.SLOTS:
 		var slot := SkillSlot.new()
 		slot.slot_number = i + 1
+		# No name under the medallion on the field: it was too small to read on a phone
+		# (the illustration, the number and the MP cost say which skill it is).
+		slot.show_name = false
 		slot.pressed.connect(func(): if hero: hero.use_skill(i))
 		frame.add_child(slot)
 		skill_slots.append(slot)
@@ -1002,8 +1043,31 @@ func _layout_actions() -> void:
 			after_stick = joystick.global_position.x + joystick.rest_offset.x + joystick.base_radius + 24.0 - _frame.global_position.x
 		world_chat.offset_left = after_stick
 		world_chat.offset_right = maxf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, after_stick + 160.0)
-		world_chat.custom_minimum_size = Vector2(0.0, WorldChat.HEIGHT)
-		world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, WorldChat.HEIGHT)
+		_apply_chat_height()
+
+
+## The world chat keeps clear of the party cards: when the left column (buffs, party
+## cards, wing chips) reaches down into the chat's box, the chat gets shorter, down to
+## CHAT_MIN_HEIGHT. Runs with the 20 Hz refresh, as cards come and go.
+func _fit_chat() -> void:
+	if world_chat == null or _status_column == null:
+		return
+	var column_bottom := 0.0
+	for child in _status_column.get_children():
+		var control := child as Control
+		if control != null and control.visible and control.size.y > 0.0:
+			column_bottom = maxf(column_bottom, control.get_global_rect().end.y - _frame.global_position.y)
+	var chat_bottom := _frame.size.y + world_chat.offset_bottom
+	var height := clampf(chat_bottom - column_bottom - CHAT_CARD_GAP, CHAT_MIN_HEIGHT, WorldChat.HEIGHT)
+	if not is_equal_approx(height, _chat_height):
+		_chat_height = height
+		_apply_chat_height()
+
+
+func _apply_chat_height() -> void:
+	world_chat.custom_minimum_size = Vector2(0.0, _chat_height)
+	world_chat.offset_top = world_chat.offset_bottom - _chat_height
+	world_chat.size = Vector2(world_chat.offset_right - world_chat.offset_left, _chat_height)
 
 
 func _place_corner(control: Control, offset_from_corner: Vector2, r: float) -> void:
@@ -1111,3 +1175,108 @@ func _unhandled_input(event: InputEvent) -> void:
 			menu_requested.emit(&"character")
 		KEY_J:
 			menu_requested.emit(&"quests")
+
+
+## The buff lanes on the field HUD as one compact block: the lanes (own, from friends,
+## the song, summons) side by side and wrapping, each a short two-line label ("ใช้เอง /
+## 1/2") and a row of round icons with the seconds left on each icon (no buff names).
+class CompactTimers extends TimerBars:
+	const LABELS := {"self": "ใช้เอง", "ally": "เพื่อน", "song": "เพลง", "summon": "อัญเชิญ"}
+	var _flow: HFlowContainer
+
+	func _ready() -> void:
+		super()
+		_flow = HFlowContainer.new()
+		_flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_flow.add_theme_constant_override("h_separation", 12)
+		_flow.add_theme_constant_override("v_separation", 4)
+		add_child(_flow)
+		for group in _rows:
+			var row: HBoxContainer = _rows[group]
+			row.add_theme_constant_override("separation", 3)
+			remove_child(row)
+			_flow.add_child(row)
+			var label := row.get_child(0) as Label
+			label.custom_minimum_size = Vector2.ZERO
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			label.add_theme_font_size_override("font_size", 14)
+			label.add_theme_constant_override("line_spacing", -3)
+			label.add_theme_color_override("font_color", Color.WHITE)
+			label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+			label.add_theme_constant_override("outline_size", 5)
+		_summon_flow.size_flags_horizontal = Control.SIZE_FILL
+
+	func update_entries(entries: Array, delta: float) -> void:
+		var seen := {}
+		var groups := {}
+		for entry in entries:
+			var id := String(entry.id)
+			var group := "summon" if String(entry.kind) == "summon" else ("song" if bool(entry.get("song", false)) else ("ally" if bool(entry.ally) else "self"))
+			seen[id] = true
+			groups[group] = int(groups.get(group, 0)) + 1
+			if not _chips.has(id):
+				var chip := BuffChip.new()
+				if group == "summon":
+					_summon_flow.add_child(chip)
+				else:
+					_rows[group].add_child(chip)
+				_chips[id] = chip
+			if group == "summon":
+				_summon_flow.move_child(_chips[id], int(groups[group]) - 1)
+			else:
+				_rows[group].move_child(_chips[id], int(groups[group]))
+			(_chips[id] as TimerChip).show_values(entry, delta)
+		for id in _chips.keys():
+			if not seen.has(id):
+				(_chips[id] as Control).hide()
+				(_chips[id] as Control).queue_free()
+				_chips.erase(id)
+		for group in _rows:
+			_rows[group].visible = groups.has(group)
+			var limit := BuffBook.SONG_LIMIT if group == "song" else BuffBook.GROUP_LIMIT
+			_rows[group].get_child(0).text = LABELS[group] if group == "summon" else "%s\n%d/%d" % [LABELS[group], int(groups.get(group, 0)), limit]
+		visible = not _chips.is_empty()
+
+
+## One buff on the field HUD: the round icon with its unwinding ring, the seconds left
+## in white with a dark outline on the icon's lower edge, the friend's "+" (or the
+## summons' count) at its upper / lower right. No name: the icon says which buff.
+class BuffChip extends TimerChip:
+	const DIAMETER := 42.0
+
+	func show_values(entry: Dictionary, delta: float) -> void:
+		super.show_values(entry, delta)
+		custom_minimum_size = Vector2(DIAMETER + 2.0, DIAMETER + 4.0)
+
+	func _draw() -> void:
+		var c := Vector2(size.x * 0.5, DIAMETER * 0.5 + 1.0)
+		var warn := ratio < WARN_RATIO
+		var r := DIAMETER * 0.5 * (1.0 + (0.05 * sin(_pulse) if warn else 0.0))
+		var ring_color := accent
+		if warn:
+			ring_color = accent.lerp(Color("ff3a2a"), 0.6 + 0.4 * (0.5 + 0.5 * sin(_pulse)))
+		draw_circle(c + Vector2(0, 3), r, Color(0, 0, 0, 0.3))
+		draw_circle(c, r, Color(0.03, 0.06, 0.17, 0.88))
+		draw_arc(c, r - 1.5, 0.0, TAU, 48, Color(1, 1, 1, 0.14), 2.5, true)
+		if ratio > 0.002:
+			draw_arc(c, r - 1.5, -PI * 0.5, -PI * 0.5 + TAU * ratio, 64, ring_color, 3.0, true)
+		draw_circle(c, r - 4.0, Color(accent.r, accent.g, accent.b, 0.16))
+		if _illustration:
+			var extent := Vector2.ONE * (r - 4.0) * 2.0
+			draw_texture_rect(_illustration, Rect2(c - extent * 0.5, extent), false)
+		else:
+			_draw_glyph(c + Vector2(0, -5), 9.0, accent.lerp(Color.WHITE, 0.35))
+		var font := get_theme_default_font()
+		if font != null:
+			var font_size := 15
+			var width := font.get_string_size(time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			var at := Vector2(c.x - width * 0.5, c.y + r - 3.0)
+			draw_string_outline(font, at, time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, Color(0, 0, 0, 0.92))
+			draw_string(font, at, time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, ring_color.lerp(Color.WHITE, 0.6) if warn else Color.WHITE)
+		if ally:
+			draw_circle(c + Vector2(r * 0.74, -r * 0.74), 7.5, Color("5aff9a"))
+			_text("+", c + Vector2(r * 0.74, -r * 0.74 + 5), 13, Color(0.02, 0.1, 0.05))
+		if summon and count > 1:
+			draw_circle(c + Vector2(r * 0.74, -r * 0.74), 9.0, Color(0.05, 0.1, 0.3))
+			_text("×%d" % count, c + Vector2(r * 0.74, -r * 0.74 + 5), 12, Color.WHITE)

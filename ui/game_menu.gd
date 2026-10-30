@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -131,6 +131,7 @@ func _rebuild() -> void:
 		&"skills": _build_skills()
 		&"quests": _build_quests()
 		&"achievements": _build_achievements()
+		&"titles": _build_titles()
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
@@ -998,6 +999,50 @@ func _build_achievements() -> void:
 		if ach.reward.has("gem"):
 			parts.append("อัญมณี")
 		col.add_child(UIUtil.label("รางวัล: " + " • ".join(parts), &"DimLabel"))
+
+
+# ---------------------------------------------------------------------------
+# Titles (Achievements): the title shown above the hero's head
+# ---------------------------------------------------------------------------
+
+func _build_titles() -> void:
+	var scroll := TouchScroll.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(scroll)
+	_page_scroll = scroll
+	var box := UIUtil.vbox(8)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var worn := Achievements.title_of(Game.profile)
+	box.add_child(UIUtil.label("ตำแหน่ง  %d / %d" % [Achievements.earned(Game.profile).size(), Achievements.TABLE.size()], &"HeaderLabel"))
+	box.add_child(UIUtil.label("ตำแหน่งที่ใช้: %s" % (worn if worn != "" else "ไม่มี"), &"SubHeaderLabel"))
+	for k in Achievements.TABLE.size():
+		var row: Dictionary = Achievements.TABLE[k]
+		var done := Achievements.is_earned(row.id, Game.profile)
+		var has_title := String(row.title) != ""
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var line := UIUtil.hbox(10)
+		panel.add_child(line)
+		var col := UIUtil.vbox(2)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(col)
+		var title := UIUtil.label("%s%s" % ["(สำเร็จ) " if done else "", row.name], &"BoldLabel")
+		title.add_theme_color_override("font_color", UIPalette.SUCCESS if done else UIPalette.TEXT_MUTED)
+		col.add_child(title)
+		var detail := UIUtil.label("%s  (%s)" % [row.desc, Achievements.progress(row.id, Game.profile)], &"SmallLabel")
+		if not done:
+			detail.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
+		col.add_child(detail)
+		if has_title:
+			col.add_child(UIUtil.label("ตำแหน่ง: %s" % row.title, &"DimLabel"))
+		if done and has_title:
+			var wearing := Achievements.title_index(Game.profile) == k
+			var b := UIUtil.button("ถอดตำแหน่ง" if wearing else "ใช้ตำแหน่ง", &"" if wearing else &"PrimaryButton", Vector2(150, 56))
+			b.pressed.connect(func():
+				Game.set_title(-1 if wearing else k)
+				_queue_rebuild())
+			line.add_child(b)
 
 
 # ---------------------------------------------------------------------------

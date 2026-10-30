@@ -15,6 +15,7 @@ var guild_screen: GuildScreen
 var registry: RegistryScreen
 var player_card: PlayerCard
 var ai_chat: AiChat
+var tutorial: Tutorial
 var tower_screen: TowerScreen
 var _tower_floor := 1
 var dialog: DialogBox
@@ -92,6 +93,11 @@ func _ready() -> void:
 		if not _screen_open():
 			ai_chat.talk_world())
 	hud.world_tapped.connect(_on_world_tapped)
+	# The first five minutes of a new hero (steps, hints, a world player as the guide); on
+	# Main so it follows the hero from the village into the first field.
+	tutorial = Tutorial.new()
+	tutorial.main = self
+	add_child(tutorial)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -101,6 +107,10 @@ func _ready() -> void:
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
+	Game.achievement_earned.connect(func(id: String):
+		var entry := Achievements.entry(id)
+		if not entry.is_empty():
+			hud.show_banner("ความสำเร็จ: %s" % String(entry.get("name_th", id))))
 	Game.paragon_leveled.connect(func(level: int):
 		hud.show_banner("ระดับเหนือเลเวล ดาว %d!" % level)
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")

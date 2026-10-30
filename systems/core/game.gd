@@ -23,6 +23,12 @@ signal profile_imported()
 signal guild_changed()
 ## A line of the world chat (WorldPresence): who says it, what, the name's colour.
 signal world_chat(speaker: String, text: String, color: Color)
+## A world boss fell with the hero's help (Zone emits it; Achievements counts it).
+signal world_boss_defeated(zone: StringName)
+## A titled achievement (Achievements.TABLE id) was earned just now; the HUD may show a banner.
+signal achievement_earned(id: String)
+## The title above the hero's head changed ("" when taken off).
+signal title_changed(title: String)
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
@@ -68,6 +74,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
 	SaveBackup.maybe_daily()
+	world_chat.connect(_on_world_chat)
+	world_boss_defeated.connect(_on_world_boss_defeated)
 	(func(): UIUtil.install_discard_holder(get_tree().root)).call_deferred()
 
 
@@ -88,6 +96,9 @@ func _process(delta: float) -> void:
 	if not has_profile:
 		return
 	profile["play_time"] = float(profile.get("play_time", 0.0)) + delta
+	_ach_timer += delta
+	if _ach_timer >= ACH_INTERVAL:
+		_check_achievements()
 	_autosave_timer += delta
 	if _autosave_timer > AUTOSAVE_INTERVAL and _dirty:
 		if save():
@@ -490,6 +501,7 @@ func should_resume() -> bool:
 func save() -> bool:
 	if not has_profile:
 		return false
+	_check_achievements()
 	var work_started := Time.get_ticks_usec()
 	# Keep the last successful metadata and the dirty state until commit succeeds.
 	var snapshot := profile.duplicate(true)
@@ -2287,6 +2299,49 @@ func check_achievements() -> void:
 		achievement_unlocked.emit(String(ach.name))
 		say("ความสำเร็จ: %s — รับรางวัลแล้ว" % ach.name, &"success")
 		mark_dirty()
+	_check_achievements()
+
+
+# ---------------------------------------------------------------------------
+# Titled achievements (Achievements): the title shows above the hero's head
+# ---------------------------------------------------------------------------
+
+## Seconds between two checks from _process (check_achievements and save check at once).
+const ACH_INTERVAL := 2.0
+var _ach_timer := 0.0
+
+
+## Marks the titled achievements earned by now, announces each and tells the HUD.
+func _check_achievements() -> void:
+	_ach_timer = 0.0
+	if not has_profile:
+		return
+	for id in Achievements.check_all(profile, {"party": world_party.size()}):
+		say("ได้รับความสำเร็จ: %s" % Achievements.entry(id).name, &"success")
+		achievement_earned.emit(id)
+		mark_dirty()
+
+
+## The title above the hero's head: the title of the earned achievement at index in
+## Achievements.TABLE, or none for a negative index. False (and no change) otherwise.
+func set_title(index: int) -> bool:
+	if not has_profile or not Achievements.set_title(profile, index):
+		return false
+	mark_dirty()
+	title_changed.emit(Achievements.title_of(profile))
+	return true
+
+
+func _on_world_chat(speaker: String, _text: String, _color: Color) -> void:
+	if has_profile and speaker == String(profile.get("name", "")) and int(profile["flags"].get(Achievements.CHAT_FLAG, 0)) == 0:
+		flag_max(Achievements.CHAT_FLAG, 1)
+		_check_achievements()
+
+
+func _on_world_boss_defeated(_zone: StringName) -> void:
+	if has_profile:
+		flag_add(Achievements.WORLD_BOSS_FLAG)
+		_check_achievements()
 
 
 # ---------------------------------------------------------------------------

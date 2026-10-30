@@ -22,6 +22,12 @@ const CHAT_EVERY := 7.0
 ## At most one stall keeper's call about a lot of its (StallStock.announcement) in this
 ## many seconds of the world chat.
 const STALL_ANNOUNCE := 90.0
+## The same chat line is never said twice within this many seconds (by anyone).
+const REPEAT_WINDOW := 300.0
+const REPEAT_TRIES := 6
+## Line -> chat_clock() when it was last said (across zones).
+static var _said := {}
+static var chat_clock_override := -1.0
 const ANNOUNCE_LEVELS := [10, 20, 40, 60, 80, 100]
 const ANNOUNCE_STARS := [50, 100, 150, 200]
 
@@ -342,12 +348,35 @@ func chat_once() -> void:
 			if int(o.index) == k:
 				s = o
 				break
-	var text := WorldChat.line_for(s, randi())
+	var text := fresh_line(s)
+	if text == "":
+		return
 	var g := int(s.guild)
 	Game.world_chat.emit(String(s.name), text, WorldPlayers.GUILD_COLORS.get(g, Color("bfe8ff")))
 	var p: Variant = shown.get(int(s.index))
 	if p != null and is_instance_valid(p):
 		(p as FieldPlayer).bubble(text)
+
+
+## A line for player state s that nobody said in the last REPEAT_WINDOW seconds (another
+## pick up to REPEAT_TRIES times; "" when all were said, and this turn stays quiet). Two
+## players asking the very same thing seconds apart read like bots.
+static func fresh_line(s: Dictionary) -> String:
+	var now := chat_clock()
+	for text in _said.keys():
+		if now - float(_said[text]) > REPEAT_WINDOW:
+			_said.erase(text)
+	for i in REPEAT_TRIES:
+		var text := WorldChat.line_for(s, randi())
+		if not _said.has(text):
+			_said[text] = now
+			return text
+	return ""
+
+
+## Seconds for the repeat window (tests set chat_clock_override; below 0 the engine clock).
+static func chat_clock() -> float:
+	return chat_clock_override if chat_clock_override >= 0.0 else Time.get_ticks_msec() * 0.001
 
 
 ## Now and then (at most once in STALL_ANNOUNCE seconds, and about every other chance after

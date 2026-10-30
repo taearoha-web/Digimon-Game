@@ -1,7 +1,9 @@
 extends Node
 ## SaveBackup: a backup copies every slot and writes its index, list() is newest first,
 ## pruning keeps 7 daily + 3 manual, a restore refuses a corrupted copy and puts a good
-## one back after a "before-restore" backup, and maybe_daily runs once per day.
+## one back after a "before-restore" backup (saved_at stamped with now and the restored
+## slots listed in backups/restored.json for the web page's cloud sync), and maybe_daily
+## runs once per day.
 ## Run with an isolated user directory:
 ## XDG_DATA_HOME=$(mktemp -d) godot --headless --path . res://tests/integration/save_backup_test.tscn
 
@@ -23,6 +25,7 @@ func _ready() -> void:
 	for entry in SaveBackup.list():
 		SaveBackup._remove_dir(entry.dir)
 	DirAccess.remove_absolute(SaveBackup.LAST_DAILY_PATH)
+	DirAccess.remove_absolute(SaveBackup.RESTORED_MARKER)
 	SaveBackup.reset_daily_cache()
 	_test_daily()
 	_test_copy_and_index()
@@ -33,6 +36,7 @@ func _ready() -> void:
 	Game.has_profile = false
 	for i in range(1, Game.SLOT_COUNT + 1):
 		Game.delete_save(i)
+	DirAccess.remove_absolute(SaveBackup.RESTORED_MARKER)
 	get_tree().quit(0 if failures == 0 else 1)
 
 
@@ -49,6 +53,22 @@ func _count(reason: String) -> int:
 		if entry.reason == reason:
 			n += 1
 	return n
+
+
+## The two slot texts hold the same save apart from saved_at.
+func _same_save(a: String, b: String) -> bool:
+	var pa: Variant = JSON.parse_string(a)
+	var pb: Variant = JSON.parse_string(b)
+	if not pa is Dictionary or not pb is Dictionary:
+		return false
+	pa.erase("saved_at")
+	pb.erase("saved_at")
+	return pa == pb
+
+
+func _saved_at(text: String) -> int:
+	var parsed: Variant = JSON.parse_string(text)
+	return int(parsed.get("saved_at", 0)) if parsed is Dictionary else -1
 
 
 ## With no save there is nothing to back up and the day is not spent; the first save of
@@ -154,12 +174,20 @@ func _test_restore() -> void:
 	check(not SaveBackup.restore(good, 0) and not SaveBackup.restore(good, 11), "slot out of range refused")
 	check(not SaveBackup.restore("user://toon_tale_slot_1.json", 1) and not SaveBackup.restore("user://", 1), "only folders under backups/ are restored from")
 	check(_count("manual") == manual_before, "refusals change nothing")
+	check(not FileAccess.file_exists(SaveBackup.RESTORED_MARKER) and SaveBackup.restored_marker().is_empty(), "refusals write no restore marker")
 	# The good copy comes back, after a before-restore backup of the changed hero.
 	var changed := FileAccess.get_file_as_string(Game.save_path(3))
+	var now := int(Time.get_unix_time_from_system())
 	check(SaveBackup.restore(good, 3), "a valid backup restores")
-	check(FileAccess.get_file_as_string(Game.save_path(3)) == before, "slot 3 holds the backed-up bytes again")
+	var restored_text := FileAccess.get_file_as_string(Game.save_path(3))
+	check(_same_save(restored_text, before), "slot 3 holds the backed-up save again")
+	check(_saved_at(restored_text) >= now and _saved_at(restored_text) - now < 10 and _saved_at(restored_text) >= _saved_at(before), "the restored slot's saved_at is stamped with now (%d, backup %d)" % [_saved_at(restored_text), _saved_at(before)])
 	check(Game.slot_info(3).level == 12 and Game.slot_info(3).name == "จอมเวทสำรอง", "the restored hero reads back")
 	check(_count("before-restore") == 1, "a before-restore backup was made")
+	var marker := SaveBackup.restored_marker()
+	check(FileAccess.file_exists(SaveBackup.RESTORED_MARKER) and marker.get("slots", []) == [3] and int(marker.get("time", 0)) >= now and int(marker.get("time", 0)) - now < 10, "restore writes backups/restored.json {time, slots: [3]}: %s" % JSON.stringify(marker))
+	var raw_marker: Variant = JSON.parse_string(FileAccess.get_file_as_string(SaveBackup.RESTORED_MARKER))
+	check(raw_marker is Dictionary and raw_marker.get("slots") is Array and raw_marker.slots.size() == 1 and int(raw_marker.slots[0]) == 3, "the marker file is plain JSON the web page can read")
 	var safety: Dictionary = {}
 	for entry in SaveBackup.list():
 		if entry.reason == "before-restore":
@@ -172,12 +200,20 @@ func _test_restore() -> void:
 	_make_hero(9, &"warrior", "คนใหม่", 2)
 	var nine := FileAccess.get_file_as_string(Game.save_path(9))
 	Game.has_profile = false
+	var seven_backup := FileAccess.get_file_as_string(good.path_join(Game.save_path(7).get_file()))
+	now = int(Time.get_unix_time_from_system())
 	check(SaveBackup.restore_all(good), "restore_all of a valid backup")
 	check(Game.has_save(1) and Game.has_save(3) and Game.has_save(7), "restore_all brought the deleted heroes back")
 	check(Game.slot_info(7).level == 20, "slot 7 restored")
+	var seven := FileAccess.get_file_as_string(Game.save_path(7))
+	check(_same_save(seven, seven_backup) and _saved_at(seven) >= now and _saved_at(seven) - now < 10, "restore_all stamps every restored slot's saved_at with now (%d)" % _saved_at(seven))
+	check(_saved_at(FileAccess.get_file_as_string(Game.save_path(1))) >= now and _saved_at(FileAccess.get_file_as_string(Game.save_path(3))) >= now, "slots 1 and 3 stamped too")
 	check(FileAccess.get_file_as_string(Game.save_path(9)) == nine, "a slot the backup lacks is left as it is")
+	marker = SaveBackup.restored_marker()
+	check(marker.get("slots", []) == [1, 3, 7] and int(marker.get("time", 0)) >= now, "restore_all adds its slots to the marker: %s" % JSON.stringify(marker))
 	check(not SaveBackup.restore_all(broken), "restore_all refuses a backup with a corrupted slot")
 	check(not SaveBackup.restore_all("user://backups/missing-folder"), "restore_all of a missing folder is refused")
+	check(SaveBackup.restored_marker().get("slots", []) == [1, 3, 7], "refused restore_all leaves the marker as it was")
 
 
 

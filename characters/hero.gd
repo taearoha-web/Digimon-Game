@@ -23,6 +23,9 @@ var _equip_sig := ""
 var _step_timer := 0.0
 var _ring_job: StringName = &""
 var _ring: MeshInstance3D
+var _name_plate: Label3D
+var _self_ring: MeshInstance3D
+const SELF_RING_COLOR := Color("ffd24a")
 var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
@@ -94,6 +97,39 @@ func _ready() -> void:
 	Game.inventory_changed.connect(_on_inventory_changed)
 	Game.profile_changed.connect(_update_job_ring)
 	_update_job_ring()
+	_build_self_ring()
+	_build_name_plate()
+	Game.title_changed.connect(_on_title_changed)
+
+
+## The hero's name above the head, with the chosen title (Achievements) in brackets
+## above it on a smaller line.
+func _build_name_plate() -> void:
+	_name_plate = Label3D.new()
+	_name_plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_plate.pixel_size = 0.0034 * BattleVfx.text_scale
+	_name_plate.font_size = 34
+	_name_plate.outline_size = 9
+	_name_plate.modulate = Color("fff4de")
+	_name_plate.outline_modulate = Color(0.1, 0.12, 0.2, 0.9)
+	_name_plate.position = Vector3(0, 2.45, 0)
+	_name_plate.no_depth_test = true
+	_name_plate.render_priority = 2
+	_name_plate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_name_plate)
+	refresh_name_plate()
+
+
+func _on_title_changed(_title: String) -> void:
+	refresh_name_plate()
+
+
+func refresh_name_plate() -> void:
+	if not is_instance_valid(_name_plate):
+		return
+	var hero_name := String(Game.profile.get("name", ""))
+	var title := Achievements.title_of(Game.profile)
+	_name_plate.text = "「%s」\n%s" % [title, hero_name] if title != "" else hero_name
 
 
 ## Changes the hero's weapon / hat / outfit when the worn items change.
@@ -103,6 +139,24 @@ func _on_inventory_changed() -> void:
 	if sig != _equip_sig:
 		_equip_sig = sig
 		visual.set_equipment(Game.profile.equip)
+
+
+## A thin gold ring under the hero's own feet (inside the job ring), so the player finds
+## the hero at once in the middle of a party fight. One unshaded mesh, no shadow.
+func _build_self_ring() -> void:
+	_self_ring = MeshInstance3D.new()
+	_self_ring.name = "SelfRing"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.6
+	torus.outer_radius = 0.68
+	torus.rings = 32
+	torus.ring_segments = 4
+	_self_ring.mesh = torus
+	_self_ring.material_override = MeshKit.toon(SELF_RING_COLOR, {"unshaded": true, "emission": 0.6, "alpha": 0.85})
+	_self_ring.scale = Vector3(1, 0.1, 1)
+	_self_ring.position = Vector3(0, 0.06, 0)
+	_self_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_self_ring)
 
 
 ## A glowing ring under the feet of a hero who has changed jobs.
@@ -238,9 +292,14 @@ func song_entry() -> Dictionary:
 	return BuffBook.song_of(_buffs)
 
 
-## Seconds left of the hero's song (0 without one): AI Bards never sing over a long one.
+## Seconds left of the hero's newest song (0 without one).
 func song_left() -> float:
 	return BuffBook.song_left(_buffs)
+
+
+## The buffs songs are counted on (the party's song slots live on the hero).
+func song_buffs() -> Array:
+	return _buffs
 
 
 # ---------------------------------------------------------------------------
@@ -352,8 +411,14 @@ func _auto_cast(hp_rate: float) -> void:
 		match String(skill.shape):
 			"self":
 				if BuffBook.is_song_skill(skill):
-					var swap := fx.has("heal") and hp_rate < 0.45 and BuffBook.identity(song_entry()) != String(skill.id)
-					if song_left() >= 3.0 and not swap:
+					# An attack song and a ward song play together: sing this one when it is not
+					# playing (or about to end) and its family's slot is free or that song is
+					# about to end; a healing song comes in at once when badly hurt.
+					var own_left := BuffBook.song_left_of(_buffs, String(skill.id))
+					var swap := fx.has("heal") and hp_rate < 0.45 and own_left <= 0.0
+					var rival := BuffBook.song_to_replace(_buffs, BuffBook.skill_song_family(skill))
+					var full := not rival.is_empty() and float(rival.until) - float(Time.get_ticks_msec()) >= 3000.0
+					if not swap and (own_left >= 3.0 or full):
 						continue
 				else:
 					var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)

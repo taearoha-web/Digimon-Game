@@ -110,6 +110,18 @@ jobs:
           node hosting/accounts/tests/account.test.mjs
           Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/tools/save_fixtures.tscn -- /tmp/toon-ci-save-fixtures/game_profiles.json
           TOON_SAVE_FIXTURES=/tmp/toon-ci-save-fixtures/game_profiles.json node hosting/accounts/tests/account.test.mjs
+      - name: HUD clutter (damage numbers fan out, others' numbers smaller and capped, party labels fade in a fight, the hero's gold ring, no repeated chat line)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-clutter
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/hud_clutter_test.tscn
+      - name: Tutorial (a guide world player walks a new hero through the first quest, potion, field, kills and turn-in)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-tutorial
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/tutorial_test.tscn
+      - name: Achievements and titles (rules from the profile, earned once, title on the hero's name plate, menu tab)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-achievements
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/achievements_test.tscn
       - name: Party talk (members warn when the hero bleeds or a boss appears, once per gap, bubble + world chat under their name, gather behind the hero at a villager, the typed orders ตามมา / รอตรงนี้ / กลับเมือง)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-party-talk
@@ -155,6 +167,7 @@ jobs:
           export CHROMIUM_PATH
           echo "browser: ${CHROMIUM_PATH:-playwright chromium}"
           node tools/test_web_offline.mjs
+          node tools/test_accounts_client.mjs
           node hosting/accounts/tests/static.test.mjs
       - name: Check gear geometry and distant monsters
         env:

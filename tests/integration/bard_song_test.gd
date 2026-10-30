@@ -78,23 +78,29 @@ func _ready() -> void:
 
 ## BuffBook: one song per recipient beside the 2 + 2, never evicting or evicted.
 func _song_slot() -> void:
-	check(BuffBook.SONG_LIMIT == 1 and BuffBook.GROUP_LIMIT == 2, "one song slot beside two self and two ally slots")
+	check(BuffBook.SONG_LIMIT == 2 and BuffBook.GROUP_LIMIT == 2 and BuffBook.SONG_FAMILIES == ["attack", "ward"], "two song slots (an attack and a ward song) beside two self and two ally slots")
 	var list: Array[Dictionary] = []
 	for ally in [false, true]:
 		for id in ["a", "b"]:
 			list = BuffBook.insert(list, {"atk": 0.2, "secs": 60}, Color.WHITE, id, ally, id, 100)
 	list = BuffBook.insert(list, {"atk": 0.15, "song": true, "secs": 60}, Color.WHITE, "march", false, "march", 200)
 	check(list.size() == 5 and BuffBook.group_count(list, false, 200) == 2 and BuffBook.group_count(list, true, 200) == 2, "2 self + 2 ally + 1 song coexist")
-	list = BuffBook.insert(list, {"atk": 0.4, "song": true, "secs": 60}, Color.WHITE, "anthem", true, "anthem", 300)
-	check(list.size() == 5 and BuffBook.identity(BuffBook.song_of(list, 300)) == "anthem" and not BuffBook.contains(list, "march", false, 300), "a second song replaces the first whatever its ally flag")
+	list = BuffBook.insert(list, {"def": 0.3, "guard": 0.08, "song": true, "secs": 60}, Color.WHITE, "ballad", true, "ballad", 300)
+	check(list.size() == 6 and BuffBook.songs_of(list, 300).size() == 2 and BuffBook.contains(list, "march", false, 300) and BuffBook.contains(list, "ballad", true, 300), "a ward song plays beside an attack song whatever its ally flag")
+	check(BuffBook.song_family({"atk": 0.4}) == "attack" and BuffBook.song_family({"def": 0.3}) == "ward" and BuffBook.song_family({"shield": 0.1, "atk": 0.1}) == "ward", "a song's family: ward when it guards, else attack")
+	check(not BuffBook.song_slot_free(list, 300) and BuffBook.identity(BuffBook.song_to_replace(list, "attack", 300)) == "march" and BuffBook.identity(BuffBook.song_to_replace(list, "ward", 300)) == "ballad", "each family's slot is taken by its own song")
 	list = BuffBook.insert(list, {"atk": 0.3, "secs": 60}, Color.WHITE, "c", false, "c", 400)
-	check(list.size() == 5 and not BuffBook.contains(list, "a", false, 400) and BuffBook.contains(list, "a", true, 400) and BuffBook.contains(list, "anthem", true, 400), "a third regular buff evicts only the oldest regular one of its group, never the song")
+	check(list.size() == 6 and not BuffBook.contains(list, "a", false, 400) and BuffBook.contains(list, "a", true, 400) and BuffBook.contains(list, "march", false, 400) and BuffBook.contains(list, "ballad", true, 400), "a third regular buff evicts only the oldest regular one of its group, never a song")
 	list = BuffBook.insert(list, {"atk": 0.5, "song": true, "secs": 60}, Color.WHITE, "hymn", false, "hymn", 500)
-	check(list.size() == 5 and BuffBook.group_count(list, false, 500) == 2 and BuffBook.group_count(list, true, 500) == 2, "a song never evicts a regular buff")
-	list = BuffBook.insert(list, {"atk": 0.55, "song": true, "secs": 60}, Color.WHITE, "hymn", false, "hymn", 20000)
+	check(list.size() == 6 and BuffBook.group_count(list, false, 500) == 2 and BuffBook.group_count(list, true, 500) == 2, "a song never evicts a regular buff")
+	check(not BuffBook.contains(list, "march", false, 500) and BuffBook.contains(list, "hymn", false, 500) and BuffBook.contains(list, "ballad", true, 500), "two attack songs never stack: the new one takes over from the old one, the ward song stays")
+	list = BuffBook.insert(list, {"atk": 0.4, "song": true, "secs": 60}, Color.WHITE, "anthem", true, "anthem", 600)
+	check(list.size() == 6 and BuffBook.songs_of(list, 600).size() == 2 and not BuffBook.contains(list, "hymn", false, 600) and BuffBook.contains(list, "anthem", true, 600), "an attack song from someone else takes over the attack slot too")
+	list = BuffBook.insert(list, {"atk": 0.55, "song": true, "secs": 60}, Color.WHITE, "anthem", true, "anthem", 20000)
 	var song := BuffBook.song_of(list, 20000)
-	check(list.size() == 5 and int(song.until) == 80000 and is_equal_approx(float(song.atk), 0.55), "recasting the song refreshes its strength and minute")
-	check(is_equal_approx(BuffBook.song_left(list, 20000), 60.0) and BuffBook.song_left(list, 81000) == 0.0 and BuffBook.song_of(list, 81000).is_empty(), "the song counts down and ends")
+	check(list.size() == 6 and BuffBook.identity(song) == "anthem" and int(song.until) == 80000 and is_equal_approx(float(song.atk), 0.55), "recasting the song refreshes its strength and minute")
+	check(is_equal_approx(BuffBook.song_left_of(list, "anthem", 20000), 60.0) and BuffBook.song_left_of(list, "march", 20000) == 0.0, "each song counts its own time")
+	check(is_equal_approx(BuffBook.song_left(list, 20000), 60.0) and BuffBook.song_left(list, 81000) == 0.0 and BuffBook.song_of(list, 81000).is_empty(), "the songs count down and end")
 	var songs: Array = []
 	var stances: Array = []
 	for skill in ClassData.pool(&"bard"):
@@ -162,7 +168,7 @@ func _auras_and_hud() -> void:
 	layer.add_child(bars)
 	await settle(2)
 	bars.update_entries(status, 0.1)
-	check(bars._rows.song.visible and bars._rows.song.get_child_count() == 2 and bars._rows.song.get_child(0).text == "เพลง\n1/1", "the song has its own HUD lane (เพลง 1/1)")
+	check(bars._rows.song.visible and bars._rows.song.get_child_count() == 2 and bars._rows.song.get_child(0).text == "เพลง\n1/2", "the song has its own HUD lane (เพลง 1/2)")
 	check(bars._rows.self.get_child_count() == 3 and bars._rows.ally.get_child_count() == 3, "self and ally lanes keep two chips each")
 	check(bars._rows.self.get_child(0).text == "ใช้เอง\n2/2" and bars._rows.ally.get_child(0).text == "จากเพื่อน\n2/2", "self / ally lanes still read N/2")
 	hero._buffs.clear()
@@ -209,7 +215,7 @@ func _party() -> void:
 	check(String(BuffBook.song_of(buddy._book.buffs).get("skill_id", "")) == "heroic_anthem" and BuffBook.song_of(buddy._book.buffs).ally, "an AI Bard's song reaches the other companion (replacing the old song)")
 	check(String(BuffBook.song_of(wolf._book.buffs).get("skill_id", "")) == "heroic_anthem", "an AI Bard's song reaches the summons")
 	check(String(BuffBook.song_of(singer._book.buffs).get("skill_id", "")) == "heroic_anthem" and not BuffBook.song_of(singer._book.buffs).ally, "the AI Bard holds its own song")
-	check(buddy._book.buffs.filter(func(b): return BuffBook.is_song(b)).size() == 1, "a companion never holds two songs")
+	check(buddy._book.buffs.filter(func(b): return BuffBook.is_song(b)).size() <= BuffBook.SONG_LIMIT, "a companion never holds more than two songs")
 	# A non-song buff from an AI member still reaches the hero only.
 	var guard := ClassData.find_skill(&"mage", "energy_shield")
 	singer._apply_self(guard)
@@ -515,17 +521,25 @@ func _hero_auto() -> void:
 	check(hero.last_cast_id == "valor_march", "auto plays the first song on the bar (%s)" % hero.last_cast_id)
 	await get_tree().create_timer(1.6).timeout
 	check(String(hero.song_entry().get("skill_id", "")) == "valor_march", "the song is playing")
-	_bar(["valor_march", "heroic_anthem"])
+	_bar(["valor_march", "iron_ballad"])
+	hero._auto_cast(1.0)
+	check(hero.last_cast_id == "iron_ballad", "a ward song fills the ward slot beside the attack song (%s)" % hero.last_cast_id)
+	await get_tree().create_timer(1.6).timeout
+	check(BuffBook.songs_of(hero._buffs).size() == 2, "an attack and a ward song play together")
+	_bar(["valor_march", "iron_ballad"])
 	hero._auto_cast(1.0)
 	check(hero.last_cast_id == "", "a running song is never replaced early (%s)" % hero.last_cast_id)
-	_bar(["valor_march", "iron_ballad"])
-	hero._auto_cast(0.3)
-	check(hero.last_cast_id == "iron_ballad", "badly hurt, a healing song swaps in (%s)" % hero.last_cast_id)
-	await get_tree().create_timer(1.6).timeout
-	hero.song_entry()["until"] = Time.get_ticks_msec() + 2000
-	_bar(["valor_march", "iron_ballad"])
+	_bar(["valor_march", "heroic_anthem"])
 	hero._auto_cast(1.0)
-	check(hero.last_cast_id == "valor_march", "a song about to end is sung again (%s)" % hero.last_cast_id)
+	check(hero.last_cast_id == "", "a second attack song never goes over the playing one (%s)" % hero.last_cast_id)
+	_bar(["valor_march", "sanctuary_serenade"])
+	hero._auto_cast(0.3)
+	check(hero.last_cast_id == "sanctuary_serenade", "badly hurt, a healing song swaps in (%s)" % hero.last_cast_id)
+	await get_tree().create_timer(1.6).timeout
+	BuffBook.song_to_replace(hero._buffs, "attack")["until"] = Time.get_ticks_msec() + 2000
+	_bar(["heroic_anthem", "sanctuary_serenade"])
+	hero._auto_cast(1.0)
+	check(hero.last_cast_id == "heroic_anthem", "when the attack song is about to end the next attack song takes over (%s)" % hero.last_cast_id)
 	await get_tree().create_timer(1.6).timeout
 	# Marks already up: the marking skill waits behind the next skill, and fires when nothing else can.
 	mob.apply_shred(0.15, 8.0)
@@ -569,13 +583,15 @@ func _companion_ai() -> void:
 	check(is_equal_approx(singer._score(hymn, 3.0, 1.0), 7.0 + 0.55 + 0.1 + 0.1) and singer._score(hymn, 3.0, 1.0) > singer._score(anthem, 3.0, 1.0) and singer._score(anthem, 3.0, 1.0) > singer._score(valor, 3.0, 1.0), "the strongest attack song scores highest (7 + atk + crit/2)")
 	check(singer._score(bard("iron_ballad"), 3.0, 1.0) < singer._score(valor, 3.0, 1.0), "ward songs wait for a swap")
 	hero._apply_self_fx(valor)
-	check(singer._score(hymn, 3.0, 1.0) == 0.0 and singer._score(bard("iron_ballad"), 3.0, 0.3) == 0.0, "an AI Bard never sings over the player's own song")
+	check(singer._score(hymn, 3.0, 1.0) == 0.0, "an AI Bard never replaces the player's own attack song")
+	check(singer._score(bard("iron_ballad"), 3.0, 1.0) > 7.0, "but sings a ward song beside it (the ward slot)")
 	hero._buffs.clear()
 	singer._apply_self(anthem)
-	check(singer._score(hymn, 3.0, 1.0) == 0.0, "nor over a song with 10 s or more left")
+	check(singer._score(anthem, 3.0, 1.0) == 0.0, "nor sings a song already playing with 10 s or more left")
+	check(singer._score(hymn, 3.0, 1.0) == 0.0, "nor replaces an attack song with 10 s or more left")
 	check(singer._score(bard("iron_ballad"), 3.0, 0.3) == 10.0, "the hero badly hurt: a healing song swaps in")
-	hero.song_entry()["until"] = Time.get_ticks_msec() + 5000
-	check(singer._score(hymn, 3.0, 1.0) > 7.0, "a song about to end is sung again")
+	BuffBook.song_to_replace(hero._buffs, "attack")["until"] = Time.get_ticks_msec() + 5000
+	check(singer._score(hymn, 3.0, 1.0) > 7.0, "an attack song about to end makes room for another")
 	hero._buffs.clear()
 	var note := bard("sorrow_note")
 	var plain := singer._shape_score(note, 3.0, 1.0)
@@ -598,6 +614,11 @@ func _companion_ai() -> void:
 	check(String(BuffBook.song_of(buddy._book.buffs).get("skill_id", "")) == "hymn_of_legends" and String(BuffBook.song_of(wolf._book.buffs).get("skill_id", "")) == "hymn_of_legends", "the whole party hears it")
 	singer._cast_until = 0
 	check(singer._try_skills(3.0), "the AI Bard picks the next skill")
+	await get_tree().create_timer(1.8).timeout
+	var families := BuffBook.songs_of(hero._buffs).map(func(b): return BuffBook.song_family(b))
+	check(families.size() == 2 and families.has("attack") and families.has("ward"), "it fills the ward slot with a ward song (%s)" % str(families))
+	singer._cast_until = 0
+	check(singer._try_skills(3.0), "the AI Bard picks the next skill again")
 	await get_tree().create_timer(1.8).timeout
 	check(mob.debuff_left("weaken") > 0.0 or mob.debuff_left("shred") > 0.0, "then it marks the target")
 

@@ -136,22 +136,47 @@ func _boss() -> void:
 	check(String(MonsterData.get_monster(source.boss.monster).name) == String(MonsterData.MONSTERS[source.boss.monster].name) and not String(MonsterData.get_monster(source.boss.monster).name).begins_with("บอสโลก"), "the monster template itself is untouched")
 	zone._tick_world_boss()
 	check(zone._wboss == boss and _world_bosses(zone) == 1, "not a second one while it lives")
-	# Defeated by the hero: the day's flag, the gold, no respawn this window.
-	# The kill also completes daily quests and achievements that pay gold of their own:
-	# every payment is recorded and the bounty must be one of them.
+	# Its special moves (WorldBoss) and the world players that join in.
+	var special := WorldBoss.of(boss)
+	check(special != null and special.get_parent() == boss, "the world boss carries a WorldBoss node")
+	if special != null:
+		_specials(zone, boss, special)
+		await _joiners(zone, boss, special)
+	# Defeated by the hero: the day's flag, the gold, the rarity-3 piece, no respawn this
+	# window. The kill also completes daily quests and achievements that pay gold of
+	# their own: every payment is recorded and the bounty must be one of them.
 	var paid: Array[int] = []
 	var last := [int(Game.profile.gold)]
 	var tally := func(total: int):
 		paid.append(total - int(last[0]))
 		last[0] = total
 	Game.gold_changed.connect(tally)
+	var gained: Array[Dictionary] = []
+	var keep := func(item: Dictionary): gained.append(item)
+	Game.item_gained.connect(keep)
+	var banners: Array[String] = []
+	var note := func(text: String): banners.append(text)
+	zone.banner_requested.connect(note)
+	var defeated: Array[StringName] = []
+	if Game.has_signal("world_boss_defeated"):
+		Game.connect("world_boss_defeated", func(z: StringName): defeated.append(z))
 	var day := WorldEvents.day_of(WorldPresence.clock())
 	var expected := WorldEvents.BOSS_GOLD_PER_10 * maxi(1, int(Game.profile.level) / 10)
 	boss.take_hit(boss.hp, false, Color.WHITE, zone.hero)
 	Game.gold_changed.disconnect(tally)
+	Game.item_gained.disconnect(keep)
+	zone.banner_requested.disconnect(note)
 	check(boss.is_dead(), "the hero kills it")
 	check(int(Game.profile.flags.get(WorldEvents.flag_key(day), 0)) == 1, "the day's window is spent (flag %s)" % WorldEvents.flag_key(day))
 	check(paid.has(expected), "the bounty is paid (%s, expected %d)" % [str(paid), expected])
+	var legend := gained.filter(func(i): return String(i.get("kind", "")) == "equip" and int(i.get("rarity", 0)) == WorldEvents.BOSS_DROP_RARITY)
+	check(legend.size() >= 1, "a rarity-%d piece lands in the bag (%d gained)" % [WorldEvents.BOSS_DROP_RARITY, gained.size()])
+	check(not legend.is_empty() and Game.profile.inv.has(legend[0]), "the piece is in the bag")
+	check(banners.any(func(b: String): return b.contains(String(source.name)) and b.begins_with("ปราบบอสโลก")), "the banner names the field (%s)" % str(banners))
+	if Game.has_signal("world_boss_defeated"):
+		check(defeated == [id], "Game.world_boss_defeated names the field (%s)" % str(defeated))
+	else:
+		print("  (Game.world_boss_defeated not there yet: skipped)")
 	zone._tick_world_boss()
 	check(_world_bosses(zone) == 0, "no second world boss in the same window")
 	# The flag is a plain integer the save accepts.
@@ -170,6 +195,128 @@ func _boss() -> void:
 	zone._tick_world_boss()
 	check(_world_bosses(zone) == 1, "a new window spawns it again")
 	zone.queue_free()
+
+
+## The special moves: a telegraph first, the hit inside it and not outside, the roar at
+## 60% and the summons. The zone does not process, so the node is driven by hand.
+func _specials(zone: Zone, boss: Mob, special: WorldBoss) -> void:
+	var hero := zone.hero
+	var max_hp := int(hero.stats.max_hp)
+	hero.stats.dodge = 0.0
+	hero.global_position = boss.global_position + Vector3(2.0, 0.3, 0.0)
+	Game.profile.hp = max_hp
+	check(special.telegraph.is_empty() and special._shapes.is_empty(), "no telegraph before the first move")
+	special.tick(30.0)
+	check(not special.telegraph.is_empty() and String(special.telegraph.kind) == "stomp", "the first move is telegraphed (%s)" % str(special.telegraph.get("kind", "")))
+	check(special._shapes.size() >= 1 and special._shapes.all(func(s): return is_instance_valid(s) and s.is_inside_tree()), "the telegraph is drawn on the ground (%d shapes)" % special._shapes.size())
+	check(special.inside(hero.global_position) and not special.inside(boss.global_position + Vector3(9.0, 0, 0)), "the stomp covers %.0f m round the boss" % WorldBoss.STOMP_RADIUS)
+	check(boss._winding, "the boss stands still while it winds up")
+	check(int(Game.profile.hp) == max_hp, "nothing lands during the telegraph")
+	special.tick(1.0)
+	check(not special.telegraph.is_empty() and int(Game.profile.hp) == max_hp, "1.0 s in: still winding up")
+	special.tick(1.0)
+	check(special.telegraph.is_empty() and special._shapes.is_empty() and special.specials == 1, "the stomp lands after %.1f s and the telegraph is gone" % WorldBoss.TELEGRAPH)
+	var lost := max_hp - int(Game.profile.hp)
+	check(lost >= int(max_hp * 0.25) and lost <= int(max_hp * 0.45), "the hero inside loses about 35%% of max HP (%d of %d)" % [lost, max_hp])
+	check(not boss._winding, "the boss moves again")
+	# Out of the circle: nothing.
+	hero.global_position = boss.global_position + Vector3(12.0, 0.3, 0.0)
+	Game.profile.hp = max_hp
+	special.force_special("stomp")
+	check(not special.inside(hero.global_position), "12 m away is outside the stomp")
+	special.tick(2.0)
+	check(special.specials == 2 and int(Game.profile.hp) == max_hp, "the hero outside takes nothing")
+	# The beam points at the hero: a 3 m wide line, 18 m long.
+	hero.global_position = boss.global_position + Vector3(10.0, 0.3, 0.0)
+	special.force_special("beam")
+	check(String(special.telegraph.kind) == "beam" and special.inside(hero.global_position), "the beam is aimed at the hero")
+	check(not special.inside(hero.global_position + Vector3(0, 0, 2.0)) and special.inside(hero.global_position + Vector3(0, 0, 1.2)), "the beam is %.0f m wide" % WorldBoss.BEAM_WIDTH)
+	check(special.inside(boss.global_position + Vector3(17.5, 0, 0)) and not special.inside(boss.global_position + Vector3(19.0, 0, 0)), "the beam is %.0f m long" % WorldBoss.BEAM_LENGTH)
+	check(not special.inside(boss.global_position - Vector3(3.0, 0, 0)), "nothing behind the boss")
+	var escape := special.escape_point(hero.global_position)
+	check(not special.inside(escape) and is_equal_approx(Vector2(escape.x - hero.global_position.x, escape.z - hero.global_position.z).length(), 7.0), "the escape point is 7 m to the side, out of the beam")
+	special.tick(2.0)
+	check(special.specials == 3 and int(Game.profile.hp) < max_hp, "the beam hits the hero in the line")
+	# One telegraph at a time.
+	special.force_special("stomp")
+	special.force_special("beam")
+	check(String(special.telegraph.kind) == "stomp", "a second move waits for the first")
+	special.tick(2.0)
+	# The roar at 60% HP: the banner and a cycle 25% shorter.
+	var banners: Array[String] = []
+	var note := func(text: String): banners.append(text)
+	zone.banner_requested.connect(note)
+	check(special.phase == 0 and is_equal_approx(special._haste, 1.0), "no roar above 60%")
+	boss.hp = int(float(boss.max_hp) * 0.59)
+	special.tick(0.1)
+	check(special.phase == 1 and is_equal_approx(special._haste, WorldBoss.ROAR_HASTE), "it roars at 60%% HP and the cycle shortens by 25%% (phase %d)" % special.phase)
+	check(banners.has(WorldBoss.ROAR_TEXT), "the roar banner (%s)" % str(banners))
+	special.tick(0.1)
+	check(special.phase == 1, "one roar per threshold")
+	boss.hp = int(float(boss.max_hp) * 0.29)
+	special.tick(0.1)
+	check(special.phase == 2 and is_equal_approx(special._haste, WorldBoss.ROAR_HASTE * WorldBoss.ROAR_HASTE), "the second roar at 30%")
+	zone.banner_requested.disconnect(note)
+	# The summons: three of the field's monsters at 60% HP.
+	hero.global_position = boss.global_position + Vector3(12.0, 0.3, 0.0)
+	special.force_special("summon")
+	check(String(special.telegraph.kind) == "summon" and not special._shapes.is_empty(), "the summon is telegraphed too")
+	special.tick(2.0)
+	var adds: Array[Mob] = []
+	for child in zone.get_children():
+		var m := child as Mob
+		if m and m.has_meta("world_boss_add"):
+			adds.append(m)
+	check(adds.size() == WorldBoss.SUMMON_COUNT, "%d monsters of the field join (%d)" % [WorldBoss.SUMMON_COUNT, adds.size()])
+	var camp_ids: Array = []
+	for camp in zone.data.camps:
+		camp_ids.append_array(camp.monsters)
+	check(adds.all(func(m: Mob): return camp_ids.has(m.monster_id) and m.hostile and not m.is_boss), "they are the field's regular monsters, hostile")
+	check(adds.all(func(m: Mob): return m.hp == maxi(1, int(float(m.max_hp) * WorldBoss.SUMMON_HP))), "at 60% HP")
+	for m in adds:
+		m.queue_free()
+	Game.profile.hp = max_hp
+
+
+## World players hunting in the field: within 40 m the boss is their target, they shout
+## about it (rate-limited), step out of a telegraph and take a flat hit when they stay.
+func _joiners(zone: Zone, boss: Mob, special: WorldBoss) -> void:
+	var i := WorldPlayers.first_of(&"warrior")
+	var m := WorldPlayers.member(i)
+	var p := FieldPlayer.new()
+	p.setup_world(i, m, zone.hero, zone)
+	zone.add_child(p)
+	p.global_position = boss.global_position + Vector3(8.0, 0.3, 0.0)
+	await get_tree().process_frame
+	check(p.is_in_group("world_players") and not p.party_mode and not p._camp.is_empty(), "a world player hunts in the field")
+	var chat: Array = []
+	var hear := func(speaker: String, text: String, _color: Color): chat.append([speaker, text])
+	Game.world_chat.connect(hear)
+	p._shout_at = 0.0
+	check(p._pick_target() == boss, "within 40 m it goes for the world boss")
+	check(chat.size() == 1 and String(chat[0][0]) == String(m.name) and WorldEvents.BOSS_SHOUTS.has(String(chat[0][1])), "it shouts about it in the world chat (%s)" % str(chat))
+	check(is_instance_valid(p._bubble) and WorldEvents.BOSS_SHOUTS.has(String(p._bubble.text)), "and over its head")
+	p._pick_target()
+	p._pick_target()
+	check(chat.size() == 1 and p._shout_at >= Time.get_ticks_msec() * 0.001 + WorldEvents.BOSS_SHOUT_GAP - 1.0, "one shout per 30 s")
+	Game.world_chat.disconnect(hear)
+	p.global_position = boss.global_position + Vector3(WorldEvents.BOSS_JOIN_RANGE + 6.0, 0.3, 0.0)
+	check(p._pick_target() != boss, "too far away it keeps to its camp")
+	# Inside a telegraph it steps out, 7 m perpendicular; staying in, it takes a flat hit.
+	p.global_position = boss.global_position + Vector3(2.0, 0.3, 0.0)
+	check(not p._dodge_world_boss(0.016).is_finite(), "nothing to dodge without a telegraph")
+	special.force_special("stomp")
+	var step := p._dodge_world_boss(0.016)
+	check(step.is_finite() and step.length() > 1.0 and p._dodge_to.is_finite(), "inside the stomp it steps out")
+	check(not special.inside(p._dodge_to) and is_equal_approx(Vector2(p._dodge_to.x - p.global_position.x, p._dodge_to.z - p.global_position.z).length(), 7.0), "to a spot 7 m out of the circle")
+	check(step.normalized().dot((p._dodge_to - p.global_position).normalized()) > 0.95, "walking that way")
+	p.stats.dodge = 0.0
+	var hp_before := p.hp
+	special.tick(2.0)
+	check(p.hp < hp_before, "a world player still inside takes a hit (%d -> %d)" % [hp_before, p.hp])
+	check(not p._dodge_world_boss(0.016).is_finite() and not p._dodge_to.is_finite(), "the dodge is over with the telegraph")
+	p.queue_free()
+	await get_tree().process_frame
 
 
 func _world_bosses(zone: Zone) -> int:

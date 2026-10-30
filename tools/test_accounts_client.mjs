@@ -67,6 +67,10 @@ function ok(value,message){assert.ok(value,message);checks++;}
 async function poll(fn,label){const deadline=Date.now()+15000;while(Date.now()<deadline){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw new Error('Timeout: '+label);}
 async function cache(page,key){return page.evaluate(key=>new Promise((resolve,reject)=>{const req=indexedDB.open('toon_tale_accounts_v1');req.onsuccess=()=>{const db=req.result,r=db.transaction('records').objectStore('records').get(key);r.onsuccess=()=>{db.close();resolve(r.result)};r.onerror=reject};req.onerror=reject}),key);}
 async function local(page){return page.evaluate(()=>new Promise((resolve,reject)=>{const req=indexedDB.open('/userfs');req.onsuccess=()=>{const db=req.result,r=db.transaction('FILE_DATA').objectStore('FILE_DATA').get('/userfs/godot/app_userdata/Toon Tale/toon_tale_slot_1.json');r.onsuccess=()=>{db.close();resolve(r.result?JSON.parse(new TextDecoder().decode(r.result.contents)):null)};r.onerror=reject};req.onerror=reject}));}
+// A file under user:// as Godot's IDBFS keeps it (what SaveBackup.restore writes); `data` null deletes it.
+const FILE_ROOT='/userfs/godot/app_userdata/Toon Tale';
+async function putFile(page,name,data){return page.evaluate(([path,text])=>new Promise((resolve,reject)=>{const r=indexedDB.open('/userfs');r.onsuccess=()=>{const db=r.result,tx=db.transaction('FILE_DATA','readwrite'),s=tx.objectStore('FILE_DATA');if(text===null)s.delete(path);else s.put({timestamp:new Date(),mode:33188,contents:new TextEncoder().encode(text)},path);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=reject};r.onerror=reject}),[FILE_ROOT+'/'+name,data===null?null:JSON.stringify(data)]);}
+async function hasFile(page,name){return page.evaluate(path=>new Promise((resolve,reject)=>{const r=indexedDB.open('/userfs');r.onsuccess=()=>{const db=r.result,q=db.transaction('FILE_DATA').objectStore('FILE_DATA').get(path);q.onsuccess=()=>{db.close();resolve(!!q.result)};q.onerror=reject};r.onerror=reject}),FILE_ROOT+'/'+name);}
 async function form(page,name,password='super-secret-10'){await page.locator('#ta-username').fill(name);await page.locator('#ta-password').fill(password);const confirm=page.locator('#ta-confirm');if(await confirm.count())await confirm.fill(password);await page.locator('.ta-submit').click();}
 const context=await browser.newContext({viewport:{width:430,height:932},hasTouch:true,isMobile:true});
 const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -248,6 +252,46 @@ try {
   await poll(()=>two.bundle.slots['1'].level===24&&two.bundle.slots['1'].class==='defender','deferred upload');
   await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'deferred upload acknowledged');
   ok((await cache(page,'account:u_other')).revision===two.revision,'the deferred upload is acknowledged at the server revision');
+  // Restoring an offline backup in the game (SaveBackup.restore) rewrites the slot file
+  // with saved_at = now and lists the slot in backups/restored.json. Without that marker a
+  // local slot newer than the online one is uploaded at boot without a question (the
+  // revision matches, so chooseAccountSave sends it): the behaviour before the marker.
+  const MARKER='backups/restored.json';
+  await putFile(page,'toon_tale_slot_1.json',defender(25,5000));
+  let cloudBefore=two.revision;await page.reload();await page.waitForFunction(()=>window.ready);
+  ok(two.bundle.slots['1'].level===25&&two.revision===cloudBefore+1&&!(await page.evaluate(()=>JSON.parse(toonCloudStatus()).conflict)),'without a restore marker a newer local slot is uploaded at boot as before, no conflict screen');
+  // With the marker the player is asked, the restored save first: nothing is uploaded or installed until they choose.
+  await putFile(page,'toon_tale_slot_1.json',defender(26,6000));await putFile(page,MARKER,{time:6000,slots:[1]});
+  cloudBefore=two.revision;await page.reload();
+  await page.getByRole('heading',{name:'เซฟที่กู้คืน หรือเซฟออนไลน์'}).waitFor();
+  if(screenshotDir)await page.screenshot({path:screenshotDir+'/restored-conflict-portrait.png',fullPage:true});
+  ok((await page.locator('.ta-intro').innerText()).includes('คุณเพิ่งกู้คืนเซฟในเครื่อง — จะใช้เซฟที่กู้คืนหรือเซฟออนไลน์?'),'the restore line is shown');
+  ok((await page.locator('.ta-hint').innerText()).includes('ช่อง 1'),'the restored slots are named');
+  const buttons=await page.locator('.ta-actions button').evaluateAll(list=>list.map(b=>({text:b.textContent,primary:b.classList.contains('primary')})));
+  ok(buttons[0].text==='ใช้เซฟที่กู้คืน (ส่งขึ้นออนไลน์)'&&buttons[0].primary&&buttons[1].text==='ใช้เซฟออนไลน์ล่าสุด'&&!buttons[1].primary,'the restored save is the first, primary button: '+JSON.stringify(buttons));
+  await poll(()=>page.evaluate(()=>document.activeElement&&document.activeElement.textContent==='ใช้เซฟที่กู้คืน (ส่งขึ้นออนไลน์)'),'default button focused');
+  ok((await page.locator('.ta-compare').innerText()).includes('ที่กู้คืนในเครื่องนี้')&&(await page.locator('.ta-compare').innerText()).includes('เลเวล 26')&&(await page.locator('.ta-compare').innerText()).includes('เลเวล 25'),'both saves are shown for comparison');
+  ok(two.revision===cloudBefore&&two.bundle.slots['1'].level===25&&(await local(page)).level===26&&!(await page.evaluate(()=>window.ready)),'nothing is uploaded or installed before the choice');
+  ok(await hasFile(page,MARKER),'the marker stays until the choice is made');
+  await page.locator('.ta-actions button').first().click();await page.waitForFunction(()=>window.ready);
+  ok(two.bundle.slots['1'].level===26&&two.revision===cloudBefore+1,'the default button uploads the restored save over the online one');
+  ok((await local(page)).level===26&&(await cache(page,'account:u_other')).dirty===false,'the game starts with the restored save, acknowledged at the new revision');
+  ok(!(await hasFile(page,MARKER)),'the marker is cleared after the choice');
+  ok((await cache(page,'backups:account:u_other')).some(x=>x.bundle.slots['1'].level===25),'the replaced online save is backed up on this device');
+  // The second choice keeps the online copy: the restored save is backed up, not lost.
+  await putFile(page,'toon_tale_slot_1.json',defender(27,7000));await putFile(page,MARKER,{time:7000,slots:[1]});
+  cloudBefore=two.revision;await page.reload();
+  await page.getByRole('heading',{name:'เซฟที่กู้คืน หรือเซฟออนไลน์'}).waitFor();
+  await page.getByRole('button',{name:'ใช้เซฟออนไลน์ล่าสุด',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  ok(two.revision===cloudBefore&&two.bundle.slots['1'].level===26&&(await local(page)).level===26,'choosing the online save installs it and uploads nothing');
+  ok((await cache(page,'backups:account:u_other')).some(x=>x.bundle.slots['1'].level===27&&x.label.includes('กู้คืน')),'the restored save is kept as a local backup');
+  ok(!(await hasFile(page,MARKER)),'the marker is cleared after choosing the online save too');
+  // A stale marker with nothing newer in the local files changes nothing and is cleared.
+  await putFile(page,MARKER,{time:7000,slots:[1]});
+  cloudBefore=two.revision;await page.reload();
+  await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
+  await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  ok(two.revision===cloudBefore&&(await local(page)).level===26&&!(await hasFile(page,MARKER)),'a marker without a newer local save keeps the usual boot and is cleared');
   await page.evaluate(()=>toonOpenAccountPanel());await page.setViewportSize({width:956,height:440});
   if(screenshotDir)await page.screenshot({path:screenshotDir+'/account-landscape.png',fullPage:true});
   ok(await page.locator('.ta-card').evaluate(el=>el.scrollWidth<=el.clientWidth),'landscape card has no horizontal overflow');
