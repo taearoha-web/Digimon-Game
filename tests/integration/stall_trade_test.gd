@@ -394,7 +394,7 @@ func _screen(i: int) -> void:
 	check(stack_button.text == "ฝากขาย ×10 %d" % (bottle * 10) and plus.disabled, "+ is capped at the stack (%s)" % stack_button.text)
 	minus.pressed.emit()
 	outstanding = StallStock.consignments().size()
-	var due_key := StallStock.consignments()[-1].key if outstanding > 0 else ""
+	var due_key: String = String(StallStock.consignments()[-1].key) if outstanding > 0 else ""
 	stack_button.pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame

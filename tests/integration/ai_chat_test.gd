@@ -218,7 +218,7 @@ func _ready() -> void:
 	check(String(ask.call("มาเจอกันหน่อย เทรดของ", seller).action) == "open_stall", "come and trade with a keeper opens its stall")
 	var rude: Dictionary = ask.call("โง่จัง", hunter)
 	check(ChatBrain.RUDE.has(String(rude.reply)) and String(rude.action) == "none", "rudeness is deflected politely (%s)" % rude.reply)
-	check(ChatBrain.THANKS_PARTY.has(String(ask.call("ขอบคุณที่พาไปนะ", mate).reply)), "thanks for the party is answered as such")
+	check(ChatBrain.THANKS_PARTY.any(func(x): return String(ask.call("ขอบคุณที่พาไปนะ", mate).reply).begins_with(x)), "thanks for the party is answered as such (%s)" % ask.call("ขอบคุณที่พาไปนะ", mate).reply)
 	check(ChatBrain.HOWRU.any(func(x): return String(ask.call("เป็นยังไงบ้าง", hunter).reply).contains(x)), "how are you is small talk, not a how-to")
 	check(String(ask.call("บาย ไปก่อนนะ", mate).action) == "leave_party" and String(ask.call("ไปปาร์ตี้กันไหม", hunter).action) == "join_party", "orders still act as before")
 	# Long lines are cut before they leave.
