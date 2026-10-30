@@ -203,6 +203,30 @@ func _ready() -> void:
 	box.set_tab("party")
 	check(not String((box._tabs["party"] as Button).text).contains("•") and box.lines()[-1].contains("ไปต่อไหม"), "the party tab shows it, and the mark goes")
 	check(box.lines().size() <= WorldChat.LINES, "the box shows at most %d lines" % WorldChat.LINES)
+	# A world player's name is a link: tapping it asks to talk to that player; others stay plain.
+	check(box.lines()[-1].contains("[url=%s]" % names[0]), "a world player's name is tappable")
+	Game.post_chat("party", "ระบบ", "ทดสอบ", Color.WHITE)
+	check(not box.lines()[-1].contains("[url="), "ระบบ is not a link")
+	var tapped: Array = []
+	box.name_tapped.connect(func(n): tapped.append(n))
+	box._text.meta_clicked.emit(String(names[0]))
+	check(tapped == [String(names[0])], "tapping the name names that player")
+	# Stall keepers only name goods their stall really has (no "ขายดาบ +8" over an empty stall).
+	var told := 0
+	for i in WorldPlayers.size():
+		var st := WorldPlayers.state(i, WorldPresence.clock())
+		st["doing"] = "stall"
+		for seed_value in 30:
+			var line := WorldChat.line_for(st, seed_value)
+			check(not line.contains("%"), "no placeholder left: %s" % line)
+			if line.begins_with("ขาย") and line.ends_with("ทักได้เลย"):
+				var goods := line.trim_prefix("ขาย").trim_suffix(" ทักได้เลย")
+				var has := StallStock.stock(i, WorldPresence.clock()).any(func(e): return String(e.item.get("kind", "")) == "equip" and (ItemData.name_of(e.item) + (" +%d" % int(e.item.get("plus", 0)) if int(e.item.get("plus", 0)) > 0 else "")) == goods)
+				check(has, "%s really sells %s" % [st.name, goods])
+				told += 1
+		if i > 12:
+			break
+	check(told > 0, "some stall lines name real goods (%d)" % told)
 	_finish()
 
 

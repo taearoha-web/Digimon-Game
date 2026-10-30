@@ -5,10 +5,12 @@ extends PanelContainer
 ## guild (Game.channel_chat, from AiChat and PartyTalk). A small tab row picks what shows:
 ## ทั้งหมด (everything), โลก, ปาร์ตี้ or กิลด์; the typing bar (AiChat) sends to the tab's
 ## channel (compose_channel). Party lines are green and guild lines orange, each with its
-## tag ([ปาร์ตี้] / [กิลด์]). Only the tabs take a tap; the lines never do, so the joystick
-## under them keeps working. line_for picks what a player says.
+## tag ([ปาร์ตี้] / [กิลด์]). The tabs take a tap, and so does a world player's name in a
+## line (a link: name_tapped, to talk to that player). line_for picks what a player says.
 
 signal tab_changed(tab: String)
+## A world player's name in a line was tapped: the hero talks to that player.
+signal name_tapped(player_name: String)
 
 const LINES := 6
 ## The panel's height: room for the tabs and the lines, so the box keeps its size.
@@ -88,7 +90,11 @@ func _ready() -> void:
 	# A box of fixed size: the newest lines show at the bottom, older ones scroll out.
 	_text.fit_content = false
 	_text.scroll_active = false
-	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Taps reach the label so a player's name can be tapped (name_tapped); the lines
+	# themselves do nothing.
+	_text.mouse_filter = Control.MOUSE_FILTER_PASS
+	_text.meta_underlined = false
+	_text.meta_clicked.connect(func(meta): name_tapped.emit(String(meta)))
 	# Long lines wrap inside the panel: with wrapping off, the label's minimum width grew
 	# with the longest line and pushed the panel over the skill slots.
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -117,10 +123,11 @@ func add_line(speaker: String, text: String, color: Color) -> void:
 func add_channel_line(channel: String, speaker: String, text: String, color: Color) -> void:
 	if not is_instance_valid(_text):
 		return
-	var line := "[color=#%s]%s[/color]: %s" % [color.to_html(false), _clean(speaker), _clean(text)]
+	var who := _name_link(speaker)
+	var line := "[color=#%s]%s[/color]: %s" % [color.to_html(false), who, _clean(text)]
 	if TAGS.has(channel):
 		var tint := String((CHANNEL_COLORS[channel] as Color).to_html(false))
-		line = "[color=#%s][lb]%s[rb][/color] [color=#%s]%s[/color]: [color=#%s]%s[/color]" % [tint, TAGS[channel], color.to_html(false), _clean(speaker), tint, _clean(text)]
+		line = "[color=#%s][lb]%s[rb][/color] [color=#%s]%s[/color]: [color=#%s]%s[/color]" % [tint, TAGS[channel], color.to_html(false), who, tint, _clean(text)]
 	_all.append({"channel": channel, "line": line})
 	# Each channel keeps its own last KEEP lines, so a busy world chat never pushes the
 	# party's lines out of its tab.
@@ -182,6 +189,12 @@ func _show_tabs() -> void:
 		b.text = String(entry[1]) + (" •" if _unread.has(key) else "")
 
 
+## A world player's name as a tappable link (others, like ระบบ or the hero, stay plain).
+static func _name_link(speaker: String) -> String:
+	var clean := _clean(speaker)
+	return "[url=%s]%s[/url]" % [clean, clean] if WorldPlayers.index_of(speaker) >= 0 else clean
+
+
 ## Names and lines are the game's own, but a bracket must never open a tag.
 static func _clean(text: String) -> String:
 	return text.replace("[", "(").replace("]", ")")
@@ -204,16 +217,20 @@ const HIGH := ["กิลด์ %guild รับสมาชิกเลเว�
 const TOP := ["ตีบวกชุดเทพต่อ ใครมีหินขายบ้าง", "รับพาเก็บดาว ทักมาได้", "ล่าบอสวิหารบัววันนี้ได้ของดี",
 	"ชุดเทพครบแล้ว เหลือตีบวกให้ครบ +10", "มือใหม่มาถามได้นะ ยินดีช่วย", "กิลด์ %guild แกร่งที่สุด"]
 ## Stall keepers: players taking a break in the village, selling what they found.
-const STALL := ["ร้านเปิดแล้ว ยาเลือดถูกกว่าพ่อค้า", "ขาย%gear ทักได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า", "ขายเพชรตีบวก ของแท้ราคาเป็นมิตร",
+## %gear / %potion / %jewel name a lot this stall really has (StallStock.lot_name); a line
+## naming goods the stall does not have is never said.
+const STALL := ["ร้านเปิดแล้ว %potion ถูกกว่าพ่อค้า", "ขาย%gear ทักได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า", "ขาย%jewel ของแท้ราคาเป็นมิตร",
 	"AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "ลดราคาช่วงนี้ แวะมาก่อนออกล่า",
 	"ของหายากเพิ่งได้มา แตะที่ตัวแล้วดูร้านได้เลย", "ของชุดใหม่ลงร้านทุกสองชั่วโมง", "เพลงหมู่บ้านเพราะจัง นั่งขายของเพลิน ๆ"]
+const STALL_GOODS := {"%gear": "equip", "%potion": "potion", "%jewel": "jewel"}
+## Stall lines that name no goods, for when the named kind is not in stock.
+const STALL_PLAIN := ["AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "แตะที่ตัวแล้วดูร้านได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า"]
 ## A scheduled player in the village on a short errand, by the errand.
 const ERRAND := {
 	"quest": ["ส่งเควสก่อนนะ", "แวะส่งเควสที่ผู้ใหญ่บ้าน เดี๋ยวกลับไปล่าต่อ", "รับเควสใหม่แล้ว ไปต่อกัน", "เควสนี้ให้ของดีด้วย"],
 	"enhance": ["ตีบวกติด +%plus แล้ว!", "ตีบวกแตกอีกแล้ว", "ลุ้นตีบวกอยู่ เพชรชมพูเหลือเม็ดเดียว", "ตีบวก +%plus ผ่าน! ไปล่าต่อ"],
 	"skill": ["เรียนสกิลใหม่แล้ว", "อัปสกิลเสร็จ ไปลองของที่%field", "ได้สกิลใหม่ที่เลเวล %level แล้ว!"],
 }
-const GEAR := ["พิณ +7", "ดาบ +8", "คทา +6", "โล่ใหญ่ +7", "ธนู +8", "ไม้เท้า +6", "หอก +7", "มีด +8", "ชุดเกราะ +5", "ปีกเลเวล 100"]
 
 
 ## What player state s says now (seed picks the line).
@@ -245,7 +262,11 @@ static func line_for(s: Dictionary, seed_value: int) -> String:
 	var guild := WorldPlayers.guild_name(int(s.get("guild", 0)))
 	if line.contains("%guild") and guild == "":
 		line = String(ANY[rng.randi() % ANY.size()])
-	line = line.replace("%zone", zone_name).replace("%guild", guild).replace("%gear", String(GEAR[rng.randi() % GEAR.size()]))
+	for key in STALL_GOODS:
+		if line.contains(key):
+			var lot := StallStock.lot_name(int(s.get("index", -1)), STALL_GOODS[key], rng.randi())
+			line = line.replace(key, lot) if lot != "" else STALL_PLAIN[rng.randi() % STALL_PLAIN.size()]
+	line = line.replace("%zone", zone_name).replace("%guild", guild)
 	line = line.replace("%plus", str(rng.randi_range(5, 9))).replace("%level", str(level))
 	if line.contains("%field"):
 		line = line.replace("%field", String(ZoneData.get_zone(WorldPlayers.hunting_zone(level, int(s.get("stars", 0)))).get("name", "สนาม")))
