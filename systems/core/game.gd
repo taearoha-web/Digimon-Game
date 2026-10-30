@@ -893,7 +893,7 @@ func _valid_gem_id(value: Variant) -> bool:
 	if not value is String:
 		return false
 	var bits: PackedStringArray = value.split("_")
-	return bits.size() == 2 and ItemData.GEMS.has(bits[0]) and bits[1] in ["0", "1", "2"]
+	return bits.size() == 2 and ItemData.GEMS.has(bits[0]) and bits[1] in ["0", "1", "2", "3", "4"]
 
 
 func _valid_item(value: Variant) -> bool:
@@ -930,7 +930,7 @@ func _valid_item(value: Variant) -> bool:
 		return false
 	if not _valid_integer(item.get("level"), 1) or not _valid_integer(item.get("rarity", 0), 0, 4):
 		return false
-	if not _valid_integer(item.get("plus", 0), 0, ItemData.MAX_PLUS) or not _valid_integer(item.get("sockets", 0), 0, 3) or not _valid_integer(item.get("price", 0)):
+	if not _valid_integer(item.get("plus", 0), 0, ItemData.MAX_PLUS) or not _valid_integer(item.get("sockets", 0), 0, ItemData.MAX_SOCKETS + 1) or not _valid_integer(item.get("price", 0)):
 		return false
 	for key in item.get("stats", {}):
 		if not ItemData.STAT_LABELS.has(key) or not _valid_number(item.stats[key], 0.0, 10000000.0):
@@ -1473,8 +1473,7 @@ func tower_buy(kind: String) -> String:
 	if kind == "gear":
 		item = ItemData.generate(star_gear_level(), class_id(), rng, maxi(3, ItemData.roll_rarity(rng, 0.45)))
 	else:
-		var kinds := ItemData.GEMS.keys()
-		item = ItemData.gem(String(kinds[rng.randi() % kinds.size()]), 2)
+		item = ItemData.gem(ItemData.STAT_GEMS[rng.randi() % ItemData.STAT_GEMS.size()], 2)
 	if not add_item(item):
 		return "กระเป๋าเต็ม"
 	tower_spend(cost)
@@ -1902,6 +1901,77 @@ func unsocket_gem(item: Dictionary, socket_index: int) -> String:
 	clamp_vitals()
 	profile_changed.emit()
 	inventory_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
+## Fuses three gems of one kind and size into one of the next size at the forge
+## (ItemData.GEM_FUSE_CHANCE / GEM_FUSE_GOLD). A failed try loses one of the three.
+## Returns "ok", "fail" or a reason.
+func fuse_gem(gem_id: String) -> String:
+	var info := ItemData.gem_info({"id": gem_id})
+	if info.size >= ItemData.GEM_MAX_SIZE:
+		return "อัญมณีขั้นสูงสุดแล้ว"
+	var have := 0
+	for it in profile["inv"]:
+		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
+			have += int(it.get("count", 1))
+	if have < 3:
+		return "ต้องมี %s 3 เม็ด (มี %d)" % [info.name, have]
+	var gold := int(ItemData.GEM_FUSE_GOLD[info.size])
+	if int(profile.get("gold", 0)) < gold:
+		return "เงินไม่พอ (ต้องใช้ %d)" % gold
+	var lucky := rng.randf() < float(ItemData.GEM_FUSE_CHANCE[info.size])
+	if lucky and inventory_free() <= 0 and _gem_index(_gem_id_of(info.type, info.size + 1)) < 0 and have > 3:
+		return "กระเป๋าเต็ม"
+	add_gold(-gold)
+	_take_gems(gem_id, 3 if lucky else 1)
+	if not lucky:
+		inventory_changed.emit()
+		mark_dirty()
+		return "fail"
+	add_item(ItemData.gem(info.type, info.size + 1))
+	flag_add("gems_fused")
+	inventory_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
+func _gem_id_of(type: String, size: int) -> String:
+	return "%s_%d" % [type, size]
+
+
+func _gem_index(gem_id: String) -> int:
+	for i in profile["inv"].size():
+		var it: Dictionary = profile["inv"][i]
+		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
+			return i
+	return -1
+
+
+func _take_gems(gem_id: String, count: int) -> void:
+	while count > 0:
+		var i := _gem_index(gem_id)
+		if i < 0:
+			return
+		var take := mini(count, int(profile["inv"][i].get("count", 1)))
+		remove_item_at(i, take)
+		count -= take
+
+
+## Opens one more gem socket on a piece with a drill (สว่านเจาะ), up to
+## ItemData.max_sockets (3, a fourth at +15). Returns "ok" or a reason.
+func drill_socket(item: Dictionary) -> String:
+	if item.get("kind", "") != "equip" or not EnhanceFx.can_enhance(item):
+		return "เจาะช่องไม่ได้"
+	if int(item.get("sockets", 0)) >= ItemData.max_sockets(item):
+		return "ช่องเต็มแล้ว" if int(item.get("plus", 0)) >= 15 else "ช่องเต็มแล้ว (ตีบวก +15 เปิดช่องที่ 4)"
+	if jewel_count("drill") < 1:
+		return "ต้องใช้สว่านเจาะ 1 อัน"
+	_spend_jewels("drill", 1)
+	item["sockets"] = int(item.get("sockets", 0)) + 1
+	inventory_changed.emit()
+	profile_changed.emit()
 	mark_dirty()
 	return "ok"
 
