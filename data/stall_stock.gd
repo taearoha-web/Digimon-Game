@@ -378,6 +378,19 @@ static func _thousands(n: int) -> String:
 
 ## Stall keeper i calls out one of the lots it still has at time t for the world chat
 ## ("ร้านลุงหมี: มีดาบระดับหายาก Lv.27 ราคา 3,200 แวะดูได้"); "" with nothing left.
+## The name of one lot of `kind` (equip / potion / jewel) stall i really has now, as a
+## chat line says it ("ดาบนักล่า +0" is never claimed as +8), or "" when it has none.
+static func lot_name(i: int, kind: String, pick: int, t: float = -1.0) -> String:
+	if i < 0:
+		return ""
+	var lots := stock(i, _now(t)).filter(func(e): return String(e.item.get("kind", "")) == kind)
+	if lots.is_empty():
+		return ""
+	var item: Dictionary = lots[absi(pick) % lots.size()].item
+	var plus := int(item.get("plus", 0))
+	return ItemData.name_of(item) + (" +%d" % plus if plus > 0 else "")
+
+
 static func announcement(i: int, t: float = -1.0) -> String:
 	t = _now(t)
 	var lots := stock(i, t)

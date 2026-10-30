@@ -94,6 +94,12 @@ func _ready() -> void:
 		if not _screen_open():
 			ai_chat.talk_channel(hud.world_chat.compose_channel() if hud.world_chat != null else "world"))
 	hud.world_tapped.connect(_on_world_tapped)
+	# Tapping a player's name in the chat opens the typing bar to that player.
+	if hud.world_chat != null:
+		hud.world_chat.name_tapped.connect(func(player_name: String):
+			var i := WorldPlayers.index_of(player_name)
+			if i >= 0 and not _screen_open():
+				ai_chat.talk_to(i))
 	# The first five minutes of a new hero (steps, hints, a world player as the guide); on
 	# Main so it follows the hero from the village into the first field.
 	tutorial = Tutorial.new()
