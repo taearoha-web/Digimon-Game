@@ -23,10 +23,10 @@ func _ready() -> void:
 	main.title_screen = null
 	main.hud.visible = true
 	Game.playing = true
-	var n := 0
-	while Game.world_party.size() < Game.PARTY_MAX and n < WorldPlayers.size():
-		Game.party_invite(n * 7 % WorldPlayers.size(), true)
-		n += 1
+	var tried := 0
+	while Game.world_party.size() < Game.PARTY_MAX and tried < WorldPlayers.size():
+		Game.party_invite(tried * 7 % WorldPlayers.size(), true)
+		tried += 1
 	print("party %d, going" % Game.world_party.size())
 	await main.go(&"meadow", true)
 	print("in meadow")
@@ -53,6 +53,7 @@ func _ready() -> void:
 		Game.profile.hp = hero.stats.max_hp
 		if i % 2 == 0:
 			pack[2].take_hit(380 + i * 3, i % 4 == 0)
+	print("hero %s | pack %s | party %s" % [hero.global_position, pack.map(func(m): return m.global_position if is_instance_valid(m) else null), main.zone.companions.map(func(c): return c.global_position)])
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("%s/party_fight_%dx%d.png" % [out_dir, w, h])

@@ -10,10 +10,13 @@ var auras: Dictionary = {} # kind -> BuffAura
 
 const GROUP_LIMIT := 2
 ## Songs (the Bard's, "song" in the buff) keep slots of their own: two per
-## recipient, whoever sang them, so two different songs play together. The same song
-## sung again refreshes itself (never both slots); a third song takes over from the
-## oldest; a song never takes, evicts or loses one of the two self + two ally slots.
+## recipient, whoever sang them, one per family (SONG_FAMILIES): an attack song and a
+## ward song (defence, guard, shield; the healing songs) play together, two attack songs
+## never stack: a new song takes over from the one of its own family. The same song sung
+## again refreshes itself; a song never takes, evicts or loses one of the two self + two
+## ally slots.
 const SONG_LIMIT := 2
+const SONG_FAMILIES := ["attack", "ward"]
 
 ## Each recipient has independent self / ally queues, oldest first. A multi-stat
 ## skill occupies ONE slot. Recasting refreshes and makes that skill newest.
@@ -30,6 +33,19 @@ static func is_self_only(buff: Dictionary) -> bool:
 static func is_song_skill(skill: Dictionary) -> bool:
 	var fx: Variant = skill.get("fx")
 	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and is_song(fx.buff)
+
+## A song's family: "ward" when it guards (defence, damage cut, shield), else "attack".
+static func song_family(buff: Dictionary) -> String:
+	for key in ["def", "guard", "shield"]:
+		if float(buff.get(key, 0.0)) > 0.0:
+			return "ward"
+	return "attack"
+
+
+## The family of a song skill ("" for anything else).
+static func skill_song_family(skill: Dictionary) -> String:
+	return song_family(skill.fx.buff) if is_song_skill(skill) else ""
+
 
 ## The songs still playing on a recipient, oldest first.
 static func songs_of(entries: Array, now := -1) -> Array:
@@ -59,9 +75,15 @@ static func song_left_of(entries: Array, id: String, now := -1) -> float:
 static func song_slot_free(entries: Array, now := -1) -> bool:
 	return songs_of(entries, now).size() < SONG_LIMIT
 
-## The song a new one would take over from (the oldest playing), or {} while a slot is free.
-static func song_to_replace(entries: Array, now := -1) -> Dictionary:
+## The song a new one would take over from: the one of `family` playing ({} when that
+## family's slot is free); without a family, the oldest song once both slots are taken.
+static func song_to_replace(entries: Array, family := "", now := -1) -> Dictionary:
 	var list := songs_of(entries, now)
+	if family != "":
+		for buff in list:
+			if song_family(buff) == family:
+				return buff
+		return {}
 	return {} if list.size() < SONG_LIMIT else list[0]
 
 ## Seconds left of the song playing on a recipient (0 without one).
@@ -105,9 +127,10 @@ static func insert(entries: Array, data: Dictionary, color: Color, label: String
 		if int(entry.until) > now and not (bool(entry.get("ally", false)) == ally and identity(entry) == id):
 			next.append(entry)
 	if is_song(data):
-		# The same song sung again (by anyone) refreshes itself rather than taking the
-		# second slot; past the two song slots the new song takes over from the oldest.
-		next = next.filter(func(b): return not (is_song(b) and identity(b) == id))
+		# One song per family: the same song sung again (by anyone) refreshes itself and a
+		# new song takes over from the one of its family; the limit is a safety net.
+		var family := song_family(data)
+		next = next.filter(func(b): return not (is_song(b) and (identity(b) == id or song_family(b) == family)))
 		var songs := next.filter(func(b): return is_song(b)).size()
 		while songs >= SONG_LIMIT:
 			for i in next.size():

@@ -411,13 +411,13 @@ func _auto_cast(hp_rate: float) -> void:
 		match String(skill.shape):
 			"self":
 				if BuffBook.is_song_skill(skill):
-					# Two songs play together: sing this one when it is not playing (or about
-					# to end) and a slot is free or the oldest song is about to end; a healing
-					# song comes in at once when badly hurt.
+					# An attack song and a ward song play together: sing this one when it is not
+					# playing (or about to end) and its family's slot is free or that song is
+					# about to end; a healing song comes in at once when badly hurt.
 					var own_left := BuffBook.song_left_of(_buffs, String(skill.id))
 					var swap := fx.has("heal") and hp_rate < 0.45 and own_left <= 0.0
-					var oldest := BuffBook.song_to_replace(_buffs)
-					var full := not oldest.is_empty() and float(oldest.until) - float(Time.get_ticks_msec()) >= 3000.0
+					var rival := BuffBook.song_to_replace(_buffs, BuffBook.skill_song_family(skill))
+					var full := not rival.is_empty() and float(rival.until) - float(Time.get_ticks_msec()) >= 3000.0
 					if not swap and (own_left >= 3.0 or full):
 						continue
 				else:

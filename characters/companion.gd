@@ -529,15 +529,16 @@ func _song_buffs() -> Array:
 	return hero.song_buffs()
 
 
-## Whether a song may go in now: a slot is free, or the oldest song (the one a new song
-## would take over from) is not the player's own and, unless `urgent`, is about to end.
-func _song_slot_open(urgent: bool) -> bool:
-	var oldest := BuffBook.song_to_replace(_song_buffs())
-	if oldest.is_empty():
+## Whether a song of `family` may go in now: its family's slot is free, or the song
+## there (the one it would take over from) is not the player's own and, unless
+## `urgent`, is about to end.
+func _song_slot_open(family: String, urgent: bool) -> bool:
+	var there := BuffBook.song_to_replace(_song_buffs(), family)
+	if there.is_empty():
 		return true
-	if not bool(oldest.get("ally", false)):
+	if not bool(there.get("ally", false)):
 		return false
-	return urgent or float(oldest.until) - float(Time.get_ticks_msec()) < 10000.0
+	return urgent or float(there.until) - float(Time.get_ticks_msec()) < 10000.0
 
 
 ## Whether the song playing is the hero's own: an AI Bard never sings over a player's song.
@@ -709,15 +710,17 @@ func _score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	return score
 
 
-## A song for the party (two play together): never one already playing with 10 s left,
+## A song for the party (an attack and a ward song play together): never one already
+## playing with 10 s left,
 ## never over the player's own song, the strongest attack song first in a fight, and a
 ## healing song at once when the hero is badly hurt.
 func _song_score(skill: Dictionary, hero_hp: float) -> float:
 	var fx: Dictionary = skill.fx
 	var playing := BuffBook.song_left_of(_song_buffs(), String(skill.id))
-	if fx.has("heal") and hero_hp < 0.45 and playing <= 0.0 and _song_slot_open(true):
+	var family := BuffBook.skill_song_family(skill)
+	if fx.has("heal") and hero_hp < 0.45 and playing <= 0.0 and _song_slot_open(family, true):
 		return 10.0
-	if playing >= 10.0 or not _in_combat() or not _song_slot_open(false):
+	if playing >= 10.0 or not _in_combat() or not _song_slot_open(family, false):
 		return 0.0
 	return 7.0 + float(fx.buff.get("atk", 0.0)) + 0.5 * float(fx.buff.get("crit", 0.0)) + 0.001 * float(member.get("level", 1))
 
