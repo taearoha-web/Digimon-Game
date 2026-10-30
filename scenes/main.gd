@@ -107,6 +107,10 @@ func _ready() -> void:
 	dialog = DialogBox.new()
 	add_child(dialog)
 	Game.leveled_up.connect(_on_level_up)
+	Game.achievement_earned.connect(func(id: String):
+		var entry := Achievements.entry(id)
+		if not entry.is_empty():
+			hud.show_banner("ความสำเร็จ: %s" % String(entry.get("name_th", id))))
 	Game.paragon_leveled.connect(func(level: int):
 		hud.show_banner("ระดับเหนือเลเวล ดาว %d!" % level)
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
