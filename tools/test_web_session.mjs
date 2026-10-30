@@ -138,4 +138,19 @@ diagnostic = JSON.parse(diagnosticStorage.get('toon_session_v1'));
 check(diagnostic.events.length === 24 && !JSON.stringify(diagnostic).includes('secret') && !JSON.stringify(diagnostic).includes('example.test'), 'distinct errors are bounded and no raw message, token, URL or account data persists');
 d.canvasEvents.get('webglcontextrestored')();
 check(JSON.parse(diagnosticStorage.get('toon_session_v1')).events.at(-1).type === 'webgl_context_restored', 'successful GPU context restoration is recorded separately');
+// Memory growth, game state and game-side marks (an iPhone report: 166 -> 199 MB, then
+// a still world and a silent mixer before iOS closed the page).
+let wasm = 166 * 1048576;
+const gStorage = new Map(), g = boot(gStorage);
+g.window.toonSession.begin('0.9.4', () => wasm);
+g.window.toonSession.sample({zone: 'swamp', paused: true, heroDead: false, screenOpen: true, hot: true, hotSeconds: 61, stallSaves: 1, audioStallSeconds: 27.9});
+g.tick(); wasm = 199 * 1048576; g.tick();
+let grown = JSON.parse(gStorage.get('toon_session_v1'));
+check(grown.events.some(e => e.type === 'wasm_grow' && e.fromMB === 166 && e.toMB === 199 && e.zone === 'swamp'), 'a grown game memory is kept as an event with its zone');
+check(grown.samples.at(-1).paused === true && grown.samples.at(-1).screenOpen === true && grown.samples.at(-1).hot === true && grown.samples.at(-1).stallSaves === 1, 'paused, open screen, warm and stall saves reach the sample');
+g.window.toonSession.mark('audio_stall'); g.window.toonSession.mark('secret-password');
+grown = JSON.parse(gStorage.get('toon_session_v1'));
+check(grown.events.at(-1).type === 'audio_stall' && !JSON.stringify(grown).includes('secret'), 'only fixed game marks are recorded');
+const line = JSON.parse(g.window.toonSession.report()).currentSession ? JSON.parse(g.window.toonSession.report()).currentSession.samples.length : 0;
+check(line > 0, 'the current session keeps its samples');
 console.log(`Web session: ${checks} checks passed (mock browser events, not device QA)`);

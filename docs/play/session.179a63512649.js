@@ -5,7 +5,7 @@
   const MAX_SAMPLES = 60, MAX_EVENTS = 24, MAX_BYTES = 24000;
   let current = null, timer = null, heap = () => null, metrics = {}, wake = null;
   let wakePending = false, reportOpen = false, metricsAt = 0, pendingError = null;
-  let previousFrame = null, raf = null;
+  let previousFrame = null, raf = null, lastWasm = null;
   let frames = {count: 0, over50: 0, over100: 0, maxMs: 0};
   function read(key) {
     try {
@@ -38,6 +38,11 @@
     if (!current) return;
     let wasmBytes = null;
     try { const n = heap(); if (Number.isFinite(n) && n > 0) wasmBytes = n; } catch (_) {}
+    // The game's memory only grows (an iPhone report closed soon after 166 -> 199 MB):
+    // each step is kept as an event with what the game was doing.
+    if (wasmBytes !== null && lastWasm !== null && wasmBytes > lastWasm)
+      event('wasm_grow', { fromMB: Math.round(lastWasm / 1048576), toMB: Math.round(wasmBytes / 1048576), ...(metrics.zone ? { zone: metrics.zone } : {}) });
+    if (wasmBytes !== null) lastWasm = wasmBytes;
     const canvas = document.getElementById('canvas');
     current.samples.push({ seconds: Math.round((Date.now() - current.startedAt) / 1000),
       visibility: document.visibilityState, wasmBytes, width: canvas.width, height: canvas.height, ...metrics,
@@ -190,7 +195,7 @@
       contextLost: record.contextLost === true, events: record.events,
       firstSample: first || null, lastSamples: record.samples.slice(-5),
       // One short line per sample: the whole session's trend in a few hundred bytes.
-      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} p=${s.pressure ?? '-'} ${s.flatScreens || s.starvedFrames ? 'flat=' + (s.flatScreens ?? 0) + ' starved=' + (s.starvedFrames ?? 0) + ' fb=' + (s.renderFallback ?? 0) + ' ' : ''}${s.camOwn === 0 ? 'cam=foreign ' : ''}${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
+      timeline: record.samples.map(s => `${s.seconds}s wasm=${mb(s.wasmBytes)} video=${mb(s.videoBytes)} obj=${s.objects ?? '-'} nodes=${s.nodes ?? '-'} fps=${s.fps ?? '-'} maxMs=${s.maxFrameMs ?? '-'} p=${s.pressure ?? '-'} ${s.flatScreens || s.starvedFrames ? 'flat=' + (s.flatScreens ?? 0) + ' starved=' + (s.starvedFrames ?? 0) + ' fb=' + (s.renderFallback ?? 0) + ' ' : ''}${s.camOwn === 0 ? 'cam=foreign ' : ''}${s.hot ? 'hot ' : ''}${s.paused ? 'paused ' : ''}${s.heroDead ? 'dead ' : ''}${s.screenOpen ? 'screen ' : ''}${s.audioStallSeconds > 1 ? 'nosound ' : ''}${s.visibility === 'visible' ? '' : s.visibility + ' '}${s.zone || ''}`),
       pressureRaises: last ? (last.pressureRaises ?? null) : null,
       growth: first && last && last !== first ? { seconds: last.seconds - first.seconds, wasmBytes: (last.wasmBytes || 0) - (first.wasmBytes || 0),
         videoBytes: (last.videoBytes || 0) - (first.videoBytes || 0), nodes: (last.nodes || 0) - (first.nodes || 0),
@@ -248,10 +253,10 @@
         const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
         // An allowlist prevents this hook from copying any player/profile data.
         metrics = {}; metricsAt = Date.now();
-        for (const key of ['staticBytes', 'videoBytes', 'nodes', 'objects', 'resources', 'orphans', 'loot', 'quality', 'fps', 'auto', 'kills', 'saveAgeSeconds', 'drawCalls', 'triangles', 'renderObjects', 'processMs', 'physicsMs', 'soundPlayRequests', 'audioStreamMode', 'audioStallSeconds']) {
+        for (const key of ['staticBytes', 'videoBytes', 'nodes', 'objects', 'resources', 'orphans', 'loot', 'quality', 'fps', 'auto', 'kills', 'saveAgeSeconds', 'drawCalls', 'triangles', 'renderObjects', 'processMs', 'physicsMs', 'soundPlayRequests', 'audioStreamMode', 'audioStallSeconds', 'paused', 'heroDead', 'screenOpen', 'hot']) {
           if (typeof data[key] === 'boolean' || (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)) metrics[key] = data[key];
         }
-        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB', 'scale3d', 'particles', 'decorations', 'lights', 'emitters', 'renderFallback', 'flatScreens', 'starvedFrames']) {
+        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB', 'scale3d', 'particles', 'decorations', 'lights', 'emitters', 'renderFallback', 'flatScreens', 'starvedFrames', 'stallSaves', 'hotSeconds']) {
           if (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0) metrics[key] = Math.round(data[key] * 100) / 100;
         }
         // The drawing camera (RenderWatchdog.camera_report): height and pitch can be negative.
@@ -262,6 +267,8 @@
       } catch (_) {}
     },
     error: recordError,
+    // Game-side moments worth a timestamp (fixed names only, never free text).
+    mark(type) { if (['audio_stall', 'audio_back', 'hot'].includes(type)) { event(type); snapshot(); } },
     end() { if (current) { current.status = 'ended'; event('engine_exit'); snapshot(); } clearInterval(timer); if (raf !== null) window.cancelAnimationFrame?.(raf); releaseWake(); },
     report, showReport,
   };

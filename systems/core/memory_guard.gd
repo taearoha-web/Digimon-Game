@@ -42,6 +42,19 @@ static var _accum := 0.0
 const LOW_FPS := 22.0
 const LOW_FPS_SECONDS := 30.0
 static var _slow_seconds := 0.0
+## An iPhone that runs warm: under HOT_FPS for HOT_SECONDS in all (a v0.9.4 report: the
+## frame rate sank from 48 to 34 over twenty minutes of auto-hunting at high quality, then
+## iOS closed the page). From then on, for the session, the 3D scale follows the frame
+## rate at every quality (high "คมชัด" too), never above HOT_SCALE, and decorative
+## effects are cut to HOT_EFFECTS of the pressure level's share.
+const HOT_FPS := 42.0
+const HOT_SECONDS := 60.0
+const HOT_SCALE := 0.75
+## The floor while warm, at every quality (the frame rate decides between it and HOT_SCALE).
+const HOT_FLOOR := 0.65
+const HOT_EFFECTS := 0.6
+static var hot := false
+static var hot_seconds := 0.0
 
 ## The 3D resolution scale on a phone (Viewport.scaling_3d_scale, bilinear): the world is
 ## drawn at this share of the canvas and the HUD stays at the full, crisp size. Every zone
@@ -66,7 +79,8 @@ const SCALE_3D_FLOORS := [SCALE_3D_MIN, 0.85, 0.8]
 
 
 static func scale_3d_floor() -> float:
-	return float(SCALE_3D_FLOORS[clampi(GameSettings.quality, 0, 2)])
+	var floor_now := float(SCALE_3D_FLOORS[clampi(GameSettings.quality, 0, 2)])
+	return minf(floor_now, HOT_FLOOR) if hot else floor_now
 static var _scale_slow := 0
 static var _scale_fast := 0
 static var _scale_applied := -1.0
@@ -136,6 +150,7 @@ static func tick(tree: SceneTree, delta: float) -> void:
 	else:
 		heap_mb = float(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576.0
 	var wanted := _wanted(step)
+	_watch_heat(tree, step)
 	_follow_frame_rate(tree)
 	if ios() and _forced < 0 and wanted < 2 and _frame_rate() < LOW_FPS:
 		_slow_seconds += step
@@ -182,14 +197,40 @@ static func _wanted(step: float) -> int:
 static func base_scale_3d() -> float:
 	if not phone():
 		return 1.0
-	return SCALE_3D_START
+	return minf(SCALE_3D_START, scale_cap())
+
+
+## The highest 3D scale allowed now (HOT_SCALE once an iPhone runs warm).
+static func scale_cap() -> float:
+	return HOT_SCALE if hot else 1.0
+
+
+## Counts the slow seconds on an iPhone; HOT_SECONDS of them (a quick stretch takes
+## them back off) mark it as warm for the session.
+static func _watch_heat(tree: SceneTree, step: float) -> void:
+	if hot or not ios() or _forced >= 0:
+		return
+	var fps := _frame_rate()
+	# Under the 30 fps cap "warm" means sagging below the cap, not below HOT_FPS.
+	var hot_line := HOT_FPS if Engine.max_fps <= 0 else minf(HOT_FPS, Engine.max_fps * 0.85)
+	if fps > 0.0 and fps < hot_line:
+		hot_seconds += step
+	else:
+		hot_seconds = maxf(0.0, hot_seconds - step)
+	if hot_seconds < HOT_SECONDS:
+		return
+	hot = true
+	if scale_3d > HOT_SCALE:
+		set_scale_3d(HOT_SCALE, tree)
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("if (window.toonSession && window.toonSession.mark) window.toonSession.mark('hot');", true)
 
 
 ## One reading of the frame rate: a slow stretch lowers the 3D scale a step, a fast one
 ## raises it (phones below high quality, or at high "สูง (ลื่น)", only; the frame rate is
 ## read once a tick, TICK_SECONDS apart).
 static func _follow_frame_rate(tree: SceneTree) -> void:
-	if not phone() or _forced >= 0 or not GameSettings.dynamic_scale():
+	if not phone() or _forced >= 0 or not (GameSettings.dynamic_scale() or hot):
 		return
 	var fps := _frame_rate()
 	if fps <= 0.0:
@@ -206,7 +247,7 @@ static func _follow_frame_rate(tree: SceneTree) -> void:
 	elif fps > fast_line:
 		_scale_fast += 1
 		_scale_slow = 0
-		if _scale_fast >= SCALE_3D_FAST_TICKS and scale_3d < 1.0 - 0.001:
+		if _scale_fast >= SCALE_3D_FAST_TICKS and scale_3d < scale_cap() - 0.001:
 			_scale_fast = 0
 			set_scale_3d(scale_3d + SCALE_3D_STEP, tree)
 	else:
@@ -215,7 +256,7 @@ static func _follow_frame_rate(tree: SceneTree) -> void:
 
 
 static func set_scale_3d(value: float, tree: SceneTree) -> void:
-	scale_3d = snappedf(clampf(value, scale_3d_floor(), 1.0), 0.01)
+	scale_3d = snappedf(clampf(value, scale_3d_floor(), maxf(scale_3d_floor(), scale_cap())), 0.01)
 	_apply_scale_3d(tree)
 
 
@@ -294,8 +335,8 @@ static func glow_allowed() -> bool:
 
 ## Multiplier for decorative counts (particles, motes, decorations).
 static func effect_scale() -> float:
-	return [1.0, 0.65, 0.4][pressure]
+	return [1.0, 0.65, 0.4][pressure] * (HOT_EFFECTS if hot else 1.0)
 
 
 static func report() -> Dictionary:
-	return {"pressure": pressure, "videoMB": snappedf(video_mb, 0.1), "heapMB": snappedf(heap_mb, 0.1), "raises": raises, "scale3d": scale_3d}
+	return {"pressure": pressure, "videoMB": snappedf(video_mb, 0.1), "heapMB": snappedf(heap_mb, 0.1), "raises": raises, "scale3d": scale_3d, "hot": hot}

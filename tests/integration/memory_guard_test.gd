@@ -268,6 +268,41 @@ func _ready() -> void:
 	for i in MemoryGuard.SCALE_3D_FAST_TICKS * 12:
 		MemoryGuard._follow_frame_rate(tree)
 	check(is_equal_approx(MemoryGuard.scale_3d, 1.0) or not phone, "a fast stretch brings it back up to full size (%.2f)" % MemoryGuard.scale_3d)
+	# A warm iPhone (slow for HOT_SECONDS): the scale follows the frame rate at high
+	# (sharp) too, capped at HOT_SCALE, and decorative effects shrink.
+	MemoryGuard.phone_override = 1
+	MemoryGuard.ios_override = 1
+	GameSettings.quality = 2
+	GameSettings.high_smooth = false
+	MemoryGuard.reset_scale_3d(tree)
+	var effects_cool := MemoryGuard.effect_scale()
+	MemoryGuard.fps_override = 50.0
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS * 2.0)
+	check(not MemoryGuard.hot, "a fast iPhone is not marked warm")
+	MemoryGuard.fps_override = 30.0
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS * 0.5)
+	MemoryGuard.fps_override = 55.0
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS * 0.5)
+	MemoryGuard.fps_override = 30.0
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS * 0.6)
+	check(not MemoryGuard.hot, "a quick stretch takes slow seconds back off")
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS)
+	check(MemoryGuard.hot, "a long slow stretch marks the iPhone warm")
+	check(MemoryGuard.scale_3d <= MemoryGuard.HOT_SCALE + 0.001, "warm: the scale drops to the cap at high (sharp) (%.2f)" % MemoryGuard.scale_3d)
+	check(MemoryGuard.effect_scale() < effects_cool, "warm: decorative effects shrink")
+	for i in MemoryGuard.SCALE_3D_SLOW_TICKS * 10:
+		MemoryGuard._follow_frame_rate(tree)
+	check(is_equal_approx(MemoryGuard.scale_3d, MemoryGuard.HOT_FLOOR), "warm: a slow frame rate lowers high (sharp) down to the warm floor (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.fps_override = 60.0
+	for i in MemoryGuard.SCALE_3D_FAST_TICKS * 12:
+		MemoryGuard._follow_frame_rate(tree)
+	check(MemoryGuard.scale_3d <= MemoryGuard.HOT_SCALE + 0.001, "warm: a fast stretch never goes over the cap (%.2f)" % MemoryGuard.scale_3d)
+	MemoryGuard.reset_scale_3d(tree)
+	check(MemoryGuard.scale_3d <= MemoryGuard.HOT_SCALE + 0.001, "warm: a new zone starts at the cap")
+	MemoryGuard.hot = false
+	MemoryGuard.hot_seconds = 0.0
+	MemoryGuard.ios_override = -1
+	MemoryGuard.phone_override = -1
 	MemoryGuard.fps_override = -1.0
 	GameSettings.quality = 2
 	MemoryGuard.reset_scale_3d(tree)
