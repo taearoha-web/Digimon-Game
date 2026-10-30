@@ -112,7 +112,10 @@ static func icon(item: Dictionary) -> Texture2D:
 	if item.get("kind", "") == "jewel":
 		return load("res://assets/icons/ui/jewel_%s.svg" % String(item.id)) as Texture2D
 	if item.get("kind", "") == "gem":
-		return icon_for_id("gem_" + String(item.id).split("_")[0])
+		# Perfect and legendary gems have their own icon (a gold / rainbow halo).
+		var bits := String(item.id).split("_")
+		var sized := icon_for_id("gem_%s_%s" % [bits[0], bits[1]]) if bits.size() == 2 and int(bits[1]) >= 3 else null
+		return sized if sized != null else icon_for_id("gem_" + bits[0])
 	if item.get("kind", "") == "potion":
 		var pid := String(item.id)
 		var path := "res://assets/icons/ui/heart_potion.svg" if pid.begins_with("hp") else ("res://assets/icons/ui/mana_potion.svg" if pid.begins_with("mp") else "res://assets/icons/ui/quest.svg")
