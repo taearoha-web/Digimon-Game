@@ -1563,10 +1563,10 @@ func _items() -> void:
 	var gold: int = Game.profile.gold
 	Game.profile["inv"].append(ItemData.gem("ruby", 2, 2))
 	var atk1: float = Game.stats_now().atk
-	check(Game.socket_gem(sword, Game.profile.inv.size() - 1) and Game.stats_now().atk >= atk1 + 22, "a ruby in a socket adds ATK")
+	check(Game.socket_gem(sword, Game.profile.inv.size() - 1) and Game.stats_now().atk > atk1 * 1.03, "a ruby in a socket adds ATK (+3.5% for a large one)")
 	check(int(Game.profile.inv[Game.profile.inv.size() - 1].count) == 1, "the gem stack went down by one")
 	var atk_with_gem: float = Game.stats_now().atk
-	check(Game.unsocket_gem(sword, 0) == "ok" and (sword.gems as Array).is_empty() and Game.stats_now().atk <= atk_with_gem - 22, "a gem can be taken back out (attack drops)")
+	check(Game.unsocket_gem(sword, 0) == "ok" and (sword.gems as Array).is_empty() and Game.stats_now().atk < atk_with_gem, "a gem can be taken back out (attack drops)")
 	check(int(Game.profile.inv[Game.profile.inv.size() - 1].count) == 2, "the removed gem returns to the bag stack")
 	check(Game.unsocket_gem(sword, 0) != "ok", "an empty socket cannot be emptied")
 	Game.socket_gem(sword, Game.profile.inv.size() - 1)

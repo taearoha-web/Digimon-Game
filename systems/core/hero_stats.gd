@@ -132,6 +132,8 @@ const GEM_SET_HAWK := 0.05
 const MAX_LIFESTEAL := 0.1
 const MAX_CDR := 0.3
 const MAX_FORTUNE := 0.5
+## Onyx crit damage on top of CRIT_DAMAGE (1.6): at most +0.6, crits up to x2.2.
+const MAX_CRIT_DMG := 0.6
 
 
 static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
@@ -151,7 +153,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0))) * (1.0 + float(gems.get("def", 0.0)))
 	var gem_set := String(gear.get("gem_set", ""))
 	return {
-		"crit_dmg": float(gems.get("crit_dmg", 0.0)),
+		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG),
 		"lifesteal": minf(float(gems.get("lifesteal", 0.0)), MAX_LIFESTEAL),
 		"cdr": minf(float(gems.get("cdr", 0.0)), MAX_CDR),
 		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
