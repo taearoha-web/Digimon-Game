@@ -276,6 +276,7 @@ func _ready() -> void:
 	GameSettings.high_smooth = false
 	MemoryGuard.reset_scale_3d(tree)
 	var effects_cool := MemoryGuard.effect_scale()
+	MemoryGuard.busy_override = 0.0
 	MemoryGuard.fps_override = 50.0
 	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS * 2.0)
 	check(not MemoryGuard.hot, "a fast iPhone is not marked warm")
@@ -299,6 +300,20 @@ func _ready() -> void:
 	check(MemoryGuard.scale_3d <= MemoryGuard.HOT_SCALE + 0.001, "warm: a fast stretch never goes over the cap (%.2f)" % MemoryGuard.scale_3d)
 	MemoryGuard.reset_scale_3d(tree)
 	check(MemoryGuard.scale_3d <= MemoryGuard.HOT_SCALE + 0.001, "warm: a new zone starts at the cap")
+	MemoryGuard.hot = false
+	MemoryGuard.hot_seconds = 0.0
+	# Held at the 30 fps cap with the scripts filling most of each frame: warm too.
+	var cap_before := Engine.max_fps
+	Engine.max_fps = 30
+	MemoryGuard.fps_override = 30.0
+	MemoryGuard.busy_override = 12.0
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS * 2.0)
+	check(not MemoryGuard.hot, "at the cap with light script work the iPhone is not warm")
+	MemoryGuard.busy_override = 28.0
+	MemoryGuard._watch_heat(tree, MemoryGuard.HOT_SECONDS)
+	check(MemoryGuard.hot, "at the cap with 28 ms of script work a frame the iPhone is warm")
+	Engine.max_fps = cap_before
+	MemoryGuard.busy_override = -1.0
 	MemoryGuard.hot = false
 	MemoryGuard.hot_seconds = 0.0
 	MemoryGuard.ios_override = -1
