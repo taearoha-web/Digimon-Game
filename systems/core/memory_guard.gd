@@ -194,13 +194,16 @@ static func _follow_frame_rate(tree: SceneTree) -> void:
 	var fps := _frame_rate()
 	if fps <= 0.0:
 		return
-	if fps < SCALE_3D_SLOW_FPS:
+	# Under the iPhone's 30 fps cap the same lines sit just under the cap.
+	var slow_line := SCALE_3D_SLOW_FPS if Engine.max_fps <= 0 else Engine.max_fps * 0.85
+	var fast_line := SCALE_3D_FAST_FPS if Engine.max_fps <= 0 else Engine.max_fps * 0.97
+	if fps < slow_line:
 		_scale_slow += 1
 		_scale_fast = 0
 		if _scale_slow >= SCALE_3D_SLOW_TICKS and scale_3d > scale_3d_floor() + 0.001:
 			_scale_slow = 0
 			set_scale_3d(scale_3d - SCALE_3D_STEP, tree)
-	elif fps > SCALE_3D_FAST_FPS:
+	elif fps > fast_line:
 		_scale_fast += 1
 		_scale_slow = 0
 		if _scale_fast >= SCALE_3D_FAST_TICKS and scale_3d < 1.0 - 0.001:
@@ -233,6 +236,9 @@ static func reset_scale_3d(tree: SceneTree) -> void:
 	set_scale_3d(base_scale_3d(), tree)
 
 
+const IOS_MAX_FPS := 30
+
+
 static func set_level(level: int, tree: SceneTree) -> void:
 	level = clampi(level, 0, 2)
 	if level == pressure:
@@ -254,6 +260,9 @@ static func force(level: int, tree: SceneTree) -> void:
 static func apply_render(tree: SceneTree) -> void:
 	GameSettings.load_settings()
 	GameSettings.apply_web_render_quality()
+	# An iPhone kept at full tilt heats up within minutes, then iOS slows the chip
+	# (the frame rate halves) and at last closes the page. 30 fps steady keeps it cool.
+	Engine.max_fps = IOS_MAX_FPS if ios() else 0
 	var size := shadow_size()
 	# A 16-bit depth map halves the memory and is plenty for a sun over a field.
 	RenderingServer.directional_shadow_atlas_set_size(size, phone() or pressure > 0)

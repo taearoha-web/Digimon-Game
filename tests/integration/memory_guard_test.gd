@@ -82,6 +82,12 @@ func _ready() -> void:
 	check(MemoryGuard.render_quality() == 0, "an iPhone at strict pressure draws at the 1280 px budget (%d)" % MemoryGuard.render_quality())
 	MemoryGuard.ios_override = 0
 	check(MemoryGuard.render_quality() == 2, "elsewhere the resolution follows the chosen quality")
+	MemoryGuard.ios_override = 1
+	MemoryGuard.apply_render(tree)
+	check(Engine.max_fps == MemoryGuard.IOS_MAX_FPS, "an iPhone runs at a steady 30 fps so it stays cool")
+	MemoryGuard.ios_override = 0
+	MemoryGuard.apply_render(tree)
+	check(Engine.max_fps == 0, "other devices are not capped")
 	# A sustained low frame rate on an iPhone steps the guard up (lower resolution, fewer effects).
 	MemoryGuard.ios_override = 1
 	MemoryGuard.force(-1, tree)
