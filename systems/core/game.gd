@@ -40,6 +40,12 @@ const SLOT_COUNT := 10
 const META_PATH := "user://toon_tale_meta.json"
 const SAVE_VERSION := 1
 const AUTOSAVE_INTERVAL := 10.0
+## The web audio mixer silent this long while the page is shown: iOS is often about to
+## close it (a v0.9.4 report: 28 s without a mix, then gone). The game saves at once,
+## once per silence, and marks it in the session report.
+const AUDIO_STALL_SAVE_SECONDS := 5.0
+var _audio_stall_saved := false
+var stall_saves := 0
 const BASE_BAG := 40
 const MAX_BAG := 100
 const BAG_STEP := 10
@@ -100,6 +106,8 @@ func _process(delta: float) -> void:
 		return
 	if not has_profile:
 		return
+	if OS.has_feature("web"):
+		_watch_audio_stall()
 	profile["play_time"] = float(profile.get("play_time", 0.0)) + delta
 	_ach_timer += delta
 	if _ach_timer >= ACH_INTERVAL:
@@ -730,12 +738,33 @@ func _record_web_session_sample() -> void:
 		if sample.vfx is Dictionary and sample.vfx.has(key):
 			sample[key] = sample.vfx[key]
 	sample.merge(RenderWatchdog.camera_report(get_tree()))
+	# What the game was doing (a report ended with the world standing still for a minute).
+	var main := get_tree().current_scene
+	sample["paused"] = get_tree().paused
+	sample["screenOpen"] = main != null and main.has_method("_screen_open") and bool(main.call("_screen_open"))
+	sample["heroDead"] = hero is Hero and (hero as Hero).is_dead()
+	sample["hot"] = MemoryGuard.hot
+	sample["hotSeconds"] = snappedf(MemoryGuard.hot_seconds, 1.0)
+	sample["stallSaves"] = stall_saves
 	if hero is Hero:
 		sample["lastSkill"]=hero.last_cast_id
 		if hero.field is Zone and hero.field.tower_run:
 			var run:TowerRun=hero.field.tower_run
 			sample.merge({"towerFloor":run.floor_no,"towerState":run.state,"pendingSpawns":run._pending.size(),"spawnWorkMs":run.last_spawn_ms,"spawnPeakMs":run.peak_spawn_ms})
 	JavaScriptBridge.eval("if (window.toonSession) window.toonSession.sample(%s);" % JSON.stringify(JSON.stringify(sample)), true)
+
+
+func _watch_audio_stall() -> void:
+	var stalled := AudioServer.get_time_since_last_mix() > AUDIO_STALL_SAVE_SECONDS
+	if stalled == _audio_stall_saved:
+		return
+	_audio_stall_saved = stalled
+	if stalled and str(JavaScriptBridge.eval("document.visibilityState", true)) == "hidden":
+		return  # a hidden page stops mixing on purpose; leaving it already saved
+	JavaScriptBridge.eval("if (window.toonSession && window.toonSession.mark) window.toonSession.mark('%s');" % ("audio_stall" if stalled else "audio_back"), true)
+	if stalled:
+		stall_saves += 1
+		save()
 
 
 func _set_cloud_modal_open(open: bool) -> void:
