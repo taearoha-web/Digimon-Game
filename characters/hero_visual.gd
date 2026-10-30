@@ -258,6 +258,7 @@ func _refresh_chibi() -> void:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
 		back.add_child(StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings)))
 		_glow_piece([back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_wing_flair(back.get_parent(), int(wings.get("plus", 0)))
 		_pose_wings.call_deferred(wing_mode, true)
 	# Fold only static accessories on each bone, keeping the skeleton and wing animation intact.
 	for node in _body_nodes:
@@ -475,6 +476,13 @@ func _glow_piece(nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
 		_body_nodes.append(made)
 
 
+## Wings at +10 and up: a glow behind them and drifting light feathers (EnhanceFx.wing_flair).
+func _wing_flair(back: Node3D, plus: int) -> void:
+	var made := EnhanceFx.wing_flair(back, plus, Vector3.ZERO, decor_light)
+	if made != null:
+		_body_nodes.append(made)
+
+
 func refresh() -> void:
 	dressed += 1
 	_face = null
@@ -559,6 +567,7 @@ func refresh() -> void:
 		back.add_child(w)
 		_body_nodes.append(back)
 		_glow_piece([back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
+		_wing_flair(back, int(wings.get("plus", 0)))
 		_pose_wings.call_deferred(wing_mode, true)
 	if cape != null and cape is Array:
 		var cape_tint := Color(2.2, 2.2, 2.0) if (priest and armor == null) else outfit_tint

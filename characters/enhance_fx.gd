@@ -614,6 +614,51 @@ static func _crown(root: Node3D, color: Color, y: float) -> void:
 	spin.tween_property(crown, "rotation:y", TAU, 7.0).from(0.0)
 
 
+## Wings at +10 and up get their own flair, in their aura step's colour: a soft glow
+## spread behind them and light feathers drifting down (+15: every colour of the rainbow).
+## Returns the holder (the caller frees it with the outfit), or null below +10.
+static func wing_flair(owner: Node3D, plus: int, spot: Vector3, light := false) -> Node3D:
+	if plus < 10:
+		return null
+	var color := color_of(plus)
+	var holder := Node3D.new()
+	holder.name = "WingFlair"
+	holder.position = spot
+	owner.add_child(holder)
+	# The feathers themselves shine in the step's colour, brighter each step.
+	var shine := _glow_material(color, 0.24 + 0.05 * float(plus - 10))
+	for m in MeshKit.collect_meshes(owner):
+		m.material_overlay = shine
+	var pulse := holder.create_tween().set_loops()
+	pulse.tween_property(shine, "albedo_color:a", shine.albedo_color.a * 1.6, 0.9).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(shine, "albedo_color:a", shine.albedo_color.a * 0.7, 0.9).set_trans(Tween.TRANS_SINE)
+	var glow := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(3.0, 1.9)
+	var mat := _glow_material(color, 0.3 + 0.06 * float(plus - 10))
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = VfxKit.soft_dot()
+	quad.material = mat
+	glow.mesh = quad
+	glow.position = Vector3(0, 0.15, -0.45)
+	_unshaded(glow)
+	holder.add_child(glow)
+	var breathe := glow.create_tween().set_loops()
+	breathe.tween_property(glow, "scale", Vector3.ONE * 1.12, 1.3).set_trans(Tween.TRANS_SINE)
+	breathe.tween_property(glow, "scale", Vector3.ONE * 0.92, 1.3).set_trans(Tween.TRANS_SINE)
+	if GameSettings.quality > 0 and not light and MemoryGuard.pressure < 2:
+		var drift := _sparkles(holder, Vector3(0, 0.3, -0.45), color.lightened(0.35), 10 + 3 * (plus - 10), 1.0, 0.16, 0.25, 2.2)
+		drift.name = "WingFeathers"
+		drift.spread = 60.0
+		if plus >= 15:
+			var ramp := Gradient.new()
+			ramp.offsets = PackedFloat32Array([0.0, 0.25, 0.5, 0.75, 1.0])
+			ramp.colors = PackedColorArray([Color.from_hsv(0.0, 0.6, 1.0, 0.9), Color.from_hsv(0.16, 0.6, 1.0, 0.9),
+				Color.from_hsv(0.45, 0.6, 1.0, 0.8), Color.from_hsv(0.65, 0.6, 1.0, 0.6), Color.from_hsv(0.82, 0.6, 1.0, 0.0)])
+			drift.color_ramp = ramp
+	return holder
+
+
 ## Slots that cannot be enhanced (they stay as they are).
 const FIXED_SLOTS: Array[String] = ["ring", "amulet"]
 
