@@ -8,6 +8,8 @@ var checks := 0
 
 func _ready() -> void:
 	Game.set_process(false)
+	# Pin the world clock to 10:00 Thai time, outside the EXP x2 hours (19:00-21:00).
+	WorldPresence.clock_offset += float(posmod(10 * 3600 - WorldEvents.time_of_day(WorldPresence.clock()), 86400))
 	Game.slot = 1
 	Game.new_profile(&"warrior", "ผู้พิทักษ์ทดสอบ", FaceKit.default_look())
 	_test_invalid_backups()
