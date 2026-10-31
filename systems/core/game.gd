@@ -1319,7 +1319,9 @@ func share_party_exp(base: float, mob_level: int) -> int:
 	var each := base * (1.0 + PARTY_EXP_BONUS * float(n - 1)) / float(n)
 	for i in world_party:
 		var m: Dictionary = _party_members[i]
-		WorldPlayers.add_exp(i, each * exp_gap_scale(int(m.level), mob_level), int(m.level), int(m.get("stars", 0)))
+		# A member under its own Halloween potion (WorldPlayers.halloween_mult) earns its part x2 / x3.
+		var potion := float(WorldPlayers.halloween_mult(i, WorldPresence.clock()))
+		WorldPlayers.add_exp(i, each * potion * exp_gap_scale(int(m.level), mob_level), int(m.level), int(m.get("stars", 0)))
 	return int(round(each * exp_gap_scale(int(profile.level), mob_level)))
 
 

@@ -138,6 +138,39 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 
 
 var _armed := true
+var _pumpkin: Node3D
+## Head widths in metres (the chibi bodies, the KayKit ones).
+const PUMPKIN_HEAD_WIDTH := 0.85
+const PUMPKIN_HEAD_WIDTH_KAYKIT := 1.0
+
+
+## The Halloween potion's floating pumpkin over the head (PumpkinHead); safe to call
+## every tick: a rebuilt body gets a new one.
+func set_pumpkin(on: bool) -> void:
+	var have := _pumpkin != null and is_instance_valid(_pumpkin) and _pumpkin.is_inside_tree()
+	if on == have:
+		return
+	if not on:
+		_pumpkin.queue_free()
+		_pumpkin = null
+		return
+	if _skeleton == null or not is_instance_valid(_skeleton):
+		return
+	var mount := BoneAttachment3D.new()
+	mount.name = "PumpkinMount"
+	mount.bone_name = _bone("head")
+	_skeleton.add_child(mount)
+	# Metres: the skeleton's scale, the head bone's height and the top of the body.
+	var unit := maxf(_skeleton.global_basis.get_scale().y / maxf(global_basis.get_scale().y, 0.001), 0.001)
+	var bone := _skeleton.find_bone(_bone("head"))
+	var bone_y := (_skeleton.get_bone_global_rest(bone).origin.y if bone >= 0 else 0.0) * unit
+	var top := CHIBI_HEIGHT if chibi else HEIGHT
+	mount.add_child(PumpkinHead.make(maxf(top - bone_y, 0.2), PUMPKIN_HEAD_WIDTH if chibi else PUMPKIN_HEAD_WIDTH_KAYKIT, unit))
+	_pumpkin = mount
+
+
+func has_pumpkin() -> bool:
+	return _pumpkin != null and is_instance_valid(_pumpkin) and _pumpkin.is_inside_tree()
 
 
 func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:

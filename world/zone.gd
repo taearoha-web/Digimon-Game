@@ -256,6 +256,25 @@ func _update_anim_lod() -> void:
 				mob.set_dormant(false)
 
 
+var _pumpkin_timer := 0.0
+
+
+## The Halloween potion's floating pumpkin (PumpkinHead) over everyone under one: the
+## hero (Game.exp_boost_left), party members and world players (WorldPlayers.halloween_mult).
+func _update_pumpkins() -> void:
+	if is_instance_valid(hero) and hero.visual:
+		hero.visual.set_pumpkin(Game.exp_boost_left() > 0.0)
+	var t := WorldPresence.clock()
+	var seen := {}
+	for group in ["companions", "world_players"]:
+		for node in get_tree().get_nodes_in_group(group):
+			if seen.has(node) or not (node is Companion) or (node as Companion).visual == null:
+				continue
+			seen[node] = true
+			var i := (node as FieldPlayer).world_index if node is FieldPlayer else int((node as Companion).member.get("index", -1))
+			(node as Companion).visual.set_pumpkin(i >= 0 and i < WorldPlayers.size() and WorldPlayers.halloween_mult(i, t) > 1)
+
+
 func _process(delta: float) -> void:
 	if hero == null or not is_built:
 		return
@@ -268,6 +287,10 @@ func _process(delta: float) -> void:
 		_interact_timer = 0.15
 		_update_interact()
 	_check_portals(delta)
+	_pumpkin_timer -= delta
+	if _pumpkin_timer <= 0.0:
+		_pumpkin_timer = 1.0
+		_update_pumpkins()
 	if _weather and is_instance_valid(hero):
 		_weather.global_position = Vector3(hero.global_position.x, _weather.position.y, hero.global_position.z)
 	if is_town:

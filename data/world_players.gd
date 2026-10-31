@@ -387,7 +387,67 @@ static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
 
 ## The level player i has reached at real time t.
 static func level_at(i: int, t: float) -> int:
-	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i)).level)
+	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t)).level)
+
+
+# --- Halloween ----------------------------------------------------------------------
+
+## World players find Halloween potions too (WorldEvents.HALLOWEEN_*) and drink them
+## while they hunt: each hour of the event a player online is under one with its own
+## chance (HALLOWEEN_SHARE_MIN..MAX, by name), at x2 or x3 for that hour. What the
+## potions add is HALLOWEEN_EXTRA (the mean of x2 and x3, less the base) of its own
+## progress for that share of the event minutes it played.
+const HALLOWEEN_SHARE_MIN := 0.25
+const HALLOWEEN_SHARE_MAX := 0.5
+const HALLOWEEN_EXTRA := 1.5
+
+
+static func halloween_share(i: int) -> float:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("hw_share|%s" % ROSTER[i].name)
+	return rng.randf_range(HALLOWEEN_SHARE_MIN, HALLOWEEN_SHARE_MAX)
+
+
+## The potion multiplier player i is under at real time t (1: none, or not online).
+static func halloween_mult(i: int, t: float) -> int:
+	if not WorldEvents.halloween_on(t) or session_at(i, t).is_empty():
+		return 1
+	var hour := int(floor(t / 3600.0))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("hw|%s|%d" % [ROSTER[i].name, hour])
+	if rng.randf() >= halloween_share(i):
+		return 1
+	return 2 if rng.randf() < 0.5 else 3
+
+
+## Probe minutes the potions have added to player i by real time t: its schedule's
+## minutes inside the event, frozen while it is in the hero's party (where the party's
+## EXP counts, Game.share_party_exp) and less the event minutes it spent in parties.
+static func halloween_work(i: int, t: float) -> float:
+	var start := float(WorldEvents.HALLOWEEN_START)
+	if t <= start:
+		return 0.0
+	_load_bonus()
+	var key := String(ROSTER[i].name)
+	# Asked for by every level read: kept per player for the same 10 s of the clock.
+	var cache_key := "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(hw_skipped.get(key, 0.0))]
+	if _hw_cache.has(cache_key):
+		return float(_hw_cache[cache_key])
+	var from := played_minutes(i, start)
+	var last := played_minutes(i, float(WorldEvents.HALLOWEEN_END))
+	var upto := minf(float(paused[key]) if paused.has(key) else played_minutes(i, t), last)
+	var played := maxf(0.0, upto - from - float(hw_skipped.get(key, 0.0)))
+	var work := played * efficiency(i) * halloween_share(i) * HALLOWEEN_EXTRA
+	if _hw_cache.size() > 512:
+		_hw_cache.clear()
+	_hw_cache[cache_key] = work
+	return work
+
+
+static var _hw_cache := {}
+## Event minutes (schedule minutes inside the Halloween window) each player spent in the
+## hero's party, by name: they earn the party's EXP there, not their own potions'.
+static var hw_skipped := {}
 
 
 ## Whether a skill of player i's class unlocks between real times a and b.
@@ -535,7 +595,12 @@ static func resume_schedule(i: int, t: float) -> void:
 	var key := String(ROSTER[i].name)
 	if not paused.has(key):
 		return
-	skipped[key] = float(skipped.get(key, 0.0)) + maxf(0.0, played_minutes(i, t) - float(paused[key]))
+	var now_m := played_minutes(i, t)
+	skipped[key] = float(skipped.get(key, 0.0)) + maxf(0.0, now_m - float(paused[key]))
+	var hw_from := maxf(float(paused[key]), played_minutes(i, float(WorldEvents.HALLOWEEN_START)))
+	var hw_to := minf(now_m, played_minutes(i, float(WorldEvents.HALLOWEEN_END)))
+	if hw_to > hw_from:
+		hw_skipped[key] = float(hw_skipped.get(key, 0.0)) + hw_to - hw_from
 	paused.erase(key)
 	_bonus_dirty = true
 
@@ -575,7 +640,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus, "skipped": skipped, "paused": paused, "saved": now()}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "saved": now()}))
 		_bonus_dirty = false
 
 
@@ -599,14 +664,15 @@ static func _load_bonus() -> void:
 		var value: Variant = parsed.bonus[key]
 		if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
 			bonus[String(key)] = float(value)
-	for field in ["skipped", "paused"]:
+	var tables := {"skipped": skipped, "paused": paused, "hw_skipped": hw_skipped}
+	for field in tables:
 		var table: Variant = parsed.get(field, {})
 		if not table is Dictionary:
 			continue
 		for key in table:
 			var value: Variant = table[key]
 			if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
-				(skipped if field == "skipped" else paused)[String(key)] = float(value)
+				(tables[field] as Dictionary)[String(key)] = float(value)
 	# A party does not outlive the game: those who were in it resume from when the file
 	# was written.
 	var saved: Variant = parsed.get("saved", 0.0)
@@ -619,6 +685,8 @@ static func clear_bonus() -> void:
 	bonus.clear()
 	skipped.clear()
 	paused.clear()
+	hw_skipped.clear()
+	_hw_cache.clear()
 	_bonus_loaded = true
 	_bonus_dirty = true
 
@@ -631,7 +699,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var e: Dictionary = ROSTER[i]
-	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i))
+	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t))
 	var s := session_at(i, t)
 	var place := ""
 	var doing := ""
@@ -665,6 +733,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	out["errand_until"] = float(errand.get("until", 0.0))
 	out["grade"] = grade_of(int(p.level), int(p.stars), bool(p.divine))
 	out["last_seen"] = _last_seen(i, t) if s.is_empty() else t
+	out["pumpkin"] = halloween_mult(i, t) > 1
 	return out
 
 

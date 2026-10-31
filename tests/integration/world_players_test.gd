@@ -484,7 +484,8 @@ func _party() -> void:
 	check(shared, "the members get their parts too")
 	var lift := WorldPlayers.progress_for(WorldPlayers.played_minutes(ids[0], WorldPresence.clock()), WorldPlayers.efficiency(ids[0]))
 	var with := WorldPlayers.state(ids[0], WorldPresence.clock())
-	check(int(with.level) * 1000 + float(with.frac) * 999.0 > int(lift.level) * 1000 + float(lift.frac) * 999.0, "a member's party EXP moves it on")
+	# Level and stars together (the event's potions can carry a member past Lv.100).
+	check((int(with.level) + int(with.stars)) * 1000 + float(with.frac) * 999.0 > (int(lift.level) + int(lift.stars)) * 1000 + float(lift.frac) * 999.0, "a member's party EXP moves it on")
 	# Their sessions end: they leave the party.
 	WorldPresence.clock_offset += 12.0 * 3600.0
 	zone.presence.sync(false)
