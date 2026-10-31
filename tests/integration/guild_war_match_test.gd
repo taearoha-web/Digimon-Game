@@ -218,7 +218,12 @@ func _war(staged: bool) -> void:
 		m.time_left = 0.01
 		await _frames(4)
 		check(m.overtime and m.state == "fight", "%s: a tie at the bell goes to sudden death" % label)
+		# A living rival (the leader may still be down from the altar checks above).
 		var foe: GuildFighter = m.enemies[1]
+		for f in m.enemies:
+			if not f.is_dead():
+				foe = f
+				break
 		for f in m.all_fighters():
 			f._guard_until = 0
 		foe._dodge = 0.0
