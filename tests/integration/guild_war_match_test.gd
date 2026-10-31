@@ -294,6 +294,12 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	m._assign_objectives()
 	check(SiegeArena.route(Vector3(SiegeArena.BASE_X, 0, SiegeArena.BASE_Z), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[0], "%s: from a camp the way to the altar starts at the bridge" % label)
 	check(SiegeArena.route(Vector3(0, 0, -24.0), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[2] and SiegeArena.route(Vector3(0, 0, -24.0), Vector3(-30, 0, 10)) == SiegeArena.CONNECTORS[1], "%s: inside, the way runs through the gates" % label)
+	# The gates stand 32 m apart (twice the old 16 m) and the throne room is twice as wide
+	# and twice as deep as before (68 x 44 m); the hero can walk all of it.
+	check(is_equal_approx(SiegeArena.GATE_Z[0] - SiegeArena.GATE_Z[1], 32.0) and is_equal_approx(SiegeArena.GATE_Z[1] - SiegeArena.GATE_Z[2], 32.0), "%s: the gates are 32 m apart" % label)
+	check(is_equal_approx(SiegeArena.THRONE_HALF * 2.0, 68.0) and is_equal_approx(SiegeArena.GATE_Z[2] - SiegeArena.BACK_Z, 44.0) and SiegeArena.section(SiegeArena.ALTAR) == 4, "%s: the throne room is 68 x 44 m with the altar inside" % label)
+	var corner := Vector2(SiegeArena.THRONE_HALF - 2.0, SiegeArena.BACK_Z + 2.0)
+	check(hero.field_hall.has_point(corner) and hero.field_hall.has_point(Vector2(SiegeArena.ALTAR.x, SiegeArena.ALTAR.z)), "%s: the hero may stand anywhere in the throne room" % label)
 	var lines: Array[String] = []
 	m.feed.connect(func(text: String, _t: int): lines.append(text))
 	for g in gates:

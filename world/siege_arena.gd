@@ -27,21 +27,26 @@ const PLAZA := Vector3(0, 0, 6.0)
 const MOAT_SOUTH := -6.0
 const MOAT_NORTH := -14.0
 const BRIDGE_HALF := 5.5
-## The castle hall is 2 * HALL_HALF wide; each gate opening 2 * GATE_HALF wide, GATE_H high.
+## The castle hall (the two yards) is 2 * HALL_HALF wide; each gate opening 2 * GATE_HALF
+## wide, GATE_H high, the gates GATE_GAP apart. Past the third gate the throne room opens
+## out to 2 * THRONE_HALF wide and runs THRONE_DEPTH deep to the back wall.
 const HALL_HALF := 17.0
 const GATE_HALF := 5.0
 const GATE_H := 8.0
-const GATE_Z: Array[float] = [-18.0, -34.0, -50.0]
-const BACK_Z := -72.0
+const GATE_GAP := 32.0
+const GATE_Z: Array[float] = [-18.0, -18.0 - GATE_GAP, -18.0 - GATE_GAP * 2.0]
+const THRONE_HALF := 34.0
+const THRONE_DEPTH := 44.0
+const BACK_Z := -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH
 ## The stone base of the walls, then the plastered parapet on it.
 const STONE_H := 7.0
 const PARAPET_H := 2.4
 const WALL_H := STONE_H + PARAPET_H
 ## The altar in the throne room and how close one must stand to take it.
-const ALTAR := Vector3(0, 0, -62.0)
+const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH * 0.5)
 const ALTAR_RADIUS := 2.8
 ## Where the sections join: the bridge foot, then the three gates.
-const CONNECTORS: Array[Vector3] = [Vector3(0, 0, -4.0), Vector3(0, 0, -18.0), Vector3(0, 0, -34.0), Vector3(0, 0, -50.0)]
+const CONNECTORS: Array[Vector3] = [Vector3(0, 0, -4.0), Vector3(0, 0, -18.0), Vector3(0, 0, -18.0 - GATE_GAP), Vector3(0, 0, -18.0 - GATE_GAP * 2.0)]
 ## Zone meta holding the castle banners' shared material (recoloured for the castle's holder).
 const BANNER_META := "siege_banner_material"
 
@@ -94,6 +99,12 @@ static func gate_front(k: int) -> Vector3:
 	return Vector3(0, 0, GATE_Z[k] + 3.0)
 
 
+## The castle's floor (x, z) past the moat, where the hero may stand beyond the field's
+## round edge (Hero.field_hall): the yards and the wider throne room.
+static func hall_rect() -> Rect2:
+	return Rect2(-THRONE_HALF, BACK_Z, THRONE_HALF * 2.0, MOAT_SOUTH - BACK_Z)
+
+
 static func on_altar(p: Vector3) -> bool:
 	return Vector2(p.x - ALTAR.x, p.z - ALTAR.z).length() <= ALTAR_RADIUS
 
@@ -106,7 +117,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, left_color: Color, r
 		PackedVector2Array([Vector2(-BASE_X, BASE_Z), Vector2(-20.0, 9.0), Vector2(PLAZA.x, PLAZA.z), Vector2(20.0, 9.0), Vector2(BASE_X, BASE_Z)]),
 		PackedVector2Array([Vector2(PLAZA.x, PLAZA.z), Vector2(0.0, MOAT_SOUTH)]),
 	]
-	Scenery.ground(zone, 130.0, Color("6fae54"), Color("86c063"), 41, Color("cdb88a"), paths, 6.5, [Vector3(PLAZA.x, PLAZA.z, 14.0), Vector3(-BASE_X, BASE_Z, 13.0), Vector3(BASE_X, BASE_Z, 13.0)], &"meadow")
+	Scenery.ground(zone, 165.0, Color("6fae54"), Color("86c063"), 41, Color("cdb88a"), paths, 6.5, [Vector3(PLAZA.x, PLAZA.z, 14.0), Vector3(-BASE_X, BASE_Z, 13.0), Vector3(BASE_X, BASE_Z, 13.0)], &"meadow")
 	var root := Node3D.new()
 	root.name = "Siege"
 	zone.add_child(root)
@@ -340,36 +351,46 @@ static func _castle(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> voi
 	_wall_x(b, m, root, HALL_HALF, reach, GATE_Z[0], [1])
 	_wall_x(b, m, root, -HALL_HALF, -GATE_HALF - 3.2, GATE_Z[0], [1, -1])
 	_wall_x(b, m, root, GATE_HALF + 3.2, HALL_HALF, GATE_Z[0], [1, -1])
-	# The hall's long side walls (dressed inside), the inner walls with the second and third
-	# gates, and the back wall.
-	_wall_z(b, m, root, -HALL_HALF, GATE_Z[0], BACK_Z, [1])
-	_wall_z(b, m, root, HALL_HALF, GATE_Z[0], BACK_Z, [-1])
-	for k in [1, 2]:
-		_wall_x(b, m, root, -HALL_HALF, -GATE_HALF - 3.2, GATE_Z[k], [1, -1])
-		_wall_x(b, m, root, GATE_HALF + 3.2, HALL_HALF, GATE_Z[k], [1, -1])
-	_wall_x(b, m, root, -HALL_HALF, HALL_HALF, BACK_Z, [1])
+	# The yards' long side walls (dressed inside) to the third gate, the inner wall with the
+	# second gate, the wider wall with the third gate (the throne room's front), the throne
+	# room's side walls and the back wall.
+	_wall_z(b, m, root, -HALL_HALF, GATE_Z[0], GATE_Z[2], [1])
+	_wall_z(b, m, root, HALL_HALF, GATE_Z[0], GATE_Z[2], [-1])
+	_wall_x(b, m, root, -HALL_HALF, -GATE_HALF - 3.2, GATE_Z[1], [1, -1])
+	_wall_x(b, m, root, GATE_HALF + 3.2, HALL_HALF, GATE_Z[1], [1, -1])
+	_wall_x(b, m, root, -THRONE_HALF, -GATE_HALF - 3.2, GATE_Z[2], [1, -1])
+	_wall_x(b, m, root, GATE_HALF + 3.2, THRONE_HALF, GATE_Z[2], [1, -1])
+	_wall_z(b, m, root, -THRONE_HALF, GATE_Z[2], BACK_Z, [1])
+	_wall_z(b, m, root, THRONE_HALF, GATE_Z[2], BACK_Z, [-1])
+	_wall_x(b, m, root, -THRONE_HALF, THRONE_HALF, BACK_Z, [1])
 	for k in 3:
 		_gatehouse(b, m, k, banner, root)
-	# Turrets: on the hall's corners, along the front wall, and at the back.
+	# Turrets: on the hall's corners, the throne room's corners, along the front wall.
 	for x in [-HALL_HALF, HALL_HALF]:
 		_yagura(b, m, Vector3(x, 0, GATE_Z[0]), 7.0, banner, root, STONE_H + 1.2)
+	for x in [-THRONE_HALF, THRONE_HALF]:
+		_yagura(b, m, Vector3(x, 0, GATE_Z[2]), 7.0, banner, root, STONE_H + 1.2)
 		_yagura(b, m, Vector3(x, 0, BACK_Z), 7.0, banner, root, STONE_H + 1.2)
 	for x in [-58.0, -38.0, 38.0, 58.0]:
 		_yagura(b, m, Vector3(x, 0, GATE_Z[0]), 6.0, banner, root)
 	# Paving in the yards and the throne room, and the landing in front of the first gate.
-	b.box(Vector3(0, 0.03, (GATE_Z[0] + BACK_Z) * 0.5), Vector3(HALL_HALF * 2.0, 0.06, GATE_Z[0] - BACK_Z), PAVING)
+	b.box(Vector3(0, 0.03, (GATE_Z[0] + GATE_Z[2]) * 0.5), Vector3(HALL_HALF * 2.0, 0.06, GATE_Z[0] - GATE_Z[2]), PAVING)
+	b.box(Vector3(0, 0.03, (GATE_Z[2] + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, 0.06, GATE_Z[2] - BACK_Z), PAVING)
 	b.box(Vector3(0, 0.04, (MOAT_NORTH + GATE_Z[0]) * 0.5), Vector3(BRIDGE_HALF * 2.0 + 6.0, 0.06, MOAT_NORTH - GATE_Z[0] + 1.0), PAVING)
-	for z in [-24.0, -28.0, -40.0, -44.0]:
-		b.box(Vector3(0, 0.08, z), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
+	for k in 2:
+		for f in [0.3, 0.5, 0.7]:
+			b.box(Vector3(0, 0.08, GATE_Z[k] - GATE_GAP * f), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
 	# The yards: tall stone lanterns along the walls.
-	for z in [-22.0, -30.0, -38.0, -46.0]:
-		for x in [-HALL_HALF + 3.0, HALL_HALF - 3.0]:
-			JapanKit.toro(b, Vector3(x, 0, z), 1.3)
+	for k in 2:
+		for f in [0.15, 0.38, 0.62, 0.85]:
+			for x in [-HALL_HALF + 3.0, HALL_HALF - 3.0]:
+				JapanKit.toro(b, Vector3(x, 0, GATE_Z[k] - GATE_GAP * f), 1.3)
 	# The throne room: a red carpet between two rows of vermilion pillars (open to the sky,
 	# so the camera above sees the fight), the altar dais.
 	b.box(Vector3(0, 0.07, (GATE_Z[2] + ALTAR.z) * 0.5), Vector3(3.6, 0.04, ALTAR.z - GATE_Z[2]), Color("a8322a"))
-	for z in [-55.0, -60.0, -65.0, -69.0]:
-		for x in [-10.5, 10.5]:
+	for i in 7:
+		var z := GATE_Z[2] - 5.0 - float(i) * (THRONE_DEPTH - 9.0) / 6.0
+		for x in [-THRONE_HALF * 0.62, THRONE_HALF * 0.62]:
 			b.cyl(Vector3(x, 0.4, z), 1.0, 0.8, STONE)
 			b.cyl(Vector3(x, 3.4, z), 0.6, 6.0, JapanKit.VERMILION, Vector3.ZERO, 12)
 			b.box(Vector3(x, 6.55, z), Vector3(1.6, 0.3, 1.6), WOOD)
@@ -381,10 +402,11 @@ static func _castle(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> voi
 		var angle := TAU * float(i) / 8.0
 		b.box(Vector3(ALTAR.x + cos(angle) * (ALTAR_RADIUS + 0.9), 0.95, ALTAR.z + sin(angle) * (ALTAR_RADIUS + 0.9)), Vector3(0.5, 0.5, 0.5), GOLD, Vector3(0, -rad_to_deg(angle), 45))
 	for x in [-6.0, 6.0]:
-		JapanKit.toro(b, Vector3(x, 0, -56.0), 1.6)
+		JapanKit.toro(b, Vector3(x, 0, GATE_Z[2] - 6.0), 1.6)
 	# Great hanging banners in the holder's colour along the throne room.
-	for z in [-56.0, -66.0]:
-		for x in [-HALL_HALF + 2.2, HALL_HALF - 2.2]:
+	for f in [0.15, 0.4, 0.65, 0.9]:
+		var z: float = GATE_Z[2] - THRONE_DEPTH * float(f)
+		for x in [-THRONE_HALF + 2.2, THRONE_HALF - 2.2]:
 			var flag := MeshKit.part(root, MeshKit.box(), banner, Vector3(x, 5.6, z), Vector3(0.08, 6.0, 2.2))
 			flag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_commit(b, root, "Castle")
@@ -605,7 +627,7 @@ static func _batch(root: Node3D, node_name: String, mesh: Mesh, transforms: Arra
 static func _hills(root: Node3D, rng: RandomNumberGenerator) -> void:
 	for i in 18:
 		var angle := TAU * float(i) / 18.0 + rng.randf() * 0.2
-		var dist := rng.randf_range(115.0, 140.0)
+		var dist := rng.randf_range(175.0, 205.0)
 		var height := rng.randf_range(26.0, 52.0)
 		var width := height * rng.randf_range(1.6, 2.2)
 		var tint := Color("5d7f63").lerp(Color("8fa6b8"), rng.randf())

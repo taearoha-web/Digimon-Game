@@ -40,6 +40,8 @@ var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
 var field_radius := 56.0
+## A floor (x, z) the hero may stand on past the round edge: the guild war's castle hall.
+var field_hall := Rect2()
 
 var move_input := Vector2.ZERO
 var _star_combo_target := 0
@@ -654,6 +656,8 @@ func _face(direction: Vector3, delta: float, rate := 12.0) -> void:
 
 func _clamp_to_field() -> void:
 	var flat := Vector2(global_position.x, global_position.z)
+	if field_hall.has_area() and field_hall.has_point(flat):
+		return
 	if flat.length() > field_radius:
 		flat = flat.normalized() * field_radius
 		global_position.x = flat.x
