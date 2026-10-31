@@ -182,6 +182,9 @@ func _ready() -> void:
 		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
 	check(RenderWatchdog.pixel_reads >= 4 and RenderWatchdog.pixel_reads <= 6, "ten minutes read the frame back only %d times" % RenderWatchdog.pixel_reads)
 	RenderWatchdog.triangles_override = -1
+	# The iPhone rest prompt sits on its own layer above the HUD (a CanvasLayer at 10):
+	# under it the HUD took the taps and its button could not be pressed.
+	check(Game.REST_PROMPT_LAYER > 90, "the rest prompt draws and takes taps above the HUD (10) and the travel fade (90) (%d)" % Game.REST_PROMPT_LAYER)
 	RenderWatchdog.step = 0
 	RenderWatchdog.flat_count = 0
 	MemoryGuard.force(-1, tree)
