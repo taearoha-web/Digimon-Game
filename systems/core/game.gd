@@ -1212,6 +1212,12 @@ const PARTY_SIZE := 5
 const PARTY_MAX := PARTY_SIZE - 1
 ## A world player says yes to a stranger within this many levels (guild mates always do).
 const PARTY_LEVEL_GAP := 20
+
+
+## Whether two levels may party up as strangers: within PARTY_LEVEL_GAP, and at the
+## star tier (both Lv.100, whatever their stars) always.
+static func party_levels_ok(a: int, b: int) -> bool:
+	return (a >= MAX_LEVEL and b >= MAX_LEVEL) or absi(a - b) <= PARTY_LEVEL_GAP
 ## Kill EXP in a party is shared: the pot grows by this much per member and is split
 ## evenly between everyone in the party.
 const PARTY_EXP_BONUS := 0.3
@@ -1253,7 +1259,7 @@ func party_invite(i: int, force := false) -> String:
 		if not bool(s.online):
 			return "%s ออฟไลน์อยู่" % s.name
 		var mate := guild() > 0 and int(s.guild) == guild()
-		if not mate and absi(int(s.level) - int(profile.level)) > PARTY_LEVEL_GAP:
+		if not mate and not party_levels_ok(int(s.level), int(profile.level)):
 			return "%s: เลเวลห่างกันเกินไป ไว้คราวหน้านะ" % s.name
 	var m := WorldPlayers.member(i, t)
 	m["stance"] = "follow"
