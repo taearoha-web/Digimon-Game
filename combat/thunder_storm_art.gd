@@ -1,87 +1,26 @@
 class_name ThunderStormArt
 extends Node3D
-## A single connected smoke-grey cloud mesh. No lights, CPU particles, camera
-## effects or full-screen flash. A depth-tested surface keeps lobes seamless.
+## A great ring of light hanging in the sky over the storm zone, crackling with arcs of
+## lightning that run round it, from which the bolts strike down (it replaced the old
+## storm cloud). No lights, CPU particles, camera effects or full-screen flash.
 const CLOUD_HEIGHT := 8.8
-const CLOUD_SHADER := preload("res://shaders/thunder_cloud.gdshader")
 const SEAL_SHADER := preload("res://shaders/thunder_seal.gdshader")
 const IMPACT_SHADER := preload("res://shaders/thunder_impact.gdshader")
-const WISP_SHADER := preload("res://shaders/thunder_wisp.gdshader")
-static var _cloud_mesh: ArrayMesh
-static var _wisp_mesh: ArrayMesh
 ## Bolt tubes keyed by their rounded path and width: repeated strikes on the
 ## same spot reuse the geometry instead of building a new tube per layer.
 const BOLT_CACHE_LIMIT := 48
 static var _bolt_meshes: Dictionary = {}
 var radius := 9.0
+## The sky ring (named ThunderStormCloud, as the cloud it replaced was).
 var cloud: MeshInstance3D
-var _mat: ShaderMaterial
+## The ring's own materials and their full alpha, faded and pulsed together.
+var _ring_mats: Array[StandardMaterial3D] = []
+var _ring_alpha: Array[float] = []
+var _ring_root: Node3D
+const RING_COLOR := Color(0.55, 0.82, 1.0)
+const ARC_COLOR := Color(0.85, 0.95, 1.0)
+const ARCS := 8
 var _seal_mat: ShaderMaterial
-var _wisp_mat: ShaderMaterial
-
-static func cloud_mesh() -> ArrayMesh:
-	if _cloud_mesh:
-		return _cloud_mesh
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.0
-	sphere.height = 2.0
-	sphere.radial_segments = 96
-	sphere.rings = 48
-	# Radial union of overlapping ellipsoids: one watertight cloud surface,
-	# with rounded lobes instead of layered transparent sphere intersections.
-	var centres: Array[Vector3] = [Vector3.ZERO]
-	var sizes: Array[Vector3] = [Vector3(0.79, 0.60, 0.79)]
-	for peak in 5:
-		var a := TAU * float(peak) / 5.0
-		centres.append(Vector3(cos(a) * 0.30, 0.38 + sin(a * 2.0) * 0.11, sin(a) * 0.30))
-		sizes.append(Vector3(0.38, 0.73 + cos(a) * 0.12, 0.39))
-	for lobe in 13:
-		var angle := TAU * float(lobe) / 13.0
-		centres.append(Vector3(cos(angle) * 0.67, 0.03 + sin(angle * 3.0) * 0.17, sin(angle) * 0.67))
-		var width := 0.29 + 0.06 * sin(angle * 2.0 + 0.5)
-		sizes.append(Vector3(width, 0.48 + 0.16 * cos(angle * 3.0), width))
-	var arrays := sphere.get_mesh_arrays()
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	for i in vertices.size():
-		var direction := vertices[i].normalized()
-		var reach := 0.0
-		for j in centres.size():
-			var ray := direction / sizes[j]
-			var offset := -centres[j] / sizes[j]
-			var a := ray.dot(ray)
-			var b := ray.dot(offset)
-			var discriminant := b * b - a * (offset.dot(offset) - 1.0)
-			if discriminant >= 0.0:
-				var edge := (-b + sqrt(discriminant)) / a
-				var blend := maxf(0.0, 0.055 - absf(reach - edge)) / 0.055
-				reach = maxf(reach, edge) + blend * blend * 0.055 * 0.25
-		vertices[i] = direction * reach
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var st := SurfaceTool.new()
-	st.create_from(mesh, 0)
-	st.generate_normals()
-	_cloud_mesh = st.commit()
-	return _cloud_mesh
-
-static func wisp_mesh() -> ArrayMesh:
-	if _wisp_mesh:
-		return _wisp_mesh
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for band in 2:
-		for step in 48:
-			for corner in [Vector2(0,0), Vector2(1,0), Vector2(0,1), Vector2(0,1), Vector2(1,0), Vector2(1,1)]:
-				var t: float = (float(step) + corner.x) / 48.0
-				var a := t * TAU * 0.86 + band * PI
-				var reach := 0.9 + sin(t * PI) * 0.13
-				var y: float = -0.25 + t * 0.7 - band * 0.35 + (corner.y - 0.5) * 0.30
-				st.set_uv(Vector2(t, corner.y))
-				st.add_vertex(Vector3(cos(a) * reach, y, sin(a) * reach))
-	st.generate_normals()
-	_wisp_mesh = st.commit()
-	return _wisp_mesh
 
 static func warm_up(parent: Node3D, at: Vector3) -> void:
 	var sample := ThunderStormArt.new()
@@ -93,32 +32,7 @@ static func warm_up(parent: Node3D, at: Vector3) -> void:
 	sample.create_tween().tween_interval(0.45).finished.connect(sample.queue_free, CONNECT_ONE_SHOT)
 
 func _ready() -> void:
-	_mat = ShaderMaterial.new()
-	_mat.shader = CLOUD_SHADER
-	_mat.set_shader_parameter("fade", 0.0)
-	_mat.set_shader_parameter("age", 0.0)
-	cloud = MeshInstance3D.new()
-	cloud.name = "ThunderStormCloud"
-	cloud.mesh = cloud_mesh()
-	cloud.material_override = _mat
-	cloud.position.y = CLOUD_HEIGHT
-	cloud.scale = Vector3(radius, 3.5, radius)
-	cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(cloud)
-	# Always drawn (the storm's silhouette) but counted against the shared budget.
-	VfxBudget.track_decoration(cloud)
-	if VfxBudget.can_decorate():
-		var wisp := MeshInstance3D.new()
-		wisp.name = "ThunderStormRollingMist"
-		wisp.mesh = wisp_mesh()
-		_wisp_mat = ShaderMaterial.new()
-		_wisp_mat.shader = WISP_SHADER
-		wisp.material_override = _wisp_mat
-		wisp.position.y = CLOUD_HEIGHT - 0.8
-		wisp.scale = Vector3(radius, 3.0, radius)
-		wisp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(wisp)
-		VfxBudget.track_decoration(wisp)
+	_build_ring()
 	# A single quad carries the entire engraved seal, including its mist band.
 	_seal_mat = ShaderMaterial.new()
 	_seal_mat.shader = SEAL_SHADER
@@ -137,33 +51,33 @@ func _ready() -> void:
 	tw.tween_method(_set_fade, 0.0, 1.0, 0.5)
 	tw.tween_interval(1.55)
 	tw.tween_method(_set_fade, 1.0, 0.0, 0.55)
-	# Tween age rather than shader TIME: pause freezes the cloud and engravings.
-	create_tween().tween_method(func(v: float):
-		_mat.set_shader_parameter("age", v)
-		_seal_mat.set_shader_parameter("age", v)
-		if _wisp_mat:
-			_wisp_mat.set_shader_parameter("age", v)
-	, 0.0, 2.6, 2.6)
+	# Tween age rather than shader TIME: pause freezes the engravings.
+	create_tween().tween_method(func(v: float): _seal_mat.set_shader_parameter("age", v), 0.0, 2.6, 2.6)
 
 func _set_fade(value: float) -> void:
-	_mat.set_shader_parameter("fade", value)
 	_seal_mat.set_shader_parameter("fade", value)
-	if _wisp_mat:
-		_wisp_mat.set_shader_parameter("fade", value)
+	for i in _ring_mats.size():
+		_ring_mats[i].albedo_color.a = _ring_alpha[i] * value
 
 func flash() -> void:
 	_set_pulse(1.0)
 	create_tween().tween_method(_set_pulse, 1.0, 0.0, 0.42)
 
 func _set_pulse(value: float) -> void:
-	_mat.set_shader_parameter("pulse", value)
 	_seal_mat.set_shader_parameter("pulse", value)
-	if _wisp_mat:
-		_wisp_mat.set_shader_parameter("pulse", value)
+	if is_instance_valid(_ring_root):
+		_ring_root.scale = Vector3.ONE * (1.0 + 0.06 * value)
+	for m in _ring_mats:
+		var a := m.albedo_color.a
+		m.albedo_color = RING_COLOR.lerp(Color.WHITE, 0.25 + 0.6 * value) if m.has_meta("ring") else m.albedo_color
+		m.albedo_color.a = a
 
 func strike(to: Vector3, seed_value: int) -> void:
 	var points := PackedVector3Array()
-	var start := Vector3(to.x * 0.86, CLOUD_HEIGHT - 0.8, to.z * 0.86)
+	# From the ring's edge above the target, down onto it.
+	var flat := Vector2(to.x, to.z)
+	var edge := (flat.normalized() if flat.length() > 0.5 else Vector2(1, 0)) * ring_radius()
+	var start := Vector3(edge.x, CLOUD_HEIGHT, edge.y)
 	for i in 12:
 		var t := float(i) / 11.0
 		var p := start.lerp(to, t)
@@ -184,6 +98,95 @@ func strike(to: Vector3, seed_value: int) -> void:
 		_bolt_layer(branch, 0.105, Color(0.24, 0.73, 1.0, 0.8), "ThunderStormFork", 1)
 		_bolt_layer(branch, 0.038, Color("ffe597"), "ThunderStormForkCore", 2)
 	_impact(to)
+
+func ring_radius() -> float:
+	return radius * 0.72
+
+
+## The sky ring: a thick glowing band with a soft halo, a thin inner ring turning the other
+## way, runes round the band and arcs of lightning crackling along it.
+func _build_ring() -> void:
+	_ring_root = Node3D.new()
+	_ring_root.name = "ThunderStormRing"
+	_ring_root.position.y = CLOUD_HEIGHT
+	add_child(_ring_root)
+	var r := ring_radius()
+	var outer := Node3D.new()
+	_ring_root.add_child(outer)
+	cloud = _torus(outer, "ThunderStormCloud", r, 0.32, _ring_mat(RING_COLOR.lerp(Color.WHITE, 0.25), 0.95, true))
+	VfxBudget.track_decoration(cloud)
+	if VfxBudget.can_decorate():
+		VfxBudget.track_decoration(_torus(outer, "ThunderStormHalo", r, 0.9, _ring_mat(RING_COLOR, 0.28)))
+		for k in 12:
+			var a := TAU * float(k) / 12.0
+			var rune := MeshInstance3D.new()
+			rune.name = "ThunderStormRune"
+			rune.mesh = SkillInk.quad()
+			rune.material_override = _ring_mat(Color(0.95, 0.98, 1.0), 0.9)
+			rune.position = Vector3(cos(a) * r, 0.0, sin(a) * r)
+			rune.scale = Vector3(0.22, 0.22, 0.22)
+			rune.rotation = Vector3(-PI * 0.5, 0.0, a)
+			rune.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			outer.add_child(rune)
+	var spin := outer.create_tween().set_loops()
+	spin.tween_property(outer, "rotation:y", TAU, 6.0).from(0.0)
+	if VfxBudget.can_decorate():
+		var inner := Node3D.new()
+		_ring_root.add_child(inner)
+		VfxBudget.track_decoration(_torus(inner, "ThunderStormInnerRing", r * 0.62, 0.12, _ring_mat(Color(0.75, 0.9, 1.0), 0.8)))
+		var back := inner.create_tween().set_loops()
+		back.tween_property(inner, "rotation:y", -TAU, 4.0).from(0.0)
+	# Arcs of lightning running round the band, each flickering on its own beat.
+	for k in VfxBudget.count(ARCS, 3):
+		var a0 := TAU * float(k) / float(ARCS)
+		var pts := PackedVector3Array()
+		for j in 7:
+			var a := a0 + 0.55 * float(j) / 6.0
+			var wob := 0.0 if j == 0 or j == 6 else (0.45 if (j + k) % 2 == 0 else -0.45)
+			pts.append(Vector3(cos(a) * (r + wob * 0.6), wob, sin(a) * (r + wob * 0.6)))
+		var arc := MeshInstance3D.new()
+		arc.name = "ThunderStormArc"
+		arc.mesh = bolt_mesh(pts, 0.07)
+		var mat := _ring_mat(ARC_COLOR, 1.0)
+		arc.material_override = mat
+		arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		outer.add_child(arc)
+		VfxBudget.track_decoration(arc)
+		var flick := arc.create_tween().set_loops()
+		flick.tween_property(arc, "visible", true, 0.0)
+		flick.tween_interval(0.08 + 0.03 * float(k % 3))
+		flick.tween_property(arc, "visible", false, 0.0)
+		flick.tween_interval(0.1 + 0.05 * float((k * 2) % 5))
+
+
+func _torus(parent: Node3D, label: String, ring_r: float, thickness: float, mat: StandardMaterial3D) -> MeshInstance3D:
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = ring_r - thickness * 0.5
+	mesh.outer_radius = ring_r + thickness * 0.5
+	mesh.rings = 64
+	mesh.ring_segments = 10
+	var node := MeshInstance3D.new()
+	node.name = label
+	node.mesh = mesh
+	node.material_override = mat
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(node)
+	return node
+
+
+func _ring_mat(color: Color, alpha: float, is_ring := false) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	MaterialKeeper.keep(m)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(color.r, color.g, color.b, 0.0)
+	if is_ring:
+		m.set_meta("ring", true)
+	_ring_mats.append(m)
+	_ring_alpha.append(alpha)
+	return m
+
 
 func _impact(at: Vector3) -> void:
 	if not VfxBudget.can_decorate():

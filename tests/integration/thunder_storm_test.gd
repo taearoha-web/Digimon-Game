@@ -75,8 +75,8 @@ func _ready() -> void:
 		hits += mob.hits
 	check(hits == 15 and mobs[8].hits == 0, "fifteen real hits total; outside enemy untouched")
 	check(is_equal_approx(waves[1].time - waves[0].time, 0.75) and is_equal_approx(waves[2].time - waves[1].time, 0.75), "exact 0.75 second wave cadence")
-	check(seq._art.find_children("ThunderStormCloud", "MeshInstance3D", true, false).size() == 1, "one single connected grey cloud")
-	check(seq._art.find_children("*", "CPUParticles3D", true, false).is_empty() and seq._art.find_children("*", "Light3D", true, false).is_empty(), "cloud adds no lights or particles")
+	check(seq._art.find_children("ThunderStormCloud", "MeshInstance3D", true, false).size() == 1, "one sky ring (ThunderStormCloud) over the storm")
+	check(seq._art.find_children("*", "CPUParticles3D", true, false).is_empty() and seq._art.find_children("*", "Light3D", true, false).is_empty(), "the sky ring adds no lights or particles")
 	check(VfxBudget.counters().decorations <= VfxBudget.decoration_limit(), "simultaneous storm waves obey shared decoration cap")
 	# Fill remaining capacity with tracked nodes to exercise the hard limit.
 	while VfxBudget.can_decorate():
@@ -86,10 +86,10 @@ func _ready() -> void:
 	var visual_count := seq._art.get_child_count()
 	seq._art.strike(Vector3.ZERO, 99)
 	check(seq._art.get_child_count() == visual_count + 1, "essential lightning remains visible when all decorative capacity is used")
-	var art_age := float(seq._art._mat.get_shader_parameter("age"))
+	var art_age := float(seq._art._seal_mat.get_shader_parameter("age"))
 	get_tree().paused = true
 	await get_tree().create_timer(0.1, true).timeout
-	check(float(seq._art._mat.get_shader_parameter("age")) == art_age, "pause freezes authored cloud motion")
+	check(float(seq._art._seal_mat.get_shader_parameter("age")) == art_age, "pause freezes the storm's authored motion")
 	get_tree().paused = false
 	seq.queue_free()
 	await seq.tree_exited
