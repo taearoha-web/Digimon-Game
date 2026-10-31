@@ -66,6 +66,8 @@ func _war(staged: bool) -> void:
 	var label := "staged" if staged else "unstaged"
 	Game.current_zone = &"guildwar"
 	var gold_before := int(Game.profile.gold)
+	var pink_before := Game.jewel_count("pink")
+	var feather_before := Game.jewel_count("feather")
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
 	zone.staged = staged
@@ -237,8 +239,11 @@ func _war(staged: bool) -> void:
 	check(int(r.get("gold", 0)) >= GuildWarData.gold_reward(true) and int(Game.profile.gold) >= gold_before + int(r.gold), "%s: the reward is paid" % label)
 	check((r.get("rows", []) as Array).size() == 2 * n, "%s: the scoreboard lists the hero and fifteen fighters" % label)
 	check(Game.guildwar_checkpoint().is_empty(), "%s: a finished war leaves nothing to resume" % label)
-	check(GuildWarData.gold_reward(true) == 1000000 and GuildWarData.gold_reward(false) == 500000, "%s: 1,000,000 for a win, 500,000 for a loss" % label)
-	check(int(r.gold) == 1000000 and Game.potion_count(GuildWarData.SUPPLY_POTION) == 0, "%s: a win pays 1,000,000 and the rations are handed back" % label)
+	check(GuildWarData.gold_reward(true) == 10000000 and GuildWarData.gold_reward(false) == 500000, "%s: 10,000,000 for a win, 500,000 for a loss" % label)
+	check(int(r.gold) == 10000000 and Game.potion_count(GuildWarData.SUPPLY_POTION) == 0, "%s: a win pays 10,000,000 and the rations are handed back" % label)
+	check(Game.jewel_count("pink") >= pink_before + 10 and Game.jewel_count("feather") >= feather_before + 2, "%s: a win pays 10 pink jewels and 2 feathers" % label)
+	var last: Dictionary = Game.profile.get("gw_last", {})
+	check(bool(last.get("won", false)) and (last.get("rows", []) as Array).size() == 2 * n and Game._valid_profile(Game.profile), "%s: the last war's scoreboard is saved with everyone's kills and deaths" % label)
 	zone.queue_free()
 	await _frames(3)
 

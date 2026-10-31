@@ -147,12 +147,8 @@ func _build_lobby() -> void:
 	var left := UIUtil.vbox(8)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_scroll.add_child(left)
-	var flags: Dictionary = Game.profile.get("flags", {})
-	var wins := int(flags.get("gw_wins", 0))
-	var losses := int(flags.get("gw_losses", 0))
-	left.add_child(UIUtil.label("สถิติของคุณ", &"SubHeaderLabel"))
-	left.add_child(UIUtil.label("ชนะ %d · แพ้ %d\nล้มศัตรูรวม %d ครั้ง · สูงสุดในศึกเดียว %d" % [wins, losses, int(flags.get("gw_kills", 0)), int(flags.get("gw_best_kills", 0))], &"SmallLabel"))
-	var rules := UIUtil.label("• ชิงปราสาท Alpha ปะทะ Neverdie: ทุกคนในกิลด์ที่เลเวล 100 ขึ้นไปลงสนามทั้งหมด คุณกับสมาชิกกิลด์ทุกคน สู้กับสมาชิกอีกกิลด์ทุกคน เวลา 30 นาที\n• AI ของทั้งสองกิลด์วางแผนเองตามสถานการณ์: บุกประตู ตั้งรับหัวสะพาน ถอยรวมพล บุกห้องบัลลังก์ แบ่งทีมขวางทาง หรือล้อมแท่นตั้งรับ (แผนขึ้นในแถบข่าว)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ปะทะกันที่ลานกลาง ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ในห้องบัลลังก์ ยืนบนแท่นแล้วกดยึดให้ครบ %d วินาทีโดยไม่ล้ม = ยึดปราสาท อีกกิลด์ยึดคืนได้แบบเดียวกัน\n• กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายของตัวเองใน %d วินาที แล้วเดินกลับขึ้นไปใหม่ (ค่ายฟื้นเลือดเร็ว)\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 1,000,000 · แพ้ เหรียญ 500,000" % [int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
+	_last_war(left)
+	var rules := UIUtil.label("• ชิงปราสาท Alpha ปะทะ Neverdie: ทุกคนในกิลด์ที่เลเวล 100 ขึ้นไปลงสนามทั้งหมด คุณกับสมาชิกกิลด์ทุกคน สู้กับสมาชิกอีกกิลด์ทุกคน เวลา 30 นาที\n• AI ของทั้งสองกิลด์วางแผนเองตามสถานการณ์: บุกประตู ตั้งรับหัวสะพาน ถอยรวมพล บุกห้องบัลลังก์ แบ่งทีมขวางทาง หรือล้อมแท่นตั้งรับ (แผนขึ้นในแถบข่าว)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ปะทะกันที่ลานกลาง ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ในห้องบัลลังก์ ยืนบนแท่นแล้วกดยึดให้ครบ %d วินาทีโดยไม่ล้ม = ยึดปราสาท อีกกิลด์ยึดคืนได้แบบเดียวกัน\n• กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายของตัวเองใน %d วินาที แล้วเดินกลับขึ้นไปใหม่ (ค่ายฟื้นเลือดเร็ว)\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 10,000,000 + เพชรชมพู 10 เม็ด + ขนนก 2 ขน + EXP · แพ้ เหรียญ 500,000" % [int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
 	var right := UIUtil.vbox(6)
@@ -198,7 +194,13 @@ func _build_result(result: Dictionary) -> void:
 	column.add_child(UIUtil.label(score, &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var castle := String(result.get("castle", ""))
 	column.add_child(UIUtil.label("ปราสาทเป็นของกิลด์ %s" % castle if castle != "" else "ไม่มีกิลด์ไหนยึดปราสาทได้ — ตัดสินจากจำนวนคนที่ล้มได้", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
-	column.add_child(UIUtil.label("คุณล้มศัตรู %d ครั้ง · ถูกล้ม %d ครั้ง   |   รางวัล: เหรียญ +%d · EXP +%d" % [int(result.kills), int(result.deaths), int(result.gold), int(result.exp)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	var prize := "เหรียญ +%s" % _commas(int(result.gold))
+	var jewels: Dictionary = result.get("jewels", {})
+	for id in jewels:
+		prize += " · %s +%d" % [ItemData.JEWELS[id].name, int(jewels[id])]
+	if int(result.exp) > 0:
+		prize += " · EXP +%d" % int(result.exp)
+	column.add_child(UIUtil.label("คุณฆ่า %d ครั้ง · ตาย %d ครั้ง   |   รางวัล: %s" % [int(result.kills), int(result.deaths), prize], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -310,6 +312,59 @@ func confirm_party() -> void:
 	Game.guildwar_resuming = false
 	close_screen()
 	enter_requested.emit()
+
+
+## The last war's scoreboard on the desk: the result, then everyone's falls dealt and
+## taken, each guild best first (profile.gw_last, written by Game.guildwar_finish).
+func _last_war(box: VBoxContainer) -> void:
+	box.add_child(UIUtil.label("สถิติรอบล่าสุด", &"SubHeaderLabel"))
+	var last: Dictionary = Game.profile.get("gw_last", {})
+	if last.is_empty():
+		var none := UIUtil.label("ยังไม่มีรอบล่าสุด — ลงสงครามแล้วสถิติการฆ่าและการตายของทุกคนจะขึ้นที่นี่", &"SmallLabel")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(none)
+		return
+	var won := bool(last.get("won", false))
+	var head := UIUtil.label("%s · %s %d : %d %s" % ["ชนะ" if won else "แพ้", String(last.get("our_guild", "")), int(last.get("score_us", 0)), int(last.get("score_them", 0)), String(last.get("their_guild", ""))], &"BoldLabel")
+	head.add_theme_color_override("font_color", Color("ffd84a") if won else Color("9fb4ff"))
+	box.add_child(head)
+	var rows: Array = last.get("rows", [])
+	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		var side: Array = rows.filter(func(r): return int(r.get("team", 0)) == team)
+		if side.is_empty():
+			continue
+		side.sort_custom(func(a, b):
+			if int(a.kills) != int(b.kills):
+				return int(a.kills) > int(b.kills)
+			return int(a.deaths) < int(b.deaths))
+		var guild_name := String(last.get("our_guild" if team == GuildFighter.TEAM_ALLY else "their_guild", ""))
+		var title := UIUtil.label("กิลด์ %s%s" % [guild_name, " (ฝั่งเรา)" if team == GuildFighter.TEAM_ALLY else ""], &"SmallLabel")
+		title.add_theme_color_override("font_color", Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a"))
+		box.add_child(title)
+		for r in side:
+			var line := UIUtil.hbox(8)
+			line.name = "LastWarRow"
+			var me := String(r.get("name", "")) == "คุณ"
+			var cls := String(r.get("class", ""))
+			var cls_name := String(ClassData.get_class_data(StringName(cls)).name) if ClassData.CLASSES.has(StringName(cls)) else ""
+			var who := UIUtil.label("%s%s" % [r.get("name", ""), (" · " + cls_name) if cls_name != "" else ""], &"SmallLabel")
+			who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			who.clip_text = true
+			if me:
+				who.add_theme_color_override("font_color", Color("ffd84a"))
+			line.add_child(who)
+			line.add_child(UIUtil.label("ฆ่า %d · ตาย %d" % [int(r.get("kills", 0)), int(r.get("deaths", 0))], &"SmallLabel"))
+			box.add_child(line)
+
+
+## 10000000 -> "10,000,000".
+static func _commas(n: int) -> String:
+	var digits := str(absi(n))
+	var out := ""
+	while digits.length() > 3:
+		out = "," + digits.substr(digits.length() - 3) + out
+		digits = digits.substr(0, digits.length() - 3)
+	return ("-" if n < 0 else "") + digits + out
 
 
 ## A gentle glow pulse on the way into the war, so the button catches the eye.
