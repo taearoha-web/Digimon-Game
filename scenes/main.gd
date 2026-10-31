@@ -198,6 +198,10 @@ func _continue(slot: int) -> void:
 	hud.visible = true
 	Game.playing = true
 	await go(Game.current_zone if Game.current_zone != &"" else &"town", true)
+	# A guild war cut off a moment ago can be picked up again (Game.GW_CKPT_LIFETIME).
+	var rejoin := Game.guildwar_rejoin_left()
+	if rejoin > 0:
+		Game.say("สงครามกิลด์ยังค้างอยู่! กลับเข้าต่อได้อีก %d นาที ที่ผู้บัญชาการสงครามกิลด์ (ปุ่มต่อสงครามเดิม)" % maxi(1, int(ceil(rejoin / 60.0))), &"quest")
 
 
 func _back_to_title() -> void:

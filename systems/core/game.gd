@@ -768,6 +768,8 @@ func _record_web_session_sample() -> void:
 func _watch_ios_rest() -> void:
 	if _rest_shown or Time.get_ticks_msec() < IOS_REST_SECONDS * 1000 or not MemoryGuard.ios():
 		return
+	if current_zone == &"guildwar":
+		return  # never in the middle of a war
 	var main := get_tree().current_scene
 	if main == null or not main.has_method("_screen_open") or main.get("zone") == null or bool(main.call("_screen_open")):
 		return
@@ -2607,7 +2609,8 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
 const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3"]
-const GW_CKPT_LIFETIME := 6 * 3600
+## A war cut off (the page closed, the phone dropped it) can be rejoined for 10 minutes.
+const GW_CKPT_LIFETIME := 10 * 60
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
 var guildwar_resuming := false
 ## The party screen's choice for the next guild war (GuildWarScreen): the names of the
@@ -2645,6 +2648,13 @@ func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, s
 
 
 ## The unfinished war, or {} when there is none (or it is too old to matter).
+## Seconds left to rejoin a war that was cut off (0: none to rejoin).
+func guildwar_rejoin_left() -> int:
+	if guildwar_checkpoint().is_empty():
+		return 0
+	return maxi(0, GW_CKPT_LIFETIME - (int(Time.get_unix_time_from_system()) - int(profile["flags"]["gw_r_at"])))
+
+
 func guildwar_checkpoint() -> Dictionary:
 	if not has_profile:
 		return {}
