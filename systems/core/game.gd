@@ -53,6 +53,8 @@ const IOS_REST_SECONDS := 20 * 60
 const IOS_REST_AGAIN := 5 * 60
 var _rest_shown := false
 var _rest_next := 0.0
+## Above the HUD (10) and the travel fade (90).
+const REST_PROMPT_LAYER := 100
 var _audio_stall_saved := false
 var stall_saves := 0
 const BASE_BAG := 40
@@ -777,12 +779,21 @@ func _watch_ios_rest() -> void:
 	var main := get_tree().current_scene
 	if main == null or not main.has_method("_screen_open") or main.get("zone") == null or bool(main.call("_screen_open")):
 		return
-	if not main.find_children("*", "ModalDialog", true, false).is_empty():
+	if main.has_node("RestPromptLayer"):
 		return  # the last one is still up
 	_rest_shown = true
 	_rest_next = up + float(IOS_REST_AGAIN)
 	save()
-	ModalDialog.info(main, "พักเครื่องสักครู่", "เล่นต่อเนื่องมา %d นาทีแล้ว iPhone มักปิดเกมเองเมื่อเปิดนานเกินครึ่งชั่วโมง\n\nบันทึกเซฟให้แล้ว แนะนำปัดปิดแอปแล้วเปิดใหม่ เกมจะกลับมาเล่นต่อได้ทันทีและไม่หลุดกลางทาง" % int(up / 60.0), "เข้าใจแล้ว")
+	# On its own layer above the HUD (a CanvasLayer at 10): under it the HUD took the taps
+	# and the button could not be pressed.
+	var layer := CanvasLayer.new()
+	layer.name = "RestPromptLayer"
+	layer.layer = REST_PROMPT_LAYER
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	main.add_child(layer)
+	await ModalDialog.info(layer, "พักเครื่องสักครู่", "เล่นต่อเนื่องมา %d นาทีแล้ว iPhone มักปิดเกมเองเมื่อเปิดนานเกินครึ่งชั่วโมง\n\nบันทึกเซฟให้แล้ว แนะนำปัดปิดแอปแล้วเปิดใหม่ เกมจะกลับมาเล่นต่อได้ทันทีและไม่หลุดกลางทาง" % int(up / 60.0), "เข้าใจแล้ว")
+	if is_instance_valid(layer):
+		layer.queue_free()
 
 
 func _watch_audio_stall() -> void:
