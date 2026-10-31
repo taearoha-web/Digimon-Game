@@ -7,6 +7,8 @@ extends PanelContainer
 ## channel (compose_channel). Party lines are green and guild lines orange, each with its
 ## tag ([ปาร์ตี้] / [กิลด์]). The tabs take a tap, and so does a world player's name in a
 ## line (a link: name_tapped, to talk to that player). line_for picks what a player says.
+## In a guild war its news (GuildWarHud: kills, plans, gates, who takes the castle) comes
+## on the "war" channel: no speaker, tagged [สงคราม], shown on ทั้งหมด and กิลด์.
 
 signal tab_changed(tab: String)
 ## A world player's name in a line was tapped: the hero talks to that player.
@@ -22,10 +24,13 @@ const TAB_HEIGHT := 34.0
 const TAB_FONT := 17
 ## The tabs: [tab, label]. "all" shows every channel.
 const TABS := [["all", "ทั้งหมด"], ["world", "โลก"], ["party", "ปาร์ตี้"], ["guild", "กิลด์"]]
-const TAGS := {"party": "ปาร์ตี้", "guild": "กิลด์"}
+const TAGS := {"party": "ปาร์ตี้", "guild": "กิลด์", "war": "สงคราม"}
 const PARTY_COLOR := Color("7dff8a")
 const GUILD_COLOR := Color("ffa64d")
-const CHANNEL_COLORS := {"party": PARTY_COLOR, "guild": GUILD_COLOR}
+const WAR_COLOR := Color("ffd84a")
+const CHANNEL_COLORS := {"party": PARTY_COLOR, "guild": GUILD_COLOR, "war": WAR_COLOR}
+## Channels shown on a tab besides its own (the war's news on the guild's tab).
+const ALSO_ON := {"war": "guild"}
 
 var tab := "all"
 var _text: RichTextLabel
@@ -119,13 +124,17 @@ func add_line(speaker: String, text: String, color: Color) -> void:
 	add_channel_line("world", speaker, text, color)
 
 
-## A line on `channel` ("world", "party" or "guild").
+## A line on `channel` ("world", "party", "guild" or "war"); an empty speaker leaves
+## the name out (the war's news), the line in `color`.
 func add_channel_line(channel: String, speaker: String, text: String, color: Color) -> void:
 	if not is_instance_valid(_text):
 		return
 	var who := _name_link(speaker)
 	var line := "[color=#%s]%s[/color]: %s" % [color.to_html(false), who, _clean(text)]
-	if TAGS.has(channel):
+	if speaker == "" and TAGS.has(channel):
+		var tag_tint := String((CHANNEL_COLORS[channel] as Color).to_html(false))
+		line = "[color=#%s][lb]%s[rb][/color] [color=#%s]%s[/color]" % [tag_tint, TAGS[channel], color.to_html(false), _clean(text)]
+	elif TAGS.has(channel):
 		var tint := String((CHANNEL_COLORS[channel] as Color).to_html(false))
 		line = "[color=#%s][lb]%s[rb][/color] [color=#%s]%s[/color]: [color=#%s]%s[/color]" % [tint, TAGS[channel], color.to_html(false), who, tint, _clean(text)]
 	_all.append({"channel": channel, "line": line})
@@ -138,8 +147,8 @@ func add_channel_line(channel: String, speaker: String, text: String, color: Col
 			if count > KEEP:
 				_all.remove_at(n)
 				break
-	if tab != "all" and tab != channel:
-		_unread[channel] = true
+	if tab != "all" and not _shows(tab, channel):
+		_unread[String(ALSO_ON.get(channel, channel))] = true
 		_show_tabs()
 	_render()
 	visible = true
@@ -173,7 +182,7 @@ func lines() -> PackedStringArray:
 func _render() -> void:
 	_lines = PackedStringArray()
 	for entry in _all:
-		if tab == "all" or String(entry.channel) == tab:
+		if tab == "all" or _shows(tab, String(entry.channel)):
 			_lines.append(String(entry.line))
 	if _lines.size() > LINES:
 		_lines = _lines.slice(_lines.size() - LINES)
@@ -187,6 +196,10 @@ func _show_tabs() -> void:
 		var b := _tabs[key] as Button
 		b.set_pressed_no_signal(key == tab)
 		b.text = String(entry[1]) + (" •" if _unread.has(key) else "")
+
+
+static func _shows(on_tab: String, channel: String) -> bool:
+	return channel == on_tab or String(ALSO_ON.get(channel, "")) == on_tab
 
 
 ## A world player's name as a tappable link (others, like ระบบ or the hero, stay plain).
