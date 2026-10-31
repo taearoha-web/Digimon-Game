@@ -144,6 +144,13 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(name_label)
 	top.add_child(UIUtil.label("สมาชิก %d คน · ออนไลน์ %d" % [states.size(), online], &"SmallLabel"))
+	# One leader a guild: the hero leads its own; the other's is its strongest member.
+	var leader := "คุณ (%s)" % String(Game.profile.get("name", "")) if mine == g else WorldPlayers.guild_leader(g, t)
+	var lead_label := UIUtil.label("หัวหน้ากิลด์: %s — คนเดียวที่ยึดแท่นปราสาทได้" % (leader if leader != "" else "ยังไม่มี"), &"SmallLabel")
+	lead_label.name = "Leader%s" % WorldPlayers.guild_name(g)
+	lead_label.add_theme_color_override("font_color", Color("ffd84a"))
+	lead_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(lead_label)
 	var join := UIUtil.button("", &"PrimaryButton" if mine != g else &"", Vector2(0, 58))
 	join.name = "Join%s" % WorldPlayers.guild_name(g)
 	if mine == g:

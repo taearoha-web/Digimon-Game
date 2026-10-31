@@ -103,6 +103,18 @@ func _ready() -> void:
 	_start_guard()
 
 
+## Makes it its guild's leader (หัวหน้ากิลด์): the one of its side who may take the
+## altar, shown in gold with the title before its name.
+var is_leader := false
+
+
+func make_leader() -> void:
+	is_leader = true
+	if _label != null:
+		_label.text = "หัวหน้ากิลด์ " + String(member.name)
+		_label.modulate = Color("ffd84a")
+
+
 ## True for a member of the hero's own party in the war.
 func in_hero_party() -> bool:
 	return team == TEAM_ALLY and party == GuildWarMatch.HERO_PARTY

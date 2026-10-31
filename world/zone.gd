@@ -323,7 +323,8 @@ func _build_siege() -> void:
 	var theirs: Color = WorldPlayers.GUILD_COLORS.get(WorldPlayers.other_guild(Game.guild()), Color("ff5a4a")) if Game.guild() > 0 else Color("ff5a4a")
 	SiegeArena.build(self, rng, ours, theirs)
 	_start = Vector3(-SiegeArena.BASE_X, 0, SiegeArena.BASE_Z)
-	_make_boundary_walls(SiegeArena.RADIUS + 1.5)
+	# North of the moat the castle's walls close the field (its hall runs past the round edge).
+	_make_boundary_walls(SiegeArena.RADIUS + 1.5, SiegeArena.MOAT_SOUTH)
 
 
 ## The sky and air of this zone (Scenery.environment / sky_dressing "look").
@@ -680,6 +681,7 @@ func _spawn_hero() -> void:
 	hero.field = self
 	hero.safe_zone = is_town
 	hero.field_radius = TOWN_RADIUS if is_town else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius)
+	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else Rect2()
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":
@@ -773,12 +775,15 @@ func _make_portal(portal: Dictionary) -> void:
 	holder.add_child(label)
 
 
-func _make_boundary_walls(radius: float) -> void:
+## A ring of invisible walls; segments north of `north_open_z` are left out (z below it).
+func _make_boundary_walls(radius: float, north_open_z := -INF) -> void:
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	add_child(body)
 	for i in 24:
 		var angle := TAU * i / 24.0
+		if sin(angle) * radius < north_open_z:
+			continue
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = Vector3(radius * 0.28, 6.0, 1.0)
@@ -871,6 +876,35 @@ const TAP_SLOP := 56.0
 
 
 ## The world player (hunting here or in the party) drawn under a tap at `screen`, or null.
+## The living hostile monster (a rival guild's fighter too) drawn under a tap at
+## `screen`, or null: tapping it makes it the hero's target.
+func mob_at(screen: Vector2) -> Mob:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return null
+	var best: Mob = null
+	var best_d := TAP_SLOP
+	for node in get_tree().get_nodes_in_group("mobs"):
+		var mob := node as Mob
+		if mob == null or not is_instance_valid(mob) or not mob.visible or mob.is_dead() or mob.is_queued_for_deletion():
+			continue
+		var d := tap_distance(camera, mob.global_position, 2.4, screen)
+		if d < best_d:
+			best_d = d
+			best = mob
+	return best
+
+
+## How far (pixels) a tap at `screen` lands from a body standing at `feet`, `height` tall
+## (INF when it is behind the camera).
+static func tap_distance(camera: Camera3D, feet: Vector3, height: float, screen: Vector2) -> float:
+	var low := feet + Vector3(0, 0.2, 0)
+	var high := feet + Vector3(0, height, 0)
+	if camera.is_position_behind(low) or camera.is_position_behind(high):
+		return INF
+	return Geometry2D.get_closest_point_to_segment(screen, camera.unproject_position(low), camera.unproject_position(high)).distance_to(screen)
+
+
 func player_at(screen: Vector2) -> FieldPlayer:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:

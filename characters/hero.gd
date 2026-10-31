@@ -40,6 +40,8 @@ var camera_rig: ThirdPersonCamera
 var field: Node3D
 var safe_zone := false
 var field_radius := 56.0
+## A floor (x, z) the hero may stand on past the round edge: the guild war's castle hall.
+var field_hall := Rect2()
 
 var move_input := Vector2.ZERO
 var _star_combo_target := 0
@@ -465,6 +467,19 @@ func _auto_cast(hp_rate: float) -> void:
 		use_skill(fallback)
 
 
+## A monster tapped on the screen: lock onto it and go for it (auto hunting follows it).
+func tap_target(mob: Mob) -> void:
+	if _dead or safe_zone or not _valid_target(mob):
+		return
+	set_target(mob)
+	engaged = true
+	_pending = {}
+	if auto:
+		_auto_center = mob.global_position
+	var who := String((mob as Rival).member.get("name", "")) if mob is Rival else String(mob.template.get("name", ""))
+	message.emit("เลือกเป้า: %s" % who)
+
+
 func set_target(mob: Mob) -> void:
 	if mob == target:
 		return
@@ -654,6 +669,8 @@ func _face(direction: Vector3, delta: float, rate := 12.0) -> void:
 
 func _clamp_to_field() -> void:
 	var flat := Vector2(global_position.x, global_position.z)
+	if field_hall.has_area() and field_hall.has_point(flat):
+		return
 	if flat.length() > field_radius:
 		flat = flat.normalized() * field_radius
 		global_position.x = flat.x

@@ -210,6 +210,20 @@ static func guild_at(i: int, level: int) -> int:
 
 
 ## Who is in `guild` at time t: the members who have reached Lv.100.
+## The guild's leader (หัวหน้ากิลด์) among the world players: its strongest member at
+## `t` (level, then stars). The hero leads its own guild instead (GuildScreen).
+static func guild_leader(guild: int, t: float) -> String:
+	var best := ""
+	var best_score := -1
+	for i in members_at(guild, t):
+		var s := state(i, t)
+		var score := int(s.level) * 1000 + int(s.get("stars", 0))
+		if score > best_score:
+			best_score = score
+			best = String(s.name)
+	return best
+
+
 static func members_at(guild: int, t: float) -> Array[int]:
 	var out: Array[int] = []
 	for i in members(guild):
