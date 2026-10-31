@@ -17,6 +17,13 @@ const SORTS := {"level": "เลเวล", "class": "อาชีพ"}
 
 ## The list order the player picked (kept while the game runs).
 static var sort_by := "level"
+## Class order when sorting by class: archers first, then priests, then the rest.
+const CLASS_ORDER: Array[StringName] = [&"archer", &"priest", &"warrior", &"mage", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
+
+
+static func class_rank(cls: StringName) -> int:
+	var i := CLASS_ORDER.find(cls)
+	return i if i >= 0 else CLASS_ORDER.size() + maxi(0, ClassData.IDS.find(cls))
 
 var is_open := false
 var _root: Control
@@ -211,8 +218,8 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 ## first ("level"), or class by class in ClassData order, best first in each ("class").
 static func sort_members(rows: Array, mode: String) -> void:
 	rows.sort_custom(func(a, b):
-		var ca := ClassData.IDS.find(StringName(a["class"]))
-		var cb := ClassData.IDS.find(StringName(b["class"]))
+		var ca := class_rank(StringName(a["class"]))
+		var cb := class_rank(StringName(b["class"]))
 		var pa := int(a.level) * 1000 + int(a.get("stars", 0))
 		var pb := int(b.level) * 1000 + int(b.get("stars", 0))
 		if mode == "class" and ca != cb:
