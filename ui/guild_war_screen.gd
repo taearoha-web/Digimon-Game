@@ -257,11 +257,10 @@ static func war_mates(guild: int, t: float) -> Array[Dictionary]:
 		return out
 	for i in WorldPlayers.members_at(guild, t):
 		var st := WorldPlayers.state(i, t)
-		out.append({"name": String(st.name), "class": StringName(st["class"]), "level": WorldPlayers.level_text(st), "online": bool(st.online), "rank": int(st.level) * 1000 + int(st.stars)})
-	out.sort_custom(func(a, b):
-		if bool(a.online) != bool(b.online):
-			return bool(a.online)
-		return int(a.rank) > int(b.rank))
+		out.append({"name": String(st.name), "class": StringName(st["class"]), "level_text": WorldPlayers.level_text(st), "online": bool(st.online),
+			"level": int(st.level), "stars": int(st.stars), "rank": int(st.level) * 1000 + int(st.stars)})
+	# Class by class (archers, then priests, ...), each strongest first.
+	GuildScreen.sort_members(out, "class")
 	return out
 
 
@@ -449,7 +448,15 @@ func _build_party() -> void:
 		var none := UIUtil.label("ยังไม่มีเพื่อนร่วมกิลด์ให้เลือก — ระบบจะจัดปาร์ตี้ให้เอง", &"SmallLabel")
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		list.add_child(none)
+	var heading := StringName()
 	for c in candidates:
+		if c["class"] != heading:
+			heading = c["class"]
+			var count := candidates.filter(func(x): return x["class"] == heading).size()
+			var head_label := UIUtil.label("%s · %d คน" % [ClassData.get_class_data(heading).name, count], &"BoldLabel")
+			head_label.name = "MateClass_%s" % String(heading)
+			head_label.add_theme_color_override("font_color", ClassData.get_class_data(heading).color.lerp(Color.WHITE, 0.35))
+			list.add_child(head_label)
 		list.add_child(_mate_row(c))
 	_refresh_party()
 
@@ -540,7 +547,7 @@ func _mate_row(c: Dictionary) -> Control:
 	who.clip_text = true
 	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	line.add_child(who)
-	var info := UIUtil.label("%s · %s" % [ClassData.get_class_data(StringName(c["class"])).name, c.level], &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	var info := UIUtil.label("%s · %s" % [ClassData.get_class_data(StringName(c["class"])).name, c.level_text], &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	line.add_child(info)
@@ -593,7 +600,7 @@ func _refresh_party() -> void:
 		else:
 			holder.add_child(_badge(StringName(mate["class"])))
 			name_label.text = String(mate.name)
-			detail.text = "%s · %s" % [ClassData.get_class_data(StringName(mate["class"])).name, mate.level]
+			detail.text = "%s · %s" % [ClassData.get_class_data(StringName(mate["class"])).name, mate.level_text]
 			card.add_theme_stylebox_override("panel", _card_style(PICK_COLOR, true))
 			name_label.add_theme_color_override("font_color", UIPalette.TEXT)
 	var full := picks.size() >= PARTY_SIZE - 1

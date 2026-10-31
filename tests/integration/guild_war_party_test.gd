@@ -34,11 +34,27 @@ func _ready() -> void:
 	await _hired_war()
 	await _guild_war()
 	await _lobby_button()
+	_mate_order()
 	check(not GuildWarMatch.in_war() and GuildWarMatch.buff_reaches(null, self), "outside the war a buff reaches everyone as before")
 	print("GUILD WAR PARTY: %d checks, %d failures" % [checks, failures.size()])
 	if failures.is_empty():
 		print("PASS")
 	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+## The party screen's guild mates go class by class (archers, then priests, ...), each
+## class strongest first, under a class heading.
+func _mate_order() -> void:
+	var mates := GuildWarScreen.war_mates(Game.guild(), WorldPresence.clock())
+	var ok := true
+	for i in range(1, mates.size()):
+		var a: Dictionary = mates[i - 1]
+		var b: Dictionary = mates[i]
+		var ca := GuildScreen.class_rank(StringName(a["class"]))
+		var cb := GuildScreen.class_rank(StringName(b["class"]))
+		ok = ok and (ca < cb or (ca == cb and int(a.rank) >= int(b.rank)))
+	check(mates.size() > 1 and ok, "guild mates are listed class by class, strongest first (%d)" % mates.size())
+	check(GuildScreen.CLASS_ORDER[0] == &"archer" and GuildScreen.CLASS_ORDER[1] == &"priest", "archers come first, then priests")
 
 
 ## The way into the war sits at the top of the desk, on screen and pressable, and the
