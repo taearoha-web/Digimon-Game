@@ -173,6 +173,17 @@ func _ready() -> void:
 	RenderWatchdog.spread_override = -1.0
 	RenderWatchdog.step = 0
 	RenderWatchdog.flat_count = 0
+	# A healthy frame (counters fine) is read back once every PIXEL_EVERY seconds, not
+	# every check: ten minutes of checks read the frame about five times.
+	RenderWatchdog.triangles_override = 510000
+	RenderWatchdog.pixel_reads = 0
+	RenderWatchdog._pixel_wait = 0.0
+	for i in int(600.0 / RenderWatchdog.CHECK_SECONDS):
+		RenderWatchdog.tick(tree, RenderWatchdog.CHECK_SECONDS, true)
+	check(RenderWatchdog.pixel_reads >= 4 and RenderWatchdog.pixel_reads <= 6, "ten minutes read the frame back only %d times" % RenderWatchdog.pixel_reads)
+	RenderWatchdog.triangles_override = -1
+	RenderWatchdog.step = 0
+	RenderWatchdog.flat_count = 0
 	MemoryGuard.force(-1, tree)
 	GameSettings.quality = 2
 	MemoryGuard.video_mb = 1.0

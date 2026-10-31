@@ -256,7 +256,7 @@
         for (const key of ['staticBytes', 'videoBytes', 'nodes', 'objects', 'resources', 'orphans', 'loot', 'quality', 'fps', 'auto', 'kills', 'saveAgeSeconds', 'drawCalls', 'triangles', 'renderObjects', 'processMs', 'physicsMs', 'soundPlayRequests', 'audioStreamMode', 'audioStallSeconds', 'paused', 'heroDead', 'screenOpen', 'hot']) {
           if (typeof data[key] === 'boolean' || (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)) metrics[key] = data[key];
         }
-        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB', 'scale3d', 'particles', 'decorations', 'lights', 'emitters', 'renderFallback', 'flatScreens', 'starvedFrames', 'stallSaves', 'hotSeconds']) {
+        for (const key of ['towerFloor', 'pendingSpawns', 'spawnWorkMs', 'spawnPeakMs', 'saveWorkMs', 'savePeakMs', 'pressure', 'pressureRaises', 'heapMB', 'scale3d', 'particles', 'decorations', 'lights', 'emitters', 'renderFallback', 'flatScreens', 'starvedFrames', 'stallSaves', 'hotSeconds', 'pixelReads']) {
           if (typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0) metrics[key] = Math.round(data[key] * 100) / 100;
         }
         // The drawing camera (RenderWatchdog.camera_report): height and pitch can be negative.

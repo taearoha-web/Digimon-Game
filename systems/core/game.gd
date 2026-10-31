@@ -49,7 +49,10 @@ const AUDIO_STALL_SAVE_SECONDS := 5.0
 ## After IOS_REST_SECONDS the game saves and suggests closing and reopening it, once a
 ## session, at a moment with no screen open; a fresh page starts the count again.
 const IOS_REST_SECONDS := 20 * 60
+## After the first, the prompt comes back this often while the game stays open.
+const IOS_REST_AGAIN := 5 * 60
 var _rest_shown := false
+var _rest_next := 0.0
 var _audio_stall_saved := false
 var stall_saves := 0
 const BASE_BAG := 40
@@ -730,7 +733,7 @@ func _record_web_session_sample() -> void:
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
 		"scale3d": MemoryGuard.scale_3d, "emitters": get_tree().root.find_children("*", "CPUParticles3D", true, false).size(),
 		"renderFallback": RenderWatchdog.step, "flatScreens": RenderWatchdog.flat_count,
-		"starvedFrames": RenderWatchdog.starved_count,
+		"starvedFrames": RenderWatchdog.starved_count, "pixelReads": RenderWatchdog.pixel_reads,
 		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
@@ -766,16 +769,20 @@ func _record_web_session_sample() -> void:
 
 
 func _watch_ios_rest() -> void:
-	if _rest_shown or Time.get_ticks_msec() < IOS_REST_SECONDS * 1000 or not MemoryGuard.ios():
+	var up := Time.get_ticks_msec() / 1000.0
+	if up < float(IOS_REST_SECONDS) or up < _rest_next or not MemoryGuard.ios():
 		return
 	if current_zone == &"guildwar":
 		return  # never in the middle of a war
 	var main := get_tree().current_scene
 	if main == null or not main.has_method("_screen_open") or main.get("zone") == null or bool(main.call("_screen_open")):
 		return
+	if not main.find_children("*", "ModalDialog", true, false).is_empty():
+		return  # the last one is still up
 	_rest_shown = true
+	_rest_next = up + float(IOS_REST_AGAIN)
 	save()
-	ModalDialog.info(main, "พักเครื่องสักครู่", "เล่นต่อเนื่องมา 20 นาทีแล้ว iPhone มักปิดเกมเองเมื่อเปิดนานเกินครึ่งชั่วโมง\n\nบันทึกเซฟให้แล้ว แนะนำปัดปิดแอปแล้วเปิดใหม่ เกมจะกลับมาเล่นต่อได้ทันทีและไม่หลุดกลางทาง", "เข้าใจแล้ว")
+	ModalDialog.info(main, "พักเครื่องสักครู่", "เล่นต่อเนื่องมา %d นาทีแล้ว iPhone มักปิดเกมเองเมื่อเปิดนานเกินครึ่งชั่วโมง\n\nบันทึกเซฟให้แล้ว แนะนำปัดปิดแอปแล้วเปิดใหม่ เกมจะกลับมาเล่นต่อได้ทันทีและไม่หลุดกลางทาง" % int(up / 60.0), "เข้าใจแล้ว")
 
 
 func _watch_audio_stall() -> void:
