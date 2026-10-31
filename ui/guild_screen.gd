@@ -7,6 +7,8 @@ extends CanvasLayer
 ## schedules while the screen is open.
 
 signal closed()
+## The member taps "ไปสงครามกิลด์": main opens the guild-war desk.
+signal war_requested()
 
 const REFRESH := 10.0
 
@@ -91,10 +93,17 @@ func _build() -> void:
 	var title := UIUtil.label("นายทะเบียนกิลด์ — Alpha · Neverdie", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
+	var mine := Game.guild()
+	if mine > 0:
+		var war := UIUtil.button("ไปสงครามกิลด์", &"AccentButton", Vector2(200, 60))
+		war.name = "GoWar"
+		war.pressed.connect(func():
+			close_screen()
+			war_requested.emit())
+		head.add_child(war)
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(140, 60))
 	close.pressed.connect(close_screen)
 	head.add_child(close)
-	var mine := Game.guild()
 	var status := "คุณอยู่กิลด์ %s · ลงสงครามกิลด์กับเพื่อนร่วมกิลด์ได้ที่ผู้บัญชาการสงครามกิลด์" % WorldPlayers.guild_name(mine) if mine > 0 else "คุณยังไม่มีกิลด์ — เลือกเข้ากิลด์ใดกิลด์หนึ่ง แล้วไปลงสงครามกิลด์กับเพื่อนร่วมกิลด์ได้"
 	if mine == 0 and int(Game.profile.level) < Game.GUILD_LEVEL:
 		status = "เข้ากิลด์ได้ตั้งแต่เลเวล %d (ตอนนี้เลเวล %d) — ดูรายชื่อสมาชิกได้ก่อน" % [Game.GUILD_LEVEL, int(Game.profile.level)]

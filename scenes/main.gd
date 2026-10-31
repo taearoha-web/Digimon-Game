@@ -80,6 +80,7 @@ func _ready() -> void:
 	guildwar_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	guild_screen = GuildScreen.new()
 	add_child(guild_screen)
+	guild_screen.war_requested.connect(func(): guildwar_screen.open_lobby())
 	registry = RegistryScreen.new()
 	add_child(registry)
 	hud.registry_requested.connect(func():
@@ -429,7 +430,11 @@ func _on_npc(role: String) -> void:
 			var text := "โลกนี้มีสองกิลด์ใหญ่ Alpha กับ Neverdie ผู้เล่นทุกคนเข้ากิลด์ได้เมื่อถึงเลเวล %d (ตอนนี้ Alpha มีสมาชิก %d คน Neverdie %d คน) ในสงครามชิงปราสาททุกคนในกิลด์ลงสนามทั้งหมด สู้ด้วยเลเวล ดาว และชุดจริงของตัวเอง ถึงเลเวล %d แล้วเลือกเข้ากิลด์ไหน ก็ลงสงครามกับเพื่อนร่วมกิลด์นั้น" % [Game.GUILD_LEVEL, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size(), Game.GUILD_LEVEL]
 			if mine > 0:
 				text = "เจ้าอยู่กิลด์ %s แล้ว ดูรายชื่อสมาชิก ใครออนไลน์อยู่แมพไหน หรือจะย้ายกิลด์ก็ได้" % WorldPlayers.guild_name(mine)
-			dialog.say("นายทะเบียนกิลด์", text, [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_screen()}, {"label": "ไว้ก่อน"}])
+			var choices: Array = [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_screen()}]
+			if mine > 0:
+				choices.append({"label": "ไปสงครามกิลด์", "action": func(): guildwar_screen.open_lobby()})
+			choices.append({"label": "ไว้ก่อน"})
+			dialog.say("นายทะเบียนกิลด์", text, choices)
 		"tower":
 			tower_screen.open_lobby()
 		"arena":

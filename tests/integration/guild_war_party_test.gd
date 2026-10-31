@@ -33,11 +33,33 @@ func _ready() -> void:
 	_deal()
 	await _hired_war()
 	await _guild_war()
+	await _lobby_button()
 	check(not GuildWarMatch.in_war() and GuildWarMatch.buff_reaches(null, self), "outside the war a buff reaches everyone as before")
 	print("GUILD WAR PARTY: %d checks, %d failures" % [checks, failures.size()])
 	if failures.is_empty():
 		print("PASS")
 	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+## The way into the war sits at the top of the desk, on screen and pressable, and the
+## party screen's confirm button too (they used to fall below a phone's screen).
+func _lobby_button() -> void:
+	Game.join_guild(WorldPlayers.ALPHA)
+	var desk := GuildWarScreen.new()
+	add_child(desk)
+	desk.open_lobby()
+	await _frames(3)
+	var go := desk.find_child("EnterWar", true, false) as Button
+	var view := get_viewport().get_visible_rect()
+	check(go != null and not go.disabled and go.visible, "the desk has an enabled 'เข้าสู่สงคราม!' button")
+	check(go != null and go.get_global_rect().end.y < view.size.y * 0.35, "the button sits near the top of the screen (%s)" % (go.get_global_rect() if go else Rect2()))
+	go.pressed.emit()
+	await _frames(3)
+	var confirm := desk.find_child("ConfirmParty", true, false) as Button
+	check(confirm != null and confirm.get_global_rect().end.y < view.size.y * 0.45, "the party screen's confirm button is near the top too")
+	desk.close_screen()
+	desk.queue_free()
+	await _frames(1)
 
 
 ## Checks a side's parties: each at most five, sizes at most one apart (`skip_first`

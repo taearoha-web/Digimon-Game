@@ -104,43 +104,54 @@ func _build_lobby() -> void:
 	var close := UIUtil.button("ปิด", &"", Vector2(120, 54))
 	close.pressed.connect(close_screen)
 	head.add_child(close)
-	var row := UIUtil.hbox(18)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(row)
-	var left := UIUtil.vbox(8)
-	left.custom_minimum_size = Vector2(420, 0)
-	row.add_child(left)
-	var flags: Dictionary = Game.profile.get("flags", {})
-	var wins := int(flags.get("gw_wins", 0))
-	var losses := int(flags.get("gw_losses", 0))
-	left.add_child(UIUtil.label("สถิติของคุณ", &"SubHeaderLabel"))
-	left.add_child(UIUtil.label("ชนะ %d · แพ้ %d\nล้มศัตรูรวม %d ครั้ง · สูงสุดในศึกเดียว %d" % [wins, losses, int(flags.get("gw_kills", 0)), int(flags.get("gw_best_kills", 0))], &"SmallLabel"))
+	# The way in sits right under the title, full width, so it is always on screen
+	# (on a phone the rules below scroll); a blocked button says what is missing.
 	var mine := Game.guild()
-	var rules := UIUtil.label("• ชิงปราสาท Alpha ปะทะ Neverdie: ทุกคนในกิลด์ที่เลเวล 100 ขึ้นไปลงสนามทั้งหมด คุณกับสมาชิกกิลด์ทุกคน สู้กับสมาชิกอีกกิลด์ทุกคน เวลา %d นาที\n• หลุดกลางสงคราม (แอปปิด เน็ตหลุด) กลับเข้ามาต่อได้ภายใน %d นาที ที่ปุ่มต่อสงครามเดิม\n• AI ของทั้งสองกิลด์วางแผนเองตามสถานการณ์: บุกประตู ตั้งรับหัวสะพาน ถอยรวมพล บุกห้องบัลลังก์ แบ่งทีมขวางทาง หรือล้อมแท่นตั้งรับ (แผนขึ้นในแถบข่าว)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ปะทะกันที่ลานกลาง ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ในห้องบัลลังก์ ยืนบนแท่นแล้วกดยึดให้ครบ %d วินาทีโดยไม่ล้ม = ยึดปราสาท อีกกิลด์ยึดคืนได้แบบเดียวกัน\n• กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายของตัวเองใน %d วินาที แล้วเดินกลับขึ้นไปใหม่ (ค่ายฟื้นเลือดเร็ว)\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 1,000,000 · แพ้ เหรียญ 500,000" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
-	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	left.add_child(rules)
-	left.add_child(UIUtil.spacer(false))
 	var t := WorldPresence.clock()
 	var no_rival := GuildWarData.guild_war_blocked(mine, t) if mine > 0 else ""
 	var blocked := int(Game.profile.level) < MIN_LEVEL or mine == 0 or no_rival != ""
 	var saved := Game.guildwar_checkpoint()
+	var actions := UIUtil.hbox(12)
+	actions.name = "WarActions"
+	column.add_child(actions)
 	if not saved.is_empty() and not blocked:
 		var left_sec := int(saved.time_left)
 		var rejoin := Game.guildwar_rejoin_left()
-		var again := UIUtil.button("ต่อสงครามเดิม · %d : %d · เหลือ %d:%02d\n(กลับเข้าได้อีก %d นาที)" % [saved.us, saved.them, left_sec / 60, left_sec % 60, maxi(1, int(ceil(rejoin / 60.0)))], &"PrimaryButton", Vector2(0, 80))
+		var again := UIUtil.button("ต่อสงครามเดิม · %d : %d · เหลือ %d:%02d\n(กลับเข้าได้อีก %d นาที)" % [saved.us, saved.them, left_sec / 60, left_sec % 60, maxi(1, int(ceil(rejoin / 60.0)))], &"PrimaryButton", Vector2(0, 84))
+		again.name = "ResumeWar"
+		again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		again.pressed.connect(func():
 			Game.guildwar_resuming = true
 			close_screen()
 			enter_requested.emit())
-		left.add_child(again)
-	var go := UIUtil.button("เริ่มสงครามใหม่!" if not saved.is_empty() else "เข้าสู่สงคราม!", &"" if not saved.is_empty() else &"PrimaryButton", Vector2(0, 80 if saved.is_empty() else 56))
+		actions.add_child(again)
+	var go := UIUtil.button("เริ่มสงครามใหม่!" if not saved.is_empty() else "เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 84))
+	go.name = "EnterWar"
+	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	go.disabled = blocked
 	if blocked:
-		go.text = "ต้องเลเวล %d ขึ้นไป" % MIN_LEVEL if int(Game.profile.level) < MIN_LEVEL else ("เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน" if mine == 0 else "ยังไม่มีคู่สงคราม: " + no_rival)
+		go.text = "ต้องเลเวล %d ขึ้นไป (ตอนนี้ %d)" % [MIN_LEVEL, int(Game.profile.level)] if int(Game.profile.level) < MIN_LEVEL else ("เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน" if mine == 0 else "ยังไม่มีคู่สงคราม: " + no_rival)
+	else:
+		go.add_theme_font_size_override("font_size", 30)
+		_pulse(go)
 	go.pressed.connect(func():
 		Game.guildwar_resuming = false
 		open_party())
-	left.add_child(go)
+	actions.add_child(go)
+	var row := UIUtil.hbox(18)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(row)
+	var left_scroll := TouchScroll.new()
+	left_scroll.custom_minimum_size = Vector2(420, 0)
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	row.add_child(left_scroll)
+	var left := UIUtil.vbox(8)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_scroll.add_child(left)
+	_last_war(left)
+	var rules := UIUtil.label("• ชิงปราสาท Alpha ปะทะ Neverdie: ทุกคนในกิลด์ที่เลเวล 100 ขึ้นไปลงสนามทั้งหมด คุณกับสมาชิกกิลด์ทุกคน สู้กับสมาชิกอีกกิลด์ทุกคน เวลา %d นาที\n• หลุดกลางสงคราม (แอปปิด เน็ตหลุด) กลับเข้ามาต่อได้ภายใน %d นาที ที่ปุ่มต่อสงครามเดิม\n• AI ของทั้งสองกิลด์วางแผนเองตามสถานการณ์: บุกประตู ตั้งรับหัวสะพาน ถอยรวมพล บุกห้องบัลลังก์ แบ่งทีมขวางทาง หรือล้อมแท่นตั้งรับ (แผนขึ้นในแถบข่าว)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ปะทะกันที่ลานกลาง ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ในห้องบัลลังก์ ยืนบนแท่นแล้วกดยึดให้ครบ %d วินาทีโดยไม่ล้ม = ยึดปราสาท อีกกิลด์ยึดคืนได้แบบเดียวกัน\n• กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายของตัวเองใน %d วินาที แล้วเดินกลับขึ้นไปใหม่ (ค่ายฟื้นเลือดเร็ว)\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 10,000,000 + เพชรชมพู 10 เม็ด + ขนนก 2 ขน + EXP · แพ้ เหรียญ 500,000" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
+	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(rules)
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
@@ -184,7 +195,13 @@ func _build_result(result: Dictionary) -> void:
 	column.add_child(UIUtil.label(score, &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var castle := String(result.get("castle", ""))
 	column.add_child(UIUtil.label("ปราสาทเป็นของกิลด์ %s" % castle if castle != "" else "ไม่มีกิลด์ไหนยึดปราสาทได้ — ตัดสินจากจำนวนคนที่ล้มได้", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
-	column.add_child(UIUtil.label("คุณล้มศัตรู %d ครั้ง · ถูกล้ม %d ครั้ง   |   รางวัล: เหรียญ +%d · EXP +%d" % [int(result.kills), int(result.deaths), int(result.gold), int(result.exp)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	var prize := "เหรียญ +%s" % _commas(int(result.gold))
+	var jewels: Dictionary = result.get("jewels", {})
+	for id in jewels:
+		prize += " · %s +%d" % [ItemData.JEWELS[id].name, int(jewels[id])]
+	if int(result.exp) > 0:
+		prize += " · EXP +%d" % int(result.exp)
+	column.add_child(UIUtil.label("คุณฆ่า %d ครั้ง · ตาย %d ครั้ง   |   รางวัล: %s" % [int(result.kills), int(result.deaths), prize], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -298,6 +315,66 @@ func confirm_party() -> void:
 	enter_requested.emit()
 
 
+## The last war's scoreboard on the desk: the result, then everyone's falls dealt and
+## taken, each guild best first (profile.gw_last, written by Game.guildwar_finish).
+func _last_war(box: VBoxContainer) -> void:
+	box.add_child(UIUtil.label("สถิติรอบล่าสุด", &"SubHeaderLabel"))
+	var last: Dictionary = Game.profile.get("gw_last", {})
+	if last.is_empty():
+		var none := UIUtil.label("ยังไม่มีรอบล่าสุด — ลงสงครามแล้วสถิติการฆ่าและการตายของทุกคนจะขึ้นที่นี่", &"SmallLabel")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(none)
+		return
+	var won := bool(last.get("won", false))
+	var head := UIUtil.label("%s · %s %d : %d %s" % ["ชนะ" if won else "แพ้", String(last.get("our_guild", "")), int(last.get("score_us", 0)), int(last.get("score_them", 0)), String(last.get("their_guild", ""))], &"BoldLabel")
+	head.add_theme_color_override("font_color", Color("ffd84a") if won else Color("9fb4ff"))
+	box.add_child(head)
+	var rows: Array = last.get("rows", [])
+	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		var side: Array = rows.filter(func(r): return int(r.get("team", 0)) == team)
+		if side.is_empty():
+			continue
+		side.sort_custom(func(a, b):
+			if int(a.kills) != int(b.kills):
+				return int(a.kills) > int(b.kills)
+			return int(a.deaths) < int(b.deaths))
+		var guild_name := String(last.get("our_guild" if team == GuildFighter.TEAM_ALLY else "their_guild", ""))
+		var title := UIUtil.label("กิลด์ %s%s" % [guild_name, " (ฝั่งเรา)" if team == GuildFighter.TEAM_ALLY else ""], &"SmallLabel")
+		title.add_theme_color_override("font_color", Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a"))
+		box.add_child(title)
+		for r in side:
+			var line := UIUtil.hbox(8)
+			line.name = "LastWarRow"
+			var me := String(r.get("name", "")) == "คุณ"
+			var cls := String(r.get("class", ""))
+			var cls_name := String(ClassData.get_class_data(StringName(cls)).name) if ClassData.CLASSES.has(StringName(cls)) else ""
+			var who := UIUtil.label("%s%s" % [r.get("name", ""), (" · " + cls_name) if cls_name != "" else ""], &"SmallLabel")
+			who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			who.clip_text = true
+			if me:
+				who.add_theme_color_override("font_color", Color("ffd84a"))
+			line.add_child(who)
+			line.add_child(UIUtil.label("ฆ่า %d · ตาย %d" % [int(r.get("kills", 0)), int(r.get("deaths", 0))], &"SmallLabel"))
+			box.add_child(line)
+
+
+## 10000000 -> "10,000,000".
+static func _commas(n: int) -> String:
+	var digits := str(absi(n))
+	var out := ""
+	while digits.length() > 3:
+		out = "," + digits.substr(digits.length() - 3) + out
+		digits = digits.substr(0, digits.length() - 3)
+	return ("-" if n < 0 else "") + digits + out
+
+
+## A gentle glow pulse on the way into the war, so the button catches the eye.
+func _pulse(button: Button) -> void:
+	var tween := button.create_tween().set_loops()
+	tween.tween_property(button, "modulate", Color(1.1, 1.06, 0.95), 0.7).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(button, "modulate", Color.WHITE, 0.7).set_trans(Tween.TRANS_SINE)
+
+
 func _build_party() -> void:
 	_clear()
 	_slots.clear()
@@ -315,13 +392,35 @@ func _build_party() -> void:
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rules.add_theme_color_override("font_color", UIPalette.TEXT_DIM)
 	column.add_child(rules)
+	# The buttons sit on top, always on screen; the five places below scroll on a phone.
+	var tools := UIUtil.hbox(10)
+	column.add_child(tools)
+	var fill := UIUtil.button("สุ่มให้", &"AccentButton", Vector2(150, 72))
+	fill.name = "AutoFill"
+	fill.pressed.connect(auto_fill)
+	tools.add_child(fill)
+	var wipe := UIUtil.button("ล้างทั้งหมด", &"", Vector2(150, 72))
+	wipe.name = "ClearPicks"
+	wipe.pressed.connect(clear_picks)
+	tools.add_child(wipe)
+	var go := UIUtil.button("ยืนยันปาร์ตี้ · เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 72))
+	go.name = "ConfirmParty"
+	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	go.add_theme_font_size_override("font_size", 28)
+	go.pressed.connect(confirm_party)
+	_pulse(go)
+	tools.add_child(go)
 	var row := UIUtil.hbox(18)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(row)
-	# Left: the hero's five places and the buttons.
+	# Left: the hero's five places.
+	var left_scroll := TouchScroll.new()
+	left_scroll.custom_minimum_size = Vector2(430, 0)
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	row.add_child(left_scroll)
 	var left := UIUtil.vbox(6)
-	left.custom_minimum_size = Vector2(430, 0)
-	row.add_child(left)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_scroll.add_child(left)
 	_party_count = UIUtil.label("", &"SubHeaderLabel")
 	_party_count.add_theme_color_override("font_color", PICK_COLOR)
 	left.add_child(_party_count)
@@ -331,23 +430,6 @@ func _build_party() -> void:
 	_party_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_party_note.add_theme_color_override("font_color", UIPalette.TEXT_DIM)
 	left.add_child(_party_note)
-	left.add_child(UIUtil.spacer(false))
-	var tools := UIUtil.hbox(10)
-	left.add_child(tools)
-	var fill := UIUtil.button("สุ่มให้", &"AccentButton", Vector2(0, 56))
-	fill.name = "AutoFill"
-	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fill.pressed.connect(auto_fill)
-	tools.add_child(fill)
-	var wipe := UIUtil.button("ล้างทั้งหมด", &"", Vector2(0, 56))
-	wipe.name = "ClearPicks"
-	wipe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wipe.pressed.connect(clear_picks)
-	tools.add_child(wipe)
-	var go := UIUtil.button("ยืนยันปาร์ตี้ · เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 72))
-	go.name = "ConfirmParty"
-	go.pressed.connect(confirm_party)
-	left.add_child(go)
 	# Right: our guild mates, tap to add or remove.
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL

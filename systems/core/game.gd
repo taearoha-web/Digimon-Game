@@ -862,6 +862,22 @@ func _valid_profile(data: Dictionary) -> bool:
 	for value in data.get("ach", {}).values():
 		if not value is bool:
 			return false
+	if data.has("gw_last"):
+		var last: Variant = data.gw_last
+		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
+			return false
+		for key in ["our_guild", "their_guild"]:
+			if not last.get(key, "") is String:
+				return false
+		for key in ["score_us", "score_them", "at"]:
+			if not _valid_integer(last.get(key, 0)):
+				return false
+		for r in last.get("rows", []):
+			if not r is Dictionary or not r.get("name", "") is String or not r.get("class", "") is String:
+				return false
+			for key in ["team", "kills", "deaths"]:
+				if not _valid_integer(r.get(key, 0)):
+					return false
 	for key in ["inv", "storage"]:
 		if data.get(key, []).size() > (MAX_BAG if key == "inv" else STORAGE_SIZE):
 			return false
@@ -1831,6 +1847,28 @@ func add_item(item: Dictionary) -> bool:
 	return true
 
 
+## A reward into the bag, or into storage when the bag is full (stackables join a pile
+## there too). Returns false only when both are full.
+func give_or_store(item: Dictionary) -> bool:
+	if add_item(item):
+		return true
+	var store: Array = profile.get("storage", [])
+	if ItemData.is_stackable(item):
+		for existing in store:
+			if existing.get("kind", "") == item.get("kind", "") and existing.get("id") == item.id:
+				existing["count"] = int(existing.get("count", 1)) + int(item.get("count", 1))
+				mark_dirty()
+				return true
+	if store.size() < STORAGE_SIZE:
+		store.append(item)
+		profile["storage"] = store
+		say("กระเป๋าเต็ม — %s ถูกส่งเข้าคลัง" % ItemData.name_of(item), &"warning")
+		mark_dirty()
+		return true
+	say("กระเป๋าและคลังเต็ม — รับ %s ไม่ได้" % ItemData.name_of(item), &"warning")
+	return false
+
+
 ## Jewels of `id` in the bag.
 func jewel_count(id: String) -> int:
 	var n := 0
@@ -2748,8 +2786,10 @@ func guildwar_clear_checkpoint() -> void:
 	mark_dirty()
 
 
-## Ends a guild war: gold and EXP by result and our own falls, and the record in the flags.
-func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deaths: int, our_guild: String, their_guild: String) -> Dictionary:
+## Ends a guild war: gold (and on a win EXP, pink jewels and feathers), the record in
+## the flags, and the last war's scoreboard (`rows`: name, class, team, kills, deaths)
+## in profile.gw_last for the war desk.
+func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deaths: int, our_guild: String, their_guild: String, rows: Array = []) -> Dictionary:
 	guildwar_clear_checkpoint()
 	guildwar_return_supply()
 	var level := int(profile.level)
@@ -2757,6 +2797,15 @@ func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deat
 	var exp_gain := GuildWarData.exp_reward(level, won)
 	add_gold(gold)
 	add_exp(exp_gain)
+	var jewels: Dictionary = GuildWarData.WIN_JEWELS if won else {}
+	for id in jewels:
+		give_or_store(ItemData.jewel(id, int(jewels[id])))
+	var board: Array = []
+	for r in rows:
+		board.append({"name": String(r.get("name", "")), "class": String(r.get("class", "")), "team": int(r.get("team", 0)),
+			"kills": int(r.get("kills", 0)), "deaths": int(r.get("deaths", 0))})
+	profile["gw_last"] = {"won": won, "score_us": score_us, "score_them": score_them, "our_guild": our_guild,
+		"their_guild": their_guild, "at": int(WorldPresence.clock()), "rows": board}
 	flag_add("gw_played")
 	flag_add("gw_wins" if won else "gw_losses")
 	flag_add("gw_kills", kills)
@@ -2767,7 +2816,7 @@ func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deat
 	check_achievements()
 	mark_dirty()
 	save()
-	return {"won": won, "score_us": score_us, "score_them": score_them, "kills": kills, "deaths": deaths, "gold": gold, "exp": exp_gain,
+	return {"won": won, "score_us": score_us, "score_them": score_them, "kills": kills, "deaths": deaths, "gold": gold, "exp": exp_gain, "jewels": jewels,
 		"our_guild": our_guild, "their_guild": their_guild, "wins": int(profile.flags.get("gw_wins", 0)), "losses": int(profile.flags.get("gw_losses", 0)),
 		"best_kills": int(profile.flags.get("gw_best_kills", 0))}
 

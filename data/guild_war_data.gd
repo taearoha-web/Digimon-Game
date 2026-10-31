@@ -235,11 +235,15 @@ static func grade_label(grade: int) -> String:
 	return String(GRADE_NAMES.get(grade, "ชุด %d★" % grade))
 
 
-## Gold for a finished war: a flat sum, 1,000,000 for a win and 500,000 for a loss.
-const GOLD_WIN := 1000000
+## Gold for a finished war: a flat sum, 10,000,000 for a win and 500,000 for a loss.
+const GOLD_WIN := 10000000
 const GOLD_LOSS := 500000
 static func gold_reward(won: bool) -> int:
 	return GOLD_WIN if won else GOLD_LOSS
+
+
+## A win also pays forge jewels: 10 pink jewels and 2 feathers. A loss pays gold only.
+const WIN_JEWELS := {"pink": 10, "feather": 2}
 
 
 ## War rations: the hero starts every war with this many war potions (+5,000 HP each),
@@ -249,6 +253,6 @@ const SUPPLY_POTION := "hp_war"
 const SUPPLY_COUNT := 40
 
 
-## EXP (stars at Lv.100) for a finished war.
+## EXP (stars at Lv.100) for a won war; a lost one pays gold only.
 static func exp_reward(level: int, won: bool) -> int:
-	return int(HeroStats.exp_to_next(level) * (0.12 if won else 0.05))
+	return int(HeroStats.exp_to_next(level) * 0.12) if won else 0
