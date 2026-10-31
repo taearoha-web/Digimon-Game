@@ -130,6 +130,7 @@ func _update(_delta: float, force: bool) -> void:
 	_owner.text = m.owner_line()
 	_owner.add_theme_color_override("font_color", Color.WHITE if m.castle_owner < 0 else m.owner_color().lerp(Color.WHITE, 0.25))
 	_taking.text = m.capture_line()
+	_taking.add_theme_color_override("font_color", TAKING_COLOR if not m.capture.is_empty() else Color("bfe8ff"))
 	_taking.visible = _taking.text != ""
 	_tell_gate(m, force)
 	for team in 2:

@@ -810,10 +810,14 @@ func owner_line() -> String:
 	return "ยังไม่มีผู้ครองปราสาท" if castle_owner < 0 else "ผู้ครองปราสาท: กิลด์ %s" % team_name(castle_owner)
 
 
-## The top bar's second line while someone stands on the altar ("" when nobody does).
+## The top bar's second line: who is taking the altar while someone stands on it; with
+## nobody on it and the castle held, what each side has to do (the holder never takes the
+## altar again: it only keeps the other guild off it until the bell).
 func capture_line() -> String:
 	if capture.is_empty():
-		return ""
+		if castle_owner < 0 or front_gate() != null:
+			return ""
+		return "ป้องกันแท่นไว้ อย่าให้อีกฝั่งยึดได้" if castle_owner == GuildFighter.TEAM_ALLY else "บุกขึ้นไปยึดแท่น %d วิ เพื่อชิงปราสาทคืน" % int(CAPTURE_TIME)
 	var who := capturer()
 	var who_name := "คุณ" if who == hero else (String((who as GuildFighter).rival_name) if who is GuildFighter else "")
 	return "กิลด์ %s กำลังยึดแท่น%s %d/%d วิ" % [team_name(int(capture.team)), (" (%s)" % who_name) if who_name != "" else "", int(capture.progress), int(CAPTURE_TIME)]

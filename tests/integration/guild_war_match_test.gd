@@ -365,7 +365,21 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	check(not near.is_empty() and home == near.size(), "%s: the losers are sent back to their base (%d/%d)" % [label, home, near.size()])
 	check(near.all(func(f): return not f.capturing), "%s: none of them is still taking the altar" % label)
 	hud._update(0.0, false)
-	check(hud.bar_texts()[0] == "ผู้ครองปราสาท: กิลด์ %s" % m.ally_name and hud.bar_texts()[1] == "", "%s: the top bar names the holder (%s)" % [label, hud.bar_texts()])
+	check(hud.bar_texts()[0] == "ผู้ครองปราสาท: กิลด์ %s" % m.ally_name and hud.bar_texts()[1].contains("ป้องกันแท่น"), "%s: the top bar names the holder and tells it to guard the altar (%s)" % [label, hud.bar_texts()])
+	# The holder never takes the altar again: neither the hero nor a fighter of ours on it.
+	var ours: GuildFighter = null
+	for f in m.allies:
+		if not f.is_dead():
+			ours = f
+			break
+	if ours != null:
+		ours.global_position = SiegeArena.ALTAR + Vector3(1.0, 0.3, 0)
+		ours.capture_role = true
+		await _frames(3)
+		check(m.capture.is_empty() and m.castle_owner == GuildFighter.TEAM_ALLY, "%s: the holder's fighter on the altar does not start a hold" % label)
+		ours.capture_role = false
+	m._assign_objectives()
+	check(m.allies.all(func(f): return not f.capture_role), "%s: the holder sends nobody onto the altar, it defends" % label)
 	check(said.any(func(t): return t.contains("ยึดปราสาทได้")) and said.any(func(t): return t.contains("ส่งกลับฐาน")), "%s: the capture is told in the chat (%s)" % [label, said])
 	Game.channel_chat.disconnect(tell)
 	hud.queue_free()
