@@ -467,6 +467,19 @@ func _auto_cast(hp_rate: float) -> void:
 		use_skill(fallback)
 
 
+## A monster tapped on the screen: lock onto it and go for it (auto hunting follows it).
+func tap_target(mob: Mob) -> void:
+	if _dead or safe_zone or not _valid_target(mob):
+		return
+	set_target(mob)
+	engaged = true
+	_pending = {}
+	if auto:
+		_auto_center = mob.global_position
+	var who := String((mob as Rival).member.get("name", "")) if mob is Rival else String(mob.template.get("name", ""))
+	message.emit("เลือกเป้า: %s" % who)
+
+
 func set_target(mob: Mob) -> void:
 	if mob == target:
 		return

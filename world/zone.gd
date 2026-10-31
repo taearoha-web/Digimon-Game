@@ -876,6 +876,35 @@ const TAP_SLOP := 56.0
 
 
 ## The world player (hunting here or in the party) drawn under a tap at `screen`, or null.
+## The living hostile monster (a rival guild's fighter too) drawn under a tap at
+## `screen`, or null: tapping it makes it the hero's target.
+func mob_at(screen: Vector2) -> Mob:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return null
+	var best: Mob = null
+	var best_d := TAP_SLOP
+	for node in get_tree().get_nodes_in_group("mobs"):
+		var mob := node as Mob
+		if mob == null or not is_instance_valid(mob) or not mob.visible or mob.is_dead() or mob.is_queued_for_deletion():
+			continue
+		var d := tap_distance(camera, mob.global_position, 2.4, screen)
+		if d < best_d:
+			best_d = d
+			best = mob
+	return best
+
+
+## How far (pixels) a tap at `screen` lands from a body standing at `feet`, `height` tall
+## (INF when it is behind the camera).
+static func tap_distance(camera: Camera3D, feet: Vector3, height: float, screen: Vector2) -> float:
+	var low := feet + Vector3(0, 0.2, 0)
+	var high := feet + Vector3(0, height, 0)
+	if camera.is_position_behind(low) or camera.is_position_behind(high):
+		return INF
+	return Geometry2D.get_closest_point_to_segment(screen, camera.unproject_position(low), camera.unproject_position(high)).distance_to(screen)
+
+
 func player_at(screen: Vector2) -> FieldPlayer:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:

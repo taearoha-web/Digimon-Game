@@ -84,6 +84,9 @@ var roster: Dictionary = {}
 var gates: Array[CastleGate] = []
 var castle_owner := -1
 var capture: Dictionary = {}
+## The rival guild's leader (หัวหน้ากิลด์): the only one of its side who may take the
+## altar. Ours is the hero.
+var enemy_leader: GuildFighter
 ## Each guild's plan now (PLAN_NAMES keys; [ours, theirs]).
 var plans: Array[String] = ["", ""]
 var _plan_timer := 0.0
@@ -156,6 +159,9 @@ func build(tree: SceneTree = null) -> void:
 				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
 				slot += 1
 				await FrameSlicer.pace(tree)
+	enemy_leader = pick_leader(enemies, WorldPlayers.guild_leader(WorldPlayers.other_guild(Game.guild()), WorldPresence.clock()))
+	if enemy_leader != null:
+		enemy_leader.make_leader()
 	_raise_castle(saved)
 	Game.guildwar_issue_supply()
 	if not saved.is_empty():
@@ -692,21 +698,13 @@ func _assign_objectives() -> void:
 			if capture.who is GuildFighter:
 				(capture.who as GuildFighter).capture_role = true
 			continue
-		# Our guild leaves the altar to the hero while the hero is in the throne room.
-		if team == GuildFighter.TEAM_ALLY and is_instance_valid(hero) and not hero.is_dead() and SiegeArena.section(hero.global_position) == 4:
+		# Only a guild's leader takes the altar: ours is the hero (who presses to take it),
+		# theirs is sent up while it stands.
+		if team == GuildFighter.TEAM_ALLY:
 			continue
-		var runner: GuildFighter = null
-		var best := INF
-		for f in (allies if team == GuildFighter.TEAM_ALLY else enemies):
-			if f.is_dead():
-				continue
-			var d := f._flat_distance(SiegeArena.ALTAR) + (25.0 if f.is_healer() or f.sings() else 0.0)
-			if d < best:
-				best = d
-				runner = f
-		if runner != null:
-			runner.capture_role = true
-			runner.hold_range = 0.0
+		if enemy_leader != null and is_instance_valid(enemy_leader) and not enemy_leader.is_dead():
+			enemy_leader.capture_role = true
+			enemy_leader.hold_range = 0.0
 
 
 ## The fighter or hero standing on the altar to take it (null when nobody is).
@@ -721,37 +719,86 @@ func capture_progress() -> float:
 	return 0.0 if capture.is_empty() else clampf(float(capture.progress) / CAPTURE_TIME, 0.0, 1.0)
 
 
-## True when the hero stands on the altar and may start taking the castle.
+## The rival guild's leader: the fighter named `leader_name` (the guild's real leader),
+## else its strongest fighter that is not a healer or a singer.
+static func pick_leader(side: Array, leader_name := "") -> GuildFighter:
+	var best: GuildFighter = null
+	var best_score := -INF
+	for f in side:
+		var fighter := f as GuildFighter
+		if fighter == null:
+			continue
+		if leader_name != "" and String(fighter.member.get("name", "")) == leader_name:
+			return fighter
+		var score := float(fighter.rstats.get("atk", 0)) + float(fighter.rstats.get("max_hp", 0)) * 0.05 - (1.0e6 if fighter.is_healer() or fighter.sings() else 0.0)
+		if score > best_score:
+			best_score = score
+			best = fighter
+	return best
+
+
+## True when the hero (our guild's leader) stands on the altar and may start taking the
+## castle: nobody is taking it, or the rivals' leader has stepped off the circle.
 func hero_can_capture() -> bool:
-	return state == "fight" and front_gate() == null and capture.is_empty() and castle_owner != GuildFighter.TEAM_ALLY \
+	if capture.get("who") == hero:
+		return false
+	var free := capture.is_empty() or bool(capture.get("paused", false))
+	return state == "fight" and front_gate() == null and free and castle_owner != GuildFighter.TEAM_ALLY \
 		and is_instance_valid(hero) and not hero.is_dead() and SiegeArena.on_altar(hero.global_position)
 
 
 func start_hero_capture() -> void:
 	if hero_can_capture():
+		if not capture.is_empty():
+			_cancel_capture()
 		_start_capture(GuildFighter.TEAM_ALLY, hero)
 
 
+## The leader taking the altar counts only while standing in the yellow circle. Off it the
+## count waits where it was and goes on when the leader steps back on; the leader falling
+## or leaving the throne room starts it over. A paused count gives way to the other
+## guild's leader stepping onto the circle.
 func _tick_capture(delta: float) -> void:
 	if front_gate() != null:
 		return
 	if capture.is_empty():
-		for f in all_fighters():
-			if f.capture_role and not f.is_dead() and f.team != castle_owner and SiegeArena.on_altar(f.global_position):
-				_start_capture(f.team, f)
-				break
+		if enemy_leader != null and is_instance_valid(enemy_leader) and enemy_leader.capture_role and not enemy_leader.is_dead() \
+				and castle_owner != GuildFighter.TEAM_ENEMY and SiegeArena.on_altar(enemy_leader.global_position):
+			_start_capture(GuildFighter.TEAM_ENEMY, enemy_leader)
 		return
 	var who := capturer()
-	if who == null or bool(who.call("is_dead")) or not SiegeArena.on_altar(who.global_position):
-		_cancel_capture()
+	if who == null or bool(who.call("is_dead")):
+		_cancel_capture("ล้ม")
 		return
+	if SiegeArena.section(who.global_position) != 4:
+		_cancel_capture("ออกจากห้องบัลลังก์")
+		return
+	var on := SiegeArena.on_altar(who.global_position)
+	if who is GuildFighter:
+		(who as GuildFighter).capturing = on
+	if not on:
+		if not bool(capture.get("paused", false)):
+			capture["paused"] = true
+			feed.emit("%s ออกนอกวงสีเหลือง — หยุดนับไว้ที่ %d/%d วิ" % [_who_name(who), int(capture.progress), int(CAPTURE_TIME)], int(capture.team))
+		var other := enemy_leader if int(capture.team) == GuildFighter.TEAM_ALLY else null
+		if other != null and is_instance_valid(other) and not other.is_dead() and castle_owner != GuildFighter.TEAM_ENEMY and SiegeArena.on_altar(other.global_position):
+			_cancel_capture()
+			_start_capture(GuildFighter.TEAM_ENEMY, other)
+		return
+	if bool(capture.get("paused", false)):
+		capture["paused"] = false
+		feed.emit("%s กลับเข้าวง — นับต่อจาก %d/%d วิ" % [_who_name(who), int(capture.progress), int(CAPTURE_TIME)], int(capture.team))
 	capture["progress"] = float(capture.progress) + delta
 	if float(capture.progress) >= CAPTURE_TIME:
 		_complete_capture()
 
 
+func _who_name(who: Node3D) -> String:
+	return "คุณ" if who == hero else (String((who as GuildFighter).rival_name) if who is GuildFighter else "")
+
+
 func _start_capture(team: int, who: Node3D) -> void:
-	capture = {"team": team, "who": who, "progress": 0.0}
+	capture = {"team": team, "who": who, "progress": 0.0, "paused": false}
 	if who is GuildFighter:
 		(who as GuildFighter).capturing = true
 	var who_name := "คุณ" if who == hero else (who as GuildFighter).rival_name
@@ -761,11 +808,16 @@ func _start_capture(team: int, who: Node3D) -> void:
 	AudioManager.play_sfx(&"star_charge", -4.0)
 
 
-func _cancel_capture() -> void:
+## Ends a capture; with a `reason` (the leader fell or left the throne room) the count
+## is lost and must start over.
+func _cancel_capture(reason := "") -> void:
 	var who: Variant = capture.get("who")
 	if who is GuildFighter and is_instance_valid(who):
 		(who as GuildFighter).capturing = false
-	feed.emit("การยึดแท่นของกิลด์ %s ถูกขัด!" % team_name(int(capture.team)), 1 - int(capture.team))
+	if reason != "":
+		feed.emit("หัวหน้ากิลด์ %s %s — การยึดแท่นต้องนับใหม่!" % [team_name(int(capture.team)), reason], 1 - int(capture.team))
+	else:
+		feed.emit("การยึดแท่นของกิลด์ %s ถูกขัด!" % team_name(int(capture.team)), 1 - int(capture.team))
 	capture = {}
 
 
@@ -819,7 +871,9 @@ func capture_line() -> String:
 			return ""
 		return "ป้องกันแท่นไว้ อย่าให้อีกฝั่งยึดได้" if castle_owner == GuildFighter.TEAM_ALLY else "บุกขึ้นไปยึดแท่น %d วิ เพื่อชิงปราสาทคืน" % int(CAPTURE_TIME)
 	var who := capturer()
-	var who_name := "คุณ" if who == hero else (String((who as GuildFighter).rival_name) if who is GuildFighter else "")
+	var who_name := _who_name(who) if who != null else ""
+	if bool(capture.get("paused", false)):
+		return "กิลด์ %s หยุดนับที่ %d/%d วิ%s — กลับเข้าวงสีเหลืองเพื่อนับต่อ" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME), (" (%s)" % who_name) if who_name != "" else ""]
 	return "กิลด์ %s กำลังยึดแท่น%s %d/%d วิ" % [team_name(int(capture.team)), (" (%s)" % who_name) if who_name != "" else "", int(capture.progress), int(CAPTURE_TIME)]
 
 

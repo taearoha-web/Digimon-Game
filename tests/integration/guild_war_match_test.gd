@@ -323,17 +323,46 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ALLY and m.capturer() == hero, "%s: the hero starts taking the castle" % label)
 	await _frames(3)
 	check(float(m.capture.progress) > 0.0 and m.siege_status().contains("กำลังยึด"), "%s: the hold counts up and the HUD tells" % label)
+	# Off the yellow circle (still in the throne room) the count waits; back on it goes on;
+	# leaving the throne room starts it over.
+	m.capture["progress"] = 30.0
 	hero.global_position = SiegeArena.ALTAR + Vector3(9.0, 0.3, 0)
 	await _frames(3)
-	check(m.capture.is_empty() and m.castle_owner == -1, "%s: stepping off the altar breaks the hold" % label)
-	# A rival sent onto the altar starts taking it; felling it stops it.
-	var foe: GuildFighter = m.enemies[2]
+	check(not m.capture.is_empty() and bool(m.capture.paused) and int(m.capture.progress) == 30 and m.capture_line().contains("หยุดนับ"), "%s: off the circle the count waits at 30/60 (%s)" % [label, m.capture])
+	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	await _frames(3)
+	check(not m.capture.is_empty() and not bool(m.capture.paused) and float(m.capture.progress) > 30.0 and m.capturer() == hero, "%s: back on the circle the count goes on from 30 (%s)" % [label, m.capture])
+	hero.global_position = Vector3(0, 0.3, SiegeArena.GATE_Z[2] + 6.0)
+	await _frames(3)
+	check(m.capture.is_empty() and m.castle_owner == -1, "%s: leaving the throne room starts the count over" % label)
+	# Only the rival guild's leader takes the altar: another of theirs on it does nothing.
+	var leader: GuildFighter = m.enemy_leader
+	check(leader != null and leader.is_leader and m.enemies.filter(func(f): return f.is_leader).size() == 1, "%s: the rival guild has one leader" % label)
+	var other: GuildFighter = null
+	for f in m.enemies:
+		if f != leader and not f.is_dead():
+			other = f
+			break
+	if other != null:
+		other.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+		other.capture_role = true
+		await _frames(3)
+		check(m.capture.is_empty(), "%s: a rival who is not the leader cannot take the altar" % label)
+		other.capture_role = false
+		other.global_position = SiegeArena.ALTAR + Vector3(12.0, 0.3, 0)
+	m._assign_objectives()
+	check(m.allies.all(func(f): return not f.capture_role), "%s: none of our fighters is sent onto the altar (only the hero, our leader)" % label)
+	# Tapping a rival on the screen makes it the hero's target.
+	hero.tap_target(leader)
+	check(hero.target == leader and hero.engaged, "%s: a tapped rival becomes the hero's target" % label)
+	hero.set_target(null)
+	var foe: GuildFighter = leader
 	foe._guard_until = 0
 	foe._dodge = 0.0
 	foe.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	foe.capture_role = true
 	await _frames(3)
-	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ENEMY and foe.capturing, "%s: a rival on the altar starts taking the castle" % label)
+	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ENEMY and foe.capturing, "%s: the rival leader on the altar starts taking the castle" % label)
 	check(m.allies.is_empty() or m.allies[0]._targets().has(foe), "%s: our guild can strike the one on the altar" % label)
 	var tries := 0
 	while not foe.is_dead() and tries < 60:
@@ -341,7 +370,7 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 		foe.take_hit(foe.max_hp, false)
 		tries += 1
 	await _frames(3)
-	check(foe.is_dead() and m.capture.is_empty() and m.castle_owner == -1, "%s: felling it stops the hold" % label)
+	check(foe.is_dead() and m.capture.is_empty() and m.castle_owner == -1, "%s: felling the leader starts its count over" % label)
 	if not take:
 		hero.global_position = GuildWarMatch.hero_camp()
 		return
