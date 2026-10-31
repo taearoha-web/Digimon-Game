@@ -14,11 +14,11 @@
  * Update: the new build caches everything (reusing unchanged, content-named
  * files from the old cache) before it can replace the build in use. */
 'use strict';
-const BUILD = '2416c5c1f03e';
+const BUILD = 'e07506625bb0';
 const PREFIX = 'toon-tale-';
 const CACHE = PREFIX + BUILD;
 // [path relative to the scope, bytes (0 = unknown), content-addressed, small/core]
-const FILES = [["./",0,false,true],["accounts.683b9d630a42.js",64385,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.efe89737.part001.gz.wasm",16777216,true,false],["game.efe89737.part002.gz.wasm",16777216,true,false],["game.efe89737.part003.gz.wasm",16777216,true,false],["game.efe89737.part004.gz.wasm",16777216,true,false],["game.efe89737.part005.gz.wasm",5875049,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.a055cf702a50.js",15173,true,true],["session.efd8d5072c18.js",19536,true,true]];
+const FILES = [["./",0,false,true],["accounts.683b9d630a42.js",64385,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.7c8db4b4.part001.gz.wasm",16777216,true,false],["game.7c8db4b4.part002.gz.wasm",16777216,true,false],["game.7c8db4b4.part003.gz.wasm",16777216,true,false],["game.7c8db4b4.part004.gz.wasm",16777216,true,false],["game.7c8db4b4.part005.gz.wasm",5878527,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.a055cf702a50.js",15173,true,true],["session.efd8d5072c18.js",19536,true,true]];
 const SCOPE = new URL(self.registration.scope);
 const INDEX = new URL('./', SCOPE).href;
 const BY_URL = new Map(), BY_PATH = new Map();
