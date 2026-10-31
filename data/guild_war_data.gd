@@ -1,6 +1,6 @@
 class_name GuildWarData
 extends RefCounted
-## Guild war: two guilds fight for 30 minutes. Alpha against Neverdie (roll_guild_match)
+## Guild war: two guilds fight for 20 minutes (DURATION). Alpha against Neverdie (roll_guild_match)
 ## is fought by everyone in the two guilds (the world players who have reached Lv.100),
 ## each as it really is (level, stars and the gear it found), the hero with its real character.
 ## Hired line-ups (roll_match: eight a side when there is no guild, and the ranked arena's
@@ -13,7 +13,9 @@ const TEAM_SIZE := 8
 ## The war between the world's two guilds: everyone at Lv.100 fights, up to GUILD_SIDE a
 ## side (the hero counted on ours).
 const GUILD_SIDE := 25
-const DURATION := 1800.0
+## 20 minutes: short enough to finish before a phone closes the page (a war cut off
+## can be rejoined for Game.GW_CKPT_LIFETIME).
+const DURATION := 1200.0
 ## A fallen fighter comes back at its base this many seconds later.
 const RESPAWN := 8.0
 const LEVEL := 100

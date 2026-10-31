@@ -44,6 +44,17 @@ const AUTOSAVE_INTERVAL := 10.0
 ## close it (a v0.9.4 report: 28 s without a mix, then gone). The game saves at once,
 ## once per silence, and marks it in the session report.
 const AUDIO_STALL_SAVE_SECONDS := 5.0
+## An iPhone closes the page after 20-35 minutes of play however light the game runs
+## (five v0.9.4 reports: memory, video memory and the frame rate all steady, then gone).
+## After IOS_REST_SECONDS the game saves and suggests closing and reopening it, once a
+## session, at a moment with no screen open; a fresh page starts the count again.
+const IOS_REST_SECONDS := 20 * 60
+## After the first, the prompt comes back this often while the game stays open.
+const IOS_REST_AGAIN := 5 * 60
+var _rest_shown := false
+var _rest_next := 0.0
+## Above the HUD (10) and the travel fade (90).
+const REST_PROMPT_LAYER := 100
 var _audio_stall_saved := false
 var stall_saves := 0
 const BASE_BAG := 40
@@ -108,6 +119,7 @@ func _process(delta: float) -> void:
 		return
 	if OS.has_feature("web"):
 		_watch_audio_stall()
+		_watch_ios_rest()
 	profile["play_time"] = float(profile.get("play_time", 0.0)) + delta
 	_ach_timer += delta
 	if _ach_timer >= ACH_INTERVAL:
@@ -297,7 +309,11 @@ func advance() -> bool:
 
 
 func stats_now(buffs := {}) -> Dictionary:
-	return HeroStats.compute(profile, buffs)
+	var out := HeroStats.compute(profile, buffs)
+	# A running Halloween potion also lifts the attack (BOOST_ATK).
+	if has_profile and exp_boost_left() > 0.0:
+		out["atk"] = float(out["atk"]) * (1.0 + BOOST_ATK)
+	return out
 
 
 ## The whole save as one copyable text code (base64 of the JSON).
@@ -719,7 +735,7 @@ func _record_web_session_sample() -> void:
 		"pressure": MemoryGuard.pressure, "pressureRaises": MemoryGuard.raises, "heapMB": MemoryGuard.heap_mb,
 		"scale3d": MemoryGuard.scale_3d, "emitters": get_tree().root.find_children("*", "CPUParticles3D", true, false).size(),
 		"renderFallback": RenderWatchdog.step, "flatScreens": RenderWatchdog.flat_count,
-		"starvedFrames": RenderWatchdog.starved_count,
+		"starvedFrames": RenderWatchdog.starved_count, "pixelReads": RenderWatchdog.pixel_reads,
 		"vfx": VfxBudget.report(), "materialsHeld": MaterialKeeper.held(),
 		"drawCalls": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"triangles": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
@@ -752,6 +768,32 @@ func _record_web_session_sample() -> void:
 			var run:TowerRun=hero.field.tower_run
 			sample.merge({"towerFloor":run.floor_no,"towerState":run.state,"pendingSpawns":run._pending.size(),"spawnWorkMs":run.last_spawn_ms,"spawnPeakMs":run.peak_spawn_ms})
 	JavaScriptBridge.eval("if (window.toonSession) window.toonSession.sample(%s);" % JSON.stringify(JSON.stringify(sample)), true)
+
+
+func _watch_ios_rest() -> void:
+	var up := Time.get_ticks_msec() / 1000.0
+	if up < float(IOS_REST_SECONDS) or up < _rest_next or not MemoryGuard.ios():
+		return
+	if current_zone == &"guildwar":
+		return  # never in the middle of a war
+	var main := get_tree().current_scene
+	if main == null or not main.has_method("_screen_open") or main.get("zone") == null or bool(main.call("_screen_open")):
+		return
+	if main.has_node("RestPromptLayer"):
+		return  # the last one is still up
+	_rest_shown = true
+	_rest_next = up + float(IOS_REST_AGAIN)
+	save()
+	# On its own layer above the HUD (a CanvasLayer at 10): under it the HUD took the taps
+	# and the button could not be pressed.
+	var layer := CanvasLayer.new()
+	layer.name = "RestPromptLayer"
+	layer.layer = REST_PROMPT_LAYER
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	main.add_child(layer)
+	await ModalDialog.info(layer, "พักเครื่องสักครู่", "เล่นต่อเนื่องมา %d นาทีแล้ว iPhone มักปิดเกมเองเมื่อเปิดนานเกินครึ่งชั่วโมง\n\nบันทึกเซฟให้แล้ว แนะนำปัดปิดแอปแล้วเปิดใหม่ เกมจะกลับมาเล่นต่อได้ทันทีและไม่หลุดกลางทาง" % int(up / 60.0), "เข้าใจแล้ว")
+	if is_instance_valid(layer):
+		layer.queue_free()
 
 
 func _watch_audio_stall() -> void:
@@ -1206,6 +1248,12 @@ const PARTY_SIZE := 5
 const PARTY_MAX := PARTY_SIZE - 1
 ## A world player says yes to a stranger within this many levels (guild mates always do).
 const PARTY_LEVEL_GAP := 20
+
+
+## Whether two levels may party up as strangers: within PARTY_LEVEL_GAP, and at the
+## star tier (both Lv.100, whatever their stars) always.
+static func party_levels_ok(a: int, b: int) -> bool:
+	return (a >= MAX_LEVEL and b >= MAX_LEVEL) or absi(a - b) <= PARTY_LEVEL_GAP
 ## Kill EXP in a party is shared: the pot grows by this much per member and is split
 ## evenly between everyone in the party.
 const PARTY_EXP_BONUS := 0.3
@@ -1247,7 +1295,7 @@ func party_invite(i: int, force := false) -> String:
 		if not bool(s.online):
 			return "%s ออฟไลน์อยู่" % s.name
 		var mate := guild() > 0 and int(s.guild) == guild()
-		if not mate and absi(int(s.level) - int(profile.level)) > PARTY_LEVEL_GAP:
+		if not mate and not party_levels_ok(int(s.level), int(profile.level)):
 			return "%s: เลเวลห่างกันเกินไป ไว้คราวหน้านะ" % s.name
 	var m := WorldPlayers.member(i, t)
 	m["stance"] = "follow"
@@ -1313,7 +1361,9 @@ func share_party_exp(base: float, mob_level: int) -> int:
 	var each := base * (1.0 + PARTY_EXP_BONUS * float(n - 1)) / float(n)
 	for i in world_party:
 		var m: Dictionary = _party_members[i]
-		WorldPlayers.add_exp(i, each * exp_gap_scale(int(m.level), mob_level), int(m.level), int(m.get("stars", 0)))
+		# A member under its own Halloween potion (WorldPlayers.halloween_mult) earns its part x2 / x3.
+		var potion := float(WorldPlayers.halloween_mult(i, WorldPresence.clock()))
+		WorldPlayers.add_exp(i, each * potion * exp_gap_scale(int(m.level), mob_level), int(m.level), int(m.get("stars", 0)))
 	return int(round(each * exp_gap_scale(int(profile.level), mob_level)))
 
 
@@ -2096,6 +2146,14 @@ func in_duel() -> bool:
 ## ends and its multiplier, so it runs out on time even while the game is closed.
 const BOOST_UNTIL := "xb_until"
 const BOOST_MULT := "xb_mult"
+## While it runs the potion also gives +10% attack and +10% drop chance.
+const BOOST_ATK := 0.1
+const BOOST_DROP := 0.1
+
+
+## The potion's extra drop chance (0 when none is running), added to the luck of drops.
+func boost_drop() -> float:
+	return BOOST_DROP if exp_boost_left() > 0.0 else 0.0
 
 
 ## Seconds left on the EXP potion (0 when none is running).
@@ -2116,7 +2174,7 @@ func exp_boost_text() -> String:
 	var left := exp_boost_left()
 	if left <= 0.0:
 		return ""
-	return "น้ำยาฮาโลวีน EXP x%d เหลือ %d นาที" % [int(exp_boost_mult()), maxi(1, int(ceil(left / 60.0)))]
+	return "น้ำยาฮาโลวีน EXP x%d โจมตี +10%% ดรอป +10%% เหลือ %d นาที" % [int(exp_boost_mult()), maxi(1, int(ceil(left / 60.0)))]
 
 
 ## Drinks a Halloween potion: EXP x2 or x3 for an hour of real time. Refused while
@@ -2128,7 +2186,10 @@ func drink_exp_potion() -> int:
 	var mult: int = ItemData.EXP_BOOST_MULTS[rng.randi() % ItemData.EXP_BOOST_MULTS.size()]
 	profile["flags"][BOOST_UNTIL] = int(round(WorldPresence.clock())) + ItemData.EXP_BOOST_TIME
 	profile["flags"][BOOST_MULT] = mult
-	say("น้ำยาฮาโลวีน: EXP x%d นาน 1 ชั่วโมง!" % mult, &"success")
+	say("น้ำยาฮาโลวีน: EXP x%d โจมตี +10%% ดรอป +10%% นาน 1 ชั่วโมง!" % mult, &"success")
+	var hero := get_tree().get_first_node_in_group("hero")
+	if hero is Hero:
+		(hero as Hero).refresh_stats()
 	return mult
 
 
@@ -2604,7 +2665,8 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
 const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3"]
-const GW_CKPT_LIFETIME := 6 * 3600
+## A war cut off (the page closed, the phone dropped it) can be rejoined for 10 minutes.
+const GW_CKPT_LIFETIME := 10 * 60
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
 var guildwar_resuming := false
 ## The party screen's choice for the next guild war (GuildWarScreen): the names of the
@@ -2642,6 +2704,13 @@ func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, s
 
 
 ## The unfinished war, or {} when there is none (or it is too old to matter).
+## Seconds left to rejoin a war that was cut off (0: none to rejoin).
+func guildwar_rejoin_left() -> int:
+	if guildwar_checkpoint().is_empty():
+		return 0
+	return maxi(0, GW_CKPT_LIFETIME - (int(Time.get_unix_time_from_system()) - int(profile["flags"]["gw_r_at"])))
+
+
 func guildwar_checkpoint() -> Dictionary:
 	if not has_profile:
 		return {}

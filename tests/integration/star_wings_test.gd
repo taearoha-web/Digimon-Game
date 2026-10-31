@@ -83,7 +83,9 @@ func _ready()->void:
 		for i in 1200:zone._star_loot(mob,Vector3.ZERO)
 		mob.is_boss=true
 		for i in 100:zone._star_loot(mob,Vector3.ZERO)
-		check(zone.wing_drops.is_empty(),"100-star wings never drop in "+String(region))
+		# 100-star wings are only crafted; the Lv.100 wings do drop there (_star_wing_drop).
+		check(zone.wing_drops.all(func(w):return not StarWingData.is_wing(w) and int(w.level)==ItemData.WING_DROP_LEVEL),"100-star wings never drop in "+String(region))
+		check(not zone.wing_drops.is_empty(),"Lv.100 wings drop in "+String(region))
 		zone.jewels.clear();mob.is_boss=false
 		for i in 30000:zone._drop_jewels(Vector3.ZERO)
 		var stars:=int(zone.data.get("star",0))
@@ -123,6 +125,17 @@ func _ready()->void:
 	var looks:Dictionary={}
 	for item in catalogue:looks[item.look]=true;check(int(item.star_tier)==100 and item["class"]!="","catalogue only 100-star class wings")
 	check(looks.size()==ClassData.IDS.size(),"one distinct icon id per class")
+	# Lv.100 wings drop in every star region too (Zone._star_wing_drop), more from bosses.
+	setup(&"mage")
+	var wz:=DropZone.new();wz.rng.seed=4242
+	var monster:=Mob.new();var boss:=Mob.new();boss.is_boss=true
+	for i in 4000: wz._star_wing_drop(monster,Vector3.ZERO)
+	var normal_drops:=wz.wing_drops.size()
+	check(normal_drops>0 and normal_drops<int(4000*0.02),"star-region monsters drop Lv.100 wings now and then (%d/4000)"%normal_drops)
+	wz.wing_drops.clear()
+	for i in 400: wz._star_wing_drop(boss,Vector3.ZERO)
+	check(wz.wing_drops.size()>int(400*0.4) and int(wz.wing_drops[0].level)==ItemData.WING_DROP_LEVEL and wz.wing_drops[0]["class"]=="mage","star-region bosses drop the class's Lv.100 wings often (%d/400)"%wz.wing_drops.size())
+	monster.free();boss.free();wz.free()
 	Game.has_profile=false
 	print("STAR WINGS: ",checks," checks, ",failures," failures")
 	get_tree().quit(failures)

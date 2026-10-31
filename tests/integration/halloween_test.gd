@@ -63,7 +63,11 @@ func _ready() -> void:
 	at(start)
 	Game.profile.inv = [ItemData.potion("halloween", 2)]
 	check(Game.exp_boost_mult() == 1.0 and Game.exp_boost_text() == "", "no boost before drinking")
+	var atk_before := float(Game.stats_now().atk)
+	check(Game.boost_drop() == 0.0, "no extra drop chance before drinking")
 	check(Game.use_potion_at(0) == "halloween", "drinking the potion")
+	check(is_equal_approx(float(Game.stats_now().atk), atk_before * (1.0 + Game.BOOST_ATK)), "the potion gives +10% attack")
+	check(is_equal_approx(Game.boost_drop(), 0.1), "the potion gives +10% drop chance")
 	var mult := Game.exp_boost_mult()
 	check(mult == 2.0 or mult == 3.0, "EXP x2 or x3 (x%d)" % int(mult))
 	check(Game.potion_count("halloween") == 1, "one potion used up")
@@ -83,11 +87,45 @@ func _ready() -> void:
 	check(Game.exp_boost_mult() == mult and Game.exp_boost_text().contains("1 นาที"), "back at 20:59: one minute left")
 	at(start + 3600)
 	check(Game.exp_boost_mult() == 1.0 and Game.exp_boost_text() == "", "at 21:00 the boost has run out even though the game was closed")
+	check(is_equal_approx(float(Game.stats_now().atk), float(HeroStats.compute(Game.profile).atk)) and Game.boost_drop() == 0.0, "attack and drop bonus end with it")
 	at(thai(2026, 10, 31, 22))
 	Game.profile.exp = 0
 	Game.add_exp(100)
 	check(Game.profile.exp == 100, "no boost after it ends")
 	check(Game.use_potion_at(0) == "halloween" and Game.exp_boost_mult() > 1.0, "the next potion works once the first ran out")
+	# World players drink potions too: some hours online under x2 / x3, and the event
+	# adds to their progress (and only from its start).
+	var boosted := 0
+	var online_hours := 0
+	var start_hw := float(WorldEvents.HALLOWEEN_START)
+	for i in WorldPlayers.size():
+		for h in 48:
+			var t := start_hw + 3600.0 * h + 600.0
+			if not WorldPlayers.session_at(i, t).is_empty():
+				online_hours += 1
+				var m := WorldPlayers.halloween_mult(i, t)
+				check(m == 1 or m == 2 or m == 3, "a world player's potion is x2 or x3")
+				if m > 1:
+					boosted += 1
+	check(online_hours > 0 and boosted > online_hours * WorldPlayers.HALLOWEEN_SHARE_MIN * 0.8 and boosted < online_hours * WorldPlayers.HALLOWEEN_SHARE_MAX * 1.2, "world players are under a potion for part of their play (%d of %d hours)" % [boosted, online_hours])
+	check(WorldPlayers.halloween_mult(0, start_hw - 3600.0) == 1, "no world player potion before the event")
+	var gained := 0.0
+	for i in WorldPlayers.size():
+		check(WorldPlayers.halloween_work(i, start_hw) == 0.0, "nothing added at the event's start")
+		gained += WorldPlayers.halloween_work(i, float(WorldEvents.HALLOWEEN_END) + 86400.0)
+	check(gained > 0.0, "the potions add to the world players' progress")
+	# The pumpkin: a head-sized jack-o'-lantern floating over a boosted character.
+	var visual := HeroVisual.new()
+	add_child(visual)
+	visual.setup(&"warrior")
+	visual.set_pumpkin(true)
+	check(visual.has_pumpkin() and visual.find_child("PumpkinHead", true, false) != null, "a boosted character wears the floating pumpkin")
+	visual.set_pumpkin(true)
+	check(visual.find_children("PumpkinHead", "", true, false).size() == 1, "asking again keeps one pumpkin")
+	visual.set_pumpkin(false)
+	await get_tree().process_frame
+	check(not visual.has_pumpkin() and visual.find_child("PumpkinHead", true, false) == null, "the pumpkin goes when the potion ends")
+	visual.queue_free()
 	WorldPresence.clock_offset = 0.0
 	print("HALLOWEEN: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)

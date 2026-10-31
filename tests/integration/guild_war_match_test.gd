@@ -357,8 +357,12 @@ func _resume() -> void:
 	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)
 	var ckpt := Game.guildwar_checkpoint()
 	check(int(ckpt.seed) == 123456 and int(ckpt.time_left) == 777 and int(ckpt.us) == 7 and int(ckpt.them) == 5 and not ckpt.overtime, "resume: the checkpoint reads back")
+	check(GuildWarData.DURATION == 1200.0 and Game.GW_CKPT_LIFETIME == 600, "a war lasts 20 minutes and can be rejoined for 10")
+	check(Game.guildwar_rejoin_left() > 590, "resume: just cut off, nearly ten minutes to rejoin (%d s)" % Game.guildwar_rejoin_left())
+	Game.profile.flags["gw_r_at"] = int(Time.get_unix_time_from_system()) - Game.GW_CKPT_LIFETIME + 60
+	check(not Game.guildwar_checkpoint().is_empty() and Game.guildwar_rejoin_left() <= 60, "resume: nine minutes later it can still be rejoined")
 	Game.profile.flags["gw_r_at"] = int(Time.get_unix_time_from_system()) - Game.GW_CKPT_LIFETIME - 5
-	check(Game.guildwar_checkpoint().is_empty(), "resume: an old checkpoint is dropped")
+	check(Game.guildwar_checkpoint().is_empty() and Game.guildwar_rejoin_left() == 0, "resume: after ten minutes the war is gone")
 	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)
 	var lineups: Array = []
 	for round_no in 2:

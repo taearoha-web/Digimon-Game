@@ -43,12 +43,17 @@ func _ready() -> void:
 	WorldPresence.clock_offset = t1 - WorldPlayers.now()
 	check(is_equal_approx(WorldPlayers.own_minutes(who, t1), own0), "its own play stops counting in the party (%.1f -> %.1f min)" % [own0, WorldPlayers.own_minutes(who, t1)])
 	check(int(WorldPlayers.state(who, t1).level) == level0, "its level stays where the party found it (Lv.%d -> Lv.%d)" % [level0, int(WorldPlayers.state(who, t1).level)])
-	# The party's kills: its share of the EXP levels it.
-	var lvl := level0
+	# The party's kills: its share of the EXP levels it (past Lv.100 it earns stars; the
+	# Halloween potions can carry a player there before the test starts).
+	var before := WorldPlayers.state(who, t1)
+	var point0 := int(before.level) + int(before.stars)
+	var lvl := int(before.level)
 	for k in 40:
-		WorldPlayers.add_exp(who, 20000.0, lvl, 0)
+		var now_s := WorldPlayers.state(who, t1)
+		WorldPlayers.add_exp(who, 20000.0, int(now_s.level), int(now_s.stars))
 		lvl = int(WorldPlayers.state(who, t1).level)
-	check(lvl > level0, "the party's shared EXP levels it (Lv.%d -> Lv.%d)" % [level0, lvl])
+	var after := WorldPlayers.state(who, t1)
+	check(int(after.level) + int(after.stars) > point0, "the party's shared EXP levels it (Lv.%d+★%d -> Lv.%d+★%d)" % [int(before.level), int(before.stars), int(after.level), int(after.stars)])
 	# It leaves: the party time is skipped and its schedule carries on from there.
 	Game.party_kick(who)
 	check(not WorldPlayers.paused.has(String(WorldPlayers.entry(who).name)), "leaving resumes its schedule")
