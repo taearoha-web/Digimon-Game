@@ -159,6 +159,8 @@ func _collect() -> void:
 			_age = 0.0
 			return
 		var qty := int(item.get("count", 1))
+		if String(item.get("kind", "")) == "jewel":
+			Game.guild_quest_progress("jewels", qty)
 		BattleVfx.floating_text(parent, global_position + Vector3(0, 0.9, 0),
 				ItemData.name_of(item) + (" x%d" % qty if qty > 1 else ""), ItemData.color_of(item), 0.85)
 		AudioManager.play_sfx(&"pickup", -2.0)
