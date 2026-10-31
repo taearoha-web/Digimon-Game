@@ -369,13 +369,13 @@ func _screen_open() -> bool:
 func _on_world_tapped(at: Vector2) -> void:
 	if zone == null or not zone.is_built or _screen_open() or not is_instance_valid(zone.hero) or zone.hero.is_dead():
 		return
-	# A tapped monster or rival fighter becomes the target (the nearer of a player and a
-	# monster under the finger wins).
+	# A tapped monster or rival fighter becomes the target. A player under the finger
+	# wins unless a monster is clearly nearer the tap (players fight beside monsters).
 	var mob := zone.mob_at(at)
 	var p := zone.player_at(at)
 	if mob != null:
 		var camera := zone.get_viewport().get_camera_3d()
-		if p == null or Zone.tap_distance(camera, mob.global_position, 2.4, at) <= Zone.tap_distance(camera, p.global_position, 2.3, at):
+		if p == null or Zone.tap_distance(camera, mob.global_position, 2.4, at) + 12.0 < Zone.tap_distance(camera, p.global_position, 2.3, at):
 			zone.hero.tap_target(mob)
 			return
 	if p == null:

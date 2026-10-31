@@ -338,6 +338,8 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	# Only the rival guild's leader takes the altar: another of theirs on it does nothing.
 	var leader: GuildFighter = m.enemy_leader
 	check(leader != null and leader.is_leader and m.enemies.filter(func(f): return f.is_leader).size() == 1, "%s: the rival guild has one leader" % label)
+	check(leader.get_node_or_null(LeaderMark.NAME) != null and hero.get_node_or_null(LeaderMark.NAME) != null, "%s: both leaders wear the crown over their heads" % label)
+	check(m.enemies.filter(func(f): return f.get_node_or_null(LeaderMark.NAME) != null).size() == 1, "%s: only the leader of theirs wears it" % label)
 	var other: GuildFighter = null
 	for f in m.enemies:
 		if f != leader and not f.is_dead():

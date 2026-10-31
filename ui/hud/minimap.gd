@@ -65,6 +65,10 @@ func _draw() -> void:
 	# The castle siege: the altar (in its holder's colour) is always on the map, on the rim when far.
 	if zone.gw_match != null:
 		_dot(c, _to_map(SiegeArena.ALTAR, origin, yaw), zone.gw_match._owner_color(), 7.0, true)
+		# The rival guild's leader in its crown's colour, on the rim when far: the one to hunt down.
+		var lead: GuildFighter = zone.gw_match.enemy_leader
+		if lead != null and is_instance_valid(lead) and not lead.is_dead():
+			_dot(c, _to_map(lead.global_position, origin, yaw), LeaderMark.guild_color(GuildFighter.TEAM_ENEMY), 6.5, true)
 	# The hero: an arrow showing where they face relative to the camera.
 	var facing := zone.hero._facing - yaw
 	var dir := Vector2(sin(facing), -cos(facing))
