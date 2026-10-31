@@ -371,7 +371,7 @@ func _on_world_tapped(at: Vector2) -> void:
 		return
 	# A tapped monster or rival fighter becomes the target. A player under the finger
 	# wins unless a monster is clearly nearer the tap (players fight beside monsters).
-	var mob := zone.mob_at(at)
+	var mob := zone.mob_at(at) if GameSettings.tap_target_mode < 2 else null
 	var p := zone.player_at(at)
 	if mob != null:
 		var camera := zone.get_viewport().get_camera_3d()

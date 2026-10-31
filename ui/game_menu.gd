@@ -1169,6 +1169,21 @@ func _build_settings() -> void:
 		GameSettings.save_settings()
 		Game.say("โหมดภาพปลอดภัย: %s (มีผลเมื่อเข้าแมพใหม่)" % ("เปิด" if on else "ปิด"), &"info"))
 	box.add_child(safe)
+	var tap_row := UIUtil.hbox(10)
+	box.add_child(tap_row)
+	tap_row.add_child(UIUtil.label("แตะที่ตัวศัตรู:", &"BoldLabel"))
+	var tap := OptionButton.new()
+	tap.name = "TapTargetMode"
+	for k in GameSettings.TAP_MODES.size():
+		tap.add_item(GameSettings.TAP_MODES[k], k)
+	tap.select(GameSettings.tap_target_mode)
+	tap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tap.custom_minimum_size = Vector2(0, 52)
+	tap.item_selected.connect(func(k: int):
+		GameSettings.tap_target_mode = k
+		GameSettings.save_settings()
+		Game.say("แตะที่ตัวศัตรู: %s" % GameSettings.TAP_MODES[k], &"info"))
+	tap_row.add_child(tap)
 	var hitstop := CheckButton.new()
 	hitstop.text = "ชะลอภาพเมื่อโจมตีหนัก (ปิดเพื่อเล่นต่อเนื่อง)"
 	hitstop.button_pressed = GameSettings.combat_hitstop
