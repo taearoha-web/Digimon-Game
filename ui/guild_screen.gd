@@ -11,6 +11,12 @@ signal closed()
 signal war_requested()
 
 const REFRESH := 10.0
+## How the member lists are sorted: "level" (highest level and stars first) or "class"
+## (class by class in ClassData order, each strongest first, under a class heading).
+const SORTS := {"level": "เลเวล", "class": "อาชีพ"}
+
+## The list order the player picked (kept while the game runs).
+static var sort_by := "level"
 
 var is_open := false
 var _root: Control
@@ -101,6 +107,13 @@ func _build() -> void:
 			close_screen()
 			war_requested.emit())
 		head.add_child(war)
+	for key in SORTS:
+		var pick := UIUtil.button("เรียงตาม%s" % SORTS[key], &"AccentButton" if sort_by == key else &"", Vector2(150, 60))
+		pick.name = "Sort_%s" % key
+		pick.pressed.connect(func():
+			sort_by = String(key)
+			_build())
+		head.add_child(pick)
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(140, 60))
 	close.pressed.connect(close_screen)
 	head.add_child(close)
@@ -133,10 +146,7 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 		var s := WorldPlayers.state(i, t)
 		states.append(s)
 		online += 1 if bool(s.online) else 0
-	states.sort_custom(func(a, b):
-		if bool(a.online) != bool(b.online):
-			return bool(a.online)
-		return int(a.level) * 1000 + int(a.stars) > int(b.level) * 1000 + int(b.stars))
+	sort_members(states, sort_by)
 	var top := UIUtil.hbox(10)
 	col.add_child(top)
 	var name_label := UIUtil.label("กิลด์ %s" % WorldPlayers.guild_name(g), &"SubHeaderLabel")
@@ -173,13 +183,45 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	var list := UIUtil.vbox(5)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	if mine == g:
-		list.add_child(_card(String(Game.profile.get("name", "คุณ")) + " (คุณ)", Game.class_id(), "Lv.%d%s" % [int(Game.profile.level), " ★%d" % int(Game.paragon().level) if int(Game.paragon().level) > 0 else ""], "ออนไลน์ · ตัวละครของคุณ", true))
+	var rows: Array[Dictionary] = []
 	for s in states:
-		list.add_child(_card(String(s.name), StringName(s["class"]), WorldPlayers.level_text(s), WorldPlayers.where_text(s, t), bool(s.online)))
+		rows.append({"name": String(s.name), "class": StringName(s["class"]), "level": int(s.level), "stars": int(s.get("stars", 0)),
+			"level_text": WorldPlayers.level_text(s), "where": WorldPlayers.where_text(s, t), "online": bool(s.online)})
+	if mine == g:
+		var stars := int(Game.paragon().level)
+		rows.append({"name": String(Game.profile.get("name", "คุณ")) + " (คุณ)", "class": Game.class_id(), "level": int(Game.profile.level), "stars": stars,
+			"level_text": "Lv.%d%s" % [int(Game.profile.level), " ★%d" % stars if stars > 0 else ""], "where": "ออนไลน์ · ตัวละครของคุณ", "online": true})
+	sort_members(rows, sort_by)
+	var heading := StringName()
+	for r in rows:
+		if sort_by == "class" and r["class"] != heading:
+			heading = r["class"]
+			var count := rows.filter(func(x): return x["class"] == heading).size()
+			var head_label := UIUtil.label("%s · %d คน" % [ClassData.get_class_data(heading).name, count], &"BoldLabel")
+			head_label.name = "ClassHead_%s" % String(heading)
+			head_label.add_theme_color_override("font_color", ClassData.get_class_data(heading).color.lerp(Color.WHITE, 0.35))
+			list.add_child(head_label)
+		list.add_child(_card(String(r.name), r["class"], String(r.level_text), String(r.where), bool(r.online)))
 	if states.is_empty():
 		list.add_child(UIUtil.label("ยังไม่มีผู้เล่นถึงเลเวล %d — ผู้เล่นเข้ากิลด์เมื่อถึงเลเวล %d" % [Game.GUILD_LEVEL, Game.GUILD_LEVEL], &"SmallLabel"))
 	return col
+
+
+## Sorts member rows ({class, level, stars, name}) in place: by level and stars, best
+## first ("level"), or class by class in ClassData order, best first in each ("class").
+static func sort_members(rows: Array, mode: String) -> void:
+	rows.sort_custom(func(a, b):
+		var ca := ClassData.IDS.find(StringName(a["class"]))
+		var cb := ClassData.IDS.find(StringName(b["class"]))
+		var pa := int(a.level) * 1000 + int(a.get("stars", 0))
+		var pb := int(b.level) * 1000 + int(b.get("stars", 0))
+		if mode == "class" and ca != cb:
+			return ca < cb
+		if pa != pb:
+			return pa > pb
+		if ca != cb:
+			return ca < cb
+		return String(a.name) < String(b.name))
 
 
 func _card(who: String, cls: StringName, level: String, where: String, online: bool) -> Control:
