@@ -46,7 +46,7 @@ func _ready() -> void:
 					var caster := Node3D.new()
 					fx.add_child(caster)
 					ThunderStormSequence.launch(fx, caster, Vector3.ZERO, float(skill.radius), func(): return [], func(_victim): pass)
-					check(fx.find_children("ThunderStormCloud", "MeshInstance3D", true, false).size() == 1, "one connected storm cloud")
+					check(fx.find_children("ThunderStormCloud", "MeshInstance3D", true, false).size() == 1, "one sky ring over the storm")
 				elif String(skill.id) == "armageddon":
 					var caster := Node3D.new()
 					fx.add_child(caster)

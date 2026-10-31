@@ -170,8 +170,11 @@ func _build_lobby() -> void:
 		list.add_child(head_label)
 		if in_guild.is_empty():
 			list.add_child(UIUtil.label("ยังไม่มีใครถึงเลเวล %d" % Game.GUILD_LEVEL, &"SmallLabel"))
+		var people: Array[Dictionary] = []
 		for i in in_guild:
-			var s := WorldPlayers.state(i, t)
+			people.append(WorldPlayers.state(i, t))
+		GuildScreen.sort_members(people, GuildScreen.sort_by)
+		for s in people:
 			var row_line := UIUtil.hbox(8)
 			var who := UIUtil.label("%s %s · %s" % ["●" if bool(s.online) else "○", s.name, ClassData.get_class_data(StringName(s["class"])).name], &"SmallLabel")
 			who.size_flags_horizontal = Control.SIZE_EXPAND_FILL

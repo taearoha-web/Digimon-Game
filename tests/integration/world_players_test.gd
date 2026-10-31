@@ -707,6 +707,20 @@ func _screens() -> void:
 	check(mine != null and mine.disabled and mine.text == "กิลด์ของคุณ", "the screen shows the hero's guild")
 	var cards: int = main.guild_screen.find_children("*", "PanelContainer", true, false).size()
 	check(cards >= 21, "both rosters and the hero are listed (%d cards)" % cards)
+	# The lists sort by level (best first) or by class (class by class under headings).
+	var sample: Array = [{"name": "a", "class": "mage", "level": 100, "stars": 10}, {"name": "b", "class": "warrior", "level": 100, "stars": 40}, {"name": "c", "class": "mage", "level": 100, "stars": 80}]
+	GuildScreen.sort_members(sample, "level")
+	check(sample.map(func(r): return r.name) == ["c", "b", "a"], "sorted by level and stars, best first")
+	GuildScreen.sort_members(sample, "class")
+	check(sample.map(func(r): return r.name) == ["b", "c", "a"], "sorted class by class (warrior before mage), best first in each")
+	var by_class := main.guild_screen.find_child("Sort_class", true, false) as Button
+	check(by_class != null, "the registrar has a sort-by-class button")
+	by_class.pressed.emit()
+	await get_tree().process_frame
+	check(GuildScreen.sort_by == "class" and main.guild_screen.find_children("ClassHead_*", "Label", true, false).size() > 0, "sorting by class shows class headings")
+	(main.guild_screen.find_child("Sort_level", true, false) as Button).pressed.emit()
+	await get_tree().process_frame
+	check(GuildScreen.sort_by == "level" and main.guild_screen.find_children("ClassHead_*", "Label", true, false).is_empty(), "and back to sorting by level")
 	main.guild_screen.close_screen()
 	# The game registry: everyone, the hero among them, online filter and party buttons.
 	main.registry.open_screen()
