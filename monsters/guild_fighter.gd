@@ -367,6 +367,18 @@ func _die() -> void:
 			(helper as GuildFighter).assists += 1
 
 
+## Back to the base without falling (the other guild just took the castle): the fighter
+## regroups there and storms up again. The fallen come back at the base anyway.
+func send_home() -> void:
+	if _dead:
+		return
+	_retreating = false
+	capturing = false
+	_victim = null
+	velocity = Vector3.ZERO
+	global_position = spawn_point + Vector3(randf_range(-1.2, 1.2), 0.3, randf_range(-1.2, 1.2))
+
+
 func respawn() -> void:
 	_dead = false
 	hp = max_hp

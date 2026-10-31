@@ -1,26 +1,32 @@
 class_name GuildWarHud
 extends Control
-## Guild-war overlay: the score and clock, both guilds' eight fighters with their HP
-## (one compact row per guild, you first), a short kill feed and the hero's respawn countdown.
+## Guild-war overlay: the score and clock, who holds the castle (always shown: ยังไม่มี
+## ผู้ครองปราสาท until a guild takes it, then that guild's name in its colour), who is taking
+## the altar right now, both guilds' fighters with their HP (one compact row per guild, you
+## first) and the hero's respawn countdown. The war's news (kills, plans, gates, captures)
+## goes to the chat box (Game.channel_chat on CHAT_CHANNEL), not over the field.
 
-const FEED_LINES := 4
+## The chat channel the war's news goes to (WorldChat tags it [สงคราม]).
+const CHAT_CHANNEL := "war"
 ## One cell per fighter: eight of these with their gaps fit inside the board's width on a phone.
 const CELL_WIDTH := 64
 const CELL_GAP := 3
 const BOARD_WIDTH := GuildWarData.TEAM_SIZE * CELL_WIDTH + (GuildWarData.TEAM_SIZE - 1) * CELL_GAP
-const FEED_SECONDS := 6.0
 const ALLY_COLOR := Color("8fd0ff")
 const ENEMY_COLOR := Color("ff9a8a")
+const NEWS_COLOR := Color("ffe08a")
+const TAKING_COLOR := Color("ffb15a")
 
 var match_node: GuildWarMatch
 var _score: Label
 var _clock: Label
-var _orb: Label
+var _owner: Label
+var _taking: Label
 var _rows: Array = [[], []]
-var _feed_labels: Array[Label] = []
-var _feed_age: Array[float] = []
 var _respawn: Label
 var _refresh := 0.0
+## The front gate's last quarter told in the chat (gate index * 4 + quarters left).
+var _gate_mark := -1
 
 
 func _ready() -> void:
@@ -37,17 +43,26 @@ func _ready() -> void:
 	var board := UIUtil.panel(&"HudPanel")
 	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(board)
+	var lines := UIUtil.vbox(2)
+	lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board.add_child(lines)
 	var line := UIUtil.hbox(14)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	board.add_child(line)
+	lines.add_child(line)
 	_score = UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_score.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(_score)
 	_clock = UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	line.add_child(_clock)
-	_orb = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
-	_orb.add_theme_color_override("font_color", Color("ffe08a"))
-	top.add_child(_orb)
+	# Who holds the castle, always on the board.
+	_owner = _outlined(UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	_owner.name = "CastleOwner"
+	lines.add_child(_owner)
+	# Who is taking the altar, only while someone stands on it.
+	_taking = _outlined(UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	_taking.name = "AltarCapture"
+	_taking.add_theme_color_override("font_color", TAKING_COLOR)
+	top.add_child(_taking)
 	for team in 2:
 		var row := UIUtil.hbox(CELL_GAP)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -73,21 +88,18 @@ func _ready() -> void:
 			cell.add_child(bar)
 			row.add_child(cell)
 			_rows[team].append([cell, name_label, bar])
-	var feed := UIUtil.vbox(1)
-	feed.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(feed)
-	for i in FEED_LINES:
-		var label := UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
-		label.add_theme_font_size_override("font_size", 15)
-		feed.add_child(label)
-		_feed_labels.append(label)
-		_feed_age.append(99.0)
 	_respawn = UIUtil.label("", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_respawn.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_respawn.offset_top = 40
 	_respawn.add_theme_font_size_override("font_size", 56)
 	_respawn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_respawn)
+
+
+static func _outlined(label: Label) -> Label:
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	label.add_theme_constant_override("outline_size", 6)
+	return label
 
 
 func bind(m: GuildWarMatch) -> void:
@@ -97,13 +109,15 @@ func bind(m: GuildWarMatch) -> void:
 
 
 func _process(delta: float) -> void:
-	for i in FEED_LINES:
-		_feed_age[i] += delta
-		_feed_labels[i].modulate.a = clampf(1.0 - (_feed_age[i] - (FEED_SECONDS - 1.0)), 0.0, 1.0)
 	_refresh -= delta
 	if _refresh <= 0.0:
 		_refresh = 0.2
 		_update(delta, false)
+
+
+## The top bar's texts now (tests): [owner line, capture line].
+func bar_texts() -> PackedStringArray:
+	return PackedStringArray([_owner.text, _taking.text])
 
 
 func _update(_delta: float, force: bool) -> void:
@@ -113,9 +127,12 @@ func _update(_delta: float, force: bool) -> void:
 	_score.text = "%s  %d : %d  %s" % [m.ally_name, m.score[0], m.score[1], m.enemy_name]
 	var left := int(ceil(m.time_left))
 	_clock.text = "ต่อเวลา!" if m.overtime else "%d:%02d" % [left / 60, left % 60]
-	# The castle: which gate stands, who holds the castle, who is taking the altar.
-	_orb.text = m.siege_status() + "\n" + m.sides_status()
-	_orb.add_theme_color_override("font_color", Color("ffe08a") if m.capture.is_empty() else Color("ff9a6a"))
+	_owner.text = m.owner_line()
+	_owner.add_theme_color_override("font_color", Color.WHITE if m.castle_owner < 0 else m.owner_color().lerp(Color.WHITE, 0.25))
+	_taking.text = m.capture_line()
+	_taking.add_theme_color_override("font_color", TAKING_COLOR if not m.capture.is_empty() else Color("bfe8ff"))
+	_taking.visible = _taking.text != ""
+	_tell_gate(m, force)
 	for team in 2:
 		var fighters := m.allies if team == 0 else m.enemies
 		for i in GuildWarData.TEAM_SIZE:
@@ -150,11 +167,24 @@ func _update(_delta: float, force: bool) -> void:
 		_respawn.text = ""
 
 
+## The front gate's HP in the chat, each time it falls past a quarter (and on binding).
+func _tell_gate(m: GuildWarMatch, force: bool) -> void:
+	var gate := m.front_gate()
+	if gate == null:
+		return
+	var quarters := int(ceil(4.0 * float(gate.hp) / float(maxi(1, gate.max_hp))))
+	var mark := gate.gate_index * 4 + quarters
+	if mark == _gate_mark:
+		return
+	var first := _gate_mark < 0
+	_gate_mark = mark
+	if force or first or quarters < 4:
+		_post("ประตูชั้นที่ %d/3 เหลือ %d%%" % [gate.gate_index + 1, int(ceil(100.0 * float(gate.hp) / float(maxi(1, gate.max_hp))))], NEWS_COLOR)
+
+
 func _on_feed(text: String, team: int) -> void:
-	for i in range(FEED_LINES - 1, 0, -1):
-		_feed_labels[i].text = _feed_labels[i - 1].text
-		_feed_labels[i].add_theme_color_override("font_color", _feed_labels[i - 1].get_theme_color("font_color", "Label"))
-		_feed_age[i] = _feed_age[i - 1]
-	_feed_labels[0].text = text
-	_feed_labels[0].add_theme_color_override("font_color", ALLY_COLOR if team == GuildFighter.TEAM_ALLY else ENEMY_COLOR)
-	_feed_age[0] = 0.0
+	_post(text, NEWS_COLOR if team < 0 else (ALLY_COLOR if team == GuildFighter.TEAM_ALLY else ENEMY_COLOR))
+
+
+func _post(text: String, color: Color) -> void:
+	Game.channel_chat.emit(CHAT_CHANNEL, "", text, color)

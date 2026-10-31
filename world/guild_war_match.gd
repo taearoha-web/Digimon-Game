@@ -776,6 +776,7 @@ func _complete_capture() -> void:
 		(who as GuildFighter).capturing = false
 	capture = {}
 	castle_owner = team
+	_send_home(1 - team)
 	_color_crystal()
 	_make_plans()
 	VfxKit.pillar(zone, SiegeArena.ALTAR, _owner_color(), 14.0, 1.6, 1.6)
@@ -787,6 +788,44 @@ func _complete_capture() -> void:
 	save_checkpoint()
 	if overtime:
 		_end()
+
+
+## The guild that lost the castle goes back to its base to regroup (the hero too when it
+## is ours): to take it back it must storm up again and hold the altar CAPTURE_TIME anew.
+func _send_home(team: int) -> void:
+	for f in (allies if team == GuildFighter.TEAM_ALLY else enemies):
+		if is_instance_valid(f) and not f.is_dead():
+			f.send_home()
+			VfxKit.flash(zone, f.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.2)
+	if team == GuildFighter.TEAM_ALLY and is_instance_valid(hero) and not hero.is_dead():
+		hero.velocity = Vector3.ZERO
+		hero.global_position = hero_camp()
+		BurstGuard.forget(hero.get_instance_id())
+		VfxKit.flash(zone, hero.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.8)
+	feed.emit("กิลด์ %s ถูกส่งกลับฐาน ต้องบุกขึ้นมายึดแท่นใหม่ %d วินาที" % [team_name(team), int(CAPTURE_TIME)], team)
+
+
+## The top bar's line: who holds the castle.
+func owner_line() -> String:
+	return "ยังไม่มีผู้ครองปราสาท" if castle_owner < 0 else "ผู้ครองปราสาท: กิลด์ %s" % team_name(castle_owner)
+
+
+## The top bar's second line: who is taking the altar while someone stands on it; with
+## nobody on it and the castle held, what each side has to do (the holder never takes the
+## altar again: it only keeps the other guild off it until the bell).
+func capture_line() -> String:
+	if capture.is_empty():
+		if castle_owner < 0 or front_gate() != null:
+			return ""
+		return "ป้องกันแท่นไว้ อย่าให้อีกฝั่งยึดได้" if castle_owner == GuildFighter.TEAM_ALLY else "บุกขึ้นไปยึดแท่น %d วิ เพื่อชิงปราสาทคืน" % int(CAPTURE_TIME)
+	var who := capturer()
+	var who_name := "คุณ" if who == hero else (String((who as GuildFighter).rival_name) if who is GuildFighter else "")
+	return "กิลด์ %s กำลังยึดแท่น%s %d/%d วิ" % [team_name(int(capture.team)), (" (%s)" % who_name) if who_name != "" else "", int(capture.progress), int(CAPTURE_TIME)]
+
+
+## The holder's colour for the HUD (the crystal's).
+func owner_color() -> Color:
+	return _owner_color()
 
 
 func _owner_color() -> Color:
