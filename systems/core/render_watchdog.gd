@@ -31,6 +31,11 @@ static var starved_count := 0
 static var triangles_override := -1
 const STARVED_TRIANGLES := 15000
 const STARVED_NODES := 1500
+## Seconds between two frame read-backs while the counters look healthy.
+const PIXEL_EVERY := 120.0
+static var _pixel_wait := 0.0
+## Frames read back this session (the session report's pixelReads).
+static var pixel_reads := 0
 
 
 ## A zone of a thousand-odd nodes on screen with almost no triangles drawn: the world
@@ -70,7 +75,21 @@ static func tick(tree: SceneTree, delta: float, watching: bool) -> void:
 	var starved := world_starved(tree)
 	if starved:
 		starved_count += 1
-	var spread := spread_override if spread_override >= 0.0 else (0.0 if starved else _frame_spread(tree))
+	# Reading the frame back stalls the GPU and, on iPhone Safari, may leave memory behind
+	# (seven reports closed after 20-35 minutes at a read every 5 s): a healthy frame is
+	# read only once every PIXEL_EVERY seconds; the renderer's counters cover the rest.
+	var spread := spread_override
+	if spread < 0.0:
+		if starved:
+			spread = 0.0
+		else:
+			_pixel_wait -= CHECK_SECONDS
+			if _pixel_wait > 0.0:
+				_flat_run = 0
+				return
+			_pixel_wait = PIXEL_EVERY
+			pixel_reads += 1
+			spread = _frame_spread(tree)
 	if spread < 0.0:
 		return
 	if spread >= FLAT_SPREAD:
