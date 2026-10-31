@@ -1,6 +1,6 @@
 extends Node
 ## Enhancing to +15 and the set aura: the forge goes to ItemData.MAX_PLUS (15) with
-## harder steps from +11 (ENHANCE_HIGH); every piece glows by its own +, and the body
+## harder steps from +10, purple, pink and chaos jewels (ENHANCE_HIGH); every piece glows by its own +, and the body
 ## aura (nine steps, EnhanceFx.AURA_STEPS) comes only from the whole set's lowest +
 ## (weapon, armour, helm, boots; wings are not counted).
 ##   godot --headless --path . res://tests/integration/enhance_aura_test.tscn
@@ -35,20 +35,20 @@ func _ready() -> void:
 	Game.set_process(false)
 
 	check(ItemData.MAX_PLUS == 15, "the forge goes to +15")
-	# Odds and cost: +11 .. +15 harder each step, more jewels.
-	var last := 1.0
-	for plus in range(10, 15):
-		var chance := ItemData.enhance_chance(plus)
-		check(chance < last and chance >= 0.15, "+%d -> +%d at %d%%" % [plus, plus + 1, int(chance * 100)])
-		last = chance
-		var cost := ItemData.enhance_cost({"plus": plus})
-		check(int(cost.purple) >= 4 and int(cost.pink) >= 3, "+%d costs more jewels (%s)" % [plus + 1, ItemData.jewel_cost_text(cost)])
-	check(is_equal_approx(ItemData.enhance_chance(14), 0.15), "+15 at 15%")
-	check(ItemData.enhance_cost({"plus": 9}) == {"purple": 3, "pink": 2} and is_equal_approx(ItemData.enhance_chance(9), 0.5), "+10 unchanged")
+	# Odds and cost: +10 .. +15 take a purple, a pink and a chaos jewel each (one more
+	# of each every step) at 50%, 45%, 40%, 35%, 30% and 25%.
+	var odds := [0.5, 0.45, 0.4, 0.35, 0.3, 0.25]
+	for plus in range(9, 15):
+		var n := plus - 8
+		check(is_equal_approx(ItemData.enhance_chance(plus), odds[plus - 9]), "+%d at %d%%" % [plus + 1, int(round(ItemData.enhance_chance(plus) * 100.0))])
+		check(ItemData.enhance_cost({"plus": plus}) == {"purple": n, "pink": n, "chaos": n}, "+%d costs %d of each jewel (%s)" % [plus + 1, n, ItemData.jewel_cost_text(ItemData.enhance_cost({"plus": plus}))])
+	check(ItemData.jewel_cost_text(ItemData.enhance_cost({"plus": 9})).contains("เพชรชาออส 1"), "the cost text names the chaos jewel")
+	check(ItemData.enhance_cost({"plus": 8}) == {"purple": 0, "pink": 1} and is_equal_approx(ItemData.enhance_chance(8), 0.5), "+9 unchanged")
 
 	Game.new_profile(&"warrior", "ตีบวกQA", FaceKit.default_look())
 	Game.profile.inv.append({"kind": "jewel", "id": "purple", "count": 999})
 	Game.profile.inv.append({"kind": "jewel", "id": "pink", "count": 999})
+	Game.profile.inv.append({"kind": "jewel", "id": "chaos", "count": 999})
 	var sword: Dictionary = _gear({}).weapon
 	sword["plus"] = 10
 	var tries := 0

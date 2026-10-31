@@ -1532,7 +1532,7 @@ func _items() -> void:
 		tries += 1
 	check(int(sword.plus) == 3 and tries == 3 and Game.stats_now().atk > atk0, "a purple jewel always takes +1 to +6 (+%d in %d tries)" % [int(sword.plus), tries])
 	check(Game.jewel_count("purple") == 1 and int(Game.profile.gold) >= gold_before, "one purple jewel a try and no gold spent (achievement rewards may add some) (%d left, gold %d -> %d)" % [Game.jewel_count("purple"), gold_before, int(Game.profile.gold)])
-	check(ItemData.enhance_cost({"plus": 6}) == {"purple": 0, "pink": 1} and is_equal_approx(ItemData.enhance_chance(6), 0.5) and ItemData.enhance_cost({"plus": 9}) == {"purple": 3, "pink": 2} and is_equal_approx(ItemData.enhance_chance(9), 0.5), "+7 to +9 take a pink jewel at 50%%, +10 three purple and two pink at 50%%")
+	check(ItemData.enhance_cost({"plus": 6}) == {"purple": 0, "pink": 1} and is_equal_approx(ItemData.enhance_chance(6), 0.5) and ItemData.enhance_cost({"plus": 9}) == {"purple": 1, "pink": 1, "chaos": 1} and is_equal_approx(ItemData.enhance_chance(9), 0.5), "+7 to +9 take a pink jewel at 50%%, +10 a purple, a pink and a chaos jewel at 50%%")
 	sword["plus"] = 6
 	Game.add_item(ItemData.jewel("pink", 40))
 	var pinks := 0
@@ -1550,7 +1550,7 @@ func _items() -> void:
 		if at_plus >= 9:
 			break
 	check(int(sword.plus) == 9 or Game.jewel_count("pink") == 0, "pink jewels take it on to +9 (+%d, %d misses)" % [int(sword.plus), fails])
-	check(Game.enhance_item(sword).begins_with("เพชรไม่พอ"), "+10 needs three purple jewels as well")
+	check(Game.enhance_item(sword).begins_with("เพชรไม่พอ"), "+10 needs a chaos jewel as well")
 	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with jewels in the bag is valid")
 	var bad := Game.profile.duplicate(true)
 	bad.inv.append({"kind": "jewel", "id": "gold", "count": 1})
