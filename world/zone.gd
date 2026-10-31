@@ -1106,6 +1106,7 @@ func _drop_loot(mob: Mob) -> void:
 	var class_id := Game.class_id()
 	if zone_id == DivineRegionData.ID:
 		_divine_loot(mob, from)
+		_star_wing_drop(mob, from)
 		return
 	if StarProgression.is_region(zone_id):
 		_star_loot(mob, from)
@@ -1229,6 +1230,20 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 	if rng.randf()<0.35 or mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf()<0.55 else "mp_xl",3 if mob.is_boss else 1),0,from)
 	if mob.is_boss: _spawn_loot(_random_gem(100,1),0,from)
+	_star_wing_drop(mob, from)
+
+
+## Lv.100 wings drop in every ★ region (and the divine one) as in the Lv.100 void:
+## STAR_WING_DROP a monster, STAR_WING_BOSS a boss, both raised by the drop luck.
+const STAR_WING_DROP := 0.006
+const STAR_WING_BOSS := 0.6
+
+
+func _star_wing_drop(mob: Mob, from: Vector3) -> void:
+	var chance := (STAR_WING_BOSS if mob.is_boss else STAR_WING_DROP) * (1.0 + _drop_fortune())
+	if rng.randf() < chance:
+		_spawn_loot(ItemData.wings(rng, String(Game.class_id())), 0, from)
+		Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
 ## Gear level of a drop. Star zones (the Lv.100 void and tower) drop gear above
