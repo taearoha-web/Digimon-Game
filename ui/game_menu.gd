@@ -543,7 +543,7 @@ func _refresh_detail() -> void:
 		var craft := String(item.get("id", "")) in StarWingData.CRAFT_COST
 		var how := UIUtil.label(("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
-			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง 3 + ชมพู 2 (50%) · +11 ถึง +15 ใช้เพชรมากขึ้น (40% ลดลงถึง 15%)", &"DimLabel")
+			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละ 1 (50%) · +11 ถึง +15 เพิ่มอย่างละ 1 ทุกขั้น (45%, 40%, 35%, 30%, 25%)", &"DimLabel")
 		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_detail.add_child(how)
 		var sell_jewel := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
@@ -755,7 +755,10 @@ func _build_forge_buttons(item: Dictionary) -> void:
 		var enough := true
 		for id in cost:
 			enough = enough and Game.jewel_count(id) >= int(cost[id])
-		var need := UIUtil.label("ใช้ %s · มีเพชรม่วง %d ชมพู %d" % [ItemData.jewel_cost_text(cost), Game.jewel_count("purple"), Game.jewel_count("pink")], &"SmallLabel")
+		var have := "มีเพชรม่วง %d ชมพู %d" % [Game.jewel_count("purple"), Game.jewel_count("pink")]
+		if int(cost.get("chaos", 0)) > 0:
+			have += " ชาออส %d" % Game.jewel_count("chaos")
+		var need := UIUtil.label("ใช้ %s · %s" % [ItemData.jewel_cost_text(cost), have], &"SmallLabel")
 		need.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		need.add_theme_color_override("font_color", Color("e8dcff") if enough else Color("ff8a8a"))
 		spot.add_child(need)

@@ -125,8 +125,9 @@ const SET_SLOTS := ["weapon", "armor", "helm", "boots"]
 const MAX_PLUS := 15
 ## Forge jewels, dropped by monsters in every levelling field (JEWEL_DROP per kill):
 ## a purple jewel takes a piece from +0 to +6 and never fails, a pink jewel takes it on
-## to +7, +8 and +9 at 50%, +10 takes three purple and two pink at 50%, and +11 to +15
-## take more of both at falling odds (ENHANCE_HIGH: 40% down to 15%). A failed try
+## to +7, +8 and +9 at 50%, and +10 to +15 take a purple, a pink and a chaos jewel
+## each, one more of each every step, at falling odds (ENHANCE_HIGH: +10 at 50% down
+## to +15 at 25%). A failed try
 ## uses up the jewels and the piece keeps its grade. A chaos jewel and a feather craft
 ## Lv.100 wings into the class's 100★ wings (StarWingData.CRAFT_CHANCE).
 const JEWELS := {
@@ -244,32 +245,31 @@ static func set_label(set_id: String) -> String:
 static func enhance_chance(plus: int) -> float:
 	if plus < 6:
 		return 1.0
-	if plus < 10:
+	if plus < 9:
 		return 0.5
-	return float(ENHANCE_HIGH[clampi(plus - 10, 0, ENHANCE_HIGH.size() - 1)][0])
+	return float(ENHANCE_HIGH[clampi(plus - 9, 0, ENHANCE_HIGH.size() - 1)][0])
 
 
-## +11 .. +15: [chance, purple jewels, pink jewels] for the step from +10, +11, ...
-const ENHANCE_HIGH := [[0.4, 4, 3], [0.33, 5, 3], [0.25, 5, 4], [0.2, 6, 4], [0.15, 6, 5]]
+## +10 .. +15: [chance, jewels of each kind] for the step from +9, +10, ... : a purple,
+## a pink and a chaos jewel for +10, one more of each every step up to six of each for +15.
+const ENHANCE_HIGH := [[0.5, 1], [0.45, 2], [0.4, 3], [0.35, 4], [0.3, 5], [0.25, 6]]
 
 
-## The jewels the next +1 takes, {"purple": n, "pink": n}.
+## The jewels the next +1 takes, {"purple": n, "pink": n} (and "chaos" from +10).
 static func enhance_cost(item: Dictionary) -> Dictionary:
 	var plus := int(item.get("plus", 0))
 	if plus < 6:
 		return {"purple": 1, "pink": 0}
 	if plus < 9:
 		return {"purple": 0, "pink": 1}
-	if plus < 10:
-		return {"purple": 3, "pink": 2}
-	var row: Array = ENHANCE_HIGH[clampi(plus - 10, 0, ENHANCE_HIGH.size() - 1)]
-	return {"purple": int(row[1]), "pink": int(row[2])}
+	var n := int(ENHANCE_HIGH[clampi(plus - 9, 0, ENHANCE_HIGH.size() - 1)][1])
+	return {"purple": n, "pink": n, "chaos": n}
 
 
 ## "เพชรม่วง 3 + เพชรชมพู 2" for a cost.
 static func jewel_cost_text(cost: Dictionary) -> String:
 	var parts: PackedStringArray = []
-	for id in ["purple", "pink"]:
+	for id in ["purple", "pink", "chaos"]:
 		if int(cost.get(id, 0)) > 0:
 			parts.append("%s %d เม็ด" % [JEWELS[id].name, int(cost[id])])
 	return " + ".join(parts)
