@@ -112,10 +112,10 @@ func make_leader() -> void:
 	is_leader = true
 	if _label != null:
 		_label.text = "หัวหน้ากิลด์ " + String(member.name)
-		_label.modulate = Color("ffd84a")
+		_label.modulate = LeaderMark.guild_color(team).lerp(Color.WHITE, 0.2)
 		# Seen from across the field, not only up close like the others' names.
 		_label.visibility_range_end = 0.0
-	LeaderMark.attach(self, Color("ff5a4a") if team == TEAM_ENEMY else Color("4a8cff"), (_label.position.y if _label != null else 2.6) + 0.9)
+	LeaderMark.attach(self, LeaderMark.guild_color(team), (_label.position.y if _label != null else 2.6) + 0.9)
 
 
 ## True for a member of the hero's own party in the war.

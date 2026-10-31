@@ -164,7 +164,7 @@ func build(tree: SceneTree = null) -> void:
 		enemy_leader.make_leader()
 	# The hero leads our guild: the same crown over its head.
 	if is_instance_valid(hero):
-		LeaderMark.attach(hero, Color("4a8cff"))
+		LeaderMark.attach(hero, LeaderMark.guild_color(GuildFighter.TEAM_ALLY))
 	_raise_castle(saved)
 	Game.guildwar_issue_supply()
 	if not saved.is_empty():

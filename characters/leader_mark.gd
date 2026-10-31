@@ -1,16 +1,16 @@
 class_name LeaderMark
 extends RefCounted
-## The guild leader's mark (หัวหน้ากิลด์) in the guild war: a big golden crown floating
-## over the head, bobbing and turning, with a gem in the guild's colour and the title
-## under it. Drawn on top of everything and seen from across the field, so both guilds
+## The guild leader's mark (หัวหน้ากิลด์) in the guild war: a big crown in the guild's
+## own colour (Alpha gold, Neverdie rose) floating over the head, bobbing and turning,
+## with white gems and the title over it. Drawn on top of everything and seen from across the field, so both guilds
 ## know whom to strike and whom to guard.
 
 const NAME := "LeaderMark"
 const GOLD := Color("ffd24a")
 
 
-## Puts the mark on `owner`, its crown `height` metres up. Returns the holder.
-static func attach(owner: Node3D, gem_color: Color, height := 3.6) -> Node3D:
+## Puts the mark on `owner` in `color`, its crown `height` metres up. Returns the holder.
+static func attach(owner: Node3D, color: Color, height := 3.6) -> Node3D:
 	var old := owner.get_node_or_null(NAME)
 	if old != null:
 		old.free()
@@ -22,8 +22,8 @@ static func attach(owner: Node3D, gem_color: Color, height := 3.6) -> Node3D:
 	crown.name = "Crown"
 	crown.scale = Vector3.ONE * 1.8
 	holder.add_child(crown)
-	var gold := _material(GOLD, 1.0)
-	var gem := _material(gem_color.lerp(Color.WHITE, 0.15), 1.0)
+	var gold := _material(color, 1.0)
+	var gem := _material(Color.WHITE, 1.0)
 	# The band, five points with a pearl on each, a gem on the front and back.
 	MeshKit.part(crown, MeshKit.cylinder(), gold, Vector3.ZERO, Vector3(0.62, 0.2, 0.62))
 	MeshKit.part(crown, MeshKit.torus(), gold, Vector3(0, -0.1, 0), Vector3(0.68, 0.5, 0.68))
@@ -45,8 +45,8 @@ static func attach(owner: Node3D, gem_color: Color, height := 3.6) -> Node3D:
 	title.pixel_size = 0.009
 	title.font_size = 44
 	title.outline_size = 14
-	title.modulate = GOLD
-	title.outline_modulate = Color(0.25, 0.12, 0.0, 1.0)
+	title.modulate = color.lerp(Color.WHITE, 0.2)
+	title.outline_modulate = color.darkened(0.8)
 	title.position = Vector3(0, 1.05, 0)
 	holder.add_child(title)
 	var bob := holder.create_tween().set_loops()
@@ -55,6 +55,15 @@ static func attach(owner: Node3D, gem_color: Color, height := 3.6) -> Node3D:
 	var spin := crown.create_tween().set_loops()
 	spin.tween_property(crown, "rotation:y", TAU, 4.0).from(0.0)
 	return holder
+
+
+## The crown's colour for a side: its guild's own (WorldPlayers.GUILD_COLORS); the
+## two sides always differ, so with no guild ours is gold and theirs rose.
+static func guild_color(team: int) -> Color:
+	var mine := Game.guild()
+	var g := mine if team == GuildFighter.TEAM_ALLY else WorldPlayers.other_guild(mine)
+	var fallback := GOLD if team == GuildFighter.TEAM_ALLY else Color("ff6f8e")
+	return WorldPlayers.GUILD_COLORS.get(g, fallback) if mine > 0 else fallback
 
 
 ## Unshaded and drawn over everything (bodies and walls), so the crown is never lost.
