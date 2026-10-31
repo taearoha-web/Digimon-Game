@@ -256,6 +256,25 @@ func _update_anim_lod() -> void:
 				mob.set_dormant(false)
 
 
+var _pumpkin_timer := 0.0
+
+
+## The Halloween potion's floating pumpkin (PumpkinHead) over everyone under one: the
+## hero (Game.exp_boost_left), party members and world players (WorldPlayers.halloween_mult).
+func _update_pumpkins() -> void:
+	if is_instance_valid(hero) and hero.visual:
+		hero.visual.set_pumpkin(Game.exp_boost_left() > 0.0)
+	var t := WorldPresence.clock()
+	var seen := {}
+	for group in ["companions", "world_players"]:
+		for node in get_tree().get_nodes_in_group(group):
+			if seen.has(node) or not (node is Companion) or (node as Companion).visual == null:
+				continue
+			seen[node] = true
+			var i := (node as FieldPlayer).world_index if node is FieldPlayer else int((node as Companion).member.get("index", -1))
+			(node as Companion).visual.set_pumpkin(i >= 0 and i < WorldPlayers.size() and WorldPlayers.halloween_mult(i, t) > 1)
+
+
 func _process(delta: float) -> void:
 	if hero == null or not is_built:
 		return
@@ -268,6 +287,10 @@ func _process(delta: float) -> void:
 		_interact_timer = 0.15
 		_update_interact()
 	_check_portals(delta)
+	_pumpkin_timer -= delta
+	if _pumpkin_timer <= 0.0:
+		_pumpkin_timer = 1.0
+		_update_pumpkins()
 	if _weather and is_instance_valid(hero):
 		_weather.global_position = Vector3(hero.global_position.x, _weather.position.y, hero.global_position.z)
 	if is_town:
@@ -575,7 +598,7 @@ func _villagers() -> Array:
 		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING],
 		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING],
 		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING],
-		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · 30 นาที", V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING],
+		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30)],
 		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
@@ -1083,6 +1106,7 @@ func _drop_loot(mob: Mob) -> void:
 	var class_id := Game.class_id()
 	if zone_id == DivineRegionData.ID:
 		_divine_loot(mob, from)
+		_star_wing_drop(mob, from)
 		return
 	if StarProgression.is_region(zone_id):
 		_star_loot(mob, from)
@@ -1206,6 +1230,20 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 	if rng.randf()<0.35 or mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf()<0.55 else "mp_xl",3 if mob.is_boss else 1),0,from)
 	if mob.is_boss: _spawn_loot(_random_gem(100,1),0,from)
+	_star_wing_drop(mob, from)
+
+
+## Lv.100 wings drop in every ★ region (and the divine one) as in the Lv.100 void:
+## STAR_WING_DROP a monster, STAR_WING_BOSS a boss, both raised by the drop luck.
+const STAR_WING_DROP := 0.006
+const STAR_WING_BOSS := 0.6
+
+
+func _star_wing_drop(mob: Mob, from: Vector3) -> void:
+	var chance := (STAR_WING_BOSS if mob.is_boss else STAR_WING_DROP) * (1.0 + _drop_fortune())
+	if rng.randf() < chance:
+		_spawn_loot(ItemData.wings(rng, String(Game.class_id())), 0, from)
+		Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
 ## Gear level of a drop. Star zones (the Lv.100 void and tower) drop gear above

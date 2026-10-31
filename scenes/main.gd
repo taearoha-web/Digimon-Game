@@ -198,6 +198,10 @@ func _continue(slot: int) -> void:
 	hud.visible = true
 	Game.playing = true
 	await go(Game.current_zone if Game.current_zone != &"" else &"town", true)
+	# A guild war cut off a moment ago can be picked up again (Game.GW_CKPT_LIFETIME).
+	var rejoin := Game.guildwar_rejoin_left()
+	if rejoin > 0:
+		Game.say("สงครามกิลด์ยังค้างอยู่! กลับเข้าต่อได้อีก %d นาที ที่ผู้บัญชาการสงครามกิลด์ (ปุ่มต่อสงครามเดิม)" % maxi(1, int(ceil(rejoin / 60.0))), &"quest")
 
 
 func _back_to_title() -> void:
@@ -409,7 +413,7 @@ func _on_npc(role: String) -> void:
 			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
 				{"label": "ฝึกสกิล", "action": func(): trainer.open_trainer()}, {"label": "ไว้ก่อน"}])
 		"registry":
-			dialog.say("นายทะเบียนเกม", "สมุดทะเบียนเล่มนี้จดชื่อทุกคนที่เล่นในโลกนี้ อาชีพ เลเวล กิลด์ และใครออนไลน์อยู่ที่แมพไหนตอนนี้ อยากออกล่ากับใคร ไปหาเขาที่แมพนั้นแล้วแตะที่ตัวเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ %d คนรวมคุณ แบ่ง EXP กันทุกตัวที่ล้มได้) คนแปลกหน้าจะตอบรับถ้าเลเวลห่างกันไม่เกิน %d เพื่อนร่วมกิลด์ตอบรับเสมอ" % [Game.PARTY_SIZE, Game.PARTY_LEVEL_GAP], [
+			dialog.say("นายทะเบียนเกม", "สมุดทะเบียนเล่มนี้จดชื่อทุกคนที่เล่นในโลกนี้ อาชีพ เลเวล กิลด์ และใครออนไลน์อยู่ที่แมพไหนตอนนี้ อยากออกล่ากับใคร ไปหาเขาที่แมพนั้นแล้วแตะที่ตัวเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ %d คนรวมคุณ แบ่ง EXP กันทุกตัวที่ล้มได้) คนแปลกหน้าจะตอบรับถ้าเลเวลห่างกันไม่เกิน %d (ระดับดาว Lv.100 ด้วยกันชวนกันได้หมด) เพื่อนร่วมกิลด์ตอบรับเสมอ" % [Game.PARTY_SIZE, Game.PARTY_LEVEL_GAP], [
 				{"label": "เปิดทะเบียน", "action": func(): registry.open_screen()}, {"label": "ดูคนที่ออนไลน์", "action": func(): registry.open_screen("online")}, {"label": "ไว้ก่อน"}])
 		"daily":
 			_talk_daily()

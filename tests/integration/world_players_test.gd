@@ -415,6 +415,8 @@ func _party() -> void:
 	check(zone.companions[0].is_in_group("companions") and not zone.companions[0].is_in_group("world_players"), "its kills count for the party")
 	check(not zone.presence.shown.has(who), "it is not also hunting on its own in the field")
 	check(int(Game.party()[0].level) == int(s.level), "it keeps its own level")
+	# The star tier (Lv.100, any stars) parties up with no level gap; below it the gap holds.
+	check(Game.party_levels_ok(100, 100) and Game.party_levels_ok(80, 100) and not Game.party_levels_ok(79, 100) and not Game.party_levels_ok(10, 31), "Lv.100 players party up whatever their stars; below, within the gap only")
 	# Who can be asked: offline players cannot; strangers far apart in level say no; guild mates say yes.
 	var offline := -1
 	var far := -1
@@ -422,7 +424,7 @@ func _party() -> void:
 		var o := WorldPlayers.state(i, WorldPresence.clock())
 		if not bool(o.online) and offline < 0:
 			offline = i
-		if bool(o.online) and i != who and absi(int(o.level) - int(Game.profile.level)) > Game.PARTY_LEVEL_GAP and far < 0:
+		if bool(o.online) and i != who and not Game.party_levels_ok(int(o.level), int(Game.profile.level)) and far < 0:
 			far = i
 	check(offline >= 0 and Game.party_invite(offline).contains("ออฟไลน์"), "an offline player cannot join")
 	if far >= 0:
@@ -432,7 +434,7 @@ func _party() -> void:
 		Game.join_guild(int(far_state.joins))
 		if int(far_state.guild) > 0:
 			check(Game.party_invite(far) == "", "a guild mate always says yes")
-		elif absi(100 - int(far_state.level)) > Game.PARTY_LEVEL_GAP:
+		elif not Game.party_levels_ok(100, int(far_state.level)):
 			check(Game.party_invite(far).contains("เลเวลห่าง"), "below Lv.100 it is in no guild yet: no guild mate's yes")
 	# Five people at most: the hero and four.
 	for i in WorldPlayers.size():
@@ -484,7 +486,8 @@ func _party() -> void:
 	check(shared, "the members get their parts too")
 	var lift := WorldPlayers.progress_for(WorldPlayers.played_minutes(ids[0], WorldPresence.clock()), WorldPlayers.efficiency(ids[0]))
 	var with := WorldPlayers.state(ids[0], WorldPresence.clock())
-	check(int(with.level) * 1000 + float(with.frac) * 999.0 > int(lift.level) * 1000 + float(lift.frac) * 999.0, "a member's party EXP moves it on")
+	# Level and stars together (the event's potions can carry a member past Lv.100).
+	check((int(with.level) + int(with.stars)) * 1000 + float(with.frac) * 999.0 > (int(lift.level) + int(lift.stars)) * 1000 + float(lift.frac) * 999.0, "a member's party EXP moves it on")
 	# Their sessions end: they leave the party.
 	WorldPresence.clock_offset += 12.0 * 3600.0
 	zone.presence.sync(false)

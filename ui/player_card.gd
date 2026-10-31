@@ -108,7 +108,12 @@ func _build() -> void:
 		note = "ปาร์ตี้ของคุณเต็มแล้ว (ปาร์ตี้ละ %d คนรวมคุณ)" % Game.PARTY_SIZE
 	else:
 		var mate := Game.guild() > 0 and g == Game.guild()
-		note = "เพื่อนร่วมกิลด์ ชวนได้เสมอ" if mate else "ชวนได้ถ้าเลเวลห่างจากคุณไม่เกิน %d" % Game.PARTY_LEVEL_GAP
+		if mate:
+			note = "เพื่อนร่วมกิลด์ ชวนได้เสมอ"
+		elif int(Game.profile.level) >= Game.MAX_LEVEL:
+			note = "ระดับดาว (Lv.100) ชวนกันได้ทุกคนที่ Lv.100 ไม่จำกัดดาว · เลเวลต่ำกว่าต้องห่างไม่เกิน %d" % Game.PARTY_LEVEL_GAP
+		else:
+			note = "ชวนได้ถ้าเลเวลห่างจากคุณไม่เกิน %d" % Game.PARTY_LEVEL_GAP
 	var hint := UIUtil.label(note, &"SmallLabel")
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body.add_child(hint)

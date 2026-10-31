@@ -93,6 +93,39 @@ func _ready() -> void:
 	Game.add_exp(100)
 	check(Game.profile.exp == 100, "no boost after it ends")
 	check(Game.use_potion_at(0) == "halloween" and Game.exp_boost_mult() > 1.0, "the next potion works once the first ran out")
+	# World players drink potions too: some hours online under x2 / x3, and the event
+	# adds to their progress (and only from its start).
+	var boosted := 0
+	var online_hours := 0
+	var start_hw := float(WorldEvents.HALLOWEEN_START)
+	for i in WorldPlayers.size():
+		for h in 48:
+			var t := start_hw + 3600.0 * h + 600.0
+			if not WorldPlayers.session_at(i, t).is_empty():
+				online_hours += 1
+				var m := WorldPlayers.halloween_mult(i, t)
+				check(m == 1 or m == 2 or m == 3, "a world player's potion is x2 or x3")
+				if m > 1:
+					boosted += 1
+	check(online_hours > 0 and boosted > online_hours * WorldPlayers.HALLOWEEN_SHARE_MIN * 0.8 and boosted < online_hours * WorldPlayers.HALLOWEEN_SHARE_MAX * 1.2, "world players are under a potion for part of their play (%d of %d hours)" % [boosted, online_hours])
+	check(WorldPlayers.halloween_mult(0, start_hw - 3600.0) == 1, "no world player potion before the event")
+	var gained := 0.0
+	for i in WorldPlayers.size():
+		check(WorldPlayers.halloween_work(i, start_hw) == 0.0, "nothing added at the event's start")
+		gained += WorldPlayers.halloween_work(i, float(WorldEvents.HALLOWEEN_END) + 86400.0)
+	check(gained > 0.0, "the potions add to the world players' progress")
+	# The pumpkin: a head-sized jack-o'-lantern floating over a boosted character.
+	var visual := HeroVisual.new()
+	add_child(visual)
+	visual.setup(&"warrior")
+	visual.set_pumpkin(true)
+	check(visual.has_pumpkin() and visual.find_child("PumpkinHead", true, false) != null, "a boosted character wears the floating pumpkin")
+	visual.set_pumpkin(true)
+	check(visual.find_children("PumpkinHead", "", true, false).size() == 1, "asking again keeps one pumpkin")
+	visual.set_pumpkin(false)
+	await get_tree().process_frame
+	check(not visual.has_pumpkin() and visual.find_child("PumpkinHead", true, false) == null, "the pumpkin goes when the potion ends")
+	visual.queue_free()
 	WorldPresence.clock_offset = 0.0
 	print("HALLOWEEN: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
