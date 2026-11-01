@@ -360,9 +360,20 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	m._assign_objectives()
 	check(m.allies.all(func(f): return not f.capture_role), "%s: none of our fighters is sent onto the altar (only the hero, our leader)" % label)
 	# Tapping a rival on the screen makes it the hero's target.
+	GameSettings.tap_target_mode = 0
 	hero.tap_target(leader)
 	check(hero.target == leader and hero.engaged, "%s: a tapped rival becomes the hero's target" % label)
 	hero.set_target(null)
+	hero.engaged = false
+	# The tap setting: select only marks the target, off ignores the tap.
+	GameSettings.tap_target_mode = 1
+	hero.tap_target(leader)
+	check(hero.target == leader and not hero.engaged, "%s: 'select only' marks the rival without charging in" % label)
+	hero.set_target(null)
+	GameSettings.tap_target_mode = 2
+	hero.tap_target(leader)
+	check(hero.target == null, "%s: with tapping off the tap does nothing" % label)
+	GameSettings.tap_target_mode = 0
 	var foe: GuildFighter = leader
 	foe._guard_until = 0
 	foe._dodge = 0.0

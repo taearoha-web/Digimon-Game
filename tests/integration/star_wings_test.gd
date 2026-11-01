@@ -24,6 +24,8 @@ func retired(cls:String,tier:int)->Dictionary:
 func _ready()->void:
 	Game.set_process(false)
 	ZoneData.ensure()
+	# A weekday (Wed 28 Oct 2026 10:00 Thai): the weekend jewel rush doubles jewel drops.
+	WorldPresence.clock_offset=float(Time.get_unix_time_from_datetime_dict({"year":2026,"month":10,"day":28,"hour":10,"minute":0,"second":0})-WorldPlayers.TZ)-WorldPlayers.now()
 	var rng:=RandomNumberGenerator.new();rng.seed=917
 	for cls in ClassData.IDS:
 		setup(cls)

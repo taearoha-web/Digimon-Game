@@ -371,7 +371,7 @@ func _on_world_tapped(at: Vector2) -> void:
 		return
 	# A tapped monster or rival fighter becomes the target. A player under the finger
 	# wins unless a monster is clearly nearer the tap (players fight beside monsters).
-	var mob := zone.mob_at(at)
+	var mob := zone.mob_at(at) if GameSettings.tap_target_mode < 2 else null
 	var p := zone.player_at(at)
 	if mob != null:
 		var camera := zone.get_viewport().get_camera_3d()
@@ -437,9 +437,10 @@ func _on_npc(role: String) -> void:
 			var t := WorldPresence.clock()
 			var text := "โลกนี้มีสองกิลด์ใหญ่ Alpha กับ Neverdie ผู้เล่นทุกคนเข้ากิลด์ได้เมื่อถึงเลเวล %d (ตอนนี้ Alpha มีสมาชิก %d คน Neverdie %d คน) ในสงครามชิงปราสาททุกคนในกิลด์ลงสนามทั้งหมด สู้ด้วยเลเวล ดาว และชุดจริงของตัวเอง ถึงเลเวล %d แล้วเลือกเข้ากิลด์ไหน ก็ลงสงครามกับเพื่อนร่วมกิลด์นั้น" % [Game.GUILD_LEVEL, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size(), Game.GUILD_LEVEL]
 			if mine > 0:
-				text = "เจ้าอยู่กิลด์ %s แล้ว ดูรายชื่อสมาชิก ใครออนไลน์อยู่แมพไหน หรือจะย้ายกิลด์ก็ได้" % WorldPlayers.guild_name(mine)
-			var choices: Array = [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_screen()}]
+				text = "เจ้าอยู่กิลด์ %s แล้ว ดูรายชื่อสมาชิก ใครออนไลน์อยู่แมพไหน หรือจะย้ายกิลด์ก็ได้ ทำภารกิจกิลด์รายวันกับเพื่อนร่วมกิลด์ แล้วเอาแต้มกิลด์มาแลกของได้ที่นี่" % WorldPlayers.guild_name(mine)
+			var choices: Array = [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_roster()}]
 			if mine > 0:
+				choices.append({"label": "ภารกิจกิลด์ / ร้านแต้ม", "action": func(): guild_screen.open_quests()})
 				choices.append({"label": "ไปสงครามกิลด์", "action": func(): guildwar_screen.open_lobby()})
 			choices.append({"label": "ไว้ก่อน"})
 			dialog.say("นายทะเบียนกิลด์", text, choices)

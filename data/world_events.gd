@@ -5,7 +5,8 @@ extends RefCounted
 ## everyone. EXP x2 every evening 19:00-21:00; the world boss (บอสโลก) at 20:30 for
 ## 20 minutes in the hunting field of the day (the base fields in ZoneData order, one
 ## a day; on Saturday and Sunday the ★ regions join the rotation); on the weekend gold
-## drops pay +20%. Times are seconds of the Thai day; the day index (Thai midnight to
+## drops pay +20% and forge jewels drop twice as often; every 15 minutes a golden monster
+## (มอนทองคำ) visits each levelling field for 3 minutes. Times are seconds of the Thai day; the day index (Thai midnight to
 ## midnight) names a boss window in profile.flags ("wboss|<day>").
 
 const DAY := 86400
@@ -35,6 +36,29 @@ const NAME_HALLOWEEN := "ฮาโลวีน: น้ำยาฮาโลว�
 const NAME_EXP := "EXP x2"
 const NAME_BOSS := "บอสโลก"
 const NAME_GOLD := "โบนัสทอง +20%"
+## Weekend jewel rush (สุดสัปดาห์ดรอปเพชร x2): all of Saturday and Sunday (Thai time)
+## the forge jewels (ItemData.JEWEL_DROP: purple, pink, chaos) drop twice as often.
+## Feathers are not doubled.
+const WEEKEND_JEWEL := 2.0
+const NAME_WEEKEND_JEWEL := "สุดสัปดาห์ดรอปเพชร x2"
+## The golden monster (มอนทองคำ): every GOLDEN_PERIOD seconds of real time (one window a
+## period, read off the clock so everyone sees the same) a gilded monster of the field
+## appears in one of its camps for GOLDEN_LENGTH seconds, in every levelling field.
+## Its start inside the period moves by GOLDEN_STEP steps (0-2 minutes), so two
+## appear 13 to 17 minutes apart. GOLDEN_HP times the HP; it pays GOLDEN_GOLD gold per
+## field tier, a purple and a pink jewel, chaos at GOLDEN_CHAOS and a stat gem at GOLDEN_GEM.
+const GOLDEN_PERIOD := 15 * 60
+const GOLDEN_LENGTH := 3 * 60
+const GOLDEN_STEP := 30
+const GOLDEN_STEPS := 5
+const GOLDEN_HP := 5.0
+const GOLDEN_GOLD := 50000
+const GOLDEN_CHAOS := 0.25
+const GOLDEN_GEM := 0.1
+const GOLDEN_COLOR := Color("ffd23a")
+const NAME_GOLDEN := "มอนทองคำ"
+## profile.flags[GOLDEN_FLAG]: the last window whose golden monster the hero killed.
+const GOLDEN_FLAG := "golden"
 
 static var _fields: Array[StringName] = []
 static var _star_fields: Array[StringName] = []
@@ -111,6 +135,65 @@ static func halloween_on(t: float) -> bool:
 ## The HUD line of the Halloween event ("" outside it).
 static func halloween_text(t: float) -> String:
 	return "%s เหลือ %s" % [NAME_HALLOWEEN, _span(float(HALLOWEEN_END) - t)] if halloween_on(t) else ""
+
+
+## Forge jewel drop chances: doubled all weekend (Thai time).
+static func jewel_multiplier(t: float) -> float:
+	return WEEKEND_JEWEL if is_weekend(t) else 1.0
+
+
+## The HUD line of the weekend jewel rush ("" on weekdays).
+static func weekend_text(t: float) -> String:
+	if not is_weekend(t):
+		return ""
+	# Saturday runs to Monday 00:00, Sunday to its own midnight.
+	return "%s เหลือ %s" % [NAME_WEEKEND_JEWEL, _span(_at(t, DAY, 1 if weekday(t) == 6 else 0) - t)]
+
+
+## The HUD event chip's lines at `t` (Hud): the running or next event (describe), the
+## weekend jewel rush and the Halloween event, each only while it has something to say.
+static func chip_lines(t: float) -> Array:
+	return [describe(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+
+
+## A levelling field (the golden monster's ground): a field with monster camps, not the
+## town, pvp, the guild war, the arena or the tower.
+static func golden_field(zone: Dictionary) -> bool:
+	if String(zone.get("scene", "")) != "field" or zone.get("camps", []).is_empty():
+		return false
+	for key in ["safe", "pvp", "guildwar", "arena", "tower"]:
+		if bool(zone.get(key, false)):
+			return false
+	return true
+
+
+## The golden monster window `t` is in: {window, start, until}, or {} between them.
+static func golden_now(t: float) -> Dictionary:
+	var n := int(floor(t / float(GOLDEN_PERIOD)))
+	var start := golden_start(n)
+	if t < start or t >= start + float(GOLDEN_LENGTH):
+		return {}
+	return {"window": n, "start": start, "until": start + float(GOLDEN_LENGTH)}
+
+
+## Unix time the golden monster of window `n` appears: GOLDEN_STEP times a step fixed
+## by `n` into period n.
+static func golden_start(n: int) -> float:
+	return float(n) * float(GOLDEN_PERIOD) + float(GOLDEN_STEP * posmod(n * 7 + 3, GOLDEN_STEPS))
+
+
+## The tier of a field for the golden monster's gold: one per 10 levels of the field's
+## top level (1-10), one more per 20 stars of a ★ region.
+static func golden_tier(zone: Dictionary) -> int:
+	var top := int(zone.get("level", [1, 1])[1])
+	return clampi(int(ceil(float(top) / 10.0)), 1, 10) + int(zone.get("star", 0)) / 20
+
+
+## Camp and monster (index into the camp's list) of window `n` in a field: the same for
+## everyone hunting there.
+static func golden_pick(n: int, zone_id: StringName, camps: int, monsters: int) -> Vector2i:
+	var h := absi(String(zone_id).hash())
+	return Vector2i(posmod(n * 31 + h, maxi(1, camps)), posmod(n * 17 + h / 7, maxi(1, monsters)))
 
 
 static func gold_multiplier(t: float) -> float:

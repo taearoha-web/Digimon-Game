@@ -21,6 +21,11 @@ static var safe_picture := false
 ## The world players (AI) walking in the zones (settings: switch them off to leave only
 ## their bodies out; the world chat, the online count, parties and guild wars stay).
 static var show_world_players := true
+## Tapping a monster or rival on the screen (TAP_MODES): 0 locks on and goes for it,
+## 1 only makes it the target (the hero attacks when the attack button is pressed),
+## 2 does nothing (taps only open players' cards).
+const TAP_MODES := ["แตะแล้ววิ่งเข้าไปตีทันที", "แตะเพื่อเลือกเป้าอย่างเดียว", "ปิดการแตะเลือกเป้า"]
+static var tap_target_mode := 0
 ## Settings files older than REV were written while the grey village was chased down
 ## (the web build's threaded cull, fixed in project.godot): their hidden world players
 ## and the watchdog's safe picture came from that bug, so they are not carried over.
@@ -48,6 +53,9 @@ static func load_settings() -> void:
 					camera_speed = clampf(float(saved_speed), 0.4, 2.5)
 			if parsed.get("combat_hitstop") is bool:
 				combat_hitstop = parsed.combat_hitstop
+			var saved_tap: Variant = parsed.get("tap_target_mode", 0)
+			if (saved_tap is int or saved_tap is float) and is_finite(float(saved_tap)):
+				tap_target_mode = clampi(int(saved_tap), 0, TAP_MODES.size() - 1)
 			if parsed.get("high_smooth") is bool:
 				high_smooth = parsed.high_smooth
 			var rev: Variant = parsed.get("rev", 1)
@@ -65,7 +73,7 @@ static func load_settings() -> void:
 static func save_settings() -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"rev": REV, "quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "high_smooth": high_smooth, "safe_picture": safe_picture, "show_world_players": show_world_players}))
+		file.store_string(JSON.stringify({"rev": REV, "quality": quality, "camera_speed": camera_speed, "combat_hitstop": combat_hitstop, "high_smooth": high_smooth, "safe_picture": safe_picture, "show_world_players": show_world_players, "tap_target_mode": tap_target_mode}))
 
 
 ## The name of the chosen quality as the settings show it (High names its mode).

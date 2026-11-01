@@ -104,6 +104,10 @@ var _party_head: Label
 var _wing_row: HBoxContainer
 var _wing_chips: Array[PanelContainer] = []
 var _wing_shown := -1
+## The mount chip ("ขี่" / "ลง") under the wing chips, shown while a mount is owned.
+var _mount_row: HBoxContainer
+var _mount_chip: PanelContainer
+var _mount_shown := -1
 var minimap: Minimap
 ## The left column under the hero panel: buffs, party cards, wing chips.
 var _status_column: VBoxContainer
@@ -281,7 +285,7 @@ func _process(delta: float) -> void:
 		_event_in = 1.0
 		var t := WorldPresence.clock()
 		var lines := PackedStringArray()
-		for line in [Game.exp_boost_text(), WorldEvents.describe(t), WorldEvents.halloween_text(t)]:
+		for line in [Game.exp_boost_text()] + WorldEvents.chip_lines(t):
 			if line != "":
 				lines.append(line)
 		_event_label.text = "\n".join(lines)
@@ -312,6 +316,7 @@ func _refresh() -> void:
 	_name_label.text = String(p.name)
 	_update_party()
 	_update_wing_row()
+	_update_mount_row()
 	_level_label.text = "Lv.%d" % int(p.level)
 	var stars := int(Game.paragon().level)
 	_star_row.visible = stars > 0
@@ -628,6 +633,7 @@ func _build_status(frame: Control) -> void:
 	column.add_child(_timers)
 	_build_party(column)
 	_build_wing_row(column)
+	_build_mount_row(column)
 	minimap = Minimap.new()
 	minimap.anchor_left = 1.0
 	minimap.anchor_right = 1.0
@@ -786,6 +792,55 @@ func _update_wing_row() -> void:
 		style.border_color = Color.WHITE if active else Color(1, 1, 1, 0.35)
 		_wing_chips[i].add_theme_stylebox_override("panel", style)
 		(_wing_chips[i].get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if active else Color.WHITE)
+
+
+func _build_mount_row(column: Control) -> void:
+	_mount_row = UIUtil.hbox(8)
+	_mount_row.name = "MountRow"
+	_mount_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mount_row.visible = false
+	column.add_child(_mount_row)
+	_mount_chip = PanelContainer.new()
+	_mount_chip.name = "MountChip"
+	_mount_chip.custom_minimum_size = Vector2(108, 46)
+	_mount_chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_mount_chip.gui_input.connect(_tap(tap_mount))
+	var label := UIUtil.label("ขี่", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mount_chip.add_child(label)
+	_mount_row.add_child(_mount_chip)
+
+
+## The mount chip: get on the active mount, or off it.
+func tap_mount() -> void:
+	if hero != null and is_instance_valid(hero):
+		hero.toggle_ride()
+		_update_mount_row()
+
+
+## Text on the mount chip right now ("" while it is hidden).
+func mount_chip_text() -> String:
+	return (_mount_chip.get_child(0) as Label).text if _mount_row.visible else ""
+
+
+func _update_mount_row() -> void:
+	var shown := hero != null and is_instance_valid(hero) and Game.active_mount() != "" and hero.can_ride_here()
+	_mount_row.visible = shown
+	if not shown:
+		return
+	var riding := 1 if hero.is_riding() else 0
+	if riding == _mount_shown:
+		return
+	_mount_shown = riding
+	(_mount_chip.get_child(0) as Label).text = "ลง" if riding == 1 else "ขี่"
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(UIPalette.GOLD, 0.9) if riding == 1 else Color(0.1, 0.12, 0.2, 0.72)
+	style.set_corner_radius_all(14)
+	style.set_border_width_all(2)
+	style.border_color = Color.WHITE if riding == 1 else Color(1, 1, 1, 0.35)
+	_mount_chip.add_theme_stylebox_override("panel", style)
+	(_mount_chip.get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if riding == 1 else Color.WHITE)
 
 
 ## The guild war being fought in this zone, or null.

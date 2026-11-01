@@ -27,6 +27,12 @@ const SAPPHIRE_PERIOD := 3.0
 ## Ruby set fires under this share of max HP, amethyst set under BULWARK_HP.
 const FURY_HP := 0.3
 const BULWARK_HP := 0.5
+## Riding (MountData / MountVisual): the rider's body clip and how high its hips sit
+## above its soles in that clip. The chibi rig has no chair sit, only the floor sit
+## (hip bone 0.15 above the soles); 0.13 rests the pelvis on the saddle.
+const RIDE_CLIP := "Sit_Floor_Idle"
+const RIDE_HIP := 0.13
+const NAME_PLATE_Y := 2.45
 
 var visual: HeroVisual
 var _equip_sig := ""
@@ -95,6 +101,10 @@ var _invulnerable_until := 0
 var _gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity", 18.0))
 var _facing := 0.0
 var _quiet := false
+## The mount the hero sits on (null on foot). Riding is for travel only.
+var mount: MountVisual
+## The hero was riding when it left the last zone: a new hero rides on where allowed.
+static var keep_riding := false
 
 
 func _ready() -> void:
@@ -123,6 +133,9 @@ func _ready() -> void:
 	_build_self_ring()
 	_build_name_plate()
 	Game.title_changed.connect(_on_title_changed)
+	Game.mount_changed.connect(_on_mount_changed)
+	if keep_riding and Game.active_mount() != "" and can_ride_here():
+		ride(true)
 
 
 ## The hero's name above the head, with the chosen title (Achievements) in brackets
@@ -135,7 +148,7 @@ func _build_name_plate() -> void:
 	_name_plate.outline_size = 9
 	_name_plate.modulate = Color("fff4de")
 	_name_plate.outline_modulate = Color(0.1, 0.12, 0.2, 0.9)
-	_name_plate.position = Vector3(0, 2.45, 0)
+	_name_plate.position = Vector3(0, NAME_PLATE_Y, 0)
 	_name_plate.no_depth_test = true
 	_name_plate.render_priority = 2
 	_name_plate.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -333,6 +346,7 @@ func song_buffs() -> Array:
 func tap_attack() -> void:
 	if _dead or safe_zone:
 		return
+	dismount()
 	if not _valid_target(target):
 		set_target(nearest_mob())
 	if target == null:
@@ -356,6 +370,7 @@ func set_auto(on: bool) -> void:
 		if _dead or safe_zone:
 			message.emit("ออโต้ใช้ได้เฉพาะในทุ่งล่ามอนสเตอร์")
 			return
+		dismount()
 		var camp: Dictionary = field.camp_near(global_position) if field and field.has_method("camp_near") else {}
 		if camp.is_empty():
 			_auto_center = global_position
@@ -467,15 +482,20 @@ func _auto_cast(hp_rate: float) -> void:
 		use_skill(fallback)
 
 
-## A monster tapped on the screen: lock onto it and go for it (auto hunting follows it).
+## A monster tapped on the screen: lock onto it and, by the tap setting
+## (GameSettings.tap_target_mode), go for it (auto hunting follows it) or only mark it.
 func tap_target(mob: Mob) -> void:
-	if _dead or safe_zone or not _valid_target(mob):
+	if _dead or safe_zone or not _valid_target(mob) or GameSettings.tap_target_mode >= 2:
 		return
+	dismount()
 	set_target(mob)
-	engaged = true
 	_pending = {}
-	if auto:
-		_auto_center = mob.global_position
+	if GameSettings.tap_target_mode == 1:
+		engaged = false
+	else:
+		engaged = true
+		if auto:
+			_auto_center = mob.global_position
 	var who := String((mob as Rival).member.get("name", "")) if mob is Rival else String(mob.template.get("name", ""))
 	message.emit("เลือกเป้า: %s" % who)
 
@@ -565,7 +585,7 @@ func _physics_process(delta: float) -> void:
 	var desired := Vector3.ZERO
 	if not casting:
 		if direction.length() > 0.1:
-			desired = direction * float(stats.speed)
+			desired = direction * move_speed()
 			_face(direction, delta, 14.0)
 		elif auto:
 			desired = _auto_step(delta)
@@ -579,6 +599,12 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_clamp_to_field()
 	var speed := Vector3(velocity.x, 0, velocity.z).length()
+	if mount != null:
+		if not can_ride_here():
+			dismount()
+		else:
+			_ride_step(speed)
+			return
 	if speed > 0.6:
 		visual.play("Running_A", 0.12, clampf(speed / 5.4, 0.8, 1.4))
 		_step_timer -= delta
@@ -604,6 +630,108 @@ func _hover(delta: float, moving: bool) -> void:
 	if visual.model != null:
 		var lean := FLY_LEAN if flying and moving else 0.0
 		visual.model.rotation.x = lerpf(visual.model.rotation.x, lean, 1.0 - exp(-5.0 * delta))
+
+
+# ---------------------------------------------------------------------------
+# Mounts (MountData): faster travel; any fight puts the hero back on foot
+# ---------------------------------------------------------------------------
+
+func is_riding() -> bool:
+	return mount != null
+
+
+## Walking speed now: the mount's bonus on top while riding.
+func move_speed() -> float:
+	var base := float(stats.speed)
+	return base * (1.0 + MountData.speed_bonus(mount.id)) if mount != null else base
+
+
+## The town and the hunting fields; not the arena, duels, the guild war or the tower.
+func can_ride_here() -> bool:
+	return not (field is Zone) or MountData.zone_allows((field as Zone).data)
+
+
+## Gets on the active mount. Returns false (with a note unless [param quiet]) when it can't.
+func ride(quiet := false) -> bool:
+	if mount != null:
+		return true
+	var id := Game.active_mount()
+	var why := ""
+	if _dead:
+		why = "ขี่สัตว์ไม่ได้ตอนนี้"
+	elif id == "":
+		why = "ยังไม่มีสัตว์ขี่ ซื้อได้ที่เมนู > สัตว์ขี่"
+	elif not can_ride_here():
+		why = "พื้นที่นี้ขี่สัตว์ไม่ได้"
+	if why != "":
+		if not quiet:
+			message.emit(why)
+		return false
+	if auto:
+		set_auto(false)
+	engaged = false
+	_pending = {}
+	visual.release()
+	mount = MountVisual.new()
+	add_child(mount)
+	mount.build(id)
+	mount.rotation.y = _facing
+	visual.stow_held(true)
+	var shadow := get_node_or_null("BlobShadow") as Node3D
+	if shadow != null:
+		shadow.visible = false
+	keep_riding = true
+	return true
+
+
+## Back on foot (attacking, casting, a hit, death or a no-riding zone).
+func dismount() -> void:
+	if mount == null:
+		return
+	mount.queue_free()
+	mount = null
+	keep_riding = false
+	visual.stow_held(false)
+	var shadow := get_node_or_null("BlobShadow") as Node3D
+	if shadow != null:
+		shadow.visible = true
+	visual.position = Vector3(0, visual.position.y, 0)
+	if is_instance_valid(_name_plate):
+		_name_plate.position.y = NAME_PLATE_Y
+	if visual.current == RIDE_CLIP:
+		visual.current = ""
+		visual.play("Idle")
+
+
+## The HUD's "ขี่" / "ลง" button.
+func toggle_ride() -> bool:
+	if mount != null:
+		dismount()
+		return false
+	return ride()
+
+
+func _on_mount_changed() -> void:
+	if mount == null:
+		return
+	var id := Game.active_mount()
+	if id == "":
+		dismount()
+	elif id != mount.id:
+		mount.build(id)
+
+
+## Riding frame: the mount gallops under the seated rider, who follows its bob.
+func _ride_step(speed: float) -> void:
+	mount.rotation.y = _facing
+	mount.set_motion(speed > 0.6, speed / maxf(move_speed(), 0.1))
+	visual.set_wing_moving(false)
+	visual.play(RIDE_CLIP, 0.2)
+	visual.position = Vector3(0, mount.seat_height() - RIDE_HIP, 0) + Basis(Vector3.UP, _facing) * Vector3(0, 0, mount.seat.position.z)
+	if visual.model != null:
+		visual.model.rotation.x = 0.0
+	if is_instance_valid(_name_plate):
+		_name_plate.position.y = NAME_PLATE_Y + visual.position.y
 
 
 ## Wing pose from the HUD buttons (saved with the profile).
@@ -808,6 +936,7 @@ func cooldown_ratio(skill: Dictionary) -> float:
 func use_skill(index: int) -> String:
 	if _dead or safe_zone:
 		return "safe"
+	dismount()
 	var skills: Array = Game.class_data().skills
 	var skill: Dictionary = skills[index] if index >= 0 and index < skills.size() else {}
 	if skill.is_empty():
@@ -1315,6 +1444,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		_star_retaliation=true
 	Game.profile.hp = maxi(0, Game.profile.hp - amount)
 	_since_hurt = 0.0
+	dismount()
 	BattleVfx.damage_number(field, global_position + Vector3(0, 2.4, 0), str(amount), true, 1.1)
 	visual.flash()
 	AudioManager.play_sfx(&"hit_special", -2.0)
@@ -1496,6 +1626,7 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	dismount()
 	_enemy_shred_until = 0
 	_enemy_weaken_until = 0
 	set_auto(false)

@@ -17,6 +17,9 @@ const SORTS := {"level": "เลเวล", "class": "อาชีพ"}
 
 ## The list order the player picked (kept while the game runs).
 static var sort_by := "level"
+## What the screen shows: "roster" (both guilds' members) or "quests" (the guild's daily
+## quests and the guild points shop, GuildQuestData; members only).
+static var view := "roster"
 ## Class order when sorting by class: archers first, then priests, then the rest.
 const CLASS_ORDER: Array[StringName] = [&"archer", &"priest", &"warrior", &"mage", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
 
@@ -70,6 +73,18 @@ func open_screen() -> void:
 	_build()
 
 
+## Opens on the members of both guilds.
+func open_roster() -> void:
+	view = "roster"
+	open_screen()
+
+
+## Opens straight on the guild quests and the guild points shop.
+func open_quests() -> void:
+	view = "quests"
+	open_screen()
+
+
 func close_screen() -> void:
 	is_open = false
 	_root.visible = false
@@ -103,27 +118,42 @@ func _build() -> void:
 	_body.add_child(column)
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
-	var title := UIUtil.label("นายทะเบียนกิลด์ — Alpha · Neverdie", &"HeaderLabel")
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
 	var mine := Game.guild()
+	if mine == 0:
+		view = "roster"
+	var title := UIUtil.label("นายทะเบียนกิลด์" if mine > 0 else "นายทะเบียนกิลด์ — Alpha · Neverdie", &"HeaderLabel")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.clip_text = true
+	head.add_child(title)
 	if mine > 0:
-		var war := UIUtil.button("ไปสงครามกิลด์", &"AccentButton", Vector2(200, 60))
+		var war := UIUtil.button("ไปสงครามกิลด์", &"AccentButton", Vector2(180, 60))
 		war.name = "GoWar"
 		war.pressed.connect(func():
 			close_screen()
 			war_requested.emit())
 		head.add_child(war)
-	for key in SORTS:
-		var pick := UIUtil.button("เรียงตาม%s" % SORTS[key], &"AccentButton" if sort_by == key else &"", Vector2(150, 60))
-		pick.name = "Sort_%s" % key
-		pick.pressed.connect(func():
-			sort_by = String(key)
+		var other := "roster" if view == "quests" else "quests"
+		var tab := UIUtil.button("รายชื่อสมาชิก" if other == "roster" else "ภารกิจกิลด์", &"PrimaryButton" if other == "quests" else &"", Vector2(170, 60))
+		tab.name = "GuildRoster" if other == "roster" else "GuildQuests"
+		tab.pressed.connect(func():
+			view = other
 			_build())
-		head.add_child(pick)
-	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(140, 60))
+		head.add_child(tab)
+	if view == "roster":
+		for key in SORTS:
+			var pick := UIUtil.button("เรียงตาม%s" % SORTS[key], &"AccentButton" if sort_by == key else &"", Vector2(140, 60))
+			pick.name = "Sort_%s" % key
+			pick.pressed.connect(func():
+				sort_by = String(key)
+				_build())
+			head.add_child(pick)
+	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(110, 60))
 	close.pressed.connect(close_screen)
 	head.add_child(close)
+	if view == "quests":
+		_quest_view(column, mine)
+		_restore_scrolls(kept)
+		return
 	var status := "คุณอยู่กิลด์ %s · ลงสงครามกิลด์กับเพื่อนร่วมกิลด์ได้ที่ผู้บัญชาการสงครามกิลด์" % WorldPlayers.guild_name(mine) if mine > 0 else "คุณยังไม่มีกิลด์ — เลือกเข้ากิลด์ใดกิลด์หนึ่ง แล้วไปลงสงครามกิลด์กับเพื่อนร่วมกิลด์ได้"
 	if mine == 0 and int(Game.profile.level) < Game.GUILD_LEVEL:
 		status = "เข้ากิลด์ได้ตั้งแต่เลเวล %d (ตอนนี้เลเวล %d) — ดูรายชื่อสมาชิกได้ก่อน" % [Game.GUILD_LEVEL, int(Game.profile.level)]
@@ -136,11 +166,140 @@ func _build() -> void:
 	var t := WorldPresence.clock()
 	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
 		row.add_child(_guild_column(g, mine, t))
+	_restore_scrolls(kept)
+
+
+func _restore_scrolls(kept: Array[int]) -> void:
 	var k := 0
 	for scroll in _body.find_children("*", "TouchScroll", true, false):
 		if k < kept.size():
 			(scroll as TouchScroll).restore_vertical_position(kept[k])
 		k += 1
+
+
+# --- Guild quests and the guild points shop -------------------------------------
+
+func _quest_view(column: Control, mine: int) -> void:
+	var t := WorldPresence.clock()
+	var quests := Game.guild_quests(t)
+	var mates := GuildQuestData.mate_minutes(mine, t)
+	var left := int(GuildQuestData.day_start(WorldEvents.day_of(t) + 1) - t)
+	var info := UIUtil.hbox(12)
+	column.add_child(info)
+	var points := UIUtil.label("แต้มกิลด์ %d" % Game.guild_points(), &"SubHeaderLabel")
+	points.name = "GuildPoints"
+	points.add_theme_color_override("font_color", Color("ffd84a"))
+	info.add_child(points)
+	var line := UIUtil.label("กิลด์ %s · เพื่อนร่วมกิลด์ออนไลน์ %d/%d คนช่วยทำภารกิจ · รีเซ็ตใน %d ชม. %d นาที" % [
+		WorldPlayers.guild_name(mine), int(mates.online), int(mates.members), left / 3600, (left % 3600) / 60], &"SmallLabel")
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(line)
+	var row := UIUtil.hbox(14)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(row)
+	# Left: today's quests.
+	var qcol := UIUtil.vbox(6)
+	qcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	qcol.size_flags_stretch_ratio = 1.25
+	row.add_child(qcol)
+	qcol.add_child(UIUtil.label("ภารกิจกิลด์รายวัน", &"BoldLabel"))
+	var qscroll := TouchScroll.new()
+	qscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	qscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	qcol.add_child(qscroll)
+	var qlist := UIUtil.vbox(6)
+	qlist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	qscroll.add_child(qlist)
+	for q in quests:
+		qlist.add_child(_quest_card(q))
+	# Right: the guild points shop.
+	var scol := UIUtil.vbox(6)
+	scol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(scol)
+	scol.add_child(UIUtil.label("ร้านแต้มกิลด์", &"BoldLabel"))
+	var sscroll := TouchScroll.new()
+	sscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scol.add_child(sscroll)
+	var slist := UIUtil.vbox(6)
+	slist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sscroll.add_child(slist)
+	for e in GuildQuestData.SHOP:
+		slist.add_child(_shop_card(e))
+
+
+func _quest_card(q: Dictionary) -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	panel.name = "Quest%d" % int(q.slot)
+	var line := UIUtil.hbox(10)
+	panel.add_child(line)
+	var info := UIUtil.vbox(2)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(info)
+	info.add_child(UIUtil.label(String(q.name), &"BoldLabel"))
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(0, 18)
+	bar.max_value = float(q.target)
+	bar.value = float(q.progress)
+	bar.show_percentage = false
+	info.add_child(bar)
+	var detail := UIUtil.label("%d/%d · คุณ %d + เพื่อนกิลด์ %d · +%d แต้ม · %s ทอง" % [int(q.progress), int(q.target), int(q.hero), int(q.mates), int(q.points), _num(int(q.gold))], &"SmallLabel")
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(detail)
+	var claim := UIUtil.button("", &"PrimaryButton", Vector2(110, 58))
+	claim.name = "Claim%d" % int(q.slot)
+	if bool(q.claimed):
+		claim.text = "รับแล้ว"
+		claim.disabled = true
+	elif bool(q.done):
+		claim.text = "รับรางวัล"
+		claim.pressed.connect(func():
+			var result := Game.guild_quest_claim(int(q.slot))
+			if result == "ok":
+				AudioManager.play_sfx(&"coin")
+				Game.say("รับรางวัลภารกิจกิลด์: +%d แต้มกิลด์ · %s ทอง" % [int(q.points), _num(int(q.gold))], &"success")
+			else:
+				Game.say(result, &"warning")
+			_build())
+	else:
+		claim.text = "ยังไม่ครบ"
+		claim.disabled = true
+	line.add_child(claim)
+	return panel
+
+
+func _shop_card(e: Dictionary) -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	var line := UIUtil.hbox(10)
+	panel.add_child(line)
+	var item := GuildQuestData.shop_item(e)
+	var label := UIUtil.label(GuildQuestData.shop_name(e), &"BoldLabel")
+	label.add_theme_color_override("font_color", ItemData.color_of(item).lerp(Color.WHITE, 0.5))
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(label)
+	var buy := UIUtil.button("%d แต้ม" % int(e.price), &"AccentButton", Vector2(120, 54))
+	buy.name = "Buy_%s" % String(e.id)
+	buy.disabled = Game.guild_points() < int(e.price)
+	buy.pressed.connect(func():
+		var result := Game.guild_shop_buy(String(e.id))
+		if result == "ok":
+			AudioManager.play_sfx(&"pickup")
+			Game.say("แลก %s ด้วย %d แต้มกิลด์แล้ว" % [GuildQuestData.shop_name(e), int(e.price)], &"success")
+		else:
+			Game.say(result, &"warning")
+		_build())
+	line.add_child(buy)
+	return panel
+
+
+static func _num(n: int) -> String:
+	var s := str(n)
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.substr(s.length() - 3) + out
+		s = s.substr(0, s.length() - 3)
+	return s + out
 
 
 func _guild_column(g: int, mine: int, t: float) -> Control:

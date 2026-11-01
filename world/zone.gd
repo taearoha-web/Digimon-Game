@@ -104,6 +104,9 @@ var _boss_timer := 8.0
 var _boss_spot := Vector3.ZERO
 ## The world boss of the day (WorldEvents), while its window is on in this field.
 var _wboss: Mob
+## The golden monster (WorldEvents.golden_now) of the running window, and that window.
+var _golden: Mob
+var _golden_window := -1
 var _portal_hold := 0.0
 var _interact_timer := 0.0
 var _start := Vector3.ZERO
@@ -301,6 +304,7 @@ func _process(delta: float) -> void:
 		for camp in _camps:
 			_refill_camp(camp)
 		_tick_world_boss()
+		_tick_golden()
 	_tick_boss(delta)
 	if bool(data.get("arena", false)):
 		_arena_tick(delta)
@@ -1081,6 +1085,93 @@ func _on_world_boss_died(mob: Mob) -> void:
 		Game.emit_signal("world_boss_defeated", Game.current_zone)
 
 
+## The golden monster (WorldEvents.golden_now): in its window, in every levelling field
+## (WorldEvents.golden_field), a gilded monster of the field in the window's camp
+## (WorldEvents.golden_pick), GOLDEN_HP times the HP, named มอนทองคำ, with a sparkle.
+## Once a window: killed (profile.flags[GOLDEN_FLAG]) it stays down; when the window
+## ends it runs off. Its spot rolls on _event_rng so the zone's seeded rolls stay put.
+func _tick_golden() -> void:
+	if not Game.has_profile or is_town or is_pvp or is_tower or not WorldEvents.golden_field(data) or _camps.is_empty():
+		return
+	var event := WorldEvents.golden_now(WorldPresence.clock())
+	if _golden != null and is_instance_valid(_golden) and not _golden.is_dead():
+		if event.is_empty() or int(event.window) != int(_golden.get_meta("golden", -1)):
+			Game.say("%s หนีไปแล้ว!" % WorldEvents.NAME_GOLDEN, &"info")
+			_golden.queue_free()
+			_golden = null
+		return
+	if event.is_empty():
+		return
+	var window := int(event.window)
+	if window == _golden_window or int(Game.profile.flags.get(WorldEvents.GOLDEN_FLAG, -1)) == window:
+		return
+	if int(Game.paragon().level) < int(data.get("star", 0)):
+		return
+	var camp: Dictionary = _camps[WorldEvents.golden_pick(window, zone_id, _camps.size(), 1).x]
+	var ids: Array = camp.monsters
+	var pick := WorldEvents.golden_pick(window, zone_id, _camps.size(), ids.size())
+	var angle := _event_rng.randf() * TAU
+	var r := sqrt(_event_rng.randf()) * maxf(0.5, float(camp.radius) - 1.5)
+	var spot := Vector3(camp.pos.x + cos(angle) * r, 0, camp.pos.y + sin(angle) * r)
+	var mob := Mob.new()
+	mob.setup(ids[pick.y], int(camp.levels[1]), spot, hero)
+	mob.template = mob.template.duplicate()
+	mob.template["name"] = WorldEvents.NAME_GOLDEN
+	mob.template["tint"] = WorldEvents.GOLDEN_COLOR
+	mob.max_hp = int(float(mob.max_hp) * WorldEvents.GOLDEN_HP)
+	mob.hp = mob.max_hp
+	mob.set_meta("golden", window)
+	mob.position = spot + Vector3(0, 0.3, 0)
+	add_child(mob)
+	_golden_window = window
+	_golden = mob
+	# A gold label seen from afar and a looping sparkle round it.
+	if mob._label:
+		mob._label.modulate = WorldEvents.GOLDEN_COLOR
+		mob._label.visibility_range_end = 26.0
+	var sparkle := VfxKit.buff_emitter(mob, WorldEvents.GOLDEN_COLOR)
+	sparkle.name = "GoldenSparkle"
+	sparkle.emitting = true
+	var text := "%s ปรากฏตัวที่ %s (%s)! เหลือเวลา 3 นาที" % [WorldEvents.NAME_GOLDEN, String(camp.name), String(data.get("name", ""))]
+	banner_requested.emit("%s ปรากฏตัวแล้ว!" % WorldEvents.NAME_GOLDEN)
+	Game.say(text, &"warning")
+	Game.world_chat.emit("ประกาศ", text, WorldEvents.GOLDEN_COLOR)
+
+
+## The golden monster is down: its window is spent, and the hero that beat it (most of
+## the damage) gets a pile of gold (GOLDEN_GOLD per field tier), a purple and a pink
+## jewel, a chaos jewel at GOLDEN_CHAOS and a stat gem at GOLDEN_GEM (on _event_rng).
+func _on_golden_died(mob: Mob) -> void:
+	Game.profile.flags[WorldEvents.GOLDEN_FLAG] = int(mob.get_meta("golden", -1))
+	Game.mark_dirty()
+	if mob == _golden:
+		_golden = null
+	if mob.party_share() < 0.5:
+		Game.world_chat.emit("ประกาศ", "%s ถูกปราบแล้ว!" % WorldEvents.NAME_GOLDEN, WorldEvents.GOLDEN_COLOR)
+		return
+	var from := mob.global_position
+	var gold := WorldEvents.GOLDEN_GOLD * WorldEvents.golden_tier(data)
+	_spawn_loot({}, gold, from)
+	for item in golden_drops(int(mob.level), is_star_field(), _event_rng):
+		_spawn_loot(item, 0, from)
+	VfxKit.sparks(self, from + Vector3(0, 1.0, 0), WorldEvents.GOLDEN_COLOR, 40, 6.0, 1.0)
+	var text := "%s ปราบ%sแล้ว! ทองตกเป็นกอง %d เหรียญ" % [String(Game.profile.get("name", "")), WorldEvents.NAME_GOLDEN, gold]
+	banner_requested.emit("ปราบ%sแล้ว! +%d เหรียญ" % [WorldEvents.NAME_GOLDEN, gold])
+	Game.say(text, &"quest")
+	Game.world_chat.emit("ประกาศ", text, WorldEvents.GOLDEN_COLOR)
+
+
+## The golden monster's items (its gold aside): a purple and a pink jewel always, a chaos
+## jewel at GOLDEN_CHAOS, a stat gem at GOLDEN_GEM.
+static func golden_drops(level: int, star_field: bool, roll: RandomNumberGenerator) -> Array:
+	var out: Array = [ItemData.jewel("purple"), ItemData.jewel("pink")]
+	if roll.randf() < WorldEvents.GOLDEN_CHAOS:
+		out.append(ItemData.jewel("chaos"))
+	if roll.randf() < WorldEvents.GOLDEN_GEM:
+		out.append(random_stat_gem(level, 1, star_field, roll))
+	return out
+
+
 ## Phase 1 and 2 of a boss: a handful of the field's monsters join the fight.
 func _on_boss_phase(boss: Mob, _phase: int) -> void:
 	var ids: Array = []
@@ -1108,6 +1199,8 @@ func _on_mob_died(mob: Mob) -> void:
 		hero.set_target(null)
 	if mob == _wboss:
 		_on_world_boss_died(mob)
+	if mob.has_meta("golden"):
+		_on_golden_died(mob)
 	# A world player's kill is its own: the hero earns EXP by its share of the damage,
 	# and the kill (loot, quests) only when it dealt most of it.
 	var share := mob.party_share()
@@ -1203,8 +1296,10 @@ func _drop_jewels(from: Vector3) -> void:
 	if is_town or is_pvp:
 		return
 	var luck := 1.0 + _drop_fortune()
+	# The weekend jewel rush (WorldEvents.jewel_multiplier) doubles the jewels, not feathers.
+	var rush := WorldEvents.jewel_multiplier(WorldPresence.clock())
 	for id in ItemData.JEWEL_DROP:
-		if rng.randf() < float(ItemData.JEWEL_DROP[id]) * luck:
+		if rng.randf() < float(ItemData.JEWEL_DROP[id]) * luck * rush:
 			_spawn_loot(ItemData.jewel(id), 0, from)
 	if rng.randf() < ItemData.feather_chance(int(data.get("star", 0))) * luck:
 		_spawn_loot(ItemData.jewel("feather"), 0, from)

@@ -33,6 +33,8 @@ signal world_boss_defeated(zone: StringName)
 signal achievement_earned(id: String)
 ## The title above the hero's head changed ("" when taken off).
 signal title_changed(title: String)
+## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
+signal mount_changed()
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
@@ -124,6 +126,11 @@ func _process(delta: float) -> void:
 	_ach_timer += delta
 	if _ach_timer >= ACH_INTERVAL:
 		_check_achievements()
+	_gq_timer += delta
+	if _gq_timer >= GQ_CHECK_INTERVAL:
+		_gq_timer = 0.0
+		if guild() > 0:
+			_guild_quest_announce()
 	_autosave_timer += delta
 	if _autosave_timer > AUTOSAVE_INTERVAL and _dirty:
 		if save():
@@ -157,6 +164,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
+		"mounts": [], "mount": "",
 	}
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
@@ -848,6 +856,15 @@ func _valid_profile(data: Dictionary) -> bool:
 	for key in ["inv", "storage", "loadout", "party"]:
 		if data.has(key) and not data[key] is Array:
 			return false
+	# Mounts (MountData): owned ids and the active one. Unknown ids are dropped by _repair.
+	if data.has("mounts"):
+		if not data.mounts is Array or (data.mounts as Array).size() > 64:
+			return false
+		for id in data.mounts:
+			if not id is String:
+				return false
+	if data.has("mount") and not data.mount is String:
+		return false
 	for key in ["attrs", "skills", "boss_kills", "boss_pity", "pvp", "tower", "look"]:
 		for value in data.get(key, {}).values():
 			if not _valid_integer(value):
@@ -1066,6 +1083,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		if item is Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	StarWingData.migrate_profile(data)
+	_repair_mounts(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -1746,6 +1764,67 @@ func spend_gold(amount: int) -> bool:
 	return true
 
 
+# ---------------------------------------------------------------------------
+# Mounts (MountData)
+# ---------------------------------------------------------------------------
+
+## Keeps known, unique mount ids; the active one must be owned ("" = none).
+func _repair_mounts(data: Dictionary) -> void:
+	var owned: Array = []
+	for id in data.get("mounts", []):
+		if id is String and MountData.exists(id) and not owned.has(id):
+			owned.append(id)
+	data["mounts"] = owned
+	var active: Variant = data.get("mount", "")
+	data["mount"] = active if active is String and owned.has(active) else ""
+
+
+func owned_mounts() -> Array:
+	return profile.get("mounts", [])
+
+
+func owns_mount(id: String) -> bool:
+	return owned_mounts().has(id)
+
+
+## The mount the HUD's "ขี่" button rides ("" when none is owned).
+func active_mount() -> String:
+	var id := String(profile.get("mount", ""))
+	return id if owns_mount(id) else ""
+
+
+## Buys a mount with gold; the first one bought becomes the active mount.
+## Returns "" when bought, otherwise why not (Thai).
+func buy_mount(id: String) -> String:
+	if not MountData.exists(id):
+		return "ไม่มีสัตว์ขี่ตัวนี้"
+	if owns_mount(id):
+		return "มีสัตว์ขี่ตัวนี้แล้ว"
+	var price := int(MountData.info(id).price)
+	if not spend_gold(price):
+		return "เงินไม่พอ (ต้องใช้ %s เหรียญ)" % MountData.price_text(price)
+	var owned: Array = owned_mounts().duplicate()
+	owned.append(id)
+	profile["mounts"] = owned
+	if active_mount() == "":
+		profile["mount"] = id
+	mark_dirty()
+	mount_changed.emit()
+	profile_changed.emit()
+	return ""
+
+
+## Picks the owned mount the HUD button rides.
+func select_mount(id: String) -> bool:
+	if not owns_mount(id):
+		return false
+	profile["mount"] = id
+	mark_dirty()
+	mount_changed.emit()
+	profile_changed.emit()
+	return true
+
+
 func bag_size() -> int:
 	return clampi(int(profile.get("bag_slots", BASE_BAG)), BASE_BAG, MAX_BAG)
 
@@ -1915,6 +1994,7 @@ func enhance_item(item: Dictionary) -> String:
 		item["plus"] = plus + 1
 		item["price"] = int(int(item.price) * 1.12)
 		flag_max("best_plus", plus + 1)
+		guild_quest_progress("enhance", 1)
 		check_achievements()
 		clamp_vitals()
 		inventory_changed.emit()
@@ -2408,6 +2488,9 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 	daily_progress("zone_kills", 1)
 	if is_boss:
 		daily_progress("boss", 1)
+	guild_quest_progress("kills", 1)
+	if is_boss:
+		guild_quest_progress("boss", 1)
 	check_achievements()
 	mark_dirty()
 
@@ -2762,6 +2845,127 @@ func join_guild(g: int) -> bool:
 	return true
 
 
+# --- Guild daily quests and the guild points shop (GuildQuestData) ---------------
+# Saved as ints in profile.flags: gq_day (the Thai day the counters belong to), gq_<kind>
+# (the hero's own work today), gq_c<slot> (claimed), gq_n<slot> (announced) and gpoints.
+
+const GQ_CHECK_INTERVAL := 30.0
+var _gq_timer := 0.0
+## Today's drawn quests by "guild|day" (the draw never changes within a day).
+var _gq_cache := {}
+
+
+func guild_quest_day(t := -1.0) -> int:
+	return WorldEvents.day_of(WorldPresence.clock() if t < 0.0 else t)
+
+
+## Clears yesterday's counters and claims when a new Thai day begins.
+func _guild_quest_roll(t := -1.0) -> void:
+	var today := guild_quest_day(t)
+	var flags: Dictionary = profile["flags"]
+	if int(flags.get(GuildQuestData.DAY_FLAG, 0)) == today:
+		return
+	for key in flags.keys():
+		if String(key).begins_with("gq_"):
+			flags.erase(key)
+	flags[GuildQuestData.DAY_FLAG] = today
+	mark_dirty()
+
+
+func guild_points() -> int:
+	if not has_profile:
+		return 0
+	return int(profile["flags"].get(GuildQuestData.POINTS_FLAG, 0))
+
+
+## Today's guild quests with their progress: [{slot, kind, name, target, points, gold,
+## hero, mates, progress, done, claimed}]; [] outside a guild.
+func guild_quests(t := -1.0) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var g := guild()
+	if g <= 0:
+		return out
+	if t < 0.0:
+		t = WorldPresence.clock()
+	_guild_quest_roll(t)
+	var day := guild_quest_day(t)
+	var key := "%d|%d" % [g, day]
+	if not _gq_cache.has(key):
+		_gq_cache.clear()
+		var war_ok := GuildWarData.guild_war_blocked(g, GuildQuestData.day_start(day)) == ""
+		_gq_cache[key] = GuildQuestData.quests_for(g, day, war_ok)
+	var flags: Dictionary = profile["flags"]
+	for base in _gq_cache[key]:
+		var q: Dictionary = base.duplicate()
+		var hero := int(flags.get("gq_" + String(q.kind), 0))
+		var mates := GuildQuestData.mate_share(g, q, t)
+		q["hero"] = hero
+		q["mates"] = mates
+		q["progress"] = mini(hero + mates, int(q.target))
+		q["done"] = hero + mates >= int(q.target)
+		q["claimed"] = int(flags.get("gq_c%d" % int(q.slot), 0)) > 0
+		out.append(q)
+	return out
+
+
+## The hero's own work for the guild quests (kills, boss, enhance, war, jewels).
+func guild_quest_progress(kind: String, amount := 1) -> void:
+	if not has_profile or guild() <= 0 or amount <= 0:
+		return
+	_guild_quest_roll()
+	if GuildQuestData.template(kind).is_empty():
+		return
+	flag_add("gq_" + kind, amount)
+	mark_dirty()
+	_guild_quest_announce(kind)
+
+
+## Toasts each quest that has just been finished (by the hero or the guild), once
+## (only the quests of `kind` when given).
+func _guild_quest_announce(kind := "") -> void:
+	for q in guild_quests():
+		var key := "gq_n%d" % int(q.slot)
+		if kind != "" and String(q.kind) != kind:
+			continue
+		if bool(q.done) and not bool(q.claimed) and int(profile["flags"].get(key, 0)) == 0:
+			profile["flags"][key] = 1
+			mark_dirty()
+			say("ภารกิจกิลด์ \"%s\" สำเร็จ! รับแต้มกิลด์ที่นายทะเบียนกิลด์" % String(q.name), &"quest")
+
+
+## Claims a finished guild quest once: guild points and gold. "ok" or a reason.
+func guild_quest_claim(slot: int) -> String:
+	for q in guild_quests():
+		if int(q.slot) != slot:
+			continue
+		if bool(q.claimed):
+			return "รับรางวัลภารกิจนี้ไปแล้ว"
+		if not bool(q.done):
+			return "ภารกิจยังไม่สำเร็จ"
+		profile["flags"]["gq_c%d" % slot] = 1
+		flag_add(GuildQuestData.POINTS_FLAG, int(q.points))
+		add_gold(int(q.gold))
+		mark_dirty()
+		return "ok"
+	return "ไม่มีภารกิจนี้" if guild() > 0 else "ต้องอยู่ในกิลด์ก่อน"
+
+
+## Buys from the guild points shop (GuildQuestData.SHOP). "ok" or a reason.
+func guild_shop_buy(id: String) -> String:
+	if guild() <= 0:
+		return "ต้องอยู่ในกิลด์ก่อน"
+	var e := GuildQuestData.shop_entry(id)
+	if e.is_empty():
+		return "ไม่มีสินค้านี้"
+	if guild_points() < int(e.price):
+		return "แต้มกิลด์ไม่พอ (ต้องใช้ %d แต้ม)" % int(e.price)
+	if not give_or_store(GuildQuestData.shop_item(e)):
+		return "กระเป๋าและคลังเต็ม"
+	profile["flags"][GuildQuestData.POINTS_FLAG] = guild_points() - int(e.price)
+	mark_dirty()
+	return "ok"
+
+
 ## War rations: tops the bag up to GuildWarData.SUPPLY_COUNT war potions.
 func guildwar_issue_supply() -> void:
 	var missing := GuildWarData.SUPPLY_COUNT - potion_count(GuildWarData.SUPPLY_POTION)
@@ -2808,6 +3012,8 @@ func guildwar_finish(won: bool, score_us: int, score_them: int, kills: int, deat
 		"their_guild": their_guild, "at": int(WorldPresence.clock()), "rows": board}
 	flag_add("gw_played")
 	flag_add("gw_wins" if won else "gw_losses")
+	if won:
+		guild_quest_progress("war", 1)
 	flag_add("gw_kills", kills)
 	flag_max("gw_best_kills", kills)
 	var stats := stats_now()

@@ -172,7 +172,7 @@ function validateProfile(profile) {
   if ('play_time' in profile && (typeof profile.play_time !== 'number' || profile.play_time < 0 || profile.play_time > 1e12)) fail(400, 'invalid_save', 'The character play time is invalid.');
   if ('adv' in profile && !integer(profile.adv, 0, 4)) fail(400, 'invalid_save', 'The character advancement is invalid.');
   if ('bag_slots' in profile && !integer(profile.bag_slots, 40, 100)) fail(400, 'invalid_save', 'The bag capacity is invalid.');
-  for (const key of ['name', 'zone', 'job', 'spawn_override']) {
+  for (const key of ['name', 'zone', 'job', 'spawn_override', 'mount']) {
     if (key in profile && typeof profile[key] !== 'string') fail(400, 'invalid_save', `The character field ${key} must be text.`);
   }
   for (const key of ['resume', 'job3']) {
@@ -181,7 +181,7 @@ function validateProfile(profile) {
   for (const key of ['attrs', 'skills', 'equip', 'quests', 'flags', 'boss_kills', 'pvp', 'tower', 'paragon', 'ach', 'look', 'daily']) {
     if (key in profile && !dictionary(profile[key])) fail(400, 'invalid_save', `The character field ${key} must be an object.`);
   }
-  for (const key of ['inv', 'storage', 'loadout', 'party']) {
+  for (const key of ['inv', 'storage', 'loadout', 'party', 'mounts']) {
     if (key in profile && !Array.isArray(profile[key])) fail(400, 'invalid_save', `The character field ${key} must be a list.`);
   }
   for (const key of ['attrs', 'skills', 'boss_kills', 'pvp', 'tower', 'look']) {
@@ -189,6 +189,7 @@ function validateProfile(profile) {
   }
   if ((profile.inv?.length ?? 0) > 100 || (profile.storage?.length ?? 0) > 80
       || (profile.loadout ?? []).some(value => typeof value !== 'string')
+      || (profile.mounts?.length ?? 0) > 64 || (profile.mounts ?? []).some(value => typeof value !== 'string')
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');

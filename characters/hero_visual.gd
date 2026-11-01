@@ -138,6 +138,8 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 
 
 var _armed := true
+## Held weapon and offhand hidden (while riding a mount, so they do not poke through it).
+var held_stowed := false
 var _pumpkin: Node3D
 ## Head widths in metres (the chibi bodies, the KayKit ones).
 const PUMPKIN_HEAD_WIDTH := 0.85
@@ -931,6 +933,16 @@ func _hold_gear() -> void:
 			_hold(weapon_look, "handslot.l", plus, true)
 
 
+## Hides (or shows again) every held piece: weapon, shield, book, tome, twin dagger.
+func stow_held(on: bool) -> void:
+	held_stowed = on
+	if _skeleton == null:
+		return
+	for n in _skeleton.get_children():
+		if n.has_meta(&"held"):
+			(n as Node3D).visible = not on
+
+
 ## [param offhand]: a second held piece; the skill emission point stays on the main weapon.
 func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	var item: Node3D
@@ -948,6 +960,8 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	var attach := BoneAttachment3D.new()
 	attach.name = "Held_" + look
 	attach.bone_name = bone
+	attach.set_meta(&"held", true)
+	attach.visible = not held_stowed
 	_skeleton.add_child(attach)
 	var pivot := Node3D.new()
 	pivot.name = "Grip"
