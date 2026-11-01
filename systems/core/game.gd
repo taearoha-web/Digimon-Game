@@ -1847,9 +1847,11 @@ func mount_step_problem(id: String) -> String:
 
 
 ## Crafts a mount (Lv.0 -> 1) or levels it up (to MAX_LEVEL) with its material and
-## chaos jewels (MountData.cost); every step succeeds. The first mount crafted
-## becomes the active one. Returns "" when done, otherwise why not (Thai).
-func craft_mount(id: String) -> String:
+## chaos jewels (MountData.cost). The step succeeds with MountData.chance: a failed
+## try uses up the materials and chaos jewels and keeps the level (like enhance_item).
+## The first mount crafted becomes the active one. `roll` (0-1) replaces the random
+## roll (tests); below 0 rolls Game.rng. Returns "ok", "fail" or why not (Thai).
+func craft_mount(id: String, roll := -1.0) -> String:
 	var problem := mount_step_problem(id)
 	if problem != "":
 		return problem
@@ -1857,6 +1859,13 @@ func craft_mount(id: String) -> String:
 	var cost := MountData.cost(id, next)
 	_spend_jewels(MountData.mat_of(id), int(cost.mat))
 	_spend_jewels("chaos", int(cost.chaos))
+	if roll < 0.0:
+		roll = rng.randf()
+	if roll >= MountData.chance(id):
+		mark_dirty()
+		inventory_changed.emit()
+		profile_changed.emit()
+		return "fail"
 	var levels: Dictionary = profile.get("mounts", {}) if profile.get("mounts") is Dictionary else {}
 	levels[id] = next
 	profile["mounts"] = levels
@@ -1866,7 +1875,7 @@ func craft_mount(id: String) -> String:
 	inventory_changed.emit()
 	mount_changed.emit()
 	profile_changed.emit()
-	return ""
+	return "ok"
 
 
 ## Picks the owned mount the HUD button rides (and whose stats count).

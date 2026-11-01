@@ -874,7 +874,72 @@ static func profile(m: Dictionary) -> Dictionary:
 		if int(skill.level) <= level:
 			skills[String(skill.id)] = clampi(1 + (level - int(skill.level)) / 12, 1, SkillRank.MAX)
 	p["skills"] = skills
+	# Its mount (mount_of): the stats count like the hero's (HeroStats.mount_bonus).
+	var ride := mount_of(m)
+	p["mounts"] = {String(ride.id): int(ride.level)} if not ride.is_empty() else {}
+	p["mount"] = String(ride.get("id", ""))
 	return p
+
+
+# --- Mounts (MountData) --------------------------------------------------------------
+
+## The share of players who ever take up mounts (the rest never craft one).
+const MOUNT_SHARE := 0.6
+## The level a mount-keeping player crafts its first mount (its own, in this range).
+const MOUNT_FROM := Vector2i(35, 70)
+## Progress (levels since the first mount + stars) a player needs, beyond its own
+## extra, before it trades up to the stag, the griffin and the drake.
+const MOUNT_TIERS := {"glow_stag": [30.0, 30.0], "griffin": [90.0, 60.0], "fire_drake": [170.0, 90.0]}
+## Of the players who get that far, the share that ever lands the drake's 10% craft.
+const DRAKE_SHARE := 0.25
+## Progress per mount level (Lv.1 at the craft, up to MountData.MAX_LEVEL).
+const MOUNT_LEVEL_EVERY := 14.0
+## How much each play style likes to ride (MOUNT_TASTE_JITTER scales it per player).
+const STYLE_RIDE := {"hardcore": 0.75, "regular": 0.55, "student": 0.6, "night_owl": 0.5, "weekend": 0.45,
+	"casual": 0.35, "daytime": 0.45, "early": 0.4, "overseas": 0.5, "afk": 0.2}
+## The share of mount owners who never bother riding, and who rarely do.
+const NEVER_RIDE := 0.15
+const RARELY_RIDE := 0.25
+
+
+## The mount a world player (member sheet: name, level, stars) has at its progress: {id,
+## level} or {} with none. Seeded by its name, so the same on every device: some players
+## never craft one; the rest craft the wolf at a level of their own (MOUNT_FROM) and trade
+## up as they progress, levelling the newest one.
+static func mount_of(m: Dictionary) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("mount|%s" % String(m.get("name", "")))
+	if rng.randf() >= MOUNT_SHARE:
+		return {}
+	var from := rng.randi_range(MOUNT_FROM.x, MOUNT_FROM.y)
+	var level := int(m.get("level", 1))
+	if level < from:
+		return {}
+	var point := float(level - from) + float(m.get("stars", 0))
+	var id := "thunder_wolf"
+	var since := 0.0
+	var drake := rng.randf() < DRAKE_SHARE
+	for tier in ["glow_stag", "griffin", "fire_drake"]:
+		var need := float(MOUNT_TIERS[tier][0]) + rng.randf() * float(MOUNT_TIERS[tier][1])
+		if point >= need and (tier != "fire_drake" or drake):
+			id = tier
+			since = need
+	return {"id": id, "level": clampi(1 + int((point - since) / MOUNT_LEVEL_EVERY), 1, MountData.MAX_LEVEL)}
+
+
+## How much player i likes to ride its mount (0 = never, up to about 0.95 = nearly
+## always), always the same: its play style's taste (STYLE_RIDE) and its own whim; some
+## never ride, some rarely.
+static func ride_taste(i: int) -> float:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("ride|%s" % ROSTER[i].name)
+	var pick := rng.randf()
+	if pick < NEVER_RIDE:
+		return 0.0
+	var base := float(STYLE_RIDE.get(String(ROSTER[i].style), 0.5))
+	if pick < NEVER_RIDE + RARELY_RIDE:
+		return clampf(base * rng.randf_range(0.15, 0.4), 0.05, 0.3)
+	return clampf(base * rng.randf_range(0.9, 1.5), 0.2, 0.95)
 
 
 # --- What they wear: what they found -----------------------------------------------

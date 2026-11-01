@@ -34,7 +34,7 @@ const BULWARK_HP := 0.5
 ## up clear of the mount), then its attacks, skills and hits, all from the seat.
 const RIDE_CLIP := SaddlePose.CLIP
 const RIDE_UPPER := "Idle"
-const RIDE_HIP := 0.13
+const RIDE_HIP := MountVisual.RIDE_HIP
 const NAME_PLATE_Y := 2.45
 
 var visual: HeroVisual
@@ -717,14 +717,7 @@ func _on_mount_changed() -> void:
 ## Riding frame: the mount gallops under the seated rider, who follows its bob.
 ## Attacks and skills play over the seat (HeroVisual.set_seated): only the upper body moves.
 func _ride_step(speed: float) -> void:
-	mount.rotation.y = _facing
-	visual.set_seated(true)
-	mount.set_motion(speed > 0.6, speed / maxf(move_speed(), 0.1))
-	visual.set_wing_moving(false)
-	visual.play(RIDE_UPPER, 0.2)
-	visual.position = Vector3(0, mount.seat_height() - RIDE_HIP, 0) + Basis(Vector3.UP, _facing) * Vector3(0, 0, mount.seat.position.z)
-	if visual.model != null:
-		visual.model.rotation.x = 0.0
+	MountVisual.carry(mount, visual, _facing, speed, move_speed(), RIDE_UPPER)
 	if is_instance_valid(_name_plate):
 		_name_plate.position.y = NAME_PLATE_Y + visual.position.y
 

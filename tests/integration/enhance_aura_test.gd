@@ -84,8 +84,25 @@ func _ready() -> void:
 			check(aura != null and aura.get_child_count() >= 6, "+15 builds its sun, wings, crown and rings")
 		h.queue_free()
 		await get_tree().process_frame
+	# The Dark Lord wears a cape, not wings: from +12 his light comes as a cape of light.
+	for plus in [12, 13, 14, 15]:
+		var lord := HeroVisual.new()
+		add_child(lord)
+		lord.setup(&"darklord", "", true, _gear({"weapon": plus, "armor": plus, "helm": plus, "boots": plus}), FaceKit.default_look())
+		await get_tree().process_frame
+		var aura := lord.find_child("SetAura", true, false)
+		check(aura != null and aura.find_child("LightCape", true, false) != null, "Dark Lord +%d: a cape of light" % plus)
+		lord.queue_free()
+		var knight := HeroVisual.new()
+		add_child(knight)
+		knight.setup(&"warrior", "", true, _gear({"weapon": plus, "armor": plus, "helm": plus, "boots": plus}), FaceKit.default_look())
+		await get_tree().process_frame
+		var light := knight.find_child("SetAura", true, false)
+		check(light != null and light.find_child("LightCape", true, false) == null, "warrior +%d: wings of light, no cape" % plus)
+		knight.queue_free()
+		await get_tree().process_frame
 	# Jewels and feathers fly to the hero from anywhere in the field.
 	var src := FileAccess.get_file_as_string("res://world/loot_drop.gd")
-	check(src.contains('== "jewel"') and src.contains("_magnet = true"), "jewel and feather drops fly to the hero from anywhere")
+	check(src.contains("func _lift_off") and src.contains("_magnet = true") and not src.contains("PICKUP_RADIUS"), "jewel and feather drops (every drop) fly to the hero from anywhere")
 	print("ENHANCE AURA: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)

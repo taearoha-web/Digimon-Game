@@ -25,6 +25,7 @@ func _ready() -> void:
 	_progress()
 	_vagabonds()
 	_gear()
+	_mount_data()
 	await _field()
 	await _party()
 	await _errand_visit()
@@ -508,6 +509,7 @@ func _party() -> void:
 	check(before == after, "a new character does not restart the world players")
 	check(Game.party().is_empty(), "a new character starts without a party")
 	await _wings(zone)
+	await _riding(zone)
 	WorldPresence.clock_offset = 0.0
 	await main.go(&"town", true)
 
@@ -589,6 +591,9 @@ func _wings(zone: Zone) -> void:
 	zone.add_child(p)
 	p.global_position = zone.hero.global_position + Vector3(4, 0.3, 4)
 	await get_tree().process_frame
+	# On foot for the wings (riding is _riding's).
+	p.mount_info = {}
+	p.dismount()
 	check(p.visual.has_wings(), "a player past its wing drop wears wings")
 	var modes := {}
 	for k in 40:
@@ -606,6 +611,170 @@ func _wings(zone: Zone) -> void:
 		await get_tree().physics_frame
 	check(p.visual.position.y < 0.2, "folded wings bring it back down")
 	p.queue_free()
+
+
+## Mounts of the world players (WorldPlayers.mount_of, ride_taste): a share owns one at a
+## level fitting its progress, the same on every device; their stats count.
+func _mount_data() -> void:
+	var owners := 0
+	var drakes := 0
+	var kinds := {}
+	var never := 0
+	var rarely := 0
+	var often := 0
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		var low := {"name": e.name, "level": 20, "stars": 0}
+		check(WorldPlayers.mount_of(low).is_empty(), "%s has no mount at Lv.20" % e.name)
+		var top := {"name": e.name, "level": 100, "stars": 200}
+		var mt := WorldPlayers.mount_of(top)
+		check(mt == WorldPlayers.mount_of(top.duplicate()), "%s: the same mount every time" % e.name)
+		var last_tier := -1
+		var last_level := 0
+		var steady := true
+		for step in [[40, 0], [55, 0], [70, 0], [85, 0], [100, 0], [100, 30], [100, 80], [100, 140], [100, 200]]:
+			var at := WorldPlayers.mount_of({"name": e.name, "level": step[0], "stars": step[1]})
+			if at.is_empty():
+				steady = steady and last_tier < 0
+				continue
+			kinds[at.id] = true
+			var tier := MountData.ORDER.find(String(at.id))
+			steady = steady and tier >= last_tier and (tier > last_tier or int(at.level) >= last_level)
+			check(MountData.exists(String(at.id)) and int(at.level) >= 1 and int(at.level) <= MountData.MAX_LEVEL, "%s: a real mount at Lv.1-5 (%s)" % [e.name, str(at)])
+			last_tier = tier
+			last_level = int(at.level)
+		check(steady, "%s: its mount only gets better as it progresses" % e.name)
+		if not mt.is_empty():
+			owners += 1
+			drakes += 1 if mt.id == "fire_drake" else 0
+			var sheet := WorldPlayers.profile({"class": String(e["class"]), "name": e.name, "level": 100, "stars": 200, "frac": 0.0, "divine_frac": 0.0})
+			check(String(sheet.mount) == String(mt.id) and int(sheet.mounts[mt.id]) == int(mt.level), "%s: its sheet carries its mount" % e.name)
+			check(not HeroStats.mount_bonus(sheet).is_empty(), "%s: its mount's stats count" % e.name)
+		var taste := WorldPlayers.ride_taste(i)
+		check(taste == WorldPlayers.ride_taste(i) and taste >= 0.0 and taste <= 0.95, "%s: a steady taste for riding (%.2f)" % [e.name, taste])
+		if taste == 0.0:
+			never += 1
+		elif taste <= 0.3:
+			rarely += 1
+		elif taste >= 0.5:
+			often += 1
+	var share := float(owners) / WorldPlayers.size()
+	check(share > 0.4 and share < 0.8, "a share of the endgame players own a mount (%d of %d)" % [owners, WorldPlayers.size()])
+	check(kinds.size() == 4 and drakes >= 1 and drakes < owners / 3, "every kind of mount on the way up, the drake rare even at ★200 (%s, %d drakes)" % [str(kinds.keys()), drakes])
+	check(never >= 5 and rarely >= 5 and often >= 20, "some never ride, some rarely, many often (%d / %d / %d)" % [never, rarely, often])
+	# A month in, some veterans already ride (state of the schedule now).
+	var t := float(WorldPlayers.START_UNIX) + 30.0 * 86400.0
+	var now_owners := 0
+	for i in WorldPlayers.size():
+		if not WorldPlayers.mount_of(WorldPlayers.member(i, t)).is_empty():
+			now_owners += 1
+	check(now_owners >= 5, "a month in, some players own a mount (%d)" % now_owners)
+
+
+## A world player with a mount rides and gets off as it likes, seated like the hero
+## (SaddlePose) and fighting from the saddle; never where riding isn't allowed, nor
+## dead; a far rider's mount is simplified.
+func _riding(zone: Zone) -> void:
+	check(MountData.zone_allows(zone.data), "the test field allows riding (%s)" % zone.zone_id)
+	var rider := -1
+	var never := -1
+	for i in WorldPlayers.size():
+		var top := {"name": WorldPlayers.entry(i).name, "level": 100, "stars": 150}
+		if WorldPlayers.mount_of(top).is_empty():
+			continue
+		if rider < 0 and WorldPlayers.ride_taste(i) >= 0.5:
+			rider = i
+		if never < 0 and WorldPlayers.ride_taste(i) == 0.0:
+			never = i
+	check(rider >= 0 and never >= 0, "a keen rider and a never-rider among the owners")
+	if rider < 0:
+		return
+	var m := WorldPlayers.member(rider)
+	m["level"] = 100
+	m["stars"] = 150
+	var p := FieldPlayer.new()
+	p.setup_world(rider, m, zone.hero, zone)
+	zone.add_child(p)
+	p.global_position = zone.hero.global_position + Vector3(3, 0.3, 3)
+	await get_tree().process_frame
+	check(not p.mount_info.is_empty() and p.ride_taste >= 0.5, "the rider knows its mount and taste")
+	check(p.wants_ride(0.0) and not p.wants_ride(0.999), "its whim decides (wants at a low roll, not at a high one)")
+	p._set_riding(true)
+	# Hold its own whim off for this check (it re-decides every 14-45 s, and the first
+	# think comes 0.2-2 s after setup, which could randomly take it off mid-check).
+	p._ride_think = 999.0
+	for k in 30:
+		await get_tree().physics_frame
+	check(p.is_riding() and p.mount.id == String(p.mount_info.id), "it gets on its own mount (%s)" % p.mount_info.get("id", ""))
+	check(p.visual.seated and p.visual.find_child("SaddlePose", true, false) != null, "it sits in the saddle like the hero (SaddlePose)")
+	check(p.visual.position.y > 0.4, "it sits up on the mount (%.2f)" % p.visual.position.y)
+	check(p._label.position.y > Companion.LABEL_Y, "its name tag rides up with it")
+	# Fighting from the saddle: a monster beside it, the AI keeps riding.
+	var mob := Mob.new()
+	mob.setup(&"forest_orc", 30, p.global_position + Vector3(1.5, 0, 0), zone.hero)
+	zone.add_child(mob)
+	mob.global_position = p.global_position + Vector3(1.5, 0.2, 0)
+	p.target = mob
+	p._attack_timer = 0.0
+	var hit := mob.others_damage
+	for k in 90:
+		p.target = mob if is_instance_valid(mob) and not mob.is_dead() else null
+		await get_tree().physics_frame
+	check(p.is_riding() and p.visual.seated, "it fights on from the saddle")
+	check(not is_instance_valid(mob) or mob.is_dead() or mob.others_damage > hit, "its attacks land from the mount")
+	if is_instance_valid(mob):
+		mob.queue_free()
+	# Out of the fight (a rider with a target keeps full detail whatever the distance).
+	p.target = null
+	# Far away: the mount is simplified.
+	var near_parts := p.mount.drawn_parts()
+	p.global_position = zone.hero.global_position + Vector3(60, 0.3, 0)
+	p._update_lod()
+	check(p.mount.is_far() and p.mount.lod_step >= 2 and p.mount.drawn_parts() < near_parts, "far away the mount is simplified (%d -> %d parts)" % [near_parts, p.mount.drawn_parts()])
+	p.global_position = zone.hero.global_position + Vector3(3, 0.3, 3)
+	p._update_lod()
+	check(not p.mount.is_far() and p.mount.drawn_parts() == near_parts, "close again the mount is whole")
+	# Its whim says walk: off the mount.
+	p._set_riding(p.wants_ride(0.999))
+	await get_tree().physics_frame
+	check(not p.is_riding() and not p.visual.seated, "it gets off when it feels like walking")
+	# Thinking over time: both happen, the same way for the same seed.
+	var picks := {}
+	for k in 60:
+		p._ride_think = 0.0
+		p._think_ride(0.016)
+		picks[p.is_riding()] = true
+	check(picks.size() == 2, "left to itself it both rides and walks")
+	# No riding where it isn't allowed: it gets off and can't get back on.
+	p._set_riding(true)
+	var keep: Dictionary = zone.data
+	zone.data = keep.duplicate()
+	zone.data["pvp"] = true
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	check(not p.is_riding() and not p.ride_mount(String(p.mount_info.id)) and not p.wants_ride(0.0), "no riding where riding is not allowed")
+	zone.data = keep
+	# Dead: off the mount.
+	p._set_riding(true)
+	check(p.is_riding(), "back on in the field")
+	p._die()
+	check(not p.is_riding() and not p.wants_ride(0.0), "a fallen rider is on foot")
+	p.queue_free()
+	# A never-rider owns a mount but never gets on.
+	var n := WorldPlayers.member(never)
+	n["level"] = 100
+	n["stars"] = 150
+	var q := FieldPlayer.new()
+	q.setup_world(never, n, zone.hero, zone)
+	zone.add_child(q)
+	q.global_position = zone.hero.global_position + Vector3(-3, 0.3, 3)
+	await get_tree().process_frame
+	for k in 40:
+		q._ride_think = 0.0
+		q._think_ride(0.016)
+	check(not q.mount_info.is_empty() and not q.is_riding(), "a player who never rides stays on foot")
+	q.queue_free()
+	await get_tree().process_frame
 
 
 func _guild() -> void:

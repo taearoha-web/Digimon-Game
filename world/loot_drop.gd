@@ -1,19 +1,45 @@
 class_name LootDrop
 extends Node3D
-## Gold or an item lying on the ground: tossed out of a monster, glowing in
-## its rarity colour, and picked up automatically when the hero walks near.
+## Gold or an item tossed out of a monster the hero earned (Zone._spawn_loot: only the
+## hero's own kills drop loot, a world player's kill stays its own), glowing in its
+## rarity colour. Loot magnet: shortly after it lands it flies to the hero from
+## anywhere in the zone, on a short arc that speeds up (FLY_MIN-FLY_MAX seconds, with
+## a small sparkle), and is collected on arrival. An item the full bag can't take stays
+## on the ground (a throttled "กระเป๋าเต็ม" toast) and flies over as soon as there is
+## room, until LIFETIME runs out. Liftoff / pickup sparkles and sounds are capped per
+## moment (FX_PER_BURST every FX_BURST seconds) so a boss's pile of drops does not
+## flood the effect budget (VfxBudget).
 
-const PICKUP_RADIUS := 8.0
 const LIFETIME := 120.0
+## Rest on the ground after landing before flying (seconds), plus a little per drop.
+const REST := 0.35
+const FLY_MIN := 0.3
+const FLY_MAX := 0.6
+## Liftoff / pickup sparkles and sounds allowed per FX_BURST seconds.
+const FX_PER_BURST := 4
+const FX_BURST := 0.25
+## Seconds between two "bag full" toasts.
+const FULL_TOAST_GAP := 15.0
+
+static var _fx_window := -100.0
+static var _fx_used := 0
+static var _full_toast_at := -100.0
 
 var item: Dictionary = {}
 var gold := 0
 var hero: Node3D
 
 var _age := 0.0
+## Flying to the hero (the loot magnet).
 var _magnet := false
 var _body: Node3D
 var _landed := false
+var _landed_at := 0.0
+var _rest := REST
+var _fly_from := Vector3.ZERO
+var _fly_t := 0.0
+var _fly_time := FLY_MIN
+var _fly_side := Vector3.ZERO
 
 
 func setup(p_item: Dictionary, p_gold: int, p_hero: Node3D, from: Vector3) -> void:
@@ -103,6 +129,8 @@ func _ready() -> void:
 ## Rare gear announces itself: a burst of light, a chime and a message.
 func _on_landed() -> void:
 	_landed = true
+	_landed_at = _age
+	_rest = REST + randf() * 0.2
 	if item.get("kind", "") != "equip":
 		return
 	var rarity := int(item.get("rarity", 0))
@@ -121,48 +149,130 @@ func _process(delta: float) -> void:
 	_age += delta
 	if _body:
 		_body.rotation.y += delta * 2.0
-		_body.position.y = sin(_age * 3.0) * 0.06
+		if not _magnet:
+			_body.position.y = sin(_age * 3.0) * 0.06
+	if _magnet:
+		_fly(delta)
+		return
 	if _age > LIFETIME:
 		queue_free()
 		return
-	if not _landed or hero == null or not is_instance_valid(hero) or hero.is_dead():
+	if not _landed or not _hero_ok() or _age - _landed_at < _rest:
 		return
-	var to := hero.global_position + Vector3(0, 0.8, 0) - global_position
-	var flat := Vector2(to.x, to.z).length()
-	if _magnet:
-		global_position += to.normalized() * delta * 16.0
-		if to.length() < 0.5:
-			_collect()
-	elif _age > 0.5 and String(item.get("kind", "")) == "jewel":
-		# Jewels and feathers fly to the hero from anywhere in the field: a party member
-		# hunting far away (บุกลุย) never loses them to the timeout.
-		_magnet = true
-	elif flat < PICKUP_RADIUS and _age > 0.5:
-		if gold == 0 and not ItemData.is_stackable(item) and Game.inventory_free() <= 0:
-			if int(_age * 2.0) % 6 == 0:
-				pass
-			return
-		_magnet = true
+	if not fits():
+		_bag_full_toast()
+		return
+	_lift_off()
+
+
+func _hero_ok() -> bool:
+	return hero != null and is_instance_valid(hero) and hero.is_inside_tree() and not hero.is_dead()
+
+
+## True when the bag can take this drop now (gold always; a stackable onto its stack).
+func fits() -> bool:
+	if gold > 0 or item.is_empty():
+		return true
+	if ItemData.is_stackable(item):
+		for existing in Game.profile.get("inv", []):
+			if existing.get("kind", "") == item.get("kind", "") and existing.get("id") == item.get("id"):
+				return true
+	return Game.inventory_free() > 0
+
+
+## Starts the homing flight from wherever it lies in the zone.
+func _lift_off() -> void:
+	_magnet = true
+	_fly_from = global_position
+	_fly_t = 0.0
+	var dist := (hero.global_position - _fly_from).length()
+	_fly_time = clampf(FLY_MIN + dist * 0.006, FLY_MIN, FLY_MAX)
+	# A sideways bow so a pile fans out instead of flying as one line.
+	var flat := Vector3(hero.global_position.x - _fly_from.x, 0, hero.global_position.z - _fly_from.z)
+	var side := flat.cross(Vector3.UP).normalized() if flat.length() > 0.01 else Vector3.RIGHT
+	_fly_side = side * randf_range(-1.0, 1.0) * clampf(dist * 0.12, 0.3, 3.0)
+	var parent := get_parent() as Node3D
+	if parent != null and take_fx():
+		VfxKit.sparks(parent, global_position + Vector3(0, 0.3, 0), _sparkle_color(), 6, 2.0, 0.3)
+
+
+## One frame of the flight: a quadratic arc from where it lifted off to the hero
+## (followed as it moves), eased in so it speeds up; collected on arrival.
+func _fly(delta: float) -> void:
+	if not _hero_ok():
+		# The hero fell (or left): drop where it is and wait.
+		_magnet = false
+		global_position.y = 0.05
+		_landed_at = _age
+		return
+	_fly_t = minf(1.0, _fly_t + delta / _fly_time)
+	var to := hero.global_position + Vector3(0, 0.9, 0)
+	var mid := (_fly_from + to) * 0.5 + _fly_side
+	mid.y = maxf(_fly_from.y, to.y) + clampf((to - _fly_from).length() * 0.18, 1.0, 5.0)
+	var e := _fly_t * _fly_t
+	var a := _fly_from.lerp(mid, e)
+	var b := mid.lerp(to, e)
+	global_position = a.lerp(b, e)
+	if _body:
+		_body.scale = Vector3.ONE * lerpf(1.0, 0.55, e)
+	if _fly_t >= 1.0:
+		_collect()
+
+
+static func _sparkle_color() -> Color:
+	return Color("ffe27a")
+
+
+## True while the liftoff / pickup sparkles and sounds have room this moment.
+static func take_fx() -> bool:
+	var now := Time.get_ticks_msec() * 0.001
+	if now - _fx_window > FX_BURST:
+		_fx_window = now
+		_fx_used = 0
+	if _fx_used >= FX_PER_BURST:
+		return false
+	_fx_used += 1
+	return true
+
+
+static func _bag_full_toast() -> void:
+	var now := Time.get_ticks_msec() * 0.001
+	if now - _full_toast_at < FULL_TOAST_GAP:
+		return
+	_full_toast_at = now
+	Game.say("กระเป๋าเต็ม! ของยังตกอยู่ที่พื้น ว่างช่องเมื่อไรจะบินมาเก็บเอง", &"warning")
 
 
 func _collect() -> void:
 	var parent := get_parent() as Node3D
+	var fx := take_fx()
 	if gold > 0:
 		Game.add_gold(gold)
 		Game.daily_progress("gold", gold)
-		BattleVfx.floating_text(parent, global_position + Vector3(0, 0.8, 0), "+%d เหรียญ" % gold, Color("ffd84a"), 0.8)
-		AudioManager.play_sfx(&"coin", -4.0)
+		if parent != null:
+			BattleVfx.floating_text(parent, global_position + Vector3(0, 0.8, 0), "+%d เหรียญ" % gold, Color("ffd84a"), 0.8)
+		if fx:
+			AudioManager.play_sfx(&"coin", -4.0)
 	else:
 		if not Game.add_item(item):
+			# The bag filled up mid-flight: back on the ground, it waits for room.
 			_magnet = false
-			Game.say("กระเป๋าเต็ม!", &"warning")
+			if _body:
+				_body.scale = Vector3.ONE
+			global_position.y = 0.05
+			_landed = true
 			_age = 0.0
+			_landed_at = 0.0
+			_bag_full_toast()
 			return
 		var qty := int(item.get("count", 1))
 		if String(item.get("kind", "")) == "jewel":
 			Game.guild_quest_progress("jewels", qty)
-		BattleVfx.floating_text(parent, global_position + Vector3(0, 0.9, 0),
-				ItemData.name_of(item) + (" x%d" % qty if qty > 1 else ""), ItemData.color_of(item), 0.85)
-		AudioManager.play_sfx(&"pickup", -2.0)
-	VfxKit.sparks(parent, global_position, Color("ffe27a"), 10, 2.5, 0.3)
+		if parent != null:
+			BattleVfx.floating_text(parent, global_position + Vector3(0, 0.9, 0),
+					ItemData.name_of(item) + (" x%d" % qty if qty > 1 else ""), ItemData.color_of(item), 0.85)
+		if fx:
+			AudioManager.play_sfx(&"pickup", -2.0)
+	if fx and parent != null:
+		VfxKit.sparks(parent, global_position, _sparkle_color(), 10, 2.5, 0.3)
 	queue_free()

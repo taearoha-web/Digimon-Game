@@ -5,6 +5,10 @@ extends Node3D
 ## only). Faces +Z. [member body] carries everything above the legs and bobs; the
 ## rider's hips go on [member seat]. Idle: slow breathing bob, head and tail sway,
 ## wings beat softly. Running: the legs gallop, the body rocks, wings flap hard.
+## Far LOD (world players' mounts, set_far): the small detail parts (eyes, highlights,
+## trims) hide, nothing casts a shadow, and the gait is posed every lod_step-th frame.
+## carry() is the per-frame riding step shared by the hero (Hero) and the AI world
+## players (Companion): the rider sits seated (SaddlePose) on the bobbing saddle.
 
 const RUN_RATE := 10.5
 const FLAME_FLICKER := 17.0
@@ -30,6 +34,18 @@ var _moving := false
 var _speed_scale := 1.0
 var _wing_rest := 0.3
 var _wing_amp := 0.6
+## Far LOD: the small parts hidden far away, the parts that cast a shadow up close.
+var _details: Array[MeshInstance3D] = []
+var _shadow_parts: Array[MeshInstance3D] = []
+var _far := false
+## Pose every Nth frame (1 = every frame), with the time gathered since.
+var lod_step := 1
+var _lod_frame := 0
+var _lod_time := 0.0
+## Rider hip lowered below the saddle point (the seated clip's hips sit this high).
+const RIDE_HIP := 0.13
+## A part this small (largest scale axis) is a detail the far LOD hides.
+const DETAIL_SIZE := 0.14
 
 
 static func _mat(color: Color, glow := 0.0) -> StandardMaterial3D:
@@ -61,6 +77,67 @@ func build(p_id: String) -> void:
 		_: _build_wolf()
 	var shadow := MeshKit.blob_shadow(self, 0.7)
 	shadow.scale = Vector3(1.6, 2.6, 1.0)
+	_details.clear()
+	_shadow_parts.clear()
+	for node in body.find_children("*", "MeshInstance3D", true, false) + _leg_meshes():
+		var mi := node as MeshInstance3D
+		if maxf(mi.scale.x, maxf(mi.scale.y, mi.scale.z)) < DETAIL_SIZE:
+			_details.append(mi)
+		elif mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			_shadow_parts.append(mi)
+	var was_far := _far
+	_far = false
+	if was_far:
+		set_far(true)
+
+
+func _leg_meshes() -> Array:
+	var out: Array = []
+	for leg in legs:
+		out.append_array(leg.find_children("*", "MeshInstance3D", true, false))
+	return out
+
+
+## Far from the camera: details hidden, no shadows (FieldPlayer's LOD).
+func set_far(far: bool) -> void:
+	if far == _far:
+		return
+	_far = far
+	for mi in _details:
+		if is_instance_valid(mi):
+			mi.visible = not far
+	for mi in _shadow_parts:
+		if is_instance_valid(mi):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if far else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
+func is_far() -> bool:
+	return _far
+
+
+## Number of mesh parts drawn now (tests: the far LOD draws fewer).
+func drawn_parts() -> int:
+	var n := 0
+	for node in find_children("*", "MeshInstance3D", true, false):
+		if (node as MeshInstance3D).is_visible_in_tree():
+			n += 1
+	return n
+
+
+## One riding frame for a rider on `mount` (Hero._ride_step, Companion): the mount turns
+## with the rider and gallops with its speed, the rider sits (HeroVisual.set_seated,
+## SaddlePose) on the bobbing saddle in `upper` (its ready stance; attacks and skills
+## play over it on the upper body), wings never beating. Returns the rider's lift.
+static func carry(mount: MountVisual, visual: HeroVisual, facing: float, speed: float, top_speed: float, upper: String) -> float:
+	mount.rotation.y = facing
+	visual.set_seated(true)
+	mount.set_motion(speed > 0.6, speed / maxf(top_speed, 0.1))
+	visual.set_wing_moving(false)
+	visual.play(upper, 0.2)
+	visual.position = Vector3(0, mount.seat_height() - RIDE_HIP, 0) + Basis(Vector3.UP, facing) * Vector3(0, 0, mount.seat.position.z)
+	if visual.model != null:
+		visual.model.rotation.x = 0.0
+	return visual.position.y
 
 
 ## Rider hip height above the ground right now (follows the bob).
@@ -78,6 +155,13 @@ func is_running() -> bool:
 
 
 func _process(delta: float) -> void:
+	if lod_step > 1:
+		_lod_time += delta
+		_lod_frame += 1
+		if _lod_frame % lod_step != 0:
+			return
+		delta = _lod_time
+		_lod_time = 0.0
 	_t += delta
 	_run = move_toward(_run, 1.0 if _moving else 0.0, delta * 4.0)
 	_gait = fmod(_gait + delta * lerpf(1.2, RUN_RATE * _speed_scale, _run), TAU * 8.0)

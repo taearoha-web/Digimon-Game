@@ -179,7 +179,7 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("wolf_fang", 3))
 	Game.add_item(ItemData.jewel("griffin_plume", 1))
 	Game.add_item(ItemData.jewel("chaos", 25))
-	if Game.craft_mount("thunder_wolf") != "" or Game.craft_mount("thunder_wolf") != "" or Game.craft_mount("griffin") != "" or not Game.select_mount("griffin"):
+	if Game.craft_mount("thunder_wolf") != "ok" or Game.craft_mount("thunder_wolf") != "ok" or Game.craft_mount("griffin", 0.0) != "ok" or not Game.select_mount("griffin"):
 		_fail("%s: mounts" % cls)
 	Game.paragon_spend("atk", 30)
 	Game.paragon_spend("hp", 25)

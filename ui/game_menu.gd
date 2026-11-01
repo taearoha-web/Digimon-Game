@@ -543,7 +543,7 @@ func _refresh_detail() -> void:
 	elif item.get("kind", "") == "jewel":
 		var craft := String(item.get("id", "")) in StarWingData.CRAFT_COST
 		var for_mount := MountData.mount_of_mat(String(item.get("id", "")))
-		var how := UIUtil.label(("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด สำเร็จ 100%%)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0))]) if for_mount != ""
+		var how := UIUtil.label(("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
 			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
 			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละ 1 (50%) · +11 ถึง +15 เพิ่มอย่างละ 1 ทุกขั้น (45%, 40%, 35%, 30%, 25%)", &"DimLabel")
@@ -1083,7 +1083,7 @@ func _build_titles() -> void:
 
 
 # ---------------------------------------------------------------------------
-# Mounts (MountData): buy with gold, pick the one the HUD's "ขี่" button rides
+# Mounts (MountData): craft / level up (MountData.chance), pick the one the HUD's "ขี่" button rides
 # ---------------------------------------------------------------------------
 
 func _build_mounts() -> void:
@@ -1095,7 +1095,7 @@ func _build_mounts() -> void:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	box.add_child(UIUtil.label("สัตว์ขี่  %d / %d" % [Game.owned_mounts().size(), MountData.ORDER.size()], &"HeaderLabel"))
-	var how := UIUtil.label("สร้างและอัปเลเวลด้วยวัตถุดิบของแต่ละตัว (ดรอปจากมอนสเตอร์ทุกแผนที่ล่า) + เพชรชาออส สำเร็จ 100%% · ค่าพลังของตัวที่ใช้อยู่นับตลอด ขี่หรือไม่ขี่ก็ได้ · ขี่เพื่อเดินทางเร็วขึ้น โจมตี ใช้สกิล หรือโดนตีจะลงจากหลังเอง · เพชรชาออสในกระเป๋า %d เม็ด" % Game.jewel_count("chaos"), &"SubHeaderLabel")
+	var how := UIUtil.label("สร้างและอัปเลเวลด้วยวัตถุดิบของแต่ละตัว (ดรอปจากมอนสเตอร์ทุกแผนที่ล่า) + เพชรชาออส · โอกาสสำเร็จต่างกันแต่ละตัว ถ้าพลาดวัตถุดิบกับเพชรจะหายไป เลเวลคงเดิม · ค่าพลังของตัวที่ใช้อยู่นับตลอด ขี่หรือไม่ขี่ก็ได้ · ขี่แล้ววิ่งเร็วขึ้น และสู้บนหลังได้เลย · เพชรชาออสในกระเป๋า %d เม็ด" % Game.jewel_count("chaos"), &"SubHeaderLabel")
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(how)
 	var active := Game.active_mount()
@@ -1146,7 +1146,7 @@ func _build_mounts() -> void:
 			col.add_child(next)
 			var mats := Game.mount_mats(id)
 			var chaos := Game.jewel_count("chaos")
-			var price := UIUtil.label("ใช้ %s %d/%d · เพชรชาออส %d/%d" % [ItemData.JEWELS[MountData.mat_of(id)].name, mats, int(cost.mat), chaos, int(cost.chaos)], &"SmallLabel")
+			var price := UIUtil.label("ใช้ %s %d/%d · เพชรชาออส %d/%d · โอกาสสำเร็จ %s" % [ItemData.JEWELS[MountData.mat_of(id)].name, mats, int(cost.mat), chaos, int(cost.chaos), MountData.chance_text(id)], &"SmallLabel")
 			price.name = "Cost"
 			price.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			price.add_theme_color_override("font_color", UIPalette.SUCCESS if Game.mount_step_problem(id) == "" else Color("ff8a7a"))
@@ -1155,16 +1155,25 @@ func _build_mounts() -> void:
 		var buttons := UIUtil.vbox(6)
 		buttons.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(buttons)
-		var craft := UIUtil.button("MAX" if level >= MountData.MAX_LEVEL else ("อัปเลเวล" if owned else "สร้าง"), &"PrimaryButton", Vector2(150, 56))
+		var craft_text := "MAX" if level >= MountData.MAX_LEVEL else ("%s (%s)" % ["อัปเลเวล" if owned else "สร้าง", MountData.chance_text(id)])
+		var craft := UIUtil.button(craft_text, &"PrimaryButton", Vector2(150, 56))
 		craft.name = "Craft"
 		craft.disabled = Game.mount_step_problem(id) != ""
 		craft.pressed.connect(func():
-			var why := Game.craft_mount(id)
-			if why == "":
-				Game.say("%s Lv.%d สำเร็จ!" % [String(info.name), Game.mount_level(id)], &"quest")
-				AudioManager.play_sfx(&"level_up", -4.0)
-			else:
-				Game.say(why, &"warning")
+			var result := Game.craft_mount(id)
+			match result:
+				"ok":
+					if Game.mount_level(id) == 1:
+						Game.say("สร้างสัตว์ขี่สำเร็จ! ได้ %s Lv.1" % String(info.name), &"success")
+					else:
+						Game.say("อัปเลเวลสำเร็จ! %s Lv.%d" % [String(info.name), Game.mount_level(id)], &"success")
+					AudioManager.play_sfx(&"level_up", -4.0)
+					Game.screen_flash.emit(info.color, 0.12)
+				"fail":
+					var lv := Game.mount_level(id)
+					Game.say("%sพลาด... (วัตถุดิบกับเพชรชาออสหายไป %s)" % ["สร้าง%s" % String(info.name) if lv == 0 else "อัปเลเวล%s" % String(info.name), "ยังไม่ได้ตัว" if lv == 0 else "ยังอยู่ที่ Lv.%d" % lv], &"warning")
+				_:
+					Game.say(result, &"warning")
 			_queue_rebuild())
 		buttons.add_child(craft)
 		if owned and id != active:

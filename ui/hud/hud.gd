@@ -1202,10 +1202,21 @@ func _bar(variation: StringName, height: float) -> ProgressBar:
 	return bar
 
 
+## On a phone one tap arrives twice (the touch and the mouse click Godot emulates
+## from it), so presses closer together than TAP_DEDUP_MS count once; otherwise a
+## toggle such as the mount chip turns on and straight back off.
+const TAP_DEDUP_MS := 250
+
+
 func _tap(callback: Callable) -> Callable:
+	var last := [-TAP_DEDUP_MS]
 	return func(event: InputEvent):
 		if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 				or (event is InputEventScreenTouch and event.pressed):
+			var now := Time.get_ticks_msec()
+			if now - int(last[0]) < TAP_DEDUP_MS:
+				return
+			last[0] = now
 			AudioManager.play_ui(&"ui_click")
 			callback.call()
 

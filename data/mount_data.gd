@@ -18,21 +18,22 @@ const MAX_LEVEL := 5
 
 ## id -> name, speed (move speed bonus while riding), mat (its material, an
 ## ItemData.JEWELS id), drop (material chance per kill), chaos (chaos jewels per
-## level of the step), bonus (stat shares per level: hp / atk / def multiply the
+## level of the step), chance (success chance of every step, craft and
+## upgrades alike), bonus (stat shares per level: hp / atk / def multiply the
 ## stat, crit adds crit chance), what it is and the colour of its card in the menu.
 ## MountVisual builds each body.
 const MOUNTS := {
 	"thunder_wolf": {"name": "หมาป่าสายฟ้า", "speed": 0.30, "color": Color("5f7fd6"),
-		"mat": "wolf_fang", "drop": 0.01, "chaos": 5, "bonus": {"hp": 0.01},
+		"mat": "wolf_fang", "drop": 0.01, "chaos": 5, "chance": 1.0, "bonus": {"hp": 0.01},
 		"desc": "หมาป่าขนฟูลายสายฟ้า วิ่งไวดุจสายลม"},
 	"glow_stag": {"name": "กวางเรืองแสง", "speed": 0.35, "color": Color("7fe7d8"),
-		"mat": "stag_antler", "drop": 0.0075, "chaos": 8, "bonus": {"hp": 0.02, "def": 0.01},
+		"mat": "stag_antler", "drop": 0.0075, "chaos": 8, "chance": 0.60, "bonus": {"hp": 0.02, "def": 0.01},
 		"desc": "กวางขาวนวล เขาเรืองแสงสีฟ้าในยามค่ำคืน"},
 	"griffin": {"name": "กริฟฟิน", "speed": 0.40, "color": Color("e8b24a"),
-		"mat": "griffin_plume", "drop": 0.005, "chaos": 10, "bonus": {"hp": 0.03, "atk": 0.01},
+		"mat": "griffin_plume", "drop": 0.005, "chaos": 10, "chance": 0.35, "bonus": {"hp": 0.03, "atk": 0.01},
 		"desc": "ครึ่งพญาอินทรีครึ่งสิงโต กระพือปีกพาทะยาน"},
 	"fire_drake": {"name": "มังกรน้อยเพลิง", "speed": 0.50, "color": Color("ff6a3d"),
-		"mat": "drake_scale", "drop": 0.001, "chaos": 15, "bonus": {"hp": 0.05, "atk": 0.02, "crit": 0.01},
+		"mat": "drake_scale", "drop": 0.001, "chaos": 15, "chance": 0.10, "bonus": {"hp": 0.05, "atk": 0.02, "crit": 0.01},
 		"desc": "มังกรน้อยขี้เล่น หางมีเปลวไฟลุกโชน"},
 }
 ## Menu order (easiest first).
@@ -70,6 +71,16 @@ static func cost(id: String, level: int) -> Dictionary:
 	if not exists(id) or level < 1 or level > MAX_LEVEL:
 		return {}
 	return {"mat": level, "chaos": int(MOUNTS[id].chaos) * level}
+
+
+## Success chance (0-1) of every craft / level-up step of a mount (0 for an unknown id).
+static func chance(id: String) -> float:
+	return clampf(float(MOUNTS.get(id, {}).get("chance", 0.0)), 0.0, 1.0)
+
+
+## "100%" / "35%": the success chance as the menu shows it.
+static func chance_text(id: String) -> String:
+	return "%d%%" % roundi(chance(id) * 100.0)
 
 
 ## Stat shares of a mount at `level` (0 = not owned: {}): {hp, atk, def, crit}.
