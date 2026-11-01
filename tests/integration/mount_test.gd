@@ -97,9 +97,9 @@ func _data() -> void:
 	check(is_equal_approx(float(drake.hp), 0.25) and is_equal_approx(float(drake.atk), 0.10) and is_equal_approx(float(drake.crit), 0.05), "drake Lv.5: HP +25%, ATK +10%, crit +5%")
 	for n in range(1, 6):
 		check(is_equal_approx(MountData.speed_bonus("thunder_wolf"), 0.30), "the wolf rides +30% at every level")
-	for zone_id in [&"guildwar", &"pvp", &"tower", &"arena"]:
+	for zone_id in [&"pvp", &"tower", &"arena"]:
 		check(not MountData.zone_allows(ZoneData.get_zone(zone_id)), "no riding in %s" % zone_id)
-	for zone_id in [&"town", &"meadow"]:
+	for zone_id in [&"town", &"meadow", &"guildwar"]:
 		var zone := ZoneData.get_zone(zone_id)
 		if not zone.is_empty():
 			check(MountData.zone_allows(zone), "riding allowed in %s" % zone_id)
@@ -404,7 +404,7 @@ func _riding() -> void:
 	Game.profile.hp = 99999
 	hero.visual.release()
 	# No-riding zones: can't get on, and riding into one puts the hero down.
-	for zone_id in [&"guildwar", &"pvp", &"tower", &"arena"]:
+	for zone_id in [&"pvp", &"tower", &"arena"]:
 		hero.field = field
 		hero.ride()
 		check(hero.is_riding(), "riding before %s" % zone_id)

@@ -107,10 +107,13 @@ static func bonus_text(id: String, level: int, with_speed := true) -> String:
 	return " · ".join(parts)
 
 
-## True where heroes may ride: the town and the hunting fields (not the arena,
-## ranked duels, the guild war or the tower).
+## True where heroes may ride: the town, the hunting fields and the guild war (not
+## the arena, ranked duels or the tower).
 static func zone_allows(zone_data: Dictionary) -> bool:
-	for key in ["pvp", "guildwar", "tower", "arena"]:
+	# The guild war is flagged pvp too, but riding is allowed there.
+	if bool(zone_data.get("guildwar", false)):
+		return true
+	for key in ["pvp", "tower", "arena"]:
 		if bool(zone_data.get(key, false)):
 			return false
 	return true

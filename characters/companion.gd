@@ -388,7 +388,7 @@ func is_riding() -> bool:
 
 
 ## True where this field allows riding (MountData.zone_allows: not the arena, ranked
-## duels, the guild war or the tower).
+## duels or the tower; the guild war allows it).
 func can_ride_here() -> bool:
 	return not (field is Zone) or MountData.zone_allows((field as Zone).data)
 
