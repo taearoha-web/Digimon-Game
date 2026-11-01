@@ -1095,7 +1095,7 @@ func _build_mounts() -> void:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	box.add_child(UIUtil.label("สัตว์ขี่  %d / %d" % [Game.owned_mounts().size(), MountData.ORDER.size()], &"HeaderLabel"))
-	var how := UIUtil.label("สร้างและอัปเลเวลด้วยวัตถุดิบของแต่ละตัว (ดรอปจากมอนสเตอร์ทุกแผนที่ล่า) + เพชรชาออส สำเร็จ 100%% · ค่าพลังของตัวที่ใช้อยู่นับตลอด ขี่หรือไม่ขี่ก็ได้ · ขี่เพื่อเดินทางเร็วขึ้น โจมตี ใช้สกิล หรือโดนตีจะลงจากหลังเอง · เพชรชาออสในกระเป๋า %d เม็ด" % Game.jewel_count("chaos"), &"SubHeaderLabel")
+	var how := UIUtil.label("สร้างและอัปเลเวลด้วยวัตถุดิบของแต่ละตัว (ดรอปจากมอนสเตอร์ทุกแผนที่ล่า) + เพชรชาออส สำเร็จ 100%% · ค่าพลังของตัวที่ใช้อยู่นับตลอด ขี่หรือไม่ขี่ก็ได้ · ขี่แล้ววิ่งเร็วขึ้น และสู้บนหลังได้เลย · เพชรชาออสในกระเป๋า %d เม็ด" % Game.jewel_count("chaos"), &"SubHeaderLabel")
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(how)
 	var active := Game.active_mount()
