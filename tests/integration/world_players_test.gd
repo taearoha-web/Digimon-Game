@@ -700,6 +700,9 @@ func _riding(zone: Zone) -> void:
 	check(not p.mount_info.is_empty() and p.ride_taste >= 0.5, "the rider knows its mount and taste")
 	check(p.wants_ride(0.0) and not p.wants_ride(0.999), "its whim decides (wants at a low roll, not at a high one)")
 	p._set_riding(true)
+	# Hold its own whim off for this check (it re-decides every 14-45 s, and the first
+	# think comes 0.2-2 s after setup, which could randomly take it off mid-check).
+	p._ride_think = 999.0
 	for k in 30:
 		await get_tree().physics_frame
 	check(p.is_riding() and p.mount.id == String(p.mount_info.id), "it gets on its own mount (%s)" % p.mount_info.get("id", ""))
@@ -721,6 +724,8 @@ func _riding(zone: Zone) -> void:
 	check(not is_instance_valid(mob) or mob.is_dead() or mob.others_damage > hit, "its attacks land from the mount")
 	if is_instance_valid(mob):
 		mob.queue_free()
+	# Out of the fight (a rider with a target keeps full detail whatever the distance).
+	p.target = null
 	# Far away: the mount is simplified.
 	var near_parts := p.mount.drawn_parts()
 	p.global_position = zone.hero.global_position + Vector3(60, 0.3, 0)
