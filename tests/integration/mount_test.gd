@@ -3,8 +3,9 @@ extends Node3D
 ## hunting field) plus chaos jewels and levelled to Lv.5 in the menu tab, one picked as
 ## active, saved ({id: level}, old lists of ids migrate to Lv.1) and repaired with the
 ## profile. The active mount's HP / ATK / DEF / crit count in the hero's stats ridden or
-## not. Riding adds the mount's speed and stows the weapon; an attack, a skill, a hit
-## or a no-riding zone (guild war, ranked pvp, tower, arena) puts the hero back on foot.
+## not. Riding adds the mount's speed; the hero fights from the saddle (attacks, skills,
+## auto hunting and hits keep it riding, weapon in hand, legs held seated by SaddlePose).
+## Death or a no-riding zone (guild war, ranked pvp, tower, arena) puts it back on foot.
 ## The HUD's "ขี่" button only shows while a mount is owned.
 ## godot --headless --path . res://tests/integration/mount_test.tscn
 var checks := 0
@@ -259,36 +260,79 @@ func _riding() -> void:
 	check(hero.can_ride_here(), "the open field allows riding")
 	check(hero.toggle_ride() and hero.is_riding(), "the ride button mounts the wolf")
 	check(is_equal_approx(hero.move_speed(), walk * (1.0 + MountData.speed_bonus("thunder_wolf"))), "riding adds the wolf's +30%% (%.2f -> %.2f)" % [walk, hero.move_speed()])
-	check(hero.visual.held_stowed, "the weapon is stowed while riding")
+	check(not hero.visual.held_stowed and hero.visual.seated, "the rider sits with the weapon in hand")
 	check(int(hero.stats.max_hp) == hp_on_foot, "the mount's HP counts the same ridden or not")
 	var held_shown := 0
 	for n in hero.visual._skeleton.get_children():
 		if n.has_meta(&"held") and (n as Node3D).visible:
 			held_shown += 1
-	check(held_shown == 0, "no held piece is drawn while riding (%d)" % held_shown)
+	check(held_shown > 0, "the weapon is drawn while riding (%d)" % held_shown)
 	hero._ride_step(4.0)
-	check(hero.visual.current == Hero.RIDE_CLIP, "the rider sits (%s)" % hero.visual.current)
+	check(hero.visual.current == Hero.RIDE_UPPER and hero.visual.seated, "the rider sits in its ready stance (%s)" % hero.visual.current)
 	check(hero.visual.anim.has_animation(Hero.RIDE_CLIP), "the riding clip exists on the hero model")
+	await _saddle(hero)
 	Game.select_mount("glow_stag")
 	check(hero.mount != null and hero.mount.id == "glow_stag", "picking another mount swaps the ridden body")
 	check(is_equal_approx(hero.move_speed(), walk * 1.35), "the stag's +35%")
 	check(not hero.toggle_ride() and not hero.is_riding(), "the ride button again gets off")
 	check(is_equal_approx(hero.move_speed(), walk), "on foot the speed is back")
-	check(not hero.visual.held_stowed, "the weapon comes back on foot")
-	# Anything that fights puts the hero back on foot.
-	hero.ride()
+	check(not hero.visual.held_stowed and not hero.visual.seated, "on foot the weapon is still in hand, standing")
+	check(hero.visual.position.x == 0.0 and hero.visual.position.z == 0.0, "the rider's seat offset is gone on foot")
+	# The hero fights from the saddle: nothing that fights puts it on foot.
+	var mob := _dummy(field, hero)
+	check(hero.ride() and hero.is_riding(), "back in the saddle")
 	hero.tap_attack()
-	check(not hero.is_riding(), "attacking dismounts")
-	hero.ride()
-	hero.use_skill(0)
-	check(not hero.is_riding(), "a skill dismounts")
-	hero.ride()
-	hero.take_damage(5.0)
-	check(not hero.is_riding(), "a hit dismounts")
-	hero.ride()
+	check(hero.is_riding() and hero.engaged, "attacking keeps the hero riding")
+	hero._basic_attack()
+	check(hero.is_riding() and hero.visual.current != Hero.RIDE_UPPER, "a swing plays from the saddle (%s)" % hero.visual.current)
+	hero.tap_target(mob)
+	check(hero.is_riding() and hero.target == mob, "tapping a target keeps the hero riding")
+	hero.cooldowns.clear()
+	hero._cast_until = 0
+	Game.profile.mp = 99999
+	Game.fill_loadout()
+	var slot := -1
+	var skills: Array = Game.class_data().skills
+	for i in skills.size():
+		if skills[i] is Dictionary and not (skills[i] as Dictionary).is_empty() and Game.skill_unlocked(skills[i]):
+			slot = i
+			break
+	check(slot >= 0, "the warrior has a skill on the bar")
+	if slot >= 0:
+		var why := hero.use_skill(slot)
+		check(why == "" and hero.is_riding(), "a skill is pressed from the saddle (%s)" % why)
+		hero._cast_until = 0
+		hero._cast(skills[slot])
+		check(hero.is_riding() and hero.visual.seated and hero.visual.current != Hero.RIDE_UPPER, "the skill plays from the saddle (%s)" % hero.visual.current)
+	hero._pending = {}
+	hero.visual.release()
+	# A hit, landed or dodged, never knocks the rider off: try both ways.
+	var dodge := float(hero.stats.dodge)
+	hero.stats.dodge = 0.0
+	var hp := int(Game.profile.hp)
+	hero._invulnerable_until = 0
+	hero.take_damage(50.0)
+	check(hero.is_riding() and int(Game.profile.hp) < hp, "a landed hit keeps the hero riding (%d -> %d)" % [hp, int(Game.profile.hp)])
+	hero.stats.dodge = 1.0
+	hero._invulnerable_until = 0
+	hero.take_damage(50.0)
+	check(hero.is_riding(), "a dodged hit keeps the hero riding")
+	hero.stats.dodge = dodge
 	hero.set_auto(true)
-	check(not hero.is_riding(), "auto hunting dismounts")
+	check(hero.is_riding() and hero.auto, "auto hunting keeps the hero riding")
+	hero.ride()
+	check(hero.auto, "getting on again doesn't stop auto hunting")
 	hero.set_auto(false)
+	hero.engaged = false
+	hero.set_target(null)
+	mob.queue_free()
+	# Death puts the hero down.
+	hero._die()
+	check(not hero.is_riding() and not hero.visual.seated, "dying dismounts")
+	check(not hero.ride(true), "no riding while dead")
+	hero._dead = false
+	Game.profile.hp = 99999
+	hero.visual.release()
 	# No-riding zones: can't get on, and riding into one puts the hero down.
 	for zone_id in [&"guildwar", &"pvp", &"tower", &"arena"]:
 		hero.field = field
@@ -327,6 +371,66 @@ func _riding() -> void:
 	hud.queue_free()
 	field.queue_free()
 	await settle()
+
+
+## A harmless monster in front of the hero to aim at.
+func _dummy(field: Node3D, hero: Hero) -> Mob:
+	var at := hero.global_position + Vector3(0, 0, 2.0)
+	var mob := Mob.new()
+	mob.setup(&"forest_orc", 1, at, hero)
+	field.add_child(mob)
+	mob.set_physics_process(false)
+	mob.global_position = at
+	return mob
+
+
+## While riding, a swing, a cast and a hit move the arms but keep the hips and legs
+## in the seated clip's pose (SaddlePose); the clip itself and life on foot are untouched.
+func _saddle(hero: Hero) -> void:
+	var visual := hero.visual
+	var skeleton := visual._skeleton
+	var saddle := skeleton.get_node_or_null("SaddlePose") as SaddlePose
+	check(saddle != null and saddle.active, "riding adds the SaddlePose modifier")
+	if saddle == null:
+		return
+	var legs := skeleton.find_bone("LeftUpperLeg" if visual.chibi else "upperleg.l")
+	var arm := skeleton.find_bone("RightUpperArm" if visual.chibi else "upperarm.r")
+	var spine := skeleton.find_bone("Spine" if visual.chibi else "spine")
+	check(legs >= 0 and legs in saddle.bones, "the legs are held seated")
+	check(arm >= 0 and not (arm in saddle.bones) and spine >= 0 and not (spine in saddle.bones), "the spine and arms stay free")
+	# Let the seated clip blend in. Godot 4.3 puts the animated pose back after
+	# drawing: read the drawn pose in skeleton_updated.
+	await get_tree().create_timer(0.5).timeout
+	await skeleton.skeleton_updated
+	var sit_leg := skeleton.get_bone_global_pose(legs)
+	var sit_arm := skeleton.get_bone_global_pose(arm)
+	var attack: Dictionary = Game.class_data().attack
+	var clip: String = attack.anims[0]
+	var length := visual.action(clip)
+	var moved := 0.0
+	var drift := 0.0
+	var seat_gap := 0.0
+	var held_leg: Variant = null
+	var end := Time.get_ticks_msec() + int(length * 700.0)
+	while Time.get_ticks_msec() < end:
+		hero._ride_step(0.0)
+		await skeleton.skeleton_updated
+		var leg := skeleton.get_bone_global_pose(legs).origin
+		if held_leg == null:
+			held_leg = leg
+		moved = maxf(moved, skeleton.get_bone_global_pose(arm).basis.get_rotation_quaternion().angle_to(sit_arm.basis.get_rotation_quaternion()))
+		drift = maxf(drift, leg.distance_to(held_leg))
+		seat_gap = maxf(seat_gap, leg.distance_to(sit_leg.origin))
+	check(moved > 0.2, "the sword arm swings from the saddle (%.2f rad)" % moved)
+	check(drift < 0.005, "the legs hold still through the swing (%.4f)" % drift)
+	check(seat_gap < 0.08, "the legs keep the seated clip's pose (%.3f)" % seat_gap)
+	check(not visual.held_stowed, "the weapon is in hand mid-swing")
+	# Back to sitting once the swing ends.
+	end = Time.get_ticks_msec() + int(length * 600.0) + 400
+	while Time.get_ticks_msec() < end:
+		hero._ride_step(0.0)
+		await get_tree().process_frame
+	check(visual.current == Hero.RIDE_UPPER, "the rider is back in its ready stance after the swing (%s)" % visual.current)
 
 
 func _card(menu: GameMenu, id: String) -> Node:
