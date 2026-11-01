@@ -174,9 +174,12 @@ func _build_line(cls: StringName) -> void:
 	Game.guildwar_finish(true, 5, 2, 6, 1, "กิลด์เรา", "กิลด์เขา")
 	_level_to(Game.MAX_LEVEL)
 	_stars_to(104)
-	# Two mounts bought, the second one picked (profile "mounts" / "mount").
-	Game.add_gold(2_200_000)
-	if Game.buy_mount("thunder_wolf") != "" or Game.buy_mount("griffin") != "" or not Game.select_mount("griffin"):
+	# Two mounts crafted from their drops, the wolf levelled to Lv.2 and the griffin
+	# picked (profile "mounts" {id: level} / "mount").
+	Game.add_item(ItemData.jewel("wolf_fang", 3))
+	Game.add_item(ItemData.jewel("griffin_plume", 1))
+	Game.add_item(ItemData.jewel("chaos", 25))
+	if Game.craft_mount("thunder_wolf") != "" or Game.craft_mount("thunder_wolf") != "" or Game.craft_mount("griffin") != "" or not Game.select_mount("griffin"):
 		_fail("%s: mounts" % cls)
 	Game.paragon_spend("atk", 30)
 	Game.paragon_spend("hp", 25)

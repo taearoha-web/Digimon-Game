@@ -181,15 +181,22 @@ function validateProfile(profile) {
   for (const key of ['attrs', 'skills', 'equip', 'quests', 'flags', 'boss_kills', 'pvp', 'tower', 'paragon', 'ach', 'look', 'daily']) {
     if (key in profile && !dictionary(profile[key])) fail(400, 'invalid_save', `The character field ${key} must be an object.`);
   }
-  for (const key of ['inv', 'storage', 'loadout', 'party', 'mounts']) {
+  for (const key of ['inv', 'storage', 'loadout', 'party']) {
     if (key in profile && !Array.isArray(profile[key])) fail(400, 'invalid_save', `The character field ${key} must be a list.`);
+  }
+  // Mounts: {id: level 0-5}; saves from before mount levels kept a list of owned ids.
+  if ('mounts' in profile) {
+    const mounts = profile.mounts;
+    const ok = Array.isArray(mounts)
+      ? mounts.length <= 64 && mounts.every(value => typeof value === 'string')
+      : dictionary(mounts) && Object.keys(mounts).length <= 64 && Object.values(mounts).every(value => integer(value, 0, 5));
+    if (!ok) fail(400, 'invalid_save', 'The character mounts are invalid.');
   }
   for (const key of ['attrs', 'skills', 'boss_kills', 'pvp', 'tower', 'look']) {
     if (Object.values(profile[key] ?? {}).some(value => !integer(value))) fail(400, 'invalid_save', `The character field ${key} has invalid values.`);
   }
   if ((profile.inv?.length ?? 0) > 100 || (profile.storage?.length ?? 0) > 80
       || (profile.loadout ?? []).some(value => typeof value !== 'string')
-      || (profile.mounts?.length ?? 0) > 64 || (profile.mounts ?? []).some(value => typeof value !== 'string')
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');

@@ -1,8 +1,11 @@
 extends Node3D
-## Mounts (สัตว์ขี่): bought with gold in the menu tab, one picked as active, saved and
-## repaired with the profile. Riding adds the mount's speed and stows the weapon; an
-## attack, a skill, a hit or a no-riding zone (guild war, ranked pvp, tower, arena) puts
-## the hero back on foot. The HUD's "ขี่" button only shows while a mount is owned.
+## Mounts (สัตว์ขี่): crafted from their own material (dropped per kill in every
+## hunting field) plus chaos jewels and levelled to Lv.5 in the menu tab, one picked as
+## active, saved ({id: level}, old lists of ids migrate to Lv.1) and repaired with the
+## profile. The active mount's HP / ATK / DEF / crit count in the hero's stats ridden or
+## not. Riding adds the mount's speed and stows the weapon; an attack, a skill, a hit
+## or a no-riding zone (guild war, ranked pvp, tower, arena) puts the hero back on foot.
+## The HUD's "ขี่" button only shows while a mount is owned.
 ## godot --headless --path . res://tests/integration/mount_test.tscn
 var checks := 0
 var failures := 0
@@ -29,7 +32,9 @@ func _ready() -> void:
 	Game.profile.level = 60
 	Game.profile.hp = 99999
 	_data()
-	_shop()
+	_drops()
+	_craft()
+	_stats()
 	_save()
 	await _riding()
 	await _menu()
@@ -39,15 +44,58 @@ func _ready() -> void:
 	get_tree().quit(1 if failures > 0 else 0)
 
 
+func give(id: String, count: int) -> void:
+	Game.add_item(ItemData.jewel(id, count))
+
+
+## Takes every jewel of `id` out of the bag.
+func clear(id: String) -> void:
+	var have := Game.jewel_count(id)
+	if have > 0:
+		Game._spend_jewels(id, have)
+
+
+const MATS := {"thunder_wolf": "wolf_fang", "glow_stag": "stag_antler", "griffin": "griffin_plume", "fire_drake": "drake_scale"}
+const DROPS := {"thunder_wolf": 0.01, "glow_stag": 0.0075, "griffin": 0.005, "fire_drake": 0.001}
+const CHAOS := {"thunder_wolf": 5, "glow_stag": 8, "griffin": 10, "fire_drake": 15}
+
+
 func _data() -> void:
-	check(MountData.ORDER.size() == 4, "four mounts in the shop")
-	var last := 0
+	check(MountData.ORDER.size() == 4, "four mounts")
+	var last_hp := 0.0
+	var last_speed := 0.0
+	var last_chaos := 0
 	for id in MountData.ORDER:
 		var info := MountData.info(id)
-		check(int(info.price) > last, "%s costs more than the one before" % id)
-		last = int(info.price)
-		check(float(info.speed) > 0.0 and float(info.speed) <= 0.5, "%s speed bonus in (0, 0.5]" % id)
+		check(not info.has("price"), "%s has no gold price" % id)
+		check(float(info.speed) > last_speed and float(info.speed) <= 0.5, "%s rides faster than the one before, at most +50%%" % id)
+		last_speed = float(info.speed)
 		check(info.color is Color and String(info.name) != "", "%s has a name and a card colour" % id)
+		check(MountData.mat_of(id) == MATS[id] and MountData.mount_of_mat(MATS[id]) == id, "%s's material is %s" % [id, MATS[id]])
+		check(is_equal_approx(float(info.drop), DROPS[id]), "%s material drops at %.2f%%" % [id, DROPS[id] * 100.0])
+		check(int(info.chaos) == CHAOS[id] and int(info.chaos) > last_chaos, "%s costs %d chaos per level" % [id, CHAOS[id]])
+		last_chaos = int(info.chaos)
+		for n in range(1, MountData.MAX_LEVEL + 1):
+			var cost := MountData.cost(id, n)
+			check(int(cost.mat) == n and int(cost.chaos) == CHAOS[id] * n, "%s Lv.%d costs %d materials + %d chaos (%s)" % [id, n, n, CHAOS[id] * n, str(cost)])
+		check(MountData.cost(id, 0).is_empty() and MountData.cost(id, MountData.MAX_LEVEL + 1).is_empty(), "%s has no step below 1 or past Lv.5" % id)
+		var top := MountData.bonus(id, MountData.MAX_LEVEL)
+		check(float(top.hp) > last_hp, "%s gives more HP at Lv.5 than the one before" % id)
+		last_hp = float(top.hp)
+		check(MountData.bonus(id, 0).is_empty(), "an uncrafted %s gives nothing" % id)
+		var item := ItemData.jewel(MATS[id])
+		check(ItemData.is_stackable(item) and ItemData.JEWELS.has(MATS[id]), "%s is a stackable jewel item" % MATS[id])
+		check(ItemData.name_of(item) != "" and ItemLook.icon(item) != null, "%s has a name and an icon" % MATS[id])
+		check(Game._valid_item(item), "%s is a valid save item" % MATS[id])
+	for n in range(1, 6):
+		check(is_equal_approx(float(MountData.bonus("thunder_wolf", n).hp), 0.01 * n), "wolf Lv.%d HP +%d%%" % [n, n])
+	check(MountData.bonus("thunder_wolf", 3).keys() == ["hp"], "the wolf gives HP only")
+	check(is_equal_approx(float(MountData.bonus("glow_stag", 5).def), 0.05) and is_equal_approx(float(MountData.bonus("glow_stag", 5).hp), 0.10), "stag Lv.5: HP +10%, DEF +5%")
+	check(is_equal_approx(float(MountData.bonus("griffin", 5).atk), 0.05) and is_equal_approx(float(MountData.bonus("griffin", 5).hp), 0.15), "griffin Lv.5: HP +15%, ATK +5%")
+	var drake := MountData.bonus("fire_drake", 5)
+	check(is_equal_approx(float(drake.hp), 0.25) and is_equal_approx(float(drake.atk), 0.10) and is_equal_approx(float(drake.crit), 0.05), "drake Lv.5: HP +25%, ATK +10%, crit +5%")
+	for n in range(1, 6):
+		check(is_equal_approx(MountData.speed_bonus("thunder_wolf"), 0.30), "the wolf rides +30% at every level")
 	for zone_id in [&"guildwar", &"pvp", &"tower", &"arena"]:
 		check(not MountData.zone_allows(ZoneData.get_zone(zone_id)), "no riding in %s" % zone_id)
 	for zone_id in [&"town", &"meadow"]:
@@ -56,45 +104,146 @@ func _data() -> void:
 			check(MountData.zone_allows(zone), "riding allowed in %s" % zone_id)
 
 
-func _shop() -> void:
+## The per-kill drop roll every hunting field makes (Zone._drop_jewels).
+func _drops() -> void:
+	var roll := RandomNumberGenerator.new()
+	roll.seed = 4242
+	var kills := 400_000
+	var got := {}
+	for i in kills:
+		for item in Zone.mount_mat_drops(0.0, roll):
+			check(String(item.kind) == "jewel" and int(item.count) == 1, "a material drop is one jewel item")
+			got[item.id] = int(got.get(item.id, 0)) + 1
+	for id in MountData.ORDER:
+		var expect: float = float(kills) * float(DROPS[id])
+		var n := int(got.get(MATS[id], 0))
+		check(absf(float(n) - expect) < expect * 0.15, "%s drops about %.0f in %d kills (%d)" % [MATS[id], expect, kills, n])
+	var lucky := 0
+	roll.seed = 4242
+	for i in 100_000:
+		for item in Zone.mount_mat_drops(1.0, roll):
+			if item.id == "wolf_fang":
+				lucky += 1
+	check(absf(float(lucky) - 2000.0) < 300.0, "fortune raises the drops like the jewels (+100%%: %d fangs in 100K)" % lucky)
+	var src := FileAccess.get_file_as_string("res://world/zone.gd")
+	var body := src.substr(src.find("func _drop_jewels"), 1800)
+	check(body.contains("mount_mat_drops(") and body.contains("Game.say("), "the jewel drop path rolls the materials and toasts them")
+
+
+func _craft() -> void:
 	check(Game.owned_mounts().is_empty() and Game.active_mount() == "", "a new hero owns no mount")
-	Game.profile.gold = 300_000
-	check(Game.buy_mount("glow_stag") != "", "500K stag refused with 300K gold")
-	check(int(Game.profile.gold) == 300_000 and not Game.owns_mount("glow_stag"), "a refused buy spends nothing")
-	check(Game.buy_mount("thunder_wolf") == "", "wolf bought")
-	check(int(Game.profile.gold) == 100_000, "wolf cost 200K gold (left %d)" % int(Game.profile.gold))
-	check(Game.active_mount() == "thunder_wolf", "the first mount bought becomes active")
-	check(Game.buy_mount("thunder_wolf") != "" and int(Game.profile.gold) == 100_000, "an owned mount can't be bought twice")
-	check(Game.buy_mount("no_such_mount") != "", "unknown id refused")
-	Game.profile.gold = 600_000
-	check(Game.buy_mount("glow_stag") == "" and int(Game.profile.gold) == 100_000, "stag bought for 500K")
-	check(Game.active_mount() == "thunder_wolf", "buying a second mount keeps the active one")
+	check(Game.mount_level("thunder_wolf") == 0 and Game.profile.mounts is Dictionary, "levels start at 0, saved as a dictionary")
+	clear("chaos")
+	var gold := int(Game.profile.gold)
+	check(Game.craft_mount("thunder_wolf") != "", "no materials: the wolf can't be crafted")
+	give("wolf_fang", 1)
+	give("chaos", 4)
+	check(Game.mount_step_problem("thunder_wolf") != "" and Game.craft_mount("thunder_wolf") != "", "4 chaos is short of 5")
+	check(Game.mount_mats("thunder_wolf") == 1 and Game.jewel_count("chaos") == 4, "a refused craft spends nothing")
+	give("chaos", 1)
+	check(Game.mount_step_problem("thunder_wolf") == "", "1 fang + 5 chaos is enough")
+	check(Game.craft_mount("thunder_wolf") == "", "wolf crafted")
+	check(Game.mount_level("thunder_wolf") == 1 and Game.owns_mount("thunder_wolf"), "the wolf is Lv.1")
+	check(Game.mount_mats("thunder_wolf") == 0 and Game.jewel_count("chaos") == 0, "crafting used the fang and 5 chaos")
+	check(int(Game.profile.gold) == gold, "crafting costs no gold")
+	check(Game.active_mount() == "thunder_wolf", "the first mount crafted becomes active")
+	# Lv.2-5: n fangs and 5n chaos each, always succeeds.
+	for n in range(2, 6):
+		give("wolf_fang", n - 1)
+		give("chaos", 5 * n)
+		check(Game.craft_mount("thunder_wolf") != "", "Lv.%d refused with %d fangs" % [n, n - 1])
+		give("wolf_fang", 1)
+		give("chaos", 7)
+		check(Game.craft_mount("thunder_wolf") == "" and Game.mount_level("thunder_wolf") == n, "wolf up to Lv.%d" % n)
+		check(Game.mount_mats("thunder_wolf") == 0 and Game.jewel_count("chaos") == 7, "Lv.%d took %d fangs and %d chaos" % [n, n, 5 * n])
+		clear("chaos")
+	give("wolf_fang", 10)
+	give("chaos", 100)
+	check(Game.mount_step_problem("thunder_wolf") != "" and Game.craft_mount("thunder_wolf") != "", "Lv.5 is the top")
+	check(Game.mount_level("thunder_wolf") == 5 and Game.mount_mats("thunder_wolf") == 10, "nothing spent at Lv.5")
+	clear("wolf_fang")
+	clear("chaos")
+	give("stag_antler", 1)
+	give("chaos", 8)
+	check(Game.craft_mount("glow_stag") == "" and Game.mount_level("glow_stag") == 1, "stag crafted with 1 antler + 8 chaos")
+	check(Game.active_mount() == "thunder_wolf", "crafting a second mount keeps the active one")
+	check(Game.owned_mounts() == ["thunder_wolf", "glow_stag"], "owned mounts in menu order (%s)" % str(Game.owned_mounts()))
+	check(Game.craft_mount("no_such_mount") != "", "unknown id refused")
 	check(not Game.select_mount("griffin"), "can't pick a mount not owned")
 	check(Game.select_mount("glow_stag") and Game.active_mount() == "glow_stag", "picked the stag")
 	Game.select_mount("thunder_wolf")
 
 
+func _stats() -> void:
+	var p: Dictionary = Game.profile.duplicate(true)
+	p["mount"] = ""
+	var base := HeroStats.compute(p)
+	var cases := [["thunder_wolf", 5, {"hp": 0.05}], ["glow_stag", 1, {"hp": 0.02, "def": 0.01}],
+		["griffin", 3, {"hp": 0.09, "atk": 0.03}], ["fire_drake", 2, {"hp": 0.10, "atk": 0.04, "crit": 0.02}]]
+	for c in cases:
+		var q: Dictionary = p.duplicate(true)
+		q["mounts"] = {c[0]: c[1]}
+		q["mount"] = c[0]
+		var s := HeroStats.compute(q)
+		var b: Dictionary = c[2]
+		check(absi(int(s.max_hp) - int(float(base.max_hp) * (1.0 + float(b.hp)))) <= 1, "%s Lv.%d: HP %d -> %d" % [c[0], c[1], int(base.max_hp), int(s.max_hp)])
+		check(is_equal_approx(float(s.atk), float(base.atk) * (1.0 + float(b.get("atk", 0.0)))), "%s Lv.%d: ATK x%.2f" % [c[0], c[1], 1.0 + float(b.get("atk", 0.0))])
+		check(is_equal_approx(float(s.def), float(base.def) * (1.0 + float(b.get("def", 0.0)))), "%s Lv.%d: DEF x%.2f" % [c[0], c[1], 1.0 + float(b.get("def", 0.0))])
+		check(is_equal_approx(float(s.crit), minf(float(base.crit) + float(b.get("crit", 0.0)), HeroStats.MAX_CRIT)), "%s Lv.%d: crit +%.2f" % [c[0], c[1], float(b.get("crit", 0.0))])
+		check(is_equal_approx(float(s.speed), float(base.speed)), "%s: no speed on foot" % c[0])
+	var q2: Dictionary = p.duplicate(true)
+	q2["mounts"] = {"griffin": 3}
+	q2["mount"] = ""
+	check(int(HeroStats.compute(q2).max_hp) == int(base.max_hp), "an owned but inactive mount adds nothing")
+	# The live hero: the active wolf Lv.5 counts in Game.stats_now.
+	var with_wolf := int(Game.stats_now().max_hp)
+	Game.profile["mount"] = ""
+	var none := int(Game.stats_now().max_hp)
+	Game.profile["mount"] = "thunder_wolf"
+	check(absi(with_wolf - int(float(none) * 1.05)) <= 1, "the hero's max HP has the wolf's +5%% (%d -> %d)" % [none, with_wolf])
+	Game.select_mount("glow_stag")
+	check(int(Game.stats_now().max_hp) < with_wolf, "switching to the Lv.1 stag changes the bonus")
+	Game.select_mount("thunder_wolf")
+
+
 func _save() -> void:
 	var saved: Dictionary = Game.profile.duplicate(true)
-	check(Game._valid_profile(saved.duplicate(true)), "a profile with mounts is a valid save")
+	check(Game._valid_profile(saved.duplicate(true)), "a profile with mount levels is a valid save")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(saved))
+	check(parsed is Dictionary and Game._valid_profile((parsed as Dictionary).duplicate(true)), "the JSON round trip is a valid save")
+	if parsed is Dictionary:
+		var back := Game._repair(parsed)
+		check(back.mounts == {"thunder_wolf": 5, "glow_stag": 1} and back.mounts.thunder_wolf is int and back.mount == "thunder_wolf", "levels survive the round trip (%s)" % str(back.mounts))
+	for bad_value in ["thunder_wolf", 5, {"thunder_wolf": 6}, {"thunder_wolf": -1}, {"thunder_wolf": "1"}, {"thunder_wolf": 1.5}, [3]]:
+		var bad: Dictionary = saved.duplicate(true)
+		bad["mounts"] = bad_value
+		check(not Game._valid_profile(bad), "mounts = %s is refused" % str(bad_value))
 	var bad: Dictionary = saved.duplicate(true)
-	bad["mounts"] = "thunder_wolf"
-	check(not Game._valid_profile(bad), "mounts must be a list")
-	bad = saved.duplicate(true)
 	bad["mount"] = 5
 	check(not Game._valid_profile(bad), "mount must be a string")
-	var odd: Dictionary = saved.duplicate(true)
-	odd["mounts"] = ["thunder_wolf", "dragon_from_the_future", "thunder_wolf", "glow_stag"]
-	odd["mount"] = "dragon_from_the_future"
-	var fixed := Game._repair(odd)
-	check(fixed.mounts == ["thunder_wolf", "glow_stag"], "repair drops unknown and doubled ids (%s)" % str(fixed.mounts))
-	check(fixed.mount == "", "repair clears an active mount that isn't owned")
+	# Saves from before mount levels: a list of owned ids becomes level 1 each.
 	var old: Dictionary = saved.duplicate(true)
-	old.erase("mounts")
-	old.erase("mount")
-	check(Game._valid_profile(old.duplicate(true)), "an old save without mounts still loads")
-	var old_fixed := Game._repair(old)
-	check(old_fixed.mounts == [] and old_fixed.mount == "", "an old save gets no mounts")
+	old["mounts"] = ["thunder_wolf", "dragon_from_the_future", "thunder_wolf", "griffin"]
+	old["mount"] = "griffin"
+	check(Game._valid_profile(old.duplicate(true)), "an old list of owned mounts still loads")
+	var migrated := Game._repair(old)
+	check(migrated.mounts == {"thunder_wolf": 1, "griffin": 1}, "owned ids migrate to Lv.1, unknown and doubled dropped (%s)" % str(migrated.mounts))
+	check(migrated.mount == "griffin", "the active mount survives the migration")
+	var odd: Dictionary = saved.duplicate(true)
+	odd["mounts"] = {"thunder_wolf": 3, "glow_stag": 0, "dragon_from_the_future": 2}
+	odd["mount"] = "glow_stag"
+	var fixed := Game._repair(odd)
+	check(fixed.mounts == {"thunder_wolf": 3}, "repair drops unknown and level-0 mounts (%s)" % str(fixed.mounts))
+	check(fixed.mount == "", "repair clears an active mount that isn't owned")
+	var older: Dictionary = saved.duplicate(true)
+	older.erase("mounts")
+	older.erase("mount")
+	check(Game._valid_profile(older.duplicate(true)), "an old save without mounts still loads")
+	var older_fixed := Game._repair(older)
+	check(older_fixed.mounts == {} and older_fixed.mount == "", "an old save gets no mounts")
+	var with_mats: Dictionary = saved.duplicate(true)
+	with_mats["inv"] = [ItemData.jewel("drake_scale", 3), ItemData.jewel("wolf_fang", 1)]
+	check(Game._valid_profile(with_mats), "materials in the bag are a valid save")
 
 
 func _riding() -> void:
@@ -106,10 +255,12 @@ func _riding() -> void:
 	hero.set_physics_process(false)
 	await settle()
 	var walk := hero.move_speed()
+	var hp_on_foot := int(hero.stats.max_hp)
 	check(hero.can_ride_here(), "the open field allows riding")
 	check(hero.toggle_ride() and hero.is_riding(), "the ride button mounts the wolf")
 	check(is_equal_approx(hero.move_speed(), walk * (1.0 + MountData.speed_bonus("thunder_wolf"))), "riding adds the wolf's +30%% (%.2f -> %.2f)" % [walk, hero.move_speed()])
 	check(hero.visual.held_stowed, "the weapon is stowed while riding")
+	check(int(hero.stats.max_hp) == hp_on_foot, "the mount's HP counts the same ridden or not")
 	var held_shown := 0
 	for n in hero.visual._skeleton.get_children():
 		if n.has_meta(&"held") and (n as Node3D).visible:
@@ -167,7 +318,7 @@ func _riding() -> void:
 	hud.tap_mount()
 	check(not hero.is_riding() and hud.mount_chip_text() == "ขี่", "tapping ลง gets off")
 	var keep: Dictionary = Game.profile.duplicate(true)
-	Game.profile["mounts"] = []
+	Game.profile["mounts"] = {}
 	Game.profile["mount"] = ""
 	hud._update_mount_row()
 	check(hud.mount_chip_text() == "" and not hud._mount_row.visible, "HUD button hidden without a mount")
@@ -178,10 +329,16 @@ func _riding() -> void:
 	await settle()
 
 
+func _card(menu: GameMenu, id: String) -> Node:
+	return menu._content.find_child("Mount_" + id, true, false)
+
+
 func _menu() -> void:
-	Game.profile["mounts"] = []
+	Game.profile["mounts"] = {}
 	Game.profile["mount"] = ""
-	Game.profile.gold = 250_000
+	for mat in MATS.values():
+		clear(mat)
+	clear("chaos")
 	var menu := GameMenu.new()
 	add_child(menu)
 	var ids: Array = []
@@ -190,27 +347,58 @@ func _menu() -> void:
 	check(ids.has("mounts"), "the menu has a สัตว์ขี่ tab")
 	menu.open_menu(&"mounts")
 	await settle()
-	var cards: Array = []
 	for id in MountData.ORDER:
-		var card := menu._content.find_child("Mount_" + id, true, false)
-		cards.append(card)
+		var card := _card(menu, id)
 		check(card != null, "card for %s" % id)
-	var wolf_buy := (cards[0] as Node).find_child("Buy", true, false) as Button
-	var stag_buy := (cards[1] as Node).find_child("Buy", true, false) as Button
-	check(wolf_buy != null and not wolf_buy.disabled, "the wolf can be bought with 250K")
-	check(stag_buy != null and stag_buy.disabled, "the stag's buy button is off with too little gold")
-	check((cards[0] as Node).find_child("Colour", true, false) is ColorRect, "each card has its colour")
-	wolf_buy.pressed.emit()
-	await settle()
-	check(Game.owns_mount("thunder_wolf") and int(Game.profile.gold) == 50_000, "menu buy spends 200K and owns the wolf")
-	var wolf_card := menu._content.find_child("Mount_thunder_wolf", true, false)
-	check(wolf_card != null and wolf_card.find_child("Buy", true, false) == null and wolf_card.find_child("Select", true, false) == null, "the active wolf has no buy or pick button")
-	Game.profile.gold = 600_000
-	Game.buy_mount("glow_stag")
+		if card == null:
+			continue
+		check(card.find_child("Buy", true, false) == null, "%s has no buy button" % id)
+		check(card.find_child("Colour", true, false) is ColorRect and card.find_child("MatIcon", true, false) is TextureRect, "%s card has its colour and material icon" % id)
+		var title := card.find_child("Title", true, false) as Label
+		check(title != null and title.text.contains("Lv.0/5"), "%s shows Lv.0 (%s)" % [id, title.text if title else ""])
+		var craft := card.find_child("Craft", true, false) as Button
+		check(craft != null and craft.text == "สร้าง" and craft.disabled, "%s: สร้าง is off without materials" % id)
+		var cost := card.find_child("Cost", true, false) as Label
+		check(cost != null and cost.text.contains("0/1") and cost.text.contains("0/%d" % CHAOS[id]), "%s cost shows owned/needed (%s)" % [id, cost.text if cost else ""])
+		check(card.find_child("Next", true, false) != null, "%s shows the next level's stats" % id)
+		for label in card.find_children("*", "Label", true, false):
+			check(not (label as Label).text.contains("เหรียญ"), "%s card shows no gold price" % id)
+	give("wolf_fang", 1)
+	give("chaos", 5)
 	menu._rebuild()
 	await settle()
-	var pick := menu._content.find_child("Mount_glow_stag", true, false).find_child("Select", true, false) as Button
-	check(pick != null, "an owned, inactive mount has a pick button")
+	var wolf_craft := _card(menu, "thunder_wolf").find_child("Craft", true, false) as Button
+	check(wolf_craft != null and not wolf_craft.disabled, "the wolf can be crafted with 1 fang + 5 chaos")
+	wolf_craft.pressed.emit()
+	await settle()
+	check(Game.mount_level("thunder_wolf") == 1 and Game.active_mount() == "thunder_wolf", "menu craft makes the wolf Lv.1 and active")
+	var wolf := _card(menu, "thunder_wolf")
+	var up := wolf.find_child("Craft", true, false) as Button
+	check(up != null and up.text == "อัปเลเวล" and up.disabled, "the wolf now offers อัปเลเวล, off while short")
+	check((wolf.find_child("Title", true, false) as Label).text.contains("Lv.1/5"), "the card shows Lv.1")
+	check((wolf.find_child("Now", true, false) as Label).text.contains("HP +1%"), "current stats: HP +1%")
+	check((wolf.find_child("Next", true, false) as Label).text.contains("HP +2%"), "next stats: HP +2%")
+	check(wolf.find_child("Select", true, false) == null, "the active wolf has no pick button")
+	give("wolf_fang", 2)
+	give("chaos", 10)
+	menu._rebuild()
+	await settle()
+	up = _card(menu, "thunder_wolf").find_child("Craft", true, false) as Button
+	check(not up.disabled, "2 fangs + 10 chaos open Lv.2")
+	up.pressed.emit()
+	await settle()
+	check(Game.mount_level("thunder_wolf") == 2 and Game.mount_mats("thunder_wolf") == 0 and Game.jewel_count("chaos") == 0, "menu upgrade to Lv.2 spends 2 fangs + 10 chaos")
+	Game.profile.mounts["thunder_wolf"] = 5
+	give("stag_antler", 1)
+	give("chaos", 8)
+	Game.craft_mount("glow_stag")
+	menu._rebuild()
+	await settle()
+	var maxed := _card(menu, "thunder_wolf").find_child("Craft", true, false) as Button
+	check(maxed.text == "MAX" and maxed.disabled, "Lv.5 shows MAX, off")
+	check(_card(menu, "thunder_wolf").find_child("Next", true, false) == null, "no next level past Lv.5")
+	var pick := _card(menu, "glow_stag").find_child("Select", true, false) as Button
+	check(pick != null, "an owned, inactive mount has ใช้ตัวนี้")
 	if pick != null:
 		pick.pressed.emit()
 		await settle()

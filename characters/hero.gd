@@ -660,7 +660,7 @@ func ride(quiet := false) -> bool:
 	if _dead:
 		why = "ขี่สัตว์ไม่ได้ตอนนี้"
 	elif id == "":
-		why = "ยังไม่มีสัตว์ขี่ ซื้อได้ที่เมนู > สัตว์ขี่"
+		why = "ยังไม่มีสัตว์ขี่ สร้างได้ที่เมนู > สัตว์ขี่"
 	elif not can_ride_here():
 		why = "พื้นที่นี้ขี่สัตว์ไม่ได้"
 	if why != "":
@@ -1431,7 +1431,11 @@ func apply_slow(seconds: float) -> void:
 
 
 func take_damage(raw: float, _attacker: Node = null) -> void:
-	if _dead or Time.get_ticks_msec() < _invulnerable_until or safe_zone:
+	if _dead or safe_zone:
+		return
+	# Being attacked knocks the hero off the mount, even when the blow is dodged.
+	dismount()
+	if Time.get_ticks_msec() < _invulnerable_until:
 		return
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
@@ -1444,7 +1448,6 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		_star_retaliation=true
 	Game.profile.hp = maxi(0, Game.profile.hp - amount)
 	_since_hurt = 0.0
-	dismount()
 	BattleVfx.damage_number(field, global_position + Vector3(0, 2.4, 0), str(amount), true, 1.1)
 	visual.flash()
 	AudioManager.play_sfx(&"hit_special", -2.0)
