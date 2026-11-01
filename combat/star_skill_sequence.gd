@@ -77,6 +77,8 @@ func _ready() -> void:
 	if not is_instance_valid(h): queue_free(); return
 	name="StarCast_"+String(skill.id)
 	if String(skill.shape) in ["burst","self","summon"]: center=origin
+	# From the saddle the rider stays seated on the mount: no rise into the sky.
+	if h.is_riding(): aerial=false
 	h.visual.skill_action(skill,float(skill.hit_delay))
 	StarSkillArt.telegraph(h,skill,center,float(skill.hit_delay))
 	if aerial:

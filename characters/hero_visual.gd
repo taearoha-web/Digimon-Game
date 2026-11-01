@@ -94,6 +94,9 @@ var _skill_start: Array[Transform3D] = []
 var _skill_base: Array[Transform3D] = []
 var _locomotion := "Idle"
 var _locomotion_speed := 1.0
+## Riding (Hero.ride): actions play on the upper body only, the legs stay sat (SaddlePose).
+var seated := false
+var _saddle: SaddlePose
 
 
 ## p_model: wear another character's stock look (villagers); armed=false = no weapon.
@@ -933,6 +936,21 @@ func _hold_gear() -> void:
 			_hold(weapon_look, "handslot.l", plus, true)
 
 
+## Sits the rider on a mount (or stands it back up): while seated, attacks, skills
+## and hits move the spine, arms, head and weapon; the hips and legs keep the seated
+## clip's pose (SaddlePose). Safe to call every frame: a rebuilt model gets a new one.
+func set_seated(on: bool) -> void:
+	seated = on
+	if not on or _skeleton == null:
+		return
+	if is_instance_valid(_saddle) and _saddle.get_parent() == _skeleton:
+		return
+	_saddle = SaddlePose.new()
+	_saddle.name = "SaddlePose"
+	_skeleton.add_child(_saddle)
+	_saddle.setup(self, _skeleton, anim)
+
+
 ## Hides (or shows again) every held piece: weapon, shield, book, tome, twin dagger.
 func stow_held(on: bool) -> void:
 	held_stowed = on
@@ -994,7 +1012,8 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 ## lag a manually sampled animation by one frame. Equipment rebuilds this socket.
 func skill_emission_position() -> Vector3:
 	if is_instance_valid(_emission_grip) and is_instance_valid(_skeleton) and _emission_bone >= 0:
-		return _skeleton.global_transform * _skeleton.get_bone_global_pose(_emission_bone) * _emission_grip.transform * _emission_point
+		var seat := _saddle.seat_offset(_skeleton) if seated and is_instance_valid(_saddle) else Transform3D.IDENTITY
+		return _skeleton.global_transform * seat * _skeleton.get_bone_global_pose(_emission_bone) * _emission_grip.transform * _emission_point
 	return global_position + Vector3(0, 1.3, 0)
 
 
@@ -1225,13 +1244,15 @@ func _advance_skill_motion(delta: float) -> void:
 	var recoil := sin(follow * PI) * 0.045
 	var pose := _skill_rest
 	pose.basis = Basis(Vector3.RIGHT, float(_skill_pose.lean) * pulse) * pose.basis
-	pose.origin += Vector3(0, float(_skill_pose.lift) * pulse, float(_skill_pose.step) * pulse - recoil)
+	# In the saddle the body leans and twists but doesn't hop, step or crouch off the seat.
+	var feet := 0.0 if seated else 1.0
+	pose.origin += Vector3(0, float(_skill_pose.lift) * pulse, float(_skill_pose.step) * pulse - recoil) * feet
 	if bool(_skill_pose.get("elite", false)):
 		var gather := sin(windup * PI) * (1.0 - follow)
 		var strike := smoothstep(0.64, 1.0, windup) * (1.0 - smoothstep(0.0, 1.0, follow))
 		var twist := float(_skill_pose.get("twist", 0.0))
 		pose.basis = Basis(Vector3.UP, twist * (gather - strike * 0.55)) * pose.basis
-		pose.origin.y -= float(_skill_pose.get("crouch", 0.0)) * gather
+		pose.origin.y -= float(_skill_pose.get("crouch", 0.0)) * gather * feet
 	model.transform = pose
 	if _skill_chest >= 0:
 		# Elevate the entire bow/arm chain together; keep feet and grip alignment.

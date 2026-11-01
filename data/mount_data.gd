@@ -7,9 +7,10 @@ extends RefCounted
 ## takes n materials and n x "chaos" chaos jewels, always succeeds.
 ## While a mount is the active one its HP / ATK / DEF / crit bonus (BONUS x level) is
 ## part of the hero's stats (HeroStats.compute), ridden or not; riding only adds speed.
-## Riding is for travel only: the hero moves faster, and attacking, casting, auto
-## hunting or taking a hit puts the hero back on foot. The town and the hunting fields
-## allow it; the arena, ranked duels, the guild war and the tower do not.
+## Riding: the hero moves faster and fights from the saddle (attacks, skills, auto
+## hunting and hits keep it riding, weapon in hand; SaddlePose keeps the legs seated
+## while the upper body swings). Death puts it back on foot. The town and the hunting
+## fields allow riding; the arena, ranked duels, the guild war and the tower do not.
 ## Saved as profile["mounts"] ({id: level 1-MAX_LEVEL}; old saves kept a list of owned
 ## ids, which Game._repair turns into level 1) and profile["mount"] (active id, "" = none).
 
