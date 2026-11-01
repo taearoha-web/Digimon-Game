@@ -555,31 +555,96 @@ func _recall_party() -> void:
 	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
 
 
-## A healer casts when an ally nearby is hurt, not only when it is; a song is
-## worth a little more with teammates around to hear it.
+## A healer casts when an ally nearby is hurt, not only when it is; buffs are kept up
+## (see _upkeep_score) and a song or team buff is worth a little more with teammates
+## around to take it.
 func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float) -> float:
 	var fx: Dictionary = skill.get("fx", {})
 	if fx.has("recall"):
 		return 9.5 if rally_needed() else 0.0
+	var is_buff := shape == "self" and fx.get("buff") is Dictionary
 	if shape == "self" and fx.has("heal"):
-		var lowest := own_ratio
-		for ally in _teammates():
-			if _flat_distance(ally.global_position) < 9.0:
-				if ally is GuildFighter:
-					lowest = minf(lowest, (ally as GuildFighter).hp_ratio())
-				elif ally == hero and "stats" in hero:
-					lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
-		return 10.0 if lowest < 0.55 else 0.0
-	var score := super._score(skill, shape, distance, own_ratio)
-	# A buff reaches only its party: worth more with the party around to take it, less
-	# (it still lifts the caster) when nobody of the party is near.
-	if score > 0.0 and shape == "self" and fx.get("buff") is Dictionary and not BuffBook.is_self_only(fx.buff):
-		var near := party_near(BUFF_REACH)
-		if near >= 2:
-			score += 0.5 if BuffBook.is_song_skill(skill) else 0.8
-		elif near == 0 and GuildWarMatch.in_war():
-			score -= 1.5
+		var heal := 10.0 if _lowest_near(own_ratio) < 0.55 else 0.0
+		# A heal that also buffs (Miracle, Godly Shield...) is kept up like any buff.
+		return maxf(heal, _upkeep_score(skill, distance)) if is_buff else heal
+	if is_buff:
+		return _upkeep_score(skill, distance)
+	return super._score(skill, shape, distance, own_ratio)
+
+
+## The lowest HP share among the fighter and its teammates within heal reach.
+func _lowest_near(own_ratio: float) -> float:
+	var lowest := own_ratio
+	for ally in _teammates():
+		if _flat_distance(ally.global_position) < 9.0:
+			if ally is GuildFighter:
+				lowest = minf(lowest, (ally as GuildFighter).hp_ratio())
+			elif ally == hero and "stats" in hero:
+				lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
+	return lowest
+
+
+## Buff upkeep: with the other guild within UPKEEP_RANGE a fighter recasts each of its
+## buffs (self buffs, team buffs, songs) that is not running on it, before it swings.
+## Rival's own rule scored a buff 6 (below nearly every attack, 3 + its multiplier, so
+## a buff only went out while nothing was in reach), cast it only within 16 m, and not
+## at all while ANY buff ran on the fighter (a party mate's buff blocked its own); heals
+## that also buff were held back for a hurt ally. Both guilds share this rule.
+const UPKEEP_RANGE := 25.0
+const UPKEEP_SCORE := 100.0
+
+
+func _upkeep_score(skill: Dictionary, distance: float) -> float:
+	if distance > UPKEEP_RANGE or _buff_running(skill):
+		return 0.0
+	var buff: Dictionary = skill.fx.buff
+	# The strongest first (a song by Rival._song_score's order); a team buff a little ahead
+	# with the party around to take it.
+	var score := UPKEEP_SCORE + (_song_score(skill) - 6.0 if BuffBook.is_song_skill(skill) else 0.01 * float(skill.get("level", 0)))
+	if not BuffBook.is_self_only(buff) and party_near(BUFF_REACH) >= 2:
+		score += 0.5 if BuffBook.is_song_skill(skill) else 0.8
 	return score
+
+
+## Whether the buff of `skill` already runs on the fighter (its own or a party mate's
+## cast): a song of its family plays, the same buff runs, or both of the fighter's own
+## buff slots (BuffBook.GROUP_LIMIT) are taken.
+func _buff_running(skill: Dictionary) -> bool:
+	var now := Time.get_ticks_msec()
+	var entries := _buff_art.buffs
+	if BuffBook.is_song_skill(skill):
+		return not BuffBook.song_to_replace(entries, BuffBook.skill_song_family(skill), now).is_empty()
+	var id := String(skill.id)
+	if BuffBook.contains(entries, id, false, now) or BuffBook.contains(entries, id, true, now):
+		return true
+	return BuffBook.group_count(entries, false, now) >= BuffBook.GROUP_LIMIT
+
+
+## Whether the fighter may use `skill` at all (its level, class tier and stars).
+func _knows(skill: Dictionary) -> bool:
+	return int(skill.level) <= level and ClassData.skill_tier(skill) <= _tier() and int(skill.get("star", 0)) <= _stars()
+
+
+## The team-buff button (บัฟทีม): every buff skill it knows that is off cooldown and
+## affordable goes out now, through the normal cast (effects, MP, cooldowns), wherever
+## the fighter stands; a self heal too when it or a party mate near is hurt. Returns
+## how many skills it cast.
+func cast_team_buffs() -> int:
+	if _dead or duel_over:
+		return 0
+	var cast := 0
+	var hurt := _lowest_near(hp_ratio()) < 0.9
+	for skill in class_data.get("skills", []):
+		var fx: Dictionary = skill.get("fx", {})
+		if String(skill.shape) != "self" or fx.has("recall") or not _knows(skill):
+			continue
+		if not (fx.get("buff") is Dictionary or (fx.has("heal") and hurt)):
+			continue
+		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+			continue
+		_cast(skill, self)
+		cast += 1
+	return cast
 
 
 func _run_to(point: Vector3, delta: float) -> Vector3:

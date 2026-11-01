@@ -428,7 +428,7 @@ func _fighters() -> void:
 	# The AI of a fighter: a song by the formula, +1.5 for a mark the target lacks.
 	enemy._victim = hero
 	enemy._buff_until = 0.0
-	check(is_equal_approx(enemy._score(bard("hymn_of_legends"), "self", 5.0, 1.0), 6.0 + 0.55 + 0.1 + 0.1), "a fighter scores its songs 6 + atk + crit/2")
+	check(is_equal_approx(enemy._score(bard("hymn_of_legends"), "self", 5.0, 1.0), GuildFighter.UPKEEP_SCORE + 0.55 + 0.1 + 0.1), "a war fighter keeps its songs up first, the strongest first (upkeep + atk + crit/2)")
 	var plain_score := enemy._shape_score(bard("discord"), "blast", 5.0, 1.0)
 	check(is_equal_approx(enemy._score(bard("discord"), "blast", 5.0, 1.0), plain_score + 1.5), "a marking skill +1.5 while the target lacks the mark")
 	# An allied Bard fighter's song reaches the hero (at most 30 s), never over the hero's own.
