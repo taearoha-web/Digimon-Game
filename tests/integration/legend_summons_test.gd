@@ -263,7 +263,11 @@ func _ai_summoners(hero: Hero) -> void:
 	king.set_physics_process(false)
 	king._cast_move(LegendMoves.moves("wind_king")[1], hero)
 	check(king._winding, "the slam locks the king while it warns")
-	await get_tree().create_timer(float(LegendMoves.moves("wind_king")[1].impact) + 0.75).timeout
+	# The blow lands on the move's own timer; wait for it (a hitstop or a busy frame can
+	# stretch the game clock past a fixed wait), up to a generous deadline.
+	var deadline := Time.get_ticks_msec() + int((float(LegendMoves.moves("wind_king")[1].impact) + 3.0) * 1000.0)
+	while Game.profile.hp >= int(hero.stats.max_hp) and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
 	check(Game.profile.hp < int(hero.stats.max_hp), "the slam lands on the hero (%d / %d)" % [Game.profile.hp, int(hero.stats.max_hp)])
 	check(Game.profile.hp >= int(float(hero.stats.max_hp) * 0.79), "one slam never takes more than 20%% of the hero (%d / %d)" % [Game.profile.hp, int(hero.stats.max_hp)])
 	# Killed by the hero's side: no EXP, no loot, just gone.

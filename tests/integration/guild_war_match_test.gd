@@ -318,6 +318,23 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	check((Game.guildwar_checkpoint().gates as Array) == [0, 0, 0], "%s: broken gates are kept in the save" % label)
 	gates[0].take_hit(1000, false)
 	check(gates[0].is_dead() and gates[0].hp == 0, "%s: a broken gate stays broken" % label)
+	# Far from the camera a fighter is posed every other frame without shadows; near, in full.
+	var cam := get_viewport().get_camera_3d()
+	var far_one: GuildFighter = null
+	for f in m.enemies:
+		if f.model() != null:
+			far_one = f
+			break
+	if cam != null and far_one != null:
+		var keep := far_one.global_position
+		far_one.global_position = cam.global_position + Vector3(GuildWarMatch.POSE_NEAR + 8.0, 0, 0)
+		m._cull_far()
+		check(far_one.model().anim_lod == 2 and far_one.model()._far, "%s: a far fighter is posed less often (lod %d)" % [label, far_one.model().anim_lod])
+		far_one.global_position = cam.global_position + Vector3(3.0, 0, 0)
+		m._cull_far()
+		check(far_one.model().anim_lod == 1 and not far_one.model()._far, "%s: a near one in full" % label)
+		far_one.global_position = keep
+		m._cull_far()
 	# The hero on the altar: the interact button takes it; stepping off breaks the hold.
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	await _frames(2)

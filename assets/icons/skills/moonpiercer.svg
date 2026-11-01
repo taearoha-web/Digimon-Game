@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: moonpiercer. Hand-authored vector art. --><defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 256 256"><!-- Original Toon Tale star skill icon: moonpiercer. Hand-authored vector art. --><defs>
  <radialGradient id="bg" cx=".38" cy=".3" r=".8"><stop stop-color="#287b9d"/><stop offset=".65" stop-color="#112e46"/><stop offset="1" stop-color="#10192e"/></radialGradient>
  <linearGradient id="main" x2=".65" y2="1"><stop stop-color="#e0ffff"/><stop offset=".4" stop-color="#70ddff"/><stop offset="1" stop-color="#287b9d"/></linearGradient>
  <linearGradient id="lit" x2=".2" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#e0ffff"/></linearGradient>
