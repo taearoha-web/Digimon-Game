@@ -62,6 +62,8 @@ static var current: GuildWarMatch
 ## Fighters farther than this from the camera are not drawn (low / medium / high quality):
 ## fifty heroes in gear on one field would otherwise cost a phone too much.
 const DRAW_RADIUS := [46.0, 56.0, 70.0]
+## Beyond this many metres from the camera a fighter is posed every other frame (_cull_far).
+const POSE_NEAR := 18.0
 
 var zone: Node3D
 var hero: Hero
@@ -452,7 +454,11 @@ func _tick_fight(delta: float) -> void:
 		_cull_far()
 
 
-## Only fighters near the camera are drawn (they keep fighting either way).
+## Only fighters near the camera are drawn (they keep fighting either way). Past
+## POSE_NEAR the drawn ones are posed every other frame and drop their shadows and
+## emitters (HeroVisual.set_anim_lod / set_far, as world players do in the fields): with
+## both whole guilds on the field that is most of them, and the phone runs cooler. The
+## hero's party stays at full detail.
 func _cull_far() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
@@ -460,8 +466,15 @@ func _cull_far() -> void:
 	var limit: float = DRAW_RADIUS[clampi(GameSettings.quality, 0, 2)]
 	var from := camera.global_position
 	for f in all_fighters():
-		if is_instance_valid(f.visual):
-			f.visual.visible = f.global_position.distance_squared_to(from) < limit * limit
+		if not is_instance_valid(f.visual):
+			continue
+		var d2 := f.global_position.distance_squared_to(from)
+		f.visual.visible = d2 < limit * limit
+		var model := f.model()
+		if model != null:
+			var far := d2 > POSE_NEAR * POSE_NEAR and not f.in_hero_party()
+			model.set_anim_lod(2 if far else 1)
+			model.set_far(far)
 
 
 func team_name(team: int) -> String:

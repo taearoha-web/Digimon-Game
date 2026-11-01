@@ -34,14 +34,23 @@ var _wall_start := 0
 var _round := 0
 var _last_usec := 0
 var _frame_ms: Array[float] = []
+var _spike_last := [0, 0, 0]
 
 
 ## Wall-clock frame times of the current phase (script work shows up here even headless).
 func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	if _last_usec > 0:
-		_frame_ms.append(float(now - _last_usec) / 1000.0)
+		var ms := float(now - _last_usec) / 1000.0
+		_frame_ms.append(ms)
+		# TOON_SPIKES=1: what changed across each long frame (nodes, objects, resources).
+		if ms > 80.0 and OS.get_environment("TOON_SPIKES") != "":
+			var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+			var objects := int(Performance.get_monitor(Performance.OBJECT_COUNT))
+			var resources := int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT))
+			print("SPIKE %6.1fms frame=%d nodes%+d objects%+d resources%+d process=%.1fms physics=%.1fms" % [ms, Engine.get_process_frames(), nodes - _spike_last[0], objects - _spike_last[1], resources - _spike_last[2], Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0])
 	_last_usec = now
+	_spike_last = [int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT))]
 
 
 func _frame_report(label: String) -> void:

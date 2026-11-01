@@ -71,7 +71,9 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var portraits := menu.find_children("*", "TextureRect", true, false)
-	check(portraits.size() == 33, "menu has 25 mage illustrations and 8 loadout illustrations")
+	# Every skill of the mage's pool (its star skills too) plus the eight loadout slots.
+	var pool_size := ClassData.pool(&"mage").size()
+	check(portraits.size() == pool_size + 8, "menu has %d mage illustrations and 8 loadout illustrations (%d)" % [pool_size, portraits.size()])
 	for portrait in portraits:
 		check(portrait.texture != null, "menu has no empty illustrated slot")
 	if not output.is_empty():
@@ -84,7 +86,7 @@ func _ready() -> void:
 	for i in 4:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	check(trainer.find_children("*", "TextureRect", true, false).size() == 25, "trainer uses the same 25 mage illustrations")
+	check(trainer.find_children("*", "TextureRect", true, false).size() == pool_size, "trainer uses the same %d mage illustrations" % pool_size)
 	if not output.is_empty():
 		get_viewport().get_texture().get_image().save_png(output.path_join("skill-trainer.png"))
 	trainer.close_trainer()
