@@ -281,7 +281,7 @@ func _process(delta: float) -> void:
 		_event_in = 1.0
 		var t := WorldPresence.clock()
 		var lines := PackedStringArray()
-		for line in [Game.exp_boost_text(), WorldEvents.describe(t), WorldEvents.halloween_text(t)]:
+		for line in [Game.exp_boost_text()] + WorldEvents.chip_lines(t):
 			if line != "":
 				lines.append(line)
 		_event_label.text = "\n".join(lines)

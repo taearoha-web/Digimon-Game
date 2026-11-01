@@ -1,7 +1,7 @@
 class_name Minimap
 extends Control
 ## Round radar in the corner: the hero in the middle, monsters (red), the boss
-## (big gold), your companion (cyan), portals (blue) and villagers (yellow).
+## (big gold), the golden monster (gold), your companion (cyan), portals (blue) and villagers (yellow).
 ## The map turns with the camera so "up" is where you are looking.
 
 const RADIUS := 66.0
@@ -54,7 +54,8 @@ func _draw() -> void:
 	for node in zone.get_tree().get_nodes_in_group("mobs"):
 		var mob := node as Mob
 		if mob and not mob.is_dead():
-			_dot(c, _to_map(mob.global_position, origin, yaw), Color("ffcf3a") if mob.is_boss else (Color("ff5a5a") if mob.hostile else Color("c46a6a")), 6.0 if mob.is_boss else 3.0)
+			var mark := mob_marker(mob)
+			_dot(c, _to_map(mob.global_position, origin, yaw), mark[0], mark[1])
 	for buddy in zone.companions:
 		if is_instance_valid(buddy):
 			_dot(c, _to_map(buddy.global_position, origin, yaw), Color("5af0ff") if not buddy.is_dead() else Color("667788"), 4.0)
@@ -74,6 +75,16 @@ func _draw() -> void:
 	var dir := Vector2(sin(facing), -cos(facing))
 	var side := Vector2(-dir.y, dir.x)
 	draw_colored_polygon(PackedVector2Array([c + dir * 8.0, c - dir * 5.0 + side * 5.0, c - dir * 5.0 - side * 5.0]), Color("ffffff"))
+
+
+## A monster's dot, [colour, radius]: the boss big gold, the golden monster (มอนทองคำ,
+## WorldEvents) a bright gold dot, others red (darker while not hostile).
+static func mob_marker(mob: Mob) -> Array:
+	if mob.has_meta("golden"):
+		return [WorldEvents.GOLDEN_COLOR, 5.0]
+	if mob.is_boss:
+		return [Color("ffcf3a"), 6.0]
+	return [Color("ff5a5a") if mob.hostile else Color("c46a6a"), 3.0]
 
 
 ## A hunting camp's ring, only the part that lies inside the round map (a camp near
