@@ -164,7 +164,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
-		"mounts": [], "mount": "",
+		"mounts": {}, "mount": "",
 	}
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
@@ -856,13 +856,23 @@ func _valid_profile(data: Dictionary) -> bool:
 	for key in ["inv", "storage", "loadout", "party"]:
 		if data.has(key) and not data[key] is Array:
 			return false
-	# Mounts (MountData): owned ids and the active one. Unknown ids are dropped by _repair.
+	# Mounts (MountData): {id: level} and the active id. Old saves kept a list of owned
+	# ids (level 1). Unknown ids are dropped by _repair.
 	if data.has("mounts"):
-		if not data.mounts is Array or (data.mounts as Array).size() > 64:
-			return false
-		for id in data.mounts:
-			if not id is String:
+		if data.mounts is Array:
+			if (data.mounts as Array).size() > 64:
 				return false
+			for id in data.mounts:
+				if not id is String:
+					return false
+		elif data.mounts is Dictionary:
+			if (data.mounts as Dictionary).size() > 64:
+				return false
+			for id in data.mounts:
+				if not id is String or not _valid_integer(data.mounts[id], 0, MountData.MAX_LEVEL):
+					return false
+		else:
+			return false
 	if data.has("mount") and not data.mount is String:
 		return false
 	for key in ["attrs", "skills", "boss_kills", "boss_pity", "pvp", "tower", "look"]:
@@ -1768,23 +1778,44 @@ func spend_gold(amount: int) -> bool:
 # Mounts (MountData)
 # ---------------------------------------------------------------------------
 
-## Keeps known, unique mount ids; the active one must be owned ("" = none).
+## Keeps known mounts as {id: level 1-MAX_LEVEL}; an old list of owned ids becomes
+## level 1 each. The active one must be owned ("" = none).
 func _repair_mounts(data: Dictionary) -> void:
-	var owned: Array = []
-	for id in data.get("mounts", []):
-		if id is String and MountData.exists(id) and not owned.has(id):
-			owned.append(id)
+	var owned := {}
+	var raw: Variant = data.get("mounts", {})
+	if raw is Array:
+		for id in raw:
+			if id is String and MountData.exists(id):
+				owned[id] = 1
+	elif raw is Dictionary:
+		for id in raw:
+			var level: Variant = raw[id]
+			if id is String and MountData.exists(id) and (level is int or level is float) and int(level) >= 1:
+				owned[id] = mini(int(level), MountData.MAX_LEVEL)
 	data["mounts"] = owned
 	var active: Variant = data.get("mount", "")
 	data["mount"] = active if active is String and owned.has(active) else ""
 
 
+## Owned mount ids, in menu order.
 func owned_mounts() -> Array:
-	return profile.get("mounts", [])
+	var out: Array = []
+	var levels: Variant = profile.get("mounts", {})
+	if levels is Dictionary:
+		for id in MountData.ORDER:
+			if int(levels.get(id, 0)) > 0:
+				out.append(id)
+	return out
 
 
 func owns_mount(id: String) -> bool:
-	return owned_mounts().has(id)
+	return mount_level(id) > 0
+
+
+## A mount's level (0 = not crafted yet).
+func mount_level(id: String) -> int:
+	var levels: Variant = profile.get("mounts", {})
+	return clampi(int(levels.get(id, 0)), 0, MountData.MAX_LEVEL) if levels is Dictionary else 0
 
 
 ## The mount the HUD's "ขี่" button rides ("" when none is owned).
@@ -1793,28 +1824,52 @@ func active_mount() -> String:
 	return id if owns_mount(id) else ""
 
 
-## Buys a mount with gold; the first one bought becomes the active mount.
-## Returns "" when bought, otherwise why not (Thai).
-func buy_mount(id: String) -> String:
+## Mount materials (ItemData.JEWELS) of `id`'s mount in the bag.
+func mount_mats(id: String) -> int:
+	var mat := MountData.mat_of(id)
+	return jewel_count(mat) if mat != "" else 0
+
+
+## Why the next step of a mount (craft at Lv.0, upgrade after) can't happen now
+## ("" when it can).
+func mount_step_problem(id: String) -> String:
 	if not MountData.exists(id):
 		return "ไม่มีสัตว์ขี่ตัวนี้"
-	if owns_mount(id):
-		return "มีสัตว์ขี่ตัวนี้แล้ว"
-	var price := int(MountData.info(id).price)
-	if not spend_gold(price):
-		return "เงินไม่พอ (ต้องใช้ %s เหรียญ)" % MountData.price_text(price)
-	var owned: Array = owned_mounts().duplicate()
-	owned.append(id)
-	profile["mounts"] = owned
+	var next := mount_level(id) + 1
+	if next > MountData.MAX_LEVEL:
+		return "เลเวลสูงสุดแล้ว"
+	var cost := MountData.cost(id, next)
+	if mount_mats(id) < int(cost.mat):
+		return "%s ไม่พอ (ต้องใช้ %d)" % [ItemData.JEWELS[MountData.mat_of(id)].name, int(cost.mat)]
+	if jewel_count("chaos") < int(cost.chaos):
+		return "เพชรชาออสไม่พอ (ต้องใช้ %d)" % int(cost.chaos)
+	return ""
+
+
+## Crafts a mount (Lv.0 -> 1) or levels it up (to MAX_LEVEL) with its material and
+## chaos jewels (MountData.cost); every step succeeds. The first mount crafted
+## becomes the active one. Returns "" when done, otherwise why not (Thai).
+func craft_mount(id: String) -> String:
+	var problem := mount_step_problem(id)
+	if problem != "":
+		return problem
+	var next := mount_level(id) + 1
+	var cost := MountData.cost(id, next)
+	_spend_jewels(MountData.mat_of(id), int(cost.mat))
+	_spend_jewels("chaos", int(cost.chaos))
+	var levels: Dictionary = profile.get("mounts", {}) if profile.get("mounts") is Dictionary else {}
+	levels[id] = next
+	profile["mounts"] = levels
 	if active_mount() == "":
 		profile["mount"] = id
 	mark_dirty()
+	inventory_changed.emit()
 	mount_changed.emit()
 	profile_changed.emit()
 	return ""
 
 
-## Picks the owned mount the HUD button rides.
+## Picks the owned mount the HUD button rides (and whose stats count).
 func select_mount(id: String) -> bool:
 	if not owns_mount(id):
 		return false

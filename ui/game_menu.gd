@@ -542,7 +542,9 @@ func _refresh_detail() -> void:
 			pair.add_child(sell)
 	elif item.get("kind", "") == "jewel":
 		var craft := String(item.get("id", "")) in StarWingData.CRAFT_COST
-		var how := UIUtil.label(("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
+		var for_mount := MountData.mount_of_mat(String(item.get("id", "")))
+		var how := UIUtil.label(("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด สำเร็จ 100%%)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0))]) if for_mount != ""
+			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
 			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละ 1 (50%) · +11 ถึง +15 เพิ่มอย่างละ 1 ทุกขั้น (45%, 40%, 35%, 30%, 25%)", &"DimLabel")
 		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1093,11 +1095,14 @@ func _build_mounts() -> void:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	box.add_child(UIUtil.label("สัตว์ขี่  %d / %d" % [Game.owned_mounts().size(), MountData.ORDER.size()], &"HeaderLabel"))
-	box.add_child(UIUtil.label("เงิน %s เหรียญ · ขี่เพื่อเดินทางเร็วขึ้น โจมตี ใช้สกิล หรือโดนตีจะลงจากหลังเอง" % MountData.price_text(int(Game.profile.get("gold", 0))), &"SubHeaderLabel"))
+	var how := UIUtil.label("สร้างและอัปเลเวลด้วยวัตถุดิบของแต่ละตัว (ดรอปจากมอนสเตอร์ทุกแผนที่ล่า) + เพชรชาออส สำเร็จ 100%% · ค่าพลังของตัวที่ใช้อยู่นับตลอด ขี่หรือไม่ขี่ก็ได้ · ขี่เพื่อเดินทางเร็วขึ้น โจมตี ใช้สกิล หรือโดนตีจะลงจากหลังเอง · เพชรชาออสในกระเป๋า %d เม็ด" % Game.jewel_count("chaos"), &"SubHeaderLabel")
+	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(how)
 	var active := Game.active_mount()
 	for id in MountData.ORDER:
 		var info := MountData.info(id)
-		var owned := Game.owns_mount(id)
+		var level := Game.mount_level(id)
+		var owned := level > 0
 		var panel := UIUtil.panel(&"CardPanel")
 		panel.name = "Mount_" + id
 		box.add_child(panel)
@@ -1109,31 +1114,66 @@ func _build_mounts() -> void:
 		swatch.custom_minimum_size = Vector2(56, 56)
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(swatch)
+		var icon := TextureRect.new()
+		icon.name = "MatIcon"
+		icon.texture = ItemLook.icon(ItemData.jewel(MountData.mat_of(id)))
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(40, 40)
+		icon.position = Vector2(8, 8)
+		icon.size = Vector2(40, 40)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		swatch.add_child(icon)
 		var col := UIUtil.vbox(2)
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(col)
 		var mark := "(กำลังใช้) " if id == active else ("(มีแล้ว) " if owned else "")
-		var title := UIUtil.label(mark + String(info.name), &"BoldLabel")
+		var title := UIUtil.label("%s%s  Lv.%d/%d" % [mark, String(info.name), level, MountData.MAX_LEVEL], &"BoldLabel")
+		title.name = "Title"
 		if id == active:
 			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
 		col.add_child(title)
-		col.add_child(UIUtil.label("ความเร็ว +%d%%  ·  ราคา %s เหรียญ" % [roundi(float(info.speed) * 100.0), MountData.price_text(int(info.price))], &"SmallLabel"))
+		var now := UIUtil.label("ตอนนี้: " + (MountData.bonus_text(id, level) if owned else "ยังไม่มี"), &"SmallLabel")
+		now.name = "Now"
+		now.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(now)
+		var step := ""
+		if level < MountData.MAX_LEVEL:
+			var cost := MountData.cost(id, level + 1)
+			var next := UIUtil.label("Lv.%d: %s" % [level + 1, MountData.bonus_text(id, level + 1)], &"SmallLabel")
+			next.name = "Next"
+			next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(next)
+			var mats := Game.mount_mats(id)
+			var chaos := Game.jewel_count("chaos")
+			var price := UIUtil.label("ใช้ %s %d/%d · เพชรชาออส %d/%d" % [ItemData.JEWELS[MountData.mat_of(id)].name, mats, int(cost.mat), chaos, int(cost.chaos)], &"SmallLabel")
+			price.name = "Cost"
+			price.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			price.add_theme_color_override("font_color", UIPalette.SUCCESS if Game.mount_step_problem(id) == "" else Color("ff8a7a"))
+			col.add_child(price)
 		col.add_child(UIUtil.label(String(info.desc), &"DimLabel"))
-		if not owned:
-			var buy := UIUtil.button("ซื้อ %s" % MountData.price_text(int(info.price)), &"PrimaryButton", Vector2(150, 56))
-			buy.name = "Buy"
-			buy.disabled = int(Game.profile.get("gold", 0)) < int(info.price)
-			buy.pressed.connect(func():
-				Game.buy_mount(id)  # disabled while gold is short, so this goes through
-				_queue_rebuild())
-			line.add_child(buy)
-		elif id != active:
+		var buttons := UIUtil.vbox(6)
+		buttons.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(buttons)
+		var craft := UIUtil.button("MAX" if level >= MountData.MAX_LEVEL else ("อัปเลเวล" if owned else "สร้าง"), &"PrimaryButton", Vector2(150, 56))
+		craft.name = "Craft"
+		craft.disabled = Game.mount_step_problem(id) != ""
+		craft.pressed.connect(func():
+			var why := Game.craft_mount(id)
+			if why == "":
+				Game.say("%s Lv.%d สำเร็จ!" % [String(info.name), Game.mount_level(id)], &"quest")
+				AudioManager.play_sfx(&"level_up", -4.0)
+			else:
+				Game.say(why, &"warning")
+			_queue_rebuild())
+		buttons.add_child(craft)
+		if owned and id != active:
 			var pick := UIUtil.button("ใช้ตัวนี้", &"", Vector2(150, 56))
 			pick.name = "Select"
 			pick.pressed.connect(func():
 				Game.select_mount(id)
 				_queue_rebuild())
-			line.add_child(pick)
+			buttons.add_child(pick)
 
 
 # ---------------------------------------------------------------------------

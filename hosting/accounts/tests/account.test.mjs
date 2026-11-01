@@ -255,6 +255,15 @@ test('same-origin JSON-only writes block CSRF; request sizes, malformed JSON and
   assert.equal((await call('session', {cookie: account.cookie})).status, 200);
 });
 
+test('mount levels and the old list of owned mounts are both accepted', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const levels = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), mounts: {thunder_wolf: 5, griffin: 1}, mount: 'griffin'})}});
+  assert.equal(levels.status, 200, JSON.stringify(levels.body));
+  const legacy = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...sample(), mounts: ['thunder_wolf'], mount: 'thunder_wolf'})}});
+  assert.equal(legacy.status, 200, JSON.stringify(legacy.body));
+});
+
 test('malformed, oversized and dangerous save structures are rejected without changing previous save', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -266,6 +275,8 @@ test('malformed, oversized and dangerous save structures are rejected without ch
     bundle({...sample(), attrs: {int: []}}), bundle({...sample(), inv: ['item']}), bundle({...sample(), equip: {weapon: null}}),
     bundle({...sample(), quests: []}), bundle({...sample(), loadout: [{}]}), bundle({...sample(), play_time: -1}),
     bundle({...sample(), bag_slots: 101}), bundle({...sample(), party: 'wrong'}),
+    bundle({...sample(), mounts: 'thunder_wolf'}), bundle({...sample(), mounts: {thunder_wolf: 6}}), bundle({...sample(), mounts: {thunder_wolf: 1.5}}),
+    bundle({...sample(), mounts: [3]}), bundle({...sample(), mount: 5}),
   ];
   for (const bad of invalid) {
     const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bad}});

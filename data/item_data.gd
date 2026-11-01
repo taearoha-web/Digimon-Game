@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## Equipment: { kind:"equip", uid, slot, base, name, rarity, level, class, stats{atk,def,hp,mp,crit}, price }
 ## Potions:   { kind:"potion", id, count }
-## Jewels:    { kind:"jewel", id ("purple" / "pink" / "chaos" / "feather"), count } spent at the forge (JEWELS)
+## Jewels:    { kind:"jewel", id ("purple" / "pink" / "chaos" / "feather"), count } spent at the forge (JEWELS);
+##            the mount materials ("wolf_fang", ...) are jewels too, spent on mounts (MountData)
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
 const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก"}
@@ -136,6 +137,11 @@ const JEWELS := {
 	"chaos": {"name": "เพชรชาออส", "color": Color("ffd23f"), "price": 1500},
 	"feather": {"name": "ขนนก", "color": Color("bfe6ff"), "price": 4000},
 	"drill": {"name": "สว่านเจาะ", "color": Color("c9d4e0"), "price": 3000},
+	# Mount materials (MountData: each mount's own, dropped per kill, MountData.DROP).
+	"wolf_fang": {"name": "เขี้ยวหมาป่าสายฟ้า", "color": Color("8fb0ff"), "price": 3000},
+	"stag_antler": {"name": "เขากวางเรืองแสง", "color": Color("7fe7d8"), "price": 5000},
+	"griffin_plume": {"name": "ขนปีกกริฟฟิน", "color": Color("f2c35a"), "price": 8000},
+	"drake_scale": {"name": "เกล็ดมังกรเพลิง", "color": Color("ff6a3d"), "price": 20000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}

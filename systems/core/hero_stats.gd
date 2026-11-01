@@ -152,6 +152,10 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var atk := (float(main_stat) * 1.0 + sub_stat + level * 1.5 + float(gear.atk) + (float(gear.matk) if caster else 0.0)) * (1.0 + float(buffs.get("atk", 0.0))) * float(data.get("atk_mult", 1.0)) * (1.0 + float(passive.atk)) * (1.0 + 0.003 * float(para.get("atk", 0))) * gem_atk
 	var def := (float(attrs.vit) * 0.9 + level * 1.0 + float(gear.def)) * (1.0 + float(buffs.get("def", 0.0))) * float(data.get("def_mult", 1.0)) * (1.0 + float(passive.def)) * (1.0 + 0.005 * float(para.get("def", 0))) * (1.0 + float(gems.get("def", 0.0)))
 	var gem_set := String(gear.get("gem_set", ""))
+	# The active mount's bonus (MountData.bonus) counts ridden or not.
+	var ride := mount_bonus(profile)
+	atk *= 1.0 + float(ride.get("atk", 0.0))
+	def *= 1.0 + float(ride.get("def", 0.0))
 	return {
 		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG),
 		"lifesteal": minf(float(gems.get("lifesteal", 0.0)), MAX_LIFESTEAL),
@@ -159,15 +163,24 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
 		"gem_set": gem_set,
 		"attrs": attrs,
-		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0)))),
+		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0)))),
 		"max_mp": int(((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp)) + float(gear.mp)) * (1.0 + float(gems.get("matk", 0.0)))),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(gems.get("crit", 0.0)) + (GEM_SET_HAWK if gem_set == "topaz" else 0.0) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)), 0.0, MAX_CRIT),
+		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(gems.get("crit", 0.0)) + (GEM_SET_HAWK if gem_set == "topaz" else 0.0) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)) + float(ride.get("crit", 0.0)), 0.0, MAX_CRIT),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
 		"haste": clampf(MAX_HASTE * float(attrs.dex) / (float(attrs.dex) + HASTE_HALF_DEX) + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
 	}
+
+
+## Stat shares of the profile's active mount at its level (MountData.bonus; {} with none).
+static func mount_bonus(profile: Dictionary) -> Dictionary:
+	var id: Variant = profile.get("mount", "")
+	var levels: Variant = profile.get("mounts", {})
+	if not id is String or not levels is Dictionary:
+		return {}
+	return MountData.bonus(id, int(levels.get(id, 0)))
 
 
 ## Damage after the target's defence: 100 / (100 + def).

@@ -1291,7 +1291,8 @@ func _drop_loot(mob: Mob) -> void:
 
 ## Forge jewels: every monster of a levelling field may drop a purple, a pink and a
 ## chaos jewel (ItemData.JEWEL_DROP), bosses as well; fields of FEATHER_STARS stars
-## and up may also drop a feather, more often the deeper the field.
+## and up may also drop a feather, more often the deeper the field; every field drops
+## the mount materials (mount_mat_drops).
 func _drop_jewels(from: Vector3) -> void:
 	if is_town or is_pvp:
 		return
@@ -1304,6 +1305,12 @@ func _drop_jewels(from: Vector3) -> void:
 	if rng.randf() < ItemData.feather_chance(int(data.get("star", 0))) * luck:
 		_spawn_loot(ItemData.jewel("feather"), 0, from)
 		Game.say("ขนนกตกแล้ว! เอาไปตีปีก 100 ดาวที่ช่างตีเหล็ก", &"quest")
+	# Mount materials (MountData: drop per kill, each mount its own), on _event_rng
+	# so the zone's seeded rolls stay put.
+	for item in mount_mat_drops(_drop_fortune(), _event_rng):
+		_spawn_loot(item, 0, from)
+		var mount := MountData.mount_of_mat(String(item.id))
+		Game.say("%sตกแล้ว! เอาไปสร้าง/อัปเลเวล%sที่เมนู สัตว์ขี่" % [ItemData.name_of(item), String(MountData.info(mount).name)], &"quest")
 	# Halloween: every monster may drop a Halloween potion. Its own RNG, so the
 	# event leaves the zone's seeded rolls as they are.
 	if WorldEvents.halloween_on(WorldPresence.clock()) and _event_rng.randf() < WorldEvents.HALLOWEEN_DROP:
@@ -1416,6 +1423,16 @@ func _fortune() -> float:
 ## Luck of the drops only (not EXP): fortune plus a running Halloween potion's bonus.
 func _drop_fortune() -> float:
 	return _fortune() + Game.boost_drop()
+
+
+## Mount materials one kill drops: each mount's material at its MountData drop
+## chance, raised by (1 + fortune) like the jewels.
+static func mount_mat_drops(fortune: float, roll: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	for id in MountData.ORDER:
+		if roll.randf() < float(MountData.info(id).drop) * (1.0 + fortune):
+			out.append(ItemData.jewel(MountData.mat_of(id)))
+	return out
 
 
 ## The gem-overhaul drops of one kill or bounty. [param source]: &"star" (a ★-field
