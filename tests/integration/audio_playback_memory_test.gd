@@ -26,6 +26,20 @@ func _ready() -> void:
 	if not sample_mode:
 		# Project settings use 0=Stream/1=Sample, unlike the AudioServer enum.
 		check(int(ProjectSettings.get_setting("audio/general/default_playback_type.web")) == 0, "web project default cannot fall back to Sample")
+		# The web build mixes on its one thread: a buffer under a slow frame (30 fps on an
+		# iPhone, a busy guild war) runs dry and the music stutters.
+		check(int(ProjectSettings.get_setting("audio/driver/output_latency.web")) >= 100, "the web audio buffer outlasts a slow frame")
+		# A far AI fighter's sound is not played; a near one is, once per repeat window.
+		var skipped := AudioManager.near_skipped
+		AudioManager.play_sfx_at(Vector3(0, 0, AudioManager.HEAR_RADIUS * 4.0), SOUNDS[0])
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			check(AudioManager.near_skipped == skipped + 1, "a sound far across the field is not played")
+		var before := AudioManager.sound_play_requests
+		var at := cam.global_position if cam != null else Vector3.ZERO
+		AudioManager.play_sfx_at(at, &"heal")
+		AudioManager.play_sfx_at(at, &"heal")
+		check(AudioManager.sound_play_requests == before + 1, "the same near sound starts once per repeat window")
 	for sound in SOUNDS:
 		check(AudioManager.has_sound(sound), "fixture sound exists: " + String(sound))
 		AudioManager.play_sfx(sound)

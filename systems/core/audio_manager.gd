@@ -158,6 +158,31 @@ func play_sfx(sfx_id: StringName, volume_db := 0.0, pitch_variation := 0.06) -> 
 	_play_from_pool(_sfx_pool, SFX_DIR, sfx_id, volume_db, pitch_variation)
 
 
+## A sound from somewhere on the field (an AI fighter's skill or potion): softer with
+## distance from the camera, not played past HEAR_RADIUS, and one id starts at most once per
+## NEAR_REPEAT_MS. A guild war's two whole guilds would otherwise start ten sounds a second
+## all over the map; each live voice is mixed on the web's single thread, and the music
+## stuttered under them.
+const HEAR_RADIUS := 26.0
+const HEAR_FADE_DB := 14.0
+const NEAR_REPEAT_MS := 90
+var _near_last := {}
+var near_skipped := 0
+
+
+func play_sfx_at(position: Vector3, sfx_id: StringName, volume_db := 0.0) -> void:
+	if sfx_id == &"":
+		return
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var distance := camera.global_position.distance_to(position) if camera != null else 0.0
+	var now := Time.get_ticks_msec()
+	if distance > HEAR_RADIUS or now - int(_near_last.get(sfx_id, -100000)) < NEAR_REPEAT_MS:
+		near_skipped += 1
+		return
+	_near_last[sfx_id] = now
+	play_sfx(sfx_id, volume_db - HEAR_FADE_DB * distance / HEAR_RADIUS)
+
+
 func play_ui(sfx_id: StringName, volume_db := 0.0) -> void:
 	_play_from_pool(_ui_pool, SFX_DIR, sfx_id, volume_db, 0.0)
 
