@@ -361,6 +361,18 @@ func _riding() -> void:
 	check(hero.is_riding() and hud.mount_chip_text() == "ลง", "tapping ขี่ rides, the chip says ลง")
 	hud.tap_mount()
 	check(not hero.is_riding() and hud.mount_chip_text() == "ขี่", "tapping ลง gets off")
+	# A phone tap arrives as a touch plus the mouse click Godot emulates from it:
+	# the chip must still ride once, not ride and get straight back off.
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	var click := InputEventMouseButton.new()
+	click.pressed = true
+	click.button_index = MOUSE_BUTTON_LEFT
+	hud._mount_chip.gui_input.emit(touch)
+	hud._mount_chip.gui_input.emit(click)
+	check(hero.is_riding() and hud.mount_chip_text() == "ลง", "one phone tap (touch + emulated click) rides")
+	hero.dismount()
+	hud._update_mount_row()
 	var keep: Dictionary = Game.profile.duplicate(true)
 	Game.profile["mounts"] = {}
 	Game.profile["mount"] = ""
