@@ -174,6 +174,10 @@ func _build_line(cls: StringName) -> void:
 	Game.guildwar_finish(true, 5, 2, 6, 1, "กิลด์เรา", "กิลด์เขา")
 	_level_to(Game.MAX_LEVEL)
 	_stars_to(104)
+	# Two mounts bought, the second one picked (profile "mounts" / "mount").
+	Game.add_gold(2_200_000)
+	if Game.buy_mount("thunder_wolf") != "" or Game.buy_mount("griffin") != "" or not Game.select_mount("griffin"):
+		_fail("%s: mounts" % cls)
 	Game.paragon_spend("atk", 30)
 	Game.paragon_spend("hp", 25)
 	Game.paragon_spend("crit", 10)
