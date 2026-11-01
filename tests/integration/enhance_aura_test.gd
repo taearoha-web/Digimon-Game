@@ -86,6 +86,6 @@ func _ready() -> void:
 		await get_tree().process_frame
 	# Jewels and feathers fly to the hero from anywhere in the field.
 	var src := FileAccess.get_file_as_string("res://world/loot_drop.gd")
-	check(src.contains('== "jewel"') and src.contains("_magnet = true"), "jewel and feather drops fly to the hero from anywhere")
+	check(src.contains("func _lift_off") and src.contains("_magnet = true") and not src.contains("PICKUP_RADIUS"), "jewel and feather drops (every drop) fly to the hero from anywhere")
 	print("ENHANCE AURA: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
