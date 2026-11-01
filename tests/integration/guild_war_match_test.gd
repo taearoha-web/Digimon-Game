@@ -128,6 +128,8 @@ func _war(staged: bool) -> void:
 		# Freeze the AI so the checks below see only what they cause (on a slow machine the
 		# fighters would otherwise reach each other and score extra falls in between).
 		f.set_physics_process(false)
+	if not staged:
+		await _team_buff(m, zone, hero, label)
 	# A Dark Lord's Summon with a purpose: at the front, it pulls in a damage dealer of
 	# its party who has just come back at the base; with the party around, it does not.
 	var caller: GuildFighter = m.enemies[0]
@@ -530,6 +532,138 @@ func _resume() -> void:
 	fresh.queue_free()
 	WorldPresence.clock_offset = 0.0
 	await _frames(3)
+
+
+## The team-buff button (บัฟทีม): only in a guild war, clear of the other buttons on a
+## phone, it makes the hero's war party cast its buffs (the hero gets the team buffs),
+## rests 30 s with a countdown, and toasts the result. And the AI keeps its buffs up.
+func _team_buff(m: GuildWarMatch, zone: Zone, hero: Hero, label: String) -> void:
+	var toasts: Array[String] = []
+	var listen := func(text: String, _k: StringName): toasts.append(text)
+	Game.toast.connect(listen)
+	var hud := HUD.new()
+	add_child(hud)
+	hud.set_process(false)
+	hud._update_team_buff()
+	check(not hud.team_buff_button.visible, "%s: no team-buff button outside a guild war" % label)
+	hud.zone = zone
+	hud.hero = hero
+	hud._update_team_buff()
+	var button := hud.team_buff_button
+	check(button.visible and button.text == "บัฟทีม" and not button.disabled, "%s: the guild war shows the บัฟทีม button" % label)
+	check(button.radius * 2.0 >= 56.0 and button.custom_minimum_size.x >= 56.0, "%s: the button is thumb-sized (%.0f px)" % [label, button.radius * 2.0])
+	# On a phone (844x390 -> 1558x720 canvas), 16:9 and a 4:3 tablet it keeps clear of every
+	# other button's touch circle and stays below the minimap.
+	for canvas in [Vector2(1558, 720), Vector2(1280, 720), Vector2(1280, 960)]:
+		var lay := HUD.action_layout(canvas)
+		var me: Vector2 = lay.team_buff
+		var others: Array = []
+		for c in lay.skills:
+			others.append([c, HUD.SKILL_RADIUS, "skill"])
+		for c in lay.utility:
+			others.append([c, 28.0, "utility"])
+		others.append([lay.utility[2] + Vector2(-72, 0), 28.0, "raven"])
+		others.append([lay.utility[2] + Vector2(-72, -72), 28.0, "raven mode"])
+		others.append([lay.attack, HUD.ATTACK_RADIUS, "attack"])
+		var clear := true
+		for o in others:
+			if me.distance_to(o[0]) < (HUD.TEAM_BUFF_RADIUS + float(o[1])) * 1.1:
+				clear = false
+				printerr("  overlaps ", o[2], " at ", canvas)
+		check(clear, "%s: บัฟทีม keeps clear of the skills, potions, auto, target, raven and attack (%s)" % [label, canvas])
+		check(canvas.y + me.y - HUD.TEAM_BUFF_RADIUS > 242.0 + 20.0 and canvas.x + me.x + HUD.TEAM_BUFF_RADIUS < canvas.x - 10.0, "%s: and below the minimap (%s)" % [label, canvas])
+		check(canvas.x + me.x - HUD.TEAM_BUFF_RADIUS > canvas.x * 0.32 + 200.0, "%s: far from the joystick and the ride chip on the left (%s)" % [label, canvas])
+	# The party gathers by the hero, ready to cast.
+	var members := m.hero_party_members()
+	check(members.size() >= 1, "%s: the hero has war mates in its party (%d)" % [label, members.size()])
+	var keep := {}
+	var k := 0
+	hero._buffs.clear()
+	hero.refresh_stats()
+	for f in members:
+		keep[f] = f.global_position
+		f.global_position = hero.global_position + Vector3(2.0 + k, 0.0, 1.5)
+		f.cooldowns.clear()
+		f.mp = float(f.rstats.max_mp)
+		f._buff_art.clear(f)
+		k += 1
+	var mp_before: float = members[0].mp if not members.is_empty() else 0.0
+	hud.press_team_buff()
+	await get_tree().create_timer(1.6).timeout
+	var buffed := 0
+	for f in members:
+		if not f._buff_art.buffs.is_empty():
+			buffed += 1
+	check(buffed == members.size(), "%s: every party member has its buffs on after บัฟทีม (%d/%d)" % [label, buffed, members.size()])
+	var shared := hero._buffs.filter(func(b): return bool(b.get("ally", false)))
+	check(not shared.is_empty(), "%s: the party's team buffs reach the hero (%d)" % [label, shared.size()])
+	check(not members.is_empty() and members[0].mp < mp_before and not members[0].cooldowns.is_empty(), "%s: the casts paid MP and started cooldowns" % label)
+	check(toasts.has("ทีมบัฟแล้ว %d คน" % members.size()), "%s: a toast tells who buffed (%s)" % [label, toasts])
+	# The rest: greyed with a countdown, a second press does nothing.
+	hud._update_team_buff()
+	check(m.team_buff_left > 25.0 and button.disabled and button.text.is_valid_int(), "%s: the button rests greyed with a countdown (%s)" % [label, button.text])
+	var mp_after: float = members[0].mp
+	for f in members:
+		f.cooldowns.clear()
+	hud._team_buff_tap = -1000000
+	toasts.clear()
+	hud.press_team_buff()
+	check(m.team_buff() == -1 and is_equal_approx(members[0].mp, mp_after), "%s: a second press while it rests casts nothing" % label)
+	check(toasts.size() == 1 and toasts[0].contains("พร้อมในอีก"), "%s: and says when it is ready (%s)" % [label, toasts])
+	# Ready again with nobody able to cast: it says so and does not rest.
+	m.team_buff_left = 0.0
+	for f in members:
+		f.mp = 0.0
+	hud._team_buff_tap = -1000000
+	toasts.clear()
+	hud.press_team_buff()
+	check(toasts.has("ยังไม่มีใครบัฟได้") and is_equal_approx(m.team_buff_left, 0.0), "%s: nobody able to buff is told, and the button stays ready (%s)" % [label, toasts])
+	# The AI keeps its buffs up by itself, on both sides alike: a missing buff with the other
+	# guild within 25 m goes before any attack; not while it runs, not from far off, and a
+	# party mate's other buff does not hold it back.
+	var sides := 0
+	for side in [m.allies, m.enemies]:
+		var f: GuildFighter = null
+		var skill := {}
+		for cand in side:
+			for sk in cand.class_data.skills:
+				if String(sk.shape) == "self" and sk.get("fx", {}).get("buff") is Dictionary and not sk.fx.has("heal") and not BuffBook.is_song_skill(sk) and cand._knows(sk):
+					f = cand
+					skill = sk
+					break
+			if f != null:
+				break
+		if f == null:
+			continue
+		sides += 1
+		var who := "ally" if f.team == GuildFighter.TEAM_ALLY else "rival"
+		f._buff_art.clear(f)
+		f._buff_until = 0.0
+		f.receive_party_buff({"atk": 0.1, "secs": 20.0}, Color.WHITE, "x", "someone_elses_buff")
+		var best_attack := 0.0
+		for sk in f.class_data.skills:
+			if not (String(sk.shape) == "self"):
+				best_attack = maxf(best_attack, f._score(sk, String(sk.shape), 2.0, 1.0))
+		var up := f._score(skill, "self", 20.0, 1.0)
+		check(up > best_attack, "%s %s: a missing buff (%s) outranks every attack with enemies near (%.1f > %.1f)" % [label, who, skill.name, up, best_attack])
+		check(is_zero_approx(f._score(skill, "self", 30.0, 1.0)), "%s %s: no buff with nobody within 25 m" % [label, who])
+		f._resolve(skill, f, f.global_position)
+		check(is_zero_approx(f._score(skill, "self", 20.0, 1.0)), "%s %s: no recast while the buff runs" % [label, who])
+		f._buff_art.clear(f)
+		f._buff_until = 0.0
+		f._atk_boost = 1.0
+		f._def_boost = 1.0
+		f._sync_def()
+	check(sides == 2, "%s: the buff upkeep was checked on both sides (%d)" % [label, sides])
+	for f in members:
+		f.global_position = keep[f]
+		f.mp = float(f.rstats.max_mp)
+		f.cooldowns.clear()
+	hero._buffs.clear()
+	hero.refresh_stats()
+	Game.toast.disconnect(listen)
+	hud.queue_free()
+	await _frames(2)
 
 
 func _collect_buttons(node: Node, out: Array[String]) -> void:

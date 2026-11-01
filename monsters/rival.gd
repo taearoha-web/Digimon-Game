@@ -516,11 +516,12 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_heal(float(fx.heal))
 			if fx.has("buff"):
 				var buff: Dictionary = fx.buff
-				_atk_boost = 1.0 + float(buff.get("atk", 0.0))
-				_def_boost = 1.0 + float(buff.get("def", 0.0))
+				# A second buff adds to the first (the strongest of each counts), it does not
+				# wipe it or a party mate's (a lone duel rival only ever has one running).
+				_atk_boost = maxf(_atk_boost, 1.0 + float(buff.get("atk", 0.0)))
+				_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
 				_sync_def()
-				_buff_until = Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0)
-				_buff_art.buffs.clear()
+				_buff_until = maxf(_buff_until, Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 				var display_buff := buff.duplicate()
 				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
 				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id))

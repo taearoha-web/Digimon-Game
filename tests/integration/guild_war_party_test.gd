@@ -260,6 +260,7 @@ func _reset(fighters: Array, hero: Hero) -> void:
 		f._atk_boost = 1.0
 		f._def_boost = 1.0
 		f._buff_until = 0.0
+		f._buff_art.clear(f)
 		f._sync_def()
 	hero._buffs.clear()
 	hero.refresh_stats()
