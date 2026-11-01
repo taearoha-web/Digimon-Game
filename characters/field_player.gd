@@ -10,7 +10,12 @@ extends Companion
 ## with the hero from zone to zone, fights what the hero fights, heals and buffs the hero,
 ## gets back up beside the hero, and its kills count for the party (the EXP is shared).
 ## It wears what it has found (WorldPlayers.equip) and shows each new piece as it puts it
-## on; with wings it flies, stands or folds them as it pleases.
+## on; with wings it flies, stands or folds them as it pleases. With a mount
+## (WorldPlayers.mount_of) it rides or walks as its taste says (WorldPlayers.ride_taste):
+## some ride nearly always, some rarely, some never; it gets on more for a long way to a
+## camp, less in the village, gets off at its stall or errand, and fights from the saddle
+## like the hero. In the hero's party it rides while the hero rides. Never where riding
+## is not allowed (MountData.zone_allows). Far away its mount is simplified (set_far).
 
 const CAMP_STAY := Vector2(150.0, 330.0)
 const AWAY_AFTER_FALL := 40.0
@@ -34,6 +39,17 @@ var _rng := RandomNumberGenerator.new()
 ## Wing pose it picks for itself now and then (HeroVisual.WING_*), and when it thinks again.
 var _wing_think := 0.0
 var _worn: Dictionary = {}
+## Its mount ({id, level} from WorldPlayers.mount_of, {} with none), its taste for riding
+## (WorldPlayers.ride_taste) and when it thinks about riding again.
+var mount_info: Dictionary = {}
+var ride_taste := 0.0
+var _ride_think := 0.0
+## Seconds between two thoughts about riding (random in this range).
+const RIDE_THINK := Vector2(14.0, 45.0)
+## A camp farther than this is a long way: more likely to ride there.
+const RIDE_FAR := 22.0
+## In the village it rides this much less.
+const TOWN_RIDE := 0.5
 ## What it is doing (WorldPlayers.state doing): "stall" keeps a stall in the village.
 var doing := ""
 ## Its stall in the village (WorldPresence hands one out) and the way it faces.
@@ -81,6 +97,9 @@ func _ready() -> void:
 	_label.text = _level_text()
 	_worn = _party_equip()
 	_wing_think = _rng.randf_range(0.5, 4.0)
+	mount_info = WorldPlayers.mount_of(member)
+	ride_taste = WorldPlayers.ride_taste(world_index)
+	_ride_think = _rng.randf_range(0.2, 2.0)
 	_shout_at = Time.get_ticks_msec() * 0.001 + _rng.randf_range(1.0, 12.0)
 	# Some stall keepers sit by their wares (the AFK ones doze).
 	_sits = hash("sit|%s" % member.name) % 3 == 0
@@ -147,6 +166,7 @@ func sync_progress(s: Dictionary) -> void:
 	doing = String(s.get("doing", doing))
 	var up := int(s.level) > int(member.level) or int(s.stars) > int(member.get("stars", 0))
 	var dressed := WorldPlayers.sync_member(member, s)
+	_sync_mount()
 	if up and not _dead and visible:
 		level_up_fx()
 	elif up or dressed:
@@ -281,6 +301,7 @@ func _physics_process(delta: float) -> void:
 	if _lod_check <= 0.0:
 		_lod_check = 0.5
 		_update_lod()
+	_think_ride(delta)
 	if _resting() and visual.current == _rest_anim():
 		velocity = Vector3.ZERO
 		fade_label(delta)
@@ -289,7 +310,8 @@ func _physics_process(delta: float) -> void:
 	if stats.is_empty() or not is_instance_valid(visual):
 		return
 	_think_wings(delta)
-	_hover(delta)
+	if mount == null:
+		_hover(delta)
 
 
 ## Far from the hero (or resting at its stall) it is posed less often.
@@ -306,12 +328,85 @@ func _update_lod() -> void:
 		step = 2
 	visual.set_anim_lod(step)
 	visual.set_far(step >= 2 and not party_mode)
+	if mount != null:
+		mount.lod_step = step
+		mount.set_far(step >= 2 and not party_mode)
+
+
+# --- Riding (MountData) ------------------------------------------------------------
+
+## Its mount moved on (a new one or a level from the schedule): the ridden body follows.
+func _sync_mount() -> void:
+	mount_info = WorldPlayers.mount_of(member)
+	if mount == null:
+		return
+	if mount_info.is_empty():
+		dismount()
+	elif String(mount_info.id) != mount.id:
+		mount.build(String(mount_info.id))
+
+
+## Whether it wants to be on its mount now (rolls `roll` 0-1 against its taste): never
+## without one, dead, away or where riding is not allowed; in the party while the hero
+## rides; off at its stall or errand; more likely for a long way to its camp, less in
+## the village.
+func wants_ride(roll: float) -> bool:
+	if mount_info.is_empty() or _dead or _away or not visible or not can_ride_here():
+		return false
+	if party_mode:
+		return hero != null and is_instance_valid(hero) and hero.is_riding()
+	if keeps_stall() or on_errand():
+		var goal := stall_at if keeps_stall() else errand_goal()
+		if _flat(goal - global_position).length() < 4.0:
+			return false
+	var p := ride_taste
+	if zone != null and zone.is_town:
+		p *= TOWN_RIDE
+	elif not _camp.is_empty() and _flat(_camp_center() - global_position).length() > RIDE_FAR:
+		p = minf(1.0, p * 1.6)
+	return roll < p
+
+
+## Now and then it makes up its mind to ride or walk (wants_ride); in the party it keeps
+## up with the hero at once; a no-riding place or a fall takes it off at once.
+func _think_ride(delta: float) -> void:
+	if mount != null and (_dead or _away or not can_ride_here() or mount_info.is_empty()):
+		dismount()
+		return
+	if mount_info.is_empty() or _dead:
+		return
+	if party_mode:
+		_set_riding(wants_ride(0.0))
+		return
+	if mount != null and (keeps_stall() or on_errand()) and not wants_ride(0.0):
+		# Arrived at its stall or errand: off the mount at once.
+		dismount()
+		return
+	_ride_think -= delta
+	if _ride_think > 0.0:
+		return
+	_ride_think = _rng.randf_range(RIDE_THINK.x, RIDE_THINK.y)
+	_set_riding(wants_ride(_rng.randf()))
+
+
+func _set_riding(on: bool) -> void:
+	if on and mount == null:
+		if ride_mount(String(mount_info.id)):
+			mount.lod_step = visual.anim_lod
+			mount.set_far(visual.anim_lod >= 2 and not party_mode)
+	elif not on and mount != null:
+		dismount()
 
 
 ## Picks its wing pose now and then, as it pleases: its own taste (WorldPlayers.wing_taste),
 ## a little more flying on the way somewhere and a little less in the village.
 func _think_wings(delta: float) -> void:
 	if _dead or not visual.has_wings():
+		return
+	if mount != null:
+		# In the saddle the wings stay open, never flying.
+		if visual.flying():
+			visual.set_wing_mode(HeroVisual.WING_STAND)
 		return
 	_wing_think -= delta
 	if _wing_think > 0.0:
@@ -405,6 +500,7 @@ func _die() -> void:
 	if party_mode:
 		super._die()
 		return
+	dismount()
 	_dead = true
 	target = null
 	_revive_timer = 6.0
@@ -494,6 +590,7 @@ func _fleeing() -> bool:
 ## Gone to the village to buy potions: away a while, then back from the entrance (the
 ## same way as after a fall).
 func _go_shopping() -> void:
+	dismount()
 	_restocking = false
 	_dead = true
 	target = null

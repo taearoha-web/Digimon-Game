@@ -47,6 +47,11 @@ const SUMMON_LIMIT := 3
 const LABEL_BUSY_ALPHA := 0.35
 const LABEL_CALM_AFTER := 4.0
 var _label_alpha := 1.0
+## The mount it rides (MountVisual; null on foot). Only world players (FieldPlayer)
+## ever get on one: the same seated riding as the hero (MountVisual.carry, SaddlePose).
+var mount: MountVisual
+const LABEL_Y := 2.75
+const BAR_Y := 3.05
 
 
 func setup(p_member: Dictionary, p_index: int, p_hero: Hero, p_field: Node3D) -> void:
@@ -81,13 +86,13 @@ func _ready() -> void:
 	_label.font_size = 44
 	_label.outline_size = 12
 	_label.modulate = Color("8ff0ff")
-	_label.position = Vector3(0, 2.75, 0)
+	_label.position = Vector3(0, LABEL_Y, 0)
 	_label.visibility_range_end = 30.0
 	_label.no_depth_test = true
 	_label.render_priority = 2
 	add_child(_label)
 	_bar = FieldHpBar.new()
-	_bar.position = Vector3(0, 3.05, 0)
+	_bar.position = Vector3(0, BAR_Y, 0)
 	_bar.visible = false
 	add_child(_bar)
 	refresh()
@@ -280,6 +285,7 @@ func heal_fraction(fraction: float) -> void:
 
 
 func _die() -> void:
+	dismount()
 	_dead = true
 	target = null
 	_revive_timer = 14.0
@@ -359,15 +365,77 @@ func _physics_process(delta: float) -> void:
 			desired = _fight(delta)
 		else:
 			desired = _follow(delta)
+	if mount != null:
+		desired *= 1.0 + MountData.speed_bonus(mount.id)
 	velocity.x = lerpf(velocity.x, desired.x, 1.0 - exp(-14.0 * delta))
 	velocity.z = lerpf(velocity.z, desired.z, 1.0 - exp(-14.0 * delta))
 	velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
 	move_and_slide()
 	var speed := Vector3(velocity.x, 0, velocity.z).length()
-	if speed > 0.6:
+	if mount != null:
+		var lift := MountVisual.carry(mount, visual, _facing, speed, float(stats.speed) * (1.0 + MountData.speed_bonus(mount.id)), "Idle")
+		_raise_labels(lift)
+	elif speed > 0.6:
 		visual.play("Running_A", 0.12, clampf(speed / 5.4, 0.8, 1.5))
 	else:
 		visual.play(_rest_anim())
+
+
+# --- Riding (MountData, MountVisual) ---------------------------------------------
+
+func is_riding() -> bool:
+	return mount != null
+
+
+## True where this field allows riding (MountData.zone_allows: not the arena, ranked
+## duels, the guild war or the tower).
+func can_ride_here() -> bool:
+	return not (field is Zone) or MountData.zone_allows((field as Zone).data)
+
+
+## Gets on mount `id` (or swaps the ridden body to it). False when it can't ride now.
+func ride_mount(id: String) -> bool:
+	if _dead or not MountData.exists(id) or not can_ride_here() or not is_instance_valid(visual):
+		return false
+	if mount != null:
+		if mount.id != id:
+			mount.build(id)
+		return true
+	mount = MountVisual.new()
+	add_child(mount)
+	mount.build(id)
+	mount.rotation.y = _facing
+	visual.set_seated(true)
+	if visual.flying():
+		visual.set_wing_mode(HeroVisual.WING_STAND)
+	var shadow := get_node_or_null("BlobShadow") as Node3D
+	if shadow != null:
+		shadow.visible = false
+	return true
+
+
+## Back on foot.
+func dismount() -> void:
+	if mount == null:
+		return
+	mount.queue_free()
+	mount = null
+	if not is_instance_valid(visual):
+		return
+	visual.set_seated(false)
+	visual.position = Vector3(0, visual.position.y if not _dead else 0.0, 0)
+	var shadow := get_node_or_null("BlobShadow") as Node3D
+	if shadow != null:
+		shadow.visible = true
+	_raise_labels(0.0)
+
+
+## The name label and HP bar ride up with the seat.
+func _raise_labels(lift: float) -> void:
+	if is_instance_valid(_label):
+		_label.position.y = LABEL_Y + lift
+	if is_instance_valid(_bar):
+		_bar.position.y = BAR_Y + lift
 
 
 ## The clip it stands still in (a stall keeper may sit).
