@@ -22,6 +22,7 @@ AudioManager="*res://systems/core/audio_manager.gd"
 
 general/default_playback_type=0
 general/default_playback_type.web=0
+driver/output_latency.web=120
 
 [display]
 
