@@ -274,102 +274,127 @@ jobs:
       - name: Import assets
         run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
       - name: boss_attack_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-boss_attack_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/boss_attack_test.tscn
       - name: boss_loot_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-boss_loot_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/boss_loot_test.tscn
       - name: buff_identity_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-buff_identity_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/buff_identity_test.tscn
       - name: bulk_stat_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-bulk_stat_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/bulk_stat_test.tscn
       - name: cloud_bridge_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-cloud_bridge_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/cloud_bridge_test.tscn
       - name: divine_attack_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-divine_attack_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/divine_attack_test.tscn
       - name: divine_region_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-divine_region_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/divine_region_test.tscn
       - name: elite_skill_lifecycle_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-elite_skill_lifecycle_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/elite_skill_lifecycle_test.tscn
       - name: ending_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-ending_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/ending_test.tscn
       - name: judgment_ray_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-judgment_ray_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/judgment_ray_test.tscn
       - name: legend_summons_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-legend_summons_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/legend_summons_test.tscn
       - name: mob_attack_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-mob_attack_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/mob_attack_test.tscn
       - name: scenery_bounds_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-scenery_bounds_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/scenery_bounds_test.tscn
       - name: session_memory_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-session_memory_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/session_memory_test.tscn
       - name: skill_choreography_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-skill_choreography_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/skill_choreography_test.tscn
       - name: smooth_hitstop_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-smooth_hitstop_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/smooth_hitstop_test.tscn
       - name: star_expansion_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_expansion_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_expansion_test.tscn
       - name: star_lifecycle_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_lifecycle_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_lifecycle_test.tscn
       - name: star_wings_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_wings_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_wings_test.tscn
       - name: thunder_storm_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-thunder_storm_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/thunder_storm_test.tscn
       - name: tower_spawn_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-tower_spawn_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/tower_spawn_test.tscn
       - name: vfx_mesh_cache_test
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx_mesh_cache_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_mesh_cache_test.tscn
       - name: sale_scroll_test (drawn frames)
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-sale_scroll_test
         run: xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --rendering-driver opengl3 --path . res://tests/integration/sale_scroll_test.tscn
       - name: skill_craft_test (drawn frames)
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-skill_craft_test
         run: xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --rendering-driver opengl3 --path . res://tests/integration/skill_craft_test.tscn
       - name: skill_icons_test (drawn frames)
+        timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-skill_icons_test
         run: xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --rendering-driver opengl3 --path . res://tests/integration/skill_icons_test.tscn

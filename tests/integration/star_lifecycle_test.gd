@@ -17,8 +17,10 @@ func _ready()->void:
 	for cls in ClassData.IDS:
 		for skill in StarSkillData.pool(cls):
 			catalog.append({"id":skill.id,"name":skill.name,"desc":skill.desc,"class":String(cls),"star":skill.star,"shape":skill.shape})
+	# The catalog is a review artifact: written only where the artifacts folder exists (not on CI).
 	var f:=FileAccess.open("/workspace/toon-artifacts/star-expansion/catalog.json",FileAccess.WRITE)
-	f.store_string(JSON.stringify(catalog,"  "));f.close()
+	if f:
+		f.store_string(JSON.stringify(catalog,"  "));f.close()
 	profile(&"warrior");Game.paragon().level=199
 	var zone:=Zone.new();zone.zone_id=&"eclipse_realm";add_child(zone);zone.set_process(false)
 	zone._boss_timer=0;zone._tick_boss(1)
