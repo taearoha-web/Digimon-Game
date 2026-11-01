@@ -363,7 +363,7 @@ func _try_potion() -> bool:
 	_potion_cd = 5.0
 	_heal(0.35)
 	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), "ดื่มยา!", Color("ff8a9a"), 0.9)
-	AudioManager.play_sfx(&"heal", -4.0)
+	AudioManager.play_sfx_at(global_position, &"heal", -4.0)
 	return false
 
 
@@ -469,7 +469,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
 	var cast_sound := SkillSound.cast(skill)
 	if cast_sound != &"skill_start":
-		AudioManager.play_sfx(cast_sound, -8.0)
+		AudioManager.play_sfx_at(global_position, cast_sound, -8.0)
 	if announce_skills:
 		BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), String(skill.name), color, 0.6)
 	if String(skill.id) == "judgment_ray":
@@ -509,7 +509,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	SkillShow.play(field, skill, center, global_position)
 	var landing_sound := SkillSound.landing(skill)
 	if landing_sound != &"":
-		AudioManager.play_sfx(landing_sound, -8.0)
+		AudioManager.play_sfx_at(center, landing_sound, -8.0)
 	match shape:
 		"self":
 			if fx.has("heal"):

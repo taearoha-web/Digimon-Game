@@ -118,6 +118,11 @@ func make_leader() -> void:
 	LeaderMark.attach(self, LeaderMark.guild_color(team), (_label.position.y if _label != null else 2.6) + 0.9)
 
 
+## Its character model (null before the visual is built): the war's level of detail.
+func model() -> HeroVisual:
+	return _rv.hero_visual if _rv != null and is_instance_valid(_rv.hero_visual) else null
+
+
 ## True for a member of the hero's own party in the war.
 func in_hero_party() -> bool:
 	return team == TEAM_ALLY and party == GuildWarMatch.HERO_PARTY
