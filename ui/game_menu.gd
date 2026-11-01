@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -132,6 +132,7 @@ func _rebuild() -> void:
 		&"quests": _build_quests()
 		&"achievements": _build_achievements()
 		&"titles": _build_titles()
+		&"mounts": _build_mounts()
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
@@ -1077,6 +1078,62 @@ func _build_titles() -> void:
 				Game.set_title(-1 if wearing else k)
 				_queue_rebuild())
 			line.add_child(b)
+
+
+# ---------------------------------------------------------------------------
+# Mounts (MountData): buy with gold, pick the one the HUD's "ขี่" button rides
+# ---------------------------------------------------------------------------
+
+func _build_mounts() -> void:
+	var scroll := TouchScroll.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(scroll)
+	_page_scroll = scroll
+	var box := UIUtil.vbox(8)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	box.add_child(UIUtil.label("สัตว์ขี่  %d / %d" % [Game.owned_mounts().size(), MountData.ORDER.size()], &"HeaderLabel"))
+	box.add_child(UIUtil.label("เงิน %s เหรียญ · ขี่เพื่อเดินทางเร็วขึ้น โจมตี ใช้สกิล หรือโดนตีจะลงจากหลังเอง" % MountData.price_text(int(Game.profile.get("gold", 0))), &"SubHeaderLabel"))
+	var active := Game.active_mount()
+	for id in MountData.ORDER:
+		var info := MountData.info(id)
+		var owned := Game.owns_mount(id)
+		var panel := UIUtil.panel(&"CardPanel")
+		panel.name = "Mount_" + id
+		box.add_child(panel)
+		var line := UIUtil.hbox(12)
+		panel.add_child(line)
+		var swatch := ColorRect.new()
+		swatch.name = "Colour"
+		swatch.color = info.color
+		swatch.custom_minimum_size = Vector2(56, 56)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(swatch)
+		var col := UIUtil.vbox(2)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(col)
+		var mark := "(กำลังใช้) " if id == active else ("(มีแล้ว) " if owned else "")
+		var title := UIUtil.label(mark + String(info.name), &"BoldLabel")
+		if id == active:
+			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		col.add_child(title)
+		col.add_child(UIUtil.label("ความเร็ว +%d%%  ·  ราคา %s เหรียญ" % [roundi(float(info.speed) * 100.0), MountData.price_text(int(info.price))], &"SmallLabel"))
+		col.add_child(UIUtil.label(String(info.desc), &"DimLabel"))
+		if not owned:
+			var buy := UIUtil.button("ซื้อ %s" % MountData.price_text(int(info.price)), &"PrimaryButton", Vector2(150, 56))
+			buy.name = "Buy"
+			buy.disabled = int(Game.profile.get("gold", 0)) < int(info.price)
+			buy.pressed.connect(func():
+				Game.buy_mount(id)  # disabled while gold is short, so this goes through
+				_queue_rebuild())
+			line.add_child(buy)
+		elif id != active:
+			var pick := UIUtil.button("ใช้ตัวนี้", &"", Vector2(150, 56))
+			pick.name = "Select"
+			pick.pressed.connect(func():
+				Game.select_mount(id)
+				_queue_rebuild())
+			line.add_child(pick)
 
 
 # ---------------------------------------------------------------------------

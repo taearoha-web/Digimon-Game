@@ -33,6 +33,8 @@ signal world_boss_defeated(zone: StringName)
 signal achievement_earned(id: String)
 ## The title above the hero's head changed ("" when taken off).
 signal title_changed(title: String)
+## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
+signal mount_changed()
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
@@ -162,6 +164,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
+		"mounts": [], "mount": "",
 	}
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
@@ -853,6 +856,15 @@ func _valid_profile(data: Dictionary) -> bool:
 	for key in ["inv", "storage", "loadout", "party"]:
 		if data.has(key) and not data[key] is Array:
 			return false
+	# Mounts (MountData): owned ids and the active one. Unknown ids are dropped by _repair.
+	if data.has("mounts"):
+		if not data.mounts is Array or (data.mounts as Array).size() > 64:
+			return false
+		for id in data.mounts:
+			if not id is String:
+				return false
+	if data.has("mount") and not data.mount is String:
+		return false
 	for key in ["attrs", "skills", "boss_kills", "boss_pity", "pvp", "tower", "look"]:
 		for value in data.get(key, {}).values():
 			if not _valid_integer(value):
@@ -1071,6 +1083,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		if item is Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	StarWingData.migrate_profile(data)
+	_repair_mounts(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -1748,6 +1761,67 @@ func spend_gold(amount: int) -> bool:
 	if profile["gold"] < amount:
 		return false
 	add_gold(-amount)
+	return true
+
+
+# ---------------------------------------------------------------------------
+# Mounts (MountData)
+# ---------------------------------------------------------------------------
+
+## Keeps known, unique mount ids; the active one must be owned ("" = none).
+func _repair_mounts(data: Dictionary) -> void:
+	var owned: Array = []
+	for id in data.get("mounts", []):
+		if id is String and MountData.exists(id) and not owned.has(id):
+			owned.append(id)
+	data["mounts"] = owned
+	var active: Variant = data.get("mount", "")
+	data["mount"] = active if active is String and owned.has(active) else ""
+
+
+func owned_mounts() -> Array:
+	return profile.get("mounts", [])
+
+
+func owns_mount(id: String) -> bool:
+	return owned_mounts().has(id)
+
+
+## The mount the HUD's "ขี่" button rides ("" when none is owned).
+func active_mount() -> String:
+	var id := String(profile.get("mount", ""))
+	return id if owns_mount(id) else ""
+
+
+## Buys a mount with gold; the first one bought becomes the active mount.
+## Returns "" when bought, otherwise why not (Thai).
+func buy_mount(id: String) -> String:
+	if not MountData.exists(id):
+		return "ไม่มีสัตว์ขี่ตัวนี้"
+	if owns_mount(id):
+		return "มีสัตว์ขี่ตัวนี้แล้ว"
+	var price := int(MountData.info(id).price)
+	if not spend_gold(price):
+		return "เงินไม่พอ (ต้องใช้ %s เหรียญ)" % MountData.price_text(price)
+	var owned: Array = owned_mounts().duplicate()
+	owned.append(id)
+	profile["mounts"] = owned
+	if active_mount() == "":
+		profile["mount"] = id
+	mark_dirty()
+	mount_changed.emit()
+	profile_changed.emit()
+	return ""
+
+
+## Picks the owned mount the HUD button rides.
+func select_mount(id: String) -> bool:
+	if not owns_mount(id):
+		return false
+	profile["mount"] = id
+	mark_dirty()
+	mount_changed.emit()
+	profile_changed.emit()
 	return true
 
 
