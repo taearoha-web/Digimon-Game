@@ -799,12 +799,12 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 
 
 ## The field a player hunts in: the one whose levels fit, then the star fields by stars,
-## and from ★200 (DIVINE_STARS) on to ★300 the lotus sanctum (the divine set; its EXP
-## stands in for the ★200-300 hunting ground's in STAR_RATE).
+## and from ★200 (DIVINE_STARS) on the ★200-300 hunting ground, the drowned abyss
+## (DrownedAbyssData; STAR_RATE's ★200-300 rates are its EXP).
 static func hunting_zone(level: int, stars: int, _divine := false) -> StringName:
 	if level >= Game.MAX_LEVEL:
 		if stars >= DIVINE_STARS:
-			return DivineRegionData.ID
+			return DrownedAbyssData.ID
 		var at: StringName = &"void"
 		for k in StarProgression.REGIONS.size():
 			if stars >= int(StarProgression.ENTRY[k]):

@@ -134,7 +134,7 @@ func _progress() -> void:
 			# From ★200 to ★300 it keeps hunting in the ★200 field (gathering the divine set
 			# on the way), never the endgame's boss hunts, help or stall breaks.
 			if bool(s.online) and not WorldPlayers.in_town_style(i) and int(s.stars) >= WorldPlayers.DIVINE_STARS and int(s.stars) < Game.PARAGON_MAX \
-					and not (String(s.doing) == "errand" or (String(s.doing) == "hunt" and StringName(place) == DivineRegionData.ID)):
+					and not (String(s.doing) == "errand" or (String(s.doing) == "hunt" and StringName(place) == DrownedAbyssData.ID)):
 				climbs = false
 			t += day * 0.73
 		check(steady, "%s: level and stars only ever go up" % e.name)
