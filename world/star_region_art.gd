@@ -42,7 +42,9 @@ static func layout(zone_id: StringName) -> Dictionary:
 	return {}
 
 
-static func build(parent: Node3D, zone_id: StringName) -> void:
+## `tree` paces the build over frames behind the travel fade (FrameSlicer, as the other
+## fields build); null builds it in one go (tests, tools). The result is the same.
+static func build(parent: Node3D, zone_id: StringName, tree: SceneTree = null) -> void:
 	var index := IDS.find(zone_id)
 	if index < 0:
 		return
@@ -56,19 +58,21 @@ static func build(parent: Node3D, zone_id: StringName) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEEDS[index]
 	var context := {"root": root, "batches": {}, "rng": rng, "index": index, "layout": info, "colliders": []}
-	_ground(root, index, info)
+	await _ground(root, index, info, tree)
+	await FrameSlicer.pace(tree)
 	match index:
 		0: _dawn(context)
 		1: _crystal_valley(context)
 		2: _sky_citadel(context)
 		3: _eclipse(context)
-	_flush(context)
+	await FrameSlicer.pace(tree)
+	await _flush(context, tree)
 	_add_colliders(context)
 	root.set_meta("no_dynamic_lights", true)
 	root.set_meta("opaque_water_and_clouds", true)
 
 
-static func _ground(parent: Node3D, region: int, info: Dictionary) -> void:
+static func _ground(parent: Node3D, region: int, info: Dictionary, tree: SceneTree = null) -> void:
 	var colors := [
 		[Color("527d50"), Color("92ad67"), Color("c1b188")],
 		[Color("73999b"), Color("b4cfcc"), Color("c4cbb9")],
@@ -77,6 +81,9 @@ static func _ground(parent: Node3D, region: int, info: Dictionary) -> void:
 	]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# A grid point's colour depends on its position only: work it out once, not for each
+	# of the up to six triangles corners that share it (same colours, ~6x less work).
+	var shade := {}
 	var noise := FastNoiseLite.new()
 	noise.seed = SEEDS[region]
 	noise.frequency = 0.065
@@ -85,34 +92,41 @@ static func _ground(parent: Node3D, region: int, info: Dictionary) -> void:
 	var rings := 35
 	var sectors := 96
 	for r in rings:
+		await FrameSlicer.pace(tree)
 		for s in sectors:
 			var points: Array[Vector3] = []
+			var keys: Array[Vector2i] = []
 			for corner in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]:
 				var radial := float(r + corner.x) / rings * RADIUS
 				var angle := TAU * float(s + corner.y) / sectors
 				points.append(Vector3(cos(angle) * radial, 0, sin(angle) * radial))
+				keys.append(Vector2i(r + corner.x, s + corner.y))
 			for corner in [0, 2, 1, 0, 3, 2]:
 				var p := points[corner]
 				var xz := Vector2(p.x, p.z)
-				var n := noise.get_noise_2d(p.x, p.z) * 0.5 + 0.5
-				var col: Color = colors[region][0].lerp(colors[region][1], n)
-				var path_mask := 1.0 - smoothstep(2.6, 4.1, _path_distance(xz, info.paths))
-				var clearing := 0.0
-				for camp in info.camp_positions:
-					clearing = maxf(clearing, 1.0 - smoothstep(5.0, 10.0, xz.distance_to(camp)))
-				col = col.lerp(colors[region][2], maxf(path_mask * 0.88, clearing * 0.34))
-				if region == 1:
-					var fault := absf(p.z - p.x * 0.56 - sin(p.x * 0.13) * 4.0)
-					col = col.lerp(Color("426b79"), (1.0 - smoothstep(0.2, 1.1, fault)) * 0.48)
-				elif region == 2:
-					var garden := smoothstep(8.0, 12.0, absf(p.x)) * (1.0 - smoothstep(36.0, 41.0, xz.length()))
-					col = col.lerp(Color("769789"), garden * (1.0 - path_mask) * (1.0 - clearing * 0.66))
-					var annulus := 1.0 - smoothstep(0.22, 0.68, absf(xz.length() - 45.0))
-					col = col.lerp(Color("b99c66"), annulus * 0.7)
-				elif region == 3:
-					var court := 1.0 - smoothstep(14.0, 20.0, xz.distance_to(Vector2(25, -24)))
-					var check := fposmod(floor(p.x / 3.0) + floor(p.z / 3.0), 2.0)
-					col = col.lerp(Color("6e637c").lerp(Color("afa0aa"), check * 0.43), court)
+				var key: Vector2i = keys[corner]
+				if not shade.has(key):
+					var n := noise.get_noise_2d(p.x, p.z) * 0.5 + 0.5
+					var col: Color = colors[region][0].lerp(colors[region][1], n)
+					var path_mask := 1.0 - smoothstep(2.6, 4.1, _path_distance(xz, info.paths))
+					var clearing := 0.0
+					for camp in info.camp_positions:
+						clearing = maxf(clearing, 1.0 - smoothstep(5.0, 10.0, xz.distance_to(camp)))
+					col = col.lerp(colors[region][2], maxf(path_mask * 0.88, clearing * 0.34))
+					if region == 1:
+						var fault := absf(p.z - p.x * 0.56 - sin(p.x * 0.13) * 4.0)
+						col = col.lerp(Color("426b79"), (1.0 - smoothstep(0.2, 1.1, fault)) * 0.48)
+					elif region == 2:
+						var garden := smoothstep(8.0, 12.0, absf(p.x)) * (1.0 - smoothstep(36.0, 41.0, xz.length()))
+						col = col.lerp(Color("769789"), garden * (1.0 - path_mask) * (1.0 - clearing * 0.66))
+						var annulus := 1.0 - smoothstep(0.22, 0.68, absf(xz.length() - 45.0))
+						col = col.lerp(Color("b99c66"), annulus * 0.7)
+					elif region == 3:
+						var court := 1.0 - smoothstep(14.0, 20.0, xz.distance_to(Vector2(25, -24)))
+						var check := fposmod(floor(p.x / 3.0) + floor(p.z / 3.0), 2.0)
+						col = col.lerp(Color("6e637c").lerp(Color("afa0aa"), check * 0.43), court)
+					shade[key] = col
+				var col: Color = shade[key]
 				st.set_color(col)
 				st.set_normal(Vector3.UP)
 				st.set_uv(xz * 0.1)
@@ -649,10 +663,11 @@ static func _queue(c: Dictionary, kind: String, transform: Transform3D, col: Col
 	c.batches[key].colors.append(col)
 
 
-static func _flush(c: Dictionary) -> void:
+static func _flush(c: Dictionary, tree: SceneTree = null) -> void:
 	var root: Node3D = c.root
 	var instances := 0
 	for key in c.batches:
+		await FrameSlicer.pace(tree)
 		var batch: Dictionary = c.batches[key]
 		var multi := MultiMesh.new()
 		multi.transform_format = MultiMesh.TRANSFORM_3D

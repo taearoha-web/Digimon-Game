@@ -18,12 +18,14 @@ static func layout(_zone_id: StringName = &"lotus_sanctum") -> Dictionary:
 			PackedVector2Array([Vector2(-23, 20), Vector2(0, 24), Vector2(24, 18)]),
 			PackedVector2Array([Vector2(-23, -10), Vector2(0, 2), Vector2(25, -9), Vector2(40, -28)])]}
 
-static func build(parent: Node3D, _zone_id: StringName = &"lotus_sanctum") -> void:
+## `tree` paces the build over frames (StarRegionArt.build); null builds it in one go.
+static func build(parent: Node3D, _zone_id: StringName = &"lotus_sanctum", tree: SceneTree = null) -> void:
 	var root := Node3D.new()
 	root.name = "LotusSanctumArt"
 	parent.add_child(root)
 	var c := {"root": root, "batches": {}, "colliders": [], "layout": layout(), "index": 4}
-	_floor(root)
+	await _floor(root, tree)
+	await FrameSlicer.pace(tree)
 	# Enormous open lotus gate beyond the boss court. A real opening and radial
 	# petal architecture distinguish the sanctuary from the sky city's palace.
 	_lotus_gate(c)
@@ -52,9 +54,12 @@ static func build(parent: Node3D, _zone_id: StringName = &"lotus_sanctum") -> vo
 		StarRegionArt._put(c, "box", p, Vector3(5.0, 0.30, 1.25), IVORY.darkened(0.05), Vector3(0, -a + PI * 0.5, 0))
 		if i % 4 == 0 and p.z > -42:
 			_lotus(c, p + Vector3(0, 0.16, 0), 1.1, ROSE)
+	await FrameSlicer.pace(tree)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 712034
 	for i in 100:
+		if i % 25 == 0:
+			await FrameSlicer.pace(tree)
 		var a := rng.randf() * TAU
 		var radius := sqrt(rng.randf()) * 49.0
 		var p := Vector3(cos(a) * radius, 0, sin(a) * radius)
@@ -68,7 +73,7 @@ static func build(parent: Node3D, _zone_id: StringName = &"lotus_sanctum") -> vo
 		var a := TAU * float(i) / 14.0
 		var p := Vector3(cos(a) * 104, -1, sin(a) * 104)
 		StarRegionArt._put(c, "rock", p, Vector3(37, 13 + i % 3 * 5, 27), LAVENDER.lerp(JADE, 0.25), Vector3(0, a, 0))
-	_flush(c)
+	await _flush(c, tree)
 	StarRegionArt._add_colliders(c)
 	root.set_meta("zone_id", &"lotus_sanctum")
 	root.set_meta("flat_walkable_radius", RADIUS)
@@ -76,32 +81,42 @@ static func build(parent: Node3D, _zone_id: StringName = &"lotus_sanctum") -> vo
 	root.set_meta("opaque_water_and_clouds", true)
 	root.set_meta("art_layout_version", 1)
 
-static func _floor(root: Node3D) -> void:
+static func _floor(root: Node3D, tree: SceneTree = null) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# A grid point's colour depends on its position only: work it out once, not for each
+	# of the up to six triangles corners that share it (same colours, ~6x less work).
+	var shade := {}
 	var info := layout()
 	for r in 40:
+		await FrameSlicer.pace(tree)
 		for s in 112:
 			var points: Array[Vector3] = []
+			var keys: Array[Vector2i] = []
 			for q in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]:
 				var radius := float(r + q.x) / 40.0 * 72.0
 				var angle := TAU * float(s + q.y) / 112.0
 				points.append(Vector3(cos(angle) * radius, -maxf(radius - RADIUS, 0.0) * 0.12, sin(angle) * radius))
+				keys.append(Vector2i(r + q.x, s + q.y))
 			for corner in [0, 2, 1, 0, 3, 2]:
 				var p: Vector3 = points[corner]
 				var xz := Vector2(p.x, p.z)
-				var radius := xz.length()
-				var angle := atan2(p.z, p.x)
-				var col := JADE.lerp(IVORY, 0.18 + sin(p.x * 0.22) * cos(p.z * 0.18) * 0.06)
-				var path := 1.0 - smoothstep(2.7, 4.0, StarRegionArt._path_distance(xz, info.paths))
-				var arena := 1.0 - smoothstep(12.0, 15.0, xz.distance_to(Vector2(0, -26)))
-				col = col.lerp(IVORY.darkened(0.075), maxf(path, arena * 0.9))
-				# Low contrast concentric inlaid stone and a lotus medallion.
-				var band := 1.0 - smoothstep(0.3, 0.72, minf(absf(radius - 17.0), minf(absf(radius - 34.0), absf(radius - 50.5))))
-				col = col.lerp(IVORY, band * 0.65)
-				var lotus_radius := 8.0 + cos(angle * 8.0) * 2.0
-				var lotus_line := 1.0 - smoothstep(0.3, 0.7, absf(radius - lotus_radius))
-				col = col.lerp(GOLD, lotus_line * 0.24)
+				var key: Vector2i = keys[corner]
+				if not shade.has(key):
+					var radius := xz.length()
+					var angle := atan2(p.z, p.x)
+					var col := JADE.lerp(IVORY, 0.18 + sin(p.x * 0.22) * cos(p.z * 0.18) * 0.06)
+					var path := 1.0 - smoothstep(2.7, 4.0, StarRegionArt._path_distance(xz, info.paths))
+					var arena := 1.0 - smoothstep(12.0, 15.0, xz.distance_to(Vector2(0, -26)))
+					col = col.lerp(IVORY.darkened(0.075), maxf(path, arena * 0.9))
+					# Low contrast concentric inlaid stone and a lotus medallion.
+					var band := 1.0 - smoothstep(0.3, 0.72, minf(absf(radius - 17.0), minf(absf(radius - 34.0), absf(radius - 50.5))))
+					col = col.lerp(IVORY, band * 0.65)
+					var lotus_radius := 8.0 + cos(angle * 8.0) * 2.0
+					var lotus_line := 1.0 - smoothstep(0.3, 0.7, absf(radius - lotus_radius))
+					col = col.lerp(GOLD, lotus_line * 0.24)
+					shade[key] = col
+				var col: Color = shade[key]
 				st.set_color(col)
 				st.set_normal(Vector3.UP)
 				st.set_uv(xz * 0.12)
@@ -227,7 +242,7 @@ static func _clear(p: Vector3, radius: float) -> bool:
 static func _petal(c: Dictionary, p: Vector3, size: Vector3, color: Color, rotation: Vector3) -> void:
 	StarRegionArt._queue(c, "divine_petal", Transform3D(Basis.from_euler(rotation) * Basis.from_scale(size), p), color, "solid")
 
-static func _flush(c: Dictionary) -> void:
+static func _flush(c: Dictionary, tree: SceneTree = null) -> void:
 	if _petal_mesh == null:
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -245,4 +260,4 @@ static func _flush(c: Dictionary) -> void:
 		_petal_mesh = st.commit()
 	# Register only this original finite shape in the shared mesh batch cache.
 	StarRegionArt._meshes["divine_petal"] = _petal_mesh
-	StarRegionArt._flush(c)
+	await StarRegionArt._flush(c, tree)

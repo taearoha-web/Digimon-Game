@@ -8,9 +8,11 @@ const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_
 static var _meshes: Dictionary = {}
 const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains stave"
 
-static func warm_geometry() -> void:
+## `slicer` paces it over frames behind the travel fade (null: in one go, as tests do).
+static func warm_geometry(slicer: SceneTree = null) -> void:
 	for kind in GEOMETRY_KINDS.split(" "):
 		geometry(kind)
+		await FrameSlicer.pace(slicer)
 	MartialGeometry.warm()
 
 var age := 0.0

@@ -14,7 +14,7 @@ static var _tube_meshes: Dictionary = {}
 static var _particle_cards: Dictionary = {}
 
 
-static func warm_up(parent: Node3D, at: Vector3) -> void:
+static func warm_up(parent: Node3D, at: Vector3, slicer: SceneTree = null) -> void:
 	_sphere_mesh()
 	_column_mesh()
 	_halo_mesh()
@@ -22,7 +22,7 @@ static func warm_up(parent: Node3D, at: Vector3) -> void:
 	_blade_mesh(false)
 	_blade_mesh(true)
 	_wing_mesh()
-	warm_geometry()
+	await warm_geometry(slicer)
 	var look := SkillShow.profile_for(ClassData.pool(&"vagabond")[0])
 	var mat := _material(look, 0.001)
 	SkillInk.mark(parent, look, at + Vector3(0, 0.05, 0), 0.01, 0.4)
@@ -35,14 +35,21 @@ static func warm_up(parent: Node3D, at: Vector3) -> void:
 
 ## Build the finite tier recipes during loading, never on a repeated hit.
 ## Higher quality retains exactly the same vertices, normals and silhouettes.
-static func warm_geometry() -> void:
-	EliteSkillArt.warm_geometry()
+## A zone change clears these caches (Main._clear_zone keeps a phone's memory down), so
+## every arrival builds them again: `slicer` spreads that over frames behind the fade
+## (it was ~0.5 s in one frame); null builds them in one go (tests).
+static func warm_geometry(slicer: SceneTree = null) -> void:
+	await EliteSkillArt.warm_geometry(slicer)
 	ShadowSkillArt.warm_geometry()
+	await FrameSlicer.pace(slicer)
 	LordSkillArt.warm_geometry()
+	await FrameSlicer.pace(slicer)
 	BardSkillArt.warm_geometry()
-	BuffArt.warm_geometry()
+	await FrameSlicer.pace(slicer)
+	await BuffArt.warm_geometry(slicer)
 	SkillInk.warm_geometry()
 	SkillCraft.warm_geometry()
+	await FrameSlicer.pace(slicer)
 	SkillTableau.lightning_mesh()
 	SkillTableau.shield_mesh()
 	for kind in ["cat", "wolf", "frog", "treant", "fire"]:

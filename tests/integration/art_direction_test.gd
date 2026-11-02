@@ -135,9 +135,17 @@ func _interrupted_flights() -> void:
 	await effects.tree_exited
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# MaterialKeeper holds the latest effect materials on purpose (their shaders stay
+	# compiled, no stall at the next hit); anything else still alive leaked.
+	var kept := {}
+	for m in MaterialKeeper._ring:
+		kept[m] = true
+	for m in MaterialKeeper._pinned.values():
+		kept[m] = true
 	var retained := 0
 	for reference in resources:
-		if reference.get_ref() != null:
+		var held: Variant = reference.get_ref()
+		if held != null and not kept.has(held):
 			retained += 1
 	check(retained == 0, "interrupted flights release temporary meshes and materials (%d retained)" % retained)
 	check(_empty_budget(), "interrupted flights release particle and light reservations")
@@ -159,13 +167,21 @@ func _interrupted_flights() -> void:
 
 func _flight_resource_refs(parent: Node3D) -> Array[WeakRef]:
 	var result: Array[WeakRef] = []
+	# The shared cards (VfxKit.quad / _textured_quad, one per look) and their materials
+	# serve every flight on purpose; only what a flight made for itself must go.
+	var shared := {}
+	for cache in [VfxKit._shared_quads, VfxKit._textured_quads]:
+		for card in cache.values():
+			shared[card] = true
+			if card is PrimitiveMesh and (card as PrimitiveMesh).material:
+				shared[(card as PrimitiveMesh).material] = true
 	for child in parent.find_children("*", "MeshInstance3D", true, false):
 		var mesh := child as MeshInstance3D
 		# Glow/spark quads and their materials are per-flight resources. Shared
 		# sphere, crystal, arrow and texture caches deliberately survive casts.
-		if mesh.mesh is QuadMesh:
+		if mesh.mesh is QuadMesh and not shared.has(mesh.mesh):
 			result.append(weakref(mesh.mesh))
-		if mesh.material_override:
+		if mesh.material_override and not shared.has(mesh.material_override):
 			result.append(weakref(mesh.material_override))
 	return result
 
@@ -194,7 +210,9 @@ func _zone_coverage() -> void:
 		var has_region_art := false
 		var has_stage_art := false
 		for node in zone.find_children("*", "Node3D", true, false):
-			has_region_art = has_region_art or node.has_meta("art_theme")
+			# Fields carry RegionArt's theme; star, divine and drowned regions their art
+			# root's zone_id (StarRegionArt / DivineRegionArt / DrownedAbyssArt).
+			has_region_art = has_region_art or node.has_meta("art_theme") or String(node.get_meta("zone_id", "")) == String(id)
 			has_stage_art = has_stage_art or String(node.get_meta("stage", "")) == String(id)
 			if node is MeshInstance3D or node is MultiMeshInstance3D:
 				meshes += 1
@@ -204,6 +222,8 @@ func _zone_coverage() -> void:
 				if material is ShaderMaterial and (material as ShaderMaterial).shader:
 					has_stage_art = has_stage_art or (material as ShaderMaterial).shader.resource_path.ends_with("special_stage_floor.gdshader")
 		check(meshes > 0, "stage builds visible geometry: " + String(id))
+		# The guild war's castle siege (SiegeArena) marks the zone with its banner material.
+		has_region_art = has_region_art or zone.has_meta(SiegeArena.BANNER_META)
 		if id in [&"tower", &"arena", &"pvp"]:
 			check(has_stage_art, "special combat stage receives authored art: " + String(id))
 		else:
