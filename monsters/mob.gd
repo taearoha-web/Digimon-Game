@@ -32,6 +32,8 @@ const MARK_WORDS := {"shred": ["เกราะแตก!", Color("ff7ad9"), 0.5
 const MARK_TINTS := [Color("ffb0e6"), Color("b8c8ff"), Color("d8b0ff")]
 ## Mark words across every monster in one physics frame (a whole pack is hit at once).
 const MARK_WORDS_PER_FRAME := 3
+## The top part of the screen the HUD's top bar covers (a fraction of its height).
+const TOP_BAND := 0.16
 static var _word_frame := -1
 static var _words := 0
 
@@ -872,9 +874,22 @@ func _mark_feedback(key: String, stronger: bool) -> void:
 		return
 	_word_at[key] = now
 	var word: Array = MARK_WORDS[key]
-	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, float(word[2]), 0), String(word[0]), word[1], 0.7)
+	BattleVfx.floating_text(get_parent(), mark_word_point(float(word[2])), String(word[0]), word[1], 0.7)
 	if is_instance_valid(visual):
 		visual.flash(word[1], 0.25)
+
+
+## Where a mark word floats: [param lift] over the head, or (a big monster whose head is
+## up in the top HUD band: score, gold, the target bar) at two thirds of its height, so
+## the word never lands on the top bar.
+func mark_word_point(lift: float) -> Vector3:
+	var at := top_point() + Vector3(0, lift, 0)
+	var viewport := get_viewport()
+	var camera := viewport.get_camera_3d() if viewport != null else null
+	if camera != null and not camera.is_position_behind(at):
+		if camera.unproject_position(at).y < viewport.get_visible_rect().size.y * TOP_BAND:
+			return global_position.lerp(top_point(), 0.66)
+	return at
 
 
 ## The name tag while marked: pink cracked, blue sapped, violet both; its own colour

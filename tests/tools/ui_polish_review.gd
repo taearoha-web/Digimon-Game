@@ -71,8 +71,9 @@ func _check_layout(canvas: Vector2, insets := Vector4.ZERO) -> void:
 		if i > 0:
 			_check(center.x > positions.skills[i - 1].x, "skills follow slot order from left to right")
 		var half_width := maxf(39.6, minf(86.0, positions.skill_spacing - 6.0) * 0.5)
-		# Include the enlarged touch circle and the name drawn below each slot.
-		rectangles.append(Rect2(frame + center - Vector2(half_width, 40), Vector2(half_width * 2, 102)))
+		# The enlarged touch circle (field slots draw no name under the medallion: see
+		# _check_party_and_buffs), so the row can sit low near the bottom edge.
+		rectangles.append(Rect2(frame + center - Vector2(half_width, 39.6), Vector2(half_width * 2, 79.2)))
 	for i in positions.utility.size():
 		var center: Vector2 = positions.utility[i]
 		_check(is_equal_approx(center.x, positions.utility[0].x), "utilities form one far-right column")

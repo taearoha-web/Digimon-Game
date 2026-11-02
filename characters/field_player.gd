@@ -153,7 +153,7 @@ func refresh() -> void:
 
 
 ## "[Alpha] Kaito Lv.100 ★44" in the guild's colour; no tag before Lv.100 (no guild yet);
-## a God's title above it ("「เทพเจ้าแห่งนักรบ」").
+## a God's title above it ("✦ เทพเจ้าแห่งนักรบ ✦").
 func _level_text() -> String:
 	var g := WorldPlayers.guild_at(world_index, int(member.level))
 	_label.modulate = WorldPlayers.GUILD_COLORS.get(g, Color("e8f4ff"))
@@ -162,7 +162,7 @@ func _level_text() -> String:
 	# A God (Lv.100 ★300) wears its title over the name, like the hero's name plate.
 	var god := WorldPlayers.god_title({"class": member["class"], "level": int(member.level), "stars": stars})
 	if god != "":
-		line = "「%s」\n%s" % [god, line]
+		line = "✦ %s ✦\n%s" % [god, line]
 	if doing == "errand" and not party_mode and ERRAND_TAGS.has(errand):
 		return line + "\n«%s»" % ERRAND_TAGS[errand]
 	return line + ("\n«ร้านค้า»" if doing == "stall" and not party_mode else "")
