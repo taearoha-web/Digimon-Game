@@ -369,7 +369,9 @@ func _visuals() -> void:
 		palettes[SetGearData.PALETTES[cls].glow.to_html()] = cls
 	check(palettes.size() == 10, "ten distinct set glows")
 	check(StarGearData.kind_from_look("set_greatshield_defender") == "greatshield" and WeaponKit.build("set_lute_bard").has_meta("set_gear"), "set looks resolve to their weapon kinds")
-	check(DarkRaven.look_for(SetGearData.item("darklord", "weapon")) == DarkRaven.Look.DIVINE, "the Dark Lord's raven takes its grandest look")
+	check(DarkRaven.look_for(SetGearData.item("darklord", "weapon")) == DarkRaven.Look.ABYSS, "the Dark Lord's raven takes the set look (อีกาจักรพรรดิอเวจี)")
+	check(DarkRaven.look_for(DivineGearData.item("darklord", "weapon", RandomNumberGenerator.new())) == DarkRaven.Look.DIVINE, "the divine scepter keeps the divine raven")
+	check(float(DarkRaven.palette(DarkRaven.Look.ABYSS).size) >= float(DarkRaven.palette(DarkRaven.Look.DIVINE).size) * 1.5, "the set raven is half again the divine one")
 	await settle()
 
 
