@@ -39,7 +39,7 @@ func _ready() -> void:
 	check(ZoneData.access_reason(DivineRegionData.ID, 99, 200) != "", "level 99 cannot enter")
 	check(ZoneData.access_reason(DivineRegionData.ID, 100, 200) == "", "200 stars enter")
 	var route := WarpScreen.destinations()
-	check(route[-1] == DivineRegionData.ID and route[-2] == &"eclipse_realm", "warp chain includes post-story sanctuary")
+	check(route.find(DivineRegionData.ID) == route.find(&"eclipse_realm") + 1 and route[-1] == DrownedAbyssData.ID, "warp chain includes post-story sanctuary, then the 200-300 star field")
 	check(StarProgression.REGIONS.size() == 4, "four milestone regions retained")
 	var new_zone := ZoneData.get_zone(DivineRegionData.ID)
 	check(new_zone.camps.size() == 5 and new_zone.boss.monster == &"lotus_seraph", "five farm camps and boss definitions")

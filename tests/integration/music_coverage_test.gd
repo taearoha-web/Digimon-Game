@@ -14,7 +14,7 @@ const SIZE_BUDGET_BYTES := 14 * 1024 * 1024
 ## The places that must each have a track (ids as data/zone_data.gd names them).
 const PLACES: Array[StringName] = [&"town", &"meadow", &"dark_forest", &"desert", &"snow", &"volcano", &"graveyard", &"swamp",
 	&"storm", &"sky", &"abyss", &"void", &"tower", &"dawn_forest", &"crystal_valley", &"sky_citadel", &"eclipse_realm",
-	&"lotus_sanctum", &"pvp", &"guildwar", &"arena"]
+	&"lotus_sanctum", &"drowned_abyss", &"pvp", &"guildwar", &"arena"]
 
 
 func check(ok: bool, message: String) -> void:
