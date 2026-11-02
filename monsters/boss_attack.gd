@@ -38,11 +38,15 @@ const MOVES := {
 	"inferno_twin": {"th": "เกลียวไฟคู่", "style": "fire", "slow": 0.0},
 	"rift_trail": {"th": "รอยแยกมิติ", "style": "void", "slow": 0.0},
 	"event_horizon": {"th": "ขอบฟ้าเหตุการณ์", "style": "void", "slow": 0.0},
+	# Poseidon's two legend skills (LegendMoves "poseidon"), cast with his own Skill1 / Skill2
+	# clips: a maelstrom that drags (slows) whoever it catches, ice crystals that freeze.
+	"maelstrom": {"th": "คลื่นน้ำวน", "style": "whirl", "slow": 2.5, "clip": "skill1"},
+	"glacial_bloom": {"th": "ผลึกน้ำแข็ง", "style": "glacier", "slow": 3.5, "freeze": true, "clip": "skill2"},
 }
 const STYLE_COLORS := {
 	"spore": Color("8fe05a"), "fire": Color("ff6a2a"), "sand": Color("e8c06a"), "ice": Color("9fe8ff"),
 	"bone": Color("e8e0d0"), "poison": Color("9ae04a"), "bolt": Color("7ab8ff"), "light": Color("ffd84a"),
-	"void": Color("b05aff"),
+	"void": Color("b05aff"), "whirl": Color("5cc8ff"), "glacier": Color("bff4ff"),
 }
 
 var mob: Mob
@@ -68,11 +72,12 @@ static func title(move_id: String) -> String:
 	return String(MOVES.get(move_id, {}).get("th", move_id))
 
 
-## The move for this slam: phase 2 alternates the enraged variant with the base one.
+## The move for this slam: phase 2 alternates the enraged variant with the base one
+## ("alternate" bosses, like Poseidon, take turns with both from the start).
 static func pick(actor: Mob) -> String:
 	var base := String(actor.template.get("behavior", ""))
 	var alt := String(actor.template.get("behavior2", ""))
-	if actor.phase >= 2 and MOVES.has(alt):
+	if (actor.phase >= 2 or bool(actor.template.get("alternate", false))) and MOVES.has(alt):
 		actor._boss_moves += 1
 		return alt if actor._boss_moves % 2 == 1 else base
 	return base
@@ -117,7 +122,7 @@ func _ready() -> void:
 	for shot in shots:
 		VfxKit.danger_circle(warned, shot.pos, float(shot.r), float(shot.at))
 	mob.visual.flash(Color(1.0, 0.3, 0.2), first)
-	mob.visual.action("attack", int((last_impact + 0.4) * 1000.0))
+	mob.visual.action(String(info.get("clip", "attack")), int((last_impact + 0.4) * 1000.0))
 	mob._anim_lock = Time.get_ticks_msec() + int((last_impact + 0.4) * 1000.0)
 	_announce()
 
@@ -187,7 +192,9 @@ func _land(shot: Dictionary) -> void:
 		hit_waves[key] = waves
 		hit_counts[key] = int(hit_counts.get(key, 0)) + 1
 		_damage(actor, float(shot.dmg))
-		if slow > 0.0 and actor.has_method("apply_slow"):
+		if bool(_info().get("freeze", false)) and actor.has_method("apply_freeze"):
+			actor.apply_freeze(slow)
+		elif slow > 0.0 and actor.has_method("apply_slow"):
 			actor.apply_slow(slow)
 	if float(shot.get("linger", 0.0)) > 0.0:
 		puddles.append({"pos": pos, "r": r, "until": age + float(shot.linger), "tick": age + PUDDLE_TICK})
@@ -228,6 +235,10 @@ func _strike_vfx(shot: Dictionary) -> void:
 		BattleVfx.burst(parent, pos + Vector3(0, 0.4, 0), color, 10, 0.9)
 		return
 	match style:
+		"whirl":
+			LegendMoves.impact_vfx(parent, "whirl", pos, r)
+		"glacier":
+			LegendMoves.impact_vfx(parent, "ice", pos, r)
 		"fire":
 			VfxKit.fire_ring(parent, pos, color, r * 0.8, 8, 0.8)
 			BattleVfx.burst(parent, pos + Vector3(0, 0.4, 0), color, 10, 0.9)
@@ -371,6 +382,16 @@ static func plan(move_id: String, o: Vector3, f: Vector3, h: Vector3, heading: V
 			for i in 6:
 				var lateral := 2.4 if i % 2 == 0 else -2.4
 				out.append(_shot(o + f * (3.0 + 2.2 * i) + side * lateral, 1.8, 1.0 + 0.2 * i, 1.5, i))
+		"maelstrom":
+			# The whirl opens on the target, then three more eddies spin up around it.
+			out.append(_shot(h, 4.0, 1.4, 1.6, 0))
+			for p in _around(h, 3, 4.0, 6.5, rng):
+				out.append(_shot(p, 2.6, 2.2, 1.3, 1))
+		"glacial_bloom":
+			# Crystals burst on the target, then a ring of ice spikes rises around Poseidon.
+			out.append(_shot(h, 4.5, 1.5, 1.6, 0))
+			for p in _ring(o, 7.0, 7, rng.randf() * TAU, [rng.randi() % 7]):
+				out.append(_shot(p, 2.2, 2.3, 1.3, 1))
 		"event_horizon":
 			out.append(_shot(h, 2.2, 1.4, 1.4, 0))
 			for p in _around(h, 3, 3.0, 6.0, rng):

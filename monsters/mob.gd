@@ -507,7 +507,7 @@ func _strike() -> void:
 		var from := hit_point()
 		var to: Vector3 = victim.global_position + Vector3(0, 1.0, 0)
 		var flight := clampf(from.distance_to(to) / 13.0, 0.15, 0.6)
-		VfxKit.projectile(get_parent(), color, from, to, flight, 0.42)
+		VfxKit.projectile(get_parent(), color, from, to, flight, 0.42 if not template.has("projectile") else 0.75, String(template.get("projectile", "orb")))
 		var victim_ref: WeakRef = weakref(victim)
 		get_tree().create_timer(flight).timeout.connect(func():
 			var hit_victim: Node3D = victim_ref.get_ref() as Node3D
