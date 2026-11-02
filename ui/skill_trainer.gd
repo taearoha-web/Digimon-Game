@@ -73,12 +73,19 @@ func open_trainer() -> void:
 
 func close_trainer() -> void:
 	is_open = false
+	_build_gen += 1
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_box)
 	get_tree().paused = false
 	closed.emit()
 
+
+
+## The rows built with the screen, then how many more each frame after (_rebuild).
+const FIRST_ROWS := 5
+const ROWS_PER_FRAME := 8
+var _build_gen := 0
 
 
 ## Several signals usually fire for one action (an upgrade changes the skill points and
@@ -104,12 +111,29 @@ func _rebuild() -> void:
 	# Upgrading rebuilds the list: keep the page where the player was.
 	var keep_y := _scroll.retained_vertical_position() if is_instance_valid(_scroll) else 0
 	UIUtil.clear(_box)
+	_build_gen += 1
+	var gen := _build_gen
+	var rows: Array = []
 	for skill in Game.skill_pool():
-		_box.add_child(_row(skill, false))
+		rows.append([skill, false])
 	for skill in Game.passive_pool():
-		_box.add_child(_row(skill, true))
+		rows.append([skill, true])
+	# Opening at the top: the rows on screen first, the rest a few a frame after (one
+	# long frame on a phone stalled the sound). A rebuild below the top (an upgrade) is
+	# built whole so the list stays where it was.
+	var first := rows.size() if keep_y > 0 or not is_inside_tree() else FIRST_ROWS
+	for i in mini(first, rows.size()):
+		_box.add_child(_row(rows[i][0], rows[i][1]))
 	if is_instance_valid(_scroll):
 		_scroll.restore_vertical_position(keep_y)
+	var next := first
+	while next < rows.size():
+		await get_tree().process_frame
+		if gen != _build_gen or not is_open:
+			return
+		for i in range(next, mini(next + ROWS_PER_FRAME, rows.size())):
+			_box.add_child(_row(rows[i][0], rows[i][1]))
+		next += ROWS_PER_FRAME
 
 
 static func _pct(value: float) -> int:

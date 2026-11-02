@@ -91,6 +91,7 @@ func close_menu() -> void:
 	forge_mode = false
 	set_craft_open = false
 	is_open = false
+	_build_gen += 1
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_content)
@@ -106,6 +107,14 @@ func show_tab(tab: StringName) -> void:
 	_selected_slot = ""
 	_rebuild()
 
+
+
+## A long page (the skill page) builds its first rows with the menu and the rest a few a
+## frame after, unless it was rebuilt below the top (_rebuild keeps the scroll there).
+const FIRST_ROWS := 5
+const ROWS_PER_FRAME := 8
+var _build_gen := 0
+var _slice_build := true
 
 
 ## Several signals usually fire for one action (an upgrade changes the skill points and
@@ -128,6 +137,8 @@ func _rebuild() -> void:
 	for key in _tab_buttons:
 		_tab_buttons[key].disabled = key == current_tab
 	UIUtil.clear(_content)
+	_slice_build = keep_y <= 0
+	_build_gen += 1
 	match current_tab:
 		&"character": _build_character()
 		&"inventory": _build_inventory()
@@ -1005,66 +1016,89 @@ func _build_skills() -> void:
 		slot_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		slot_content.add_child(slot_label)
 		bar_row.add_child(slot_panel)
-	var pool: Array = Game.skill_pool()
-	for skill in pool:
-		var panel := UIUtil.panel(&"CardPanel")
-		box.add_child(panel)
-		var line := UIUtil.hbox(10)
-		panel.add_child(line)
-		line.add_child(SkillIcons.portrait(skill))
-		var info := UIUtil.vbox(2)
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(info)
-		var unlocked := Game.skill_unlocked(skill)
-		var rank := Game.effective_rank(skill)
-		var title_row := UIUtil.hbox(12)
-		info.add_child(title_row)
-		var title_label := UIUtil.label(String(skill.name), &"BoldLabel")
-		if not unlocked:
-			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
-		title_row.add_child(title_label)
-		if unlocked:
-			title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
-		else:
-			title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
-		var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.1f วิ" % [skill.desc, SkillRank.mp(skill, maxi(rank, 1)), SkillRank.cooldown(skill, maxi(rank, 1))], &"SmallLabel")
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		info.add_child(desc)
-		var upcoming := SkillRank.next_changes(SkillRank.table(skill), rank)
-		if unlocked and not upcoming.is_empty():
-			var next := UIUtil.label("อัปเป็นดาว %d ที่ครูฝึกสกิล: %s" % [rank + 1, ",  ".join(upcoming)], &"SmallLabel")
-			next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			next.add_theme_color_override("font_color", UIPalette.SUCCESS)
-			info.add_child(next)
-		var equipped := Game.loadout().find(skill.id)
-		for slot in ClassData.SLOTS:
-			var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(48, 52))
-			b.disabled = not unlocked or equipped == slot
-			b.pressed.connect(func():
-				if Game.equip_skill(skill.id, slot):
-					AudioManager.play_ui(&"ui_select"))
-			line.add_child(b)
+	# Opening at the top: the rows on screen first, the rest a few a frame after (one
+	# long frame on a phone stalled the sound). A rebuild below the top (equipping a
+	# skill lower down) is built whole so the page stays where it was.
+	var rows: Array = []
+	for skill in Game.skill_pool():
+		rows.append(_skill_row.bind(skill))
 	var passives: Array = Game.passive_pool()
 	if not passives.is_empty():
-		box.add_child(UIUtil.label("สกิลติดตัว (ทำงานเองตลอด)", &"SubHeaderLabel"))
+		rows.append(func(): return UIUtil.label("สกิลติดตัว (ทำงานเองตลอด)", &"SubHeaderLabel"))
 	for skill in passives:
-		var panel := UIUtil.panel(&"CardPanel")
-		box.add_child(panel)
-		var info := UIUtil.vbox(2)
-		panel.add_child(info)
-		var unlocked := Game.skill_unlocked(skill)
-		var rank := Game.effective_rank(skill)
-		var title_row := UIUtil.hbox(12)
-		info.add_child(title_row)
-		var title_label := UIUtil.label(String(skill.name), &"BoldLabel")
-		if not unlocked:
-			title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
-		title_row.add_child(title_label)
-		if unlocked:
-			title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
-		else:
-			title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
-		info.add_child(UIUtil.label(String(skill.desc), &"SmallLabel"))
+		rows.append(_passive_row.bind(skill))
+	var gen := _build_gen
+	var first := rows.size() if not _slice_build else FIRST_ROWS
+	for i in mini(first, rows.size()):
+		box.add_child(rows[i].call())
+	var next := first
+	while next < rows.size():
+		await get_tree().process_frame
+		if gen != _build_gen or not is_open or not is_instance_valid(box):
+			return
+		for i in range(next, mini(next + ROWS_PER_FRAME, rows.size())):
+			box.add_child(rows[i].call())
+		next += ROWS_PER_FRAME
+
+
+func _skill_row(skill: Dictionary) -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	var line := UIUtil.hbox(10)
+	panel.add_child(line)
+	line.add_child(SkillIcons.portrait(skill))
+	var info := UIUtil.vbox(2)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(info)
+	var unlocked := Game.skill_unlocked(skill)
+	var rank := Game.effective_rank(skill)
+	var title_row := UIUtil.hbox(12)
+	info.add_child(title_row)
+	var title_label := UIUtil.label(String(skill.name), &"BoldLabel")
+	if not unlocked:
+		title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
+	title_row.add_child(title_label)
+	if unlocked:
+		title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
+	else:
+		title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
+	var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.1f วิ" % [skill.desc, SkillRank.mp(skill, maxi(rank, 1)), SkillRank.cooldown(skill, maxi(rank, 1))], &"SmallLabel")
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(desc)
+	var upcoming := SkillRank.next_changes(SkillRank.table(skill), rank)
+	if unlocked and not upcoming.is_empty():
+		var next := UIUtil.label("อัปเป็นดาว %d ที่ครูฝึกสกิล: %s" % [rank + 1, ",  ".join(upcoming)], &"SmallLabel")
+		next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		next.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		info.add_child(next)
+	var equipped := Game.loadout().find(skill.id)
+	for slot in ClassData.SLOTS:
+		var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(48, 52))
+		b.disabled = not unlocked or equipped == slot
+		b.pressed.connect(func():
+			if Game.equip_skill(skill.id, slot):
+				AudioManager.play_ui(&"ui_select"))
+		line.add_child(b)
+	return panel
+
+
+func _passive_row(skill: Dictionary) -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	var info := UIUtil.vbox(2)
+	panel.add_child(info)
+	var unlocked := Game.skill_unlocked(skill)
+	var rank := Game.effective_rank(skill)
+	var title_row := UIUtil.hbox(12)
+	info.add_child(title_row)
+	var title_label := UIUtil.label(String(skill.name), &"BoldLabel")
+	if not unlocked:
+		title_label.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
+	title_row.add_child(title_label)
+	if unlocked:
+		title_row.add_child(StarRow.new(rank, Game.MAX_SKILL_RANK, 18.0))
+	else:
+		title_row.add_child(UIUtil.label(Game.skill_lock_reason(skill), &"SmallLabel"))
+	info.add_child(UIUtil.label(String(skill.desc), &"SmallLabel"))
+	return panel
 
 
 # ---------------------------------------------------------------------------
