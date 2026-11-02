@@ -32,6 +32,17 @@ PALETTES = {
     "melody": ("2a0f22", "8a2a5e", "ff8fcf", "ffe6f4"),
     "dissonance": ("1a0b2e", "5a2a9a", "b07aff", "f4e8ff"),
     "lament": ("141a3a", "3d5aa8", "8fb8ff", "eef3ff"),
+    # God-tier (300-star) skills: each wears its skill's signature hue (StarSkillArt.COLORS).
+    "god_ember": ("3a0f12", "b0381a", "ff7a1f", "fff2b0"),
+    "god_lime": ("12301a", "4a9a2a", "b6ff3a", "fbffe0"),
+    "god_cyan": ("0a1f4a", "1f78b8", "2ae8ff", "f0ffff"),
+    "god_cosmos": ("120a3a", "4a36b0", "8a6cff", "f4f0ff"),
+    "god_holy": ("3a1f3a", "b0784a", "ffe04a", "ffffff"),
+    "god_jade": ("0a2e2e", "1f9a78", "2fffb0", "f0fff8"),
+    "god_azure": ("0e1a48", "2a5ab8", "4a8cff", "fff4c8"),
+    "god_blood": ("1a0420", "8a1235", "ff2a5a", "ffe0ea"),
+    "god_abyss": ("1a0630", "5a1fa0", "a03cff", "ffd88a"),
+    "god_rose": ("2a0a3a", "a02a8a", "ff5ad8", "fff0fb"),
 }
 
 
@@ -654,8 +665,22 @@ STAR_RECIPES = {
     "cosmic_encore": ("dissonance", ring(.9, 40) + o("orb", -46, -46, .3) + o("orb", 52, 38, .22) + o("wings", 0, -6, .95) + o("lute", 0, -2, .58, -20)),
 }
 
+# God-tier (300-star) skills: the star medallion with a divine frame (document(god=True)).
+GOD_RECIPES = {
+    "divine_edict": ("god_ember", o("ground", y=62, s=.86) + o("crown", 0, -64, .4) + o("sword", 0, 4, 1.18, 180) + star(-48, 36, 15) + star(48, 36, 15)),
+    "sunfall_volley": ("god_lime", rays(16) + o("orb", 0, -44, .52) + rain("arrow", 3, .5) + o("ground", y=64, s=.8)),
+    "heavenrend_spear": ("god_cyan", o("cloud", 0, -60, .74) + o("crack", 0, 56, .72) + o("spear", 0, 4, 1.22, 180) + o("bolt", -50, -6, .42, -10) + o("bolt", 50, -6, .42, 10)),
+    "astral_apocalypse": ("god_cosmos", group(ring(1.05), rotate=-28) + group(ring(.82), rotate=34) + o("orb", 0, 0, .5) + o("meteor", -46, -50, .36, 30) + star(50, 46, 14)),
+    "seraphic_judgment": ("god_holy", rays(16) + o("wings", 0, -10, 1.16) + o("cross", 0, 6, .58) + o("orb", 0, -64, .24)),
+    "celestial_dragon_emperor": ("god_jade", o("vortex", s=1.0, opacity=.55) + o("dragon", 0, 6, .92) + o("crown", 0, -64, .36)),
+    "pantheon_bastion": ("god_azure", o("wings", 0, -8, 1.12, 0, .6) + o("shield", 0, 8, .92) + o("crown", 0, -68, .34) + star(-56, 52, 12) + star(56, 52, 12)),
+    "death_gods_eclipse": ("god_blood", rays(12) + o("orb", 6, -30, .56) + o("moon", -4, -30, .62) + o("twin", 0, 34, .72)),
+    "abyssal_throne": ("god_abyss", o("flame", 0, 44, .62) + o("crown", 0, -50, .62) + o("scepter", -44, 14, .6, -16) + o("bolt", 46, 12, .5, 10)),
+    "divine_symphony": ("god_rose", rays(16) + o("lyre", 0, 4, .8) + o("crown", 0, -70, .3) + o("note", -54, -36, .34, -15) + o("note", 54, -36, .34, 15)),
+}
 
-def document(palette, picture):
+
+def document(palette, picture, god=False):
     dark, mid, main, light = PALETTES[palette]
     defs = f'''<defs>
     <radialGradient id="back" cx=".38" cy=".25" r=".85"><stop stop-color="#{mid}"/><stop offset=".72" stop-color="#{dark}"/><stop offset="1" stop-color="#0c1328"/></radialGradient>
@@ -674,9 +699,17 @@ def document(palette, picture):
     body += '<circle cx="128" cy="128" r="119" fill="url(#back)" stroke="url(#gold)" stroke-width="3"/>'
     body += f'<g clip-path="url(#disc)"><path d="M32 198 L172 13 L226 48 L74 233Z" fill="#{main}" opacity=".065"/>'
     body += '<ellipse cx="128" cy="208" rx="73" ry="14" fill="#081329" opacity=".35"/>'
+    if god:
+        # A divine aureole behind the picture: a gold ring and its long and short rays.
+        body += group(rays(24), 128, 124, 1.12, 7.5, .42)
+        body += f'<circle cx="128" cy="124" r="92" fill="none" stroke="#{light}" stroke-width="2.5" opacity=".55"/>'
     body += group(picture,128,124)
     body += group(star(0,0,6),44,74,opacity=.5) + group(star(0,0,4),210,162,opacity=.65)
     body += '</g><path d="M30 100 A101 101 0 0 1 115 25" fill="none" stroke="#ffefc5" stroke-width="2" opacity=".48"/>'
+    if god:
+        # The god frame: a second gold rim and eight gems round it.
+        body += '<circle cx="128" cy="128" r="113" fill="none" stroke="url(#gold_stroke)" stroke-width="3" opacity=".9"/>'
+        body += "".join(group(star(0, 0, 7), 128 + 113 * sin(i * pi / 4), 128 - 113 * cos(i * pi / 4)) for i in range(8))
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 256 256">{defs}{body}</svg>\n'
 
 
@@ -699,6 +732,8 @@ def main():
     (ROOT / 'tools/skill_icon_catalogue.json').write_text(json.dumps(manifest,indent=2)+'\n')
     for skill, (palette, picture) in STAR_RECIPES.items():
         (OUT / f'{skill}.svg').write_text(document(palette,picture))
+    for skill, (palette, picture) in GOD_RECIPES.items():
+        (OUT / f'{skill}.svg').write_text(document(palette,picture,god=True))
     print(f'Authored {len(manifest)} distinct skill illustrations; {sum(p.stat().st_size for p in OUT.glob("*.svg")):,} SVG bytes.')
 
 

@@ -361,6 +361,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_lifecycle_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_lifecycle_test.tscn
+      - name: star300_skills_test (one god-tier skill per class at 300 stars, locked below, strongest of its class, icon, real casts at every quality and under memory pressure, cleanup)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star300_skills_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star300_skills_test.tscn
       - name: star_wings_test
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_wings_test

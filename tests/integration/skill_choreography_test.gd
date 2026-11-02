@@ -21,7 +21,7 @@ func _ready() -> void:
 	var count := 0
 	for family in SkillShow.FAMILY_COLORS:
 		for skill in ClassData.pool(StringName(family)):
-			# The 28 star skills sit in the pools too; StarSkillSequence choreographs those.
+			# The 50 star skills (ten of them 300-star god skills) sit in the pools too; StarSkillSequence choreographs those.
 			if not skill.has("star"):
 				count += 1
 	check(seen.size() == count and count == 252, "exactly the complete 252-skill catalogue")

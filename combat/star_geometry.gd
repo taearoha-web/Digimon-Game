@@ -2,7 +2,7 @@ class_name StarGeometry
 extends RefCounted
 ## Fixed vocabulary for the twenty-four astral skills. Every recipe is merged
 ## into one indexed surface; casts share these meshes and never bake particles.
-const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre"
+const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre pantheon god_halo aureole"
 static var cache: Dictionary = {}
 
 static func warm() -> void:
@@ -306,6 +306,49 @@ static func mesh(kind: String) -> ArrayMesh:
 			for i in 12:
 				var a := TAU*i/12.0
 				EliteSkillArt._append(st,EliteSkillArt.geometry("greatshield"),Vector3(sin(a),0.28,cos(a))*Vector3(1.02,1,1.02),Vector3(0.22,0.26,0.2),Vector3(0,a,0),0.35+float(i%2)*0.4)
+		"pantheon":
+			# God-tier temple of light (unit radius, unit height): eight columns on a
+			# stepped ring, each crowned with a crystal capital, open to the sky.
+			_ring(st,1.0,0.0,0.018,1)
+			_ring(st,0.93,0.0,0.007,0.55)
+			for i in 8:
+				var a := TAU*i/8.0
+				var p := Vector3(sin(a),0,cos(a))
+				_gem(st,p+Vector3.UP*0.26,Vector3(0.045,0.74,0.045),Vector3(0,a,0),0.3)
+				_line(st,[p+Vector3.UP*0.02,p+Vector3.UP*0.97],0.010,1)
+				_gem(st,p+Vector3.UP*1.02,Vector3(0.06,0.12,0.06),Vector3.ZERO,1)
+				_gem(st,p+Vector3.UP*0.015,Vector3(0.085,0.04,0.085),Vector3.ZERO,0.7)
+		"god_halo":
+			# The god-tier sigil: a 24-ray seal in three banded rings, a hexagram and
+			# twelve studs pointing out past the rim.
+			_seal(st,24,1.0)
+			_ring(st,1.12,0,0.026,1)
+			_ring(st,1.2,0,0.008,0.6)
+			_ring(st,0.36,0,0.022,1)
+			for k in 2:
+				var tri: Array=[]
+				for j in 4:
+					var a := TAU*float(j*2+k)/6.0
+					tri.append(Vector3(sin(a),0,cos(a))*0.58)
+				_line(st,tri,0.012,0.9)
+			for i in 12:
+				var a := TAU*i/12.0
+				_gem(st,Vector3(sin(a),0,cos(a))*1.17,Vector3(0.04,0.12,0.04),Vector3(0,a,PI/2),1)
+		"aureole":
+			# An upright divine aureole (XY plane, facing +Z): two rings and 24 rays,
+			# the long ones tipped with a crystal; it hangs behind a god's shoulders.
+			for r in [1.0,0.86]:
+				var circle: Array=[]
+				for j in 49:
+					var a := TAU*j/48.0
+					circle.append(Vector3(sin(a)*r,cos(a)*r,0))
+				_line(st,circle,0.024 if r==1.0 else 0.01,1.0 if r==1.0 else 0.6)
+			for i in 24:
+				var a := TAU*i/24.0
+				var d := Vector3(sin(a),cos(a),0)
+				var reach := 1.62 if i%2==0 else 1.3
+				_line(st,[d*1.06,d*reach],0.02 if i%2==0 else 0.011,1)
+				if i%2==0: _gem(st,d*reach,Vector3(0.05,0.11,0.05),Vector3(0,0,-a),1)
 		"feathers":
 			for i in 12:
 				var a := float(i)*2.399963
