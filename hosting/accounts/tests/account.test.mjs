@@ -190,6 +190,52 @@ test('last five snapshots are bounded; restoring creates a new revision and stal
   assert.equal(DB.sqlite.prepare('SELECT count(*) AS n FROM toon_save_snapshots').get().n, 5);
 });
 
+// The storage every character shares (SharedStorage in the game) rides in the bundle as
+// "storage" (items) and "storageMigrated" (the old per-character storages moved in).
+test('the shared storage is saved with the characters, validated, and never dropped by an old game', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const potion = {kind: 'potion', id: 'hp_s', count: 5};
+  const sword = {kind: 'equip', uid: 'u1', slot: 'weapon', base: 'sword', class: 'warrior', level: 40, rarity: 2, stats: {atk: 120}, gems: []};
+  const shared = (items = [potion, sword], record = {'u:u1': 1}) => ({...bundle(), storage: items, storageMigrated: record});
+  // An account saved by a game from before the shared storage takes the first shared save.
+  assert.equal((await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle()}})).status, 200);
+  const first = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: shared()}});
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  assert.deepEqual((await call('save', {cookie: account.cookie})).body.bundle, shared(), 'storage and record round-trip unchanged');
+  // An empty shared storage is still a shared storage (and keeps the field).
+  assert.equal((await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: shared([], {})}})).status, 200);
+  assert.deepEqual((await call('save', {cookie: account.cookie})).body.bundle.storage, []);
+  assert.equal((await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 3, bundle: shared()}})).status, 200);
+  // Up to 150 + 10 * 80 entries (old storages moved in over a full shared one), no more.
+  const full = Array.from({length: 950}, (_, i) => ({...potion, id: 'mp_s', count: i + 1}));
+  assert.equal((await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 4, bundle: shared(full)}})).status, 200);
+  for (const bad of [
+    shared([...full, potion]), shared('items'), shared([42]), shared([[potion]]), shared([{id: 'hp_s'}]),
+    shared([potion], []), shared([potion], {'u:u1': 0}), shared([potion], {'u:u1': 1.5}), shared([potion], {['x'.repeat(65)]: 1}),
+  ]) {
+    const refused = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 5, bundle: bad}});
+    assert.equal(refused.status, 400, JSON.stringify(refused.body));
+  }
+  // A game from before the shared storage (no "storage" field) cannot replace it, even at
+  // the right revision; a stale one still gets the usual conflict.
+  const outdated = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 5, bundle: bundle(sample(30))}});
+  assert.equal(outdated.status, 409);
+  assert.equal(outdated.body.error.code, 'client_outdated');
+  const stale = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: bundle(sample(30))}});
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.error.code, 'save_conflict');
+  const kept = await call('save', {cookie: account.cookie});
+  assert.equal(kept.body.revision, 5);
+  assert.equal(kept.body.bundle.storage.length, 950);
+  assert.equal(kept.body.bundle.slots['1'].level, 12);
+  // A snapshot restore brings back the storage that revision had.
+  const restored = await call('save/restore', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 5, revision: 4}});
+  assert.equal(restored.status, 200);
+  assert.deepEqual(restored.body.bundle.storage, [potion, sword]);
+  assert.deepEqual(restored.body.bundle.storageMigrated, {'u:u1': 1});
+});
+
 test('logout revokes current device only; expired sessions are rejected', async t => {
   const {register, call, DB} = harness(t);
   const account = await register();
@@ -355,6 +401,7 @@ test('real game-generated saves of every class pass validation and round-trip un
   const classes = await shippedClasses();
   assert.deepEqual(fixtures.classes, classes, 'the fixture file covers other classes than data/class_data.gd: regenerate it');
   const profiles = Object.entries(fixtures.profiles);
+  assert.ok(Array.isArray(fixtures.storage) && fixtures.storage.length >= 3, 'the fixture carries the shared storage the game sends: regenerate it');
   assert.ok(profiles.length >= classes.length * 2, `only ${profiles.length} fixture profiles`);
   for (const cls of classes) {
     for (const stage of cls === classes[0] ? ['vagabond_lv5'] : [`${cls}_new`, `${cls}_lv23`, `${cls}_lv100_star`, `${cls}_god300`]) {
@@ -378,6 +425,8 @@ test('real game-generated saves of every class pass validation and round-trip un
   for (let i = 0; i < profiles.length; i += 10) {
     const group = profiles.slice(i, i + 10);
     const full = {slots: Object.fromEntries(group.map(([, profile], n) => [String(n + 1), profile])), selectedSlot: group.length};
+    // The shared storage the game wrote beside them (SharedStorage), when the fixture has it.
+    if (Array.isArray(fixtures.storage)) Object.assign(full, {storage: fixtures.storage, storageMigrated: fixtures.storageMigrated ?? {}});
     const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: full}});
     assert.equal(saved.status, 200, `${group.map(([key]) => key).join(', ')}: ${JSON.stringify(saved.body)}`);
     revision = saved.body.revision;

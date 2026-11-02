@@ -563,6 +563,9 @@ func _storage_and_auto() -> void:
 	print("== Storage, bigger bag, auto hunting")
 	var zone := await _start(&"warrior")
 	check(Game.bag_size() == Game.BASE_BAG and Game.BASE_BAG >= 40, "the bag starts with %d slots" % Game.bag_size())
+	# The storage is shared by every hero (SharedStorage): earlier heroes' full bags may
+	# have sent rewards there; start this check from an empty one.
+	Game.storage().clear()
 	Game.add_item(ItemData.potion("hp_s", 3))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 21

@@ -10,7 +10,7 @@ signal restored()
 signal closed()
 
 const MONTHS := ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
-const REASONS := {"daily": "รายวัน", "manual": "ด้วยมือ", "before-restore": "ก่อนกู้คืน"}
+const REASONS := {"daily": "รายวัน", "manual": "ด้วยมือ", "before-restore": "ก่อนกู้คืน", "before-storage": "ก่อนรวมคลัง"}
 ## A tapped restore button waits this long for its confirming tap.
 const CONFIRM_SECONDS := 4.0
 
@@ -141,6 +141,10 @@ func _backup_row(entry: Dictionary) -> Control:
 	line.add_child(all)
 	if not is_open_dir:
 		return card
+	# The shared storage comes back with "กู้คืนทั้งหมด" only; one hero leaves it as it is.
+	var stored := int(entry.get("storage", -1))
+	if stored >= 0:
+		column.add_child(UIUtil.label("คลังรวมทุกตัวละคร %d ชิ้น — กลับมาเมื่อกด \"กู้คืนทั้งหมด\" (กู้ทีละช่องคลังไม่เปลี่ยน)" % stored, &"SmallLabel"))
 	var keys := slots.keys()
 	keys.sort_custom(func(a, b): return int(a) < int(b))
 	for key in keys:
