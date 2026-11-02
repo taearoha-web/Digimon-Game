@@ -40,6 +40,10 @@ const UTILITY_X := -36.0
 ## gold / menu row, never under either.
 const TOP_CENTER_MAX := 500.0
 const TOP_CENTER_GAP := 12.0
+## How much of the notch side's inset the hero panel and buffs keep: they are above the
+## notch (it sits in the middle of the edge), and this much (what the far side gets)
+## keeps them clear of the screen's rounded corner.
+const LEFT_TOP_KEEP := 0.35
 ## The skill slots' radius (smaller medallions leave the world chat room).
 const SKILL_RADIUS := 32.0
 ## The world chat shrinks (never below this) so the party cards above it stay clear.
@@ -135,6 +139,8 @@ var minimap: Minimap
 var _top_row: HBoxContainer
 ## The left column under the hero panel: buffs, party cards, wing chips.
 var _status_column: VBoxContainer
+## The party cards and gear chips inside the left column, indented clear of a notch.
+var _party_indent: MarginContainer
 ## The world chat's height right now (WorldChat.HEIGHT, less when the party column is long).
 var _chat_height := WorldChat.HEIGHT
 
@@ -303,6 +309,7 @@ func _process(delta: float) -> void:
 		_refresh()
 		_update_timers(_timer_elapsed)
 		_timer_elapsed = 0.0
+		_place_left_column()
 		_fit_chat()
 	_update_tracker(delta)
 	_event_in -= delta
@@ -685,9 +692,19 @@ func _build_status(frame: Control) -> void:
 	trow.add_child(_target_hp)
 	_timers = CompactTimers.new()
 	column.add_child(_timers)
-	_build_party(column)
-	_build_wing_row(column)
-	_build_mount_row(column)
+	# The party cards and the gear chips sit in their own box: on a phone held with the
+	# notch on the left they keep clear of it (_place_left_column), while the hero panel
+	# and the buffs above the notch move to the edge.
+	_party_indent = MarginContainer.new()
+	_party_indent.name = "PartyIndent"
+	_party_indent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(_party_indent)
+	var party_column := UIUtil.vbox(5)
+	party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_indent.add_child(party_column)
+	_build_party(party_column)
+	_build_wing_row(party_column)
+	_build_mount_row(party_column)
 	minimap = Minimap.new()
 	minimap.anchor_left = 1.0
 	minimap.anchor_right = 1.0
@@ -1274,6 +1291,26 @@ func _layout_actions() -> void:
 		world_chat.offset_left = after_stick
 		world_chat.offset_right = maxf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, after_stick + 160.0)
 		_apply_chat_height()
+
+
+## The left column nearer the screen's left edge. A phone held sideways keeps the
+## notch's inset on the left only when the notch may be there (the page reports the
+## full inset on the notch side, a third on the other, the same on both when it cannot
+## tell). The notch covers the middle of that edge, not its top: the hero panel and the
+## buffs move LEFT_TOP_KEEP of the way into the inset; the party cards and gear chips,
+## level with the notch, stay clear of it on that side.
+func _place_left_column() -> void:
+	var safe := _frame.get_parent() as SafeAreaContainer
+	if safe == null or _status_column == null:
+		return
+	var left := float(safe.get_theme_constant("margin_left") - safe.min_margin)
+	var right := float(safe.get_theme_constant("margin_right") - safe.min_margin)
+	var notch_left := left > 1.0 and left >= right - 1.0
+	var shift := roundf(left * (1.0 - LEFT_TOP_KEEP)) if notch_left else 0.0
+	if not is_equal_approx(_status_column.offset_left, -shift):
+		_status_column.offset_left = -shift
+		_status_column.offset_right = -shift
+		_party_indent.add_theme_constant_override("margin_left", int(shift))
 
 
 ## The world chat keeps clear of the party cards: when the left column (buffs, party
