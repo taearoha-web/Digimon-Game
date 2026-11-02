@@ -144,7 +144,13 @@ func _progress() -> void:
 		var end := WorldPlayers.state(i, start + 200.0 * day)
 		check(int(end.level) == 100 and int(end.stars) == Game.PARAGON_MAX and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★300 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
 		var top := WorldPlayers.profile(WorldPlayers.member(i, start + 200.0 * day))
-		check(int(top.adv) == JobData.LEGEND_ADV and not JobData.is_god(int(top.adv)), "%s: stays at the legend step at ★300, no God promotion (adv %d)" % [e.name, int(top.adv)])
+		check(int(top.adv) == JobData.GOD_ADV and JobData.is_god(int(top.adv)), "%s: takes the God promotion at ★300 (adv %d)" % [e.name, int(top.adv)])
+		check(WorldPlayers.god_title(end) == JobData.god_name(StringName(end["class"])), "%s: wears its God title (%s)" % [e.name, WorldPlayers.god_title(end)])
+		var below := WorldPlayers.profile({"class": String(end["class"]), "name": e.name, "level": 100, "stars": Game.PARAGON_MAX - 1, "frac": 0.0, "divine_frac": 0.0})
+		check(int(below.adv) == JobData.LEGEND_ADV and WorldPlayers.god_title({"class": end["class"], "level": 100, "stars": Game.PARAGON_MAX - 1}) == "", "%s: ★299 is still the legend step" % e.name)
+		var legend_sheet := top.duplicate(true)
+		legend_sheet["adv"] = JobData.LEGEND_ADV
+		check(float(HeroStats.compute(top).atk) > float(HeroStats.compute(legend_sheet).atk), "%s: the God step's bonuses count in its stats" % e.name)
 		var spent := 0
 		for key in top.paragon.alloc:
 			spent += int(top.paragon.alloc[key])

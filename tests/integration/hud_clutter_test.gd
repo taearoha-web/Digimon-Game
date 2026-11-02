@@ -160,6 +160,7 @@ func _chat() -> void:
 	said.clear()
 	for i in 10:
 		presence.chat_once()
+		WorldPresence.chat_clock_override += 7.0
 	check(said.size() >= 5, "after the window the lines come back (%d)" % said.size())
 	Game.world_chat.disconnect(record)
 	presence.free()

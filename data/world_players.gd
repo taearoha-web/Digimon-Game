@@ -871,13 +871,13 @@ static func sync_member(m: Dictionary, s: Dictionary) -> bool:
 
 
 ## The character sheet of a world player at its level and stars (for HeroStats): the
-## gear it found and its job, plus every stat point spent like a player does (60% main
+## gear it found and its job (the God step at Lv.100 ★300: JobData.adv_for), plus every stat point spent like a player does (60% main
 ## stat, 40% vitality), its star points and the skill points it earned spent at the
 ## Skill Master (skill_ranks). All of it follows what its own play reached.
 static func profile(m: Dictionary) -> Dictionary:
 	var level := int(m.level)
 	var stars := Game.party_stars(m)
-	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for_level(level),
+	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for(level, stars),
 		"paragon": {"level": stars, "alloc": Game.party_star_alloc(stars)}}
 	var points := Game.STAT_POINTS_PER_LEVEL * (level - 1)
 	var main := String(JobData.resolve(StringName(m["class"]), int(p.adv)).main)
@@ -1232,6 +1232,17 @@ static func fighter(i: int, t: float, _rng: RandomNumberGenerator = null) -> Dic
 
 
 ## Display line: "Lv.57" or "Lv.100 ★120".
+## Whether player state (or member) s has taken the God promotion: Lv.100 and ★300
+## (JobData.adv_for), like the hero's เทพเจ้าแห่ง<อาชีพ>.
+static func is_god(s: Dictionary) -> bool:
+	return JobData.is_god(JobData.adv_for(int(s.get("level", 1)), int(s.get("stars", 0))))
+
+
+## Its God title ("เทพเจ้าแห่งนักรบ"), "" before the promotion.
+static func god_title(s: Dictionary) -> String:
+	return JobData.god_name(StringName(s.get("class", "warrior"))) if is_god(s) else ""
+
+
 static func level_text(s: Dictionary) -> String:
 	return "Lv.%d%s" % [int(s.level), " ★%d" % int(s.stars) if int(s.stars) > 0 else ""]
 
