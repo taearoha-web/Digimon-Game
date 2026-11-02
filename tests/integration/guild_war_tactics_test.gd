@@ -349,7 +349,13 @@ func _in_war() -> void:
 	var front := ours.front()
 	for f in m.enemies:
 		f.global_position = front + Vector3(4.0, 0.3, 4.0) if f != healer else front + Vector3(6.0, 0.3, 8.0)
+		# A second healer of theirs (some rosters roll two) stays out of the call.
+		if f != healer and f.is_healer() and not f.is_leader:
+			f.global_position = Vector3(SiegeArena.BASE_X - 30.0, 0.3, 20.0)
 	lead.global_position = front + Vector3(4.0, 0.3, 2.0)
+	# Earlier steps leave some of theirs hurt; a wounded one would outrank the healer.
+	for f in m.enemies:
+		f.hp = f.max_hp
 	ours.think(GuildWarCommander.THINK_EVERY)
 	check(ours.focus == healer, "ours focus the healer of theirs (%s)" % (ours.focus.name if ours.focus != null else "none"))
 	m._assign_objectives()

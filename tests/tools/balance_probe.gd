@@ -193,8 +193,9 @@ func _arena() -> void:
 		var med_basic: float = (float(basic_hits[2]) + float(basic_hits[3])) * 0.5
 		var line := "ARENA rp%d grade=%d basic=%.1f skill=%.1f hits to fall" % [rp, PvpData.grade_of(rp), med_basic, med_skill]
 		print(line)
-		# 5 hits is the floor (hit cap 20%); a duel should not drag past ~25 skill casts.
-		if med_skill < 5.0 or med_skill > 25.0 or med_basic < 5.0 or med_basic > 150.0:
+		# 5 hits is the floor (hit cap 20%; hp / (hp * 0.2) can round to 4.999...); a duel
+		# should not drag past ~25 skill casts.
+		if med_skill < 5.0 - 0.001 or med_skill > 25.0 or med_basic < 5.0 or med_basic > 150.0:
 			failures += 1
 			printerr("FAIL arena out of band: " + line)
 

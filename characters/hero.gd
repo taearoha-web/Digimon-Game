@@ -694,6 +694,7 @@ func dismount() -> void:
 	visual.position = Vector3(0, visual.position.y, 0)
 	if is_instance_valid(_name_plate):
 		_name_plate.position.y = NAME_PLATE_Y
+	LeaderMark.raise(self, 0.0)
 
 
 ## The HUD's "ขี่" / "ลง" button.
@@ -720,6 +721,8 @@ func _ride_step(speed: float) -> void:
 	MountVisual.carry(mount, visual, _facing, speed, move_speed(), RIDE_UPPER)
 	if is_instance_valid(_name_plate):
 		_name_plate.position.y = NAME_PLATE_Y + visual.position.y
+	# The guild leader's crown (guild war) rides up with the seat.
+	LeaderMark.raise(self, visual.position.y)
 
 
 ## Wing pose from the HUD buttons (saved with the profile).

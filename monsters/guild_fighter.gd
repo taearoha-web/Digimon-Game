@@ -9,6 +9,12 @@ extends Rival
 ## In the castle siege (GuildWarMatch) they batter the front gate between fights, find
 ## their way over the bridge and through the gates (SiegeArena.route), go for whoever is
 ## taking the altar, and one of them at a time stands on the altar to take the castle.
+## A fighter who owns a mount (its profile's mount: WorldPlayers.mount_of for a world
+## player, GuildWarData.hired_mount for a hired one; HeroStats counts its bonus like
+## everyone's) rides it the whole time it is up, like the hero: at its mark through the
+## countdown, out of the camp, to the gates and rally points, into fights (attacks, skills
+## and hits keep it seated), leaders and the one on the altar too. A fall puts it on
+## foot; it comes back from the camp in the saddle.
 
 const TEAM_ALLY := 0
 const TEAM_ENEMY := 1
@@ -62,6 +68,18 @@ var focus: Node3D
 var dive: Node3D
 var guard_node: Node3D
 
+## The mount it rides (MountVisual under its turning model; null on foot) and the one it
+## owns ("" for none, or where riding is not allowed: MountData.zone_allows).
+var mount: MountVisual
+var ride_id := ""
+## Its mount put away while it is down (brought back on respawn, not built again).
+var _spare_mount: MountVisual
+## How high the seat lifts the rider now (the name, HP bar, crown and hit point follow).
+var _lift := 0.0
+var _label_y := 0.0
+var _bar_y := 0.0
+var _alert_y := 0.0
+
 var _last_attacker: Node
 var _helpers: Dictionary = {}
 var _guard_until := 0
@@ -107,6 +125,11 @@ func _ready() -> void:
 	# Fifty fighters on one field: far ones stop animating like far monsters do.
 	if _rv != null and _rv.hero_visual != null:
 		_rv.hero_visual.add_to_group("anim_lod")
+	_label_y = _label.position.y
+	_bar_y = _bar.position.y
+	_alert_y = _alert.position.y
+	ride_id = _owned_mount()
+	ride()
 	_start_guard()
 
 
@@ -124,7 +147,8 @@ func make_leader() -> void:
 		_label.modulate = LeaderMark.guild_color(team).lerp(Color.WHITE, 0.2)
 		# Seen from across the field, not only up close like the others' names.
 		_label.visibility_range_end = 0.0
-	LeaderMark.attach(self, LeaderMark.guild_color(team), (_label.position.y if _label != null else 2.6) + 0.9)
+	LeaderMark.attach(self, LeaderMark.guild_color(team), (_label_y if _label != null else 2.6) + 0.9)
+	LeaderMark.raise(self, _lift)
 
 
 ## Its guild's commander (null outside a war).
@@ -403,6 +427,7 @@ func _die() -> void:
 	collision_layer = 0
 	_buff_art.clear(self)
 	deaths += 1
+	dismount()
 	visual.hold("die")
 	VfxKit.flash(get_parent(), hit_point(), Color("ffe9a0"), 1.6)
 	VfxKit.sparks(get_parent(), hit_point(), Color("ffe27a"), 14, 5.0, 0.7)
@@ -460,6 +485,8 @@ func respawn() -> void:
 	if _rv and _rv.hero_visual:
 		_rv.hero_visual.release()
 		_rv.hero_visual.play("Idle")
+	# Back in the saddle at the camp.
+	ride()
 	VfxKit.flash(get_parent(), global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.8)
 	_start_guard()
 
@@ -480,6 +507,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
+	return _chase_on(target, delta, speed_factor) * _pace()
+
+
+func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if capturing:
 		_tick(delta)
 		return Vector3.ZERO
@@ -727,6 +758,10 @@ func _fall_back(delta: float) -> Vector3:
 ## With nobody to fight it walks to its post: the front gate, round the altar, or (the
 ## one sent) onto the altar, the way round the moat and through the broken gates.
 func _wander(delta: float) -> Vector3:
+	return _wander_on(delta) * _pace()
+
+
+func _wander_on(delta: float) -> Vector3:
 	# During the countdown everybody holds their mark.
 	if _frozen or capturing:
 		return Vector3.ZERO
@@ -741,6 +776,103 @@ func _wander(delta: float) -> Vector3:
 	_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))
 	visual.rotation.y = _yaw
 	return to.normalized() * float(rstats.speed) * 0.9
+
+
+# ---------------------------------------------------------------------------
+# Riding (MountData, MountVisual): the same seated riding as the hero and world players
+# ---------------------------------------------------------------------------
+
+## The mount its profile has active and owns ("" for none, or in a field without riding).
+func _owned_mount() -> String:
+	var id := String(_profile.get("mount", ""))
+	var owned: Variant = _profile.get("mounts", {})
+	if not MountData.exists(id) or not owned is Dictionary or int((owned as Dictionary).get(id, 0)) <= 0:
+		return ""
+	var field := get_parent()
+	if field is Zone and not MountData.zone_allows((field as Zone).data):
+		return ""
+	return id
+
+
+func is_riding() -> bool:
+	return mount != null
+
+
+## Gets on its mount (nothing without one, or while down). The mount sits under the
+## turning model (RivalVisual), so it is drawn, culled and turned with the rider.
+func ride() -> bool:
+	if mount != null:
+		return true
+	if ride_id == "" or _dead or _rv == null or not is_instance_valid(_rv.hero_visual):
+		return false
+	# Merged build: a field of riders draws a few dozen meshes each, not eighty.
+	mount = MountVisual.mount_up(self, _rv, _rv.hero_visual, ride_id, 0.0, _spare_mount, true)
+	_spare_mount = null
+	var hv := _rv.hero_visual
+	mount.lod_step = hv.anim_lod
+	mount.set_far(hv.anim_lod >= 2)
+	# Only its blob shadow: a real one would draw every mount of the field again.
+	mount.set_shadows(false)
+	_seat(0.0)
+	return true
+
+
+## Back on foot (a fall).
+func dismount() -> void:
+	if mount == null:
+		return
+	MountVisual.step_down(self, mount, model(), false, true)
+	_spare_mount = mount
+	mount = null
+	_raise_tags(0.0)
+
+
+## Its pace: the mount's speed bonus while riding (MountData.speed_bonus, as for the hero).
+func _pace() -> float:
+	return 1.0 + MountData.speed_bonus(mount.id) if mount != null else 1.0
+
+
+## A riding frame (MountVisual.carry): the mount gallops with its speed, the rider sits
+## on the saddle in its ready stance; attacks and skills play over it.
+func _seat(speed: float) -> void:
+	var hv := model()
+	if hv == null:
+		return
+	# The mount turns with the model (it is its child): no turn of its own.
+	_raise_tags(MountVisual.carry(mount, hv, 0.0, speed, float(rstats.speed) * _pace(), "Idle"))
+
+
+## The name, HP bar, alert and the leader's crown ride up with the seat.
+func _raise_tags(lift: float) -> void:
+	if is_equal_approx(lift, _lift):
+		return
+	_lift = lift
+	if _label != null:
+		_label.position.y = _label_y + lift
+	if _bar != null:
+		_bar.position.y = _bar_y + lift
+	if _alert != null:
+		_alert.position.y = _alert_y + lift
+	if is_leader:
+		LeaderMark.raise(self, lift)
+
+
+func hit_point() -> Vector3:
+	return super.hit_point() + Vector3(0, _lift, 0)
+
+
+func top_point() -> Vector3:
+	return super.top_point() + Vector3(0, _lift, 0)
+
+
+func _animate(horizontal: Vector3, delta: float, chase: Node3D) -> void:
+	if mount == null:
+		super._animate(horizontal, delta, chase)
+		return
+	if horizontal.length() > 0.25 and chase == null:
+		_yaw = lerp_angle(_yaw, atan2(horizontal.x, horizontal.z), 1.0 - exp(-7.0 * delta))
+		visual.rotation.y = _yaw
+	_seat(horizontal.length())
 
 
 # ---------------------------------------------------------------------------
