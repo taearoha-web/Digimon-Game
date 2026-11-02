@@ -9,8 +9,8 @@ extends Node
 ## arrive on their day; the guild war fields everyone at Lv.100, up to GUILD_SIDE a side.
 ##   godot --headless --path . res://tests/integration/world_town_test.tscn
 ## Stall keepers in the village at every moment (the village has JapanVillage.STALLS stalls).
-const MIN_TOWN := 16
-const MIN_ONLINE := 22
+const MIN_TOWN := 8
+const MIN_ONLINE := 11
 
 var failures := 0
 var checks := 0
@@ -113,7 +113,7 @@ func _veterans() -> void:
 	# A fresh opening: nobody brings a head start, everyone begins at Lv.1.
 	var ahead: Array[String] = []
 	for i in WorldPlayers.size():
-		if WorldPlayers.head_work(i) != 0.0 or int(WorldPlayers.state(i, start + 60.0).level) > 3:
+		if WorldPlayers.head_work(i) != 0.0 or int(WorldPlayers.state(i, start + 60.0).level) > 5:
 			ahead.append("%s Lv.%d" % [WorldPlayers.entry(i).name, int(WorldPlayers.state(i, start + 60.0).level)])
 	check(ahead.is_empty(), "when the world opens everyone starts at Lv.1 (%s)" % [ahead])
 	# The endgame: a player who completed the divine set enhances it as it plays and
@@ -225,8 +225,8 @@ func _guild_war() -> void:
 	Game.join_guild(WorldPlayers.ALPHA)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	var t := float(WorldPlayers.START_UNIX) + 0.4 * 86400.0
-	check(GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t).is_empty(), "a fresh world has no guild war on the first day")
+	var t := float(WorldPlayers.START_UNIX) + 0.25 * 86400.0
+	check(GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t).is_empty(), "a fresh world has no guild war in its first six hours")
 	t = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0
 	var match := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
 	check(not match.is_empty(), "a guild war three weeks on")

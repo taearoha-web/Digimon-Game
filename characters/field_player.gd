@@ -17,9 +17,12 @@ extends Companion
 ## like the hero. In the hero's party it rides while the hero rides. Never where riding
 ## is not allowed (MountData.zone_allows). Far away its mount is simplified (set_far).
 
-const CAMP_STAY := Vector2(150.0, 330.0)
+## Seconds it hunts a camp before it moves on to another (a longer stay is less walking).
+const CAMP_STAY := Vector2(240.0, 480.0)
 const AWAY_AFTER_FALL := 40.0
-const HUNT_REACH := 16.0
+## How far it looks for its next monster: far enough that it goes from kill to kill
+## instead of drifting about the camp.
+const HUNT_REACH := 22.0
 
 var world_index := 0
 ## In the hero's party: the companion's own following, targeting and support.
@@ -713,7 +716,7 @@ func _follow(delta: float) -> Vector3:
 		_pick_camp()
 	_spot_left -= delta
 	if _spot_left <= 0.0:
-		_spot_left = _rng.randf_range(3.0, 8.0)
+		_spot_left = _rng.randf_range(2.0, 5.0)
 		if zone != null and zone.is_town:
 			var spots: Array = zone.npcs
 			if not spots.is_empty():

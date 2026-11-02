@@ -205,6 +205,10 @@ func _haggle(t: float) -> void:
 	var lot: Dictionary = StallStock.stock(a, t).filter(func(e): return int(e.k) == ka)[0]
 	check(int(lot.price) == want and int(lot.get("base", 0)) == base and want < base, "the stock shows the haggled price (%d of %d, %d%% off)" % [int(lot.price), base, percent])
 	check(StallStock.discount(a, ka, t) == percent and not StallStock.can_haggle(a, ka, t) and StallStock.haggle(a, ka, t).is_empty(), "one haggle a lot a window")
+	# The legend / mythic find achievements already earned, so the buy moves no gold but the price.
+	Game.flag_max("got_legend", 1)
+	Game.flag_max("got_mythic", 1)
+	Game.check_achievements()
 	Game.profile.gold = want + 100
 	check(StallStock.buy(a, ka, t) and int(Game.profile.gold) == 100, "the buy pays the haggled price (%d left)" % int(Game.profile.gold))
 	check(said.size() == 1, "buying says nothing more")

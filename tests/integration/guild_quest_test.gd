@@ -242,8 +242,8 @@ func _mates(t0: float) -> void:
 	var share := GuildQuestData.mate_share(WorldPlayers.ALPHA, kill_q, start + 23.0 * 3600.0)
 	check(share > 0 and share <= 210, "the guild helps with the kills, at most 70%% (%d)" % share)
 	check(GuildQuestData.mate_share(WorldPlayers.ALPHA, {"kind": "war", "target": 1}, t0) == 0, "only the hero wins the guild war")
-	# On the first day nobody is at Lv.100: the hero is alone.
-	var opening := float(WorldPlayers.START_UNIX) + 0.4 * 86400.0
+	# In the first six hours nobody is at Lv.100: the hero is alone.
+	var opening := float(WorldPlayers.START_UNIX) + 0.25 * 86400.0
 	check(int(GuildQuestData.mate_minutes(WorldPlayers.ALPHA, opening).members) == 0 and GuildQuestData.mate_share(WorldPlayers.ALPHA, kill_q, opening) == 0, "no guild mates, no share")
 
 
