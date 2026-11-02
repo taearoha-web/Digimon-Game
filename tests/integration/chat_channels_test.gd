@@ -227,6 +227,24 @@ func _ready() -> void:
 		if i > 12:
 			break
 	check(told > 0, "some stall lines name real goods (%d)" % told)
+	# The history scrolls: older lines stay readable, new lines do not yank a reader back.
+	box.set_tab("all")
+	for n in 40:
+		box.add_channel_line("world", "Tester", "บรรทัดที่ %d" % n, Color.WHITE)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(box.history().size() > WorldChat.LINES and box.history().size() <= WorldChat.HISTORY, "the box keeps a history to scroll (%d lines)" % box.history().size())
+	check(box._text.scroll_active and not box.is_held(), "it follows the newest line")
+	box.scroll_by(-100000.0)
+	await get_tree().process_frame
+	check(box.is_held(), "scrolling up holds the reader in the history")
+	var held_at := box._text.get_v_scroll_bar().value
+	box.add_channel_line("world", "Tester", "ใหม่ล่าสุด", Color.WHITE)
+	await get_tree().process_frame
+	check(box.is_held() and absf(box._text.get_v_scroll_bar().value - held_at) < 1.0, "a new line does not pull a reader back down")
+	box.scroll_to_end()
+	await get_tree().process_frame
+	check(not box.is_held(), "back at the end it follows again")
 	_finish()
 
 

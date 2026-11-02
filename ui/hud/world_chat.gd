@@ -15,6 +15,10 @@ signal tab_changed(tab: String)
 signal name_tapped(player_name: String)
 
 const LINES := 6
+## Lines of history the box holds for its tab: drag the box up to read back through them.
+const HISTORY := 60
+## A finger has to move this far (px) before a press on the box becomes a scroll.
+const DRAG_START := 8.0
 ## The panel's height: room for the tabs and the lines, so the box keeps its size.
 const HEIGHT := 184.0
 const FONT_SIZE := 21
@@ -40,6 +44,16 @@ var _all: Array = []
 var _lines: PackedStringArray = []
 ## Channels with lines the hero has not seen on their tab yet.
 var _unread := {}
+## Every line of the tab now shown (up to HISTORY), oldest first.
+var _history: PackedStringArray = []
+## The reader scrolled up: new lines do not pull the box back to the bottom.
+var _held := false
+var _press := false
+var _dragging := false
+var _press_y := 0.0
+var _press_scroll := 0.0
+## Set while the box replaces its own text or follows the end (not the reader's scroll).
+var _rendering := false
 
 
 func _ready() -> void:
@@ -92,12 +106,17 @@ func _ready() -> void:
 		_tabs[key] = b
 	_text = RichTextLabel.new()
 	_text.bbcode_enabled = true
-	# A box of fixed size: the newest lines show at the bottom, older ones scroll out.
+	# A box of fixed size: the newest lines show at the bottom; drag (or wheel) to read
+	# back through the last HISTORY lines. The scroll bar stays hidden.
 	_text.fit_content = false
-	_text.scroll_active = false
-	# Taps reach the label so a player's name can be tapped (name_tapped); the lines
-	# themselves do nothing.
-	_text.mouse_filter = Control.MOUSE_FILTER_PASS
+	_text.scroll_active = true
+	_text.scroll_following = false
+	_text.get_v_scroll_bar().modulate = Color(1, 1, 1, 0)
+	_text.get_v_scroll_bar().mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Taps reach the label so a player's name can be tapped (name_tapped); a drag
+	# scrolls the history and is kept from the camera (accept_event).
+	_text.mouse_filter = Control.MOUSE_FILTER_STOP
+	_text.gui_input.connect(_on_text_input)
 	_text.meta_underlined = false
 	_text.meta_clicked.connect(func(meta): name_tapped.emit(String(meta)))
 	# Long lines wrap inside the panel: with wrapping off, the label's minimum width grew
@@ -164,6 +183,8 @@ func set_tab(t: String) -> void:
 	if t == "all":
 		_unread.clear()
 	_show_tabs()
+	if changed:
+		_held = false
 	_render()
 	if changed:
 		tab_changed.emit(tab)
@@ -174,20 +195,101 @@ func compose_channel() -> String:
 	return tab if tab == "party" or tab == "guild" else "world"
 
 
-## The lines shown now (tests).
+## The newest lines of the tab (the last LINES; tests).
 func lines() -> PackedStringArray:
 	return _lines
 
 
+## Every line the tab holds now (up to HISTORY), oldest first.
+func history() -> PackedStringArray:
+	return _history
+
+
+## True while the reader has scrolled up into the history.
+func is_held() -> bool:
+	return _held
+
+
+## Scrolls the history by `pixels` (negative: back to older lines); tests and the drag.
+func scroll_by(pixels: float) -> void:
+	var bar := _text.get_v_scroll_bar()
+	bar.value = clampf(bar.value + pixels, 0.0, maxf(0.0, bar.max_value - bar.page))
+	_reader_scrolled()
+
+
+## Back to the newest line, following new ones again.
+func scroll_to_end() -> void:
+	_held = false
+	_follow_end()
+
+
+func _at_bottom() -> bool:
+	var bar := _text.get_v_scroll_bar()
+	return bar.value >= bar.max_value - bar.page - 4.0
+
+
+## After the reader's own scroll (a drag, the wheel, scroll_by): held unless back at the
+## end. The label re-laying out its lines never changes this.
+func _reader_scrolled() -> void:
+	_held = not _at_bottom()
+
+
+func _follow_end() -> void:
+	if _held or not is_instance_valid(_text):
+		return
+	_rendering = true
+	_text.scroll_to_line(maxi(0, _text.get_line_count() - 1))
+	_rendering = false
+
+
+func _on_text_input(event: InputEvent) -> void:
+	var press := (event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT) or event is InputEventScreenTouch
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		_reader_scrolled.call_deferred()
+		return
+	if press:
+		if event.is_pressed():
+			_press = true
+			_dragging = false
+			_press_y = event.position.y
+			_press_scroll = _text.get_v_scroll_bar().value
+		else:
+			if _dragging:
+				_text.accept_event()
+			_press = false
+			_dragging = false
+		return
+	var moved := (event is InputEventMouseMotion or event is InputEventScreenDrag) and _press
+	if moved:
+		var dy: float = event.position.y - _press_y
+		if not _dragging and absf(dy) >= DRAG_START:
+			_dragging = true
+		if _dragging:
+			var bar := _text.get_v_scroll_bar()
+			bar.value = clampf(_press_scroll - dy, 0.0, maxf(0.0, bar.max_value - bar.page))
+			_reader_scrolled()
+			_text.accept_event()
+
+
 func _render() -> void:
-	_lines = PackedStringArray()
+	_history = PackedStringArray()
 	for entry in _all:
 		if tab == "all" or _shows(tab, String(entry.channel)):
-			_lines.append(String(entry.line))
-	if _lines.size() > LINES:
-		_lines = _lines.slice(_lines.size() - LINES)
-	_text.text = "\n".join(_lines)
-	_text.scroll_to_line(maxi(0, _text.get_line_count() - 1))
+			_history.append(String(entry.line))
+	if _history.size() > HISTORY:
+		_history = _history.slice(_history.size() - HISTORY)
+	_lines = _history.slice(maxi(0, _history.size() - LINES)) if _history.size() > LINES else _history.duplicate()
+	var keep := _text.get_v_scroll_bar().value
+	_rendering = true
+	_text.text = "\n".join(_history)
+	if _held:
+		# Reading back: stay on the same lines while new ones arrive below.
+		_text.get_v_scroll_bar().value = keep
+	else:
+		_text.scroll_to_line(maxi(0, _text.get_line_count() - 1))
+	_rendering = false
+	# The label lays its lines out later: follow the end again once it has.
+	_follow_end.call_deferred()
 
 
 func _show_tabs() -> void:

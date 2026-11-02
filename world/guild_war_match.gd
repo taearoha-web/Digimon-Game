@@ -92,6 +92,12 @@ var enemy_leader: GuildFighter
 ## Each guild's plan now (PLAN_NAMES keys; [ours, theirs]).
 var plans: Array[String] = ["", ""]
 var _plan_timer := 0.0
+## Each guild's war chief (GuildWarCommander, the same brain for both): how the plan is
+## fought (gather, push, escort, guard, defend, fall back), focus targets and callouts.
+var commanders: Array[GuildWarCommander] = []
+
+## Our commander's called target, marked for the player too: a red ring on the ground.
+var _focus_mark: MeshInstance3D
 
 ## Seed of the line-ups: the same seed brings the same two guilds back after a resume.
 var roll_seed := 0
@@ -119,6 +125,7 @@ var _result: Dictionary = {}
 func setup(p_zone: Node3D, p_hero: Hero) -> void:
 	zone = p_zone
 	hero = p_hero
+	commanders = [GuildWarCommander.new(self, GuildFighter.TEAM_ALLY), GuildWarCommander.new(self, GuildFighter.TEAM_ENEMY)]
 
 
 ## Rolls both guilds, raises the castle's gates and stands everybody in their camps. With a
@@ -148,6 +155,11 @@ func build(tree: SceneTree = null) -> void:
 	party_rng.seed = hash("gw_party|%d" % roll_seed)
 	party_plan = roll_parties(roster.ally.size(), roster.enemy.size(), party_picks, party_chosen, party_rng)
 	BurstGuard.clear()
+	# The rival guild's leader plays a tank's build of its own points (GuildWarData.tank_build).
+	var lead_at := GuildWarData.leader_index(roster.enemy, WorldPlayers.guild_leader(WorldPlayers.other_guild(Game.guild()), WorldPresence.clock()))
+	if lead_at >= 0:
+		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
+	var lead_fighter: GuildFighter = null
 	# Each guild stands in its camp party by party (the hero's party in the front row).
 	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
 		var lineup: Array = roster.ally if team == GuildFighter.TEAM_ALLY else roster.enemy
@@ -159,12 +171,14 @@ func build(tree: SceneTree = null) -> void:
 				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p
 				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size()), ally_name if team == GuildFighter.TEAM_ALLY else enemy_name, pid)
 				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
+				if team == GuildFighter.TEAM_ENEMY and int(i) == lead_at:
+					lead_fighter = fighter
 				slot += 1
 				await FrameSlicer.pace(tree)
-	enemy_leader = pick_leader(enemies, WorldPlayers.guild_leader(WorldPlayers.other_guild(Game.guild()), WorldPresence.clock()))
+	enemy_leader = lead_fighter if lead_fighter != null else pick_leader(enemies)
 	if enemy_leader != null:
 		enemy_leader.make_leader()
-	# The hero leads our guild: the same crown over its head.
+	# The hero leads our guild (with its own stats, like everyone): the same crown over its head.
 	if is_instance_valid(hero):
 		LeaderMark.attach(hero, LeaderMark.guild_color(GuildFighter.TEAM_ALLY))
 	_raise_castle(saved)
@@ -406,6 +420,61 @@ func _exit_tree() -> void:
 		current = null
 
 
+## The ring under our guild's focus target (hidden when there is none).
+func _mark_focus() -> void:
+	var target: Node3D = commanders[0].focus if commanders.size() > 0 else null
+	var show := target != null and is_instance_valid(target) and target.is_inside_tree() and not bool(target.call("is_dead")) and state == "fight"
+	if show and _focus_mark == null and zone != null:
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		mat.albedo_color = Color(1.0, 0.25, 0.2, 0.85)
+		_focus_mark = MeshKit.part(zone, MeshKit.torus(), MaterialKeeper.keep(mat), Vector3.ZERO, Vector3(2.4, 0.12, 2.4), Vector3.ZERO, "FocusMark")
+		_focus_mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if _focus_mark == null:
+		return
+	_focus_mark.visible = show
+	if show:
+		_focus_mark.global_position = target.global_position + Vector3(0, 0.08, 0)
+
+
+## A guild's leader: the hero for ours, the rival guild's chosen one for theirs.
+func leader_of(team: int) -> Node3D:
+	if team == GuildFighter.TEAM_ALLY:
+		return hero if is_instance_valid(hero) else null
+	return enemy_leader if enemy_leader != null and is_instance_valid(enemy_leader) else null
+
+
+func hero_alive() -> bool:
+	return is_instance_valid(hero) and not hero.is_dead()
+
+
+func hero_hp_ratio() -> float:
+	if not is_instance_valid(hero) or not ("stats" in hero) or hero.stats.is_empty():
+		return 1.0
+	return float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0)
+
+
+## A commander's callout: in the war chat, and over its leader's head (the rival guild's)
+## or one of our fighters' (ours, the hero being the player).
+func tactical_call(team: int, text: String) -> void:
+	if state != "fight":
+		return
+	var speaker := "สั่งการ" if team == GuildFighter.TEAM_ALLY else "หัวหน้า %s" % team_name(team)
+	feed.emit("[%s] %s" % [speaker, text], team)
+	var over: Node3D = null
+	if team == GuildFighter.TEAM_ENEMY:
+		over = enemy_leader if enemy_leader != null and is_instance_valid(enemy_leader) and not enemy_leader.is_dead() else null
+	else:
+		for f in allies:
+			if not f.is_dead():
+				over = f
+				break
+	if over != null and zone != null:
+		BattleVfx.floating_text(zone, over.global_position + Vector3(0, 3.6, 0), text, LeaderMark.guild_color(team).lerp(Color.WHITE, 0.35), 1.0)
+
+
 func _ready() -> void:
 	hero.died.connect(_on_hero_died)
 
@@ -431,6 +500,7 @@ func _process(delta: float) -> void:
 				AudioManager.play_sfx(&"quest_complete", -2.0)
 		"fight":
 			_tick_fight(delta)
+			_mark_focus()
 		"ending":
 			_end_timer -= delta
 			if _end_timer <= 0.0:
@@ -461,6 +531,8 @@ func _tick_fight(delta: float) -> void:
 		hero_respawn_left -= delta
 		if hero_respawn_left <= 0.0:
 			_respawn_hero()
+	for c in commanders:
+		c.tick(delta)
 	_plan_timer -= delta
 	if _plan_timer <= 0.0:
 		_plan_timer = PLAN_EVERY
@@ -513,6 +585,7 @@ func _on_fell(fighter: GuildFighter, killer: Node) -> void:
 		return
 	var scoring_team := 1 - fighter.team
 	score[scoring_team] += 1
+	_tell_commanders(fighter.team)
 	var by := "ไม่ทราบ"
 	if killer is GuildFighter:
 		by = (killer as GuildFighter).rival_name
@@ -529,6 +602,7 @@ func _on_hero_died() -> void:
 		return
 	hero_deaths += 1
 	score[1] += 1
+	_tell_commanders(GuildFighter.TEAM_ALLY)
 	var by := _hero_killer.rival_name if _hero_killer != null and is_instance_valid(_hero_killer) else "ศัตรู"
 	if _hero_killer != null and is_instance_valid(_hero_killer):
 		_hero_killer.kills += 1
@@ -537,6 +611,14 @@ func _on_hero_died() -> void:
 	hero_respawn_left = GuildWarData.RESPAWN
 	hero_down.emit(hero_respawn_left)
 	_after_score()
+
+
+## A fall of `team`: its commander remembers a loss, the other a kill (a lost fight
+## makes a guild fall back, GuildWarCommander.pick_tactic).
+func _tell_commanders(team: int) -> void:
+	if commanders.size() == 2:
+		commanders[team].on_loss()
+		commanders[1 - team].on_kill()
 
 
 func _after_score() -> void:
@@ -728,6 +810,8 @@ func _assign_objectives() -> void:
 				_:
 					f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.5)
 			k += 1
+		if commanders.size() > team:
+			commanders[team].apply()
 	if gate != null:
 		return
 	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
@@ -741,9 +825,12 @@ func _assign_objectives() -> void:
 		# theirs is sent up while it stands.
 		if team == GuildFighter.TEAM_ALLY:
 			continue
+		# It goes up inside its guard (its commander's escort), not alone; once on the
+		# altar it stays.
 		if enemy_leader != null and is_instance_valid(enemy_leader) and not enemy_leader.is_dead():
-			enemy_leader.capture_role = true
-			enemy_leader.hold_range = 0.0
+			if commanders.size() < 2 or commanders[team].allows_capture() or commanders[team].tactic == "" or SiegeArena.on_altar(enemy_leader.global_position):
+				enemy_leader.capture_role = true
+				enemy_leader.hold_range = 0.0
 
 
 ## The fighter or hero standing on the altar to take it (null when nobody is).
@@ -758,8 +845,11 @@ func capture_progress() -> float:
 	return 0.0 if capture.is_empty() else clampf(float(capture.progress) / CAPTURE_TIME, 0.0, 1.0)
 
 
-## The rival guild's leader: the fighter named `leader_name` (the guild's real leader),
-## else its strongest fighter that is not a healer or a singer.
+## The rival guild's leader among spawned fighters: the fighter named `leader_name` (the
+## guild's real leader), else the one that holds best (max HP x its defence's worth, a
+## defender, warrior or lancer first), never a healer or a singer while anyone else can.
+## build() picks it from the line-up instead (GuildWarData.leader_index) so it can play a
+## tank's build; this is the fallback.
 static func pick_leader(side: Array, leader_name := "") -> GuildFighter:
 	var best: GuildFighter = null
 	var best_score := -INF
@@ -769,7 +859,7 @@ static func pick_leader(side: Array, leader_name := "") -> GuildFighter:
 			continue
 		if leader_name != "" and String(fighter.member.get("name", "")) == leader_name:
 			return fighter
-		var score := float(fighter.rstats.get("atk", 0)) + float(fighter.rstats.get("max_hp", 0)) * 0.05 - (1.0e6 if fighter.is_healer() or fighter.sings() else 0.0)
+		var score := float(fighter.max_hp) * (1.0 + float(fighter.rstats.get("def", 0.0)) / 100.0) * (1.5 if fighter.fighter_class() in GuildWarData.TANK_CLASSES else 1.0) - (1.0e12 if fighter.is_healer() or fighter.sings() else 0.0)
 		if score > best_score:
 			best_score = score
 			best = fighter
@@ -968,7 +1058,8 @@ func sides_status() -> String:
 	var ours := _strength(GuildFighter.TEAM_ALLY)
 	var theirs := _strength(GuildFighter.TEAM_ENEMY)
 	var plan := String(PLAN_NAMES.get(plans[GuildFighter.TEAM_ALLY], ""))
-	return "ยืนอยู่ %d/%d : %d/%d%s" % [ours.x, ours.y, theirs.x, theirs.y, (" · แผนเรา: " + plan) if plan != "" else ""]
+	var tactic := String(GuildWarCommander.TACTIC_NAMES.get(commanders[0].tactic, "")) if commanders.size() > 0 else ""
+	return "ยืนอยู่ %d/%d : %d/%d%s%s" % [ours.x, ours.y, theirs.x, theirs.y, (" · แผนเรา: " + plan) if plan != "" else "", (" (%s)" % tactic) if tactic != "" else ""]
 
 
 # ---------------------------------------------------------------------------

@@ -77,6 +77,74 @@ static func make_fighter(class_id: StringName, grade: int, name: String, rng: Ra
 	}
 
 
+## A guild leader's build (หัวหน้ากิลด์): the same points a player of its level and stars
+## has, spent for staying power like a player who means to hold the altar would: of its
+## stat points TANK_MAIN to the main stat and the rest to vitality, its star points to
+## health and defence first (tank_star_alloc). No bonus on top, nothing it did not earn.
+## Returns a copy of `info` (make_fighter / WorldPlayers.fighter) with that sheet.
+const TANK_MAIN := 0.25
+const TANK_CLASSES: Array[StringName] = [&"defender", &"warrior", &"lancer"]
+
+
+static func tank_build(info: Dictionary) -> Dictionary:
+	var out := info.duplicate(true)
+	var profile: Dictionary = out.profile
+	var attrs: Dictionary = profile.get("attrs", {})
+	var total := 0
+	for key in attrs:
+		total += int(attrs[key])
+	var main := String(JobData.resolve(StringName(profile["class"]), int(profile.get("adv", 0))).main)
+	var built := {"str": 0, "int": 0, "dex": 0, "vit": 0}
+	built[main] = int(float(total) * TANK_MAIN)
+	built["vit"] = total - int(built[main]) if main != "vit" else total
+	profile["attrs"] = built
+	var para: Dictionary = profile.get("paragon", {})
+	if not para.is_empty():
+		para["alloc"] = tank_star_alloc(int(para.get("level", 0)))
+	out["power"] = power_of(HeroStats.compute(profile))
+	out["tank"] = true
+	return out
+
+
+## A tank's ★ points: health, then defence, then attack, critical and haste, each up to
+## its cap; the same total as Game.party_star_alloc.
+static func tank_star_alloc(stars: int) -> Dictionary:
+	var alloc := {}
+	var spend := stars
+	for key in ["hp", "def", "atk", "crit", "haste"]:
+		var put := mini(spend, int(Game.PARAGON_STATS[key][2]))
+		alloc[key] = put
+		spend -= put
+	return alloc
+
+
+## How much a fighter (info) can take: max HP times its defence's worth.
+static func staying_power(info: Dictionary) -> float:
+	var stats := HeroStats.compute(info.profile)
+	return float(stats.max_hp) * (1.0 + float(stats.def) / 100.0)
+
+
+## Which of a guild's line-up leads it: the one named `leader_name` (the guild's real
+## leader) when it is there, else the one that holds best once built as a tank (tank_build)
+## — a defender, warrior or lancer before anyone else, never a healer or a bard while
+## anyone else can.
+static func leader_index(lineup: Array, leader_name := "") -> int:
+	var best := -1
+	var best_score := -INF
+	for i in lineup.size():
+		var info: Dictionary = lineup[i]
+		if leader_name != "" and String(info.member.get("name", "")) == leader_name:
+			return i
+		var cls := StringName(info.member["class"])
+		var score := staying_power(tank_build(info)) * (1.5 if cls in TANK_CLASSES else 1.0)
+		if cls == &"priest" or cls == &"bard":
+			score -= 1.0e12
+		if score > best_score:
+			best_score = score
+			best = i
+	return best
+
+
 ## One number for "how strong": attack times staying power.
 static func power_of(stats: Dictionary) -> float:
 	return sqrt(float(stats.atk) * float(stats.max_hp) * (1.0 + float(stats.def) / 100.0))
