@@ -42,18 +42,18 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "SkyArrow", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "early"},
 	{"name": "Mintty", "class": &"mage", "guild": ALPHA, "gender": 1, "style": "early"},
 	{"name": "Rinrada", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "overseas"},
-	{"name": "ป้อมปราการ", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "afk"},
+	{"name": "ป้อมปราการ", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "regular"},
 	{"name": "เมจิกหมูกรอบ", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "overseas"},
 	{"name": "ข้าวเหนียวมะม่วง", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "overseas"},
 	{"name": "Zerox", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
 	{"name": "BlackLotus", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "hardcore"},
 	{"name": "TonkatsuX", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "daytime"},
 	{"name": "นักล่าตะวัน", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "regular"},
-	{"name": "Fiora", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "afk"},
+	{"name": "Fiora", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "hardcore"},
 	{"name": "Yoyo", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "student"},
 	{"name": "แม่หมอมิว", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
-	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "afk"},
-	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "afk"},
+	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "night_owl"},
+	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "student"},
 	{"name": "Raijin", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "casual"},
 	{"name": "Ryuu", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "student"},
 	{"name": "ขุนศึกหน้าหวาน", "class": &"warrior", "guild": ALPHA, "gender": 1, "style": "weekend"},
@@ -99,27 +99,28 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "MaxPower", "class": &"warrior", "guild": 0, "gender": 0, "style": "daytime"},
 	{"name": "Hikari", "class": &"priest", "guild": 0, "gender": 1, "style": "early"},
 	{"name": "หมูกระทะ", "class": &"mage", "guild": 0, "gender": 0, "style": "overseas"},
-	# Stall keepers and AFK players: they stay in the village the whole session.
+	# Stall keepers: they stay in the village the whole session and sell what they find.
 	{"name": "ร้านป้าแดง", "class": &"priest", "guild": 0, "gender": 1, "style": "afk"},
-	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "afk"},
-	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "afk"},
 	{"name": "Shop_Nana", "class": &"mage", "guild": 0, "gender": 1, "style": "afk"},
 	{"name": "ร้านเครื่องเงิน", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "afk"},
-	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "afk"},
 	{"name": "ตลาดนัดเวท", "class": &"summoner", "guild": 0, "gender": 1, "style": "afk"},
-	{"name": "นอนรอบอส", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "afk"},
 	{"name": "LuteSeller", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "afk"},
-	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "afk"},
 	{"name": "แม่ค้าออนไลน์", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "afk"},
-	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "afk"},
 	{"name": "PotionKing", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "afk"},
 	{"name": "ร้านลุงหมี", "class": &"defender", "guild": 0, "gender": 0, "style": "afk"},
 	{"name": "ร้านพิณเสียงใส", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "afk"},
 	{"name": "ScrollShop", "class": &"mage", "guild": 0, "gender": 0, "style": "afk"},
-	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "afk"},
 	{"name": "ร้านเกราะพี่โต", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "afk"},
-	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "afk"},
 	{"name": "ร้านยาแม่มด", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "afk"},
+	# Once stall keepers and AFK players, now out levelling with a play schedule like the rest.
+	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "regular"},
+	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "overseas"},
+	{"name": "นอนรอบอส", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
+	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "early"},
+	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "night_owl"},
+	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "casual"},
+	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "daytime"},
 	# Fresh players who play in the daytime, in the early morning or from abroad.
 	{"name": "Mango", "class": &"archer", "guild": 0, "gender": 1, "style": "daytime"},
 	{"name": "ข้าวผัดกะเพรา", "class": &"warrior", "guild": 0, "gender": 0, "style": "early"},
@@ -144,17 +145,20 @@ const ROSTER: Array[Dictionary] = [
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
 ## moves every start by up to ±jitter hours and stretches every length by 0.7-1.3; skip is
-## the chance a day is missed. eff: how much of the probe's EXP rate the style earns.
+## the chance a day is missed. eff: how much of the probe's EXP rate the style earns
+## (a player online is out hunting most of its session, so the hunting styles earn about
+## a third of the probe's rate, hardcore the most and casual the least; a stall keeper
+## sits in the village and earns little).
 const STYLES := {
-	"hardcore": {"weekday": [[12.0, 1.5], [18.5, 5.5]], "weekend": [[10.0, 4.5], [18.0, 6.0]], "jitter": 1.0, "skip": 0.03, "eff": 0.18, "label": "ขาโหด"},
-	"regular": {"weekday": [[20.0, 3.0]], "weekend": [[14.0, 2.0], [20.0, 3.5]], "jitter": 1.0, "skip": 0.08, "eff": 0.15, "label": "เล่นประจำ"},
-	"student": {"weekday": [[16.5, 1.5], [20.5, 2.0]], "weekend": [[10.0, 3.0], [19.0, 3.0]], "jitter": 0.8, "skip": 0.06, "eff": 0.15, "label": "นักเรียน"},
-	"night_owl": {"weekday": [[22.0, 4.0]], "weekend": [[21.0, 5.5]], "jitter": 1.2, "skip": 0.08, "eff": 0.16, "label": "สายนอนดึก"},
-	"weekend": {"weekday": [[21.0, 1.0]], "weekend": [[10.0, 4.0], [19.0, 4.0]], "jitter": 1.0, "skip": 0.35, "eff": 0.15, "label": "สายเสาร์อาทิตย์"},
-	"casual": {"weekday": [[20.0, 1.5]], "weekend": [[15.0, 2.5]], "jitter": 1.5, "skip": 0.25, "eff": 0.13, "label": "เล่นชิลล์"},
-	"daytime": {"weekday": [[9.0, 3.0], [13.0, 4.0]], "weekend": [[10.5, 3.0], [15.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.14, "label": "ว่างกลางวัน"},
-	"early": {"weekday": [[6.0, 2.5], [12.0, 1.0]], "weekend": [[6.5, 3.5], [15.5, 2.0]], "jitter": 0.7, "skip": 0.08, "eff": 0.14, "label": "สายตื่นเช้า"},
-	"overseas": {"weekday": [[1.5, 4.0], [7.5, 2.5]], "weekend": [[1.0, 5.0], [9.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.15, "label": "อยู่ต่างประเทศ"},
+	"hardcore": {"weekday": [[12.0, 1.5], [18.5, 5.5]], "weekend": [[10.0, 4.5], [18.0, 6.0]], "jitter": 1.0, "skip": 0.03, "eff": 0.40, "label": "ขาโหด"},
+	"regular": {"weekday": [[20.0, 3.0]], "weekend": [[14.0, 2.0], [20.0, 3.5]], "jitter": 1.0, "skip": 0.08, "eff": 0.33, "label": "เล่นประจำ"},
+	"student": {"weekday": [[16.5, 1.5], [20.5, 2.0]], "weekend": [[10.0, 3.0], [19.0, 3.0]], "jitter": 0.8, "skip": 0.06, "eff": 0.32, "label": "นักเรียน"},
+	"night_owl": {"weekday": [[22.0, 4.0]], "weekend": [[21.0, 5.5]], "jitter": 1.2, "skip": 0.08, "eff": 0.34, "label": "สายนอนดึก"},
+	"weekend": {"weekday": [[21.0, 1.0]], "weekend": [[10.0, 4.0], [19.0, 4.0]], "jitter": 1.0, "skip": 0.35, "eff": 0.33, "label": "สายเสาร์อาทิตย์"},
+	"casual": {"weekday": [[20.0, 1.5]], "weekend": [[15.0, 2.5]], "jitter": 1.5, "skip": 0.25, "eff": 0.27, "label": "เล่นชิลล์"},
+	"daytime": {"weekday": [[9.0, 3.0], [13.0, 4.0]], "weekend": [[10.5, 3.0], [15.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.30, "label": "ว่างกลางวัน"},
+	"early": {"weekday": [[6.0, 2.5], [12.0, 1.0]], "weekend": [[6.5, 3.5], [15.5, 2.0]], "jitter": 0.7, "skip": 0.08, "eff": 0.30, "label": "สายตื่นเช้า"},
+	"overseas": {"weekday": [[1.5, 4.0], [7.5, 2.5]], "weekend": [[1.0, 5.0], [9.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.32, "label": "อยู่ต่างประเทศ"},
 	# Stall keepers / AFK: online most of the day, always in the village (town), slow EXP.
 	# A short break between sessions (each at its own time), so the stalls are always kept.
 	"afk": {"weekday": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "weekend": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "jitter": 0.3, "stretch": [0.96, 1.04], "phase": 8.0, "skip": 0.02, "eff": 0.03, "label": "ตั้งร้าน/AFK", "town": true},
@@ -366,8 +370,8 @@ static func town_time(i: int, _s0: float, _s1: float, _t: float) -> bool:
 ## minutes of a session, at its own moment: to hand in a quest at the elder ("quest"),
 ## to enhance at the blacksmith ("enhance") or to learn skills at the skill master
 ## ("skill"; always when a skill of its class unlocked since the stretch began).
-const ERRAND_EVERY := 50.0
-const ERRAND_CHANCE := 0.45
+const ERRAND_EVERY := 70.0
+const ERRAND_CHANCE := 0.35
 const ERRAND_MIN := 2.5
 const ERRAND_MAX := 4.0
 const ERRAND_KINDS: Array[String] = ["quest", "enhance", "skill"]
@@ -857,7 +861,8 @@ static func sync_member(m: Dictionary, s: Dictionary) -> bool:
 
 ## The character sheet of a world player at its level and stars (for HeroStats): the
 ## gear it found and its job, plus every stat point spent like a player does (60% main
-## stat, 40% vitality), its star points and its skills ranked up as it levels.
+## stat, 40% vitality), its star points and the skill points it earned spent at the
+## Skill Master (skill_ranks). All of it follows what its own play reached.
 static func profile(m: Dictionary) -> Dictionary:
 	var level := int(m.level)
 	var stars := Game.party_stars(m)
@@ -869,16 +874,49 @@ static func profile(m: Dictionary) -> Dictionary:
 	attrs[main] = int(points * 0.6)
 	attrs["vit"] = int(attrs["vit"]) + int(points * 0.4)
 	p["attrs"] = attrs
-	var skills := {}
-	for skill in ClassData.pool(StringName(m["class"])):
-		if int(skill.level) <= level:
-			skills[String(skill.id)] = clampi(1 + (level - int(skill.level)) / 12, 1, SkillRank.MAX)
-	p["skills"] = skills
+	p["skills"] = skill_ranks(StringName(m["class"]), level, stars)
 	# Its mount (mount_of): the stats count like the hero's (HeroStats.mount_bonus).
 	var ride := mount_of(m)
 	p["mounts"] = {String(ride.id): int(ride.level)} if not ride.is_empty() else {}
 	p["mount"] = String(ride.get("id", ""))
 	return p
+
+
+## Skill points a player has earned by `level` and `stars`, the way the hero earns them
+## (Game): one to start and one each level, the job advancements' (JobData.TIER_SKILL_POINTS)
+## and two at each star tier (StarProgression.grant_milestones).
+static func skill_points(level: int, stars: int) -> int:
+	var points := level
+	for k in JobData.adv_for_level(level):
+		points += int(JobData.TIER_SKILL_POINTS[k])
+	if level >= Game.MAX_LEVEL:
+		for tier in StarProgression.TIERS:
+			points += 2 if stars >= int(tier) else 0
+	return points
+
+
+## The ranks a player of class `cls` has bought at the Skill Master by `level` and
+## `stars`: every skill it has unlocked starts at rank 1, and the points it earned
+## (skill_points) go one at a time to the lowest-ranked skill (the longest-known first),
+## like a player keeping its whole bar up, up to SkillRank.MAX; points it has no use
+## for yet wait for the next skill.
+static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
+	var unlocked: Array = []
+	for skill in ClassData.pool(cls):
+		if int(skill.level) <= level:
+			unlocked.append(skill)
+	unlocked.sort_custom(func(a, b): return int(a.level) < int(b.level))
+	var ranks := {}
+	for skill in unlocked:
+		ranks[String(skill.id)] = 1
+	var points := skill_points(level, stars)
+	for rank in range(1, SkillRank.MAX):
+		for skill in unlocked:
+			if points <= 0:
+				return ranks
+			ranks[String(skill.id)] = rank + 1
+			points -= 1
+	return ranks
 
 
 # --- Mounts (MountData) --------------------------------------------------------------

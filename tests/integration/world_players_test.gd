@@ -26,6 +26,7 @@ func _ready() -> void:
 	_vagabonds()
 	_gear()
 	_mount_data()
+	_skill_ranks()
 	await _field()
 	await _party()
 	await _errand_visit()
@@ -33,6 +34,41 @@ func _ready() -> void:
 	await _screens()
 	print("WORLD PLAYERS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
+
+
+## Skill ranks are bought with the skill points a player earned by its own play (one a
+## level, the job advancements', two a star tier), never more than it has, the
+## longest-known skills first; more play never takes a rank away.
+func _skill_ranks() -> void:
+	var spent_ok := true
+	var steady := true
+	for i in WorldPlayers.size():
+		var cls := StringName(WorldPlayers.entry(i)["class"])
+		var last := {}
+		for step in [[10, 0], [20, 0], [35, 0], [60, 0], [85, 0], [100, 0], [100, 60], [100, 200]]:
+			var ranks := WorldPlayers.skill_ranks(cls, int(step[0]), int(step[1]))
+			var spent := 0
+			for id in ranks:
+				spent += int(ranks[id]) - 1
+				steady = steady and int(ranks[id]) >= int(last.get(id, 1)) and int(ranks[id]) <= SkillRank.MAX
+			var unlocked := 0
+			for skill in ClassData.pool(cls):
+				unlocked += 1 if int(skill.level) <= int(step[0]) else 0
+			spent_ok = spent_ok and ranks.size() == unlocked and spent == mini(WorldPlayers.skill_points(int(step[0]), int(step[1])), unlocked * (SkillRank.MAX - 1))
+			last = ranks
+	check(spent_ok, "every unlocked skill is known, and the ranks bought are the skill points earned")
+	check(steady, "more play never takes a rank away")
+	check(WorldPlayers.skill_points(100, 200) == WorldPlayers.skill_points(100, 0) + 2 * StarProgression.TIERS.size() and WorldPlayers.skill_points(20, 0) > WorldPlayers.skill_points(19, 0) + 1, "points come with levels, job advancements and star tiers")
+	var early := WorldPlayers.skill_ranks(&"warrior", 12, 0)
+	var first := ""
+	var low := 999
+	for skill in ClassData.pool(&"warrior"):
+		if int(skill.level) <= 12 and int(skill.level) < low:
+			low = int(skill.level)
+			first = String(skill.id)
+	check(first != "" and int(early[first]) >= 2, "a new player ranks up its first skills with its first points (%s)" % [early])
+	var sheet := WorldPlayers.profile({"class": "warrior", "name": "Zerox", "level": 60, "stars": 0, "frac": 0.0})
+	check(sheet.skills == WorldPlayers.skill_ranks(&"warrior", 60, 0), "the character sheet carries the ranks it bought")
 
 
 func _roster() -> void:
@@ -98,8 +134,8 @@ func _progress() -> void:
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
 		var end := WorldPlayers.state(i, start + 200.0 * day)
 		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
-		var early := WorldPlayers.state(i, start + 0.5 * day)
-		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first twelve hours (%d)" % [e.name, int(early.level)])
+		var early := WorldPlayers.state(i, start + 0.25 * day)
+		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first six hours (%d)" % [e.name, int(early.level)])
 		# Hours a week: world_town_test checks every style, stall keepers and newcomers too.
 		var week := WorldPlayers.played_minutes(i, start + 28.0 * day) / 60.0 / 4.0
 		check(WorldPlayers.in_town_style(i) or e.has("join") or (week > 5.0 and week < 70.0), "%s: plays %.0f hours a week" % [e.name, week])
@@ -128,7 +164,7 @@ func _vagabonds() -> void:
 		if WorldPlayers.entry(i).has("vet"):
 			continue
 		var f := WorldPlayers.state(i, float(WorldPlayers.START_UNIX) + 60.0)
-		fresh = fresh and int(f.level) <= 3 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
+		fresh = fresh and int(f.level) <= 5 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
 	check(fresh, "when the world opens every new player is a beginner Vagabond with no guild")
 	for i in WorldPlayers.size():
 		var e := WorldPlayers.entry(i)
@@ -794,14 +830,14 @@ func _guild() -> void:
 	var start := float(WorldPlayers.START_UNIX)
 	var joins_at_100 := true
 	for i in WorldPlayers.size():
-		for at in [start + 0.4 * day, start + 2.0 * day, start + 6.0 * day, start + 30.0 * day]:
+		for at in [start + 0.25 * day, start + 2.0 * day, start + 6.0 * day, start + 30.0 * day]:
 			var s := WorldPlayers.state(i, at)
 			var want := int(WorldPlayers.entry(i).guild) if int(s.level) >= Game.GUILD_LEVEL else 0
 			joins_at_100 = joins_at_100 and int(s.guild) == want and int(s.joins) == int(WorldPlayers.entry(i).guild)
 	check(joins_at_100, "a world player is in its guild from Lv.100 on, in none before")
-	# Everyone starts at Lv.1, so on the first day nobody is in a guild and there is no war.
-	var opening := start + 0.4 * day
-	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "on the first day nobody is in a guild yet")
+	# Everyone starts at Lv.1, so in the first hours nobody is in a guild and there is no war.
+	var opening := start + 0.25 * day
+	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "in the first six hours nobody is in a guild yet")
 	var none_rng := RandomNumberGenerator.new()
 	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, opening).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) != "", "no rival members, no war")
 	# Early on the guilds are small: everyone at Lv.100 fights.
