@@ -2044,6 +2044,10 @@ func _balance_rules() -> void:
 					continue
 				if float(skill.mult) <= 0.0 or String(skill.shape) == "summon":
 					continue
+				# The 300-star god skill is the class's ultimate (60 s cooldown): an area
+				# finale that is meant to top every skill of its class, single-target too.
+				if StarSkillData.is_god(skill):
+					continue
 				if String(skill.shape) in ClassData.AREA_SHAPES:
 					area = maxf(area, float(skill.mult))
 				else:

@@ -5,10 +5,10 @@ var checks:=0
 func check(ok:bool,why:String)->void:
 	checks+=1
 	if not ok: failures+=1;printerr("FAIL ",why)
-func profile(cls:StringName)->void:
+func profile(cls:StringName,stars:=200)->void:
 	Game.new_profile(cls,"Lifecycle QA")
 	Game.profile.level=100;Game.profile.adv=4
-	Game.profile.paragon={"level":200,"points":200,"spent":0,"exp":0,"alloc":{}}
+	Game.profile.paragon={"level":stars,"points":stars,"spent":0,"exp":0,"alloc":{}}
 	Game.profile.look={"gender":0};Game.profile.equip={};Game.profile.party=[]
 	for slot in ItemData.EQUIP_SLOTS: Game.profile.equip[slot]=StarProgression.item(cls,100 if slot=="wings" else 200,slot,Game.rng)
 func _ready()->void:
@@ -47,7 +47,7 @@ func _ready()->void:
 		GameSettings.quality=cycle%3
 		for cls in ClassData.IDS:
 			for skill in StarSkillData.pool(cls):
-				profile(cls)
+				profile(cls,maxi(200,int(skill.star)))
 				var field:=Node3D.new();add_child(field)
 				var hero:=Hero.new();hero.field=field;field.add_child(hero);hero.set_physics_process(false)
 				var mob:=Mob.new();mob.setup(&"eclipse_warrior",100,Vector3(0,0,2),hero);field.add_child(mob);mob.set_physics_process(false);mob.position=Vector3(0,0,2);mob.hp=100000000;mob.max_hp=mob.hp
@@ -72,6 +72,6 @@ func _ready()->void:
 		final_count=objects
 		print("STAR CYCLE ",cycle," objects=",objects)
 	check(final_count<=baseline+8,"warm object count plateaus: %d -> %d"%[baseline,final_count])
-	print("STAR LIFECYCLE: 144 casts, %d checks, %d failures"%[checks,failures])
+	print("STAR LIFECYCLE: %d casts, %d checks, %d failures"%[6*ClassData.IDS.size()*StarSkillData.IDS[&"warrior"].size(),checks,failures])
 	Game.has_profile=false
 	get_tree().quit(failures)
