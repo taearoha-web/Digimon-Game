@@ -54,6 +54,13 @@ var respawn_left := 0.0
 ## Its party in the war (GuildWarMatch: our parties from HERO_PARTY, the rivals' from
 ## ENEMY_PARTY_BASE; -1 outside a war). Its buffs reach only its own party.
 var party := -1
+## Its guild commander's orders (GuildWarCommander.apply): its role in the formation, the
+## target the guild focuses, the back-liner its assassins dive (dive), and whom a tank
+## keeps the enemy off (guard_node: its leader).
+var role := -1
+var focus: Node3D
+var dive: Node3D
+var guard_node: Node3D
 
 var _last_attacker: Node
 var _helpers: Dictionary = {}
@@ -110,12 +117,21 @@ var is_leader := false
 
 func make_leader() -> void:
 	is_leader = true
+	# The target bar names it (it is tough by its own build: GuildWarData.tank_build).
+	template["name"] = "%s · ผู้นำกิลด์" % rival_name
 	if _label != null:
 		_label.text = "หัวหน้ากิลด์ " + String(member.name)
 		_label.modulate = LeaderMark.guild_color(team).lerp(Color.WHITE, 0.2)
 		# Seen from across the field, not only up close like the others' names.
 		_label.visibility_range_end = 0.0
 	LeaderMark.attach(self, LeaderMark.guild_color(team), (_label.position.y if _label != null else 2.6) + 0.9)
+
+
+## Its guild's commander (null outside a war).
+func commander() -> GuildWarCommander:
+	if siege == null or not is_instance_valid(siege) or siege.commanders.size() <= team:
+		return null
+	return siege.commanders[team]
 
 
 ## Its character model (null before the visual is built): the war's level of detail.
@@ -254,6 +270,9 @@ func _nearest_victim() -> Node3D:
 	# At the gate it keeps battering: only an enemy close by draws it away.
 	var at_gate := objective != null and is_instance_valid(objective) and objective.breakable and _flat_distance(objective.global_position) < 11.0
 	var my_section := SiegeArena.section(global_position)
+	var called := focus if _alive(focus) else null
+	var diving := dive if _alive(dive) else null
+	var guarding := guard_node if _alive(guard_node) else null
 	for t in _targets():
 		var d := _flat_distance(t.global_position)
 		if d > 48.0:
@@ -261,17 +280,31 @@ func _nearest_victim() -> Node3D:
 		# The one sent to the altar only fights what is right in its way.
 		if capture_role and d > 6.0 and t != taker:
 			continue
+		# The assassin goes round to its mark (the guild's healer, bard or a leader left
+		# alone) wherever its post is.
+		if t == diving and d < GuildWarCommander.DIVE_RANGE and not _in_own_camp(t):
+			var dive_score := 40.0 - d * 0.3
+			if dive_score > best_score:
+				best_score = dive_score
+				best = t
+			continue
 		# Nobody is chased into the safety of its own camp.
 		if t != taker and _in_own_camp(t):
 			continue
 		if at_gate and not (t is CastleGate) and t != taker and d > 7.0:
 			continue
-		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range:
+		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + 6.0):
 			continue
 		# Inside the castle it presses on: it does not go back out for someone far behind.
 		if t != taker and SiegeArena.section(t.global_position) < my_section and d > 9.0:
 			continue
 		var score := -d
+		# The guild's called target: everyone leans on it, ranged and assassins the most.
+		if t == called:
+			score += 12.0 if role == GuildWarCommander.ROLE_RANGED or role == GuildWarCommander.ROLE_ASSASSIN else 8.0
+		# A tank peels whoever is on its leader.
+		if guarding != null and role == GuildWarCommander.ROLE_TANK and not (t is CastleGate) and _flat_distance_from(t.global_position, guarding.global_position) < 7.0:
+			score += 9.0
 		if t is CastleGate:
 			# The gate waits: anyone of the other guild close by comes first.
 			score -= 10.0
@@ -450,7 +483,9 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if capturing:
 		_tick(delta)
 		return Vector3.ZERO
-	if capture_role and not _frozen and _flat_distance(target.global_position) > 4.0:
+	# The one sent to the altar fights only what blocks its way; close to the altar (its
+	# escort round it) it steps on and holds, whoever swings at it.
+	if capture_role and not _frozen and (_flat_distance(target.global_position) > 4.0 or (_flat_distance(SiegeArena.ALTAR) < 14.0 and not SiegeArena.on_altar(global_position))):
 		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
 	var dodge_step := _dodge_area(delta)
 	if dodge_step != Vector3.ZERO:
@@ -462,6 +497,10 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 		_retreating = false
 	if _retreating and not _frozen:
 		return _fall_back(delta)
+	# A hurt leader steps back behind its tanks (its post, GuildWarCommander.apply) and
+	# fights only what reaches it there.
+	if is_leader and not capture_role and not _frozen and ratio < 0.45 and _flat_distance(goal_point) > 3.0 and _flat_distance(target.global_position) > 3.5:
+		return _run_to(SiegeArena.route(global_position, goal_point), delta)
 	# Across the moat or behind a gate: the way round, unless already in reach.
 	var way := SiegeArena.route(global_position, target.global_position)
 	if not _frozen and _flat_distance_from(way, target.global_position) > 0.5:
@@ -569,7 +608,16 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 		return maxf(heal, _upkeep_score(skill, distance)) if is_buff else heal
 	if is_buff:
 		return _upkeep_score(skill, distance)
-	return super._score(skill, shape, distance, own_ratio)
+	var score := super._score(skill, shape, distance, own_ratio)
+	if score > 0.0 and _victim != null:
+		# Stuns take turns: one already holds the target (or the guild just stunned it),
+		# so this one waits for the next opening.
+		if fx.has("stun") and _victim is GuildFighter and ((_victim as GuildFighter)._stun > 0.2 or (commander() != null and commander().cc_fresh(_victim))):
+			score *= 0.25
+		# Everyone bursts the called target together.
+		if _victim == focus and shape != "summon":
+			score += 2.5
+	return score
 
 
 ## The lowest HP share among the fighter and its teammates within heal reach.
@@ -776,6 +824,15 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	var was_alive := _alive(victim)
 	dbg.hits_out += 1
 	super._hit(victim, mult, color, fx)
+	# A stunning skill stuns another player too (Mob.apply_stun: shorter on a player),
+	# one stun at a time; the guild remembers it (staggered stuns).
+	if fx.has("stun") and victim is GuildFighter and _alive(victim):
+		var foe := victim as GuildFighter
+		if foe._stun <= 0.0 and not foe.under_guard():
+			foe.apply_stun(float(fx.stun))
+			var chief := commander()
+			if chief != null:
+				chief.note_cc(foe, float(fx.stun) * 0.4)
 	if was_alive and victim == hero and not _alive(victim):
 		slew_hero.emit(self)
 

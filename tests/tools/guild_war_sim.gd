@@ -4,12 +4,20 @@ extends Node
 ## the war ends and the result is paid out.
 ##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale] [damage scale] [mode]
 ## mode: "open" starts with the gates down; "guild" fights Alpha against Neverdie with every
-## member (run with TOON_WORLD_DAYS=20 so the guilds are full); "guild_open" both.
+## member (run with TOON_WORLD_DAYS=20 so the guilds are full); "guild_open" both; with
+## "lead" the hero plays its guild's leader (its auto fight follows the front gate, then
+## goes for the altar and takes it), otherwise it fights round our camp.
 var _kills: Array[String] = []
 var _hit_max := 0.0
 var _finished := false
 var _tick := 0
 var _census0: Dictionary = {}
+## The siege as it went (for the SUMMARY line): when each gate fell, each capture, plan switches.
+var _gate_times: Array[int] = []
+var _captures: Array[String] = []
+var _plan_switches := [0, 0]
+var _m: GuildWarMatch
+var _hero: Hero
 
 
 func _census(root: Node) -> Dictionary:
@@ -20,6 +28,27 @@ func _census(root: Node) -> Dictionary:
 			key += ":" + String(node.get_script().get_global_name())
 		out[key] = int(out.get(key, 0)) + 1
 	return out
+
+
+## "lead": the hero's auto fight is centred on the way to the front gate, then the altar;
+## on the altar it takes the castle (the same rule before and after any AI change).
+func _steer() -> void:
+	if _m == null or _m.state != "fight" or _hero.is_dead():
+		return
+	var gate := _m.front_gate()
+	var goal := SiegeArena.ALTAR
+	var radius := 3.0
+	if gate != null:
+		goal = SiegeArena.gate_front(gate.gate_index) + Vector3(-3.0, 0, 2.0)
+		radius = 10.0
+	elif _m.castle_owner == GuildFighter.TEAM_ALLY:
+		goal = SiegeArena.ALTAR + Vector3(0, 0, 5.0)
+		radius = 8.0
+	var way := SiegeArena.route(_hero.global_position, goal)
+	_hero._auto_center = Vector3(way.x, 0.0, way.z)
+	_hero._auto_radius = radius if way.distance_to(goal) < 0.5 else 2.0
+	if _m.hero_can_capture():
+		_m.start_hero_capture()
 
 
 func _ready() -> void:
@@ -58,11 +87,23 @@ func _ready() -> void:
 		for g in m.gates:
 			g.set_broken_quietly()
 		m._update_breakable()
-	m.feed.connect(func(text: String, team: int): _kills.append("%3d %s" % [int(seconds - m.time_left), text]))
+	m.feed.connect(func(text: String, team: int):
+		var at := int(seconds - m.time_left)
+		_kills.append("%3d %s" % [at, text])
+		if text.contains("พังแล้ว") or text.contains("ประตูชั้นสุดท้ายพัง"):
+			_gate_times.append(at)
+		elif text.contains("ยึดปราสาทได้!"):
+			_captures.append("%s@%d" % ["A" if team == 0 else "E", at])
+		elif text.contains("วางแผน") and team >= 0:
+			_plan_switches[team] += 1)
 	m.finished.connect(func(r: Dictionary):
 		_finished = true
 		print("RESULT won=%s score %d:%d kills=%d deaths=%d gold=%d exp=%d" % [r.won, r.score_us, r.score_them, r.kills, r.deaths, r.gold, r.exp]))
 	var hero := zone.hero
+	if mode.contains("lead"):
+		_m = m
+		_hero = hero
+		get_tree().process_frame.connect(_steer)
 	var fighters := m.all_fighters().size()
 	var expected: int = 2 * GuildWarData.TEAM_SIZE - 1 if not bool(m.roster.get("guilds", false)) else m.roster.ally.size() + m.roster.enemy.size()
 	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, expected, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
@@ -88,6 +129,8 @@ func _ready() -> void:
 		if _tick % 10 == 0:
 			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " objects ", int(Performance.get_monitor(Performance.OBJECT_COUNT)), " resources ", int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)), " orphans ", int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size(), " static_mb ", snappedf(OS.get_static_memory_usage() / 1048576.0, 0.1), " tweens ", get_tree().get_processed_tweens().size())
 			print("  t+%ds state=%s left=%d score=%s hero_hp=%d · %s" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp), m.siege_status()])
+			if "commanders" in m:
+				print("  TACTICS ours=%s theirs=%s plans=%s" % [m.commanders[0].tactic, m.commanders[1].tactic, m.plans])
 	Engine.time_scale = 1.0
 	var now := _census(zone)
 	var grow: Array = []
@@ -107,8 +150,14 @@ func _ready() -> void:
 	sk.sort_custom(func(a, b): return sig[a] > sig[b])
 	for k in sk.slice(0, 8):
 		print("  PARTICLES %5d  %s" % [sig[k], k])
-	for line in _kills.slice(0, 40):
-		print("  ", line)
+	for line in _kills:
+		print("  F ", line)
+	var r: Dictionary = m._result
+	var tactics := ""
+	if "commanders" in m:
+		for c in m.commanders:
+			tactics += " calls%d=%d" % [c.team, c.calls]
+	print("SUMMARY won=%s owner=%d score=%d:%d gates_down_at=%s captures=%s plan_switches=%s overtime=%s hero_deaths=%d%s" % [r.get("won", false), m.castle_owner, m.score[0], m.score[1], _gate_times, _captures, _plan_switches, m.overtime, m.hero_deaths, tactics])
 	print("score ", m.score, " hero kills ", m.hero_kills, " deaths ", m.hero_deaths, " overtime ", m.overtime, " finished ", _finished)
 	for f in m.all_fighters():
 		print("  %s %-14s K%d D%d A%d hp=%3d%% pos=(%.0f,%.0f) frozen=%s retreat=%s" % ["A" if f.team == 0 else "E", f.rival_name, f.kills, f.deaths, f.assists, int(f.hp_ratio() * 100.0), f.global_position.x, f.global_position.z, f._frozen, f._retreating])

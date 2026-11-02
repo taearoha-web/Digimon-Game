@@ -282,6 +282,10 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	gates[0].take_hit(100, false)
 	check(hp0 - gates[0].hp == int(ceil(100.0 * GuildWarData.damage_scale)), "%s: the war scale applies to the gate" % label)
 	m.plans.assign(["rush", "rush"])
+	# Both commanders pushing the gate (gathering at the rally point first is checked in
+	# guild_war_tactics_test).
+	for c in m.commanders:
+		c.tactic = GuildWarCommander.PUSH
 	m._assign_objectives()
 	var f0: GuildFighter = m.enemies[3]
 	check(f0.objective == gates[0] and f0._targets().has(gates[0]), "%s: the fighters go for the front gate" % label)
