@@ -242,6 +242,9 @@ static func ensure() -> void:
 	ZONES.merge(StarProgression.zones())
 	ZONES[&"eclipse_realm"]["next"] = DivineRegionData.ID
 	ZONES[DivineRegionData.ID] = DivineRegionData.zone()
+	# The 200★-300★ levelling field lies beyond the sanctuary.
+	ZONES[DivineRegionData.ID]["next"] = DrownedAbyssData.ID
+	ZONES[DrownedAbyssData.ID] = DrownedAbyssData.zone()
 
 static func get_zone(id: StringName) -> Dictionary:
 	ensure()

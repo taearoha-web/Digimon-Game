@@ -69,6 +69,7 @@ static func _kind_of_base(base: String) -> String:
 
 ## Look id of an item (icon file name).
 static func look_of(item: Dictionary) -> String:
+	if SetGearData.is_item(item): return SetGearData.look_of(item)
 	if StarGearData.is_star(item): return StarGearData.look_of(item)
 	if item.get("kind", "") != "equip":
 		return ""
@@ -95,6 +96,9 @@ static func weapon_look(item: Variant, default_kind: StringName) -> String:
 
 
 static func armor_look(item: Dictionary) -> Dictionary:
+	if SetGearData.is_item(item):
+		var set_cls := SetGearData.item_class(item)
+		return {"style": String(StarGearData.OUTFITS.get(set_cls, "knight")), "tint": SetGearArt.cloth(set_cls), "cape": null}
 	if StarGearData.is_star(item):
 		var cls := StarGearData.item_class(item)
 		var style: String = StarGearData.OUTFITS.get(cls,"knight")
@@ -151,12 +155,15 @@ static func all_icon_ids() -> Array[String]:
 		ids.append("gem_" + gem_id)
 	for cls in ItemData.WING_INFO:
 		ids.append("wings_" + cls)
+	for piece in SetGearData.catalogue():
+		ids.append(SetGearData.look_of(piece))
 	return ids
 
 
 ## The Node3D rendered for an icon, oriented so it reads well from the front.
 static func build_icon_node(id: String) -> Node3D:
 	if id.begins_with("star_"): return StarGearArt.build_icon_node(id)
+	if id.begins_with("set_"): return SetGearArt.build_icon_node(id)
 	var kind := id.rsplit("_", true, 1)[0]
 	var holder := Node3D.new()
 	if kind in WeaponKit.KINDS:

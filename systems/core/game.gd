@@ -62,7 +62,10 @@ var stall_saves := 0
 const BASE_BAG := 40
 const MAX_BAG := 100
 const BAG_STEP := 10
-const STORAGE_SIZE := 80
+## The storage every hero shares (SharedStorage): room for deposits.
+const STORAGE_SIZE := SharedStorage.SIZE
+## The old per-hero storage (profile.storage) older saves still carry.
+const LEGACY_STORAGE_SIZE := SharedStorage.LEGACY_SIZE
 const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 100
 const MAX_SKILL_RANK := 5
@@ -96,6 +99,12 @@ func _ready() -> void:
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
+	# The heroes' old storages join the shared one (once; SharedStorage).
+	SharedStorage.read_file()
+	if not FileAccess.file_exists(SharedStorage.PATH):
+		SharedStorage.store()
+	if SharedStorage.migrate_slots() > 0:
+		_queue_cloud_save()
 	SaveBackup.maybe_daily()
 	world_chat.connect(_on_world_chat)
 	channel_chat.connect(func(_channel: String, speaker: String, text: String, color: Color): _on_world_chat(speaker, text, color))
@@ -275,9 +284,14 @@ func _convert_weapon(item: Dictionary, new_class: StringName, rng: RandomNumberG
 	item["name"] = ("%s ของมือใหม่" % ItemData.NAMES[fresh.base][0]) if starter else fresh.name
 
 
-## How many advancement steps (Lv.20/40/60/80) the hero has taken (0-4).
+## How many advancement steps (Lv.20/40/60/80, then the God step at ★300) the hero has taken (0-5).
 func adv() -> int:
 	return clampi(int(profile.get("adv", 0)), 0, JobData.MAX_ADV)
+
+
+## True once the hero took the God promotion ("เทพเจ้าแห่ง<อาชีพ>", Lv.100 ★300).
+func is_god() -> bool:
+	return has_profile and JobData.is_god(adv())
 
 
 ## The next advancement step ({} when none is left or the hero is still a Vagabond).
@@ -295,11 +309,29 @@ func next_step_cost() -> int:
 	return int(JobData.TIER_COSTS[adv()]) if adv() < JobData.MAX_ADV else 0
 
 
-## Job Master: the next advancement needs its level and fee. Returns false if refused.
-func advance() -> bool:
+## Stars the next advancement needs (★300 for the God step, otherwise 0).
+func next_step_stars() -> int:
+	return JobData.step_stars(adv()) if adv() < JobData.MAX_ADV else 0
+
+
+## Why the next advancement cannot be taken yet ("" when it can): its level, its
+## stars (the God step) and its fee, in that order.
+func advance_problem() -> String:
 	if next_step().is_empty():
-		return false
-	if int(profile["level"]) < next_step_level() or int(profile["gold"]) < next_step_cost():
+		return "ไม่มีขั้นต่อไปแล้ว"
+	if int(profile["level"]) < next_step_level():
+		return "ต้องเลเวล %d" % next_step_level()
+	if int(paragon().level) < next_step_stars():
+		return "ต้องดาว %d (ตอนนี้ดาว %d)" % [next_step_stars(), int(paragon().level)]
+	if int(profile["gold"]) < next_step_cost():
+		return "เหรียญไม่พอ ต้องใช้ %d เหรียญ" % next_step_cost()
+	return ""
+
+
+## Job Master: the next advancement needs its level, its stars (the God step) and
+## its fee. Returns false if refused.
+func advance() -> bool:
+	if advance_problem() != "":
 		return false
 	profile["gold"] -= next_step_cost()
 	profile["skill_points"] += int(JobData.TIER_SKILL_POINTS[adv()])
@@ -313,6 +345,10 @@ func advance() -> bool:
 	party_changed.emit()
 	mark_dirty()
 	check_achievements()
+	# The God promotion puts on its title "เทพเจ้าแห่ง<อาชีพ>" over the hero's name at once.
+	if is_god():
+		_check_achievements()
+		set_title(Achievements.index_of(Achievements.GOD_ID))
 	return true
 
 
@@ -372,6 +408,8 @@ func import_code(code: String, target_slot := -1) -> bool:
 		return false
 	candidate["resume"] = playing
 	candidate["saved_at"] = int(Time.get_unix_time_from_system())
+	# A code from before the shared storage brings its old storage into the shared one.
+	SharedStorage.absorb_profile(candidate)
 	if not _write_profile(candidate, destination):
 		return false
 	profile = candidate
@@ -593,6 +631,10 @@ func _write_profile(snapshot: Dictionary, destination: int) -> bool:
 ## Loads a slot (default: the current one) and makes it the active one.
 func load_game(from_slot := -1) -> bool:
 	var target := slot if from_slot < 1 else from_slot
+	# A slot restored from a backup or written by an older game may still hold an
+	# old storage: it joins the shared one first (SharedStorage.migrate_slots).
+	if SharedStorage.migrate_slots() > 0:
+		_queue_cloud_save()
 	var raw := _read_slot(target)
 	if raw.is_empty():
 		return false
@@ -635,7 +677,10 @@ func build_cloud_bundle() -> Dictionary:
 		var saved := _read_slot(i)
 		if not saved.is_empty():
 			slots[String.num_int64(i)] = saved
-	return {"slots": slots, "selectedSlot": clampi(slot, 1, SLOT_COUNT)}
+	var bundle := {"slots": slots, "selectedSlot": clampi(slot, 1, SLOT_COUNT)}
+	# The storage every hero shares is part of the save set (SharedStorage).
+	bundle.merge(SharedStorage.bundle_fields())
+	return bundle
 
 
 ## JSON-encode the already serialized bundle as one JavaScript string value.
@@ -683,7 +728,7 @@ func cloud_bundle_json() -> String:
 			_slot_json[i] = kept
 		if String(kept.text) != "":
 			parts.append("\"%d\":%s" % [i, String(kept.text)])
-	return "{\"slots\":{%s},\"selectedSlot\":%d}" % [",".join(parts), clampi(slot, 1, SLOT_COUNT)]
+	return "{\"slots\":{%s},\"selectedSlot\":%d%s}" % [",".join(parts), clampi(slot, 1, SLOT_COUNT), SharedStorage.bundle_fields_json()]
 
 
 func open_cloud_account() -> void:
@@ -842,6 +887,9 @@ func _valid_profile(data: Dictionary) -> bool:
 			return false
 	if not _valid_number(data.get("play_time", 0.0)) or not _valid_integer(data.get("adv", 0), 0, JobData.MAX_ADV):
 		return false
+	# The God step exists only at Lv.100 with ★300.
+	if int(data.get("adv", 0)) >= JobData.GOD_ADV and (int(data.get("level", 1)) < MAX_LEVEL or not data.get("paragon", {}) is Dictionary or not _valid_integer(data.get("paragon", {}).get("level", 0), JobData.GOD_STARS, PARAGON_MAX)):
+		return false
 	if not _valid_integer(data.get("bag_slots", BASE_BAG), BASE_BAG, MAX_BAG):
 		return false
 	for key in ["name", "zone", "job", "spawn_override"]:
@@ -906,7 +954,7 @@ func _valid_profile(data: Dictionary) -> bool:
 				if not _valid_integer(r.get(key, 0)):
 					return false
 	for key in ["inv", "storage"]:
-		if data.get(key, []).size() > (MAX_BAG if key == "inv" else STORAGE_SIZE):
+		if data.get(key, []).size() > (MAX_BAG if key == "inv" else LEGACY_STORAGE_SIZE):
 			return false
 		for item in data.get(key, []):
 			if not _valid_item(item):
@@ -1005,6 +1053,9 @@ func _valid_item(value: Variant) -> bool:
 		if not DivineGearData.is_item(item) or not DivineGearData.SLOTS.has(item.slot): return false
 		if item.get("star_tier") != 200 or item.get("level") != 300 or item.get("class") != item.get("star_class"): return false
 		if item.get("set") != DivineGearData.set_id(String(item.get("class", ""))): return false
+	# A 250-star set piece (SetGearData): its class, slot, base and Lv.350 must agree.
+	if item.has("set_gear") and (item.has("star_tier") or item.has("collection") or not SetGearData.valid(item)):
+		return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
 	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
@@ -1110,6 +1161,9 @@ func _repair(data: Dictionary) -> Dictionary:
 		if int(para.level) == PARAGON_MAX:
 			para["exp"] = 0
 		data["exp"] = 0
+	# The God step needs Lv.100 and ★300: anything less falls back to the legend step.
+	if int(data["adv"]) >= JobData.GOD_ADV and (int(data.level) < MAX_LEVEL or int(data.paragon.get("level", 0)) < JobData.GOD_STARS):
+		data["adv"] = JobData.LEGEND_ADV
 	# Milestone skill points used to be claimed in the retired Star Path menu.
 	StarProgression.grant_milestones(data)
 	# The hired AI companion retired: the party is made of world players now (party_invite).
@@ -1188,9 +1242,11 @@ func _repair_item(item: Dictionary) -> void:
 		item["gems"] = item.get("gems", [])
 	else:
 		item["count"] = int(item.get("count", 1))
-	# Older saves may hold gear above the star cap.
-	if item.has("level") and int(item.level) > ItemData.MAX_GEAR_LEVEL:
-		item["level"] = ItemData.MAX_GEAR_LEVEL
+	# Older saves may hold gear above the star cap (the 250-star set pieces are
+	# Lv.350 by design: SetGearData.LEVEL).
+	var level_cap := maxi(ItemData.MAX_GEAR_LEVEL, SetGearData.LEVEL) if SetGearData.is_item(item) else ItemData.MAX_GEAR_LEVEL
+	if item.has("level") and int(item.level) > level_cap:
+		item["level"] = level_cap
 	for key in ["count", "rarity", "level", "price", "plus", "sockets"]:
 		if item.has(key):
 			item[key] = int(item[key])
@@ -1423,17 +1479,17 @@ func party_profile(member: Dictionary) -> Dictionary:
 		"paragon": {"level": stars, "alloc": party_star_alloc(stars)}}
 
 
-## A companion's ★ (0-200).
+## A companion's ★ (0-300).
 func party_stars(member: Dictionary) -> int:
 	return clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
 
 
 ## The ★ points a companion spends by itself: half into attack, then health,
-## defence and critical, up to each stat's cap.
+## defence, critical and skill haste, up to each stat's cap (all 300 by ★300).
 func party_star_alloc(stars: int) -> Dictionary:
 	var alloc := {}
 	var spend := stars
-	for key in ["atk", "hp", "def", "crit"]:
+	for key in ["atk", "hp", "def", "crit", "haste"]:
 		var put := mini(spend / 2 if key == "atk" else spend, int(PARAGON_STATS[key][2]))
 		alloc[key] = put
 		spend -= put
@@ -1576,18 +1632,21 @@ func tower_buy(kind: String) -> String:
 
 
 # ---------------------------------------------------------------------------
-# Paragon: after Lv.100 EXP keeps levelling the hero up to ★200. Each ★ gives a
-# point to spend on permanent bonuses (see PARAGON_STATS).
+# Paragon: after Lv.100 EXP keeps levelling the hero up to ★300. Each ★ gives a
+# point to spend on permanent bonuses (see PARAGON_STATS). ★300 also opens the
+# God promotion (JobData.GOD_STARS).
 # ---------------------------------------------------------------------------
 
-const PARAGON_MAX := 200
-## key: [name, bonus per point, max points, what it does]
+const PARAGON_MAX := 300
+## key: [name, bonus per point, max points, what it does]. The caps add up to
+## PARAGON_MAX, so every point up to ★300 has somewhere to go (crit and haste
+## grew from 50 / 40 when the cap rose from ★200; atk/def/hp stay at 60).
 const PARAGON_STATS := {
 	"atk": ["พลังโจมตี", 0.003, 60, "พลังโจมตี +0.3%% ต่อแต้ม"],
 	"def": ["พลังป้องกัน", 0.005, 60, "พลังป้องกัน +0.5%% ต่อแต้ม"],
 	"hp": ["พลังชีวิต", 0.008, 60, "HP สูงสุด +0.8%% ต่อแต้ม"],
-	"crit": ["คริติคอล", 0.001, 50, "คริติคอล +0.1%% ต่อแต้ม"],
-	"haste": ["ความเร็วสกิล", 0.001, 40, "ความเร็วสกิล +0.1%% ต่อแต้ม"],
+	"crit": ["คริติคอล", 0.001, 60, "คริติคอล +0.1%% ต่อแต้ม"],
+	"haste": ["ความเร็วสกิล", 0.001, 60, "ความเร็วสกิล +0.1%% ต่อแต้ม"],
 }
 
 
@@ -1847,9 +1906,11 @@ func mount_step_problem(id: String) -> String:
 
 
 ## Crafts a mount (Lv.0 -> 1) or levels it up (to MAX_LEVEL) with its material and
-## chaos jewels (MountData.cost); every step succeeds. The first mount crafted
-## becomes the active one. Returns "" when done, otherwise why not (Thai).
-func craft_mount(id: String) -> String:
+## chaos jewels (MountData.cost). The step succeeds with MountData.chance: a failed
+## try uses up the materials and chaos jewels and keeps the level (like enhance_item).
+## The first mount crafted becomes the active one. `roll` (0-1) replaces the random
+## roll (tests); below 0 rolls Game.rng. Returns "ok", "fail" or why not (Thai).
+func craft_mount(id: String, roll := -1.0) -> String:
 	var problem := mount_step_problem(id)
 	if problem != "":
 		return problem
@@ -1857,6 +1918,13 @@ func craft_mount(id: String) -> String:
 	var cost := MountData.cost(id, next)
 	_spend_jewels(MountData.mat_of(id), int(cost.mat))
 	_spend_jewels("chaos", int(cost.chaos))
+	if roll < 0.0:
+		roll = rng.randf()
+	if roll >= MountData.chance(id):
+		mark_dirty()
+		inventory_changed.emit()
+		profile_changed.emit()
+		return "fail"
 	var levels: Dictionary = profile.get("mounts", {}) if profile.get("mounts") is Dictionary else {}
 	levels[id] = next
 	profile["mounts"] = levels
@@ -1866,7 +1934,7 @@ func craft_mount(id: String) -> String:
 	inventory_changed.emit()
 	mount_changed.emit()
 	profile_changed.emit()
-	return ""
+	return "ok"
 
 
 ## Picks the owned mount the HUD button rides (and whose stats count).
@@ -1908,10 +1976,29 @@ func expand_bag() -> bool:
 
 # --- storage (the warehouse in the village) ----------------------------------
 
+## The storage every hero of this save set shares (SharedStorage, its own file).
 func storage() -> Array:
-	if not profile.get("storage") is Array:
-		profile["storage"] = []
-	return profile["storage"]
+	return SharedStorage.items()
+
+
+## Why this hero cannot take [param item] out of the shared storage ("" when it can):
+## gear locked to another class stays for a hero of that class.
+func storage_lock(item: Dictionary) -> String:
+	return SharedStorage.lock_reason(item, String(class_id()))
+
+
+## A storage change is written at once with the hero's slot. The order keeps a crash
+## between the two files from losing the item (it can only be in both): a deposit
+## writes the storage first, a withdrawal the hero first.
+func _commit_storage(storage_first: bool) -> void:
+	mark_dirty()
+	if storage_first:
+		SharedStorage.store()
+	if has_profile:
+		save()
+	if not storage_first:
+		SharedStorage.store()
+		_queue_cloud_save()
 
 
 func _stack_into(list: Array, item: Dictionary) -> bool:
@@ -1923,37 +2010,39 @@ func _stack_into(list: Array, item: Dictionary) -> bool:
 	return false
 
 
-## Moves a whole bag entry into the storage. Returns false when storage is full.
+## Moves a whole bag entry into the shared storage (any hero, any item). Returns false
+## when the storage is full.
 func deposit_item(index: int) -> bool:
 	if index < 0 or index >= profile["inv"].size():
 		return false
 	var item: Dictionary = profile["inv"][index]
-	var list := storage()
-	if not _stack_into(list, item):
-		if list.size() >= STORAGE_SIZE:
-			return false
-		list.append(item)
+	if not SharedStorage.put(item):
+		say("คลังรวมเต็ม (%d/%d) — เบิกของออกก่อน" % [SharedStorage.size(), STORAGE_SIZE], &"warning")
+		return false
 	profile["inv"].remove_at(index)
+	_commit_storage(true)
 	inventory_changed.emit()
-	mark_dirty()
 	return true
 
 
-## Moves a storage entry back into the bag. Returns false when the bag is full.
+## Moves a shared storage entry back into the bag. Returns false when the bag is full
+## or the entry is gear of another class (storage_lock; it stays for that class).
 func withdraw_item(index: int) -> bool:
 	var list := storage()
 	if index < 0 or index >= list.size():
 		return false
 	var item: Dictionary = list[index]
+	var lock := storage_lock(item)
+	if lock != "":
+		say(lock, &"warning")
+		return false
 	if not _stack_into(profile["inv"], item):
 		if profile["inv"].size() >= bag_size():
 			return false
 		profile["inv"].append(item)
-	else:
-		inventory_changed.emit()
 	list.remove_at(index)
+	_commit_storage(false)
 	inventory_changed.emit()
-	mark_dirty()
 	return true
 
 
@@ -1986,17 +2075,12 @@ func add_item(item: Dictionary) -> bool:
 func give_or_store(item: Dictionary) -> bool:
 	if add_item(item):
 		return true
-	var store: Array = profile.get("storage", [])
-	if ItemData.is_stackable(item):
-		for existing in store:
-			if existing.get("kind", "") == item.get("kind", "") and existing.get("id") == item.id:
-				existing["count"] = int(existing.get("count", 1)) + int(item.get("count", 1))
-				mark_dirty()
-				return true
-	if store.size() < STORAGE_SIZE:
-		store.append(item)
-		profile["storage"] = store
-		say("กระเป๋าเต็ม — %s ถูกส่งเข้าคลัง" % ItemData.name_of(item), &"warning")
+	# The shared storage (every hero's): a stack joins its pile there.
+	var stacks := ItemData.is_stackable(item)
+	if SharedStorage.put(item):
+		if not stacks:
+			say("กระเป๋าเต็ม — %s ถูกส่งเข้าคลัง" % ItemData.name_of(item), &"warning")
+		SharedStorage.store()
 		mark_dirty()
 		return true
 	say("กระเป๋าและคลังเต็ม — รับ %s ไม่ได้" % ItemData.name_of(item), &"warning")
@@ -2084,6 +2168,50 @@ func craft_star_wings(item: Dictionary) -> String:
 		if key not in ["uid", "plus", "gems", "sockets"]:
 			item[key] = fresh[key]
 	item["sockets"] = maxi(int(fresh.sockets), (item.get("gems", []) as Array).size())
+	inventory_changed.emit()
+	profile_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
+## Why the forge cannot make a 250-star set piece for [param slot] now ("" when it can):
+## an unknown slot, a Vagabond, missing materials or no room in the bag and storage.
+func set_piece_problem(slot: String) -> String:
+	if not SetGearData.SLOTS.has(slot):
+		return "ชุดเซตไม่มีชิ้นนี้"
+	if not SetGearData.THEMES.has(String(class_id())):
+		return "เลือกอาชีพก่อนจึงจะผสมชุดเซตได้"
+	for id in SetGearData.CRAFT_COST:
+		if jewel_count(id) < int(SetGearData.CRAFT_COST[id]):
+			return "วัตถุดิบไม่พอ (ต้องใช้ %s)" % SetGearData.cost_text()
+	if inventory_free() <= 0 and SharedStorage.full():
+		return "กระเป๋าและคลังเต็ม ทำที่ว่างก่อนผสม"
+	return ""
+
+
+## Forges one piece of this class's 250-star set (SetGearData) from one set core and
+## 20 purple, 20 pink and 20 chaos jewels (SetGearData.CRAFT_COST). It succeeds at
+## SetGearData.CRAFT_CHANCE; a failed try uses up every material (like enhance_item).
+## The piece goes to the bag, or to storage when the bag is full (give_or_store).
+## `roll` (0-1) replaces the random roll (tests); below 0 rolls Game.rng.
+## Returns "ok", "fail" or why not (Thai).
+func craft_set_piece(slot: String, roll := -1.0) -> String:
+	var problem := set_piece_problem(slot)
+	if problem != "":
+		return problem
+	for id in SetGearData.CRAFT_COST:
+		_spend_jewels(id, int(SetGearData.CRAFT_COST[id]))
+	if roll < 0.0:
+		roll = rng.randf()
+	if roll >= SetGearData.CRAFT_CHANCE:
+		flag_add("set_fail")
+		inventory_changed.emit()
+		mark_dirty()
+		return "fail"
+	var piece := SetGearData.item(String(class_id()), slot)
+	give_or_store(piece)
+	flag_add("set_made")
+	check_achievements()
 	inventory_changed.emit()
 	profile_changed.emit()
 	mark_dirty()
@@ -2422,7 +2550,8 @@ func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 	var out: Array[int] = []
 	for i in profile["inv"].size():
 		var item: Dictionary = profile["inv"][i]
-		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":
+		# Wings and the forged 250★ set pieces are never sold off in bulk.
+		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item):
 			continue
 		if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
 			continue

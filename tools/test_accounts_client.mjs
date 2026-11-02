@@ -70,6 +70,7 @@ async function local(page){return page.evaluate(()=>new Promise((resolve,reject)
 // A file under user:// as Godot's IDBFS keeps it (what SaveBackup.restore writes); `data` null deletes it.
 const FILE_ROOT='/userfs/godot/app_userdata/Toon Tale';
 async function putFile(page,name,data){return page.evaluate(([path,text])=>new Promise((resolve,reject)=>{const r=indexedDB.open('/userfs');r.onsuccess=()=>{const db=r.result,tx=db.transaction('FILE_DATA','readwrite'),s=tx.objectStore('FILE_DATA');if(text===null)s.delete(path);else s.put({timestamp:new Date(),mode:33188,contents:new TextEncoder().encode(text)},path);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=reject};r.onerror=reject}),[FILE_ROOT+'/'+name,data===null?null:JSON.stringify(data)]);}
+async function readFile(page,name){return page.evaluate(path=>new Promise((resolve,reject)=>{const r=indexedDB.open('/userfs');r.onsuccess=()=>{const db=r.result,q=db.transaction('FILE_DATA').objectStore('FILE_DATA').get(path);q.onsuccess=()=>{db.close();resolve(q.result&&q.result.contents?JSON.parse(new TextDecoder().decode(q.result.contents)):null)};q.onerror=reject};r.onerror=reject}),FILE_ROOT+'/'+name);}
 async function hasFile(page,name){return page.evaluate(path=>new Promise((resolve,reject)=>{const r=indexedDB.open('/userfs');r.onsuccess=()=>{const db=r.result,q=db.transaction('FILE_DATA').objectStore('FILE_DATA').get(path);q.onsuccess=()=>{db.close();resolve(!!q.result)};q.onerror=reject};r.onerror=reject}),FILE_ROOT+'/'+name);}
 // The panel can re-render once more while it settles (a session check finishing), which
 // wipes typed fields on slow CI runners; fill until the values stick, then submit.
@@ -294,6 +295,37 @@ try {
   await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
   await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
   ok(two.revision===cloudBefore&&(await local(page)).level===26&&!(await hasFile(page,MARKER)),'a marker without a newer local save keeps the usual boot and is cleared');
+  // The storage every character shares (the game's toon_tale_storage.json) travels as the
+  // bundle's "storage" and "storageMigrated": uploaded with the heroes, installed with them,
+  // read from the game's files, counted on the choice screens, removed with a bundle without it.
+  const STORAGE='toon_tale_storage.json', chaos={kind:'jewel',id:'chaos',count:3}, pink={kind:'jewel',id:'pink',count:2};
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':defender(28,8000)},selectedSlot:1,storage:[chaos],storageMigrated:{'u:old':1}}));
+  await poll(()=>Array.isArray(two.bundle.storage)&&two.bundle.storage.length===1,'shared storage upload');
+  ok(two.bundle.storage[0].id==='chaos'&&two.bundle.storageMigrated['u:old']===1,'the shared storage and its record reach the account');
+  await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'shared storage acknowledged');
+  two.bundle={...two.bundle,slots:{'1':defender(29,8100)}};two.revision++;
+  await page.reload();await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
+  ok((await page.locator('.ta-body').innerText()).includes('คลังรวมทุกตัวละคร: 1 ชิ้น'),'the account screen counts the shared storage');
+  await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  let file=await readFile(page,STORAGE);
+  ok(file&&file.version===1&&file.items.length===1&&file.items[0].id==='chaos'&&file.migrated['u:old']===1,'installing the account writes the shared storage file: '+JSON.stringify(file));
+  // The game deposits (the storage file and the slot change): the next start sends both.
+  await putFile(page,STORAGE,{version:1,items:[chaos,pink],migrated:{'u:old':1}});await putFile(page,'toon_tale_slot_1.json',defender(29,8200));
+  let cloudBefore2=two.revision;await page.reload();await page.waitForFunction(()=>window.ready);
+  ok(two.revision===cloudBefore2+1&&two.bundle.storage.length===2&&two.bundle.storage[1].id==='pink','the shared storage in the game files is uploaded with the heroes');
+  // Every hero deleted, the storage kept: the account still counts as holding a save.
+  two.bundle={slots:{},selectedSlot:1,storage:[pink],storageMigrated:{}};two.revision++;
+  await page.reload();await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
+  ok((await page.locator('.ta-body').innerText()).includes('คลังรวมทุกตัวละคร: 1 ชิ้น'),'an account with only a shared storage is not offered a guest import over it');
+  await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  file=await readFile(page,STORAGE);
+  ok(file&&file.items.length===1&&file.items[0].id==='pink'&&!(await hasFile(page,'toon_tale_slot_1.json')),'only the storage is installed');
+  // A bundle from before the shared storage has none: the file goes with it.
+  two.bundle=bundle('Assotix',30,8300);two.bundle.slots['1'].class='defender';two.revision++;
+  await page.reload();await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
+  ok(!(await page.locator('.ta-body').innerText()).includes('คลังรวม'),'a bundle without a shared storage shows none');
+  await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  ok(!(await hasFile(page,STORAGE))&&(await local(page)).level===30,'installing a bundle without it removes the storage file');
   await page.evaluate(()=>toonOpenAccountPanel());await page.setViewportSize({width:956,height:440});
   if(screenshotDir)await page.screenshot({path:screenshotDir+'/account-landscape.png',fullPage:true});
   ok(await page.locator('.ta-card').evaluate(el=>el.scrollWidth<=el.clientWidth),'landscape card has no horizontal overflow');

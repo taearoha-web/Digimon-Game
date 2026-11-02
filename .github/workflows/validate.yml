@@ -37,6 +37,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-backup
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/save_backup_test.tscn
+      - name: Shared storage (every character sees it, other-class gear stays greyed, old storages move in once with nothing lost or doubled, cloud bundle, backups, deleting a character keeps it)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-shared-storage
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/shared_storage_test.tscn
       - name: Audit every skill and graphics quality
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/skill_presentation_test.tscn
       - name: Validate Armageddon hits, resource use, pause and scene cleanup
@@ -79,10 +83,14 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-world-town
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/world_town_test.tscn
-      - name: Trading at the players' stalls (a stall's stock is fixed per restock window, gear above the merchant's grade, cheaper potions, buying takes the lot off the stall, the stall pays more than the merchant, old flags pruned, open_stall / open_shop; haggling deterministic once a lot a window with the discount paid at the buy, keepers announce a real lot, consignment takes the item and pays 1.5x after 30 min, at most 8 out)
+      - name: Trading at the players' stalls (a stall's stock is fixed per restock window, gear of the keeper's own level above the merchant's grade, cheaper potions, buying takes the lot off the stall, the stall pays more than the merchant, old flags pruned, open_stall / open_shop; haggling deterministic once a lot a window with the discount paid at the buy, keepers announce a real lot, consignment takes the item and pays 1.5x after 30 min, at most 8 out)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-stall-trade
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/stall_trade_test.tscn
+      - name: Chat trade and chatter (the world players talk in threads, 1-3 answers seconds apart, busier than before but under the rate cap, guild and party banter; buy requests in Thai read and answered by the stalls that have it with price and place, or "nobody sells it"; a stall's stock follows its keeper's level and stars)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-chat-trade
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_trade_test.tscn
       - name: Dark Lord Summon is never automatic (auto-hunt never casts it, the player's press does, an AI Dark Lord only to gather a straggler)
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/lord_summon_test.tscn
       - name: Check effects refused by the spent VFX budget are freed (long-fight leak)
@@ -119,6 +127,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-gems
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/gem_effects_test.tscn
+      - name: Star cap 300 and the God promotion (EXP curve unchanged to ★200 and steeper to ★300, 300 points all spendable, เทพเจ้าแห่ง<อาชีพ> at Lv.100 ★300 with bigger bonuses than Lv.80, character screen and title, saved and validated)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star300
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star300_test.tscn
       - name: Check the account server accepts the game's own saves of every class (committed fixture, then a fresh one)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-save-fixtures
@@ -130,6 +142,14 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-mounts
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/mount_test.tscn
+      - name: 250-star class sets (one set core makes any piece of any class at the forge for 20 purple + 20 pink + 20 chaos at 50%, every stat at +0 beats the best other piece at +10, worn from 250 stars, 2/4/6 piece bonus, class aura and models, icons, saves, the forge's ผสมชุดเซต section)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-set-gear
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/set_gear_test.tscn
+      - name: Loot magnet (every drop the hero earned flies to it from anywhere in the zone and is collected, world players' kills stay theirs, a full bag leaves gear on the ground with one toast until there is room, stacks still join, capped sparkles)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-loot-magnet
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/loot_magnet_test.tscn
       - name: HUD clutter (damage numbers fan out, others' numbers smaller and capped, party labels fade in a fight, the hero's gold ring, no repeated chat line)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-clutter
@@ -308,6 +328,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-divine_region_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/divine_region_test.tscn
+      - name: drowned_abyss_test
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-drowned_abyss_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/drowned_abyss_test.tscn
       - name: elite_skill_lifecycle_test
         timeout-minutes: 10
         env:
@@ -363,6 +388,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_lifecycle_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_lifecycle_test.tscn
+      - name: star300_skills_test (one god-tier skill per class at 300 stars, locked below, strongest of its class, icon, real casts at every quality and under memory pressure, cleanup)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star300_skills_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star300_skills_test.tscn
       - name: star_wings_test
         timeout-minutes: 10
         env:

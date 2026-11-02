@@ -224,6 +224,9 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 	root.name = "SetAura"
 	visual.add_child(root)
 	made.append(root)
+	# The Dark Lord wears a cape, not wings: his +12..+15 light comes as a cape of light.
+	if String(visual.get("class_id")) in CAPE_CLASSES:
+		root.set_meta("cape", true)
 	var head := 1.85 if bool(visual.get("chibi")) else 2.2
 	var rich := GameSettings.quality > 0 and not light and MemoryGuard.pressure < 2
 	var color := AURA_COLORS[step]
@@ -463,6 +466,9 @@ static func _lightning(root: Node3D, color: Color, head: float, count: int) -> v
 ## Two wings of light-feathers behind the shoulders, flapping slowly. One colour per
 ## feather from `colors` (cycled).
 static func _wings(root: Node3D, head: float, colors: Array, span: float) -> void:
+	if bool(root.get_meta("cape", false)):
+		_cape_of_light(root, head, colors, span)
+		return
 	var tex := VfxKit.soft_dot()
 	for side in [-1.0, 1.0]:
 		var wing := Node3D.new()
@@ -490,6 +496,57 @@ static func _wings(root: Node3D, head: float, colors: Array, span: float) -> voi
 		var flap := wing.create_tween().set_loops()
 		flap.tween_property(wing, "rotation:y", 0.25 * side, 1.4).set_trans(Tween.TRANS_SINE)
 		flap.tween_property(wing, "rotation:y", -0.1 * side, 1.4).set_trans(Tween.TRANS_SINE)
+
+
+## Classes that wear a cape in the wings slot (their light aura is a cape too).
+const CAPE_CLASSES: Array[String] = ["darklord"]
+
+
+## A cape of light for the cape wearers: the worn cape itself shines in the step's
+## colours (an overlay that pulses, like wing_flair), a broad glow fans out behind it
+## down to the heels, and light motes drift off its hem.
+static func _cape_of_light(root: Node3D, head: float, colors: Array, span: float) -> void:
+	var cape := Node3D.new()
+	cape.name = "LightCape"
+	cape.position = Vector3(0, head * 0.45, -0.5)
+	root.add_child(cape)
+	var tex := VfxKit.soft_dot()
+	# The fan of light behind the cape: one tall soft glow per colour, side by side.
+	var n := mini(colors.size(), 4)
+	for k in n:
+		var glow := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2(1.5 * span, head * 1.1 * span)
+		var mat := _glow_material(colors[k], 0.55 / sqrt(float(n)))
+		mat.albedo_texture = tex
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		quad.material = mat
+		glow.mesh = quad
+		var u := 0.0 if n == 1 else float(k) / float(n - 1) * 2.0 - 1.0
+		glow.position = Vector3(u * 0.35, 0, -0.05 * float(k))
+		_unshaded(glow)
+		cape.add_child(glow)
+		var breathe := glow.create_tween().set_loops()
+		breathe.tween_property(glow, "scale", Vector3(1.08, 1.04, 1.0), 1.2 + 0.2 * float(k)).set_trans(Tween.TRANS_SINE)
+		breathe.tween_property(glow, "scale", Vector3(0.94, 0.98, 1.0), 1.2 + 0.2 * float(k)).set_trans(Tween.TRANS_SINE)
+	# Motes of light shed from the hem.
+	if GameSettings.quality > 0 and MemoryGuard.pressure < 2:
+		var motes := _sparkles(cape, Vector3(0, -head * 0.2, 0), (colors[0] as Color).lightened(0.3), 14, 0.45, 0.1, -0.2, 2.0)
+		motes.name = "CapeMotes"
+	# The cape itself shines: dressed after the aura (the wings slot builds its own node).
+	_shine_cape.call_deferred(root, colors[0])
+
+
+static func _shine_cape(root: Node3D, color: Color) -> void:
+	if not is_instance_valid(root) or not is_instance_valid(root.get_parent()):
+		return
+	var shine := _glow_material(color, 0.32)
+	for node in root.get_parent().find_children("Wings_*darklord", "", true, false):
+		for m in MeshKit.collect_meshes(node):
+			m.material_overlay = shine
+	var pulse := root.create_tween().set_loops()
+	pulse.tween_property(shine, "albedo_color:a", 0.5, 0.9).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(shine, "albedo_color:a", 0.22, 0.9).set_trans(Tween.TRANS_SINE)
 
 
 ## A tilted orbit ring with a planet riding it.

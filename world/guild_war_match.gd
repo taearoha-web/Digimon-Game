@@ -337,6 +337,28 @@ func hero_party_members() -> Array[GuildFighter]:
 	return out
 
 
+## The team-buff button (บัฟทีม, GuildWarHud / HUD): every living fighter of the hero's
+## party casts all its buff skills that are ready (GuildFighter.cast_team_buffs), wherever
+## it stands; a team buff reaches the hero as always when the caster is within
+## GuildFighter.BUFF_REACH. Then the button rests TEAM_BUFF_COOLDOWN seconds.
+const TEAM_BUFF_COOLDOWN := 30.0
+var team_buff_left := 0.0
+
+
+## Presses the team-buff button: how many party members buffed (0: nobody could, and
+## the button does not rest), or -1 while it rests or the war is over.
+func team_buff() -> int:
+	if team_buff_left > 0.0 or state not in ["intro", "fight"]:
+		return -1
+	var buffed := 0
+	for f in hero_party_members():
+		if not f.is_dead() and f.cast_team_buffs() > 0:
+			buffed += 1
+	if buffed > 0:
+		team_buff_left = TEAM_BUFF_COOLDOWN
+	return buffed
+
+
 ## Everyone in a party (fighters; the hero for HERO_PARTY is not listed).
 func party_members(party: int) -> Array[GuildFighter]:
 	var out: Array[GuildFighter] = []
@@ -389,6 +411,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	team_buff_left = maxf(0.0, team_buff_left - delta)
 	match state:
 		"intro":
 			_timer -= delta

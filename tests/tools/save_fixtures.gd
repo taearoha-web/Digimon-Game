@@ -10,6 +10,8 @@ extends Node
 ##     res://tests/tools/save_fixtures.tscn -- [OUT_FILE]
 ##
 ## OUT_FILE defaults to res://hosting/accounts/tests/fixtures/game_profiles.json.
+## "storage" and "storageMigrated" are the shared storage (SharedStorage) as the bundle
+## carries it, filled by the heroes' deposits.
 ## hosting/accounts/tests/account.test.mjs replays that file against the server.
 
 const DEFAULT_OUT := "res://hosting/accounts/tests/fixtures/game_profiles.json"
@@ -17,6 +19,8 @@ const NAMES := {&"vagabond": "Assotix", &"warrior": "บราโว่", &"arch
 	&"summoner": "ไลรา", &"lancer": "เรย์", &"defender": "Assotix", &"assassin": "ยามิ", &"bard": "เมโลดี้"}
 
 var profiles := {}
+## The shared storage fields of the account bundle after every hero was built.
+var shared := {}
 var failures := 0
 
 
@@ -32,6 +36,8 @@ func _ready() -> void:
 		"saveVersion": Game.SAVE_VERSION,
 		"classes": [String(ClassData.START)] + Array(ClassData.IDS).map(func(id): return String(id)),
 		"profiles": profiles,
+		"storage": shared.get("storage", []),
+		"storageMigrated": shared.get("storageMigrated", {}),
 	}
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out_path).get_base_dir())
 	var file := FileAccess.open(out_path, FileAccess.WRITE)
@@ -75,7 +81,7 @@ func _level_to(level: int) -> void:
 
 func _stars_to(stars: int) -> void:
 	var guard := 0
-	while int(Game.paragon().level) < stars and guard < 400:
+	while int(Game.paragon().level) < stars and guard < 600:
 		Game.add_exp(maxi(1, Game.paragon_need() - int(Game.paragon().exp)))
 		guard += 1
 
@@ -99,6 +105,28 @@ func _build_all() -> void:
 	for cls in ClassData.IDS:
 		_build_line(cls)
 		_build_direct(cls)
+	_build_shared_storage()
+
+
+## A few deposits into the storage every hero shares (beside what full bags sent there
+## while the heroes above were built), as the bundle sends it.
+func _build_shared_storage() -> void:
+	Game.new_profile(&"warrior", "คลังรวม", FaceKit.default_look())
+	Game.slot = 1
+	Game.profile.inv.clear()
+	Game.add_item(ItemData.jewel("chaos", 4))
+	Game.add_item(ItemData.potion("hp_s", 7))
+	Game.add_item(ItemData.generate(40, &"archer", Game.rng, 2, "weapon"))
+	Game.add_item(ItemData.generate(40, &"warrior", Game.rng, 1, "armor"))
+	while not Game.profile.inv.is_empty():
+		if not Game.deposit_item(0):
+			_fail("shared storage: a deposit failed")
+			return
+	var bundle := Game.build_cloud_bundle()
+	shared = {"storage": bundle.storage, "storageMigrated": bundle.storageMigrated}
+	if not SharedStorage.valid({"items": shared.storage, "migrated": shared.storageMigrated}):
+		_fail("shared storage: the game refuses its own storage")
+	Game.delete_save(1)
 
 
 ## A Vagabond who takes the class at the trainer, then plays to Lv.23 and beyond.
@@ -179,7 +207,7 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("wolf_fang", 3))
 	Game.add_item(ItemData.jewel("griffin_plume", 1))
 	Game.add_item(ItemData.jewel("chaos", 25))
-	if Game.craft_mount("thunder_wolf") != "" or Game.craft_mount("thunder_wolf") != "" or Game.craft_mount("griffin") != "" or not Game.select_mount("griffin"):
+	if Game.craft_mount("thunder_wolf") != "ok" or Game.craft_mount("thunder_wolf") != "ok" or Game.craft_mount("griffin", 0.0) != "ok" or not Game.select_mount("griffin"):
 		_fail("%s: mounts" % cls)
 	Game.paragon_spend("atk", 30)
 	Game.paragon_spend("hp", 25)
@@ -202,11 +230,32 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("feather", 1))
 	for i in 10:
 		Game.enhance_item(Game.profile.equip.weapon)
+	# A 250-star set piece forged at the blacksmith (SetGearData) and a spare set core.
+	Game.add_item(ItemData.jewel("set_core", 2))
+	Game.add_item(ItemData.jewel("purple", 20))
+	Game.add_item(ItemData.jewel("pink", 20))
+	Game.add_item(ItemData.jewel("chaos", 20))
+	if Game.craft_set_piece("weapon", 0.0) != "ok":
+		_fail("%s: craft_set_piece" % cls)
 	Game.tower_floor_cleared(60)
 	Game.tower_buy("gear")
 	Game.tower_buy("gem")
 	Game.current_zone = &"town"
 	_keep("%s_lv100_star" % cls)
+
+	# The same hero at ★300 after the God promotion ("เทพเจ้าแห่ง<อาชีพ>", adv 5).
+	_stars_to(Game.PARAGON_MAX)
+	# Every Job Master step it skipped (Lv.20/40/60/80), then the God step.
+	for i in JobData.MAX_ADV:
+		if Game.next_step().is_empty():
+			break
+		Game.add_gold(Game.next_step_cost())
+		Game.advance()
+	if not Game.is_god():
+		_fail("%s: God promotion refused (%s)" % [cls, Game.advance_problem()])
+	Game.paragon_spend("def", 40)
+	Game.paragon_spend("haste", 60)
+	_keep("%s_god300" % cls)
 
 
 ## The class picked straight at creation (what tools and tests do).

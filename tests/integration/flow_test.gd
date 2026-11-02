@@ -563,6 +563,9 @@ func _storage_and_auto() -> void:
 	print("== Storage, bigger bag, auto hunting")
 	var zone := await _start(&"warrior")
 	check(Game.bag_size() == Game.BASE_BAG and Game.BASE_BAG >= 40, "the bag starts with %d slots" % Game.bag_size())
+	# The storage is shared by every hero (SharedStorage): earlier heroes' full bags may
+	# have sent rewards there; start this check from an empty one.
+	Game.storage().clear()
 	Game.add_item(ItemData.potion("hp_s", 3))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 21
@@ -738,7 +741,7 @@ func _warp_points() -> void:
 	var town: Zone = main.zone
 	check(town.npcs.any(func(n): return n.role == "warp"), "the village has a warp crystal")
 	var places := WarpScreen.destinations()
-	check(places.size() == 17 and places[16] == DivineRegionData.ID and places[15] == &"eclipse_realm" and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list includes legacy fields, four star regions and the 200-star sanctuary")
+	check(places.size() == 18 and places[17] == DrownedAbyssData.ID and places[16] == DivineRegionData.ID and places[15] == &"eclipse_realm" and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list includes legacy fields, four star regions, the 200-star sanctuary and the 200-300 star field")
 	check(WarpScreen.unlocked(&"meadow", 1) and not WarpScreen.unlocked(&"dark_forest", 6) and WarpScreen.unlocked(&"dark_forest", 7), "fields unlock by level")
 	Game.profile["level"] = 30
 	var open := places.filter(func(p): return WarpScreen.unlocked(p, 30))
@@ -1041,7 +1044,7 @@ func _paragon() -> void:
 	Game.paragon()["level"] = Game.PARAGON_MAX - 1
 	Game.paragon()["exp"] = 0
 	Game.add_exp(Game.paragon_need() + 100)
-	check(int(Game.paragon().level) == Game.PARAGON_MAX, "the paragon cap is 200")
+	check(int(Game.paragon().level) == Game.PARAGON_MAX and Game.PARAGON_MAX == 300, "the paragon cap is 300")
 	var before_level := int(Game.paragon().level)
 	Game.add_exp(999999)
 	check(int(Game.paragon().level) == before_level, "no levels past the cap")
@@ -1509,7 +1512,7 @@ func _zones() -> void:
 		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1), "%s has the right portals" % id)
 		for camp in info.camps:
 			for m in camp.monsters:
-				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m), "monster %s exists" % m)
+				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m) or DrownedAbyssData.has_monster(m), "monster %s exists" % m)
 
 
 func _items() -> void:
@@ -2043,6 +2046,10 @@ func _balance_rules() -> void:
 				if (band[0] == 0) != star or (not star and (int(skill.level) < band[0] or int(skill.level) > band[1])):
 					continue
 				if float(skill.mult) <= 0.0 or String(skill.shape) == "summon":
+					continue
+				# The 300-star god skill is the class's ultimate (60 s cooldown): an area
+				# finale that is meant to top every skill of its class, single-target too.
+				if StarSkillData.is_god(skill):
 					continue
 				if String(skill.shape) in ClassData.AREA_SHAPES:
 					area = maxf(area, float(skill.mult))

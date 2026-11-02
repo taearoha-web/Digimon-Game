@@ -88,6 +88,11 @@ const WEATHER := {
 		{"amount": 44, "life": 7.0, "size": 0.1, "color": Color(1.0, 0.9, 0.55, 0.8), "add": true, "dir": Vector3(0.2, 0.3, 0.1), "spread": 60.0, "speed": [0.2, 0.6], "y": 2.0, "box": Vector3(26, 1.5, 26), "pulse": true},
 		{"amount": 18, "life": 9.0, "size": Vector2(0.12, 0.3), "color": Color(1.0, 1.0, 1.0, 0.9), "dir": Vector3(0.4, -1, 0.2), "spread": 35.0, "speed": [0.3, 0.7], "gravity": Vector3(0.4, -0.15, 0.2), "y": 10.0, "scale": [0.6, 1.0]},
 	],
+	# The drowned abyss: rising bubbles and drifting glow plankton.
+	&"bubbles": [
+		{"amount": 52, "life": 6.0, "size": 0.2, "color": Color(0.65, 0.95, 1.0, 0.6), "add": true, "dir": Vector3(0, 1, 0), "spread": 12.0, "speed": [0.7, 1.5], "y": 0.3, "box": Vector3(26, 0.5, 26), "ring": true, "scale": [0.5, 1.4]},
+		{"amount": 34, "life": 8.0, "size": 0.09, "color": Color(0.4, 1.0, 0.85, 0.75), "add": true, "dir": Vector3(0.2, 0.2, 0.1), "spread": 70.0, "speed": [0.15, 0.45], "y": 2.0, "box": Vector3(26, 1.8, 26), "pulse": true},
+	],
 }
 
 var _spawn_timer := 0.0
@@ -346,7 +351,7 @@ func _build_field() -> void:
 	var fog: Color = data.get("fog", sky.lerp(Color.WHITE, 0.35))
 	_env = Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)), _sky_look())
 	_ambient_base = _env.environment.ambient_light_energy
-	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID:
+	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID:
 		_build_star_field()
 		return
 	if not is_tower and not bool(data.get("arena", false)):
@@ -428,10 +433,12 @@ func _build_field() -> void:
 
 func _build_star_field() -> void:
 	var divine := zone_id == DivineRegionData.ID
-	var layout := DivineRegionArt.layout() if divine else StarRegionArt.layout(zone_id)
+	var deep := zone_id == DrownedAbyssData.ID
+	var layout := DrownedAbyssArt.layout() if deep else (DivineRegionArt.layout() if divine else StarRegionArt.layout(zone_id))
 	_start = layout.spawn
 	_boss_spot = layout.boss_pos
-	if divine: DivineRegionArt.build(self)
+	if deep: DrownedAbyssArt.build(self)
+	elif divine: DivineRegionArt.build(self)
 	else: StarRegionArt.build(self, zone_id)
 	for source in data.camps:
 		var camp: Dictionary = source.duplicate(true)
@@ -446,9 +453,11 @@ func _build_star_field() -> void:
 	for portal in portals: _make_portal(portal)
 	_add_warp(_start + Vector3(3.5,0,-3.5), "วาปกลับเมือง / ข้ามแมพ")
 	_make_boundary_walls(55.0)
+	if deep:
+		_make_weather(StringName(data.get("weather", &"")))
 	if int(data.boss.get("star",0)) == 200:
 		var label := Label3D.new()
-		label.text = "วิหารบัวดารา • ดรอปชุดเทพ 200 ดาว" if divine else "บัลลังก์สุริยคราส • ดาว 200"
+		label.text = "ลานบัลลังก์ราชันสมุทร • ดาว 200-300" if deep else ("วิหารบัวดารา • ดรอปชุดเทพ 200 ดาว" if divine else "บัลลังก์สุริยคราส • ดาว 200")
 		label.position = _boss_spot + Vector3(0,4,0)
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.font_size = 48
@@ -1235,6 +1244,10 @@ func _drop_loot(mob: Mob) -> void:
 		_divine_loot(mob, from)
 		_star_wing_drop(mob, from)
 		return
+	if zone_id == DrownedAbyssData.ID:
+		for item in DrownedAbyssData.kill_drops(boss, bool(mob.template.get("elite", false)), _drop_fortune(), rng):
+			_spawn_loot(item, 0, from)
+		return
 	if StarProgression.is_region(zone_id):
 		_star_loot(mob, from)
 		return
@@ -1299,9 +1312,10 @@ func _drop_jewels(from: Vector3) -> void:
 	var luck := 1.0 + _drop_fortune()
 	# The weekend jewel rush (WorldEvents.jewel_multiplier) doubles the jewels, not feathers.
 	var rush := WorldEvents.jewel_multiplier(WorldPresence.clock())
-	for id in ItemData.JEWEL_DROP:
-		if rng.randf() < float(ItemData.JEWEL_DROP[id]) * luck * rush:
-			_spawn_loot(ItemData.jewel(id), 0, from)
+	for item in jewel_drops(data, _drop_fortune(), rush, rng):
+		_spawn_loot(item, 0, from)
+		if String(item.id) == DrownedAbyssData.SET_CORE:
+			Game.say("%sตกแล้ว! วัตถุดิบหายากสำหรับผสมชุดเซตที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
 	if rng.randf() < ItemData.feather_chance(int(data.get("star", 0))) * luck:
 		_spawn_loot(ItemData.jewel("feather"), 0, from)
 		Game.say("ขนนกตกแล้ว! เอาไปตีปีก 100 ดาวที่ช่างตีเหล็ก", &"quest")
@@ -1315,6 +1329,32 @@ func _drop_jewels(from: Vector3) -> void:
 	# event leaves the zone's seeded rolls as they are.
 	if WorldEvents.halloween_on(WorldPresence.clock()) and _event_rng.randf() < WorldEvents.HALLOWEEN_DROP:
 		_spawn_loot(ItemData.potion("halloween"), 0, from)
+
+
+## The forge jewels one kill drops in a field: each of the field's "jewel_drop" rates
+## (ItemData.JEWEL_DROP unless the field has its own, like the drowned abyss) times
+## (1 + fortune) and the weekend rush, then the set material at the field's
+## "set_core_drop" (rolled only where it drops; never doubled by the rush). The set
+## material is dropped only once ItemData knows the item.
+static func jewel_drops(zone: Dictionary, fortune: float, rush: float, roll: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	var luck := 1.0 + fortune
+	var rates: Dictionary = zone.get("jewel_drop", ItemData.JEWEL_DROP)
+	for id in rates:
+		if roll.randf() < float(rates[id]) * luck * rush:
+			out.append(ItemData.jewel(String(id)))
+	if set_core_roll(zone, fortune, roll) and ItemData.JEWELS.has(DrownedAbyssData.SET_CORE):
+		out.append(ItemData.jewel(DrownedAbyssData.SET_CORE))
+	return out
+
+
+## Whether a kill in [param zone] drops the set material: its "set_core_drop" chance
+## times (1 + fortune). Fields without one draw no roll, so their dice stay as they were.
+static func set_core_roll(zone: Dictionary, fortune: float, roll: RandomNumberGenerator) -> bool:
+	var chance := float(zone.get("set_core_drop", 0.0))
+	if chance <= 0.0:
+		return false
+	return roll.randf() < chance * (1.0 + fortune)
 
 
 ## Chase pieces of a field boss; every miss raises the next kill's chance.

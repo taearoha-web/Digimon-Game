@@ -12,7 +12,8 @@ extends Node
 ## member's answer (react_chance, at most once every REACT_COOLDOWN seconds), and an answer
 ## may get one more (follow_chance), never more than MAX_FOLLOW_UPS after one line. The
 ## guild chat reaches the guild's online players: 0-2 of them answer, as guild mates.
-## Without a party or a guild, a note says so. The
+## Without a party or a guild, a note says so. A buy request in the world chat is answered
+## by the stalls that have it, or by someone saying nobody sells it now (ChatTrade). The
 ## answers are made in the game itself (ChatBrain: free, instant, offline): what the line
 ## is after and the player's own state decide the reply, and its action: join or leave the
 ## hero's party, or open the player's stall; the game's own rules still decide
@@ -68,6 +69,12 @@ var _react_at := -INF
 var _threads := {}
 var _next_thread := 0
 var _posting := false
+## While true (WorldPresence posting the members' own banter) a party line gets no answer.
+static var hold := false
+## Answers due later (the stalls answering a buy request): [{at, index, speaker, text}].
+var _timed: Array = []
+## The last buy request the hero typed (ChatTrade.parse), {} before any.
+var last_trade := {}
 
 
 func _ready() -> void:
@@ -138,6 +145,12 @@ func submit(text: String, target: Dictionary = {}) -> String:
 		channel = "world"
 		i = responder(text)
 	var hero_name := String(Game.profile.get("name", "ฮีโร่"))
+	# A buy request ("หาซื้อเพชรม่วง", "มีใครขายปีกไหม") is answered by the stalls that have
+	# it, or by someone saying nobody sells it now (ChatTrade).
+	if channel == "world":
+		var req := ChatTrade.parse(text)
+		if not req.is_empty():
+			return _submit_buy(text, req)
 	if i < 0:
 		Game.world_chat.emit(hero_name, text, HERO_COLOR)
 		return "ตอนนี้ไม่มีผู้เล่นคนอื่นออนไลน์"
@@ -178,6 +191,41 @@ func responder(text: String) -> int:
 		return absi(int(WorldPlayers.state(a, t).level) - level) < absi(int(WorldPlayers.state(b, t).level) - level))
 	var near := online.slice(0, mini(5, online.size()))
 	return near[absi(hash(text)) % near.size()]
+
+
+## The hero's buy request in the world chat: the keepers who have it answer a few seconds
+## apart (at most ChatTrade.MAX_SELLERS), naming the lot, its price and where their stall
+## is (a bubble over the keeper when it stands here); otherwise one says nobody sells it.
+func _submit_buy(text: String, req: Dictionary) -> String:
+	var hero_name := String(Game.profile.get("name", "ฮีโร่"))
+	Game.world_chat.emit(hero_name, text, HERO_COLOR)
+	last_trade = req
+	for a in ChatTrade.answers(req, WorldPresence.clock(), rng.randi(), hero_name):
+		_timed.append({"at": _clock + float(a.delay), "index": int(a.index), "speaker": String(a.speaker), "text": String(a.text)})
+	return ""
+
+
+## Says the answers that are due.
+func _flush_timed() -> void:
+	var k := 0
+	while k < _timed.size():
+		var e: Dictionary = _timed[k]
+		if _clock < float(e.at):
+			k += 1
+			continue
+		_timed.remove_at(k)
+		var i := int(e.index)
+		Game.world_chat.emit(String(e.speaker), String(e.text), ChatTrade.SELLER_COLOR if i >= 0 else NOTE_COLOR)
+		if i >= 0:
+			_remember(i, "player", String(e.text))
+			var p := _field_player(i)
+			if p != null:
+				p.bubble(String(e.text))
+
+
+## Answers still to come (tests).
+func timed_count() -> int:
+	return _timed.size()
 
 
 # --- The party and guild chats ----------------------------------------------------------
@@ -277,7 +325,7 @@ func guild_online(g: int) -> Array[int]:
 ## A member's line in the party chat (PartyTalk's, or a member's answer): another member
 ## may answer it, now and then.
 func _on_channel_chat(channel: String, speaker: String, text: String, _color: Color) -> void:
-	if _posting or channel != "party" or _clock < _react_at:
+	if _posting or hold or channel != "party" or _clock < _react_at:
 		return
 	var from := _member_named(speaker)
 	if from < 0 or _is_order_answer(text):
@@ -410,6 +458,8 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	if not _timed.is_empty():
+		_flush_timed()
 	if OS.has_feature("web") and not _composing.is_empty():
 		var raw := str(JavaScriptBridge.eval("window.toonChatComposed ? window.toonChatComposed() : ''", true))
 		if raw != "" and raw != "null":

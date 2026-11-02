@@ -14,6 +14,8 @@ var end := 0.0
 var aerial := false
 var old_wing_mode := 0
 var hit_targets: Array[WeakRef] = []
+## Share of the total multiplier per god-tier wave; the finale takes the remainder.
+const GOD_WAVE_SHARE := 0.13
 
 static func launch(hero: Hero, data: Dictionary, target: Mob, aim: Vector3) -> float:
 	var seq := StarSkillSequence.new()
@@ -32,6 +34,8 @@ func _plan() -> void:
 	var release := float(skill.hit_delay)
 	var id := String(skill.id)
 	var beats: Array = [0.0]
+	# God-tier (300 stars): four waves 0.32 s apart, a held breath, then the finale.
+	if StarSkillData.is_god(skill): beats=StarSkillData.GOD_BEATS
 	match id:
 		"lionfang_cleave": beats=[0.0,0.26]
 		"titan_shieldbreak": beats=[0.0,0.42]
@@ -157,8 +161,11 @@ func _hit(h: Hero, index: int, count: int) -> void:
 	var target:=victim_ref.get_ref() as Mob if victim_ref!=null else null
 	# The release lands on the first beat, every later beat gets a lighter hit; a Defender's
 	# shield art adds its own clang / quake / ring under the release.
-	AudioManager.play_sfx(SkillSound.star_beat(index), -3.0 if index==0 else -8.0)
-	if index==0 and SkillSound.landing(skill)!=&"": AudioManager.play_sfx(SkillSound.landing(skill), -6.0)
+	# A god-tier finale lands with the full release again (and its landing sound).
+	var god := StarSkillData.is_god(skill)
+	var finale := god and index==count-1
+	AudioManager.play_sfx(SkillSound.star_beat(0 if finale else index), -3.0 if index==0 or finale else -8.0)
+	if (index==0 or finale) and SkillSound.landing(skill)!=&"": AudioManager.play_sfx(SkillSound.landing(skill), -6.0)
 	if String(skill.shape)=="summon":
 		h._summon(skill,float(skill.mult)*h.rank_mult(skill))
 		StarSkillArt.strike(h.field,skill,center,index,origin)
@@ -206,6 +213,8 @@ func _hit(h: Hero, index: int, count: int) -> void:
 		if id=="celestial_hunt" and index==count-1:
 			victims.clear()
 			if h._valid_target(target): victims.append(target);point=target.global_position
+	# God-tier: 13% per wave, the finale carries the rest (48%).
+	if god: share=GOD_WAVE_SHARE if not finale else 1.0-GOD_WAVE_SHARE*float(count-1)
 	StarSkillArt.strike(h.field,skill,point,index,origin)
 	for mob in victims:
 		if id=="astral_convergence" and not mob.is_boss:
@@ -216,3 +225,4 @@ func _hit(h: Hero, index: int, count: int) -> void:
 		h._deal(mob,damage,skill.color,skill.vfx,false,skill)
 	if id=="sanctified_chain" and not victims.is_empty(): _team_heal(h,0.12)
 	if id=="dawn_salvation": _team_heal(h,0.10)
+	if id=="seraphic_judgment": _team_heal(h,0.08)

@@ -97,9 +97,9 @@ func _data() -> void:
 	check(is_equal_approx(float(drake.hp), 0.25) and is_equal_approx(float(drake.atk), 0.10) and is_equal_approx(float(drake.crit), 0.05), "drake Lv.5: HP +25%, ATK +10%, crit +5%")
 	for n in range(1, 6):
 		check(is_equal_approx(MountData.speed_bonus("thunder_wolf"), 0.30), "the wolf rides +30% at every level")
-	for zone_id in [&"guildwar", &"pvp", &"tower", &"arena"]:
+	for zone_id in [&"pvp", &"tower", &"arena"]:
 		check(not MountData.zone_allows(ZoneData.get_zone(zone_id)), "no riding in %s" % zone_id)
-	for zone_id in [&"town", &"meadow"]:
+	for zone_id in [&"town", &"meadow", &"guildwar"]:
 		var zone := ZoneData.get_zone(zone_id)
 		if not zone.is_empty():
 			check(MountData.zone_allows(zone), "riding allowed in %s" % zone_id)
@@ -143,19 +143,19 @@ func _craft() -> void:
 	check(Game.mount_mats("thunder_wolf") == 1 and Game.jewel_count("chaos") == 4, "a refused craft spends nothing")
 	give("chaos", 1)
 	check(Game.mount_step_problem("thunder_wolf") == "", "1 fang + 5 chaos is enough")
-	check(Game.craft_mount("thunder_wolf") == "", "wolf crafted")
+	check(Game.craft_mount("thunder_wolf") == "ok", "wolf crafted")
 	check(Game.mount_level("thunder_wolf") == 1 and Game.owns_mount("thunder_wolf"), "the wolf is Lv.1")
 	check(Game.mount_mats("thunder_wolf") == 0 and Game.jewel_count("chaos") == 0, "crafting used the fang and 5 chaos")
 	check(int(Game.profile.gold) == gold, "crafting costs no gold")
 	check(Game.active_mount() == "thunder_wolf", "the first mount crafted becomes active")
-	# Lv.2-5: n fangs and 5n chaos each, always succeeds.
+	# Lv.2-5: n fangs and 5n chaos each; the wolf succeeds even on the worst roll.
 	for n in range(2, 6):
 		give("wolf_fang", n - 1)
 		give("chaos", 5 * n)
 		check(Game.craft_mount("thunder_wolf") != "", "Lv.%d refused with %d fangs" % [n, n - 1])
 		give("wolf_fang", 1)
 		give("chaos", 7)
-		check(Game.craft_mount("thunder_wolf") == "" and Game.mount_level("thunder_wolf") == n, "wolf up to Lv.%d" % n)
+		check(Game.craft_mount("thunder_wolf", 0.999) == "ok" and Game.mount_level("thunder_wolf") == n, "wolf up to Lv.%d" % n)
 		check(Game.mount_mats("thunder_wolf") == 0 and Game.jewel_count("chaos") == 7, "Lv.%d took %d fangs and %d chaos" % [n, n, 5 * n])
 		clear("chaos")
 	give("wolf_fang", 10)
@@ -166,13 +166,83 @@ func _craft() -> void:
 	clear("chaos")
 	give("stag_antler", 1)
 	give("chaos", 8)
-	check(Game.craft_mount("glow_stag") == "" and Game.mount_level("glow_stag") == 1, "stag crafted with 1 antler + 8 chaos")
+	check(Game.craft_mount("glow_stag", 0.0) == "ok" and Game.mount_level("glow_stag") == 1, "stag crafted with 1 antler + 8 chaos")
 	check(Game.active_mount() == "thunder_wolf", "crafting a second mount keeps the active one")
 	check(Game.owned_mounts() == ["thunder_wolf", "glow_stag"], "owned mounts in menu order (%s)" % str(Game.owned_mounts()))
 	check(Game.craft_mount("no_such_mount") != "", "unknown id refused")
 	check(not Game.select_mount("griffin"), "can't pick a mount not owned")
 	check(Game.select_mount("glow_stag") and Game.active_mount() == "glow_stag", "picked the stag")
 	Game.select_mount("thunder_wolf")
+	_odds()
+
+
+const CHANCE := {"thunder_wolf": 1.0, "glow_stag": 0.60, "griffin": 0.35, "fire_drake": 0.10}
+
+
+## Success chances: the wolf always, the stag 60%, the griffin 35%, the drake 10%, for
+## the craft and every level-up; a miss uses up the step's costs and keeps the level.
+func _odds() -> void:
+	for id in MountData.ORDER:
+		check(is_equal_approx(MountData.chance(id), CHANCE[id]), "%s succeeds %d%%" % [id, roundi(CHANCE[id] * 100.0)])
+		check(MountData.chance_text(id) == "%d%%" % roundi(CHANCE[id] * 100.0), "%s chance text (%s)" % [id, MountData.chance_text(id)])
+	check(MountData.chance("no_such_mount") == 0.0, "an unknown mount has no chance")
+	var keep: Dictionary = Game.profile.mounts.duplicate()
+	var keep_active := String(Game.profile.mount)
+	Game.profile["mounts"] = {}
+	Game.profile["mount"] = ""
+	clear("chaos")
+	# The wolf: even the worst roll succeeds, at every level.
+	for n in range(1, MountData.MAX_LEVEL + 1):
+		give("wolf_fang", n)
+		give("chaos", 5 * n)
+		check(Game.craft_mount("thunder_wolf", 0.99999) == "ok" and Game.mount_level("thunder_wolf") == n, "the wolf always reaches Lv.%d" % n)
+	# The drake fails at a roll of 0.10 or more, and the costs are gone.
+	clear("drake_scale")
+	clear("chaos")
+	give("drake_scale", 1)
+	give("chaos", 15)
+	check(Game.craft_mount("fire_drake", 0.10) == "fail", "a roll of 0.10 misses the drake's 10%")
+	check(Game.mount_level("fire_drake") == 0 and not Game.owns_mount("fire_drake"), "a failed craft gives no drake")
+	check(Game.mount_mats("fire_drake") == 0 and Game.jewel_count("chaos") == 0, "a failed craft uses up the scale and 15 chaos")
+	check(Game.active_mount() == "thunder_wolf", "a failed craft keeps the active mount")
+	give("drake_scale", 1)
+	give("chaos", 15)
+	check(Game.craft_mount("fire_drake", 0.099) == "ok" and Game.mount_level("fire_drake") == 1, "a roll under 0.10 crafts the drake")
+	# A failed level-up keeps the level and spends that level's costs.
+	give("drake_scale", 2)
+	give("chaos", 30)
+	check(Game.craft_mount("fire_drake", 0.5) == "fail" and Game.mount_level("fire_drake") == 1, "a failed drake level-up stays at Lv.1")
+	check(Game.mount_mats("fire_drake") == 0 and Game.jewel_count("chaos") == 0, "a failed level-up uses up 2 scales and 30 chaos")
+	check(Game.craft_mount("fire_drake", 0.0) != "ok" and Game.mount_level("fire_drake") == 1, "with nothing left the next try is refused")
+	# Stag and griffin edges.
+	give("stag_antler", 1)
+	give("chaos", 8)
+	check(Game.craft_mount("glow_stag", 0.60) == "fail" and Game.mount_level("glow_stag") == 0, "the stag misses at 0.60")
+	give("stag_antler", 1)
+	give("chaos", 8)
+	check(Game.craft_mount("glow_stag", 0.59) == "ok" and Game.mount_level("glow_stag") == 1, "the stag succeeds under 0.60")
+	give("griffin_plume", 1)
+	give("chaos", 10)
+	check(Game.craft_mount("griffin", 0.35) == "fail" and Game.mount_level("griffin") == 0, "the griffin misses at 0.35")
+	give("griffin_plume", 1)
+	give("chaos", 10)
+	check(Game.craft_mount("griffin", 0.34) == "ok" and Game.mount_level("griffin") == 1, "the griffin succeeds under 0.35")
+	# Real rolls: the drake's rate sits near 10% over many tries.
+	var wins := 0
+	var tries := 2000
+	Game.rng.seed = 777
+	for i in tries:
+		Game.profile.mounts.erase("fire_drake")
+		give("drake_scale", 1)
+		give("chaos", 15)
+		if Game.craft_mount("fire_drake") == "ok":
+			wins += 1
+	check(absf(float(wins) / tries - 0.10) < 0.03, "the drake's real rate is about 10%% (%d / %d)" % [wins, tries])
+	Game.rng.randomize()
+	clear("drake_scale")
+	clear("chaos")
+	Game.profile["mounts"] = keep
+	Game.profile["mount"] = keep_active
 
 
 func _stats() -> void:
@@ -334,7 +404,7 @@ func _riding() -> void:
 	Game.profile.hp = 99999
 	hero.visual.release()
 	# No-riding zones: can't get on, and riding into one puts the hero down.
-	for zone_id in [&"guildwar", &"pvp", &"tower", &"arena"]:
+	for zone_id in [&"pvp", &"tower", &"arena"]:
 		hero.field = field
 		hero.ride()
 		check(hero.is_riding(), "riding before %s" % zone_id)
@@ -361,6 +431,18 @@ func _riding() -> void:
 	check(hero.is_riding() and hud.mount_chip_text() == "ลง", "tapping ขี่ rides, the chip says ลง")
 	hud.tap_mount()
 	check(not hero.is_riding() and hud.mount_chip_text() == "ขี่", "tapping ลง gets off")
+	# A phone tap arrives as a touch plus the mouse click Godot emulates from it:
+	# the chip must still ride once, not ride and get straight back off.
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	var click := InputEventMouseButton.new()
+	click.pressed = true
+	click.button_index = MOUSE_BUTTON_LEFT
+	hud._mount_chip.gui_input.emit(touch)
+	hud._mount_chip.gui_input.emit(click)
+	check(hero.is_riding() and hud.mount_chip_text() == "ลง", "one phone tap (touch + emulated click) rides")
+	hero.dismount()
+	hud._update_mount_row()
 	var keep: Dictionary = Game.profile.duplicate(true)
 	Game.profile["mounts"] = {}
 	Game.profile["mount"] = ""
@@ -461,9 +543,10 @@ func _menu() -> void:
 		var title := card.find_child("Title", true, false) as Label
 		check(title != null and title.text.contains("Lv.0/5"), "%s shows Lv.0 (%s)" % [id, title.text if title else ""])
 		var craft := card.find_child("Craft", true, false) as Button
-		check(craft != null and craft.text == "สร้าง" and craft.disabled, "%s: สร้าง is off without materials" % id)
+		check(craft != null and craft.text == "สร้าง (%d%%)" % roundi(CHANCE[id] * 100.0) and craft.disabled, "%s: สร้าง shows its chance, off without materials (%s)" % [id, craft.text if craft else ""])
 		var cost := card.find_child("Cost", true, false) as Label
 		check(cost != null and cost.text.contains("0/1") and cost.text.contains("0/%d" % CHAOS[id]), "%s cost shows owned/needed (%s)" % [id, cost.text if cost else ""])
+		check(cost != null and cost.text.contains("โอกาสสำเร็จ %d%%" % roundi(CHANCE[id] * 100.0)), "%s card shows its success chance" % id)
 		check(card.find_child("Next", true, false) != null, "%s shows the next level's stats" % id)
 		for label in card.find_children("*", "Label", true, false):
 			check(not (label as Label).text.contains("เหรียญ"), "%s card shows no gold price" % id)
@@ -478,7 +561,7 @@ func _menu() -> void:
 	check(Game.mount_level("thunder_wolf") == 1 and Game.active_mount() == "thunder_wolf", "menu craft makes the wolf Lv.1 and active")
 	var wolf := _card(menu, "thunder_wolf")
 	var up := wolf.find_child("Craft", true, false) as Button
-	check(up != null and up.text == "อัปเลเวล" and up.disabled, "the wolf now offers อัปเลเวล, off while short")
+	check(up != null and up.text == "อัปเลเวล (100%)" and up.disabled, "the wolf now offers อัปเลเวล, off while short")
 	check((wolf.find_child("Title", true, false) as Label).text.contains("Lv.1/5"), "the card shows Lv.1")
 	check((wolf.find_child("Now", true, false) as Label).text.contains("HP +1%"), "current stats: HP +1%")
 	check((wolf.find_child("Next", true, false) as Label).text.contains("HP +2%"), "next stats: HP +2%")
@@ -495,7 +578,7 @@ func _menu() -> void:
 	Game.profile.mounts["thunder_wolf"] = 5
 	give("stag_antler", 1)
 	give("chaos", 8)
-	Game.craft_mount("glow_stag")
+	Game.craft_mount("glow_stag", 0.0)
 	menu._rebuild()
 	await settle()
 	var maxed := _card(menu, "thunder_wolf").find_child("Craft", true, false) as Button
@@ -507,6 +590,46 @@ func _menu() -> void:
 		pick.pressed.emit()
 		await settle()
 	check(Game.active_mount() == "glow_stag", "menu pick makes the stag active")
+	for label in menu._content.find_children("*", "Label", true, false):
+		check(not (label as Label).text.contains("สำเร็จ 100"), "no tab text promises 100%% (%s)" % (label as Label).text.left(40))
+	# A failed drake craft from the menu: costs gone, a Thai miss message, still Lv.0.
+	var toasts: Array = []
+	var listen := func(text: String, _kind: StringName): toasts.append(text)
+	Game.toast.connect(listen)
+	var seed_fail := 1
+	while true:
+		Game.rng.seed = seed_fail
+		if Game.rng.randf() >= 0.10:
+			break
+		seed_fail += 1
+	Game.rng.seed = seed_fail
+	give("drake_scale", 1)
+	give("chaos", 15)
+	menu._rebuild()
+	await settle()
+	var drake_btn := _card(menu, "fire_drake").find_child("Craft", true, false) as Button
+	check(drake_btn != null and not drake_btn.disabled and drake_btn.text == "สร้าง (10%)", "the drake craft is open, 10%")
+	drake_btn.pressed.emit()
+	await settle()
+	check(Game.mount_level("fire_drake") == 0 and Game.mount_mats("fire_drake") == 0, "the failed menu craft used the scale, no drake")
+	check(toasts.any(func(t): return String(t).contains("พลาด") and String(t).contains("หายไป")), "the miss says so in Thai (%s)" % str(toasts))
+	toasts.clear()
+	give("stag_antler", 2)
+	give("chaos", 16)
+	Game.rng.seed = 1
+	while true:
+		var probe := Game.rng.seed
+		if Game.rng.randf() < 0.60:
+			Game.rng.seed = probe
+			break
+		Game.rng.seed = probe + 1
+	menu._rebuild()
+	await settle()
+	(_card(menu, "glow_stag").find_child("Craft", true, false) as Button).pressed.emit()
+	await settle()
+	check(Game.mount_level("glow_stag") == 2 and toasts.any(func(t): return String(t).contains("สำเร็จ")), "a menu level-up success says สำเร็จ (%s)" % str(toasts))
+	Game.toast.disconnect(listen)
+	Game.rng.randomize()
 	menu.close_menu()
 	menu.queue_free()
 	await settle()

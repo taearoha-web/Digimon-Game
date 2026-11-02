@@ -1,6 +1,7 @@
 extends Node
 ## Trading with the stall keepers (StallStock): a stall's stock is the same for the same
-## keeper and restock window, gear a grade above the merchant's at a higher price,
+## keeper and restock window, gear of the keeper's own level a grade above the merchant's
+## at a higher price (weapons mostly for the hero's class),
 ## potions a little cheaper; buying spends the gold, puts the lot in the bag and takes it
 ## off the stall until the restock; the stall pays more than the merchant for the bag's
 ## things; the bought-lot flags of older windows are dropped when a stall opens; the shop
@@ -79,23 +80,32 @@ func _stock(i: int, t: float) -> void:
 	npc.free()
 	check(npc_best <= 1, "the merchant sells common and good gear (best %d)" % npc_best)
 	var rarities := {}
+	var weapons := 0
+	var for_hero := 0
 	for n in WorldPlayers.size():
 		if not WorldPlayers.in_town_style(n):
 			continue
+		# A stall holds what its keeper found by its own level and stars, not the hero's.
+		var who := StallStock.seller(n, t)
+		var cap := StallStock.gear_cap(int(who.level), int(who.stars))
 		for e in StallStock.full_stock(n, t):
 			var item: Dictionary = e.item
 			match String(item.get("kind", "")):
 				"equip":
 					rarities[int(item.rarity)] = int(rarities.get(int(item.rarity), 0)) + 1
-					check(int(item.rarity) >= 2 and int(item.level) <= int(Game.profile.level), "%s: a find above the merchant's grade the hero can wear (rarity %d, Lv.%d)" % [item.name, int(item.rarity), int(item.level)])
+					check(int(item.rarity) >= 2 and int(item.level) <= cap, "%s: a find above the merchant's grade at its keeper's level (rarity %d, Lv.%d, keeper cap %d)" % [item.name, int(item.rarity), int(item.level), cap])
 					check(int(e.price) > ItemData.buy_price(item), "%s: costs more than at the merchant (%d > %d)" % [item.name, int(e.price), ItemData.buy_price(item)])
-					check(String(item.slot) != "weapon" or StringName(item["class"]) == Game.class_id(), "%s: a weapon for the hero's class" % item.name)
+					if String(item.slot) == "weapon":
+						weapons += 1
+						for_hero += 1 if StringName(item["class"]) == Game.class_id() else 0
+						check(ClassData.IDS.has(StringName(item["class"])), "%s: a weapon of a real class" % item.name)
 				"potion":
 					var npc_price := ItemData.buy_price(item) * int(item.count)
 					check(int(e.price) < npc_price, "%s ×%d: cheaper than at the merchant (%d < %d)" % [ItemData.name_of(item), int(item.count), int(e.price), npc_price])
 				_:
 					check(int(e.price) > 0, "%s: has a price" % ItemData.name_of(item))
-	print("stall_trade_test: gear by rarity across the stalls %s" % [rarities])
+	print("stall_trade_test: gear by rarity across the stalls %s, %d of %d weapons for the hero's class" % [rarities, for_hero, weapons])
+	check(weapons > 0 and for_hero * 2 > weapons, "weapons are mostly for the hero's class (%d of %d)" % [for_hero, weapons])
 	check(int(rarities.get(2, 0)) > int(rarities.get(3, 0)) and int(rarities.get(3, 0)) > int(rarities.get(4, 0)) and int(rarities.get(4, 0)) >= 0, "the rarer the grade, the rarer the find (%s)" % [rarities])
 
 
@@ -107,6 +117,11 @@ func _buy(i: int, t: float) -> void:
 			lot = e
 			break
 	var k := int(lot.k)
+	# The legend / mythic find achievements already earned (a keeper of Lv.100 lays out
+	# legendary and mythic pieces), so the buy moves no gold but the price.
+	Game.flag_max("got_legend", 1)
+	Game.flag_max("got_mythic", 1)
+	Game.check_achievements()
 	Game.profile.gold = int(lot.price) - 1
 	check(not StallStock.buy(i, k, t) and int(Game.profile.gold) == int(lot.price) - 1, "no sale without the gold")
 	Game.profile.gold = int(lot.price) + 500
@@ -205,6 +220,10 @@ func _haggle(t: float) -> void:
 	var lot: Dictionary = StallStock.stock(a, t).filter(func(e): return int(e.k) == ka)[0]
 	check(int(lot.price) == want and int(lot.get("base", 0)) == base and want < base, "the stock shows the haggled price (%d of %d, %d%% off)" % [int(lot.price), base, percent])
 	check(StallStock.discount(a, ka, t) == percent and not StallStock.can_haggle(a, ka, t) and StallStock.haggle(a, ka, t).is_empty(), "one haggle a lot a window")
+	# The legend / mythic find achievements already earned, so the buy moves no gold but the price.
+	Game.flag_max("got_legend", 1)
+	Game.flag_max("got_mythic", 1)
+	Game.check_achievements()
 	Game.profile.gold = want + 100
 	check(StallStock.buy(a, ka, t) and int(Game.profile.gold) == 100, "the buy pays the haggled price (%d left)" % int(Game.profile.gold))
 	check(said.size() == 1, "buying says nothing more")

@@ -258,6 +258,8 @@ func _ai_summoners(hero: Hero) -> void:
 	# Its moves warn the hero first, then land war-scaled, capped by BurstGuard like any fighter's hit.
 	hero.global_position = king.global_position + Vector3(2, 0, 0)
 	Game.profile.hp = int(hero.stats.max_hp)
+	# No random dodge: the check is about the slam landing, not the hero's luck.
+	hero.stats.dodge = 0.0
 	for id in king._move_cds:
 		king._move_cds[id] = 0.0
 	king.set_physics_process(false)

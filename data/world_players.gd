@@ -15,7 +15,7 @@ extends RefCounted
 ## that fits its level (WorldPresence shows it there, fighting the field's monsters for
 ## real) and only comes to the village for short errands (errand_at: a quest, the forge,
 ## new skills); with the divine set complete it spends its sessions on the endgame
-## (endgame_plan) and enhances the set. Otherwise the village belongs to the stall keepers
+## (endgame_plan) and enhances the set once it has climbed to ★300 (Game.PARAGON_MAX). Otherwise the village belongs to the stall keepers
 ## (the "afk" style, and divine players taking a break, endgame_plan's "stall"): resting
 ## players who sell the good things they found (StallStock).
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
@@ -42,18 +42,18 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "SkyArrow", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "early"},
 	{"name": "Mintty", "class": &"mage", "guild": ALPHA, "gender": 1, "style": "early"},
 	{"name": "Rinrada", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "overseas"},
-	{"name": "ป้อมปราการ", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "afk"},
+	{"name": "ป้อมปราการ", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "regular"},
 	{"name": "เมจิกหมูกรอบ", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "overseas"},
 	{"name": "ข้าวเหนียวมะม่วง", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "overseas"},
 	{"name": "Zerox", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
 	{"name": "BlackLotus", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "hardcore"},
 	{"name": "TonkatsuX", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "daytime"},
 	{"name": "นักล่าตะวัน", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "regular"},
-	{"name": "Fiora", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "afk"},
+	{"name": "Fiora", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "hardcore"},
 	{"name": "Yoyo", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "student"},
 	{"name": "แม่หมอมิว", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
-	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "afk"},
-	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "afk"},
+	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "night_owl"},
+	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "student"},
 	{"name": "Raijin", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "casual"},
 	{"name": "Ryuu", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "student"},
 	{"name": "ขุนศึกหน้าหวาน", "class": &"warrior", "guild": ALPHA, "gender": 1, "style": "weekend"},
@@ -99,27 +99,28 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "MaxPower", "class": &"warrior", "guild": 0, "gender": 0, "style": "daytime"},
 	{"name": "Hikari", "class": &"priest", "guild": 0, "gender": 1, "style": "early"},
 	{"name": "หมูกระทะ", "class": &"mage", "guild": 0, "gender": 0, "style": "overseas"},
-	# Stall keepers and AFK players: they stay in the village the whole session.
+	# Stall keepers: they stay in the village the whole session and sell what they find.
 	{"name": "ร้านป้าแดง", "class": &"priest", "guild": 0, "gender": 1, "style": "afk"},
-	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "afk"},
-	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "afk"},
 	{"name": "Shop_Nana", "class": &"mage", "guild": 0, "gender": 1, "style": "afk"},
 	{"name": "ร้านเครื่องเงิน", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "afk"},
-	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "afk"},
 	{"name": "ตลาดนัดเวท", "class": &"summoner", "guild": 0, "gender": 1, "style": "afk"},
-	{"name": "นอนรอบอส", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "afk"},
 	{"name": "LuteSeller", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "afk"},
-	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "afk"},
 	{"name": "แม่ค้าออนไลน์", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "afk"},
-	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "afk"},
 	{"name": "PotionKing", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "afk"},
 	{"name": "ร้านลุงหมี", "class": &"defender", "guild": 0, "gender": 0, "style": "afk"},
 	{"name": "ร้านพิณเสียงใส", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "afk"},
 	{"name": "ScrollShop", "class": &"mage", "guild": 0, "gender": 0, "style": "afk"},
-	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "afk"},
 	{"name": "ร้านเกราะพี่โต", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "afk"},
-	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "afk"},
 	{"name": "ร้านยาแม่มด", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "afk"},
+	# Once stall keepers and AFK players, now out levelling with a play schedule like the rest.
+	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "regular"},
+	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "overseas"},
+	{"name": "นอนรอบอส", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
+	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "early"},
+	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "night_owl"},
+	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "casual"},
+	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "daytime"},
 	# Fresh players who play in the daytime, in the early morning or from abroad.
 	{"name": "Mango", "class": &"archer", "guild": 0, "gender": 1, "style": "daytime"},
 	{"name": "ข้าวผัดกะเพรา", "class": &"warrior", "guild": 0, "gender": 0, "style": "early"},
@@ -144,17 +145,20 @@ const ROSTER: Array[Dictionary] = [
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
 ## moves every start by up to ±jitter hours and stretches every length by 0.7-1.3; skip is
-## the chance a day is missed. eff: how much of the probe's EXP rate the style earns.
+## the chance a day is missed. eff: how much of the probe's EXP rate the style earns
+## (a player online is out hunting most of its session, so the hunting styles earn about
+## a third of the probe's rate, hardcore the most and casual the least; a stall keeper
+## sits in the village and earns little).
 const STYLES := {
-	"hardcore": {"weekday": [[12.0, 1.5], [18.5, 5.5]], "weekend": [[10.0, 4.5], [18.0, 6.0]], "jitter": 1.0, "skip": 0.03, "eff": 0.18, "label": "ขาโหด"},
-	"regular": {"weekday": [[20.0, 3.0]], "weekend": [[14.0, 2.0], [20.0, 3.5]], "jitter": 1.0, "skip": 0.08, "eff": 0.15, "label": "เล่นประจำ"},
-	"student": {"weekday": [[16.5, 1.5], [20.5, 2.0]], "weekend": [[10.0, 3.0], [19.0, 3.0]], "jitter": 0.8, "skip": 0.06, "eff": 0.15, "label": "นักเรียน"},
-	"night_owl": {"weekday": [[22.0, 4.0]], "weekend": [[21.0, 5.5]], "jitter": 1.2, "skip": 0.08, "eff": 0.16, "label": "สายนอนดึก"},
-	"weekend": {"weekday": [[21.0, 1.0]], "weekend": [[10.0, 4.0], [19.0, 4.0]], "jitter": 1.0, "skip": 0.35, "eff": 0.15, "label": "สายเสาร์อาทิตย์"},
-	"casual": {"weekday": [[20.0, 1.5]], "weekend": [[15.0, 2.5]], "jitter": 1.5, "skip": 0.25, "eff": 0.13, "label": "เล่นชิลล์"},
-	"daytime": {"weekday": [[9.0, 3.0], [13.0, 4.0]], "weekend": [[10.5, 3.0], [15.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.14, "label": "ว่างกลางวัน"},
-	"early": {"weekday": [[6.0, 2.5], [12.0, 1.0]], "weekend": [[6.5, 3.5], [15.5, 2.0]], "jitter": 0.7, "skip": 0.08, "eff": 0.14, "label": "สายตื่นเช้า"},
-	"overseas": {"weekday": [[1.5, 4.0], [7.5, 2.5]], "weekend": [[1.0, 5.0], [9.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.15, "label": "อยู่ต่างประเทศ"},
+	"hardcore": {"weekday": [[12.0, 1.5], [18.5, 5.5]], "weekend": [[10.0, 4.5], [18.0, 6.0]], "jitter": 1.0, "skip": 0.03, "eff": 0.40, "label": "ขาโหด"},
+	"regular": {"weekday": [[20.0, 3.0]], "weekend": [[14.0, 2.0], [20.0, 3.5]], "jitter": 1.0, "skip": 0.08, "eff": 0.33, "label": "เล่นประจำ"},
+	"student": {"weekday": [[16.5, 1.5], [20.5, 2.0]], "weekend": [[10.0, 3.0], [19.0, 3.0]], "jitter": 0.8, "skip": 0.06, "eff": 0.32, "label": "นักเรียน"},
+	"night_owl": {"weekday": [[22.0, 4.0]], "weekend": [[21.0, 5.5]], "jitter": 1.2, "skip": 0.08, "eff": 0.34, "label": "สายนอนดึก"},
+	"weekend": {"weekday": [[21.0, 1.0]], "weekend": [[10.0, 4.0], [19.0, 4.0]], "jitter": 1.0, "skip": 0.35, "eff": 0.33, "label": "สายเสาร์อาทิตย์"},
+	"casual": {"weekday": [[20.0, 1.5]], "weekend": [[15.0, 2.5]], "jitter": 1.5, "skip": 0.25, "eff": 0.27, "label": "เล่นชิลล์"},
+	"daytime": {"weekday": [[9.0, 3.0], [13.0, 4.0]], "weekend": [[10.5, 3.0], [15.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.30, "label": "ว่างกลางวัน"},
+	"early": {"weekday": [[6.0, 2.5], [12.0, 1.0]], "weekend": [[6.5, 3.5], [15.5, 2.0]], "jitter": 0.7, "skip": 0.08, "eff": 0.30, "label": "สายตื่นเช้า"},
+	"overseas": {"weekday": [[1.5, 4.0], [7.5, 2.5]], "weekend": [[1.0, 5.0], [9.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.32, "label": "อยู่ต่างประเทศ"},
 	# Stall keepers / AFK: online most of the day, always in the village (town), slow EXP.
 	# A short break between sessions (each at its own time), so the stalls are always kept.
 	"afk": {"weekday": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "weekend": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "jitter": 0.3, "stretch": [0.96, 1.04], "phase": 8.0, "skip": 0.02, "eff": 0.03, "label": "ตั้งร้าน/AFK", "town": true},
@@ -166,13 +170,19 @@ const STYLES := {
 ## that of a real player.
 const SPEED := 3.0
 ## EXP per minute of auto-hunting (pace_probe, warrior/mage mean, 60 s each) at each
-## level in its field, and at Lv.100 by stars in the star fields.
+## level in its field, and at Lv.100 by stars in the star fields. From ★200 the rate is
+## the ★200-300 hunting ground's (about 1.3x the eclipse realm's ★200 rate at ★200,
+## rising to about 1.6x by ★300), so the steeper star curve (HeroStats.star_need, 4% more
+## per star past ★200) still takes a real player's weeks.
 const LEVEL_RATE := [[1, 900], [3, 1146], [10, 2465], [18, 5498], [26, 12453], [35, 14066], [46, 18823], [58, 21692], [70, 29115], [82, 26128], [94, 36727], [100, 36727]]
-const STAR_RATE := [[0, 56160], [25, 26488], [75, 46653], [125, 38994], [175, 41755], [200, 41755]]
+const STAR_RATE := [[0, 56160], [25, 26488], [75, 46653], [125, 38994], [175, 41755], [199, 41755], [200, 54282], [300, 66808]]
 ## Potions a world player carries out of the village.
 const POTIONS := 20
 const MP_POTIONS := 10
-## Hours of play after ★200 before the class's divine set is complete.
+## The divine set drops in the lotus sanctum (DivineRegionData, ★200): a player starts
+## finding it on reaching DIVINE_STARS and has the whole set after DIVINE_HOURS of play
+## there, while it keeps climbing to ★300.
+const DIVINE_STARS := 200
 const DIVINE_HOURS := 20.0
 
 static var _table: PackedFloat64Array = PackedFloat64Array()
@@ -366,8 +376,8 @@ static func town_time(i: int, _s0: float, _s1: float, _t: float) -> bool:
 ## minutes of a session, at its own moment: to hand in a quest at the elder ("quest"),
 ## to enhance at the blacksmith ("enhance") or to learn skills at the skill master
 ## ("skill"; always when a skill of its class unlocked since the stretch began).
-const ERRAND_EVERY := 50.0
-const ERRAND_CHANCE := 0.45
+const ERRAND_EVERY := 70.0
+const ERRAND_CHANCE := 0.35
 const ERRAND_MIN := 2.5
 const ERRAND_MAX := 4.0
 const ERRAND_KINDS: Array[String] = ["quest", "enhance", "skill"]
@@ -502,7 +512,8 @@ static func _lerp_table(table: Array, x: int) -> float:
 	return float(table[-1][1])
 
 
-## Probe minutes from Lv.1 to step k: steps 0..99 are Lv.1..100, steps 100..300 are ★0..200.
+## Probe minutes from Lv.1 to step k: steps 0..99 are Lv.1..100, steps 99..399 are ★0..300
+## (Game.PARAGON_MAX).
 static func _steps() -> PackedFloat64Array:
 	if not _table.is_empty():
 		return _table
@@ -539,25 +550,27 @@ static func progress_for(minutes: float, eff: float, extra := 0.0) -> Dictionary
 		frac = clampf((work - steps[k]) / maxf(0.001, steps[k + 1] - steps[k]), 0.0, 0.999)
 	var level := mini(k + 1, Game.MAX_LEVEL)
 	var stars := clampi(k - (Game.MAX_LEVEL - 1), 0, Game.PARAGON_MAX)
+	# The divine set is gathered from ★200 (DIVINE_STARS) while the stars go on to ★300.
 	var divine_need := DIVINE_HOURS * 60.0 * eff
-	var post := work - steps[steps.size() - 1]
-	var divine_frac := clampf(post / maxf(0.001, divine_need), 0.0, 1.0) if stars >= Game.PARAGON_MAX else 0.0
-	# Hours of play since the divine set was complete (the endgame: enhancing it, see equip).
+	var post := work - steps[mini(Game.MAX_LEVEL - 1 + DIVINE_STARS, steps.size() - 1)]
+	var divine_frac := clampf(post / maxf(0.001, divine_need), 0.0, 1.0) if stars >= DIVINE_STARS else 0.0
+	# Hours of play since the divine set was complete (enhancing it, see equip).
 	var after := maxf(0.0, post - divine_need) / maxf(0.001, 60.0 * eff) if divine_frac >= 1.0 else 0.0
 	return {"level": level, "stars": stars, "frac": frac, "minutes": minutes, "divine": divine_frac >= 1.0, "divine_frac": divine_frac, "after": after}
 
 
 ## A veteran's head start in probe minutes: where it stood when the world reopened, as a
-## point (Lv.1-100 = 1-100, ★1-200 = 101-300, past 300 = tenths of the divine set's hours:
-## 310 has just completed it, 330 has played twice as long again since).
+## point (Lv.1-100 = 1-100, ★1-300 = 101-400, past 400 = tenths of DIVINE_HOURS played
+## since ★300: 410 has played DIVINE_HOURS there, 420 twice as long).
 static func head_work(i: int) -> float:
 	var point := int(ROSTER[i].get("vet", 0))
 	if point <= 1:
 		return 0.0
 	var steps := _steps()
 	var work := steps[clampi(point - 1, 0, steps.size() - 1)]
-	if point > 300:
-		work += float(point - 300) / 10.0 * DIVINE_HOURS * 60.0 * efficiency(i)
+	var top := Game.MAX_LEVEL + Game.PARAGON_MAX
+	if point > top:
+		work += float(point - top) / 10.0 * DIVINE_HOURS * 60.0 * efficiency(i)
 	return work
 
 
@@ -766,13 +779,14 @@ static func _last_seen(i: int, t: float) -> float:
 
 
 ## What a player with a play schedule does in the session that started at real time s0:
-## {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
-## the divine set is complete each session is one of the endgame's: the lotus sanctum's
+## {place, doing}. On the way up it hunts the field that fits it ("hunt"), to ★300 with
+## the divine set too; once it is at ★300 (Game.PARAGON_MAX) with the divine set complete
+## each session is one of the endgame's: the lotus sanctum's
 ## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
 ## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
 	var home := hunting_zone(level, stars, divine)
-	if not divine:
+	if not divine or stars < Game.PARAGON_MAX:
 		return {"place": home, "doing": "hunt"}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("plan|%s|%d" % [ROSTER[i].name, int(s0 / 60.0)])
@@ -785,11 +799,12 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 
 
 ## The field a player hunts in: the one whose levels fit, then the star fields by stars,
-## and the lotus sanctum (the divine set) from ★200.
+## and from ★200 (DIVINE_STARS) on the ★200-300 hunting ground, the drowned abyss
+## (DrownedAbyssData; STAR_RATE's ★200-300 rates are its EXP).
 static func hunting_zone(level: int, stars: int, _divine := false) -> StringName:
 	if level >= Game.MAX_LEVEL:
-		if stars >= Game.PARAGON_MAX:
-			return DivineRegionData.ID
+		if stars >= DIVINE_STARS:
+			return DrownedAbyssData.ID
 		var at: StringName = &"void"
 		for k in StarProgression.REGIONS.size():
 			if stars >= int(StarProgression.ENTRY[k]):
@@ -856,12 +871,13 @@ static func sync_member(m: Dictionary, s: Dictionary) -> bool:
 
 
 ## The character sheet of a world player at its level and stars (for HeroStats): the
-## gear it found and its job, plus every stat point spent like a player does (60% main
-## stat, 40% vitality), its star points and its skills ranked up as it levels.
+## gear it found and its job (the God step at Lv.100 ★300: JobData.adv_for), plus every stat point spent like a player does (60% main
+## stat, 40% vitality), its star points and the skill points it earned spent at the
+## Skill Master (skill_ranks). All of it follows what its own play reached.
 static func profile(m: Dictionary) -> Dictionary:
 	var level := int(m.level)
 	var stars := Game.party_stars(m)
-	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for_level(level),
+	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for(level, stars),
 		"paragon": {"level": stars, "alloc": Game.party_star_alloc(stars)}}
 	var points := Game.STAT_POINTS_PER_LEVEL * (level - 1)
 	var main := String(JobData.resolve(StringName(m["class"]), int(p.adv)).main)
@@ -869,12 +885,110 @@ static func profile(m: Dictionary) -> Dictionary:
 	attrs[main] = int(points * 0.6)
 	attrs["vit"] = int(attrs["vit"]) + int(points * 0.4)
 	p["attrs"] = attrs
-	var skills := {}
-	for skill in ClassData.pool(StringName(m["class"])):
-		if int(skill.level) <= level:
-			skills[String(skill.id)] = clampi(1 + (level - int(skill.level)) / 12, 1, SkillRank.MAX)
-	p["skills"] = skills
+	p["skills"] = skill_ranks(StringName(m["class"]), level, stars)
+	# Its mount (mount_of): the stats count like the hero's (HeroStats.mount_bonus).
+	var ride := mount_of(m)
+	p["mounts"] = {String(ride.id): int(ride.level)} if not ride.is_empty() else {}
+	p["mount"] = String(ride.get("id", ""))
 	return p
+
+
+## Skill points a player has earned by `level` and `stars`, the way the hero earns them
+## (Game): one to start and one each level, the job advancements' (JobData.TIER_SKILL_POINTS)
+## and two at each star tier (StarProgression.grant_milestones).
+static func skill_points(level: int, stars: int) -> int:
+	var points := level
+	for k in JobData.adv_for_level(level):
+		points += int(JobData.TIER_SKILL_POINTS[k])
+	if level >= Game.MAX_LEVEL:
+		for tier in StarProgression.TIERS:
+			points += 2 if stars >= int(tier) else 0
+	return points
+
+
+## The ranks a player of class `cls` has bought at the Skill Master by `level` and
+## `stars`: every skill it has unlocked starts at rank 1, and the points it earned
+## (skill_points) go one at a time to the lowest-ranked skill (the longest-known first),
+## like a player keeping its whole bar up, up to SkillRank.MAX; points it has no use
+## for yet wait for the next skill.
+static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
+	var unlocked: Array = []
+	for skill in ClassData.pool(cls):
+		if int(skill.level) <= level:
+			unlocked.append(skill)
+	unlocked.sort_custom(func(a, b): return int(a.level) < int(b.level))
+	var ranks := {}
+	for skill in unlocked:
+		ranks[String(skill.id)] = 1
+	var points := skill_points(level, stars)
+	for rank in range(1, SkillRank.MAX):
+		for skill in unlocked:
+			if points <= 0:
+				return ranks
+			ranks[String(skill.id)] = rank + 1
+			points -= 1
+	return ranks
+
+
+# --- Mounts (MountData) --------------------------------------------------------------
+
+## The share of players who ever take up mounts (the rest never craft one).
+const MOUNT_SHARE := 0.6
+## The level a mount-keeping player crafts its first mount (its own, in this range).
+const MOUNT_FROM := Vector2i(35, 70)
+## Progress (levels since the first mount + stars) a player needs, beyond its own
+## extra, before it trades up to the stag, the griffin and the drake.
+const MOUNT_TIERS := {"glow_stag": [30.0, 30.0], "griffin": [90.0, 60.0], "fire_drake": [170.0, 90.0]}
+## Of the players who get that far, the share that ever lands the drake's 10% craft.
+const DRAKE_SHARE := 0.25
+## Progress per mount level (Lv.1 at the craft, up to MountData.MAX_LEVEL).
+const MOUNT_LEVEL_EVERY := 14.0
+## How much each play style likes to ride (MOUNT_TASTE_JITTER scales it per player).
+const STYLE_RIDE := {"hardcore": 0.75, "regular": 0.55, "student": 0.6, "night_owl": 0.5, "weekend": 0.45,
+	"casual": 0.35, "daytime": 0.45, "early": 0.4, "overseas": 0.5, "afk": 0.2}
+## The share of mount owners who never bother riding, and who rarely do.
+const NEVER_RIDE := 0.15
+const RARELY_RIDE := 0.25
+
+
+## The mount a world player (member sheet: name, level, stars) has at its progress: {id,
+## level} or {} with none. Seeded by its name, so the same on every device: some players
+## never craft one; the rest craft the wolf at a level of their own (MOUNT_FROM) and trade
+## up as they progress, levelling the newest one.
+static func mount_of(m: Dictionary) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("mount|%s" % String(m.get("name", "")))
+	if rng.randf() >= MOUNT_SHARE:
+		return {}
+	var from := rng.randi_range(MOUNT_FROM.x, MOUNT_FROM.y)
+	var level := int(m.get("level", 1))
+	if level < from:
+		return {}
+	var point := float(level - from) + float(m.get("stars", 0))
+	var id := "thunder_wolf"
+	var since := 0.0
+	var drake := rng.randf() < DRAKE_SHARE
+	for tier in ["glow_stag", "griffin", "fire_drake"]:
+		var need := float(MOUNT_TIERS[tier][0]) + rng.randf() * float(MOUNT_TIERS[tier][1])
+		if point >= need and (tier != "fire_drake" or drake):
+			id = tier
+			since = need
+	return {"id": id, "level": clampi(1 + int((point - since) / MOUNT_LEVEL_EVERY), 1, MountData.MAX_LEVEL)}
+
+
+## How much player i likes to ride its mount (0 = never, up to about 0.95 = nearly
+## always), always the same: its play style's taste (STYLE_RIDE) and its own whim; some
+## never ride, some rarely.
+static func ride_taste(i: int) -> float:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("ride|%s" % ROSTER[i].name)
+	var pick := rng.randf()
+	if pick < NEVER_RIDE:
+		return 0.0
+	var base := float(STYLE_RIDE.get(String(ROSTER[i].style), 0.5))
+	if pick < NEVER_RIDE + RARELY_RIDE:
+		return clampf(base * rng.randf_range(0.15, 0.4), 0.05, 0.3)
+	return clampf(base * rng.randf_range(0.9, 1.5), 0.2, 0.95)
 
 
 # --- What they wear: what they found -----------------------------------------------
@@ -925,7 +1039,7 @@ static var _gear_sig := {}
 
 
 ## Where a member sheet is on the way, as one number: Lv.1-100 with the part of the
-## level done, then 100 + stars (to 300).
+## level done, then 100 + stars (to 400 at ★300, Game.PARAGON_MAX).
 static func point_of(m: Dictionary) -> float:
 	var level := int(m.level)
 	var frac := clampf(float(m.get("frac", 0.0)), 0.0, 0.999)
@@ -991,7 +1105,7 @@ static func _best_find(name: String, slot: String, p: float, divine_frac: float)
 	if divine_frac > 0.0 and slot in DivineGearData.SLOTS:
 		var rng := _find_rng(name, slot, "divine")
 		if divine_frac >= rng.randf_range(0.12, 1.0):
-			best = {"key": "divine", "kind": "divine", "at": 300.0}
+			best = {"key": "divine", "kind": "divine", "at": float(Game.MAX_LEVEL + DIVINE_STARS)}
 	return best
 
 
@@ -1118,6 +1232,17 @@ static func fighter(i: int, t: float, _rng: RandomNumberGenerator = null) -> Dic
 
 
 ## Display line: "Lv.57" or "Lv.100 ★120".
+## Whether player state (or member) s has taken the God promotion: Lv.100 and ★300
+## (JobData.adv_for), like the hero's เทพเจ้าแห่ง<อาชีพ>.
+static func is_god(s: Dictionary) -> bool:
+	return JobData.is_god(JobData.adv_for(int(s.get("level", 1)), int(s.get("stars", 0))))
+
+
+## Its God title ("เทพเจ้าแห่งนักรบ"), "" before the promotion.
+static func god_title(s: Dictionary) -> String:
+	return JobData.god_name(StringName(s.get("class", "warrior"))) if is_god(s) else ""
+
+
 static func level_text(s: Dictionary) -> String:
 	return "Lv.%d%s" % [int(s.level), " ★%d" % int(s.stars) if int(s.stars) > 0 else ""]
 

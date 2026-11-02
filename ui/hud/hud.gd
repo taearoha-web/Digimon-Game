@@ -56,6 +56,10 @@ var raven_button: TouchButton
 ## How the raven hunts: single (เดี่ยว), group (หมู่) or auto (ออโต้); tap to cycle.
 var raven_mode_button: TouchButton
 var interact_button: TouchButton
+## The guild war's team-buff button (บัฟทีม): the hero's war party casts its buffs now
+## (GuildWarMatch.team_buff); greyed with the seconds left while it rests.
+var team_buff_button: TouchButton
+var _team_buff_tap := -1000000
 
 var _root: Control
 var _frame: Control
@@ -229,6 +233,7 @@ func set_controls_visible(value: bool) -> void:
 			continue
 		var in_town := zone != null and zone.is_town
 		c.visible = value and not (in_town and c in _combat_controls)
+	team_buff_button.visible = value and _war() != null and not (zone != null and zone.is_town)
 	if not value:
 		joystick.output = Vector2.ZERO
 		if hero:
@@ -335,6 +340,7 @@ func _refresh() -> void:
 		auto_button.set_toggled(hero.auto)
 	raven_button.visible = hero.raven != null and not zone.is_town and auto_button.visible
 	raven_mode_button.visible = raven_button.visible
+	_update_team_buff()
 	if raven_button.visible:
 		raven_button.set_toggled(hero.raven.attack)
 		raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
@@ -843,6 +849,45 @@ func _update_mount_row() -> void:
 	(_mount_chip.get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if riding == 1 else Color.WHITE)
 
 
+## The team-buff button: shown only in a guild war (with the other combat buttons),
+## greyed with a countdown while it rests.
+func _update_team_buff() -> void:
+	var war := _war()
+	team_buff_button.visible = war != null and auto_button.visible
+	if war == null:
+		return
+	var left := ceili(war.team_buff_left)
+	var resting := left > 0
+	if resting != team_buff_button.disabled:
+		team_buff_button.disabled = resting
+	var label := ("%d" % left) if resting else TEAM_BUFF_LABEL
+	if label != team_buff_button.text:
+		team_buff_button.font_size_override = 24 if resting else 16
+		team_buff_button.set_label(label)
+
+
+## บัฟทีม pressed: the hero's war party buffs now, and a short toast tells how many did.
+## A TouchButton press, so one phone tap (touch + the click Godot emulates) counts once.
+func press_team_buff() -> void:
+	var war := _war()
+	if war == null:
+		return
+	# Belt and braces against a doubled tap (see TAP_DEDUP_MS); the rest blocks the next one anyway.
+	var now := Time.get_ticks_msec()
+	if now - _team_buff_tap < TAP_DEDUP_MS:
+		return
+	_team_buff_tap = now
+	if war.team_buff_left > 0.0:
+		Game.say("บัฟทีมพร้อมในอีก %d วินาที" % ceili(war.team_buff_left), &"warning")
+		return
+	var buffed := war.team_buff()
+	if buffed > 0:
+		Game.say("ทีมบัฟแล้ว %d คน" % buffed, &"success")
+	elif buffed == 0:
+		Game.say("ยังไม่มีใครบัฟได้", &"warning")
+	_update_team_buff()
+
+
 ## The guild war being fought in this zone, or null.
 func _war() -> GuildWarMatch:
 	if zone == null or not is_instance_valid(zone) or zone.gw_match == null or not is_instance_valid(zone.gw_match):
@@ -1047,6 +1092,17 @@ func _build_action_buttons(frame: Control) -> void:
 			Game.say("อีกา: %s" % RAVEN_MODE_TIPS[hero.raven.mode], &"info"))
 	frame.add_child(raven_mode_button)
 
+	# บัฟทีม: only in a guild war, left of the target button (_layout_actions).
+	team_buff_button = TouchButton.new()
+	team_buff_button.name = "TeamBuffButton"
+	team_buff_button.radius = TEAM_BUFF_RADIUS
+	team_buff_button.accent = GuildWarMatch.PARTY_COLOR
+	team_buff_button.text = TEAM_BUFF_LABEL
+	team_buff_button.font_size_override = 16
+	team_buff_button.visible = false
+	team_buff_button.pressed.connect(press_team_buff)
+	frame.add_child(team_buff_button)
+
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0
 	interact_button.icon = load("res://assets/icons/ui/interact.svg")
@@ -1055,6 +1111,11 @@ func _build_action_buttons(frame: Control) -> void:
 	_place_corner(interact_button, Vector2(-30, -30), 52.0)
 	interact_button.pressed.connect(func(): interact_pressed.emit())
 	frame.add_child(interact_button)
+
+
+const TEAM_BUFF_LABEL := "บัฟทีม"
+## 60 px across: a thumb's size on a phone.
+const TEAM_BUFF_RADIUS := 30.0
 
 
 ## Positions are calculated together so every skill retains its own touch area.
@@ -1069,7 +1130,10 @@ static func action_layout(canvas_size: Vector2) -> Dictionary:
 	var utility_spacing := clampf((canvas_size.y - 466.0) / 3.0, 62.0, 72.0)
 	for i in 4:
 		utility.append(Vector2(-40.0, -184.0 - (3 - i) * utility_spacing))
-	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "attack": Vector2(-84, -84)}
+	# The team-buff button: left of the target button, under the raven buttons and above
+	# the attack button (clear of all three, touch margins included).
+	var team_buff := utility[3] + Vector2(-72, 0)
+	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "attack": Vector2(-84, -84), "team_buff": team_buff}
 
 
 func _layout_actions() -> void:
@@ -1090,6 +1154,7 @@ func _layout_actions() -> void:
 	_place_corner(raven_button, positions.utility[2] + Vector2(-72, 0) + Vector2.ONE * raven_button.radius, raven_button.radius)
 	# Its mode button sits right above it.
 	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
+	_place_corner(team_buff_button, positions.team_buff + Vector2.ONE * TEAM_BUFF_RADIUS, TEAM_BUFF_RADIUS)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
 	# The world chat sits between the joystick's resting ring and the first skill slot,
@@ -1202,10 +1267,21 @@ func _bar(variation: StringName, height: float) -> ProgressBar:
 	return bar
 
 
+## On a phone one tap arrives twice (the touch and the mouse click Godot emulates
+## from it), so presses closer together than TAP_DEDUP_MS count once; otherwise a
+## toggle such as the mount chip turns on and straight back off.
+const TAP_DEDUP_MS := 250
+
+
 func _tap(callback: Callable) -> Callable:
+	var last := [-TAP_DEDUP_MS]
 	return func(event: InputEvent):
 		if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 				or (event is InputEventScreenTouch and event.pressed):
+			var now := Time.get_ticks_msec()
+			if now - int(last[0]) < TAP_DEDUP_MS:
+				return
+			last[0] = now
 			AudioManager.play_ui(&"ui_click")
 			callback.call()
 

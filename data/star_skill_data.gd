@@ -2,52 +2,64 @@ class_name StarSkillData
 extends RefCounted
 ## Authored post-cap skills. `mult` is TOTAL damage for the timed sequence.
 ## Skill rank never changes the promised ten swords or six Heartseeker contacts.
+## The fifth skill of each class is its god-tier skill, unlocked at GOD_STAR stars.
+const GOD_STAR := 300
+## Base TOTAL multiplier of the god-tier skills before ClassData.skill_tune. 50 is the
+## 50/100/150/200 curve (15, 23, 25, 38) carried on (+32% over 38); the mage and the bard
+## carry a low area tune, so theirs is raised until the god skill tops the class's
+## strongest skill (Judgment Ray, Heartbreak Sonata) and stays its strongest.
+const GOD_MULT := {
+	&"warrior": 50.0, &"archer": 50.0, &"lancer": 50.0, &"mage": 62.0, &"priest": 50.0,
+	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 50.0, &"bard": 78.0,
+}
+## Contact beats of a god-tier cast (StarSkillSequence): four waves and the finale.
+const GOD_BEATS := [0.0, 0.32, 0.64, 0.96, 1.5]
 const IDS := {
-	&"warrior": ["lionfang_cleave", "crown_breaker", "royal_vanguard", "celestial_swordfall"],
-	&"archer": ["moonpiercer", "hunters_verdict", "sylph_step", "celestial_hunt"],
-	&"lancer": ["spiral_impaler", "heartseeker", "aegis_formation", "worldsplitter"],
-	&"mage": ["arcane_prism", "crystal_prison", "astral_convergence", "genesis_nova"],
-	&"priest": ["sanctified_chain", "seraph_aegis", "sacred_sanctuary", "dawn_salvation"],
-	&"summoner": ["moonwolf_pact", "leviathan_surge", "spirit_court", "eclipse_sovereign"],
-	&"defender": ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"],
-	&"assassin": ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"],
-	&"darklord": ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm"],
-	&"bard": ["starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore"],
+	&"warrior": ["lionfang_cleave", "crown_breaker", "royal_vanguard", "celestial_swordfall", "divine_edict"],
+	&"archer": ["moonpiercer", "hunters_verdict", "sylph_step", "celestial_hunt", "sunfall_volley"],
+	&"lancer": ["spiral_impaler", "heartseeker", "aegis_formation", "worldsplitter", "heavenrend_spear"],
+	&"mage": ["arcane_prism", "crystal_prison", "astral_convergence", "genesis_nova", "astral_apocalypse"],
+	&"priest": ["sanctified_chain", "seraph_aegis", "sacred_sanctuary", "dawn_salvation", "seraphic_judgment"],
+	&"summoner": ["moonwolf_pact", "leviathan_surge", "spirit_court", "eclipse_sovereign", "celestial_dragon_emperor"],
+	&"defender": ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark", "pantheon_bastion"],
+	&"assassin": ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem", "death_gods_eclipse"],
+	&"darklord": ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm", "abyssal_throne"],
+	&"bard": ["starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore", "divine_symphony"],
 }
 const NAMES := {
-	&"warrior": ["Lionfang Cleave", "Crown Breaker", "Royal Vanguard", "Celestial Swordfall"],
-	&"archer": ["Moonpiercer", "Hunter's Verdict", "Sylph Step", "Celestial Hunt"],
-	&"lancer": ["Spiral Impaler", "Heartseeker", "Aegis Formation", "Worldsplitter"],
-	&"mage": ["Arcane Prism", "Crystal Prison", "Astral Convergence", "Genesis Nova"],
-	&"priest": ["Sanctified Chain", "Seraph's Aegis", "Sacred Sanctuary", "Dawn of Salvation"],
-	&"summoner": ["Wind Monkey King", "Leviathan's Surge", "Spirit Court", "Poseidon, Lord of Tides"],
-	&"defender": ["Titan Shieldbreak", "Judgment Rebound", "Eternal Aegis", "Heaven's Bulwark"],
-	&"assassin": ["Umbral Lacerate", "Shadow Execution", "Veil of Night", "Eclipse Requiem"],
-	&"darklord": ["Chaos Inferno", "Raven Sovereign", "Lord's Dominion", "Imperial Cataclysm"],
-	&"bard": ["Starlight Overture", "Heartbreak Sonata", "Celestial Stage", "Cosmic Encore"],
+	&"warrior": ["Lionfang Cleave", "Crown Breaker", "Royal Vanguard", "Celestial Swordfall", "ดาบเทพประกาศิต"],
+	&"archer": ["Moonpiercer", "Hunter's Verdict", "Sylph Step", "Celestial Hunt", "ศรเทพสุริยาพิโรธ"],
+	&"lancer": ["Spiral Impaler", "Heartseeker", "Aegis Formation", "Worldsplitter", "หอกเทพทะลวงฟ้า"],
+	&"mage": ["Arcane Prism", "Crystal Prison", "Astral Convergence", "Genesis Nova", "อวสานแห่งดวงดาว"],
+	&"priest": ["Sanctified Chain", "Seraph's Aegis", "Sacred Sanctuary", "Dawn of Salvation", "พิพากษาแห่งเทวทูต"],
+	&"summoner": ["Wind Monkey King", "Leviathan's Surge", "Spirit Court", "Poseidon, Lord of Tides", "จักรพรรดิมังกรสวรรค์"],
+	&"defender": ["Titan Shieldbreak", "Judgment Rebound", "Eternal Aegis", "Heaven's Bulwark", "ปราการแห่งทวยเทพ"],
+	&"assassin": ["Umbral Lacerate", "Shadow Execution", "Veil of Night", "Eclipse Requiem", "สุริยคราสเทพมรณะ"],
+	&"darklord": ["Chaos Inferno", "Raven Sovereign", "Lord's Dominion", "Imperial Cataclysm", "บัลลังก์จักรพรรดิอเวจี"],
+	&"bard": ["Starlight Overture", "Heartbreak Sonata", "Celestial Stage", "Cosmic Encore", "ซิมโฟนีแห่งทวยเทพ"],
 }
 const DESCS := {
-	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 1 นาที", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่"],
-	&"archer": ["ศรทะลวงจันทรา • ศรเงินทะลุศัตรูเป็นแนวตรง", "ศรตัดสินนักล่า • ยิงเป้าหมายเดียว 3 นัด นัดสุดท้ายแรงเป็นสองเท่า", "ก้าวแห่งภูตลม • วิ่งเร็ว +25% หลบ +15% โจมตี +35% นาน 1 นาที", "ล่าหมู่ดาว • ล็อกศัตรูในวง ยิง 3 ระลอก ก่อนศรปิดฉากใส่เป้าหมายหลัก"],
-	&"lancer": ["หอกเกลียวทะลวง • แทงผ่านแนวศัตรู 3 จังหวะ", "หอกเจาะหัวใจ • แทงเร็ว 5 ครั้ง ปิดด้วยแทงหนัก 1 ครั้ง รวม 6 ฮิต", "กระบวนทัพพิทักษ์ • ลดความเสียหายทีม 28% ป้องกัน +45% นาน 1 นาที", "หอกแยกพิภพ • หอกปะทุตามแนวรอยแยก 4 ระลอก"],
-	&"mage": ["ปริซึมเวท • ยิงพลัง 4 ธาตุใส่เป้าหมายเดียว", "คุกผลึกเหมันต์ • ชะลอในวง ผลึกระเบิด 2 จังหวะ", "บรรจบแห่งดวงดาว • ดึงศัตรูทั่วไปเข้าศูนย์กลาง ระเบิด 3 ระลอก", "โนวากำเนิดธาตุ • รวม 4 ธาตุเป็นแกนพลัง ปล่อยคลื่น 4 ระลอก"],
-	&"priest": ["สายใยศักดิ์สิทธิ์ • แสงเชื่อมศัตรูสูงสุด 5 ตัว ฟื้น HP ทีม 12%", "ปีกพิทักษ์เซราฟ • โล่ทีมดูดซับ 25% ของ HP สูงสุด นาน 1 นาที", "วิหารศักดิ์สิทธิ์ • วงฟื้น HP 6% ทุก 2 วิ นาน 10 วิ และต้านความเสียหาย 15% นาน 1 นาที", "รุ่งอรุณแห่งการกอบกู้ • คลื่นศักดิ์สิทธิ์ 3 ครั้ง ทำดาเมจหมู่และฟื้น HP ทีมรวม 30%"],
-	&"summoner": ["ราชาวานรวายุ • อัญเชิญราชาวานรแห่งสายลม 2 นาที ฟาดกระบองระยะประชิด • สกิล 1 พายุวานร โจมตีหมู่รอบตัว • สกิล 2 กระบองฟาดพื้น โจมตีหมู่และมึน 5 วิ", "กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง", "ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 1 นาที", "โพไซดอนจ้าวสมุทร • อัญเชิญจ้าวสมุทร 2 นาที ยิงลูกน้ำระยะไกล • สกิล 1 คลื่นน้ำวน โจมตีหมู่และมึน 5 วิ • สกิล 2 ผลึกน้ำแข็ง โจมตีหมู่และแช่แข็ง 5 วิ • คลื่นยักษ์ก่อนจากไป"],
-	&"defender": ["โล่ไททันพิฆาต • ทุบพื้นด้วยโล่ยักษ์ 2 จังหวะ มึน 1.5 วิ", "โล่พิพากษาเด้ง • ขว้างโล่แสงถล่มพื้นที่ 3 ครั้ง ลดเกราะ 20% นาน 6 วิ", "อีจิสอมตะ • ทีมในระยะลดความเสียหาย 30% ป้องกัน +50% โล่ดูดซับ 20% ของ HP นาน 1 นาที", "ปราการสวรรค์ • ต้องสวมปีก บินขึ้นแล้วกระแทกโล่แสงยักษ์ลงพื้น 4 ระลอก ศัตรูมึนและหันมาโจมตีคุณ"],
-	&"assassin": ["คมเงาฉีกสะบั้น • ฟันมีดคู่ไขว้เป็นกากบาทรอบตัว 2 จังหวะ ศัตรูติดเลือดไหล 5 วิ", "ประหารเงา • ฟันเป้าหมายเดียวต่อเนื่อง 6 ฮิต ฮิตสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "ม่านราตรี • ทีมในระยะคริติคอล +20% หลบ +15% โจมตี +40% นาน 1 นาที", "บทเพลงสุริยคราส • ต้องสวมปีก บินขึ้นกลางฟ้ามืด โปรยมีดเงาลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ"],
-	&"darklord": ["นรกโกลาหล • คทาปักพื้น เพลิงมืดปะทุเป็นวงรอบตัว 2 จังหวะ ศัตรูติดไฟ 5 วิ", "ราชันอีกา • อีกาเงายักษ์โฉบเป้าหมายเดียว 6 ครั้ง ครั้งสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "อาณาจักรแห่งลอร์ด • ทีมในระยะโจมตี +45% ป้องกัน +35% คริติคอล +10% นาน 1 นาที", "มหาวิบัติจักรพรรดิ • ต้องสวมผ้าคลุม ลอยขึ้นกลางฟ้า ฟาดสายฟ้าและเพลิงมืดลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ"],
-	&"bard": ["โหมโรงแสงดาว • โน้ตดาวตกถล่มพื้นที่เป้าหมาย 3 จังหวะ ศัตรูอ่อนแรง 15% นาน 6 วิ", "โซนาตาสลายใจ • ยิงโน้ตใส่เป้าหมายเดียวต่อเนื่อง 6 จังหวะ จังหวะสุดท้ายแรงสุด เกราะแตก 25% นาน 8 วิ", "เวทีสรวงสวรรค์ • ไม่ใช่เพลง ใช้คู่กับเพลงได้ ทีมในระยะโจมตี +45% ป้องกัน +35% คริ +10% ลดดาเมจ 8% นาน 1 นาที", "อังกอร์แห่งจักรวาล • ต้องสวมปีก บินขึ้นบรรเลงกลางฟ้า ห่าดาวโน้ต 5 ระลอกถล่มพื้นที่ มึน 1.5 วิ ศัตรูอ่อนแรง 20% นาน 8 วิ"],
+	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 1 นาที", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่", "สกิลเทพ • ดาบเทพยักษ์ลอยเหนือวงเทพ ห่าดาบฟันพื้นที่ 4 ระลอก ปิดด้วยดาบเทพปักกลางสนาม มึน 1.5 วิ เกราะแตก 25% นาน 8 วิ"],
+	&"archer": ["ศรทะลวงจันทรา • ศรเงินทะลุศัตรูเป็นแนวตรง", "ศรตัดสินนักล่า • ยิงเป้าหมายเดียว 3 นัด นัดสุดท้ายแรงเป็นสองเท่า", "ก้าวแห่งภูตลม • วิ่งเร็ว +25% หลบ +15% โจมตี +35% นาน 1 นาที", "ล่าหมู่ดาว • ล็อกศัตรูในวง ยิง 3 ระลอก ก่อนศรปิดฉากใส่เป้าหมายหลัก", "สกิลเทพ • ตะวันเทพลอยเหนือสนาม ห่าศรสุริยะ 4 ระลอก ปิดด้วยศรมังกรเทพ 1 ดอก ศัตรูช้าลง 4 วิ"],
+	&"lancer": ["หอกเกลียวทะลวง • แทงผ่านแนวศัตรู 3 จังหวะ", "หอกเจาะหัวใจ • แทงเร็ว 5 ครั้ง ปิดด้วยแทงหนัก 1 ครั้ง รวม 6 ฮิต", "กระบวนทัพพิทักษ์ • ลดความเสียหายทีม 28% ป้องกัน +45% นาน 1 นาที", "หอกแยกพิภพ • หอกปะทุตามแนวรอยแยก 4 ระลอก", "สกิลเทพ • วงหอกเทพผุดรอบตัว 4 ระลอก ปิดด้วยหอกเทพยักษ์ทะลวงลงจากฟ้า เกราะแตก 25% นาน 8 วิ"],
+	&"mage": ["ปริซึมเวท • ยิงพลัง 4 ธาตุใส่เป้าหมายเดียว", "คุกผลึกเหมันต์ • ชะลอในวง ผลึกระเบิด 2 จังหวะ", "บรรจบแห่งดวงดาว • ดึงศัตรูทั่วไปเข้าศูนย์กลาง ระเบิด 3 ระลอก", "โนวากำเนิดธาตุ • รวม 4 ธาตุเป็นแกนพลัง ปล่อยคลื่น 4 ระลอก", "สกิลเทพ • วงแหวนจักรวาลซ้อนสามชั้น ดาวตกถล่ม 4 ระลอก ปิดด้วยแกนกำเนิดจักรวาลระเบิด มึน 1.5 วิ"],
+	&"priest": ["สายใยศักดิ์สิทธิ์ • แสงเชื่อมศัตรูสูงสุด 5 ตัว ฟื้น HP ทีม 12%", "ปีกพิทักษ์เซราฟ • โล่ทีมดูดซับ 25% ของ HP สูงสุด นาน 1 นาที", "วิหารศักดิ์สิทธิ์ • วงฟื้น HP 6% ทุก 2 วิ นาน 10 วิ และต้านความเสียหาย 15% นาน 1 นาที", "รุ่งอรุณแห่งการกอบกู้ • คลื่นศักดิ์สิทธิ์ 3 ครั้ง ทำดาเมจหมู่และฟื้น HP ทีมรวม 30%", "สกิลเทพ • เทวทูตเสด็จลงพร้อมเสาแสง 5 ระลอก ทำดาเมจหมู่ ฟื้น HP ทีม 8% ทุกระลอก (รวม 40%)"],
+	&"summoner": ["ราชาวานรวายุ • อัญเชิญราชาวานรแห่งสายลม 2 นาที ฟาดกระบองระยะประชิด • สกิล 1 พายุวานร โจมตีหมู่รอบตัว • สกิล 2 กระบองฟาดพื้น โจมตีหมู่และมึน 5 วิ", "กระแสเลวีอาธาน • อสูรทะเลและคลื่นกวาดด้านหน้า 3 ครั้ง", "ราชสำนักภูต • ผู้ร่ายและทีมโจมตี +55% ป้องกัน +40% นาน 1 นาที", "โพไซดอนจ้าวสมุทร • อัญเชิญจ้าวสมุทร 2 นาที ยิงลูกน้ำระยะไกล • สกิล 1 คลื่นน้ำวน โจมตีหมู่และมึน 5 วิ • สกิล 2 ผลึกน้ำแข็ง โจมตีหมู่และแช่แข็ง 5 วิ • คลื่นยักษ์ก่อนจากไป", "สกิลเทพ • อัญเชิญจักรพรรดิมังกรสวรรค์โฉบวนสนาม 4 ระลอก ปิดด้วยมังกรพุ่งลงกลางวง มึน 1.5 วิ"],
+	&"defender": ["โล่ไททันพิฆาต • ทุบพื้นด้วยโล่ยักษ์ 2 จังหวะ มึน 1.5 วิ", "โล่พิพากษาเด้ง • ขว้างโล่แสงถล่มพื้นที่ 3 ครั้ง ลดเกราะ 20% นาน 6 วิ", "อีจิสอมตะ • ทีมในระยะลดความเสียหาย 30% ป้องกัน +50% โล่ดูดซับ 20% ของ HP นาน 1 นาที", "ปราการสวรรค์ • ต้องสวมปีก บินขึ้นแล้วกระแทกโล่แสงยักษ์ลงพื้น 4 ระลอก ศัตรูมึนและหันมาโจมตีคุณ", "สกิลเทพ • กำแพงโล่ทวยเทพล้อมรอบตัว โล่เทพยักษ์กระแทก 5 ระลอก มึน 2 วิ ศัตรูหันมาโจมตีคุณ"],
+	&"assassin": ["คมเงาฉีกสะบั้น • ฟันมีดคู่ไขว้เป็นกากบาทรอบตัว 2 จังหวะ ศัตรูติดเลือดไหล 5 วิ", "ประหารเงา • ฟันเป้าหมายเดียวต่อเนื่อง 6 ฮิต ฮิตสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "ม่านราตรี • ทีมในระยะคริติคอล +20% หลบ +15% โจมตี +40% นาน 1 นาที", "บทเพลงสุริยคราส • ต้องสวมปีก บินขึ้นกลางฟ้ามืด โปรยมีดเงาลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ", "สกิลเทพ • สุริยคราสมืดเหนือรอบตัว คมเงาไขว้ฟัน 4 ระลอก ปิดด้วยจันทร์เสี้ยวมรณะ ศัตรูเลือดไหล 6 วิ"],
+	&"darklord": ["นรกโกลาหล • คทาปักพื้น เพลิงมืดปะทุเป็นวงรอบตัว 2 จังหวะ ศัตรูติดไฟ 5 วิ", "ราชันอีกา • อีกาเงายักษ์โฉบเป้าหมายเดียว 6 ครั้ง ครั้งสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "อาณาจักรแห่งลอร์ด • ทีมในระยะโจมตี +45% ป้องกัน +35% คริติคอล +10% นาน 1 นาที", "มหาวิบัติจักรพรรดิ • ต้องสวมผ้าคลุม ลอยขึ้นกลางฟ้า ฟาดสายฟ้าและเพลิงมืดลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ", "สกิลเทพ • บัลลังก์อเวจีผุดขึ้น สายฟ้าและเพลิงมืด 4 ระลอก ปิดด้วยมงกุฎจักรพรรดิถล่มสนาม มึน 1.5 วิ ศัตรูติดไฟ 5 วิ"],
+	&"bard": ["โหมโรงแสงดาว • โน้ตดาวตกถล่มพื้นที่เป้าหมาย 3 จังหวะ ศัตรูอ่อนแรง 15% นาน 6 วิ", "โซนาตาสลายใจ • ยิงโน้ตใส่เป้าหมายเดียวต่อเนื่อง 6 จังหวะ จังหวะสุดท้ายแรงสุด เกราะแตก 25% นาน 8 วิ", "เวทีสรวงสวรรค์ • ไม่ใช่เพลง ใช้คู่กับเพลงได้ ทีมในระยะโจมตี +45% ป้องกัน +35% คริ +10% ลดดาเมจ 8% นาน 1 นาที", "อังกอร์แห่งจักรวาล • ต้องสวมปีก บินขึ้นบรรเลงกลางฟ้า ห่าดาวโน้ต 5 ระลอกถล่มพื้นที่ มึน 1.5 วิ ศัตรูอ่อนแรง 20% นาน 8 วิ", "สกิลเทพ • ไม่ใช่เพลง ใช้คู่กับเพลงได้ วงดุริยางค์ทวยเทพบรรเลงเหนือสนาม คลื่นเสียง 5 ระลอก มึน 1.5 วิ ศัตรูอ่อนแรง 20% นาน 8 วิ"],
 }
 
 static func pool(cls: StringName) -> Array:
 	var out: Array = []
 	if not IDS.has(cls): return out
-	for i in 4:
+	for i in IDS[cls].size():
 		var melee := cls in [&"warrior", &"lancer", &"defender", &"assassin", &"darklord"]
 		var s := {"id": IDS[cls][i], "name": NAMES[cls][i], "desc": DESCS[cls][i], "class": cls,
-			"level": 100, "star": (i + 1) * 50, "mp": [100, 140, 170, 240][i], "cd": [14.0, 19.0, 32.0, 48.0][i],
-			"shape": "blast", "range": 12.0, "radius": 6.5 + i * 0.6, "mult": [15.0, 23.0, 25.0, 38.0][i],
-			"hit_delay": [0.48, 0.62, 0.8, 1.2][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "Spellcast_Raise" if cls == &"darklord" else "Spellcast_Raise" if cls == &"bard" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
+			"level": 100, "star": (i + 1) * 50 if i < 4 else GOD_STAR, "mp": [100, 140, 170, 240, 300][i], "cd": [14.0, 19.0, 32.0, 48.0, 60.0][i],
+			"shape": "blast", "range": 12.0, "radius": 6.5 + i * 0.6, "mult": [15.0, 23.0, 25.0, 38.0, float(GOD_MULT[cls])][i],
+			"hit_delay": [0.48, 0.62, 0.8, 1.2, 1.5][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "Spellcast_Raise" if cls == &"darklord" else "Spellcast_Raise" if cls == &"bard" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
 			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("a8d0ff") if cls == &"defender" else Color("b58cff") if cls == &"assassin" else Color("e8b64a") if cls == &"darklord" else Color("ff9ad2") if cls == &"bard" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
 			"icon": "star", "gesture": "thrust" if cls == &"lancer" else "cleave" if melee else "aim" if cls == &"archer" else "raise"}
 		match String(s.id):
@@ -93,9 +105,25 @@ static func pool(cls: StringName) -> Array:
 			"celestial_stage": s.merge({"shape":"self", "mult":0.0, "gesture":"serenade", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "guard":0.08, "secs":60.0}}}, true)
 			"cosmic_encore": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":36.0, "gesture":"crescendo", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
 			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":120.0}},true)
+			# God-tier (GOD_STAR): each an area finale of five contacts (GOD_BEATS) and the
+			# strongest skill of its class; the Bard's is an attack, never a song.
+			"divine_edict": s.merge({"shape":"blast", "range":13.0, "radius":9.0, "gesture":"raise", "fx":{"stun":1.5, "shred":[0.25,8.0]}}, true)
+			"sunfall_volley": s.merge({"shape":"blast", "range":15.0, "radius":9.0, "gesture":"skyshot", "fx":{"slow":4.0}}, true)
+			"heavenrend_spear": s.merge({"shape":"burst", "range":5.0, "radius":9.0, "gesture":"ground_slam", "fx":{"shred":[0.25,8.0]}}, true)
+			"astral_apocalypse": s.merge({"shape":"blast", "range":14.0, "radius":9.5, "gesture":"channel", "fx":{"stun":1.5}}, true)
+			"seraphic_judgment": s.merge({"shape":"blast", "range":13.0, "radius":9.0, "gesture":"channel"}, true)
+			"celestial_dragon_emperor": s.merge({"shape":"blast", "range":14.0, "radius":9.5, "gesture":"invoke", "fx":{"stun":1.5}}, true)
+			"pantheon_bastion": s.merge({"shape":"burst", "range":5.0, "radius":10.0, "gesture":"ground_slam", "fx":{"stun":2.0, "taunt":4.0}}, true)
+			"death_gods_eclipse": s.merge({"shape":"burst", "range":5.0, "radius":9.0, "gesture":"raise", "fx":{"burn":[0.45,6.0]}}, true)
+			"abyssal_throne": s.merge({"shape":"blast", "range":13.0, "radius":9.0, "gesture":"raise", "fx":{"stun":1.5, "burn":[0.4,5.0]}}, true)
+			"divine_symphony": s.merge({"shape":"blast", "range":13.0, "radius":9.0, "gesture":"crescendo", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
 		s["mult"] = float(s.mult) * ClassData.skill_tune(cls, 100, true, String(s.shape))
 		out.append(s)
 	return out
+
+## A god-tier skill: the fifth and strongest star skill of its class (GOD_STAR stars).
+static func is_god(skill: Dictionary) -> bool:
+	return int(skill.get("star", 0)) >= GOD_STAR
 
 static func unlock_label(skill: Dictionary) -> String:
 	return "ดาว %d" % int(skill.star) if skill.has("star") else "Lv.%d" % int(skill.get("level",1))

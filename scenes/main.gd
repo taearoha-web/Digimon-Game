@@ -122,7 +122,11 @@ func _ready() -> void:
 	Game.paragon_leveled.connect(func(level: int):
 		hud.show_banner("ระดับเหนือเลเวล ดาว %d!" % level)
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
-		AudioManager.play_sfx(&"level_up"))
+		AudioManager.play_sfx(&"level_up")
+		# ★300 opens the God promotion at the Job Master.
+		if level >= JobData.GOD_STARS and Game.adv() == JobData.GOD_ADV - 1 and Game.class_id() != ClassData.START:
+			hud.show_banner("ถึงดาว %d! เปลี่ยนอาชีพขั้นเทพเจ้าได้แล้ว!" % JobData.GOD_STARS)
+			Game.say("ไปหาปรมาจารย์ผู้เปลี่ยนชะตา เพื่อเลื่อนขั้นเป็น \"%s\"" % JobData.god_name(Game.class_id()), &"quest"))
 	_show_title()
 
 
@@ -395,7 +399,7 @@ func _on_level_up(level: int) -> void:
 				Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
 			else:
 				Game.say("สกิล %s ต้อง%s ก่อน — ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % [skill.name, Game.skill_lock_reason(skill).trim_prefix("ต้อง")], &"quest")
-	if Game.class_id() != ClassData.START and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level():
+	if Game.class_id() != ClassData.START and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level() and Game.next_step_stars() <= int(Game.paragon().level):
 		hud.show_banner("เปลี่ยนอาชีพขั้นต่อไปได้แล้ว!")
 		Game.say("สกิลเลเวล %d ขึ้นไปต้องเปลี่ยนอาชีพ ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % level, &"quest")
 
@@ -416,7 +420,7 @@ func _on_npc(role: String) -> void:
 		"job":
 			_talk_job()
 		"storage":
-			dialog.say("เจ้าของคลัง", "ของที่ยังไม่ใช้ฝากไว้กับข้าได้ปลอดภัย (คลังจุ %d ช่อง) หรือจะจ่ายเหรียญขยายกระเป๋าเพิ่มทีละ %d ช่องก็ได้ ตอนนี้กระเป๋ามี %d ช่อง" % [Game.STORAGE_SIZE, Game.BAG_STEP, Game.bag_size()], [
+			dialog.say("เจ้าของคลัง", "ของที่ยังไม่ใช้ฝากไว้กับข้าได้ปลอดภัย คลังนี้ใช้ร่วมกันทุกตัวละคร (จุ %d ช่อง) ชุดเกราะและอาวุธของอาชีพอื่นเบิกได้เฉพาะตัวละครอาชีพนั้น หรือจะจ่ายเหรียญขยายกระเป๋าเพิ่มทีละ %d ช่องก็ได้ ตอนนี้กระเป๋ามี %d ช่อง" % [Game.STORAGE_SIZE, Game.BAG_STEP, Game.bag_size()], [
 				{"label": "เปิดคลัง", "action": func(): storage.open_storage()}, {"label": "ไว้ก่อน"}])
 		"skill":
 			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
@@ -450,7 +454,7 @@ func _on_npc(role: String) -> void:
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])
 		"forge":
-			dialog.say("ช่างตีเหล็กหนวดแดง", "ฮ่าๆ มีของดีมาให้ตีไหม? เอาเพชรมาด้วยนะ: เพชรม่วงตี +1 ถึง +6 ติดทุกครั้ง, เพชรชมพูตี +7 ถึง +9 ลุ้นครึ่งต่อครึ่ง, +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละเม็ด ลุ้นครึ่งต่อครึ่ง แล้วขั้นต่อไปเพิ่มอย่างละเม็ดจนถึง +15 (45% 40% 35% 30% 25%) พลาดก็เสียแค่เพชร ของไม่พัง! เพชรหาได้จากมอนสเตอร์ทุกด่านเก็บเลเวล ส่วนปีกเลเวล 100 เอามาตีเป็นปีก 100 ดาวได้ ใช้เพชรชาออส 1 เม็ดกับขนนก 1 ขน ลุ้น 30% (ขนนกหาได้ในด่าน 50 ดาวขึ้นไป ด่านยิ่งลึกยิ่งดรอปง่าย 0.1%, 0.2%, 0.3%, 0.4%) แล้วถ้ามีอัญมณีก็เอามาฝังช่องให้ได้ด้วย", [
+			dialog.say("ช่างตีเหล็กหนวดแดง", "ฮ่าๆ มีของดีมาให้ตีไหม? เอาเพชรมาด้วยนะ: เพชรม่วงตี +1 ถึง +6 ติดทุกครั้ง, เพชรชมพูตี +7 ถึง +9 ลุ้นครึ่งต่อครึ่ง, +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละเม็ด ลุ้นครึ่งต่อครึ่ง แล้วขั้นต่อไปเพิ่มอย่างละเม็ดจนถึง +15 (45% 40% 35% 30% 25%) พลาดก็เสียแค่เพชร ของไม่พัง! เพชรหาได้จากมอนสเตอร์ทุกด่านเก็บเลเวล ส่วนปีกเลเวล 100 เอามาตีเป็นปีก 100 ดาวได้ ใช้เพชรชาออส 1 เม็ดกับขนนก 1 ขน ลุ้น 30% (ขนนกหาได้ในด่าน 50 ดาวขึ้นไป ด่านยิ่งลึกยิ่งดรอปง่าย 0.1%, 0.2%, 0.3%, 0.4%) แล้วถ้ามีอัญมณีก็เอามาฝังช่องให้ได้ด้วย ส่วนใครไปถึง 250 ดาว เอาแก่นเทพหลอมเซต 1 ชิ้นกับเพชรม่วง ชมพู ชาออส อย่างละ 20 เม็ดมา ข้าผสมชุดเซตประจำอาชีพให้ได้ทุกชิ้น อาวุธ เกราะ หมวก รองเท้า แหวน สร้อย ลุ้นครึ่งต่อครึ่ง (กดปุ่ม ผสมชุดเซต ในเตาตี)", [
 				{"label": "เปิดเตาตี", "action": func():
 					menu.forge_mode = true
 					_open_menu(&"inventory")}, {"label": "ไว้ก่อน"}])
@@ -498,7 +502,7 @@ func _talk_job() -> void:
 		dialog.say(speaker, "ถึงเวลาเลือกเส้นทางแล้ว! สายไหนที่ใจเจ้าเรียกหา? (เลือกแล้วเปลี่ยนไม่ได้ ไม่เสียค่าใช้จ่าย)", options)
 		return
 	if Game.adv() >= JobData.MAX_ADV:
-		dialog.say(speaker, "เจ้าคือ \"%s\" — %s ถึงขั้นสูงสุดในตำนานแล้ว ไม่มีอะไรจะสอนอีกแล้วนะ!" % [Game.class_data().name, Game.class_data().title])
+		dialog.say(speaker, "ข้าน้อยขอคารวะ \"%s\" — %s ท่านก้าวพ้นขั้นตำนานสู่ความเป็นเทพแล้ว ไม่มีสิ่งใดที่ข้าจะสอนได้อีก!" % [Game.class_data().name, Game.class_data().title])
 		return
 	_show_advance()
 
@@ -538,8 +542,14 @@ func _show_advance() -> void:
 	if int(Game.profile.level) < need:
 		dialog.say(speaker, "ขั้นต่อไปของเจ้าคือ \"%s\" ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้า จะได้สกิลชุดใหม่และพลังที่เพิ่มขึ้น" % [info.name, need])
 		return
+	var stars := Game.next_step_stars()
+	if int(Game.paragon().level) < stars:
+		dialog.say(speaker, "เจ้าคือตำนานแล้ว แต่ยังมีอีกขั้นที่เหนือกว่า... \"%s\" — %s\nสะสมดาวจนถึงดาว %d (ตอนนี้ดาว %d) แล้วกลับมาหาข้า จะได้ค่าสถานะเพิ่มอีกมหาศาล: %s  %s" % [info.name, info.title, stars, int(Game.paragon().level), JobData.attr_text(info.attrs), JobData.bonus_text(info.bonus)])
+		return
 	var lines: PackedStringArray = ["พร้อมเปลี่ยนอาชีพแล้ว! \"%s\" — %s" % [info.name, info.title], info.desc]
 	lines.append("ค่าสถานะเพิ่มทันที: %s  (พลังโจมตี/ป้องกัน/HP เพิ่มตามสาย)" % JobData.attr_text(info.attrs))
+	if bool(info.get("god", false)):
+		lines.append("โบนัสเปลี่ยนอาชีพขั้นเทพเจ้า: %s" % JobData.bonus_text(info.bonus))
 	lines.append("ค่าเปลี่ยนอาชีพ %d เหรียญ และได้แต้มสกิล +%d" % [Game.next_step_cost(), int(JobData.TIER_SKILL_POINTS[Game.adv()])])
 	dialog.say(speaker, "\n".join(lines), [{"label": "เปลี่ยนอาชีพ", "action": func(): _confirm_advance()}, {"label": "ไว้ก่อน"}])
 
@@ -553,7 +563,10 @@ func _confirm_advance() -> void:
 	VfxKit.level_up(zone, zone.hero.global_position)
 	AudioManager.play_sfx(&"quest_complete")
 	hud.show_banner("เปลี่ยนอาชีพ: %s!" % Game.class_data().name)
-	Game.say("เปลี่ยนอาชีพแล้ว! พลังและค่าสถานะเพิ่มขึ้น ปลดล็อกสกิลชุดใหม่", &"success")
+	if Game.is_god():
+		Game.say("ก้าวสู่ความเป็นเทพ! \"%s\" — %s พลังทุกด้านพุ่งสูงขึ้น" % [Game.class_data().name, Game.class_data().title], &"success")
+	else:
+		Game.say("เปลี่ยนอาชีพแล้ว! พลังและค่าสถานะเพิ่มขึ้น ปลดล็อกสกิลชุดใหม่", &"success")
 	Game.save()
 
 

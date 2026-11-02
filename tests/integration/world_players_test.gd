@@ -1,6 +1,6 @@
 extends Node
 ## The world players: fixed people in two guilds (and some in none) whose progress follows their daily
-## schedules (the same at a given time on every device) from Lv.1 to ★200, wearing what
+## schedules (the same at a given time on every device) from Lv.1 to ★300, wearing what
 ## they found; the online ones hunt for real in the field that fits them, their kills are
 ## their own; the hero walks up to one, taps it and asks it into the party (three people,
 ## EXP shared); the registry lists everyone; the hero joins Alpha or Neverdie at the
@@ -25,6 +25,8 @@ func _ready() -> void:
 	_progress()
 	_vagabonds()
 	_gear()
+	_mount_data()
+	_skill_ranks()
 	await _field()
 	await _party()
 	await _errand_visit()
@@ -32,6 +34,42 @@ func _ready() -> void:
 	await _screens()
 	print("WORLD PLAYERS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
+
+
+## Skill ranks are bought with the skill points a player earned by its own play (one a
+## level, the job advancements', two a star tier), never more than it has, the
+## longest-known skills first; more play never takes a rank away.
+func _skill_ranks() -> void:
+	var spent_ok := true
+	var steady := true
+	for i in WorldPlayers.size():
+		var cls := StringName(WorldPlayers.entry(i)["class"])
+		var last := {}
+		for step in [[10, 0], [20, 0], [35, 0], [60, 0], [85, 0], [100, 0], [100, 60], [100, 200], [100, 300]]:
+			var ranks := WorldPlayers.skill_ranks(cls, int(step[0]), int(step[1]))
+			var spent := 0
+			for id in ranks:
+				spent += int(ranks[id]) - 1
+				steady = steady and int(ranks[id]) >= int(last.get(id, 1)) and int(ranks[id]) <= SkillRank.MAX
+			var unlocked := 0
+			for skill in ClassData.pool(cls):
+				unlocked += 1 if int(skill.level) <= int(step[0]) else 0
+			spent_ok = spent_ok and ranks.size() == unlocked and spent == mini(WorldPlayers.skill_points(int(step[0]), int(step[1])), unlocked * (SkillRank.MAX - 1))
+			last = ranks
+	check(spent_ok, "every unlocked skill is known, and the ranks bought are the skill points earned")
+	check(steady, "more play never takes a rank away")
+	check(WorldPlayers.skill_points(100, 200) == WorldPlayers.skill_points(100, 0) + 2 * StarProgression.TIERS.size() and WorldPlayers.skill_points(20, 0) > WorldPlayers.skill_points(19, 0) + 1, "points come with levels, job advancements and star tiers")
+	check(WorldPlayers.skill_points(100, 300) == WorldPlayers.skill_points(100, 200), "no star tier past ★200, so no more points to ★300")
+	var early := WorldPlayers.skill_ranks(&"warrior", 12, 0)
+	var first := ""
+	var low := 999
+	for skill in ClassData.pool(&"warrior"):
+		if int(skill.level) <= 12 and int(skill.level) < low:
+			low = int(skill.level)
+			first = String(skill.id)
+	check(first != "" and int(early[first]) >= 2, "a new player ranks up its first skills with its first points (%s)" % [early])
+	var sheet := WorldPlayers.profile({"class": "warrior", "name": "Zerox", "level": 60, "stars": 0, "frac": 0.0})
+	check(sheet.skills == WorldPlayers.skill_ranks(&"warrior", 60, 0), "the character sheet carries the ranks it bought")
 
 
 func _roster() -> void:
@@ -74,6 +112,7 @@ func _progress() -> void:
 		var steady := true
 		var zones_ok := true
 		var levels_online := true
+		var climbs := true
 		var t := start
 		while t < start + 200.0 * day:
 			var s := WorldPlayers.state(i, t)
@@ -86,27 +125,69 @@ func _progress() -> void:
 				zones_ok = false
 			if bool(s.online) != (place != ""):
 				zones_ok = false
-			# Only a stall keeper (or a divine player on a break, keeping a stall) and a
+			# Only a stall keeper (or a ★300 divine player on a break, keeping a stall) and a
 			# scheduled player on a short errand are in the village.
-			if place == "town" and not ((String(s.doing) == "stall" and (WorldPlayers.in_town_style(i) or bool(s.divine))) \
+			var endgame := bool(s.divine) and int(s.stars) >= Game.PARAGON_MAX
+			if place == "town" and not ((String(s.doing) == "stall" and (WorldPlayers.in_town_style(i) or endgame)) \
 					or (String(s.doing) == "errand" and not WorldPlayers.in_town_style(i) and String(s.errand) in WorldPlayers.ERRAND_KINDS)):
 				levels_online = false
+			# From ★200 to ★300 it keeps hunting in the ★200 field (gathering the divine set
+			# on the way), never the endgame's boss hunts, help or stall breaks.
+			if bool(s.online) and not WorldPlayers.in_town_style(i) and int(s.stars) >= WorldPlayers.DIVINE_STARS and int(s.stars) < Game.PARAGON_MAX \
+					and not (String(s.doing) == "errand" or (String(s.doing) == "hunt" and StringName(place) == DrownedAbyssData.ID)):
+				climbs = false
 			t += day * 0.73
 		check(steady, "%s: level and stars only ever go up" % e.name)
 		check(levels_online, "%s: online it levels in a field, the village is for stall keepers and errands" % e.name)
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
+		check(climbs, "%s: from ★200 it keeps hunting toward ★300" % e.name)
 		var end := WorldPlayers.state(i, start + 200.0 * day)
-		check(int(end.level) == 100 and int(end.stars) == 200 and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★200 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
-		var early := WorldPlayers.state(i, start + 0.5 * day)
-		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first twelve hours (%d)" % [e.name, int(early.level)])
+		check(int(end.level) == 100 and int(end.stars) == Game.PARAGON_MAX and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★300 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
+		var top := WorldPlayers.profile(WorldPlayers.member(i, start + 200.0 * day))
+		check(int(top.adv) == JobData.GOD_ADV and JobData.is_god(int(top.adv)), "%s: takes the God promotion at ★300 (adv %d)" % [e.name, int(top.adv)])
+		check(WorldPlayers.god_title(end) == JobData.god_name(StringName(end["class"])), "%s: wears its God title (%s)" % [e.name, WorldPlayers.god_title(end)])
+		var below := WorldPlayers.profile({"class": String(end["class"]), "name": e.name, "level": 100, "stars": Game.PARAGON_MAX - 1, "frac": 0.0, "divine_frac": 0.0})
+		check(int(below.adv) == JobData.LEGEND_ADV and WorldPlayers.god_title({"class": end["class"], "level": 100, "stars": Game.PARAGON_MAX - 1}) == "", "%s: ★299 is still the legend step" % e.name)
+		var legend_sheet := top.duplicate(true)
+		legend_sheet["adv"] = JobData.LEGEND_ADV
+		check(float(HeroStats.compute(top).atk) > float(HeroStats.compute(legend_sheet).atk), "%s: the God step's bonuses count in its stats" % e.name)
+		var spent := 0
+		for key in top.paragon.alloc:
+			spent += int(top.paragon.alloc[key])
+		check(int(top.paragon.level) == Game.PARAGON_MAX and spent == Game.PARAGON_MAX, "%s: all its ★300 points are spent (%d)" % [e.name, spent])
+		var early := WorldPlayers.state(i, start + 0.25 * day)
+		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first six hours (%d)" % [e.name, int(early.level)])
 		# Hours a week: world_town_test checks every style, stall keepers and newcomers too.
 		var week := WorldPlayers.played_minutes(i, start + 28.0 * day) / 60.0 / 4.0
 		check(WorldPlayers.in_town_style(i) or e.has("join") or (week > 5.0 and week < 70.0), "%s: plays %.0f hours a week" % [e.name, week])
 		if String(e.style) == "hardcore" and not e.has("join"):
-			check(int(WorldPlayers.state(i, start + 21.0 * day).stars) == 200, "%s: a hardcore player reaches ★200 within three weeks" % e.name)
+			# A hardcore player: ★200 in about five to seven days, then the steeper climb
+			# (HeroStats.star_need, 4% more a star) to ★300 about a week later.
+			var d4 := WorldPlayers.state(i, start + 4.0 * day)
+			var d8 := WorldPlayers.state(i, start + 8.0 * day)
+			var d11 := WorldPlayers.state(i, start + 11.0 * day)
+			var d16 := WorldPlayers.state(i, start + 16.0 * day)
+			check(int(d4.stars) < 200, "%s: a hardcore player is not at ★200 in four days (★%d)" % [e.name, int(d4.stars)])
+			check(int(d8.stars) >= 200 and int(d8.stars) < Game.PARAGON_MAX, "%s: a hardcore player reaches ★200 within eight days and climbs on (★%d)" % [e.name, int(d8.stars)])
+			check(int(d11.stars) >= 250, "%s: a hardcore player passes ★250 within eleven days (★%d)" % [e.name, int(d11.stars)])
+			check(int(d16.stars) == Game.PARAGON_MAX and bool(d16.divine), "%s: a hardcore player reaches ★300 with the divine set within sixteen days (★%d)" % [e.name, int(d16.stars)])
 	check(int(WorldPlayers.progress_for(0.0, 0.3).level) == 1, "no play, Lv.1")
 	var full := WorldPlayers.progress_for(1e9, 0.3)
-	check(int(full.level) == 100 and int(full.stars) == 200 and bool(full.divine), "endless play stops at ★200 with the divine set")
+	check(int(full.level) == 100 and int(full.stars) == Game.PARAGON_MAX and bool(full.divine), "endless play stops at ★300 with the divine set")
+	# The divine set comes from the lotus sanctum at ★200, while the stars go on.
+	var steps := WorldPlayers._steps()
+	check(steps.size() == Game.MAX_LEVEL + Game.PARAGON_MAX, "the progress table runs Lv.1 to ★300 (%d steps)" % steps.size())
+	var at200 := steps[Game.MAX_LEVEL - 1 + 200]
+	var gathering := WorldPlayers.progress_for(at200 / 0.3 + WorldPlayers.DIVINE_HOURS * 30.0, 0.3)
+	var complete := WorldPlayers.progress_for(at200 / 0.3 + WorldPlayers.DIVINE_HOURS * 60.0 + 1.0, 0.3)
+	check(int(gathering.stars) >= 200 and int(gathering.stars) < Game.PARAGON_MAX and float(gathering.divine_frac) > 0.4 and float(gathering.divine_frac) < 0.6 and not bool(gathering.divine), "half the divine set's hours past ★200: half of it, still climbing (★%d, %.2f)" % [int(gathering.stars), float(gathering.divine_frac)])
+	check(bool(complete.divine) and int(complete.stars) < Game.PARAGON_MAX, "the divine set is complete on the way to ★300 (★%d)" % int(complete.stars))
+	check(int(WorldPlayers.progress_for(steps[Game.MAX_LEVEL - 1 + 199] / 0.3, 0.3).divine_frac) == 0, "no divine piece below ★200")
+	# Past ★200 the stars cost more (4% a star) but the ★200-300 field pays more (STAR_RATE).
+	check(WorldPlayers.rate(100, 200) > WorldPlayers.rate(100, 199) * 1.25 and WorldPlayers.rate(100, 300) > WorldPlayers.rate(100, 200) * 1.2, "the ★200-300 field pays more and more")
+	var low_climb := steps[Game.MAX_LEVEL - 1 + 200] - steps[Game.MAX_LEVEL - 1 + 100]
+	var high_climb := steps[Game.MAX_LEVEL - 1 + 300] - steps[Game.MAX_LEVEL - 1 + 200]
+	check(high_climb > low_climb, "★200 -> ★300 takes longer than ★100 -> ★200 (%.0f vs %.0f probe minutes)" % [high_climb, low_climb])
 	# Evenings are busy: someone is always on at 21:00 Thai time on the world's clock.
 	var busy := true
 	for d in range(1, 30):
@@ -127,7 +208,7 @@ func _vagabonds() -> void:
 		if WorldPlayers.entry(i).has("vet"):
 			continue
 		var f := WorldPlayers.state(i, float(WorldPlayers.START_UNIX) + 60.0)
-		fresh = fresh and int(f.level) <= 3 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
+		fresh = fresh and int(f.level) <= 5 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
 	check(fresh, "when the world opens every new player is a beginner Vagabond with no guild")
 	for i in WorldPlayers.size():
 		var e := WorldPlayers.entry(i)
@@ -195,7 +276,7 @@ func _gear() -> void:
 		var mid := WorldPlayers.equip({"name": name, "class": e["class"], "level": 55, "stars": 0, "frac": 0.5})
 		if mid.has("armor"):
 			variety["%s+%d" % [mid.armor.name, int(mid.armor.get("plus", 0))]] = true
-		var top := WorldPlayers.equip({"name": name, "class": e["class"], "level": 100, "stars": 200, "frac": 0.0, "divine_frac": 1.0})
+		var top := WorldPlayers.equip({"name": name, "class": e["class"], "level": 100, "stars": Game.PARAGON_MAX, "frac": 0.0, "divine_frac": 1.0})
 		var divine := true
 		for slot in DivineGearData.SLOTS:
 			divine = divine and top.has(slot) and DivineGearData.is_item(top[slot])
@@ -508,6 +589,7 @@ func _party() -> void:
 	check(before == after, "a new character does not restart the world players")
 	check(Game.party().is_empty(), "a new character starts without a party")
 	await _wings(zone)
+	await _riding(zone)
 	WorldPresence.clock_offset = 0.0
 	await main.go(&"town", true)
 
@@ -589,6 +671,9 @@ func _wings(zone: Zone) -> void:
 	zone.add_child(p)
 	p.global_position = zone.hero.global_position + Vector3(4, 0.3, 4)
 	await get_tree().process_frame
+	# On foot for the wings (riding is _riding's).
+	p.mount_info = {}
+	p.dismount()
 	check(p.visual.has_wings(), "a player past its wing drop wears wings")
 	var modes := {}
 	for k in 40:
@@ -608,6 +693,170 @@ func _wings(zone: Zone) -> void:
 	p.queue_free()
 
 
+## Mounts of the world players (WorldPlayers.mount_of, ride_taste): a share owns one at a
+## level fitting its progress, the same on every device; their stats count.
+func _mount_data() -> void:
+	var owners := 0
+	var drakes := 0
+	var kinds := {}
+	var never := 0
+	var rarely := 0
+	var often := 0
+	for i in WorldPlayers.size():
+		var e := WorldPlayers.entry(i)
+		var low := {"name": e.name, "level": 20, "stars": 0}
+		check(WorldPlayers.mount_of(low).is_empty(), "%s has no mount at Lv.20" % e.name)
+		var top := {"name": e.name, "level": 100, "stars": Game.PARAGON_MAX}
+		var mt := WorldPlayers.mount_of(top)
+		check(mt == WorldPlayers.mount_of(top.duplicate()), "%s: the same mount every time" % e.name)
+		var last_tier := -1
+		var last_level := 0
+		var steady := true
+		for step in [[40, 0], [55, 0], [70, 0], [85, 0], [100, 0], [100, 30], [100, 80], [100, 140], [100, 200], [100, 300]]:
+			var at := WorldPlayers.mount_of({"name": e.name, "level": step[0], "stars": step[1]})
+			if at.is_empty():
+				steady = steady and last_tier < 0
+				continue
+			kinds[at.id] = true
+			var tier := MountData.ORDER.find(String(at.id))
+			steady = steady and tier >= last_tier and (tier > last_tier or int(at.level) >= last_level)
+			check(MountData.exists(String(at.id)) and int(at.level) >= 1 and int(at.level) <= MountData.MAX_LEVEL, "%s: a real mount at Lv.1-5 (%s)" % [e.name, str(at)])
+			last_tier = tier
+			last_level = int(at.level)
+		check(steady, "%s: its mount only gets better as it progresses" % e.name)
+		if not mt.is_empty():
+			owners += 1
+			drakes += 1 if mt.id == "fire_drake" else 0
+			var sheet := WorldPlayers.profile({"class": String(e["class"]), "name": e.name, "level": 100, "stars": Game.PARAGON_MAX, "frac": 0.0, "divine_frac": 0.0})
+			check(String(sheet.mount) == String(mt.id) and int(sheet.mounts[mt.id]) == int(mt.level), "%s: its sheet carries its mount" % e.name)
+			check(not HeroStats.mount_bonus(sheet).is_empty(), "%s: its mount's stats count" % e.name)
+		var taste := WorldPlayers.ride_taste(i)
+		check(taste == WorldPlayers.ride_taste(i) and taste >= 0.0 and taste <= 0.95, "%s: a steady taste for riding (%.2f)" % [e.name, taste])
+		if taste == 0.0:
+			never += 1
+		elif taste <= 0.3:
+			rarely += 1
+		elif taste >= 0.5:
+			often += 1
+	var share := float(owners) / WorldPlayers.size()
+	check(share > 0.4 and share < 0.8, "a share of the endgame players own a mount (%d of %d)" % [owners, WorldPlayers.size()])
+	check(kinds.size() == 4 and drakes >= 1 and drakes < owners / 3, "every kind of mount on the way up, the drake rare even at ★300 (%s, %d drakes)" % [str(kinds.keys()), drakes])
+	check(never >= 5 and rarely >= 5 and often >= 20, "some never ride, some rarely, many often (%d / %d / %d)" % [never, rarely, often])
+	# A month in, some veterans already ride (state of the schedule now).
+	var t := float(WorldPlayers.START_UNIX) + 30.0 * 86400.0
+	var now_owners := 0
+	for i in WorldPlayers.size():
+		if not WorldPlayers.mount_of(WorldPlayers.member(i, t)).is_empty():
+			now_owners += 1
+	check(now_owners >= 5, "a month in, some players own a mount (%d)" % now_owners)
+
+
+## A world player with a mount rides and gets off as it likes, seated like the hero
+## (SaddlePose) and fighting from the saddle; never where riding isn't allowed, nor
+## dead; a far rider's mount is simplified.
+func _riding(zone: Zone) -> void:
+	check(MountData.zone_allows(zone.data), "the test field allows riding (%s)" % zone.zone_id)
+	var rider := -1
+	var never := -1
+	for i in WorldPlayers.size():
+		var top := {"name": WorldPlayers.entry(i).name, "level": 100, "stars": 150}
+		if WorldPlayers.mount_of(top).is_empty():
+			continue
+		if rider < 0 and WorldPlayers.ride_taste(i) >= 0.5:
+			rider = i
+		if never < 0 and WorldPlayers.ride_taste(i) == 0.0:
+			never = i
+	check(rider >= 0 and never >= 0, "a keen rider and a never-rider among the owners")
+	if rider < 0:
+		return
+	var m := WorldPlayers.member(rider)
+	m["level"] = 100
+	m["stars"] = 150
+	var p := FieldPlayer.new()
+	p.setup_world(rider, m, zone.hero, zone)
+	zone.add_child(p)
+	p.global_position = zone.hero.global_position + Vector3(3, 0.3, 3)
+	await get_tree().process_frame
+	check(not p.mount_info.is_empty() and p.ride_taste >= 0.5, "the rider knows its mount and taste")
+	check(p.wants_ride(0.0) and not p.wants_ride(0.999), "its whim decides (wants at a low roll, not at a high one)")
+	p._set_riding(true)
+	# Hold its own whim off for this check (it re-decides every 14-45 s, and the first
+	# think comes 0.2-2 s after setup, which could randomly take it off mid-check).
+	p._ride_think = 999.0
+	for k in 30:
+		await get_tree().physics_frame
+	check(p.is_riding() and p.mount.id == String(p.mount_info.id), "it gets on its own mount (%s)" % p.mount_info.get("id", ""))
+	check(p.visual.seated and p.visual.find_child("SaddlePose", true, false) != null, "it sits in the saddle like the hero (SaddlePose)")
+	check(p.visual.position.y > 0.4, "it sits up on the mount (%.2f)" % p.visual.position.y)
+	check(p._label.position.y > Companion.LABEL_Y, "its name tag rides up with it")
+	# Fighting from the saddle: a monster beside it, the AI keeps riding.
+	var mob := Mob.new()
+	mob.setup(&"forest_orc", 30, p.global_position + Vector3(1.5, 0, 0), zone.hero)
+	zone.add_child(mob)
+	mob.global_position = p.global_position + Vector3(1.5, 0.2, 0)
+	p.target = mob
+	p._attack_timer = 0.0
+	var hit := mob.others_damage
+	for k in 90:
+		p.target = mob if is_instance_valid(mob) and not mob.is_dead() else null
+		await get_tree().physics_frame
+	check(p.is_riding() and p.visual.seated, "it fights on from the saddle")
+	check(not is_instance_valid(mob) or mob.is_dead() or mob.others_damage > hit, "its attacks land from the mount")
+	if is_instance_valid(mob):
+		mob.queue_free()
+	# Out of the fight (a rider with a target keeps full detail whatever the distance).
+	p.target = null
+	# Far away: the mount is simplified.
+	var near_parts := p.mount.drawn_parts()
+	p.global_position = zone.hero.global_position + Vector3(60, 0.3, 0)
+	p._update_lod()
+	check(p.mount.is_far() and p.mount.lod_step >= 2 and p.mount.drawn_parts() < near_parts, "far away the mount is simplified (%d -> %d parts)" % [near_parts, p.mount.drawn_parts()])
+	p.global_position = zone.hero.global_position + Vector3(3, 0.3, 3)
+	p._update_lod()
+	check(not p.mount.is_far() and p.mount.drawn_parts() == near_parts, "close again the mount is whole")
+	# Its whim says walk: off the mount.
+	p._set_riding(p.wants_ride(0.999))
+	await get_tree().physics_frame
+	check(not p.is_riding() and not p.visual.seated, "it gets off when it feels like walking")
+	# Thinking over time: both happen, the same way for the same seed.
+	var picks := {}
+	for k in 60:
+		p._ride_think = 0.0
+		p._think_ride(0.016)
+		picks[p.is_riding()] = true
+	check(picks.size() == 2, "left to itself it both rides and walks")
+	# No riding where it isn't allowed: it gets off and can't get back on.
+	p._set_riding(true)
+	var keep: Dictionary = zone.data
+	zone.data = keep.duplicate()
+	zone.data["pvp"] = true
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	check(not p.is_riding() and not p.ride_mount(String(p.mount_info.id)) and not p.wants_ride(0.0), "no riding where riding is not allowed")
+	zone.data = keep
+	# Dead: off the mount.
+	p._set_riding(true)
+	check(p.is_riding(), "back on in the field")
+	p._die()
+	check(not p.is_riding() and not p.wants_ride(0.0), "a fallen rider is on foot")
+	p.queue_free()
+	# A never-rider owns a mount but never gets on.
+	var n := WorldPlayers.member(never)
+	n["level"] = 100
+	n["stars"] = 150
+	var q := FieldPlayer.new()
+	q.setup_world(never, n, zone.hero, zone)
+	zone.add_child(q)
+	q.global_position = zone.hero.global_position + Vector3(-3, 0.3, 3)
+	await get_tree().process_frame
+	for k in 40:
+		q._ride_think = 0.0
+		q._think_ride(0.016)
+	check(not q.mount_info.is_empty() and not q.is_riding(), "a player who never rides stays on foot")
+	q.queue_free()
+	await get_tree().process_frame
+
+
 func _guild() -> void:
 	Game.new_profile(&"warrior", "Guild QA", FaceKit.default_look())
 	Game.profile.level = Game.GUILD_LEVEL - 1
@@ -625,14 +874,14 @@ func _guild() -> void:
 	var start := float(WorldPlayers.START_UNIX)
 	var joins_at_100 := true
 	for i in WorldPlayers.size():
-		for at in [start + 0.4 * day, start + 2.0 * day, start + 6.0 * day, start + 30.0 * day]:
+		for at in [start + 0.25 * day, start + 2.0 * day, start + 6.0 * day, start + 30.0 * day]:
 			var s := WorldPlayers.state(i, at)
 			var want := int(WorldPlayers.entry(i).guild) if int(s.level) >= Game.GUILD_LEVEL else 0
 			joins_at_100 = joins_at_100 and int(s.guild) == want and int(s.joins) == int(WorldPlayers.entry(i).guild)
 	check(joins_at_100, "a world player is in its guild from Lv.100 on, in none before")
-	# Everyone starts at Lv.1, so on the first day nobody is in a guild and there is no war.
-	var opening := start + 0.4 * day
-	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "on the first day nobody is in a guild yet")
+	# Everyone starts at Lv.1, so in the first hours nobody is in a guild and there is no war.
+	var opening := start + 0.25 * day
+	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "in the first six hours nobody is in a guild yet")
 	var none_rng := RandomNumberGenerator.new()
 	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, opening).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) != "", "no rival members, no war")
 	# Early on the guilds are small: everyone at Lv.100 fights.

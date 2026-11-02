@@ -1,7 +1,8 @@
 extends Node
 ## Owner tool used by .github/workflows/boost-character.yml: raises one named
-## character in a saved account bundle to Lv.100 / ★200, takes every job
-## advancement (fees waived) and dresses it in the best gear of its class (divine
+## character in a saved account bundle to Lv.100 / ★200 (BOOST_STARS; the cap is
+## ★300 now, the last hundred are left to play), takes every job advancement it
+## can at ★200 (Lv.20-80, fees waived; not the ★300 God step) and dresses it in the best gear of its class (divine
 ## set, star ring and amulet, mythic star wings), every piece at +10 (the ring and
 ## amulet at --accessory-plus). Runs the game's own levelling code, so stat
 ## points, skill points, ★ milestones and gold rewards are the ones the hero
@@ -11,14 +12,21 @@ extends Node
 ##   godot --headless --path . res://tools/boost_character.tscn -- \
 ##     --in bundle.json --out boosted.json --name Assotix [--class defender] [--create] [--accessory-plus 0]
 ##
-## Writes {slot, profile, created} for the boosted character only.
+## Writes {slot, profile, created} for the boosted character only, plus "storage"
+## (the bundle's shared storage, SharedStorage) when replaced gear had to go there.
 ##
-## Gear it replaces moves to the bag (or storage); nothing is deleted.
+## Gear it replaces moves to the bag (or the shared storage); nothing is deleted.
 
 const BEST_SLOTS := ["weapon", "armor", "helm", "boots"]
+## Stars the boost gives (below Game.PARAGON_MAX = 300 on purpose).
+const BOOST_STARS := 200
 const STAR_SLOTS := ["ring", "amulet"]
 ## The longest name the character creator accepts (ui/class_select.gd).
 const NAME_MAX := 14
+
+## The bundle's shared storage while a boost runs (replaced gear past a full bag).
+static var _vault: Array = []
+static var _vault_used := false
 
 
 func _ready() -> void:
@@ -64,7 +72,10 @@ func _run() -> int:
 	if out == null:
 		return _fail("cannot write " + target)
 	# Only the boosted slot: the other characters stay byte-for-byte as saved.
-	out.store_string(JSON.stringify({"slot": result.slot, "profile": bundle.slots[result.slot], "created": result.created}))
+	var written := {"slot": result.slot, "profile": bundle.slots[result.slot], "created": result.created}
+	if bool(result.get("storage", false)):
+		written["storage"] = bundle.storage
+	out.store_string(JSON.stringify(written))
 	out.close()
 	var hero: Dictionary = bundle.slots[result.slot]
 	print("BOOST: slot %s %s (%s)%s: %s -> Lv.%d ★%d, advancement %d, stat points %d, skill points %d, star points %d" % [
@@ -114,6 +125,8 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 		Game.has_profile = keep[1]
 		return {"error": "could not change the class to " + cls}
 	_advance()
+	_vault = bundle.storage if bundle.get("storage") is Array else []
+	_vault_used = false
 	_dress(accessory_plus)
 	var stats := Game.stats_now()
 	Game.profile["hp"] = int(stats.max_hp)
@@ -124,7 +137,9 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	if not Game._valid_profile(boosted):
 		return {"error": "the boosted character does not pass the game's save check"}
 	bundle.slots[slot_key] = boosted
-	return {"slot": slot_key, "before": "new" if created else before, "created": created}
+	if _vault_used:
+		bundle["storage"] = _vault
+	return {"slot": slot_key, "before": "new" if created else before, "created": created, "storage": _vault_used}
 
 
 ## A new Vagabond named [param wanted] in the first free slot, stored as the
@@ -155,12 +170,13 @@ static func _level_up() -> void:
 	while int(Game.profile.level) < Game.MAX_LEVEL and guard < 200:
 		Game.add_exp(maxi(1, HeroStats.exp_to_next(int(Game.profile.level)) - int(Game.profile.exp)))
 		guard += 1
-	while int(Game.paragon().level) < Game.PARAGON_MAX and guard < 600:
+	while int(Game.paragon().level) < mini(BOOST_STARS, Game.PARAGON_MAX) and guard < 600:
 		Game.add_exp(maxi(1, Game.paragon_need() - int(Game.paragon().exp)))
 		guard += 1
 
 
-## Takes every job advancement left (Lv.20/40/60/80) at the Job Master's terms,
+## Takes every job advancement left it qualifies for (Lv.20/40/60/80; the God step
+## needs ★300) at the Job Master's terms,
 ## with the fee handed over first so the hero's gold is unchanged.
 static func _advance() -> void:
 	while not Game.next_step().is_empty():
@@ -193,8 +209,8 @@ static func _dress(accessory_plus := ItemData.MAX_PLUS) -> void:
 		var old: Variant = Game.profile.equip.get(key)
 		if old is Dictionary and not old.is_empty():
 			if not Game.add_item(old):
-				var vault := Game.storage()
-				if vault.size() < Game.STORAGE_SIZE:
-					vault.append(old)
+				if _vault.size() < SharedStorage.MAX_ITEMS:
+					_vault.append(old)
+					_vault_used = true
 		Game.profile.equip[key] = piece
 	Game.clamp_vitals()
