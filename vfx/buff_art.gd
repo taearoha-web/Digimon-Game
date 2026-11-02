@@ -91,9 +91,11 @@ static func profile(buff: Dictionary) -> Dictionary:
 	return {"id": id, "shape": r[0], "primary": Color(r[1]), "accent": Color(r[2]),
 		"count": r[3], "radius": r[4], "height": r[5], "spin": r[6]}
 
-static func warm_geometry() -> void:
+## `slicer` paces it over frames behind the travel fade (null: in one go, as tests do).
+static func warm_geometry(slicer: SceneTree = null) -> void:
 	for id in RECIPES:
 		mesh_for(profile({"skill_id": id}))
+		await FrameSlicer.pace(slicer)
 
 static func mesh_for(look: Dictionary) -> ArrayMesh:
 	var id: String = look.id

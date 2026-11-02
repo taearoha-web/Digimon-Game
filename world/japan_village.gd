@@ -385,7 +385,8 @@ static func _mountain(root: Node3D) -> void:
 ## What moves in the village: chimney and incense smoke, villagers walking
 ## their rounds between the plaza, market and shrine, a chicken and a cat.
 ## None of it joins Zone.npcs (the Talk button and the role count are unchanged).
-static func life(zone: Node3D, rng: RandomNumberGenerator) -> void:
+## `tree` paces the walkers over frames (FrameSlicer); null builds them in one go.
+static func life(zone: Node3D, rng: RandomNumberGenerator, tree: SceneTree = null) -> void:
 	var root := Node3D.new()
 	root.name = "VillageLife"
 	zone.add_child(root)
@@ -407,6 +408,7 @@ static func life(zone: Node3D, rng: RandomNumberGenerator) -> void:
 		var walker := Villager.new()
 		root.add_child(walker)
 		walker.setup_person(FaceKit.random_look(rng), outfits[i], hats[i], loops[i], rng)
+		await FrameSlicer.pace(tree)
 	var hen := Villager.new()
 	root.add_child(hen)
 	hen.setup_animal("blob/Chicken", 0.55, Vector2(20, 44), 3.0, 0.9, rng)

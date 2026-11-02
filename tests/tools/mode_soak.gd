@@ -16,7 +16,7 @@ const NODE_TOLERANCE := 60
 const OBJECT_TOLERANCE := 400
 const RESOURCE_TOLERANCE := 40
 const TWEEN_TOLERANCE := 8
-const ALL_MODES := ["town_ui", "meadow", "abyss", "dawn_forest", "lotus_sanctum", "tower", "pvp", "guildwar", "arena"]
+const ALL_MODES := ["town_ui", "meadow", "abyss", "dawn_forest", "lotus_sanctum", "drowned_abyss", "tower", "pvp", "guildwar", "arena"]
 
 var main: Node
 var family := &"warrior"
@@ -35,10 +35,14 @@ var _round := 0
 var _last_usec := 0
 var _frame_ms: Array[float] = []
 var _spike_last := [0, 0, 0]
+## Times the hero mounted up for a fight (the riding path is played in every field).
+var rides := 0
 
 
 ## Wall-clock frame times of the current phase (script work shows up here even headless).
-func _process(_delta: float) -> void:
+## Counted on the tree's process_frame, which fires while a screen pauses the game too
+## (this node's own _process stops then, and the whole paused stretch read as one frame).
+func _on_frame() -> void:
 	var now := Time.get_ticks_usec()
 	if _last_usec > 0:
 		var ms := float(now - _last_usec) / 1000.0
@@ -121,6 +125,7 @@ func _ready() -> void:
 	if args.size() > 5:
 		deaths = args[5] == "1"
 	_wall_start = Time.get_ticks_msec()
+	get_tree().process_frame.connect(_on_frame)
 	GameSettings.load_settings()
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
@@ -147,7 +152,9 @@ func _ready() -> void:
 		_census(round_no)
 	Engine.time_scale = 1.0
 	_judge()
-	print("MODE SOAK: %d rounds x %d modes, %.0f s each at %.1fx, %d falls, wall %ds, %d failures" % [rounds, modes.size(), seconds, scale, falls, (Time.get_ticks_msec() - _wall_start) / 1000, failures.size()])
+	if modes.any(func(m): return String(m) in ["meadow", "abyss", "dawn_forest", "lotus_sanctum", "drowned_abyss"]) and rides == 0:
+		failures.append("the hero never rode into a field fight")
+	print("MODE SOAK: %d rounds x %d modes, %.0f s each at %.1fx, %d falls, %d rides, wall %ds, %d failures" % [rounds, modes.size(), seconds, scale, falls, rides, (Time.get_ticks_msec() - _wall_start) / 1000, failures.size()])
 	for f in failures:
 		printerr("FAIL: ", f)
 	print("PASS" if failures.is_empty() else "FAILED")
@@ -166,6 +173,9 @@ func _make_endgame_hero() -> void:
 		Game.profile.equip[slot] = StarProgression.item(family, 200, slot, Game.rng)
 	Game.profile.equip["wings"] = StarWingData.item(String(family), Game.rng)
 	Game.profile.gold = 50000000
+	# A mount at its top level: the hero rides into every field fight that allows it.
+	Game.profile["mounts"] = {String(MountData.ORDER[0]): MountData.MAX_LEVEL}
+	Game.profile["mount"] = String(MountData.ORDER[0])
 	Game.add_item(ItemData.potion("hp_xxl", 99))
 	Game.add_item(ItemData.potion("mp_xxl", 99))
 	Game.fill_loadout()
@@ -267,6 +277,10 @@ func _fight(label: String, keep_alive: bool) -> void:
 		if is_instance_valid(hero):
 			if not hero.auto and not hero.is_dead():
 				hero.set_auto(true)
+			# Fight from the saddle wherever riding is allowed (fields, star regions).
+			if hero.mount == null and not hero.is_dead() and hero.can_ride_here():
+				if hero.ride(true):
+					rides += 1
 			if keep_alive:
 				Game.profile.hp = int(hero.stats.max_hp)
 				Game.profile.mp = int(hero.stats.max_mp)
@@ -286,10 +300,18 @@ func _fight(label: String, keep_alive: bool) -> void:
 
 
 ## Opens and closes every screen in town a few times, every menu tab included.
+## TOON_SPIKES=1: how long a screen took to open (the call itself, before its first frame).
+func _open_time(label: String, started: int) -> void:
+	if OS.get_environment("TOON_SPIKES") != "":
+		print("OPEN %-32s %7.1fms" % [label, float(Time.get_ticks_usec() - started) / 1000.0])
+
+
 func _town_ui() -> void:
 	for i in 3:
 		for tab in GameMenu.TABS:
+			var t0 := Time.get_ticks_usec()
 			main.menu.open_menu(StringName(tab[0]))
+			_open_time("menu:" + String(tab[0]), t0)
 			await get_tree().process_frame
 			await get_tree().process_frame
 		main.menu.close_menu()
@@ -302,7 +324,9 @@ func _town_ui() -> void:
 				[main.trainer, "open_trainer", "close_trainer"], [main.warp, "open_warp", "close_warp"],
 				[main.pvp_screen, "open_lobby", "close_screen"], [main.guildwar_screen, "open_lobby", "close_screen"],
 				[main.tower_screen, "open_lobby", "close_screen"]]:
+			var t1 := Time.get_ticks_usec()
 			pair[0].call(pair[1])
+			_open_time(String(pair[1]) + ":" + String(pair[0].name), t1)
 			await get_tree().process_frame
 			await get_tree().process_frame
 			pair[0].call(pair[2])

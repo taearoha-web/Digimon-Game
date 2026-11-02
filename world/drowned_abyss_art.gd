@@ -27,12 +27,14 @@ static func layout(_zone_id: StringName = DrownedAbyssData.ID) -> Dictionary:
 			PackedVector2Array([Vector2(-16, -30), Vector2(-14, -2)])]}
 
 
-static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID) -> void:
+## `tree` paces the build over frames (StarRegionArt.build); null builds it in one go.
+static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID, tree: SceneTree = null) -> void:
 	var root := Node3D.new()
 	root.name = "DrownedAbyssArt"
 	parent.add_child(root)
 	var c := {"root": root, "batches": {}, "colliders": [], "layout": layout(), "index": 5}
-	_floor(root)
+	await _floor(root, tree)
+	await FrameSlicer.pace(tree)
 	var boss: Vector3 = layout().boss_pos
 	# The sunken ring gate stands behind the tyrant's court, with a drowned
 	# throne stair and two broken colonnades leading to it.
@@ -47,7 +49,10 @@ static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID) ->
 	# Reefs, kelp beds and clams scattered between the camps and paths.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2603191
+	await FrameSlicer.pace(tree)
 	for i in 150:
+		if i % 25 == 0:
+			await FrameSlicer.pace(tree)
 		var a := rng.randf() * TAU
 		var radius := 8.0 + sqrt(rng.randf()) * 44.0
 		var p := Vector3(cos(a) * radius, 0, sin(a) * radius)
@@ -62,6 +67,7 @@ static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID) ->
 		StarRegionArt._pool(c, Vector3(pool.x, 0.02, pool.y), Vector2(5.5, 3.8), Color("0f5a6a"), "AbyssVent")
 		_coral(c, Vector3(pool.x + 5.5, 0, pool.y + 1.0), 1.6, VIOLET, rng)
 	# Tall reef spires and kelp forests ring the field's edge.
+	await FrameSlicer.pace(tree)
 	for i in 40:
 		var a := TAU * float(i) / 40.0
 		var p := Vector3(cos(a) * 58.0, 0, sin(a) * 58.0)
@@ -73,7 +79,7 @@ static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID) ->
 		var a := TAU * float(i) / 16.0 + 0.2
 		var p := Vector3(cos(a) * 100, -2, sin(a) * 100)
 		StarRegionArt._put(c, "rock", p, Vector3(34, 14 + i % 4 * 6, 26), DEEP.lerp(Color("123d55"), float(i % 3) * 0.35), Vector3(0, a, 0))
-	StarRegionArt._flush(c)
+	await StarRegionArt._flush(c, tree)
 	StarRegionArt._add_colliders(c)
 	root.set_meta("zone_id", DrownedAbyssData.ID)
 	root.set_meta("flat_walkable_radius", RADIUS)
@@ -81,33 +87,43 @@ static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID) ->
 	root.set_meta("art_layout_version", 1)
 
 
-static func _floor(root: Node3D) -> void:
+static func _floor(root: Node3D, tree: SceneTree = null) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# A grid point's colour depends on its position only: work it out once, not for each
+	# of the up to six triangles corners that share it (same colours, ~6x less work).
+	var shade := {}
 	var info := layout()
 	var boss: Vector3 = info.boss_pos
 	for r in 40:
+		await FrameSlicer.pace(tree)
 		for s in 112:
 			var points: Array[Vector3] = []
+			var keys: Array[Vector2i] = []
 			for q in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]:
 				var radius := float(r + q.x) / 40.0 * 72.0
 				var angle := TAU * float(s + q.y) / 112.0
 				points.append(Vector3(cos(angle) * radius, -maxf(radius - RADIUS, 0.0) * 0.14, sin(angle) * radius))
+				keys.append(Vector2i(r + q.x, s + q.y))
 			for corner in [0, 2, 1, 0, 3, 2]:
 				var p: Vector3 = points[corner]
 				var xz := Vector2(p.x, p.z)
 				# Rippled sand, a pale worn path and the tyrant's tiled court.
-				var col := SAND.lerp(DEEP, 0.35 + sin(p.x * 0.31 + p.z * 0.07) * cos(p.z * 0.23) * 0.25)
-				var path := 1.0 - smoothstep(2.4, 3.8, StarRegionArt._path_distance(xz, info.paths))
-				col = col.lerp(Color("5f8f8a"), path * 0.55)
-				var court := xz.distance_to(Vector2(boss.x, boss.z))
-				col = col.lerp(STONE.darkened(0.2), (1.0 - smoothstep(12.0, 14.0, court)) * 0.8)
-				# Glowing tide rings: concentric bioluminescent lines on the court
-				# and faint ones around the whole floor.
-				var ring := 1.0 - smoothstep(0.15, 0.5, minf(absf(court - 6.0), absf(court - 11.0)))
-				col = col.lerp(TIDE, ring * 0.7)
-				var tide := 1.0 - smoothstep(0.2, 0.6, absf(fmod(xz.length(), 15.0) - 7.5))
-				col = col.lerp(TIDE.darkened(0.3), tide * 0.25)
+				var key: Vector2i = keys[corner]
+				if not shade.has(key):
+					var col := SAND.lerp(DEEP, 0.35 + sin(p.x * 0.31 + p.z * 0.07) * cos(p.z * 0.23) * 0.25)
+					var path := 1.0 - smoothstep(2.4, 3.8, StarRegionArt._path_distance(xz, info.paths))
+					col = col.lerp(Color("5f8f8a"), path * 0.55)
+					var court := xz.distance_to(Vector2(boss.x, boss.z))
+					col = col.lerp(STONE.darkened(0.2), (1.0 - smoothstep(12.0, 14.0, court)) * 0.8)
+					# Glowing tide rings: concentric bioluminescent lines on the court
+					# and faint ones around the whole floor.
+					var ring := 1.0 - smoothstep(0.15, 0.5, minf(absf(court - 6.0), absf(court - 11.0)))
+					col = col.lerp(TIDE, ring * 0.7)
+					var tide := 1.0 - smoothstep(0.2, 0.6, absf(fmod(xz.length(), 15.0) - 7.5))
+					col = col.lerp(TIDE.darkened(0.3), tide * 0.25)
+					shade[key] = col
+				var col: Color = shade[key]
 				st.set_color(col)
 				st.set_normal(Vector3.UP)
 				st.set_uv(xz * 0.12)

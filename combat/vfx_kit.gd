@@ -101,7 +101,7 @@ static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null)
 	sample.scale = Vector3.ONE * 0.1
 	sample.create_tween().tween_interval(0.4).finished.connect(sample.queue_free)
 	await FrameSlicer.pace(slicer)
-	SpellSpectacle.warm_up(parent, pos)
+	await SpellSpectacle.warm_up(parent, pos, slicer)
 	await FrameSlicer.pace(slicer)
 	ShadowSkillArt.warm_up(parent, pos)
 	await FrameSlicer.pace(slicer)
