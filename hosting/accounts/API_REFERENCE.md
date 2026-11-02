@@ -60,6 +60,13 @@ limit. Larger saves return HTTP 413 before a DB write. Normal game profiles are
 much smaller. Clients should also use the game's complete profile validator
 before applying downloaded character slots.
 
+The storage every character shares is two optional top-level fields: `storage`, a
+list of at most 950 item objects (150 room plus ten old 80-item storages moved in),
+and `storageMigrated`, `{key: count}` of at most 4000 keys (the old per-character
+items already moved in). A bundle without them is kept without them. A bundle that
+sends no `storage` cannot replace a save that has one: HTTP 409 `client_outdated`
+(a game from before the shared storage would drop every stored item).
+
 A new account has revision 0, empty slots, selected slot 1 and null update time.
 Uploads use an atomic SQLite compare-and-swap against `expectedRevision`. Success
 increments the revision. A stale upload returns HTTP 409 `save_conflict` with the

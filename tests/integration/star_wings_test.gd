@@ -73,7 +73,7 @@ func _ready()->void:
 		Game.profile.equip.wings=retired(String(cls),50)
 		var worn_uid:String=Game.profile.equip.wings.uid
 		for i in Game.MAX_BAG:Game.profile.inv.append(ItemData.potion("hp_s",1))
-		for i in Game.STORAGE_SIZE:Game.profile.storage.append(ItemData.potion("mp_s",1))
+		for i in Game.LEGACY_STORAGE_SIZE:Game.profile.storage.append(ItemData.potion("mp_s",1))
 		StarWingData.migrate_profile(Game.profile)
 		var worn:Dictionary=Game.profile.equip.wings
 		check(int(worn.level)==100 and not worn.has("star_tier") and worn.uid==worn_uid and worn.plus==7 and worn.gems==["ruby_0"],"locked equipped migration safe when all bags full")

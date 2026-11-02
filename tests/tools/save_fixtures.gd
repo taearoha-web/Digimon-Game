@@ -10,6 +10,8 @@ extends Node
 ##     res://tests/tools/save_fixtures.tscn -- [OUT_FILE]
 ##
 ## OUT_FILE defaults to res://hosting/accounts/tests/fixtures/game_profiles.json.
+## "storage" and "storageMigrated" are the shared storage (SharedStorage) as the bundle
+## carries it, filled by the heroes' deposits.
 ## hosting/accounts/tests/account.test.mjs replays that file against the server.
 
 const DEFAULT_OUT := "res://hosting/accounts/tests/fixtures/game_profiles.json"
@@ -17,6 +19,8 @@ const NAMES := {&"vagabond": "Assotix", &"warrior": "บราโว่", &"arch
 	&"summoner": "ไลรา", &"lancer": "เรย์", &"defender": "Assotix", &"assassin": "ยามิ", &"bard": "เมโลดี้"}
 
 var profiles := {}
+## The shared storage fields of the account bundle after every hero was built.
+var shared := {}
 var failures := 0
 
 
@@ -32,6 +36,8 @@ func _ready() -> void:
 		"saveVersion": Game.SAVE_VERSION,
 		"classes": [String(ClassData.START)] + Array(ClassData.IDS).map(func(id): return String(id)),
 		"profiles": profiles,
+		"storage": shared.get("storage", []),
+		"storageMigrated": shared.get("storageMigrated", {}),
 	}
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out_path).get_base_dir())
 	var file := FileAccess.open(out_path, FileAccess.WRITE)
@@ -99,6 +105,28 @@ func _build_all() -> void:
 	for cls in ClassData.IDS:
 		_build_line(cls)
 		_build_direct(cls)
+	_build_shared_storage()
+
+
+## A few deposits into the storage every hero shares (beside what full bags sent there
+## while the heroes above were built), as the bundle sends it.
+func _build_shared_storage() -> void:
+	Game.new_profile(&"warrior", "คลังรวม", FaceKit.default_look())
+	Game.slot = 1
+	Game.profile.inv.clear()
+	Game.add_item(ItemData.jewel("chaos", 4))
+	Game.add_item(ItemData.potion("hp_s", 7))
+	Game.add_item(ItemData.generate(40, &"archer", Game.rng, 2, "weapon"))
+	Game.add_item(ItemData.generate(40, &"warrior", Game.rng, 1, "armor"))
+	while not Game.profile.inv.is_empty():
+		if not Game.deposit_item(0):
+			_fail("shared storage: a deposit failed")
+			return
+	var bundle := Game.build_cloud_bundle()
+	shared = {"storage": bundle.storage, "storageMigrated": bundle.storageMigrated}
+	if not SharedStorage.valid({"items": shared.storage, "migrated": shared.storageMigrated}):
+		_fail("shared storage: the game refuses its own storage")
+	Game.delete_save(1)
 
 
 ## A Vagabond who takes the class at the trainer, then plays to Lv.23 and beyond.

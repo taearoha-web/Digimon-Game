@@ -12,9 +12,10 @@ extends Node
 ##   godot --headless --path . res://tools/boost_character.tscn -- \
 ##     --in bundle.json --out boosted.json --name Assotix [--class defender] [--create] [--accessory-plus 0]
 ##
-## Writes {slot, profile, created} for the boosted character only.
+## Writes {slot, profile, created} for the boosted character only, plus "storage"
+## (the bundle's shared storage, SharedStorage) when replaced gear had to go there.
 ##
-## Gear it replaces moves to the bag (or storage); nothing is deleted.
+## Gear it replaces moves to the bag (or the shared storage); nothing is deleted.
 
 const BEST_SLOTS := ["weapon", "armor", "helm", "boots"]
 ## Stars the boost gives (below Game.PARAGON_MAX = 300 on purpose).
@@ -22,6 +23,10 @@ const BOOST_STARS := 200
 const STAR_SLOTS := ["ring", "amulet"]
 ## The longest name the character creator accepts (ui/class_select.gd).
 const NAME_MAX := 14
+
+## The bundle's shared storage while a boost runs (replaced gear past a full bag).
+static var _vault: Array = []
+static var _vault_used := false
 
 
 func _ready() -> void:
@@ -67,7 +72,10 @@ func _run() -> int:
 	if out == null:
 		return _fail("cannot write " + target)
 	# Only the boosted slot: the other characters stay byte-for-byte as saved.
-	out.store_string(JSON.stringify({"slot": result.slot, "profile": bundle.slots[result.slot], "created": result.created}))
+	var written := {"slot": result.slot, "profile": bundle.slots[result.slot], "created": result.created}
+	if bool(result.get("storage", false)):
+		written["storage"] = bundle.storage
+	out.store_string(JSON.stringify(written))
 	out.close()
 	var hero: Dictionary = bundle.slots[result.slot]
 	print("BOOST: slot %s %s (%s)%s: %s -> Lv.%d ★%d, advancement %d, stat points %d, skill points %d, star points %d" % [
@@ -117,6 +125,8 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 		Game.has_profile = keep[1]
 		return {"error": "could not change the class to " + cls}
 	_advance()
+	_vault = bundle.storage if bundle.get("storage") is Array else []
+	_vault_used = false
 	_dress(accessory_plus)
 	var stats := Game.stats_now()
 	Game.profile["hp"] = int(stats.max_hp)
@@ -127,7 +137,9 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	if not Game._valid_profile(boosted):
 		return {"error": "the boosted character does not pass the game's save check"}
 	bundle.slots[slot_key] = boosted
-	return {"slot": slot_key, "before": "new" if created else before, "created": created}
+	if _vault_used:
+		bundle["storage"] = _vault
+	return {"slot": slot_key, "before": "new" if created else before, "created": created, "storage": _vault_used}
 
 
 ## A new Vagabond named [param wanted] in the first free slot, stored as the
@@ -197,8 +209,8 @@ static func _dress(accessory_plus := ItemData.MAX_PLUS) -> void:
 		var old: Variant = Game.profile.equip.get(key)
 		if old is Dictionary and not old.is_empty():
 			if not Game.add_item(old):
-				var vault := Game.storage()
-				if vault.size() < Game.STORAGE_SIZE:
-					vault.append(old)
+				if _vault.size() < SharedStorage.MAX_ITEMS:
+					_vault.append(old)
+					_vault_used = true
 		Game.profile.equip[key] = piece
 	Game.clamp_vitals()

@@ -1,11 +1,14 @@
 class_name StorageScreen
 extends CanvasLayer
-## The warehouse keeper: park bag items in the storage, take them back out, and
-## buy more bag slots.
+## The warehouse keeper: park bag items in the storage every hero shares
+## (SharedStorage), take them back out, and buy more bag slots. Gear of another class
+## is listed greyed out with "อาชีพอื่น ใช้ไม่ได้" and cannot be taken out.
 
 signal closed()
 
 var is_open := false
+## The card of a storage row the hero cannot take out (gear of another class).
+const LOCKED_TINT := Color(0.55, 0.55, 0.6, 0.85)
 var _root: Control
 var _bag_box: VBoxContainer
 var _store_box: VBoxContainer
@@ -74,6 +77,8 @@ func _make_list(row: Control) -> Array:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(col)
 	var title := UIUtil.label("", &"SubHeaderLabel")
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	col.add_child(title)
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -124,7 +129,12 @@ func _rebuild() -> void:
 	_expand.text = "ขยายกระเป๋า +%d (%d)" % [Game.BAG_STEP, cost] if cost > 0 else "กระเป๋าเต็มขนาด"
 	_expand.disabled = cost <= 0 or int(Game.profile.gold) < cost
 	_bag_title.text = "กระเป๋า (%d/%d) — แตะเพื่อฝาก" % [Game.profile.inv.size(), Game.bag_size()]
-	_store_title.text = "คลัง (%d/%d) — แตะเพื่อเบิก" % [Game.storage().size(), Game.STORAGE_SIZE]
+	var stored := Game.storage()
+	_store_title.text = "คลังรวมทุกตัวละคร (%d/%d) — แตะเพื่อเบิก" % [stored.size(), Game.STORAGE_SIZE]
+	# Old storages moved in may hold more than the room: no deposit until it is under.
+	if stored.size() > Game.STORAGE_SIZE:
+		_store_title.text = "คลังรวม (%d/%d) เกินความจุ — เบิกออกก่อนจึงฝากเพิ่มได้" % [stored.size(), Game.STORAGE_SIZE]
+	_store_title.add_theme_color_override("font_color", UIPalette.WARNING if stored.size() >= Game.STORAGE_SIZE else UIPalette.TEXT)
 	UIUtil.clear(_bag_box)
 	UIUtil.clear(_store_box)
 	for i in Game.profile.inv.size():
@@ -132,16 +142,20 @@ func _rebuild() -> void:
 		_bag_box.add_child(_row(Game.profile.inv[i], "ฝาก", func(): Game.deposit_item(index)))
 	if Game.profile.inv.is_empty():
 		_bag_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
-	var stored := Game.storage()
 	for i in stored.size():
 		var index: int = i
-		_store_box.add_child(_row(stored[i], "เบิก", func(): Game.withdraw_item(index)))
+		_store_box.add_child(_row(stored[i], "เบิก", func(): Game.withdraw_item(index), Game.storage_lock(stored[i])))
 	if stored.is_empty():
 		_store_box.add_child(UIUtil.label("คลังว่างเปล่า — ฝากของที่ยังไม่ใช้ไว้ได้", &"DimLabel"))
 
 
-func _row(item: Dictionary, action_label: String, action: Callable) -> Control:
+## A row of the bag or the storage. [param lock] (Game.storage_lock) greys the row out
+## and disables its button, with the reason and the class the gear is for.
+func _row(item: Dictionary, action_label: String, action: Callable, lock := "") -> Control:
 	var panel := UIUtil.panel(&"CardPanel")
+	if lock != "":
+		# Greyed: the card, the icon and the name dim; the reason stays readable.
+		panel.self_modulate = LOCKED_TINT
 	var line := UIUtil.hbox(10)
 	panel.add_child(line)
 	var icon := TextureRect.new()
@@ -149,24 +163,32 @@ func _row(item: Dictionary, action_label: String, action: Callable) -> Control:
 	icon.custom_minimum_size = Vector2(56, 56)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if lock != "":
+		icon.modulate = Color(0.55, 0.55, 0.6, 0.7)
 	line.add_child(icon)
 	var info := UIUtil.vbox(1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)
 	var qty := " ×%d" % int(item.count) if ItemData.is_stackable(item) and int(item.get("count", 1)) > 1 else ""
 	var name_label := UIUtil.label(ItemData.name_of(item) + qty, &"BoldLabel")
-	name_label.add_theme_color_override("font_color", ItemData.color_of(item))
+	name_label.add_theme_color_override("font_color", ItemData.color_of(item) if lock == "" else ItemData.color_of(item).lerp(UIPalette.TEXT_MUTED, 0.7))
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(name_label)
 	var summary := ", ".join(ItemData.stat_lines(item))
 	if item.get("kind", "") == "equip":
 		summary = "%s  %s" % [ItemData.level_text(int(item.level)), summary]
+	if lock != "":
+		var cls := SharedStorage.class_name_of(SharedStorage.gear_class(item))
+		summary = "%s%s · %s" % [lock, " (%s)" % cls if cls != "" else "", summary]
 	var detail := UIUtil.label(summary, &"SmallLabel")
+	if lock != "":
+		detail.add_theme_color_override("font_color", UIPalette.WARNING)
 	detail.clip_text = true
 	detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(detail)
 	var button := UIUtil.button(action_label, &"PrimaryButton", Vector2(110, 52))
+	button.disabled = lock != ""
 	button.pressed.connect(func():
 		AudioManager.play_sfx(&"pickup")
 		action.call())
