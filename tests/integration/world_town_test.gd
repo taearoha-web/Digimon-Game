@@ -97,7 +97,7 @@ func _busy(from_day: float, days: float) -> void:
 			var in_town := String(s.place) == "town"
 			if in_town != (String(s.doing) in ["stall", "errand"]):
 				wrong.append("%s %s/%s" % [s.name, s.place, s.doing])
-			if not WorldPlayers.in_town_style(i) and String(s.doing) == "stall" and not bool(s.divine):
+			if not WorldPlayers.in_town_style(i) and String(s.doing) == "stall" and not (bool(s.divine) and int(s.stars) >= Game.PARAGON_MAX):
 				wrong.append("%s (%s) keeps a stall" % [s.name, s.style])
 			if WorldPlayers.in_town_style(i) and String(s.doing) != "stall":
 				wrong.append("%s (stall keeper) away from its stall" % s.name)
@@ -116,12 +116,13 @@ func _veterans() -> void:
 		if WorldPlayers.head_work(i) != 0.0 or int(WorldPlayers.state(i, start + 60.0).level) > 5:
 			ahead.append("%s Lv.%d" % [WorldPlayers.entry(i).name, int(WorldPlayers.state(i, start + 60.0).level)])
 	check(ahead.is_empty(), "when the world opens everyone starts at Lv.1 (%s)" % [ahead])
-	# The endgame: a player who completed the divine set enhances it as it plays and
-	# spends sessions on boss hunts, helping in the star fields and keeping a stall.
-	# The first hardcore player to complete the divine set, from the day it does.
+	# The endgame: a player gathers the divine set from ★200 and enhances it as it plays
+	# on to ★300; from ★300 it spends sessions on boss hunts, helping in the star fields
+	# and keeping a stall. The first hardcore player to complete the divine set, from the
+	# day it does.
 	var who := -1
 	var t0 := start
-	for d in range(10, 120):
+	for d in range(3, 120):
 		t0 = start + float(d) * 86400.0
 		for i in WorldPlayers.size():
 			if String(WorldPlayers.entry(i).style) == "hardcore" and bool(WorldPlayers.state(i, t0).divine):
@@ -135,6 +136,17 @@ func _veterans() -> void:
 	var plus_then := WorldPlayers.divine_plus(WorldPlayers.member(who, t0))
 	var plus_later := WorldPlayers.divine_plus(WorldPlayers.member(who, t0 + 20.0 * 86400.0))
 	check(plus_later > plus_then and plus_later <= 10, "the divine set is enhanced with play (+%d -> +%d)" % [plus_then, plus_later])
+	check(int(WorldPlayers.state(who, t0).stars) < Game.PARAGON_MAX, "the divine set is complete on the way to ★300 (★%d)" % int(WorldPlayers.state(who, t0).stars))
+	# Only at ★300 (Game.PARAGON_MAX) does it turn to the endgame's sessions.
+	var top_day := -1.0
+	for d in range(int((t0 - start) / 86400.0), 160):
+		if int(WorldPlayers.state(who, start + float(d) * 86400.0).stars) >= Game.PARAGON_MAX:
+			top_day = float(d)
+			break
+	check(top_day > 0.0, "the hardcore player reaches ★300")
+	if top_day < 0.0:
+		return
+	t0 = start + top_day * 86400.0
 	var kinds := {}
 	var t := t0
 	while t < t0 + 14.0 * 86400.0:

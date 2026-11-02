@@ -1462,11 +1462,11 @@ func party_stars(member: Dictionary) -> int:
 
 
 ## The ★ points a companion spends by itself: half into attack, then health,
-## defence and critical, up to each stat's cap.
+## defence, critical and skill haste, up to each stat's cap (all 300 by ★300).
 func party_star_alloc(stars: int) -> Dictionary:
 	var alloc := {}
 	var spend := stars
-	for key in ["atk", "hp", "def", "crit"]:
+	for key in ["atk", "hp", "def", "crit", "haste"]:
 		var put := mini(spend / 2 if key == "atk" else spend, int(PARAGON_STATS[key][2]))
 		alloc[key] = put
 		spend -= put

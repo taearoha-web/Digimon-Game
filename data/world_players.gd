@@ -15,7 +15,7 @@ extends RefCounted
 ## that fits its level (WorldPresence shows it there, fighting the field's monsters for
 ## real) and only comes to the village for short errands (errand_at: a quest, the forge,
 ## new skills); with the divine set complete it spends its sessions on the endgame
-## (endgame_plan) and enhances the set. Otherwise the village belongs to the stall keepers
+## (endgame_plan) and enhances the set once it has climbed to ★300 (Game.PARAGON_MAX). Otherwise the village belongs to the stall keepers
 ## (the "afk" style, and divine players taking a break, endgame_plan's "stall"): resting
 ## players who sell the good things they found (StallStock).
 ## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
@@ -170,13 +170,19 @@ const STYLES := {
 ## that of a real player.
 const SPEED := 3.0
 ## EXP per minute of auto-hunting (pace_probe, warrior/mage mean, 60 s each) at each
-## level in its field, and at Lv.100 by stars in the star fields.
+## level in its field, and at Lv.100 by stars in the star fields. From ★200 the rate is
+## the ★200-300 hunting ground's (about 1.3x the eclipse realm's ★200 rate at ★200,
+## rising to about 1.6x by ★300), so the steeper star curve (HeroStats.star_need, 4% more
+## per star past ★200) still takes a real player's weeks.
 const LEVEL_RATE := [[1, 900], [3, 1146], [10, 2465], [18, 5498], [26, 12453], [35, 14066], [46, 18823], [58, 21692], [70, 29115], [82, 26128], [94, 36727], [100, 36727]]
-const STAR_RATE := [[0, 56160], [25, 26488], [75, 46653], [125, 38994], [175, 41755], [200, 41755]]
+const STAR_RATE := [[0, 56160], [25, 26488], [75, 46653], [125, 38994], [175, 41755], [199, 41755], [200, 54282], [300, 66808]]
 ## Potions a world player carries out of the village.
 const POTIONS := 20
 const MP_POTIONS := 10
-## Hours of play after ★200 before the class's divine set is complete.
+## The divine set drops in the lotus sanctum (DivineRegionData, ★200): a player starts
+## finding it on reaching DIVINE_STARS and has the whole set after DIVINE_HOURS of play
+## there, while it keeps climbing to ★300.
+const DIVINE_STARS := 200
 const DIVINE_HOURS := 20.0
 
 static var _table: PackedFloat64Array = PackedFloat64Array()
@@ -506,7 +512,8 @@ static func _lerp_table(table: Array, x: int) -> float:
 	return float(table[-1][1])
 
 
-## Probe minutes from Lv.1 to step k: steps 0..99 are Lv.1..100, steps 100..300 are ★0..200.
+## Probe minutes from Lv.1 to step k: steps 0..99 are Lv.1..100, steps 99..399 are ★0..300
+## (Game.PARAGON_MAX).
 static func _steps() -> PackedFloat64Array:
 	if not _table.is_empty():
 		return _table
@@ -543,25 +550,27 @@ static func progress_for(minutes: float, eff: float, extra := 0.0) -> Dictionary
 		frac = clampf((work - steps[k]) / maxf(0.001, steps[k + 1] - steps[k]), 0.0, 0.999)
 	var level := mini(k + 1, Game.MAX_LEVEL)
 	var stars := clampi(k - (Game.MAX_LEVEL - 1), 0, Game.PARAGON_MAX)
+	# The divine set is gathered from ★200 (DIVINE_STARS) while the stars go on to ★300.
 	var divine_need := DIVINE_HOURS * 60.0 * eff
-	var post := work - steps[steps.size() - 1]
-	var divine_frac := clampf(post / maxf(0.001, divine_need), 0.0, 1.0) if stars >= Game.PARAGON_MAX else 0.0
-	# Hours of play since the divine set was complete (the endgame: enhancing it, see equip).
+	var post := work - steps[mini(Game.MAX_LEVEL - 1 + DIVINE_STARS, steps.size() - 1)]
+	var divine_frac := clampf(post / maxf(0.001, divine_need), 0.0, 1.0) if stars >= DIVINE_STARS else 0.0
+	# Hours of play since the divine set was complete (enhancing it, see equip).
 	var after := maxf(0.0, post - divine_need) / maxf(0.001, 60.0 * eff) if divine_frac >= 1.0 else 0.0
 	return {"level": level, "stars": stars, "frac": frac, "minutes": minutes, "divine": divine_frac >= 1.0, "divine_frac": divine_frac, "after": after}
 
 
 ## A veteran's head start in probe minutes: where it stood when the world reopened, as a
-## point (Lv.1-100 = 1-100, ★1-200 = 101-300, past 300 = tenths of the divine set's hours:
-## 310 has just completed it, 330 has played twice as long again since).
+## point (Lv.1-100 = 1-100, ★1-300 = 101-400, past 400 = tenths of DIVINE_HOURS played
+## since ★300: 410 has played DIVINE_HOURS there, 420 twice as long).
 static func head_work(i: int) -> float:
 	var point := int(ROSTER[i].get("vet", 0))
 	if point <= 1:
 		return 0.0
 	var steps := _steps()
 	var work := steps[clampi(point - 1, 0, steps.size() - 1)]
-	if point > 300:
-		work += float(point - 300) / 10.0 * DIVINE_HOURS * 60.0 * efficiency(i)
+	var top := Game.MAX_LEVEL + Game.PARAGON_MAX
+	if point > top:
+		work += float(point - top) / 10.0 * DIVINE_HOURS * 60.0 * efficiency(i)
 	return work
 
 
@@ -770,13 +779,14 @@ static func _last_seen(i: int, t: float) -> float:
 
 
 ## What a player with a play schedule does in the session that started at real time s0:
-## {place, doing}. On the way up it hunts the field that fits it ("hunt"); once
-## the divine set is complete each session is one of the endgame's: the lotus sanctum's
+## {place, doing}. On the way up it hunts the field that fits it ("hunt"), to ★300 with
+## the divine set too; once it is at ★300 (Game.PARAGON_MAX) with the divine set complete
+## each session is one of the endgame's: the lotus sanctum's
 ## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
 ## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
 	var home := hunting_zone(level, stars, divine)
-	if not divine:
+	if not divine or stars < Game.PARAGON_MAX:
 		return {"place": home, "doing": "hunt"}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("plan|%s|%d" % [ROSTER[i].name, int(s0 / 60.0)])
@@ -789,10 +799,11 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 
 
 ## The field a player hunts in: the one whose levels fit, then the star fields by stars,
-## and the lotus sanctum (the divine set) from ★200.
+## and from ★200 (DIVINE_STARS) on to ★300 the lotus sanctum (the divine set; its EXP
+## stands in for the ★200-300 hunting ground's in STAR_RATE).
 static func hunting_zone(level: int, stars: int, _divine := false) -> StringName:
 	if level >= Game.MAX_LEVEL:
-		if stars >= Game.PARAGON_MAX:
+		if stars >= DIVINE_STARS:
 			return DivineRegionData.ID
 		var at: StringName = &"void"
 		for k in StarProgression.REGIONS.size():
@@ -1028,7 +1039,7 @@ static var _gear_sig := {}
 
 
 ## Where a member sheet is on the way, as one number: Lv.1-100 with the part of the
-## level done, then 100 + stars (to 300).
+## level done, then 100 + stars (to 400 at ★300, Game.PARAGON_MAX).
 static func point_of(m: Dictionary) -> float:
 	var level := int(m.level)
 	var frac := clampf(float(m.get("frac", 0.0)), 0.0, 0.999)
@@ -1094,7 +1105,7 @@ static func _best_find(name: String, slot: String, p: float, divine_frac: float)
 	if divine_frac > 0.0 and slot in DivineGearData.SLOTS:
 		var rng := _find_rng(name, slot, "divine")
 		if divine_frac >= rng.randf_range(0.12, 1.0):
-			best = {"key": "divine", "kind": "divine", "at": 300.0}
+			best = {"key": "divine", "kind": "divine", "at": float(Game.MAX_LEVEL + DIVINE_STARS)}
 	return best
 
 

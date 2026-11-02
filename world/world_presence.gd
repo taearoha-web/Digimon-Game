@@ -29,7 +29,7 @@ const REPEAT_TRIES := 6
 static var _said := {}
 static var chat_clock_override := -1.0
 const ANNOUNCE_LEVELS := [10, 20, 40, 60, 80, 100]
-const ANNOUNCE_STARS := [50, 100, 150, 200]
+const ANNOUNCE_STARS := [50, 100, 150, 200, 250, 300]
 
 ## Seconds added to the clock (tests move time forward). TOON_WORLD_DAYS=x starts the
 ## clock x days after the world opened (for screenshots and soak runs).
