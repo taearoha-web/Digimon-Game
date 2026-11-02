@@ -202,6 +202,13 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("feather", 1))
 	for i in 10:
 		Game.enhance_item(Game.profile.equip.weapon)
+	# A 250-star set piece forged at the blacksmith (SetGearData) and a spare set core.
+	Game.add_item(ItemData.jewel("set_core", 2))
+	Game.add_item(ItemData.jewel("purple", 20))
+	Game.add_item(ItemData.jewel("pink", 20))
+	Game.add_item(ItemData.jewel("chaos", 20))
+	if Game.craft_set_piece("weapon", 0.0) != "ok":
+		_fail("%s: craft_set_piece" % cls)
 	Game.tower_floor_cleared(60)
 	Game.tower_buy("gear")
 	Game.tower_buy("gem")

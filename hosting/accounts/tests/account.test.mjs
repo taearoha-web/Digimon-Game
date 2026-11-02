@@ -361,6 +361,13 @@ test('real game-generated saves of every class pass validation and round-trip un
       assert.ok(fixtures.profiles[stage]?.class === cls, `fixture ${stage} is missing or not a ${cls}`);
     }
   }
+  // Every Lv.100 save carries a forged 250★ set piece of its class and a spare set core.
+  for (const cls of classes.slice(1)) {
+    const profile = fixtures.profiles[`${cls}_lv100_star`];
+    const items = [...(profile.inv ?? []), ...(profile.storage ?? []), ...Object.values(profile.equip ?? {})];
+    assert.ok(items.some(item => item.set_gear === cls && item.class === cls && item.level === 350), `${cls}: no 250★ set piece in the fixture`);
+    assert.ok(items.some(item => item.kind === 'jewel' && item.id === 'set_core'), `${cls}: no set core in the fixture`);
+  }
   const {register, call} = harness(t);
   const account = await register();
   let revision = 0;

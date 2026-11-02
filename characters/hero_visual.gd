@@ -259,13 +259,13 @@ func _refresh_chibi() -> void:
 	_dress_chibi(armor)
 	var armor_nodes: Array = []
 	if armor != null:
-		armor_nodes = _divine_slot(armor) if DivineGearData.is_item(armor) else (_star_armor(armor) if StarGearData.is_star(armor) else _chibi_armor(ItemLook.tier_of(armor)))
+		armor_nodes = _divine_slot(armor) if DivineGearData.is_item(armor) else (_star_armor(armor) if _starish(armor) else _chibi_armor(ItemLook.tier_of(armor)))
 	if DivineGearData.is_item(helm):
 		var crown_nodes := _divine_slot(helm)
 		_glow_piece(crown_nodes, int(helm.get("plus", 0)), Vector3(0,2.2,0), 0.25)
 	elif helm != null:
 		var crown := _chibi_attach("Head", "ChibiHelm")
-		if StarGearData.is_star(helm): crown.add_child(StarGearArt.armor_piece("helm",StarGearData.item_class(helm),int(helm.star_tier)))
+		if _starish(helm): crown.add_child(_crafted_piece("helm", helm))
 		else: ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
 		_glow_piece([crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
 	var acc := int(look.get("acc", 0))
@@ -278,13 +278,13 @@ func _refresh_chibi() -> void:
 	elif boots != null:
 		for side in ["Left", "Right"]:
 			var cuff := _chibi_attach(side + "LowerLeg", "ChibiBoots")
-			if StarGearData.is_star(boots): cuff.add_child(StarGearArt.armor_piece("boots",StarGearData.item_class(boots),int(boots.star_tier)))
+			if _starish(boots): cuff.add_child(_crafted_piece("boots", boots))
 			else: ChibiGear.boot_cuff(cuff, ItemLook.tier_of(boots))
 			boot_nodes.append(cuff.get_parent())
 	if equip.get("amulet") != null:
-		if StarGearData.is_star(equip.amulet): _star_piece("amulet","Chest",equip.amulet)
+		if _starish(equip.amulet): _star_piece("amulet","Chest",equip.amulet)
 		else: ChibiGear.pendant(_chibi_attach("Chest", "ChibiAmulet"), ItemLook.tier_of(equip.amulet))
-	if StarGearData.is_star(equip.get("ring")): _star_piece("ring","LeftHand",equip.ring)
+	if _starish(equip.get("ring")): _star_piece("ring","LeftHand",equip.ring)
 	_glow_piece(armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.1, 0), 0.4)
 	_glow_piece(boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
 	var wings: Variant = equip.get("wings")
@@ -410,10 +410,22 @@ func _chibi_attach(bone: String, node_name: String) -> Node3D:
 func _star_piece(part: String, bone: String, item: Dictionary, side := 1.0) -> Node3D:
 	var aliases := {"Chest":"chest","Head":"head","Hips":"hips","LeftHand":"wrist.l","LeftUpperArm":"upperarm.l","RightUpperArm":"upperarm.r","LeftLowerLeg":"lowerleg.l","RightLowerLeg":"lowerleg.r"}
 	var frame := _chibi_attach(bone if chibi else String(aliases.get(bone,bone)), "ChibiStar_" + part)
-	var piece := StarGearArt.armor_piece(part,StarGearData.item_class(item),int(item.star_tier),side)
+	var piece := _crafted_piece(part, item, side)
 	if not chibi: piece.scale = Vector3.ONE * 2.2
 	frame.add_child(piece)
 	return frame.get_parent() as Node3D
+
+## Star gear (50-200★) and the 250★ class sets wear the same crafted pieces.
+static func _starish(item: Variant) -> bool:
+	return StarGearData.is_star(item) or SetGearData.is_item(item)
+
+
+## One worn piece of a star or set item (part: chest, pauldron, belt, helm, boots, ring, amulet).
+static func _crafted_piece(part: String, item: Dictionary, side := 1.0) -> Node3D:
+	if SetGearData.is_item(item):
+		return SetGearArt.armor_piece(part, SetGearData.item_class(item), side)
+	return StarGearArt.armor_piece(part, StarGearData.item_class(item), int(item.star_tier), side)
+
 
 func _star_armor(item: Dictionary) -> Array:
 	return [_star_piece("chest","Chest",item),_star_piece("belt","Hips",item),
@@ -480,11 +492,15 @@ func _dress_chibi(armor: Variant) -> void:
 		ChibiLook.set_material(mat, look, int(look.get("gender", 0)))
 		if armor != null:
 			var tier := ItemLook.tier_of(armor)
-			var cloth: Color = DivineOutfitArt.palette(StarGearData.item_class(armor)).body if divine_armor else (StarGearArt.cloth(StarGearData.item_class(armor),int(armor.star_tier)) if StarGearData.is_star(armor) else ChibiGear.cloth(tier))
+			var set_armor := SetGearData.is_item(armor)
+			var cloth: Color = DivineOutfitArt.palette(StarGearData.item_class(armor)).body if divine_armor else (SetGearArt.cloth(SetGearData.item_class(armor)) if set_armor else (StarGearArt.cloth(StarGearData.item_class(armor),int(armor.star_tier)) if StarGearData.is_star(armor) else ChibiGear.cloth(tier)))
 			mat.set_shader_parameter("outfit_color", cloth)
-			mat.set_shader_parameter("outfit_amount", 0.96 if divine_armor else 0.5 + 0.04 * float(tier))
+			mat.set_shader_parameter("outfit_amount", 0.96 if divine_armor else (0.9 if set_armor else 0.5 + 0.04 * float(tier)))
 			mat.set_shader_parameter("sheen", 0.22 if divine_armor else (0.0 if tier < 2 else 0.2 + 0.08 * float(tier)))
-			if tier >= 7 and not divine_armor:
+			if set_armor:
+				# The set's own glow runs through the cloth (SetGearData.PALETTES).
+				mat.set_shader_parameter("glow_color", SetGearData.palette(SetGearData.item_class(armor)).glow * 0.3)
+			elif tier >= 7 and not divine_armor:
 				mat.set_shader_parameter("glow_color", ChibiGear.cloth(tier) * 0.35)
 		if divine_armor or divine_boots:
 			mat.set_shader_parameter("part_masks_enabled", true)
@@ -619,7 +635,7 @@ func refresh() -> void:
 		_add_part(preset.extra[0], preset.extra[1])
 	if DivineGearData.is_item(armor):
 		armor_nodes.append_array(_divine_slot(armor))
-	elif StarGearData.is_star(armor):
+	elif _starish(armor):
 		armor_nodes.append_array(_star_armor(armor))
 	elif armor != null:
 		_wear_flourish(ItemLook.tier_of(armor))
@@ -645,7 +661,7 @@ func refresh() -> void:
 	if DivineGearData.is_item(helm):
 		var crown_nodes := _divine_slot(helm)
 		_glow_piece(crown_nodes, int(helm.get("plus", 0)), Vector3(0,1.85,0), 0.25)
-	elif StarGearData.is_star(helm):
+	elif _starish(helm):
 		_star_piece("helm","Head",helm)
 	elif helm != null:
 		var hat := ItemLook.helm_look(helm)
@@ -734,7 +750,7 @@ func _wear_trinkets() -> void:
 	if DivineGearData.is_item(boots):
 		var boot_nodes := _divine_slot(boots)
 		_glow_piece(boot_nodes, int(boots.get("plus", 0)), Vector3(0,0.25,0), 0.4)
-	elif StarGearData.is_star(boots):
+	elif _starish(boots):
 		_star_piece("boots","LeftLowerLeg",boots)
 		_star_piece("boots","RightLowerLeg",boots)
 	elif boots != null:
@@ -747,7 +763,7 @@ func _wear_trinkets() -> void:
 			attach.add_child(GearKit.boot_cuff(tier, side))
 			_body_nodes.append(attach)
 	var ring: Variant = equip.get("ring")
-	if StarGearData.is_star(ring):
+	if _starish(ring):
 		_star_piece("ring","LeftHand",ring)
 	elif ring != null:
 		var ring_attach := BoneAttachment3D.new()
@@ -758,7 +774,7 @@ func _wear_trinkets() -> void:
 		_body_nodes.append(ring_attach)
 	_make_aura()
 	var amulet: Variant = equip.get("amulet")
-	if StarGearData.is_star(amulet):
+	if _starish(amulet):
 		_star_piece("amulet","Chest",amulet)
 	elif amulet != null:
 		var attach := BoneAttachment3D.new()
@@ -808,10 +824,16 @@ func _make_aura() -> void:
 		for made in EnhanceFx.on_body(self, whole, decor_light):
 			made.set_meta("far_decor", true)
 			_body_nodes.append(made)
+	# The 250★ class set: its aura from AURA_PIECES worn pieces (SetGearArt.aura).
+	if SetGearData.worn_count(equip, String(class_id)) >= SetGearData.AURA_PIECES:
+		var set_aura := SetGearArt.aura(String(class_id), decor_light)
+		set_aura.set_meta("far_decor", true)
+		add_child(set_aura)
+		_body_nodes.append(set_aura)
 	var tier := _top_tier()
 	if tier >= 6:
 		color = GearKit.TIERS_METAL[tier].lerp(Color("ffd870"), 0.35)
-		if tier >= 8 and not StarGearData.is_star(equip.get("helm")):
+		if tier >= 8 and not _starish(equip.get("helm")):
 			var halo := BoneAttachment3D.new()
 			halo.name = "Halo"
 			halo.bone_name = _bone("head")
@@ -918,6 +940,10 @@ func _hold_gear() -> void:
 		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
 		if offhand != "": _hold("divine_%s_%s_200" % [offhand, class_id], "handslot.l", plus if offhand == "dagger" else 0, true)
 		return
+	if SetGearData.is_item(equip.get("weapon")):
+		var set_offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
+		if set_offhand != "": _hold("set_%s_%s" % [set_offhand, SetGearData.item_class(equip.weapon)], "handslot.l", plus if set_offhand == "dagger" else 0, true)
+		return
 	var star := StarGearData.is_star(equip.get("weapon"))
 	var tier := int(equip.weapon.star_tier) if star else (ItemLook.tier_of(equip.weapon) if equip.get("weapon") is Dictionary else 0)
 	if star:
@@ -969,6 +995,8 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 		item = DivineGearArt.build(look)
 	elif look.begins_with("star_"):
 		item = StarGearArt.build(look)
+	elif look.begins_with("set_"):
+		item = SetGearArt.build(look)
 	elif look.begins_with("shield"):
 		item = WeaponKit.shield(look)
 	elif look.begins_with("book_"):

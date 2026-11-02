@@ -167,7 +167,7 @@ func _ready() -> void:
 static func look_for(weapon: Variant) -> int:
 	if not (weapon is Dictionary) or (weapon as Dictionary).is_empty():
 		return Look.PLAIN
-	if DivineGearData.is_item(weapon):
+	if DivineGearData.is_item(weapon) or SetGearData.is_item(weapon):
 		return Look.DIVINE
 	if StarGearData.is_star(weapon):
 		return Look.STAR_50 + StarGearData.index(int(weapon.star_tier))

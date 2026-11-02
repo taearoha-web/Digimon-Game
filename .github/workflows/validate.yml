@@ -134,6 +134,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-mounts
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/mount_test.tscn
+      - name: 250-star class sets (one set core makes any piece of any class at the forge for 20 purple + 20 pink + 20 chaos at 50%, every stat at +0 beats the best other piece at +10, worn from 250 stars, 2/4/6 piece bonus, class aura and models, icons, saves, the forge's ผสมชุดเซต section)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-set-gear
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/set_gear_test.tscn
       - name: Loot magnet (every drop the hero earned flies to it from anywhere in the zone and is collected, world players' kills stay theirs, a full bag leaves gear on the ground with one toast until there is room, stacks still join, capped sparkles)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-loot-magnet
