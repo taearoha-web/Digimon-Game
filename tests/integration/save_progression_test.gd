@@ -43,7 +43,7 @@ func _test_invalid_backups() -> void:
 		{"gold": -50}, {"hp": []}, {"attrs": {"str": {}}}, {"skills": {"slash": []}},
 		{"equip": {"weapon": null}}, {"inv": ["not an item"]}, {"storage": [42]},
 		{"loadout": [{}]}, {"quests": {"slimes": "done"}}, {"quests": {"slimes": {"progress": []}}},
-		{"paragon": {"alloc": []}}, {"paragon": {"level": 201}}, {"paragon": {"alloc": {"atk": 61}}},
+		{"paragon": {"alloc": []}}, {"paragon": {"level": 301}}, {"adv": 5}, {"adv": 6}, {"paragon": {"alloc": {"atk": 61}}},
 		{"party": [{"class": "missing"}]}, {"party": [1]}, {"daily": {"quests": {}}},
 		{"daily": {"quests": [{"id": "missing"}]}}, {"look": {"skin": []}},
 		{"flags": {"kills": []}}, {"pvp": {"wins": "ten"}}, {"ach": {"first_blood": []}},

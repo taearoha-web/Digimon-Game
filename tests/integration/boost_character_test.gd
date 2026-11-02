@@ -31,7 +31,7 @@ func _ready() -> void:
 	check(not result.has("error") and result.get("slot") == "3", "the named defender is found in slot 3 (%s)" % str(result))
 	var hero: Dictionary = bundle.slots["3"]
 	check(int(hero.level) == 100 and int(hero.paragon.level) == 200, "Lv.100 and 200 stars")
-	check(int(hero.adv) == JobData.MAX_ADV, "every job advancement is taken (adv %d)" % int(hero.adv))
+	check(int(hero.adv) == JobData.LEGEND_ADV, "every level advancement is taken, not the ★300 God step (adv %d)" % int(hero.adv))
 	check(result.get("created") == false, "an existing character is not reported as new")
 	check(int(hero.paragon.points) == 200 and int(hero.paragon.spent) == 0, "all 200 star points are free to spend")
 	check(int(hero.points) >= (100 - level0) * Game.STAT_POINTS_PER_LEVEL, "stat points for every level gained")
@@ -70,7 +70,7 @@ func _ready() -> void:
 	var fresh: Dictionary = roster.slots.get("2", {})
 	check(not made.has("error") and made.get("slot") == "2" and made.get("created") == true, "the new character takes free slot 2 (%s)" % str(made))
 	check(String(fresh.get("name", "")) == "มีดมาร" and String(fresh.get("class", "")) == "assassin", "named มีดมาร, an assassin")
-	check(int(fresh.get("level", 0)) == 100 and int(fresh.get("paragon", {}).get("level", 0)) == 200 and int(fresh.get("adv", 0)) == JobData.MAX_ADV, "Lv.100, 200 stars, fully advanced")
+	check(int(fresh.get("level", 0)) == 100 and int(fresh.get("paragon", {}).get("level", 0)) == 200 and int(fresh.get("adv", 0)) == JobData.LEGEND_ADV, "Lv.100, 200 stars, fully advanced up to legend")
 	for key in BEST:
 		check(int(fresh.equip[key].get("plus", -1)) == ItemData.MAX_PLUS and String(fresh.equip[key]["class"]) == "assassin", "new %s is assassin gear at +10" % key)
 	check(DivineGearData.is_item(fresh.equip.weapon) and StarWingData.is_wing(fresh.equip.wings) and int(fresh.equip.wings.plus) == ItemData.MAX_PLUS, "divine weapon and star wings +10")

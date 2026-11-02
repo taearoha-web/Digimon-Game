@@ -1041,7 +1041,7 @@ func _paragon() -> void:
 	Game.paragon()["level"] = Game.PARAGON_MAX - 1
 	Game.paragon()["exp"] = 0
 	Game.add_exp(Game.paragon_need() + 100)
-	check(int(Game.paragon().level) == Game.PARAGON_MAX, "the paragon cap is 200")
+	check(int(Game.paragon().level) == Game.PARAGON_MAX and Game.PARAGON_MAX == 300, "the paragon cap is 300")
 	var before_level := int(Game.paragon().level)
 	Game.add_exp(999999)
 	check(int(Game.paragon().level) == before_level, "no levels past the cap")

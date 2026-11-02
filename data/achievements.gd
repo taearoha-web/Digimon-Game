@@ -35,7 +35,7 @@ const TABLE := [
 	{"id": "t_star1", "name": "ดาวดวงแรก", "desc": "ได้ดาวเหนือเลเวลดวงแรก", "title": "", "kind": "stars", "goal": 1},
 	{"id": "t_star50", "name": "ดาว 50", "desc": "ถึงดาว 50", "title": "ดาวรุ่ง", "kind": "stars", "goal": 50},
 	{"id": "t_star100", "name": "ดาว 100", "desc": "ถึงดาว 100", "title": "ดาวค้างฟ้า", "kind": "stars", "goal": 100},
-	{"id": "t_star200", "name": "ดาว 200", "desc": "ถึงดาว 200 (สูงสุด)", "title": "ตำนานดารา", "kind": "stars", "goal": 200},
+	{"id": "t_star200", "name": "ดาว 200", "desc": "ถึงดาว 200", "title": "ตำนานดารา", "kind": "stars", "goal": 200},
 	{"id": "t_party", "name": "เพื่อนร่วมทาง", "desc": "ตั้งปาร์ตี้ครั้งแรก", "title": "เพื่อนแท้", "kind": "party", "goal": 1},
 	{"id": "t_haggle", "name": "ปากหวาน", "desc": "ต่อราคาสำเร็จ 10 ครั้งในรอบเดียว", "title": "นักต่อราคา", "kind": "haggle", "goal": 10},
 	{"id": "t_consign", "name": "พ่อค้าฝากขาย", "desc": "ฝากขายพร้อมกันครบ 8 รายการ", "title": "พ่อค้า", "kind": "consign", "goal": 8},
@@ -49,7 +49,12 @@ const TABLE := [
 	{"id": "t_daily7", "name": "ขยันเจ็ดวัน", "desc": "ทำเควสต์รายวันสำเร็จ 7 ครั้ง", "title": "คนขยัน", "kind": "dailies", "goal": 7},
 	{"id": "t_tutorial", "name": "จบบทเรียน", "desc": "ผ่านบทสอนเล่น", "title": "", "kind": "tutorial", "goal": 1},
 	{"id": "t_chat", "name": "ทักทาย", "desc": "พูดในแชทโลกครั้งแรก", "title": "ช่างคุย", "kind": "chat", "goal": 1},
+	# Appended (a worn title is saved as its index): ★300 and the God promotion.
+	{"id": "t_star300", "name": "ดาว 300", "desc": "ถึงดาว 300 (สูงสุด)", "title": "ดาราอมตะ", "kind": "stars", "goal": 300},
+	{"id": "t_god", "name": "เทพเจ้า", "desc": "เปลี่ยนอาชีพขั้นเทพเจ้า (เลเวล 100 ดาว 300)", "title": "เทพเจ้าแห่งอาชีพ", "kind": "god", "goal": 1},
 ]
+## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
+const GOD_ID := "t_god"
 
 
 static func entry(id: String) -> Dictionary:
@@ -77,6 +82,7 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"world_boss": return int(flags.get(WORLD_BOSS_FLAG, 0))
 		"level": return int(profile.get("level", 1))
 		"job": return 1 if int(profile.get("adv", 0)) >= 1 else 0
+		"god": return 1 if JobData.is_god(int(profile.get("adv", 0))) else 0
 		"stars": return int(profile.get("paragon", {}).get("level", 0))
 		"party": return int(flags.get(PARTY_FLAG, 0))
 		"haggle": return int(flags.get(HAGGLE_FLAG, 0))
@@ -172,7 +178,15 @@ static func title_of(profile: Dictionary) -> String:
 	var k := title_index(profile)
 	if k < 0 or not is_earned(TABLE[k].id, profile):
 		return ""
-	return String(TABLE[k].title)
+	return title_text(TABLE[k], profile)
+
+
+## The title an achievement grants this hero: the God one names the hero's class
+## (เทพเจ้าแห่งดาร์กลอร์ด), every other one is the same for everyone.
+static func title_text(row: Dictionary, profile: Dictionary) -> String:
+	if String(row.get("id", "")) == GOD_ID:
+		return JobData.god_name(StringName(profile.get("class", "warrior")))
+	return String(row.get("title", ""))
 
 
 ## Wears the title of the achievement at index (a negative index takes the title off).

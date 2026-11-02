@@ -75,7 +75,7 @@ func _level_to(level: int) -> void:
 
 func _stars_to(stars: int) -> void:
 	var guard := 0
-	while int(Game.paragon().level) < stars and guard < 400:
+	while int(Game.paragon().level) < stars and guard < 600:
 		Game.add_exp(maxi(1, Game.paragon_need() - int(Game.paragon().exp)))
 		guard += 1
 
@@ -207,6 +207,20 @@ func _build_line(cls: StringName) -> void:
 	Game.tower_buy("gem")
 	Game.current_zone = &"town"
 	_keep("%s_lv100_star" % cls)
+
+	# The same hero at ★300 after the God promotion ("เทพเจ้าแห่ง<อาชีพ>", adv 5).
+	_stars_to(Game.PARAGON_MAX)
+	# Every Job Master step it skipped (Lv.20/40/60/80), then the God step.
+	for i in JobData.MAX_ADV:
+		if Game.next_step().is_empty():
+			break
+		Game.add_gold(Game.next_step_cost())
+		Game.advance()
+	if not Game.is_god():
+		_fail("%s: God promotion refused (%s)" % [cls, Game.advance_problem()])
+	Game.paragon_spend("def", 40)
+	Game.paragon_spend("haste", 60)
+	_keep("%s_god300" % cls)
 
 
 ## The class picked straight at creation (what tools and tests do).

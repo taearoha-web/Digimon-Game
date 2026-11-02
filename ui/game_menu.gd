@@ -158,6 +158,12 @@ func _build_character() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_scroll.add_child(left)
 	left.add_child(UIUtil.label("%s  Lv.%d  (%s)" % [p.name, p.level, data.name], &"HeaderLabel"))
+	if String(data.get("title", "")) != "":
+		var class_line := UIUtil.label(("✦ ขั้นเทพเจ้า · %s ✦" if Game.is_god() else "ฉายา: %s") % data.title, &"BoldLabel" if Game.is_god() else &"SmallLabel")
+		class_line.name = "ClassTitle"
+		if Game.is_god():
+			class_line.add_theme_color_override("font_color", data.color)
+		left.add_child(class_line)
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
 	left.add_child(UIUtil.label("กรอกจำนวนแต้ม แล้วกดเพิ่มที่ค่าสถานะที่ต้องการ", &"SmallLabel"))
@@ -1072,7 +1078,7 @@ func _build_titles() -> void:
 			detail.add_theme_color_override("font_color", UIPalette.TEXT_MUTED)
 		col.add_child(detail)
 		if has_title:
-			col.add_child(UIUtil.label("ตำแหน่ง: %s" % row.title, &"DimLabel"))
+			col.add_child(UIUtil.label("ตำแหน่ง: %s" % Achievements.title_text(row, Game.profile), &"DimLabel"))
 		if done and has_title:
 			var wearing := Achievements.title_index(Game.profile) == k
 			var b := UIUtil.button("ถอดตำแหน่ง" if wearing else "ใช้ตำแหน่ง", &"" if wearing else &"PrimaryButton", Vector2(150, 56))

@@ -12,6 +12,12 @@ const MAX_REQUEST_BYTES = MAX_BUNDLE_BYTES + 8192;
 const ENCODER = new TextEncoder();
 const EMPTY_BUNDLE = JSON.stringify({slots: {}, selectedSlot: 1});
 const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard']);
+// Game.PARAGON_MAX (the star cap) and JobData: four level advancements, then the
+// God promotion (adv 5, "เทพเจ้าแห่ง<อาชีพ>") that needs Lv.100 and 300 stars.
+const MAX_STARS = 300;
+const MAX_ADV = 5;
+const GOD_ADV = 5;
+const GOD_STARS = 300;
 const COMMON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store, private',
@@ -170,7 +176,7 @@ function validateProfile(profile) {
     if (key in profile && !integer(profile[key])) fail(400, 'invalid_save', `The character field ${key} is invalid.`);
   }
   if ('play_time' in profile && (typeof profile.play_time !== 'number' || profile.play_time < 0 || profile.play_time > 1e12)) fail(400, 'invalid_save', 'The character play time is invalid.');
-  if ('adv' in profile && !integer(profile.adv, 0, 4)) fail(400, 'invalid_save', 'The character advancement is invalid.');
+  if ('adv' in profile && !integer(profile.adv, 0, MAX_ADV)) fail(400, 'invalid_save', 'The character advancement is invalid.');
   if ('bag_slots' in profile && !integer(profile.bag_slots, 40, 100)) fail(400, 'invalid_save', 'The bag capacity is invalid.');
   for (const key of ['name', 'zone', 'job', 'spawn_override', 'mount']) {
     if (key in profile && typeof profile[key] !== 'string') fail(400, 'invalid_save', `The character field ${key} must be text.`);
@@ -184,6 +190,9 @@ function validateProfile(profile) {
   for (const key of ['inv', 'storage', 'loadout', 'party']) {
     if (key in profile && !Array.isArray(profile[key])) fail(400, 'invalid_save', `The character field ${key} must be a list.`);
   }
+  const stars = profile.paragon?.level ?? 0;
+  if (!integer(stars, 0, MAX_STARS)) fail(400, 'invalid_save', `The character stars must be 0 to ${MAX_STARS}.`);
+  if ((profile.adv ?? 0) >= GOD_ADV && (profile.level !== 100 || stars < GOD_STARS)) fail(400, 'invalid_save', `The God promotion needs level 100 and ${GOD_STARS} stars.`);
   // Mounts: {id: level 0-5}; saves from before mount levels kept a list of owned ids.
   if ('mounts' in profile) {
     const mounts = profile.mounts;

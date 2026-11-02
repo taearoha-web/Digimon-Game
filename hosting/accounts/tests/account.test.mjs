@@ -264,6 +264,20 @@ test('mount levels and the old list of owned mounts are both accepted', async t 
   assert.equal(legacy.status, 200, JSON.stringify(legacy.body));
 });
 
+test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const god = {...sample(), class: 'darklord', level: 100, adv: 5, paragon: {level: 300, exp: 0, points: 300, spent: 0, alloc: {}}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(god)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const legend = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...god, adv: 4, paragon: {level: 250}})}});
+  assert.equal(legend.status, 200, JSON.stringify(legend.body));
+  for (const bad of [{...god, paragon: {level: 299}}, {...god, level: 99}, {...god, adv: 6}, {...god, adv: 4, paragon: {level: 301}}, {...god, paragon: {level: 300.5}}]) {
+    const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: bundle(bad)}});
+    assert.equal(result.status, 400, JSON.stringify(bad));
+  }
+});
+
 test('malformed, oversized and dangerous save structures are rejected without changing previous save', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -343,7 +357,7 @@ test('real game-generated saves of every class pass validation and round-trip un
   const profiles = Object.entries(fixtures.profiles);
   assert.ok(profiles.length >= classes.length * 2, `only ${profiles.length} fixture profiles`);
   for (const cls of classes) {
-    for (const stage of cls === classes[0] ? ['vagabond_lv5'] : [`${cls}_new`, `${cls}_lv23`, `${cls}_lv100_star`]) {
+    for (const stage of cls === classes[0] ? ['vagabond_lv5'] : [`${cls}_new`, `${cls}_lv23`, `${cls}_lv100_star`, `${cls}_god300`]) {
       assert.ok(fixtures.profiles[stage]?.class === cls, `fixture ${stage} is missing or not a ${cls}`);
     }
   }

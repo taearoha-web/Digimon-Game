@@ -275,9 +275,14 @@ func _convert_weapon(item: Dictionary, new_class: StringName, rng: RandomNumberG
 	item["name"] = ("%s ของมือใหม่" % ItemData.NAMES[fresh.base][0]) if starter else fresh.name
 
 
-## How many advancement steps (Lv.20/40/60/80) the hero has taken (0-4).
+## How many advancement steps (Lv.20/40/60/80, then the God step at ★300) the hero has taken (0-5).
 func adv() -> int:
 	return clampi(int(profile.get("adv", 0)), 0, JobData.MAX_ADV)
+
+
+## True once the hero took the God promotion ("เทพเจ้าแห่ง<อาชีพ>", Lv.100 ★300).
+func is_god() -> bool:
+	return has_profile and JobData.is_god(adv())
 
 
 ## The next advancement step ({} when none is left or the hero is still a Vagabond).
@@ -295,11 +300,29 @@ func next_step_cost() -> int:
 	return int(JobData.TIER_COSTS[adv()]) if adv() < JobData.MAX_ADV else 0
 
 
-## Job Master: the next advancement needs its level and fee. Returns false if refused.
-func advance() -> bool:
+## Stars the next advancement needs (★300 for the God step, otherwise 0).
+func next_step_stars() -> int:
+	return JobData.step_stars(adv()) if adv() < JobData.MAX_ADV else 0
+
+
+## Why the next advancement cannot be taken yet ("" when it can): its level, its
+## stars (the God step) and its fee, in that order.
+func advance_problem() -> String:
 	if next_step().is_empty():
-		return false
-	if int(profile["level"]) < next_step_level() or int(profile["gold"]) < next_step_cost():
+		return "ไม่มีขั้นต่อไปแล้ว"
+	if int(profile["level"]) < next_step_level():
+		return "ต้องเลเวล %d" % next_step_level()
+	if int(paragon().level) < next_step_stars():
+		return "ต้องดาว %d (ตอนนี้ดาว %d)" % [next_step_stars(), int(paragon().level)]
+	if int(profile["gold"]) < next_step_cost():
+		return "เหรียญไม่พอ ต้องใช้ %d เหรียญ" % next_step_cost()
+	return ""
+
+
+## Job Master: the next advancement needs its level, its stars (the God step) and
+## its fee. Returns false if refused.
+func advance() -> bool:
+	if advance_problem() != "":
 		return false
 	profile["gold"] -= next_step_cost()
 	profile["skill_points"] += int(JobData.TIER_SKILL_POINTS[adv()])
@@ -313,6 +336,10 @@ func advance() -> bool:
 	party_changed.emit()
 	mark_dirty()
 	check_achievements()
+	# The God promotion puts on its title "เทพเจ้าแห่ง<อาชีพ>" over the hero's name at once.
+	if is_god():
+		_check_achievements()
+		set_title(Achievements.index_of(Achievements.GOD_ID))
 	return true
 
 
@@ -842,6 +869,9 @@ func _valid_profile(data: Dictionary) -> bool:
 			return false
 	if not _valid_number(data.get("play_time", 0.0)) or not _valid_integer(data.get("adv", 0), 0, JobData.MAX_ADV):
 		return false
+	# The God step exists only at Lv.100 with ★300.
+	if int(data.get("adv", 0)) >= JobData.GOD_ADV and (int(data.get("level", 1)) < MAX_LEVEL or not data.get("paragon", {}) is Dictionary or not _valid_integer(data.get("paragon", {}).get("level", 0), JobData.GOD_STARS, PARAGON_MAX)):
+		return false
 	if not _valid_integer(data.get("bag_slots", BASE_BAG), BASE_BAG, MAX_BAG):
 		return false
 	for key in ["name", "zone", "job", "spawn_override"]:
@@ -1110,6 +1140,9 @@ func _repair(data: Dictionary) -> Dictionary:
 		if int(para.level) == PARAGON_MAX:
 			para["exp"] = 0
 		data["exp"] = 0
+	# The God step needs Lv.100 and ★300: anything less falls back to the legend step.
+	if int(data["adv"]) >= JobData.GOD_ADV and (int(data.level) < MAX_LEVEL or int(data.paragon.get("level", 0)) < JobData.GOD_STARS):
+		data["adv"] = JobData.LEGEND_ADV
 	# Milestone skill points used to be claimed in the retired Star Path menu.
 	StarProgression.grant_milestones(data)
 	# The hired AI companion retired: the party is made of world players now (party_invite).
@@ -1423,7 +1456,7 @@ func party_profile(member: Dictionary) -> Dictionary:
 		"paragon": {"level": stars, "alloc": party_star_alloc(stars)}}
 
 
-## A companion's ★ (0-200).
+## A companion's ★ (0-300).
 func party_stars(member: Dictionary) -> int:
 	return clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
 
@@ -1576,18 +1609,21 @@ func tower_buy(kind: String) -> String:
 
 
 # ---------------------------------------------------------------------------
-# Paragon: after Lv.100 EXP keeps levelling the hero up to ★200. Each ★ gives a
-# point to spend on permanent bonuses (see PARAGON_STATS).
+# Paragon: after Lv.100 EXP keeps levelling the hero up to ★300. Each ★ gives a
+# point to spend on permanent bonuses (see PARAGON_STATS). ★300 also opens the
+# God promotion (JobData.GOD_STARS).
 # ---------------------------------------------------------------------------
 
-const PARAGON_MAX := 200
-## key: [name, bonus per point, max points, what it does]
+const PARAGON_MAX := 300
+## key: [name, bonus per point, max points, what it does]. The caps add up to
+## PARAGON_MAX, so every point up to ★300 has somewhere to go (crit and haste
+## grew from 50 / 40 when the cap rose from ★200; atk/def/hp stay at 60).
 const PARAGON_STATS := {
 	"atk": ["พลังโจมตี", 0.003, 60, "พลังโจมตี +0.3%% ต่อแต้ม"],
 	"def": ["พลังป้องกัน", 0.005, 60, "พลังป้องกัน +0.5%% ต่อแต้ม"],
 	"hp": ["พลังชีวิต", 0.008, 60, "HP สูงสุด +0.8%% ต่อแต้ม"],
-	"crit": ["คริติคอล", 0.001, 50, "คริติคอล +0.1%% ต่อแต้ม"],
-	"haste": ["ความเร็วสกิล", 0.001, 40, "ความเร็วสกิล +0.1%% ต่อแต้ม"],
+	"crit": ["คริติคอล", 0.001, 60, "คริติคอล +0.1%% ต่อแต้ม"],
+	"haste": ["ความเร็วสกิล", 0.001, 60, "ความเร็วสกิล +0.1%% ต่อแต้ม"],
 }
 
 
