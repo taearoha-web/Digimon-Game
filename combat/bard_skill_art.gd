@@ -52,6 +52,18 @@ const TONE := {"note": 0.45, "notes": 0.45, "treble": 0.6, "tear_note": 0.5, "he
 	"score": 0.55, "spotlight": 0.45, "stage": 0.5, "pips": 0.85}
 ## Notes, beamed pairs and tears are drawn this much larger than their authored size.
 const NOTE_SCALE := 1.4
+## The eighth note's outline (XY, y 0-1): a tilted head low left, a stem and a flag.
+## StarGeometry builds the god-tier notes (divine_symphony) from the same outline.
+const NOTE_HEAD := Vector2(-0.12, 0.13)
+const NOTE_HEAD_RADII := Vector2(0.17, 0.12)
+const NOTE_HEAD_TILT := 0.38
+const NOTE_STEM := [Vector2(0.05, 0.14), Vector2(0.05, 0.96)]
+const NOTE_FLAG := [Vector2(0.05, 0.96), Vector2(0.2, 0.86), Vector2(0.3, 0.72), Vector2(0.27, 0.56)]
+## The beamed pair (x ±0.45, y 0-1): [head, stem top] per note, each stem 0.15 right of
+## its head; the main beam joins the stem tops, a second (thinner) beam runs under it.
+const PAIR_HEADS := [[Vector2(-0.30, 0.10), 0.86], [Vector2(0.24, 0.0), 0.78]]
+const PAIR_STEM := 0.15
+const PAIR_BEAMS := [[Vector2(-0.15, 0.86), Vector2(0.39, 0.78)], [Vector2(-0.15, 0.74), Vector2(0.39, 0.66)]]
 static var _meshes: Dictionary = {}
 static var _last_contact: Dictionary = {}
 ## Away from the camera in the root's frame (backdrops go there), its yaw, and the side axis.
@@ -826,23 +838,25 @@ static func _ground_star(st: SurfaceTool, at: Vector3, outer: float, inner: floa
 
 ## An eighth note on the XY plane (y 0-1): a tilted head low left, a stem and a flag.
 static func _note(st: SurfaceTool) -> void:
-	_oval(st, Vector2(-0.12, 0.13), Vector2(0.17, 0.12), 0.38, Color(1, 1, 0), Color(0.85, 1, 0))
-	_strip(st, Vector3(0.05, 0.14, 0), Vector3(0.05, 0.96, 0), 0.05, Vector3.BACK, Color(0.75, 1, 0), Color(0.75, 1, 0))
-	_polyline(st, [Vector2(0.05, 0.96), Vector2(0.2, 0.86), Vector2(0.3, 0.72), Vector2(0.27, 0.56)], 0.07, 0.025, Color(0.8, 1, 0), Color(0.6, 0.85, 0))
+	var stem: Array = NOTE_STEM
+	_oval(st, NOTE_HEAD, NOTE_HEAD_RADII, NOTE_HEAD_TILT, Color(1, 1, 0), Color(0.85, 1, 0))
+	_strip(st, _p(stem[0]), _p(stem[1]), 0.05, Vector3.BACK, Color(0.75, 1, 0), Color(0.75, 1, 0))
+	_polyline(st, NOTE_FLAG, 0.07, 0.025, Color(0.8, 1, 0), Color(0.6, 0.85, 0))
 	# A soft glow along the stem so the note reads at a distance.
-	_strip(st, Vector3(0.05, 0.14, -0.004), Vector3(0.05, 0.96, -0.004), 0.16, Vector3.BACK, Color(0.4, 0.25, 0), Color(0.3, 0.12, 0))
+	_strip(st, _p(stem[0], -0.004), _p(stem[1], -0.004), 0.16, Vector3.BACK, Color(0.4, 0.25, 0), Color(0.3, 0.12, 0))
 
 
 ## A beamed pair of eighth notes (x ±0.45, y 0-1).
 static func _notes(st: SurfaceTool) -> void:
-	for head in [[Vector2(-0.30, 0.10), 0.86], [Vector2(0.24, 0.0), 0.78]]:
+	for head in PAIR_HEADS:
 		var h: Vector2 = head[0]
-		var x := h.x + 0.15
-		_oval(st, h, Vector2(0.17, 0.12), 0.38, Color(1, 1, 0), Color(0.85, 1, 0))
+		var x := h.x + PAIR_STEM
+		_oval(st, h, NOTE_HEAD_RADII, NOTE_HEAD_TILT, Color(1, 1, 0), Color(0.85, 1, 0))
 		_strip(st, Vector3(x, h.y + 0.04, 0), Vector3(x, float(head[1]), 0), 0.05, Vector3.BACK, Color(0.75, 1, 0), Color(0.8, 1, 0))
 		_strip(st, Vector3(x, h.y + 0.04, -0.004), Vector3(x, float(head[1]), -0.004), 0.15, Vector3.BACK, Color(0.35, 0.22, 0), Color(0.3, 0.12, 0))
-	_strip(st, Vector3(-0.15, 0.86, 0), Vector3(0.39, 0.78, 0), 0.09, Vector3.BACK, Color(0.9, 1, 0), Color(0.9, 1, 0))
-	_strip(st, Vector3(-0.15, 0.74, 0), Vector3(0.39, 0.66, 0), 0.05, Vector3.BACK, Color(0.75, 0.9, 0), Color(0.75, 0.9, 0))
+	var beams: Array = PAIR_BEAMS
+	_strip(st, _p(beams[0][0]), _p(beams[0][1]), 0.09, Vector3.BACK, Color(0.9, 1, 0), Color(0.9, 1, 0))
+	_strip(st, _p(beams[1][0]), _p(beams[1][1]), 0.05, Vector3.BACK, Color(0.75, 0.9, 0), Color(0.75, 0.9, 0))
 
 
 ## A treble clef (y -0.25 to 1.35): one tube round the spine, the top loop and the

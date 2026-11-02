@@ -1,7 +1,8 @@
 extends Node
 ## Owner tool used by .github/workflows/boost-character.yml: raises one named
-## character in a saved account bundle to Lv.100 / ★200, takes every job
-## advancement (fees waived) and dresses it in the best gear of its class (divine
+## character in a saved account bundle to Lv.100 / ★200 (BOOST_STARS; the cap is
+## ★300 now, the last hundred are left to play), takes every job advancement it
+## can at ★200 (Lv.20-80, fees waived; not the ★300 God step) and dresses it in the best gear of its class (divine
 ## set, star ring and amulet, mythic star wings), every piece at +10 (the ring and
 ## amulet at --accessory-plus). Runs the game's own levelling code, so stat
 ## points, skill points, ★ milestones and gold rewards are the ones the hero
@@ -16,6 +17,8 @@ extends Node
 ## Gear it replaces moves to the bag (or storage); nothing is deleted.
 
 const BEST_SLOTS := ["weapon", "armor", "helm", "boots"]
+## Stars the boost gives (below Game.PARAGON_MAX = 300 on purpose).
+const BOOST_STARS := 200
 const STAR_SLOTS := ["ring", "amulet"]
 ## The longest name the character creator accepts (ui/class_select.gd).
 const NAME_MAX := 14
@@ -155,12 +158,13 @@ static func _level_up() -> void:
 	while int(Game.profile.level) < Game.MAX_LEVEL and guard < 200:
 		Game.add_exp(maxi(1, HeroStats.exp_to_next(int(Game.profile.level)) - int(Game.profile.exp)))
 		guard += 1
-	while int(Game.paragon().level) < Game.PARAGON_MAX and guard < 600:
+	while int(Game.paragon().level) < mini(BOOST_STARS, Game.PARAGON_MAX) and guard < 600:
 		Game.add_exp(maxi(1, Game.paragon_need() - int(Game.paragon().exp)))
 		guard += 1
 
 
-## Takes every job advancement left (Lv.20/40/60/80) at the Job Master's terms,
+## Takes every job advancement left it qualifies for (Lv.20/40/60/80; the God step
+## needs ★300) at the Job Master's terms,
 ## with the fee handed over first so the hero's gold is unchanged.
 static func _advance() -> void:
 	while not Game.next_step().is_empty():

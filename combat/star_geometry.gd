@@ -2,8 +2,9 @@ class_name StarGeometry
 extends RefCounted
 ## Fixed vocabulary for the twenty-four astral skills. Every recipe is merged
 ## into one indexed surface; casts share these meshes and never bake particles.
-const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre"
+const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre pantheon god_halo aureole god_note note_swirl note_shower"
 static var cache: Dictionary = {}
+static var _box_mesh: BoxMesh
 
 static func warm() -> void:
 	for kind in KINDS.split(" "):
@@ -70,6 +71,45 @@ static func _wolf(st: SurfaceTool, royal := false) -> void:
 		for i in 5:
 			var a := TAU*i/5.0
 			_gem(st,Vector3(sin(a)*0.27,1.60,0.76+cos(a)*0.21),Vector3(0.06,0.27 if i%2==0 else 0.18,0.06),Vector3.ZERO,1)
+
+## The Bard's eighth note (BardSkillArt's outline, y 0-1 in its XY plane) as round
+## light: an egg head, a tube stem and a curling flag. [param frame] places, turns
+## and sizes it (its +Z faces the viewer).
+static func _eighth(st: SurfaceTool, frame: Transform3D, tint := 0.9) -> void:
+	var head := BardSkillArt.NOTE_HEAD
+	var radii := BardSkillArt.NOTE_HEAD_RADII * 1.2
+	BuffArt._append_tinted(st,SpellSpectacle._sphere_mesh(),frame*Transform3D(Basis(Vector3.BACK,BardSkillArt.NOTE_HEAD_TILT)*Basis.from_scale(Vector3(radii.x,radii.y,0.075)),Vector3(head.x,head.y,0)),1.0)
+	var stem: Array = []
+	for p in BardSkillArt.NOTE_STEM: stem.append(frame*Vector3(p.x,p.y,0))
+	_line(st,stem,0.045*frame.basis.get_scale().x,tint)
+	var flag: Array = []
+	for p in BardSkillArt.NOTE_FLAG: flag.append(frame*Vector3(p.x,p.y,0.01))
+	_line(st,flag,0.042*frame.basis.get_scale().x,tint)
+
+## BardSkillArt's beamed pair of eighth notes (x ±0.45, y 0-1) as round light, with
+## the one bold beam of a pair of eighths.
+static func _beamed(st: SurfaceTool, frame: Transform3D, tint := 0.9) -> void:
+	var radii := BardSkillArt.NOTE_HEAD_RADII * 1.18
+	var size := frame.basis.get_scale().x
+	for pair in BardSkillArt.PAIR_HEADS:
+		var h: Vector2 = pair[0]
+		BuffArt._append_tinted(st,SpellSpectacle._sphere_mesh(),frame*Transform3D(Basis(Vector3.BACK,BardSkillArt.NOTE_HEAD_TILT)*Basis.from_scale(Vector3(radii.x,radii.y,0.08)),Vector3(h.x,h.y,0)),1.0)
+		var x := h.x+BardSkillArt.PAIR_STEM
+		_line(st,[frame*Vector3(x,h.y+0.04,0),frame*Vector3(x,float(pair[1])+0.02,0)],0.042*size,tint)
+	var beam: Array = BardSkillArt.PAIR_BEAMS[0]
+	var a: Vector2 = beam[0]-Vector2(0.025,0)
+	var b: Vector2 = beam[1]+Vector2(0.025,0)
+	var mid := (a+b)*0.5
+	var slab := Basis(Vector3.BACK,(b-a).angle())*Basis.from_scale(Vector3((b-a).length(),0.11,0.07))
+	BuffArt._append_tinted(st,_box(),frame*Transform3D(slab,Vector3(mid.x,mid.y-0.02,0)),1.0)
+
+static func _box() -> BoxMesh:
+	if not _box_mesh: _box_mesh = BoxMesh.new()
+	return _box_mesh
+
+## A note frame: at [param at], [param size] tall, turned [param yaw] round Y and rolled [param roll].
+static func _note_frame(at: Vector3, size: float, yaw := 0.0, roll := 0.0) -> Transform3D:
+	return Transform3D(Basis.from_euler(Vector3(0,yaw,roll))*Basis.from_scale(Vector3.ONE*size),at)
 
 static func mesh(kind: String) -> ArrayMesh:
 	if cache.has(kind): return cache[kind]
@@ -306,6 +346,86 @@ static func mesh(kind: String) -> ArrayMesh:
 			for i in 12:
 				var a := TAU*i/12.0
 				EliteSkillArt._append(st,EliteSkillArt.geometry("greatshield"),Vector3(sin(a),0.28,cos(a))*Vector3(1.02,1,1.02),Vector3(0.22,0.26,0.2),Vector3(0,a,0),0.35+float(i%2)*0.4)
+		"pantheon":
+			# God-tier temple of light (unit radius, unit height): eight columns on a
+			# stepped ring, each crowned with a crystal capital, open to the sky.
+			_ring(st,1.0,0.0,0.018,1)
+			_ring(st,0.93,0.0,0.007,0.55)
+			for i in 8:
+				var a := TAU*i/8.0
+				var p := Vector3(sin(a),0,cos(a))
+				_gem(st,p+Vector3.UP*0.26,Vector3(0.045,0.74,0.045),Vector3(0,a,0),0.3)
+				_line(st,[p+Vector3.UP*0.02,p+Vector3.UP*0.97],0.010,1)
+				_gem(st,p+Vector3.UP*1.02,Vector3(0.06,0.12,0.06),Vector3.ZERO,1)
+				_gem(st,p+Vector3.UP*0.015,Vector3(0.085,0.04,0.085),Vector3.ZERO,0.7)
+		"god_halo":
+			# The god-tier sigil: a 24-ray seal in three banded rings, a hexagram and
+			# twelve studs pointing out past the rim.
+			_seal(st,24,1.0)
+			_ring(st,1.12,0,0.026,1)
+			_ring(st,1.2,0,0.008,0.6)
+			_ring(st,0.36,0,0.022,1)
+			for k in 2:
+				var tri: Array=[]
+				for j in 4:
+					var a := TAU*float(j*2+k)/6.0
+					tri.append(Vector3(sin(a),0,cos(a))*0.58)
+				_line(st,tri,0.012,0.9)
+			for i in 12:
+				var a := TAU*i/12.0
+				_gem(st,Vector3(sin(a),0,cos(a))*1.17,Vector3(0.04,0.12,0.04),Vector3(0,a,PI/2),1)
+		"aureole":
+			# An upright divine aureole (XY plane, facing +Z): two rings and 24 rays,
+			# the long ones tipped with a crystal; it hangs behind a god's shoulders.
+			for r in [1.0,0.86]:
+				var circle: Array=[]
+				for j in 49:
+					var a := TAU*j/48.0
+					circle.append(Vector3(sin(a)*r,cos(a)*r,0))
+				_line(st,circle,0.024 if r==1.0 else 0.01,1.0 if r==1.0 else 0.6)
+			for i in 24:
+				var a := TAU*i/24.0
+				var d := Vector3(sin(a),cos(a),0)
+				var reach := 1.62 if i%2==0 else 1.3
+				_line(st,[d*1.06,d*reach],0.02 if i%2==0 else 0.011,1)
+				if i%2==0: _gem(st,d*reach,Vector3(0.05,0.11,0.05),Vector3(0,0,-a),1)
+		"god_note":
+			# The Bard's god emblem (XY, facing +Z, centred, unit tall): a great beamed pair
+			# of eighth notes, a ring of sparkles round it like struck light.
+			_beamed(st,_note_frame(Vector3(0.03,-0.38,0),0.96))
+			for i in 8:
+				var a := TAU*(float(i)+0.5)/8.0
+				var d := Vector3(sin(a)*0.66,cos(a)*0.62,-0.02)
+				_gem(st,d,Vector3(0.025,0.07,0.025)*(1.3 if i%2==0 else 0.9),Vector3(0,0,-a),1.0)
+		"note_swirl":
+			# Two spiral arms of eighth notes (XY, facing +Z, centred, radius 1) round an
+			# open centre, growing outward, each arm trailing a faint staff line.
+			for arm in 2:
+				var trail: Array = []
+				for j in 25:
+					var t := float(j)/24.0
+					var a := float(arm)*PI+t*PI*1.15
+					trail.append(Vector3(cos(a),sin(a),-0.03)*(0.55+0.55*t))
+				_line(st,trail,0.009,0.55)
+				for i in 4:
+					var t := (float(i)+0.5)/4.0
+					var a := float(arm)*PI+t*PI*1.15
+					var size := 0.24+0.14*t
+					var at := Vector3(cos(a),sin(a),0)*(0.62+0.45*t)-Vector3(0,size*0.5,0)
+					var frame := _note_frame(at,size,0,0.3*sin(a*2.0))
+					if i==1: _beamed(st,frame.scaled_local(Vector3(1.15,1.15,1.15)))
+					else: _eighth(st,frame)
+		"note_shower":
+			# A falling helix of eighth notes and beamed pairs (radius ~0.6, y 0-1.6), each
+			# facing out from the axis, so a spinning shower spirals down round its centre.
+			for i in 12:
+				var t := float(i)/11.0
+				var a := float(i)*2.0
+				var radius := 0.5+0.18*float(i%3)
+				var size := 0.22+0.07*float((i*7)%3)
+				var frame := _note_frame(Vector3(sin(a)*radius,1.55-t*1.5,cos(a)*radius),size,a,0.35*sin(float(i)*1.7))
+				if i%4==1: _beamed(st,frame.scaled_local(Vector3(1.2,1.2,1.2)))
+				else: _eighth(st,frame)
 		"feathers":
 			for i in 12:
 				var a := float(i)*2.399963

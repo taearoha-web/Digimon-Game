@@ -4,7 +4,7 @@ extends Node
 ##   godot --headless --path . res://tests/tools/world_timeline.tscn
 func _ready() -> void:
 	var start := float(WorldPlayers.START_UNIX)
-	var marks := [[10, 0], [50, 0], [100, 0], [100, 50], [100, 100], [100, 200]]
+	var marks := [[10, 0], [50, 0], [100, 0], [100, 50], [100, 100], [100, 200], [100, 250], [100, 300]]
 	for i in WorldPlayers.size():
 		var e: Dictionary = WorldPlayers.entry(i)
 		var line := "%-16s %-9s %-9s %5.1f h/wk eff %.2f |" % [e.name, e["class"], e.style, WorldPlayers.played_minutes(i, start + 28 * 86400) / 60.0 / 4.0, WorldPlayers.efficiency(i)]

@@ -42,6 +42,7 @@ func _ready() -> void:
 			expected_bosses += 1
 	expected_bosses += StarProgression.REGIONS.size() - 1 # star regions before the ending field
 	expected_bosses += 1 # the post-story sanctuary (DivineRegionData)
+	expected_bosses += 1 # the 200-300 star field beyond it (DrownedAbyssData)
 	check(earlier_bosses >= 14 and earlier_bosses == expected_bosses, "all %d earlier field bosses were exercised (%d found)" % [expected_bosses, earlier_bosses])
 	check(Game.quest_status("magma") == "ready" and Game.quest_state("magma").progress == 1, "magma quest progress still reaches its turn-in state")
 	check(QuestData.get_quest("magma").next == "bones", "magma quest still leads into the graveyard")

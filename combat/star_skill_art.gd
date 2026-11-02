@@ -1,6 +1,6 @@
 class_name StarSkillArt
 extends Node3D
-## Star 50/100/150/200 presentation. Cosmetic ONLY. Combat owns every hit,
+## Star 50/100/150/200/300 presentation (the 300-star skills compose in GodSkillArt). Cosmetic ONLY. Combat owns every hit,
 ## movement, buff and summon lifetime. Each root uses one clock and 2/4/6 draws.
 ## Geometry is finite/shared; materials live only as long as their mesh node.
 const SHADER := preload("res://shaders/star_skill.gdshader")
@@ -26,7 +26,14 @@ const COLORS := {
 	"chaos_inferno":["ff5a1f","ffe6a0","5a1020"], "raven_sovereign":["8a4dff","f0e0ff","1e0f3e"],
 	"lords_dominion":["e8b64a","fff4d0","5a3a10"], "imperial_cataclysm":["ffc83a","fff6d8","3a1a6a"],
 	"starlight_overture":["ffc24a","fff2cc","7a4a8a"], "heartbreak_sonata":["ff5aa0","ffe0f0","3a0a28"],
-	"celestial_stage":["ffc24a","fff2cc","5a2a40"], "cosmic_encore":["c79bff","fff4ff","2a1050"]
+	"celestial_stage":["ffc24a","fff2cc","5a2a40"], "cosmic_encore":["c79bff","fff4ff","2a1050"],
+	# God-tier (300 stars, GodSkillArt): ten hues round the wheel, one per class.
+	# The accent carries most of each mesh, so it is a saturated tint, never white.
+	"divine_edict":["ff7a1f","ffc070","7a1010"], "sunfall_volley":["9ef03a","d8ff80","1a5a3a"],
+	"heavenrend_spear":["1ad0ff","90f4ff","0a2a7a"], "astral_apocalypse":["6a4cff","b49cff","140a4a"],
+	"seraphic_judgment":["ffd23a","fff0a0","a04a6a"], "celestial_dragon_emperor":["1ff0a0","90ffd8","0a4a4a"],
+	"pantheon_bastion":["3a7cff","9cc4ff","0e2060"], "death_gods_eclipse":["ff2a5a","ff8aa8","1a0420"],
+	"abyssal_throne":["9a30ff","c890ff","1a0630"], "divine_symphony":["ff4ad0","ff9ce8","3a0a4a"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -38,7 +45,10 @@ const MOTIFS := {
 	"titan_shieldbreak":"titan_shield", "judgment_rebound":"crown", "eternal_aegis":"shield_ring", "heavens_bulwark":"titan_shield",
 	"umbral_lacerate":"fang", "shadow_execution":"moon", "veil_of_night":"constellation", "eclipse_requiem":"moon",
 	"chaos_inferno":"worldroot", "raven_sovereign":"moon", "lords_dominion":"banners", "imperial_cataclysm":"crown",
-	"starlight_overture":"constellation", "heartbreak_sonata":"heart", "celestial_stage":"lyre", "cosmic_encore":"planets"
+	"starlight_overture":"constellation", "heartbreak_sonata":"heart", "celestial_stage":"lyre", "cosmic_encore":"planets",
+	"divine_edict":"god_halo", "sunfall_volley":"god_halo", "heavenrend_spear":"god_halo", "astral_apocalypse":"god_halo",
+	"seraphic_judgment":"god_halo", "celestial_dragon_emperor":"god_halo", "pantheon_bastion":"god_halo",
+	"death_gods_eclipse":"god_halo", "abyssal_throne":"god_halo", "divine_symphony":"god_halo"
 }
 const SUPPORT := ["celestial_stage", "lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
@@ -193,6 +203,10 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		ShadowSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if id in DARKLORD: LordSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if id in BARD: BardSkillArt.anticipate(parent,skill,origin,point,time,visual)
+	if GodSkillArt.handles(skill):
+		GodSkillArt.telegraph(art,caster,skill,point,time)
+		art._draw()
+		return art
 	var opts := {"initial":0.12,"grow_time":0.85,"fade_in":0.15,"decay":0.94,"opacity":0.78}
 	var local_target := art.to_local(point)
 	var radius := clampf(float(skill.get("radius",4)),1.5,9.0)
@@ -313,6 +327,10 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 	var radius := clampf(float(skill.get("radius",4.0)),1.4,9.0)
 	var at := Vector3.UP*0.08
 	var impact_size := 1.5
+	if GodSkillArt.handles(skill):
+		GodSkillArt.strike(art,parent,skill,point,index,source)
+		art._draw()
+		return art
 	# Finale beats keep a different silhouette from their preparation contact.
 	if index>0 and id in ["crystal_prison","genesis_nova","worldsplitter","astral_convergence","dawn_salvation"]:
 		var final := index >= (1 if id=="crystal_prison" else (2 if id in ["astral_convergence","dawn_salvation"] else 3))
