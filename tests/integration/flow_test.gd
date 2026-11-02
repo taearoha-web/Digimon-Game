@@ -1782,6 +1782,11 @@ func _systems() -> void:
 		h.take_damage(100000.0, killer)
 	check(h.is_dead(), "hero dies from a huge hit")
 	await _wait(4.5)
+	# The trip home starts 2.6 s after the fall and the village builds behind the fade
+	# over a few frames: wait for it to arrive (a fixed wait raced the build).
+	var home_by := Time.get_ticks_msec() + 15000
+	while not (main.zone != null and main.zone.zone_id == &"town") and Time.get_ticks_msec() < home_by:
+		await get_tree().process_frame
 	check(main.zone != null and main.zone.zone_id == &"town", "respawned in the village")
 	check(Game.profile.hp > 0, "revived with HP")
 
