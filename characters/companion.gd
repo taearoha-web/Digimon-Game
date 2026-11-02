@@ -48,7 +48,8 @@ const LABEL_BUSY_ALPHA := 0.35
 const LABEL_CALM_AFTER := 4.0
 var _label_alpha := 1.0
 ## The mount it rides (MountVisual; null on foot). Only world players (FieldPlayer)
-## ever get on one: the same seated riding as the hero (MountVisual.carry, SaddlePose).
+## ever get on one: the same seated riding as the hero (MountVisual.carry, SaddlePose;
+## GuildFighter rides the same way).
 var mount: MountVisual
 const LABEL_Y := 2.75
 const BAR_Y := 3.05
@@ -401,16 +402,7 @@ func ride_mount(id: String) -> bool:
 		if mount.id != id:
 			mount.build(id)
 		return true
-	mount = MountVisual.new()
-	add_child(mount)
-	mount.build(id)
-	mount.rotation.y = _facing
-	visual.set_seated(true)
-	if visual.flying():
-		visual.set_wing_mode(HeroVisual.WING_STAND)
-	var shadow := get_node_or_null("BlobShadow") as Node3D
-	if shadow != null:
-		shadow.visible = false
+	mount = MountVisual.mount_up(self, self, visual, id, _facing)
 	return true
 
 
@@ -418,15 +410,8 @@ func ride_mount(id: String) -> bool:
 func dismount() -> void:
 	if mount == null:
 		return
-	mount.queue_free()
+	MountVisual.step_down(self, mount, visual, not _dead)
 	mount = null
-	if not is_instance_valid(visual):
-		return
-	visual.set_seated(false)
-	visual.position = Vector3(0, visual.position.y if not _dead else 0.0, 0)
-	var shadow := get_node_or_null("BlobShadow") as Node3D
-	if shadow != null:
-		shadow.visible = true
 	_raise_labels(0.0)
 
 

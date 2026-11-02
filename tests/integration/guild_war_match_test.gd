@@ -119,10 +119,15 @@ func _war(staged: bool) -> void:
 		for f in side:
 			has_support = has_support or GuildWarData.is_support(f.fighter_class())
 		check(has_support, "%s: each guild fields a support (a healer, a summoner or a bard)" % label)
-	# The countdown, then the fight.
-	m._timer = 0.05
+	if not staged:
+		await _riders_waiting(m, label)
+	# The countdown, then the fight (the clock run out: a fast machine's six frames can
+	# take less than any time left).
+	m._timer = 0.0
 	await _frames(6)
 	check(m.state == "fight", "%s: the fight begins after the countdown" % label)
+	if not staged:
+		await _riders_marching(m, label)
 	for f in m.all_fighters():
 		f._guard_until = 0
 		# Freeze the AI so the checks below see only what they cause (on a slow machine the
@@ -179,6 +184,7 @@ func _war(staged: bool) -> void:
 		enemy.take_hit(max_hp, false)
 		guard += 1
 	check(enemy.is_dead() and m.score[0] == score_before + 1, "%s: a fall scores a point for our guild" % label)
+	check(enemy.ride_id != "" and not enemy.is_riding() and enemy._lift == 0.0, "%s: a fall puts the rider on foot" % label)
 	check(feed_lines.size() >= 1, "%s: the fall reaches the kill feed" % label)
 	var ckpt := Game.guildwar_checkpoint()
 	check(not ckpt.is_empty() and int(ckpt.seed) == m.roll_seed and int(ckpt.us) == m.score[0] and int(ckpt.them) == m.score[1], "%s: a score is kept in the save at once" % label)
@@ -189,6 +195,8 @@ func _war(staged: bool) -> void:
 	check(not enemy.is_dead() and enemy.hp == enemy.max_hp, "%s: the fighter is back at full health" % label)
 	check(enemy.under_guard(), "%s: with a short guard after returning" % label)
 	check(enemy.global_position.distance_to(enemy.spawn_point) < 4.0, "%s: at its own base" % label)
+	check(enemy.is_riding() and enemy.mount.visible and enemy.model().seated, "%s: and back in the saddle" % label)
+	check(enemy.find_children("Mount_*", "MountVisual", true, false).size() == 1, "%s: on the same mount (put away while down, not built again)" % label)
 	# Our hero falls and returns to base.
 	var deaths_before := m.hero_deaths
 	var enemy_score := m.score[1]
@@ -253,6 +261,113 @@ func _war(staged: bool) -> void:
 	check(bool(last.get("won", false)) and (last.get("rows", []) as Array).size() == 2 * n and Game._valid_profile(Game.profile), "%s: the last war's scoreboard is saved with everyone's kills and deaths" % label)
 	zone.queue_free()
 	await _frames(3)
+
+
+## Mounts (GuildWarData.hired_mount, HeroStats.mount_bonus): every hired fighter brings
+## the mount of its grade, both guilds' stats count it by the same rule, and during the
+## countdown they sit in the saddle on their marks.
+func _riders_waiting(m: GuildWarMatch, label: String) -> void:
+	await _frames(4)
+	for side in [m.allies, m.enemies]:
+		var riders := 0
+		for f in side:
+			var p: Dictionary = f._profile
+			var bonus := HeroStats.mount_bonus(p)
+			var bare := p.duplicate(true)
+			bare["mount"] = ""
+			check(not bonus.is_empty() and HeroStats.compute(p).max_hp > HeroStats.compute(bare).max_hp, "%s: %s's mount counts in its stats" % [label, f.rival_name])
+			check(f.max_hp == int(HeroStats.compute(p).max_hp), "%s: %s has the stats of its sheet, no extra" % [label, f.rival_name])
+			var pick := GuildWarData.hired_mount(f.fighter_class(), f.grade)
+			check(String(p.mount) == String(pick.id) and int(p.mounts[pick.id]) == int(pick.level), "%s: %s rides the mount of its grade" % [label, f.rival_name])
+			if f.is_riding():
+				riders += 1
+			check(f.global_position.distance_to(f.spawn_point) < 0.5, "%s: %s holds its mark in the saddle through the countdown" % [label, f.rival_name])
+			check(f._label.position.y > f._label_y + 0.8 and f._bar.position.y > f._bar_y + 0.8, "%s: %s's name and bar ride up with the seat" % [label, f.rival_name])
+			if f.is_leader:
+				var mark := f.get_node(LeaderMark.NAME) as Node3D
+				check(mark.position.y > float(mark.get_meta(&"base_y")) + 0.8, "%s: the leader's crown rides over the seat" % label)
+		check(riders == side.size(), "%s: every fighter waits mounted (%d/%d)" % [label, riders, side.size()])
+	var fair := HeroStats.mount_bonus({"mount": "griffin", "mounts": {"griffin": 2}})
+	check(GuildWarData.hired_mount(&"warrior", 50).id in ["thunder_wolf", "glow_stag"] and GuildWarData.hired_mount(&"warrior", GuildWarData.DIVINE).id in ["griffin", "fire_drake"]
+		and is_equal_approx(float(fair.hp), 0.06), "%s: lower grades ride the wolf or stag, the top grade up to the drake" % label)
+
+
+## After the countdown the fighters ride out for the gate, fight from the saddle, and
+## the far ones' mounts are simplified; the mounts stay within a node and draw budget.
+func _riders_marching(m: GuildWarMatch, label: String) -> void:
+	for f in m.all_fighters():
+		f._guard_until = 0
+	await get_tree().create_timer(0.6).timeout
+	var moving := 0
+	var on_foot := 0
+	for f in m.all_fighters():
+		var speed := Vector2(f.velocity.x, f.velocity.z).length()
+		if f.objective != null and speed > 0.5:
+			moving += 1
+			if not f.is_riding():
+				on_foot += 1
+	check(moving >= 4 and on_foot == 0, "%s: the fighters ride out for the gate (%d moving, %d on foot)" % [label, moving, on_foot])
+	var rider: GuildFighter = m.enemies[0]
+	check(is_equal_approx(rider._pace(), 1.0 + MountData.speed_bonus(rider.ride_id)), "%s: a rider moves at its mount's speed, like the hero" % label)
+	rider._basic_attack(m.allies[0])
+	rider._dodge = 0.0
+	rider.take_hit(1, false)
+	check(rider.is_riding() and rider.model().seated, "%s: attacks and hits keep a fighter in the saddle" % label)
+	check(rider.top_point().y > rider.global_position.y + rider.visual.height + 1.0, "%s: damage numbers float over the rider, not the mount" % label)
+	# The far LOD: a fighter far from the camera poses its mount every other frame without
+	# the small parts or shadows; near, the whole mount.
+	var camera := get_viewport().get_camera_3d()
+	var far_one: GuildFighter = null
+	var near_one: GuildFighter = null
+	var mount_nodes := 0
+	if camera != null:
+		m._cull_far()
+		for f in m.all_fighters():
+			if f.mount == null:
+				continue
+			mount_nodes += f.mount.find_children("*", "", true, false).size() + 1
+			var d := f.global_position.distance_to(camera.global_position)
+			if d > GuildWarMatch.POSE_NEAR and not f.in_hero_party():
+				far_one = f
+			elif d < GuildWarMatch.POSE_NEAR:
+				near_one = f
+	check(far_one != null, "%s: someone rides far from the camera" % label)
+	if far_one != null:
+		check(far_one.mount.is_far() and far_one.mount.lod_step == 2 and far_one.model().anim_lod == 2, "%s: a far fighter's mount uses the far LOD with its rider" % label)
+	if near_one != null:
+		check(not near_one.mount.is_far(), "%s: a near fighter's mount is whole" % label)
+	var shadows := 0
+	for f in m.all_fighters():
+		if f.mount != null:
+			for mi in f.mount.find_children("*", "MeshInstance3D", true, false):
+				if (mi as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+					shadows += 1
+	check(shadows == 0, "%s: the fighters' mounts cast only their blob shadows (%d real casters)" % [label, shadows])
+	# Draw budget of every kind of mount: the fighters' merged build against the full
+	# one the hero rides (same look), near and far.
+	var worst_near := 0
+	var worst_far := 0
+	for id in MountData.ORDER:
+		var full := MountVisual.new()
+		add_child(full)
+		full.build(id)
+		var lean := MountVisual.new()
+		lean.merged = true
+		add_child(lean)
+		lean.build(id)
+		var whole := lean.drawn_parts()
+		lean.set_far(true)
+		var far_parts := lean.drawn_parts()
+		check(whole * 3 < full.drawn_parts() and far_parts < whole, "%s: a fighter's %s draws %d meshes (far %d), the full one %d" % [label, id, whole, far_parts, full.drawn_parts()])
+		check(lean.seat != null and is_equal_approx(lean.seat_height(), full.seat_height()), "%s: the merged %s seats its rider at the same height" % [label, id])
+		worst_near = maxi(worst_near, whole)
+		worst_far = maxi(worst_far, far_parts)
+		full.free()
+		lean.free()
+	# Budget: fifteen riders' mounts in under 800 nodes, at most 24 meshes near, 16 far.
+	check(mount_nodes > 0 and mount_nodes <= 800, "%s: the mounts stay within the node budget (%d)" % [label, mount_nodes])
+	check(worst_near <= 24 and worst_far <= 16, "%s: a mount stays within the draw budget (%d near, %d far)" % [label, worst_near, worst_far])
+	print("RIDERS %s: mount nodes %d, merged mount meshes near %d far %d" % [label, mount_nodes, worst_near, worst_far])
 
 
 ## The castle: the front gate only takes hits (with the war scale), a standing gate blocks

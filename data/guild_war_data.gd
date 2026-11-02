@@ -43,6 +43,27 @@ const GRADE_NAMES := {50: "ชุด 50★ + ปีก Lv.100", 100: "ชุด 
 
 const GUILDS := ["อัศวินอรุณ", "เงาจันทรา", "มังกรเพลิง", "สายฟ้าฟ้าคราม", "ราชสีห์ทอง", "หมาป่าพายุ", "ผีเสื้อราตรี", "ดาบนภา"]
 
+## The mounts a hired fighter of each gear grade may ride ([id, level] each): what a
+## player as far along has crafted by then (WorldPlayers.mount_of trades up from the wolf
+## to the stag, the griffin and, for the few who land its 10% craft, the drake). Its
+## stats count by the same rule as everyone's (profile mounts / mount, HeroStats.mount_bonus).
+const GRADE_MOUNTS := {
+	50: [["thunder_wolf", 3], ["thunder_wolf", 4], ["glow_stag", 1]],
+	100: [["thunder_wolf", 5], ["glow_stag", 2], ["glow_stag", 3]],
+	150: [["glow_stag", 4], ["griffin", 1], ["griffin", 2]],
+	200: [["griffin", 2], ["griffin", 3], ["glow_stag", 5]],
+	DIVINE: [["griffin", 4], ["fire_drake", 1], ["fire_drake", 2]],
+}
+
+
+## The mount ({id, level}) a hired fighter of `class_id` in gear `grade` rides: one of
+## its grade's GRADE_MOUNTS, always the same for that class and grade (so the same
+## fighter always brings the same one).
+static func hired_mount(class_id: StringName, grade: int) -> Dictionary:
+	var options: Array = GRADE_MOUNTS.get(grade, GRADE_MOUNTS[GRADES[0]])
+	var pick: Array = options[absi(hash("mount|%s|%d" % [class_id, grade])) % options.size()]
+	return {"id": String(pick[0]), "level": int(pick[1])}
+
 
 ## One fighter ready for GuildFighter.setup_fighter.
 static func make_fighter(class_id: StringName, grade: int, name: String, rng: RandomNumberGenerator) -> Dictionary:
@@ -66,6 +87,9 @@ static func make_fighter(class_id: StringName, grade: int, name: String, rng: Ra
 	attrs["vit"] = int(points * 0.4)
 	var profile := {"class": String(class_id), "level": LEVEL, "attrs": attrs, "equip": equip, "adv": JobData.adv_for_level(LEVEL),
 			"paragon": {"level": STARS, "alloc": Game.party_star_alloc(STARS)}}
+	var ride := hired_mount(class_id, grade)
+	profile["mounts"] = {String(ride.id): int(ride.level)}
+	profile["mount"] = String(ride.id)
 	return {
 		"member": {"class": String(class_id), "name": name, "level": LEVEL},
 		"profile": profile,

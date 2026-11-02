@@ -9,8 +9,9 @@ extends RefCounted
 ## part of the hero's stats (HeroStats.compute), ridden or not; riding only adds speed.
 ## Riding: the hero moves faster and fights from the saddle (attacks, skills, auto
 ## hunting and hits keep it riding, weapon in hand; SaddlePose keeps the legs seated
-## while the upper body swings). Death puts it back on foot. The town and the hunting
-## fields allow riding; the arena, ranked duels, the guild war and the tower do not.
+## while the upper body swings). Death puts it back on foot. The town, the hunting
+## fields and the guild war (where the AI fighters ride too, GuildFighter) allow riding;
+## the arena, ranked duels and the tower do not.
 ## Saved as profile["mounts"] ({id: level 1-MAX_LEVEL}; old saves kept a list of owned
 ## ids, which Game._repair turns into level 1) and profile["mount"] (active id, "" = none).
 

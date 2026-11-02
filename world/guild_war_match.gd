@@ -553,23 +553,33 @@ func _tick_fight(delta: float) -> void:
 ## POSE_NEAR the drawn ones are posed every other frame and drop their shadows and
 ## emitters (HeroVisual.set_anim_lod / set_far, as world players do in the fields): with
 ## both whole guilds on the field that is most of them, and the phone runs cooler. The
-## hero's party stays at full detail.
+## hero's party stays at full detail. A fighter's mount (GuildFighter.mount) follows its
+## rider: hidden with it, posed every other frame and simplified (MountVisual.set_far:
+## no small parts, no shadows) past POSE_NEAR, and still past the zone's ANIM_RADIUS,
+## where the rider's skeleton stops too.
 func _cull_far() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
-	var limit: float = DRAW_RADIUS[clampi(GameSettings.quality, 0, 2)]
+	var q := clampi(GameSettings.quality, 0, 2)
+	var limit: float = DRAW_RADIUS[q]
+	var still: float = Zone.ANIM_RADIUS[q]
 	var from := camera.global_position
 	for f in all_fighters():
 		if not is_instance_valid(f.visual):
 			continue
 		var d2 := f.global_position.distance_squared_to(from)
-		f.visual.visible = d2 < limit * limit
+		var shown := d2 < limit * limit
+		f.visual.visible = shown
+		var far := d2 > POSE_NEAR * POSE_NEAR and not f.in_hero_party()
 		var model := f.model()
 		if model != null:
-			var far := d2 > POSE_NEAR * POSE_NEAR and not f.in_hero_party()
 			model.set_anim_lod(2 if far else 1)
 			model.set_far(far)
+		if f.mount != null:
+			f.mount.lod_step = 2 if far else 1
+			f.mount.set_far(far)
+			f.mount.set_process(shown and d2 < still * still)
 
 
 func team_name(team: int) -> String:

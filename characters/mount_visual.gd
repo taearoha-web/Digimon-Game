@@ -5,10 +5,12 @@ extends Node3D
 ## only). Faces +Z. [member body] carries everything above the legs and bobs; the
 ## rider's hips go on [member seat]. Idle: slow breathing bob, head and tail sway,
 ## wings beat softly. Running: the legs gallop, the body rocks, wings flap hard.
-## Far LOD (world players' mounts, set_far): the small detail parts (eyes, highlights,
-## trims) hide, nothing casts a shadow, and the gait is posed every lod_step-th frame.
-## carry() is the per-frame riding step shared by the hero (Hero) and the AI world
-## players (Companion): the rider sits seated (SaddlePose) on the bobbing saddle.
+## Far LOD (world players' and guild-war fighters' mounts, set_far): the small detail
+## parts (eyes, highlights, trims) hide, nothing casts a shadow, and the gait is posed
+## every lod_step-th frame.
+## carry() is the per-frame riding step shared by the hero (Hero), the AI world
+## players (Companion) and the guild-war fighters (GuildFighter): the rider sits seated
+## (SaddlePose) on the bobbing saddle; mount_up / step_down get the AI riders on and off.
 
 const RUN_RATE := 10.5
 const FLAME_FLICKER := 17.0
@@ -38,6 +40,7 @@ var _wing_amp := 0.6
 var _details: Array[MeshInstance3D] = []
 var _shadow_parts: Array[MeshInstance3D] = []
 var _far := false
+var _shadows := true
 ## Pose every Nth frame (1 = every frame), with the time gathered since.
 var lod_step := 1
 var _lod_frame := 0
@@ -56,6 +59,13 @@ static func _mat(color: Color, glow := 0.0) -> StandardMaterial3D:
 
 static func _shine() -> StandardMaterial3D:
 	return MeshKit.toon(Color.WHITE, {"unshaded": true})
+
+
+## Merged meshes of the merged build ("id|anchor|group" -> ArrayMesh), made once per kind.
+static var _merged_meshes: Dictionary = {}
+## Merged build (set before build): the parts that move together are baked into one mesh
+## per material (_merge_parts), for crowds of riders (the guild war's fighters).
+var merged := false
 
 
 func build(p_id: String) -> void:
@@ -79,16 +89,155 @@ func build(p_id: String) -> void:
 	shadow.scale = Vector3(1.6, 2.6, 1.0)
 	_details.clear()
 	_shadow_parts.clear()
-	for node in body.find_children("*", "MeshInstance3D", true, false) + _leg_meshes():
-		var mi := node as MeshInstance3D
-		if maxf(mi.scale.x, maxf(mi.scale.y, mi.scale.z)) < DETAIL_SIZE:
-			_details.append(mi)
-		elif mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
-			_shadow_parts.append(mi)
+	if merged:
+		_merge_parts()
+	else:
+		for node in body.find_children("*", "MeshInstance3D", true, false) + _leg_meshes():
+			var mi := node as MeshInstance3D
+			if maxf(mi.scale.x, maxf(mi.scale.y, mi.scale.z)) < DETAIL_SIZE:
+				_details.append(mi)
+			elif mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				_shadow_parts.append(mi)
 	var was_far := _far
 	_far = false
 	if was_far:
 		set_far(true)
+	elif not _shadows:
+		_apply_shadows()
+
+
+## The merged build: every part is baked, with its place under the nearest moving pivot
+## (body, head, tail, a leg or a wing), into one mesh per pivot and size class (details
+## apart, so the far LOD still hides them): the plain paint of every colour in one mesh
+## with vertex colours (one shared material), glowing and unshaded parts one mesh per
+## material. Same look, a fraction of the draws and nodes: about 15 instead of 80 a
+## mount. The flames keep their own flicker.
+func _merge_parts() -> void:
+	var anchors: Array[Node3D] = [body]
+	for n in [head, tail]:
+		if n != null:
+			anchors.append(n)
+	anchors.append_array(legs)
+	for w in _wings:
+		anchors.append(w[0])
+	var groups := {}
+	var order: Array[String] = []
+	var baked: Array[MeshInstance3D] = []
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.name == "BlobShadow" or _flames.has(mi) or mi.material_override == null:
+			continue
+		var xf := mi.transform
+		var up := mi.get_parent() as Node3D
+		while up != null and not anchors.has(up):
+			xf = up.transform * xf
+			up = up.get_parent() as Node3D
+		if up == null:
+			continue
+		var at := anchors.find(up)
+		var detail := maxf(mi.scale.x, maxf(mi.scale.y, mi.scale.z)) < DETAIL_SIZE
+		# Plain toon paint of any colour shares one material (its colour goes into the
+		# vertices); glowing and unshaded parts keep their own.
+		var paint := _paint(mi.material_override)
+		var key := "%d|%s|%d" % [at, "paint" if paint else str(mi.material_override.get_instance_id()), int(detail)]
+		if not groups.has(key):
+			groups[key] = {"anchor": up, "mat": _paint_material() if paint else mi.material_override, "detail": detail, "parts": []}
+			order.append(key)
+		var tint := (mi.material_override as StandardMaterial3D).albedo_color if paint else Color.WHITE
+		(groups[key].parts as Array).append([mi.mesh, xf, tint])
+		baked.append(mi)
+	for mi in baked:
+		# A part that holds other nodes stays as an empty holder.
+		if mi.get_child_count() > 0:
+			mi.mesh = null
+		else:
+			mi.get_parent().remove_child(mi)
+			mi.free()
+	for i in order.size():
+		var g: Dictionary = groups[order[i]]
+		var cache_key := "%s|%d|%d" % [id, anchors.find(g.anchor), i]
+		if not _merged_meshes.has(cache_key):
+			_merged_meshes[cache_key] = _bake(g.parts)
+		var out := MeshInstance3D.new()
+		out.name = "Merged%d" % i
+		out.mesh = _merged_meshes[cache_key]
+		out.material_override = g.mat
+		(g.anchor as Node3D).add_child(out)
+		if bool(g.detail):
+			out.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_details.append(out)
+		else:
+			_shadow_parts.append(out)
+	for flame in _flames:
+		if flame is MeshInstance3D and (flame as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			_shadow_parts.append(flame as MeshInstance3D)
+
+
+static var _paint_mat: StandardMaterial3D
+
+
+## True for a mount's plain toon paint (MountVisual._mat without glow): opaque, lit.
+static func _paint(mat: Material) -> bool:
+	var m := mat as StandardMaterial3D
+	return m != null and not m.emission_enabled and m.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED \
+		and m.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED and m.rim_enabled and m.albedo_texture == null
+
+
+## The shared paint of merged mounts: the toon rim material, coloured by the vertices.
+static func _paint_material() -> StandardMaterial3D:
+	if _paint_mat == null:
+		_paint_mat = (_mat(Color.WHITE) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		_paint_mat.vertex_color_use_as_albedo = true
+		_paint_mat.vertex_color_is_srgb = true
+	return _paint_mat
+
+
+## One mesh of `parts` ([mesh, transform, colour] each): vertices moved into place, normals turned
+## with the inverse transpose (the parts are squashed spheres, so not just the basis).
+static func _bake(parts: Array) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var colors := PackedColorArray()
+	var index := PackedInt32Array()
+	for part in parts:
+		var mesh := part[0] as Mesh
+		var xf: Transform3D = part[1]
+		var tint: Color = part[2]
+		var arrays := mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var n: Variant = arrays[Mesh.ARRAY_NORMAL]
+		var uv: Variant = arrays[Mesh.ARRAY_TEX_UV]
+		var idx: Variant = arrays[Mesh.ARRAY_INDEX]
+		var nb := xf.basis.inverse().transposed()
+		var base := verts.size()
+		for k in v.size():
+			verts.append(xf * v[k])
+			normals.append((nb * (n as PackedVector3Array)[k]).normalized() if n is PackedVector3Array and not (n as PackedVector3Array).is_empty() else Vector3.UP)
+			uvs.append((uv as PackedVector2Array)[k] if uv is PackedVector2Array and not (uv as PackedVector2Array).is_empty() else Vector2.ZERO)
+			colors.append(tint)
+		var flip := xf.basis.determinant() < 0.0
+		if idx is PackedInt32Array and not (idx as PackedInt32Array).is_empty():
+			var ids := idx as PackedInt32Array
+			for k in range(0, ids.size() - 2, 3):
+				index.append(base + ids[k])
+				index.append(base + (ids[k + 2] if flip else ids[k + 1]))
+				index.append(base + (ids[k + 1] if flip else ids[k + 2]))
+		else:
+			for k in range(0, v.size() - 2, 3):
+				index.append(base + k)
+				index.append(base + (k + 2 if flip else k + 1))
+				index.append(base + (k + 1 if flip else k + 2))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = index
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
 
 
 func _leg_meshes() -> Array:
@@ -106,9 +255,23 @@ func set_far(far: bool) -> void:
 	for mi in _details:
 		if is_instance_valid(mi):
 			mi.visible = not far
+	_apply_shadows()
+
+
+## Off: the mount casts no real shadow even up close, only its blob (a crowd of riders,
+## the guild war's fighters, where each shadow would be drawn again in the shadow pass).
+func set_shadows(on: bool) -> void:
+	if on == _shadows:
+		return
+	_shadows = on
+	_apply_shadows()
+
+
+func _apply_shadows() -> void:
+	var cast := _shadows and not _far
 	for mi in _shadow_parts:
 		if is_instance_valid(mi):
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if far else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func is_far() -> bool:
@@ -122,6 +285,55 @@ func drawn_parts() -> int:
 		if (node as MeshInstance3D).is_visible_in_tree():
 			n += 1
 	return n
+
+
+## Seats `visual` on a new mount `id` under `parent` (the rider's body node, or the node
+## that turns it), facing `facing` in the parent's space: the shared "get on" step of the
+## AI riders (Companion, GuildFighter). The rider's own blob shadow (on `owner`) hides
+## under the mount's, and flying wings fold to standing. A `spare` mount of the same id
+## put away by step_down (keep) is shown again instead of building a new one.
+static func mount_up(owner: Node3D, parent: Node3D, visual: HeroVisual, id: String, facing := 0.0, spare: MountVisual = null, merge := false) -> MountVisual:
+	var mount := spare
+	if is_instance_valid(mount) and mount.id == id and mount.get_parent() == parent:
+		mount.visible = true
+		mount.set_process(true)
+	else:
+		if is_instance_valid(mount):
+			mount.queue_free()
+		mount = MountVisual.new()
+		mount.merged = merge
+		parent.add_child(mount)
+		mount.build(id)
+	mount.rotation.y = facing
+	visual.set_seated(true)
+	if visual.flying():
+		visual.set_wing_mode(HeroVisual.WING_STAND)
+	_show_shadow(owner, false)
+	return mount
+
+
+## The shared "get off" step: frees `mount` (or with [param keep] hides it for mount_up
+## to bring back: a guild-war fighter falls and returns every few seconds), stands
+## `visual` back on the ground (or keeps its height when [param keep_height], wings
+## lifting it) and shows the rider's blob shadow again.
+static func step_down(owner: Node3D, mount: MountVisual, visual: HeroVisual, keep_height := false, keep := false) -> void:
+	if is_instance_valid(mount):
+		if keep:
+			mount.visible = false
+			mount.set_process(false)
+		else:
+			mount.queue_free()
+	_show_shadow(owner, true)
+	if not is_instance_valid(visual):
+		return
+	visual.set_seated(false)
+	visual.position = Vector3(0, visual.position.y if keep_height else 0.0, 0)
+
+
+static func _show_shadow(owner: Node3D, on: bool) -> void:
+	var shadow := owner.get_node_or_null("BlobShadow") as Node3D
+	if shadow != null:
+		shadow.visible = on
 
 
 ## One riding frame for a rider on `mount` (Hero._ride_step, Companion): the mount turns

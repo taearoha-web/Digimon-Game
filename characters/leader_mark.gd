@@ -9,7 +9,8 @@ const NAME := "LeaderMark"
 const GOLD := Color("ffd24a")
 
 
-## Puts the mark on `owner` in `color`, its crown `height` metres up. Returns the holder.
+## Puts the mark on `owner` in `color`, its crown `height` metres up. Returns the holder
+## (it stays at that height; raise() lifts it over a rider's seat, the crown bobs inside).
 static func attach(owner: Node3D, color: Color, height := 3.6) -> Node3D:
 	var old := owner.get_node_or_null(NAME)
 	if old != null:
@@ -17,14 +18,18 @@ static func attach(owner: Node3D, color: Color, height := 3.6) -> Node3D:
 	var holder := Node3D.new()
 	holder.name = NAME
 	holder.position = Vector3(0, height, 0)
+	holder.set_meta(&"base_y", height)
 	owner.add_child(holder)
+	var bobber := Node3D.new()
+	bobber.name = "Bob"
+	holder.add_child(bobber)
 	var crown := Node3D.new()
 	crown.name = "Crown"
 	crown.scale = Vector3.ONE * 1.8
-	holder.add_child(crown)
+	bobber.add_child(crown)
 	_build_crown(crown, color)
 	# A ring of light under the crown and sparkles drifting off it.
-	var ring := MeshKit.part(holder, MeshKit.torus(), _glow(color, 0.55), Vector3(0, -0.12, 0), Vector3(1.55, 0.25, 1.55))
+	var ring := MeshKit.part(bobber, MeshKit.torus(), _glow(color, 0.55), Vector3(0, -0.12, 0), Vector3(1.55, 0.25, 1.55))
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var pulse := ring.create_tween().set_loops()
 	pulse.tween_property(ring, "scale", Vector3(1.85, 0.25, 1.85), 0.9).set_trans(Tween.TRANS_SINE)
@@ -41,13 +46,21 @@ static func attach(owner: Node3D, color: Color, height := 3.6) -> Node3D:
 	title.modulate = color.lerp(Color.WHITE, 0.2)
 	title.outline_modulate = color.darkened(0.8)
 	title.position = Vector3(0, 1.55, 0)
-	holder.add_child(title)
-	var bob := holder.create_tween().set_loops()
-	bob.tween_property(holder, "position:y", height + 0.15, 0.8).set_trans(Tween.TRANS_SINE)
-	bob.tween_property(holder, "position:y", height, 0.8).set_trans(Tween.TRANS_SINE)
+	bobber.add_child(title)
+	var bob := bobber.create_tween().set_loops()
+	bob.tween_property(bobber, "position:y", 0.15, 0.8).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(bobber, "position:y", 0.0, 0.8).set_trans(Tween.TRANS_SINE)
 	var spin := crown.create_tween().set_loops()
 	spin.tween_property(crown, "rotation:y", TAU, 4.0).from(0.0)
 	return holder
+
+
+## Lifts `owner`'s mark (if it wears one) `lift` metres over its attach height: a rider
+## sits that much higher on its mount (MountVisual.carry), so the crown rides up too.
+static func raise(owner: Node3D, lift: float) -> void:
+	var holder := owner.get_node_or_null(NAME) as Node3D
+	if holder != null:
+		holder.position.y = float(holder.get_meta(&"base_y", holder.position.y)) + lift
 
 
 ## A royal crown in `color`: a band with rims top and bottom and a row of small studs,
