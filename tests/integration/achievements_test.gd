@@ -169,7 +169,7 @@ func _name_plate() -> void:
 	check(is_instance_valid(hero._name_plate) and hero._name_plate is Label3D, "the hero has a name plate")
 	check(hero._name_plate.text == "ทดสอบตำแหน่ง", "the plate shows the name alone without a title, got %s" % hero._name_plate.text)
 	Game.set_title(Achievements.index_of("t_gold"))
-	check(hero._name_plate.text == "「เศรษฐี」\nทดสอบตำแหน่ง", "the plate shows the title on its own line, got %s" % hero._name_plate.text)
+	check(hero._name_plate.text == "✦ เศรษฐี ✦\nทดสอบตำแหน่ง", "the plate shows the title on its own line, got %s" % hero._name_plate.text)
 	Game.set_title(-1)
 	check(hero._name_plate.text == "ทดสอบตำแหน่ง", "the plate drops the title when taken off")
 	field.queue_free()

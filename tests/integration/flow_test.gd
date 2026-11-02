@@ -886,7 +886,11 @@ func _wings() -> void:
 	# Wing poses from the HUD: fly lifts the hero, fold folds, stand lands.
 	var hero_w: Hero = main.zone.hero
 	main.hud._refresh()
-	check(main.hud._wing_row.visible and main.hud._wing_chips.size() == 3, "wearing wings shows the fly / stand / fold buttons")
+	check(main.hud._wing_row.visible and main.hud._wing_chips.size() == 1, "wearing wings shows the wing pose chip")
+	var pose_before := hero_w.visual.wing_mode
+	main.hud.tap_wing_chip()
+	check(hero_w.visual.wing_mode == HUD.WING_ORDER[(HUD.WING_ORDER.find(pose_before) + 1) % 3], "a tap on the wing chip moves to the next pose")
+	check(main.hud.wing_chip_text() == "ปีก · %s" % HUD.WING_LABELS[hero_w.visual.wing_mode], "the chip names the pose (%s)" % main.hud.wing_chip_text())
 	hero_w.set_wing_mode(HeroVisual.WING_FLY)
 	await _wait(1.5)
 	check(hero_w.visual.position.y > 0.6, "flying lifts the hero off the ground (%.2f)" % hero_w.visual.position.y)

@@ -168,7 +168,7 @@ func refresh_name_plate() -> void:
 		return
 	var hero_name := String(Game.profile.get("name", ""))
 	var title := Achievements.title_of(Game.profile)
-	_name_plate.text = "「%s」\n%s" % [title, hero_name] if title != "" else hero_name
+	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" else hero_name
 
 
 ## Changes the hero's weapon / hat / outfit when the worn items change.

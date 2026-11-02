@@ -4,6 +4,17 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 # Toon Tale
 
+## A clearer field HUD on iPhone (November 2026)
+
+- **Symbols on the web:** the browser has no system fonts, so ★ ● ✕ ✓ ✦ fell back to empty boxes (the party cards' stars, the online dot, the kick cross). A 6 KB DejaVu Sans subset (`assets/fonts/DejaVuSans-Symbols.ttf`) is now a fallback of every theme font. Title name plates use ✦ instead of 「」, which no bundled font has.
+- **Left column:** party cards are one name line with a slim HP bar (≈34 px each, was ≈60: the theme's button padding made the kick cross tall), the stance is a small tag beside the name; buff icons are 34 px so own, friends' and the song's buffs fit one row; the wing / cape poses are one chip that cycles (ปีก · บิน → ยืน → หุบปีก) beside the mount chip, instead of three chips and a second row.
+- **Readable chips:** an "on" chip (riding) is amber with white outlined text; dark text on gold read as a black smudge on a phone.
+- **Edges:** an iPhone held sideways reports the notch's inset on both sides; the page shell now keeps it only on the notch side (`window.orientation`), a third of it on the other side and half of the home-indicator strip, re-read every second so turning the phone over moves it. The skill row sits 14 px lower, level with the attack button.
+- **Top bar:** the target / boss bar is centred between the hero panel and the chat / online / gold row and never runs under them; a big monster's "เกราะแตก!" / "อ่อนแรง!" floats at two thirds of its height when its head is up in the top band.
+- **Offline line:** "พร้อมเล่นออฟไลน์ ✓" shows once while playing; the save-sync lines show only after the game was offline (every autosave used to bring the line back over the top of the screen).
+- **Chat:** 40 px between the joystick's ring and the chat (was 24).
+- `tests/tools/hud_phone_shots` takes the end-game iPhone screen (Lv.100 ★300 Dark Lord, cape, mount, raven, party, buffs, a boss target) with a phone's insets.
+
 ## Fewer long frames: menus, zone builds and the skill-art warm-up (November 2026)
 
 Nothing on screen changes; the same work is spread over frames or done once instead of six times.
