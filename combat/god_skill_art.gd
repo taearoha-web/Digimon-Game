@@ -10,6 +10,8 @@ extends RefCounted
 ## every layer is a VfxBudget decoration, so a phone never pays for the spectacle.
 const SKY := 9.5
 const GOLDEN := 2.39996
+## Camera-facing emblems lean back this much (about X) to meet the raised gameplay camera.
+const TILT := -0.4
 
 
 static func handles(skill: Dictionary) -> bool:
@@ -60,6 +62,12 @@ static func _drop(art: StarSkillArt, mesh: Mesh, label: String, c: Dictionary, s
 static func _planted(art: StarSkillArt, mesh: Mesh, label: String, c: Dictionary, spot: Vector3, length: float, seconds: float, delay: float, sink := 0.6) -> void:
 	var pose := _point_down(mesh, length, -sink)
 	art.add_mesh(mesh, label, c, spot + pose[0], pose[1], Vector3(PI, 0, 0), seconds, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.7, "front": true, "delay": delay})
+
+
+## The class colours burning brighter: the light of the Bard's notes, so they glow
+## pale over the saturated seals and pillars they hang among.
+static func _lit(c: Dictionary) -> Dictionary:
+	return {"primary": c.accent, "accent": (c.accent as Color).lerp(Color.WHITE, 0.5), "shade": c.primary}
 
 
 static func _spot(index: int, radius: float) -> Vector3:
@@ -148,8 +156,10 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 			_put(sky, "crown", c, Vector3.UP * (SKY - 1.0), Vector3.ONE * r * 0.5, Vector3.ZERO, time, high.merged({"spin": 0.35}, true))
 			_put(sky, "martial/bolt", c, Vector3.ZERO, Vector3(3.0, 3.0, SKY * 0.45), Vector3(-PI / 2, 0, 0), time, high.merged({"spin": -2.5, "opacity": 0.75}, true))
 		"divine_symphony":
-			_put(sky, "lyre", c, Vector3.UP * SKY, Vector3.ONE * r * 0.55, Vector3.ZERO, time, high.merged({"spin": 0.45}, true))
-			_put(sky, "planets", c, Vector3.UP * (SKY - 1.5), Vector3.ONE * 2.4, Vector3.ZERO, time, high.merged({"spin": 0.9, "spectral": 1.0}, true))
+			# The song gathers in the sky: a great beamed pair of eighth notes, notes spiralling in round it.
+			var lit := _lit(c)
+			_put(sky, "god_note", lit, Vector3.UP * (SKY - 2.6), Vector3.ONE * 4.2, Vector3(TILT, 0, 0), time, high.merged({"face_camera": true, "pulse": true, "front": true}, true))
+			_put(sky, "note_swirl", lit, Vector3.UP * (SKY - 2.6), Vector3.ONE * 3.4, Vector3(TILT, 0, 0), time, high.merged({"face_camera": true, "turn": Vector3(0, 0, -1.4), "front": true}, true))
 	sky._draw()
 
 
@@ -315,7 +325,7 @@ static func _finale(art: StarSkillArt, parent: Node3D, id: String, c: Dictionary
 		"divine_symphony":
 			_put(art, "lyre", c, at, Vector3.ONE * r * 0.85, Vector3.ZERO, 1.9, {"initial": 0.3, "grow_time": 0.25, "spin": 0.5, "decay": 0.85})
 			_put(art, "elite/stave", c, Vector3.UP * 0.3, Vector3(r, 4.0, r), Vector3.ZERO, 1.8, {"initial": 0.3, "grow_time": 0.2, "spin": 1.6, "decay": 0.8})
-			_put(art, "planets", c, Vector3.UP * 4.2, Vector3.ONE * r * 0.45, Vector3.ZERO, 1.8, {"initial": 0.4, "spin": 0.7, "spectral": 1.0, "decay": 0.8})
+			_put(art, "note_shower", _lit(c), Vector3.UP * 1.0, Vector3.ONE * r * 0.42, Vector3.ZERO, 1.8, {"initial": 0.5, "grow_time": 0.2, "spin": 1.4, "travel": Vector3.DOWN * 0.8, "decay": 0.8, "front": true})
 			_put(art, "god_halo", c, at, Vector3.ONE * r, Vector3.ZERO, 1.9, seal)
 			_put(art, "constellation", c, Vector3.UP * 7.5, Vector3.ONE * r * 0.8, Vector3.ZERO, 1.6, {"initial": 0.7, "spin": -0.3})
 			_put(art, "shards", c, at, Vector3(r * 0.7, 4.0, r * 0.7), Vector3.ZERO, 1.6, {"travel": Vector3.UP * 0.9, "pulse": true})
@@ -380,6 +390,9 @@ static func _avatar(art: StarSkillArt, id: String, c: Dictionary, r: float, spec
 			_put(art, "aureole", c, high + Vector3.UP * 0.6, Vector3.ONE * r * 0.45, Vector3.ZERO, 2.0, aureole)
 			_put(art, "martial/bolt", c, Vector3.ZERO, Vector3(4.0, 4.0, 4.0), Vector3(-PI / 2, 0, 0), 1.2, rise.merged({"spin": 6.0}, true))
 		"divine_symphony":
-			_put(art, "lyre", c, high, Vector3.ONE * r * 0.5, Vector3(PI / 2, 0, 0), 2.0, aureole.merged({"pulse": false}, true))
-			_put(art, "aureole", c, high, Vector3.ONE * r * 0.45, Vector3.ZERO, 2.0, aureole)
-			_put(art, "planets", c, high + Vector3.UP * 1.0, Vector3.ONE * 3.2, Vector3.ZERO, 2.0, rise.merged({"spin": 1.2, "spectral": 1.0}, true))
+			# The god's song made visible: a giant glowing beamed pair of eighth notes in an
+			# aureole, a pinwheel of notes spiralling round it (the shower falls from the main root).
+			var sky := high + Vector3.UP * 1.3
+			_put(art, "god_note", _lit(c), sky, Vector3.ONE * 5.8, Vector3(TILT, 0, 0), 2.0, aureole.merged({"front": true}, true))
+			_put(art, "aureole", c, sky, Vector3.ONE * r * 0.36, Vector3(TILT, 0, 0), 2.0, aureole)
+			_put(art, "note_swirl", _lit(c), sky, Vector3.ONE * r * 0.46, Vector3(TILT, 0, 0), 2.0, rise.merged({"face_camera": true, "turn": Vector3(0, 0, -1.3), "front": true}, true))
