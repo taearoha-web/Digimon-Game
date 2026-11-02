@@ -46,6 +46,14 @@ var hero: Node3D
 var hostile := false
 var _victim: Node3D
 var _victim_timer := 0.0
+## Threat (ความแค้น): the damage each attacker has dealt this monster, fading by half
+## every THREAT_HALF_LIFE seconds. A field monster always goes for whoever hits it
+## hardest (_pick_victim); the Defender's taunt still pulls it away for its seconds.
+const THREAT_HALF_LIFE := 6.0
+## How far beyond its leash a hitter can stand and still be chased for it.
+const THREAT_REACH := 12.0
+## instance id -> {"ref": WeakRef, "amount": float, "at": seconds}
+var _threat: Dictionary = {}
 var _taunt_chain: TauntChain
 var is_boss := false
 var visual: MonsterVisual
@@ -233,6 +241,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 		return false
 	set_dormant(false)
 	_credit(attacker, mini(amount, hp))
+	add_threat(attacker, float(mini(amount, hp)))
 	hp = maxi(0, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
@@ -247,9 +256,6 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 	if not is_boss:
 		visual.action("hurt", 320)
 		_anim_lock = Time.get_ticks_msec() + 320
-	if attacker is Companion and randf() < 0.45:
-		_victim = attacker
-		_victim_timer = 3.0
 	provoke()
 	return false
 
@@ -375,7 +381,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_victim_timer -= delta
 	if _victim_timer <= 0.0 or not _alive(_victim):
-		_victim = _nearest_victim()
+		_victim = _pick_victim()
 		_victim_timer = 0.8
 	var hero_ok: bool = _victim != null
 	var desired := Vector3.ZERO
@@ -403,6 +409,7 @@ func _physics_process(delta: float) -> void:
 			to_home.y = 0.0
 			if to_home.length() < 1.2:
 				_returning = false
+				_threat.clear()
 				hp = max_hp
 				_bar.set_ratio(1.0)
 				phase = 0
@@ -545,6 +552,51 @@ func _targets() -> Array[Node3D]:
 		if _alive(node as Node3D):
 			out.append(node as Node3D)
 	return out
+
+
+## Records [param amount] of damage from [param attacker] (the hero, a companion, a
+## world player; a summon's hits count for its summoner).
+func add_threat(attacker: Node, amount: float) -> void:
+	if amount <= 0.0 or attacker == null or not is_instance_valid(attacker) or not (attacker is Node3D):
+		return
+	var now := Time.get_ticks_msec() * 0.001
+	var key := attacker.get_instance_id()
+	var entry: Dictionary = _threat.get(key, {"ref": weakref(attacker), "amount": 0.0, "at": now})
+	entry.amount = _faded(entry, now) + amount
+	entry.at = now
+	_threat[key] = entry
+
+
+## The threat [param node] holds on this monster now (0 when it never hit it).
+func threat_of(node: Node) -> float:
+	if node == null or not _threat.has(node.get_instance_id()):
+		return 0.0
+	return _faded(_threat[node.get_instance_id()], Time.get_ticks_msec() * 0.001)
+
+
+func _faded(entry: Dictionary, now: float) -> float:
+	return float(entry.amount) * pow(0.5, maxf(now - float(entry.at), 0.0) / THREAT_HALF_LIFE)
+
+
+## Who to go for: whoever has dealt it the most damage lately (and is still alive and
+## within reach), else the closest. Rivals and guild fighters keep their own rules.
+func _pick_victim() -> Node3D:
+	var now := Time.get_ticks_msec() * 0.001
+	var best: Node3D = null
+	var best_threat := 0.0
+	for key in _threat.keys():
+		var entry: Dictionary = _threat[key]
+		var node := (entry.ref as WeakRef).get_ref() as Node3D
+		var amount := _faded(entry, now)
+		if node == null or not _alive(node) or amount < 1.0:
+			_threat.erase(key)
+			continue
+		if _flat_distance(node.global_position) > _leash() + THREAT_REACH:
+			continue
+		if amount > best_threat:
+			best_threat = amount
+			best = node
+	return best if best != null else _nearest_victim()
 
 
 ## The closest hero / companion (the hero counts as a little closer).
