@@ -94,6 +94,7 @@ const MONSTERS := {
 
 static func get_monster(id: StringName) -> Dictionary:
 	if DivineRegionData.has_monster(id): return DivineRegionData.monster(id)
+	if DrownedAbyssData.has_monster(id): return DrownedAbyssData.monster(id)
 	if StarMonsters.has(id): return StarMonsters.get_monster(id)
 	return MONSTERS.get(id, MONSTERS[&"pink_slime"])
 
@@ -121,6 +122,8 @@ const ZONE_TUNING := {
 	&"sky_citadel": [0.1095, 48.1081, 0.186, 42.37],
 	&"eclipse_realm": [0.1033, 65.8753, 0.134, 63.786],
 	&"lotus_sanctum": [0.0638, 75.8607, 0.1463, 73.344],
+	# The 200-300★ field: about 1.9x the sanctuary's health and 1.45x its hits.
+	&"drowned_abyss": [0.062, 80.0, 0.14, 78.0],
 }
 ## Late bosses gained boss health (index 2) when single-target skills began to
 ## out-hit area skills (ClassData.SINGLE_EDGE), so boss fights keep their length.
@@ -128,7 +131,7 @@ const ZONE_TUNING := {
 ## the Lv.100 void to the 200-star Lotus Sanctum (x2 .. x5 of what they had).
 const LATE_HP := {
 	&"void": 2.0, &"dawn_forest": 2.5, &"crystal_valley": 3.0,
-	&"sky_citadel": 3.5, &"eclipse_realm": 4.0, &"lotus_sanctum": 5.0,
+	&"sky_citadel": 3.5, &"eclipse_realm": 4.0, &"lotus_sanctum": 5.0, &"drowned_abyss": 6.0,
 }
 static var _home_zone := {}
 

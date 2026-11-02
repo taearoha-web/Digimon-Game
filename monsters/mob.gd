@@ -124,6 +124,7 @@ func _ready() -> void:
 
 	visual = _make_visual()
 	if StarMonsters.has(monster_id): StarMonsterArt.attach(visual, template)
+	elif DrownedAbyssData.has_monster(monster_id): DeepMonsterArt.attach(visual, template)
 	var top := visual.height
 	if not GameSettings.world_shadows():
 		MeshKit.blob_shadow(self, clampf(float(template.height) * 0.55, 0.5, 1.6))

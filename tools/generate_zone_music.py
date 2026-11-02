@@ -1374,6 +1374,35 @@ def lotus_sanctum():
     return master(tr, 0.26, tone=5000)
 
 
+@track("drowned_abyss", "deep sea: sonar glass pings with echo, dark choir swells, sub drone, slow war drums, low brass leviathan theme", "F# dorian", "4/4 74")
+def drowned_abyss():
+    tr = Track("drowned_abyss", 74, 28, seed=33)
+    A = prog("F#m F#m E B F#m D E C#m")
+    B = prog("Bm F#m D E Bm A C# C#")
+    mel_a = bars("F#4:2 A4:1 C#5:1 | B4:3 A4:1 | G#4:2 E4:2 | D#5:4 | F#5:1.5 E5:.5 C#5:2 | D5:2 B4:2 | E5:1 D#5:1 B4:1 G#4:1 | C#5:4")
+    mel_b = bars("B4:2 D5:1 F#5:1 | A5:3 G#5:1 | F#5:2 D5:2 | E5:3 B4:1 | D5:1 F#5:1 B5:2 | A5:2 E5:2 | F5:2 G#5:2 | C#6:4")
+    intro = prog("F#m F#m F#m F#m")
+    chords(tr, choir, intro, 0, 0.11, octave=2, dark=True)
+    bass(tr, sub, intro, 0, 0.42, "whole", octave=1)
+    for s, names in enumerate([A, B, A]):
+        sb = 4 + s * 8
+        chords(tr, choir, names, sb, 0.11, octave=2, dark=True)
+        chords(tr, pad, names, sb, 0.08, octave=3, cutoff=800)
+        bass(tr, sub, names, sb, 0.45, "whole", octave=1)
+        drums(tr, sb, 8, "ominous", 0.85 if s else 0.6)
+        arp(tr, glass, names, sb, 0.07, step=1.0, pattern="up", octave=5, length=0.6)
+    melody(tr, low_brass, mel_a, 4, 0.3, legato=0.97, unison=[(choir, 0, 0.3)])
+    melody(tr, strings, mel_b, 12, 0.28, legato=0.97, unison=[(low_brass, -1, 0.4)])
+    melody(tr, brass, mel_a, 20, 0.3, legato=0.97, unison=[(low_brass, -1, 0.45), (glass, 1, 0.12)])
+    # Sonar pings: a glass note every two bars, echoing into the deep.
+    for bar in range(0, 28, 2):
+        p = tr.bar_pos(bar) + 0.5
+        ping = echo(glass(note_freq("C#6" if bar % 4 == 0 else "F#5"), 1.2, tr.rng), 0.42, 0.45, repeats=4)
+        tr.add(tr.sec(p), ping, 0.12)
+    bed(tr, "rumble", 0.08)
+    return master(tr, 0.4, tone=3000, drive=1.1)
+
+
 @track("pvp", "coliseum: crowd bed, stomp-stomp-clap, taiko, staccato brass riff, chant hits", "E minor", "4/4 136")
 def pvp():
     tr = Track("pvp", 136, 40, seed=30)
