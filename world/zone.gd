@@ -352,7 +352,7 @@ func _build_field() -> void:
 	_env = Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)), _sky_look())
 	_ambient_base = _env.environment.ambient_light_energy
 	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID:
-		_build_star_field()
+		await _build_star_field()
 		return
 	if not is_tower and not bool(data.get("arena", false)):
 		field_radius = HUNT_RADIUS
@@ -437,9 +437,11 @@ func _build_star_field() -> void:
 	var layout := DrownedAbyssArt.layout() if deep else (DivineRegionArt.layout() if divine else StarRegionArt.layout(zone_id))
 	_start = layout.spawn
 	_boss_spot = layout.boss_pos
-	if deep: DrownedAbyssArt.build(self)
-	elif divine: DivineRegionArt.build(self)
-	else: StarRegionArt.build(self, zone_id)
+	# Built over a few frames behind the travel fade, like the other fields.
+	var pace := get_tree() if staged and is_inside_tree() else null
+	if deep: await DrownedAbyssArt.build(self, zone_id, pace)
+	elif divine: await DivineRegionArt.build(self, zone_id, pace)
+	else: await StarRegionArt.build(self, zone_id, pace)
 	for source in data.camps:
 		var camp: Dictionary = source.duplicate(true)
 		camp["mobs"] = []
@@ -583,12 +585,16 @@ func _build_town() -> void:
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)
 	await _slice()
 	_petals()
-	JapanVillage.life(self, rng)
+	await JapanVillage.life(self, rng, get_tree() if staged and is_inside_tree() else null)
+	await _slice()
 	portals = [{"to": &"meadow", "pos": JapanVillage.GATE + Vector3(0, 0, 4), "label": "ทุ่งหญ้ามิสต์วูด", "level": 1}]
 	_make_portal(portals[0])
 	_make_boundary_walls(TOWN_RADIUS + 1.0)
+	# Each villager is a dressed character (rig, head, outfit): paced like the rest of the
+	# build, so the village's twelve no longer land in one long frame.
 	for v in villagers:
 		_add_npc(v[0], v[1], v[2], v[3], v[4], v[5], v[6])
+		await _slice()
 	var board := NoticeBoard.new()
 	board.position = Vector3(6.5, 0, 8.0)
 	board.rotation.y = -0.6
