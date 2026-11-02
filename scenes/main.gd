@@ -122,7 +122,11 @@ func _ready() -> void:
 	Game.paragon_leveled.connect(func(level: int):
 		hud.show_banner("ระดับเหนือเลเวล ดาว %d!" % level)
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
-		AudioManager.play_sfx(&"level_up"))
+		AudioManager.play_sfx(&"level_up")
+		# ★300 opens the God promotion at the Job Master.
+		if level >= JobData.GOD_STARS and Game.adv() == JobData.GOD_ADV - 1 and Game.class_id() != ClassData.START:
+			hud.show_banner("ถึงดาว %d! เปลี่ยนอาชีพขั้นเทพเจ้าได้แล้ว!" % JobData.GOD_STARS)
+			Game.say("ไปหาปรมาจารย์ผู้เปลี่ยนชะตา เพื่อเลื่อนขั้นเป็น \"%s\"" % JobData.god_name(Game.class_id()), &"quest"))
 	_show_title()
 
 
@@ -395,7 +399,7 @@ func _on_level_up(level: int) -> void:
 				Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
 			else:
 				Game.say("สกิล %s ต้อง%s ก่อน — ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % [skill.name, Game.skill_lock_reason(skill).trim_prefix("ต้อง")], &"quest")
-	if Game.class_id() != ClassData.START and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level():
+	if Game.class_id() != ClassData.START and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level() and Game.next_step_stars() <= int(Game.paragon().level):
 		hud.show_banner("เปลี่ยนอาชีพขั้นต่อไปได้แล้ว!")
 		Game.say("สกิลเลเวล %d ขึ้นไปต้องเปลี่ยนอาชีพ ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % level, &"quest")
 
@@ -498,7 +502,7 @@ func _talk_job() -> void:
 		dialog.say(speaker, "ถึงเวลาเลือกเส้นทางแล้ว! สายไหนที่ใจเจ้าเรียกหา? (เลือกแล้วเปลี่ยนไม่ได้ ไม่เสียค่าใช้จ่าย)", options)
 		return
 	if Game.adv() >= JobData.MAX_ADV:
-		dialog.say(speaker, "เจ้าคือ \"%s\" — %s ถึงขั้นสูงสุดในตำนานแล้ว ไม่มีอะไรจะสอนอีกแล้วนะ!" % [Game.class_data().name, Game.class_data().title])
+		dialog.say(speaker, "ข้าน้อยขอคารวะ \"%s\" — %s ท่านก้าวพ้นขั้นตำนานสู่ความเป็นเทพแล้ว ไม่มีสิ่งใดที่ข้าจะสอนได้อีก!" % [Game.class_data().name, Game.class_data().title])
 		return
 	_show_advance()
 
@@ -538,8 +542,14 @@ func _show_advance() -> void:
 	if int(Game.profile.level) < need:
 		dialog.say(speaker, "ขั้นต่อไปของเจ้าคือ \"%s\" ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้า จะได้สกิลชุดใหม่และพลังที่เพิ่มขึ้น" % [info.name, need])
 		return
+	var stars := Game.next_step_stars()
+	if int(Game.paragon().level) < stars:
+		dialog.say(speaker, "เจ้าคือตำนานแล้ว แต่ยังมีอีกขั้นที่เหนือกว่า... \"%s\" — %s\nสะสมดาวจนถึงดาว %d (ตอนนี้ดาว %d) แล้วกลับมาหาข้า จะได้ค่าสถานะเพิ่มอีกมหาศาล: %s  %s" % [info.name, info.title, stars, int(Game.paragon().level), JobData.attr_text(info.attrs), JobData.bonus_text(info.bonus)])
+		return
 	var lines: PackedStringArray = ["พร้อมเปลี่ยนอาชีพแล้ว! \"%s\" — %s" % [info.name, info.title], info.desc]
 	lines.append("ค่าสถานะเพิ่มทันที: %s  (พลังโจมตี/ป้องกัน/HP เพิ่มตามสาย)" % JobData.attr_text(info.attrs))
+	if bool(info.get("god", false)):
+		lines.append("โบนัสเปลี่ยนอาชีพขั้นเทพเจ้า: %s" % JobData.bonus_text(info.bonus))
 	lines.append("ค่าเปลี่ยนอาชีพ %d เหรียญ และได้แต้มสกิล +%d" % [Game.next_step_cost(), int(JobData.TIER_SKILL_POINTS[Game.adv()])])
 	dialog.say(speaker, "\n".join(lines), [{"label": "เปลี่ยนอาชีพ", "action": func(): _confirm_advance()}, {"label": "ไว้ก่อน"}])
 
@@ -553,7 +563,10 @@ func _confirm_advance() -> void:
 	VfxKit.level_up(zone, zone.hero.global_position)
 	AudioManager.play_sfx(&"quest_complete")
 	hud.show_banner("เปลี่ยนอาชีพ: %s!" % Game.class_data().name)
-	Game.say("เปลี่ยนอาชีพแล้ว! พลังและค่าสถานะเพิ่มขึ้น ปลดล็อกสกิลชุดใหม่", &"success")
+	if Game.is_god():
+		Game.say("ก้าวสู่ความเป็นเทพ! \"%s\" — %s พลังทุกด้านพุ่งสูงขึ้น" % [Game.class_data().name, Game.class_data().title], &"success")
+	else:
+		Game.say("เปลี่ยนอาชีพแล้ว! พลังและค่าสถานะเพิ่มขึ้น ปลดล็อกสกิลชุดใหม่", &"success")
 	Game.save()
 
 

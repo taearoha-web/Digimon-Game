@@ -146,8 +146,8 @@ func _ready() -> void:
 			for i in 30:
 				weakest = minf(weakest, _power(DivineGearData.item(cls, slot, rng)))
 			check(weakest > best, "divine %s %s is the strongest (%.0f > %.0f)" % [cls, slot, weakest, best])
-	# Stars stop at 200: no 201-star level, gear or requirement exists.
-	check(Game.PARAGON_MAX == 200 and ItemData.MAX_GEAR_STAR == 200 and ItemData.MAX_GEAR_LEVEL == 300, "200 stars is the ceiling")
+	# Gear stops at 200 stars: no 201-star gear or requirement exists (the hero's stars go on to 300).
+	check(Game.PARAGON_MAX == 300 and ItemData.MAX_GEAR_STAR == 200 and ItemData.MAX_GEAR_LEVEL == 300, "200 stars is the gear ceiling, 300 the star cap")
 	check(int(ItemData.generate(999, &"warrior", rng, 4, "weapon").level) == 300, "gear level clamps at 300 (200 stars)")
 	check(int(DivineGearData.item(&"mage", "armor", rng).star_tier) == 200 and StarProgression.TIERS.max() == 200, "no star tier above 200")
 	check(DivineGearData.item(&"mage", "wings", rng).is_empty(), "no unrequested 200-star wings")

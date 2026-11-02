@@ -35,11 +35,19 @@ static func exp_to_next(level: int) -> int:
 ## Past Lv.100 every star asks this much more than a Lv.100 level did (the climb to
 ## ★200 is the long farm), and 2% more per star already reached.
 const STAR_EXP := 1.5
+## Per star already reached, as a share of the ★0 cost: 2% up to ★200, then 4%
+## from ★200 to ★300 (STAR_STEEP_FROM), so the last hundred stars keep getting
+## harder: ★200 costs 5x the ★0 star, ★250 7x, ★299 about 9x, and ★200 -> ★300
+## asks about 1.17x the EXP of the whole ★0 -> ★200 climb.
+const STAR_GROWTH := 0.02
+const STAR_STEEP_FROM := 200
+const STAR_STEEP_GROWTH := 0.02
 
 
 ## EXP from star `star` to the next (★0 -> ★1 is `star` 0).
 static func star_need(star: int) -> int:
-	return int(float(exp_to_next(100)) * STAR_EXP * (1.0 + 0.02 * float(star)))
+	var growth := STAR_GROWTH * float(star) + STAR_STEEP_GROWTH * float(maxi(0, star - STAR_STEEP_FROM))
+	return int(float(exp_to_next(100)) * STAR_EXP * (1.0 + growth))
 
 
 ## Attributes = class base + automatic growth per level + points the player spent.
