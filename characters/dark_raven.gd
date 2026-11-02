@@ -38,6 +38,16 @@ extends Node3D
 ##                          trailing from the tail, more of both per star tier
 ##   divine scepter         the emperor raven: black-and-gold wings, violet fire in
 ##                          the eyes, a gold ring floating over the head
+##   set scepter (250★)     the Abyss Emperor raven (อีกาจักรพรรดิอเวจี), 1.55x the
+##                          emperor (wingspan ~1.8x): obsidian plumage edged in the set's emerald,
+##                          seven long luminous primaries on each wing with an
+##                          emerald afterimage trailing the beat, a crown of abyss
+##                          horns round a hellfire gem, emerald eyes, a long tail
+##                          with three flowing ribbons, a turning rune ring with
+##                          floating shards, drifting emerald motes and (desktop,
+##                          high quality, budget) a soft emerald light. It perches a
+##                          little further out on the arm and circles wider and
+##                          higher, and its strikes burst in emerald (LordSkillArt).
 ## The glow, the moving extras and the stardust follow the graphics quality (none
 ## on the lowest, or while memory is tight; the stardust is one draw surface that
 ## counts as a VfxBudget decoration); the colours and shapes stay at every quality.
@@ -54,16 +64,27 @@ const LEASH := 22.0
 const GROUP_RADIUS := 3.2
 const VIOLET := Color("8a4dff")
 ## The bird's look, from the owner's weapon (look_for).
-enum Look { PLAIN, FIRE, ICE, SHADOW, HOLY, THUNDER, CROWN, STAR_50, STAR_100, STAR_150, STAR_200, DIVINE }
+enum Look { PLAIN, FIRE, ICE, SHADOW, HOLY, THUNDER, CROWN, STAR_50, STAR_100, STAR_150, STAR_200, DIVINE, ABYSS }
 const LOOK_NAMES := ["อีกาทมิฬ", "อีกามังกรเพลิง", "อีกาน้ำแข็ง", "อีกาเงามืด", "อีกาศักดิ์สิทธิ์", "อีกาสายฟ้า",
-	"ราชาอีกา", "อีกาดารา ★50", "อีกาดารา ★100", "อีกาดารา ★150", "อีกาดารา ★200", "จักรพรรดิอีกาทมิฬ"]
+	"ราชาอีกา", "อีกาดารา ★50", "อีกาดารา ★100", "อีกาดารา ★150", "อีกาดารา ★200", "จักรพรรดิอีกาทมิฬ", "อีกาจักรพรรดิอเวจี"]
+## The divine raven's size: bigger birds (the set look) circle wider and higher in
+## proportion and reach further for the strike (reach()).
+const DIVINE_SIZE := 1.24
+## How far further out on the arm the set raven perches (it is too big for the wrist).
+const PERCH_OUT := 0.24
+## The set raven against the divine one (body; its longer primaries spread the wings ~1.8x).
+const SET_SIZE := 1.55
 ## Stardust: seconds each mote lives, and how far it sinks.
 const DUST_LIFE := 0.7
 const DUST_SINK := 0.55
 ## The moving extras of a look (_animate_look).
-enum Fx { FLAME, GLINT, SMOKE, RING, TWINKLE }
+enum Fx { FLAME, GLINT, SMOKE, RING, TWINKLE, ORBIT, SHARD }
 static var _palettes: Dictionary = {}
 static var _dust_material: StandardMaterial3D
+## The set raven's static parts merged per moving pivot and material (_bake), by
+## look, quality and place in the build: built once, shared by every set raven.
+static var _baked: Dictionary = {}
+const BAKE_LIMIT := 160
 
 var owner_ref: WeakRef
 var attack := false
@@ -114,6 +135,17 @@ var _dust_size := 0.1
 var _dust_retry := 0.0
 var _scale := 1.0
 var _wants_dust := false
+var _dust_sink := DUST_SINK
+## Set look: the flowing tail ribbons (every segment pivot with its wave phase),
+## the wing afterimages (one shared fading material), the emerald light, the beak tip.
+var _ribbons: Array[Node3D] = []
+var _ribbon_phase: PackedFloat32Array = PackedFloat32Array()
+var _ghosts: Array[Node3D] = []
+var _ghost_hands: Array[Node3D] = []
+var _ghost_mat: StandardMaterial3D
+var _flap_amp := 0.0
+var _light: OmniLight3D
+var _beak: Node3D
 
 
 ## Gives `owner_node` a raven (once) and returns it.
@@ -163,11 +195,13 @@ func _ready() -> void:
 
 
 ## Which look a weapon gives the raven: the scepter's tier (Lv.50-90 themes, the
-## Lv.100 crown), a star scepter's tier, or the divine scepter.
+## Lv.100 crown), a star scepter's tier, the divine scepter or the set scepter.
 static func look_for(weapon: Variant) -> int:
 	if not (weapon is Dictionary) or (weapon as Dictionary).is_empty():
 		return Look.PLAIN
-	if DivineGearData.is_item(weapon) or SetGearData.is_item(weapon):
+	if SetGearData.is_item(weapon):
+		return Look.ABYSS
+	if DivineGearData.is_item(weapon):
 		return Look.DIVINE
 	if StarGearData.is_star(weapon):
 		return Look.STAR_50 + StarGearData.index(int(weapon.star_tier))
@@ -231,8 +265,17 @@ static func palette(p_look: int) -> Dictionary:
 		Look.DIVINE:
 			p.merge({"black": Color("0e0a10"), "sheen": Color("2a1420"), "edge": Color("f2c45a"), "tip": Color("ffd870"),
 				"dark": Color("08060a"), "beak": Color("1a1418"), "eye": Color("b06bff"), "covert": Color("e8b64a"),
-				"second": Color("1c1418"), "glow": 1.2, "size": 1.24, "rim": true, "fx": "divine", "dust": 18,
+				"second": Color("1c1418"), "glow": 1.2, "size": DIVINE_SIZE, "rim": true, "fx": "divine", "dust": 18,
 				"dust_a": Color("ffd870"), "dust_b": Color("b06bff"), "accent": Color("e8b64a")}, true)
+		Look.ABYSS:
+			# The Abyss Emperor set (SetGearData "darklord"): obsidian, its emerald glow and gem.
+			var s := SetGearData.palette("darklord")
+			var horn: Color = s.dark
+			p.merge({"black": Color("0a0810"), "sheen": Color("1d1532"), "edge": s.glow, "tip": s.gem,
+				"dark": Color("050408"), "beak": Color("15121c"), "feet": Color("26222e"), "eye": Color("4dff2e"),
+				"covert": Color("181022"), "second": Color("0e0a16"), "glow": 1.1, "size": DIVINE_SIZE * SET_SIZE, "rim": true,
+				"fx": "abyss", "dust": 22, "dust_a": s.gem, "dust_b": s.edge, "dust_size": 0.2, "dust_sink": -0.45,
+				"accent": s.glow, "metal": s.metal, "cloth": s.cloth, "pale": s.edge, "horn": horn.lightened(0.14)}, true)
 	_palettes[p_look] = p
 	return p
 
@@ -282,6 +325,13 @@ func _rebuild() -> void:
 	_fx_scale.clear()
 	_fx_at.clear()
 	_glow = null
+	_ribbons.clear()
+	_ribbon_phase.clear()
+	_ghosts.clear()
+	_ghost_hands.clear()
+	_ghost_mat = null
+	_light = null
+	_beak = null
 	_build()
 	_animate(0.0, "perch" if state == State.PERCH else "glide")
 
@@ -294,8 +344,26 @@ func _lord() -> Node3D:
 func _perch(lord: Node3D) -> Vector3:
 	var visual := _visual(lord)
 	if visual != null:
-		return visual.perch_point()
+		var at := visual.perch_point()
+		if look == Look.ABYSS:
+			# The big bird stands further out to the side of the arm, clear of the Lord.
+			var side := visual.global_basis.x.normalized()
+			at += side * signf((at - visual.global_position).dot(side)) * PERCH_OUT
+		return at
 	return lord.global_position + Vector3(-0.35, 1.2, 0.25)
+
+
+## How much further than the divine raven this bird circles and reaches (1 up to
+## the divine look, SET_SIZE for the set raven).
+func reach() -> float:
+	return maxf(1.0, _scale / DIVINE_SIZE)
+
+
+## Where a strike leaves the bird: its beak tip (the body without one).
+func strike_point() -> Vector3:
+	if _beak != null and is_instance_valid(_beak) and _beak.is_inside_tree():
+		return _beak.global_position
+	return global_position
 
 
 ## True when this strike should tear into the pack rather than one monster.
@@ -366,24 +434,26 @@ func _process(delta: float) -> void:
 ## Circles over the target on spread wings and stoops on it every STRIKE_EVERY seconds.
 func _fight(lord: Node3D, target: Mob, delta: float) -> void:
 	_strike_timer -= delta
-	_orbit += delta * 2.4
+	var k := reach()
+	_orbit += delta * 2.4 / k
 	var center := target.global_position + Vector3(0, 1.0, 0)
-	var goal := center + Vector3(cos(_orbit) * 1.6, 1.6, sin(_orbit) * 1.6)
+	var goal := center + Vector3(cos(_orbit) * 1.6 * k, 1.6 * k, sin(_orbit) * 1.6 * k)
 	var pose := "glide"
 	if _strike_timer <= 0.0:
 		# The stoop: wings folded, straight at the target's body, talons out on contact.
 		_dive += delta * 4.0
 		goal = target.hit_point() if target.has_method("hit_point") else center
-		pose = "strike" if global_position.distance_to(goal) < 1.0 else "stoop"
-		if global_position.distance_to(goal) < 0.45 or _dive > 1.0:
+		pose = "strike" if global_position.distance_to(goal) < 1.0 * k else "stoop"
+		if global_position.distance_to(goal) < 0.45 * k or _dive > 1.0:
 			var group := strikes_pack(target)
-			var from := global_position
+			var from := strike_point()
 			lord.call("raven_strike", target, group)
 			_strike_timer = STRIKE_EVERY
 			_dive = 0.0
 			_retarget = 0.0
-			LordSkillArt.raven_peck(target.get_parent() as Node3D, goal, from, group, GROUP_RADIUS)
-	_fly_to(goal, delta, SPEED * (1.5 if _strike_timer <= 0.0 else 0.8))
+			LordSkillArt.raven_peck(target.get_parent() as Node3D, goal, from, group, GROUP_RADIUS,
+				LordSkillArt.ABYSS if look == Look.ABYSS else LordSkillArt.FORCE)
+	_fly_to(goal, delta, SPEED * (1.5 if _strike_timer <= 0.0 else 0.8) * sqrt(k))
 	_bank = lerpf(_bank, 28.0 if _strike_timer > 0.0 else 0.0, minf(1.0, delta * 4.0))
 	_animate(delta, pose)
 
@@ -443,6 +513,22 @@ func _animate(delta: float, pose: String) -> void:
 		# it back along the body: the flight feathers end at the tail.
 		_wings[i].rotation = Vector3(-1.45 * fold, side * 1.38 * fold, side * (flap + 0.18 * _spread + breathe))
 		_hands[i].rotation = Vector3(0, side * 0.12 * fold, side * (sin(_flap - 0.7) * flap_amp * 0.6 * _spread))
+	_flap_amp = lerpf(_flap_amp, flap_amp, blend)
+	if _ghost_mat != null:
+		# The afterimage: the same wing a beat behind, fading in with the strength of the beat.
+		var fade := clampf(_flap_amp * _spread * 1.3, 0.0, 1.0)
+		_ghost_mat.albedo_color.a = 0.3 * fade
+		for i in _ghosts.size():
+			var side := -1.0 if i == 0 else 1.0
+			var fold := 1.0 - _spread
+			_ghosts[i].visible = fade > 0.08
+			_ghosts[i].rotation = Vector3(-1.45 * fold, side * 1.38 * fold, side * (sin(_flap - 1.15) * _flap_amp * _spread + 0.18 * _spread))
+			_ghost_hands[i].rotation = Vector3(0, 0, side * (sin(_flap - 1.85) * _flap_amp * 0.6 * _spread))
+	# The tail ribbons ripple, more when the bird is still, trailing straighter at speed.
+	var ripple := 0.2 - 0.08 * _spread
+	for i in _ribbons.size():
+		var ph := _ribbon_phase[i]
+		_ribbons[i].rotation = Vector3(sin(_clock * 2.1 - ph * 0.8) * ripple * 0.6 - 0.04, sin(_clock * 2.6 - ph) * ripple, 0)
 	for i in _tail_feathers.size():
 		_tail_feathers[i].rotation.y = (float(i) - 2.0) * deg_to_rad(4.0 + 8.0 * _spread)
 	_tail.rotation_degrees.x = 10.0 * (1.0 - _spread) - 6.0 * _spread
@@ -452,7 +538,7 @@ func _animate(delta: float, pose: String) -> void:
 		foot.rotation_degrees.x = -_pitch + 70.0 * maxf(0.0, -_legs) - 75.0 * maxf(0.0, _legs)
 	var fierce := pose == "stoop" or pose == "strike"
 	if _eyes:
-		_eyes.emission_energy_multiplier = (2.6 if fierce else 1.3) * (1.4 if look == Look.DIVINE else 1.0)
+		_eyes.emission_energy_multiplier = (2.6 if fierce else 1.3) * (1.4 if look == Look.DIVINE else (1.7 if look == Look.ABYSS else 1.0))
 	_animate_look(delta, fierce)
 
 
@@ -460,6 +546,8 @@ func _animate(delta: float, pose: String) -> void:
 func _animate_look(delta: float, fierce: bool) -> void:
 	if _glow != null:
 		_glow.emission_energy_multiplier = _glow_energy * (1.0 + 0.22 * sin(_clock * 3.1)) * (1.35 if fierce else 1.0)
+	if _light != null:
+		_light.light_energy = 0.55 * (1.0 + 0.2 * sin(_clock * 3.1)) * (1.5 if fierce else 1.0)
 	for i in _fx.size():
 		var node := _fx[i]
 		var phase := _fx_phase[i]
@@ -481,6 +569,14 @@ func _animate_look(delta: float, fierce: bool) -> void:
 				node.rotation.y = _clock * 0.9
 			Fx.TWINKLE:
 				node.scale = base * (0.6 + 0.5 * maxf(0.0, sin(_clock * 4.0 + phase)))
+			Fx.ORBIT:
+				# Drawn in close round the folded bird, opening out with the wings.
+				node.rotation.y = phase + _clock * (0.7 if phase >= 0.0 else -0.45)
+				node.position.y = _fx_at[i].y + sin(_clock * 1.7 + phase) * 0.02
+				node.scale = base * (0.62 + 0.38 * _spread)
+			Fx.SHARD:
+				node.position = _fx_at[i] + Vector3(0, sin(_clock * 2.3 + phase) * 0.035, 0)
+				node.rotation.y = _clock * 1.9 + phase
 	if _dust != null:
 		_update_dust(delta)
 	elif _wants_dust:
@@ -498,7 +594,12 @@ func _update_dust(delta: float) -> void:
 	_dust_timer -= delta
 	if _dust_timer <= 0.0 and _tail != null:
 		_dust_timer = DUST_LIFE / float(n) * (1.6 if state == State.PERCH else 1.0)
-		_dust_at[_dust_head] = _tail.global_transform * Vector3(0, 0, -0.3)
+		var from := _tail.global_transform * Vector3(0, 0, -0.3)
+		if look == Look.ABYSS and _hands.size() == 2 and _dust_head % 3 != 0:
+			# The set raven sheds motes from both wing tips as well as the tail.
+			var side := -1.0 if _dust_head % 3 == 1 else 1.0
+			from = _hands[(_dust_head % 3) - 1].global_transform * Vector3(side * 0.42, 0, -0.12)
+		_dust_at[_dust_head] = from
 		_dust_born[_dust_head] = _clock
 		_dust_head = (_dust_head + 1) % n
 	for i in n:
@@ -507,7 +608,7 @@ func _update_dust(delta: float) -> void:
 			multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ONE * 0.0001), _dust_at[i]))
 			continue
 		var k := float(i)
-		var pos := _dust_at[i] + Vector3(sin(k * 2.1 + _clock * 3.0) * 0.06 * t, -DUST_SINK * t * t, cos(k * 1.3 + _clock * 2.0) * 0.06 * t)
+		var pos := _dust_at[i] + Vector3(sin(k * 2.1 + _clock * 3.0) * 0.06 * t, -_dust_sink * t * t, cos(k * 1.3 + _clock * 2.0) * 0.06 * t)
 		var s := _dust_size * (1.0 - t * 0.8) * (0.75 + 0.35 * sin(_clock * 11.0 + k * 1.7))
 		multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), pos))
 		var c := _dust_colors[i % 2]
@@ -548,7 +649,8 @@ func _make_dust(p: Dictionary) -> void:
 	_dust_born.resize(n)
 	_dust_born.fill(-100.0)
 	var star := int(p.get("star", 2))
-	_dust_size = (0.26 + 0.05 * star) * _scale
+	_dust_size = float(p.get("dust_size", 0.26 + 0.05 * star)) * _scale
+	_dust_sink = float(p.get("dust_sink", DUST_SINK))
 	_dust_colors = PackedColorArray([p.dust_a, p.dust_b])
 	_dust_head = 0
 	_dust_timer = 0.0
@@ -576,6 +678,7 @@ func _build() -> void:
 	var fx: String = p.fx
 	var rim: bool = p.rim
 	var glow: float = p.glow
+	var abyss := fx == "abyss"
 	_scale = float(p.size)
 	_root = Node3D.new()
 	_root.name = "Raven"
@@ -588,8 +691,8 @@ func _build() -> void:
 	var edge := _mat(p.edge, rim, glow * 0.3)
 	var dark := _mat(p.dark, rim)
 	var beak := _mat(p.beak, rim)
-	var feet := MeshKit.toon(p.feet)
-	var gold := MeshKit.toon(p.accent, {"emission": 0.15})
+	var feet := MeshKit.toon(p.feet, {"rim": true} if abyss else {})
+	var gold := MeshKit.toon(p.accent, {"emission": 0.15 if not abyss else 0.9})
 	var jess := MeshKit.toon(Color("a01e30"))
 	var tip := _mat(p.tip, rim)
 	if glow > 0.0 and fancy:
@@ -597,6 +700,11 @@ func _build() -> void:
 		_glow_energy = glow
 		tip = _glow
 	_eyes = (MeshKit.toon(p.eye, {"emission": 1.3}) as StandardMaterial3D).duplicate()
+	if abyss:
+		# Edge and tip glow at every quality on the set bird (the colour is its plumage).
+		edge = MeshKit.toon(p.edge, {"rim": true, "emission": glow * (0.45 if fancy else 0.25)})
+		if _glow == null:
+			tip = MeshKit.toon(p.tip, {"emission": 0.6})
 	_body = Node3D.new()
 	_body.name = "Body"
 	_body.position = Vector3(0, 0.2, 0)
@@ -621,15 +729,19 @@ func _build() -> void:
 	for k in 3:
 		_piece(_head, MeshKit.cone(), black, Vector3((float(k) - 1.0) * 0.04, -0.07, 0.07), Vector3(0.05, 0.08, 0.04), Vector3(160, 0, (float(k) - 1.0) * 12.0))
 	# Brows over glowing eyes (gold brows on the emperor).
-	var brow := gold if fx == "divine" else dark
+	var brow := gold if fx in ["divine", "abyss"] else dark
 	for side in [-1.0, 1.0]:
 		_piece(_head, MeshKit.box(), brow, Vector3(side * 0.07, 0.075, 0.075), Vector3(0.07, 0.022, 0.06), Vector3(0, 0, side * -18.0))
-		_piece(_head, MeshKit.sphere_low(), _eyes, Vector3(side * 0.078, 0.04, 0.08), Vector3(0.045, 0.045, 0.04) * (1.25 if fx == "divine" else 1.0))
+		_piece(_head, MeshKit.sphere_low(), _eyes, Vector3(side * 0.078, 0.04, 0.08), Vector3(0.045, 0.045, 0.04) * (1.25 if fx in ["divine", "abyss"] else 1.0))
 	# The heavy beak: a thick base, a long ridge curving down to the tip, a lower mandible.
 	_piece(_head, MeshKit.sphere_low(), beak, Vector3(0, 0.01, 0.12), Vector3(0.085, 0.075, 0.08))
 	_piece(_head, MeshKit.cone(), beak, Vector3(0, 0.012, 0.19), Vector3(0.07, 0.15, 0.06), Vector3(96, 0, 0))
 	_piece(_head, MeshKit.cone(), beak, Vector3(0, -0.018, 0.17), Vector3(0.05, 0.1, 0.04), Vector3(84, 0, 0))
-	_piece(_head, MeshKit.cone(), gold if fx in ["holy", "divine"] else beak, Vector3(0, -0.006, 0.262), Vector3(0.025, 0.035, 0.02), Vector3(150, 0, 0))
+	_piece(_head, MeshKit.cone(), gold if fx in ["holy", "divine", "abyss"] else beak, Vector3(0, -0.006, 0.262), Vector3(0.025, 0.035, 0.02), Vector3(150, 0, 0))
+	_beak = Node3D.new()
+	_beak.name = "BeakTip"
+	_beak.position = Vector3(0, -0.006, 0.27)
+	_head.add_child(_beak)
 	# Wings.
 	for side in [-1.0, 1.0]:
 		var wing := Node3D.new()
@@ -649,14 +761,16 @@ func _build() -> void:
 		_piece(hand, MeshKit.sphere_low(), covert, Vector3(side * 0.04, 0.0, -0.03), Vector3(0.16, 0.026, 0.19))
 		if look != Look.PLAIN:
 			_piece(hand, MeshKit.sphere_low(), edge, Vector3(side * 0.05, 0.008, 0.055), Vector3(0.14, 0.022, 0.04))
-		# The five fingered flight feathers, the look's colour towards the tips.
-		for k in 5:
-			var ang: float = side * (4.0 - k * 15.0)
+		# The five fingered flight feathers, the look's colour towards the tips (the
+		# set bird spreads seven longer ones).
+		var primaries := 7 if abyss else 5
+		for k in primaries:
+			var ang: float = side * ((10.0 - k * 11.0) if abyss else (4.0 - k * 15.0))
 			var feather := Node3D.new()
-			feather.position = Vector3(side * 0.05, -0.004 * k, -0.01 - k * 0.035)
+			feather.position = Vector3(side * 0.05, -0.004 * k, -0.01 - k * (0.03 if abyss else 0.035))
 			feather.rotation_degrees = Vector3(0, ang, 0)
 			hand.add_child(feather)
-			var length := 0.42 - k * 0.04
+			var length := (0.58 - k * 0.035) if abyss else (0.42 - k * 0.04)
 			_piece(feather, MeshKit.sphere_low(), dark if k % 2 == 0 else black, Vector3(side * length * 0.5, 0, 0), Vector3(length, 0.016, 0.105))
 			_piece(feather, MeshKit.sphere_low(), tip, Vector3(side * (length - 0.07), 0.003, 0), Vector3(0.12, 0.017, 0.08))
 			_feather_extra(feather, fx, side, length, k)
@@ -671,7 +785,7 @@ func _build() -> void:
 	for k in 5:
 		var feather := Node3D.new()
 		_tail.add_child(feather)
-		var length := 0.36 - absf(float(k) - 2.0) * 0.05
+		var length := 0.36 - absf(float(k) - 2.0) * 0.05 + (0.14 if abyss else 0.0)
 		_piece(feather, MeshKit.sphere_low(), black if k != 2 else sheen, Vector3(0, -0.002 * absf(k - 2.0), -length * 0.5), Vector3(0.08, 0.016, length))
 		_piece(feather, MeshKit.sphere_low(), tip, Vector3(0, 0.001, -length + 0.06), Vector3(0.07, 0.017, 0.1))
 		_tail_extra(feather, fx, length, k)
@@ -697,6 +811,9 @@ func _build() -> void:
 			_piece(foot, MeshKit.box(), jess, Vector3(0.0, -0.12, -0.03), Vector3(0.018, 0.09, 0.008), Vector3(14, 0, 0))
 		_feet.append(foot)
 	_head_extra(fx, p)
+	if abyss:
+		_abyss_extras(p, edge)
+		_bake()
 	_wants_dust = fancy and int(p.dust) > 0
 	if _wants_dust:
 		_make_dust(p)
@@ -707,6 +824,11 @@ func _feather_extra(feather: Node3D, fx: String, side: float, length: float, k: 
 	if fx == "ice" and k % 2 == 0:
 		# Ice crystals are part of the plumage, kept at every quality.
 		_piece(feather, MeshKit.prism(), _ice(), Vector3(side * (length - 0.02), 0.01, 0.02), Vector3(0.035, 0.09, 0.02), Vector3(0, 0, -side * 70.0))
+	if fx == "abyss":
+		# A luminous emerald vane down each flight feather's trailing edge.
+		_piece(feather, MeshKit.sphere_low(), _mat(DarkRaven.palette(look).edge, true, 1.1), Vector3(side * length * 0.56, 0.009, -0.036), Vector3(length * 0.86, 0.012, 0.022))
+		if fancy and k % 3 == 0:
+			_add_fx(Fx.TWINKLE, _piece(feather, MeshKit.sphere_low(), _flame(DarkRaven.palette(look).pale), Vector3(side * (length - 0.02), 0.014, 0), Vector3(0.026, 0.026, 0.026)), k * 1.1 + side)
 	if not fancy:
 		return
 	match fx:
@@ -746,6 +868,22 @@ func _wing_extra(wing: Node3D, hand: Node3D, fx: String, side: float) -> void:
 		"divine":
 			_piece(wing, MeshKit.sphere_low(), _mat(Color("fff0b0"), true, 0.4), Vector3(side * 0.2, 0.02, 0.085), Vector3(0.38, 0.024, 0.028))
 			_piece(hand, MeshKit.sphere_low(), _mat(Color("e8b64a"), true, 0.2), Vector3(side * 0.03, 0.012, -0.02), Vector3(0.12, 0.02, 0.1))
+		"abyss":
+			var p := DarkRaven.palette(look)
+			var bright := MeshKit.toon(p.pale, {"rim": true, "emission": 0.9})
+			var glow := MeshKit.toon(p.edge, {"rim": true, "emission": 0.7})
+			var scale_mat := _mat(p.sheen, true)
+			# A bright leading edge, a second layer of scale-like coverts each rimmed in
+			# emerald, and glowing tips on the secondaries.
+			_piece(wing, MeshKit.sphere_low(), bright, Vector3(side * 0.21, 0.022, 0.088), Vector3(0.42, 0.026, 0.03))
+			for k in 4:
+				var x := side * (0.06 + k * 0.095)
+				_piece(wing, MeshKit.sphere_low(), scale_mat, Vector3(x, 0.024, 0.01), Vector3(0.13, 0.032, 0.15), Vector3(0, side * -10.0, 0))
+				_piece(wing, MeshKit.sphere_low(), glow, Vector3(x, 0.022, -0.062), Vector3(0.12, 0.02, 0.028), Vector3(0, side * -10.0, 0))
+			for k in 6:
+				_piece(wing, MeshKit.sphere_low(), glow, Vector3(side * (0.04 + k * 0.066), -0.004, -0.255), Vector3(0.1, 0.02, 0.05), Vector3(0, side * -6.0, 0))
+			_piece(hand, MeshKit.sphere_low(), bright, Vector3(side * 0.06, 0.014, 0.06), Vector3(0.16, 0.022, 0.026))
+			_piece(hand, MeshKit.sphere_low(), glow, Vector3(side * 0.04, 0.012, -0.08), Vector3(0.14, 0.02, 0.03))
 
 
 ## Extras on a tail feather.
@@ -763,6 +901,9 @@ func _tail_extra(feather: Node3D, fx: String, length: float, k: int) -> void:
 		"thunder":
 			if fancy and k == 2:
 				_add_fx(Fx.GLINT, _bolt(feather, Vector3(0, 0.012, -length * 0.6), 1.0, 0.16, true), 0.81)
+		"abyss":
+			# An emerald quill down every tail feather (the ribbons are _abyss_extras).
+			_piece(feather, MeshKit.sphere_low(), _mat(DarkRaven.palette(look).edge, true, 1.0), Vector3(0, 0.006, -length * 0.55), Vector3(0.018, 0.012, length * 0.8))
 		"holy", "star", "divine":
 			# The middle pair grows long streamers.
 			if (k == 1 or k == 3) and (fx != "star" or int(DarkRaven.palette(look).get("star", 0)) >= 2):
@@ -802,6 +943,8 @@ func _head_extra(fx: String, p: Dictionary) -> void:
 				for k in 3:
 					var off := float(k) - 1.0
 					_piece(_head, MeshKit.sphere_low(), _mat(p.tip, true, 1.0), Vector3(off * 0.03, 0.13 - absf(off) * 0.015, -0.08), Vector3(0.022, 0.016, 0.18 - absf(off) * 0.04), Vector3(-34, off * 16.0, 0))
+		"abyss":
+			_abyss_crown(p)
 		"divine":
 			if fancy:
 				for side in [-1.0, 1.0]:
@@ -816,6 +959,260 @@ func _head_extra(fx: String, p: Dictionary) -> void:
 				_piece(halo, MeshKit.sphere_low(), _mat(Color("b06bff"), false, 1.3), Vector3(sin(a) * 0.132, 0, cos(a) * 0.132), Vector3(0.026, 0.026, 0.026))
 			if fancy:
 				_add_fx(Fx.RING, halo, 0.0)
+
+
+## The set raven's crown: two abyss horns sweeping back from the brow (the set's
+## sigil), each with an emerald flame along its inner curve, a dark circlet with
+## three emerald spikes round a hellfire gem, a crest of three long glowing plumes,
+## and (rich) emerald fire over the eyes.
+func _abyss_crown(p: Dictionary) -> void:
+	var horn := _mat(p.horn, true)
+	var glow := MeshKit.toon(p.edge, {"rim": true, "emission": 1.2})
+	var gem := MeshKit.toon(p.tip, {"unshaded": true, "emission": 2.0})
+	var metal := _mat(p.metal, true)
+	for side in [-1.0, 1.0]:
+		var pts := [Vector3(side * 0.06, 0.1, 0.03), Vector3(side * 0.13, 0.15, 0.0), Vector3(side * 0.18, 0.2, -0.07),
+			Vector3(side * 0.175, 0.235, -0.15), Vector3(side * 0.13, 0.245, -0.23)]
+		var widths := [0.072, 0.06, 0.046, 0.034]
+		for k in 4:
+			_segment(_head, MeshKit.cone() if k == 3 else MeshKit.cylinder(), horn, pts[k], pts[k + 1], widths[k])
+		for k in 3:
+			var inward := Vector3(-side * 0.016, 0.004, 0.012)
+			_segment(_head, MeshKit.cone() if k == 2 else MeshKit.cylinder(), glow, pts[k] + inward, pts[k + 1] + inward, 0.016 if k < 2 else 0.012)
+	_piece(_head, MeshKit.torus(), metal, Vector3(0, 0.112, 0.0), Vector3(0.21, 0.16, 0.24), Vector3(-12, 0, 0))
+	_piece(_head, MeshKit.cone(), glow, Vector3(0, 0.17, 0.085), Vector3(0.03, 0.09, 0.03), Vector3(14, 0, 0))
+	for side in [-1.0, 1.0]:
+		_piece(_head, MeshKit.cone(), glow, Vector3(side * 0.06, 0.15, 0.06), Vector3(0.022, 0.06, 0.022), Vector3(10, 0, side * -14.0))
+	_piece(_head, MeshKit.box(), gem, Vector3(0, 0.122, 0.112), Vector3(0.042, 0.042, 0.02), Vector3(-12, 0, 45))
+	for k in 3:
+		var off := float(k) - 1.0
+		_piece(_head, MeshKit.sphere_low(), _mat(p.sheen, true), Vector3(off * 0.032, 0.125 - absf(off) * 0.015, -0.1), Vector3(0.03, 0.02, 0.26 - absf(off) * 0.05), Vector3(-30, off * 15.0, 0))
+		_piece(_head, MeshKit.sphere_low(), glow, Vector3(off * 0.045, 0.165 - absf(off) * 0.015, -0.21), Vector3(0.028, 0.016, 0.1), Vector3(-30, off * 15.0, 0))
+	if fancy:
+		for side in [-1.0, 1.0]:
+			_add_fx(Fx.FLAME, _piece(_head, MeshKit.cone(), _flame(p.edge), Vector3(side * 0.09, 0.085, 0.065), Vector3(0.045, 0.13, 0.03), Vector3(-40, 0, side * -32.0)), side * 1.9)
+
+
+## The rest of the set raven: the hellfire sigil on the breast and emerald lines
+## along the flanks, the three tail ribbons (every quality), and when rich the
+## wing afterimages, the turning rune ring with its floating shards and the light.
+func _abyss_extras(p: Dictionary, edge: Material) -> void:
+	var horn := _mat(p.horn, true)
+	var gem := MeshKit.toon(p.tip, {"unshaded": true, "emission": 2.0})
+	_piece(_body, MeshKit.box(), gem, Vector3(0, -0.02, 0.29), Vector3(0.06, 0.06, 0.026), Vector3(-20, 0, 45))
+	# An emerald ruff of hackles round the neck, under the head.
+	for k in 7:
+		var a := PI * (float(k) / 6.0 - 0.5) * 1.5
+		_piece(_body, MeshKit.cone(), edge, Vector3(sin(a) * 0.12, 0.09 + cos(a) * 0.03, 0.2 + cos(a) * 0.03), Vector3(0.04, 0.1, 0.03), Vector3(-95, 0, -rad_to_deg(a) * 0.8))
+	for side in [-1.0, 1.0]:
+		_segment(_body, MeshKit.cylinder(), horn, Vector3(side * 0.04, -0.06, 0.28), Vector3(side * 0.085, 0.0, 0.26), 0.022)
+		_segment(_body, MeshKit.cone(), horn, Vector3(side * 0.085, 0.0, 0.26), Vector3(side * 0.07, 0.06, 0.24), 0.02)
+		# Emerald-rimmed scales down the back, in chevrons.
+		for k in 3:
+			_piece(_body, MeshKit.sphere_low(), edge, Vector3(side * 0.045, 0.165 - k * 0.012, 0.1 - k * 0.11), Vector3(0.016, 0.014, 0.12 - k * 0.015), Vector3(0, side * 32.0, 0))
+		for k in 2:
+			_piece(_body, MeshKit.sphere_low(), edge, Vector3(side * (0.14 - k * 0.012), 0.03 - k * 0.06, -0.04 - k * 0.06), Vector3(0.016, 0.024, 0.26 - k * 0.06), Vector3(0, side * 6.0, 0))
+	# Three long ribbons stream from the tail, the middle one longest, each a chain of
+	# pivots (rippled in _animate) of dark cloth with an emerald core and a gem at the end.
+	var cloth := _mat(p.cloth, true)
+	var core := MeshKit.toon(p.edge, {"rim": true, "emission": 1.0})
+	for r in 3:
+		var off := float(r) - 1.0
+		var parent: Node3D = _tail
+		var segments := 7 if r == 1 else 6
+		var seg := 0.13 if r == 1 else 0.115
+		for j in segments:
+			var pivot := Node3D.new()
+			pivot.position = Vector3(off * 0.035, -0.012, -0.12) if j == 0 else Vector3(0, 0, -seg)
+			if j == 0:
+				pivot.rotation_degrees.y = off * 14.0
+			parent.add_child(pivot)
+			var w := lerpf(0.075, 0.035, float(j) / float(segments - 1))
+			_piece(pivot, MeshKit.sphere_low(), cloth, Vector3(0, 0, -seg * 0.5), Vector3(w, 0.008, seg * 1.3))
+			_piece(pivot, MeshKit.sphere_low(), core, Vector3(0, 0.003, -seg * 0.5), Vector3(w * 0.32, 0.01, seg * 1.25))
+			_ribbons.append(pivot)
+			_ribbon_phase.append(float(j) * 0.9 + float(r) * 1.3)
+			parent = pivot
+		_piece(parent, MeshKit.box(), gem, Vector3(0, 0, -seg - 0.02), Vector3(0.045, 0.01, 0.045), Vector3(0, 45, 0))
+	if not fancy:
+		return
+	# The wing afterimages: emerald silhouettes of arm and hand a beat behind the wing.
+	_ghost_mat = (MeshKit.toon(p.edge, {"unshaded": true, "alpha": 0.3}) as StandardMaterial3D).duplicate()
+	_ghost_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_ghost_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	for side in [-1.0, 1.0]:
+		var ghost := Node3D.new()
+		ghost.name = "WingGhost"
+		ghost.position = Vector3(side * 0.12, 0.08, 0.08)
+		ghost.visible = false
+		_body.add_child(ghost)
+		_piece(ghost, MeshKit.sphere_low(), _ghost_mat, Vector3(side * 0.21, -0.01, -0.08), Vector3(0.46, 0.01, 0.38))
+		var hand := Node3D.new()
+		hand.position = Vector3(side * 0.4, 0, 0)
+		ghost.add_child(hand)
+		for k in 3:
+			var feather := Node3D.new()
+			feather.position = Vector3(side * 0.05, 0, -0.02 - k * 0.07)
+			feather.rotation_degrees.y = side * (8.0 - k * 26.0)
+			hand.add_child(feather)
+			_piece(feather, MeshKit.sphere_low(), _ghost_mat, Vector3(side * 0.27, -0.01, 0), Vector3(0.6 - k * 0.06, 0.01, 0.17))
+		_ghosts.append(ghost)
+		_ghost_hands.append(hand)
+	# The rune ring round the bird, level, turning; five shards counter-turning outside it.
+	var ring := Node3D.new()
+	ring.name = "RuneRing"
+	ring.position = Vector3(0, 0.24, -0.02)
+	_root.add_child(ring)
+	var band := MeshKit.toon(p.edge, {"unshaded": true, "alpha": 0.7, "emission": 1.4})
+	_piece(ring, MeshKit.torus(), band, Vector3.ZERO, Vector3(1.2, 0.12, 1.2))
+	for k in 8:
+		var a := TAU * float(k) / 8.0
+		_piece(ring, MeshKit.box(), gem, Vector3(sin(a), 0.0, cos(a)) * 0.6, Vector3(0.03, 0.022, 0.07), Vector3(0, rad_to_deg(a), 0))
+	_add_fx(Fx.ORBIT, ring, 0.0)
+	var shards := Node3D.new()
+	shards.name = "RuneShards"
+	shards.position = ring.position
+	_root.add_child(shards)
+	for k in 5:
+		var a := TAU * float(k) / 5.0
+		var shard := Node3D.new()
+		shard.position = Vector3(sin(a), 0.05 * sin(a * 2.0), cos(a)) * 0.78
+		shards.add_child(shard)
+		_piece(shard, MeshKit.prism(), gem, Vector3(0, 0.04, 0), Vector3(0.05, 0.09, 0.05))
+		_piece(shard, MeshKit.prism(), gem, Vector3(0, -0.025, 0), Vector3(0.05, 0.05, 0.05), Vector3(180, 0, 0))
+		_add_fx(Fx.SHARD, shard, float(k) * 1.3)
+	_add_fx(Fx.ORBIT, shards, -0.01)
+	# A soft emerald light (desktop, high quality, no memory pressure, a light free).
+	if not MemoryGuard.phone() and VfxBudget.can_light():
+		_light = OmniLight3D.new()
+		_light.name = "AbyssLight"
+		_light.light_color = p.edge
+		_light.light_energy = 0.55
+		_light.omni_range = 2.2
+		_light.position = Vector3(0, 0.22, 0)
+		_root.add_child(_light)
+		VfxBudget.track_light(_light)
+
+
+## Merges the set raven's static parts: under each moving pivot (body, head, wings,
+## hands, legs, tail feathers, ribbon segments, afterimages, the extras that move)
+## every part of one material becomes one mesh, so the grand bird costs about as
+## many draws as the emperor raven. The merged meshes are cached (_baked).
+func _bake() -> void:
+	var pivots: Array[Node3D] = [_root, _body, _head, _tail]
+	pivots.append_array(_wings)
+	pivots.append_array(_hands)
+	pivots.append_array(_feet)
+	pivots.append_array(_tail_feathers)
+	pivots.append_array(_ribbons)
+	pivots.append_array(_ghosts)
+	pivots.append_array(_ghost_hands)
+	pivots.append_array(_fx)
+	if _beak != null:
+		pivots.append(_beak)
+	var moving := {}
+	for pivot in pivots:
+		moving[pivot] = true
+	for i in pivots.size():
+		var pivot := pivots[i]
+		var parts: Array[MeshInstance3D] = []
+		var places: Array[Transform3D] = []
+		_gather(pivot, Transform3D.IDENTITY, moving, parts, places)
+		var groups: Array[Material] = []
+		var group_of := PackedInt32Array()
+		for part in parts:
+			if not groups.has(part.material_override):
+				groups.append(part.material_override)
+			group_of.append(groups.find(part.material_override))
+		for g in groups.size():
+			var mat := groups[g]
+			var picked: Array[int] = []
+			for k in parts.size():
+				if group_of[k] == g:
+					picked.append(k)
+			if picked.size() < 2:
+				continue
+			var key := "%d|%d|%d|%d" % [look, int(fancy), i, g]
+			if not _baked.has(key):
+				if _baked.size() >= BAKE_LIMIT:
+					_baked.erase(_baked.keys()[0])
+				_baked[key] = _merge(parts, places, picked)
+			var merged := MeshInstance3D.new()
+			merged.name = "Baked"
+			merged.mesh = _baked[key]
+			merged.material_override = mat
+			merged.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			pivot.add_child(merged)
+			for k in picked:
+				parts[k].free()
+	_prune(_root, moving)
+
+
+## The static parts under [param node] down to the next moving pivot, with their
+## places relative to the pivot.
+func _gather(node: Node, at: Transform3D, moving: Dictionary, parts: Array[MeshInstance3D], places: Array[Transform3D]) -> void:
+	for child in node.get_children():
+		if moving.has(child) or not (child is Node3D):
+			continue
+		var place := at * (child as Node3D).transform
+		if child is MeshInstance3D:
+			parts.append(child)
+			places.append(place)
+		_gather(child, place, moving, parts, places)
+
+
+## Frees the empty static holders (feather pivots) a bake has left behind.
+func _prune(node: Node, moving: Dictionary) -> void:
+	for child in node.get_children():
+		_prune(child, moving)
+		if child.get_child_count() == 0 and not moving.has(child) and child.get_class() == "Node3D":
+			child.free()
+
+
+## One mesh of the picked parts, each in its place (vertices, normals, indices).
+static func _merge(parts: Array[MeshInstance3D], places: Array[Transform3D], picked: Array[int]) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var index := PackedInt32Array()
+	for k in picked:
+		var mesh := parts[k].mesh
+		var arrays: Array = (mesh as PrimitiveMesh).get_mesh_arrays() if mesh is PrimitiveMesh else mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var place := places[k]
+		var turn := place.basis.inverse().transposed()
+		var base := verts.size()
+		for j in v.size():
+			verts.append(place * v[j])
+			normals.append((turn * n[j]).normalized() if j < n.size() else Vector3.UP)
+		var idx: Variant = arrays[Mesh.ARRAY_INDEX]
+		if idx is PackedInt32Array and not (idx as PackedInt32Array).is_empty():
+			for j in (idx as PackedInt32Array):
+				index.append(base + j)
+		else:
+			for j in v.size():
+				index.append(base + j)
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	out[Mesh.ARRAY_VERTEX] = verts
+	out[Mesh.ARRAY_NORMAL] = normals
+	out[Mesh.ARRAY_INDEX] = index
+	var merged := ArrayMesh.new()
+	merged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
+	return merged
+
+
+## A part stretched from [param a] to [param b] (its Y axis), [param width] across.
+func _segment(parent: Node3D, mesh: Mesh, mat: Material, a: Vector3, b: Vector3, width: float) -> MeshInstance3D:
+	var d := b - a
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var basis := Basis(Quaternion(Vector3.UP, d.normalized())) if d.length_squared() > 0.000001 else Basis.IDENTITY
+	mi.transform = Transform3D(basis * Basis.from_scale(Vector3(width, d.length(), width)), (a + b) * 0.5)
+	parent.add_child(mi)
+	return mi
 
 
 ## A zigzag lightning glint of three thin bars.

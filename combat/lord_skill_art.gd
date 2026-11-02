@@ -23,6 +23,8 @@ const FORCE := [Color("8a4dff"), Color("f0e2ff"), Color("140828")]
 const EMBER := [Color("ff6a2a"), Color("fff0b0"), Color("2a0805")]
 const STORM := [Color("7ab8ff"), Color("f4fbff"), Color("0a1230")]
 const BLOOD := [Color("ff3a4a"), Color("ffe0e4"), Color("2a0510")]
+## The Abyss Emperor set's emerald (SetGearData "darklord"): the set raven's strikes.
+const ABYSS := [Color("8aff5a"), Color("eaffd8"), Color("0e0818")]
 const STAR_PALETTES := {"chaos_inferno": "ember", "raven_sovereign": "force", "lords_dominion": "royal", "imperial_cataclysm": "royal"}
 const CONTACT_GAP_MS := 90
 const PECK_GAP_MS := 120
@@ -179,8 +181,9 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 ## bursting out and a dark ring; on a pack, a shockwave out to the pack's edge, a
 ## dark vortex, shadow ravens converging on the point and a burst of feathers.
 ## [param at] is the body the raven struck, [param from] where it dived from,
-## [param reach] how far round the target a group strike reaches.
-static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, reach := 3.2) -> void:
+## [param reach] how far round the target a group strike reaches, [param colors]
+## the palette (FORCE; ABYSS for the set raven, whose bite bursts emerald too).
+static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, reach := 3.2, colors: Array = FORCE) -> void:
 	if not _alive(parent) or not VfxBudget.can_decorate((4 if group else 2) + RESERVE):
 		return
 	var now := Time.get_ticks_msec()
@@ -190,16 +193,17 @@ static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, 
 	var art := _root(parent, at, "LordArt_RavenPeck")
 	art.rotation.y = _yaw(from, at)
 	art.cap = mini(art.cap, 12 if group else 8)
-	var c := FORCE
+	var c := colors
+	var bite := BLOOD if colors == FORCE else colors
 	var floor_y := -0.95
 	for k in 3:
 		var tilt := (float(k) - 1.0) * 0.32
-		art.layer("crescent", true, c if k != 1 else BLOOD, Vector3((float(k) - 1.0) * 0.12, 0.05, 0), Vector3.ONE * 1.1, Vector3(0, 0, 0.9 + tilt), 0.015 * k, 0.3, {"initial": 0.35, "roll": -7.0, "face_camera": true})
+		art.layer("crescent", true, c if k != 1 else bite, Vector3((float(k) - 1.0) * 0.12, 0.05, 0), Vector3.ONE * 1.1, Vector3(0, 0, 0.9 + tilt), 0.015 * k, 0.3, {"initial": 0.35, "roll": -7.0, "face_camera": true})
 	for k in 3:
 		var a := randf() * TAU
 		art.layer("feather", false, c, Vector3.ZERO, Vector3.ONE * 0.45, Vector3(0, a, randf_range(-1.0, 1.0)), 0.02, 0.7, {"initial": 0.9, "travel": Vector3(cos(a), 0.6 + randf() * 0.5, sin(a)) * 0.9, "roll": randf_range(-6.0, 6.0), "face_camera": true, "decay": 0.5})
 	# The talons bite: a burst of dark force where the beak lands.
-	art.layer("orb", true, BLOOD, Vector3.ZERO, Vector3.ONE * 0.7, Vector3.ZERO, 0.0, 0.25, {"initial": 0.2, "grow": 8.0, "opacity": 0.85})
+	art.layer("orb", true, bite, Vector3.ZERO, Vector3.ONE * 0.7, Vector3.ZERO, 0.0, 0.25, {"initial": 0.2, "grow": 8.0, "opacity": 0.85})
 	if not group:
 		art.layer("shock", true, c, Vector3(0, floor_y, 0), Vector3.ONE * 1.3, Vector3.ZERO, 0.02, 0.45, {"initial": 0.2, "grow": 5.0})
 		art.layer("pillar", true, c, Vector3(0, floor_y, 0), Vector3(0.4, 1.8, 0.4), Vector3.ZERO, 0.0, 0.3, {"initial": 0.3, "grow": 7.0, "opacity": 0.6})
