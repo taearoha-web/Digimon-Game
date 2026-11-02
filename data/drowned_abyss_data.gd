@@ -51,8 +51,11 @@ const MONSTERS := {
 		"color": Color("3affc8"), "tint": Color(0.4, 1.4, 1.2), "aura": Color("3affc8"), "behavior": "beam", "exp": 2.6, "gold": 3.0},
 	&"leviathan_whelp": {"name": "ลูกเลวีอาธานคลั่ง", "model": "flying/Dragon", "height": 3.7, "hover": 0.5, "hp": 6.0, "atk": 2.7, "def": 2.4, "speed": 3.2, "aggro": true, "attack": "melee", "elite": true,
 		"color": Color("2ab8ff"), "tint": Color(0.4, 0.9, 1.6), "aura": Color("2ab8ff"), "behavior": "pounce", "exp": 2.7, "gold": 3.0},
-	&"tidal_tyrant": {"name": "ทาลัสซาร์ ราชันสมุทรอสูร", "model": "summon/Poseidon", "height": 5.8, "hp": 32.0, "atk": 3.4, "def": 2.6, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true,
-		"color": Color("5cf0ff"), "tint": Color(0.55, 0.95, 1.35), "aura": Color("5cf0ff"), "behavior": "freeze_ring", "behavior2": "rift_trail", "exp": 3.4, "gold": 5.0},
+	# The summoner's Poseidon himself, grown to a boss: the same rig and clips (Attack throws
+	# a water orb, Skill1 / Skill2 cast his two legend skills, LegendMoves) and his own colours.
+	&"tidal_tyrant": {"name": "โพไซดอน ราชันสมุทรอสูร", "model": "summon/Poseidon", "height": 5.8, "hp": 32.0, "atk": 3.4, "def": 2.6, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true,
+		"color": Color("5cc8ff"), "tint": Color.WHITE, "aura": Color("5cc8ff"), "projectile": "orb", "legend": "poseidon",
+		"behavior": "maelstrom", "behavior2": "glacial_bloom", "alternate": true, "exp": 3.4, "gold": 5.0},
 }
 const NORMALS: Array[StringName] = [&"abyss_angler", &"reef_crab", &"tide_squid", &"drown_jelly", &"abyss_merman"]
 const ELITES: Array[StringName] = [&"trench_horror", &"leviathan_whelp"]

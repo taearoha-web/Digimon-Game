@@ -2,7 +2,8 @@ class_name DeepMonsterArt
 extends RefCounted
 ## The bioluminescent dressing of the ห้วงสมุทรอสูร bestiary (DrownedAbyssData):
 ## a glowing tide ring on the ground, a halo of drifting light pearls and, on
-## elites and the tyrant, a crown of glowing coral spikes. The colour is the
+## elites, a crown of glowing coral spikes (Poseidon, a legend, wears his summon's
+## aura instead, SummonAura). The colour is the
 ## template's "aura". Shared meshes and one material per colour (a finite
 ## cache); no lights, particles or per-frame scripts.
 
@@ -37,7 +38,10 @@ static func attach(visual: Node3D, template: Dictionary) -> void:
 		pearl.position = Vector3(cos(a) * h * 0.42, h * (0.35 + 0.18 * float(i % 3)), sin(a) * h * 0.42)
 		pearl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(pearl)
-	if big:
+	# A legend (Poseidon) keeps his own head and wears his summon's aura instead (SummonAura).
+	if bool(template.get("legend", "") != ""):
+		SummonAura.attach(visual, String(template.legend), {"color": color, "height": h, "hover": float(template.get("hover", 0.0))}, 5)
+	elif big:
 		for i in 7:
 			var a := TAU * float(i) / 7.0
 			var spike := MeshInstance3D.new()

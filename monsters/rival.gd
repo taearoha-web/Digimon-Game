@@ -7,6 +7,11 @@ extends Mob
 ## potions and dodge.
 
 var member: Dictionary = {}
+
+
+## Rivals and guild fighters pick their own targets, not by threat (Mob._pick_victim).
+func _pick_victim() -> Node3D:
+	return _nearest_victim()
 var difficulty := 0.0
 var class_data: Dictionary = {}
 var rstats: Dictionary = {}

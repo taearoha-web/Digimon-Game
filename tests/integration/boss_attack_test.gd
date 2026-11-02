@@ -4,7 +4,7 @@ var checks := 0
 var failures := 0
 
 const BOSSES := [&"mush_king", &"fire_dragon", &"sand_dragon", &"yeti_king", &"magma_dragon", &"bone_lord",
-	&"toad_king", &"storm_dragon", &"gold_dragon", &"abyss_dragon", &"void_emperor"]
+	&"toad_king", &"storm_dragon", &"gold_dragon", &"abyss_dragon", &"void_emperor", &"tidal_tyrant"]
 
 class Victim:
 	extends Node3D
@@ -98,7 +98,7 @@ func _ready() -> void:
 	for id in BOSSES:
 		names[MonsterData.get_monster(id).behavior] = true
 		names[MonsterData.get_monster(id).behavior2] = true
-	check(names.size() == 22, "22 distinct moves across 11 bosses")
+	check(names.size() == 24, "24 distinct moves across 12 bosses")
 	# Every field-zone boss is covered.
 	ZoneData.ensure()
 	for zone_id in ZoneData.ZONES:
@@ -180,6 +180,16 @@ func run_runtime() -> void:
 	check(boss.get_children().any(func(n): return n is BossAttack) and boss._winding, "_begin_slam dispatches to BossAttack")
 	check(boss._slam_timer == Mob.SLAM_INTERVAL, "phase 0-1 keeps the 8 s slam rhythm")
 	boss.free()
+	# The abyss boss is the summoner's Poseidon: his rig, his skills, his clips, both from the start.
+	var poseidon := make_actor(&"tidal_tyrant", target)
+	check(String(poseidon.template.model) == "summon/Poseidon" and String(poseidon.template.get("legend", "")) == "poseidon", "the abyss boss is Poseidon")
+	check(BossAttack.MOVES.maelstrom.clip == "skill1" and BossAttack.MOVES.glacial_bloom.clip == "skill2", "his moves play his Skill1 / Skill2 clips")
+	check(String(BossAttack.MOVES.maelstrom.th) == String(LegendMoves.moves("poseidon")[0].name) and String(BossAttack.MOVES.glacial_bloom.th) == String(LegendMoves.moves("poseidon")[1].name), "named like the summon's two skills")
+	var turns: Array[String] = []
+	for i in 4:
+		turns.append(BossAttack.pick(poseidon))
+	check(poseidon.phase == 0 and turns == ["glacial_bloom", "maelstrom", "glacial_bloom", "maelstrom"], "Poseidon takes turns with both skills from the start")
+	poseidon.free()
 	# A boss without a behavior keeps the generic slam.
 	var plain := make_actor(&"pink_slime", target)
 	check(not BossAttack.has_moves(plain.template), "plain monsters have no boss moves")

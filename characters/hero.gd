@@ -1377,7 +1377,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		SkillTableau.contact(field, skill, mob.hit_point(), crit)
 	else:
 		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
-	var killed := mob.take_hit(amount, crit, color)
+	var killed := mob.take_hit(amount, crit, color, self)
 	_leech(amount)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
 	var stop := HitFeel.stop_for(crit, mult if not skill.is_empty() else 0.0)
@@ -1594,7 +1594,7 @@ func _reflect(taken: int, attacker: Node) -> void:
 	if attacker is Rival:
 		share *= 0.5
 	var back := maxi(1, int(round(float(taken) * share)))
-	attacker.take_hit(back, false, Color("ffb46a"), null)
+	attacker.take_hit(back, false, Color("ffb46a"), self)
 	if attacker is Node3D:
 		VfxKit.sparks(field, (attacker as Node3D).global_position + Vector3(0, 1.0, 0), Color("ffb46a"), 8, 3.0, 0.35)
 		_reflect_flash(attacker as Node3D)

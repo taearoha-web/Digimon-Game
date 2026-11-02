@@ -249,5 +249,6 @@ func _scenery() -> void:
 	var visual := Node3D.new()
 	add_child(visual)
 	DeepMonsterArt.attach(visual, DrownedAbyssData.monster(DrownedAbyssData.BOSS))
-	check(visual.get_node_or_null("DeepAura") != null and visual.get_node("DeepAura").get_child_count() > 8, "the tyrant wears the abyss aura and coral crown")
+	check(visual.get_node_or_null("DeepAura") != null and visual.get_node("DeepAura").get_child_count() >= 7, "Poseidon wears the abyss aura")
+	check(visual.get_child_count() > 1, "and his summon's own aura, no coral crown over his head")
 	visual.free()
