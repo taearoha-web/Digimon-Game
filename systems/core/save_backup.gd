@@ -5,6 +5,10 @@ class_name SaveBackup
 ## holding a copy of every slot file and an index.json (time, reason, per-slot summary).
 ## At most KEEP_DAILY "daily" and KEEP_MANUAL other ("manual", "before-restore") folders
 ## stay; the oldest go first. maybe_daily() backs up once per real day.
+## The storage every hero shares (SharedStorage.PATH) is copied too: "restore all" puts
+## it back with the slots, restoring one hero leaves it as it is (a hero saved before
+## the shared storage brings its old storage, which SharedStorage.migrate_slots moves
+## in without the items moved before).
 ## A restored slot gets saved_at = now and RESTORED_MARKER lists the restored slots, so
 ## the web page's cloud sync (tools/web/accounts.js) sees the restored save as the newer
 ## one and asks before the online copy could replace it; the page clears the marker.
@@ -31,6 +35,7 @@ static func backup_now(reason := "daily") -> String:
 			slots[i] = text
 	if slots.is_empty():
 		return ""
+	var shared := _file_text(SharedStorage.PATH)
 	if DirAccess.make_dir_recursive_absolute(ROOT) != OK:
 		return ""
 	var dir := _new_dir(reason)
@@ -45,6 +50,12 @@ static func backup_now(reason := "daily") -> String:
 		var summary: Dictionary = Game._slot_summary(parsed as Dictionary) if parsed is Dictionary else {}
 		index.slots[String.num_int64(slot)] = {"name": summary.get("name", "?"), "class": summary.get("class", "warrior"),
 			"level": summary.get("level", 1), "adv": summary.get("adv", 0)}
+	if shared != "":
+		var parsed_shared: Variant = JSON.parse_string(shared)
+		index["storage"] = (parsed_shared.get("items", []) as Array).size() if parsed_shared is Dictionary and parsed_shared.get("items") is Array else 0
+		if not _write_text(dir.path_join(SharedStorage.PATH.get_file()), shared):
+			_remove_dir(dir)
+			return ""
 	if not _write_text(dir.path_join(INDEX_FILE), JSON.stringify(index)):
 		_remove_dir(dir)
 		return ""
@@ -52,7 +63,8 @@ static func backup_now(reason := "daily") -> String:
 	return dir
 
 
-## Every backup, newest first: {dir, time, reason, slots: {"1": {name, class, level, adv}}}.
+## Every backup, newest first: {dir, time, reason, slots: {"1": {name, class, level, adv}},
+## storage: items in the shared storage copy (-1 when the backup has none)}.
 static func list() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var names := Array(_backup_names())
@@ -62,7 +74,8 @@ static func list() -> Array[Dictionary]:
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(INDEX_FILE)))
 		if not parsed is Dictionary or not parsed.get("slots") is Dictionary:
 			continue
-		out.append({"dir": dir, "time": int(parsed.get("time", 0)), "reason": String(parsed.get("reason", "manual")), "slots": parsed.slots})
+		out.append({"dir": dir, "time": int(parsed.get("time", 0)), "reason": String(parsed.get("reason", "manual")), "slots": parsed.slots,
+			"storage": int(parsed.get("storage", 0)) if FileAccess.file_exists(dir.path_join(SharedStorage.PATH.get_file())) else -1})
 	return out
 
 
@@ -80,8 +93,15 @@ static func restore(dir: String, slot: int) -> bool:
 	return true
 
 
-## Restores every slot the backup holds (slots it lacks stay as they are).
+## Restores every slot the backup holds (slots it lacks stay as they are) and the
+## shared storage when the backup has it.
 static func restore_all(dir: String) -> bool:
+	var shared := ""
+	if dir.begins_with(ROOT + "/") and FileAccess.file_exists(dir.path_join(SharedStorage.PATH.get_file())):
+		shared = _file_text(dir.path_join(SharedStorage.PATH.get_file()))
+		var parsed: Variant = JSON.parse_string(shared)
+		if not parsed is Dictionary or not SharedStorage.valid(parsed):
+			return false
 	var texts: Dictionary = {}
 	for i in range(1, Game.SLOT_COUNT + 1):
 		if FileAccess.file_exists(dir.path_join(Game.save_path(i).get_file())):
@@ -97,6 +117,11 @@ static func restore_all(dir: String) -> bool:
 	for slot in texts:
 		if _write_slot(slot, _stamped(texts[slot])):
 			restored.append(slot)
+		else:
+			ok = false
+	if shared != "":
+		if _write_slot_file(SharedStorage.PATH, shared):
+			SharedStorage.read_file()
 		else:
 			ok = false
 	if not restored.is_empty():
@@ -141,7 +166,10 @@ static func reset_daily_cache() -> void:
 
 
 static func _slot_text(slot: int) -> String:
-	var path := Game.save_path(slot)
+	return _file_text(Game.save_path(slot))
+
+
+static func _file_text(path: String) -> String:
 	if not FileAccess.file_exists(path):
 		return ""
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -189,7 +217,10 @@ static func _mark_restored(slots: Array) -> void:
 
 ## Same-directory rename, like Game._write_profile: a failed write leaves the slot intact.
 static func _write_slot(slot: int, text: String) -> bool:
-	var path := Game.save_path(slot)
+	return _write_slot_file(Game.save_path(slot), text)
+
+
+static func _write_slot_file(path: String, text: String) -> bool:
 	if not _write_text(path + ".tmp", text):
 		return false
 	var dir := DirAccess.open("user://")

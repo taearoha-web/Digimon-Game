@@ -7,6 +7,10 @@
   // Written by the game's SaveBackup.restore (user://backups/restored.json): the slots
   // restored from an offline backup since this page last cleared it, see restoreMarker.
   const RESTORE_MARKER = FILE_ROOT + '/backups/restored.json';
+  // The storage every character shares (the game's SharedStorage.PATH). The bundle
+  // carries it as "storage" (items) and "storageMigrated" (the old storages moved in);
+  // a bundle from before it has neither field, and keeps having neither.
+  const STORAGE_FILE = 'toon_tale_storage.json';
   const CACHE_DB = 'toon_tale_accounts_v1';
   const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่', assassin:'นักฆ่า', darklord:'ดาร์กลอร์ด', bard:'นักดนตรี'};
   // A request waits longer the more it carries: a full four-character save is
@@ -40,12 +44,21 @@
       }
     }
     if (Number.isInteger(value.selectedSlot) && value.selectedSlot >= 1 && value.selectedSlot <= SLOT_COUNT) bundle.selectedSlot = value.selectedSlot;
+    if (Object.prototype.hasOwnProperty.call(value,'storage')) {
+      if (!Array.isArray(value.storage) || value.storage.some(item => !item || typeof item !== 'object' || Array.isArray(item))) throw new Error('ข้อมูลคลังไม่ถูกต้อง');
+      bundle.storage = copy(value.storage);
+      const record = value.storageMigrated;
+      bundle.storageMigrated = record && typeof record === 'object' && !Array.isArray(record) ? copy(record) : {};
+    }
     return bundle;
   }
+  function storageCount(bundle) { return Array.isArray(bundle.storage) ? bundle.storage.length : 0; }
   function escaped(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   }
   function hasHeroes(bundle) { return Object.keys(bundle.slots).length > 0; }
+  // Heroes, or items in the shared storage (kept even when every hero was deleted).
+  function hasData(bundle) { return hasHeroes(bundle) || storageCount(bundle) > 0; }
   function newest(bundle) { return Math.max(0, ...Object.values(bundle.slots).map(p => Number(p.saved_at) || 0)); }
   function request(req) { return new Promise((resolve,reject) => { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
   function completed(tx) { return new Promise((resolve,reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('บันทึกในเครื่องไม่สำเร็จ')); }); }
@@ -83,7 +96,7 @@
   }
   async function getLocalBundle() {
     await storage(true);
-    const names = Array.from({length:SLOT_COUNT},(_,i) => 'toon_tale_slot_' + (i+1) + '.json').concat('toon_tale_meta.json','toon_tale_save.json');
+    const names = Array.from({length:SLOT_COUNT},(_,i) => 'toon_tale_slot_' + (i+1) + '.json').concat('toon_tale_meta.json','toon_tale_save.json',STORAGE_FILE);
     const tx = userFS.transaction('FILE_DATA','readonly'), store = tx.objectStore('FILE_DATA');
     const rows = await Promise.all(names.map(name => request(store.get(FILE_ROOT + '/' + name))));
     const decoder = new TextDecoder(), bundle = blank();
@@ -95,6 +108,13 @@
       try { bundle.slots['1'] = JSON.parse(decoder.decode(rows[SLOT_COUNT + 1].contents)); } catch (_) {}
     }
     try { const meta = JSON.parse(decoder.decode(rows[SLOT_COUNT].contents)); if (meta.slot >= 1 && meta.slot <= SLOT_COUNT) bundle.selectedSlot = meta.slot; } catch (_) {}
+    const shared = rows[SLOT_COUNT + 2];
+    if (shared && shared.contents) {
+      try {
+        const file = JSON.parse(decoder.decode(shared.contents));
+        if (file && Array.isArray(file.items)) { bundle.storage = file.items; bundle.storageMigrated = file.migrated && typeof file.migrated === 'object' && !Array.isArray(file.migrated) ? file.migrated : {}; }
+      } catch (_) { /* The game keeps an unreadable storage file aside itself. */ }
+    }
     return bundleOf(bundle);
   }
   // {time, slots:[n]} when the game restored a slot from one of its offline backups and
@@ -126,6 +146,11 @@
       store.delete(path + '.tmp');
     }
     store.delete(FILE_ROOT + '/toon_tale_save.json');
+    // The shared storage goes with the characters it belongs to (or away with them).
+    const storagePath = FILE_ROOT + '/' + STORAGE_FILE;
+    if (Array.isArray(bundle.storage)) store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify({version:1,items:bundle.storage,migrated:bundle.storageMigrated || {}}))},storagePath);
+    else store.delete(storagePath);
+    store.delete(storagePath + '.tmp');
     store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify({slot:bundle.selectedSlot}))},FILE_ROOT + '/toon_tale_meta.json');
     // Whatever starts now was chosen with the restored save in view: the marker is spent.
     store.delete(RESTORE_MARKER);
@@ -225,6 +250,7 @@
     if (error.code === 'save_too_large') return 'เซฟมีขนาดเกินที่ระบบออนไลน์รองรับ เซฟในเครื่องยังอยู่' + serverDetail(error);
     if (error.code === 'invalid_save' || error.code === 'invalid_revision') return 'เซิร์ฟเวอร์ไม่รับเซฟนี้ เซฟในเครื่องยังอยู่ กรุณาแจ้งเจ้าของเกมพร้อมข้อความนี้' + serverDetail(error);
     if (error.code === 'save_conflict') return 'มีเซฟใหม่จากอีกเครื่อง เซฟในเครื่องยังอยู่' + serverDetail(error);
+    if (error.code === 'client_outdated') return 'เซฟออนไลน์มีคลังรวมของทุกตัวละคร ซึ่งเซฟชุดนี้ไม่มี (มาจากเกมรุ่นเก่า) เลือกเซฟออนไลน์ หรือโหลดหน้าเกมใหม่เพื่ออัปเดต' + serverDetail(error);
     if (error.status === 401) return 'ไอดีหรือรหัสผ่านไม่ถูกต้อง หรือหมดเวลาล็อกอินแล้ว';
     if (error.status === 409) return 'ไอดีนี้ถูกใช้แล้ว หรือมีเซฟใหม่จากอีกเครื่อง' + serverDetail(error);
     if (error.status === 429) return 'ลองบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่';
@@ -288,8 +314,9 @@
     const canvas = document.getElementById('canvas'); if (started && canvas) canvas.focus({preventScroll:true});
   }
   function summaries(bundle) {
-    if (!hasHeroes(bundle)) return '<p class="ta-empty">ยังไม่มีตัวละคร</p>';
-    return '<div class="ta-heroes">' + Object.entries(bundle.slots).map(([slot,p]) => '<div class="ta-hero"><span class="ta-slot">' + escaped(slot) + '</span><div><strong>' + escaped(p.name || 'นักผจญภัย') + '</strong><small>' + escaped(CLASS_NAMES[p.class] || p.class || 'ตัวละคร') + ' · เลเวล ' + escaped(p.level || 1) + '</small></div></div>').join('') + '</div>';
+    const stored = Array.isArray(bundle.storage) ? '<p class="ta-hint ta-storage">คลังรวมทุกตัวละคร: ' + escaped(storageCount(bundle)) + ' ชิ้น</p>' : '';
+    if (!hasHeroes(bundle)) return '<p class="ta-empty">ยังไม่มีตัวละคร</p>' + stored;
+    return '<div class="ta-heroes">' + Object.entries(bundle.slots).map(([slot,p]) => '<div class="ta-hero"><span class="ta-slot">' + escaped(slot) + '</span><div><strong>' + escaped(p.name || 'นักผจญภัย') + '</strong><small>' + escaped(CLASS_NAMES[p.class] || p.class || 'ตัวละคร') + ' · เลเวล ' + escaped(p.level || 1) + '</small></div></div>').join('') + '</div>' + stored;
   }
   async function finish(user,bundle,revision,pending = false) {
     state.user = user; state.revision = revision; state.pending = pending; state.conflict = false; state.authExpired = false; state.accountChanged = false; state.error = '';
@@ -384,7 +411,7 @@
       return showConflict(cloud,true);
     }
     const guestDraft = await read('guest'), guestBundle = guestDraft ? guestDraft.bundle : blank();
-    if (!hasHeroes(serverBundle) && hasHeroes(guestBundle)) {
+    if (!hasData(serverBundle) && hasHeroes(guestBundle)) {
       panel('นำตัวละครเดิมเข้าบัญชี','<p class="ta-intro">บัญชี <strong>' + escaped(user.username) + '</strong> ยังไม่มีตัวละคร เลือกนำตัวละครในเครื่องนี้เข้าไป หรือเริ่มบัญชีใหม่ เซฟในเครื่องจะมีสำเนาแยกไว้</p>' + summaries(guestBundle),[
         {label:'นำตัวละครเหล่านี้เข้าบัญชี',run:async () => {
           await backup('guest',guestBundle,'นำเข้าบัญชี ' + user.username);
@@ -395,7 +422,7 @@
       ]);
       return;
     }
-    if (hasHeroes(serverBundle)) {
+    if (hasData(serverBundle)) {
       const buttons = [{label:'เล่นต่อจากเซฟออนไลน์',run:() => finish(user,serverBundle,revision)}];
       if (hasHeroes(guestBundle) && Object.keys(serverBundle.slots).length < SLOT_COUNT) buttons.push({label:'นำตัวละครในเครื่องเข้าช่องว่าง',kind:'secondary',run:() => importGuest(user,serverBundle,revision,guestBundle)});
       panel('ยินดีต้อนรับ ' + user.username,'<p class="ta-intro">ตัวละครในบัญชี พร้อมเล่นต่อบนเครื่องนี้</p>' + summaries(serverBundle),buttons,{foot:'เซฟในเครื่องและของบัญชีอื่นยังเก็บแยกไว้'});

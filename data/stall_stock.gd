@@ -2,10 +2,13 @@ class_name StallStock
 extends RefCounted
 ## What a stall keeper in the village sells and buys (WorldPlayers: the "afk" players and
 ## divine players taking a break, doing "stall"). They are players resting from the hunt
-## who bring the good things they found: gear for the buyer (the hero's class and level)
-## a grade or more above the merchant's (the NPC sells common and good pieces, a stall
-## rare, legendary and now and then mythic ones), plus potions a little under the
-## merchant's price, forge jewels and gems. Each stall restocks every RESTOCK real seconds
+## who bring the good things they found, by their own level and stars (seller, lots_for):
+## gear of the keeper's own level (star gear and wings from Lv.100, up to its stars) a
+## grade or more above the merchant's (the NPC sells common and good pieces, a stall
+## rare, legendary and, from a seasoned keeper, mythic ones; weapons mostly for the
+## hero's class), the potions the merchant sells at the keeper's level a little under its
+## price, and the forge jewels, mount materials and gems the keeper could have found (a
+## newcomer's stall never holds chaos jewels, feathers or the set core). Each stall restocks every RESTOCK real seconds
 ## (each at its own offset); its stock in a window is seeded by the keeper's name and the
 ## window, so it is the same on every visit and every device. What the hero bought is gone
 ## from that stall until the next restock: Game.profile.flags["stall|<name>|<window>|<k>"]
@@ -27,8 +30,9 @@ const GEAR_MARKUP := {2: 1.3, 3: 1.55, 4: 1.8}
 const POTION_DISCOUNT := 0.85
 ## Forge jewels (the merchant has none) and gems cost this much over their base price.
 const JEWEL_MARKUP := 1.15
-const GEM_PRICE := [60, 180, 540]
-## Chances of a stall piece being rare (2), legendary (3) or mythic (4).
+const GEM_PRICE := [60, 180, 540, 1620, 4860]
+## Chances of a stall piece being rare (2), legendary (3) or mythic (4) for a keeper of
+## Lv.60-99 (rarity_odds: fewer good finds below, more from Lv.100).
 const RARITY_ODDS := [[2, 0.62], [3, 0.3], [4, 0.08]]
 const FLAG := "stall|"
 const HAGGLE_FLAG := "haggle|"
@@ -65,6 +69,7 @@ const KEYWORDS := [
 ]
 
 static var _by_name := {}
+static var _sellers := {}
 
 
 ## The stall's restock window at real time t (each stall keeps its own offset).
@@ -102,15 +107,6 @@ static func _now(t: float) -> float:
 	return WorldPresence.clock() if t < 0.0 else t
 
 
-static func _rarity(rng: RandomNumberGenerator) -> int:
-	var r := rng.randf()
-	for pair in RARITY_ODDS:
-		r -= float(pair[1])
-		if r <= 0.0:
-			return int(pair[0])
-	return 2
-
-
 ## The potions the merchant sells at the hero's level (the same steps as ShopScreen).
 static func _potions_for(level: int) -> Array[String]:
 	var out: Array[String] = ["hp_s", "mp_s"]
@@ -127,17 +123,106 @@ static func _potions_for(level: int) -> Array[String]:
 	return out
 
 
-## Every lot stall keeper i lays out in the window of time t, sold or not, for the hero's
-## class and level: [{item, price, k}], price for the whole lot.
+## The keeper's own progress at the start of its restock window, which its stock is cut
+## to for the whole window: {level, stars} (cached per keeper and window).
+static func seller(i: int, t: float = -1.0) -> Dictionary:
+	t = _now(t)
+	var key := "%s|%d" % [WorldPlayers.entry(i).name, window(i, t)]
+	if _sellers.has(key):
+		return _sellers[key]
+	if _sellers.size() > 256:
+		_sellers.clear()
+	var s := WorldPlayers.state(i, restock_at(i, t) - RESTOCK)
+	var out := {"level": int(s.level), "stars": int(s.stars) if int(s.level) >= Game.MAX_LEVEL else 0}
+	_sellers[key] = out
+	return out
+
+
+## How far a seller of `level` and `stars` has come: its level, plus its stars from Lv.100.
+static func progress(level: int, stars: int) -> int:
+	return level + (stars if level >= Game.MAX_LEVEL else 0)
+
+
+## The highest gear level a seller of `level` and `stars` may lay out: its own level, and
+## from Lv.100 the star gear it could find (100 + its stars up to the ★200 tier).
+static func gear_cap(level: int, stars: int) -> int:
+	if level < Game.MAX_LEVEL:
+		return maxi(1, level)
+	return Game.MAX_LEVEL + clampi(stars, 0, ItemData.MAX_GEAR_STAR)
+
+
+## Chances of a gear lot's grade by the seller's progress (a newcomer finds no mythic piece).
+static func rarity_odds(level: int, stars: int) -> Array:
+	var p := progress(level, stars)
+	if p < 25:
+		return [[2, 0.85], [3, 0.15]]
+	if p < 60:
+		return [[2, 0.7], [3, 0.27], [4, 0.03]]
+	if p < Game.MAX_LEVEL:
+		return RARITY_ODDS
+	return [[2, 0.5], [3, 0.36], [4, 0.14]]
+
+
+## The forge jewels and mount materials a seller of `level` and `stars` has found by now
+## (ids, the common ones more than once): purple from the start, pink from Lv.20, the
+## mount materials as their mounts come within reach, chaos and drills at Lv.100,
+## feathers from ★50, the drake's scale from ★100 and the set core from ★200 (it drops
+## only in ห้วงสมุทรอสูร).
+static func jewels_for(level: int, stars: int) -> Array[String]:
+	var out: Array[String] = ["purple", "purple", "purple"]
+	if level >= 20:
+		out.append_array(["pink", "pink"])
+	if level >= 35:
+		out.append("wolf_fang")
+	if level >= 60:
+		out.append("stag_antler")
+	if level >= Game.MAX_LEVEL:
+		out.append_array(["chaos", "chaos", "drill", "griffin_plume"])
+		if stars >= ItemData.FEATHER_STARS:
+			out.append("feather")
+		if stars >= 100:
+			out.append("drake_scale")
+		if stars >= DrownedAbyssData.ENTRY_STAR:
+			out.append("set_core")
+	return out
+
+
+## The largest gem a seller of `level` and `stars` lays out (0 small .. 4 legendary).
+static func gem_cap(level: int, stars: int) -> int:
+	var p := progress(level, stars)
+	if p < 20:
+		return 0
+	if p < 50:
+		return 1
+	if p < Game.MAX_LEVEL:
+		return 2
+	if p < Game.MAX_LEVEL + 150:
+		return 3
+	return ItemData.GEM_MAX_SIZE
+
+
+## Every lot stall keeper i lays out in the window of time t, sold or not: what the keeper
+## itself found by its own level and stars (seller), weapons mostly for the hero's class:
+## [{item, price, k}], price for the whole lot.
 static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 	t = _now(t)
-	var w := window(i, t)
+	var who := seller(i, t)
+	return lots_for("%s|%d" % [WorldPlayers.entry(i).name, window(i, t)], specialty(i), int(who.level), int(who.stars), Game.class_id())
+
+
+## The lots of a stall of `spec` kept by a seller of `level` and `stars`, seeded by `key`
+## (the keeper and the window), for a hero of class `cls`: gear of the seller's own
+## level (a few levels under it at most, star gear up to its stars), graded by
+## rarity_odds; the potions the merchant sells at the seller's level; the jewels and gems
+## it could have found (jewels_for, gem_cap). A low-level seller never has high-tier goods.
+static func lots_for(key: String, spec: String, level: int, stars: int, cls: StringName) -> Array[Dictionary]:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("stall|%s|%d" % [WorldPlayers.entry(i).name, w])
-	var spec := specialty(i)
-	var kind: Dictionary = KINDS[spec]
-	var level := clampi(int(Game.profile.get("level", 1)), 1, Game.MAX_LEVEL)
-	var cls := Game.class_id()
+	rng.seed = hash("stall|%s" % key)
+	var kind: Dictionary = KINDS.get(spec, KINDS.mixed)
+	level = clampi(level, 1, Game.MAX_LEVEL)
+	stars = clampi(stars, 0, Game.PARAGON_MAX) if level >= Game.MAX_LEVEL else 0
+	var cap := gear_cap(level, stars)
+	var odds := rarity_odds(level, stars)
 	var out: Array[Dictionary] = []
 	for n in int(kind.gear):
 		var slot: String = ItemData.SLOTS[rng.randi() % ItemData.SLOTS.size()]
@@ -145,9 +230,29 @@ static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 			slot = "weapon"
 		elif spec == "armor":
 			slot = ["armor", "helm", "boots", "ring", "amulet"][n % 5]
-		var rarity := _rarity(rng)
-		var item := ItemData.generate(maxi(1, level - rng.randi_range(0, 2)), cls, rng, rarity, slot)
-		var price := int(round(float(ItemData.buy_price(item)) * float(GEAR_MARKUP[rarity])))
+		var rarity := _rarity_by(rng, odds)
+		# Weapons mostly for the hero's class, now and then another class's find.
+		var for_class := cls
+		if slot == "weapon" and rng.randf() < 0.35:
+			for_class = ClassData.IDS[rng.randi() % ClassData.IDS.size()]
+		var item := {}
+		var roll := rng.randf()
+		if level >= Game.MAX_LEVEL and roll < 0.12 and spec != "armor":
+			item = ItemData.wings(rng, String(cls), rarity)
+		elif level >= Game.MAX_LEVEL and stars >= int(StarProgression.TIERS[0]) and roll < 0.4:
+			var tier := 0
+			for k in StarProgression.TIERS:
+				if stars >= int(k):
+					tier = int(k)
+			item = StarProgression.item(for_class, tier, slot, rng)
+		if item.is_empty():
+			var top := cap
+			if level >= Game.MAX_LEVEL and stars > 0:
+				top = Game.MAX_LEVEL + clampi(stars - rng.randi_range(0, 8), 0, mini(stars, 20))
+			var lv := maxi(1, top - rng.randi_range(0, 3 if level < Game.MAX_LEVEL else 0))
+			item = ItemData.generate(lv, for_class, rng, rarity, slot)
+		var grade := clampi(int(item.get("rarity", rarity)), 2, 4)
+		var price := int(round(float(ItemData.buy_price(item)) * float(GEAR_MARKUP[grade])))
 		out.append({"item": item, "price": price})
 	var potions := _potions_for(level)
 	for n in int(kind.potions):
@@ -155,18 +260,21 @@ static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 		var count: int = [10, 20, 30, 50][rng.randi() % 4]
 		var item := ItemData.potion(id, count)
 		out.append({"item": item, "price": maxi(1, int(round(float(ItemData.POTIONS[id].price) * POTION_DISCOUNT * count)))})
+	var jewels := jewels_for(level, stars)
+	var biggest := gem_cap(level, stars)
 	for n in int(kind.jewels):
 		var item := {}
 		var price := 0
-		if rng.randf() < 0.5:
-			var jewels := ["purple", "purple", "pink"] + (["chaos"] if level >= Game.MAX_LEVEL else [])
+		if rng.randf() < 0.55:
 			var id: String = jewels[rng.randi() % jewels.size()]
-			var count := 1 + rng.randi() % 3
+			var count := 1
+			if id in ["purple", "pink", "chaos"]:
+				count = 1 + rng.randi() % (3 + progress(level, stars) / 60)
 			item = ItemData.jewel(id, count)
 			price = int(round(float(ItemData.JEWELS[id].price) * JEWEL_MARKUP * count))
 		else:
 			var gems: Array = ItemData.GEMS.keys()
-			var size := mini(2, rng.randi() % 3 + (1 if level >= 60 else 0))
+			var size := clampi(biggest - rng.randi() % 2, 0, biggest)
 			var count := 1 + rng.randi() % 2
 			item = ItemData.gem(String(gems[rng.randi() % gems.size()]), size, count)
 			price = int(GEM_PRICE[size]) * count
@@ -174,6 +282,15 @@ static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 	for k in out.size():
 		out[k]["k"] = k
 	return out
+
+
+static func _rarity_by(rng: RandomNumberGenerator, odds: Array) -> int:
+	var r := rng.randf()
+	for pair in odds:
+		r -= float(pair[1])
+		if r <= 0.0:
+			return int(pair[0])
+	return int(odds[0][0])
 
 
 ## What stall keeper i still has for sale at time t (the lots the hero bought are gone

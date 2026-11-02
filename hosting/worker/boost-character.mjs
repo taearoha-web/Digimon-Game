@@ -57,6 +57,8 @@ if (command === 'fetch') {
     if (boosted.created ? next.slots?.[boosted.slot] : !next.slots?.[boosted.slot])
       throw new Error(boosted.created ? 'The slot for the new character is no longer free' : 'The boosted slot is not in the fetched save');
     next.slots[boosted.slot] = boosted.profile;
+    // Replaced gear past a full bag went to the account's shared storage.
+    if (Array.isArray(boosted.storage)) next.storage = boosted.storage;
   }
   const bundle = validateBundle(next);
   const now = Math.floor(Date.now() / 1000);

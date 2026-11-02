@@ -62,7 +62,10 @@ var stall_saves := 0
 const BASE_BAG := 40
 const MAX_BAG := 100
 const BAG_STEP := 10
-const STORAGE_SIZE := 80
+## The storage every hero shares (SharedStorage): room for deposits.
+const STORAGE_SIZE := SharedStorage.SIZE
+## The old per-hero storage (profile.storage) older saves still carry.
+const LEGACY_STORAGE_SIZE := SharedStorage.LEGACY_SIZE
 const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 100
 const MAX_SKILL_RANK := 5
@@ -96,6 +99,12 @@ func _ready() -> void:
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
+	# The heroes' old storages join the shared one (once; SharedStorage).
+	SharedStorage.read_file()
+	if not FileAccess.file_exists(SharedStorage.PATH):
+		SharedStorage.store()
+	if SharedStorage.migrate_slots() > 0:
+		_queue_cloud_save()
 	SaveBackup.maybe_daily()
 	world_chat.connect(_on_world_chat)
 	channel_chat.connect(func(_channel: String, speaker: String, text: String, color: Color): _on_world_chat(speaker, text, color))
@@ -399,6 +408,8 @@ func import_code(code: String, target_slot := -1) -> bool:
 		return false
 	candidate["resume"] = playing
 	candidate["saved_at"] = int(Time.get_unix_time_from_system())
+	# A code from before the shared storage brings its old storage into the shared one.
+	SharedStorage.absorb_profile(candidate)
 	if not _write_profile(candidate, destination):
 		return false
 	profile = candidate
@@ -620,6 +631,10 @@ func _write_profile(snapshot: Dictionary, destination: int) -> bool:
 ## Loads a slot (default: the current one) and makes it the active one.
 func load_game(from_slot := -1) -> bool:
 	var target := slot if from_slot < 1 else from_slot
+	# A slot restored from a backup or written by an older game may still hold an
+	# old storage: it joins the shared one first (SharedStorage.migrate_slots).
+	if SharedStorage.migrate_slots() > 0:
+		_queue_cloud_save()
 	var raw := _read_slot(target)
 	if raw.is_empty():
 		return false
@@ -662,7 +677,10 @@ func build_cloud_bundle() -> Dictionary:
 		var saved := _read_slot(i)
 		if not saved.is_empty():
 			slots[String.num_int64(i)] = saved
-	return {"slots": slots, "selectedSlot": clampi(slot, 1, SLOT_COUNT)}
+	var bundle := {"slots": slots, "selectedSlot": clampi(slot, 1, SLOT_COUNT)}
+	# The storage every hero shares is part of the save set (SharedStorage).
+	bundle.merge(SharedStorage.bundle_fields())
+	return bundle
 
 
 ## JSON-encode the already serialized bundle as one JavaScript string value.
@@ -710,7 +728,7 @@ func cloud_bundle_json() -> String:
 			_slot_json[i] = kept
 		if String(kept.text) != "":
 			parts.append("\"%d\":%s" % [i, String(kept.text)])
-	return "{\"slots\":{%s},\"selectedSlot\":%d}" % [",".join(parts), clampi(slot, 1, SLOT_COUNT)]
+	return "{\"slots\":{%s},\"selectedSlot\":%d%s}" % [",".join(parts), clampi(slot, 1, SLOT_COUNT), SharedStorage.bundle_fields_json()]
 
 
 func open_cloud_account() -> void:
@@ -936,7 +954,7 @@ func _valid_profile(data: Dictionary) -> bool:
 				if not _valid_integer(r.get(key, 0)):
 					return false
 	for key in ["inv", "storage"]:
-		if data.get(key, []).size() > (MAX_BAG if key == "inv" else STORAGE_SIZE):
+		if data.get(key, []).size() > (MAX_BAG if key == "inv" else LEGACY_STORAGE_SIZE):
 			return false
 		for item in data.get(key, []):
 			if not _valid_item(item):
@@ -1958,10 +1976,29 @@ func expand_bag() -> bool:
 
 # --- storage (the warehouse in the village) ----------------------------------
 
+## The storage every hero of this save set shares (SharedStorage, its own file).
 func storage() -> Array:
-	if not profile.get("storage") is Array:
-		profile["storage"] = []
-	return profile["storage"]
+	return SharedStorage.items()
+
+
+## Why this hero cannot take [param item] out of the shared storage ("" when it can):
+## gear locked to another class stays for a hero of that class.
+func storage_lock(item: Dictionary) -> String:
+	return SharedStorage.lock_reason(item, String(class_id()))
+
+
+## A storage change is written at once with the hero's slot. The order keeps a crash
+## between the two files from losing the item (it can only be in both): a deposit
+## writes the storage first, a withdrawal the hero first.
+func _commit_storage(storage_first: bool) -> void:
+	mark_dirty()
+	if storage_first:
+		SharedStorage.store()
+	if has_profile:
+		save()
+	if not storage_first:
+		SharedStorage.store()
+		_queue_cloud_save()
 
 
 func _stack_into(list: Array, item: Dictionary) -> bool:
@@ -1973,37 +2010,39 @@ func _stack_into(list: Array, item: Dictionary) -> bool:
 	return false
 
 
-## Moves a whole bag entry into the storage. Returns false when storage is full.
+## Moves a whole bag entry into the shared storage (any hero, any item). Returns false
+## when the storage is full.
 func deposit_item(index: int) -> bool:
 	if index < 0 or index >= profile["inv"].size():
 		return false
 	var item: Dictionary = profile["inv"][index]
-	var list := storage()
-	if not _stack_into(list, item):
-		if list.size() >= STORAGE_SIZE:
-			return false
-		list.append(item)
+	if not SharedStorage.put(item):
+		say("คลังรวมเต็ม (%d/%d) — เบิกของออกก่อน" % [SharedStorage.size(), STORAGE_SIZE], &"warning")
+		return false
 	profile["inv"].remove_at(index)
+	_commit_storage(true)
 	inventory_changed.emit()
-	mark_dirty()
 	return true
 
 
-## Moves a storage entry back into the bag. Returns false when the bag is full.
+## Moves a shared storage entry back into the bag. Returns false when the bag is full
+## or the entry is gear of another class (storage_lock; it stays for that class).
 func withdraw_item(index: int) -> bool:
 	var list := storage()
 	if index < 0 or index >= list.size():
 		return false
 	var item: Dictionary = list[index]
+	var lock := storage_lock(item)
+	if lock != "":
+		say(lock, &"warning")
+		return false
 	if not _stack_into(profile["inv"], item):
 		if profile["inv"].size() >= bag_size():
 			return false
 		profile["inv"].append(item)
-	else:
-		inventory_changed.emit()
 	list.remove_at(index)
+	_commit_storage(false)
 	inventory_changed.emit()
-	mark_dirty()
 	return true
 
 
@@ -2036,17 +2075,12 @@ func add_item(item: Dictionary) -> bool:
 func give_or_store(item: Dictionary) -> bool:
 	if add_item(item):
 		return true
-	var store: Array = profile.get("storage", [])
-	if ItemData.is_stackable(item):
-		for existing in store:
-			if existing.get("kind", "") == item.get("kind", "") and existing.get("id") == item.id:
-				existing["count"] = int(existing.get("count", 1)) + int(item.get("count", 1))
-				mark_dirty()
-				return true
-	if store.size() < STORAGE_SIZE:
-		store.append(item)
-		profile["storage"] = store
-		say("กระเป๋าเต็ม — %s ถูกส่งเข้าคลัง" % ItemData.name_of(item), &"warning")
+	# The shared storage (every hero's): a stack joins its pile there.
+	var stacks := ItemData.is_stackable(item)
+	if SharedStorage.put(item):
+		if not stacks:
+			say("กระเป๋าเต็ม — %s ถูกส่งเข้าคลัง" % ItemData.name_of(item), &"warning")
+		SharedStorage.store()
 		mark_dirty()
 		return true
 	say("กระเป๋าและคลังเต็ม — รับ %s ไม่ได้" % ItemData.name_of(item), &"warning")
@@ -2150,7 +2184,7 @@ func set_piece_problem(slot: String) -> String:
 	for id in SetGearData.CRAFT_COST:
 		if jewel_count(id) < int(SetGearData.CRAFT_COST[id]):
 			return "วัตถุดิบไม่พอ (ต้องใช้ %s)" % SetGearData.cost_text()
-	if inventory_free() <= 0 and storage().size() >= STORAGE_SIZE:
+	if inventory_free() <= 0 and SharedStorage.full():
 		return "กระเป๋าและคลังเต็ม ทำที่ว่างก่อนผสม"
 	return ""
 

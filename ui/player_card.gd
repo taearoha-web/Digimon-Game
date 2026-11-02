@@ -100,6 +100,12 @@ func _build() -> void:
 	var style := String(WorldPlayers.STYLES[String(s.style)].label)
 	var line := UIUtil.label("%s · %s · %s" % [ClassData.get_class_data(StringName(s["class"])).name, WorldPlayers.level_text(s), style], &"BoldLabel")
 	_body.add_child(line)
+	var god := WorldPlayers.god_title(s)
+	if god != "":
+		var god_line := UIUtil.label("✦ %s ✦" % god, &"BoldLabel")
+		god_line.name = "GodTitle"
+		god_line.add_theme_color_override("font_color", Color("ffe27a"))
+		_body.add_child(god_line)
 	var member := Game.in_party(i)
 	var note := ""
 	if member:

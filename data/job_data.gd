@@ -16,7 +16,8 @@ const TIER_LEVELS := [20, 40, 60, 80, 100]
 const TIER_COSTS := [1500, 6000, 20000, 60000, 1000000]
 const TIER_SKILL_POINTS := [2, 3, 4, 5, 6]
 const MAX_ADV := 5
-## The steps a hero takes by level alone (Lv.20/40/60/80); companions and AI players stop here.
+## The steps a hero takes by level alone (Lv.20/40/60/80); companions and guild-war
+## fighters stop here, a world player at ★300 takes the God step too (adv_for).
 const LEGEND_ADV := 4
 ## The God step (adv 5) and the stars it needs.
 const GOD_ADV := 5
@@ -294,6 +295,14 @@ static func adv_for_level(level: int) -> int:
 		if level >= int(TIER_LEVELS[i]):
 			n += 1
 	return n
+
+
+## The steps a world player has taken (WorldPlayers.profile): the level steps, and at
+## Lv.100 with ★300 (GOD_STARS) the God step too (the fee is earned along the way).
+static func adv_for(level: int, stars: int) -> int:
+	if level >= 100 and stars >= GOD_STARS:
+		return GOD_ADV
+	return adv_for_level(level)
 
 
 ## Base class data with every advancement step applied (name, bonuses).

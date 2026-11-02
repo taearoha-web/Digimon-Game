@@ -330,7 +330,7 @@ func _on_delete() -> void:
 		return
 	var slot := _selected
 	var ok: bool = await ModalDialog.confirm(self, "ลบฮีโร่ที่จุด %d?" % slot,
-			"ลบ %s (Lv.%d) ถาวร กู้คืนไม่ได้" % [info.name, int(info.level)], "ลบเลย", "ยกเลิก", true)
+			"ลบ %s (Lv.%d) ถาวร กู้คืนไม่ได้\nของในคลังรวมยังอยู่ ตัวละครอื่นเบิกได้" % [info.name, int(info.level)], "ลบเลย", "ยกเลิก", true)
 	if not ok or not is_inside_tree():
 		return
 	Game.delete_save(slot)

@@ -53,6 +53,8 @@ func _hero(cls: StringName, stars: int) -> void:
 	Game.paragon()["level"] = stars
 	Game.profile["inv"] = []
 	Game.profile["storage"] = []
+	# The storage is shared by every hero (SharedStorage): start each hero with it empty.
+	Game.storage().clear()
 
 
 func give(id: String, count: int) -> void:
@@ -221,7 +223,7 @@ func _craft() -> void:
 	stock(2)
 	while Game.inventory_free() > 0:
 		Game.profile.inv.append(ItemData.generate(10, &"warrior", Game.rng, 0, "boots"))
-	check(Game.craft_set_piece("amulet", 0.0) == "ok" and _set_pieces(Game.profile.storage).size() == 1, "a full bag stores the piece")
+	check(Game.craft_set_piece("amulet", 0.0) == "ok" and _set_pieces(Game.storage()).size() == 1, "a full bag stores the piece (the shared storage)")
 	# Bag and storage both full: refused before anything is spent.
 	while Game.storage().size() < Game.STORAGE_SIZE:
 		Game.storage().append(ItemData.generate(10, &"warrior", Game.rng, 0, "boots"))
@@ -299,7 +301,8 @@ func _save() -> void:
 	Game.profile.equip.weapon["plus"] = 7
 	Game.profile.equip.weapon["gems"] = ["ruby_2"]
 	Game.add_item(SetGearData.item("bard", "ring"))
-	Game.storage().append(SetGearData.item("bard", "boots"))
+	# An old save's own storage (before the shared one) still carries set pieces.
+	Game.profile.storage.append(SetGearData.item("bard", "boots"))
 	var saved: Dictionary = Game.profile.duplicate(true)
 	saved.paragon["level"] = mini(int(saved.paragon.level), Game.PARAGON_MAX)
 	check(Game._valid_profile(saved.duplicate(true)), "a profile with set pieces and cores is a valid save")
