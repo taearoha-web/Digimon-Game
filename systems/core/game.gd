@@ -1005,6 +1005,9 @@ func _valid_item(value: Variant) -> bool:
 		if not DivineGearData.is_item(item) or not DivineGearData.SLOTS.has(item.slot): return false
 		if item.get("star_tier") != 200 or item.get("level") != 300 or item.get("class") != item.get("star_class"): return false
 		if item.get("set") != DivineGearData.set_id(String(item.get("class", ""))): return false
+	# A 250-star set piece (SetGearData): its class, slot, base and Lv.350 must agree.
+	if item.has("set_gear") and (item.has("star_tier") or item.has("collection") or not SetGearData.valid(item)):
+		return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
 	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
@@ -1188,9 +1191,11 @@ func _repair_item(item: Dictionary) -> void:
 		item["gems"] = item.get("gems", [])
 	else:
 		item["count"] = int(item.get("count", 1))
-	# Older saves may hold gear above the star cap.
-	if item.has("level") and int(item.level) > ItemData.MAX_GEAR_LEVEL:
-		item["level"] = ItemData.MAX_GEAR_LEVEL
+	# Older saves may hold gear above the star cap (the 250-star set pieces are
+	# Lv.350 by design: SetGearData.LEVEL).
+	var level_cap := maxi(ItemData.MAX_GEAR_LEVEL, SetGearData.LEVEL) if SetGearData.is_item(item) else ItemData.MAX_GEAR_LEVEL
+	if item.has("level") and int(item.level) > level_cap:
+		item["level"] = level_cap
 	for key in ["count", "rarity", "level", "price", "plus", "sockets"]:
 		if item.has(key):
 			item[key] = int(item[key])
@@ -2099,6 +2104,50 @@ func craft_star_wings(item: Dictionary) -> String:
 	return "ok"
 
 
+## Why the forge cannot make a 250-star set piece for [param slot] now ("" when it can):
+## an unknown slot, a Vagabond, missing materials or no room in the bag and storage.
+func set_piece_problem(slot: String) -> String:
+	if not SetGearData.SLOTS.has(slot):
+		return "ชุดเซตไม่มีชิ้นนี้"
+	if not SetGearData.THEMES.has(String(class_id())):
+		return "เลือกอาชีพก่อนจึงจะผสมชุดเซตได้"
+	for id in SetGearData.CRAFT_COST:
+		if jewel_count(id) < int(SetGearData.CRAFT_COST[id]):
+			return "วัตถุดิบไม่พอ (ต้องใช้ %s)" % SetGearData.cost_text()
+	if inventory_free() <= 0 and storage().size() >= STORAGE_SIZE:
+		return "กระเป๋าและคลังเต็ม ทำที่ว่างก่อนผสม"
+	return ""
+
+
+## Forges one piece of this class's 250-star set (SetGearData) from one set core and
+## 20 purple, 20 pink and 20 chaos jewels (SetGearData.CRAFT_COST). It succeeds at
+## SetGearData.CRAFT_CHANCE; a failed try uses up every material (like enhance_item).
+## The piece goes to the bag, or to storage when the bag is full (give_or_store).
+## `roll` (0-1) replaces the random roll (tests); below 0 rolls Game.rng.
+## Returns "ok", "fail" or why not (Thai).
+func craft_set_piece(slot: String, roll := -1.0) -> String:
+	var problem := set_piece_problem(slot)
+	if problem != "":
+		return problem
+	for id in SetGearData.CRAFT_COST:
+		_spend_jewels(id, int(SetGearData.CRAFT_COST[id]))
+	if roll < 0.0:
+		roll = rng.randf()
+	if roll >= SetGearData.CRAFT_CHANCE:
+		flag_add("set_fail")
+		inventory_changed.emit()
+		mark_dirty()
+		return "fail"
+	var piece := SetGearData.item(String(class_id()), slot)
+	give_or_store(piece)
+	flag_add("set_made")
+	check_achievements()
+	inventory_changed.emit()
+	profile_changed.emit()
+	mark_dirty()
+	return "ok"
+
+
 ## Puts the gem at bag index into the item's next free socket.
 func socket_gem(item: Dictionary, gem_index: int) -> bool:
 	if gem_index < 0 or gem_index >= profile["inv"].size():
@@ -2431,7 +2480,8 @@ func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 	var out: Array[int] = []
 	for i in profile["inv"].size():
 		var item: Dictionary = profile["inv"][i]
-		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":
+		# Wings and the forged 250★ set pieces are never sold off in bulk.
+		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item):
 			continue
 		if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
 			continue

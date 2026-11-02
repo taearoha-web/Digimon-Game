@@ -96,7 +96,14 @@ static func gear_bonus(profile: Dictionary) -> Dictionary:
 		if int(gem_count.get(type, 0)) >= ItemData.GEM_SET_COUNT:
 			gem_set = type
 	total["gem_set"] = gem_set
+	# The 250-star class set (SetGearData.BONUS): pieces of the hero's own class.
+	total["set_gear"] = SetGearData.worn_count(profile["equip"], String(profile.get("class", "")))
 	return total
+
+
+## The 2/4/6 piece bonus of the hero's 250-star class set: {hp, atk, def, crit, crit_dmg} shares.
+static func set_gear_bonus(profile: Dictionary) -> Dictionary:
+	return SetGearData.bonus(SetGearData.worn_count(profile.get("equip", {}), String(profile.get("class", ""))))
 
 
 ## Sum of the always-on passive skills (rank 1 once unlocked, up to 5 stars).
@@ -156,18 +163,22 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var ride := mount_bonus(profile)
 	atk *= 1.0 + float(ride.get("atk", 0.0))
 	def *= 1.0 + float(ride.get("def", 0.0))
+	var set_bonus := SetGearData.bonus(int(gear.get("set_gear", 0)))
+	atk *= 1.0 + float(set_bonus.get("atk", 0.0))
+	def *= 1.0 + float(set_bonus.get("def", 0.0))
 	return {
-		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG),
+		"set_gear": int(gear.get("set_gear", 0)),
+		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG) + float(set_bonus.get("crit_dmg", 0.0)),
 		"lifesteal": minf(float(gems.get("lifesteal", 0.0)), MAX_LIFESTEAL),
 		"cdr": minf(float(gems.get("cdr", 0.0)), MAX_CDR),
 		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
 		"gem_set": gem_set,
 		"attrs": attrs,
-		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0)))),
+		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0))) * (1.0 + float(set_bonus.get("hp", 0.0)))),
 		"max_mp": int(((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp)) + float(gear.mp)) * (1.0 + float(gems.get("matk", 0.0)))),
 		"atk": atk,
 		"def": def,
-		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(gems.get("crit", 0.0)) + (GEM_SET_HAWK if gem_set == "topaz" else 0.0) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)) + float(ride.get("crit", 0.0)), 0.0, MAX_CRIT),
+		"crit": clampf(float(data.get("base_crit", BASE_CRIT)) + attrs.dex * CRIT_PER_DEX + float(gear.crit) + float(gems.get("crit", 0.0)) + (GEM_SET_HAWK if gem_set == "topaz" else 0.0) + float(buffs.get("crit", 0.0)) + float(data.get("crit_bonus", 0.0)) + float(passive.crit) + 0.001 * float(para.get("crit", 0)) + float(ride.get("crit", 0.0)) + float(set_bonus.get("crit", 0.0)), 0.0, MAX_CRIT),
 		"speed": MOVE_SPEED * (1.0 + float(buffs.get("speed", 0.0)) + float(data.get("speed_bonus", 0.0)) + float(passive.speed)),
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
 		"haste": clampf(MAX_HASTE * float(attrs.dex) / (float(attrs.dex) + HASTE_HALF_DEX) + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),

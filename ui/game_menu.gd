@@ -29,6 +29,8 @@ var _page_scroll: TouchScroll
 var _stat_amounts: Dictionary = {}
 ## Opened from the blacksmith: items can be enhanced and socketed.
 var forge_mode := false
+## At the forge: the ผสมชุดเซต section (250★ set pieces) shows instead of the bag grid.
+var set_craft_open := false
 
 
 func _ready() -> void:
@@ -87,6 +89,7 @@ func open_menu(tab: StringName = &"inventory") -> void:
 
 func close_menu() -> void:
 	forge_mode = false
+	set_craft_open = false
 	is_open = false
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
@@ -382,6 +385,37 @@ func _build_inventory() -> void:
 	filter.pressed.connect(_open_loot_filter)
 	head.add_child(filter)
 	filter.visible = not forge_mode
+	if forge_mode:
+		var toggle := UIUtil.button("กลับไปกระเป๋า" if set_craft_open else "ผสมชุดเซต", &"" if set_craft_open else &"PrimaryButton", Vector2(170, 50))
+		toggle.name = "SetCraftToggle"
+		toggle.add_theme_font_size_override("font_size", 18)
+		toggle.pressed.connect(func():
+			set_craft_open = not set_craft_open
+			_selected_index = -1
+			_selected_slot = ""
+			_queue_rebuild())
+		head.add_child(toggle)
+	if forge_mode and set_craft_open:
+		_build_set_craft(middle)
+	else:
+		_build_bag_grid(middle)
+	var side := UIUtil.vbox(8)
+	side.custom_minimum_size = Vector2(260, 0)
+	row.add_child(side)
+	_actions = UIUtil.vbox(6)
+	side.add_child(_actions)
+	var detail_scroll := TouchScroll.new()
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side.add_child(detail_scroll)
+	_detail = UIUtil.vbox(8)
+	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_scroll.add_child(_detail)
+	_refresh_detail()
+
+
+## The bag's item grid (the middle column of the inventory).
+func _build_bag_grid(middle: VBoxContainer) -> void:
 	middle.add_child(UIUtil.label("แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel"))
 	var scroll := TouchScroll.new()
 	_page_scroll = scroll
@@ -419,19 +453,100 @@ func _build_inventory() -> void:
 		else:
 			b.disabled = true
 		grid.add_child(b)
-	var side := UIUtil.vbox(8)
-	side.custom_minimum_size = Vector2(260, 0)
-	row.add_child(side)
-	_actions = UIUtil.vbox(6)
-	side.add_child(_actions)
-	var detail_scroll := TouchScroll.new()
-	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	side.add_child(detail_scroll)
-	_detail = UIUtil.vbox(8)
-	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_scroll.add_child(_detail)
-	_refresh_detail()
+
+
+## ผสมชุดเซต (at the forge): the six 250★ set pieces of the hero's class, what one
+## costs (owned / needed) and the chance; Game.craft_set_piece makes the piece.
+func _build_set_craft(middle: VBoxContainer) -> void:
+	var scroll := TouchScroll.new()
+	_page_scroll = scroll
+	scroll.name = "SetCraftScroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	middle.add_child(scroll)
+	var box := UIUtil.vbox(8)
+	box.name = "SetCraft"
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var cls := String(Game.class_id())
+	box.add_child(UIUtil.label("ผสมชุดเซต", &"HeaderLabel"))
+	if not SetGearData.THEMES.has(cls):
+		var none := UIUtil.label("เลือกอาชีพก่อน แล้วค่อยกลับมาผสมชุดเซตของอาชีพตัวเอง", &"DimLabel")
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(none)
+		return
+	var stars := int(Game.paragon().level)
+	var intro := UIUtil.label("%s (%s) · สวมใส่ได้ที่ ดาว %d (ตอนนี้ ดาว %d) · ชิ้นละ %s · สำเร็จ %d%% พลาดแล้ววัตถุดิบหายหมด" % [SetGearData.set_label(cls), String(SetGearData.ENGLISH[cls]), SetGearData.STARS, stars, SetGearData.cost_text(), int(SetGearData.CRAFT_CHANCE * 100.0)], &"SmallLabel")
+	intro.name = "Intro"
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(intro)
+	var bonus := UIUtil.label("โบนัสเซต (สวมอยู่ %d/6): %s" % [SetGearData.worn_count(Game.profile.equip, cls), SetGearData.bonus_text()], &"DimLabel")
+	bonus.name = "Bonus"
+	bonus.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(bonus)
+	var have: PackedStringArray = []
+	for id in SetGearData.CRAFT_COST:
+		var owned := Game.jewel_count(id)
+		var need := int(SetGearData.CRAFT_COST[id])
+		have.append("[color=#%s]%s %d/%d[/color]" % ["8dffb0" if owned >= need else "ff8a8a", ItemData.JEWELS[id].name, owned, need])
+	var cost := RichTextLabel.new()
+	cost.name = "Cost"
+	cost.bbcode_enabled = true
+	cost.fit_content = true
+	cost.scroll_active = false
+	cost.text = "มีอยู่ / ต้องใช้ต่อชิ้น: " + " · ".join(have)
+	cost.add_theme_font_size_override("normal_font_size", 18)
+	box.add_child(cost)
+	for slot in SetGearData.SLOTS:
+		var piece := SetGearData.item(cls, slot)
+		var panel := UIUtil.panel(&"CardPanel")
+		panel.name = "SetPiece_" + slot
+		box.add_child(panel)
+		var line := UIUtil.hbox(10)
+		panel.add_child(line)
+		var icon := TextureRect.new()
+		icon.name = "Icon"
+		icon.texture = ItemLook.icon(piece)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(64, 64)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(icon)
+		var col := UIUtil.vbox(2)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(col)
+		var title := UIUtil.label("%s · %s" % [String(piece.name), ItemData.SLOT_NAMES[slot]], &"BoldLabel")
+		title.name = "Title"
+		title.add_theme_color_override("font_color", ItemData.color_of(piece))
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(title)
+		var stats := UIUtil.label(" · ".join(ItemData.stat_lines(piece)), &"SmallLabel")
+		stats.name = "Stats"
+		stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(stats)
+		var problem := Game.set_piece_problem(slot)
+		var craft := UIUtil.button("ผสม (%d%%)" % int(SetGearData.CRAFT_CHANCE * 100.0), &"PrimaryButton", Vector2(140, 56))
+		craft.name = "Craft"
+		craft.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		craft.disabled = problem != ""
+		craft.tooltip_text = problem
+		craft.pressed.connect(func(): _craft_set_piece(slot))
+		line.add_child(craft)
+
+
+func _craft_set_piece(slot: String) -> void:
+	var result := Game.craft_set_piece(slot)
+	match result:
+		"ok":
+			var cls := String(Game.class_id())
+			Game.say("ผสมชุดเซตสำเร็จ! ได้ %s แสงแห่ง%sเจิดจ้า!" % [SetGearData.item_name(cls, slot), SetGearData.set_label(cls)], &"success")
+			AudioManager.play_sfx(&"level_up")
+			Game.screen_flash.emit(SetGearData.palette(cls).glow, 0.3)
+		"fail":
+			Game.say("ผสมชุดเซตพลาด... (แก่นเทพกับเพชรสลายหายไป ลองใหม่อีกครั้ง)", &"warning")
+		_:
+			Game.say(result, &"warning")
+	_queue_rebuild()
 
 
 ## "Compared with what you wear now": the worn item of the same slot and the
@@ -543,7 +658,8 @@ func _refresh_detail() -> void:
 	elif item.get("kind", "") == "jewel":
 		var craft := String(item.get("id", "")) in StarWingData.CRAFT_COST
 		var for_mount := MountData.mount_of_mat(String(item.get("id", "")))
-		var how := UIUtil.label(("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
+		var how := UIUtil.label(("วัตถุดิบผสมชุดเซต 250 ดาว: ชิ้นเดียวผสมได้ทุกชิ้นของชุดเซตอาชีพตัวเอง (อาวุธ เกราะ หมวก รองเท้า แหวน สร้อย) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ชิ้นละ %s · สำเร็จ %d%% พลาดแล้ววัตถุดิบหายหมด · ดรอปในแมพ 200-300 ดาว" % [SetGearData.cost_text(), int(SetGearData.CRAFT_CHANCE * 100.0)]) if String(item.get("id", "")) == SetGearData.CORE
+			else ("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
 			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
 			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละ 1 (50%) · +11 ถึง +15 เพิ่มอย่างละ 1 ทุกขั้น (45%, 40%, 35%, 30%, 25%)", &"DimLabel")

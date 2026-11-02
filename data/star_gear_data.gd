@@ -89,7 +89,7 @@ static func look_of(item: Dictionary) -> String:
 
 static func kind_from_look(look: String) -> String:
 	var parts := look.split("_")
-	if (look.begins_with("star_") or look.begins_with("divine_")) and parts.size() >= 3:
+	if (look.begins_with("star_") or look.begins_with("divine_") or look.begins_with("set_")) and parts.size() >= 3:
 		return parts[1]
 	return look.rsplit("_", true, 1)[0]
 

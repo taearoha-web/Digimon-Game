@@ -86,6 +86,7 @@ static func _model(kind: String, index: int, merge_gear := true) -> Node3D:
 
 static func build(look: String) -> Node3D:
 	if look.begins_with("divine_"): return DivineGearArt.build(look)
+	if look.begins_with("set_"): return SetGearArt.build(look)
 	var parts := look.rsplit("_", true, 1)
 	var kind := parts[0] if MODELS.has(parts[0]) else "sword"
 	var node := _model(kind, int(parts[1]) if parts.size() > 1 else 0)

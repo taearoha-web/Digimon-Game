@@ -6,7 +6,8 @@ extends RefCounted
 ## Equipment: { kind:"equip", uid, slot, base, name, rarity, level, class, stats{atk,def,hp,mp,crit}, price }
 ## Potions:   { kind:"potion", id, count }
 ## Jewels:    { kind:"jewel", id ("purple" / "pink" / "chaos" / "feather"), count } spent at the forge (JEWELS);
-##            the mount materials ("wolf_fang", ...) are jewels too, spent on mounts (MountData)
+##            the mount materials ("wolf_fang", ...) are jewels too, spent on mounts (MountData),
+##            and so is the set core ("set_core") the forge makes 250★ set pieces from (SetGearData)
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
 const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก"}
@@ -142,6 +143,9 @@ const JEWELS := {
 	"stag_antler": {"name": "เขากวางเรืองแสง", "color": Color("7fe7d8"), "price": 5000},
 	"griffin_plume": {"name": "ขนปีกกริฟฟิน", "color": Color("f2c35a"), "price": 8000},
 	"drake_scale": {"name": "เกล็ดมังกรเพลิง", "color": Color("ff6a3d"), "price": 20000},
+	# The one material of every 250-star set piece (SetGearData.CRAFT_COST), dropped
+	# in the 200-300 star fields.
+	"set_core": {"name": "แก่นเทพหลอมเซต", "color": Color("5cf2e6"), "price": 50000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
@@ -238,6 +242,8 @@ static func set_id_for(slot: String, rarity: int, tier: int) -> String:
 
 
 static func set_label(set_id: String) -> String:
+	if set_id.begins_with("setgear_"):
+		return SetGearData.set_label(set_id.get_slice("_", 1))
 	if set_id.begins_with("divine_"):
 		return DivineGearData.set_label(set_id.get_slice("_", 1))
 	if set_id.begins_with("star_"):
@@ -513,6 +519,9 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	var lines := stat_lines(item)
 	if item.get("kind", "") != "equip":
 		return lines
+	if SetGearData.is_item(item):
+		lines.append("%s · อุปกรณ์ 250 ดาว (ผสมที่ช่างตีเหล็ก)" % SetGearData.set_label(SetGearData.item_class(item)))
+		lines.append("โบนัสเซต: " + SetGearData.bonus_text())
 	if StarGearData.is_star(item):
 		lines.append("อุปกรณ์แห่งดวงดาว %d" % int(item.star_tier))
 		if DivineGearData.is_item(item):
