@@ -4,6 +4,15 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 # Toon Tale
 
+## Morning, day, evening and night (November 2026)
+
+- **The world's clock** (`world/day_night.gd`, `DayNight`): the sky follows Thai time on the world clock the world players live by (`WorldPlayers.world_time`, 3x real time: a world day every 8 real hours). Morning 05-09 (blue hour, then a golden sunrise), day 09-16 (from 09:30 to 15:30 each zone's own designed look, unchanged), evening 16-19 (golden light, then an orange and pink sunset and a violet dusk), night 19-05 (deep blue sky, cool moonlight, a moon and stars).
+- **Which zones:** the village and the open hunting fields (meadow, desert, snow, swamp, sky city) follow the clock. Zones with a fixed mood keep it: the moonlit or stormy fields (dark forest, graveyard, storm, abyss, void, volcano), the star / divine / drowned regions, the tower, the coliseum, the guild war and the arena.
+- **How:** one node per zone re-grades its WorldEnvironment and sun every 0.5 s by blending the zone's designed colours toward each phase's tint (smoothstep between keys, so nothing pops); the sun rises low, crosses the sky (the designed angle at noon) and sets, and turns into a dim, cool moonlight at night (shadows stay). No new lights or passes: stars and the moon are one additive MultiMesh shown only after dark, the sun disc moves with the hour, clouds, haze, weather and smoke are tinted. The sky and light are only touched when a change is visible (a sky change re-renders its radiance), so a steady day or night costs nothing. Night stays readable: about 50-60% of the daytime light, never near black.
+- **A warm village:** a more golden morning and sunset and a cozy night: warm ambient light under the deep blue sky, the lantern halos (`LanternHalos`, group `night_glow`) brighter, amber and larger, and soft amber pools on the ground under every low lantern (one additive MultiMesh, only after dark).
+- **HUD:** the minimap's foot shows the time of day in zones that follow the clock ("เช้า 07:30", "กลางวัน", "เย็น", "กลางคืน 22:10" with a drawn sun or crescent).
+- **Tests:** `DayNight.fixed_hour` (NAN follows the clock) or `TOON_HOUR=21.5`; headless runs and the tools under `res://tests/` start at midday (`TOON_HOUR=clock` follows the clock there). `tests/integration/day_night_test` checks continuity, midday = designed look, the night floor, fixed-mood zones, the override and the storm flash; `tests/tools/day_night_shots` takes each zone at a list of hours.
+
 ## A clearer field HUD on iPhone (November 2026)
 
 - **Symbols on the web:** the browser has no system fonts, so ★ ● ✕ ✓ ✦ fell back to empty boxes (the party cards' stars, the online dot, the kick cross). A 6 KB DejaVu Sans subset (`assets/fonts/DejaVuSans-Symbols.ttf`) is now a fallback of every theme font. Title name plates use ✦ instead of 「」, which no bundled font has.
