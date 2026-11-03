@@ -218,3 +218,38 @@ default). Desktop / headless builds stay offline unless a test injects a transpo
 Remote players are `RemotePlayer` nodes (group `remote_players`, built with the same
 look code as `FieldPlayer`, a "ผู้เล่นจริง" tag over the name, interpolated movement),
 added to the current zone for every player whose `zone` matches.
+
+## Shared world (zone-wide, v2)
+
+Every real player in the same **open** zone (fields, star / divine regions, the abyss, the
+village) sees the same monsters, the same AI world players in the same places doing the
+same things, and the same AI world chat. **Instanced** zones (`tower`, `pvp`, `guildwar`,
+`arena`) keep the party scope of "Shared combat" above.
+
+- **Zone host.** `host {zone, id}` now names the zone host for everyone in an open zone:
+  the connected player who arrived in that zone first (re-elected when it leaves the zone,
+  drops or goes away). `id` is null while only one real player is there. In instanced
+  zones the host is chosen among the party as before. `Online.is_mirror_zone(zone)` is
+  true whenever someone else hosts the hero's zone, party or not.
+- **Monsters.** `ent_snap` / `ent_event` go from the zone host to every other player the
+  host serves (everyone in an open zone; the party in an instanced one); `ent_hit` from
+  any of them to the host. Loot and EXP on `ent_event dead {killer, share:{id: damage}}`:
+  a player rolls its own drop and EXP when it dealt damage (its id in `share` with
+  damage > 0), or when a member of its party in that zone did. Nobody else gets anything
+  (no kill stealing: the one who hit gets the reward).
+- **AI world players.** The zone host's game runs them (WorldPresence) and sends
+  `wp_snap {zone, ps:[[index, x, z, yaw, anim, flags]]}` 4 times a second (index =
+  WorldPlayers roster index; anim "idle"/"run"/"attack"/"skill:<id>"/"dead"; flags bit 0
+  riding, bit 1 wings open; at most 40, only those near any served player) and
+  `wp_event {zone, index, ev, data}` for "skill" (`{id, eid}`: the cast and its target
+  monster, so the effect plays), "bubble" (`{text}`), "leave". Relayed exactly like
+  `ent_snap` / `ent_event`. A mirror zone shows exactly the listed players as puppets
+  (looks from WorldPlayers by index, no AI of their own, interpolated).
+- **AI world chat.** `whost {id}` (server -> everyone, on connect and on change) names the
+  world host: the connected player online the longest. Only the world host's game makes
+  the AI world-channel chat (lines, conversations, buy requests and stall answers,
+  milestone announcements stay local because they are already the same everywhere) and
+  sends it with `ai_chat {lines:[{ch:"world", speaker, text, color?, index?}]}`; the
+  server relays it to everyone else with `from`. Everyone else does not make world-channel
+  AI chat of its own and shows the relayed lines (bubble over the speaker when it stands
+  in the zone). Guild and party AI chat and the AI's answers to the hero stay local.
