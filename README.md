@@ -4,6 +4,10 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 # Toon Tale
 
+## Poseidon and the Wind Monkey King move like characters (November 2026)
+
+The two legend summons (and Poseidon as the Drowned Abyss boss) were stiff: their clips keyed only a few bones and the free arm was capped at 12° because the fused robe tore. `tools/rig/legend_weights.py` now cuts each model into body parts (the weapon rigid in the hand, limbs separated where decimation welded them) with extra smoothing on robes and skirts, and `tools/rig/legend_clips.py` authors real motion: IK walk and run cycles with planted feet, hip bob and counter-swinging arms, attacks and skills with anticipation, strike and recovery (still landing on `LegendMoves` impact times), a trailing tail for the Monkey King. Same triangle count, same clip names. `tools/rig/legend_preview.py` renders contact sheets with stretched edges in red; `legend_summons_test` checks the stride, the tail and the stretch limits.
+
 ## A bigger Mistwood village in clear districts (November 2026)
 
 The village is 1.4x wider (radius 56 → 80, `JapanVillage.RADIUS`) and split into districts behind low tile-capped plaster walls (`JapanKit.low_wall`, with colliders), each entered through its own gate with a Thai name plaque and its own colours. The minimap outlines every district in its colour (`JapanVillage.DISTRICTS`, `Minimap._district`).

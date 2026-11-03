@@ -192,11 +192,16 @@ func _town() -> void:
 	if dn == null:
 		await _free(zone)
 		return
+	# The village splits its lantern halos into 48 m squares ("LanternHalos_<x>_<z>"):
+	# every square glows at night.
 	var halos: MultiMeshInstance3D = null
+	var squares := 0
 	for node in get_tree().get_nodes_in_group("night_glow"):
-		if zone.is_ancestor_of(node) and node.name == "LanternHalos":
-			halos = node
-	check(halos != null and not dn._glows.is_empty(), "the lantern halos glow at night")
+		if zone.is_ancestor_of(node) and String(node.name).begins_with("LanternHalos"):
+			squares += 1
+			if halos == null:
+				halos = node
+	check(halos != null and dn._glows.size() >= squares, "the lantern halos glow at night (%d squares, %d glows)" % [squares, dn._glows.size()])
 	check(dn._pools != null and dn._pools.multimesh.instance_count > 10, "lantern pools under the low lanterns")
 	if halos == null or dn._pools == null:
 		await _free(zone)
