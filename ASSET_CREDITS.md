@@ -7,6 +7,7 @@
 | `assets/models/monsters/cute/**` | "Cute Animated Monsters" by Quaternius | CC0 (`LICENSE-Quaternius.txt`) |
 | `assets/models/nature/**` (trees, bushes, rocks, plants) | "Ultimate Stylized Nature" by Quaternius | CC0 (`LICENSE-Quaternius.txt`) |
 | `assets/fonts/*` | Fredoka, Nunito, Mitr, Noto Sans Thai | SIL Open Font License 1.1 (OFL files alongside) |
+| `assets/fonts/DejaVuSans-Symbols.ttf` | DejaVu Sans (subset: ★ ● ✕ ✓ and other UI symbols) | Bitstream Vera license + public domain (`LICENSE-DejaVu.txt` alongside) |
 | `assets/icons/**` | Hand-written SVG for this project | Project |
 | `assets/vfx/kenney-particles/**` | [Particle Pack 1.1 by Kenney](https://kenney.nl/assets/particle-pack) | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |
 | `assets/vfx/rpicster/**` | [Godot Particle and VFX Textures by RPicster](https://github.com/RPicster/Godot-particle-and-vfx-textures), 256 px alpha textures | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |

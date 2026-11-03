@@ -15,6 +15,7 @@
   const HINT_KEY = 'toon_install_hint_v1';
   const state = {phase: CONFIG ? 'idle' : 'unsupported', done: 0, total: 0, ready: false, online: navigator.onLine !== false,
     update: false, game: 'menu', paused: false, persisted: null, sync: '', error: '', shown: []};
+  let queuedOffline = false;
   let pill, pillText, updateButton, hideTimer, resumeFill = null, abortFill = null, registration = null;
   let hadController = false, applying = false, interacted = false, wasPending = false;
 
@@ -49,14 +50,22 @@
     if (state.phase === 'filling' && state.total) {
       return 'กำลังเตรียมเล่นออฟไลน์ ' + Math.min(99, Math.floor(state.done * 100 / state.total)) + '%';
     }
-    if (state.ready) return 'พร้อมเล่นออฟไลน์ ✓';
+    if (state.ready) return READY_TEXT;
     return '';
   }
   let lastText = '';
+  // While playing, "ready for offline" is told once a session: after that each cloud
+  // save cleared a sync line, the ready line came back and covered the top of the game.
+  const READY_TEXT = 'พร้อมเล่นออฟไลน์ ✓';
+  let readyTold = false;
   function render() {
     ui();
     if (!pill) return;
-    const text = message();
+    let text = message();
+    if (state.game === 'playing' && text === READY_TEXT) {
+      if (readyTold && lastText !== READY_TEXT) text = '';
+      readyTold = true;
+    }
     pill.dataset.state = !state.online ? 'offline' : state.ready ? 'ready' : state.phase;
     if (text !== lastText) {
       lastText = text;
@@ -74,8 +83,12 @@
     const account = cloud();
     if (!account) return;
     const pending = !!(account.user && account.pending && !account.conflict);
-    if (pending && state.online && account.syncing) state.sync = 'กำลังซิงก์เซฟ…';
-    else if (!pending && wasPending && state.online) {
+    // The sync lines are news only after the game was offline (saves queued); the
+    // routine upload of every autosave goes by without a word.
+    if (!state.online || account.offline) queuedOffline = true;
+    if (pending && state.online && account.syncing && queuedOffline) state.sync = 'กำลังซิงก์เซฟ…';
+    else if (!pending && wasPending && state.online && queuedOffline) {
+      queuedOffline = false;
       state.sync = 'ซิงก์เซฟแล้ว ✓';
       setTimeout(() => { if (state.sync === 'ซิงก์เซฟแล้ว ✓') { state.sync = ''; render(); } }, 4000);
     } else if (state.sync === 'กำลังซิงก์เซฟ…' && !account.syncing) state.sync = '';
@@ -261,6 +274,7 @@
   // ----- start -------------------------------------------------------------
   function setOnline(online) {
     state.online = online;
+    if (!online) queuedOffline = true;
     render();
   }
   window.addEventListener('online', () => setOnline(true));

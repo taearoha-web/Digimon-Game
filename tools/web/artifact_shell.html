@@ -310,11 +310,27 @@
 
   // Safe-area insets (left, top, right, bottom) as fractions of the window,
   // read by the game's SafeAreaContainer so buttons stay clear of the notch.
+  // An iPhone held sideways reports the notch's inset on BOTH sides, though the notch
+  // is on one only (the top of the phone: window.orientation 90 = on the left, -90 = on
+  // the right). The other side keeps a little for the rounded corner, and the home
+  // indicator half of its strip, so the buttons sit nearer the edges.
+  const SAFE_FAR_SIDE = 0.35, SAFE_BOTTOM = 0.5;
   window.godotSafeArea = function () {
     const cs = getComputedStyle(document.getElementById('safe-probe'));
     const w = window.innerWidth || 1, h = window.innerHeight || 1;
-    return [parseFloat(cs.paddingLeft) / w, parseFloat(cs.paddingTop) / h,
-      parseFloat(cs.paddingRight) / w, parseFloat(cs.paddingBottom) / h].join(',');
+    let left = parseFloat(cs.paddingLeft) || 0, right = parseFloat(cs.paddingRight) || 0;
+    let bottom = parseFloat(cs.paddingBottom) || 0;
+    const top = parseFloat(cs.paddingTop) || 0;
+    let angle = typeof window.orientation === 'number' ? window.orientation : null;
+    if (angle === null && screen.orientation && typeof screen.orientation.angle === 'number') {
+      angle = screen.orientation.angle === 270 ? -90 : screen.orientation.angle;
+    }
+    if (w > h && left > 0 && right > 0 && Math.abs(left - right) < 1) {
+      if (angle === 90) right *= SAFE_FAR_SIDE;
+      else if (angle === -90) left *= SAFE_FAR_SIDE;
+      bottom *= SAFE_BOTTOM;
+    }
+    return [left / w, top / h, right / w, bottom / h].join(',');
   };
   const loaded = {};
   const totalPacked = Object.values(PACKED).reduce((sum, p) => sum + p[1], 0);

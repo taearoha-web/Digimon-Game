@@ -8,15 +8,34 @@ extends MarginContainer
 @export var extra_bottom := 0
 
 
+## Web: how often the insets are read again. Turning a phone from one landscape to the
+## other moves the notch to the other side without changing the canvas size.
+const WEB_POLL := 1.0
+
+var _poll := 0.0
+var _last := Vector4(-1, -1, -1, -1)
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	get_viewport().size_changed.connect(_update_margins)
 	_update_margins()
+	set_process(OS.has_feature("web"))
+
+
+func _process(delta: float) -> void:
+	_poll -= delta
+	if _poll <= 0.0:
+		_poll = WEB_POLL
+		_update_margins()
 
 
 func _update_margins() -> void:
 	var margins := get_safe_margins()
+	if margins.is_equal_approx(_last):
+		return
+	_last = margins
 	add_theme_constant_override("margin_left", int(margins.x) + min_margin)
 	add_theme_constant_override("margin_top", int(margins.y) + min_margin + extra_top)
 	add_theme_constant_override("margin_right", int(margins.z) + min_margin)
@@ -49,10 +68,19 @@ static func get_safe_margins() -> Vector4:
 	return Vector4(left * scale.x, top * scale.y, right * scale.x, bottom * scale.y)
 
 
+static var _web_raw := ""
+static var _web_read_at := -100000
+
+
 ## Web: the page shell reports CSS safe-area insets (notch, home indicator) as
 ## fractions of the window; Godot's own safe area is not reliable there.
 static func _get_web_safe_margins(canvas_size: Vector2) -> Vector4:
-	var raw = JavaScriptBridge.eval("window.godotSafeArea ? window.godotSafeArea() : ''", true)
+	# Every container polls; the page is asked at most twice a second for all of them.
+	var now := Time.get_ticks_msec()
+	if now - _web_read_at > 500:
+		_web_read_at = now
+		_web_raw = str(JavaScriptBridge.eval("window.godotSafeArea ? window.godotSafeArea() : ''", true))
+	var raw := _web_raw
 	var parts := str(raw).split(",")
 	if parts.size() != 4:
 		return Vector4.ZERO

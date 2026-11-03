@@ -2,12 +2,13 @@
 
 [ext_resource type="FontFile" path="res://assets/fonts/Fredoka-Variable.ttf" id="1_r3ft5"]
 [ext_resource type="FontFile" path="res://assets/fonts/Mitr-Medium.ttf" id="2_goybf"]
+[ext_resource type="FontFile" path="res://assets/fonts/DejaVuSans-Symbols.ttf" id="9_sym_h"]
 
 [sub_resource type="SystemFont" id="SystemFont_kdnnp"]
 font_names = PackedStringArray("sans-serif", "Noto Sans", "Roboto", "Arial")
 
 [resource]
-fallbacks = Array[Font]([ExtResource("2_goybf"), SubResource("SystemFont_kdnnp")])
+fallbacks = Array[Font]([ExtResource("2_goybf"), ExtResource("9_sym_h"), SubResource("SystemFont_kdnnp")])
 base_font = ExtResource("1_r3ft5")
 variation_opentype = {
 "wght": 600

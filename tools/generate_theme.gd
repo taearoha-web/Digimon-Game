@@ -48,7 +48,9 @@ func _make_fonts() -> void:
 	var thai_bold := FontVariation.new()
 	thai_bold.base_font = noto_thai
 	thai_bold.variation_opentype = {"wght": 750}
-	var fallbacks: Array[Font] = [thai_body, system_fallback]
+	# Symbols (★ ● ✕ ✓ ...): the web has no system fonts, so a small DejaVu Sans subset.
+	var symbols: FontFile = load("res://assets/fonts/DejaVuSans-Symbols.ttf")
+	var fallbacks: Array[Font] = [thai_body, symbols, system_fallback]
 
 	body_font = FontVariation.new()
 	body_font.base_font = nunito
@@ -59,14 +61,14 @@ func _make_fonts() -> void:
 	bold_font = FontVariation.new()
 	bold_font.base_font = nunito
 	bold_font.variation_opentype = {"wght": 850}
-	var bold_fallbacks: Array[Font] = [thai_bold, system_fallback]
+	var bold_fallbacks: Array[Font] = [thai_bold, symbols, system_fallback]
 	bold_font.fallbacks = bold_fallbacks
 	ResourceSaver.save(bold_font, FONT_DIR + "/bold_font.tres")
 
 	heading_font = FontVariation.new()
 	heading_font.base_font = fredoka
 	heading_font.variation_opentype = {"wght": 600}
-	var heading_fallbacks: Array[Font] = [mitr, system_fallback]
+	var heading_fallbacks: Array[Font] = [mitr, symbols, system_fallback]
 	heading_font.fallbacks = heading_fallbacks
 	ResourceSaver.save(heading_font, FONT_DIR + "/heading_font.tres")
 

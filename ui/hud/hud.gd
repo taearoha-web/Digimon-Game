@@ -20,10 +20,30 @@ signal interact_pressed()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
 const SKILL_SPACING := 82.0
-const SKILL_ROW_Y := -68.0
+## The skill row's centre from the bottom: its lower edge lines up with the attack button's.
+const SKILL_ROW_Y := -54.0
 const ATTACK_RADIUS := 62.0
+## The party cards' width and their kick button's size (compact: one name line and the HP).
+const PARTY_CARD_WIDTH := 236.0
+const KICK_SIZE := 24.0
+## The wing / mount chips' height and the "on" (riding) colour.
+const CHIP_HEIGHT := 38.0
+const CHIP_ON := Color(0.78, 0.47, 0.08, 0.95)
 ## Room the world chat leaves before the first skill slot's centre.
 const SKILL_SLOT_CLEAR := 44.0
+## The chat's gap past the joystick's resting ring (a thumb on the stick's edge must not
+## land on the chat).
+const CHAT_STICK_GAP := 40.0
+## The potion / auto / target column's centre from the frame's right edge.
+const UTILITY_X := -36.0
+## The target / boss bar: at most this wide, centred between the hero panel and the
+## gold / menu row, never under either.
+const TOP_CENTER_MAX := 500.0
+const TOP_CENTER_GAP := 12.0
+## How much of the notch side's inset the hero panel and buffs keep: they are above the
+## notch (it sits in the middle of the edge), and this much (what the far side gets)
+## keeps them clear of the screen's rounded corner.
+const LEFT_TOP_KEEP := 0.35
 ## The skill slots' radius (smaller medallions leave the world chat room).
 const SKILL_RADIUS := 32.0
 ## The world chat shrinks (never below this) so the party cards above it stay clear.
@@ -36,7 +56,7 @@ const SKILL_ROW_RIGHT := -194.0
 ## (the minimap's left edge, clear of the raven buttons left of the auto button) and
 ## the gap the chip keeps under the tracker's lines.
 const TRACKER_TOP := 252.0
-const TRACKER_RIGHT := -150.0
+const TRACKER_RIGHT := -146.0
 const EVENT_CHIP_GAP := 6.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
@@ -104,17 +124,23 @@ var _gw_hud: GuildWarHud
 var _party_cards: Array[Dictionary] = []
 ## "ปาร์ตี้ของคุณ" above the cards in a guild war (the cards then show the war party).
 var _party_head: Label
-## Wing pose chips (fly / stand / fold) under the companion card, shown while wings are worn.
+## The wing pose chip (fly / stand / fold, a tap moves on) under the party cards, while wings are worn.
 var _wing_row: HBoxContainer
 var _wing_chips: Array[PanelContainer] = []
 var _wing_shown := -1
-## The mount chip ("ขี่" / "ลง") under the wing chips, shown while a mount is owned.
+## The row holding the wing chip and the mount chip.
+var _gear_row: HBoxContainer
+## The mount chip ("ขี่" / "ลง") beside the wing chip, shown while a mount is owned.
 var _mount_row: HBoxContainer
 var _mount_chip: PanelContainer
 var _mount_shown := -1
 var minimap: Minimap
+## The chat / online / gold / menu row at the top right.
+var _top_row: HBoxContainer
 ## The left column under the hero panel: buffs, party cards, wing chips.
 var _status_column: VBoxContainer
+## The party cards and gear chips inside the left column, indented clear of a notch.
+var _party_indent: MarginContainer
 ## The world chat's height right now (WorldChat.HEIGHT, less when the party column is long).
 var _chat_height := WorldChat.HEIGHT
 
@@ -283,6 +309,7 @@ func _process(delta: float) -> void:
 		_refresh()
 		_update_timers(_timer_elapsed)
 		_timer_elapsed = 0.0
+		_place_left_column()
 		_fit_chat()
 	_update_tracker(delta)
 	_event_in -= delta
@@ -296,6 +323,33 @@ func _process(delta: float) -> void:
 		_event_label.text = "\n".join(lines)
 		_event_chip.visible = _event_label.text != ""
 		_place_event_chip()
+
+
+## The target and boss bars sit between the hero panel and the top-right row, centred in
+## the gap and never wider than it (they ran under the gold and online chips on a phone).
+func _place_top_center() -> void:
+	if _top_row == null or _status_column == null or _status_column.get_child_count() == 0:
+		return
+	var origin := _frame.global_position.x
+	var left := (_status_column.get_child(0) as Control).get_global_rect().end.x - origin + TOP_CENTER_GAP
+	var right := _top_row.get_global_rect().position.x - origin - TOP_CENTER_GAP
+	for row in _top_row.get_children():
+		var chip := row as Control
+		if chip != null and chip.visible:
+			right = chip.get_global_rect().position.x - origin - TOP_CENTER_GAP
+			break
+	var width := minf(TOP_CENTER_MAX, right - left)
+	if width < 120.0:
+		return
+	var from := roundf((left + right - width) * 0.5)
+	for panel in [_target_panel, _boss_panel]:
+		var c := panel as Control
+		if c.anchor_left != 0.0 or c.anchor_right != 0.0 or not is_equal_approx(c.offset_left, from) or not is_equal_approx(c.offset_right, from + width):
+			c.anchor_left = 0.0
+			c.anchor_right = 0.0
+			c.custom_minimum_size.x = 0.0
+			c.offset_left = from
+			c.offset_right = from + width
 
 
 func _refresh() -> void:
@@ -346,6 +400,7 @@ func _refresh() -> void:
 		raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
 	_update_target_frame()
 	_update_boss_bar()
+	_place_top_center()
 
 
 func _update_skills() -> void:
@@ -544,7 +599,7 @@ func _on_interact_changed(label: String) -> void:
 # ---------------------------------------------------------------------------
 
 func _build_status(frame: Control) -> void:
-	var column := UIUtil.vbox(8)
+	var column := UIUtil.vbox(5)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(column)
 	_status_column = column
@@ -637,14 +692,24 @@ func _build_status(frame: Control) -> void:
 	trow.add_child(_target_hp)
 	_timers = CompactTimers.new()
 	column.add_child(_timers)
-	_build_party(column)
-	_build_wing_row(column)
-	_build_mount_row(column)
+	# The party cards and the gear chips sit in their own box: on a phone held with the
+	# notch on the left they keep clear of it (_place_left_column), while the hero panel
+	# and the buffs above the notch move to the edge.
+	_party_indent = MarginContainer.new()
+	_party_indent.name = "PartyIndent"
+	_party_indent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(_party_indent)
+	var party_column := UIUtil.vbox(5)
+	party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_indent.add_child(party_column)
+	_build_party(party_column)
+	_build_wing_row(party_column)
+	_build_mount_row(party_column)
 	minimap = Minimap.new()
 	minimap.anchor_left = 1.0
 	minimap.anchor_right = 1.0
-	minimap.offset_left = -150
-	minimap.offset_right = -10
+	minimap.offset_left = -146
+	minimap.offset_right = -6
 	minimap.offset_top = 102
 	minimap.offset_bottom = 242
 	frame.add_child(minimap)
@@ -683,17 +748,19 @@ func _build_party(column: Control) -> void:
 	column.add_child(_party_head)
 	for i in Game.PARTY_MAX:
 		var card := UIUtil.panel(&"HudPanel")
-		# Compact: four of these stand above the joystick on a phone.
-		card.custom_minimum_size = Vector2(250, 0)
+		# Compact: four of these stand above the chat on a phone, ~34 px each.
+		card.custom_minimum_size = Vector2(PARTY_CARD_WIDTH, 0)
 		card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		var compact := card.get_theme_stylebox("panel")
-		if compact != null:
-			compact = compact.duplicate()
-			compact.content_margin_left = 6
-			compact.content_margin_right = 6
-			compact.content_margin_top = 3
-			compact.content_margin_bottom = 3
-			card.add_theme_stylebox_override("panel", compact)
+		var compact := StyleBoxFlat.new()
+		compact.bg_color = Color(0.05, 0.08, 0.2, 0.72)
+		compact.border_color = Color(1, 1, 1, 0.14)
+		compact.set_border_width_all(1)
+		compact.set_corner_radius_all(12)
+		compact.content_margin_left = 5
+		compact.content_margin_right = 4
+		compact.content_margin_top = 3
+		compact.content_margin_bottom = 3
+		card.add_theme_stylebox_override("panel", compact)
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.gui_input.connect(_tap(func():
 			if _war() != null:
@@ -702,17 +769,17 @@ func _build_party(column: Control) -> void:
 			if stance != "":
 				Game.say("%s: %s" % [Game.party()[i].name, Game.STANCE_NAMES[stance]], &"info")))
 		column.add_child(card)
-		var row := UIUtil.hbox(6)
+		var row := UIUtil.hbox(5)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(row)
 		var badge := PanelContainer.new()
-		badge.custom_minimum_size = Vector2(24, 24)
+		badge.custom_minimum_size = Vector2(22, 22)
 		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(badge)
 		var letter := UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
 		letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		letter.add_theme_font_size_override("font_size", 14)
+		letter.add_theme_font_size_override("font_size", 12)
 		badge.add_child(letter)
 		var info := UIUtil.vbox(1)
 		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -723,20 +790,41 @@ func _build_party(column: Control) -> void:
 		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(title)
-		title.add_theme_font_size_override("font_size", 14)
-		var bar := _bar(&"HPBar", 7)
+		title.add_theme_font_size_override("font_size", 13)
+		var bar := _bar(&"HPBar", 5)
 		info.add_child(bar)
-		var exp_bar := _bar(&"EXPBar", 3)
+		var exp_bar := _bar(&"EXPBar", 2)
 		info.add_child(exp_bar)
-		# The cross lets this member go (the card itself changes its stance).
-		var kick := UIUtil.button("✕", &"", Vector2(32, 32))
+		# The stance (ติดตาม / บุก / เฝ้า) in a small tag: the name keeps the room.
+		var stance := UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		stance.name = "Stance"
+		stance.add_theme_font_size_override("font_size", 11)
+		stance.add_theme_color_override("font_color", Color("bcd3e9"))
+		stance.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		stance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(stance)
+		# The cross lets this member go (the card itself changes its stance): a small
+		# round button without the theme's button padding (that made each card 60 px tall).
+		var kick := Button.new()
 		kick.name = "Kick"
+		kick.text = "✕"
 		kick.focus_mode = Control.FOCUS_NONE
-		kick.add_theme_font_size_override("font_size", 15)
+		kick.custom_minimum_size = Vector2(KICK_SIZE, KICK_SIZE)
+		kick.add_theme_font_size_override("font_size", 13)
+		for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+			var round := StyleBoxFlat.new()
+			round.bg_color = Color(1, 1, 1, 0.22) if state in ["pressed", "hover_pressed"] else Color(0.02, 0.04, 0.12, 0.7)
+			round.border_color = Color(1, 1, 1, 0.3)
+			round.set_border_width_all(1)
+			round.set_corner_radius_all(int(KICK_SIZE * 0.5))
+			round.set_content_margin_all(0)
+			kick.add_theme_stylebox_override(state, round)
 		kick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		kick.pressed.connect(func(): kick_party_member(i))
+		kick.pressed.connect(func():
+			AudioManager.play_ui(&"ui_click")
+			kick_party_member(i))
 		row.add_child(kick)
-		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "kick": kick, "key": ""})
+		_party_cards.append({"card": card, "badge": badge, "letter": letter, "title": title, "bar": bar, "exp": exp_bar, "stance": stance, "kick": kick, "key": ""})
 
 
 ## Lets the i-th party member go (the cross on its card); it says goodbye.
@@ -759,63 +847,97 @@ var _cape_shown := false
 
 
 func _build_wing_row(column: Control) -> void:
+	# One row for the wing / cape chip and the mount chip (they were three wing chips
+	# and a mount chip on two rows, 100 px of the left column).
+	_gear_row = UIUtil.hbox(8)
+	_gear_row.name = "GearRow"
+	_gear_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gear_row.visible = false
+	column.add_child(_gear_row)
 	_wing_row = UIUtil.hbox(8)
 	_wing_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_wing_row.visible = false
-	column.add_child(_wing_row)
-	for mode in WING_ORDER:
-		var chip := PanelContainer.new()
-		chip.custom_minimum_size = Vector2(108, 46)
-		chip.mouse_filter = Control.MOUSE_FILTER_STOP
-		chip.gui_input.connect(_tap(func():
-			if hero != null:
-				hero.set_wing_mode(mode)
-				_update_wing_row()))
-		var label := UIUtil.label(WING_LABELS[mode], &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		chip.add_child(label)
-		_wing_row.add_child(chip)
-		_wing_chips.append(chip)
+	_gear_row.add_child(_wing_row)
+	# A single chip: it says the pose now ("ปีก · บิน") and a tap moves to the next one.
+	var chip := PanelContainer.new()
+	chip.name = "WingChip"
+	chip.custom_minimum_size = Vector2(0, CHIP_HEIGHT)
+	chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	chip.gui_input.connect(_tap(tap_wing_chip))
+	var label := UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", 15)
+	chip.add_child(label)
+	_wing_row.add_child(chip)
+	_wing_chips.append(chip)
+	_style_chip(chip, false)
+
+
+## The wing / cape chip: the next pose in fly -> stand -> fold.
+func tap_wing_chip() -> void:
+	if hero == null or not is_instance_valid(hero) or not is_instance_valid(hero.visual):
+		return
+	var at := WING_ORDER.find(hero.visual.wing_mode)
+	hero.set_wing_mode(WING_ORDER[(at + 1) % WING_ORDER.size()])
+	_update_wing_row()
+
+
+## Text on the wing / cape chip right now ("" while it is hidden).
+func wing_chip_text() -> String:
+	return (_wing_chips[0].get_child(0) as Label).text if _wing_row.visible else ""
+
+
+## A HUD chip's look: dark with a white label, or (on) amber with a white label. White
+## text with the theme's dark outline reads on both; dark text on gold did not (the
+## outline turned it into a black smudge on a phone).
+func _style_chip(chip: PanelContainer, on: bool) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = CHIP_ON if on else Color(0.1, 0.12, 0.2, 0.78)
+	style.set_corner_radius_all(14)
+	style.set_border_width_all(2)
+	style.border_color = Color(1, 0.93, 0.7) if on else Color(UIPalette.GOLD, 0.55)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	chip.add_theme_stylebox_override("panel", style)
+	var label := chip.get_child(0) as Label
+	if label != null:
+		label.add_theme_color_override("font_color", Color.WHITE)
+		label.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.0, 0.9))
+		label.add_theme_constant_override("outline_size", 5)
 
 
 func _update_wing_row() -> void:
 	var worn := hero != null and is_instance_valid(hero.visual) and hero.visual.has_wings()
 	_wing_row.visible = worn
+	_gear_row.visible = _wing_row.visible or _mount_row.visible
 	var cape := worn and hero.visual.class_id == &"darklord"
 	if not worn or (hero.visual.wing_mode == _wing_shown and cape == _cape_shown):
 		return
 	_wing_shown = hero.visual.wing_mode
 	_cape_shown = cape
-	for i in _wing_chips.size():
-		(_wing_chips[i].get_child(0) as Label).text = (CAPE_LABELS if cape else WING_LABELS)[WING_ORDER[i]]
-	for i in _wing_chips.size():
-		var active: bool = WING_ORDER[i] == _wing_shown
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(UIPalette.GOLD, 0.9) if active else Color(0.1, 0.12, 0.2, 0.72)
-		style.set_corner_radius_all(14)
-		style.set_border_width_all(2)
-		style.border_color = Color.WHITE if active else Color(1, 1, 1, 0.35)
-		_wing_chips[i].add_theme_stylebox_override("panel", style)
-		(_wing_chips[i].get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if active else Color.WHITE)
+	var label := _wing_chips[0].get_child(0) as Label
+	label.text = "%s · %s" % ["ผ้าคลุม" if cape else "ปีก", (CAPE_LABELS if cape else WING_LABELS)[_wing_shown]]
 
 
-func _build_mount_row(column: Control) -> void:
+func _build_mount_row(_column: Control) -> void:
 	_mount_row = UIUtil.hbox(8)
 	_mount_row.name = "MountRow"
 	_mount_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_mount_row.visible = false
-	column.add_child(_mount_row)
+	_gear_row.add_child(_mount_row)
 	_mount_chip = PanelContainer.new()
 	_mount_chip.name = "MountChip"
-	_mount_chip.custom_minimum_size = Vector2(108, 46)
+	_mount_chip.custom_minimum_size = Vector2(76, CHIP_HEIGHT)
 	_mount_chip.mouse_filter = Control.MOUSE_FILTER_STOP
 	_mount_chip.gui_input.connect(_tap(tap_mount))
 	var label := UIUtil.label("ขี่", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", 15)
 	_mount_chip.add_child(label)
 	_mount_row.add_child(_mount_chip)
+	_style_chip(_mount_chip, false)
 
 
 ## The mount chip: get on the active mount, or off it.
@@ -833,6 +955,7 @@ func mount_chip_text() -> String:
 func _update_mount_row() -> void:
 	var shown := hero != null and is_instance_valid(hero) and Game.active_mount() != "" and hero.can_ride_here()
 	_mount_row.visible = shown
+	_gear_row.visible = _wing_row.visible or _mount_row.visible
 	if not shown:
 		return
 	var riding := 1 if hero.is_riding() else 0
@@ -840,13 +963,7 @@ func _update_mount_row() -> void:
 		return
 	_mount_shown = riding
 	(_mount_chip.get_child(0) as Label).text = "ลง" if riding == 1 else "ขี่"
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(UIPalette.GOLD, 0.9) if riding == 1 else Color(0.1, 0.12, 0.2, 0.72)
-	style.set_corner_radius_all(14)
-	style.set_border_width_all(2)
-	style.border_color = Color.WHITE if riding == 1 else Color(1, 1, 1, 0.35)
-	_mount_chip.add_theme_stylebox_override("panel", style)
-	(_mount_chip.get_child(0) as Label).add_theme_color_override("font_color", Color("2a1a08") if riding == 1 else Color.WHITE)
+	_style_chip(_mount_chip, riding == 1)
 
 
 ## The team-buff button: shown only in a guild war (with the other combat buttons),
@@ -926,7 +1043,9 @@ func _update_party() -> void:
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  %s" % [member.name, level_text]
 		entry["name_text"] = "%s  %s" % [member.name, level_text]
-		(entry.title as Label).text = "%s  [%s]" % [entry.name_text, Game.STANCE_NAMES[String(member.get("stance", "follow"))]]
+		(entry.title as Label).text = entry.name_text
+		(entry.stance as Label).visible = true
+		(entry.stance as Label).text = Game.STANCE_NAMES[String(member.get("stance", "follow"))]
 		var bar := entry.bar as ProgressBar
 		var buddy: Companion = zone.companions[i] if zone != null and i < zone.companions.size() and is_instance_valid(zone.companions[i]) else null
 		if buddy:
@@ -951,6 +1070,7 @@ func _update_war_party(war: GuildWarMatch) -> void:
 		card.visible = i < members.size()
 		(entry.kick as Control).visible = false
 		(entry.exp as Control).visible = false
+		(entry.stance as Control).visible = false
 		if not card.visible:
 			continue
 		var f := members[i]
@@ -976,6 +1096,8 @@ func _update_war_party(war: GuildWarMatch) -> void:
 
 func _build_top_right(frame: Control) -> void:
 	var row := UIUtil.hbox(10)
+	row.name = "TopRight"
+	_top_row = row
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.anchor_left = 1.0
 	row.anchor_right = 1.0
@@ -1129,7 +1251,7 @@ static func action_layout(canvas_size: Vector2) -> Dictionary:
 	# Keep the top potion below the minimap, including a phone's safe insets.
 	var utility_spacing := clampf((canvas_size.y - 466.0) / 3.0, 62.0, 72.0)
 	for i in 4:
-		utility.append(Vector2(-40.0, -184.0 - (3 - i) * utility_spacing))
+		utility.append(Vector2(UTILITY_X, -184.0 - (3 - i) * utility_spacing))
 	# The team-buff button: left of the target button, under the raven buttons and above
 	# the attack button (clear of all three, touch margins included).
 	var team_buff := utility[3] + Vector2(-72, 0)
@@ -1165,10 +1287,30 @@ func _layout_actions() -> void:
 		# lives in the safe-area frame.
 		var after_stick := 250.0
 		if joystick != null:
-			after_stick = joystick.global_position.x + joystick.rest_offset.x + joystick.base_radius + 24.0 - _frame.global_position.x
+			after_stick = joystick.global_position.x + joystick.rest_offset.x + joystick.base_radius + CHAT_STICK_GAP - _frame.global_position.x
 		world_chat.offset_left = after_stick
 		world_chat.offset_right = maxf(_frame.size.x + first.x - SKILL_SLOT_CLEAR, after_stick + 160.0)
 		_apply_chat_height()
+
+
+## The left column nearer the screen's left edge. A phone held sideways keeps the
+## notch's inset on the left only when the notch may be there (the page reports the
+## full inset on the notch side, a third on the other, the same on both when it cannot
+## tell). The notch covers the middle of that edge, not its top: the hero panel and the
+## buffs move LEFT_TOP_KEEP of the way into the inset; the party cards and gear chips,
+## level with the notch, stay clear of it on that side.
+func _place_left_column() -> void:
+	var safe := _frame.get_parent() as SafeAreaContainer
+	if safe == null or _status_column == null:
+		return
+	var left := float(safe.get_theme_constant("margin_left") - safe.min_margin)
+	var right := float(safe.get_theme_constant("margin_right") - safe.min_margin)
+	var notch_left := left > 1.0 and left >= right - 1.0
+	var shift := roundf(left * (1.0 - LEFT_TOP_KEEP)) if notch_left else 0.0
+	if not is_equal_approx(_status_column.offset_left, -shift):
+		_status_column.offset_left = -shift
+		_status_column.offset_right = -shift
+		_party_indent.add_theme_constant_override("margin_left", int(shift))
 
 
 ## The world chat keeps clear of the party cards: when the left column (buffs, party
@@ -1324,7 +1466,7 @@ class CompactTimers extends TimerBars:
 		super()
 		_flow = HFlowContainer.new()
 		_flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_flow.add_theme_constant_override("h_separation", 12)
+		_flow.add_theme_constant_override("h_separation", 8)
 		_flow.add_theme_constant_override("v_separation", 4)
 		add_child(_flow)
 		for group in _rows:
@@ -1336,8 +1478,8 @@ class CompactTimers extends TimerBars:
 			label.custom_minimum_size = Vector2.ZERO
 			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			label.add_theme_font_size_override("font_size", 14)
-			label.add_theme_constant_override("line_spacing", -3)
+			label.add_theme_font_size_override("font_size", 12)
+			label.add_theme_constant_override("line_spacing", -4)
 			label.add_theme_color_override("font_color", Color.WHITE)
 			label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 			label.add_theme_constant_override("outline_size", 5)
@@ -1379,7 +1521,8 @@ class CompactTimers extends TimerBars:
 ## in white with a dark outline on the icon's lower edge, the friend's "+" (or the
 ## summons' count) at its upper / lower right. No name: the icon says which buff.
 class BuffChip extends TimerChip:
-	const DIAMETER := 42.0
+	## 34 px: own, friends' and the song's buffs fit one row under the hero panel.
+	const DIAMETER := 34.0
 
 	func show_values(entry: Dictionary, delta: float) -> void:
 		super.show_values(entry, delta)
@@ -1405,14 +1548,14 @@ class BuffChip extends TimerChip:
 			_draw_glyph(c + Vector2(0, -5), 9.0, accent.lerp(Color.WHITE, 0.35))
 		var font := get_theme_default_font()
 		if font != null:
-			var font_size := 15
+			var font_size := 13
 			var width := font.get_string_size(time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 			var at := Vector2(c.x - width * 0.5, c.y + r - 3.0)
 			draw_string_outline(font, at, time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, Color(0, 0, 0, 0.92))
 			draw_string(font, at, time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, ring_color.lerp(Color.WHITE, 0.6) if warn else Color.WHITE)
 		if ally:
-			draw_circle(c + Vector2(r * 0.74, -r * 0.74), 7.5, Color("5aff9a"))
-			_text("+", c + Vector2(r * 0.74, -r * 0.74 + 5), 13, Color(0.02, 0.1, 0.05))
+			draw_circle(c + Vector2(r * 0.74, -r * 0.74), 6.5, Color("5aff9a"))
+			_text("+", c + Vector2(r * 0.74, -r * 0.74 + 4.5), 12, Color(0.02, 0.1, 0.05))
 		if summon and count > 1:
 			draw_circle(c + Vector2(r * 0.74, -r * 0.74), 9.0, Color(0.05, 0.1, 0.3))
 			_text("×%d" % count, c + Vector2(r * 0.74, -r * 0.74 + 5), 12, Color.WHITE)
