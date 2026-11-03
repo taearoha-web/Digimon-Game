@@ -259,7 +259,7 @@ static func _unit(item: Dictionary) -> String:
 	return "เม็ด" if String(item.get("id", "")) in ["purple", "pink", "chaos"] else "ชิ้น"
 
 
-## Where stall keeper i sits in the village, in words ("ลานกลางหมู่บ้านฝั่งตะวันออก"):
+## Where stall keeper i sits in the village, in words ("ถนนตลาดฝั่งเหนือ"):
 ## the stall its body stands at here, otherwise its own favourite stall.
 static func where_text(i: int) -> String:
 	return place_words(stall_spot(i))
@@ -278,9 +278,12 @@ static func stall_spot(i: int) -> Vector3:
 	return JapanVillage.STALLS[hash("stall|%s" % WorldPlayers.entry(i).name) % n]
 
 
-## A village spot in words: the plaza and its side, or the street it is on.
+## A village spot in words: the market street and its side (where every stall is), the
+## plaza and its side, or the street it is on.
 static func place_words(spot: Vector3) -> String:
 	var flat := Vector2(spot.x, spot.z)
+	if String(JapanVillage.district_at(spot).get("id", "")) == "market":
+		return "ถนนตลาดฝั่ง" + ("เหนือ" if spot.z < 0.0 else "ใต้")
 	var side := ""
 	if absf(spot.x) >= absf(spot.z):
 		side = "ตะวันออก" if spot.x > 0.0 else "ตะวันตก"

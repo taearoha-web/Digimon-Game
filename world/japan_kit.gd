@@ -633,6 +633,224 @@ static func village_gate(b: Batch, w: float) -> void:
 	b.box(Vector3(0, 3.9, 0.28), Vector3(2.0, 0.55, 0.08), Color("f2e6c8"))
 
 
+## A low tile-capped plaster wall (tsuiji-bei) from [param from] to [param to]: a stone
+## footing, the wall, dark posts every few metres and a small tiled ridge on top. Four
+## boxes and a roof for the whole run, however long.
+static func low_wall(b: Batch, from: Vector3, to: Vector3, plaster := PLASTER, cap := TILE_DARK) -> void:
+	var length := from.distance_to(to)
+	var dir := (to - from) / maxf(length, 0.01)
+	var yaw := rad_to_deg(atan2(dir.x, dir.z))
+	var mid := (from + to) * 0.5
+	b.box(mid + Vector3(0, 0.18, 0), Vector3(0.7, 0.36, length + 0.2), STONE_DARK, Vector3(0, yaw, 0))
+	b.box(mid + Vector3(0, 0.82, 0), Vector3(0.48, 0.95, length), plaster, Vector3(0, yaw, 0))
+	b.box(mid + Vector3(0, 0.46, 0), Vector3(0.5, 0.22, length + 0.02), WOOD, Vector3(0, yaw, 0))
+	b.roof(mid + Vector3(0, 1.48, 0), length + 0.5, 1.0, 0.42, cap, 0.96, yaw + 90.0)
+	b.box(mid + Vector3(0, 1.7, 0), Vector3(0.16, 0.1, length + 0.3), cap.darkened(0.3), Vector3(0, yaw, 0))
+	var posts := int(length / 4.5)
+	for i in range(1, posts):
+		b.box(from + dir * (length * float(i) / float(posts)) + Vector3(0, 0.82, 0), Vector3(0.56, 0.95, 0.2), WOOD_DARK, Vector3(0, yaw, 0))
+
+
+## A district gate (kabuki-mon): two thick posts on stone feet, a tie beam, a tiled
+## roof with gold ends, a name plaque in the district's colour and two paper lanterns.
+## [param w] is the opening; the front (+z) is the side the plaque faces.
+static func district_gate(b: Batch, w: float, accent: Color, roof_color := TILE_DARK) -> void:
+	for x in [-0.5, 0.5]:
+		b.box(Vector3(x * w, 0.3, 0), Vector3(1.0, 0.6, 1.0), STONE)
+		b.box(Vector3(x * w, 2.6, 0), Vector3(0.62, 4.6, 0.62), WOOD_DARK)
+		b.box(Vector3(x * w, 4.2, 0), Vector3(0.7, 0.18, 0.7), GOLD.darkened(0.2))
+		# Small side roofs over each post (a kabuki-mon's shoulders).
+		b.box(Vector3(x * (w + 1.6), 1.4, 0), Vector3(1.6, 2.8, 0.42), PLASTER)
+		b.roof(Vector3(x * (w + 1.6), 3.05, 0), 2.2, 1.2, 0.5, roof_color, 0.6)
+	b.box(Vector3(0, 4.55, 0), Vector3(w + 1.4, 0.42, 0.55), WOOD)
+	b.box(Vector3(0, 3.7, 0), Vector3(w, 0.24, 0.42), WOOD_DARK)
+	b.roof(Vector3(0, 5.45, 0), w + 3.2, 2.6, 1.3, roof_color, 0.7)
+	b.box(Vector3(0, 6.08, 0), Vector3(w * 0.7 + 1.0, 0.22, 0.32), roof_color.darkened(0.3))
+	for x in [-1.0, 1.0]:
+		b.ball(Vector3(x * (w * 0.35 + 0.5), 6.2, 0), Vector3(0.3, 0.36, 0.3), GOLD)
+	# The name plaque: a dark frame, the district's colour and a gold rim.
+	b.box(Vector3(0, 4.55, 0.36), Vector3(3.4, 0.95, 0.12), WOOD_DARK)
+	b.box(Vector3(0, 4.55, 0.43), Vector3(3.2, 0.78, 0.04), accent)
+	b.box(Vector3(0, 4.97, 0.44), Vector3(3.3, 0.06, 0.05), GOLD)
+	b.box(Vector3(0, 4.13, 0.44), Vector3(3.3, 0.06, 0.05), GOLD)
+	for x in [-1.0, 1.0]:
+		chochin(b, Vector3(x * (w * 0.5 - 0.9), 3.05, 0.3), accent.lerp(Color("f6efe0"), 0.25), 1.15)
+
+
+## The great village gate (romon): two storeys on eight vermilion pillars, a wide lower
+## roof, a white upper hall with a balcony rail, a crowning roof with gold ends, a name
+## plaque and two big red lanterns. [param w] is the opening (front = +z).
+static func grand_gate(b: Batch, w: float) -> void:
+	var half := w * 0.5
+	for x in [-half, half, -half - 3.0, half + 3.0]:
+		for z in [-1.4, 1.4]:
+			b.cyl(Vector3(x, 2.7, z), 0.32, 5.4, VERMILION)
+			b.box(Vector3(x, 0.2, z), Vector3(0.95, 0.4, 0.95), STONE)
+	for z in [-1.4, 1.4]:
+		b.box(Vector3(0, 5.1, z), Vector3(w + 7.0, 0.42, 0.42), VERMILION.darkened(0.15))
+		b.box(Vector3(0, 4.3, z), Vector3(w, 0.28, 0.34), VERMILION.darkened(0.15))
+	# Side bays: white plaster panels between the outer pillars.
+	for x in [-1.0, 1.0]:
+		b.box(Vector3(x * (half + 1.5), 1.9, 0), Vector3(2.7, 3.4, 0.3), PLASTER)
+		b.box(Vector3(x * (half + 1.5), 0.35, 0), Vector3(2.8, 0.5, 0.36), WOOD)
+	b.roof(Vector3(0, 5.95, 0), w + 10.0, 6.0, 1.2, TILE_DARK, 0.85)
+	for x in [-1.0, 1.0]:
+		for z in [-1.0, 1.0]:
+			b.box(Vector3(x * (half + 5.2), 5.4, z * 3.1), Vector3(0.7, 0.16, 0.7), TILE_DARK.darkened(0.2), Vector3(z * 12.0, 0, -x * 12.0))
+	# Upper hall with its balcony.
+	b.box(Vector3(0, 6.75, 0), Vector3(w + 4.4, 0.3, 3.6), WOOD)
+	b.box(Vector3(0, 8.0, 0), Vector3(w + 2.4, 2.3, 2.4), PLASTER)
+	for x in [-1.0, -0.33, 0.33, 1.0]:
+		b.box(Vector3(x * (w * 0.5 + 1.2), 8.0, 1.22), Vector3(0.24, 2.3, 0.1), VERMILION)
+	_shoji(b, Vector3(-w * 0.2, 8.1, 1.24), Vector3(w * 0.26, 1.2, 0.05))
+	_shoji(b, Vector3(w * 0.2, 8.1, 1.24), Vector3(w * 0.26, 1.2, 0.05))
+	b.box(Vector3(0, 7.35, 1.85), Vector3(w + 4.2, 0.1, 0.1), VERMILION)
+	b.box(Vector3(0, 7.35, -1.85), Vector3(w + 4.2, 0.1, 0.1), VERMILION)
+	b.roof(Vector3(0, 9.95, 0), w + 6.0, 5.0, 1.8, TILE_DARK, 0.6)
+	b.box(Vector3(0, 10.9, 0), Vector3(w * 0.75 + 1.5, 0.3, 0.4), TILE_DARK.darkened(0.3))
+	for x in [-1.0, 1.0]:
+		b.ball(Vector3(x * (w * 0.37 + 0.8), 11.15, 0), Vector3(0.45, 0.6, 0.45), GOLD)
+		for z in [-1.0, 1.0]:
+			b.box(Vector3(x * (half + 3.1), 9.2, z * 2.6), Vector3(0.6, 0.16, 0.6), TILE_DARK.darkened(0.2), Vector3(z * 14.0, 0, -x * 14.0))
+	# Plaque and lanterns on the front.
+	b.box(Vector3(0, 5.15, 1.7), Vector3(3.8, 1.0, 0.14), WOOD_DARK)
+	b.box(Vector3(0, 5.15, 1.78), Vector3(3.5, 0.8, 0.04), Color("f2e6c8"))
+	for x in [-1.0, 1.0]:
+		chochin(b, Vector3(x * (half - 1.2), 3.3, 1.6), Color("e8463a"), 1.7)
+		chochin(b, Vector3(x * (half - 1.2), 3.3, -1.6), Color("e8463a"), 1.7)
+
+
+## A small castle keep (tenshu) on a sloped stone base: three white storeys under dark
+## tiered roofs, vermilion balcony on top, gold dolphin ornaments (shachihoko) and a
+## big door with banners. Front = +z.
+static func castle_keep(b: Batch) -> void:
+	for i in 3:
+		var s := 12.0 - i * 0.8
+		b.box(Vector3(0, 0.5 + i * 1.0, 0), Vector3(s, 1.0, s - 1.8), STONE_DARK if i % 2 == 0 else STONE)
+	var y := 3.0
+	var tiers := [[9.4, 7.2, 3.2], [7.0, 5.4, 2.7], [4.8, 3.8, 2.4]]
+	for i in tiers.size():
+		var t: Array = tiers[i]
+		var w: float = t[0]
+		var d: float = t[1]
+		var h: float = t[2]
+		b.box(Vector3(0, y + h * 0.5, 0), Vector3(w, h, d), PLASTER)
+		b.box(Vector3(0, y + 0.3, 0), Vector3(w + 0.06, 0.6, d + 0.06), TILE_DARK)
+		for x in [-0.5, 0.5]:
+			for z in [-0.5, 0.5]:
+				b.box(Vector3(x * w, y + h * 0.5, z * d), Vector3(0.24, h, 0.24), WOOD_DARK)
+		for x in [-0.25, 0.25]:
+			b.box(Vector3(x * w, y + h * 0.6, d * 0.5 + 0.03), Vector3(0.9, 0.7, 0.05), Color("2a2a30"))
+		y += h
+		b.roof(Vector3(0, y + 0.6, 0), w + 2.6, d + 2.6, 1.2, TILE_DARK, 0.5)
+		for x in [-1.0, 1.0]:
+			for z in [-1.0, 1.0]:
+				b.box(Vector3(x * (w * 0.5 + 1.2), y + 0.05, z * (d * 0.5 + 1.2)), Vector3(0.5, 0.14, 0.5), TILE_DARK.darkened(0.2), Vector3(z * 14.0, 0, -x * 14.0))
+		# A gabled dormer on the front of the lower roofs (chidori-hafu).
+		if i < 2:
+			b.roof(Vector3(0, y + 0.55, d * 0.5 + 0.9), 1.8, 2.6, 1.0, TILE_DARK, 0.5, 90.0)
+			b.box(Vector3(0, y + 0.45, d * 0.5 + 1.6), Vector3(1.8, 0.7, 0.06), GOLD.darkened(0.2))
+		y += 1.2
+	b.box(Vector3(0, y - 0.1, 0), Vector3(3.6, 0.3, 0.4), TILE_DARK.darkened(0.3))
+	for x in [-1.0, 1.0]:
+		b.ball(Vector3(x * 1.7, y + 0.35, 0), Vector3(0.35, 0.7, 0.3), GOLD)
+		b.box(Vector3(x * 1.9, y + 0.7, 0), Vector3(0.36, 0.22, 0.16), GOLD, Vector3(0, 0, x * 40.0))
+	# Balcony rail round the top storey.
+	b.box(Vector3(0, 14.0, 2.45), Vector3(5.6, 0.1, 0.1), VERMILION)
+	# Door, steps and a gold crest over it.
+	b.box(Vector3(0, 4.4, 3.65), Vector3(2.2, 2.6, 0.1), WOOD_DARK)
+	b.box(Vector3(0, 4.4, 3.7), Vector3(0.06, 2.4, 0.04), GOLD.darkened(0.3))
+	b.cyl(Vector3(0, 6.2, 3.68), 0.45, 0.08, GOLD, Vector3(90, 0, 0), 12)
+	for i in 3:
+		b.box(Vector3(0, 0.5 + i * 1.0, 5.1 + (2 - i) * 0.9), Vector3(3.2, 1.0, 0.9), STONE)
+
+
+## A light market booth: four posts, a cloth awning and a counter with heaped goods
+## (cones and crates, cheaper than the big stall's fruit). Front = +z.
+static func market_booth(b: Batch, w: float, d: float, awning: Color, goods: Array) -> void:
+	for x in [-0.5, 0.5]:
+		for z in [-0.5, 0.5]:
+			b.box(Vector3(x * w, 1.2, z * d), Vector3(0.12, 2.4, 0.12), WOOD_DARK)
+	b.box(Vector3(0, 0.45, d * 0.1), Vector3(w * 0.92, 0.9, d * 0.55), WOOD)
+	b.box(Vector3(0, 0.93, d * 0.1), Vector3(w * 0.96, 0.08, d * 0.62), WOOD_LIGHT)
+	b.cloth(Vector3(0, 2.45, 0), Vector3(w + 0.5, 0.06, d + 0.5), awning, func(v: Vector3) -> float:
+		return clampf(absf(v.z) / (d * 0.5 + 0.25) - 0.5, 0.0, 1.0) * 0.6)
+	b.cloth(Vector3(0, 2.25, d * 0.5 + 0.25), Vector3(w + 0.5, 0.4, 0.03), Color("f6efe0") if awning.get_luminance() < 0.6 else awning.darkened(0.3), hanging_weight(2.45, 0.4))
+	for i in goods.size():
+		var x := -w * 0.32 + i * (w * 0.64 / maxf(goods.size() - 1, 1))
+		b.box(Vector3(x, 1.08, d * 0.12), Vector3(0.5, 0.22, 0.42), Color("b8905a"))
+		b.cone(Vector3(x, 1.36, d * 0.12), 0.24, 0.34, goods[i])
+	b.box(Vector3(w * 0.5 + 0.35, 0.25, -d * 0.2), Vector3(0.5, 0.5, 0.5), Color("a07a48"), Vector3(0, 18, 0))
+
+
+## A wooden bench (front = +z).
+static func bench(b: Batch, pos: Vector3, yaw: float, w := 2.0) -> void:
+	b.box(pos + Vector3(0, 0.46, 0), Vector3(w, 0.1, 0.55), WOOD_LIGHT, Vector3(0, yaw, 0))
+	var side := Basis(Vector3.UP, deg_to_rad(yaw)) * Vector3(w * 0.4, 0, 0)
+	for s in [-1.0, 1.0]:
+		b.box(pos + side * s + Vector3(0, 0.22, 0), Vector3(0.14, 0.44, 0.5), WOOD_DARK, Vector3(0, yaw, 0))
+
+
+## A window flower box: a little wooden trough of bright blooms.
+static func flower_box(b: Batch, pos: Vector3, w: float, yaw: float) -> void:
+	b.box(pos, Vector3(w, 0.3, 0.4), WOOD, Vector3(0, yaw, 0))
+	var along := Basis(Vector3.UP, deg_to_rad(yaw)) * Vector3.RIGHT
+	var blooms := [Color("f08aa8"), Color("f6d35a"), Color("f4f0e6"), Color("e8463a"), Color("c89ae8")]
+	var n := int(w / 0.35)
+	for i in n:
+		var p := pos + along * (-w * 0.5 + 0.2 + i * (w - 0.4) / maxf(n - 1, 1)) + Vector3(0, 0.22, 0)
+		b.box(p, Vector3(0.24, 0.2, 0.24), Color("6f9a52"), Vector3(0, yaw + i * 25.0, 0))
+		b.box(p + Vector3(0, 0.14, 0), Vector3(0.16, 0.12, 0.16), blooms[i % blooms.size()], Vector3(0, yaw + i * 40.0, 0))
+
+
+## A paper parasol (wagasa) on a pole, open over a bench or a stall.
+static func parasol(b: Batch, pos: Vector3, color: Color, size := 1.0) -> void:
+	b.cyl(pos + Vector3(0, 1.3, 0) * size, 0.05 * size, 2.6 * size, WOOD_LIGHT, Vector3.ZERO, 6)
+	b.cone(pos + Vector3(0, 2.75, 0) * size, 1.5 * size, 0.6 * size, color)
+	b.cone(pos + Vector3(0, 2.72, 0) * size, 0.5 * size, 0.62 * size, color.lightened(0.35))
+	b.ball(pos + Vector3(0, 3.08, 0) * size, Vector3(0.12, 0.12, 0.12) * size, WOOD_DARK)
+
+
+## A clump of bamboo: tall jointed green stalks with leafy tops.
+static func bamboo(b: Batch, pos: Vector3, rng: RandomNumberGenerator, stalks := 6) -> void:
+	for i in stalks:
+		var a := rng.randf() * TAU
+		var p := pos + Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.2, 1.1)
+		var h := rng.randf_range(6.0, 8.5)
+		var lean := Vector3(rng.randf_range(-4.0, 4.0), 0, rng.randf_range(-4.0, 4.0))
+		b.cyl(p + Vector3(0, h * 0.5, 0), 0.09, h, Color("7aa84a") if i % 2 == 0 else Color("6a9a40"), lean, 5)
+		b.cone(p + Vector3(lean.z * 0.02 * h, h - 0.6, -lean.x * 0.02 * h), 0.9, 2.4, Color("5f9a48") if i % 3 else Color("78b058"))
+
+
+## An archery target on a stand (front = +z).
+static func target(b: Batch, pos: Vector3) -> void:
+	for x in [-0.45, 0.45]:
+		b.box(pos + Vector3(x, 0.8, -0.2), Vector3(0.1, 1.6, 0.1), WOOD, Vector3(-12, 0, 0))
+	b.cyl(pos + Vector3(0, 1.3, 0), 0.6, 0.12, Color("f4ead0"), Vector3(90, 0, 0), 12)
+	b.cyl(pos + Vector3(0, 1.3, 0.02), 0.42, 0.12, Color("1e2a4a"), Vector3(90, 0, 0), 12)
+	b.cyl(pos + Vector3(0, 1.3, 0.04), 0.2, 0.12, Color("d8452e"), Vector3(90, 0, 0), 12)
+
+
+## A garden pavilion (azumaya): four posts, a pyramid roof and a bench inside.
+static func pavilion(b: Batch, size := 3.4) -> void:
+	b.box(Vector3(0, 0.12, 0), Vector3(size + 0.6, 0.24, size + 0.6), STONE)
+	for x in [-0.5, 0.5]:
+		for z in [-0.5, 0.5]:
+			b.box(Vector3(x * size, 1.4, z * size), Vector3(0.2, 2.6, 0.2), WOOD)
+	b.roof(Vector3(0, 3.25, 0), size + 1.8, size + 1.8, 1.4, THATCH.darkened(0.15), 0.0)
+	b.ball(Vector3(0, 4.0, 0), Vector3(0.3, 0.3, 0.3), WOOD_DARK)
+	bench(b, Vector3(0, 0.0, -size * 0.3), 0.0, size * 0.8)
+
+
+## A scarecrow (kakashi) in a straw hat.
+static func scarecrow(b: Batch, pos: Vector3) -> void:
+	b.cyl(pos + Vector3(0, 1.0, 0), 0.06, 2.0, WOOD, Vector3.ZERO, 5)
+	b.box(pos + Vector3(0, 1.45, 0), Vector3(1.4, 0.08, 0.08), WOOD)
+	b.box(pos + Vector3(0, 1.2, 0), Vector3(0.7, 0.7, 0.22), Color("5a7ad8"))
+	b.ball(pos + Vector3(0, 1.85, 0), Vector3(0.36, 0.36, 0.36), Color("f0e6c8"))
+	b.cone(pos + Vector3(0, 2.1, 0), 0.5, 0.3, Color("d8bc78"))
+
+
 ## A pond with stone edging and lily pads; returns nothing (water is a
 ## separate translucent mesh, see [method water]).
 static func pond_rim(b: Batch, radius: Vector2, rng: RandomNumberGenerator) -> void:
@@ -690,3 +908,143 @@ static func hat(kind: String, color := Color.WHITE) -> Node3D:
 	if not b.is_empty():
 		b.commit(root, "Mesh", false)
 	return root
+
+
+# ---------------------------------------------------------------------------
+# Lived-in village detail (all in the batch's local frame, front = +z)
+# ---------------------------------------------------------------------------
+
+## A wall of sake barrels offered to the shrine (komodaru) on a low stand under a little
+## roof: `cols` x `rows` straw-white barrels with coloured labels.
+static func sake_barrels(b: Batch, cols := 4, rows := 2) -> void:
+	var w := cols * 0.88
+	b.box(Vector3(0, 0.15, 0), Vector3(w + 0.4, 0.3, 1.1), WOOD_DARK)
+	var labels := [Color("c8352e"), Color("2f4f8a"), Color("3a3a42"), Color("4a8f5c"), Color("b8862e")]
+	for r in rows:
+		for c in cols:
+			var p := Vector3((c - (cols - 1) * 0.5) * 0.88, 0.71 + r * 0.84, 0)
+			b.cyl(p, 0.4, 0.82, Color("f4efe4"), Vector3.ZERO, 10)
+			for y in [-0.28, 0.28]:
+				b.cyl(p + Vector3(0, y, 0), 0.415, 0.06, Color("6a5038"), Vector3.ZERO, 10)
+			b.box(p + Vector3(0, 0, 0.39), Vector3(0.44, 0.42, 0.04), labels[(r * cols + c) % labels.size()])
+	var top := 0.3 + rows * 0.84 + 0.45
+	for x in [-0.5, 0.5]:
+		b.box(Vector3(x * (w + 0.3), top * 0.5, -0.45), Vector3(0.14, top, 0.14), WOOD_DARK)
+	b.roof(Vector3(0, top, 0), w + 0.9, 1.7, 0.45, TILE_DARK, 0.0)
+
+
+## A little wayside shrine (hokora) on a stone base with a small red torii in front.
+static func hokora(b: Batch) -> void:
+	b.box(Vector3(0, 0.3, 0), Vector3(1.4, 0.6, 1.2), STONE)
+	b.box(Vector3(0, 1.0, 0), Vector3(0.9, 0.8, 0.8), WOOD)
+	b.box(Vector3(0, 0.98, 0.41), Vector3(0.52, 0.52, 0.02), SHOJI)
+	b.roof(Vector3(0, 1.4, 0), 1.25, 1.2, 0.4, VERMILION, 0.0)
+	for x in [-0.25, 0.25]:
+		b.cyl(Vector3(x, 0.68, 0.5), 0.08, 0.16, Color("f4f0e6"), Vector3.ZERO, 6)
+	for x in [-0.55, 0.55]:
+		b.cyl(Vector3(x, 0.65, 1.35), 0.06, 1.3, VERMILION, Vector3.ZERO, 6)
+	b.box(Vector3(0, 1.34, 1.35), Vector3(1.55, 0.1, 0.14), Color("2a2a2e"))
+	b.box(Vector3(0, 1.15, 1.35), Vector3(1.2, 0.07, 0.1), VERMILION)
+
+
+## A wooden hand cart (daihachi) loaded with rice sacks and a barrel, handles to +z.
+static func cart(b: Batch, load_colors: Array) -> void:
+	b.box(Vector3(0, 0.78, 0), Vector3(1.3, 0.1, 2.2), WOOD)
+	for x in [-0.62, 0.62]:
+		b.box(Vector3(x, 0.95, 0), Vector3(0.06, 0.3, 2.2), WOOD_DARK)
+		b.cyl(Vector3(x * 1.2, 0.55, -0.2), 0.55, 0.1, WOOD_DARK, Vector3(0, 0, 90), 10)
+		b.cyl(Vector3(x * 1.2, 0.55, -0.2), 0.12, 0.14, WOOD_LIGHT, Vector3(0, 0, 90), 6)
+		b.box(Vector3(x * 0.75, 0.72, 1.65), Vector3(0.08, 0.08, 1.3), WOOD_DARK)
+	b.box(Vector3(0, 0.72, 2.25), Vector3(1.3, 0.08, 0.08), WOOD_DARK)
+	for i in load_colors.size():
+		var at := Vector3((i % 2 - 0.5) * 0.6, 1.08 + (i / 2) * 0.32, -0.6 + (i % 3) * 0.55)
+		b.box(at, Vector3(0.55, 0.32, 0.5), load_colors[i], Vector3(0, i * 23.0, 0))
+	b.cyl(Vector3(0.1, 1.15, 0.75), 0.3, 0.6, Color("8a6a40"), Vector3.ZERO, 8)
+
+
+## A raised stone-edged garden bed `w` x `d` of moss, shrubs and bright blooms.
+static func garden_bed(b: Batch, w: float, d: float) -> void:
+	for s in [-1.0, 1.0]:
+		b.box(Vector3(0, 0.18, s * d * 0.5), Vector3(w + 0.3, 0.36, 0.3), STONE)
+		b.box(Vector3(s * w * 0.5, 0.18, 0), Vector3(0.3, 0.36, d), STONE)
+	b.box(Vector3(0, 0.2, 0), Vector3(w - 0.1, 0.3, d - 0.1), Color("5f8a46"))
+	var blooms := [Color("f08aa8"), Color("f6d35a"), Color("f4f0e6"), Color("e8463a"), Color("c89ae8"), Color("f0a050")]
+	var nx := maxi(1, int(w / 0.75))
+	var nz := maxi(1, int(d / 0.75))
+	for i in nx:
+		for k in nz:
+			var p := Vector3((i + 0.5) * w / nx - w * 0.5, 0.5, (k + 0.5) * d / nz - d * 0.5)
+			if (i + k) % 3 == 0:
+				b.ball(p, Vector3(0.6, 0.45, 0.6), Color("4f7e3c").lerp(Color("7aa85a"), float((i * 7 + k * 3) % 5) / 4.0))
+			else:
+				b.box(p, Vector3(0.3, 0.18, 0.3), Color("6f9a52"), Vector3(0, (i * 31 + k * 17) % 90, 0))
+				b.ball(p + Vector3(0, 0.16, 0), Vector3(0.24, 0.18, 0.24), blooms[(i * 3 + k) % blooms.size()])
+
+
+## A stone trough planter `w` wide topped with flowers.
+static func planter(b: Batch, w: float) -> void:
+	b.box(Vector3(0, 0.25, 0), Vector3(w, 0.5, 0.65), STONE_DARK)
+	flower_box(b, Vector3(0, 0.6, 0), w - 0.1, 0.0)
+
+
+## A laundry line `length` long along local x between two posts: yukata, towels and
+## cloths airing in the sun.
+static func laundry_line(b: Batch, length: float) -> void:
+	for x in [-0.5, 0.5]:
+		b.cyl(Vector3(x * length, 1.1, 0), 0.07, 2.2, WOOD_DARK, Vector3.ZERO, 6)
+	b.box(Vector3(0, 2.05, 0), Vector3(length, 0.03, 0.03), Color("3a3028"))
+	var cloth := [Color("2f4f8a"), Color("f4f0e6"), Color("e87aa0"), Color("f6d35a"), Color("4a8f5c"), Color("f4f0e6")]
+	var n := int(length / 0.85)
+	for i in n:
+		var x := -length * 0.5 + (i + 0.6) * length / (n + 0.2)
+		var h := 0.8 if i % 3 == 0 else 0.55
+		b.box(Vector3(x, 2.02 - h * 0.5, 0), Vector3(0.6, h, 0.03), cloth[i % cloth.size()], Vector3(0, 0, (i % 2) * 4.0 - 2.0))
+
+
+## A koi channel `length` long along local z: stone kerbs, clear water, koi, lily pads.
+static func koi_channel(b: Batch, length: float, width := 1.3) -> void:
+	b.box(Vector3(0, 0.08, 0), Vector3(width, 0.12, length), Color("2f5f7a"))
+	b.box(Vector3(0, 0.17, 0), Vector3(width, 0.04, length), Color("5aaed0"))
+	for s in [-1.0, 1.0]:
+		b.box(Vector3(s * (width * 0.5 + 0.2), 0.2, 0), Vector3(0.4, 0.4, length + 0.4), STONE)
+	var n := int(length / 2.2)
+	for i in n:
+		var z := -length * 0.5 + (i + 0.5) * length / n
+		var x := (float((i * 37) % 7) / 6.0 - 0.5) * width * 0.6
+		if i % 3 == 1:
+			b.cyl(Vector3(x, 0.2, z), 0.22, 0.02, Color("4f8a3c"), Vector3.ZERO, 8)
+		else:
+			b.box(Vector3(x, 0.19, z), Vector3(0.14, 0.04, 0.42), [Color("f08a3a"), Color("f4f0e6"), Color("e8463a")][i % 3], Vector3(0, (i * 41) % 60 - 30, 0))
+
+
+## A prayer rack at a shrine: ema plaques (wood) or omikuji fortunes (white paper knots).
+static func prayer_rack(b: Batch, plaque: Color) -> void:
+	for x in [-1.1, 1.1]:
+		b.box(Vector3(x, 0.95, 0), Vector3(0.14, 1.9, 0.14), WOOD_DARK)
+	b.roof(Vector3(0, 1.95, 0), 2.7, 0.8, 0.3, TILE_DARK, 0.0)
+	for row in 3:
+		var y := 0.85 + row * 0.38
+		b.box(Vector3(0, y + 0.1, 0), Vector3(2.2, 0.04, 0.04), WOOD)
+		for i in 9:
+			b.box(Vector3(-0.96 + i * 0.24, y, 0.03 * ((i + row) % 2)), Vector3(0.18, 0.14, 0.02), plaque.darkened(0.05 * ((i + row) % 3)))
+
+
+## A big festival drum (taiko) on its wooden stand.
+static func taiko(b: Batch) -> void:
+	for x in [-0.45, 0.45]:
+		b.box(Vector3(x, 0.55, 0), Vector3(0.1, 1.1, 0.9), WOOD_DARK)
+	b.cyl(Vector3(0, 1.2, 0), 0.62, 0.75, Color("8a3a2a"), Vector3(90, 0, 0), 12)
+	for z in [-0.38, 0.38]:
+		b.cyl(Vector3(0, 1.2, z), 0.6, 0.02, Color("f0e6d0"), Vector3(90, 0, 0), 12)
+	b.box(Vector3(0, 1.84, 0), Vector3(0.9, 0.08, 0.08), GOLD)
+
+
+## Stacked firewood under a little lean-to roof, a barrel either side.
+static func woodpile(b: Batch, w: float) -> void:
+	for row in 3:
+		for i in int(w / 0.3):
+			b.cyl(Vector3(-w * 0.5 + 0.15 + i * 0.3 + (row % 2) * 0.12, 0.15 + row * 0.27, 0), 0.14, 0.9, Color("9a7048") if (i + row) % 2 else Color("b0864f"), Vector3(90, 0, 0), 6)
+	b.box(Vector3(0, 1.05, 0), Vector3(w + 0.3, 0.08, 1.2), TILE_DARK, Vector3(-12, 0, 0))
+	for x in [-0.5, 0.5]:
+		b.cyl(Vector3(x * (w + 1.4), 0.45, 0.2), 0.36, 0.9, Color("7a5a38"), Vector3.ZERO, 8)
+		b.cyl(Vector3(x * (w + 1.4), 0.62, 0.2), 0.37, 0.06, Color("3a3028"), Vector3.ZERO, 8)
