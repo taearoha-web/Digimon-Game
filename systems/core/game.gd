@@ -950,6 +950,14 @@ func _valid_profile(data: Dictionary) -> bool:
 	for value in data.get("ach", {}).values():
 		if not value is bool:
 			return false
+	# Who leads each guild (set_guild_leader): {"<guild id>": "<member name>" | ""}.
+	if data.has("guild_leaders"):
+		var leaders: Variant = data.guild_leaders
+		if not leaders is Dictionary or (leaders as Dictionary).size() > 8:
+			return false
+		for key in leaders:
+			if not key is String or not leaders[key] is String or String(leaders[key]).length() > GUILD_LEADER_NAME_MAX:
+				return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1160,6 +1168,16 @@ func _repair(data: Dictionary) -> Dictionary:
 	_repair_mounts(data)
 	# Saves from before the stall get an empty one.
 	PlayerStall.repair(data)
+	# Guild leaders: only the two guilds, a name each ("" = the default leader).
+	if data.has("guild_leaders"):
+		var leaders := {}
+		var raw_leaders: Variant = data.guild_leaders
+		if raw_leaders is Dictionary:
+			for key in raw_leaders:
+				var g := String(key)
+				if g.is_valid_int() and WorldPlayers.GUILD_NAMES.has(int(g)) and raw_leaders[key] is String:
+					leaders[str(int(g))] = String(raw_leaders[key]).strip_edges().left(GUILD_LEADER_NAME_MAX)
+		data["guild_leaders"] = leaders
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -3082,10 +3100,181 @@ func guild() -> int:
 func join_guild(g: int) -> bool:
 	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g) or guild() == g or int(profile.level) < GUILD_LEVEL:
 		return false
+	var before := guild()
 	profile["flags"][GUILD_FLAG] = g
+	# A new guild: the hero leads it until the player picks someone else, and the guild
+	# it left goes back to its own leader (its strongest member).
+	var leaders := _guild_leader_picks()
+	leaders[str(g)] = ""
+	if before > 0:
+		leaders.erase(str(before))
+	profile["guild_leaders"] = leaders
 	mark_dirty()
 	guild_changed.emit()
 	return true
+
+
+# --- Guild leaders (หัวหน้ากิลด์): the player picks who leads each guild ---------
+# profile.guild_leaders = {"<guild id>": pick}. A pick is "" (or missing), a world
+# player's name, or "@<slot>" for one of the player's other characters (guild_alts).
+# For the hero's own guild "" means the hero leads; for the other guild "" means its
+# strongest member (WorldPlayers.guild_leader). A pick that is no longer in that guild
+# (moved, deleted, not at Lv.100) falls back to that default. Another character of the
+# player is not being played, so it is never in the guild war: there the default leads
+# in its place (guild_war_leader).
+
+## How long a saved pick may be (world player names are short).
+const GUILD_LEADER_NAME_MAX := 64
+const ALT_PICK := "@"
+
+
+func _guild_leader_picks() -> Dictionary:
+	var raw: Variant = profile.get("guild_leaders", {}) if has_profile else {}
+	return (raw as Dictionary).duplicate() if raw is Dictionary else {}
+
+
+## The pick saved for guild `g` ("" when none: the default).
+func guild_leader_pick(g: int) -> String:
+	return String(_guild_leader_picks().get(str(g), ""))
+
+
+## The pick for one of the player's other characters (save slot `for_slot`).
+static func alt_pick(for_slot: int) -> String:
+	return "%s%d" % [ALT_PICK, for_slot]
+
+
+## True when world player `who` is a member of guild `g` at time t.
+static func is_guild_member(g: int, who: String, t: float) -> bool:
+	var i := WorldPlayers.index_of(who)
+	return i >= 0 and WorldPlayers.members_at(g, t).has(i)
+
+
+## The player's other character in guild `g` that `pick` names ("@<slot>"), {} if none.
+func _alt_of_pick(g: int, pick: String) -> Dictionary:
+	if not pick.begins_with(ALT_PICK) or not pick.substr(1).is_valid_int():
+		return {}
+	var want := int(pick.substr(1))
+	for alt in guild_alts(g):
+		if int(alt.slot) == want:
+			return alt
+	return {}
+
+
+## Who leads guild `g` at time t (default: now), as the guild screen shows it:
+## {kind: "hero" | "member" | "alt" | "none", name, pick, slot (alt)}.
+func guild_leader_of(g: int, t := -1.0) -> Dictionary:
+	if t < 0.0:
+		t = WorldPresence.clock()
+	var pick := guild_leader_pick(g)
+	if pick != "":
+		if pick.begins_with(ALT_PICK):
+			var alt := _alt_of_pick(g, pick)
+			if not alt.is_empty():
+				return {"kind": "alt", "name": String(alt.name), "pick": pick, "slot": int(alt.slot)}
+		elif is_guild_member(g, pick, t):
+			return {"kind": "member", "name": pick, "pick": pick}
+	if g > 0 and g == guild():
+		return {"kind": "hero", "name": String(profile.get("name", "")), "pick": ""}
+	var best := WorldPlayers.guild_leader(g, t)
+	return {"kind": "member" if best != "" else "none", "name": best, "pick": ""}
+
+
+## Who leads guild `g` (the chosen one): "" is the hero (the hero's own guild) or nobody,
+## else a world player's or another character's name.
+func guild_leader_name(g: int, t := -1.0) -> String:
+	var lead := guild_leader_of(g, t)
+	return "" if String(lead.kind) == "hero" else String(lead.name)
+
+
+## Who leads guild `g` in the guild war: as chosen, but another character of the player
+## is not in the war, so the default leads instead (the hero for its own guild, else its
+## strongest member). "" is the hero.
+func guild_war_leader(g: int, t := -1.0) -> String:
+	if t < 0.0:
+		t = WorldPresence.clock()
+	var lead := guild_leader_of(g, t)
+	match String(lead.kind):
+		"hero":
+			return ""
+		"alt":
+			if g > 0 and g == guild():
+				return ""
+			return WorldPlayers.guild_leader(g, t)
+	return String(lead.name)
+
+
+## True when the hero leads its own guild `g`.
+func hero_leads_guild(g: int, t := -1.0) -> bool:
+	return g > 0 and g == guild() and String(guild_leader_of(g, t).kind) == "hero"
+
+
+## The leader as the guild screen shows it: "คุณ (name)" for the hero, another character
+## tagged as the player's, "ยังไม่มี" for nobody.
+func guild_leader_label(g: int, t := -1.0) -> String:
+	var lead := guild_leader_of(g, t)
+	match String(lead.kind):
+		"hero":
+			return "คุณ (%s)" % String(lead.name)
+		"alt":
+			return "%s (ตัวละครของคุณ · ไม่ได้เล่นอยู่)" % String(lead.name)
+		"none":
+			return "ยังไม่มี"
+	return String(lead.name)
+
+
+## Saves who leads guild `g`: "" for the hero (own guild) or the default (other guild),
+## a member of that guild, or alt_pick(slot) for another character of the player in it.
+## False when the pick cannot lead it.
+func set_guild_leader(g: int, pick: String, t := -1.0) -> bool:
+	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g):
+		return false
+	if t < 0.0:
+		t = WorldPresence.clock()
+	if pick.begins_with(ALT_PICK):
+		if _alt_of_pick(g, pick).is_empty():
+			return false
+	elif pick != "" and not is_guild_member(g, pick, t):
+		return false
+	var leaders := _guild_leader_picks()
+	leaders[str(g)] = pick
+	profile["guild_leaders"] = leaders
+	mark_dirty()
+	guild_changed.emit()
+	return true
+
+
+## The player's other characters (the other save slots, read without loading them)
+## that are in guild `g`: Lv.100 or more with that guild. [{slot, name, class, adv,
+## level, stars}]. They count as members but stay out of the guild war while another
+## character is played. Kept by the slot files' stamps (the guild screen refreshes).
+var _alt_cache := {}
+
+
+func guild_alts(g: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for i in range(1, SLOT_COUNT + 1):
+		if has_profile and i == slot:
+			continue
+		var stamp := _slot_stamp(i)
+		if stamp == "":
+			_alt_cache.erase(i)
+			continue
+		var kept: Variant = _alt_cache.get(i)
+		if kept == null or String(kept.stamp) != stamp:
+			var raw := _read_slot(i)
+			var info := {}
+			if not raw.is_empty():
+				var flags: Variant = raw.get("flags", {})
+				var their_guild := int((flags as Dictionary).get(GUILD_FLAG, 0)) if flags is Dictionary else 0
+				info = _slot_summary(raw)
+				info["guild"] = their_guild if WorldPlayers.GUILD_NAMES.has(their_guild) and int(info.level) >= GUILD_LEVEL else 0
+				info["slot"] = i
+			kept = {"stamp": stamp, "info": info}
+			_alt_cache[i] = kept
+		var found: Dictionary = kept.info
+		if not found.is_empty() and int(found.guild) == g and g > 0:
+			out.append(found.duplicate())
+	return out
 
 
 # --- Guild daily quests and the guild points shop (GuildQuestData) ---------------

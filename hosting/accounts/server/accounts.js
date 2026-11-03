@@ -215,6 +215,12 @@ function validateProfile(profile) {
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');
+  // Who leads each guild (Game.set_guild_leader): {"<guild id>": "<member name>" | ""}.
+  if ('guild_leaders' in profile) {
+    const leaders = profile.guild_leaders;
+    if (!dictionary(leaders) || Object.keys(leaders).length > 8
+        || Object.values(leaders).some(value => typeof value !== 'string' || value.length > 64)) fail(400, 'invalid_save', 'The guild leaders are invalid.');
+  }
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
     const stall = profile.stall;

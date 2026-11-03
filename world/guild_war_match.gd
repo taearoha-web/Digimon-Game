@@ -87,8 +87,13 @@ var gates: Array[CastleGate] = []
 var castle_owner := -1
 var capture: Dictionary = {}
 ## The rival guild's leader (หัวหน้ากิลด์): the only one of its side who may take the
-## altar. Ours is the hero.
+## altar. Ours is the hero, or the member the player picked (ally_leader).
 var enemy_leader: GuildFighter
+## Our guild's leader when the player picked one of its members (Game.guild_leader_name);
+## null when the hero leads.
+var ally_leader: GuildFighter
+## The hero stood on the altar without leading (the hint is said once a visit).
+var _altar_hint := false
 ## Each guild's plan now (PLAN_NAMES keys; [ours, theirs]).
 var plans: Array[String] = ["", ""]
 var _plan_timer := 0.0
@@ -163,16 +168,46 @@ func build(tree: SceneTree = null) -> void:
 		roster = GuildWarData.roll_match(rng)
 	ally_name = roster.ally_name
 	enemy_name = roster.enemy_name
+	# Who leads each side (the player picks, Game.guild_war_leader): a picked member is
+	# always in its line-up. The rival's default leader (its strongest member) leads when
+	# in the line-up, else its best tank does, as always. One of the player's other
+	# characters picked to lead is not in the war: the default leads instead (told below).
+	var ally_lead_name := ""
+	var enemy_lead_name := ""
+	stand_ins.clear()
+	if bool(roster.get("guilds", false)):
+		var t0 := float(started_at)
+		var ours := Game.guild()
+		var rival := WorldPlayers.other_guild(ours)
+		ally_lead_name = Game.guild_war_leader(ours, t0)
+		enemy_lead_name = Game.guild_war_leader(rival, t0)
+		ensure_member(roster.ally, ally_lead_name, t0, rng)
+		if String(Game.guild_leader_of(rival, t0).kind) == "member" and Game.guild_leader_pick(rival) == enemy_lead_name:
+			ensure_member(roster.enemy, enemy_lead_name, t0, rng)
+		for g in [ours, rival]:
+			var chosen := Game.guild_leader_of(g, t0)
+			if String(chosen.kind) == "alt":
+				stand_ins[g] = String(chosen.name)
 	_take_picks(saved)
 	var party_rng := RandomNumberGenerator.new()
 	party_rng.seed = hash("gw_party|%d" % roll_seed)
 	party_plan = roll_parties(roster.ally.size(), roster.enemy.size(), party_picks, party_chosen, party_rng)
 	BurstGuard.clear()
-	# The rival guild's leader plays a tank's build of its own points (GuildWarData.tank_build).
-	var lead_at := GuildWarData.leader_index(roster.enemy, WorldPlayers.guild_leader(WorldPlayers.other_guild(Game.guild()), WorldPresence.clock()))
+	# The rival guild's leader plays a tank's build of its own points (GuildWarData.tank_build),
+	# and so does ours when the player picked one of the members instead of the hero.
+	var lead_at := GuildWarData.leader_index(roster.enemy, enemy_lead_name)
 	if lead_at >= 0:
 		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
+	var ally_lead_at := -1
+	if ally_lead_name != "":
+		for i in roster.ally.size():
+			if String(roster.ally[i].member.get("name", "")) == ally_lead_name:
+				ally_lead_at = i
+				break
+		if ally_lead_at >= 0:
+			roster.ally[ally_lead_at] = GuildWarData.tank_build(roster.ally[ally_lead_at])
 	var lead_fighter: GuildFighter = null
+	var ally_lead_fighter: GuildFighter = null
 	# Each guild stands in its camp party by party (the hero's party in the front row).
 	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
 		var lineup: Array = roster.ally if team == GuildFighter.TEAM_ALLY else roster.enemy
@@ -186,14 +221,21 @@ func build(tree: SceneTree = null) -> void:
 				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
 				if team == GuildFighter.TEAM_ENEMY and int(i) == lead_at:
 					lead_fighter = fighter
+				elif team == GuildFighter.TEAM_ALLY and int(i) == ally_lead_at:
+					ally_lead_fighter = fighter
 				slot += 1
 				await FrameSlicer.pace(tree)
 	enemy_leader = lead_fighter if lead_fighter != null else pick_leader(enemies)
 	if enemy_leader != null:
 		enemy_leader.make_leader()
-	# The hero leads our guild (with its own stats, like everyone): the same crown over its head.
-	if is_instance_valid(hero):
+	# Our leader: the member the player picked (the same crown, the altar is theirs), else
+	# the hero (with its own stats, like everyone).
+	ally_leader = ally_lead_fighter
+	if ally_leader != null:
+		ally_leader.make_leader()
+	elif is_instance_valid(hero):
 		LeaderMark.attach(hero, LeaderMark.guild_color(GuildFighter.TEAM_ALLY))
+	_tell_stand_ins()
 	_raise_castle(saved)
 	Game.guildwar_issue_supply()
 	if not saved.is_empty():
@@ -454,11 +496,66 @@ func _mark_focus() -> void:
 		_focus_mark.global_position = target.global_position + Vector3(0, 0.08, 0)
 
 
-## A guild's leader: the hero for ours, the rival guild's chosen one for theirs.
+## The player's other characters picked to lead a guild, by guild id: they are not
+## being played, so not in the war, and its default leader stands in (stand_in_lines).
+var stand_ins := {}
+
+
+## One line per guild whose picked leader (another character of the player) is not on
+## the field: "หัวหน้ากิลด์ X ไม่ได้ลงสนาม — Y นำทัพแทน".
+func stand_in_lines() -> Array[String]:
+	var out: Array[String] = []
+	var ours := Game.guild()
+	for g in stand_ins:
+		var team := GuildFighter.TEAM_ALLY if int(g) == ours else GuildFighter.TEAM_ENEMY
+		var lead := leader_of(team)
+		var who := "คุณ" if lead == hero else (String((lead as GuildFighter).member.get("name", "")) if lead is GuildFighter else "ไม่มีใคร")
+		out.append("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม (ตัวละครของคุณที่ไม่ได้เล่นอยู่) — %s นำทัพ %s แทน" % [String(stand_ins[g]), who, WorldPlayers.guild_name(int(g))])
+	return out
+
+
+func _tell_stand_ins() -> void:
+	for line in stand_in_lines():
+		Game.say(line, &"quest")
+		feed.emit(line, GuildFighter.TEAM_ALLY)
+
+
+## A guild's leader: the hero for ours (or the member picked to lead it), the rival
+## guild's chosen one for theirs.
 func leader_of(team: int) -> Node3D:
-	if team == GuildFighter.TEAM_ALLY:
+	if team == GuildFighter.TEAM_ALLY and hero_leads():
 		return hero if is_instance_valid(hero) else null
-	return enemy_leader if enemy_leader != null and is_instance_valid(enemy_leader) else null
+	return ai_leader(team)
+
+
+## True when the hero leads our guild (no member was picked to lead it).
+func hero_leads() -> bool:
+	return ally_leader == null
+
+
+## A side's AI leader (a GuildFighter), null when the hero leads ours or it is gone.
+func ai_leader(team: int) -> GuildFighter:
+	var lead := ally_leader if team == GuildFighter.TEAM_ALLY else enemy_leader
+	return lead if lead != null and is_instance_valid(lead) else null
+
+
+## Puts the member named `who` into `lineup` when it is not there (the player picked it
+## to lead): in place of the last one of the line-up, or added while there is room.
+static func ensure_member(lineup: Array, who: String, t: float, rng: RandomNumberGenerator = null) -> bool:
+	if who == "":
+		return false
+	for info in lineup:
+		if String(info.member.get("name", "")) == who:
+			return true
+	var i := WorldPlayers.index_of(who)
+	if i < 0:
+		return false
+	var info := WorldPlayers.fighter(i, t, rng)
+	if lineup.is_empty():
+		lineup.append(info)
+	else:
+		lineup[lineup.size() - 1] = info
+	return true
 
 
 func hero_alive() -> bool:
@@ -479,9 +576,10 @@ func tactical_call(team: int, text: String) -> void:
 	var speaker := "สั่งการ" if team == GuildFighter.TEAM_ALLY else "หัวหน้า %s" % team_name(team)
 	feed.emit("[%s] %s" % [speaker, text], team)
 	var over: Node3D = null
-	if team == GuildFighter.TEAM_ENEMY:
-		over = enemy_leader if enemy_leader != null and is_instance_valid(enemy_leader) and not enemy_leader.is_dead() else null
-	else:
+	var lead := ai_leader(team)
+	if lead != null and not lead.is_dead():
+		over = lead
+	elif team == GuildFighter.TEAM_ALLY:
 		for f in allies:
 			if not f.is_dead():
 				over = f
@@ -570,11 +668,28 @@ func _tick_fight(delta: float) -> void:
 		_objective_timer = 0.5
 		_assign_objectives()
 	_tick_capture(delta)
+	_altar_hint_tick()
 	_pulse_crystal(delta)
 	_cull_timer -= delta
 	if _cull_timer <= 0.0:
 		_cull_timer = 0.25
 		_cull_far()
+
+
+## True when the hero stands on the altar with the gates down but does not lead our guild
+## (a member was picked to lead it): only the leader may take it.
+func hero_on_altar_not_leader() -> bool:
+	return not mirror and not hero_leads() and state == "fight" and front_gate() == null \
+		and is_instance_valid(hero) and not hero.is_dead() and SiegeArena.on_altar(hero.global_position)
+
+
+## Tells the player once a visit why the hero cannot take the altar.
+func _altar_hint_tick() -> void:
+	var on := hero_on_altar_not_leader()
+	if on and not _altar_hint:
+		var lead := ai_leader(GuildFighter.TEAM_ALLY)
+		Game.say("ยึดแท่นได้เฉพาะหัวหน้ากิลด์%s — คุ้มกันหัวหน้าขึ้นแท่นแทน" % ((" (%s)" % String(lead.member.get("name", ""))) if lead != null else ""), &"warning")
+	_altar_hint = on
 
 
 ## Only fighters near the camera are drawn (they keep fighting either way). Past
@@ -869,16 +984,17 @@ func _assign_objectives() -> void:
 			if capture.who is GuildFighter:
 				(capture.who as GuildFighter).capture_role = true
 			continue
-		# Only a guild's leader takes the altar: ours is the hero (who presses to take it),
-		# theirs is sent up while it stands.
-		if team == GuildFighter.TEAM_ALLY:
+		# Only a guild's leader takes the altar: the hero presses to take it when it leads
+		# ours, an AI leader (theirs, or ours when picked) is sent up while it stands.
+		var lead := ai_leader(team)
+		if lead == null:
 			continue
 		# It goes up inside its guard (its commander's escort), not alone; once on the
 		# altar it stays.
-		if enemy_leader != null and is_instance_valid(enemy_leader) and not enemy_leader.is_dead():
-			if commanders.size() < 2 or commanders[team].allows_capture() or commanders[team].tactic == "" or SiegeArena.on_altar(enemy_leader.global_position):
-				enemy_leader.capture_role = true
-				enemy_leader.hold_range = 0.0
+		if not lead.is_dead():
+			if commanders.size() < 2 or commanders[team].allows_capture() or commanders[team].tactic == "" or SiegeArena.on_altar(lead.global_position):
+				lead.capture_role = true
+				lead.hold_range = 0.0
 
 
 ## The fighter or hero standing on the altar to take it (null when nobody is).
@@ -917,7 +1033,7 @@ static func pick_leader(side: Array, leader_name := "") -> GuildFighter:
 ## True when the hero (our guild's leader) stands on the altar and may start taking the
 ## castle: nobody is taking it, or the rivals' leader has stepped off the circle.
 func hero_can_capture() -> bool:
-	if mirror:
+	if mirror or not hero_leads():
 		return false
 	if capture.get("who") == hero:
 		return false
@@ -941,9 +1057,11 @@ func _tick_capture(delta: float) -> void:
 	if front_gate() != null:
 		return
 	if capture.is_empty():
-		if enemy_leader != null and is_instance_valid(enemy_leader) and enemy_leader.capture_role and not enemy_leader.is_dead() \
-				and castle_owner != GuildFighter.TEAM_ENEMY and SiegeArena.on_altar(enemy_leader.global_position):
-			_start_capture(GuildFighter.TEAM_ENEMY, enemy_leader)
+		for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+			var lead := ai_leader(team)
+			if lead != null and lead.capture_role and not lead.is_dead() and castle_owner != team and SiegeArena.on_altar(lead.global_position):
+				_start_capture(team, lead)
+				return
 		return
 	var who := capturer()
 	if who == null or bool(who.call("is_dead")):
@@ -959,10 +1077,11 @@ func _tick_capture(delta: float) -> void:
 		if not bool(capture.get("paused", false)):
 			capture["paused"] = true
 			feed.emit("%s ออกนอกวงสีเหลือง — หยุดนับไว้ที่ %d/%d วิ" % [_who_name(who), int(capture.progress), int(CAPTURE_TIME)], int(capture.team))
-		var other := enemy_leader if int(capture.team) == GuildFighter.TEAM_ALLY else null
-		if other != null and is_instance_valid(other) and not other.is_dead() and castle_owner != GuildFighter.TEAM_ENEMY and SiegeArena.on_altar(other.global_position):
+		var other_team := 1 - int(capture.team)
+		var other := ai_leader(other_team)
+		if other != null and not other.is_dead() and castle_owner != other_team and SiegeArena.on_altar(other.global_position):
 			_cancel_capture()
-			_start_capture(GuildFighter.TEAM_ENEMY, other)
+			_start_capture(other_team, other)
 		return
 	if bool(capture.get("paused", false)):
 		capture["paused"] = false
