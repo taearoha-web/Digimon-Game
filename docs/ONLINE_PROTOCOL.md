@@ -203,6 +203,8 @@ func party_members_in_zone(zone: StringName) -> Array  # ids, me excluded
 func zone_host(zone: StringName) -> String         # "" when nobody shares
 func is_zone_host(zone: StringName) -> bool
 func is_mirror_zone(zone: StringName) -> bool      # in a party, someone else hosts: do not spawn monsters
+func world_host() -> String                        # `whost` id ("" unknown / offline)
+func is_world_host() -> bool                       # this game makes the AI world chat
 func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
 ## Tests: swap the socket for an object with send_text(text) and poll() -> Array[String];
 ## `_dispatch(msg)` handles one server frame as if it came off the wire.
@@ -239,8 +241,9 @@ same things, and the same AI world chat. **Instanced** zones (`tower`, `pvp`, `g
   (no kill stealing: the one who hit gets the reward).
 - **AI world players.** The zone host's game runs them (WorldPresence) and sends
   `wp_snap {zone, ps:[[index, x, z, yaw, anim, flags]]}` 4 times a second (index =
-  WorldPlayers roster index; anim "idle"/"run"/"attack"/"skill:<id>"/"dead"; flags bit 0
-  riding, bit 1 wings open; at most 40, only those near any served player) and
+  WorldPlayers roster index; anim "idle"/"run"/"attack"/"skill:<id>"/"dead" (the client
+  also sends "sit": a stall keeper sitting by its wares); flags bit 0 riding, bit 1 wings
+  open, bit 2 flying (with bit 1); at most 40, only those near any served player) and
   `wp_event {zone, index, ev, data}` for "skill" (`{id, eid}`: the cast and its target
   monster, so the effect plays), "bubble" (`{text}`), "leave". Relayed exactly like
   `ent_snap` / `ent_event`. A mirror zone shows exactly the listed players as puppets

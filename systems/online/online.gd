@@ -53,6 +53,8 @@ var _me := {}
 var _players := {}
 var _party := {}
 var _hosts := {}
+## The world host (`whost`): the player whose game makes the AI world chat ("" unknown).
+var _world_host := ""
 var _remotes := {}
 var _zone: Zone
 var _attempt := 0
@@ -170,6 +172,16 @@ func is_mirror_zone(zone: StringName) -> bool:
 	return in_party() and host != "" and host != my_id()
 
 
+## The player whose game makes the AI world chat for everyone (`whost`; "" when the
+## server has not named one, or offline).
+func world_host() -> String:
+	return _world_host
+
+
+func is_world_host() -> bool:
+	return my_id() != "" and _world_host == my_id()
+
+
 ## The RemotePlayer of player `id` in the current zone, or null.
 func remote_node(id: String) -> Node3D:
 	var node: Variant = _remotes.get(id)
@@ -215,6 +227,8 @@ func _dispatch(msg: Dictionary) -> void:
 			_on_party(msg)
 		"host":
 			_on_host(msg)
+		"whost":
+			_world_host = id_of(msg.get("id"))
 		"party_invite":
 			_on_invite(msg)
 		"party_answer":
@@ -540,6 +554,7 @@ func _drop(retry: bool) -> void:
 	_me = {}
 	var had_party := not _party.is_empty()
 	_party = {}
+	_world_host = ""
 	var zones := _hosts.keys()
 	_hosts.clear()
 	for z in zones:
