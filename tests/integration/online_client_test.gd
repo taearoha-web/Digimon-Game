@@ -426,8 +426,10 @@ func _party(fake: FakeTransport) -> void:
 	Online._dispatch({"t": "join", "player": _player("p2", "Kaito", "town", hero.global_position + Vector3(2, 0, 0))})
 	Online._dispatch({"t": "party", "party": {"id": "pt9", "leader": "me1", "members": ["me1", "p2"], "away": []}})
 	check(Online.party_away().is_empty() and toasts.any(func(t): return String(t).contains("Kaito") and String(t).contains("กลับมา")), "back: a toast")
+	Online._dispatch({"t": "host", "zone": "guildwar", "id": "p2"})
 	Online._dispatch({"t": "party", "party": null})
-	check(not Online.in_party() and Online.party().is_empty() and Online.zone_host(&"town") == "", "party null: no party, no hosts")
+	check(not Online.in_party() and Online.party().is_empty() and Online.zone_host(&"guildwar") == "", "party null: no party, no party-scoped (instanced) host")
+	check(Online.zone_host(&"town") == "me1", "party null: an open zone's host is the zone's and stays (shared world v2)")
 	# An invitation and its answer (the card at the top).
 	var prompt := OnlinePrompt.new()
 	add_child(prompt)

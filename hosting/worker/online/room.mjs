@@ -6,7 +6,8 @@
  * close(code, reason). The account (`id`, `user`) comes from the Worker's session check;
  * every `from` / `user` / `id` the room sends out is taken from the connection, never
  * from the frame. The room keeps who is online, their last hello / state / look, the
- * parties and their zone hosts, trades, duels, guild-war invites and the players' stalls.
+ * parties, the zone hosts (zone-wide in open zones, per party in INSTANCED_ZONES), the
+ * world host (AI world chat), trades, duels, guild-war invites and the players' stalls.
  *
  * Persistence: the wrapper reads `takeDirty()` after each call and stores
  * `exportSession(key)` with the socket (hibernation); `restore()` + `finishRestore()`
@@ -28,6 +29,13 @@ const MAX_LOTS = 40;
 const MAX_TRADE_ITEMS = 30;
 const MAX_GOLD = 1_000_000_000_000;
 const TICK_EVERY_MS = 5_000;
+// Zones played per party (Shared combat); every other zone is open: one host serves
+// everyone in it (Shared world).
+export const INSTANCED_ZONES = new Set(['tower', 'pvp', 'guildwar', 'arena']);
+// ai_chat: what one frame of the world host's AI world chat may carry.
+export const AI_CHAT_LINES = 8;
+export const AI_CHAT_TEXT = 200;
+export const AI_SPEAKER_MAX = 24;
 
 export const CLOSE_ELSEWHERE = 4000;
 export const CLOSE_IDLE = 4001;
@@ -118,6 +126,8 @@ export class Room {
     const session = {
       key, socket, id, user: String(user), at: this.now(), lastSeen: this.now(), rate: {sec: -1, count: 0},
       player: null, partyId: null, zoneSeq: 0, sentHost: {zone: null, id: null},
+      since: this.now(),     // online since (world host election); kept by a second socket
+      sentWhost: undefined,  // the last whost id this socket got
     };
     if (old) {
       // Same account on a new socket: the old one is told and closed; the player keeps
@@ -127,7 +137,7 @@ export class Room {
       this.byKey.delete(old.key);
       this.dirty.delete(old.key);
       try {old.socket.close(CLOSE_ELSEWHERE, 'elsewhere');} catch {}
-      Object.assign(session, {player: old.player, partyId: old.partyId, zoneSeq: old.zoneSeq});
+      Object.assign(session, {player: old.player, partyId: old.partyId, zoneSeq: old.zoneSeq, since: old.since});
     }
     this.byKey.set(key, session);
     this.byId.set(id, session);
@@ -146,6 +156,7 @@ export class Room {
     }
     this.dirty.add(key);
     this.send(session, {t: 'welcome', you: {id, user: session.user}, players: this.playerList(id), party: this.partyView(session.partyId)});
+    this.syncWhost();
     if (rejoined) this.sendParty(rejoined);
     if (old || rejoined) this.syncHosts();
     return session;
@@ -185,7 +196,8 @@ export class Room {
     if (!s) return null;
     const party = this.parties.get(s.partyId);
     return {
-      k: s.key, id: s.id, user: s.user, at: s.at, p: s.player, zs: s.zoneSeq, host: s.sentHost,
+      k: s.key, id: s.id, user: s.user, at: s.at, on: s.since, p: s.player, zs: s.zoneSeq, host: s.sentHost,
+      ...(s.sentWhost === undefined ? {} : {wh: s.sentWhost}),
       party: party ? {id: party.id, leader: party.leader, members: party.members.slice(), away: {...party.away}} : null,
       stall: this.stalls.get(s.id) ?? null,
     };
@@ -207,6 +219,8 @@ export class Room {
       player: dict(record.p) ? {...record.p, id, user: String(record.user ?? '')} : null,
       partyId: null, zoneSeq: Number(record.zs) || 0,
       sentHost: dict(record.host) ? {zone: record.host.zone ?? null, id: record.host.id ?? null} : {zone: null, id: null},
+      since: finite(record.on) ? record.on : finite(record.at) ? record.at : now,
+      sentWhost: record.wh === undefined ? undefined : record.wh === null ? null : String(record.wh),
     };
     this.seq = Math.max(this.seq, session.zoneSeq);
     if (dict(record.party) && typeof record.party.id === 'string' && Array.isArray(record.party.members)) {
@@ -223,7 +237,7 @@ export class Room {
   }
 
   /** After every restore(): members that did not come back are away (PARTY_GRACE_MS to
-   * return), then hosts are checked. */
+   * return), then the zone hosts (from the players' zones) and the world host are checked. */
   finishRestore() {
     const now = this.now();
     for (const party of [...this.parties.values()]) {
@@ -243,6 +257,7 @@ export class Room {
     }
     for (const s of this.byKey.values()) if (s.player && !s.partyId) s.player.party = null;
     this.syncHosts();
+    this.syncWhost();
   }
 
   // ---------------------------------------------------------------- frames
@@ -391,15 +406,39 @@ export class Room {
     this.sendParty(party);
   }
 
-  /** Who simulates the shared entities of this player's party in its zone: the leader if
-   * it is there, else the member who arrived first; null with no party or alone there. */
-  hostFor(s) {
-    const party = this.parties.get(s.partyId);
+  /** Connected players (with a hello) by zone. */
+  zoneGroups() {
+    const groups = new Map();
+    for (const s of this.byKey.values()) {
+      const zone = s.player?.zone;
+      if (!zone) continue;
+      if (!groups.has(zone)) groups.set(zone, []);
+      groups.get(zone).push(s);
+    }
+    return groups;
+  }
+
+  /** The players that share s's monsters and AI world players (s included): everyone in
+   * an open zone; the party members in that zone in an instanced one (s alone without a
+   * party). `groups` (zoneGroups()) saves the walk when called for many players. */
+  served(s, groups = null) {
     const zone = s.player?.zone;
-    if (!party || !zone) return null;
-    const here = this.membersInZone(party, zone);
+    if (!zone) return [];
+    if (!INSTANCED_ZONES.has(zone)) return (groups ?? this.zoneGroups()).get(zone) ?? [];
+    const party = this.parties.get(s.partyId);
+    return party ? this.membersInZone(party, zone) : [s];
+  }
+
+  /** Who simulates the shared entities of s's zone: in an open zone the player who arrived
+   * there first; in an instanced zone the party leader if it is there, else the member who
+   * arrived first. Null while fewer than two players share it (play alone). */
+  hostFor(s, groups = null) {
+    const here = this.served(s, groups);
     if (here.length < 2) return null;
-    if (here.some(m => m.id === party.leader)) return party.leader;
+    if (INSTANCED_ZONES.has(s.player.zone)) {
+      const party = this.parties.get(s.partyId);
+      if (party && here.some(m => m.id === party.leader)) return party.leader;
+    }
     return here.reduce((a, b) => (b.zoneSeq < a.zoneSeq ? b : a)).id;
   }
 
@@ -407,22 +446,48 @@ export class Room {
     const here = [];
     for (const id of party.members) {
       const m = this.byId.get(id);
-      if (m?.player && m.player.zone === zone) here.push(m);
+      if (m?.player && m.partyId === party.id && m.player.zone === zone) here.push(m);
     }
     return here;
   }
 
-  /** Sends `host` to every player whose zone host changed (or who changed zone in a party). */
+  /** Sends `host {zone, id}` to every player whose (zone, host) changed: a new zone, a new
+   * host, the host gone (id null), the first hello. */
   syncHosts() {
+    const groups = this.zoneGroups();
     for (const s of this.byKey.values()) {
-      if (!s.player) continue;
-      const id = this.hostFor(s);
-      const zone = s.player.zone;
+      const zone = s.player?.zone;
+      if (!zone) continue;
+      const id = this.hostFor(s, groups);
       const sent = s.sentHost;
-      if (sent.id === id && (sent.zone === zone || (!s.partyId && id === null))) continue;
+      if (sent.id === id && sent.zone === zone) continue;
       s.sentHost = {zone, id};
       this.dirty.add(s.key);
       this.send(s, {t: 'host', zone, id});
+    }
+  }
+
+  /** The world host (makes the AI world chat): the connected player with a hello online
+   * the longest; null when nobody has said hello. */
+  worldHost() {
+    let best = null;
+    for (const s of this.byKey.values()) {
+      if (!s.player) continue;
+      if (!best || s.since < best.since || (s.since === best.since && s.id < best.id)) best = s;
+    }
+    return best ? best.id : null;
+  }
+
+  /** Sends `whost {id}` to every socket that has not got the current world host yet (a new
+   * socket, or the world host changed). */
+  syncWhost() {
+    const id = this.worldHost();
+    const text = JSON.stringify({t: 'whost', id});
+    for (const s of this.byKey.values()) {
+      if (s.sentWhost === id) continue;
+      s.sentWhost = id;
+      this.dirty.add(s.key);
+      this.send(s, text);
     }
   }
 
@@ -487,6 +552,7 @@ export class Room {
     for (const views of this.viewers.values()) views.delete(s.id);
     if (s.player) this.broadcast({t: 'leave', id: s.id});
     this.syncHosts();
+    this.syncWhost();
   }
 
   pushStall(sellerId, lots) {
@@ -558,6 +624,13 @@ function sanitizeLots(value) {
   return lots;
 }
 
+/** An ai_chat line colour: a short string ("#ffcc00", "gold") or [r, g, b(, a)] numbers. */
+function aiColor(value) {
+  if (typeof value === 'string') return str(value, 16) || null;
+  if (Array.isArray(value) && (value.length === 3 || value.length === 4) && value.every(finite)) return value.slice();
+  return null;
+}
+
 const lotKey = (buyer, lot) => `${buyer}\u0000${String(lot)}`;
 
 /** Relays a frame with `from` set by the server (whatever the client wrote in it); a
@@ -583,6 +656,7 @@ const HANDLERS = {
     this.dirty.add(s.key);
     this.broadcast({t: 'join', player: p}, s.id);
     this.syncHosts();
+    this.syncWhost();
   },
 
   state(s, msg) {
@@ -679,11 +753,29 @@ const HANDLERS = {
 
   ent_snap(s, msg) {this.relayFromHost(s, msg);},
   ent_event(s, msg) {this.relayFromHost(s, msg);},
+  wp_snap(s, msg) {this.relayFromHost(s, msg);},
+  wp_event(s, msg) {this.relayFromHost(s, msg);},
 
   ent_hit(s, msg) {
     if (typeof msg.zone !== 'string' || msg.zone !== s.player.zone) return;
     const host = this.hostFor(s);
     if (host && host !== s.id) this.sendTo(host, relay(msg, s.id));
+  },
+
+  ai_chat(s, msg) {
+    if (this.worldHost() !== s.id || !Array.isArray(msg.lines)) return;
+    const lines = [];
+    for (const line of msg.lines.slice(0, AI_CHAT_LINES)) {
+      if (!dict(line) || (line.ch !== undefined && line.ch !== 'world')) continue;
+      const text = str(line.text, AI_CHAT_TEXT);
+      if (!text) continue;
+      const out = {ch: 'world', speaker: str(line.speaker, AI_SPEAKER_MAX), text};
+      const color = aiColor(line.color);
+      if (color !== null) out.color = color;
+      if (Number.isSafeInteger(line.index) && line.index >= 0) out.index = line.index;
+      lines.push(out);
+    }
+    if (lines.length) this.broadcast({t: 'ai_chat', lines, from: s.id}, s.id);
   },
 
   trade_req(s, msg) {
@@ -861,10 +953,12 @@ const HANDLERS = {
   },
 };
 
-/** ent_snap / ent_event: only the zone host, only to the other party members in that zone. */
+/** ent_snap / ent_event / wp_snap / wp_event: only from the host of the sender's zone, to
+ * every other player it serves (the open zone, or the party there in an instanced one). */
 Room.prototype.relayFromHost = function relayFromHost(s, msg) {
   if (typeof msg.zone !== 'string' || msg.zone !== s.player.zone) return;
-  if (this.hostFor(s) !== s.id) return;
+  const groups = this.zoneGroups();
+  if (this.hostFor(s, groups) !== s.id) return;
   const out = JSON.stringify(relay(msg, s.id));
-  for (const m of this.membersInZone(this.parties.get(s.partyId), msg.zone)) if (m.id !== s.id) this.send(m, out);
+  for (const m of this.served(s, groups)) if (m.id !== s.id) this.send(m, out);
 };

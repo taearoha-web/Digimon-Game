@@ -263,16 +263,24 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 
 
 func _credit(attacker: Node, amount: int) -> void:
+	# A real player's hit on a monster this game hosts counts for that player (EntitySync).
+	if EntitySync.remote_credit(self, attacker, amount):
+		return
 	if is_instance_valid(attacker) and attacker.is_in_group("world_players"):
 		others_damage += amount
 	else:
 		party_damage += amount
 
 
-## The hero's side's share of the damage this monster took (1 when untouched).
+## The hero's side's share of the damage this monster took (1 when untouched). While
+## this game hosts the zone's shared monsters, the party members' damage (their own games)
+## counts for the hero's side, and a monster only other real players hurt pays nothing.
 func party_share() -> float:
-	var total := party_damage + others_damage
-	return 1.0 if total <= 0 else float(party_damage) / float(total)
+	var mine := party_damage + EntitySync.party_dealt(self)
+	var total := mine + others_damage
+	if total <= 0:
+		return 0.0 if EntitySync.dealt_by_others(self) else 1.0
+	return float(mine) / float(total)
 
 
 func provoke(alert_pack := true) -> void:
@@ -574,7 +582,7 @@ func _targets() -> Array[Node3D]:
 	return out
 
 
-## The online party's real players in this zone, while this game hosts its monsters.
+## The real players this game serves in this zone (EntitySync), while it hosts them.
 func _add_remote_targets(out: Array[Node3D]) -> void:
 	for node in get_tree().get_nodes_in_group("remote_players"):
 		if _alive(node):

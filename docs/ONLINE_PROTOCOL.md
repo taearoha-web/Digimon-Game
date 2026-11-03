@@ -47,7 +47,10 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `party_kick` | `who` | leader only |
 | `ent_snap` | `zone, ents:[[eid, x, z, yaw, hp, max_hp, flags]]` | zone host only, 4 per second: the shared monsters / fighters (see Shared combat) |
 | `ent_hit` | `zone, eid, dmg, crit, skill?` | a party member hit a shared entity; relayed to the host |
-| `ent_event` | `zone, eid, ev, data` | host only: "spawn", "dead", "cast", "phase", "aggro" ... relayed to the party in that zone |
+| `ent_event` | `zone, eid, ev, data` | host only: "spawn", "dead", "cast", "phase", "aggro" ... relayed to the players the host serves in that zone |
+| `wp_snap` | `zone, ps:[[index, x, z, yaw, anim, flags]]` | zone host only, 4 per second: the AI world players (see Shared world) |
+| `wp_event` | `zone, index, ev, data` | zone host only: "skill", "bubble", "leave" (see Shared world) |
+| `ai_chat` | `lines:[{ch:"world", speaker, text, color?, index?}]` | world host only: the AI world-channel chat (see Shared world) |
 | `trade_req` | `to` | |
 | `trade_answer` | `from, ok` | |
 | `trade_offer` | `items:[item dict], gold` | replaces my offer; unlocks both sides |
@@ -80,9 +83,12 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `players` | `players:[player]` (answer to `who`) |
 | `party_invite` | `from, name` |
 | `party` | `party:{id, leader, members:[id], away:[id]}` or `party:null` (sent to every member on any change); `away` = members whose connection dropped and who keep their place for the grace (below) |
-| `host` | `zone, id` - who simulates the shared entities of my party in that zone (null: nobody shares, play alone) |
+| `host` | `zone, id` - who simulates the shared entities of my zone (open zone: everyone there; instanced zone: my party there); null: nobody shares, play alone |
+| `whost` | `id` - the world host: whose game makes the AI world chat (null: nobody has said hello yet) |
 | `ent_snap` / `ent_event` | relayed from the host, plus `from` |
 | `ent_hit` | relayed to the host, plus `from` |
+| `wp_snap` / `wp_event` | relayed from the zone host, plus `from` |
+| `ai_chat` | relayed from the world host, plus `from` |
 | `trade_req` / `trade_answer` / `trade_offer` / `trade_lock` / `trade_confirm` / `trade_cancel` | relayed with `from`; the server keeps the trade session state |
 | `trade_done` | `give:{items,gold}, get:{items,gold}` - apply it: remove `give`, add `get` |
 | `duel_req` / `duel_answer` / `pvp_hit` / `duel_over` | relayed with `from` |
@@ -120,12 +126,35 @@ clients may ignore.
   `party_leave`, a kick or the grace running out remove a member. The parties are also
   kept in the Durable Object's storage, so they survive a deploy. A second socket of the
   same account (`kicked` on the old one) keeps the party and the player's place.
-- **`host`** is sent to a party member whenever the host of its current zone changes
-  or it changes zone; `id` is null when fewer than two members of the party are in that
-  zone (play alone). Leaving the party sends `host {zone, id:null}` once. Players who were
-  never in a party never get `host`. `ent_snap` / `ent_event` from anyone but the host
-  of that (party, zone), or with a `zone` that is not the sender's current zone, are
-  dropped; `ent_hit` is dropped when nobody else hosts the sender's zone.
+- **Zone host.** Open zones (every zone except `tower`, `pvp`, `guildwar`, `arena`, the
+  instanced ones; `INSTANCED_ZONES` in room.mjs) have one host for every connected player
+  in that zone (with a hello), party or not: the one that arrived in the zone first
+  (re-elected when it changes zone, drops or goes away; a party or its leader arriving
+  later does not take over). In an instanced zone the host is chosen among the party
+  members in that zone: the leader when there, else the member who arrived first; a player
+  without a party is alone there. `host {zone, id}` is sent to a player whenever its
+  (zone, host) pair changes: on its first `hello`, when it changes zone, when its zone's
+  host changes, and with `id: null` while fewer than two players share it (play alone);
+  every player gets `host` now, not only party members. Joining or leaving a party only
+  sends `host` when it changes something (instanced zones).
+- **Relays from the zone host.** `ent_snap` / `ent_event` / `wp_snap` / `wp_event` are
+  relayed only from the host of the sender's current zone, to every other player it
+  serves (everyone in that open zone; the party members in that instanced zone), never to
+  another zone; frames from anyone else, or with a `zone` that is not the sender's current
+  zone, are dropped. `ent_hit` from any player the host serves goes to the host only; it
+  is dropped when nobody else hosts the sender's zone (or the `zone` is not the sender's).
+  The payloads are relayed as they are (8 KB frame limit), with `from`.
+- **World host.** `whost {id}`: the connected player with a hello that has been online
+  the longest (a second socket of the same account keeps the account's time; a reconnect
+  after a drop starts anew). Every socket gets `whost` right after `welcome` (`id: null`
+  while nobody has said hello) and again whenever it changes (the first hello in an empty
+  room, the world host dropping, going idle). `ai_chat` from anyone but the world host is
+  dropped; from the world host it goes to everyone else (whatever the zone) with `from`.
+  Only the first 8 entries of `lines` are read; an entry that is not an object, has a
+  `ch` other than "world" or an empty `text` is left out; `text` is cut to 200
+  characters, `speaker` to 24, `color` is kept when it is a string (cut to 16) or
+  `[r, g, b]` / `[r, g, b, a]` numbers, `index` when it is an integer >= 0; `ch` is always
+  "world" in the relayed line. A frame with no line left is dropped.
 - **Trade.** A player in a trade or a duel is busy (`error busy`). `trade_done` also
   carries `with` (the other player's id). A disconnect (or a second socket) sends the
   partner `trade_cancel` with `from` = the player who left.
@@ -152,11 +181,17 @@ clients may ignore.
 - **Hibernation.** The room sleeps when nobody sends anything and wakes up with the
   same sockets, players, parties, hosts and stalls (positions come back with the next
   `state`; a very large `look` or stall may need the client's next `look` /
-  `stall_list`). Trades, duels, guild-war invites and open requests do not survive a
+  `stall_list`). The zone hosts are rebuilt from the players' zones and arrival order,
+  the world host from how long each has been online; `host` / `whost` are resent only to
+  players whose host changed (a player whose socket did not survive the sleep is gone,
+  so its zone or the world may get a new host). Trades, duels, guild-war invites and open requests do not survive a
   sleep; with the 2 s heartbeat a room with players in it does not sleep.
 - `GET /api/online/status` (no sign-in) answers `{"online": <sockets connected>}`.
 
 ## Shared combat (party only)
+
+(v1. Since v2 this party scope applies to the instanced zones only; open zones share
+with everyone in them, see "Shared world (zone-wide, v2)" below.)
 
 Players who are not in a party share nothing: each sees the other walk and chat, but
 fights its own monsters (no stealing kills, no griefing). Players in the same party and
@@ -202,7 +237,12 @@ func in_party() -> bool
 func party_members_in_zone(zone: StringName) -> Array  # ids, me excluded
 func zone_host(zone: StringName) -> String         # "" when nobody shares
 func is_zone_host(zone: StringName) -> bool
-func is_mirror_zone(zone: StringName) -> bool      # in a party, someone else hosts: do not spawn monsters
+func is_mirror_zone(zone: StringName) -> bool      # someone else hosts (party or not): do not spawn monsters
+func zone_members(zone: StringName) -> Array       # ids of the other real players in that zone, party or not
+func serves(zone: StringName) -> Array             # whom that zone's host serves: zone_members (open) or party_members_in_zone (instanced)
+static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena (INSTANCED_ZONES)
+func world_host() -> String                        # `whost` id ("" unknown / offline)
+func is_world_host() -> bool                       # this game makes the AI world chat
 func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
 ## Tests: swap the socket for an object with send_text(text) and poll() -> Array[String];
 ## `_dispatch(msg)` handles one server frame as if it came off the wire.
@@ -218,3 +258,49 @@ default). Desktop / headless builds stay offline unless a test injects a transpo
 Remote players are `RemotePlayer` nodes (group `remote_players`, built with the same
 look code as `FieldPlayer`, a "ผู้เล่นจริง" tag over the name, interpolated movement),
 added to the current zone for every player whose `zone` matches.
+
+## Shared world (zone-wide, v2)
+
+Every real player in the same **open** zone (fields, star / divine regions, the abyss, the
+village) sees the same monsters, the same AI world players in the same places doing the
+same things, and the same AI world chat. **Instanced** zones (`tower`, `pvp`, `guildwar`,
+`arena`) keep the party scope of "Shared combat" above.
+
+- **Zone host.** `host {zone, id}` now names the zone host for everyone in an open zone:
+  the connected player who arrived in that zone first (re-elected when it leaves the zone,
+  drops or goes away). `id` is null while only one real player is there. In instanced
+  zones the host is chosen among the party as before. `Online.is_mirror_zone(zone)` is
+  true whenever someone else hosts the hero's zone, party or not.
+- **Monsters.** `ent_snap` / `ent_event` go from the zone host to every other player the
+  host serves (everyone in an open zone; the party in an instanced one); `ent_hit` from
+  any of them to the host. Loot and EXP on `ent_event dead {killer, share:{id: damage}}`:
+  a player rolls its own drop and EXP when it dealt damage (its id in `share` with
+  damage > 0), or when a member of its party in that zone did. Nobody else gets anything
+  (no kill stealing: the one who hit gets the reward). The host's own damage is in `share`
+  under its id, and the host follows the same rule (no reward for a kill it took no part
+  in); field boss, world boss and golden monster rewards too. The client also counts its
+  own hits that the host may not have counted yet.
+- **Host hand-over.** A `spawn` also carries the monster's home (`hx`, `hz`) and its boss
+  phase (`p`, when past 0). When the server names a new host, that player's game turns its
+  mirrors into real monsters where they stand (HP, anger, boss phase) under the **same
+  eids** and carries on sending `ent_snap` / `ent_event`; new monsters get eids past every
+  eid seen. The other players keep their mirrors (frames from the new host only) and drop
+  the ones the new host does not name within 10 s. When the host leaves and nobody else is
+  left (`host` id null) the last player keeps the mirrored monsters the same way.
+- **AI world players.** The zone host's game runs them (WorldPresence) and sends
+  `wp_snap {zone, ps:[[index, x, z, yaw, anim, flags]]}` 4 times a second (index =
+  WorldPlayers roster index; anim "idle"/"run"/"attack"/"skill:<id>"/"dead" (the client
+  also sends "sit": a stall keeper sitting by its wares); flags bit 0 riding, bit 1 wings
+  open, bit 2 flying (with bit 1); at most 40, only those near any served player) and
+  `wp_event {zone, index, ev, data}` for "skill" (`{id, eid}`: the cast and its target
+  monster, so the effect plays), "bubble" (`{text}`), "leave". Relayed exactly like
+  `ent_snap` / `ent_event`. A mirror zone shows exactly the listed players as puppets
+  (looks from WorldPlayers by index, no AI of their own, interpolated).
+- **AI world chat.** `whost {id}` (server -> everyone, on connect and on change) names the
+  world host: the connected player online the longest. Only the world host's game makes
+  the AI world-channel chat (lines, conversations, buy requests and stall answers,
+  milestone announcements stay local because they are already the same everywhere) and
+  sends it with `ai_chat {lines:[{ch:"world", speaker, text, color?, index?}]}`; the
+  server relays it to everyone else with `from`. Everyone else does not make world-channel
+  AI chat of its own and shows the relayed lines (bubble over the speaker when it stands
+  in the zone). Guild and party AI chat and the AI's answers to the hero stay local.

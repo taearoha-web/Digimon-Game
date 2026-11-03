@@ -4,10 +4,12 @@
  *
  * - each socket is accepted with ctx.acceptWebSocket and carries an attachment
  *   (serializeAttachment) with its connection key, account and the player record the
- *   room exports (last hello / look / zone, party, host, stall), so it survives
- *   hibernation; positions come back with the next `state` frame;
+ *   room exports (last hello / look / zone, online-since, party, zone host and world
+ *   host last sent, stall), so it survives hibernation; positions come back with the
+ *   next `state` frame;
  * - when the object wakes up (the constructor runs again) the room is rebuilt from
- *   ctx.getWebSockets() and their attachments;
+ *   ctx.getWebSockets() and their attachments (zone hosts from the players' zones, the
+ *   world host from who has been online the longest);
  * - an alarm every 10 s while anyone is connected drops sockets silent for 30 s;
  * - the parties are also kept in storage (key PARTIES_KEY), so a party outlives the
  *   object restarting (a deploy, an eviction): its members are "away" until they
@@ -43,7 +45,7 @@ export function fitAttachment(record) {
   if (size(smaller) <= ATTACHMENT_BYTES) return smaller;
   if (smaller.p) smaller.p = {...smaller.p, look: {}};
   if (size(smaller) <= ATTACHMENT_BYTES) return smaller;
-  return {k: record.k, id: record.id, user: record.user, at: record.at, party: record.party, host: record.host};
+  return {k: record.k, id: record.id, user: record.user, at: record.at, on: record.on, wh: record.wh, party: record.party, host: record.host};
 }
 
 export class WorldRoom {

@@ -16,6 +16,12 @@ extends Companion
 ## camp, less in the village, gets off at its stall or errand, and fights from the saddle
 ## like the hero. In the hero's party it rides while the hero rides. Never where riding
 ## is not allowed (MountData.zone_allows). Far away its mount is simplified (set_far).
+## Online, in a zone another real player's game runs (WorldPresence MIRROR) it is a
+## puppet instead: the same body, look, gear, mount and wings built from its roster
+## index, but no AI, no fights and no damage; it walks where the host's `wp_snap` frames
+## put it (played PUPPET_DELAY behind), plays their anim and flags, and the host's casts
+## (`wp_event skill`) as effects at the mirrored monster. end_puppet turns it back into
+## an ordinary world player where it stands (the host role came here, or the link went).
 
 ## Seconds it hunts a camp before it moves on to another (a longer stay is less walking).
 const CAMP_STAY := Vector2(240.0, 480.0)
@@ -83,6 +89,40 @@ const HOLD_LEASH := 28.0
 const GATHER_NEAR := 3.0
 const GATHER_BACK := 2.2
 const GATHER_SIDE := [-0.9, 0.9, -1.8, 1.8]
+
+# --- Puppet (online mirror, WorldPresence) ---
+## Wire flags of wp_snap: riding, wings open, flying (bit 2: open wings in the air).
+const F_RIDING := 1
+const F_WINGS := 2
+const F_FLYING := 4
+## How far behind the newest snapshot it plays (seconds): one snapshot interval plus
+## ~100 ms, so the walk never waits for the next one.
+const PUPPET_DELAY := 0.35
+const PUPPET_SNAPS := 4
+## Farther than this between two snapshots: a warp, no walking there.
+const PUPPET_TELEPORT := 14.0
+## A pause this long since the last snapshot: it stood still meanwhile.
+const PUPPET_STILL_GAP := 0.6
+## A `skill:<id>` anim within this long after a cast event does not pose again (ms).
+const PUPPET_POSE_MS := 1200
+## How long after a cast the wire anim says "skill:<id>" (ms).
+const SKILL_SHOW_MS := 900
+var puppet := false
+var puppet_anim := "idle"
+var puppet_flags := 0
+## Where the last cast shown as a puppet landed (tests).
+var puppet_show_at := Vector3.INF
+var _p_pos := PackedVector3Array()
+var _p_yaw := PackedFloat32Array()
+var _p_t := PackedFloat64Array()
+var _p_n := 0
+var _p_speed := 0.0
+var _p_last := Vector3.ZERO
+var _p_attack_left := 0.0
+var _p_combo := 0
+var _p_skill_ms := -100000
+var _skill_shown := ""
+var _skill_shown_until := 0
 
 
 func setup_world(p_index: int, p_member: Dictionary, p_hero: Hero, p_zone: Zone) -> void:
@@ -211,10 +251,16 @@ func _rest_anim() -> String:
 
 
 ## A chat bubble over its head for a few seconds (the world chat's line, WorldPresence).
-func bubble(text: String) -> void:
+## `share`: the zone host's game also shows it on the other real players' screens
+## (`wp_event bubble`); the same line already up is not shown twice.
+func bubble(text: String, share := true) -> void:
 	if not is_instance_valid(visual) or not visible or _dead:
 		return
+	if share and not puppet and zone != null and is_instance_valid(zone) and zone.presence != null:
+		zone.presence.shared_bubble(world_index, text)
 	if is_instance_valid(_bubble):
+		if _bubble.text == text and not _bubble.is_queued_for_deletion():
+			return
 		_bubble.queue_free()
 	_bubble = Label3D.new()
 	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -309,6 +355,9 @@ func _physics_process(delta: float) -> void:
 	if _lod_check <= 0.0:
 		_lod_check = 0.5
 		_update_lod()
+	if puppet:
+		_puppet_tick(delta)
+		return
 	_think_ride(delta)
 	if _resting() and visual.current == _rest_anim():
 		velocity = Vector3.ZERO
@@ -320,6 +369,13 @@ func _physics_process(delta: float) -> void:
 	_think_wings(delta)
 	if mount == null:
 		_hover(delta)
+
+
+## A puppet is only a picture of another game's player: nothing here hurts it.
+func take_damage(raw: float, attacker: Node = null) -> void:
+	if puppet:
+		return
+	super.take_damage(raw, attacker)
 
 
 ## Far from the hero (or resting at its stall) it is posed less often.
@@ -434,7 +490,10 @@ func _think_wings(delta: float) -> void:
 
 ## Flying lifts it off the ground with a gentle bob and leans it into the flight, like the hero.
 func _hover(delta: float) -> void:
-	var moving := Vector2(velocity.x, velocity.z).length() > 0.6
+	_hover_moving(delta, Vector2(velocity.x, velocity.z).length() > 0.6)
+
+
+func _hover_moving(delta: float, moving: bool) -> void:
 	visual.set_wing_moving(moving)
 	var flying := visual.flying() and not _dead
 	var lift := Hero.FLY_HEIGHT + sin(Time.get_ticks_msec() * 0.0025 + float(world_index)) * 0.1 if flying else 0.0
@@ -779,3 +838,259 @@ func _walk_to(spot: Vector3, delta: float, rate: float) -> Vector3:
 		return Vector3.ZERO
 	_face(to, delta, 10.0)
 	return to.normalized() * minf(float(stats.speed) * rate, to.length() * 4.0)
+
+
+# --- Online: what it does, on the wire, and the puppet of another game's player --------
+
+## A cast: the zone host's game tells the other real players here (`wp_event skill`, with
+## the target monster's shared eid) so the effect plays at the same spot there.
+func _cast(skill: Dictionary) -> void:
+	var aimed: Mob = target if target != null and is_instance_valid(target) else null
+	super._cast(skill)
+	_skill_shown = String(skill.id)
+	_skill_shown_until = Time.get_ticks_msec() + SKILL_SHOW_MS
+	if not party_mode and zone != null and is_instance_valid(zone) and zone.presence != null:
+		var eid := int(aimed.get_meta("eid", 0)) if aimed != null else 0
+		zone.presence.shared_cast(world_index, String(skill.id), eid)
+
+
+## The anim for wp_snap: "dead", "skill:<id>" just after a cast, "attack" at a target in
+## reach, "run", "sit" (a stall keeper by its wares) or "idle".
+func wire_anim() -> String:
+	if _dead:
+		return "dead"
+	if Time.get_ticks_msec() < _skill_shown_until:
+		return "skill:" + _skill_shown
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if speed <= 0.6 and target != null and is_instance_valid(target) and not target.is_dead() and data.has("attack"):
+		var reach := float((data.attack as Dictionary).get("range", 2.4)) + target.body_radius() + 0.6
+		if _flat(target.global_position - global_position).length() <= reach:
+			return "attack"
+	if speed > 0.6:
+		return "run"
+	return "sit" if _rest_anim() == "Sit_Floor_Idle" else "idle"
+
+
+## The wire flags for wp_snap (F_RIDING, F_WINGS, F_FLYING).
+func wire_flags() -> int:
+	var f := 0
+	if mount != null:
+		f |= F_RIDING
+	if is_instance_valid(visual) and visual.has_wings() and visual.wing_mode != HeroVisual.WING_FOLD:
+		f |= F_WINGS
+		if visual.wing_mode == HeroVisual.WING_FLY:
+			f |= F_FLYING
+	return f
+
+
+## Whether the zone host's snapshot lists it now (standing here, not away or leaving).
+func on_wire() -> bool:
+	return not puppet and not party_mode and visible and not _away and not _leaving and not is_queued_for_deletion()
+
+
+## One snapshot position at `t` (seconds, this game's clock): a warp jumps there, a long
+## pause holds the old spot until just before the new one.
+func puppet_push(pos: Vector3, yaw: float, t: float) -> void:
+	if not pos.is_finite() or not is_finite(yaw):
+		return
+	if _p_pos.size() != PUPPET_SNAPS:
+		_p_pos.resize(PUPPET_SNAPS)
+		_p_yaw.resize(PUPPET_SNAPS)
+		_p_t.resize(PUPPET_SNAPS)
+	if _p_n > 0:
+		var last := _p_n - 1
+		if _flat(pos - _p_pos[last]).length() > PUPPET_TELEPORT:
+			_p_n = 0
+		elif t - _p_t[last] > PUPPET_STILL_GAP:
+			_p_append(_p_pos[last], _p_yaw[last], t - 0.25)
+	if _p_n == 0:
+		if is_inside_tree():
+			global_position = Vector3(pos.x, global_position.y, pos.z)
+		else:
+			position = Vector3(pos.x, position.y, pos.z)
+		_p_last = Vector3(pos.x, 0.0, pos.z)
+		_facing = yaw
+		if is_instance_valid(visual):
+			visual.rotation.y = yaw
+	_p_append(pos, yaw, t)
+
+
+func _p_append(pos: Vector3, yaw: float, t: float) -> void:
+	if _p_n == PUPPET_SNAPS:
+		for k in PUPPET_SNAPS - 1:
+			_p_pos[k] = _p_pos[k + 1]
+			_p_yaw[k] = _p_yaw[k + 1]
+			_p_t[k] = _p_t[k + 1]
+		_p_n -= 1
+	_p_pos[_p_n] = pos
+	_p_yaw[_p_n] = yaw
+	_p_t[_p_n] = t
+	_p_n += 1
+
+
+## Where the puppet stands at time t: between the two snapshots around t, or the newest.
+func puppet_sample(t: float) -> Vector3:
+	if _p_n == 0:
+		return global_position
+	if t <= _p_t[0]:
+		_facing = _p_yaw[0]
+		return _p_pos[0]
+	for k in range(1, _p_n):
+		if t <= _p_t[k]:
+			var w := clampf((t - _p_t[k - 1]) / maxf(_p_t[k] - _p_t[k - 1], 0.0001), 0.0, 1.0)
+			_facing = lerp_angle(_p_yaw[k - 1], _p_yaw[k], w)
+			return _p_pos[k - 1].lerp(_p_pos[k], w)
+	_facing = _p_yaw[_p_n - 1]
+	return _p_pos[_p_n - 1]
+
+
+func puppet_snapshots() -> int:
+	return _p_n
+
+
+## The host's word on what it does: the anim (dead, attack, a skill's pose, run, sit,
+## idle) and the flags (riding, wings).
+func puppet_state(anim: String, flags: int) -> void:
+	if not is_instance_valid(visual):
+		return
+	if anim != puppet_anim:
+		var was := puppet_anim
+		puppet_anim = anim
+		if was == "dead":
+			_dead = false
+			visual.release()
+			visual.play("Idle")
+			_label.text = _level_text()
+		if anim == "dead":
+			dismount()
+			_dead = true
+			visual.hold_last_frame("Death_A")
+			_label.text = "%s ล้ม..." % member.name
+		elif anim == "attack":
+			_p_attack_left = 0.0
+		elif anim.begins_with("skill:") and Time.get_ticks_msec() - _p_skill_ms > PUPPET_POSE_MS:
+			var skill := find_skill(anim.substr(6))
+			if not skill.is_empty():
+				visual.skill_action(skill, clampf(float(skill.get("hit_delay", 0.35)), 0.05, 1.5))
+	puppet_flags = flags
+	if _dead:
+		return
+	var riding := (flags & F_RIDING) != 0
+	if riding and mount == null and not mount_info.is_empty():
+		ride_mount(String(mount_info.id))
+	elif not riding and mount != null:
+		dismount()
+	if visual.has_wings():
+		var mode := HeroVisual.WING_FOLD
+		if (flags & F_FLYING) != 0:
+			mode = HeroVisual.WING_FLY
+		elif (flags & F_WINGS) != 0:
+			mode = HeroVisual.WING_STAND
+		if mode != visual.wing_mode:
+			visual.set_wing_mode(mode)
+
+
+## One of its skills by id (its job's line first), {} when it has none such.
+func find_skill(id: String) -> Dictionary:
+	for skill in data.get("skills", []):
+		if String(skill.id) == id:
+			return skill
+	return ClassData.find_skill(StringName(member["class"]), id)
+
+
+## The host's cast (`wp_event skill`): the pose, the wind-up and, after the skill's own
+## delay, its effect at the mirrored monster `at` (or ahead of it). Nobody is hurt.
+func puppet_cast(skill: Dictionary, at: Node3D) -> void:
+	if not puppet or _dead or not is_instance_valid(visual) or not is_instance_valid(field):
+		return
+	var delay := clampf(float(skill.get("hit_delay", 0.35)), 0.05, 1.5)
+	var aim := global_position + Vector3(sin(_facing), 0, cos(_facing)) * 4.0
+	if at != null and is_instance_valid(at):
+		aim = at.global_position
+		var to := _flat(aim - global_position)
+		if to.length_squared() > 0.0001:
+			_facing = atan2(to.x, to.z)
+			visual.rotation.y = _facing
+	_p_skill_ms = Time.get_ticks_msec()
+	visual.skill_action(skill, delay)
+	SkillShow.anticipate(field, skill, global_position, delay, aim, visual)
+	BattleVfx.floating_text(field, global_position + Vector3(0, 2.9, 0), String(skill.get("name", "")), skill.get("color", Color.WHITE), 0.5)
+	var land := create_tween()
+	land.tween_interval(delay)
+	land.tween_callback(_puppet_land.bind(skill, weakref(at) if at != null else null, aim))
+
+
+func _puppet_land(skill: Dictionary, at_ref: WeakRef, aim: Vector3) -> void:
+	if not puppet or _dead or not is_instance_valid(field) or field.is_queued_for_deletion():
+		return
+	var at := at_ref.get_ref() as Node3D if at_ref != null else null
+	var center := global_position
+	var shape := String(skill.get("shape", "single"))
+	if shape in ["single", "chain", "fan", "blast"]:
+		center = at.global_position if at != null and is_instance_valid(at) else aim
+		center.y = 0.0
+	puppet_show_at = center
+	if shape == "single" and bool(skill.get("projectile", false)) and at != null and is_instance_valid(at):
+		var from := visual.skill_emission_position()
+		var to := at.global_position + Vector3(0, 1.0, 0)
+		SkillTableau.flight(field, skill, from, to, clampf(from.distance_to(to) / 22.0, 0.1, 0.5), 0.85)
+	SkillShow.play(field, skill, center, global_position, 0.5 if shape == "blast" and skill.get("vfx") == &"fireball" else 0.0)
+
+
+## Every frame as a puppet: glides along the snapshots, stays on the ground, plays the
+## anim (swings while it attacks), rides and flies as the flags say.
+func _puppet_tick(delta: float) -> void:
+	if not is_instance_valid(visual) or stats.is_empty():
+		return
+	var now := Time.get_ticks_msec() * 0.001
+	var to := puppet_sample(now - PUPPET_DELAY)
+	var step := Vector2(to.x - _p_last.x, to.z - _p_last.z).length()
+	_p_speed = lerpf(_p_speed, step / maxf(delta, 0.001), 1.0 - exp(-12.0 * delta))
+	_p_last = to
+	global_position.x = to.x
+	global_position.z = to.z
+	velocity = Vector3(0.0, -0.5 if is_on_floor() else velocity.y - _gravity * delta, 0.0)
+	move_and_slide()
+	fade_label(delta)
+	if _dead:
+		return
+	if puppet_anim == "attack" and data.has("attack"):
+		_p_attack_left -= delta
+		if _p_attack_left <= 0.0:
+			var attack: Dictionary = data.attack
+			_p_attack_left = float(attack.get("interval", 0.8)) * 1.05
+			var anims: Array = attack.get("anims", [])
+			if not anims.is_empty():
+				visual.action(String(anims[_p_combo % anims.size()]), 1.2)
+				_p_combo += 1
+	if mount != null:
+		_raise_labels(MountVisual.carry(mount, visual, _facing, _p_speed, float(stats.speed) * (1.0 + MountData.speed_bonus(mount.id)), "Idle"))
+		return
+	visual.rotation.y = _facing
+	if _p_speed > 0.6 or puppet_anim == "run":
+		visual.play("Running_A", 0.12, clampf(_p_speed / 5.4, 0.8, 1.5))
+	else:
+		visual.play("Sit_Floor_Idle" if puppet_anim == "sit" else "Idle")
+	_hover_moving(delta, _p_speed > 0.6)
+
+
+## The host role came to this game (or the link went): an ordinary world player again,
+## right where it stands, hunting on its own.
+func end_puppet() -> void:
+	if not puppet:
+		return
+	puppet = false
+	_p_n = 0
+	velocity = Vector3.ZERO
+	if _dead:
+		_dead = false
+		if is_instance_valid(visual):
+			visual.release()
+			visual.play("Idle")
+	puppet_anim = "idle"
+	hp = max_hp
+	mp = float(stats.get("max_mp", 0.0))
+	target = null
+	_label.text = _level_text()
+	_update_bar()
+	_pick_camp()
