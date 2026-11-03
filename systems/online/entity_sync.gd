@@ -1,23 +1,32 @@
 class_name EntitySync
 extends Node
-## Shared combat for a party in one zone (docs/ONLINE_PROTOCOL.md, "Shared combat").
+## Shared monsters of one zone (docs/ONLINE_PROTOCOL.md, "Shared combat" and "Shared
+## world (zone-wide, v2)").
 ##
 ## Every hunting field and the guild war get one (Zone._ready). It sleeps while the game
-## is offline or not in a party, so solo play is untouched. In a party:
-## - HOST (Online.is_zone_host, other members here): the zone runs its monsters as always.
+## is offline or alone in its zone, so solo play is untouched. The zone host serves
+## everyone in an open zone (party or not) and the party in an instanced one
+## (Online.serves):
+## - HOST (Online.is_zone_host, someone served here): the zone runs its monsters as always.
 ##   Each one gets a stable `eid`; `ent_snap` goes out 4 times a second (the ones near a
-##   member, at most SNAP_CAP, numbers rounded), `ent_event` for spawns, deaths (killer and
-##   damage share), boss phases, big casts (the danger circles) and the hits a monster lands
-##   on a real player (`hit {to, dmg}`, that player's game applies it). A member's `ent_hit`
-##   is applied as Mob.take_hit(dmg, crit, color, Online.remote_node(from)), so the threat
-##   system chases whoever hits hardest; the monsters see the members as victims
-##   (Mob._targets, Mob.strike).
+##   served player, at most SNAP_CAP, numbers rounded), `ent_event` for spawns, deaths
+##   (killer and everyone's damage share, the host's own included), boss phases, big casts
+##   (the danger circles) and the hits a monster lands on a real player (`hit {to, dmg}`,
+##   that player's game applies it). An `ent_hit` is applied as Mob.take_hit(dmg, crit,
+##   color, Online.remote_node(from)), so the threat system chases whoever hits hardest;
+##   the monsters see the served players as victims (Mob._targets, Mob.strike).
 ## - MIRROR (Online.is_mirror_zone): the zone stops spawning and clears its own monsters;
 ##   the host's are shown as MirrorMob / MirrorFighter (same model, glide between
-##   snapshots, HP bar, telegraphs). The hero's hits on them go out as `ent_hit`; the host's
-##   `dead` pays this game's loot and EXP as if the hero had killed it (each member rolls its
-##   own drop). When the link or the party breaks the mirrors vanish and the zone spawns
-##   its own monsters again.
+##   snapshots, HP bar, telegraphs). The hero's hits on them go out as `ent_hit`.
+## - The reward of a kill (earns, Mob.party_share): a game rolls its own loot, EXP and quest
+##   credit only when its hero's side dealt damage, or a party member in this zone did;
+##   the host too. Nobody else gets anything (no kill stealing).
+## - A new host (the old one left or dropped) takes over the monsters as they are: its
+##   mirrors become real Mobs at the mirrored spot, HP and boss phase, under the same eids
+##   (_take_over), so the other mirrors carry on; mirrors the new host does not confirm
+##   within SWEEP_MS go. When nobody else is left (host null) the mirrors become this
+##   game's own monsters the same way; only a broken link clears them (the zone spawns
+##   its own again).
 ## Frames are paced by a token bucket (RATE a second) so the server's 30-a-second cap is
 ## never hit, whatever a skill does.
 
@@ -37,6 +46,12 @@ const HIT_FLUSH := 0.1
 const ASK_EVERY := 3000
 ## Guild war: the leader's war status this often (seconds).
 const GW_EVERY := 1.0
+## After a host change, mirrors the new host has not spoken of within this long go (msec).
+const SWEEP_MS := 10000
+## A take-over starts its new eids this far past the highest one seen.
+const EID_GAP := 64
+## How near (metres) a shared kill the hero has to stand to see "ไม่ได้ร่วมตี".
+const NO_CREDIT_NEAR := 22.0
 ## Snapshot flags.
 const F_HOSTILE := 1
 const F_ACTING := 2
@@ -75,6 +90,12 @@ var _hitting := ""
 var _pending: Dictionary = {}
 var _pending_order: Array = []
 var _asked: Dictionary = {}
+## Mirror: the host the mirrors came from, the highest eid seen, and after a host change
+## the mirrors the new host has not confirmed yet (eid -> true) and when they go (msec).
+var _host_was := ""
+var _seen_top := 0
+var _unconfirmed: Dictionary = {}
+var _sweep_at := 0
 ## Reused every snapshot (no garbage on the host either).
 var _cands: Array = []
 var _member_pos: PackedVector3Array = PackedVector3Array()
@@ -105,7 +126,7 @@ static func mirror_zone(zone_id: StringName) -> bool:
 	return Online.is_online() and Online.is_mirror_zone(zone_id)
 
 
-## A real party member's body (RemotePlayer) still standing, while hosting.
+## A served real player's body (RemotePlayer) still standing, while hosting.
 static func remote_alive(node: Variant) -> bool:
 	if not hosting() or node == null or not is_instance_valid(node):
 		return false
@@ -118,6 +139,60 @@ static func remote_alive(node: Variant) -> bool:
 	if p is Dictionary:
 		return String(p.get("anim", "")) != "dead" and int(p.get("hp", 1)) > 0
 	return true
+
+
+## Mob._credit: damage from a real player on one of the hosted monsters is counted here
+## (per player id, for the `dead` share), not as the hero's side's. True when handled.
+static func remote_credit(mob: Mob, attacker: Node, amount: int) -> bool:
+	if not hosting():
+		return false
+	if current._hitting != "":
+		# _on_ent_hit counts it.
+		return true
+	if attacker == null or not is_instance_valid(attacker) or not attacker.is_in_group("remote_players"):
+		return false
+	var id := current.id_of(attacker)
+	var eid := int(mob.get_meta("eid", 0))
+	if id != "" and eid > 0 and amount > 0:
+		var share: Dictionary = current._share.get(eid, {})
+		share[id] = int(share.get(id, 0)) + amount
+		current._share[eid] = share
+	return true
+
+
+## Host: the damage this game's party members in the zone dealt to [param mob] (their own
+## games, through ent_hit); they count as the hero's side for the reward.
+static func party_dealt(mob: Mob) -> int:
+	if not hosting() or mob == null or not mob.has_meta("eid"):
+		return 0
+	var share: Dictionary = current._share.get(int(mob.get_meta("eid")), {})
+	if share.is_empty():
+		return 0
+	var total := 0
+	for id in Online.party_members_in_zone(current.key):
+		total += maxi(0, int(share.get(id, 0)))
+	return total
+
+
+## Host: whether real players other than this game dealt damage to [param mob].
+static func dealt_by_others(mob: Mob) -> bool:
+	if not hosting() or mob == null or not mob.has_meta("eid"):
+		return false
+	var share: Dictionary = current._share.get(int(mob.get_meta("eid")), {})
+	for id in share:
+		if int(share[id]) > 0:
+			return true
+	return false
+
+
+## A shared kill pays this game nothing: a small grey word over it when the hero is near.
+static func no_credit(mob: Mob) -> void:
+	if mob == null or not is_instance_valid(mob) or not mob.is_inside_tree():
+		return
+	var hero: Variant = mob.hero
+	if hero == null or not is_instance_valid(hero) or (hero as Node3D).global_position.distance_to(mob.global_position) > NO_CREDIT_NEAR:
+		return
+	BattleVfx.floating_text(mob.get_parent(), mob.top_point() + Vector3(0, 0.6, 0), "ไม่ได้ร่วมตี", Color(0.62, 0.62, 0.62), 0.7)
 
 
 ## A monster's strike landed on a real player: that player's game applies it.
@@ -191,10 +266,10 @@ func _on_disconnected() -> void:
 
 
 func _wanted() -> int:
-	if not Online.is_online() or not Online.in_party():
+	if not Online.is_online():
 		return OFF
 	if Online.is_zone_host(key):
-		return HOST if not Online.party_members_in_zone(key).is_empty() else OFF
+		return HOST if not Online.serves(key).is_empty() else OFF
 	if Online.is_mirror_zone(key):
 		return MIRROR
 	return OFF
@@ -206,13 +281,20 @@ func update_mode() -> void:
 	var want := _wanted()
 	_refresh_remote_ids()
 	if want == mode:
+		if mode == MIRROR:
+			_host_moved()
 		return
 	var old := mode
 	mode = want
 	if old == HOST:
 		_stop_host()
 	elif old == MIRROR:
-		_stop_mirror()
+		if mode == HOST or Online.is_online():
+			# The old host left (and maybe nobody else is here now): this game runs the very
+			# monsters it was showing. A broken link clears them instead (below).
+			_take_over()
+		else:
+			_stop_mirror()
 	if mode == HOST:
 		_start_host()
 	elif mode == MIRROR:
@@ -233,6 +315,8 @@ func _process(delta: float) -> void:
 		if _flush <= 0.0:
 			_flush = HIT_FLUSH
 			_flush_hits()
+		if _sweep_at > 0 and Time.get_ticks_msec() >= _sweep_at:
+			_sweep()
 
 
 func _spend() -> bool:
@@ -262,11 +346,11 @@ func _stop_host() -> void:
 	_members.clear()
 
 
-## Who of the party is in the zone; someone new gets everything described again.
+## Who this game serves in the zone; someone new gets everything described again.
 func _track_members() -> void:
 	var fresh := false
 	var now: Dictionary = {}
-	for id in Online.party_members_in_zone(key):
+	for id in Online.serves(key):
 		now[String(id)] = true
 		if not _members.has(String(id)):
 			fresh = true
@@ -279,13 +363,13 @@ func _refresh_remote_ids() -> void:
 	_remote_ids.clear()
 	if not Online.is_online():
 		return
-	for id in Online.party_members_in_zone(key):
+	for id in Online.serves(key):
 		var node := Online.remote_node(String(id))
 		if node != null:
 			_remote_ids[node.get_instance_id()] = String(id)
 
 
-## The party member [param node] is (its RemotePlayer), or "".
+## The served player [param node] is (its RemotePlayer), or "".
 func id_of(node: Variant) -> String:
 	if node == null or not is_instance_valid(node):
 		return ""
@@ -294,7 +378,7 @@ func id_of(node: Variant) -> String:
 		return String(_remote_ids[iid])
 	if not (node as Node).is_in_group("remote_players"):
 		return ""
-	for id in Online.party_members_in_zone(key):
+	for id in Online.serves(key):
 		if Online.remote_node(String(id)) == node:
 			_remote_ids[iid] = String(id)
 			return String(id)
@@ -320,9 +404,13 @@ func _scan() -> void:
 			_urgent.append(["ent_event", {"zone": String(key), "eid": eid, "ev": "gone", "data": {}}])
 
 
-func _adopt(mob: Mob) -> void:
-	var eid := _next_eid
-	_next_eid += 1
+## [param eid]: the one it already had (a take-over), else a new one.
+func _adopt(mob: Mob, eid := 0) -> void:
+	if eid <= 0:
+		eid = _next_eid
+		_next_eid += 1
+	else:
+		_next_eid = maxi(_next_eid, eid + 1)
 	mob.set_meta("eid", eid)
 	ents[eid] = mob
 	if mob is GuildFighter:
@@ -400,6 +488,11 @@ func describe(mob: Mob) -> Dictionary:
 		return d
 	d["m"] = String(mob.monster_id)
 	d["lv"] = mob.level
+	# Its home (the camp spot): a player that takes over as host keeps it there.
+	d["hx"] = _q(mob.home.x)
+	d["hz"] = _q(mob.home.z)
+	if mob.phase > 0:
+		d["p"] = mob.phase
 	if mob.hostile:
 		d["h"] = 1
 	if mob == zone.get("_boss"):
@@ -467,6 +560,8 @@ func _event(eid: int, ev: String, data: Dictionary) -> void:
 	_urgent.append(["ent_event", {"zone": String(key), "eid": eid, "ev": ev, "data": data}])
 
 
+## Everyone's damage on [param mob]: the players' (ent_hit) and this game's own (the
+## hero's side). A player rolls the kill's reward only with damage here (or its party's).
 func _dead_data(eid: int, mob: Mob, killer: String) -> Dictionary:
 	var share := {}
 	var others := 0
@@ -474,7 +569,8 @@ func _dead_data(eid: int, mob: Mob, killer: String) -> Dictionary:
 		var dealt := int(_share[eid][id])
 		share[String(id)] = dealt
 		others += dealt
-	share[Online.my_id()] = maxi(0, mob.max_hp - others)
+	# A guild-war fighter's damage is not split by side: the leader takes the rest.
+	share[Online.my_id()] = maxi(0, mob.max_hp - others) if mob is GuildFighter else maxi(0, mob.party_damage)
 	return {"killer": killer, "share": share}
 
 
@@ -484,9 +580,18 @@ func _on_died(mob: Mob) -> void:
 		return
 	var killer := _hitting if _hitting != "" else Online.my_id()
 	_event(eid, "dead", _dead_data(eid, mob, killer))
+	if mob.party_share() <= 0.0 and dealt_by_others(mob):
+		no_credit(mob)
 	ents.erase(eid)
-	_share.erase(eid)
+	# The zone pays the kill from the share (Mob.party_share) in this same signal; the
+	# share goes once everybody heard it.
+	_forget_share.call_deferred(eid)
 	_lazy_set.erase(eid)
+
+
+func _forget_share(eid: int) -> void:
+	if not ents.has(eid):
+		_share.erase(eid)
 
 
 func _on_fighter_fell(fighter: GuildFighter, killer: Node) -> void:
@@ -619,11 +724,16 @@ func _start_mirror() -> void:
 	_pending.clear()
 	_pending_order.clear()
 	_asked.clear()
+	_unconfirmed.clear()
+	_sweep_at = 0
+	_host_was = Online.zone_host(key)
 	if zone.has_method("enter_shared_mirror"):
 		zone.call("enter_shared_mirror")
 
 
-func _stop_mirror() -> void:
+## [param taken_over]: this game hosts now and already made real monsters of the mirrors
+## (_take_over); the zone does not fill its camps at once then.
+func _stop_mirror(taken_over := false) -> void:
 	for eid in mirrors:
 		var m: Variant = mirrors[eid]
 		if not is_instance_valid(m):
@@ -635,11 +745,114 @@ func _stop_mirror() -> void:
 	mirrors.clear()
 	_pending.clear()
 	_pending_order.clear()
+	_unconfirmed.clear()
+	_sweep_at = 0
+	_host_was = ""
 	var war: Variant = zone.get("gw_match")
 	if war != null and is_instance_valid(war) and (war as GuildWarMatch).mirror:
 		(war as GuildWarMatch).mirror_lost()
-	if zone.has_method("leave_shared_mirror"):
+	if taken_over:
+		if zone.has_method("resume_shared_takeover"):
+			zone.call("resume_shared_takeover")
+	elif zone.has_method("leave_shared_mirror"):
 		zone.call("leave_shared_mirror")
+
+
+## The old host is gone and this game hosts now: every living mirrored monster becomes a
+## real Mob where it stands, with its HP, anger and boss phase, under the same eid (the
+## other players' mirrors carry on); the zone counts them in its camps again
+## (Zone.adopt_shared). New eids start past every eid seen.
+func _take_over() -> void:
+	var hero: Node3D = zone.get("hero")
+	var top := _seen_top
+	for eid in mirrors.keys():
+		var m: Variant = mirrors[eid]
+		top = maxi(top, int(eid))
+		if not (m is MirrorMob) or not is_instance_valid(m) or (m as Mob).is_dead() or (m as Node).is_queued_for_deletion():
+			continue
+		var mirror := m as MirrorMob
+		var mob := _real_mob(mirror, hero)
+		mirrors.erase(eid)
+		mirror.remove_from_group("mobs")
+		mirror.queue_free()
+		zone.add_child(mob)
+		mob.visual.rotation.y = mob._yaw
+		mob._bar.set_ratio(float(mob.hp) / float(maxi(1, mob.max_hp)))
+		if mob.hp < mob.max_hp:
+			mob._bar.visible = true
+			mob._bar_until = Time.get_ticks_msec() * 0.001 + 6.0
+		if zone.has_method("adopt_shared"):
+			zone.call("adopt_shared", mob, mirror.kind)
+		_adopt(mob, int(eid))
+		if hero != null and is_instance_valid(hero) and hero.get("target") == mirror:
+			hero.call("set_target", mob)
+	_next_eid = maxi(_next_eid, top + 1 + EID_GAP)
+	_stop_mirror(true)
+
+
+## A real monster standing exactly as [param m] (the mirror of the old host's).
+func _real_mob(m: MirrorMob, hero: Node3D) -> Mob:
+	var mob := Mob.new()
+	mob.setup(m.monster_id, m.level, m.home, hero)
+	if m.kind in ["world_boss", "golden"]:
+		mob.template = m.template.duplicate()
+	for meta in ["world_boss", "golden", "field_boss"]:
+		if m.has_meta(meta):
+			mob.set_meta(meta, m.get_meta(meta))
+	mob.max_hp = maxi(1, m.max_hp)
+	mob.hp = clampi(m.hp, 1, mob.max_hp)
+	mob.hostile = m.hostile
+	mob.phase = m.phase
+	# What the hero's side dealt to it while it was a mirror still counts for the reward.
+	mob.party_damage = m.dealt
+	mob._yaw = m._yaw
+	mob.position = m.global_position + Vector3(0, 0.05, 0)
+	return mob
+
+
+## The mirrors' host changed (another player took over): the mirrors stay and the new
+## host's frames go on with the same eids; those it never speaks of go after SWEEP_MS.
+func _host_moved() -> void:
+	var host := Online.zone_host(key)
+	if host == _host_was:
+		return
+	_host_was = host
+	_unconfirmed.clear()
+	for eid in mirrors:
+		if mirrors[eid] is MirrorMob:
+			_unconfirmed[eid] = true
+	_sweep_at = Time.get_ticks_msec() + SWEEP_MS if not _unconfirmed.is_empty() else 0
+	_asked.clear()
+
+
+func _sweep() -> void:
+	_sweep_at = 0
+	for eid in _unconfirmed:
+		var m: Variant = mirrors.get(eid)
+		if m is MirrorMob and is_instance_valid(m) and not (m as Mob).is_dead():
+			mirrors.erase(eid)
+			_pending.erase(eid)
+			(m as Node).queue_free()
+	_unconfirmed.clear()
+
+
+## Whether this game rolls the reward of the host's kill of eid [param eid] (`dead` data
+## [param d]): the hero's side hit it ([param dealt], some of it maybe not counted by the
+## host yet), or the share names this game or a party member in this zone with damage.
+## A host that sends no share at all (an older game) pays everyone, as before.
+func earns(eid: int, d: Dictionary, dealt: int) -> bool:
+	_unconfirmed.erase(eid)
+	if dealt > 0:
+		return true
+	var share: Variant = d.get("share")
+	if not (share is Dictionary):
+		return true
+	if Online.num((share as Dictionary).get(Online.my_id(), 0)) > 0:
+		return true
+	for id in Online.party_members_in_zone(key):
+		if Online.num((share as Dictionary).get(String(id), 0)) > 0:
+			return true
+	return false
 
 
 ## A mirror was hit by the hero (or its party, its summons): queued for the host.
@@ -711,6 +924,8 @@ func _on_snap(data: Dictionary) -> void:
 		if not (row is Array) or (row as Array).size() < 7:
 			continue
 		var eid := int(row[0])
+		_seen_top = maxi(_seen_top, eid)
+		_unconfirmed.erase(eid)
 		var m: Variant = mirrors.get(eid)
 		if m == null or not is_instance_valid(m):
 			_ask(eid)
@@ -777,10 +992,13 @@ func _on_event(data: Dictionary) -> void:
 func _build_mirror(eid: int, d: Dictionary) -> void:
 	if eid <= 0:
 		return
+	_seen_top = maxi(_seen_top, eid)
+	_unconfirmed.erase(eid)
 	var known: Variant = mirrors.get(eid)
 	if known != null and is_instance_valid(known):
 		if not (known is CastleGate):
-			known.mirror_state(float(d.get("x", 0.0)), float(d.get("z", 0.0)), float(d.get("y", 0.0)), int(d.get("hp", 1)), int(d.get("mhp", 1)), F_DEAD if bool(d.get("dead", false)) else 0)
+			var f := (F_DEAD if bool(d.get("dead", false)) else 0) | (F_HOSTILE if int(d.get("h", 0)) != 0 else 0) | (clampi(int(d.get("p", 0)), 0, 3) << 4)
+			known.mirror_state(float(d.get("x", 0.0)), float(d.get("z", 0.0)), float(d.get("y", 0.0)), int(d.get("hp", 1)) - pending_damage(eid), int(d.get("mhp", 1)), f)
 		return
 	var hero: Node3D = zone.get("hero")
 	if d.has("gate"):

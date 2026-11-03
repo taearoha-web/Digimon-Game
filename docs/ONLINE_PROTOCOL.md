@@ -202,7 +202,10 @@ func in_party() -> bool
 func party_members_in_zone(zone: StringName) -> Array  # ids, me excluded
 func zone_host(zone: StringName) -> String         # "" when nobody shares
 func is_zone_host(zone: StringName) -> bool
-func is_mirror_zone(zone: StringName) -> bool      # in a party, someone else hosts: do not spawn monsters
+func is_mirror_zone(zone: StringName) -> bool      # someone else hosts (party or not): do not spawn monsters
+func zone_members(zone: StringName) -> Array       # ids of the other real players in that zone, party or not
+func serves(zone: StringName) -> Array             # whom that zone's host serves: zone_members (open) or party_members_in_zone (instanced)
+static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena (INSTANCED_ZONES)
 func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
 ## Tests: swap the socket for an object with send_text(text) and poll() -> Array[String];
 ## `_dispatch(msg)` handles one server frame as if it came off the wire.
@@ -236,7 +239,17 @@ same things, and the same AI world chat. **Instanced** zones (`tower`, `pvp`, `g
   any of them to the host. Loot and EXP on `ent_event dead {killer, share:{id: damage}}`:
   a player rolls its own drop and EXP when it dealt damage (its id in `share` with
   damage > 0), or when a member of its party in that zone did. Nobody else gets anything
-  (no kill stealing: the one who hit gets the reward).
+  (no kill stealing: the one who hit gets the reward). The host's own damage is in `share`
+  under its id, and the host follows the same rule (no reward for a kill it took no part
+  in); field boss, world boss and golden monster rewards too. The client also counts its
+  own hits that the host may not have counted yet.
+- **Host hand-over.** A `spawn` also carries the monster's home (`hx`, `hz`) and its boss
+  phase (`p`, when past 0). When the server names a new host, that player's game turns its
+  mirrors into real monsters where they stand (HP, anger, boss phase) under the **same
+  eids** and carries on sending `ent_snap` / `ent_event`; new monsters get eids past every
+  eid seen. The other players keep their mirrors (frames from the new host only) and drop
+  the ones the new host does not name within 10 s. When the host leaves and nobody else is
+  left (`host` id null) the last player keeps the mirrored monsters the same way.
 - **AI world players.** The zone host's game runs them (WorldPresence) and sends
   `wp_snap {zone, ps:[[index, x, z, yaw, anim, flags]]}` 4 times a second (index =
   WorldPlayers roster index; anim "idle"/"run"/"attack"/"skill:<id>"/"dead"; flags bit 0

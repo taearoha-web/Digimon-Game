@@ -1227,8 +1227,8 @@ func _is_field_boss(mob: Mob) -> bool:
 	return mob == _boss or (mob is MirrorMob and bool(mob.get_meta("field_boss", false)))
 
 
-## EntitySync: another member of the online party hosts this zone's monsters. Ours go
-## away (no loot, nothing respawns) until the mirror ends.
+## EntitySync: another real player hosts this zone's monsters. Ours go away (no loot,
+## nothing respawns) until the mirror ends.
 func enter_shared_mirror() -> void:
 	for child in get_children():
 		var mob := child as Mob
@@ -1244,8 +1244,8 @@ func enter_shared_mirror() -> void:
 		hero.set_target(null)
 
 
-## The mirror ended (the link or the party broke, or this game hosts now): the camps fill
-## up again at once and the boss comes back soon.
+## The mirror ended (the link broke or nobody else is left here): the camps fill up
+## again at once and the boss comes back soon.
 func leave_shared_mirror() -> void:
 	if is_town or not is_inside_tree():
 		return
@@ -1254,6 +1254,49 @@ func leave_shared_mirror() -> void:
 		while (camp.mobs as Array).size() < int(camp.count):
 			_spawn_in_camp(camp, true)
 	_boss_timer = minf(_boss_timer, 3.0)
+	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
+		hero.set_target(null)
+
+
+## EntitySync: the old host left and this game hosts now; [param mob] (already in the
+## zone) is one of its monsters, taken over as it stood. It is the field's boss, the world
+## boss (its special moves) or the golden monster (its sparkle) again, or counts for the
+## camp it lives in, so the camps do not fill up past their count.
+func adopt_shared(mob: Mob, kind: String) -> void:
+	match kind:
+		"field_boss":
+			_boss = mob
+		"world_boss":
+			_wboss = mob
+			var special := WorldBoss.new()
+			special.setup(mob, self)
+			mob.add_child(special)
+		"golden":
+			_golden = mob
+			_golden_window = int(mob.get_meta("golden", -1))
+			if mob._label:
+				mob._label.modulate = WorldEvents.GOLDEN_COLOR
+				mob._label.visibility_range_end = 26.0
+			var sparkle := VfxKit.buff_emitter(mob, WorldEvents.GOLDEN_COLOR)
+			sparkle.name = "GoldenSparkle"
+			sparkle.emitting = true
+		_:
+			for camp in _camps:
+				if Vector2(mob.home.x - float(camp.pos.x), mob.home.z - float(camp.pos.y)).length() <= float(camp.radius) + 1.0:
+					if (camp.mobs as Array).size() < int(camp.count):
+						camp.mobs.append(mob)
+					break
+
+
+## EntitySync: the take-over is done. The camps fill up at the usual pace (no burst of
+## fresh monsters next to the taken-over ones) and a boss that was not there comes back
+## on its timer.
+func resume_shared_takeover() -> void:
+	if is_town or not is_inside_tree():
+		return
+	if (_boss == null or not is_instance_valid(_boss)) and data.has("boss"):
+		_boss_timer = maxf(_boss_timer, float(data.boss.get("respawn", 60.0)) * 0.5)
+	_spawn_timer = minf(_spawn_timer, SPAWN_INTERVAL)
 	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
 		hero.set_target(null)
 

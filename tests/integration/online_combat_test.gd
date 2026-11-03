@@ -1,6 +1,7 @@
 extends Node3D
 ## Shared combat online (EntitySync, MirrorMob; docs/ONLINE_PROTOCOL.md "Shared combat"),
 ## each side of it alone with a fake transport (no network):
+## (More of the zone-wide v2 world, party or not: tests/integration/online_zone_test.gd.)
 ## - host: a party member stands in the field: every monster gets an eid, snapshots and
 ##   spawn events go out, a member's ent_hit hurts the monster and puts its threat on the
 ##   member's RemotePlayer, a monster's blow on that player becomes an `ent_event hit`, a
@@ -161,10 +162,10 @@ func _host() -> void:
 	var count := link.sent.size()
 	await seconds(1.0)
 	check(link.sent.size() - count <= int(EntitySync.RATE * 1.0 + EntitySync.BURST), "host: frames stay under the rate (%d in 1 s)" % (link.sent.size() - count))
-	# Targets: the party member, never a stranger.
+	# Targets: everyone in the open field, party or not (shared world v2).
 	var targets := mob._targets()
 	check(targets.has(buddy), "host: the party member's RemotePlayer is a victim")
-	check(not targets.has(stranger), "host: a player outside the party is not")
+	check(targets.has(stranger), "host: in an open field a player outside the party is a victim too")
 	# A member's hit: HP drops, threat goes to its RemotePlayer, the monster chases it.
 	mob.max_hp = 100000
 	mob.hp = 100000
@@ -217,8 +218,12 @@ func _host() -> void:
 		other.queue_free()
 		await seconds(0.4)
 		check(link.events("gone").any(func(f): return int(f.eid) == other_eid), "host: a monster freed without dying is announced gone")
-	# The member leaves the zone: hosting stops.
+	# The member leaves the zone: the other player is still served.
 	Online._dispatch({"t": "state", "id": "p2", "zone": "town"})
+	zone.sync.update_mode()
+	check(zone.sync.is_host(), "host: another player is still in the field: still hosting")
+	# Everyone else leaves: hosting stops.
+	Online._dispatch({"t": "state", "id": "p3", "zone": "town"})
 	zone.sync.update_mode()
 	check(not zone.sync.is_host(), "host: alone again, nothing is shared")
 	Online.use_transport(null)
