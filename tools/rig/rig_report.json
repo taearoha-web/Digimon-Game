@@ -1,6 +1,6 @@
 {
  "WindKing": {
-  "verts": 19870,
+  "verts": 20257,
   "tris": 20000,
   "clips": [
    "Idle",
@@ -14,50 +14,50 @@
   ],
   "stretch": {
    "Idle": {
-    "shear_max_cm": 1.64,
-    "shear_p999_cm": 0.84,
-    "stretch_p999": 1.182
+    "shear_max_cm": 4.38,
+    "shear_p999_cm": 1.75,
+    "stretch_p999": 1.421
    },
    "Walk": {
-    "shear_max_cm": 1.74,
-    "shear_p999_cm": 1.2,
-    "stretch_p999": 1.263
+    "shear_max_cm": 9.43,
+    "shear_p999_cm": 4.04,
+    "stretch_p999": 2.167
    },
    "Run": {
-    "shear_max_cm": 2.61,
-    "shear_p999_cm": 1.82,
-    "stretch_p999": 1.451
+    "shear_max_cm": 14.25,
+    "shear_p999_cm": 6.47,
+    "stretch_p999": 3.157
    },
    "Attack": {
-    "shear_max_cm": 7.07,
-    "shear_p999_cm": 4.46,
-    "stretch_p999": 1.94
+    "shear_max_cm": 13.82,
+    "shear_p999_cm": 5.18,
+    "stretch_p999": 2.442
    },
    "Skill1": {
-    "shear_max_cm": 6.63,
-    "shear_p999_cm": 4.15,
-    "stretch_p999": 1.901
+    "shear_max_cm": 13.75,
+    "shear_p999_cm": 5.32,
+    "stretch_p999": 2.586
    },
    "Skill2": {
-    "shear_max_cm": 9.23,
-    "shear_p999_cm": 5.28,
-    "stretch_p999": 2.211
+    "shear_max_cm": 12.68,
+    "shear_p999_cm": 5.87,
+    "stretch_p999": 2.933
    },
    "HitReact": {
-    "shear_max_cm": 1.86,
-    "shear_p999_cm": 0.68,
-    "stretch_p999": 1.139
+    "shear_max_cm": 3.61,
+    "shear_p999_cm": 2.32,
+    "stretch_p999": 1.606
    },
    "Death": {
-    "shear_max_cm": 0.0,
-    "shear_p999_cm": 0.0,
-    "stretch_p999": 1.0
+    "shear_max_cm": 9.63,
+    "shear_p999_cm": 5.73,
+    "stretch_p999": 2.655
    },
-   "worst_shear_cm": 9.23
+   "worst_shear_cm": 14.25
   }
  },
  "Poseidon": {
-  "verts": 22656,
+  "verts": 22824,
   "tris": 20000,
   "clips": [
    "Idle",
@@ -71,46 +71,46 @@
   ],
   "stretch": {
    "Idle": {
-    "shear_max_cm": 2.06,
-    "shear_p999_cm": 1.01,
-    "stretch_p999": 1.215
+    "shear_max_cm": 7.01,
+    "shear_p999_cm": 2.49,
+    "stretch_p999": 1.583
    },
    "Walk": {
-    "shear_max_cm": 1.94,
-    "shear_p999_cm": 1.07,
-    "stretch_p999": 1.269
+    "shear_max_cm": 13.66,
+    "shear_p999_cm": 4.56,
+    "stretch_p999": 2.065
    },
    "Run": {
-    "shear_max_cm": 3.14,
-    "shear_p999_cm": 1.7,
-    "stretch_p999": 1.404
+    "shear_max_cm": 16.98,
+    "shear_p999_cm": 7.75,
+    "stretch_p999": 3.201
    },
    "Attack": {
-    "shear_max_cm": 8.54,
-    "shear_p999_cm": 4.44,
-    "stretch_p999": 1.941
+    "shear_max_cm": 11.53,
+    "shear_p999_cm": 4.68,
+    "stretch_p999": 2.265
    },
    "Skill1": {
-    "shear_max_cm": 11.04,
-    "shear_p999_cm": 5.32,
-    "stretch_p999": 2.238
+    "shear_max_cm": 12.65,
+    "shear_p999_cm": 6.43,
+    "stretch_p999": 2.742
    },
    "Skill2": {
-    "shear_max_cm": 11.1,
-    "shear_p999_cm": 5.17,
-    "stretch_p999": 2.255
+    "shear_max_cm": 12.61,
+    "shear_p999_cm": 5.93,
+    "stretch_p999": 2.466
    },
    "HitReact": {
-    "shear_max_cm": 1.87,
-    "shear_p999_cm": 0.87,
-    "stretch_p999": 1.143
+    "shear_max_cm": 4.08,
+    "shear_p999_cm": 2.69,
+    "stretch_p999": 1.571
    },
    "Death": {
-    "shear_max_cm": 0.0,
-    "shear_p999_cm": 0.0,
-    "stretch_p999": 1.0
+    "shear_max_cm": 11.29,
+    "shear_p999_cm": 6.91,
+    "stretch_p999": 2.699
    },
-   "worst_shear_cm": 11.1
+   "worst_shear_cm": 16.98
   }
  },
  "_shipped_before": {
