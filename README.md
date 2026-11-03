@@ -4,6 +4,13 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 # Toon Tale
 
+## The village is paved like a Japanese town (November 2026)
+
+- **Warm dark-gray stone** (`world/village_ground.gd`, `VillageGround`; `shaders/japan_paving.gdshader`): the town's floor is no longer grass with dirt trails. Streets are running-bond setts laid along the street between warm granite kerbs; the rest of the town is square stone plates; the plaza is a fan pattern (扇張り / seigaiha) of small granite setts with a dark inlay ring, a granite ring at its edge and another round the great sakura's planter. A muted yellow tactile guide strip (点字ブロック) runs along the main street, with dot blocks at both ends. The charcoal is warm, never blue-gray; each stone differs a touch in tone, worn stretches are lighter and smoother, and the stone has a faint sheen that changes stone to stone, so low sun and lantern light glint on it.
+- **Gardens stay green** behind a granite kerb: `JapanVillage.green_areas()` lists (x, z, radius) circles (koi pond, farmhouses and rice fields, the pagoda's moss garden, the shrine's sakura grove). A grass verge is kept inside the hedge (`VillageGround.VERGE`), and outside the village the ground is the same meadow grass as before. Grass tufts, flowers, bushes, rocks, stumps and random trees grow only off the paving (`Scenery.populate`'s new `grows` filter); the plaza's old beige flagstone disc is gone (the ground paves it).
+- **Phone budget**: one mesh and one material (≈13.7k vertices, 26.9k triangles: 1.25 m grid in the village, 8 m beyond), no textures; the fragment shader is hash and fract arithmetic with one fixed five-step loop for the plaza fans. Joints, grain, ridges and per-stone tone fade by their size on screen (screen derivatives), so distant paving stays calm instead of shimmering. Low quality and the safe picture skip the wear, grain, ridges and flower specks. The physics floor is the same flat world boundary as before.
+- `tests/tools/paving_shots` takes the paving close, high, far, at a grazing angle and in a dimmed night light; `tests/tools/paving_perf` times the paving against the old ground.
+
 ## A clearer field HUD on iPhone (November 2026)
 
 - **Symbols on the web:** the browser has no system fonts, so ★ ● ✕ ✓ ✦ fell back to empty boxes (the party cards' stars, the online dot, the kick cross). A 6 KB DejaVu Sans subset (`assets/fonts/DejaVuSans-Symbols.ttf`) is now a fallback of every theme font. Title name plates use ✦ instead of 「」, which no bundled font has.

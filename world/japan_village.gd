@@ -106,21 +106,7 @@ static func _lantern_halos(root: Node3D) -> void:
 
 
 static func _plaza(root: Node3D, clear: Array[Vector3]) -> void:
-	var plaza := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = PLAZA_RADIUS
-	disc.bottom_radius = PLAZA_RADIUS
-	disc.height = 0.06
-	disc.radial_segments = 40
-	plaza.mesh = disc
-	# Flagstones: the shader lays slabs in world metres over the plain disc.
-	var flags := ShaderMaterial.new()
-	flags.shader = load("res://shaders/stone_flags.gdshader")
-	flags.set_shader_parameter("stone_color", Color("d2c4ab"))
-	flags.set_shader_parameter("mortar_color", Color("8e8372"))
-	plaza.material_override = flags
-	plaza.position = Vector3(0, 0.02, 0)
-	root.add_child(plaza)
+	# The plaza's fan-patterned paving is part of the ground (VillageGround).
 	# The great sakura on a round stone planter, ringed by stone lanterns and
 	# four flower beds at the plaza's edge.
 	_piece(root, "SakuraPlanter", Vector3.ZERO, 0.0, func(b: JapanKit.Batch):
@@ -448,3 +434,15 @@ static func _smoke(parent: Node3D, pos: Vector3, amount: int, color: Color, size
 	p.color_ramp = ramp
 	p.position = pos
 	parent.add_child(p)
+
+
+## Garden ground that stays grass inside the paved town (VillageGround), as (x, z,
+## radius) circles: the koi pond, the farmhouses and rice fields in the south, the moss
+## garden round the pagoda and the shrine's sakura grove.
+static func green_areas() -> Array[Vector3]:
+	return [
+		Vector3(POND.x, POND.z, 10.0), Vector3(-41.0, 22.0, 8.0),
+		Vector3(26.0, 26.0, 10.5), Vector3(28.0, 40.0, 8.0),
+		Vector3(PAGODA.x, PAGODA.z, 7.0),
+		Vector3(-11.0, -43.0, 6.5), Vector3(11.0, -48.0, 5.0), Vector3(-14.0, -49.0, 4.0),
+	]

@@ -92,6 +92,8 @@ static var _tuft: ArrayMesh
 static var _terrain_shader: Shader
 static var _glow_mat: StandardMaterial3D
 static var _prop_meshes: Dictionary = {}
+## The `grows` filter of the populate call in progress (see populate).
+static var _grows := Callable()
 
 
 ## Sky, fog, ambient and the sun. `look` (from ZoneData) may carry "palette"
@@ -403,8 +405,11 @@ static func _path_distance(p: Vector2, paths: Array[PackedVector2Array]) -> floa
 
 
 ## clear: Array of Vector3(x, z, radius) areas to keep free of scenery.
+## grows: optional Callable(Vector2) -> bool, false where nothing may grow (paved town).
 static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float,
-		clear: Array[Vector3], tree_density := 1.0, with_colliders := true, slicer: SceneTree = null) -> void:
+		clear: Array[Vector3], tree_density := 1.0, with_colliders := true, slicer: SceneTree = null,
+		grows := Callable()) -> void:
+	_grows = grows
 	var occupied: Array[Vector3] = clear.duplicate()
 	var body := StaticBody3D.new()
 	body.name = "Colliders"
@@ -427,9 +432,12 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 	theme_props(parent, theme, rng, play_radius, occupied, habitat)
 	await FrameSlicer.pace(slicer)
 	_grass(parent, theme, rng, play_radius, occupied, habitat)
+	_grows = Callable()
 
 
 static func _free(p: Vector2, radius: float, occupied: Array[Vector3]) -> bool:
+	if _grows.is_valid() and not _grows.call(p):
+		return false
 	for o in occupied:
 		if p.distance_to(Vector2(o.x, o.y)) < o.z + radius:
 			return false

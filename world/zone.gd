@@ -566,7 +566,10 @@ func _build_town() -> void:
 	_env = Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"), look)
 	_start = JapanVillage.START
 	await _slice()
-	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6, [], &"village")
+	# Dark-gray Japanese stone paving; gardens and the meadow beyond stay grass.
+	var green := JapanVillage.green_areas()
+	var streets := JapanVillage.paths()
+	VillageGround.build(self, 140.0, TOWN_RADIUS, green, streets, Vector3(0, 0, JapanVillage.PLAZA_RADIUS))
 	await _slice()
 	var clear := JapanVillage.build(self, rng)
 	var villagers := _villagers()
@@ -579,7 +582,8 @@ func _build_town() -> void:
 	for stall in JapanVillage.STALLS:
 		clear.append(Vector3(stall.x, stall.z, 1.6))
 	await _slice()
-	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null)
+	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null,
+		VillageGround.grows.bind(TOWN_RADIUS, green, streets))
 	await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)
