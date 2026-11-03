@@ -237,6 +237,11 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("chaos", 20))
 	if Game.craft_set_piece("weapon", 0.0) != "ok":
 		_fail("%s: craft_set_piece" % cls)
+	# A guild at Lv.100 (the hero leads it) and the other guild led by another character of
+	# the player (profile "guild_leaders").
+	if not Game.join_guild(WorldPlayers.ALPHA):
+		_fail("%s: join_guild" % cls)
+	Game.profile.guild_leaders[str(WorldPlayers.NEVERDIE)] = Game.alt_pick(3)
 	Game.tower_floor_cleared(60)
 	Game.tower_buy("gear")
 	Game.tower_buy("gem")

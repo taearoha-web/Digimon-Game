@@ -86,6 +86,7 @@ func open_quests() -> void:
 
 
 func close_screen() -> void:
+	close_leader_picker()
 	is_open = false
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
@@ -312,21 +313,32 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 		var s := WorldPlayers.state(i, t)
 		states.append(s)
 		online += 1 if bool(s.online) else 0
-	sort_members(states, sort_by)
+	# The player's other characters in this guild (other save slots) are members too.
+	var alts := Game.guild_alts(g)
 	var top := UIUtil.hbox(10)
 	col.add_child(top)
 	var name_label := UIUtil.label("กิลด์ %s" % WorldPlayers.guild_name(g), &"SubHeaderLabel")
 	name_label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS[g])
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(name_label)
-	top.add_child(UIUtil.label("สมาชิก %d คน · ออนไลน์ %d" % [states.size(), online], &"SmallLabel"))
-	# One leader a guild: the hero leads its own; the other's is its strongest member.
-	var leader := "คุณ (%s)" % String(Game.profile.get("name", "")) if mine == g else WorldPlayers.guild_leader(g, t)
-	var lead_label := UIUtil.label("หัวหน้ากิลด์: %s — คนเดียวที่ยึดแท่นปราสาทได้" % (leader if leader != "" else "ยังไม่มี"), &"SmallLabel")
+	var member_count := states.size() + alts.size()
+	top.add_child(UIUtil.label("สมาชิก %d คน · ออนไลน์ %d" % [member_count, online], &"SmallLabel"))
+	# One leader a guild, picked by the player (Game.guild_leader_of): by default the hero
+	# leads its own and the other's is its strongest member.
+	var lead := Game.guild_leader_of(g, t)
+	var lead_row := UIUtil.hbox(8)
+	col.add_child(lead_row)
+	var lead_label := UIUtil.label("หัวหน้ากิลด์: %s — คนเดียวที่ยึดแท่นปราสาทได้" % Game.guild_leader_label(g, t), &"SmallLabel")
 	lead_label.name = "Leader%s" % WorldPlayers.guild_name(g)
 	lead_label.add_theme_color_override("font_color", Color("ffd84a"))
 	lead_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col.add_child(lead_label)
+	lead_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lead_row.add_child(lead_label)
+	var pick := UIUtil.button("เลือกหัวหน้ากิลด์", &"AccentButton", Vector2(190, 58))
+	pick.name = "PickLeader%s" % WorldPlayers.guild_name(g)
+	pick.disabled = states.is_empty() and alts.is_empty() and mine != g
+	pick.pressed.connect(func(): open_leader_picker(g))
+	lead_row.add_child(pick)
 	var join := UIUtil.button("", &"PrimaryButton" if mine != g else &"", Vector2(0, 58))
 	join.name = "Join%s" % WorldPlayers.guild_name(g)
 	if mine == g:
@@ -352,11 +364,15 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	var rows: Array[Dictionary] = []
 	for s in states:
 		rows.append({"name": String(s.name), "class": StringName(s["class"]), "level": int(s.level), "stars": int(s.get("stars", 0)),
-			"level_text": WorldPlayers.level_text(s), "where": WorldPlayers.where_text(s, t), "online": bool(s.online)})
+			"level_text": WorldPlayers.level_text(s), "where": WorldPlayers.where_text(s, t), "online": bool(s.online),
+			"lead": String(lead.kind) == "member" and String(lead.name) == String(s.name)})
+	for a in alts:
+		rows.append(alt_row(a, String(lead.kind) == "alt" and int(lead.get("slot", 0)) == int(a.slot)))
 	if mine == g:
 		var stars := int(Game.paragon().level)
 		rows.append({"name": String(Game.profile.get("name", "คุณ")) + " (คุณ)", "class": Game.class_id(), "level": int(Game.profile.level), "stars": stars,
-			"level_text": "Lv.%d%s" % [int(Game.profile.level), " ★%d" % stars if stars > 0 else ""], "where": "ออนไลน์ · ตัวละครของคุณ", "online": true})
+			"level_text": "Lv.%d%s" % [int(Game.profile.level), " ★%d" % stars if stars > 0 else ""], "where": "ออนไลน์ · ตัวละครของคุณ", "online": true,
+			"lead": String(lead.kind) == "hero"})
 	sort_members(rows, sort_by)
 	var heading := StringName()
 	for r in rows:
@@ -367,8 +383,8 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 			head_label.name = "ClassHead_%s" % String(heading)
 			head_label.add_theme_color_override("font_color", ClassData.get_class_data(heading).color.lerp(Color.WHITE, 0.35))
 			list.add_child(head_label)
-		list.add_child(_card(String(r.name), r["class"], String(r.level_text), String(r.where), bool(r.online)))
-	if states.is_empty():
+		list.add_child(_card(String(r.name), r["class"], String(r.level_text), String(r.where), bool(r.online), bool(r.get("lead", false))))
+	if states.is_empty() and alts.is_empty():
 		list.add_child(UIUtil.label("ยังไม่มีผู้เล่นถึงเลเวล %d — ผู้เล่นเข้ากิลด์เมื่อถึงเลเวล %d" % [Game.GUILD_LEVEL, Game.GUILD_LEVEL], &"SmallLabel"))
 	return col
 
@@ -390,7 +406,15 @@ static func sort_members(rows: Array, mode: String) -> void:
 		return String(a.name) < String(b.name))
 
 
-func _card(who: String, cls: StringName, level: String, where: String, online: bool) -> Control:
+## A member row for one of the player's other characters (Game.guild_alts).
+static func alt_row(a: Dictionary, is_lead := false) -> Dictionary:
+	var stars := int(a.get("stars", 0))
+	return {"name": "%s (ตัวละครของคุณ)" % String(a.name), "class": StringName(a["class"]), "level": int(a.level), "stars": stars,
+		"level_text": "Lv.%d%s" % [int(a.level), " ★%d" % stars if stars > 0 else ""],
+		"where": "ตัวละครของคุณ · ไม่ได้เล่นอยู่ — ไม่ลงสงครามกิลด์จนกว่าจะเล่นตัวนี้", "online": false, "alt": int(a.slot), "lead": is_lead}
+
+
+func _card(who: String, cls: StringName, level: String, where: String, online: bool, lead := false) -> Control:
 	var panel := UIUtil.panel(&"CardPanel")
 	var line := UIUtil.hbox(10)
 	panel.add_child(line)
@@ -400,9 +424,119 @@ func _card(who: String, cls: StringName, level: String, where: String, online: b
 	var info := UIUtil.vbox(0)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)
-	info.add_child(UIUtil.label("%s  ·  %s" % [who, ClassData.get_class_data(cls).name], &"BoldLabel"))
+	var title := UIUtil.label("%s%s  ·  %s" % ["หัวหน้ากิลด์ · " if lead else "", who, ClassData.get_class_data(cls).name], &"BoldLabel")
+	if lead:
+		title.add_theme_color_override("font_color", Color("ffd84a"))
+	info.add_child(title)
 	var detail := UIUtil.label(where, &"SmallLabel")
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(detail)
 	line.add_child(UIUtil.label(level, &"BoldLabel"))
 	return panel
+
+
+# --- The guild leader picker (เลือกหัวหน้ากิลด์) -----------------------------------
+
+var _picker: OverlaySheet
+
+
+## Everyone who may lead guild `g`, in the picker's order: for the hero's own guild the
+## hero first ("ตัวฉัน"), then the player's other characters in that guild, then the
+## members strongest first. [{pick, name, class, level, stars, level_text, where, online, current, me, alt}].
+static func leader_choices(g: int, t: float) -> Array[Dictionary]:
+	var lead := Game.guild_leader_of(g, t)
+	var rows: Array[Dictionary] = []
+	for i in WorldPlayers.members_at(g, t):
+		var s := WorldPlayers.state(i, t)
+		rows.append({"pick": String(s.name), "name": String(s.name), "class": StringName(s["class"]), "level": int(s.level), "stars": int(s.get("stars", 0)),
+			"level_text": WorldPlayers.level_text(s), "where": WorldPlayers.where_text(s, t), "online": bool(s.online),
+			"current": String(lead.kind) == "member" and String(lead.name) == String(s.name)})
+	sort_members(rows, "level")
+	# The player's own other characters right after ตัวฉัน, before the world's members.
+	var mine: Array[Dictionary] = []
+	for a in Game.guild_alts(g):
+		var row := alt_row(a, String(lead.kind) == "alt" and int(lead.get("slot", 0)) == int(a.slot))
+		row["pick"] = Game.alt_pick(int(a.slot))
+		row["current"] = row.lead
+		row["where"] = "ตัวละครของคุณ · ไม่ได้เล่นอยู่ — ในสงครามกิลด์หัวหน้าสำรองนำทัพแทน"
+		mine.append(row)
+	sort_members(mine, "level")
+	mine.append_array(rows)
+	rows = mine
+	if g == Game.guild():
+		var stars := int(Game.paragon().level)
+		rows.push_front({"pick": "", "name": "ตัวฉัน (%s)" % String(Game.profile.get("name", "")), "class": Game.class_id(), "level": int(Game.profile.level), "stars": stars,
+			"level_text": "Lv.%d%s" % [int(Game.profile.level), " ★%d" % stars if stars > 0 else ""], "where": "ออนไลน์ · ตัวละครที่คุณเล่นอยู่", "online": true,
+			"current": String(lead.kind) == "hero", "me": true})
+	return rows
+
+
+func open_leader_picker(g: int) -> void:
+	close_leader_picker()
+	var t := WorldPresence.clock()
+	var box := UIUtil.vbox(8)
+	var hint := UIUtil.label("กิลด์ %s · หัวหน้ากิลด์คนเดียวที่ยึดแท่นปราสาทได้ในสงครามกิลด์ (สมาชิกที่เป็นหัวหน้าลงสนามด้วยค่าสถานะสายแทงก์ของตัวเอง)" % WorldPlayers.guild_name(g), &"SmallLabel")
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(hint)
+	var scroll := TouchScroll.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := UIUtil.vbox(6)
+	list.name = "LeaderChoices"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var k := 0
+	for r in leader_choices(g, t):
+		list.add_child(_choice_card(g, r, k))
+		k += 1
+	var sheet_size := Vector2(minf(900.0, maxf(560.0, _root.size.x - 80.0)), minf(600.0, maxf(380.0, _root.size.y - 60.0)))
+	_picker = OverlaySheet.open(_root, "เลือกหัวหน้ากิลด์ %s" % WorldPlayers.guild_name(g), box, sheet_size)
+	_picker.name = "LeaderPicker"
+	_picker.closed.connect(func(): _picker = null)
+
+
+func close_leader_picker() -> void:
+	if _picker != null and is_instance_valid(_picker):
+		_picker.queue_free()
+	_picker = null
+
+
+func _choice_card(g: int, r: Dictionary, k: int) -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	var line := UIUtil.hbox(10)
+	panel.add_child(line)
+	var dot := UIUtil.label("●", &"BoldLabel")
+	dot.add_theme_color_override("font_color", Color("6dff9a") if bool(r.online) else Color("667788"))
+	line.add_child(dot)
+	var info := UIUtil.vbox(0)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(info)
+	var title := UIUtil.label("%s  ·  %s" % [String(r.name), ClassData.get_class_data(StringName(r["class"])).name], &"BoldLabel")
+	title.clip_text = true
+	if bool(r.current):
+		title.add_theme_color_override("font_color", Color("ffd84a"))
+	info.add_child(title)
+	var detail := UIUtil.label("%s · %s" % [String(r.level_text), String(r.where)], &"SmallLabel")
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(detail)
+	var choose := UIUtil.button("หัวหน้าตอนนี้" if bool(r.current) else "เลือก", &"" if bool(r.current) else &"PrimaryButton", Vector2(150, 58))
+	choose.name = "Pick_%d" % k
+	choose.set_meta("pick", String(r.pick))
+	choose.disabled = bool(r.current)
+	choose.pressed.connect(func(): choose_leader(g, String(r.pick), String(r.name)))
+	line.add_child(choose)
+	return panel
+
+
+## Saves the pick, closes the picker and updates the leader line.
+func choose_leader(g: int, pick: String, shown: String) -> bool:
+	if not Game.set_guild_leader(g, pick):
+		Game.say("เลือกหัวหน้ากิลด์ไม่ได้ — สมาชิกคนนี้ไม่ได้อยู่ในกิลด์แล้ว", &"warning")
+		return false
+	AudioManager.play_ui(&"ui_open")
+	var name_shown := shown if pick != "" else "คุณ"
+	Game.say("หัวหน้ากิลด์ %s: %s" % [WorldPlayers.guild_name(g), name_shown], &"success")
+	# Game.guild_changed rebuilds the open screen with the new leader line.
+	close_leader_picker()
+	return true
