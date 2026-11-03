@@ -1340,6 +1340,13 @@ func party_look(member: Dictionary) -> Dictionary:
 	return look
 
 
+## The hero as others see it (PlayerLook: class, job step, face, worn pieces with their
+## plus and gems, wing pose, level and stars); Online sends it as `look`, and a
+## RemotePlayer is dressed from it exactly like a FieldPlayer.
+func hero_look() -> Dictionary:
+	return PlayerLook.of_profile(profile) if not profile.is_empty() else {}
+
+
 var _party_gear: Dictionary = {}
 
 ## A party is at most three people: the hero and two world players.
@@ -2899,7 +2906,7 @@ func set_title(index: int) -> bool:
 
 ## A chat line on its channel: "world" goes to world_chat, "party" / "guild" to channel_chat.
 func post_chat(channel: String, speaker: String, text: String, color: Color) -> void:
-	if channel == "party" or channel == "guild":
+	if channel == "party" or channel == "guild" or channel == "whisper":
 		channel_chat.emit(channel, speaker, text, color)
 	else:
 		world_chat.emit(speaker, text, color)

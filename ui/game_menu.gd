@@ -1517,6 +1517,15 @@ func _build_settings() -> void:
 		GameSettings.save_settings()
 		Game.say("ผู้เล่นคนอื่นในแมพ: %s (มีผลเมื่อเข้าแมพใหม่)" % ("แสดง" if on else "ซ่อน"), &"info"))
 	box.add_child(others)
+	# Real players (Online): on by default; off keeps this game offline.
+	var online := CheckButton.new()
+	online.name = "OnlinePlay"
+	online.text = "เล่นออนไลน์ (พบผู้เล่นจริงที่เข้าสู่ระบบ แชท ปาร์ตี้ แลกของ ดวล)"
+	online.button_pressed = GameSettings.online_play
+	online.toggled.connect(func(on: bool):
+		Online.set_enabled(on)
+		Game.say("เล่นออนไลน์: %s" % ("เปิด (ต้องเข้าสู่ระบบบัญชี)" if on else "ปิด เล่นคนเดียว"), &"info"))
+	box.add_child(online)
 	var safe := CheckButton.new()
 	safe.text = "โหมดภาพปลอดภัย (ไม่มีผู้เล่นคนอื่น/ร้านค้า/แสงโคม ใช้เมื่อจอเป็นสีเดียว)"
 	safe.button_pressed = GameSettings.safe_picture
