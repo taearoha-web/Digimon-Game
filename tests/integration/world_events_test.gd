@@ -40,6 +40,16 @@ func _schedule() -> void:
 	check(WorldEvents.exp_multiplier(thai(2026, 10, 28, 19, 0)) == 2.0, "19:00 starts it")
 	check(WorldEvents.exp_multiplier(thai(2026, 10, 28, 10, 0)) == 1.0, "10:00 Thai: no EXP bonus")
 	check(WorldEvents.exp_multiplier(thai(2026, 10, 28, 21, 0)) == 1.0, "21:00 ends it")
+	# The week's festival (3 Nov 2026 21:35 Thai time, seven days): EXP x3 and jewels x3,
+	# on top of the evening EXP x2 and the weekend jewel rush.
+	var fest := float(WorldEvents.FESTIVAL_START)
+	check(not WorldEvents.festival_on(fest - 1.0) and WorldEvents.festival_on(fest) and WorldEvents.festival_on(fest + 6.9 * 86400.0) and not WorldEvents.festival_on(float(WorldEvents.FESTIVAL_END)), "the festival runs seven days from its start")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 4, 10)) == 3.0, "festival 10:00: EXP x3")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 4, 19, 30)) == 6.0, "festival evening: x2 on top of x3")
+	check(WorldEvents.jewel_multiplier(thai(2026, 11, 4, 10)) == 3.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 7, 10)) == 6.0, "festival jewels x3, the weekend rush on top")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 11, 10)) == 1.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 11, 10)) == 1.0, "after the festival: back to normal")
+	check(WorldEvents.festival_text(thai(2026, 11, 4, 10)).begins_with(WorldEvents.NAME_FESTIVAL) and WorldEvents.chip_lines(thai(2026, 11, 4, 10))[0] == WorldEvents.festival_text(thai(2026, 11, 4, 10)), "the HUD chip shows the festival first")
+	check(WorldEvents.current(thai(2026, 11, 4, 10)).any(func(e): return String(e.id) == "festival") and not WorldEvents.current(thai(2026, 11, 4, 10)).any(func(e): return String(e.id) == "exp2"), "festival listed, the evening EXP only in the evening")
 	check(WorldEvents.gold_multiplier(thai(2026, 10, 31, 10)) == 1.2 and WorldEvents.gold_multiplier(thai(2026, 11, 1, 23)) == 1.2, "Saturday and Sunday: gold x1.2")
 	check(WorldEvents.gold_multiplier(thai(2026, 10, 28, 10)) == 1.0 and WorldEvents.gold_multiplier(thai(2026, 11, 2, 1)) == 1.0, "weekdays: no gold bonus")
 	# The world boss window and its field.

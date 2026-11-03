@@ -34,6 +34,15 @@ const HALLOWEEN_END := 1793466000
 const HALLOWEEN_DROP := 0.05
 const NAME_HALLOWEEN := "ฮาโลวีน: น้ำยาฮาโลวีนดรอป 5%"
 const NAME_EXP := "EXP x2"
+## The week's festival (เทศกาล EXP x3 + ดรอปเพชร x3): from 3 Nov 2026 21:35 Thai time for
+## seven days every EXP is tripled (on top of the evening EXP x2 and the Halloween potion)
+## and the forge jewels (purple, pink, chaos) drop three times as often as they did
+## (on top of the weekend jewel rush). The same for everyone, read off the clock.
+const FESTIVAL_START := 1793747700
+const FESTIVAL_END := FESTIVAL_START + 7 * DAY
+const FESTIVAL_EXP := 3.0
+const FESTIVAL_JEWEL := 3.0
+const NAME_FESTIVAL := "เทศกาล EXP x3 + ดรอปเพชร x3"
 const NAME_BOSS := "บอสโลก"
 const NAME_GOLD := "โบนัสทอง +20%"
 ## Weekend jewel rush (สุดสัปดาห์ดรอปเพชร x2): all of Saturday and Sunday (Thai time)
@@ -123,9 +132,28 @@ static func boss_zone(t: float) -> StringName:
 	return _fields[posmod(day, _fields.size())]
 
 
+## EXP multiplier at `t`: the evening EXP x2 times the festival's x3 while it runs.
 static func exp_multiplier(t: float) -> float:
+	return (EXP_MULT if evening_exp(t) else 1.0) * (FESTIVAL_EXP if festival_on(t) else 1.0)
+
+
+## The daily evening EXP x2 (19:00-21:00 Thai time).
+static func evening_exp(t: float) -> bool:
 	var s := time_of_day(t)
-	return EXP_MULT if s >= EXP_START and s < EXP_END else 1.0
+	return s >= EXP_START and s < EXP_END
+
+
+static func festival_on(t: float) -> bool:
+	return t >= float(FESTIVAL_START) and t < float(FESTIVAL_END)
+
+
+## The HUD line of the festival ("" outside it): days left while more than two remain.
+static func festival_text(t: float) -> String:
+	if not festival_on(t):
+		return ""
+	var left := float(FESTIVAL_END) - t
+	var span := "%d วัน" % int(ceil(left / float(DAY))) if left > 2.0 * float(DAY) else _span(left)
+	return "%s เหลือ %s" % [NAME_FESTIVAL, span]
 
 
 static func halloween_on(t: float) -> bool:
@@ -137,9 +165,9 @@ static func halloween_text(t: float) -> String:
 	return "%s เหลือ %s" % [NAME_HALLOWEEN, _span(float(HALLOWEEN_END) - t)] if halloween_on(t) else ""
 
 
-## Forge jewel drop chances: doubled all weekend (Thai time).
+## Forge jewel drop chances: doubled all weekend (Thai time), tripled during the festival.
 static func jewel_multiplier(t: float) -> float:
-	return WEEKEND_JEWEL if is_weekend(t) else 1.0
+	return (WEEKEND_JEWEL if is_weekend(t) else 1.0) * (FESTIVAL_JEWEL if festival_on(t) else 1.0)
 
 
 ## The HUD line of the weekend jewel rush ("" on weekdays).
@@ -153,7 +181,7 @@ static func weekend_text(t: float) -> String:
 ## The HUD event chip's lines at `t` (Hud): the running or next event (describe), the
 ## weekend jewel rush and the Halloween event, each only while it has something to say.
 static func chip_lines(t: float) -> Array:
-	return [describe(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+	return [festival_text(t), describe(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
 
 
 ## A levelling field (the golden monster's ground): a field with monster camps, not the
@@ -213,7 +241,9 @@ static func boss_now(t: float) -> Dictionary:
 ## Every event running at `t`: {id, name_th, until, zone?}.
 static func current(t: float) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
-	if exp_multiplier(t) > 1.0:
+	if festival_on(t):
+		list.append({"id": "festival", "name_th": NAME_FESTIVAL, "until": float(FESTIVAL_END)})
+	if evening_exp(t):
 		list.append({"id": "exp2", "name_th": NAME_EXP, "until": _at(t, EXP_END)})
 	var boss := boss_now(t)
 	if not boss.is_empty():
