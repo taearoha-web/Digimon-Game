@@ -103,6 +103,7 @@ static func _lantern_halos(root: Node3D) -> void:
 		colors.append(Color((entry[1] as Color).lightened(0.3), 0.55))
 	var halos := Scenery._billboards(root, "LanternHalos", transforms, colors, true)
 	halos.visibility_range_end = 70.0 * GameSettings.view_scale()
+	halos.add_to_group("night_glow")
 
 
 static func _plaza(root: Node3D, clear: Array[Vector3]) -> void:

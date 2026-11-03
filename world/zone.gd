@@ -99,6 +99,10 @@ var _spawn_timer := 0.0
 var _weather: Node3D
 var _env: WorldEnvironment
 var _ambient_base := 0.33
+## Morning, day, evening and night on the world clock (DayNight), in the zones that follow it.
+var day_night: DayNight
+## Until when (engine msec) a storm flash owns the ambient light and fog (DayNight waits).
+var _flash_until := 0
 var _arena_wave := 0
 var _arena_state := "wait"
 var _arena_timer := 4.0
@@ -174,6 +178,8 @@ func _ready() -> void:
 		_build_pvp()
 	else:
 		await _build_field()
+	if DayNight.follows(zone_id) and _env != null:
+		day_night = DayNight.attach(self, _env, TOWN_RADIUS if is_town else field_radius, 1.0 if is_town else 0.0)
 	_phase("build_world")
 	await _slice()
 	MemoryGuard.reset_scale_3d(get_tree())
@@ -549,6 +555,7 @@ func _storm_flash() -> void:
 		return
 	var env := _env.environment
 	var fog := env.fog_light_color
+	_flash_until = Time.get_ticks_msec() + 650
 	var tween := create_tween()
 	tween.tween_property(env, "ambient_light_energy", _ambient_base * 3.4, 0.05)
 	tween.parallel().tween_property(env, "fog_light_color", fog.lightened(0.5), 0.05)
@@ -558,6 +565,10 @@ func _storm_flash() -> void:
 	tween.parallel().tween_property(env, "fog_light_color", fog, 0.4)
 	tween.tween_interval(rng.randf_range(5.0, 13.0))
 	tween.tween_callback(_storm_flash)
+
+
+func is_flashing() -> bool:
+	return Time.get_ticks_msec() < _flash_until
 
 
 func _build_town() -> void:

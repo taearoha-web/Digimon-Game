@@ -75,6 +75,31 @@ func _draw() -> void:
 	var dir := Vector2(sin(facing), -cos(facing))
 	var side := Vector2(-dir.y, dir.x)
 	draw_colored_polygon(PackedVector2Array([c + dir * 8.0, c - dir * 5.0 + side * 5.0, c - dir * 5.0 - side * 5.0]), Color("ffffff"))
+	if zone.day_night != null:
+		_draw_clock(c)
+
+
+## The world's time of day on a small pill at the foot of the map (zones that follow the
+## clock, DayNight): a drawn sun or crescent moon, then "เช้า 07:30" and the like.
+func _draw_clock(c: Vector2) -> void:
+	var font := get_theme_default_font()
+	if font == null:
+		return
+	var h := DayNight.hour()
+	var text := "%s %s" % [DayNight.phase_label(h), DayNight.clock_text(h)]
+	var font_size := 12
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var pill := Rect2(c.x - (width + 22.0) * 0.5, c.y + RADIUS - 13.0, width + 22.0, 17.0)
+	draw_rect(pill, Color(0.03, 0.05, 0.14, 0.78))
+	var icon := pill.position + Vector2(8.5, 8.5)
+	var night := DayNight.phase(h) == &"night"
+	if night:
+		draw_circle(icon, 5.0, Color("f4ecc8"))
+		draw_circle(icon + Vector2(2.4, -1.6), 4.2, Color(0.03, 0.05, 0.14, 1.0))
+	else:
+		draw_circle(icon, 4.2, Color("ffcf4a") if DayNight.phase(h) == &"day" else Color("ff9c52"))
+	var at := Vector2(pill.position.x + 17.0, pill.position.y + 13.0)
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("e8efff") if night else Color("fff4dc"))
 
 
 ## A monster's dot, [colour, radius]: the boss big gold, the golden monster (มอนทองคำ,
