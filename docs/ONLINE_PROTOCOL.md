@@ -61,8 +61,11 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `gw_invite` | | party leader asks the party into the guild war (same match) |
 | `gw_answer` | `ok` | |
 | `gw_start` | `seed, plan` | leader (host) starts; relayed to accepted members |
-| `stall_list` | | my stall's current lots (from PlayerStall) for real players to browse |
-| `stall_buy` | `seller, lot` | buy a lot from a real player's stall |
+| `stall_list` | `lots:[{lot, item, price}]` | publish my stall's current lots (PlayerStall) for real players; sent on connect and on every change |
+| `stall_view` | `seller` | ask for a real player's stall |
+| `stall_buy` | `seller, lot, price` | buy a lot (the buyer has the gold; it is taken on `stall_bought`) |
+| `stall_sold` | `to, lot, item, price` | seller's answer: the lot is gone from my stall and I got the gold |
+| `stall_refuse` | `to, lot` | seller's answer: already sold / unlisted |
 
 ## Server -> client
 
@@ -84,7 +87,10 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `trade_done` | `give:{items,gold}, get:{items,gold}` - apply it: remove `give`, add `get` |
 | `duel_req` / `duel_answer` / `pvp_hit` / `duel_over` | relayed with `from` |
 | `gw_invite` / `gw_answer` / `gw_start` | relayed with `from` within the party |
-| `stall` | `seller, lots:[...]` / `stall_sold` `{lot, buyer, gold}` to the seller / `stall_bought` `{lot, item, gold}` to the buyer |
+| `stall` | `seller, lots` (answer to `stall_view`; also pushed to viewers when the seller re-publishes) |
+| `stall_buy` | relayed to the seller with `from` |
+| `stall_bought` | `seller, lot, item, price` to the buyer (from the seller's `stall_sold`): pay `price`, add `item` |
+| `stall_refuse` | relayed to the buyer with `from` |
 | `error` | `code, text` (Thai, shown to the player) |
 | `kicked` | `reason` |
 
