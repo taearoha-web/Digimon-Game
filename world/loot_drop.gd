@@ -106,6 +106,9 @@ func _ready() -> void:
 			if rarity >= 1:
 				var label := Label3D.new()
 				label.text = ItemData.name_of(item)
+				var owner_tag := ItemData.class_tag(item, String(Game.class_id())) if Game.has_profile else ""
+				if owner_tag != "":
+					label.text += "\n" + owner_tag
 				label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 				label.pixel_size = 0.005
 				label.font_size = 40
@@ -142,7 +145,8 @@ func _on_landed() -> void:
 		VfxKit.shockwave(parent, global_position + Vector3(0, 0.1, 0), color, 2.0 + rarity)
 		VfxKit.sparks(parent, global_position + Vector3(0, 0.6, 0), color, 14 + rarity * 8, 4.0, 0.8)
 	AudioManager.play_sfx(&"quest_complete", -3.0)
-	Game.say("ของ%s ตกแล้ว: %s" % [ItemData.RARITY_NAMES[rarity], ItemData.name_of(item)], &"success")
+	var tag := ItemData.class_tag(item, String(Game.class_id()))
+	Game.say("ของ%s ตกแล้ว: %s%s" % [ItemData.RARITY_NAMES[rarity], ItemData.name_of(item), " (%s)" % tag if tag != "" else ""], &"success")
 
 
 func _process(delta: float) -> void:
@@ -253,6 +257,15 @@ func _collect() -> void:
 			BattleVfx.floating_text(parent, global_position + Vector3(0, 0.8, 0), "+%d เหรียญ" % gold, Color("ffd84a"), 0.8)
 		if fx:
 			AudioManager.play_sfx(&"coin", -4.0)
+	elif Game.pickup_sale(item) > 0:
+		# "ขายของอาชีพอื่นอัตโนมัติ" is on: another class's piece is sold on the spot.
+		var price := Game.pickup_sale(item)
+		Game.add_gold(price)
+		if parent != null:
+			BattleVfx.floating_text(parent, global_position + Vector3(0, 0.9, 0),
+					"ขาย %s +%d เหรียญ" % [ItemData.name_of(item), price], ItemData.CLASS_TAG_COLOR, 0.85)
+		if fx:
+			AudioManager.play_sfx(&"coin", -4.0)
 	else:
 		if not Game.add_item(item):
 			# The bag filled up mid-flight: back on the ground, it waits for room.
@@ -269,8 +282,9 @@ func _collect() -> void:
 		if String(item.get("kind", "")) == "jewel":
 			Game.guild_quest_progress("jewels", qty)
 		if parent != null:
+			var tag := ItemData.class_tag(item, String(Game.class_id()))
 			BattleVfx.floating_text(parent, global_position + Vector3(0, 0.9, 0),
-					ItemData.name_of(item) + (" x%d" % qty if qty > 1 else ""), ItemData.color_of(item), 0.85)
+					ItemData.name_of(item) + (" x%d" % qty if qty > 1 else "") + ("\n(%s)" % tag if tag != "" else ""), ItemData.color_of(item), 0.85)
 		if fx:
 			AudioManager.play_sfx(&"pickup", -2.0)
 	if fx and parent != null:

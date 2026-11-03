@@ -64,13 +64,7 @@ static func migrated() -> Dictionary:
 
 ## The class [param item] is locked to ("" = any class): gear only.
 static func gear_class(item: Dictionary) -> String:
-	if item.get("kind", "") != "equip":
-		return ""
-	for key in ["class", "star_class", "set_gear"]:
-		var cls := String(item.get(key, ""))
-		if cls != "":
-			return cls
-	return ""
+	return ItemData.gear_class(item)
 
 
 ## Why a hero of [param cls] cannot take [param item] out ("" when it can).

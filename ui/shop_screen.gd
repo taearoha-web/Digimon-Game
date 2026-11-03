@@ -343,11 +343,16 @@ func _row(item: Dictionary, price: int, action_label: String, action: Callable) 
 	var summary := ", ".join(ItemData.stat_lines(item))
 	if item.get("kind", "") == "equip":
 		summary = "%s  %s" % [ItemData.level_text(int(item.level)), summary]
-		if item.get("class", "") != "" and item["class"] != Game.profile["class"]:
-			summary += "  (อาชีพอื่น)"
 	var detail := UIUtil.label(summary, &"SmallLabel")
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(detail)
+	# Gear of another class (drops come for every class): whose it is, muted.
+	var tag := ItemData.class_tag(item, String(Game.profile.get("class", "")))
+	if tag != "":
+		var owner := UIUtil.label(tag, &"SmallLabel")
+		owner.name = "ClassTag"
+		owner.add_theme_color_override("font_color", ItemData.CLASS_TAG_COLOR)
+		info.add_child(owner)
 	var button := UIUtil.button("%s %d" % [action_label, price], &"PrimaryButton" if action_label == "ซื้อ" else &"", Vector2(150, 56))
 	button.name = "Buy" if action_label == "ซื้อ" else "Sell"
 	if action_label == "ซื้อ" and int(Game.profile.gold) < price:

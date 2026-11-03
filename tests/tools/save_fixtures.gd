@@ -240,6 +240,23 @@ func _build_line(cls: StringName) -> void:
 	Game.tower_floor_cleared(60)
 	Game.tower_buy("gear")
 	Game.tower_buy("gem")
+	# The hero's stall (PlayerStall): another class's drop and a few potions set out,
+	# one more lot already sold to a world player.
+	var other: StringName = ClassData.IDS[(ClassData.IDS.find(cls) + 1) % ClassData.IDS.size()]
+	for piece: Dictionary in [ItemData.generate(90, other, rng, 3, "weapon"), ItemData.jewel("pink", 3), ItemData.generate(80, other, rng, 2, "weapon")]:
+		if not Game.add_item(piece.duplicate(true)):
+			continue
+		var at: int = Game.profile.inv.size() - 1
+		for k in Game.profile.inv.size():
+			if ItemData.is_stackable(piece) and Game.profile.inv[k].get("id", "") == piece.get("id", ""):
+				at = k
+		var count: int = int(piece.get("count", 0))
+		if PlayerStall.list_item(at, PlayerStall.fair_price(piece), count) < 0:
+			_fail("%s: stall listing refused" % cls)
+	if PlayerStall.lots().size() == 3:
+		PlayerStall.sell(int(PlayerStall.lots()[2].lot), String(WorldPlayers.entry(WorldPlayers.first_of(other)).name))
+	else:
+		_fail("%s: the stall holds %d lots" % [cls, PlayerStall.lots().size()])
 	Game.current_zone = &"town"
 	_keep("%s_lv100_star" % cls)
 

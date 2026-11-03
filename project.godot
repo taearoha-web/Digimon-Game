@@ -17,6 +17,7 @@ config/icon="res://assets/branding/icon_512.png"
 
 Game="*res://systems/core/game.gd"
 AudioManager="*res://systems/core/audio_manager.gd"
+Online="*res://systems/online/online.gd"
 
 [audio]
 

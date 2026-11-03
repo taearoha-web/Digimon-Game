@@ -256,6 +256,9 @@ func _targets() -> Array[Node3D]:
 		for node in get_tree().get_nodes_in_group("summons"):
 			if _alive(node):
 				out.append(node as Node3D)
+		# The leader's online party fights on our side of the war (EntitySync).
+		if EntitySync.hosting():
+			_add_remote_targets(out)
 	else:
 		for node in get_tree().get_nodes_in_group("gw_team1"):
 			if _alive(node):

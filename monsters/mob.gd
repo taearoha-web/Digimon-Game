@@ -532,12 +532,28 @@ func _deliver(victim: Node3D, raw: float, max_distance := 99.0) -> void:
 		return
 	if _flat_distance(victim.global_position) > max_distance:
 		return
-	victim.take_damage(raw, self)
+	Mob.strike(victim, raw, self)
 
 
-## Hero or companion still standing.
+## A monster's (or fighter's) blow of [param raw] lands on [param victim]. A real
+## player of the online party (RemotePlayer, group "remote_players") has no HP here:
+## its own game applies the hit (EntitySync sends `ent_event hit`).
+static func strike(victim: Node, raw: float, source: Node) -> void:
+	if victim == null or not is_instance_valid(victim):
+		return
+	if victim.is_in_group("remote_players"):
+		EntitySync.remote_struck(victim, raw, source)
+	else:
+		victim.take_damage(raw, source)
+
+
+## Hero or companion still standing (a real party member while this game hosts the fight).
 func _alive(node: Variant) -> bool:
-	return node != null and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead()
+	if node == null or not is_instance_valid(node):
+		return false
+	if (node as Node).is_in_group("remote_players"):
+		return EntitySync.remote_alive(node)
+	return node.has_method("is_dead") and not node.is_dead()
 
 
 func _targets() -> Array[Node3D]:
@@ -553,7 +569,16 @@ func _targets() -> Array[Node3D]:
 	for node in get_tree().get_nodes_in_group("summons"):
 		if _alive(node as Node3D):
 			out.append(node as Node3D)
+	if EntitySync.hosting():
+		_add_remote_targets(out)
 	return out
+
+
+## The online party's real players in this zone, while this game hosts its monsters.
+func _add_remote_targets(out: Array[Node3D]) -> void:
+	for node in get_tree().get_nodes_in_group("remote_players"):
+		if _alive(node):
+			out.append(node as Node3D)
 
 
 ## Records [param amount] of damage from [param attacker] (the hero, a companion, a
@@ -629,6 +654,7 @@ func _begin_slam() -> void:
 	var center := global_position
 	var color: Color = template.get("color", Color("ff6a4a"))
 	VfxKit.danger_circle(get_parent(), center, radius, 1.2)
+	EntitySync.cast(self, [[center, radius, 1.2]])
 	visual.flash(Color(1.0, 0.3, 0.2), 1.2)
 	visual.action("attack", 700)
 	_anim_lock = Time.get_ticks_msec() + 900
@@ -640,7 +666,7 @@ func _begin_slam() -> void:
 		BattleVfx.burst(get_parent(), center + Vector3(0, 0.4, 0), color, 36, 1.4)
 		for t in _targets():
 			if _flat_distance_from(t.global_position, center) <= radius:
-				t.take_damage(float(stats.atk) * _atk_scale * 1.9, self)
+				Mob.strike(t, float(stats.atk) * _atk_scale * 1.9, self)
 		, CONNECT_ONE_SHOT)
 
 
@@ -678,6 +704,7 @@ func _meteor_barrage(target: Node3D) -> void:
 		return
 	var color: Color = template.get("color", Color("ff6a4a"))
 	var radius := 2.6
+	var shared: Array = []
 	for i in BARRAGE_METEORS:
 		var spot: Vector3 = target.global_position
 		if i > 0:
@@ -685,6 +712,10 @@ func _meteor_barrage(target: Node3D) -> void:
 			spot += Vector3(cos(angle), 0, sin(angle)) * randf_range(2.0, 7.0)
 		spot.y = 0.0
 		VfxKit.danger_circle(get_parent(), spot, radius, 1.5)
+		if EntitySync.hosting():
+			shared.append([spot, radius, 1.5])
+		if i == BARRAGE_METEORS - 1 and not shared.is_empty():
+			EntitySync.cast(self, shared)
 		get_tree().create_timer(1.5).timeout.connect(func():
 			if _dead:
 				return
@@ -692,7 +723,7 @@ func _meteor_barrage(target: Node3D) -> void:
 			BattleVfx.burst(get_parent(), spot + Vector3(0, 0.4, 0), color, 20, 1.0)
 			for t in _targets():
 				if _flat_distance_from(t.global_position, spot) <= radius:
-					t.take_damage(float(stats.atk) * _atk_scale * 1.2, self)
+					Mob.strike(t, float(stats.atk) * _atk_scale * 1.2, self)
 			, CONNECT_ONE_SHOT)
 
 

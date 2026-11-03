@@ -35,6 +35,8 @@ signal achievement_earned(id: String)
 signal title_changed(title: String)
 ## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
 signal mount_changed()
+## The hero's stall (PlayerStall: แผงของฉัน) changed: a lot listed, taken back or sold.
+signal stall_changed()
 
 ## The original single save file; it becomes slot 1 the first time slots are used.
 const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
@@ -83,6 +85,8 @@ var current_zone: StringName = &"town"
 var rng := RandomNumberGenerator.new()
 var _autosave_timer := 0.0
 var _dirty := false
+## Seconds since the AI buyers last looked at the hero's stall (PlayerStall.tick).
+var _stall_timer := 0.0
 ## The browser owns authentication and async uploads. The game only sends
 ## committed local snapshots and pauses while its account dialog is visible.
 const CLOUD_STATUS_INTERVAL := 0.2
@@ -140,6 +144,11 @@ func _process(delta: float) -> void:
 		_gq_timer = 0.0
 		if guild() > 0:
 			_guild_quest_announce()
+	# The hero's stall sells to AI players anywhere, also after the game was closed.
+	_stall_timer += delta
+	if _stall_timer >= PlayerStall.TICK_EVERY:
+		_stall_timer = 0.0
+		PlayerStall.tick(WorldPresence.clock())
 	_autosave_timer += delta
 	if _autosave_timer > AUTOSAVE_INTERVAL and _dirty:
 		if save():
@@ -174,6 +183,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
 		"mounts": {}, "mount": "",
+		"stall": PlayerStall.empty(),
 	}
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
@@ -934,6 +944,9 @@ func _valid_profile(data: Dictionary) -> bool:
 				return false
 		elif not _valid_integer(value):
 			return false
+	# The hero's stall (PlayerStall): its lots are items like the bag's.
+	if data.has("stall") and not PlayerStall.valid(data.stall):
+		return false
 	for value in data.get("ach", {}).values():
 		if not value is bool:
 			return false
@@ -1145,6 +1158,8 @@ func _repair(data: Dictionary) -> Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	StarWingData.migrate_profile(data)
 	_repair_mounts(data)
+	# Saves from before the stall get an empty one.
+	PlayerStall.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -1323,6 +1338,13 @@ func party_look(member: Dictionary) -> Dictionary:
 		for key in PARTY_LOOK_KEYS:
 			look[key] = clampi(int(rolled.get(key, 0)), 0, ChibiLook.count(key) - 1)
 	return look
+
+
+## The hero as others see it (PlayerLook: class, job step, face, worn pieces with their
+## plus and gems, wing pose, level and stars); Online sends it as `look`, and a
+## RemotePlayer is dressed from it exactly like a FieldPlayer.
+func hero_look() -> Dictionary:
+	return PlayerLook.of_profile(profile) if not profile.is_empty() else {}
 
 
 var _party_gear: Dictionary = {}
@@ -2493,7 +2515,10 @@ func equip_problem(item: Dictionary) -> String:
 		var star := int(item.level) - MAX_LEVEL
 		if int(profile["level"]) < MAX_LEVEL or int(paragon().level) < star:
 			return "ต้องเลเวล 100 และระดับเหนือเลเวล ดาว %d" % star
-	if item.get("class", "") != "" and item["class"] != profile["class"]:
+	# Gear of another class (it drops for every class: ItemData.drop_class) is for
+	# selling, the stall (PlayerStall) or the storage, never for wearing.
+	var locked := ItemData.gear_class(item)
+	if locked != "" and locked != String(profile["class"]):
 		return "สำหรับอาชีพอื่น"
 	return ""
 
@@ -2545,13 +2570,17 @@ func sell_item(index: int, count := 1) -> void:
 
 ## Bag items auto-sell would sell: unworn gear of the chosen grades (bit per
 ## rarity in [param mask]) below [param below_level] (0 = any level). Enhanced
-## gear, gear with gems and wings are always kept.
+## gear, gear with gems and wings are always kept, and so is gear of other classes
+## (kept for the stall) unless "ขายของอาชีพอื่นอัตโนมัติ" is on (sells_other_class).
 func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 	var out: Array[int] = []
+	var other_ok := sells_other_class()
 	for i in profile["inv"].size():
 		var item: Dictionary = profile["inv"][i]
 		# Wings and the forged 250★ set pieces are never sold off in bulk.
 		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item):
+			continue
+		if not other_ok and is_other_class(item):
 			continue
 		if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
 			continue
@@ -2590,8 +2619,38 @@ func set_loot_mask(mask: int) -> void:
 	mark_dirty()
 
 
+## "ขายของอาชีพอื่นอัตโนมัติ" (off by default, so the pieces can go on the stall): gear
+## of another class is sold to the merchant the moment it is picked up (wings, enhanced
+## and socketed gear excepted: pickup_sale), and the bulk auto-sell takes it too.
+const AUTOSELL_OTHER_FLAG := "autosell_other"
+
+
+func sells_other_class() -> bool:
+	return int(profile.get("flags", {}).get(AUTOSELL_OTHER_FLAG, 0)) == 1
+
+
+func set_sells_other_class(on: bool) -> void:
+	profile.flags[AUTOSELL_OTHER_FLAG] = 1 if on else 0
+	mark_dirty()
+
+
+## True for gear locked to another class than the hero's (ItemData.gear_class).
+func is_other_class(item: Dictionary) -> bool:
+	var locked := ItemData.gear_class(item)
+	return locked != "" and locked != String(profile.get("class", ""))
+
+
+## Gold a picked-up [param item] is sold for at once (sells_other_class), 0 to keep it.
+func pickup_sale(item: Dictionary) -> int:
+	if not has_profile or not sells_other_class() or not is_other_class(item) or item.get("slot", "") == "wings":
+		return 0
+	if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
+		return 0
+	return ItemData.sell_price(item)
+
+
 ## Whether a drop is kept: potions, gems, jewels, gold and wings always are; gear only
-## when its grade is switched on in the pickup filter.
+## when its grade is switched on in the pickup filter (gear of every class alike).
 func keeps_loot(item: Dictionary) -> bool:
 	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":
 		return true
@@ -2847,7 +2906,7 @@ func set_title(index: int) -> bool:
 
 ## A chat line on its channel: "world" goes to world_chat, "party" / "guild" to channel_chat.
 func post_chat(channel: String, speaker: String, text: String, color: Color) -> void:
-	if channel == "party" or channel == "guild":
+	if channel == "party" or channel == "guild" or channel == "whisper":
 		channel_chat.emit(channel, speaker, text, color)
 	else:
 		world_chat.emit(speaker, text, color)
