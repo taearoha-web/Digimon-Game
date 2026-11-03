@@ -87,6 +87,10 @@ static func rows(t: float) -> Array[Dictionary]:
 	if Game.has_profile:
 		out.append({"index": -1, "name": String(Game.profile.get("name", "คุณ")), "class": Game.class_id(), "guild": Game.guild(),
 			"level": int(Game.profile.level), "stars": int(Game.paragon().level), "online": true, "place": String(Game.current_zone), "you": true})
+	# The player's other characters (other save slots): listed though not played now.
+	for alt in Game.all_alts():
+		out.append({"index": -1, "name": String(alt.name), "class": String(alt["class"]), "guild": int(alt.guild),
+			"level": int(alt.level), "stars": int(alt.stars), "online": false, "place": "", "alt": true, "slot": int(alt.slot)})
 	out.sort_custom(func(a, b):
 		var pa := int(a.level) * 1000 + int(a.stars)
 		var pb := int(b.level) * 1000 + int(b.stars)
@@ -101,7 +105,7 @@ func _shows(r: Dictionary) -> bool:
 		"online": return bool(r.online)
 		"alpha": return int(r.guild) == WorldPlayers.ALPHA
 		"neverdie": return int(r.guild) == WorldPlayers.NEVERDIE
-		"party": return bool(r.get("you", false)) or Game.in_party(int(r.index))
+		"party": return bool(r.get("you", false)) or (not bool(r.get("alt", false)) and Game.in_party(int(r.index)))
 	return true
 
 
@@ -164,9 +168,10 @@ func _build() -> void:
 
 func _row(rank: int, r: Dictionary, t: float) -> Control:
 	var you := bool(r.get("you", false))
+	var alt := bool(r.get("alt", false))
 	var i := int(r.index)
 	var panel := UIUtil.panel(&"CardPanel")
-	panel.name = "Row_%s" % ("you" if you else str(i))
+	panel.name = "Row_%s" % ("you" if you else ("alt%d" % int(r.slot) if alt else str(i)))
 	var line := UIUtil.hbox(10)
 	panel.add_child(line)
 	var num := UIUtil.label("#%d" % rank, &"BoldLabel")
@@ -178,11 +183,12 @@ func _row(rank: int, r: Dictionary, t: float) -> Control:
 	var info := UIUtil.vbox(0)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)
-	var who := UIUtil.label("%s%s  ·  %s" % [r.name, " (คุณ)" if you else "", ClassData.get_class_data(StringName(r["class"])).name], &"BoldLabel")
-	if you:
+	var who := UIUtil.label("%s%s  ·  %s" % [r.name, " (คุณ)" if you else (" (ตัวละครของคุณ)" if alt else ""), ClassData.get_class_data(StringName(r["class"])).name], &"BoldLabel")
+	if you or alt:
 		who.add_theme_color_override("font_color", UIPalette.GOLD)
 	info.add_child(who)
-	var where := "ตัวละครของคุณ" if you else ("ออนไลน์ · ปาร์ตี้กับคุณ" if Game.in_party(i) else WorldPlayers.where_text(r, t))
+	var where := "ตัวละครของคุณ" if you else ("ตัวละครของคุณ · ไม่ได้เล่นอยู่ (ช่องเซฟ %d)" % int(r.slot) if alt \
+		else ("ออนไลน์ · ปาร์ตี้กับคุณ" if Game.in_party(i) else WorldPlayers.where_text(r, t)))
 	var detail := UIUtil.label(where, &"SmallLabel")
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(detail)
@@ -195,7 +201,7 @@ func _row(rank: int, r: Dictionary, t: float) -> Control:
 	var level := UIUtil.label(WorldPlayers.level_text(r), &"BoldLabel")
 	level.custom_minimum_size = Vector2(130, 0)
 	line.add_child(level)
-	if not you and Game.in_party(i):
+	if not you and not alt and Game.in_party(i):
 		var button := UIUtil.button("ออกจากปาร์ตี้", &"", Vector2(170, 52))
 		button.pressed.connect(func(): Game.party_kick(i, "%s ออกจากปาร์ตี้แล้ว" % r.name))
 		button.name = "Party_%d" % i
