@@ -114,6 +114,12 @@ func _save_and_fallbacks() -> void:
 	var alts_a := Game.guild_alts(alpha)
 	check(alts_n.size() == 1 and String(alts_n[0].name) == ALT_NAME and int(alts_n[0].slot) == ALT_SLOT and int(alts_n[0].level) == 100 and int(alts_n[0].stars) == 120 and String(alts_n[0]["class"]) == "lancer", "Neverdie lists the player's other character only (%s)" % [alts_n])
 	check(alts_a.size() == 1 and String(alts_a[0].name) == ALT2_NAME, "Alpha lists the other Alpha character, not the one played (%s)" % [alts_a])
+	# The game registry lists every character the player made (the low one too), not played now.
+	var reg := RegistryScreen.rows(t)
+	var mine := reg.filter(func(r): return bool(r.get("alt", false)))
+	check(mine.size() == 3 and mine.any(func(r): return String(r.name) == ALT_NAME and int(r.guild) == never and not bool(r.online)), "the registry lists the player's other characters (%s)" % [mine.map(func(r): return r.name)])
+	check(not mine.any(func(r): return int(r.slot) == MAIN_SLOT), "the played one is not listed twice")
+	check(mine.any(func(r): return String(r.name) == "เด็กใหม่" and int(r.guild) == 0), "a character under Lv.100 shows without a guild")
 	# Picks.
 	var mate := _member_not(alpha, [])
 	check(mate != "" and Game.set_guild_leader(alpha, mate), "a member of our guild can be picked to lead it")

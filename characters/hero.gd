@@ -61,6 +61,13 @@ var target: Mob
 var engaged := false
 ## Auto hunting: fights inside the camp it was switched on in, uses skills and potions.
 var auto := false
+## Following a real party member (Online "ตาม"): their RemotePlayer in this zone, set by
+## Online every frame (null when not following or they are elsewhere). The hero walks
+## after them and, outside the village, fights what is around them like auto hunting
+## does (skills, potions); moving by hand stops following.
+var follow: Node3D = null
+const FOLLOW_GAP := 3.0
+const FOLLOW_FIGHT := 9.0
 var _summons: Array = []
 var _auto_center := Vector3.ZERO
 var _auto_radius := 10.0
@@ -379,6 +386,7 @@ func set_auto(on: bool) -> void:
 		else:
 			_auto_center = Vector3(camp.pos.x, 0.0, camp.pos.y)
 			_auto_radius = float(camp.radius)
+		Online.stop_follow()
 		Game.say("ออโต้เปิด: ล่าในวงนี้ (แตะปุ่มออโต้หรือเดินเองเพื่อหยุด)", &"info")
 	else:
 		engaged = false
@@ -404,6 +412,27 @@ func _auto_step(delta: float) -> Vector3:
 		_pending = {}
 		return Vector3.ZERO
 	return _combat_step(delta)
+
+
+## Keeps up with the followed player: in a field the hunt circle moves with them (fight
+## what is near them, else walk to them); in the village just walk after them.
+func _follow_step(delta: float) -> Vector3:
+	var to := _flat(follow.global_position - global_position)
+	if safe_zone:
+		if to.length() <= FOLLOW_GAP:
+			return Vector3.ZERO
+		_face(to, delta, 12.0)
+		return to.normalized() * move_speed()
+	_auto_center = follow.global_position
+	_auto_radius = FOLLOW_FIGHT
+	if to.length() > FOLLOW_FIGHT + 6.0:
+		# Far behind: catch up first, the monsters can wait.
+		set_target(null)
+		engaged = false
+		_pending = {}
+		_face(to, delta, 12.0)
+		return to.normalized() * move_speed()
+	return _auto_step(delta)
 
 
 func _auto_think() -> void:
@@ -580,6 +609,8 @@ func _physics_process(delta: float) -> void:
 		_pending = {}
 		if auto:
 			set_auto(false)
+		if Online.follow_id != "":
+			Online.stop_follow("เดินเองแล้ว — หยุดเดินตาม")
 	if _target_dead():
 		_on_target_lost()
 	var desired := Vector3.ZERO
@@ -589,6 +620,8 @@ func _physics_process(delta: float) -> void:
 			_face(direction, delta, 14.0)
 		elif auto:
 			desired = _auto_step(delta)
+		elif follow != null and is_instance_valid(follow):
+			desired = _follow_step(delta)
 		else:
 			desired = _combat_step(delta)
 	if Time.get_ticks_msec() < _slow_until:

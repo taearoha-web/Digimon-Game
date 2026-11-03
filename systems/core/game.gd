@@ -3252,6 +3252,18 @@ var _alt_cache := {}
 
 func guild_alts(g: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	if g <= 0:
+		return out
+	for found in all_alts():
+		if int(found.guild) == g:
+			out.append(found)
+	return out
+
+
+## Every other character of the player (the other save slots, any level or guild), read
+## without loading them: [{slot, name, class, adv, level, stars, guild (0: none)}].
+func all_alts() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	for i in range(1, SLOT_COUNT + 1):
 		if has_profile and i == slot:
 			continue
@@ -3272,7 +3284,7 @@ func guild_alts(g: int) -> Array[Dictionary]:
 			kept = {"stamp": stamp, "info": info}
 			_alt_cache[i] = kept
 		var found: Dictionary = kept.info
-		if not found.is_empty() and int(found.guild) == g and g > 0:
+		if not found.is_empty():
 			out.append(found.duplicate())
 	return out
 

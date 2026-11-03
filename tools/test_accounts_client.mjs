@@ -156,6 +156,10 @@ try {
   await page.getByRole('button',{name:'เปิดหน้าล็อกอินใหม่'}).click();await page.locator('#ta-username').waitFor();
   await form(page,'hero_two');await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
   ok(users.get('hero_two').revision===first.revision,'existing cloud never auto-imports guest');
+  // Signed in to the wrong account: the welcome card offers another ID.
+  await page.getByRole('button',{name:'เข้าสู่ระบบด้วยไอดีอื่น',exact:true}).click();await page.locator('#ta-username').waitFor();
+  ok(users.get('hero_two').revision===first.revision,'switching ID from the welcome card saves nothing');
+  await form(page,'hero_two');await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
   await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
   ok((await local(page)).level===9,'second account has separate character files');
   // Suppress late Godot focus-out saves while logout is replacing the session.

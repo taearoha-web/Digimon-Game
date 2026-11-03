@@ -62,6 +62,11 @@ var _zone: Zone
 var _attempt := 0
 ## Names of players seen this session (id -> name), for party members who dropped out.
 var _names := {}
+## The party member the hero walks after ("" none; Hero.follow gets their RemotePlayer).
+var follow_id := ""
+signal follow_changed
+## When the hero last set off for the followed player's zone (msec), so it travels once.
+var _follow_trip := 0
 var _retry_in := 0.0
 var _kicked := false
 var _close_after := false
@@ -294,6 +299,67 @@ func party_away() -> Array:
 	return _party.get("away", [])
 
 
+## "ตาม": the hero walks after party member `id` (and travels to their zone).
+func set_follow(id: String) -> void:
+	if id == "" or not _is_member(id) or id == my_id():
+		stop_follow()
+		return
+	follow_id = id
+	_follow_trip = 0
+	var h := _hero()
+	if h != null and h.auto:
+		h.set_auto(false)
+	Game.say("กำลังเดินตาม %s (เดินเองเพื่อหยุด)" % display_name(player(id)), &"info")
+	follow_changed.emit()
+
+
+func stop_follow(note := "") -> void:
+	if follow_id == "":
+		return
+	follow_id = ""
+	var h := _hero()
+	if h != null:
+		h.follow = null
+	if note != "":
+		Game.say(note, &"info")
+	follow_changed.emit()
+
+
+## Every frame: the hero's follow target in this zone; a trip to the followed player's
+## zone when they moved on (not into an instanced zone, not while a screen is open).
+func _tick_follow() -> void:
+	if follow_id == "":
+		return
+	if not is_online() or not _is_member(follow_id):
+		stop_follow("หยุดเดินตาม (ไม่ได้อยู่ปาร์ตี้เดียวกันแล้ว)")
+		return
+	var h := _hero()
+	if h == null:
+		return
+	var p := player(follow_id)
+	var there := StringName(String(p.get("zone", "")))
+	var node := remote_node(follow_id)
+	h.follow = node if node != null and there == current_zone() else null
+	if there == &"" or there == current_zone() or party_away().has(follow_id):
+		return
+	ZoneData.ensure()
+	if is_instanced(there) or not ZoneData.ZONES.has(there):
+		return
+	if Time.get_ticks_msec() - _follow_trip < 8000:
+		return
+	var main := get_tree().current_scene
+	if main == null or not main.has_method("go") or ("_traveling" in main and bool(main.get("_traveling"))):
+		return
+	if main.has_method("_screen_open") and bool(main.call("_screen_open")):
+		return
+	if ZoneData.access_reason(there, int(Game.profile.get("level", 1)), int(Game.paragon().level)) != "":
+		stop_follow("ตาม %s ไป %s ไม่ได้ (เลเวลหรือดาวยังไม่ถึง)" % [display_name(p), String(ZoneData.get_zone(there).get("name", there))])
+		return
+	_follow_trip = Time.get_ticks_msec()
+	Game.say("ตาม %s ไป %s" % [display_name(p), String(ZoneData.get_zone(there).get("name", there))], &"info")
+	main.call("go", there)
+
+
 ## The player called `who` (name or account name, any case), "" when nobody is.
 func find_by_name(who: String) -> String:
 	var want := who.strip_edges().to_lower()
@@ -501,6 +567,7 @@ func _tick(delta: float) -> void:
 		return
 	if _open:
 		_tick_send(delta)
+		_tick_follow()
 
 
 func _receive(text: Variant) -> void:
@@ -570,6 +637,9 @@ func _drop(retry: bool) -> void:
 	var t := _transport
 	_transport = null
 	_open = false
+	var h := _hero()
+	if h != null:
+		h.follow = null
 	if t != null and t.has_method("close"):
 		t.call("close")
 	_free_remotes()
