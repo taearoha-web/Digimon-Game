@@ -94,6 +94,63 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `error` | `code, text` (Thai, shown to the player) |
 | `kicked` | `reason` |
 
+## Server behaviour in detail
+
+What the server (`hosting/worker/online/room.mjs`) does where the tables above leave a
+choice. The wire format is the one above; a few frames carry an extra field, which
+clients may ignore.
+
+- **Order.** `welcome` comes as soon as the socket opens, before the client's `hello`;
+  its `players` (and `players` from `who`) never include yourself. Frames other than
+  `hello` / `who` sent before `hello` are ignored. `join`, `state` and `look` are not
+  echoed to the sender. `join` is sent again when a player sends `hello` again
+  (treat it as an update).
+- **`state` goes to everyone online**, whatever the zone; clients filter by `zone`.
+- **Chat echo.** Every chat line, world and party included, comes back to its sender
+  too: show chat lines from the server only. Whisper to someone not online:
+  `error not_online`; party chat without a party: `error no_party`.
+- **Party.** Any member may invite (the party fills at 5); only the leader kicks. The
+  inviter gets `party_answer {from, ok}` (relayed) for a yes and a no. Invites, trade and
+  duel requests expire after 60 s. A party left with one member ends (`party: null`).
+  When the leader leaves or drops, the member who joined next leads. Closing the
+  socket leaves the party; a second socket of the same account (`kicked` on the old one)
+  keeps the party and the player's place (its `welcome` has the party).
+- **`host`** is sent to a party member whenever the host of its current zone changes
+  or it changes zone; `id` is null when fewer than two members of the party are in that
+  zone (play alone). Leaving the party sends `host {zone, id:null}` once. Players who were
+  never in a party never get `host`. `ent_snap` / `ent_event` from anyone but the host
+  of that (party, zone), or with a `zone` that is not the sender's current zone, are
+  dropped; `ent_hit` is dropped when nobody else hosts the sender's zone.
+- **Trade.** A player in a trade or a duel is busy (`error busy`). `trade_done` also
+  carries `with` (the other player's id). A disconnect (or a second socket) sends the
+  partner `trade_cancel` with `from` = the player who left.
+- **Duel.** `pvp_hit` is relayed only when `to` is the sender's accepted duel opponent.
+  `duel_over` is relayed with `loser` = the sender (whatever it wrote). If a duelist
+  drops, the other gets `duel_over {from, loser}` with the dropped player as loser.
+- **Guild war.** `gw_invite` (leader only) goes to every other member; `gw_answer` goes to
+  every other member (leader included); `gw_start` (leader only) goes to the members who
+  answered yes since the last `gw_invite`.
+- **Stalls.** `stall_list` with no valid lots closes the stall. `stall` answers
+  `stall_view` with `lots: []` for a player without a stall. `stall_buy` to a player
+  without a published stall: `error no_stall`; the relayed `stall_buy` also carries
+  `seller`. `stall_sold` / `stall_refuse` are only accepted for an open `stall_buy` of
+  that buyer and lot (open for 60 s), and `stall_bought.price` is the price the buyer
+  sent in `stall_buy`. When a seller drops, its viewers of the last 5 minutes get
+  `stall {seller, lots: []}` and its open purchases get `stall_refuse`.
+- **Limits.** A frame over 8 KB gets `error too_large` and is dropped; frames past 30 in
+  a second, bad JSON and unknown types are dropped silently. Every frame counts as a
+  sign of life; a socket silent for 30 s is closed with code 4001 (no `kicked`; reconnect
+  as usual). `kicked` is followed by close code 4000; do not reconnect by itself after it.
+- **`error` codes:** `not_online`, `self`, `no_party`, `party_full`, `in_party`,
+  `same_party`, `not_leader`, `no_invite`, `no_request`, `busy`, `no_trade`,
+  `not_locked`, `no_stall`, `too_large`; `text` is Thai, ready to show.
+- **Hibernation.** The room sleeps when nobody sends anything and wakes up with the
+  same sockets, players, parties, hosts and stalls (positions come back with the next
+  `state`; a very large `look` or stall may need the client's next `look` /
+  `stall_list`). Trades, duels, guild-war invites and open requests do not survive a
+  sleep; with the 2 s heartbeat a room with players in it does not sleep.
+- `GET /api/online/status` (no sign-in) answers `{"online": <sockets connected>}`.
+
 ## Shared combat (party only)
 
 Players who are not in a party share nothing: each sees the other walk and chat, but

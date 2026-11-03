@@ -263,9 +263,9 @@ test('ent_snap / ent_event go from the host to the party in that zone only; ent_
   partyUp(a, b);
   partyUp(a, c);
   clearAll(a, b, c, x);
-  const snap = {t: 'ent_snap', zone: 'meadow', ents: [[1, 2.5, 3.5, 0, 50, 100, 0]], from: '9'};
-  a.send(snap);
-  assert.deepEqual(b.last('ent_snap'), {...snap, from: '1'});
+  const snap = {t: 'ent_snap', zone: 'meadow', ents: [[1, 2.5, 3.5, 0, 50, 100, 0]]};
+  a.send({...snap, from: '9', user: 'admin'});
+  assert.deepEqual(b.last('ent_snap'), {...snap, from: '1'}, 'from is the sender, a spoofed user is dropped');
   assert.equal(c.frames('ent_snap').length, 0, 'another zone');
   assert.equal(x.frames('ent_snap').length, 0, 'not in the party');
   assert.equal(a.frames('ent_snap').length, 0, 'no echo');

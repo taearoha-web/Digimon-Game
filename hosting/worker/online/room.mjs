@@ -42,7 +42,6 @@ const ERRORS = {
   busy: 'ผู้เล่นคนนี้กำลังเทรดหรือดวลอยู่',
   no_trade: 'ไม่ได้เทรดอยู่',
   not_locked: 'ต้องล็อกทั้งสองฝ่ายก่อนยืนยัน',
-  no_duel: 'ไม่ได้ดวลกับผู้เล่นคนนี้',
   no_stall: 'ผู้เล่นคนนี้ไม่ได้เปิดแผงขายของ',
   too_large: 'ข้อมูลใหญ่เกินไป',
 };
@@ -480,8 +479,12 @@ function sanitizeLots(value) {
 
 const lotKey = (buyer, lot) => `${buyer}\u0000${String(lot)}`;
 
-/** Relays a frame with `from` set by the server (whatever the client wrote in it). */
-const relay = (msg, from) => ({...msg, from});
+/** Relays a frame with `from` set by the server (whatever the client wrote in it); a
+ * client-written `user` is dropped (names of accounts only ever come from the server). */
+function relay(msg, from) {
+  const {user, ...rest} = msg;
+  return {...rest, from};
+}
 
 const HANDLERS = {
   hello(s, msg) {

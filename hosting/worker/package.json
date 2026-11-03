@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node tests/chat.test.mjs"
+    "test": "node tests/chat.test.mjs && node tests/online.test.mjs",
+    "test:e2e": "node tests/online_e2e.mjs"
   },
   "devDependencies": {
     "wrangler": "4.92.0"
