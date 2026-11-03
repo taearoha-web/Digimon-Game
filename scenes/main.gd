@@ -14,6 +14,9 @@ var guildwar_screen: GuildWarScreen
 var guild_screen: GuildScreen
 var registry: RegistryScreen
 var player_card: PlayerCard
+## The real players online (Online) and a real player's party invitation.
+var online_screen: OnlineScreen
+var online_prompt: OnlinePrompt
 var ai_chat: AiChat
 var tutorial: Tutorial
 var tower_screen: TowerScreen
@@ -83,13 +86,26 @@ func _ready() -> void:
 	guild_screen.war_requested.connect(func(): guildwar_screen.open_lobby())
 	registry = RegistryScreen.new()
 	add_child(registry)
+	online_screen = OnlineScreen.new()
+	add_child(online_screen)
+	online_screen.registry_requested.connect(func(): registry.open_screen())
+	online_prompt = OnlinePrompt.new()
+	add_child(online_prompt)
+	# The online count: the real players while connected (the registry is a tap away there).
 	hud.registry_requested.connect(func():
 		if not _screen_open():
-			registry.open_screen())
+			if Online.is_online():
+				online_screen.open_screen()
+			else:
+				registry.open_screen())
+	hud.online_member_tapped.connect(func(id: String):
+		if not _screen_open():
+			online_screen.open_player(id))
 	player_card = PlayerCard.new()
 	add_child(player_card)
 	ai_chat = AiChat.new()
 	add_child(ai_chat)
+	online_screen.whisper_requested.connect(func(id: String): ai_chat.talk_whisper(id))
 	# The chat chip types to the HUD chat's tab: โลก / ปาร์ตี้ / กิลด์ (ทั้งหมด: the world).
 	hud.chat_requested.connect(func():
 		if not _screen_open():
@@ -101,6 +117,10 @@ func _ready() -> void:
 			var i := WorldPlayers.index_of(player_name)
 			if i >= 0 and not _screen_open():
 				ai_chat.talk_to(i))
+		# A real player's name: whisper to them.
+		hud.world_chat.real_name_tapped.connect(func(id: String):
+			if not _screen_open():
+				ai_chat.talk_whisper(id))
 	# The first five minutes of a new hero (steps, hints, a world player as the guide); on
 	# Main so it follows the hero from the village into the first field.
 	tutorial = Tutorial.new()
@@ -366,7 +386,8 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or _traveling
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or _traveling \
+		or (online_screen != null and online_screen.is_open)
 
 
 ## Walk up to a world player and tap them: their card, to ask them into the party.
@@ -377,6 +398,12 @@ func _on_world_tapped(at: Vector2) -> void:
 	# wins unless a monster is clearly nearer the tap (players fight beside monsters).
 	var mob := zone.mob_at(at) if GameSettings.tap_target_mode < 2 else null
 	var p := zone.player_at(at)
+	# A real player (Online) under the finger: what to do with them (whisper, party, trade, duel).
+	var real := Online.remote_at(at)
+	if real != null and mob == null and (p == null or Zone.tap_distance(zone.get_viewport().get_camera_3d(), real.global_position, 2.3, at) \
+			< Zone.tap_distance(zone.get_viewport().get_camera_3d(), p.global_position, 2.3, at)):
+		online_screen.open_player(real.id)
+		return
 	if mob != null:
 		var camera := zone.get_viewport().get_camera_3d()
 		if p == null or Zone.tap_distance(camera, mob.global_position, 2.4, at) + 12.0 < Zone.tap_distance(camera, p.global_position, 2.3, at):

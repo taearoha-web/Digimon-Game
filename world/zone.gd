@@ -231,6 +231,9 @@ func _ready() -> void:
 		_phase("world_players")
 	is_built = true
 	built.emit()
+	# The real players in this zone come in (Online: RemotePlayers), and the server hears
+	# where the hero is now.
+	Online.zone_entered(self)
 
 
 ## Models farther than this from the camera stop animating (they are tiny and
@@ -688,6 +691,7 @@ func _on_party_leveled(i: int, _level: int) -> void:
 
 
 func _exit_tree() -> void:
+	Online.zone_left(self)
 	if Game.party_leveled.is_connected(_on_party_leveled):
 		Game.party_leveled.disconnect(_on_party_leveled)
 	if Game.party_roster_changed.is_connected(_spawn_party):

@@ -17,6 +17,8 @@ signal chat_requested()
 ## A tap on the 3D world that did not turn the camera (Zone.player_at picks who is there).
 signal world_tapped(position: Vector2)
 signal interact_pressed()
+## A real party member's card was tapped (Online): their id.
+signal online_member_tapped(id: String)
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
 const SKILL_SPACING := 82.0
@@ -703,6 +705,7 @@ func _build_status(frame: Control) -> void:
 	party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_party_indent.add_child(party_column)
 	_build_party(party_column)
+	_build_online_party(party_column)
 	_build_wing_row(party_column)
 	_build_mount_row(party_column)
 	minimap = Minimap.new()
@@ -728,10 +731,140 @@ func _build_world_chat(frame: Control) -> void:
 	frame.add_child(world_chat)
 
 
-## "ออนไลน์ N": the world players online now plus the hero.
+## "ออนไลน์ N": the world players online now plus the hero, and the real players (Online).
 func update_online() -> void:
 	if _online_label:
-		_online_label.text = "ออนไลน์ %d" % (WorldPresence.online_count() + 1)
+		_online_label.text = "ออนไลน์ %d" % (WorldPresence.online_count() + 1 + Online.players().size())
+
+
+## The real party's cards (Online), under the world players': the same compact card with
+## the class badge, name and level, a "ผู้เล่นจริง" tag and the HP their game reports; the
+## leader sees a cross to let a member go. Hidden without a real party.
+var _online_cards: Array[Dictionary] = []
+## Real party cards shown now: the world players' cards make room for them, so the column
+## never holds more than Game.PARTY_MAX cards (the phone layout's tallest case).
+var _online_shown := 0
+
+
+func _build_online_party(column: Control) -> void:
+	for i in Game.PARTY_MAX:
+		var card := UIUtil.panel(&"HudPanel")
+		card.name = "OnlineCard%d" % i
+		card.custom_minimum_size = Vector2(PARTY_CARD_WIDTH, 0)
+		card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		var compact := StyleBoxFlat.new()
+		compact.bg_color = Color(0.03, 0.12, 0.12, 0.72)
+		compact.border_color = Color(0.43, 1.0, 0.82, 0.35)
+		compact.set_border_width_all(1)
+		compact.set_corner_radius_all(12)
+		compact.content_margin_left = 5
+		compact.content_margin_right = 4
+		compact.content_margin_top = 3
+		compact.content_margin_bottom = 3
+		card.add_theme_stylebox_override("panel", compact)
+		card.mouse_filter = Control.MOUSE_FILTER_STOP
+		card.visible = false
+		var entry := {"card": card, "key": "", "id": ""}
+		card.gui_input.connect(_tap(func():
+			if String(entry.id) != "":
+				online_member_tapped.emit(String(entry.id))))
+		column.add_child(card)
+		var row := UIUtil.hbox(5)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(row)
+		var badge := PanelContainer.new()
+		badge.custom_minimum_size = Vector2(22, 22)
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(badge)
+		var letter := UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		letter.add_theme_font_size_override("font_size", 12)
+		badge.add_child(letter)
+		var info := UIUtil.vbox(1)
+		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(info)
+		var title := UIUtil.label("", &"SmallLabel")
+		title.clip_text = true
+		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title.add_theme_font_size_override("font_size", 13)
+		info.add_child(title)
+		var bar := _bar(&"HPBar", 5)
+		info.add_child(bar)
+		var tag := UIUtil.label("ผู้เล่นจริง", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		tag.name = "RealTag"
+		tag.add_theme_font_size_override("font_size", 11)
+		tag.add_theme_color_override("font_color", Color("6dffd0"))
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(tag)
+		var kick := Button.new()
+		kick.name = "Kick"
+		kick.text = "✕"
+		kick.focus_mode = Control.FOCUS_NONE
+		kick.custom_minimum_size = Vector2(KICK_SIZE, KICK_SIZE)
+		kick.add_theme_font_size_override("font_size", 13)
+		for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+			var round := StyleBoxFlat.new()
+			round.bg_color = Color(1, 1, 1, 0.22) if state in ["pressed", "hover_pressed"] else Color(0.02, 0.04, 0.12, 0.7)
+			round.border_color = Color(1, 1, 1, 0.3)
+			round.set_border_width_all(1)
+			round.set_corner_radius_all(int(KICK_SIZE * 0.5))
+			round.set_content_margin_all(0)
+			kick.add_theme_stylebox_override(state, round)
+		kick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		kick.pressed.connect(func():
+			if String(entry.id) != "":
+				AudioManager.play_ui(&"ui_cancel")
+				Online.kick(String(entry.id)))
+		row.add_child(kick)
+		entry.merge({"badge": badge, "letter": letter, "title": title, "bar": bar, "kick": kick})
+		_online_cards.append(entry)
+
+
+func _update_online_party() -> void:
+	var ids: Array = []
+	# In a guild war the cards show the war party (GuildWarMatch) instead.
+	if Online.in_party() and zone != null and _war() == null:
+		for id in Online.party().get("members", []):
+			if id != Online.my_id() and Online.players().has(id):
+				ids.append(id)
+	var leader := Online.is_leader()
+	_online_shown = mini(ids.size(), _online_cards.size())
+	for i in _online_cards.size():
+		var entry: Dictionary = _online_cards[i]
+		var card: Control = entry.card
+		card.visible = i < ids.size()
+		if not card.visible:
+			entry["id"] = ""
+			continue
+		var id := String(ids[i])
+		var p: Dictionary = Online.players()[id]
+		entry["id"] = id
+		(entry.kick as Control).visible = leader
+		var stars := int(p.stars)
+		var cls := StringName(String(p.cls)) if String(p.cls) != "" else StringName(String((p.look as Dictionary).get("class", ClassData.START)))
+		var here := String(p.zone) == String(zone.zone_id)
+		var key := "%s|%s|%d|%d|%s|%s" % [id, Online.display_name(p), int(p.level), stars, cls, here]
+		if key != entry.key:
+			entry["key"] = key
+			var data := ClassData.get_class_data(cls)
+			var style := StyleBoxFlat.new()
+			style.bg_color = data.color
+			style.set_corner_radius_all(17)
+			style.set_border_width_all(2)
+			style.border_color = Color("6dffd0")
+			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
+			(entry.letter as Label).text = String(data.badge)
+			(entry.title as Label).text = "%s  Lv.%d%s" % [Online.display_name(p), int(p.level), " ★%d" % stars if stars > 0 else ""]
+			# A member in another zone shows dimmed (the shared fights are per zone).
+			card.modulate = Color.WHITE if here else Color(1, 1, 1, 0.6)
+		var bar := entry.bar as ProgressBar
+		var max_hp := maxi(1, int(p.max_hp))
+		UIUtil.set_bar(bar, int(p.hp), max_hp)
+		UIUtil.tint_hp_bar(bar, float(p.hp) / float(max_hp))
 
 
 ## Small cards for the party (world players who joined): badge, name, level, progress.
@@ -1013,6 +1146,7 @@ func _war() -> GuildWarMatch:
 
 
 func _update_party() -> void:
+	_update_online_party()
 	var war := _war()
 	_party_head.visible = war != null
 	if war != null:
@@ -1022,7 +1156,7 @@ func _update_party() -> void:
 	for i in _party_cards.size():
 		var entry: Dictionary = _party_cards[i]
 		var card: Control = entry.card
-		card.visible = i < party.size() and (zone != null)
+		card.visible = i < party.size() and (zone != null) and i < Game.PARTY_MAX - _online_shown
 		if not card.visible:
 			continue
 		card.modulate = Color.WHITE
