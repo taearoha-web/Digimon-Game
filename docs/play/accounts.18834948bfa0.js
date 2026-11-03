@@ -425,6 +425,8 @@
     if (hasData(serverBundle)) {
       const buttons = [{label:'เล่นต่อจากเซฟออนไลน์',run:() => finish(user,serverBundle,revision)}];
       if (hasHeroes(guestBundle) && Object.keys(serverBundle.slots).length < SLOT_COUNT) buttons.push({label:'นำตัวละครในเครื่องเข้าช่องว่าง',kind:'secondary',run:() => importGuest(user,serverBundle,revision,guestBundle)});
+      // Signed in to the wrong account: back to the sign-in form for another ID.
+      buttons.push({label:'เข้าสู่ระบบด้วยไอดีอื่น',kind:'quiet',run:logout});
       panel('ยินดีต้อนรับ ' + user.username,'<p class="ta-intro">ตัวละครในบัญชี พร้อมเล่นต่อบนเครื่องนี้</p>' + summaries(serverBundle),buttons,{foot:'เซฟในเครื่องและของบัญชีอื่นยังเก็บแยกไว้'});
       return;
     }
