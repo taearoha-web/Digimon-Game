@@ -30,6 +30,13 @@ const WING_INFO := {
 	"priest": {"name": "ปีกนางฟ้า", "stat": "matk", "base": 195, "bonus": ["hp", "mp", "def", "crit"], "color": Color("f2d47a")},
 	"bard": {"name": "ปีกโน้ตสวรรค์", "stat": "matk", "base": 205, "bonus": ["crit", "mp", "hp", "def"], "color": Color("ff8fcf")},
 }
+## Gear drops (monsters, bosses, the world boss, the arena prize, the star and divine
+## regions, wings) come for every class, so pieces of other classes can be sold or set
+## out on the hero's stall (PlayerStall): a piece is rolled for the hero's own class
+## OWN_CLASS_DROP of the time, otherwise for one of the other classes, evenly
+## (drop_class). Tune here. Boss chase pieces (BossLootData), quest, shop, forge and
+## crafted pieces stay the hero's own class.
+const OWN_CLASS_DROP := 0.3
 ## Bonus stat ranges a rarity step can add.
 const WING_BONUS := {"hp": [300, 700], "mp": [150, 350], "crit": [0.02, 0.05], "def": [50, 120]}
 ## The priest's first wand names (old items are renamed to the modelled wands on load).
@@ -179,6 +186,44 @@ static func base_for(slot: String, class_id: StringName) -> String:
 	if slot == "weapon":
 		return String(ClassData.get_class_data(class_id).weapon_kind)
 	return slot
+
+
+## The class a dropped piece is made for (OWN_CLASS_DROP): [param own] or, otherwise,
+## one of the other ClassData.IDS evenly (all ten for a Vagabond).
+static func drop_class(own: StringName, rng: RandomNumberGenerator) -> StringName:
+	if rng.randf() < OWN_CLASS_DROP:
+		return own
+	var others: Array[StringName] = []
+	for id in ClassData.IDS:
+		if id != own:
+			others.append(id)
+	return others[rng.randi() % others.size()]
+
+
+## The class a piece of gear is locked to ("" = any class): its "class", "star_class"
+## or "set_gear". Potions, gems and jewels belong to everyone.
+static func gear_class(item: Dictionary) -> String:
+	if item.get("kind", "") != "equip":
+		return ""
+	for key in ["class", "star_class", "set_gear"]:
+		var cls := String(item.get(key, ""))
+		if cls != "":
+			return cls
+	return ""
+
+
+## "ของอาชีพ <ชื่ออาชีพ>" for gear locked to a class other than [param cls] ("" when
+## anyone of [param cls] can wear it). Shown in a muted colour (CLASS_TAG_COLOR) in the
+## bag, the shops, the storage, the stall and the loot pickup text.
+static func class_tag(item: Dictionary, cls: String) -> String:
+	var locked := gear_class(item)
+	if locked == "" or locked == cls:
+		return ""
+	var data: Variant = ClassData.CLASSES.get(StringName(locked))
+	return "ของอาชีพ %s" % (String(data.name) if data is Dictionary else locked)
+
+
+const CLASS_TAG_COLOR := UIPalette.TEXT_MUTED
 
 
 static func make_uid() -> String:

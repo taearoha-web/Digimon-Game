@@ -941,11 +941,15 @@ func _wings() -> void:
 		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings":
 			found += 1
 	check(found >= 6 and found <= 40, "the Lv.100 boss drops wings about a third of the time (%d / 60)" % found)
-	var own := true
+	# Wings drop for every class (ItemData.drop_class), the warrior's own ~30% of them.
+	var kinds_ok := true
+	var other_wings := 0
 	for child in zone.get_children():
-		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings" and (child as LootDrop).item.wing != "warrior":
-			own = false
-	check(own, "a warrior only finds warrior wings")
+		if child is LootDrop and (child as LootDrop).item.get("slot", "") == "wings":
+			kinds_ok = kinds_ok and ItemData.WING_INFO.has(String((child as LootDrop).item.wing))
+			if (child as LootDrop).item.wing != "warrior":
+				other_wings += 1
+	check(kinds_ok and other_wings > 0, "a warrior finds wings of other classes too (%d of %d)" % [other_wings, found])
 	var lowboss := Mob.new()
 	lowboss.setup(&"magma_dragon", 42, Vector3(0, 0, 0), zone.hero)
 	zone.add_child(lowboss)

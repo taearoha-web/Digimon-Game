@@ -136,7 +136,10 @@ func _ready()->void:
 	check(normal_drops>0 and normal_drops<int(4000*0.02),"star-region monsters drop Lv.100 wings now and then (%d/4000)"%normal_drops)
 	wz.wing_drops.clear()
 	for i in 400: wz._star_wing_drop(boss,Vector3.ZERO)
-	check(wz.wing_drops.size()>int(400*0.4) and int(wz.wing_drops[0].level)==ItemData.WING_DROP_LEVEL and wz.wing_drops[0]["class"]=="mage","star-region bosses drop the class's Lv.100 wings often (%d/400)"%wz.wing_drops.size())
+	check(wz.wing_drops.size()>int(400*0.4) and int(wz.wing_drops[0].level)==ItemData.WING_DROP_LEVEL,"star-region bosses drop Lv.100 wings often (%d/400)"%wz.wing_drops.size())
+	# Wings drop for every class (ItemData.drop_class): ~30% the hero's own.
+	var own_wings:=wz.wing_drops.filter(func(w):return w["class"]=="mage").size()
+	check(absf(float(own_wings)/wz.wing_drops.size()-ItemData.OWN_CLASS_DROP)<0.1 and wz.wing_drops.all(func(w):return ItemData.WING_INFO.has(String(w["class"]))),"~30%% of the wings are the mage's, the rest other classes' (%d/%d)"%[own_wings,wz.wing_drops.size()])
 	monster.free();boss.free();wz.free()
 	Game.has_profile=false
 	print("STAR WINGS: ",checks," checks, ",failures," failures")

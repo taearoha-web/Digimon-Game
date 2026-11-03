@@ -181,6 +181,9 @@ func _row(item: Dictionary, action_label: String, action: Callable, lock := "") 
 	if lock != "":
 		var cls := SharedStorage.class_name_of(SharedStorage.gear_class(item))
 		summary = "%s%s · %s" % [lock, " (%s)" % cls if cls != "" else "", summary]
+	elif ItemData.class_tag(item, String(Game.profile.get("class", ""))) != "":
+		# Another class's piece in the bag: it may be stored (only that class takes it out).
+		summary = "%s · %s" % [ItemData.class_tag(item, String(Game.profile.get("class", ""))), summary]
 	var detail := UIUtil.label(summary, &"SmallLabel")
 	if lock != "":
 		detail.add_theme_color_override("font_color", UIPalette.WARNING)
