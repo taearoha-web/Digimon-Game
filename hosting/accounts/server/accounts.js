@@ -273,7 +273,9 @@ async function rateLimit(db, request, username, action, now) {
   }
 }
 
-async function currentSession(request, db, now) {
+/** The signed-in account of a request ({user:{id, username}, tokenHash}) or null; also used
+ * by the online play endpoint (hosting/worker/worker.mjs). */
+export async function currentSession(request, db, now = Math.floor(Date.now() / 1000)) {
   const raw = readCookie(request);
   if (!raw) return null;
   const tokenHash = await sha256(raw);
