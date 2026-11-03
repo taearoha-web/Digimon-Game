@@ -10,6 +10,7 @@ var _party_damage_total := 0
 
 
 func _ready() -> void:
+	WorldEvents.festival_enabled = false
 	# Pin the world clock to 10:00 Thai time: the EXP x2 hours and the world boss (19:00
 	# to 21:00) would otherwise change levels and fields when the test runs in the evening.
 	var tod := WorldEvents.time_of_day(WorldPresence.clock())

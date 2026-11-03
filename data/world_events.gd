@@ -43,6 +43,8 @@ const FESTIVAL_END := FESTIVAL_START + 7 * DAY
 const FESTIVAL_EXP := 3.0
 const FESTIVAL_JEWEL := 3.0
 const NAME_FESTIVAL := "เทศกาล EXP x3 + ดรอปเพชร x3"
+## Tests of the progression maths that run on the real clock switch the festival off.
+static var festival_enabled := true
 const NAME_BOSS := "บอสโลก"
 const NAME_GOLD := "โบนัสทอง +20%"
 ## Weekend jewel rush (สุดสัปดาห์ดรอปเพชร x2): all of Saturday and Sunday (Thai time)
@@ -144,7 +146,7 @@ static func evening_exp(t: float) -> bool:
 
 
 static func festival_on(t: float) -> bool:
-	return t >= float(FESTIVAL_START) and t < float(FESTIVAL_END)
+	return festival_enabled and t >= float(FESTIVAL_START) and t < float(FESTIVAL_END)
 
 
 ## The HUD line of the festival ("" outside it): days left while more than two remain.

@@ -60,12 +60,12 @@ func _ready() -> void:
 
 
 func _jewel_rush() -> void:
-	# Saturday 7 and Sunday 8 Nov 2026 (after Halloween), the Friday and Monday round them.
-	check(WorldEvents.jewel_multiplier(thai(2026, 11, 7, 0, 0)) == 2.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 8, 23, 59)) == 2.0, "Saturday 00:00 to Sunday 23:59: jewels x2")
-	check(WorldEvents.jewel_multiplier(thai(2026, 11, 6, 23, 59)) == 1.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 9, 0, 0)) == 1.0, "Friday 23:59 and Monday 00:00: no rush")
+	# Saturday 14 and Sunday 15 Nov 2026 (after Halloween and the festival week), the Friday and Monday round them.
+	check(WorldEvents.jewel_multiplier(thai(2026, 11, 14, 0, 0)) == 2.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 15, 23, 59)) == 2.0, "Saturday 00:00 to Sunday 23:59: jewels x2")
+	check(WorldEvents.jewel_multiplier(thai(2026, 11, 13, 23, 59)) == 1.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 16, 0, 0)) == 1.0, "Friday 23:59 and Monday 00:00: no rush")
 	# Drops, same seed on a Wednesday and on a Saturday: purple / pink / chaos double.
 	var counts := {}
-	for when in [thai(2026, 11, 4, 10), thai(2026, 11, 7, 10)]:
+	for when in [thai(2026, 11, 11, 10), thai(2026, 11, 14, 10)]:
 		at(when)
 		var zone := DropZone.new()
 		zone.zone_id = &"meadow"
@@ -92,7 +92,7 @@ func _jewel_rush() -> void:
 			break
 	check(region != &"", "a feather field exists")
 	var feathers := []
-	for when in [thai(2026, 11, 4, 10), thai(2026, 11, 7, 10)]:
+	for when in [thai(2026, 11, 11, 10), thai(2026, 11, 14, 10)]:
 		at(when)
 		var zone := DropZone.new()
 		zone.zone_id = region
@@ -106,14 +106,14 @@ func _jewel_rush() -> void:
 
 
 func _hud() -> void:
-	var sat := WorldEvents.weekend_text(thai(2026, 11, 7, 10))
+	var sat := WorldEvents.weekend_text(thai(2026, 11, 14, 10))
 	check(sat.begins_with(WorldEvents.NAME_WEEKEND_JEWEL) and sat.ends_with("38 ชม."), "Saturday 10:00: the rush, 38 hours left (%s)" % sat)
-	var sun := WorldEvents.weekend_text(thai(2026, 11, 8, 23))
+	var sun := WorldEvents.weekend_text(thai(2026, 11, 15, 23))
 	check(sun.ends_with("60 นาที"), "Sunday 23:00: an hour left (%s)" % sun)
-	check(WorldEvents.weekend_text(thai(2026, 11, 4, 10)) == "", "no rush line on a Wednesday")
-	var lines := WorldEvents.chip_lines(thai(2026, 11, 7, 10))
-	check(lines.size() == 2 and String(lines[0]) == WorldEvents.describe(thai(2026, 11, 7, 10)) and String(lines[1]) == sat, "Saturday chip: the event line and the rush (%s)" % str(lines))
-	lines = WorldEvents.chip_lines(thai(2026, 11, 4, 10))
+	check(WorldEvents.weekend_text(thai(2026, 11, 11, 10)) == "", "no rush line on a Wednesday")
+	var lines := WorldEvents.chip_lines(thai(2026, 11, 14, 10))
+	check(lines.size() == 2 and String(lines[0]) == WorldEvents.describe(thai(2026, 11, 14, 10)) and String(lines[1]) == sat, "Saturday chip: the event line and the rush (%s)" % str(lines))
+	lines = WorldEvents.chip_lines(thai(2026, 11, 11, 10))
 	check(lines.size() == 1 and not String(lines[0]).contains(WorldEvents.NAME_WEEKEND_JEWEL), "Wednesday chip: no rush (%s)" % str(lines))
 	# Halloween keeps its line until it ends (the last Saturday of October).
 	lines = WorldEvents.chip_lines(thai(2026, 10, 31, 10))
@@ -126,7 +126,7 @@ func _hud() -> void:
 
 
 func _schedule() -> void:
-	var t0 := thai(2026, 11, 4, 0)
+	var t0 := thai(2026, 11, 11, 0)
 	var n0 := int(floor(t0 / float(WorldEvents.GOLDEN_PERIOD)))
 	var prev := -1.0
 	var day_windows := 0
@@ -175,7 +175,7 @@ func _schedule() -> void:
 
 func _golden() -> void:
 	# A Wednesday morning window (no EXP x2, no world boss, no weekend).
-	var n := int(floor(thai(2026, 11, 4, 10) / float(WorldEvents.GOLDEN_PERIOD)))
+	var n := int(floor(thai(2026, 11, 11, 10) / float(WorldEvents.GOLDEN_PERIOD)))
 	var t := WorldEvents.golden_start(n) + 20.0
 	at(t)
 	Game.profile.level = 5

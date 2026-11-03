@@ -14,6 +14,7 @@ const BEST := ["weapon", "armor", "helm", "boots", "wings"]
 
 
 func _ready() -> void:
+	WorldEvents.festival_enabled = false
 	Game.set_process(false)
 	Game.new_profile(&"warrior", "Other", FaceKit.default_look())
 	var other: Dictionary = Game.profile.duplicate(true)
