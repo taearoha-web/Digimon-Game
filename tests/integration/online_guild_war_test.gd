@@ -35,6 +35,8 @@ class RemoteDouble:
 	func _init(id: String) -> void:
 		set_meta("online_id", id)
 		add_to_group("remote_players")
+		# The real Online finds remote players by id in its own table.
+		Online._remotes[id] = self
 
 
 func check(ok: bool, note: String) -> void:

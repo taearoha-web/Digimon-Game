@@ -33,6 +33,8 @@ class RemoteDouble:
 	func _init(id: String) -> void:
 		set_meta("online_id", id)
 		add_to_group("remote_players")
+		# The real Online finds remote players by id in its own table.
+		Online._remotes[id] = self
 
 
 func check(ok: bool, note: String) -> void:
@@ -103,7 +105,7 @@ func _offline() -> void:
 	Online.use_transport(link)
 	Online._dispatch({"t": "welcome", "you": {"id": "me", "user": "me"}, "players": [{"id": "p9", "name": "Solo", "zone": "meadow", "pos": [0, 0, 0]}], "party": null})
 	await seconds(0.4)
-	check(link.sent.is_empty(), "online without a party: nothing about monsters is sent")
+	check(not link.sent.any(func(f): return f is Dictionary and String(f.get("t", "")).begins_with("ent_")), "online without a party: nothing about monsters is sent")
 	Online.use_transport(null)
 	zone.queue_free()
 	await frames(3)
