@@ -56,6 +56,8 @@ var _hosts := {}
 var _remotes := {}
 var _zone: Zone
 var _attempt := 0
+## Names of players seen this session (id -> name), for party members who dropped out.
+var _names := {}
 var _retry_in := 0.0
 var _kicked := false
 var _close_after := false
@@ -81,6 +83,15 @@ var frames_in := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+## Back from the background (phone unlocked, app switched back): try again at once
+## instead of waiting out the backoff; the server kept the party for its grace.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN or what == NOTIFICATION_APPLICATION_RESUMED:
+		if _transport == null and not _kicked:
+			_retry_in = 0.0
+			_attempt = 0
 
 
 func _process(delta: float) -> void:
@@ -234,7 +245,15 @@ func display_name(p: Dictionary) -> String:
 
 
 func player(id: String) -> Dictionary:
-	return _players.get(id, {})
+	if _players.has(id):
+		return _players[id]
+	return {"id": id, "name": _names.get(id, "")} if _names.has(id) else {}
+
+
+## Party members whose connection dropped: still in the party for the server's grace
+## (15 minutes), back in it as soon as they reconnect.
+func party_away() -> Array:
+	return _party.get("away", [])
 
 
 ## The player called `who` (name or account name, any case), "" when nobody is.
@@ -722,6 +741,9 @@ func _on_welcome(msg: Dictionary) -> void:
 	_set_party(msg.get("party"), true)
 	var others := _players.size()
 	Game.say("เชื่อมต่อออนไลน์แล้ว · ผู้เล่นจริงออนไลน์ %d คน" % others if others > 0 else "เชื่อมต่อออนไลน์แล้ว", &"success")
+	if not _party.is_empty():
+		# Back within the server's grace: the party kept this hero's place.
+		Game.say("กลับเข้าปาร์ตี้เดิมแล้ว (%d คน)" % (_party.members as Array).size(), &"success")
 
 
 func _on_players(msg: Dictionary) -> void:
@@ -741,6 +763,7 @@ func _set_players(list: Variant) -> void:
 		seen[p.id] = true
 		var fresh: bool = not _players.has(p.id)
 		_players[p.id] = p
+		_names[p.id] = display_name(p)
 		_sync_remote(p.id, true)
 		if fresh:
 			player_joined.emit(p.id)
@@ -757,6 +780,7 @@ func _on_join(msg: Dictionary) -> void:
 		return
 	var fresh: bool = not _players.has(p.id)
 	_players[p.id] = p
+	_names[p.id] = display_name(p)
 	_sync_remote(p.id, true)
 	if fresh:
 		if _is_member(p.id):
@@ -769,9 +793,10 @@ func _on_leave(msg: Dictionary) -> void:
 	if id == "" or not _players.has(id):
 		return
 	var p: Dictionary = _players[id]
+	_names[id] = display_name(p)
 	_players.erase(id)
 	_sync_remote(id)
-	if _is_member(id):
+	if _is_member(id) and not party_away().has(id):
 		Game.say("%s (ปาร์ตี้) ออกจากเกมแล้ว" % display_name(p), &"info")
 	player_left.emit(id)
 
@@ -826,8 +851,16 @@ func _set_party(raw: Variant, quiet: bool) -> void:
 				var id := id_of(m)
 				if id != "" and not members.has(id):
 					members.append(id)
-		now = {"id": id_of(raw.get("id")), "leader": id_of(raw.get("leader")), "members": members}
+		var away: Array = []
+		var gone: Variant = raw.get("away", [])
+		if gone is Array:
+			for m in gone:
+				var id := id_of(m)
+				if id != "" and members.has(id) and not away.has(id):
+					away.append(id)
+		now = {"id": id_of(raw.get("id")), "leader": id_of(raw.get("leader")), "members": members, "away": away}
 	var before: Array = _party.get("members", [])
+	var away_before: Array = _party.get("away", [])
 	var had := not _party.is_empty()
 	_party = now
 	var after: Array = now.get("members", [])
@@ -838,6 +871,12 @@ func _set_party(raw: Variant, quiet: bool) -> void:
 			for id in after:
 				if id != my_id() and not before.has(id):
 					Game.say("%s เข้าร่วมปาร์ตี้แล้ว" % display_name(player(id)), &"info")
+		for id in now.get("away", []):
+			if id != my_id() and not away_before.has(id):
+				Game.say("%s หลุดการเชื่อมต่อ ยังอยู่ในปาร์ตี้ รอกลับมาได้ 15 นาที" % display_name(player(id)), &"warning")
+		for id in away_before:
+			if id != my_id() and after.has(id) and not (now.get("away", []) as Array).has(id):
+				Game.say("%s กลับมาแล้ว" % display_name(player(id)), &"info")
 		for id in before:
 			if id != my_id() and not after.has(id):
 				Game.say("%s ออกจากปาร์ตี้แล้ว" % display_name(player(id)), &"info")

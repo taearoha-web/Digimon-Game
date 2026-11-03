@@ -79,7 +79,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `chat` | `ch, from, user, name, text, to?` (whisper: only sender and target get it) |
 | `players` | `players:[player]` (answer to `who`) |
 | `party_invite` | `from, name` |
-| `party` | `party:{id, leader, members:[id]}` or `party:null` (sent to every member on any change) |
+| `party` | `party:{id, leader, members:[id], away:[id]}` or `party:null` (sent to every member on any change); `away` = members whose connection dropped and who keep their place for the grace (below) |
 | `host` | `zone, id` - who simulates the shared entities of my party in that zone (null: nobody shares, play alone) |
 | `ent_snap` / `ent_event` | relayed from the host, plus `from` |
 | `ent_hit` | relayed to the host, plus `from` |
@@ -112,9 +112,14 @@ clients may ignore.
 - **Party.** Any member may invite (the party fills at 5); only the leader kicks. The
   inviter gets `party_answer {from, ok}` (relayed) for a yes and a no. Invites, trade and
   duel requests expire after 60 s. A party left with one member ends (`party: null`).
-  When the leader leaves or drops, the member who joined next leads. Closing the
-  socket leaves the party; a second socket of the same account (`kicked` on the old one)
-  keeps the party and the player's place (its `welcome` has the party).
+  When the leader leaves or drops, the next connected member leads. A dropped
+  connection (phone locked, app switched, network blip, idle drop, the room restarting)
+  does **not** leave the party: the member is listed in `away` for 15 minutes
+  (`PARTY_GRACE_MS`) and is back in the party as soon as the same account reconnects
+  (its `welcome` has the party, the others get `party` with it out of `away`). Only
+  `party_leave`, a kick or the grace running out remove a member. The parties are also
+  kept in the Durable Object's storage, so they survive a deploy. A second socket of the
+  same account (`kicked` on the old one) keeps the party and the player's place.
 - **`host`** is sent to a party member whenever the host of its current zone changes
   or it changes zone; `id` is null when fewer than two members of the party are in that
   zone (play alone). Leaving the party sends `host {zone, id:null}` once. Players who were

@@ -8,7 +8,10 @@
  *   hibernation; positions come back with the next `state` frame;
  * - when the object wakes up (the constructor runs again) the room is rebuilt from
  *   ctx.getWebSockets() and their attachments;
- * - an alarm every 10 s while anyone is connected drops sockets silent for 30 s.
+ * - an alarm every 10 s while anyone is connected drops sockets silent for 30 s;
+ * - the parties are also kept in storage (key PARTIES_KEY), so a party outlives the
+ *   object restarting (a deploy, an eviction): its members are "away" until they
+ *   reconnect (Room PARTY_GRACE_MS).
  *
  * A plain class (no `cloudflare:workers` import) so node can load worker.mjs and test it.
  * The Worker (worker.mjs) checks the session cookie and forwards the upgrade request with
@@ -16,6 +19,7 @@
 import {Room} from './room.mjs';
 
 export const ALARM_MS = 10_000;
+export const PARTIES_KEY = 'parties';
 // serializeAttachment holds at most 2,048 bytes.
 const ATTACHMENT_BYTES = 2000;
 const ENCODER = new TextEncoder();
@@ -49,6 +53,21 @@ export class WorldRoom {
     this.room = new Room(now ? {now} : {});
     this.sockets = new Map();   // key -> WebSocket
     this.keys = new WeakMap();  // WebSocket -> key
+    if (typeof ctx.blockConcurrencyWhile === 'function' && ctx.storage?.get) {
+      ctx.blockConcurrencyWhile(async () => {
+        let saved = null;
+        try {saved = await ctx.storage.get(PARTIES_KEY);} catch {}
+        this.room.importParties(saved);
+        this.wake();
+      });
+    } else {
+      this.wake();
+    }
+  }
+
+  /** Rebuilds the room from the sockets that survived (hibernation). */
+  wake() {
+    const ctx = this.ctx;
     for (const ws of ctx.getWebSockets()) {
       let record = null;
       try {record = ws.deserializeAttachment();} catch {}
@@ -130,7 +149,7 @@ export class WorldRoom {
   async alarm() {
     this.room.tick();
     this.flush();
-    if (this.room.count) await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
+    if (this.room.count || this.room.parties.size) await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
   }
 
   async ensureAlarm() {
@@ -146,5 +165,9 @@ export class WorldRoom {
       try {ws.serializeAttachment(fitAttachment(record));} catch {}
     }
     for (const key of this.sockets.keys()) if (!this.room.byKey.has(key)) this.sockets.delete(key);
+    if (this.room.partiesChanged) {
+      this.room.partiesChanged = false;
+      try {this.ctx.storage?.put?.(PARTIES_KEY, this.room.exportParties())?.catch?.(() => {});} catch {}
+    }
   }
 }

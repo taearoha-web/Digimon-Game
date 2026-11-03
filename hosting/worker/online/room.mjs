@@ -21,6 +21,9 @@ export const PARTY_MAX = 5;
 export const ASK_MS = 60_000;          // party invites, trade and duel requests stay valid this long
 export const VIEW_MS = 5 * 60_000;     // a stall viewer gets pushed updates this long
 export const BUY_MS = 60_000;          // a stall purchase waits this long for the seller
+// A party member whose connection drops (phone locked, app switched, network blip, the
+// room restarting) keeps its place this long; it is back in the party on reconnect.
+export const PARTY_GRACE_MS = 15 * 60_000;
 const MAX_LOTS = 40;
 const MAX_TRADE_ITEMS = 30;
 const MAX_GOLD = 1_000_000_000_000;
@@ -89,7 +92,8 @@ export class Room {
     this.now = now;
     this.byKey = new Map();      // key -> session
     this.byId = new Map();       // account id -> session
-    this.parties = new Map();    // party id -> {id, leader, members:[id], gw}
+    this.parties = new Map();    // party id -> {id, leader, members:[id], away:{id: since}, gw}
+    this.partiesChanged = false; // the wrapper stores the parties when set
     this.invites = new Map();    // target id -> Map(from id -> time)   party invites
     this.tradeAsks = new Map();  // target id -> Map(from id -> time)
     this.duelAsks = new Map();   // target id -> Map(from id -> time)
@@ -127,9 +131,23 @@ export class Room {
     }
     this.byKey.set(key, session);
     this.byId.set(id, session);
+    let rejoined = null;
+    if (!old) {
+      // Back within the grace: the party it dropped out of takes it back.
+      for (const party of this.parties.values()) {
+        if (party.members.includes(id) && party.away[id] !== undefined) {
+          delete party.away[id];
+          session.partyId = party.id;
+          rejoined = party;
+          this.partiesChanged = true;
+          break;
+        }
+      }
+    }
     this.dirty.add(key);
     this.send(session, {t: 'welcome', you: {id, user: session.user}, players: this.playerList(id), party: this.partyView(session.partyId)});
-    if (old) this.syncHosts();
+    if (rejoined) this.sendParty(rejoined);
+    if (old || rejoined) this.syncHosts();
     return session;
   }
 
@@ -168,7 +186,7 @@ export class Room {
     const party = this.parties.get(s.partyId);
     return {
       k: s.key, id: s.id, user: s.user, at: s.at, p: s.player, zs: s.zoneSeq, host: s.sentHost,
-      party: party ? {id: party.id, leader: party.leader, members: party.members.slice()} : null,
+      party: party ? {id: party.id, leader: party.leader, members: party.members.slice(), away: {...party.away}} : null,
       stall: this.stalls.get(s.id) ?? null,
     };
   }
@@ -194,7 +212,9 @@ export class Room {
     if (dict(record.party) && typeof record.party.id === 'string' && Array.isArray(record.party.members)) {
       session.partyId = record.party.id;
       if (!this.parties.has(record.party.id)) {
-        this.parties.set(record.party.id, {id: record.party.id, leader: String(record.party.leader), members: record.party.members.map(String), gw: null});
+        const away = {};
+        if (dict(record.party.away)) for (const [k, v] of Object.entries(record.party.away)) if (finite(v)) away[String(k)] = v;
+        this.parties.set(record.party.id, {id: record.party.id, leader: String(record.party.leader), members: record.party.members.map(String), away, gw: null});
       }
     }
     if (Array.isArray(record.stall)) this.stalls.set(id, record.stall);
@@ -202,18 +222,24 @@ export class Room {
     this.byId.set(id, session);
   }
 
-  /** After every restore(): parties keep only members that came back, then hosts are checked. */
+  /** After every restore(): members that did not come back are away (PARTY_GRACE_MS to
+   * return), then hosts are checked. */
   finishRestore() {
+    const now = this.now();
     for (const party of [...this.parties.values()]) {
-      const before = party.members.join();
-      party.members = party.members.filter(id => this.byId.get(id)?.partyId === party.id);
-      if (party.members.length < 2) {this.dissolve(party); continue;}
-      if (!party.members.includes(party.leader)) party.leader = party.members[0];
+      const before = JSON.stringify(party.away);
       for (const id of party.members) {
         const s = this.byId.get(id);
-        if (s.player) s.player.party = party.id;
+        if (s?.partyId === party.id) {
+          delete party.away[id];
+          if (s.player) s.player.party = party.id;
+        } else if (party.away[id] === undefined) {
+          party.away[id] = now;
+        }
       }
-      if (party.members.join() !== before) this.sendParty(party);
+      if (!this.online(party).length && !Object.keys(party.away).length) {this.dissolve(party); continue;}
+      this.handOver(party);
+      if (JSON.stringify(party.away) !== before) this.sendParty(party);
     }
     for (const s of this.byKey.values()) if (s.player && !s.partyId) s.player.party = null;
     this.syncHosts();
@@ -273,7 +299,36 @@ export class Room {
 
   partyView(partyId) {
     const party = this.parties.get(partyId);
-    return party ? {id: party.id, leader: party.leader, members: party.members.slice()} : null;
+    return party ? {id: party.id, leader: party.leader, members: party.members.slice(), away: Object.keys(party.away)} : null;
+  }
+
+  /** The members of a party connected now. */
+  online(party) {return party.members.filter(id => this.byId.get(id)?.partyId === party.id);}
+
+  /** The lead passes to a connected member when the leader is away. */
+  handOver(party) {
+    if (party.away[party.leader] === undefined) return;
+    const here = this.online(party);
+    if (here.length) {party.leader = here[0]; party.gw = null;}
+  }
+
+  /** Every party, for storage (they survive the room restarting). */
+  exportParties() {
+    return [...this.parties.values()].map(p => ({id: p.id, leader: p.leader, members: p.members.slice(), away: {...p.away}}));
+  }
+
+  /** Parties from storage: every member is away until it reconnects. */
+  importParties(list) {
+    if (!Array.isArray(list)) return;
+    const now = this.now();
+    for (const p of list) {
+      if (!dict(p) || typeof p.id !== 'string' || !Array.isArray(p.members) || this.parties.has(p.id)) continue;
+      const members = p.members.map(String).slice(0, PARTY_MAX);
+      if (members.length < 2) continue;
+      const away = {};
+      for (const id of members) away[id] = dict(p.away) && finite(p.away[id]) ? p.away[id] : now;
+      this.parties.set(p.id, {id: p.id, leader: String(p.leader), members, away, gw: null});
+    }
   }
 
   sendParty(party) {
@@ -293,6 +348,7 @@ export class Room {
 
   dissolve(party) {
     this.parties.delete(party.id);
+    this.partiesChanged = true;
     for (const id of party.members) {
       const s = this.byId.get(id);
       if (s && s.partyId === party.id) {
@@ -307,11 +363,31 @@ export class Room {
     const party = this.parties.get(s.partyId);
     this.setParty(s, null);
     if (!party) return;
-    party.members = party.members.filter(id => id !== s.id);
-    party.gw?.accepted.delete(s.id);
     this.send(s, {t: 'party', party: null});
+    this.removeMember(party, s.id);
+  }
+
+  /** Takes member `id` (connected or away) out of `party`. */
+  removeMember(party, id) {
+    party.members = party.members.filter(m => m !== id);
+    delete party.away[id];
+    party.gw?.accepted.delete(id);
+    this.partiesChanged = true;
     if (party.members.length < 2) {this.dissolve(party); return;}
-    if (party.leader === s.id) {party.leader = party.members[0]; party.gw = null;}
+    if (party.leader === id) {party.leader = party.members[0]; party.gw = null;}
+    this.handOver(party);
+    this.sendParty(party);
+  }
+
+  /** The connection of a party member dropped: it keeps its place for PARTY_GRACE_MS. */
+  markAway(s) {
+    const party = this.parties.get(s.partyId);
+    if (!party) return;
+    party.away[s.id] = this.now();
+    party.gw?.accepted.delete(s.id);
+    this.partiesChanged = true;
+    if (!this.online(party).length) return;
+    this.handOver(party);
     this.sendParty(party);
   }
 
@@ -405,7 +481,7 @@ export class Room {
     if (this.byId.get(s.id) !== s) return;
     this.byId.delete(s.id);
     this.endActivities(s);
-    if (s.partyId) this.removeFromParty(s);
+    if (s.partyId) this.markAway(s);
     if (this.stalls.delete(s.id)) this.pushStall(s.id, []);
     this.viewers.delete(s.id);
     for (const views of this.viewers.values()) views.delete(s.id);
@@ -439,6 +515,11 @@ export class Room {
     for (const [seller, buys] of this.buys) {
       for (const [k, buy] of buys) if (now - buy.at > BUY_MS) buys.delete(k);
       if (!buys.size) this.buys.delete(seller);
+    }
+    for (const party of [...this.parties.values()]) {
+      for (const [id, since] of Object.entries(party.away)) {
+        if (now - since > PARTY_GRACE_MS && this.parties.has(party.id)) this.removeMember(party, id);
+      }
     }
   }
 
@@ -567,11 +648,12 @@ const HANDLERS = {
     let party = this.parties.get(inviter.partyId);
     if (party && party.members.length >= PARTY_MAX) {this.error(s, 'party_full'); return;}
     if (!party) {
-      party = {id: randomId(), leader: inviter.id, members: [inviter.id], gw: null};
+      party = {id: randomId(), leader: inviter.id, members: [inviter.id], away: {}, gw: null};
       this.parties.set(party.id, party);
       this.setParty(inviter, party.id);
     }
     party.members.push(s.id);
+    this.partiesChanged = true;
     this.setParty(s, party.id);
     this.send(inviter, {t: 'party_answer', from: s.id, ok: true});
     this.sendParty(party);
@@ -590,7 +672,8 @@ const HANDLERS = {
     if (party.leader !== s.id) {this.error(s, 'not_leader'); return;}
     const who = idOf(msg.who);
     if (!who || who === s.id || !party.members.includes(who)) return;
-    this.removeFromParty(this.byId.get(who));
+    const member = this.byId.get(who);
+    if (member?.partyId === party.id) this.removeFromParty(member); else this.removeMember(party, who);
     this.syncHosts();
   },
 
