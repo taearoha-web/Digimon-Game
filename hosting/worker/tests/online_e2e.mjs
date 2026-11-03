@@ -186,7 +186,39 @@ try {
   b3.ws.close();
   a.ws.close();
   await waitFor(async () => (await (await fetch(`${BASE}/api/online/status`)).json()).online === 0, 5000, 'everyone gone');
-  console.log('online e2e: ok (wrangler dev, D1 accounts, two WebSockets: welcome, join, chat, party, host, ent_snap, kick, leave)');
+
+  // Shared world (v2): two accounts NOT in a party, in the same open zone.
+  const carol = await register('e2e_carol');
+  const dave = await register('e2e_dave');
+  const c = open(carol.cookie);
+  await c.opened;
+  await c.next('welcome');
+  assert.deepEqual(await c.next('whost'), {t: 'whost', id: null}, 'nobody has said hello yet');
+  c.send({...hello('Carol'), zone: 'field_e2e'});
+  assert.deepEqual(await c.next('whost'), {t: 'whost', id: carol.id});
+  assert.deepEqual(await c.next('host'), {t: 'host', zone: 'field_e2e', id: null}, 'alone in the zone');
+  const d = open(dave.cookie);
+  await d.opened;
+  assert.equal((await d.next('welcome')).party, null);
+  assert.deepEqual(await d.next('whost'), {t: 'whost', id: carol.id}, 'carol has been online the longest');
+  d.send({...hello('Dave'), zone: 'field_e2e'});
+  assert.deepEqual(await d.next('host'), {t: 'host', zone: 'field_e2e', id: carol.id}, 'the earlier arrival hosts the zone');
+  assert.deepEqual(await c.next('host'), {t: 'host', zone: 'field_e2e', id: carol.id});
+  c.send({t: 'ent_snap', zone: 'field_e2e', ents: [[5, 1, 2, 0, 30, 40, 0]]});
+  assert.deepEqual(await d.next('ent_snap'), {t: 'ent_snap', zone: 'field_e2e', ents: [[5, 1, 2, 0, 30, 40, 0]], from: carol.id});
+  c.send({t: 'wp_snap', zone: 'field_e2e', ps: [[2, 3, 4, 0, 'run', 0]]});
+  assert.equal((await d.next('wp_snap')).from, carol.id);
+  d.send({t: 'ent_hit', zone: 'field_e2e', eid: 5, dmg: 12, crit: false});
+  assert.deepEqual(await c.next('ent_hit'), {t: 'ent_hit', zone: 'field_e2e', eid: 5, dmg: 12, crit: false, from: dave.id});
+  c.send({t: 'ai_chat', lines: [{ch: 'world', speaker: 'Mira', text: 'ใครไปลงดันบ้าง', index: 4}]});
+  assert.deepEqual(await d.next('ai_chat'), {t: 'ai_chat', lines: [{ch: 'world', speaker: 'Mira', text: 'ใครไปลงดันบ้าง', index: 4}], from: carol.id});
+  // The world host and the zone host leave: dave takes both over.
+  c.ws.close();
+  assert.deepEqual(await d.next('whost'), {t: 'whost', id: dave.id});
+  assert.deepEqual(await d.next('host'), {t: 'host', zone: 'field_e2e', id: null});
+  d.ws.close();
+  await waitFor(async () => (await (await fetch(`${BASE}/api/online/status`)).json()).online === 0, 5000, 'everyone gone again');
+  console.log('online e2e: ok (wrangler dev, D1 accounts, WebSockets: welcome, join, chat, party, host, ent_snap, kick, leave; shared world: zone host without a party, ent_snap / wp_snap / ent_hit, whost, ai_chat)');
 } finally {
   cleanup();
 }

@@ -3,7 +3,7 @@
  * routes with the real account code on SQLite. Run: node hosting/worker/tests/online.test.mjs */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS} from '../online/room.mjs';
+import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES} from '../online/room.mjs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
 import {handleAccountRequest} from '../../accounts/server/accounts.js';
@@ -208,103 +208,301 @@ test('party: invite, answer, max 5, leader-only kick, leader handover, dissolve'
   assert.equal(k.last('error').code, 'self');
 });
 
-test('host per (party, zone): leader when present, else first arrival; re-elected on zone change and drop', () => {
+test('instanced zones: host per (party, zone), leader when present, else first arrival; re-elected on zone change and drop', () => {
   const {connect} = world();
-  const a = connect('1').hello();               // leader
-  const b = connect('2').hello();
-  const c = connect('3').hello({zone: 'forest'});
-  const x = connect('9').hello();                // not in the party
+  const a = connect('1').hello({zone: 'tower'});               // leader
+  const b = connect('2').hello({zone: 'tower'});
+  const c = connect('3').hello({zone: 'arena'});
+  const x = connect('9').hello({zone: 'tower'});                // not in the party
+  assert.deepEqual(a.frames('host'), [{t: 'host', zone: 'tower', id: null}], 'no party in an instanced zone: nobody shares');
   partyUp(a, b);
-  assert.deepEqual(a.last('host'), {t: 'host', zone: 'meadow', id: '1'});
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'meadow', id: '1'});
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'tower', id: '1'});
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'tower', id: '1'});
   partyUp(a, c);
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'forest', id: null}, 'alone in its zone: nobody shares');
-  assert.equal(x.frames('host').length, 0, 'outsiders never get host frames');
-  // c joins the meadow: the leader still hosts it.
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'arena', id: null}, 'alone in its zone: nobody shares');
+  assert.deepEqual(x.frames('host'), [{t: 'host', zone: 'tower', id: null}], 'an outsider in an instanced zone is never served');
+  // c joins the tower: the leader still hosts it.
   clearAll(a, b, c);
-  c.zone('meadow');
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'meadow', id: '1'});
+  c.zone('tower');
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'tower', id: '1'});
   assert.equal(a.frames('host').length, 0, 'unchanged host: no frame');
-  // The leader goes to the forest: b arrived before c, so b hosts the meadow; the leader is alone.
+  // The leader goes to the arena: b arrived before c, so b hosts the tower; the leader is alone.
   clearAll(a, b, c);
-  a.zone('forest');
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'meadow', id: '2'});
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'meadow', id: '2'});
-  assert.deepEqual(a.last('host'), {t: 'host', zone: 'forest', id: null});
-  // c follows the leader: the leader hosts the forest, b is alone in the meadow.
+  a.zone('arena');
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'tower', id: '2'});
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'tower', id: '2'});
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'arena', id: null});
+  // c follows the leader: the leader hosts the arena, b is alone in the tower.
   clearAll(a, b, c);
-  c.zone('forest');
-  assert.deepEqual(a.last('host'), {t: 'host', zone: 'forest', id: '1'});
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'forest', id: '1'});
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'meadow', id: null});
-  // b comes to the forest as well, then the leader drops: c (arrived before b) hosts and leads... b leads.
-  b.zone('forest');
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'forest', id: '1'});
+  c.zone('arena');
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'arena', id: '1'});
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'arena', id: '1'});
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'tower', id: null});
+  // b comes to the arena as well, then the leader drops: b (joined the party before c) leads and hosts.
+  b.zone('arena');
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'arena', id: '1'});
   clearAll(a, b, c);
   a.close();
   assert.equal(b.last('party').party.leader, '2', 'b joined before c, so b leads');
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'forest', id: '2'});
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'forest', id: '2'});
-  // b leaves the party: c is alone, the party ends and the host clears.
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'arena', id: '2'});
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'arena', id: '2'});
+  // b leaves the party: c is the only member left in the arena, the host clears for both.
   clearAll(b, c);
   b.send({t: 'party_leave'});
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'forest', id: null});
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'forest', id: null});
-  assert.equal(x.frames('host').length, 0);
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'arena', id: null});
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'arena', id: null});
+  assert.equal(x.frames('host').length, 1);
 });
 
-test('host: a non-leader first arrival keeps hosting until the leader comes', () => {
+test('instanced zones: a non-leader first arrival keeps hosting until the leader comes', () => {
   const {connect} = world();
-  const a = connect('1').hello({zone: 'town'});
-  const b = connect('2').hello({zone: 'desert'});
-  const c = connect('3').hello({zone: 'snow'});
+  const a = connect('1').hello({zone: 'pvp'});
+  const b = connect('2').hello({zone: 'guildwar'});
+  const c = connect('3').hello({zone: 'arena'});
   partyUp(a, b);
   partyUp(a, c);
-  c.zone('desert');                       // b arrived first
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'desert', id: '2'});
-  a.zone('desert');                       // the leader arrives and takes over
-  assert.deepEqual(b.last('host'), {t: 'host', zone: 'desert', id: '1'});
+  c.zone('guildwar');                     // b arrived first
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'guildwar', id: '2'});
+  a.zone('guildwar');                     // the leader arrives and takes over
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'guildwar', id: '1'});
   b.close();                              // host unchanged when a non-host drops
-  assert.deepEqual(c.last('host'), {t: 'host', zone: 'desert', id: '1'});
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'guildwar', id: '1'});
 });
 
-test('ent_snap / ent_event go from the host to the party in that zone only; ent_hit to the host', () => {
+test('open zones: one host for everyone in the zone, party or not; first arrival; re-elected on zone change and drop', () => {
+  assert.deepEqual([...INSTANCED_ZONES].sort(), ['arena', 'guildwar', 'pvp', 'tower']);
   const {connect} = world();
-  const a = connect('1').hello();               // leader, host of the meadow
-  const b = connect('2').hello();
+  const a = connect('1').hello();                    // meadow, first
+  assert.deepEqual(a.frames('host'), [{t: 'host', zone: 'meadow', id: null}], 'alone: play alone');
+  const b = connect('2').hello();                    // meadow, no party
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'meadow', id: '1'});
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'meadow', id: '1'});
   const c = connect('3').hello({zone: 'forest'});
-  const x = connect('9').hello();                // outsider in the meadow
+  assert.deepEqual(c.frames('host'), [{t: 'host', zone: 'forest', id: null}]);
+  // A party arriving later does not take the zone over, even with its leader there.
+  const d = connect('4').hello();
+  assert.deepEqual(d.last('host'), {t: 'host', zone: 'meadow', id: '1'});
+  clearAll(a, b, c, d);
+  partyUp(d, b);
+  assert.equal(a.frames('host').length + b.frames('host').length + d.frames('host').length, 0, 'a party changes nothing in an open zone');
+  // The host walks to the forest: b (next arrival) hosts the meadow; c (there first) hosts the forest.
+  a.zone('forest');
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'meadow', id: '2'});
+  assert.deepEqual(d.last('host'), {t: 'host', zone: 'meadow', id: '2'});
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'forest', id: '3'});
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'forest', id: '3'});
+  // Back to the meadow: a is now the latest arrival there.
+  clearAll(a, b, c, d);
+  a.zone('meadow');
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'meadow', id: '2'});
+  assert.equal(b.frames('host').length + d.frames('host').length, 0, 'unchanged host: no frame');
+  assert.deepEqual(c.last('host'), {t: 'host', zone: 'forest', id: null});
+  // The host drops: the next arrival takes over.
+  clearAll(a, b, c, d);
+  b.close();
+  assert.deepEqual(d.last('host'), {t: 'host', zone: 'meadow', id: '4'});
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'meadow', id: '4'});
+  d.close();
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'meadow', id: null}, 'alone again');
+  // An instanced zone next door is not part of the open zone.
+  c.zone('tower');
+  a.zone('tower');
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'tower', id: null});
+});
+
+test('instanced zones: ent_snap / ent_event go from the host to the party in that zone only; ent_hit to the host', () => {
+  const {connect} = world();
+  const a = connect('1').hello({zone: 'tower'});               // leader, host of the tower
+  const b = connect('2').hello({zone: 'tower'});
+  const c = connect('3').hello({zone: 'arena'});
+  const x = connect('9').hello({zone: 'tower'});                // outsider in the tower
   partyUp(a, b);
   partyUp(a, c);
   clearAll(a, b, c, x);
-  const snap = {t: 'ent_snap', zone: 'meadow', ents: [[1, 2.5, 3.5, 0, 50, 100, 0]]};
+  const snap = {t: 'ent_snap', zone: 'tower', ents: [[1, 2.5, 3.5, 0, 50, 100, 0]]};
   a.send({...snap, from: '9', user: 'admin'});
   assert.deepEqual(b.last('ent_snap'), {...snap, from: '1'}, 'from is the sender, a spoofed user is dropped');
   assert.equal(c.frames('ent_snap').length, 0, 'another zone');
   assert.equal(x.frames('ent_snap').length, 0, 'not in the party');
   assert.equal(a.frames('ent_snap').length, 0, 'no echo');
-  a.send({t: 'ent_event', zone: 'meadow', eid: 1, ev: 'dead', data: {killer: '2', share: {'2': 50}}});
-  assert.deepEqual(b.last('ent_event'), {t: 'ent_event', zone: 'meadow', eid: 1, ev: 'dead', data: {killer: '2', share: {'2': 50}}, from: '1'});
+  a.send({t: 'ent_event', zone: 'tower', eid: 1, ev: 'dead', data: {killer: '2', share: {'2': 50}}});
+  assert.deepEqual(b.last('ent_event'), {t: 'ent_event', zone: 'tower', eid: 1, ev: 'dead', data: {killer: '2', share: {'2': 50}}, from: '1'});
   assert.equal(x.frames('ent_event').length, 0);
   // A member that is not the host cannot snap; a wrong zone is dropped.
-  b.send({t: 'ent_snap', zone: 'meadow', ents: []});
-  a.send({t: 'ent_snap', zone: 'forest', ents: []});
+  b.send({t: 'ent_snap', zone: 'tower', ents: []});
+  a.send({t: 'ent_snap', zone: 'arena', ents: []});
   assert.equal(a.frames('ent_snap').length, 0);
   assert.equal(c.frames('ent_snap').length, 0);
   assert.equal(b.frames('ent_snap').length, 1);
   // Hits go to the host only.
-  b.send({t: 'ent_hit', zone: 'meadow', eid: 1, dmg: 120, crit: true, from: '3'});
-  assert.deepEqual(a.last('ent_hit'), {t: 'ent_hit', zone: 'meadow', eid: 1, dmg: 120, crit: true, from: '2'});
+  b.send({t: 'ent_hit', zone: 'tower', eid: 1, dmg: 120, crit: true, from: '3'});
+  assert.deepEqual(a.last('ent_hit'), {t: 'ent_hit', zone: 'tower', eid: 1, dmg: 120, crit: true, from: '2'});
   assert.equal(x.frames('ent_hit').length + c.frames('ent_hit').length, 0);
   // An outsider's hits and snaps go nowhere.
-  x.send({t: 'ent_hit', zone: 'meadow', eid: 1, dmg: 1, crit: false});
-  x.send({t: 'ent_snap', zone: 'meadow', ents: []});
+  x.send({t: 'ent_hit', zone: 'tower', eid: 1, dmg: 1, crit: false});
+  x.send({t: 'ent_snap', zone: 'tower', ents: []});
   assert.equal(a.frames('ent_hit').length, 1);
   assert.equal(b.frames('ent_snap').length, 1);
   // Alone in a zone: no host, nothing relayed.
-  c.send({t: 'ent_snap', zone: 'forest', ents: []});
-  c.send({t: 'ent_hit', zone: 'forest', eid: 1, dmg: 1, crit: false});
+  c.send({t: 'ent_snap', zone: 'arena', ents: []});
+  c.send({t: 'ent_hit', zone: 'arena', eid: 1, dmg: 1, crit: false});
   assert.equal(a.frames('ent_snap').length + b.frames('ent_snap').length, 1);
+});
+
+test('open zones: ent_* and wp_* go from the zone host to everyone in the zone, never to other zones; ent_hit to the host', () => {
+  const {connect} = world();
+  const a = connect('1').hello();                    // meadow host
+  const b = connect('2').hello();                    // meadow, no party
+  const c = connect('3').hello();                    // meadow, in a party with d
+  const d = connect('4').hello({zone: 'forest'});
+  const e = connect('5').hello({zone: 'tower'});
+  partyUp(c, d);
+  clearAll(a, b, c, d, e);
+  const snap = {t: 'ent_snap', zone: 'meadow', ents: [[7, 1, 2, 0, 80, 100, 0]]};
+  a.send(snap);
+  for (const x of [b, c]) assert.deepEqual(x.last('ent_snap'), {...snap, from: '1'});
+  assert.equal(a.frames('ent_snap').length + d.frames('ent_snap').length + e.frames('ent_snap').length, 0, 'no echo, no other zone');
+  a.send({t: 'ent_event', zone: 'meadow', eid: 7, ev: 'dead', data: {killer: '2', share: {'2': 80}}});
+  assert.equal(b.last('ent_event').from, '1');
+  assert.equal(c.last('ent_event').ev, 'dead');
+  assert.equal(d.frames('ent_event').length, 0);
+  // AI world players: the same route.
+  const ps = {t: 'wp_snap', zone: 'meadow', ps: [[3, 10.5, -4, 1.2, 'run', 1]]};
+  a.send({...ps, user: 'spoof', from: '2'});
+  assert.deepEqual(b.last('wp_snap'), {...ps, from: '1'});
+  assert.deepEqual(c.last('wp_snap'), {...ps, from: '1'});
+  a.send({t: 'wp_event', zone: 'meadow', index: 3, ev: 'skill', data: {id: 'fireball', eid: 7}});
+  assert.deepEqual(b.last('wp_event'), {t: 'wp_event', zone: 'meadow', index: 3, ev: 'skill', data: {id: 'fireball', eid: 7}, from: '1'});
+  assert.equal(d.frames('wp_snap').length + d.frames('wp_event').length + e.frames('wp_snap').length, 0);
+  // Not the host, or a zone that is not the sender's: dropped.
+  b.send({t: 'ent_snap', zone: 'meadow', ents: []});
+  b.send({t: 'wp_snap', zone: 'meadow', ps: []});
+  b.send({t: 'wp_event', zone: 'meadow', index: 1, ev: 'leave', data: {}});
+  a.send({t: 'ent_snap', zone: 'forest', ents: []});
+  a.send({t: 'wp_snap', zone: 'forest', ps: []});
+  d.send({t: 'ent_snap', zone: 'forest', ents: []});          // alone in the forest
+  assert.equal(c.frames('ent_snap').length, 1);
+  assert.equal(c.frames('wp_snap').length, 1);
+  assert.equal(c.frames('wp_event').length, 1);
+  assert.equal(a.frames('ent_snap').length + d.frames('ent_snap').length + d.frames('wp_snap').length, 0);
+  // Hits from anyone the host serves go to the host only.
+  b.send({t: 'ent_hit', zone: 'meadow', eid: 7, dmg: 40, crit: false});
+  c.send({t: 'ent_hit', zone: 'meadow', eid: 7, dmg: 60, crit: true, skill: 'slash'});
+  assert.deepEqual(a.frames('ent_hit'), [
+    {t: 'ent_hit', zone: 'meadow', eid: 7, dmg: 40, crit: false, from: '2'},
+    {t: 'ent_hit', zone: 'meadow', eid: 7, dmg: 60, crit: true, skill: 'slash', from: '3'},
+  ]);
+  assert.equal(b.frames('ent_hit').length + c.frames('ent_hit').length + d.frames('ent_hit').length, 0);
+  a.send({t: 'ent_hit', zone: 'meadow', eid: 7, dmg: 1, crit: false});   // the host itself
+  b.send({t: 'ent_hit', zone: 'forest', eid: 7, dmg: 1, crit: false});   // not b's zone
+  d.send({t: 'ent_hit', zone: 'forest', eid: 7, dmg: 1, crit: false});   // nobody hosts the forest
+  assert.equal(a.frames('ent_hit').length, 2);
+  // d walks into the meadow: served from now on.
+  d.zone('meadow');
+  assert.deepEqual(d.last('host'), {t: 'host', zone: 'meadow', id: '1'});
+  a.send(snap);
+  assert.equal(d.last('ent_snap').from, '1');
+  assert.equal(e.frames('ent_snap').length, 0);
+});
+
+test('world host: the player online the longest; whost on connect and on change; ai_chat only from it, capped', () => {
+  const {clock, connect} = world();
+  const a = connect('1');
+  assert.deepEqual(a.socket.sent.map(f => f.t), ['welcome', 'whost'], 'whost right after welcome');
+  assert.deepEqual(a.last('whost'), {t: 'whost', id: null}, 'nobody has said hello yet');
+  a.hello();
+  assert.deepEqual(a.last('whost'), {t: 'whost', id: '1'});
+  const b = connect('2');
+  assert.deepEqual(b.socket.sent.map(f => f.t), ['welcome', 'whost']);
+  assert.deepEqual(b.last('whost'), {t: 'whost', id: '1'});
+  b.hello();
+  const c = connect('3').hello({zone: 'forest'});
+  assert.deepEqual(c.last('whost'), {t: 'whost', id: '1'});
+  assert.equal(a.frames('whost').length + b.frames('whost').length, 3, 'no change: no frame');
+  // ai_chat from the world host goes to everyone else, whatever the zone.
+  clearAll(a, b, c);
+  const lines = [{ch: 'world', speaker: 'Mira', text: 'ขาย ดาบ +7 ถูกๆ', color: '#ffcc00', index: 12}];
+  a.send({t: 'ai_chat', lines, from: '3', user: 'spoof'});
+  assert.deepEqual(b.last('ai_chat'), {t: 'ai_chat', lines, from: '1'});
+  assert.deepEqual(c.last('ai_chat'), {t: 'ai_chat', lines, from: '1'});
+  assert.equal(a.frames('ai_chat').length, 0, 'no echo');
+  // Anyone else's ai_chat is dropped.
+  b.send({t: 'ai_chat', lines});
+  c.send({t: 'ai_chat', lines});
+  assert.equal(a.frames('ai_chat').length, 0);
+  assert.equal(b.frames('ai_chat').length, 1);
+  assert.equal(c.frames('ai_chat').length, 1);
+  // Caps: 8 lines a frame, text 200, speaker 24; bad lines are left out; nothing left: dropped.
+  const many = Array.from({length: 12}, (_, i) => ({ch: 'world', speaker: 'ส'.repeat(40), text: `${i} ` + 'y'.repeat(300), color: [1, 0.5, 0], index: i}));
+  many[1] = {ch: 'guild', speaker: 'x', text: 'guild talk'};
+  many[2] = {speaker: 'x', text: '   '};
+  many[3] = 'just a string';
+  many[4] = {speaker: 'NoCh', text: 'ch defaults to world', color: {r: 1}, index: -1};
+  a.send({t: 'ai_chat', lines: many});
+  const out = b.last('ai_chat').lines;
+  assert.equal(out.length, 5, 'only the first 8 lines are read, the 3 bad ones left out');
+  assert.deepEqual(out.map(l => l.text.split(' ')[0]), ['0', 'ch', '5', '6', '7']);
+  assert.equal([...out[0].text].length, 200);
+  assert.equal([...out[0].speaker].length, 24);
+  assert.deepEqual(out[0].color, [1, 0.5, 0]);
+  assert.equal(out[0].index, 0);
+  assert.deepEqual(out[1], {ch: 'world', speaker: 'NoCh', text: 'ch defaults to world'});
+  b.clear();
+  a.send({t: 'ai_chat', lines: [{ch: 'party', text: 'x'}, {text: ''}]});
+  a.send({t: 'ai_chat', lines: 'hello'});
+  a.send({t: 'ai_chat'});
+  assert.equal(b.frames('ai_chat').length, 0);
+  // A second socket of the world host keeps it world host.
+  clearAll(a, b, c);
+  const a2 = connect('1');
+  assert.deepEqual(a2.socket.sent.map(f => f.t), ['welcome', 'whost', 'host']);
+  assert.deepEqual(a2.last('whost'), {t: 'whost', id: '1'});
+  assert.equal(b.frames('whost').length + c.frames('whost').length, 0);
+  // The world host drops: the next longest online takes over, everyone is told.
+  a2.close();
+  assert.deepEqual(b.last('whost'), {t: 'whost', id: '2'});
+  assert.deepEqual(c.last('whost'), {t: 'whost', id: '2'});
+  b.send({t: 'ai_chat', lines});
+  assert.equal(c.last('ai_chat').from, '2');
+  // A newcomer does not take it over; an idle drop hands it on.
+  const d = connect('4').hello();
+  assert.deepEqual(d.last('whost'), {t: 'whost', id: '2'});
+  clock.t += 20_000;
+  c.send({t: 'state', zone: 'forest'});
+  d.send({t: 'state', zone: 'meadow'});
+  clock.t += 15_000;
+  c.send({t: 'state', zone: 'forest'});             // runs the tick: b is silent for 35 s
+  assert.deepEqual(b.socket.closed, {code: CLOSE_IDLE, reason: 'idle'});
+  assert.deepEqual(c.last('whost'), {t: 'whost', id: '3'});
+  assert.deepEqual(d.last('whost'), {t: 'whost', id: '3'});
+});
+
+test('export / restore rebuilds zone hosts from the players\' zones and the world host', () => {
+  const {room, clock, connect} = world();
+  const c = connect('3').hello();                    // first in the meadow, world host
+  const a = connect('1').hello();
+  const b = connect('2').hello();
+  const d = connect('4').hello({zone: 'tower'});
+  assert.deepEqual(b.last('host'), {t: 'host', zone: 'meadow', id: '3'});
+  assert.deepEqual(b.last('whost'), {t: 'whost', id: '3'});
+  room.takeDirty();
+  const records = [a, b, d].map(x => JSON.parse(JSON.stringify(room.exportSession(x.key))));
+  assert.equal(records[0].wh, '3');
+  assert.ok(records[0].on > 0);
+  // c's socket did not survive the sleep.
+  const fresh = new Room({now: () => clock.t});
+  const sockets = [fakeSocket(), fakeSocket(), fakeSocket()];
+  [a, b, d].forEach((x, i) => fresh.restore(x.key, sockets[i], records[i]));
+  fresh.finishRestore();
+  const [sa, sb, sd] = sockets;
+  assert.deepEqual(sa.sent, [{t: 'host', zone: 'meadow', id: '1'}, {t: 'whost', id: '1'}]);
+  assert.deepEqual(sb.sent, [{t: 'host', zone: 'meadow', id: '1'}, {t: 'whost', id: '1'}]);
+  assert.deepEqual(sd.sent, [{t: 'whost', id: '1'}], 'its tower host did not change');
+  clock.t += 40;
+  fresh.message(a.key, JSON.stringify({t: 'wp_snap', zone: 'meadow', ps: []}));
+  assert.deepEqual(sb.sent.at(-1), {t: 'wp_snap', zone: 'meadow', ps: [], from: '1'});
+  fresh.message(a.key, JSON.stringify({t: 'ai_chat', lines: [{speaker: 'Bo', text: 'hi'}]}));
+  assert.equal(sd.sent.at(-1).t, 'ai_chat');
 });
 
 test('trade: request, offers unlock, lock, both confirm -> trade_done swapped', () => {
@@ -626,7 +824,9 @@ test('WorldRoom: hibernation-safe attachments, wake-up rebuild, close, status', 
   await woke.webSocketClose(wa, 1001, 'bye');
   assert.deepEqual(wb.sent.find(f => f.t === 'leave'), {t: 'leave', id: '1'});
   assert.deepEqual(wb.sent.filter(f => f.t === 'party').at(-1).party.away, ['1'], 'a dropped member is away, not out');
-  assert.deepEqual(wb.sent.at(-1), {t: 'host', zone: 'meadow', id: null});
+  assert.deepEqual(wb.sent.filter(f => f.t === 'host').at(-1), {t: 'host', zone: 'meadow', id: null});
+  assert.deepEqual(wb.sent.at(-1), {t: 'whost', id: '2'}, 'the world host left: bob has been online the longest now');
+  assert.equal(wb.deserializeAttachment().wh, '2', 'the attachment remembers the world host sent');
   assert.equal(woke.room.count, 1);
   const upgrade = await woke.fetch(new Request('https://world/api/online/ws'));
   assert.equal(upgrade.status, 426);
