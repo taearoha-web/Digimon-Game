@@ -17,6 +17,10 @@ var player_card: PlayerCard
 var ai_chat: AiChat
 var tutorial: Tutorial
 var tower_screen: TowerScreen
+## Online play with real players: trading (its window) and duels; idle while offline.
+var trade: OnlineTrade
+var trade_screen: TradeScreen
+var duel: OnlineDuel
 var _tower_floor := 1
 var dialog: DialogBox
 var _flash: ColorRect
@@ -114,6 +118,15 @@ func _ready() -> void:
 	tower_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	dialog = DialogBox.new()
 	add_child(dialog)
+	trade = OnlineTrade.new()
+	add_child(trade)
+	trade_screen = TradeScreen.new()
+	add_child(trade_screen)
+	trade_screen.bind(trade)
+	duel = OnlineDuel.new()
+	add_child(duel)
+	trade.busy_check = duel.is_active
+	duel.busy_check = trade.is_open
 	Game.leveled_up.connect(_on_level_up)
 	Game.achievement_earned.connect(func(id: String):
 		var entry := Achievements.entry(id)
@@ -366,7 +379,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or _traveling
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or trade_screen.is_open or _traveling
 
 
 ## Walk up to a world player and tap them: their card, to ask them into the party.

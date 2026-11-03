@@ -734,9 +734,10 @@ func _spawn_hero() -> void:
 	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
 	camera_rig.snap_to_target()
 	hero.camera_rig = camera_rig
-	# A ranked duel ends through PvpMatch; only a normal death sends the hero home.
+	# A ranked duel ends through PvpMatch, a duel with a real player through OnlineDuel
+	# (the hero gets up where it fell); only a normal death sends the hero home.
 	hero.died.connect(func():
-		if not is_pvp and not is_tower:
+		if not is_pvp and not is_tower and not OnlineDuel.holds_death():
 			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
