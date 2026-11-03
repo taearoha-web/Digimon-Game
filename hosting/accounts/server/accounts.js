@@ -215,6 +215,15 @@ function validateProfile(profile) {
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');
+  // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
+  if ('stall' in profile) {
+    const stall = profile.stall;
+    const lots = dictionary(stall) ? (stall.lots ?? []) : null;
+    const log = dictionary(stall) ? (stall.log ?? []) : null;
+    if (!Array.isArray(lots) || lots.length > 10 || !Array.isArray(log) || log.length > 40
+        || lots.some(lot => !dictionary(lot) || !dictionary(lot.item) || !integer(lot.lot, 1) || !integer(lot.price, 1))
+        || log.some(entry => !dictionary(entry))) fail(400, 'invalid_save', 'The character stall is invalid.');
+  }
   if (ENCODER.encode(JSON.stringify(profile)).byteLength > MAX_PROFILE_BYTES) fail(413, 'save_too_large', 'Each character save must be at most 1 MiB.');
 }
 

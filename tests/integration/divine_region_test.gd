@@ -119,8 +119,13 @@ func _ready() -> void:
 		var boss_divine: int = divine.call().size()
 		check(boss_divine > 80 and boss_divine < 160, "boss gives a divine piece about 30%% of the time (%d/400)" % boss_divine)
 		check(jewels.call().size() == 400, "every boss gives a 200-star ring or amulet")
+		# Drops come for every class (ItemData.drop_class): ~30% the hero's own.
+		var own_divine := 0
 		for item in divine.call():
-			check(item["class"] == String(cls), "actual own-class drop routes correctly")
+			check(ClassData.IDS.has(StringName(item["class"])) and item["class"] == item.star_class, "a divine piece is one class's set piece")
+			if item["class"] == String(cls):
+				own_divine += 1
+		check(own_divine > 0 and own_divine < boss_divine, "divine pieces of the hero's and other classes (%d/%d own)" % [own_divine, boss_divine])
 		mob.is_boss = false
 		zone.items.clear()
 		for i in 4000: zone._drop_loot(mob)

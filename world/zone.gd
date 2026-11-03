@@ -1085,9 +1085,9 @@ func _on_world_boss_died(mob: Mob) -> void:
 	var zone_name := String(data.get("name", ""))
 	banner_requested.emit("ปราบบอสโลกที่ %s แล้ว! +%d เหรียญ" % [zone_name, gold])
 	Game.say("ปราบบอสโลกที่ %s แล้ว! ได้รับ %d เหรียญ" % [zone_name, gold], &"info")
-	var item := ItemData.generate(int(Game.profile.level), Game.class_id(), rng, WorldEvents.BOSS_DROP_RARITY)
+	var item := ItemData.generate(int(Game.profile.level), ItemData.drop_class(Game.class_id(), rng), rng, WorldEvents.BOSS_DROP_RARITY)
 	if Game.add_item(item):
-		Game.say("บอสโลกทิ้ง %s" % String(item.get("name", "")), &"info")
+		Game.say("บอสโลกทิ้ง %s%s" % [String(item.get("name", "")), _tag_text(item)], &"info")
 	else:
 		_spawn_loot(item, 0, mob.global_position)
 	# The bounty also pays a big special gem and drills (gem_bonus_drops).
@@ -1271,11 +1271,11 @@ func _drop_loot(mob: Mob) -> void:
 			if i < 2:
 				rarity = maxi(rarity, best)
 			var slot := BossLootData.slot_for(mob.monster_id, i) if table else ""
-			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity, slot), 0, from)
+			_spawn_loot(ItemData.generate(_gear_level(mob, loot), ItemData.drop_class(class_id, rng), rng, rarity, slot), 0, from)
 		if table:
 			_boss_chase(mob, from, class_id, loot)
 		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)) * luck:
-			_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
+			_spawn_loot(ItemData.wings(rng, String(ItemData.drop_class(class_id, rng))), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
 		if int(loot.get("boss_shards", 0)) > 0:
 			var n := rng.randi_range(int(loot.boss_shards) / 2, int(loot.boss_shards))
@@ -1293,7 +1293,7 @@ func _drop_loot(mob: Mob) -> void:
 	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)) * luck:
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
 	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)) * luck:
-		var item := ItemData.generate(_gear_level(mob, loot), class_id, rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
+		var item := ItemData.generate(_gear_level(mob, loot), ItemData.drop_class(class_id, rng), rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
 		_spawn_loot(item, 0, from)
 	if rng.randf() < float(loot.get("potion", DROP_RATE_POTION)) * luck:
 		var tier := "s" if mob.level < 9 else ("m" if mob.level < 22 else "l")
@@ -1304,7 +1304,7 @@ func _drop_loot(mob: Mob) -> void:
 		Game.tower_add_shards(1)
 		BattleVfx.floating_text(self, from + Vector3(0, 1.6, 0), "ผลึกห้วงวิบัติ +1", Color("c58aff"), 0.9)
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing) * luck:
-		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
+		_spawn_loot(ItemData.wings(rng, String(ItemData.drop_class(class_id, rng))), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
@@ -1375,13 +1375,13 @@ func _boss_chase(mob: Mob, from: Vector3, class_id: StringName, loot: Dictionary
 
 func _divine_loot(mob: Mob, from: Vector3) -> void:
 	var elite := bool(mob.template.get("elite", false))
-	for item in DivineGearData.drops(Game.class_id(), mob.is_boss, elite, rng):
+	for item in DivineGearData.drops(ItemData.drop_class(Game.class_id(), rng), mob.is_boss, elite, rng):
 		_spawn_loot(item, 0, from)
-		Game.say("ชุดเทพประจำอาชีพ 200 ดาวตกแล้ว!", &"quest")
+		Game.say("ชุดเทพประจำอาชีพ 200 ดาวตกแล้ว!%s" % _tag_text(item), &"quest")
 	# The divine set has no jewellery: the sanctuary adds 200★ rings and amulets.
 	if mob.is_boss or rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
 		var slot := "ring" if rng.randf() < 0.5 else "amulet"
-		_spawn_loot(StarProgression.item(Game.class_id(), 200, slot, rng), 0, from)
+		_spawn_loot(StarProgression.item(ItemData.drop_class(Game.class_id(), rng), 200, slot, rng), 0, from)
 	if mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_xl", 3), 0, from)
@@ -1406,9 +1406,9 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL) * (1.0 + _drop_fortune()):
 		pieces = 1
 	for i in pieces:
-		_spawn_loot(StarProgression.random_item(Game.class_id(),stars,rng),0,from)
+		_spawn_loot(StarProgression.random_item(ItemData.drop_class(Game.class_id(), rng),stars,rng),0,from)
 	if pieces > 0 and mob.is_boss:
-		Game.say("บอสมอบอุปกรณ์ดาว %d ประจำอาชีพ %d ชิ้น!" % [stars, pieces],&"quest")
+		Game.say("บอสมอบอุปกรณ์ดาว %d %d ชิ้น!" % [stars, pieces],&"quest")
 	if rng.randf()<0.35 or mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf()<0.55 else "mp_xl",3 if mob.is_boss else 1),0,from)
 	if mob.is_boss: _spawn_loot(_random_gem(100,1),0,from)
@@ -1424,7 +1424,7 @@ const STAR_WING_BOSS := 0.6
 func _star_wing_drop(mob: Mob, from: Vector3) -> void:
 	var chance := (STAR_WING_BOSS if mob.is_boss else STAR_WING_DROP) * (1.0 + _drop_fortune())
 	if rng.randf() < chance:
-		_spawn_loot(ItemData.wings(rng, String(Game.class_id())), 0, from)
+		_spawn_loot(ItemData.wings(rng, String(ItemData.drop_class(Game.class_id(), rng))), 0, from)
 		Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
@@ -1504,6 +1504,12 @@ static func gem_bonus_drops(source: StringName, fortune: float, roll: RandomNumb
 			out.append(ItemData.gem(specials[roll.randi() % specials.size()], roll.randi_range(2, 3)))
 			out.append(ItemData.jewel("drill", roll.randi_range(1, 2)))
 	return out
+
+
+## " (ของอาชีพ <ชื่อ>)" for gear of another class (ItemData.class_tag), "" otherwise.
+static func _tag_text(item: Dictionary) -> String:
+	var tag := ItemData.class_tag(item, String(Game.class_id()))
+	return " (%s)" % tag if tag != "" else ""
 
 
 func _spawn_loot(item: Dictionary, gold: int, from: Vector3) -> void:
@@ -1588,7 +1594,7 @@ func _arena_win() -> void:
 	for i in (2 if full else 1):
 		_spawn_loot(_random_gem(level, 1), 0, hero.global_position + Vector3(1.5, 0, 0))
 	if full:
-		_spawn_loot(ItemData.generate(level + 1, Game.class_id(), rng, maxi(2, ItemData.roll_rarity(rng, 0.4))), 0, hero.global_position + Vector3(-1.5, 0, 0))
+		_spawn_loot(ItemData.generate(level + 1, ItemData.drop_class(Game.class_id(), rng), rng, maxi(2, ItemData.roll_rarity(rng, 0.4))), 0, hero.global_position + Vector3(-1.5, 0, 0))
 	Game.flag_add("arena_clears")
 	Game.check_achievements()
 	Game.say("ชนะแล้ว! รับรางวัลจากพื้น แล้วเดินกลับประตูเพื่อออกจากสนาม%s" % ("" if full else " (รางวัลลดลงเพราะชนะครั้งที่สองของวัน)"), &"success")
