@@ -74,6 +74,10 @@ func _draw() -> void:
 		var lead: GuildFighter = zone.gw_match.enemy_leader
 		if lead != null and is_instance_valid(lead) and not lead.is_dead():
 			_dot(c, _to_map(lead.global_position, origin, yaw), LeaderMark.guild_color(GuildFighter.TEAM_ENEMY), 6.5, true)
+		# Ours when the player picked a member to lead it: the one to keep alive.
+		var ours: GuildFighter = zone.gw_match.ally_leader
+		if ours != null and is_instance_valid(ours) and not ours.is_dead():
+			_dot(c, _to_map(ours.global_position, origin, yaw), LeaderMark.guild_color(GuildFighter.TEAM_ALLY), 6.0, true)
 	# The hero: an arrow showing where they face relative to the camera.
 	var facing := zone.hero._facing - yaw
 	var dir := Vector2(sin(facing), -cos(facing))

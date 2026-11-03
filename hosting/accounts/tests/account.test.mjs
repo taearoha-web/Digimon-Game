@@ -337,6 +337,7 @@ test('malformed, oversized and dangerous save structures are rejected without ch
     bundle({...sample(), bag_slots: 101}), bundle({...sample(), party: 'wrong'}),
     bundle({...sample(), mounts: 'thunder_wolf'}), bundle({...sample(), mounts: {thunder_wolf: 6}}), bundle({...sample(), mounts: {thunder_wolf: 1.5}}),
     bundle({...sample(), mounts: [3]}), bundle({...sample(), mount: 5}),
+    bundle({...sample(), guild_leaders: ['x']}), bundle({...sample(), guild_leaders: {'1': 5}}), bundle({...sample(), guild_leaders: {'1': 'x'.repeat(65)}}),
   ];
   for (const bad of invalid) {
     const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bad}});

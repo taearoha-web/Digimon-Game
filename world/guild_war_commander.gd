@@ -8,7 +8,8 @@ extends RefCounted
 ##             instead of trickling in one by one, then push together, buffed;
 ##   push     (บุก)    hit the gate together, tanks in front, ranged and healers behind;
 ##   escort   (คุ้มกัน) the leader goes for the altar inside its guard (an AI leader only
-##             once enough of its guild stands round it; ours follow the hero);
+##             once enough of its guild stands round it; with the hero leading ours they
+##             follow the hero, with a member picked to lead it they escort that member);
 ##   guard    (ป้องกันหัวหน้า) the leader is taking the altar or is hurt: tanks peel the
 ##             attackers off it, healers stay at its side;
 ##   defend   (ตั้งรับ) the other guild is taking the altar (everyone at the one on it) or
@@ -421,7 +422,7 @@ func read() -> Dictionary:
 		"alive_share": float(mine.x) / float(mine.y),
 		"loss_heat": loss_heat,
 		"kill_heat": kill_heat,
-		"leader_ai": team == GuildFighter.TEAM_ENEMY,
+		"leader_ai": not (team == GuildFighter.TEAM_ALLY and war.hero_leads()),
 		"leader_alive": lead != null,
 		"leader_hp": lead_hp,
 		"leader_threat": threat,
@@ -457,7 +458,7 @@ func _pick_focus() -> Node3D:
 		var hero := war.hero
 		var d := _flat(hero.global_position, at)
 		if d <= FOCUS_RANGE and not _in_camp(hero):
-			var score := focus_score(d, war.hero_hp_ratio(), KIND_LEADER, _escorts(hero), false, war.capturer() == hero)
+			var score := focus_score(d, war.hero_hp_ratio(), _kind(hero), _escorts(hero), false, war.capturer() == hero)
 			if score > best_score:
 				best = hero
 	return best
@@ -485,16 +486,25 @@ func _pick_dive() -> Node3D:
 		if score > best_score:
 			best_score = score
 			best = f
-	if team == GuildFighter.TEAM_ENEMY and war.hero_alive() and _escorts(war.hero) <= 1:
+	var hero_kind := _kind(war.hero) if war.hero_alive() else KIND_OTHER
+	if team == GuildFighter.TEAM_ENEMY and hero_kind != KIND_OTHER and (hero_kind != KIND_LEADER or _escorts(war.hero) <= 1):
 		var d := _flat(war.hero.global_position, at)
-		if d <= DIVE_RANGE and not _in_camp(war.hero) and focus_score(d, war.hero_hp_ratio(), KIND_LEADER, 0, false, false) > best_score:
+		if d <= DIVE_RANGE and not _in_camp(war.hero) and focus_score(d, war.hero_hp_ratio(), hero_kind, _escorts(war.hero), false, false) > best_score:
 			best = war.hero
 	return best
 
 
 func _kind(f: Node3D) -> int:
 	if f == war.hero:
-		return KIND_LEADER
+		# The hero is our leader unless the player picked a member to lead; else what its
+		# class does.
+		if war.hero_leads():
+			return KIND_LEADER
+		if Game.class_id() == &"priest":
+			return KIND_HEALER
+		if Game.class_id() == &"bard":
+			return KIND_BARD
+		return KIND_OTHER
 	var g := f as GuildFighter
 	if g == null:
 		return KIND_OTHER
