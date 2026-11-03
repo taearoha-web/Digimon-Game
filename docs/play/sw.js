@@ -14,19 +14,11 @@
  * Update: the new build caches everything (reusing unchanged, content-named
  * files from the old cache) before it can replace the build in use. */
 'use strict';
-<<<<<<< HEAD
-const BUILD = '4e64dae292b4';
+const BUILD = 'bd9d22ae29dc';
 const PREFIX = 'toon-tale-';
 const CACHE = PREFIX + BUILD;
 // [path relative to the scope, bytes (0 = unknown), content-addressed, small/core]
-const FILES = [["./",0,false,true],["accounts.de8668e7e537.js",66951,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.528b074f.part001.gz.wasm",16777216,true,false],["game.528b074f.part002.gz.wasm",16777216,true,false],["game.528b074f.part003.gz.wasm",16777216,true,false],["game.528b074f.part004.gz.wasm",16777216,true,false],["game.528b074f.part005.gz.wasm",6985743,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.60b077dd427a.js",15894,true,true],["session.efd8d5072c18.js",19536,true,true]];
-=======
-const BUILD = '06a8f9350bae';
-const PREFIX = 'toon-tale-';
-const CACHE = PREFIX + BUILD;
-// [path relative to the scope, bytes (0 = unknown), content-addressed, small/core]
-const FILES = [["./",0,false,true],["accounts.de8668e7e537.js",66951,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.6744460a.part001.gz.wasm",16777216,true,false],["game.6744460a.part002.gz.wasm",16777216,true,false],["game.6744460a.part003.gz.wasm",16777216,true,false],["game.6744460a.part004.gz.wasm",16777216,true,false],["game.6744460a.part005.gz.wasm",7155871,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.60b077dd427a.js",15894,true,true],["session.efd8d5072c18.js",19536,true,true]];
->>>>>>> origin/main
+const FILES = [["./",0,false,true],["accounts.de8668e7e537.js",66951,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.ffacd782.part001.gz.wasm",16777216,true,false],["game.ffacd782.part002.gz.wasm",16777216,true,false],["game.ffacd782.part003.gz.wasm",16777216,true,false],["game.ffacd782.part004.gz.wasm",16777216,true,false],["game.ffacd782.part005.gz.wasm",7176045,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.60b077dd427a.js",15894,true,true],["session.efd8d5072c18.js",19536,true,true]];
 const SCOPE = new URL(self.registration.scope);
 const INDEX = new URL('./', SCOPE).href;
 const BY_URL = new Map(), BY_PATH = new Map();
