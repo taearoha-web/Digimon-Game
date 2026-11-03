@@ -192,7 +192,7 @@ func _deliver(victim: Node3D, raw: float, max_distance := 99.0) -> void:
 		var allowed := BurstGuard.take(hero.get_instance_id(), amount, int(hero.stats.max_hp))
 		if allowed < amount:
 			raw *= float(allowed) / float(amount)
-	victim.take_damage(raw, self)
+	Mob.strike(victim, raw, self)
 
 
 ## Like Summon._tick_fairy: she drifts sideways to her spot behind the caster, always

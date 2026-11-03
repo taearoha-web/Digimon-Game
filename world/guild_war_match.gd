@@ -121,6 +121,16 @@ var _crystal_mat: StandardMaterial3D
 var _hero_killer: GuildFighter
 var _result: Dictionary = {}
 
+## Online (OnlineGuildWar, EntitySync): a party member's view of its leader's war. No
+## fighters of its own (the leader's are mirrored: MirrorFighter), the clock, the score,
+## the castle and the end come from the leader; the hero fights on the leader's side.
+var mirror := false
+## The leader waits for its party (the countdown holds) / a member waits for the leader.
+var hold := false
+var _hold_age := 0.0
+## A member gives up on a leader that has not started after this many seconds.
+const MIRROR_WAIT := 45.0
+
 
 func setup(p_zone: Node3D, p_hero: Hero) -> void:
 	zone = p_zone
@@ -131,6 +141,9 @@ func setup(p_zone: Node3D, p_hero: Hero) -> void:
 ## Rolls both guilds, raises the castle's gates and stands everybody in their camps. With a
 ## SceneTree it yields between fighters so a zone change does not stall (see FrameSlicer).
 func build(tree: SceneTree = null) -> void:
+	if mirror:
+		_build_mirror()
+		return
 	var rng := RandomNumberGenerator.new()
 	var saved := Game.guildwar_checkpoint() if Game.guildwar_resuming else {}
 	Game.guildwar_resuming = false
@@ -226,6 +239,8 @@ func _restore(saved: Dictionary) -> void:
 
 
 func save_checkpoint() -> void:
+	if mirror:
+		return
 	var left: Array = []
 	for g in gates:
 		left.append(0 if g.is_dead() else int(ceil(1000.0 * float(g.hp) / float(maxi(1, g.max_hp)))))
@@ -483,6 +498,12 @@ func _process(delta: float) -> void:
 	team_buff_left = maxf(0.0, team_buff_left - delta)
 	match state:
 		"intro":
+			if hold:
+				# A member whose leader never starts (gone, offline) is not left waiting.
+				_hold_age += delta
+				if mirror and _hold_age > MIRROR_WAIT:
+					mirror_lost()
+				return
 			_timer -= delta
 			var shown := ceili(_timer)
 			if shown < _count and shown >= 1:
@@ -491,6 +512,10 @@ func _process(delta: float) -> void:
 				AudioManager.play_sfx(&"coin", -2.0)
 			if _timer <= 0.0:
 				state = "fight"
+				if mirror:
+					zone.banner_requested.emit("บุก!!")
+					AudioManager.play_sfx(&"quest_complete", -2.0)
+					return
 				save_checkpoint()
 				for f in all_fighters():
 					f.start_fight()
@@ -499,6 +524,9 @@ func _process(delta: float) -> void:
 				zone.banner_requested.emit("บุก!!")
 				AudioManager.play_sfx(&"quest_complete", -2.0)
 		"fight":
+			if mirror:
+				_tick_mirror(delta)
+				return
 			_tick_fight(delta)
 			_mark_focus()
 		"ending":
@@ -591,7 +619,7 @@ func team_name(team: int) -> String:
 # ---------------------------------------------------------------------------
 
 func _on_fell(fighter: GuildFighter, killer: Node) -> void:
-	if state != "fight":
+	if state != "fight" or mirror:
 		return
 	var scoring_team := 1 - fighter.team
 	score[scoring_team] += 1
@@ -600,6 +628,9 @@ func _on_fell(fighter: GuildFighter, killer: Node) -> void:
 	if killer is GuildFighter:
 		by = (killer as GuildFighter).rival_name
 		(killer as GuildFighter).kills += 1
+	elif killer != null and EntitySync.name_of(killer) != "":
+		# A party member of ours playing online (its RemotePlayer struck the blow).
+		by = EntitySync.name_of(killer)
 	elif killer == hero or killer == null:
 		by = "คุณ"
 		hero_kills += 1
@@ -632,6 +663,8 @@ func _tell_commanders(team: int) -> void:
 
 
 func _after_score() -> void:
+	if mirror:
+		return
 	save_checkpoint()
 	if overtime and castle_owner < 0 and score[0] != score[1]:
 		_end()
@@ -711,6 +744,11 @@ func _update_breakable() -> void:
 
 func _on_gate_broken(gate: CastleGate) -> void:
 	_update_breakable()
+	if mirror:
+		var said := "ประตูปราสาทชั้นที่ %d พังแล้ว!" % (gate.gate_index + 1)
+		zone.banner_requested.emit(said)
+		feed.emit(said, -1)
+		return
 	_make_plans()
 	var text := "ประตูปราสาทชั้นที่ %d พังแล้ว!" % (gate.gate_index + 1)
 	if front_gate() == null:
@@ -879,6 +917,8 @@ static func pick_leader(side: Array, leader_name := "") -> GuildFighter:
 ## True when the hero (our guild's leader) stands on the altar and may start taking the
 ## castle: nobody is taking it, or the rivals' leader has stepped off the circle.
 func hero_can_capture() -> bool:
+	if mirror:
+		return false
 	if capture.get("who") == hero:
 		return false
 	var free := capture.is_empty() or bool(capture.get("paused", false))
@@ -1102,3 +1142,122 @@ func _end() -> void:
 	if won and is_instance_valid(hero):
 		hero.level_up_fx()
 		AudioManager.play_sfx(&"quest_complete")
+
+
+# ---------------------------------------------------------------------------
+# Online: a party member in its leader's war (EntitySync mirrors the fighters)
+# ---------------------------------------------------------------------------
+
+## The castle and the camps only; the fighters arrive from the leader's game.
+func _build_mirror() -> void:
+	ally_name = "กิลด์ของหัวหน้าปาร์ตี้"
+	enemy_name = "กิลด์คู่แข่ง"
+	started_at = int(WorldPresence.clock())
+	BurstGuard.clear()
+	_raise_castle({})
+	Game.guildwar_issue_supply()
+	hold = true
+	var plan := OnlineGuildWar.take_start()
+	if not plan.is_empty():
+		mirror_start(plan)
+	else:
+		zone.banner_requested.emit("สงครามกิลด์กับปาร์ตี้ · รอหัวหน้าปาร์ตี้เริ่ม")
+	Game.say("เข้าสงครามกิลด์ฝั่งเดียวกับหัวหน้าปาร์ตี้: ตีศัตรูและประตูปราสาทด้วยกัน หัวหน้าปาร์ตี้เป็นคนยึดแท่น", &"quest")
+
+
+## The leader's gw_start: the guilds' names, then the same countdown as the leader's.
+func mirror_start(plan: Dictionary) -> void:
+	if not mirror:
+		return
+	ally_name = String(plan.get("ally", ally_name))
+	enemy_name = String(plan.get("enemy", enemy_name))
+	time_left = clampf(float(plan.get("time", GuildWarData.DURATION)), 1.0, GuildWarData.DURATION)
+	hold = false
+	_timer = COUNTDOWN
+	_count = 4
+	zone.banner_requested.emit("สงครามกิลด์ · %s ปะทะ %s" % [ally_name, enemy_name])
+
+
+## The clock between the leader's words, the hero's comeback, the crystal, the far ones.
+func _tick_mirror(delta: float) -> void:
+	if not overtime:
+		time_left = maxf(0.0, time_left - delta)
+	if hero_respawn_left > 0.0:
+		hero_respawn_left -= delta
+		if hero_respawn_left <= 0.0:
+			_respawn_hero()
+	_pulse_crystal(delta)
+	_cull_timer -= delta
+	if _cull_timer <= 0.0:
+		_cull_timer = 0.25
+		_cull_far()
+
+
+## The leader's war status ("gw") and its end ("gw_end").
+func mirror_sync(ev: String, d: Dictionary) -> void:
+	if ev == "gw_end":
+		_mirror_end(d)
+		return
+	if state == "intro" and String(d.get("st", "")) == "fight":
+		hold = false
+		_timer = minf(_timer, 0.01)
+	time_left = clampf(float(d.get("tl", time_left)), 0.0, GuildWarData.DURATION)
+	overtime = bool(d.get("ot", overtime))
+	var s: Variant = d.get("s", [])
+	if s is Array and (s as Array).size() >= 2:
+		score = [int(s[0]), int(s[1])]
+	var holder := clampi(int(d.get("o", castle_owner)), -1, 1)
+	if holder != castle_owner:
+		castle_owner = holder
+		_color_crystal()
+		if holder >= 0:
+			zone.banner_requested.emit("กิลด์ %s ยึดปราสาทได้!" % team_name(holder))
+			feed.emit("กิลด์ %s ยึดปราสาทได้!" % team_name(holder), holder)
+	var cp: Variant = d.get("cp", [])
+	if cp is Array and (cp as Array).size() >= 3:
+		capture = {"team": clampi(int(cp[0]), 0, 1), "who": null, "progress": float(cp[1]), "paused": bool(cp[2])}
+	else:
+		capture = {}
+
+
+## A mirrored fighter fell on the leader's side; the hero's blow counts as its kill.
+func mirror_fell(fighter: GuildFighter, killer: String) -> void:
+	if state != "fight":
+		return
+	if killer != "" and killer == Online.my_id():
+		hero_kills += 1
+		feed.emit("คุณ ล้ม %s" % fighter.rival_name, 1 - fighter.team)
+
+
+## The leader rang the bell: this hero's own reward and the scoreboard.
+func _mirror_end(d: Dictionary) -> void:
+	if state in ["ending", "done"]:
+		return
+	state = "ending"
+	_end_timer = 3.0
+	capture = {}
+	hold = false
+	var won := bool(d.get("won", false))
+	score = [int(d.get("us", score[0])), int(d.get("them", score[1]))]
+	overtime = bool(d.get("ot", overtime))
+	var rows: Array = [{"name": "คุณ", "class": String(Game.class_id()), "team": GuildFighter.TEAM_ALLY, "kills": hero_kills, "deaths": hero_deaths, "assists": 0, "grade": -1}]
+	for f in all_fighters():
+		if is_instance_valid(f):
+			rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade, "tag": f.tag})
+	_result = Game.guildwar_finish(won, score[0], score[1], hero_kills, hero_deaths, ally_name, enemy_name, rows)
+	_result["rows"] = rows
+	_result["overtime"] = overtime
+	_result["castle"] = String(d.get("castle", ""))
+	_result["castle_ours"] = bool(d.get("ours", false))
+	zone.banner_requested.emit("ชนะสงคราม!" if won else "พ่ายแพ้สงคราม")
+	if won and is_instance_valid(hero):
+		hero.level_up_fx()
+		AudioManager.play_sfx(&"quest_complete")
+
+
+## The link to the leader broke: this war is over for the hero (counted as lost).
+func mirror_lost() -> void:
+	if not mirror or state in ["ending", "done"]:
+		return
+	Game.say("หลุดจากสงครามของหัวหน้าปาร์ตี้", &"warning")
+	_mirror_end({"won": false})

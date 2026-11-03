@@ -1,9 +1,10 @@
 extends Node
-## STUB of the autoload `Online` (docs/ONLINE_PROTOCOL.md, "Client API"), only so the
-## trade and duel code (OnlineTrade, OnlineDuel) and their tests run before the client
-## core lands. It has the spec's signals and functions and keeps the player list and the
-## party from `welcome` / `join` / `leave` / `state` / `look` / `party` / `host` frames;
-## no socket, no feature logic. Replaced by the client core's online.gd at integration.
+## Online play (autoload `Online`): the client API of docs/ONLINE_PROTOCOL.md.
+##
+## MINIMAL STUB for the shared-combat branch. It only keeps the players, the party and
+## the zone hosts from the server frames and relays every frame on [signal message];
+## there is no socket, no UI and no feature logic here. At integration this file is
+## replaced by the client core's real one (same signals and functions).
 
 signal connected
 signal disconnected
@@ -15,26 +16,14 @@ signal host_changed(zone: StringName)
 
 var _transport: Object
 var _me := ""
-var _players := {}
-var _party := {}
-var _hosts := {}
-
-
-func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
-
-
-func _process(_delta: float) -> void:
-	if _transport == null or not _transport.has_method("poll"):
-		return
-	for text in _transport.poll():
-		var parsed: Variant = JSON.parse_string(String(text))
-		if parsed is Dictionary:
-			_dispatch(parsed)
+var _players: Dictionary = {}
+var _party: Dictionary = {}
+## zone (String) -> host id ("" nobody shares).
+var _hosts: Dictionary = {}
 
 
 func is_online() -> bool:
-	return _transport != null and _me != ""
+	return _transport != null
 
 
 func my_id() -> String:
@@ -42,11 +31,11 @@ func my_id() -> String:
 
 
 func send(type: String, data := {}) -> void:
-	if not is_online():
+	if _transport == null:
 		return
-	var frame: Dictionary = data.duplicate(true)
+	var frame: Dictionary = data.duplicate()
 	frame["t"] = type
-	_transport.send_text(JSON.stringify(frame))
+	_transport.call("send_text", JSON.stringify(frame))
 
 
 func players() -> Dictionary:
@@ -54,11 +43,12 @@ func players() -> Dictionary:
 
 
 func players_in_zone(zone: StringName) -> Array:
-	var list := []
+	var out: Array = []
 	for id in _players:
-		if StringName(String(_players[id].get("zone", ""))) == zone:
-			list.append(_players[id])
-	return list
+		var p: Dictionary = _players[id]
+		if String(p.get("zone", "")) == String(zone):
+			out.append(p)
+	return out
 
 
 func party() -> Dictionary:
@@ -70,86 +60,97 @@ func in_party() -> bool:
 
 
 func party_members_in_zone(zone: StringName) -> Array:
-	var ids := []
+	var out: Array = []
 	for id in _party.get("members", []):
 		var key := String(id)
-		if key != _me and _players.has(key) and StringName(String(_players[key].get("zone", ""))) == zone:
-			ids.append(key)
-	return ids
+		if key == _me or not _players.has(key):
+			continue
+		if String((_players[key] as Dictionary).get("zone", "")) == String(zone):
+			out.append(key)
+	return out
 
 
 func zone_host(zone: StringName) -> String:
-	return String(_hosts.get(zone, ""))
+	return String(_hosts.get(String(zone), ""))
 
 
 func is_zone_host(zone: StringName) -> bool:
-	return zone_host(zone) == _me and _me != ""
+	return in_party() and _me != "" and zone_host(zone) == _me
 
 
 func is_mirror_zone(zone: StringName) -> bool:
-	return in_party() and zone_host(zone) != "" and not is_zone_host(zone)
+	var host := zone_host(zone)
+	return in_party() and host != "" and host != _me
 
 
-## The RemotePlayer of [param id] in the current zone (group `remote_players`, its
-## `player_id` property or "online_id" meta), or null.
 func remote_node(id: String) -> Node3D:
-	if not is_inside_tree():
+	if id == "" or not is_inside_tree():
 		return null
 	for node in get_tree().get_nodes_in_group("remote_players"):
-		if node is Node3D and (String(node.get("player_id")) == id or String(node.get_meta("online_id", "")) == id):
-			return node
+		if is_instance_valid(node) and String(node.get_meta("online_id", node.get("player_id") if "player_id" in node else "")) == id:
+			return node as Node3D
 	return null
 
 
+## Tests: swap the socket for an object with send_text(text) and poll() -> Array[String].
 func use_transport(transport: Object) -> void:
+	var was := _transport != null
 	_transport = transport
 	if transport == null:
-		var was := _me != ""
 		_me = ""
 		_players.clear()
 		_party = {}
 		_hosts.clear()
 		if was:
 			disconnected.emit()
+			party_changed.emit()
+	elif not was:
+		connected.emit()
 
 
+func _process(_delta: float) -> void:
+	if _transport == null or not _transport.has_method("poll"):
+		return
+	for text in _transport.call("poll"):
+		var msg: Variant = JSON.parse_string(String(text))
+		if msg is Dictionary:
+			_dispatch(msg)
+
+
+## Handles one server frame as if it came off the wire.
 func _dispatch(msg: Dictionary) -> void:
-	var t := String(msg.get("t", ""))
-	match t:
+	var type := String(msg.get("t", ""))
+	match type:
 		"welcome":
-			_me = String(msg.get("you", {}).get("id", ""))
+			_me = String((msg.get("you", {}) as Dictionary).get("id", ""))
 			_players.clear()
 			for p in msg.get("players", []):
 				if p is Dictionary and String(p.get("id", "")) != _me:
 					_players[String(p.id)] = p
 			_party = msg.get("party") if msg.get("party") is Dictionary else {}
-			connected.emit()
+			party_changed.emit()
 		"join":
 			var p: Variant = msg.get("player")
 			if p is Dictionary and String(p.get("id", "")) != "":
 				_players[String(p.id)] = p
 				player_joined.emit(String(p.id))
-		"players":
-			for p in msg.get("players", []):
-				if p is Dictionary and String(p.get("id", "")) != _me:
-					_players[String(p.id)] = p
 		"leave":
 			var id := String(msg.get("id", ""))
 			if _players.erase(id):
 				player_left.emit(id)
-		"state", "look":
+		"state":
 			var id := String(msg.get("id", ""))
 			if _players.has(id):
+				var p: Dictionary = _players[id]
 				for key in msg:
 					if key != "t" and key != "id":
-						_players[id][key] = msg[key]
+						p[key] = msg[key]
 		"party":
 			_party = msg.get("party") if msg.get("party") is Dictionary else {}
 			party_changed.emit()
 		"host":
-			var zone := StringName(String(msg.get("zone", "")))
-			_hosts[zone] = String(msg.get("id", "")) if msg.get("id") != null else ""
-			host_changed.emit(zone)
-		"kicked":
-			use_transport(null)
-	message.emit(t, msg)
+			var zone := String(msg.get("zone", ""))
+			var id: Variant = msg.get("id")
+			_hosts[zone] = String(id) if id != null else ""
+			host_changed.emit(StringName(zone))
+	message.emit(type, msg)
