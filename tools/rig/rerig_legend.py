@@ -1,9 +1,12 @@
 """Re-author the clips of a shipped legend summon (no 18 MB source needed).
 usage: rerig_legend.py assets/models/monsters/summon/WindKing.glb tools/rig/windking.json [report.json]
 
-Reads the mesh, texture, skeleton and skin weights from the glb build_rig.py wrote,
-rebuilds the animations with legend_clips.author() and runs the stretch check, then
-writes the glb back in place. The rig check result is appended to the report file.
+Reads the mesh and texture from the glb build_rig.py wrote, cuts the welded parts apart
+and recomputes the skin weights (legend_weights.compute), rebuilds the skeleton from the
+spec (with its secondary chains) and the animations (legend_clips.author), runs the
+stretch check, then writes the glb back in place. The rig check result is merged into
+the report file. Running it again on its own output gives the same rig: the seam copies
+weld back together before the parts are cut.
 """
 import sys, json, struct, io, os
 import numpy as np
@@ -45,33 +48,29 @@ F = read(prim["indices"]).astype(np.uint32).reshape(-1, 3)
 imgv = gl["bufferViews"][gl["images"][0]["bufferView"]]
 jb = bin0[imgv["byteOffset"]:imgv["byteOffset"] + imgv["byteLength"]]
 
-# Skeleton from the node tree (world-space heads, parents).
-nodes = gl["nodes"]
-joints = gl["skins"][0]["joints"]
-parent_of = {}
-for i, n in enumerate(nodes):
-    for ch in n.get("children", []):
-        parent_of[ch] = i
-heads = {}
-for j in joints:
-    p = j
-    head = np.zeros(3)
-    while p is not None:
-        head += np.array(nodes[p].get("translation", [0, 0, 0]), float)
-        p = parent_of.get(p)
-    heads[j] = head
-bones = []
-for j in joints:
-    p = parent_of.get(j)
-    bones.append((nodes[j]["name"], nodes[p]["name"] if p is not None and p in joints else None, heads[j]))
+# Skeleton from the spec (the core bones build_rig.py made, plus the secondary chains).
+bones = [(b[0], b[1], np.array(b[2], float)) for b in lw.bones_of(spec)]
 names = [b[0] for b in bones]
-hips = heads[joints[names.index("Hips")]]
+old_heads = {}
+nodes = gl["nodes"]
+parent_of = {ch: i for i, n in enumerate(nodes) for ch in n.get("children", [])}
+for j in gl["skins"][0]["joints"]:
+    h, p = np.zeros(3), j
+    while p is not None:
+        h += np.array(nodes[p].get("translation", [0, 0, 0]), float)
+        p = parent_of.get(p)
+    old_heads[nodes[j]["name"]] = h
+drift = max(float(np.abs(old_heads[n] - h).max()) for n, _, h in bones if n in old_heads)
+assert drift < 1e-3, "the glb skeleton does not match the spec joints (%.4f)" % drift
 
-# Skin weights are recomputed from the mesh and the spec (the weapon bends instead of tearing).
-JJ, WW, weapon, _ = lw.compute(V, F, spec)
-print(spec["name"], "weapon verts", int(weapon.sum()), "of", len(V))
-clips = lc.author(spec["style"], hips)
-report = lc.check_stretch(V, F, JJ, WW, bones, clips, float(spec.get("height_m", 3.5)))
+# Parts, seams and skin weights from the mesh and the spec. Seam vertices are doubled
+# (one copy per side), so positions, normals and UVs are re-indexed through r["src"].
+r = lw.compute(V, F, spec)
+V, N, UV = V[r["src"]], N[r["src"]], UV[r["src"]]
+F, JJ, WW = r["F"], r["J"], r["W"]
+print(spec["name"], "seams", r["seams"], "verts", len(V), "weapon verts", int(r["weapon"].sum()))
+clips = lc.author(spec["style"], [(b[0], b[1], b[2]) for b in bones], spec)
+report = lc.check_stretch(V, F.astype(np.int64), JJ, WW, bones, clips, float(spec.get("height_m", 3.5)))
 print(spec["name"], "stretch:", json.dumps(report))
 
 # ---------------- glTF writer (same layout build_rig.py uses) ----------------

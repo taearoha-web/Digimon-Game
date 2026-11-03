@@ -99,6 +99,10 @@ var _spawn_timer := 0.0
 var _weather: Node3D
 var _env: WorldEnvironment
 var _ambient_base := 0.33
+## Morning, day, evening and night on the world clock (DayNight), in the zones that follow it.
+var day_night: DayNight
+## Until when (engine msec) a storm flash owns the ambient light and fog (DayNight waits).
+var _flash_until := 0
 var _arena_wave := 0
 var _arena_state := "wait"
 var _arena_timer := 4.0
@@ -176,6 +180,8 @@ func _ready() -> void:
 		_build_pvp()
 	else:
 		await _build_field()
+	if DayNight.follows(zone_id) and _env != null:
+		day_night = DayNight.attach(self, _env, TOWN_RADIUS if is_town else field_radius, 1.0 if is_town else 0.0)
 	_phase("build_world")
 	await _slice()
 	MemoryGuard.reset_scale_3d(get_tree())
@@ -566,6 +572,7 @@ func _storm_flash() -> void:
 		return
 	var env := _env.environment
 	var fog := env.fog_light_color
+	_flash_until = Time.get_ticks_msec() + 650
 	var tween := create_tween()
 	tween.tween_property(env, "ambient_light_energy", _ambient_base * 3.4, 0.05)
 	tween.parallel().tween_property(env, "fog_light_color", fog.lightened(0.5), 0.05)
@@ -577,13 +584,20 @@ func _storm_flash() -> void:
 	tween.tween_callback(_storm_flash)
 
 
+func is_flashing() -> bool:
+	return Time.get_ticks_msec() < _flash_until
+
+
 func _build_town() -> void:
 	var look := {"theme": &"village", "palette": [Color("6fa8dc"), Color("b6d4ea"), Color("f3e9dc")], "sun_size": 1.1,
 		"sun_color": Color("fff0d5"), "cloud_range": Vector2(100.0, 150.0), "cloud_height": Vector2(12.0, 24.0)}
 	_env = Scenery.environment(self, Color("a7cddd"), Color("e7e4d7"), Color("c2d2df"), Color("fff0d5"), look)
 	_start = JapanVillage.START
 	await _slice()
-	Scenery.ground(self, 140.0, Color("7e9568"), Color("a1b586"), 2, Color("cbbba0"), JapanVillage.paths(), 3.6, [], &"village")
+	# Dark-gray Japanese stone paving; gardens and the meadow beyond stay grass.
+	var green := JapanVillage.green_areas()
+	var streets := JapanVillage.paths()
+	VillageGround.build(self, 140.0, TOWN_RADIUS, green, streets, Vector3(0, 0, JapanVillage.PLAZA_RADIUS))
 	await _slice()
 	var clear := JapanVillage.build(self, rng)
 	var villagers := _villagers()
@@ -596,7 +610,8 @@ func _build_town() -> void:
 	for stall in JapanVillage.STALLS:
 		clear.append(Vector3(stall.x, stall.z, 1.6))
 	await _slice()
-	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null)
+	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null,
+		VillageGround.grows.bind(TOWN_RADIUS, green, streets))
 	await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)
@@ -613,31 +628,32 @@ func _build_town() -> void:
 		_add_npc(v[0], v[1], v[2], v[3], v[4], v[5], v[6])
 		await _slice()
 	var board := NoticeBoard.new()
-	board.position = Vector3(6.5, 0, 8.0)
-	board.rotation.y = -0.6
+	board.position = JapanVillage.NOTICE
+	board.rotation.y = atan2(_start.x - JapanVillage.NOTICE.x, _start.z - JapanVillage.NOTICE.z)
 	add_child(board)
 	board.setup("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน")
 	npcs.append(board)
-	_add_warp(Vector3(-8.0, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
+	_add_warp(JapanVillage.WARP, "จุดวาปข้ามแมพ / กลับเมือง")
 
 
 ## The villagers: role, name, class, title, where they stand, model, the point they face.
+## Each stands at its own building in its district, facing the street.
 func _villagers() -> Array:
 	var V := JapanVillage
 	return [
-		["elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-10, 0, -23), "Mage", Vector3(0, 0, -23)],
+		["elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", V.ELDER_HOUSE + Vector3(0, 0, -7.4), "Mage", V.ELDER_HOUSE + Vector3(0, 0, -20)],
 		["job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20)],
 		["skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", V.DOJO + Vector3(2.5, 0, 9.0), "Mage", V.DOJO + Vector3(2.5, 0, 20)],
 		["shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20)],
 		["forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20)],
 		["storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20)],
 		["registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20)],
-		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING],
-		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING],
-		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING],
-		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING],
-		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30)],
-		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0)],
+		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-4.0, 0, -9.0), "Barbarian", V.RING + Vector3(-4.0, 0, -30)],
+		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -9.0), "Knight", V.RING + Vector3(4.0, 0, -30)],
+		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
+		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
+		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
+		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
 	]
 
