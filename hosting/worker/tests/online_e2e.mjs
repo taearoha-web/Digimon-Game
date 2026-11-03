@@ -174,9 +174,16 @@ try {
   assert.deepEqual(await b.next('kicked'), {t: 'kicked', reason: 'elsewhere'});
   assert.equal((await b2.next('welcome')).party.leader, alice.id);
 
+  // Bob's connection drops: he keeps his place in the party (away) and is back in it
+  // when he reconnects, with no new invite.
   b2.ws.close();
+  assert.deepEqual((await a.next('party')).party.away, [bob.id]);
   assert.deepEqual(await a.next('leave'), {t: 'leave', id: bob.id});
-  assert.deepEqual(await a.next('party'), {t: 'party', party: null});
+  const b3 = open(bob.cookie);
+  await b3.opened;
+  assert.deepEqual((await b3.next('welcome')).party.members, [alice.id, bob.id]);
+  assert.deepEqual((await a.next('party')).party.away, []);
+  b3.ws.close();
   a.ws.close();
   await waitFor(async () => (await (await fetch(`${BASE}/api/online/status`)).json()).online === 0, 5000, 'everyone gone');
   console.log('online e2e: ok (wrangler dev, D1 accounts, two WebSockets: welcome, join, chat, party, host, ent_snap, kick, leave)');

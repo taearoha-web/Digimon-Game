@@ -3,7 +3,7 @@
  * routes with the real account code on SQLite. Run: node hosting/worker/tests/online.test.mjs */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE} from '../online/room.mjs';
+import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS} from '../online/room.mjs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
 import {handleAccountRequest} from '../../accounts/server/accounts.js';
@@ -140,7 +140,7 @@ test('chat: world to all, party to members, whisper to sender and target, trimme
 });
 
 test('party: invite, answer, max 5, leader-only kick, leader handover, dissolve', () => {
-  const {connect} = world();
+  const {room, clock, connect} = world();
   const [a, b, c, d, e, f] = ['1', '2', '3', '4', '5', '6'].map(id => connect(id).hello());
   a.send({t: 'party_invite', to: '2'});
   assert.deepEqual(b.last('party_invite'), {t: 'party_invite', from: '1', name: 'Hero 1'});
@@ -181,17 +181,31 @@ test('party: invite, answer, max 5, leader-only kick, leader handover, dissolve'
   assert.deepEqual(a.last('party'), {t: 'party', party: null});
   assert.equal(b.last('party').party.leader, '2');
   assert.deepEqual(b.last('party').party.members, ['2', '4', '5']);
-  // The leader drops: handover again.
+  // The leader drops: handover again, but it keeps its place (away) for the grace.
   b.close();
   assert.equal(d.last('party').party.leader, '4');
+  assert.deepEqual(d.last('party').party.away, ['2']);
+  assert.deepEqual(d.last('party').party.members, ['2', '4', '5']);
   e.send({t: 'party_leave'});
+  assert.deepEqual(d.last('party').party.members, ['2', '4'], 'an away member still counts');
+  // Back within the grace: in the party again, without a new invite.
+  const b2 = connect('2').hello();
+  assert.deepEqual(b2.last('welcome').party.members, ['2', '4']);
+  assert.deepEqual(d.last('party').party.away, [], 'everyone is back');
+  assert.equal(b2.last('party').party.leader, '4', 'the lead stays where it went');
+  // Gone past the grace: out of the party, and a party of one ends.
+  b2.close();
+  clock.t += PARTY_GRACE_MS + 1000;
+  d.send({t: 'who'});   // d's own traffic keeps it online and runs the room's tick
   assert.deepEqual(d.last('party'), {t: 'party', party: null}, 'a party of one ends');
-  // Someone in a party cannot be invited into another.
-  partyUp(c, d);
-  a.send({t: 'party_invite', to: '4'});
-  assert.equal(a.last('error').code, 'in_party');
-  a.send({t: 'party_invite', to: '1'});
-  assert.equal(a.last('error').code, 'self');
+  // Someone in a party cannot be invited into another (fresh players: the 15 minutes
+  // above left everyone else idle and dropped).
+  const [g, h, k] = ['7', '8', '9'].map(id => connect(id).hello());
+  partyUp(g, h);
+  k.send({t: 'party_invite', to: '8'});
+  assert.equal(k.last('error').code, 'in_party');
+  k.send({t: 'party_invite', to: '9'});
+  assert.equal(k.last('error').code, 'self');
 });
 
 test('host per (party, zone): leader when present, else first arrival; re-elected on zone change and drop', () => {
@@ -544,7 +558,9 @@ test('export / restore keeps players, parties, hosts and stalls across a wake-up
   fresh.restore(a.key, sa, records[0]);
   fresh.restore(b.key, sb, records[1]);
   fresh.finishRestore();
-  assert.deepEqual(sa.sent.find(f => f.t === 'party').party.members, ['1', '2']);
+  const back = sa.sent.find(f => f.t === 'party').party;
+  assert.deepEqual(back.members, ['1', '2', '3'], 'c keeps its place for the grace');
+  assert.deepEqual(back.away, ['3'], 'c is away until it reconnects');
   assert.equal(sa.sent.filter(f => f.t === 'host').length, 0, 'host unchanged: nothing resent');
   fresh.message(b.key, JSON.stringify({t: 'chat', ch: 'party', text: 'still here'}));
   assert.equal(sa.sent.at(-1).text, 'still here');
@@ -609,7 +625,7 @@ test('WorldRoom: hibernation-safe attachments, wake-up rebuild, close, status', 
   assert.equal(wb.sent.at(-1).user, 'alice');
   await woke.webSocketClose(wa, 1001, 'bye');
   assert.deepEqual(wb.sent.find(f => f.t === 'leave'), {t: 'leave', id: '1'});
-  assert.deepEqual(wb.sent.find(f => f.t === 'party' && f.party === null), {t: 'party', party: null});
+  assert.deepEqual(wb.sent.filter(f => f.t === 'party').at(-1).party.away, ['1'], 'a dropped member is away, not out');
   assert.deepEqual(wb.sent.at(-1), {t: 'host', zone: 'meadow', id: null});
   assert.equal(woke.room.count, 1);
   const upgrade = await woke.fetch(new Request('https://world/api/online/ws'));
@@ -679,4 +695,49 @@ test('worker: /api/online/status, 426 without upgrade, 401 without a session, fo
   assert.equal(forwarded.headers.cookie, undefined, 'the session cookie stays at the Worker');
   response = await worker.fetch(new Request(`${ORIGIN}/api/online/status`), {DB});
   assert.equal(response.status, 503, 'no WORLD binding');
+});
+
+test('WorldRoom: parties outlive a restart (storage) and members rejoin on reconnect', async () => {
+  const store = new Map();
+  const pending = [];
+  const ctxWith = () => ({
+    ...fakeCtx(),
+    storage: {
+      alarm: null,
+      async getAlarm() {return this.alarm;},
+      async setAlarm(at) {this.alarm = at;},
+      async get(k) {return store.get(k);},
+      async put(k, v) {store.set(k, JSON.parse(JSON.stringify(v)));},
+    },
+    blockConcurrencyWhile(fn) {const p = fn(); pending.push(p); return p;},
+  });
+  const ctx = ctxWith();
+  const dobj = new WorldRoom(ctx, {});
+  await Promise.all(pending);
+  const wa = fakeWs(), wb = fakeWs();
+  ctx.acceptWebSocket(wa);
+  dobj.accept(wa, '1', 'alice');
+  ctx.acceptWebSocket(wb);
+  dobj.accept(wb, '2', 'bob');
+  const hello = name => JSON.stringify({t: 'hello', name, cls: 'mage', level: 5, stars: 0, look: {}, zone: 'meadow', pos: [0, 0, 0], yaw: 0, hp: 1, max_hp: 1, mount: ''});
+  await dobj.webSocketMessage(wa, hello('Alice'));
+  await dobj.webSocketMessage(wb, hello('Bob'));
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'party_invite', to: '2'}));
+  await dobj.webSocketMessage(wb, JSON.stringify({t: 'party_answer', from: '1', ok: true}));
+  await Promise.resolve();
+  assert.deepEqual(store.get('parties')[0].members, ['1', '2'], 'the party is stored');
+  // The object restarts (a deploy): every socket is gone, the storage stays.
+  const ctx2 = ctxWith();
+  const again = new WorldRoom(ctx2, {});
+  await Promise.all(pending);
+  const wa2 = fakeWs();
+  ctx2.acceptWebSocket(wa2);
+  again.accept(wa2, '1', 'alice');
+  const welcome = wa2.sent.find(f => f.t === 'welcome');
+  assert.deepEqual(welcome.party.members, ['1', '2'], 'back in the party after the restart');
+  assert.deepEqual(welcome.party.away, ['2'], 'bob is away until he reconnects');
+  const wb2 = fakeWs();
+  ctx2.acceptWebSocket(wb2);
+  again.accept(wb2, '2', 'bob');
+  assert.deepEqual(wb2.sent.find(f => f.t === 'welcome').party.away, [], 'both back');
 });

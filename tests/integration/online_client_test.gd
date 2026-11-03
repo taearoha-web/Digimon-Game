@@ -414,6 +414,18 @@ func _party(fake: FakeTransport) -> void:
 	Online._dispatch({"t": "leave", "id": "p2"})
 	check(toasts.any(func(t): return String(t).contains("Kaito")), "a party member logging off: a toast")
 	Online._dispatch({"t": "join", "player": _player("p2", "Kaito", "town", hero.global_position + Vector3(2, 0, 0))})
+	# A member whose connection drops keeps its place (the server's grace): away, then back.
+	toasts.clear()
+	Online._dispatch({"t": "party", "party": {"id": "pt9", "leader": "me1", "members": ["me1", "p2"], "away": ["p2"]}})
+	check(Online.in_party() and Online.party_away() == ["p2"] and (Online.party().members as Array).has("p2"), "a dropped member is away, still in the party")
+	check(toasts.any(func(t): return String(t).contains("Kaito") and String(t).contains("หลุด")), "a toast says it dropped and may come back (%s)" % [toasts])
+	toasts.clear()
+	Online._dispatch({"t": "leave", "id": "p2"})
+	check(not toasts.any(func(t): return String(t).contains("ออกจากเกม")), "no second 'logged off' toast for an away member")
+	check(Online.display_name(Online.player("p2")) == "Kaito", "its name is remembered while it is away")
+	Online._dispatch({"t": "join", "player": _player("p2", "Kaito", "town", hero.global_position + Vector3(2, 0, 0))})
+	Online._dispatch({"t": "party", "party": {"id": "pt9", "leader": "me1", "members": ["me1", "p2"], "away": []}})
+	check(Online.party_away().is_empty() and toasts.any(func(t): return String(t).contains("Kaito") and String(t).contains("กลับมา")), "back: a toast")
 	Online._dispatch({"t": "party", "party": null})
 	check(not Online.in_party() and Online.party().is_empty() and Online.zone_host(&"town") == "", "party null: no party, no hosts")
 	# An invitation and its answer (the card at the top).
