@@ -799,7 +799,26 @@ func _build_online_party(column: Control) -> void:
 		tag.add_theme_color_override("font_color", Color("6dffd0"))
 		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tag.visible = false
 		row.add_child(tag)
+		# "ตาม": the hero walks after this member (and fights around them in the fields).
+		var follow := Button.new()
+		follow.name = "Follow"
+		follow.text = "ตาม"
+		follow.focus_mode = Control.FOCUS_NONE
+		follow.custom_minimum_size = Vector2(54, KICK_SIZE + 4)
+		follow.add_theme_font_size_override("font_size", 13)
+		follow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		follow.pressed.connect(func():
+			if String(entry.id) == "":
+				return
+			AudioManager.play_ui(&"ui_click")
+			if Online.follow_id == String(entry.id):
+				Online.stop_follow("หยุดเดินตามแล้ว")
+			else:
+				Online.set_follow(String(entry.id))
+			_update_online_party())
+		row.add_child(follow)
 		var kick := Button.new()
 		kick.name = "Kick"
 		kick.text = "✕"
@@ -820,7 +839,7 @@ func _build_online_party(column: Control) -> void:
 				AudioManager.play_ui(&"ui_cancel")
 				Online.kick(String(entry.id)))
 		row.add_child(kick)
-		entry.merge({"badge": badge, "letter": letter, "title": title, "bar": bar, "kick": kick})
+		entry.merge({"badge": badge, "letter": letter, "title": title, "bar": bar, "kick": kick, "follow": follow})
 		_online_cards.append(entry)
 
 
@@ -844,6 +863,10 @@ func _update_online_party() -> void:
 		var p: Dictionary = Online.players()[id]
 		entry["id"] = id
 		(entry.kick as Control).visible = leader
+		var following := Online.follow_id == id
+		var follow_button := entry.follow as Button
+		follow_button.text = "หยุด" if following else "ตาม"
+		follow_button.modulate = Color(0.55, 1.0, 0.85) if following else Color.WHITE
 		var stars := int(p.stars)
 		var cls := StringName(String(p.cls)) if String(p.cls) != "" else StringName(String((p.look as Dictionary).get("class", ClassData.START)))
 		var here := String(p.zone) == String(zone.zone_id)
