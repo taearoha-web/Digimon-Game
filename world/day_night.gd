@@ -448,7 +448,8 @@ func apply(force := false) -> void:
 	if force or absf(angles.x - _light_angles.x) > ANGLE_STEP or absf(angles.y - _light_angles.y) > ANGLE_STEP:
 		_light_angles = angles
 		sun.rotation_degrees = Vector3(angles.x, angles.y, 0.0)
-	sun.shadow_opacity = now.shadow
+	if absf(sun.shadow_opacity - now.shadow) > 0.005:
+		sun.shadow_opacity = now.shadow
 	if force or _far(_cloud_tint, now.cloud):
 		_cloud_tint = now.cloud
 		if _cloud_mat:
