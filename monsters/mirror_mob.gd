@@ -8,7 +8,9 @@ extends Mob
 ## a hit on it goes to the host as `ent_hit` (the damage number shows here at once), a
 ## stun, slow, burn, mark or taunt too. It dies only when the host says so (mirror_dead):
 ## then Mob._die pays this game's EXP and loot through the zone, as if the hero had
-## killed it.
+## killed it, but only when this game earned it (EntitySync.earns: the hero's side or a
+## party member here dealt damage). A new host made of this game turns it into a real Mob
+## (EntitySync._take_over).
 
 var eid := 0
 var sync: EntitySync
@@ -17,7 +19,11 @@ var kind := ""
 var goal := Vector3.ZERO
 var goal_yaw := 0.0
 var flags := 0
+## Damage the hero's side dealt to it here (sent to the host as ent_hit).
+var dealt := 0
 var _acting := false
+## 1 when this game rolls the kill's reward, 0 when it took no part (mirror_dead).
+var _reward := 1.0
 
 
 func setup_mirror(p_sync: EntitySync, p_eid: int, d: Dictionary, p_hero: Node3D) -> void:
@@ -44,6 +50,10 @@ func setup_mirror(p_sync: EntitySync, p_eid: int, d: Dictionary, p_hero: Node3D)
 	goal = at
 	goal_yaw = float(d.get("y", 0.0))
 	_yaw = goal_yaw
+	if d.has("hx") and d.has("hz"):
+		home = Vector3(float(d.get("hx", 0.0)), 0.0, float(d.get("hz", 0.0)))
+	# Already raging (a late join or a new host's word): no shock for the old phases.
+	phase = clampi(int(d.get("p", 0)), 0, 3)
 	position = at + Vector3(0, 0.3, 0)
 	set_meta("mirror_eid", eid)
 
@@ -113,6 +123,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 	if attacker != null and is_instance_valid(attacker) and attacker.is_in_group("world_players") and not attacker.is_in_group("companions"):
 		return false
 	set_dormant(false)
+	dealt += amount
 	if is_instance_valid(sync):
 		sync.forward(self, amount, crit)
 	hp = maxi(1, hp - amount)
@@ -180,15 +191,19 @@ func _check_phase() -> void:
 	pass
 
 
-## Every member's game pays a kill in full (each rolls its own drop).
+## A game that earned the kill pays it in full (each rolls its own drop); one that took no
+## part gets nothing (mirror_dead).
 func party_share() -> float:
-	return 1.0
+	return _reward
 
 
-## The host's monster fell: the zone pays this game's EXP and loot.
-func mirror_dead(_data: Dictionary) -> void:
+## The host's monster fell: the zone pays this game's EXP and loot when it earned them.
+func mirror_dead(data: Dictionary) -> void:
 	if _dead:
 		return
+	if is_instance_valid(sync) and not sync.earns(eid, data, dealt):
+		_reward = 0.0
+		EntitySync.no_credit(self)
 	hp = 0
 	_bar.set_ratio(0.0)
 	_die()

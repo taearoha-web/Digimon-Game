@@ -46,6 +46,8 @@ const MAX_FRAME := 8192
 const PARTY_TINT := Color("7dff8a")
 ## No position in any zone is farther from its centre than this (metres).
 const WORLD_LIMIT := 5000.0
+## Zones whose monsters only the party shares (as the server's INSTANCED_ZONES).
+const INSTANCED_ZONES: Array[StringName] = [&"tower", &"pvp", &"guildwar", &"arena"]
 
 var _transport: Object
 var _open := false
@@ -166,10 +168,32 @@ func is_zone_host(zone: StringName) -> bool:
 	return my_id() != "" and zone_host(zone) == my_id()
 
 
-## In a party and someone else simulates the zone: do not spawn monsters there.
+## Someone else simulates the zone (its zone host; party or not, docs "Shared world"):
+## do not spawn monsters there.
 func is_mirror_zone(zone: StringName) -> bool:
 	var host := zone_host(zone)
-	return in_party() and host != "" and host != my_id()
+	return host != "" and host != my_id()
+
+
+## Zones shared within the party only (the server's INSTANCED_ZONES); every other zone is
+## open: everyone in it shares the same monsters.
+static func is_instanced(zone: StringName) -> bool:
+	return INSTANCED_ZONES.has(StringName(zone))
+
+
+## The other real players (connected, me excluded) whose player is in `zone`, party or not.
+func zone_members(zone: StringName) -> Array:
+	var out: Array = []
+	for id in _players:
+		if id != my_id() and String(_players[id].zone) == String(zone):
+			out.append(id)
+	return out
+
+
+## Who the zone host of `zone` serves (ids, me excluded): everyone there in an open zone,
+## the party members there in an instanced one.
+func serves(zone: StringName) -> Array:
+	return party_members_in_zone(zone) if is_instanced(zone) else zone_members(zone)
 
 
 ## The player whose game makes the AI world chat for everyone (`whost`; "" when the
@@ -897,11 +921,13 @@ func _set_party(raw: Variant, quiet: bool) -> void:
 				Game.say("%s ออกจากปาร์ตี้แล้ว" % display_name(player(id)), &"info")
 		if had and now.is_empty():
 			Game.say("ออกจากปาร์ตี้แล้ว", &"info")
+	# Out of the party: the party-scoped hosts (instanced zones) are gone; an open zone's
+	# host is the zone's, not the party's, and stays.
 	if now.is_empty() and not _hosts.is_empty():
-		var zones := _hosts.keys()
-		_hosts.clear()
-		for z in zones:
-			host_changed.emit(z)
+		for z in _hosts.keys():
+			if is_instanced(z):
+				_hosts.erase(z)
+				host_changed.emit(z)
 	for id in _players:
 		_sync_remote(id)
 		var r := remote_node(id) as RemotePlayer
