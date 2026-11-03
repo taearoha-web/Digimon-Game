@@ -48,6 +48,7 @@ func _ready() -> void:
 		check(p.stall_at.is_finite() and not spots.has(p.stall_at), "%s has a stall of its own" % p.member.name)
 		spots[p.stall_at] = true
 	check(keepers_shown <= JapanVillage.STALLS.size(), "no more keepers than stalls (%d of %d)" % [keepers_shown, JapanVillage.STALLS.size()])
+	_market_stalls(zone, spots)
 	# A day when more keepers are online than there are stalls: still one stall each.
 	var presence0: WorldPresence = zone.presence if "presence" in zone else null
 	if presence0 != null:
@@ -175,3 +176,30 @@ func _ready() -> void:
 		check(first <= 2 and later > first, "arrivals come one per frame (%d after the sync, %d six frames on, %d before)" % [first, later, shown_before])
 	print("TOWN LOD: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
+
+
+## The world players sell only on the market street: every stall spot (and every shown
+## keeper's) lies in the market district, faces the walkway, stands apart from the next one
+## so each keeper can be walked up to and tapped, and neither the spot nor the walkway in
+## front of it is inside a wall, a booth or a building.
+func _market_stalls(zone: Zone, shown: Dictionary) -> void:
+	check(JapanVillage.STALLS.size() >= 16, "enough stalls for the keepers online (%d)" % JapanVillage.STALLS.size())
+	var space := zone.get_world_3d().direct_space_state
+	for i in JapanVillage.STALLS.size():
+		var spot: Vector3 = JapanVillage.STALLS[i]
+		check(String(JapanVillage.district_at(spot).get("id", "")) == "market", "stall %d at %s is in the market district" % [i, spot])
+		var face := JapanVillage.stall_face(spot)
+		check(absf(spot.z + face.z * 4.0) < absf(spot.z), "stall %d faces the market street (%s)" % [i, face])
+		for k in JapanVillage.STALLS.size():
+			if k != i:
+				check(spot.distance_to(JapanVillage.STALLS[k]) >= 2.5, "stalls %d and %d stand apart" % [i, k])
+		for at in [spot, spot + face * 1.5]:
+			var q := PhysicsShapeQueryParameters3D.new()
+			var ball := SphereShape3D.new()
+			ball.radius = 0.4
+			q.shape = ball
+			q.transform = Transform3D(Basis(), at + Vector3(0, 1.0, 0))
+			q.collision_mask = 1
+			check(space.intersect_shape(q, 4).is_empty(), "stall %d (and the walkway in front) is not inside anything (%s)" % [i, at])
+	for spot in shown:
+		check(String(JapanVillage.district_at(spot).get("id", "")) == "market", "a keeper shown in the village sells on the market street (%s)" % spot)

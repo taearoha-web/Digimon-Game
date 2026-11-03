@@ -1,7 +1,8 @@
 class_name Minimap
 extends Control
 ## Round radar in the corner: the hero in the middle, monsters (red), the boss
-## (big gold), the golden monster (gold), your companion (cyan), portals (blue) and villagers (yellow).
+## (big gold), the golden monster (gold), your companion (cyan), portals (blue) and villagers (yellow);
+## in the village each district's outline in its own colour.
 ## The map turns with the camera so "up" is where you are looking.
 
 const RADIUS := 66.0
@@ -47,6 +48,9 @@ func _draw() -> void:
 	for camp in zone._camps:
 		var p := _to_map(Vector3(camp.pos.x, 0, camp.pos.y), origin, yaw)
 		_ring(c, p, float(camp.radius) * RADIUS / WORLD_RADIUS, Color(0.5, 1.0, 0.6, 0.35))
+	if zone.is_town:
+		for district in JapanVillage.DISTRICTS:
+			_district(c, district, origin, yaw)
 	for portal in zone.portals:
 		_dot(c, _to_map(portal.pos, origin, yaw), Color("5ad0ff"), 5.0, true)
 	for npc in zone.npcs:
@@ -105,6 +109,46 @@ func _ring(c: Vector2, p: Vector2, ring_r: float, color: Color) -> void:
 		run.clear()
 	if run.size() >= 2:
 		draw_polyline(run, color, 1.5, true)
+
+
+## A village district's outline (its rect, or the plaza's circle), only where it lies
+## inside the round map.
+func _district(c: Vector2, district: Dictionary, origin: Vector3, yaw: float) -> void:
+	var world := PackedVector2Array()
+	if district.has("radius"):
+		var centre: Vector2 = district.center
+		for i in 33:
+			world.append(centre + Vector2.from_angle(TAU * float(i) / 32.0) * float(district.radius))
+	else:
+		var r: Rect2 = district.rect
+		var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y), r.position]
+		for k in 4:
+			var a: Vector2 = corners[k]
+			var b: Vector2 = corners[k + 1]
+			var steps := maxi(1, int(a.distance_to(b) / 3.0))
+			for i in steps:
+				world.append(a.lerp(b, float(i) / float(steps)))
+		world.append(r.position)
+	var points := PackedVector2Array()
+	for w in world:
+		points.append(_to_map(Vector3(w.x, 0, w.y), origin, yaw))
+	_clipped(c, points, Color(district.color, 0.6), 2.0)
+
+
+## Draws a map-space polyline, only the parts inside the round map.
+func _clipped(c: Vector2, points: PackedVector2Array, color: Color, width: float) -> void:
+	var inner := RADIUS - 2.5
+	var run := PackedVector2Array()
+	for q in points:
+		if q.length() <= inner:
+			run.append(c + q)
+			drawn.append([c + q, 0.75])
+			continue
+		if run.size() >= 2:
+			draw_polyline(run, color, width, true)
+		run.clear()
+	if run.size() >= 2:
+		draw_polyline(run, color, width, true)
 
 
 func _dot(c: Vector2, p: Vector2, color: Color, r: float, diamond := false) -> void:

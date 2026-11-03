@@ -596,31 +596,32 @@ func _build_town() -> void:
 		_add_npc(v[0], v[1], v[2], v[3], v[4], v[5], v[6])
 		await _slice()
 	var board := NoticeBoard.new()
-	board.position = Vector3(6.5, 0, 8.0)
-	board.rotation.y = -0.6
+	board.position = JapanVillage.NOTICE
+	board.rotation.y = atan2(_start.x - JapanVillage.NOTICE.x, _start.z - JapanVillage.NOTICE.z)
 	add_child(board)
 	board.setup("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน")
 	npcs.append(board)
-	_add_warp(Vector3(-8.0, 0, 3.5), "จุดวาปข้ามแมพ / กลับเมือง")
+	_add_warp(JapanVillage.WARP, "จุดวาปข้ามแมพ / กลับเมือง")
 
 
 ## The villagers: role, name, class, title, where they stand, model, the point they face.
+## Each stands at its own building in its district, facing the street.
 func _villagers() -> Array:
 	var V := JapanVillage
 	return [
-		["elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", Vector3(-10, 0, -23), "Mage", Vector3(0, 0, -23)],
+		["elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", V.ELDER_HOUSE + Vector3(0, 0, -7.4), "Mage", V.ELDER_HOUSE + Vector3(0, 0, -20)],
 		["job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20)],
 		["skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", V.DOJO + Vector3(2.5, 0, 9.0), "Mage", V.DOJO + Vector3(2.5, 0, 20)],
 		["shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20)],
 		["forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20)],
 		["storage", "เจ้าของคลัง", &"warrior", "ฝากของ / ขยายกระเป๋า", V.KURA + Vector3(-3.0, 0, -5.2), "Rogue", V.KURA + Vector3(-3.0, 0, -20)],
 		["registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20)],
-		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-5.5, 0, -6.5), "Barbarian", V.RING],
-		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -7.5), "Knight", V.RING],
-		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.RING + Vector3(-14.0, 0, -3.5), "Knight", V.RING],
-		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.RING + Vector3(-9.5, 0, -7.5), "Knight", V.RING],
-		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.0, 0, 5.5), "Mage", Vector3(0, 0, -30)],
-		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-4.5, 0, -10), "Mage", Vector3(0, 0, 0)],
+		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-4.0, 0, -9.0), "Barbarian", V.RING + Vector3(-4.0, 0, -30)],
+		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -9.0), "Knight", V.RING + Vector3(4.0, 0, -30)],
+		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
+		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
+		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
+		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
 	]
 

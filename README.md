@@ -4,6 +4,27 @@ This snapshot includes all changes through 12 October 2026. Read `../START_HERE_
 
 # Toon Tale
 
+## A bigger Mistwood village in clear districts (November 2026)
+
+The village is 1.4x wider (radius 56 → 80, `JapanVillage.RADIUS`) and split into districts behind low tile-capped plaster walls (`JapanKit.low_wall`, with colliders), each entered through its own gate with a Thai name plaque and its own colours. The minimap outlines every district in its colour (`JapanVillage.DISTRICTS`, `Minimap._district`).
+
+| District | Where (x, z) | What is there |
+|---|---|---|
+| ลานซากุระ (plaza) | centre, r 14 | the great sakura on a two-tier stone terrace with a vermilion and gold rail, eight lanterns, benches, flower beds, a dressed-stone kerb with tall lanterns and paper-lantern lines at the four entries; the notice board and the warp crystal either side of the south entry |
+| ย่านศาลเจ้า (shrine) | north, z -22..-76 | the grand vermilion torii (district gate), a torii tunnel and stone lanterns up to a shrine a third larger than before, the five-storey pagoda (tower keeper), a sakura grove; healer at the torii |
+| ถนนตลาด (market) | east, x 18..68 | shop, forge, storehouse, izakaya (registry), tea house, sweet shop; **all 20 world-player stalls** in two rows facing the walkway, each keeper in front of a booth with an awning and a lantern, lantern lines across the street |
+| ย่านฝึกยุทธ์ (training) | west, x -18..-66 | the dojo (job master, skill master), the village head's house (elder), a practice yard with targets, a well |
+| ลานประลองและหอกิลด์ (arena & guild) | south-east, off the cross street z 40 | the sparring ring with spectator steps (arena keeper, ranked-duel manager) and the guild keep, a small three-roofed castle (guild registrar, guild-war commander) |
+| ถนนประตูเมือง (gate avenue) | south, x -18..18 | lantern lines, street sakura and homes along the grand axis to the two-storey vermilion village gate (`JapanKit.grand_gate`) and the meadow portal |
+| ย่านบ้านพักและสวน (homes & gardens) | south-west | homes with flower boxes, the koi pond with its red bridge, a pavilion, red maples |
+| ทุ่งนา / สวนไผ่ (fields / bamboo) | north-east / north-west | rice paddies with scarecrows and farmhouses; a bamboo grove round a tea pavilion |
+
+- The most used villagers stay close to the plaza: walking from the arrival point (`START` (0, 19)) the warp crystal is ~14 m, the storehouse ~30 m, the elder and the skill master ~37 m, the shop ~39 m, the forge ~52 m (5.4 m/s on foot); the guild and the arena ~60 m, the meadow gate ~51 m.
+- `JapanVillage.green_areas()` lists the (x, z, radius) circles that stay grass or soil (groves, fields, pond garden, practice yard, tree pits); everything else inside the hedge is meant to be paved. `paths()` holds the main streets.
+- World players sell only on the market street: `JapanVillage.STALLS` all lie in the market district, `stall_face()` turns them to the walkway, and a keeper without a free stall is not shown (`WorldPresence`). `town_lod_test` checks every spot is in the market, apart from the next and not inside anything.
+- Phone budget: no new lights (the lantern glow is the additive halo MultiMesh, now split into 48 m squares with the same distance limit), every district's small pieces (walls, gates, booths, lanterns, benches) are one merged `JapanKit.Batch` per district, the walls one mesh for the whole town. Measured with `tests/tools/town_draw_probe` (`spots bare`): the whole village from above draws 496 / 816 / 928 calls at quality 0 / 1 / 2 (was 599 / 999 / 1176), the street spots 354 / 576 / 755 on average (was 428 / 699 / 911), with fewer triangles at every quality.
+- `tests/tools/town_shots ... "" overview` takes a map from above and a high view of every district.
+
 ## A clearer field HUD on iPhone (November 2026)
 
 - **Symbols on the web:** the browser has no system fonts, so ★ ● ✕ ✓ ✦ fell back to empty boxes (the party cards' stars, the online dot, the kick cross). A 6 KB DejaVu Sans subset (`assets/fonts/DejaVuSans-Symbols.ttf`) is now a fallback of every theme font. Title name plates use ✦ instead of 「」, which no bundled font has.
