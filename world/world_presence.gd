@@ -232,8 +232,10 @@ func sync(initial: bool) -> void:
 		if shown.has(i) and is_instance_valid(shown[i]):
 			var p := shown[i] as FieldPlayer
 			p.sync_progress(s)
-			if p.doing == "stall" and not p.stall_at.is_finite():
-				_give_stall(p)
+			if p.doing == "stall" and not p.stall_at.is_finite() and not _give_stall(p):
+				# Every market stall taken: a keeper never stands about anywhere else.
+				p.leave()
+				shown.erase(i)
 			if p.doing == "errand" and (p.errand != String(s.errand) or not p.errand_at.is_finite()):
 				_give_errand(p, s)
 			continue
@@ -293,8 +295,13 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 	zone.add_child(p)
 	var at := zone.entrance()
 	shown[i] = p
-	if p.doing == "stall" and zone.is_town and _give_stall(p):
-		p.global_position = p.stall_at + Vector3(0, 0.3, 0)
+	if p.doing == "stall" and zone.is_town:
+		if _give_stall(p):
+			p.global_position = p.stall_at + Vector3(0, 0.3, 0)
+		else:
+			# Every market stall taken: a keeper is only ever shown at its stall.
+			shown.erase(i)
+			p.queue_free()
 		return
 	if p.doing == "errand" and zone.is_town and _give_errand(p, s):
 		# Already at the villager when the hero arrives, otherwise in from the warp stone.
@@ -315,8 +322,9 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 	shown[i] = p
 
 
-## Hands a stall keeper in the village a free stall (its own favourite first); false when
-## every stall is taken (sync never shows more keepers than there are stalls).
+## Hands a stall keeper in the village a free stall on the market street (its own
+## favourite first); false when every stall is taken (sync never shows more keepers than
+## there are stalls, and a keeper without one is not shown).
 func _give_stall(p: FieldPlayer) -> bool:
 	if not zone.is_town:
 		return false

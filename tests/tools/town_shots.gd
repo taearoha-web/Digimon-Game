@@ -1,6 +1,6 @@
 extends Node
-## Screenshots of the busy village through the real game scenes: the plaza with its stall
-## keepers, players strolling and chat bubbles, the world chat in the HUD, the main street,
+## Screenshots of the busy village through the real game scenes: the plaza, the market street
+## with its stall keepers, players strolling and chat bubbles, the world chat in the HUD,
 ## and the registry. DAYS moves the clock to that many days after the world opened.
 ##   xvfb-run godot --rendering-driver opengl3 --path . res://tests/tools/town_shots.tscn -- <out_dir> [DAYS] [quality] [class] [level]
 var out_dir := "user://shots"
@@ -57,6 +57,28 @@ func _ready() -> void:
 	await main.go(&"town", true)
 	await _wait(3.0)
 	var zone: Zone = main.zone
+	# "overview" as the seventh argument: a map from straight above and a high view over
+	# the plaza and every district instead of the street shots.
+	if args.size() > 6 and args[6] == "overview":
+		await _overview(zone)
+		get_tree().quit()
+		return
+	# "market" as the seventh argument: the follow camera walking the market street east
+	# and back west, and turned sideways at both stall rows (the booths in its way fade).
+	if args.size() > 6 and args[6] == "market":
+		var walk := [[Vector3(22, 0.2, 0), -PI * 0.5, "east_entry"], [Vector3(34, 0.2, 2.0), -PI * 0.5, "east_mid"],
+			[Vector3(56, 0.2, -2.0), -PI * 0.5, "east_far"], [Vector3(62, 0.2, 0), PI * 0.5, "west_far"],
+			[Vector3(47, 0.2, 2.5), PI * 0.5, "west_mid"], [Vector3(46, 0.2, 2.0), 0.0, "side_north"],
+			[Vector3(50, 0.2, -2.0), PI, "side_south"], [Vector3(31, 0.2, -3.5), 0.0, "side_north_row"],
+			[Vector3(53, 0.2, 3.5), PI, "side_south_row"]]
+		for w in walk:
+			zone.hero.global_position = w[0]
+			zone.camera_rig.set_yaw_behind(w[1])
+			zone.camera_rig.snap_to_target()
+			await _wait(1.0)
+			await _shot("market_" + w[2])
+		get_tree().quit()
+		return
 	# "fly" as the seventh argument: wings / cape in their flying mode ("ลอย").
 	if args.size() > 6 and args[6] == "fly":
 		zone.hero.set_wing_mode(HeroVisual.WING_FLY)
@@ -72,7 +94,7 @@ func _ready() -> void:
 	_talk_near(zone, 3)
 	await _wait(0.6)
 	await _shot("plaza")
-	zone.hero.global_position = Vector3(-20, 0.2, 7.0)
+	zone.hero.global_position = Vector3(22, 0.2, 1.0)
 	zone.camera_rig.snap_to_target()
 	for k in 3:
 		zone.presence.chat_once()
@@ -81,7 +103,7 @@ func _ready() -> void:
 	_talk_near(zone, 2)
 	await _wait(0.6)
 	await _shot("street")
-	zone.hero.global_position = Vector3(10, 0.2, 10.0)
+	zone.hero.global_position = Vector3(46, 0.2, 1.0)
 	zone.camera_rig.snap_to_target()
 	await _wait(3.0)
 	await _shot("stalls")
@@ -90,6 +112,47 @@ func _ready() -> void:
 	await _shot("registry")
 	main.registry.close_screen()
 	get_tree().quit()
+
+
+## The village from above: the whole map (orthographic, north up), then a high camera over
+## the plaza and each district (JapanVillage.DISTRICTS when the layout names them, else
+## the eight points of the compass). Nothing is culled by distance for these.
+func _overview(zone: Zone) -> void:
+	get_window().size = Vector2i(1600, 1000)
+	main.hud.visible = false
+	for node in zone.find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).visibility_range_end = 0.0
+		(node as GeometryInstance3D).visibility_range_begin = 0.0
+	var cam := Camera3D.new()
+	zone.add_child(cam)
+	cam.far = 600.0
+	cam.current = true
+	var r := JapanVillage.RADIUS
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = r * 2.3
+	cam.look_at_from_position(Vector3(0, 160, 0.01), Vector3.ZERO, Vector3(0, 0, -1))
+	await _wait(1.0)
+	await _shot("map")
+	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	cam.fov = 55.0
+	cam.look_at_from_position(Vector3(0, r * 1.05, r * 1.25), Vector3(0, 0, -r * 0.1))
+	await _wait(0.6)
+	await _shot("whole_from_south")
+	var spots: Array = []
+	var consts := (JapanVillage as Script).get_script_constant_map()
+	if consts.has("DISTRICTS"):
+		for d in consts["DISTRICTS"]:
+			spots.append([String(d.id), Vector3(d.center.x, 0, d.center.y)])
+	else:
+		spots.append(["plaza", Vector3.ZERO])
+		for k in 8:
+			var a := TAU * k / 8.0
+			spots.append(["dir%d" % k, Vector3(cos(a), 0, sin(a)) * r * 0.55])
+	for s in spots:
+		var at: Vector3 = s[1]
+		cam.look_at_from_position(at + Vector3(0, 30, 34), at)
+		await _wait(0.5)
+		await _shot("district_" + String(s[0]))
 
 
 ## The `count` world players nearest the hero say a line of the world chat (bubbles).

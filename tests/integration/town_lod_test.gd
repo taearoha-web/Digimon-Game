@@ -48,6 +48,7 @@ func _ready() -> void:
 		check(p.stall_at.is_finite() and not spots.has(p.stall_at), "%s has a stall of its own" % p.member.name)
 		spots[p.stall_at] = true
 	check(keepers_shown <= JapanVillage.STALLS.size(), "no more keepers than stalls (%d of %d)" % [keepers_shown, JapanVillage.STALLS.size()])
+	_market_stalls(zone, spots)
 	# A day when more keepers are online than there are stalls: still one stall each.
 	var presence0: WorldPresence = zone.presence if "presence" in zone else null
 	if presence0 != null:
@@ -173,5 +174,68 @@ func _ready() -> void:
 			await get_tree().process_frame
 		var later := get_tree().get_nodes_in_group("world_players").size()
 		check(first <= 2 and later > first, "arrivals come one per frame (%d after the sync, %d six frames on, %d before)" % [first, later, shown_before])
+	await _camera_fades(zone)
 	print("TOWN LOD: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
+
+
+## Walking the market street the follow camera never looks out from under a booth's
+## awning or a lantern line: the overhead piece in its way fades out (only that one),
+## and everything is back once the camera has left. Both directions and sideways.
+func _camera_fades(zone: Zone) -> void:
+	var rig: ThirdPersonCamera = zone.camera_rig
+	var pieces := get_tree().get_nodes_in_group(ThirdPersonCamera.FADE_GROUP)
+	check(pieces.size() >= 15, "booths and lantern lines are fading overhead pieces (%d)" % pieces.size())
+	var faded_somewhere := 0
+	for spec in [[Vector3(46, 0.2, 2.0), 0.0], [Vector3(46, 0.2, -2.0), PI], [Vector3(33, 0.2, 0.0), PI * 0.5], [Vector3(52, 0.2, 3.5), -PI * 0.5], [Vector3(60, 0.2, -3.5), PI * 0.5], [Vector3(24, 0.2, 0.0), -PI * 0.5]]:
+		zone.hero.global_position = spec[0]
+		rig.set_yaw_behind(spec[1])
+		rig.snap_to_target()
+		for i in 4:
+			await get_tree().physics_frame
+		rig.refresh_fades(true)
+		var cam := rig.camera.global_position
+		for node in pieces:
+			var g := node as GeometryInstance3D
+			var box: AABB = g.global_transform * g.get_aabb()
+			var in_way := box.grow(0.05).has_point(cam) or ThirdPersonCamera.footprint_between(box, cam, zone.hero.global_position, 0.0)
+			if in_way:
+				check(rig.faded.has(g) and not g.visible, "%s in the camera's way at %s is faded out" % [g.name, spec[0]])
+			if rig.faded.has(g):
+				faded_somewhere += 1
+				check(Vector2(box.get_center().x - cam.x, box.get_center().z - cam.z).length() < 12.0, "only a piece near the camera fades (%s, %.1f m)" % [g.name, box.get_center().distance_to(cam)])
+	check(faded_somewhere > 0, "some booth or lantern line came between the camera and the hero on the market street (%d)" % faded_somewhere)
+	zone.hero.global_position = Vector3(0, 0.2, -4.0)
+	rig.set_yaw_behind(0.0)
+	rig.snap_to_target()
+	for i in 4:
+		await get_tree().physics_frame
+	rig.refresh_fades(true)
+	check(rig.faded.is_empty() and pieces.all(func(n): return (n as GeometryInstance3D).visible), "back in the plaza every overhead piece shows again")
+
+
+## The world players sell only on the market street: every stall spot (and every shown
+## keeper's) lies in the market district, faces the walkway, stands apart from the next one
+## so each keeper can be walked up to and tapped, and neither the spot nor the walkway in
+## front of it is inside a wall, a booth or a building.
+func _market_stalls(zone: Zone, shown: Dictionary) -> void:
+	check(JapanVillage.STALLS.size() >= 16, "enough stalls for the keepers online (%d)" % JapanVillage.STALLS.size())
+	var space := zone.get_world_3d().direct_space_state
+	for i in JapanVillage.STALLS.size():
+		var spot: Vector3 = JapanVillage.STALLS[i]
+		check(String(JapanVillage.district_at(spot).get("id", "")) == "market", "stall %d at %s is in the market district" % [i, spot])
+		var face := JapanVillage.stall_face(spot)
+		check(absf(spot.z + face.z * 4.0) < absf(spot.z), "stall %d faces the market street (%s)" % [i, face])
+		for k in JapanVillage.STALLS.size():
+			if k != i:
+				check(spot.distance_to(JapanVillage.STALLS[k]) >= 2.5, "stalls %d and %d stand apart" % [i, k])
+		for at in [spot, spot + face * 1.5]:
+			var q := PhysicsShapeQueryParameters3D.new()
+			var ball := SphereShape3D.new()
+			ball.radius = 0.4
+			q.shape = ball
+			q.transform = Transform3D(Basis(), at + Vector3(0, 1.0, 0))
+			q.collision_mask = 1
+			check(space.intersect_shape(q, 4).is_empty(), "stall %d (and the walkway in front) is not inside anything (%s)" % [i, at])
+	for spot in shown:
+		check(String(JapanVillage.district_at(spot).get("id", "")) == "market", "a keeper shown in the village sells on the market street (%s)" % spot)
