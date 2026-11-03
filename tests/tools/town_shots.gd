@@ -63,6 +63,22 @@ func _ready() -> void:
 		await _overview(zone)
 		get_tree().quit()
 		return
+	# "market" as the seventh argument: the follow camera walking the market street east
+	# and back west, and turned sideways at both stall rows (the booths in its way fade).
+	if args.size() > 6 and args[6] == "market":
+		var walk := [[Vector3(22, 0.2, 0), -PI * 0.5, "east_entry"], [Vector3(34, 0.2, 2.0), -PI * 0.5, "east_mid"],
+			[Vector3(56, 0.2, -2.0), -PI * 0.5, "east_far"], [Vector3(62, 0.2, 0), PI * 0.5, "west_far"],
+			[Vector3(47, 0.2, 2.5), PI * 0.5, "west_mid"], [Vector3(46, 0.2, 2.0), 0.0, "side_north"],
+			[Vector3(50, 0.2, -2.0), PI, "side_south"], [Vector3(31, 0.2, -3.5), 0.0, "side_north_row"],
+			[Vector3(53, 0.2, 3.5), PI, "side_south_row"]]
+		for w in walk:
+			zone.hero.global_position = w[0]
+			zone.camera_rig.set_yaw_behind(w[1])
+			zone.camera_rig.snap_to_target()
+			await _wait(1.0)
+			await _shot("market_" + w[2])
+		get_tree().quit()
+		return
 	# "fly" as the seventh argument: wings / cape in their flying mode ("ลอย").
 	if args.size() > 6 and args[6] == "fly":
 		zone.hero.set_wing_mode(HeroVisual.WING_FLY)

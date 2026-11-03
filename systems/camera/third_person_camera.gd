@@ -23,8 +23,22 @@ extends Node3D
 @export var key_rotate_speed := 2.2
 @export_flags_3d_physics var collision_mask := 1
 
+## Overhead pieces (a market booth's awning, a lantern line across a street) that the
+## camera can come over, under or behind put themselves in this group. They are low next
+## to the camera's height, so one whose ground footprint lies between the camera and the
+## hero fills the bottom of the view: it fades out (hidden once faded) while it is there,
+## or while the camera is right at it, and comes back when the camera has left it.
+const FADE_GROUP := &"camera_fade"
+## How close (m, on the ground) the camera may come to a fading piece before it fades.
+const FADE_MARGIN := 2.0
+## Fade speed (alpha per second).
+const FADE_SPEED := 6.0
+
 var yaw := 0.0
 var camera: Camera3D
+## Fading pieces now in the way: GeometryInstance3D -> true.
+var faded: Dictionary = {}
+var _fade_tick := 0
 ## Field combat: gently frame the locked-on monster at the player's chosen
 ## distance (the player still steers yaw).
 var combat_focus: Node3D
@@ -149,6 +163,64 @@ func _physics_process(delta: float) -> void:
 		yaw = 0.0 if not is_finite(yaw) else yaw
 		pitch_degrees = clampf(pitch_degrees, min_pitch, max_pitch) if is_finite(pitch_degrees) else (min_pitch + max_pitch) * 0.5
 		_apply_rotation()
+	_fade_tick += 1
+	if _fade_tick % 3 == 0:
+		refresh_fades()
+	_step_fades(delta)
+
+
+## Works out which FADE_GROUP pieces are in the way of the camera now. With `instant`
+## they jump straight to faded / shown (a test, a teleport).
+func refresh_fades(instant := false) -> void:
+	if camera == null or target == null or not is_inside_tree():
+		return
+	var cam := camera.global_position
+	var hero := target.global_position
+	if not cam.is_finite() or not hero.is_finite():
+		return
+	var now: Dictionary = {}
+	for node in get_tree().get_nodes_in_group(FADE_GROUP):
+		var g := node as GeometryInstance3D
+		if g == null or not g.is_inside_tree():
+			continue
+		var box: AABB = g.global_transform * g.get_aabb()
+		if footprint_near(box, cam, FADE_MARGIN) or footprint_between(box, cam, hero):
+			now[g] = true
+	for g in faded:
+		if is_instance_valid(g) and not now.has(g):
+			g.visible = true
+	faded = now
+	if instant:
+		for node in get_tree().get_nodes_in_group(FADE_GROUP):
+			var g := node as GeometryInstance3D
+			if g:
+				g.transparency = 1.0 if faded.has(g) else 0.0
+				g.visible = not faded.has(g)
+
+
+## True when point `p` (the camera) is over or within `margin` of `box`'s ground
+## footprint, and not far above it.
+static func footprint_near(box: AABB, p: Vector3, margin: float) -> bool:
+	return p.x > box.position.x - margin and p.x < box.end.x + margin and p.z > box.position.z - margin and p.z < box.end.z + margin and p.y < box.end.y + 4.0
+
+
+## True when `box`'s ground footprint (grown a little) crosses the line on the ground
+## from the camera to the hero.
+static func footprint_between(box: AABB, cam: Vector3, hero: Vector3, grow := 0.4) -> bool:
+	var flat := AABB(Vector3(box.position.x - grow, -1.0, box.position.z - grow), Vector3(box.size.x + grow * 2.0, 2.0, box.size.z + grow * 2.0))
+	return flat.intersects_segment(Vector3(cam.x, 0, cam.z), Vector3(hero.x, 0, hero.z)) != null
+
+
+func _step_fades(delta: float) -> void:
+	for node in get_tree().get_nodes_in_group(FADE_GROUP):
+		var g := node as GeometryInstance3D
+		if g == null:
+			continue
+		var goal := 1.0 if faded.has(g) else 0.0
+		if is_equal_approx(g.transparency, goal):
+			continue
+		g.transparency = move_toward(g.transparency, goal, FADE_SPEED * delta)
+		g.visible = g.transparency < 0.99
 
 
 func _unhandled_input(event: InputEvent) -> void:

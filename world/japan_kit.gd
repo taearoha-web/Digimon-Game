@@ -908,3 +908,143 @@ static func hat(kind: String, color := Color.WHITE) -> Node3D:
 	if not b.is_empty():
 		b.commit(root, "Mesh", false)
 	return root
+
+
+# ---------------------------------------------------------------------------
+# Lived-in village detail (all in the batch's local frame, front = +z)
+# ---------------------------------------------------------------------------
+
+## A wall of sake barrels offered to the shrine (komodaru) on a low stand under a little
+## roof: `cols` x `rows` straw-white barrels with coloured labels.
+static func sake_barrels(b: Batch, cols := 4, rows := 2) -> void:
+	var w := cols * 0.88
+	b.box(Vector3(0, 0.15, 0), Vector3(w + 0.4, 0.3, 1.1), WOOD_DARK)
+	var labels := [Color("c8352e"), Color("2f4f8a"), Color("3a3a42"), Color("4a8f5c"), Color("b8862e")]
+	for r in rows:
+		for c in cols:
+			var p := Vector3((c - (cols - 1) * 0.5) * 0.88, 0.71 + r * 0.84, 0)
+			b.cyl(p, 0.4, 0.82, Color("f4efe4"), Vector3.ZERO, 10)
+			for y in [-0.28, 0.28]:
+				b.cyl(p + Vector3(0, y, 0), 0.415, 0.06, Color("6a5038"), Vector3.ZERO, 10)
+			b.box(p + Vector3(0, 0, 0.39), Vector3(0.44, 0.42, 0.04), labels[(r * cols + c) % labels.size()])
+	var top := 0.3 + rows * 0.84 + 0.45
+	for x in [-0.5, 0.5]:
+		b.box(Vector3(x * (w + 0.3), top * 0.5, -0.45), Vector3(0.14, top, 0.14), WOOD_DARK)
+	b.roof(Vector3(0, top, 0), w + 0.9, 1.7, 0.45, TILE_DARK, 0.0)
+
+
+## A little wayside shrine (hokora) on a stone base with a small red torii in front.
+static func hokora(b: Batch) -> void:
+	b.box(Vector3(0, 0.3, 0), Vector3(1.4, 0.6, 1.2), STONE)
+	b.box(Vector3(0, 1.0, 0), Vector3(0.9, 0.8, 0.8), WOOD)
+	b.box(Vector3(0, 0.98, 0.41), Vector3(0.52, 0.52, 0.02), SHOJI)
+	b.roof(Vector3(0, 1.4, 0), 1.25, 1.2, 0.4, VERMILION, 0.0)
+	for x in [-0.25, 0.25]:
+		b.cyl(Vector3(x, 0.68, 0.5), 0.08, 0.16, Color("f4f0e6"), Vector3.ZERO, 6)
+	for x in [-0.55, 0.55]:
+		b.cyl(Vector3(x, 0.65, 1.35), 0.06, 1.3, VERMILION, Vector3.ZERO, 6)
+	b.box(Vector3(0, 1.34, 1.35), Vector3(1.55, 0.1, 0.14), Color("2a2a2e"))
+	b.box(Vector3(0, 1.15, 1.35), Vector3(1.2, 0.07, 0.1), VERMILION)
+
+
+## A wooden hand cart (daihachi) loaded with rice sacks and a barrel, handles to +z.
+static func cart(b: Batch, load_colors: Array) -> void:
+	b.box(Vector3(0, 0.78, 0), Vector3(1.3, 0.1, 2.2), WOOD)
+	for x in [-0.62, 0.62]:
+		b.box(Vector3(x, 0.95, 0), Vector3(0.06, 0.3, 2.2), WOOD_DARK)
+		b.cyl(Vector3(x * 1.2, 0.55, -0.2), 0.55, 0.1, WOOD_DARK, Vector3(0, 0, 90), 10)
+		b.cyl(Vector3(x * 1.2, 0.55, -0.2), 0.12, 0.14, WOOD_LIGHT, Vector3(0, 0, 90), 6)
+		b.box(Vector3(x * 0.75, 0.72, 1.65), Vector3(0.08, 0.08, 1.3), WOOD_DARK)
+	b.box(Vector3(0, 0.72, 2.25), Vector3(1.3, 0.08, 0.08), WOOD_DARK)
+	for i in load_colors.size():
+		var at := Vector3((i % 2 - 0.5) * 0.6, 1.08 + (i / 2) * 0.32, -0.6 + (i % 3) * 0.55)
+		b.box(at, Vector3(0.55, 0.32, 0.5), load_colors[i], Vector3(0, i * 23.0, 0))
+	b.cyl(Vector3(0.1, 1.15, 0.75), 0.3, 0.6, Color("8a6a40"), Vector3.ZERO, 8)
+
+
+## A raised stone-edged garden bed `w` x `d` of moss, shrubs and bright blooms.
+static func garden_bed(b: Batch, w: float, d: float) -> void:
+	for s in [-1.0, 1.0]:
+		b.box(Vector3(0, 0.18, s * d * 0.5), Vector3(w + 0.3, 0.36, 0.3), STONE)
+		b.box(Vector3(s * w * 0.5, 0.18, 0), Vector3(0.3, 0.36, d), STONE)
+	b.box(Vector3(0, 0.2, 0), Vector3(w - 0.1, 0.3, d - 0.1), Color("5f8a46"))
+	var blooms := [Color("f08aa8"), Color("f6d35a"), Color("f4f0e6"), Color("e8463a"), Color("c89ae8"), Color("f0a050")]
+	var nx := maxi(1, int(w / 0.75))
+	var nz := maxi(1, int(d / 0.75))
+	for i in nx:
+		for k in nz:
+			var p := Vector3((i + 0.5) * w / nx - w * 0.5, 0.5, (k + 0.5) * d / nz - d * 0.5)
+			if (i + k) % 3 == 0:
+				b.ball(p, Vector3(0.6, 0.45, 0.6), Color("4f7e3c").lerp(Color("7aa85a"), float((i * 7 + k * 3) % 5) / 4.0))
+			else:
+				b.box(p, Vector3(0.3, 0.18, 0.3), Color("6f9a52"), Vector3(0, (i * 31 + k * 17) % 90, 0))
+				b.ball(p + Vector3(0, 0.16, 0), Vector3(0.24, 0.18, 0.24), blooms[(i * 3 + k) % blooms.size()])
+
+
+## A stone trough planter `w` wide topped with flowers.
+static func planter(b: Batch, w: float) -> void:
+	b.box(Vector3(0, 0.25, 0), Vector3(w, 0.5, 0.65), STONE_DARK)
+	flower_box(b, Vector3(0, 0.6, 0), w - 0.1, 0.0)
+
+
+## A laundry line `length` long along local x between two posts: yukata, towels and
+## cloths airing in the sun.
+static func laundry_line(b: Batch, length: float) -> void:
+	for x in [-0.5, 0.5]:
+		b.cyl(Vector3(x * length, 1.1, 0), 0.07, 2.2, WOOD_DARK, Vector3.ZERO, 6)
+	b.box(Vector3(0, 2.05, 0), Vector3(length, 0.03, 0.03), Color("3a3028"))
+	var cloth := [Color("2f4f8a"), Color("f4f0e6"), Color("e87aa0"), Color("f6d35a"), Color("4a8f5c"), Color("f4f0e6")]
+	var n := int(length / 0.85)
+	for i in n:
+		var x := -length * 0.5 + (i + 0.6) * length / (n + 0.2)
+		var h := 0.8 if i % 3 == 0 else 0.55
+		b.box(Vector3(x, 2.02 - h * 0.5, 0), Vector3(0.6, h, 0.03), cloth[i % cloth.size()], Vector3(0, 0, (i % 2) * 4.0 - 2.0))
+
+
+## A koi channel `length` long along local z: stone kerbs, clear water, koi, lily pads.
+static func koi_channel(b: Batch, length: float, width := 1.3) -> void:
+	b.box(Vector3(0, 0.08, 0), Vector3(width, 0.12, length), Color("2f5f7a"))
+	b.box(Vector3(0, 0.17, 0), Vector3(width, 0.04, length), Color("5aaed0"))
+	for s in [-1.0, 1.0]:
+		b.box(Vector3(s * (width * 0.5 + 0.2), 0.2, 0), Vector3(0.4, 0.4, length + 0.4), STONE)
+	var n := int(length / 2.2)
+	for i in n:
+		var z := -length * 0.5 + (i + 0.5) * length / n
+		var x := (float((i * 37) % 7) / 6.0 - 0.5) * width * 0.6
+		if i % 3 == 1:
+			b.cyl(Vector3(x, 0.2, z), 0.22, 0.02, Color("4f8a3c"), Vector3.ZERO, 8)
+		else:
+			b.box(Vector3(x, 0.19, z), Vector3(0.14, 0.04, 0.42), [Color("f08a3a"), Color("f4f0e6"), Color("e8463a")][i % 3], Vector3(0, (i * 41) % 60 - 30, 0))
+
+
+## A prayer rack at a shrine: ema plaques (wood) or omikuji fortunes (white paper knots).
+static func prayer_rack(b: Batch, plaque: Color) -> void:
+	for x in [-1.1, 1.1]:
+		b.box(Vector3(x, 0.95, 0), Vector3(0.14, 1.9, 0.14), WOOD_DARK)
+	b.roof(Vector3(0, 1.95, 0), 2.7, 0.8, 0.3, TILE_DARK, 0.0)
+	for row in 3:
+		var y := 0.85 + row * 0.38
+		b.box(Vector3(0, y + 0.1, 0), Vector3(2.2, 0.04, 0.04), WOOD)
+		for i in 9:
+			b.box(Vector3(-0.96 + i * 0.24, y, 0.03 * ((i + row) % 2)), Vector3(0.18, 0.14, 0.02), plaque.darkened(0.05 * ((i + row) % 3)))
+
+
+## A big festival drum (taiko) on its wooden stand.
+static func taiko(b: Batch) -> void:
+	for x in [-0.45, 0.45]:
+		b.box(Vector3(x, 0.55, 0), Vector3(0.1, 1.1, 0.9), WOOD_DARK)
+	b.cyl(Vector3(0, 1.2, 0), 0.62, 0.75, Color("8a3a2a"), Vector3(90, 0, 0), 12)
+	for z in [-0.38, 0.38]:
+		b.cyl(Vector3(0, 1.2, z), 0.6, 0.02, Color("f0e6d0"), Vector3(90, 0, 0), 12)
+	b.box(Vector3(0, 1.84, 0), Vector3(0.9, 0.08, 0.08), GOLD)
+
+
+## Stacked firewood under a little lean-to roof, a barrel either side.
+static func woodpile(b: Batch, w: float) -> void:
+	for row in 3:
+		for i in int(w / 0.3):
+			b.cyl(Vector3(-w * 0.5 + 0.15 + i * 0.3 + (row % 2) * 0.12, 0.15 + row * 0.27, 0), 0.14, 0.9, Color("9a7048") if (i + row) % 2 else Color("b0864f"), Vector3(90, 0, 0), 6)
+	b.box(Vector3(0, 1.05, 0), Vector3(w + 0.3, 0.08, 1.2), TILE_DARK, Vector3(-12, 0, 0))
+	for x in [-0.5, 0.5]:
+		b.cyl(Vector3(x * (w + 1.4), 0.45, 0.2), 0.36, 0.9, Color("7a5a38"), Vector3.ZERO, 8)
+		b.cyl(Vector3(x * (w + 1.4), 0.62, 0.2), 0.37, 0.06, Color("3a3028"), Vector3.ZERO, 8)

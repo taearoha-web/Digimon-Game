@@ -28,12 +28,15 @@ const SHRINE_SCALE := 1.35
 const PAGODA := Vector3(17, 0, -50)
 const DOJO := Vector3(-32, 0, -12)
 const ELDER_HOUSE := Vector3(-32, 0, 12)
-const SHOP := Vector3(26, 0, -12)
-const FORGE := Vector3(40, 0, -12)
-const KURA := Vector3(26, 0, 12)
-const IZAKAYA := Vector3(40, 0, 12)
-const TEA_HOUSE := Vector3(55, 0, -12)
-const SWEETS := Vector3(55, 0, 12)
+const SHOP := Vector3(26, 0, -14)
+const FORGE := Vector3(40, 0, -14)
+const KURA := Vector3(26, 0, 14)
+const IZAKAYA := Vector3(40, 0, 14)
+const TEA_HOUSE := Vector3(55, 0, -14)
+const SWEETS := Vector3(55, 0, 14)
+## The market's stall rows stand this far either side of the street's middle: a 10 m
+## walkway between the keepers, booths behind them, then room to reach the shop doors.
+const STALL_ROW := 5.0
 const GUILD_HALL := Vector3(40, 0, 29)
 const RING := Vector3(40, 0, 53)
 const POND := Vector3(-30, 0, 54)
@@ -60,10 +63,10 @@ const DISTRICTS := [
 ## Where world players keep their stalls (WorldPresence): only on the market street, two
 ## rows facing the walkway, each in front of its own booth, clear of the shop doors.
 const STALLS: Array[Vector3] = [
-	Vector3(20.5, 0, -4.0), Vector3(31.6, 0, -4.0), Vector3(34.4, 0, -4.0), Vector3(45.6, 0, -4.0), Vector3(48.4, 0, -4.0),
-	Vector3(51.2, 0, -4.0), Vector3(54.0, 0, -4.0), Vector3(56.8, 0, -4.0), Vector3(59.6, 0, -4.0), Vector3(62.4, 0, -4.0),
-	Vector3(29.0, 0, 4.0), Vector3(31.8, 0, 4.0), Vector3(34.6, 0, 4.0), Vector3(43.4, 0, 4.0), Vector3(46.2, 0, 4.0),
-	Vector3(49.0, 0, 4.0), Vector3(51.8, 0, 4.0), Vector3(54.6, 0, 4.0), Vector3(57.4, 0, 4.0), Vector3(60.2, 0, 4.0),
+	Vector3(20.5, 0, -STALL_ROW), Vector3(31.6, 0, -STALL_ROW), Vector3(34.4, 0, -STALL_ROW), Vector3(45.6, 0, -STALL_ROW), Vector3(48.4, 0, -STALL_ROW),
+	Vector3(51.2, 0, -STALL_ROW), Vector3(54.0, 0, -STALL_ROW), Vector3(56.8, 0, -STALL_ROW), Vector3(59.6, 0, -STALL_ROW), Vector3(62.4, 0, -STALL_ROW),
+	Vector3(29.0, 0, STALL_ROW), Vector3(31.8, 0, STALL_ROW), Vector3(34.6, 0, STALL_ROW), Vector3(43.4, 0, STALL_ROW), Vector3(46.2, 0, STALL_ROW),
+	Vector3(49.0, 0, STALL_ROW), Vector3(51.8, 0, STALL_ROW), Vector3(54.6, 0, STALL_ROW), Vector3(57.4, 0, STALL_ROW), Vector3(60.2, 0, STALL_ROW),
 ]
 
 
@@ -108,7 +111,7 @@ static func green_areas() -> Array[Vector3]:
 		Vector3(POND.x, POND.z, 11.0), Vector3(-40, 46, 4.5),
 		Vector3(-54, -7, 8.0),
 	]
-	for t in _avenue_trees():
+	for t in _avenue_trees() + LANE_SAKURA:
 		out.append(Vector3(t.x, t.y, 1.6))
 	return out
 
@@ -117,6 +120,10 @@ static func green_areas() -> Array[Vector3]:
 static var _halos: Array = []
 ## One merged batch of small things per district (walls, gates, lanterns, benches...).
 static var _decor: Dictionary = {}
+## Overhead pieces the follow camera can come under or behind (market booths, lantern
+## lines across a street): each its own small mesh in ThirdPersonCamera.FADE_GROUP, so
+## the camera fades out just the piece in its way.
+static var _overheads: Array = []
 
 
 static func build(zone: Node3D, rng: RandomNumberGenerator) -> Array[Vector3]:
@@ -126,6 +133,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator) -> Array[Vector3]:
 	zone.add_child(root)
 	_halos = []
 	_decor = {}
+	_overheads = []
 	_plaza(root, clear)
 	_shrine_quarter(root, clear)
 	_market(root, clear)
@@ -134,6 +142,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator) -> Array[Vector3]:
 	_south(root, clear, rng)
 	_farm(root, clear)
 	_grove(root, rng)
+	_lived_in(root)
 	_walls(root, clear)
 	_commit_decor(root)
 	_streets_clear(clear)
@@ -182,6 +191,31 @@ static func _commit_decor(root: Node3D) -> void:
 		b.commit(root, "Decor_" + String(id))
 		_halos.append_array(b.lights)
 	_decor = {}
+	for i in _overheads.size():
+		var ob: JapanKit.Batch = _overheads[i]
+		# Small street detail: drawn to a shorter distance than the buildings, and no
+		# shadow passes of their own (one per piece and split would undo the merging).
+		var line: bool = ob.get_meta("line", false)
+		var mi := ob.commit(root, "Overhead_%d" % i, false)
+		mi.visibility_range_end = (45.0 if line else 60.0) * GameSettings.view_scale()
+		# No additive halo: it would float on where the piece fades out.
+		mi.add_to_group(ThirdPersonCamera.FADE_GROUP)
+	_overheads = []
+
+
+## A new overhead piece's batch, its local frame at `pos` turned by `yaw`.
+static func _overhead(pos := Vector3.ZERO, yaw := 0.0) -> JapanKit.Batch:
+	var b := JapanKit.Batch.new()
+	b.xform = Transform3D(Basis(Vector3.UP, yaw), pos)
+	_overheads.append(b)
+	return b
+
+
+## A line of paper lanterns across a street (world coordinates), as an overhead piece.
+static func _overhead_line(from: Vector3, to: Vector3, count: int, colors: Array) -> void:
+	var b := _overhead()
+	b.set_meta("line", true)
+	JapanKit.lantern_line(b, from, to, count, colors)
 
 
 ## A district gate across a street at `pos`, its plaque facing `face` (the side people
@@ -298,7 +332,7 @@ static func _plaza(root: Node3D, clear: Array[Vector3]) -> void:
 			var across := Vector3(dir.z, 0, -dir.x)
 			for s in [-1.0, 1.0]:
 				JapanKit.toro(b, dir * (PLAZA_RADIUS + 0.8) + across * s * 7.8, 1.35)
-			JapanKit.lantern_line(b, dir * (PLAZA_RADIUS + 1.2) - across * 6.6, dir * (PLAZA_RADIUS + 1.2) + across * 6.6, 6,
+			_overhead_line(dir * (PLAZA_RADIUS + 1.2) - across * 6.6, dir * (PLAZA_RADIUS + 1.2) + across * 6.6, 6,
 				[Color("e8463a"), Color("f6efe0"), Color("f0b040")])
 		, Vector3(7.0, 2.0, 7.0))
 	NatureKit.place(root, "GreatSakura", "MapleTree_1", &"village", [Transform3D(Basis.from_scale(Vector3.ONE * 2.9), Vector3(0, 0.95, 0))], [], true, 140.0)
@@ -396,25 +430,34 @@ static func _market(root: Node3D, clear: Array[Vector3]) -> void:
 	var awnings := [Color("e8463a"), Color("2f4f8a"), Color("f0b040"), Color("4a8f5c"), Color("e87aa0"), Color("f6efe0")]
 	var goods := [[Color("e8a040"), Color("c8d070"), Color("e86a5a")], [Color("f0e0b0"), Color("8ac8e8"), Color("e8a040")],
 		[Color("c89ae8"), Color("f4f0e6"), Color("6ab04a")]]
+	var bb: JapanKit.Batch = null
 	for i in STALLS.size():
 		var spot: Vector3 = STALLS[i]
 		var front := stall_face(spot)
 		var at := spot - front * 2.1
-		var bb := _at("market", at, atan2(front.x, front.z))
+		# Two neighbouring booths share one overhead mesh (one draw, faded together).
+		var near := i > 0 and bb != null and absf(STALLS[i - 1].x - spot.x) < 3.0 and signf(STALLS[i - 1].z) == signf(spot.z)
+		if near and bb.get_meta("pair", false):
+			bb = _overhead(at, atan2(front.x, front.z))
+		elif near:
+			bb.set_meta("pair", true)
+			bb.xform = Transform3D(Basis(Vector3.UP, atan2(front.x, front.z)), at)
+		else:
+			bb = _overhead(at, atan2(front.x, front.z))
 		JapanKit.market_booth(bb, 2.4, 1.3, awnings[i % awnings.size()], goods[i % goods.size()])
 		JapanKit.chochin(bb, Vector3(-1.2, 2.0, 0.75), [Color("e8463a"), Color("f6efe0"), Color("f0b040")][i % 3], 0.75)
 		JapanKit.collider(root, at + Vector3(0, 1.0, 0), Vector3(2.4, 2.0, 1.1), atan2(front.x, front.z))
 		clear.append(Vector3(at.x, at.z, 2.0))
 	var b := _d("market")
 	for x in [24.0, 41.5, 65.5]:
-		JapanKit.lantern_line(b, Vector3(x, 0, -4.7), Vector3(x, 0, 4.7), 6, [Color("e8463a"), Color("f6efe0"), Color("f0b040")])
+		_overhead_line(Vector3(x, 0, -STALL_ROW - 0.6), Vector3(x, 0, STALL_ROW + 0.6), 6, [Color("e8463a"), Color("f6efe0"), Color("f0b040")])
 	JapanKit.banner(b, SHOP + Vector3(-5.2, 0, 4.2), Color("2f4f8a"))
 	JapanKit.banner(b, FORGE + Vector3(-4.7, 0, 4.2), Color("8a2f2a"))
 	JapanKit.banner(b, IZAKAYA + Vector3(4.7, 0, -4.2), Color("d8452e"))
 	JapanKit.banner(b, TEA_HOUSE + Vector3(5.2, 0, 4.2), Color("4a8f5c"))
 	JapanKit.banner(b, SWEETS + Vector3(-5.2, 0, -4.2), Color("e87aa0"))
 	# Crates, barrels and a parasol over a bench at the street's end.
-	for spec in [[Vector3(30.8, 0, -9.0), 10.0], [Vector3(44.6, 0, -9.0), -12.0], [Vector3(31.0, 0, 9.4), 25.0], [Vector3(45.0, 0, 9.4), 5.0]]:
+	for spec in [[Vector3(31.2, 0, -9.4), 10.0], [Vector3(45.0, 0, -9.4), -12.0], [Vector3(31.2, 0, 9.4), 25.0], [Vector3(45.0, 0, 9.4), 5.0]]:
 		var p: Vector3 = spec[0]
 		b.box(p + Vector3(0, 0.3, 0), Vector3(0.7, 0.6, 0.7), Color("a07a48"), Vector3(0, spec[1], 0))
 		b.box(p + Vector3(0.2, 0.85, 0.1), Vector3(0.5, 0.5, 0.5), Color("8a6a40"), Vector3(0, spec[1] + 30.0, 0))
@@ -472,7 +515,7 @@ static func _west(root: Node3D, clear: Array[Vector3], rng: RandomNumberGenerato
 	for spec in [[Vector3(-22.5, 0, -5.6), Color("1e2a4a")], [Vector3(-41.5, 0, -5.6), Color("1e2a4a")], [Vector3(-22.5, 0, 5.6), Color("f4ead0")], [Vector3(-41.5, 0, 5.6), Color("f4ead0")]]:
 		JapanKit.banner(b, spec[0], spec[1])
 	for x in [-26.0, -44.0, -58.0]:
-		JapanKit.lantern_line(b, Vector3(x, 0, -4.7), Vector3(x, 0, 4.7), 4, [Color("f6efe0"), Color("4a6ad0")])
+		_overhead_line(Vector3(x, 0, -4.7), Vector3(x, 0, 4.7), 4, [Color("f6efe0"), Color("4a6ad0")])
 	# A pine or two for the dojo's garden.
 	NatureKit.place(root, "DojoPines", "PineTree_2", &"village", [Transform3D(Basis(Vector3.UP, 1.0).scaled(Vector3.ONE * 1.2), Vector3(-44, 0, -14)),
 		Transform3D(Basis(Vector3.UP, 2.0).scaled(Vector3.ONE * 1.1), Vector3(-20.5, 0, 14))])
@@ -510,7 +553,7 @@ static func _arena(root: Node3D, clear: Array[Vector3]) -> void:
 	clear.append(Vector3(GUILD_HALL.x, GUILD_HALL.z, 8.0))
 	var b := _d("arena")
 	for x in [26.0, 54.0]:
-		JapanKit.lantern_line(b, Vector3(x, 0, CROSS_Z - 4.7), Vector3(x, 0, CROSS_Z + 4.7), 5, [Color("c83a3a"), Color("f6efe0"), Color("2f4f8a")])
+		_overhead_line(Vector3(x, 0, CROSS_Z - 4.7), Vector3(x, 0, CROSS_Z + 4.7), 5, [Color("c83a3a"), Color("f6efe0"), Color("2f4f8a")])
 	for x in [24.0, 56.0]:
 		JapanKit.toro(b, Vector3(x, 0, CROSS_Z - 6.0), 1.2)
 	_district_gate(root, "arena", Vector3(18, 0, CROSS_Z), Vector3.LEFT, Color("a83a5a"), "ลานประลอง · หอกิลด์")
@@ -548,7 +591,7 @@ static func _south(root: Node3D, clear: Array[Vector3], rng: RandomNumberGenerat
 	clear.append(Vector3(GATE.x, GATE.z, 9.0))
 	var b := _d("avenue")
 	for z in [22.0, 30.0, 45.5, 56.0, 64.0]:
-		JapanKit.lantern_line(b, Vector3(-4.3, 0, z), Vector3(4.3, 0, z), 5, [Color("e8463a"), Color("f6efe0"), Color("f0b040")])
+		_overhead_line(Vector3(-4.3, 0, z), Vector3(4.3, 0, z), 5, [Color("e8463a"), Color("f6efe0"), Color("f0b040")])
 	for z in [37.0, 43.0]:
 		for x in [-1.0, 1.0]:
 			JapanKit.toro(b, Vector3(x * 5.2, 0, z), 1.1)
@@ -612,7 +655,7 @@ static func _south(root: Node3D, clear: Array[Vector3], rng: RandomNumberGenerat
 		JapanKit.bench(b, p, 90.0, 2.0)
 	JapanKit.parasol(b, Vector3(-21.5, 0, 49), Color("d8452e"), 0.9)
 	for x in [-26.0, -42.0, -54.0]:
-		JapanKit.lantern_line(b, Vector3(x, 0, CROSS_Z - 4.7), Vector3(x, 0, CROSS_Z + 4.7), 4, [Color("f0b040"), Color("f6efe0")])
+		_overhead_line(Vector3(x, 0, CROSS_Z - 4.7), Vector3(x, 0, CROSS_Z + 4.7), 4, [Color("f0b040"), Color("f6efe0")])
 	var maples: Array[Transform3D] = []
 	var tints: Array[Color] = []
 	for spot in [Vector3(-19, 0, 55), Vector3(-41, 0, 57), Vector3(-36, 0, 33), Vector3(-56, 0, 38)]:
@@ -673,6 +716,118 @@ static func _grove(root: Node3D, rng: RandomNumberGenerator) -> void:
 		tints.append(Color("ff4a3a"))
 		JapanKit.collider(root, spot + Vector3(0, 1.5, 0), Vector3(0.9, 3.0, 0.9))
 	NatureKit.place(root, "GroveMaples", "MapleTree_4", &"village", maples, tints)
+
+
+# ---------------------------------------------------------------------------
+# Lived-in detail in the districts' open lots
+# ---------------------------------------------------------------------------
+
+## Sakura over a bench in the districts' lots (their pits stay green).
+const LANE_SAKURA: Array[Vector2] = [Vector2(-44, 16.5), Vector2(60.5, 24), Vector2(-36.5, 29.5), Vector2(-22.5, 57)]
+
+
+## A prop in district `id` at `pos` facing `face` (its front = local +z), with a
+## collider `size` (none for ZERO).
+static func _prop(root: Node3D, id: String, pos: Vector3, face: Vector3, size := Vector3.ZERO) -> JapanKit.Batch:
+	var yaw := atan2(face.x, face.z)
+	if size != Vector3.ZERO:
+		JapanKit.collider(root, pos + Vector3(0, size.y * 0.5, 0), size, yaw)
+	return _at(id, pos, yaw)
+
+
+## The warm, lived-in clutter of a Japanese town filling each district's open lots
+## (found with a probe for cells with nothing within 3.5 m), every piece at least 2 m
+## inside the hedge: offering sake barrels,
+## prayer racks, wayside shrines and koi channels at the shrine; carts, firewood,
+## laundry and vegetable beds in the homes and the training quarter; a festival corner
+## with a drum by the ring; planters and gardens at the avenue's ends. All of it merges
+## into the districts' batches; the streets stay clear.
+static func _lived_in(root: Node3D) -> void:
+	var E := Vector3.RIGHT
+	var W := Vector3.LEFT
+	var S := Vector3.BACK
+	var N := Vector3.FORWARD
+	var sacks := [Color("e8dcc0"), Color("d8c8a0"), Color("c8b088"), Color("e8dcc0"), Color("b8905a")]
+	# Shrine: sake-barrel offerings and prayer racks either side of the approach,
+	# wayside shrines with a lantern in the back corners, koi channels along the walls,
+	# garden beds and benches under the sakura.
+	JapanKit.sake_barrels(_prop(root, "shrine", Vector3(-8.5, 0, -50), E, Vector3(4.2, 2.6, 1.4)), 4, 2)
+	JapanKit.sake_barrels(_prop(root, "shrine", Vector3(8.5, 0, -50), W, Vector3(4.2, 2.6, 1.4)), 4, 2)
+	JapanKit.prayer_rack(_prop(root, "shrine", Vector3(-8.5, 0, -38), E, Vector3(2.5, 2.0, 0.5)), Color("d8b07a"))
+	JapanKit.prayer_rack(_prop(root, "shrine", Vector3(8.5, 0, -38), W, Vector3(2.5, 2.0, 0.5)), Color("f4f0e6"))
+	for spec in [[Vector3(-16, 0, -71), S], [Vector3(14, 0, -70), S]]:
+		JapanKit.hokora(_prop(root, "shrine", spec[0], spec[1], Vector3(1.5, 1.8, 1.4)))
+		JapanKit.toro(_d("shrine"), spec[0] + Vector3(1.9, 0, 0.6), 0.9)
+	JapanKit.koi_channel(_prop(root, "shrine", Vector3(-19.5, 0, -63), S, Vector3(2.1, 0.5, 16.4)), 16.0)
+	JapanKit.koi_channel(_prop(root, "shrine", Vector3(19.5, 0, -65), S, Vector3(2.1, 0.5, 12.4)), 12.0)
+	JapanKit.garden_bed(_prop(root, "shrine", Vector3(-13, 0, -56), S, Vector3(5.2, 0.6, 3.2)), 5.0, 3.0)
+	JapanKit.garden_bed(_prop(root, "shrine", Vector3(-14, 0, -44), S, Vector3(4.2, 0.6, 3.2)), 4.0, 3.0)
+	JapanKit.garden_bed(_prop(root, "shrine", Vector3(14, 0, -61), S, Vector3(4.2, 0.6, 3.2)), 4.0, 3.0)
+	# Paper-lantern strings over the approach between the torii, more beds and lanterns
+	# in the front gardens.
+	for z in [-28.0, -40.0, -52.0]:
+		_overhead_line(Vector3(-5.6, 0, z), Vector3(5.6, 0, z), 6, [Color("f6efe0"), Color("e8463a")])
+	for x in [-1.0, 1.0]:
+		JapanKit.garden_bed(_prop(root, "shrine", Vector3(x * 15, 0, -26.5), S, Vector3(5.2, 0.6, 2.7)), 5.0, 2.5)
+		JapanKit.planter(_prop(root, "shrine", Vector3(x * 7.2, 0, -31), E if x < 0 else W, Vector3(3.0, 0.9, 0.7)), 3.0)
+		for z in [-26.0, -42.0, -58.0]:
+			JapanKit.toro(_d("shrine"), Vector3(x * 21.5, 0, z), 1.0)
+	var b := _d("shrine")
+	JapanKit.bench(b, Vector3(-10, 0, -30), 90.0, 2.2)
+	JapanKit.bench(b, Vector3(10, 0, -31), -90.0, 2.2)
+	JapanKit.bench(b, Vector3(13, 0, -36), 180.0, 2.2)
+	# Training quarter: a woodpile in the corner, a vegetable bed, laundry and a cart
+	# behind the well, a bench under a sakura before the dojo street.
+	JapanKit.woodpile(_prop(root, "training", Vector3(-63.0, 0, -12), E, Vector3(4.2, 1.2, 1.4)), 2.4)
+	JapanKit.garden_bed(_prop(root, "training", Vector3(-60, 0, 11), S, Vector3(4.2, 0.6, 2.7)), 4.0, 2.5)
+	JapanKit.laundry_line(_prop(root, "training", Vector3(-58.5, 0, 15.5), S), 7.0)
+	JapanKit.cart(_prop(root, "training", Vector3(-52, 0, 14.5), W, Vector3(1.8, 1.4, 3.0)), sacks)
+	JapanKit.bench(_d("training"), Vector3(-44, 0, 13.6), 180.0, 2.2)
+	# Arena and guild: a festival corner west of the guild keep (a loaded cart, a
+	# parasol over a bench, a garden bed), a garden with a wayside shrine east of it,
+	# festival drums and offering barrels either side of the ring.
+	JapanKit.cart(_prop(root, "arena", Vector3(24.5, 0, 28), E, Vector3(1.8, 1.4, 3.0)), sacks)
+	b = _d("arena")
+	JapanKit.parasol(b, Vector3(28.5, 0, 32.5), Color("d8452e"))
+	JapanKit.bench(b, Vector3(28.5, 0, 31.2), 0.0, 2.0)
+	JapanKit.garden_bed(_prop(root, "arena", Vector3(26, 0, 23.5), S, Vector3(5.2, 0.6, 2.7)), 5.0, 2.5)
+	JapanKit.garden_bed(_prop(root, "arena", Vector3(56, 0, 30), S, Vector3(5.2, 0.6, 4.2)), 5.0, 4.0)
+	JapanKit.hokora(_prop(root, "arena", Vector3(61, 0, 31), W, Vector3(1.5, 1.8, 1.4)))
+	for z in [25.5, 34.5]:
+		JapanKit.toro(_d("arena"), Vector3(52.5, 0, z), 0.9)
+	JapanKit.bench(_d("arena"), Vector3(60.5, 0, 26.6), 180.0, 2.0)
+	JapanKit.taiko(_prop(root, "arena", Vector3(24.5, 0, 52), E, Vector3(1.4, 1.9, 1.2)))
+	JapanKit.sake_barrels(_prop(root, "arena", Vector3(24.5, 0, 58.5), E, Vector3(3.4, 2.6, 1.4)), 3, 2)
+	# A festival canopy: lantern strings crossing over the ring from four corner posts,
+	# and two food yatai facing the cross street.
+	_overhead_line(Vector3(29.5, 0, 46.5), Vector3(50.5, 0, 60.5), 10, [Color("e8463a"), Color("f6efe0"), Color("f0b040")])
+	_overhead_line(Vector3(50.5, 0, 46.5), Vector3(29.5, 0, 60.5), 10, [Color("f0b040"), Color("f6efe0"), Color("e8463a")])
+	for spec in [[Vector3(24.5, 0, 47.5), Color("e8463a")], [Vector3(52.5, 0, 46.5), Color("2f4f8a")]]:
+		JapanKit.stall(_prop(root, "arena", spec[0], N, Vector3(2.6, 2.4, 1.6)), 2.4, 1.4, spec[1], [Color("e8a040"), Color("f4f0e6"), Color("e86a5a")])
+	# The avenue's two ends: flower planters by the plaza, gardens by the village gate.
+	for x in [-10.0, 10.0]:
+		JapanKit.planter(_prop(root, "avenue", Vector3(x, 0, 16.5), S, Vector3(3.0, 0.9, 0.7)), 3.0)
+		JapanKit.garden_bed(_prop(root, "avenue", Vector3(x, 0, 63.5), S, Vector3(4.2, 0.6, 3.2)), 4.0, 3.0)
+	# Homes: vegetable beds and laundry in the back yards, a cart, a garden and benches.
+	JapanKit.garden_bed(_prop(root, "homes", Vector3(-59, 0, 25.5), S, Vector3(5.2, 0.6, 3.2)), 5.0, 3.0)
+	JapanKit.laundry_line(_prop(root, "homes", Vector3(-58, 0, 31.5), S), 7.0)
+	JapanKit.woodpile(_prop(root, "homes", Vector3(-63, 0, 21.5), S, Vector3(4.2, 1.2, 1.4)), 2.4)
+	JapanKit.garden_bed(_prop(root, "homes", Vector3(-44, 0, 56), S, Vector3(5.2, 0.6, 3.2)), 5.0, 3.0)
+	JapanKit.planter(_prop(root, "homes", Vector3(-38, 0, 24), S, Vector3(3.0, 0.9, 0.7)), 3.0)
+	JapanKit.planter(_prop(root, "homes", Vector3(-22, 0, 61.5), E, Vector3(3.0, 0.9, 0.7)), 3.0)
+	b = _d("homes")
+	JapanKit.bench(b, Vector3(-41.5, 0, 60.5), 180.0, 2.0)
+	JapanKit.bench(b, Vector3(-36.5, 0, 27.2), 0.0, 2.0)
+	JapanKit.bench(b, Vector3(-22.5, 0, 54.6), 0.0, 2.0)
+	# Market's east end: the izakaya's barrels and a woodpile.
+	JapanKit.sake_barrels(_prop(root, "market", Vector3(64.5, 0, 13), W, Vector3(3.4, 2.6, 1.4)), 3, 2)
+	JapanKit.woodpile(_prop(root, "market", Vector3(64.5, 0, -14), W, Vector3(4.2, 1.2, 1.4)), 2.4)
+	var trees: Array[Transform3D] = []
+	for i in LANE_SAKURA.size():
+		var t: Vector2 = LANE_SAKURA[i]
+		trees.append(Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * 1.05), Vector3(t.x, 0, t.y)))
+		JapanKit.collider(root, Vector3(t.x, 1.5, t.y), Vector3(0.9, 3.0, 0.9))
+	NatureKit.place(root, "LaneSakura", "MapleTree_4", &"village", trees)
 
 
 # ---------------------------------------------------------------------------
