@@ -102,6 +102,15 @@ func force_special(kind: String) -> void:
 	mob._anim_lock = Time.get_ticks_msec() + int(TELEGRAPH * 1000.0)
 	BattleVfx.floating_text(zone, mob.top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.3)
 	_draw_telegraph()
+	if EntitySync.hosting():
+		# The online party sees the same shape: a circle, or the beam as a row of circles.
+		var circles: Array = []
+		if kind == "beam":
+			for i in 6:
+				circles.append([center + dir * (BEAM_WIDTH * 0.5 + float(i) * BEAM_LENGTH / 6.0), BEAM_WIDTH * 0.5, TELEGRAPH])
+		else:
+			circles.append([center, STOMP_RADIUS if kind == "stomp" else SUMMON_RADIUS, TELEGRAPH])
+		EntitySync.cast(mob, circles, "attack", String(TITLES[kind]) + "!")
 
 
 ## Is a flat point inside the telegraph on the ground now?
@@ -171,7 +180,7 @@ func _victims_inside() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	if mob._alive(mob.hero) and inside(mob.hero.global_position):
 		out.append(mob.hero)
-	for group in ["companions", "world_players"]:
+	for group in (["companions", "world_players", "remote_players"] if EntitySync.hosting() else ["companions", "world_players"]):
 		for node in get_tree().get_nodes_in_group(group):
 			var n := node as Node3D
 			if mob._alive(n) and inside(n.global_position):
@@ -190,7 +199,7 @@ func _hit(victim: Node3D) -> void:
 	elif victim is Companion and not victim.is_in_group("world_players"):
 		var c := victim as Companion
 		raw = HIT_FRACTION * float(c.max_hp) * (100.0 + maxf(float(c.stats.def) * (1.0 + c._book.total("def")), 0.0)) / 100.0
-	victim.take_damage(raw, mob)
+	Mob.strike(victim, raw, mob)
 
 
 ## Three of the field's monsters at SUMMON_HP, hostile, on the summon ring.
