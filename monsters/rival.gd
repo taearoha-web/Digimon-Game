@@ -581,7 +581,7 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 		var allowed := BurstGuard.take(hero.get_instance_id(), amount, int(hero.stats.max_hp))
 		if allowed < amount:
 			raw *= float(allowed) / float(amount)
-	victim.take_damage(raw, self)
+	Mob.strike(victim, raw, self)
 	if fx.is_empty() or not Mob.carries_mark(fx) or not _alive(victim):
 		return
 	for key in Mob.MARKS:

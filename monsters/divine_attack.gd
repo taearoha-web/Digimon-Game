@@ -45,6 +45,10 @@ func _ready() -> void:
 	warned.name = "DivineEnemyWarnings"
 	mob.get_parent().add_child(warned)
 	for point in points: VfxKit.danger_circle(warned, point, radius, contact)
+	if EntitySync.hosting():
+		var circles: Array = []
+		for point in points: circles.append([point, radius, contact])
+		EntitySync.cast(mob, circles)
 	mob.visual.action("attack", int((contact + 0.5) * 1000.0))
 	mob._anim_lock = Time.get_ticks_msec() + int((contact + 0.5) * 1000.0)
 
@@ -62,7 +66,7 @@ func _process(delta: float) -> void:
 		for actor in mob._targets():
 			for point in points:
 				if ((actor.global_position - point) * Vector3(1,0,1)).length() <= radius:
-					actor.take_damage(float(mob.stats.atk) * mob._atk_scale * (1.55 if special else 1.0), mob)
+					Mob.strike(actor, float(mob.stats.atk) * mob._atk_scale * (1.55 if special else 1.0), mob)
 					break
 	if age >= contact + 0.6: queue_free()
 

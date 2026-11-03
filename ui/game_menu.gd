@@ -31,6 +31,10 @@ var _stat_amounts: Dictionary = {}
 var forge_mode := false
 ## At the forge: the ผสมชุดเซต section (250★ set pieces) shows instead of the bag grid.
 var set_craft_open := false
+## The bag tab shows แผงของฉัน (PlayerStallView) instead of the bag; its picked item,
+## price and count survive rebuilds in stall_view.
+var stall_open := false
+var stall_view := {}
 
 
 func _ready() -> void:
@@ -90,6 +94,7 @@ func open_menu(tab: StringName = &"inventory") -> void:
 func close_menu() -> void:
 	forge_mode = false
 	set_craft_open = false
+	stall_open = false
 	is_open = false
 	_build_gen += 1
 	_root.visible = false
@@ -103,6 +108,7 @@ func close_menu() -> void:
 func show_tab(tab: StringName) -> void:
 	_page_scroll = null
 	current_tab = tab
+	stall_open = false
 	_selected_index = -1
 	_selected_slot = ""
 	_rebuild()
@@ -141,7 +147,11 @@ func _rebuild() -> void:
 	_build_gen += 1
 	match current_tab:
 		&"character": _build_character()
-		&"inventory": _build_inventory()
+		&"inventory":
+			if stall_open and not forge_mode:
+				_build_stall()
+			else:
+				_build_inventory()
 		&"skills": _build_skills()
 		&"quests": _build_quests()
 		&"achievements": _build_achievements()
@@ -383,6 +393,12 @@ func _build_inventory() -> void:
 			_refresh_detail())
 		slots.add_child(b)
 		_item_buttons.append({"button": b, "slot": slot, "index": -1, "color": ItemData.color_of(item) if item != null else UIPalette.TEXT_MUTED})
+	if not forge_mode:
+		var stall := UIUtil.button("แผงของฉัน %d/%d" % [PlayerStall.lots().size(), PlayerStall.MAX_LOTS], &"", Vector2(0, 58))
+		stall.name = "StallButton"
+		stall.add_theme_font_size_override("font_size", 19)
+		stall.pressed.connect(func(): open_stall())
+		equip.add_child(stall)
 	# Bag grid
 	var middle := UIUtil.vbox(6)
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -462,6 +478,19 @@ func _build_bag_grid(middle: VBoxContainer) -> void:
 			b.add_theme_font_size_override("font_size", 17)
 			_style_item_button(b, ItemData.color_of(item), _selected_index == i)
 			b.tooltip_text = "%s · %s" % [ItemData.name_of(item), ItemData.RARITY_NAMES[int(item.get("rarity", 0))]]
+			var tag := ItemData.class_tag(item, String(Game.class_id()))
+			if tag != "":
+				b.tooltip_text += "\n" + tag
+				# A small muted mark on the slot: this piece is another class's.
+				var mark := Label.new()
+				mark.name = "ClassMark"
+				mark.text = "อาชีพอื่น"
+				mark.add_theme_font_size_override("font_size", 13)
+				mark.add_theme_color_override("font_color", ItemData.CLASS_TAG_COLOR)
+				mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				mark.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+				mark.position = Vector2(6, 2)
+				b.add_child(mark)
 			_item_buttons.append({"button": b, "slot": "", "index": i, "color": ItemData.color_of(item)})
 			b.pressed.connect(func():
 				_selected_index = i
@@ -634,9 +663,17 @@ func _refresh_detail() -> void:
 	_detail.add_child(title)
 	if item.get("kind", "") == "equip":
 		_detail.add_child(UIUtil.label("%s • %s • ต้องการ %s" % [ItemData.SLOT_NAMES[item.slot], ItemData.RARITY_NAMES[int(item.rarity)], ItemData.level_text(int(item.level))], &"SmallLabel"))
-		if item.get("class", "") != "":
-			_detail.add_child(UIUtil.label("อาชีพ: " + String(ClassData.get_class_data(StringName(item["class"])).name), &"SmallLabel"))
-	if _selected_slot == "" and item.get("kind", "") == "equip":
+		var tag := ItemData.class_tag(item, String(Game.class_id()))
+		if tag != "":
+			# Another class's piece (drops come for every class): sell it or set it on the stall.
+			var owner := UIUtil.label(tag + " · ขายหรือตั้งขายบนแผงได้", &"SmallLabel")
+			owner.name = "ClassTag"
+			owner.add_theme_color_override("font_color", ItemData.CLASS_TAG_COLOR)
+			owner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			_detail.add_child(owner)
+		elif ItemData.gear_class(item) != "":
+			_detail.add_child(UIUtil.label("อาชีพ: " + SharedStorage.class_name_of(ItemData.gear_class(item)), &"SmallLabel"))
+	if _selected_slot == "" and item.get("kind", "") == "equip" and not Game.is_other_class(item):
 		_build_compare(item)
 	for line in ItemData.detail_lines(item):
 		var detail_label := UIUtil.label(line, &"BoldLabel" if not line.begins_with("เซ็ต") else &"SmallLabel")
@@ -712,6 +749,37 @@ func _refresh_detail() -> void:
 		var use := UIUtil.button("ใช้", &"PrimaryButton", Vector2(0, 58))
 		use.pressed.connect(func(): _use_potion(_selected_index))
 		target.add_child(use)
+	# Any bag thing with a worth can go on the hero's stall (PlayerStall), from any zone.
+	if _selected_slot == "" and not forge_mode and PlayerStall.fair_price(item) > 0:
+		var stall := UIUtil.button("ตั้งขายบนแผง", &"", Vector2(0, 58))
+		stall.name = "StallItem"
+		var index := _selected_index
+		stall.pressed.connect(func(): open_stall(index))
+		target.add_child(stall)
+
+
+## Opens แผงของฉัน in the bag tab, with bag slot [param pick] picked to price (-1: none).
+## Not in the guild war, the arena, the tower or a duel (PlayerStall.blocked_reason).
+func open_stall(pick := -1) -> void:
+	var blocked := PlayerStall.blocked_reason()
+	if blocked != "":
+		Game.say(blocked, &"warning")
+		return
+	stall_open = true
+	current_tab = &"inventory"
+	if pick >= 0 and pick < Game.profile.inv.size():
+		stall_view = {"pick": pick, "count": 0, "price": 0}
+	_selected_index = -1
+	_selected_slot = ""
+	_rebuild()
+
+
+func _build_stall() -> void:
+	var page := PlayerStallView.new(stall_view)
+	page.back_requested.connect(func():
+		stall_open = false
+		_rebuild())
+	_content.add_child(page)
 
 
 ## Sells the selected bag item and keeps the selection on the next one, so a
@@ -774,7 +842,8 @@ func _open_auto_sell() -> void:
 	level_row.add_child(minus)
 	level_row.add_child(level_label)
 	level_row.add_child(plus)
-	var keep := UIUtil.label("ไม่ขายเสมอ: ของที่สวมอยู่ ของที่ตีบวกแล้ว ของที่ใส่อัญมณี และปีก", &"DimLabel")
+	box.add_child(_other_class_toggle(refresh))
+	var keep := UIUtil.label("ไม่ขายเสมอ: ของที่สวมอยู่ ของที่ตีบวกแล้ว ของที่ใส่อัญมณี และปีก · ของอาชีพอื่นเก็บไว้ตั้งขายบนแผง เว้นแต่เปิดขายอัตโนมัติ", &"DimLabel")
 	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(keep)
 	box.add_child(preview)
@@ -815,13 +884,38 @@ func _open_loot_filter() -> void:
 			Game.set_loot_mask(int(spec[1]))
 			_open_loot_filter())
 		quick.add_child(b)
-	var note := UIUtil.label("ยา อัญมณี เหรียญ และปีก เก็บเสมอ · ของเกรดที่ปิดไว้จะไม่ดรอปให้เก็บ", &"DimLabel")
+	box.add_child(_other_class_toggle(Callable()))
+	var note := UIUtil.label("ยา อัญมณี เหรียญ และปีก เก็บเสมอ · ของเกรดที่ปิดไว้จะไม่ดรอปให้เก็บ (ใช้กับของทุกอาชีพ)", &"DimLabel")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
 	var back := UIUtil.button("กลับ", &"PrimaryButton", Vector2(200, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	back.pressed.connect(_rebuild)
 	box.add_child(back)
+
+
+## "ขายของอาชีพอื่นอัตโนมัติ" (Game.sells_other_class, off by default): another class's
+## gear is sold when picked up and by the bulk auto-sell; off, it is kept for the stall.
+func _other_class_toggle(changed: Callable) -> Control:
+	var row := UIUtil.hbox(10)
+	var chip := Button.new()
+	chip.name = "AutoSellOtherClass"
+	chip.toggle_mode = true
+	chip.button_pressed = Game.sells_other_class()
+	chip.custom_minimum_size = Vector2(150, 56)
+	chip.add_theme_font_size_override("font_size", 18)
+	chip.text = "เปิด" if chip.button_pressed else "ปิด"
+	var label := UIUtil.label("ขายของอาชีพอื่นอัตโนมัติ", &"BoldLabel")
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chip.toggled.connect(func(on: bool):
+		Game.set_sells_other_class(on)
+		chip.text = "เปิด" if on else "ปิด"
+		if changed.is_valid():
+			changed.call())
+	row.add_child(chip)
+	row.add_child(label)
+	return row
 
 
 ## A grade chip in its rarity colour that switches between [param on_text] and [param off_text].
@@ -1423,6 +1517,15 @@ func _build_settings() -> void:
 		GameSettings.save_settings()
 		Game.say("ผู้เล่นคนอื่นในแมพ: %s (มีผลเมื่อเข้าแมพใหม่)" % ("แสดง" if on else "ซ่อน"), &"info"))
 	box.add_child(others)
+	# Real players (Online): on by default; off keeps this game offline.
+	var online := CheckButton.new()
+	online.name = "OnlinePlay"
+	online.text = "เล่นออนไลน์ (พบผู้เล่นจริงที่เข้าสู่ระบบ แชท ปาร์ตี้ แลกของ ดวล)"
+	online.button_pressed = GameSettings.online_play
+	online.toggled.connect(func(on: bool):
+		Online.set_enabled(on)
+		Game.say("เล่นออนไลน์: %s" % ("เปิด (ต้องเข้าสู่ระบบบัญชี)" if on else "ปิด เล่นคนเดียว"), &"info"))
+	box.add_child(online)
 	var safe := CheckButton.new()
 	safe.text = "โหมดภาพปลอดภัย (ไม่มีผู้เล่นคนอื่น/ร้านค้า/แสงโคม ใช้เมื่อจอเป็นสีเดียว)"
 	safe.button_pressed = GameSettings.safe_picture

@@ -116,6 +116,8 @@ var _portal_hold := 0.0
 var _interact_timer := 0.0
 var _start := Vector3.ZERO
 var _kills := 0
+## Shared combat with the online party (EntitySync): idle offline and out of a party.
+var sync: EntitySync
 
 
 ## Build-time phases of the last zone (label, milliseconds), filled only while
@@ -196,10 +198,13 @@ func _ready() -> void:
 		_phase("spawn_party")
 	elif bool(data.get("guildwar", false)):
 		gw_match = GuildWarMatch.new()
+		# A party member who said yes to its leader's invite fights in the leader's war.
+		gw_match.mirror = OnlineGuildWar.take_joining()
 		gw_match.setup(self, hero)
 		gw_match.finished.connect(func(result: Dictionary): guildwar_finished.emit(result))
 		add_child(gw_match)
 		await gw_match.build(get_tree() if staged else null)
+		OnlineGuildWar.on_war_built(self)
 		_phase("spawn_fighters")
 	else:
 		pvp_match = PvpMatch.new()
@@ -216,7 +221,8 @@ func _ready() -> void:
 	AudioManager.play_music(data.get("music", &"meadow"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
 	_phase("audio")
-	if not is_town:
+	# A party member arriving where another one already hosts the monsters spawns none.
+	if not is_town and not EntitySync.mirror_zone(zone_id):
 		var spawned := 0
 		for camp in _camps:
 			for i in int(camp.count):
@@ -229,8 +235,16 @@ func _ready() -> void:
 		presence.setup(self)
 		add_child(presence)
 		_phase("world_players")
+	OnlineGuildWar.ensure(get_tree())
+	if EntitySync.supports(self):
+		sync = EntitySync.new()
+		sync.setup(self)
+		add_child(sync)
 	is_built = true
 	built.emit()
+	# The real players in this zone come in (Online: RemotePlayers), and the server hears
+	# where the hero is now.
+	Online.zone_entered(self)
 
 
 ## Models farther than this from the camera stop animating (they are tiny and
@@ -302,6 +316,9 @@ func _process(delta: float) -> void:
 	if _weather and is_instance_valid(hero):
 		_weather.global_position = Vector3(hero.global_position.x, _weather.position.y, hero.global_position.z)
 	if is_town:
+		return
+	# Another member hosts the monsters (EntitySync mirror): none of our own.
+	if sync != null and sync.is_mirror():
 		return
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0:
@@ -688,6 +705,7 @@ func _on_party_leveled(i: int, _level: int) -> void:
 
 
 func _exit_tree() -> void:
+	Online.zone_left(self)
 	if Game.party_leveled.is_connected(_on_party_leveled):
 		Game.party_leveled.disconnect(_on_party_leveled)
 	if Game.party_roster_changed.is_connected(_spawn_party):
@@ -734,9 +752,10 @@ func _spawn_hero() -> void:
 	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
 	camera_rig.snap_to_target()
 	hero.camera_rig = camera_rig
-	# A ranked duel ends through PvpMatch; only a normal death sends the hero home.
+	# A ranked duel ends through PvpMatch, a duel with a real player through OnlineDuel
+	# (the hero gets up where it fell); only a normal death sends the hero home.
 	hero.died.connect(func():
-		if not is_pvp and not is_tower:
+		if not is_pvp and not is_tower and not OnlineDuel.holds_death():
 			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
@@ -1085,9 +1104,9 @@ func _on_world_boss_died(mob: Mob) -> void:
 	var zone_name := String(data.get("name", ""))
 	banner_requested.emit("ปราบบอสโลกที่ %s แล้ว! +%d เหรียญ" % [zone_name, gold])
 	Game.say("ปราบบอสโลกที่ %s แล้ว! ได้รับ %d เหรียญ" % [zone_name, gold], &"info")
-	var item := ItemData.generate(int(Game.profile.level), Game.class_id(), rng, WorldEvents.BOSS_DROP_RARITY)
+	var item := ItemData.generate(int(Game.profile.level), ItemData.drop_class(Game.class_id(), rng), rng, WorldEvents.BOSS_DROP_RARITY)
 	if Game.add_item(item):
-		Game.say("บอสโลกทิ้ง %s" % String(item.get("name", "")), &"info")
+		Game.say("บอสโลกทิ้ง %s%s" % [String(item.get("name", "")), _tag_text(item)], &"info")
 	else:
 		_spawn_loot(item, 0, mob.global_position)
 	# The bounty also pays a big special gem and drills (gem_bonus_drops).
@@ -1187,6 +1206,42 @@ static func golden_drops(level: int, star_field: bool, roll: RandomNumberGenerat
 	return out
 
 
+## This field's own boss (or a party member's mirror of it, EntitySync): its drop table.
+func _is_field_boss(mob: Mob) -> bool:
+	return mob == _boss or (mob is MirrorMob and bool(mob.get_meta("field_boss", false)))
+
+
+## EntitySync: another member of the online party hosts this zone's monsters. Ours go
+## away (no loot, nothing respawns) until the mirror ends.
+func enter_shared_mirror() -> void:
+	for child in get_children():
+		var mob := child as Mob
+		if mob == null or mob is MirrorMob or mob is GuildFighter or mob is CastleGate or mob.is_queued_for_deletion():
+			continue
+		mob.queue_free()
+	for camp in _camps:
+		camp.mobs = []
+	_boss = null
+	_wboss = null
+	_golden = null
+	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
+		hero.set_target(null)
+
+
+## The mirror ended (the link or the party broke, or this game hosts now): the camps fill
+## up again at once and the boss comes back soon.
+func leave_shared_mirror() -> void:
+	if is_town or not is_inside_tree():
+		return
+	for camp in _camps:
+		_refill_camp(camp)
+		while (camp.mobs as Array).size() < int(camp.count):
+			_spawn_in_camp(camp, true)
+	_boss_timer = minf(_boss_timer, 3.0)
+	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
+		hero.set_target(null)
+
+
 ## Phase 1 and 2 of a boss: a handful of the field's monsters join the fight.
 func _on_boss_phase(boss: Mob, _phase: int) -> void:
 	var ids: Array = []
@@ -1212,7 +1267,7 @@ func _on_mob_died(mob: Mob) -> void:
 		return
 	if is_instance_valid(hero) and hero.target == mob:
 		hero.set_target(null)
-	if mob == _wboss:
+	if mob == _wboss or (mob is MirrorMob and mob.has_meta("world_boss")):
 		_on_world_boss_died(mob)
 	if mob.has_meta("golden"):
 		_on_golden_died(mob)
@@ -1241,7 +1296,7 @@ func _drop_loot(mob: Mob) -> void:
 	var gold: int = int(mob.stats.gold * rng.randf_range(0.7, 1.4) * WorldEvents.gold_multiplier(WorldPresence.clock()))
 	_spawn_loot({}, gold, from)
 	_drop_jewels(from)
-	var source := &"field_boss" if mob == _boss else (&"star" if is_star_field() and not mob.is_boss else &"")
+	var source := &"field_boss" if _is_field_boss(mob) else (&"star" if is_star_field() and not mob.is_boss else &"")
 	for item in gem_bonus_drops(source, _drop_fortune(), rng):
 		_spawn_loot(item, 0, from)
 	var boss := mob.is_boss
@@ -1264,18 +1319,18 @@ func _drop_loot(mob: Mob) -> void:
 	if boss:
 		# The field's own boss follows its drop table: its own slots, a favourite
 		# gem and chase pieces with a pity counter. Tower / arena bosses do not.
-		var table := mob == _boss and BossLootData.has(mob.monster_id)
+		var table := _is_field_boss(mob) and BossLootData.has(mob.monster_id)
 		var best := maxi(1, int(loot.get("boss_min_rarity", 3 if loot.has("boss_items") else 1)))
 		for i in int(loot.get("boss_items", 3)):
 			var rarity := maxi(1, ItemData.roll_rarity(rng, maxf(0.3, boost * 5.0)))
 			if i < 2:
 				rarity = maxi(rarity, best)
 			var slot := BossLootData.slot_for(mob.monster_id, i) if table else ""
-			_spawn_loot(ItemData.generate(_gear_level(mob, loot), class_id, rng, rarity, slot), 0, from)
+			_spawn_loot(ItemData.generate(_gear_level(mob, loot), ItemData.drop_class(class_id, rng), rng, rarity, slot), 0, from)
 		if table:
 			_boss_chase(mob, from, class_id, loot)
 		if int(mob.level) >= ItemData.WING_DROP_LEVEL and rng.randf() < float(loot.get("boss_wing", WING_DROP_RATE)) * luck:
-			_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
+			_spawn_loot(ItemData.wings(rng, String(ItemData.drop_class(class_id, rng))), 0, from)
 			Game.say("ปีกเทพตกจากบอส!", &"quest")
 		if int(loot.get("boss_shards", 0)) > 0:
 			var n := rng.randi_range(int(loot.boss_shards) / 2, int(loot.boss_shards))
@@ -1293,7 +1348,7 @@ func _drop_loot(mob: Mob) -> void:
 	if rng.randf() < float(loot.get("gem", DROP_RATE_GEM)) * luck:
 		_spawn_loot(_random_gem(mob.level, 1 if loot.has("gem") else 0), 0, from)
 	if rng.randf() < float(loot.get("gear", DROP_RATE_GEAR)) * luck:
-		var item := ItemData.generate(_gear_level(mob, loot), class_id, rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
+		var item := ItemData.generate(_gear_level(mob, loot), ItemData.drop_class(class_id, rng), rng, ItemData.roll_rarity(rng, boost) if boost > 0.0 else -1)
 		_spawn_loot(item, 0, from)
 	if rng.randf() < float(loot.get("potion", DROP_RATE_POTION)) * luck:
 		var tier := "s" if mob.level < 9 else ("m" if mob.level < 22 else "l")
@@ -1304,7 +1359,7 @@ func _drop_loot(mob: Mob) -> void:
 		Game.tower_add_shards(1)
 		BattleVfx.floating_text(self, from + Vector3(0, 1.6, 0), "ผลึกห้วงวิบัติ +1", Color("c58aff"), 0.9)
 	if float(loot.get("wing", 0.0)) > 0.0 and rng.randf() < float(loot.wing) * luck:
-		_spawn_loot(ItemData.wings(rng, String(class_id)), 0, from)
+		_spawn_loot(ItemData.wings(rng, String(ItemData.drop_class(class_id, rng))), 0, from)
 		Game.say("ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
@@ -1375,13 +1430,13 @@ func _boss_chase(mob: Mob, from: Vector3, class_id: StringName, loot: Dictionary
 
 func _divine_loot(mob: Mob, from: Vector3) -> void:
 	var elite := bool(mob.template.get("elite", false))
-	for item in DivineGearData.drops(Game.class_id(), mob.is_boss, elite, rng):
+	for item in DivineGearData.drops(ItemData.drop_class(Game.class_id(), rng), mob.is_boss, elite, rng):
 		_spawn_loot(item, 0, from)
-		Game.say("ชุดเทพประจำอาชีพ 200 ดาวตกแล้ว!", &"quest")
+		Game.say("ชุดเทพประจำอาชีพ 200 ดาวตกแล้ว!%s" % _tag_text(item), &"quest")
 	# The divine set has no jewellery: the sanctuary adds 200★ rings and amulets.
 	if mob.is_boss or rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
 		var slot := "ring" if rng.randf() < 0.5 else "amulet"
-		_spawn_loot(StarProgression.item(Game.class_id(), 200, slot, rng), 0, from)
+		_spawn_loot(StarProgression.item(ItemData.drop_class(Game.class_id(), rng), 200, slot, rng), 0, from)
 	if mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl", 3), 0, from)
 		_spawn_loot(ItemData.potion("mp_xl", 3), 0, from)
@@ -1406,9 +1461,9 @@ func _star_loot(mob: Mob, from: Vector3) -> void:
 	elif rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL) * (1.0 + _drop_fortune()):
 		pieces = 1
 	for i in pieces:
-		_spawn_loot(StarProgression.random_item(Game.class_id(),stars,rng),0,from)
+		_spawn_loot(StarProgression.random_item(ItemData.drop_class(Game.class_id(), rng),stars,rng),0,from)
 	if pieces > 0 and mob.is_boss:
-		Game.say("บอสมอบอุปกรณ์ดาว %d ประจำอาชีพ %d ชิ้น!" % [stars, pieces],&"quest")
+		Game.say("บอสมอบอุปกรณ์ดาว %d %d ชิ้น!" % [stars, pieces],&"quest")
 	if rng.randf()<0.35 or mob.is_boss:
 		_spawn_loot(ItemData.potion("hp_xl" if rng.randf()<0.55 else "mp_xl",3 if mob.is_boss else 1),0,from)
 	if mob.is_boss: _spawn_loot(_random_gem(100,1),0,from)
@@ -1424,7 +1479,7 @@ const STAR_WING_BOSS := 0.6
 func _star_wing_drop(mob: Mob, from: Vector3) -> void:
 	var chance := (STAR_WING_BOSS if mob.is_boss else STAR_WING_DROP) * (1.0 + _drop_fortune())
 	if rng.randf() < chance:
-		_spawn_loot(ItemData.wings(rng, String(Game.class_id())), 0, from)
+		_spawn_loot(ItemData.wings(rng, String(ItemData.drop_class(Game.class_id(), rng))), 0, from)
 		Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
@@ -1504,6 +1559,12 @@ static func gem_bonus_drops(source: StringName, fortune: float, roll: RandomNumb
 			out.append(ItemData.gem(specials[roll.randi() % specials.size()], roll.randi_range(2, 3)))
 			out.append(ItemData.jewel("drill", roll.randi_range(1, 2)))
 	return out
+
+
+## " (ของอาชีพ <ชื่อ>)" for gear of another class (ItemData.class_tag), "" otherwise.
+static func _tag_text(item: Dictionary) -> String:
+	var tag := ItemData.class_tag(item, String(Game.class_id()))
+	return " (%s)" % tag if tag != "" else ""
 
 
 func _spawn_loot(item: Dictionary, gold: int, from: Vector3) -> void:
@@ -1588,7 +1649,7 @@ func _arena_win() -> void:
 	for i in (2 if full else 1):
 		_spawn_loot(_random_gem(level, 1), 0, hero.global_position + Vector3(1.5, 0, 0))
 	if full:
-		_spawn_loot(ItemData.generate(level + 1, Game.class_id(), rng, maxi(2, ItemData.roll_rarity(rng, 0.4))), 0, hero.global_position + Vector3(-1.5, 0, 0))
+		_spawn_loot(ItemData.generate(level + 1, ItemData.drop_class(Game.class_id(), rng), rng, maxi(2, ItemData.roll_rarity(rng, 0.4))), 0, hero.global_position + Vector3(-1.5, 0, 0))
 	Game.flag_add("arena_clears")
 	Game.check_achievements()
 	Game.say("ชนะแล้ว! รับรางวัลจากพื้น แล้วเดินกลับประตูเพื่อออกจากสนาม%s" % ("" if full else " (รางวัลลดลงเพราะชนะครั้งที่สองของวัน)"), &"success")

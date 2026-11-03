@@ -23,6 +23,11 @@ extends Node
 ## default is ChatBrain.LocalTransport. WebTransport would ask the account server's
 ## Claude chat instead (hosting/worker/chat.mjs, tools/web/accounts.js), which costs money
 ## per message and needs the owner's API key, so it is not used. Tests use a stand-in.
+##
+## Online (real players signed in, Online): a world line also goes to the real players, a
+## party line to the real party as well as the AI members, and a whisper ("/w name text",
+## or a tapped name: talk_whisper) only to that real player; its line shows when the
+## server sends it back (WorldChat.add_real_line).
 
 signal replied(index: int, text: String, action: String)
 signal failed(index: int, message: String)
@@ -94,6 +99,12 @@ func talk_to(i: int) -> void:
 	_compose({"index": i, "channel": "direct"}, "คุยกับ %s" % s.name, "พิมพ์ถึง %s…" % s.name)
 
 
+## Opens the typing bar to whisper to real player `id` (Online).
+func talk_whisper(id: String) -> void:
+	var who := Online.display_name(Online.player(id))
+	_compose({"index": -1, "channel": "whisper", "to": id, "name": who}, "กระซิบถึง %s" % who, "พิมพ์ถึง %s…" % who)
+
+
 ## Opens the typing bar for the world chat (an online player answers).
 func talk_world() -> void:
 	talk_channel("world")
@@ -122,8 +133,14 @@ func submit(text: String, target: Dictionary = {}) -> String:
 	_composing = {}
 	text = text.strip_edges()
 	var channel := String(target.get("channel", "direct"))
+	# "/w name text" to a real player online is a whisper (otherwise "/w" is the world).
+	var whisper := Online.parse_whisper(text) if not target.is_empty() else {}
+	if not whisper.is_empty():
+		target = {"index": -1, "channel": "whisper", "to": whisper.to, "name": whisper.name}
+		channel = "whisper"
+		text = String(whisper.text)
 	for prefix in PREFIXES:
-		if (text + " ").begins_with(String(prefix)) and not target.is_empty():
+		if whisper.is_empty() and (text + " ").begins_with(String(prefix)) and not target.is_empty():
 			channel = String(PREFIXES[prefix])
 			target = {"index": -1, "channel": channel}
 			text = text.substr(String(prefix).length() - 1).strip_edges()
@@ -133,9 +150,11 @@ func submit(text: String, target: Dictionary = {}) -> String:
 		return "พิมพ์ข้อความก่อน"
 	# An order to the party ("ตามมา", "รอตรงนี้", "กลับเมือง") is carried out, not chatted;
 	# the party sees it.
-	if PartyTalk.route(text):
+	if channel != "whisper" and PartyTalk.route(text):
 		_post("party", String(Game.profile.get("name", "ฮีโร่")), text, HERO_COLOR)
 		return ""
+	if channel == "whisper":
+		return _submit_whisper(text, target)
 	if channel == "party":
 		return _submit_party(text)
 	if channel == "guild":
@@ -144,6 +163,8 @@ func submit(text: String, target: Dictionary = {}) -> String:
 	if channel == "world" or i < 0:
 		channel = "world"
 		i = responder(text)
+		# The real players online hear it too.
+		Online.chat("world", text)
 	var hero_name := String(Game.profile.get("name", "ฮีโร่"))
 	# A buy request ("หาซื้อเพชรม่วง", "มีใครขายปีกไหม") is answered by the stalls that have
 	# it, or by someone saying nobody sells it now (ChatTrade).
@@ -153,7 +174,7 @@ func submit(text: String, target: Dictionary = {}) -> String:
 			return _submit_buy(text, req)
 	if i < 0:
 		Game.world_chat.emit(hero_name, text, HERO_COLOR)
-		return "ตอนนี้ไม่มีผู้เล่นคนอื่นออนไลน์"
+		return "" if not Online.players().is_empty() else "ตอนนี้ไม่มีผู้เล่นคนอื่นออนไลน์"
 	var s := WorldPlayers.state(i, WorldPresence.clock())
 	if channel == "direct":
 		Game.world_chat.emit(hero_name, "(ถึง %s) %s" % [s.name, text], HERO_COLOR)
@@ -234,16 +255,33 @@ func timed_count() -> int:
 func _submit_party(text: String) -> String:
 	var hero_name := String(Game.profile.get("name", "ฮีโร่"))
 	var members := party_members()
-	if members.is_empty():
+	var real := Online.in_party()
+	if members.is_empty() and not real:
 		_note("party", NO_PARTY)
 		return NO_PARTY
 	_post("party", hero_name, text, HERO_COLOR)
+	if real:
+		Online.chat("party", text)
+	if members.is_empty():
+		return ""
 	var who := party_responders(text, members)
 	var thread := _new_thread(MAX_FOLLOW_UPS)
 	var wait := 0.0
 	for i in who:
 		_ask(i, text, "party", "", wait, thread)
 		wait += rng.randf_range(stagger.x, stagger.y)
+	return ""
+
+
+## The hero's whisper to a real player: sent, and shown when the server sends it back.
+func _submit_whisper(text: String, target: Dictionary) -> String:
+	var to := String(target.get("to", ""))
+	var who := String(target.get("name", "ผู้เล่น"))
+	if not Online.is_online() or not Online.players().has(to):
+		var why := "%s ไม่ได้ออนไลน์อยู่ตอนนี้" % who
+		_note("whisper", why)
+		return why
+	Online.chat("whisper", text, to)
 	return ""
 
 

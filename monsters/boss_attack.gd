@@ -121,6 +121,11 @@ func _ready() -> void:
 	mob.get_parent().add_child(warned)
 	for shot in shots:
 		VfxKit.danger_circle(warned, shot.pos, float(shot.r), float(shot.at))
+	if EntitySync.hosting():
+		var circles: Array = []
+		for shot in shots:
+			circles.append([shot.pos, float(shot.r), float(shot.at)])
+		EntitySync.cast(mob, circles, String(info.get("clip", "attack")), title(move) if MOVES.has(move) else "")
 	mob.visual.flash(Color(1.0, 0.3, 0.2), first)
 	mob.visual.action(String(info.get("clip", "attack")), int((last_impact + 0.4) * 1000.0))
 	mob._anim_lock = Time.get_ticks_msec() + int((last_impact + 0.4) * 1000.0)
@@ -217,7 +222,7 @@ func _tick_puddles() -> void:
 
 
 func _damage(actor: Node3D, mult: float) -> void:
-	actor.take_damage(float(mob.stats.atk) * mob._atk_scale * mult, mob)
+	Mob.strike(actor, float(mob.stats.atk) * mob._atk_scale * mult, mob)
 
 
 func _flat(a: Vector3, b: Vector3) -> float:

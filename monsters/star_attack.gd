@@ -59,6 +59,10 @@ func _ready() -> void:
 	warned.name="StarEnemyWarnings"
 	mob.get_parent().add_child(warned)
 	for spot in points: VfxKit.danger_circle(warned,spot,radius,contact)
+	if EntitySync.hosting():
+		var circles: Array = []
+		for spot in points: circles.append([spot, radius, contact])
+		EntitySync.cast(mob, circles)
 	mob.visual.action("attack",int(end*1000.0))
 	mob._anim_lock=Time.get_ticks_msec()+int(end*1000.0)
 
@@ -80,7 +84,7 @@ func _process(delta: float) -> void:
 		for ally in mob._targets():
 			for spot in points:
 				if ((ally.global_position-spot)*Vector3(1,0,1)).length()<=radius:
-					ally.take_damage(float(mob.stats.atk)*mob._atk_scale*(1.65 if special else 1.0),mob)
+					Mob.strike(ally, float(mob.stats.atk)*mob._atk_scale*(1.65 if special else 1.0), mob)
 					break
 	if age>=end: queue_free()
 

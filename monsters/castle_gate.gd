@@ -16,6 +16,9 @@ var breakable := false
 var _blocker: StaticBody3D
 var _door: Node3D
 var _hit_fx_at := 0
+## In a party member's view of the leader's war (EntitySync mirror): the leader's gate of
+## this eid takes the hits, this one only shows them.
+var sync_eid := 0
 
 
 func setup_gate(index: int, at: Vector3, p_hp: int, p_hero: Node3D) -> void:
@@ -96,11 +99,22 @@ func top_point() -> Vector3:
 
 ## Hits from the hero, the hero's summons and the hero's party (war scale like on a fighter).
 func take_hit(amount: int, crit: bool, _color := Color.WHITE, _attacker: Node = null) -> bool:
+	if sync_eid > 0 and EntitySync.mirroring():
+		if not _dead and breakable and amount > 0:
+			EntitySync.current.forward(self, amount, crit)
+			var now := Time.get_ticks_msec()
+			if now >= _hit_fx_at:
+				_hit_fx_at = now + 120
+				BattleVfx.damage_number(get_parent(), top_point(), str(int(ceil(float(amount) * GuildWarData.damage_scale))) + ("!" if crit else ""), false, 1.2 if crit else 0.9)
+				visual.flash(Color(1.0, 0.9, 0.7), 0.1)
+		return false
 	return _batter(int(ceil(float(amount) * GuildWarData.damage_scale)), crit)
 
 
 ## Hits from the fighters (already scaled by the war).
 func take_damage(raw: float, _attacker: Node = null) -> void:
+	if sync_eid > 0 and EntitySync.mirroring():
+		return
 	_batter(int(round(raw)), false)
 
 

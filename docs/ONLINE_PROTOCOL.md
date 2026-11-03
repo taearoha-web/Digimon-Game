@@ -1,0 +1,215 @@
+# Toon Tale online play: protocol and client API
+
+Real players who are signed in (the account system, `hosting/accounts`) meet in the
+same world: they see each other, chat, party up, fight the same monsters, trade, duel
+and go to the guild war together. Everything else (AI world players, offline play)
+keeps working; when the connection drops the game carries on alone.
+
+Free tier only: one Cloudflare Worker with one Durable Object (`WorldRoom`, SQLite
+backed, WebSocket Hibernation API), next to the existing D1 account database.
+
+## Transport
+
+- `GET /api/online/ws` with `Upgrade: websocket`, same origin as the game, so the
+  `__Host-toon_session` cookie goes along. The Worker checks the session in D1
+  (`currentSession` in `hosting/accounts/server/accounts.js`); no session: 401.
+  It then forwards the request to the Durable Object named `world`
+  (`env.WORLD.idFromName("world")`) with the headers `x-toon-user-id` and
+  `x-toon-username`. One room holds everyone (a few dozen players at most).
+- Frames are JSON text: `{"t": "<type>", ...fields}`. Unknown types are ignored on
+  both sides (forward compatible).
+- One socket per account. A second socket of the same account replaces the first
+  (the old one gets `{"t":"kicked","reason":"elsewhere"}` and is closed).
+- Limits enforced by the server: frame <= 8 KB; at most 30 frames a second per socket
+  (excess dropped silently); chat text trimmed to 120 characters; names come from the
+  account, never from the client.
+- Client sends `state` at most 8 times a second (5 on phones), only when it changed,
+  plus once every 2 s as a heartbeat. Server drops a socket silent for 30 s.
+
+## Player identity
+
+`id` is the account user id (string). `name` is the character name chosen in game
+(client supplied, trimmed to 16 chars, shown with the account username as fallback);
+`user` is the account username (server supplied, trusted).
+
+## Client -> server
+
+| t | fields | meaning |
+|---|---|---|
+| `hello` | `name, cls, level, stars, look, zone, pos:[x,y,z], yaw, hp, max_hp, mount` | first frame after open; `look` = the character's appearance dict (class, gear ids, colours, wings, plus levels) exactly as the game builds a FieldPlayer look |
+| `state` | `pos, yaw, anim, hp, max_hp, zone, mount` | movement; `anim` is "idle", "run", "attack", "skill:<id>", "dead" |
+| `look` | `look, level, stars` | gear / appearance changed |
+| `chat` | `ch:"world"\|"party"\|"whisper", text, to?` | `to` = target id for whisper |
+| `who` | | ask for the full player list |
+| `party_invite` | `to` | |
+| `party_answer` | `from, ok:bool` | |
+| `party_leave` | | |
+| `party_kick` | `who` | leader only |
+| `ent_snap` | `zone, ents:[[eid, x, z, yaw, hp, max_hp, flags]]` | zone host only, 4 per second: the shared monsters / fighters (see Shared combat) |
+| `ent_hit` | `zone, eid, dmg, crit, skill?` | a party member hit a shared entity; relayed to the host |
+| `ent_event` | `zone, eid, ev, data` | host only: "spawn", "dead", "cast", "phase", "aggro" ... relayed to the party in that zone |
+| `trade_req` | `to` | |
+| `trade_answer` | `from, ok` | |
+| `trade_offer` | `items:[item dict], gold` | replaces my offer; unlocks both sides |
+| `trade_lock` | | |
+| `trade_confirm` | | both locked, both confirm -> server sends `trade_done` |
+| `trade_cancel` | | |
+| `duel_req` | `to` | |
+| `duel_answer` | `from, ok` | |
+| `pvp_hit` | `to, dmg, crit, skill?, fx?` | attacker-computed raw damage; the victim applies its own defence |
+| `duel_over` | `loser` | sent by the side that fell |
+| `gw_invite` | | party leader asks the party into the guild war (same match) |
+| `gw_answer` | `ok` | |
+| `gw_start` | `seed, plan` | leader (host) starts; relayed to accepted members |
+| `stall_list` | `lots:[{lot, item, price}]` | publish my stall's current lots (PlayerStall) for real players; sent on connect and on every change |
+| `stall_view` | `seller` | ask for a real player's stall |
+| `stall_buy` | `seller, lot, price` | buy a lot (the buyer has the gold; it is taken on `stall_bought`) |
+| `stall_sold` | `to, lot, item, price` | seller's answer: the lot is gone from my stall and I got the gold |
+| `stall_refuse` | `to, lot` | seller's answer: already sold / unlisted |
+
+## Server -> client
+
+| t | fields |
+|---|---|
+| `welcome` | `you:{id,user}`, `players:[player]`, `party` (or null) |
+| `join` | `player` = `{id, user, name, cls, level, stars, look, zone, pos, yaw, hp, max_hp, mount, party}` |
+| `leave` | `id` |
+| `state` | `id` + the state fields |
+| `look` | `id, look, level, stars` |
+| `chat` | `ch, from, user, name, text, to?` (whisper: only sender and target get it) |
+| `players` | `players:[player]` (answer to `who`) |
+| `party_invite` | `from, name` |
+| `party` | `party:{id, leader, members:[id]}` or `party:null` (sent to every member on any change) |
+| `host` | `zone, id` - who simulates the shared entities of my party in that zone (null: nobody shares, play alone) |
+| `ent_snap` / `ent_event` | relayed from the host, plus `from` |
+| `ent_hit` | relayed to the host, plus `from` |
+| `trade_req` / `trade_answer` / `trade_offer` / `trade_lock` / `trade_confirm` / `trade_cancel` | relayed with `from`; the server keeps the trade session state |
+| `trade_done` | `give:{items,gold}, get:{items,gold}` - apply it: remove `give`, add `get` |
+| `duel_req` / `duel_answer` / `pvp_hit` / `duel_over` | relayed with `from` |
+| `gw_invite` / `gw_answer` / `gw_start` | relayed with `from` within the party |
+| `stall` | `seller, lots` (answer to `stall_view`; also pushed to viewers when the seller re-publishes) |
+| `stall_buy` | relayed to the seller with `from` |
+| `stall_bought` | `seller, lot, item, price` to the buyer (from the seller's `stall_sold`): pay `price`, add `item` |
+| `stall_refuse` | relayed to the buyer with `from` |
+| `error` | `code, text` (Thai, shown to the player) |
+| `kicked` | `reason` |
+
+## Server behaviour in detail
+
+What the server (`hosting/worker/online/room.mjs`) does where the tables above leave a
+choice. The wire format is the one above; a few frames carry an extra field, which
+clients may ignore.
+
+- **Order.** `welcome` comes as soon as the socket opens, before the client's `hello`;
+  its `players` (and `players` from `who`) never include yourself. Frames other than
+  `hello` / `who` sent before `hello` are ignored. `join`, `state` and `look` are not
+  echoed to the sender. `join` is sent again when a player sends `hello` again
+  (treat it as an update).
+- **`state` goes to everyone online**, whatever the zone; clients filter by `zone`.
+- **Chat echo.** Every chat line, world and party included, comes back to its sender
+  too: show chat lines from the server only. Whisper to someone not online:
+  `error not_online`; party chat without a party: `error no_party`.
+- **Party.** Any member may invite (the party fills at 5); only the leader kicks. The
+  inviter gets `party_answer {from, ok}` (relayed) for a yes and a no. Invites, trade and
+  duel requests expire after 60 s. A party left with one member ends (`party: null`).
+  When the leader leaves or drops, the member who joined next leads. Closing the
+  socket leaves the party; a second socket of the same account (`kicked` on the old one)
+  keeps the party and the player's place (its `welcome` has the party).
+- **`host`** is sent to a party member whenever the host of its current zone changes
+  or it changes zone; `id` is null when fewer than two members of the party are in that
+  zone (play alone). Leaving the party sends `host {zone, id:null}` once. Players who were
+  never in a party never get `host`. `ent_snap` / `ent_event` from anyone but the host
+  of that (party, zone), or with a `zone` that is not the sender's current zone, are
+  dropped; `ent_hit` is dropped when nobody else hosts the sender's zone.
+- **Trade.** A player in a trade or a duel is busy (`error busy`). `trade_done` also
+  carries `with` (the other player's id). A disconnect (or a second socket) sends the
+  partner `trade_cancel` with `from` = the player who left.
+- **Duel.** `pvp_hit` is relayed only when `to` is the sender's accepted duel opponent.
+  `duel_over` is relayed with `loser` = the sender (whatever it wrote). If a duelist
+  drops, the other gets `duel_over {from, loser}` with the dropped player as loser.
+- **Guild war.** `gw_invite` (leader only) goes to every other member; `gw_answer` goes to
+  every other member (leader included); `gw_start` (leader only) goes to the members who
+  answered yes since the last `gw_invite`.
+- **Stalls.** `stall_list` with no valid lots closes the stall. `stall` answers
+  `stall_view` with `lots: []` for a player without a stall. `stall_buy` to a player
+  without a published stall: `error no_stall`; the relayed `stall_buy` also carries
+  `seller`. `stall_sold` / `stall_refuse` are only accepted for an open `stall_buy` of
+  that buyer and lot (open for 60 s), and `stall_bought.price` is the price the buyer
+  sent in `stall_buy`. When a seller drops, its viewers of the last 5 minutes get
+  `stall {seller, lots: []}` and its open purchases get `stall_refuse`.
+- **Limits.** A frame over 8 KB gets `error too_large` and is dropped; frames past 30 in
+  a second, bad JSON and unknown types are dropped silently. Every frame counts as a
+  sign of life; a socket silent for 30 s is closed with code 4001 (no `kicked`; reconnect
+  as usual). `kicked` is followed by close code 4000; do not reconnect by itself after it.
+- **`error` codes:** `not_online`, `self`, `no_party`, `party_full`, `in_party`,
+  `same_party`, `not_leader`, `no_invite`, `no_request`, `busy`, `no_trade`,
+  `not_locked`, `no_stall`, `too_large`; `text` is Thai, ready to show.
+- **Hibernation.** The room sleeps when nobody sends anything and wakes up with the
+  same sockets, players, parties, hosts and stalls (positions come back with the next
+  `state`; a very large `look` or stall may need the client's next `look` /
+  `stall_list`). Trades, duels, guild-war invites and open requests do not survive a
+  sleep; with the 2 s heartbeat a room with players in it does not sleep.
+- `GET /api/online/status` (no sign-in) answers `{"online": <sockets connected>}`.
+
+## Shared combat (party only)
+
+Players who are not in a party share nothing: each sees the other walk and chat, but
+fights its own monsters (no stealing kills, no griefing). Players in the same party and
+the same zone share the monsters:
+
+- The server names a **host** per (party, zone): the leader when present, else the
+  member who arrived first. It changes when the host leaves the zone or drops.
+- The host's game runs the monsters as today and sends `ent_snap` 4 times a second
+  plus `ent_event` for spawns, deaths, casts and boss phases. `eid` is the host's own
+  stable id for the entity (an int it hands out at spawn).
+- The other members do not spawn monsters in that zone; they build "mirror" entities
+  from the snapshots (same model, interpolated movement, HP bar) and send `ent_hit`
+  for every hit they land. The host applies it as `Mob.take_hit(dmg, crit, color,
+  remote_player_node)`, so the threat system (`Mob.add_threat`) counts real players
+  too and monsters chase whoever hits hardest.
+- Monster attacks: the host resolves them against whatever it targets; when the target
+  is a remote player the host sends `ent_event` `{ev:"hit", data:{to, dmg}}` and that
+  player's game applies the damage (`Hero.take_damage`).
+- A kill: the host sends `ent_event` `{ev:"dead", data:{killer, share:{id:damage}}}`.
+  Every member in the zone rolls its own loot and EXP locally from that monster as if
+  it had killed it (each gets its own drop - no loot fights).
+- The same mechanism runs the guild war together: the party leader hosts the match,
+  the AI fighters are shared entities, members fight on the leader's side.
+
+## Client API (Godot autoload `Online`, `systems/online/online.gd`)
+
+```gdscript
+signal connected
+signal disconnected
+signal message(type: String, data: Dictionary)   # every server frame, after Online's own handling
+signal player_joined(id: String)
+signal player_left(id: String)
+signal party_changed
+signal host_changed(zone: StringName)
+
+func is_online() -> bool
+func my_id() -> String
+func send(type: String, data := {}) -> void       # no-op when offline
+func players() -> Dictionary                      # id -> player dict (latest)
+func players_in_zone(zone: StringName) -> Array   # [player dict]
+func party() -> Dictionary                         # {} when none
+func in_party() -> bool
+func party_members_in_zone(zone: StringName) -> Array  # ids, me excluded
+func zone_host(zone: StringName) -> String         # "" when nobody shares
+func is_zone_host(zone: StringName) -> bool
+func is_mirror_zone(zone: StringName) -> bool      # in a party, someone else hosts: do not spawn monsters
+func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
+## Tests: swap the socket for an object with send_text(text) and poll() -> Array[String];
+## `_dispatch(msg)` handles one server frame as if it came off the wire.
+func use_transport(transport: Object) -> void
+func _dispatch(msg: Dictionary) -> void
+```
+
+Online connects by itself on the web build once the account is signed in
+(`window.toonCloudStatus()` has a user) and the hero is in the world; it reconnects
+with backoff (2, 4, 8, 16, 30 s). The settings get a switch "เล่นออนไลน์" (on by
+default). Desktop / headless builds stay offline unless a test injects a transport.
+
+Remote players are `RemotePlayer` nodes (group `remote_players`, built with the same
+look code as `FieldPlayer`, a "ผู้เล่นจริง" tag over the name, interpolated movement),
+added to the current zone for every player whose `zone` matches.
