@@ -13,6 +13,8 @@ signal closed()
 signal whisper_requested(id: String)
 ## The game registry (the world players) instead.
 signal registry_requested()
+## The hero wants to see player id's stall (OnlineStall).
+signal stall_requested(id: String)
 
 const BUTTON := Vector2(124, 52)
 const CLASS_BADGE := 34.0
@@ -245,4 +247,10 @@ func _row(p: Dictionary) -> Control:
 		Online.send("duel_req", {"to": id})
 		Game.say("ท้าดวล %s แล้ว รอคำตอบ…" % Online.display_name(p), &"info"))
 	line.add_child(duel)
+	var stall := UIUtil.button("ดูแผง", &"", BUTTON)
+	stall.name = "Stall"
+	stall.pressed.connect(func():
+		close_screen()
+		stall_requested.emit(id))
+	line.add_child(stall)
 	return panel

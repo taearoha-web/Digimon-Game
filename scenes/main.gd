@@ -16,6 +16,7 @@ var registry: RegistryScreen
 var player_card: PlayerCard
 ## The real players online (Online) and a real player's party invitation.
 var online_screen: OnlineScreen
+var online_stall: OnlineStall
 var online_prompt: OnlinePrompt
 var ai_chat: AiChat
 var tutorial: Tutorial
@@ -93,6 +94,9 @@ func _ready() -> void:
 	online_screen = OnlineScreen.new()
 	add_child(online_screen)
 	online_screen.registry_requested.connect(func(): registry.open_screen())
+	online_stall = OnlineStall.new()
+	add_child(online_stall)
+	online_screen.stall_requested.connect(func(id: String): online_stall.view(id))
 	online_prompt = OnlinePrompt.new()
 	add_child(online_prompt)
 	# The online count: the real players while connected (the registry is a tap away there).
@@ -400,7 +404,7 @@ func _open_menu(tab: StringName) -> void:
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
 		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or trade_screen.is_open or _traveling \
-		or (online_screen != null and online_screen.is_open)
+		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
 ## Walk up to a world player and tap them: their card, to ask them into the party.
