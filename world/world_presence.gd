@@ -13,6 +13,23 @@ extends Node
 ## and party members in theirs; buy requests answered by the stalls, ChatTrade), with a
 ## bubble over the speaker's head when it stands here, at a rate a phone's chat box can
 ## follow (RATE_CAP).
+##
+## Online (docs/ONLINE_PROTOCOL.md "Shared world"), every real player in the zone sees the
+## same world players and the same world chat:
+## - HOST (Online.is_zone_host, another real player here): runs its players as always and
+##   sends `wp_snap` WP_SNAP_EVERY (roster index, x, z, yaw, anim, flags; at most WP_CAP,
+##   only those within WP_NEAR of a real player) and `wp_event` for casts (skill id and the
+##   target's shared eid), bubbles and leaving.
+## - MIRROR (Online.is_mirror_zone): places and runs none of its own; shows exactly the
+##   players of the host's latest snapshot as puppets (FieldPlayer.puppet). When the host
+##   role comes here, or the link goes, the puppets carry on as ordinary world players
+##   where they stand.
+## - The AI world chat: while another player is the world host (`whost`), the world-chat
+##   lines, conversations, buy requests and stall calls are not made here: the world
+##   host's `ai_chat` lines are shown instead (a bubble over the speaker standing here).
+##   The world host (or a game offline) makes them as always and, online, sends the lines
+##   of each turn as one `ai_chat`. Guild / party chat, the answers to the hero and the
+##   milestone announcements stay local.
 
 const CHECK := 12.0
 ## Shown at once in a field and in the village, by quality (low, medium, high).
@@ -90,6 +107,34 @@ var _online: Array[Dictionary] = []
 ## Stall (JapanVillage.STALLS index) -> the world player keeping it.
 var _stalls := {}
 
+## Online roles of this zone's world players (see the top).
+enum { LOCAL, HOST, MIRROR }
+const WP_SNAP_EVERY := 0.25
+const WP_NEAR := 70.0
+const WP_CAP := 40
+## Seconds between two looks at the link and the zone host (signals switch at once too).
+const MODE_CHECK := 0.5
+## New puppets built per snapshot (a body is a few ms of work: no hitch on arrival).
+const PUPPETS_PER_SNAP := 4
+## wp_event frames a second at most (the snapshot carries the rest), and the burst.
+const EVENT_RATE := 6.0
+const EVENT_BURST := 8.0
+const AI_CHAT_MAX := 8
+var mode := LOCAL
+var _mode_in := 0.0
+var _snap_in := 0.0
+var _ev_tokens := EVENT_BURST
+## Host: reused rows of the snapshot, the real players' spots and who went out last.
+var _rows: Array = []
+var _row_pool: Array = []
+var _real_pos := PackedVector3Array()
+var _cands: Array = []
+var _wired := {}
+## Mirror: indices in the latest snapshot (reused).
+var _snap_seen := {}
+## World host: world-chat lines of this turn, sent as one `ai_chat`.
+var _ai_out: Array = []
+
 
 func setup(p_zone: Zone) -> void:
 	zone = p_zone
@@ -107,9 +152,14 @@ static func _days_offset() -> float:
 
 
 func _ready() -> void:
+	mode = _wanted_mode()
 	sync(true)
 	Game.world_chat.connect(_on_world_line)
 	Game.channel_chat.connect(_on_channel_line)
+	Online.message.connect(_on_online_message)
+	Online.host_changed.connect(_on_link_changed)
+	Online.disconnected.connect(_on_link_changed)
+	Online.connected.connect(_on_link_changed)
 
 
 func _exit_tree() -> void:
@@ -117,6 +167,11 @@ func _exit_tree() -> void:
 		Game.world_chat.disconnect(_on_world_line)
 	if Game.channel_chat.is_connected(_on_channel_line):
 		Game.channel_chat.disconnect(_on_channel_line)
+	if Online.message.is_connected(_on_online_message):
+		Online.message.disconnect(_on_online_message)
+		Online.host_changed.disconnect(_on_link_changed)
+		Online.disconnected.disconnect(_on_link_changed)
+		Online.connected.disconnect(_on_link_changed)
 
 
 ## The hero just spoke in the world chat: the players hold their talk for HERO_QUIET s.
@@ -133,10 +188,19 @@ func _on_channel_line(channel: String, _speaker: String, _text: String, _color: 
 func _process(delta: float) -> void:
 	if zone == null or not zone.is_built:
 		return
+	_mode_in -= delta
+	if _mode_in <= 0.0:
+		update_mode()
 	_timer -= delta
 	if _timer <= 0.0:
 		_timer = CHECK
 		sync(false)
+	if mode == HOST:
+		_ev_tokens = minf(EVENT_BURST, _ev_tokens + EVENT_RATE * delta)
+		_snap_in -= delta
+		if _snap_in <= 0.0:
+			_snap_in = WP_SNAP_EVERY
+			send_snapshot()
 	chat_tick(delta)
 
 
@@ -144,7 +208,7 @@ func _process(delta: float) -> void:
 ## next turn of the world, guild and party chats when their timers run out.
 func chat_tick(delta: float) -> void:
 	_flush_queue()
-	if not _busy("world"):
+	if not _busy("world") and not world_chat_relayed():
 		_chat_in -= delta
 		if _chat_in <= 0.0:
 			_chat_in = CHAT_EVERY * randf_range(0.6, 1.4)
@@ -159,6 +223,7 @@ func chat_tick(delta: float) -> void:
 		if _party_in <= 0.0:
 			_party_in = randf_range(PARTY_EVERY.x, PARTY_EVERY.y)
 			party_once()
+	flush_ai_chat()
 
 
 ## How many world players are online at time t (the hero not counted).
@@ -185,12 +250,20 @@ func sync(initial: bool) -> void:
 		_announce(s, t)
 		if bool(s.online):
 			_online.append(s)
+		if mode == MIRROR:
+			# The host's game places them; the puppets only pick up level, gear and doing.
+			var puppet: Variant = shown.get(i)
+			if puppet != null and is_instance_valid(puppet):
+				(puppet as FieldPlayer).sync_progress(s)
+			continue
 		if bool(s.online) and StringName(s.place) == zone.zone_id and not Game.in_party(i):
 			# The village is the stall keepers' and the errand runners' (the scheduled
 			# players otherwise are out levelling).
 			if zone.is_town and String(s.doing) not in ["stall", "errand"]:
 				continue
 			here.append(s)
+	if mode == MIRROR:
+		return
 	# Those already shown stay first, then the roster order turned by the hour so the same
 	# few are not always the ones picked.
 	var n := WorldPlayers.size()
@@ -219,10 +292,7 @@ func sync(initial: bool) -> void:
 			keep[int(here[k].index)] = here[k]
 	for i in shown.keys():
 		if not keep.has(i):
-			var gone: FieldPlayer = shown[i]
-			if is_instance_valid(gone):
-				gone.leave()
-			shown.erase(i)
+			_drop_shown(i)
 	for k in _stalls.keys():
 		if not shown.has(int(_stalls[k])):
 			_stalls.erase(k)
@@ -234,8 +304,7 @@ func sync(initial: bool) -> void:
 			p.sync_progress(s)
 			if p.doing == "stall" and not p.stall_at.is_finite() and not _give_stall(p):
 				# Every market stall taken: a keeper never stands about anywhere else.
-				p.leave()
-				shown.erase(i)
+				_drop_shown(i)
 			if p.doing == "errand" and (p.errand != String(s.errand) or not p.errand_at.is_finite()):
 				_give_errand(p, s)
 			continue
@@ -251,7 +320,7 @@ func sync(initial: bool) -> void:
 ## arrivals of one sync come one per frame instead of all in the same frame.
 func _spawn_arrivals(arrivals: Array[int], t: float, keep: Dictionary) -> void:
 	for i in arrivals:
-		if zone == null or not is_instance_valid(zone) or not is_inside_tree():
+		if zone == null or not is_instance_valid(zone) or not is_inside_tree() or mode == MIRROR:
 			return
 		if shown.has(i) and is_instance_valid(shown[i]):
 			continue
@@ -279,11 +348,19 @@ func adopt(i: int) -> FieldPlayer:
 	shown.erase(i)
 	if p == null or not is_instance_valid(p) or (p as Node).is_queued_for_deletion():
 		return null
+	if (p as FieldPlayer).puppet:
+		# Another game's picture of it: the party member is a body of this game's own.
+		(p as FieldPlayer).queue_free()
+		return null
 	return p as FieldPlayer
 
 
-## A member let go while still online goes back to hunting here.
+## A member let go while still online goes back to hunting here (in a mirrored zone the
+## host's game decides where it is: it goes, and shows up when the host lists it).
 func release(p: FieldPlayer) -> void:
+	if mode == MIRROR:
+		p.leave()
+		return
 	p.leave_party()
 	shown[p.world_index] = p
 
@@ -418,7 +495,7 @@ func _server(text: String, kind: StringName, toast := false) -> void:
 ## chat is at its rate cap.
 func chat_once() -> void:
 	_flush_queue()
-	if _online.is_empty() or _busy("world") or not _room():
+	if _online.is_empty() or _busy("world") or not _room() or world_chat_relayed():
 		return
 	if chat_clock() < _quiet_until:
 		return
@@ -549,6 +626,10 @@ func _flush_queue() -> void:
 	var now := chat_clock()
 	while not _queue.is_empty() and float(_queue[0].at) <= now:
 		var e: Dictionary = _queue[0]
+		if String(e.channel) == "world" and world_chat_relayed():
+			# Another game makes the world chat now.
+			_queue.pop_front()
+			continue
 		if not _room():
 			e.put_off = int(e.put_off) + 1
 			if int(e.put_off) > MAX_PUT_OFF:
@@ -597,13 +678,14 @@ func _say(channel: String, s: Dictionary, text: String) -> void:
 		color = ChatTrade.SELLER_COLOR if int(s.get("index", -1)) >= 0 else AiChat.NOTE_COLOR
 	if channel == "world":
 		Game.world_chat.emit(name, text, color)
+		_share_line(name, text, color, int(s.get("index", -1)))
 	else:
 		AiChat.hold = true
 		Game.post_chat(channel, name, text, color)
 		AiChat.hold = false
 	var body := _body_of(int(s.get("index", -1)))
 	if body != null:
-		body.bubble(text)
+		body.bubble(text, channel == "world")
 
 
 ## World player i's body in this zone (shown here or in the hero's party), or null.
@@ -674,5 +756,331 @@ func _stall_announcement() -> bool:
 	_stall_said_at = ticks
 	_posted.append(chat_clock())
 	Game.world_chat.emit(String(WorldPlayers.entry(k).name), text, Color("8ff0ff"))
+	_share_line(String(WorldPlayers.entry(k).name), text, Color("8ff0ff"), k)
 	(shown[k] as FieldPlayer).bubble(text)
 	return true
+
+
+# --- Online: the shared world (docs/ONLINE_PROTOCOL.md "Shared world") ---------------------
+
+## Whether another real player's game makes the AI world chat now (`whost`): this one
+## then shows its `ai_chat` lines instead of making its own.
+static func world_chat_relayed() -> bool:
+	if not Online.is_online():
+		return false
+	var host := Online.world_host()
+	return host != "" and host != Online.my_id()
+
+
+## The world host's own world-chat line goes into this turn's `ai_chat`.
+func _share_line(speaker: String, text: String, color: Color, index: int) -> void:
+	if not Online.is_online() or not Online.is_world_host() or _ai_out.size() >= AI_CHAT_MAX:
+		return
+	var line := {"ch": "world", "speaker": speaker.left(24), "text": text.left(200), "color": color.to_html()}
+	if index >= 0:
+		line["index"] = index
+	_ai_out.append(line)
+
+
+## Sends the turn's world-chat lines as one `ai_chat` (the world host's game).
+func flush_ai_chat() -> void:
+	if _ai_out.is_empty():
+		return
+	if Online.is_online() and Online.is_world_host():
+		Online.send("ai_chat", {"lines": _ai_out.duplicate()})
+	_ai_out.clear()
+
+
+## The world host's lines: in the world chat, with a bubble over the speaker standing
+## here; kept as said (no repeat when this game makes the chat again).
+func _on_ai_chat(msg: Dictionary) -> void:
+	if not world_chat_relayed():
+		return
+	var from := Online.id_of(msg.get("from"))
+	if from != "" and from != Online.world_host():
+		return
+	var lines: Variant = msg.get("lines")
+	if not lines is Array:
+		return
+	var now := chat_clock()
+	var n := 0
+	for raw in lines:
+		if n >= AI_CHAT_MAX:
+			break
+		if not raw is Dictionary or String(raw.get("ch", "world")) != "world":
+			continue
+		var speaker := str(raw.get("speaker", "")).strip_edges().left(24)
+		var text := str(raw.get("text", "")).strip_edges().left(200)
+		if speaker == "" or text == "" or not (raw.get("speaker") is String and raw.get("text") is String):
+			continue
+		n += 1
+		var color := Color("bfe8ff")
+		var c: Variant = raw.get("color")
+		if c is String and Color.html_is_valid(c):
+			color = Color.html(c)
+		elif c is Array and (c as Array).size() >= 3:
+			color = Color(Online.num_f(c[0], 0.75), Online.num_f(c[1], 0.9), Online.num_f(c[2], 1.0))
+		_said[text] = now
+		_posted.append(now)
+		Game.world_chat.emit(speaker, text, color)
+		var index := Online.num(raw.get("index", -1), -1)
+		if index >= 0 and index < WorldPlayers.size():
+			var body := _body_of(index)
+			if body != null:
+				body.bubble(text, false)
+
+
+## The role this zone's world players have now (LOCAL, HOST or MIRROR).
+func _wanted_mode() -> int:
+	if zone == null or not Online.is_online():
+		return LOCAL
+	var z := zone.zone_id
+	if Online.is_mirror_zone(z):
+		return MIRROR
+	if Online.is_zone_host(z) and not Online.players_in_zone(z).is_empty():
+		return HOST
+	return LOCAL
+
+
+func _on_link_changed(_zone: Variant = null) -> void:
+	if is_inside_tree() and zone != null and zone.is_built:
+		update_mode()
+
+
+## Looks at the link and the zone host again and switches at once: into MIRROR the own
+## players go (the host's come as puppets); out of it the puppets carry on as ordinary
+## world players where they stand.
+func update_mode() -> void:
+	_mode_in = MODE_CHECK
+	var want := _wanted_mode()
+	if want == mode:
+		return
+	var old := mode
+	mode = want
+	if mode == MIRROR:
+		for i in shown.keys():
+			var p: Variant = shown[i]
+			if p != null and is_instance_valid(p):
+				(p as Node).queue_free()
+		shown.clear()
+		_stalls.clear()
+		_queue = _queue.filter(func(e): return String(e.channel) != "world" or not world_chat_relayed())
+		return
+	if old == MIRROR:
+		for i in shown.keys():
+			var p: Variant = shown[i]
+			if p == null or not is_instance_valid(p) or (p as Node).is_queued_for_deletion():
+				shown.erase(i)
+				continue
+			(p as FieldPlayer).end_puppet()
+		# The schedule decides again who stays (the stalls and errands are handed out).
+		sync(false)
+		_timer = CHECK
+	if mode == HOST:
+		_snap_in = 0.0
+		_wired.clear()
+
+
+## Host: player i stops being shown here (with `wp_event leave` for the others).
+func _drop_shown(i: int) -> void:
+	var gone: Variant = shown.get(i)
+	shown.erase(i)
+	if gone != null and is_instance_valid(gone):
+		(gone as FieldPlayer).leave()
+	if mode == HOST and _wired.has(i):
+		_wired.erase(i)
+		_send_event(i, "leave", {}, true)
+
+
+func _send_event(i: int, ev: String, data: Dictionary, must := false) -> void:
+	if mode != HOST or not Online.is_online():
+		return
+	if _ev_tokens < 1.0 and not must:
+		return
+	_ev_tokens = maxf(0.0, _ev_tokens - 1.0)
+	Online.send("wp_event", {"zone": String(zone.zone_id), "index": i, "ev": ev, "data": data})
+
+
+## FieldPlayer.bubble: a bubble over a player the others see too.
+func shared_bubble(i: int, text: String) -> void:
+	if mode == HOST and _wired.has(i):
+		_send_event(i, "bubble", {"text": text.left(200)})
+
+
+## FieldPlayer._cast: the cast and its target monster's shared eid (0: none).
+func shared_cast(i: int, skill_id: String, eid: int) -> void:
+	if mode == HOST and _wired.has(i):
+		_send_event(i, "skill", {"id": skill_id, "eid": eid})
+
+
+## Host: the players near any other real player here, 4 times a second (rows reused).
+func send_snapshot() -> void:
+	if mode != HOST or zone == null:
+		return
+	_real_pos.clear()
+	for p in Online.players_in_zone(zone.zone_id):
+		var node := Online.remote_node(String(p.get("id", "")))
+		if node != null:
+			_real_pos.append(node.global_position)
+		elif Online.valid_pos(p.get("pos")):
+			_real_pos.append(Online.pos_of(p.pos))
+	_cands.clear()
+	for i in shown:
+		var f: Variant = shown[i]
+		if f == null or not is_instance_valid(f) or not (f as FieldPlayer).on_wire():
+			continue
+		var at: Vector3 = (f as FieldPlayer).global_position
+		var best := INF
+		for r in _real_pos:
+			best = minf(best, Vector2(r.x - at.x, r.z - at.z).length())
+		if best <= WP_NEAR:
+			_cands.append([best, i])
+	if _cands.size() > WP_CAP:
+		_cands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+		_cands.resize(WP_CAP)
+	while _row_pool.size() < _cands.size():
+		_row_pool.append([0, 0.0, 0.0, 0.0, "idle", 0])
+	_rows.resize(_cands.size())
+	_wired.clear()
+	for k in _cands.size():
+		var i: int = _cands[k][1]
+		var f := shown[i] as FieldPlayer
+		var row: Array = _row_pool[k]
+		row[0] = i
+		row[1] = snappedf(f.global_position.x, 0.1)
+		row[2] = snappedf(f.global_position.z, 0.1)
+		row[3] = snappedf(wrapf(f._facing, -PI, PI), 0.01)
+		row[4] = f.wire_anim()
+		row[5] = f.wire_flags()
+		_rows[k] = row
+		_wired[i] = true
+	Online.send("wp_snap", {"zone": String(zone.zone_id), "ps": _rows})
+
+
+func _on_online_message(type: String, msg: Dictionary) -> void:
+	match type:
+		"wp_snap":
+			_on_wp_snap(msg)
+		"wp_event":
+			_on_wp_event(msg)
+		"ai_chat":
+			_on_ai_chat(msg)
+		"whost":
+			if not world_chat_relayed():
+				return
+			# Another game makes the world chat now: our own conversations stop.
+			_queue = _queue.filter(func(e): return String(e.channel) != "world")
+
+
+## Whether a wp_ frame is for this zone, from its host.
+func _from_host(msg: Dictionary) -> bool:
+	if zone == null or not zone.is_built or str(msg.get("zone", "")) != String(zone.zone_id):
+		return false
+	var from := Online.id_of(msg.get("from"))
+	return from == "" or from == Online.zone_host(zone.zone_id)
+
+
+## Mirror: exactly the players of the host's snapshot, as puppets (a few new ones a
+## snapshot), the others leave.
+func _on_wp_snap(msg: Dictionary) -> void:
+	if not _from_host(msg):
+		return
+	if mode != MIRROR:
+		update_mode()
+		if mode != MIRROR:
+			return
+	var ps: Variant = msg.get("ps")
+	if not ps is Array:
+		return
+	var now := Time.get_ticks_msec() * 0.001
+	var t := clock()
+	var built := 0
+	_snap_seen.clear()
+	for row in ps:
+		if _snap_seen.size() >= WP_CAP:
+			break
+		if not row is Array or (row as Array).size() < 6:
+			continue
+		var i := Online.num(row[0], -1)
+		var x := Online.num_f(row[1], INF)
+		var z := Online.num_f(row[2], INF)
+		if i < 0 or i >= WorldPlayers.size() or absf(x) > Online.WORLD_LIMIT or absf(z) > Online.WORLD_LIMIT or Game.in_party(i):
+			continue
+		_snap_seen[i] = true
+		var yaw := Online.num_f(row[3], 0.0)
+		var anim := str(row[4]).left(48)
+		var flags := Online.num(row[5], 0)
+		var p: Variant = shown.get(i)
+		if p == null or not is_instance_valid(p) or (p as Node).is_queued_for_deletion():
+			if built >= PUPPETS_PER_SNAP:
+				_snap_seen.erase(i)
+				continue
+			built += 1
+			p = _spawn_puppet(i, t, Vector3(x, 0.0, z), yaw)
+		var f := p as FieldPlayer
+		f.puppet_push(Vector3(x, 0.0, z), yaw, now)
+		f.puppet_state(anim, flags)
+	for i in shown.keys():
+		if not _snap_seen.has(i):
+			var gone: Variant = shown[i]
+			shown.erase(i)
+			if gone != null and is_instance_valid(gone):
+				(gone as FieldPlayer).leave()
+
+
+func _spawn_puppet(i: int, t: float, at: Vector3, yaw: float) -> FieldPlayer:
+	var p := FieldPlayer.new()
+	p.puppet = true
+	p.setup_world(i, WorldPlayers.member(i, t), zone.hero, zone)
+	var s := WorldPlayers.state(i, t)
+	p.doing = String(s.get("doing", ""))
+	p.errand = String(s.get("errand", ""))
+	p.position = at + Vector3(0, 0.3, 0)
+	p.puppet_push(at, yaw, Time.get_ticks_msec() * 0.001)
+	zone.add_child(p)
+	shown[i] = p
+	return p
+
+
+## Mirror: the host's cast (at the mirrored monster), a bubble, a player leaving.
+func _on_wp_event(msg: Dictionary) -> void:
+	if mode != MIRROR or not _from_host(msg):
+		return
+	var i := Online.num(msg.get("index", -1), -1)
+	var p: Variant = shown.get(i)
+	if p == null or not is_instance_valid(p):
+		return
+	var f := p as FieldPlayer
+	var data: Variant = msg.get("data", {})
+	if not data is Dictionary:
+		data = {}
+	match str(msg.get("ev", "")):
+		"skill":
+			var skill := f.find_skill(str(data.get("id", "")).left(64))
+			if not skill.is_empty():
+				f.puppet_cast(skill, mob_by_eid(Online.num(data.get("eid", 0), 0)))
+		"bubble":
+			if data.get("text") is String and String(data.text).strip_edges() != "":
+				f.bubble(String(data.text).left(200), false)
+		"leave":
+			shown.erase(i)
+			f.leave()
+
+
+## The monster with shared id `eid` here (the shared combat's mirror, or any monster
+## carrying that eid), or null.
+func mob_by_eid(eid: int) -> Node3D:
+	if eid <= 0 or not is_inside_tree():
+		return null
+	var sync: Variant = EntitySync.current
+	if sync != null and is_instance_valid(sync):
+		for key in ["mirrors", "ents"]:
+			var table: Variant = (sync as Object).get(key)
+			if table is Dictionary:
+				var node: Variant = (table as Dictionary).get(eid)
+				if node != null and is_instance_valid(node) and node is Node3D:
+					return node as Node3D
+	for node in get_tree().get_nodes_in_group("mobs"):
+		if int(node.get_meta("eid", node.get_meta("mirror_eid", 0))) == eid and node is Node3D:
+			return node as Node3D
+	return null
