@@ -7,6 +7,7 @@ var checks := 0
 
 
 func _ready() -> void:
+	WorldEvents.festival_enabled = false
 	Game.set_process(false)
 	# Pin the world clock to 10:00 Thai time, outside the EXP x2 hours (19:00-21:00).
 	WorldPresence.clock_offset += float(posmod(10 * 3600 - WorldEvents.time_of_day(WorldPresence.clock()), 86400))
