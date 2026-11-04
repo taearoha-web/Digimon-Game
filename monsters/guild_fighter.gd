@@ -586,7 +586,40 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 ## at the base (no long run back in) or when two or more are far off (a rally
 ## before an assault). Never as a reflex, and never to move the hero.
 const RALLY_FROM_BASE := 25.0
-const RALLY_FAR := 20.0
+const RALLY_FAR := 15.0
+## The next Summon is the rally button's (รวมพล): the hero's war party to the hero.
+var _summon_to_hero := false
+
+
+## The Summon (recall) skill it knows, {} for none.
+func summon_skill() -> Dictionary:
+	for skill in class_data.get("skills", []):
+		if (skill as Dictionary).get("fx", {}).has("recall") and _knows(skill):
+			return skill
+	return {}
+
+
+## The rally button (รวมพล, HUD), for a Dark Lord in the hero's war party: Summon now,
+## the party to the hero. "" when it was cast, else why not (Thai).
+func order_summon() -> String:
+	var skill := summon_skill()
+	if skill.is_empty():
+		return "ยังไม่มีสกิล Summon"
+	if _dead or duel_over:
+		return "ล้มอยู่"
+	var wait := float(cooldowns.get(skill.id, 0.0))
+	if wait > 0.0:
+		return "พร้อมในอีก %d วินาที" % ceili(wait)
+	if mp < float(skill.mp):
+		return "มานาไม่พอ"
+	_summon_to_hero = true
+	_cast(skill, self)
+	return ""
+
+
+## The hero, when it is in this fighter's party, alive and far off: a rally takes it too.
+func _rally_hero() -> bool:
+	return in_hero_party() and _alive(hero) and _flat_distance(hero.global_position) >= RALLY_FAR
 
 
 ## Its party in the war (its whole team outside one), the hero never counted.
@@ -602,14 +635,14 @@ func _recall_targets() -> Array[GuildFighter]:
 func rally_needed() -> bool:
 	if _flat_distance(spawn_point) < RALLY_FROM_BASE:
 		return false
-	var far := 0
+	if _rally_hero():
+		return true
 	for ally in _recall_targets():
-		if _flat_distance(ally.global_position) < RALLY_FAR:
+		if _flat_distance(ally.global_position) < RALLY_FAR or ally.capturing:
 			continue
-		far += 1
-		if not ally.is_healer() and ally._flat_distance(ally.spawn_point) < BASE_RADIUS:
-			return true
-	return far >= 2
+		# Anyone far off: one back at the base (no long run in) or out of the fight.
+		return true
+	return false
 
 
 ## Summon: the party appears round the caster, a flash where each left and arrived.
@@ -625,6 +658,16 @@ func _recall_party() -> void:
 		ally.velocity = Vector3.ZERO
 		VfxKit.flash(get_parent(), spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
 		k += 1
+	# Its party in the war is the hero's: the hero comes too (MU style).
+	if _rally_hero():
+		var angle := _yaw + PI + (float(k) - 1.5) * 0.7
+		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.2
+		VfxKit.flash(get_parent(), hero.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
+		hero.global_position = spot + Vector3(0, 0.3, 0)
+		if hero is CharacterBody3D:
+			(hero as CharacterBody3D).velocity = Vector3.ZERO
+		VfxKit.flash(get_parent(), spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
+		Game.say("%s ใช้ Summon เรียกปาร์ตี้ไปรวมพล" % rival_name, &"info")
 	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
 
 
@@ -922,7 +965,11 @@ func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id :=
 func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	super._resolve(skill, target, aim)
 	if skill.get("fx", {}).has("recall"):
-		_recall_party()
+		if _summon_to_hero and is_instance_valid(hero) and hero.has_method("recall_party"):
+			hero.recall_party()
+		else:
+			_recall_party()
+		_summon_to_hero = false
 	if String(skill.shape) == "self" and skill.get("fx", {}).has("buff"):
 		var buff: Dictionary = skill.fx.buff
 		# A stance (self_only) stays on the fighter who cast it.

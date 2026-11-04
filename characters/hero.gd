@@ -1346,6 +1346,35 @@ func recall_party() -> void:
 	VfxKit.shockwave(field, global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
 
 
+## An AI Dark Lord's Summon the MU way (Companion._rally_to_me): the hero and the rest
+## of its party are pulled to the caster, a flash where each one left and arrived.
+## Returns how many moved (the hero included).
+func gather_to(caster: Node3D) -> int:
+	if is_dead() or caster == null or not is_instance_valid(caster):
+		return 0
+	var movers: Array[Node3D] = [self]
+	for node in get_tree().get_nodes_in_group("companions"):
+		var ally := node as Node3D
+		if ally == caster or not is_instance_valid(ally) or ally.is_queued_for_deletion():
+			continue
+		if not GuildWarMatch.buff_reaches(self, ally) or (ally.has_method("is_dead") and ally.is_dead()):
+			continue
+		movers.append(ally)
+	var center := caster.global_position
+	for k in movers.size():
+		var ally := movers[k]
+		var angle := float(k) * TAU / float(movers.size())
+		var spot := center + Vector3(sin(angle), 0, cos(angle)) * 2.2
+		VfxKit.flash(field, ally.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
+		ally.global_position = spot + Vector3(0, 0.3, 0)
+		if ally is CharacterBody3D:
+			(ally as CharacterBody3D).velocity = Vector3.ZERO
+		VfxKit.flash(field, spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
+		VfxKit.shockwave(field, spot + Vector3(0, 0.1, 0), Color("8a4dff"), 1.8)
+	VfxKit.shockwave(field, center + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
+	return movers.size()
+
+
 ## Buff skills reach the whole team: companions and summoned creatures get them too
 ## (in a guild war only the hero's own party and its summons: GuildWarMatch.buff_reaches).
 func _share_buff(buff: Dictionary, color: Color, label: String, skill_id := "") -> void:

@@ -86,6 +86,79 @@ func _ready() -> void:
 		m["stance"] = "aggressive"
 		check(lord._shape_score(spec, 2.0, 1.0) == 0.0, "no Summon for a member hunting far away at บุกลุย")
 		m["stance"] = "follow"
+		# The rally button (รวมพล): the HUD finds the Dark Lord, a press casts Summon now and
+		# pulls the party to the hero; pressed again it says when it is ready.
+		check(not lord.summon_skill().is_empty(), "every AI Dark Lord of the party knows Summon")
+		var hud: HUD = main.hud
+		check(hud.rally_lords().has(lord), "the HUD sees the party's AI Dark Lord")
+		hud._rally_check = -1000000
+		hud._update_rally()
+		check(hud.rally_button.visible and hud.rally_button.text == "รวมพล", "the รวมพล button shows in the field")
+		var toasts: Array[String] = []
+		var listen := func(text: String, _k: StringName): toasts.append(text)
+		Game.toast.connect(listen)
+		lord.cooldowns.clear()
+		lord.mp = 99999.0
+		lord._cast_until = 0
+		lord.global_position = hero.global_position + Vector3(30.0, 0.3, 0)
+		hud.press_rally()
+		await get_tree().create_timer(0.4).timeout
+		check(lord.global_position.distance_to(hero.global_position) < 4.0, "รวมพล: the Dark Lord Summons and the party stands by the hero (%.1f m)" % lord.global_position.distance_to(hero.global_position))
+		check(toasts.any(func(t): return t.contains("ใช้ Summon เรียกทุกคนมาหาคุณ")), "a toast says who summoned (%s)" % [toasts])
+		toasts.clear()
+		hud._rally_tap = -1000000
+		hud.press_rally()
+		check(toasts.any(func(t): return t.contains("พร้อมในอีก")), "pressed again it says when Summon is ready (%s)" % [toasts])
+		Game.toast.disconnect(listen)
+		# MU style: hunting on its own (บุกลุย) deep in a pack far from an idle hero, it
+		# summons the hero and the party to its fight.
+		m["stance"] = "aggressive"
+		var pack := 0
+		for node in get_tree().get_nodes_in_group("mobs"):
+			var mm := node as Mob
+			if mm == null or mm.is_dead() or pack >= 4:
+				continue
+			pack += 1
+		var lord_spot := hero.global_position + Vector3(0, 0, 40.0)
+		lord.global_position = lord_spot + Vector3(0, 0.3, 0)
+		pack = 0
+		for node in get_tree().get_nodes_in_group("mobs"):
+			var mm := node as Mob
+			if mm == null or mm.is_dead() or pack >= 4:
+				continue
+			mm.global_position = lord_spot + Vector3(1.5 + pack, 0.3, 1.0)
+			mm.velocity = Vector3.ZERO
+			pack += 1
+		# The hero has nothing to fight where it stands.
+		for node in get_tree().get_nodes_in_group("mobs"):
+			var mm := node as Mob
+			if mm != null and mm.global_position.distance_to(hero.global_position) < 12.0:
+				mm.global_position = hero.global_position + Vector3(0, 0.3, -60.0)
+		var quiet := hero.global_position
+		await get_tree().physics_frame
+		check(pack >= 3 and lord._shape_score(spec, 2.0, 1.0) > 9.5 and lord._recall_mode == "self", "a far บุกลุย Dark Lord in a pack wants to summon the hero to it (%d mobs)" % pack)
+		lord._apply_self(spec)
+		check(hero.global_position.distance_to(lord.global_position) < 4.0 and hero.global_position.distance_to(quiet) > 30.0, "the hero is pulled to the Dark Lord's fight (%.1f m from it)" % hero.global_position.distance_to(lord.global_position))
+		check(lord._recall_mode == "hero", "the next Summon pulls to the hero again")
+		m["stance"] = "follow"
+		# Summon comes sooner now: a member 14 m+ behind.
+		lord.global_position = hero.global_position + Vector3(Companion.RECALL_DISTANCE + 1.0, 0.3, 0)
+		await get_tree().physics_frame
+		check(Companion.RECALL_DISTANCE <= 14.0 and lord._shape_score(spec, 2.0, 1.0) > 0.0, "a member 15 m behind is summoned")
+		# The rally button keeps clear of every other button on a phone, 16:9 and a tablet.
+		for canvas in [Vector2(1558, 720), Vector2(1280, 720), Vector2(1280, 960)]:
+			var lay := HUD.action_layout(canvas)
+			var me: Vector2 = lay.rally
+			var others: Array = [[lay.team_buff, HUD.TEAM_BUFF_RADIUS], [lay.attack, HUD.ATTACK_RADIUS], [lay.utility[2] + Vector2(-72, 0), 28.0], [lay.utility[2] + Vector2(-72, -72), 28.0]]
+			for c in lay.skills:
+				others.append([c, HUD.SKILL_RADIUS])
+			for c in lay.utility:
+				others.append([c, 28.0])
+			var clear := true
+			for o in others:
+				if me.distance_to(o[0]) < (HUD.TEAM_BUFF_RADIUS + float(o[1])) * 1.1:
+					clear = false
+			check(clear and canvas.x + me.x - HUD.TEAM_BUFF_RADIUS > canvas.x * 0.32 + 200.0, "รวมพล keeps clear of the other buttons and the joystick (%s)" % canvas)
 	# Imperial Judgment's repel throws monsters 3 m clear of the Lord, not to its 9 m ring.
 	var mob: Mob = hero.nearest_mob()
 	if mob != null:

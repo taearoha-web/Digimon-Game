@@ -737,6 +737,21 @@ func _team_buff(m: GuildWarMatch, zone: Zone, hero: Hero, label: String) -> void
 	toasts.clear()
 	hud.press_team_buff()
 	check(toasts.has("ยังไม่มีใครบัฟได้") and is_equal_approx(m.team_buff_left, 0.0), "%s: nobody able to buff is told, and the button stays ready (%s)" % [label, toasts])
+	# A war mate's rally takes the hero along (MU style) when the hero is far off.
+	if not members.is_empty():
+		var mate: GuildFighter = members[0]
+		var was := hero.global_position
+		mate.global_position = mate.spawn_point + Vector3(0, 0.3, 40.0)
+		hero.global_position = mate.global_position + Vector3(GuildFighter.RALLY_FAR + 6.0, 0.0, 0.0)
+		check(mate.rally_needed(), "%s: a war mate away from base wants a rally with the hero far off" % label)
+		mate._recall_party()
+		check(hero.global_position.distance_to(mate.global_position) < 4.0, "%s: the rally pulls the hero to the Dark Lord (%.1f m)" % [label, hero.global_position.distance_to(mate.global_position)])
+		hero.global_position = was
+		mate.global_position = keep.get(mate, mate.global_position)
+	# The rally button (รวมพล) is for a Dark Lord of the hero's war party.
+	var lords := hud.rally_lords()
+	for f in lords:
+		check(f is GuildFighter and (f as GuildFighter).in_hero_party(), "%s: รวมพล counts only the hero's war party" % label)
 	# The AI keeps its buffs up by itself, on both sides alike: a missing buff with the other
 	# guild within 25 m goes before any attack; not while it runs, not from far off, and a
 	# party mate's other buff does not hold it back.

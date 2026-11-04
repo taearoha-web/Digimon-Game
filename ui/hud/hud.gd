@@ -82,6 +82,12 @@ var interact_button: TouchButton
 ## (GuildWarMatch.team_buff); greyed with the seconds left while it rests.
 var team_buff_button: TouchButton
 var _team_buff_tap := -1000000
+## The rally button (รวมพล): shown while an AI Dark Lord is in the hero's party (a
+## companion, or a war mate in the hero's war party); a press makes it cast Summon now,
+## pulling the party to the hero, wherever the hero is.
+var rally_button: TouchButton
+var _rally_tap := -1000000
+var _rally_check := -1000000
 
 var _root: Control
 var _frame: Control
@@ -397,6 +403,7 @@ func _refresh() -> void:
 	raven_button.visible = hero.raven != null and not zone.is_town and auto_button.visible
 	raven_mode_button.visible = raven_button.visible
 	_update_team_buff()
+	_update_rally()
 	if raven_button.visible:
 		raven_button.set_toggled(hero.raven.attack)
 		raven_mode_button.text = DarkRaven.MODE_NAMES[hero.raven.mode]
@@ -1139,6 +1146,60 @@ func _update_team_buff() -> void:
 		team_buff_button.set_label(label)
 
 
+## The AI Dark Lords of the hero's party that know Summon: party companions, and in a
+## guild war the Dark Lords of the hero's war party. Dead ones are left out.
+func rally_lords() -> Array[Node]:
+	var out: Array[Node] = []
+	if hero == null or not is_instance_valid(hero) or not is_inside_tree():
+		return out
+	for node in get_tree().get_nodes_in_group("companions"):
+		if not is_instance_valid(node) or node.is_queued_for_deletion() or not node.has_method("summon_skill"):
+			continue
+		if node is GuildFighter and not (node as GuildFighter).in_hero_party():
+			continue
+		if node is FieldPlayer and not (node as FieldPlayer).party_mode:
+			continue
+		if node.has_method("is_dead") and node.is_dead():
+			continue
+		if not (node.summon_skill() as Dictionary).is_empty():
+			out.append(node)
+	return out
+
+
+## The rally button shows while an AI Dark Lord can summon for the hero (4 checks a second).
+func _update_rally() -> void:
+	if rally_button == null:
+		return
+	var now := Time.get_ticks_msec()
+	if now - _rally_check < 250:
+		return
+	_rally_check = now
+	rally_button.visible = auto_button.visible and zone != null and is_instance_valid(zone) and not zone.is_town and not rally_lords().is_empty()
+
+
+## รวมพล pressed: the readiest AI Dark Lord of the party casts Summon now (the party to
+## the hero); a toast says who, or how long until one can.
+func press_rally() -> void:
+	var now := Time.get_ticks_msec()
+	if now - _rally_tap < TAP_DEDUP_MS:
+		return
+	_rally_tap = now
+	var lords := rally_lords()
+	if lords.is_empty():
+		Game.say("ไม่มีดาร์กลอร์ดในปาร์ตี้", &"warning")
+		return
+	var why := ""
+	for lord in lords:
+		var answer := String(lord.order_summon())
+		if answer == "":
+			var who := String(lord.member.get("name", "ดาร์กลอร์ด")) if lord is Companion else String((lord as GuildFighter).rival_name)
+			Game.say("%s ใช้ Summon เรียกทุกคนมาหาคุณ" % who, &"success")
+			return
+		if why == "" or answer.begins_with("พร้อม"):
+			why = answer
+	Game.say("Summon %s" % why, &"warning")
+
+
 ## บัฟทีม pressed: the hero's war party buffs now, and a short toast tells how many did.
 ## A TouchButton press, so one phone tap (touch + the click Godot emulates) counts once.
 func press_team_buff() -> void:
@@ -1382,6 +1443,17 @@ func _build_action_buttons(frame: Control) -> void:
 	team_buff_button.pressed.connect(press_team_buff)
 	frame.add_child(team_buff_button)
 
+	# รวมพล: left of บัฟทีม, while an AI Dark Lord is in the party (_update_rally).
+	rally_button = TouchButton.new()
+	rally_button.name = "RallyButton"
+	rally_button.radius = TEAM_BUFF_RADIUS
+	rally_button.accent = Color("8a4dff")
+	rally_button.text = RALLY_LABEL
+	rally_button.font_size_override = 16
+	rally_button.visible = false
+	rally_button.pressed.connect(press_rally)
+	frame.add_child(rally_button)
+
 	interact_button = TouchButton.new()
 	interact_button.radius = 52.0
 	interact_button.icon = load("res://assets/icons/ui/interact.svg")
@@ -1393,6 +1465,7 @@ func _build_action_buttons(frame: Control) -> void:
 
 
 const TEAM_BUFF_LABEL := "บัฟทีม"
+const RALLY_LABEL := "รวมพล"
 ## 60 px across: a thumb's size on a phone.
 const TEAM_BUFF_RADIUS := 30.0
 
@@ -1412,7 +1485,9 @@ static func action_layout(canvas_size: Vector2) -> Dictionary:
 	# The team-buff button: left of the target button, under the raven buttons and above
 	# the attack button (clear of all three, touch margins included).
 	var team_buff := utility[3] + Vector2(-72, 0)
-	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "attack": Vector2(-84, -84), "team_buff": team_buff}
+	# The rally button (รวมพล): one more step left of it.
+	var rally := utility[3] + Vector2(-144, 0)
+	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "attack": Vector2(-84, -84), "team_buff": team_buff, "rally": rally}
 
 
 func _layout_actions() -> void:
@@ -1434,6 +1509,7 @@ func _layout_actions() -> void:
 	# Its mode button sits right above it.
 	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
 	_place_corner(team_buff_button, positions.team_buff + Vector2.ONE * TEAM_BUFF_RADIUS, TEAM_BUFF_RADIUS)
+	_place_corner(rally_button, positions.rally + Vector2.ONE * TEAM_BUFF_RADIUS, TEAM_BUFF_RADIUS)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)
 	_place_corner(interact_button, positions.attack + Vector2.ONE * interact_button.radius, interact_button.radius)
 	# The world chat sits between the joystick's resting ring and the first skill slot,
