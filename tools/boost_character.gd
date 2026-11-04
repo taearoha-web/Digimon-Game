@@ -10,7 +10,12 @@ extends Node
 ## the first free slot (made as a Vagabond, then given --class the game's way).
 ##
 ##   godot --headless --path . res://tools/boost_character.tscn -- \
-##     --in bundle.json --out boosted.json --name Assotix [--class defender] [--create] [--accessory-plus 0]
+##     --in bundle.json --out boosted.json --name Assotix [--class defender] [--create] [--accessory-plus 0] \
+##     [--stars 300] [--mount fire_drake --mount-level 5]
+##
+## --stars raises the stars past BOOST_STARS up to Game.PARAGON_MAX (★300 also takes the God
+## step). --mount gives that mount (MountData) at --mount-level (1-MountData.MAX_LEVEL) and
+## makes it the active one; a mount the hero already has at a higher level keeps it.
 ##
 ## Writes {slot, profile, created} for the boosted character only, plus "storage"
 ## (the bundle's shared storage, SharedStorage) when replaced gear had to go there.
@@ -59,13 +64,28 @@ func _run() -> int:
 		if not _arg("accessory-plus").is_valid_int() or not int(_arg("accessory-plus")) in range(0, ItemData.MAX_PLUS + 1):
 			return _fail("--accessory-plus must be 0 to %d" % ItemData.MAX_PLUS)
 		accessory_plus = int(_arg("accessory-plus"))
+	var stars := BOOST_STARS
+	if _arg("stars") != "":
+		if not _arg("stars").is_valid_int() or not int(_arg("stars")) in range(0, Game.PARAGON_MAX + 1):
+			return _fail("--stars must be 0 to %d" % Game.PARAGON_MAX)
+		stars = int(_arg("stars"))
+	var mount := _arg("mount").strip_edges()
+	var mount_level := MountData.MAX_LEVEL
+	if mount == "none":
+		mount = ""
+	if mount != "" and not MountData.exists(mount):
+		return _fail("--mount must be one of %s" % ", ".join(MountData.ORDER))
+	if _arg("mount-level") != "":
+		if not _arg("mount-level").is_valid_int() or not int(_arg("mount-level")) in range(1, MountData.MAX_LEVEL + 1):
+			return _fail("--mount-level must be 1 to %d" % MountData.MAX_LEVEL)
+		mount_level = int(_arg("mount-level"))
 	if source == "" or target == "" or wanted == "":
 		return _fail("usage: -- --in bundle.json --out boosted.json --name <character> [--class <class>] [--create] [--accessory-plus 0-10]")
 	var text := FileAccess.get_file_as_string(source)
 	var bundle: Variant = JSON.parse_string(text)
 	if not bundle is Dictionary or not bundle.get("slots") is Dictionary:
 		return _fail("the input is not a save bundle")
-	var result := boost_bundle(bundle, wanted, cls, _flag("create"), accessory_plus)
+	var result := boost_bundle(bundle, wanted, cls, _flag("create"), accessory_plus, stars, mount, mount_level)
 	if result.has("error"):
 		return _fail(String(result.error))
 	var out := FileAccess.open(target, FileAccess.WRITE)
@@ -84,6 +104,8 @@ func _run() -> int:
 	for key in ItemData.EQUIP_SLOTS:
 		var piece: Dictionary = hero.equip.get(key, {})
 		print("BOOST:   %s: %s +%d" % [key, ItemData.name_of(piece), int(piece.get("plus", 0))])
+	if String(hero.get("mount", "")) != "":
+		print("BOOST:   mount: %s Lv.%d" % [MountData.info(String(hero.mount)).get("name", hero.mount), int(hero.mounts[hero.mount])])
 	return 0
 
 
@@ -92,7 +114,7 @@ func _run() -> int:
 ## A starter-class (vagabond) hero of that name also matches: it takes the class
 ## through the game's own class change, as it would at the class trainer. With
 ## [param create], a name nobody has is made into a new hero in the first free slot.
-static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create := false, accessory_plus := ItemData.MAX_PLUS) -> Dictionary:
+static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create := false, accessory_plus := ItemData.MAX_PLUS, stars := BOOST_STARS, mount := "", mount_level := MountData.MAX_LEVEL) -> Dictionary:
 	if not bundle.get("slots") is Dictionary:
 		return {"error": "the input is not a save bundle"}
 	var found: Array[String] = []
@@ -119,7 +141,7 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	Game.profile = Game._repair(raw.duplicate(true))
 	Game.has_profile = true
 	var before := "Lv.%d ★%d" % [int(Game.profile.level), int(Game.paragon().level)]
-	_level_up()
+	_level_up(stars)
 	if cls != "" and Game.class_id() != StringName(cls) and not Game.change_class(StringName(cls)):
 		Game.profile = keep[0]
 		Game.has_profile = keep[1]
@@ -128,6 +150,11 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	_vault = bundle.storage if bundle.get("storage") is Array else []
 	_vault_used = false
 	_dress(accessory_plus)
+	if mount != "":
+		var owned: Dictionary = Game.profile.get("mounts", {}) if Game.profile.get("mounts") is Dictionary else {}
+		owned[mount] = maxi(int(owned.get(mount, 0)), clampi(mount_level, 1, MountData.MAX_LEVEL))
+		Game.profile["mounts"] = owned
+		Game.profile["mount"] = mount
 	var stats := Game.stats_now()
 	Game.profile["hp"] = int(stats.max_hp)
 	Game.profile["mp"] = int(stats.max_mp)
@@ -165,12 +192,12 @@ static func _create(bundle: Dictionary, wanted: String, cls: String) -> Dictiona
 	return {"slot": free}
 
 
-static func _level_up() -> void:
+static func _level_up(stars := BOOST_STARS) -> void:
 	var guard := 0
 	while int(Game.profile.level) < Game.MAX_LEVEL and guard < 200:
 		Game.add_exp(maxi(1, HeroStats.exp_to_next(int(Game.profile.level)) - int(Game.profile.exp)))
 		guard += 1
-	while int(Game.paragon().level) < mini(BOOST_STARS, Game.PARAGON_MAX) and guard < 600:
+	while int(Game.paragon().level) < mini(stars, Game.PARAGON_MAX) and guard < 800:
 		Game.add_exp(maxi(1, Game.paragon_need() - int(Game.paragon().exp)))
 		guard += 1
 
