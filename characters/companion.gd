@@ -801,7 +801,54 @@ func _mark_in_reach(skill: Dictionary, distance: float) -> bool:
 const ROAM_REACH := 70.0
 const ROAM_SHARED := 18.0
 ## How far a party member may drift from the hero before an AI Dark Lord recalls it.
-const RECALL_DISTANCE := 22.0
+const RECALL_DISTANCE := 14.0
+## An AI Dark Lord hunting on its own (บุกลุย) this far from the hero, with at least
+## RALLY_PACK monsters on it, summons the hero and the party to its fight (MU style).
+const RALLY_PACK := 3
+const RALLY_PACK_RADIUS := 8.0
+## Which way the next Summon goes: "hero" pulls the party to the hero, "self" pulls the
+## hero and the party to this Dark Lord (_rally_to_me).
+var _recall_mode := "hero"
+
+
+## The Summon (recall) skill this member knows, {} for none (not a Dark Lord, too low).
+func summon_skill() -> Dictionary:
+	for skill in data.get("skills", []):
+		if (skill as Dictionary).get("fx", {}).has("recall") and not skill.has("star") and int(skill.level) <= int(member.level) + 9 and ClassData.skill_tier(skill) <= _tier():
+			return skill
+	return {}
+
+
+## The rally button (รวมพล, HUD): Summon now, the party to the hero. "" when it was cast,
+## else why not (Thai).
+func order_summon() -> String:
+	var skill := summon_skill()
+	if skill.is_empty():
+		return "ยังไม่มีสกิล Summon"
+	if _dead:
+		return "ล้มอยู่"
+	var wait := float(cooldowns.get(skill.id, 0.0))
+	if wait > 0.0:
+		return "พร้อมในอีก %d วินาที" % ceili(wait)
+	if mp < float(skill.mp):
+		return "มานาไม่พอ"
+	_recall_mode = "hero"
+	_cast(skill)
+	return ""
+
+
+## Hunting on its own (บุกลุย) far from the hero, deep in a pack, while the hero has
+## nothing to fight: worth summoning the hero and the party here.
+func _rally_to_me() -> bool:
+	if String(member.get("stance", "follow")) != "aggressive":
+		return false
+	if hero == null or not is_instance_valid(hero) or hero.safe_zone or hero.is_dead():
+		return false
+	if global_position.distance_to(hero.global_position) <= RECALL_DISTANCE:
+		return false
+	if _mobs_near(global_position, RALLY_PACK_RADIUS).size() < RALLY_PACK:
+		return false
+	return hero.mobs_in_range(7.0).is_empty()
 
 
 ## A party member (this one included) far from the hero, outside the village.
@@ -813,6 +860,9 @@ func _straggler() -> bool:
 		# A member hunting on its own (บุกลุย) is meant to be far away.
 		if ally is Companion and String((ally as Companion).member.get("stance", "follow")) == "aggressive":
 			continue
+		# Nor one told to wait where it stands (รอตรงนี้).
+		if ally is FieldPlayer and (ally as FieldPlayer).hold_at.is_finite():
+			continue
 		if is_instance_valid(ally) and ally.global_position.distance_to(hero.global_position) > RECALL_DISTANCE:
 			return true
 	return false
@@ -823,7 +873,13 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 	# Summon (recall) is never a reflex: an AI Dark Lord casts it on purpose, to pull
 	# back a party member who has fallen far behind the hero.
 	if fx.has("recall"):
-		return 9.5 if _straggler() else 0.0
+		if _straggler():
+			_recall_mode = "hero"
+			return 9.5
+		if _rally_to_me():
+			_recall_mode = "self"
+			return 9.6
+		return 0.0
 	# A provoke is worth most while the hero is the one being hurt.
 	if fx.has("taunt") and hero_hp < 0.6 and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
 		return 8.5
@@ -993,7 +1049,12 @@ func _apply_self(skill: Dictionary) -> void:
 	var fx: Dictionary = skill.get("fx", {})
 	var color: Color = skill.color
 	if fx.has("recall") and is_instance_valid(hero) and hero.is_inside_tree():
-		hero.recall_party()
+		if _recall_mode == "self" and not hero.is_dead():
+			hero.gather_to(self)
+			Game.say("%s ใช้ Summon เรียกทุกคนมาหา" % String(member.get("name", "ดาร์กลอร์ด")), &"info")
+		else:
+			hero.recall_party()
+		_recall_mode = "hero"
 	if fx.has("heal"):
 		# A stance (self_only) keeps its heal to the caster too.
 		if not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)):
