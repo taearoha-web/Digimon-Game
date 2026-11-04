@@ -11,7 +11,11 @@ extends Node
 ##
 ##   godot --headless --path . res://tools/boost_character.tscn -- \
 ##     --in bundle.json --out boosted.json --name Assotix [--class defender] [--create] [--accessory-plus 0] \
-##     [--stars 300] [--mount fire_drake --mount-level 5]
+##     [--stars 300] [--mount fire_drake --mount-level 5] [--gear set250]
+##
+## --gear set250 dresses the hero in its class's 250-star set (SetGearData, all six
+## pieces, the ring and amulet at --accessory-plus) instead of the divine set and
+## 200-star ring and amulet; it needs ★250 (--stars 250 or more).
 ##
 ## --stars raises the stars past BOOST_STARS up to Game.PARAGON_MAX (★300 also takes the God
 ## step). --mount gives that mount (MountData) at --mount-level (1-MountData.MAX_LEVEL) and
@@ -75,6 +79,13 @@ func _run() -> int:
 		mount = ""
 	if mount != "" and not MountData.exists(mount):
 		return _fail("--mount must be one of %s" % ", ".join(MountData.ORDER))
+	var gear := _arg("gear").strip_edges()
+	if gear == "":
+		gear = "divine"
+	if not gear in ["divine", "set250"]:
+		return _fail("--gear must be divine or set250")
+	if gear == "set250" and stars < SetGearData.STARS:
+		return _fail("the 250-star set needs --stars %d or more" % SetGearData.STARS)
 	if _arg("mount-level") != "":
 		if not _arg("mount-level").is_valid_int() or not int(_arg("mount-level")) in range(1, MountData.MAX_LEVEL + 1):
 			return _fail("--mount-level must be 1 to %d" % MountData.MAX_LEVEL)
@@ -85,7 +96,7 @@ func _run() -> int:
 	var bundle: Variant = JSON.parse_string(text)
 	if not bundle is Dictionary or not bundle.get("slots") is Dictionary:
 		return _fail("the input is not a save bundle")
-	var result := boost_bundle(bundle, wanted, cls, _flag("create"), accessory_plus, stars, mount, mount_level)
+	var result := boost_bundle(bundle, wanted, cls, _flag("create"), accessory_plus, stars, mount, mount_level, gear)
 	if result.has("error"):
 		return _fail(String(result.error))
 	var out := FileAccess.open(target, FileAccess.WRITE)
@@ -114,7 +125,7 @@ func _run() -> int:
 ## A starter-class (vagabond) hero of that name also matches: it takes the class
 ## through the game's own class change, as it would at the class trainer. With
 ## [param create], a name nobody has is made into a new hero in the first free slot.
-static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create := false, accessory_plus := ItemData.MAX_PLUS, stars := BOOST_STARS, mount := "", mount_level := MountData.MAX_LEVEL) -> Dictionary:
+static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create := false, accessory_plus := ItemData.MAX_PLUS, stars := BOOST_STARS, mount := "", mount_level := MountData.MAX_LEVEL, gear := "divine") -> Dictionary:
 	if not bundle.get("slots") is Dictionary:
 		return {"error": "the input is not a save bundle"}
 	var found: Array[String] = []
@@ -149,7 +160,7 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	_advance()
 	_vault = bundle.storage if bundle.get("storage") is Array else []
 	_vault_used = false
-	_dress(accessory_plus)
+	_dress(accessory_plus, gear == "set250")
 	if mount != "":
 		var owned: Dictionary = Game.profile.get("mounts", {}) if Game.profile.get("mounts") is Dictionary else {}
 		owned[mount] = maxi(int(owned.get(mount, 0)), clampi(mount_level, 1, MountData.MAX_LEVEL))
@@ -213,14 +224,17 @@ static func _advance() -> void:
 			break
 
 
-static func _dress(accessory_plus := ItemData.MAX_PLUS) -> void:
+static func _dress(accessory_plus := ItemData.MAX_PLUS, set250 := false) -> void:
 	var cls := StringName(Game.profile["class"])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(String(Game.profile.name) + String(cls) + "-boost")
 	var gear := {}
 	for key in BEST_SLOTS:
-		gear[key] = DivineGearData.item(cls, key, rng)
+		gear[key] = SetGearData.item(String(cls), key) if set250 else DivineGearData.item(cls, key, rng)
 	for key in STAR_SLOTS:
+		if set250:
+			gear[key] = SetGearData.item(String(cls), key)
+			continue
 		# The mythic grade of the 200-star piece: the best one that can drop.
 		var piece := StarProgression.item(cls, StarProgression.TIERS[-1], key, rng)
 		for attempt in 400:
@@ -228,7 +242,10 @@ static func _dress(accessory_plus := ItemData.MAX_PLUS) -> void:
 				break
 			piece = StarProgression.item(cls, StarProgression.TIERS[-1], key, rng)
 		gear[key] = piece
-	gear["wings"] = StarWingData.item(String(cls), rng, 4)
+	# Star wings already at the top grade and enhancement are kept (a second run).
+	var worn_wings: Variant = Game.profile.equip.get("wings")
+	if not (worn_wings is Dictionary and StarWingData.is_wing(worn_wings) and int(worn_wings.get("rarity", 0)) >= 4 and int(worn_wings.get("plus", 0)) >= ItemData.MAX_PLUS):
+		gear["wings"] = StarWingData.item(String(cls), rng, 4)
 	for key in gear:
 		var piece: Dictionary = gear[key]
 		assert(not piece.is_empty(), "no %s for %s" % [key, cls])

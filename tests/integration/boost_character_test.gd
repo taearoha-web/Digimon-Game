@@ -98,6 +98,26 @@ func _ready() -> void:
 	check(int(gp.equip.ring.plus) == 0 and int(gp.equip.amulet.plus) == 0, "ring and amulet +0")
 	check(String(gp.mount) == "fire_drake" and int(gp.mounts.fire_drake) == MountData.MAX_LEVEL, "fire drake Lv.5 is the active mount")
 	check(Game._valid_profile(gp), "the ★300 hero passes the save check")
+	# A second run with the 250-star set: all six set pieces, the star wings kept.
+	var wings_uid := String(gp.equip.wings.get("uid", ""))
+	var set_run := Boost.boost_bundle(god, "กาชาปอง", "", false, 0, Game.PARAGON_MAX, "fire_drake", MountData.MAX_LEVEL, "set250")
+	var sp: Dictionary = god.slots["2"]
+	check(not set_run.has("error"), "the set run works (%s)" % str(set_run))
+	for key in SetGearData.SLOTS:
+		check(SetGearData.is_item(sp.equip[key]) and SetGearData.item_class(sp.equip[key]) == "archer", "%s is the archer's 250-star set" % key)
+		check(int(sp.equip[key].plus) == (0 if key in ["ring", "amulet"] else 15), "%s at +%d" % [key, 0 if key in ["ring", "amulet"] else 15])
+	check(String(sp.equip.wings.get("uid", "")) == wings_uid and int(sp.equip.wings.plus) == 15, "the +15 star wings are kept")
+	var divine_in_bag := 0
+	for piece in sp.inv:
+		if piece is Dictionary and DivineGearData.is_item(piece):
+			divine_in_bag += 1
+	check(divine_in_bag == 4, "the divine pieces moved to the bag (%d)" % divine_in_bag)
+	var keep_profile: Dictionary = Game.profile
+	Game.profile = sp
+	for key in SetGearData.SLOTS:
+		check(Game.equip_problem(sp.equip[key]) == "", "the hero may wear the set %s (%s)" % [key, Game.equip_problem(sp.equip[key])])
+	Game.profile = keep_profile
+	check(Game._valid_profile(sp), "the set hero passes the save check")
 	Game.profile = hero
 	Game.has_profile = true
 	var stats := Game.stats_now()
