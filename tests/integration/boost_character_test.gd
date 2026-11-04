@@ -85,6 +85,19 @@ func _ready() -> void:
 	check(Boost.boost_bundle(full, "มีดมาร", "assassin", true).has("error"), "no new character when every slot is taken")
 	var again := Boost.boost_bundle(roster, "มีดมาร", "assassin", true, 0)
 	check(again.get("slot") == "2" and again.get("created") == false and roster.slots.size() == 3, "running it again boosts the same character, no duplicate")
+	# ★300 (the God step too), a Lv.5 fire drake as the active mount, ring and amulet +0.
+	Game.new_profile(&"archer", "กาชาปอง", FaceKit.default_look())
+	var god: Dictionary = JSON.parse_string(JSON.stringify({"slots": {"1": other, "2": Game.profile}, "selectedSlot": 2}))
+	var top := Boost.boost_bundle(god, "กาชาปอง", "", false, 0, Game.PARAGON_MAX, "fire_drake", MountData.MAX_LEVEL)
+	var gp: Dictionary = god.slots["2"]
+	check(not top.has("error") and int(gp.level) == 100 and int(gp.paragon.level) == Game.PARAGON_MAX, "Lv.100 and ★300 (%s)" % str(top))
+	check(int(gp.adv) == JobData.GOD_ADV, "★300 takes the God step too (adv %d)" % int(gp.adv))
+	check(String(gp["class"]) == "archer", "no class given keeps the class")
+	for key in BEST:
+		check(int(gp.equip[key].plus) == 15 and ItemData.MAX_PLUS == 15, "%s +15" % key)
+	check(int(gp.equip.ring.plus) == 0 and int(gp.equip.amulet.plus) == 0, "ring and amulet +0")
+	check(String(gp.mount) == "fire_drake" and int(gp.mounts.fire_drake) == MountData.MAX_LEVEL, "fire drake Lv.5 is the active mount")
+	check(Game._valid_profile(gp), "the ★300 hero passes the save check")
 	Game.profile = hero
 	Game.has_profile = true
 	var stats := Game.stats_now()
