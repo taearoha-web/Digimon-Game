@@ -22,6 +22,13 @@ extends Companion
 ## put it (played PUPPET_DELAY behind), plays their anim and flags, and the host's casts
 ## (`wp_event skill`) as effects at the mirrored monster. end_puppet turns it back into
 ## an ordinary world player where it stands (the host role came here, or the link went).
+## In a party of world players (WorldParties, from WorldPlayers.state) it hunts with its
+## people: the leader picks the camp that fits the party, the others walk round the leader
+## and fight what it fights (or whatever attacks one of them), a healer heals and a buffer
+## buffs the party, a tank's provoke pulls monsters off a hurt mate, and a Dark Lord's
+## Summon pulls a mate who fell far behind back to the party. Its name plate says whose
+## party it is ("ปาร์ตี้ของ <leader>"), the same on every screen (the party comes from the
+## roster and the clock).
 
 ## Seconds it hunts a camp before it moves on to another (a longer stay is less walking).
 const CAMP_STAY := Vector2(240.0, 480.0)
@@ -124,6 +131,29 @@ var _p_skill_ms := -100000
 var _skill_shown := ""
 var _skill_shown_until := 0
 
+# --- Party of world players (WorldParties) ---
+## Its party now (WorldPlayers.state party_id, party_leader, party_members), "" / -1 / [] alone.
+var ai_party_id := ""
+var ai_leader := -1
+var ai_members: Array = []
+## Its people standing here (refreshed every MATES_EVERY seconds, not every frame).
+var _mates: Array[FieldPlayer] = []
+var _mates_in := 0.0
+const MATES_EVERY := 1.0
+## How far from it a mate still gets its heals and buffs.
+const PARTY_NEAR := 16.0
+## Spots round the leader (behind and to the sides) the others keep while it walks.
+const PARTY_SPOTS := [Vector3(-2.6, 0, -1.8), Vector3(2.6, 0, -1.8), Vector3(-1.6, 0, -4.0), Vector3(1.6, 0, -4.0)]
+## A mate this far from a Dark Lord of the party is summoned back to it.
+const REGROUP := 24.0
+## A party line over its head at most this often (seconds).
+const PARTY_SAY_GAP := 40.0
+var _party_said := -1000.0
+const MOVE_LINES := ["ไปแคมป์ถัดไปกัน ตามมา!", "ย้ายจุดฟาร์มกัน", "ตรงนี้มอนหมดแล้ว ไปต่อกัน", "ไปทางนี้ มอนเยอะกว่า"]
+const HEAL_LINES := ["ฮีลให้แล้วนะ!", "เลือดน้อยแล้ว เดี๋ยวฮีลให้", "ถอยมาใกล้ ๆ จะฮีลให้"]
+const SUMMON_LINES := ["รวมพล! มาทางนี้", "ดึงมาแล้ว อย่าหลงอีกนะ 555", "Summon! อยู่ใกล้ ๆ กันหน่อย"]
+const TAUNT_LINES := ["มาทางนี้ อย่าไปตีเพื่อนฉัน!", "ดึงมอนให้แล้ว ตีเลย!"]
+
 
 func setup_world(p_index: int, p_member: Dictionary, p_hero: Hero, p_zone: Zone) -> void:
 	world_index = p_index
@@ -205,6 +235,8 @@ func _level_text() -> String:
 		line = "✦ %s ✦\n%s" % [god, line]
 	if doing == "errand" and not party_mode and ERRAND_TAGS.has(errand):
 		return line + "\n«%s»" % ERRAND_TAGS[errand]
+	if ai_party_id != "" and not party_mode and ai_leader >= 0 and ai_leader < WorldPlayers.size():
+		return line + "\n«ปาร์ตี้ของ %s · %d คน»" % [WorldPlayers.entry(ai_leader).name, ai_members.size()]
 	return line + ("\n«ร้านค้า»" if doing == "stall" and not party_mode else "")
 
 
@@ -212,6 +244,7 @@ func _level_text() -> String:
 ## level-up and the new piece put on.
 func sync_progress(s: Dictionary) -> void:
 	doing = String(s.get("doing", doing))
+	set_ai_party(s)
 	var up := int(s.level) > int(member.level) or int(s.stars) > int(member.get("stars", 0))
 	var dressed := WorldPlayers.sync_member(member, s)
 	_sync_mount()
@@ -292,6 +325,7 @@ func say(text: String, color := Color("fff4c0")) -> void:
 ## Joins the hero's party where it stands: from now on a companion (stance, follows, shares).
 func join_party(m: Dictionary, k: int) -> void:
 	party_mode = true
+	set_ai_party({})
 	member = m
 	index = k
 	target = null
@@ -504,26 +538,74 @@ func _hover_moving(delta: float, moving: bool) -> void:
 
 # --- Looking after itself --------------------------------------------------------
 
+## The lowest HP share of itself and the party's people near it (whom a healer heals).
 func _ally_hp_ratio() -> float:
 	if party_mode:
 		return super._ally_hp_ratio()
-	return float(hp) / float(maxi(1, max_hp))
+	var low := float(hp) / float(maxi(1, max_hp))
+	for mate in near_mates():
+		low = minf(low, float(mate.hp) / float(maxi(1, mate.max_hp)))
+	return low
 
 
 func _in_combat() -> bool:
 	if party_mode:
 		return super._in_combat()
-	return target != null and is_instance_valid(target)
+	if target != null and is_instance_valid(target):
+		return true
+	for mate in near_mates():
+		if mate.target != null and is_instance_valid(mate.target):
+			return true
+	return false
 
 
+## A heal reaches the party's people near it (in the hero's party, the hero's).
 func _heal_allies(fraction: float) -> void:
 	if party_mode:
 		super._heal_allies(fraction)
+		return
+	var hurt := false
+	for mate in near_mates():
+		hurt = hurt or float(mate.hp) / float(maxi(1, mate.max_hp)) < 0.45
+		mate.heal_fraction(fraction)
+	if hurt:
+		party_say(HEAL_LINES)
 
 
+## A buff reaches the party's people near it (in the hero's party, the hero and the party).
 func _buff_allies(buff: Dictionary, color: Color, label_text: String, skill_id: String) -> void:
 	if party_mode:
 		super._buff_allies(buff, color, label_text, skill_id)
+		return
+	for mate in near_mates():
+		mate.receive_party_buff(buff, color, label_text, skill_id)
+
+
+## Summon is a Dark Lord's on purpose: in the hero's party as a companion's; alone never
+## (the hero's party is not its business); in a party of world players to pull back one of
+## its people who fell REGROUP behind.
+func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
+	if party_mode:
+		return super._shape_score(skill, distance, hero_hp)
+	var fx: Dictionary = skill.get("fx", {})
+	if fx.has("recall"):
+		return 9.5 if _straggling_mate() != null else 0.0
+	var score := super._shape_score(skill, distance, hero_hp)
+	if fx.has("taunt") and score >= 8.5 and not mates().is_empty():
+		party_say(TAUNT_LINES)
+	return score
+
+
+## Its Summon outside the hero's party gathers its own people round it (never the hero's).
+func _apply_self(skill: Dictionary) -> void:
+	var fx: Dictionary = skill.get("fx", {})
+	if party_mode or not fx.has("recall"):
+		super._apply_self(skill)
+		return
+	gather_mates()
+	var rest := skill.duplicate(true)
+	(rest.fx as Dictionary).erase("recall")
+	super._apply_self(rest)
 
 
 ## Hunting alone, a Bard sings for itself: its own song slot.
@@ -614,11 +696,20 @@ func _pick_camp() -> void:
 	if zone == null or zone.is_town or zone._camps.is_empty():
 		_camp = {}
 		return
-	var level := int(member.level)
+	var lead := party_leader()
+	if lead != null and not lead.camp().is_empty():
+		# In a party the leader picks: the others go where it goes.
+		_camp = lead.camp()
+		_spot_left = 0.0
+		return
+	var level := party_level()
 	var ranked := zone._camps.duplicate()
 	ranked.sort_custom(func(a, b): return _fit(a, level) < _fit(b, level))
+	var was := _camp
 	_camp = ranked[_rng.randi() % mini(2, ranked.size())]
 	_spot_left = 0.0
+	if not was.is_empty() and _camp != was and not mates().is_empty() and _rng.randf() < 0.5:
+		party_say(MOVE_LINES)
 
 
 static func _fit(camp: Dictionary, level: int) -> float:
@@ -676,15 +767,24 @@ func _pick_target() -> Mob:
 	var wboss := _join_world_boss()
 	if wboss != null:
 		return wboss
+	# In a party: what the leader fights (unless the hero's side has it).
+	var lead := party_leader()
+	if lead != null and lead.target != null and is_instance_valid(lead.target) and not lead.target.is_dead() \
+			and lead.target.party_damage <= 0 and hero.target != lead.target \
+			and _flat(lead.target.global_position - global_position).length() < HUNT_REACH * 1.5:
+		return lead.target
 	var center := _camp_center()
 	var reach := float(_camp.radius) + 8.0
 	var best: Mob = null
 	var best_d := HUNT_REACH
+	var team := mates()
 	for node in get_tree().get_nodes_in_group("mobs"):
 		var mob := node as Mob
 		if mob == null or mob.is_dead() or mob is Rival:
 			continue
-		var on_me: bool = mob._victim == self
+		# A monster on one of its people counts as on itself (it helps them).
+		var victim: Variant = mob._victim
+		var on_me: bool = victim == self or (not team.is_empty() and is_instance_valid(victim) and victim is FieldPlayer and team.has(victim))
 		if not on_me and (mob.is_boss or mob.party_damage > 0 or (hero.target == mob)):
 			continue
 		if not on_me and _flat(mob.global_position - center).length() > reach:
@@ -775,6 +875,9 @@ func _follow(delta: float) -> Vector3:
 		if goal == errand_at:
 			_face(errand_face, delta, 6.0)
 		return Vector3.ZERO
+	var lead := party_leader()
+	if lead != null:
+		return _follow_leader(lead, delta)
 	_camp_left -= delta
 	if _camp_left <= 0.0:
 		_pick_camp()
@@ -838,6 +941,149 @@ func _walk_to(spot: Vector3, delta: float, rate: float) -> Vector3:
 		return Vector3.ZERO
 	_face(to, delta, 10.0)
 	return to.normalized() * minf(float(stats.speed) * rate, to.length() * 4.0)
+
+
+# --- Party of world players (WorldParties) ----------------------------------------------
+
+## Takes its party from a WorldPlayers.state (party_id, party_leader, party_members); {}
+## or a state with none: alone.
+func set_ai_party(s: Dictionary) -> void:
+	var id := String(s.get("party_id", ""))
+	var lead := int(s.get("party_leader", -1))
+	var people: Array = s.get("party_members", []) if id != "" else []
+	if id == ai_party_id and lead == ai_leader and people == ai_members:
+		return
+	ai_party_id = id
+	ai_leader = lead if id != "" else -1
+	ai_members = people.duplicate()
+	_mates_in = 0.0
+	_mates.clear()
+	if is_instance_valid(_label) and not _dead:
+		_label.text = _level_text()
+
+
+## In a party of world players (not the hero's), and not a puppet of another game's.
+func in_ai_party() -> bool:
+	return ai_party_id != "" and not party_mode and not puppet
+
+
+## Its people standing here (alive or not), itself left out; refreshed every MATES_EVERY s.
+func mates() -> Array[FieldPlayer]:
+	if not in_ai_party():
+		if not _mates.is_empty():
+			_mates.clear()
+		return _mates
+	var now := Time.get_ticks_msec() * 0.001
+	if now < _mates_in:
+		return _mates
+	_mates_in = now + MATES_EVERY
+	_mates.clear()
+	if zone == null or not is_instance_valid(zone) or zone.presence == null:
+		return _mates
+	for k in ai_members:
+		var i := int(k)
+		if i == world_index:
+			continue
+		var p: Variant = zone.presence.shown.get(i)
+		if p == null or not is_instance_valid(p) or (p as Node).is_queued_for_deletion():
+			continue
+		var f := p as FieldPlayer
+		if f.party_mode or f.ai_party_id != ai_party_id:
+			continue
+		_mates.append(f)
+	return _mates
+
+
+## Its people here who are up and near it (heals and buffs reach them).
+func near_mates() -> Array[FieldPlayer]:
+	var out: Array[FieldPlayer] = []
+	for mate in mates():
+		if is_instance_valid(mate) and mate.visible and not mate._dead and not mate._away \
+				and _flat(mate.global_position - global_position).length() <= PARTY_NEAR:
+			out.append(mate)
+	return out
+
+
+## Its party's leader standing here, up and hunting (null: it leads, is alone, or the
+## leader is not here: it hunts on its own until the leader comes).
+func party_leader() -> FieldPlayer:
+	if not in_ai_party() or ai_leader == world_index or ai_leader < 0:
+		return null
+	for mate in mates():
+		if is_instance_valid(mate) and mate.world_index == ai_leader and mate.visible and not mate._away and not mate._leaving:
+			return mate
+	return null
+
+
+## The level the party hunts at: the mean of its people here (its own alone).
+func party_level() -> int:
+	var total := int(member.level)
+	var n := 1
+	for mate in mates():
+		if is_instance_valid(mate):
+			total += int(mate.member.level)
+			n += 1
+	return int(round(float(total) / float(n)))
+
+
+## Walking with the leader: its own spot round it (by its place in the party), a run when
+## far behind; the leader's camp is its camp.
+func _follow_leader(lead: FieldPlayer, delta: float) -> Vector3:
+	if not lead.camp().is_empty():
+		_camp = lead.camp()
+	var k := maxi(0, ai_members.find(world_index) - 1)
+	var spot := lead.global_position + (PARTY_SPOTS[k % PARTY_SPOTS.size()] as Vector3).rotated(Vector3.UP, lead._facing)
+	var to := _flat(spot - global_position)
+	if to.length() < 0.8:
+		return Vector3.ZERO
+	_face(to, delta, 10.0)
+	var speed := float(stats.speed) * (1.3 if to.length() > 8.0 else (1.0 if to.length() > 3.0 else 0.6))
+	return to.normalized() * minf(speed, to.length() * 4.0)
+
+
+## One of its people (up, not away) more than REGROUP from it, or null.
+func _straggling_mate() -> FieldPlayer:
+	if hero != null and is_instance_valid(hero) and hero.safe_zone:
+		return null
+	for mate in mates():
+		if is_instance_valid(mate) and mate.visible and not mate._dead and not mate._away and not mate._fleeing() \
+				and _flat(mate.global_position - global_position).length() > REGROUP:
+			return mate
+	return null
+
+
+## A Dark Lord's Summon in a party of world players: its people up and here stand round
+## it at once (a flash where each left and arrived). Returns how many came.
+func gather_mates() -> int:
+	var movers: Array[FieldPlayer] = []
+	for mate in mates():
+		if is_instance_valid(mate) and mate.visible and not mate._dead and not mate._away:
+			movers.append(mate)
+	if movers.is_empty() or not is_instance_valid(field):
+		return 0
+	for k in movers.size():
+		var mate := movers[k]
+		var angle := _facing + PI + (float(k) - float(movers.size() - 1) * 0.5) * 0.8
+		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.4
+		VfxKit.flash(field, mate.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
+		mate.global_position = spot + Vector3(0, 0.3, 0)
+		mate.velocity = Vector3.ZERO
+		VfxKit.flash(field, spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
+	VfxKit.shockwave(field, global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
+	party_say(SUMMON_LINES)
+	return movers.size()
+
+
+## A line of party talk over its head (and on the other real players' screens), at most
+## every PARTY_SAY_GAP seconds and only near the hero (where it is seen).
+func party_say(lines: Array) -> void:
+	var now := Time.get_ticks_msec() * 0.001
+	if now - _party_said < PARTY_SAY_GAP or lines.is_empty() or not visible or _dead:
+		return
+	if hero == null or not is_instance_valid(hero) or _flat(hero.global_position - global_position).length() > LOD_FAR:
+		return
+	_party_said = now
+	bubble(String(lines[_rng.randi() % lines.size()]))
 
 
 # --- Online: what it does, on the wire, and the puppet of another game's player --------

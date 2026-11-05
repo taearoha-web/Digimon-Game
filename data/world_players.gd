@@ -411,7 +411,13 @@ static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
 
 ## The level player i has reached at real time t.
 static func level_at(i: int, t: float) -> int:
-	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t)).level)
+	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t)).level)
+
+
+## Probe minutes partying with other world players (WorldParties) has added to player i by
+## real time t: EXP_BONUS more on the share of its own play it spends in parties.
+static func party_work(i: int, t: float) -> float:
+	return own_minutes(i, t) * efficiency(i) * WorldParties.taste(i) * WorldParties.EXP_BONUS
 
 
 # --- Halloween ----------------------------------------------------------------------
@@ -726,7 +732,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var e: Dictionary = ROSTER[i]
-	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t))
+	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
 	var s := session_at(i, t)
 	var place := ""
 	var doing := ""
@@ -761,6 +767,13 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	out["grade"] = grade_of(int(p.level), int(p.stars), bool(p.divine))
 	out["last_seen"] = _last_seen(i, t) if s.is_empty() else t
 	out["pumpkin"] = halloween_mult(i, t) > 1
+	# A party of world players (WorldParties): its people hunt its field together.
+	var party := WorldParties.party_of(i, t) if doing in ["hunt", "boss"] else {}
+	out["party_id"] = String(party.get("id", ""))
+	out["party_leader"] = int(party.get("leader", -1))
+	out["party_members"] = (party.get("members", []) as Array).duplicate()
+	if not party.is_empty():
+		out["place"] = String(party.zone)
 	return out
 
 
