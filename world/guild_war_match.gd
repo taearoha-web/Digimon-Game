@@ -1046,11 +1046,13 @@ const BARRIER_TEXT := "บาเรียกันแท่นอยู่ ต�
 
 
 ## Who holds a switch with `ours` of our guild and `theirs` of the other inside its
-## circle: the only guild there, nobody when empty or contested.
+## circle: the guild with more living bodies there; nobody when empty or level (contested;
+## read_switches then leaves a level switch with the guild that held it).
+## A majority rather than "alone" so two equal squads do not freeze the war: bring more.
 static func switch_holder(ours: int, theirs: int) -> int:
-	if ours > 0 and theirs == 0:
+	if ours > theirs:
 		return GuildFighter.TEAM_ALLY
-	if theirs > 0 and ours == 0:
+	if theirs > ours:
 		return GuildFighter.TEAM_ENEMY
 	return -1
 
@@ -1103,7 +1105,12 @@ func _tick_switches(delta: float) -> void:
 func read_switches() -> void:
 	for k in SiegeArena.SWITCHES.size():
 		var c := count_switch(k)
-		_set_switch(k, switch_holder(c.x, c.y), c.x > 0 and c.y > 0)
+		var holder := switch_holder(c.x, c.y)
+		# Level numbers in the circle keep it with the guild that held it (the challenger
+		# must outnumber the holders); an empty circle is held by nobody.
+		if holder < 0 and c.x > 0 and c.x == c.y and switch_owner[k] >= 0:
+			holder = switch_owner[k]
+		_set_switch(k, holder, c.x > 0 and c.x == c.y)
 
 
 ## A switch changes hands (told in the feed, recoloured, the commanders told at once).
@@ -1119,7 +1126,11 @@ func _set_switch(k: int, holder: int, contested: bool) -> void:
 	if state != "fight":
 		return
 	var label: String = SiegeArena.SWITCH_NAMES[k]
-	if holder >= 0:
+	if holder >= 0 and holder == was:
+		# Only the fight in the circle changed: the holders keep it while they are not outnumbered.
+		if contested:
+			feed.emit("%s ถูกแย่ง! กิลด์ %s ยังยึดไว้ได้ ต้องมีคนมากกว่าถึงจะชิงได้" % [label, team_name(holder)], 1 - holder)
+	elif holder >= 0:
 		feed.emit("กิลด์ %s ยึด%sได้" % [team_name(holder), label], holder)
 	elif was >= 0:
 		feed.emit(("%s ถูกแย่ง! กิลด์ %s เสียการยึด" if contested else "กิลด์ %s เสีย%s") % ([label, team_name(was)] if contested else [team_name(was), label]), 1 - was)
@@ -1141,11 +1152,12 @@ func _set_switch(k: int, holder: int, contested: bool) -> void:
 		c.on_switch_change()
 
 
-## Who holds each switch, for the online status: the team, -1 nobody, -2 contested.
+## Who holds each switch, for the online status: the team, -1 nobody, -2 contested and
+## held by nobody, 2 / 3 contested and still held by team 0 / 1.
 func switch_codes() -> Array:
 	var out: Array = []
 	for k in switch_owner.size():
-		out.append(-2 if switch_contested[k] else switch_owner[k])
+		out.append((2 + switch_owner[k] if switch_owner[k] >= 0 else -2) if switch_contested[k] else switch_owner[k])
 	return out
 
 
@@ -1154,6 +1166,8 @@ func switch_text(k: int) -> String:
 	var label: String = SiegeArena.SWITCH_NAMES[k]
 	var holder := switch_owner[k] if switch_pin < 0 else switch_pin
 	if switch_contested[k] and switch_pin < 0:
+		if holder >= 0:
+			return "%s: %s (แย่งกัน)" % [label, "เรา" if holder == GuildFighter.TEAM_ALLY else "ศัตรู"]
 		return "%s: แย่งกัน" % label
 	if holder < 0:
 		return "%s: ว่าง" % label
@@ -1629,12 +1643,12 @@ func mirror_sync(ev: String, d: Dictionary) -> void:
 		capture = {"team": clampi(int(cp[0]), 0, 1), "who": null, "progress": float(cp[1]), "paused": bool(cp[2]), "barrier": (cp as Array).size() >= 4 and bool(cp[3])}
 	else:
 		capture = {}
-	# The switches as the leader reads them (the team, -1 nobody, -2 contested).
+	# The switches as the leader reads them (switch_codes).
 	var sw: Variant = d.get("sw", [])
 	if sw is Array and (sw as Array).size() == SiegeArena.SWITCHES.size():
 		for k in (sw as Array).size():
-			var code := clampi(int(sw[k]), -2, 1)
-			_set_switch(k, maxi(code, -1), code == -2)
+			var code := clampi(int(sw[k]), -2, 3)
+			_set_switch(k, code - 2 if code >= 2 else maxi(code, -1), code == -2 or code >= 2)
 
 
 ## A mirrored fighter fell on the leader's side; the hero's blow counts as its kill.

@@ -47,7 +47,8 @@ func _ready() -> void:
 
 func _pure_rules() -> void:
 	check(GuildWarMatch.switch_holder(1, 0) == GuildFighter.TEAM_ALLY and GuildWarMatch.switch_holder(0, 3) == GuildFighter.TEAM_ENEMY, "one guild alone in the circle holds the switch")
-	check(GuildWarMatch.switch_holder(2, 1) == -1 and GuildWarMatch.switch_holder(0, 0) == -1, "contested or empty: nobody holds it")
+	check(GuildWarMatch.switch_holder(2, 2) == -1 and GuildWarMatch.switch_holder(0, 0) == -1, "level or empty: nobody holds it")
+	check(GuildWarMatch.switch_holder(2, 1) == GuildFighter.TEAM_ALLY and GuildWarMatch.switch_holder(1, 3) == GuildFighter.TEAM_ENEMY, "more bodies in the circle hold it")
 	check(SiegeArena.SWITCHES.size() == 2 and SiegeArena.SWITCHES[0].x < 0.0 and SiegeArena.SWITCHES[1].x > 0.0, "a switch in the left corner and one in the right")
 	for k in 2:
 		var p: Vector3 = SiegeArena.SWITCHES[k]
@@ -147,19 +148,27 @@ func _switches_and_barrier() -> void:
 	check(is_equal_approx(float(m.capture.progress), 5.0), "the count runs (%.1f)" % float(m.capture.get("progress", 0.0)))
 	hud._update(0.0, false)
 	check(hud.switch_texts()[0] == "สวิตช์ซ้าย: เรา" and hud.switch_texts()[1] == "สวิตช์ขวา: เรา", "the HUD shows both ours (%s)" % [hud.switch_texts()])
-	# An enemy steps into the right circle: contested, the barrier is back, the count freezes.
+	# One enemy steps into the right circle against our one holder: level, contested, but
+	# ours keep it (a challenger must outnumber the holders).
 	theirs[0].global_position = SiegeArena.SWITCHES[1] + Vector3(0.8, 0.3, 0.8)
 	m.read_switches()
-	check(m.switch_owner[1] == -1 and m.switch_contested[1] and m.barrier_up(GuildFighter.TEAM_ALLY), "one enemy in the circle: contested, not held, the barrier is back")
+	check(m.switch_owner[1] == GuildFighter.TEAM_ALLY and m.switch_contested[1] and not m.barrier_up(GuildFighter.TEAM_ALLY), "one enemy against one holder: contested, still ours, no barrier")
+	hud._update(0.0, false)
+	check(hud.switch_texts()[1] == "สวิตช์ขวา: เรา (แย่งกัน)", "the HUD shows it ours but contested (%s)" % [hud.switch_texts()])
+	# A second enemy comes in: outnumbered, the switch is lost, the barrier is back, the count freezes.
+	theirs[1].global_position = SiegeArena.SWITCHES[1] + Vector3(-0.8, 0.3, -0.8)
+	m.read_switches()
+	check(m.switch_owner[1] == GuildFighter.TEAM_ENEMY and m.barrier_up(GuildFighter.TEAM_ALLY), "two enemies against one holder: they take it, the barrier is back")
 	m._tick_capture(7.0)
 	check(not m.capture.is_empty() and is_equal_approx(float(m.capture.progress), 5.0) and bool(m.capture.barrier) and bool(m.capture.paused), "the count freezes at 5 s, kept (%s)" % m.capture)
 	check(m.capture_line().contains("บาเรีย") and m.barrier_line() == GuildWarMatch.BARRIER_TEXT, "the bar says why: %s" % m.capture_line())
 	check(m._barrier.visible, "the dome is back")
 	hud._update(0.0, false)
-	check(hud.switch_texts()[1] == "สวิตช์ขวา: แย่งกัน" and hud.switch_texts()[2] != "", "the HUD shows the right switch contested and the warning (%s)" % [hud.switch_texts()])
+	check(hud.switch_texts()[1] == "สวิตช์ขวา: ศัตรู" and hud.switch_texts()[2] != "", "the HUD shows the right switch lost and the warning (%s)" % [hud.switch_texts()])
 	check(lines.any(func(t: String): return t.contains("บาเรียกลับมา")), "the feed tells the barrier came back")
-	# The enemy is driven off: the count goes on from 5.
+	# The enemies are driven off: the count goes on from 5.
 	_away(theirs[0])
+	_away(theirs[1])
 	m.read_switches()
 	m._tick_capture(3.0)
 	check(not m.barrier_up(GuildFighter.TEAM_ALLY) and is_equal_approx(float(m.capture.progress), 8.0) and not bool(m.capture.barrier), "retaken: the count goes on from the same second (%.1f)" % float(m.capture.progress))
@@ -303,7 +312,18 @@ func _ai_assault() -> void:
 	mine.global_position = SiegeArena.SWITCHES[at] + Vector3(0.4, 0.3, 0)
 	(posted[0] as GuildFighter).global_position = SiegeArena.SWITCHES[at] + Vector3(-0.4, 0.3, 0)
 	m.read_switches()
-	check(m.switch_contested[at] and m.switch_owner[at] == -1, "ai: a defender in the circle keeps the attacker from holding it")
+	var before := m.switch_owner[at]
+	check(m.switch_contested[at] and before != GuildFighter.TEAM_ALLY, "ai: one attacker against the defender in the circle: contested, the attacker does not take it (owner %d count %s)" % [before, m.count_switch(at)])
+	# A second attacker outnumbers the defender: ours now.
+	var second: GuildFighter = null
+	for f in m.allies:
+		if f != mine and not f.is_dead():
+			second = f
+			break
+	if second != null:
+		second.global_position = SiegeArena.SWITCHES[at] + Vector3(0, 0.3, 0.4)
+		m.read_switches()
+		check(m.switch_owner[at] == GuildFighter.TEAM_ALLY, "ai: two attackers against one defender take the switch")
 	zone.queue_free()
 	await _frames(3)
 	Game.guildwar_clear_checkpoint()
