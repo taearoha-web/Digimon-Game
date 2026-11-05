@@ -242,7 +242,7 @@ func _equipment_signature() -> String:
 
 
 func refresh_stats() -> void:
-	var totals := {"atk": 0.0, "def": 0.0, "speed": 0.0, "crit": 0.0, "dodge": 0.0}
+	var totals := {"atk": 0.0, "def": 0.0, "speed": 0.0, "crit": 0.0, "dodge": 0.0, "hp": 0.0}
 	var now := Time.get_ticks_msec()
 	for key in totals:
 		var values: Array = []
@@ -250,7 +250,11 @@ func refresh_stats() -> void:
 			if buff.until > now:
 				values.append(float(buff.get(key, 0.0)))
 		totals[key] = BuffBook.stack(values)
+	Game.live_hp_buff = float(totals.hp)
 	stats = Game.stats_now(totals)
+	# เบ่งเลือด ended: the HP above the normal maximum goes with it.
+	if Game.profile.has("hp") and int(Game.profile.hp) > int(stats.max_hp):
+		Game.profile.hp = int(stats.max_hp)
 
 
 func is_dead() -> bool:
@@ -1387,8 +1391,14 @@ func _share_buff(buff: Dictionary, color: Color, label: String, skill_id := "") 
 func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally := false, skill_id := "") -> void:
 	var prepared := buff_data.duplicate()
 	if prepared.has("shield"): prepared["shield_left"] = int(float(stats.max_hp)*float(prepared.shield))
+	var max_before := int(stats.get("max_hp", 0))
 	_buffs = BuffBook.insert(_buffs, prepared, color, label, from_ally, skill_id)
 	refresh_stats()
+	# เบ่งเลือด: the HP it adds to the maximum is filled in too (10,000 -> 13,000 at ★1).
+	var gained := int(stats.get("max_hp", 0)) - max_before
+	if gained > 0 and max_before > 0 and not _dead:
+		Game.profile.hp = mini(int(stats.max_hp), int(Game.profile.hp) + gained)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "HP +%d" % gained, Color("ff8080"), 0.9)
 	_sync_auras(Time.get_ticks_msec())
 	# Persistent buff halo and the skill silhouette carry this feedback.
 	if label != "":
@@ -1722,3 +1732,9 @@ func _storm_candidates() -> Array:
 func _storm_hit(victim: Node3D, skill: Dictionary, mult: float) -> void:
 	if victim is Mob and not victim.is_dead():
 		_deal(victim, mult, skill.color, skill.vfx, false, skill)
+
+
+## Leaving the zone takes the hero's max-HP buff out of Game.stats_now until the
+## next hero rebuilds it.
+func _exit_tree() -> void:
+	Game.live_hp_buff = 0.0

@@ -476,6 +476,7 @@ func respawn() -> void:
 	_atk_boost = 1.0
 	_def_boost = 1.0
 	_buff_until = 0.0
+	_drop_hp_bonus()
 	_clear_marks()
 	hostile = true
 	collision_layer = 1 << 2

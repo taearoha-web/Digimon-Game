@@ -30,6 +30,8 @@ var _think := 0.2
 var _atk_boost := 1.0
 var _def_boost := 1.0
 var _buff_until := 0.0
+## HP a running max-HP buff (เบ่งเลือด) adds on top of the normal max_hp.
+var _hp_bonus := 0
 var _buff_art := BuffBook.new()
 var _base_def := 1.0
 var _dodge := 0.0
@@ -358,6 +360,7 @@ func _tick(delta: float) -> void:
 		_atk_boost = 1.0
 		_def_boost = 1.0
 		_sync_def()
+		_drop_hp_bonus()
 	_expire_marks()
 
 
@@ -526,6 +529,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_atk_boost = maxf(_atk_boost, 1.0 + float(buff.get("atk", 0.0)))
 				_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
 				_sync_def()
+				_raise_hp(float(buff.get("hp", 0.0)))
 				_buff_until = maxf(_buff_until, Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 				var display_buff := buff.duplicate()
 				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
@@ -635,3 +639,25 @@ func _basic_attack(target: Node3D) -> void:
 
 func _storm_hit(victim: Node3D, mult: float, color: Color) -> void:
 	_hit(victim, mult, color)
+
+
+## เบ่งเลือด: the maximum rises by [param share] of the normal maximum and the
+## added HP is filled in (a stronger cast tops it up, a weaker one changes nothing).
+func _raise_hp(share: float) -> void:
+	var base := max_hp - _hp_bonus
+	var bonus := int(float(base) * share)
+	if bonus <= _hp_bonus or is_dead():
+		return
+	hp += bonus - _hp_bonus
+	_hp_bonus = bonus
+	max_hp = base + _hp_bonus
+	hp = mini(hp, max_hp)
+
+
+## The max-HP buff ended: back to the normal maximum.
+func _drop_hp_bonus() -> void:
+	if _hp_bonus <= 0:
+		return
+	max_hp -= _hp_bonus
+	_hp_bonus = 0
+	hp = mini(hp, max_hp)

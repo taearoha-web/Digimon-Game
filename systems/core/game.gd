@@ -241,6 +241,24 @@ func loadout() -> Array:
 ## Keeps the bar valid and puts newly unlocked skills into empty slots.
 func fill_loadout() -> void:
 	profile["loadout"] = ClassData.default_loadout(class_id(), int(profile.get("level", 1)), profile.get("loadout", []), class_tier(), int(paragon().level))
+	_keep_signature_skill()
+
+
+## The Defender always has เบ่งเลือด ("brace") on the bar once it is learnt: into the
+## first empty slot, else in place of the last one.
+const SIGNATURE_SKILLS := {&"defender": "brace"}
+
+
+func _keep_signature_skill() -> void:
+	var id := String(SIGNATURE_SKILLS.get(class_id(), ""))
+	if id == "":
+		return
+	var skill := ClassData.find_skill(class_id(), id)
+	var bar: Array = profile["loadout"]
+	if skill.is_empty() or not skill_unlocked(skill) or bar.has(id) or bar.is_empty():
+		return
+	var empty := bar.find("")
+	bar[empty if empty >= 0 else bar.size() - 1] = id
 
 
 ## Puts a skill on a bar slot; a skill already on the bar swaps places.
@@ -250,6 +268,10 @@ func equip_skill(skill_id: String, slot: int) -> bool:
 		return false
 	var bar: Array = loadout()
 	var from := bar.find(skill_id)
+	# เบ่งเลือด stays on the bar: it can swap places, not be replaced by a skill from outside.
+	if from < 0 and String(bar[slot]) != "" and String(bar[slot]) == String(SIGNATURE_SKILLS.get(class_id(), "")):
+		say("เบ่งเลือดต้องอยู่บนแถบสกิลเสมอ ย้ายไปช่องอื่นได้", &"warning")
+		return false
 	if from >= 0:
 		bar[from] = bar[slot]
 	bar[slot] = skill_id
@@ -362,7 +384,15 @@ func advance() -> bool:
 	return true
 
 
+## The hero's running max-HP buff (เบ่งเลือด, Hero.refresh_stats): every stats_now
+## caller (clamp_vitals, potions, the menus) sees the raised HP while it lasts.
+var live_hp_buff := 0.0
+
+
 func stats_now(buffs := {}) -> Dictionary:
+	if live_hp_buff > 0.0 and not buffs.has("hp"):
+		buffs = buffs.duplicate()
+		buffs["hp"] = live_hp_buff
 	var out := HeroStats.compute(profile, buffs)
 	# A running Halloween potion also lifts the attack (BOOST_ATK).
 	if has_profile and exp_boost_left() > 0.0:

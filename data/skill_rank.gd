@@ -24,7 +24,7 @@ const SUMMON_HP_PER_STAR := 0.6
 ## are the damage of one hit in % of ATK (those scripts need autoloads).
 const SKILL_POWER := 0.4
 const SUMMON_HIT_SHARE := 0.14
-const BUFF_LABELS := {"atk": "โจมตี", "def": "ป้องกัน", "speed": "ความเร็ว", "crit": "คริ", "shield": "โล่", "reflect": "สะท้อน", "guard": "ลดดาเมจ", "dodge": "หลบ"}
+const BUFF_LABELS := {"hp": "HP สูงสุด", "atk": "โจมตี", "def": "ป้องกัน", "speed": "ความเร็ว", "crit": "คริ", "shield": "โล่", "reflect": "สะท้อน", "guard": "ลดดาเมจ", "dodge": "หลบ"}
 ## Monster debuffs [fraction, secs]: shred lowers DEF, weaken lowers ATK. The star
 ## rank grows the fraction (like control time) up to these caps.
 const DEBUFF_CAPS := {"shred": 0.35, "weaken": 0.30}
@@ -128,8 +128,18 @@ static func scaled_fx(fx: Dictionary, rank: int) -> Dictionary:
 		# Only numbers grow: flags such as "song" or "self_only" (bools) pass through as they are.
 		for key in fx.buff:
 			if key != "secs" and (fx.buff[key] is float or fx.buff[key] is int):
-				buff[key] = float(buff[key]) - float(fx.buff[key]) + float(fx.buff[key]) * buff_scale(rank)
+				buff[key] = buff_value(fx.buff, key, rank)
 	return out
+
+
+## One number of a buff at [param rank]: +8% of itself a star, or, when the buff
+## names its own step in "grow" (เบ่งเลือด), base + grow per star above ★1.
+static func buff_value(buff: Dictionary, key: String, rank: int) -> float:
+	var base := float(buff[key])
+	var grow: Variant = buff.get("grow")
+	if grow is Dictionary and (grow as Dictionary).has(key):
+		return base + float(grow[key]) * _step(rank)
+	return base * buff_scale(rank)
 
 
 ## A debuff's fraction ([param key] "shred" or "weaken") at [param rank], capped.
@@ -176,8 +186,8 @@ static func table(skill: Dictionary) -> Array:
 		for key in fx.buff:
 			if key == "secs" or not BUFF_LABELS.has(key):
 				continue
-			var base := float(fx.buff[key])
-			rows.append(["บัฟ" + String(BUFF_LABELS[key]), _each(func(r): return "+%d%%" % int(round(base * buff_scale(r) * 100.0)))])
+			var buff: Dictionary = fx.buff
+			rows.append(["บัฟ" + String(BUFF_LABELS[key]), _each(func(r): return "+%d%%" % int(round(buff_value(buff, key, r) * 100.0)))])
 	if fx.has("stun"):
 		rows.append(["มึน (วิ)", _each(func(r): return "%.1f" % (float(fx.stun) * control_scale(r)))])
 	if fx.has("slow"):

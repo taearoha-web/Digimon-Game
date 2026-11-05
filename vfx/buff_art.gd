@@ -45,7 +45,7 @@ const RECIPES := {
 	"lancer_rush": ["blade", "ff9c68", "ffe2ae", 5, 1.08, 0.66, 0.45],
 	"dragon_stance": ["hex", "efa257", "ffdc92", 4, 1.12, 1.0, 0.16],
 	"valkyrie_blessing": ["wing", "f2d5a0", "e9f4ff", 5, 1.1, 1.55, 0.0],
-	"brace": ["shield", "9fc4e8", "eef6ff", 2, 0.92, 0.9, 0.0],
+	"brace": ["shield", "ff6b6b", "ffe0e0", 2, 0.92, 0.9, 0.0],
 	"iron_wall": ["rampart", "a8c8e8", "f2f8ff", 8, 1.08, 0.55, -0.06],
 	"thorn_guard": ["thorns", "e8925a", "ffe2c0", 6, 1.0, 0.9, -0.3],
 	"guardian_oath": ["cross", "fff0b0", "ffffff", 5, 1.0, 1.25, 0.1],
