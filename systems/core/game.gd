@@ -1421,6 +1421,10 @@ func party_invite(i: int, force := false) -> String:
 		var mate := guild() > 0 and int(s.guild) == guild()
 		if not mate and not party_levels_ok(int(s.level), int(profile.level)):
 			return "%s: เลเวลห่างกันเกินไป ไว้คราวหน้านะ" % s.name
+		# In a party of world players (WorldParties) it comes alone, leaving its party; now
+		# and then it would rather stay with them (a guild mate always comes).
+		if not mate and WorldParties.refuses(i, t):
+			return "%s: ขอโทษนะ ตอนนี้ตี้กับ%sอยู่ ไว้คราวหน้านะ" % [s.name, _ai_party_names(s)]
 	var m := WorldPlayers.member(i, t)
 	m["stance"] = "follow"
 	_party_members[i] = m
@@ -1432,6 +1436,14 @@ func party_invite(i: int, force := false) -> String:
 	party_changed.emit()
 	party_roster_changed.emit()
 	return ""
+
+
+## "เพื่อน" or the first other person of the world-player party in state s.
+static func _ai_party_names(s: Dictionary) -> String:
+	for k in s.get("party_members", []):
+		if int(k) != int(s.index):
+			return " %s " % WorldPlayers.entry(int(k)).name
+	return "เพื่อน"
 
 
 ## Member i leaves the party (`why` is said if given).

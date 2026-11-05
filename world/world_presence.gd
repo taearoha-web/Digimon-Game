@@ -268,12 +268,24 @@ func sync(initial: bool) -> void:
 	# few are not always the ones picked.
 	var n := WorldPlayers.size()
 	var turn := int(t / 3600.0) % n
+	# A party (WorldParties) comes as one: its people side by side in the order, placed by
+	# its leader, and shown first when any of them already is.
+	var unit_shown := {}
+	for s in here:
+		if shown.has(int(s.index)):
+			unit_shown[_unit_of(s)] = true
 	here.sort_custom(func(a, b):
-		var sa := 0 if shown.has(int(a.index)) else 1
-		var sb := 0 if shown.has(int(b.index)) else 1
+		var ua := _unit_of(a)
+		var ub := _unit_of(b)
+		var sa := 0 if unit_shown.has(ua) else 1
+		var sb := 0 if unit_shown.has(ub) else 1
 		if sa != sb:
 			return sa < sb
-		return (int(a.index) - turn + n) % n < (int(b.index) - turn + n) % n)
+		var ka := (ua - turn + n) % n
+		var kb := (ub - turn + n) % n
+		if ka != kb:
+			return ka < kb
+		return (a.party_members as Array).find(int(a.index)) < (b.party_members as Array).find(int(b.index)))
 	var cap := limit_here(zone.is_town)
 	var limit: int = maxi(1, cap - Game.party().size()) if cap > 0 else 0
 	var keep := {}
@@ -314,6 +326,12 @@ func sync(initial: bool) -> void:
 			arrivals.append(i)
 	if not arrivals.is_empty():
 		_spawn_arrivals(arrivals, t, keep)
+
+
+## The roster index that places player state s in the order: its party's leader, or its own.
+static func _unit_of(s: Dictionary) -> int:
+	var lead := int(s.get("party_leader", -1))
+	return lead if lead >= 0 else int(s.index)
 
 
 ## Building a player (its rig, outfit, gear and glow) is a few milliseconds of work: the
@@ -369,6 +387,7 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 	var p := FieldPlayer.new()
 	p.setup_world(i, WorldPlayers.member(i, t), zone.hero, zone)
 	p.doing = String(s.get("doing", ""))
+	p.set_ai_party(s)
 	zone.add_child(p)
 	var at := zone.entrance()
 	shown[i] = p
@@ -387,7 +406,11 @@ func _spawn(i: int, t: float, initial: bool, s: Dictionary = {}) -> void:
 		if not initial:
 			VfxKit.flash(zone, p.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.4)
 		return
-	if initial and not zone.is_town:
+	var lead := p.party_leader()
+	if initial and not zone.is_town and lead != null:
+		# Its party is already here: it stands with them.
+		at = lead.global_position
+	elif initial and not zone.is_town:
 		var camp := p.camp()
 		if not camp.is_empty():
 			at = Vector3(camp.pos.x, 0.0, camp.pos.y)
@@ -1035,6 +1058,7 @@ func _spawn_puppet(i: int, t: float, at: Vector3, yaw: float) -> FieldPlayer:
 	var s := WorldPlayers.state(i, t)
 	p.doing = String(s.get("doing", ""))
 	p.errand = String(s.get("errand", ""))
+	p.set_ai_party(s)
 	p.position = at + Vector3(0, 0.3, 0)
 	p.puppet_push(at, yaw, Time.get_ticks_msec() * 0.001)
 	zone.add_child(p)
