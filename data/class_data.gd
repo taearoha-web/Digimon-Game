@@ -689,7 +689,10 @@ static func _build_pools() -> void:
 	var d := &"defender"
 	_pools[d] = [
 		_sk(d, "shield_bash", "Shield Bash", "ฟาดขอบโล่ใส่ศัตรูตัวเดียว", 10, 10, 3.0, "single", 2.6, {"anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "shield"}),
-		_sk(d, "brace", "Brace", "ตั้งโล่รับ ลดความเสียหายที่ได้รับ 15% DEF +20% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"guard": 0.15, "def": 0.2, "secs": 60.0}}, "anim": "Blocking", "color": Color("9fc4e8"), "icon": "shield"}),
+		# เบ่งเลือด (was Brace, same id so saves keep their stars): max HP +30% and damage taken
+		# -10% at ★1, up to +50% / -25% at ★5 (the buff's "grow", SkillRank.scaled_fx), 1 minute,
+		# the Defender's own (self_only). A 25 s cooldown keeps it up all the time.
+		_sk(d, "brace", "เบ่งเลือด", "เบ่งพลังชีวิต HP สูงสุด +30% และลดความเสียหายที่ได้รับ 10% นาน 1 นาที (เฉพาะตัวเอง ★5: HP +50% ลดดาเมจ 25%)", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"hp": 0.30, "guard": 0.10, "secs": 60.0, "self_only": true, "grow": {"hp": 0.05, "guard": 0.0375}}}, "anim": "Blocking", "color": Color("ff6b6b"), "icon": "shield"}),
 		_sk(d, "shield_slam", "Shield Slam", "กระแทกหน้าโล่ใส่ศัตรู มึนงง 1.5 วินาที", 14, 16, 6.0, "single", 3.8, {"fx": {"stun": 1.5}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
 		_sk(d, "provoke", "Provoke", "เคาะโล่ท้าทาย ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 4 วินาที", 17, 18, 14.0, "burst", 1.5, {"radius": 7.0, "fx": {"taunt": 4.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff9a6a"), "icon": "roar"}),
 		_sk(d, "ground_quake", "Ground Quake", "ทุบโล่ลงพื้น ศัตรูรอบตัวช้าลง 2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.5, "fx": {"slow": 2.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("d8b98a"), "icon": "nova"}),

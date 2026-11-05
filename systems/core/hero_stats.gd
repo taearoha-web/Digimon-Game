@@ -182,7 +182,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
 		"gem_set": gem_set,
 		"attrs": attrs,
-		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0))) * (1.0 + float(set_bonus.get("hp", 0.0)))),
+		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0))) * (1.0 + float(set_bonus.get("hp", 0.0))) * (1.0 + float(buffs.get("hp", 0.0)))),
 		"max_mp": int(((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp)) + float(gear.mp)) * (1.0 + float(gems.get("matk", 0.0)))),
 		"atk": atk,
 		"def": def,

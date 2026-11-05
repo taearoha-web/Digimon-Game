@@ -162,8 +162,23 @@ func refresh() -> void:
 		visual.set_equipment(_party_equip())
 	mp = minf(mp, float(stats.max_mp))
 	var ratio := float(hp) / float(max_hp) if max_hp > 0 else 1.0
-	max_hp = int(stats.max_hp)
+	max_hp = int(float(stats.max_hp) * (1.0 + _book.total("hp")))
 	hp = clampi(int(round(ratio * max_hp)), 1 if not _dead else 0, max_hp)
+	_update_bar()
+
+
+## เบ่งเลือด on a companion: its maximum follows the buff; the HP it adds is filled
+## in, and when it ends the HP above the normal maximum goes.
+func _sync_hp_buff() -> void:
+	if stats.is_empty():
+		return
+	var target := int(float(stats.max_hp) * (1.0 + _book.total("hp")))
+	if target == max_hp:
+		return
+	if target > max_hp and not _dead:
+		hp += target - max_hp
+	max_hp = target
+	hp = mini(hp, max_hp)
 	_update_bar()
 
 
@@ -333,6 +348,7 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		global_position = hero.global_position + Vector3(1.5, 0.2, 0.0) if hero.global_position.is_finite() else Vector3.ZERO
 	_book.tick(self, not _dead, func(): return BuffAura.measure_top(visual, self))
+	_sync_hp_buff()
 	fade_label(delta)
 	if _dead:
 		velocity.x = 0.0
