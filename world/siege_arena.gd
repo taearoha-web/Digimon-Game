@@ -45,6 +45,13 @@ const WALL_H := STONE_H + PARAPET_H
 ## The altar in the throne room and how close one must stand to take it.
 const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH * 0.5)
 const ALTAR_RADIUS := 2.8
+## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา) in the throne room's back corners, left
+## (x < 0) and right. A guild holds a switch while someone of it stands inside the circle
+## and nobody of the other guild does; the altar's barrier falls for a guild only while it
+## holds both (GuildWarMatch.barrier_up), so its leader can take the altar.
+const SWITCHES: Array[Vector3] = [Vector3(-25.0, 0, BACK_Z + 9.0), Vector3(25.0, 0, BACK_Z + 9.0)]
+const SWITCH_RADIUS := 3.2
+const SWITCH_NAMES: Array[String] = ["สวิตช์ซ้าย", "สวิตช์ขวา"]
 ## Where the sections join: the bridge foot, then the three gates.
 const CONNECTORS: Array[Vector3] = [Vector3(0, 0, -4.0), Vector3(0, 0, -18.0), Vector3(0, 0, -18.0 - GATE_GAP), Vector3(0, 0, -18.0 - GATE_GAP * 2.0)]
 ## Zone meta holding the castle banners' shared material (recoloured for the castle's holder).
@@ -107,6 +114,12 @@ static func hall_rect() -> Rect2:
 
 static func on_altar(p: Vector3) -> bool:
 	return Vector2(p.x - ALTAR.x, p.z - ALTAR.z).length() <= ALTAR_RADIUS
+
+
+## Whether `p` stands inside switch `k`'s circle.
+static func on_switch(p: Vector3, k: int) -> bool:
+	var c: Vector3 = SWITCHES[k]
+	return Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS
 
 
 ## Builds the field, the camps (in the two guild colours), the moat and bridge, the castle

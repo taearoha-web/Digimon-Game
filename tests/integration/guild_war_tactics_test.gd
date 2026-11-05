@@ -130,6 +130,36 @@ func _decisions() -> void:
 	s.plan = "defend"
 	s.holding = true
 	check(GuildWarCommander.pick_tactic(GuildWarCommander.PUSH, 2.0, s) == GuildWarCommander.DEFEND, "holding the castle: defend")
+	# The castle switches: an AI leader waits for both before it goes up.
+	s = _calm()
+	s.gates_up = false
+	s.plan = "storm"
+	s.escort = 3
+	s["switches"] = 1
+	check(GuildWarCommander.pick_tactic(GuildWarCommander.GATHER, 2.0, s) == GuildWarCommander.SECURE, "gates down, one switch held: secure both before the leader goes up")
+	check(GuildWarCommander.pick_tactic(GuildWarCommander.SECURE, 5.0, s) == GuildWarCommander.SECURE, "it keeps securing")
+	check(GuildWarCommander.pick_tactic(GuildWarCommander.SECURE, GuildWarCommander.SECURE_MAX + 1.0, s) == GuildWarCommander.ESCORT, "never stuck securing: after %d s the leader goes up and waits" % int(GuildWarCommander.SECURE_MAX))
+	s["switches"] = 2
+	check(GuildWarCommander.pick_tactic(GuildWarCommander.SECURE, 3.0, s) == GuildWarCommander.ESCORT, "both held: escort the leader into the altar room")
+	s["switches"] = 0
+	check(GuildWarCommander.pick_tactic(GuildWarCommander.ESCORT, 3.0, s) == GuildWarCommander.ESCORT, "a switch lost on the way: the leader keeps going and waits on the altar")
+	# Squad sizes.
+	s = _calm()
+	s.gates_up = false
+	s["standing"] = 12
+	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.PUSH, [false, false])) == "[2, 2]", "attackers post two on each switch (%s)" % [GuildWarCommander.squad_sizes(s, GuildWarCommander.PUSH, [false, false])])
+	s.we_capturing = true
+	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.GUARD, [true, false])) == "[2, 3]", "a switch lost while taking the altar: one more goes to retake it")
+	s = _calm()
+	s.gates_up = false
+	s.holding = true
+	s["standing"] = 12
+	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.DEFEND, [false, false])) == "[1, 1]", "the holder contests each switch with one")
+	s.enemy_capturing = true
+	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.DEFEND, [false, false])) == "[2, 2]", "the other guild taking the altar: two to each switch")
+	s.gates_up = true
+	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.DEFEND, [false, false])) == "[0, 0]", "gates up: nobody posted")
+	check(GuildWarCommander.holder_fit(GuildWarCommander.ROLE_TANK, false) > GuildWarCommander.holder_fit(GuildWarCommander.ROLE_ASSASSIN, false) and GuildWarCommander.holder_fit(GuildWarCommander.ROLE_ASSASSIN, true) > GuildWarCommander.holder_fit(GuildWarCommander.ROLE_HEALER, true), "tanks hold switches, assassins break them")
 
 
 func _focus_rules() -> void:
@@ -390,15 +420,19 @@ func _in_war() -> void:
 	for f in m.enemies:
 		f.global_position = SiegeArena.ALTAR + Vector3(6.0, 0.3, 6.0)
 	lead.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	# Theirs hold both switches (pinned; castle_switch_test holds them for real).
+	m.switch_pin = GuildFighter.TEAM_ENEMY
 	m._start_capture(GuildFighter.TEAM_ENEMY, lead)
 	ours.think(GuildWarCommander.THINK_EVERY)
 	theirs.think(GuildWarCommander.THINK_EVERY)
 	check(ours.tactic == GuildWarCommander.DEFEND and ours.focus == lead, "the rival leader on the altar: ours defend it and focus it (%s)" % ours.tactic)
 	check(theirs.tactic == GuildWarCommander.GUARD, "theirs guard their leader on the altar (%s)" % theirs.tactic)
 	m._assign_objectives()
-	check(m.allies.all(func(f): return f.is_dead() or f.goal_point.distance_to(lead.global_position) < 3.0), "ours all go for the one on the altar")
+	check(m.allies.all(func(f): return f.is_dead() or f.switch_post >= 0 or f.goal_point.distance_to(lead.global_position) < 3.0), "ours all go for the one on the altar (but the switch squads)")
+	var posted := m.allies.filter(func(f): return f.switch_post >= 0)
+	check(not posted.is_empty() and posted.all(func(f): return f.goal_point.distance_to(SiegeArena.SWITCHES[f.switch_post]) < SiegeArena.SWITCH_RADIUS), "and a squad of ours goes to break their switches (%d)" % posted.size())
 	var tank_guard := m.enemies.filter(func(f): return f.role == GuildWarCommander.ROLE_TANK and not f.is_leader)
-	check(tank_guard.all(func(f): return f.guard_node == lead), "their tanks peel for their leader")
+	check(tank_guard.all(func(f): return f.guard_node == lead or f.switch_post >= 0), "their tanks peel for their leader (but the ones holding a switch)")
 	m._cancel_capture()
 	# Gates down, theirs not holding: the leader goes up only inside its escort.
 	m.capture = {}
@@ -422,6 +456,7 @@ func _in_war() -> void:
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	for f in m.enemies:
 		f.global_position = SiegeArena.ALTAR + Vector3(8.0, 0.3, 8.0)
+	m.switch_pin = GuildFighter.TEAM_ALLY
 	m.start_hero_capture()
 	check(m.capturer() == hero, "the hero takes the altar")
 	theirs.think(GuildWarCommander.THINK_EVERY)

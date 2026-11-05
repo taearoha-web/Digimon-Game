@@ -456,8 +456,13 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 		check(far_one.model().anim_lod == 1 and not far_one.model()._far, "%s: a near one in full" % label)
 		far_one.global_position = keep
 		m._cull_far()
-	# The hero on the altar: the interact button takes it; stepping off breaks the hold.
+	# The hero on the altar: behind the barrier (no switch held) it cannot take it.
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	await _frames(2)
+	check(not m.hero_can_capture() and m.hero_blocked_by_barrier() and m.barrier_line() != "", "%s: with the switches not held the barrier keeps the hero off the altar" % label)
+	# With both switches held (pinned here; castle_switch_test holds them for real) the
+	# interact button takes it; stepping off breaks the hold.
+	m.switch_pin = GuildFighter.TEAM_ALLY
 	await _frames(2)
 	check(m.hero_can_capture(), "%s: standing on the altar the hero may take it" % label)
 	zone._update_interact()
@@ -518,6 +523,9 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	foe.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	foe.capture_role = true
 	await _frames(3)
+	check(m.capture.is_empty(), "%s: the rival leader behind the barrier (our switches) cannot start" % label)
+	m.switch_pin = GuildFighter.TEAM_ENEMY
+	await _frames(3)
 	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ENEMY and foe.capturing, "%s: the rival leader on the altar starts taking the castle" % label)
 	check(m.allies.is_empty() or m.allies[0]._targets().has(foe), "%s: our guild can strike the one on the altar" % label)
 	var tries := 0
@@ -531,6 +539,7 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 		hero.global_position = GuildWarMatch.hero_camp()
 		return
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	m.switch_pin = GuildFighter.TEAM_ALLY
 	await _frames(2)
 	check(m.hero_can_capture(), "%s: back on the altar the hero may take it again (cap %s owner %d dead %s at %s)" % [label, m.capture, m.castle_owner, hero.is_dead(), hero.global_position])
 	# The top bar: nobody holds the castle yet; the war's news goes to the chat box.

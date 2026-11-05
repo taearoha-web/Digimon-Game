@@ -106,6 +106,16 @@ func _build() -> void:
 		god_line.name = "GodTitle"
 		god_line.add_theme_color_override("font_color", Color("ffe27a"))
 		_body.add_child(god_line)
+	var team: Array = s.get("party_members", [])
+	if not team.is_empty() and int(s.get("party_leader", -1)) >= 0:
+		var names: Array[String] = []
+		for k in team:
+			names.append(String(WorldPlayers.entry(int(k)).name))
+		var party_line := UIUtil.label("ปาร์ตี้ของ %s · %d คน: %s" % [WorldPlayers.entry(int(s.party_leader)).name, team.size(), ", ".join(names)], &"SmallLabel")
+		party_line.name = "AiParty"
+		party_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		party_line.add_theme_color_override("font_color", Color("7dff8a"))
+		_body.add_child(party_line)
 	var member := Game.in_party(i)
 	var note := ""
 	if member:
@@ -193,6 +203,8 @@ func invite_party() -> String:
 	else:
 		if why.contains("เลเวล"):
 			who.say("เลเวลห่างกันไปหน่อยนะ ไว้คราวหน้า!", Color("ffb0b0"))
+		elif why.contains("ตี้กับ"):
+			who.say("ขอโทษนะ ตี้กับเพื่อนอยู่ ไว้รอบหน้านะ!", Color("ffe0a0"))
 		Game.say(why, &"warning")
 	if is_open:
 		_build()

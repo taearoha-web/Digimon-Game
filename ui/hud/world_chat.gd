@@ -409,6 +409,14 @@ const STALL_GOODS := {"%gear": "equip", "%potion": "potion", "%jewel": "jewel"}
 ## Stall lines that name no goods, for when the named kind is not in stock.
 const STALL_PLAIN := ["AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "แตะที่ตัวแล้วดูร้านได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า"]
 ## A scheduled player in the village on a short errand, by the errand.
+## A player in a party of world players (WorldParties) talks about it now and then
+## (%leader: whose party, %n: how many, %zone: where it hunts); one hunting alone who
+## likes parties asks for one (LFG).
+const PARTY_IN := ["ตี้ %leader ฟาร์มที่%zone อยู่ มาเพิ่มได้อีกคน", "ไปฟาร์มที่%zone กัน ตี้เรา %n คนแล้ว", "ตี้ %leader ขาดฮีล ใครว่างมาหน่อย",
+	"ตีกับตี้ %leader สนุกดี EXP ไหลเลย", "ตี้ %n คนที่%zone เก็บเลเวลไวขึ้นเยอะ", "ไปฟาร์มที่%zone กันต่อนะทุกคน"]
+const PARTY_LEAD := ["ตี้ผมฟาร์มที่%zone อยู่ ใคร Lv.%level ใกล้ ๆ มาด้วยกัน", "ไปฟาร์มที่%zone กัน ตี้ %n คนแล้ว ขาดอีกนิด",
+	"หัวตี้ขอพาไป%zone นะ ตามมาทุกคน"]
+const LFG := ["ใครว่างมาตี้ด้วย Lv.%level", "หาตี้ฟาร์ม%zone ครับ", "ขอเข้าตี้หน่อย Lv.%level %job", "ใครไป%zone ตี้กันไหม", "หาตี้ครับ ฟาร์มคนเดียวช้ามาก"]
 const ERRAND := {
 	"quest": ["ส่งเควสก่อนนะ", "แวะส่งเควสที่ผู้ใหญ่บ้าน เดี๋ยวกลับไปล่าต่อ", "รับเควสใหม่แล้ว ไปต่อกัน", "เควสนี้ให้ของดีด้วย"],
 	"enhance": ["ตีบวกติด +%plus แล้ว!", "ตีบวกแตกอีกแล้ว", "ลุ้นตีบวกอยู่ เพชรชมพูเหลือเม็ดเดียว", "ตีบวก +%plus ผ่าน! ไปล่าต่อ"],
@@ -439,7 +447,16 @@ static func line_for(s: Dictionary, seed_value: int) -> String:
 		pool = LOW
 	if rng.randf() < (0.1 if String(s.get("doing", "")) in ["stall", "errand"] else 0.25):
 		pool = ANY
+	var leader := int(s.get("party_leader", -1))
+	var party_n := (s.get("party_members", []) as Array).size()
+	if String(s.get("doing", "")) in ["hunt", "boss"]:
+		if leader >= 0 and rng.randf() < 0.3:
+			pool = PARTY_LEAD if leader == int(s.get("index", -2)) else PARTY_IN
+		elif leader < 0 and s.has("index") and rng.randf() < 0.12 * WorldParties.taste(int(s.index)) / 0.5:
+			pool = LFG
 	var line := String(pool[rng.randi() % pool.size()])
+	if leader >= 0 and leader < WorldPlayers.size():
+		line = line.replace("%leader", String(WorldPlayers.entry(leader).name)).replace("%n", str(party_n))
 	var place := StringName(s.get("place", ""))
 	var zone_name := "หมู่บ้าน" if place == &"town" or place == &"" else String(ZoneData.get_zone(place).get("name", "สนาม"))
 	var guild := WorldPlayers.guild_name(int(s.get("guild", 0)))
