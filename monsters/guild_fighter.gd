@@ -49,6 +49,10 @@ var capture_role := false
 var capturing := false
 ## Holding a position (its guild's plan): it only turns on enemies this close (0: anyone).
 var hold_range := 0.0
+## The castle switch it is posted to hold (GuildWarCommander's switch squads: 0 left,
+## 1 right) or -1: it goes there, stands inside the circle (never out of it, no falling
+## back, no Summon pulling it away) and fights only what comes near the switch.
+var switch_post := -1
 var kills := 0
 var deaths := 0
 var assists := 0
@@ -307,6 +311,17 @@ func _nearest_victim() -> Node3D:
 		# The one sent to the altar only fights what is right in its way.
 		if capture_role and d > 6.0 and t != taker:
 			continue
+		# A switch holder fights only what comes to its switch, whoever stands in the circle first.
+		if switch_post >= 0:
+			var post: Vector3 = SiegeArena.SWITCHES[switch_post]
+			var from_post := _flat_distance_from(t.global_position, post)
+			if t is CastleGate or from_post > SiegeArena.SWITCH_RADIUS + float(class_data.attack.range) + 1.5:
+				continue
+			var hold_score := -from_post + (12.0 if from_post <= SiegeArena.SWITCH_RADIUS else 0.0) + (4.0 if t == _victim else 0.0)
+			if hold_score > best_score:
+				best_score = hold_score
+				best = t
+			continue
 		# The assassin goes round to its mark (the guild's healer, bard or a leader left
 		# alone) wherever its post is.
 		if t == diving and d < GuildWarCommander.DIVE_RANGE and not _in_own_camp(t):
@@ -435,6 +450,7 @@ func _die() -> void:
 	VfxKit.flash(get_parent(), hit_point(), Color("ffe9a0"), 1.6)
 	VfxKit.sparks(get_parent(), hit_point(), Color("ffe27a"), 14, 5.0, 0.7)
 	respawn_left = GuildWarData.RESPAWN
+	switch_post = -1
 	var killer := _last_attacker
 	var helpers: Array = []
 	for id in _helpers:
@@ -455,6 +471,7 @@ func send_home() -> void:
 		return
 	_retreating = false
 	capturing = false
+	switch_post = -1
 	_victim = null
 	velocity = Vector3.ZERO
 	global_position = spawn_point + Vector3(randf_range(-1.2, 1.2), 0.3, randf_range(-1.2, 1.2))
@@ -521,6 +538,8 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	# escort round it) it steps on and holds, whoever swings at it.
 	if capture_role and not _frozen and (_flat_distance(target.global_position) > 4.0 or (_flat_distance(SiegeArena.ALTAR) < 14.0 and not SiegeArena.on_altar(global_position))):
 		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
+	if switch_post >= 0 and not _frozen:
+		return _hold_switch(target, delta, speed_factor)
 	var dodge_step := _dodge_area(delta)
 	if dodge_step != Vector3.ZERO:
 		return dodge_step
@@ -542,6 +561,25 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 		if _flat_distance(target.global_position) > reach + 1.0:
 			return _run_to(way, delta)
 	return super._chase(target, delta, speed_factor)
+
+
+## A switch holder: back into the circle when out of it, else it fights from where it
+## stands (it swings, casts and drinks as ever, but never steps out of the circle).
+func _hold_switch(target: Node3D, delta: float, speed_factor: float) -> Vector3:
+	var post: Vector3 = SiegeArena.SWITCHES[switch_post]
+	if _flat_distance(post) > SiegeArena.SWITCH_RADIUS * 0.7:
+		return _run_to(SiegeArena.route(global_position, post), delta)
+	var step := super._chase(target, delta, speed_factor)
+	if step != Vector3.ZERO:
+		var next := global_position + step * 0.35
+		if _flat_distance_from(next, post) > SiegeArena.SWITCH_RADIUS * 0.75:
+			# It would step out (to close in, or an archer backing off): it swings or
+			# shoots from where it stands when the target is in reach.
+			var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
+			if _attack_timer <= 0.0 and Time.get_ticks_msec() >= _cast_until and _flat_distance(target.global_position) <= reach + 0.4:
+				_basic_attack(target)
+			return Vector3.ZERO
+	return step
 
 
 ## A person sees the warning ring and walks out of it after a beat; sometimes does not.
@@ -627,7 +665,7 @@ func _recall_targets() -> Array[GuildFighter]:
 	var out: Array[GuildFighter] = []
 	for node in get_tree().get_nodes_in_group("gw_team%d" % team):
 		var f := node as GuildFighter
-		if f != null and f != self and _alive(f) and GuildWarMatch.buff_reaches(self, f):
+		if f != null and f != self and _alive(f) and f.switch_post < 0 and GuildWarMatch.buff_reaches(self, f):
 			out.append(f)
 	return out
 
@@ -687,6 +725,13 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 		return _upkeep_score(skill, distance)
 	var score := super._score(skill, shape, distance, own_ratio)
 	if score > 0.0 and _victim != null:
+		# Stuns and taunts go first on the other guild's leader taking the altar (each one
+		# holds it off the count) and on a holder standing in a switch.
+		if (fx.has("stun") or fx.has("taunt")) and _victim is GuildFighter and not ((_victim as GuildFighter)._stun > 0.2 or (commander() != null and commander().cc_fresh(_victim))):
+			if (_victim as GuildFighter).capturing:
+				score += 6.0
+			elif (_victim as GuildFighter).switch_post >= 0:
+				score += 3.0
 		# Stuns take turns: one already holds the target (or the guild just stunned it),
 		# so this one waits for the next opening.
 		if fx.has("stun") and _victim is GuildFighter and ((_victim as GuildFighter)._stun > 0.2 or (commander() != null and commander().cc_fresh(_victim))):
@@ -813,6 +858,12 @@ func _wander_on(delta: float) -> Vector3:
 		return Vector3.ZERO
 	if capture_role:
 		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
+	if switch_post >= 0:
+		var post: Vector3 = SiegeArena.SWITCHES[switch_post]
+		if _flat_distance(post) < SiegeArena.SWITCH_RADIUS * 0.45:
+			_tick(delta)
+			return Vector3.ZERO
+		return _run_to(SiegeArena.route(global_position, post), delta)
 	_tick(delta)
 	var way := SiegeArena.route(global_position, goal_point)
 	var to := way - global_position

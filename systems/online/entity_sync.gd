@@ -712,8 +712,9 @@ func _gw_tick(delta: float) -> void:
 	_gw_timer = GW_EVERY
 	var cp: Array = []
 	if not war.capture.is_empty():
-		cp = [int(war.capture.team), _q(float(war.capture.progress)), bool(war.capture.get("paused", false))]
-	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], war.score[1]], "o": war.castle_owner, "cp": cp, "ot": war.overtime})
+		cp = [int(war.capture.team), _q(float(war.capture.progress)), bool(war.capture.get("paused", false)), bool(war.capture.get("barrier", false))]
+	# The castle's switches too (the team holding each, -1 nobody, -2 contested).
+	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], war.score[1]], "o": war.castle_owner, "cp": cp, "sw": war.switch_codes(), "ot": war.overtime})
 
 
 # ---------------------------------------------------------------------------
