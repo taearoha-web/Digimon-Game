@@ -371,6 +371,8 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			art.layer(kind,look,Vector3(0,0.15,0),Vector3(2.4,3.8 if kind=="cathedral" else 2.4,2.4),Vector3.ZERO,d,1.55,Vector3.ZERO,0.15 if kind in ["helix","astrolabe","stave"] else 0,0.25)
 			art.layer("lotus" if id in ["prayer","gaia_blessing"] else "seal",look,Vector3(0,0.07,0),Vector3.ONE*2.7,Vector3.ZERO,d,1.5,Vector3.ZERO,-0.3)
 			art.layer("leaves" if id=="gaia_blessing" else "stars",look,Vector3(0,0.3,0),Vector3(2,2.5,2),Vector3.ZERO,d,1.65,Vector3.UP*1.0)
+	if String(look.family) in DEPTH_FAMILIES:
+		art._settle_depth()
 	art._draw()
 
 func layer(kind: String, look: Dictionary, at: Vector3, size: Vector3, angles := Vector3.ZERO, start := 0.0, seconds := 1.2, travel := Vector3.ZERO, spin := 0.0, initial := 0.65, reverse := false, style := {}) -> void:
@@ -407,6 +409,35 @@ func layer(kind: String, look: Dictionary, at: Vector3, size: Vector3, angles :=
 	node.visible=false
 	layers.append({"node":node,"at":at,"size":size,"angles":angles,"start":start,"seconds":seconds,"travel":travel,"spin":spin,"initial":initial,"reverse":reverse,"style":style,"kind":kind})
 	lifetime=maxf(lifetime,start+seconds+0.02)
+
+## Casters whose heavy elite art gets depth tiers (the melee classes, the Assassin and the
+## Lord stage their own signatures over it and keep it as it is).
+const DEPTH_FAMILIES := ["archer", "mage", "priest", "summoner", "bard"]
+## Ground plates: drawn first and mostly glass, so the shared rings and sparks read over them.
+const OUTER_KINDS := ["seal", "fractures", "crater_ring", "lane", "snowflake", "branches", "lotus", "shield_outline", "chains"]
+## Architecture that fills the field (temples, pillar groves, rain curtains): half glass, behind the stack.
+const VOLUME_KINDS := ["cathedral", "pillars", "rampart", "aegis", "crystals", "spears", "helix", "rain", "roots", "tree", "gate", "bastion", "stave", "astrolabe"]
+## Drifting detail: lighter, so it reads as motes round the skill rather than a cloud.
+const DETAIL_KINDS := ["stars", "feathers", "leaves"]
+
+## Depth order for a heavy elite cast: the silhouette (blades, comets, wings, dragons)
+## stays solid in front; architecture and ground plates turn to glass behind the
+## shared layer stack (SkillLayers, priority 0). Cosmetic only, nothing is added or timed.
+func _settle_depth() -> void:
+	for data in layers:
+		var style: Dictionary = data.get("style", {})
+		var kind := String(data.get("kind", ""))
+		var mat := (data.node as MeshInstance3D).material_override as ShaderMaterial
+		if not mat or mat.shader != SHADER or style.has("front") or bool(style.get("martial", false)):
+			continue
+		var tier: Array = [0.6, 0.7, -2] if kind in OUTER_KINDS else [0.62, 0.5, -1] if kind in VOLUME_KINDS else [0.7, 0.3, 0] if kind in DETAIL_KINDS else []
+		if tier.is_empty():
+			continue
+		var opacity = mat.get_shader_parameter("opacity")
+		mat.set_shader_parameter("opacity", minf(float(opacity) if opacity != null else 0.88, float(tier[0])))
+		mat.set_shader_parameter("veil", float(tier[1]))
+		mat.render_priority = int(tier[2])
+
 
 func _process(delta: float) -> void:
 	if owner_ref:

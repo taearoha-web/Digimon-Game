@@ -6,6 +6,9 @@ uniform vec4 shade : source_color = vec4(0.05,0.12,0.25,1.);
 uniform float fade = 1.0;
 uniform float age = 0.0;
 uniform float opacity = 0.88;
+// 0 = solid relief. Towards 1 broad faces turn to glass, the inlay and rim keep their weight
+// (heavy elite skills, EliteSkillArt._settle_depth) so the shared layer stack reads through.
+uniform float veil = 0.;
 varying vec3 point;
 void vertex() { point = VERTEX; }
 void fragment() {
@@ -18,5 +21,6 @@ void fragment() {
     float grain = 0.5+0.5*sin(point.x*23.0+point.y*9.0)*sin(point.z*21.0-point.y*13.0);
     float dissolve = smoothstep((1.-fade)*1.12-0.1,(1.-fade)*1.12+0.02,grain);
     ALBEDO = ink; EMISSION = ink * (0.08+inlay*0.16);
-    ALPHA = opacity*dissolve*smoothstep(0.,0.12,fade);
+    float body = clamp((inlay-0.72)*3.5+rim*1.8+line*2.0, 0., 1.);
+    ALPHA = opacity*dissolve*smoothstep(0.,0.12,fade)*mix(1., 0.22+0.78*body, veil);
 }
