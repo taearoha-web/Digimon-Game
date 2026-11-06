@@ -352,6 +352,8 @@ test('malformed, oversized and dangerous save structures are rejected without ch
     bundle({...sample(), league: []}), bundle({...sample(), league: {week: 1.5}}), bundle({...sample(), league: {junk: 1}}),
     bundle({...sample(), league: {wars: [{at: 'x'}]}}), bundle({...sample(), league: {wars: Array(65).fill(LEAGUE_WAR)}}),
     bundle({...sample(), league: {shop: {set_core: 1001}}}),
+    bundle({...sample(), dpass: []}), bundle({...sample(), dpass: {dq: {}}}), bundle({...sample(), dpass: {dq: [{id: 5}]}}),
+    bundle({...sample(), dpass: {wq: [{id: 'w_boss', c: 'yes'}]}}), bundle({...sample(), dpass: {got: 2 ** 31}}), bundle({...sample(), dpass: {pts: 'x'}}),
   ];
   for (const bad of invalid) {
     const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bad}});

@@ -54,6 +54,8 @@ const TABLE := [
 	{"id": "t_god", "name": "เทพเจ้า", "desc": "เปลี่ยนอาชีพขั้นเทพเจ้า (เลเวล 100 ดาว 300)", "title": "เทพเจ้าแห่งอาชีพ", "kind": "god", "goal": 1},
 	# The weekly guild league champion's secret shop (GuildLeague.SHOP "crown").
 	{"id": "t_castle_king", "name": "ราชันปราสาท", "desc": "ซื้อตำแหน่งจากร้านลับแชมป์ปราสาท (เฉพาะกิลด์แชมป์ลีกประจำสัปดาห์)", "title": "ราชันปราสาท", "kind": "castle_crown", "goal": 1},
+	# The top tier of the monthly reward pass (DailyPass, flags["pass_top"]).
+	{"id": "t_pass", "name": "สุดทางบัตรสะสม", "desc": "รับรางวัลขั้น 30 ของบัตรสะสมแต้ม", "title": "นักสะสมแต้ม", "kind": "pass_top", "goal": 1},
 ]
 ## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
 const GOD_ID := "t_god"
@@ -104,6 +106,7 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"tutorial": return 1 if int(flags.get("tut", 0)) == TUTORIAL_DONE else 0
 		"chat": return int(flags.get(CHAT_FLAG, 0))
 		"castle_crown": return int(flags.get(GuildLeague.CROWN_FLAG, 0))
+		"pass_top": return int(flags.get("pass_top", 0))
 		_: return 0
 
 

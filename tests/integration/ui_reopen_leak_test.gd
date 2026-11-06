@@ -49,6 +49,9 @@ func _ready() -> void:
 	for slot in ItemData.SLOTS:
 		Game.profile.equip[slot] = StarProgression.item(&"warrior", 100, slot, Game.rng)
 	Game.fill_loadout()
+	# The guild league's once-a-season toast (Game._process, after 30 s) would otherwise
+	# land inside whichever screen is being measured then: announce it now.
+	GuildLeague.tick()
 	main.title_screen.queue_free()
 	main.title_screen = null
 	main.hud.visible = true
