@@ -216,6 +216,11 @@ func _hit(h: Hero, index: int, count: int) -> void:
 	# God-tier: 13% per wave, the finale carries the rest (48%).
 	if god: share=GOD_WAVE_SHARE if not finale else 1.0-GOD_WAVE_SHARE*float(count-1)
 	StarSkillArt.strike(h.field,skill,point,index,origin)
+	# Presentation only (SkillFeel): the beat's punch, shake, hit-stop and ground mark;
+	# area hits are thrown away from the beat's centre.
+	SkillFeel.impact(h,skill,point,float(skill.get("radius",3.0)) if id!="celestial_swordfall" else 2.0,index,count)
+	var area_hit:=String(skill.shape)!="single" and not bool(skill.get("line",false))
+	if area_hit: SkillFeel.area_from(point)
 	for mob in victims:
 		if id=="astral_convergence" and not mob.is_boss:
 			mob.global_position=mob.global_position.move_toward(Vector3(center.x,mob.global_position.y,center.z),1.3)
@@ -223,6 +228,8 @@ func _hit(h: Hero, index: int, count: int) -> void:
 		if id in ["heartseeker","spiral_impaler"] and index>=2 and StarProgression.has_full_set(Game.profile,"lancer"): damage*=1.15
 		if id=="sanctified_chain": StarSkillArt.strike(h.field,skill,mob.global_position,0,origin)
 		h._deal(mob,damage,skill.color,skill.vfx,false,skill)
+	if area_hit: SkillFeel.area_done()
+	SkillFeel.beat_done()
 	if id=="sanctified_chain" and not victims.is_empty(): _team_heal(h,0.12)
 	if id=="dawn_salvation": _team_heal(h,0.10)
 	if id=="seraphic_judgment": _team_heal(h,0.08)

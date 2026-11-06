@@ -200,6 +200,13 @@ static var _damage_font: FontVariation
 ## Set by party members and world players around their own hits (Companion._deal), so
 ## the numbers they cause are drawn as someone else's: smaller, dimmer and capped.
 static var dealing_other := false
+## The element of the hero's skill hit now landing (SkillFeel via Hero._deal): its own
+## numbers lean to that colour (fire orange, ice blue, holy gold, dark violet...);
+## alpha 0 leaves the usual colours.
+static var number_tint := Color(0, 0, 0, 0)
+## Share of the element colour in a tinted number (the black edge keeps it readable).
+const TINT_SHARE := 0.55
+static var _bounce_next := false
 ## Others' numbers drawn at once at most; a new one drops the oldest. The hero's own
 ## numbers are never dropped.
 const OTHERS_CAP := 8
@@ -232,6 +239,7 @@ static func damage_number(parent: Node3D, pos: Vector3, text: String, taken: boo
 		_damage_font.base_font = load("res://ui/theme/fonts/heading_font.tres")
 		_damage_font.variation_embolden = 1.1
 	other = other or dealing_other
+	_bounce_next = false
 	# Small ticks (a burn) still give way when the screen is full; real hits never do.
 	if not other and size < 0.75 and _floating_active > 26:
 		return null
@@ -244,6 +252,13 @@ static func damage_number(parent: Node3D, pos: Vector3, text: String, taken: boo
 	elif not taken and text.ends_with("!"):
 		color = CRIT_COLOR
 		size *= 1.12
+		# A crit pops past its size and settles (a bounce); an element crit is bigger still.
+		_bounce_next = true
+		if number_tint.a > 0.0:
+			color = CRIT_COLOR.lerp(number_tint, 0.3)
+			size *= 1.12
+	elif not taken and number_tint.a > 0.0:
+		color = DAMAGE_DEALT.lerp(number_tint, TINT_SHARE)
 	return _spawn_text(parent, pos, text, color, size, DAMAGE_OUTLINE, DAMAGE_OUTLINE_WIDTH, _damage_font, 2 if other else 1)
 
 
@@ -337,7 +352,12 @@ static func _spawn_text(parent: Node3D, pos: Vector3, text: String, color: Color
 	label.global_position = pos
 	label.scale = Vector3.ONE * 0.4
 	var tween := label.create_tween()
-	tween.tween_property(label, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _bounce_next and kind == 1:
+		tween.tween_property(label, "scale", Vector3.ONE * 1.45, 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(label, "scale", Vector3.ONE, 0.16).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	else:
+		tween.tween_property(label, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_bounce_next = false
 	tween.parallel().tween_property(label, "global_position", pos + Vector3(0, 0.9, 0), 0.9).set_ease(Tween.EASE_OUT)
 	tween.tween_property(label, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(label.queue_free)

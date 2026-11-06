@@ -1586,6 +1586,22 @@ func _build_settings() -> void:
 		GameSettings.combat_hitstop = on
 		GameSettings.save_settings())
 	box.add_child(hitstop)
+	var cutin := CheckButton.new()
+	cutin.name = "UltCutIn"
+	cutin.text = "ฉากท่าไม้ตาย (แถบชื่อสกิลและภาพช้าเมื่อใช้สกิลดาว 200 / สกิลเทพ)"
+	cutin.button_pressed = GameSettings.ult_cutin
+	cutin.toggled.connect(func(on: bool):
+		GameSettings.ult_cutin = on
+		GameSettings.save_settings())
+	box.add_child(cutin)
+	var shake := CheckButton.new()
+	shake.name = "ScreenShake"
+	shake.text = "สั่นจอ (กล้องซูมและสั่นตามแรงสกิล ปิดถ้าเวียนหัว)"
+	shake.button_pressed = GameSettings.screen_shake
+	shake.toggled.connect(func(on: bool):
+		GameSettings.screen_shake = on
+		GameSettings.save_settings())
+	box.add_child(shake)
 	var save := UIUtil.button("บันทึกเกม", &"PrimaryButton", Vector2(320, 66))
 	save.pressed.connect(func():
 		if Game.save():

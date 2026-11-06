@@ -1016,12 +1016,15 @@ func _cast(skill: Dictionary) -> void:
 		var star_aim := target.global_position if _valid_target(target) else global_position
 		var star_duration := StarSkillSequence.launch(self, skill, target, star_aim)
 		_cast_until = Time.get_ticks_msec() + int(star_duration * 1000.0)
+		# The cut-in (200 / 300 stars) and the wind-up zoom; its slow motion lengthens the lock.
+		_cast_until += SkillFeel.cast_begun(self, skill, float(skill.hit_delay))
 		AudioManager.play_sfx(SkillSound.cast(skill), -5.0)
 		Game.daily_progress("skills", 1)
 		return
 	var delay := float(skill.hit_delay) * (1.0 - _haste())
 	visual.skill_action(skill, delay)
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 90
+	SkillFeel.cast_begun(self, skill, delay)
 	if target and _valid_target(target):
 		_face(_flat(target.global_position - global_position), 1.0, 60.0)
 	AudioManager.play_sfx(SkillSound.cast(skill), -4.0)
@@ -1129,6 +1132,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		"burst":
 			var radius := float(skill.radius)
 			var hits := 0
+			SkillFeel.impact(self, skill, global_position, radius)
 			for victim in mobs_in_range(radius + 0.6):
 				_deal(victim, mult, color, skill.vfx, true, skill)
 				hits += 1
@@ -1182,10 +1186,13 @@ func _armageddon_impact(index: int, center: Vector3, radius: float, mult: float,
 
 
 func _blast_damage(skill: Dictionary, center: Vector3, radius: float, mult: float, knockback := true) -> void:
+	SkillFeel.impact(self, skill, center, radius)
+	SkillFeel.area_from(center)
 	for node in get_tree().get_nodes_in_group("mobs"):
 		var victim := node as Mob
 		if victim and not victim.is_dead() and _flat(victim.global_position - center).length() <= radius + victim.body_radius():
 			_deal(victim, mult, skill.color, skill.vfx, knockback, skill)
+	SkillFeel.area_done()
 
 
 func _arrow_rain(skill: Dictionary, center: Vector3, radius: float, mult: float) -> void:
@@ -1455,13 +1462,21 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		SkillTableau.contact(field, skill, mob.hit_point(), crit)
 	else:
 		VfxKit.impact(field, mob.hit_point(), color if color != Color.WHITE else Color("fff0c0"), 1.4 if crit else 1.0)
+	# The hero's skill numbers lean to the skill's element (SkillFeel / BattleVfx).
+	if not skill.is_empty():
+		BattleVfx.number_tint = SkillWeight.FLASH.get(SkillWeight.element(skill), Color(0, 0, 0, 0))
 	var killed := mob.take_hit(amount, crit, color, self)
+	BattleVfx.number_tint = Color(0, 0, 0, 0)
 	_leech(amount)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
-	var stop := HitFeel.stop_for(crit, mult if not skill.is_empty() else 0.0)
-	if stop > 0.0:
-		HitFeel.hitstop(get_tree(), stop)
+	if skill.is_empty():
+		var stop := HitFeel.stop_for(crit, 0.0)
+		if stop > 0.0:
+			HitFeel.hitstop(get_tree(), stop)
 	HitFeel.debris(field, mob.hit_point(), skill)
+	if not skill.is_empty():
+		# Weight-scaled hit-stop, camera, element flash, the throw and the combo count.
+		SkillFeel.hit(self, mob, skill, amount, crit, killed)
 	if killed:
 		return
 	if melee:
