@@ -256,58 +256,47 @@ static func _spiral(st: SurfaceTool) -> void:
 		_quad(st, [pts[0][0], Vector2(t0, 0)], [pts[1][0], Vector2(t1, 0)], [pts[1][1], Vector2(t1, 1)], [pts[0][1], Vector2(t0, 1)])
 
 
-## A filled outline (XY) with a hot inner core: the outline is inset toward its
-## centre and the band between carries the dark rim -> core gradient.
-static func _silhouette(st: SurfaceTool, outline: PackedVector2Array, inset := 0.55, centre := Vector2.INF) -> void:
-	var c := centre
-	if c == Vector2.INF:
-		c = Vector2.ZERO
-		for p in outline:
-			c += p
-		c /= outline.size()
-	var inner := PackedVector2Array()
-	for p in outline:
-		inner.append(c + (p - c) * inset)
-	var n := outline.size()
-	for i in n:
-		var j := (i + 1) % n
-		var a := outline[i]
-		var b := outline[j]
-		var ia := inner[i]
-		var ib := inner[j]
-		_quad(st, [Vector3(a.x, a.y, 0), Vector2(a.x, 0), 0.0], [Vector3(b.x, b.y, 0), Vector2(b.x, 0), 0.0], [Vector3(ib.x, ib.y, 0), Vector2(ib.x, 1), 0.85], [Vector3(ia.x, ia.y, 0), Vector2(ia.x, 1), 0.85])
-	var tris := Geometry2D.triangulate_polygon(inner)
-	for k in tris:
-		var p := inner[k]
-		_v(st, Vector3(p.x, p.y, 0), Vector2(p.x, 1), 1.0, Vector3.BACK)
-
-
 ## A spear of light pointing +X (length 1): shaft, guard and a leaf blade.
 static func _spear(st: SurfaceTool) -> void:
-	_bar(st, Vector3(0, 0, 0), Vector3(0.74, 0, 0), 0.028)
-	_bar(st, Vector3(0.72, -0.07, 0), Vector3(0.72, 0.07, 0), 0.02)
-	_silhouette(st, PackedVector2Array([Vector2(0.73, 0), Vector2(0.8, -0.055), Vector2(0.9, -0.04), Vector2(1.0, 0), Vector2(0.9, 0.04), Vector2(0.8, 0.055)]), 0.45, Vector2(0.84, 0))
+	_bar(st, Vector3(0, 0, 0), Vector3(0.72, 0, 0), 0.05)
+	_bar(st, Vector3(0.7, -0.12, 0), Vector3(0.7, 0.12, 0), 0.035)
+	_layered(st, PackedVector2Array([Vector2(0.7, 0), Vector2(0.79, -0.1), Vector2(0.9, -0.07), Vector2(1.0, 0), Vector2(0.9, 0.07), Vector2(0.79, 0.1)]), 0.02)
 
 
 ## A greatsword of light pointing +X: grip, guard and a long tapering blade.
 static func _blade(st: SurfaceTool) -> void:
 	_bar(st, Vector3(0, 0, 0), Vector3(0.2, 0, 0), 0.03)
 	_bar(st, Vector3(0.2, -0.11, 0), Vector3(0.2, 0.11, 0), 0.03)
-	_silhouette(st, PackedVector2Array([Vector2(0.21, -0.065), Vector2(0.88, -0.05), Vector2(1.0, 0), Vector2(0.88, 0.05), Vector2(0.21, 0.065)]), 0.35, Vector2(0.6, 0))
+	_layered(st, PackedVector2Array([Vector2(0.21, -0.065), Vector2(0.88, -0.05), Vector2(1.0, 0), Vector2(0.88, 0.05), Vector2(0.21, 0.065)]), 0.016)
 
 
-## A dragon's head in profile, snout toward +X (about 1 long): horns, mane
-## spikes and an open jaw, drawn as one glowing silhouette.
+## A dragon's head in profile, snout toward +X (about 1 long): an open jaw,
+## two horns swept back and a mane of spikes, as one glowing silhouette.
 static func _dragon(st: SurfaceTool) -> void:
 	var outline := PackedVector2Array([
-		Vector2(1.0, 0.06), Vector2(0.86, 0.12), Vector2(0.72, 0.16), Vector2(0.6, 0.24),
-		Vector2(0.5, 0.3), Vector2(0.38, 0.52), Vector2(0.4, 0.3), Vector2(0.28, 0.42),
-		Vector2(0.26, 0.26), Vector2(0.14, 0.34), Vector2(0.12, 0.2), Vector2(0.0, 0.24),
-		Vector2(0.04, 0.08), Vector2(-0.1, 0.1), Vector2(0.0, -0.02), Vector2(-0.06, -0.16),
-		Vector2(0.12, -0.12), Vector2(0.22, -0.2), Vector2(0.34, -0.14), Vector2(0.52, -0.14),
-		Vector2(0.7, -0.2), Vector2(0.94, -0.14), Vector2(0.78, -0.06), Vector2(0.62, -0.04),
-		Vector2(0.84, 0.02)])
-	_silhouette(st, outline, 0.5, Vector2(0.42, 0.04))
+		Vector2(1.0, 0.04), Vector2(0.96, 0.1), Vector2(0.88, 0.1), Vector2(0.8, 0.13),
+		Vector2(0.66, 0.2), Vector2(0.56, 0.24), Vector2(0.3, 0.46), Vector2(0.02, 0.56),
+		Vector2(0.24, 0.42), Vector2(0.44, 0.24), Vector2(0.4, 0.22), Vector2(0.1, 0.32),
+		Vector2(0.32, 0.17), Vector2(0.12, 0.16), Vector2(0.3, 0.08), Vector2(0.06, 0.02),
+		Vector2(0.28, -0.04), Vector2(0.08, -0.14), Vector2(0.3, -0.14), Vector2(0.36, -0.26),
+		Vector2(0.56, -0.24), Vector2(0.78, -0.2), Vector2(0.94, -0.17), Vector2(0.86, -0.12),
+		Vector2(0.66, -0.08), Vector2(0.62, -0.04), Vector2(0.9, -0.01)])
+	_layered(st, outline, 0.035)
+
+
+## A filled outline (XY) drawn three times, each inset further and nudged toward
+## +Z: a dark rim, a palette body and a hot core (COLOR.r 0 / 0.6 / 1).
+static func _layered(st: SurfaceTool, outline: PackedVector2Array, inset: float) -> void:
+	var shells: Array = [[outline, 0.0, 0.0]]
+	for k in [1, 2]:
+		for poly in Geometry2D.offset_polygon(outline, -inset * k, Geometry2D.JOIN_ROUND):
+			shells.append([poly, 0.6 if k == 1 else 1.0, 0.004 * k])
+	for shell in shells:
+		var poly: PackedVector2Array = shell[0]
+		var tris := Geometry2D.triangulate_polygon(poly)
+		for idx in tris:
+			var p := poly[idx]
+			_v(st, Vector3(p.x, p.y, float(shell[2])), Vector2(p.x, 0.5), float(shell[1]), Vector3.BACK)
 
 
 ## A war banner on its pole (XY, standing on y = 0): a swallow-tailed cloth that

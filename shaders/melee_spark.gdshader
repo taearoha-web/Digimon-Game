@@ -20,6 +20,6 @@ void fragment() {
 		c = mix(COLOR.rgb * 0.55, vec3(1.0), glint * 0.8 + 0.1);
 		m = 0.55 + glint * 0.45;
 	}
-	ALBEDO = c * life;
+	ALBEDO = c * 1.15;
 	ALPHA = m * life;
 }

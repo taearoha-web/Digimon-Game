@@ -346,7 +346,7 @@ func commit() -> void:
 # Authoring
 # ---------------------------------------------------------------------------
 
-## One timed layer. core: kept at tier 0. Style keys: travel, ease ("out",
+## One timed layer. core: kept at tier 0. Style keys: travel (over move s), ease ("out",
 ## "in", "back"), initial, grow (seconds), overshoot, spin, roll, sweep (head
 ## time), tail, exit, thick, symmetric, opacity, fade_in, dissolve, pulse (bpm),
 ## veins, pattern, wave, drop/land, bill ("axis" Vector3 / "upright"), glow,
@@ -534,7 +534,8 @@ func _draw() -> void:
 		var grow := clampf(local / float(spec.get("grow", seconds * 0.3)), 0.0, 1.0)
 		var g := _ease(grow, "back" if bool(spec.get("overshoot", false)) else "out")
 		var scale_now: Vector3 = spec.size * maxf(0.01, lerpf(float(spec.get("initial", 0.6)), 1.0, g))
-		var at: Vector3 = spec.at + (spec.get("travel", Vector3.ZERO) as Vector3) * _ease(t, String(spec.get("ease", "out")))
+		var moved := clampf(local / float(spec.get("move", seconds)), 0.0, 1.0)
+		var at: Vector3 = spec.at + (spec.get("travel", Vector3.ZERO) as Vector3) * _ease(moved, String(spec.get("ease", "out")))
 		if spec.has("drop"):
 			at.y += float(spec.drop) * (1.0 - smoothstep(0.0, maxf(0.01, float(spec.get("land", 0.15))), local))
 		var rot: Vector3 = spec.rot
@@ -631,10 +632,10 @@ func _simulate(delta: float) -> void:
 			else:
 				var speed := v.length()
 				var dir := v / speed if speed > 0.001 else Vector3.UP
-				var length := size * (1.0 + speed * (0.09 if kind == SPARK else 0.0)) if kind == SPARK else size * 2.2
+				var length := size * (1.6 + speed * 0.16) if kind == SPARK else size * 2.2
 				var side := dir.cross(view - p)
 				side = side.normalized() if side.length_squared() > 0.000001 else Vector3.RIGHT
-				var width := size * (0.35 if kind == SPARK else 1.0)
+				var width := size * (0.55 if kind == SPARK else 1.0)
 				if kind == SHARD:
 					var a := life[i] * 6.0 + float(i)
 					side = (side * cos(a) + side.cross(dir) * sin(a)).normalized()
@@ -663,7 +664,7 @@ func slash(c: Array, at: Vector3, radius: float, yaw: float, roll: float, start:
 	var sx := -1.0 if mirror else 1.0
 	layer(span, RIBBON, c, at, Vector3(radius * sx, 1, radius), Vector3(0, yaw, roll), start, seconds, {"sweep": sweep, "tail": 1.15, "thick": 0.62, "initial": 0.92, "grow": 0.1, "dissolve": 0.45, "fade_in": 0.02}, core)
 	# A thinner, darker after-smear just outside: the cooling trail lags behind.
-	layer(span, RIBBON, [c[2].lerp(c[0], 0.5), c[0], c[2]], at + Vector3.UP * 0.02, Vector3(radius * 1.08 * sx, 1, radius * 1.08), Vector3(0, yaw, roll), start + 0.035, seconds * 1.15, {"sweep": sweep * 1.4, "tail": 1.2, "thick": 0.3, "initial": 0.95, "opacity": 0.55, "dissolve": 0.35, "fade_in": 0.05, "ink": true})
+	layer(span, RIBBON, [c[2].lerp(c[0], 0.5), c[0], c[2]], at + Vector3.UP * 0.02, Vector3(radius * 1.08 * sx, 1, radius * 1.08), Vector3(0, yaw, roll), start + 0.035, seconds * 1.15, {"sweep": sweep * 1.4, "tail": 1.2, "thick": 0.42, "initial": 0.95, "opacity": 0.8, "dissolve": 0.35, "fade_in": 0.05, "ink": true})
 	if sparks <= 0:
 		return
 	var half: float = {"arc150": deg_to_rad(75.0), "arc220": deg_to_rad(110.0), "arc330": deg_to_rad(165.0)}.get(span, deg_to_rad(110.0))

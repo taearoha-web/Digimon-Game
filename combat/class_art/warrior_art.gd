@@ -52,7 +52,7 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 	match id:
 		"raving":
 			for k in 3:
-				rig.slash(c, hit + Vector3(0, 1.0 + 0.1 * k, -0.4), 1.15, 0.0, [0.5, -0.6, 0.2][k], d + 0.07 * k, k % 2 == 1, "arc150", 0.07, 6)
+				rig.slash(c, hit + Vector3(0, 1.0 + 0.1 * k, -0.6), 1.5, 0.0, [0.5, -0.6, 0.2][k], d + 0.07 * k, k % 2 == 1, "arc150", 0.07, 6)
 			rig.embers(hit + Vector3.UP * 0.6, 6, 0.4, c[0], d + 0.1)
 		"impact", "avenging_crash":
 			var big := id == "avenging_crash"
@@ -99,10 +99,11 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 			_slam(rig, c, hit, 1.8 + 0.8 * p, d + 0.14, p, true)
 		"sword_blast":
 			var flight := clampf(reach / 20.0, 0.12, 0.6)
-			rig.layer("arc150", MeleeArt.RIBBON, c, Vector3(0, 1.0, 0.0), Vector3(1.4, 1, 1.4), Vector3(0, 0, 0.25), d, flight + 0.25, {"travel": Vector3(0, 0, reach - 1.4), "ease": "linear", "initial": 0.7, "grow": flight, "sweep": 0.06, "tail": 0.9, "thick": 0.7, "dissolve": 0.8}, true)
+			rig.layer("arc150", MeleeArt.RIBBON, c, Vector3(0, 1.0, 0.0), Vector3(2.2, 1, 2.2), Vector3(0, 0, 0.25), d, flight + 0.3, {"travel": Vector3(0, 0, reach - 2.2), "ease": "linear", "initial": 0.7, "grow": flight, "sweep": 0.06, "tail": 0.9, "thick": 0.7, "dissolve": 0.8}, true)
 			rig.streak(c, Vector3(0, 1.0, 0.6), Vector3(0, 1.0, reach), 0.5, d, flight + 0.3, flight, {"opacity": 0.5, "thick": 0.4})
 			rig.ring(c, hit + Vector3.UP * 1.0, 0.3, 1.5, d + flight, 0.4, Vector3(PI / 2, 0, 0))
-			rig.emit(MeleeArt.SPARK, 12, hit + Vector3.UP, Vector3(0, 2, 6), 0.6, c[0].lerp(c[1], 0.4), 0.1, 0.5, d + flight, 9.0)
+			rig.emit(MeleeArt.SPARK, 12, hit + Vector3.UP, Vector3(0, 2, 6), 0.6, c[0].lerp(c[1], 0.4), 0.12, 0.5, d + flight, 9.0)
+			rig.cracks(c, hit, 1.4, d + flight, 1.1)
 		"piercing", "divine_piercing":
 			var lanes := 1 if id == "piercing" else 5
 			for k in lanes:

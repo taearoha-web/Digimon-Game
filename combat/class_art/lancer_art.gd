@@ -56,7 +56,7 @@ static func thrust(rig: MeleeArt, c: Array, from: Vector3, to: Vector3, width: f
 		var at := from + dir * (0.5 + 0.55 * k)
 		rig.ring(c, at, 0.3 * width, 0.75 * width + 0.15 * k, d + 0.035 * k, 0.5, Vector3(PI * 0.5, yaw, 0), {"travel": dir * length * (0.45 + 0.1 * k), "opacity": 0.7 - 0.12 * k, "ease": "out"})
 	for k in images:
-		rig.layer("spear", MeleeArt.SOLID, c, from + dir * (0.4 + 0.5 * k), Vector3.ONE * 1.9 * width, Vector3.ZERO, d + 0.025 * k, 0.24, {"bill": dir, "travel": dir * (0.8 + 0.3 * k), "initial": 1.0, "opacity": 0.55 - 0.13 * k, "dissolve": 0.25, "fade_in": 0.02, "sweep": 0.01})
+		rig.layer("spear", MeleeArt.SOLID, c, from + dir * (0.4 + 0.5 * k), Vector3.ONE * 1.9 * width, Vector3.ZERO, d + 0.03 * k, 0.34, {"bill": dir, "travel": dir * (0.8 + 0.3 * k), "initial": 1.0, "opacity": 0.85 - 0.18 * k, "dissolve": 0.3, "fade_in": 0.02})
 	rig.emit(MeleeArt.SPARK, 10, from + dir * 0.6, dir * 15.0, 0.07, c[1].lerp(c[0], 0.3), 0.05, 0.32, d, 0.0, 2.0, 0.0, 0.35)
 	rig.emit(MeleeArt.SPARK, 8, to, (dir + Vector3.UP * 0.3) * 7.0, 0.5, c[0].lerp(c[1], 0.4), 0.08, 0.4, d + 0.04, 8.0, 1.2)
 
@@ -73,8 +73,11 @@ static func vortex(rig: MeleeArt, c: Array, r: float, d: float, power: float, co
 ## A dragon's head of fire racing down the line, scales burning on it.
 static func dragon(rig: MeleeArt, c: Array, from: Vector3, to: Vector3, size: float, d: float, core := false) -> void:
 	var dir := (to - from).normalized()
-	var travel := (to - from) * 0.85
-	rig.layer("dragon", MeleeArt.SOLID, c, from + Vector3.UP * 0.15, Vector3.ONE * size, Vector3.ZERO, d, 0.62, {"bill": dir, "travel": travel, "ease": "out", "pattern": 1.0, "initial": 0.5, "grow": 0.12, "overshoot": true, "opacity": 0.9, "dissolve": 0.55, "fade_in": 0.03, "front": 1}, core)
+	# The head lunges onto the target and hangs there a breath before it burns away.
+	var travel := (to - from) - dir * size * 1.1
+	# Blended, not added: its dark rim draws the head out of the fire behind it.
+	rig.layer("dragon", MeleeArt.SOLID, c, from + Vector3.UP * 1.0, Vector3.ONE * size, Vector3.ZERO, d, 0.75, {"bill": dir, "travel": travel, "move": 0.24, "ease": "back", "pattern": 1.0, "initial": 0.5, "grow": 0.14, "overshoot": true, "opacity": 0.95, "dissolve": 0.6, "fade_in": 0.03, "front": 2, "ink": true}, core)
+	rig.layer("dragon", MeleeArt.SOLID, c, from + Vector3.UP * 1.0, Vector3.ONE * size * 1.12, Vector3.ZERO, d + 0.03, 0.7, {"bill": dir, "travel": travel * 0.92, "move": 0.26, "ease": "back", "initial": 0.5, "grow": 0.14, "opacity": 0.5, "dissolve": 0.45, "fade_in": 0.03})
 	rig.embers(from + travel * 0.5 + Vector3.UP * 0.2, 10, 1.0, c[0], d + 0.1, 0.9, 1.4, 0.07)
 
 
@@ -98,7 +101,7 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 			if id == "hook_strike":
 				rig.slash(c, Vector3(0, 1.0, reach - 0.9), 1.1, PI, -0.3, d + 0.12, true, "arc150", 0.08, 6, false)
 			if id == "dragon_tooth":
-				dragon(rig, c, hand, tip, 1.5, d)
+				dragon(rig, c, hand, Vector3(0, 1.0, reach + 0.8), 2.0, d)
 			if id == "spear_wave":
 				rig.layer("arc150", MeleeArt.RIBBON, c, Vector3(0, 0.9, 0.2), Vector3(1.6, 1, 1.6), Vector3(0, 0, 0.1), d, 0.5, {"travel": Vector3(0, 0, length - 1.8), "ease": "out", "sweep": 0.06, "tail": 0.9, "thick": 0.6, "initial": 0.7, "grow": 0.2, "dissolve": 0.6})
 			if id == "sky_pierce":
@@ -127,7 +130,7 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 			rig.layer("aura", MeleeArt.AURA, c, Vector3.ZERO, Vector3(0.8, 1.9, 0.8), Vector3.ZERO, d, 0.7, {"initial": 0.4, "grow": 0.15, "opacity": 0.55})
 		"dragon_lance":
 			thrust(rig, c, hand, tip, 1.5, d, 3, 2)
-			dragon(rig, c, hand, tip, 2.3, d, true)
+			dragon(rig, c, hand, Vector3(0, 1.0, reach + 1.0), 3.0, d, true)
 			rig.layer("spiral", MeleeArt.RIBBON, c, hand, Vector3(0.7, length * 0.9, 0.7), Vector3(PI * 0.5, 0, 0), d, 0.6, {"sweep": 0.15, "tail": 0.7, "thick": 0.5, "roll": 0.0, "initial": 1.0, "opacity": 0.75, "dissolve": 0.45})
 			rig.light(tip, c[0], 2.0, 6.0, d, 0.5)
 		"gungnir", "ragnarok_lance":
@@ -135,7 +138,7 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 			throw(rig, c, hand + Vector3.UP * 0.3, tip, 2.6 if not ult else 3.4, d)
 			thrust(rig, c, hand, tip, 1.6 if ult else 1.2, d, 4, 2, false)
 			if ult:
-				dragon(rig, DRAGON, hand, tip, 2.6, d + 0.05)
+				dragon(rig, DRAGON, hand, Vector3(0, 1.0, reach + 1.0), 2.6, d + 0.05)
 				rig.cracks(c, Vector3(0, 0, reach), 2.6, d + 0.12, 1.3, true)
 		"heaven_rend":
 			vortex(rig, c, r, d, p)

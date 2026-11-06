@@ -32,8 +32,8 @@ float fbm(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.13 + 7.1) * 0.3 + vno
 
 // Heat 0..1 -> dark rim, palette, white-hot core. Never above ~1.15 (no blow-out).
 vec3 heat_colour(float h) {
-	vec3 c = mix(shade.rgb, primary.rgb, smoothstep(0.0, 0.55, h));
-	c = mix(c, accent.rgb, smoothstep(0.55, 1.0, h));
+	vec3 c = mix(shade.rgb, primary.rgb, smoothstep(0.0, 0.45, h));
+	c = mix(c, accent.rgb, smoothstep(0.72, 1.0, h));
 	return c * (0.85 + 0.3 * glow * smoothstep(0.7, 1.0, h));
 }
 
@@ -86,15 +86,16 @@ void fragment() {
 		heat = mix(heat, 1.0, (1.0 - lit) * step(0.01, lit));
 	} else if (mode == 3) {
 		float h = uv.y;
-		float tongues = fbm(vec2(uv.x * 7.0 + seed * 3.0, h * 2.2 - age * 2.4)) + 0.18 * sin(uv.x * 6.2832 * 3.0 + age * 2.0);
+		float tongues = fbm(vec2(uv.x * 9.0 + seed * 3.0, h * 2.6 - age * 2.6)) + 0.15 * sin(uv.x * 6.2832 * 4.0 + age * 3.0);
 		float beat = pulse;
-		float m = tongues - h * (1.05 - 0.35 * beat);
-		mask = smoothstep(-0.12, 0.22, m) * smoothstep(0.0, 0.12, h);
-		heat = clamp(m * 1.6 + 0.15 + beat * 0.25, 0.0, 1.0);
+		// Flame tongues: solid only near the ground, licking up in thin peaks.
+		float m = tongues * 1.3 - 0.2 - h * (0.8 - 0.3 * beat);
+		mask = smoothstep(-0.05, 0.3, m) * smoothstep(0.0, 0.1, h) * (0.6 + 0.4 * beat);
+		heat = clamp(m * 1.8 + 0.2 + beat * 0.3, 0.0, 1.0);
 		if (veins > 0.0) {
 			float v = abs(vnoise(vec2(uv.x * 14.0 + seed, h * 5.0 - age * 0.6)) - 0.5);
-			float line = 1.0 - smoothstep(0.0, 0.05 + 0.03 * beat, v);
-			mask = max(mask * 0.55, line * smoothstep(0.0, 0.1, h) * smoothstep(1.0, 0.6, h) * veins);
+			float line = 1.0 - smoothstep(0.0, 0.035 + 0.025 * beat, v);
+			mask = max(mask * 0.4, line * smoothstep(0.0, 0.1, h) * smoothstep(1.0, 0.55, h) * veins * (0.45 + 0.55 * beat));
 			heat = max(heat, line * (0.55 + 0.45 * beat));
 		}
 	} else if (mode == 4) {
@@ -102,11 +103,13 @@ void fragment() {
 		float along = uv.x;
 		float scales = 0.0;
 		if (pattern > 0.0) {
-			vec2 g = vec2(local.x * 7.0, local.y * 7.0 + floor(local.x * 7.0) * 0.5);
-			scales = smoothstep(0.32, 0.5, length(fract(g) - 0.5)) * pattern;
+			// Overlapping scale arcs: a thin bright rim on each scale, nothing more.
+			vec2 g = vec2(local.x * 16.0, local.y * 16.0 + floor(local.x * 16.0) * 0.5);
+			float r = length(fract(g) - vec2(0.5, 0.0));
+			scales = smoothstep(0.42, 0.5, r) * smoothstep(0.62, 0.5, r) * pattern;
 		}
 		float flow = pow(max(0.0, sin(along * 18.0 - age * 10.0)), 8.0) * 0.25;
-		heat = clamp(core * 0.95 + flow + scales * 0.35 + 0.12, 0.0, 1.0);
+		heat = clamp(0.22 + core * 0.62 + flow + scales * 0.25, 0.0, 1.0);
 		mask = 0.55 + 0.45 * core;
 		mask *= smoothstep(0.0, 0.12, sweep - (1.0 - along) * tail);
 	} else {

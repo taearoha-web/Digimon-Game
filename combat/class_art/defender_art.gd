@@ -90,7 +90,7 @@ static func chains(rig: MeleeArt, c: Array, r: float, d: float) -> void:
 		var length := dir.length()
 		if length < 0.3:
 			continue
-		rig.layer("chain", MeleeArt.SOLID, c, hand, Vector3(length, 4.5, 4.5), Vector3.ZERO, d + 0.03 * k, 1.1, {"bill": dir.normalized(), "sweep": 0.16, "tail": 1.0, "initial": 1.0, "opacity": 0.9, "dissolve": 0.6, "fade_in": 0.02}, k == 0)
+		rig.layer("chain", MeleeArt.SOLID, c, hand, Vector3(length, 7.0, 7.0), Vector3.ZERO, d + 0.03 * k, 1.1, {"bill": dir.normalized(), "sweep": 0.16, "tail": 1.0, "initial": 1.0, "opacity": 1.0, "dissolve": 0.6, "fade_in": 0.02, "ink": true, "front": 1}, k == 0)
 		rig.ring(c, to, 0.2, 0.9, d + 0.12 + 0.03 * k, 0.45, Vector3.ZERO, {"opacity": 0.7})
 
 
@@ -113,7 +113,7 @@ static func blood_swell(rig: MeleeArt, c: Array, d: float) -> void:
 ## Reflection: mirrored shards orbit and glint round the Defender over a dome.
 static func mirror(rig: MeleeArt, c: Array, d: float, size: float) -> void:
 	dome(rig, c, size, d, 1.3)
-	var n := rig.emit(MeleeArt.SHARD, 14, Vector3(0, 1.0, 0), Vector3.UP * 0.5, 0.2, c[0], 0.22, 1.5, d, 0.0, 0.3, 0.0, 0.0)
+	var n := rig.emit(MeleeArt.SHARD, 16, Vector3(0, 1.0, 0), Vector3.UP * 0.5, 0.2, c[0], 0.42, 1.6, d, 0.0, 0.3, 0.0, 0.0)
 	if n > 0:
 		var s := rig._pset(MeleeArt.SHARD)
 		for k in n:

@@ -129,7 +129,7 @@ func _strip(cls: StringName, skill: Dictionary) -> void:
 	var after: Array = [0.05, 0.16, 0.32, 0.55, 0.95]
 	if star:
 		after = [0.05, 0.3, 0.7, 1.2, 1.9]
-	var marks: Array = [release * 0.7]
+	var marks: Array = [release * 0.5]
 	for t in after:
 		marks.append(release + float(t))
 	var sheet := Image.create(FRAME.x * 3, FRAME.y * 2, false, Image.FORMAT_RGB8)
@@ -151,6 +151,13 @@ func _strip(cls: StringName, skill: Dictionary) -> void:
 		sheet.blit_rect(frame, Rect2i(Vector2i.ZERO, FRAME), Vector2i((i % 3) * FRAME.x, (i / 3) * FRAME.y))
 		if i == 0:
 			title.text = ""
+			var busy := 0
+			var vp := get_viewport()
+			if vp.has_meta(MeleeArt.HOLDER):
+				for rig in (vp.get_meta(MeleeArt.HOLDER) as Node).get_children():
+					if rig is MeleeArt and rig.busy:
+						busy += 1
+						print("  windup rig used=", rig._used, " age=", rig.age, " life=", rig.lifetime, " in_tree=", rig.is_inside_tree(), " vis=", rig.visible)
 	sheet.save_png("%s/%s.png" % [out_dir, String(skill.id)])
 	print("STRIP ", skill.id, " layers=", MeleeArt.built_layers, " parts=", MeleeArt.built_particles, " budget=", VfxBudget.counters(), " limit=", VfxBudget.decoration_limit())
 	field.queue_free()
