@@ -13,6 +13,8 @@ const HOLY := [Color("ffc24a"), Color("fffbe6"), Color("5a2c0c")]
 const STEEL := [Color("9cc4ec"), Color("ffffff"), Color("16243c")]
 const GALE := [Color("5cf0b8"), Color("f0fff6"), Color("0a3a2c")]
 const ROCK := Color("8a6c58")
+## The elite war cries: a magic circle, rune rings and a pillar of light (MeleeArt.ascend).
+const GRAND := ["berserker", "triumph_of_valhalla", "godly_shield"]
 
 const PALETTE := {
 	"rage_of_zecram": BLOOD, "destroyer": BLOOD, "berserker": BLOOD, "gladiator": BLOOD, "avenging_crash": BLOOD, "brandish": BLOOD,
@@ -37,6 +39,9 @@ static func charge(rig: MeleeArt, skill: Dictionary, ctx: Dictionary, duration: 
 	rig.ring(c, Vector3(0, 0.05, 0), 1.6 + p, 0.7, 0.0, t + 0.08, Vector3.ZERO, {"opacity": 0.55, "grow": t}, true)
 	if ctx.shape == "self" or p >= 0.4 or ctx.star > 0:
 		rig.layer("aura", MeleeArt.AURA, c, Vector3.ZERO, Vector3(0.75, 1.5 + p, 0.75), Vector3.ZERO, t * 0.3, t * 0.8 + 0.12, {"initial": 0.4, "opacity": 0.4, "dissolve": 0.7, "fade_in": 0.3})
+	if ctx.id in GRAND:
+		# The circle draws itself under the feet while the cry gathers.
+		rig.layer("sigil", MeleeArt.RING, c, Vector3(0, 0.05, 0), Vector3.ONE * 2.6, Vector3.ZERO, 0.0, t + 0.1, {"initial": 0.2, "grow": t, "spin": 0.9, "opacity": 0.45, "fade_in": 0.35, "dissolve": 0.9})
 	if ctx.star > 0:
 		rig.layer("blade", MeleeArt.SOLID, c, Vector3(0, 1.0, -0.2), Vector3(1.9, 1.9, 1.9), Vector3.ZERO, 0.0, t, {"bill": Vector3.UP, "initial": 0.3, "grow": t * 0.8, "opacity": 0.55, "fade_in": 0.4, "dissolve": 0.85, "sweep": t * 0.9, "tail": 1.0})
 
@@ -127,9 +132,11 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 ## The war cry of the buffs: a flame aura, the banner raised behind, a ring of
 ## heat and embers.
 static func _rally(rig: MeleeArt, c: Array, id: String, d: float, p: float) -> void:
-	var big := id in ["berserker", "triumph_of_valhalla", "godly_shield"]
-	rig.layer("aura", MeleeArt.AURA, c, Vector3.ZERO, Vector3(0.85, 2.0 + p, 0.85), Vector3.ZERO, d, 1.3, {"initial": 0.3, "grow": 0.3, "overshoot": true, "opacity": 0.7, "dissolve": 0.55, "fade_in": 0.1}, true)
-	rig.ring(c, Vector3(0, 0.05, 0), 0.4, 2.4 + p, d, 0.7, Vector3.ZERO, {"opacity": 0.65})
+	var big := id in GRAND
+	rig.layer("aura", MeleeArt.AURA, c, Vector3.ZERO, Vector3(0.85, 2.0 + p, 0.85), Vector3.ZERO, d, 1.3, {"initial": 0.3, "grow": 0.3, "overshoot": true, "opacity": 0.55, "dissolve": 0.55, "fade_in": 0.1}, true)
+	# The circle, rune rings, pillar and the aura that stays with the Warrior.
+	rig.ascend(c, 2.2 + 0.4 * p if big else 1.7, d, 2.6 if big else 1.8, big)
+	rig.ring(c, Vector3(0, 0.05, 0), 0.4, 2.4 + p, d, 0.7, Vector3.ZERO, {"opacity": 0.5})
 	if id == "swift_axe":
 		for k in 4:
 			var a := TAU * float(k) / 4.0 + 0.4
@@ -143,9 +150,11 @@ static func _rally(rig: MeleeArt, c: Array, id: String, d: float, p: float) -> v
 			rig.layer("banner", MeleeArt.SOLID, c, Vector3(side * 1.1 - 0.15, 0, -0.75), Vector3.ONE * (1.7 + 0.3 * p), Vector3.ZERO, d + 0.06 * k, 1.6, {"bill": "upright", "drop": -1.0, "land": 0.22, "wave": 0.16, "initial": 1.0, "opacity": 0.95, "dissolve": 0.65, "fade_in": 0.1, "ink": true})
 	if id in ["godly_shield", "holy_valor", "drastic_spirit"]:
 		rig.layer("light_cross", MeleeArt.SOLID, c, Vector3(0, 0.2, -0.3), Vector3.ONE * 1.6, Vector3.ZERO, d + 0.1, 1.1, {"bill": "upright", "initial": 0.5, "overshoot": true, "grow": 0.25, "opacity": 0.6, "travel": Vector3.UP * 0.4})
+	if id == "triumph_of_valhalla":
+		# A crown of light settles over the head.
+		rig.ring(c, Vector3(0, 2.75, 0), 1.5, 0.55, d + 0.15, 1.6, Vector3.ZERO, {"grow": 0.5, "opacity": 0.6, "dissolve": 0.6})
 	if big:
 		rig.cracks(c, Vector3.ZERO, 1.8 + p, d)
-		rig.light(Vector3(0, 1.5, 0), c[0], 2.5, 6.0, d, 0.6)
 	rig.embers(Vector3(0, 0.3, 0), 14 if big else 9, 0.9, c[0].lerp(c[1], 0.3), d, 1.3, 2.2)
 
 

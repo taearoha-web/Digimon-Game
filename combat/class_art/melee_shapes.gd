@@ -6,7 +6,7 @@ extends RefCounted
 ##   flat ground pieces lie in XZ at y = 0, silhouettes lie in XY pointing +X,
 ##   upright pieces stand on y = 0, rings and arcs turn around +Y.
 
-const KINDS := "arc150 arc220 arc330 streak ring cracks cracks_b cross light_cross hexplate hexwall hexdome aura spiral spear blade dragon banner chain rock spark shard"
+const KINDS := "arc150 arc220 arc330 streak ring cracks cracks_b cross light_cross hexplate hexwall hexdome aura spiral spear blade dragon banner chain rock spark shard sigil runes"
 static var _meshes: Dictionary = {}
 
 
@@ -38,6 +38,8 @@ static func mesh(kind: String) -> ArrayMesh:
 		"rock": _rock(st)
 		"spark": _spark(st)
 		"shard": _shard(st)
+		"sigil": _sigil(st)
+		"runes": _runes(st)
 	var built := st.commit()
 	_meshes[kind] = built
 	return built
@@ -374,3 +376,77 @@ static func _shard(st: SurfaceTool) -> void:
 	var c := [Vector3(0, 1, 0), Vector2(0.5, 1), 1.0]
 	var d := [Vector3(-0.4, 0.4, 0), Vector2(0, 0.4), 1.0]
 	_quad(st, a, b, c, d)
+
+
+## A flat line of light in XZ from a to b, w wide: UV.y across (0 -> 1, the hot
+## centre at 0.5, as the ring mode reads it), UV.x along (for its flicker).
+static func _flat_line(st: SurfaceTool, a: Vector3, b: Vector3, w: float, u0 := 0.0, u1 := 1.0) -> void:
+	var dir := b - a
+	dir.y = 0.0
+	if dir.length_squared() < 0.000001:
+		return
+	var side := Vector3(-dir.z, 0, dir.x).normalized() * w * 0.5
+	_quad(st, [a - side, Vector2(u0, 0)], [b - side, Vector2(u1, 0)], [b + side, Vector2(u1, 1)], [a + side, Vector2(u0, 1)])
+
+
+static func _flat_circle(st: SurfaceTool, r: float, w: float, seg := 56) -> void:
+	for i in seg:
+		var a0 := TAU * float(i) / seg
+		var a1 := TAU * float(i + 1) / seg
+		_flat_line(st, Vector3(sin(a0), 0, cos(a0)) * r, Vector3(sin(a1), 0, cos(a1)) * r, w, float(i) / seg, float(i + 1) / seg)
+
+
+## One small rune: two or three strokes inside a cell at angle a, between radii r0 and r1.
+static func _glyph(st: SurfaceTool, rng: RandomNumberGenerator, a: float, half: float, r0: float, r1: float, w: float) -> void:
+	var at := func(f_angle: float, f_radius: float) -> Vector3:
+		var ang := a + (f_angle * 2.0 - 1.0) * half
+		var rr := lerpf(r0, r1, f_radius)
+		return Vector3(sin(ang), 0, cos(ang)) * rr
+	# A spine across the band, then one or two branches off it.
+	var spine := rng.randf_range(0.3, 0.7)
+	_flat_line(st, at.call(spine, 0.0), at.call(spine, 1.0), w)
+	for k in rng.randi_range(1, 2):
+		var f := rng.randf_range(0.15, 0.85)
+		var side := 0.0 if rng.randf() < 0.5 else 1.0
+		_flat_line(st, at.call(spine, f), at.call(side, clampf(f + rng.randf_range(-0.35, 0.35), 0.0, 1.0)), w * 0.85)
+
+
+## A magic circle on the ground (XZ, radius 1): a double rim, a ring of runes,
+## a hexagram and an inner seal, with ticks out past the rim. Drawn in the ring
+## mode (each stroke a soft line of light).
+static func _sigil(st: SurfaceTool) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150
+	_flat_circle(st, 1.0, 0.045, 64)
+	_flat_circle(st, 0.9, 0.025, 64)
+	_flat_circle(st, 0.62, 0.03, 48)
+	_flat_circle(st, 0.2, 0.03, 24)
+	for k in 2:
+		var pts: Array = []
+		for j in 3:
+			var a := TAU * float(j) / 3.0 + PI * float(k) / 3.0
+			pts.append(Vector3(sin(a), 0, cos(a)) * 0.62)
+		for j in 3:
+			_flat_line(st, pts[j], pts[(j + 1) % 3], 0.028)
+	for k in 18:
+		_glyph(st, rng, TAU * float(k) / 18.0, TAU / 18.0 * 0.32, 0.67, 0.86, 0.022)
+	for k in 12:
+		var a := TAU * (float(k) + 0.5) / 12.0
+		var d := Vector3(sin(a), 0, cos(a))
+		_flat_line(st, d * 1.03, d * (1.12 if k % 3 == 0 else 1.07), 0.03)
+	for k in 6:
+		var a := TAU * float(k) / 6.0
+		var d := Vector3(sin(a), 0, cos(a))
+		_flat_line(st, d * 0.2, d * 0.62, 0.02)
+
+
+## A thin band of runes turning round +Y (radius 1): a rim, a finer inner rim
+## and a dozen glyphs between them. Tilted and spun it reads as an orbiting
+## rune ring; stood up (rot.x = PI / 2) it is a launch circle.
+static func _runes(st: SurfaceTool) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7311
+	_flat_circle(st, 1.0, 0.07, 56)
+	_flat_circle(st, 0.78, 0.045, 48)
+	for k in 12:
+		_glyph(st, rng, TAU * float(k) / 12.0, TAU / 12.0 * 0.3, 0.82, 0.96, 0.05)

@@ -23,6 +23,8 @@ const PALETTE := {
 	"heartseeker": HEART, "aegis_formation": HOLY, "worldsplitter": HOLY, "heavenrend_spear": WIND,
 }
 const ROCK := Color("5f5a52")
+## The elite stances: a magic circle, rune rings and a pillar of light (MeleeArt.ascend).
+const GRAND := ["valkyrie_blessing", "dragon_stance", "aegis_formation"]
 
 
 static func palette(id: String) -> Array:
@@ -40,6 +42,11 @@ static func charge(rig: MeleeArt, skill: Dictionary, ctx: Dictionary, duration: 
 	rig.ring(c, tip, 1.4, 0.35, 0.0, t + 0.05, Vector3(PI * 0.5, 0, 0), {"opacity": 0.6, "grow": t}, true)
 	if ctx.shape in ["burst", "self"] or p >= 0.5 or ctx.star > 0:
 		rig.layer("spiral", MeleeArt.RIBBON, c, Vector3.ZERO, Vector3(0.9, 1.6 + p, 0.9), Vector3.ZERO, 0.0, t + 0.1, {"sweep": t, "tail": 0.7, "thick": 0.4, "spin": 6.0, "initial": 0.7, "opacity": 0.55, "dissolve": 0.8})
+	if ctx.id in ["gungnir", "ragnarok_lance"]:
+		# A launch circle of runes opens in front of the spear as it is drawn back.
+		rig.layer("runes", MeleeArt.RING, c, tip + Vector3(0, 0.1, 0.5), Vector3.ONE * 1.1, Vector3(PI * 0.5, 0, 0), 0.0, t + 0.1, {"initial": 0.2, "grow": t * 0.9, "overshoot": true, "opacity": 0.55, "fade_in": 0.3, "dissolve": 0.9}, true)
+	if ctx.id in GRAND or ctx.id in ["gungnir", "ragnarok_lance"]:
+		rig.layer("sigil", MeleeArt.RING, c, Vector3(0, 0.05, 0), Vector3.ONE * 2.4, Vector3.ZERO, 0.0, t + 0.1, {"initial": 0.2, "grow": t, "spin": 0.9, "opacity": 0.42, "fade_in": 0.35, "dissolve": 0.9})
 	if ctx.id in ["dragon_tooth", "dragon_lance", "dragon_stance", "ragnarok_lance"] or ctx.star >= 200:
 		rig.layer("dragon", MeleeArt.SOLID, c, Vector3(-0.6, 1.5, -0.6), Vector3.ONE * 1.3, Vector3.ZERO, t * 0.2, t * 0.85, {"bill": "upright", "pattern": 1.0, "initial": 0.5, "grow": t * 0.6, "opacity": 0.55, "fade_in": 0.4, "dissolve": 0.8, "travel": Vector3.UP * 0.3})
 
@@ -50,7 +57,7 @@ static func thrust(rig: MeleeArt, c: Array, from: Vector3, to: Vector3, width: f
 	var dir := (to - from).normalized()
 	var length := from.distance_to(to)
 	rig.streak(c, from, to, 0.95 * width, d, 0.8, 0.07, {"tail": 0.9, "dissolve": 0.5}, core)
-	rig.streak([c[1], Color.WHITE, c[0]], from + dir * 0.2, to + dir * 0.4, 0.16 * width, d, 0.3, 0.05, {"thick": 0.45, "tail": 0.6}, false)
+	rig.streak([c[1], c[1], c[0]], from + dir * 0.2, to + dir * 0.4, 0.16 * width, d, 0.3, 0.05, {"thick": 0.45, "tail": 0.6, "opacity": 0.75}, false)
 	var yaw := atan2(dir.x, dir.z)
 	for k in rings:
 		var at := from + dir * (0.5 + 0.55 * k)
@@ -117,6 +124,8 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 			rig.emit(MeleeArt.SPARK, 10, Vector3(0, 0.1, reach * 0.4), Vector3(0, 1.5, -2.0), 0.7, Color("c8b49a"), 0.08, 0.6, d, 2.0, 1.5, 3.0, reach * 0.3)
 		"whirl", "spinning_pike", "typhoon_spear", "gale_cyclone":
 			vortex(rig, c, r, d, p)
+			if id == "gale_cyclone":
+				rig.layer("sigil", MeleeArt.RING, c, Vector3(0, 0.05, 0), Vector3.ONE * r * 0.85, Vector3.ZERO, d, 1.3, {"initial": 0.3, "grow": 0.25, "overshoot": true, "spin": 1.6, "opacity": 0.5, "dissolve": 0.65})
 			if id in ["typhoon_spear", "gale_cyclone"]:
 				for k in 2:
 					rig.ring(c, Vector3(0, 0.6 + 0.9 * k, 0), 0.5, r * (0.7 - 0.15 * k), d + 0.08 * k, 0.55, Vector3.ZERO, {"opacity": 0.6, "spin": 4.0})
@@ -135,12 +144,24 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 			rig.light(tip, c[0], 2.0, 6.0, d, 0.5)
 		"gungnir", "ragnarok_lance":
 			var ult := id == "ragnarok_lance"
+			var hit := Vector3(0, 0, reach)
+			var big := 1.35 if ult else 1.0
+			# The spear bursts through a circle of runes stood up before the hand.
+			rig.layer("runes", MeleeArt.RING, c, hand + Vector3(0, 0.25, 0.7), Vector3.ONE * 1.3 * big, Vector3(PI * 0.5, 0, 0), d, 0.6, {"initial": 0.9, "grow": 0.1, "overshoot": true, "opacity": 0.6, "dissolve": 0.45, "fade_in": 0.02}, true)
 			throw(rig, c, hand + Vector3.UP * 0.3, tip, 2.6 if not ult else 3.4, d)
-			thrust(rig, c, hand, tip, 1.6 if ult else 1.2, d, 4, 2, false)
+			# Where it lands: a seal burns into the ground and a column of light leaps up.
+			rig.layer("sigil", MeleeArt.RING, c, hit + Vector3.UP * 0.06, Vector3.ONE * 2.3 * big, Vector3.ZERO, d + 0.14, 1.5, {"initial": 0.3, "grow": 0.22, "overshoot": true, "spin": -0.9, "opacity": 0.6, "dissolve": 0.65, "fade_in": 0.04})
+			rig.layer("aura", MeleeArt.AURA, c, hit, Vector3(0.65 * big, 5.0, 0.65 * big), Vector3.ZERO, d + 0.14, 0.65, {"initial": 0.15, "grow": 0.12, "overshoot": true, "opacity": 0.4, "dissolve": 0.35, "fade_in": 0.03})
+			rig.layer("runes", MeleeArt.RING, c, hit + Vector3.UP * 1.3, Vector3.ONE * 1.1 * big, Vector3(0.2, 0, 0), d + 0.18, 1.1, {"initial": 0.3, "grow": 0.2, "overshoot": true, "spin": 2.4, "opacity": 0.55, "dissolve": 0.6})
+			thrust(rig, c, hand, tip, 1.6 if ult else 1.2, d, 2, 1 if not ult else 0, false)
+			rig.embers(hit, 12, 1.0 * big, c[0].lerp(c[1], 0.3), d + 0.2, 1.3, 2.6, 0.07)
 			if ult:
+				# Ragnarok: a second, greater spear falls from the sky onto the seal.
+				rig.layer("spear", MeleeArt.SOLID, c, hit + Vector3.UP * 5.6, Vector3.ONE * 4.6, Vector3.ZERO, d + 0.1, 0.8, {"bill": Vector3.DOWN, "drop": 5.0, "land": 0.14, "initial": 1.0, "opacity": 0.85, "dissolve": 0.45, "fade_in": 0.03, "front": 1})
 				dragon(rig, DRAGON, hand, Vector3(0, 1.0, reach + 1.0), 2.6, d + 0.05)
-				rig.cracks(c, Vector3(0, 0, reach), 2.6, d + 0.12, 1.3, true)
+				rig.cracks(c, hit, 2.6, d + 0.24, 1.3, true)
 		"heaven_rend":
+			rig.layer("sigil", MeleeArt.RING, c, Vector3(0, 0.05, 0), Vector3.ONE * r * 0.85, Vector3.ZERO, d, 1.4, {"initial": 0.3, "grow": 0.25, "overshoot": true, "spin": -0.8, "opacity": 0.55, "dissolve": 0.65}, true)
 			vortex(rig, c, r, d, p)
 			for k in 6:
 				var a := TAU * float(k) / 6.0 + 0.3
@@ -158,20 +179,23 @@ static func play(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 static func throw(rig: MeleeArt, c: Array, from: Vector3, to: Vector3, size: float, d: float) -> void:
 	var dir := (to - from).normalized()
 	var flight := 0.14
-	rig.layer("spear", MeleeArt.SOLID, c, from, Vector3.ONE * size, Vector3.ZERO, d, flight + 0.16, {"bill": dir, "travel": to - from - dir * size * 0.7, "ease": "in", "initial": 1.0, "opacity": 0.95, "dissolve": 0.7, "fade_in": 0.02, "front": 1}, true)
+	rig.layer("spear", MeleeArt.SOLID, c, from, Vector3.ONE * size, Vector3.ZERO, d, flight + 0.16, {"bill": dir, "travel": to - from - dir * size * 0.7, "ease": "in", "initial": 1.0, "opacity": 0.8, "dissolve": 0.7, "fade_in": 0.02, "front": 1}, true)
 	rig.streak(c, from, to, 1.0, d, 0.75, flight, {"tail": 0.95, "thick": 0.7, "dissolve": 0.35})
-	rig.ring(c, from + dir * 0.3, 0.2, 1.4, d, 0.35, Vector3(PI * 0.5, atan2(dir.x, dir.z), 0), {"opacity": 0.8})
+	rig.ring(c, from + dir * 0.3, 0.2, 1.4, d, 0.35, Vector3(PI * 0.5, atan2(dir.x, dir.z), 0), {"opacity": 0.6})
 	for k in 4:
 		var f := 0.25 + 0.22 * k
 		rig.emit(MeleeArt.SPARK, 5, from.lerp(to, f), (Vector3.UP * 0.4 - dir * 0.3) * 4.0, 0.9, c[0].lerp(c[1], 0.5), 0.07, 0.6, d + flight * f, 4.0, 1.4, 3.0)
-	rig.ring(c, to, 0.3, 2.0, d + flight, 0.4, Vector3(PI * 0.5, atan2(dir.x, dir.z), 0), {"opacity": 0.75})
+	rig.ring(c, to, 0.3, 2.0, d + flight, 0.4, Vector3(PI * 0.5, atan2(dir.x, dir.z), 0), {"opacity": 0.55})
 	rig.light(to, c[0], 2.5, 6.0, d + flight, 0.45)
 
 
 ## The stance buffs: a gale aura and rising spiral, rings of wind; the dragon
 ## stance raises a dragon behind the Lancer, the Valkyrie a ring of spears.
 static func stance(rig: MeleeArt, c: Array, id: String, d: float, p: float) -> void:
-	rig.layer("aura", MeleeArt.AURA, c, Vector3.ZERO, Vector3(0.8, 2.0 + p, 0.8), Vector3.ZERO, d, 1.2, {"initial": 0.3, "grow": 0.3, "overshoot": true, "opacity": 0.6, "dissolve": 0.55}, true)
+	var grand := id in GRAND
+	rig.layer("aura", MeleeArt.AURA, c, Vector3.ZERO, Vector3(0.8, 2.0 + p, 0.8), Vector3.ZERO, d, 1.2, {"initial": 0.3, "grow": 0.3, "overshoot": true, "opacity": 0.5, "dissolve": 0.55}, true)
+	# The circle, rune rings, pillar and the aura that stays with the Lancer.
+	rig.ascend(c, 2.2 + 0.3 * p if grand else 1.7, d, 2.6 if grand else 1.8, grand)
 	rig.layer("spiral", MeleeArt.RIBBON, c, Vector3.ZERO, Vector3(1.1, 2.6 + p, 1.1), Vector3.ZERO, d, 1.0, {"sweep": 0.4, "tail": 0.8, "thick": 0.45, "spin": 5.0, "initial": 0.8, "opacity": 0.75, "dissolve": 0.5})
 	rig.ring(c, Vector3(0, 0.05, 0), 0.4, 2.4 + p, d, 0.65, Vector3.ZERO, {"opacity": 0.6})
 	match id:
