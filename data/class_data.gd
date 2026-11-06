@@ -369,10 +369,19 @@ static func get_skill(class_id: StringName, index: int) -> Dictionary:
 const AI_BUFF_SKILLS := 2
 
 
-## A skill that grants a buff (not a song, not a heal).
+## A skill that grants a buff (not a song). A heal that also buffs (Unbreakable,
+## Guardian's Oath...) counts: it takes a buff slot like any other.
 static func is_buff_skill(skill: Dictionary) -> bool:
 	var fx: Variant = skill.get("fx")
-	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and not bool((fx as Dictionary).buff.get("song", false)) and not (fx as Dictionary).has("heal")
+	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and not bool((fx as Dictionary).buff.get("song", false))
+
+
+## A class's signature buff, always in its AI kit and kept up first (เบ่งเลือด).
+const SIGNATURE_BUFFS := {&"defender": "brace"}
+
+
+static func is_signature(skill: Dictionary) -> bool:
+	return SIGNATURE_BUFFS.values().has(String(skill.get("id", "")))
 
 
 ## The buff skills an AI player brings (ids), picked per player by [param who] from the
@@ -383,7 +392,7 @@ static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
 		if is_buff_skill(skill) and int(skill.level) <= level and not skill.has("star"):
 			open.append(String(skill.id))
 	var kit: Array = []
-	var signature := "brace" if class_id == &"defender" else ""
+	var signature := String(SIGNATURE_BUFFS.get(class_id, ""))
 	if signature != "" and open.has(signature):
 		kit.append(signature)
 		open.erase(signature)

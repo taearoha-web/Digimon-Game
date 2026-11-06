@@ -806,6 +806,9 @@ func _upkeep_score(skill: Dictionary, distance: float) -> float:
 	# The strongest first (a song by Rival._song_score's order); a team buff a little ahead
 	# with the party around to take it.
 	var score := UPKEEP_SCORE + (_song_score(skill) - 6.0 if BuffBook.is_song_skill(skill) else 0.01 * float(skill.get("level", 0)))
+	# The class's signature buff (the Defender's เบ่งเลือด) always goes up first.
+	if ClassData.is_signature(skill):
+		score += 2.0
 	if not BuffBook.is_self_only(buff) and party_near(BUFF_REACH) >= 2:
 		score += 0.5 if BuffBook.is_song_skill(skill) else 0.8
 	return score
