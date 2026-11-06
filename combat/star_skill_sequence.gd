@@ -85,6 +85,7 @@ func _ready() -> void:
 	if h.is_riding(): aerial=false
 	h.visual.skill_action(skill,float(skill.hit_delay))
 	StarSkillArt.telegraph(h,skill,center,float(skill.hit_delay))
+	SkillLayers.anticipate(h.field,skill,h.global_position,float(skill.hit_delay),center,h.visual)
 	if aerial:
 		h.set_meta("star_airborne",true)
 		old_wing_mode=h.visual.wing_mode
@@ -164,6 +165,11 @@ func _hit(h: Hero, index: int, count: int) -> void:
 	# A god-tier finale lands with the full release again (and its landing sound).
 	var god := StarSkillData.is_god(skill)
 	var finale := god and index==count-1
+	# The shared layer stack (SkillLayers) under the star art: presentation only.
+	var beat_at:=center
+	if String(skill.shape)=="single" and is_instance_valid(target): beat_at=target.global_position
+	elif bool(skill.get("line",false)): beat_at=origin+forward*float(skill.get("length",15.0))*0.55
+	SkillLayers.star_beat(h.field,skill,beat_at,index,count,origin)
 	AudioManager.play_sfx(SkillSound.star_beat(0 if finale else index), -3.0 if index==0 or finale else -8.0)
 	if (index==0 or finale) and SkillSound.landing(skill)!=&"": AudioManager.play_sfx(SkillSound.landing(skill), -6.0)
 	if String(skill.shape)=="summon":

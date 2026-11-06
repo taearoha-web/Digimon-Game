@@ -8,9 +8,15 @@ uniform float pulse = 0.0;
 uniform float opacity : hint_range(0.0, 1.0) = 0.92;
 uniform float surface_style = 0.0;
 varying vec3 local_point;
-void vertex() { local_point = VERTEX; }
+void vertex() {
+	local_point = VERTEX;
+	// Living energy, not a rigid prop: a slow travelling swell along the body.
+	float swell = sin(TIME * 5.3 + VERTEX.y * 3.1 + VERTEX.x * 1.7 + pulse) * sin(TIME * 3.7 - VERTEX.z * 2.3 + pulse * 0.5);
+	VERTEX += NORMAL * swell * 0.022;
+}
 void fragment() {
-	float rim = pow(max(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 0.0), 3.0);
+	float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
+	float rim = pow(max(1.0 - facing, 0.0), 3.0);
 	float facet = dot(normalize(NORMAL), normalize(vec3(-0.4, 0.8, 0.6))) * 0.5 + 0.5;
 	vec3 body = mix(shade.rgb, color.rgb, smoothstep(0.12, 0.8, facet));
 	vec3 p = local_point;
@@ -26,13 +32,20 @@ void fragment() {
 	} else if (surface_style > 3.5) {
 		detail = pow(max(0.5 + 0.5 * sin(p.y * 17.0 + p.x * 8.0 + pulse), 0.0), 20.0) * 0.35;
 	}
-	// Dissolve into small painted islands with a narrow coloured edge.
-	float grain = 0.5 + 0.5 * sin(p.x * 19.0 + p.y * 11.0) * sin(p.z * 17.0 - p.y * 7.0);
+	// Dissolve into small painted islands with a narrow coloured edge; the
+	// grain drifts a little so the break-up flows instead of eroding in place.
+	float drift = TIME * 0.6;
+	float grain = 0.5 + 0.5 * sin(p.x * 19.0 + p.y * 11.0 + drift) * sin(p.z * 17.0 - p.y * 7.0 - drift * 0.7);
 	float cut = (1.0 - fade) * 1.12 - 0.06;
 	float dissolve = smoothstep(cut, cut + 0.06, grain);
 	float edge = (1.0 - smoothstep(cut + 0.04, cut + 0.12, grain)) * (1.0 - fade);
-	body = mix(body, core.rgb, clamp(rim * 0.58 + detail + edge * 0.65, 0.0, 0.83));
+	// Colour hierarchy: a white-hot heart where the body faces the eye, the
+	// palette's mid tone across it, a thin bright line, then a darker soft rim.
+	float heart = smoothstep(0.62, 1.0, facing) * 0.38;
+	float line = smoothstep(0.08, 0.3, rim) * (1.0 - smoothstep(0.42, 0.75, rim));
+	body = mix(body, core.rgb, clamp(heart + line * 0.5 + detail + edge * 0.65, 0.0, 0.83));
+	body = mix(body, shade.rgb, smoothstep(0.55, 1.0, rim) * 0.45);
 	ALBEDO = body;
 	EMISSION = body * 0.16;
-	ALPHA = opacity * dissolve * smoothstep(0.0, 0.16, fade);
+	ALPHA = opacity * dissolve * smoothstep(0.0, 0.16, fade) * mix(1.0, 0.5, smoothstep(0.35, 1.0, rim));
 }

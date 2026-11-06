@@ -298,6 +298,7 @@ func _clear_zone() -> void:
 	ShaderBurst.release_mesh_cache()
 	ThunderStormArt.release_mesh_cache()
 	VfxKit.release_mesh_cache()
+	SkillLayers.release_cache(get_tree())
 
 
 ## warp = true arrives at the field's start (not at the portal you came through).
