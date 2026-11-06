@@ -202,6 +202,7 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		_recent_dagger=equipped_sword(caster)
 		ShadowSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if id in DARKLORD: LordSkillArt.anticipate(parent,skill,origin,point,time,visual)
+	ClassSignature.anticipate(parent,skill,origin,point,time,visual)
 	if id in BARD: BardSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if GodSkillArt.handles(skill):
 		GodSkillArt.telegraph(art,caster,skill,point,time)
@@ -291,6 +292,7 @@ static func launch(caster: Node3D, skill: Dictionary, point: Vector3, duration :
 	var colors := look(skill)
 	var source := _body_point(caster)
 	var art := _root(parent,source,duration+0.10,"StarLaunch_"+id)
+	ClassSignature.flight(parent,skill,source,point,duration,1.2)
 	var delta := point-source
 	_face(art,source,point)
 	var travel := art.global_basis.inverse()*delta
@@ -318,6 +320,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 	ClassFlourish.star_beat(parent, skill, point, index, source)
 	if String(skill.id) in ASSASSIN: ShadowSkillArt.star(parent, skill, point, index, source)
 	if String(skill.id) in DARKLORD: LordSkillArt.star(parent, skill, point, index, source)
+	ClassSignature.star_beat.call_deferred(parent, skill, point, index, source)
 	if String(skill.id) in BARD: BardSkillArt.star(parent, skill, point, index, source)
 	var id := String(skill.id)
 	var colors := look(skill)

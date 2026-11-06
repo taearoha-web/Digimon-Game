@@ -32,6 +32,7 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 	root.create_tween().tween_interval(0.3).finished.connect(root.queue_free, CONNECT_ONE_SHOT)
 
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> Node3D:
+	ClassSignature.flight(parent, skill, from, to, seconds, size)  # class signature hook (Archer / Assassin / Dark Lord)
 	if MartialSkillArt.handles(skill):
 		var martial := MartialSkillArt.flight(parent,skill,from,to,seconds,size)
 		ClassFlourish.flight_glow(martial, skill, size)
@@ -163,7 +164,7 @@ static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: b
 ## [param crit] only adds a fan of light; damage was already decided.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
 	ClassFlourish.contact(parent, skill, at, crit)
-	ShadowSkillArt.contact(parent, skill, at)
+	ShadowSkillArt.contact(parent, skill, at, crit)
 	LordSkillArt.contact(parent, skill, at)
 	BardSkillArt.contact(parent, skill, at)
 	if MartialSkillArt.handles(skill):
