@@ -1095,8 +1095,9 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				_deal(victim, mult, color, skill.vfx, true, skill)
 			var fx: Dictionary = skill.get("fx", {})
 			if fx.has("heal"):
-				_heal_allies(float(fx.heal) * 0.6)
-				heal_fraction(float(fx.heal) * 0.6)
+				var weak := ClassData.ai_heal_mult(StringName(member["class"]))
+				_heal_allies(float(fx.heal) * 0.6 * weak)
+				heal_fraction(float(fx.heal) * 0.6 * weak)
 		"blast":
 			var center := Vector3(aim.x, 0.0, aim.z)
 			if alive:
@@ -1134,10 +1135,12 @@ func _apply_self(skill: Dictionary) -> void:
 			hero.recall_party()
 		_recall_mode = "hero"
 	if fx.has("heal"):
+		# An AI Priest heals at half strength (ClassData.AI_HEAL_MULT).
+		var amount := float(fx.heal) * ClassData.ai_heal_mult(StringName(member["class"]))
 		# A stance (self_only) keeps its heal to the caster too.
 		if not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)):
-			_heal_allies(float(fx.heal))
-		heal_fraction(float(fx.heal))
+			_heal_allies(amount)
+		heal_fraction(amount)
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff

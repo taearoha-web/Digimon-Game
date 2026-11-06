@@ -548,7 +548,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	match shape:
 		"self":
 			if fx.has("heal"):
-				_heal(float(fx.heal))
+				_heal(float(fx.heal) * ClassData.ai_heal_mult(StringName(member["class"])))
 			if fx.has("buff"):
 				var buff: Dictionary = fx.buff
 				# A second buff adds to the first (the strongest of each counts), it does not
@@ -564,7 +564,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		"burst":
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, float(skill.radius) * 1.15)
 			if fx.has("heal"):
-				_heal(float(fx.heal) * 0.6)
+				_heal(float(fx.heal) * 0.6 * ClassData.ai_heal_mult(StringName(member["class"])))
 			for victim in _victims():
 				if _flat_distance(victim.global_position) <= float(skill.radius) + 0.6 + 0.4:
 					_hit(victim, mult, color, fx)
