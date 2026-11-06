@@ -163,6 +163,8 @@ func _ready() -> void:
 			var mat := SpellSpectacle._material(look, 0.7)
 			SkillCraft.portal(arrival, look, mat, 0.8 * size_mult, 0.65)
 			SpellSpectacle._finish(arrival, mat, 0.7)
+			# The caster lines' own arrival (flower portal, a legend's vortex): visuals only.
+			CasterArt.summon_arrival(get_parent(), entry, global_position, size_mult)
 			break
 	# Health bar above the head (the node is scaled, so the bar is placed in local units).
 	var top: float = (float(_kind.height) if _kind.has("height") else 1.8) + float(_kind.hover) + 0.5

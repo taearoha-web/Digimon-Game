@@ -1,5 +1,5 @@
 class_name BardSkillArt
-extends SculptureArt
+extends NaturalArt
 ## The Bard's art: every skill of the line (25) and its four star skills get their
 ## own layered composition of music made visible. A rosette (the lute's sound hole)
 ## turns under the Bard, notes and beamed pairs fly, rain and circle, staff lines
@@ -17,6 +17,8 @@ extends SculptureArt
 const KINDS := "note notes treble tear_note heart fermata spirit lyre lute_ghost rosette rosette_ink soundwave soundwave_ink stave score drum_ring cracked_stave curtain spotlight stage pips2 pips3 pips4 pips5"
 const LORD_KINDS := ["bolt", "pillar", "shock", "banner"]
 const SHADOW_KINDS := ["vortex", "moon"]
+## Pieces shared with the other casters (CasterArt): sparkles, glass shards, wisps, beams.
+const CASTER_KINDS := ["mote", "glass", "wisp", "ray", "bloom"]
 ## [primary, accent, shade] palettes.
 ## (The primaries run a shade deeper than the icon and recipe palettes: additive light on a
 ## sunny field washes a pastel to white.)
@@ -134,11 +136,13 @@ static func _lace(c: Array) -> Array:
 static func warm_geometry() -> void:
 	for kind in Array(KINDS.split(" ")) + LORD_KINDS + SHADOW_KINDS:
 		mesh(String(kind))
+	CasterArt.warm_geometry()
 
 
 ## Draws both materials once, invisibly, so the first cast does not stall on a phone.
 static func warm_up(parent: Node3D, at: Vector3) -> void:
 	warm_geometry()
+	CasterArt.warm_up(parent, at)
 	var art := _root(parent, at, "BardArt_Warm")
 	art.cap = 2
 	art.layer("note", true, MELODY, Vector3.UP, Vector3.ONE * 0.01, Vector3.ZERO, 0.0, 0.3, {"opacity": 0.001})
@@ -219,6 +223,8 @@ static func _steps(now: float, was: float, per: float) -> int:
 ## hangs its note over the target, the finale raises its stage round the pack and the
 ## encore turns a cosmic staff over the field. Bound to the caster's skill generation.
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: Vector3, duration: float, visual: HeroVisual = null) -> void:
+	# The Mage, Priest and Summoner signature art rides the same hook (SkillShow calls every class through here).
+	CasterArt.anticipate(parent, skill, origin, aim, duration, visual)
 	if not handles(skill) or not _alive(parent) or duration < 0.12 or not VfxBudget.can_decorate(4 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
@@ -266,6 +272,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 
 ## Release: the skill's own composition, at the same beat as its damage.
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, delay := 0.0) -> void:
+	CasterArt.play(parent, skill, center, origin, delay)
 	if not handles(skill) or not _alive(parent) or skill.has("star") or not VfxBudget.can_decorate(3 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
@@ -278,11 +285,15 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		art.cap = mini(art.cap, 6)
 	var reach := Vector2(center.x - origin.x, center.z - origin.z).length()
 	art._compose(id, skill, palette(skill), reach, minf(float(skill.get("radius", 3.0)), 9.5), maxf(delay, 0.0), _rank_of(skill))
+	var buff = skill.get("fx", {}).get("buff")
+	if buff is Dictionary and bool(buff.get("song", false)) and depth() > TIER_CORE:
+		_serenade(parent, skill, origin, maxf(delay, 0.0))
 
 
 ## Every hit: a note thrown off the struck foe and a sound ring under it, with the
 ## status mark the skill brings (cracked staff, tear-note, fermata) or a gold echo.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
+	CasterArt.contact(parent, skill, at)
 	if not handles(skill) or skill.has("star") or not _alive(parent) or not VfxBudget.can_decorate(2 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
@@ -326,7 +337,9 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 
 ## A carrier from the lute to [param to] (landing after [param flight]), always facing the camera.
 func _carrier(kind: String, c: Array, to: Vector3, start: float, flight: float, size := 0.42, from := LUTE) -> void:
-	layer(kind, true, c, from, Vector3.ONE * size, Vector3.ZERO, start, flight + 0.05, {"initial": 0.9, "travel": to - from, "accelerate": true, "face_camera": true, "roll": 2.5, "decay": 0.9})
+	layer(kind, true, c, from, Vector3.ONE * size, Vector3.ZERO, start, flight + 0.05, {"initial": 0.9, "travel": to - from, "accelerate": true, "face_camera": true, "roll": 2.5, "bob": 0.16, "phase": start * 9.0, "decay": 0.9})
+	# A fainter echo of the note lags behind it on the same line: the melody's trail.
+	layer(kind, true, c, from, Vector3.ONE * size * 0.7, Vector3.ZERO, start + 0.05, flight + 0.08, {"initial": 0.9, "travel": to - from, "accelerate": true, "face_camera": true, "roll": 2.5, "bob": 0.16, "phase": start * 9.0 - 0.5, "decay": 0.5, "opacity": 0.4, "tier": TIER_DEBRIS})
 
 
 ## The sound hole flares as the strings are struck.
@@ -340,13 +353,13 @@ func _rings(c: Array, at: Vector3, radius: float, count: int, start: float, gap 
 	for i in count:
 		var tilt := Vector3(PI * 0.5, 0, 0) if vertical else Vector3(wobble * float(i + 1), 0, -wobble * 0.8 * float(i + 1))
 		var lift := Vector3.ZERO if vertical else Vector3.UP * (0.04 + 0.01 * float(i))
-		layer("soundwave", true, c, at + lift, Vector3.ONE * radius * (1.0 - 0.27 * float(i)), tilt, start + gap * float(i), seconds, {"initial": 0.15, "grow": 4.0, "opacity": 0.8})
+		layer("soundwave", true, c, at + lift, Vector3.ONE * radius * (1.0 - 0.27 * float(i)), tilt, start + gap * float(i), seconds, {"initial": 0.15, "grow": 2.6, "overshoot": true, "opacity": 0.8, "tier": TIER_CORE if i == 0 else TIER_MID})
 
 
 ## Notes circling the caster at [param y] (keep y <= 1.3 or >= 2.3: the face rule) and rising by [param rise].
 func _orbit_notes(c: Array, count: int, radius: float, y: float, speed: float, start: float, seconds: float, size := 0.38, rise := 0.5, kind := "note") -> void:
 	for i in count:
-		layer(kind, true, c, Vector3(0, y, 0), Vector3.ONE * size, Vector3.ZERO, start + 0.04 * float(i), seconds, {"initial": 0.3, "orbit": radius, "orbit_speed": speed, "phase": TAU * float(i) / float(count), "travel": Vector3(0, rise, 0), "face_camera": true, "fade_in": 0.15, "decay": 0.75})
+		layer(kind, true, c, Vector3(0, y, 0), Vector3.ONE * size, Vector3.ZERO, start + 0.04 * float(i), seconds, {"initial": 0.3, "overshoot": true, "orbit": radius, "orbit_speed": speed, "phase": TAU * float(i) / float(count), "travel": Vector3(0, rise, 0), "bob": 0.1, "flutter": 0.25, "face_camera": true, "fade_in": 0.15, "decay": 0.75})
 
 
 ## Notes falling softly onto an area (golden-angle spots).
@@ -354,14 +367,46 @@ func _note_rain(c: Array, at: Vector3, radius: float, count: int, start: float, 
 	for k in count:
 		var a := float(k) * 2.39996 + 0.6
 		var spot := at + Vector3(sin(a), 0, cos(a)) * radius * sqrt(float(k + 1) / float(count))
-		layer(kind, true, c, spot + Vector3.UP * 0.4, Vector3.ONE * size, Vector3.ZERO, start + 0.07 * float(k), 0.75, {"initial": 1.0, "drop": height, "land": 0.5, "flap": 0.12, "face_camera": true, "decay": 0.7})
+		layer(kind, true, c, spot + Vector3.UP * 0.4, Vector3.ONE * size, Vector3.ZERO, start + 0.07 * float(k), 0.75, {"initial": 1.0, "drop": height, "land": 0.5, "flutter": 0.3, "sway": 0.12, "sway_rate": 1.4, "phase": a, "face_camera": true, "decay": 0.7})
 
 
 ## Notes thrown up and out from [param at].
 func _note_burst(c: Array, at: Vector3, count: int, spread: float, start: float, size := 0.32, kind := "note", up := 0.7) -> void:
 	for k in count:
 		var a := float(k) * TAU / float(count) + randf() * 0.4
-		layer(kind, true, c, at, Vector3.ONE * size, Vector3.ZERO, start + 0.02 * float(k), 0.6, {"initial": 0.6, "travel": Vector3(sin(a) * spread, up + 0.3 * float(k % 2), cos(a) * spread), "roll": 6.0 if k % 2 == 0 else -6.0, "face_camera": true, "decay": 0.6})
+		layer(kind, true, c, at, Vector3.ONE * size, Vector3.ZERO, start + 0.02 * float(k), 0.6, {"initial": 0.6, "overshoot": true, "toss": Vector3(sin(a) * spread * 2.2, (up + 0.3 * float(k % 2)) * 3.6, cos(a) * spread * 2.2), "gravity": 7.0, "drag": 1.2, "roll": 6.0 if k % 2 == 0 else -6.0, "face_camera": true, "decay": 0.6})
+
+
+## Discord made visible: a pane of violet glass cracks in the air over the pack, its
+## shards tumbling to the ground (debris tier).
+func _glass(at: Vector3, size: float, start: float) -> void:
+	layer("glass", true, DISCORD, at, Vector3.ONE * size, Vector3(0, 0, randf() * TAU), start, 0.7, {"initial": 0.3, "grow": 7.0, "overshoot": true, "face_camera": true, "roll": 0.6, "decay": 0.45, "opacity": 0.85})
+	for k in count(5):
+		var a := float(k) * TAU / 5.0 + 0.3
+		layer("glass", true, DISCORD, at, Vector3.ONE * size * 0.32, Vector3(0, 0, a), start + 0.18, 0.75, {"initial": 1.0, "toss": Vector3(sin(a) * 1.6, 1.2 + 0.6 * cos(a), cos(a) * 0.8), "gravity": 9.0, "floor": 0.1, "roll": 7.0 if k % 2 else -7.0, "face_camera": true, "decay": 0.6, "opacity": 0.75, "tier": TIER_DEBRIS})
+
+
+## A song reaches the party: a little ring of notes orbits each ally in range (at most
+## three, nearest first), so the buff is seen landing on them.
+static func _serenade(parent: Node3D, skill: Dictionary, origin: Vector3, delay: float) -> void:
+	if not parent.is_inside_tree():
+		return
+	var c := palette(skill)
+	var allies: Array = []
+	for group in ["companions", "summons"]:
+		for node in parent.get_tree().get_nodes_in_group(group):
+			var ally := node as Node3D
+			if ally and is_instance_valid(ally) and ally.is_inside_tree() and ally.global_position.distance_to(origin) <= 12.0 and ally.global_position.distance_to(origin) > 0.5:
+				allies.append(ally)
+	allies.sort_custom(func(a, b): return a.global_position.distance_squared_to(origin) < b.global_position.distance_squared_to(origin))
+	for i in mini(allies.size(), 3):
+		if not VfxBudget.can_decorate(3 + RESERVE):
+			return
+		var spot: Vector3 = allies[i].global_position
+		var art := _root(parent, spot, "BardArt_Serenade_%d" % i)
+		art.cap = mini(art.cap, 4)
+		art._orbit_notes(c, 3, 0.85, 0.6, 3.2, delay + 0.15 + 0.1 * float(i), 1.3, 0.32, 0.6)
+		art.layer("soundwave", true, c, Vector3.UP * 0.04, Vector3.ONE * 1.3, Vector3.ZERO, delay + 0.15 + 0.1 * float(i), 0.6, {"initial": 0.2, "grow": 3.0, "overshoot": true, "opacity": 0.6})
 
 
 ## The shared status language over [param at]: a gold fermata over each stunned foe (held
@@ -374,6 +419,7 @@ func _marks(fx: Dictionary, at: Vector3, r: float, start: float, spots := 2) -> 
 			layer("fermata", true, GILT, at + Vector3(sin(a), 0, cos(a)) * r * 0.45 + Vector3.UP * 2.2, Vector3.ONE * 0.85, Vector3.ZERO, start + 0.05 * float(k), clampf(float(fx.stun), 0.5, 2.2), {"initial": 0.3, "grow": 5.0, "face_camera": true, "travel": Vector3(0, 0.15, 0), "decay": 0.8})
 	if fx.get("shred") is Array:
 		layer("cracked_stave", false, DISCORD, at + Vector3.UP * 0.05, Vector3.ONE * r * (0.45 + 1.2 * float(fx.shred[0])), Vector3(0, randf() * TAU, 0), start, 1.4, {"initial": 0.5, "grow": 6.0, "decay": 0.7})
+		_glass(at + Vector3.UP * 1.5, 1.1 + r * 0.12, start)
 	if fx.get("weaken") is Array:
 		var f := float(fx.weaken[0])
 		for k in 2 + int(f >= 0.2) + int(f >= 0.25):
@@ -394,7 +440,7 @@ func _stage(c: Array, at: Vector3, r: float, start: float, seconds: float) -> vo
 	layer("stage", true, c, at + Vector3.UP * 0.02, Vector3(r * 0.62, 1.0, r * 0.62), Vector3.ZERO, start, seconds, {"initial": 0.25, "grow": 1.6, "spin": 0.15, "fade_in": 0.15, "decay": 0.85, "opacity": 0.75})
 	_curtains(MELODY, at, r * 0.6, 3.4, start, seconds)
 	for s: float in [-1.0, 1.0]:
-		layer("spotlight", true, GILT, at + _side * s * r * 0.32 + _away * r * 0.1, Vector3(1.4, 7.0, 1.4), Vector3.ZERO, start + 0.05, seconds, {"initial": 0.4, "grow": 1.5, "fade_in": 0.3, "decay": 0.85, "opacity": 0.38})
+		layer("spotlight", true, GILT, at + _side * s * r * 0.32 + _away * r * 0.1, Vector3(1.4, 7.0, 1.4), Vector3(0, 0, -s * 0.12), start + 0.05, seconds, {"initial": 0.4, "grow": 1.5, "flutter": 0.14, "phase": s * 1.3, "fade_in": 0.3, "decay": 0.85, "opacity": 0.38})
 
 
 ## ★ growth: an outer gold ring from ★3, a crown of five gold stars at ★5 (always last: first to drop).
@@ -459,6 +505,7 @@ func _compose(id: String, skill: Dictionary, c: Array, reach: float, r: float, d
 		"discord":
 			# A jarring chord: the staff under the pack cracks, rings roll out askew, notes shake loose.
 			layer("cracked_stave", false, c, Vector3(0, 0.05, 0), Vector3.ONE * r * (0.45 + 1.2 * _frac(fx, "shred")), Vector3(0, randf() * TAU, 0), d, 1.3, {"initial": 0.4, "grow": 6.0, "decay": 0.7})
+			_glass(Vector3(0, 1.6, 0), 1.3, d)
 			_rings(c, Vector3.ZERO, r, 2, d, 0.06, 0.55, false, 0.12)
 			layer("vortex", true, c, Vector3(0, 0.08, 0), Vector3.ONE * r * 0.6, Vector3.ZERO, d, 0.8, {"initial": 0.3, "spin": 4.0, "opacity": 0.5})
 			for k in 3:
@@ -736,6 +783,8 @@ func _star(id: String, skill: Dictionary, c: Array, index: int, radius: float, s
 # ---------------------------------------------------------------------------
 
 static func mesh(kind: String) -> ArrayMesh:
+	if kind in CASTER_KINDS:
+		return CasterArt.mesh(kind)
 	if kind in LORD_KINDS:
 		return LordSkillArt.mesh(kind)
 	if kind in SHADOW_KINDS:
@@ -1251,3 +1300,4 @@ static func _pips(st: SurfaceTool, n: int) -> void:
 ## class nearby, need not stay in a phone's memory). Live effects keep their own.
 static func release_mesh_cache() -> void:
 	_meshes.clear()
+	CasterArt.release_mesh_cache()
