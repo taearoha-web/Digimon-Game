@@ -67,6 +67,8 @@ func _ready() -> void:
 	var sb := RaidData.monster_stats(strong, "boss")
 	check(sb.hp > wb.hp * 10 and sb.atk > wb.atk * 10, "the boss follows the party's power (%s vs %s)" % [wb, sb])
 	check(int(wb.level) == 42 and int(sb.level) == 100 + int(250 * 0.45), "the level shown follows level and stars (%d / %d)" % [int(wb.level), int(sb.level)])
+	var dps_strong := HeroStats.mitigate(float(strong.get("atk_sum", 10.0)) * RaidData.DPS_PER_ATK, float(sb.def))
+	check(RaidData.BOSS_HP_MULT == 5.0 and absf(float(sb.hp) / (dps_strong * RaidData.BOSS_TTK * 5.0) - 1.0) < 0.01, "the raid boss has five times its old HP (%d)" % int(sb.hp))
 	check(RaidData.monster_stats(strong, "trash").hp < RaidData.monster_stats(strong, "mid").hp and RaidData.monster_stats(strong, "mid").hp < sb.hp, "trash < mid-boss < boss")
 	check(RaidData.trash_pool(40).size() > 0 and RaidData.mid_boss(40) != &"" and RaidData.trash_pool(100) == RaidData.STAR_POOL, "monster pools for each band")
 	var first := RaidData.rewards(100, 250, true, RandomNumberGenerator.new())

@@ -32,6 +32,8 @@ const BOSS_TINT := Color(1.9, 0.38, 0.42)
 const BOSS_COLOR := Color("ff2f4a")
 ## Seconds a party of its power needs for one boss / mid-boss / monster (before skills).
 const BOSS_TTK := 130.0
+## The raid boss's HP on top of BOSS_TTK: it fell too fast to skills (x5).
+const BOSS_HP_MULT := 5.0
 const MID_TTK := 30.0
 const TRASH_TTK := 6.0
 ## A member's damage a second against the raid: attack x this, through the monster's DEF.
@@ -194,7 +196,8 @@ static func monster_stats(power: Dictionary, role: String) -> Dictionary:
 	var ttk: float = {"boss": BOSS_TTK, "mid": MID_TTK}.get(role, TRASH_TTK)
 	var hit: float = {"boss": BOSS_HIT, "mid": MID_HIT}.get(role, TRASH_HIT)
 	var atk := hit * float(power.get("hp_avg", 100.0)) * (100.0 + float(power.get("def_avg", 0.0))) / 100.0
-	return {"hp": maxi(50, int(round(dps * ttk))), "atk": maxi(5, int(round(atk))), "def": int(round(def)), "level": level}
+	var hp_mult := BOSS_HP_MULT if role == "boss" else 1.0
+	return {"hp": maxi(50, int(round(dps * ttk * hp_mult))), "atk": maxi(5, int(round(atk))), "def": int(round(def)), "level": level}
 
 
 ## What a floor holds: {ids: [StringName], mid: StringName (floor 2), boss: bool}.
