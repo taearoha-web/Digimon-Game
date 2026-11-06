@@ -6,6 +6,8 @@ extends CharacterBody3D
 ## after a while.
 
 var member: Dictionary = {}
+var _kit: Array = []
+var _kit_level := -1
 var index := 0
 var hero: Hero
 var field: Node3D
@@ -762,7 +764,7 @@ func _try_skills(distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	for skill in skills:
-		if skill.has("star") or int(skill.level) > int(member.level) + 9 or ClassData.skill_tier(skill) > _tier() or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if not ClassData.ai_allows(skill, _buff_kit()) or skill.has("star") or int(skill.level) > int(member.level) + 9 or ClassData.skill_tier(skill) > _tier() or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, distance, hero_hp)
 		if score > best_score:
@@ -772,6 +774,15 @@ func _try_skills(distance: float) -> bool:
 		return false
 	_cast(best)
 	return true
+
+
+## The two buff skills this party member brings (ClassData.ai_buff_kit).
+func _buff_kit() -> Array:
+	var lv := int(member.get("level", 1)) + 9
+	if _kit_level != lv:
+		_kit_level = lv
+		_kit = ClassData.ai_buff_kit(StringName(member["class"]), lv, String(member.get("name", "")))
+	return _kit
 
 
 ## Companions advance on their own: job at Lv.20, master at Lv.40.

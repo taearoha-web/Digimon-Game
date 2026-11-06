@@ -21,6 +21,8 @@ var rival_name := ""
 var duel_over := false
 
 var _profile: Dictionary = {}
+## The two buff skills this player brings (ClassData.ai_buff_kit).
+var _buff_kit: Array = []
 var _equip: Dictionary = {}
 var _look: Dictionary = {}
 var _frozen := true
@@ -66,6 +68,7 @@ func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: Strin
 	difficulty = float(info.difficulty)
 	class_data = JobData.resolve(StringName(member["class"]), int(_profile.adv))
 	var base := HeroStats.compute(_profile)
+	_buff_kit = ClassData.ai_buff_kit(StringName(member["class"]), int(_profile.get("level", member.get("level", 1))), String(member.get("name", "")))
 	var mults: Dictionary = info.mults
 	rstats = base
 	rstats["max_hp"] = int(float(base.max_hp) * float(mults.hp))
@@ -394,7 +397,7 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 	var hp_ratio := float(hp) / float(max_hp)
 	for skill in class_data.skills:
 		var shape := String(skill.shape)
-		if int(skill.level) > level or ClassData.skill_tier(skill) > _tier() or int(skill.get("star", 0)) > _stars():
+		if not ClassData.ai_allows(skill, _buff_kit) or int(skill.level) > level or ClassData.skill_tier(skill) > _tier() or int(skill.get("star", 0)) > _stars():
 			continue
 		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue

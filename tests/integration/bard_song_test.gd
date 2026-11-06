@@ -78,7 +78,7 @@ func _ready() -> void:
 
 ## BuffBook: one song per recipient beside the 2 + 2, never evicting or evicted.
 func _song_slot() -> void:
-	check(BuffBook.SONG_LIMIT == 2 and BuffBook.GROUP_LIMIT == 2 and BuffBook.SONG_FAMILIES == ["attack", "ward"], "two song slots (an attack and a ward song) beside two self and two ally slots")
+	check(BuffBook.SONG_LIMIT == 2 and BuffBook.GROUP_LIMIT == 2 and BuffBook.SONG_FAMILIES == ["attack", "ward"], "two song slots (an attack and a ward song) beside two self slots (friends unlimited)")
 	var list: Array[Dictionary] = []
 	for ally in [false, true]:
 		for id in ["a", "b"]:
@@ -142,7 +142,7 @@ func _skill_rank() -> void:
 
 
 ## Four regular buffs and a song on the hero: five auras, no particles or lights, and
-## the HUD shows the song in its own lane while self / ally still read N/2.
+## the HUD shows the song in its own lane while self reads N/2 (friends: a count).
 func _auras_and_hud() -> void:
 	for id in ["zenith", "energy_shield"]:
 		var s := ClassData.find_skill(&"mage", id)
@@ -170,7 +170,7 @@ func _auras_and_hud() -> void:
 	bars.update_entries(status, 0.1)
 	check(bars._rows.song.visible and bars._rows.song.get_child_count() == 2 and bars._rows.song.get_child(0).text == "เพลง\n1/2", "the song has its own HUD lane (เพลง 1/2)")
 	check(bars._rows.self.get_child_count() == 3 and bars._rows.ally.get_child_count() == 3, "self and ally lanes keep two chips each")
-	check(bars._rows.self.get_child(0).text == "ใช้เอง\n2/2" and bars._rows.ally.get_child(0).text == "จากเพื่อน\n2/2", "self / ally lanes still read N/2")
+	check(bars._rows.self.get_child(0).text == "ใช้เอง\n2/2" and bars._rows.ally.get_child(0).text == "จากเพื่อน\n2", "self lane reads N/2, friends lane just the count")
 	hero._buffs.clear()
 	hero._sync_auras(Time.get_ticks_msec())
 	bars.update_entries(hero.timer_status(), 0.1)

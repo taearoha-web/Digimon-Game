@@ -32,13 +32,33 @@ func _ready() -> void:
 	list = BuffBook.insert(list, {"atk": 0.6, "secs": 60}, Color.WHITE, "c", false, "c", 200)
 	check(not BuffBook.contains(list, "a", false, 200) and BuffBook.contains(list, "a", true, 200), "third self removes only oldest self")
 	list = BuffBook.insert(list, {"atk": 0.5, "secs": 60}, Color.WHITE, "c", true, "c", 300)
-	check(not BuffBook.contains(list, "a", true, 300) and BuffBook.contains(list, "b", false, 300), "third friend removes only oldest friend")
+	check(BuffBook.contains(list, "a", true, 300) and BuffBook.contains(list, "c", true, 300) and BuffBook.group_count(list, true, 300) == 3, "friends' buffs have no limit: a third friend buff keeps the first two")
+	for extra in ["f1", "f2", "f3"]:
+		list = BuffBook.insert(list, {"atk": 0.1, "secs": 60}, Color.WHITE, extra, true, extra, 300)
+	check(BuffBook.group_count(list, true, 300) == 6 and BuffBook.group_count(list, false, 300) == 2, "six friend buffs kept beside the two own slots")
+	list = BuffBook.insert(list, {"atk": 0.5, "secs": 60}, Color.WHITE, "c", true, "c", 300)
+	check(BuffBook.group_count(list, true, 300) == 6, "the same friend skill again refreshes, never doubles")
+	list = list.filter(func(b): return not (bool(b.ally) and String(b.skill_id) in ["c", "f1", "f2", "f3"]))
 	list = BuffBook.insert(list, {"atk": 0.9, "secs": 90}, Color.WHITE, "renamed", false, "b", 400)
 	check(list.size() == 4 and list.back().until == 90400 and list.back().atk == 0.9, "refresh by stable skill id updates potency and duration once")
 	list = BuffBook.insert(list, {"secs": 60}, Color.WHITE, "d", false, "d", 500)
 	check(BuffBook.contains(list, "b", false, 500) and not BuffBook.contains(list, "c", false, 500), "refreshed skill becomes newest")
 	list = BuffBook.insert(list, {"secs": 60}, Color.WHITE, "e", true, "e", 100000)
 	check(list.size() == 1, "expired buffs removed before applying limits")
+	# AI players bring two buff skills at most (the Defender's เบ่งเลือด always one).
+	for cls in [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]:
+		var kit := ClassData.ai_buff_kit(cls, 100, "QA Bot")
+		check(kit.size() <= ClassData.AI_BUFF_SKILLS, "%s AI brings at most two buff skills: %s" % [cls, kit])
+		var buffs := ClassData.pool(cls).filter(func(sk): return ClassData.is_buff_skill(sk) and int(sk.level) <= 100 and not sk.has("star"))
+		check(kit.size() == mini(2, buffs.size()), "%s AI fills both buff picks when it can: %s" % [cls, kit])
+		for sk in buffs:
+			check(ClassData.ai_allows(sk, kit) == kit.has(String(sk.id)), "%s AI casts only its picked buffs (%s)" % [cls, sk.id])
+		check(kit == ClassData.ai_buff_kit(cls, 100, "QA Bot"), "%s AI pick is stable per player" % cls)
+	check(ClassData.ai_buff_kit(&"defender", 100, "Anyone").has("brace"), "the Defender AI always brings เบ่งเลือด")
+	# The HUD lane overlaps icons once there are many (friends' buffs have no limit).
+	check(TimerBars.stack_gap(2, 36.0, 3) == 3 and TimerBars.stack_gap(8, 36.0, 3) < 0, "many buff icons overlap in their lane")
+	var lane_long := 36.0 + 7.0 * (36.0 + float(TimerBars.stack_gap(8, 36.0, 3)))
+	check(lane_long <= 4.0 * 36.0, "eight buff icons take about three icons of room (%.0f px)" % lane_long)
 	# Real hero path: stats, skill identities, aura lifetime and repeated casts.
 	var field := Node3D.new()
 	add_child(field)
@@ -58,9 +78,10 @@ func _ready() -> void:
 	var expected := Game.stats_now({"atk": BuffBook.stack([0.9, 0.4, 0.12]), "def": BuffBook.stack([0.6, 0.3, 0.25]), "crit": 0.15, "speed": 0.0})
 	check(hero.stats.atk == expected.atk and hero.stats.def == expected.def, "real computed stats exclude replaced buff and preserve ally effects")
 	cast_buff(hero, "energy_shield", true)
-	check(hero._buffs.size() == 4 and BuffBook.contains(hero._buffs, "energy_shield", false) and BuffBook.contains(hero._buffs, "energy_shield", true), "same skill from self and ally can coexist in separate groups")
+	check(hero._buffs.size() == 5 and BuffBook.contains(hero._buffs, "energy_shield", false) and BuffBook.contains(hero._buffs, "energy_shield", true), "same skill from self and ally can coexist in separate groups")
+	check(hero._auras.size() == 4 and not hero._auras.has("holy_valor:true"), "only the two newest friends' buffs wear body art (own two always)")
 	cast_buff(hero, "energy_shield", true)
-	check(hero._buffs.size() == 4, "same ally skill never duplicates across repeated casts")
+	check(hero._buffs.size() == 5, "same ally skill never duplicates across repeated casts")
 	var buddy := Companion.new()
 	buddy.hero = hero
 	buddy.field = field
@@ -68,12 +89,15 @@ func _ready() -> void:
 	for id in ["zenith", "energy_shield", "magic_overdrive"]:
 		buddy._apply_self(ClassData.find_skill(&"mage", id))
 	check(buddy._book.buffs.size() == 2 and not BuffBook.contains(buddy._book.buffs, "zenith", false), "companion self casts also cap at two")
-	check(BuffBook.group_count(hero._buffs, true) == 2 and BuffBook.group_count(hero._buffs, false) == 2, "companion casts preserve the hero's own two slots")
+	check(BuffBook.group_count(hero._buffs, true) >= 3 and BuffBook.group_count(hero._buffs, false) == 2, "companion casts preserve the hero's own two slots")
 	for id in ["forest_blessing", "beast_rage", "spirit_link"]:
 		var skill := ClassData.find_skill(&"summoner", id)
 		buddy.receive_party_buff(skill.fx.buff, skill.color, skill.name, id)
-	check(buddy._book.buffs.size() == 4 and BuffBook.group_count(buddy._book.buffs, true) == 2, "companion has two independent incoming slots")
-	check(is_equal_approx(buddy._buffed_atk(), 100 * (1 + BuffBook.stack([0.9, 0.3, 0.5]))), "companion attack uses one common stack without duplicate multipliers")
+	check(buddy._book.buffs.size() == 5 and BuffBook.group_count(buddy._book.buffs, true) == 3, "companion keeps every friend's buff beside its own two")
+	var incoming: Array = []
+	for b in buddy._book.buffs:
+		incoming.append(float(b.get("atk", 0.0)))
+	check(is_equal_approx(buddy._buffed_atk(), 100 * (1 + BuffBook.stack(incoming))), "companion attack uses one common stack without duplicate multipliers")
 	buddy.free()
 	# Every authored buff has its own cached geometry and matching casting palette.
 	var seen := {}
@@ -121,7 +145,7 @@ func _ready() -> void:
 		check(buffs_rect.position.y >= status_rect.end.y, "buffs below own status " + str(resolution))
 		check(target_rect.position.x > buffs_rect.end.x, "enemy bar separated from own buffs " + str(resolution))
 		check(target_rect.end.x < resolution.x - 160, "enemy bar clear of minimap " + str(resolution))
-		check(hud._timers._rows.self.get_child_count() == 3 and hud._timers._rows.ally.get_child_count() == 3, "label plus two chips per row")
+		check(hud._timers._rows.self.get_child_count() == 3 and hud._timers._rows.ally.get_child_count() == 1 + BuffBook.group_count(hero._buffs, true), "label plus one chip per buff (own two, every friend buff)")
 	var zone := Zone.new()
 	hud.zone = zone
 	mob.is_boss = true

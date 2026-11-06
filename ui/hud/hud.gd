@@ -1761,7 +1761,15 @@ class CompactTimers extends TimerBars:
 		for group in _rows:
 			_rows[group].visible = groups.has(group)
 			var limit := BuffBook.SONG_LIMIT if group == "song" else BuffBook.GROUP_LIMIT
-			_rows[group].get_child(0).text = LABELS[group] if group == "summon" else "%s\n%d/%d" % [LABELS[group], int(groups.get(group, 0)), limit]
+			var n := int(groups.get(group, 0))
+			if group == "summon":
+				_rows[group].get_child(0).text = LABELS[group]
+			elif group == "ally":
+				_rows[group].get_child(0).text = "%s\n%d" % [LABELS[group], n]
+			else:
+				_rows[group].get_child(0).text = "%s\n%d/%d" % [LABELS[group], n, limit]
+			if group != "summon":
+				_rows[group].add_theme_constant_override("separation", TimerBars.stack_gap(n, BuffChip.DIAMETER + 2.0, 3))
 		visible = not _chips.is_empty()
 
 

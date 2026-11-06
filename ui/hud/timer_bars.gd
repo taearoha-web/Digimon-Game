@@ -32,6 +32,22 @@ func _ready() -> void:
 		row.hide()
 	visible = false
 
+## Past STACK_AT icons a lane overlaps them like a fanned hand of cards, so many
+## buffs (friends' buffs have no limit) keep a short row: newest on top.
+const STACK_AT := 3
+const STACK_SHOW := 0.42
+
+
+## Spacing for [param count] icons [param width] px wide: [param base] while few,
+## then overlapping so the lane stays about STACK_AT icons long.
+static func stack_gap(count: int, width: float, base: int) -> int:
+	if count <= STACK_AT:
+		return base
+	var room := float(STACK_AT) * width + float(STACK_AT - 1) * float(base)
+	var step := maxf(width * STACK_SHOW, (room - width) / float(count - 1))
+	return int(round(step - width))
+
+
 func update_entries(entries: Array, delta: float) -> void:
 	var seen := {}
 	var groups := {}
@@ -61,6 +77,9 @@ func update_entries(entries: Array, delta: float) -> void:
 		_rows[group].visible = groups.has(group)
 		if group == "song":
 			_rows[group].get_child(0).text = "เพลง\n%d/%d" % [int(groups.get(group, 0)), BuffBook.SONG_LIMIT]
+		elif group == "ally":
+			_rows[group].get_child(0).text = "จากเพื่อน\n%d" % int(groups.get(group, 0))
 		elif group != "summon":
-			_rows[group].get_child(0).text = "%s\n%d/%d" % ["ใช้เอง" if group == "self" else "จากเพื่อน", int(groups.get(group, 0)), BuffBook.GROUP_LIMIT]
+			_rows[group].get_child(0).text = "%s\n%d/%d" % ["ใช้เอง", int(groups.get(group, 0)), BuffBook.GROUP_LIMIT]
+
 	visible = not _chips.is_empty()
