@@ -213,7 +213,7 @@ func burst(preset: String, c: Array, at: Vector3, start: float, style := {}) -> 
 		amount = maxi(2, amount / 2)
 	bursts.append({"preset": preset, "c": c, "at": at, "start": start, "style": style, "amount": amount, "fired": false, "emitter": null})
 	var stream := float(style.get("stream", 0.0))
-	lifetime = maxf(lifetime, start + stream + _life(preset) * 1.15 + 0.05)
+	lifetime = maxf(lifetime, start + stream + _life(preset) * float(style.get("life", 1.0)) * 1.15 + 0.05)
 	layers_built += 1
 
 

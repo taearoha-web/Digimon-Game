@@ -137,7 +137,7 @@ static func raven_feathers(parent: Node3D, at: Vector3, c: Array, pack: bool) ->
 	var kit := SignatureKit.begin(parent, at, at + Vector3.FORWARD, "Signature_Raven")
 	if kit == null:
 		return
-	kit.burst("feathers", [c[0], c[1], Color("0b0614")], Vector3(0, 0.6, 0), 0.0, {"amount": 12 if pack else 7, "radius": 0.5, "speed": 1.2, "spread": 80.0, "swirl": 3.0})
+	kit.burst("feathers", [c[0], c[1], Color("0b0614")], Vector3(0, 0.6, 0), 0.0, {"amount": 12 if pack else 7, "radius": 0.5, "speed": 1.2, "spread": 80.0, "swirl": 3.0, "life": 0.75})
 	kit.sheet(SignatureKit.RING, c, Vector3(0, 0.08, 0), 0.0, 0.35, {"ground": true, "size": Vector2.ONE * 0.5, "grow": Vector2.ONE * (3.2 if pack else 1.6), "level": SignatureKit.MAIN, "opacity": 0.6})
 
 
