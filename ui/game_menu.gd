@@ -9,7 +9,7 @@ signal title_requested()
 signal raid_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -64,11 +64,12 @@ func _ready() -> void:
 	frame.add_child(panel)
 	var row := UIUtil.hbox(14)
 	panel.add_child(row)
-	var tabs := UIUtil.vbox(8)
+	# Ten tabs and the close button must fit a 720 px tall phone screen.
+	var tabs := UIUtil.vbox(8 if TABS.size() <= 8 else 5)
 	tabs.custom_minimum_size = Vector2(190, 0)
 	row.add_child(tabs)
 	for tab in TABS:
-		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54))
+		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54 if TABS.size() <= 8 else 46))
 		b.pressed.connect(func(): show_tab(StringName(tab[0])))
 		tabs.add_child(b)
 		_tab_buttons[StringName(tab[0])] = b
@@ -150,6 +151,7 @@ func _rebuild() -> void:
 	_page_scroll = null
 	for key in _tab_buttons:
 		_tab_buttons[key].disabled = key == current_tab
+	_mark_pass_tab()
 	UIUtil.clear(_content)
 	_slice_build = keep_y <= 0
 	_build_gen += 1
@@ -162,6 +164,7 @@ func _rebuild() -> void:
 				_build_inventory()
 		&"skills": _build_skills()
 		&"quests": _build_quests()
+		&"pass": _page_scroll = DailyPassView.build(_content, _queue_rebuild)
 		&"achievements": _build_achievements()
 		&"titles": _build_titles()
 		&"mounts": _build_mounts()
@@ -173,6 +176,20 @@ func _rebuild() -> void:
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
+
+
+## The "ภารกิจ & บัตร" tab shows a red dot while something is waiting to be claimed.
+func _mark_pass_tab() -> void:
+	var b: Button = _tab_buttons.get(DailyPassView.TAB_ID)
+	if b == null:
+		return
+	var ready := Game.has_profile and DailyPass.claimable() > 0
+	b.text = DailyPassView.TAB_NAME + (" ●" if ready else "")
+	for key in ["font_color", "font_disabled_color", "font_hover_color", "font_pressed_color"]:
+		if ready:
+			b.add_theme_color_override(key, UIPalette.DANGER)
+		else:
+			b.remove_theme_color_override(key)
 
 
 # ---------------------------------------------------------------------------

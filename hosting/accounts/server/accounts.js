@@ -224,6 +224,15 @@ function validateProfile(profile) {
   // The weekly guild league record (GuildLeague in the game): season numbers, up to 64
   // real wars a season (ints under fixed keys) and the secret shop's buy counts.
   if ('league' in profile && !validLeague(profile.league)) fail(400, 'invalid_save', 'The guild league record is invalid.');
+  // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
+  if ('dpass' in profile) {
+    const pass = profile.dpass;
+    const lists = dictionary(pass) ? [pass.dq ?? [], pass.wq ?? []] : null;
+    if (!lists || lists.some(list => !Array.isArray(list) || list.length > 8 || list.some(entry => !dictionary(entry)
+          || typeof entry.id !== 'string' || !integer(entry.p ?? 0) || !integer(entry.t ?? 1, 1) || typeof (entry.c ?? false) !== 'boolean'))
+        || ['day', 'week', 'month', 'pts', 'warn'].some(key => key in pass && !integer(pass[key], -1))
+        || ('got' in pass && !integer(pass.got, 0, 2 ** 30 - 1))) fail(400, 'invalid_save', 'The daily quests or reward pass are invalid.');
+  }
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
     const stall = profile.stall;

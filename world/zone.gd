@@ -1213,6 +1213,7 @@ func _on_golden_died(mob: Mob) -> void:
 	if mob.party_share() < 0.5:
 		Game.world_chat.emit("ประกาศ", "%s ถูกปราบแล้ว!" % WorldEvents.NAME_GOLDEN, WorldEvents.GOLDEN_COLOR)
 		return
+	Game.daily_progress("golden")
 	var from := mob.global_position
 	var gold := WorldEvents.GOLDEN_GOLD * WorldEvents.golden_tier(data)
 	_spawn_loot({}, gold, from)
