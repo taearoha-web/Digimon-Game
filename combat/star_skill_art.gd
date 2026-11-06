@@ -121,6 +121,9 @@ func add_mesh(geometry: Mesh, label: String, colors: Dictionary, at: Vector3, si
 	mat.set_shader_parameter("spectral",float(style.get("spectral",0)))
 	# A falling shield or carrier draws after the translucent seals it lands among.
 	if bool(style.get("front",false)): mat.render_priority=1
+	# Optional depth tier (GodSkillArt): a glassier body and an explicit draw order.
+	if style.has("veil"): mat.set_shader_parameter("veil",float(style.veil))
+	if style.has("priority"): mat.render_priority=int(style.priority)
 	node.material_override=mat
 	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(node)

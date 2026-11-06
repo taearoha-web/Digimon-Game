@@ -34,9 +34,47 @@ static func _extra(parent: Node3D, point: Vector3, seconds: float, label: String
 	return art
 
 
+## Depth tiers, so the god art frames the shared layer stack (SkillLayers: the hot core,
+## sparks, rings and smoke drawn at priority 0) instead of burying it:
+##   core   what falls and lands ("front": blades, lances, shields) stays solid, drawn last
+##   detail shards, feathers, rain, sweeps: thinner, glassier and gone sooner
+##   mid    emblems, avatars and aureoles in the sky: half glass, behind the stack
+##   outer  seals, temples and pillars on the ground: mostly glass, drawn first
+## Cosmetic only: no layer is added or dropped and no root lives longer.
+const SPARKS := ["shards", "feathers", "rain", "note_shower", "bolt", "sweep", "wind", "storm"]
+const TIERS := {
+	"detail": {"opacity": 0.5, "veil": 0.5, "priority": 0, "life": 0.68},
+	"mid": {"opacity": 0.72, "veil": 0.45, "priority": -1, "life": 1.0},
+	"outer": {"opacity": 0.55, "veil": 0.72, "priority": -2, "life": 1.0},
+}
+
+
+static func tier_of(kind: String, at: Vector3, style: Dictionary) -> String:
+	if bool(style.get("front", false)): return "core"
+	if kind.trim_prefix("elite/").trim_prefix("martial/") in SPARKS: return "detail"
+	return "outer" if at.y < 1.6 else "mid"
+
+
+## The style of a layer in its tier (opacity, glass, draw order, a shorter life for details).
+static func _tiered(kind: String, at: Vector3, seconds: float, style: Dictionary) -> Dictionary:
+	var tier := tier_of(kind, at, style)
+	var out := style.duplicate()
+	out.seconds = seconds
+	if tier == "core": return out
+	var t: Dictionary = TIERS[tier]
+	out.opacity = minf(float(style.get("opacity", 0.94)), float(t.opacity))
+	out.veil = t.veil
+	out.priority = t.priority
+	out.seconds = seconds * float(t.life)
+	if tier == "detail": out.decay = minf(float(style.get("decay", 0.6)), 0.5)
+	return out
+
+
 ## Adds a StarGeometry / "martial/" kind, or an EliteSkillArt mesh with "elite/".
 static func _put(art: StarSkillArt, kind: String, c: Dictionary, at: Vector3, size: Vector3, angles := Vector3.ZERO, seconds := 1.0, style := {}) -> void:
 	if not art: return
+	style = _tiered(kind, at, seconds, style)
+	seconds = float(style.seconds)
 	if kind.begins_with("elite/"):
 		var name := kind.trim_prefix("elite/")
 		art.add_mesh(EliteSkillArt.geometry(name), "Elite_" + name, c, at, size, angles, seconds, style)
@@ -61,13 +99,13 @@ static func _drop(art: StarSkillArt, mesh: Mesh, label: String, c: Dictionary, s
 ## The same blade planted in the ground after its fall, sunk by [param sink].
 static func _planted(art: StarSkillArt, mesh: Mesh, label: String, c: Dictionary, spot: Vector3, length: float, seconds: float, delay: float, sink := 0.6) -> void:
 	var pose := _point_down(mesh, length, -sink)
-	art.add_mesh(mesh, label, c, spot + pose[0], pose[1], Vector3(PI, 0, 0), seconds, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.7, "front": true, "delay": delay})
+	art.add_mesh(mesh, label, c, spot + pose[0], pose[1], Vector3(PI, 0, 0), seconds, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.5, "front": true, "delay": delay, "veil": 0.3})
 
 
 ## The class colours burning brighter: the light of the Bard's notes, so they glow
 ## pale over the saturated seals and pillars they hang among.
 static func _lit(c: Dictionary) -> Dictionary:
-	return {"primary": c.accent, "accent": (c.accent as Color).lerp(Color.WHITE, 0.5), "shade": c.primary}
+	return {"primary": c.accent, "accent": (c.accent as Color).lerp(Color.WHITE, 0.3), "shade": c.primary}
 
 
 static func _spot(index: int, radius: float) -> Vector3:
@@ -356,7 +394,7 @@ static func _avatar(art: StarSkillArt, id: String, c: Dictionary, r: float, spec
 		"divine_edict":
 			_put(art, "lion", c, high, Vector3.ONE * 4.6, Vector3.ZERO, 2.0, rise)
 			_put(art, "aureole", c, high, Vector3.ONE * r * 0.42, Vector3.ZERO, 2.0, aureole)
-			_put(art, "martial/sword_fan", c, Vector3.UP * 0.5, Vector3.ONE * r * 0.5, Vector3.ZERO, 1.6, rise.merged({"spin": 1.2}, true))
+			_put(art, "martial/sword_fan", c, Vector3.UP * 0.5, Vector3.ONE * r * 0.34, Vector3.ZERO, 1.3, rise.merged({"spin": 1.2}, true))
 		"sunfall_volley":
 			_put(art, "sunrise", c, high, Vector3.ONE * r * 0.5, Vector3(PI / 2, 0, 0), 2.0, aureole.merged({"spin": 0.0}, true))
 			_put(art, "aureole", c, high, Vector3.ONE * r * 0.45, Vector3.ZERO, 2.0, aureole)
