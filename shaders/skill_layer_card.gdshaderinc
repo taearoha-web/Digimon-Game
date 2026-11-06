@@ -54,6 +54,8 @@ void vertex() {
 void fragment() {
 	vec4 t = texture(tex, UV);
 	float a = t.a * COLOR.a * alpha_gain;
+	// Soft card edge: a gained-up texture never shows its square border.
+	a *= 1.0 - smoothstep(0.36, 0.5, length(UV - vec2(0.5)));
 	if (dissolve > 0.0) {
 		float n = layer_noise(UV * 4.5 + v_seed * 17.0) * 0.62 + layer_noise(UV * 10.0 - v_seed * 9.0) * 0.38;
 		float cut = smoothstep(0.2, 1.0, v_life) * dissolve;

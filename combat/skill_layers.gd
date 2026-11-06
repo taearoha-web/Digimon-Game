@@ -82,7 +82,7 @@ const KINDS := {
 	"petal": {"tex": "petal", "glow": false, "size": 0.24, "gravity": Vector3(0, -0.6, 0), "damping": 1.9, "life": 1.8, "curve": "flat", "ramp": "solid"},
 	"droplet": {"tex": "dot", "glow": true, "size": 0.14, "stretch": 2.6, "hot": 0.5, "gravity": Vector3(0, -11.0, 0), "damping": 0.4, "life": 0.75, "curve": "shrink", "ramp": "hot", "align": true},
 	"note": {"tex": "note", "glow": true, "size": 0.42, "gravity": Vector3(0, 0.9, 0), "damping": 1.5, "life": 1.4, "curve": "pop", "ramp": "soft_glow"},
-	"wisp": {"tex": "smoke_soft", "glow": false, "size": 0.62, "stretch": 2.4, "dissolve": 0.7, "gain": 2.2, "gravity": Vector3(0, 0.9, 0), "damping": 1.6, "life": 1.15, "curve": "grow", "ramp": "dark", "align": true},
+	"wisp": {"tex": "smoke_soft", "glow": false, "size": 0.62, "stretch": 2.4, "dissolve": 0.7, "gain": 1.7, "gravity": Vector3(0, 0.9, 0), "damping": 1.6, "life": 1.15, "curve": "grow", "ramp": "dark", "align": true},
 }
 ## Star skills (no recipe row): their class's element, with a few authored exceptions.
 const STAR_CLASS_ELEMENT := {
