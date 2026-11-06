@@ -11,7 +11,12 @@ const K = preload("res://combat/class_art/signature_kit.gd")
 const NIGHT := [Color("9a6bff"), Color("f1e6ff"), Color("140a26")]
 const BLOOD := [Color("ff3a5e"), Color("ffe2ea"), Color("26050f")]
 const CRIT := [Color("ff2438"), Color("ffe8e8"), Color("3a0008")]
-const VENOM := [Color("86e05a"), Color("f2ffd8"), Color("4a1660")]
+## Sickly green with a violet core and rim: no white-hot core over the mist.
+const VENOM := [Color("86e05a"), Color("b48ae0"), Color("4a1660")]
+## The poison fog's body (ink, alpha blended): a dull green going violet-dark.
+const FOG := [Color("5e9a46"), Color("86c45c"), Color("2c1240")]
+## Bubbles rising out of the stain: violet skins with a green glint.
+const BUBBLE := [Color("a070d8"), Color("b8e88a"), Color("3a1458")]
 const SMOKE := [Color("4a405e"), Color("9a8ab6"), Color("120e1c")]
 const ECLIPSE := [Color("ff2a4a"), Color("ffd6dc"), Color("08030c")]
 const DASHES := ["shadow_step", "backstab", "throat_slit", "midnight_execution", "shadow_execution", "night_raid", "shadow_dance"]
@@ -107,12 +112,27 @@ static func smoke(kit: SignatureKit, at: Vector3, radius: float, start := 0.0) -
 	kit.burst("smoke", SMOKE, at + Vector3(0, 0.3, 0), start + 0.35, {"amount": 10, "radius": radius * 0.5, "speed": 0.6, "spread": 60.0, "scale": 1.8, "life": 1.2})
 
 
-## Poison: a green-violet stain, vapour steaming off it and drops falling.
+## Poison: a natural mist rather than a flash. A green-violet stain spreads,
+## low banks of fog roll out over it in layers turning against each other, a
+## ground-hugging fume creeps outward, vapour curls up slowly, drops fall out of
+## the cloud and bubbles rise out of the stain and pop.
 static func poison(kit: SignatureKit, at: Vector3, radius: float, start := 0.0) -> void:
-	kit.sheet(K.DARK, VENOM, at + Vector3(0, 0.04, 0), start, 1.5, {"ground": true, "size": Vector2.ONE * radius * 0.6, "grow": Vector2.ONE * radius * 1.8, "level": K.CORE, "decay": 0.6, "opacity": 0.5})
-	kit.sheet(K.RING, VENOM, at + Vector3(0, 0.07, 0), start, 0.5, {"ground": true, "size": Vector2.ONE * 0.5, "grow": Vector2.ONE * radius * 2.0, "level": K.MAIN, "decay": 0.35, "opacity": 0.7})
-	kit.burst("vapour", VENOM, at + Vector3(0, 0.3, 0), start, {"amount": 24 if radius > 2.0 else 10, "radius": radius * 0.55, "speed": 0.5, "spread": 30.0, "scale": 1.2})
-	kit.burst("drips", VENOM, at + Vector3(0, 1.4, 0), start + 0.05, {"amount": 10, "radius": radius * 0.4, "speed": 0.5, "spread": 40.0})
+	var big := radius > 2.0
+	kit.sheet(K.DARK, VENOM, at + Vector3(0, 0.03, 0), start, 1.6, {"ground": true, "size": Vector2.ONE * radius * 0.5, "grow": Vector2.ONE * radius * 1.9, "ease": K.OUT, "level": K.CORE, "fade_in": 0.15, "decay": 0.6, "opacity": 0.55})
+	kit.sheet(K.RING, VENOM, at + Vector3(0, 0.07, 0), start, 0.4, {"ground": true, "size": Vector2.ONE * 0.5, "grow": Vector2.ONE * radius * 2.0, "level": K.MAIN, "decay": 0.3, "opacity": 0.4})
+	# Rolling fog: banks of ink at three heights, each wider and fainter, turning
+	# against the one below and swelling out as they thin.
+	for i in (3 if big else 2):
+		var turn := 0.45 if i % 2 == 0 else -0.35
+		kit.sheet(K.SOFT, FOG, at + Vector3(0, 0.12 + 0.24 * i, 0), start + 0.08 * i, 1.55 - 0.12 * i, {"ground": true, "glow": false,
+			"size": Vector2.ONE * radius * (0.7 + 0.25 * i), "grow": Vector2.ONE * radius * (2.1 + 0.35 * i), "ease": K.OUT, "spin": turn,
+			"level": K.CORE if i == 0 else K.MAIN, "fade_in": 0.18 + 0.05 * i, "decay": 0.55, "opacity": 0.5 - 0.1 * i})
+	kit.burst("dust", FOG, at + Vector3(0, 0.12, 0), start, {"amount": 16 if big else 7, "radius": radius * 0.45, "speed": 0.6, "scale": 1.5, "level": K.MAIN})
+	kit.burst("vapour", VENOM, at + Vector3(0, 0.3, 0), start + 0.05, {"amount": 18 if big else 8, "radius": radius * 0.55, "speed": 0.35, "spread": 25.0, "scale": 1.25})
+	kit.burst("vapour", FOG, at + Vector3(0, 0.2, 0), start + 0.4, {"amount": 8 if big else 4, "radius": radius * 0.4, "speed": 0.25, "spread": 20.0, "scale": 1.5, "life": 0.8})
+	kit.burst("drips", VENOM, at + Vector3(0, 1.4, 0), start + 0.08, {"amount": 12 if big else 6, "radius": radius * 0.45, "speed": 0.4, "spread": 35.0})
+	kit.burst("drips", VENOM, at + Vector3(0, 1.1, 0), start + 0.45, {"amount": 8 if big else 4, "radius": radius * 0.35, "speed": 0.3, "spread": 30.0})
+	kit.burst("motes", BUBBLE, at + Vector3(0, 0.08, 0), start + 0.15, {"amount": 14 if big else 6, "radius": radius * 0.5, "speed": 0.3, "dir": Vector3.UP, "spread": 12.0, "scale": 0.9, "level": K.MAIN})
 
 
 ## Eclipse: the ground darkens round the strike under a rim of red light, a

@@ -18,7 +18,8 @@ const KINDS := "crescent dagger phantom moon eclipse rift sigil fangs smoke wing
 ## [primary, accent, shade] palettes.
 const NIGHT := [Color("9a6bff"), Color("f3eaff"), Color("140a26")]
 const BLOOD := [Color("ff3a6e"), Color("ffe3ec"), Color("26050f")]
-const VENOM := [Color("7ee05a"), Color("f4ffd9"), Color("0d2116")]
+## Sickly green with a violet core (no white-hot core: it washed the poison mist out).
+const VENOM := [Color("74cc4c"), Color("a874d8"), Color("140a1e")]
 const VOID := [Color("6a5cff"), Color("e8e4ff"), Color("07051a")]
 const CONTACT_GAP_MS := 90
 static var _meshes: Dictionary = {}
@@ -184,9 +185,11 @@ func _compose(id: String, c: Array, reach: float, radius: float, d: float) -> vo
 				layer("crescent", true, c, Vector3(0, 0.4 + i * 0.55, 0), Vector3.ONE * (1.1 - i * 0.15), Vector3(PI * 0.5, i * 2.1, 0), d + i * 0.06, 0.9, {"initial": 0.4, "spin": 7.0 - i * 2.0})
 			layer("moon", true, c, Vector3(0, 2.6, -0.5), Vector3.ONE * 0.8, Vector3.ZERO, d + 0.1, 1.2, {"face_camera": true, "initial": 0.3, "opacity": 0.75})
 		"venom_edge":
-			layer("dagger", true, c, target + Vector3(0, 1.05, -1.6), Vector3.ONE * 0.95, Vector3(PI * 0.5, 0, 0), d, 0.32, {"initial": 1.0, "travel": Vector3(0, 0, 1.4), "accelerate": true, "decay": 0.7})
+			layer("dagger", true, c, target + Vector3(0, 1.05, -1.6), Vector3.ONE * 0.95, Vector3(PI * 0.5, 0, 0), d, 0.32, {"initial": 1.0, "travel": Vector3(0, 0, 1.4), "accelerate": true, "decay": 0.7, "opacity": 0.7})
 			_x_cut(c, target + Vector3.UP * 1.05, 1.2, d + 0.1, NIGHT)
-			layer("smoke", false, c, target, Vector3(1.0, 0.9, 1.0), Vector3.ZERO, d + 0.12, 1.0, {"initial": 0.3, "opacity": 0.6})
+			# The venom stays on the wound: a low green fume rolling off it (ink, not light).
+			layer("smoke", false, c, target, Vector3(1.0, 0.7, 1.0), Vector3.ZERO, d + 0.12, 1.1, {"initial": 0.3, "grow": 2.0, "opacity": 0.5, "spin": 0.5})
+			layer("smoke", false, NIGHT, target + Vector3(0, 0.1, 0), Vector3(0.7, 0.9, 0.7), Vector3(0, 1.4, 0), d + 0.22, 0.9, {"initial": 0.3, "opacity": 0.35, "spin": -0.4, "travel": Vector3(0, 0.3, 0)})
 			layer("rift", false, c, target + Vector3.UP * 0.04, Vector3.ONE * 1.2, Vector3.ZERO, d + 0.1, 1.0, {"initial": 0.3})
 		"shadow_step":
 			for i in 3:
@@ -248,11 +251,14 @@ func _compose(id: String, c: Array, reach: float, radius: float, d: float) -> vo
 			layer("vortex", true, c, Vector3(0, 1.0, 0.6), Vector3.ONE * 0.9, Vector3(PI * 0.5, 0, 0), d, 0.45, {"initial": 0.3, "spin": 0.0, "roll": 8.0})
 			_phantom(c, Vector3(0, 0, -0.4), 0.0, d, 0.5, 1.05, {"opacity": 0.55})
 		"deadly_venom":
-			for i in 2:
-				layer("smoke", false, c, Vector3.ZERO, Vector3(r * (0.42 + 0.18 * i), r * 0.28, r * (0.42 + 0.18 * i)), Vector3(0, i * 1.3, 0), d + 0.08 * i, 1.6, {"initial": 0.15, "grow": 2.2, "opacity": 0.5 - 0.15 * i, "spin": 0.4})
-			layer("rift", false, c, Vector3(0, 0.04, 0), Vector3.ONE * r * 0.7, Vector3.ZERO, d, 1.5, {"initial": 0.2})
-			layer("fangs", true, c, Vector3.ZERO, Vector3(r * 0.5, 0.8, r * 0.5), Vector3.ZERO, d + 0.1, 1.0, {"initial": 0.2, "spin": 0.8})
-			layer("sigil", true, c, Vector3(0, 0.06, 0), Vector3.ONE * r * 0.85, Vector3.ZERO, d, 1.4, {"initial": 0.3, "spin": -1.0})
+			# A rolling poison fog: low banks of ink smoke turning against each other
+			# (no white glow over it), a stain under them and a faint sigil.
+			for i in 3:
+				layer("smoke", false, c if i != 1 else NIGHT, Vector3(0, 0.05 * i, 0), Vector3(r * (0.38 + 0.14 * i), r * (0.16 + 0.05 * i), r * (0.38 + 0.14 * i)), Vector3(0, i * 1.3, 0), d + 0.1 * i, 1.6 - 0.15 * i,
+					{"initial": 0.25, "grow": 1.6, "opacity": 0.42 - 0.08 * i, "spin": 0.35 * (1.0 if i % 2 == 0 else -1.0), "decay": 0.6})
+			layer("rift", false, c, Vector3(0, 0.04, 0), Vector3.ONE * r * 0.7, Vector3.ZERO, d, 1.5, {"initial": 0.2, "opacity": 0.7})
+			layer("fangs", false, c, Vector3.ZERO, Vector3(r * 0.5, 0.7, r * 0.5), Vector3.ZERO, d + 0.1, 1.0, {"initial": 0.2, "spin": 0.8, "opacity": 0.55})
+			layer("sigil", true, c, Vector3(0, 0.06, 0), Vector3.ONE * r * 0.85, Vector3.ZERO, d, 1.3, {"initial": 0.3, "spin": -1.0, "opacity": 0.3, "decay": 0.5})
 		"thousand_cuts":
 			for i in 6:
 				var tilt := float(i) * 0.55

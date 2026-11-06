@@ -169,7 +169,12 @@ static func hit(p_hero: Node3D, mob: Mob, skill: Dictionary, amount: int, crit: 
 		hub._beat_id = id
 		hub._beat_ms = now
 		hub._beat(skill, t, dir, crit, true)
-	flash(mob, SkillWeight.element(skill))
+	var tint := ClassFlourish.tinted(skill)
+	if tint.is_empty():
+		flash(mob, SkillWeight.element(skill))
+	elif is_instance_valid(mob.visual):
+		# The venom stains its victim sickly green, briefly (not a pale lilac wash).
+		mob.visual.flash(tint[0], 0.16)
 	if not killed:
 		react(p_hero, mob, dir, w)
 	hub._count(id, amount, mob)

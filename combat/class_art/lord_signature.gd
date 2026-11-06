@@ -15,6 +15,10 @@ const STORM := [Color("7ab8ff"), Color("f4fbff"), Color("101a48")]
 const RAVEN := [Color("6a3aa0"), Color("d8c4ff"), Color("0b0614")]
 const PORTAL := [Color("3a1260"), Color("b08aff"), Color("06020c")]
 const DUST := [Color("8a7a6a"), Color("c8b8a0"), Color("2a221a")]
+## The portal's rim and runes: violet going to gold, never to white.
+const RIM := [Color("9a5aff"), Color("e8b64a"), Color("1a0830")]
+const RUNE_GOLD := [Color("d89a30"), Color("f2c862"), Color("2a1606")]
+const ABYSS_SMOKE := [Color("2e1a48"), Color("5a3a80"), Color("08040e")]
 const FIRE_SKILLS := ["fire_burst", "fire_scream", "fire_blast", "infernal_scream", "chaos_inferno", "dark_comet", "imperial_judgment", "abyssal_throne"]
 const STORM_SKILLS := ["electric_spike", "thunder_lord", "plasma_storm", "imperial_cataclysm", "imperial_judgment", "abyssal_throne"]
 const RAVEN_SKILLS := ["birds", "raven_storm", "raven_sovereign"]
@@ -68,8 +72,9 @@ static func play(kit: SignatureKit, ctx: Dictionary) -> void:
 	var target := kit.to_local(Vector3(ctx.center.x, kit.global_position.y, ctx.center.z))
 	var shape := String(ctx.shape)
 	if id == "summon":
-		# The release: a gold shock off the portal's rim and a wide ring of violet runes.
-		kit.sheet(K.RING, ROYAL, Vector3(0, 0.1, 0), 0.0, 0.6, {"ground": true, "size": Vector2.ONE * 2.0, "grow": Vector2.ONE * 9.0, "level": K.CORE, "decay": 0.3, "opacity": 0.75})
+		# The release: a gold shock off the portal's rim (tinted, short, faint) and a wide ring of violet runes.
+		kit.sheet(K.RING, RUNE_GOLD, Vector3(0, 0.1, 0), 0.0, 0.45, {"ground": true, "size": Vector2.ONE * 2.0, "grow": Vector2.ONE * 8.0, "level": K.CORE, "decay": 0.3, "opacity": 0.5})
+		kit.burst("smoke", ABYSS_SMOKE, Vector3(0, 0.2, 0), 0.0, {"amount": 16, "radius": 2.0, "speed": 0.6, "dir": Vector3.UP, "spread": 25.0, "scale": 1.1})
 		kit.sheet(K.RUNES, PORTAL, Vector3(0, 0.05, 0), 0.0, 2.0, {"ground": true, "size": Vector2.ONE * 5.0, "grow": Vector2.ONE * 5.6, "spin": -0.8, "count": 22.0, "level": K.CORE, "decay": 0.6, "opacity": 0.85})
 		kit.burst("motes", [Color("9a6aff"), Color("ffe6a8"), Color("1a0a30")], Vector3(0, 0.2, 0), 0.0, {"amount": 20, "radius": 2.0, "speed": 1.4, "dir": Vector3.UP, "spread": 20.0, "swirl": 4.0})
 		return
@@ -166,16 +171,24 @@ static func crown(kit: SignatureKit, at: Vector3, size: float, start: float) -> 
 	kit.burst("motes", ROYAL, at - Vector3(0, 0.8, 0), start, {"amount": 10, "radius": 0.4 * size, "speed": 0.6, "dir": Vector3.UP, "spread": 25.0, "swirl": 2.0})
 
 
-## Summon: a dark portal opens, ringed with gold runes, with a violet column
-## and motes rising; the allies' own small portals open where they stood.
+## Summon: a dark portal opens, its rim lit violet going to gold, two rings of
+## gold runes turning against an inner violet one, dark smoke curling up off the
+## rim, a violet column and motes rising; the allies' own small portals open
+## where they stood.
 static func portal(kit: SignatureKit, at: Vector3, size: float, start: float, main: bool) -> void:
-	kit.sheet(K.DARK, PORTAL, at + Vector3(0, 0.03, 0), start, 2.4, {"ground": true, "size": Vector2.ONE * 0.4 * size, "grow": Vector2.ONE * 2.4 * size, "ease": K.BACK, "level": K.CORE if main else K.MAIN, "decay": 0.7, "opacity": 0.95})
-	kit.sheet(K.RUNES, ROYAL, at + Vector3(0, 0.06, 0), start, 2.4, {"ground": true, "size": Vector2.ONE * 0.6 * size, "grow": Vector2.ONE * 2.6 * size, "ease": K.BACK, "spin": 1.1, "count": 16.0, "level": K.CORE if main else K.MAIN, "decay": 0.7, "opacity": 0.9})
-	kit.sheet(K.RUNES, PORTAL, at + Vector3(0, 0.07, 0), start + 0.1, 2.2, {"ground": true, "size": Vector2.ONE * 0.4 * size, "grow": Vector2.ONE * 1.6 * size, "ease": K.OUT, "spin": -2.2, "count": 10.0, "level": K.MAIN, "decay": 0.6, "opacity": 0.8})
+	var level := K.CORE if main else K.MAIN
+	kit.sheet(K.DARK, PORTAL, at + Vector3(0, 0.03, 0), start, 2.4, {"ground": true, "size": Vector2.ONE * 0.4 * size, "grow": Vector2.ONE * 2.4 * size, "ease": K.BACK, "level": level, "decay": 0.7, "opacity": 0.95})
+	# The rim: a violet-gold band holding at the portal's edge as it opens.
+	kit.sheet(K.RING, RIM, at + Vector3(0, 0.05, 0), start, 2.2, {"ground": true, "size": Vector2.ONE * 0.5 * size, "grow": Vector2.ONE * 2.55 * size, "ease": K.BACK, "level": level, "fade_in": 0.15, "decay": 0.75, "opacity": 0.7})
+	kit.sheet(K.RUNES, RUNE_GOLD, at + Vector3(0, 0.06, 0), start, 2.4, {"ground": true, "size": Vector2.ONE * 0.6 * size, "grow": Vector2.ONE * 2.2 * size, "ease": K.BACK, "spin": 1.1, "count": 16.0, "level": level, "decay": 0.7, "opacity": 0.85})
+	kit.sheet(K.RUNES, PORTAL, at + Vector3(0, 0.07, 0), start + 0.1, 2.2, {"ground": true, "size": Vector2.ONE * 0.4 * size, "grow": Vector2.ONE * 1.5 * size, "ease": K.OUT, "spin": -2.2, "count": 10.0, "level": K.MAIN, "decay": 0.6, "opacity": 0.8})
+	kit.burst("smoke", ABYSS_SMOKE, at + Vector3(0, 0.15, 0), start + 0.1, {"amount": 14 if main else 5, "radius": 1.0 * size, "speed": 0.45, "dir": Vector3.UP, "spread": 20.0, "scale": 0.9 if main else 0.6, "stream": 0.6 if main else 0.0})
 	if main:
-		kit.sheet(K.RING, ROYAL, at + Vector3(0, 0.1, 0), start + 0.05, 0.6, {"ground": true, "size": Vector2.ONE * 1.0, "grow": Vector2.ONE * 4.4 * size, "level": K.MAIN, "decay": 0.3, "opacity": 0.45})
-		kit.sheet(K.STREAK, PORTAL, at + Vector3(0, 1.8, 0), start, 1.1, {"billboard": 2, "basis": ClassSignature.along(Vector3.UP), "size": Vector2(1.4, 2.0), "grow": Vector2(0.8 * size * 1.4, 4.0), "level": K.MAIN, "decay": 0.5, "opacity": 0.6})
-		kit.lamp(Color("8a4dff"), at + Vector3(0, 1.2, 0), 1.5, 5.0)
+		# An outer ring of runes turning slowly the other way, a faint gold shock as it opens.
+		kit.sheet(K.RUNES, RUNE_GOLD, at + Vector3(0, 0.08, 0), start + 0.15, 2.1, {"ground": true, "size": Vector2.ONE * 1.4 * size, "grow": Vector2.ONE * 3.1 * size, "ease": K.OUT, "spin": -0.5, "count": 24.0, "level": K.MAIN, "fade_in": 0.2, "decay": 0.7, "opacity": 0.55})
+		kit.sheet(K.RING, RUNE_GOLD, at + Vector3(0, 0.1, 0), start + 0.05, 0.5, {"ground": true, "size": Vector2.ONE * 1.0, "grow": Vector2.ONE * 4.2 * size, "level": K.MAIN, "decay": 0.3, "opacity": 0.35})
+		kit.sheet(K.STREAK, PORTAL, at + Vector3(0, 1.8, 0), start, 1.1, {"billboard": 2, "basis": ClassSignature.along(Vector3.UP), "size": Vector2(1.4, 2.0), "grow": Vector2(0.8 * size * 1.4, 4.0), "level": K.MAIN, "decay": 0.5, "opacity": 0.45})
+		kit.lamp(Color("8a4dff"), at + Vector3(0, 1.2, 0), 1.2, 5.0)
 	kit.burst("motes", [Color("9a6aff"), Color("ffe6a8"), Color("1a0a30")], at + Vector3(0, 0.2, 0), start + 0.05, {"amount": 18 if main else 8, "radius": 0.9 * size, "speed": 1.0, "dir": Vector3.UP, "spread": 20.0, "swirl": 4.0})
 
 
