@@ -159,6 +159,30 @@ func _decisions() -> void:
 	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.DEFEND, [false, false])) == "[2, 2]", "the other guild taking the altar: two to each switch")
 	s.gates_up = true
 	check(str(GuildWarCommander.squad_sizes(s, GuildWarCommander.DEFEND, [false, false])) == "[0, 0]", "gates up: nobody posted")
+	# The leader goes up last: the barrier open and the way clear.
+	s = _calm()
+	s.gates_up = false
+	s["switches"] = 2
+	s["vanguard"] = 0
+	s["altar_foes"] = 0
+	check(not GuildWarCommander.leader_may_go(s, 3.0), "nobody of the guild at the altar yet: the leader waits behind")
+	s["vanguard"] = 3
+	check(GuildWarCommander.leader_may_go(s, 3.0), "the vanguard on a clear altar: the leader goes up")
+	s["altar_foes"] = 4
+	check(not GuildWarCommander.leader_may_go(s, 3.0), "four of the other guild still on it: it waits")
+	s["vanguard"] = 8
+	check(GuildWarCommander.leader_may_go(s, 3.0), "twice as many of ours there: it goes")
+	s["vanguard"] = 3
+	s["switches"] = 1
+	check(not GuildWarCommander.leader_may_go(s, 99.0), "never behind the barrier (one switch held)")
+	s["leader_on_altar"] = true
+	check(not GuildWarCommander.leader_may_go(s, 3.0), "the barrier back while on the altar: it steps off behind its guild")
+	s["switches"] = 2
+	s["vanguard"] = 1
+	s["altar_foes"] = 5
+	s["leader_on_altar"] = false
+	s.escort = 2
+	check(not GuildWarCommander.leader_may_go(s, 5.0) and GuildWarCommander.leader_may_go(s, GuildWarCommander.LEADER_WAIT_MAX + 1.0), "a capture is never put off for good: after %d s it goes inside its guard" % int(GuildWarCommander.LEADER_WAIT_MAX))
 	check(GuildWarCommander.holder_fit(GuildWarCommander.ROLE_TANK, false) > GuildWarCommander.holder_fit(GuildWarCommander.ROLE_ASSASSIN, false) and GuildWarCommander.holder_fit(GuildWarCommander.ROLE_ASSASSIN, true) > GuildWarCommander.holder_fit(GuildWarCommander.ROLE_HEALER, true), "tanks hold switches, assassins break them")
 
 
@@ -278,6 +302,10 @@ func _determinism() -> void:
 	check(kinds.size() >= 5, "and the run goes through most tactics (%s)" % [kinds.keys()])
 
 
+func _away_from_war(f: GuildFighter) -> void:
+	f.global_position = f.spawn_point + Vector3(0, 0.3, 0)
+
+
 # ---------------------------------------------------------------------------
 # In a war
 # ---------------------------------------------------------------------------
@@ -358,12 +386,22 @@ func _in_war() -> void:
 		var fwd: Vector3 = c.forward
 		var tanks: Array[float] = []
 		var backs: Array[float] = []
+		var lead_of: GuildFighter = m.ai_leader(c.team)
+		var member_d: Array[float] = []
 		for f in side:
-			check(f.goal_point.distance_to(c.rally) < 12.0 and f.objective == null, "team %d: %s waits at the rally point" % [c.team, f.rival_name])
 			if f.role == GuildWarCommander.ROLE_TANK and not f.is_leader:
 				tanks.append(f.goal_point.dot(fwd))
 			elif f.role in [GuildWarCommander.ROLE_HEALER, GuildWarCommander.ROLE_BARD, GuildWarCommander.ROLE_RANGED] or f.is_leader:
 				backs.append(f.goal_point.dot(fwd))
+			if f == lead_of:
+				continue
+			member_d.append(GuildWarCommander._flat(f.global_position, c.rally))
+			check(f.goal_point.distance_to(c.rally) < 12.0 and f.objective == null, "team %d: %s waits at the rally point" % [c.team, f.rival_name])
+		if lead_of != null:
+			member_d.sort()
+			var mid := member_d[member_d.size() / 2]
+			check(lead_of.keep_back and lead_of.objective == null and GuildWarCommander._flat(lead_of.goal_point, c.rally) >= mid + GuildWarCommander.LEADER_TRAIL * 0.5,
+				"team %d: the leader comes last, behind the middle of its guild (%.0f m from the rally point, the middle %.0f)" % [c.team, GuildWarCommander._flat(lead_of.goal_point, c.rally), mid])
 		if not tanks.is_empty() and not backs.is_empty():
 			check(tanks.min() > backs.max(), "team %d: every tank stands ahead of every ranged, healer, bard and the leader (%.1f > %.1f)" % [c.team, tanks.min(), backs.max()])
 	check(lead.hold_range > 0.0 and lead.hold_range <= 8.0, "the AI leader does not charge in alone (hold %.0f m)" % lead.hold_range)
@@ -465,7 +503,54 @@ func _in_war() -> void:
 			k += 1
 	theirs.think(GuildWarCommander.THINK_EVERY)
 	m._assign_objectives()
-	check(theirs.tactic == GuildWarCommander.ESCORT and lead.capture_role, "with three round it the escort takes the leader to the altar (%s)" % theirs.tactic)
+	check(theirs.tactic == GuildWarCommander.ESCORT and not lead.capture_role and lead.keep_back, "with three round it the guild goes in first, the leader not yet (%s)" % theirs.tactic)
+	var goers := m.enemies.filter(func(f): return f != lead and not f.is_dead() and f.switch_post < 0)
+	check(goers.all(func(f): return GuildWarCommander._flat(f.goal_point, SiegeArena.ALTAR) < GuildWarCommander._flat(lead.goal_point, SiegeArena.ALTAR)), "every member goes nearer the altar than the leader")
+	check(theirs.said.any(func(t: String): return t.contains("หัวกิลตามหลัง")), "and the call: the members first, the leader behind (%s)" % [theirs.said])
+	# The vanguard on the altar, nobody of ours there: the way is clear, the leader goes up.
+	k = 0
+	for f in goers:
+		if k < 3:
+			f.global_position = SiegeArena.ALTAR + Vector3(2.0 * cos(TAU * k / 3.0), 0.3, 2.0 * sin(TAU * k / 3.0))
+			k += 1
+	theirs.think(GuildWarCommander.THINK_EVERY)
+	m._assign_objectives()
+	check(theirs.leader_go and lead.capture_role, "the vanguard on a clear altar: the escort takes the leader up (vanguard %s)" % [theirs.last_read.get("vanguard")])
+	# Under attack on the way: no going up, it steps back behind its own.
+	for f in m.enemies:
+		if f != lead:
+			f.global_position = lead.global_position + Vector3(0, 0, 10.0)
+	var attackers := m.allies.slice(0, 3)
+	for f in attackers:
+		f.global_position = lead.global_position + Vector3(1.5, 0, -2.0)
+	theirs.leader_go = false
+	theirs.since = 0.0
+	theirs.think(GuildWarCommander.THINK_EVERY)
+	m._assign_objectives()
+	var mates_at := Vector3.ZERO
+	for f in m.enemies:
+		if f != lead:
+			mates_at += f.global_position
+	mates_at /= float(m.enemies.size() - 1)
+	var threat_at := lead.global_position + Vector3(1.5, 0, -2.0)
+	check(not lead.capture_role and theirs.leader_covering and GuildWarCommander._flat(lead.goal_point, threat_at) > GuildWarCommander._flat(mates_at, threat_at),
+		"three of ours on the leader with its guild away: it falls back behind its own (post %s, its guild %s)" % [lead.goal_point.round(), mates_at.round()])
+	for f in attackers:
+		_away_from_war(f)
+	# Holding the castle: the leader stays back behind the altar, its defenders in front.
+	m.switch_pin = -1
+	m.castle_owner = GuildFighter.TEAM_ENEMY
+	m.plans.assign(["storm", "defend"])
+	for f in m.enemies:
+		f.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 5.0)
+	lead.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	theirs.think(GuildWarCommander.THINK_EVERY)
+	m._assign_objectives()
+	var door_z := SiegeArena.GATE_Z[2]
+	check(theirs.tactic == GuildWarCommander.DEFEND and lead.keep_back and lead.goal_point.distance_to(SiegeArena.ALTAR) <= GuildWarCommander.HOLD_BACK + 0.5 and absf(lead.goal_point.z - door_z) > absf(SiegeArena.ALTAR.z - door_z),
+		"holding the castle the leader stands behind the altar, away from the door (%s, %s)" % [theirs.tactic, lead.goal_point.round()])
+	m.castle_owner = -1
+	m.switch_pin = GuildFighter.TEAM_ENEMY
 	# The hero takes the altar: theirs come for the hero, the assassins too.
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	for f in m.enemies:
