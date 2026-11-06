@@ -312,7 +312,9 @@ static func fill(line: String, me: Dictionary, to: Dictionary, vars: Dictionary)
 static func voice(text: String, s: Dictionary, rng: RandomNumberGenerator) -> String:
 	if rng.randf() >= VOICE_RATE or text.ends_with("?"):
 		return text
-	var style := String(s.get("style", ""))
+	# Its voice: the way it talks (every scheduled player plays hardcore now, each still
+	# talks like the player it is; WorldPlayers' "voice").
+	var style := String(s.get("voice", s.get("style", "")))
 	if int(s.get("level", 1)) < 10:
 		style = "newbie"
 	var ends: Array = VOICE.get(style, ["", " ค่ะ" if int(s.get("gender", 0)) == 1 else " ครับ"])

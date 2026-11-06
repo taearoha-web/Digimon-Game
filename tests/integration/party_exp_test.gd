@@ -27,7 +27,8 @@ func _ready() -> void:
 	var who := -1
 	for i in WorldPlayers.size():
 		var s := WorldPlayers.state(i, t0)
-		if bool(s.online) and WorldPlayers.played_minutes(i, t0 + 3.0 * 3600.0) > WorldPlayers.played_minutes(i, t0) + 30.0:
+		# (One in a world party of its own may politely say no: WorldParties.refuses.)
+		if bool(s.online) and WorldPlayers.played_minutes(i, t0 + 3.0 * 3600.0) > WorldPlayers.played_minutes(i, t0) + 30.0 and not WorldParties.refuses(i, t0):
 			who = i
 			break
 	check(who >= 0, "a player who keeps playing is online")

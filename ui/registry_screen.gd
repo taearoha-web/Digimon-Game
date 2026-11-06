@@ -10,6 +10,9 @@ extends CanvasLayer
 signal closed()
 
 const REFRESH := 10.0
+## At most this many rows are built (the best first; the hero, its other characters and
+## its party always): the world grows by a few newcomers a day, a phone's list should not.
+const ROWS_MAX := 150
 const FILTERS := [["all", "ทั้งหมด"], ["online", "ออนไลน์"], ["alpha", "Alpha"], ["neverdie", "Neverdie"], ["party", "ปาร์ตี้"]]
 
 var is_open := false
@@ -158,10 +161,20 @@ func _build() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 	var rank := 0
+	var built := 0
+	var hidden := 0
 	for r in all:
 		rank += 1
-		if _shows(r):
-			list.add_child(_row(rank, r, t))
+		if not _shows(r):
+			continue
+		var must := bool(r.get("you", false)) or bool(r.get("alt", false)) or Game.in_party(int(r.index))
+		if built >= ROWS_MAX and not must:
+			hidden += 1
+			continue
+		built += 1
+		list.add_child(_row(rank, r, t))
+	if hidden > 0:
+		list.add_child(UIUtil.label("และอีก %d คน (แสดง %d อันดับแรก)" % [hidden, ROWS_MAX], &"SmallLabel"))
 	if kept >= 0:
 		scroll.restore_vertical_position(kept)
 

@@ -174,6 +174,8 @@ static func offers(req: Dictionary, t: float = -1.0) -> Array[Dictionary]:
 		t = WorldPresence.clock()
 	var out: Array[Dictionary] = []
 	for i in WorldPlayers.size():
+		if WorldPlayers.session_at(i, t).is_empty():
+			continue
 		var s := WorldPlayers.state(i, t)
 		if not bool(s.online) or String(s.doing) != "stall":
 			continue
@@ -216,8 +218,10 @@ static func answers(req: Dictionary, t: float = -1.0, seed_value := 0, hero := "
 		line += " " + tip
 	var speakers: Array[int] = []
 	for i in WorldPlayers.size():
+		if i == asker or WorldPlayers.session_at(i, t).is_empty():
+			continue
 		var s := WorldPlayers.state(i, t)
-		if bool(s.online) and String(s.doing) != "stall" and i != asker:
+		if bool(s.online) and String(s.doing) != "stall":
 			speakers.append(i)
 	if speakers.is_empty():
 		out.append({"index": -1, "speaker": NOTE_NAME, "text": line, "delay": wait})

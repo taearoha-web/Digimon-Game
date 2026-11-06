@@ -234,33 +234,33 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 ## The war between the two guilds of the world (WorldPlayers): the hero and its guild's
 ## members against the other guild's, up to GUILD_SIDE a side, each as it really is at time t
 ## (level, stars, stat points and the gear it found; WorldPlayers.fighter). Only players
-## who reached Lv.100 are in a guild; online members go first, then the strongest.
-## No rival member yet: {} (no war).
+## who reached Lv.100 are in a guild; each side is its guild's best GUILD_SIDE, the furthest
+## along (WorldPlayers.rank_point: level, stars, the divine set and its enhancing; the
+## longest-standing member first on a tie), the hero's own party picks always on ours, and
+## only they are built as fighters (a big guild stays cheap to roll). Listed online first,
+## then by power. No rival member yet: {} (no war).
 static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, power_of_hero: float = -1.0) -> Dictionary:
 	if power_of_hero < 0.0:
 		power_of_hero = hero_power()
 	var ours: Array = []
-	for i in WorldPlayers.members_at(guild, t):
+	for i in best_members(guild, t, GUILD_SIDE - 1, true):
 		ours.append(WorldPlayers.fighter(i, t, rng))
 	var theirs: Array = []
-	for i in WorldPlayers.members_at(WorldPlayers.other_guild(guild), t):
+	for i in best_members(WorldPlayers.other_guild(guild), t, GUILD_SIDE, false):
 		theirs.append(WorldPlayers.fighter(i, t, rng))
 	if theirs.is_empty():
 		return {}
 	var order := func(a, b):
 		if bool(a.online) != bool(b.online):
 			return bool(a.online)
-		return float(a.power) > float(b.power)
+		return float(a.power) > float(b.power) or (float(a.power) == float(b.power) and int(a.world) < int(b.world))
 	theirs.sort_custom(order)
-	# The hero's own party picks (GuildWarScreen) always come along.
+	# The hero's own party picks (GuildWarScreen) always come along, first.
 	var picked := func(f) -> bool: return Game.guildwar_party_picks.has(String(f.member.name))
 	ours.sort_custom(func(a, b):
 		if picked.call(a) != picked.call(b):
 			return picked.call(a)
 		return order.call(a, b))
-	# At most GUILD_SIDE a side (the hero counted on ours).
-	ours.resize(mini(ours.size(), GUILD_SIDE - 1))
-	theirs.resize(mini(theirs.size(), GUILD_SIDE))
 	var ally_power := power_of_hero
 	for f in ours:
 		ally_power += float(f.power)
@@ -269,6 +269,19 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, p
 		enemy_power += float(f.power)
 	return {"ally": ours, "enemy": theirs, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(WorldPlayers.other_guild(guild)),
 		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true}
+
+
+## The `count` members of `guild` at Lv.100 who are furthest along at t (rank_point, the
+## lower roster index on a tie); with `picks`, the hero's party picks first.
+static func best_members(guild: int, t: float, count: int, picks: bool) -> Array[int]:
+	var ids := WorldPlayers.members_at(guild, t)
+	var point := {}
+	for i in ids:
+		var bonus := 1000.0 if picks and Game.guildwar_party_picks.has(String(WorldPlayers.entry(i).name)) else 0.0
+		point[i] = WorldPlayers.rank_point(i, t) + bonus
+	ids.sort_custom(func(a, b): return float(point[a]) > float(point[b]) or (float(point[a]) == float(point[b]) and a < b))
+	ids.resize(mini(ids.size(), count))
+	return ids
 
 
 ## Why the hero's guild cannot go to war at time t ("" when it can): the rival guild has
