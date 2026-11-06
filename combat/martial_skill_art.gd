@@ -66,9 +66,9 @@ static func play(art: EliteSkillArt, skill: Dictionary, center: Vector3, origin:
 	# low quality; extra polish is third through sixth, never extra hit callbacks.
 	match id:
 		"grand_cross":
-			add(art,"cross",c,Vector3(0,0.12,0),Vector3.ONE*radius,Vector3.ZERO,d,1.0,{"initial":0.18})
-			add(art,"sweep",c,Vector3(0,1.1,0),Vector3(radius,1,radius),Vector3(0.10,0,0.12),d,0.65,{"spin":3.8,"initial":0.65})
-			add(art,"shock",c,Vector3(0,0.22,0),Vector3.ONE*radius,Vector3.ZERO,d+0.04,0.9,{"initial":0.35})
+			# The burning cross carved into the ground is WarriorArt's (MeleeArt); one
+			# fainter sweep keeps the martial brush without washing the cross out.
+			add(art,"sweep",c,Vector3(0,1.1,0),Vector3(radius,1,radius),Vector3(0.10,0,0.12),d,0.5,{"spin":3.8,"initial":0.65,"opacity":0.45})
 			add(art,"sparks",c,Vector3.ZERO,Vector3(radius*0.8,2,radius*0.8),Vector3.ZERO,d,1.2,{"travel":Vector3.UP*0.6})
 		"sword_of_justice":
 			add(art,"blade",c,Vector3(0,0.4,distance),Vector3(2,4.3,1.3),Vector3(0,0,-0.3),d,0.7,{"turn":Vector3(0,0,0.55),"decay":0.3})

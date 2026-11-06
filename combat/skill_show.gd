@@ -74,6 +74,7 @@ static func profile_for(skill: Dictionary) -> Dictionary:
 
 ## Called with the existing wind-up duration. It does not delay resolution.
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, duration: float, aim := Vector3.ZERO, visual: HeroVisual = null) -> void:
+	MeleeArt.anticipate(parent, skill, origin, aim, duration, visual) # Warrior/Lancer/Defender class layers (combat/class_art)
 	var look := profile_for(skill)
 	# The shared layer stack's wind-up (SkillLayers), under every class's own art.
 	SkillLayers.anticipate(parent, skill, origin, duration, aim, visual)
@@ -94,6 +95,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, durat
 
 ## center: target/area; origin: caster's feet. Hero and companions share this path.
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, impact_delay := -1.0) -> void:
+	MeleeArt.play(parent, skill, center, origin, impact_delay if impact_delay >= 0.0 else 0.0) # Warrior/Lancer/Defender class layers (combat/class_art)
 	if StarSkillArt.handles(skill):
 		StarSkillArt.strike(parent,skill,center,0,origin)
 		SkillLayers.star_beat(parent, skill, center, 0, 1, origin)
