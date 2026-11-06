@@ -31,6 +31,8 @@ const LOOKS := {
 		"npc_outfit": ["Knight", Color(1.55, 1.3, 0.55), "Knight_Cape"], "npc_hat": ["ribbon", Color("ffd24a")]},
 	"tower": {"gender": 0, "skin": 7, "hair": 2, "hair_color": 8, "eyes": 2, "eye_color": 4, "nose": 0, "mouth": 1,
 		"npc_outfit": ["Rogue", Color(0.55, 0.5, 0.75), "Rogue_Cape"], "npc_hat": ["kasa", Color.WHITE]},
+	"raid": {"gender": 0, "skin": 4, "hair": 5, "hair_color": 0, "eyes": 1, "eye_color": 5, "nose": 3, "mouth": 3,
+		"npc_outfit": ["Knight", Color(1.6, 0.4, 0.45), "Knight_Cape"], "npc_hat": ["hachimaki", Color("8a0f1e")]},
 	"healer": {"gender": 1, "skin": 0, "hair": 6, "hair_color": 0, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0,
 		"npc_outfit": ["Mage", Color(1.15, 1.08, 1.05), ""], "npc_wash": 0.9, "npc_hat": ["ribbon", Color("e8463a")]},
 	"guide": {"gender": 1, "skin": 1, "hair": 3, "hair_color": 7, "eyes": 3, "eye_color": 1, "nose": 1, "mouth": 2,

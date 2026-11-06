@@ -126,7 +126,7 @@ clients may ignore.
   `party_leave`, a kick or the grace running out remove a member. The parties are also
   kept in the Durable Object's storage, so they survive a deploy. A second socket of the
   same account (`kicked` on the old one) keeps the party and the player's place.
-- **Zone host.** Open zones (every zone except `tower`, `pvp`, `guildwar`, `arena`, the
+- **Zone host.** Open zones (every zone except `tower`, `pvp`, `guildwar`, `arena`, `raid`, the
   instanced ones; `INSTANCED_ZONES` in room.mjs) have one host for every connected player
   in that zone (with a hello), party or not: the one that arrived in the zone first
   (re-elected when it changes zone, drops or goes away; a party or its leader arriving
@@ -240,7 +240,7 @@ func is_zone_host(zone: StringName) -> bool
 func is_mirror_zone(zone: StringName) -> bool      # someone else hosts (party or not): do not spawn monsters
 func zone_members(zone: StringName) -> Array       # ids of the other real players in that zone, party or not
 func serves(zone: StringName) -> Array             # whom that zone's host serves: zone_members (open) or party_members_in_zone (instanced)
-static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena (INSTANCED_ZONES)
+static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena, raid (INSTANCED_ZONES)
 func world_host() -> String                        # `whost` id ("" unknown / offline)
 func is_world_host() -> bool                       # this game makes the AI world chat
 func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
@@ -264,7 +264,10 @@ added to the current zone for every player whose `zone` matches.
 Every real player in the same **open** zone (fields, star / divine regions, the abyss, the
 village) sees the same monsters, the same AI world players in the same places doing the
 same things, and the same AI world chat. **Instanced** zones (`tower`, `pvp`, `guildwar`,
-`arena`) keep the party scope of "Shared combat" above.
+`arena`, `raid`) keep the party scope of "Shared combat" above. Like the tower, the daily
+party raid (`raid`, RaidData) does not share its monsters yet (EntitySync.supports is false
+for tower-like zones): real party mates who enter see each other, but each game runs its own
+floors with its own hero and AI party (world players in `Game.world_party`).
 
 - **Zone host.** `host {zone, id}` now names the zone host for everyone in an open zone:
   the connected player who arrived in that zone first (re-elected when it leaves the zone,

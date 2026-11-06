@@ -14,6 +14,8 @@ signal pvp_finished(result: Dictionary)
 signal guildwar_finished(result: Dictionary)
 ## A Void Tower climb ended.
 signal tower_finished(result: Dictionary)
+## A party raid entry ended (RaidRun result).
+signal raid_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
 ## The hunting fields (Lv.1 meadow to the Lv.100 void) are wider, with their outer camps
@@ -45,6 +47,10 @@ var gw_match: GuildWarMatch
 var is_tower := false
 var tower_run: TowerRun
 var tower_start_floor := 1
+## The party raid (RaidData) running here; its zone is tower-like (no world players).
+var raid_run: RaidRun
+## A fixed seed for the raid's rolls (tests); 0 picks a new one.
+var raid_seed := 0
 var pvp_match: PvpMatch
 var hero: Hero
 var camera_rig: ThirdPersonCamera
@@ -217,7 +223,12 @@ func _ready() -> void:
 		pvp_match.setup(self, hero)
 		pvp_match.finished.connect(func(result: Dictionary): pvp_finished.emit(result))
 		add_child(pvp_match)
-	if is_tower:
+	if bool(data.get("raid", false)):
+		raid_run = RaidRun.new()
+		raid_run.setup(self, hero, raid_seed)
+		raid_run.finished.connect(func(result: Dictionary): raid_finished.emit(result))
+		add_child(raid_run)
+	elif is_tower:
 		Game.tower_begin_run()
 		tower_run = TowerRun.new()
 		tower_run.setup(self, hero, tower_start_floor)
@@ -433,6 +444,8 @@ func _build_field() -> void:
 	await _slice()
 	if special:
 		SpecialStageArt.build(self, zone_id)
+	if bool(data.get("raid", false)):
+		RaidArenaArt.build(self)
 	if data.has("boss"):
 		WorldArt.boss_landmark(self, theme, _boss_spot)
 	for camp in _camps:
@@ -653,6 +666,7 @@ func _villagers() -> Array:
 		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
 		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
+		["raid", RaidData.KEEPER, &"warrior", "%s · วันละ %d รอบ" % [RaidData.SHORT, RaidData.RUNS_PER_DAY], V.PAGODA + Vector3(-5.6, 0, 10.4), "Knight", V.PAGODA + Vector3(-17.0, 0, 10.4)],
 		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
 	]

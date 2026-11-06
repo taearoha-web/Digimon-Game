@@ -21,6 +21,8 @@ var online_prompt: OnlinePrompt
 var ai_chat: AiChat
 var tutorial: Tutorial
 var tower_screen: TowerScreen
+## The party raid keeper (RaidData) and its result.
+var raid_screen: RaidScreen
 ## Online play with real players: trading (its window) and duels; idle while offline.
 var trade: OnlineTrade
 var trade_screen: TradeScreen
@@ -69,6 +71,11 @@ func _ready() -> void:
 	menu = GameMenu.new()
 	add_child(menu)
 	menu.title_requested.connect(_back_to_title)
+	menu.raid_requested.connect(func():
+		if zone != null and (zone.is_pvp or zone.is_tower):
+			Game.say("เปิดดันเจี้ยนปาร์ตี้ได้นอกสนามประลอง หอคอย และดันเจี้ยน", &"warning")
+		elif not _screen_open():
+			raid_screen.open_lobby())
 	shop = ShopScreen.new()
 	add_child(shop)
 	trainer = SkillTrainer.new()
@@ -140,6 +147,10 @@ func _ready() -> void:
 		_tower_floor = floor_no
 		go(&"tower", false, true))
 	tower_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	raid_screen = RaidScreen.new()
+	add_child(raid_screen)
+	raid_screen.enter_requested.connect(func(): go(RaidData.ID, false, true))
+	raid_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	dialog = DialogBox.new()
 	add_child(dialog)
 	trade = OnlineTrade.new()
@@ -327,6 +338,7 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	z.pvp_finished.connect(func(result: Dictionary): pvp_screen.show_result(result))
 	z.guildwar_finished.connect(func(result: Dictionary): guildwar_screen.show_result(result))
 	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
+	z.raid_finished.connect(func(result: Dictionary): raid_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
 	# then let two frames draw it once (first-draw shader/texture work) before fading in.
@@ -403,7 +415,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or dialog.is_open or trade_screen.is_open or _traveling \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
 		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
@@ -495,6 +507,9 @@ func _on_npc(role: String) -> void:
 			dialog.say("นายทะเบียนกิลด์", text, choices)
 		"tower":
 			tower_screen.open_lobby()
+		"raid":
+			dialog.say(RaidData.KEEPER, "วิหารอสูรโลหิตเปิดรับปาร์ตี้ %d คนขึ้นไป วันละ %d รอบ (%s) ลงไปสามชั้น ชั้นสุดท้ายคือ%s ให้ผู้พิทักษ์รับการทุบ คนอื่นหลบวงแดงแล้วฆ่าสมุนให้ไว ใครชนะครั้งแรกของวันได้หีบใหญ่!" % [RaidData.MIN_PARTY, RaidData.RUNS_PER_DAY, RaidData.runs_text(), RaidData.BOSS_NAME], [
+				{"label": "ดูดันเจี้ยน", "action": func(): raid_screen.open_lobby()}, {"label": "ไว้ก่อน"}])
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])

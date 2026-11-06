@@ -270,7 +270,7 @@ test('instanced zones: a non-leader first arrival keeps hosting until the leader
 });
 
 test('open zones: one host for everyone in the zone, party or not; first arrival; re-elected on zone change and drop', () => {
-  assert.deepEqual([...INSTANCED_ZONES].sort(), ['arena', 'guildwar', 'pvp', 'tower']);
+  assert.deepEqual([...INSTANCED_ZONES].sort(), ['arena', 'guildwar', 'pvp', 'raid', 'tower']);
   const {connect} = world();
   const a = connect('1').hello();                    // meadow, first
   assert.deepEqual(a.frames('host'), [{t: 'host', zone: 'meadow', id: null}], 'alone: play alone');

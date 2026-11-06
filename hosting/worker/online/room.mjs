@@ -31,7 +31,7 @@ const MAX_GOLD = 1_000_000_000_000;
 const TICK_EVERY_MS = 5_000;
 // Zones played per party (Shared combat); every other zone is open: one host serves
 // everyone in it (Shared world).
-export const INSTANCED_ZONES = new Set(['tower', 'pvp', 'guildwar', 'arena']);
+export const INSTANCED_ZONES = new Set(['tower', 'pvp', 'guildwar', 'arena', 'raid']);
 // ai_chat: what one frame of the world host's AI world chat may carry.
 export const AI_CHAT_LINES = 8;
 export const AI_CHAT_TEXT = 200;
