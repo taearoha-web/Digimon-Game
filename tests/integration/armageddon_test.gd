@@ -60,6 +60,8 @@ func check(ok: bool, detail: String) -> void:
 
 
 func _ready() -> void:
+	# Raw skill / rank scaling: the party roles (ClassRoles) would add their share.
+	ClassRoles.enabled = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	await get_tree().process_frame
 	InputSetup.ensure_defaults()

@@ -45,6 +45,8 @@ const TRAITS := {
 ## The Mage's mark on a target: meta {party key: until (ms)}.
 const MARK_META := &"role_arcane"
 
+## Off only in tests that measure a skill's own numbers (armageddon_test).
+static var enabled := true
 static var _stamp := -1
 static var _cache := {} # party key -> {class: true}
 
@@ -129,6 +131,8 @@ static func _alive(node: Variant) -> bool:
 
 ## The classes alive in [param unit]'s party, each once: {class: true}.
 static func party_classes(unit: Variant) -> Dictionary:
+	if not enabled:
+		return {}
 	var key := party_key(unit)
 	if key == "":
 		return {}
