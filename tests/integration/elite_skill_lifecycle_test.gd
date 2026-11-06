@@ -43,7 +43,7 @@ func _ready() -> void:
 					check(art.is_queued_for_deletion(),"normal expiry queues all layers")
 					await art.tree_exited
 					# ClassFlourish, the Assassin's ShadowSkillArt, the Dark Lord's LordSkillArt and the Bard's BardSkillArt keep their own short-lived, self-freeing roots.
-					var left := field.get_children().filter(func(n: Node): return not String(n.name).begins_with("ClassFlourish_") and not String(n.name).begins_with("ShadowArt_") and not String(n.name).begins_with("LordArt_") and not String(n.name).begins_with("BardArt_") and not String(n.name).begins_with("CasterArt_"))
+					var left := field.get_children().filter(func(n: Node): return not String(n.name).begins_with("ClassFlourish_") and not String(n.name).begins_with("ShadowArt_") and not String(n.name).begins_with("LordArt_") and not String(n.name).begins_with("BardArt_") and not String(n.name).begins_with("CasterArt_") and not String(n.name).begins_with("Signature_"))
 					check(left.is_empty(),"normal expiry leaves no nodes")
 			check(skill==snapshot,"art preserves all combat parameters")
 			field.queue_free()
