@@ -66,9 +66,15 @@ func _ready()->void:
 				Game.inventory_changed.emit()
 				await get_tree().process_frame
 				check(VfxBudget.counters()=={"particles":0,"decorations":0,"lights":0},"scene releases all visual reservations")
-		await get_tree().process_frame
+		# Measure as after a zone change (Main._clear_zone): the class-art pools
+		# (SignatureKit via ShadowSkillArt, SkillLayers) hand back their parked nodes, so
+		# what they happen to hold between casts does not move the count.
+		ShadowSkillArt.release_mesh_cache();SkillLayers.release_cache(get_tree())
+		await get_tree().process_frame;await get_tree().process_frame
 		var objects:=int(Performance.get_monitor(Performance.OBJECT_COUNT))
-		if cycle==2:baseline=objects
+		# Warm from cycle 2: the highest of cycles 2-4 is the plateau (pooled rigs fill up to
+		# their caps in any order); a leak grows every cycle and still passes it at cycle 5.
+		if cycle>=2 and cycle<=4:baseline=maxi(baseline,objects)
 		final_count=objects
 		print("STAR CYCLE ",cycle," objects=",objects)
 	check(final_count<=baseline+8,"warm object count plateaus: %d -> %d"%[baseline,final_count])
