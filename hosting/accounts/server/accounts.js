@@ -221,6 +221,9 @@ function validateProfile(profile) {
     if (!dictionary(leaders) || Object.keys(leaders).length > 8
         || Object.values(leaders).some(value => typeof value !== 'string' || value.length > 64)) fail(400, 'invalid_save', 'The guild leaders are invalid.');
   }
+  // The weekly guild league record (GuildLeague in the game): season numbers, up to 64
+  // real wars a season (ints under fixed keys) and the secret shop's buy counts.
+  if ('league' in profile && !validLeague(profile.league)) fail(400, 'invalid_save', 'The guild league record is invalid.');
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
     const stall = profile.stall;
@@ -231,6 +234,21 @@ function validateProfile(profile) {
         || log.some(entry => !dictionary(entry))) fail(400, 'invalid_save', 'The character stall is invalid.');
   }
   if (ENCODER.encode(JSON.stringify(profile)).byteLength > MAX_PROFILE_BYTES) fail(413, 'save_too_large', 'Each character save must be at most 1 MiB.');
+}
+
+const LEAGUE_INTS = new Set(['week', 'prev_week', 'claimed', 'ann', 'shop_week']);
+const LEAGUE_WAR_KEYS = ['at', 'a', 'b', 'win', 'ca', 'cb', 'held', 'ka', 'kb'];
+
+function validLeague(league) {
+  if (!dictionary(league) || Object.keys(league).length > 16) return false;
+  const wars = list => Array.isArray(list) && list.length <= 64 && list.every(war => dictionary(war)
+    && Object.keys(war).length === LEAGUE_WAR_KEYS.length && LEAGUE_WAR_KEYS.every(key => integer(war[key])));
+  return Object.entries(league).every(([key, value]) => {
+    if (LEAGUE_INTS.has(key)) return integer(value, -1);
+    if (key === 'wars' || key === 'prev_wars') return wars(value);
+    if (key === 'shop') return dictionary(value) && Object.keys(value).length <= 16 && Object.values(value).every(count => integer(count, 0, 1000));
+    return false;
+  });
 }
 
 function validateSharedStorage(bundle) {

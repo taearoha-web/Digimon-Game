@@ -89,6 +89,8 @@ var roster: Dictionary = {}
 ## on: {team, who (the hero or a fighter), progress (seconds)} or {}.
 var gates: Array[CastleGate] = []
 var castle_owner := -1
+## Castle captures of each team this war (the weekly league counts them, GuildLeague).
+var captures: Array[int] = [0, 0]
 var capture: Dictionary = {}
 ## The rival guild's leader (หัวหน้ากิลด์): the only one of its side who may take the
 ## altar. Ours is the hero, or the member the player picked (ally_leader).
@@ -852,6 +854,9 @@ func _raise_castle(saved: Dictionary) -> void:
 				gate.hp = clampi(int(ceil(float(gate.max_hp) * float(left[k]) / 1000.0)), 1, gate.max_hp)
 		gates.append(gate)
 	castle_owner = clampi(int(saved.get("owner", -1)), -1, 1)
+	# A resumed war remembers the holder, so at least its one capture.
+	if castle_owner >= 0:
+		captures[castle_owner] = maxi(captures[castle_owner], 1)
 	var holder := Node3D.new()
 	holder.name = "AltarCrystal"
 	holder.position = SiegeArena.ALTAR
@@ -1423,6 +1428,7 @@ func _complete_capture() -> void:
 		(who as GuildFighter).capturing = false
 	capture = {}
 	castle_owner = team
+	captures[team] += 1
 	_send_home(1 - team)
 	_color_crystal()
 	_make_plans()
@@ -1563,6 +1569,7 @@ func _end() -> void:
 	_result["overtime"] = overtime
 	_result["castle"] = team_name(castle_owner) if castle_owner >= 0 else ""
 	_result["castle_ours"] = castle_owner == GuildFighter.TEAM_ALLY
+	GuildLeague.war_finished(_result, bool(roster.get("guilds", false)), captures, castle_owner, score)
 	zone.banner_requested.emit("ชนะสงคราม! ยึดปราสาทได้" if won and castle_owner == GuildFighter.TEAM_ALLY else ("ชนะสงคราม!" if won else "พ่ายแพ้สงคราม"))
 	if won and is_instance_valid(hero):
 		hero.level_up_fx()
@@ -1680,6 +1687,8 @@ func _mirror_end(d: Dictionary) -> void:
 	_result["overtime"] = overtime
 	_result["castle"] = String(d.get("castle", ""))
 	_result["castle_ours"] = bool(d.get("ours", false))
+	var held := 0 if bool(d.get("ours", false)) else (1 if String(d.get("castle", "")) != "" else -1)
+	GuildLeague.war_finished(_result, Game.guild() > 0, [0, 0], held, score)
 	zone.banner_requested.emit("ชนะสงคราม!" if won else "พ่ายแพ้สงคราม")
 	if won and is_instance_valid(hero):
 		hero.level_up_fx()
