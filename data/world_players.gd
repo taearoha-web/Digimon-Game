@@ -9,7 +9,9 @@ extends RefCounted
 ## tests/tools/pace_probe.gd measured in the real fields, times the player's own
 ## efficiency (deaths, trips to town, slower hands than the probe's). A roster entry may
 ## start with a head start (vet, none at present), newcomers log in for the first
-## time some days after the opening (join), stall keepers stay in the village. So levels,
+## time some days after the opening (join; besides the ROSTER, 2-3 new players are made
+## for every Thai day from the date alone: size, ensure_until), stall keepers stay in the
+## village and everyone else plays hardcore, taking turns to rest. So levels,
 ## stars, whereabouts and who is online are the same for everyone at a given moment.
 ## A player with a play schedule spends its time online levelling: it hunts in the field
 ## that fits its level (WorldPresence shows it there, fighting the field's monsters for
@@ -35,70 +37,70 @@ const GUILD_NAMES := {ALPHA: "Alpha", NEVERDIE: "Neverdie"}
 const GUILD_COLORS := {ALPHA: Color("ffd24a"), NEVERDIE: Color("ff6f8e")}
 
 const ROSTER: Array[Dictionary] = [
-	{"name": "Kaito", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "daytime"},
+	{"name": "Kaito", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "daytime"},
 	{"name": "Shadow_Fang", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "hardcore"},
-	{"name": "น้องแพรวา", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "daytime"},
-	{"name": "LanceKung", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "daytime"},
-	{"name": "SkyArrow", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "early"},
-	{"name": "Mintty", "class": &"mage", "guild": ALPHA, "gender": 1, "style": "early"},
-	{"name": "Rinrada", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "overseas"},
-	{"name": "ป้อมปราการ", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "regular"},
-	{"name": "เมจิกหมูกรอบ", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "overseas"},
-	{"name": "ข้าวเหนียวมะม่วง", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "overseas"},
+	{"name": "น้องแพรวา", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "daytime"},
+	{"name": "LanceKung", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "SkyArrow", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "early"},
+	{"name": "Mintty", "class": &"mage", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "early"},
+	{"name": "Rinrada", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "overseas"},
+	{"name": "ป้อมปราการ", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "เมจิกหมูกรอบ", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "overseas"},
+	{"name": "ข้าวเหนียวมะม่วง", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "overseas"},
 	{"name": "Zerox", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
 	{"name": "BlackLotus", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "hardcore"},
-	{"name": "TonkatsuX", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "daytime"},
-	{"name": "นักล่าตะวัน", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	{"name": "TonkatsuX", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "นักล่าตะวัน", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "regular"},
 	{"name": "Fiora", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "hardcore"},
-	{"name": "Yoyo", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "student"},
-	{"name": "แม่หมอมิว", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
-	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "night_owl"},
-	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "student"},
-	{"name": "Raijin", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "casual"},
-	{"name": "Ryuu", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "student"},
-	{"name": "ขุนศึกหน้าหวาน", "class": &"warrior", "guild": ALPHA, "gender": 1, "style": "weekend"},
-	{"name": "ปีศาจสีเงิน", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "regular"},
-	{"name": "Gekko", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "night_owl"},
-	{"name": "Momo", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "casual"},
-	{"name": "นางฟ้าตาหวาน", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "regular"},
+	{"name": "Yoyo", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "student"},
+	{"name": "แม่หมอมิว", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "PhantomZ", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "night_owl"},
+	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "student"},
+	{"name": "Raijin", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "casual"},
+	{"name": "Ryuu", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "student"},
+	{"name": "ขุนศึกหน้าหวาน", "class": &"warrior", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "weekend"},
+	{"name": "ปีศาจสีเงิน", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "Gekko", "class": &"assassin", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Momo", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "casual"},
+	{"name": "นางฟ้าตาหวาน", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "regular"},
 	{"name": "หอกทะลวงฟ้า", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "hardcore"},
-	{"name": "Valkyrie", "class": &"lancer", "guild": ALPHA, "gender": 1, "style": "regular"},
-	{"name": "NightHawk", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "night_owl"},
-	{"name": "ไอซ์ซี่", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "casual"},
-	{"name": "พ่อมดน้อยฟ้าใส", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "student"},
-	{"name": "Luna_Mew", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "weekend"},
-	{"name": "หมอผีหมูเด้ง", "class": &"summoner", "guild": ALPHA, "gender": 0, "style": "student"},
-	{"name": "BearTank", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "student"},
+	{"name": "Valkyrie", "class": &"lancer", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "regular"},
+	{"name": "NightHawk", "class": &"archer", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "night_owl"},
+	{"name": "ไอซ์ซี่", "class": &"archer", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "casual"},
+	{"name": "พ่อมดน้อยฟ้าใส", "class": &"mage", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "student"},
+	{"name": "Luna_Mew", "class": &"summoner", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "weekend"},
+	{"name": "หมอผีหมูเด้ง", "class": &"summoner", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "student"},
+	{"name": "BearTank", "class": &"defender", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "student"},
 	{"name": "ShieldMaiden", "class": &"defender", "guild": ALPHA, "gender": 1, "style": "hardcore"},
 	{"name": "Ragnar", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
-	{"name": "เสือดาวดำ", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "regular"},
-	{"name": "Kurogane", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "student"},
-	{"name": "จิ้งจอกเงา", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
-	{"name": "Seraphine", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "regular"},
-	{"name": "หอกพยัคฆ์", "class": &"lancer", "guild": NEVERDIE, "gender": 0, "style": "regular"},
-	{"name": "Akane", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "weekend"},
+	{"name": "เสือดาวดำ", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "Kurogane", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "student"},
+	{"name": "จิ้งจอกเงา", "class": &"assassin", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Seraphine", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "regular"},
+	{"name": "หอกพยัคฆ์", "class": &"lancer", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "Akane", "class": &"lancer", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "weekend"},
 	{"name": "ArrowRain", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
-	{"name": "ลูกศรสีชมพู", "class": &"archer", "guild": NEVERDIE, "gender": 1, "style": "student"},
-	{"name": "บะหมี่เวทมนตร์", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "casual"},
-	{"name": "Nebula", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "regular"},
-	{"name": "อสูรน้อยหลับยาก", "class": &"summoner", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
-	{"name": "Wyvern", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "casual"},
-	{"name": "IronWall", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
-	{"name": "โล่ทองคำ", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "casual"},
+	{"name": "ลูกศรสีชมพู", "class": &"archer", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "student"},
+	{"name": "บะหมี่เวทมนตร์", "class": &"mage", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "casual"},
+	{"name": "Nebula", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "regular"},
+	{"name": "อสูรน้อยหลับยาก", "class": &"summoner", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Wyvern", "class": &"summoner", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "casual"},
+	{"name": "IronWall", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "weekend"},
+	{"name": "โล่ทองคำ", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "casual"},
 	# Dark Lords (scepter and raven), added with the class.
 	{"name": "DarkKaiser", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "hardcore"},
-	{"name": "ราชันอีกา", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "regular"},
-	{"name": "LordRaven", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "night_owl"},
-	{"name": "จักรพรรดิมืด", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "weekend"},
+	{"name": "ราชันอีกา", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "LordRaven", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "จักรพรรดิมืด", "class": &"darklord", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "weekend"},
 	# Bards (lute and songs), added with the class.
 	{"name": "Melodia", "class": &"bard", "guild": ALPHA, "gender": 1, "style": "hardcore"},
-	{"name": "เสียงพิณราตรี", "class": &"bard", "guild": NEVERDIE, "gender": 1, "style": "night_owl"},
-	{"name": "SongBird", "class": &"bard", "guild": ALPHA, "gender": 0, "style": "student"},
-	{"name": "นักพิณพเนจร", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "regular"},
+	{"name": "เสียงพิณราตรี", "class": &"bard", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "SongBird", "class": &"bard", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "student"},
+	{"name": "นักพิณพเนจร", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "regular"},
 	# More players of every style (a roster entry may carry "vet": a head start, see head_work).
-	{"name": "MaxPower", "class": &"warrior", "guild": 0, "gender": 0, "style": "daytime"},
-	{"name": "Hikari", "class": &"priest", "guild": 0, "gender": 1, "style": "early"},
-	{"name": "หมูกระทะ", "class": &"mage", "guild": 0, "gender": 0, "style": "overseas"},
+	{"name": "MaxPower", "class": &"warrior", "guild": 0, "gender": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "Hikari", "class": &"priest", "guild": 0, "gender": 1, "style": "hardcore", "voice": "early"},
+	{"name": "หมูกระทะ", "class": &"mage", "guild": 0, "gender": 0, "style": "hardcore", "voice": "overseas"},
 	# Stall keepers: they stay in the village the whole session and sell what they find.
 	{"name": "ร้านป้าแดง", "class": &"priest", "guild": 0, "gender": 1, "style": "afk"},
 	{"name": "Shop_Nana", "class": &"mage", "guild": 0, "gender": 1, "style": "afk"},
@@ -113,34 +115,34 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "ร้านเกราะพี่โต", "class": &"warrior", "guild": NEVERDIE, "gender": 0, "style": "afk"},
 	{"name": "ร้านยาแม่มด", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "afk"},
 	# Once stall keepers and AFK players, now out levelling with a play schedule like the rest.
-	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "regular"},
-	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "casual"},
-	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "overseas"},
+	{"name": "TradeMaster", "class": &"warrior", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "ขายของถูก", "class": &"archer", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "casual"},
+	{"name": "AFK_Taro", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "overseas"},
 	{"name": "นอนรอบอส", "class": &"assassin", "guild": NEVERDIE, "gender": 0, "style": "hardcore"},
-	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "early"},
-	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "night_owl"},
-	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "casual"},
-	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "daytime"},
+	{"name": "DarkMarket", "class": &"darklord", "guild": 0, "gender": 0, "style": "hardcore", "voice": "early"},
+	{"name": "ZzzSleepy", "class": &"warrior", "guild": 0, "gender": 0, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Afk_Mochi", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "casual"},
+	{"name": "CrystalMart", "class": &"darklord", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "daytime"},
 	# Fresh players who play in the daytime, in the early morning or from abroad.
-	{"name": "Mango", "class": &"archer", "guild": 0, "gender": 1, "style": "daytime"},
-	{"name": "ข้าวผัดกะเพรา", "class": &"warrior", "guild": 0, "gender": 0, "style": "early"},
-	{"name": "Sakura_TH", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "overseas"},
-	{"name": "Rocky", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "daytime"},
-	{"name": "นินจาน้อย", "class": &"assassin", "guild": 0, "gender": 0, "style": "overseas"},
-	{"name": "Aqua", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "early"},
-	{"name": "Leo_Lancer", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "daytime"},
-	{"name": "ภูติจิ๋ว", "class": &"summoner", "guild": NEVERDIE, "gender": 1, "style": "overseas"},
-	{"name": "Minnie", "class": &"bard", "guild": 0, "gender": 1, "style": "daytime"},
-	{"name": "Draco", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "early"},
-	{"name": "ชาไข่มุก", "class": &"archer", "guild": NEVERDIE, "gender": 1, "style": "daytime"},
-	{"name": "Coffee_Break", "class": &"archer", "guild": 0, "gender": 1, "style": "daytime"},
-	{"name": "Freelancer_Ken", "class": &"lancer", "guild": 0, "gender": 0, "style": "daytime"},
-	{"name": "NightNurse", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "daytime"},
+	{"name": "Mango", "class": &"archer", "guild": 0, "gender": 1, "style": "hardcore", "voice": "daytime"},
+	{"name": "ข้าวผัดกะเพรา", "class": &"warrior", "guild": 0, "gender": 0, "style": "hardcore", "voice": "early"},
+	{"name": "Sakura_TH", "class": &"priest", "guild": ALPHA, "gender": 1, "style": "hardcore", "voice": "overseas"},
+	{"name": "Rocky", "class": &"defender", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "นินจาน้อย", "class": &"assassin", "guild": 0, "gender": 0, "style": "hardcore", "voice": "overseas"},
+	{"name": "Aqua", "class": &"mage", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "early"},
+	{"name": "Leo_Lancer", "class": &"lancer", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "ภูติจิ๋ว", "class": &"summoner", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "overseas"},
+	{"name": "Minnie", "class": &"bard", "guild": 0, "gender": 1, "style": "hardcore", "voice": "daytime"},
+	{"name": "Draco", "class": &"darklord", "guild": ALPHA, "gender": 0, "style": "hardcore", "voice": "early"},
+	{"name": "ชาไข่มุก", "class": &"archer", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "daytime"},
+	{"name": "Coffee_Break", "class": &"archer", "guild": 0, "gender": 1, "style": "hardcore", "voice": "daytime"},
+	{"name": "Freelancer_Ken", "class": &"lancer", "guild": 0, "gender": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "NightNurse", "class": &"priest", "guild": NEVERDIE, "gender": 1, "style": "hardcore", "voice": "daytime"},
 	# Newcomers (join: real days after the opening) and second characters of old hands.
 	{"name": "Kaito_Bard", "class": &"bard", "guild": ALPHA, "gender": 0, "style": "hardcore", "join": 6},
-	{"name": "Lily_New", "class": &"summoner", "guild": 0, "gender": 1, "style": "early", "join": 11},
-	{"name": "Rookie_Ace", "class": &"assassin", "guild": 0, "gender": 0, "style": "night_owl", "join": 18},
-	{"name": "TuneUp", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "regular", "join": 30},
+	{"name": "Lily_New", "class": &"summoner", "guild": 0, "gender": 1, "style": "hardcore", "voice": "early", "join": 11},
+	{"name": "Rookie_Ace", "class": &"assassin", "guild": 0, "gender": 0, "style": "hardcore", "voice": "night_owl", "join": 18},
+	{"name": "TuneUp", "class": &"bard", "guild": NEVERDIE, "gender": 0, "style": "hardcore", "voice": "regular", "join": 30},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
@@ -149,8 +151,19 @@ const ROSTER: Array[Dictionary] = [
 ## (a player online is out hunting most of its session, so the hunting styles earn about
 ## a third of the probe's rate, hardcore the most and casual the least; a stall keeper
 ## sits in the village and earns little).
+## Every player with a play schedule is hardcore now (the guild war fields each guild's
+## best, and the world should never feel empty): two long sessions a day with a short
+## break between and a long rest after, each player at hours of its own (phase: its whole
+## day moved by up to that many hours; spread: evenly down the roster), so they take turns
+## resting: at any hour about half to two thirds of them are on, the most from the Thai
+## evening to midnight (about 70%), the fewest early in the morning and mid-afternoon
+## (about 50%), never all. Marathon sessions are hunted at a steadier pace (pots, repairs, a
+## chat, a stall visit), so eff is lower than a short session's while the total EXP a day
+## stays a hardcore player's (★200 in about a week; world_players_test).
+## The other styles stay defined for the way each player talks: an entry's "voice" (the
+## style it used to play, its chat tone and words; ChatThreads.voice, ChatBrain.tone_of).
 const STYLES := {
-	"hardcore": {"weekday": [[12.0, 1.5], [18.5, 5.5]], "weekend": [[10.0, 4.5], [18.0, 6.0]], "jitter": 1.0, "skip": 0.03, "eff": 0.40, "label": "ขาโหด"},
+	"hardcore": {"weekday": [[6.0, 6.0], [13.5, 8.0]], "weekend": [[5.5, 6.5], [13.0, 8.5]], "jitter": 0.75, "stretch": [0.85, 1.15], "phase": 20.0, "spread": true, "skip": 0.03, "eff": 0.23, "label": "ขาโหด"},
 	"regular": {"weekday": [[20.0, 3.0]], "weekend": [[14.0, 2.0], [20.0, 3.5]], "jitter": 1.0, "skip": 0.08, "eff": 0.33, "label": "เล่นประจำ"},
 	"student": {"weekday": [[16.5, 1.5], [20.5, 2.0]], "weekend": [[10.0, 3.0], [19.0, 3.0]], "jitter": 0.8, "skip": 0.06, "eff": 0.32, "label": "นักเรียน"},
 	"night_owl": {"weekday": [[22.0, 4.0]], "weekend": [[21.0, 5.5]], "jitter": 1.2, "skip": 0.08, "eff": 0.34, "label": "สายนอนดึก"},
@@ -189,8 +202,11 @@ static var _table: PackedFloat64Array = PackedFloat64Array()
 static var _minutes_cache := {}
 
 
+## Everyone in the world by now: the ROSTER, then the daily newcomers who joined up to
+## today (Thai time; newcomers below), in the order they came, so an index never changes.
 static func size() -> int:
-	return ROSTER.size()
+	ensure_until(maxf(now(), WorldPresence.clock()))
+	return _all.size()
 
 
 static func now() -> float:
@@ -198,7 +214,137 @@ static func now() -> float:
 
 
 static func entry(i: int) -> Dictionary:
-	return ROSTER[i]
+	if _all.is_empty():
+		_roster()
+	return _all[i]
+
+
+# --- Newcomers ----------------------------------------------------------------------
+
+## Every Thai day from the opening on, NEWCOMERS (2 or 3, by the day) new players log in
+## for the first time, each at a moment of that day of its own. They are made from the
+## date alone (name, class, face, guild), so every device meets the same people at the
+## same moment: they start at Lv.1 as Vagabonds on their day and play hardcore like
+## everyone; on reaching Lv.100 they join Alpha and Neverdie by turns. The classes go
+## round in shuffled rounds of every class. After NEWCOMER_MAX of them (about four months)
+## nobody new comes, so the world stays light enough for a phone.
+const NEWCOMERS := Vector2i(2, 3)
+const NEWCOMER_MAX := 300
+## How a newcomer talks in the chats (a play style's voice: ChatThreads.voice, ChatBrain).
+const NEWCOMER_VOICES: Array[String] = ["hardcore", "regular", "student", "night_owl", "casual", "daytime", "early"]
+const _EN_HEAD: Array[String] = ["Storm", "Kira", "Neo", "Blaze", "Frost", "Pixel", "Nova", "Yuki", "Ace", "Rex",
+	"Zen", "Kai", "Mika", "Tofu", "Bubble", "Ghost", "Iron", "Lucky", "Moon", "Star", "Sunny", "Wolf", "Fox", "Cyber",
+	"Jade", "Ruby", "Onyx", "Echo", "Rogue", "Vex", "Pudding", "Milo", "Toto", "Benz", "Gun", "Bank", "Bow", "Ploy",
+	"Fern", "Earth", "Beam", "Mew", "Nut", "Pond", "Tae", "Jay", "Sky", "Ice"]
+const _EN_TAIL: Array[String] = ["", "_TH", "X", "Boy", "Girl", "Kung", "Z", "Blade", "Fang", "Heart", "Wing",
+	"Shot", "Pro", "Rider", "Hunter", "Knight", "Cat", "Bear", "_Jr", "Max", "Neko", "Senpai"]
+const _TH_HEAD: Array[String] = ["น้อง", "พี่", "จอม", "เจ้า", "ขุน", "อัศวิน", "นักล่า", "จ้าว", "หมอ", "ซามูไร", "เด็ก", "ลุง", "ป้า", "สาว", "หนุ่ม", "แม่ทัพ"]
+const _TH_TAIL: Array[String] = ["ข้าวปั้น", "มะลิ", "เสือ", "เมฆ", "ฟ้า", "ดาว", "ไผ่", "ต้นกล้า", "มะปราง", "ทองคำ", "หมีพูห์",
+	"แมวเหมียว", "ปลาทู", "ส้มตำ", "ลมพัด", "ไฟลุก", "สายฟ้า", "จันทร์", "กาแฟ", "ชานม", "ขนมครก", "มังกร", "หมาป่า", "ลูกชิ้น"]
+
+static var _all: Array[Dictionary] = []
+## Name -> index, for everyone made so far.
+static var _index := {}
+## The last day (from the opening's Thai day) whose newcomers are made, and how many so far.
+static var _gen_day := -1
+static var _gen_count := 0
+
+
+static func _roster() -> void:
+	if not _all.is_empty():
+		return
+	for e in ROSTER:
+		_index[String(e.name)] = _all.size()
+		_all.append(e)
+
+
+## The opening's Thai day number.
+static func _first_day() -> int:
+	return int(floor((float(START_UNIX) + TZ) / DAY))
+
+
+## Makes everyone who has joined by the end of the Thai day of real time t (tests look
+## ahead with it; size() goes up to today). Never undone: the roster only grows.
+static func ensure_until(t: float) -> void:
+	if _all.is_empty():
+		_roster()
+	var last := int(floor((t + TZ) / DAY)) - _first_day()
+	while _gen_day < last and _gen_count < NEWCOMER_MAX:
+		_gen_day += 1
+		_add_day(_gen_day)
+
+
+## Forgets every newcomer and everything kept per player (tests: the world worked out
+## again from nothing, as another device would).
+static func reset_roster() -> void:
+	_all.clear()
+	_index.clear()
+	_gen_day = -1
+	_gen_count = 0
+	for cache in [_at, _cum, _minutes_cache, _sessions, _eff, _hw_share, _hw_cache, _name_hash]:
+		(cache as Dictionary).clear()
+	WorldParties.clear_cache()
+	_roster()
+
+
+## Whether player i is one of the daily newcomers (made, not in ROSTER).
+static func is_newcomer(i: int) -> bool:
+	return bool(entry(i).get("newcomer", false))
+
+
+## The newcomers of day k after the opening's Thai day, in the order they log in.
+static func _add_day(k: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("newcomers|%d|%d" % [START_UNIX, k])
+	var count := rng.randi_range(NEWCOMERS.x, NEWCOMERS.y)
+	var midnight := float(_first_day() + k) * DAY - TZ
+	var lo := maxf(midnight + 1800.0, float(START_UNIX) + 600.0)
+	var hi := midnight + DAY - 1800.0
+	var times: Array[float] = []
+	for j in count:
+		times.append(rng.randf_range(lo, hi))
+	times.sort()
+	for at in times:
+		if _gen_count >= NEWCOMER_MAX:
+			return
+		var e := _newcomer(_gen_count, rng, at)
+		e["day"] = k
+		_index[String(e.name)] = _all.size()
+		_all.append(e)
+		_gen_count += 1
+
+
+## Newcomer number n (from 0), logging in at real time `at`.
+static func _newcomer(n: int, rng: RandomNumberGenerator, at: float) -> Dictionary:
+	# Classes in shuffled rounds of every class, so they spread evenly.
+	var bag: Array[StringName] = ClassData.IDS.duplicate()
+	var shuffle := RandomNumberGenerator.new()
+	shuffle.seed = hash("newcomer_bag|%d" % (n / bag.size()))
+	for k in range(bag.size() - 1, 0, -1):
+		var j := shuffle.randi_range(0, k)
+		var tmp := bag[k]
+		bag[k] = bag[j]
+		bag[j] = tmp
+	var gender := rng.randi() % 2
+	var voice: String = NEWCOMER_VOICES[rng.randi() % NEWCOMER_VOICES.size()]
+	return {"name": _new_name(rng), "class": bag[n % bag.size()], "guild": ALPHA if n % 2 == 0 else NEVERDIE,
+		"gender": gender, "style": "hardcore", "voice": voice, "join": (at - float(START_UNIX)) / DAY, "newcomer": true}
+
+
+## A player's name nobody has yet: Thai or English style, a number added if it keeps
+## coming out taken.
+static func _new_name(rng: RandomNumberGenerator) -> String:
+	for attempt in 40:
+		var name := ""
+		if rng.randf() < 0.4:
+			name = _TH_HEAD[rng.randi() % _TH_HEAD.size()] + _TH_TAIL[rng.randi() % _TH_TAIL.size()]
+		else:
+			name = _EN_HEAD[rng.randi() % _EN_HEAD.size()] + _EN_TAIL[rng.randi() % _EN_TAIL.size()]
+		if attempt >= 6:
+			name += str(rng.randi_range(2, 99))
+		if not _index.has(name):
+			return name
+	return "Newbie%d" % _all.size()
 
 
 static func guild_name(guild: int) -> String:
@@ -208,15 +354,15 @@ static func guild_name(guild: int) -> String:
 ## Everyone who joins `guild` once at Lv.100 (the roster's side, whatever their level now).
 static func members(guild: int) -> Array[int]:
 	var out: Array[int] = []
-	for i in ROSTER.size():
-		if int(ROSTER[i].guild) == guild:
+	for i in size():
+		if int(entry(i).guild) == guild:
 			out.append(i)
 	return out
 
 
 ## The guild player i is in at `level`: its roster guild from Lv.100 (Game.GUILD_LEVEL), none before.
 static func guild_at(i: int, level: int) -> int:
-	return int(ROSTER[i].guild) if level >= Game.GUILD_LEVEL else 0
+	return int(entry(i).guild) if level >= Game.GUILD_LEVEL else 0
 
 
 ## Who is in `guild` at time t: the members who have reached Lv.100.
@@ -226,26 +372,26 @@ static func guild_leader(guild: int, t: float) -> String:
 	var best := ""
 	var best_score := -1
 	for i in members_at(guild, t):
-		var s := state(i, t)
-		var score := int(s.level) * 1000 + int(s.get("stars", 0))
+		var p := progress_at(i, t)
+		var score := int(p.level) * 1000 + int(p.stars)
 		if score > best_score:
 			best_score = score
-			best = String(s.name)
+			best = String(entry(i).name)
 	return best
 
 
 static func members_at(guild: int, t: float) -> Array[int]:
 	var out: Array[int] = []
 	for i in members(guild):
-		if int(state(i, t).level) >= Game.GUILD_LEVEL:
+		if t >= joined_at(i) and level_at(i, t) >= Game.GUILD_LEVEL:
 			out.append(i)
 	return out
 
 
 ## The first world player of a class (for tools and tests), -1 if none.
 static func first_of(cls: StringName) -> int:
-	for i in ROSTER.size():
-		if StringName(ROSTER[i]["class"]) == cls:
+	for i in size():
+		if StringName(entry(i)["class"]) == cls:
 			return i
 	return -1
 
@@ -268,7 +414,7 @@ static func real_time(w: float) -> float:
 
 ## Real unix time player i first logs in (newcomers join some days after the opening).
 static func joined_at(i: int) -> float:
-	return float(START_UNIX) + float(ROSTER[i].get("join", 0)) * DAY
+	return float(START_UNIX) + float(entry(i).get("join", 0)) * DAY
 
 
 ## Local day number (Thai time) of a world time.
@@ -277,10 +423,27 @@ static func day_of(w: float) -> int:
 
 
 ## The sessions player i plays on local world day `day`: [[start, end], ...] in world seconds.
+## Kept per player and day (asked for by every state read: whether online, the minutes
+## played, when last seen); a few days' worth for the whole world.
+static var _sessions := {}
+
+
 static func sessions_on(i: int, day: int) -> Array:
-	var style: Dictionary = STYLES[String(ROSTER[i].style)]
+	var key := day * 4096 + i
+	var hit: Variant = _sessions.get(key)
+	if hit != null:
+		return hit
+	var out := _make_sessions(i, day)
+	if _sessions.size() > 12000:
+		_sessions.clear()
+	_sessions[key] = out
+	return out
+
+
+static func _make_sessions(i: int, day: int) -> Array:
+	var style: Dictionary = STYLES[String(entry(i).style)]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%s|%d" % [ROSTER[i].name, day])
+	rng.seed = day_seed(i, day)
 	if rng.randf() < float(style.skip):
 		return []
 	# 1970-01-01 was a Thursday: weekday 0 = Monday.
@@ -289,8 +452,11 @@ static func sessions_on(i: int, day: int) -> Array:
 	var out := []
 	var midnight := float(day) * DAY - TZ
 	# Round-the-clock styles keep their own hours (so their breaks never fall together).
+	# A spread style's players take their hours in turn down the roster (the golden ratio
+	# spaces them evenly however many there are), so their rests never bunch up.
 	if style.has("phase"):
-		midnight += float(hash("phase|%s" % ROSTER[i].name) % 1000) / 1000.0 * float(style.phase) * 3600.0
+		var share := fposmod(float(i) * 0.6180339887, 1.0) if style.get("spread", false) else float(hash("phase|%s" % entry(i).name) % 1000) / 1000.0
+		midnight += share * float(style.phase) * 3600.0
 	var last_end := -INF
 	for slot in plan:
 		var start := midnight + (float(slot[0]) + rng.randf_range(-1.0, 1.0) * float(style.jitter)) * 3600.0
@@ -300,6 +466,54 @@ static func sessions_on(i: int, day: int) -> Array:
 		out.append([start, start + length])
 		last_end = start + length
 	return out
+
+
+static var _day_rng := RandomNumberGenerator.new()
+
+
+## Sums player i's days into `cum` until it holds `upto` entries (days first-1 ..). A day
+## that begins well after it joined counts whole: the lengths _make_sessions draws (the
+## same seed and draws, worked out inline: a few hundred players times a few hundred days
+## the first time the world is read).
+static func _extend_cum(i: int, cum: PackedFloat64Array, upto: int, first: int, origin: float) -> void:
+	var style: Dictionary = STYLES[String(entry(i).style)]
+	var skip := float(style.skip)
+	var stretch: Array = style.get("stretch", [0.7, 1.3])
+	var lo := float(stretch[0])
+	var hi := float(stretch[1])
+	var lengths := []
+	for plan in [style.weekday, style.weekend]:
+		var list := PackedFloat64Array()
+		for slot in plan:
+			list.append(float(slot[1]) * 60.0)
+		lengths.append(list)
+	day_seed(i, first)
+	var nh := int(_name_hash[i])
+	var rng := _day_rng
+	var total := cum[cum.size() - 1]
+	while cum.size() < upto:
+		var d := first + cum.size() - 1
+		if float(d) * DAY - TZ - 7200.0 >= origin:
+			rng.seed = nh * 1000003 + d * 7919
+			if rng.randf() >= skip:
+				for length in (lengths[1] if (d + 3) % 7 >= 5 else lengths[0]) as PackedFloat64Array:
+					rng.randf()
+					total += length * rng.randf_range(lo, hi)
+		else:
+			total += _day_minutes(i, d, origin, INF)
+		cum.append(total)
+
+
+## The seed of player i's sessions on world day `day`: its name's and the day's.
+static func day_seed(i: int, day: int) -> int:
+	var nh: Variant = _name_hash.get(i)
+	if nh == null:
+		nh = hash("day|%s" % entry(i).name)
+		_name_hash[i] = nh
+	return int(nh) * 1000003 + day * 7919
+
+
+static var _name_hash := {}
 
 
 ## World minutes of the sessions of world day `day` between world times lo and hi.
@@ -323,7 +537,7 @@ static func played_minutes(i: int, t: float) -> float:
 	var w := world_time(t)
 	if w <= origin:
 		return 0.0
-	var key := "%d|%d" % [i, int(t / 60.0)]
+	var key := int(t / 60.0) * 4096 + i
 	if _minutes_cache.has(key):
 		return _minutes_cache[key]
 	if _minutes_cache.size() > 6000:
@@ -333,9 +547,8 @@ static func played_minutes(i: int, t: float) -> float:
 	var first := day_of(float(START_UNIX)) - 1
 	var today := day_of(w)
 	var cum: PackedFloat64Array = _cum.get(i, PackedFloat64Array([0.0]))
-	while cum.size() <= today - 1 - first:
-		var d := first + cum.size() - 1
-		cum.append(cum[cum.size() - 1] + _day_minutes(i, d, origin, INF))
+	if cum.size() <= today - 1 - first:
+		_extend_cum(i, cum, today - first, first, origin)
 	_cum[i] = cum
 	var total := cum[maxi(0, today - 1 - first)]
 	for d in [today - 1, today]:
@@ -350,18 +563,44 @@ static func played_minutes(i: int, t: float) -> float:
 static func session_at(i: int, t: float) -> Array:
 	if t < START_UNIX or t < joined_at(i):
 		return []
+	# The answer holds from one session's start or end to the next (within a world day):
+	# kept per player with the stretch of real time it holds for, so the many reads of a
+	# moment (and of the moments after it) cost a look-up.
+	var c: Variant = _at.get(i)
+	if c != null and t >= float(c[0]) and t < float(c[1]):
+		return c[2]
 	var w := world_time(t)
 	var origin := world_time(joined_at(i))
-	for day in [day_of(w) - 1, day_of(w)]:
+	var today := day_of(w)
+	var lo := float(today) * DAY - TZ
+	var hi := lo + DAY
+	var out := []
+	for day in [today - 1, today]:
 		for sess in sessions_on(i, day):
-			if w >= float(sess[0]) and w < float(sess[1]) and float(sess[1]) > origin:
-				return [real_time(maxf(float(sess[0]), origin)), real_time(float(sess[1]))]
-	return []
+			var a := float(sess[0])
+			var b := float(sess[1])
+			if b <= origin:
+				continue
+			if w >= a and w < b:
+				out = [real_time(maxf(a, origin)), real_time(b)]
+				lo = maxf(lo, a)
+				hi = minf(hi, b)
+			elif b <= w:
+				lo = maxf(lo, b)
+			elif a > w:
+				hi = minf(hi, a)
+	_at[i] = [real_time(lo), real_time(hi), out, -1.0]
+	return out
+
+
+## Per player: [from, until (real unix seconds), session_at's answer, last seen (-1 not
+## worked out yet)].
+static var _at := {}
 
 
 ## A stall keeper / AFK player: stays in the village the whole session.
 static func in_town_style(i: int) -> bool:
-	return bool(STYLES[String(ROSTER[i].style)].get("town", false))
+	return bool(STYLES[String(entry(i).style)].get("town", false))
 
 
 ## Whether player i stays in the village at real time t of its session (real start s0,
@@ -391,7 +630,7 @@ static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
 		return {}
 	var slot := int((t - s0) / 60.0 / ERRAND_EVERY)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("errand|%s|%d|%d" % [ROSTER[i].name, int(s0 / 60.0), slot])
+	rng.seed = hash("errand|%s|%d|%d" % [entry(i).name, int(s0 / 60.0), slot])
 	var length := rng.randf_range(ERRAND_MIN, ERRAND_MAX)
 	var from := s0 + (float(slot) * ERRAND_EVERY + rng.randf_range(4.0, ERRAND_EVERY - length - 4.0)) * 60.0
 	var until := from + length * 60.0
@@ -406,12 +645,31 @@ static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
 		kind = "quest" if pick < 0.5 else ("enhance" if pick < 0.88 else "skill")
 	else:
 		return {}
+	# One hunting with a party of world players stays with it (no errand meanwhile).
+	if not WorldParties.party_of(i, t).is_empty():
+		return {}
 	return {"kind": kind, "from": from, "until": until}
 
 
 ## The level player i has reached at real time t.
 static func level_at(i: int, t: float) -> int:
-	return int(progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t)).level)
+	return int(progress_at(i, t).level)
+
+
+## How far player i has come at real time t, as one number for picking the best (the
+## guild war's line-up): Lv.1-100, then the stars, the part of the next step done, the
+## divine set gathered (up to 1) and its enhancing after (up to 1 at +10). It only goes up.
+static func rank_point(i: int, t: float) -> float:
+	var p := progress_at(i, t)
+	var stars := int(p.stars)
+	var frac := float(p.frac) * 0.99 if stars < Game.PARAGON_MAX else 0.0
+	return float(int(p.level) + stars) + frac + float(p.divine_frac) + minf(float(p.after) / (DIVINE_PLUS_HOURS * 10.0), 1.0)
+
+
+## Player i's progress at real time t (progress_for: level, stars, frac, divine, ...),
+## without the rest of state() (where it is, its party): for picking the strongest.
+static func progress_at(i: int, t: float) -> Dictionary:
+	return progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
 
 
 ## Probe minutes partying with other world players (WorldParties) has added to player i by
@@ -433,9 +691,14 @@ const HALLOWEEN_EXTRA := 1.5
 
 
 static func halloween_share(i: int) -> float:
+	var hit: Variant = _hw_share.get(i)
+	if hit != null:
+		return hit
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("hw_share|%s" % ROSTER[i].name)
-	return rng.randf_range(HALLOWEEN_SHARE_MIN, HALLOWEEN_SHARE_MAX)
+	rng.seed = hash("hw_share|%s" % entry(i).name)
+	var share := rng.randf_range(HALLOWEEN_SHARE_MIN, HALLOWEEN_SHARE_MAX)
+	_hw_share[i] = share
+	return share
 
 
 ## The potion multiplier player i is under at real time t (1: none, or not online).
@@ -444,7 +707,7 @@ static func halloween_mult(i: int, t: float) -> int:
 		return 1
 	var hour := int(floor(t / 3600.0))
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("hw|%s|%d" % [ROSTER[i].name, hour])
+	rng.seed = hash("hw|%s|%d" % [entry(i).name, hour])
 	if rng.randf() >= halloween_share(i):
 		return 1
 	return 2 if rng.randf() < 0.5 else 3
@@ -458,9 +721,11 @@ static func halloween_work(i: int, t: float) -> float:
 	if t <= start:
 		return 0.0
 	_load_bonus()
-	var key := String(ROSTER[i].name)
+	var key := String(entry(i).name)
 	# Asked for by every level read: kept per player for the same 10 s of the clock.
-	var cache_key := "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(hw_skipped.get(key, 0.0))]
+	var cache_key: Variant = int(t / 10.0) * 4096 + i
+	if paused.has(key) or hw_skipped.has(key):
+		cache_key = "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(hw_skipped.get(key, 0.0))]
 	if _hw_cache.has(cache_key):
 		return float(_hw_cache[cache_key])
 	var from := played_minutes(i, start)
@@ -486,7 +751,7 @@ static func _unlocks_between(i: int, a: float, b: float) -> bool:
 	var after := level_at(i, b)
 	if after <= before:
 		return false
-	var cls := StringName(ROSTER[i]["class"]) if after >= ClassData.LINE_LEVEL else ClassData.START
+	var cls := StringName(entry(i)["class"]) if after >= ClassData.LINE_LEVEL else ClassData.START
 	if not _unlock_levels.has(cls):
 		var levels := {}
 		for skill in ClassData.pool(cls):
@@ -538,9 +803,19 @@ static func _steps() -> PackedFloat64Array:
 
 ## How much of the probe's rate player i earns: its style's efficiency and its own hands.
 static func efficiency(i: int) -> float:
+	var hit: Variant = _eff.get(i)
+	if hit != null:
+		return hit
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("eff|%s" % ROSTER[i].name)
-	return float(STYLES[String(ROSTER[i].style)].eff) * rng.randf_range(0.88, 1.12)
+	rng.seed = hash("eff|%s" % entry(i).name)
+	var eff := float(STYLES[String(entry(i).style)].eff) * rng.randf_range(0.88, 1.12)
+	_eff[i] = eff
+	return eff
+
+
+## Per player (fixed by name and style): its efficiency and Halloween share.
+static var _eff := {}
+static var _hw_share := {}
 
 
 ## {level, stars, frac (0..1 to the next step), minutes (played), divine (bool),
@@ -569,7 +844,7 @@ static func progress_for(minutes: float, eff: float, extra := 0.0) -> Dictionary
 ## point (Lv.1-100 = 1-100, ★1-300 = 101-400, past 400 = tenths of DIVINE_HOURS played
 ## since ★300: 410 has played DIVINE_HOURS there, 420 twice as long).
 static func head_work(i: int) -> float:
-	var point := int(ROSTER[i].get("vet", 0))
+	var point := int(entry(i).get("vet", 0))
 	if point <= 1:
 		return 0.0
 	var steps := _steps()
@@ -599,7 +874,7 @@ static var _bonus_dirty := false
 
 static func bonus_work(i: int) -> float:
 	_load_bonus()
-	return float(bonus.get(String(ROSTER[i].name), 0.0))
+	return float(bonus.get(String(entry(i).name), 0.0))
 
 
 ## Real minutes of player i's own play that count for its progress: its schedule's
@@ -607,7 +882,7 @@ static func bonus_work(i: int) -> float:
 ## counts, add_exp), frozen while it is in the party now.
 static func own_minutes(i: int, t: float) -> float:
 	_load_bonus()
-	var key := String(ROSTER[i].name)
+	var key := String(entry(i).name)
 	var minutes := float(paused[key]) if paused.has(key) else played_minutes(i, t)
 	return maxf(0.0, minutes - float(skipped.get(key, 0.0)))
 
@@ -615,7 +890,7 @@ static func own_minutes(i: int, t: float) -> float:
 ## Player i joins the hero's party at real time t: its own schedule stops counting.
 static func pause_schedule(i: int, t: float) -> void:
 	_load_bonus()
-	var key := String(ROSTER[i].name)
+	var key := String(entry(i).name)
 	if not paused.has(key):
 		paused[key] = played_minutes(i, t)
 		_bonus_dirty = true
@@ -625,7 +900,7 @@ static func pause_schedule(i: int, t: float) -> void:
 ## schedule are skipped, so it carries on from the level the party left it at.
 static func resume_schedule(i: int, t: float) -> void:
 	_load_bonus()
-	var key := String(ROSTER[i].name)
+	var key := String(entry(i).name)
 	if not paused.has(key):
 		return
 	var now_m := played_minutes(i, t)
@@ -651,18 +926,17 @@ static func resume_all(t: float) -> void:
 
 
 static func index_of(player_name: String) -> int:
-	for i in ROSTER.size():
-		if String(ROSTER[i].name) == player_name:
-			return i
-	return -1
+	if not _index.has(player_name):
+		size()
+	return int(_index.get(player_name, -1))
 
 
 ## Player i earns `amount` EXP at its level and stars (its share of a party kill).
 static func add_exp(i: int, amount: float, level: int, stars: int) -> void:
-	if amount <= 0.0 or i < 0 or i >= ROSTER.size():
+	if amount <= 0.0 or i < 0 or i >= size():
 		return
 	_load_bonus()
-	var key := String(ROSTER[i].name)
+	var key := String(entry(i).name)
 	bonus[key] = float(bonus.get(key, 0.0)) + amount / maxf(1.0, rate(level, stars))
 	_bonus_dirty = true
 
@@ -731,12 +1005,13 @@ static func clear_bonus() -> void:
 static func state(i: int, t: float = -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
-	var e: Dictionary = ROSTER[i]
-	var p := progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
+	var e: Dictionary = entry(i)
+	var p := progress_at(i, t)
 	var s := session_at(i, t)
 	var place := ""
 	var doing := ""
 	var errand := {}
+	var party := {}
 	if not s.is_empty():
 		if town_time(i, float(s[0]), float(s[1]), t):
 			place = "town"
@@ -768,7 +1043,8 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	out["last_seen"] = _last_seen(i, t) if s.is_empty() else t
 	out["pumpkin"] = halloween_mult(i, t) > 1
 	# A party of world players (WorldParties): its people hunt its field together.
-	var party := WorldParties.party_of(i, t) if doing in ["hunt", "boss"] else {}
+	if doing in ["hunt", "boss"]:
+		party = WorldParties.party_of(i, t)
 	out["party_id"] = String(party.get("id", ""))
 	out["party_leader"] = int(party.get("leader", -1))
 	out["party_members"] = (party.get("members", []) as Array).duplicate()
@@ -779,6 +1055,16 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 
 ## When player i last logged off before real time t (0 if never).
 static func _last_seen(i: int, t: float) -> float:
+	var c: Variant = _at.get(i)
+	if c != null and t >= float(c[0]) and t < float(c[1]) and float(c[3]) >= 0.0:
+		return float(c[3])
+	var seen := _find_last_seen(i, t)
+	if c != null and t >= float(c[0]) and t < float(c[1]):
+		c[3] = seen
+	return seen
+
+
+static func _find_last_seen(i: int, t: float) -> float:
 	var w := world_time(t)
 	var origin := world_time(joined_at(i))
 	var day := day_of(w)
@@ -802,7 +1088,7 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 	if not divine or stars < Game.PARAGON_MAX:
 		return {"place": home, "doing": "hunt"}
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("plan|%s|%d" % [ROSTER[i].name, int(s0 / 60.0)])
+	rng.seed = hash("plan|%s|%d" % [entry(i).name, int(s0 / 60.0)])
 	var roll := rng.randf()
 	if roll < 0.45:
 		return {"place": home, "doing": "boss"}
@@ -851,9 +1137,9 @@ static func grade_of(_level: int, stars: int, divine: bool) -> int:
 ## Player i's face and hair, always the same.
 static func look(i: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("look|%s" % ROSTER[i].name)
+	rng.seed = hash("look|%s" % entry(i).name)
 	var l := FaceKit.random_look(rng)
-	var gender := int(ROSTER[i].gender)
+	var gender := int(entry(i).gender)
 	if int(l.gender) != gender:
 		l["gender"] = gender
 		l["hair"] = rng.randi() % FaceKit.option_count("hair", gender)
@@ -994,11 +1280,11 @@ static func mount_of(m: Dictionary) -> Dictionary:
 ## never ride, some rarely.
 static func ride_taste(i: int) -> float:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("ride|%s" % ROSTER[i].name)
+	rng.seed = hash("ride|%s" % entry(i).name)
 	var pick := rng.randf()
 	if pick < NEVER_RIDE:
 		return 0.0
-	var base := float(STYLE_RIDE.get(String(ROSTER[i].style), 0.5))
+	var base := float(STYLE_RIDE.get(String(entry(i).style), 0.5))
 	if pick < NEVER_RIDE + RARELY_RIDE:
 		return clampf(base * rng.randf_range(0.15, 0.4), 0.05, 0.3)
 	return clampf(base * rng.randf_range(0.9, 1.5), 0.2, 0.95)
@@ -1220,7 +1506,7 @@ static func new_piece(before: Dictionary, after: Dictionary) -> Dictionary:
 ## How a player likes its wings (weights for stand / fly / fold), always the same.
 static func wing_taste(i: int) -> Array:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("wings|%s" % ROSTER[i].name)
+	rng.seed = hash("wings|%s" % entry(i).name)
 	return [rng.randf_range(0.2, 1.0), rng.randf_range(0.1, 1.4), rng.randf_range(0.05, 0.9)]
 
 

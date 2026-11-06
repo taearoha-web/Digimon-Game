@@ -220,12 +220,15 @@ func _host() -> void:
 		var eid := int(mob.get_meta("eid"))
 		near.target = mob
 		link.sent.clear()
+		wp._ev_tokens = WorldPresence.EVENT_BURST
 		near._cast(skill)
 		var casts := link.events("skill")
 		check(casts.size() == 1 and int(casts[0].index) == near.world_index and String(casts[0].data.id) == String(skill.id) and int(casts[0].data.eid) == eid, "host: the cast goes out with the skill and the monster's eid (%s)" % [casts])
 		check(near.wire_anim() == "skill:" + String(skill.id), "host: the anim says the skill just after the cast (%s)" % near.wire_anim())
-	# A bubble over a listed player goes out; the world host's line goes as ai_chat.
+	# A bubble over a listed player goes out; the world host's line goes as ai_chat. (The
+	# event budget is refilled before each: a busy field's own casts may have spent it.)
 	link.sent.clear()
+	wp._ev_tokens = WorldPresence.EVENT_BURST
 	wp._say("world", WorldPlayers.state(near.world_index, WorldPresence.clock()), "ใครอยู่แถวนี้บ้าง")
 	var bubbles := link.events("bubble")
 	check(bubbles.size() == 1 and int(bubbles[0].index) == near.world_index and String(bubbles[0].data.text) == "ใครอยู่แถวนี้บ้าง", "host: the bubble goes out (%s)" % [bubbles])

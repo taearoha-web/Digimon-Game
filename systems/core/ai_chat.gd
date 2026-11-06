@@ -198,18 +198,19 @@ func responder(text: String) -> int:
 	var t := WorldPresence.clock()
 	var online: Array[int] = []
 	var lower := text.to_lower()
+	var gap := {}
+	var level := int(Game.profile.get("level", 1))
 	for i in WorldPlayers.size():
-		var s := WorldPlayers.state(i, t)
-		if not bool(s.online):
+		if WorldPlayers.session_at(i, t).is_empty():
 			continue
-		if lower.contains(String(s.name).to_lower()):
+		if lower.contains(String(WorldPlayers.entry(i).name).to_lower()):
 			return i
 		online.append(i)
+		gap[i] = absi(WorldPlayers.level_at(i, t) - level)
 	if online.is_empty():
 		return -1
-	var level := int(Game.profile.get("level", 1))
 	online.sort_custom(func(a: int, b: int) -> bool:
-		return absi(int(WorldPlayers.state(a, t).level) - level) < absi(int(WorldPlayers.state(b, t).level) - level))
+		return int(gap[a]) < int(gap[b]) or (int(gap[a]) == int(gap[b]) and a < b))
 	var near := online.slice(0, mini(5, online.size()))
 	return near[absi(hash(text)) % near.size()]
 
@@ -354,8 +355,9 @@ func guild_online(g: int) -> Array[int]:
 	var out: Array[int] = []
 	var t := WorldPresence.clock()
 	for i in WorldPlayers.size():
-		var s := WorldPlayers.state(i, t)
-		if bool(s.online) and int(s.get("guild", 0)) == g:
+		if int(WorldPlayers.entry(i).guild) != g or WorldPlayers.session_at(i, t).is_empty():
+			continue
+		if WorldPlayers.guild_at(i, WorldPlayers.level_at(i, t)) == g:
 			out.append(i)
 	return out
 
@@ -473,7 +475,7 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 			"class": String(ClassData.get_class_data(StringName(s["class"])).get("name", "")),
 			"level": int(s.level),
 			"stars": int(s.get("stars", 0)),
-			"style": String(WorldPlayers.STYLES.get(String(s.style), {}).get("label", "")),
+			"style": String(WorldPlayers.STYLES.get(String(s.get("voice", s.style)), {}).get("label", "")),
 			"doing": doing,
 			"place": place_name,
 			"guild": WorldPlayers.guild_name(int(s.get("guild", 0))),

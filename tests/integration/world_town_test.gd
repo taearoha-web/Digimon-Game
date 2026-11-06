@@ -41,12 +41,15 @@ func _clock() -> void:
 	var start := float(WorldPlayers.START_UNIX)
 	check(is_equal_approx(WorldPlayers.world_time(start + 3600.0), start + 3600.0 * WorldPlayers.SPEED), "an hour of real time is SPEED hours on the world's clock")
 	check(is_equal_approx(WorldPlayers.real_time(WorldPlayers.world_time(start + 12345.0)), start + 12345.0), "world and real time convert both ways")
-	# The pace of levelling is a real player's: hours played a real week stay sensible.
+	# The pace of levelling is a real player's: hours played a real week stay sensible. Every
+	# scheduled player is hardcore (about 13 hours a day, resting the rest), a stall keeper
+	# keeps its stall round the clock.
 	for i in WorldPlayers.size():
 		var week := WorldPlayers.played_minutes(i, start + 28.0 * 86400.0) / 60.0 / 4.0
 		var e := WorldPlayers.entry(i)
-		var top := 170.0 if WorldPlayers.in_town_style(i) else 70.0
-		check(week >= (0.0 if e.has("join") else 4.0) and week < top, "%s (%s): plays %.0f real hours a week" % [e.name, e.style, week])
+		var top := 170.0 if WorldPlayers.in_town_style(i) else 110.0
+		var least := 0.0 if e.has("join") else (4.0 if WorldPlayers.in_town_style(i) else 60.0)
+		check(week >= least and week < top, "%s (%s): plays %.0f real hours a week" % [e.name, e.style, week])
 
 
 func _busy(from_day: float, days: float) -> void:

@@ -461,7 +461,8 @@ func wants_ride(roll: float) -> bool:
 	if zone != null and zone.is_town:
 		p *= TOWN_RIDE
 	elif not _camp.is_empty() and _flat(_camp_center() - global_position).length() > RIDE_FAR:
-		p = minf(1.0, p * 1.6)
+		# Far from its camp it rides more, though now and then it still walks.
+		p = minf(0.95, p * 1.6)
 	return roll < p
 
 

@@ -248,8 +248,13 @@ func _join(cls: StringName) -> void:
 	Game.dismiss_party()
 	check(Game.party_invite(WorldPlayers.first_of(cls), true) == "", "a %s world player joins the party" % cls)
 	var member: Dictionary = Game.party()[0]
+	# At the hero's level, whatever the real world player has reached by today (its gear
+	# follows these too: no star or divine pieces).
 	member["level"] = maxi(1, int(Game.profile.level) - 1)
 	member["stars"] = 0
+	member["frac"] = 0.0
+	member["divine_frac"] = 0.0
+	member["after"] = 0.0
 	Game.party_changed.emit()
 
 
