@@ -32,12 +32,19 @@ class ClockCaster extends Node3D:
 class ObservedCamera extends ThirdPersonCamera:
 	var sampled_frames := 0
 	var disturbed_frames := 0
+	## The hero's own skill feel (SkillFeel) may zoom and shake within the caps.
+	var max_fov := 0.0
+	var max_offset := 0.0
 
 	func _physics_process(delta: float) -> void:
 		super._physics_process(delta)
 		sampled_frames += 1
 		if not is_equal_approx(camera.fov, base_fov) or not is_zero_approx(camera.h_offset) or not is_zero_approx(camera.v_offset) or not is_equal_approx(_arm.spring_length, distance):
 			disturbed_frames += 1
+		max_fov = maxf(max_fov, absf(camera.fov - base_fov))
+		max_offset = maxf(max_offset, Vector2(camera.h_offset, camera.v_offset).length())
+		if not is_equal_approx(_arm.spring_length, distance):
+			max_offset = INF
 
 
 var checks := 0
@@ -146,6 +153,9 @@ func _actual_cast(use_companion: bool, rank: int, saturated: bool) -> void:
 	var near: RecordingMob = fixture.near
 	var outside: RecordingMob = fixture.outside
 	var label := "%s rank %d%s" % ["companion" if use_companion else "hero", rank, " saturated low" if saturated else ""]
+	# The hero's rank-5 cast runs with "สั่นจอ" off: then the camera never moves at all.
+	var shake_on := use_companion or rank != 5 or saturated
+	GameSettings.screen_shake = shake_on
 	if saturated:
 		for i in VfxBudget.decoration_limit():
 			var reservation := Node.new()
@@ -177,7 +187,16 @@ func _actual_cast(use_companion: bool, rank: int, saturated: bool) -> void:
 	else:
 		await get_tree().create_timer(9.5).timeout
 	check(near.amounts.size() == 11, label + ": stationary target receives eleven real damage events, got %d" % near.amounts.size())
-	check(fixture.camera.sampled_frames > 0 and fixture.camera.disturbed_frames == 0, label + ": every camera frame keeps its zoom and zero shake through all eleven impacts and target focus")
+	if use_companion or not shake_on:
+		# An AI caster never moves the camera, nor does the hero's cast with "สั่นจอ" off.
+		check(fixture.camera.sampled_frames > 0 and fixture.camera.disturbed_frames == 0, label + ": every camera frame keeps its zoom and zero shake through all eleven impacts and target focus")
+	else:
+		# The hero's own cast: skill feel within its caps, the spring arm untouched, back at rest.
+		check(fixture.camera.sampled_frames > 0 and fixture.camera.max_fov <= ThirdPersonCamera.FEEL_MAX_FOV + 0.001 and fixture.camera.max_offset <= ThirdPersonCamera.FEEL_MAX_OFFSET + 0.001,
+			label + ": camera feel stays within its caps through all eleven impacts (%.2f deg, %.3f m)" % [fixture.camera.max_fov, fixture.camera.max_offset])
+		await get_tree().create_timer(0.7, true, false, true).timeout
+		check(fixture.camera.feel_offset() == Vector2.ZERO, label + ": the camera is back at rest after the sequence")
+	GameSettings.screen_shake = true
 	check(outside.amounts.is_empty(), label + ": outside target receives no damage")
 	check(near.burn_applications == 11, label + ": each hit applies the existing fire status")
 	check(near.hp == 10000000 - _sum(near.amounts), label + ": all damage reaches real Mob HP")

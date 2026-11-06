@@ -7,6 +7,9 @@ const STOP_GAP_MS := 180
 
 static var _stopped := false
 static var _last_stop := 0
+## How long the last stop lasted (ms): the gap counts from its end, so a long
+## ultimate stop is never followed straight away by another.
+static var _last_len := 0
 
 
 ## Freezes the game for [param seconds] of real time (very slow time, not a pause,
@@ -17,10 +20,14 @@ static func hitstop(tree: SceneTree, seconds: float) -> void:
 		return
 	if _stopped or tree == null:
 		return
+	# The ultimate cut-in's slow motion owns the clock while it runs (UltCutIn).
+	if UltCutIn.slowing():
+		return
 	var now := Time.get_ticks_msec()
-	if now - _last_stop < STOP_GAP_MS:
+	if now - _last_stop < STOP_GAP_MS + _last_len:
 		return
 	_last_stop = now
+	_last_len = int(seconds * 1000.0)
 	_stopped = true
 	var before := Engine.time_scale
 	Engine.time_scale = 0.06
