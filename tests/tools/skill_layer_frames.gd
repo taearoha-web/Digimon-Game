@@ -4,7 +4,7 @@ extends Node3D
 ## (SkillLayers): anticipation, core, secondary motion, environment, afterglow.
 ## Each skill becomes one 3x2 sheet: the wind-up, the release and the dissipation.
 ## Pass "nolayers" to render with SkillLayers switched off (a before/after pair).
-## xvfb-run -a godot --rendering-driver opengl3 --path . res://tests/tools/skill_layer_frames.tscn -- OUT_DIR TAG class:skill,class:skill [nolayers] [q0|q1|q2]
+## xvfb-run -a godot --rendering-driver opengl3 --path . res://tests/tools/skill_layer_frames.tscn -- OUT_DIR TAG class:skill,class:skill [nolayers] [noult] [wide] [q0|q1|q2]
 
 const FRAME := Vector2i(640, 360)
 var out_dir := ""
@@ -30,6 +30,8 @@ func _ready() -> void:
 	GameSettings.ult_cutin = false
 	GameSettings.screen_shake = false
 	SkillLayers.enabled = not ("nolayers" in args)
+	# "noult": the Mage's three ultimates without their natural layers (MageUltimateArt).
+	MageUltimateArt.enabled = not ("noult" in args)
 	get_window().size = Vector2i(1280, 720)
 	seed(808)
 	Scenery.environment(self, Color("789bba"), Color("adc2c6"), Color("d9e5f0"), Color("ffe4bf"))
@@ -86,6 +88,10 @@ func _scene(cls: StringName, id: String) -> void:
 	field.add_child(cam)
 	cam.position = Vector3(8.2, 5.4, -3.6)
 	cam.look_at(Vector3(0, 1.0, 0.6))
+	if "wide" in OS.get_cmdline_user_args():
+		# Far enough back to see the sky pieces (cloud decks, halos, falling meteors).
+		cam.position = Vector3(14.5, 9.0, -8.0)
+		cam.look_at(Vector3(0, 2.6, 1.0))
 	cam.current = true
 	hero.target = mobs[0]
 	hero.set_facing(0.0)

@@ -37,6 +37,9 @@ static func warm_up(parent: Node3D, at: Vector3) -> void:
 
 func _ready() -> void:
 	_build_ring()
+	if radius >= 1.0:
+		# The rolling cloud deck under the ring and the rain sheets through it.
+		MageUltimateArt.storm_sky(self, radius, CLOUD_HEIGHT, 2.6)
 	# A single quad carries the entire engraved seal, including its mist band.
 	_seal_mat = ShaderMaterial.new()
 	_seal_mat.shader = SEAL_SHADER
@@ -110,6 +113,11 @@ func strike(to: Vector3, seed_value: int) -> void:
 		_bolt_layer(branch, 0.105, Color(0.24, 0.73, 1.0, 0.8), "ThunderStormFork", 1)
 		_bolt_layer(branch, 0.038, Color("ffe597"), "ThunderStormForkCore", 2)
 	_impact(to)
+	if radius >= 1.0:
+		# A forked channel with a long afterglow, scorch and sparks, left on the field
+		# so the last wave's afterglow outlives the sequence.
+		var field: Node3D = get_parent().get_parent() if get_parent() is ThunderStormSequence and get_parent().get_parent() is Node3D else self
+		MageUltimateArt.storm_strike(field, global_position + Vector3(to.x, 0.0, to.z), CLOUD_HEIGHT)
 
 func ring_radius() -> float:
 	return radius * 0.72

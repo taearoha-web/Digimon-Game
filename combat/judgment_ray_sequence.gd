@@ -44,6 +44,7 @@ func _ready() -> void:
 	add_to_group("judgment_ray_sequences")
 	if _visuals:
 		art=JudgmentRayArt.new()
+		art.release_seconds=release
 		add_child(art)
 	_sync_target()
 
