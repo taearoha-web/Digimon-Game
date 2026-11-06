@@ -144,6 +144,7 @@ func _process(delta: float) -> void:
 		_gq_timer = 0.0
 		if guild() > 0:
 			_guild_quest_announce()
+		GuildLeague.tick()
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -988,6 +989,9 @@ func _valid_profile(data: Dictionary) -> bool:
 		for key in leaders:
 			if not key is String or not leaders[key] is String or String(leaders[key]).length() > GUILD_LEADER_NAME_MAX:
 				return false
+	# The weekly guild league record (GuildLeague).
+	if data.has(GuildLeague.KEY) and not GuildLeague.valid(data[GuildLeague.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1208,6 +1212,7 @@ func _repair(data: Dictionary) -> Dictionary:
 				if g.is_valid_int() and WorldPlayers.GUILD_NAMES.has(int(g)) and raw_leaders[key] is String:
 					leaders[str(int(g))] = String(raw_leaders[key]).strip_edges().left(GUILD_LEADER_NAME_MAX)
 		data["guild_leaders"] = leaders
+	GuildLeague.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -1335,7 +1340,8 @@ func add_exp(amount: int) -> void:
 		return
 	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
 	# Halloween potion multiplies on top of it.
-	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult()))
+	# The guild league champion's members earn GuildLeague.EXP_BONUS more for a week.
+	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return

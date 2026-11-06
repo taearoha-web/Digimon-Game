@@ -143,6 +143,7 @@ func _ready() -> void:
 	_build_self_ring()
 	_build_name_plate()
 	Game.title_changed.connect(_on_title_changed)
+	Game.guild_changed.connect(refresh_name_plate)
 	Game.mount_changed.connect(_on_mount_changed)
 	if keep_riding and Game.active_mount() != "" and can_ride_here():
 		ride(true)
@@ -175,6 +176,11 @@ func refresh_name_plate() -> void:
 		return
 	var hero_name := String(Game.profile.get("name", ""))
 	var title := Achievements.title_of(Game.profile)
+	# The weekly league champion's members wear a gold crown plate (GuildLeague).
+	var champion := GuildLeague.hero_champion()
+	if champion:
+		hero_name = "%s %s" % [GuildLeague.CROWN, hero_name]
+	_name_plate.modulate = GuildLeague.CROWN_COLOR if champion else Color("fff4de")
 	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" else hero_name
 
 

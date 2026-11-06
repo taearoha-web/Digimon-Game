@@ -7,7 +7,7 @@ signal closed()
 signal title_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -157,6 +157,11 @@ func _rebuild() -> void:
 		&"achievements": _build_achievements()
 		&"titles": _build_titles()
 		&"mounts": _build_mounts()
+		&"league":
+			var page := UIUtil.vbox(8)
+			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_content.add_child(page)
+			_page_scroll = LeagueView.build(page, _queue_rebuild) as TouchScroll
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)

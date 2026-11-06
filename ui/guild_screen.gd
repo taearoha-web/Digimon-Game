@@ -85,6 +85,12 @@ func open_quests() -> void:
 	open_screen()
 
 
+## Opens on the weekly guild league (LeagueView).
+func open_league() -> void:
+	view = "league"
+	open_screen()
+
+
 func close_screen() -> void:
 	close_leader_picker()
 	is_open = false
@@ -120,7 +126,7 @@ func _build() -> void:
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
 	var mine := Game.guild()
-	if mine == 0:
+	if mine == 0 and view == "quests":
 		view = "roster"
 	var title := UIUtil.label("นายทะเบียนกิลด์" if mine > 0 else "นายทะเบียนกิลด์ — Alpha · Neverdie", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -133,7 +139,7 @@ func _build() -> void:
 			close_screen()
 			war_requested.emit())
 		head.add_child(war)
-		var other := "roster" if view == "quests" else "quests"
+		var other := "roster" if view != "roster" else "quests"
 		var tab := UIUtil.button("รายชื่อสมาชิก" if other == "roster" else "ภารกิจกิลด์", &"PrimaryButton" if other == "quests" else &"", Vector2(170, 60))
 		tab.name = "GuildRoster" if other == "roster" else "GuildQuests"
 		tab.pressed.connect(func():
@@ -148,9 +154,27 @@ func _build() -> void:
 				sort_by = String(key)
 				_build())
 			head.add_child(pick)
+	# The weekly guild league (LeagueView), open to everyone.
+	if view != "league":
+		var league := UIUtil.button("ลีกกิลด์", &"AccentButton", Vector2(130, 60))
+		league.name = "GuildLeague"
+		league.pressed.connect(func():
+			view = "league"
+			_build())
+		head.add_child(league)
+	elif mine == 0:
+		var back := UIUtil.button("รายชื่อสมาชิก", &"", Vector2(170, 60))
+		back.pressed.connect(func():
+			view = "roster"
+			_build())
+		head.add_child(back)
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(110, 60))
 	close.pressed.connect(close_screen)
 	head.add_child(close)
+	if view == "league":
+		LeagueView.build(column, _build)
+		_restore_scrolls(kept)
+		return
 	if view == "quests":
 		_quest_view(column, mine)
 		_restore_scrolls(kept)
