@@ -5,6 +5,8 @@ extends CanvasLayer
 
 signal closed()
 signal title_requested()
+## The party raid (RaidData) from the menu: Main opens its keeper's screen.
+signal raid_requested()
 
 const TABS := [
 	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["settings", "ตั้งค่า"],
@@ -70,6 +72,12 @@ func _ready() -> void:
 		b.pressed.connect(func(): show_tab(StringName(tab[0])))
 		tabs.add_child(b)
 		_tab_buttons[StringName(tab[0])] = b
+	var raid := UIUtil.button(RaidData.SHORT, &"", Vector2(0, 54))
+	raid.add_theme_color_override("font_color", Color("ff9aa6"))
+	raid.pressed.connect(func():
+		close_menu()
+		raid_requested.emit())
+	tabs.add_child(raid)
 	tabs.add_child(UIUtil.spacer(false))
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 66))
 	close.pressed.connect(close_menu)
