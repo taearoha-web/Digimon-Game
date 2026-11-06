@@ -2,8 +2,8 @@ extends Node3D
 ## Frame strips of the Warrior / Lancer / Defender skills through the real cast
 ## path (Hero._cast with live mobs): one PNG per skill, a 3x2 grid of the wind-up
 ## and five moments after the release. For before/after art reviews.
-## xvfb-run -a godot --rendering-driver opengl3 --audio-driver Dummy --path . res://tests/tools/melee_strips.tscn -- OUT_DIR SPEC [q=0..2] [p=0..2]
-## SPEC: warrior | lancer | defender | stars | gods | all | id,id,...
+## xvfb-run -a godot --rendering-driver opengl3 --audio-driver Dummy --path . res://tests/tools/melee_strips.tscn -- OUT_DIR SPEC [q=0..2] [p=0..2] [solo] [off]
+## SPEC: comma list of ids and / or warrior, lancer, defender, stars, gods, all
 
 const FRAME := Vector2i(560, 360)
 var cam: Camera3D
@@ -27,6 +27,8 @@ func _ready() -> void:
 	GameSettings.quality = 2
 	var pressure := 0
 	solo = "solo" in args
+	# "off": the class layers switched off (a before-image of the same framing).
+	MeleeArt.enabled = not "off" in args
 	for a in args.slice(2):
 		if a.begins_with("q="): GameSettings.quality = int(a.substr(2))
 		if a.begins_with("p="): pressure = int(a.substr(2))
@@ -62,16 +64,19 @@ func _ready() -> void:
 
 
 func _skills(spec: String) -> Array:
+	var tokens := spec.split(",")
 	var out: Array = []
 	for cls in [&"warrior", &"lancer", &"defender"]:
 		# The class pool carries the star skills after the levelled ones.
 		for skill in ClassData.pool(cls):
-			if not skill.has("star"):
-				if spec in [String(cls), "all"] or String(skill.id) in spec.split(","):
-					out.append([cls, skill])
-				continue
-			var god := StarSkillData.is_god(skill)
-			if (spec in ["stars", "all"] and not god) or (spec in ["gods", "all"] and god) or String(skill.id) in spec.split(","):
+			var id := String(skill.id)
+			var wanted := "all" in tokens or id in tokens
+			if skill.has("star"):
+				var god := StarSkillData.is_god(skill)
+				wanted = wanted or ("stars" in tokens and not god) or ("gods" in tokens and god)
+			else:
+				wanted = wanted or String(cls) in tokens
+			if wanted:
 				out.append([cls, skill])
 	return out
 
@@ -118,7 +123,7 @@ func _strip(cls: StringName, skill: Dictionary) -> void:
 	var radius := float(skill.get("radius", 3.0))
 	var shape := String(skill.get("shape", "single"))
 	var look_at := Vector3(2.2, 1.0, 0) if shape in ["single", "chain", "fan", "blast"] else Vector3(0.6, 1.0, 0)
-	cam.size = (clampf(radius * 2.1, 8.5, 20.0) if shape in ["burst", "blast"] else 8.5) * (1.6 if star else 1.0)
+	cam.size = (clampf(radius * 2.1, 8.5, 20.0) if shape in ["burst", "blast"] else 8.5) * (1.1 if star else 1.0)
 	cam.position = look_at + Vector3(3.0, 11.0, 13.0)
 	cam.look_at(look_at)
 	title.text = "%s  %s" % [String(skill.id), "★%d" % int(skill.star) if star else "Lv.%d" % int(skill.get("level", 1))]

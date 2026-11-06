@@ -124,7 +124,11 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		return
 	var shape := String(skill.get("shape", "single"))
 	var at := center if shape == "blast" else origin
-	var rig := acquire(parent, Vector3(at.x, origin.y, at.z), _yaw(origin, center), 1.0)
+	var aim := center
+	if Vector2(center.x - origin.x, center.z - origin.z).length() < 0.5:
+		# Bursts and self casts are centred on the caster: face the nearest foe.
+		aim = _nearest_foe(parent, origin, float(skill.get("radius", 4.0)) + 3.0, origin + Vector3.BACK)
+	var rig := acquire(parent, Vector3(at.x, origin.y, at.z), _yaw(origin, aim), 1.0)
 	if rig == null:
 		return
 	var ctx := context(skill, origin, center)
@@ -141,7 +145,11 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 	if not handles_star(skill) or not _alive(parent):
 		return
 	var ground := Vector3(point.x, source.y, point.z)
-	var rig := acquire(parent, ground, _yaw(source, point), 1.0)
+	var yaw := _yaw(source, point)
+	if Vector2(point.x - source.x, point.z - source.z).length() < 0.5:
+		# A burst / self beat lands on the caster: face the nearest foe instead.
+		yaw = _yaw(source, _nearest_foe(parent, source, float(skill.get("radius", 6.0)) + 2.0, source + Vector3.BACK))
+	var rig := acquire(parent, ground, yaw, 1.0)
 	if rig == null:
 		return
 	var ctx := context(skill, source, point)
@@ -174,6 +182,19 @@ static func star_charge(caster: Node3D, skill: Dictionary, point: Vector3, durat
 		"lancer": LancerArt.charge(rig, skill, ctx, duration)
 		"defender": DefenderArt.charge(rig, skill, ctx, duration)
 	rig.commit()
+
+
+static func _nearest_foe(parent: Node, from: Vector3, reach: float, fallback: Vector3) -> Vector3:
+	var best := fallback
+	var best_d := reach
+	for node in parent.get_tree().get_nodes_in_group("mobs"):
+		var mob := node as Node3D
+		if mob and mob.is_inside_tree():
+			var d := Vector2(mob.global_position.x - from.x, mob.global_position.z - from.z).length()
+			if d < best_d and d > 0.3:
+				best_d = d
+				best = mob.global_position
+	return best
 
 
 static func context(skill: Dictionary, origin: Vector3, target: Vector3) -> Dictionary:

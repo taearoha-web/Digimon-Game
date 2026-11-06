@@ -204,7 +204,8 @@ static func star(rig: MeleeArt, skill: Dictionary, ctx: Dictionary) -> void:
 		"heartseeker":
 			var final := i >= 5
 			var off := Vector3(0.25 * float(i % 3 - 1), 0.15 * float(i % 2), 0)
-			thrust(rig, c, from + off, Vector3(0, 1.1, 1.2 if not final else 3.0) + off, 1.8 if final else 0.9, 0.0, 3 if final else 1, 2 if final else 1)
+			thrust(rig, c, from + off, Vector3(0, 1.1, 1.4 if not final else 3.2) + off, 2.4 if final else 1.4, 0.0, 3 if final else 2, 3 if final else 2)
+			rig.ring(c, Vector3(0, 1.1, 0.2), 0.2, 1.2 + (1.0 if final else 0.0), 0.0, 0.35, Vector3(PI * 0.5, 0, 0), {"opacity": 0.8})
 			if final:
 				rig.ring(c, Vector3(0, 1.1, 0), 0.3, 2.6, 0.0, 0.5, Vector3(PI * 0.5, 0, 0), {"opacity": 0.85})
 				rig.emit(MeleeArt.SPARK, 18, Vector3(0, 1.1, 0), Vector3(0, 1.0, 6.0), 0.8, c[0].lerp(c[1], 0.4), 0.1, 0.55, 0.0, 6.0)
