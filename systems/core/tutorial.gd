@@ -168,10 +168,10 @@ static func pick_guide(t: float) -> int:
 	var best := -1
 	var best_key := INF
 	for i in WorldPlayers.size():
-		var s := WorldPlayers.state(i, t)
-		if not bool(s.online):
+		if WorldPlayers.session_at(i, t).is_empty():
 			continue
-		var key := float(int(s.level)) + (10000.0 if int(s.guild) > 0 else 0.0)
+		var level := WorldPlayers.level_at(i, t)
+		var key := float(level) + (10000.0 if WorldPlayers.guild_at(i, level) > 0 else 0.0)
 		if key < best_key:
 			best_key = key
 			best = i

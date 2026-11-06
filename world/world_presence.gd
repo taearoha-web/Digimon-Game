@@ -191,10 +191,13 @@ func _process(delta: float) -> void:
 	_mode_in -= delta
 	if _mode_in <= 0.0:
 		update_mode()
-	_timer -= delta
-	if _timer <= 0.0:
-		_timer = CHECK
-		sync(false)
+	if _sweep_i >= 0:
+		_sweep_step()
+	else:
+		_timer -= delta
+		if _timer <= 0.0:
+			_timer = CHECK
+			_begin_sweep()
 	if mode == HOST:
 		_ev_tokens = minf(EVENT_BURST, _ev_tokens + EVENT_RATE * delta)
 		_snap_in -= delta
@@ -236,17 +239,69 @@ static func online_count(t: float = -1.0) -> int:
 	return n
 
 
-## Who should stand here now; spawns arrivals, removes those who left.
+## Who should stand here now; spawns arrivals, removes those who left. All at once (on
+## arrival and when asked); the regular check every CHECK seconds reads the world players
+## SWEEP_PER_FRAME at a time over a few frames instead (_begin_sweep), so a world of
+## hundreds of players never stalls a phone's frame.
 func sync(initial: bool) -> void:
 	if zone == null or not is_instance_valid(zone.hero):
 		return
+	_sweep_i = -1
 	var t := clock()
 	# Party members walk with the hero (Zone companions); those whose session ended leave.
 	Game.party_refresh(t)
+	var states: Array[Dictionary] = []
+	for i in WorldPlayers.size():
+		states.append(_read(i, t))
+	_apply(states, t, initial)
+
+
+const SWEEP_PER_FRAME := 30
+var _sweep: Array[Dictionary] = []
+var _sweep_i := -1
+var _sweep_t := 0.0
+
+
+func _begin_sweep() -> void:
+	if zone == null or not is_instance_valid(zone.hero):
+		return
+	_sweep_t = clock()
+	Game.party_refresh(_sweep_t)
+	_sweep.clear()
+	_sweep_i = 0
+	_sweep_step()
+
+
+func _sweep_step() -> void:
+	var n := WorldPlayers.size()
+	var stop := mini(n, _sweep_i + SWEEP_PER_FRAME)
+	for i in range(_sweep_i, stop):
+		_sweep.append(_read(i, _sweep_t))
+	_sweep_i = stop
+	if _sweep_i >= n:
+		_sweep_i = -1
+		if zone != null and is_instance_valid(zone.hero):
+			_apply(_sweep, _sweep_t, false)
+
+
+## Player i's state at t for a sync. An offline player's progress stands still while it
+## is away, so it needs no more than that it is away (unless it is shown here, or it has
+## just joined the world since it was seen); it is first looked at when it logs in.
+func _read(i: int, t: float) -> Dictionary:
+	if shown.has(i) or not WorldPlayers.session_at(i, t).is_empty():
+		return WorldPlayers.state(i, t)
+	if not _seen.has(i) or bool((_seen[i] as Array)[4]) == (t >= WorldPlayers.joined_at(i)):
+		return {"index": i, "online": false, "away": true}
+	return WorldPlayers.state(i, t)
+
+
+func _apply(states: Array[Dictionary], t: float, initial: bool) -> void:
 	var here: Array[Dictionary] = []
 	_online.clear()
-	for i in WorldPlayers.size():
-		var s := WorldPlayers.state(i, t)
+	for s in states:
+		if s.has("away"):
+			continue
+		var i := int(s.index)
 		_announce(s, t)
 		if bool(s.online):
 			_online.append(s)
@@ -262,6 +317,7 @@ func sync(initial: bool) -> void:
 			if zone.is_town and String(s.doing) not in ["stall", "errand"]:
 				continue
 			here.append(s)
+	_flush_welcome(t)
 	if mode == MIRROR:
 		return
 	# Those already shown stay first, then the roster order turned by the hour so the same
@@ -483,12 +539,17 @@ func _announce(s: Dictionary, t: float) -> void:
 	var now := [int(s.level), int(s.stars), bool(s.divine), plus, joined]
 	if not _seen.has(i):
 		_seen[i] = now
+		# A newcomer who joined a little while ago, or is still on its first steps, is
+		# welcomed too.
+		var fresh := t - WorldPlayers.joined_at(i) < WELCOME_RECENT or WorldPlayers.played_minutes(i, t) < WELCOME_PLAYED
+		if joined and fresh and (WorldPlayers.is_newcomer(i) or WorldPlayers.entry(i).has("join")):
+			welcome(String(s.name))
 		return
 	var was: Array = _seen[i]
 	_seen[i] = now
 	var tag := ("[%s] %s" % [WorldPlayers.guild_name(int(s.guild)), s.name]) if int(s.guild) > 0 else String(s.name)
 	if not bool(was[4]) and joined:
-		_server("ผู้เล่นใหม่ %s เข้าสู่โลกแล้ว ยินดีต้อนรับ!" % s.name, &"info")
+		welcome(String(s.name))
 	for lv in ANNOUNCE_LEVELS:
 		if int(was[0]) < lv and int(now[0]) >= lv:
 			_server("%s ถึงเลเวล %d แล้ว!" % [tag, lv], &"info", lv >= Game.GUILD_LEVEL)
@@ -503,6 +564,44 @@ func _announce(s: Dictionary, t: float) -> void:
 		_server("%s ได้ชุดเทพประจำอาชีพครบชุดแล้ว!" % tag, &"quest", true)
 	if plus > int(was[3]) and plus >= 5:
 		_server("%s ตีบวกชุดเทพ +%d สำเร็จ!" % [tag, plus], &"quest", plus >= 9)
+
+
+## Newcomers are welcomed in the world chat (and a toast) once each, the first time this
+## game sees them log in (or within WELCOME_RECENT real seconds of it), at most one
+## welcome every WELCOME_GAP seconds of the world clock (the rest wait their turn, at most
+## WELCOME_WAIT of them; sync lets one out).
+const WELCOME_RECENT := 3.0 * 3600.0
+## ... or while it has played less than this many real minutes (its first session).
+const WELCOME_PLAYED := 60.0
+const WELCOME_GAP := 40.0
+const WELCOME_WAIT := 6
+static var _welcomed := {}
+static var _welcome_wait: Array[String] = []
+static var _welcome_last := -INF
+
+
+static func welcome(who: String) -> void:
+	if _welcomed.has(who) or _welcome_wait.has(who):
+		return
+	if _welcome_wait.size() >= WELCOME_WAIT:
+		_welcomed[_welcome_wait.pop_front()] = true
+	_welcome_wait.append(who)
+
+
+## The next waiting welcome, when the last one was WELCOME_GAP ago ("" when none is due).
+static func next_welcome(t: float) -> String:
+	if _welcome_wait.is_empty() or t - _welcome_last < WELCOME_GAP:
+		return ""
+	var who: String = _welcome_wait.pop_front()
+	_welcomed[who] = true
+	_welcome_last = t
+	return "ผู้เล่นใหม่ %s เข้าเกมแล้ว ยินดีต้อนรับ!" % who
+
+
+func _flush_welcome(t: float) -> void:
+	var text := next_welcome(t)
+	if text != "":
+		_server(text, &"info", true)
 
 
 func _server(text: String, kind: StringName, toast := false) -> void:

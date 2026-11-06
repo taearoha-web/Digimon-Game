@@ -73,7 +73,9 @@ func _skill_ranks() -> void:
 
 
 func _roster() -> void:
-	check(WorldPlayers.size() == 99, "ninety-nine world players, a hundred with the hero (%d)" % WorldPlayers.size())
+	# Ninety-nine hand-made players (a hundred with the hero), then the daily newcomers
+	# (newcomers_test) who have joined by today.
+	check(WorldPlayers.ROSTER.size() == 99 and WorldPlayers.size() >= WorldPlayers.ROSTER.size(), "ninety-nine world players, a hundred with the hero, and the newcomers (%d)" % WorldPlayers.size())
 	var names := {}
 	var classes := {}
 	var sizes := []
@@ -101,7 +103,8 @@ func _roster() -> void:
 func _progress() -> void:
 	var start := float(WorldPlayers.START_UNIX)
 	var day := 86400.0
-	for i in WorldPlayers.size():
+	# The hand-made roster (the daily newcomers' pace: newcomers_test).
+	for i in WorldPlayers.ROSTER.size():
 		var e := WorldPlayers.entry(i)
 		var before := WorldPlayers.state(i, start - 3600.0)
 		var vet := e.has("vet")
@@ -158,8 +161,10 @@ func _progress() -> void:
 		var early := WorldPlayers.state(i, start + 0.25 * day)
 		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first six hours (%d)" % [e.name, int(early.level)])
 		# Hours a week: world_town_test checks every style, stall keepers and newcomers too.
+		# Everyone with a schedule is hardcore: about 13 hours a day, resting the rest.
 		var week := WorldPlayers.played_minutes(i, start + 28.0 * day) / 60.0 / 4.0
-		check(WorldPlayers.in_town_style(i) or e.has("join") or (week > 5.0 and week < 70.0), "%s: plays %.0f hours a week" % [e.name, week])
+		check(WorldPlayers.in_town_style(i) or e.has("join") or (week > 60.0 and week < 110.0), "%s: plays %.0f hours a week" % [e.name, week])
+		check(WorldPlayers.in_town_style(i) or String(e.style) == "hardcore", "%s: plays hardcore" % e.name)
 		if String(e.style) == "hardcore" and not e.has("join"):
 			# A hardcore player: ★200 in about five to seven days, then the steeper climb
 			# (HeroStats.star_need, 4% more a star) to ★300 about a week later.
@@ -558,9 +563,10 @@ func _party() -> void:
 	var people := float(ids.size() + 1)
 	# The evening EXP x2 event (WorldEvents) may be on at the test's clock: the hero's
 	# share is doubled then, like every EXP it earns.
-	var event := WorldEvents.exp_multiplier(WorldPresence.clock())
+	# So may the weekly league's champion bonus (GuildLeague.exp_mult) when the hero's guild holds the castle.
+	var event := WorldEvents.exp_multiplier(WorldPresence.clock()) * GuildLeague.exp_mult()
 	var want := int(round(float(int(round(base * (1.0 + Game.PARTY_EXP_BONUS * (people - 1.0)) / people))) * event))
-	check(absi(gained - want) <= 1 and gained < int(base * event), "the hero gets its part of the shared EXP (%d of %d, event x%.0f)" % [gained, int(base), event])
+	check(absi(gained - want) <= 1 and gained < int(base * event), "the hero gets its part of the shared EXP (%d of %d, events x%.2f)" % [gained, int(base), event])
 	var shared := true
 	for k in ids.size():
 		shared = shared and WorldPlayers.bonus_work(ids[k]) > float(work_before[k])
@@ -586,7 +592,21 @@ func _party() -> void:
 	var after := []
 	for i in WorldPlayers.size():
 		after.append(WorldPlayers.state(i, t))
-	check(before == after, "a new character does not restart the world players")
+	# (Members still online who were in the hero's party go back to parties of their own,
+	# and their minutes may differ in the last float digit.)
+	var same := before.size() == after.size()
+	for k in mini(before.size(), after.size()):
+		for key in before[k]:
+			if String(key).begins_with("party_"):
+				continue
+			var x: Variant = before[k][key]
+			var y: Variant = after[k].get(key)
+			# A party hunts its leader's field: the place follows a changed party.
+			if String(key) == "place" and before[k].party_id != after[k].party_id:
+				continue
+			var ok: bool = absf(float(x) - float(y)) < 1e-6 if (x is float and y is float) else x == y
+			same = same and ok
+	check(same, "a new character does not restart the world players")
 	check(Game.party().is_empty(), "a new character starts without a party")
 	await _wings(zone)
 	await _riding(zone)
@@ -762,7 +782,7 @@ func _riding(zone: Zone) -> void:
 		var top := {"name": WorldPlayers.entry(i).name, "level": 100, "stars": 150}
 		if WorldPlayers.mount_of(top).is_empty():
 			continue
-		if rider < 0 and WorldPlayers.ride_taste(i) >= 0.5:
+		if rider < 0 and WorldPlayers.ride_taste(i) >= 0.5 and not Game.in_party(i):
 			rider = i
 		if never < 0 and WorldPlayers.ride_taste(i) == 0.0:
 			never = i

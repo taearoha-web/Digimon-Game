@@ -11,6 +11,8 @@ signal closed()
 signal war_requested()
 
 const REFRESH := 10.0
+## Member cards a guild column builds at most (see _guild_column).
+const ROWS_MAX := 100
 ## How the member lists are sorted: "level" (highest level and stars first) or "class"
 ## (class by class in ClassData order, each strongest first, under a class heading).
 const SORTS := {"level": "เลเวล", "class": "อาชีพ"}
@@ -398,6 +400,17 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 			"level_text": "Lv.%d%s" % [int(Game.profile.level), " ★%d" % stars if stars > 0 else ""], "where": "ออนไลน์ · ตัวละครของคุณ", "online": true,
 			"lead": String(lead.kind) == "hero"})
 	sort_members(rows, sort_by)
+	# A big guild lists its best ROWS_MAX (the hero, its other characters and the leader
+	# always): the world grows by a few newcomers a day, a phone's list should not.
+	var hidden := 0
+	if rows.size() > ROWS_MAX:
+		var kept: Array[Dictionary] = []
+		for r in rows:
+			if kept.size() < ROWS_MAX or bool(r.get("lead", false)) or r.has("alt") or String(r.where) == "ออนไลน์ · ตัวละครของคุณ":
+				kept.append(r)
+			else:
+				hidden += 1
+		rows = kept
 	var heading := StringName()
 	for r in rows:
 		if sort_by == "class" and r["class"] != heading:
@@ -408,6 +421,8 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 			head_label.add_theme_color_override("font_color", ClassData.get_class_data(heading).color.lerp(Color.WHITE, 0.35))
 			list.add_child(head_label)
 		list.add_child(_card(String(r.name), r["class"], String(r.level_text), String(r.where), bool(r.online), bool(r.get("lead", false))))
+	if hidden > 0:
+		list.add_child(UIUtil.label("และอีก %d คน" % hidden, &"SmallLabel"))
 	if states.is_empty() and alts.is_empty():
 		list.add_child(UIUtil.label("ยังไม่มีผู้เล่นถึงเลเวล %d — ผู้เล่นเข้ากิลด์เมื่อถึงเลเวล %d" % [Game.GUILD_LEVEL, Game.GUILD_LEVEL], &"SmallLabel"))
 	return col

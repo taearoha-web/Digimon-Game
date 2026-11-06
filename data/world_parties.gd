@@ -32,8 +32,9 @@ const MIN_LEFT := 600.0
 ## Partying earns this much more EXP than hunting alone (on the share of play spent in one).
 const EXP_BONUS := 0.2
 ## How much each play style likes to party (the share of its hunting time it looks for
-## one). Stall keepers never do; hardcore grinders and players abroad mostly go alone.
-const STYLE_TASTE := {"hardcore": 0.35, "regular": 0.55, "student": 0.65, "night_owl": 0.45, "weekend": 0.55,
+## one). Stall keepers never do; players abroad mostly go alone. Everyone with a play
+## schedule is hardcore now (WorldPlayers.STYLES), a grinder who still parties often.
+const STYLE_TASTE := {"hardcore": 0.45, "regular": 0.55, "student": 0.65, "night_owl": 0.45, "weekend": 0.55,
 	"casual": 0.5, "daytime": 0.5, "early": 0.4, "overseas": 0.3, "afk": 0.0}
 ## About one player in LONER is a loner: it seldom parties at all.
 const LONER := 7
@@ -47,7 +48,19 @@ static var _formed := {}
 ## How much player i likes to party (0..1): its style's taste, its own way (0.6-1.4 of it),
 ## and a loner's little.
 static func taste(i: int) -> float:
-	var e: Dictionary = WorldPlayers.ROSTER[i]
+	var hit: Variant = _taste.get(i)
+	if hit != null:
+		return hit
+	var value := _work_taste(WorldPlayers.entry(i))
+	_taste[i] = value
+	return value
+
+
+## Per player: its taste (fixed by name and style).
+static var _taste := {}
+
+
+static func _work_taste(e: Dictionary) -> float:
 	var base := float(STYLE_TASTE.get(String(e.style), 0.4))
 	if base <= 0.0:
 		return 0.0
@@ -62,8 +75,8 @@ static func taste(i: int) -> float:
 static func buddies(i: int, j: int) -> bool:
 	if i == j:
 		return false
-	var a := String(WorldPlayers.ROSTER[mini(i, j)].name)
-	var b := String(WorldPlayers.ROSTER[maxi(i, j)].name)
+	var a := String(WorldPlayers.entry(mini(i, j)).name)
+	var b := String(WorldPlayers.entry(maxi(i, j)).name)
 	return hash("buddy|%s|%s" % [a, b]) % 9 == 0
 
 
@@ -134,7 +147,7 @@ static func _form_all(t0: float, zone: StringName, slot: int) -> Array:
 		if h.is_empty() or StringName(h.zone) != zone or float(h.end) - t0 < MIN_LEFT:
 			continue
 		var rng := RandomNumberGenerator.new()
-		rng.seed = hash("wants_party|%s|%s|%d" % [WorldPlayers.ROSTER[i].name, zone, slot])
+		rng.seed = hash("wants_party|%s|%s|%d" % [WorldPlayers.entry(i).name, zone, slot])
 		if rng.randf() >= taste(i):
 			continue
 		h["index"] = i
@@ -157,7 +170,7 @@ static func _form_all(t0: float, zone: StringName, slot: int) -> Array:
 				continue
 			near.append(o)
 		# Guild mates and buddies first, then the closest in level.
-		var g := int(WorldPlayers.ROSTER[li].guild)
+		var g := int(WorldPlayers.entry(li).guild)
 		near.sort_custom(func(a, b):
 			var ka := _affinity(li, g, int(a.index)) * 1000 - absi(int(a.point) - int(lead.point))
 			var kb := _affinity(li, g, int(b.index)) * 1000 - absi(int(b.point) - int(lead.point))
@@ -189,7 +202,7 @@ static func _roll_size(rng: RandomNumberGenerator) -> int:
 static func _affinity(i: int, guild: int, j: int) -> int:
 	if buddies(i, j):
 		return 2
-	return 1 if guild > 0 and int(WorldPlayers.ROSTER[j].guild) == guild else 0
+	return 1 if guild > 0 and int(WorldPlayers.entry(j).guild) == guild else 0
 
 
 ## Whether two hunters (hunter()) are close enough in level to party: BAND levels apart
@@ -218,6 +231,7 @@ static func clear_cache() -> void:
 	_formed.clear()
 	_now.clear()
 	_hunters.clear()
+	_taste.clear()
 
 
 ## hunter() kept for the step of real time t.
@@ -314,7 +328,7 @@ static func parties_at(t: float) -> Array:
 static func label(p: Dictionary) -> String:
 	if p.is_empty():
 		return ""
-	return "ปาร์ตี้ของ %s" % String(WorldPlayers.ROSTER[int(p.leader)].name)
+	return "ปาร์ตี้ของ %s" % String(WorldPlayers.entry(int(p.leader)).name)
 
 
 ## Asked into the hero's party while in a party of its own, a player now and then says
@@ -324,4 +338,4 @@ static func refuses(i: int, t: float) -> bool:
 	var p := party_of(i, t)
 	if p.is_empty():
 		return false
-	return hash("refuse|%s|%s" % [WorldPlayers.ROSTER[i].name, p.id]) % REFUSE == 0
+	return hash("refuse|%s|%s" % [WorldPlayers.entry(i).name, p.id]) % REFUSE == 0
