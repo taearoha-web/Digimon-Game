@@ -7,6 +7,10 @@ uniform float fade = 1.;
 uniform float age = 0.;
 uniform float opacity = 0.94;
 uniform float spectral = 0.;
+// 0 = solid relief (every star skill). Towards 1 the broad faces turn to glass and only the
+// engraved inlay and the silhouette edge keep their weight, so a big seal or temple frames
+// the skill's light instead of covering it (god-tier depth tiers, GodSkillArt).
+uniform float veil = 0.;
 varying vec3 local;
 void vertex() { local = VERTEX; }
 void fragment() {
@@ -24,5 +28,7 @@ void fragment() {
     float dissolve = smoothstep((1.-fade)*1.15-0.12,(1.-fade)*1.15+0.09,grain);
     ALBEDO = ink;
     EMISSION = ink*(0.20+inlay*0.28);
-    ALPHA = opacity*dissolve*smoothstep(0.,0.14,fade);
+    float body = clamp((inlay-0.72)*3.5+edge*1.6, 0., 1.);
+    ink = mix(ink, mix(ink, tint, 0.35), veil*(1.-inlay));
+    ALPHA = opacity*dissolve*smoothstep(0.,0.14,fade)*mix(1., 0.22+0.78*body, veil);
 }

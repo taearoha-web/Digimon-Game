@@ -270,10 +270,12 @@ func _ai_assault() -> void:
 	var tanks_first := true
 	var tactics := {}
 	var t0 := Time.get_ticks_msec()
+	var war_s := 0.0
 	Engine.time_scale = 4.0
 	while m.castle_owner < 0 and Time.get_ticks_msec() - t0 < 120000:
 		await get_tree().create_timer(0.25, true, false, true).timeout
 		m.time_left = GuildWarData.DURATION
+		war_s += 0.25 * Engine.time_scale
 		tactics[theirs.tactic] = true
 		if (theirs.squads[0] as Array).size() > 0 and (theirs.squads[1] as Array).size() > 0:
 			if not posted_both:
@@ -286,6 +288,7 @@ func _ai_assault() -> void:
 		if m.switches_held(GuildFighter.TEAM_ENEMY) == 2:
 			held_both = true
 	Engine.time_scale = 1.0
+	print("ai: the castle fell to theirs after about %.0f s of war" % war_s if m.castle_owner == GuildFighter.TEAM_ENEMY else "ai: no capture after %.0f s of war" % war_s)
 	check(posted_both, "ai: theirs post holders on both switches")
 	check(tanks_first, "ai: sturdy ones go first (a tank before an assassin or a bard)")
 	check(tactics.has(GuildWarCommander.SECURE), "ai: theirs secure the switches before the leader goes up (%s)" % [tactics.keys()])

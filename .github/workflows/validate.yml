@@ -85,7 +85,7 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-gw-leaders
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_leader_choice_test.tscn
-      - name: Guild-war tactics (one commander brain per guild - gather at a rally point and push together, fall back from a lost fight and come again, defend the altar, guard and escort the leader, focus healers and exposed leaders, tanks in front of healers, staggered stuns, rate-limited callouts - and the tough leaders' HP / DEF, stun resistance and last-stand shield, deterministic with a seed)
+      - name: Guild-war tactics (one commander brain per guild - gather at a rally point and push together, fall back from a lost fight and come again, defend the altar, guard and escort the leader, the members in first and the leader behind, focus healers and exposed leaders, tanks in front of healers, staggered stuns, rate-limited callouts - and the tough leaders' HP / DEF, stun resistance and last-stand shield, deterministic with a seed)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-gw-tactics
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_tactics_test.tscn
@@ -93,6 +93,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-gw-switch
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/castle_switch_test.tscn
+      - name: Guild leaders go in last (the members push in first, take the switches and clear the altar while the AI leader waits behind them with its healers; it goes up only with the barrier open and the way clear, falls back behind its own when attacked, and the castle's holder keeps its leader behind the altar - both guilds AI-led in a seeded throne-room fight, the leader behind most of its guild and falling far less than its members)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-gw-leader-rear
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_leader_rear_test.tscn
       - name: World players (the scheduled players of Alpha, Neverdie and no guild, hunting in the fields, kill credit), the party, the game registry and the guild registrar
         env:
           XDG_DATA_HOME: /tmp/toon-ci-world-players
@@ -564,3 +568,13 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx-layers
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_layers_test.tscn
+      - name: class_roles_test (one party role per class - แนวหน้า / กำแพงเหล็ก / พรแห่งแสง / ตราเวท / ตาเหยี่ยว / จุดตาย / ทะลวงเกราะ / พันธะวิญญาณ / เงามืด / ประสานเสียง - for the hero, the AI party and each guild-war party only, once per class, gone with a fallen member, real hits / blows / regen / cooldowns, party card and character screen)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-class-roles
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/class_roles_test.tscn
+      - name: guild_war_brace_test (every AI Defender in a guild war keeps เบ่งเลือด up first)
+        timeout-minutes: 5
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-war-brace
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_brace_test.tscn

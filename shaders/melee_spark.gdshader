@@ -12,7 +12,7 @@ void fragment() {
 	float head = UV.y;
 	float life = clamp(COLOR.a, 0.0, 1.0);
 	float core = pow(across, 2.0) * pow(head, 1.5);
-	vec3 c = mix(COLOR.rgb * 0.75, vec3(1.0, 0.97, 0.9), core * life);
+	vec3 c = mix(COLOR.rgb * 0.75, vec3(1.0, 0.97, 0.9), core * life * 0.75);
 	float m = smoothstep(0.0, 0.5, across) * smoothstep(0.0, 0.35, head) * smoothstep(1.0, 0.85, head);
 	if (shard > 0.5) {
 		// A mirror facet: a flat plate with a glint that runs across it.
@@ -20,6 +20,6 @@ void fragment() {
 		c = mix(COLOR.rgb * 0.55, vec3(1.0), glint * 0.8 + 0.1);
 		m = 0.55 + glint * 0.45;
 	}
-	ALBEDO = c * 1.15;
+	ALBEDO = c * 0.95;
 	ALPHA = m * life;
 }

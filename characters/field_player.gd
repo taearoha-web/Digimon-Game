@@ -1070,11 +1070,11 @@ func gather_mates() -> int:
 		var mate := movers[k]
 		var angle := _facing + PI + (float(k) - float(movers.size() - 1) * 0.5) * 0.8
 		var spot := global_position + Vector3(sin(angle), 0, cos(angle)) * 2.4
-		VfxKit.flash(field, mate.global_position + Vector3(0, 1.0, 0), Color("b06bff"), 1.6)
+		VfxKit.flash(field, mate.global_position + Vector3(0, 1.0, 0), Color("8a4dff"), 1.2, 0.2)
 		mate.global_position = spot + Vector3(0, 0.3, 0)
 		mate.velocity = Vector3.ZERO
-		VfxKit.flash(field, spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
-	VfxKit.shockwave(field, global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
+		VfxKit.flash(field, spot + Vector3(0, 1.0, 0), Color("e0a83a"), 1.3, 0.2)
+	VfxKit.shockwave(field, global_position + Vector3(0, 0.1, 0), Color("6a2fd0"), 3.2)
 	party_say(SUMMON_LINES)
 	return movers.size()
 

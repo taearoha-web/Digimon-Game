@@ -53,6 +53,10 @@ var hold_range := 0.0
 ## 1 right) or -1: it goes there, stands inside the circle (never out of it, no falling
 ## back, no Summon pulling it away) and fights only what comes near the switch.
 var switch_post := -1
+## The AI leader kept at its post behind its guild (GuildWarCommander: the members go in
+## first): it never batters the gate, fights only what comes within hold_range of its
+## post (goal_point) and does not chase from it.
+var keep_back := false
 var kills := 0
 var deaths := 0
 var assists := 0
@@ -311,6 +315,9 @@ func _nearest_victim() -> Node3D:
 		# The one sent to the altar only fights what is right in its way.
 		if capture_role and d > 6.0 and t != taker:
 			continue
+		# The leader behind its guild: only what comes to its post.
+		if keep_back and not capture_role and (t is CastleGate or _flat_distance_from(t.global_position, goal_point) > hold_range + 2.0):
+			continue
 		# A switch holder fights only what comes to its switch, whoever stands in the circle first.
 		if switch_post >= 0:
 			var post: Vector3 = SiegeArena.SWITCHES[switch_post]
@@ -405,12 +412,14 @@ func take_damage(raw: float, attacker: Node = null) -> void:
 		dbg.dodged += 1
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(attacker, float(stats.def))))))
 	_receive(amount, false, attacker)
 
 
 func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	var now := Time.get_ticks_msec() * 0.001
+	# กำแพงเหล็ก: a Defender in its party takes the edge off every blow.
+	amount = ClassRoles.guard(self, amount)
 	# Nobody is deleted by one hit or one combo, however many enemies pile on.
 	amount = BurstGuard.take(get_instance_id(), amount, max_hp)
 	dbg.recv += 1
@@ -555,6 +564,8 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	# fights only what reaches it there.
 	if is_leader and not capture_role and not _frozen and ratio < 0.45 and _flat_distance(goal_point) > 3.0 and _flat_distance(target.global_position) > 3.5:
 		return _run_to(SiegeArena.route(global_position, goal_point), delta)
+	if keep_back and not capture_role and not _frozen:
+		return _hold_post(target, delta, speed_factor)
 	# Across the moat or behind a gate: the way round, unless already in reach.
 	var way := SiegeArena.route(global_position, target.global_position)
 	if not _frozen and _flat_distance_from(way, target.global_position) > 0.5:
@@ -580,6 +591,29 @@ func _hold_switch(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 			if _attack_timer <= 0.0 and Time.get_ticks_msec() >= _cast_until and _flat_distance(target.global_position) <= reach + 0.4:
 				_basic_attack(target)
 			return Vector3.ZERO
+	return step
+
+
+## The leader at its post behind its guild: back to it when it strayed (unless the target
+## is on it), else it fights from there without stepping more than KEEP_SLACK off it.
+const KEEP_SLACK := 3.5
+
+
+func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
+	var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
+	var in_reach := _flat_distance(target.global_position) <= reach + 0.4
+	if _flat_distance(goal_point) > KEEP_SLACK and not in_reach:
+		return _run_to(SiegeArena.route(global_position, goal_point), delta)
+	var way := SiegeArena.route(global_position, target.global_position)
+	if _flat_distance_from(way, target.global_position) > 0.5 and not in_reach:
+		# Behind a wall from it: it stays.
+		_tick(delta)
+		return Vector3.ZERO
+	var step := super._chase(target, delta, speed_factor)
+	if step != Vector3.ZERO and _flat_distance_from(global_position + step * 0.35, goal_point) > KEEP_SLACK + 0.5:
+		if _attack_timer <= 0.0 and Time.get_ticks_msec() >= _cast_until and in_reach:
+			_basic_attack(target)
+		return Vector3.ZERO
 	return step
 
 
@@ -772,6 +806,9 @@ func _upkeep_score(skill: Dictionary, distance: float) -> float:
 	# The strongest first (a song by Rival._song_score's order); a team buff a little ahead
 	# with the party around to take it.
 	var score := UPKEEP_SCORE + (_song_score(skill) - 6.0 if BuffBook.is_song_skill(skill) else 0.01 * float(skill.get("level", 0)))
+	# The class's signature buff (the Defender's เบ่งเลือด) always goes up first.
+	if ClassData.is_signature(skill):
+		score += 2.0
 	if not BuffBook.is_self_only(buff) and party_near(BUFF_REACH) >= 2:
 		score += 0.5 if BuffBook.is_song_skill(skill) else 0.8
 	return score

@@ -402,7 +402,14 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	for c in m.commanders:
 		c.tactic = GuildWarCommander.PUSH
 	m._assign_objectives()
+	# A fighter of the front (the leader and its healers wait behind: guild_leader_rear_test).
 	var f0: GuildFighter = m.enemies[3]
+	for f in m.enemies:
+		if not f.is_leader and not f.is_healer() and not f.sings():
+			f0 = f
+			break
+	var lead: GuildFighter = m.enemy_leader
+	check(lead == null or (lead.objective == null and lead.keep_back and lead.goal_point.distance_to(SiegeArena.gate_front(0)) > GuildWarCommander.LEADER_TRAIL - 1.0), "%s: their leader stays behind, not at the gate" % label)
 	check(f0.objective == gates[0] and f0._targets().has(gates[0]), "%s: the fighters go for the front gate" % label)
 	check(f0.goal_point.distance_to(SiegeArena.gate_front(0)) < 7.0, "%s: and gather in front of it" % label)
 	# Each guild plans for itself: outnumbered it holds the bridge, worn down it regroups.

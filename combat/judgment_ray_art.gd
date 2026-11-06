@@ -16,6 +16,9 @@ var _shock: MeshInstance3D
 var _debris: MeshInstance3D
 var _crowns: Array[MeshInstance3D] = []
 var _filigree: EliteSkillArt
+## The wind-up length (set by JudgmentRaySequence): the gathering lasts until the ray lands.
+var release_seconds := 1.05
+var _landed := false
 
 static func column_mesh() -> CylinderMesh:
 	if not _column:
@@ -97,6 +100,9 @@ func _ready() -> void:
 	_filigree.layer("wings", look, Vector3(0, HEIGHT, 0), Vector3.ONE * 2.4, Vector3.ZERO, 0.0, 2.4)
 	_filigree.layer("cathedral", look, Vector3(0, HEIGHT - 1.0, 0), Vector3(2.7, 1.8, 2.7), Vector3.ZERO, 0.0, 2.4)
 	draw_stage(0.0,-1.0)
+	if scale.x > 0.01:
+		# The halo, rune circles and spiralling light gathering over the target.
+		MageUltimateArt.judgment_gather(self, HEIGHT, release_seconds)
 
 func _param(node: MeshInstance3D, key: String, value: float) -> void:
 	if node:
@@ -107,6 +113,13 @@ func draw_stage(charge: float, after: float) -> void:
 		_filigree.age = charge * 0.8 if after < 0.0 else 0.8 + after
 		_filigree._draw()
 	var landed := after >= 0.0
+	if landed and not _landed:
+		_landed = true
+		if scale.x > 0.01 and is_inside_tree():
+			# The layered beam, the melted ring and the rising light, left on the field
+			# (the sequence retires at its tail; the hit has already been dealt).
+			var field: Node3D = get_parent().get_parent() if get_parent() is JudgmentRaySequence and get_parent().get_parent() is Node3D else self
+			MageUltimateArt.judgment_land(field, Vector3(global_position.x, 0.0, global_position.z), HEIGHT)
 	var age := charge if not landed else 1.0+after
 	var fade := 1.0-smoothstep(0.48,TAIL,maxf(after,0.0))
 	var power := (1.0-smoothstep(0.10,0.70,after)) if landed else charge*0.12

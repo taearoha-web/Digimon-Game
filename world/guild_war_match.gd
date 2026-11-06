@@ -977,6 +977,7 @@ func _assign_objectives() -> void:
 		var k := 0
 		for f in side:
 			f.capture_role = false
+			f.keep_back = false
 			f.hold_range = 0.0
 			f.objective = gate
 			match plan:

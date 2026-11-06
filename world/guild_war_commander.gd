@@ -7,9 +7,11 @@ extends RefCounted
 ##   gather   (รวมพล)  wait for the guild at a rally point before a gate or the throne room,
 ##             instead of trickling in one by one, then push together, buffed;
 ##   push     (บุก)    hit the gate together, tanks in front, ranged and healers behind;
-##   escort   (คุ้มกัน) the leader goes for the altar inside its guard (an AI leader only
-##             once enough of its guild stands round it; with the hero leading ours they
-##             follow the hero, with a member picked to lead it they escort that member);
+##   escort   (คุ้มกัน) the assault on the altar. With an AI leader the members go in first
+##             (บุกก่อน หัวกิลตามหลัง): onto the altar to clear it while the leader waits
+##             LEADER_TRAIL behind them with the healers; it goes up inside its guard only
+##             with the barrier open and the way clear (leader_may_go). With the hero
+##             leading ours they go a step ahead of the hero (the player is never moved);
 ##   guard    (ป้องกันหัวหน้า) the leader is taking the altar or is hurt: tanks peel the
 ##             attackers off it, healers stay at its side;
 ##   defend   (ตั้งรับ) the other guild is taking the altar (everyone at the one on it) or
@@ -17,9 +19,9 @@ extends RefCounted
 ##   fallback (ถอย)    a lost fight: pull back to the last rally point, wait for the fallen
 ##             to come back, then go again;
 ##   secure   (ยึดสวิตช์) the gates are down but the guild does not hold both castle
-##             switches: its switch squads go for them while the rest wait with the leader
-##             inside the throne room's door; with both held (or after SECURE_MAX s) the
-##             leader is escorted onto the altar and waits there for the barrier to fall.
+##             switches: its switch squads go for them while the main body clears the
+##             switch it lacks and the leader waits behind it; with both held (or after
+##             SECURE_MAX s) the members go in to clear the altar and the leader follows.
 ## The castle assault (SiegeArena.SWITCHES, GuildWarMatch.barrier_up) runs beside the
 ## tactic: with the gates down a guild posts switch squads (_plan_switches): to take them
 ## (sturdy ones: a tank and a healer each) while it goes for the altar, one more at once
@@ -29,6 +31,10 @@ extends RefCounted
 ## dealers to kill the holders: one enemy inside and the switch is not held) while it
 ## holds the castle, two each while the other guild takes the altar. While the leader is
 ## on the altar half of the tanks and fighters screen the throne room's door.
+## Everywhere else the AI leader comes last too (_leader_post): behind the front line and
+## never ahead of the middle of its guild, fighting only what reaches its post; with
+## enemies on it and too few of its own round it, it steps back behind them; holding the
+## castle it stands behind the altar, its defenders in front.
 ## It also calls a focus target for the whole guild (whoever takes the altar, then a healer
 ## or bard, an exposed leader, the weak), sends its assassins round to the back line, keeps
 ## stuns from landing on a target that is already stunned, and shouts short callouts in the
@@ -46,6 +52,29 @@ const RANGED_CLASSES: Array[StringName] = [&"archer", &"mage", &"summoner"]
 ## leader stands among its ranged and healers (LEADER_BACK when hurt).
 const ROLE_DEPTH: Array[float] = [0.0, 1.0, 0.6, 3.0, 4.6, 5.2, 4.0]
 const LEADER_BACK := 6.5
+## The AI leader goes in last (บุกก่อน หัวกิลตามหลัง): in a push, a gathering or a fall
+## back it stands LEADER_TRAIL behind the front line (behind its healers), and in the
+## assault on the altar LEADER_TRAIL behind the middle of its guild's body. It fights only
+## what comes within LEADER_REACH of that post (never the gate) and walks back to it.
+const LEADER_TRAIL := 9.0
+const LEADER_REACH := 6.0
+## The leader goes onto the altar only with the barrier open (both switches held) and the
+## way clear: at least the escort's worth of its guild within VANGUARD_RADIUS of the altar
+## and at most ALTAR_CLEAR_FOES of the other guild there (or twice as many of ours). After
+## LEADER_WAIT_MAX s with the barrier open it goes anyway inside its guard (two or more of
+## its guild at the altar or round it), so a capture is never put off for good.
+## While the members go in first they turn only on enemies within ASSAULT_HOLD.
+const VANGUARD_RADIUS := 10.0
+const ALTAR_CLEAR_FOES := 2
+const LEADER_WAIT_MAX := 25.0
+const ASSAULT_HOLD := 7.0
+## A leader with enemies within LEADER_THREAT_RADIUS, as many as its guild round it (or
+## any while it is hurt), steps back behind its own (LEADER_COVER m behind their middle).
+const LEADER_THREAT_RADIUS := 7.0
+const LEADER_COVER := 4.0
+## Holding the castle, the leader stands this far behind the altar (away from the door),
+## its defenders in front.
+const HOLD_BACK := 4.5
 const SLOT_GAP := 1.7
 const ROW_WIDTH := 6
 const ROW_STEP := 1.2
@@ -137,6 +166,11 @@ var contesting := false
 ## While securing: the switch the main body goes to clear (-1 none).
 var secure_k := -1
 var _index := PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
+## In the assault on the altar: the way is clear and the AI leader goes up (kept until
+## the tactic changes), and where it waits meanwhile / steps back to (tests).
+var leader_go := false
+var leader_post := Vector3.ZERO
+var leader_covering := false
 
 
 func _init(p_war: GuildWarMatch, p_team: int) -> void:
@@ -229,6 +263,24 @@ static func pick_tactic(prev: String, held: float, s: Dictionary) -> String:
 	return GATHER
 
 
+## Whether the AI leader may go onto the altar in an assault for a reading `s` (see
+## read()), `held` s into it: the barrier open (both switches held) and the way clear (its
+## vanguard round the altar, few of the other guild left there), or, after LEADER_WAIT_MAX
+## s with the barrier open, two of its guild there or round the leader. Already on the
+## altar it stays while the barrier is open (with it back the leader steps off behind its
+## guild and the count waits).
+static func leader_may_go(s: Dictionary, held: float) -> bool:
+	if int(s.get("switches", 0)) < 2:
+		return false
+	if bool(s.get("leader_on_altar", false)):
+		return true
+	var van := int(s.get("vanguard", 0))
+	var foes := int(s.get("altar_foes", 0))
+	if van >= maxi(1, int(s.escort_need)) and (foes <= ALTAR_CLEAR_FOES or van >= foes * 2):
+		return true
+	return held >= LEADER_WAIT_MAX and van + int(s.get("escort", 0)) >= mini(2, maxi(1, int(s.escort_need)))
+
+
 ## How much the guild wants `kind` (KIND_*) of enemy `dist` m off at `hp` (share) dead:
 ## whoever takes the altar above all, then a healer, an exposed leader (one or no guard
 ## near it, or hurt), a bard, the weak; never one fresh from its base.
@@ -287,8 +339,14 @@ func cc_fresh(target: Node) -> bool:
 ## Whether the AI leader may go onto the altar now: inside its escort, guarded, or to
 ## contest the other guild's leader on it (taking over the moment it steps off).
 func allows_capture() -> bool:
-	if tactic == ESCORT or tactic == GUARD:
-		return true
+	if tactic == ESCORT:
+		return leader_go
+	if tactic == GUARD:
+		# Guarding the one taking the altar while the barrier is open (a hurt leader off
+		# it, or one behind the barrier, steps back behind its guild instead).
+		if team == GuildFighter.TEAM_ALLY and war.hero_leads():
+			return true
+		return not war.barrier_up(team) and (bool(last_read.get("we_capturing", false)) or bool(last_read.get("leader_on_altar", false)))
 	return tactic == DEFEND and war.capture.has("team") and int(war.capture.team) != team
 
 
@@ -308,12 +366,40 @@ func think(dt: float) -> void:
 	var next := pick_tactic(tactic, since, s)
 	if next != tactic:
 		_switch(next, s)
+	_leader_orders(s)
 	_plan_switches(s)
 	var before := focus
 	focus = _pick_focus()
 	dive = _pick_dive()
 	if focus != null and focus != before:
 		_call_focus(focus)
+
+
+## The assault on the altar: the members go in first and the AI leader follows behind
+## them; it goes up once the barrier is open and the way is clear (leader_may_go, then
+## kept until the tactic changes), called out in the war chat.
+func _leader_orders(s: Dictionary) -> void:
+	if not bool(s.leader_ai) or not bool(s.leader_alive) or bool(s.gates_up):
+		leader_go = false
+		return
+	if leader_go and int(s.get("switches", 0)) < 2 and (tactic == ESCORT or tactic == GUARD):
+		# The barrier is back before the leader got the castle: it steps back behind its
+		# guild (a count waits where it was) and the guild retakes the switch.
+		leader_go = false
+		callout("leader_back", "บาเรียกลับมา! หัวกิลถอยหลังแนว ไปยึดสวิตช์คืน")
+		return
+	if tactic == ESCORT:
+		if not leader_go and leader_may_go(s, since):
+			leader_go = true
+			if not bool(s.get("leader_on_altar", false)):
+				callout("leader_go", "ทางโล่งแล้ว! คุ้มกันหัวกิลขึ้นแท่น")
+		elif not leader_go:
+			if int(s.get("switches", 0)) < 2:
+				callout("vanguard", "บุกก่อน! ยึดสวิตช์ให้ครบ หัวกิลตามหลัง")
+			else:
+				callout("vanguard", "บุกก่อน! เคลียร์แท่นให้หัวกิล หัวกิลตามหลัง")
+	elif tactic != GUARD:
+		leader_go = false
 
 
 func _switch(next: String, s: Dictionary) -> void:
@@ -325,16 +411,18 @@ func _switch(next: String, s: Dictionary) -> void:
 			callout("gather", "ทุกคนรวมพลที่%s!" % place_name())
 		PUSH:
 			if bool(s.gates_up):
-				callout("push", "บุก! ตีประตูพร้อมกัน!")
+				callout("push", "บุก! ตีประตูพร้อมกัน หัวกิลตามหลัง!" if bool(s.leader_ai) and bool(s.leader_alive) else "บุก! ตีประตูพร้อมกัน!")
 			_buff_up(rally, 18.0)
 		ESCORT:
-			if was == SECURE and int(s.get("switches", 0)) >= 2:
-				callout("escort", "ยึดสวิตช์ครบ! คุ้มกันหัวกิลเข้าห้องแท่น!")
+			if not bool(s.leader_ai):
+				callout("escort", "คุ้มกันหัวหน้าไปยึดแท่น! นำหน้าไปก่อน")
+			elif was == SECURE and int(s.get("switches", 0)) >= 2:
+				callout("escort", "ยึดสวิตช์ครบ! บุกก่อน เคลียร์แท่น หัวกิลตามหลัง")
 			else:
-				callout("escort", "คุ้มกันหัวหน้าไปยึดแท่น!")
+				callout("escort", "บุกก่อน! หัวกิลตามหลัง")
 			_buff_up(front(), 18.0)
 		SECURE:
-			callout("secure", "แบ่งทีมยึดสวิตช์ซ้ายและขวา! หัวกิลรอที่ประตูห้องบัลลังก์")
+			callout("secure", "แบ่งทีมยึดสวิตช์ซ้ายและขวา! หัวกิลรอหลังแนว")
 		GUARD:
 			callout("guard", "คุ้มกันหัวหน้า!")
 		DEFEND:
@@ -444,6 +532,8 @@ func read() -> Dictionary:
 	var at_front := 0
 	var escort := 0
 	var threat := 0
+	var vanguard := 0
+	var altar_foes := 0
 	var gate := war.front_gate()
 	var front_at := SiegeArena.gate_front(gate.gate_index) if gate != null else rally
 	for f in _side():
@@ -457,6 +547,8 @@ func read() -> Dictionary:
 			at_front += 1
 		if lead != null and _flat(p, lead.global_position) < ESCORT_RADIUS:
 			escort += 1
+		if _flat(p, SiegeArena.ALTAR) < VANGUARD_RADIUS:
+			vanguard += 1
 	var enemies_at_rally := 0
 	for f in _foes():
 		if f.is_dead():
@@ -465,8 +557,12 @@ func read() -> Dictionary:
 			enemies_at_rally += 1
 		if lead != null and _flat(f.global_position, lead.global_position) < 10.0:
 			threat += 1
+		if _flat(f.global_position, SiegeArena.ALTAR) < VANGUARD_RADIUS + 2.0:
+			altar_foes += 1
 	if team == GuildFighter.TEAM_ENEMY and lead != null and war.hero_alive() and _flat(war.hero.global_position, lead.global_position) < 10.0:
 		threat += 1
+	if team == GuildFighter.TEAM_ENEMY and war.hero_alive() and _flat(war.hero.global_position, SiegeArena.ALTAR) < VANGUARD_RADIUS + 2.0:
+		altar_foes += 1
 	var capture := war.capture
 	var lead_hp := 1.0
 	if lead is GuildFighter:
@@ -495,6 +591,8 @@ func read() -> Dictionary:
 		"switches": war.switches_held(team),
 		"foe_switches": war.switches_held(1 - team),
 		"leader_on_altar": lead != null and SiegeArena.on_altar(lead.global_position),
+		"vanguard": vanguard,
+		"altar_foes": altar_foes,
 	}
 
 
@@ -802,11 +900,17 @@ func apply() -> void:
 	var ai_lead := lead as GuildFighter
 	var at := front()
 	var fwd := forward
-	if tactic == ESCORT and lead != null:
+	# The assault on the altar with an AI leader that has not gone up yet: the members go
+	# first, onto the altar to clear it; the leader follows behind them.
+	var assault := (tactic == ESCORT or tactic == GUARD) and ai_lead != null and war.front_gate() == null and not allows_capture()
+	if assault:
+		at = SiegeArena.ALTAR
+	elif tactic == ESCORT and lead != null:
 		var to := SiegeArena.ALTAR - lead.global_position
 		to.y = 0.0
 		fwd = to.normalized() if to.length() > 1.5 else Vector3(0, 0, 1)
-		at = lead.global_position + fwd * 2.5
+		# Its guard a step ahead of it (further ahead of the hero: they go in first).
+		at = lead.global_position + fwd * (2.5 if ai_lead != null else 4.0)
 	elif tactic == GUARD and lead != null:
 		fwd = _threat_dir(lead)
 		at = lead.global_position + fwd * 3.0
@@ -825,16 +929,29 @@ func apply() -> void:
 	var door := Vector3(0, 0, SiegeArena.GATE_Z[2] - 5.0)
 	# The leader waits on the altar behind the barrier: two in three go with the main
 	# body to clear the switch it lacks, the rest stay round the leader.
-	var rolling := screen and not contesting and secure_k >= 0 and war.switches_held(team) < 2
+	var rolling := (screen or assault) and not contesting and secure_k >= 0 and war.switches_held(team) < 2
 	var roll_at: Vector3 = SiegeArena.SWITCHES[secure_k] if rolling else Vector3.ZERO
 	var roll_fwd := (roll_at - SiegeArena.ALTAR).normalized() if rolling else Vector3.FORWARD
 	var capturing_foe := war.capturer() != null and int(war.capture.get("team", team)) != team
+	leader_post = _leader_post(ai_lead, at, fwd, assault) if ai_lead != null else Vector3.INF
+	# In the push, the switches and the assault the healers stand by the leader behind.
+	var guarded_post := leader_post.is_finite() and tactic in [PUSH, SECURE, ESCORT, GUARD]
+	var lead_dir := Vector3(at.x - leader_post.x, 0, at.z - leader_post.z) if guarded_post else Vector3.ZERO
+	lead_dir = lead_dir.normalized() if lead_dir.length() > 0.5 else fwd
+	var side_k := 0
 	for f in side:
 		var r := _role(f, ai_lead)
 		f.focus = focus
 		f.dive = dive if f.role == ROLE_ASSASSIN else null
 		f.guard_node = lead if f.role == ROLE_TANK else null
 		if f.is_dead() or f.capture_role:
+			continue
+		if f == ai_lead and leader_post.is_finite():
+			# The leader at its post behind its guild: it fights only what comes to it.
+			f.objective = null
+			f.keep_back = true
+			f.hold_range = LEADER_REACH
+			f.goal_point = leader_post
 			continue
 		if f.switch_post >= 0:
 			# Posted to a switch: into its circle, spread a little, nothing else.
@@ -844,6 +961,14 @@ func apply() -> void:
 			f.dive = null
 			var spread := TAU * float(f.get_instance_id() % 7) / 7.0
 			f.goal_point = SiegeArena.SWITCHES[f.switch_post] + Vector3(cos(spread), 0, sin(spread)) * SiegeArena.SWITCH_RADIUS * 0.35
+			continue
+		if guarded_post and (r == ROLE_HEALER or r == ROLE_BARD):
+			# The healers and the bard keep at the waiting leader's side, a step ahead of it
+			# towards the fight (it is never left alone to be dived, they heal from behind).
+			f.objective = null
+			f.hold_range = 9.0
+			f.goal_point = _in_bounds(leader_post + lead_dir * 2.0 + Vector3(-lead_dir.z, 0, lead_dir.x) * (float(side_k % 3) - 1.0) * 1.8)
+			side_k += 1
 			continue
 		var i := _index[r]
 		_index[r] += 1
@@ -860,7 +985,7 @@ func apply() -> void:
 					f.goal_point = slot(at, fwd, r, i, _counts[r], depth)
 			ESCORT, GUARD:
 				f.objective = null
-				f.hold_range = 11.0
+				f.hold_range = ASSAULT_HOLD if assault else 11.0
 				if rolling and f != ai_lead and i % 3 != 0:
 					f.hold_range = 12.0
 					f.goal_point = slot(roll_at, roll_fwd, r, i, _counts[r], depth)
@@ -877,6 +1002,149 @@ func apply() -> void:
 		# The AI leader never charges in alone: it keeps to its place behind the tanks.
 		if f == ai_lead and tactic != DEFEND:
 			f.hold_range = 8.0 if depth < 0.0 else 5.0
+
+
+## Where the AI leader stands now (Vector3.INF: where the formation puts it, going up to
+## the altar or guarded on it): behind its own when enemies are on it (_cover_point);
+## holding the castle, behind the altar; else LEADER_TRAIL behind its front line (the
+## switch it clears, the gate, the rally point), and never nearer that front than
+## LEADER_TRAIL behind the middle of its guild's body (on the way back to its camp), so it
+## never walks ahead of the guild into the other one's line; in the assault on the altar
+## always LEADER_TRAIL behind that middle.
+func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) -> Vector3:
+	var cover := _cover_point(lead, fwd)
+	leader_covering = cover.is_finite()
+	if leader_covering:
+		return _in_bounds(cover)
+	match tactic:
+		DEFEND:
+			if war.castle_owner == team and war.front_gate() == null:
+				return SiegeArena.ALTAR + forward * HOLD_BACK
+			return Vector3.INF
+		GUARD, ESCORT:
+			if not assault:
+				return Vector3.INF
+	var body := _body_anchor(lead, at)
+	var p := at - fwd * LEADER_TRAIL
+	if body.is_finite():
+		if assault or _flat(p, at) < _flat(body, at) + LEADER_TRAIL:
+			p = _back_along(body, at, LEADER_TRAIL)
+	elif war.front_gate() == null:
+		# Too few of its guild up there (the rest on the switches or on the way): it waits
+		# behind the throne room's door.
+		p = _back_along(rally, at, LEADER_TRAIL)
+	return _in_bounds(Vector3(p.x, 0.0, p.z))
+
+
+## The middle of the guild's body on its way to `at`: the member at the median distance
+## from it, of those standing within 45 m of the front or of the leader (not the switch
+## holders, nor the one sent to the altar, nor the healers and bards who keep by the
+## leader); INF with fewer than two.
+func _body_anchor(lead: GuildFighter, at: Vector3) -> Vector3:
+	var near: Array = []
+	for f in _side():
+		if f == lead or f.is_dead() or f.capture_role or f.switch_post >= 0:
+			continue
+		var r := _role(f, lead)
+		if r == ROLE_HEALER or r == ROLE_BARD:
+			continue
+		var d := _flat(f.global_position, at)
+		if d > 45.0 and _flat(f.global_position, lead.global_position) > 45.0:
+			continue
+		near.append([d, f.global_position])
+	if near.size() < 2:
+		return Vector3.INF
+	near.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
+	return near[near.size() / 2][1]
+
+
+## The point `metres` back from `p` along the way to the guild's own camp (through the
+## gates, not through a wall).
+func _back_along(p: Vector3, front_at: Vector3, metres: float) -> Vector3:
+	var at := Vector3(p.x, 0.0, p.z)
+	var left := metres
+	for step in 3:
+		var camp := Vector3(SiegeArena.BASE_X * (-1.0 if team == GuildFighter.TEAM_ALLY else 1.0), 0, SiegeArena.BASE_Z)
+		var next := SiegeArena.route(at, camp)
+		next.y = 0.0
+		var leg := _flat(at, next)
+		if leg < 3.0 or leg >= left:
+			return at + _back_from(at, front_at) * left
+		at = next
+		left -= leg
+	return at
+
+
+## The way back from `p` towards the guild's own camp (round the walls, SiegeArena.route),
+## or straight away from `front` when already at the camp.
+func _back_from(p: Vector3, front_at: Vector3) -> Vector3:
+	var camp := Vector3(SiegeArena.BASE_X * (-1.0 if team == GuildFighter.TEAM_ALLY else 1.0), 0, SiegeArena.BASE_Z)
+	var to := SiegeArena.route(p, camp) - p
+	to.y = 0.0
+	if to.length() < 3.0:
+		to = p - front_at
+		to.y = 0.0
+	return to.normalized() if to.length() > 0.01 else Vector3(0, 0, 1)
+
+
+## A post kept off the castle walls: on the bridge, inside the gate halls' width, or the
+## throne room's.
+static func _in_bounds(p: Vector3) -> Vector3:
+	var sec := SiegeArena.section(p)
+	if sec == 1:
+		p.x = clampf(p.x, -SiegeArena.BRIDGE_HALF + 1.0, SiegeArena.BRIDGE_HALF - 1.0)
+	elif sec >= 2 and sec <= 3:
+		p.x = clampf(p.x, -SiegeArena.HALL_HALF + 2.0, SiegeArena.HALL_HALF - 2.0)
+	elif sec == 4:
+		p.x = clampf(p.x, -SiegeArena.THRONE_HALF + 2.0, SiegeArena.THRONE_HALF - 2.0)
+		p.z = maxf(p.z, SiegeArena.BACK_Z + 2.0)
+	return p
+
+
+## Where a leader with enemies on it steps back to: LEADER_COVER behind the middle of its
+## own within 20 m, away from the enemies (Vector3.INF when it is covered: fewer enemies
+## within LEADER_THREAT_RADIUS than its own there, and not hurt).
+func _cover_point(lead: GuildFighter, fwd: Vector3) -> Vector3:
+	var foes := 0
+	var threat_at := Vector3.ZERO
+	for f in _foes():
+		if not f.is_dead() and _flat(f.global_position, lead.global_position) < LEADER_THREAT_RADIUS:
+			foes += 1
+			threat_at += f.global_position
+	if team == GuildFighter.TEAM_ENEMY and war.hero_alive() and _flat(war.hero.global_position, lead.global_position) < LEADER_THREAT_RADIUS:
+		foes += 1
+		threat_at += war.hero.global_position
+	if foes == 0:
+		return Vector3.INF
+	var mates := 0
+	var guards := 0
+	var mates_at := Vector3.ZERO
+	for f in _side():
+		if f == lead or f.is_dead() or f.switch_post >= 0:
+			continue
+		var d := _flat(f.global_position, lead.global_position)
+		if d < 20.0:
+			mates += 1
+			mates_at += f.global_position
+		if d < LEADER_THREAT_RADIUS:
+			guards += 1
+	if guards > foes and lead.hp_ratio() >= 0.6:
+		return Vector3.INF
+	threat_at /= float(foes)
+	var away := lead.global_position - threat_at
+	if mates == 0:
+		# Nobody to hide behind: back the way it came.
+		away.y = 0.0
+		var back := away.normalized() if away.length() > 0.5 else -fwd
+		var p := lead.global_position + back * 8.0
+		return Vector3(p.x, 0.0, p.z)
+	mates_at /= float(mates)
+	away = mates_at - threat_at
+	away.y = 0.0
+	if away.length() < 0.5:
+		away = -fwd
+	var p := mates_at + away.normalized() * LEADER_COVER
+	return Vector3(p.x, 0.0, p.z)
 
 
 func _role(f: GuildFighter, ai_lead: GuildFighter) -> int:

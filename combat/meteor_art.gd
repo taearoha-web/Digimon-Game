@@ -79,6 +79,8 @@ static func descent(parent: Node3D, center: Vector3, radius: float, duration := 
 		embers.spread = 24.0
 		embers.gravity = Vector3(0.5, 2.8, 0.2)
 	_light(body, Color(1.0, 0.32, 0.07), size * 4.0, 2.0)
+	# The red sky, the heat trail along this same path and the reddening ground.
+	MageUltimateArt.armageddon_descent(parent, center, radius, duration, body.position, Vector3(0, size * 0.72, 0), size)
 	var fall := body.create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	fall.tween_property(body, "position", Vector3(0, size * 0.72, 0), duration)
 	_lifetime(root, duration + 0.025)
@@ -126,6 +128,8 @@ static func impact(parent: Node3D, center: Vector3, radius: float, giant := true
 	_embers(root, Vector3(0, 0.7, 0), 100 if giant else 30, 1.05 if giant else 0.7, 0.6, scale_radius * 0.95, true)
 	_smoke(root, Vector3(0, 0.55, 0), scale_radius, lifetime)
 	_light(root, Color(1.0, 0.4, 0.09), scale_radius * 1.3, 2.5 if giant else 0.8)
+	# Magma cracks, smoke columns, rolling dust rings and embers (natural layers).
+	MageUltimateArt.armageddon_impact(parent, center, scale_radius, giant)
 	_lifetime(root, lifetime)
 	return root
 

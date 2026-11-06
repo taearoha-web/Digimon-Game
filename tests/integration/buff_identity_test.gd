@@ -48,13 +48,20 @@ func _ready() -> void:
 	# AI players bring two buff skills at most (the Defender's เบ่งเลือด always one).
 	for cls in [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]:
 		var kit := ClassData.ai_buff_kit(cls, 100, "QA Bot")
-		check(kit.size() <= ClassData.AI_BUFF_SKILLS, "%s AI brings at most two buff skills: %s" % [cls, kit])
 		var buffs := ClassData.pool(cls).filter(func(sk): return ClassData.is_buff_skill(sk) and int(sk.level) <= 100 and not sk.has("star"))
-		check(kit.size() == mini(2, buffs.size()), "%s AI fills both buff picks when it can: %s" % [cls, kit])
+		# An AI Priest also keeps every heal that buffs (ClassData.AI_ALL_HEALS).
+		var heal_buffs := buffs.filter(func(sk): return ClassData.AI_ALL_HEALS.has(cls) and sk.get("fx", {}).has("heal"))
+		var picks := kit.filter(func(id): return not heal_buffs.any(func(sk): return String(sk.id) == id))
+		check(picks.size() <= ClassData.AI_BUFF_SKILLS, "%s AI brings at most two buff skills: %s" % [cls, kit])
+		check(picks.size() == mini(2, buffs.size() - heal_buffs.size()), "%s AI fills both buff picks when it can: %s" % [cls, kit])
+		for sk in heal_buffs:
+			check(kit.has(String(sk.id)), "AI Priest keeps its heal-buff %s" % sk.id)
 		for sk in buffs:
 			check(ClassData.ai_allows(sk, kit) == kit.has(String(sk.id)), "%s AI casts only its picked buffs (%s)" % [cls, sk.id])
 		check(kit == ClassData.ai_buff_kit(cls, 100, "QA Bot"), "%s AI pick is stable per player" % cls)
 	check(ClassData.ai_buff_kit(&"defender", 100, "Anyone").has("brace"), "the Defender AI always brings เบ่งเลือด")
+	check(ClassData.ai_heal_mult(&"priest") == 0.5 and ClassData.ai_heal_mult(&"warrior") == 1.0, "AI Priest heals at half strength, others in full")
+	check(ClassData.pool(&"priest").any(func(sk): return sk.get("fx", {}).has("heal") and sk.get("fx", {}).get("buff") is Dictionary), "the Priest has heals that buff (the rule matters)")
 	# The HUD lane overlaps icons once there are many (friends' buffs have no limit).
 	check(TimerBars.stack_gap(2, 36.0, 3) == 3 and TimerBars.stack_gap(8, 36.0, 3) < 0, "many buff icons overlap in their lane")
 	var lane_long := 36.0 + 7.0 * (36.0 + float(TimerBars.stack_gap(8, 36.0, 3)))

@@ -455,7 +455,10 @@ func _build_party() -> void:
 		if c["class"] != heading:
 			heading = c["class"]
 			var count := candidates.filter(func(x): return x["class"] == heading).size()
-			var head_label := UIUtil.label("%s · %d คน" % [ClassData.get_class_data(heading).name, count], &"BoldLabel")
+			var role := ClassRoles.trait_of(heading)
+			var head_label := UIUtil.label("%s · %d คน%s" % [ClassData.get_class_data(heading).name, count, (" · บทบาท " + String(role.name)) if not role.is_empty() else ""], &"BoldLabel")
+			head_label.tooltip_text = ClassRoles.tooltip(heading)
+			head_label.mouse_filter = Control.MOUSE_FILTER_PASS
 			head_label.name = "MateClass_%s" % String(heading)
 			head_label.add_theme_color_override("font_color", ClassData.get_class_data(heading).color.lerp(Color.WHITE, 0.35))
 			list.add_child(head_label)
@@ -607,6 +610,15 @@ func _refresh_party() -> void:
 			name_label.add_theme_color_override("font_color", UIPalette.TEXT)
 	var full := picks.size() >= PARTY_SIZE - 1
 	_party_note.text = "ปาร์ตี้เต็มแล้ว พร้อมออกรบ" if full else ("ยืนยันได้เลยแม้เลือกไม่ครบ — ที่ว่างจะว่างไว้ (กด สุ่มให้ เพื่อเติมให้ครบ)" if not candidates.is_empty() else "")
+	# The roles this party brings (ClassRoles): one of each class is the strongest party.
+	var party_classes: Array = [Game.class_id()]
+	for name in picks:
+		var picked := _find_mate(name)
+		if not picked.is_empty():
+			party_classes.append(StringName(picked["class"]))
+	var roles := ClassRoles.summary(party_classes)
+	if roles != "":
+		_party_note.text = (_party_note.text + "\n" if _party_note.text != "" else "") + roles
 	for name in _rows:
 		var r: Dictionary = _rows[name]
 		var picked := picks.has(String(name))

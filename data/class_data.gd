@@ -369,10 +369,35 @@ static func get_skill(class_id: StringName, index: int) -> Dictionary:
 const AI_BUFF_SKILLS := 2
 
 
-## A skill that grants a buff (not a song, not a heal).
+## A skill that grants a buff (not a song). A heal that also buffs (Unbreakable,
+## Guardian's Oath...) counts: it takes a buff slot like any other.
 static func is_buff_skill(skill: Dictionary) -> bool:
 	var fx: Variant = skill.get("fx")
-	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and not bool((fx as Dictionary).buff.get("song", false)) and not (fx as Dictionary).has("heal")
+	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and not bool((fx as Dictionary).buff.get("song", false))
+
+
+## AI healers that keep every heal-that-buffs (beyond the two buff picks), and how much
+## their heals give: an AI Priest casts all its heals but each one at half strength, so a
+## guild with healers stays beatable.
+const AI_ALL_HEALS := [&"priest"]
+const AI_HEAL_MULT := {&"priest": 0.5}
+
+
+static func ai_heal_mult(class_id: StringName) -> float:
+	return float(AI_HEAL_MULT.get(class_id, 1.0))
+
+
+static func _heals_and_buffs(skill: Dictionary) -> bool:
+	var fx: Variant = skill.get("fx")
+	return fx is Dictionary and (fx as Dictionary).has("heal") and (fx as Dictionary).get("buff") is Dictionary
+
+
+## A class's signature buff, always in its AI kit and kept up first (เบ่งเลือด).
+const SIGNATURE_BUFFS := {&"defender": "brace"}
+
+
+static func is_signature(skill: Dictionary) -> bool:
+	return SIGNATURE_BUFFS.values().has(String(skill.get("id", "")))
 
 
 ## The buff skills an AI player brings (ids), picked per player by [param who] from the
@@ -383,17 +408,24 @@ static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
 		if is_buff_skill(skill) and int(skill.level) <= level and not skill.has("star"):
 			open.append(String(skill.id))
 	var kit: Array = []
-	var signature := "brace" if class_id == &"defender" else ""
+	var signature := String(SIGNATURE_BUFFS.get(class_id, ""))
 	if signature != "" and open.has(signature):
 		kit.append(signature)
 		open.erase(signature)
+	# An AI healer keeps every heal that also buffs, on top of its two buff picks.
+	var heals: Array = []
+	if AI_ALL_HEALS.has(class_id):
+		for id in open.duplicate():
+			if _heals_and_buffs(find_skill(class_id, id)):
+				heals.append(id)
+				open.erase(id)
 	var seed := absi(hash(who))
 	while kit.size() < AI_BUFF_SKILLS and not open.is_empty():
 		var at := seed % open.size()
 		kit.append(open[at])
 		open.remove_at(at)
 		seed = seed / 7 + 13
-	return kit
+	return kit + heals
 
 
 ## Whether an AI player with buff kit [param kit] may cast [param skill].

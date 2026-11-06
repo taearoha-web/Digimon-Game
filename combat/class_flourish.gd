@@ -33,6 +33,15 @@ static var _last_contact: Dictionary = {}
 static var _last_origin: Dictionary = {}
 ## Off switch for performance comparisons (tests/tools/skill_perf_probe).
 static var enabled := true
+## Skills whose own layers (the Assassin's poison mist, the Dark Lord's portal,
+## eclipse and smoke) were washed out by the white release flash: they keep a
+## shorter, fainter pop tinted in their own colours [mid, core, shade] instead.
+## Sickly green and violet for the venom, violet and gold for the Summon.
+const TINTED := {
+	"venom_edge": [Color("78cc48"), Color("9a62d0"), Color("1c0a2a")],
+	"deadly_venom": [Color("78cc48"), Color("9a62d0"), Color("1c0a2a")],
+	"summon": [Color("7a3ff0"), Color("e0a83a"), Color("12051f")],
+}
 
 
 static func handles(skill: Dictionary) -> bool:
@@ -84,11 +93,52 @@ static func _look(c: Array) -> Dictionary:
 ## BuffArt for lasting buffs, StarSkillArt for star skills): saturated body,
 ## bright core, dark edge. Nothing here drifts towards cream.
 static func colors(skill: Dictionary) -> Array:
+	var tint := tinted(skill)
+	if not tint.is_empty():
+		return tint
 	if skill.has("star") and StarSkillArt.handles(skill):
 		var look := StarSkillArt.look(skill)
 		return [look.primary, look.accent, look.shade]
 	var look := SkillShow.profile_for(skill)
 	return [look.primary, look.accent, look.shade]
+
+
+## The tinted palette of a skill in TINTED (only for its own line), else [].
+static func tinted(skill: Dictionary) -> Array:
+	var id := String(skill.get("id", ""))
+	if skill.has("star") or not TINTED.has(id):
+		return []
+	if SkillShow.family_of(skill) != ("darklord" if id == "summon" else "assassin"):
+		return []
+	return TINTED[id]
+
+
+## A tinted pop for the TINTED skills: no cream core and no sunburst, about half
+## the opacity and two thirds of the time of VfxKit.flash.
+static func _tinted_flash(parent: Node3D, pos: Vector3, c: Array, size := 1.2, duration := 0.16) -> void:
+	if not VfxBudget.can_decorate(2 + RESERVE):
+		return
+	var card := VfxKit.quad(Vector2.ONE)
+	var mat := VfxKit._glow(c[0], 0.34)
+	mat.albedo_texture = VfxKit.soft_dot()
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var core_mat := VfxKit._glow(c[1], 0.3)
+	core_mat.albedo_texture = VfxKit.soft_dot()
+	core_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var halo := VfxKit._instance(parent, card, mat, pos)
+	VfxBudget.track_decoration(halo)
+	halo.scale = Vector3.ONE * size * 0.4
+	var core := VfxKit._instance(parent, card, core_mat, pos)
+	VfxBudget.track_decoration(core)
+	core.scale = Vector3.ONE * size * 0.15
+	var tween := halo.create_tween().set_parallel(true)
+	tween.tween_property(halo, "scale", Vector3.ONE * size * 0.8, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
+	tween.tween_property(core, "scale", Vector3.ONE * size * 0.35, duration * 0.7)
+	tween.tween_property(core_mat, "albedo_color:a", 0.0, duration * 0.7)
+	tween.chain().tween_callback(func():
+		halo.queue_free()
+		core.queue_free())
 
 
 ## Delay before an area skill's art may show (its damage lands on that beat).
@@ -150,12 +200,13 @@ static func _slam(parent: Node3D, pos: Vector3, color: Color, radius: float, cor
 
 ## A shaft of light striking down onto [param pos]: a wide soft shaft and a
 ## narrow hot core in the [param core] colour.
-static func _sky(parent: Node3D, pos: Vector3, color: Color, width := 1.4, height := 14.0, duration := 0.5, core := Color.WHITE) -> void:
+## [param hot] is the core's own core: white, or a tint on heavy casts whose layer stack brings the white-hot light.
+static func _sky(parent: Node3D, pos: Vector3, color: Color, width := 1.4, height := 14.0, duration := 0.5, core := Color.WHITE, hot := Color.WHITE) -> void:
 	if not _room(3):
 		return
 	VfxKit.pillar(parent, pos, color, height, width, duration, core)
-	VfxKit.pillar(parent, pos, core, height * 1.05, width * 0.35, duration * 0.8, Color.WHITE)
-	VfxArt.star_flash(parent, pos + Vector3.UP * 0.6, core, width * 3.0)
+	VfxKit.pillar(parent, pos, core, height * 1.05, width * 0.35, duration * 0.8, hot)
+	VfxArt.star_flash(parent, pos + Vector3.UP * 0.6, core, width * (3.0 if hot == Color.WHITE else 2.0))
 	_wave(parent, pos + Vector3.UP * 0.1, color, width * 2.4, core)
 
 
@@ -211,8 +262,14 @@ static func cast(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	var s := scale_of(skill)
 	_last_origin[String(skill.id)] = origin
 	# The wind-up's weapon light lets go: a short pop at the hand on release.
-	VfxKit.flash(parent, origin + Vector3.UP * 1.25, c[1], 1.5, 0.16)
+	var tint := not tinted(skill).is_empty()
+	if tint:
+		_tinted_flash(parent, origin + Vector3.UP * 1.25, c, 0.9, 0.12)
+	else:
+		VfxKit.flash(parent, origin + Vector3.UP * 1.25, c[1], 1.5, 0.16)
 	if crowd >= 4:
+		if tint:
+			return
 		# A busy field keeps one clear accent per cast.
 		VfxArt.star_flash(parent, (center if String(skill.shape) in ["single", "blast"] else origin) + Vector3.UP, c[1], 2.0 * s)
 		return
@@ -276,9 +333,12 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	var origin: Vector3 = _last_origin.get(id, at)
 	var flat := Vector3(at.x - origin.x, 0.0, at.z - origin.z)
 	var forward := flat.normalized() if flat.length_squared() > 0.01 else Vector3.FORWARD
-	VfxKit.star_burst(parent, at, c[0], 1.6 * s)
-	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.3)
-	VfxArt.star_flash(parent, at, c[1], 2.6 * s, 0.45)
+	if tinted(skill).is_empty():
+		VfxKit.star_burst(parent, at, c[0], 1.6 * s)
+		VfxKit.flash(parent, at, c[1], 2.4 * s, 0.3)
+		VfxArt.star_flash(parent, at, c[1], 2.6 * s, 0.45)
+	else:
+		_tinted_flash(parent, at, c, 1.0 * s, 0.16)
 	var ground := Vector3(at.x, 0.06, at.z)
 	_wave(parent, ground + Vector3.UP * 0.05, c[0], 1.3 * s, c[1], c[2])
 	if _room(2):
@@ -357,10 +417,13 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 			return
 	if apex and index == 0:
 		_apex(parent, c, ground, radius, family)
-	VfxKit.flash(parent, ground + Vector3.UP, c[1], 2.2 * s, 0.32)
-	VfxArt.star_flash(parent, ground + Vector3.UP, c[0], 2.4 * s, 0.45)
+	# A god's five beats each land under the shared layer stack's white-hot core
+	# (SkillLayers.star_beat): their own flash, star and column stay tinted and smaller.
+	var god := StarSkillData.is_god(skill)
+	VfxKit.flash(parent, ground + Vector3.UP, c[1], (1.5 if god else 2.2) * s, 0.22 if god else 0.32)
+	VfxArt.star_flash(parent, ground + Vector3.UP, c[0], (1.7 if god else 2.4) * s, 0.32 if god else 0.45)
 	_wave(parent, ground + Vector3.UP * 0.08, c[0], radius * 0.85, c[1], c[2])
-	_colour_column(parent, ground, c, 0.9 * s, 10.0 + 4.0 * float(star) / 200.0)
+	_colour_column(parent, ground, c, (0.7 if god else 0.9) * s, 10.0 + 4.0 * float(star) / 200.0, (c[1] as Color).lerp(c[0], 0.25) if god else Color.WHITE)
 	match family:
 		"warrior":
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, -0.9, c[0], c[1], 2.4 * s, 0.0, 1.3, c[2])
@@ -410,11 +473,11 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 
 
 ## A column of the skill's own colour: a wide tinted shaft around a bright core.
-static func _colour_column(parent: Node3D, at: Vector3, c: Array, width: float, height: float) -> void:
+static func _colour_column(parent: Node3D, at: Vector3, c: Array, width: float, height: float, hot := Color.WHITE) -> void:
 	if not _room(2):
 		return
 	VfxKit.pillar(parent, at, c[0], height, width * 1.6, 0.6, c[1])
-	VfxKit.pillar(parent, at, c[1], height * 1.1, width * 0.5, 0.45, Color.WHITE)
+	VfxKit.pillar(parent, at, c[1], height * 1.1, width * 0.5, 0.45, hot)
 
 
 ## Star buffs and pacts: a seal, a shaft and a spiral in the skill's colours.
@@ -540,7 +603,10 @@ static func _strike(parent: Node3D, skill: Dictionary, c: Array, center: Vector3
 	if assassin:
 		# The blades pass through and leave the foe in a cloud of night.
 		_shadow_smoke(parent, at, c, 0.7 * s, 14 + int(10 * p))
-	VfxKit.flash(parent, at, c[1], 2.4 * s, 0.26)
+	if tinted(skill).is_empty():
+		VfxKit.flash(parent, at, c[1], 2.4 * s, 0.26)
+	else:
+		_tinted_flash(parent, at, c, 1.1 * s, 0.16)
 	# The cut lands: the line's stamp, a puff of dust and a ring at the feet.
 	if _room(2):
 		SkillInk.mark(parent, SkillShow.profile_for(skill), ground + Vector3.UP * 0.03, 1.0 * s, 0.55, 1)
@@ -664,8 +730,15 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 	if p >= 0.75:
 		VfxArt.rune_circle(parent, ground, c[2].lerp(c[0], 0.5), r * 0.85, 1.1, -1.0)
 	_wave(parent, ground + Vector3.UP * 0.1, c[0], r, c[1], c[2])
-	# The Defender's landing keeps its shield readable under a smaller flash.
-	VfxKit.flash(parent, ground + Vector3.UP * 1.0, c[1], (2.0 if family == "defender" else 3.4) * s, 0.32)
+	# Heavy casters' ultimates: the shared layer stack (SkillLayers) brings the white-hot
+	# core, so this pass keeps to tinted light, fewer columns and a smaller flash under it.
+	var heavy := p >= 0.75 and family in EliteSkillArt.DEPTH_FAMILIES
+	# The Defender's landing keeps its shield readable under a smaller flash;
+	# the venom's mist under a faint tinted one.
+	if not tinted(skill).is_empty():
+		_tinted_flash(parent, ground + Vector3.UP * 0.8, c, 1.4 * s, 0.2)
+	else:
+		VfxKit.flash(parent, ground + Vector3.UP * 1.0, c[1], (2.0 if family == "defender" else 2.5 if heavy else 3.4) * s, 0.24 if heavy else 0.32)
 	if String(skill.get("special", "")) == "rain":
 		_arrow_storm(parent, skill, c, ground, r, 6 + int(p * 10.0))
 	if family == "assassin":
@@ -675,8 +748,8 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 	match style:
 		"holy", "heal":
 			if _room(4):
-				_sky(parent, ground, c[0], 1.2 * s, 16.0, 0.6, c[1])
-			_column_ring(parent, ground, c, r * 0.65, 4 + int(p * 6.0), 0.08)
+				_sky(parent, ground, c[0], (0.9 if heavy else 1.2) * s, 16.0, 0.6, c[1], (c[1] as Color).lerp(c[0], 0.25) if heavy else Color.WHITE)
+			_column_ring(parent, ground, c, r * 0.65, 4 + int(p * (3.0 if heavy else 6.0)), 0.08, heavy)
 		"thunder":
 			_bolt_ring(parent, ground, c, r * 0.6, 3 + int(p * 4.0))
 		"fire":
@@ -689,7 +762,7 @@ static func _barrage(parent: Node3D, skill: Dictionary, c: Array, center: Vector
 			_motes(parent, ground, c[1], "snow", int(16 + 14 * p), r * 0.6, 0.0, 1.4)
 		"arcane":
 			_motes(parent, ground, c[1], "diamond", int(16 + 14 * p), r * 0.6, 0.6, 1.3)
-			_column_ring(parent, ground, c, r * 0.6, 3 + int(p * 4.0), 0.07)
+			_column_ring(parent, ground, c, r * 0.6, 3 + int(p * (2.0 if heavy else 4.0)), 0.07, heavy)
 	if skill.get("fx", {}).has("stun") or style == "earth":
 		_slam(parent, ground, c[0], r * 0.8, c[1], c[2])
 
@@ -764,7 +837,11 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 	VfxArt.crest(parent, origin, c[0], family, 1.7 * s, 1.0, randf() * TAU)
 	if p >= 0.75:
 		VfxArt.rune_circle(parent, origin, c[2].lerp(c[0], 0.5), 2.1 * s, 1.2, 1.0)
-	VfxKit.pillar(parent, origin, c[0], 5.0 + 4.0 * p, 1.4 * s, 0.9, c[1])
+	if tinted(skill).is_empty():
+		VfxKit.pillar(parent, origin, c[0], 5.0 + 4.0 * p, 1.4 * s, 0.9, c[1])
+	else:
+		# The Summon's portal is the show: a faint violet pop instead of a column of light.
+		_tinted_flash(parent, origin + Vector3.UP * 1.0, c, 1.3 * s, 0.2)
 	match family:
 		"warrior", "lancer":
 			for i in 3:
@@ -1015,15 +1092,16 @@ static func _spear_ring(parent: Node3D, at: Vector3, forward: Vector3, color: Co
 
 
 ## Columns of light falling in a ring, one after another.
-static func _column_ring(parent: Node3D, center: Vector3, c: Array, radius: float, count: int, step: float) -> void:
+## [param soft]: thinner columns and smaller sparks, for heavy casts layered over SkillLayers.
+static func _column_ring(parent: Node3D, center: Vector3, c: Array, radius: float, count: int, step: float, soft := false) -> void:
 	var phase := randf() * TAU
 	for i in count:
 		var angle := phase + TAU * float(i) / float(count)
 		var at := center + Vector3(cos(angle), 0.0, sin(angle)) * radius
 		parent.create_tween().tween_interval(step * i).finished.connect(func():
 			if _alive(parent) and _room(2):
-				VfxKit.pillar(parent, at, c[0], 9.0, 0.5, 0.45, c[1])
-				VfxArt.star_flash(parent, at + Vector3.UP * 0.3, c[1], 1.6, 0.3), CONNECT_ONE_SHOT)
+				VfxKit.pillar(parent, at, c[0], 9.0, 0.36 if soft else 0.5, 0.4 if soft else 0.45, c[1])
+				VfxArt.star_flash(parent, at + Vector3.UP * 0.3, c[1], 1.1 if soft else 1.6, 0.3), CONNECT_ONE_SHOT)
 
 
 ## Lightning bolts striking around a point.

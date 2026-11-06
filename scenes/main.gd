@@ -570,7 +570,7 @@ func _talk_job() -> void:
 
 func _show_line(id: StringName) -> void:
 	var data := ClassData.get_class_data(id)
-	var lines: PackedStringArray = [data.desc, "สกิลแรกที่จะได้:"]
+	var lines: PackedStringArray = [data.desc, "บทบาทในปาร์ตี้ — " + ClassRoles.line(id), "สกิลแรกที่จะได้:"]
 	var shown := 0
 	for skill in ClassData.pool(id):
 		if shown >= 4:

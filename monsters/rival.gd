@@ -281,7 +281,29 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 	if randf() < _dodge:
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return false
-	return super.take_hit(int(ceil(float(amount) * war_scale)), crit, color, attacker)
+	return super.take_hit(ClassRoles.guard(self, int(ceil(float(amount) * war_scale))), crit, color, attacker)
+
+
+## HP a victim has now (the hero's lives in the profile): what a hit took off it.
+static func _hp_of(victim: Node) -> int:
+	if victim == null or not is_instance_valid(victim):
+		return 0
+	if victim is Hero:
+		return int(Game.profile.hp)
+	return int(victim.hp) if "hp" in victim else 0
+
+
+## The party's roles give HP or MP back (ClassRoles: พรแห่งแสง, พันธะวิญญาณ, เงามืด).
+func role_restore(kind: String, amount: int) -> void:
+	if _dead or amount <= 0:
+		return
+	if kind == "hp":
+		if hp < max_hp:
+			hp = mini(max_hp, hp + amount)
+			if _bar:
+				_bar.set_ratio(float(hp) / float(max_hp))
+	else:
+		mp = minf(float(rstats.max_mp), mp + float(amount))
 
 
 func _die() -> void:
@@ -356,8 +378,10 @@ func _tick(delta: float) -> void:
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_potion_cd = maxf(0.0, _potion_cd - delta)
 	mp = minf(float(rstats.max_mp), mp + float(rstats.max_mp) * 0.025 * delta)
+	ClassRoles.regen(self, delta)
+	var step := delta * ClassRoles.cd_rate(self)
 	for id in cooldowns.keys():
-		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - step)
 	if _buff_until > 0.0 and Time.get_ticks_msec() * 0.001 > _buff_until:
 		_buff_until = 0.0
 		_atk_boost = 1.0
@@ -524,7 +548,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	match shape:
 		"self":
 			if fx.has("heal"):
-				_heal(float(fx.heal))
+				_heal(float(fx.heal) * ClassData.ai_heal_mult(StringName(member["class"])))
 			if fx.has("buff"):
 				var buff: Dictionary = fx.buff
 				# A second buff adds to the first (the strongest of each counts), it does not
@@ -540,7 +564,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		"burst":
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, float(skill.radius) * 1.15)
 			if fx.has("heal"):
-				_heal(float(fx.heal) * 0.6)
+				_heal(float(fx.heal) * 0.6 * ClassData.ai_heal_mult(StringName(member["class"])))
 			for victim in _victims():
 				if _flat_distance(victim.global_position) <= float(skill.radius) + 0.6 + 0.4:
 					_hit(victim, mult, color, fx)
@@ -577,7 +601,9 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	if not _alive(victim):
 		return
 	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08) * war_scale * (1.0 - _weaken_now())
-	if randf() < float(rstats.crit):
+	# The party's roles (ClassRoles); ทะลวงเกราะ is applied where the victim takes the blow.
+	raw *= ClassRoles.outgoing(self, victim)
+	if randf() < float(rstats.crit) + ClassRoles.crit_bonus(self):
 		raw *= HeroStats.CRIT_DAMAGE
 	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
 	# With the war scale on, the hero is protected like every fighter: no single hit or combo
@@ -588,7 +614,9 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 		var allowed := BurstGuard.take(hero.get_instance_id(), amount, int(hero.stats.max_hp))
 		if allowed < amount:
 			raw *= float(allowed) / float(amount)
+	var hp_before := _hp_of(victim)
 	Mob.strike(victim, raw, self)
+	ClassRoles.after_hit(self, victim, hp_before - _hp_of(victim))
 	if fx.is_empty() or not Mob.carries_mark(fx) or not _alive(victim):
 		return
 	for key in Mob.MARKS:
