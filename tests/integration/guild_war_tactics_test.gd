@@ -278,10 +278,19 @@ func _determinism() -> void:
 # In a war
 # ---------------------------------------------------------------------------
 
+## The seed of both guilds' line-ups in the war checks (see _in_war).
+const ROSTER_SEED := 777
+
+
 func _in_war() -> void:
 	Game.current_zone = &"guildwar"
 	var plain_hp := int(HeroStats.compute(Game.profile).max_hp)
 	var plain_def := float(HeroStats.compute(Game.profile).def)
+	# A fixed roll of both guilds (the war resumes from a checkpoint with this seed, gates
+	# whole, nobody holding the castle): the line-ups are random in a real war, and a rare
+	# roll made the toughness checks below depend on luck.
+	Game.guildwar_save_checkpoint(ROSTER_SEED, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {})
+	Game.guildwar_resuming = true
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
 	add_child(zone)
@@ -313,7 +322,8 @@ func _in_war() -> void:
 	var tanky := 0.0
 	for f in m.enemies:
 		tanky = maxf(tanky, float(f.max_hp) * (1.0 + float(f.rstats.def) / 100.0))
-	check(float(lead.max_hp) * (1.0 + float(lead.rstats.def) / 100.0) >= tanky * 0.6, "the leader is among its guild's toughest")
+	var lead_tough := float(lead.max_hp) * (1.0 + float(lead.rstats.def) / 100.0)
+	check(lead_tough >= tanky * 0.6, "the leader is among its guild's toughest (%.0f vs top %.0f)" % [lead_tough, tanky])
 	# The countdown, then the fight; the AI is held still and the match's clock too, so
 	# only what each check does happens.
 	m._timer = 0.05
