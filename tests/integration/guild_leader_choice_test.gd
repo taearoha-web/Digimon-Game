@@ -368,7 +368,16 @@ func _war_ally_leader() -> void:
 	ours.since = 1.0
 	ours.think(GuildWarCommander.THINK_EVERY)
 	m._assign_objectives()
-	check(ours.tactic == GuildWarCommander.ESCORT and lead.capture_role, "ally leader: escorted to the altar (%s)" % ours.tactic)
+	check(ours.tactic == GuildWarCommander.ESCORT and not lead.capture_role and lead.keep_back, "ally leader: the members go in first, the leader waits behind (%s)" % ours.tactic)
+	# The members on a clear altar: now the leader goes up inside its guard.
+	k = 0
+	for f in m.allies:
+		if f != lead and k < 3:
+			f.global_position = SiegeArena.ALTAR + Vector3(2.0 + k, 0.3, 1.0)
+			k += 1
+	ours.think(GuildWarCommander.THINK_EVERY)
+	m._assign_objectives()
+	check(ours.tactic == GuildWarCommander.ESCORT and lead.capture_role, "ally leader: escorted to the altar once the way is clear (%s)" % ours.tactic)
 	check(m.allies.filter(func(f): return f.capture_role).size() == 1, "ally leader: only the leader is sent onto the altar")
 	var tanks := m.allies.filter(func(f): return f.role == GuildWarCommander.ROLE_TANK and f != lead)
 	check(tanks.all(func(f): return f.guard_node == lead or f.switch_post >= 0), "ally leader: our tanks guard it (but the ones holding a switch)")
