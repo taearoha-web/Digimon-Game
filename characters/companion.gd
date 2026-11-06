@@ -377,7 +377,12 @@ func _physics_process(delta: float) -> void:
 	if _think <= 0.0:
 		_think = 0.35
 		target = _pick_target()
-	if not casting:
+	# The party raid's boss (RaidBoss): out of its circle warnings first.
+	var escape := RaidBoss.danger_escape(global_position) if RaidBoss.active != null else Vector3.INF
+	if escape.is_finite():
+		_face(escape, delta, 14.0)
+		desired = escape * float(stats.speed) * 1.25
+	elif not casting:
 		if target != null and is_instance_valid(target) and not target.is_dead() and not hero.safe_zone:
 			desired = _fight(delta)
 		else:
@@ -897,7 +902,7 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 			return 9.6
 		return 0.0
 	# A provoke is worth most while the hero is the one being hurt.
-	if fx.has("taunt") and hero_hp < 0.6 and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
+	if fx.has("taunt") and (hero_hp < 0.6 or RaidBoss.wants_taunt(self, target)) and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
 		return 8.5
 	match String(skill.shape):
 		"summon":

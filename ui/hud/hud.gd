@@ -154,6 +154,8 @@ var _chat_height := WorldChat.HEIGHT
 
 
 var _save_label: Label
+## The red dot on the menu button (DailyPass.claimable).
+var pass_dot: Label
 
 
 func _ready() -> void:
@@ -325,10 +327,11 @@ func _process(delta: float) -> void:
 		_event_in = 1.0
 		var t := WorldPresence.clock()
 		var lines := PackedStringArray()
-		for line in [Game.exp_boost_text()] + WorldEvents.chip_lines(t):
+		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t)] + WorldEvents.chip_lines(t):
 			if line != "":
 				lines.append(line)
 		_event_label.text = "\n".join(lines)
+		pass_dot.visible = DailyPass.claimable() > 0
 		_event_chip.visible = _event_label.text != ""
 		_place_event_chip()
 
@@ -1361,6 +1364,18 @@ func _build_top_right(frame: Control) -> void:
 	var menu := UIUtil.icon_button("res://assets/icons/ui/menu.svg", Vector2(76, 76))
 	menu.pressed.connect(func(): menu_requested.emit(&"inventory"))
 	row.add_child(menu)
+	# A red dot on the menu while a daily / weekly quest or a pass tier waits (DailyPass).
+	pass_dot = UIUtil.label("●", &"HudLabel")
+	pass_dot.name = "PassDot"
+	pass_dot.add_theme_color_override("font_color", UIPalette.DANGER)
+	pass_dot.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	pass_dot.add_theme_constant_override("outline_size", 4)
+	pass_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pass_dot.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	pass_dot.offset_left = -22
+	pass_dot.offset_top = -6
+	pass_dot.visible = false
+	menu.add_child(pass_dot)
 	_zone_label = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
 	_zone_label.anchor_left = 1.0
 	_zone_label.anchor_right = 1.0

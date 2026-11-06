@@ -222,10 +222,14 @@ func _leader_build_rules() -> void:
 	var b := HeroStats.compute(tank.profile)
 	check(int(b.max_hp) > int(a.max_hp) and float(b.atk) < float(a.atk), "it trades attack for HP (hp %d -> %d, atk %.0f -> %.0f)" % [int(a.max_hp), int(b.max_hp), float(a.atk), float(b.atk)])
 	check(plain.profile.attrs.vit != tank.profile.attrs.vit and plain.profile.equip.size() == tank.profile.equip.size(), "the line-up's own sheet is left alone (a copy), same gear")
-	# Who leads: a tank class over a damage dealer, never the healer or the bard.
+	# Who leads: the toughest once tank-built, whatever the class.
 	var lineup := [GuildWarData.make_fighter(&"priest", 300, "ฮีล", rng), GuildWarData.make_fighter(&"mage", 300, "เวท", rng),
 		GuildWarData.make_fighter(&"warrior", 200, "นักรบ", rng), GuildWarData.make_fighter(&"bard", 300, "บาร์ด", rng)]
-	check(GuildWarData.leader_index(lineup) == 2, "a warrior leads before a mage, a priest or a bard")
+	var toughest := 0
+	for i in lineup.size():
+		if GuildWarData.staying_power(GuildWarData.tank_build(lineup[i])) > GuildWarData.staying_power(GuildWarData.tank_build(lineup[toughest])):
+			toughest = i
+	check(GuildWarData.leader_index(lineup) == toughest, "the toughest once built as a tank leads (%d)" % toughest)
 	check(GuildWarData.leader_index(lineup, "เวท") == 1, "the guild's real leader leads when it is there")
 	check(GuildWarData.leader_index([lineup[0], lineup[3]]) >= 0, "a guild of only support still has a leader")
 
@@ -278,10 +282,19 @@ func _determinism() -> void:
 # In a war
 # ---------------------------------------------------------------------------
 
+## The seed of both guilds' line-ups in the war checks (see _in_war).
+const ROSTER_SEED := 4242
+
+
 func _in_war() -> void:
 	Game.current_zone = &"guildwar"
 	var plain_hp := int(HeroStats.compute(Game.profile).max_hp)
 	var plain_def := float(HeroStats.compute(Game.profile).def)
+	# A fixed roll of both guilds (the war resumes from a checkpoint with this seed, gates
+	# whole, nobody holding the castle): the line-ups are random in a real war, and a rare
+	# roll made the toughness checks below depend on luck.
+	Game.guildwar_save_checkpoint(ROSTER_SEED, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {})
+	Game.guildwar_resuming = true
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
 	add_child(zone)
@@ -313,7 +326,8 @@ func _in_war() -> void:
 	var tanky := 0.0
 	for f in m.enemies:
 		tanky = maxf(tanky, float(f.max_hp) * (1.0 + float(f.rstats.def) / 100.0))
-	check(float(lead.max_hp) * (1.0 + float(lead.rstats.def) / 100.0) >= tanky * 0.6, "the leader is among its guild's toughest")
+	var lead_tough := float(lead.max_hp) * (1.0 + float(lead.rstats.def) / 100.0)
+	check(lead_tough >= tanky * 0.999, "the leader is its guild's toughest (%.0f vs top %.0f)" % [lead_tough, tanky])
 	# The countdown, then the fight; the AI is held still and the match's clock too, so
 	# only what each check does happens.
 	m._timer = 0.05

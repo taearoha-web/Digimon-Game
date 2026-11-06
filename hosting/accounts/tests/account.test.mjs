@@ -310,6 +310,17 @@ test('mount levels and the old list of owned mounts are both accepted', async t 
   assert.equal(legacy.status, 200, JSON.stringify(legacy.body));
 });
 
+const LEAGUE_WAR = {at: 1794200000, a: 1, b: 2, win: 1, ca: 2, cb: 0, held: 1, ka: 30, kb: 12};
+
+test('the weekly guild league record is accepted', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const league = {week: 2966, wars: [LEAGUE_WAR], prev_week: 2965, prev_wars: [], claimed: 2965, ann: 2966, shop_week: 2966, shop: {set_core: 2, crown: 1}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), league})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), league: {week: 1}})));
+});
+
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -338,6 +349,11 @@ test('malformed, oversized and dangerous save structures are rejected without ch
     bundle({...sample(), mounts: 'thunder_wolf'}), bundle({...sample(), mounts: {thunder_wolf: 6}}), bundle({...sample(), mounts: {thunder_wolf: 1.5}}),
     bundle({...sample(), mounts: [3]}), bundle({...sample(), mount: 5}),
     bundle({...sample(), guild_leaders: ['x']}), bundle({...sample(), guild_leaders: {'1': 5}}), bundle({...sample(), guild_leaders: {'1': 'x'.repeat(65)}}),
+    bundle({...sample(), league: []}), bundle({...sample(), league: {week: 1.5}}), bundle({...sample(), league: {junk: 1}}),
+    bundle({...sample(), league: {wars: [{at: 'x'}]}}), bundle({...sample(), league: {wars: Array(65).fill(LEAGUE_WAR)}}),
+    bundle({...sample(), league: {shop: {set_core: 1001}}}),
+    bundle({...sample(), dpass: []}), bundle({...sample(), dpass: {dq: {}}}), bundle({...sample(), dpass: {dq: [{id: 5}]}}),
+    bundle({...sample(), dpass: {wq: [{id: 'w_boss', c: 'yes'}]}}), bundle({...sample(), dpass: {got: 2 ** 31}}), bundle({...sample(), dpass: {pts: 'x'}}),
   ];
   for (const bad of invalid) {
     const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bad}});

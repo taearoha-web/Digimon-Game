@@ -204,6 +204,8 @@ func _build_result(result: Dictionary) -> void:
 		prize += " · %s +%d" % [ItemData.JEWELS[id].name, int(jewels[id])]
 	if int(result.exp) > 0:
 		prize += " · EXP +%d" % int(result.exp)
+	if int(result.get("league", 0)) > 0:
+		prize += " · แต้มลีกกิลด์ +%d" % int(result.league)
 	column.add_child(UIUtil.label("คุณฆ่า %d ครั้ง · ตาย %d ครั้ง   |   รางวัล: %s" % [int(result.kills), int(result.deaths), prize], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

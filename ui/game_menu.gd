@@ -5,9 +5,11 @@ extends CanvasLayer
 
 signal closed()
 signal title_requested()
+## The party raid (RaidData) from the menu: Main opens its keeper's screen.
+signal raid_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -62,14 +64,21 @@ func _ready() -> void:
 	frame.add_child(panel)
 	var row := UIUtil.hbox(14)
 	panel.add_child(row)
-	var tabs := UIUtil.vbox(8)
+	# Ten tabs and the close button must fit a 720 px tall phone screen.
+	var tabs := UIUtil.vbox(8 if TABS.size() <= 8 else 5)
 	tabs.custom_minimum_size = Vector2(190, 0)
 	row.add_child(tabs)
 	for tab in TABS:
-		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54))
+		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54 if TABS.size() <= 8 else 46))
 		b.pressed.connect(func(): show_tab(StringName(tab[0])))
 		tabs.add_child(b)
 		_tab_buttons[StringName(tab[0])] = b
+	var raid := UIUtil.button(RaidData.SHORT, &"", Vector2(0, 54))
+	raid.add_theme_color_override("font_color", Color("ff9aa6"))
+	raid.pressed.connect(func():
+		close_menu()
+		raid_requested.emit())
+	tabs.add_child(raid)
 	tabs.add_child(UIUtil.spacer(false))
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 66))
 	close.pressed.connect(close_menu)
@@ -142,6 +151,7 @@ func _rebuild() -> void:
 	_page_scroll = null
 	for key in _tab_buttons:
 		_tab_buttons[key].disabled = key == current_tab
+	_mark_pass_tab()
 	UIUtil.clear(_content)
 	_slice_build = keep_y <= 0
 	_build_gen += 1
@@ -154,12 +164,32 @@ func _rebuild() -> void:
 				_build_inventory()
 		&"skills": _build_skills()
 		&"quests": _build_quests()
+		&"pass": _page_scroll = DailyPassView.build(_content, _queue_rebuild)
 		&"achievements": _build_achievements()
 		&"titles": _build_titles()
 		&"mounts": _build_mounts()
+		&"league":
+			var page := UIUtil.vbox(8)
+			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_content.add_child(page)
+			_page_scroll = LeagueView.build(page, _queue_rebuild) as TouchScroll
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
+
+
+## The "ภารกิจ & บัตร" tab shows a red dot while something is waiting to be claimed.
+func _mark_pass_tab() -> void:
+	var b: Button = _tab_buttons.get(DailyPassView.TAB_ID)
+	if b == null:
+		return
+	var ready := Game.has_profile and DailyPass.claimable() > 0
+	b.text = DailyPassView.TAB_NAME + (" ●" if ready else "")
+	for key in ["font_color", "font_disabled_color", "font_hover_color", "font_pressed_color"]:
+		if ready:
+			b.add_theme_color_override(key, UIPalette.DANGER)
+		else:
+			b.remove_theme_color_override(key)
 
 
 # ---------------------------------------------------------------------------
@@ -1556,6 +1586,22 @@ func _build_settings() -> void:
 		GameSettings.combat_hitstop = on
 		GameSettings.save_settings())
 	box.add_child(hitstop)
+	var cutin := CheckButton.new()
+	cutin.name = "UltCutIn"
+	cutin.text = "ฉากท่าไม้ตาย (แถบชื่อสกิลและภาพช้าเมื่อใช้สกิลดาว 200 / สกิลเทพ)"
+	cutin.button_pressed = GameSettings.ult_cutin
+	cutin.toggled.connect(func(on: bool):
+		GameSettings.ult_cutin = on
+		GameSettings.save_settings())
+	box.add_child(cutin)
+	var shake := CheckButton.new()
+	shake.name = "ScreenShake"
+	shake.text = "สั่นจอ (กล้องซูมและสั่นตามแรงสกิล ปิดถ้าเวียนหัว)"
+	shake.button_pressed = GameSettings.screen_shake
+	shake.toggled.connect(func(on: bool):
+		GameSettings.screen_shake = on
+		GameSettings.save_settings())
+	box.add_child(shake)
 	var save := UIUtil.button("บันทึกเกม", &"PrimaryButton", Vector2(320, 66))
 	save.pressed.connect(func():
 		if Game.save():

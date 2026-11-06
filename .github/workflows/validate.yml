@@ -47,6 +47,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-armageddon
         run: Godot_v4.3-stable_linux.x86_64 --headless --fixed-fps 60 --path . res://tests/integration/armageddon_test.tscn
+      - name: skill_feel_test (skill weight for every class, ultimate cut-in and slow motion for the hero only, capped hit-stop and camera shake, throws resisted by bosses, element flashes, ground marks dropped under memory pressure)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-skill_feel_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/skill_feel_test.tscn
       - name: Validate every authored skill recipe
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/art_direction_test.tscn -- skills
       - name: Validate elemental geometry budgets and cleanup
@@ -91,6 +96,14 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-quest
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_quest_test.tscn
+      - name: Weekly guild league (Monday-Sunday Thai seasons, the AI guilds' wars drawn from the week alone, the hero's real war adds its points, the castle holder at the season's end is champion with a crown plate / EXP +10% / the secret shop for its members only, top three claim once, saves stay valid through JSON and disk)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-league
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_league_test.tscn
+      - name: Daily / weekly quests and the free monthly pass (five daily and three weekly quests drawn per character and Thai day / week, kills / bosses / trades / stall sales / enhancing / party minutes / chat / world boss / guild war move them, claimed once for pass points, 30 tiers a month claimed one by one or all at once with a title at the top, day / week / month resets with a warning, saves stay valid, menu tab and red dot)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-daily-pass
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/daily_pass_test.tscn
       - name: The world is never empty (at least 16 stall keepers in the village and 22 online at every moment, scheduled players level and only drop in on short errands, world clock x3, veterans, newcomers, endgame, guild war everyone at Lv.100 up to 25 a side)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-world-town
@@ -109,6 +122,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-blood-swell
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/blood_swell_test.tscn
+      - name: Daily party raid (party of 3+, two entries a day, three floors with a mid-boss, a boss with buster / circles / shielding adds / 50% phase / enrage, AI steps out and provokes, rewards once with the first-clear chest)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-raid
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/raid_test.tscn
       - name: World players party up among themselves (parties of 2-5 at a similar level, the same on every device for the same moment, breaking up and forming anew, a modest EXP bonus for partying, hunting together round the leader, a healer heals a mate, a Dark Lord summons a straggler never the hero, the hero can still invite a member)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-ai-party

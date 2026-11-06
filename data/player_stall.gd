@@ -229,6 +229,7 @@ static func _sell(lot: int, buyer_name: String, real: bool, at: float, quiet: bo
 	var item: Dictionary = entry.item
 	var price := int(entry.price)
 	Game.add_gold(price)
+	Game.daily_progress("stall_sell")
 	s.log.push_front({"at": int(at), "buyer": buyer_name, "name": _label(item), "color": ItemData.color_of(item).to_html(false),
 		"price": price, "real": real})
 	while s.log.size() > LOG_SIZE:

@@ -139,11 +139,13 @@ func _process(delta: float) -> void:
 	_ach_timer += delta
 	if _ach_timer >= ACH_INTERVAL:
 		_check_achievements()
+	DailyPass.tick(delta)
 	_gq_timer += delta
 	if _gq_timer >= GQ_CHECK_INTERVAL:
 		_gq_timer = 0.0
 		if guild() > 0:
 			_guild_quest_announce()
+		GuildLeague.tick()
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -977,6 +979,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The hero's stall (PlayerStall): its lots are items like the bag's.
 	if data.has("stall") and not PlayerStall.valid(data.stall):
 		return false
+	# Daily / weekly quests and the reward pass (DailyPass).
+	if data.has(DailyPass.KEY) and not DailyPass.valid(data[DailyPass.KEY]):
+		return false
 	for value in data.get("ach", {}).values():
 		if not value is bool:
 			return false
@@ -988,6 +993,9 @@ func _valid_profile(data: Dictionary) -> bool:
 		for key in leaders:
 			if not key is String or not leaders[key] is String or String(leaders[key]).length() > GUILD_LEADER_NAME_MAX:
 				return false
+	# The weekly guild league record (GuildLeague).
+	if data.has(GuildLeague.KEY) and not GuildLeague.valid(data[GuildLeague.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1198,6 +1206,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	_repair_mounts(data)
 	# Saves from before the stall get an empty one.
 	PlayerStall.repair(data)
+	DailyPass.repair(data)
 	# Guild leaders: only the two guilds, a name each ("" = the default leader).
 	if data.has("guild_leaders"):
 		var leaders := {}
@@ -1208,6 +1217,7 @@ func _repair(data: Dictionary) -> Dictionary:
 				if g.is_valid_int() and WorldPlayers.GUILD_NAMES.has(int(g)) and raw_leaders[key] is String:
 					leaders[str(int(g))] = String(raw_leaders[key]).strip_edges().left(GUILD_LEADER_NAME_MAX)
 		data["guild_leaders"] = leaders
+	GuildLeague.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -1335,7 +1345,8 @@ func add_exp(amount: int) -> void:
 		return
 	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
 	# Halloween potion multiplies on top of it.
-	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult()))
+	# The guild league champion's members earn GuildLeague.EXP_BONUS more for a week.
+	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return
@@ -2211,6 +2222,7 @@ func enhance_item(item: Dictionary) -> String:
 	for id in cost:
 		if int(cost[id]) > 0:
 			_spend_jewels(id, int(cost[id]))
+	daily_progress("enhance")
 	if rng.randf() < ItemData.enhance_chance(plus):
 		item["plus"] = plus + 1
 		item["price"] = int(int(item.price) * 1.12)
@@ -2626,6 +2638,7 @@ func sell_item(index: int, count := 1) -> void:
 	var qty := count if ItemData.is_stackable(item) else 1
 	add_gold(each * qty)
 	remove_item_at(index, qty)
+	daily_progress("trade")
 
 
 ## Bag items auto-sell would sell: unworn gear of the chosen grades (bit per
@@ -2729,6 +2742,7 @@ func buy_item(item: Dictionary) -> bool:
 		return false
 	spend_gold(price)
 	add_item(item)
+	daily_progress("trade")
 	return true
 
 
@@ -2826,9 +2840,14 @@ func daily_target(entry: Dictionary) -> int:
 	return GoalsData.target_for(daily_template(entry.id), int(profile["level"]))
 
 
-func daily_progress(kind: String, amount: int) -> void:
+## The one call the game makes when something a quest counts happens (kinds: kills,
+## zone_kills, boss, golden, gold, skills, trade, stall_sell, enhance, party_min, chat,
+## world_boss, raid, guild_war, league): the town board's three quests and the daily /
+## weekly quests of the pass (DailyPass).
+func daily_progress(kind: String, amount := 1) -> void:
 	if not has_profile:
 		return
+	DailyPass.progress(kind, amount)
 	if kind == "zone_kills" and (current_zone == &"town" or current_zone == &"arena"):
 		return
 	for entry in daily().quests:
@@ -2973,6 +2992,8 @@ func post_chat(channel: String, speaker: String, text: String, color: Color) -> 
 
 
 func _on_world_chat(speaker: String, _text: String, _color: Color) -> void:
+	if has_profile and speaker == String(profile.get("name", "")):
+		daily_progress("chat")
 	if has_profile and speaker == String(profile.get("name", "")) and int(profile["flags"].get(Achievements.CHAT_FLAG, 0)) == 0:
 		flag_max(Achievements.CHAT_FLAG, 1)
 		_check_achievements()
@@ -2981,6 +3002,7 @@ func _on_world_chat(speaker: String, _text: String, _color: Color) -> void:
 func _on_world_boss_defeated(_zone: StringName) -> void:
 	if has_profile:
 		flag_add(Achievements.WORLD_BOSS_FLAG)
+		daily_progress("world_boss")
 		_check_achievements()
 
 

@@ -50,7 +50,7 @@ func _ready() -> void:
 		add_child(zone)
 		await get_tree().physics_frame
 		await get_tree().physics_frame
-		check(zone.is_built and zone.npcs.size() == 16, "seed %d: the village is built with its villagers (%d)" % [layout_seed, zone.npcs.size()])
+		check(zone.is_built and zone.npcs.size() == 17, "seed %d: the village is built with its villagers (%d)" % [layout_seed, zone.npcs.size()])
 		var blocked := _blocked(zone)
 		check(blocked.is_empty(), "seed %d: no villager or the spot in front of them is inside a rock, tree or wall (%s)" % [layout_seed, blocked])
 		zone.queue_free()

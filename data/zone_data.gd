@@ -248,6 +248,9 @@ static func ensure() -> void:
 
 static func get_zone(id: StringName) -> Dictionary:
 	ensure()
+	# The party raid is entered from its keeper, never walked to: not in ZONES.
+	if id == RaidData.ID:
+		return RaidData.zone()
 	return ZONES.get(id, ZONES[&"meadow"])
 
 static func access_reason(id: StringName, level: int, stars: int) -> String:

@@ -47,7 +47,7 @@ const PARTY_TINT := Color("7dff8a")
 ## No position in any zone is farther from its centre than this (metres).
 const WORLD_LIMIT := 5000.0
 ## Zones whose monsters only the party shares (as the server's INSTANCED_ZONES).
-const INSTANCED_ZONES: Array[StringName] = [&"tower", &"pvp", &"guildwar", &"arena"]
+const INSTANCED_ZONES: Array[StringName] = [&"tower", &"pvp", &"guildwar", &"arena", &"raid"]
 
 var _transport: Object
 var _open := false
