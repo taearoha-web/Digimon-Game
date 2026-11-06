@@ -650,3 +650,116 @@ static func release_cache(tree: SceneTree = null) -> void:
 		pool.stop_all()
 	_ramps.clear()
 	_contacts.clear()
+
+
+# ---------------------------------------------------------------------------
+# The Mage's three ultimates (Armageddon, Thunder Storm, Judgment Ray)
+# ---------------------------------------------------------------------------
+
+## Rain is drawn pale steel-blue, not in the storm's violet.
+const RAIN_LOOK := {"key": "storm_rain", "family": "strike", "element": "storm", "hot": Color("eef6ff"),
+	"mid": Color("9ab4d8"), "dark": Color("2a3446"), "scale": 1.0, "star": false}
+
+
+## The authored particle layers of one beat of a Mage ultimate, from the shared pool
+## (cosmetic only, called by MageUltimateArt at a beat its sequence already owns).
+## [param part]: meteor_sky, meteor_impact, meteor_fragment, storm_rain, storm_strike,
+## judgment_gather, judgment_land. [param owner]: the node whose exit ends them.
+static func ultimate(owner: Node3D, skill_id: String, part: String, at: Vector3, r: float, seconds := 1.0) -> void:
+	if not enabled or not MageUltimateArt.enabled or not is_instance_valid(owner) or not owner.is_inside_tree():
+		return
+	var layers := layers_now(_crowd_peek())
+	if not "secondary" in layers:
+		return
+	var pool := SkillLayerPool.of(owner)
+	if pool == null:
+		return
+	var look := look_of(ClassData.find_skill(&"mage", skill_id))
+	_scale = _particle_scale(look, 0)
+	var id := owner.get_instance_id()
+	var env := "environment" in layers
+	var after := "afterglow" in layers
+	var up := Vector3.UP
+	var hot: Color = look.hot
+	var mid: Color = look.mid
+	match part:
+		"meteor_sky":
+			# The sky reddens: a charge light swells over the area and ash glows down.
+			if env and pool.light(id, at + up * 5.0, Color(1.0, 0.3, 0.08), 2.4, r * 2.6 + 4.0, seconds, 0.0, true):
+				last.lights += 1
+			if after:
+				_emit(pool, id, "ember", at + up * 7.0, look, 26, {"shape": "box", "extents": Vector3(r * 0.8, 1.5, r * 0.8), "dir": Vector3.DOWN,
+					"spread": 30.0, "v": Vector2(0.4, 1.4), "gravity": Vector3(0.4, -1.2, 0.2), "damping": 0.5, "life": 1.3, "size": 0.8}, 0.0, maxf(0.0, seconds - 1.0))
+		"meteor_impact":
+			_emit(pool, id, "flash", at + up * 1.0, look, 2, {"shape": "sphere", "radius": 0.1, "v": Vector2.ZERO, "size": clampf(r * 0.8, 3.0, 6.0), "min": 2})
+			_emit(pool, id, "fire", at + up * 0.4, look, 40, {"shape": "sphere", "radius": r * 0.25, "dir": up, "spread": 55.0, "v": Vector2(4.0, 10.0)})
+			_ring(pool, id, at, r * 1.45, 0.75, mid, hot, 0.0, 0.2, 1.0, 0.0)
+			_ring(pool, id, at, r * 0.95, 0.6, Color("c88a58"), hot, 0.14, 0.1, 0.7, 0.0)
+			if env:
+				# Shockwave dust rolls out along the ground; rock chips fly.
+				_emit(pool, id, "dust", at + up * 0.25, look, 26, {"shape": "ring", "radius": r * 0.35, "dir": up, "spread": 70.0,
+					"v": Vector2(0.5, 1.8), "radial": Vector2(7.0, 12.0), "size": clampf(r / 2.5, 1.0, 2.0), "life": 1.5}, 0.04)
+				_emit(pool, id, "debris", at + up * 0.3, look, 16, {"shape": "sphere", "radius": r * 0.3, "dir": up, "spread": 45.0, "v": Vector2(6.0, 12.0)}, 0.01)
+				if pool.light(id, at + up * 1.6, Color(1.0, 0.45, 0.12), 6.0, r * 3.0 + 4.0, 0.9):
+					last.lights += 1
+				if VfxBudget.quality() == 2 and MemoryGuard.pressure == 0 and pool.haze(id, at + up * 1.2, r * 1.1 + 1.0, 1.6, Color(1.0, 0.55, 0.2), 0.05):
+					last.hazes += 1
+			if after:
+				# A smoke column climbs out of the crater; embers keep rising from the cracks.
+				_emit(pool, id, "smoke", at + up * 1.2, look, 22, {"shape": "sphere", "radius": r * 0.22, "dir": up, "spread": 14.0,
+					"v": Vector2(3.0, 5.5), "gravity": Vector3(0.3, 0.6, 0.1), "damping": 0.9, "size": clampf(r / 2.0, 1.6, 3.2), "life": 2.2}, 0.12, 0.9)
+				_emit(pool, id, "ember", at + up * 0.3, look, 30, {"shape": "box", "extents": Vector3(r * 0.55, 0.2, r * 0.55), "dir": up, "spread": 25.0,
+					"v": Vector2(1.5, 4.0), "life": 1.4}, 0.2, 1.6)
+		"meteor_fragment":
+			_emit(pool, id, "fire", at + up * 0.3, look, 12, {"shape": "sphere", "radius": r * 0.2, "dir": up, "spread": 60.0, "v": Vector2(2.5, 6.0)})
+			if env:
+				_emit(pool, id, "dust", at + up * 0.2, look, 10, {"shape": "ring", "radius": r * 0.3, "dir": up, "spread": 70.0,
+					"v": Vector2(0.4, 1.2), "radial": Vector2(4.0, 7.0), "life": 1.1}, 0.02)
+			_ring(pool, id, at, r * 1.1, 0.5, mid, hot, 0.0, 0.12, 0.7, 0.0)
+		"storm_rain":
+			# Slanting sheets of rain under the cloud deck, mist where they land.
+			_emit(pool, id, "droplet", at + up * 7.5, RAIN_LOOK, 60, {"shape": "box", "extents": Vector3(r * 0.85, 0.6, r * 0.85),
+				"dir": Vector3(0.18, -1.0, 0.08).normalized(), "spread": 3.0, "v": Vector2(14.0, 18.0), "gravity": Vector3(0, -6.0, 0),
+				"damping": 0.0, "life": 0.5, "size": 1.25}, 0.1, maxf(0.2, seconds - 0.5))
+			if env:
+				_emit(pool, id, "mist", at + up * 0.25, RAIN_LOOK, 14, {"shape": "box", "extents": Vector3(r * 0.7, 0.1, r * 0.7), "dir": up,
+					"spread": 60.0, "v": Vector2(0.2, 0.6), "size": 1.4, "life": 1.4}, 0.4, maxf(0.2, seconds - 1.2))
+		"storm_strike":
+			_emit(pool, id, "spark", at + up * 0.25, look, 18, {"shape": "sphere", "radius": 0.2, "dir": up, "spread": 70.0, "v": Vector2(4.0, 9.0)})
+			_emit(pool, id, "arc", at + up * 0.4, look, 8, {"shape": "sphere", "radius": 0.5, "dir": up, "spread": 90.0, "v": Vector2(3.0, 6.0)})
+			_ring(pool, id, at, 2.2, 0.45, mid, hot, 0.0, 0.1, 0.8, 0.0)
+			if env and pool.light(id, at + up * 2.5, Color(0.7, 0.8, 1.0), 5.0, 9.0, 0.3):
+				last.lights += 1
+		"judgment_gather":
+			# Light is drawn in from all round the target and spirals up into the halo.
+			var life := minf(0.7, seconds)
+			_emit(pool, id, "charge", at + up * 0.6, look, 30, {"shape": "ring", "radius": 3.0, "dir": up, "spread": 20.0,
+				"v": Vector2(0.4, 1.2), "radial": Vector2(-7.0, -4.0), "tangential": Vector2(4.0, 7.0), "gravity": Vector3(0, 1.4, 0),
+				"damping": 0.4, "life": life, "size": 0.45}, 0.0, maxf(0.0, seconds - life))
+			if env and pool.light(id, at + up * 3.0, mid.lerp(hot, 0.5), 2.2, 7.0, seconds, 0.0, true):
+				last.lights += 1
+		"judgment_land":
+			_emit(pool, id, "flash", at + up * 0.8, look, 2, {"shape": "sphere", "radius": 0.1, "v": Vector2.ZERO, "size": 4.0, "min": 2})
+			# Spiral motes climb the beam; light keeps rising from the molten ring.
+			_emit(pool, id, "mote", at + up * 0.3, look, 30, {"shape": "ring", "radius": 1.3, "dir": up, "spread": 8.0,
+				"v": Vector2(3.0, 6.0), "tangential": Vector2(7.0, 11.0), "gravity": Vector3(0, 1.0, 0), "damping": 0.3, "life": 1.0, "size": 0.7}, 0.0, 0.5)
+			_ring(pool, id, at, 3.4, 0.7, mid, hot, 0.0, 0.18, 0.95, 0.0)
+			_ring(pool, id, at, 2.2, 0.9, hot, hot, 0.12, 0.08, 0.6, 0.0)
+			if env:
+				_emit(pool, id, "dust", at + up * 0.2, look, 14, {"shape": "ring", "radius": 1.2, "dir": up, "spread": 70.0,
+					"v": Vector2(0.4, 1.2), "radial": Vector2(4.0, 7.0), "life": 1.0}, 0.03)
+				if pool.light(id, at + up * 2.0, mid.lerp(hot, 0.6), 6.0, 9.0, 0.7):
+					last.lights += 1
+			if after:
+				_emit(pool, id, "ray", at + up * 0.2, look, 14, {"shape": "ring", "radius": 2.0, "dir": up, "spread": 6.0,
+					"v": Vector2(1.5, 3.5), "life": 1.0}, 0.15, 1.0)
+
+
+## The crowd without counting this call as a cast (an ultimate's beats are one cast).
+static func _crowd_peek() -> int:
+	var now := Time.get_ticks_msec()
+	var n := 0
+	for t in _recent:
+		if t > 0 and now - t < 1000:
+			n += 1
+	return n
