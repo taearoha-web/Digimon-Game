@@ -81,6 +81,10 @@ static func _root(parent: Node3D, at: Vector3, label: String) -> ShadowSkillArt:
 ## phantom rises behind the caster; from Lv.80 a sigil turns at its feet under
 ## the moon. Bound to the caster's skill generation (a cancel drops it).
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: Vector3, duration: float, visual: HeroVisual = null) -> void:
+	# The class signatures (Archer, Assassin, Dark Lord) ride this entry, which
+	# SkillShow calls for every skill; star skills reach them via StarSkillArt.
+	if not skill.has("star"):
+		ClassSignature.anticipate(parent, skill, origin, aim, duration, visual)
 	if not handles(skill) or not _alive(parent) or duration < 0.12 or not VfxBudget.can_decorate(4 + RESERVE):
 		return
 	var c := palette(skill)
@@ -102,6 +106,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 
 ## Release: the skill's own composition, at the same beat as its damage.
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, delay := 0.0) -> void:
+	ClassSignature.play(parent, skill, center, origin, delay)
 	if not handles(skill) or not _alive(parent) or skill.has("star") or not VfxBudget.can_decorate(3 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
@@ -116,7 +121,9 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 
 
 ## Every hit: a small crossed cut of shadow light on the victim (one per gap).
-static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
+static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
+	if not skill.has("star"):
+		ClassSignature.contact(parent, skill, at, crit)
 	if not handles(skill) or skill.has("star") or not _alive(parent) or not VfxBudget.can_decorate(2 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
@@ -675,3 +682,4 @@ static func _vortex(st: SurfaceTool) -> void:
 ## class nearby, need not stay in a phone's memory). Live effects keep their own.
 static func release_mesh_cache() -> void:
 	_meshes.clear()
+	SignatureKit.release_pool()

@@ -793,7 +793,7 @@ func _buff_running(skill: Dictionary) -> bool:
 
 ## Whether the fighter may use `skill` at all (its level, class tier and stars).
 func _knows(skill: Dictionary) -> bool:
-	return int(skill.level) <= level and ClassData.skill_tier(skill) <= _tier() and int(skill.get("star", 0)) <= _stars()
+	return ClassData.ai_allows(skill, _buff_kit) and int(skill.level) <= level and ClassData.skill_tier(skill) <= _tier() and int(skill.get("star", 0)) <= _stars()
 
 
 ## The team-buff button (บัฟทีม): every buff skill it knows that is off cooldown and

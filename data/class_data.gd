@@ -364,6 +364,43 @@ static func get_skill(class_id: StringName, index: int) -> Dictionary:
 	return skills[index] if index >= 0 and index < skills.size() else {}
 
 
+## AI players carry at most AI_BUFF_SKILLS buff skills (a class's signature buff, e.g.
+## the Defender's เบ่งเลือด, always among them). Songs and healing skills don't count.
+const AI_BUFF_SKILLS := 2
+
+
+## A skill that grants a buff (not a song, not a heal).
+static func is_buff_skill(skill: Dictionary) -> bool:
+	var fx: Variant = skill.get("fx")
+	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and not bool((fx as Dictionary).buff.get("song", false)) and not (fx as Dictionary).has("heal")
+
+
+## The buff skills an AI player brings (ids), picked per player by [param who] from the
+## ones unlocked at [param level]: the class signature first, then a stable pick.
+static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
+	var open: Array = []
+	for skill in pool(class_id):
+		if is_buff_skill(skill) and int(skill.level) <= level and not skill.has("star"):
+			open.append(String(skill.id))
+	var kit: Array = []
+	var signature := "brace" if class_id == &"defender" else ""
+	if signature != "" and open.has(signature):
+		kit.append(signature)
+		open.erase(signature)
+	var seed := absi(hash(who))
+	while kit.size() < AI_BUFF_SKILLS and not open.is_empty():
+		var at := seed % open.size()
+		kit.append(open[at])
+		open.remove_at(at)
+		seed = seed / 7 + 13
+	return kit
+
+
+## Whether an AI player with buff kit [param kit] may cast [param skill].
+static func ai_allows(skill: Dictionary, kit: Array) -> bool:
+	return not is_buff_skill(skill) or kit.has(String(skill.id))
+
+
 static func find_skill(class_id: StringName, skill_id: String) -> Dictionary:
 	for skill in pool(class_id):
 		if skill.id == skill_id:

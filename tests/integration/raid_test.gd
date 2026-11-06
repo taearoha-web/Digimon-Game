@@ -46,6 +46,17 @@ func _ready() -> void:
 	check(RaidData.enter(day1) == "" and RaidData.runs_left(day1) == 1 and RaidData.open_run() != "", "the first entry is spent on the way in")
 	check(RaidData.enter(day1) == "" and RaidData.runs_left(day1) == 0, "the second entry")
 	check(RaidData.enter(day1).contains("ครบ") and RaidData.runs_text(day1) == "เหลือ 0/2 รอบวันนี้", "no third entry the same day")
+	# The raid keeps its day and open run as text flags: the saved hero must still read
+	# back (a strict check once hid the whole hero after a reload).
+	var spare := Game.SLOT_COUNT
+	check(Game._write_profile(Game.profile.duplicate(true), spare), "a hero inside the raid saves")
+	var reread := Game._read_slot(spare)
+	check(not reread.is_empty() and String(reread.get("name", "")) == "Raid QA", "the hero reads back after entering the raid (not hidden as unreadable)")
+	check(String(reread.get("flags", {}).get(RaidData.F_DAY, "")) == day1 and String(reread.get("flags", {}).get(RaidData.F_OPEN, "")) != "", "the raid's text flags survive the save")
+	var long_flag := Game.profile.duplicate(true)
+	long_flag.flags["junk"] = "x".repeat(Game.FLAG_TEXT_MAX + 1)
+	check(not Game._valid_profile(long_flag), "an oversized text flag is still refused")
+	DirAccess.remove_absolute(Game.save_path(spare))
 	check(RaidData.runs_left(day2) == 2 and RaidData.entry_block(day2) == "", "the next day resets the entries")
 	check(RaidData.first_chest_ready(day2), "and the first-clear chest")
 
@@ -56,6 +67,8 @@ func _ready() -> void:
 	var sb := RaidData.monster_stats(strong, "boss")
 	check(sb.hp > wb.hp * 10 and sb.atk > wb.atk * 10, "the boss follows the party's power (%s vs %s)" % [wb, sb])
 	check(int(wb.level) == 42 and int(sb.level) == 100 + int(250 * 0.45), "the level shown follows level and stars (%d / %d)" % [int(wb.level), int(sb.level)])
+	var dps_strong := HeroStats.mitigate(float(strong.get("atk_sum", 10.0)) * RaidData.DPS_PER_ATK, float(sb.def))
+	check(RaidData.BOSS_HP_MULT == 5.0 and absf(float(sb.hp) / (dps_strong * RaidData.BOSS_TTK * 5.0) - 1.0) < 0.01, "the raid boss has five times its old HP (%d)" % int(sb.hp))
 	check(RaidData.monster_stats(strong, "trash").hp < RaidData.monster_stats(strong, "mid").hp and RaidData.monster_stats(strong, "mid").hp < sb.hp, "trash < mid-boss < boss")
 	check(RaidData.trash_pool(40).size() > 0 and RaidData.mid_boss(40) != &"" and RaidData.trash_pool(100) == RaidData.STAR_POOL, "monster pools for each band")
 	var first := RaidData.rewards(100, 250, true, RandomNumberGenerator.new())

@@ -22,6 +22,7 @@ static func warm_up(parent: Node3D, at: Vector3, slicer: SceneTree = null) -> vo
 	_blade_mesh(false)
 	_blade_mesh(true)
 	_wing_mesh()
+	SkillLayers.warm_up()
 	await warm_geometry(slicer)
 	var look := SkillShow.profile_for(ClassData.pool(&"vagabond")[0])
 	var mat := _material(look, 0.001)
@@ -133,8 +134,9 @@ static func _mesh(parent: Node3D, mesh: Mesh, mat: Material, position := Vector3
 
 static func _finish(root: Node3D, mat: ShaderMaterial, duration: float) -> void:
 	var target := root.scale
-	root.scale *= 0.94
-	root.create_tween().tween_property(root, "scale", target, 0.10).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# Arrives with a small overshoot (eased back), not a rigid linear pop.
+	root.scale *= 0.84
+	root.create_tween().tween_property(root, "scale", target, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var tw := root.create_tween()
 	tw.tween_interval(maxf(0.16, duration * 0.62))
 	tw.tween_method(func(value: float): mat.set_shader_parameter("fade", value), 1.0, 0.0, duration * 0.38)

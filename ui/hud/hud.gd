@@ -1761,7 +1761,29 @@ class CompactTimers extends TimerBars:
 		for group in _rows:
 			_rows[group].visible = groups.has(group)
 			var limit := BuffBook.SONG_LIMIT if group == "song" else BuffBook.GROUP_LIMIT
-			_rows[group].get_child(0).text = LABELS[group] if group == "summon" else "%s\n%d/%d" % [LABELS[group], int(groups.get(group, 0)), limit]
+			var n := int(groups.get(group, 0))
+			if group == "summon":
+				_rows[group].get_child(0).text = LABELS[group]
+			elif group == "ally":
+				_rows[group].get_child(0).text = "%s\n%d" % [LABELS[group], n]
+			else:
+				_rows[group].get_child(0).text = "%s\n%d/%d" % [LABELS[group], n, limit]
+			if group != "summon":
+				# Stacked like cards past TimerBars.STACK_AT icons: the label keeps clear
+				# of the first icon and only the top (newest) icon shows its seconds.
+				var gap := TimerBars.stack_gap(n, BuffChip.DIAMETER + 2.0, 3)
+				var row: HBoxContainer = _rows[group]
+				row.add_theme_constant_override("separation", gap)
+				var label := row.get_child(0) as Label
+				label.custom_minimum_size.x = 0.0 if gap >= 0 else 40.0 - float(gap)
+				label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if gap >= 0 else HORIZONTAL_ALIGNMENT_LEFT
+				for i in range(1, row.get_child_count()):
+					var chip := row.get_child(i) as BuffChip
+					if chip != null:
+						var was := chip.covered
+						chip.covered = gap < 0 and i < row.get_child_count() - 1
+						if was != chip.covered:
+							chip.queue_redraw()
 		visible = not _chips.is_empty()
 
 
@@ -1771,6 +1793,8 @@ class CompactTimers extends TimerBars:
 class BuffChip extends TimerChip:
 	## 34 px: own, friends' and the song's buffs fit one row under the hero panel.
 	const DIAMETER := 34.0
+	## Under the next icon of a stacked lane: no seconds / "+" (the top icon shows its own).
+	var covered := false
 
 	func show_values(entry: Dictionary, delta: float) -> void:
 		super.show_values(entry, delta)
@@ -1795,13 +1819,13 @@ class BuffChip extends TimerChip:
 		else:
 			_draw_glyph(c + Vector2(0, -5), 9.0, accent.lerp(Color.WHITE, 0.35))
 		var font := get_theme_default_font()
-		if font != null:
+		if font != null and not covered:
 			var font_size := 13
 			var width := font.get_string_size(time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 			var at := Vector2(c.x - width * 0.5, c.y + r - 3.0)
 			draw_string_outline(font, at, time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, Color(0, 0, 0, 0.92))
 			draw_string(font, at, time_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, ring_color.lerp(Color.WHITE, 0.6) if warn else Color.WHITE)
-		if ally:
+		if ally and not covered:
 			draw_circle(c + Vector2(r * 0.74, -r * 0.74), 6.5, Color("5aff9a"))
 			_text("+", c + Vector2(r * 0.74, -r * 0.74 + 4.5), 12, Color(0.02, 0.1, 0.05))
 		if summon and count > 1:

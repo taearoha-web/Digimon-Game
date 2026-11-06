@@ -8,6 +8,8 @@ var buffs: Array[Dictionary] = []
 var auras: Dictionary = {} # kind -> BuffAura
 
 
+## Own buffs: two slots (a third replaces the oldest). Buffs from friends have no
+## limit: every friend's buff is kept (each skill once, a recast refreshes it).
 const GROUP_LIMIT := 2
 ## Songs (the Bard's, "song" in the buff) keep slots of their own: two per
 ## recipient, whoever sang them, one per family (SONG_FAMILIES): an attack song and a
@@ -139,7 +141,7 @@ static func insert(entries: Array, data: Dictionary, color: Color, label: String
 					break
 			songs -= 1
 	else:
-		while group_count(next, ally, now) >= GROUP_LIMIT and not bool(data.get("overheal", false)):
+		while not ally and group_count(next, ally, now) >= GROUP_LIMIT and not bool(data.get("overheal", false)):
 			for i in next.size():
 				if bool(next[i].get("ally", false)) == ally and not bool(next[i].get("overheal", false)) and not is_song(next[i]):
 					next.remove_at(i)

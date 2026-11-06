@@ -50,13 +50,29 @@ static func warm_up(parent: Node3D, at: Vector3) -> void:
 	parent.add_child(sample)
 	sample.create_tween().tween_interval(0.4).finished.connect(sample.queue_free, CONNECT_ONE_SHOT)
 
+## Friends' buffs that show their aura on the body at once (the newest ones).
+const ALLY_AURAS := 2
+
+
 static func sync(host: Node3D, auras: Dictionary, buffs: Array, now: int, alive: bool, top: Callable) -> void:
 	var wanted := {}
 	if alive:
-		for buff in buffs:
-			if int(buff.until) > now:
-				var key := "%s:%s" % [BuffBook.identity(buff), buff.get("ally", false)]
-				wanted[key] = buff
+		# Friends' buffs have no limit; only the newest ALLY_AURAS of them wear art on
+		# the body (the HUD lists them all), so the draw count stays bounded.
+		var ally_left := ALLY_AURAS
+		var picked: Array = []
+		for i in range(buffs.size() - 1, -1, -1):
+			var buff: Dictionary = buffs[i]
+			if int(buff.until) <= now:
+				continue
+			if bool(buff.get("ally", false)) and not BuffBook.is_song(buff):
+				if ally_left <= 0:
+					continue
+				ally_left -= 1
+			picked.push_front(buff)
+		for buff in picked:
+			var key := "%s:%s" % [BuffBook.identity(buff), buff.get("ally", false)]
+			wanted[key] = buff
 	# Drop old art immediately, before the new skill enters.
 	for key in auras.keys():
 		if not wanted.has(key):

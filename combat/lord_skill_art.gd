@@ -190,6 +190,7 @@ static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, 
 	if now - _last_peck < PECK_GAP_MS:
 		return
 	_last_peck = now
+	ClassSignature.raven_feathers(parent, at, colors, group)
 	var art := _root(parent, at, "LordArt_RavenPeck")
 	art.rotation.y = _yaw(from, at)
 	art.cap = mini(art.cap, 12 if group else 8)
@@ -338,8 +339,9 @@ func _compose(id: String, c: Array, reach: float, radius: float, d: float) -> vo
 			layer("smoke", false, c, Vector3.ZERO, Vector3(r * 0.35, r * 0.25, r * 0.35), Vector3.ZERO, d + 0.15, 1.0, {"initial": 0.3, "opacity": 0.45})
 		"summon":
 			layer("seal", true, c, Vector3(0, 0.05, 0), Vector3.ONE * 3.0, Vector3.ZERO, d, 1.6, {"initial": 0.2, "spin": 1.2})
-			layer("pillar", true, c, Vector3.ZERO, Vector3(1.3, 4.5, 1.3), Vector3.ZERO, d, 1.2, {"initial": 0.3, "grow": 3.0, "opacity": 0.6})
-			layer("vortex", true, c, Vector3(0, 0.08, 0), Vector3.ONE * 2.4, Vector3.ZERO, d, 1.3, {"initial": 0.2, "spin": -3.0})
+			# A faint column over a dark portal vortex (the bright warp light is SkillShow's).
+			layer("pillar", true, c, Vector3.ZERO, Vector3(1.3, 4.5, 1.3), Vector3.ZERO, d, 1.2, {"initial": 0.3, "grow": 3.0, "opacity": 0.28})
+			layer("vortex", false, FORCE, Vector3(0, 0.08, 0), Vector3.ONE * 2.8, Vector3.ZERO, d, 1.8, {"initial": 0.2, "spin": -3.0, "opacity": 0.9})
 			for i in 4:
 				var a := float(i) * TAU / 4.0
 				layer("raven", false, c, Vector3(0, 1.6 + 0.3 * float(i % 2), 0), Vector3.ONE * 0.5, Vector3(0, a, 0), d + 0.05 * i, 1.2, {"initial": 0.6, "orbit": 1.6, "orbit_speed": 4.0, "phase": a, "flap": 0.25, "travel": Vector3(0, 1.2, 0)})
