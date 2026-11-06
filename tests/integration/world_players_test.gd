@@ -563,9 +563,10 @@ func _party() -> void:
 	var people := float(ids.size() + 1)
 	# The evening EXP x2 event (WorldEvents) may be on at the test's clock: the hero's
 	# share is doubled then, like every EXP it earns.
-	var event := WorldEvents.exp_multiplier(WorldPresence.clock())
+	# So may the weekly league's champion bonus (GuildLeague.exp_mult) when the hero's guild holds the castle.
+	var event := WorldEvents.exp_multiplier(WorldPresence.clock()) * GuildLeague.exp_mult()
 	var want := int(round(float(int(round(base * (1.0 + Game.PARTY_EXP_BONUS * (people - 1.0)) / people))) * event))
-	check(absi(gained - want) <= 1 and gained < int(base * event), "the hero gets its part of the shared EXP (%d of %d, event x%.0f)" % [gained, int(base), event])
+	check(absi(gained - want) <= 1 and gained < int(base * event), "the hero gets its part of the shared EXP (%d of %d, events x%.2f)" % [gained, int(base), event])
 	var shared := true
 	for k in ids.size():
 		shared = shared and WorldPlayers.bonus_work(ids[k]) > float(work_before[k])
