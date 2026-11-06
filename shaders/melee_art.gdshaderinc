@@ -30,11 +30,13 @@ float vnoise(vec2 p) {
 }
 float fbm(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.13 + 7.1) * 0.3 + vnoise(p * 4.37 + 3.3) * 0.15; }
 
-// Heat 0..1 -> dark rim, palette, white-hot core. Never above ~1.15 (no blow-out).
+// Heat 0..1 -> dark rim, palette, hot core. The core only leans toward the
+// accent (never full white) and stays near 1.0: stacked additive layers over a
+// bright ground must not blow out.
 vec3 heat_colour(float h) {
 	vec3 c = mix(shade.rgb, primary.rgb, smoothstep(0.0, 0.45, h));
-	c = mix(c, accent.rgb, smoothstep(0.72, 1.0, h));
-	return c * (0.85 + 0.3 * glow * smoothstep(0.7, 1.0, h));
+	c = mix(c, accent.rgb, 0.85 * smoothstep(0.72, 1.0, h));
+	return c * (0.84 + 0.16 * glow * smoothstep(0.7, 1.0, h));
 }
 
 void vertex() {

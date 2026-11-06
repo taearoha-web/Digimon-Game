@@ -27,7 +27,7 @@ const FAMILIES := ["warrior", "lancer", "defender"]
 const HOLDER := "MeleeArtPool"
 ## Rigs alive at once (busy + parked); a busy field reuses them, never grows.
 const POOL_CAP := 6
-const LAYER_CAP := [4, 8, 16]
+const LAYER_CAP := [4, 8, 20]
 const PARTICLE_CAP := 72
 ## Decorations left free for the shared pipeline, hits and other casters.
 const RESERVE := 10
@@ -58,6 +58,8 @@ var _used := 0
 var _sets: Array[Dictionary] = []
 var _light: OmniLight3D
 var _light_spec := {}
+## The caster a self-centred composition (a buff's aura) rides along with.
+var _follow: WeakRef
 
 
 static func handles(skill: Dictionary) -> bool:
@@ -133,6 +135,8 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		return
 	var ctx := context(skill, origin, center)
 	ctx.d = maxf(delay, 0.0)
+	if shape == "self":
+		rig.follow(_caster_near(parent, origin))
 	match SkillShow.family_of(skill):
 		"warrior": WarriorArt.play(rig, skill, ctx)
 		"lancer": LancerArt.play(rig, skill, ctx)
@@ -154,6 +158,8 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 		return
 	var ctx := context(skill, source, point)
 	ctx.index = index
+	if String(skill.get("shape", "")) == "self":
+		rig.follow(_caster_near(parent, source))
 	match family(skill):
 		"warrior": WarriorArt.star(rig, skill, ctx)
 		"lancer": LancerArt.star(rig, skill, ctx)
@@ -195,6 +201,15 @@ static func _nearest_foe(parent: Node, from: Vector3, reach: float, fallback: Ve
 				best_d = d
 				best = mob.global_position
 	return best
+
+
+## The hero standing on `at` (the caster of a self cast), or null.
+static func _caster_near(parent: Node, at: Vector3) -> Node3D:
+	for node in parent.get_tree().get_nodes_in_group("hero"):
+		var hero := node as Node3D
+		if hero and hero.is_inside_tree() and Vector2(hero.global_position.x - at.x, hero.global_position.z - at.z).length() < 0.6:
+			return hero
+	return null
 
 
 static func context(skill: Dictionary, origin: Vector3, target: Vector3) -> Dictionary:
@@ -302,6 +317,7 @@ func _begin(at: Vector3, yaw: float, seconds: float) -> void:
 	tier = tier_now()
 	owner_ref = null
 	generation = -1
+	_follow = null
 	_used = 0
 	_light_spec = {}
 	# The holder is a plain Node: the rig's own transform is its world transform.
@@ -346,10 +362,16 @@ func finish() -> void:
 	set_process(false)
 	visible = false
 	owner_ref = null
+	_follow = null
 	var field: Node = _field_ref.get_ref() if _field_ref else null
 	if is_instance_valid(field) and field.tree_exiting.is_connected(_on_field_gone):
 		field.tree_exiting.disconnect(_on_field_gone)
 	_field_ref = null
+
+
+## Binds the rig's position to a caster (a buff aura walks with its hero).
+func follow(who: Node3D) -> void:
+	_follow = weakref(who) if is_instance_valid(who) else null
 
 
 ## Called once the composition is authored: a rig with nothing to show goes back.
@@ -392,7 +414,7 @@ func layer(kind: String, mode: int, c: Array, at: Vector3, size: Vector3, rot :=
 	mat.set_shader_parameter("tail", float(style.get("tail", 0.6)))
 	mat.set_shader_parameter("thick", float(style.get("thick", 0.6)))
 	mat.set_shader_parameter("symmetric", 1.0 if bool(style.get("symmetric", false)) else 0.0)
-	mat.set_shader_parameter("opacity", float(style.get("opacity", 0.9)) * (1.0 if ink else 0.82))
+	mat.set_shader_parameter("opacity", float(style.get("opacity", 0.9)) * (1.0 if ink else 0.72))
 	mat.set_shader_parameter("veins", float(style.get("veins", 0.0)))
 	mat.set_shader_parameter("pattern", float(style.get("pattern", 0.0)))
 	mat.set_shader_parameter("wave", float(style.get("wave", 0.0)))
@@ -503,7 +525,8 @@ func light(at: Vector3, color: Color, energy: float, reach: float, start := 0.0,
 	_light.light_color = color
 	_light.omni_range = reach
 	_light.visible = false
-	_light_spec = {"at": at, "energy": energy, "start": start, "seconds": seconds}
+	# Softer than the authored figure: several casts and the shared layers stack.
+	_light_spec = {"at": at, "energy": energy * 0.7, "start": start, "seconds": seconds}
 
 
 # ---------------------------------------------------------------------------
@@ -518,6 +541,11 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(visual) or visual.skill_generation != generation:
 			finish()
 			return
+	if _follow:
+		var who := _follow.get_ref() as Node3D
+		if is_instance_valid(who) and who.is_inside_tree():
+			# Translation only: the composition keeps its facing as the caster moves.
+			position = who.global_position
 	age += delta
 	_draw()
 	_simulate(delta)
@@ -737,3 +765,29 @@ func chips(at: Vector3, count: int, speed: float, tint: Color, hot: float, size:
 ## Embers / motes drifting up with turbulence.
 func embers(at: Vector3, count: int, radius: float, color: Color, start := 0.0, life := 1.1, rise := 1.6, size := 0.06) -> void:
 	emit(SPARK, count, at, Vector3.UP * rise, 0.5, color, size, life, start, -0.6, 0.9, 5.0, radius)
+
+
+## The elite moment and its lasting aura, round the caster (rig origin): a
+## magic circle on the ground turning slowly over a dark under-print, a pillar
+## of light bursting up at the cast with a shock ring, two rune rings orbiting
+## at waist and crown in opposite senses, a soft inner glow and embers rising
+## through the whole linger. grand: the elite set (full size, both rings and
+## the pillar); otherwise a lighter circle and one ring for the lesser buffs.
+## The layers are drawn first so a trimmed tier keeps the circle.
+func ascend(c: Array, size: float, d: float, linger := 2.4, grand := true) -> void:
+	var soft := [c[0], c[1].lerp(c[0], 0.25), c[2]]
+	layer("sigil", RING, soft, Vector3(0, 0.05, 0), Vector3.ONE * size * 1.2, Vector3.ZERO, d, linger, {"initial": 0.3, "grow": 0.4, "overshoot": true, "spin": 0.45, "opacity": 0.62 if grand else 0.5, "dissolve": 0.72, "fade_in": 0.1}, grand)
+	layer("sigil", RING, [c[2], c[2].lerp(c[0], 0.35), c[2]], Vector3(0, 0.035, 0), Vector3.ONE * size * 1.24, Vector3.ZERO, d, linger, {"initial": 0.3, "grow": 0.4, "overshoot": true, "spin": 0.45, "opacity": 0.35, "dissolve": 0.7, "fade_in": 0.1, "ink": true})
+	layer("runes", RING, soft, Vector3(0, 0.95, 0), Vector3.ONE * size * 0.55, Vector3(0.22, 0, 0.08), d + 0.08, linger * 0.92, {"initial": 0.2, "grow": 0.35, "overshoot": true, "spin": 1.5, "opacity": 0.72, "dissolve": 0.7, "fade_in": 0.12})
+	if grand:
+		layer("runes", RING, soft, Vector3(0, 2.05, 0), Vector3.ONE * size * 0.36, Vector3(-0.18, 0, -0.1), d + 0.16, linger * 0.85, {"initial": 0.2, "grow": 0.3, "overshoot": true, "spin": -2.2, "opacity": 0.66, "dissolve": 0.7, "fade_in": 0.12})
+		# The cast moment: a column of light leaps up and thins away in half a second.
+		layer("aura", AURA, soft, Vector3.ZERO, Vector3(0.5, 4.6, 0.5) * Vector3(size * 0.45, 1, size * 0.45), Vector3.ZERO, d, 0.6, {"initial": 0.15, "grow": 0.14, "overshoot": true, "opacity": 0.4, "dissolve": 0.3, "fade_in": 0.03})
+		ring(soft, Vector3(0, 0.1, 0), 0.4, size * 1.7, d, 0.55, Vector3.ZERO, {"opacity": 0.5})
+	# A soft glow that stays with the caster (the lasting aura).
+	layer("aura", AURA, soft, Vector3.ZERO, Vector3(0.72, 1.7 + 0.3 * size, 0.72), Vector3.ZERO, d + 0.1, linger, {"initial": 0.6, "grow": 0.4, "opacity": 0.26, "dissolve": 0.7, "fade_in": 0.2})
+	var ember: Color = (c[0] as Color).lerp(c[1], 0.3)
+	for k in (3 if grand else 2):
+		embers(Vector3(0, 0.15, 0), 9 if grand else 6, size * 0.6, ember, d + linger * 0.3 * k, 1.4, 1.8, 0.06)
+	if grand:
+		light(Vector3(0, 1.4, 0), c[0], 2.2, size * 3.0, d, 0.6)
