@@ -148,10 +148,10 @@ static func staying_power(info: Dictionary) -> float:
 	return float(stats.max_hp) * (1.0 + float(stats.def) / 100.0)
 
 
-## Which of a guild's line-up leads it: the one named `leader_name` (the guild's real
-## leader) when it is there, else the one that holds best once built as a tank (tank_build)
-## — a defender, warrior or lancer before anyone else, never a healer or a bard while
-## anyone else can.
+## Which of a guild's line-up leads it: the one named `leader_name` (a leader the player
+## picked) when it is there, else the toughest of them once built as a tank (tank_build:
+## the most HP x defence), whatever the class (the owner's rule: the rival's leader is
+## always its guild's toughest).
 static func leader_index(lineup: Array, leader_name := "") -> int:
 	var best := -1
 	var best_score := -INF
@@ -159,10 +159,7 @@ static func leader_index(lineup: Array, leader_name := "") -> int:
 		var info: Dictionary = lineup[i]
 		if leader_name != "" and String(info.member.get("name", "")) == leader_name:
 			return i
-		var cls := StringName(info.member["class"])
-		var score := staying_power(tank_build(info)) * (1.5 if cls in TANK_CLASSES else 1.0)
-		if cls == &"priest" or cls == &"bard":
-			score -= 1.0e12
+		var score := staying_power(tank_build(info))
 		if score > best_score:
 			best_score = score
 			best = i

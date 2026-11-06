@@ -219,7 +219,12 @@ func build(tree: SceneTree = null) -> void:
 	BurstGuard.clear()
 	# The rival guild's leader plays a tank's build of its own points (GuildWarData.tank_build),
 	# and so does ours when the player picked one of the members instead of the hero.
-	var lead_at := GuildWarData.leader_index(roster.enemy, enemy_lead_name)
+	# The rival's leader is its toughest member (GuildWarData.leader_index) unless the
+	# player picked one for that guild.
+	var rival_pick := ""
+	if bool(roster.get("guilds", false)):
+		rival_pick = enemy_lead_name if Game.guild_leader_pick(WorldPlayers.other_guild(Game.guild())) != "" else ""
+	var lead_at := GuildWarData.leader_index(roster.enemy, rival_pick)
 	if lead_at >= 0:
 		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
 	var ally_lead_at := -1

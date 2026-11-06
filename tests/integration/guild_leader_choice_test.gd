@@ -295,8 +295,12 @@ func _war_default() -> void:
 	check(hero.get_node_or_null(LeaderMark.NAME) != null and m.allies.all(func(f): return not f.is_leader), "default: the crown on the hero, none on our fighters")
 	var strongest := WorldPlayers.guild_leader(WorldPlayers.NEVERDIE, float(m.started_at))
 	check(m.enemy_leader != null and m.enemy_leader.is_leader, "default: the rivals have a leader")
-	if _names(m.enemies).has(strongest):
-		check(String(m.enemy_leader.member.name) == strongest, "default: their strongest in the line-up leads them")
+	# Without a pick their toughest leads (the owner's rule), whoever leads the guild day to day.
+	var toughest := 0.0
+	for f in m.enemies:
+		toughest = maxf(toughest, float(f.max_hp) * (1.0 + float(f.rstats.def) / 100.0))
+	if m.enemy_leader != null:
+		check(float(m.enemy_leader.max_hp) * (1.0 + float(m.enemy_leader.rstats.def) / 100.0) >= toughest * 0.999, "default: their toughest leads them (guild leader %s)" % strongest)
 	check(not _names(m.allies).has(ALT2_NAME) and not _names(m.enemies).has(ALT_NAME), "the player's other characters are not in the war")
 	check(m.stand_in_lines().is_empty(), "default: nobody stands in")
 	await _close_war(zone)
