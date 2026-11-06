@@ -203,6 +203,7 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		ShadowSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if id in DARKLORD: LordSkillArt.anticipate(parent,skill,origin,point,time,visual)
 	if id in BARD: BardSkillArt.anticipate(parent,skill,origin,point,time,visual)
+	MeleeArt.star_charge(caster,skill,point,time)
 	if GodSkillArt.handles(skill):
 		GodSkillArt.telegraph(art,caster,skill,point,time)
 		art._draw()
@@ -319,6 +320,7 @@ static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0
 	if String(skill.id) in ASSASSIN: ShadowSkillArt.star(parent, skill, point, index, source)
 	if String(skill.id) in DARKLORD: LordSkillArt.star(parent, skill, point, index, source)
 	if String(skill.id) in BARD: BardSkillArt.star(parent, skill, point, index, source)
+	MeleeArt.star(parent, skill, point, index, source)
 	var id := String(skill.id)
 	var colors := look(skill)
 	var art := _root(parent,point,1.6,"StarContact_"+id)
