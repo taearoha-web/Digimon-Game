@@ -46,6 +46,17 @@ func _ready() -> void:
 	check(RaidData.enter(day1) == "" and RaidData.runs_left(day1) == 1 and RaidData.open_run() != "", "the first entry is spent on the way in")
 	check(RaidData.enter(day1) == "" and RaidData.runs_left(day1) == 0, "the second entry")
 	check(RaidData.enter(day1).contains("ครบ") and RaidData.runs_text(day1) == "เหลือ 0/2 รอบวันนี้", "no third entry the same day")
+	# The raid keeps its day and open run as text flags: the saved hero must still read
+	# back (a strict check once hid the whole hero after a reload).
+	Game.slot = Game.SLOT_COUNT
+	check(Game.save(), "a hero inside the raid saves")
+	var reread := Game._read_slot(Game.SLOT_COUNT)
+	check(not reread.is_empty() and String(reread.get("name", "")) == "Raid QA", "the hero reads back after entering the raid (not hidden as unreadable)")
+	check(String(reread.get("flags", {}).get(RaidData.F_DAY, "")) == day1 and String(reread.get("flags", {}).get(RaidData.F_OPEN, "")) != "", "the raid's text flags survive the save")
+	var long_flag := Game.profile.duplicate(true)
+	long_flag.flags["junk"] = "x".repeat(Game.FLAG_TEXT_MAX + 1)
+	check(not Game._valid_profile(long_flag), "an oversized text flag is still refused")
+	Game.delete_save(Game.SLOT_COUNT)
 	check(RaidData.runs_left(day2) == 2 and RaidData.entry_block(day2) == "", "the next day resets the entries")
 	check(RaidData.first_chest_ready(day2), "and the first-clear chest")
 

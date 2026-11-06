@@ -72,6 +72,8 @@ const STAT_POINTS_PER_LEVEL := 3
 const MAX_LEVEL := 100
 const MAX_SKILL_RANK := 5
 const MAX_SAVE_BYTES := 1048576
+## Longest text a profile flag may hold (days, run ids).
+const FLAG_TEXT_MAX := 64
 const MAX_SAVE_NUMBER := 1000000000000
 const ENDING_ZONE := &"eclipse_realm"
 ## Separate from the legacy magma ending, so old saves can earn the real finale.
@@ -969,10 +971,14 @@ func _valid_profile(data: Dictionary) -> bool:
 		for value in data.get(key, {}).values():
 			if not _valid_integer(value):
 				return false
+	# Flags are counters (integers) or short text such as a day ("2026-11-06") or the
+	# party raid's open run ("2026-11-06#2"). A text flag never makes a hero unreadable:
+	# an earlier check allowed only two named ones, so the raid's day flags hid the
+	# whole hero after a reload.
 	for key in data.get("flags", {}):
 		var value: Variant = data.flags[key]
-		if key in ["daily_last", "arena_day"]:
-			if not value is String:
+		if value is String:
+			if (value as String).length() > FLAG_TEXT_MAX:
 				return false
 		elif not _valid_integer(value):
 			return false
