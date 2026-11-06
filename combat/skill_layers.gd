@@ -109,6 +109,9 @@ static var _recent := PackedInt64Array([0, 0, 0, 0, 0, 0, 0, 0])
 static var _recent_next := 0
 static var _contacts: Dictionary = {}
 static var _scale := 1.0
+## Set while a ClassFlourish.TINTED skill releases: its impact light and bloom
+## are tinted, shorter and fainter, so its own mist / portal stays readable.
+static var _soft := false
 ## What the last call put on screen (tests, probes): layer names and node counts.
 static var last := {"layers": [], "emitters": 0, "rings": 0, "lights": 0, "hazes": 0, "particles": 0}
 
@@ -261,7 +264,16 @@ static func release(parent: Node3D, skill: Dictionary, center: Vector3, origin: 
 	elif shape == "single" and family in ["aura", "swirl", "shot"]:
 		family = "slash"
 	var radius := clampf(float(skill.get("radius", 2.2)), 1.2, 5.5) if shape in ["burst", "blast"] else 1.6
+	var tint := ClassFlourish.tinted(skill)
+	if not tint.is_empty():
+		# No white-hot core: the skill's own mid and core colours carry the light.
+		look = look.duplicate()
+		look.key = "tint_" + String(skill.get("id", ""))
+		look.mid = tint[0]
+		look.hot = (tint[1] as Color).lerp(tint[0], 0.25)
+		_soft = true
 	_play(parent, look, family, at, origin, center, radius, maxf(0.0, wait), 1.0, _crowd())
+	_soft = false
 
 
 ## Each hit a skill lands (SkillTableau.contact): projectiles, chains and fans get
@@ -340,8 +352,8 @@ static func _secondary(pool: SkillLayerPool, owner: int, look: Dictionary, famil
 	var up := Vector3.UP
 	if not minimal and family in ["ground", "burst", "strike", "slash"]:
 		# The impact's own light: a soft white-hot bloom that pops and is gone.
-		_emit(pool, owner, "flash", at + up * (0.9 if family == "slash" else 0.6), look, 2, {"shape": "sphere", "radius": 0.1, "v": Vector2.ZERO,
-			"size": clampf(r * 0.9, 1.6, 4.2) * weight, "min": 2}, wait)
+		_emit(pool, owner, "flash", at + up * (0.9 if family == "slash" else 0.6), look, 1 if _soft else 2, {"shape": "sphere", "radius": 0.1, "v": Vector2.ZERO,
+			"size": clampf(r * 0.9, 1.6, 4.2) * weight * (0.45 if _soft else 1.0), "min": 1 if _soft else 2, "life_mul": 0.6 if _soft else 1.0}, wait)
 	if not minimal and element.has("extra") and VfxBudget.quality() == 2:
 		_emit(pool, owner, String(element.extra), at + up * 0.6, look, 14, {"shape": "sphere", "radius": r * 0.2, "dir": up, "spread": 80.0,
 			"v": Vector2(2.5, 6.0)}, wait + 0.02)
@@ -410,8 +422,8 @@ static func _environment(pool: SkillLayerPool, owner: int, look: Dictionary, fam
 			_emit(pool, owner, "debris", at + up * 0.2, look, 10, {"shape": "sphere", "radius": r * 0.3, "dir": up, "spread": 50.0,
 				"v": Vector2(4.0, 8.0) * clampf(r / 2.5, 0.8, 1.3)}, wait + 0.01)
 	var hot: Color = look.hot
-	if pool.light(owner, at + up * 1.3, (look.mid as Color).lerp(hot, 0.35), float(FLASH.get(family, 1.5)) * 1.6 * weight, r * 2.2 + 3.0,
-			0.7 if family == "aura" else 0.48, wait):
+	if pool.light(owner, at + up * 1.3, (look.mid as Color).lerp(hot, 0.35), float(FLASH.get(family, 1.5)) * 1.6 * weight * (0.4 if _soft else 1.0), r * 2.2 + 3.0,
+			(0.7 if family == "aura" else 0.48) * (0.6 if _soft else 1.0), wait):
 		last.lights += 1
 	var hazy := bool(ELEMENTS[look.element].get("haze", false)) or (family in ["ground", "burst"] and String(look.element) == "earth")
 	if hazy and VfxBudget.quality() == 2 and MemoryGuard.pressure == 0 and pool.haze(owner, at + up * 0.9, r * 0.9 + 0.9, 0.95, (look.mid as Color).lerp(look.hot, 0.5), wait + 0.05):
@@ -431,7 +443,7 @@ static func _afterglow(pool: SkillLayerPool, owner: int, look: Dictionary, famil
 
 static func _ring(pool: SkillLayerPool, owner: int, at: Vector3, radius: float, length: float, mid: Color, hot: Color, delay: float,
 		width: float, intensity: float, ripples: float) -> void:
-	if pool.ring(owner, at, radius, length, mid, hot, delay, width, intensity, ripples):
+	if pool.ring(owner, at, radius, length * (0.7 if _soft else 1.0), mid, hot, delay, width, intensity * (0.4 if _soft else 1.0), ripples):
 		last.rings += 1
 
 

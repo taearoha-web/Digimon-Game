@@ -16,13 +16,16 @@ extends SculptureArt
 ## never selects victims, deals damage or changes timing.
 
 const KINDS := "raven feather regalia scepter seal pillar shock spikes flame bolt comet banner shield plumes orb"
-const BORROWED := ["crescent", "smoke", "vortex", "eclipse", "rift"]
+const BORROWED := ["crescent", "smoke", "vortex", "eclipse", "rift", "phantom"]
 ## [primary, accent, shade] palettes.
 const ROYAL := [Color("ffcf5a"), Color("fff6d8"), Color("2a1606")]
 const FORCE := [Color("8a4dff"), Color("f0e2ff"), Color("140828")]
 const EMBER := [Color("ff6a2a"), Color("fff0b0"), Color("2a0805")]
 const STORM := [Color("7ab8ff"), Color("f4fbff"), Color("0a1230")]
 const BLOOD := [Color("ff3a4a"), Color("ffe0e4"), Color("2a0510")]
+## Summon: violet and gold with no white core (a white seal, column and grandeur
+## flash used to wash the portal out).
+const SUMMON := [Color("7a3ff0"), Color("e0a83a"), Color("10041e")]
 ## The Abyss Emperor set's emerald (SetGearData "darklord"): the set raven's strikes.
 const ABYSS := [Color("8aff5a"), Color("eaffd8"), Color("0e0818")]
 const STAR_PALETTES := {"chaos_inferno": "ember", "raven_sovereign": "force", "lords_dominion": "royal", "imperial_cataclysm": "royal"}
@@ -103,7 +106,7 @@ static func _root(parent: Node3D, at: Vector3, label: String) -> LordSkillArt:
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: Vector3, duration: float, visual: HeroVisual = null) -> void:
 	if not handles(skill) or not _alive(parent) or duration < 0.12 or not VfxBudget.can_decorate(4 + RESERVE):
 		return
-	var c := palette(skill)
+	var c := SUMMON if String(skill.get("id", "")) == "summon" else palette(skill)
 	var level := int(skill.get("level", 1))
 	var time := maxf(duration, 0.15)
 	var art := _root(parent, origin, "LordArt_Windup_" + String(skill.get("id", "")))
@@ -137,7 +140,10 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	# Room for the grandeur layers on top of the skill's own composition.
 	art.cap += int([3, 7, 10][VfxBudget.quality()] * MemoryGuard.effect_scale())
 	art._compose(id, c, reach, radius, maxf(delay, 0.0))
-	art._grandeur(shape, c, reach if shape != "blast" else 0.0, radius, maxf(delay, 0.0), int(skill.get("level", 1)))
+	# Summon's grandeur is its portal (LordSignature) and the figure rising out of
+	# it: the generic seal, shock disc and column of light only whited it out.
+	if id != "summon":
+		art._grandeur(shape, c, reach if shape != "blast" else 0.0, radius, maxf(delay, 0.0), int(skill.get("level", 1)))
 
 
 ## Every hit: a small mark of the skill's element on the victim (one per gap).
@@ -338,14 +344,17 @@ func _compose(id: String, c: Array, reach: float, radius: float, d: float) -> vo
 			layer("shock", true, c, Vector3(0, 0.04, 0), Vector3.ONE * r, Vector3.ZERO, d + 0.02, 0.6, {"initial": 0.15, "grow": 4.0})
 			layer("smoke", false, c, Vector3.ZERO, Vector3(r * 0.35, r * 0.25, r * 0.35), Vector3.ZERO, d + 0.15, 1.0, {"initial": 0.3, "opacity": 0.45})
 		"summon":
-			layer("seal", true, c, Vector3(0, 0.05, 0), Vector3.ONE * 3.0, Vector3.ZERO, d, 1.6, {"initial": 0.2, "spin": 1.2})
-			# A faint column over a dark portal vortex (the bright warp light is SkillShow's).
-			layer("pillar", true, c, Vector3.ZERO, Vector3(1.3, 4.5, 1.3), Vector3.ZERO, d, 1.2, {"initial": 0.3, "grow": 3.0, "opacity": 0.28})
-			layer("vortex", false, FORCE, Vector3(0, 0.08, 0), Vector3.ONE * 2.8, Vector3.ZERO, d, 1.8, {"initial": 0.2, "spin": -3.0, "opacity": 0.9})
+			# A dark portal vortex under a faint violet-gold seal, dark smoke curling
+			# off its rim and a shadow figure of the Lord's host rising out of it
+			# behind him, ravens wheeling up and a gold crown over it all.
+			layer("seal", true, SUMMON, Vector3(0, 0.05, 0), Vector3.ONE * 3.0, Vector3.ZERO, d, 1.5, {"initial": 0.3, "grow": 2.5, "spin": 1.2, "opacity": 0.45, "decay": 0.6})
+			layer("vortex", false, FORCE, Vector3(0, 0.08, 0), Vector3.ONE * 2.8, Vector3.ZERO, d, 1.6, {"initial": 0.2, "spin": -3.0, "opacity": 0.85})
+			layer("phantom", false, FORCE, Vector3(0, -2.1, -1.3), Vector3.ONE * 1.55, Vector3.ZERO, d + 0.08, 1.5, {"initial": 0.95, "grow": 3.0, "travel": Vector3(0, 2.1, 0), "fade_in": 0.12, "decay": 0.7, "opacity": 0.8})
+			layer("smoke", false, FORCE, Vector3.ZERO, Vector3(2.2, 0.9, 2.2), Vector3.ZERO, d + 0.05, 1.5, {"initial": 0.4, "grow": 2.0, "opacity": 0.5, "spin": 0.6, "travel": Vector3(0, 0.4, 0)})
+			layer("regalia", true, SUMMON, Vector3(0, 2.7, -0.6), Vector3.ONE * 0.5, Vector3.ZERO, d + 0.15, 1.2, {"initial": 0.3, "spin": 2.0, "opacity": 0.65})
 			for i in 4:
 				var a := float(i) * TAU / 4.0
-				layer("raven", false, c, Vector3(0, 1.6 + 0.3 * float(i % 2), 0), Vector3.ONE * 0.5, Vector3(0, a, 0), d + 0.05 * i, 1.2, {"initial": 0.6, "orbit": 1.6, "orbit_speed": 4.0, "phase": a, "flap": 0.25, "travel": Vector3(0, 1.2, 0)})
-			layer("regalia", true, ROYAL, Vector3(0, 2.6, 0), Vector3.ONE * 0.5, Vector3.ZERO, d + 0.1, 1.2, {"initial": 0.3, "spin": 2.0})
+				layer("raven", false, FORCE, Vector3(0, 1.6 + 0.3 * float(i % 2), 0), Vector3.ONE * 0.5, Vector3(0, a, 0), d + 0.05 * i, 1.2, {"initial": 0.6, "orbit": 1.6, "orbit_speed": 4.0, "phase": a, "flap": 0.25, "travel": Vector3(0, 1.2, 0)})
 		"earthshake":
 			layer("scepter", true, ROYAL, Vector3(0, 2.2, 0.8), Vector3.ONE * 1.3, Vector3(PI, 0, 0), d, 0.35, {"initial": 1.0, "travel": Vector3(0, -2.0, 0), "accelerate": true, "decay": 0.7})
 			for i in 3:
