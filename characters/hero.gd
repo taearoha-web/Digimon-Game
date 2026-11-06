@@ -780,8 +780,9 @@ func _tick_timers(delta: float) -> void:
 	potion_cd = maxf(0.0, potion_cd - delta)
 	_since_hurt += delta
 	if not cooldowns.is_empty():
+		var step := delta * ClassRoles.cd_rate(self)
 		for id in cooldowns:
-			cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+			cooldowns[id] = maxf(0.0, float(cooldowns[id]) - step)
 	var now := Time.get_ticks_msec()
 	var expired := false
 	for buff in _buffs:
@@ -802,7 +803,19 @@ func _tick_timers(delta: float) -> void:
 	if _regen_mp >= 1.0:
 		Game.profile.mp = mini(stats.max_mp, Game.profile.mp + int(_regen_mp))
 		_regen_mp -= int(_regen_mp)
+	if not _dead:
+		ClassRoles.regen(self, delta)
 	_gem_set_tick(delta)
+
+
+## The party's roles give HP or MP back (ClassRoles: พรแห่งแสง, พันธะวิญญาณ, เงามืด).
+func role_restore(kind: String, amount: int) -> void:
+	if _dead or amount <= 0:
+		return
+	if kind == "hp":
+		Game.profile.hp = mini(int(stats.max_hp), int(Game.profile.hp) + amount)
+	else:
+		Game.profile.mp = mini(int(stats.max_mp), int(Game.profile.mp) + amount)
 
 
 func _read_move() -> Vector3:
@@ -1450,12 +1463,14 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 		if _star_combo_target != mob.get_instance_id(): _star_combo_target=mob.get_instance_id(); _star_combo_count=0
 		_star_combo_count+=1
 		if _star_combo_count>=6: raw*=1.25; _star_combo_count=0
-	var crit := randf() < float(stats.crit)
+	# The party's roles (ClassRoles): แนวหน้า / ตราเวท / จุดตาย, ตาเหยี่ยว, ทะลวงเกราะ.
+	raw *= ClassRoles.outgoing(self, mob)
+	var crit := randf() < float(stats.crit) + ClassRoles.crit_bonus(self)
 	if crit:
 		raw *= crit_mult()
 		if StarProgression.has_full_set(Game.profile,"assassin"):
 			raw *= 1.1
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(self, float(mob.stats.def))))))
 	if skill.has("star"):
 		pass # StarSkillSequence owns exactly one authored impact per contact beat.
 	elif not skill.is_empty():
@@ -1468,6 +1483,7 @@ func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, sk
 	var killed := mob.take_hit(amount, crit, color, self)
 	BattleVfx.number_tint = Color(0, 0, 0, 0)
 	_leech(amount)
+	ClassRoles.after_hit(self, mob, amount)
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
 	if skill.is_empty():
 		var stop := HitFeel.stop_for(crit, 0.0)
@@ -1521,7 +1537,8 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, effective_def()))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, effective_def())))))
+	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_buffs, amount)
 	_reflect(amount, _attacker)
 	if StarProgression.has_full_set(Game.profile,"warrior"):
