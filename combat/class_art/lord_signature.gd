@@ -103,7 +103,7 @@ static func _flame_ring(kit: SignatureKit, radius: float, count: int, start: flo
 		var tall := height * randf_range(0.8, 1.25)
 		kit.sheet(K.FLAME, DARKFIRE, spot + Vector3(0, tall * 0.5, 0), start + randf_range(0.0, 0.12), seconds * randf_range(0.8, 1.1),
 			{"billboard": 2, "basis": ClassSignature.along(Vector3.UP), "size": Vector2(tall * 0.55, tall * 0.5), "grow": Vector2(tall * 0.6, tall), "ease": K.BACK,
-			"glow": false, "fade_in": 0.12, "decay": 0.6, "level": level if i < 3 else maxi(level, K.MAIN), "opacity": 1.0})
+			"glow": false, "fade_in": 0.12, "decay": 0.6, "level": level if i < 3 else maxi(level, K.MAIN), "opacity": 0.82})
 
 
 ## A force strike: dark flame bursting off the blow, a gold ring and runes.
