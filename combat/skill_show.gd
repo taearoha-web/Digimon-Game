@@ -75,6 +75,8 @@ static func profile_for(skill: Dictionary) -> Dictionary:
 ## Called with the existing wind-up duration. It does not delay resolution.
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, duration: float, aim := Vector3.ZERO, visual: HeroVisual = null) -> void:
 	var look := profile_for(skill)
+	# The shared layer stack's wind-up (SkillLayers), under every class's own art.
+	SkillLayers.anticipate(parent, skill, origin, duration, aim, visual)
 	if StarSkillArt.handles(skill):
 		if is_instance_valid(visual): StarSkillArt.telegraph(visual,skill,aim,duration)
 		return
@@ -94,6 +96,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, durat
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, impact_delay := -1.0) -> void:
 	if StarSkillArt.handles(skill):
 		StarSkillArt.strike(parent,skill,center,0,origin)
+		SkillLayers.star_beat(parent, skill, center, 0, 1, origin)
 		return
 	# Armageddon owns its landing plus ten real secondary hits in its sequence.
 	# A second cosmetic explosion here would imply damage before the landing.
@@ -101,6 +104,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		return
 	if EliteSkillArt.handles(skill):
 		var wait := impact_delay if impact_delay >= 0.0 else (0.55 if String(skill.get("special", "")) in ["meteor", "rain"] else 0.0)
+		SkillLayers.release(parent, skill, center, origin, wait)
 		EliteSkillArt.play(parent, skill, center, origin, wait)
 		ShadowSkillArt.play(parent, skill, center, origin, wait)
 		LordSkillArt.play(parent, skill, center, origin, wait)
@@ -122,6 +126,8 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	# Meteor/rain art waits for the existing landing beat. Projectiles create
 	# their release silhouette here; SkillTableau owns flight and contact art.
 	var wait := impact_delay if impact_delay >= 0.0 else (0.55 if String(skill.get("special", "")) in ["meteor", "rain"] else 0.0)
+	# Secondary motion, environment and afterglow (SkillLayers) wait with the art.
+	SkillLayers.release(parent, skill, center, origin, wait)
 	if wait > 0.0:
 		parent.create_tween().tween_interval(wait).finished.connect(func():
 			if is_instance_valid(parent) and parent.is_inside_tree():

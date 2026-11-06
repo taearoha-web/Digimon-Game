@@ -64,6 +64,38 @@ static func track_light(node: OmniLight3D) -> void:
 	node.tree_exited.connect(func(): _lights = maxi(0, _lights - 1), CONNECT_ONE_SHOT)
 
 
+## Pooled effects (SkillLayerPool) keep their nodes and borrow budget while they
+## play: [param amount] is already scaled; returns what fits (0: show nothing).
+static func reserve_particles(amount: int) -> int:
+	var granted := mini(amount, maxi(0, particle_limit() - _particles))
+	_particles += maxi(0, granted)
+	return maxi(0, granted)
+
+
+static func release_particles(amount: int) -> void:
+	_particles = maxi(0, _particles - amount)
+
+
+static func reserve_decoration() -> void:
+	_decorations += 1
+
+
+static func release_decoration() -> void:
+	_decorations = maxi(0, _decorations - 1)
+
+
+## A pooled light takes one of the scene's few effect lights while it shines.
+static func claim_light() -> bool:
+	if not can_light():
+		return false
+	_lights += 1
+	return true
+
+
+static func free_light() -> void:
+	_lights = maxi(0, _lights - 1)
+
+
 static func counters() -> Dictionary:
 	return {"particles": _particles, "decorations": _decorations, "lights": _lights}
 
