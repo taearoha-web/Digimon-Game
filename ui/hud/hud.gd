@@ -1263,6 +1263,7 @@ func _update_party() -> void:
 			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
 			(entry.letter as Label).text = String(data.badge)
 			(entry.title as Label).text = "%s  %s" % [member.name, level_text]
+			(entry.card as Control).tooltip_text = ClassRoles.tooltip(StringName(member["class"]))
 		entry["name_text"] = "%s  %s" % [member.name, level_text]
 		(entry.title as Label).text = entry.name_text
 		(entry.stance as Label).visible = true
@@ -1307,6 +1308,7 @@ func _update_war_party(war: GuildWarMatch) -> void:
 			style.border_color = GuildWarMatch.PARTY_COLOR
 			(entry.badge as PanelContainer).add_theme_stylebox_override("panel", style)
 			(entry.letter as Label).text = String(data.badge)
+			(entry.card as Control).tooltip_text = ClassRoles.tooltip(f.fighter_class())
 		var dead := f.is_dead()
 		(entry.title as Label).text = "%s  %s" % [f.member.name, ("ล้ม · เกิดใน %d" % int(ceil(f.respawn_left))) if dead else level_text]
 		card.modulate = Color(1, 1, 1, 0.5) if dead else Color.WHITE

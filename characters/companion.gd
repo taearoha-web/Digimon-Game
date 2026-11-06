@@ -194,6 +194,18 @@ func _update_bar() -> void:
 		_bar.visible = hp < max_hp and not _dead
 
 
+## The party's roles give HP or MP back (ClassRoles: พรแห่งแสง, พันธะวิญญาณ, เงามืด).
+func role_restore(kind: String, amount: int) -> void:
+	if _dead or amount <= 0:
+		return
+	if kind == "hp":
+		if hp < max_hp:
+			hp = mini(max_hp, hp + amount)
+			_update_bar()
+	else:
+		mp = minf(float(stats.max_mp), mp + float(amount))
+
+
 ## Monsters hit companions just like the hero.
 func take_damage(raw: float, _attacker: Node = null) -> void:
 	if _dead or Time.get_ticks_msec() < _invulnerable_until or hero.safe_zone:
@@ -201,7 +213,8 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.8)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def) * (1.0 + _book.total("def"))))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def")))))))
+	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_book.buffs,amount)
 	hp = maxi(0, hp - amount)
 	_since_hurt = 0.0
@@ -371,9 +384,11 @@ func _physics_process(delta: float) -> void:
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_think -= delta
 	mp = minf(float(stats.max_mp), mp + float(stats.max_mp) * 0.02 * delta)
+	ClassRoles.regen(self, delta)
 	if not cooldowns.is_empty():
+		var step := delta * ClassRoles.cd_rate(self)
 		for id in cooldowns:
-			cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+			cooldowns[id] = maxf(0.0, float(cooldowns[id]) - step)
 	var casting := Time.get_ticks_msec() < _cast_until
 	var desired := Vector3.ZERO
 	if _think <= 0.0:
@@ -495,6 +510,11 @@ func _pick_target() -> Mob:
 					guard_d = dd
 					best = m
 		return best
+	# A Defender peels first: the monster hitting a party mate (the hero or another member).
+	if String(member.get("class", "")) == "defender":
+		var peel := _peel_target()
+		if peel != null:
+			return peel
 	if hero.target != null and is_instance_valid(hero.target) and not hero.target.is_dead() \
 			and _flat(hero.target.global_position - global_position).length() < 28.0:
 		return hero.target
@@ -510,12 +530,36 @@ func _pick_target() -> Mob:
 	return best
 
 
+## The hostile monster nearest the hero that is going for a party mate other than this
+## Defender (null when none is): the Defender takes it on and taunts it off.
+func _peel_target() -> Mob:
+	var best: Mob = null
+	var best_d := 14.0
+	for node in get_tree().get_nodes_in_group("mobs"):
+		var mob := node as Mob
+		if mob == null or mob.is_dead() or not mob.hostile:
+			continue
+		var victim: Variant = mob._victim
+		if victim == null or not is_instance_valid(victim) or victim == self:
+			continue
+		if not (victim == hero or (victim is Companion and (victim as Node).is_in_group("companions"))):
+			continue
+		var d := _flat(mob.global_position - hero.global_position).length()
+		if d < best_d:
+			best_d = d
+			best = mob
+	return best
+
+
 func _follow(delta: float) -> Vector3:
 	# Beside the hero (seen from the camera), never between camera and hero: left, right,
 	# then a step ahead on either side for the third and fourth party members.
 	var spots := [Vector3(-3.0, 0, -0.6), Vector3(3.0, 0, -0.6), Vector3(-2.2, 0, -3.6), Vector3(2.2, 0, -3.6)]
 	var yaw := hero.camera_rig.yaw if hero.camera_rig else hero._facing
 	var offset: Vector3 = (spots[index % spots.size()] as Vector3).rotated(Vector3.UP, yaw)
+	# กำแพงเหล็ก: a Defender walks in front of the hero, the party's shield (ClassRoles).
+	if String(member.get("class", "")) == "defender":
+		offset = Vector3(0.9 * float(index % 2) - 0.45, 0, -3.4).rotated(Vector3.UP, yaw)
 	var spot := hero.global_position + offset
 	var to := _flat(spot - global_position)
 	if to.length() > 30.0:
@@ -688,10 +732,11 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	var raw := _buffed_atk() * mult * randf_range(0.92, 1.08)
 	if skill is Dictionary and not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
-	var crit := randf() < float(stats.crit) + _book.total("crit")
+	raw *= ClassRoles.outgoing(self, mob)
+	var crit := randf() < float(stats.crit) + _book.total("crit") + ClassRoles.crit_bonus(self)
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(self, float(mob.stats.def))))))
 	if skill is Dictionary and not skill.is_empty():
 		SkillTableau.contact(field, skill, mob.hit_point(), crit)
 	else:
@@ -701,6 +746,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	BattleVfx.dealing_other = true
 	var killed := mob.take_hit(amount, crit, color, self)
 	BattleVfx.dealing_other = false
+	ClassRoles.after_hit(self, mob, amount)
 	if killed:
 		return
 	if melee:

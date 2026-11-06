@@ -405,12 +405,14 @@ func take_damage(raw: float, attacker: Node = null) -> void:
 		dbg.dodged += 1
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(stats.def)))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(attacker, float(stats.def))))))
 	_receive(amount, false, attacker)
 
 
 func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	var now := Time.get_ticks_msec() * 0.001
+	# กำแพงเหล็ก: a Defender in its party takes the edge off every blow.
+	amount = ClassRoles.guard(self, amount)
 	# Nobody is deleted by one hit or one combo, however many enemies pile on.
 	amount = BurstGuard.take(get_instance_id(), amount, max_hp)
 	dbg.recv += 1

@@ -218,6 +218,21 @@ func _build_character() -> void:
 		if Game.is_god():
 			class_line.add_theme_color_override("font_color", data.color)
 		left.add_child(class_line)
+	# The class's party role (ClassRoles) and the roles the party brings right now.
+	var role_text := ClassRoles.line(Game.class_id())
+	if role_text != "":
+		var role_line := UIUtil.label("บทบาทในปาร์ตี้ — " + role_text, &"BoldLabel")
+		role_line.name = "ClassRole"
+		role_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		role_line.add_theme_color_override("font_color", data.color.lerp(Color.WHITE, 0.45))
+		left.add_child(role_line)
+		var party_classes: Array = [Game.class_id()]
+		for m in Game.party():
+			party_classes.append(StringName(m["class"]))
+		var party_line := UIUtil.label(ClassRoles.summary(party_classes), &"SmallLabel")
+		party_line.name = "PartyRoles"
+		party_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		left.add_child(party_line)
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
 	left.add_child(UIUtil.label("กรอกจำนวนแต้ม แล้วกดเพิ่มที่ค่าสถานะที่ต้องการ", &"SmallLabel"))
