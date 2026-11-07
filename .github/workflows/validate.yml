@@ -422,6 +422,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild_war_capture_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_capture_test.tscn
+      - name: guild_war_4way_test (the league round's war of all four guilds - four camps far apart outside the castle with a clear way in, doubled gates, 80 fighters each hostile to the other guilds only, the castle's holder inside walking through its own gates and guarding them, placement scoring, the holder carried across rounds, days and weeks, the checkpoint, watching four guilds, practice wars of two, a seeded AI-only war of four ends in a capture)
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild_war_4way_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_4way_test.tscn
       - name: online_client_test
         timeout-minutes: 10
         env:

@@ -3122,7 +3122,8 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## The war in progress, kept in the save so a page the phone threw away in the background
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
-const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3", "gw_r_la", "gw_r_lb"]
+const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3", "gw_r_la", "gw_r_lb",
+	"gw_r_g3", "gw_r_g4", "gw_r_n", "gw_r_lg0", "gw_r_lg1", "gw_r_lg2", "gw_r_lg3", "gw_r_s0", "gw_r_s1", "gw_r_s2", "gw_r_s3"]
 ## A war cut off (the page closed, the phone dropped it) can be rejoined for 10 minutes.
 const GW_CKPT_LIFETIME := 10 * 60
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
@@ -3132,35 +3133,43 @@ var guildwar_resuming := false
 ## takes the choice once; the names stay to be offered again next time).
 var guildwar_party_picks: PackedStringArray = []
 var guildwar_party_chosen := false
-## The league war the next guild war zone fights ({ours, theirs, at}: GuildLeague.enter_match),
+## How many gates a checkpoint keeps (SiegeArena: two on each of the first two tiers, one on the third).
+const GW_GATES := 5
+## The league war the next guild war zone fights ({guilds, at}: GuildLeague.enter_match),
 ## {} for a practice war of hired guilds (no league points). The war takes it once.
 var guildwar_league := {}
 
 
-## `siege`: {gates: [what is left of each gate, 0..1000], owner: the castle's holder (-1 none, 0 us, 1 them),
-## picks: our roster's indices in the hero's party, chosen: whether the player picked them,
-## league: [ours, theirs] of a league war (its round's start is started_at)}.
+## `siege`: {gates: [what is left of each gate, 0..1000; GuildWarMatch.gates order], owner: the
+## castle's holder (-1 none, else the team), picks: our roster's indices in the hero's party,
+## chosen: whether the player picked them, league: the round's guilds in team order (ours
+## first; its start is started_at), teams: how many guilds fight}. `score`: one entry a team.
 func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int, started_at := 0, siege := {}) -> void:
 	var flags: Dictionary = profile["flags"]
 	var left: Array = siege.get("gates", [])
-	for k in 3:
+	for k in GW_GATES:
 		flags["gw_r_g%d" % k] = clampi(int(left[k]), 0, 1000) if k < left.size() else 1000
-	# Saved flags are never negative: 0 nobody, 1 us, 2 them.
-	flags["gw_r_owner"] = clampi(int(siege.get("owner", -1)), -1, 1) + 1
+	# Saved flags are never negative: 0 nobody, team + 1 otherwise.
+	flags["gw_r_owner"] = clampi(int(siege.get("owner", -1)), -1, 3) + 1
+	flags["gw_r_n"] = clampi(int(siege.get("teams", 2)), 2, 4)
 	# The hero's party: roster index + 1 per pick (0 for an empty place).
 	var picks: Array = siege.get("picks", [])
 	flags["gw_r_pc"] = 1 if bool(siege.get("chosen", false)) else 0
 	for k in 4:
 		flags["gw_r_p%d" % k] = clampi(int(picks[k]) + 1, 0, 999) if k < picks.size() else 0
 	var league: Array = siege.get("league", [])
-	flags["gw_r_la"] = clampi(int(league[0]), 0, 99) if league.size() == 2 else 0
-	flags["gw_r_lb"] = clampi(int(league[1]), 0, 99) if league.size() == 2 else 0
+	for k in 4:
+		flags["gw_r_lg%d" % k] = clampi(int(league[k]), 0, 99) if k < league.size() else 0
+	flags["gw_r_la"] = 0
+	flags["gw_r_lb"] = 0
 	flags["gw_r_seed"] = rng_seed
 	# When the war began: the guilds line up as their members were at that moment.
 	flags["gw_r_t0"] = started_at
 	flags["gw_r_time"] = int(ceil(time_left))
 	flags["gw_r_us"] = int(score[0])
 	flags["gw_r_them"] = int(score[1])
+	for k in 4:
+		flags["gw_r_s%d" % k] = maxi(0, int(score[k])) if k < score.size() else 0
 	flags["gw_r_kills"] = kills
 	flags["gw_r_deaths"] = deaths
 	flags["gw_r_ot"] = 1 if overtime else 0
@@ -3187,9 +3196,41 @@ func guildwar_checkpoint() -> Dictionary:
 	return {"seed": int(flags["gw_r_seed"]), "time_left": float(flags.get("gw_r_time", 0)), "us": int(flags.get("gw_r_us", 0)),
 			"them": int(flags.get("gw_r_them", 0)), "kills": int(flags.get("gw_r_kills", 0)), "deaths": int(flags.get("gw_r_deaths", 0)),
 			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0)),
-			"gates": [int(flags.get("gw_r_g0", 1000)), int(flags.get("gw_r_g1", 1000)), int(flags.get("gw_r_g2", 1000))], "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 2) - 1,
+			"gates": _guildwar_saved_gates(flags), "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 4) - 1,
 			"chosen": int(flags.get("gw_r_pc", 0)) == 1, "picks": _guildwar_saved_picks(flags),
-			"league": [int(flags.get("gw_r_la", 0)), int(flags.get("gw_r_lb", 0))] if int(flags.get("gw_r_la", 0)) > 0 else []}
+			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags)}
+
+
+## The castle's gates in a checkpoint: one value a gate (GW_GATES), or, from a save before
+## the doubled gates (no gw_r_n), one a tier.
+func _guildwar_saved_gates(flags: Dictionary) -> Array:
+	var out: Array = []
+	var count := GW_GATES if flags.has("gw_r_n") else 3
+	for k in count:
+		out.append(int(flags.get("gw_r_g%d" % k, 1000)))
+	return out
+
+
+## The league round's guilds in team order ([] for a practice war); an older two-guild
+## checkpoint's pair.
+func _guildwar_saved_league(flags: Dictionary) -> Array:
+	var out: Array = []
+	for k in 4:
+		var g := int(flags.get("gw_r_lg%d" % k, 0))
+		if g > 0:
+			out.append(g)
+	if out.is_empty() and int(flags.get("gw_r_la", 0)) > 0:
+		out = [int(flags.get("gw_r_la", 0)), int(flags.get("gw_r_lb", 0))]
+	return out
+
+
+func _guildwar_saved_scores(flags: Dictionary) -> Array:
+	if not flags.has("gw_r_s0"):
+		return [int(flags.get("gw_r_us", 0)), int(flags.get("gw_r_them", 0))]
+	var out: Array = []
+	for k in clampi(int(flags.get("gw_r_n", 2)), 2, 4):
+		out.append(int(flags.get("gw_r_s%d" % k, 0)))
+	return out
 
 
 func _guildwar_saved_picks(flags: Dictionary) -> Array:

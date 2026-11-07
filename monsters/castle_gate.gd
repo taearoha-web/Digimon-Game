@@ -1,7 +1,9 @@
 class_name CastleGate
 extends Mob
-## One of the castle's three gates in the guild-war siege (SiegeArena). Both guilds batter
-## it: it takes hits like a monster from the hero, the fighters and their summons (the war's
+## One of the castle's gates in the guild-war siege (SiegeArena: three tiers, the first
+## two with a left and a right gate). Every guild but the castle's holder batters it (the
+## holder's blows do nothing: GuildWarMatch.owner_hit; its bodies pass through it,
+## GuildWarMatch._gate_pass): it takes hits like a monster from the hero, the fighters and their summons (the war's
 ## damage scale applies, like on a fighter), only the front-most gate standing can be hurt,
 ## and while it stands its door blocks the way. Broken, it stays broken for the rest of the
 ## war (and after a resume). It never fights back and gives no EXP or loot.
@@ -10,7 +12,11 @@ signal broken(gate: CastleGate)
 
 const HEIGHT := SiegeArena.GATE_H
 
+## Its place in GuildWarMatch.gates; its tier (0-2, the wall it stands in) and lane (0
+## left, 1 right; 0 for the third tier's single gate).
 var gate_index := 0
+var tier := 0
+var lane := 0
 ## Only the first gate still standing can be hurt (set by GuildWarMatch).
 var breakable := false
 var _blocker: StaticBody3D
@@ -21,13 +27,15 @@ var _hit_fx_at := 0
 var sync_eid := 0
 
 
-func setup_gate(index: int, at: Vector3, p_hp: int, p_hero: Node3D) -> void:
+func setup_gate(index: int, at: Vector3, p_hp: int, p_hero: Node3D, p_tier := -1, p_lane := 0) -> void:
 	gate_index = index
+	tier = index if p_tier < 0 else p_tier
+	lane = p_lane
 	monster_id = &"castle_gate"
 	level = 100
 	home = at
 	hero = p_hero
-	template = {"name": "ประตูปราสาท %d" % (index + 1), "model": "", "height": HEIGHT, "speed": 0.0, "aggro": false,
+	template = {"name": gate_label(tier, lane), "model": "", "height": HEIGHT, "speed": 0.0, "aggro": false,
 		"attack": "melee", "boss": true, "color": Color("8a5a32")}
 	stats = {"hp": p_hp, "atk": 0.0, "def": 0.0, "exp": 0, "gold": 0}
 	hp = maxi(1, p_hp)
@@ -36,6 +44,13 @@ func setup_gate(index: int, at: Vector3, p_hp: int, p_hero: Node3D) -> void:
 	hostile = false
 	_speed = 0.0
 	_base_speed = 0.0
+
+
+## "ประตูชั้น 1 ซ้าย" (a doubled tier names its lane), "ประตูชั้น 3".
+static func gate_label(p_tier: int, p_lane: int) -> String:
+	if p_tier < SiegeArena.TIER_LANES.size() and SiegeArena.TIER_LANES[p_tier] > 1:
+		return "ประตูชั้น %d %s" % [p_tier + 1, SiegeArena.LANE_NAMES[clampi(p_lane, 0, 1)]]
+	return "ประตูชั้น %d" % (p_tier + 1)
 
 
 func _ready() -> void:
@@ -108,12 +123,17 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, _attacker: Node = 
 				BattleVfx.damage_number(get_parent(), top_point(), str(int(ceil(float(amount) * GuildWarData.damage_scale))) + ("!" if crit else ""), false, 1.2 if crit else 0.9)
 				visual.flash(Color(1.0, 0.9, 0.7), 0.1)
 		return false
+	# The castle's holder's own gates: its blows do nothing.
+	if GuildWarMatch.owner_hit(_attacker):
+		return false
 	return _batter(int(ceil(float(amount) * GuildWarData.damage_scale)), crit)
 
 
 ## Hits from the fighters (already scaled by the war).
 func take_damage(raw: float, _attacker: Node = null) -> void:
 	if sync_eid > 0 and EntitySync.mirroring():
+		return
+	if GuildWarMatch.owner_hit(_attacker):
 		return
 	_batter(int(round(raw)), false)
 

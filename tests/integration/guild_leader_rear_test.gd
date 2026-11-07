@@ -67,7 +67,7 @@ static func _flat(a: Vector3, b: Vector3) -> float:
 ## for `seconds` of war time or until the castle changes hands.
 func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 	Game.current_zone = &"guildwar"
-	Game.guildwar_save_checkpoint(seed, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0], "owner": owner})
+	Game.guildwar_save_checkpoint(seed, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": owner})
 	Game.guildwar_resuming = true
 	Game.profile.hp = Game.stats_now().max_hp
 	var zone := Zone.new()
@@ -169,7 +169,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			var goal := Vector3.INF
 			var gate := m.front_gate()
 			if gate != null and c.tactic == GuildWarCommander.PUSH:
-				goal = SiegeArena.gate_front(gate.gate_index)
+				goal = SiegeArena.gate_front(gate.tier, gate.lane)
 			elif gate == null and c.tactic == GuildWarCommander.SECURE and c.secure_k >= 0:
 				goal = SiegeArena.SWITCHES[c.secure_k]
 			elif gate == null and c.tactic in [GuildWarCommander.ESCORT, GuildWarCommander.GUARD]:

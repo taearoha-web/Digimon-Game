@@ -4,9 +4,15 @@ extends RefCounted
 ## Thai time (WorldEvents.day_of). Only the world's four guilds play (WorldPlayers.GUILDS:
 ## Alpha, Neverdie, Titan, 3DLnw). Guild wars happen on real time only, three rounds a day
 ## starting at SLOTS (12:00, 18:00, 21:30 Thai), each GuildWarData.DURATION long. Each
-## round has two wars at once, so a day's three rounds meet all six pairs of guilds
-## (MATCHINGS, rotated by the day: pairs_at). Each guild sends its GuildWarData.GUILD_SIDE
+## round is ONE castle war of all four guilds at once (every guild against every other;
+## a guild with nobody at Lv.100 sits it out). Each guild sends its GuildWarData.GUILD_SIDE
 ## strongest members (GuildWarData.side_ids).
+##
+## The castle carries over: the guild holding it at a round's bell holds it when the next
+## round begins (and the one after, across days and weeks) until another guild takes it in
+## a war (start_holder / holder_after: a chain of holders from the world's first round).
+## The holder starts inside the castle and defends (GuildWarMatch); the seeded rounds give
+## it DEFEND_EDGE.
 ##
 ## The hero (in a guild, Lv.100+) registers for the next round until REGISTER_CLOSE
 ## seconds before it starts (register); it fights only when it ranks among its guild's
@@ -25,8 +31,9 @@ extends RefCounted
 ## and count nothing here (ไม่นับคะแนนลีก).
 ##
 ## profile.league (valid / repair keep it safe in a save):
-##   week, wars: the current season and the hero's real wars in it ({at (the round's
-##   start), a, b, win, ca, cb, held, ka, kb}, ints); prev_week, prev_wars: the season
+##   week, wars: the current season and the hero's real wars in it, ints: a round's
+##   {at (its start), g1..g4 (guilds by side), k1..k4 (falls), c1..c4 (captures), held,
+##   own (the holder when it began)}, or an old war's {at, a, b, win, ca, cb, held, ka, kb}; prev_week, prev_wars: the season
 ##   before; claimed: the season whose top-three reward was taken; ann: the season whose
 ##   end was announced; shop_week, shop: the season of the secret shop's buy counts
 ##   ({id: count}); reg: the start (unix) of the round the hero registered for; told: the
@@ -37,10 +44,13 @@ const KEY := "league"
 const SLOTS: Array[int] = [12 * 3600, 18 * 3600, 21 * 3600 + 30 * 60]
 ## Registration for a round closes this many seconds before it starts.
 const REGISTER_CLOSE := 300
-## The three ways to split the four guilds into two pairs; a day's three rounds take one
-## each (pairs_at), so every pair meets once a day.
+## Before the four-guild rounds: the three ways to split the four guilds into two pairs
+## (old records name their round's pair; pairs_at).
 const MATCHINGS := [[[1, 2], [3, 4]], [[1, 3], [2, 4]], [[1, 4], [2, 3]]]
 const DAY := 86400
+## A round's placement points, 1st to 4th.
+const PLACE_POINTS: Array[int] = [40, 25, 15, 10]
+## Old two-guild wars: a win's and a loss's points.
 const WIN := 30
 const LOSS := 10
 const CAPTURE := 5
@@ -48,6 +58,10 @@ const HOLD := 20
 const KILLS_PER_POINT := 5
 ## A seeded war: the stronger side wins with share pa^K / (pa^K + pb^K) of total power.
 const POWER_EDGE := 3.0
+## The seeded rounds: the castle's holder defends with its might's weight times this, and a
+## round begun with no holder ends with nobody holding it this often.
+const DEFEND_EDGE := 2.0
+const NOBODY_TAKES := 0.2
 const EXP_BONUS := 0.1
 const CROWN := "♛"
 const CROWN_COLOR := Color("ffb81c")
@@ -72,13 +86,18 @@ const SHOP: Array[Dictionary] = [
 	{"id": "crown", "kind": "title", "item": "", "count": 1, "price": 50000000, "limit": 1},
 ]
 const WAR_KEYS: Array[String] = ["at", "a", "b", "win", "ca", "cb", "held", "ka", "kb"]
+const ROUND_KEYS: Array[String] = ["at", "g1", "g2", "g3", "g4", "k1", "k2", "k3", "k4", "c1", "c2", "c3", "c4", "held", "own"]
 const INT_KEYS: Array[String] = ["week", "prev_week", "claimed", "ann", "shop_week", "reg", "told"]
 
 static var _sim_cache := {}
 static var _power_cache := {}
 static var _champ_cache := {}
-## The league war being fought now ({ours, theirs, at}; {} for a practice war). Set by
-## GuildWarMatch when it builds a league war; war_finished records it and clears it.
+## The chain of castle holders: round start -> holder after it, for the records read.
+static var _chain := {}
+static var _chain_key := ""
+static var _chain_last := 0
+## The league round being fought now ({guilds (team order), at, owner}; {} for a practice
+## war). Set by GuildWarMatch when it builds a league war; war_finished records it.
 static var current_match := {}
 
 
@@ -117,12 +136,27 @@ static func slot_start(day: int, k: int) -> int:
 	return day * DAY - WorldPlayers.TZ + SLOTS[k]
 
 
-## The two pairs that fight in round k of Thai day `day`: [[a, b], [c, d]].
+## Every league guild, in id order: a round is one castle war of all of them.
+static func guilds_at(_at: int) -> Array[int]:
+	return ids()
+
+
+## Whether a round starts at unix `at`.
+static func is_round(at: int) -> bool:
+	var day := WorldEvents.day_of(float(at))
+	for k in SLOTS.size():
+		if slot_start(day, k) == at:
+			return true
+	return false
+
+
+## Before the four-guild war: the two pairs that fought in round k of Thai day `day`
+## (records of those wars are still read and scored as they were).
 static func pairs_on(day: int, k: int) -> Array:
 	return MATCHINGS[posmod(day + k, MATCHINGS.size())]
 
 
-## The pairs of the round starting at unix `at` ([] when no round starts then).
+## The old pairs of the round starting at unix `at` ([] when no round starts then).
 static func pairs_at(at: int) -> Array:
 	var day := WorldEvents.day_of(float(at))
 	for k in SLOTS.size():
@@ -131,7 +165,7 @@ static func pairs_at(at: int) -> Array:
 	return []
 
 
-## Who guild g meets in the round starting at `at` (0 when none).
+## Who guild g met in the old pairs of round `at` (0 when none); kept for old records.
 static func opponent(g: int, at: int) -> int:
 	for p in pairs_at(at):
 		if int(p[0]) == g:
@@ -141,22 +175,22 @@ static func opponent(g: int, at: int) -> int:
 	return 0
 
 
-## Every round of Thai day `day`: [{at, k, pairs}], in time order.
+## Every round of Thai day `day`: [{at, k, guilds}], in time order.
 static func rounds_on(day: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for k in SLOTS.size():
-		out.append({"at": slot_start(day, k), "k": k, "pairs": pairs_on(day, k)})
+		var at := slot_start(day, k)
+		out.append({"at": at, "k": k, "guilds": guilds_at(at)})
 	return out
 
 
-## Every war of season w: [{at, a, b}] in time order (7 days x 3 rounds x 2 wars).
+## Every round of season w: [{at, guilds}] in time order (7 days x 3 rounds).
 static func schedule(w: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var first := WorldEvents.day_of(week_start(w))
 	for d in 7:
 		for r in rounds_on(first + d):
-			for p in r.pairs:
-				out.append({"at": int(r.at), "a": int(p[0]), "b": int(p[1])})
+			out.append({"at": int(r.at), "guilds": r.guilds})
 	return out
 
 
@@ -182,6 +216,17 @@ static func next_slot(t: float) -> int:
 	return slot_start(day + 2, 0)
 
 
+## The start of the last round that started before `at`.
+static func prev_slot(at: int) -> int:
+	var day := WorldEvents.day_of(float(at))
+	for d in [day, day - 1, day - 2]:
+		for k in range(SLOTS.size() - 1, -1, -1):
+			var s := slot_start(d, k)
+			if s < at:
+				return s
+	return at - DAY
+
+
 ## "12:00" for a round's start.
 static func clock_text(at: int) -> String:
 	var s := posmod(at + WorldPlayers.TZ, DAY)
@@ -203,15 +248,140 @@ static func side_power(g: int, at: int) -> float:
 	return total
 
 
-## The seeded result of the war a vs b in the round starting `at`, fought without the
-## hero: from both sides' real power then and a seed of the round alone, so every device
-## agrees. {} when a side has nobody at Lv.100 yet (no war).
+## A guild's might for the seeded rounds of the season `at` falls in: side_power at the
+## season's start (one reckoning a guild a week keeps the castle's chain of holders cheap
+## to follow from the world's first day; 0 with nobody at Lv.100 then). A guild with
+## nobody then but members at Lv.100 by the round counts its might at the round.
+static func week_power(g: int, at: int) -> float:
+	var start := int(week_start(week_of(float(at))))
+	var p := side_power(g, maxi(start, WorldPlayers.START_UNIX))
+	if p <= 0.0:
+		p = side_power(g, at)
+	return p
+
+
+# --- Rounds: one castle war of every guild -----------------------------------------
+
+## The points of a war's falls and captures (the placement and HOLD come on top).
+static func round_points(kills: int, caps: int) -> int:
+	return maxi(0, kills) / KILLS_PER_POINT + CAPTURE * maxi(0, caps)
+
+
+## The seeded result of the round starting `at`, fought without the hero, with the castle
+## held by `own` when it began (0 nobody): from every guild's might (week_power) and a seed
+## of the round and its holder alone, so every device agrees. The holder defends with
+## DEFEND_EDGE: it keeps the castle with its edged share of all the guilds' might, else a
+## guild (weighted by might) takes it; with no holder, now and then nobody takes it.
+## {at, g: guilds, k: falls, c: captures, held, own}; {} when fewer than two guilds have
+## anyone at Lv.100.
+static func sim_round(at: int, own: int) -> Dictionary:
+	var key := "%d|%d" % [at, own]
+	if _sim_cache.has(key):
+		return _sim_cache[key]
+	if _sim_cache.size() > 400:
+		_sim_cache.clear()
+	var gs: Array = []
+	var weight: Array = []
+	var total := 0.0
+	for g in guilds_at(at):
+		var p := week_power(g, at)
+		if p <= 0.0:
+			continue
+		gs.append(g)
+		var e := pow(p, POWER_EDGE) * (DEFEND_EDGE if g == own else 1.0)
+		weight.append(e)
+		total += e
+	var out := {}
+	if gs.size() >= 2:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("guild_league_round|%d|%d" % [at, own])
+		var held := 0
+		var keeper := gs.find(own)
+		if keeper >= 0 and rng.randf() < float(weight[keeper]) / total:
+			held = own
+		elif keeper < 0 and rng.randf() < NOBODY_TAKES:
+			held = 0
+		else:
+			var rest := 0.0
+			for i in gs.size():
+				rest += 0.0 if i == keeper else float(weight[i])
+			var pick := rng.randf() * rest
+			for i in gs.size():
+				if i == keeper:
+					continue
+				pick -= float(weight[i])
+				if pick <= 0.0:
+					held = int(gs[i])
+					break
+			if held == 0:
+				held = int(gs[gs.size() - 1 if keeper != gs.size() - 1 else 0])
+		var k: Array = []
+		var c: Array = []
+		for i in gs.size():
+			var share := float(weight[i]) / total
+			k.append(int(round(rng.randf_range(12.0, 28.0) + 55.0 * share)))
+			var caps := 0
+			if int(gs[i]) == held and held != own:
+				caps = rng.randi_range(1, 2)
+			elif int(gs[i]) != own and rng.randf() < 0.3 * share:
+				caps = 1  # took it once and lost it again
+			c.append(caps)
+		out = {"at": at, "g": gs, "k": k, "c": c, "held": held, "own": own}
+	_sim_cache[key] = out
+	return out
+
+
+## A recorded round (the flat ints of profile.league) as a round result.
+static func _round_of(e: Dictionary) -> Dictionary:
+	var gs: Array = []
+	var k: Array = []
+	var c: Array = []
+	for i in 4:
+		var g := int(e.get("g%d" % (i + 1), 0))
+		if g <= 0:
+			continue
+		gs.append(g)
+		k.append(int(e.get("k%d" % (i + 1), 0)))
+		c.append(int(e.get("c%d" % (i + 1), 0)))
+	return {"at": int(e.at), "g": gs, "k": k, "c": c, "held": int(e.held), "own": int(e.get("own", 0)), "real": true}
+
+
+## True for a four-guild round record (profile.league), false for an old two-guild war's.
+static func is_round_record(e: Variant) -> bool:
+	return e is Dictionary and (e as Dictionary).has("g1")
+
+
+## The hero's real round at `at` in `real` ({} when none).
+static func _real_round(real: Array, at: int) -> Dictionary:
+	for e in real:
+		if is_round_record(e) and int(e.get("at", -1)) == at:
+			return _round_of(e)
+	return {}
+
+
+## The hero's old two-guild wars recorded at round `at`.
+static func _legacy_at(real: Array, at: int) -> Array:
+	var out: Array = []
+	for e in real:
+		if e is Dictionary and not is_round_record(e) and int(e.get("at", -1)) == at:
+			out.append(e)
+	return out
+
+
+## The hero's real war of round `at` between a and b in `real` ({} when none; old records).
+static func _real_for(real: Array, at: int, a: int, b: int) -> Dictionary:
+	for e in real:
+		if e is Dictionary and not is_round_record(e) and int(e.get("at", -1)) == at and ((int(e.a) == a and int(e.b) == b) or (int(e.a) == b and int(e.b) == a)):
+			return e
+	return {}
+
+
+## The old seeded result of the war a vs b in the round starting `at` (two guilds; it
+## completes a round the hero fought as one of the old pairs).
 static func sim_war(at: int, a: int, b: int) -> Dictionary:
 	var key := "%d|%d|%d" % [at, a, b]
 	if _sim_cache.has(key):
 		return _sim_cache[key]
-	if _sim_cache.size() > 200:
-		_sim_cache.clear()
 	var pa := side_power(a, at)
 	var pb := side_power(b, at)
 	var out := {}
@@ -232,27 +402,118 @@ static func sim_war(at: int, a: int, b: int) -> Dictionary:
 	return out
 
 
-## The hero's real war of round `at` between a and b in `real` ({} when none).
-static func _real_for(real: Array, at: int, a: int, b: int) -> Dictionary:
-	for e in real:
-		if e is Dictionary and int(e.get("at", -1)) == at and ((int(e.a) == a and int(e.b) == b) or (int(e.a) == b and int(e.b) == a)):
-			return e
-	return {}
+## The results of round `at` begun with the castle held by `own`: [the round] (the hero's
+## real one, else the seeded one), or, for a round the hero fought in the old pairs, its
+## old wars (the real ones and the seeded other pair). [] when nobody could fight.
+static func round_results(at: int, own: int, real: Array) -> Array:
+	var mine := _real_round(real, at)
+	if not mine.is_empty():
+		return [mine]
+	var old := _legacy_at(real, at)
+	if not old.is_empty():
+		var out: Array = []
+		for p in pairs_at(at):
+			var e := _real_for(old, at, int(p[0]), int(p[1]))
+			if e.is_empty():
+				e = sim_war(at, int(p[0]), int(p[1]))
+			else:
+				e = e.duplicate()
+				e["real"] = true
+			if not e.is_empty():
+				out.append(e)
+		return out
+	var sim := sim_round(at, own)
+	return [] if sim.is_empty() else [sim]
 
 
-## Kept for the screens and tests: every seeded war of season w that has a result (both
-## sides had someone at Lv.100), in time order.
-static func sim_wars(w: int) -> Array:
-	var out: Array = []
-	for m in schedule(w):
-		var e := sim_war(int(m.at), int(m.a), int(m.b))
-		if not e.is_empty():
-			out.append(e)
+## Who holds the castle after a round's results begun with `own`: only a capture changes
+## it (a round's holder at the bell); old pairs: the holder who earned more in its war.
+static func _after(results: Array, own: int) -> int:
+	var best := 0
+	var best_key := -1
+	for e in results:
+		var held := int(e.get("held", 0))
+		if (e as Dictionary).has("g"):
+			return held if held > 0 else own
+		if held <= 0:
+			continue
+		var key := side_points(e, held) * 1000 + int(e.ca if int(e.a) == held else e.cb) * 10 + (9 - held)
+		if key > best_key:
+			best = held
+			best_key = key
+	return best if best > 0 else own
+
+
+## The hero's real records the chain of holders reads: `real` and, with a profile, both
+## seasons it keeps.
+static func _chain_real(real: Array) -> Array:
+	var out: Array = real.duplicate()
+	if Game.has_profile:
+		var d: Variant = Game.profile.get(KEY)
+		if d is Dictionary:
+			for key in ["prev_wars", "wars"]:
+				for e in (d as Dictionary).get(key, []):
+					if not out.has(e):
+						out.append(e)
 	return out
 
 
-## Points guild g earns from war e.
+static func _chain_sig(real: Array) -> String:
+	var last := 0
+	for e in real:
+		if e is Dictionary:
+			last = maxi(last, int(e.get("at", 0)) + int(e.get("held", 0)) * 7 + int(e.get("k1", e.get("ka", 0))))
+	return "%d|%d" % [real.size(), last]
+
+
+## Who holds the castle after the round starting `at` (its bell): the chain of holders
+## from the world's first round (WorldPlayers.START_UNIX), round by round, each begun with
+## the one before's holder. Cached (followed on from the last round worked out).
+static func holder_after(at: int, real: Array = []) -> int:
+	var all := _chain_real(real)
+	var sig := _chain_sig(all)
+	if sig != _chain_key:
+		_chain_key = sig
+		_chain.clear()
+		_chain_last = 0
+	if _chain.has(at):
+		return int(_chain[at])
+	if at < WorldPlayers.START_UNIX:
+		return 0
+	# Walk on from the last round worked out before `at` (or the first round).
+	var r := _chain_last if _chain_last > 0 and _chain_last < at else next_slot(float(WorldPlayers.START_UNIX) - 1.0)
+	var own := int(_chain.get(r, 0)) if _chain.has(r) else 0
+	if not _chain.has(r):
+		own = _after(round_results(r, 0, all), 0)
+		_chain[r] = own
+	while r < at:
+		r = next_slot(float(r))
+		own = _after(round_results(r, own, all), own)
+		_chain[r] = own
+	if r > _chain_last:
+		_chain_last = r
+	return int(_chain.get(at, own))
+
+
+## Who holds the castle when the round starting `at` begins (0 nobody): the holder after
+## the round before. It starts there inside the castle and defends (GuildWarMatch).
+static func start_holder(at: int, real: Array = []) -> int:
+	var prev := prev_slot(at)
+	if prev < WorldPlayers.START_UNIX:
+		return 0
+	return holder_after(prev, real)
+
+
+## Points guild g earns from a war: a round's placement (PLACE_POINTS) + HOLD for the
+## holder at the bell + its falls and captures (round_points); an old two-guild war's
+## WIN or LOSS + CAPTURE per capture + HOLD + falls.
 static func side_points(e: Dictionary, g: int) -> int:
+	if e.has("g"):
+		var i := (e.g as Array).find(g)
+		if i < 0:
+			return 0
+		var place := placement(e).find(g)
+		return int(PLACE_POINTS[clampi(place, 0, PLACE_POINTS.size() - 1)]) + (HOLD if int(e.held) == g else 0) + round_points(int(e.k[i]), int(e.c[i]))
 	if int(e.a) != g and int(e.b) != g:
 		return 0
 	var ours := int(e.a) == g
@@ -263,46 +524,84 @@ static func side_points(e: Dictionary, g: int) -> int:
 	return p
 
 
-## The wars of season w over by `until`, time order: the hero's real war of a round in
-## place of its seeded one (counted as soon as it is recorded), every other war once its
-## round has ended. A real war that is not on the schedule counts nothing.
+## A round's guilds, best first: the castle's holder at the bell, then by round_points,
+## then falls dealt, then the lower guild id.
+static func placement(e: Dictionary) -> Array[int]:
+	var gs: Array = e.get("g", [])
+	var order: Array[int] = []
+	for g in gs:
+		order.append(int(g))
+	var held := int(e.get("held", 0))
+	order.sort_custom(func(a, b):
+		if (a == held) != (b == held):
+			return a == held
+		var ia := gs.find(a)
+		var ib := gs.find(b)
+		var pa := round_points(int(e.k[ia]), int(e.c[ia]))
+		var pb := round_points(int(e.k[ib]), int(e.c[ib]))
+		if pa != pb:
+			return pa > pb
+		if int(e.k[ia]) != int(e.k[ib]):
+			return int(e.k[ia]) > int(e.k[ib])
+		return a < b)
+	return order
+
+
+## Kept for the screens and tests: every seeded round of season w (begun with the chain's
+## holder) that has a result, in time order.
+static func sim_wars(w: int) -> Array:
+	var out: Array = []
+	for m in schedule(w):
+		var e := sim_round(int(m.at), start_holder(int(m.at)))
+		if not e.is_empty():
+			out.append(e)
+	return out
+
+
+## The wars of season w over by `until`, time order: the hero's real round in place of
+## its seeded one (counted as soon as it is recorded), every other round once it has
+## ended, each begun with the castle's holder of the round before (start_holder). An old
+## two-guild record keeps its round in the old pairs.
 static func events(w: int, real: Array, until := INF) -> Array:
 	var out: Array = []
 	for m in schedule(w):
 		var at := int(m.at)
 		if float(at) > until:
 			break
-		var mine := _real_for(real, at, int(m.a), int(m.b))
-		if not mine.is_empty():
-			var copy: Dictionary = mine.duplicate()
-			copy["real"] = true
-			out.append(copy)
-		elif float(at) + GuildWarData.DURATION <= until:
-			var e := sim_war(at, int(m.a), int(m.b))
-			if not e.is_empty():
+		var own := start_holder(at, real)
+		var results := round_results(at, own, real)
+		for e in results:
+			if bool(e.get("real", false)) or float(at) + GuildWarData.DURATION <= until:
 				out.append(e)
 	return out
 
 
 ## The table of season w at `until`: [{rank, g, name, points, wins, losses, captures, held,
-## kills}], best first (points, wins, captures).
+## kills}], best first (points, wins, captures). wins: rounds placed first (old wars won).
 static func table(w: int, real: Array, until := INF) -> Array[Dictionary]:
 	var rows := {}
 	for g in ids():
 		rows[g] = {"g": g, "name": name_of(g), "points": 0, "wins": 0, "losses": 0, "captures": 0, "held": 0, "kills": 0}
 	for e in events(w, real, until):
-		for side in [[int(e.a), "ca", "ka"], [int(e.b), "cb", "kb"]]:
-			var g := int(side[0])
+		var sides: Array = []
+		if (e as Dictionary).has("g"):
+			var first := placement(e)[0] if not (e.g as Array).is_empty() else 0
+			for i in (e.g as Array).size():
+				sides.append([int(e.g[i]), int(e.c[i]), int(e.k[i]), int(e.g[i]) == first])
+		else:
+			sides = [[int(e.a), int(e.ca), int(e.ka), int(e.win) == int(e.a)], [int(e.b), int(e.cb), int(e.kb), int(e.win) == int(e.b)]]
+		for sd in sides:
+			var g := int(sd[0])
 			if not rows.has(g):
 				continue
 			var r: Dictionary = rows[g]
 			r.points = int(r.points) + side_points(e, g)
-			if int(e.win) == g:
+			if bool(sd[3]):
 				r.wins = int(r.wins) + 1
 			else:
 				r.losses = int(r.losses) + 1
-			r.captures = int(r.captures) + int(e[side[1]])
-			r.kills = int(r.kills) + int(e[side[2]])
+			r.captures = int(r.captures) + int(sd[1])
+			r.kills = int(r.kills) + int(sd[2])
 			if int(e.held) == g:
 				r.held = int(r.held) + 1
 	var out: Array[Dictionary] = []
@@ -321,43 +620,16 @@ static func table(w: int, real: Array, until := INF) -> Array[Dictionary]:
 	return out
 
 
-## Who holds the castle at `until` in season w: the guild that held it at the end of the
-## latest war, else last season's champion (on the seeded wars alone).
+## Who holds the castle at `until` (in season w's view): the holder after the latest round
+## over by then (the chain carries across days and weeks); 0 before anyone took it.
 static func holder(w: int, real: Array, until := INF) -> int:
-	var held := _last_holder(w, real, until)
-	return held if held > 0 else champion_of(w - 1, [])
-
-
-## The guild holding the castle after the latest round of season w over by `until` in
-## which a guild held it at the bell (0 when none did). Both wars of a round end at once:
-## if both ended with a holder, the one that earned more in its war takes the castle (then
-## more captures, then the lower guild id). Walks back from the latest round, so only the
-## last few wars are worked out (each a seeded result from fighter power).
-static func _last_holder(w: int, real: Array, until := INF) -> int:
-	var list := schedule(w)
-	var k := list.size() - 1
-	while k >= 0:
-		var at := int(list[k].at)
-		var best := 0
-		var best_key := -1
-		while k >= 0 and int(list[k].at) == at:
-			var m: Dictionary = list[k]
-			k -= 1
-			if float(at) > until:
-				continue
-			var e := _real_for(real, at, int(m.a), int(m.b))
-			if e.is_empty() and float(at) + GuildWarData.DURATION <= until:
-				e = sim_war(at, int(m.a), int(m.b))
-			if e.is_empty() or int(e.held) <= 0:
-				continue
-			var g := int(e.held)
-			var key := side_points(e, g) * 1000 + int(e.ca if int(e.a) == g else e.cb) * 10 + (9 - g)
-			if key > best_key:
-				best = g
-				best_key = key
-		if best > 0:
-			return best
-	return 0
+	var t := minf(until, week_end(w) - 1.0)
+	var at := live_slot(t)
+	if at < 0:
+		at = prev_slot(next_slot(t))
+	elif float(at) + GuildWarData.DURATION > t:
+		return start_holder(at, real)
+	return holder_after(at, real)
 
 
 ## The champion of season w: the castle holder when it ended (the top guild if nobody held it).
@@ -371,7 +643,8 @@ static func champion_of(w: int, real: Array) -> int:
 		return int(_champ_cache[key])
 	if _champ_cache.size() > 16:
 		_champ_cache.clear()
-	var champ := _last_holder(w, real)
+	var last := prev_slot(int(week_end(w)))
+	var champ := holder_after(last, real)
 	if champ == 0:
 		champ = int(table(w, real)[0].g)
 	_champ_cache[key] = champ
@@ -460,11 +733,42 @@ static func chip_text(t := -1.0) -> String:
 	return "%s แชมป์ปราสาท EXP +%d%% เหลือ %s" % [CROWN, int(EXP_BONUS * 100.0), span]
 
 
-## Records the hero's real guild war: `ours` / `theirs` are the guilds (WorldPlayers),
-## captures and falls of each side, who held the castle at the bell (-1 nobody, 0 ours,
-## 1 theirs), `t` the start of the round it was (it takes that war's place in the table;
-## a war off the schedule counts nothing). Returns the league points our guild earned (0
-## outside a guild or without a rival).
+## Records the hero's real round (a castle war of every guild): `guilds` in team order
+## (team 0 the hero's), each team's captures and falls dealt, the team holding the castle
+## at the bell (-1 nobody), `t` the round's start (it takes that round's place in the
+## table; a time that is no round counts nothing) and `own` the guild that held the castle
+## when it began. Returns the league points `guilds[0]` earned (0 outside a guild).
+static func record_round(guilds: Array, caps: Array, kills: Array, held: int, t := -1.0, own := 0) -> int:
+	if not Game.has_profile or guilds.is_empty():
+		return 0
+	var ours := int(guilds[0])
+	if ours <= 0 or not WorldPlayers.GUILD_NAMES.has(ours):
+		return 0
+	if t < 0.0:
+		t = now()
+	var d := data(t)
+	var e := {"at": int(t), "held": int(guilds[held]) if held >= 0 and held < guilds.size() else 0, "own": maxi(0, own)}
+	for i in 4:
+		var g := int(guilds[i]) if i < guilds.size() else 0
+		var ok := g > 0 and WorldPlayers.GUILD_NAMES.has(g)
+		e["g%d" % (i + 1)] = g if ok else 0
+		e["k%d" % (i + 1)] = maxi(0, int(kills[i])) if ok and i < kills.size() else 0
+		e["c%d" % (i + 1)] = maxi(0, int(caps[i])) if ok and i < caps.size() else 0
+	var wars: Array = d.get("wars", [])
+	# One result a round: fighting (or watching) the same round again replaces it.
+	for old in wars.duplicate():
+		if old is Dictionary and int(old.get("at", -1)) == int(t):
+			wars.erase(old)
+	wars.append(e)
+	while wars.size() > MAX_WARS:
+		wars.pop_front()
+	d["wars"] = wars
+	Game.mark_dirty()
+	return side_points(_round_of(e), ours)
+
+
+## Records an old two-guild war (kept for old callers): `ours` / `theirs`, captures and
+## falls of each side, who held the castle at the bell (-1 nobody, 0 ours, 1 theirs).
 static func record_war(ours: int, theirs: int, won: bool, caps_us: int, caps_them: int, held: int, kills_us: int, kills_them: int, t := -1.0) -> int:
 	if ours <= 0 or not WorldPlayers.GUILD_NAMES.has(ours) or not Game.has_profile:
 		return 0
@@ -477,7 +781,6 @@ static func record_war(ours: int, theirs: int, won: bool, caps_us: int, caps_the
 		"ca": maxi(0, caps_us), "cb": maxi(0, caps_them), "held": ours if held == 0 else (theirs if held == 1 else 0),
 		"ka": maxi(0, kills_us), "kb": maxi(0, kills_them)}
 	var wars: Array = d.get("wars", [])
-	# One result a war: fighting the same round again (a rejoin) replaces it.
 	var same := _real_for(wars, int(t), ours, theirs)
 	if not same.is_empty():
 		wars.erase(same)
@@ -489,17 +792,21 @@ static func record_war(ours: int, theirs: int, won: bool, caps_us: int, caps_the
 	return side_points(e, ours)
 
 
-## A guild war just ended (GuildWarMatch): the league war being fought (current_match)
-## counts its live result for the hero's guild and its rival; a practice war counts
-## nothing here; every war counts for the daily quests ("guild_war", and "league" when the
-## guild earned points). Puts the points in result.league.
+## A guild war just ended (GuildWarMatch): the league round being fought (current_match:
+## {guilds (team order), at, owner}) counts its live result; a practice war counts nothing
+## here; every war counts for the daily quests ("guild_war", and "league" when the guild
+## earned points). `caps` / `score` one entry a team, `held` the team holding the castle.
+## Puts the points in result.league.
 static func war_finished(result: Dictionary, real_guilds: bool, caps: Array, held: int, score: Array) -> int:
 	var pts := 0
 	var m := current_match
 	current_match = {}
-	if real_guilds and not m.is_empty() and Game.guild() > 0 and int(m.ours) == Game.guild():
-		pts = record_war(int(m.ours), int(m.theirs), bool(result.get("won", false)),
-			int(caps[0]), int(caps[1]), held, int(score[0]), int(score[1]), float(m.at))
+	if real_guilds and not m.is_empty() and Game.guild() > 0:
+		if m.has("guilds") and int((m.guilds as Array)[0]) == Game.guild():
+			pts = record_round(m.guilds, caps, score, held, float(m.at), int(m.get("owner", 0)))
+		elif m.has("ours") and int(m.ours) == Game.guild():
+			pts = record_war(int(m.ours), int(m.theirs), bool(result.get("won", false)),
+				int(caps[0]), int(caps[1]), held, int(score[0]), int(score[1]), float(m.at))
 	result["league"] = pts
 	if Game.has_method("daily_progress"):
 		Game.call("daily_progress", "guild_war", 1)
@@ -508,18 +815,31 @@ static func war_finished(result: Dictionary, real_guilds: bool, caps: Array, hel
 	return pts
 
 
-## A league war the hero watched to the end (GuildWarSpectate): its live result takes the
-## seeded war's place for that round (match_info.league_match [a, b], slot_start), the way
-## the hero's own war does (record_war: a rewatch of the round replaces it). Side A of
-## the match_info is a (ally), side B is b. Nothing is paid and no daily quest moves.
-## Returns the league points a earned (0 when [a, b] is not on the schedule at slot_start).
+## A league round the hero watched to the end (GuildWarSpectate): its live result takes
+## the seeded round's place (match_info.league_round: the guilds in side order,
+## slot_start), the way the hero's own war does. An older two-side match_info
+## (league_match [a, b]) is recorded as an old war. Nothing is paid and no daily quest
+## moves. Returns the league points the first side earned (0 when it is no round).
 static func spectated_result(match_info: Dictionary, result: Dictionary) -> int:
+	var at := int(match_info.get("slot_start", 0))
+	var order: Variant = match_info.get("league_round", [])
+	if order is Array and (order as Array).size() >= 2:
+		if at <= 0 or not is_round(at):
+			return 0
+		for g in order:
+			if not (typeof(g) in [TYPE_INT, TYPE_FLOAT]) or int(g) <= 0:
+				return 0
+		var gs: Array = []
+		for g in order:
+			gs.append(int(g))
+		var own_team := int(result.get("start_owner", match_info.get("owner", -1)))
+		var own: int = int(gs[own_team]) if own_team >= 0 and own_team < gs.size() else 0
+		return record_round(gs, result.get("captures", []), result.get("score", []), int(result.get("castle_owner", -1)), float(at), own)
 	var pair: Variant = match_info.get("league_match", [])
 	if not (pair is Array) or (pair as Array).size() != 2:
 		return 0
 	var a := int(pair[0]) if typeof(pair[0]) in [TYPE_INT, TYPE_FLOAT] else 0
 	var b := int(pair[1]) if typeof(pair[1]) in [TYPE_INT, TYPE_FLOAT] else 0
-	var at := int(match_info.get("slot_start", 0))
 	if a <= 0 or b <= 0 or at <= 0:
 		return 0
 	var scheduled := false
@@ -531,7 +851,6 @@ static func spectated_result(match_info: Dictionary, result: Dictionary) -> int:
 	var caps: Array = result.get("captures", [0, 0])
 	var score: Array = result.get("score", [0, 0])
 	var winner := int(result.get("winner", -1))
-	# A level bell (no holder, the same falls) is not a win for a.
 	return record_war(a, b, winner == 0, int(caps[0]), int(caps[1]), int(result.get("castle_owner", -1)),
 		int(score[0]), int(score[1]), float(at))
 
@@ -699,7 +1018,7 @@ static func register_problem(at: int, t := -1.0) -> String:
 		return "เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน"
 	if t >= float(at - REGISTER_CLOSE):
 		return "ปิดรับสมัครแล้ว (ปิดก่อนเริ่ม %d นาที)" % (REGISTER_CLOSE / 60)
-	if opponent(Game.guild(), at) <= 0:
+	if not is_round(at) or not guilds_at(at).has(Game.guild()):
 		return "ไม่มีรอบนี้"
 	return ""
 
@@ -753,6 +1072,15 @@ static func hero_makes_side(at: int) -> bool:
 	return place > 0 and place <= GuildWarData.GUILD_SIDE
 
 
+## The other guilds of round `at` that can fight in it (someone at Lv.100), in id order.
+static func rivals_of(g: int, at: int) -> Array[int]:
+	var out: Array[int] = []
+	for o in guilds_at(at):
+		if o != g and not WorldPlayers.members_at(o, float(at)).is_empty():
+			out.append(o)
+	return out
+
+
 ## Why the hero cannot go into the war being fought at t ("" when it can): a round must
 ## be on, the hero registered for it, in the line-up (top GUILD_SIDE), not done with it.
 static func enter_problem(t := -1.0) -> String:
@@ -768,23 +1096,38 @@ static func enter_problem(t := -1.0) -> String:
 		return "ไม่ได้สมัครรอบนี้ — ชมการแข่งขันได้"
 	if not hero_makes_side(at):
 		return "อันดับในกิลด์ #%d ไม่ติด %d อันดับ — ชมการแข่งขันได้" % [hero_place(at), GuildWarData.GUILD_SIDE]
-	var rival := opponent(g, at)
-	if not _real_for(real_wars(week_of(float(at))), at, g, rival).is_empty():
+	if not _real_round(real_wars(week_of(float(at))), at).is_empty():
 		return "ลงสงครามรอบนี้ไปแล้ว"
-	var blocked := GuildWarData.guild_war_blocked(g, rival, float(at))
+	var rivals := rivals_of(g, at)
+	if rivals.is_empty():
+		return "ยังไม่มีกิลด์อื่นที่มีสมาชิกถึงเลเวล %d" % Game.GUILD_LEVEL
+	var blocked := GuildWarData.guild_war_blocked(g, rivals[0], float(at))
 	if blocked != "":
 		return blocked
 	return ""
 
 
-## The league war the hero goes into now: {ours, theirs, at} ({} when it cannot).
+## The league round the hero goes into now: {guilds: [ours, the others...], at} ({} when it
+## cannot). Everyone fights everyone in one castle war.
 static func enter_match(t := -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	if enter_problem(t) != "":
 		return {}
 	var at := live_slot(t)
-	return {"ours": Game.guild(), "theirs": opponent(Game.guild(), at), "at": at}
+	var order: Array = [Game.guild()]
+	order.append_array(rivals_of(Game.guild(), at))
+	return {"guilds": order, "at": at}
+
+
+## "ปราสาทเป็นของกิลด์ X" / "กิลด์ของคุณครองปราสาท — ..." / nobody, for the round starting `at`.
+static func owner_text(at: int) -> String:
+	var own := start_holder(at)
+	if own <= 0:
+		return "ยังไม่มีใครครองปราสาท — ทุกกิลด์เริ่มนอกปราสาท"
+	if own == Game.guild():
+		return "กิลด์ของคุณครองปราสาท — ป้องกันประตูและแท่นประทับ"
+	return "ปราสาทเป็นของกิลด์ %s" % name_of(own)
 
 
 ## Tells the hero once when the round it registered for begins (toast and war chat).
@@ -799,8 +1142,7 @@ static func tell_round(t := -1.0) -> bool:
 		return false
 	d["told"] = at
 	Game.mark_dirty()
-	var rival := opponent(Game.guild(), at)
-	var line := "สงครามกิลด์รอบ %s เริ่มแล้ว: %s ปะทะ %s" % [clock_text(at), name_of(Game.guild()), name_of(rival)]
+	var line := "สงครามกิลด์รอบ %s เริ่มแล้ว: 4 กิลด์ชิงปราสาท · %s" % [clock_text(at), owner_text(at)]
 	if hero_makes_side(at):
 		Game.say(line + " — ไปที่ผู้บัญชาการสงครามกิลด์แล้วกด เข้าสู่สงคราม (มาสายก็เข้าได้จนจบรอบ)", &"quest")
 	else:
@@ -809,57 +1151,88 @@ static func tell_round(t := -1.0) -> bool:
 	return true
 
 
-## The state of war a vs b in the round starting `at` at time t: "wait", "live" or
-## "done" (with "war": its result, {} when nobody fought for want of members).
-static func match_state(at: int, a: int, b: int, t := -1.0) -> Dictionary:
+## The state of round `at` at time t: "wait", "live" or "done" (with "war": its result as
+## events gives it, {} when nobody could fight; "real" when the hero fought or watched it).
+static func round_state(at: int, t := -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	if t < float(at):
-		return {"state": "wait"}
-	var real := _real_for(real_wars(week_of(float(at))), at, a, b)
-	if not real.is_empty():
-		return {"state": "done", "war": real, "real": true}
+		return {"state": "wait", "owner": start_holder(at)}
+	var real := real_wars(week_of(float(at)))
+	var mine := _real_round(real, at)
+	if not mine.is_empty():
+		return {"state": "done", "war": mine, "real": true, "owner": start_holder(at)}
 	if t < float(at) + GuildWarData.DURATION:
-		return {"state": "live"}
-	return {"state": "done", "war": sim_war(at, a, b)}
+		return {"state": "live", "owner": start_holder(at)}
+	var results := round_results(at, start_holder(at), real)
+	return {"state": "done", "war": results[0] if not results.is_empty() else {}, "owner": start_holder(at)}
 
 
-## What a spectator needs to watch war a vs b of the round live at t (GuildWarSpectate):
-## the shape of GuildWarData.roll_guild_match (a as "ally", b as "enemy", GUILD_SIDE each,
-## the hero not in it) plus elapsed (seconds since the round began), league_match [a, b]
-## and slot_start. {} when no round is on or a side has nobody at Lv.100.
-static func live_match_info(a: int, b: int, t := -1.0) -> Dictionary:
+## Kept for old callers: the state of the round `at` (the pair is not looked at).
+static func match_state(at: int, _a: int, _b: int, t := -1.0) -> Dictionary:
+	return round_state(at, t)
+
+
+## What a spectator needs to watch the round live at t (GuildWarSpectate): roll_guild_war's
+## shape (every guild that can fight, in id order, the hero not in it) plus elapsed
+## (seconds since the round began), owner (the side holding the castle when it began, -1
+## nobody), league_round (the guilds in side order) and slot_start. {} when no round is on
+## or fewer than two guilds can fight.
+static func live_round_info(t := -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
 	var at := live_slot(t)
-	if at < 0 or opponent(a, at) != b:
+	if at < 0:
 		return {}
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("guild_league_live|%d|%d|%d" % [at, a, b])
-	var info := GuildWarData.roll_guild_match(rng, a, b, float(at), -1.0, false)
+	rng.seed = hash("guild_league_live4|%d" % at)
+	var info := GuildWarData.roll_guild_war(rng, guilds_at(at), float(at), -1.0, false)
 	if info.is_empty():
 		return {}
+	var order: Array = []
+	for sd in info.sides:
+		order.append(int(sd.guild))
 	info["elapsed"] = t - float(at)
-	info["league_match"] = [a, b]
+	info["league_round"] = order
+	info["owner"] = order.find(start_holder(at))
 	info["slot_start"] = at
 	return info
 
 
-## The guild g meets next (in the round live at t, else the next one); 0 outside a guild.
-static func next_rival(g: int, t := -1.0) -> int:
+## Kept for old callers: the round live at t when guilds a and b both fight in it.
+static func live_match_info(a: int, b: int, t := -1.0) -> Dictionary:
+	var info := live_round_info(t)
+	if info.is_empty():
+		return {}
+	var order: Array = info.league_round
+	if (a > 0 and not order.has(a)) or (b > 0 and not order.has(b)):
+		return {}
+	return info
+
+
+## The guilds g meets next (every other guild that can fight; the round live at t, else
+## the next one); [] outside a guild.
+static func next_rivals(g: int, t := -1.0) -> Array[int]:
+	var out: Array[int] = []
 	if g <= 0:
-		return 0
+		return out
 	if t < 0.0:
 		t = now()
 	var at := live_slot(t)
-	return opponent(g, at if at >= 0 else next_slot(t))
+	return rivals_of(g, at if at >= 0 else next_slot(t))
 
 
-## The rival guild of the war on now (GuildWarMatch.current's), else the next one's.
+## Kept for old callers: the first of next_rivals (0 for none).
+static func next_rival(g: int, t := -1.0) -> int:
+	var list := next_rivals(g, t)
+	return list[0] if not list.is_empty() else 0
+
+
+## A rival guild of the war on now (GuildWarMatch.current's team 1), else the next one's.
 static func war_rival() -> int:
 	var m := GuildWarMatch.current
 	if m != null and is_instance_valid(m):
-		return int(m.roster.get("enemy_guild", 0))
+		return m.team_guilds[1] if m.team_guilds.size() > 1 else 0
 	return next_rival(Game.guild())
 
 
@@ -869,15 +1242,25 @@ static func _int_ok(v: Variant, lo := 0.0, hi := float(MAX_NUMBER)) -> bool:
 	return (v is int or v is float) and is_finite(float(v)) and float(v) == floor(float(v)) and float(v) >= lo and float(v) <= hi
 
 
+## A war record: an old two-guild war's (WAR_KEYS) or a round's (ROUND_KEYS), all ints.
+static func _record_ok(e: Variant) -> bool:
+	if not e is Dictionary:
+		return false
+	var keys: Array[String] = ROUND_KEYS if (e as Dictionary).has("g1") else WAR_KEYS
+	if (e as Dictionary).size() != keys.size():
+		return false
+	for k in e:
+		if not k is String or not keys.has(String(k)) or not _int_ok(e[k]):
+			return false
+	return true
+
+
 static func _wars_ok(list: Variant) -> bool:
 	if not list is Array or (list as Array).size() > MAX_WARS:
 		return false
 	for e in list:
-		if not e is Dictionary or (e as Dictionary).size() != WAR_KEYS.size():
+		if not _record_ok(e):
 			return false
-		for k in e:
-			if not k is String or not WAR_KEYS.has(String(k)) or not _int_ok(e[k]):
-				return false
 	return true
 
 
@@ -924,3 +1307,4 @@ static func repair(profile: Dictionary) -> void:
 	var shop: Dictionary = d.get("shop", {})
 	for id in shop:
 		shop[id] = int(shop[id])
+

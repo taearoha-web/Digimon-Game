@@ -84,7 +84,7 @@ func _war(staged: bool) -> void:
 	check(Game.potion_count(GuildWarData.SUPPLY_POTION) == GuildWarData.SUPPLY_COUNT and GuildWarData.SUPPLY_COUNT == 40, "%s: the hero gets the war rations (40)" % label)
 	check(ItemData.POTIONS[GuildWarData.SUPPLY_POTION].hp == 5000, "%s: a war potion restores 5,000 HP" % label)
 	check(get_tree().get_nodes_in_group("mobs").filter(func(x): return x is GuildFighter).size() == n, "%s: only the rival guild is a monster to the hero" % label)
-	check(get_tree().get_nodes_in_group("castle_gates").size() == 3 and m.gates.size() == 3, "%s: the castle has three gates" % label)
+	check(get_tree().get_nodes_in_group("castle_gates").size() == 5 and m.gates.size() == 5, "%s: the castle has five gates (two on each of the first two tiers)" % label)
 	check(get_tree().get_nodes_in_group("companions").size() == n - 1, "%s: allies stand with the hero" % label)
 	for f in m.allies:
 		check(not f.is_in_group("mobs") and f.team == GuildFighter.TEAM_ALLY and f.is_in_group("gw_team0"), "ally is on our side only")
@@ -102,7 +102,7 @@ func _war(staged: bool) -> void:
 		standing.append(f)
 		check(f.global_position.distance_to(f.spawn_point) < 0.5, "%s: %s starts on its mark" % [label, f.rival_name])
 		check(Vector2(f.global_position.x, f.global_position.z).length() < SiegeArena.RADIUS - 6.0, "%s: %s starts well inside the field" % [label, f.rival_name])
-		check((f.global_position.x < -SiegeArena.BASE_X + 0.01) if f.team == GuildFighter.TEAM_ALLY else (f.global_position.x >= SiegeArena.BASE_X - 0.01), "%s: %s starts in its guild's camp" % [label, f.rival_name])
+		check(Vector2(f.global_position.x - SiegeArena.camp(f.team).x, f.global_position.z - SiegeArena.camp(f.team).z).length() < SiegeArena.CAMP_RADIUS and (f.global_position.x < 0.0) == (f.team == GuildFighter.TEAM_ALLY), "%s: %s starts in its guild's camp" % [label, f.rival_name])
 	check(hero.global_position.distance_to(GuildWarMatch.hero_camp()) < 1.0, "%s: the hero starts in our camp on the left" % label)
 	check(alive == 2 * n - 1, "%s: all %d fighters are alive and whole at the start" % [label, 2 * n - 1])
 	var closest := 1.0e9
@@ -112,7 +112,8 @@ func _war(staged: bool) -> void:
 	check(closest >= 2.5, "%s: nobody spawns on top of anybody (closest pair %.1f m)" % [label, closest])
 	var rows := {}
 	for f in m.enemies:
-		rows[snappedf(f.global_position.x, 0.1)] = int(rows.get(snappedf(f.global_position.x, 0.1), 0)) + 1
+		var depth := snappedf((f.global_position - SiegeArena.camp(f.team)).dot(SiegeArena.camp_forward(f.team)), 0.1)
+		rows[depth] = int(rows.get(depth, 0)) + 1
 	check(rows.size() == ceili(float(n) / float(GuildWarMatch.ROW_SLOTS)) and int(rows.values().max()) == GuildWarMatch.ROW_SLOTS, "%s: the rivals stand in rows of %d (%s)" % [label, GuildWarMatch.ROW_SLOTS, rows])
 	for side in [m.allies, m.enemies]:
 		var has_support: bool = side == m.allies and GuildWarData.is_support(Game.class_id())
@@ -380,7 +381,9 @@ func _riders_marching(m: GuildWarMatch, label: String) -> void:
 ## and (when `take`) a full minute gives our guild the castle.
 func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool) -> void:
 	var gates := m.gates
-	check(m.front_gate() == gates[0] and gates[0].breakable and not gates[1].breakable and not gates[2].breakable, "%s: only the front gate can be battered" % label)
+	# Five gates: tier 1 left / right (0, 1), tier 2 left / right (2, 3), tier 3 (4).
+	check(gates.size() == 5 and gates[0].tier == 0 and gates[1].tier == 0 and gates[2].tier == 1 and gates[3].tier == 1 and gates[4].tier == 2 and gates[0].lane == 0 and gates[1].lane == 1, "%s: two gates on each of the first two tiers, one on the third" % label)
+	check(m.front_gates() == [gates[0], gates[1]] and gates[0].breakable and gates[1].breakable and not gates[2].breakable and not gates[4].breakable, "%s: only the front tier's two gates can be battered" % label)
 	check(is_instance_valid(gates[0]._blocker), "%s: a standing gate blocks the way" % label)
 	# No way round a standing gate: the door, its stone jambs and the walls close the hall.
 	await get_tree().physics_frame
@@ -394,9 +397,9 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 			if space.intersect_ray(ray).is_empty():
 				gaps.append(x)
 	check(gaps.is_empty(), "%s: the gates and walls leave no gap (%s)" % [label, gaps])
-	var hp1 := gates[1].hp
-	gates[1].take_hit(1000, false)
-	check(gates[1].hp == hp1, "%s: a gate behind another takes no hits" % label)
+	var hp1 := gates[2].hp
+	gates[2].take_hit(1000, false)
+	check(gates[2].hp == hp1, "%s: a gate behind another takes no hits" % label)
 	var hp0 := gates[0].hp
 	gates[0].take_hit(100, false)
 	check(hp0 - gates[0].hp == int(ceil(100.0 * GuildWarData.damage_scale)), "%s: the war scale applies to the gate" % label)
@@ -413,9 +416,10 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 			f0 = f
 			break
 	var lead: GuildFighter = m.enemy_leader
-	check(lead == null or (lead.objective == null and lead.keep_back and lead.goal_point.distance_to(SiegeArena.gate_front(0)) > GuildWarCommander.LEADER_TRAIL - 1.0), "%s: their leader stays behind, not at the gate" % label)
-	check(f0.objective == gates[0] and f0._targets().has(gates[0]), "%s: the fighters go for the front gate" % label)
-	check(f0.goal_point.distance_to(SiegeArena.gate_front(0)) < 7.0, "%s: and gather in front of it" % label)
+	check(lead == null or (lead.objective == null and lead.keep_back and lead.goal_point.distance_to(SiegeArena.gate_front(0, 0)) > GuildWarCommander.LEADER_TRAIL - 1.0 and lead.goal_point.distance_to(SiegeArena.gate_front(0, 1)) > GuildWarCommander.LEADER_TRAIL - 1.0), "%s: their leader stays behind, not at the gate" % label)
+	check(f0.objective in [gates[0], gates[1]] and f0._targets().has(f0.objective), "%s: the fighters go for a front gate" % label)
+	var f0_gate: CastleGate = f0.objective
+	check(f0_gate != null and f0.goal_point.distance_to(SiegeArena.gate_front(0, f0_gate.lane)) < 7.0, "%s: and gather in front of it" % label)
 	# Each guild plans for itself: outnumbered it holds the bridge, worn down it regroups.
 	check(m.plan_for(GuildFighter.TEAM_ENEMY) in ["rush", "hold"], "%s: with the gates up a guild rushes them or holds the bridge" % label)
 	for f in m.allies:
@@ -429,27 +433,33 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	check(holders >= m.allies.size() / 2, "%s: holding the bridge, most keep their post instead of the gate (%d)" % [label, holders])
 	m.plans.assign(["rush", "rush"])
 	m._assign_objectives()
-	check(SiegeArena.route(Vector3(SiegeArena.BASE_X, 0, SiegeArena.BASE_Z), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[0], "%s: from a camp the way to the altar starts at the bridge" % label)
-	check(SiegeArena.route(Vector3(0, 0, -24.0), SiegeArena.ALTAR) == SiegeArena.CONNECTORS[2] and SiegeArena.route(Vector3(0, 0, -24.0), Vector3(-30, 0, 10)) == SiegeArena.CONNECTORS[1], "%s: inside, the way runs through the gates" % label)
-	# The gates stand 32 m apart (twice the old 16 m) and the throne room is twice as wide
-	# and twice as deep as before (68 x 44 m); the hero can walk all of it.
-	check(is_equal_approx(SiegeArena.GATE_Z[0] - SiegeArena.GATE_Z[1], 32.0) and is_equal_approx(SiegeArena.GATE_Z[1] - SiegeArena.GATE_Z[2], 32.0), "%s: the gates are 32 m apart" % label)
-	check(is_equal_approx(SiegeArena.THRONE_HALF * 2.0, 68.0) and is_equal_approx(SiegeArena.GATE_Z[2] - SiegeArena.BACK_Z, 44.0) and SiegeArena.section(SiegeArena.ALTAR) == 4, "%s: the throne room is 68 x 44 m with the altar inside" % label)
+	check((SiegeArena.CONNECTORS[0] as Array).has(SiegeArena.route(Vector3(SiegeArena.BASE_X, 0, SiegeArena.BASE_Z), SiegeArena.ALTAR)), "%s: from a camp the way to the altar starts at the bridge" % label)
+	check((SiegeArena.CONNECTORS[2] as Array).has(SiegeArena.route(Vector3(0, 0, -24.0), SiegeArena.ALTAR)) and (SiegeArena.CONNECTORS[1] as Array).has(SiegeArena.route(Vector3(0, 0, -24.0), Vector3(-30, 0, 10))), "%s: inside, the way runs through the gates" % label)
+	# The tiers stand 36 m apart and the throne room is 76 x 48 m; the hero can walk all of it.
+	check(is_equal_approx(SiegeArena.GATE_Z[0] - SiegeArena.GATE_Z[1], 36.0) and is_equal_approx(SiegeArena.GATE_Z[1] - SiegeArena.GATE_Z[2], 36.0), "%s: the tiers are 36 m apart" % label)
+	check(is_equal_approx(SiegeArena.THRONE_HALF * 2.0, 76.0) and is_equal_approx(SiegeArena.GATE_Z[2] - SiegeArena.BACK_Z, 48.0) and SiegeArena.section(SiegeArena.ALTAR) == 4, "%s: the throne room is 76 x 48 m with the altar inside" % label)
 	var corner := Vector2(SiegeArena.THRONE_HALF - 2.0, SiegeArena.BACK_Z + 2.0)
 	check(hero.field_hall.has_point(corner) and hero.field_hall.has_point(Vector2(SiegeArena.ALTAR.x, SiegeArena.ALTAR.z)), "%s: the hero may stand anywhere in the throne room" % label)
 	var lines: Array[String] = []
 	m.feed.connect(func(text: String, _t: int): lines.append(text))
-	for g in gates:
+	# Either gate of a doubled tier opens it: the right one of tier 1, the left one of tier 2.
+	for g in [gates[1], gates[2], gates[4]]:
 		g.take_damage(float(g.max_hp) * 2.0)
-		check(g.is_dead() and (not is_instance_valid(g._blocker) or g._blocker.is_queued_for_deletion()), "%s: gate %d breaks and opens" % [label, g.gate_index + 1])
-		check(g.gate_index == 2 or (m.front_gate() == gates[g.gate_index + 1] and gates[g.gate_index + 1].breakable), "%s: the next gate is the one to batter" % label)
+		check(g.is_dead() and (not is_instance_valid(g._blocker) or g._blocker.is_queued_for_deletion()), "%s: %s breaks and opens" % [label, CastleGate.gate_label(g.tier, g.lane)])
+		check(g.tier == 2 or (m.front_tier() == g.tier + 1 and m.front_gate() != null and m.front_gate().tier == g.tier + 1 and m.front_gate().breakable), "%s: the next tier is the one to batter" % label)
+		check(g.tier == 2 or not gates[0 if g.tier == 0 else 3].breakable, "%s: the other gate of an open tier is left standing, not battered" % label)
 	await _frames(2)
-	check(m.front_gate() == null and m.gates_left() == 0 and lines.size() >= 3, "%s: all three gates down and told" % label)
-	check(gates[2].max_hp > gates[1].max_hp and gates[1].max_hp > gates[0].max_hp, "%s: each gate is tougher than the one before" % label)
+	check(m.front_gate() == null and m.gates_left() == 2 and lines.size() >= 3, "%s: every tier open and told (two gates still stand)" % label)
+	check(SiegeArena.lane_open == [[false, true], [true, false]], "%s: the way follows the broken gates (%s)" % [label, SiegeArena.lane_open])
+	check(SiegeArena.route(Vector3(-12.0, 0, -10.0), Vector3(-12.0, 0, -30.0)).x > 0.0, "%s: from the left of the bridge the way goes through the broken right gate" % label)
+	check(gates[4].max_hp > gates[2].max_hp and gates[2].max_hp > gates[0].max_hp, "%s: each tier is tougher than the one before" % label)
 	check(m.plan_for(GuildFighter.TEAM_ENEMY) in ["storm", "split", "regroup"], "%s: with the gates down a guild goes for the altar" % label)
-	check((Game.guildwar_checkpoint().gates as Array) == [0, 0, 0], "%s: broken gates are kept in the save" % label)
-	gates[0].take_hit(1000, false)
-	check(gates[0].is_dead() and gates[0].hp == 0, "%s: a broken gate stays broken" % label)
+	check((Game.guildwar_checkpoint().gates as Array).size() == 5 and int(Game.guildwar_checkpoint().gates[1]) == 0 and int(Game.guildwar_checkpoint().gates[0]) > 0, "%s: broken gates are kept in the save" % label)
+	for g in gates:
+		if not g.is_dead():
+			g.set_broken_quietly()
+	gates[1].take_hit(1000, false)
+	check(gates[1].is_dead() and gates[1].hp == 0, "%s: a broken gate stays broken" % label)
 	# Far from the camera a fighter is posed every other frame without shadows; near, in full.
 	var cam := get_viewport().get_camera_3d()
 	var far_one: GuildFighter = null
@@ -638,15 +648,16 @@ func _resume() -> void:
 		zone.queue_free()
 		await _frames(3)
 	check(lineups[0] == lineups[1], "resume: the same seed brings the same two guilds")
-	# The castle as it was: the first gate down, the second half broken, the rivals holding it.
-	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2, 0, {"gates": [0, 500, 1000], "owner": GuildFighter.TEAM_ENEMY})
+	# The castle as it was: tier 1's left gate down, tier 2's left gate half broken, the rivals holding it.
+	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2, 0, {"gates": [0, 1000, 500, 1000, 1000], "owner": GuildFighter.TEAM_ENEMY})
 	Game.guildwar_resuming = true
 	var back := Zone.new()
 	back.zone_id = &"guildwar"
 	add_child(back)
 	var bm: GuildWarMatch = back.gw_match
-	check(bm != null and bm.gates[0].is_dead() and not bm.gates[1].is_dead() and absi(bm.gates[1].hp - bm.gates[1].max_hp / 2) <= 2 and bm.gates[2].hp == bm.gates[2].max_hp, "resume: the gates come back as they were")
-	check(bm != null and bm.castle_owner == GuildFighter.TEAM_ENEMY and bm.front_gate() == bm.gates[1], "resume: and so does the castle's holder")
+	check(bm != null and bm.gates[0].is_dead() and not bm.gates[1].is_dead() and absi(bm.gates[2].hp - bm.gates[2].max_hp / 2) <= 2 and bm.gates[3].hp == bm.gates[3].max_hp and bm.gates[4].hp == bm.gates[4].max_hp, "resume: the gates come back as they were")
+	check(bm != null and bm.castle_owner == GuildFighter.TEAM_ENEMY and bm.front_gate() == bm.gates[2], "resume: and so does the castle's holder")
+	check(bm != null and bm.enemies.all(func(f): return f.spawn_point.distance_to(SiegeArena.KEEP_CAMP) < 20.0), "resume: the holder comes back inside the castle")
 	back.queue_free()
 	await _frames(3)
 	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)

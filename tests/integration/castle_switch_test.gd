@@ -59,7 +59,7 @@ func _pure_rules() -> void:
 ## A war with the gates down (a fixed seed), the AI held still.
 func _open_war() -> Zone:
 	Game.current_zone = &"guildwar"
-	Game.guildwar_save_checkpoint(SEED, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0], "owner": -1})
+	Game.guildwar_save_checkpoint(SEED, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": -1})
 	Game.guildwar_resuming = true
 	Game.profile.hp = Game.stats_now().max_hp
 	var zone := Zone.new()

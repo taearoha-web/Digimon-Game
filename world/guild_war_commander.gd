@@ -1,7 +1,9 @@
 class_name GuildWarCommander
 extends RefCounted
-## One guild's war chief in the castle siege (GuildWarMatch keeps one per side, and both
-## sides run this same brain, so neither plays smarter by design). The guild's plan
+## One guild's war chief in the castle siege (GuildWarMatch keeps one per guild, two to
+## four, and every guild runs this same brain, so none plays smarter by design). Everyone
+## not of its guild is a foe (GuildWarMatch.foes_of); the castle's holder defends against
+## all of them. The guild's plan
 ## (GuildWarMatch.plan_for: rush, hold, regroup, storm, split, defend, forward) says where
 ## the war is fought; the commander says how, every THINK_EVERY seconds of war time:
 ##   gather   (รวมพล)  wait for the guild at a rally point before a gate or the throne room,
@@ -37,6 +39,20 @@ extends RefCounted
 ## never ahead of the middle of its guild, fighting only what reaches its post; with
 ## enemies on it and too few of its own round it, it steps back behind them; holding the
 ## castle it stands behind the altar, its defenders in front.
+## The gates: of a doubled tier it batters the weaker or less defended gate, or splits the
+## push party by party when both are alike and it is big enough (gate_for); holding the
+## castle it comes out in front of both gates, more on the one pressed harder
+## (defend_gate_for), and falls back tier by tier as they break.
+## The leader's capture plan (leader_timing, _leader_orders): with the barrier open it
+## picks its moment (it waits while two other guilds trade blows round the altar, strikes
+## when they have worn each other down or their leaders are down), sends its vanguard to
+## clear the altar and hold both switches, keeps its healers and a Defender at its side and
+## a screen between it and the nearest foes; on the altar it reads the wave coming (a
+## stronger group on its way: it steps off, the count waiting, and comes back when it has
+## passed: evading). Another guild's leader on the altar: the main body goes for whichever
+## is quicker, the leader or a switch its guild holds (deny_k). The holder counter-pushes
+## the guild nearest to taking the castle (counter_team). Its moves are told in the feed
+## (GuildWarMatch.trace too).
 ## It also calls a focus target for the whole guild (whoever takes the altar, then a healer
 ## or bard, an exposed leader, the weak), sends its assassins round to the back line, keeps
 ## stuns from landing on a target that is already stunned, and shouts short callouts in the
@@ -104,6 +120,28 @@ const TACTIC_NAMES := {
 }
 ## Securing the switches: after this long the leader goes up anyway (and waits on the altar).
 const SECURE_MAX := 30.0
+## Picking the moment (a war of more than two): two other guilds that traded at least
+## CLASH_HEAT falls lately (each fading over HEAT_MEMORY s) are busy with each other; the
+## leader waits for them at most TIMING_MAX s.
+const CLASH_HEAT := 2.0
+const TIMING_MAX := 6.0
+## Reading the wave on the altar: foes within WAVE_RADIUS of the altar, at least WAVE_MIN
+## and WAVE_EDGE more than its guard within GUARD_RADIUS: the leader steps off (at most
+## EVADE_MAX s at a time) and comes back once they are no more than its guard.
+## The wave is one other guild's (the biggest group of one guild near the altar: in a war
+## of four the throne room is never empty). Back on, it does not step off again for
+## EVADE_REST s (no dancing on the circle's edge).
+const WAVE_RADIUS := 16.0
+const GUARD_RADIUS := 12.0
+const WAVE_MIN := 6
+const WAVE_EDGE := 4
+const EVADE_MAX := 14.0
+const EVADE_REST := 10.0
+## A doubled tier: the gate scores (its HP share, plus DEFENDED_WEIGHT a defender near its
+## front) are this close and the guild has SPLIT_MIN standing: it splits the push.
+const DEFENDED_WEIGHT := 0.06
+const SPLIT_GAP := 0.12
+const SPLIT_MIN := 12
 ## Switch squads: at most SQUAD_MAX per switch, one per SQUAD_SHARE of the guild standing.
 const SQUAD_MAX := 3
 const SQUAD_SHARE := 5
@@ -187,13 +225,34 @@ var leader_post := Vector3.ZERO
 var leader_covering := false
 ## The AI leader taking the altar stepped off it to be healed (its count waits; tests).
 var resting := false
+## The AI leader taking the altar stepped off before a stronger wave (its count waits).
+var evading := false
+var _evade_since := 0.0
+## The doubled tier's gate the guild batters (its lane, -1 none) and whether it splits.
+var lane := -1
+var split := false
+## Holding the castle: the lane pressed harder (-1 alike) for the gate posts.
+var hot_lane := -1
+## Another guild's leader on the altar: the switch the main body goes to (-1: the leader).
+var deny_k := -1
+## Holding the castle: the guild nearest to taking it (-1 none).
+var counter_team := -1
+## Other guilds' trading: "a|b" -> heat (falls between them, fading).
+var clash := {}
+## The leader waits for its moment (tests): since when, and why.
+var waiting := false
+var _wait_since := 0.0
 
 
 func _init(p_war: GuildWarMatch, p_team: int) -> void:
 	war = p_war
 	team = p_team
-	# The two guilds think half a beat apart, never in the same frame.
-	_think_left = 0.2 + THINK_EVERY * 0.5 * float(p_team)
+	spread(2)
+
+
+## The guilds think a share of a beat apart (never two in the same frame): `n` guilds.
+func spread(n: int) -> void:
+	_think_left = 0.2 + THINK_EVERY * float(team) / float(maxi(1, n))
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +312,7 @@ static func pick_tactic(prev: String, held: float, s: Dictionary) -> String:
 		return FALLBACK
 	if bool(s.leader_alive) and float(s.leader_hp) < LEADER_LOW and int(s.leader_threat) > 0:
 		return GUARD
-	if plan in ["defend", "forward", "hold"]:
+	if plan in ["defend", "forward", "hold", "gates"]:
 		return DEFEND
 	if not bool(s.gates_up):
 		if bool(s.leader_ai):
@@ -289,6 +348,10 @@ static func leader_may_go(s: Dictionary, held: float) -> bool:
 	if int(s.get("switches", 0)) < 2:
 		return false
 	if bool(s.get("leader_on_altar", false)):
+		return true
+	# A war of more than two: the barrier is open only a few seconds at a time (three other
+	# guilds fight over the switches), so the leader, waiting close, goes at once.
+	if int(s.get("rivals", 1)) > 1 and int(s.get("escort", 0)) + int(s.get("vanguard", 0)) >= 1:
 		return true
 	var van := int(s.get("vanguard", 0))
 	var foes := int(s.get("altar_foes", 0))
@@ -344,6 +407,29 @@ func on_kill() -> void:
 	kill_heat += 1.0
 
 
+## Two other guilds traded a fall (a and b): they are busy with each other.
+func on_others_trade(a: int, b: int) -> void:
+	var key := "%d|%d" % [mini(a, b), maxi(a, b)]
+	clash[key] = float(clash.get(key, 0.0)) + 1.0
+
+
+## The pair of other guilds busiest with each other ([] when none is at CLASH_HEAT).
+func busy_pair() -> Array:
+	var best: Array = []
+	var heat := CLASH_HEAT - 0.001
+	for key in clash:
+		if float(clash[key]) > heat:
+			heat = float(clash[key])
+			var parts := String(key).split("|")
+			best = [int(parts[0]), int(parts[1])]
+	return best
+
+
+## The AI leader is off the altar for now (healing or before a wave): its count waits.
+func stepping_off() -> bool:
+	return resting or evading
+
+
 ## A switch changed hands: think again within a beat.
 func on_switch_change() -> void:
 	_think_left = minf(_think_left, 0.3)
@@ -362,7 +448,7 @@ func cc_fresh(target: Node) -> bool:
 ## Whether the AI leader may go onto the altar now: inside its escort, guarded, or to
 ## contest the other guild's leader on it (taking over the moment it steps off).
 func allows_capture() -> bool:
-	if resting:
+	if resting or evading:
 		return false
 	if tactic == ESCORT:
 		return leader_go
@@ -381,17 +467,24 @@ func think(dt: float) -> void:
 	var fade := exp(-dt / HEAT_MEMORY)
 	loss_heat *= fade
 	kill_heat *= fade
+	for key in clash.keys():
+		clash[key] = float(clash[key]) * fade
+		if float(clash[key]) < 0.1:
+			clash.erase(key)
 	if not _cc.is_empty():
 		for id in _cc.keys():
 			if float(_cc[id]) <= clock:
 				_cc.erase(id)
+	_pick_lane()
 	_place()
 	var s := read()
 	last_read = s
+	_read_counter()
 	var next := pick_tactic(tactic, since, s)
 	if next != tactic:
 		_switch(next, s)
 	_leader_orders(s)
+	_deny(s)
 	_plan_switches(s)
 	var before := focus
 	focus = _pick_focus()
@@ -414,6 +507,22 @@ func _leader_orders(s: Dictionary) -> void:
 		callout("leader_back", "บาเรียกลับมา! หัวกิลถอยหลังแนว ไปยึดสวิตช์คืน")
 		return
 	if tactic == ESCORT:
+		var timing := leader_timing(s)
+		if not leader_go and timing != "" and int(s.get("switches", 0)) >= 2:
+			if timing == "wait":
+				if not waiting:
+					waiting = true
+					_wait_since = clock
+				var pair := busy_pair()
+				if pair.size() == 2:
+					trace_line("wait|%d|%d" % [pair[0], pair[1]], "หัวหน้ากิลด์ %s รอจังหวะ %s กับ %s ปะทะกัน" % [war.team_name(team), war.team_name(pair[0]), war.team_name(pair[1])])
+				return
+			waiting = false
+			leader_go = true
+			trace_line("strike", "หัวหน้ากิลด์ %s ฉวยจังหวะ%s ขึ้นแท่น!" % [war.team_name(team), timing])
+			callout("leader_go", "ได้จังหวะแล้ว! คุ้มกันหัวกิลขึ้นแท่น")
+			return
+		waiting = false
 		if not leader_go and leader_may_go(s, since):
 			leader_go = true
 			if not bool(s.get("leader_on_altar", false)):
@@ -425,6 +534,103 @@ func _leader_orders(s: Dictionary) -> void:
 				callout("vanguard", "บุกก่อน! เคลียร์แท่นให้หัวกิล หัวกิลตามหลัง")
 	elif tactic != GUARD:
 		leader_go = false
+
+
+## The leader's moment in a war of more than two (its barrier open, not yet going up):
+## "wait" while two other guilds trade blows and the altar is not clear (they wear each
+## other down), a reason to strike now (" หัวหน้ากิลด์อื่นล้ม" with every other leader down,
+## " หลังสองกิลด์ซัดกันจนอ่อนแรง" when the clash it waited on is over or the altar is
+## clear), or "" to decide as always (leader_may_go). Never waits more than TIMING_MAX s.
+func leader_timing(s: Dictionary) -> String:
+	if war.team_count() <= 2 or bool(s.get("leader_on_altar", false)):
+		return ""
+	if int(s.get("rivals", 0)) > 0 and int(s.get("rival_leaders_down", 0)) >= int(s.get("rivals", 0)):
+		return " หัวหน้ากิลด์อื่นล้มหมด"
+	var busy := busy_pair().size() == 2
+	var clear := int(s.get("altar_foes", 0)) <= ALTAR_CLEAR_FOES and int(s.get("vanguard", 0)) >= 1
+	if busy and not clear and (not waiting or clock - _wait_since < TIMING_MAX):
+		return "wait"
+	if waiting and (clear or not busy):
+		return " หลังกิลด์อื่นซัดกันจนอ่อนแรง"
+	return ""
+
+
+## Another guild's leader taking the altar: the main body goes for whichever is quicker,
+## the leader on it or a switch its guild holds with few in the circle (losing one brings
+## the barrier back). Holding the castle or taking it ourselves: nothing to deny.
+func _deny(s: Dictionary) -> void:
+	var was := deny_k
+	deny_k = -1
+	if not bool(s.enemy_capturing):
+		return
+	var taker := war.capturer()
+	var their := int(war.capture.get("team", -1))
+	if taker == null or their < 0:
+		return
+	var body := _middle_of_side()
+	if not body.is_finite():
+		return
+	var to_leader := _flat(body, taker.global_position)
+	var best := to_leader
+	for k in SiegeArena.SWITCHES.size():
+		if war.switch_owner[k] != their:
+			continue
+		var holders: int = war.count_switch(k)[their]
+		var d := _flat(body, SiegeArena.SWITCHES[k]) + 6.0 * float(holders)
+		if d < best - 6.0:
+			best = d
+			deny_k = k
+	if deny_k >= 0 and deny_k != was:
+		trace_line("deny_sw%d" % deny_k, "หัวหน้ากิลด์ %s: ตัด%sของกิลด์ %s เร็วกว่า!" % [war.team_name(team), SiegeArena.SWITCH_NAMES[deny_k], war.team_name(their)])
+	elif deny_k < 0 and (was >= 0 or tactic == DEFEND):
+		trace_line("deny_lead%d" % their, "หัวหน้ากิลด์ %s: ส่งทีมจู่โจมไปล้มหัวหน้ากิลด์ %s บนแท่น!" % [war.team_name(team), war.team_name(their)])
+
+
+## How many of its own (not `lead`) stand within 9 m of `at`.
+func _guard_near(at: Vector3, lead: GuildFighter) -> int:
+	var n := 0
+	for f in _side():
+		if f != lead and not f.is_dead() and _flat(f.global_position, at) < 9.0:
+			n += 1
+	return n
+
+
+## The middle of the guild's standing members (INF with none).
+func _middle_of_side() -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for f in _side():
+		if not f.is_dead():
+			sum += f.global_position
+			n += 1
+	return sum / float(n) if n > 0 else Vector3.INF
+
+
+## Holding the castle: the guild nearest to taking it (its count, both switches, how many
+## it has in the throne room) is the one to push back.
+func _read_counter() -> void:
+	var was := counter_team
+	counter_team = -1
+	if war.castle_owner != team or war.front_gate() != null:
+		return
+	var best := 0.0
+	var inside: Array[int] = []
+	inside.resize(war.team_count())
+	inside.fill(0)
+	for f in _foes():
+		if not f.is_dead() and SiegeArena.section(f.global_position) == 4:
+			inside[f.team] += 1
+	for t in war.team_count():
+		if t == team:
+			continue
+		var near := float(war.switches_held(t)) * 3.0 + float(inside[t]) * 0.5
+		if war.capture.has("team") and int(war.capture.team) == t:
+			near += 10.0 + float(war.capture.progress) * 0.2
+		if near > best:
+			best = near
+			counter_team = t
+	if counter_team >= 0 and counter_team != was and best >= 3.0:
+		trace_line("counter%d" % counter_team, "กิลด์ %s (ผู้ครองปราสาท) สวนกลับกิลด์ %s ที่ใกล้ยึดแท่นที่สุด" % [war.team_name(team), war.team_name(counter_team)])
 
 
 func _switch(next: String, s: Dictionary) -> void:
@@ -464,19 +670,29 @@ func _switch(next: String, s: Dictionary) -> void:
 ## yard before the second and third) or inside the throne room's door, where to pull back
 ## to, and the way forward.
 func _place() -> void:
-	var toward := -1.0 if team == GuildFighter.TEAM_ALLY else 1.0
-	var gate := war.front_gate()
-	secure_k = _pick_secure() if gate == null else -1
+	var toward := _toward()
+	var gate := target_gate()
+	secure_k = _pick_secure() if war.front_gate() == null else -1
 	if gate != null:
-		var k := gate.gate_index
+		var k := gate.tier
+		var x := SiegeArena.gate_x(k, gate.lane)
 		forward = Vector3(0, 0, -1)
 		if k == 0:
-			rally = Vector3(toward * 8.0, 0, 0.0)
-			fallback_point = SiegeArena.PLAZA + Vector3(toward * 16.0, 0, 6.0)
+			var home := war.home_of(team)
+			var back := home - SiegeArena.APPROACH
+			back.y = 0.0
+			rally = SiegeArena.APPROACH + back.normalized() * 12.0
+			fallback_point = home.lerp(SiegeArena.APPROACH, 0.55)
 		else:
-			rally = Vector3(toward * 5.0, 0, SiegeArena.GATE_Z[k] + 12.0)
-			# Just inside the gate broken last, the far end of the same yard.
-			fallback_point = Vector3(toward * 5.0, 0, SiegeArena.GATE_Z[k - 1] - 6.0)
+			rally = Vector3(x + toward * 4.0, 0, SiegeArena.GATE_Z[k] + 12.0)
+			# Just inside the tier broken last, the far end of the same yard.
+			fallback_point = Vector3(x + toward * 4.0, 0, SiegeArena.GATE_Z[k - 1] - 6.0)
+	elif war.front_gate() != null:
+		# Holding the castle with the gates up: behind the front tier, in the yard.
+		var k := war.front_tier()
+		forward = Vector3(0, 0, 1)
+		rally = Vector3(toward * 4.0, 0, SiegeArena.GATE_Z[k] - 8.0)
+		fallback_point = rally
 	else:
 		rally = Vector3(toward * 6.0, 0, SiegeArena.GATE_Z[2] - 6.0)
 		fallback_point = Vector3(toward * 5.0, 0, SiegeArena.GATE_Z[2] + 8.0)
@@ -493,7 +709,7 @@ func _pick_secure() -> int:
 	for k in SiegeArena.SWITCHES.size():
 		if war.switch_pin == team or (war.switch_pin < 0 and war.switch_owner[k] == team):
 			continue
-		var score := 3 if war.switch_contested[k] else (2 if war.switch_owner[k] == 1 - team else 1)
+		var score := 3 if war.switch_contested[k] else (2 if war.switch_owner[k] >= 0 and war.switch_owner[k] != team else 1)
 		if score > best_score:
 			best_score = score
 			best = k
@@ -501,10 +717,116 @@ func _pick_secure() -> int:
 
 
 func place_name() -> String:
-	var gate := war.front_gate()
+	var gate := target_gate()
 	if gate == null:
 		return "หน้าห้องบัลลังก์"
-	return ["หัวสะพาน", "ประตูสอง", "ประตูสาม"][clampi(gate.gate_index, 0, 2)]
+	if gate.tier == 0:
+		return "หัวสะพาน"
+	return "หน้า%s" % CastleGate.gate_label(gate.tier, gate.lane)
+
+
+## This guild's side of the field (a small sideways offset of its rally points).
+func _toward() -> float:
+	return [-1.0, 1.0, -0.4, 0.4][team % 4] * 1.2
+
+
+# ---------------------------------------------------------------------------
+# The gates: which of a doubled tier, and the holder's posts
+# ---------------------------------------------------------------------------
+
+## The gate the guild batters (null holding the castle or with every tier open).
+func target_gate() -> CastleGate:
+	if war.castle_owner == team:
+		return null
+	var front := war.front_gates()
+	if front.is_empty():
+		return null
+	for g in front:
+		if g.lane == lane:
+			return g
+	return front[0]
+
+
+## The gate `f` batters: split party by party between the two, else the guild's.
+func gate_for(f: GuildFighter) -> CastleGate:
+	var main := target_gate()
+	if main == null or not split:
+		return main
+	var front := war.front_gates()
+	if front.size() < 2:
+		return main
+	var p := (f.party % GuildWarMatch.ENEMY_PARTY_BASE) if f.party >= 0 else 0
+	return front[p % 2]
+
+
+## How many of the other guilds stand within 12 m of gate g's front.
+func _defenders_at(g: CastleGate) -> int:
+	var at := SiegeArena.gate_front(g.tier, g.lane)
+	var n := 0
+	for f in _foes():
+		if not f.is_dead() and _flat(f.global_position, at) < 12.0:
+			n += 1
+	return n
+
+
+## Picks the doubled tier's gate (the weaker or less defended; split when alike and big
+## enough), and, holding the castle, the lane pressed harder.
+func _pick_lane() -> void:
+	var front := war.front_gates()
+	hot_lane = -1
+	if war.castle_owner == team:
+		split = false
+		if front.size() >= 2:
+			var press := [_defenders_at(front[0]), _defenders_at(front[1])]
+			if int(press[0]) >= 2 * int(press[1]) + 2:
+				hot_lane = front[0].lane
+			elif int(press[1]) >= 2 * int(press[0]) + 2:
+				hot_lane = front[1].lane
+		return
+	if front.size() < 2:
+		split = false
+		lane = front[0].lane if front.size() == 1 else -1
+		return
+	var scores: Array[float] = []
+	for g in front:
+		scores.append(float(g.hp) / float(maxi(1, g.max_hp)) + DEFENDED_WEIGHT * float(_defenders_at(g)))
+	var best := 0 if scores[0] <= scores[1] else 1
+	var was_lane := lane
+	var was_split := split
+	# Keep the gate in hand unless the other is clearly better.
+	if lane >= 0 and lane != front[best].lane and absf(scores[0] - scores[1]) < SPLIT_GAP * 0.5:
+		best = 1 - best
+	lane = front[best].lane
+	split = absf(scores[0] - scores[1]) < SPLIT_GAP and war._strength(team).x >= SPLIT_MIN and war.team_count() <= 2
+	if split and not was_split:
+		callout("split", "แบ่งกำลังตีประตูซ้ายและขวาพร้อมกัน!")
+	elif not split and lane != was_lane and was_lane >= 0:
+		callout("lane", "เปลี่ยนไปตีประตู%sที่อ่อนกว่า!" % SiegeArena.LANE_NAMES[lane])
+
+
+## Holding the castle with the gates up: the front gate `f` stands before (two parties in
+## three on the gate pressed harder, else half and half).
+func defend_gate_for(f: GuildFighter, front: Array[CastleGate]) -> CastleGate:
+	if front.is_empty():
+		return null
+	if front.size() == 1:
+		return front[0]
+	var p := (f.party % GuildWarMatch.ENEMY_PARTY_BASE) if f.party >= 0 else 0
+	if hot_lane >= 0:
+		var hot: CastleGate = front[0] if front[0].lane == hot_lane else front[1]
+		var cold: CastleGate = front[1] if hot == front[0] else front[0]
+		return hot if p % 3 != 2 else cold
+	return front[p % 2]
+
+
+## Tells a leader's move in the feed once a while (the same `key` not within CALL_REPEAT s).
+func trace_line(key: String, text: String) -> void:
+	var k := "trace_" + key
+	if _said_at.has(k) and clock - float(_said_at[k]) < CALL_REPEAT:
+		return
+	_said_at[k] = clock
+	war.feed.emit(text, team)
+	war._trace(text)
 
 
 func leader() -> Node3D:
@@ -519,11 +841,11 @@ func _alive_leader() -> Node3D:
 
 
 func _side() -> Array[GuildFighter]:
-	return war.allies if team == GuildFighter.TEAM_ALLY else war.enemies
+	return war.side(team)
 
 
 func _foes() -> Array[GuildFighter]:
-	return war.enemies if team == GuildFighter.TEAM_ALLY else war.allies
+	return war.foes_of(team)
 
 
 static func _flat(a: Vector3, b: Vector3) -> float:
@@ -532,14 +854,18 @@ static func _flat(a: Vector3, b: Vector3) -> float:
 
 ## Where the guild's front is: the gate front while pushing a gate, else the rally point.
 func front() -> Vector3:
-	var gate := war.front_gate()
+	var gate := target_gate()
 	if tactic == PUSH and gate != null:
-		return SiegeArena.gate_front(gate.gate_index)
+		return SiegeArena.gate_front(gate.tier, gate.lane)
 	var lead := _alive_leader()
 	if (tactic == ESCORT or tactic == GUARD) and lead != null:
 		return lead.global_position
 	if tactic == DEFEND:
 		var who := war.capturer()
+		if deny_k >= 0:
+			return SiegeArena.SWITCHES[deny_k]
+		if who == null and war.castle_owner == team and war.front_gate() != null:
+			return rally
 		return who.global_position if who != null else SiegeArena.ALTAR
 	if tactic == FALLBACK:
 		return fallback_point
@@ -559,8 +885,8 @@ func read() -> Dictionary:
 	var threat := 0
 	var vanguard := 0
 	var altar_foes := 0
-	var gate := war.front_gate()
-	var front_at := SiegeArena.gate_front(gate.gate_index) if gate != null else rally
+	var gate := target_gate()
+	var front_at := SiegeArena.gate_front(gate.tier, gate.lane) if gate != null else rally
 	for f in _side():
 		if f.is_dead() or f == lead:
 			continue
@@ -584,10 +910,21 @@ func read() -> Dictionary:
 			threat += 1
 		if _flat(f.global_position, SiegeArena.ALTAR) < VANGUARD_RADIUS + 2.0:
 			altar_foes += 1
-	if team == GuildFighter.TEAM_ENEMY and lead != null and war.hero_alive() and _flat(war.hero.global_position, lead.global_position) < 10.0:
+	if team != GuildFighter.TEAM_ALLY and lead != null and war.hero_alive() and _flat(war.hero.global_position, lead.global_position) < 10.0:
 		threat += 1
-	if team == GuildFighter.TEAM_ENEMY and war.hero_alive() and _flat(war.hero.global_position, SiegeArena.ALTAR) < VANGUARD_RADIUS + 2.0:
+	if team != GuildFighter.TEAM_ALLY and war.hero_alive() and _flat(war.hero.global_position, SiegeArena.ALTAR) < VANGUARD_RADIUS + 2.0:
 		altar_foes += 1
+	var foe_switches := 0
+	var leaders_down := 0
+	var rivals := 0
+	for t in war.team_count():
+		if t == team:
+			continue
+		rivals += 1
+		foe_switches = maxi(foe_switches, war.switches_held(t))
+		var their := war.leader_of(t)
+		if their == null or not is_instance_valid(their) or bool(their.call("is_dead")):
+			leaders_down += 1
 	var capture := war.capture
 	var lead_hp := 1.0
 	if lead is GuildFighter:
@@ -596,7 +933,7 @@ func read() -> Dictionary:
 		lead_hp = war.hero_hp_ratio()
 	return {
 		"plan": war.plans[team] if war.plans[team] != "" else war.plan_for(team),
-		"gates_up": gate != null,
+		"gates_up": war.front_gate() != null,
 		"holding": war.castle_owner == team,
 		"enemy_capturing": not capture.is_empty() and int(capture.team) != team,
 		"we_capturing": not capture.is_empty() and int(capture.team) == team,
@@ -614,7 +951,9 @@ func read() -> Dictionary:
 		"at_front": float(at_front) / float(maxi(1, alive)),
 		"enemies_at_rally": enemies_at_rally,
 		"switches": war.switches_held(team),
-		"foe_switches": war.switches_held(1 - team),
+		"foe_switches": foe_switches,
+		"rival_leaders_down": leaders_down,
+		"rivals": rivals,
 		"leader_on_altar": lead != null and SiegeArena.on_altar(lead.global_position),
 		"vanguard": vanguard,
 		"altar_foes": altar_foes,
@@ -637,6 +976,9 @@ func _pick_focus() -> Node3D:
 		if d > FOCUS_RANGE or _in_camp(f):
 			continue
 		var score := focus_score(d, f.hp_ratio(), _kind(f), _escorts(f), f.under_guard(), f.capturing)
+		# Holding the castle: the guild nearest to taking it first.
+		if counter_team >= 0 and f.team == counter_team:
+			score += 6.0
 		# Whoever holds a switch for the other guild (killing it brings the barrier back
 		# for them, or opens it for us).
 		if f.switch_post >= 0 and SiegeArena.on_switch(f.global_position, f.switch_post):
@@ -644,7 +986,7 @@ func _pick_focus() -> Node3D:
 		if score > best_score:
 			best_score = score
 			best = f
-	if team == GuildFighter.TEAM_ENEMY and war.hero_alive():
+	if team != GuildFighter.TEAM_ALLY and war.hero_alive():
 		var hero := war.hero
 		var d := _flat(hero.global_position, at)
 		if d <= FOCUS_RANGE and not _in_camp(hero):
@@ -677,7 +1019,7 @@ func _pick_dive() -> Node3D:
 			best_score = score
 			best = f
 	var hero_kind := _kind(war.hero) if war.hero_alive() else KIND_OTHER
-	if team == GuildFighter.TEAM_ENEMY and hero_kind != KIND_OTHER and (hero_kind != KIND_LEADER or _escorts(war.hero) <= 1):
+	if team != GuildFighter.TEAM_ALLY and hero_kind != KIND_OTHER and (hero_kind != KIND_LEADER or _escorts(war.hero) <= 1):
 		var d := _flat(war.hero.global_position, at)
 		if d <= DIVE_RANGE and not _in_camp(war.hero) and focus_score(d, war.hero_hp_ratio(), hero_kind, _escorts(war.hero), false, false) > best_score:
 			best = war.hero
@@ -710,8 +1052,7 @@ func _kind(f: Node3D) -> int:
 ## How many of its own guild stand within 8 m of `who`.
 func _escorts(who: Node3D) -> int:
 	var n := 0
-	var side := war.enemies if team == GuildFighter.TEAM_ALLY else war.allies
-	for f in side:
+	for f in war.side(maxi(0, war.team_of(who))):
 		if f != who and not f.is_dead() and _flat(f.global_position, who.global_position) < 8.0:
 			n += 1
 	return n
@@ -719,8 +1060,10 @@ func _escorts(who: Node3D) -> int:
 
 ## Someone of the other guild standing in its own camp (nobody chases it there).
 func _in_camp(who: Node3D) -> bool:
-	var their_camp := Vector3(SiegeArena.BASE_X * (1.0 if team == GuildFighter.TEAM_ALLY else -1.0), 0, SiegeArena.BASE_Z)
-	return _flat(who.global_position, their_camp) < SiegeArena.CAMP_RADIUS
+	var t := maxi(0, war.team_of(who))
+	if t == war.castle_owner:
+		return _flat(who.global_position, SiegeArena.KEEP_CAMP) < SiegeArena.KEEP_SAFE
+	return _flat(who.global_position, SiegeArena.camp(t)) < SiegeArena.CAMP_RADIUS
 
 
 func _call_focus(target: Node3D) -> void:
@@ -842,7 +1185,7 @@ func _plan_switches(s: Dictionary) -> void:
 	var fought: Array = []
 	for k in SiegeArena.SWITCHES.size():
 		owned.append(war.switch_pin == team or (war.switch_pin < 0 and war.switch_owner[k] == team))
-		fought.append(war.switch_pin < 0 and (war.switch_contested[k] or war.switch_owner[k] == 1 - team))
+		fought.append(war.switch_pin < 0 and (war.switch_contested[k] or (war.switch_owner[k] >= 0 and war.switch_owner[k] != team)))
 	var sizes := squad_sizes(s, tactic, owned, fought)
 	contesting = bool(s.holding)
 	var ordered := war.party_switch >= 0 and war.front_gate() == null
@@ -974,6 +1317,10 @@ func apply() -> void:
 	var lead_dir := Vector3(at.x - leader_post.x, 0, at.z - leader_post.z) if guarded_post else Vector3.ZERO
 	lead_dir = lead_dir.normalized() if lead_dir.length() > 0.5 else fwd
 	var side_k := 0
+	# The assault on the altar (the gates down): a Defender at the leader's side and a screen.
+	var inside := guarded_post and war.front_gate() == null
+	var bodyguard := _bodyguard(side, ai_lead) if inside else null
+	var screen_dir := _screen_dir(leader_post) if inside else Vector3.ZERO
 	for f in side:
 		var r := _role(f, ai_lead)
 		f.focus = focus
@@ -996,6 +1343,20 @@ func apply() -> void:
 			f.dive = null
 			var spread := TAU * float(f.get_instance_id() % 7) / 7.0
 			f.goal_point = SiegeArena.SWITCHES[f.switch_post] + Vector3(cos(spread), 0, sin(spread)) * SiegeArena.SWITCH_RADIUS * 0.35
+			continue
+		if guarded_post and f == bodyguard:
+			# A Defender (or the sturdiest tank) at the leader's very side.
+			f.objective = null
+			f.hold_range = 6.0
+			f.goal_point = _in_bounds(leader_post + lead_dir * 1.3 + Vector3(-lead_dir.z, 0, lead_dir.x) * 1.2)
+			continue
+		if guarded_post and screen_dir != Vector3.ZERO and (r == ROLE_TANK or r == ROLE_MELEE) and _index[r] % 3 == 2:
+			# The screen: between the leader and the nearest foes.
+			_index[r] += 1
+			f.objective = null
+			f.hold_range = 8.0
+			f.goal_point = _in_bounds(leader_post + screen_dir * 5.0 + Vector3(-screen_dir.z, 0, screen_dir.x) * (float(side_k % 4) - 1.5) * 1.6)
+			side_k += 1
 			continue
 		if guarded_post and (r == ROLE_HEALER or r == ROLE_BARD):
 			# The healers and the bard keep at the waiting leader's side, a step ahead of it
@@ -1030,10 +1391,29 @@ func apply() -> void:
 				else:
 					f.goal_point = slot(at, fwd, r, i, _counts[r], depth)
 			DEFEND:
-				if capturing_foe:
+				if capturing_foe and deny_k >= 0 and i % 4 != 3:
+					# Quicker to cut a switch of theirs than to reach the leader.
+					f.objective = null
+					f.hold_range = 6.0
+					f.goal_point = SiegeArena.SWITCHES[deny_k]
+				elif capturing_foe and war.team_count() > 2 and war.castle_owner != team and i % 2 == 1:
+					# A war of more than two: only the strike group goes for the leader on the
+					# altar; the rest hold the throne room's door against the other guilds.
+					f.objective = null
+					f.hold_range = 9.0
+					f.goal_point = slot(Vector3(0, 0, SiegeArena.GATE_Z[2] - 6.0), Vector3(0, 0, 1), r, i / 2, maxi(1, _counts[r] / 2))
+				elif capturing_foe:
 					f.objective = null
 					f.hold_range = 0.0
 					f.goal_point = war.capturer().global_position
+				elif war.castle_owner == team and war.front_gate() != null and f != ai_lead:
+					# Out in front of both gates of the front tier (more on the one pressed harder).
+					var front := war.front_gates()
+					var g := defend_gate_for(f, front)
+					if g != null:
+						f.objective = null
+						f.hold_range = 12.0
+						f.goal_point = SiegeArena.gate_front(g.tier, g.lane) + Vector3(float(i % 5 - 2) * 1.6, 0, 1.5 + float(i / 5 % 3) * 1.4)
 		# The AI leader never charges in alone: it keeps to its place behind the tanks.
 		if f == ai_lead and tactic != DEFEND:
 			f.hold_range = 8.0 if depth < 0.0 else 5.0
@@ -1046,7 +1426,9 @@ func _update_rest(lead: GuildFighter) -> void:
 	var ours: bool = lead != null and war.capture.has("team") and int(war.capture.team) == team and war.capture.get("who") == lead
 	if not ours:
 		resting = false
+		evading = false
 		return
+	_read_wave(lead)
 	var hp := lead.hp_ratio()
 	if resting:
 		resting = hp < LEADER_RESTED
@@ -1056,12 +1438,42 @@ func _update_rest(lead: GuildFighter) -> void:
 		callout("rest", "หัวกิลเลือดน้อย! ถอยลงหลังแท่นให้ฮีลก่อน แล้วขึ้นนับต่อ")
 
 
+## On the altar (the count running or waiting): a stronger wave on its way makes the
+## leader step off behind the altar, the count waiting, until it has passed (at most
+## EVADE_MAX s, and never with the count all but done).
+func _read_wave(lead: GuildFighter) -> void:
+	var by_team := {}
+	for f in _foes():
+		if not f.is_dead() and _flat(f.global_position, SiegeArena.ALTAR) < WAVE_RADIUS:
+			by_team[f.team] = int(by_team.get(f.team, 0)) + 1
+	var incoming := 0
+	for t in by_team:
+		incoming = maxi(incoming, int(by_team[t]))
+	var guard := 0
+	for f in _side():
+		if f != lead and not f.is_dead() and _flat(f.global_position, SiegeArena.ALTAR) < GUARD_RADIUS:
+			guard += 1
+	var progress := float(war.capture.get("progress", 0.0))
+	if evading:
+		if incoming <= guard or clock - _evade_since > EVADE_MAX:
+			evading = false
+			_evade_since = clock
+			trace_line("back", "หัวหน้ากิลด์ %s กลับขึ้นแท่น นับต่อจาก %d/%d วิ" % [war.team_name(team), int(progress), int(GuildWarMatch.CAPTURE_TIME)])
+		return
+	if clock - _evade_since < EVADE_REST + EVADE_MAX and _evade_since > 0.0 and not evading and clock - _evade_since < EVADE_REST:
+		return
+	if incoming >= WAVE_MIN and incoming >= guard + WAVE_EDGE and progress < GuildWarMatch.CAPTURE_TIME * 0.7:
+		evading = true
+		_evade_since = clock
+		trace_line("evade", "หัวหน้ากิลด์ %s ถอยลงจากแท่นหลบคลื่นศัตรู %d คน (นับค้างไว้ %d/%d วิ)" % [war.team_name(team), incoming, int(progress), int(GuildWarMatch.CAPTURE_TIME)])
+
+
 func _foes_near(at: Vector3, radius: float) -> int:
 	var n := 0
 	for f in _foes():
 		if not f.is_dead() and _flat(f.global_position, at) < radius:
 			n += 1
-	if team == GuildFighter.TEAM_ENEMY and war.hero_alive() and _flat(war.hero.global_position, at) < radius:
+	if team != GuildFighter.TEAM_ALLY and war.hero_alive() and _flat(war.hero.global_position, at) < radius:
 		n += 1
 	return n
 
@@ -1074,13 +1486,24 @@ func _foes_near(at: Vector3, radius: float) -> int:
 ## never walks ahead of the guild into the other one's line; in the assault on the altar
 ## always LEADER_TRAIL behind that middle.
 func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) -> Vector3:
-	if resting:
+	# Holding the castle with the gates up: inside, behind the front tier (it walks through
+	# its own gates), out of the attackers' reach.
+	if war.castle_owner == team and war.front_gate() != null:
+		leader_covering = false
+		return Vector3(0, 0, SiegeArena.GATE_Z[war.front_tier()] - 9.0)
+	if resting or evading:
 		leader_covering = false
 		return _in_bounds(SiegeArena.ALTAR + forward * REST_BACK)
 	var cover := _cover_point(lead, fwd)
 	leader_covering = cover.is_finite()
 	if leader_covering:
 		return _in_bounds(cover)
+	# A war of more than two with the gates down: the leader waits close by the altar,
+	# behind it and its guard (the barrier opens only for a few seconds at a time).
+	if war.team_count() > 2 and war.front_gate() == null and war.castle_owner != team and tactic in [SECURE, ESCORT, GATHER, GUARD] and not leader_go:
+		var near := SiegeArena.ALTAR + forward * (SiegeArena.ALTAR_RADIUS + 3.5)
+		if _guard_near(near, lead) >= 2:
+			return _in_bounds(near)
 	match tactic:
 		DEFEND:
 			if war.castle_owner == team and war.front_gate() == null:
@@ -1129,7 +1552,11 @@ func _back_along(p: Vector3, front_at: Vector3, metres: float) -> Vector3:
 	var at := Vector3(p.x, 0.0, p.z)
 	var left := metres
 	for step in 3:
-		var camp := Vector3(SiegeArena.BASE_X * (-1.0 if team == GuildFighter.TEAM_ALLY else 1.0), 0, SiegeArena.BASE_Z)
+		var camp := war.home_of(team)
+		if _flat(at, camp) < SiegeArena.CAMP_RADIUS:
+			# In its camp already: straight back, away from the front.
+			var away := at - Vector3(front_at.x, 0.0, front_at.z)
+			return at + (away.normalized() if away.length() > 0.5 else Vector3(0, 0, 1)) * left
 		var next := SiegeArena.route(at, camp)
 		next.y = 0.0
 		var leg := _flat(at, next)
@@ -1143,7 +1570,7 @@ func _back_along(p: Vector3, front_at: Vector3, metres: float) -> Vector3:
 ## The way back from `p` towards the guild's own camp (round the walls, SiegeArena.route),
 ## or straight away from `front` when already at the camp.
 func _back_from(p: Vector3, front_at: Vector3) -> Vector3:
-	var camp := Vector3(SiegeArena.BASE_X * (-1.0 if team == GuildFighter.TEAM_ALLY else 1.0), 0, SiegeArena.BASE_Z)
+	var camp := war.home_of(team)
 	var to := SiegeArena.route(p, camp) - p
 	to.y = 0.0
 	if to.length() < 3.0:
@@ -1176,7 +1603,7 @@ func _cover_point(lead: GuildFighter, fwd: Vector3) -> Vector3:
 		if not f.is_dead() and _flat(f.global_position, lead.global_position) < LEADER_THREAT_RADIUS:
 			foes += 1
 			threat_at += f.global_position
-	if team == GuildFighter.TEAM_ENEMY and war.hero_alive() and _flat(war.hero.global_position, lead.global_position) < LEADER_THREAT_RADIUS:
+	if team != GuildFighter.TEAM_ALLY and war.hero_alive() and _flat(war.hero.global_position, lead.global_position) < LEADER_THREAT_RADIUS:
 		foes += 1
 		threat_at += war.hero.global_position
 	if foes == 0:
@@ -1210,6 +1637,39 @@ func _cover_point(lead: GuildFighter, fwd: Vector3) -> Vector3:
 		away = -fwd
 	var p := mates_at + away.normalized() * LEADER_COVER
 	return Vector3(p.x, 0.0, p.z)
+
+
+## The leader's bodyguard: a Defender of the guild near it, else its sturdiest tank.
+func _bodyguard(side: Array[GuildFighter], ai_lead: GuildFighter) -> GuildFighter:
+	if ai_lead == null:
+		return null
+	var best: GuildFighter = null
+	var best_score := -1.0e9
+	for f in side:
+		if f == ai_lead or f.is_dead() or f.switch_post >= 0 or f.capture_role or _role(f, ai_lead) != ROLE_TANK:
+			continue
+		var score := (20.0 if f.fighter_class() == &"defender" else 0.0) + 5.0 * f.hp_ratio() - 0.2 * _flat(f.global_position, ai_lead.global_position)
+		if score > best_score:
+			best_score = score
+			best = f
+	return best
+
+
+## From the leader's post towards the nearest group of foes within 22 m (ZERO for none).
+func _screen_dir(at: Vector3) -> Vector3:
+	if not at.is_finite():
+		return Vector3.ZERO
+	var sum := Vector3.ZERO
+	var n := 0
+	for f in _foes():
+		if not f.is_dead() and _flat(f.global_position, at) < 22.0:
+			sum += f.global_position
+			n += 1
+	if n == 0:
+		return Vector3.ZERO
+	var d := sum / float(n) - at
+	d.y = 0.0
+	return d.normalized() if d.length() > 0.5 else Vector3.ZERO
 
 
 func _role(f: GuildFighter, ai_lead: GuildFighter) -> int:

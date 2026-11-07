@@ -6,8 +6,10 @@ extends Node
 ## and the hero's HUD is hidden (no skill bar); this node is the watcher's own camera and
 ## board, a child of the war's zone (GuildWarMatch._build_spectate makes it).
 ##
-## spectate(tree, match_info) travels there: match_info is GuildWarData.roll_guild_match's
-## shape ({ally, enemy, ally_name, enemy_name, ally_power, enemy_power, guilds}) plus
+## spectate(tree, match_info) travels there: match_info is GuildWarData.roll_guild_war's
+## shape ({sides: [{lineup, name, guild, power}], guilds}: a league round of all four guilds;
+## or the older two-side {ally, enemy, ally_name, enemy_name, ...}) plus "owner" (the side
+## holding the castle when the round began, -1 nobody), "league_round" (the guilds by side),
 ## "elapsed" (seconds the war has run, 0..DURATION: the clock starts at what is left),
 ## "league_match" ([guild_a, guild_b], league ids or names) and "slot_start" (unix seconds);
 ## optional "ally_color" / "enemy_color". leave() goes back where the hero was, the same
@@ -15,7 +17,8 @@ extends Node
 ## to report() (GuildLeague.spectated_result) and the board.
 ##
 ## The camera follows the action by itself (the altar while someone takes it, else the
-## thickest fight) or one focus (the castle, side A, side B: the focus button cycles);
+## thickest fight) or one focus (the castle, then each guild in turn: the focus button
+## cycles); the board shows every guild (colour, name, falls, the castle's holder crowned);
 ## drag / swipe pans it, pinch / the wheel / a trackpad zooms it, on a phone and a desktop.
 
 signal focus_changed(index: int)
@@ -26,6 +29,8 @@ const FOCUS_CASTLE := 1
 const FOCUS_A := 2
 const FOCUS_B := 3
 const FOCUS_COUNT := 4
+## The board's cells, one a guild (names, falls, swatches) and the holder's crown mark.
+var _crowns: Array[Label] = []
 const MIN_DISTANCE := 14.0
 const MAX_DISTANCE := 85.0
 const START_DISTANCE := 30.0
@@ -180,6 +185,16 @@ static func _league(method: String, args: Array = []) -> Variant:
 ## (ally_guild / enemy_guild), else the league
 ## guild's (league_match ids or names, else the side's name), else blue / red.
 static func side_color(info: Dictionary, team: int) -> Color:
+	if info.get("sides") is Array:
+		var list: Array = info.sides
+		if team >= 0 and team < list.size():
+			var sd: Dictionary = list[team]
+			if sd.get("color") is Color:
+				return sd.color
+			var c: Variant = _league("color_of", [int(sd.get("guild", 0))]) if int(sd.get("guild", 0)) > 0 else null
+			if c is Color and c != Color.WHITE:
+				return c
+		return GuildWarMatch.HIRED_COLORS[posmod(team, GuildWarMatch.HIRED_COLORS.size())]
 	var key := "ally_color" if team == GuildFighter.TEAM_ALLY else "enemy_color"
 	if info.get(key) is Color:
 		return info[key]
@@ -227,6 +242,30 @@ static func demo_match(rng: RandomNumberGenerator, per_side := 20, names: Array 
 			power[team] += float(f.power)
 	return {"ally": sides[0], "enemy": sides[1], "ally_name": String(names[0]), "enemy_name": String(names[1]),
 		"ally_power": power[0], "enemy_power": power[1], "guilds": true}
+
+
+## Hired guilds of `per_side` fighters each, one per name, in roll_guild_war's shape (the
+## four-guild round): random classes, grades from the 100-star set up; `guild_ids` (the
+## league's, 0 for none) give each its colour.
+static func demo_war(rng: RandomNumberGenerator, per_side := 20, names: Array = ["Alpha", "Neverdie", "Titan", "3DLnw"], guild_ids: Array = [1, 2, 3, 4]) -> Dictionary:
+	var classes: Array = StarGearData.CLASSES.duplicate()
+	var used := {}
+	var sides: Array = []
+	for team in names.size():
+		var lineup: Array = []
+		var power := 0.0
+		for i in per_side:
+			var cls := StringName(classes[(i + team * 3) % classes.size()])
+			var grade: int = GuildWarData.GRADES[1 + rng.randi() % (GuildWarData.GRADES.size() - 1)]
+			var name: String = PvpData.NAMES[rng.randi() % PvpData.NAMES.size()]
+			while used.has(name):
+				name = "%s%d" % [PvpData.NAMES[rng.randi() % PvpData.NAMES.size()], used.size()]
+			used[name] = true
+			var f := GuildWarData.make_fighter(cls, grade, name, rng)
+			lineup.append(f)
+			power += float(f.power)
+		sides.append({"lineup": lineup, "name": String(names[team]), "guild": int(guild_ids[team]) if team < guild_ids.size() else 0, "power": power})
+	return {"sides": sides, "guilds": true}
 
 
 # ---------------------------------------------------------------------------
@@ -318,13 +357,18 @@ func _point_for(mode: int) -> Vector3:
 	match mode:
 		FOCUS_CASTLE:
 			return _castle_point()
-		FOCUS_A, FOCUS_B:
-			var team := GuildFighter.TEAM_ALLY if mode == FOCUS_A else GuildFighter.TEAM_ENEMY
-			var lead := m.ai_leader(team)
-			if lead != null and not lead.is_dead():
-				return _flat(lead.global_position)
-			return _middle(m.allies if team == GuildFighter.TEAM_ALLY else m.enemies, _castle_point())
+	if mode >= FOCUS_A and mode < focus_count():
+		var team := mode - FOCUS_A
+		var lead := m.ai_leader(team)
+		if lead != null and not lead.is_dead():
+			return _flat(lead.global_position)
+		return _middle(m.side(team), _castle_point())
 	return action_point()
+
+
+## How many focus modes there are: auto, the castle, then one a guild.
+func focus_count() -> int:
+	return FOCUS_A + (match_node.team_count() if match_node != null else 2)
 
 
 func _castle_point() -> Vector3:
@@ -388,7 +432,7 @@ static func _flat(p: Vector3) -> Vector3:
 
 ## The focus button: auto -> castle -> side A -> side B -> auto. The drag is dropped.
 func cycle_focus() -> int:
-	focus = (focus + 1) % FOCUS_COUNT
+	focus = (focus + 1) % focus_count()
 	pan = Vector3.ZERO
 	_manual_left = 0.0
 	_auto_left = AUTO_EVERY
@@ -403,10 +447,8 @@ func focus_name(mode := -1) -> String:
 	match which:
 		FOCUS_CASTLE:
 			return "ปราสาท"
-		FOCUS_A:
-			return "กิลด์ %s" % match_node.ally_name
-		FOCUS_B:
-			return "กิลด์ %s" % match_node.enemy_name
+	if which >= FOCUS_A and which < focus_count():
+		return "กิลด์ %s" % match_node.team_name(which - FOCUS_A)
 	return "ติดตามการรบ"
 
 
@@ -502,12 +544,13 @@ func _build_board() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	safe.add_child(root)
 	# The top centre: both guilds (colour, name, falls), the clock, the castle.
+	var many := match_node.team_count() > 2
 	var top := UIUtil.vbox(4)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.anchor_left = 0.5
 	top.anchor_right = 0.5
-	top.offset_left = -330
-	top.offset_right = 330
+	top.offset_left = -430 if many else -330
+	top.offset_right = 430 if many else 330
 	top.offset_top = 4
 	root.add_child(top)
 	var board := UIUtil.panel(&"HudPanel")
@@ -519,7 +562,9 @@ func _build_board() -> void:
 	var row := UIUtil.hbox(10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lines.add_child(row)
-	for team in 2:
+	if many:
+		_build_cells(lines)
+	for team in (0 if many else 2):
 		var swatch := ColorRect.new()
 		swatch.custom_minimum_size = Vector2(14, 30)
 		swatch.color = match_node.team_color(team)
@@ -536,8 +581,12 @@ func _build_board() -> void:
 		_kills.append(kills)
 	_clock = _outlined(UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_clock.custom_minimum_size = Vector2(96, 0)
-	for node in [_swatches[0], _names[0], _kills[0], _clock, _kills[1], _names[1], _swatches[1]]:
-		row.add_child(node)
+	if many:
+		row.add_child(_clock)
+		_clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	else:
+		for node in [_swatches[0], _names[0], _kills[0], _clock, _kills[1], _names[1], _swatches[1]]:
+			row.add_child(node)
 	_owner = _outlined(UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	lines.add_child(_owner)
 	_status = _outlined(UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
@@ -609,6 +658,52 @@ func _build_board() -> void:
 	_update_board()
 
 
+## The board of a war of more than two: a cell a guild (its colour, its crown while it
+## holds the castle, its name, its falls), side by side under the clock.
+func _build_cells(lines: VBoxContainer) -> void:
+	var cells := UIUtil.hbox(8)
+	cells.name = "GuildCells"
+	cells.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lines.add_child(cells)
+	for team in match_node.team_count():
+		var cell := UIUtil.hbox(4)
+		cell.name = "Guild%d" % team
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cells.add_child(cell)
+		var swatch := ColorRect.new()
+		swatch.custom_minimum_size = Vector2(10, 28)
+		swatch.color = match_node.team_color(team)
+		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_swatches.append(swatch)
+		cell.add_child(swatch)
+		var crown := _outlined(UIUtil.label(GuildLeague.CROWN, &"BoldLabel"))
+		crown.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
+		crown.visible = false
+		_crowns.append(crown)
+		cell.add_child(crown)
+		var name_label := _outlined(UIUtil.label(match_node.team_name(team), &"BoldLabel"))
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.clip_text = true
+		name_label.add_theme_color_override("font_color", match_node.team_color(team).lerp(Color.WHITE, 0.25))
+		_names.append(name_label)
+		cell.add_child(name_label)
+		var kills := _outlined(UIUtil.label("0", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER))
+		kills.custom_minimum_size = Vector2(40, 0)
+		kills.add_theme_font_size_override("font_size", 28)
+		_kills.append(kills)
+		cell.add_child(kills)
+
+
+## What the board shows for each guild now: [{name, kills, holder}] (tests).
+func board_rows() -> Array:
+	var out: Array = []
+	for team in _names.size():
+		out.append({"name": _names[team].text, "kills": int(_kills[team].text), "holder": team < _crowns.size() and _crowns[team].visible,
+			"color": _swatches[team].color})
+	return out
+
+
 static func _outlined(label: Label) -> Label:
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	label.add_theme_constant_override("outline_size", 6)
@@ -624,8 +719,10 @@ func _update_board() -> void:
 	var m := match_node
 	if _clock == null or m == null:
 		return
-	for team in 2:
+	for team in mini(_kills.size(), m.team_count()):
 		_kills[team].text = str(m.score[team])
+		if team < _crowns.size():
+			_crowns[team].visible = team == m.castle_owner
 	_clock.text = clock_text()
 	_owner.text = m.owner_line()
 	_owner.add_theme_color_override("font_color", m.owner_color().lerp(Color.WHITE, 0.2) if m.castle_owner >= 0 else Color("fff1b8"))
@@ -697,7 +794,13 @@ func _show_result(result: Dictionary) -> void:
 	heading.add_theme_color_override("font_color", match_node.team_color(winner).lerp(Color.WHITE, 0.2) if winner >= 0 else Color("fff1b8"))
 	column.add_child(heading)
 	var score: Array = result.get("score", [0, 0])
-	column.add_child(UIUtil.label("%s  %d  :  %d  %s%s" % [match_node.ally_name, int(score[0]), int(score[1]), match_node.enemy_name, "  (ต่อเวลา)" if bool(result.get("overtime", false)) else ""], &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	if match_node.team_count() > 2:
+		for row in result.get("places", []):
+			var line := UIUtil.label("%d. %s%s · ล้ม %d · ยึด %d · %d แต้ม" % [int(row.place), GuildLeague.CROWN + " " if bool(row.holder) else "", String(row.name), int(row.kills), int(row.captures), int(row.points)], &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+			line.add_theme_color_override("font_color", match_node.team_color(int(row.team)).lerp(Color.WHITE, 0.3))
+			column.add_child(line)
+	else:
+		column.add_child(UIUtil.label("%s  %d  :  %d  %s%s" % [match_node.ally_name, int(score[0]), int(score[1]), match_node.enemy_name, "  (ต่อเวลา)" if bool(result.get("overtime", false)) else ""], &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var castle := String(result.get("castle", ""))
 	column.add_child(UIUtil.label("ปราสาทเป็นของกิลด์ %s" % castle if castle != "" else "ไม่มีกิลด์ไหนยึดปราสาทได้ — ตัดสินจากจำนวนที่ล้มได้", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	column.add_child(UIUtil.label("การชมสงครามไม่มีรางวัล", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))

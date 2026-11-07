@@ -1,8 +1,8 @@
 extends Node
 ## The four-guild league (GuildLeague, WorldPlayers, GuildWarData): Alpha, Neverdie, Titan
 ## and 3DLnw; everyone picks a guild of its own and each guild has at least twenty who
-## reach Lv.100; three rounds a day at 12:00, 18:00 and 21:30 Thai, two wars a round, all
-## six pairs every day; registration closes five minutes before a round; the hero fights
+## reach Lv.100; three rounds a day at 12:00, 18:00 and 21:30 Thai, each round one castle
+## war of all four guilds; registration closes five minutes before a round; the hero fights
 ## only among its guild's strongest twenty; wars the hero does not fight get a seeded
 ## result from real power (the same after everything is worked out again); the hero's live
 ## result takes its war's place; old saves leave their guild once; the save stays valid;
@@ -107,53 +107,49 @@ func _guilds() -> void:
 func _schedule() -> void:
 	var first := WorldEvents.day_of(float(WorldPlayers.START_UNIX))
 	for d in range(first, first + 10):
-		var pairs := {}
 		var rounds := GuildLeague.rounds_on(d)
 		check(rounds.size() == 3, "three rounds on day %d" % d)
 		var times: Array = rounds.map(func(r): return GuildLeague.clock_text(int(r.at)))
 		check(times == ["12:00", "18:00", "21:30"], "rounds at 12:00, 18:00, 21:30 Thai (%s)" % [times])
 		for r in rounds:
 			check(WorldEvents.day_of(float(r.at)) == d, "a round is on its own Thai day")
-			var in_round := {}
-			for p in r.pairs:
-				pairs["%d-%d" % [mini(int(p[0]), int(p[1])), maxi(int(p[0]), int(p[1]))]] = true
-				in_round[int(p[0])] = true
-				in_round[int(p[1])] = true
-			check(in_round.size() == 4 and (r.pairs as Array).size() == 2, "two wars a round, every guild in one")
-		check(pairs.size() == 6, "day %d's rounds cover all six pairs (%s)" % [d, pairs.keys()])
-		check(GuildLeague.pairs_on(d, 0) != GuildLeague.pairs_on(d + 1, 0), "who meets at 12:00 rotates by the day")
+			check(r.guilds == [1, 2, 3, 4], "one war a round, all four guilds in it")
 	var at := GuildLeague.slot_start(first + 3, 1)
 	check(GuildLeague.live_slot(float(at)) == at and GuildLeague.live_slot(float(at) + GuildWarData.DURATION - 1.0) == at and GuildLeague.live_slot(float(at) + GuildWarData.DURATION) == -1, "a round is on for DURATION")
 	check(GuildLeague.next_slot(float(at) - 1.0) == at and GuildLeague.next_slot(float(at)) == GuildLeague.slot_start(first + 3, 2), "the next round")
 	check(GuildLeague.next_slot(float(GuildLeague.slot_start(first + 3, 2)) + 10.0) == GuildLeague.slot_start(first + 4, 0), "after 21:30 the next is tomorrow's 12:00")
-	check(GuildLeague.schedule(GuildLeague.week_of(float(at))).size() == 42, "42 wars a week")
+	check(GuildLeague.schedule(GuildLeague.week_of(float(at))).size() == 21, "21 rounds a week")
 
 
 func _seeded(w: int) -> void:
 	_hero(0)
 	var wars := GuildLeague.sim_wars(w)
-	check(wars.size() == 42, "every war of the week has a result (%d)" % wars.size())
+	check(wars.size() == 21, "every round of the week has a result (%d)" % wars.size())
 	var copy: Array = wars.duplicate(true)
 	GuildLeague._sim_cache.clear()
 	GuildLeague._power_cache.clear()
 	WorldPlayers.reset_roster()
 	check(GuildLeague.sim_wars(w) == copy, "the seeded results come out the same when worked out again (same on every device)")
-	# The stronger side by real fighter power wins more often.
-	var stronger_won := 0
+	# The stronger guilds by real fighter power place better more often.
+	var stronger_ahead := 0
+	var pairs := 0
 	for e in wars:
-		var pa := GuildLeague.side_power(int(e.a), int(e.at))
-		var pb := GuildLeague.side_power(int(e.b), int(e.at))
-		if (pa >= pb) == (int(e.win) == int(e.a)):
-			stronger_won += 1
-	check(stronger_won > wars.size() / 2, "the stronger guild wins most wars (%d of %d)" % [stronger_won, wars.size()])
+		var order := GuildLeague.placement(e)
+		for i in order.size():
+			for j in range(i + 1, order.size()):
+				pairs += 1
+				if GuildLeague.week_power(order[i], int(e.at)) >= GuildLeague.week_power(order[j], int(e.at)):
+					stronger_ahead += 1
+	check(stronger_ahead > pairs / 2, "the stronger guild places ahead more often (%d of %d)" % [stronger_ahead, pairs])
 	var e0: Dictionary = wars[0]
 	var p_manual := 0.0
-	for i in GuildWarData.best_members(int(e0.a), float(e0.at), GuildWarData.GUILD_SIDE):
+	var g0 := int(e0.g[0])
+	for i in GuildWarData.best_members(g0, float(e0.at), GuildWarData.GUILD_SIDE):
 		p_manual += float(WorldPlayers.fighter(i, float(e0.at)).power)
-	check(absf(p_manual - GuildLeague.side_power(int(e0.a), int(e0.at))) < 0.01, "a guild's might is its strongest twenty's fighter power")
+	check(absf(p_manual - GuildLeague.side_power(g0, int(e0.at))) < 0.01, "a guild's might is its strongest twenty's fighter power")
 	# Before anybody reaches Lv.100 there is no war.
 	var opening := GuildLeague.week_of(float(WorldPlayers.START_UNIX))
-	var none := GuildLeague.sim_war(GuildLeague.slot_start(WorldEvents.day_of(float(WorldPlayers.START_UNIX)) - 1, 0), 1, 2)
+	var none := GuildLeague.sim_round(GuildLeague.slot_start(WorldEvents.day_of(float(WorldPlayers.START_UNIX)) - 1, 0), 0)
 	check(none.is_empty(), "no members, no war")
 	check(GuildLeague.table(opening - 1, []).all(func(r): return int(r.points) == 0), "a week before the opening has no points")
 
@@ -181,7 +177,7 @@ func _registration(w: int) -> void:
 	pin(float(at) + GuildWarData.DURATION - 60.0)
 	check(GuildLeague.enter_problem() == "", "late is fine while the round runs")
 	var m := GuildLeague.enter_match()
-	check(int(m.ours) == WorldPlayers.ALPHA and int(m.theirs) == GuildLeague.opponent(WorldPlayers.ALPHA, at) and int(m.at) == at, "the war to enter is the round's (%s)" % [m])
+	check(m.guilds == [WorldPlayers.ALPHA, 2, 3, 4] and int(m.at) == at, "the war to enter is the round's, all four guilds, ours first (%s)" % [m])
 	pin(float(at) + GuildWarData.DURATION + 1.0)
 	check(GuildLeague.enter_problem() != "", "over when the round ends")
 	# Without registering: the round runs anyway, the hero can only watch.
@@ -189,8 +185,7 @@ func _registration(w: int) -> void:
 	pin(float(next) + 60.0)
 	check(not GuildLeague.registered(next) and GuildLeague.enter_problem().contains("ชม"), "not registered: watch only (%s)" % GuildLeague.enter_problem())
 	pin(float(next) + GuildWarData.DURATION + 60.0)
-	var pair: Array = GuildLeague.pairs_at(next)[0]
-	var state := GuildLeague.match_state(next, int(pair[0]), int(pair[1]))
+	var state := GuildLeague.round_state(next)
 	check(String(state.state) == "done" and not (state.war as Dictionary).is_empty(), "the round still ran on time and has a result")
 	# Outside a guild or below Lv.100: no registering.
 	_hero(0, 300)
@@ -202,7 +197,7 @@ func _registration(w: int) -> void:
 func _line_up(w: int) -> void:
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 3, 0)
 	var g := WorldPlayers.TITAN
-	var rival := GuildLeague.opponent(g, at)
+	var rival := WorldPlayers.ALPHA
 	# A weak hero (Lv.100, no stars) is outside its guild's strongest twenty.
 	_hero(g, 0)
 	var place := GuildLeague.hero_place(at)
@@ -232,38 +227,33 @@ func _line_up(w: int) -> void:
 	check(mates.size() == GuildWarData.GUILD_SIDE - 1, "the party screen offers the nineteen (%d)" % mates.size())
 	# Watching: both sides of a live war, twenty each.
 	pin(float(at) + 300.0)
-	var info := GuildLeague.live_match_info(g, rival)
-	check(not info.is_empty() and info.ally.size() == GuildWarData.GUILD_SIDE and info.enemy.size() == GuildWarData.GUILD_SIDE, "a live war to watch has both twenties")
-	check(bool(info.guilds) and info.league_match == [g, rival] and int(info.slot_start) == at and absf(float(info.elapsed) - 300.0) < 2.0, "with its guilds, round and time gone (%.0f s)" % float(info.get("elapsed", -1)))
-	check(String(info.ally_name) == WorldPlayers.guild_name(g) and float(info.enemy_power) > 0.0, "named and weighed")
-	check(GuildLeague.live_match_info(g, g).is_empty() and GuildLeague.live_match_info(g, rival, float(at) - 10.0).is_empty(), "nothing to watch off the schedule")
+	var info := GuildLeague.live_round_info()
+	check(not info.is_empty() and (info.sides as Array).size() == 4 and (info.sides as Array).all(func(sd): return (sd.lineup as Array).size() == GuildWarData.GUILD_SIDE), "a live round to watch has all four twenties")
+	check(bool(info.guilds) and info.league_round == [1, 2, 3, 4] and int(info.slot_start) == at and absf(float(info.elapsed) - 300.0) < 2.0, "with its guilds, round and time gone (%.0f s)" % float(info.get("elapsed", -1)))
+	check(String(info.sides[0].name) == WorldPlayers.guild_name(1) and float(info.sides[3].power) > 0.0, "named and weighed")
+	check(GuildLeague.live_round_info(float(at) - 10.0).is_empty(), "nothing to watch off the schedule")
 
 
 func _live_result(w: int) -> void:
 	_hero(WorldPlayers.NEVERDIE, 300)
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 4, 2)
-	var rival := GuildLeague.opponent(WorldPlayers.NEVERDIE, at)
-	var a := mini(WorldPlayers.NEVERDIE, rival)
-	var b := maxi(WorldPlayers.NEVERDIE, rival)
-	var sim := GuildLeague.sim_war(at, a, b)
+	var own := GuildLeague.start_holder(at)
+	var sim := GuildLeague.sim_round(at, own)
 	pin(float(at) + GuildWarData.DURATION + 600.0)
-	var before := GuildLeague.match_state(at, a, b)
+	var before := GuildLeague.round_state(at)
 	check(String(before.state) == "done" and before.war == sim and not bool(before.get("real", false)), "without the hero the seeded result stands")
-	# The hero fights it and loses: its live result takes the war's place.
-	var lose := 1 if int(sim.win) == WorldPlayers.NEVERDIE else 0
-	GuildLeague.current_match = {"ours": WorldPlayers.NEVERDIE, "theirs": rival, "at": at}
-	var result := {"won": lose == 0}
-	GuildLeague.war_finished(result, true, [0, 2], 1, [5, 25])
-	var after := GuildLeague.match_state(at, a, b)
-	check(bool(after.get("real", false)) and int(after.war.win) == (WorldPlayers.NEVERDIE if lose == 0 else rival), "the hero's live result counts")
-	check(int(after.war.held) == rival, "with who held the castle")
+	# The hero fights it (Neverdie first): its live result takes the round's place.
+	GuildLeague.current_match = {"guilds": [2, 1, 3, 4], "at": at, "owner": own}
+	GuildLeague.war_finished({"won": false}, true, [0, 2, 0, 0], 1, [5, 25, 3, 4])
+	var after := GuildLeague.round_state(at)
+	check(bool(after.get("real", false)) and int(after.war.held) == WorldPlayers.ALPHA and GuildLeague.placement(after.war)[0] == WorldPlayers.ALPHA, "the hero's live result counts, with who held the castle")
 	var t := float(at) + GuildWarData.DURATION + 600.0
 	var events := GuildLeague.events(w, GuildLeague.real_wars(w), t)
-	check(events.filter(func(e): return int(e.at) == at and ((int(e.a) == a and int(e.b) == b) or (int(e.a) == b and int(e.b) == a))).size() == 1, "one result for that war, not two")
+	check(events.filter(func(e): return int(e.at) == at).size() == 1, "one result for that round, not two")
 	# Fighting the same round again replaces the result, never doubles it.
-	GuildLeague.current_match = {"ours": WorldPlayers.NEVERDIE, "theirs": rival, "at": at}
-	GuildLeague.war_finished({"won": true}, true, [3, 0], 0, [40, 2])
-	check(GuildLeague.real_wars(w).size() == 1 and int(GuildLeague.match_state(at, a, b).war.win) == WorldPlayers.NEVERDIE, "a rejoined round keeps one result")
+	GuildLeague.current_match = {"guilds": [2, 1, 3, 4], "at": at, "owner": own}
+	GuildLeague.war_finished({"won": true}, true, [3, 0, 0, 0], 0, [40, 2, 1, 1])
+	check(GuildLeague.real_wars(w).size() == 1 and GuildLeague.placement(GuildLeague.round_state(at).war)[0] == WorldPlayers.NEVERDIE, "a rejoined round keeps one result")
 	pin(float(at) + 60.0)
 	check(GuildLeague.enter_problem() != "", "a round fought is not entered twice")
 
@@ -279,10 +269,10 @@ func _table(w: int) -> void:
 	var wins := 0
 	for r in rows:
 		wins += int(r.wins)
-	check(wins == 42, "42 wars, one winner each")
+	check(wins == 21, "21 rounds, one first place each")
 	var champ := GuildLeague.champion_of(w, [])
 	check(WorldPlayers.GUILDS.has(champ), "the champion is one of the four (%s)" % WorldPlayers.guild_name(champ))
-	# The castle holder walks back to the last round in which someone held it.
+	# The castle's holder carries from round to round.
 	var last_round := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_end(w) - 1.0), 2)
 	pin(float(last_round) + GuildWarData.DURATION + 10.0)
 	check(WorldPlayers.GUILDS.has(GuildLeague.holder(w, [], GuildLeague.now())), "someone holds the castle")
@@ -347,10 +337,16 @@ func _validation() -> void:
 	check(Game.guild() == 0, "an unknown guild id reads as none")
 	Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.LNW
 	check(Game.guild() == WorldPlayers.LNW, "guild 4 is real")
-	# A checkpoint keeps the league war's two guilds.
-	Game.guildwar_save_checkpoint(5, 600.0, false, [1, 2], 0, 0, 1800000000, {"league": [4, 1]})
+	# A checkpoint keeps the league round's guilds in team order.
+	Game.guildwar_save_checkpoint(5, 600.0, false, [1, 2, 3, 4], 0, 0, 1800000000, {"league": [4, 1, 2, 3], "teams": 4})
 	var saved := Game.guildwar_checkpoint()
-	check(saved.league == [4, 1] and int(saved.t0) == 1800000000, "a cut-off league war remembers its guilds")
+	check(saved.league == [4, 1, 2, 3] and int(saved.t0) == 1800000000 and saved.scores == [1, 2, 3, 4], "a cut-off league war remembers its guilds and scores")
+	# An old two-guild checkpoint still reads.
+	for k in 4:
+		Game.profile.flags.erase("gw_r_lg%d" % k)
+	Game.profile.flags["gw_r_la"] = 4
+	Game.profile.flags["gw_r_lb"] = 1
+	check(Game.guildwar_checkpoint().league == [4, 1], "an old checkpoint's pair is kept")
 	Game.guildwar_save_checkpoint(5, 600.0, false, [1, 2], 0, 0, 1800000000, {})
 	check((Game.guildwar_checkpoint().league as Array).is_empty(), "a practice war has none")
 	Game.guildwar_clear_checkpoint()
@@ -368,7 +364,9 @@ func _desk(w: int) -> void:
 	check(desk.find_child("LeagueSchedule", true, false) != null, "the desk shows the day's schedule")
 	var countdown := desk.find_child("LeagueCountdown", true, false) as Label
 	check(countdown != null and countdown.text.contains("12:00") and countdown.text.contains("ปิดรับสมัครใน"), "with a countdown to the next round (%s)" % (countdown.text if countdown else ""))
-	check(desk.find_children("Match_*", "", true, false).size() == 6, "six wars today")
+	check(desk.find_children("Round_*", "", true, false).size() == 3, "three rounds today, one war each")
+	var owner := desk.find_child("LeagueOwner", true, false) as Label
+	check(owner != null and owner.text != "", "the desk tells who holds the castle (%s)" % (owner.text if owner else ""))
 	var go := desk.find_child("EnterWar", true, false) as Button
 	check(go != null and go.disabled, "no war to enter before the round")
 	var practice := desk.find_child("PracticeWar", true, false) as Button
@@ -386,7 +384,8 @@ func _desk(w: int) -> void:
 	go = desk.find_child("EnterWar", true, false) as Button
 	check(go != null and not go.disabled, "the round is on: เข้าสู่สงคราม (%s)" % (go.text if go else ""))
 	var watch := desk.find_children("Watch_*", "Button", true, false)
-	check(watch.size() == 2, "ชมการแข่งขัน for each live war")
+	check(watch.size() == 1, "ชมการแข่งขัน for the live round")
+	check(go.text.contains("4 กิลด์"), "one war of all four guilds (%s)" % go.text)
 	go.pressed.emit()
 	await get_tree().process_frame
 	check(int(Game.guildwar_league.get("at", 0)) == at and desk.candidates.size() == GuildWarData.GUILD_SIDE - 1, "into the party screen with the line-up (%d)" % desk.candidates.size())
@@ -398,7 +397,7 @@ func _desk(w: int) -> void:
 	await get_tree().process_frame
 	go = desk.find_child("EnterWar", true, false) as Button
 	check(go != null and go.disabled, "not registered: no entering (%s)" % (go.text if go else ""))
-	check(desk.find_children("Watch_*", "Button", true, false).size() == 2, "but watching is open")
+	check(desk.find_children("Watch_*", "Button", true, false).size() == 1, "but watching is open")
 	desk.close_screen()
 	desk.queue_free()
 	get_tree().paused = false

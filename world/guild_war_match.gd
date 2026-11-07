@@ -1,19 +1,26 @@
 class_name GuildWarMatch
 extends Node
-## One guild war, a castle siege (SiegeArena): the hero and everyone in its guild against
-## everyone in the other guild for 30 minutes. Each guild comes from its camp (ours on the left, theirs on the
-## right), they meet on the plaza and cross the bridge to the castle, where three gates
-## (CastleGate) must be broken one after the other; broken gates stay broken. Behind them
-## is the throne room: whoever stands on the altar for CAPTURE_TIME seconds without falling
-## takes the castle for its guild, and the other guild may take it back the same way. The
-## guild holding the castle at the bell wins (with no holder, the most falls; a tie goes to
-## sudden death). The fallen come back at their camp after a few seconds and walk back.
+## One guild war, a castle siege (SiegeArena) of two to four guilds (teams; team 0 is the
+## hero's when it fights): a practice war is two hired guilds, a league round all four
+## guilds at once, every guild against every other (everyone not of a fighter's team is its
+## enemy: SiegeFighter, hostiles). Each guild comes from its own camp out on the field
+## (SiegeArena.CAMPS, all as far from the castle's approach), they meet on the plaza and
+## cross the bridge to the castle, where three tiers of gates (CastleGate; the first two
+## tiers have a left and a right gate, either one broken opens the tier) must be broken one
+## after the other; broken gates stay broken. Behind them is the throne room: whoever stands
+## on the altar for CAPTURE_TIME seconds without falling takes the castle for its guild, and
+## another guild may take it the same way. The guild holding the castle at the bell places
+## first; the others (and all of them with no holder) by points: falls dealt /
+## GuildLeague.KILLS_PER_POINT + captures * GuildLeague.CAPTURE (placement; a tie at the top
+## with no holder goes to sudden death). The fallen come back at their camp after a few
+## seconds and walk back.
 ## Each guild's AI makes its own plan from how the war stands (plan_for): rush the gate,
 ## hold the bridge and strike back, pull back and regroup, storm the altar, split to block
 ## the way in while one takes the altar, or defend the castle; plans are told in the feed.
 ## Two switches stand in the throne room's back corners (SiegeArena.SWITCHES): the altar is
-## shut behind a barrier for a guild until it holds both (someone of it in each circle,
-## nobody of the other guild); while the barrier is up its leader cannot start taking the
+## shut behind a barrier for a guild until it holds both (more of it in each circle than of
+## any other guild; in a war of more than two a switch also stays with its taker while its
+## circle is empty); while the barrier is up its leader cannot start taking the
 ## altar and a count going on waits where it is, until both are held again.
 
 signal finished(result: Dictionary)
@@ -21,8 +28,8 @@ signal feed(text: String, team: int)
 signal hero_down(seconds: float)
 signal hero_back()
 
-## Each guild lines up in rows of six at its camp (ours behind the hero's spot), this far
-## apart sideways and front to back, so fifty fighters never overlap.
+## Each guild lines up in rows of six at its camp facing the castle (ours behind the hero's
+## spot), this far apart sideways and front to back, so eighty fighters never overlap.
 const ROW_SLOTS := 6
 const ROW_GAP := 3.2
 const ROW_DEPTH := 3.4
@@ -50,6 +57,7 @@ const PLAN_NAMES := {
 	"split": "แบ่งทีม: ครึ่งหนึ่งขวางทางหน้าห้องบัลลังก์ อีกครึ่งคุ้มกันคนยึดแท่น",
 	"defend": "ล้อมแท่นปราสาท ตั้งรับ",
 	"forward": "ตั้งแนวรับหน้าห้องบัลลังก์ ไม่ให้ใครเข้าใกล้แท่น",
+	"gates": "ผู้ครองปราสาทออกมาตั้งรับหน้าประตูทั้งสองบาน",
 }
 const NEUTRAL_COLOR := Color("fff1b8")
 ## Parties (ปาร์ตี้): everyone in the war fights in a party of at most PARTY_SIZE. The hero
@@ -58,8 +66,8 @@ const NEUTRAL_COLOR := Color("fff1b8")
 ## skill: attack, guard, shield, songs...) reaches only the caster's own party; heals
 ## reach everyone near as before.
 const PARTY_SIZE := 5
-## The hero's party; the other parties of our guild count up from it, the rival guild's
-## from ENEMY_PARTY_BASE.
+## The hero's party; the other parties of our guild count up from it, team t's (t >= 1)
+## from ENEMY_PARTY_BASE * t.
 const HERO_PARTY := 0
 const ENEMY_PARTY_BASE := 100
 ## Name tags and HUD cells of the hero's party members.
@@ -78,11 +86,34 @@ var hero: Hero
 var state := "intro"
 var time_left := GuildWarData.DURATION
 var overtime := false
+## Falls dealt by each team (one entry a team).
 var score: Array[int] = [0, 0]
-var allies: Array[GuildFighter] = []
-var enemies: Array[GuildFighter] = []
-var ally_name := ""
-var enemy_name := ""
+## Each team's fighters (Array[GuildFighter] per team), names and league guild ids (0 for a
+## hired guild); team 0 is ours (the hero's) when the hero fights.
+var sides: Array = []
+var team_names: Array[String] = []
+var team_guilds: Array[int] = []
+## Each team's AI leader (a GuildFighter or null: team 0's is null while the hero leads).
+var leaders: Array = []
+## Team 0 and team 1 (older callers and the two-guild war).
+var allies: Array[GuildFighter]:
+	get:
+		return side(0)
+var enemies: Array[GuildFighter]:
+	get:
+		return side(1)
+var ally_name: String:
+	get:
+		return team_names[0] if team_names.size() > 0 else ""
+	set(v):
+		_ensure_teams(2)
+		team_names[0] = v
+var enemy_name: String:
+	get:
+		return team_names[1] if team_names.size() > 1 else ""
+	set(v):
+		_ensure_teams(2)
+		team_names[1] = v
 ## Unix time the war began (the guild members' progress is taken at this moment).
 var started_at := 0
 var hero_kills := 0
@@ -96,12 +127,22 @@ var castle_owner := -1
 ## Castle captures of each team this war (the weekly league counts them, GuildLeague).
 var captures: Array[int] = [0, 0]
 var capture: Dictionary = {}
-## The rival guild's leader (หัวหน้ากิลด์): the only one of its side who may take the
-## altar. Ours is the hero, or the member the player picked (ally_leader).
-var enemy_leader: GuildFighter
+## Team 1's leader (หัวหน้ากิลด์): the only one of its side who may take the altar. Ours is
+## the hero, or the member the player picked (ally_leader). See leaders for every team.
+var enemy_leader: GuildFighter:
+	get:
+		return _lead_at(1)
+	set(v):
+		_ensure_teams(2)
+		leaders[1] = v
 ## Our guild's leader when the player picked one of its members (Game.guild_leader_name);
 ## null when the hero leads.
-var ally_leader: GuildFighter
+var ally_leader: GuildFighter:
+	get:
+		return _lead_at(0)
+	set(v):
+		_ensure_teams(2)
+		leaders[0] = v
 ## The hero stood on the altar without leading (the hint is said once a visit).
 var _altar_hint := false
 ## Each guild's plan now (PLAN_NAMES keys; [ours, theirs]).
@@ -121,7 +162,7 @@ var resumed := false
 ## (it did not: the hero is dealt into a random party like everybody else).
 var party_picks: Array[int] = []
 var party_chosen := false
-## Both guilds' parties as roster indices (-1 is the hero), [ours, theirs]; ours[0] is the hero's.
+## Every team's parties as roster indices (-1 is the hero), team by team; ours[0] is the hero's.
 var party_plan: Array = [[], []]
 
 ## Watching (GuildWarSpectate): the watched war's match_info ({} while the hero fights).
@@ -130,7 +171,7 @@ var party_plan: Array = [[], []]
 var spectate: Dictionary = {}
 ## The spectator's camera and board (a child of the zone), while watching.
 var spectator: GuildWarSpectate
-## Both guilds' colours while watching ([side A, side B]).
+## Every guild's colour while watching (team by team).
 var _watch_colors: Array[Color] = []
 ## Tests and tools: the next war's line-ups (roll_guild_match's shape), taken once by build
 ## in place of the roll (e.g. 19 members and the hero against 20).
@@ -180,10 +221,149 @@ const MIRROR_WAIT := 45.0
 func setup(p_zone: Node3D, p_hero: Hero) -> void:
 	zone = p_zone
 	hero = p_hero
-	commanders = [GuildWarCommander.new(self, GuildFighter.TEAM_ALLY), GuildWarCommander.new(self, GuildFighter.TEAM_ENEMY)]
+	_ensure_teams(2)
+	SiegeArena.lane_open = [[false, false], [false, false]]
 
 
-## Rolls both guilds, raises the castle's gates and stands everybody in their camps. With a
+## How many guilds fight in this war.
+func team_count() -> int:
+	return sides.size()
+
+
+## Team `t`'s fighters (an empty list for a team that is not in the war).
+func side(t: int) -> Array[GuildFighter]:
+	if t >= 0 and t < sides.size():
+		return sides[t]
+	var none: Array[GuildFighter] = []
+	return none
+
+
+func _lead_at(t: int) -> GuildFighter:
+	if t < 0 or t >= leaders.size():
+		return null
+	var v: Variant = leaders[t]
+	return v as GuildFighter if v != null and is_instance_valid(v) else null
+
+
+## Sizes every per-team list for `n` teams (keeping what is there), and one commander per
+## team (the same brain for every guild).
+func _ensure_teams(n: int) -> void:
+	while sides.size() < n:
+		var list: Array[GuildFighter] = []
+		sides.append(list)
+	while team_names.size() < n:
+		team_names.append("")
+	while team_guilds.size() < n:
+		team_guilds.append(0)
+	while leaders.size() < n:
+		leaders.append(null)
+	while score.size() < n:
+		score.append(0)
+	while captures.size() < n:
+		captures.append(0)
+	while plans.size() < n:
+		plans.append("")
+	while party_plan.size() < n:
+		party_plan.append([])
+	while commanders.size() < n:
+		commanders.append(GuildWarCommander.new(self, commanders.size()))
+
+
+## Cuts every per-team list to `n` teams (a war of fewer guilds than the lists were made for).
+func _set_teams(n: int) -> void:
+	_ensure_teams(n)
+	sides.resize(n)
+	team_names.resize(n)
+	team_guilds.resize(n)
+	leaders.resize(n)
+	score.resize(n)
+	captures.resize(n)
+	plans.resize(n)
+	party_plan.resize(n)
+	commanders.resize(n)
+	for c in commanders:
+		c.spread(n)
+
+
+# --- Who is whose enemy (worked out once a physics frame for every fighter) --------
+
+var _lists_frame := -1
+var _hostiles: Array = []
+var _friends: Array = []
+var _foes: Array = []
+
+
+func _refresh_lists() -> void:
+	var frame := Engine.get_physics_frames() * 4096 + Engine.get_process_frames() % 4096
+	if frame == _lists_frame and _hostiles.size() == sides.size():
+		return
+	_lists_frame = frame
+	var n := sides.size()
+	var alive: Array = []
+	for t in n:
+		var up: Array[Node3D] = []
+		for f in sides[t]:
+			if is_instance_valid(f) and not f.is_dead():
+				up.append(f)
+		alive.append(up)
+	var hero_up := not spectating() and not mirror and is_instance_valid(hero) and not hero.is_dead() and not hero.spectating
+	var summons: Array[Node3D] = []
+	if is_inside_tree():
+		for node in get_tree().get_nodes_in_group("summons"):
+			if node is Node3D and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead():
+				summons.append(node)
+	_hostiles.clear()
+	_friends.clear()
+	_foes.clear()
+	for t in n:
+		var hostile: Array[Node3D] = []
+		var foe_list: Array[GuildFighter] = []
+		for o in n:
+			if o == t:
+				continue
+			hostile.append_array(alive[o])
+			foe_list.append_array(sides[o])
+		if t != GuildFighter.TEAM_ALLY:
+			if hero_up:
+				hostile.append(hero)
+			hostile.append_array(summons)
+		var friend: Array[Node3D] = (alive[t] as Array[Node3D]).duplicate()
+		if t == GuildFighter.TEAM_ALLY and hero_up:
+			friend.append(hero)
+		_hostiles.append(hostile)
+		_friends.append(friend)
+		_foes.append(foe_list)
+
+
+## Everyone standing that team `t` may hurt: the other teams' fighters, and (not for team 0)
+## the hero and its summons. Shared: callers must not change it.
+func hostiles(t: int) -> Array[Node3D]:
+	_refresh_lists()
+	if t >= 0 and t < _hostiles.size():
+		return _hostiles[t]
+	var none: Array[Node3D] = []
+	return none
+
+
+## Team `t`'s standing members (the hero for team 0). Shared: callers must not change it.
+func friends(t: int) -> Array[Node3D]:
+	_refresh_lists()
+	if t >= 0 and t < _friends.size():
+		return _friends[t]
+	var none: Array[Node3D] = []
+	return none
+
+
+## Every fighter of the other teams (standing or not). Shared: callers must not change it.
+func foes_of(t: int) -> Array[GuildFighter]:
+	_refresh_lists()
+	if t >= 0 and t < _foes.size():
+		return _foes[t]
+	var none: Array[GuildFighter] = []
+	return none
+
+
+## Rolls the guilds, raises the castle's gates and stands everybody in their camps. With a
 ## SceneTree it yields between fighters so a zone change does not stall (see FrameSlicer).
 func build(tree: SceneTree = null) -> void:
 	if mirror:
@@ -202,26 +382,34 @@ func build(tree: SceneTree = null) -> void:
 	else:
 		roll_seed = int(saved.seed)
 		rng.seed = roll_seed
-	# A league war (GuildLeague: the round the hero registered for and made the line-up
-	# of) is fought by both guilds' real strongest members as they were when the round
-	# began; anything else is a practice war of hired guilds (no league points).
+	# A league round (GuildLeague: the round the hero registered for and made the line-up
+	# of) is fought by every guild's real strongest members as they were when the round
+	# began, the castle held by the guild that held it after the round before (it defends
+	# from inside); anything else is a practice war of hired guilds (no league points).
 	started_at = int(saved.get("t0", 0)) if not saved.is_empty() and int(saved.get("t0", 0)) > 0 else int(WorldPresence.clock())
-	var league: Dictionary = Game.guildwar_league
+	var league := league_order(Game.guildwar_league)
 	Game.guildwar_league = {}
 	GuildLeague.current_match = {}
+	start_owner = -1
 	if not next_roster.is_empty():
 		# Tests and tools: the line-ups given (a practice war, no league points).
 		roster = next_roster
 		next_roster = {}
 		league = {}
+		start_owner = int(roster.get("owner", -1))
 	elif not saved.is_empty():
-		var pair: Array = saved.get("league", [])
-		league = {"ours": int(pair[0]), "theirs": int(pair[1]), "at": started_at} if pair.size() == 2 else {}
-	if not league.is_empty() and int(league.ours) == Game.guild():
+		var order: Array = saved.get("league", [])
+		league = {"guilds": order, "at": started_at} if order.size() >= 2 else {}
+	if not league.is_empty() and int((league.guilds as Array)[0]) == Game.guild():
 		started_at = int(league.at)
-		roster = GuildWarData.roll_guild_match(rng, int(league.ours), int(league.theirs), float(started_at))
+		roster = GuildWarData.roll_guild_war(rng, league.guilds, float(started_at))
 		if not roster.is_empty():
-			GuildLeague.current_match = {"ours": int(league.ours), "theirs": int(league.theirs), "at": started_at}
+			var playing: Array = []
+			for sd in roster.sides:
+				playing.append(int(sd.guild))
+			var held := GuildLeague.start_holder(started_at)
+			start_owner = playing.find(held) if held > 0 else -1
+			GuildLeague.current_match = {"guilds": playing, "at": started_at, "owner": held if start_owner >= 0 else 0}
 			# The hero on the field always holds one of the GUILD_SIDE places.
 			if (roster.ally as Array).size() >= GuildWarData.GUILD_SIDE:
 				(roster.ally as Array).resize(GuildWarData.GUILD_SIDE - 1)
@@ -230,63 +418,65 @@ func build(tree: SceneTree = null) -> void:
 				time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 60.0, GuildWarData.DURATION)
 	if roster.is_empty():
 		roster = GuildWarData.roll_match(rng)
-	ally_name = roster.ally_name
-	enemy_name = roster.enemy_name
+	_take_roster()
 	# Who leads each side (the player picks, Game.guild_war_leader): a picked member is
-	# always in its line-up. The rival's default leader (its strongest member) leads when
-	# in the line-up, else its best tank does, as always. One of the player's other
+	# always in its line-up. Another guild's default leader (its strongest member) leads
+	# when in the line-up, else its best tank does, as always. One of the player's other
 	# characters picked to lead is not in the war: the default leads instead (told below).
-	var ally_lead_name := ""
-	var enemy_lead_name := ""
+	var lead_names: Array[String] = []
+	lead_names.resize(team_count())
+	lead_names.fill("")
 	stand_ins.clear()
 	if bool(roster.get("guilds", false)):
 		var t0 := float(started_at)
-		var ours := Game.guild()
-		var rival := int(roster.get("enemy_guild", 0))
-		ally_lead_name = Game.guild_war_leader(ours, t0)
-		enemy_lead_name = Game.guild_war_leader(rival, t0)
-		ensure_member(roster.ally, ally_lead_name, t0, rng)
-		if String(Game.guild_leader_of(rival, t0).kind) == "member" and Game.guild_leader_pick(rival) == enemy_lead_name:
-			ensure_member(roster.enemy, enemy_lead_name, t0, rng)
-		for g in [ours, rival]:
+		for t in team_count():
+			var g := team_guilds[t]
+			if g <= 0:
+				continue
+			lead_names[t] = Game.guild_war_leader(g, t0)
+			var lineup: Array = _lineup(t)
+			if t == GuildFighter.TEAM_ALLY:
+				ensure_member(lineup, lead_names[t], t0, rng)
+			elif String(Game.guild_leader_of(g, t0).kind) == "member" and Game.guild_leader_pick(g) == lead_names[t]:
+				ensure_member(lineup, lead_names[t], t0, rng)
 			var chosen := Game.guild_leader_of(g, t0)
 			if String(chosen.kind) == "alt":
 				stand_ins[g] = String(chosen.name)
 	_take_picks(saved)
 	var party_rng := RandomNumberGenerator.new()
 	party_rng.seed = hash("gw_party|%d" % roll_seed)
-	party_plan = roll_parties(roster.ally.size(), roster.enemy.size(), party_picks, party_chosen, party_rng)
+	party_plan = roll_parties_n(_lineup_sizes(), party_picks, party_chosen, party_rng)
 	BurstGuard.clear()
-	# The rival guild's leader plays a tank's build of its own points (GuildWarData.tank_build),
-	# and so does ours when the player picked one of the members instead of the hero.
-	# The rival's leader is its toughest member (GuildWarData.leader_index) unless the
-	# player picked one for that guild.
-	var rival_pick := ""
-	if bool(roster.get("guilds", false)):
-		rival_pick = enemy_lead_name if Game.guild_leader_pick(int(roster.get("enemy_guild", 0))) != "" else ""
-	var lead_at := GuildWarData.leader_index(roster.enemy, rival_pick)
-	if lead_at >= 0:
-		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
-	var ally_lead_at := -1
-	if ally_lead_name != "":
-		for i in roster.ally.size():
-			if String(roster.ally[i].member.get("name", "")) == ally_lead_name:
-				ally_lead_at = i
-				break
-		if ally_lead_at >= 0:
-			roster.ally[ally_lead_at] = GuildWarData.tank_build(roster.ally[ally_lead_at])
-	var leads: Array = await _spawn_lineups(lead_at, ally_lead_at, tree)
-	var lead_fighter: GuildFighter = leads[0]
-	var ally_lead_fighter: GuildFighter = leads[1]
-	enemy_leader = lead_fighter if lead_fighter != null else pick_leader(enemies)
-	if enemy_leader != null:
-		enemy_leader.make_leader()
+	# Every other guild's leader plays a tank's build of its own points (GuildWarData.tank_build),
+	# and so does ours when the player picked one of the members instead of the hero. Its
+	# leader is its toughest member (GuildWarData.leader_index) unless the player picked one.
+	var lead_at: Array[int] = []
+	for t in team_count():
+		var lineup: Array = _lineup(t)
+		var at := -1
+		if t == GuildFighter.TEAM_ALLY:
+			if lead_names[t] != "":
+				for i in lineup.size():
+					if String(lineup[i].member.get("name", "")) == lead_names[t]:
+						at = i
+						break
+		else:
+			var pick := lead_names[t] if team_guilds[t] > 0 and Game.guild_leader_pick(team_guilds[t]) != "" else ""
+			at = GuildWarData.leader_index(lineup, pick)
+		if at >= 0:
+			lineup[at] = GuildWarData.tank_build(lineup[at])
+		lead_at.append(at)
+	var leads: Array = await _spawn_lineups(lead_at, tree)
+	for t in team_count():
+		var lead: GuildFighter = leads[t]
+		if lead == null and t != GuildFighter.TEAM_ALLY:
+			lead = pick_leader(side(t))
+		leaders[t] = lead
+		if lead != null:
+			lead.make_leader()
 	# Our leader: the member the player picked (the same crown, the altar is theirs), else
 	# the hero (with its own stats, like everyone).
-	ally_leader = ally_lead_fighter
-	if ally_leader != null:
-		ally_leader.make_leader()
-	elif is_instance_valid(hero):
+	if leaders[0] == null and is_instance_valid(hero):
 		LeaderMark.attach(hero, LeaderMark.guild_color(GuildFighter.TEAM_ALLY))
 	_tell_stand_ins()
 	_raise_castle(saved)
@@ -295,36 +485,124 @@ func build(tree: SceneTree = null) -> void:
 		_restore(saved)
 	else:
 		Game.guildwar_clear_checkpoint()
-	zone.banner_requested.emit("สงครามกิลด์ · %s ปะทะ %s" % [ally_name, enemy_name])
+	if castle_owner == GuildFighter.TEAM_ALLY and is_instance_valid(hero):
+		hero.global_position = hero_camp_now()
+	zone.banner_requested.emit("สงครามกิลด์ · %s" % " ปะทะ ".join(team_names))
 	if resumed:
 		Game.say("ต่อสงครามเดิม: %s · เหลือเวลา %d นาที — ศึกถูกเก็บไว้ทุก 10 วินาที" % [siege_status(), int(ceil(time_left / 60.0))], &"quest")
 		return
-	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): กิลด์ %s %d คน ปะทะกิลด์ %s %d คน — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น ยึดสวิตช์ซ้ายและขวาในห้องบัลลังก์ให้ครบเพื่อปลดบาเรีย แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, ally_name, roster.ally.size() + 1, enemy_name, roster.enemy.size(), int(CAPTURE_TIME)], &"quest")
+	var counts: PackedStringArray = []
+	for t in team_count():
+		counts.append("กิลด์ %s %d คน" % [team_names[t], side(t).size() + (1 if t == GuildFighter.TEAM_ALLY else 0)])
+	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) ยึดสวิตช์ซ้ายและขวาในห้องบัลลังก์ให้ครบเพื่อปลดบาเรีย แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
+	Game.say(owner_briefing(), &"quest")
 
 
-## Each guild stands in its camp party by party (the hero's party in the front row).
-## Returns [the rival leader's fighter, ours] (roster indices lead_at / ally_lead_at; null
-## when not spawned).
-func _spawn_lineups(lead_at: int, ally_lead_at: int, tree: SceneTree) -> Array:
-	var lead_fighter: GuildFighter = null
-	var ally_lead_fighter: GuildFighter = null
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
-		var lineup: Array = roster.ally if team == GuildFighter.TEAM_ALLY else roster.enemy
+## The camps' colours (team order) for the war the zone is about to hold: a watched war's
+## sides (GuildWarSpectate's pending match_info), a league round's guilds
+## (Game.guildwar_league, or the checkpoint's on a resume), else a practice war's two.
+static func arena_colors() -> Array:
+	var out: Array = []
+	if GuildWarSpectate.is_pending():
+		var info := GuildWarSpectate._pending
+		var n := (info.sides as Array).size() if info.get("sides") is Array else 2
+		for t in clampi(n, 2, 4):
+			out.append(GuildWarSpectate.side_color(info, t))
+		return out
+	var order: Array = league_order(Game.guildwar_league).get("guilds", [])
+	if order.is_empty() and Game.guildwar_resuming:
+		order = Game.guildwar_checkpoint().get("league", [])
+	if order.size() >= 2 and Game.guild() > 0:
+		for g in order:
+			out.append(WorldPlayers.GUILD_COLORS.get(int(g), Color.WHITE))
+		return out
+	return [HIRED_COLORS[0], HIRED_COLORS[1]]
+
+
+## The guild that held the castle when the war began (a team, -1 nobody): it starts and
+## comes back inside the castle (SiegeArena.KEEP_CAMP) and defends.
+var start_owner := -1
+
+
+## The league war to fight in team order {guilds: [ours, ...], at} from Game.guildwar_league
+## ({guilds, at} of GuildLeague.enter_match, or an older {ours, theirs, at}); {} for none.
+static func league_order(league: Dictionary) -> Dictionary:
+	if league.is_empty():
+		return {}
+	if league.has("guilds"):
+		var order: Array = []
+		for g in league.guilds:
+			order.append(int(g))
+		return {"guilds": order, "at": int(league.get("at", 0))} if order.size() >= 2 else {}
+	if league.has("ours") and league.has("theirs"):
+		return {"guilds": [int(league.ours), int(league.theirs)], "at": int(league.get("at", 0))}
+	return {}
+
+
+## The roster's sides (roll_guild_war's "sides", or the older ally / enemy pair) into the
+## per-team lists: names, guild ids and line-ups.
+func _take_roster() -> void:
+	if not roster.has("sides"):
+		roster["sides"] = [
+			{"lineup": roster.get("ally", []), "name": String(roster.get("ally_name", "")), "guild": int(roster.get("ally_guild", 0)), "power": float(roster.get("ally_power", 0.0))},
+			{"lineup": roster.get("enemy", []), "name": String(roster.get("enemy_name", "")), "guild": int(roster.get("enemy_guild", 0)), "power": float(roster.get("enemy_power", 0.0))},
+		]
+	var list: Array = roster.sides
+	_set_teams(clampi(list.size(), 2, SiegeArena.CAMPS.size()))
+	for t in team_count():
+		var sd: Dictionary = list[t]
+		team_names[t] = String(sd.get("name", ""))
+		team_guilds[t] = int(sd.get("guild", 0)) if bool(roster.get("guilds", false)) else 0
+	# The first two sides are the roster's ally / enemy too (the same arrays).
+	roster["ally"] = list[0].lineup
+	roster["enemy"] = list[1].lineup
+	start_owner = clampi(start_owner, -1, team_count() - 1)
+
+
+## Team t's line-up (roster entries; the arrays the fighters are built from).
+func _lineup(t: int) -> Array:
+	return (roster.sides as Array)[t].lineup
+
+
+func _lineup_sizes() -> Array[int]:
+	var out: Array[int] = []
+	for t in team_count():
+		out.append(_lineup(t).size())
+	return out
+
+
+## The desk and the war's briefing line about the castle: ours to defend, another guild's,
+## or nobody's.
+func owner_briefing() -> String:
+	if castle_owner < 0:
+		return "ยังไม่มีใครครองปราสาท — ทุกกิลด์เริ่มจากค่ายนอกปราสาท"
+	if castle_owner == GuildFighter.TEAM_ALLY and not spectating():
+		return "กิลด์ของคุณครองปราสาท — ป้องกันประตูและแท่นประทับ"
+	return "ปราสาทเป็นของกิลด์ %s — เริ่มอยู่ในปราสาทและป้องกันประตู" % team_name(castle_owner)
+
+
+## Each guild stands in its camp party by party (the hero's party in the front row): the
+## castle's holder inside the castle (KEEP_CAMP), the others in their own camps. Returns
+## every team's leader fighter (lead_at: its roster index; null when not spawned).
+func _spawn_lineups(lead_at: Array[int], tree: SceneTree) -> Array:
+	var out: Array = []
+	out.resize(team_count())
+	for team in team_count():
+		var lineup: Array = _lineup(team)
 		var slot := 0
+		var inside := team == start_owner
 		for p in (party_plan[team] as Array).size():
 			for i in party_plan[team][p]:
 				if int(i) < 0:
 					continue
-				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p
-				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size()), ally_name if team == GuildFighter.TEAM_ALLY else enemy_name, pid)
-				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
-				if team == GuildFighter.TEAM_ENEMY and int(i) == lead_at:
-					lead_fighter = fighter
-				elif team == GuildFighter.TEAM_ALLY and int(i) == ally_lead_at:
-					ally_lead_fighter = fighter
+				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE * team + p
+				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size(), inside), team_names[team], pid)
+				side(team).append(fighter)
+				if int(i) == lead_at[team]:
+					out[team] = fighter
 				slot += 1
 				await FrameSlicer.pace(tree)
-	return [lead_fighter, ally_lead_fighter]
+	return out
 
 
 # ---------------------------------------------------------------------------
@@ -341,46 +619,59 @@ func watch_elapsed() -> float:
 	return clampf(float(spectate.get("elapsed", 0.0)), 0.0, GuildWarData.DURATION - 1.0)
 
 
-## The watched war: both guilds from the match_info, AI on both sides (each led by its
-## toughest member, GuildWarData.leader_index), the hero out of it, the clock at what is
-## left of the war and the field as it plausibly stands by now (_apply_late).
+## The watched war: every guild from the match_info (its "sides", or the older ally /
+## enemy pair), AI on all sides (each led by its toughest member, GuildWarData.leader_index),
+## the hero out of it, the castle with the guild that held it when the round began
+## ("owner": a side, -1 nobody), the clock at what is left of the war and the field as it
+## plausibly stands by now (_apply_late).
 func _build_spectate(tree: SceneTree) -> void:
 	var info := spectate
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("gw_watch|%d|%s|%s" % [int(info.get("slot_start", 0)), String(info.get("ally_name", "")), String(info.get("enemy_name", ""))])
+	var names: PackedStringArray = []
+	if info.get("sides") is Array:
+		for sd in info.sides:
+			names.append(String(sd.get("name", "")))
+	else:
+		names = [String(info.get("ally_name", "")), String(info.get("enemy_name", ""))]
+	rng.seed = hash("gw_watch|%d|%s" % [int(info.get("slot_start", 0)), "|".join(names)])
 	roll_seed = int(rng.seed & 0x7fffffff)
 	started_at = int(info.get("slot_start", 0)) if int(info.get("slot_start", 0)) > 0 else int(WorldPresence.clock())
-	roster = {
-		"ally": (info.get("ally", []) as Array).duplicate(true), "enemy": (info.get("enemy", []) as Array).duplicate(true),
-		"ally_name": String(info.get("ally_name", "")), "enemy_name": String(info.get("enemy_name", "")),
-		"ally_power": float(info.get("ally_power", 0.0)), "enemy_power": float(info.get("enemy_power", 0.0)),
-		"guilds": bool(info.get("guilds", false)),
-		"ally_guild": int(info.get("ally_guild", 0)), "enemy_guild": int(info.get("enemy_guild", 0)),
-	}
-	ally_name = roster.ally_name
-	enemy_name = roster.enemy_name
-	_watch_colors = [GuildWarSpectate.side_color(info, GuildFighter.TEAM_ALLY), GuildWarSpectate.side_color(info, GuildFighter.TEAM_ENEMY)]
+	roster = {"guilds": bool(info.get("guilds", false))}
+	if info.get("sides") is Array:
+		roster["sides"] = (info.sides as Array).duplicate(true)
+	else:
+		roster.merge({
+			"ally": (info.get("ally", []) as Array).duplicate(true), "enemy": (info.get("enemy", []) as Array).duplicate(true),
+			"ally_name": String(info.get("ally_name", "")), "enemy_name": String(info.get("enemy_name", "")),
+			"ally_power": float(info.get("ally_power", 0.0)), "enemy_power": float(info.get("enemy_power", 0.0)),
+			"ally_guild": int(info.get("ally_guild", 0)), "enemy_guild": int(info.get("enemy_guild", 0)),
+		})
+	start_owner = int(info.get("owner", -1))
+	_take_roster()
+	_watch_colors.clear()
+	for t in team_count():
+		_watch_colors.append(GuildWarSpectate.side_color(info, t))
 	party_picks.clear()
 	# The hero's party is the hero alone (out of the war): every fighter is dealt.
 	party_chosen = true
 	var party_rng := RandomNumberGenerator.new()
 	party_rng.seed = hash("gw_party|%d" % roll_seed)
-	party_plan = roll_parties(roster.ally.size(), roster.enemy.size(), [], true, party_rng)
+	party_plan = roll_parties_n(_lineup_sizes(), [], true, party_rng)
 	BurstGuard.clear()
-	var lead_at := GuildWarData.leader_index(roster.enemy)
-	if lead_at >= 0:
-		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
-	var ally_lead_at := GuildWarData.leader_index(roster.ally)
-	if ally_lead_at >= 0:
-		roster.ally[ally_lead_at] = GuildWarData.tank_build(roster.ally[ally_lead_at])
+	var lead_at: Array[int] = []
+	for t in team_count():
+		var lineup: Array = _lineup(t)
+		var at := GuildWarData.leader_index(lineup)
+		if at >= 0:
+			lineup[at] = GuildWarData.tank_build(lineup[at])
+		lead_at.append(at)
 	_leave_war(hero)
-	var leads: Array = await _spawn_lineups(lead_at, ally_lead_at, tree)
-	enemy_leader = leads[0] if leads[0] != null else pick_leader(enemies)
-	if enemy_leader != null:
-		enemy_leader.make_leader()
-	ally_leader = leads[1] if leads[1] != null else pick_leader(allies)
-	if ally_leader != null:
-		ally_leader.make_leader()
+	var leads: Array = await _spawn_lineups(lead_at, tree)
+	for t in team_count():
+		var lead: GuildFighter = leads[t] if leads[t] != null else pick_leader(side(t))
+		leaders[t] = lead
+		if lead != null:
+			lead.make_leader()
 	_raise_castle({})
 	time_left = clampf(GuildWarData.DURATION - watch_elapsed(), 1.0, GuildWarData.DURATION)
 	_apply_late(watch_elapsed(), rng)
@@ -388,7 +679,7 @@ func _build_spectate(tree: SceneTree) -> void:
 	spectator.name = "GuildWarSpectate"
 	spectator.setup(self)
 	zone.add_child(spectator)
-	zone.banner_requested.emit("ชมสงครามกิลด์ · %s ปะทะ %s" % [ally_name, enemy_name])
+	zone.banner_requested.emit("ชมสงครามกิลด์ · %s" % " ปะทะ ".join(team_names))
 
 
 ## The hero watches from the stands: hidden, without a body in the field (no collision,
@@ -406,51 +697,76 @@ static func _leave_war(h: Hero) -> void:
 	h.process_mode = Node.PROCESS_MODE_DISABLED
 
 
-## Gates fall roughly this long into a war (seconds; both guilds at the gate, with the
-## to-and-fro of a real war): a watcher arriving late finds those already broken.
-const LATE_GATE_FALLS: Array[float] = [165.0, 371.0, 619.0]
-## About this many falls a minute on each side: the score a late watcher finds.
+## Gate tiers fall roughly this long into a war (seconds; every guild at the gates, with
+## the to-and-fro of a real war): a watcher arriving late finds those already broken (one
+## gate of a doubled tier, its lane by the seed).
+const LATE_GATE_FALLS: Array[float] = [190.0, 420.0, 660.0]
+## About this many falls a minute for each guild: the score a late watcher finds.
 const LATE_FALLS_PER_MINUTE := 1.6
 
 
 ## A watcher arriving `elapsed` seconds into the war finds it as it might stand by then:
 ## the gates that would have fallen are down, each guild has some falls, most fighters
-## are already out on the plaza (the rest just came back at their camp) and the
-## countdown is short (the war is on).
+## are already out on the field between their camp and the bridge (the rest just came
+## back at their camp) and the countdown is short (the war is on).
 func _apply_late(elapsed: float, rng: RandomNumberGenerator) -> void:
 	if elapsed <= 0.0:
 		return
-	for k in gates.size():
+	for k in SiegeArena.GATE_Z.size():
 		if k < LATE_GATE_FALLS.size() and elapsed >= LATE_GATE_FALLS[k]:
-			gates[k].set_broken_quietly()
+			var tier := gates_of_tier(k)
+			if not tier.is_empty():
+				tier[rng.randi() % tier.size()].set_broken_quietly()
 	_update_breakable()
 	var minutes := elapsed / 60.0
-	score = [int(round(minutes * LATE_FALLS_PER_MINUTE * rng.randf_range(0.7, 1.3))), int(round(minutes * LATE_FALLS_PER_MINUTE * rng.randf_range(0.7, 1.3)))]
+	for t in team_count():
+		score[t] = int(round(minutes * LATE_FALLS_PER_MINUTE * rng.randf_range(0.7, 1.3)))
 	if elapsed >= 30.0:
 		for f in all_fighters():
+			if f.team == castle_owner:
+				continue
 			if rng.randf() < 0.75:
-				var toward := -1.0 if f.team == GuildFighter.TEAM_ALLY else 1.0
-				f.position = Vector3(toward * rng.randf_range(4.0, 20.0), 0.3, SiegeArena.PLAZA.z + rng.randf_range(-6.0, 6.0))
+				var home := SiegeArena.camp(f.team)
+				var p := home.lerp(SiegeArena.APPROACH, rng.randf_range(0.55, 0.85)) + Vector3(rng.randf_range(-6.0, 6.0), 0, rng.randf_range(-4.0, 4.0))
+				f.position = Vector3(p.x, 0.3, maxf(p.z, SiegeArena.MOAT_SOUTH + 3.0))
 	_timer = 1.2
 	_count = 2
 
 
 ## Where fighter `index` of a guild of `count` stands in its camp: rows of ROW_SLOTS across
-## the field's z axis, the first row nearest the castle side, each row centred on the camp.
-## Our guild stands behind the hero's spot at (-BASE_X, BASE_Z), the rivals from BASE_X outwards.
-static func spawn_slot(team: int, index: int, count: int) -> Vector3:
-	var row := index / ROW_SLOTS
-	var col := index % ROW_SLOTS
-	var in_row := mini(ROW_SLOTS, count - row * ROW_SLOTS)
-	var z := SiegeArena.BASE_Z + (float(col) - (float(in_row) - 1.0) * 0.5) * ROW_GAP
+## the camp's way to the castle, the first row nearest the castle, each row centred on the
+## camp (ours behind the hero's spot at the camp's middle). `inside`: the castle holder's
+## camp in the throne room (SiegeArena.KEEP_CAMP, rows of KEEP_ROW facing the door).
+static func spawn_slot(team: int, index: int, count: int, inside := false) -> Vector3:
+	var per_row := SiegeArena.KEEP_ROW if inside else ROW_SLOTS
+	var row := index / per_row
+	var col := index % per_row
+	var in_row := mini(per_row, count - row * per_row)
+	var fwd := Vector3(0, 0, 1) if inside else SiegeArena.camp_forward(team)
+	var across := Vector3(-fwd.z, 0, fwd.x)
+	var center := SiegeArena.KEEP_CAMP if inside else SiegeArena.camp(team)
+	var lateral := (float(col) - (float(in_row) - 1.0) * 0.5) * ROW_GAP
 	var depth := float(row) * ROW_DEPTH + (ALLY_SETBACK if team == GuildFighter.TEAM_ALLY else 0.0)
-	var x := -(SiegeArena.BASE_X + depth) if team == GuildFighter.TEAM_ALLY else SiegeArena.BASE_X + depth
-	return Vector3(x, 0.3, z)
+	var p := center + across * lateral - fwd * depth
+	return Vector3(p.x, 0.3, p.z)
 
 
-## Where the hero comes back.
+## Where the hero comes back in a war it did not start holding the castle in (team 0's camp).
 static func hero_camp() -> Vector3:
-	return Vector3(-SiegeArena.BASE_X, 0.3, SiegeArena.BASE_Z)
+	var c := SiegeArena.camp(GuildFighter.TEAM_ALLY)
+	return Vector3(c.x, 0.3, c.z)
+
+
+## Where the hero comes back now: inside the castle while our guild holds it, else our camp.
+func hero_camp_now() -> Vector3:
+	return home_of(GuildFighter.TEAM_ALLY) + Vector3(0, 0.3, 0)
+
+
+## Team t's camp now (where it comes back): the keep while it holds the castle, else its own.
+func home_of(t: int) -> Vector3:
+	if t == castle_owner and castle_owner >= 0:
+		return SiegeArena.KEEP_CAMP
+	return SiegeArena.camp(t)
 
 
 ## Picks up a war that was cut off: the clock, the score, the broken gates and the castle's
@@ -459,7 +775,9 @@ func _restore(saved: Dictionary) -> void:
 	resumed = true
 	time_left = clampf(float(saved.time_left), 1.0, GuildWarData.DURATION)
 	overtime = bool(saved.overtime)
-	score = [int(saved.us), int(saved.them)]
+	var scores: Array = saved.get("scores", [int(saved.us), int(saved.them)])
+	for t in team_count():
+		score[t] = int(scores[t]) if t < scores.size() else 0
 	hero_kills = int(saved.kills)
 	hero_deaths = int(saved.deaths)
 	_timer = 3.2
@@ -472,8 +790,9 @@ func save_checkpoint() -> void:
 	var left: Array = []
 	for g in gates:
 		left.append(0 if g.is_dead() else int(ceil(1000.0 * float(g.hp) / float(maxi(1, g.max_hp)))))
+	var order: Array = GuildLeague.current_match.get("guilds", []) if not GuildLeague.current_match.is_empty() else []
 	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner, "picks": party_picks, "chosen": party_chosen,
-		"league": [int(GuildLeague.current_match.ours), int(GuildLeague.current_match.theirs)] if not GuildLeague.current_match.is_empty() else []})
+		"league": order, "teams": team_count()})
 
 
 # ---------------------------------------------------------------------------
@@ -556,6 +875,18 @@ static func roll_parties(ally_count: int, enemy_count: int, picks: Array, chosen
 	return [ours, split_parties(everyone_else, rng)]
 
 
+## Every team's parties (team by team, ours first as roll_parties deals them; each further
+## team dealt like the second).
+static func roll_parties_n(counts: Array[int], picks: Array, chosen: bool, rng: RandomNumberGenerator) -> Array:
+	var out := roll_parties(counts[0], counts[1] if counts.size() > 1 else 0, picks, chosen, rng)
+	for t in range(2, counts.size()):
+		var everyone: Array = []
+		for i in counts[t]:
+			everyone.append(i)
+		out.append(split_parties(everyone, rng))
+	return out
+
+
 ## The party a body in the war belongs to: the hero's (HERO_PARTY) for the hero, a
 ## fighter's own, a summon its summoner's; -1 for anything else.
 static func party_of(node: Variant) -> int:
@@ -630,18 +961,19 @@ func party_members(party: int) -> Array[GuildFighter]:
 func parties_of(team: int) -> Array[int]:
 	var out: Array[int] = []
 	for p in (party_plan[team] as Array).size():
-		out.append(p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p)
+		out.append(p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE * team + p)
 	return out
 
 
 func _spawn(info: Dictionary, team: int, at: Vector3, guild: String, party := -1) -> GuildFighter:
-	var fighter := GuildFighter.new()
+	var fighter := SiegeFighter.new()
 	fighter.setup_fighter(info, team, hero, at, "[%s]" % guild)
 	fighter.party = party
 	fighter.siege = self
 	fighter.position = at
 	zone.add_child(fighter)
-	fighter.visual.rotation.y = PI * 0.5 if team == GuildFighter.TEAM_ALLY else -PI * 0.5
+	var fwd := Vector3(0, 0, 1) if team == start_owner else SiegeArena.camp_forward(team)
+	fighter.visual.rotation.y = atan2(fwd.x, fwd.z)
 	fighter._yaw = fighter.visual.rotation.y
 	fighter.fell.connect(_on_fell)
 	fighter.slew_hero.connect(func(by: GuildFighter): _hero_killer = by)
@@ -650,8 +982,8 @@ func _spawn(info: Dictionary, team: int, at: Vector3, guild: String, party := -1
 
 func all_fighters() -> Array[GuildFighter]:
 	var out: Array[GuildFighter] = []
-	out.append_array(allies)
-	out.append_array(enemies)
+	for list in sides:
+		out.append_array(list)
 	return out
 
 
@@ -692,9 +1024,8 @@ var stand_ins := {}
 ## the field: "หัวหน้ากิลด์ X ไม่ได้ลงสนาม — Y นำทัพแทน".
 func stand_in_lines() -> Array[String]:
 	var out: Array[String] = []
-	var ours := Game.guild()
 	for g in stand_ins:
-		var team := GuildFighter.TEAM_ALLY if int(g) == ours else GuildFighter.TEAM_ENEMY
+		var team := maxi(0, team_guilds.find(int(g)))
 		var lead := leader_of(team)
 		var who := "คุณ" if lead == hero else (String((lead as GuildFighter).member.get("name", "")) if lead is GuildFighter else "ไม่มีใคร")
 		out.append("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม (ตัวละครของคุณที่ไม่ได้เล่นอยู่) — %s นำทัพ %s แทน" % [String(stand_ins[g]), who, WorldPlayers.guild_name(int(g))])
@@ -707,8 +1038,8 @@ func _tell_stand_ins() -> void:
 		feed.emit(line, GuildFighter.TEAM_ALLY)
 
 
-## A guild's leader: the hero for ours (or the member picked to lead it), the rival
-## guild's chosen one for theirs.
+## A guild's leader: the hero for ours (or the member picked to lead it), every other
+## guild's chosen one for it.
 func leader_of(team: int) -> Node3D:
 	if team == GuildFighter.TEAM_ALLY and hero_leads():
 		return hero if is_instance_valid(hero) else null
@@ -722,8 +1053,7 @@ func hero_leads() -> bool:
 
 ## A side's AI leader (a GuildFighter), null when the hero leads ours or it is gone.
 func ai_leader(team: int) -> GuildFighter:
-	var lead := ally_leader if team == GuildFighter.TEAM_ALLY else enemy_leader
-	return lead if lead != null and is_instance_valid(lead) else null
+	return _lead_at(team)
 
 
 ## Puts the member named `who` into `lineup` when it is not there (the player picked it
@@ -761,7 +1091,10 @@ func tactical_call(team: int, text: String) -> void:
 	if state != "fight":
 		return
 	var speaker := "สั่งการ" if team == GuildFighter.TEAM_ALLY and not spectating() else "หัวหน้า %s" % team_name(team)
+	if team_count() > 2 and not (team == GuildFighter.TEAM_ALLY and not spectating()):
+		speaker = "หัวหน้ากิลด์ %s" % team_name(team)
 	feed.emit("[%s] %s" % [speaker, text], team)
+	_trace("[%s] %s" % [speaker, text])
 	var over: Node3D = null
 	var lead := ai_leader(team)
 	if lead != null and not lead.is_dead():
@@ -830,7 +1163,7 @@ func _tick_fight(delta: float) -> void:
 		time_left -= delta
 		if time_left <= 0.0:
 			time_left = 0.0
-			if castle_owner < 0 and score[0] == score[1]:
+			if castle_owner < 0 and _top_tied():
 				overtime = true
 				zone.banner_requested.emit("เสมอ! ต่อเวลา — ใครยึดปราสาทหรือล้มศัตรูก่อนชนะ")
 				Game.say("ต่อเวลาพิเศษ: ฝ่ายแรกที่ยึดปราสาทได้หรือล้มศัตรูได้ชนะสงคราม", &"quest")
@@ -958,32 +1291,77 @@ static func in_view(planes: Array[Plane], point: Vector3, margin: float) -> bool
 
 
 func team_name(team: int) -> String:
-	return ally_name if team == GuildFighter.TEAM_ALLY else enemy_name
+	return team_names[team] if team >= 0 and team < team_names.size() else ""
+
+
+## Tests and tools: every tactical call and leader trace line, in order (kept short).
+var trace: Array[String] = []
+
+
+func _trace(line: String) -> void:
+	trace.append(line)
+	if trace.size() > 400:
+		trace.remove_at(0)
 
 
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
 
+## The team a blow came from (-1 unknown): a fighter's, a summon's summoner's, the hero
+## and its summons and the online party (team 0), a fighter's creatures its own.
+func team_of(who: Variant) -> int:
+	if who == null or not is_instance_valid(who):
+		return -1
+	if who is GuildFighter:
+		return (who as GuildFighter).team
+	if who is Hero:
+		return GuildFighter.TEAM_ALLY
+	if who is Summon:
+		return team_of((who as Summon).summoner)
+	if who is SummonMob:
+		return team_of((who as SummonMob).caster)
+	if (who as Node).is_in_group("remote_players"):
+		return GuildFighter.TEAM_ALLY
+	return -1
+
+
+## True when a blow by `attacker` on a castle gate comes from the guild holding the castle
+## (its own gates: the hit does nothing). A blow with no attacker is the hero's.
+static func owner_hit(attacker: Variant) -> bool:
+	if not in_war() or current.castle_owner < 0:
+		return false
+	var t := GuildFighter.TEAM_ALLY if attacker == null or not is_instance_valid(attacker) else current.team_of(attacker)
+	if t < 0 and attacker != null:
+		return false
+	return t == current.castle_owner
+
+
 func _on_fell(fighter: GuildFighter, killer: Node) -> void:
 	if state != "fight" or mirror:
 		return
-	var scoring_team := 1 - fighter.team
-	score[scoring_team] += 1
-	_tell_commanders(fighter.team)
+	var scoring := team_of(killer)
 	var by := "ไม่ทราบ"
 	if killer is GuildFighter:
 		by = (killer as GuildFighter).rival_name
 		(killer as GuildFighter).kills += 1
-	elif killer != null and EntitySync.name_of(killer) != "":
+	elif killer != null and is_instance_valid(killer) and EntitySync.name_of(killer) != "":
 		# A party member of ours playing online (its RemotePlayer struck the blow).
 		by = EntitySync.name_of(killer)
 	elif spectating():
-		pass  # a watched war: the hero struck nobody
-	elif killer == hero or killer == null:
+		scoring = -1  # a watched war: the hero struck nobody
+	elif fighter.team != GuildFighter.TEAM_ALLY and (killer == hero or killer == null or (killer is Summon and (killer as Summon).summoner == hero)):
 		by = "คุณ"
 		hero_kills += 1
-	feed.emit("%s ล้ม %s" % [by, fighter.rival_name], scoring_team)
+		scoring = GuildFighter.TEAM_ALLY
+	if scoring < 0 and team_count() == 2:
+		scoring = 1 - fighter.team
+	if scoring == fighter.team:
+		scoring = -1
+	if scoring >= 0:
+		score[scoring] += 1
+	_tell_commanders(fighter.team, scoring)
+	feed.emit("%s ล้ม %s" % [by, fighter.rival_name], scoring)
 	_after_score()
 
 
@@ -991,32 +1369,78 @@ func _on_hero_died() -> void:
 	if state != "fight":
 		return
 	hero_deaths += 1
-	score[1] += 1
-	_tell_commanders(GuildFighter.TEAM_ALLY)
-	var by := _hero_killer.rival_name if _hero_killer != null and is_instance_valid(_hero_killer) else "ศัตรู"
-	if _hero_killer != null and is_instance_valid(_hero_killer):
-		_hero_killer.kills += 1
+	var killer := _hero_killer if _hero_killer != null and is_instance_valid(_hero_killer) else null
+	var scoring := killer.team if killer != null else (1 if team_count() == 2 else -1)
+	if scoring >= 0 and scoring != GuildFighter.TEAM_ALLY:
+		score[scoring] += 1
+	_tell_commanders(GuildFighter.TEAM_ALLY, scoring)
+	var by := killer.rival_name if killer != null else "ศัตรู"
+	if killer != null:
+		killer.kills += 1
 	_hero_killer = null
-	feed.emit("%s ล้มคุณ" % by, GuildFighter.TEAM_ENEMY)
+	feed.emit("%s ล้มคุณ" % by, scoring)
 	hero_respawn_left = GuildWarData.RESPAWN
 	hero_down.emit(hero_respawn_left)
 	_after_score()
 
 
-## A fall of `team`: its commander remembers a loss, the other a kill (a lost fight
-## makes a guild fall back, GuildWarCommander.pick_tactic).
-func _tell_commanders(team: int) -> void:
-	if commanders.size() == 2:
+## A fall of `team` (to `by`, -1 unknown): its commander remembers a loss, the killer's a
+## kill, and every other guild sees the two trade (a lost fight makes a guild fall back,
+## GuildWarCommander.pick_tactic; a fight between two others is a chance, its leader_timing).
+func _tell_commanders(team: int, by := -1) -> void:
+	if team >= 0 and team < commanders.size():
 		commanders[team].on_loss()
-		commanders[1 - team].on_kill()
+	if by < 0 and team_count() == 2:
+		by = 1 - team
+	if by >= 0 and by < commanders.size() and by != team:
+		commanders[by].on_kill()
+		for c in commanders:
+			if c.team != team and c.team != by:
+				c.on_others_trade(team, by)
 
 
 func _after_score() -> void:
 	if mirror:
 		return
 	save_checkpoint()
-	if overtime and castle_owner < 0 and score[0] != score[1]:
+	if overtime and castle_owner < 0 and not _top_tied():
 		_end()
+
+
+# ---------------------------------------------------------------------------
+# Placement (the league's points of a war)
+# ---------------------------------------------------------------------------
+
+## A team's war points: falls dealt / GuildLeague.KILLS_PER_POINT + captures * CAPTURE.
+func war_points(t: int) -> int:
+	return GuildLeague.round_points(score[t], captures[t])
+
+
+## Every team, best first: the castle's holder at the bell, then by war points, then falls
+## dealt, then the lower team.
+func placement() -> Array[int]:
+	var order: Array[int] = []
+	for t in team_count():
+		order.append(t)
+	order.sort_custom(func(a, b):
+		if (a == castle_owner) != (b == castle_owner):
+			return a == castle_owner
+		if war_points(a) != war_points(b):
+			return war_points(a) > war_points(b)
+		if score[a] != score[b]:
+			return score[a] > score[b]
+		return a < b)
+	return order
+
+
+## With nobody holding the castle, the best two teams are level (sudden death).
+func _top_tied() -> bool:
+	var order := placement()
+	if order.size() < 2:
+		return false
+	var a := order[0]
+	var b := order[1]
+	return war_points(a) == war_points(b) and score[a] == score[b]
 
 
 func _respawn_hero() -> void:
@@ -1024,43 +1448,67 @@ func _respawn_hero() -> void:
 	Game.profile.hp = stats.max_hp
 	Game.profile.mp = stats.max_mp
 	hero.revive()
-	hero.global_position = hero_camp()
+	hero.global_position = hero_camp_now()
 	BurstGuard.forget(hero.get_instance_id())
 	VfxKit.flash(zone, hero.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.8)
 	hero_back.emit()
 
 
 # ---------------------------------------------------------------------------
-# The castle: three gates, then the altar
+# The castle: three tiers of gates (two on each of the first two), then the altar
 # ---------------------------------------------------------------------------
 
-## The gates (their strength set from the fighters', the same for each) and the altar's
-## crystal; after a resume, broken gates stay broken and the holder keeps the castle.
+## A gate of a doubled tier is this share of a single gate's strength (the guilds split
+## between the two, and either one opens the tier).
+const LANE_TOUGHNESS := 0.6
+
+
+## The gates (their strength set from the fighters', tier by tier) and the altar's crystal;
+## after a resume, broken gates stay broken and the holder keeps the castle. The castle's
+## holder (start_owner, or the checkpoint's) walks through its own gates (_gate_pass).
 func _raise_castle(saved: Dictionary) -> void:
-	var ours := 0.0 if spectating() else float(Game.stats_now().atk)
-	var theirs := 0.0
-	for f in allies:
-		ours += float(f.rstats.atk)
-	for f in enemies:
-		theirs += float(f.rstats.atk)
-	var gate_hp := maxf(200000.0, GATE_SECONDS * (ours + theirs) * GuildWarData.damage_scale)
+	var total := 0.0 if spectating() else float(Game.stats_now().atk)
+	for f in all_fighters():
+		total += float(f.rstats.atk)
+	var gate_hp := maxf(200000.0, GATE_SECONDS * total * GuildWarData.damage_scale)
 	var left: Array = saved.get("gates", [])
-	for k in SiegeArena.GATE_Z.size():
-		var gate := CastleGate.new()
-		gate.setup_gate(k, Vector3(0, 0, SiegeArena.GATE_Z[k]), int(gate_hp * GATE_TOUGHNESS[k]), hero)
-		gate.position = Vector3(0, 0, SiegeArena.GATE_Z[k])
-		zone.add_child(gate)
-		gate.broken.connect(_on_gate_broken)
-		if k < left.size():
-			if int(left[k]) <= 0:
-				gate.set_broken_quietly()
-			else:
-				gate.hp = clampi(int(ceil(float(gate.max_hp) * float(left[k]) / 1000.0)), 1, gate.max_hp)
-		gates.append(gate)
-	castle_owner = clampi(int(saved.get("owner", -1)), -1, 1)
-	# A resumed war remembers the holder, so at least its one capture.
-	if castle_owner >= 0:
+	# A checkpoint from before the doubled gates kept one value a tier: its left gate's.
+	var per_tier := left.size() == SiegeArena.GATE_Z.size()
+	var k := 0
+	for tier in SiegeArena.GATE_Z.size():
+		var lanes := SiegeArena.TIER_LANES[tier]
+		for lane in lanes:
+			var gate := CastleGate.new()
+			var at := Vector3(SiegeArena.gate_x(tier, lane), 0, SiegeArena.GATE_Z[tier])
+			var hp := gate_hp * GATE_TOUGHNESS[tier] * (LANE_TOUGHNESS if lanes > 1 else 1.0)
+			gate.setup_gate(k, at, int(hp), hero, tier, lane)
+			gate.position = at
+			zone.add_child(gate)
+			gate.broken.connect(_on_gate_broken)
+			var kept := -1
+			if per_tier:
+				kept = int(left[tier]) if lane == 0 else 1000
+			elif k < left.size():
+				kept = int(left[k])
+			if kept >= 0:
+				if kept <= 0:
+					gate.set_broken_quietly()
+				else:
+					gate.hp = clampi(int(ceil(float(gate.max_hp) * float(kept) / 1000.0)), 1, gate.max_hp)
+			gates.append(gate)
+			k += 1
+	castle_owner = clampi(int(saved.get("owner", start_owner)), -1, team_count() - 1)
+	# A resumed war remembers the holder, so at least its one capture (not the one it began
+	# with), and the holder starts again inside the castle.
+	if castle_owner >= 0 and castle_owner != start_owner:
 		captures[castle_owner] = maxi(captures[castle_owner], 1)
+		_rehome(castle_owner)
+		for f in side(castle_owner):
+			f.position = f.spawn_point
+		if start_owner >= 0:
+			_rehome(start_owner)
+			for f in side(start_owner):
+				f.position = f.spawn_point
 	var holder := Node3D.new()
 	holder.name = "AltarCrystal"
 	holder.position = SiegeArena.ALTAR
@@ -1072,16 +1520,86 @@ func _raise_castle(saved: Dictionary) -> void:
 	_raise_switches()
 	_color_crystal()
 	_update_breakable()
+	_gate_pass()
 
 
-## The first gate still standing (null once all three are down).
-func front_gate() -> CastleGate:
+## The castle's holder walks through its own gates, both ways (its fighters and, holding it
+## ourselves, the hero): each body ignores every gate standing; everyone else meets a door.
+## Called again when the castle changes hands (the new holder's gates are its own).
+func _gate_pass() -> void:
+	var bodies: Array = []
+	bodies.append_array(all_fighters())
+	if is_instance_valid(hero) and not spectating():
+		bodies.append(hero)
 	for g in gates:
-		if is_instance_valid(g) and not g.is_dead():
-			return g
-	return null
+		if not is_instance_valid(g) or g.is_dead():
+			continue
+		var blocker: Variant = g._blocker
+		for body in bodies:
+			if not is_instance_valid(body):
+				continue
+			var t := GuildFighter.TEAM_ALLY if body == hero else (body as GuildFighter).team
+			var through := t == castle_owner and castle_owner >= 0
+			for door in [g, blocker]:
+				if door == null or not is_instance_valid(door):
+					continue
+				if through:
+					(body as PhysicsBody3D).add_collision_exception_with(door)
+				else:
+					(body as PhysicsBody3D).remove_collision_exception_with(door)
 
 
+## Whether `body` walks through the castle's standing gates now (its guild holds the castle).
+func passes_gates(body: Node3D) -> bool:
+	if castle_owner < 0 or body == null or not is_instance_valid(body):
+		return false
+	return team_of(body) == castle_owner
+
+
+## The gates of tier k (the first two tiers have two, left and right).
+func gates_of_tier(k: int) -> Array[CastleGate]:
+	var out: Array[CastleGate] = []
+	for g in gates:
+		if is_instance_valid(g) and g.tier == k:
+			out.append(g)
+	return out
+
+
+## Whether tier k is open: one of its gates is broken.
+func tier_open(k: int) -> bool:
+	for g in gates_of_tier(k):
+		if g.is_dead():
+			return true
+	return false
+
+
+## The first tier still shut (SiegeArena.GATE_Z.size() once every tier is open).
+func front_tier() -> int:
+	for k in SiegeArena.GATE_Z.size():
+		if not tier_open(k):
+			return k
+	return SiegeArena.GATE_Z.size()
+
+
+## The front tier's gates still standing (the ones to batter); [] once every tier is open.
+func front_gates() -> Array[CastleGate]:
+	var k := front_tier()
+	var out: Array[CastleGate] = []
+	if k >= SiegeArena.GATE_Z.size():
+		return out
+	for g in gates_of_tier(k):
+		if not g.is_dead():
+			out.append(g)
+	return out
+
+
+## The first gate of the front tier still standing (null once every tier is open).
+func front_gate() -> CastleGate:
+	var list := front_gates()
+	return list[0] if not list.is_empty() else null
+
+
+## The gates still standing.
 func gates_left() -> int:
 	var n := 0
 	for g in gates:
@@ -1089,54 +1607,101 @@ func gates_left() -> int:
 	return n
 
 
+## Only the front tier's gates can be hurt; the way through a doubled tier follows its
+## broken gates (SiegeArena.lane_open).
 func _update_breakable() -> void:
-	var front := front_gate()
+	var front := front_gates()
 	for g in gates:
-		g.breakable = g == front and state != "ending"
+		g.breakable = front.has(g) and state != "ending"
+	var open: Array = []
+	for tier in 2:
+		var row: Array = []
+		for g in gates_of_tier(tier):
+			row.append(g.is_dead())
+		while row.size() < 2:
+			row.append(false)
+		open.append(row)
+	SiegeArena.lane_open = open
 
 
 func _on_gate_broken(gate: CastleGate) -> void:
+	var opened := not front_gates().has(gate) and front_tier() > gate.tier
 	_update_breakable()
+	var text := "%s พังแล้ว!" % CastleGate.gate_label(gate.tier, gate.lane)
+	if gates_of_tier(gate.tier).size() > 1:
+		text += " ทางผ่านชั้นที่ %d เปิด" % (gate.tier + 1)
 	if mirror:
-		var said := "ประตูปราสาทชั้นที่ %d พังแล้ว!" % (gate.gate_index + 1)
-		zone.banner_requested.emit(said)
-		feed.emit(said, -1)
+		zone.banner_requested.emit(text)
+		feed.emit(text, -1)
 		return
 	_make_plans()
-	var text := "ประตูปราสาทชั้นที่ %d พังแล้ว!" % (gate.gate_index + 1)
 	if front_gate() == null:
 		text = "ประตูชั้นสุดท้ายพัง! บุกห้องบัลลังก์ ยึดสวิตช์ซ้าย-ขวาให้ครบเพื่อปลดบาเรีย แล้วยืนบนแท่น %d วินาทีเพื่อยึดปราสาท" % int(CAPTURE_TIME)
-	zone.banner_requested.emit(text)
+	if opened or front_gate() == null:
+		zone.banner_requested.emit(text)
 	feed.emit(text, -1)
 	_assign_objectives()
 	save_checkpoint()
 
 
+## The front tier's gates as the HUD says them: "ประตูชั้น 1: ซ้าย 40% / ขวา 100%".
+func gate_status() -> String:
+	var k := front_tier()
+	if k >= SiegeArena.GATE_Z.size():
+		return "ประตูพังครบ 3 ชั้น"
+	var list := gates_of_tier(k)
+	if list.size() == 1:
+		return "ประตูชั้น %d/3 · %d%%" % [k + 1, _gate_pct(list[0])]
+	var parts: PackedStringArray = []
+	for g in list:
+		parts.append("%s %d%%" % [SiegeArena.LANE_NAMES[g.lane], _gate_pct(g)])
+	return "ประตูชั้น %d: %s" % [k + 1, " / ".join(parts)]
+
+
+static func _gate_pct(g: CastleGate) -> int:
+	return 0 if g.is_dead() else int(ceil(100.0 * float(g.hp) / float(maxi(1, g.max_hp))))
+
+
 ## How many of a side are standing, and how many it has (our side counts the hero).
 func _strength(team: int) -> Vector2i:
-	var side := allies if team == GuildFighter.TEAM_ALLY else enemies
 	var up := 0
-	for f in side:
+	var list := side(team)
+	for f in list:
 		up += 0 if f.is_dead() else 1
-	var total := side.size()
+	var total := list.size()
 	if team == GuildFighter.TEAM_ALLY and not spectating():
 		total += 1
 		up += 1 if is_instance_valid(hero) and not hero.is_dead() else 0
 	return Vector2i(up, maxi(1, total))
 
 
-## A guild's plan from how the war stands: with the gates up it rushes the gate, or holds
-## the bridge when the other guild has many more standing; with the gates down it storms
-## or splits (one group blocks the way into the throne room) while it does not hold the
-## castle, defends it (on the altar, or forward at the throne room's door when stronger)
-## while it does; it pulls back to regroup when most of it has fallen, until most are back.
+## The strongest other guild's standing (x) and size (y).
+func _rival_strength(team: int) -> Vector2i:
+	var best := Vector2i(0, 1)
+	for t in team_count():
+		if t != team:
+			var s := _strength(t)
+			if s.x > best.x:
+				best = s
+	return best
+
+
+## A guild's plan from how the war stands: holding the castle with the gates up it comes
+## out to guard them (gates); otherwise with the gates up it rushes the gate, or holds
+## the bridge when the strongest other guild has many more standing; with the gates down
+## it storms or splits (one group blocks the way into the throne room) while it does not
+## hold the castle, defends it (on the altar, or forward at the throne room's door when
+## stronger) while it does; it pulls back to regroup when most of it has fallen, until most
+## are back.
 func plan_for(team: int) -> String:
 	var mine := _strength(team)
-	var theirs := _strength(1 - team)
+	var theirs := _rival_strength(team)
 	var share := float(mine.x) / float(mine.y)
-	var was := plans[team]
+	var was := plans[team] if team < plans.size() else ""
 	var holding := castle_owner == team
 	var rival_taking := not capture.is_empty() and int(capture.team) != team
+	if holding and front_gate() != null:
+		return "gates"
 	if not holding and not rival_taking and (share < 0.4 or (was == "regroup" and share < 0.7)):
 		return "regroup"
 	if front_gate() != null:
@@ -1149,7 +1714,7 @@ func plan_for(team: int) -> String:
 
 
 func _make_plans() -> void:
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+	for team in team_count():
 		var plan := plan_for(team)
 		if plan != plans[team]:
 			plans[team] = plan
@@ -1165,35 +1730,48 @@ static func _spot(center: Vector3, k: int, radius: float, phase := 0.0) -> Vecto
 
 
 ## Who goes where under each guild's plan (and who of a guild not holding the castle is
-## sent onto the altar).
+## sent onto the altar). Each guild batters the gate its commander picked (target_gate).
 func _assign_objectives() -> void:
-	var gate := front_gate()
 	var throne_door := Vector3(0, 0, SiegeArena.GATE_Z[2] - 3.0)
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
-		var side := allies if team == GuildFighter.TEAM_ALLY else enemies
+	var front := front_gates()
+	for team in team_count():
+		var list := side(team)
 		var plan := plans[team] if plans[team] != "" else plan_for(team)
-		var toward := -1.0 if team == GuildFighter.TEAM_ALLY else 1.0
+		var home := SiegeArena.camp(team)
+		var back := (home - SiegeArena.APPROACH).normalized()
+		var c: GuildWarCommander = commanders[team] if team < commanders.size() else null
 		var k := 0
-		for f in side:
+		for f in list:
+			var gate: CastleGate = null if team == castle_owner else (c.gate_for(f) if c != null else front_gate())
 			f.capture_role = false
 			f.keep_back = false
 			f.hold_range = 0.0
 			f.objective = gate
 			match plan:
+				"gates":
+					# The holder out in front of the front tier's gates, party by party on
+					# both; it never batters its own gates.
+					f.objective = null
+					f.hold_range = 12.0
+					if front.is_empty():
+						f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.0)
+					else:
+						var g: CastleGate = c.defend_gate_for(f, front) if c != null else front[0]
+						f.goal_point = SiegeArena.gate_front(g.tier, g.lane) + Vector3(float(k % 5 - 2) * 1.6, 0, 1.5 + float(k / 5 % 3) * 1.4)
 				"regroup":
 					f.objective = null
 					f.hold_range = 14.0
-					f.goal_point = _spot(SiegeArena.PLAZA + Vector3(toward * 16.0, 0, 6.0), k, 4.0)
+					f.goal_point = _spot(home.lerp(SiegeArena.APPROACH, 0.45), k, 4.0)
 				"hold":
-					# Most hold the bridge foot on the plaza; one in four keeps at the gate.
+					# Most hold their side of the bridge foot; one in four keeps at the gate.
 					if k % 4 != 0:
 						f.objective = null
 						f.hold_range = 16.0
-						f.goal_point = _spot(Vector3(toward * 6.0, 0, -1.0), k, 3.0, PI * 0.5)
+						f.goal_point = _spot(SiegeArena.APPROACH + back * 12.0, k, 3.0, PI * 0.5)
 					else:
-						f.goal_point = SiegeArena.gate_front(gate.gate_index) + Vector3(float(k % 5 - 2) * 1.6, 0, 0) if gate != null else SiegeArena.ALTAR
+						f.goal_point = SiegeArena.gate_front(gate.tier, gate.lane) + Vector3(float(k % 5 - 2) * 1.6, 0, 0) if gate != null else SiegeArena.ALTAR
 				"rush":
-					f.goal_point = SiegeArena.gate_front(gate.gate_index) + Vector3(float(k % 7 - 3) * 1.3, 0, float(k / 7) * 1.8) if gate != null else SiegeArena.ALTAR
+					f.goal_point = SiegeArena.gate_front(gate.tier, gate.lane) + Vector3(float(k % 7 - 3) * 1.3, 0, float(k / 7) * 1.8) if gate != null else SiegeArena.ALTAR
 				"split":
 					# Party by party (a party keeps together, so its buffs reach it), one by one
 					# when the guild is one party.
@@ -1208,15 +1786,15 @@ func _assign_objectives() -> void:
 					f.goal_point = throne_door + Vector3(float(k % 9 - 4) * 1.4, 0, float(k / 9) * -1.6) if k % 3 != 0 else _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 1.5)
 				"defend":
 					f.hold_range = 12.0
-					f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.0, 0.0 if team == GuildFighter.TEAM_ALLY else PI / 10.0)
+					f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.0, PI / 10.0 * float(team))
 				_:
 					f.goal_point = _spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.5)
 			k += 1
-		if commanders.size() > team:
+		if team < commanders.size():
 			commanders[team].apply()
-	if gate != null:
+	if front_gate() != null:
 		return
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+	for team in team_count():
 		if castle_owner == team or plans[team] == "regroup":
 			continue
 		if not capture.is_empty() and int(capture.team) == team:
@@ -1224,15 +1802,16 @@ func _assign_objectives() -> void:
 				(capture.who as GuildFighter).capture_role = true
 			continue
 		# Only a guild's leader takes the altar: the hero presses to take it when it leads
-		# ours, an AI leader (theirs, or ours when picked) is sent up while it stands.
+		# ours, an AI leader is sent up while it stands.
 		var lead := ai_leader(team)
 		if lead == null:
 			continue
 		# It goes up inside its guard (its commander's escort), not alone; once on the
 		# altar it stays.
 		if not lead.is_dead():
-			var resting := commanders.size() == 2 and commanders[team].resting
-			if commanders.size() < 2 or commanders[team].allows_capture() or commanders[team].tactic == "" or (SiegeArena.on_altar(lead.global_position) and not resting):
+			var c: GuildWarCommander = commanders[team] if team < commanders.size() else null
+			var resting := c != null and c.stepping_off()
+			if c == null or c.allows_capture() or c.tactic == "" or (SiegeArena.on_altar(lead.global_position) and not resting):
 				lead.capture_role = true
 				lead.hold_range = 0.0
 
@@ -1268,6 +1847,23 @@ static func switch_holder(ours: int, theirs: int) -> int:
 	return -1
 
 
+## The holder of a switch with `counts[t]` living bodies of each team inside: the one team
+## with the most; -1 when empty or the most are level (contested).
+static func switch_holder_n(counts: Array) -> int:
+	var best := -1
+	var top := 0
+	var level := false
+	for t in counts.size():
+		var c := int(counts[t])
+		if c > top:
+			top = c
+			best = t
+			level = false
+		elif c == top and c > 0:
+			level = true
+	return -1 if level else best
+
+
 ## How many switches `team` holds now (0, 1 or 2).
 func switches_held(team: int) -> int:
 	if switch_pin >= 0:
@@ -1284,22 +1880,22 @@ func barrier_up(team: int) -> bool:
 	return switches_held(team) < 2
 
 
-## The living bodies inside switch `k`'s circle, [ours, theirs]: fighters, the hero and
+## The living bodies inside switch `k`'s circle, one count a team: fighters, the hero and
 ## (hosting online) the party members' players on our side.
-func count_switch(k: int) -> Vector2i:
-	var out := Vector2i.ZERO
-	for f in allies:
-		if is_instance_valid(f) and not f.is_dead() and SiegeArena.on_switch(f.global_position, k):
-			out.x += 1
-	for f in enemies:
-		if is_instance_valid(f) and not f.is_dead() and SiegeArena.on_switch(f.global_position, k):
-			out.y += 1
+func count_switch(k: int) -> Array[int]:
+	var out: Array[int] = []
+	out.resize(maxi(2, team_count()))
+	out.fill(0)
+	for t in team_count():
+		for f in side(t):
+			if is_instance_valid(f) and not f.is_dead() and SiegeArena.on_switch(f.global_position, k):
+				out[t] += 1
 	if not mirror and hero_alive() and SiegeArena.on_switch(hero.global_position, k):
-		out.x += 1
+		out[0] += 1
 	if not mirror and is_inside_tree():
 		for node in get_tree().get_nodes_in_group("remote_players"):
 			if node is Node3D and EntitySync.remote_alive(node) and SiegeArena.on_switch((node as Node3D).global_position, k):
-				out.x += 1
+				out[0] += 1
 	return out
 
 
@@ -1316,12 +1912,20 @@ func _tick_switches(delta: float) -> void:
 func read_switches() -> void:
 	for k in SiegeArena.SWITCHES.size():
 		var c := count_switch(k)
-		var holder := switch_holder(c.x, c.y)
-		# Level numbers in the circle keep it with the guild that held it (the challenger
-		# must outnumber the holders); an empty circle is held by nobody.
-		if holder < 0 and c.x > 0 and c.x == c.y and switch_owner[k] >= 0:
+		var holder := switch_holder_n(c)
+		var top: int = c.max()
+		var level := top > 0 and holder < 0
+		# Level numbers in the circle keep it with the guild that held it when it is one of
+		# the level ones (the challenger must outnumber the holders); an empty circle is held
+		# by nobody.
+		if level and switch_owner[k] >= 0 and switch_owner[k] < c.size() and c[switch_owner[k]] == top:
 			holder = switch_owner[k]
-		_set_switch(k, holder, c.x > 0 and c.x == c.y)
+		# A war of more than two guilds: a switch stays with the guild that took it while its
+		# circle stands empty (another guild must come and outnumber it there), or the
+		# barrier would almost never fall with three guilds always fighting over both.
+		if top == 0 and team_count() > 2:
+			holder = switch_owner[k]
+		_set_switch(k, holder, level)
 
 
 ## A switch changes hands (told in the feed, recoloured, the commanders told at once).
@@ -1329,7 +1933,9 @@ func _set_switch(k: int, holder: int, contested: bool) -> void:
 	var was := switch_owner[k]
 	if holder == was and contested == switch_contested[k]:
 		return
-	var had := [switches_held(GuildFighter.TEAM_ALLY), switches_held(GuildFighter.TEAM_ENEMY)]
+	var had: Array = []
+	for t in team_count():
+		had.append(switches_held(t))
 	switch_owner[k] = holder
 	switch_contested[k] = contested
 	_color_switch(k)
@@ -1340,14 +1946,14 @@ func _set_switch(k: int, holder: int, contested: bool) -> void:
 	if holder >= 0 and holder == was:
 		# Only the fight in the circle changed: the holders keep it while they are not outnumbered.
 		if contested:
-			feed.emit("%s ถูกแย่ง! กิลด์ %s ยังยึดไว้ได้ ต้องมีคนมากกว่าถึงจะชิงได้" % [label, team_name(holder)], 1 - holder)
+			feed.emit("%s ถูกแย่ง! กิลด์ %s ยังยึดไว้ได้ ต้องมีคนมากกว่าถึงจะชิงได้" % [label, team_name(holder)], -1)
 	elif holder >= 0:
 		feed.emit("กิลด์ %s ยึด%sได้" % [team_name(holder), label], holder)
 	elif was >= 0:
-		feed.emit(("%s ถูกแย่ง! กิลด์ %s เสียการยึด" if contested else "กิลด์ %s เสีย%s") % ([label, team_name(was)] if contested else [team_name(was), label]), 1 - was)
+		feed.emit(("%s ถูกแย่ง! กิลด์ %s เสียการยึด" if contested else "กิลด์ %s เสีย%s") % ([label, team_name(was)] if contested else [team_name(was), label]), -1)
 	elif contested:
-		feed.emit("สองกิลด์แย่ง%sกันอยู่" % label, -1)
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		feed.emit("หลายกิลด์แย่ง%sกันอยู่" % label if team_count() > 2 else "สองกิลด์แย่ง%sกันอยู่" % label, -1)
+	for team in team_count():
 		var now := switches_held(team)
 		if now == 2 and int(had[team]) < 2:
 			var text := "กิลด์ %s ยึดสวิตช์ครบทั้งสอง — บาเรียแท่นหายไป!" % team_name(team)
@@ -1363,13 +1969,25 @@ func _set_switch(k: int, holder: int, contested: bool) -> void:
 		c.on_switch_change()
 
 
-## Who holds each switch, for the online status: the team, -1 nobody, -2 contested and
-## held by nobody, 2 / 3 contested and still held by team 0 / 1.
+## Who holds each switch, for the online status as a party member sees the war (ours or
+## not: 0 our guild, 1 any other): -1 nobody, -2 contested and held by nobody, 2 / 3
+## contested and still held by ours / another.
 func switch_codes() -> Array:
 	var out: Array = []
 	for k in switch_owner.size():
-		out.append((2 + switch_owner[k] if switch_owner[k] >= 0 else -2) if switch_contested[k] else switch_owner[k])
+		var o := switch_owner[k]
+		var seen := -1 if o < 0 else mini(o, 1)
+		out.append((2 + seen if seen >= 0 else -2) if switch_contested[k] else seen)
 	return out
+
+
+## How the HUD names a holding guild: เรา / ศัตรู in a war of two the hero fights, else its name.
+func _holder_word(t: int) -> String:
+	if not spectating() and t == GuildFighter.TEAM_ALLY:
+		return "เรา"
+	if not spectating() and team_count() == 2:
+		return "ศัตรู"
+	return team_name(t)
 
 
 ## The HUD's chip for switch `k`: its name and who holds it.
@@ -1378,11 +1996,11 @@ func switch_text(k: int) -> String:
 	var holder := switch_owner[k] if switch_pin < 0 else switch_pin
 	if switch_contested[k] and switch_pin < 0:
 		if holder >= 0:
-			return "%s: %s (แย่งกัน)" % [label, "เรา" if holder == GuildFighter.TEAM_ALLY else "ศัตรู"]
+			return "%s: %s (แย่งกัน)" % [label, _holder_word(holder)]
 		return "%s: แย่งกัน" % label
 	if holder < 0:
 		return "%s: ว่าง" % label
-	return "%s: %s" % [label, "เรา" if holder == GuildFighter.TEAM_ALLY else "ศัตรู"]
+	return "%s: %s" % [label, _holder_word(holder)]
 
 
 func switch_color(k: int) -> Color:
@@ -1491,7 +2109,10 @@ func _color_switch(k: int) -> void:
 ## The dome over the altar stands unless some guild holds both switches.
 func _show_barrier() -> void:
 	if _barrier != null:
-		_barrier.visible = barrier_up(GuildFighter.TEAM_ALLY) and barrier_up(GuildFighter.TEAM_ENEMY)
+		var up := true
+		for t in team_count():
+			up = up and barrier_up(t)
+		_barrier.visible = up
 
 
 ## The rival guild's leader among spawned fighters: the fighter named `leader_name` (the
@@ -1555,7 +2176,7 @@ func _tick_capture(delta: float) -> void:
 	if front_gate() != null:
 		return
 	if capture.is_empty():
-		for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		for team in team_count():
 			var lead := ai_leader(team)
 			if lead != null and lead.capture_role and not lead.is_dead() and castle_owner != team and not barrier_up(team) and SiegeArena.on_altar(lead.global_position):
 				_start_capture(team, lead)
@@ -1572,7 +2193,7 @@ func _tick_capture(delta: float) -> void:
 	var on := SiegeArena.on_altar(who.global_position)
 	if who is GuildFighter:
 		# A leader stepping off to be healed (GuildWarCommander.resting) walks, it does not hold.
-		(who as GuildFighter).capturing = on and not (commanders.size() == 2 and commanders[team].resting)
+		(who as GuildFighter).capturing = on and not (team < commanders.size() and commanders[team].stepping_off())
 	var blocked := barrier_up(team)
 	if not on or blocked:
 		if not on and not bool(capture.get("paused", false)):
@@ -1583,11 +2204,14 @@ func _tick_capture(delta: float) -> void:
 			if zone != null and is_instance_valid(zone):
 				VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.4, 0), Color(BARRIER_COLOR, 1.0), 5.0)
 		capture["paused"] = true
-		var other_team := 1 - team
-		var other := ai_leader(other_team)
-		if other != null and not other.is_dead() and castle_owner != other_team and not barrier_up(other_team) and SiegeArena.on_altar(other.global_position):
-			_cancel_capture()
-			_start_capture(other_team, other)
+		for other_team in team_count():
+			if other_team == team:
+				continue
+			var other := ai_leader(other_team)
+			if other != null and not other.is_dead() and castle_owner != other_team and not barrier_up(other_team) and SiegeArena.on_altar(other.global_position):
+				_cancel_capture()
+				_start_capture(other_team, other)
+				break
 		return
 	if bool(capture.get("barrier", false)):
 		capture["barrier"] = false
@@ -1622,9 +2246,9 @@ func _cancel_capture(reason := "") -> void:
 	if who is GuildFighter and is_instance_valid(who):
 		(who as GuildFighter).capturing = false
 	if reason != "":
-		feed.emit("หัวหน้ากิลด์ %s %s — การยึดแท่นต้องนับใหม่!" % [team_name(int(capture.team)), reason], 1 - int(capture.team))
+		feed.emit("หัวหน้ากิลด์ %s %s — การยึดแท่นต้องนับใหม่!" % [team_name(int(capture.team)), reason], -1)
 	else:
-		feed.emit("การยึดแท่นของกิลด์ %s ถูกขัด!" % team_name(int(capture.team)), 1 - int(capture.team))
+		feed.emit("การยึดแท่นของกิลด์ %s ถูกขัด!" % team_name(int(capture.team)), -1)
 	capture = {}
 
 
@@ -1634,9 +2258,21 @@ func _complete_capture() -> void:
 	if who is GuildFighter and is_instance_valid(who):
 		(who as GuildFighter).capturing = false
 	capture = {}
+	var lost := castle_owner
 	castle_owner = team
 	captures[team] += 1
-	_send_home(1 - team)
+	# The castle is the new holder's: its gates let it through, the old holder's no more,
+	# and both come back at their new homes (the keep, their own camp).
+	_gate_pass()
+	_rehome(team)
+	if lost >= 0:
+		_rehome(lost)
+	if team_count() == 2:
+		_send_home(1 - team)
+	else:
+		for t in team_count():
+			if t != team:
+				_send_home(t, true)
 	_color_crystal()
 	_make_plans()
 	VfxKit.pillar(zone, SiegeArena.ALTAR, _owner_color(), 14.0, 1.6, 1.6)
@@ -1652,17 +2288,34 @@ func _complete_capture() -> void:
 
 ## The guild that lost the castle goes back to its base to regroup (the hero too when it
 ## is ours): to take it back it must storm up again and hold the altar CAPTURE_TIME anew.
-func _send_home(team: int) -> void:
-	for f in (allies if team == GuildFighter.TEAM_ALLY else enemies):
+## With `in_castle` only those inside the throne room go (a war of more than two: the
+## whole field is not swept for one capture).
+func _send_home(team: int, in_castle := false) -> void:
+	var sent := 0
+	for f in side(team):
 		if is_instance_valid(f) and not f.is_dead():
+			if in_castle and SiegeArena.section(f.global_position) < 4:
+				continue
 			f.send_home()
+			sent += 1
 			VfxKit.flash(zone, f.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.2)
-	if team == GuildFighter.TEAM_ALLY and is_instance_valid(hero) and not hero.is_dead():
+	if team == GuildFighter.TEAM_ALLY and is_instance_valid(hero) and not hero.is_dead() and not spectating() \
+			and not (in_castle and SiegeArena.section(hero.global_position) < 4):
+		sent += 1
 		hero.velocity = Vector3.ZERO
-		hero.global_position = hero_camp()
+		hero.global_position = hero_camp_now()
 		BurstGuard.forget(hero.get_instance_id())
 		VfxKit.flash(zone, hero.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.8)
-	feed.emit("กิลด์ %s ถูกส่งกลับฐาน ต้องบุกขึ้นมายึดแท่นใหม่ %d วินาที" % [team_name(team), int(CAPTURE_TIME)], team)
+	if sent > 0 or not in_castle:
+		feed.emit("กิลด์ %s ถูกส่งกลับฐาน ต้องบุกขึ้นมายึดแท่นใหม่ %d วินาที" % [team_name(team), int(CAPTURE_TIME)], team)
+
+
+## Team t's fighters come back at its home now (the keep while it holds the castle).
+func _rehome(t: int) -> void:
+	var list := side(t)
+	var inside := t == castle_owner
+	for i in list.size():
+		list[i].spawn_point = spawn_slot(t, i, list.size(), inside)
 
 
 ## The top bar's line: who holds the castle.
@@ -1677,7 +2330,9 @@ func capture_line() -> String:
 	if capture.is_empty():
 		if castle_owner < 0 or front_gate() != null:
 			return ""
-		return "ป้องกันแท่นไว้ อย่าให้อีกฝั่งยึดได้" if castle_owner == GuildFighter.TEAM_ALLY else "บุกขึ้นไปยึดแท่น %d วิ เพื่อชิงปราสาทคืน" % int(CAPTURE_TIME)
+		if spectating():
+			return ""
+		return "ป้องกันแท่นไว้ อย่าให้กิลด์อื่นยึดได้" if castle_owner == GuildFighter.TEAM_ALLY else "บุกขึ้นไปยึดแท่น %d วิ เพื่อชิงปราสาท" % int(CAPTURE_TIME)
 	var who := capturer()
 	var who_name := _who_name(who) if who != null else ""
 	if bool(capture.get("barrier", false)):
@@ -1697,15 +2352,23 @@ func _owner_color() -> Color:
 
 
 ## A guild's colour (its guild colour in a war between real guilds, else blue / red).
+## Hired guilds' colours by team (a practice war): blue, red, green, orange.
+const HIRED_COLORS: Array[Color] = [Color("4a8cff"), Color("ff5a4a"), Color("4fd36b"), Color("ffa63d")]
+
+
 func team_color(team: int) -> Color:
-	# Watching: both guilds' own colours (match_info ally_guild / enemy_guild, see
-	# GuildWarSpectate.side_color), whatever guild the hero is in.
-	if _watch_colors.size() == 2:
-		return _watch_colors[clampi(team, 0, 1)]
-	var guild := int(roster.get("ally_guild", Game.guild())) if team == GuildFighter.TEAM_ALLY else int(roster.get("enemy_guild", 0))
-	if Game.guild() > 0 and bool(roster.get("guilds", false)):
+	if team < 0:
+		return NEUTRAL_COLOR
+	# Watching: every guild's own colour (match_info, see GuildWarSpectate.side_color),
+	# whatever guild the hero is in.
+	if not _watch_colors.is_empty():
+		return _watch_colors[clampi(team, 0, _watch_colors.size() - 1)]
+	var guild := team_guilds[team] if team < team_guilds.size() else 0
+	if guild == 0 and team == GuildFighter.TEAM_ALLY:
+		guild = int(roster.get("ally_guild", 0))
+	if Game.guild() > 0 and bool(roster.get("guilds", false)) and guild > 0:
 		return WorldPlayers.GUILD_COLORS.get(guild, NEUTRAL_COLOR)
-	return Color("4a8cff") if team == GuildFighter.TEAM_ALLY else Color("ff5a4a")
+	return HIRED_COLORS[team % HIRED_COLORS.size()]
 
 
 ## The altar's crystal and the castle's banners take the holder's colour.
@@ -1733,10 +2396,7 @@ func _pulse_crystal(delta: float) -> void:
 func siege_status() -> String:
 	var parts: PackedStringArray = []
 	var gate := front_gate()
-	if gate != null:
-		parts.append("ประตูชั้นที่ %d/3 · %d%%" % [gate.gate_index + 1, int(ceil(100.0 * float(gate.hp) / float(maxi(1, gate.max_hp))))])
-	else:
-		parts.append("ประตูพังครบ 3 ชั้น")
+	parts.append(gate_status())
 	parts.append("ปราสาท: %s" % ("ยังไม่มีใครยึด" if castle_owner < 0 else "กิลด์ %s ยึดอยู่" % team_name(castle_owner)))
 	if not capture.is_empty():
 		parts.append("กิลด์ %s กำลังยึด %d/%d วิ" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME)])
@@ -1748,7 +2408,7 @@ func siege_status() -> String:
 ## The HUD's second line: who is standing on each side and our guild's plan.
 func sides_status() -> String:
 	var ours := _strength(GuildFighter.TEAM_ALLY)
-	var theirs := _strength(GuildFighter.TEAM_ENEMY)
+	var theirs := _rival_strength(GuildFighter.TEAM_ALLY)
 	var plan := String(PLAN_NAMES.get(plans[GuildFighter.TEAM_ALLY], ""))
 	var tactic := String(GuildWarCommander.TACTIC_NAMES.get(commanders[0].tactic, "")) if commanders.size() > 0 else ""
 	return "ยืนอยู่ %d/%d : %d/%d%s%s" % [ours.x, ours.y, theirs.x, theirs.y, (" · แผนเรา: " + plan) if plan != "" else "", (" (%s)" % tactic) if tactic != "" else ""]
@@ -1774,42 +2434,76 @@ func _end() -> void:
 	if spectating():
 		_end_watched()
 		return
-	var won := castle_owner == GuildFighter.TEAM_ALLY if castle_owner >= 0 else score[0] > score[1]
+	var order := placement()
+	var won := order[0] == GuildFighter.TEAM_ALLY if castle_owner >= 0 or team_count() > 2 else score[0] > score[1]
+	var place := order.find(GuildFighter.TEAM_ALLY) + 1
 	var rows: Array = [{"name": "คุณ", "class": String(Game.class_id()), "team": GuildFighter.TEAM_ALLY, "kills": hero_kills, "deaths": hero_deaths, "assists": 0, "grade": -1}]
 	for f in all_fighters():
 		rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade, "tag": f.tag})
-	_result = Game.guildwar_finish(won, score[0], score[1], hero_kills, hero_deaths, ally_name, enemy_name, rows)
+	var rivals: PackedStringArray = []
+	var best_rival := 0
+	for t in range(1, team_count()):
+		rivals.append(team_name(t))
+		best_rival = maxi(best_rival, score[t])
+	_result = Game.guildwar_finish(won, score[0], best_rival if team_count() > 2 else score[1], hero_kills, hero_deaths, ally_name, " / ".join(rivals), rows)
 	_result["rows"] = rows
 	_result["overtime"] = overtime
 	_result["castle"] = team_name(castle_owner) if castle_owner >= 0 else ""
 	_result["castle_ours"] = castle_owner == GuildFighter.TEAM_ALLY
+	_result["placement"] = place
+	_result["places"] = _places(order)
+	_result["team_names"] = Array(team_names)
 	GuildLeague.war_finished(_result, bool(roster.get("guilds", false)), captures, castle_owner, score)
-	zone.banner_requested.emit("ชนะสงคราม! ยึดปราสาทได้" if won and castle_owner == GuildFighter.TEAM_ALLY else ("ชนะสงคราม!" if won else "พ่ายแพ้สงคราม"))
+	var head := "ชนะสงคราม!" if won else "พ่ายแพ้สงคราม"
+	if team_count() > 2:
+		head = "อันดับ 1! ชนะสงคราม" if won else "จบอันดับ %d จาก %d กิลด์" % [place, team_count()]
+	zone.banner_requested.emit(head + (" ยึดปราสาทได้" if won and castle_owner == GuildFighter.TEAM_ALLY else ""))
 	if won and is_instance_valid(hero):
 		hero.level_up_fx()
 		AudioManager.play_sfx(&"quest_complete")
 
 
-## The bell of a watched war: who won (the castle's holder, else the most falls), the
+## The standings for the boards: [{team, name, place, kills, captures, points, holder}] best first.
+func _places(order: Array[int]) -> Array:
+	var out: Array = []
+	for i in order.size():
+		var t := order[i]
+		out.append({"team": t, "name": team_name(t), "place": i + 1, "kills": score[t], "captures": captures[t], "points": war_points(t), "holder": t == castle_owner})
+	return out
+
+
+## The bell of a watched war: the placement (the castle's holder, then points), the
 ## scoreboard and the hook for the league (GuildWarSpectate.report). Nothing is paid.
 func _end_watched() -> void:
-	var winner := castle_owner
-	if winner < 0 and score[0] != score[1]:
-		winner = GuildFighter.TEAM_ALLY if score[0] > score[1] else GuildFighter.TEAM_ENEMY
+	var order := placement()
+	var winner := order[0]
+	if castle_owner < 0 and _top_tied():
+		winner = -1
 	var rows: Array = []
 	for f in all_fighters():
 		if is_instance_valid(f):
 			rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade, "tag": f.tag})
 	_result = {
 		"spectated": true, "winner": winner, "winner_name": team_name(winner) if winner >= 0 else "",
-		"ally_name": ally_name, "enemy_name": enemy_name, "score": [score[0], score[1]],
-		"captures": [captures[0], captures[1]], "castle_owner": castle_owner,
-		"castle": team_name(castle_owner) if castle_owner >= 0 else "", "overtime": overtime,
-		"rows": rows, "league_match": spectate.get("league_match", []), "slot_start": int(spectate.get("slot_start", 0)),
+		"ally_name": ally_name, "enemy_name": enemy_name, "score": Array(score), "team_names": Array(team_names),
+		"captures": Array(captures), "castle_owner": castle_owner, "start_owner": start_owner,
+		"castle": team_name(castle_owner) if castle_owner >= 0 else "", "overtime": overtime, "places": _places(order),
+		"rows": rows, "league_match": spectate.get("league_match", []), "league_round": spectate.get("league_round", []),
+		"slot_start": int(spectate.get("slot_start", 0)),
 	}
 	GuildWarSpectate.report(spectate, _result)
 	zone.banner_requested.emit(("กิลด์ %s ชนะสงคราม!" % team_name(winner)) if winner >= 0 else "สงครามจบลงด้วยผลเสมอ")
 	AudioManager.play_sfx(&"quest_complete")
+
+
+## The HUD's score line: "A 3 : 5 B" for two guilds, "A 3 · B 5 · C 1 · D 2" (the holder crowned) for more.
+func score_line() -> String:
+	if team_count() <= 2:
+		return "%s  %d : %d  %s" % [ally_name, score[0], score[1], enemy_name]
+	var parts: PackedStringArray = []
+	for t in team_count():
+		parts.append("%s%s %d" % [GuildLeague.CROWN if t == castle_owner else "", team_name(t), score[t]])
+	return " · ".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -1874,7 +2568,7 @@ func mirror_sync(ev: String, d: Dictionary) -> void:
 	var s: Variant = d.get("s", [])
 	if s is Array and (s as Array).size() >= 2:
 		score = [int(s[0]), int(s[1])]
-	var holder := clampi(int(d.get("o", castle_owner)), -1, 1)
+	var holder := clampi(int(d.get("o", castle_owner)), -1, team_count() - 1)
 	if holder != castle_owner:
 		castle_owner = holder
 		_color_crystal()
