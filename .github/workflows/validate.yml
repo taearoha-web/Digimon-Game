@@ -573,6 +573,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx-layers
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_layers_test.tscn
+      - name: phone_budget_test (every effect shader warmed while loading, buff auras rebuilt only on change, party roles built once a frame, other players' pets cheap below quality 2)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-phone-budget
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/phone_budget_test.tscn
       - name: class_roles_test (one party role per class - แนวหน้า / กำแพงเหล็ก / พรแห่งแสง / ตราเวท / ตาเหยี่ยว / จุดตาย / ทะลวงเกราะ / พันธะวิญญาณ / เงามืด / ประสานเสียง - for the hero, the AI party and each guild-war party only, once per class, gone with a fallen member, real hits / blows / regen / cooldowns, party card and character screen)
         timeout-minutes: 10
         env:
