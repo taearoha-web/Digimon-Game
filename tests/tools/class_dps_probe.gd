@@ -14,6 +14,8 @@ extends Node
 ## A class written as class:skill+skill runs with only those skills on its bar
 ## (class: alone = basic attacks only), to see what each skill adds.
 ## Prints single-target and pack DPS per class, each relative to its median.
+## A fifth argument PET (fire / water / earth, PetData) brings that pet along: its
+## damage counts with the hero's, to see what a pet adds.
 const Boost := preload("res://tools/boost_character.gd")
 
 var main: Node
@@ -21,6 +23,7 @@ var _last_hp := {}
 var _dealt := 0.0
 var _dummies: Array[Mob] = []
 var _level := 100
+var _pet := ""
 
 
 func _ready() -> void:
@@ -29,6 +32,7 @@ func _ready() -> void:
 	var zone_id := StringName(args[1]) if args.size() > 1 else &"lotus_sanctum"
 	var classes: Array = Array(args[2].split(",")) if args.size() > 2 and args[2] != "" else ClassData.IDS.map(func(c): return String(c))
 	_level = int(args[3]) if args.size() > 3 else 100
+	_pet = String(args[4]) if args.size() > 4 and PetData.exists(String(args[4])) else ""
 	InputSetup.ensure_defaults()
 	GameSettings.load_settings()
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
@@ -186,6 +190,7 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 		if int(skill.level) <= int(p.level):
 			p.skills[String(skill.id)] = SkillRank.MAX
 	p.party = []
+	p["pet"] = _pet
 	var fixed: Array = []
 	if only is Array:
 		fixed = only + []

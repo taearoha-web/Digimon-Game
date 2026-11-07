@@ -578,3 +578,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-brace
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_brace_test.tscn
+      - name: pet_test (three pets with eight skills on the Lv.1-100 ladder, chosen once per character and saved, old saves still valid, follows the hero and fights, buffs / heals through the buff list, falls and comes back after 30 s, scales with the hero's level, the village pen with ten pets and the keeper, the selection screen, no pet in 1v1 duels, no leak over zone changes)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-pet
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/pet_test.tscn

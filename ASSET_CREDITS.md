@@ -38,6 +38,15 @@ Music and the remaining effects are synthesized for this project.
 
 These are 12 newly imported base models, used for 28 enemy definitions. Elite and boss variants share their family base model and add original bone-attached geometry; they are not claimed to be 28 distinct downloaded meshes. Runtime files retain six authored animation clips and original mesh/rig data, remove unused animation buffers and rename clips to gameplay aliases. `StarMonsterArt` decorations are original project geometry. Vendoring used a closed-roster custom integrity/admission receipt because the `game-dev` CLI was not installed; engine import and runtime rendering are separate validations.
 
+## Pets (CC0)
+
+| Files | Source | License / evidence |
+|---|---|---|
+| `assets/models/pets/KaijuRex.glb`, `skins/kaiju_rex_flame.png` (fire pet คาอิจูเร็กซ์) | Monster (Monster Costume) from KayKit Mystery Monthly S4 by Kay Lousberg, via [jam-ready-assets @ ab1b21f](https://github.com/series-ai/jam-ready-assets/tree/ab1b21fe61bc3adeb759c286e770033563f18a97/kaykit-mystery-monthly-4); flame skin is a gradient-mapped copy of its palette atlas (`tools/pet_skin_retex.py`) | CC0-1.0; license text, pinned URLs and original/runtime SHA-256 in `assets/vendor/pets/` |
+| `assets/models/pets/FrostGolem.glb` (water pet โกเลมน้ำแข็ง) | FrostGolem from KayKit Mystery Monthly S5 by Kay Lousberg, same pinned commit | CC0-1.0; `assets/vendor/pets/` |
+| `assets/models/pets/GroveDruid.glb` (earth pet ดรูอิดป่า) | Druid from KayKit Adventurers by Kay Lousberg, same pinned commit | CC0-1.0; `assets/vendor/pets/` |
+| Pet animation clips inside the three GLBs (idle, walk, run, three attacks, hit, death) | KayKit Character Animations (Rig_Medium / Rig_Large General, MovementBasic, CombatMelee, CombatRanged) by Kay Lousberg, same pinned commit; copied onto each model's skeleton by `tools/bake_pets.gd` | CC0-1.0; `assets/vendor/pets/LICENSE-KayKit-Character-Animations.txt` |
+
 ## Uploaded 100-star class wings (v0.9.2)
 
 Six GLB wing models supplied by the user in `ปีก ดาว100.rar` for this game. Names and original designs retained; geometry combined and simplified for the web runtime. These uploads are not described as CC0. Source hashes, conversion details and rendered checks are recorded with the star-wing asset package.
