@@ -135,7 +135,11 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	else:
 		SkillInk.mark(root, look, Vector3.ZERO, (0.48 + float(look.tier) * 0.065) * weight, 0.28 * linger, 1, true)
 	if crit:
-		VfxKit.impact_fan(parent, at, look.accent, 0.7 * weight, "petal" if style in ["holy", "heal", "leaf", "wind"] else ("flame" if style == "fire" else "diamond"))
+		# A ClassFlourish.TINTED skill (the venom) keeps its own green-violet in the fan: its
+		# recipe accent is near white, and seven pale rays read as a pale glow on the victim.
+		var tint := ClassFlourish.tinted(skill)
+		var fan: Color = look.accent if tint.is_empty() else (tint[0] as Color).lerp(tint[1], 0.45)
+		VfxKit.impact_fan(parent, at, fan, (0.7 if tint.is_empty() else 0.5) * weight,"petal" if style in ["holy", "heal", "leaf", "wind"] else ("flame" if style == "fire" else "diamond"))
 	# Only a few physical fragments per victim; no emitter explosion for every
 	# target of an AoE. A single bloom/snow/fire fragment still tells the element.
 	var count := mini(VfxBudget.count(3, 1), maxi(1, (VfxBudget.decoration_limit() - int(VfxBudget.counters().decorations)) / 8))

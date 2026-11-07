@@ -31,7 +31,7 @@ const COLORS := {
 	# The accent carries most of each mesh, so it is a saturated tint, never white.
 	"divine_edict":["ff7a1f","ffc070","7a1010"], "sunfall_volley":["9ef03a","d8ff80","1a5a3a"],
 	"heavenrend_spear":["1ad0ff","90f4ff","0a2a7a"], "astral_apocalypse":["6a4cff","b49cff","140a4a"],
-	"seraphic_judgment":["ffd23a","fff0a0","a04a6a"], "celestial_dragon_emperor":["1ff0a0","90ffd8","0a4a4a"],
+	"seraphic_judgment":["f7b734","ffd877","8a3a66"], "celestial_dragon_emperor":["1ff0a0","90ffd8","0a4a4a"],
 	"pantheon_bastion":["3a7cff","9cc4ff","0e2060"], "death_gods_eclipse":["ff2a5a","ff8aa8","1a0420"],
 	"abyssal_throne":["9a30ff","c890ff","1a0630"], "divine_symphony":["ff4ad0","ff9ce8","3a0a4a"]
 }

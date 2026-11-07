@@ -536,16 +536,19 @@ static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: 
 		parent.add_child(sky)
 		sky.global_position = at + Vector3.UP * 7.0
 		VfxArt.rune_circle(sky, at + Vector3.UP * 7.0, c[1], r * 0.7, 1.4, 1.5)
-	VfxKit.flash(parent, at + Vector3.UP * 1.5, c[1], 7.0, 0.45)
+	# A tinted, smaller opening flash (no white-hot core): seven metres of the accent at
+	# once read as a white screen over the shared layer stack's own core.
+	var warm := (c[1] as Color).lerp(c[0], 0.3)
+	VfxKit.flash(parent, at + Vector3.UP * 1.5, warm, 4.8, 0.32)
 	_wave(parent, at + Vector3.UP * 0.1, c[0], r * 1.1, c[1], c[2])
-	_late_wave(parent, at, c[1], r * 0.8, 0.18, Color.WHITE, c[2])
+	_late_wave(parent, at, c[1], r * 0.8, 0.18, warm, c[2])
 	var phase := randf() * TAU
 	for i in 8:
 		var angle := phase + TAU * float(i) / 8.0
 		var spot := at + Vector3(cos(angle), 0.0, sin(angle)) * r * 0.85
 		parent.create_tween().tween_interval(0.05 * i).finished.connect(func():
 			if _alive(parent):
-				_colour_column(parent, spot, c, 0.6, 12.0), CONNECT_ONE_SHOT)
+				_colour_column(parent, spot, c, 0.6, 12.0, warm), CONNECT_ONE_SHOT)
 	_motes(parent, at, c[1], "light", 40, r * 0.6, 0.5, 1.8)
 
 

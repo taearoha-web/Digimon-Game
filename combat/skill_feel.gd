@@ -174,7 +174,8 @@ static func hit(p_hero: Node3D, mob: Mob, skill: Dictionary, amount: int, crit: 
 		flash(mob, SkillWeight.element(skill))
 	elif is_instance_valid(mob.visual):
 		# The venom stains its victim sickly green, briefly (not a pale lilac wash).
-		mob.visual.flash(tint[0], 0.16)
+		# The overlay is additive at 0.8: a deeper green-violet keeps it a stain, not a lime glow.
+		mob.visual.flash((tint[0] as Color).lerp(tint[1], 0.3).darkened(0.35), 0.12)
 	if not killed:
 		react(p_hero, mob, dir, w)
 	hub._count(id, amount, mob)
