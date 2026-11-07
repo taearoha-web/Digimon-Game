@@ -434,8 +434,13 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 	velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
-	move_and_slide()
+	_move()
 	_animate(horizontal, delta, chase_target)
+
+
+## One step of movement (a guild fighter standing still on the floor skips it).
+func _move() -> void:
+	move_and_slide()
 
 
 func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:

@@ -55,9 +55,13 @@ func _ready() -> void:
 		await get_tree().process_frame
 	# Experiments (5th arg): "still" poses every fighter only every 8th frame (what the
 	# skeletons cost), "hidden" hides every fighter's model too, "noai" stops the fighters'
-	# brains, "oldcull" culls as before the 20 vs 20 work (distance from the camera only).
+	# brains, "oldcull" culls as before the 20 vs 20 work (distance from the camera only),
+	# "aioff" stops only the brains (models posed and culled as ever: the AI's own share).
 	var experiment := String(args[4]) if args.size() > 4 and String(args[4]) != "-" else ""
-	if experiment == "oldcull":
+	if experiment == "aioff":
+		for f in m.all_fighters():
+			f.set_physics_process(false)
+	elif experiment == "oldcull":
 		m._cull_timer = 1.0e9
 	elif experiment != "":
 		m._cull_timer = 1.0e9
@@ -69,6 +73,8 @@ func _ready() -> void:
 				f.visual.visible = false
 			if experiment == "noai":
 				f.set_physics_process(false)
+	var thinks_before := GuildFighter.thinks_total
+	GuildFighter.thinks_peak = 0
 	var last := Time.get_ticks_usec()
 	for i in frames:
 		if experiment == "oldcull" and i % 15 == 0:
@@ -87,6 +93,7 @@ func _ready() -> void:
 	for f in m.all_fighters():
 		drawn += 1 if f.visual.visible else 0
 	print("PERF_RESULT mode=%s per_side=%d frames=%d mean=%.2fms p50=%.2fms p95=%.2fms p99=%.2fms max=%.2fms nodes=%d summons=%d drawn=%d/%d score=%s" % [mode, per_side, sorted.size(), total / sorted.size(), pick.call(0.5), pick.call(0.95), pick.call(0.99), sorted.back(), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), get_tree().get_nodes_in_group("summons").size(), drawn, m.all_fighters().size(), m.score])
+	print("PERF_BRAINS full decisions %.2f a frame (peak %d, cap %d)" % [float(GuildFighter.thinks_total - thinks_before) / frames, GuildFighter.thinks_peak, GuildFighter.think_cap(m.all_fighters().size())])
 	get_tree().quit(0)
 
 
