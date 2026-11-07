@@ -89,6 +89,8 @@ func _ready() -> void:
 	name = "AiPet" if lite else "Pet"
 	global_position = summoner.global_position + _follow_spot()
 	_visual = MonsterVisual.new()
+	# An AI player's pet skips the ink outline below high quality (a second draw per mesh).
+	_visual.outline = not lite or GameSettings.quality >= 2
 	add_child(_visual)
 	var skin: Texture2D = load(String(pet.skin)) as Texture2D if String(pet.get("skin", "")) != "" else null
 	_visual.setup(String(pet.model), float(pet.height), 0.0, pet.tint, skin)
@@ -214,7 +216,8 @@ func _apply_stage(announce: bool) -> void:
 ## setting and memory pressure; checked again with the stats each second): the full set
 ## on the hero's pet, the cheap set (PetForm.dress_lite) on an AI player's.
 func _dress() -> void:
-	var detail := -1 if lite else PetForm.tier()
+	# A lite pet's dressing changes with the crowd rim (quality, memory pressure) only.
+	var detail := (-1 if PetForm.crowd_rim() else -2) if lite else PetForm.tier()
 	var key := "%d|%d" % [stage, detail]
 	if key == _form_key or _visual == null:
 		return
@@ -432,8 +435,13 @@ func _mobs_in(center: Vector3, radius: float) -> Array[Mob]:
 ## Casts the first unlocked skill that is ready and useful now (the ultimate and the
 ## hero's heals first). Returns true when one started.
 func _try_skill() -> bool:
-	var skills := PetData.unlocked(pet_id, int(pstats.get("level", 1)))
-	skills.reverse()
+	# Asked every frame the pet is free: the unlocked list (last first) is built once a level.
+	var level := int(pstats.get("level", 1))
+	if level != _skills_level:
+		_skills_level = level
+		_skills_last_first = PetData.unlocked(pet_id, level)
+		_skills_last_first.reverse()
+	var skills := _skills_last_first
 	var owner_rate := _owner_hp_rate()
 	var fighting := _valid(_target)
 	var dist := 999.0
@@ -462,6 +470,10 @@ func _try_skill() -> bool:
 			cast(skill)
 			return true
 	return false
+
+
+var _skills_level := -1
+var _skills_last_first: Array = []
 
 
 func _owner_hp_rate() -> float:

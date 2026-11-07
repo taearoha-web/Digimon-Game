@@ -311,10 +311,11 @@ static func _trail(root: Node3D, color: Color, h: float) -> void:
 
 ## The cheap form look of another player's pet (PetFollower, a lite Pet): the wider
 ## ring from the full-grown form, a gold ring from ★200, a small gold halo over the god
-## form, and the rim tint from ★100. Shared meshes and materials only, no motion.
+## form, and the rim tint from ★100 (high quality only, crowd_rim). Shared meshes and
+## materials only, no motion.
 ## Returns the holder (child "PetFormLite" of [param holder]) or null.
 static func dress_lite(holder: Node3D, visual: MonsterVisual, id: String, stage: int, height: float, hide_past := 0.0) -> Node3D:
-	set_rim(visual, id, stage)
+	set_rim(visual, id, stage if crowd_rim() else 0)
 	if stage < 2:
 		return null
 	var root := Node3D.new()
@@ -341,6 +342,12 @@ static func dress_lite(holder: Node3D, visual: MonsterVisual, id: String, stage:
 # ---------------------------------------------------------------------------
 # The rim of light on the model
 # ---------------------------------------------------------------------------
+
+## Whether everyone else's pets wear the rim light: it is a second draw of every mesh
+## of the model (a crowd of ten ★100 pets: some 40 more draw calls), so only at high
+## quality with memory at ease. The hero's own pet always wears it.
+static func crowd_rim() -> bool:
+	return VfxBudget.quality() >= 2 and MemoryGuard.pressure == 0
 
 ## Puts the form's rim light on [param visual]'s model (from ★100; one shared material
 ## per element and form), or takes it off below.

@@ -6,6 +6,11 @@ extends RefCounted
 
 var buffs: Array[Dictionary] = []
 var auras: Dictionary = {} # kind -> BuffAura
+## What tick last synced: the list, the life, the aura count and the next expiry.
+var _synced: Array = []
+var _synced_alive := false
+var _synced_auras := -1
+var _next_expiry := 0
 
 
 ## Own buffs: two slots (a third replaces the oldest). Buffs from friends have no
@@ -159,12 +164,18 @@ func add(data: Dictionary, color: Color, label := "", ally := true, skill_id := 
 
 ## Sum of one effect ("atk", "def", "speed", "crit") over the buffs still running.
 func total(key: String) -> float:
+	# Asked every frame (speed) and every hit: no list is built (same sum as stack()).
+	if buffs.is_empty():
+		return 0.0
 	var now := Time.get_ticks_msec()
-	var values: Array = []
+	var best := 0.0
+	var sum := 0.0
 	for buff in buffs:
 		if int(buff.until) > now:
-			values.append(float(buff.get(key, 0.0)))
-	return stack(values)
+			var v := float(buff.get(key, 0.0))
+			best = maxf(best, v)
+			sum += maxf(v, 0.0)
+	return best + 0.25 * (sum - best)
 
 
 ## Buffs of one stat don't simply add up: the strongest counts in full, every
@@ -184,9 +195,20 @@ func tick(host: Node3D, alive: bool, top: Callable) -> void:
 	if buffs.is_empty() and auras.is_empty():
 		return
 	var now := Time.get_ticks_msec()
+	# Nothing changed since the last look (the same list, nothing expired, the same
+	# life and auras): the auras are in step already. Every buffed body asks every
+	# frame, and the sync builds keys and lists.
+	if is_same(buffs, _synced) and alive == _synced_alive and now < _next_expiry and auras.size() == _synced_auras:
+		return
 	if not buffs.is_empty():
 		buffs = buffs.filter(func(b): return int(b.until) > now)
 	BuffAura.sync(host, auras, buffs, now, alive, top)
+	_synced = buffs
+	_synced_alive = alive
+	_synced_auras = auras.size()
+	_next_expiry = 1 << 62
+	for b in buffs:
+		_next_expiry = mini(_next_expiry, int(b.until))
 
 
 func clear(host: Node3D) -> void:

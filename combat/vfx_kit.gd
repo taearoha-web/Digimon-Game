@@ -74,6 +74,8 @@ static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null)
 		lit.get_tree().create_timer(1.6).timeout.connect(lit.queue_free)
 	# The shader-drawn burst cards of every blow (ShaderBurst).
 	ShaderBurst.emit(parent, pos + Vector3(0, 0.3, 0), Color(1, 1, 1, 0.01), "star", 3, "burst")
+	# The newer effects' shaders (skill layers, melee / signature art, pet forms).
+	await ShaderWarm.warm(parent, pos, slicer)
 	MeteorArt.warm_shaders(parent, pos)
 	await FrameSlicer.pace(slicer)
 	ThunderStormArt.warm_up(parent, pos)
