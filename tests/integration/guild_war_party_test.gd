@@ -220,6 +220,8 @@ func _guild_war() -> void:
 	await _frames(2)
 	screen.open_lobby()
 	await _frames(1)
+	# The desk clears any pending league war (enter_league sets it again).
+	Game.guildwar_league = GuildLeague.enter_match()
 	screen.open_party()
 	await _frames(2)
 	var mates := screen.candidates
