@@ -34,6 +34,42 @@ static var dbg := {"recv": 0, "dmg": 0, "dodged": 0, "guard": 0, "basic": 0, "ca
 ## Area attacks in the air, so enemies can step out of them like a person (after a reaction time).
 static var _dangers: Array = []
 
+## The brains' budget. Eighty fighters on one field (a four-guild war) must run on a
+## phone's single thread, so: (1) the field as the brains see it (every fighter by team,
+## the hero's summons, the online players, who is on whom) is gathered once a physics
+## frame by the first fighter that asks (_view), not by every fighter for itself;
+## (2) a full decision (a target pick, _nearest_victim, or a skill choice, Rival._try_skill)
+## takes a slot of the frame's budget (think_cap: a quarter of the field and a few) and
+## the rest wait a frame; (3) the fighters' decision clocks are staggered by instance id
+## so they do not all think on the same frame; (4) one with nobody in reach looks again
+## a few times a second, not every frame. Steering and movement still run every frame.
+## Who is a foe works for any number of guilds: anyone whose team differs.
+static var _view_frame := -1
+## _dangers as packed arrays (centre, radius + 0.5, until in ms, team), from the view.
+static var _danger_at := PackedVector3Array()
+static var _danger_reach := PackedFloat32Array()
+static var _danger_until := PackedInt64Array()
+static var _danger_team := PackedInt32Array()
+## team -> Array of its fighters (the fallen too: check _up), in tree order. Read only.
+static var _by_team := {}
+## team -> its foes this frame (for every guild but ours the hero, its summons and the
+## online players; every other guild's fighters), built on first ask. Read only.
+static var _foes_of := {}
+static var _summons_now: Array = []
+static var _remotes_now: Array = []
+## team -> {victim instance id: how many of that team have it as their victim}.
+static var _on_victim := {}
+static var _fighters_now := 0
+## Full decisions taken this physics frame, the most taken in one frame so far, and in all.
+static var thinks := 0
+static var thinks_peak := 0
+static var thinks_total := 0
+## Views built so far (tests: one a physics frame).
+static var view_builds := 0
+const _NONE: Array = []
+## One with nobody in reach looks again after this long.
+const IDLE_LOOK := 0.25
+
 signal fell(fighter: GuildFighter, killer: Node)
 signal slew_hero(fighter: GuildFighter)
 
@@ -96,6 +132,14 @@ var _grudge := 0.0
 var _react_at := 0
 var _ignore_danger := false
 var _sings := -1
+## The victim this fighter is counted on in _on_victim (instance id, 0 for none).
+var _counted_on := 0
+## With nobody in reach: seconds until it looks again.
+var _idle_look := 0.0
+## Its target pick was put off (the frame's budget was spent): it picks next frame.
+var _pick_deferred := false
+## Where its last movement step left it (_move).
+var _rest_at := Vector3.INF
 
 
 ## info: GuildWarData.make_fighter(). `title` is the guild tag shown before the name.
@@ -117,6 +161,12 @@ func _ready() -> void:
 	super._ready()
 	add_to_group("gw_fighters")
 	add_to_group("gw_team%d" % team)
+	forget_view()
+	# Staggered clocks: the fighters' picks and skill choices spread over the frames.
+	var phase := float(get_instance_id() % 997) / 997.0
+	_victim_timer = 0.8 * phase
+	_think = 0.05 + 0.3 * phase
+	_role_wait = ROLE_STEP * phase
 	if team == TEAM_ALLY:
 		remove_from_group("mobs")
 		add_to_group("companions")
@@ -179,9 +229,11 @@ func in_hero_party() -> bool:
 ## Its party members (the hero too, when in it) standing within `radius`: whom its buffs reach.
 func party_near(radius: float) -> int:
 	var n := 0
-	for ally in _teammates():
-		if GuildWarMatch.buff_reaches(self, ally) and _flat_distance(ally.global_position) <= radius:
+	for f in _crew():
+		if f != self and _up(f) and GuildWarMatch.buff_reaches(self, f) and _flat_distance((f as Node3D).global_position) <= radius:
 			n += 1
+	if team == TEAM_ALLY and _alive(hero) and GuildWarMatch.buff_reaches(self, hero) and _flat_distance(hero.global_position) <= radius:
+		n += 1
 	return n
 
 
@@ -246,35 +298,206 @@ func _tint_marks() -> void:
 
 
 func _summons_are_enemies() -> bool:
-	return team == TEAM_ENEMY
+	return team != TEAM_ALLY
+
+
+func _exit_tree() -> void:
+	forget_view()
+
+
+# ---------------------------------------------------------------------------
+# The field as the brains see it (built once a physics frame) and the budget
+# ---------------------------------------------------------------------------
+
+## Drops the shared view (a fighter came or went): the next ask builds it again.
+static func forget_view() -> void:
+	_view_frame = -1
+
+
+## Builds the shared view once a physics frame (the first fighter to ask builds it).
+func _view() -> void:
+	var frame := Engine.get_physics_frames()
+	if frame == _view_frame or not is_inside_tree():
+		return
+	_view_frame = frame
+	view_builds += 1
+	thinks_peak = maxi(thinks_peak, thinks)
+	thinks = 0
+	_by_team = {}
+	_foes_of = {}
+	_on_victim = {}
+	_fighters_now = 0
+	var tree := get_tree()
+	for node in tree.get_nodes_in_group("gw_fighters"):
+		var f := node as GuildFighter
+		if f == null:
+			continue
+		_fighters_now += 1
+		var list: Variant = _by_team.get(f.team)
+		if list == null:
+			list = []
+			_by_team[f.team] = list
+			_on_victim[f.team] = {}
+		(list as Array).append(f)
+		f._counted_on = 0
+		if not f._dead and is_instance_valid(f._victim):
+			var id := f._victim.get_instance_id()
+			var counts: Dictionary = _on_victim[f.team]
+			counts[id] = int(counts.get(id, 0)) + 1
+			f._counted_on = id
+	_summons_now = tree.get_nodes_in_group("summons")
+	_remotes_now = tree.get_nodes_in_group("remote_players") if EntitySync.hosting() else _NONE
+	# Area warnings that ran out leave the list, and the rest are read from packed
+	# arrays (every fighter looks through them every frame).
+	if not _dangers.is_empty():
+		var now := Time.get_ticks_msec()
+		var live: Array = []
+		for d in _dangers:
+			if now <= int(d.until):
+				live.append(d)
+		_dangers = live
+	_danger_at.resize(_dangers.size())
+	_danger_reach.resize(_dangers.size())
+	_danger_until.resize(_dangers.size())
+	_danger_team.resize(_dangers.size())
+	for i in _dangers.size():
+		var d: Dictionary = _dangers[i]
+		_danger_at[i] = d.center
+		_danger_reach[i] = float(d.radius) + 0.5
+		_danger_until[i] = int(d.until)
+		_danger_team[i] = int(d.team)
+
+
+## Its own guild's fighters this frame (itself and the fallen too). Read only.
+func _crew() -> Array:
+	_view()
+	return _by_team.get(team, _NONE)
+
+
+## Everyone it may strike this frame but the gate (the fallen too: check _up). Read only.
+func _foes() -> Array:
+	_view()
+	var known: Variant = _foes_of.get(team)
+	if known != null:
+		return known
+	var out: Array = []
+	# For every guild but ours: the hero first, then the other guilds' fighters, the
+	# hero's summons and the leader's online party (EntitySync).
+	var against_hero := team != TEAM_ALLY
+	if against_hero and hero != null:
+		out.append(hero)
+	var teams := _by_team.keys()
+	teams.sort()
+	for t in teams:
+		if int(t) != team:
+			out.append_array(_by_team[t])
+	if against_hero:
+		out.append_array(_summons_now)
+		out.append_array(_remotes_now)
+	_foes_of[team] = out
+	return out
+
+
+## Still standing (the quick test for a fighter, Mob._alive for anyone else).
+func _up(node: Variant) -> bool:
+	if node == null or not is_instance_valid(node):
+		return false
+	if node is GuildFighter:
+		return not (node as GuildFighter)._dead and (node as Node).is_inside_tree()
+	return _alive(node)
+
+
+## How many fighters of its guild, itself left out, have `t` as their victim now.
+func _on_count(t: Node) -> int:
+	var counts: Dictionary = _on_victim.get(team, {})
+	var id := t.get_instance_id()
+	var n := int(counts.get(id, 0))
+	if _counted_on == id:
+		n -= 1
+	return n
+
+
+## Keeps _on_victim right when this fighter changes victim.
+func _recount(pick: Node3D) -> void:
+	var id := pick.get_instance_id() if pick != null else 0
+	if id == _counted_on:
+		return
+	var counts: Variant = _on_victim.get(team)
+	if counts == null:
+		return
+	if _counted_on != 0:
+		counts[_counted_on] = int(counts.get(_counted_on, 1)) - 1
+	if id != 0:
+		counts[id] = int(counts.get(id, 0)) + 1
+	_counted_on = id
+
+
+## The most full decisions all the fighters may take in one physics frame.
+static func think_cap(fighters: int) -> int:
+	return fighters / 4 + 3
+
+
+## Takes a slot of this frame's budget for a full decision (false: decide next frame).
+func _take_think() -> bool:
+	_view()
+	if thinks >= think_cap(_fighters_now):
+		return false
+	thinks += 1
+	thinks_total += 1
+	return true
+
+
+## Rival._chase asks before it scores its skills (refused: it asks again next frame).
+func _may_think() -> bool:
+	return _take_think()
+
+
+## The target pick (Mob asks every 0.8 s, or when its victim fell): from the shared
+## view, within the frame's budget; one with nobody in reach looks again after IDLE_LOOK.
+func _pick_victim() -> Node3D:
+	var standing: Node3D = _victim if _up(_victim) else null
+	if standing == null and _idle_look > 0.0:
+		return null
+	if not _take_think():
+		_pick_deferred = true
+		return standing
+	var pick := _nearest_victim()
+	_recount(pick)
+	_idle_look = IDLE_LOOK if pick == null else 0.0
+	return pick
 
 
 # ---------------------------------------------------------------------------
 # Who it can hurt, and who it chooses
 # ---------------------------------------------------------------------------
 
+## Everyone of another guild (any number of guilds: whoever's team differs); for every
+## guild but ours also the hero, its summons and the leader's online party (EntitySync).
+## (Asked rarely: an area skill landing, tests. The hero's summons and the online players
+## are read from their groups now, so one who came this very frame counts too; the
+## target pick reads them from the frame's view.)
 func _targets() -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	if team == TEAM_ENEMY:
-		if _alive(hero):
-			out.append(hero)
-		for node in get_tree().get_nodes_in_group("gw_team0"):
-			if _alive(node):
-				out.append(node as Node3D)
+	var against_hero := team != TEAM_ALLY
+	if against_hero and _alive(hero):
+		out.append(hero)
+	for t in _foes():
+		if _up(t) and t is GuildFighter:
+			out.append(t as Node3D)
+	if against_hero:
 		for node in get_tree().get_nodes_in_group("summons"):
 			if _alive(node):
 				out.append(node as Node3D)
-		# The leader's online party fights on our side of the war (EntitySync).
 		if EntitySync.hosting():
 			_add_remote_targets(out)
-	else:
-		for node in get_tree().get_nodes_in_group("gw_team1"):
-			if _alive(node):
-				out.append(node as Node3D)
-	# Both guilds batter the same gate.
-	if objective != null and is_instance_valid(objective) and objective.breakable and not objective.is_dead():
+	# Every guild batters the same gate.
+	if _gate_up():
 		out.append(objective)
 	return out
+
+
+func _gate_up() -> bool:
+	return objective != null and is_instance_valid(objective) and objective.breakable and not objective.is_dead()
 
 
 ## True for someone of the other side standing in its own camp (where it heals and comes back).
@@ -287,9 +510,9 @@ func _in_own_camp(t: Node3D) -> bool:
 
 func _teammates() -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	for node in get_tree().get_nodes_in_group("gw_team%d" % team):
-		if node != self and _alive(node):
-			out.append(node as Node3D)
+	for f in _crew():
+		if f != self and _up(f):
+			out.append(f as Node3D)
 	if team == TEAM_ALLY and _alive(hero):
 		out.append(hero)
 	return out
@@ -300,7 +523,6 @@ func _teammates() -> Array[Node3D]:
 func _nearest_victim() -> Node3D:
 	var best: Node3D = null
 	var best_score := -1.0e9
-	var allies := _teammates()
 	var taker := siege.capturer() if siege != null else null
 	# At the gate it keeps battering: only an enemy close by draws it away.
 	var at_gate := objective != null and is_instance_valid(objective) and objective.breakable and _flat_distance(objective.global_position) < 11.0
@@ -308,7 +530,15 @@ func _nearest_victim() -> Node3D:
 	var called := focus if _alive(focus) else null
 	var diving := dive if _alive(dive) else null
 	var guarding := guard_node if _alive(guard_node) else null
-	for t in _targets():
+	# The shared view (no list built per pick), then the gate.
+	var foes := _foes()
+	var gate: Node3D = objective if _gate_up() else null
+	var count := foes.size() + (1 if gate != null else 0)
+	for i in count:
+		var seen: Variant = foes[i] if i < foes.size() else gate
+		if i < foes.size() and not _up(seen):
+			continue
+		var t := seen as Node3D
 		var d := _flat_distance(t.global_position)
 		if d > 48.0:
 			continue
@@ -373,10 +603,7 @@ func _nearest_victim() -> Node3D:
 			ratio = float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0)
 		if ratio < 0.4:
 			score += 9.0 * (0.4 - ratio) / 0.4 + 3.0
-		var on_it := 0
-		for a in allies:
-			if a is GuildFighter and (a as GuildFighter)._victim == t:
-				on_it += 1
+		var on_it := _on_count(t)
 		score += 2.5 * minf(on_it, 2.0) - 5.0 * maxf(on_it - 2.0, 0.0)
 		if t == _victim:
 			score += 4.5
@@ -526,14 +753,29 @@ func respawn() -> void:
 # ---------------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	_view()
 	if _dead:
 		respawn_left = maxf(0.0, respawn_left - delta)
 		return
 	_grudge = maxf(0.0, _grudge - delta)
+	_idle_look = maxf(0.0, _idle_look - delta)
 	if _flat_distance(spawn_point) < BASE_RADIUS and hp < max_hp and not _frozen:
 		hp = mini(max_hp, hp + int(ceil(float(max_hp) * BASE_HEAL * delta)))
 		_bar.set_ratio(float(hp) / float(max_hp))
+	_pick_deferred = false
 	super._physics_process(delta)
+	if _pick_deferred:
+		# The frame's budget was spent: it picks next frame.
+		_victim_timer = 0.0
+
+
+## Standing still on the floor where its last step left it (not put somewhere since: a
+## respawn, Summon, send_home), it has nothing to slide: the collision step is skipped.
+func _move() -> void:
+	if velocity.x == 0.0 and velocity.z == 0.0 and is_on_floor() and global_position == _rest_at:
+		return
+	move_and_slide()
+	_rest_at = global_position
 
 
 func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
@@ -621,13 +863,17 @@ func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 func _dodge_area(delta: float) -> Vector3:
 	if _frozen or Time.get_ticks_msec() < _cast_until:
 		return Vector3.ZERO
+	if _dangers.is_empty():
+		_react_at = 0
+		return Vector3.ZERO
 	var now := Time.get_ticks_msec()
-	for danger in _dangers:
-		if int(danger.team) == team or now > int(danger.until):
+	_view()
+	for i in _danger_at.size():
+		if _danger_team[i] == team or now > _danger_until[i]:
 			continue
-		var from_center := global_position - (danger.center as Vector3)
+		var from_center := global_position - _danger_at[i]
 		from_center.y = 0.0
-		if from_center.length() > float(danger.radius) + 0.5:
+		if from_center.length() > _danger_reach[i]:
 			continue
 		if _react_at == 0:
 			_react_at = now + randi_range(250, 480)
@@ -680,6 +926,7 @@ func order_summon() -> String:
 		return "ยังไม่มีสกิล Summon"
 	if _dead or duel_over:
 		return "ล้มอยู่"
+	_flush_cooldowns()
 	var wait := float(cooldowns.get(skill.id, 0.0))
 	if wait > 0.0:
 		return "พร้อมในอีก %d วินาที" % ceili(wait)
@@ -698,9 +945,9 @@ func _rally_hero() -> bool:
 ## Its party in the war (its whole team outside one), the hero never counted.
 func _recall_targets() -> Array[GuildFighter]:
 	var out: Array[GuildFighter] = []
-	for node in get_tree().get_nodes_in_group("gw_team%d" % team):
+	for node in _crew():
 		var f := node as GuildFighter
-		if f != null and f != self and _alive(f) and f.switch_post < 0 and GuildWarMatch.buff_reaches(self, f):
+		if f != null and f != self and _up(f) and f.switch_post < 0 and GuildWarMatch.buff_reaches(self, f):
 			out.append(f)
 	return out
 
@@ -780,12 +1027,11 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 ## The lowest HP share among the fighter and its teammates within heal reach.
 func _lowest_near(own_ratio: float) -> float:
 	var lowest := own_ratio
-	for ally in _teammates():
-		if _flat_distance(ally.global_position) < 9.0:
-			if ally is GuildFighter:
-				lowest = minf(lowest, (ally as GuildFighter).hp_ratio())
-			elif ally == hero and "stats" in hero:
-				lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
+	for f in _crew():
+		if f != self and _up(f) and _flat_distance((f as Node3D).global_position) < 9.0:
+			lowest = minf(lowest, (f as GuildFighter).hp_ratio())
+	if team == TEAM_ALLY and _alive(hero) and _flat_distance(hero.global_position) < 9.0 and "stats" in hero:
+		lowest = minf(lowest, float(Game.profile.hp) / maxf(float(hero.stats.max_hp), 1.0))
 	return lowest
 
 
@@ -841,6 +1087,7 @@ func cast_team_buffs() -> int:
 	if _dead or duel_over:
 		return 0
 	var cast := 0
+	_flush_cooldowns()
 	var hurt := _lowest_near(hp_ratio()) < 0.9
 	for skill in class_data.get("skills", []):
 		var fx: Dictionary = skill.get("fx", {})

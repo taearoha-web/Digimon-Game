@@ -602,6 +602,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-brace
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_brace_test.tscn
+      - name: guild_ai_budget_test (80 guild fighters, 40 vs 40, on a budget - the shared view of the field built once a physics frame, full decisions per frame within a quarter of the field and a few, foes are whoever's team differs, and they still pick targets, buff, heal and fell each other)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-ai-budget
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_ai_budget_test.tscn
       - name: guild_war_spectate_test (watching a live 20 vs 20 guild war - both guilds AI, the hero hidden / untargetable / unhurt with no skill bar, the spectator camera follows, pans, pinches, zooms and cycles castle / side A / side B, the clock starts at what is left, a short war ends with the result and the league hook, nothing paid, leaving returns to the field and spot; the hero plays 19 + hero against 20)
         timeout-minutes: 15
         env:
