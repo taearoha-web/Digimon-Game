@@ -308,6 +308,9 @@ test('mount levels and the old list of owned mounts are both accepted', async t 
   assert.equal(levels.status, 200, JSON.stringify(levels.body));
   const legacy = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...sample(), mounts: ['thunder_wolf'], mount: 'thunder_wolf'})}});
   assert.equal(legacy.status, 200, JSON.stringify(legacy.body));
+  // The pet (PetData in the game): saves with one and old saves without one.
+  const pet = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: bundle({...sample(), pet: 'earth'})}});
+  assert.equal(pet.status, 200, JSON.stringify(pet.body));
 });
 
 const LEAGUE_WAR = {at: 1794200000, a: 1, b: 2, win: 1, ca: 2, cb: 0, held: 1, ka: 30, kb: 12};
@@ -348,6 +351,7 @@ test('malformed, oversized and dangerous save structures are rejected without ch
     bundle({...sample(), bag_slots: 101}), bundle({...sample(), party: 'wrong'}),
     bundle({...sample(), mounts: 'thunder_wolf'}), bundle({...sample(), mounts: {thunder_wolf: 6}}), bundle({...sample(), mounts: {thunder_wolf: 1.5}}),
     bundle({...sample(), mounts: [3]}), bundle({...sample(), mount: 5}),
+    bundle({...sample(), pet: 3}), bundle({...sample(), pet: 'x'.repeat(17)}),
     bundle({...sample(), guild_leaders: ['x']}), bundle({...sample(), guild_leaders: {'1': 5}}), bundle({...sample(), guild_leaders: {'1': 'x'.repeat(65)}}),
     bundle({...sample(), league: []}), bundle({...sample(), league: {week: 1.5}}), bundle({...sample(), league: {junk: 1}}),
     bundle({...sample(), league: {wars: [{at: 'x'}]}}), bundle({...sample(), league: {wars: Array(65).fill(LEAGUE_WAR)}}),

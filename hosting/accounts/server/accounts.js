@@ -184,9 +184,11 @@ function validateProfile(profile) {
   if ('play_time' in profile && (typeof profile.play_time !== 'number' || profile.play_time < 0 || profile.play_time > 1e12)) fail(400, 'invalid_save', 'The character play time is invalid.');
   if ('adv' in profile && !integer(profile.adv, 0, MAX_ADV)) fail(400, 'invalid_save', 'The character advancement is invalid.');
   if ('bag_slots' in profile && !integer(profile.bag_slots, 40, 100)) fail(400, 'invalid_save', 'The bag capacity is invalid.');
-  for (const key of ['name', 'zone', 'job', 'spawn_override', 'mount']) {
+  for (const key of ['name', 'zone', 'job', 'spawn_override', 'mount', 'pet']) {
     if (key in profile && typeof profile[key] !== 'string') fail(400, 'invalid_save', `The character field ${key} must be text.`);
   }
+  // The pet (PetData in the game): a short id ("fire", "water", "earth"), "" before one is chosen.
+  if ('pet' in profile && profile.pet.length > 16) fail(400, 'invalid_save', 'The character pet is invalid.');
   for (const key of ['resume', 'job3']) {
     if (key in profile && typeof profile[key] !== 'boolean') fail(400, 'invalid_save', `The character field ${key} must be boolean.`);
   }

@@ -209,6 +209,10 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("chaos", 25))
 	if Game.craft_mount("thunder_wolf") != "ok" or Game.craft_mount("thunder_wolf") != "ok" or Game.craft_mount("griffin", 0.0) != "ok" or not Game.select_mount("griffin"):
 		_fail("%s: mounts" % cls)
+	# A pet chosen at the keeper (PetData; profile "pet"), one of the three by class order.
+	var pet_id: String = PetData.ORDER[ClassData.IDS.find(cls) % PetData.ORDER.size()] if ClassData.IDS.has(cls) else "fire"
+	if not Game.choose_pet(pet_id) or Game.choose_pet("water" if pet_id != "water" else "fire") or Game.pet_id() != pet_id:
+		_fail("%s: pet" % cls)
 	Game.paragon_spend("atk", 30)
 	Game.paragon_spend("hp", 25)
 	Game.paragon_spend("crit", 10)

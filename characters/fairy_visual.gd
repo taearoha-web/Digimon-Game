@@ -32,7 +32,7 @@ func setup_fairy(hover := 0.0) -> void:
 	set_process(false)
 
 
-func setup(_model_path: String, _target_height: float, _hover := 0.0, _tint := Color.WHITE) -> void:
+func setup(_model_path: String, _target_height: float, _hover := 0.0, _tint := Color.WHITE, _skin: Texture2D = null) -> void:
 	pass
 
 

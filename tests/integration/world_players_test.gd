@@ -9,6 +9,9 @@ extends Node
 ##   godot --headless --path . res://tests/integration/world_players_test.tscn
 var failures := 0
 var checks := 0
+## The failed checks, printed again at the end so a CI log tail shows them (the engine's
+## headless mesh warnings bury the first print).
+var failed: PackedStringArray = []
 var main: Node
 
 
@@ -16,6 +19,7 @@ func check(ok: bool, message: String) -> void:
 	checks += 1
 	if not ok:
 		failures += 1
+		failed.append(message)
 		printerr("FAIL: ", message)
 
 
@@ -32,6 +36,8 @@ func _ready() -> void:
 	await _errand_visit()
 	_guild()
 	await _screens()
+	for message in failed:
+		print("FAILED: ", message)
 	print("WORLD PLAYERS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
 
@@ -840,6 +846,9 @@ func _riding(zone: Zone) -> void:
 	check(not p.is_riding() and not p.visual.seated, "it gets off when it feels like walking")
 	# Thinking over time: both happen, the same way for the same seed.
 	var picks := {}
+	# A fixed seed: far from its camp it rides 95% of the time, so 60 free rolls could all
+	# land on "ride" (about 1 run in 20) - the check is about both outcomes happening.
+	p._rng.seed = 20261107
 	for k in 60:
 		p._ride_think = 0.0
 		p._think_ride(0.016)

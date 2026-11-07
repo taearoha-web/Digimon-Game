@@ -23,6 +23,8 @@ var tutorial: Tutorial
 var tower_screen: TowerScreen
 ## The party raid keeper (RaidData) and its result.
 var raid_screen: RaidScreen
+## The pet keeper's screen (PetData): choose the pet once, then see it.
+var pet_screen: PetScreen
 ## Online play with real players: trading (its window) and duels; idle while offline.
 var trade: OnlineTrade
 var trade_screen: TradeScreen
@@ -151,6 +153,9 @@ func _ready() -> void:
 	add_child(raid_screen)
 	raid_screen.enter_requested.connect(func(): go(RaidData.ID, false, true))
 	raid_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	pet_screen = PetScreen.new()
+	add_child(pet_screen)
+	pet_screen.pet_chosen.connect(_on_pet_chosen)
 	dialog = DialogBox.new()
 	add_child(dialog)
 	trade = OnlineTrade.new()
@@ -416,7 +421,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
 		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
@@ -511,6 +516,8 @@ func _on_npc(role: String) -> void:
 		"raid":
 			dialog.say(RaidData.KEEPER, "วิหารอสูรโลหิตเปิดรับปาร์ตี้ %d คนขึ้นไป วันละ %d รอบ (%s) ลงไปสามชั้น ชั้นสุดท้ายคือ%s ให้ผู้พิทักษ์รับการทุบ คนอื่นหลบวงแดงแล้วฆ่าสมุนให้ไว ใครชนะครั้งแรกของวันได้หีบใหญ่!" % [RaidData.MIN_PARTY, RaidData.RUNS_PER_DAY, RaidData.runs_text(), RaidData.BOSS_NAME], [
 				{"label": "ดูดันเจี้ยน", "action": func(): raid_screen.open_lobby()}, {"label": "ไว้ก่อน"}])
+		"pet":
+			_talk_pet_keeper()
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])
@@ -528,6 +535,35 @@ func _on_npc(role: String) -> void:
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+
+
+## The pet keeper: before a pet is chosen it offers the three; afterwards it talks about
+## the hero's own pet (its level, skills unlocked and the next one).
+func _talk_pet_keeper() -> void:
+	var mine := Game.pet_id()
+	if mine == "":
+		dialog.say(PetScreen.KEEPER, "สัตว์เลี้ยงในคอกนี้พร้อมออกผจญภัยกับเจ้าแล้ว! เลือกได้ 1 ตัวจาก 3 ธาตุ: คาอิจูเร็กซ์ (ไฟ) สายบุก, โกเลมน้ำแข็ง (น้ำ) สายฮีล, ดรูอิดป่า (ดิน) สายแทงค์ มันจะเดินตามเจ้าทุกแมพและสู้เองอัตโนมัติ เก่งขึ้นตามเลเวลของเจ้า มีสกิล 8 อย่างปลดล็อกที่เลเวล 1, 10, 20, 35, 50, 65, 80, 100 แต่จำไว้นะ เลือกแล้วเปลี่ยนไม่ได้! (เควสต์ %s: เลือกแล้วรับ %d เหรียญกับยาอีกนิดหน่อย)" % [PetData.QUEST_NAME, PetData.QUEST_GOLD], [
+			{"label": "ดูสัตว์เลี้ยง", "action": func(): pet_screen.open_screen()}, {"label": "ไว้ก่อน"}])
+		return
+	var pet := PetData.get_pet(mine)
+	var level := int(Game.profile.level)
+	var have := PetData.unlocked(mine, level).size()
+	var next := ""
+	if have < PetData.UNLOCK_LEVELS.size():
+		next = " สกิลถัดไป %s ปลดล็อกที่เลเวล %d" % [String(pet.skills[have].name), PetData.unlock_level(have)]
+	dialog.say(PetScreen.KEEPER, "%s (%s) ของเจ้าแข็งแรงดี! ตอนนี้ Lv.%d เท่าเจ้า ใช้สกิลได้ %d/8 อย่าง%s ดูแลกันดีๆ นะ" % [String(pet.name), String(pet.element_name), level, have, next], [
+		{"label": "ดูข้อมูลสัตว์เลี้ยง", "action": func(): pet_screen.open_screen()}, {"label": "ไว้ก่อน"}])
+
+
+## The pet was chosen at the keeper: it comes out at once and walks with the hero.
+func _on_pet_chosen(id: String) -> void:
+	var pet := PetData.get_pet(id)
+	hud.show_banner("ได้สัตว์เลี้ยง: %s!" % String(pet.name))
+	Game.say("%s จะเดินตามคุณทุกแมพและช่วยสู้อัตโนมัติ" % String(pet.name), &"success")
+	if zone != null and is_instance_valid(zone.hero):
+		var fresh := zone.spawn_pet()
+		if fresh:
+			VfxKit.level_up(zone, fresh.global_position)
 
 
 func _talk_daily() -> void:

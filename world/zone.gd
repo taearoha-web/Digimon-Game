@@ -53,6 +53,13 @@ var raid_run: RaidRun
 var raid_seed := 0
 var pvp_match: PvpMatch
 var hero: Hero
+## The hero's pet (PetData), when it has one and pets come along here (PetData.allowed_in).
+var pet: Pet
+## The village's pet pen (PetPen), null elsewhere.
+var pet_pen: PetPen
+## Everyone else's pets here (PetCrowd: AI players' and online players'), null where no
+## pets come (PetData.allowed_in).
+var pet_crowd: PetCrowd
 var camera_rig: ThirdPersonCamera
 var rng := RandomNumberGenerator.new()
 var _event_rng := RandomNumberGenerator.new()
@@ -252,6 +259,10 @@ func _ready() -> void:
 		presence.setup(self)
 		add_child(presence)
 		_phase("world_players")
+	if PetData.allowed_in(data):
+		pet_crowd = PetCrowd.new()
+		pet_crowd.setup(self)
+		add_child(pet_crowd)
 	OnlineGuildWar.ensure(get_tree())
 	if EntitySync.supports(self):
 		sync = EntitySync.new()
@@ -333,6 +344,7 @@ func _process(delta: float) -> void:
 	if _weather and is_instance_valid(hero):
 		_weather.global_position = Vector3(hero.global_position.x, _weather.position.y, hero.global_position.z)
 	if is_town:
+		_tick_pet_quest()
 		return
 	# Another member hosts the monsters (EntitySync mirror): none of our own.
 	if sync != null and sync.is_mirror():
@@ -613,6 +625,8 @@ func _build_town() -> void:
 	VillageGround.build(self, 140.0, TOWN_RADIUS, green, streets, Vector3(0, 0, JapanVillage.PLAZA_RADIUS))
 	await _slice()
 	var clear := JapanVillage.build(self, rng)
+	# The pet pen with its wandering pets (the pet keeper stands at its gate).
+	pet_pen = PetPen.build(self, rng, clear)
 	var villagers := _villagers()
 	for v in villagers:
 		# Random rocks and trees keep off where a villager stands and the ground in front where
@@ -667,6 +681,7 @@ func _villagers() -> Array:
 		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
 		["raid", RaidData.KEEPER, &"warrior", "%s · วันละ %d รอบ" % [RaidData.SHORT, RaidData.RUNS_PER_DAY], V.PAGODA + Vector3(-5.6, 0, 10.4), "Knight", V.PAGODA + Vector3(-17.0, 0, 10.4)],
+		["pet", PetScreen.KEEPER, &"archer", "เลือกสัตว์เลี้ยงคู่ใจ", PetPen.KEEPER, "Ranger", PetPen.KEEPER_FACE],
 		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
 	]
@@ -789,6 +804,83 @@ func _spawn_hero() -> void:
 			hero_died.emit())
 	hero.target_changed.connect(func(mob: Mob): camera_rig.combat_focus = mob)
 	Game.leveled_up.connect(func(_l): hero.level_up_fx())
+	spawn_pet()
+
+
+## The starter quest รับสัตว์เลี้ยงคู่ใจ (PetData.quest_open) in the village: a gold arrow
+## floating over the hero's head points the way to the pet keeper (gone within ARROW_NEAR of
+## it), and the quest is announced once a session.
+const ARROW_NEAR := 6.0
+var pet_quest_arrow: Node3D
+## Heroes already told about the quest this session (slot|name): told once, not on every visit.
+static var _pet_quest_told: Dictionary = {}
+var _pet_quest_timer := 0.0
+
+
+func _tick_pet_quest() -> void:
+	_pet_quest_timer -= get_process_delta_time()
+	if _pet_quest_timer > 0.0 and (pet_quest_arrow == null or not pet_quest_arrow.visible):
+		return
+	_pet_quest_timer = 0.5
+	var open := pet_pen != null and Game.has_profile and PetData.quest_open(Game.profile)
+	var who := "%d|%s" % [Game.slot, String(Game.profile.get("name", ""))]
+	if open and not _pet_quest_told.has(who):
+		_pet_quest_told[who] = true
+		Game.say("เควสต์ใหม่: %s — %s" % [PetData.QUEST_NAME, PetData.QUEST_TEXT], &"quest")
+	var to := PetPen.KEEPER - hero.global_position
+	to.y = 0.0
+	var show := open and to.length() > ARROW_NEAR
+	if show and pet_quest_arrow == null:
+		pet_quest_arrow = _make_quest_arrow()
+	if pet_quest_arrow == null:
+		return
+	pet_quest_arrow.visible = show
+	if show:
+		var dir := to.normalized()
+		# Over the hero's head (the hero's body would hide it on the ground ahead).
+		pet_quest_arrow.global_position = hero.global_position + dir * 0.9 + Vector3(0, 3.1 + sin(Time.get_ticks_msec() * 0.004) * 0.1, 0)
+		pet_quest_arrow.rotation.y = atan2(dir.x, dir.z)
+
+
+## A solid gold arrow pointing along its local +z (a shaft and a cone head).
+func _make_quest_arrow() -> Node3D:
+	var holder := Node3D.new()
+	holder.name = "PetQuestArrow"
+	holder.scale = Vector3.ONE * 1.3
+	add_child(holder)
+	var mat := MeshKit.toon(Color("ffd84a"), {"emission": 0.9})
+	var shaft := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.2, 0.2, 0.6)
+	shaft.mesh = box
+	shaft.material_override = mat
+	shaft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(shaft)
+	var head := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.32
+	cone.height = 0.5
+	cone.radial_segments = 8
+	cone.rings = 1
+	head.mesh = cone
+	head.material_override = mat
+	head.rotation_degrees = Vector3(90, 0, 0)
+	head.position = Vector3(0, 0, 0.5)
+	head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(head)
+	return holder
+
+
+## Brings the hero's pet into this zone (once; also right after it is chosen at the keeper).
+## None before one is chosen, and none in the 1v1 duels (PetData.allowed_in).
+func spawn_pet() -> Pet:
+	if is_instance_valid(pet) or hero == null or not Game.has_profile or Game.pet_id() == "" or not PetData.allowed_in(data):
+		return pet
+	pet = Pet.new()
+	pet.setup_pet(hero, Game.pet_id())
+	add_child(pet)
+	return pet
 
 
 ## Where someone walking into this zone appears (the hero's arrival point).
@@ -923,6 +1015,8 @@ func _update_interact() -> void:
 		label = "ยึดแท่นปราสาท"
 		current_interact = {"altar": true}
 	for npc in npcs:
+		if npc.role == "pet":
+			npc.marker.visible = PetData.quest_open(Game.profile)
 		if npc.role == "elder":
 			var quest_id := QuestData.current_quest()
 			npc.marker.visible = quest_id != "" and Game.quest_status(quest_id) in ["new", "ready"] and QuestData.unlock_problem(QuestData.get_quest(quest_id)) == ""

@@ -96,12 +96,33 @@ test('state and look go to everyone else (clients filter by zone)', () => {
   assert.deepEqual(b.last('state'), {t: 'state', id: '1', pos: [5, 0, 6], yaw: 1.5, anim: 'run', hp: 90, max_hp: 100, zone: 'meadow', mount: 'horse'});
   assert.equal(a.frames('state').length, 0);
   a.send({t: 'look', look: {class: 'mage', wings: 3}, level: 11, stars: 2});
-  assert.deepEqual(b.last('look'), {t: 'look', id: '1', look: {class: 'mage', wings: 3}, level: 11, stars: 2});
+  assert.deepEqual(b.last('look'), {t: 'look', id: '1', look: {class: 'mage', wings: 3}, level: 11, stars: 2, pet: ''});
   b.send({t: 'who'});
   const me = b.last('players').players[0];
   assert.deepEqual(me.pos, [5, 0, 6]);
   assert.equal(me.level, 11);
   assert.equal(me.look.wings, 3);
+});
+
+test('the pet a player shows: hello and look carry it, only the three pets pass, a look without one keeps it', () => {
+  const {connect} = world();
+  const a = connect('1').hello({pet: 'fire'});
+  const b = connect('2').hello({pet: 'dragon'});
+  b.send({t: 'who'});
+  assert.equal(b.last('players').players.find(p => p.id === '1').pet, 'fire', 'the hello carries the pet');
+  assert.equal(a.last('join').player.pet, '', 'an unknown pet is dropped');
+  clearAll(a, b);
+  a.send({t: 'look', look: {class: 'mage'}, level: 12, stars: 0, pet: 'water'});
+  assert.equal(b.last('look').pet, 'water');
+  a.send({t: 'look', look: {class: 'mage'}, level: 13, stars: 0});
+  assert.equal(b.last('look').pet, 'water', 'a look without a pet keeps the one shown');
+  for (const bad of [5, ['fire'], {id: 'fire'}, 'x'.repeat(40), null]) {
+    a.send({t: 'look', look: {class: 'mage'}, level: 13, stars: 0, pet: bad});
+    assert.equal(b.last('look').pet, '', `a malformed pet (${JSON.stringify(bad)}) shows none`);
+  }
+  a.send({t: 'look', look: {class: 'mage'}, level: 13, stars: 0, pet: 'earth'});
+  b.send({t: 'who'});
+  assert.equal(b.last('players').players.find(p => p.id === '1').pet, 'earth', 'who lists the pet');
 });
 
 test('chat: world to all, party to members, whisper to sender and target, trimmed, spoofed from ignored', () => {

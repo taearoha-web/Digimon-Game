@@ -132,7 +132,7 @@ func send(type: String, data := {}) -> void:
 
 
 ## id -> player dict (latest): {id, user, name, cls, level, stars, look, zone, pos, yaw,
-## anim, hp, max_hp, mount, party}.
+## anim, hp, max_hp, mount, pet, party}.
 func players() -> Dictionary:
 	return _players
 
@@ -674,13 +674,15 @@ func _hero() -> Hero:
 func _hello() -> Dictionary:
 	var p := Game.profile
 	var look := _hero_look()
-	_look_sig = PlayerLook.signature(look)
+	_look_sig = PlayerLook.signature(look) + "|" + Game.pet_id()
 	var data := {
 		"name": String(p.get("name", "")).strip_edges().left(NAME_MAX),
 		"cls": String(p.get("class", ClassData.START)),
 		"level": int(p.get("level", 1)),
 		"stars": int((p.get("paragon", {}) as Dictionary).get("level", 0)) if p.get("paragon") is Dictionary else 0,
 		"look": look,
+		# The pet the hero chose (PetData; "" before one): the others' games show it following.
+		"pet": Game.pet_id(),
 	}
 	data.merge(_state_now(), true)
 	return data
@@ -788,11 +790,11 @@ func _check_look() -> void:
 	var look := _hero_look()
 	if look.is_empty():
 		return
-	var sig := PlayerLook.signature(look)
+	var sig := PlayerLook.signature(look) + "|" + Game.pet_id()
 	if sig == _look_sig:
 		return
 	_look_sig = sig
-	send("look", {"look": look, "level": int(look.get("level", 1)), "stars": int(look.get("stars", 0))})
+	send("look", {"look": look, "level": int(look.get("level", 1)), "stars": int(look.get("stars", 0)), "pet": Game.pet_id()})
 
 
 # --- What the server says --------------------------------------------------------------------
@@ -805,7 +807,7 @@ func _norm_player(raw: Variant) -> Dictionary:
 		return {}
 	var p := {"id": id, "user": str(raw.get("user", "")).left(32), "name": str(raw.get("name", "")).strip_edges().left(NAME_MAX),
 		"cls": "", "level": 1, "stars": 0, "look": {}, "zone": "", "pos": [0.0, 0.0, 0.0], "yaw": 0.0, "anim": "idle",
-		"hp": 1, "max_hp": 1, "mount": "", "party": null}
+		"hp": 1, "max_hp": 1, "mount": "", "pet": "", "party": null}
 	_merge(p, raw)
 	return p
 
@@ -837,6 +839,8 @@ func _merge(p: Dictionary, raw: Dictionary) -> void:
 		p["hp"] = clampi(num(raw.hp, int(p.hp)), 0, int(p.max_hp))
 	if raw.has("mount"):
 		p["mount"] = String(raw.mount).left(32) if raw.mount is String else ""
+	if raw.has("pet"):
+		p["pet"] = PetData.clean_id(raw.pet)
 	if raw.has("party"):
 		p["party"] = raw.party if (raw.party == null or raw.party is String or raw.party is int or raw.party is float) else null
 
@@ -938,7 +942,10 @@ func _on_look(msg: Dictionary) -> void:
 	if id == "" or not _players.has(id) or not msg.get("look") is Dictionary:
 		return
 	var p: Dictionary = _players[id]
-	_merge(p, {"look": msg.look, "level": msg.get("level", p.level), "stars": msg.get("stars", p.stars)})
+	var changes := {"look": msg.look, "level": msg.get("level", p.level), "stars": msg.get("stars", p.stars)}
+	if msg.has("pet"):
+		changes["pet"] = msg.pet
+	_merge(p, changes)
 	var r := remote_node(id) as RemotePlayer
 	if r != null:
 		r.player = p
