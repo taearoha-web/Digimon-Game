@@ -45,7 +45,10 @@ var _soft_body := false
 var _motion_weight := 0.0
 
 
-func setup(model_path: String, target_height: float, hover := 0.0, tint := Color.WHITE) -> void:
+## [param model_path] is a monster under DIR without extension ("big/Dino"), or a full
+## "res://" path (the pets, PetData). [param skin] replaces the model's albedo texture
+## (a repainted palette: the earth pet's stone golem).
+func setup(model_path: String, target_height: float, hover := 0.0, tint := Color.WHITE, skin: Texture2D = null) -> void:
 	if is_instance_valid(model):
 		model.free()
 	_clips.clear()
@@ -53,9 +56,12 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	busy_until = 0
 	_motion_weight = 0.0
 	var path := DIR + model_path + ".gltf"
-	for ext in [".glb", ".fbx"]:
-		if ResourceLoader.exists(DIR + model_path + ext):
-			path = DIR + model_path + ext
+	if model_path.begins_with("res://"):
+		path = model_path
+	else:
+		for ext in [".glb", ".fbx"]:
+			if ResourceLoader.exists(DIR + model_path + ext):
+				path = DIR + model_path + ext
 	var packed := load(path) as PackedScene
 	if packed == null:
 		push_error("MonsterVisual: missing %s" % model_path)
@@ -78,7 +84,7 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 	_idle_phase = float(absi(model_path.hash()) % 100) * 0.063
 	_soft_body = model_path.contains("Blob") or model_path.contains("Glub") or model_path.contains("Ghost")
 	height = target_height + hover
-	_apply_finish(tint, fit)
+	_apply_finish(tint, fit, skin)
 	anim = _find_player(model)
 	_clip_speed = CLIP_SPEED.get(model_path, {})
 	if anim and EXTRA_CLIPS.has(model_path):
@@ -87,7 +93,7 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 		# Older FBX packs name clips "BatArmature|Bat_Flying": match them by the
 		# part after the armature and the model's own name.
 		var names := {}
-		var base := model_path.get_file()
+		var base := model_path.get_file().get_basename() if model_path.begins_with("res://") else model_path.get_file()
 		for clip in anim.get_animation_list():
 			var short := String(clip).get_slice("|", String(clip).get_slice_count("|") - 1)
 			if short.begins_with(base + "_"):
@@ -121,7 +127,7 @@ func _add_extra_clips(model_path: String) -> void:
 
 ## The same soft illustrated finish as the heroes, with a satin gloss reserved
 ## for jelly creatures. Outline width is measured in world space after fitting.
-func _apply_finish(tint: Color, fit: float) -> void:
+func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
 	var width := 0.009 / maxf(fit, 0.001) if GameSettings.quality > 0 else 0.0
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
@@ -131,6 +137,11 @@ func _apply_finish(tint: Color, fit: float) -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		for i in mi.mesh.get_surface_count():
 			var source := mi.get_active_material(i) as StandardMaterial3D
+			if source and skin:
+				var painted := source.duplicate() as StandardMaterial3D
+				painted.albedo_texture = skin
+				painted.set_meta("storybook_key", "%s|%s" % [source.resource_path, skin.resource_path])
+				source = painted
 			if source:
 				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, width, _soft_body))
 

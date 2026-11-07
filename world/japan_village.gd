@@ -764,7 +764,8 @@ static func _lived_in(root: Node3D) -> void:
 	# Training quarter: a woodpile in the corner, a vegetable bed, laundry and a cart
 	# behind the well, a bench under a sakura before the dojo street.
 	JapanKit.woodpile(_prop(root, "training", Vector3(-63.0, 0, -12), E, Vector3(4.2, 1.2, 1.4)), 2.4)
-	JapanKit.garden_bed(_prop(root, "training", Vector3(-60, 0, 11), S, Vector3(4.2, 0.6, 2.7)), 4.0, 2.5)
+	# Moved west of the laundry line: the pet pen (PetPen) stands where it was.
+	JapanKit.garden_bed(_prop(root, "training", Vector3(-66, 0, 17), S, Vector3(4.2, 0.6, 2.7)), 4.0, 2.5)
 	JapanKit.laundry_line(_prop(root, "training", Vector3(-58.5, 0, 15.5), S), 7.0)
 	JapanKit.cart(_prop(root, "training", Vector3(-52, 0, 14.5), W, Vector3(1.8, 1.4, 3.0)), sacks)
 	JapanKit.bench(_d("training"), Vector3(-44, 0, 13.6), 180.0, 2.2)

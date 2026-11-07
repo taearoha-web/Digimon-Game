@@ -35,6 +35,8 @@ signal achievement_earned(id: String)
 signal title_changed(title: String)
 ## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
 signal mount_changed()
+## The hero chose its pet (PetData, choose_pet).
+signal pet_changed()
 ## The hero's stall (PlayerStall: แผงของฉัน) changed: a lot listed, taken back or sold.
 signal stall_changed()
 
@@ -187,6 +189,8 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
 		"mounts": {}, "mount": "",
+		# The pet (PetData), chosen once at the pet keeper: "" until then.
+		"pet": "",
 		"stall": PlayerStall.empty(),
 	}
 	WorldPlayers.resume_all(WorldPresence.clock())
@@ -967,6 +971,10 @@ func _valid_profile(data: Dictionary) -> bool:
 			return false
 	if data.has("mount") and not data.mount is String:
 		return false
+	# The pet (PetData): an id, "" before one is chosen. Saves from before pets have none;
+	# an unknown id is dropped by _repair.
+	if data.has("pet") and (not data.pet is String or (data.pet as String).length() > PET_ID_MAX):
+		return false
 	for key in ["attrs", "skills", "boss_kills", "boss_pity", "pvp", "tower", "look"]:
 		for value in data.get(key, {}).values():
 			if not _valid_integer(value):
@@ -1210,6 +1218,7 @@ func _repair(data: Dictionary) -> Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	StarWingData.migrate_profile(data)
 	_repair_mounts(data)
+	data["pet"] = PetData.chosen(data)
 	# Saves from before the stall get an empty one.
 	PlayerStall.repair(data)
 	DailyPass.repair(data)
@@ -1929,6 +1938,38 @@ func spend_gold(amount: int) -> bool:
 	if profile["gold"] < amount:
 		return false
 	add_gold(-amount)
+	return true
+
+
+# ---------------------------------------------------------------------------
+# The pet (PetData)
+# ---------------------------------------------------------------------------
+
+## The longest pet id a save may carry (the ids are short words).
+const PET_ID_MAX := 16
+
+
+## The hero's pet ("fire" / "water" / "earth"), or "" before one is chosen.
+func pet_id() -> String:
+	return PetData.chosen(profile)
+
+
+## Chooses the hero's pet. A pet is chosen once and kept for good: false (and nothing
+## changes) when the hero already has one or [param id] is not a pet.
+func choose_pet(id: String) -> bool:
+	if not has_profile or not PetData.exists(id) or pet_id() != "":
+		return false
+	profile["pet"] = id
+	# The starter quest (PetData.QUEST_NAME) pays once, whenever the pet is chosen.
+	if int(profile.flags.get(PetData.QUEST_FLAG, 0)) == 0:
+		profile.flags[PetData.QUEST_FLAG] = 1
+		add_gold(PetData.QUEST_GOLD)
+		for pair in PetData.QUEST_ITEMS:
+			add_item(ItemData.potion(String(pair[0]), int(pair[1])))
+		say("เควสต์สำเร็จ: %s! ได้รับ %d เหรียญ และยา" % [PetData.QUEST_NAME, PetData.QUEST_GOLD], &"quest")
+	save()
+	pet_changed.emit()
+	profile_changed.emit()
 	return true
 
 

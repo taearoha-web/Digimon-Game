@@ -130,6 +130,14 @@ var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _gw_hud: GuildWarHud
 var _party_cards: Array[Dictionary] = []
+## The pet's chip above the party cards (PetData / Pet): element badge, name and level,
+## its health, or the seconds until it comes back. Hidden without a pet in this zone.
+var _pet_card: PanelContainer
+var _pet_badge: PanelContainer
+var _pet_letter: Label
+var _pet_title: Label
+var _pet_bar: ProgressBar
+var _pet_key := ""
 ## "ปาร์ตี้ของคุณ" above the cards in a guild war (the cards then show the war party).
 var _party_head: Label
 ## The wing pose chip (fly / stand / fold, a tap moves on) under the party cards, while wings are worn.
@@ -384,6 +392,7 @@ func _refresh() -> void:
 	# then displays the cached image without an ongoing 3D render.
 	_refresh_portrait()
 	_name_label.text = String(p.name)
+	_update_pet_card()
 	_update_party()
 	_update_wing_row()
 	_update_mount_row()
@@ -494,6 +503,8 @@ func _update_tracker(delta: float) -> void:
 		var quest := QuestData.get_quest(quest_id)
 		var have := int(Game.quest_state(quest_id).get("progress", 0))
 		lines.append("เควสต์: %s %d/%d" % [quest.name, have, int(quest.count)] if have < int(quest.count) else "เควสต์: %s เสร็จแล้ว กลับไปรายงาน" % quest.name)
+	if PetData.quest_open(Game.profile):
+		lines.append("เควสต์: %s (ผู้ดูแลสัตว์เลี้ยงในหมู่บ้าน)" % PetData.QUEST_NAME)
 	var done := 0
 	for entry in Game.daily().quests:
 		if int(entry.progress) >= Game.daily_target(entry):
@@ -714,6 +725,7 @@ func _build_status(frame: Control) -> void:
 	var party_column := UIUtil.vbox(5)
 	party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_party_indent.add_child(party_column)
+	_build_pet_card(party_column)
 	_build_party(party_column)
 	_build_online_party(party_column)
 	_build_wing_row(party_column)
@@ -898,6 +910,81 @@ func _update_online_party() -> void:
 		var max_hp := maxi(1, int(p.max_hp))
 		UIUtil.set_bar(bar, int(p.hp), max_hp)
 		UIUtil.tint_hp_bar(bar, float(p.hp) / float(max_hp))
+
+
+## The pet's compact chip: the same card as a party member's, with the element's colour.
+func _build_pet_card(column: Control) -> void:
+	_pet_card = UIUtil.panel(&"HudPanel")
+	_pet_card.name = "PetCard"
+	_pet_card.custom_minimum_size = Vector2(PARTY_CARD_WIDTH, 0)
+	_pet_card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_pet_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pet_card.visible = false
+	var compact := StyleBoxFlat.new()
+	compact.bg_color = Color(0.05, 0.12, 0.08, 0.72)
+	compact.border_color = Color(0.8, 1.0, 0.7, 0.22)
+	compact.set_border_width_all(1)
+	compact.set_corner_radius_all(12)
+	compact.content_margin_left = 5
+	compact.content_margin_right = 4
+	compact.content_margin_top = 3
+	compact.content_margin_bottom = 3
+	_pet_card.add_theme_stylebox_override("panel", compact)
+	column.add_child(_pet_card)
+	var row := UIUtil.hbox(5)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pet_card.add_child(row)
+	_pet_badge = PanelContainer.new()
+	_pet_badge.custom_minimum_size = Vector2(30, 22)
+	_pet_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_pet_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_pet_badge)
+	_pet_letter = UIUtil.label("", &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_pet_letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_pet_letter.add_theme_font_size_override("font_size", 11)
+	_pet_badge.add_child(_pet_letter)
+	var info := UIUtil.vbox(1)
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(info)
+	_pet_title = UIUtil.label("", &"SmallLabel")
+	_pet_title.clip_text = true
+	_pet_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_pet_title.add_theme_font_size_override("font_size", 13)
+	info.add_child(_pet_title)
+	_pet_bar = _bar(&"HPBar", 5)
+	info.add_child(_pet_bar)
+
+
+## The pet chip's line now ("" while hidden): tests read it.
+func pet_card_text() -> String:
+	return _pet_title.text if _pet_card != null and _pet_card.visible else ""
+
+
+func _update_pet_card() -> void:
+	if _pet_card == null:
+		return
+	var pet: Pet = zone.pet if zone != null and is_instance_valid(zone) and is_instance_valid(zone.pet) else null
+	_pet_card.visible = pet != null
+	if pet == null:
+		return
+	var data := pet.pet
+	if _pet_key != pet.pet_id:
+		_pet_key = pet.pet_id
+		_pet_letter.text = {"fire": "ไฟ", "water": "น้ำ", "earth": "ดิน"}.get(pet.pet_id, "?")
+		var style := StyleBoxFlat.new()
+		style.bg_color = (data.color as Color).darkened(0.15)
+		style.set_corner_radius_all(11)
+		style.set_border_width_all(1)
+		style.border_color = (data.glow as Color)
+		_pet_badge.add_theme_stylebox_override("panel", style)
+	if pet.is_dead():
+		_pet_title.text = "%s · กลับมาใน %d วิ" % [String(data.name), int(ceil(pet.respawn_left))]
+		UIUtil.set_bar(_pet_bar, 0, 1)
+	else:
+		_pet_title.text = "%s Lv.%d" % [String(data.name), int(pet.pstats.get("level", 1))]
+		UIUtil.set_bar(_pet_bar, pet.hp, pet.max_hp)
+		UIUtil.tint_hp_bar(_pet_bar, float(pet.hp) / float(maxi(1, pet.max_hp)))
 
 
 ## Small cards for the party (world players who joined): badge, name, level, progress.

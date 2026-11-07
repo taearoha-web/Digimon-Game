@@ -53,8 +53,14 @@ func _draw() -> void:
 			_district(c, district, origin, yaw)
 	for portal in zone.portals:
 		_dot(c, _to_map(portal.pos, origin, yaw), Color("5ad0ff"), 5.0, true)
+	var pet_quest := zone.is_town and PetData.quest_open(Game.profile)
 	for npc in zone.npcs:
-		_dot(c, _to_map(npc.global_position, origin, yaw), Color("ffd84a"), 3.5)
+		# The pet keeper while the starter quest is open: a big orange diamond (kept on the rim
+		# when far, so it shows the way).
+		if pet_quest and npc.role == "pet":
+			_dot(c, _to_map(npc.global_position, origin, yaw), Color("ff9a3a"), 6.0, true)
+		else:
+			_dot(c, _to_map(npc.global_position, origin, yaw), Color("ffd84a"), 3.5)
 	for node in zone.get_tree().get_nodes_in_group("mobs"):
 		var mob := node as Mob
 		if mob and not mob.is_dead():
