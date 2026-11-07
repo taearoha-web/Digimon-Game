@@ -24,11 +24,14 @@ void fragment() {
     ink = mix(ink,accent.rgb,clamp(inlay*0.76+edge*0.24,0.,1.));
     float stream = pow(max(0.5+0.5*sin(local.y*12.-local.z*9.-age*7.), 0.0),10.);
     ink += accent.rgb*stream*inlay*0.12;
+    // COLOR.b: a piece's fade lag (0 for most geometry): plumes come and go one by one.
+    float lag = clamp(COLOR.b,0.,1.);
+    float life = clamp(fade*(1.+lag)-lag,0.,1.);
     float grain = 0.5+0.5*sin(local.x*23.+local.y*17.)*sin(local.z*19.-local.y*13.);
-    float dissolve = smoothstep((1.-fade)*1.15-0.12,(1.-fade)*1.15+0.09,grain);
+    float dissolve = smoothstep((1.-life)*1.15-0.12,(1.-life)*1.15+0.09,grain);
     ALBEDO = ink;
     EMISSION = ink*(0.20+inlay*0.28);
     float body = clamp((inlay-0.72)*3.5+edge*1.6, 0., 1.);
     ink = mix(ink, mix(ink, tint, 0.35), veil*(1.-inlay));
-    ALPHA = opacity*dissolve*smoothstep(0.,0.14,fade)*mix(1., 0.22+0.78*body, veil);
+    ALPHA = opacity*dissolve*smoothstep(0.,0.14,life)*mix(1., 0.22+0.78*body, veil);
 }

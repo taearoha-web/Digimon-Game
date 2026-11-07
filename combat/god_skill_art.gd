@@ -41,7 +41,7 @@ static func _extra(parent: Node3D, point: Vector3, seconds: float, label: String
 ##   mid    emblems, avatars and aureoles in the sky: half glass, behind the stack
 ##   outer  seals, temples and pillars on the ground: mostly glass, drawn first
 ## Cosmetic only: no layer is added or dropped and no root lives longer.
-const SPARKS := ["shards", "feathers", "rain", "note_shower", "bolt", "sweep", "wind", "storm"]
+const SPARKS := ["shards", "feathers", "plumes", "rain", "note_shower", "bolt", "sweep", "wind", "storm"]
 const TIERS := {
 	"detail": {"opacity": 0.5, "veil": 0.5, "priority": 0, "life": 0.68},
 	"mid": {"opacity": 0.72, "veil": 0.45, "priority": -1, "life": 1.0},
@@ -63,7 +63,7 @@ static func _tiered(kind: String, at: Vector3, seconds: float, style: Dictionary
 	if tier == "core": return out
 	var t: Dictionary = TIERS[tier]
 	out.opacity = minf(float(style.get("opacity", 0.94)), float(t.opacity))
-	out.veil = t.veil
+	out.veil = maxf(float(style.get("veil", 0.0)), float(t.veil))
 	out.priority = t.priority
 	out.seconds = seconds * float(t.life)
 	if tier == "detail": out.decay = minf(float(style.get("decay", 0.6)), 0.5)
@@ -134,7 +134,7 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 		"sunfall_volley": _put(art, "martial/bow", c, Vector3(0, 1.7, 0.5), Vector3.ONE * 1.3, Vector3.ZERO, time, grow)
 		"heavenrend_spear": _put(art, "elite/spears", c, Vector3.UP * 0.05, Vector3(2.2, 2.6, 2.2), Vector3.ZERO, time, grow)
 		"astral_apocalypse": _put(art, "planets", c, Vector3(0, 3.3, 0), Vector3.ONE * 1.1, Vector3.ZERO, time, grow.merged({"spin": 1.2}, true))
-		"seraphic_judgment": _put(art, "feathers", c, Vector3.UP * 0.2, Vector3(1.8, 3.0, 1.8), Vector3.ZERO, time, {"travel": Vector3.UP * 1.5, "decay": 0.9, "initial": 0.7})
+		"seraphic_judgment": _put(art, "plumes", c, Vector3.UP * 0.2, Vector3(1.6, 2.6, 1.6), Vector3.ZERO, time, {"travel": Vector3.UP * 1.2, "decay": 0.8, "initial": 0.7, "veil": 0.7})
 		"celestial_dragon_emperor": _put(art, "sylph", c, Vector3(0, 2.6, 0), Vector3.ONE * 1.3, Vector3.ZERO, time, grow.merged({"spin": 1.0}, true))
 		"pantheon_bastion": _put(art, "shield_ring", c, Vector3.UP * 0.1, Vector3.ONE * 2.0, Vector3.ZERO, time, grow.merged({"spin": 0.3}, true))
 		"death_gods_eclipse": _put(art, "moon", c, Vector3(0, 3.0, -0.3), Vector3.ONE * 1.1, Vector3(PI / 2, 0, 0), time, grow)
@@ -179,7 +179,7 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 			_put(sky, "elite/astrolabe", c, Vector3.UP * SKY, Vector3.ONE * r * 0.7, Vector3(0.35, 0, 0.2), time, high.merged({"spin": 0.6}, true))
 			_put(sky, "genesis", c, Vector3.UP * SKY, Vector3.ONE * 2.2, Vector3.ZERO, time, high.merged({"spin": 1.3}, true))
 		"seraphic_judgment":
-			_put(sky, "seraph", c, Vector3.UP * (SKY - 1.5), Vector3.ONE * 3.4, Vector3.ZERO, time, high.merged({"flap": 0.06, "flap_rate": 3.0}, true))
+			_put(sky, "seraph_plumes", c, Vector3.UP * (SKY - 1.5), Vector3.ONE * 3.2, Vector3.ZERO, time, high.merged({"flap": 0.06, "flap_rate": 3.0, "veil": 0.7}, true))
 			_put(sky, "sunrise", c, Vector3.UP * SKY, Vector3.ONE * r * 0.6, Vector3.ZERO, time, high.merged({"spin": 0.3}, true))
 		"celestial_dragon_emperor":
 			_put(sky, "martial/dragon", c, Vector3.UP * (SKY - 2.0), Vector3.ONE * 3.0, Vector3(0, PI / 2, 0), time, high.merged({"orbit": r * 0.45, "orbit_speed": 1.7, "spin": 1.7}, true))
@@ -248,7 +248,7 @@ static func _wave(art: StarSkillArt, parent: Node3D, id: String, c: Dictionary, 
 			var lance := MartialGeometry.mesh("lance")
 			_drop(art, lance, "GodHolyLance", c, spot, 5.5, 8.0, 0.3, a)
 			_put(art, "sunrise", c, spot + Vector3.UP * 0.07, Vector3.ONE * r * 0.38, Vector3.ZERO, 1.0, hit.merged({"delay": 0.28, "spin": 0.4}, true))
-			_put(art, "feathers", c, spot, Vector3(2.2, 3.0, 2.2), Vector3.ZERO, 1.1, {"travel": Vector3.UP * 1.2, "delay": 0.28})
+			_put(art, "plumes", c, spot, Vector3(1.8, 2.4, 1.8), Vector3.ZERO, 1.0, {"travel": Vector3.UP * 1.0, "delay": 0.28, "veil": 0.7})
 			_put(art, "impact", c, spot + Vector3.UP * 0.06, Vector3.ONE * r * 0.3, Vector3.ZERO, 0.7, {"initial": 0.05, "delay": 0.28})
 		"celestial_dragon_emperor":
 			var across := Vector3(cos(a), 0, -sin(a))
@@ -325,11 +325,13 @@ static func _finale(art: StarSkillArt, parent: Node3D, id: String, c: Dictionary
 			_put(art, "god_halo", c, at, Vector3.ONE * r, Vector3.ZERO, 1.9, seal)
 			_put(art, "sunrise", c, at + Vector3.UP * 0.02, Vector3.ONE * r * 1.05, Vector3.ZERO, 1.5, {"initial": 0.02, "delay": 0.12, "spectral": 1.0})
 		"seraphic_judgment":
-			_put(art, "seraph", c, Vector3.UP * 7.0, Vector3.ONE * 5.5, Vector3.ZERO, 1.9, {"initial": 0.7, "travel": Vector3.DOWN * 2.2, "flap": 0.08, "flap_rate": 4.0, "decay": 0.85})
+			# The Seraph descends as two fans of glass plumes edged in gold, never a pale wall:
+			# the plumes thin out one by one (their fade lag) well before the beat ends.
+			_put(art, "seraph_plumes", c, Vector3.UP * 7.2, Vector3.ONE * 4.2, Vector3.ZERO, 1.5, {"initial": 0.7, "travel": Vector3.DOWN * 1.8, "flap": 0.08, "flap_rate": 4.0, "decay": 0.55, "veil": 0.72, "opacity": 0.82})
 			_put(art, "elite/cathedral", c, Vector3.ZERO, Vector3(r, 4.0, r), Vector3.ZERO, 1.9, {"initial": 0.2, "grow_time": 0.25, "decay": 0.85})
 			_put(art, "sunrise", c, at, Vector3.ONE * r, Vector3.ZERO, 1.9, seal)
 			_put(art, "god_halo", c, at + Vector3.UP * 0.02, Vector3.ONE * r * 0.7, Vector3.ZERO, 1.9, seal.merged({"spin": -0.4}, true))
-			_put(art, "feathers", c, at, Vector3(r * 0.7, 5.0, r * 0.7), Vector3.ZERO, 1.9, {"travel": Vector3.UP * 1.4})
+			_put(art, "plumes", c, at, Vector3(r * 0.5, 3.4, r * 0.5), Vector3.ZERO, 1.5, {"travel": Vector3.UP * 1.2, "veil": 0.75})
 		"celestial_dragon_emperor":
 			_put(art, "martial/dragon", c, Vector3.UP * 14.0, Vector3.ONE * 4.6, Vector3(PI / 2, 0, 0), 0.4, {"initial": 1.0, "travel": Vector3.DOWN * 13.0, "accelerate": true, "decay": 0.9, "front": true})
 			_put(art, "martial/storm", c, Vector3.UP * 0.2, Vector3(r * 0.8, 3.2, r * 0.8), Vector3.ZERO, 1.6, {"initial": 0.3, "spin": 2.6, "opacity": 0.75, "delay": 0.36})
@@ -410,7 +412,7 @@ static func _avatar(art: StarSkillArt, id: String, c: Dictionary, r: float, spec
 		"seraphic_judgment":
 			_put(art, "aureole", c, high + Vector3.UP * 0.8, Vector3.ONE * r * 0.5, Vector3.ZERO, 2.0, aureole)
 			_put(art, "sunrise", c, high + Vector3.UP * 0.8, Vector3.ONE * r * 0.42, Vector3(PI / 2, 0, 0), 2.0, aureole.merged({"pulse": false}, true))
-			_put(art, "feathers", c, Vector3.UP * 0.5, Vector3(r * 0.8, 7.0, r * 0.8), Vector3.ZERO, 2.0, {"travel": Vector3.UP * 1.6, "initial": 0.7})
+			_put(art, "plumes", c, Vector3.UP * 0.5, Vector3(r * 0.55, 4.2, r * 0.55), Vector3.ZERO, 1.6, {"travel": Vector3.UP * 1.4, "initial": 0.7, "veil": 0.75})
 		"celestial_dragon_emperor":
 			_put(art, "martial/dragon", c, high + Vector3.DOWN * 1.2, Vector3.ONE * 5.0, Vector3(0, PI / 2, 0), 2.0, rise.merged({"orbit": r * 0.32, "orbit_speed": 2.0, "spin": 2.0}, true))
 			_put(art, "aureole", c, high, Vector3.ONE * r * 0.45, Vector3.ZERO, 2.0, aureole)

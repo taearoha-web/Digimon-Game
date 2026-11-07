@@ -2,7 +2,7 @@ class_name StarGeometry
 extends RefCounted
 ## Fixed vocabulary for the twenty-four astral skills. Every recipe is merged
 ## into one indexed surface; casts share these meshes and never bake particles.
-const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre pantheon god_halo aureole god_note note_swirl note_shower"
+const KINDS := "lion fang crown banners celestial moon reticle sylph constellation drill heart phalanx worldroot prism prison planets genesis rosary seraph chapel sunrise wolf leviathan court sovereign impact streak shards feathers titan_shield shield_ring lyre pantheon god_halo aureole god_note note_swirl note_shower plumes seraph_plumes"
 static var cache: Dictionary = {}
 static var _box_mesh: BoxMesh
 
@@ -110,6 +110,31 @@ static func _box() -> BoxMesh:
 ## A note frame: at [param at], [param size] tall, turned [param yaw] round Y and rolled [param roll].
 static func _note_frame(at: Vector3, size: float, yaw := 0.0, roll := 0.0) -> Transform3D:
 	return Transform3D(Basis.from_euler(Vector3(0,yaw,roll))*Basis.from_scale(Vector3.ONE*size),at)
+
+## A translucent plume for the god-tier Seraph (GodSkillArt): a slender vane whose
+## glass runs from a warm root to a clear tip, framed by a thin gold edge and quill.
+## COLOR.b is the plume's fade lag (star_skill.gdshader): plumes with a higher lag
+## come and go later than the others, so a fan of them thins out one by one.
+static func _plume(st: SurfaceTool, root: Vector3, tip: Vector3, width: float, lag: float, out := Vector3.FORWARD) -> void:
+	var axis := tip - root
+	var side := axis.cross(out).normalized() * width
+	if side.length_squared() < 0.000001:
+		side = Vector3(axis.y, -axis.x, 0).normalized() * width
+	var mid := root + axis * 0.42
+	var left := mid + side
+	var right := mid - side * 0.8
+	var shoulder := root + axis * 0.78
+	var corners := [[root, 0.42], [left, 0.16], [shoulder + side * 0.45, 0.06], [tip, 0.0], [shoulder - side * 0.35, 0.06], [right, 0.16]]
+	for i in corners.size():
+		var a: Array = corners[i]
+		var b: Array = corners[(i + 1) % corners.size()]
+		for v in [[root + axis * 0.5, 0.22], a, b]:
+			st.set_color(Color(float(v[1]), 1, lag))
+			st.add_vertex(v[0])
+	var edge := PackedVector3Array([root, left, shoulder + side * 0.45, tip, shoulder - side * 0.35, right, root])
+	BuffArt._append_tinted(st, SpellSpectacle._tube_mesh(edge, width * 0.07), Transform3D.IDENTITY, 1.0, lag)
+	BuffArt._append_tinted(st, SpellSpectacle._tube_mesh(PackedVector3Array([root, root + axis * 0.55, tip]), width * 0.05), Transform3D.IDENTITY, 0.85, lag)
+
 
 static func mesh(kind: String) -> ArrayMesh:
 	if cache.has(kind): return cache[kind]
@@ -426,6 +451,25 @@ static func mesh(kind: String) -> ArrayMesh:
 				var frame := _note_frame(Vector3(sin(a)*radius,1.55-t*1.5,cos(a)*radius),size,a,0.35*sin(float(i)*1.7))
 				if i%4==1: _beamed(st,frame.scaled_local(Vector3(1.2,1.2,1.2)))
 				else: _eighth(st,frame)
+		"plumes":
+			# Seven slender plumes rising round the axis, each a glass vane with a gold edge.
+			for i in 7:
+				var a := float(i)*2.399963
+				var out := Vector3(sin(a),0,cos(a))
+				var r := 0.32+float(i%3)*0.22
+				var p := out*r+Vector3.UP*float(i%4)*0.2
+				_plume(st,p,p+out*0.16+Vector3.UP*(0.42+0.08*float(i%3)),0.07,0.1+0.12*float((i*3)%5),out)
+		"seraph_plumes":
+			# The Seraph's wings as two fans of six plumes, no solid slab: the sky shows through.
+			for s in [-1.0,1.0]:
+				for i in 6:
+					var f := float(i)/5.0
+					var a := deg_to_rad(-8.0+f*80.0)
+					var dir := Vector3(s*cos(a),sin(a),-0.12*f)
+					var root := Vector3(s*(0.06+0.03*f),0.12+0.05*f,0)
+					var length := 0.72+0.5*sin(f*PI*0.8)
+					_plume(st,root,root+dir*length,0.09+0.03*sin(f*PI),0.08+0.13*float(5-i),Vector3.FORWARD)
+			_gem(st,Vector3(0,0.12,0.03),Vector3(0.07,0.2,0.05),Vector3.ZERO,0.7)
 		"feathers":
 			for i in 12:
 				var a := float(i)*2.399963

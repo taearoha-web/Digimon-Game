@@ -6,7 +6,7 @@ extends Node3D
 const SHADER := preload("res://shaders/elite_skill.gdshader")
 const IDS := "grand_cross sword_of_justice godly_shield divine_piercing triumph_of_valhalla gladiator tempest lightning_arrow phoenix_rain spirit_of_wind dragon_shot meteor_arrow hell_meteor ice_storm spirit_burst magic_overdrive judgment_ray armageddon divine_judgment prayer seraphim_wrath holy_rain_big miracle last_judgement world_tree fairy_spirit gaia_blessing primal_legion cataclysm elder_dragon dragon_lance gale_cyclone valkyrie_blessing gungnir heaven_rend ragnarok_lance holy_rampart judgment_shield aegis_of_ages meteor_shield sanctuary_wall world_bastion eclipse_fang abyss_vortex phantom_legion midnight_execution shadow_sovereign oblivion_requiem infernal_scream chaos_sovereign raven_storm earth_dominion emperors_command imperial_judgment grand_dissonance aria_of_ruin eternal_echo thunder_crescendo hymn_of_legends grand_finale"
 static var _meshes: Dictionary = {}
-const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains stave"
+const GEOMETRY_KINDS := "seal astrolabe snowflake sword spear cut wings phoenix bow dragon tree roots branches crystals spears pillars rain helix cathedral gate bastion banners crown lotus stars feathers leaves fractures lane comet lightning beasts greatshield shield_outline rampart aegis crater_ring chains stave holy_columns"
 
 ## `slicer` paces it over frames behind the travel fade (null: in one go, as tests do).
 static func warm_geometry(slicer: SceneTree = null) -> void:
@@ -37,7 +37,7 @@ static func palette(skill: Dictionary) -> Dictionary:
 		"lightning_arrow":["74c9ff","fff39c","514690"],"elder_dragon":["57c6ad","ffe9a0","285463"],
 		"holy_rampart":["ffd25a","fffbe3","8a5a24"],"judgment_shield":["ffcf4d","fffbe0","7a4a20"],"aegis_of_ages":["dceeff","ffffff","3a5a9a"],"meteor_shield":["ff9a48","fff3c0","7a2a30"],"sanctuary_wall":["ffd36a","fffbe8","8a5a40"],"world_bastion":["ffc83a","fff9d8","6a4a1a"],
 		"eclipse_fang":["ff4f7b","ffe6ee","3d0d2c"],"infernal_scream":["ff6a2a","fff0b0","6a1a20"],"chaos_sovereign":["8a4dff","f0e2ff","2a0f4a"],"raven_storm":["8a4dff","f0e2ff","1e0f3e"],"imperial_judgment":["e8b64a","fff6d8","3a1a6a"],"midnight_execution":["ff5a86","fff0f4","2a0a28"],"oblivion_requiem":["a77bff","fff0ff","1c0d33"],
-		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"],
+		"cataclysm":["46b497","f4d694","34436b"],"fairy_spirit":["ff9ad2","fff4fb","8c3f7a"],"prayer":["a8e7d7","fff4d6","427c86"],"seraphim_wrath":["ffb43c","fff8dc","8c2f66"],"last_judgement":["f0a636","ffd56e","6e2a52"],"divine_judgment":["f4b440","ffdc7c","74305a"],"holy_rain_big":["ffc24a","fffbe6","7a4a7e"],
 		"grand_dissonance":["b07aff","f2e6ff","2a1040"],"thunder_crescendo":["c79bff","f4ecff","2a1250"],"grand_finale":["ff6fb5","fff4fa","4a0f30"]}
 	colors = overrides.get(String(skill.id), colors)
 	look.primary = Color(colors[0]); look.accent = Color(colors[1]); look.shade = Color(colors[2])
@@ -189,7 +189,11 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			var ultimate := id=="last_judgement"
 			art.layer("cathedral",look,Vector3.ZERO,Vector3(radius*0.65,6.8 if ultimate else 4.8,radius*0.65),Vector3.ZERO,d,1.5)
 			art.layer("seal",look,Vector3(0,0.08,0),Vector3.ONE*radius*0.9,Vector3.ZERO,d,1.5,Vector3.ZERO,0.25)
-			art.layer("rain" if id=="holy_rain_big" else "pillars",look,Vector3.ZERO,Vector3(radius*0.6,5.6,radius*0.6),Vector3.ZERO,d,0.85,Vector3.UP*1.3,0,1,true)
+			if id=="holy_rain_big":
+				art.layer("rain",look,Vector3.ZERO,Vector3(radius*0.6,5.6,radius*0.6),Vector3.ZERO,d,0.85,Vector3.UP*1.3,0,1,true)
+			else:
+				# Six slender columns of gold light, fading towards the sky: brief, never a cream wall.
+				art.layer("holy_columns",look,Vector3.ZERO,Vector3(radius*0.6,5.0 if ultimate else 4.2,radius*0.6),Vector3.ZERO,d,0.6,Vector3.UP*1.0,0,1,true,{"decay":0.35})
 			art.layer("feathers",look,Vector3(0,1.2,0),Vector3(radius*0.65,2,radius*0.65),Vector3.ZERO,d,1.65,Vector3.UP*2.2,0.35,0.65,true)
 			if ultimate:
 				art.layer("wings",look,Vector3(0,6.8,0),Vector3.ONE*3.2,Vector3.ZERO,d,1.4)
@@ -416,7 +420,7 @@ const DEPTH_FAMILIES := ["archer", "mage", "priest", "summoner", "bard"]
 ## Ground plates: drawn first and mostly glass, so the shared rings and sparks read over them.
 const OUTER_KINDS := ["seal", "fractures", "crater_ring", "lane", "snowflake", "branches", "lotus", "shield_outline", "chains"]
 ## Architecture that fills the field (temples, pillar groves, rain curtains): half glass, behind the stack.
-const VOLUME_KINDS := ["cathedral", "pillars", "rampart", "aegis", "crystals", "spears", "helix", "rain", "roots", "tree", "gate", "bastion", "stave", "astrolabe"]
+const VOLUME_KINDS := ["cathedral", "pillars", "holy_columns", "rampart", "aegis", "crystals", "spears", "helix", "rain", "roots", "tree", "gate", "bastion", "stave", "astrolabe"]
 ## Drifting detail: lighter, so it reads as motes round the skill rather than a cloud.
 const DETAIL_KINDS := ["stars", "feathers", "leaves"]
 
@@ -595,6 +599,26 @@ static func geometry(kind: String) -> ArrayMesh:
 				else:
 					_append(st,SpellSpectacle._crystal_mesh(),pos+Vector3.UP*0.5,Vector3(0.06,1,0.06),Vector3.ZERO,0.8)
 					_ring_at(st,pos,0.10,0.015)
+		"holy_columns":
+			# Six tapered columns of light (r = inlay, g = opacity): warm and dense at the
+			# foot, thinning to nothing at the top, so they rise as soft shafts, not slabs.
+			for i in 6:
+				var a := TAU*float(i)/6.0+0.3
+				var foot := Vector3(sin(a),0,cos(a))*(0.5+float(i%3)*0.2)
+				var rings := [[0.0,0.034,0.55,0.5],[0.3,0.028,0.4,1.0],[1.0,0.008,0.05,0.0]]
+				for k in rings.size()-1:
+					var lo: Array = rings[k]
+					var hi: Array = rings[k+1]
+					for j in 6:
+						var b0 := TAU*float(j)/6.0
+						var b1 := TAU*float(j+1)/6.0
+						var quad := [[b0,lo],[b1,lo],[b1,hi],[b0,lo],[b1,hi],[b0,hi]]
+						for v in quad:
+							var ring: Array = v[1]
+							var h := float(ring[0])*(0.8+0.1*float(i%3))
+							st.set_color(Color(float(ring[2]),float(ring[3]),0))
+							st.set_uv(Vector2(float(v[0]),h))
+							st.add_vertex(foot+Vector3(sin(float(v[0]))*float(ring[1]),h,cos(float(v[0]))*float(ring[1])))
 		"helix":
 			for lane in 3:
 				var pts := PackedVector3Array()
