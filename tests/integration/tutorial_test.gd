@@ -82,7 +82,12 @@ func _fresh_hero() -> void:
 	check(expected_guide >= 0, "someone is online to guide a newcomer")
 	if expected_guide >= 0:
 		var s := WorldPlayers.state(expected_guide, WorldPresence.clock())
-		check(bool(s.online) and int(s.guild) == 0, "the guide is an online player without a guild (%s Lv.%d)" % [s.name, int(s.level)])
+		# Without a guild when anyone online has none (everyone joins one of the 4 guilds at Lv.100).
+		var free_online := false
+		for i in WorldPlayers.size():
+			var o := WorldPlayers.state(i, WorldPresence.clock())
+			free_online = free_online or (bool(o.online) and int(o.guild) == 0)
+		check(bool(s.online) and (int(s.guild) == 0 or not free_online), "the guide is an online player, without a guild when one is online (%s Lv.%d)" % [s.name, int(s.level)])
 	await _new_hero()
 	check(int(Game.profile.flags.get("tut", 0)) == 1 and tut.step == 1, "a fresh Lv.1 hero in the village starts step 1 (flag %s)" % str(Game.profile.flags.get("tut")))
 	check(toasts.has(Tutorial.HINTS[1]) and tut.shown.size() == 1, "step 1 shows its hint")
