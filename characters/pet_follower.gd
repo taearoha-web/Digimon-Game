@@ -52,6 +52,18 @@ func build(id: String) -> void:
 ## Walks with [param who] from now on, starting right behind it.
 func attach(who: Node3D) -> void:
 	owner_node = who
+	# Its form follows its owner's level (PetData.stage_for).
+	var level := 1
+	if "member" in who and who.member is Dictionary:
+		level = int((who.member as Dictionary).get("level", 1))
+	elif "look" in who and who.look is Dictionary and (who.look as Dictionary).has("level"):
+		level = int((who.look as Dictionary).get("level", 1))
+	elif "player" in who and who.player is Dictionary:
+		level = int((who.player as Dictionary).get("level", 1))
+	elif "level" in who:
+		level = int(who.level)
+	if visual:
+		visual.scale = Vector3.ONE * PetData.stage_scale(level)
 	_moving = false
 	global_position = who.global_position + spot_behind(who, SIDE, BACK)
 	rotation.y = _owner_yaw(who)

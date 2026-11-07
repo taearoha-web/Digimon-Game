@@ -67,6 +67,7 @@ func _ready() -> void:
 	_data()
 	_choose_once_and_save()
 	_scaling()
+	await _stages()
 	await _follow_fight_respawn()
 	await _owner_support()
 	await _every_skill()
@@ -192,6 +193,37 @@ func _pet(hero: Hero) -> Pet:
 	pet.setup_pet(hero, Game.pet_id())
 	add_child(pet)
 	return pet
+
+
+## Three forms by the owner's level: young (Lv.1-34), grown (Lv.35-79), full-grown
+## (Lv.80+), each bigger; growing while playing announces it; the last wears an aura.
+func _stages() -> void:
+	check(PetData.stage_for(1) == 0 and PetData.stage_for(34) == 0 and PetData.stage_for(35) == 1 and PetData.stage_for(79) == 1 and PetData.stage_for(80) == 2 and PetData.stage_for(100) == 2, "three forms at Lv.1 / 35 / 80")
+	check(PetData.STAGE_SCALE[0] < PetData.STAGE_SCALE[1] and PetData.STAGE_SCALE[1] < PetData.STAGE_SCALE[2], "each form is bigger than the last")
+	var hero := _hero(20, "earth")
+	var pet := _pet(hero)
+	await get_tree().process_frame
+	check(pet.stage == 0 and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[0]) and pet._aura == null, "Lv.20: the young form, no aura")
+	Game.profile.level = 50
+	pet._refresh_stats()
+	check(pet.stage == 1 and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[1]), "Lv.50: grown")
+	Game.profile.level = 90
+	pet._refresh_stats()
+	check(pet.stage == 2 and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[2]) and pet._aura != null, "Lv.90: full-grown with its aura")
+	check(pet._name_tag.text.contains(PetData.STAGE_NAMES[2]), "the name tag shows the form (%s)" % pet._name_tag.text)
+	var f := PetFollower.new()
+	add_child(f)
+	f.build("fire")
+	var owner := Node3D.new()
+	owner.set_meta("x", 1)
+	add_child(owner)
+	f.attach(owner)
+	check(is_equal_approx(f.visual.scale.x, PetData.STAGE_SCALE[0]), "another player's pet takes its owner's form (Lv.1 owner -> young)")
+	f.queue_free()
+	owner.queue_free()
+	pet.queue_free()
+	hero.queue_free()
+	await get_tree().process_frame
 
 
 ## It follows the hero, fights the monster near it, falls and comes back.

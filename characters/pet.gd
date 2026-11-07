@@ -48,6 +48,9 @@ var _stats_timer := 0.0
 var _hots: Array[Dictionary] = []
 var _name_tag: Label3D
 var _shadow: MeshInstance3D
+## The form shown (PetData.stage_for): -1 until the first look.
+var stage := -1
+var _aura: MeshInstance3D
 
 
 ## [param p_owner]: the hero. [param id]: its pet (PetData id).
@@ -86,6 +89,7 @@ func _ready() -> void:
 	_shadow = MeshKit.blob_shadow(self, 0.7)
 	# A thin ring in the element's colour under its feet: a pet, not a monster or a hero.
 	add_child(ring_for(pet_id))
+	_apply_stage(false)
 	if lite:
 		_shadow.visibility_range_end = PetCrowd.HIDE
 		_retarget_in = randf() * LITE_RETARGET
@@ -146,7 +150,37 @@ func owner_level() -> int:
 
 func _update_name() -> void:
 	if _name_tag:
-		_name_tag.text = "%s Lv.%d" % [String(pet.name), int(pstats.get("level", 1))]
+		_name_tag.text = "%s · %s Lv.%d" % [String(pet.name), PetData.stage_name(int(pstats.get("level", 1))), int(pstats.get("level", 1))]
+
+
+## Sizes the pet to its form (PetData.stage_for); growing into a new form while the
+## hero plays shows a burst of light and a message. The full-grown form wears an aura.
+func _apply_stage(announce: bool) -> void:
+	var level := int(pstats.get("level", 1))
+	var next := PetData.stage_for(level)
+	if _visual == null or next == stage:
+		return
+	var grew := stage >= 0 and next > stage
+	stage = next
+	var k := PetData.stage_scale(level)
+	_visual.scale = Vector3.ONE * k
+	if _shadow:
+		_shadow.scale = Vector3.ONE * k
+	var top := float(pet.height) * k
+	if _bar:
+		_bar.position.y = top + 0.45
+	if _name_tag:
+		_name_tag.position.y = top + 0.75
+	_update_name()
+	if stage >= 2 and _aura == null and not lite:
+		_aura = ring_for(pet_id)
+		_aura.name = "PetAura"
+		_aura.scale = Vector3(1.6, 0.1, 1.6)
+		add_child(_aura)
+	if grew and announce and not lite and is_inside_tree():
+		VfxKit.flash(get_parent(), global_position + Vector3.UP * top * 0.5, pet.glow, 2.2 * k, 0.45)
+		VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.15, 0), pet.glow, 3.0 * k)
+		Game.say("%s เติบโตเป็น%sแล้ว!" % [String(pet.name), PetData.stage_name(level)], &"success")
 
 
 ## Recomputes ATK / HP / DEF / crit from the hero's stats now (keeps the health share).
@@ -165,6 +199,7 @@ func _refresh_stats(full := false) -> void:
 		hp = clampi(int(round(float(max_hp) * ratio)), 1, max_hp)
 	if before_level != int(pstats.level):
 		_update_name()
+	_apply_stage(not full)
 	if _bar:
 		_bar.set_ratio(float(hp) / float(max_hp))
 

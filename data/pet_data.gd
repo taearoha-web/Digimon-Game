@@ -130,6 +130,31 @@ static func unlock_level(index: int) -> int:
 ## The pet's stats from its hero's: level = the hero's level, ATK / HP / DEF / crit are
 ## the pet's shares (ratios) of the hero's current atk / max_hp / def / crit. A level-1
 ## hero's pet keeps a small floor (HP 120, ATK 4) so it is not a one-hit paper target.
+## A pet grows in three forms with its owner's level: a young pet (Lv.1-34), grown
+## (Lv.35-79) and full-grown (Lv.80+). Each form is bigger (look only; its power still
+## follows the owner's level and stats); the full-grown form wears an element aura.
+const STAGE_LEVELS := [1, 35, 80]
+const STAGE_NAMES := ["ร่างเด็ก", "ร่างโต", "ร่างเต็มวัย"]
+const STAGE_SCALE := [0.72, 1.0, 1.35]
+
+
+## The form (0 young, 1 grown, 2 full-grown) at owner level [param level].
+static func stage_for(level: int) -> int:
+	var stage := 0
+	for i in STAGE_LEVELS.size():
+		if level >= int(STAGE_LEVELS[i]):
+			stage = i
+	return stage
+
+
+static func stage_scale(level: int) -> float:
+	return float(STAGE_SCALE[stage_for(level)])
+
+
+static func stage_name(level: int) -> String:
+	return String(STAGE_NAMES[stage_for(level)])
+
+
 static func stats_for(id: String, owner_stats: Dictionary, level: int) -> Dictionary:
 	var r: Dictionary = get_pet(id).get("ratios", {"atk": 0.35, "hp": 0.5, "def": 0.5, "crit": 0.5})
 	return {

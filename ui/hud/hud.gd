@@ -982,7 +982,7 @@ func _update_pet_card() -> void:
 		_pet_title.text = "%s · กลับมาใน %d วิ" % [String(data.name), int(ceil(pet.respawn_left))]
 		UIUtil.set_bar(_pet_bar, 0, 1)
 	else:
-		_pet_title.text = "%s Lv.%d" % [String(data.name), int(pet.pstats.get("level", 1))]
+		_pet_title.text = "%s · %s Lv.%d" % [String(data.name), PetData.stage_name(int(pet.pstats.get("level", 1))), int(pet.pstats.get("level", 1))]
 		UIUtil.set_bar(_pet_bar, pet.hp, pet.max_hp)
 		UIUtil.tint_hp_bar(_pet_bar, float(pet.hp) / float(maxi(1, pet.max_hp)))
 
