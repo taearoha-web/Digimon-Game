@@ -51,6 +51,32 @@ func setup(p_zone: Zone) -> void:
 	name = "PetCrowd"
 
 
+## A real player's pet fights on its owner's game; the `pet_act` it sends shows here on
+## the follower (PetSync, PetFollower.act): pictures only, never damage.
+func _enter_tree() -> void:
+	if not Online.message.is_connected(_on_online):
+		Online.message.connect(_on_online)
+
+
+func _exit_tree() -> void:
+	if Online.message.is_connected(_on_online):
+		Online.message.disconnect(_on_online)
+
+
+func _on_online(type: String, data: Dictionary) -> void:
+	if type != "pet_act" or zone == null or not is_instance_valid(zone):
+		return
+	var a := PetSync.parse(data, zone.zone_id)
+	if a.is_empty():
+		return
+	var who := Online.remote_node(String(a.from))
+	if who == null:
+		return
+	var f := pet_for(who) as PetFollower
+	if f != null:
+		f.act(a)
+
+
 ## The pet [param who] walks with: a party member's or world player's from its sheet
 ## (member "pet", else picked from its name), an online player's from its state; "" for none.
 static func pet_of(who: Node) -> String:

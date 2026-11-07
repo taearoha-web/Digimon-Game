@@ -409,6 +409,9 @@ func _basic_attack() -> void:
 	_attack_timer = PetData.ATTACK_INTERVAL
 	var mob_ref: WeakRef = weakref(_target)
 	_visual.action("attack", 420)
+	if not lite:
+		# The others online see it bite (PetSync: a picture only, the hit is ours).
+		PetSync.report(self, "a", _target)
 	get_tree().create_timer(0.22).timeout.connect(func():
 		var victim := mob_ref.get_ref() as Mob
 		if is_instance_valid(self) and not _dead and _valid(victim):
@@ -484,6 +487,8 @@ func cast(skill: Dictionary) -> void:
 	_cast_until = _age + lock
 	_attack_timer = maxf(_attack_timer, lock + 0.2)
 	_visual.action(String(skill.get("clip", "attack")), int(lock * 1000.0) + 150)
+	if not lite:
+		PetSync.report(self, id, _target if _valid(_target) else null)
 	var field := get_parent()
 	var color: Color = pet.color
 	if not lite:

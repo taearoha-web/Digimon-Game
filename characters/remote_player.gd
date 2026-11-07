@@ -15,7 +15,8 @@ extends Node3D
 ## send on. Far from the hero on a phone it is posed less often (like FieldPlayer).
 ## Nothing is allocated per frame: the snapshots live in fixed packed arrays.
 ## The pet their game sent (player["pet"], Online: hello / look) walks along with it, a
-## PetFollower the zone's PetCrowd hands out (only a picture: it never fights here).
+## PetFollower the zone's PetCrowd hands out (only a picture: it never deals damage here;
+## its fights show from the owner's `pet_act`, PetSync).
 
 ## A host's monster struck this player (raw damage before the victim's own defence).
 signal monster_hit(raw: float, attacker: Node)

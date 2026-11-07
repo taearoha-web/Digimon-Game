@@ -47,6 +47,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `party_kick` | `who` | leader only |
 | `ent_snap` | `zone, ents:[[eid, x, z, yaw, hp, max_hp, flags]]` | zone host only, 4 per second: the shared monsters / fighters (see Shared combat) |
 | `ent_hit` | `zone, eid, dmg, crit, skill?` | a party member hit a shared entity; relayed to the host |
+| `pet_act` | `zone, k, e, p:[x,z]` | my own pet attacked (`k` "a") or cast skill `k` at shared entity `e` (0 none), hit point `p`; a picture for the others, never damage (see Pets) |
 | `ent_event` | `zone, eid, ev, data` | host only: "spawn", "dead", "cast", "phase", "aggro" ... relayed to the players the host serves in that zone |
 | `wp_snap` | `zone, ps:[[index, x, z, yaw, anim, flags]]` | zone host only, 4 per second: the AI world players (see Shared world) |
 | `wp_event` | `zone, index, ev, data` | zone host only: "skill", "bubble", "leave" (see Shared world) |
@@ -87,6 +88,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `whost` | `id` - the world host: whose game makes the AI world chat (null: nobody has said hello yet) |
 | `ent_snap` / `ent_event` | relayed from the host, plus `from` |
 | `ent_hit` | relayed to the host, plus `from` |
+| `pet_act` | `from, zone, k, e, p` - another player's pet attacked / cast (see Pets) |
 | `wp_snap` / `wp_event` | relayed from the zone host, plus `from` |
 | `ai_chat` | relayed from the world host, plus `from` |
 | `trade_req` / `trade_answer` / `trade_offer` / `trade_lock` / `trade_confirm` / `trade_cancel` | relayed with `from`; the server keeps the trade session state |
@@ -307,3 +309,26 @@ floors with its own hero and AI party (world players in `Game.world_party`).
   server relays it to everyone else with `from`. Everyone else does not make world-channel
   AI chat of its own and shows the relayed lines (bubble over the speaker when it stands
   in the zone). Guild and party AI chat and the AI's answers to the hero stay local.
+
+## Pets (real players' pets fighting together)
+
+- Each game simulates only its own hero's pet (`characters/pet.gd`). Its hits land on the
+  zone's monsters like the hero's own: on a mirror they go to the host inside the hero's
+  `ent_hit` (credited to that player once), on the host they are the hero's side's
+  damage. No other game deals that damage again.
+- So the others see it fight, the owner's game sends `pet_act {zone, k, e, p:[x, z]}`
+  (`systems/online/pet_sync.gd`) for each attack (`k` "a") and skill (`k` = the PetData
+  skill id): `e` the target's eid (0: none / its own spot), `p` the flat point (0.1 m).
+  At most 3 a second (burst 4), only while someone else is in the zone.
+- Server: dropped unless the sender has a pet (`hello` / `look` `pet`), `k` is "a" or one
+  of that pet's skills (`PET_SKILLS`, kept equal to `data/pet_data.gd` by a test), `zone`
+  is the sender's zone, `p` is two finite numbers within 5000, the zone is not "pvp" /
+  "guildwar" and the sender is not duelling; at most 4 a second per player (the rest
+  dropped silently). Relayed as `{t, from, zone, k, e, p}` (nothing else the client
+  wrote) to the players the zone host would serve with the sender: everyone in an open
+  zone, the party there in an instanced one.
+- Viewers: the pet is a PetFollower (PetCrowd caps apply). It runs to the monster `e`
+  names (a mirror, or one the viewer hosts; else to `p`), plays the clip of the skill and a
+  cheap effect (one ring / flash / ball, VfxBudget and MemoryGuard gated, at most 6 a
+  second for all followers), then walks back to its owner after 2.6 s without acts. It
+  never calls take_hit: the monster's HP comes with the host's snapshots.

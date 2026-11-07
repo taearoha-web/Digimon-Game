@@ -403,6 +403,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-online_zone_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/online_zone_test.tscn
+      - name: online_pet_test (own pet's damage reaches the host once inside ent_hit; pet_act paced and only when seen; a real player's pet follower runs to the monster and plays the relayed attack / skill with a cheap effect and no damage; no leaks)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-online_pet_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/online_pet_test.tscn
       - name: online_guild_war_test
         timeout-minutes: 10
         env:
