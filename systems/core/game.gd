@@ -185,7 +185,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
 		"hp": 1, "mp": 1, "zone": "town", "quests": {}, "kills": 0, "deaths": 0, "play_time": 0.0,
-		"flags": {}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
+		"flags": {GUILD4_FLAG: 1}, "boss_kills": {}, "boss_pity": {}, "pvp": {}, "paragon": {}, "tower": {}, "storage": [], "bag_slots": BASE_BAG, "adv": 0,
 		# The party is made of world players who join for a session (party_invite), not saved.
 		"party": [],
 		"mounts": {}, "mount": "",
@@ -1222,7 +1222,10 @@ func _repair(data: Dictionary) -> Dictionary:
 	# Saves from before the stall get an empty one.
 	PlayerStall.repair(data)
 	DailyPass.repair(data)
-	# Guild leaders: only the two guilds, a name each ("" = the default leader).
+	# The four guilds: every hero from before them leaves its guild once and picks again
+	# at the guild registrar (everything else stays).
+	migrate_guild4(data)
+	# Guild leaders: only the world's guilds, a name each ("" = the default leader).
 	if data.has("guild_leaders"):
 		var leaders := {}
 		var raw_leaders: Variant = data.guild_leaders
@@ -3119,7 +3122,7 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## The war in progress, kept in the save so a page the phone threw away in the background
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
-const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3"]
+const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3", "gw_r_la", "gw_r_lb"]
 ## A war cut off (the page closed, the phone dropped it) can be rejoined for 10 minutes.
 const GW_CKPT_LIFETIME := 10 * 60
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
@@ -3129,10 +3132,14 @@ var guildwar_resuming := false
 ## takes the choice once; the names stay to be offered again next time).
 var guildwar_party_picks: PackedStringArray = []
 var guildwar_party_chosen := false
+## The league war the next guild war zone fights ({ours, theirs, at}: GuildLeague.enter_match),
+## {} for a practice war of hired guilds (no league points). The war takes it once.
+var guildwar_league := {}
 
 
 ## `siege`: {gates: [what is left of each gate, 0..1000], owner: the castle's holder (-1 none, 0 us, 1 them),
-## picks: our roster's indices in the hero's party, chosen: whether the player picked them}.
+## picks: our roster's indices in the hero's party, chosen: whether the player picked them,
+## league: [ours, theirs] of a league war (its round's start is started_at)}.
 func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, score: Array, kills: int, deaths: int, started_at := 0, siege := {}) -> void:
 	var flags: Dictionary = profile["flags"]
 	var left: Array = siege.get("gates", [])
@@ -3145,6 +3152,9 @@ func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, s
 	flags["gw_r_pc"] = 1 if bool(siege.get("chosen", false)) else 0
 	for k in 4:
 		flags["gw_r_p%d" % k] = clampi(int(picks[k]) + 1, 0, 999) if k < picks.size() else 0
+	var league: Array = siege.get("league", [])
+	flags["gw_r_la"] = clampi(int(league[0]), 0, 99) if league.size() == 2 else 0
+	flags["gw_r_lb"] = clampi(int(league[1]), 0, 99) if league.size() == 2 else 0
 	flags["gw_r_seed"] = rng_seed
 	# When the war began: the guilds line up as their members were at that moment.
 	flags["gw_r_t0"] = started_at
@@ -3178,7 +3188,8 @@ func guildwar_checkpoint() -> Dictionary:
 			"them": int(flags.get("gw_r_them", 0)), "kills": int(flags.get("gw_r_kills", 0)), "deaths": int(flags.get("gw_r_deaths", 0)),
 			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0)),
 			"gates": [int(flags.get("gw_r_g0", 1000)), int(flags.get("gw_r_g1", 1000)), int(flags.get("gw_r_g2", 1000))], "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 2) - 1,
-			"chosen": int(flags.get("gw_r_pc", 0)) == 1, "picks": _guildwar_saved_picks(flags)}
+			"chosen": int(flags.get("gw_r_pc", 0)) == 1, "picks": _guildwar_saved_picks(flags),
+			"league": [int(flags.get("gw_r_la", 0)), int(flags.get("gw_r_lb", 0))] if int(flags.get("gw_r_la", 0)) > 0 else []}
 
 
 func _guildwar_saved_picks(flags: Dictionary) -> Array:
@@ -3191,20 +3202,40 @@ func _guildwar_saved_picks(flags: Dictionary) -> Array:
 
 
 # ---------------------------------------------------------------------------
-# Guild: Alpha or Neverdie, with the world players (WorldPlayers)
+# Guild: one of the four (Alpha, Neverdie, Titan, 3DLnw), with the world players (WorldPlayers)
 # ---------------------------------------------------------------------------
 
 const GUILD_FLAG := "guild"
+## Set once a save has been through the four-guild re-pick (migrate_guild4).
+const GUILD4_FLAG := "guild4"
 ## A guild takes heroes from this level on.
 const GUILD_LEVEL := 100
 
 
-## The hero's guild (WorldPlayers.ALPHA / NEVERDIE), 0 before joining one.
+## The hero's guild (one of WorldPlayers.GUILDS), 0 before joining one.
 func guild() -> int:
 	if not has_profile:
 		return 0
 	var g := int(profile.get("flags", {}).get(GUILD_FLAG, 0))
 	return g if WorldPlayers.GUILD_NAMES.has(g) else 0
+
+
+## The four guilds came: a save from before them leaves its guild (and its leader picks)
+## once, so the hero picks one of the four again; the flag keeps it from happening twice.
+## True when it cleared something now.
+static func migrate_guild4(data: Dictionary) -> bool:
+	if not data.get("flags") is Dictionary:
+		data["flags"] = {}
+	var flags: Dictionary = data.flags
+	if int(flags.get(GUILD4_FLAG, 0)) > 0:
+		return false
+	flags[GUILD4_FLAG] = 1
+	var had := int(flags.get(GUILD_FLAG, 0)) > 0
+	flags.erase(GUILD_FLAG)
+	data.erase("guild_leaders")
+	if data.get(GuildLeague.KEY) is Dictionary:
+		(data[GuildLeague.KEY] as Dictionary).erase("reg")
+	return had
 
 
 ## Joins (or moves to) a guild at the guild registrar, from Lv.100. False if already in it.
@@ -3388,7 +3419,7 @@ func all_alts() -> Array[Dictionary]:
 			var info := {}
 			if not raw.is_empty():
 				var flags: Variant = raw.get("flags", {})
-				var their_guild := int((flags as Dictionary).get(GUILD_FLAG, 0)) if flags is Dictionary else 0
+				var their_guild := int((flags as Dictionary).get(GUILD_FLAG, 0)) if flags is Dictionary and int((flags as Dictionary).get(GUILD4_FLAG, 0)) > 0 else 0
 				info = _slot_summary(raw)
 				info["guild"] = their_guild if WorldPlayers.GUILD_NAMES.has(their_guild) and int(info.level) >= GUILD_LEVEL else 0
 				info["slot"] = i
@@ -3447,7 +3478,8 @@ func guild_quests(t := -1.0) -> Array[Dictionary]:
 	var key := "%d|%d" % [g, day]
 	if not _gq_cache.has(key):
 		_gq_cache.clear()
-		var war_ok := GuildWarData.guild_war_blocked(g, GuildQuestData.day_start(day)) == ""
+		var first := GuildLeague.slot_start(day, 0)
+		var war_ok := GuildWarData.guild_war_blocked(g, GuildLeague.opponent(g, first), GuildQuestData.day_start(day)) == ""
 		_gq_cache[key] = GuildQuestData.quests_for(g, day, war_ok)
 	var flags: Dictionary = profile["flags"]
 	for base in _gq_cache[key]:

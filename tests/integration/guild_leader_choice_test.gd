@@ -264,6 +264,9 @@ func _picks(picker: Node) -> Array[Button]:
 func _open_war() -> Zone:
 	Game.current_zone = &"guildwar"
 	Game.guildwar_resuming = false
+	# A league war of our guild against the other of the two (GuildLeague's round as entered).
+	var other := WorldPlayers.NEVERDIE if Game.guild() == WorldPlayers.ALPHA else WorldPlayers.ALPHA
+	Game.guildwar_league = {"ours": Game.guild(), "theirs": other, "at": int(_t())}
 	Game.profile.hp = Game.stats_now().max_hp
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
@@ -287,7 +290,7 @@ func _names(side: Array) -> Array[String]:
 func _war_default() -> void:
 	var zone := _open_war()
 	var m: GuildWarMatch = zone.gw_match
-	check(m != null and bool(m.roster.get("guilds", false)), "default: a war between the two guilds")
+	check(m != null and bool(m.roster.get("guilds", false)), "default: a league war between the two guilds")
 	if m == null:
 		return
 	var hero: Hero = zone.hero
