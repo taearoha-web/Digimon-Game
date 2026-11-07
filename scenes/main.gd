@@ -40,6 +40,8 @@ var _traveling := false
 
 
 func _ready() -> void:
+	# GuildWarSpectate finds the game's root here to travel to a watched war and back.
+	add_to_group(&"game_main")
 	GameSettings.load_settings()
 	InputSetup.ensure_defaults()
 	var fade_layer := CanvasLayer.new()
@@ -309,7 +311,8 @@ func _clear_zone() -> void:
 ## warp = true arrives at the field's start (not at the portal you came through).
 func go(zone_id: StringName, instant := false, warping := false) -> void:
 	var access := ZoneData.access_reason(zone_id, int(Game.profile.get("level", 1)), int(Game.paragon().level))
-	if not access.is_empty():
+	# Watching a guild war (GuildWarSpectate) is open to anyone; fighting in one needs Lv.100.
+	if not access.is_empty() and not (zone_id == &"guildwar" and GuildWarSpectate.is_pending()):
 		Game.say(access, &"warning")
 		if instant: zone_id = &"town"
 		else: return
@@ -342,7 +345,10 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	z.npc_interact.connect(_on_npc)
 	z.hero_died.connect(_on_hero_died)
 	z.pvp_finished.connect(func(result: Dictionary): pvp_screen.show_result(result))
-	z.guildwar_finished.connect(func(result: Dictionary): guildwar_screen.show_result(result))
+	z.guildwar_finished.connect(func(result: Dictionary):
+		# A watched war shows its own result (GuildWarSpectate); nothing is paid.
+		if not bool(result.get("spectated", false)):
+			guildwar_screen.show_result(result))
 	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
 	z.raid_finished.connect(func(result: Dictionary): raid_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
@@ -354,7 +360,8 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	hud.bind(z)
-	hud.visible = true
+	# Watching a war: the spectator's own board instead of the hero's HUD (no skill bar).
+	hud.visible = not z.watching()
 	Game.save()
 	await _fade_to(0.0, 0.45)
 	_traveling = false

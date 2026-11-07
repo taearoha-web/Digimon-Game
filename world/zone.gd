@@ -217,13 +217,16 @@ func _ready() -> void:
 		_phase("spawn_party")
 	elif bool(data.get("guildwar", false)):
 		gw_match = GuildWarMatch.new()
+		# A war being watched (GuildWarSpectate.spectate): both guilds AI, the hero out of it.
+		gw_match.spectate = GuildWarSpectate.take_pending()
 		# A party member who said yes to its leader's invite fights in the leader's war.
-		gw_match.mirror = OnlineGuildWar.take_joining()
+		gw_match.mirror = false if gw_match.spectating() else OnlineGuildWar.take_joining()
 		gw_match.setup(self, hero)
 		gw_match.finished.connect(func(result: Dictionary): guildwar_finished.emit(result))
 		add_child(gw_match)
 		await gw_match.build(get_tree() if staged else null)
-		OnlineGuildWar.on_war_built(self)
+		if not gw_match.spectating():
+			OnlineGuildWar.on_war_built(self)
 		_phase("spawn_fighters")
 	else:
 		pvp_match = PvpMatch.new()
@@ -264,7 +267,7 @@ func _ready() -> void:
 		pet_crowd.setup(self)
 		add_child(pet_crowd)
 	OnlineGuildWar.ensure(get_tree())
-	if EntitySync.supports(self):
+	if EntitySync.supports(self) and not watching():
 		sync = EntitySync.new()
 		sync.setup(self)
 		add_child(sync)
@@ -273,6 +276,11 @@ func _ready() -> void:
 	# The real players in this zone come in (Online: RemotePlayers), and the server hears
 	# where the hero is now.
 	Online.zone_entered(self)
+
+
+## True while this zone is a guild war being watched (GuildWarSpectate), not fought.
+func watching() -> bool:
+	return gw_match != null and is_instance_valid(gw_match) and gw_match.spectating()
 
 
 ## Models farther than this from the camera stop animating (they are tiny and

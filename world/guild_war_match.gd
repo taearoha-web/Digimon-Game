@@ -120,6 +120,18 @@ var party_chosen := false
 ## Both guilds' parties as roster indices (-1 is the hero), [ours, theirs]; ours[0] is the hero's.
 var party_plan: Array = [[], []]
 
+## Watching (GuildWarSpectate): the watched war's match_info ({} while the hero fights).
+## Both guilds are AI, the hero is out of the war (hidden, unhurt, never a target),
+## nothing is saved, paid or counted for the hero; the end goes to GuildWarSpectate.report.
+var spectate: Dictionary = {}
+## The spectator's camera and board (a child of the zone), while watching.
+var spectator: GuildWarSpectate
+## Both guilds' colours while watching ([side A, side B]).
+var _watch_colors: Array[Color] = []
+## Tests and tools: the next war's line-ups (roll_guild_match's shape), taken once by build
+## in place of the roll (e.g. 19 members and the hero against 20).
+static var next_roster: Dictionary = {}
+
 const CHECKPOINT_EVERY := 10.0
 var _ckpt_timer := CHECKPOINT_EVERY
 var _timer := COUNTDOWN
@@ -173,6 +185,9 @@ func build(tree: SceneTree = null) -> void:
 	if mirror:
 		_build_mirror()
 		return
+	if spectating():
+		await _build_spectate(tree)
+		return
 	var rng := RandomNumberGenerator.new()
 	var saved := Game.guildwar_checkpoint() if Game.guildwar_resuming else {}
 	Game.guildwar_resuming = false
@@ -186,7 +201,10 @@ func build(tree: SceneTree = null) -> void:
 	# The hero's guild fights the other one with its real members (as they were when the
 	# war began); a hero without a guild (or no rival yet) gets two guilds of hired fighters.
 	started_at = int(saved.get("t0", 0)) if not saved.is_empty() and int(saved.get("t0", 0)) > 0 else int(WorldPresence.clock())
-	if Game.guild() > 0:
+	if not next_roster.is_empty():
+		roster = next_roster
+		next_roster = {}
+	elif Game.guild() > 0:
 		roster = GuildWarData.roll_guild_match(rng, Game.guild(), float(started_at))
 	if roster.is_empty():
 		roster = GuildWarData.roll_match(rng)
@@ -235,25 +253,9 @@ func build(tree: SceneTree = null) -> void:
 				break
 		if ally_lead_at >= 0:
 			roster.ally[ally_lead_at] = GuildWarData.tank_build(roster.ally[ally_lead_at])
-	var lead_fighter: GuildFighter = null
-	var ally_lead_fighter: GuildFighter = null
-	# Each guild stands in its camp party by party (the hero's party in the front row).
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
-		var lineup: Array = roster.ally if team == GuildFighter.TEAM_ALLY else roster.enemy
-		var slot := 0
-		for p in (party_plan[team] as Array).size():
-			for i in party_plan[team][p]:
-				if int(i) < 0:
-					continue
-				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p
-				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size()), ally_name if team == GuildFighter.TEAM_ALLY else enemy_name, pid)
-				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
-				if team == GuildFighter.TEAM_ENEMY and int(i) == lead_at:
-					lead_fighter = fighter
-				elif team == GuildFighter.TEAM_ALLY and int(i) == ally_lead_at:
-					ally_lead_fighter = fighter
-				slot += 1
-				await FrameSlicer.pace(tree)
+	var leads: Array = await _spawn_lineups(lead_at, ally_lead_at, tree)
+	var lead_fighter: GuildFighter = leads[0]
+	var ally_lead_fighter: GuildFighter = leads[1]
 	enemy_leader = lead_fighter if lead_fighter != null else pick_leader(enemies)
 	if enemy_leader != null:
 		enemy_leader.make_leader()
@@ -276,6 +278,138 @@ func build(tree: SceneTree = null) -> void:
 		Game.say("ต่อสงครามเดิม: %s · เหลือเวลา %d นาที — ศึกถูกเก็บไว้ทุก 10 วินาที" % [siege_status(), int(ceil(time_left / 60.0))], &"quest")
 		return
 	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): กิลด์ %s %d คน ปะทะกิลด์ %s %d คน — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น ยึดสวิตช์ซ้ายและขวาในห้องบัลลังก์ให้ครบเพื่อปลดบาเรีย แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, ally_name, roster.ally.size() + 1, enemy_name, roster.enemy.size(), int(CAPTURE_TIME)], &"quest")
+
+
+## Each guild stands in its camp party by party (the hero's party in the front row).
+## Returns [the rival leader's fighter, ours] (roster indices lead_at / ally_lead_at; null
+## when not spawned).
+func _spawn_lineups(lead_at: int, ally_lead_at: int, tree: SceneTree) -> Array:
+	var lead_fighter: GuildFighter = null
+	var ally_lead_fighter: GuildFighter = null
+	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+		var lineup: Array = roster.ally if team == GuildFighter.TEAM_ALLY else roster.enemy
+		var slot := 0
+		for p in (party_plan[team] as Array).size():
+			for i in party_plan[team][p]:
+				if int(i) < 0:
+					continue
+				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE + p
+				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size()), ally_name if team == GuildFighter.TEAM_ALLY else enemy_name, pid)
+				(allies if team == GuildFighter.TEAM_ALLY else enemies).append(fighter)
+				if team == GuildFighter.TEAM_ENEMY and int(i) == lead_at:
+					lead_fighter = fighter
+				elif team == GuildFighter.TEAM_ALLY and int(i) == ally_lead_at:
+					ally_lead_fighter = fighter
+				slot += 1
+				await FrameSlicer.pace(tree)
+	return [lead_fighter, ally_lead_fighter]
+
+
+# ---------------------------------------------------------------------------
+# Watching a war (GuildWarSpectate)
+# ---------------------------------------------------------------------------
+
+## True while this war is watched, not fought (spectate holds the match_info).
+func spectating() -> bool:
+	return not spectate.is_empty()
+
+
+## Seconds the war had run when the watcher came in (0..DURATION - 1).
+func watch_elapsed() -> float:
+	return clampf(float(spectate.get("elapsed", 0.0)), 0.0, GuildWarData.DURATION - 1.0)
+
+
+## The watched war: both guilds from the match_info, AI on both sides (each led by its
+## toughest member, GuildWarData.leader_index), the hero out of it, the clock at what is
+## left of the war and the field as it plausibly stands by now (_apply_late).
+func _build_spectate(tree: SceneTree) -> void:
+	var info := spectate
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("gw_watch|%d|%s|%s" % [int(info.get("slot_start", 0)), String(info.get("ally_name", "")), String(info.get("enemy_name", ""))])
+	roll_seed = int(rng.seed & 0x7fffffff)
+	started_at = int(info.get("slot_start", 0)) if int(info.get("slot_start", 0)) > 0 else int(WorldPresence.clock())
+	roster = {
+		"ally": (info.get("ally", []) as Array).duplicate(true), "enemy": (info.get("enemy", []) as Array).duplicate(true),
+		"ally_name": String(info.get("ally_name", "")), "enemy_name": String(info.get("enemy_name", "")),
+		"ally_power": float(info.get("ally_power", 0.0)), "enemy_power": float(info.get("enemy_power", 0.0)),
+		"guilds": bool(info.get("guilds", false)),
+	}
+	ally_name = roster.ally_name
+	enemy_name = roster.enemy_name
+	_watch_colors = [GuildWarSpectate.side_color(info, GuildFighter.TEAM_ALLY), GuildWarSpectate.side_color(info, GuildFighter.TEAM_ENEMY)]
+	party_picks.clear()
+	# The hero's party is the hero alone (out of the war): every fighter is dealt.
+	party_chosen = true
+	var party_rng := RandomNumberGenerator.new()
+	party_rng.seed = hash("gw_party|%d" % roll_seed)
+	party_plan = roll_parties(roster.ally.size(), roster.enemy.size(), [], true, party_rng)
+	BurstGuard.clear()
+	var lead_at := GuildWarData.leader_index(roster.enemy)
+	if lead_at >= 0:
+		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
+	var ally_lead_at := GuildWarData.leader_index(roster.ally)
+	if ally_lead_at >= 0:
+		roster.ally[ally_lead_at] = GuildWarData.tank_build(roster.ally[ally_lead_at])
+	_leave_war(hero)
+	var leads: Array = await _spawn_lineups(lead_at, ally_lead_at, tree)
+	enemy_leader = leads[0] if leads[0] != null else pick_leader(enemies)
+	if enemy_leader != null:
+		enemy_leader.make_leader()
+	ally_leader = leads[1] if leads[1] != null else pick_leader(allies)
+	if ally_leader != null:
+		ally_leader.make_leader()
+	_raise_castle({})
+	time_left = clampf(GuildWarData.DURATION - watch_elapsed(), 1.0, GuildWarData.DURATION)
+	_apply_late(watch_elapsed(), rng)
+	spectator = GuildWarSpectate.new()
+	spectator.name = "GuildWarSpectate"
+	spectator.setup(self)
+	zone.add_child(spectator)
+	zone.banner_requested.emit("ชมสงครามกิลด์ · %s ปะทะ %s" % [ally_name, enemy_name])
+
+
+## The hero watches from the stands: hidden, without a body in the field (no collision,
+## no physics), read as down by every fighter (Hero.spectating) and never hurt.
+static func _leave_war(h: Hero) -> void:
+	if h == null or not is_instance_valid(h):
+		return
+	h.spectating = true
+	h.visible = false
+	h.velocity = Vector3.ZERO
+	h.collision_layer = 0
+	h.collision_mask = 0
+	h.global_position = hero_camp() + Vector3(0, -40.0, 0)
+	h.set_target(null)
+	h.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+## Gates fall roughly this long into a war (seconds; both guilds at the gate, with the
+## to-and-fro of a real war): a watcher arriving late finds those already broken.
+const LATE_GATE_FALLS: Array[float] = [165.0, 371.0, 619.0]
+## About this many falls a minute on each side: the score a late watcher finds.
+const LATE_FALLS_PER_MINUTE := 1.6
+
+
+## A watcher arriving `elapsed` seconds into the war finds it as it might stand by then:
+## the gates that would have fallen are down, each guild has some falls, most fighters
+## are already out on the plaza (the rest just came back at their camp) and the
+## countdown is short (the war is on).
+func _apply_late(elapsed: float, rng: RandomNumberGenerator) -> void:
+	if elapsed <= 0.0:
+		return
+	for k in gates.size():
+		if k < LATE_GATE_FALLS.size() and elapsed >= LATE_GATE_FALLS[k]:
+			gates[k].set_broken_quietly()
+	_update_breakable()
+	var minutes := elapsed / 60.0
+	score = [int(round(minutes * LATE_FALLS_PER_MINUTE * rng.randf_range(0.7, 1.3))), int(round(minutes * LATE_FALLS_PER_MINUTE * rng.randf_range(0.7, 1.3)))]
+	if elapsed >= 30.0:
+		for f in all_fighters():
+			if rng.randf() < 0.75:
+				var toward := -1.0 if f.team == GuildFighter.TEAM_ALLY else 1.0
+				f.position = Vector3(toward * rng.randf_range(4.0, 20.0), 0.3, SiegeArena.PLAZA.z + rng.randf_range(-6.0, 6.0))
+	_timer = 1.2
+	_count = 2
 
 
 ## Where fighter `index` of a guild of `count` stands in its camp: rows of ROW_SLOTS across
@@ -310,7 +444,7 @@ func _restore(saved: Dictionary) -> void:
 
 
 func save_checkpoint() -> void:
-	if mirror:
+	if mirror or spectating():
 		return
 	var left: Array = []
 	for g in gates:
@@ -588,7 +722,7 @@ static func ensure_member(lineup: Array, who: String, t: float, rng: RandomNumbe
 
 
 func hero_alive() -> bool:
-	return is_instance_valid(hero) and not hero.is_dead()
+	return not spectating() and is_instance_valid(hero) and not hero.is_dead()
 
 
 func hero_hp_ratio() -> float:
@@ -602,7 +736,7 @@ func hero_hp_ratio() -> float:
 func tactical_call(team: int, text: String) -> void:
 	if state != "fight":
 		return
-	var speaker := "สั่งการ" if team == GuildFighter.TEAM_ALLY else "หัวหน้า %s" % team_name(team)
+	var speaker := "สั่งการ" if team == GuildFighter.TEAM_ALLY and not spectating() else "หัวหน้า %s" % team_name(team)
 	feed.emit("[%s] %s" % [speaker, text], team)
 	var over: Node3D = null
 	var lead := ai_leader(team)
@@ -702,7 +836,7 @@ func _tick_fight(delta: float) -> void:
 	_pulse_crystal(delta)
 	_cull_timer -= delta
 	if _cull_timer <= 0.0:
-		_cull_timer = 0.25
+		_cull_timer = CULL_WATCHING if spectator != null else 0.25
 		_cull_far()
 
 
@@ -735,6 +869,12 @@ func _altar_hint_tick() -> void:
 ## rider: hidden with it, posed every other frame and simplified (MountVisual.set_far:
 ## no small parts, no shadows) past POSE_NEAR, and still past the zone's ANIM_RADIUS,
 ## where the rider's skeleton stops too.
+##
+## With twenty a side (forty fighters, their summons and mounts) the drawn ones are also
+## only those in the camera's view (SCREEN_MARGIN round it): one off the screen is not
+## drawn and is posed every OFF_SCREEN_STEP frames, and a drawn one past POSE_FAR every
+## third. Watching (GuildWarSpectate) measures from the middle of the view on the ground
+## and draws as far as the view reaches (its camera stands high and far back).
 func _cull_far() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
@@ -743,21 +883,54 @@ func _cull_far() -> void:
 	var limit: float = DRAW_RADIUS[q]
 	var still: float = Zone.ANIM_RADIUS[q]
 	var from := camera.global_position
+	if spectator != null and is_instance_valid(spectator):
+		from = spectator.view_center()
+		limit = maxf(limit, spectator.view_radius())
+		still = maxf(still, limit)
+	var planes := camera.get_frustum()
 	for f in all_fighters():
 		if not is_instance_valid(f.visual):
 			continue
 		var d2 := f.global_position.distance_squared_to(from)
-		var shown := d2 < limit * limit
+		var shown := d2 < limit * limit and in_view(planes, f.global_position + Vector3(0, 1.2, 0), SCREEN_MARGIN)
 		f.visual.visible = shown
-		var far := d2 > POSE_NEAR * POSE_NEAR and not f.in_hero_party()
+		var party := f.in_hero_party()
+		var far := d2 > POSE_NEAR * POSE_NEAR and not party
+		var step := 1
+		if not shown:
+			step = OFF_SCREEN_STEP
+		elif far:
+			step = 3 if d2 > POSE_FAR * POSE_FAR else 2
 		var model := f.model()
 		if model != null:
-			model.set_anim_lod(2 if far else 1)
-			model.set_far(far)
+			model.set_anim_lod(step)
+			model.set_far(far or not shown)
 		if f.mount != null:
-			f.mount.lod_step = 2 if far else 1
-			f.mount.set_far(far)
+			f.mount.lod_step = mini(step, 3)
+			f.mount.set_far(far or not shown)
 			f.mount.set_process(shown and d2 < still * still)
+
+
+## Past this many metres a drawn fighter is posed every third frame (POSE_NEAR: every other).
+const POSE_FAR := 34.0
+## A fighter this far outside the camera's view still counts as on the screen (its
+## weapon, wings and mount reach past its middle; the camera moves between two culls).
+const SCREEN_MARGIN := 4.0
+## An off-screen fighter (not drawn) is posed every this many frames: it stays in step
+## for when it comes into view.
+const OFF_SCREEN_STEP := 6
+## Watching, the camera is dragged about faster than a hero walks: the view is culled
+## this often (seconds) so nobody pops in late at the edge.
+const CULL_WATCHING := 0.1
+
+
+## True when a ball of `margin` round `point` is at least partly inside the view
+## (`planes`: Camera3D.get_frustum, their normals pointing out of the view).
+static func in_view(planes: Array[Plane], point: Vector3, margin: float) -> bool:
+	for plane in planes:
+		if plane.distance_to(point) > margin:
+			return false
+	return true
 
 
 func team_name(team: int) -> String:
@@ -781,6 +954,8 @@ func _on_fell(fighter: GuildFighter, killer: Node) -> void:
 	elif killer != null and EntitySync.name_of(killer) != "":
 		# A party member of ours playing online (its RemotePlayer struck the blow).
 		by = EntitySync.name_of(killer)
+	elif spectating():
+		pass  # a watched war: the hero struck nobody
 	elif killer == hero or killer == null:
 		by = "คุณ"
 		hero_kills += 1
@@ -838,7 +1013,7 @@ func _respawn_hero() -> void:
 ## The gates (their strength set from the fighters', the same for each) and the altar's
 ## crystal; after a resume, broken gates stay broken and the holder keeps the castle.
 func _raise_castle(saved: Dictionary) -> void:
-	var ours := float(Game.stats_now().atk)
+	var ours := 0.0 if spectating() else float(Game.stats_now().atk)
 	var theirs := 0.0
 	for f in allies:
 		ours += float(f.rstats.atk)
@@ -920,7 +1095,7 @@ func _strength(team: int) -> Vector2i:
 	for f in side:
 		up += 0 if f.is_dead() else 1
 	var total := side.size()
-	if team == GuildFighter.TEAM_ALLY:
+	if team == GuildFighter.TEAM_ALLY and not spectating():
 		total += 1
 		up += 1 if is_instance_valid(hero) and not hero.is_dead() else 0
 	return Vector2i(up, maxi(1, total))
@@ -1497,6 +1672,8 @@ func _owner_color() -> Color:
 
 ## A guild's colour (its guild colour in a war between real guilds, else blue / red).
 func team_color(team: int) -> Color:
+	if _watch_colors.size() == 2:
+		return _watch_colors[clampi(team, 0, 1)]
 	var guild := Game.guild() if team == GuildFighter.TEAM_ALLY else WorldPlayers.other_guild(Game.guild())
 	if Game.guild() > 0 and bool(roster.get("guilds", false)):
 		return WorldPlayers.GUILD_COLORS.get(guild, NEUTRAL_COLOR)
@@ -1566,6 +1743,9 @@ func _end() -> void:
 		capture = {}
 	for f in all_fighters():
 		f.stop_fight()
+	if spectating():
+		_end_watched()
+		return
 	var won := castle_owner == GuildFighter.TEAM_ALLY if castle_owner >= 0 else score[0] > score[1]
 	var rows: Array = [{"name": "คุณ", "class": String(Game.class_id()), "team": GuildFighter.TEAM_ALLY, "kills": hero_kills, "deaths": hero_deaths, "assists": 0, "grade": -1}]
 	for f in all_fighters():
@@ -1580,6 +1760,28 @@ func _end() -> void:
 	if won and is_instance_valid(hero):
 		hero.level_up_fx()
 		AudioManager.play_sfx(&"quest_complete")
+
+
+## The bell of a watched war: who won (the castle's holder, else the most falls), the
+## scoreboard and the hook for the league (GuildWarSpectate.report). Nothing is paid.
+func _end_watched() -> void:
+	var winner := castle_owner
+	if winner < 0 and score[0] != score[1]:
+		winner = GuildFighter.TEAM_ALLY if score[0] > score[1] else GuildFighter.TEAM_ENEMY
+	var rows: Array = []
+	for f in all_fighters():
+		if is_instance_valid(f):
+			rows.append({"name": f.rival_name, "class": String(f.member["class"]), "team": f.team, "kills": f.kills, "deaths": f.deaths, "assists": f.assists, "grade": f.grade, "tag": f.tag})
+	_result = {
+		"spectated": true, "winner": winner, "winner_name": team_name(winner) if winner >= 0 else "",
+		"ally_name": ally_name, "enemy_name": enemy_name, "score": [score[0], score[1]],
+		"captures": [captures[0], captures[1]], "castle_owner": castle_owner,
+		"castle": team_name(castle_owner) if castle_owner >= 0 else "", "overtime": overtime,
+		"rows": rows, "league_match": spectate.get("league_match", []), "slot_start": int(spectate.get("slot_start", 0)),
+	}
+	GuildWarSpectate.report(spectate, _result)
+	zone.banner_requested.emit(("กิลด์ %s ชนะสงคราม!" % team_name(winner)) if winner >= 0 else "สงครามจบลงด้วยผลเสมอ")
+	AudioManager.play_sfx(&"quest_complete")
 
 
 # ---------------------------------------------------------------------------

@@ -11,8 +11,9 @@ extends RefCounted
 
 const TEAM_SIZE := 8
 ## The war between the world's two guilds: everyone at Lv.100 fights, up to GUILD_SIDE a
-## side (the hero counted on ours).
-const GUILD_SIDE := 25
+## side (the hero counted on ours): each guild's 20 best, the league's 20 vs 20 (a phone holds
+## forty fighters smoothly; twenty-five a side cost half again as much a frame).
+const GUILD_SIDE := 20
 ## 20 minutes: short enough to finish before a phone closes the page (a war cut off
 ## can be rejoined for Game.GW_CKPT_LIFETIME).
 const DURATION := 1200.0
