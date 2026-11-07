@@ -14,6 +14,8 @@ extends Node3D
 ## attacker): take_damage then only reports it (monster_hit) for the shared combat to
 ## send on. Far from the hero on a phone it is posed less often (like FieldPlayer).
 ## Nothing is allocated per frame: the snapshots live in fixed packed arrays.
+## The pet their game sent (player["pet"], Online: hello / look) walks along with it, a
+## PetFollower the zone's PetCrowd hands out (only a picture: it never fights here).
 
 ## A host's monster struck this player (raw damage before the victim's own defence).
 signal monster_hit(raw: float, attacker: Node)

@@ -57,6 +57,9 @@ var hero: Hero
 var pet: Pet
 ## The village's pet pen (PetPen), null elsewhere.
 var pet_pen: PetPen
+## Everyone else's pets here (PetCrowd: AI players' and online players'), null where no
+## pets come (PetData.allowed_in).
+var pet_crowd: PetCrowd
 var camera_rig: ThirdPersonCamera
 var rng := RandomNumberGenerator.new()
 var _event_rng := RandomNumberGenerator.new()
@@ -256,6 +259,10 @@ func _ready() -> void:
 		presence.setup(self)
 		add_child(presence)
 		_phase("world_players")
+	if PetData.allowed_in(data):
+		pet_crowd = PetCrowd.new()
+		pet_crowd.setup(self)
+		add_child(pet_crowd)
 	OnlineGuildWar.ensure(get_tree())
 	if EntitySync.supports(self):
 		sync = EntitySync.new()

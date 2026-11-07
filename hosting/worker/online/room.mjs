@@ -631,6 +631,14 @@ function aiColor(value) {
   return null;
 }
 
+/** The pets a player may show (PetData.ORDER in the game); anything else shows none. */
+export const PETS = ['fire', 'water', 'earth'];
+
+/** A pet id from a client frame: one of PETS, else '' (no pet shown). */
+export function petId(value) {
+  return typeof value === 'string' && PETS.includes(value) ? value : '';
+}
+
 const lotKey = (buyer, lot) => `${buyer}\u0000${String(lot)}`;
 
 /** Relays a frame with `from` set by the server (whatever the client wrote in it); a
@@ -650,6 +658,7 @@ const HANDLERS = {
     p.level = int(msg.level, 1, 1000, 1);
     p.stars = int(msg.stars, 0, 100_000, 0);
     p.look = dict(msg.look) ? msg.look : {};
+    p.pet = petId(msg.pet);
     p.party = s.partyId;
     s.player = p;
     this.applyState(s, msg);
@@ -671,8 +680,9 @@ const HANDLERS = {
     if (dict(msg.look)) p.look = msg.look;
     p.level = int(msg.level, 1, 1000, p.level);
     p.stars = int(msg.stars, 0, 100_000, p.stars);
+    if ('pet' in msg) p.pet = petId(msg.pet);
     this.dirty.add(s.key);
-    this.broadcast({t: 'look', id: s.id, look: p.look, level: p.level, stars: p.stars}, s.id);
+    this.broadcast({t: 'look', id: s.id, look: p.look, level: p.level, stars: p.stars, pet: p.pet ?? ''}, s.id);
   },
 
   chat(s, msg) {

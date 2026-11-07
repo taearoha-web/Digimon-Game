@@ -2,8 +2,8 @@ class_name PetData
 extends RefCounted
 ## The village pets: one of three, chosen once per character at the pet keeper
 ## (ผู้ดูแลสัตว์เลี้ยง, next to the pet pen) and kept for good (profile["pet"]).
-## The pet follows its hero everywhere it fights (fields, the tower, the raid; not the
-## guild war or the 1v1 duels, see allowed_in) and fights on its own (Pet).
+## The pet follows its hero everywhere it fights (fields, the tower, the raid, the guild
+## war; not the 1v1 duels, see allowed_in) and fights on its own (Pet).
 ##
 ## Elements are theme only: a fire pet does not hit an earth monster harder, there is no
 ## element advantage anywhere (each kit just leans to its flavour: fire hits, water
@@ -141,11 +141,33 @@ static func stats_for(id: String, owner_stats: Dictionary, level: int) -> Dictio
 	}
 
 
-## Whether the hero's pet comes along in zone `data` (ZoneData entry): everywhere with
-## fighting or not (it walks with the hero in the village too), except the guild war and
-## the 1v1 duels (ranked and real-player duels: zone "pvp"): there players fight on their own.
+## Whether pets come along in zone `data` (ZoneData entry): everywhere with fighting or
+## not (they walk with their owners in the village too), except the PvP zones: the 1v1
+## duels (ranked duels and real-player duels: zone "pvp") stay hero against hero, and in
+## the guild war (zone "guildwar") the players fight on their own, nobody's pet comes.
 static func allowed_in(data: Dictionary) -> bool:
-	return not (bool(data.get("pvp", false)) or bool(data.get("guildwar", false)))
+	return not bool(data.get("pvp", false)) and not bool(data.get("guildwar", false))
+
+
+# ---------------------------------------------------------------------------
+# Everyone else's pet: every AI player has one, picked from its name
+# ---------------------------------------------------------------------------
+
+## The pet of an AI player (a world player, a party member, a guild fighter) named
+## [param player_name]: one of ORDER picked from the name alone, so every device shows the
+## same pet for the same player, the three kinds spread about evenly. "" for no name.
+static func of_player(player_name: String) -> String:
+	if player_name == "":
+		return ""
+	return ORDER[posmod(hash("pet|" + player_name), ORDER.size())]
+
+
+## The pet shown with a real online player: the id their game sent (Online `pet`), only
+## when it is a pet; "" (none shown) otherwise.
+static func clean_id(raw: Variant) -> String:
+	if (raw is String or raw is StringName) and PETS.has(String(raw)):
+		return String(raw)
+	return ""
 
 
 # ---------------------------------------------------------------------------
