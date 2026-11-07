@@ -42,6 +42,8 @@ var _shadow: MeshInstance3D
 var _rank_in := 0.0
 ## Seconds between two such looks.
 const RANK_EVERY := 2.0
+## Whether it was dressed with the rim light (PetForm.crowd_rim, looked at with the rank).
+var _rim := false
 
 ## A fight shown (act): it stays on it this long after the last act (seconds), never
 ## farther than FIGHT_LEASH from its owner, and plays a waiting act anyway after
@@ -75,6 +77,8 @@ func build(id: String) -> void:
 	add_to_group("pet_followers")
 	var data := PetData.get_pet(id)
 	visual = MonsterVisual.new()
+	# Below high quality the crowd's pets skip the ink outline (a second draw per mesh).
+	visual.outline = GameSettings.quality >= 2
 	add_child(visual)
 	var skin: Texture2D = load(String(data.skin)) as Texture2D if String(data.get("skin", "")) != "" else null
 	visual.setup(String(data.model), float(data.height) * SIZE, 0.0, data.tint, skin)
@@ -134,9 +138,11 @@ static func owner_rank(who: Object) -> Vector2i:
 func _update_form() -> void:
 	var rank := owner_rank(owner_node)
 	var next := PetData.stage_for(rank.x, rank.y)
-	if next == stage or visual == null:
+	var rim := PetForm.crowd_rim()
+	if (next == stage and rim == _rim) or visual == null:
 		return
 	stage = next
+	_rim = rim
 	visual.scale = Vector3.ONE * float(PetData.STAGE_SCALE[stage])
 	PetForm.clear(form_root)
 	form_root = PetForm.dress_lite(self, visual, pet_id, stage, float(PetData.get_pet(pet_id).get("height", 1.5)) * SIZE, PetCrowd.HIDE)

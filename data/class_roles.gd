@@ -47,8 +47,20 @@ const MARK_META := &"role_arcane"
 
 ## Off only in tests that measure a skill's own numbers (armageddon_test).
 static var enabled := true
+## The parties' classes, built at most once a frame and then only read: every hit of
+## every fighter and every unit's frame (regen, cooldown speed) asks, so the lookups
+## build no keys and no arrays (a guild war of 16 asked about 100 times a frame).
 static var _stamp := -1
-static var _cache := {} # party key -> {class: true}
+static var _hero_party := {}       # the hero's party: {class: true}
+static var _hero_built := false
+static var _war := {}              # war party index -> {class: true}
+static var _war_built := false
+static var _solo := {}             # a lone rival's instance id -> {class: true}
+static var _by_unit := {}          # this frame's answers: instance id -> {class: true}
+## What a body outside every party reads (read-only, shared).
+const NONE := {}
+## Party builds so far (tests: at most one of each kind a frame).
+static var builds := 0
 
 
 ## The trait of a class ({} for the Vagabond).
@@ -89,7 +101,12 @@ static func summary(classes: Array) -> String:
 ## Forget the cached parties (they are rebuilt once a frame anyway).
 static func invalidate() -> void:
 	_stamp = -1
-	_cache.clear()
+	_hero_party = {}
+	_hero_built = false
+	_war = {}
+	_war_built = false
+	_solo = {}
+	_by_unit = {}
 
 
 # ---------------------------------------------------------------------------
@@ -129,41 +146,114 @@ static func _alive(node: Variant) -> bool:
 	return node != null and is_instance_valid(node) and node.is_inside_tree() and node.has_method("is_dead") and not node.is_dead()
 
 
-## The classes alive in [param unit]'s party, each once: {class: true}.
+## The classes alive in [param unit]'s party, each once: {class: true} (read it only;
+## it is rebuilt the next frame).
 static func party_classes(unit: Variant) -> Dictionary:
-	if not enabled:
-		return {}
-	var key := party_key(unit)
-	if key == "":
-		return {}
+	if not enabled or unit == null or not is_instance_valid(unit):
+		return NONE
 	var stamp := Engine.get_process_frames()
 	if stamp != _stamp:
 		_stamp = stamp
-		_cache.clear()
-	if _cache.has(key):
-		return _cache[key]
-	var found := {}
-	var members: Array = []
-	if key.begins_with("u"):
-		members = [unit]
-	else:
-		var tree := (unit as Node).get_tree() if (unit as Node).is_inside_tree() else null
-		if tree == null:
-			members = [unit]
-		elif key == "hero":
-			members = tree.get_nodes_in_group("hero") + tree.get_nodes_in_group("companions").filter(func(n): return n is Companion)
-		else:
-			var party := int(key.substr(1))
-			members = tree.get_nodes_in_group("gw_fighters").filter(func(n): return n is GuildFighter and (n as GuildFighter).party == party)
-			if party == GuildWarMatch.HERO_PARTY:
-				members += tree.get_nodes_in_group("hero")
-	for m in members:
-		if _alive(m):
-			var cls := class_of(m)
+		_hero_built = false
+		_war_built = false
+		if not _solo.is_empty():
+			_solo = {}
+		if not _by_unit.is_empty():
+			_by_unit = {}
+	var uid: int = (unit as Object).get_instance_id()
+	var known: Variant = _by_unit.get(uid)
+	if known != null:
+		return known
+	var found := _classes_for(unit)
+	_by_unit[uid] = found
+	return found
+
+
+static func _classes_for(unit: Variant) -> Dictionary:
+	var hero := unit is Hero
+	var companion := unit is Companion
+	if not (hero or companion or unit is Rival):
+		return NONE
+	if GuildWarMatch.in_war():
+		var p := GuildWarMatch.HERO_PARTY if companion else GuildWarMatch.party_of(unit)
+		if p >= 0:
+			if not _war_built:
+				_build_war(unit as Node)
+			return _war.get(p, NONE)
+		return _solo_classes(unit) if unit is Rival else NONE
+	if hero or companion:
+		if companion and not (unit as Node).is_in_group("companions"):
+			return NONE
+		if not _hero_built:
+			_build_hero(unit as Node)
+		return _hero_party
+	return _solo_classes(unit)
+
+
+static func _solo_classes(unit: Variant) -> Dictionary:
+	var id: int = (unit as Object).get_instance_id()
+	var found: Variant = _solo.get(id)
+	if found == null:
+		found = {}
+		if _alive(unit):
+			var cls := class_of(unit)
 			if TRAITS.has(cls):
 				found[cls] = true
-	_cache[key] = found
+		_solo[id] = found
 	return found
+
+
+static func _add_member(found: Dictionary, m: Variant) -> void:
+	if _alive(m):
+		var cls := class_of(m)
+		if TRAITS.has(cls):
+			found[cls] = true
+
+
+static func _build_hero(unit: Node) -> void:
+	_hero_built = true
+	builds += 1
+	var found := {}
+	var tree := unit.get_tree() if unit.is_inside_tree() else null
+	if tree == null:
+		_add_member(found, unit)
+	else:
+		for m in tree.get_nodes_in_group("hero"):
+			_add_member(found, m)
+		for m in tree.get_nodes_in_group("companions"):
+			if m is Companion:
+				_add_member(found, m)
+	_hero_party = found
+
+
+## Every war party at once: one pass over the fighters (and the hero for its party).
+static func _build_war(unit: Node) -> void:
+	_war_built = true
+	builds += 1
+	var parties := {}
+	var tree := unit.get_tree() if unit.is_inside_tree() else null
+	if tree == null:
+		var p := GuildWarMatch.HERO_PARTY if unit is Companion else GuildWarMatch.party_of(unit)
+		var one := {}
+		_add_member(one, unit)
+		parties[p] = one
+		_war = parties
+		return
+	for m in tree.get_nodes_in_group("gw_fighters"):
+		if m is GuildFighter:
+			var p: int = (m as GuildFighter).party
+			var found: Variant = parties.get(p)
+			if found == null:
+				found = {}
+				parties[p] = found
+			_add_member(found, m)
+	var mine: Variant = parties.get(GuildWarMatch.HERO_PARTY)
+	if mine == null:
+		mine = {}
+		parties[GuildWarMatch.HERO_PARTY] = mine
+	for m in tree.get_nodes_in_group("hero"):
+		_add_member(mine, m)
+	_war = parties
 
 
 ## Whether [param unit]'s party has a living member of [param cls].
@@ -250,15 +340,17 @@ static func marked(target: Variant, key: String) -> bool:
 static func after_hit(attacker: Variant, target: Variant, dealt: int) -> void:
 	if dealt <= 0:
 		return
-	var key := party_key(attacker)
-	if key == "":
+	var classes := party_classes(attacker)
+	if classes.is_empty():
 		return
-	if class_of(attacker) == &"mage" and target != null and is_instance_valid(target):
+	# The mark's party key is text: built only for a Mage's own hits.
+	var key := party_key(attacker) if classes.has(&"mage") and class_of(attacker) == &"mage" else ""
+	if key != "" and target != null and is_instance_valid(target):
 		var obj := target as Object
 		var marks: Dictionary = obj.get_meta(MARK_META) if obj.has_meta(MARK_META) else {}
 		marks[key] = Time.get_ticks_msec() + int(float(TRAITS[&"mage"].secs) * 1000.0)
 		obj.set_meta(MARK_META, marks)
-	if has(attacker, &"darklord"):
+	if classes.has(&"darklord"):
 		_gain(attacker, &"role_leech", float(dealt) * value(&"darklord"), "hp")
 
 
