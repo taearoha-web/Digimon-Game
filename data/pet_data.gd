@@ -46,7 +46,7 @@ const PETS := {
 		"desc": "เจ้าไดโนน้อยชุดเปลวเพลิง ดุดันสายโจมตี พ่นไฟเผาศัตรูทั้งฝูง",
 		"model": "res://assets/models/pets/KaijuRex.glb", "skin": "res://assets/models/pets/skins/kaiju_rex_flame.png",
 		"height": 1.45, "tint": Color.WHITE, "color": Color("ff7a2a"), "glow": Color("ffb347"),
-		"ratios": {"atk": 0.40, "hp": 0.45, "def": 0.45, "crit": 0.5},
+		"ratios": {"atk": 0.40, "hp": 1.0, "def": 0.8, "crit": 0.5},
 		"range": 2.2, "speed": 6.2,
 		"skills": [
 			{"id": "fireball", "name": "ลูกไฟ", "desc": "พ่นลูกไฟใส่ศัตรูหนึ่งตัวจากระยะไกล", "kind": "bolt", "power": 1.6, "cd": 5.0, "range": 9.0, "clip": "skill2"},
@@ -64,7 +64,7 @@ const PETS := {
 		"desc": "ยักษ์น้ำแข็งใจดี สายสนับสนุน ฮีลและกันดาเมจให้เจ้าของ",
 		"model": "res://assets/models/pets/FrostGolem.glb", "skin": "",
 		"height": 1.75, "tint": Color.WHITE, "color": Color("5cc8ff"), "glow": Color("bff4ff"),
-		"ratios": {"atk": 0.30, "hp": 0.55, "def": 0.55, "crit": 0.5},
+		"ratios": {"atk": 0.30, "hp": 1.2, "def": 0.9, "crit": 0.5},
 		"range": 2.4, "speed": 5.6,
 		"skills": [
 			{"id": "water_jet", "name": "สายน้ำ", "desc": "ฉีดสายน้ำใส่ศัตรูหนึ่งตัวจากระยะไกล", "kind": "bolt", "power": 1.4, "cd": 5.0, "range": 9.0, "clip": "attack"},
@@ -82,7 +82,7 @@ const PETS := {
 		"desc": "ผู้พิทักษ์ป่าตัวน้อย ใช้เวทหินและพลังธรรมชาติ ทนทานสายแทงค์ ยั่วศัตรูและกันดาเมจให้เจ้าของ",
 		"model": "res://assets/models/pets/GroveDruid.glb", "skin": "",
 		"height": 1.4, "tint": Color.WHITE, "color": Color("8fc25a"), "glow": Color("c8f08a"),
-		"ratios": {"atk": 0.32, "hp": 0.65, "def": 0.65, "crit": 0.5},
+		"ratios": {"atk": 0.32, "hp": 1.5, "def": 1.1, "crit": 0.5},
 		"range": 2.4, "speed": 5.4,
 		"skills": [
 			{"id": "rock_throw", "name": "หินกระแทก", "desc": "ขว้างก้อนหินใส่ศัตรูหนึ่งตัวจากระยะไกล", "kind": "bolt", "power": 1.5, "cd": 5.0, "range": 9.0, "clip": "skill2", "projectile": "orb"},
@@ -201,6 +201,13 @@ static func growth_line(id: String, stage: int) -> String:
 ## The pet's stats from its hero's: level = the hero's level, ATK / HP / DEF / crit are
 ## the pet's shares (ratios) of the hero's current atk / max_hp / def / crit. A level-1
 ## hero's pet keeps a small floor (HP 120, ATK 4) so it is not a one-hit paper target.
+## Pets were too easy to drop: every hit on a pet is cut to this share, and a pet that
+## has not been hit for REGEN_AFTER seconds gets REGEN of its max HP back each second.
+const TAKEN := 0.6
+const REGEN := 0.02
+const REGEN_AFTER := 4.0
+
+
 static func stats_for(id: String, owner_stats: Dictionary, level: int) -> Dictionary:
 	var r: Dictionary = get_pet(id).get("ratios", {"atk": 0.35, "hp": 0.5, "def": 0.5, "crit": 0.5})
 	return {

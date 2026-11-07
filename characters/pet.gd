@@ -50,6 +50,8 @@ var _name_tag: Label3D
 var _shadow: MeshInstance3D
 ## The form shown (PetData.stage_for of its owner's level and ★): -1 until the first look.
 var stage := -1
+var _since_hit := 0.0
+var _regen_acc := 0.0
 ## Its owner's ★ (the hero's paragon level, an AI player's stars).
 var owner_star := 0
 ## The form's layers (PetForm.build, PetForm.dress_lite) and what they were built for.
@@ -299,6 +301,15 @@ func _process(delta: float) -> void:
 		if respawn_left <= 0.0:
 			_respawn()
 		return
+	# Out of the fight for a moment: it catches its breath (PetData.REGEN).
+	_since_hit += delta
+	if _since_hit >= PetData.REGEN_AFTER and hp < max_hp:
+		_regen_acc += float(max_hp) * PetData.REGEN * delta
+		if _regen_acc >= 1.0:
+			hp = mini(max_hp, hp + int(_regen_acc))
+			_regen_acc -= floorf(_regen_acc)
+			if _bar:
+				_bar.set_ratio(float(hp) / float(max_hp))
 	_book.tick(self, true, func(): return float(pet.height))
 	for id in _skill_cds:
 		_skill_cds[id] = maxf(0.0, float(_skill_cds[id]) - delta)
@@ -658,7 +669,8 @@ func _tick_hots(delta: float) -> void:
 func take_damage(raw: float, attacker: Node = null) -> void:
 	if _dead or not is_inside_tree():
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(pstats.get("def", 0.0)) * (1.0 + _book.total("def"))))))
+	_since_hit = 0.0
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(pstats.get("def", 0.0)) * (1.0 + _book.total("def"))) * PetData.TAKEN)))
 	amount = BuffBook.absorb(_book.buffs, amount)
 	if attacker is Rival and (attacker as Rival).war_scale > 1.0:
 		amount = BurstGuard.take(get_instance_id(), amount, max_hp)

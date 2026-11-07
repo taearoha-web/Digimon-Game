@@ -68,6 +68,7 @@ func _ready() -> void:
 	_choose_once_and_save()
 	_scaling()
 	await _stages()
+	await _toughness()
 	await _follow_fight_respawn()
 	await _owner_support()
 	await _every_skill()
@@ -169,10 +170,10 @@ func _scaling() -> void:
 	var high := PetData.stats_for("fire", high_owner, 80)
 	check(int(low.level) == 10 and int(high.level) == 80, "pet level = hero level")
 	check(float(high.atk) > float(low.atk) * 2.0 and int(high.max_hp) > int(low.max_hp), "a stronger hero has a stronger pet (ATK %.0f -> %.0f, HP %d -> %d)" % [low.atk, high.atk, low.max_hp, high.max_hp])
-	check(is_equal_approx(float(high.atk), float(high_owner.atk) * 0.40) and int(high.max_hp) == int(round(float(high_owner.max_hp) * 0.45)), "fire pet ATK 40%% / HP 45%% of the hero")
+	check(is_equal_approx(float(high.atk), float(high_owner.atk) * 0.40) and int(high.max_hp) == int(round(float(high_owner.max_hp) * 1.0)), "fire pet ATK 40%% / HP 100%% of the hero")
 	for id in PetData.ORDER:
 		var s := PetData.stats_for(id, high_owner, 80)
-		check(float(s.atk) < float(high_owner.atk) * 0.5 and int(s.max_hp) <= int(high_owner.max_hp) * 0.7, "%s helps without out-hitting the hero" % id)
+		check(float(s.atk) < float(high_owner.atk) * 0.5 and float(s.max_hp) <= float(high_owner.max_hp) * 1.5 + 1.0, "%s helps without out-hitting the hero (sturdy, not stronger)" % id)
 	check(not PetData.allowed_in(ZoneData.get_zone(&"pvp")) and not PetData.allowed_in(ZoneData.get_zone(&"guildwar")) and PetData.allowed_in(ZoneData.get_zone(&"tower")) and PetData.allowed_in(ZoneData.get_zone(&"meadow")) and PetData.allowed_in(ZoneData.get_zone(&"town")), "pets stay out of the 1v1 duels and the guild war only")
 
 
@@ -353,13 +354,33 @@ func _stages() -> void:
 	await get_tree().process_frame
 
 
+## Sturdier pets: hits cut to PetData.TAKEN, and out of the fight it regains its HP.
+func _toughness() -> void:
+	var hero := _hero(60, "fire")
+	var pet := _pet(hero)
+	await get_tree().process_frame
+	var full := pet.hp
+	var raw := float(pet.max_hp) * 0.5
+	pet.take_damage(raw)
+	var expected := int(round(HeroStats.mitigate(raw, float(pet.pstats.def)) * PetData.TAKEN))
+	check(full - pet.hp == maxi(1, expected), "a hit on the pet is cut to %d%% (%d)" % [int(PetData.TAKEN * 100.0), full - pet.hp])
+	var low := pet.hp
+	for i in int((PetData.REGEN_AFTER + 2.0) * 10.0):
+		pet._process(0.1)
+	check(pet.hp > low, "out of the fight it catches its breath (%d -> %d)" % [low, pet.hp])
+	check(float(pet.max_hp) >= float(hero.stats.max_hp) * 0.99, "the fire pet has its hero's HP (%d vs %d)" % [pet.max_hp, int(hero.stats.max_hp)])
+	pet.queue_free()
+	hero.queue_free()
+	await get_tree().process_frame
+
+
 ## It follows the hero, fights the monster near it, falls and comes back.
 func _follow_fight_respawn() -> void:
 	var hero := _hero(30, "fire")
 	var pet := _pet(hero)
 	await wait(0.3)
 	check(pet.is_in_group("summons") and pet.is_in_group("pets"), "the pet joins the summons (monsters target it, buffs reach it)")
-	check(int(pet.pstats.level) == 30 and pet.max_hp == int(round(float(hero.stats.max_hp) * 0.45)), "pet Lv.30 with 45% of the hero's HP")
+	check(int(pet.pstats.level) == 30 and pet.max_hp == int(round(float(hero.stats.max_hp) * 1.0)), "pet Lv.30 with 100% of the hero's HP")
 	hero.global_position = Vector3(12, 0, 0)
 	await wait(2.5)
 	check(Vector2(pet.global_position.x - 12, pet.global_position.z).length() < 4.0, "the pet follows the hero (%.1f m away)" % Vector2(pet.global_position.x - 12, pet.global_position.z).length())
