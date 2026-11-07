@@ -67,6 +67,7 @@ func _ready() -> void:
 	_data()
 	_choose_once_and_save()
 	_scaling()
+	await _stages()
 	await _follow_fight_respawn()
 	await _owner_support()
 	await _every_skill()
@@ -192,6 +193,164 @@ func _pet(hero: Hero) -> Pet:
 	pet.setup_pet(hero, Game.pet_id())
 	add_child(pet)
 	return pet
+
+
+## A stand-in AI player (its member sheet and stats) and a stand-in online player.
+class FakeOwner:
+	extends Node3D
+	var member: Dictionary = {}
+	var stats: Dictionary = {"atk": 100.0, "max_hp": 1000, "def": 10.0, "crit": 0.1}
+
+
+class NetOwner:
+	extends Node3D
+	var player: Dictionary = {}
+	var look: Dictionary = {}
+
+
+## Six forms by the owner's level and ★: young (Lv.1-34), grown (Lv.35-79), full-grown
+## (Lv.80+), awakened (Lv.100 ★100), holy (★200), god (★300); each a little bigger; the
+## hero's pet wears more layers each form (fewer at low quality / under memory pressure),
+## growing while playing announces it, re-dressing leaks nothing; AI players' and other
+## players' pets take their owner's level and ★ with the cheap look.
+func _stages() -> void:
+	var cases := [[1, 0, 0], [34, 0, 0], [34, 300, 0], [35, 0, 1], [79, 0, 1], [80, 0, 2], [99, 300, 2], [100, 0, 2], [100, 99, 2],
+		[100, 100, 3], [100, 199, 3], [100, 200, 4], [100, 299, 4], [100, 300, 5]]
+	var right := true
+	for c in cases:
+		if PetData.stage_for(int(c[0]), int(c[1])) != int(c[2]):
+			right = false
+			printerr("stage_for(%d, %d) = %d, wants %d" % [c[0], c[1], PetData.stage_for(int(c[0]), int(c[1])), c[2]])
+	check(right, "six forms at Lv.1 / 35 / 80 and Lv.100 with ★100 / 200 / 300, at every edge")
+	check(PetData.stage_for(100) == 2 and PetData.stage_name(100, 300) == "ร่างเทพ" and PetData.STAGE_NAMES.size() == 6 and PetData.STAGE_SCALE.size() == 6, "levels alone stop at the full-grown form; the god form is ร่างเทพ")
+	var grows := true
+	for i in range(1, PetData.STAGE_SCALE.size()):
+		grows = grows and float(PetData.STAGE_SCALE[i]) > float(PetData.STAGE_SCALE[i - 1])
+	check(grows and float(PetData.STAGE_SCALE[5]) <= 1.7, "each form is bigger than the last, the god form capped (%s)" % str(PetData.STAGE_SCALE))
+	check(PetData.form_requirement(1) == "Lv.35" and PetData.form_requirement(5) == "Lv.100 ★300", "the requirements read Lv.35 .. Lv.100 ★300")
+	check(PetData.growth_line("fire", 5).contains("คาอิจูเร็กซ์ ตื่นรู้เป็นร่างเทพ"), "the god form's message (%s)" % PetData.growth_line("fire", 5))
+	GameSettings.load_settings()
+	var quality := GameSettings.quality
+	GameSettings.quality = 2
+	MemoryGuard.force(0, get_tree())
+	var hero := _hero(20, "earth")
+	var pet := _pet(hero)
+	await get_tree().process_frame
+	check(pet.stage == 0 and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[0]) and pet.form_root == null, "Lv.20: the young form, no layers")
+	Game.profile.level = 50
+	pet._refresh_stats()
+	check(pet.stage == 1 and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[1]), "Lv.50: grown")
+	Game.profile.level = 90
+	pet._refresh_stats()
+	check(pet.stage == 2 and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[2]) and pet._aura != null, "Lv.90: full-grown with its aura")
+	check(pet._name_tag.text.contains(PetData.STAGE_NAMES[2]), "the name tag shows the form (%s)" % pet._name_tag.text)
+	Game.profile.level = 100
+	Game.paragon().level = 99
+	pet._refresh_stats()
+	check(pet.stage == 2, "Lv.100 ★99: still full-grown")
+	var said: Array[String] = []
+	var listen := func(text: String, _kind: StringName): said.append(text)
+	Game.toast.connect(listen)
+	var counts: Array = []
+	var budgets: Array = []
+	for f in [3, 4, 5]:
+		Game.paragon().level = int(PetData.STAGE_STARS[f])
+		pet._refresh_stats()
+		var names := PetForm.layers(pet.form_root)
+		var want: Array = ["PetAura"] + PetForm.AWAKENED_LAYERS
+		if f >= 4:
+			want += PetForm.HOLY_LAYERS
+		if f >= 5:
+			want += PetForm.GOD_LAYERS
+		var have := true
+		for n in want:
+			have = have and names.has(n)
+		check(pet.stage == f and is_equal_approx(pet._visual.scale.x, PetData.STAGE_SCALE[f]) and have, "★%d: %s with its layers (%s)" % [PetData.STAGE_STARS[f], PetData.STAGE_NAMES[f], str(names)])
+		check(not said.is_empty() and said.back() == PetData.growth_line("earth", f), "★%d: growing while playing says so (%s)" % [PetData.STAGE_STARS[f], said.back() if not said.is_empty() else "-"])
+		var rim := pet._visual._flash_targets()[0] as MeshInstance3D
+		check(rim.material_overlay == PetForm.rim_material("earth", f), "★%d: the model wears the form's rim light" % PetData.STAGE_STARS[f])
+		counts.append(names.size())
+	Game.toast.disconnect(listen)
+	# The growth bursts fade before the budget is counted.
+	await wait(2.5)
+	check(counts[0] < counts[1] and counts[1] < counts[2], "each star form wears more layers (%s)" % str(counts))
+	check(pet._name_tag.text.contains("ร่างเทพ") and pet._name_tag.text.contains(String(PetData.GOD_TITLES.earth)), "the god form's name tag wears its title (%s)" % pet._name_tag.text)
+	check(PetForm.layers(pet.form_root).has("Crown") and PetForm.layers(pet.form_root).has("GodHalo"), "the crown and halo ride the head")
+	var full := PetForm.layers(pet.form_root).size()
+	# Low quality and memory pressure trim the layers (the pet re-dresses by itself).
+	GameSettings.quality = 0
+	pet._refresh_stats()
+	var low := PetForm.layers(pet.form_root)
+	check(low.size() < full and not low.has("Wings") and not low.has("Trail") and not low.has("Light") and not low.has("Motes") and low.has("Crown") and low.has("PetAura"), "low quality keeps only the still pieces (%s)" % str(low))
+	GameSettings.quality = 2
+	MemoryGuard.force(2, get_tree())
+	pet._refresh_stats()
+	var tight := PetForm.layers(pet.form_root)
+	check(tight.size() < full and not tight.has("Wings") and not tight.has("Light"), "memory pressure trims them too (%s)" % str(tight))
+	MemoryGuard.force(1, get_tree())
+	pet._refresh_stats()
+	check(not PetForm.layers(pet.form_root).has("Light") and PetForm.layers(pet.form_root).has("Wings"), "a little pressure drops the light, keeps the wings")
+	MemoryGuard.force(0, get_tree())
+	pet._refresh_stats()
+	await get_tree().process_frame
+	# Re-dressing over and over leaks no node and no budget.
+	var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	var budget := [VfxBudget._particles, VfxBudget._decorations, VfxBudget._lights]
+	for round in 4:
+		GameSettings.quality = 0
+		pet._refresh_stats(true)
+		GameSettings.quality = 2
+		pet._refresh_stats(true)
+		Game.paragon().level = 0
+		pet._refresh_stats(true)
+		Game.paragon().level = 300
+		pet._refresh_stats(true)
+		await get_tree().process_frame
+	await get_tree().process_frame
+	check(int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) <= nodes + 2, "re-dressing leaks no nodes (%d -> %d)" % [nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	check([VfxBudget._particles, VfxBudget._decorations, VfxBudget._lights] == budget, "re-dressing leaks no budget (%s -> %s)" % [str(budget), str([VfxBudget._particles, VfxBudget._decorations, VfxBudget._lights])])
+	pet.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(VfxBudget._lights == 0 and VfxBudget._particles == 0, "a freed god-form pet gives its light and trail back (%d, %d)" % [VfxBudget._lights, VfxBudget._particles])
+	# Another player's pet (PetFollower): its owner's level and ★, the cheap look.
+	var looks: Array = []
+	for rank in [[1, 0], [90, 0], [100, 300]]:
+		var f := PetFollower.new()
+		add_child(f)
+		f.build("fire")
+		var who := FakeOwner.new()
+		who.member = {"name": "เจ้าของ", "level": int(rank[0]), "stars": int(rank[1])}
+		add_child(who)
+		f.attach(who)
+		looks.append([f.stage, f.visual.scale.x, PetForm.layers(f.form_root)])
+		who.free()
+		f.queue_free()
+	check(int(looks[0][0]) == 0 and is_equal_approx(float(looks[0][1]), PetData.STAGE_SCALE[0]) and (looks[0][2] as Array).is_empty(), "another player's pet takes its owner's form (Lv.1 owner -> young)")
+	check(int(looks[2][0]) == 5 and is_equal_approx(float(looks[2][1]), PetData.STAGE_SCALE[5]), "a Lv.100 ★300 AI player's pet is in its god form")
+	var cheap: Array = looks[2][2]
+	check(cheap.has("PetAura") and cheap.has("GodHalo") and not cheap.has("Wings") and not cheap.has("Trail") and not cheap.has("Motes") and cheap.size() <= 3, "other players' pets wear the cheap look only (%s)" % str(cheap))
+	var remote := NetOwner.new()
+	remote.player = {"level": 100, "stars": 200}
+	check(PetFollower.owner_rank(remote) == Vector2i(100, 200), "an online player's pet reads its level and ★ (%s)" % str(PetFollower.owner_rank(remote)))
+	remote.free()
+	# An AI player's fighting pet (lite): its member's level and ★.
+	var ai := FakeOwner.new()
+	ai.member = {"name": "เอไอ", "level": 100, "stars": 250, "class": "warrior"}
+	add_child(ai)
+	var lite := Pet.new()
+	lite.setup_pet(ai, "water")
+	add_child(lite)
+	await get_tree().process_frame
+	check(lite.lite and lite.stage == 4 and lite.owner_star == 250 and is_equal_approx(lite._visual.scale.x, PetData.STAGE_SCALE[4]), "an AI player's fighting pet takes its owner's level and ★ (form %d)" % lite.stage)
+	var lite_layers := PetForm.layers(lite.form_root)
+	check(lite_layers.has("PetAura") and lite_layers.has("Ring2") and not lite_layers.has("Wings") and not lite_layers.has("Crown"), "and wears the cheap look (%s)" % str(lite_layers))
+	lite.queue_free()
+	ai.free()
+	hero.queue_free()
+	GameSettings.quality = quality
+	MemoryGuard.force(-1, get_tree())
+	await get_tree().process_frame
 
 
 ## It follows the hero, fights the monster near it, falls and comes back.
@@ -416,3 +575,16 @@ func _village_and_zones() -> void:
 	check(main.zone.pet == null and get_tree().get_nodes_in_group("pets").is_empty(), "no pet in a 1v1 duel")
 	await main.go(&"town", true)
 	await wait(0.3)
+	# The god form over zone changes: its layers come and go with the pet, nothing left.
+	Game.profile.level = 100
+	Game.paragon().level = 300
+	var god_counts: Array[int] = []
+	for round in 3:
+		await main.go(&"meadow", true)
+		await wait(1.5)
+		check(is_instance_valid(main.zone.pet) and main.zone.pet.stage == PetData.GOD_STAGE and main.zone.pet.form_root != null, "round %d: the god-form pet comes along dressed" % round)
+		await main.go(&"town", true)
+		await wait(1.5)
+		check(VfxBudget._lights <= 1, "round %d: at most the pet's one light (%d)" % [round, VfxBudget._lights])
+		god_counts.append(int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
+	check(god_counts[2] <= god_counts[1] + 60, "the god form leaks no nodes over zone changes (%s)" % str(god_counts))

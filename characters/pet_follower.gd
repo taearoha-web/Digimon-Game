@@ -27,9 +27,18 @@ var pet_id := ""
 var owner_node: Node3D
 var visual: MonsterVisual
 
+## The form shown (PetData.stage_for of its owner's level and ★), -1 before attach,
+## and its cheap form look (PetForm.dress_lite).
+var stage := -1
+var form_root: Node3D
+
 var _moving := false
 var _spot := Vector3.ZERO
 var _shadow: MeshInstance3D
+## Seconds to the next look at its owner's level and ★ (an AI player levels up).
+var _rank_in := 0.0
+## Seconds between two such looks.
+const RANK_EVERY := 2.0
 
 
 ## The pet of [param id]'s model, built once (the crowd's spares keep theirs).
@@ -52,6 +61,10 @@ func build(id: String) -> void:
 ## Walks with [param who] from now on, starting right behind it.
 func attach(who: Node3D) -> void:
 	owner_node = who
+	# Its form follows its owner's level and ★ (PetData.stage_for).
+	stage = -1
+	_update_form()
+	_rank_in = RANK_EVERY
 	_moving = false
 	global_position = who.global_position + spot_behind(who, SIDE, BACK)
 	rotation.y = _owner_yaw(who)
@@ -63,6 +76,44 @@ func attach(who: Node3D) -> void:
 		if visual.anim:
 			visual.anim.active = true
 		visual.play("idle")
+
+
+## Its owner's level and ★: an AI player's member sheet (a world player, a party member,
+## a mirrored world player), a real online player's state (its look as a fallback).
+static func owner_rank(who: Object) -> Vector2i:
+	if who == null:
+		return Vector2i(1, 0)
+	if "member" in who and who.member is Dictionary:
+		var m: Dictionary = who.member
+		return Vector2i(int(m.get("level", 1)), Game.party_stars(m))
+	var level := 1
+	var stars := 0
+	var found := false
+	for key in ["player", "look"]:
+		if key in who and who.get(key) is Dictionary and not found:
+			var d: Dictionary = who.get(key)
+			if d.has("level"):
+				level = Online.num(d.get("level", 1), 1)
+				stars = Online.num(d.get("stars", 0), 0)
+				found = true
+	if not found and "level" in who:
+		level = int(who.level)
+		stars = int(who.stars) if "stars" in who else 0
+	return Vector2i(maxi(1, level), clampi(stars, 0, Game.PARAGON_MAX))
+
+
+## Sizes and dresses it for its owner's form now (only when the form changes).
+func _update_form() -> void:
+	var rank := owner_rank(owner_node)
+	var next := PetData.stage_for(rank.x, rank.y)
+	if next == stage or visual == null:
+		return
+	stage = next
+	visual.scale = Vector3.ONE * float(PetData.STAGE_SCALE[stage])
+	PetForm.clear(form_root)
+	form_root = PetForm.dress_lite(self, visual, pet_id, stage, float(PetData.get_pet(pet_id).get("height", 1.5)) * SIZE, PetCrowd.HIDE)
+	if form_root:
+		form_root.scale = visual.scale
 
 
 ## Back to the crowd's spares: hidden, not thinking, not animating.
@@ -84,6 +135,10 @@ func _process(delta: float) -> void:
 		visible = false
 		set_process(false)
 		return
+	_rank_in -= delta
+	if _rank_in <= 0.0:
+		_rank_in = RANK_EVERY
+		_update_form()
 	var at := who.global_position
 	var gap := Vector2(at.x - global_position.x, at.z - global_position.z).length()
 	if gap > TELEPORT:

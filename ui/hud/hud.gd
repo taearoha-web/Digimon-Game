@@ -969,20 +969,23 @@ func _update_pet_card() -> void:
 	if pet == null:
 		return
 	var data := pet.pet
-	if _pet_key != pet.pet_id:
-		_pet_key = pet.pet_id
+	var key := "%s|%d" % [pet.pet_id, pet.stage]
+	if _pet_key != key:
+		_pet_key = key
 		_pet_letter.text = {"fire": "ไฟ", "water": "น้ำ", "earth": "ดิน"}.get(pet.pet_id, "?")
+		# The star forms wear a gold rim on the badge (thicker for the god form).
+		var star := pet.stage >= PetData.STAR_STAGE
 		var style := StyleBoxFlat.new()
 		style.bg_color = (data.color as Color).darkened(0.15)
 		style.set_corner_radius_all(11)
-		style.set_border_width_all(1)
-		style.border_color = (data.glow as Color)
+		style.set_border_width_all(2 if pet.stage >= PetData.GOD_STAGE else 1)
+		style.border_color = PetForm.DIVINE if star else (data.glow as Color)
 		_pet_badge.add_theme_stylebox_override("panel", style)
 	if pet.is_dead():
 		_pet_title.text = "%s · กลับมาใน %d วิ" % [String(data.name), int(ceil(pet.respawn_left))]
 		UIUtil.set_bar(_pet_bar, 0, 1)
 	else:
-		_pet_title.text = "%s Lv.%d" % [String(data.name), int(pet.pstats.get("level", 1))]
+		_pet_title.text = "%s · %s Lv.%d" % [String(data.name), pet.form_name(), int(pet.pstats.get("level", 1))]
 		UIUtil.set_bar(_pet_bar, pet.hp, pet.max_hp)
 		UIUtil.tint_hp_bar(_pet_bar, float(pet.hp) / float(maxi(1, pet.max_hp)))
 

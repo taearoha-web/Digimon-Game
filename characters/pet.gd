@@ -48,6 +48,14 @@ var _stats_timer := 0.0
 var _hots: Array[Dictionary] = []
 var _name_tag: Label3D
 var _shadow: MeshInstance3D
+## The form shown (PetData.stage_for of its owner's level and ★): -1 until the first look.
+var stage := -1
+## Its owner's ★ (the hero's paragon level, an AI player's stars).
+var owner_star := 0
+## The form's layers (PetForm.build, PetForm.dress_lite) and what they were built for.
+var form_root: Node3D
+var _form_key := ""
+var _aura: MeshInstance3D
 
 
 ## [param p_owner]: the hero. [param id]: its pet (PetData id).
@@ -87,6 +95,7 @@ func _ready() -> void:
 	# A thin ring in the element's colour under its feet: a pet, not a monster or a hero.
 	add_child(ring_for(pet_id))
 	if lite:
+		_apply_stage(false)
 		_shadow.visibility_range_end = PetCrowd.HIDE
 		_retarget_in = randf() * LITE_RETARGET
 		scale = Vector3.ONE * 0.05
@@ -107,7 +116,8 @@ func _ready() -> void:
 	_name_tag.no_depth_test = true
 	_name_tag.render_priority = 1
 	add_child(_name_tag)
-	_update_name()
+	# Its form: size, layers, and the bar and name over its head.
+	_apply_stage(false)
 	scale = Vector3.ONE * 0.05
 	create_tween().tween_property(self, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
@@ -133,6 +143,15 @@ static func ring_for(id: String) -> MeshInstance3D:
 	return ring
 
 
+## Its owner's ★: the hero's (paragon level), an AI player's own (member sheet).
+func owner_stars() -> int:
+	if hero:
+		return PetData.profile_stars(Game.profile)
+	if "member" in summoner and summoner.member is Dictionary:
+		return Game.party_stars(summoner.member)
+	return 0
+
+
 ## Its owner's level: the hero's (Game.profile), an AI player's own (member sheet).
 func owner_level() -> int:
 	if hero:
@@ -144,9 +163,71 @@ func owner_level() -> int:
 	return 1
 
 
+## The form's Thai name now ("ร่างเทพ").
+func form_name() -> String:
+	return PetData.form_name(maxi(stage, 0))
+
+
 func _update_name() -> void:
 	if _name_tag:
-		_name_tag.text = "%s Lv.%d" % [String(pet.name), int(pstats.get("level", 1))]
+		var line := "%s · %s Lv.%d" % [String(pet.name), form_name(), int(pstats.get("level", 1))]
+		# The god form wears its title over the name, like a God hero's name plate.
+		if stage >= PetData.GOD_STAGE:
+			line = "✦ %s ✦\n%s" % [String(PetData.GOD_TITLES.get(pet_id, "เทพ")), line]
+		_name_tag.text = line
+		_name_tag.modulate = (pet.glow as Color).lightened(0.3) if stage < PetData.STAR_STAGE else (pet.glow as Color).lerp(PetForm.DIVINE, 0.25 * float(stage - 2)).lightened(0.25)
+
+
+## Sizes the pet to its form (PetData.stage_for of its owner's level and ★) and dresses
+## it (_dress); growing into a new form while the hero plays shows a burst of light and a
+## message (PetForm.announce), grander for the star forms.
+func _apply_stage(announce: bool) -> void:
+	var level := int(pstats.get("level", 1))
+	var next := PetData.stage_for(level, owner_star)
+	if _visual == null:
+		return
+	if next == stage:
+		_dress()
+		return
+	var grew := stage >= 0 and next > stage
+	stage = next
+	var k := float(PetData.STAGE_SCALE[stage])
+	_visual.scale = Vector3.ONE * k
+	if _shadow:
+		_shadow.scale = Vector3.ONE * k
+	var top := float(pet.height) * k
+	# The holy and god forms wear a crown: the bar and the name sit over it.
+	var crown := 0.3 if stage >= 4 and not lite else 0.0
+	if _bar:
+		_bar.position.y = top + 0.45 + crown
+	if _name_tag:
+		_name_tag.position.y = top + 0.75 + crown
+	_update_name()
+	_dress()
+	if grew and announce and not lite and is_inside_tree():
+		PetForm.announce(self, pet_id, stage, top)
+
+
+## Puts on the layers of its form at the detail allowed now (PetForm.tier: the quality
+## setting and memory pressure; checked again with the stats each second): the full set
+## on the hero's pet, the cheap set (PetForm.dress_lite) on an AI player's.
+func _dress() -> void:
+	var detail := -1 if lite else PetForm.tier()
+	var key := "%d|%d" % [stage, detail]
+	if key == _form_key or _visual == null:
+		return
+	_form_key = key
+	PetForm.clear(form_root)
+	form_root = null
+	_aura = null
+	var h := float(pet.height)
+	if lite:
+		form_root = PetForm.dress_lite(self, _visual, pet_id, stage, h, PetCrowd.HIDE)
+	else:
+		form_root = PetForm.build(self, _visual, pet_id, stage, h, detail)
+	if form_root:
+		form_root.scale = Vector3.ONE * float(PetData.STAGE_SCALE[stage])
+		_aura = form_root.get_node_or_null("PetAura") as MeshInstance3D
 
 
 ## Recomputes ATK / HP / DEF / crit from the hero's stats now (keeps the health share).
@@ -157,6 +238,7 @@ func _refresh_stats(full := false) -> void:
 	elif "stats" in summoner and summoner.stats is Dictionary:
 		owner_stats = summoner.stats
 	var level := owner_level()
+	owner_star = owner_stars()
 	var before_level := int(pstats.get("level", 0))
 	var ratio := 1.0 if full or max_hp <= 0 else float(hp) / float(max_hp)
 	pstats = PetData.stats_for(pet_id, owner_stats, level)
@@ -165,6 +247,7 @@ func _refresh_stats(full := false) -> void:
 		hp = clampi(int(round(float(max_hp) * ratio)), 1, max_hp)
 	if before_level != int(pstats.level):
 		_update_name()
+	_apply_stage(not full)
 	if _bar:
 		_bar.set_ratio(float(hp) / float(max_hp))
 
