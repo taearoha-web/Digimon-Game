@@ -2,8 +2,8 @@ class_name PetData
 extends RefCounted
 ## The village pets: one of three, chosen once per character at the pet keeper
 ## (ผู้ดูแลสัตว์เลี้ยง, next to the pet pen) and kept for good (profile["pet"]).
-## The pet follows its hero everywhere it fights (fields, the tower, the raid, the guild
-## war; not the 1v1 duels, see allowed_in) and fights on its own (Pet).
+## The pet follows its hero everywhere it fights (fields, the tower, the raid; not the
+## guild war or the 1v1 duels, see allowed_in) and fights on its own (Pet).
 ##
 ## Elements are theme only: a fire pet does not hit an earth monster harder, there is no
 ## element advantage anywhere (each kit just leans to its flavour: fire hits, water
@@ -142,10 +142,10 @@ static func stats_for(id: String, owner_stats: Dictionary, level: int) -> Dictio
 
 
 ## Whether the hero's pet comes along in zone `data` (ZoneData entry): everywhere with
-## fighting or not (it walks with the hero in the village too), except the 1v1 duels
-## (ranked duels and real-player duels: zone "pvp"), which stay hero against hero.
+## fighting or not (it walks with the hero in the village too), except the guild war and
+## the 1v1 duels (ranked and real-player duels: zone "pvp"): there players fight on their own.
 static func allowed_in(data: Dictionary) -> bool:
-	return not (bool(data.get("pvp", false)) and not bool(data.get("guildwar", false)))
+	return not (bool(data.get("pvp", false)) or bool(data.get("guildwar", false)))
 
 
 # ---------------------------------------------------------------------------

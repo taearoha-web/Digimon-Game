@@ -151,7 +151,7 @@ func _build() -> void:
 	info.add_child(desc)
 	var level := int(Game.profile.get("level", 1))
 	var r: Dictionary = pet.ratios
-	var power := "เลเวลเท่าคุณ (Lv.%d) · พลังโจมตี %d%% · HP %d%% · ป้องกัน %d%% ของค่าสถานะคุณ · ตามคุณทุกแมพและสู้เอง ล้มแล้วกลับมาใน %d วินาที" % [level, int(round(float(r.atk) * 100.0)), int(round(float(r.hp) * 100.0)), int(round(float(r.def) * 100.0)), int(PetData.RESPAWN)]
+	var power := "เลเวลเท่าคุณ (Lv.%d) · พลังโจมตี %d%% · HP %d%% · ป้องกัน %d%% ของค่าสถานะคุณ · ตามคุณทุกแมพและสู้เอง (ยกเว้นกิลวอและดวล 1 ต่อ 1) ล้มแล้วกลับมาใน %d วินาที" % [level, int(round(float(r.atk) * 100.0)), int(round(float(r.hp) * 100.0)), int(round(float(r.def) * 100.0)), int(PetData.RESPAWN)]
 	var power_label := UIUtil.label(power, &"SmallLabel")
 	power_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	power_label.add_theme_color_override("font_color", Color("ffe9a8"))
@@ -166,7 +166,7 @@ func _build() -> void:
 	var buttons := UIUtil.hbox(12)
 	column.add_child(buttons)
 	if mine != "":
-		var note := UIUtil.label("%s อยู่กับคุณแล้ว เดินตามคุณทุกที่ (ยกเว้นดวล 1 ต่อ 1) สัตว์เลี้ยงเลือกแล้วเปลี่ยนไม่ได้" % String(pet.name), &"BoldLabel")
+		var note := UIUtil.label("%s อยู่กับคุณแล้ว เดินตามคุณทุกที่ (ยกเว้นกิลวอและดวล 1 ต่อ 1) สัตว์เลี้ยงเลือกแล้วเปลี่ยนไม่ได้" % String(pet.name), &"BoldLabel")
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		buttons.add_child(note)
