@@ -1,7 +1,8 @@
 extends Node
 ## Weekly guild league (GuildLeague): a season is Monday 00:00 to Sunday 23:59 Thai; the
-## AI guilds' wars come from the week alone (the same table on every device) and move the
-## table through the week; the hero's real war adds its points to its guild; at the week's
+## four guilds' scheduled wars the hero does not fight get seeded results from real power
+## (the same table on every device) and move the table through the week; the hero's real
+## war takes its round's place and adds its points to its guild; at the week's
 ## turn the castle holder becomes the champion: its members get the crown plate, EXP +10%
 ## (also on the HUD chip) and the secret shop (champions only, limits a week); the top
 ## three claim their reward once; the save stays valid through JSON and a disk round trip;
@@ -50,9 +51,10 @@ func _season(w: int, t: float) -> void:
 	check(WorldEvents.weekday(start) == 1 and WorldEvents.time_of_day(start) == 0, "a season starts on Monday 00:00 Thai")
 	check(GuildLeague.week_of(start) == w and GuildLeague.week_of(start - 1.0) == w - 1 and GuildLeague.week_of(GuildLeague.week_end(w) - 1.0) == w, "Sunday 23:59 is still the same season")
 	var wars := GuildLeague.sim_wars(w)
-	check(wars.size() == 7 * GuildLeague.SLOTS.size(), "three AI wars a day (%d)" % wars.size())
+	check(wars.size() == 7 * GuildLeague.SLOTS.size() * 2, "three rounds a day, two wars a round (%d)" % wars.size())
 	var copy: Array = wars.duplicate(true)
 	GuildLeague._sim_cache.clear()
+	GuildLeague._power_cache.clear()
 	check(GuildLeague.sim_wars(w) == copy, "the AI season comes from the week alone (same on every device)")
 	check(GuildLeague.sim_wars(w + 1) != copy, "the next week plays out differently")
 	var played := {}
@@ -71,21 +73,22 @@ func _season(w: int, t: float) -> void:
 	var wins := 0
 	for r in final:
 		wins += int(r.wins)
-	check(wins == wars.size() and final.size() == 6, "one winner a war, six guilds")
+	check(wins == wars.size() and final.size() == 4, "one winner a war, the four guilds only")
 	check(int(final[0].rank) == 1 and int(final[0].points) >= int(final[1].points), "ranked best first")
 	var champ := GuildLeague.champion_of(w, [])
-	var last_held := 0
-	for e in wars:
-		if int(e.held) > 0:
-			last_held = int(e.held)
-	check(champ == last_held and champ > 0, "the champion holds the castle when the season ends")
+	check(champ == GuildLeague._last_holder(w, []) and champ > 0, "the champion holds the castle when the season ends")
 	check(GuildLeague.holder(w, [], start) == GuildLeague.champion_of(w - 1, []), "before the first war last week's champion holds the castle")
 
 
 func _real_war(w: int, t: float) -> void:
 	_hero()
+	# The hero fought today's 12:00 round (over by 13:00): its result takes that war's place.
+	var at := GuildLeague.slot_start(WorldEvents.day_of(t), 0)
+	var rival := GuildLeague.opponent(WorldPlayers.ALPHA, at)
+	var sim := GuildLeague.sim_war(at, mini(WorldPlayers.ALPHA, rival), maxi(WorldPlayers.ALPHA, rival))
 	var before := GuildLeague.table(w, GuildLeague.real_wars(w), t)
-	var result := Game.guildwar_finish(true, 30, 12, 4, 1, "Alpha", "Neverdie")
+	GuildLeague.current_match = {"ours": WorldPlayers.ALPHA, "theirs": rival, "at": at}
+	var result := Game.guildwar_finish(true, 30, 12, 4, 1, "Alpha", WorldPlayers.guild_name(rival))
 	var pts := GuildLeague.war_finished(result, true, [2, 0], 0, [30, 12])
 	var expected := GuildLeague.WIN + 2 * GuildLeague.CAPTURE + GuildLeague.HOLD + 30 / GuildLeague.KILLS_PER_POINT
 	check(pts == expected and int(result.league) == expected, "a real won war with two captures and the castle: %d points (%d)" % [expected, pts])
@@ -101,9 +104,14 @@ func _real_war(w: int, t: float) -> void:
 			if int(r.g) == g:
 				a = int(r.points)
 		return a - b
-	check(gain.call(WorldPlayers.ALPHA) == expected, "the hero's guild earns the points")
-	check(gain.call(WorldPlayers.NEVERDIE) == GuildLeague.LOSS + 12 / GuildLeague.KILLS_PER_POINT, "the rival earns the loser's points")
-	check(GuildLeague.holder(w, GuildLeague.real_wars(w), t + 1.0) == WorldPlayers.ALPHA, "holding the castle at the bell makes the guild the holder")
+	check(gain.call(WorldPlayers.ALPHA) == expected - GuildLeague.side_points(sim, WorldPlayers.ALPHA), "the hero's guild earns the points in place of the seeded result")
+	check(gain.call(rival) == GuildLeague.LOSS + 12 / GuildLeague.KILLS_PER_POINT - GuildLeague.side_points(sim, rival), "the rival earns the loser's points")
+	var other: Array = GuildLeague.pairs_at(at)[1] if (GuildLeague.pairs_at(at)[0] as Array).has(WorldPlayers.ALPHA) else GuildLeague.pairs_at(at)[0]
+	var other_war := GuildLeague.sim_war(at, int(other[0]), int(other[1]))
+	var other_wins := int(other_war.get("held", 0)) > 0 and GuildLeague.side_points(other_war, int(other_war.held)) > expected
+	check(GuildLeague.holder(w, GuildLeague.real_wars(w), t + 1.0) == (int(other_war.held) if other_wins else WorldPlayers.ALPHA), "holding the castle at the bell makes the guild the holder")
+	check(GuildLeague.current_match.is_empty(), "the league war is recorded once")
+	check(GuildLeague.war_finished({"won": true}, true, [1, 0], 0, [9, 3]) == 0 and GuildLeague.real_wars(w).size() == 1, "a guild war that is no league war (none being fought) earns nothing")
 	# A war with no guild (hired line-ups) is not a league war.
 	var hired := {"won": true}
 	check(GuildLeague.war_finished(hired, false, [1, 0], 0, [9, 3]) == 0 and GuildLeague.real_wars(w).size() == 1, "a hired war earns no league points")
@@ -118,15 +126,16 @@ func _rollover(w: int) -> void:
 	# week so Alpha also tops the table.
 	var late := GuildLeague.week_end(w) - 1800.0
 	pin(late)
-	for k in 12:
-		GuildLeague.record_war(WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, true, 3, 0, 0, 60, 10, late - 3600.0 * float(12 - k))
-	GuildLeague.record_war(WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, true, 1, 0, 0, 20, 5, late)
+	# Alpha fights every round of the week and wins big (holding the castle in the last).
+	for m in GuildLeague.schedule(w):
+		if int(m.a) == WorldPlayers.ALPHA or int(m.b) == WorldPlayers.ALPHA:
+			GuildLeague.record_war(WorldPlayers.ALPHA, int(m.b) if int(m.a) == WorldPlayers.ALPHA else int(m.a), true, 5, 0, 0, 100, 10, float(m.at))
 	check(not GuildLeague.hero_champion(), "no crown before the season ends")
 	# Monday 10:00 of the next season.
 	var t := GuildLeague.week_start(w + 1) + 10.0 * 3600.0
 	pin(t)
 	var d := GuildLeague.data()
-	check(int(d.week) == w + 1 and (d.wars as Array).is_empty() and (d.prev_wars as Array).size() == 13 and int(d.prev_week) == w, "the week turns: last season's wars move aside")
+	check(int(d.week) == w + 1 and (d.wars as Array).is_empty() and (d.prev_wars as Array).size() == 21 and int(d.prev_week) == w, "the week turns: last season's wars move aside")
 	check(GuildLeague.champion_now() == WorldPlayers.ALPHA and GuildLeague.hero_champion(), "the guild holding the castle at the end is the champion")
 	check(GuildLeague.crowned(WorldPlayers.ALPHA) and not GuildLeague.crowned(WorldPlayers.NEVERDIE), "the champion's members (world players too) wear the crown plate")
 	check(absf(GuildLeague.exp_mult() - 1.1) < 0.0001, "the champion earns EXP +10%")
@@ -175,7 +184,8 @@ func _screens(w: int) -> void:
 	_hero()
 	var late := GuildLeague.week_end(w) - 1800.0
 	pin(late)
-	GuildLeague.record_war(WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, true, 1, 0, 0, 20, 5, late)
+	var last := GuildLeague.slot_start(WorldEvents.day_of(late), 2)
+	GuildLeague.record_war(WorldPlayers.ALPHA, GuildLeague.opponent(WorldPlayers.ALPHA, last), true, 5, 0, 0, 100, 5, last)
 	pin(GuildLeague.week_start(w + 1) + 10.0 * 3600.0)
 	check(GuildLeague.hero_champion(), "champion again for the screens")
 	var screen := GuildScreen.new()
@@ -183,7 +193,7 @@ func _screens(w: int) -> void:
 	screen.open_league()
 	await get_tree().process_frame
 	var table := screen.find_child("LeagueTable", true, false) as GridContainer
-	check(table != null and table.get_child_count() == 6 * 7, "the registrar shows the league table (6 guilds)")
+	check(table != null and table.get_child_count() == 6 * 5, "the registrar shows the league table (4 guilds)")
 	check(screen.find_child("LeagueBuy_set_core", true, false) != null, "the champion sees the secret shop")
 	check(screen.find_child("LeagueClaim", true, false) != null, "and the reward to claim")
 	var champ_label := screen.find_child("LeagueChampion", true, false) as Label
@@ -211,7 +221,8 @@ func _screens(w: int) -> void:
 func _save(w: int) -> void:
 	_hero()
 	pin(GuildLeague.week_end(w) - 1800.0)
-	GuildLeague.record_war(WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, true, 1, 0, 0, 20, 5)
+	var last := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_end(w) - 1800.0), 2)
+	GuildLeague.record_war(WorldPlayers.ALPHA, GuildLeague.opponent(WorldPlayers.ALPHA, last), true, 5, 0, 0, 100, 5, last)
 	pin(GuildLeague.week_start(w + 1) + 3600.0)
 	Game.profile.gold = 100000000
 	GuildLeague.claim()

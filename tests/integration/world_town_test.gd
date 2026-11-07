@@ -6,7 +6,7 @@ extends Node
 ## stand there (doing "stall") but for the scheduled players' short errands (a quest, the
 ## forge, new skills: doing "errand"); the world's clock runs WorldPlayers.SPEED times
 ## faster than real time; everyone starts at Lv.1 at the opening, newcomers
-## arrive on their day; the guild war fields everyone at Lv.100, up to GUILD_SIDE a side.
+## arrive on their day; the guild war fields each guild's strongest GUILD_SIDE at Lv.100.
 ##   godot --headless --path . res://tests/integration/world_town_test.tscn
 ## Stall keepers in the village at every moment (the village has JapanVillage.STALLS stalls).
 const MIN_TOWN := 8
@@ -241,19 +241,19 @@ func _guild_war() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var t := float(WorldPlayers.START_UNIX) + 0.25 * 86400.0
-	check(GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t).is_empty(), "a fresh world has no guild war in its first six hours")
+	check(GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, t, -1.0, false).is_empty(), "a fresh world has no guild war in its first six hours")
 	t = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0
-	var match := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
+	var match := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, t, -1.0, false)
 	check(not match.is_empty(), "a guild war three weeks on")
 	if match.is_empty():
 		return
 	var ours_100 := WorldPlayers.members_at(WorldPlayers.ALPHA, t).size()
 	var theirs_100 := WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size()
-	check(match.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, ours_100) and match.enemy.size() == mini(GuildWarData.GUILD_SIDE, theirs_100), "everyone at Lv.100 fights, up to GUILD_SIDE a side (%d + hero, %d)" % [match.ally.size(), match.enemy.size()])
-	# A full guild later on sends GUILD_SIDE.
-	var later := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, float(WorldPlayers.START_UNIX) + 60.0 * 86400.0)
-	check(later.ally.size() == GuildWarData.GUILD_SIDE - 1 and later.enemy.size() == GuildWarData.GUILD_SIDE, "a full guild: %d with the hero against %d" % [later.ally.size() + 1, later.enemy.size()])
-	# The hero's picks always come along, even past the cap.
+	check(match.ally.size() == mini(GuildWarData.GUILD_SIDE, ours_100) and match.enemy.size() == mini(GuildWarData.GUILD_SIDE, theirs_100), "each guild's strongest at Lv.100, up to GUILD_SIDE a side (%d, %d)" % [match.ally.size(), match.enemy.size()])
+	# A full guild later on sends GUILD_SIDE; a weak hero (Lv.100, no stars) is not among them.
+	var later := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, float(WorldPlayers.START_UNIX) + 60.0 * 86400.0)
+	check(later.ally.size() == GuildWarData.GUILD_SIDE and later.enemy.size() == GuildWarData.GUILD_SIDE and not bool(later.hero_in), "a full guild: %d (the weak hero not in) against %d" % [later.ally.size(), later.enemy.size()])
+	# The hero's picks never bypass the line-up: a pick outside the strongest stays out.
 	var last := WorldPlayers.members_at(WorldPlayers.ALPHA, t)
 	var weakest := ""
 	var low := INF
@@ -263,6 +263,7 @@ func _guild_war() -> void:
 			low = float(f.power)
 			weakest = String(f.member.name)
 	Game.guildwar_party_picks = PackedStringArray([weakest])
-	var again := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
-	check(again.ally.any(func(f): return String(f.member.name) == weakest), "a picked teammate is always in the line-up (%s)" % weakest)
+	var again := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, t, -1.0, false)
+	if last.size() > GuildWarData.GUILD_SIDE:
+		check(not again.ally.any(func(f): return String(f.member.name) == weakest), "a picked teammate outside the strongest %d stays out (%s)" % [GuildWarData.GUILD_SIDE, weakest])
 	Game.guildwar_party_picks = PackedStringArray()

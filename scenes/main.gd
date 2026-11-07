@@ -501,7 +501,10 @@ func _on_npc(role: String) -> void:
 		"guild":
 			var mine := Game.guild()
 			var t := WorldPresence.clock()
-			var text := "โลกนี้มีสองกิลด์ใหญ่ Alpha กับ Neverdie ผู้เล่นทุกคนเข้ากิลด์ได้เมื่อถึงเลเวล %d (ตอนนี้ Alpha มีสมาชิก %d คน Neverdie %d คน) ในสงครามชิงปราสาททุกคนในกิลด์ลงสนามทั้งหมด สู้ด้วยเลเวล ดาว และชุดจริงของตัวเอง ถึงเลเวล %d แล้วเลือกเข้ากิลด์ไหน ก็ลงสงครามกับเพื่อนร่วมกิลด์นั้น" % [Game.GUILD_LEVEL, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size(), WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size(), Game.GUILD_LEVEL]
+			var counts: PackedStringArray = []
+			for g in WorldPlayers.GUILDS:
+				counts.append("%s %d คน" % [WorldPlayers.guild_name(g), WorldPlayers.members_at(g, t).size()])
+			var text := "โลกนี้มี 4 กิลด์: Alpha, Neverdie, Titan และ 3DLnw ทุกคนเลือกกิลด์ของตัวเอง และเข้ากิลด์ได้เมื่อถึงเลเวล %d (ตอนนี้ %s) สงครามกิลด์เปิดตามเวลาจริงวันละ 3 รอบ (%s) แต่ละกิลด์ส่งคนที่เก่งที่สุด %d คน สมัครก่อนเริ่ม %d นาที แต้มรวมเป็นลีกรายสัปดาห์" % [Game.GUILD_LEVEL, " · ".join(counts), GuildWarScreen._slot_list(), GuildWarData.GUILD_SIDE, GuildLeague.REGISTER_CLOSE / 60]
 			if mine > 0:
 				text = "เจ้าอยู่กิลด์ %s แล้ว ดูรายชื่อสมาชิก ใครออนไลน์อยู่แมพไหน หรือจะย้ายกิลด์ก็ได้ ทำภารกิจกิลด์รายวันกับเพื่อนร่วมกิลด์ แล้วเอาแต้มกิลด์มาแลกของได้ที่นี่" % WorldPlayers.guild_name(mine)
 			var choices: Array = [{"label": "ดูกิลด์ / สมัคร", "action": func(): guild_screen.open_roster()}]

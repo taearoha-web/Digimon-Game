@@ -30,8 +30,8 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	info.name = "LeagueInfo"
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(info)
-	var rule := UIUtil.label("แต้ม: ชนะ %d · แพ้ %d · ยึดปราสาทครั้งละ %d · ครองปราสาทตอนจบสงคราม %d · ล้มศัตรูทุก %d คน +1 — สงครามกิลด์จริงของคุณนับให้กิลด์ของคุณ" % [
-		GuildLeague.WIN, GuildLeague.LOSS, GuildLeague.CAPTURE, GuildLeague.HOLD, GuildLeague.KILLS_PER_POINT], &"SmallLabel")
+	var rule := UIUtil.label("4 กิลด์ (Alpha · Neverdie · Titan · 3DLnw) รบกันตามเวลาจริงวันละ 3 รอบ %s รอบละ 2 คู่ ครบทุกคู่ทุกวัน · แต้ม: ชนะ %d · แพ้ %d · ยึดปราสาทครั้งละ %d · ครองปราสาทตอนจบสงคราม %d · ล้มศัตรูทุก %d คน +1 — คู่ที่คุณลงสนามนับผลจริง คู่อื่นตัดสินจากกำลังจริงของสองกิลด์" % [
+		GuildWarScreen._slot_list(), GuildLeague.WIN, GuildLeague.LOSS, GuildLeague.CAPTURE, GuildLeague.HOLD, GuildLeague.KILLS_PER_POINT], &"SmallLabel")
 	rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(rule)
 	box.add_child(_table(GuildLeague.table(w, GuildLeague.real_wars(w), t), holder, mine))

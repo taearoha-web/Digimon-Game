@@ -6,7 +6,7 @@ extends Node
 ## a hardcore player's pace from then on, joining its guild at Lv.100. The world chat
 ## welcomes each once (rate-limited). Every player with a play schedule is hardcore and
 ## they take turns resting: at any hour a good share of them is on, never all. The guild
-## war fields each guild's best GUILD_SIDE (the hero counted on ours). Timings printed.
+## war fields each guild's best GUILD_SIDE. Timings printed.
 ##   godot --headless --path . res://tests/integration/newcomers_test.tscn
 var failures := 0
 var checks := 0
@@ -90,7 +90,8 @@ func _daily() -> void:
 		lo = mini(lo, int(classes[c]))
 		hi = maxi(hi, int(classes[c]))
 	check(classes.size() == ClassData.IDS.size() and hi - lo <= 2, "every class among them, evenly (%s)" % [classes])
-	check(absi(int(guilds.get(WorldPlayers.ALPHA, 0)) - int(guilds.get(WorldPlayers.NEVERDIE, 0))) <= 1 and guilds.size() == 2, "they join Alpha and Neverdie by turns (%s)" % [guilds])
+	var gsizes: Array = guilds.values()
+	check(guilds.size() == WorldPlayers.GUILDS.size() and int(gsizes.min()) * 8 >= int(gsizes.reduce(func(a, b): return a + b, 0)), "they pick among the four guilds, each its own choice (%s)" % [guilds])
 	var looks_ok := true
 	for i in range(WorldPlayers.ROSTER.size(), WorldPlayers._all.size()):
 		looks_ok = looks_ok and int(WorldPlayers.look(i).gender) == int(WorldPlayers.entry(i).gender) and WorldPlayers.is_newcomer(i)
@@ -258,7 +259,7 @@ func _staggered() -> void:
 		print("day %d: %d players in the world, %d online" % [int(d), joined, WorldPresence.online_count(at)])
 
 
-## Each guild fields its best GUILD_SIDE (the hero counted on ours): nobody left out is
+## Each guild fields its best GUILD_SIDE: nobody left out is
 ## further along (WorldPlayers.rank_point) than the last picked, and the picked are the
 ## stronger ones by power too.
 func _guild_war() -> void:
@@ -266,7 +267,7 @@ func _guild_war() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	var t0 := Time.get_ticks_usec()
-	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t, 1000.0)
+	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, t, 1000.0, false)
 	var ms := float(Time.get_ticks_usec() - t0) / 1000.0
 	check(not m.is_empty(), "a war on day 30")
 	if m.is_empty():
@@ -274,7 +275,7 @@ func _guild_war() -> void:
 	var ours := WorldPlayers.members_at(WorldPlayers.ALPHA, t)
 	var theirs := WorldPlayers.members_at(WorldPlayers.NEVERDIE, t)
 	print("day 30: Alpha %d and Neverdie %d members at Lv.100; a war rolled in %.0f ms" % [ours.size(), theirs.size(), ms])
-	check(m.ally.size() == GuildWarData.GUILD_SIDE - 1 and m.enemy.size() == GuildWarData.GUILD_SIDE, "full sides: %d with the hero against %d" % [m.ally.size() + 1, m.enemy.size()])
+	check(m.ally.size() == GuildWarData.GUILD_SIDE and m.enemy.size() == GuildWarData.GUILD_SIDE, "full sides: %d against %d" % [m.ally.size(), m.enemy.size()])
 	for side in [[m.ally, ours, "Alpha"], [m.enemy, theirs, "Neverdie"]]:
 		var picked := {}
 		var last := INF

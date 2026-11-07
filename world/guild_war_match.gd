@@ -183,11 +183,27 @@ func build(tree: SceneTree = null) -> void:
 	else:
 		roll_seed = int(saved.seed)
 		rng.seed = roll_seed
-	# The hero's guild fights the other one with its real members (as they were when the
-	# war began); a hero without a guild (or no rival yet) gets two guilds of hired fighters.
+	# A league war (GuildLeague: the round the hero registered for and made the line-up
+	# of) is fought by both guilds' real strongest members as they were when the round
+	# began; anything else is a practice war of hired guilds (no league points).
 	started_at = int(saved.get("t0", 0)) if not saved.is_empty() and int(saved.get("t0", 0)) > 0 else int(WorldPresence.clock())
-	if Game.guild() > 0:
-		roster = GuildWarData.roll_guild_match(rng, Game.guild(), float(started_at))
+	var league: Dictionary = Game.guildwar_league
+	Game.guildwar_league = {}
+	if not saved.is_empty():
+		var pair: Array = saved.get("league", [])
+		league = {"ours": int(pair[0]), "theirs": int(pair[1]), "at": started_at} if pair.size() == 2 else {}
+	GuildLeague.current_match = {}
+	if not league.is_empty() and int(league.ours) == Game.guild():
+		started_at = int(league.at)
+		roster = GuildWarData.roll_guild_match(rng, int(league.ours), int(league.theirs), float(started_at))
+		if not roster.is_empty():
+			GuildLeague.current_match = {"ours": int(league.ours), "theirs": int(league.theirs), "at": started_at}
+			# The hero on the field always holds one of the GUILD_SIDE places.
+			if (roster.ally as Array).size() >= GuildWarData.GUILD_SIDE:
+				(roster.ally as Array).resize(GuildWarData.GUILD_SIDE - 1)
+			# A late arrival joins the round as it runs: the bell rings on the round's time.
+			if saved.is_empty():
+				time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 60.0, GuildWarData.DURATION)
 	if roster.is_empty():
 		roster = GuildWarData.roll_match(rng)
 	ally_name = roster.ally_name
@@ -202,7 +218,7 @@ func build(tree: SceneTree = null) -> void:
 	if bool(roster.get("guilds", false)):
 		var t0 := float(started_at)
 		var ours := Game.guild()
-		var rival := WorldPlayers.other_guild(ours)
+		var rival := int(roster.get("enemy_guild", 0))
 		ally_lead_name = Game.guild_war_leader(ours, t0)
 		enemy_lead_name = Game.guild_war_leader(rival, t0)
 		ensure_member(roster.ally, ally_lead_name, t0, rng)
@@ -223,7 +239,7 @@ func build(tree: SceneTree = null) -> void:
 	# player picked one for that guild.
 	var rival_pick := ""
 	if bool(roster.get("guilds", false)):
-		rival_pick = enemy_lead_name if Game.guild_leader_pick(WorldPlayers.other_guild(Game.guild())) != "" else ""
+		rival_pick = enemy_lead_name if Game.guild_leader_pick(int(roster.get("enemy_guild", 0))) != "" else ""
 	var lead_at := GuildWarData.leader_index(roster.enemy, rival_pick)
 	if lead_at >= 0:
 		roster.enemy[lead_at] = GuildWarData.tank_build(roster.enemy[lead_at])
@@ -315,7 +331,8 @@ func save_checkpoint() -> void:
 	var left: Array = []
 	for g in gates:
 		left.append(0 if g.is_dead() else int(ceil(1000.0 * float(g.hp) / float(maxi(1, g.max_hp)))))
-	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner, "picks": party_picks, "chosen": party_chosen})
+	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner, "picks": party_picks, "chosen": party_chosen,
+		"league": [int(GuildLeague.current_match.ours), int(GuildLeague.current_match.theirs)] if not GuildLeague.current_match.is_empty() else []})
 
 
 # ---------------------------------------------------------------------------
@@ -1497,7 +1514,7 @@ func _owner_color() -> Color:
 
 ## A guild's colour (its guild colour in a war between real guilds, else blue / red).
 func team_color(team: int) -> Color:
-	var guild := Game.guild() if team == GuildFighter.TEAM_ALLY else WorldPlayers.other_guild(Game.guild())
+	var guild := int(roster.get("ally_guild", Game.guild())) if team == GuildFighter.TEAM_ALLY else int(roster.get("enemy_guild", 0))
 	if Game.guild() > 0 and bool(roster.get("guilds", false)):
 		return WorldPlayers.GUILD_COLORS.get(guild, NEUTRAL_COLOR)
 	return Color("4a8cff") if team == GuildFighter.TEAM_ALLY else Color("ff5a4a")
