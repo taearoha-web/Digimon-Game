@@ -29,8 +29,12 @@ const ROW_DEPTH := 3.4
 ## Our rows stand this much behind the hero's spot, the hero at the front and centre.
 const ALLY_SETBACK := 2.4
 const COUNTDOWN := 4.2
-## Seconds on the altar to take the castle.
-const CAPTURE_TIME := 60.0
+## Seconds on the altar to take the castle. Shorter than a fallen defender's way back
+## twice over (GuildWarData.RESPAWN at its camp, then the long walk up through the three
+## gates), so an assault that wins the fight at the altar can finish the count before the
+## second wave arrives; at 60 s seeded AI wars mostly ran the whole 20 minutes without a
+## capture (guild_war_capture_test).
+const CAPTURE_TIME := 45.0
 ## A gate holds out about this long against both whole guilds hitting it at once (its HP is
 ## set from all the fighters' strength, so more or stronger fighters meet a stronger door),
 ## each gate harder than the one before.
@@ -1227,7 +1231,8 @@ func _assign_objectives() -> void:
 		# It goes up inside its guard (its commander's escort), not alone; once on the
 		# altar it stays.
 		if not lead.is_dead():
-			if commanders.size() < 2 or commanders[team].allows_capture() or commanders[team].tactic == "" or SiegeArena.on_altar(lead.global_position):
+			var resting := commanders.size() == 2 and commanders[team].resting
+			if commanders.size() < 2 or commanders[team].allows_capture() or commanders[team].tactic == "" or (SiegeArena.on_altar(lead.global_position) and not resting):
 				lead.capture_role = true
 				lead.hold_range = 0.0
 
@@ -1566,7 +1571,8 @@ func _tick_capture(delta: float) -> void:
 	var team := int(capture.team)
 	var on := SiegeArena.on_altar(who.global_position)
 	if who is GuildFighter:
-		(who as GuildFighter).capturing = on
+		# A leader stepping off to be healed (GuildWarCommander.resting) walks, it does not hold.
+		(who as GuildFighter).capturing = on and not (commanders.size() == 2 and commanders[team].resting)
 	var blocked := barrier_up(team)
 	if not on or blocked:
 		if not on and not bool(capture.get("paused", false)):
