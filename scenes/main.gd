@@ -551,7 +551,13 @@ func _talk_pet_keeper() -> void:
 	var next := ""
 	if have < PetData.UNLOCK_LEVELS.size():
 		next = " สกิลถัดไป %s ปลดล็อกที่เลเวล %d" % [String(pet.skills[have].name), PetData.unlock_level(have)]
-	dialog.say(PetScreen.KEEPER, "%s (%s) ของเจ้าแข็งแรงดี! ตอนนี้ Lv.%d เท่าเจ้า ใช้สกิลได้ %d/8 อย่าง%s ดูแลกันดีๆ นะ" % [String(pet.name), String(pet.element_name), level, have, next], [
+	var stage := PetData.stage_for(level, PetData.profile_stars(Game.profile))
+	var form := " อยู่ใน%s" % PetData.form_name(stage)
+	if stage + 1 < PetData.STAGE_NAMES.size():
+		form += " (%sเมื่อเจ้าถึง %s)" % [PetData.form_name(stage + 1), PetData.form_requirement(stage + 1)]
+	else:
+		form += " ร่างสูงสุดแล้ว เปล่งรัศมีดั่งเทพเลยทีเดียว!"
+	dialog.say(PetScreen.KEEPER, "%s (%s) ของเจ้าแข็งแรงดี!%s ตอนนี้ Lv.%d เท่าเจ้า ใช้สกิลได้ %d/8 อย่าง%s ดูแลกันดีๆ นะ" % [String(pet.name), String(pet.element_name), form, level, have, next], [
 		{"label": "ดูข้อมูลสัตว์เลี้ยง", "action": func(): pet_screen.open_screen()}, {"label": "ไว้ก่อน"}])
 
 

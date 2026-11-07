@@ -163,6 +163,16 @@ func _build() -> void:
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.add_theme_color_override("font_color", Color("e8ffe0") if level >= PetData.unlock_level(i) else Color("9aa8a0"))
 		info.add_child(line)
+	# The six forms: the pet grows with the hero's level and ★ (look only).
+	var stage := PetData.stage_for(level, PetData.profile_stars(Game.profile))
+	info.add_child(UIUtil.label("ร่างทั้ง 6 (โตตามเลเวลและดาวของคุณ เปลี่ยนแค่รูปร่าง พลังเท่าเดิม):", &"BoldLabel"))
+	for i in PetData.STAGE_NAMES.size():
+		var now := i == stage and mine != ""
+		var mark := "◆ " if now else ("✓ " if i < stage and mine != "" else "• ")
+		var form := UIUtil.label("%s%s — %s%s" % [mark, PetData.form_name(i), PetData.form_requirement(i), " (ตอนนี้)" if now else ""], &"SmallLabel")
+		form.name = "Form%d" % i
+		form.add_theme_color_override("font_color", PetForm.DIVINE if now else (Color("e8ffe0") if i <= stage and mine != "" else Color("9aa8a0")))
+		info.add_child(form)
 	var buttons := UIUtil.hbox(12)
 	column.add_child(buttons)
 	if mine != "":
@@ -238,6 +248,10 @@ func _preview(pet: Dictionary) -> Control:
 	pivot.add_child(visual)
 	var skin: Texture2D = load(String(pet.skin)) as Texture2D if String(pet.get("skin", "")) != "" else null
 	visual.setup(String(pet.model), h, 0.0, pet.tint, skin)
+	# The hero's own pet is shown in its form now (its layers, no light).
+	if String(pet.id) == Game.pet_id():
+		var stage := PetData.stage_for(int(Game.profile.get("level", 1)), PetData.profile_stars(Game.profile))
+		PetForm.build(pivot, visual, String(pet.id), stage, h, mini(PetForm.tier(), 1))
 	pivot.rotation.y = 0.5
 	_preview_pivot = pivot
 	return holder

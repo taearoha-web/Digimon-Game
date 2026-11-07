@@ -127,34 +127,80 @@ static func unlock_level(index: int) -> int:
 	return UNLOCK_LEVELS[clampi(index, 0, UNLOCK_LEVELS.size() - 1)]
 
 
-## The pet's stats from its hero's: level = the hero's level, ATK / HP / DEF / crit are
-## the pet's shares (ratios) of the hero's current atk / max_hp / def / crit. A level-1
-## hero's pet keeps a small floor (HP 120, ATK 4) so it is not a one-hit paper target.
-## A pet grows in three forms with its owner's level: a young pet (Lv.1-34), grown
-## (Lv.35-79) and full-grown (Lv.80+). Each form is bigger (look only; its power still
-## follows the owner's level and stats); the full-grown form wears an element aura.
-const STAGE_LEVELS := [1, 35, 80]
-const STAGE_NAMES := ["ร่างเด็ก", "ร่างโต", "ร่างเต็มวัย"]
-const STAGE_SCALE := [0.72, 1.0, 1.35]
+# ---------------------------------------------------------------------------
+# Forms: the pet grows with its owner (look only)
+# ---------------------------------------------------------------------------
+
+## A pet grows through six forms with its owner's level and, at Lv.100, its owner's
+## stars (★, the paragon level): young (Lv.1-34), grown (Lv.35-79), full-grown (Lv.80+),
+## then the star forms ★100 awakened, ★200 holy and ★300 god (the ★ of the hero's God
+## promotion, JobData.GOD_STARS). Each form is a little bigger (STAGE_SCALE, capped so the
+## god form is not absurd) and the hero's own pet wears more layers of light (PetForm).
+## The forms are look only: the pet's power still follows the owner's level and stats
+## (stats_for), and nothing is saved for them (the owner's level and ★ decide).
+const STAGE_LEVELS := [1, 35, 80, 100, 100, 100]
+const STAGE_STARS := [0, 0, 0, 100, 200, 300]
+const STAGE_NAMES := ["ร่างเด็ก", "ร่างโต", "ร่างเต็มวัย", "ร่างตื่นรู้", "ร่างศักดิ์สิทธิ์", "ร่างเทพ"]
+const STAGE_SCALE := [0.72, 1.0, 1.35, 1.45, 1.55, 1.65]
+## The first star form and the god form.
+const STAR_STAGE := 3
+const GOD_STAGE := 5
+## The title a pet in its god form wears over its name, by element.
+const GOD_TITLES := {"fire": "เทพอัคคี", "water": "เทพวารี", "earth": "เทพพนาไพร"}
 
 
-## The form (0 young, 1 grown, 2 full-grown) at owner level [param level].
-static func stage_for(level: int) -> int:
+## The form (0 young .. 5 god) of a pet whose owner is Lv.[param level] with
+## [param stars] ★.
+static func stage_for(level: int, stars := 0) -> int:
 	var stage := 0
 	for i in STAGE_LEVELS.size():
-		if level >= int(STAGE_LEVELS[i]):
+		if level >= int(STAGE_LEVELS[i]) and stars >= int(STAGE_STARS[i]):
 			stage = i
 	return stage
 
 
-static func stage_scale(level: int) -> float:
-	return float(STAGE_SCALE[stage_for(level)])
+static func stage_scale(level: int, stars := 0) -> float:
+	return float(STAGE_SCALE[stage_for(level, stars)])
 
 
-static func stage_name(level: int) -> String:
-	return String(STAGE_NAMES[stage_for(level)])
+static func stage_name(level: int, stars := 0) -> String:
+	return form_name(stage_for(level, stars))
 
 
+static func form_name(stage: int) -> String:
+	return String(STAGE_NAMES[clampi(stage, 0, STAGE_NAMES.size() - 1)])
+
+
+## What form [param stage] asks of the owner: "Lv.35", "Lv.100 ★200".
+static func form_requirement(stage: int) -> String:
+	var i := clampi(stage, 0, STAGE_LEVELS.size() - 1)
+	var stars := int(STAGE_STARS[i])
+	return "Lv.%d%s" % [int(STAGE_LEVELS[i]), " ★%d" % stars if stars > 0 else ""]
+
+
+## The hero's ★ in [param profile] (its paragon level), read without touching it.
+static func profile_stars(profile: Dictionary) -> int:
+	var p: Variant = profile.get("paragon", {})
+	return maxi(0, int((p as Dictionary).get("level", 0))) if p is Dictionary else 0
+
+
+## The Thai line shown when pet [param id] grows into form [param stage] while its hero
+## plays.
+static func growth_line(id: String, stage: int) -> String:
+	var pet_name := String(get_pet(id).get("name", ""))
+	match stage:
+		3:
+			return "%s ตื่นรู้แล้ว! พลังธาตุลุกโชนทั่วร่าง (ร่างตื่นรู้ ★100)" % pet_name
+		4:
+			return "%s จุติเป็นร่างศักดิ์สิทธิ์! (★200)" % pet_name
+		5:
+			return "%s ตื่นรู้เป็นร่างเทพ! %s ลงมาจุติ (★300)" % [pet_name, String(GOD_TITLES.get(id, "เทพ"))]
+	return "%s เติบโตเป็น%sแล้ว!" % [pet_name, form_name(stage)]
+
+
+## The pet's stats from its hero's: level = the hero's level, ATK / HP / DEF / crit are
+## the pet's shares (ratios) of the hero's current atk / max_hp / def / crit. A level-1
+## hero's pet keeps a small floor (HP 120, ATK 4) so it is not a one-hit paper target.
 static func stats_for(id: String, owner_stats: Dictionary, level: int) -> Dictionary:
 	var r: Dictionary = get_pet(id).get("ratios", {"atk": 0.35, "hp": 0.5, "def": 0.5, "crit": 0.5})
 	return {
