@@ -7,13 +7,15 @@ extends Node
 ## AI-led guilds (ours led by a picked member, the hero held still in its camp) fight for
 ## the throne room with every gate down; the leader's distance to the altar is sampled
 ## against its guild's members, leader falls and the capture are counted.
-## SIM_SEEDS="4242,77,9001" SIM_SECONDS=420 for a longer measurement (defaults: one seed).
+## SIM_SEEDS="4242,77,9001" SIM_SECONDS=420 for a longer measurement (defaults: one seed,
+## 90 s of war a setup).
 ## godot --headless --path . res://tests/integration/guild_leader_rear_test.tscn
 var failures: Array[String] = []
 var checks := 0
 
 const SEEDS := [4242]
-const SECONDS := 360.0
+## War seconds (the clock once counted Engine.time_scale twice: its "360" were 90).
+const SECONDS := 90.0
 
 
 func check(ok: bool, message: String) -> void:
@@ -119,7 +121,8 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 	Engine.time_scale = 4.0
 	while clock < seconds and Time.get_ticks_msec() - t0 < 600000:
 		await get_tree().physics_frame
-		var dt := get_physics_process_delta_time() * Engine.time_scale
+		# The physics step already counts Engine.time_scale: war seconds.
+		var dt := get_physics_process_delta_time()
 		clock += dt
 		m.time_left = GuildWarData.DURATION
 		for team in 2:
