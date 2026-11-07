@@ -22,5 +22,6 @@ void fragment() {
     float dissolve = smoothstep((1.-fade)*1.12-0.1,(1.-fade)*1.12+0.02,grain);
     ALBEDO = ink; EMISSION = ink * (0.08+inlay*0.16);
     float body = clamp((inlay-0.72)*3.5+rim*1.8+line*2.0, 0., 1.);
-    ALPHA = opacity*dissolve*smoothstep(0.,0.12,fade)*mix(1., 0.22+0.78*body, veil);
+    // COLOR.g: the piece's own opacity mask (1 for most geometry; light columns fade to their tips).
+    ALPHA = opacity*dissolve*smoothstep(0.,0.12,fade)*mix(1., 0.22+0.78*body, veil)*clamp(COLOR.g,0.,1.);
 }

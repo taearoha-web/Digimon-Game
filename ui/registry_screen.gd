@@ -13,7 +13,7 @@ const REFRESH := 10.0
 ## At most this many rows are built (the best first; the hero, its other characters and
 ## its party always): the world grows by a few newcomers a day, a phone's list should not.
 const ROWS_MAX := 150
-const FILTERS := [["all", "ทั้งหมด"], ["online", "ออนไลน์"], ["alpha", "Alpha"], ["neverdie", "Neverdie"], ["party", "ปาร์ตี้"]]
+const FILTERS := [["all", "ทั้งหมด"], ["online", "ออนไลน์"], ["alpha", "Alpha"], ["neverdie", "Neverdie"], ["titan", "Titan"], ["3dlnw", "3DLnw"], ["party", "ปาร์ตี้"]]
 
 var is_open := false
 var filter := "all"
@@ -108,6 +108,8 @@ func _shows(r: Dictionary) -> bool:
 		"online": return bool(r.online)
 		"alpha": return int(r.guild) == WorldPlayers.ALPHA
 		"neverdie": return int(r.guild) == WorldPlayers.NEVERDIE
+		"titan": return int(r.guild) == WorldPlayers.TITAN
+		"3dlnw": return int(r.guild) == WorldPlayers.LNW
 		"party": return bool(r.get("you", false)) or (not bool(r.get("alt", false)) and Game.in_party(int(r.index)))
 	return true
 

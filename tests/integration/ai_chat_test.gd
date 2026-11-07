@@ -47,7 +47,7 @@ func _ready() -> void:
 	var target := -1
 	for i in WorldPlayers.size():
 		var s := WorldPlayers.state(i, t)
-		if bool(s.online) and int(s.guild) == 0:
+		if bool(s.online):
 			target = i
 			break
 	check(target >= 0, "someone is online to talk to")

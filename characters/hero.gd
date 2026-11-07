@@ -263,8 +263,13 @@ func refresh_stats() -> void:
 		Game.profile.hp = int(stats.max_hp)
 
 
+## Watching a guild war from the stands (GuildWarSpectate): out of the fight, hidden and
+## unhurt; every fighter reads it as down, so nobody aims at it or counts it.
+var spectating := false
+
+
 func is_dead() -> bool:
-	return _dead
+	return _dead or spectating
 
 
 func facing() -> float:
@@ -1530,7 +1535,7 @@ func apply_slow(seconds: float) -> void:
 
 
 func take_damage(raw: float, _attacker: Node = null) -> void:
-	if _dead or safe_zone:
+	if _dead or safe_zone or spectating:
 		return
 	if Time.get_ticks_msec() < _invulnerable_until:
 		return

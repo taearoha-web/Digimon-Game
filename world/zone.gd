@@ -217,13 +217,16 @@ func _ready() -> void:
 		_phase("spawn_party")
 	elif bool(data.get("guildwar", false)):
 		gw_match = GuildWarMatch.new()
+		# A war being watched (GuildWarSpectate.spectate): both guilds AI, the hero out of it.
+		gw_match.spectate = GuildWarSpectate.take_pending()
 		# A party member who said yes to its leader's invite fights in the leader's war.
-		gw_match.mirror = OnlineGuildWar.take_joining()
+		gw_match.mirror = false if gw_match.spectating() else OnlineGuildWar.take_joining()
 		gw_match.setup(self, hero)
 		gw_match.finished.connect(func(result: Dictionary): guildwar_finished.emit(result))
 		add_child(gw_match)
 		await gw_match.build(get_tree() if staged else null)
-		OnlineGuildWar.on_war_built(self)
+		if not gw_match.spectating():
+			OnlineGuildWar.on_war_built(self)
 		_phase("spawn_fighters")
 	else:
 		pvp_match = PvpMatch.new()
@@ -264,7 +267,7 @@ func _ready() -> void:
 		pet_crowd.setup(self)
 		add_child(pet_crowd)
 	OnlineGuildWar.ensure(get_tree())
-	if EntitySync.supports(self):
+	if EntitySync.supports(self) and not watching():
 		sync = EntitySync.new()
 		sync.setup(self)
 		add_child(sync)
@@ -273,6 +276,11 @@ func _ready() -> void:
 	# The real players in this zone come in (Online: RemotePlayers), and the server hears
 	# where the hero is now.
 	Online.zone_entered(self)
+
+
+## True while this zone is a guild war being watched (GuildWarSpectate), not fought.
+func watching() -> bool:
+	return gw_match != null and is_instance_valid(gw_match) and gw_match.spectating()
 
 
 ## Models farther than this from the camera stop animating (they are tiny and
@@ -375,7 +383,12 @@ func _build_pvp() -> void:
 ## The guild war's castle siege: our guild's camp on the left, the rival's on the right.
 func _build_siege() -> void:
 	var ours: Color = WorldPlayers.GUILD_COLORS.get(Game.guild(), Color("4a8cff"))
-	var theirs: Color = WorldPlayers.GUILD_COLORS.get(WorldPlayers.other_guild(Game.guild()), Color("ff5a4a")) if Game.guild() > 0 else Color("ff5a4a")
+	# The rival's colour in a league war (GuildLeague): the round's opponent; a practice war's red.
+	var rival := int(Game.guildwar_league.get("theirs", 0))
+	if rival == 0 and Game.guildwar_resuming:
+		var pair: Array = Game.guildwar_checkpoint().get("league", [])
+		rival = int(pair[1]) if pair.size() == 2 else 0
+	var theirs: Color = WorldPlayers.GUILD_COLORS.get(rival, Color("ff5a4a")) if Game.guild() > 0 else Color("ff5a4a")
 	SiegeArena.build(self, rng, ours, theirs)
 	_start = Vector3(-SiegeArena.BASE_X, 0, SiegeArena.BASE_Z)
 	# North of the moat the castle's walls close the field (its hall runs past the round edge).

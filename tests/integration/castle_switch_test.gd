@@ -312,6 +312,11 @@ func _ai_assault() -> void:
 	# Ours storm back: one of ours in a circle with theirs: contested.
 	var mine: GuildFighter = m.allies[0]
 	var at := int((posted[0] as GuildFighter).switch_post)
+	# One against one: whoever else of theirs still stands in that circle (the switch
+	# holders of their assault: two on each once committed) steps out of it.
+	for f in m.enemies:
+		if f != posted[0] and SiegeArena.on_switch(f.global_position, at):
+			f.global_position = SiegeArena.SWITCHES[at] + Vector3(0, 0.3, SiegeArena.SWITCH_RADIUS + 4.0)
 	mine.global_position = SiegeArena.SWITCHES[at] + Vector3(0.4, 0.3, 0)
 	(posted[0] as GuildFighter).global_position = SiegeArena.SWITCHES[at] + Vector3(-0.4, 0.3, 0)
 	m.read_switches()

@@ -217,10 +217,14 @@ function validateProfile(profile) {
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');
+  // The hero's guild (flags.guild): none (0) or one of the world's four (Alpha 1, Neverdie 2,
+  // Titan 3, 3DLnw 4); flags.guild4 marks a save that went through the four-guild re-pick.
+  if (profile.flags && 'guild' in profile.flags && !integer(profile.flags.guild, 0, GUILD_COUNT)) fail(400, 'invalid_save', 'The character guild is invalid.');
   // Who leads each guild (Game.set_guild_leader): {"<guild id>": "<member name>" | ""}.
   if ('guild_leaders' in profile) {
     const leaders = profile.guild_leaders;
     if (!dictionary(leaders) || Object.keys(leaders).length > 8
+        || Object.keys(leaders).some(key => !GUILD_ID.test(key))
         || Object.values(leaders).some(value => typeof value !== 'string' || value.length > 64)) fail(400, 'invalid_save', 'The guild leaders are invalid.');
   }
   // The weekly guild league record (GuildLeague in the game): season numbers, up to 64
@@ -247,13 +251,18 @@ function validateProfile(profile) {
   if (ENCODER.encode(JSON.stringify(profile)).byteLength > MAX_PROFILE_BYTES) fail(413, 'save_too_large', 'Each character save must be at most 1 MiB.');
 }
 
-const LEAGUE_INTS = new Set(['week', 'prev_week', 'claimed', 'ann', 'shop_week']);
+// The world's guilds: Alpha 1, Neverdie 2, Titan 3, 3DLnw 4 (WorldPlayers.GUILDS in the game).
+const GUILD_COUNT = 4;
+const GUILD_ID = /^[1-4]$/;
+// reg: the start (unix) of the league round the hero registered for; told: the round it was told about.
+const LEAGUE_INTS = new Set(['week', 'prev_week', 'claimed', 'ann', 'shop_week', 'reg', 'told']);
 const LEAGUE_WAR_KEYS = ['at', 'a', 'b', 'win', 'ca', 'cb', 'held', 'ka', 'kb'];
 
 function validLeague(league) {
   if (!dictionary(league) || Object.keys(league).length > 16) return false;
   const wars = list => Array.isArray(list) && list.length <= 64 && list.every(war => dictionary(war)
-    && Object.keys(war).length === LEAGUE_WAR_KEYS.length && LEAGUE_WAR_KEYS.every(key => integer(war[key])));
+    && Object.keys(war).length === LEAGUE_WAR_KEYS.length && LEAGUE_WAR_KEYS.every(key => integer(war[key]))
+    && integer(war.a, 1, GUILD_COUNT) && integer(war.b, 1, GUILD_COUNT) && integer(war.win, 0, GUILD_COUNT) && integer(war.held, 0, GUILD_COUNT));
   return Object.entries(league).every(([key, value]) => {
     if (LEAGUE_INTS.has(key)) return integer(value, -1);
     if (key === 'wars' || key === 'prev_wars') return wars(value);

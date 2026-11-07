@@ -32,7 +32,7 @@ const DIVINE := Color("ffe39a")
 ## (texture, SummonAura mode: 1 rise, 3 fall).
 const LOOK := {
 	"fire": {"deep": Color("ff5a1f"), "hot": Color("ffc04a"), "gold": Color("ffd970"), "mote": "spark", "drift": "flame", "drift_mode": 1},
-	"water": {"deep": Color("2f8fff"), "hot": Color("8fdcff"), "gold": Color("fff0b8"), "mote": "snow", "drift": "snow", "drift_mode": 3},
+	"water": {"deep": Color("1f62d8"), "hot": Color("4fa8ee"), "gold": Color("ffd98a"), "mote": "snow", "drift": "snow", "drift_mode": 3},
 	"earth": {"deep": Color("5fae3a"), "hot": Color("d8f59a"), "gold": Color("ffe38a"), "mote": "leaf", "drift": "leaf", "drift_mode": 3},
 }
 
@@ -43,6 +43,11 @@ const HEAD := {
 	"water": {"top": Vector3(0.0, 0.24, 0.02), "size": 0.17},
 	"earth": {"top": Vector3(0.0, 0.34, 0.02), "size": 0.15},
 }
+
+## How much of its additive light each element's grown pet wears (1 = all). The ice golem
+## is pale itself, so every additive layer on it adds up towards white: it wears less,
+## and its shape and deep blues read through the light.
+const LIGHT := {"fire": 1.0, "water": 0.6, "earth": 1.0}
 
 ## Layer names (tests and tools read them).
 const AWAKENED_LAYERS := ["Glow", "Ring2", "Motes"]
@@ -94,8 +99,9 @@ static func build(pet: Node3D, visual: MonsterVisual, id: String, stage: int, he
 	var deep: Color = look.deep
 	var gold: Color = look.gold
 	var god := stage >= PetData.GOD_STAGE
+	var lit := float(LIGHT.get(id, 1.0))
 	# ★100: the aura, a second ring, orbiting motes.
-	var glow := _mi(root, "Glow", _unit_quad(), _mat("glow", hot.lerp(deep, 0.45), 0.2 if god else 0.17, VfxKit.soft_dot(), true), Vector3(0, h * 0.5, -h * 0.08), Vector3(h * 1.3, h * 1.45, 1.0))
+	var glow := _mi(root, "Glow", _unit_quad(), _mat("glow", hot.lerp(deep, 0.45), (0.2 if god else 0.17) * lit, VfxKit.soft_dot(), true), Vector3(0, h * 0.5, -h * 0.08), Vector3(h * 1.3, h * 1.45, 1.0))
 	_breathe(glow, 1.08, 0.94, 1.3)
 	var ring2 := _mi(root, "Ring2", EnhanceFx._thin_torus(), _mat("ring", gold if stage >= 4 else hot, 0.8), Vector3(0, 0.06, 0), Vector3(h * 1.55, 0.6, h * 1.55))
 	_spin(ring2, 6.0)
@@ -120,7 +126,7 @@ static func build(pet: Node3D, visual: MonsterVisual, id: String, stage: int, he
 		wings.name = "Wings"
 		root.add_child(wings)
 		for side in [-1.0, 1.0]:
-			var wing := _mi(wings, "Wing", _wing_mesh(id, side, god), _mat("wing", Color.WHITE, 0.6 if god else 0.8, VfxKit.soft_dot(), false, true), Vector3(0.12 * side * h, h * 0.66, -h * 0.2), Vector3.ONE * h * (1.05 if god else 0.85))
+			var wing := _mi(wings, "Wing", _wing_mesh(id, side, god), _mat("wing", Color.WHITE, (0.6 if god else 0.8) * lit, VfxKit.soft_dot(), false, true), Vector3(0.12 * side * h, h * 0.66, -h * 0.2), Vector3.ONE * h * (1.05 if god else 0.85))
 			var flap := wing.create_tween().set_loops()
 			flap.tween_property(wing, "rotation:y", 0.22 * side, 1.5).set_trans(Tween.TRANS_SINE)
 			flap.tween_property(wing, "rotation:y", -0.12 * side, 1.5).set_trans(Tween.TRANS_SINE)
@@ -132,10 +138,10 @@ static func build(pet: Node3D, visual: MonsterVisual, id: String, stage: int, he
 	radiance.name = "Radiance"
 	radiance.position = Vector3(0, h * 0.62, -h * 0.32)
 	root.add_child(radiance)
-	var rays := _mi(radiance, "Rays", _unit_quad(), _mat("rays", DIVINE, 0.15, VfxArt.texture("rays"), true), Vector3.ZERO, Vector3.ONE * h * 2.6)
+	var rays := _mi(radiance, "Rays", _unit_quad(), _mat("rays", DIVINE, 0.15 * lit, VfxArt.texture("rays"), true), Vector3.ZERO, Vector3.ONE * h * 2.6)
 	_breathe(rays, 1.06, 0.95, 1.8)
 	if p_tier >= 2:
-		var flare := _mi(radiance, "Flare", _unit_quad(), _mat("flare", gold, 0.3, VfxArt.texture("flare"), true), Vector3(0, 0, 0.02), Vector3.ONE * h * 1.7)
+		var flare := _mi(radiance, "Flare", _unit_quad(), _mat("flare", gold, 0.3 * lit, VfxArt.texture("flare"), true), Vector3(0, 0, 0.02), Vector3.ONE * h * 1.7)
 		_breathe(flare, 1.1, 0.9, 1.1)
 	var halo := _mi(head, "GodHalo", EnhanceFx._thin_torus(), _mat("halo", DIVINE, 0.95), Vector3(0, 0.05 * h, -size * 1.6), Vector3(size * 4.2, 2.2, size * 4.2))
 	halo.rotation.x = PI / 2.0
@@ -150,26 +156,26 @@ static func build(pet: Node3D, visual: MonsterVisual, id: String, stage: int, he
 		var pivot := Node3D.new()
 		pivot.rotation = Vector3(0.5 if k == 0 else -0.45, 0.0, 0.3 if k == 0 else -0.25)
 		orbit.add_child(pivot)
-		var band := _mi(pivot, "Band", _orbit_mesh(), _mat("orbit", Color.WHITE, 0.55, null, false, true), Vector3.ZERO, Vector3.ONE * h * (0.78 + 0.1 * k))
+		var band := _mi(pivot, "Band", _orbit_mesh(), _mat("orbit", Color.WHITE if lit >= 1.0 else hot.lerp(deep, 0.3), 0.55 * lit, null, false, true), Vector3.ZERO, Vector3.ONE * h * (0.78 + 0.1 * k))
 		_spin(band, 4.0 if k == 0 else -5.5)
 	var runes := _mi(root, "Runes", _runes_mesh(), _mat("runes", DIVINE, 0.95, VfxArt.texture("rune"), false, true), Vector3(0, h * 0.3, 0), Vector3.ONE * h)
 	_spin(runes, 9.0)
 	var bob := runes.create_tween().set_loops()
 	bob.tween_property(runes, "position:y", h * 0.42, 1.6).set_trans(Tween.TRANS_SINE)
 	bob.tween_property(runes, "position:y", h * 0.3, 1.6).set_trans(Tween.TRANS_SINE)
-	var column := VfxKit.column_material(hot, hot.lerp(DIVINE, 0.5), 0.2)
+	var column := VfxKit.column_material(hot if lit >= 1.0 else deep, hot.lerp(DIVINE, 0.5 * lit), 0.2 * lit)
 	var pillar := _mi(root, "Pillar", VfxKit._column_mesh(), column, Vector3.ZERO, Vector3(h * 0.65, h * 4.5, h * 0.65))
 	var beat := pillar.create_tween().set_loops()
-	beat.tween_method(func(v: float): column.set_shader_parameter("fade", v), 0.06, 0.24, 0.35).set_trans(Tween.TRANS_SINE)
-	beat.tween_method(func(v: float): column.set_shader_parameter("fade", v), 0.24, 0.06, 1.4).set_trans(Tween.TRANS_SINE)
+	beat.tween_method(func(v: float): column.set_shader_parameter("fade", v * lit), 0.06, 0.24, 0.35).set_trans(Tween.TRANS_SINE)
+	beat.tween_method(func(v: float): column.set_shader_parameter("fade", v * lit), 0.24, 0.06, 1.4).set_trans(Tween.TRANS_SINE)
 	beat.tween_interval(1.2)
 	_relics(root, id, look, h, p_tier)
-	_trail(root, hot.lerp(DIVINE, 0.4), h)
+	_trail(root, hot.lerp(DIVINE, 0.4 * lit), h)
 	if p_tier >= 2 and VfxBudget.can_light():
 		var light := OmniLight3D.new()
 		light.name = "Light"
 		light.light_color = hot.lerp(DIVINE, 0.5)
-		light.light_energy = 0.7
+		light.light_energy = 0.7 * lit
 		light.omni_range = h * 3.0
 		light.position = Vector3(0, h * 0.8, 0)
 		root.add_child(light)
@@ -261,10 +267,10 @@ static func _relics(root: Node3D, id: String, look: Dictionary, h: float, p_tier
 		"fire":
 			_motes(relics, "Embers", 2, "spark", DIVINE, 14 if p_tier >= 2 else 9, 0.22, 0.9, h * 1.2, h * 0.6)
 		"water":
-			var mist := _mi(relics, "Mist", _unit_quad(), _mat("mist", look.hot, 0.32, VfxArt.texture("smoke"), false, false, true), Vector3(0, 0.12, 0), Vector3.ONE * h * 2.2)
+			var mist := _mi(relics, "Mist", _unit_quad(), _mat("mist", look.hot, 0.2, VfxArt.texture("smoke"), false, false, true), Vector3(0, 0.12, 0), Vector3.ONE * h * 2.2)
 			mist.rotation.x = -PI / 2.0
 			_spin_holder(relics, mist, 20.0)
-			var shards := _mi(relics, "Shards", _shards_mesh(), _mat("shards", Color.WHITE, 0.9, null, false, true), Vector3(0, h * 0.55, 0), Vector3.ONE * h)
+			var shards := _mi(relics, "Shards", _shards_mesh(), _mat("shards", Color.WHITE, 0.42, null, false, true), Vector3(0, h * 0.55, 0), Vector3.ONE * h)
 			_spin(shards, -7.0)
 		_:
 			var stones := _mi(relics, "Stones", _stones_mesh(), _stone_mat(), Vector3(0, h * 0.2, 0), Vector3.ONE * h)
@@ -311,10 +317,11 @@ static func _trail(root: Node3D, color: Color, h: float) -> void:
 
 ## The cheap form look of another player's pet (PetFollower, a lite Pet): the wider
 ## ring from the full-grown form, a gold ring from ★200, a small gold halo over the god
-## form, and the rim tint from ★100. Shared meshes and materials only, no motion.
+## form, and the rim tint from ★100 (high quality only, crowd_rim). Shared meshes and
+## materials only, no motion.
 ## Returns the holder (child "PetFormLite" of [param holder]) or null.
 static func dress_lite(holder: Node3D, visual: MonsterVisual, id: String, stage: int, height: float, hide_past := 0.0) -> Node3D:
-	set_rim(visual, id, stage)
+	set_rim(visual, id, stage if crowd_rim() else 0)
 	if stage < 2:
 		return null
 	var root := Node3D.new()
@@ -342,6 +349,12 @@ static func dress_lite(holder: Node3D, visual: MonsterVisual, id: String, stage:
 # The rim of light on the model
 # ---------------------------------------------------------------------------
 
+## Whether everyone else's pets wear the rim light: it is a second draw of every mesh
+## of the model (a crowd of ten ★100 pets: some 40 more draw calls), so only at high
+## quality with memory at ease. The hero's own pet always wears it.
+static func crowd_rim() -> bool:
+	return VfxBudget.quality() >= 2 and MemoryGuard.pressure == 0
+
 ## Puts the form's rim light on [param visual]'s model (from ★100; one shared material
 ## per element and form), or takes it off below.
 static func set_rim(visual: MonsterVisual, id: String, stage: int) -> void:
@@ -364,10 +377,11 @@ static func rim_material(id: String, stage: int) -> ShaderMaterial:
 	var step := clampi(stage - PetData.STAR_STAGE, 0, 2)
 	var m := ShaderMaterial.new()
 	m.shader = RIM_SHADER
+	var lit := float(LIGHT.get(id, 1.0))
 	m.set_shader_parameter("color", look.deep if id == "water" else look.hot)
-	m.set_shader_parameter("gold", Color(DIVINE, [0.0, 0.2, 0.45][step]))
-	m.set_shader_parameter("rim", [0.6, 0.75, 0.9][step])
-	m.set_shader_parameter("base", [0.03, 0.04, 0.06][step])
+	m.set_shader_parameter("gold", Color(DIVINE, [0.0, 0.2, 0.45][step] * lit))
+	m.set_shader_parameter("rim", [0.6, 0.75, 0.9][step] * lit)
+	m.set_shader_parameter("base", [0.03, 0.04, 0.06][step] * lit)
 	m.set_shader_parameter("pulse", 0.25)
 	_mats[key] = m
 	return m
@@ -585,7 +599,7 @@ static func _crown_mesh(id: String) -> Mesh:
 				var tall := 1.5 if k % 2 == 0 else 0.95
 				var at := Vector3(cos(a), 0.0, sin(a)) * 0.92
 				var lean := Basis(Vector3(-sin(a), 0, cos(a)), -0.18)
-				_append(st, cone, Transform3D(lean * Basis.from_scale(Vector3(0.36, tall, 0.36)), at + Vector3(0, tall * 0.5, 0)), Color("a8e6ff"))
+				_append(st, cone, Transform3D(lean * Basis.from_scale(Vector3(0.36, tall, 0.36)), at + Vector3(0, tall * 0.5, 0)), Color("6cc0f4"))
 				_append(st, cone, Transform3D(lean * Basis.from_scale(Vector3(0.36, -0.3, 0.36)), at - Vector3(0, 0.12, 0)), look.deep)
 		"earth":
 			# The druid wears antlers of its own: a wreath of light leaves between them, a
@@ -704,8 +718,8 @@ static func _shards_mesh() -> Mesh:
 		var at := Vector3(cos(a) * 0.72, 0.12 * sin(a * 3.0), sin(a) * 0.72)
 		var tilt := Basis(Vector3(cos(a), 0, sin(a)), 0.3)
 		var s := 0.16 + 0.04 * float(k % 2)
-		_append(st, cone, Transform3D(tilt * Basis.from_scale(Vector3(s * 0.8, s * 1.8, s * 0.8)), at + tilt * Vector3(0, s * 0.9, 0)), Color("a8e6ff"))
-		_append(st, cone, Transform3D(tilt * Basis.from_scale(Vector3(s * 0.8, -s * 1.0, s * 0.8)), at - tilt * Vector3(0, s * 0.5, 0)), Color("7fd4ff"))
+		_append(st, cone, Transform3D(tilt * Basis.from_scale(Vector3(s * 0.8, s * 1.8, s * 0.8)), at + tilt * Vector3(0, s * 0.9, 0)), Color("5cb0f0"))
+		_append(st, cone, Transform3D(tilt * Basis.from_scale(Vector3(s * 0.8, -s * 1.0, s * 0.8)), at - tilt * Vector3(0, s * 0.5, 0)), Color("2f7fe0"))
 	var mesh := st.commit()
 	_meshes["shards"] = mesh
 	return mesh

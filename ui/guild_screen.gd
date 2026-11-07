@@ -1,7 +1,7 @@
 class_name GuildScreen
 extends CanvasLayer
-## The guild registrar in the village: the two guilds of the world (WorldPlayers), Alpha
-## and Neverdie, side by side with every member's class, level, stars and whereabouts
+## The guild registrar in the village: the four guilds of the world (WorldPlayers: Alpha,
+## Neverdie, Titan and 3DLnw), two by two with every member's class, level, stars and whereabouts
 ## (online in which field, or when last seen), and the button to join one or move to the
 ## other. Members are the players who have reached Lv.100; the lists follow their
 ## schedules while the screen is open.
@@ -130,7 +130,7 @@ func _build() -> void:
 	var mine := Game.guild()
 	if mine == 0 and view == "quests":
 		view = "roster"
-	var title := UIUtil.label("นายทะเบียนกิลด์" if mine > 0 else "นายทะเบียนกิลด์ — Alpha · Neverdie", &"HeaderLabel")
+	var title := UIUtil.label("นายทะเบียนกิลด์" if mine > 0 else "นายทะเบียนกิลด์ — เลือก 1 ใน 4 กิลด์", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.clip_text = true
 	head.add_child(title)
@@ -187,12 +187,15 @@ func _build() -> void:
 	var line := UIUtil.label(status, &"SmallLabel")
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(line)
-	var row := UIUtil.hbox(14)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(row)
+	# The four guilds, two to a row.
 	var t := WorldPresence.clock()
-	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
-		row.add_child(_guild_column(g, mine, t))
+	var row: HBoxContainer = null
+	for k in WorldPlayers.GUILDS.size():
+		if k % 2 == 0:
+			row = UIUtil.hbox(14)
+			row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			column.add_child(row)
+		row.add_child(_guild_column(WorldPlayers.GUILDS[k], mine, t))
 	_restore_scrolls(kept)
 
 

@@ -44,7 +44,18 @@ func _ready() -> void:
 		if f.fighter_class() != &"defender":
 			continue
 		defenders += 1
+		# The war runs between checks (and slower on a loaded runner): a hurt team rightly
+		# heals first, so judge the opening pick with everyone whole and nothing cast yet.
+		for g in m.allies + m.enemies:
+			g.hp = g.max_hp
+		f.cooldowns.clear()
+		# Lower-ranked fighters skip a random share of their picks (Rival._try_skill):
+		# judge the choice itself, at full rank with MP to spare.
+		var rank := f.difficulty
+		f.difficulty = 1.0
+		f.mp = maxf(f.mp, 100000.0)
 		check(f._try_skill(f, 3.0) and f.cooldowns.has("brace"), "%s casts เบ่งเลือด first: %s" % [f.member.name, f.cooldowns.keys()])
+		f.difficulty = rank
 		await get_tree().create_timer(1.5).timeout
 		check(BuffBook.contains(f._buff_art.buffs, "brace", false), "%s wears เบ่งเลือด after the cast" % f.member.name)
 	check(defenders > 0, "the war has a Defender (%d)" % defenders)

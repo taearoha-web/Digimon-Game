@@ -30,6 +30,9 @@ var anim: AnimationPlayer
 var height := 1.0
 var current := ""
 var busy_until := 0
+## The ink outline (a second draw of every surface); everyone else's pets wear it at
+## high quality only (set before setup).
+var outline := true
 
 var _clips: Dictionary = {}
 var _clip_speed: Dictionary = {}
@@ -128,7 +131,7 @@ func _add_extra_clips(model_path: String) -> void:
 ## The same soft illustrated finish as the heroes, with a satin gloss reserved
 ## for jelly creatures. Outline width is measured in world space after fitting.
 func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
-	var width := 0.009 / maxf(fit, 0.001) if GameSettings.quality > 0 else 0.0
+	var width := 0.009 / maxf(fit, 0.001) if GameSettings.quality > 0 and outline else 0.0
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi.mesh == null:

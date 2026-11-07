@@ -1,8 +1,10 @@
 class_name GuildWarData
 extends RefCounted
-## Guild war: two guilds fight for 20 minutes (DURATION). Alpha against Neverdie (roll_guild_match)
-## is fought by everyone in the two guilds (the world players who have reached Lv.100),
-## each as it really is (level, stars and the gear it found), the hero with its real character.
+## Guild war: two guilds fight for 20 minutes (DURATION). A league war between two of the
+## world's four guilds (GuildLeague's schedule, roll_guild_match) is fought by each guild's
+## GUILD_SIDE strongest members at Lv.100, each as it really is (level, stars and the gear
+## it found); the hero, when registered, fights with its real character only if it ranks
+## among its guild's strongest GUILD_SIDE by the same measure (side_ids).
 ## Hired line-ups (roll_match: eight a side when there is no guild, and the ranked arena's
 ## rivals) are AI at Lv.100 with 200 stars, a random class and a gear grade from a plain
 ## 50-star set up to the class's divine set with wings, built from the same star gear a
@@ -10,9 +12,9 @@ extends RefCounted
 ## total power.
 
 const TEAM_SIZE := 8
-## The war between the world's two guilds: everyone at Lv.100 fights, up to GUILD_SIDE a
-## side (the hero counted on ours).
-const GUILD_SIDE := 25
+## A league war: each guild sends its GUILD_SIDE strongest members (the hero counted
+## when it ranks among them).
+const GUILD_SIDE := 20
 ## 20 minutes: short enough to finish before a phone closes the page (a war cut off
 ## can be rejoined for Game.GW_CKPT_LIFETIME).
 const DURATION := 1200.0
@@ -231,65 +233,127 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 	return {"ally": best, "enemy": enemy, "ally_name": guild_a, "enemy_name": guild_b, "ally_power": ally_power, "enemy_power": enemy_power}
 
 
-## The war between the two guilds of the world (WorldPlayers): the hero and its guild's
-## members against the other guild's, up to GUILD_SIDE a side, each as it really is at time t
-## (level, stars, stat points and the gear it found; WorldPlayers.fighter). Only players
-## who reached Lv.100 are in a guild; each side is its guild's best GUILD_SIDE, the furthest
-## along (WorldPlayers.rank_point: level, stars, the divine set and its enhancing; the
-## longest-standing member first on a tie), the hero's own party picks always on ours, and
-## only they are built as fighters (a big guild stays cheap to roll). Listed online first,
-## then by power. No rival member yet: {} (no war).
-static func roll_guild_match(rng: RandomNumberGenerator, guild: int, t: float, power_of_hero: float = -1.0) -> Dictionary:
-	if power_of_hero < 0.0:
-		power_of_hero = hero_power()
+## A league war between guilds `guild` (ours) and `rival` of the world (WorldPlayers) at
+## time t: each side is its guild's GUILD_SIDE strongest members at Lv.100 (side_ids:
+## WorldPlayers.rank_point, the longest-standing member first on a tie), each as it really is
+## then (level, stars, stat points and the gear it found; WorldPlayers.fighter). With
+## `with_hero` the hero is a candidate on ours and fights only when it ranks among them
+## (one member fewer then); the hero's party picks never bypass that rule, they only come
+## first in our list. Listed online first, then by power. A side with nobody at Lv.100
+## yet: {} (no war). "hero_in" says whether the hero made the line-up.
+static func roll_guild_match(rng: RandomNumberGenerator, guild: int, rival: int, t: float, power_of_hero: float = -1.0, with_hero := true) -> Dictionary:
+	if guild <= 0 or rival <= 0 or guild == rival:
+		return {}
+	var side := side_ids(guild, t, hero_rank_point() if with_hero else -1.0)
 	var ours: Array = []
-	for i in best_members(guild, t, GUILD_SIDE - 1, true):
+	for i in side.ids:
 		ours.append(WorldPlayers.fighter(i, t, rng))
 	var theirs: Array = []
-	for i in best_members(WorldPlayers.other_guild(guild), t, GUILD_SIDE, false):
+	for i in side_ids(rival, t).ids:
 		theirs.append(WorldPlayers.fighter(i, t, rng))
-	if theirs.is_empty():
+	if theirs.is_empty() or (ours.is_empty() and not bool(side.hero)):
 		return {}
 	var order := func(a, b):
 		if bool(a.online) != bool(b.online):
 			return bool(a.online)
 		return float(a.power) > float(b.power) or (float(a.power) == float(b.power) and int(a.world) < int(b.world))
 	theirs.sort_custom(order)
-	# The hero's own party picks (GuildWarScreen) always come along, first.
-	var picked := func(f) -> bool: return Game.guildwar_party_picks.has(String(f.member.name))
+	# The hero's own party picks (GuildWarScreen) come first among those who made the side.
+	var picked := func(f) -> bool: return bool(side.hero) and Game.guildwar_party_picks.has(String(f.member.name))
 	ours.sort_custom(func(a, b):
 		if picked.call(a) != picked.call(b):
 			return picked.call(a)
 		return order.call(a, b))
-	var ally_power := power_of_hero
+	var ally_power := 0.0
+	if bool(side.hero):
+		ally_power = power_of_hero if power_of_hero >= 0.0 else hero_power()
 	for f in ours:
 		ally_power += float(f.power)
 	var enemy_power := 0.0
 	for f in theirs:
 		enemy_power += float(f.power)
-	return {"ally": ours, "enemy": theirs, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(WorldPlayers.other_guild(guild)),
-		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true}
+	return {"ally": ours, "enemy": theirs, "ally_name": WorldPlayers.guild_name(guild), "enemy_name": WorldPlayers.guild_name(rival),
+		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true, "ally_guild": guild, "enemy_guild": rival, "hero_in": bool(side.hero)}
 
 
 ## The `count` members of `guild` at Lv.100 who are furthest along at t (rank_point, the
-## lower roster index on a tie); with `picks`, the hero's party picks first.
-static func best_members(guild: int, t: float, count: int, picks: bool) -> Array[int]:
+## lower roster index on a tie).
+static func best_members(guild: int, t: float, count: int) -> Array[int]:
 	var ids := WorldPlayers.members_at(guild, t)
 	var point := {}
 	for i in ids:
-		var bonus := 1000.0 if picks and Game.guildwar_party_picks.has(String(WorldPlayers.entry(i).name)) else 0.0
-		point[i] = WorldPlayers.rank_point(i, t) + bonus
+		point[i] = WorldPlayers.rank_point(i, t)
 	ids.sort_custom(func(a, b): return float(point[a]) > float(point[b]) or (float(point[a]) == float(point[b]) and a < b))
 	ids.resize(mini(ids.size(), count))
 	return ids
 
 
-## Why the hero's guild cannot go to war at time t ("" when it can): the rival guild has
-## nobody at Lv.100 yet.
-static func guild_war_blocked(guild: int, t: float) -> String:
-	var rival := WorldPlayers.other_guild(guild)
-	if WorldPlayers.members_at(rival, t).is_empty():
-		return "กิลด์ %s ยังไม่มีสมาชิกถึงเลเวล %d" % [WorldPlayers.guild_name(rival), Game.GUILD_LEVEL]
+## A guild's war side at t: {ids: its world players, hero: whether the hero is on it}.
+## `hero_point` >= 0 makes the hero (of this guild) a candidate with that rank point: it
+## takes a place when it ranks among the GUILD_SIDE strongest (on the same point the hero
+## goes first: a hero who has maxed everything always makes the side).
+static func side_ids(guild: int, t: float, hero_point := -1.0) -> Dictionary:
+	var ids := best_members(guild, t, GUILD_SIDE)
+	var rank := hero_rank(guild, t, hero_point, ids)
+	var hero := rank > 0 and rank <= GUILD_SIDE
+	if hero and ids.size() >= GUILD_SIDE:
+		ids.resize(GUILD_SIDE - 1)
+	return {"ids": ids, "hero": hero}
+
+
+## The hero's place (1 = strongest) in `guild` at t with rank point `hero_point`, among
+## the members at Lv.100 (0 when it is no candidate). `best` may pass the top members
+## already sorted (best_members) to skip the sort.
+static func hero_rank(guild: int, t: float, hero_point: float, best: Array[int] = []) -> int:
+	if hero_point < 0.0:
+		return 0
+	var ids := best if not best.is_empty() else best_members(guild, t, GUILD_SIDE)
+	var rank := 1
+	for i in ids:
+		if WorldPlayers.rank_point(i, t) > hero_point:
+			rank += 1
+	if rank > ids.size() and ids.size() >= GUILD_SIDE:
+		# Below the side: count everyone ahead for the screen's "#N".
+		rank = 1
+		for i in WorldPlayers.members_at(guild, t):
+			if WorldPlayers.rank_point(i, t) > hero_point:
+				rank += 1
+	return rank
+
+
+## The hero's progress as WorldPlayers.rank_point counts a world player's: Lv.1-100, the
+## stars, the part of the next step done, the divine set worn (up to 1) and its enhancing
+## (up to 1 at +10). -1 without a character.
+static func hero_rank_point() -> float:
+	if not Game.has_profile:
+		return -1.0
+	var level := int(Game.profile.level)
+	var para := Game.paragon()
+	var stars := int(para.level)
+	var frac := 0.0
+	if level < Game.MAX_LEVEL:
+		frac = float(Game.profile.exp) / maxf(1.0, float(HeroStats.exp_to_next(level)))
+	elif stars < Game.PARAGON_MAX:
+		frac = float(para.get("exp", 0)) / maxf(1.0, float(HeroStats.star_need(stars)))
+	var divine := 0
+	var plus := 0
+	var equip: Dictionary = Game.profile.get("equip", {})
+	for slot in DivineGearData.SLOTS:
+		var item: Variant = equip.get(slot)
+		if item is Dictionary and String((item as Dictionary).get("collection", "")) == String(DivineGearData.COLLECTION):
+			divine += 1
+			plus += int((item as Dictionary).get("plus", 0))
+	var n := float(DivineGearData.SLOTS.size())
+	var after := minf(float(plus) / (n * 10.0), 1.0) if divine >= DivineGearData.SLOTS.size() else 0.0
+	return float(level + stars) + clampf(frac, 0.0, 1.0) * 0.99 + float(divine) / n + after
+
+
+## Why guild `guild` cannot meet `rival` at time t ("" when it can): a side has nobody at
+## Lv.100 yet.
+static func guild_war_blocked(guild: int, rival: int, t: float) -> String:
+	for g in [guild, rival]:
+		if WorldPlayers.members_at(g, t).is_empty():
+			return "กิลด์ %s ยังไม่มีสมาชิกถึงเลเวล %d" % [WorldPlayers.guild_name(g), Game.GUILD_LEVEL]
 	return ""
 
 

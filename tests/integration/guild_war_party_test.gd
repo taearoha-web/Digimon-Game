@@ -45,6 +45,7 @@ func _ready() -> void:
 ## The party screen's guild mates go class by class (archers, then priests, ...), each
 ## class strongest first, under a class heading.
 func _mate_order() -> void:
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 - WorldPlayers.now()
 	var mates := GuildWarScreen.war_mates(Game.guild(), WorldPresence.clock())
 	var ok := true
 	for i in range(1, mates.size()):
@@ -61,6 +62,8 @@ func _mate_order() -> void:
 ## party screen's confirm button too (they used to fall below a phone's screen).
 func _lobby_button() -> void:
 	Game.join_guild(WorldPlayers.ALPHA)
+	_max_out()
+	_league_round()
 	var desk := GuildWarScreen.new()
 	add_child(desk)
 	desk.open_lobby()
@@ -75,6 +78,8 @@ func _lobby_button() -> void:
 	check(confirm != null and confirm.get_global_rect().end.y < view.size.y * 0.45, "the party screen's confirm button is near the top too")
 	desk.close_screen()
 	desk.queue_free()
+	Game.guildwar_league = {}
+	WorldPresence.clock_offset = 0.0
 	await _frames(1)
 
 
@@ -181,20 +186,47 @@ func _hired_war() -> void:
 	await _frames(3)
 
 
+## The hero as far along as anyone can be (★300, the whole divine set at +10): it always
+## ranks among its guild's strongest twenty, so it fights in the league's wars.
+func _max_out() -> void:
+	Game.profile["paragon"] = {"level": 300, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(300)}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	for slot in DivineGearData.SLOTS:
+		var piece := DivineGearData.item(Game.class_id(), slot, rng)
+		piece["plus"] = 10
+		Game.profile.equip[slot] = piece
+	Game.profile.hp = Game.stats_now().max_hp
+
+
+## A league round of day 20 that is on now; the hero registered for it.
+func _league_round() -> int:
+	var at := GuildLeague.slot_start(WorldEvents.day_of(float(WorldPlayers.START_UNIX) + 20.0 * 86400.0), 0)
+	WorldPresence.clock_offset = float(at) - 3600.0 - WorldPlayers.now()
+	GuildLeague.register()
+	WorldPresence.clock_offset = float(at) + 60.0 - WorldPlayers.now()
+	return at
+
+
 func _guild_war() -> void:
-	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 - WorldPlayers.now()
 	Game.join_guild(WorldPlayers.ALPHA)
+	_max_out()
+	_league_round()
+	Game.guildwar_league = GuildLeague.enter_match()
+	check(not Game.guildwar_league.is_empty(), "the hero goes into the league war (%s)" % GuildLeague.enter_problem())
 	# The party screen: tap two guild mates, a fifth is refused, "สุ่มให้" fills, removal works.
 	var screen := GuildWarScreen.new()
 	add_child(screen)
 	await _frames(2)
 	screen.open_lobby()
 	await _frames(1)
+	# The desk clears any pending league war (enter_league sets it again).
+	Game.guildwar_league = GuildLeague.enter_match()
 	screen.open_party()
 	await _frames(2)
 	var mates := screen.candidates
 	check(mates.size() >= 12, "the party screen lists our guild mates (%d)" % mates.size())
-	check(mates.size() == WorldPlayers.members_at(WorldPlayers.ALPHA, WorldPresence.clock()).size(), "every guild mate who fights is offered")
+	check(mates.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, WorldPresence.clock()).size()), "every guild mate who fights (the line-up) is offered, nobody else")
 	check(screen._slots.size() == 5 and String((screen._slots[0].name as Label).text).contains("คุณ"), "five places, the hero in the first")
 	var first := String(mates[0].name)
 	var second := String(mates[3].name)

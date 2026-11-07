@@ -333,7 +333,11 @@ func _riders_marching(m: GuildWarMatch, label: String) -> void:
 				near_one = f
 	check(far_one != null, "%s: someone rides far from the camera" % label)
 	if far_one != null:
-		check(far_one.mount.is_far() and far_one.mount.lod_step == 2 and far_one.model().anim_lod == 2, "%s: a far fighter's mount uses the far LOD with its rider" % label)
+		# On the screen it is posed every other frame (every third past POSE_FAR), off it
+		# every OFF_SCREEN_STEP and not drawn; its mount steps with it.
+		var d := far_one.global_position.distance_to(camera.global_position)
+		var want := (3 if d > GuildWarMatch.POSE_FAR else 2) if far_one.visual.visible else GuildWarMatch.OFF_SCREEN_STEP
+		check(far_one.mount.is_far() and far_one.mount.lod_step == mini(want, 3) and far_one.model().anim_lod == want, "%s: a far fighter's mount uses the far LOD with its rider (lod %d, want %d)" % [label, far_one.model().anim_lod, want])
 	if near_one != null:
 		check(not near_one.mount.is_far(), "%s: a near fighter's mount is whole" % label)
 	var shadows := 0
@@ -455,9 +459,14 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 			break
 	if cam != null and far_one != null:
 		var keep := far_one.global_position
-		far_one.global_position = cam.global_position + Vector3(GuildWarMatch.POSE_NEAR + 8.0, 0, 0)
+		# Straight ahead of the camera (on the screen), past POSE_NEAR.
+		far_one.global_position = cam.global_position - cam.global_basis.z * (GuildWarMatch.POSE_NEAR + 8.0)
 		m._cull_far()
-		check(far_one.model().anim_lod == 2 and far_one.model()._far, "%s: a far fighter is posed less often (lod %d)" % [label, far_one.model().anim_lod])
+		check(far_one.model().anim_lod == 2 and far_one.model()._far and far_one.visual.visible, "%s: a far fighter is posed less often (lod %d)" % [label, far_one.model().anim_lod])
+		# Behind the camera (off the screen): not drawn, posed only now and then.
+		far_one.global_position = cam.global_position + cam.global_basis.z * (GuildWarMatch.POSE_NEAR + 8.0)
+		m._cull_far()
+		check(far_one.model().anim_lod == GuildWarMatch.OFF_SCREEN_STEP and not far_one.visual.visible, "%s: an off-screen fighter is not drawn (lod %d)" % [label, far_one.model().anim_lod])
 		far_one.global_position = cam.global_position + Vector3(3.0, 0, 0)
 		m._cull_far()
 		check(far_one.model().anim_lod == 1 and not far_one.model()._far, "%s: a near one in full" % label)
@@ -653,7 +662,7 @@ func _resume() -> void:
 	var texts: Array[String] = []
 	_collect_buttons(screen, texts)
 	check(texts.any(func(t: String): return t.begins_with("ต่อสงครามเดิม · 7 : 5 · เหลือ 12:57")), "resume: the lobby offers the unfinished war")
-	check(texts.any(func(t: String): return t.begins_with("เริ่มสงครามใหม่")), "resume: and a fresh one")
+	check(texts.any(func(t: String): return t.begins_with("ซ้อมรบ")), "resume: and a fresh (practice) one")
 	screen.close_screen()
 	screen.queue_free()
 	await _frames(2)
