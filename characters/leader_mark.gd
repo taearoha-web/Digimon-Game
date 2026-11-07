@@ -117,7 +117,7 @@ static func _build_crown(crown: Node3D, color: Color) -> void:
 ## two sides always differ, so with no guild ours is gold and theirs rose.
 static func guild_color(team: int) -> Color:
 	var mine := Game.guild()
-	var g := mine if team == GuildFighter.TEAM_ALLY else WorldPlayers.other_guild(mine)
+	var g := mine if team == GuildFighter.TEAM_ALLY else GuildLeague.war_rival()
 	var fallback := GOLD if team == GuildFighter.TEAM_ALLY else Color("ff6f8e")
 	return WorldPlayers.GUILD_COLORS.get(g, fallback) if mine > 0 else fallback
 

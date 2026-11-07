@@ -54,6 +54,7 @@ func _ready() -> void:
 	_colors()
 	await _watch_from_start()
 	await _watch_late()
+	await _desk_league_war()
 	await _fight_19_and_hero_vs_20()
 	GuildWarSpectate.league_hook = null
 	print("GUILD WAR SPECTATE: %d checks, %d failures" % [checks, failures])
@@ -260,6 +261,56 @@ func _leave(to: StringName) -> void:
 	if back != null:
 		check(main.hud.visible and not back.hero.spectating and back.hero.visible, "the hero and its HUD are back")
 		check(Game.current_zone == to, "the game is in %s again" % to)
+
+
+## The guild-war desk's "ชมการแข่งขัน" on a live league round (GuildLeague.live_match_info):
+## both real guilds in their own colours, and the watched result goes into the league
+## table for that round (GuildLeague.spectated_result), with no reward.
+func _desk_league_war() -> void:
+	GuildWarSpectate.league_hook = null
+	var w := GuildLeague.week_of(float(WorldPlayers.START_UNIX) + 21.0 * 86400.0)
+	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 2, 1)
+	var pairs := GuildLeague.pairs_at(at)
+	check(not pairs.is_empty(), "a league round is on the schedule")
+	if pairs.is_empty():
+		return
+	var a := int(pairs[0][0])
+	var b := int(pairs[0][1])
+	check(GuildLeague.spectated_result({"league_match": [a, b], "slot_start": at + 7}, {"winner": 0}) == 0, "a watched war off the schedule counts nothing")
+	WorldPresence.clock_offset = float(at) + 240.0 - WorldPlayers.now()
+	var gold := int(Game.profile.gold)
+	main.guildwar_screen.watch(a, b)
+	var t0 := Time.get_ticks_msec()
+	while (main.zone == null or not main.zone.watching() or main._traveling) and Time.get_ticks_msec() - t0 < 60000:
+		await wait(0.2)
+	var zone: Zone = main.zone
+	check(zone != null and zone.watching(), "the desk's watch button opens the live league war")
+	if zone == null or not zone.watching():
+		WorldPresence.clock_offset = 0.0
+		return
+	var m := zone.gw_match
+	check(m.ally_name == GuildLeague.name_of(a) and m.enemy_name == GuildLeague.name_of(b), "the round's two guilds (%s vs %s)" % [m.ally_name, m.enemy_name])
+	check(m.team_color(0) == GuildLeague.color_of(a) and m.team_color(1) == GuildLeague.color_of(b), "each in its guild colour")
+	check(m.allies.size() == GuildWarData.GUILD_SIDE and m.enemies.size() == GuildWarData.GUILD_SIDE, "twenty a side (%d / %d)" % [m.allies.size(), m.enemies.size()])
+	check(absf(m.time_left - (GuildWarData.DURATION - 240.0)) < 3.0, "the clock is the round's (%.0f s left)" % m.time_left)
+	while m.state != "fight" and Time.get_ticks_msec() - t0 < 90000:
+		await wait(0.2)
+	m.score = [m.score[0], m.score[1] + 4]
+	m.time_left = 1.0
+	while m.state != "done" and Time.get_ticks_msec() - t0 < 120000:
+		await wait(0.2)
+	var r := GuildWarSpectate.last_result
+	var recorded := {}
+	for e in GuildLeague.real_wars(w):
+		if int(e.get("at", -1)) == at and int(e.a) == a and int(e.b) == b:
+			recorded = e
+	check(not recorded.is_empty(), "the watched result is in the league for that round")
+	if not recorded.is_empty():
+		var want := (a if int(r.winner) == 0 else b)
+		check(int(recorded.win) == want and int(recorded.ka) == int(r.score[0]) and int(recorded.kb) == int(r.score[1]), "as it was watched (winner %d, %d:%d)" % [int(recorded.win), int(recorded.ka), int(recorded.kb)])
+	check(int(Game.profile.gold) == gold, "watching a league war pays nothing")
+	await _leave(&"meadow")
+	WorldPresence.clock_offset = 0.0
 
 
 ## The hero plays: 19 of its guild beside it against 20.

@@ -85,10 +85,10 @@ func _roster() -> void:
 	var names := {}
 	var classes := {}
 	var sizes := []
-	for g in [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]:
+	for g in WorldPlayers.GUILDS:
 		var members := WorldPlayers.members(g)
 		sizes.append(members.size())
-		check(members.size() >= 29, "%s has %d members" % [WorldPlayers.guild_name(g), members.size()])
+		check(members.size() >= GuildWarData.GUILD_SIDE, "%s has %d members" % [WorldPlayers.guild_name(g), members.size()])
 		var support := false
 		for i in members:
 			support = support or GuildWarData.is_support(StringName(WorldPlayers.entry(i)["class"]))
@@ -100,10 +100,14 @@ func _roster() -> void:
 		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
 		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
 		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
-	check(abs(int(sizes[0]) - int(sizes[1])) <= 2, "the guilds are about as big (%s)" % [sizes])
+	# Everyone picks a guild of its own (WorldPlayers.pick_guild): not even, but none is left small.
+	for i in WorldPlayers.size():
+		check(WorldPlayers.GUILDS.has(int(WorldPlayers.entry(i).guild)), "%s picked one of the four guilds" % WorldPlayers.entry(i).name)
+		check(int(WorldPlayers.entry(i).guild) == WorldPlayers.pick_guild(String(WorldPlayers.entry(i).name)), "%s: the pick comes from the name alone" % WorldPlayers.entry(i).name)
+	check(int(sizes.max()) <= 3 * int(sizes.min()), "no guild is tiny next to another (%s)" % [sizes])
 	check(names.size() == WorldPlayers.size(), "every name is different")
 	check(classes.size() == ClassData.IDS.size(), "every class is played")
-	check(WorldPlayers.guild_name(WorldPlayers.ALPHA) == "Alpha" and WorldPlayers.guild_name(WorldPlayers.NEVERDIE) == "Neverdie", "the guilds are Alpha and Neverdie")
+	check(WorldPlayers.guild_name(WorldPlayers.ALPHA) == "Alpha" and WorldPlayers.guild_name(WorldPlayers.NEVERDIE) == "Neverdie" and WorldPlayers.guild_name(WorldPlayers.TITAN) == "Titan" and WorldPlayers.guild_name(WorldPlayers.LNW) == "3DLnw", "the guilds are Alpha, Neverdie, Titan and 3DLnw")
 
 
 func _progress() -> void:
@@ -896,7 +900,8 @@ func _guild() -> void:
 	check(Game.join_guild(WorldPlayers.NEVERDIE) and Game.guild() == WorldPlayers.NEVERDIE, "joins Neverdie")
 	check(not Game.join_guild(WorldPlayers.NEVERDIE), "already in it")
 	check(Game.join_guild(WorldPlayers.ALPHA) and Game.guild() == WorldPlayers.ALPHA, "moves to Alpha")
-	check(not Game.join_guild(7) and Game.guild() == WorldPlayers.ALPHA, "no third guild")
+	check(Game.join_guild(WorldPlayers.LNW) and Game.guild() == WorldPlayers.LNW and Game.join_guild(WorldPlayers.ALPHA), "Titan and 3DLnw take members too")
+	check(not Game.join_guild(5) and not Game.join_guild(7) and Game.guild() == WorldPlayers.ALPHA, "no fifth guild")
 	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with a guild is valid")
 	# A world player joins its guild on reaching Lv.100: no guild (and no tag) before.
 	var day := 86400.0
@@ -910,15 +915,18 @@ func _guild() -> void:
 	check(joins_at_100, "a world player is in its guild from Lv.100 on, in none before")
 	# Everyone starts at Lv.1, so in the first hours nobody is in a guild and there is no war.
 	var opening := start + 0.25 * day
-	check(WorldPlayers.members_at(WorldPlayers.ALPHA, opening).is_empty() and WorldPlayers.members_at(WorldPlayers.NEVERDIE, opening).is_empty(), "in the first six hours nobody is in a guild yet")
+	var nobody := true
+	for g in WorldPlayers.GUILDS:
+		nobody = nobody and WorldPlayers.members_at(g, opening).is_empty()
+	check(nobody, "in the first six hours nobody is in a guild yet")
 	var none_rng := RandomNumberGenerator.new()
-	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, opening).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, opening) != "", "no rival members, no war")
+	check(GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, opening, -1.0, false).is_empty() and GuildWarData.guild_war_blocked(WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, opening) != "", "no rival members, no war")
 	# Early on the guilds are small: everyone at Lv.100 fights.
 	var early := start + day
 	while WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size() < 2 or WorldPlayers.members_at(WorldPlayers.ALPHA, early).is_empty():
 		early += 3600.0
-	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, early)
-	check(not few.is_empty() and few.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, early).size()) and few.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()), "everyone at Lv.100 fights, up to GUILD_SIDE: %d with the hero against %d (day %.1f)" % [few.ally.size() + 1, few.enemy.size(), (early - start) / day])
+	var few := GuildWarData.roll_guild_match(none_rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, early, -1.0, false)
+	check(not few.is_empty() and few.ally.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.ALPHA, early).size()) and few.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, early).size()), "everyone at Lv.100 fights, up to GUILD_SIDE: %d against %d (day %.1f)" % [few.ally.size(), few.enemy.size(), (early - start) / day])
 	var all_100 := true
 	for f in few.ally + few.enemy:
 		all_100 = all_100 and int(f.member.level) >= Game.GUILD_LEVEL
@@ -926,8 +934,8 @@ func _guild() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
 	var t := float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 + 13.0 * 3600.0
-	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, t)
-	check(m.ally.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size()) and m.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size()) and m.enemy.size() > GuildWarData.TEAM_SIZE, "everyone at Lv.100 fights, up to GUILD_SIDE a side (%d and %d)" % [m.ally.size(), m.enemy.size()])
+	var m := GuildWarData.roll_guild_match(rng, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, t, -1.0, false)
+	check(m.ally.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.ALPHA, t).size()) and m.enemy.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.NEVERDIE, t).size()) and m.enemy.size() > GuildWarData.TEAM_SIZE, "each guild's strongest, up to GUILD_SIDE a side (%d and %d)" % [m.ally.size(), m.enemy.size()])
 	check(m.ally_name == "Alpha" and m.enemy_name == "Neverdie", "Alpha against Neverdie")
 	var ok_sides := true
 	var online_first := true
@@ -949,7 +957,7 @@ func _guild() -> void:
 	check(online_first, "online members are picked first")
 	var again := RandomNumberGenerator.new()
 	again.seed = 77
-	var m2 := GuildWarData.roll_guild_match(again, WorldPlayers.ALPHA, t)
+	var m2 := GuildWarData.roll_guild_match(again, WorldPlayers.ALPHA, WorldPlayers.NEVERDIE, t, -1.0, false)
 	check(m2.enemy.map(func(f): return f.member.name) == m.enemy.map(func(f): return f.member.name), "the same seed and moment give the same war")
 
 
@@ -967,11 +975,8 @@ func _screens() -> void:
 	Game.profile.adv = 4
 	main.guildwar_screen.open_lobby()
 	await get_tree().process_frame
-	var go_button: Button = null
-	for b in main.guildwar_screen.find_children("*", "Button", true, false):
-		if String((b as Button).text).contains("กิลด์ที่นายทะเบียน"):
-			go_button = b
-	check(go_button != null and go_button.disabled, "no war before joining a guild")
+	var go_button := main.guildwar_screen.find_child("EnterWar", true, false) as Button
+	check(go_button != null and go_button.disabled and go_button.text.contains("กิลด์ที่นายทะเบียน"), "no war before joining a guild (%s)" % (go_button.text if go_button else ""))
 	main.guildwar_screen.close_screen()
 	main.guild_screen.open_screen()
 	await get_tree().process_frame
@@ -1016,28 +1021,52 @@ func _screens() -> void:
 	main.registry.close_screen()
 	main.hud.update_online()
 	check(String(main.hud._online_label.text) == "ออนไลน์ %d" % (WorldPresence.online_count() + 1), "the HUD shows how many are online")
+	# The league's round: register before it, go in while it is on (the hero, at ★300 in
+	# the whole divine set at +10, ranks among Neverdie's strongest twenty).
+	var day_n := WorldEvents.day_of(WorldPresence.clock())
+	var round_at := GuildLeague.slot_start(day_n + 1, 0)
+	var rival := GuildLeague.opponent(WorldPlayers.NEVERDIE, round_at)
+	Game.paragon()["level"] = Game.PARAGON_MAX
+	var gear_rng := RandomNumberGenerator.new()
+	gear_rng.seed = 1
+	for slot in DivineGearData.SLOTS:
+		var piece := DivineGearData.item(Game.class_id(), slot, gear_rng)
+		piece["plus"] = 10
+		Game.profile.equip[slot] = piece
+	WorldPresence.clock_offset = float(round_at) - 900.0 - WorldPlayers.now()
 	main.guildwar_screen.open_lobby()
 	await get_tree().process_frame
-	var ready := false
-	for b in main.guildwar_screen.find_children("*", "Button", true, false):
-		if String((b as Button).text) == "เข้าสู่สงคราม!" and not (b as Button).disabled:
-			ready = true
-	check(ready, "in a guild the war can start")
+	var reg := main.guildwar_screen.find_child("LeagueRegister", true, false) as Button
+	check(reg != null and not reg.disabled, "the next round takes registrations")
+	reg.pressed.emit()
+	await get_tree().process_frame
+	check(GuildLeague.registered(round_at), "the button registers the hero for the round")
+	var rank_line := main.guildwar_screen.find_child("LeagueRank", true, false) as Label
+	check(rank_line != null and rank_line.text.contains("ติดตัวจริง"), "the desk tells the hero it is in the line-up (%s)" % (rank_line.text if rank_line else ""))
 	main.guildwar_screen.close_screen()
-	# The war itself: Neverdie's members on our side, Alpha's across.
+	WorldPresence.clock_offset = float(round_at) + 120.0 - WorldPlayers.now()
+	main.guildwar_screen.open_lobby()
+	await get_tree().process_frame
+	var go_now := main.guildwar_screen.find_child("EnterWar", true, false) as Button
+	check(go_now != null and not go_now.disabled, "in a guild, registered, the war can be entered while the round is on (%s)" % (go_now.text if go_now else ""))
+	check(main.guildwar_screen.find_children("Watch_*", "Button", true, false).size() == 2, "both wars of the round can be watched")
+	main.guildwar_screen.close_screen()
+	# The war itself: Neverdie's strongest on our side, the round's rival across.
+	Game.guildwar_league = GuildLeague.enter_match()
 	await main.go(&"guildwar", true)
 	await get_tree().create_timer(0.5).timeout
 	var war: GuildWarMatch = main.zone.gw_match
-	check(war != null and war.ally_name == "Neverdie" and war.enemy_name == "Alpha", "the war is Neverdie against Alpha")
+	check(war != null and war.ally_name == "Neverdie" and war.enemy_name == WorldPlayers.guild_name(rival), "the war is Neverdie against %s" % WorldPlayers.guild_name(rival))
 	if war != null:
+		check(war.started_at == round_at and war.time_left <= GuildWarData.DURATION - 100.0, "a late arrival joins the round on its clock (%.0f s left)" % war.time_left)
 		var ours := true
 		for f in war.allies:
 			ours = ours and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.NEVERDIE
 		var theirs := true
 		for f in war.enemies:
-			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == WorldPlayers.ALPHA
-		check(war.allies.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size()) and ours, "our side is Neverdie's members (%d)" % war.allies.size())
-		check(war.enemies.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(WorldPlayers.ALPHA, float(war.started_at)).size()) and theirs, "across stand Alpha's members (%d)" % war.enemies.size())
+			theirs = theirs and int(WorldPlayers.entry(_index_of(String(f.member.name))).guild) == rival
+		check(war.allies.size() == mini(GuildWarData.GUILD_SIDE - 1, WorldPlayers.members_at(WorldPlayers.NEVERDIE, float(war.started_at)).size()) and ours, "our side is Neverdie's strongest with the hero (%d)" % war.allies.size())
+		check(war.enemies.size() == mini(GuildWarData.GUILD_SIDE, WorldPlayers.members_at(rival, float(war.started_at)).size()) and theirs, "across stand %s's strongest (%d)" % [WorldPlayers.guild_name(rival), war.enemies.size()])
 		var real_levels := true
 		for f in war.allies + war.enemies:
 			var s := WorldPlayers.state(_index_of(String(f.member.name)), float(war.started_at))

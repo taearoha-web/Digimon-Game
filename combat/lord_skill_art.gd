@@ -26,6 +26,9 @@ const BLOOD := [Color("ff3a4a"), Color("ffe0e4"), Color("2a0510")]
 ## Summon: violet and gold with no white core (a white seal, column and grandeur
 ## flash used to wash the portal out).
 const SUMMON := [Color("7a3ff0"), Color("e0a83a"), Color("10041e")]
+## The host rising out of the Summon's portal: a near-black body under a violet rim,
+## eyes and blade edges burning gold, so it reads as a silhouette over any ground.
+const HOST := [Color("9a5cff"), Color("ffc24a"), Color("04010a")]
 ## The Abyss Emperor set's emerald (SetGearData "darklord"): the set raven's strikes.
 const ABYSS := [Color("8aff5a"), Color("eaffd8"), Color("0e0818")]
 const STAR_PALETTES := {"chaos_inferno": "ember", "raven_sovereign": "force", "lords_dominion": "royal", "imperial_cataclysm": "royal"}
@@ -349,12 +352,18 @@ func _compose(id: String, c: Array, reach: float, radius: float, d: float) -> vo
 			# behind him, ravens wheeling up and a gold crown over it all.
 			layer("seal", true, SUMMON, Vector3(0, 0.05, 0), Vector3.ONE * 3.0, Vector3.ZERO, d, 1.5, {"initial": 0.3, "grow": 2.5, "spin": 1.2, "opacity": 0.45, "decay": 0.6})
 			layer("vortex", false, FORCE, Vector3(0, 0.08, 0), Vector3.ONE * 2.8, Vector3.ZERO, d, 1.6, {"initial": 0.2, "spin": -3.0, "opacity": 0.85})
-			layer("phantom", false, FORCE, Vector3(0, -2.1, -1.3), Vector3.ONE * 1.55, Vector3.ZERO, d + 0.08, 1.5, {"initial": 0.95, "grow": 3.0, "travel": Vector3(0, 2.1, 0), "fade_in": 0.12, "decay": 0.7, "opacity": 0.8})
+			# The host climbs out of the portal in half a second, then stands over the Lord
+			# for most of its life before dissolving (cosmetic: the summon itself is instant).
+			var rise := {"drop": -2.4, "land": 0.5}
+			layer("phantom", false, HOST, Vector3(0, 0, -1.35), Vector3.ONE * 1.95, Vector3.ZERO, d + 0.06, 2.1, {"initial": 0.95, "grow": 3.0, "drop": -2.4, "land": 0.5, "fade_in": 0.08, "decay": 0.8, "opacity": 0.97})
 			layer("smoke", false, FORCE, Vector3.ZERO, Vector3(2.2, 0.9, 2.2), Vector3.ZERO, d + 0.05, 1.5, {"initial": 0.4, "grow": 2.0, "opacity": 0.5, "spin": 0.6, "travel": Vector3(0, 0.4, 0)})
 			layer("regalia", true, SUMMON, Vector3(0, 2.7, -0.6), Vector3.ONE * 0.5, Vector3.ZERO, d + 0.15, 1.2, {"initial": 0.3, "spin": 2.0, "opacity": 0.65})
 			for i in 4:
 				var a := float(i) * TAU / 4.0
 				layer("raven", false, FORCE, Vector3(0, 1.6 + 0.3 * float(i % 2), 0), Vector3.ONE * 0.5, Vector3(0, a, 0), d + 0.05 * i, 1.2, {"initial": 0.6, "orbit": 1.6, "orbit_speed": 4.0, "phase": a, "flap": 0.25, "travel": Vector3(0, 1.2, 0)})
+			# Its eyes: two small gold glows in the hood, riding up with it (dropped first at low quality).
+			for side in [-1.0, 1.0]:
+				layer("orb", true, HOST, Vector3(side * 0.17, 2.86, -0.86), Vector3.ONE * 0.11, Vector3.ZERO, d + 0.06, 2.1, rise.merged({"initial": 0.6, "grow": 4.0, "fade_in": 0.2, "decay": 0.8, "opacity": 0.95}, true))
 		"earthshake":
 			layer("scepter", true, ROYAL, Vector3(0, 2.2, 0.8), Vector3.ONE * 1.3, Vector3(PI, 0, 0), d, 0.35, {"initial": 1.0, "travel": Vector3(0, -2.0, 0), "accelerate": true, "decay": 0.7})
 			for i in 3:

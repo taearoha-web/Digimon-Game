@@ -15,6 +15,8 @@ const PALETTES := {
 	"arcane": [Color("b174ff"), Color("ffedff"), Color("493695")],
 	"storm": [Color("a995ff"), Color("ffffd5"), Color("5141b1")],
 	"grace": [Color("ffd877"), Color("fffdf1"), Color("bd78a7")],
+	# The priest's two judgements: deeper gold with a warm core, so their columns read gold, not cream.
+	"judgement": [Color("f4b03a"), Color("ffe08a"), Color("8a3a6a")],
 	"bloom": [Color("67e8bd"), Color("fff8d7"), Color("c366a6")],
 	"grove": [Color("8be260"), Color("f0ffc7"), Color("297c71")],
 	"earth": [Color("cb986d"), Color("ffe3a5"), Color("78465a")],
@@ -133,12 +135,12 @@ const RECIPES := {
 	"judgement_light": ["sun", "grace", 6, 0.65, 0.90],
 	"hand_of_god": ["bloom", "grace", 6, 0.90, 1.08],
 	"heaven_light": ["wings", "grace", 7, 0.75, 1.00],
-	"divine_judgment": ["sun", "grace", 8, -0.50, 1.02],
+	"divine_judgment": ["sun", "judgement", 8, -0.50, 1.02],
 	"prayer": ["bloom", "bloom", 8, 0.80, 1.15],
 	"seraphim_wrath": ["wings", "grace", 7, -0.55, 0.85],
 	"holy_rain_big": ["rain", "grace", 8, 0.00, 1.06],
 	"miracle": ["wings", "bloom", 8, 0.85, 1.15],
-	"last_judgement": ["sun", "grace", 8, 0.90, 1.15],
+	"last_judgement": ["sun", "judgement", 8, 0.90, 1.15],
 	# Summoner: living tendrils, seed pods and paired animal-spirit curves.
 	"thorn_shot": ["arrow", "grove", 2, -0.35, 0.48],
 	"spirit_cat": ["summon", "gold", 3, 0.35, 0.92],

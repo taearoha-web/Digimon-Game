@@ -322,6 +322,12 @@ test('the weekly guild league record is accepted', async t => {
   const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), league})}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   assert.doesNotThrow(() => validateBundle(bundle({...sample(), league: {week: 1}})));
+  // The four guilds: Titan (3) and 3DLnw (4) too, a registration for a round.
+  const four = {...sample(), flags: {...(sample().flags ?? {}), guild: 4, guild4: 1}, guild_leaders: {'3': '', '4': 'Kaito'},
+    league: {week: 2966, wars: [{...LEAGUE_WAR, a: 4, b: 3, win: 3, held: 0}], reg: 1794300000, told: -1}};
+  const fourSaved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle(four)}});
+  assert.equal(fourSaved.status, 200, JSON.stringify(fourSaved.body));
+  for (const g of [0, 1, 2, 3]) assert.doesNotThrow(() => validateBundle(bundle({...sample(), flags: {guild: g}})));
 });
 
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
@@ -356,6 +362,8 @@ test('malformed, oversized and dangerous save structures are rejected without ch
     bundle({...sample(), league: []}), bundle({...sample(), league: {week: 1.5}}), bundle({...sample(), league: {junk: 1}}),
     bundle({...sample(), league: {wars: [{at: 'x'}]}}), bundle({...sample(), league: {wars: Array(65).fill(LEAGUE_WAR)}}),
     bundle({...sample(), league: {shop: {set_core: 1001}}}),
+    bundle({...sample(), flags: {guild: 5}}), bundle({...sample(), flags: {guild: -1}}), bundle({...sample(), guild_leaders: {'5': ''}}),
+    bundle({...sample(), league: {wars: [{...LEAGUE_WAR, a: 11}]}}), bundle({...sample(), league: {reg: 'x'}}),
     bundle({...sample(), dpass: []}), bundle({...sample(), dpass: {dq: {}}}), bundle({...sample(), dpass: {dq: [{id: 5}]}}),
     bundle({...sample(), dpass: {wq: [{id: 'w_boss', c: 'yes'}]}}), bundle({...sample(), dpass: {got: 2 ** 31}}), bundle({...sample(), dpass: {pts: 'x'}}),
   ];

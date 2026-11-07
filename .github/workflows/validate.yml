@@ -105,10 +105,14 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-quest
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_quest_test.tscn
-      - name: Weekly guild league (Monday-Sunday Thai seasons, the AI guilds' wars drawn from the week alone, the hero's real war adds its points, the castle holder at the season's end is champion with a crown plate / EXP +10% / the secret shop for its members only, top three claim once, saves stay valid through JSON and disk)
+      - name: Weekly guild league (Monday-Sunday Thai seasons, the wars the hero does not fight seeded from real power, the hero's real war takes its round's place, the castle holder at the season's end is champion with a crown plate / EXP +10% / the secret shop for its members only, top three claim once, saves stay valid through JSON and disk)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-league
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_league_test.tscn
+      - name: Four-guild league (Alpha / Neverdie / Titan / 3DLnw picked by everyone, twenty or more at Lv.100 in each, three rounds a day at 12:00 / 18:00 / 21:30 Thai covering all six pairs, registration closes five minutes before, the hero fights only in its guild's top twenty, seeded results without the hero, live results counted, old saves re-pick their guild once, the desk's schedule / watch buttons)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-league4
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_league4_test.tscn
       - name: Daily / weekly quests and the free monthly pass (five daily and three weekly quests drawn per character and Thai day / week, kills / bosses / trades / stall sales / enhancing / party minutes / chat / world boss / guild war move them, claimed once for pass points, 30 tiers a month claimed one by one or all at once with a title at the top, day / week / month resets with a warning, saves stay valid, menu tab and red dot)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-daily-pass
@@ -403,6 +407,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-online_zone_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/online_zone_test.tscn
+      - name: online_pet_test (own pet's damage reaches the host once inside ent_hit; pet_act paced and only when seen; a real player's pet follower runs to the monster and plays the relayed attack / skill with a cheap effect and no damage; no leaks)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-online_pet_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/online_pet_test.tscn
       - name: online_guild_war_test
         timeout-minutes: 10
         env:
@@ -568,6 +577,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx-layers
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_layers_test.tscn
+      - name: phone_budget_test (every effect shader warmed while loading, buff auras rebuilt only on change, party roles built once a frame, other players' pets cheap below quality 2)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-phone-budget
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/phone_budget_test.tscn
       - name: class_roles_test (one party role per class - แนวหน้า / กำแพงเหล็ก / พรแห่งแสง / ตราเวท / ตาเหยี่ยว / จุดตาย / ทะลวงเกราะ / พันธะวิญญาณ / เงามืด / ประสานเสียง - for the hero, the AI party and each guild-war party only, once per class, gone with a fallen member, real hits / blows / regen / cooldowns, party card and character screen)
         timeout-minutes: 10
         env:

@@ -662,7 +662,7 @@ func _resume() -> void:
 	var texts: Array[String] = []
 	_collect_buttons(screen, texts)
 	check(texts.any(func(t: String): return t.begins_with("ต่อสงครามเดิม · 7 : 5 · เหลือ 12:57")), "resume: the lobby offers the unfinished war")
-	check(texts.any(func(t: String): return t.begins_with("เริ่มสงครามใหม่")), "resume: and a fresh one")
+	check(texts.any(func(t: String): return t.begins_with("ซ้อมรบ")), "resume: and a fresh (practice) one")
 	screen.close_screen()
 	screen.queue_free()
 	await _frames(2)

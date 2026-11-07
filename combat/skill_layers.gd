@@ -39,7 +39,7 @@ const FAMILIES := {
 }
 ## Recipe palette -> element flavour.
 const PALETTE_ELEMENT := {
-	"flame": "flame", "copper": "spark", "gold": "light", "grace": "light", "royal": "light",
+	"flame": "flame", "copper": "spark", "gold": "light", "grace": "light", "judgement": "light", "royal": "light",
 	"gale": "wind", "frost": "frost", "tide": "tide", "arcane": "arcane", "storm": "storm",
 	"steel": "steel", "bloom": "petal", "fairy": "petal", "grove": "leaf", "earth": "earth",
 	"shadow": "shadow", "darkforce": "shadow", "nightblood": "shadow", "venom": "shadow",
@@ -434,8 +434,10 @@ static func _afterglow(pool: SkillLayerPool, owner: int, look: Dictionary, famil
 	var after: Array = ELEMENTS[look.element].after
 	var up := Vector3.UP
 	var reach := r * (0.55 if family != "aura" else 0.5)
+	# A tinted skill's afterglow is brief: its own mist or portal is the lingering part.
+	var linger := 0.7 if String(look.key).begins_with("tint_") else 1.15
 	_emit(pool, owner, String(after[0]), at + up * 0.35, look, 22, {"shape": "box", "extents": Vector3(maxf(0.6, reach), 0.2, maxf(0.6, reach)),
-		"dir": up, "spread": 35.0, "v": Vector2(0.2, 0.9), "life_mul": 1.15}, wait + 0.22, 0.6)
+		"dir": up, "spread": 35.0, "v": Vector2(0.2, 0.9), "life_mul": linger}, wait + 0.22, 0.6)
 	if after.size() > 1:
 		_emit(pool, owner, String(after[1]), at + up * 0.7, look, 20, {"shape": "sphere", "radius": maxf(0.5, reach * 0.8), "dir": up, "spread": 70.0,
 			"v": Vector2(0.3, 1.2), "life_mul": 1.3}, wait + 0.3, 0.7)
@@ -601,6 +603,9 @@ static func _ramp(kind: String, look: Dictionary) -> Gradient:
 	var hot: Color = look.hot
 	var mid: Color = look.mid
 	var dark: Color = look.dark
+	# A ClassFlourish.TINTED skill (the venom, the Lord's Summon): its smoke and dust
+	# keep the skill's own colours instead of a pale grey-beige haze on the victim.
+	var tint := String(look.key).begins_with("tint_")
 	var g := Gradient.new()
 	var offsets := PackedFloat32Array()
 	var colors := PackedColorArray()
@@ -615,7 +620,7 @@ static func _ramp(kind: String, look: Dictionary) -> Gradient:
 			offsets = PackedFloat32Array([0.0, 0.15, 0.6, 1.0])
 			colors = PackedColorArray([Color(mid, 0.0), Color(hot, 0.8), Color(mid, 0.55), Color(mid, 0.0)])
 		"smoke":
-			var base := Color(0.5, 0.47, 0.46).lerp(dark, 0.25)
+			var base := Color(0.5, 0.47, 0.46).lerp(dark, 0.25) if not tint else dark.lerp(mid, 0.3)
 			offsets = PackedFloat32Array([0.0, 0.15, 0.6, 1.0])
 			colors = PackedColorArray([Color(mid.lerp(base, 0.4), 0.0), Color(mid.lerp(base, 0.7), 0.5), Color(base, 0.32), Color(base, 0.0)])
 		"mist":
@@ -623,7 +628,7 @@ static func _ramp(kind: String, look: Dictionary) -> Gradient:
 			offsets = PackedFloat32Array([0.0, 0.2, 0.7, 1.0])
 			colors = PackedColorArray([Color(pale, 0.0), Color(pale, 0.34), Color(pale, 0.2), Color(pale, 0.0)])
 		"dust":
-			var soil := Color("a8957a").lerp(dark, 0.18)
+			var soil := Color("a8957a").lerp(dark, 0.18) if not tint else dark.lerp(mid, 0.35)
 			offsets = PackedFloat32Array([0.0, 0.12, 0.55, 1.0])
 			colors = PackedColorArray([Color(soil, 0.0), Color(soil, 0.42), Color(soil.darkened(0.1), 0.24), Color(soil, 0.0)])
 		"debris":

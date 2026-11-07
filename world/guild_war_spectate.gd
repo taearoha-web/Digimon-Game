@@ -12,7 +12,7 @@ extends Node
 ## "league_match" ([guild_a, guild_b], league ids or names) and "slot_start" (unix seconds);
 ## optional "ally_color" / "enemy_color". leave() goes back where the hero was, the same
 ## trip as leaving a war (Main.go). The end of a watched war pays nothing: its result goes
-## to report() (GuildLeague.spectated_result when the league has it) and the board.
+## to report() (GuildLeague.spectated_result) and the board.
 ##
 ## The camera follows the action by itself (the altar while someone takes it, else the
 ## thickest fight) or one focus (the castle, side A, side B: the focus button cycles);
@@ -145,17 +145,16 @@ static func leave(tree: SceneTree) -> void:
 			(z as Zone).camera_rig.snap_to_target()
 
 
-## The watched war ended: kept in last_result and handed to the league's hook
-## (GuildLeague.spectated_result(match_info, result)) only when it has one.
+## The watched war ended: kept in last_result and handed to the league
+## (GuildLeague.spectated_result: the round's live result in the table), or to
+## league_hook instead in tests.
 static func report(match_info: Dictionary, result: Dictionary) -> void:
 	last_result = result
 	if league_hook != null:
 		if league_hook.has_method("spectated_result"):
 			league_hook.call("spectated_result", match_info, result)
 		return
-	if script_has(GuildLeague, "spectated_result"):
-		var league: Script = GuildLeague
-		league.call("spectated_result", match_info, result)
+	GuildLeague.spectated_result(match_info, result)
 
 
 ## True when `script` (a class_name's script) declares `method` (static or not): the
@@ -177,13 +176,18 @@ static func _league(method: String, args: Array = []) -> Variant:
 	return league.callv(method, args)
 
 
-## A side's colour: the match_info's own ("ally_color" / "enemy_color"), else the league
+## A side's colour: the match_info's own ("ally_color" / "enemy_color"), else its league guild's
+## (ally_guild / enemy_guild), else the league
 ## guild's (league_match ids or names, else the side's name), else blue / red.
 static func side_color(info: Dictionary, team: int) -> Color:
 	var key := "ally_color" if team == GuildFighter.TEAM_ALLY else "enemy_color"
 	if info.get(key) is Color:
 		return info[key]
 	var wanted: Array = []
+	# The league guild of the side (GuildLeague.live_match_info: ally_guild / enemy_guild).
+	var gid := int(info.get("ally_guild" if team == GuildFighter.TEAM_ALLY else "enemy_guild", 0))
+	if gid > 0:
+		wanted.append(gid)
 	var pair: Variant = info.get("league_match", [])
 	if pair is Array and (pair as Array).size() == 2:
 		wanted.append(pair[team])

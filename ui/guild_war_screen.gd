@@ -1,8 +1,11 @@
 class_name GuildWarScreen
 extends CanvasLayer
-## The guild-war desk in the village (rules, your record, "go to war"), the party screen
-## before a new war (pick up to four guild mates into the hero's party of five) and the
-## scoreboard shown when a war ends.
+## The guild-war desk in the village: the league's schedule (today's three rounds, a
+## countdown, registration for the next round with the hero's place in its guild,
+## "เข้าสู่สงคราม" for the registered hero in the line-up while its round is on and
+## "ชมการแข่งขัน" for every war being fought), practice wars of hired guilds (no league
+## points), the rules and your record; the party screen before a war (pick up to four of
+## the line-up into the hero's party of five) and the scoreboard shown when a war ends.
 
 signal enter_requested()
 signal go_home_requested()
@@ -20,6 +23,8 @@ var _slots: Array[Dictionary] = []
 var _rows: Dictionary = {}
 var _party_count: Label
 var _party_note: Label
+## The schedule card's countdown, ticking while the desk is open.
+var _countdown: Label
 
 
 func _ready() -> void:
@@ -74,6 +79,7 @@ func close_screen() -> void:
 	candidates.clear()
 	_party_count = null
 	_party_note = null
+	_countdown = null
 	get_tree().paused = false
 
 
@@ -95,26 +101,28 @@ func _fill() -> VBoxContainer:
 
 func _build_lobby() -> void:
 	_clear()
+	_countdown = null
+	# Back at the desk: no league war is on its way (enter_league sets one again).
+	Game.guildwar_league = {}
 	var column := _fill()
 	var head := UIUtil.hbox(14)
 	column.add_child(head)
-	var title := UIUtil.label("สงครามกิลด์ — ชิงปราสาท", &"HeaderLabel")
+	var title := UIUtil.label("สงครามกิลด์ — ลีก 4 กิลด์ ชิงปราสาท", &"HeaderLabel")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	var close := UIUtil.button("ปิด", &"", Vector2(120, 54))
 	close.pressed.connect(close_screen)
 	head.add_child(close)
 	# The way in sits right under the title, full width, so it is always on screen
-	# (on a phone the rules below scroll); a blocked button says what is missing.
+	# (on a phone the rest scrolls); a blocked button says what is missing.
 	var mine := Game.guild()
 	var t := WorldPresence.clock()
-	var no_rival := GuildWarData.guild_war_blocked(mine, t) if mine > 0 else ""
-	var blocked := int(Game.profile.level) < MIN_LEVEL or mine == 0 or no_rival != ""
+	var low := int(Game.profile.level) < MIN_LEVEL
 	var saved := Game.guildwar_checkpoint()
 	var actions := UIUtil.hbox(12)
 	actions.name = "WarActions"
 	column.add_child(actions)
-	if not saved.is_empty() and not blocked:
+	if not saved.is_empty() and not low:
 		var left_sec := int(saved.time_left)
 		var rejoin := Game.guildwar_rejoin_left()
 		var again := UIUtil.button("ต่อสงครามเดิม · %d : %d · เหลือ %d:%02d\n(กลับเข้าได้อีก %d นาที)" % [saved.us, saved.them, left_sec / 60, left_sec % 60, maxi(1, int(ceil(rejoin / 60.0)))], &"PrimaryButton", Vector2(0, 84))
@@ -122,40 +130,54 @@ func _build_lobby() -> void:
 		again.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		again.pressed.connect(func():
 			Game.guildwar_resuming = true
+			Game.guildwar_league = {}
 			close_screen()
 			enter_requested.emit())
 		actions.add_child(again)
-	var go := UIUtil.button("เริ่มสงครามใหม่!" if not saved.is_empty() else "เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 84))
+	# The league war on now: only for the registered hero who made its guild's line-up.
+	var problem := GuildLeague.enter_problem(t)
+	var go := UIUtil.button("เข้าสู่สงคราม!", &"PrimaryButton", Vector2(0, 84))
 	go.name = "EnterWar"
 	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	go.disabled = blocked
-	if blocked:
-		go.text = "ต้องเลเวล %d ขึ้นไป (ตอนนี้ %d)" % [MIN_LEVEL, int(Game.profile.level)] if int(Game.profile.level) < MIN_LEVEL else ("เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน" if mine == 0 else "ยังไม่มีคู่สงคราม: " + no_rival)
+	go.disabled = low or problem != ""
+	if low:
+		go.text = "ต้องเลเวล %d ขึ้นไป (ตอนนี้ %d)" % [MIN_LEVEL, int(Game.profile.level)]
+	elif problem != "":
+		go.text = problem
 	else:
-		go.add_theme_font_size_override("font_size", 30)
+		var at := GuildLeague.live_slot(t)
+		go.text = "เข้าสู่สงคราม! รอบ %s · %s ปะทะ %s" % [GuildLeague.clock_text(at), WorldPlayers.guild_name(mine), WorldPlayers.guild_name(GuildLeague.opponent(mine, at))]
+		go.add_theme_font_size_override("font_size", 28)
 		_pulse(go)
-	go.pressed.connect(func():
-		Game.guildwar_resuming = false
-		open_party())
+	go.pressed.connect(enter_league)
 	actions.add_child(go)
+	var practice := UIUtil.button("ซ้อมรบกับกิลด์รับจ้าง\n(ไม่นับคะแนนลีก)", &"", Vector2(250, 84))
+	practice.name = "PracticeWar"
+	practice.disabled = low
+	practice.pressed.connect(enter_practice)
+	actions.add_child(practice)
 	var row := UIUtil.hbox(18)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(row)
 	var left_scroll := TouchScroll.new()
-	left_scroll.custom_minimum_size = Vector2(420, 0)
+	left_scroll.custom_minimum_size = Vector2(470, 0)
 	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	row.add_child(left_scroll)
 	var left := UIUtil.vbox(8)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_scroll.add_child(left)
+	_schedule_panel(left, t)
 	_last_war(left)
-	var rules := UIUtil.label("• ชิงปราสาท Alpha ปะทะ Neverdie: ทุกคนในกิลด์ที่เลเวล 100 ขึ้นไปลงสนามทั้งหมด คุณกับสมาชิกกิลด์ทุกคน สู้กับสมาชิกอีกกิลด์ทุกคน เวลา %d นาที\n• หลุดกลางสงคราม (แอปปิด เน็ตหลุด) กลับเข้ามาต่อได้ภายใน %d นาที ที่ปุ่มต่อสงครามเดิม\n• AI ของทั้งสองกิลด์วางแผนเองตามสถานการณ์: บุกประตู ตั้งรับหัวสะพาน ถอยรวมพล บุกห้องบัลลังก์ แบ่งทีมขวางทาง หรือล้อมแท่นตั้งรับ (แผนขึ้นในแถบข่าว)\n• สมาชิกกิลด์คือผู้เล่นที่ถึงเลเวล 100 แล้ว ทุกคนลงสนามด้วยเลเวล ดาว แต้มสถานะ และชุดที่เก็บได้จริงของตัวเอง\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ปะทะกันที่ลานกลาง ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ยึดแท่นได้เฉพาะหัวหน้ากิลด์ (กิลด์เรา: %s) ยืนในวงสีเหลืองบนแท่นแล้วกดยึดให้ครบ %d วินาที ออกนอกวงหยุดนับไว้ กลับเข้าวงนับต่อ ถ้าหัวหน้าล้มหรือออกจากห้องบัลลังก์ต้องนับใหม่\n• แตะที่ตัวศัตรูเพื่อเลือกเป้าโจมตี\n• กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายของตัวเองใน %d วินาที แล้วเดินกลับขึ้นไปใหม่ (ค่ายฟื้นเลือดเร็ว)\n• ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ได้ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 10,000,000 + เพชรชมพู 10 เม็ด + ขนนก 2 ขน + EXP · แพ้ เหรียญ 500,000" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, _our_leader_text(mine), int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
+	var rules := UIUtil.label("• ลีกมี 4 กิลด์: Alpha · Neverdie · Titan · 3DLnw สงครามเปิดตามเวลาจริง วันละ 3 รอบ %s (เวลาไทย) รอบละ %d นาที แต่ละรอบสู้พร้อมกัน 2 คู่ ครบ 3 รอบได้เจอกันครบทุกคู่ แต้มรวมเป็นตารางรายสัปดาห์\n• แต่ละกิลด์ส่งสมาชิกที่เก่งที่สุด %d คน (เลเวล ดาว ชุดเทพและการตีบวก) ลงด้วยตัวละครจริงของแต่ละคน\n• สมัครรอบถัดไปได้จนถึง %d นาทีก่อนเริ่ม ถ้าอันดับในกิลด์ติด %d อันดับได้ลงสนามเป็นตัวจริง ไม่ติดก็กดชมการแข่งขันได้ เลือกเพื่อนเข้าปาร์ตี้ได้เฉพาะคนที่ติดตัวจริง\n• ไม่สมัครหรือมาไม่ทัน สงครามก็เริ่มตรงเวลา แพ้ชนะตามกำลังจริงของสองกิลด์ (ผลเหมือนกันทุกเครื่อง) — มาสายแต่สมัครไว้ยังเข้าได้จนจบรอบ\n• หลุดกลางสงคราม (แอปปิด เน็ตหลุด) กลับเข้ามาต่อได้ภายใน %d นาที ที่ปุ่มต่อสงครามเดิม\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ยึดแท่นได้เฉพาะหัวหน้ากิลด์ (กิลด์เรา: %s) ยืนในวงสีเหลืองบนแท่นให้ครบ %d วินาที กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายใน %d วินาที · ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 10,000,000 + เพชรชมพู 10 เม็ด + ขนนก 2 ขน + EXP · แพ้ เหรียญ 500,000 · ซ้อมรบกับกิลด์รับจ้างได้รางวัลเหมือนกันแต่ไม่นับคะแนนลีก" % [
+		_slot_list(), int(GuildWarData.DURATION / 60.0), GuildWarData.GUILD_SIDE, GuildLeague.REGISTER_CLOSE / 60, GuildWarData.GUILD_SIDE, Game.GW_CKPT_LIFETIME / 60,
+		_our_leader_text(mine), int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(rules)
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
-	right.add_child(UIUtil.label("สมาชิกสองกิลด์ (เลเวล 100 ขึ้นไป)" if mine == 0 else "กิลด์ของคุณ: %s" % WorldPlayers.guild_name(mine), &"SubHeaderLabel"))
+	var rival := GuildLeague.next_rival(mine, t)
+	right.add_child(UIUtil.label("สมาชิก 4 กิลด์ (เลเวล 100 ขึ้นไป)" if mine == 0 else "กิลด์ของคุณ: %s · คู่ต่อไป: %s" % [WorldPlayers.guild_name(mine), WorldPlayers.guild_name(rival)], &"SubHeaderLabel"))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -163,15 +185,21 @@ func _build_lobby() -> void:
 	var list := UIUtil.vbox(4)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	for g in ([mine, WorldPlayers.other_guild(mine)] if mine > 0 else [WorldPlayers.ALPHA, WorldPlayers.NEVERDIE]):
+	var shown: Array[int] = WorldPlayers.GUILDS.duplicate()
+	if mine > 0:
+		shown = [mine]
+		if rival > 0:
+			shown.append(rival)
+	for g in shown:
 		var in_guild := WorldPlayers.members_at(g, t)
-		var head_label := UIUtil.label("กิลด์ %s%s · สมาชิก %d คน" % [WorldPlayers.guild_name(g), " (ฝั่งเรา)" if g == mine else (" (คู่แข่ง)" if mine > 0 else ""), in_guild.size()], &"BoldLabel")
+		var side := GuildWarData.best_members(g, t, GuildWarData.GUILD_SIDE)
+		var head_label := UIUtil.label("กิลด์ %s%s · สมาชิก %d คน · ตัวจริง %d คน" % [WorldPlayers.guild_name(g), " (ฝั่งเรา)" if g == mine else (" (คู่ต่อไป)" if mine > 0 else ""), in_guild.size(), side.size()], &"BoldLabel")
 		head_label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS[g])
 		list.add_child(head_label)
 		if in_guild.is_empty():
 			list.add_child(UIUtil.label("ยังไม่มีใครถึงเลเวล %d" % Game.GUILD_LEVEL, &"SmallLabel"))
 		var people: Array[Dictionary] = []
-		for i in in_guild:
+		for i in side:
 			people.append(WorldPlayers.state(i, t))
 		GuildScreen.sort_members(people, GuildScreen.sort_by)
 		for s in people:
@@ -184,6 +212,175 @@ func _build_lobby() -> void:
 				level_label.add_theme_color_override("font_color", Color("ffd84a"))
 			row_line.add_child(level_label)
 			list.add_child(row_line)
+
+
+## "12:00 · 18:00 · 21:30".
+static func _slot_list() -> String:
+	var parts: PackedStringArray = []
+	for s in GuildLeague.SLOTS:
+		parts.append("%02d:%02d" % [s / 3600, (s % 3600) / 60])
+	return " · ".join(parts)
+
+
+## The league's schedule card: the countdown to the next round, registration for it (the
+## hero's place in its guild: in the line-up or not), and today's rounds with each war's
+## state, "ชมการแข่งขัน" on the wars being fought.
+func _schedule_panel(box: VBoxContainer, t: float) -> void:
+	var panel := UIUtil.panel(&"CardPanel")
+	panel.name = "LeagueSchedule"
+	box.add_child(panel)
+	var col := UIUtil.vbox(6)
+	panel.add_child(col)
+	col.add_child(UIUtil.label("ตารางสงครามกิลด์วันนี้ (เวลาไทย)", &"SubHeaderLabel"))
+	_countdown = UIUtil.label(_countdown_text(t), &"BoldLabel")
+	_countdown.name = "LeagueCountdown"
+	_countdown.add_theme_color_override("font_color", Color("ffd84a"))
+	_countdown.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(_countdown)
+	var mine := Game.guild()
+	var next := GuildLeague.next_slot(t)
+	# Registration for the next round.
+	var reg_line := UIUtil.hbox(8)
+	col.add_child(reg_line)
+	var reg_text := ""
+	if mine > 0:
+		var place := GuildLeague.hero_place(next)
+		reg_text = "รอบ %s: %s ปะทะ %s · อันดับในกิลด์ #%d — %s" % [GuildLeague.clock_text(next), WorldPlayers.guild_name(mine),
+			WorldPlayers.guild_name(GuildLeague.opponent(mine, next)), place,
+			"ติดตัวจริง" if place > 0 and place <= GuildWarData.GUILD_SIDE else "ไม่ติด %d อันดับ (ชมการแข่งขันได้)" % GuildWarData.GUILD_SIDE]
+	else:
+		reg_text = "เข้ากิลด์ก่อนจึงสมัครลงสงครามได้"
+	var reg_label := UIUtil.label(reg_text, &"SmallLabel")
+	reg_label.name = "LeagueRank"
+	reg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reg_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reg_line.add_child(reg_label)
+	var reg := UIUtil.button("", &"AccentButton", Vector2(200, 58))
+	reg.name = "LeagueRegister"
+	var reg_problem := GuildLeague.register_problem(next, t)
+	if GuildLeague.registered(next):
+		reg.text = "สมัครแล้ว ✓\n(แตะเพื่อยกเลิก)" if reg_problem == "" else "สมัครแล้ว ✓"
+		reg.disabled = reg_problem != ""
+		reg.pressed.connect(func():
+			var result := GuildLeague.unregister()
+			Game.say("ยกเลิกการสมัครรอบ %s แล้ว" % GuildLeague.clock_text(next) if result == "ok" else result, &"info" if result == "ok" else &"warning")
+			_build_lobby())
+	else:
+		reg.text = "สมัครรอบ %s" % GuildLeague.clock_text(next) if reg_problem == "" else reg_problem
+		reg.disabled = reg_problem != ""
+		reg.pressed.connect(func():
+			var result := GuildLeague.register()
+			if result == "ok":
+				AudioManager.play_ui(&"ui_open")
+				Game.say("สมัครสงครามกิลด์รอบ %s แล้ว — เริ่มเมื่อไหร่จะแจ้งเตือน" % GuildLeague.clock_text(next), &"success")
+			else:
+				Game.say(result, &"warning")
+			_build_lobby())
+	reg_line.add_child(reg)
+	# Today's rounds (and the one on now, which may have begun yesterday night).
+	var day := WorldEvents.day_of(t)
+	for r in GuildLeague.rounds_on(day):
+		var at := int(r.at)
+		col.add_child(UIUtil.label("รอบ %s%s" % [GuildLeague.clock_text(at), " · กำลังรบ" if GuildLeague.live_slot(t) == at else ""], &"BoldLabel"))
+		for p in r.pairs:
+			col.add_child(_match_row(at, int(p[0]), int(p[1]), t))
+
+
+## One war of a round: the two guilds, its state or result, and "ชมการแข่งขัน" while it is fought.
+func _match_row(at: int, a: int, b: int, t: float) -> Control:
+	var line := UIUtil.hbox(8)
+	line.name = "Match_%d_%d_%d" % [at, a, b]
+	var mine := Game.guild()
+	var state := GuildLeague.match_state(at, a, b, t)
+	var text := "%s ปะทะ %s" % [WorldPlayers.guild_name(a), WorldPlayers.guild_name(b)]
+	match String(state.state):
+		"wait":
+			text += " · รอเริ่ม"
+		"live":
+			text += " · กำลังรบ เหลือ %d นาที" % maxi(1, int(ceil((float(at) + GuildWarData.DURATION - t) / 60.0)))
+		"done":
+			var war: Dictionary = state.war
+			if war.is_empty():
+				text += " · ไม่มีการแข่ง (สมาชิกยังไม่ถึงเลเวล %d)" % Game.GUILD_LEVEL
+			else:
+				text += " · %s ชนะ%s%s" % [WorldPlayers.guild_name(int(war.win)), " (ครองปราสาท)" if int(war.held) > 0 else "", " · คุณลงสนาม" if bool(state.get("real", false)) else ""]
+	var label := UIUtil.label(text, &"BoldLabel" if a == mine or b == mine else &"SmallLabel")
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if a == mine or b == mine:
+		label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS.get(mine, Color.WHITE))
+	line.add_child(label)
+	if String(state.state) == "live":
+		var watch_btn := UIUtil.button("ชมการแข่งขัน", &"AccentButton", Vector2(170, 52))
+		watch_btn.name = "Watch_%d_%d" % [a, b]
+		watch_btn.pressed.connect(func(): watch(a, b))
+		line.add_child(watch_btn)
+	return line
+
+
+## "ตอนนี้ 17:42 · รอบ 18:00 เริ่มใน 18 นาที (ปิดรับสมัครใน 13 นาที)".
+static func _countdown_text(t: float) -> String:
+	var now_text := GuildLeague.clock_text(int(t))
+	var live := GuildLeague.live_slot(t)
+	var next := GuildLeague.next_slot(t)
+	var left := int(float(next) - t)
+	var out := "ตอนนี้ %s · " % now_text
+	if live >= 0:
+		var end_left := int(float(live) + GuildWarData.DURATION - t)
+		out += "รอบ %s กำลังรบ เหลือ %d:%02d · " % [GuildLeague.clock_text(live), end_left / 60, end_left % 60]
+	out += "รอบถัดไป %s เริ่มใน %d ชม. %02d นาที %02d วิ" % [GuildLeague.clock_text(next), left / 3600, (left % 3600) / 60, left % 60]
+	var close_left := left - GuildLeague.REGISTER_CLOSE
+	out += " (ปิดรับสมัครใน %d นาที)" % maxi(1, int(ceil(close_left / 60.0))) if close_left > 0 else " (ปิดรับสมัครแล้ว)"
+	return out
+
+
+func _process(_delta: float) -> void:
+	if _countdown != null and is_instance_valid(_countdown) and _root.visible:
+		_countdown.text = _countdown_text(WorldPresence.clock())
+
+
+## "เข้าสู่สงคราม": the league war on now, through the party screen (its picks come from
+## the line-up only).
+func enter_league() -> void:
+	var m := GuildLeague.enter_match()
+	if m.is_empty():
+		Game.say(GuildLeague.enter_problem(), &"warning")
+		return
+	Game.guildwar_league = m
+	Game.guildwar_resuming = false
+	open_party()
+
+
+## "ซ้อมรบ": a war of hired guilds that counts nothing in the league.
+func enter_practice() -> void:
+	if int(Game.profile.level) < MIN_LEVEL:
+		return
+	Game.guildwar_league = {}
+	Game.guildwar_resuming = false
+	Game.guildwar_party_chosen = false
+	Game.say("ซ้อมรบกับกิลด์รับจ้าง — ไม่นับคะแนนลีก", &"info")
+	close_screen()
+	enter_requested.emit()
+
+
+const SPECTATE_PATH := "res://world/guild_war_spectate.gd"
+
+
+## "ชมการแข่งขัน": watches war a vs b of the round on now (GuildWarSpectate, when the
+## game has it).
+func watch(a: int, b: int) -> void:
+	var info := GuildLeague.live_match_info(a, b)
+	if info.is_empty():
+		Game.say("ไม่มีการแข่งขันให้ชมตอนนี้", &"warning")
+		return
+	if not ResourceLoader.exists(SPECTATE_PATH):
+		Game.say("โหมดชมการแข่งขันยังไม่เปิดให้ใช้", &"warning")
+		return
+	var script: Script = load(SPECTATE_PATH)
+	if script == null:
+		return
+	close_screen()
+	script.call("spectate", get_tree(), info)
 
 
 func _build_result(result: Dictionary) -> void:
@@ -231,10 +428,11 @@ func _build_result(result: Dictionary) -> void:
 	var buttons := UIUtil.hbox(16)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(buttons)
-	var again := UIUtil.button("รบอีกครั้ง", &"PrimaryButton", Vector2(320, 76))
+	var again := UIUtil.button("กลับห้องสงครามกิลด์", &"PrimaryButton", Vector2(320, 76))
+	again.name = "BackToDesk"
 	again.pressed.connect(func():
 		Game.guildwar_resuming = false
-		open_party())
+		_build_lobby())
 	buttons.add_child(again)
 	var home := UIUtil.button("กลับเมือง", &"", Vector2(260, 76))
 	home.pressed.connect(func():
@@ -251,13 +449,14 @@ const PARTY_SIZE := GuildWarMatch.PARTY_SIZE
 const PICK_COLOR := GuildWarMatch.PARTY_COLOR
 
 
-## Our guild mates at Lv.100 who will fight in the next war: online first, then the
-## strongest (as the war lines them up).
+## Our guild mates who fight beside the hero in the league war of the round starting at
+## t: the line-up (GuildWarData.side_ids, the hero counted), class by class, strongest
+## first. The hero's picks come from these only (a pick never bypasses the line-up).
 static func war_mates(guild: int, t: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if guild <= 0:
 		return out
-	for i in WorldPlayers.members_at(guild, t):
+	for i in GuildWarData.side_ids(guild, t, GuildWarData.hero_rank_point()).ids:
 		var st := WorldPlayers.state(i, t)
 		out.append({"name": String(st.name), "class": StringName(st["class"]), "level_text": WorldPlayers.level_text(st), "online": bool(st.online),
 			"level": int(st.level), "stars": int(st.stars), "rank": int(st.level) * 1000 + int(st.stars)})
@@ -271,7 +470,8 @@ func open_party() -> void:
 	is_open = true
 	get_tree().paused = true
 	_root.visible = true
-	candidates = war_mates(Game.guild(), WorldPresence.clock())
+	var league: Dictionary = Game.guildwar_league
+	candidates = war_mates(Game.guild(), float(league.at)) if not league.is_empty() else ([] as Array[Dictionary])
 	picks = PackedStringArray()
 	for name in Game.guildwar_party_picks:
 		if picks.size() < PARTY_SIZE - 1 and candidates.any(func(c): return String(c.name) == name):

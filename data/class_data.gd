@@ -686,12 +686,12 @@ static func _build_pools() -> void:
 		_sk(p, "judgement_light", "Judgement", "แสงพิพากษาผ่าลงใส่ศัตรูตัวเดียว", 68, 80, 12.0, "single", 10.0, {"projectile": false, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
 		_sk(p, "hand_of_god", "Hand of God", "มือพระเจ้า ฟื้นฟู HP 90%", 72, 96, 24.0, "self", 0.0, {"fx": {"heal": 0.9}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
 		_sk(p, "heaven_light", "Heaven Light", "แสงสวรรค์ถล่มรอบตัว ฟื้นฟู HP 15%", 76, 100, 14.0, "burst", 10.5, {"radius": 8.0, "fx": {"heal": 0.15}, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
-		_sk(p, "divine_judgment", "Divine Judgment", "คำพิพากษาแห่งสวรรค์ผ่าลงศัตรูตัวเดียว มึนงง 1.5 วินาที", 80, 110, 16.0, "single", 15.0, {"projectile": false, "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
+		_sk(p, "divine_judgment", "Divine Judgment", "คำพิพากษาแห่งสวรรค์ผ่าลงศัตรูตัวเดียว มึนงง 1.5 วินาที", 80, 110, 16.0, "single", 15.0, {"projectile": false, "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("ffe08a"), "icon": "nova"}),
 		_sk(p, "prayer", "Prayer", "สวดมนต์ ฟื้นฟู HP 100% และ DEF +50% นาน 1 นาที", 84, 120, 50.0, "self", 0.0, {"fx": {"heal": 1.0, "buff": {"def": 0.5, "secs": 60.0}}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("d8ffe0"), "icon": "heal"}),
 		_sk(p, "seraphim_wrath", "Seraphim Wrath", "ลูกแสงเสราฟิม 9 ลูกพุ่งใส่ศัตรู", 88, 118, 14.0, "fan", 5.5, {"hits": 9, "color": Color("fff0a0"), "icon": "triple"}),
 		_sk(p, "holy_rain_big", "Holy Rain", "ฝนแสงศักดิ์สิทธิ์ถล่มพื้นที่กว้างมาก", 92, 130, 18.0, "blast", 16.0, {"radius": 10.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
 		_sk(p, "miracle", "Miracle", "ปาฏิหาริย์ ATK +80% DEF +60% ฟื้นฟู HP 50% นาน 1 นาที", 96, 140, 55.0, "self", 0.0, {"fx": {"heal": 0.5, "buff": {"atk": 0.8, "def": 0.6, "secs": 60.0}}, "vfx": &"aura", "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),
-		_sk(p, "last_judgement", "Last Judgement", "การพิพากษาครั้งสุดท้ายถล่มพื้นที่ ศัตรูมึนงง 2 วินาที", 100, 180, 24.0, "blast", 24.0, {"radius": 12.0, "fx": {"stun": 2.0}, "vfx": &"light", "color": Color("ffffff"), "icon": "nova"}),
+		_sk(p, "last_judgement", "Last Judgement", "การพิพากษาครั้งสุดท้ายถล่มพื้นที่ ศัตรูมึนงง 2 วินาที", 100, 180, 24.0, "blast", 24.0, {"radius": 12.0, "fx": {"stun": 2.0}, "vfx": &"light", "color": Color("ffd36b"), "icon": "nova"}),
 	]
 	var s := &"summoner"
 	var sm := func(id: String, name: String, desc: String, level: int, mp: int, cd: float, mult: float, kind: String, count: int, interval: float, color: Color, extra := {}) -> Dictionary:

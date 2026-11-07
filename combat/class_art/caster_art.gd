@@ -45,6 +45,8 @@ const HOLY := [Color("ffb21f"), Color("fffbe6"), Color("4a2a08")]
 ## God rays: a warm, low-saturation sunbeam (additive gold over a meadow reads lime).
 const HOLY_BOLT := [Color("ffa83a"), Color("ffffff"), Color("4a2a08")]
 const SUN := [Color("ff9a3a"), Color("fff4dc"), Color("4a2a08")]
+## The judgement columns of the big priest areas: gold through to a warm core, never cream.
+const JUDGEMENT := [Color("f0a028"), Color("ffcf5a"), Color("4a2408")]
 const HEAL := [Color("3fe08a"), Color("f0fff4"), Color("06301e")]
 const DUST := [Color("e0c8a0"), Color("fff0d0"), Color("8a7458")]
 const NATURE := [Color("5ad04a"), Color("f4ffd0"), Color("0e3410")]
@@ -376,9 +378,11 @@ func _heal(c: Array, at: Vector3, r: float, n: int, start: float, seconds := 1.4
 
 
 ## A pillar of judgement light with a dust halo blown out at its foot.
-func _pillar(c: Array, at: Vector3, r: float, start: float, seconds := 0.9, height := 8.0) -> void:
-	layer("pillar", true, c, at, Vector3(r, height, r), Vector3.ZERO, start, seconds, {"initial": 0.15, "grow": 6.0, "overshoot": true, "spin": 1.2, "fade_in": 0.02, "decay": 0.45, "opacity": 0.32})
-	layer("dust", false, DUST, at, Vector3(r * 1.7, 0.8, r * 1.7), Vector3.ZERO, start + 0.03, 1.2, {"initial": 0.4, "grow": 3.0, "travel": Vector3(0, 0.25, 0), "spin": 0.3, "fade_in": 0.04, "decay": 0.45, "opacity": 0.65, "tier": TIER_MID})
+## [param dusty] false: no pale dust halo (the elite judgements, whose ground is busy enough).
+func _pillar(c: Array, at: Vector3, r: float, start: float, seconds := 0.9, height := 8.0, dusty := true) -> void:
+	layer("pillar", true, c, at, Vector3(r, height, r), Vector3.ZERO, start, seconds, {"initial": 0.15, "grow": 6.0, "overshoot": true, "spin": 1.2, "fade_in": 0.02, "decay": 0.45, "opacity": 0.32 if dusty else 0.26})
+	if dusty:
+		layer("dust", false, DUST, at, Vector3(r * 1.7, 0.8, r * 1.7), Vector3.ZERO, start + 0.03, 1.2, {"initial": 0.4, "grow": 3.0, "travel": Vector3(0, 0.25, 0), "spin": 0.3, "fade_in": 0.04, "decay": 0.45, "opacity": 0.65, "tier": TIER_MID})
 	layer("bloom", true, c, at + Vector3.UP * 0.04, Vector3.ONE * r * 1.6, Vector3.ZERO, start, 0.7, {"initial": 0.3, "grow": 5.0, "decay": 0.45, "opacity": 0.6, "tier": TIER_DEBRIS})
 
 
@@ -599,11 +603,17 @@ func _release(skill: Dictionary, caster: Vector3, r: float, d: float) -> void:
 					_feathers(HOLY, Vector3.ZERO, 1.2, 2 + mini(hits, 6) / 2, d, 2.6)
 				_:
 					# Area judgements: pillars round the area under god rays, feathers drifting after.
-					var n := count(2 + tier / 2)
+					# The elite judgements (their own columns of light, EliteSkillArt) keep these
+					# few, slim, gold and brief so the area never turns into a cream wall.
+					var grand := id in ["last_judgement", "divine_judgment"]
+					var n := count(2 + tier / (4 if grand else 2))
 					for k in n:
 						var a := float(k) * 2.39996
 						var spot := Vector3(sin(a), 0, cos(a)) * r * 0.55 * sqrt(float(k) / float(maxi(n, 1)))
-						_pillar(HOLY, spot, 0.8 + 0.1 * float(tier), d + 0.08 * float(k), 0.8, 7.0)
+						if grand:
+							_pillar(JUDGEMENT, spot, 0.55 + 0.05 * float(tier), d + 0.1 * float(k), 0.6, 6.0, false)
+						else:
+							_pillar(HOLY, spot, 0.8 + 0.1 * float(tier), d + 0.08 * float(k), 0.8, 7.0)
 					_rays(HOLY, Vector3.ZERO, r, 2, d, 1.3, 9.0)
 					_feathers(HOLY, Vector3.ZERO, r * 0.8, 3 + tier, d + 0.2, 3.4)
 		"bloom":

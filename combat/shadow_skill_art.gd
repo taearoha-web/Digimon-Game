@@ -20,6 +20,9 @@ const NIGHT := [Color("9a6bff"), Color("f3eaff"), Color("140a26")]
 const BLOOD := [Color("ff3a6e"), Color("ffe3ec"), Color("26050f")]
 ## Sickly green with a violet core (no white-hot core: it washed the poison mist out).
 const VENOM := [Color("74cc4c"), Color("a874d8"), Color("140a1e")]
+## The venom's second blade: violet with a green-hot core. Its cuts are additive, so the
+## near-white cores of NIGHT and BLOOD read as a pale glow on the victim; this one stays tinted.
+const VENOM_DUSK := [Color("7a44c8"), Color("8ed25a"), Color("140a1e")]
 const VOID := [Color("6a5cff"), Color("e8e4ff"), Color("07051a")]
 const CONTACT_GAP_MS := 90
 static var _meshes: Dictionary = {}
@@ -136,8 +139,9 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	var art := _root(parent, at, "ShadowArt_Hit_" + id)
 	art.cap = mini(art.cap, 3)
 	var tilt := randf_range(-0.4, 0.4)
-	art.layer("crescent", true, c, Vector3.ZERO, Vector3.ONE * 0.85, Vector3(0, randf() * TAU, 0.9 + tilt), 0.0, 0.32, {"initial": 0.4, "roll": -6.0, "face_camera": true})
-	art.layer("crescent", true, BLOOD if c != BLOOD else NIGHT, Vector3.ZERO, Vector3.ONE * 0.85, Vector3(0, randf() * TAU, -0.9 + tilt), 0.03, 0.32, {"initial": 0.4, "roll": 6.0, "face_camera": true})
+	var cut := 0.24 if c == VENOM else 0.32
+	art.layer("crescent", true, c, Vector3.ZERO, Vector3.ONE * 0.85, Vector3(0, randf() * TAU, 0.9 + tilt), 0.0, cut, {"initial": 0.4, "roll": -6.0, "face_camera": true})
+	art.layer("crescent", true, VENOM_DUSK if c == VENOM else BLOOD if c != BLOOD else NIGHT, Vector3.ZERO, Vector3.ONE * 0.85, Vector3(0, randf() * TAU, -0.9 + tilt), 0.03, cut, {"initial": 0.4, "roll": 6.0, "face_camera": true})
 	if int(skill.get("level", 1)) >= 60:
 		art.layer("rift", false, c, Vector3(0, -0.95, 0), Vector3.ONE * 0.8, Vector3(0, randf() * TAU, 0), 0.02, 0.6, {"initial": 0.3, "opacity": 0.8})
 
@@ -159,9 +163,9 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 # Compositions
 # ---------------------------------------------------------------------------
 
-func _x_cut(c: Array, at: Vector3, size: float, start := 0.0, other: Array = BLOOD) -> void:
-	layer("crescent", true, c, at, Vector3.ONE * size, Vector3(0, 0, 0.85), start, 0.42, {"initial": 0.35, "roll": -5.0, "face_camera": true})
-	layer("crescent", true, other, at, Vector3.ONE * size, Vector3(0, 0, -0.85), start + 0.05, 0.42, {"initial": 0.35, "roll": 5.0, "face_camera": true})
+func _x_cut(c: Array, at: Vector3, size: float, start := 0.0, other: Array = BLOOD, seconds := 0.42) -> void:
+	layer("crescent", true, c, at, Vector3.ONE * size, Vector3(0, 0, 0.85), start, seconds, {"initial": 0.35, "roll": -5.0, "face_camera": true})
+	layer("crescent", true, other, at, Vector3.ONE * size, Vector3(0, 0, -0.85), start + 0.05, seconds, {"initial": 0.35, "roll": 5.0, "face_camera": true})
 
 
 func _phantom(c: Array, at: Vector3, yaw: float, start: float, seconds := 0.55, size := 1.0, style := {}) -> void:
@@ -186,7 +190,7 @@ func _compose(id: String, c: Array, reach: float, radius: float, d: float) -> vo
 			layer("moon", true, c, Vector3(0, 2.6, -0.5), Vector3.ONE * 0.8, Vector3.ZERO, d + 0.1, 1.2, {"face_camera": true, "initial": 0.3, "opacity": 0.75})
 		"venom_edge":
 			layer("dagger", true, c, target + Vector3(0, 1.05, -1.6), Vector3.ONE * 0.95, Vector3(PI * 0.5, 0, 0), d, 0.32, {"initial": 1.0, "travel": Vector3(0, 0, 1.4), "accelerate": true, "decay": 0.7, "opacity": 0.7})
-			_x_cut(c, target + Vector3.UP * 1.05, 1.2, d + 0.1, NIGHT)
+			_x_cut(c, target + Vector3.UP * 1.05, 1.2, d + 0.1, VENOM_DUSK, 0.3)
 			# The venom stays on the wound: a low green fume rolling off it (ink, not light).
 			layer("smoke", false, c, target, Vector3(1.0, 0.7, 1.0), Vector3.ZERO, d + 0.12, 1.1, {"initial": 0.3, "grow": 2.0, "opacity": 0.5, "spin": 0.5})
 			layer("smoke", false, NIGHT, target + Vector3(0, 0.1, 0), Vector3(0.7, 0.9, 0.7), Vector3(0, 1.4, 0), d + 0.22, 0.9, {"initial": 0.3, "opacity": 0.35, "spin": -0.4, "travel": Vector3(0, 0.3, 0)})

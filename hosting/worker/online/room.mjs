@@ -639,6 +639,27 @@ export function petId(value) {
   return typeof value === 'string' && PETS.includes(value) ? value : '';
 }
 
+/** The skills each pet may cast (PetData.PETS[id].skills in the game; a test keeps the two
+ * the same): a `pet_act` names one of its owner's pet's, or "a" for a plain attack. */
+export const PET_SKILLS = {
+  fire: ['fireball', 'flame_bite', 'flame_breath', 'fire_burst', 'rally', 'fire_armor', 'mini_meteor', 'inferno'],
+  water: ['water_jet', 'bubble', 'owner_heal', 'water_shield', 'wave', 'whirlpool', 'cleansing_rain', 'tsunami'],
+  earth: ['rock_throw', 'root_bind', 'stone_wall', 'quake', 'earth_spikes', 'nature_power', 'stone_armor', 'mountain_fall'],
+};
+/** Most `pet_act` frames a player's pet may send in one second (the rest are dropped). */
+export const PET_ACTS_PER_SECOND = 4;
+/** No pets in the 1v1 duels and the guild war (PetData.allowed_in). */
+export const NO_PET_ZONES = new Set(['pvp', 'guildwar']);
+const PET_EID_MAX = 2 ** 31 - 1;
+const PET_POINT_MAX = 5000;
+
+/** A pet_act hit point [x, z] (flat, metres, 0.1 m steps), or null. */
+function petPoint(value) {
+  if (!Array.isArray(value) || value.length !== 2 || !value.every(finite)) return null;
+  if (value.some(v => Math.abs(v) > PET_POINT_MAX)) return null;
+  return value.map(v => Math.round(v * 10) / 10);
+}
+
 const lotKey = (buyer, lot) => `${buyer}\u0000${String(lot)}`;
 
 /** Relays a frame with `from` set by the server (whatever the client wrote in it); a
@@ -770,6 +791,23 @@ const HANDLERS = {
     if (typeof msg.zone !== 'string' || msg.zone !== s.player.zone) return;
     const host = this.hostFor(s);
     if (host && host !== s.id) this.sendTo(host, relay(msg, s.id));
+  },
+
+  /** The sender's own pet attacked / cast (its game deals the damage, through ent_hit like
+   * the hero's own hits): the players who see the sender here get a picture of it. */
+  pet_act(s, msg) {
+    const p = s.player;
+    if (!p.pet || !Object.hasOwn(PET_SKILLS, p.pet) || typeof msg.zone !== 'string' || msg.zone !== p.zone) return;
+    if (NO_PET_ZONES.has(p.zone) || this.duels.has(s.id)) return;
+    const k = msg.k === 'a' ? 'a' : typeof msg.k === 'string' && PET_SKILLS[p.pet].includes(msg.k) ? msg.k : '';
+    const at = petPoint(msg.p);
+    if (!k || !at) return;
+    const sec = Math.floor(this.now() / 1000);
+    s.petRate ??= {sec: -1, count: 0};
+    if (s.petRate.sec !== sec) {s.petRate.sec = sec; s.petRate.count = 0;}
+    if (++s.petRate.count > PET_ACTS_PER_SECOND) return;
+    const out = JSON.stringify({t: 'pet_act', from: s.id, zone: p.zone, k, e: int(msg.e, 0, PET_EID_MAX, 0), p: at});
+    for (const m of this.served(s)) if (m.id !== s.id) this.send(m, out);
   },
 
   ai_chat(s, msg) {
