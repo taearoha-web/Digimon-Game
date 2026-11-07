@@ -172,7 +172,7 @@ func _scaling() -> void:
 	for id in PetData.ORDER:
 		var s := PetData.stats_for(id, high_owner, 80)
 		check(float(s.atk) < float(high_owner.atk) * 0.5 and int(s.max_hp) <= int(high_owner.max_hp) * 0.7, "%s helps without out-hitting the hero" % id)
-	check(not PetData.allowed_in(ZoneData.get_zone(&"pvp")) and PetData.allowed_in(ZoneData.get_zone(&"guildwar")) and PetData.allowed_in(ZoneData.get_zone(&"tower")) and PetData.allowed_in(ZoneData.get_zone(&"meadow")) and PetData.allowed_in(ZoneData.get_zone(&"town")), "pets stay out of 1v1 duels only")
+	check(not PetData.allowed_in(ZoneData.get_zone(&"pvp")) and not PetData.allowed_in(ZoneData.get_zone(&"guildwar")) and PetData.allowed_in(ZoneData.get_zone(&"tower")) and PetData.allowed_in(ZoneData.get_zone(&"meadow")) and PetData.allowed_in(ZoneData.get_zone(&"town")), "pets stay out of the 1v1 duels and the guild war only")
 
 
 func _hero(level: int, pet_id: String) -> Hero:

@@ -7,6 +7,14 @@ extends Summon
 ## back to the hero PetData.RESPAWN seconds later. It lives in the zone (a zone change
 ## frees it with everything else; the next zone spawns a new one), and in the village it
 ## only walks along. Its stats are shares of the hero's current ones (PetData.stats_for).
+##
+## An AI player's pet (PetCrowd: a world player hunting in a field, a member of the hero's
+## party) is the same pet in "lite" form: its owner is that player (stats and level are
+## the owner's), it fights what the owner fights and casts its unlocked skills, but on a
+## phone budget: no name tag, the shared ring, no skill effects, words or sounds (only the
+## hits and their numbers), and it looks for a monster a few times a second, not every
+## frame. It is in "ai_pets" (not "pets", the hero's own) and not in "summons": monsters
+## leave it alone (it has no health bar and never falls).
 
 ## How far behind / beside the hero it walks, and past which distance it hops back
 ## to the hero (a warp, a knock-back across the field).
@@ -24,6 +32,15 @@ var respawn_left := 0.0
 ## Hits it dealt (tests, the HUD tooltip) and skills it cast, by id.
 var dealt := 0
 var casts: Dictionary = {}
+## An AI player's pet (PetCrowd): its owner is not the hero, cheap presentation.
+var lite := false
+
+## Seconds between two looks for a monster of a lite pet's own choosing.
+const LITE_RETARGET := 0.4
+## The element rings under the pets: one mesh, one material per element, for all of them.
+static var _ring_mesh: TorusMesh
+static var _ring_mats: Dictionary = {}
+var _retarget_in := 0.0
 
 var _skill_cds: Dictionary = {}
 var _gcd := 1.0
@@ -37,6 +54,7 @@ var _shadow: MeshInstance3D
 func setup_pet(p_owner: Node3D, id: String) -> void:
 	summoner = p_owner
 	hero = p_owner as Hero
+	lite = hero == null
 	pet_id = id
 	pet = PetData.get_pet(id)
 	skill_id = "pet_" + id
@@ -53,9 +71,12 @@ func setup_pet(p_owner: Node3D, id: String) -> void:
 
 
 func _ready() -> void:
-	add_to_group("summons")
-	add_to_group("pets")
-	name = "Pet"
+	# Monsters go for the hero's pet (a summon); an AI player's pet is not a target (it
+	# never falls) and needs no health bar.
+	if not lite:
+		add_to_group("summons")
+	add_to_group("ai_pets" if lite else "pets")
+	name = "AiPet" if lite else "Pet"
 	global_position = summoner.global_position + _follow_spot()
 	_visual = MonsterVisual.new()
 	add_child(_visual)
@@ -64,19 +85,13 @@ func _ready() -> void:
 	_visual.add_to_group("anim_lod")
 	_shadow = MeshKit.blob_shadow(self, 0.7)
 	# A thin ring in the element's colour under its feet: a pet, not a monster or a hero.
-	var ring := MeshInstance3D.new()
-	ring.name = "PetRing"
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.55
-	torus.outer_radius = 0.64
-	torus.rings = 24
-	torus.ring_segments = 4
-	ring.mesh = torus
-	ring.material_override = MeshKit.toon(pet.glow, {"unshaded": true, "emission": 0.8, "alpha": 0.8})
-	ring.scale = Vector3(1, 0.1, 1)
-	ring.position = Vector3(0, 0.05, 0)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(ring)
+	add_child(ring_for(pet_id))
+	if lite:
+		_shadow.visibility_range_end = PetCrowd.HIDE
+		_retarget_in = randf() * LITE_RETARGET
+		scale = Vector3.ONE * 0.05
+		create_tween().tween_property(self, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		return
 	_bar = FieldHpBar.new()
 	_bar.position = Vector3(0, float(pet.height) + 0.45, 0)
 	_bar.scale = Vector3.ONE * 1.1
@@ -97,6 +112,38 @@ func _ready() -> void:
 	create_tween().tween_property(self, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## The thin element ring under a pet's feet (the hero's and every AI player's fighting
+## pet): one shared torus and one material per element.
+static func ring_for(id: String) -> MeshInstance3D:
+	if _ring_mesh == null:
+		_ring_mesh = TorusMesh.new()
+		_ring_mesh.inner_radius = 0.55
+		_ring_mesh.outer_radius = 0.64
+		_ring_mesh.rings = 24
+		_ring_mesh.ring_segments = 4
+	if not _ring_mats.has(id):
+		_ring_mats[id] = MeshKit.toon(PetData.get_pet(id).get("glow", Color.WHITE), {"unshaded": true, "emission": 0.8, "alpha": 0.8})
+	var ring := MeshInstance3D.new()
+	ring.name = "PetRing"
+	ring.mesh = _ring_mesh
+	ring.material_override = _ring_mats[id]
+	ring.scale = Vector3(1, 0.1, 1)
+	ring.position = Vector3(0, 0.05, 0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ring
+
+
+## Its owner's level: the hero's (Game.profile), an AI player's own (member sheet).
+func owner_level() -> int:
+	if hero:
+		return int(Game.profile.get("level", 1))
+	if "member" in summoner and summoner.member is Dictionary:
+		return int((summoner.member as Dictionary).get("level", 1))
+	if "level" in summoner:
+		return int(summoner.level)
+	return 1
+
+
 func _update_name() -> void:
 	if _name_tag:
 		_name_tag.text = "%s Lv.%d" % [String(pet.name), int(pstats.get("level", 1))]
@@ -104,8 +151,12 @@ func _update_name() -> void:
 
 ## Recomputes ATK / HP / DEF / crit from the hero's stats now (keeps the health share).
 func _refresh_stats(full := false) -> void:
-	var owner_stats: Dictionary = summoner.stats if "stats" in summoner and summoner.stats is Dictionary and not (summoner.stats as Dictionary).is_empty() else {}
-	var level := int(Game.profile.get("level", 1)) if hero else 1
+	var owner_stats: Dictionary = {}
+	if summoner is Rival:
+		owner_stats = (summoner as Rival).rstats
+	elif "stats" in summoner and summoner.stats is Dictionary:
+		owner_stats = summoner.stats
+	var level := owner_level()
 	var before_level := int(pstats.get("level", 0))
 	var ratio := 1.0 if full or max_hp <= 0 else float(hp) / float(max_hp)
 	pstats = PetData.stats_for(pet_id, owner_stats, level)
@@ -128,7 +179,11 @@ func _basic_raw() -> float:
 
 
 ## The hero is home (the village) or gone: the pet only walks along, no fighting.
+## An AI player's pet rests while its owner is down or away (PetCrowd brings fighting
+## pets into the fields only).
 func _peaceful() -> bool:
+	if lite:
+		return not summoner.visible or (summoner.has_method("is_dead") and summoner.is_dead())
 	return hero == null or hero.safe_zone or hero.is_dead()
 
 
@@ -136,6 +191,9 @@ func _peaceful() -> bool:
 ## camera (else the hero) looks, so it does not stand between the camera and the hero.
 func _follow_spot() -> Vector3:
 	var yaw := 0.0
+	if lite:
+		# An AI player's pet walks behind its owner (no camera to keep clear).
+		return PetFollower.spot_behind(summoner, FOLLOW_SIDE, FOLLOW_BACK)
 	if "camera_rig" in summoner and summoner.camera_rig:
 		yaw = float(summoner.camera_rig.yaw)
 	elif "_facing" in summoner:
@@ -164,9 +222,16 @@ func _process(delta: float) -> void:
 	_gcd = maxf(0.0, _gcd - delta)
 	_attack_timer -= delta
 	var peaceful := _peaceful()
+	var look := true
+	if lite and not _valid(_target):
+		# A lite pet looks for a monster of its own a few times a second, not every frame.
+		_retarget_in -= delta
+		look = _retarget_in <= 0.0
+		if look:
+			_retarget_in = LITE_RETARGET
 	if peaceful:
 		_target = null
-	elif not _valid(_target) or _flat(_target.global_position - summoner.global_position).length() > LEASH + 4.0:
+	elif look and (not _valid(_target) or _flat(_target.global_position - summoner.global_position).length() > LEASH + 4.0):
 		_target = _pick_target()
 		if _target and _flat(_target.global_position - summoner.global_position).length() > LEASH:
 			_target = null
@@ -227,7 +292,8 @@ func strike(mob: Mob, power: float, fx := {}) -> int:
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(mob.stats.def)))))
-	VfxKit.impact(get_parent(), mob.hit_point(), pet.color, 0.8)
+	if not lite:
+		VfxKit.impact(get_parent(), mob.hit_point(), pet.color, 0.8)
 	var killed := mob.take_hit(amount, crit, pet.color, summoner)
 	dealt += amount
 	if killed or not _valid(mob):
@@ -305,6 +371,10 @@ func _try_skill() -> bool:
 
 
 func _owner_hp_rate() -> float:
+	if lite:
+		if not ("hp" in summoner and "max_hp" in summoner) or (summoner.has_method("is_dead") and summoner.is_dead()):
+			return 1.0
+		return float(summoner.hp) / maxf(float(summoner.max_hp), 1.0)
 	if hero == null or hero.is_dead():
 		return 1.0
 	return float(Game.profile.get("hp", 1)) / maxf(float(hero.stats.get("max_hp", 1)), 1.0)
@@ -322,7 +392,8 @@ func cast(skill: Dictionary) -> void:
 	_visual.action(String(skill.get("clip", "attack")), int(lock * 1000.0) + 150)
 	var field := get_parent()
 	var color: Color = pet.color
-	BattleVfx.floating_text(field, global_position + Vector3(0, float(pet.height) + 1.1, 0), String(skill.name), (pet.glow as Color), 0.85 if not bool(skill.get("ultimate", false)) else 1.15)
+	if not lite:
+		BattleVfx.floating_text(field, global_position + Vector3(0, float(pet.height) + 1.1, 0), String(skill.name), (pet.glow as Color), 0.85 if not bool(skill.get("ultimate", false)) else 1.15)
 	var kind := String(skill.kind)
 	var fx: Dictionary = skill.get("fx", {})
 	var power := float(skill.get("power", 1.0))
@@ -332,7 +403,8 @@ func cast(skill: Dictionary) -> void:
 			var ref: WeakRef = weakref(mob)
 			var from := global_position + Vector3(0, float(pet.height) * 0.7, 0)
 			var flight := clampf(from.distance_to(mob.hit_point()) / 20.0, 0.1, 0.45)
-			VfxKit.projectile(field, color, from, mob.hit_point(), flight, 0.5, String(skill.get("projectile", {"fire": "flame", "water": "shard"}.get(pet_id, "orb"))))
+			if not lite:
+				VfxKit.projectile(field, color, from, mob.hit_point(), flight, 0.5, String(skill.get("projectile", {"fire": "flame", "water": "shard"}.get(pet_id, "orb"))))
 			_later(flight, func():
 				var victim := ref.get_ref() as Mob
 				if _valid(victim):
@@ -357,8 +429,9 @@ func cast(skill: Dictionary) -> void:
 			var center := _target.global_position
 			var radius := float(skill.get("radius", 3.0))
 			var delay := float(skill.get("delay", 0.3))
-			VfxKit.ground_circle(field, center, color, radius, delay + 0.15)
-			if pet_id == "fire" and delay >= 0.5:
+			if not lite:
+				VfxKit.ground_circle(field, center, color, radius, delay + 0.15)
+			if pet_id == "fire" and delay >= 0.5 and not lite:
 				VfxKit.meteor(field, center, color, delay, radius, func(): pass)
 			var hits := int(skill.get("hits", 1))
 			for k in hits:
@@ -366,29 +439,36 @@ func cast(skill: Dictionary) -> void:
 		"nova":
 			_later(0.3, func(): _burst(skill, global_position, float(skill.get("radius", 4.0)), power, fx, false))
 		"owner_buff":
-			if hero and not hero.is_dead():
+			if lite:
+				if summoner.has_method("receive_party_buff") and not (summoner.has_method("is_dead") and summoner.is_dead()):
+					summoner.receive_party_buff(skill.buff, color, buff_label(skill), "pet_%s_%s" % [pet_id, id])
+			elif hero and not hero.is_dead():
 				hero.receive_buff(skill.buff, color, buff_label(skill), true, "pet_%s_%s" % [pet_id, id])
 				VfxKit.aura(field, hero.global_position, (pet.glow as Color))
 		"owner_heal":
-			if hero and not hero.is_dead():
+			if lite:
+				_later(0.3, func(): _summoner_heal(float(skill.heal)))
+			elif hero and not hero.is_dead():
 				VfxKit.projectile(field, Color("6dff9a"), global_position + Vector3(0, float(pet.height) * 0.7, 0), hero.global_position + Vector3(0, 1.2, 0), 0.3, 0.4, "orb")
 				_later(0.3, func():
 					if hero and not hero.is_dead():
 						hero.receive_heal(float(skill.heal)))
 		"owner_hot":
 			_hots.append({"skill": id, "heal": float(skill.heal), "every": float(skill.every), "left": int(skill.ticks), "timer": 0.05})
-			if hero:
+			if hero and not lite:
 				VfxKit.column_rain(field, hero.global_position, 3.0, (pet.glow as Color), 8, 0.9, 7.0)
 		"self_buff":
 			var buff: Dictionary = (skill.buff as Dictionary).duplicate()
 			_book.add(buff, color, String(skill.name), false, "pet_" + id)
-			VfxKit.aura(field, global_position, (pet.glow as Color))
+			if not lite:
+				VfxKit.aura(field, global_position, (pet.glow as Color))
 			if skill.has("taunt"):
 				for mob in _mobs_in(global_position, float(skill.get("radius", 6.0))):
 					mob.taunt(self, float(skill.taunt))
 			if power > 0.0 and skill.has("radius") and not skill.has("taunt"):
 				_later(0.3, func(): _burst(skill, global_position, float(skill.radius), power, fx, false))
-	AudioManager.play_sfx(&"buff" if kind.begins_with("owner") or kind == "self_buff" else &"hit_special", -6.0)
+	if not lite:
+		AudioManager.play_sfx(&"buff" if kind.begins_with("owner") or kind == "self_buff" else &"hit_special", -6.0)
 
 
 ## The Thai name a pet's buff wears in the hero's buff list: "ปลุกพลัง · คาอิจูเร็กซ์".
@@ -404,6 +484,8 @@ func _later(seconds: float, call: Callable) -> void:
 
 ## An element-flavoured hit spark (theme only: no element damage rules anywhere).
 func _element_hit(pos: Vector3) -> void:
+	if lite:
+		return
 	var field := get_parent()
 	match pet_id:
 		"fire":
@@ -417,7 +499,9 @@ func _element_hit(pos: Vector3) -> void:
 ## A circle of damage at [param center]; a pull drags the monsters in toward it.
 func _burst(skill: Dictionary, center: Vector3, radius: float, power: float, fx: Dictionary, pull: bool) -> void:
 	var field := get_parent()
-	match pet_id:
+	match pet_id if not lite else "":
+		"":
+			pass
 		"fire":
 			ElementFx.fire_field(field, center, radius, 2 if bool(skill.get("ultimate", false)) else 1)
 		"water":
@@ -426,7 +510,8 @@ func _burst(skill: Dictionary, center: Vector3, radius: float, power: float, fx:
 			ElementFx.ice_field(field, center, radius, 1)
 		_:
 			VfxKit.slam(field, center, pet.color, radius)
-	VfxKit.impact_ring(field, center + Vector3(0, 0.1, 0), pet.color, radius, 0.45)
+	if not lite:
+		VfxKit.impact_ring(field, center + Vector3(0, 0.1, 0), pet.color, radius, 0.45)
 	for mob in _mobs_in(center, radius):
 		strike(mob, power, fx)
 		if pull and not mob.is_boss and _valid(mob):
@@ -443,7 +528,7 @@ func _sweep(skill: Dictionary, aim: Vector3, power: float, fx: Dictionary) -> vo
 	var half_width := float(skill.get("width", 2.0)) * 0.5
 	var half_angle := deg_to_rad(float(skill.get("angle", 70.0)) * 0.5)
 	var origin := global_position
-	for k in 4:
+	for k in (0 if lite else 4):
 		var spot := origin + aim * reach * (0.3 + 0.22 * k)
 		match pet_id:
 			"fire":
@@ -476,7 +561,9 @@ func _tick_hots(delta: float) -> void:
 		if float(h.timer) <= 0.0 and int(h.left) > 0:
 			h.timer = float(h.every)
 			h.left = int(h.left) - 1
-			if hero and not hero.is_dead() and not _dead:
+			if lite and not _dead:
+				_summoner_heal(float(h.heal))
+			elif hero and not hero.is_dead() and not _dead:
 				hero.receive_heal(float(h.heal))
 	_hots = _hots.filter(func(h): return int(h.left) > 0)
 
@@ -496,7 +583,8 @@ func take_damage(raw: float, attacker: Node = null) -> void:
 	if back > 0.0 and attacker is Mob and _valid(attacker) and amount > 0:
 		(attacker as Mob).take_hit(maxi(1, int(float(amount) * back)), false, pet.color, summoner)
 	hp = maxi(0, hp - amount)
-	_bar.set_ratio(float(hp) / float(max_hp))
+	if _bar:
+		_bar.set_ratio(float(hp) / float(max_hp))
 	BattleVfx.floating_text(get_parent(), global_position + Vector3(0, float(pet.height) + 0.6, 0), str(amount), Color("ff7a8a"), 0.9)
 	_visual.flash()
 	if hp <= 0:
@@ -508,7 +596,8 @@ func heal_fraction(fraction: float) -> void:
 		return
 	var before := hp
 	hp = mini(max_hp, hp + int(float(max_hp) * fraction))
-	_bar.set_ratio(float(hp) / float(max_hp))
+	if _bar:
+		_bar.set_ratio(float(hp) / float(max_hp))
 	if hp > before:
 		BattleVfx.floating_text(get_parent(), global_position + Vector3(0, float(pet.height) + 0.6, 0), "+%d" % (hp - before), Color("6dff9a"), 0.8)
 
@@ -522,7 +611,8 @@ func _fall() -> void:
 	BurstGuard.forget(get_instance_id())
 	_book.clear(self)
 	_visual.hold("die")
-	BattleVfx.floating_text(get_parent(), global_position + Vector3(0, float(pet.height) + 1.0, 0), "%s หมดแรง! กลับมาใน %d วินาที" % [String(pet.name), int(PetData.RESPAWN)], Color("ffb0b0"), 1.0)
+	if not lite:
+		BattleVfx.floating_text(get_parent(), global_position + Vector3(0, float(pet.height) + 1.0, 0), "%s หมดแรง! กลับมาใน %d วินาที" % [String(pet.name), int(PetData.RESPAWN)], Color("ffb0b0"), 1.0)
 	var tween := create_tween()
 	tween.tween_interval(1.4)
 	tween.tween_property(self, "scale", Vector3.ONE * 0.05, 0.3)
@@ -534,8 +624,10 @@ func _respawn() -> void:
 	respawn_left = 0.0
 	_refresh_stats(true)
 	hp = max_hp
-	_bar.set_ratio(1.0)
-	add_to_group("summons")
+	if _bar:
+		_bar.set_ratio(1.0)
+	if not lite:
+		add_to_group("summons")
 	global_position = summoner.global_position + _follow_spot()
 	visible = true
 	_visual.busy_until = 0
@@ -543,8 +635,9 @@ func _respawn() -> void:
 	_visual.play("idle")
 	scale = Vector3.ONE * 0.05
 	create_tween().tween_property(self, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	VfxArt.motes(get_parent(), global_position + Vector3(0, 0.8, 0), (pet.glow as Color), "star", 10, 0.8, 1.6, 0.9)
-	BattleVfx.floating_text(get_parent(), global_position + Vector3(0, float(pet.height) + 1.0, 0), "%s กลับมาแล้ว!" % String(pet.name), (pet.glow as Color), 0.9)
+	if not lite:
+		VfxArt.motes(get_parent(), global_position + Vector3(0, 0.8, 0), (pet.glow as Color), "star", 10, 0.8, 1.6, 0.9)
+		BattleVfx.floating_text(get_parent(), global_position + Vector3(0, float(pet.height) + 1.0, 0), "%s กลับมาแล้ว!" % String(pet.name), (pet.glow as Color), 0.9)
 
 
 ## The pet never fades away like a summon (no lifetime): only its zone frees it.

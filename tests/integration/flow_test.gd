@@ -402,7 +402,8 @@ func _summons() -> void:
 	await _wait(0.9)
 	var count := 0
 	for child in field_zone.get_children():
-		if child is Summon:
+		# (Pets are summons underneath: the players' pets walking about are not counted.)
+		if child is Summon and not child is Pet:
 			count += 1
 	check(count == 2, "Recall Wolverine summons two wolves (%d)" % count)
 	var watched: Array = get_tree().get_nodes_in_group("mobs").duplicate()

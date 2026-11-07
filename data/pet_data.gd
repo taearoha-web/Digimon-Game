@@ -141,11 +141,33 @@ static func stats_for(id: String, owner_stats: Dictionary, level: int) -> Dictio
 	}
 
 
-## Whether the hero's pet comes along in zone `data` (ZoneData entry): everywhere with
-## fighting or not (it walks with the hero in the village too), except the 1v1 duels
-## (ranked duels and real-player duels: zone "pvp"), which stay hero against hero.
+## Whether pets come along in zone `data` (ZoneData entry): everywhere with fighting or
+## not (they walk with their owners in the village too), except the PvP zones: the 1v1
+## duels (ranked duels and real-player duels: zone "pvp") stay hero against hero, and in
+## the guild war (zone "guildwar") the players fight on their own, nobody's pet comes.
 static func allowed_in(data: Dictionary) -> bool:
-	return not (bool(data.get("pvp", false)) and not bool(data.get("guildwar", false)))
+	return not bool(data.get("pvp", false)) and not bool(data.get("guildwar", false))
+
+
+# ---------------------------------------------------------------------------
+# Everyone else's pet: every AI player has one, picked from its name
+# ---------------------------------------------------------------------------
+
+## The pet of an AI player (a world player, a party member, a guild fighter) named
+## [param player_name]: one of ORDER picked from the name alone, so every device shows the
+## same pet for the same player, the three kinds spread about evenly. "" for no name.
+static func of_player(player_name: String) -> String:
+	if player_name == "":
+		return ""
+	return ORDER[posmod(hash("pet|" + player_name), ORDER.size())]
+
+
+## The pet shown with a real online player: the id their game sent (Online `pet`), only
+## when it is a pet; "" (none shown) otherwise.
+static func clean_id(raw: Variant) -> String:
+	if (raw is String or raw is StringName) and PETS.has(String(raw)):
+		return String(raw)
+	return ""
 
 
 # ---------------------------------------------------------------------------

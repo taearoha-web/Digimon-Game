@@ -1148,12 +1148,19 @@ static func look(i: int) -> Dictionary:
 
 
 ## A party-member dictionary for the field (Companion reads class, name, level, stars;
-## the gear it found follows frac and divine_frac too).
+## the gear it found follows frac and divine_frac too; "pet" is its pet, pet_of).
 static func member(i: int, t: float = -1.0) -> Dictionary:
 	var s := state(i, t)
 	return {"class": String(s["class"]), "name": String(s.name), "level": int(s.level), "stars": int(s.stars), "exp": 0,
 		"frac": float(s.frac), "divine_frac": float(s.divine_frac), "after": float(s.get("after", 0.0)),
-		"stance": "aggressive", "trait": "brave", "gender": int(s.gender), "potions": POTIONS, "mp_potions": MP_POTIONS}
+		"stance": "aggressive", "trait": "brave", "gender": int(s.gender), "potions": POTIONS, "mp_potions": MP_POTIONS,
+		"pet": pet_of(i)}
+
+
+## Player i's pet (PetData): every world player has one, picked from its name, so it is
+## the same pet on every device and from the day it joined.
+static func pet_of(i: int) -> String:
+	return PetData.of_player(String(entry(i).name))
 
 
 ## Brings a member sheet up to state s; true when it found something new to wear.
