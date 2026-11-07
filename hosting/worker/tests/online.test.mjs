@@ -3,7 +3,8 @@
  * routes with the real account code on SQLite. Run: node hosting/worker/tests/online.test.mjs */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES} from '../online/room.mjs';
+import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES, PET_SKILLS, PET_ACTS_PER_SECOND, PETS} from '../online/room.mjs';
+import {readFileSync} from 'node:fs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
 import {handleAccountRequest} from '../../accounts/server/accounts.js';
@@ -585,6 +586,87 @@ test('trade: cancel relays and ends, a drop cancels, refusing works, a stale ans
   assert.deepEqual(c.last('trade_cancel'), {t: 'trade_cancel', from: '1'});
   c.send({t: 'trade_lock'});
   assert.equal(c.last('error').code, 'no_trade');
+});
+
+test('pet_act: a picture of the sender\'s own pet fighting, to whoever sees the sender in that zone', () => {
+  const {connect, clock} = world();
+  const a = connect('1').hello({pet: 'fire'});
+  const b = connect('2').hello({pet: 'water'});
+  const c = connect('3').hello({zone: 'forest'});
+  const bare = connect('4').hello();                                   // no pet
+  clearAll(a, b, c, bare);
+  a.send({t: 'pet_act', zone: 'meadow', k: 'fireball', e: 7, p: [12.34, -5.06], from: '9', user: 'admin', dmg: 9999});
+  assert.deepEqual(b.last('pet_act'), {t: 'pet_act', from: '1', zone: 'meadow', k: 'fireball', e: 7, p: [12.3, -5.1]},
+    'only the known fields go on, from is the sender, no damage field');
+  assert.equal(bare.frames('pet_act').length, 1, 'everyone in the open zone sees it');
+  assert.equal(c.frames('pet_act').length, 0, 'not to another zone');
+  assert.equal(a.frames('pet_act').length, 0, 'no echo');
+  a.send({t: 'pet_act', zone: 'meadow', k: 'a', p: [0, 0]});
+  assert.deepEqual(b.last('pet_act'), {t: 'pet_act', from: '1', zone: 'meadow', k: 'a', e: 0, p: [0, 0]}, 'a plain attack, no target id');
+  // Dropped: another pet's skill, an unknown skill, a bad point or eid, the wrong zone, no pet.
+  const before = b.frames('pet_act').length;
+  for (const bad of [
+    {k: 'tsunami', p: [1, 1]}, {k: 'nuke', p: [1, 1]}, {k: 7, p: [1, 1]}, {k: 'a'}, {k: 'a', p: [1]}, {k: 'a', p: [1, 'x']},
+    {k: 'a', p: [1, 9999]}, {k: 'a', p: [Infinity, 0]}, {k: 'a', p: [1, 1], zone: 'forest'}, {k: 'a', p: [1, 1], zone: 5}]) {
+    clock.t += 1000;
+    a.send({t: 'pet_act', zone: 'meadow', ...bad});
+  }
+  bare.send({t: 'pet_act', zone: 'meadow', k: 'a', p: [1, 1]});
+  assert.equal(b.frames('pet_act').length, before, 'malformed or foreign pet_act frames are dropped');
+  clock.t += 1000;
+  a.send({t: 'pet_act', zone: 'meadow', k: 'a', e: -3, p: [1, 1]});
+  assert.equal(b.last('pet_act').e, 0, 'a bad eid becomes 0 (no target)');
+  // Rate limit: PET_ACTS_PER_SECOND a second, the rest dropped silently.
+  clock.t = Math.ceil(clock.t / 1000) * 1000 + 1000;
+  clearAll(b);
+  for (let i = 0; i < PET_ACTS_PER_SECOND + 5; i++) a.send({t: 'pet_act', zone: 'meadow', k: 'a', p: [i, 0]});
+  assert.equal(b.frames('pet_act').length, PET_ACTS_PER_SECOND);
+  clock.t += 1000;
+  a.send({t: 'pet_act', zone: 'meadow', k: 'a', p: [1, 0]});
+  assert.equal(b.frames('pet_act').length, PET_ACTS_PER_SECOND + 1, 'the next second sends again');
+  assert.equal(a.frames('error').length, 0, 'no error frames for pet_act');
+});
+
+test('pet_act: instanced zones only to the party there; never in the duels or the guild war', () => {
+  const {connect, clock} = world();
+  const a = connect('1').hello({zone: 'tower', pet: 'earth'});
+  const b = connect('2').hello({zone: 'tower'});
+  const x = connect('9').hello({zone: 'tower'});
+  a.send({t: 'pet_act', zone: 'tower', k: 'quake', p: [1, 1]});
+  assert.equal(b.frames('pet_act').length + x.frames('pet_act').length, 0, 'no party in an instanced zone: nobody');
+  partyUp(a, b);
+  clock.t += 1000;
+  a.send({t: 'pet_act', zone: 'tower', k: 'quake', e: 3, p: [1, 1]});
+  assert.deepEqual(b.last('pet_act'), {t: 'pet_act', from: '1', zone: 'tower', k: 'quake', e: 3, p: [1, 1]});
+  assert.equal(x.frames('pet_act').length, 0, 'the outsider in the tower sees nothing');
+  for (const zone of ['guildwar', 'pvp']) {
+    a.zone(zone);
+    b.zone(zone);
+    clock.t += 1000;
+    a.send({t: 'pet_act', zone, k: 'a', p: [1, 1]});
+  }
+  assert.equal(b.frames('pet_act').length, 1, 'no pets in the guild war or a duel zone');
+  // In a duel (whatever the zone) the pet stays out of it.
+  a.zone('meadow');
+  b.zone('meadow');
+  a.send({t: 'duel_req', to: '2'});
+  b.send({t: 'duel_answer', from: '1', ok: true});
+  clock.t += 1000;
+  a.send({t: 'pet_act', zone: 'meadow', k: 'a', p: [1, 1]});
+  assert.equal(b.frames('pet_act').length, 1, 'no pet_act during a duel');
+});
+
+test('pet_act: the server\'s pet skills are the game\'s (data/pet_data.gd)', () => {
+  const text = readFileSync(new URL('../../../data/pet_data.gd', import.meta.url), 'utf8');
+  assert.deepEqual(Object.keys(PET_SKILLS).sort(), [...PETS].sort());
+  for (const pet of PETS) {
+    const start = text.indexOf(`"id": "${pet}"`);
+    assert.ok(start >= 0, `pet ${pet} in pet_data.gd`);
+    const next = PETS.map(o => text.indexOf(`"id": "${o}"`)).filter(i => i > start);
+    const block = text.slice(start, next.length ? Math.min(...next) : undefined);
+    const ids = [...block.matchAll(/\{"id": "([a-z_]+)", "name"[^\n]*"kind"/g)].map(m => m[1]);
+    assert.deepEqual(PET_SKILLS[pet], ids, `${pet}'s skills`);
+  }
 });
 
 test('duel: relayed only between the two duelists of an accepted duel', () => {
