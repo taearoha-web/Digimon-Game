@@ -840,6 +840,9 @@ func _riding(zone: Zone) -> void:
 	check(not p.is_riding() and not p.visual.seated, "it gets off when it feels like walking")
 	# Thinking over time: both happen, the same way for the same seed.
 	var picks := {}
+	# A fixed seed: far from its camp it rides 95% of the time, so 60 free rolls could all
+	# land on "ride" (about 1 run in 20) - the check is about both outcomes happening.
+	p._rng.seed = 20261107
 	for k in 60:
 		p._ride_think = 0.0
 		p._think_ride(0.016)
