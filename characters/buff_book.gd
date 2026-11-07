@@ -6,11 +6,10 @@ extends RefCounted
 
 var buffs: Array[Dictionary] = []
 var auras: Dictionary = {} # kind -> BuffAura
-## What tick last synced: the list, the life, the aura count and the next expiry.
+## What tick last synced: the list, the life and the aura count.
 var _synced: Array = []
 var _synced_alive := false
 var _synced_auras := -1
-var _next_expiry := 0
 
 
 ## Own buffs: two slots (a third replaces the oldest). Buffs from friends have no
@@ -198,17 +197,20 @@ func tick(host: Node3D, alive: bool, top: Callable) -> void:
 	# Nothing changed since the last look (the same list, nothing expired, the same
 	# life and auras): the auras are in step already. Every buffed body asks every
 	# frame, and the sync builds keys and lists.
-	if is_same(buffs, _synced) and alive == _synced_alive and now < _next_expiry and auras.size() == _synced_auras:
-		return
+	if is_same(buffs, _synced) and alive == _synced_alive and auras.size() == _synced_auras:
+		var expired := false
+		for b in buffs:
+			if int(b.until) <= now:
+				expired = true
+				break
+		if not expired:
+			return
 	if not buffs.is_empty():
 		buffs = buffs.filter(func(b): return int(b.until) > now)
 	BuffAura.sync(host, auras, buffs, now, alive, top)
 	_synced = buffs
 	_synced_alive = alive
 	_synced_auras = auras.size()
-	_next_expiry = 1 << 62
-	for b in buffs:
-		_next_expiry = mini(_next_expiry, int(b.until))
 
 
 func clear(host: Node3D) -> void:

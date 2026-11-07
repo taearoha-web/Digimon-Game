@@ -128,6 +128,14 @@ func _buff_book() -> void:
 	book.add({"atk": 0.2, "secs": 5.0}, Color.RED, "แรง", false, "test_might")
 	book.tick(host, true, top)
 	check(book.auras.size() == 1, "a new buff shows at once")
+	# A buff cut short in place (its end moved nearer) still ends on time.
+	for b in book.buffs:
+		b["until"] = Time.get_ticks_msec() + 100
+	await get_tree().create_timer(0.25).timeout
+	book.tick(host, true, top)
+	check(book.auras.is_empty(), "a buff cut short in place takes its aura away")
+	book.add({"atk": 0.2, "secs": 5.0}, Color.RED, "แรง", false, "test_might")
+	book.tick(host, true, top)
 	book.tick(host, false, top)
 	check(book.auras.is_empty(), "a fallen body's auras go at once")
 	host.queue_free()
