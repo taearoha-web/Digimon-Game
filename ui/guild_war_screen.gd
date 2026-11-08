@@ -146,6 +146,12 @@ func _build_lobby() -> void:
 		go.text = "ต้องเลเวล %d ขึ้นไป (ตอนนี้ %d)" % [MIN_LEVEL, int(Game.profile.level)]
 	elif problem != "":
 		go.text = problem
+	elif GuildLeague.lobby_slot(t) >= 0:
+		# The waiting room (GuildWarMatch.lobby_until): in early, at the camp, until the bell.
+		var at := GuildLeague.lobby_slot(t)
+		go.text = "เข้าสู่สนาม (รอเริ่ม) · รอบ %s เริ่มใน %s" % [GuildLeague.clock_text(at), GuildLeague.until_text(at, t)]
+		go.add_theme_font_size_override("font_size", 28)
+		_pulse(go)
 	else:
 		var at := GuildLeague.live_slot(t)
 		go.text = "เข้าสู่สงคราม! รอบ %s · %d กิลด์ชิงปราสาท" % [GuildLeague.clock_text(at), GuildLeague.rivals_of(mine, at).size() + 1]
@@ -398,6 +404,10 @@ const SPECTATE_PATH := "res://world/guild_war_spectate.gd"
 func watch(_a := 0, _b := 0) -> void:
 	var info := GuildLeague.live_round_info()
 	if info.is_empty():
+		var soon := GuildLeague.lobby_slot()
+		if soon >= 0:
+			Game.say("ยังไม่เริ่ม เริ่มใน %s" % GuildLeague.until_text(soon), &"warning")
+			return
 		Game.say("ไม่มีการแข่งขันให้ชมตอนนี้", &"warning")
 		return
 	if not ResourceLoader.exists(SPECTATE_PATH):

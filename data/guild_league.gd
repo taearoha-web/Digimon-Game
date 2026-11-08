@@ -62,6 +62,9 @@ const KEY := "league"
 const SLOTS: Array[int] = [12 * 3600, 18 * 3600, 21 * 3600 + 30 * 60]
 ## Registration for a round closes this many seconds before it starts.
 const REGISTER_CLOSE := 300
+## The registered line-up may wait in the arena from this long before a round starts
+## (the moment registration closes; GuildWarMatch's waiting room).
+const LOBBY_OPEN := REGISTER_CLOSE
 ## Before the four-guild rounds: the three ways to split the four guilds into two pairs
 ## (old records name their round's pair; pairs_at).
 const MATCHINGS := [[[1, 2], [3, 4]], [[1, 3], [2, 4]], [[1, 4], [2, 3]]]
@@ -1287,9 +1290,10 @@ static func enter_problem(t := -1.0) -> String:
 	var g := Game.guild()
 	if g <= 0:
 		return "เข้ากิลด์ที่นายทะเบียนกิลด์ก่อน"
-	var at := live_slot(t)
+	var at := entry_slot(t)
 	if at < 0:
-		return "ยังไม่ถึงเวลาสงคราม (รอบถัดไป %s)" % clock_text(next_slot(t))
+		var nxt := next_slot(t)
+		return "ยังไม่ถึงเวลาสงคราม (รอบถัดไป %s) · เปิดให้เข้ารอได้ตอน %s" % [clock_text(nxt), clock_text(nxt - LOBBY_OPEN)]
 	if not registered(at):
 		return "ไม่ได้สมัครรอบนี้ — ชมการแข่งขันได้"
 	if not hero_makes_side(at):
@@ -1305,6 +1309,34 @@ static func enter_problem(t := -1.0) -> String:
 	return ""
 
 
+## The round whose waiting room is open at t (from LOBBY_OPEN seconds before its start,
+## when registration closes, until it starts; GuildWarMatch.lobby_until), else -1.
+static func lobby_slot(t := -1.0) -> int:
+	if t < 0.0:
+		t = now()
+	if live_slot(t) >= 0:
+		return -1
+	var nxt := next_slot(t)
+	return nxt if t >= float(nxt - LOBBY_OPEN) else -1
+
+
+## The round the hero may go into at t: the one being fought, else the one whose waiting
+## room is open (-1 for none).
+static func entry_slot(t := -1.0) -> int:
+	if t < 0.0:
+		t = now()
+	var at := live_slot(t)
+	return at if at >= 0 else lobby_slot(t)
+
+
+## "m:ss" to the start of the round `at` from t (0:00 once it started).
+static func until_text(at: int, t := -1.0) -> String:
+	if t < 0.0:
+		t = now()
+	var left := maxi(0, int(ceil(float(at) - t)))
+	return "%d:%02d" % [left / 60, left % 60]
+
+
 ## The league round the hero goes into now: {guilds: [ours, the others...], at} ({} when it
 ## cannot). Everyone fights everyone in one castle war.
 static func enter_match(t := -1.0) -> Dictionary:
@@ -1312,7 +1344,7 @@ static func enter_match(t := -1.0) -> Dictionary:
 		t = now()
 	if enter_problem(t) != "":
 		return {}
-	var at := live_slot(t)
+	var at := entry_slot(t)
 	var order: Array = [Game.guild()]
 	order.append_array(rivals_of(Game.guild(), at))
 	return {"guilds": order, "at": at}
@@ -1343,7 +1375,9 @@ static func tell_round(t := -1.0) -> bool:
 	var line := "สงครามกิลด์รอบ %s เริ่มแล้ว: 4 กิลด์ชิงปราสาท · %s" % [clock_text(at), owner_text(at)]
 	if is_final(at):
 		line += " · %s: ใครครองปราสาทตอนจบเป็น%s" % [FINAL_TAG, CASTLE_TITLE]
-	if hero_makes_side(at):
+	if GuildWarMatch.in_war() and not GuildWarMatch.current.spectating():
+		Game.say(line, &"quest")
+	elif hero_makes_side(at):
 		Game.say(line + " — ไปที่ผู้บัญชาการสงครามกิลด์แล้วกด เข้าสู่สงคราม (มาสายก็เข้าได้จนจบรอบ)", &"quest")
 	else:
 		Game.say(line + " — อันดับในกิลด์ไม่ติด %d อันดับ ไปชมการแข่งขันได้" % GuildWarData.GUILD_SIDE, &"quest")

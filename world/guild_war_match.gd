@@ -122,6 +122,13 @@ var enemy_name: String:
 		team_names[1] = v
 ## Unix time the war began (the guild members' progress is taken at this moment).
 var started_at := 0
+## The waiting room (GuildLeague.lobby_slot): the hero came in before its league round's
+## bell; until this unix time (the round's start) nobody fights. 0 when not waiting.
+var lobby_until := 0
+## How far the hero may walk from its camp (or the keep) while waiting.
+const LOBBY_RADIUS := 25.0
+var lobby_ui: GuildWarLobby
+var _from_lobby := false
 var hero_kills := 0
 var hero_deaths := 0
 var hero_respawn_left := 0.0
@@ -392,6 +399,10 @@ func build(tree: SceneTree = null) -> void:
 			# A late arrival joins the round as it runs: the bell rings on the round's time.
 			if saved.is_empty():
 				time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 60.0, GuildWarData.DURATION)
+				# Early (the waiting room): everybody stands in camp until the bell.
+				if WorldPresence.clock() < float(started_at):
+					lobby_until = started_at
+					time_left = GuildWarData.DURATION
 	if roster.is_empty():
 		roster = GuildWarData.roll_match(rng)
 	_take_roster()
@@ -472,6 +483,43 @@ func build(tree: SceneTree = null) -> void:
 		counts.append("กิลด์ %s %d คน" % [team_names[t], side(t).size() + (1 if t == GuildFighter.TEAM_ALLY else 0)])
 	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) ยึดสวิตช์ในห้องบัลลังก์ (ใครยืนในวงก่อนได้ไป กิลด์อื่นต้องไล่ออกจากวงให้หมดก่อน) บาเรียจะเปิดให้กิลด์ที่ถือสวิตช์ แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
 	Game.say(owner_briefing(), &"quest")
+	if lobby_until > 0:
+		lobby_ui = GuildWarLobby.new()
+		add_child(lobby_ui)
+		lobby_ui.show_left(lobby_left())
+		Game.say("ห้องรอสงคราม: เริ่มใน %s — รอในค่าย (เดินได้ไม่เกิน %d เมตร) ยังโจมตีไม่ได้ ร่ายบัฟได้และบัฟติดตัวเข้าสงคราม" % [GuildLeague.until_text(lobby_until), int(LOBBY_RADIUS)], &"quest")
+
+
+## Seconds until the waiting room's war begins (0 when not waiting).
+func lobby_left() -> float:
+	return maxf(0.0, float(lobby_until) - WorldPresence.clock()) if lobby_until > 0 else 0.0
+
+
+## While waiting: nobody can be hurt (the fighters stay frozen until start_fight, the gates
+## unbreakable, the switch and the altar untouched), the hero stays within LOBBY_RADIUS of
+## its camp, the banner counts down; at the bell the war begins as if entered then.
+func _tick_lobby() -> void:
+	if is_instance_valid(hero):
+		hero._invulnerable_until = Time.get_ticks_msec() + 1000
+		hold_in_camp()
+	var left := lobby_left()
+	if lobby_ui != null and is_instance_valid(lobby_ui):
+		lobby_ui.show_left(left)
+	if left <= 0.0:
+		lobby_until = 0
+		_from_lobby = true
+		if lobby_ui != null and is_instance_valid(lobby_ui):
+			lobby_ui.started()
+
+
+## Pushes the hero back inside LOBBY_RADIUS of its camp (or the keep).
+func hold_in_camp() -> void:
+	var c := home_of(GuildFighter.TEAM_ALLY)
+	var d := hero.global_position - c
+	d.y = 0.0
+	if d.length() > LOBBY_RADIUS:
+		var p := c + d.normalized() * LOBBY_RADIUS
+		hero.global_position = Vector3(p.x, hero.global_position.y, p.z)
 
 
 ## The camps' colours (team order) for the war the zone is about to hold: a watched war's
@@ -1107,6 +1155,15 @@ func _process(delta: float) -> void:
 				if mirror and _hold_age > MIRROR_WAIT:
 					mirror_lost()
 				return
+			if lobby_until > 0:
+				_tick_lobby()
+				_cull_timer -= delta
+				if _cull_timer <= 0.0:
+					_cull_timer = 0.25
+					_cull_far()
+				if lobby_until > 0:
+					return
+				_timer = 0.0
 			_timer -= delta
 			var shown := ceili(_timer)
 			if shown < _count and shown >= 1:
@@ -1119,6 +1176,10 @@ func _process(delta: float) -> void:
 					zone.banner_requested.emit("บุก!!")
 					AudioManager.play_sfx(&"quest_complete", -2.0)
 					return
+				if _from_lobby:
+					# The bell rang: the war runs its full time from the round's real start.
+					time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 1.0, GuildWarData.DURATION)
+					_update_breakable()
 				save_checkpoint()
 				for f in all_fighters():
 					f.start_fight()
@@ -1615,7 +1676,7 @@ func gates_left() -> int:
 func _update_breakable() -> void:
 	var front := front_gates()
 	for g in gates:
-		g.breakable = front.has(g) and state != "ending"
+		g.breakable = front.has(g) and state != "ending" and lobby_until <= 0
 	var open: Array = []
 	for tier in 2:
 		var row: Array = []

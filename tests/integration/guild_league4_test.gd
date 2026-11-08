@@ -181,8 +181,9 @@ func _registration(w: int) -> void:
 	check(GuildLeague.register() == "ok", "and register again")
 	pin(float(at) - 200.0)
 	check(GuildLeague.unregister() != "ok" and GuildLeague.registered(at), "no cancelling once closed")
-	# Before the round: nothing to enter yet.
-	check(GuildLeague.enter_problem() != "", "no war before the round starts")
+	# Before the round: only its waiting room (from five minutes before; GuildWarMatch.lobby_until).
+	check(GuildLeague.enter_problem(float(at) - 301.0) != "", "no war before the waiting room opens")
+	check(GuildLeague.enter_problem() == "" and int(GuildLeague.enter_match().get("at", 0)) == at, "the waiting room is open five minutes before (%s)" % GuildLeague.enter_problem())
 	# The round begins: told once, then the hero may go in (late too).
 	pin(float(at) + 5.0)
 	check(GuildLeague.tell_round() and not GuildLeague.tell_round(), "the hero is told once that its round began")

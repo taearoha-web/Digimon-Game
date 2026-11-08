@@ -650,3 +650,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-league-titles
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/league_titles_test.tscn
+      - name: guild_war_lobby_test (the waiting room - from five minutes before a league round the registered line-up hero may enter early; the desk tells when it opens; inside nobody is hurt, the gates and the switch are shut, the hero stays near its camp, the countdown banner and 10-9-8; at the bell the war runs its full time from the real start; leave and come back; no checkpoint before the start)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-war-lobby
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_lobby_test.tscn
