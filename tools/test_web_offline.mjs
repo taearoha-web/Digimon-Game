@@ -106,7 +106,13 @@ const browser = await chromium.launch({headless: true, ...(process.env.CHROMIUM_
 const context = await browser.newContext({viewport: {width: 640, height: 360}});
 const page = await context.newPage();
 const failures = [], errors = [];
-page.on('requestfailed', request => { if (request.url().startsWith(origin)) failures.push(request.url() + ' ' + (request.failure() || {}).errorText); });
+page.on('requestfailed', request => {
+  const reason = (request.failure() || {}).errorText;
+  // The league's background sync (LeagueRounds) may be in flight when a test reloads the
+  // page: the navigation cancels it (net::ERR_ABORTED). That is not a failed request.
+  if (request.url().startsWith(origin + '/api/league/') && reason === 'net::ERR_ABORTED') return;
+  if (request.url().startsWith(origin)) failures.push(request.url() + ' ' + reason);
+});
 page.on('response', response => { if (response.url().startsWith(origin) && response.status() >= 400) failures.push(response.url() + ' HTTP ' + response.status()); });
 page.on('pageerror', error => errors.push(error.message));
 const consoleErrors = [];

@@ -423,6 +423,8 @@ class WebLink:
   window.toonLeague = {
     send(method, path, body) {
       const id = ++seq;
+      // Offline: no request at all (it would only fail); answered like a network error.
+      if (navigator.onLine === false) { replies.set(id, JSON.stringify({status: 0, body: ''})); return id; }
       replies.set(id, null);
       const init = {method, headers: {}, credentials: 'same-origin', cache: 'no-store'};
       if (body) { init.headers['content-type'] = 'application/json'; init.body = body; }
