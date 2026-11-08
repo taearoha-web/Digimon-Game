@@ -190,6 +190,9 @@ var _crystal_mat: StandardMaterial3D
 ## The castle's switches: who holds each now (-1 nobody, else the team; a switch with both
 ## guilds inside is contested and held by nobody), read every SWITCH_EVERY seconds.
 const SWITCH_EVERY := 0.25
+## A war of more than two guilds: how many more bodies than its holders another guild
+## needs in a switch's circle to take it (read_switches).
+const SWITCH_EDGE := 2
 var switch_owner: Array[int] = [-1, -1]
 var switch_contested: Array[bool] = [false, false]
 ## Tests and tools: both switches read as held by this guild (-1: as the field stands).
@@ -285,73 +288,25 @@ func _set_teams(n: int) -> void:
 		c.spread(n)
 
 
-# --- Who is whose enemy (worked out once a physics frame for every fighter) --------
+# --- Who is whose enemy (the commanders' lists, worked out once a frame) ------------
+# (The fighters read their own shared view: GuildFighter._foes.)
 
 var _lists_frame := -1
-var _hostiles: Array = []
-var _friends: Array = []
 var _foes: Array = []
 
 
 func _refresh_lists() -> void:
 	var frame := Engine.get_physics_frames() * 4096 + Engine.get_process_frames() % 4096
-	if frame == _lists_frame and _hostiles.size() == sides.size():
+	if frame == _lists_frame and _foes.size() == sides.size():
 		return
 	_lists_frame = frame
-	var n := sides.size()
-	var alive: Array = []
-	for t in n:
-		var up: Array[Node3D] = []
-		for f in sides[t]:
-			if is_instance_valid(f) and not f.is_dead():
-				up.append(f)
-		alive.append(up)
-	var hero_up := not spectating() and not mirror and is_instance_valid(hero) and not hero.is_dead() and not hero.spectating
-	var summons: Array[Node3D] = []
-	if is_inside_tree():
-		for node in get_tree().get_nodes_in_group("summons"):
-			if node is Node3D and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead():
-				summons.append(node)
-	_hostiles.clear()
-	_friends.clear()
 	_foes.clear()
-	for t in n:
-		var hostile: Array[Node3D] = []
+	for t in sides.size():
 		var foe_list: Array[GuildFighter] = []
-		for o in n:
-			if o == t:
-				continue
-			hostile.append_array(alive[o])
-			foe_list.append_array(sides[o])
-		if t != GuildFighter.TEAM_ALLY:
-			if hero_up:
-				hostile.append(hero)
-			hostile.append_array(summons)
-		var friend: Array[Node3D] = (alive[t] as Array[Node3D]).duplicate()
-		if t == GuildFighter.TEAM_ALLY and hero_up:
-			friend.append(hero)
-		_hostiles.append(hostile)
-		_friends.append(friend)
+		for o in sides.size():
+			if o != t:
+				foe_list.append_array(sides[o])
 		_foes.append(foe_list)
-
-
-## Everyone standing that team `t` may hurt: the other teams' fighters, and (not for team 0)
-## the hero and its summons. Shared: callers must not change it.
-func hostiles(t: int) -> Array[Node3D]:
-	_refresh_lists()
-	if t >= 0 and t < _hostiles.size():
-		return _hostiles[t]
-	var none: Array[Node3D] = []
-	return none
-
-
-## Team `t`'s standing members (the hero for team 0). Shared: callers must not change it.
-func friends(t: int) -> Array[Node3D]:
-	_refresh_lists()
-	if t >= 0 and t < _friends.size():
-		return _friends[t]
-	var none: Array[Node3D] = []
-	return none
 
 
 ## Every fighter of the other teams (standing or not). Shared: callers must not change it.
@@ -1920,11 +1875,17 @@ func read_switches() -> void:
 		# by nobody.
 		if level and switch_owner[k] >= 0 and switch_owner[k] < c.size() and c[switch_owner[k]] == top:
 			holder = switch_owner[k]
-		# A war of more than two guilds: a switch stays with the guild that took it while its
-		# circle stands empty (another guild must come and outnumber it there), or the
-		# barrier would almost never fall with three guilds always fighting over both.
-		if top == 0 and team_count() > 2:
-			holder = switch_owner[k]
+		# A war of more than two guilds (DECISION): a switch stays with the guild that took it
+		# while the circle is empty, and until another guild has SWITCH_EDGE more bodies in it
+		# than the holders, or the barrier would almost never fall with three guilds always
+		# fighting over both.
+		if team_count() > 2:
+			var was := switch_owner[k]
+			if was >= 0 and was < c.size() and (top == 0 or (c[was] > 0 and top < c[was] + SWITCH_EDGE)):
+				# Its holders keep it until another guild brings SWITCH_EDGE more bodies
+				# into the circle than they have there, and while it stands empty.
+				holder = was
+				level = c[was] > 0 and c.count(0) < c.size() - 1
 		_set_switch(k, holder, level)
 
 
@@ -2204,14 +2165,7 @@ func _tick_capture(delta: float) -> void:
 			if zone != null and is_instance_valid(zone):
 				VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.4, 0), Color(BARRIER_COLOR, 1.0), 5.0)
 		capture["paused"] = true
-		for other_team in team_count():
-			if other_team == team:
-				continue
-			var other := ai_leader(other_team)
-			if other != null and not other.is_dead() and castle_owner != other_team and not barrier_up(other_team) and SiegeArena.on_altar(other.global_position):
-				_cancel_capture()
-				_start_capture(other_team, other)
-				break
+		_offer_altar(team)
 		return
 	if bool(capture.get("barrier", false)):
 		capture["barrier"] = false
@@ -2222,6 +2176,19 @@ func _tick_capture(delta: float) -> void:
 	capture["progress"] = float(capture.progress) + delta
 	if float(capture.progress) >= CAPTURE_TIME:
 		_complete_capture()
+
+
+## A paused count of `team` gives way to another guild's leader standing on the altar
+## with the barrier down for its own guild.
+func _offer_altar(team: int) -> void:
+	for other_team in team_count():
+		if other_team == team:
+			continue
+		var other := ai_leader(other_team)
+		if other != null and not other.is_dead() and castle_owner != other_team and not barrier_up(other_team) and SiegeArena.on_altar(other.global_position):
+			_cancel_capture()
+			_start_capture(other_team, other)
+			return
 
 
 func _who_name(who: Node3D) -> String:

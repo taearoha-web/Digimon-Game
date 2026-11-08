@@ -1391,14 +1391,14 @@ func apply() -> void:
 				else:
 					f.goal_point = slot(at, fwd, r, i, _counts[r], depth)
 			DEFEND:
-				if capturing_foe and deny_k >= 0 and i % 4 != 3:
+				if capturing_foe and deny_k >= 0 and (i % 4 != 3 if war.team_count() <= 2 else i % 3 == 0):
 					# Quicker to cut a switch of theirs than to reach the leader.
 					f.objective = null
 					f.hold_range = 6.0
 					f.goal_point = SiegeArena.SWITCHES[deny_k]
-				elif capturing_foe and war.team_count() > 2 and war.castle_owner != team and i % 2 == 1:
-					# A war of more than two: only the strike group goes for the leader on the
-					# altar; the rest hold the throne room's door against the other guilds.
+				elif capturing_foe and war.team_count() > 2 and war.castle_owner != team and i % 3 != 0:
+					# A war of more than two: only the strike group (a third) goes for the leader
+					# on the altar; the rest hold the throne room's door against the other guilds.
 					f.objective = null
 					f.hold_range = 9.0
 					f.goal_point = slot(Vector3(0, 0, SiegeArena.GATE_Z[2] - 6.0), Vector3(0, 0, 1), r, i / 2, maxi(1, _counts[r] / 2))

@@ -501,11 +501,20 @@ func _gate_up() -> bool:
 
 
 ## True for someone of the other side standing in its own camp (where it heals and comes back).
+## Any number of guilds: its own guild's camp (SiegeArena.camp), or the keep inside the
+## castle while its guild holds it (GuildWarMatch.home_of, safe only close by).
 func _in_own_camp(t: Node3D) -> bool:
 	if t is CastleGate:
 		return false
-	var their_camp := Vector3(SiegeArena.BASE_X * (-1.0 if team == TEAM_ENEMY else 1.0), 0, SiegeArena.BASE_Z)
-	return _flat_distance_from(t.global_position, their_camp) < SiegeArena.CAMP_RADIUS
+	var their := TEAM_ALLY
+	if t is GuildFighter:
+		their = (t as GuildFighter).team
+	elif t is SummonMob:
+		var caster: Variant = (t as SummonMob).caster
+		their = (caster as GuildFighter).team if caster is GuildFighter and is_instance_valid(caster) else TEAM_ENEMY
+	if siege != null and is_instance_valid(siege) and their == siege.castle_owner:
+		return _flat_distance_from(t.global_position, SiegeArena.KEEP_CAMP) < SiegeArena.KEEP_SAFE
+	return _flat_distance_from(t.global_position, SiegeArena.camp(their)) < SiegeArena.CAMP_RADIUS
 
 
 func _teammates() -> Array[Node3D]:
@@ -655,8 +664,11 @@ func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
 	_bar_until = now + 6.0
-	BattleVfx.damage_number(get_parent(), top_point(), str(amount) + ("!" if crit else ""), team == TEAM_ALLY, 1.35 if crit else 1.0)
-	visual.flash(Color(1, 1, 1))
+	# Eighty on one field: a fighter culled from the view (GuildWarMatch._cull_far) shows
+	# no number and no flash (nobody would see them, they still cost a node and a tween).
+	if visual.visible:
+		BattleVfx.damage_number(get_parent(), top_point(), str(amount) + ("!" if crit else ""), team == TEAM_ALLY, 1.35 if crit else 1.0)
+		visual.flash(Color(1, 1, 1))
 	if attacker != null and is_instance_valid(attacker):
 		_last_attacker = attacker
 		_grudge = 4.0

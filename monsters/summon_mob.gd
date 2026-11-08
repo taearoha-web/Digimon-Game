@@ -79,10 +79,16 @@ func _make_visual() -> MonsterVisual:
 	return super._make_visual()
 
 
+## Its summoner's guild's group in a guild war ("" for none).
+var _team_group := ""
+
+
 func _ready() -> void:
 	super._ready()
-	if caster and caster.is_in_group("gw_team1"):
-		add_to_group("gw_team1")
+	# A guild fighter's creature stands with its guild (gw_team0..3, GuildWarMatch).
+	if caster is GuildFighter:
+		_team_group = "gw_team%d" % (caster as GuildFighter).team
+		add_to_group(_team_group)
 	_label.modulate = _kind.color
 	var glow := ShaderMaterial.new()
 	glow.shader = Summon.SPIRIT_SHADER
@@ -259,7 +265,8 @@ func _die() -> void:
 	_alert.visible = false
 	collision_layer = 0
 	remove_from_group("mobs")
-	remove_from_group("gw_team1")
+	if _team_group != "":
+		remove_from_group(_team_group)
 	BurstGuard.forget(get_instance_id())
 	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.4, 0), "ซัมมอนถูกสังหาร", Color("ffb0b0"), 1.1)
 	VfxKit.sparks(get_parent(), hit_point(), _kind.color, 24, 4.0, 0.7)
@@ -278,7 +285,8 @@ func _expire() -> void:
 	_bar.visible = false
 	collision_layer = 0
 	remove_from_group("mobs")
-	remove_from_group("gw_team1")
+	if _team_group != "":
+		remove_from_group(_team_group)
 	BurstGuard.forget(get_instance_id())
 	VfxArt.motes(get_parent(), global_position + Vector3(0, 0.8, 0), (_kind.color as Color).lightened(0.3), "star", 10, 0.8, 1.6, 0.9)
 	_vanish()
