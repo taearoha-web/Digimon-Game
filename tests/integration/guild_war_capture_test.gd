@@ -12,7 +12,7 @@ var failures: Array[String] = []
 var checks := 0
 
 const SEEDS := [555]
-const RETRY_SEEDS := [77]
+const RETRY_SEEDS := [77, 9001]
 ## The first capture must come within this many seconds of war time: the first half of a
 ## war (GuildWarData.DURATION). The defaults stop at the first capture, so CI stays short
 ## (about 2 minutes: the sim runs at SPEED).
