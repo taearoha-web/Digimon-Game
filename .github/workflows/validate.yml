@@ -253,10 +253,6 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-chat-channels
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_channels_test.tscn
-      - name: The world players only say true things (thousands of thread lines, single lines and answers to the hero across players and times; every Lv, ★, +N, piece count, mount level, find, mount, wing, field, boss, God title, guild and party size checked against WorldGear / WorldPlayers for the speaker and the opener; news topics only with real news; rules read from the game's constants)
-        env:
-          XDG_DATA_HOME: /tmp/toon-ci-chat-truth
-        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_truth_test.tscn
       - name: Check the AI chat with the world players (account gate, limits, request, replies; no real API calls)
         run: |
           cd hosting/worker
@@ -599,6 +595,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx-layers
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_layers_test.tscn
+      - name: The world players only say true things (thousands of thread lines, single lines and answers to the hero across players and times; every Lv, ★, +N, piece count, mount level, find, mount, wing, field, boss, God title, guild and party size checked against WorldGear / WorldPlayers for the speaker and the opener; news topics only with real news; rules read from the game's constants)
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-chat-truth
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_truth_test.tscn
       - name: phone_budget_test (every effect shader warmed while loading, buff auras rebuilt only on change, party roles built once a frame, other players' pets cheap below quality 2)
         timeout-minutes: 10
         env:
