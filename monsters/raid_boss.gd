@@ -261,7 +261,7 @@ func force_special(kind: String) -> void:
 	_winding = true
 	visual.flash(Color(1.0, 0.3, 0.25), TELEGRAPH)
 	visual.action("attack", int(TELEGRAPH * 1000.0))
-	_anim_lock = Time.get_ticks_msec() + int(TELEGRAPH * 1000.0)
+	_anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
 	BattleVfx.floating_text(parent, top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.4)
 
 

@@ -173,7 +173,7 @@ func _cast_move(move: Dictionary, target: Node3D) -> void:
 	VfxKit.danger_circle(get_parent(), center, radius, warn)
 	visual.flash(Color(1.0, 0.3, 0.2), warn)
 	visual.action(String(move.clip), int((float(move.lock) + 0.5) * 1000.0), float(move.lock) / (float(move.lock) + 0.5))
-	_anim_lock = Time.get_ticks_msec() + int((float(move.lock) + 0.5) * 1000.0)
+	_anim_lock = GameClock.msec() + int((float(move.lock) + 0.5) * 1000.0)
 	get_tree().create_timer(warn).timeout.connect(func():
 		_winding = false
 		if _dead or _expired:

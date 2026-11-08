@@ -292,7 +292,7 @@ func _mirror() -> void:
 	check(int(Game.profile.hp) == hp_before, "mirror: a hit meant for another member does not")
 	# A cast draws the telegraph and plays the windup.
 	Online._dispatch({"t": "ent_event", "zone": "meadow", "eid": 7, "ev": "cast", "from": "p2", "data": {"c": [[goal.x, goal.z, 3.0, 1.0]], "a": "attack", "n": "ทดสอบ"}})
-	check(m._anim_lock > Time.get_ticks_msec(), "mirror: a cast plays the windup")
+	check(m._anim_lock > GameClock.msec(), "mirror: a cast plays the windup")
 	# The kill: loot and EXP here, as if the hero had killed it.
 	var exp_before := int(Game.profile.exp)
 	var level_before := int(Game.profile.level)

@@ -11,17 +11,20 @@ extends Node
 ##     seeded rounds begun with that holder;
 ##   - the checkpoint brings four teams back; watching shows the four guilds; a practice
 ##     war of two still works;
-##   - a seeded AI-only war of four with the gates down ends in a capture (accelerated).
+##   - a seeded AI-only war of four with the gates down ends in a capture (accelerated, SPEED).
 ## SIM_SEEDS="4242,77,9001" SIM_SECONDS=1200 (SIM_ONLY=1 to skip the rest, SIM_TRACE=1 for
 ## the feed) for the capture measurement over full wars.
 ##   godot --headless --audio-driver Dummy --path . res://tests/integration/guild_war_4way_test.tscn
 var failures := 0
 var checks := 0
 const DAY := 86400.0
+## The capture measurement runs at 4x (SIM_SPEED): the fighters' combat timing runs on
+## GameClock (game time), so 4x is the same fight as real speed on any runner. At 4x,
+## three at a time: seeds 77, 555, 2024, 4242, 9001 captured at 207-320 s (31337 none).
 const SPEED := 4.0
 const CAPTURE_BOUND := 900.0
-const SEEDS := [4242]
-const RETRY_SEEDS := [9001, 2024]
+const SEEDS := [77]
+const RETRY_SEEDS := [9001]
 
 
 func check(ok: bool, message: String) -> void:
@@ -558,8 +561,11 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 	var trace := OS.get_environment("SIM_TRACE") != ""
 	if trace:
 		m.feed.connect(func(text: String, team: int): print("  [%.0f] %d %s" % [m.commanders[0].clock, team, text]))
-	Engine.time_scale = SPEED
-	while clock < seconds and Time.get_ticks_msec() - t0 < 900000:
+	var speed := float(OS.get_environment("SIM_SPEED")) if OS.get_environment("SIM_SPEED") != "" else SPEED
+	Engine.time_scale = speed
+	# A wall-clock guard: three times the war at that speed, at least 15 min.
+	var guard_ms := maxi(900000, int(seconds / speed * 3000.0))
+	while clock < seconds and Time.get_ticks_msec() - t0 < guard_ms:
 		await get_tree().physics_frame
 		var dt := get_physics_process_delta_time()
 		clock += dt

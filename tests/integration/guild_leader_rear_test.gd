@@ -7,7 +7,7 @@ extends Node
 ## AI-led guilds (ours led by a picked member, the hero held still in its camp) fight for
 ## the throne room with every gate down; the leader's distance to the altar is sampled
 ## against its guild's members, leader falls and the capture are counted.
-## The war runs at real speed (SPEED). SIM_SEEDS="4242,77,9001" SIM_OWNER=-1 SIM_SECONDS=420
+## The war runs at SPEED (SIM_SPEED=1 for real speed). SIM_SEEDS="4242,77,9001" SIM_OWNER=-1 SIM_SECONDS=420
 ## for a longer measurement (every seed with every owner given; defaults: SETUPS, 90 s of
 ## war each), SIM_SPEED=4 to run it faster, SIM_TRACE=1 (2: every sample of the assault).
 ## godot --headless --path . res://tests/integration/guild_leader_rear_test.tscn
@@ -20,10 +20,11 @@ const SETUPS := [[4242, -1], [4242, 1], [2024, -1]]
 const SECONDS := 90.0
 ## War seconds between two samples.
 const SAMPLE_EVERY := 0.25
-## Engine.time_scale of the war (SIM_SPEED): real speed. The fighters' cast and swing
-## locks run on the wall clock, so a faster war is a different fight (at 4x the leaders
-## looked behind on one machine and not on another).
-const SPEED := 1.0
+## Engine.time_scale of the war (SIM_SPEED). The fighters' cast, swing and animation locks
+## run on GameClock (game time), so a faster war is the same fight as real speed (on the
+## wall clock, at 4x, the leaders looked behind on one machine and not on another);
+## measured three at a time, the escort share at 1x 77-84%, at 4x 68-83%.
+const SPEED := 2.0
 
 
 func check(ok: bool, message: String) -> void:
