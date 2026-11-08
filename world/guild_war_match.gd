@@ -49,6 +49,9 @@ const GATE_SECONDS := 60.0
 const GATE_TOUGHNESS: Array[float] = [1.0, 1.25, 1.5]
 ## How often a guild looks again at its plan (and at once when a gate falls or the altar changes).
 const PLAN_EVERY := 12.0
+## Nobody holding the castle: no guild holds back at the bridge foot past this many seconds
+## of fighting (plan_for); the two strongest never do.
+const HOLD_MAX := 150.0
 const PLAN_NAMES := {
 	"rush": "รวมพลบุกตีประตู",
 	"hold": "ตั้งรับที่หัวสะพาน รอสวนกลับ",
@@ -85,6 +88,8 @@ var zone: Node3D
 var hero: Hero
 var state := "intro"
 var time_left := GuildWarData.DURATION
+## Seconds fought in this session of the war (game time; a resume starts it again).
+var fight_clock := 0.0
 var overtime := false
 ## Falls dealt by each team (one entry a team).
 var score: Array[int] = [0, 0]
@@ -1117,6 +1122,7 @@ func _process(delta: float) -> void:
 
 
 func _tick_fight(delta: float) -> void:
+	fight_clock += delta
 	_ckpt_timer -= delta
 	if _ckpt_timer <= 0.0:
 		_ckpt_timer = CHECKPOINT_EVERY
@@ -1297,6 +1303,19 @@ static func owner_hit(attacker: Variant) -> bool:
 	if t < 0 and attacker != null:
 		return false
 	return t == current.castle_owner
+
+
+## Blows fighter on fighter by guild pair (blows[attacker * 4 + victim]), for the siege's
+## measurements and tests (who the attackers really fight).
+var blows := PackedInt32Array()
+
+
+func note_blow(by: int, on: int) -> void:
+	if by < 0 or by > 3 or on < 0 or on > 3:
+		return
+	if blows.size() < 16:
+		blows.resize(16)
+	blows[by * 4 + on] += 1
 
 
 func _on_fell(fighter: GuildFighter, killer: Node) -> void:
@@ -1661,6 +1680,7 @@ func _rival_strength(team: int) -> Vector2i:
 ## are back.
 func plan_for(team: int) -> String:
 	var mine := _strength(team)
+	var siege_on := castle_owner >= 0 and castle_owner != team and front_gate() != null
 	var theirs := _rival_strength(team)
 	var share := float(mine.x) / float(mine.y)
 	var was := plans[team] if team < plans.size() else ""
@@ -1671,12 +1691,39 @@ func plan_for(team: int) -> String:
 	if not holding and not rival_taking and (share < 0.4 or (was == "regroup" and share < 0.7)):
 		return "regroup"
 	if front_gate() != null:
+		# A holder in the castle: every other guild's business is its gates (no waiting at
+		# the bridge foot for the others to wear each other down). Nobody holding it: a guild
+		# much weaker than the strongest may hold the bridge foot a while, but never one of
+		# the two strongest, and nobody past HOLD_MAX s of the war.
+		if siege_on or fight_clock >= HOLD_MAX or _among_strongest(team, 2):
+			return "rush"
 		return "hold" if float(mine.x) < float(theirs.x) * 0.7 else "rush"
 	if holding:
 		return "forward" if mine.x >= theirs.x and not rival_taking else "defend"
 	if rival_taking or mine.x < 6:
 		return "storm"
 	return "split" if mine.x >= theirs.x else "storm"
+
+
+## Whether `team` is one of the `n` guilds with the most standing (ties to the lower team).
+func _among_strongest(team: int, n: int) -> bool:
+	var mine := _strength(team).x
+	var above := 0
+	for t in team_count():
+		if t == team:
+			continue
+		var theirs := _strength(t).x
+		if theirs > mine or (theirs == mine and t < team):
+			above += 1
+	return above < n
+
+
+## The siege's focus: the castle has a holder. Every other guild then goes for the holder's
+## gates and fighters, not each other (GuildFighter.holder_team), until the rivalry opens:
+## with every tier open the attackers fight each other too, in the throne room, over the
+## switches and the altar (GuildFighter.rivalry_open).
+func siege_focus() -> bool:
+	return castle_owner >= 0
 
 
 func _make_plans() -> void:
@@ -1700,6 +1747,8 @@ static func _spot(center: Vector3, k: int, radius: float, phase := 0.0) -> Vecto
 func _assign_objectives() -> void:
 	var throne_door := Vector3(0, 0, SiegeArena.GATE_Z[2] - 3.0)
 	var front := front_gates()
+	var focus := castle_owner if siege_focus() else -1
+	var open := front.is_empty()
 	for team in team_count():
 		var list := side(team)
 		var plan := plans[team] if plans[team] != "" else plan_for(team)
@@ -1714,6 +1763,9 @@ func _assign_objectives() -> void:
 			f.keep_front = Vector3.INF
 			f.hold_range = 0.0
 			f.objective = gate
+			f.holder_team = focus if team != castle_owner else -1
+			f.rivalry_open = open
+			f.rear_point = Vector3.INF
 			match plan:
 				"gates":
 					# The holder out in front of the front tier's gates, party by party on

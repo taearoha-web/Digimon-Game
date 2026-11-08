@@ -13,7 +13,11 @@ extends Node
 ##     war of two still works;
 ##   - a seeded AI-only war of four with the gates down ends in a capture (accelerated, SPEED).
 ## SIM_SEEDS="4242,77,9001" SIM_SECONDS=1200 (SIM_ONLY=1 to skip the rest, SIM_TRACE=1 for
-## the feed) for the capture measurement over full wars.
+## the feed and every 20 s each guild's plan, tactic and place, SIM_DUMP=t for guild t's
+## fighters) for the capture measurement over full wars. SIM_GATES=1: the gates stand (when
+## each tier opens, when the attackers first reach the front gates); SIM_OWNER=k: guild k
+## holds the castle from the keep (the siege's focus: falls and blows on the holder against
+## attacker on attacker, before and after every gate is down, and the capture attempts).
 ##   godot --headless --audio-driver Dummy --path . res://tests/integration/guild_war_4way_test.tscn
 var failures := 0
 var checks := 0
@@ -536,12 +540,17 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 	_hero()
 	# SIM_GATES=1: the doors stand (a measurement of how long they hold), else all down.
 	var doors := 1000 if OS.get_environment("SIM_GATES") != "" else 0
-	Game.guildwar_save_checkpoint(war_seed, GuildWarData.DURATION, false, [0, 0, 0, 0], 0, 0, 0, {"gates": [doors, doors, doors, doors, doors], "owner": -1, "teams": 4})
+	# SIM_OWNER=k: guild k holds the castle from the keep (else nobody does).
+	var holder := int(OS.get_environment("SIM_OWNER")) if OS.get_environment("SIM_OWNER") != "" else -1
+	Game.guildwar_save_checkpoint(war_seed, GuildWarData.DURATION, false, [0, 0, 0, 0], 0, 0, 0, {"gates": [doors, doors, doors, doors, doors], "owner": holder, "teams": 4})
 	Game.guildwar_resuming = true
-	GuildWarMatch.next_roster = _roster(true, -1, war_seed)
+	GuildWarMatch.next_roster = _roster(true, holder, war_seed)
 	var zone := _zone()
 	var m: GuildWarMatch = zone.gw_match
-	var out := {"seed": war_seed, "captures": [], "lead_falls": 0, "member_falls": 0, "traces": 0}
+	var out := {"seed": war_seed, "captures": [], "lead_falls": 0, "member_falls": 0, "traces": 0,
+		"holder": holder, "tiers": [-1.0, -1.0, -1.0], "reach": -1.0, "attempts": [],
+		# Falls dealt while a gate stands / once all are down: on the holder, attacker on attacker.
+		"on_holder": [0, 0], "att_att": [0, 0], "by_holder": [0, 0], "blows_pre": [0, 0], "blows_post": [0, 0]}
 	var hero: Hero = zone.hero
 	if m.ally_leader == null:
 		m.ally_leader = GuildWarMatch.pick_leader(m.allies)
@@ -566,6 +575,22 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 	var speed := float(OS.get_environment("SIM_SPEED")) if OS.get_environment("SIM_SPEED") != "" else SPEED
 	Engine.time_scale = speed
 	var fallen_at := {}
+	var kills_seen := func(victim: GuildFighter, killer: Node) -> void:
+		if holder < 0 or not (killer is GuildFighter):
+			return
+		var kt: int = (killer as GuildFighter).team
+		var phase := 0 if m.front_gate() != null else 1
+		if kt == victim.team:
+			return
+		if victim.team == m.castle_owner:
+			out.on_holder[phase] += 1
+		elif kt == m.castle_owner:
+			out.by_holder[phase] += 1
+		else:
+			out.att_att[phase] += 1
+	for f in m.all_fighters():
+		f.fell.connect(kills_seen)
+	var blows_at_fall := PackedInt32Array()
 	# A wall-clock guard: three times the war at that speed, at least 15 min.
 	var guard_ms := maxi(900000, int(seconds / speed * 3000.0))
 	while clock < seconds and Time.get_ticks_msec() - t0 < guard_ms:
@@ -577,7 +602,40 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 				if m.gates[gi].is_dead() and not fallen_at.has(gi):
 					fallen_at[gi] = snappedf(clock, 1.0)
 					print("SIM4 seed %d: gate %d (tier %d) down at %.0f s" % [war_seed, gi, m.gates[gi].tier, clock])
+			for k in 3:
+				if float(out.tiers[k]) < 0.0 and m.tier_open(k):
+					out.tiers[k] = snappedf(clock, 1.0)
+			if blows_at_fall.is_empty() and m.front_gate() == null:
+				blows_at_fall = m.blows.duplicate()
+		if doors > 0 and float(out.reach) < 0.0:
+			# The first attacker at a front gate of the first tier.
+			for t in 4:
+				if t == holder:
+					continue
+				for f in m.side(t):
+					if not f.is_dead() and f.global_position.z < SiegeArena.GATE_Z[0] + 9.0 and absf(f.global_position.x) < 40.0:
+						out.reach = snappedf(clock, 1.0)
+						break
 		m.time_left = GuildWarData.DURATION
+		if trace and int(clock / 20.0) != int((clock - dt) / 20.0):
+			# Every 20 s: each guild's plan, tactic, standing, where its middle is; the gates.
+			var rows: Array[String] = []
+			for t in 4:
+				var up := m.side(t).filter(func(f): return not f.is_dead())
+				var mid := Vector3.ZERO
+				for f in up:
+					mid += f.global_position
+				mid = mid / float(maxi(1, up.size()))
+				var fg := m.front_gate()
+				var near := up.filter(func(f): return fg != null and f.global_position.distance_to(fg.global_position) < 12.0).size()
+				var back := up.filter(func(f): return f.is_retreating()).size()
+				var idle := up.filter(func(f): return f._victim == null or not is_instance_valid(f._victim)).size()
+				rows.append("t%d %s/%s up %d at (%.0f,%.0f) gate %d home %d idle %d" % [t, m.plans[t], m.commanders[t].tactic, up.size(), mid.x, mid.z, near, back, idle])
+			var hp := m.gates.map(func(g): return int(100.0 * float(g.hp) / float(maxi(1, g.max_hp))))
+			print("  [%.0f] %s | gates %s sw %s" % [clock, " | ".join(rows), hp, m.switch_owner])
+			if OS.get_environment("SIM_DUMP") != "" and int(clock) % 100 < 20:
+				for f in m.side(int(OS.get_environment("SIM_DUMP"))):
+					print("    %s at %s goal %s obj %s hold %.0f vic %s ret %s dead %s vel %.1f" % [f.rival_name, f.global_position.round(), f.goal_point.round(), f.objective.global_position.round() if f.objective != null else "-", f.hold_range, (f._victim.global_position.round() if f._victim != null and is_instance_valid(f._victim) else "-"), f.is_retreating(), f.is_dead(), f.velocity.length()])
 		for f in m.all_fighters():
 			var id := f.get_instance_id()
 			if f.deaths > int(seen.get(id, 0)):
@@ -586,12 +644,38 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 					out.lead_falls += 1
 				else:
 					out.member_falls += 1
+		var taking := int(m.capture.get("team", -1))
+		if taking >= 0 and ((out.attempts as Array).is_empty() or int(out.attempts[-1][1]) != taking or bool(out.attempts[-1][2])):
+			out.attempts.append([snappedf(clock, 1.0), taking, false])
+		elif taking < 0 and not (out.attempts as Array).is_empty():
+			out.attempts[-1][2] = true
 		if m.castle_owner != owner_now:
 			owner_now = m.castle_owner
 			out.captures.append([snappedf(clock, 1.0), owner_now, m.team_name(owner_now)])
 			if not full:
 				break
 	Engine.time_scale = 1.0
+	if holder < 0 and doors > 0:
+		print("SIM4 seed %d no holder: capture attempts (s, guild) %s" % [war_seed, (out.attempts as Array).map(func(a): return [a[0], a[1]])])
+		print("SIM4 seed %d no holder: tiers open at %s, first at the gates %.0f s" % [war_seed, out.tiers, out.reach])
+	if holder >= 0:
+		var now := m.blows.duplicate()
+		if now.size() < 16:
+			now.resize(16)
+		var pre := blows_at_fall if not blows_at_fall.is_empty() else now
+		if pre.size() < 16:
+			pre.resize(16)
+		for a in 4:
+			for v in 4:
+				if a == v or a == holder:
+					continue
+				var slot := 0 if v == holder else 1
+				out.blows_pre[slot] += pre[a * 4 + v]
+				out.blows_post[slot] += now[a * 4 + v] - pre[a * 4 + v]
+		print("SIM4 seed %d holder %d: capture attempts (s, guild) %s" % [war_seed, holder, (out.attempts as Array).map(func(a): return [a[0], a[1]])])
+		print("SIM4 seed %d holder %d: tiers open at %s, first at the gates %.0f s | falls pre-gates: holder %d, att-on-att %d, by holder %d | after: holder %d, att-on-att %d, by holder %d | attacker blows pre: on holder %d, on attackers %d (%.0f%%) | after: %d / %d" % [
+			war_seed, holder, out.tiers, out.reach, out.on_holder[0], out.att_att[0], out.by_holder[0], out.on_holder[1], out.att_att[1], out.by_holder[1],
+			out.blows_pre[0], out.blows_pre[1], 100.0 * float(out.blows_pre[0]) / float(maxi(1, out.blows_pre[0] + out.blows_pre[1])), out.blows_post[0], out.blows_post[1]])
 	var leader_lines := m.trace.filter(func(l): return l.begins_with("หัวหน้ากิลด์") or l.begins_with("กิลด์"))
 	out.traces = leader_lines.size()
 	print("SIM4 seed %d (%.0f s): captures %s | leader falls %d members %d | wall %.0f s" % [war_seed, clock, out.captures, out.lead_falls, out.member_falls, (Time.get_ticks_msec() - t0) / 1000.0])
