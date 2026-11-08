@@ -304,7 +304,7 @@ func _threads() -> void:
 	var picked := {}
 	for n in 300:
 		picked[ChatThreads.topic_for("world", god, rng)] = true
-		check(ChatThreads.topic_for("world", hunter, rng) not in ["god_done", "abyss", "set"], "a Lv.30 player does not talk of the endgame")
+		check(ChatThreads.topic_for("world", hunter, rng) not in ["god_done", "abyss", "set", "drop", "enhance_ok", "enhance_fail", "wings"], "a Lv.30 player with no news does not talk of the endgame, finds or the forge")
 	check(picked.has("god_done") and picked.has("abyss") and picked.has("set") and picked.has("war"), "a ★300 guild member talks of its God step, the abyss, the set and the war (%s)" % [picked.keys()])
 	lines = ChatThreads.make("world", [hunter, god], rng, {"topic": "party"})
 	check((lines[1].options as Array).any(func(x): return String(x).contains("QA_Hunter")), "an answer names who it answers (%s)" % [lines[1].options])
@@ -394,7 +394,11 @@ func _guild_and_party() -> void:
 	Game.world_party.assign(members)
 	said.clear()
 	WorldPresence.chat_clock_override += 100.0
-	ok = presence.party_once()
+	# A turn stays quiet when all its lines were said lately (WorldPresence._fresh_of): try a few.
+	for tries in 5:
+		ok = presence.party_once()
+		if ok:
+			break
 	for k in 40:
 		WorldPresence.chat_clock_override += 0.5
 		presence.chat_tick(0.0)

@@ -385,55 +385,76 @@ static func _clean(text: String) -> String:
 
 # --- What players say ----------------------------------------------------------------
 
-## Lines anyone may say; the scheduled players are out levelling, never in the village.
-const ANY := ["สวัสดีทุกคน", "วันนี้มอนเกิดไวดีนะ", "555 เมื่อกี้ล้มเพราะเผลอ", "เน็ตกระตุกนิดหน่อย", "ใครเห็นบอสสนามบ้าง",
-	"ยาเลือดใกล้หมดแล้ว ฟาร์มต่ออีกนิด", "เพลง%zone เพราะจัง", "ขอบคุณที่ช่วยเมื่อกี้นะ", "ใครอยากเพิ่มเพื่อนบ้าง",
-	"ใครอยู่แถวนี้บ้าง", "พักกินข้าวแป๊บ เดี๋ยวมาต่อ", "วันนี้เล่นยาวเลย", "เมื่อกี้มอนดรอปของดีด้วย"]
-const LOW := ["มีใครพาเก็บเลเวลไหมครับ", "มือใหม่ครับ ฝากตัวด้วย", "%zone มอนเยอะดีจัง", "เลเวลขึ้นช้าจัง ทำไงดี",
-	"อาชีพไหนเก่งสุดครับ", "ใครรู้ทางไปสนามถัดไปบ้าง", "ยาเลือดซื้อที่ไหนครับ", "เพิ่งเริ่มเล่นวันนี้ครับ",
+## What a player says only ever holds for it: its level, class, guild and place, its real
+## gear and the news of its last ChatThreads.NEWS_WORLD_HOURS world hours (WorldGear,
+## ChatThreads.news: %drop, %eslot / %efrom / %eto, %fslot / %fnext / %flost / %fails,
+## %wingsnew, %mnew / %mupname / %muplv, %mywings, %mydplus...), the party it is really in
+## and the game's rules. A line may start with conditions on the speaker
+## (ChatThreads.cond_ok, and "{room}" / "{noheal}" / "{newjob}" / "{near100}" here), and
+## one whose placeholder has no real value for it is never said.
+
+## Lines anyone may say (no facts); the scheduled players are out levelling, never in
+## the village.
+const ANY := ["สวัสดีทุกคน", "ใครเห็นบอสสนามบ้าง", "เพลง%zone เพราะจัง", "ใครอยากเพิ่มเพื่อนบ้าง",
+	"ใครอยู่แถวนี้บ้าง", "หิวข้าวแล้ว 555", "มีใครอยากคุยไหม เหงาจัง 555"]
+## A player's own news, said now and then while it hunts (NEWS_SHARE).
+const NEWS := ["เมื่อกี้ได้%drop ด้วย", "ตีบวก%eslot ติด +%eto แล้ว!", "ตีบวก%fslot +%fnext ไม่ติด เศร้า", "ได้%wingsnew แล้ว บินสบายเลย",
+	"ทำ%mnew สำเร็จแล้ว!", "อัป%mupname เลเวล %muplv แล้ว", "หลอม%setname ได้ชิ้นที่ %newpiece แล้ว!"]
+const NEWS_SHARE := 0.3
+const LOW := ["มีใครพาเก็บเลเวลไหมครับ", "{newbie}มือใหม่ครับ ฝากตัวด้วย", "{field}%zone มอนเยอะดีจัง", "เลเวลขึ้นช้าจัง ทำไงดี",
+	"อาชีพไหนเก่งสุดครับ", "ใครรู้ทางไปสนามถัดไปบ้าง", "ยาเลือดซื้อที่ไหนครับ", "{newbie}ยังใหม่อยู่ครับ",
 	"ใครแนะนำที่เก็บเลเวลหน่อย", "มอนตัวใหญ่ตีไม่ไหวเลย 555"]
-const JOB := ["เพิ่งเปลี่ยนอาชีพเป็น%job แล้ว!", "%job สนุกกว่าที่คิด", "ใครเล่น%job บ้าง แนะนำสกิลหน่อย"]
-const MID := ["หาปาร์ตี้ลงหอคอย ขาดอีก 1", "ใครไป %zone บ้าง ไปด้วยกัน", "อีกนิดจะถึงเลเวล 100 แล้ว", "ตีบวกแตกอีกแล้ว เศร้า",
-	"ได้ของหายากจาก %zone ด้วย!", "ใครมีหินตีบวกขายบ้าง"]
-const HIGH := ["กิลด์ %guild รับสมาชิกเลเวล 100 ขึ้นไป", "กิลด์วอรอบหน้าใครว่างมารวมที่หมู่บ้าน", "ได้ปีกแล้ว บินสบายเลย",
-	"ดาวขึ้นช้ามากที่ %zone", "ใครไปเก็บดาวด้วยกันบ้าง", "%guild ต้องชนะกิลด์วอรอบนี้!"]
-const TOP := ["ตีบวกชุดเทพต่อ ใครมีหินขายบ้าง", "รับพาเก็บดาว ทักมาได้", "ล่าบอสวิหารบัววันนี้ได้ของดี",
-	"ชุดเทพครบแล้ว เหลือตีบวกให้ครบ +10", "มือใหม่มาถามได้นะ ยินดีช่วย", "กิลด์ %guild แกร่งที่สุด"]
+const JOB := ["{newjob}เพิ่งเปลี่ยนอาชีพเป็น%job แล้ว!", "%job สนุกกว่าที่คิด", "ใครเล่น%job บ้าง แนะนำสกิลหน่อย"]
+const MID := ["ใครไปหอคอยบ้าง ไปด้วยกันไหม", "{field}ใครไป %zone บ้าง ไปด้วยกัน", "{near100}อีกนิดจะถึง Lv.%maxlv แล้ว", "ตีบวกพลาด %fails รอบแล้ว เศร้า",
+	"{field}ได้%drop จาก %zone ด้วย!", "ใครมีหินตีบวกขายบ้าง"]
+const HIGH := ["กิลด์ %guild รับสมาชิกตั้งแต่ Lv.%guildlv", "กิลด์วอรอบหน้า %wartime ใครว่างลงชื่อด้วย", "ได้%mywings แล้ว บินสบายเลย",
+	"{field}ดาวขึ้นช้าจังที่ %zone", "ใครไปเก็บดาวด้วยกันบ้าง", "%guild ต้องชนะกิลด์วอรอบนี้!"]
+const TOP := ["ชุดเทพครบแล้ว ตอนนี้ตีบวกถึง +%mydplus ใครมีเพชรขายบ้าง", "รับพาเก็บดาว ทักมาได้", "{boss}ล่าบอสที่%zone อยู่ ใครมาด้วยไหม",
+	"มือใหม่มาถามได้นะ ยินดีช่วย", "%guild สู้ ๆ"]
 ## Stall keepers: players taking a break in the village, selling what they found.
 ## %gear / %potion / %jewel name a lot this stall really has (StallStock.lot_name); a line
-## naming goods the stall does not have is never said.
+## naming goods the stall does not have is never said. Potions are under the merchant's
+## price (StallStock.POTION_DISCOUNT), the stall pays more than the merchant
+## (SELL_BONUS), haggling is once a lot a window and the stock changes every RESTOCK.
 const STALL := ["ร้านเปิดแล้ว %potion ถูกกว่าพ่อค้า", "ขาย%gear ทักได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า", "ขาย%jewel ของแท้ราคาเป็นมิตร",
-	"AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "ลดราคาช่วงนี้ แวะมาก่อนออกล่า",
-	"ของหายากเพิ่งได้มา แตะที่ตัวแล้วดูร้านได้เลย", "ของชุดใหม่ลงร้านทุกสองชั่วโมง", "เพลงหมู่บ้านเพราะจัง นั่งขายของเพลิน ๆ"]
+	"AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "ต่อราคาได้นะ แวะมาก่อนออกล่า",
+	"แตะที่ตัวแล้วดูร้านได้เลย", "ของในร้านเปลี่ยนทุก %restock ชั่วโมง", "เพลงหมู่บ้านเพราะจัง นั่งขายของเพลิน ๆ"]
 const STALL_GOODS := {"%gear": "equip", "%potion": "potion", "%jewel": "jewel"}
 ## Stall lines that name no goods, for when the named kind is not in stock.
 const STALL_PLAIN := ["AFK อยู่นะ ซื้อของวางเงินไว้ได้", "พักจากล่ามอน เอาของดีที่เก็บได้มาขาย", "แตะที่ตัวแล้วดูร้านได้เลย", "รับซื้อของจากกระเป๋า ให้ราคาดีกว่าพ่อค้า"]
-## A scheduled player in the village on a short errand, by the errand.
 ## A player in a party of world players (WorldParties) talks about it now and then
-## (%leader: whose party, %n: how many, %zone: where it hunts); one hunting alone who
-## likes parties asks for one (LFG).
-const PARTY_IN := ["ตี้ %leader ฟาร์มที่%zone อยู่ มาเพิ่มได้อีกคน", "ไปฟาร์มที่%zone กัน ตี้เรา %n คนแล้ว", "ตี้ %leader ขาดฮีล ใครว่างมาหน่อย",
+## (%leader: whose party, %n: how many, %room: places left, %zone: where it hunts); one
+## hunting alone who likes parties asks for one (LFG).
+const PARTY_IN := ["{room}ตี้ %leader ฟาร์มที่%zone อยู่ มาเพิ่มได้อีก %room คน", "ไปฟาร์มที่%zone กัน ตี้เรา %n คนแล้ว", "{noheal}ตี้ %leader ขาดฮีล ใครว่างมาหน่อย",
 	"ตีกับตี้ %leader สนุกดี EXP ไหลเลย", "ตี้ %n คนที่%zone เก็บเลเวลไวขึ้นเยอะ", "ไปฟาร์มที่%zone กันต่อนะทุกคน"]
-const PARTY_LEAD := ["ตี้ผมฟาร์มที่%zone อยู่ ใคร Lv.%level ใกล้ ๆ มาด้วยกัน", "ไปฟาร์มที่%zone กัน ตี้ %n คนแล้ว ขาดอีกนิด",
+const PARTY_LEAD := ["ตี้ผมฟาร์มที่%zone อยู่ ใคร Lv.%level ใกล้ ๆ มาด้วยกัน", "{room}ไปฟาร์มที่%zone กัน ตี้ %n คนแล้ว ยังรับได้อีก %room คน",
 	"หัวตี้ขอพาไป%zone นะ ตามมาทุกคน"]
 const LFG := ["ใครว่างมาตี้ด้วย Lv.%level", "หาตี้ฟาร์ม%zone ครับ", "ขอเข้าตี้หน่อย Lv.%level %job", "ใครไป%zone ตี้กันไหม", "หาตี้ครับ ฟาร์มคนเดียวช้ามาก"]
+## A scheduled player in the village on a short errand, by the errand.
 const ERRAND := {
 	"quest": ["ส่งเควสก่อนนะ", "แวะส่งเควสที่ผู้ใหญ่บ้าน เดี๋ยวกลับไปล่าต่อ", "รับเควสใหม่แล้ว ไปต่อกัน", "เควสนี้ให้ของดีด้วย"],
-	"enhance": ["ตีบวกติด +%plus แล้ว!", "ตีบวกแตกอีกแล้ว", "ลุ้นตีบวกอยู่ เพชรชมพูเหลือเม็ดเดียว", "ตีบวก +%plus ผ่าน! ไปล่าต่อ"],
-	"skill": ["เรียนสกิลใหม่แล้ว", "อัปสกิลเสร็จ ไปลองของที่%field", "ได้สกิลใหม่ที่เลเวล %level แล้ว!"],
+	"enhance": ["ตีบวก%eslot ติด +%eto แล้ว!", "ตีบวก%fslot จาก +%ffrom ไม่ติด %flost", "ลุ้นตีบวกอยู่ ขอให้ติดที", "%eslot +%efrom ไป +%eto ผ่าน! ไปล่าต่อ"],
+	"skill": ["อัปสกิลเสร็จแล้ว", "อัปสกิลเสร็จ ไปลองของที่%field", "แวะหาปรมาจารย์สกิลมา อัปสกิลเรียบร้อย"],
 }
+## Stand-ins for the stall goods while the other placeholders are filled.
+const GOODS_MARK := {"%gear": "<<gear>>", "%potion": "<<potion>>", "%jewel": "<<jewel>>"}
 
 
-## What player state s says now (seed picks the line).
-static func line_for(s: Dictionary, seed_value: int) -> String:
+## What player state s says now (seed picks the line); t: the real time it is said
+## (WorldPresence.clock() by default), for its news.
+static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
+	if t < 0.0:
+		t = WorldPresence.clock()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var level := int(s.get("level", 1))
+	var stars := int(s.get("stars", 0)) if level >= Game.MAX_LEVEL else 0
+	var doing := String(s.get("doing", ""))
 	var pool: Array = []
 	var errand := String(s.get("errand", ""))
-	if String(s.get("doing", "")) == "errand" and ERRAND.has(errand):
+	if doing == "errand" and ERRAND.has(errand):
 		pool = ERRAND[errand]
-	elif String(s.get("doing", "")) == "stall":
+	elif doing == "stall":
 		pool = STALL
 	elif bool(s.get("divine", false)):
 		pool = TOP
@@ -445,30 +466,85 @@ static func line_for(s: Dictionary, seed_value: int) -> String:
 		pool = JOB
 	else:
 		pool = LOW
-	if rng.randf() < (0.1 if String(s.get("doing", "")) in ["stall", "errand"] else 0.25):
+	if rng.randf() < (0.1 if doing in ["stall", "errand"] else 0.25):
 		pool = ANY
 	var leader := int(s.get("party_leader", -1))
-	var party_n := (s.get("party_members", []) as Array).size()
-	if String(s.get("doing", "")) in ["hunt", "boss"]:
+	var members: Array = s.get("party_members", [])
+	var party_n := members.size()
+	if doing in ["hunt", "boss"]:
 		if leader >= 0 and rng.randf() < 0.3:
 			pool = PARTY_LEAD if leader == int(s.get("index", -2)) else PARTY_IN
 		elif leader < 0 and s.has("index") and rng.randf() < 0.12 * WorldParties.taste(int(s.index)) / 0.5:
 			pool = LFG
-	var line := String(pool[rng.randi() % pool.size()])
-	if leader >= 0 and leader < WorldPlayers.size():
-		line = line.replace("%leader", String(WorldPlayers.entry(leader).name)).replace("%n", str(party_n))
+	var n := ChatThreads.news(ChatThreads.index_of_state(s), t)
 	var place := StringName(s.get("place", ""))
-	var zone_name := "หมู่บ้าน" if place == &"town" or place == &"" else String(ZoneData.get_zone(place).get("name", "สนาม"))
 	var guild := WorldPlayers.guild_name(int(s.get("guild", 0)))
-	if line.contains("%guild") and guild == "":
-		line = String(ANY[rng.randi() % ANY.size()])
+	var rep := ChatThreads.rule_vars(t)
+	rep.merge(ChatThreads.news_vars(n), true)
+	rep.merge(ChatThreads.my_vars(n), true)
+	var set_name := String((n.get("gear", {}) as Dictionary).get("set_name", ""))
+	if set_name != "":
+		rep["%setname"] = set_name
+	rep["%zone"] = "หมู่บ้าน" if place == &"town" or place == &"" else String(ZoneData.get_zone(place).get("name", "สนาม"))
+	if guild != "":
+		rep["%guild"] = guild
+	rep["%level"] = str(level)
+	rep["%guildlv"] = str(Game.GUILD_LEVEL)
+	rep["%maxlv"] = str(Game.MAX_LEVEL)
+	rep["%restock"] = str(int(StallStock.RESTOCK / 3600.0))
+	rep["%field"] = String(ZoneData.get_zone(WorldPlayers.hunting_zone(level, stars)).get("name", "สนาม"))
+	rep["%job"] = String(ClassData.get_class_data(StringName(s.get("class", ClassData.START))).get("name", ""))
+	if leader >= 0 and leader < WorldPlayers.size():
+		rep["%leader"] = String(WorldPlayers.entry(leader).name)
+		rep["%n"] = str(party_n)
+		if party_n < WorldParties.SIZE_MAX:
+			rep["%room"] = str(WorldParties.SIZE_MAX - party_n)
+	if doing in ["hunt", "boss", "help"] and rng.randf() < NEWS_SHARE:
+		var told := _lines_that_hold(NEWS, s, n, rep, members)
+		if not told.is_empty():
+			return String(told[rng.randi() % told.size()])
+	var said := _lines_that_hold(pool, s, n, rep, members)
+	if said.is_empty():
+		said = _lines_that_hold(ANY, s, n, rep, members)
+	var line := String(said[rng.randi() % said.size()])
 	for key in STALL_GOODS:
-		if line.contains(key):
+		if line.contains(String(GOODS_MARK[key])):
 			var lot := StallStock.lot_name(int(s.get("index", -1)), STALL_GOODS[key], rng.randi())
-			line = line.replace(key, lot) if lot != "" else STALL_PLAIN[rng.randi() % STALL_PLAIN.size()]
-	line = line.replace("%zone", zone_name).replace("%guild", guild)
-	line = line.replace("%plus", str(rng.randi_range(5, 9))).replace("%level", str(level))
-	if line.contains("%field"):
-		line = line.replace("%field", String(ZoneData.get_zone(WorldPlayers.hunting_zone(level, int(s.get("stars", 0)))).get("name", "สนาม")))
-	line = line.replace("%job", String(ClassData.get_class_data(StringName(s.get("class", ClassData.START))).get("name", "")))
+			line = line.replace(String(GOODS_MARK[key]), lot) if lot != "" else STALL_PLAIN[rng.randi() % STALL_PLAIN.size()]
 	return line
+
+
+## The lines of `pool` that hold for player state s (news n), filled in with `rep`; the
+## stall goods (%gear, %potion, %jewel) stay as GOODS_MARK for line_for to fill from the
+## stock.
+static func _lines_that_hold(pool: Array, s: Dictionary, n: Dictionary, rep: Dictionary, members: Array) -> Array:
+	var out: Array = []
+	var level := int(s.get("level", 1))
+	for raw in pool:
+		var line := String(raw)
+		var ok := true
+		while ok and line.begins_with("{"):
+			var close := line.find("}")
+			if close < 0:
+				break
+			for cond in line.substr(1, close - 1).split(","):
+				match String(cond):
+					"room":
+						ok = ok and rep.has("%room")
+					"noheal":
+						ok = ok and not members.is_empty() and not members.any(func(m): return int(m) >= 0 and int(m) < WorldPlayers.size() and String(WorldPlayers.entry(int(m))["class"]) == "priest")
+					"newjob":
+						ok = ok and level >= ClassData.LINE_LEVEL and level <= ClassData.LINE_LEVEL + 2
+					"near100":
+						ok = ok and level >= Game.MAX_LEVEL - 10 and level < Game.MAX_LEVEL
+					_:
+						ok = ok and ChatThreads.cond_ok(String(cond), s, n)
+			line = line.substr(close + 1)
+		if not ok:
+			continue
+		for key in GOODS_MARK:
+			line = line.replace(String(key), String(GOODS_MARK[key]))
+		line = ChatThreads.apply(line, rep)
+		if line != "":
+			out.append(line)
+	return out

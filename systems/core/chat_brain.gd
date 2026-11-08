@@ -29,10 +29,15 @@ const INTENTS := [
 	["party", ["ปาร์ตี้", "ปาตี้", "ตี้", "party", "ไปด้วยกัน", "ไปด้วยไหม", "ไปล่าด้วย", "ล่าด้วยกัน", "เก็บเลเวลด้วย", "เข้ากลุ่ม", "จอยกัน", "จอยไหม"]],
 	["shop", ["ขายอะไร", "ขายไหม", "มีอะไรขาย", "ดูร้าน", "ดูของ", "ซื้อ", "ร้าน", "ราคา", "ขายของ", "รับซื้อ", "ของดี"]],
 	["come", ["มาหา", "เจอกัน", "มาเจอ", "มาที่นี่", "เทรด", "trade", "แลกของ", "แลกเปลี่ยน"]],
+	# Its own gear (answered from WorldGear).
+	["set", ["ชุดเซต", "เซต", "แก่นเทพ", "หลอมเซต"]],
+	["wings", ["ปีก", "wing"]],
+	["mount", ["มอนท์", "สัตว์ขี่", "ขี่อะไร", "mount"]],
+	["gear", ["อุปกรณ์", "ใส่อะไร", "ใส่ชุด", "ชุดอะไร", "อาวุธอะไร", "ของที่ใส่", "ใส่ของ", "gear", "ชุดเทพ"]],
+	["enhance", ["ตีบวก", "หินตีบวก", "+7", "+8", "+9", "+10", "บวกแตก", "บวกเท่าไหร่", "บวกกี่", "+กี่", "+เท่าไหร่"]],
 	["whereis", ["อยู่ไหน", "อยู่ที่ไหน", "อยู่แถวไหน", "อยู่แมพไหน", "อยู่ตรงไหน"]],
 	["where", ["ไปไหนดี", "เก็บเลเวลที่ไหน", "ที่ไหนดี", "สนามไหน", "ด่านไหน", "ที่ไหน", "แมพไหน"]],
 	["level", ["เลเวลเท่าไหร่", "กี่เลเวล", "เวลเท่าไหร่", "กี่เวล", "เลเวลอะไร", "lv", "เวลไร", "กี่ดาว"]],
-	["enhance", ["ตีบวก", "หินตีบวก", "+7", "+8", "+9", "+10", "บวกแตก"]],
 	["skill", ["สกิล", "skill", "ท่าไหน", "อัปอะไร", "อัพอะไร"]],
 	["guild", ["กิลด์", "guild", "กิล"]],
 	["class", ["อาชีพ", "คลาส", "class", "เล่นสายไหน"]],
@@ -41,11 +46,14 @@ const INTENTS := [
 	["greet", ["สวัสดี", "หวัดดี", "ดีจ้า", "ดีครับ", "ดีค่ะ", "hello", "hi", "ทัก"]],
 ]
 ## Intents answered with plain chat: these may take the tone's colour and a question back.
-const PLAIN := ["", "greet", "thanks", "praise", "level", "class", "enhance", "skill", "guild", "where", "whereis", "bot", "howru"]
+const PLAIN := ["", "greet", "thanks", "praise", "level", "class", "enhance", "skill", "guild", "where", "whereis", "bot", "howru", "gear", "set", "wings", "mount"]
 
 const GREET := ["สวัสดีจ้า!", "หวัดดี~ เล่นสนุกไหม", "ดีจ้า วันนี้มาเก็บเลเวลเหรอ", "สวัสดี! มีอะไรให้ช่วยไหม"]
 const GREET_AGAIN := "ทักอีกแล้ว 555 มีอะไรให้ช่วยไหม"
-const HOWRU := ["สบายดีจ้า เก็บเลเวลอยู่เรื่อย ๆ", "ก็เรื่อย ๆ นะ วันนี้ดรอปไม่ค่อยดี 555", "ดีเลย เพิ่งขึ้นเลเวลมา"]
+const HOWRU := ["สบายดีจ้า เล่นไปเรื่อย ๆ", "ก็เรื่อย ๆ นะ ลุ้นของดรอปอยู่ 555", "สบายดี สนุกดีนะ"]
+## How it is, from its news of the last ChatThreads.NEWS_WORLD_HOURS world hours (only
+## the lines it really has; %up: its new level).
+const HOWRU_NEWS := ["ดีเลย เพิ่งขึ้น %up มา", "ดีเลย เพิ่งได้%drop มา", "ดีใจสุด ๆ เพิ่งตีบวก%eslot ติด +%eto", "ก็เศร้านิดนึง เพิ่งตีบวก%fslot +%fnext ไม่ติด 555"]
 const THANKS := ["ยินดีจ้า!", "ไม่เป็นไรเลย", "ด้วยความยินดี ไว้มีอะไรทักมาได้นะ"]
 const THANKS_PARTY := ["ยินดีจ้า สนุกมาก ไว้ลุยกันใหม่นะ", "ขอบคุณเหมือนกันนะ ตีด้วยกันสนุกดี", "ไม่เป็นไร ไว้ชวนอีกได้เลย"]
 const PRAISE := ["555 ยังไม่เทพหรอก ฝึกอยู่", "ขอบคุณนะ เขินเลย", "เดี๋ยวคุณก็เก่งกว่านี้อีก!"]
@@ -59,12 +67,18 @@ const BYE := ["ไว้เจอกันใหม่นะ!", "บายจ้
 const BYE_STRANGER := ["บายจ้า!", "ไว้เจอกันใหม่นะ", "โชคดีนะ!"]
 const SHOP_OPEN := ["เชิญดูของได้เลย ของดีที่หามาเอง", "แวะดูก่อน ราคาเป็นมิตร!", "มีของดีอยู่หลายชิ้น ดูได้เลย"]
 const NO_SHOP := ["ไม่ได้ตั้งร้านนะ ลองไปดูร้านในหมู่บ้านสิ", "ตอนนี้ไม่ได้ขายของ ร้านคนอื่นในหมู่บ้านมีเยอะเลย"]
-const COME := ["ไปหาที่หมู่บ้านนะ เดี๋ยวตามไป", "เจอกันที่หมู่บ้านนะ ตรงหินวาร์ป", "โอเค เดี๋ยวแวะไปหาที่หมู่บ้าน"]
+## Where to meet it: where it really is (%place).
+const COME := ["ตอนนี้อยู่ที่%place จ้า แวะมาหาได้นะ", "อยู่%place อยู่ ถ้าอยากเจอมาที่นี่ได้เลย"]
+const COME_NOWHERE := "ตอนนี้ไม่ได้อยู่ในเกมเลย ไว้เจอกันตอนออนนะ"
 const COME_STALL := ["มาที่ร้านเลย เปิดอยู่ตลอด", "อยู่ที่ร้านนี่แหละ มาเลย"]
 const COME_PARTY := ["ก็อยู่ข้าง ๆ นี่ไง 555", "อยู่ตรงนี้แหละ หันมาสิ"]
 const WHEREIS_STALL := ["อยู่หมู่บ้าน เฝ้าร้านอยู่ แวะมาได้นะ", "ที่ร้านในหมู่บ้านจ้า มาดูของได้"]
-const ENHANCE := ["ตีบวกถึง +6 ค่อนข้างปลอดภัย หลังจากนั้นลุ้นเอานะ", "เพิ่งตีบวกแตกมา เศร้าเลย 555", "เก็บหินตีบวกเยอะ ๆ ก่อนค่อยตีนะ"]
-const SKILL := ["ไปเรียนสกิลกับครูฝึกในหมู่บ้านได้เลย", "อัปสกิลหลักก่อน แล้วค่อยเก็บสกิลเสริม", "สกิลใหม่ปลดตามเลเวล อย่าลืมไปหาครูฝึกนะ"]
+## About enhancing: the rule (ItemData.enhance_chance: sure up to +SAFE_PLUS) and its own
+## news and gear (only the lines it really has).
+const SAFE_PLUS := 6
+const ENHANCE := ["ตีบวกถึง +6 ติดชัวร์ หลังจากนั้นลุ้นเอานะ", "เก็บเพชรเยอะ ๆ ก่อนค่อยตีนะ"]
+const ENHANCE_NEWS := ["เพิ่งตีบวก%eslot ติด +%eto มา ดีใจสุด ๆ", "เพิ่งตีบวก%fslot +%fnext ไม่ติด เศร้าเลย 555", "ตอนนี้อาวุธ +%wplus เกราะ +%aplus เอง"]
+const SKILL := ["ไปอัปสกิลกับปรมาจารย์สกิลในหมู่บ้านได้เลย", "อัปสกิลหลักก่อน แล้วค่อยเก็บสกิลเสริม", "สกิลใหม่ปลดตามเลเวล อย่าลืมไปหาปรมาจารย์สกิลนะ"]
 const IDLE := ["อืม ๆ", "จริงเหรอ 555", "ใช่ ๆ", "น่าสนใจนะ", "ฮ่า ๆ เข้าใจเลย"]
 const NO := ["โอเคจ้า ไม่เป็นไร", "ได้ ตามสบายนะ", "โอเค ไว้คราวหน้า"]
 
@@ -97,7 +111,7 @@ const PARTY_GREET_MATE := ["หวัดดี %name!", "ดีจ้า %name"]
 const MATE_IDLE := ["จริง 555", "ใช่ ๆ เห็นด้วย", "โอเค ๆ", "555 ใช่เลย", "%name พูดถูก"]
 const GUILD_GREET := ["หวัดดีเพื่อนกิลด์!", "ดีจ้า ชาว %guild", "มาแล้วเหรอ คนของ %guild!"]
 const GUILD_THANKS := ["ยินดีจ้า คนกันเองทั้งนั้น", "เพื่อนกิลด์ช่วยกันอยู่แล้ว", "ไม่เป็นไรเลย กิลด์เดียวกัน"]
-const GUILD_WAR := ["กิลด์วอรอบหน้ามารวมกันที่หมู่บ้านนะ", "รอบนี้ %guild ต้องชนะ!", "ไปกิลด์วอด้วยแน่นอน"]
+const GUILD_WAR := ["กิลด์วอรอบหน้า %wartime ลงชื่อด้วยนะ", "รอบนี้ %guild ต้องชนะ!", "ไปกิลด์วอด้วยแน่นอน"]
 const GUILD_SUFFIX := ["%guild สู้ ๆ", "เพื่อนกิลด์ช่วยกันนะ", "ว่าง ๆ มาล่าด้วยกันนะ"]
 const GUILD_SUFFIX_RATE := 0.35
 
@@ -133,19 +147,19 @@ const PREFIX := {
 	"newbie": ["เพิ่งเล่นเองนะ", "มือใหม่ขอตอบ"],
 }
 const SUFFIX := {
-	"hardcore": ["ลุยต่อ", "ไม่มีเวลา ลุย", "วันนี้ต้องได้อีก 2 เวล"],
+	"hardcore": ["ลุยต่อ", "ไม่มีเวลา ลุย", "เก็บเวลต่อ"],
 	"casual": ["ชิล ๆ นะ", "555", "ไม่รีบ ๆ"],
 	"newbie": ["ขอคำแนะนำด้วยนะ", "ยังมือใหม่อยู่ 555", "ผิดถูกบอกได้นะ"],
-	"night": ["ไว้ดึก ๆ ค่อยลุยยาว", "กลางคืนคนน้อย มอนเยอะดี"],
+	"night": ["ไว้ดึก ๆ ค่อยลุยยาว", "ชอบเล่นตอนกลางคืนที่สุด"],
 	"night_late": ["ง่วงแล้วเนี่ย 555", "ดึกแล้วแต่ยังไม่อยากนอน", "หาวแล้ว แต่ขออีกรอบ"],
 	"stall": ["ว่าง ๆ แวะดูร้านด้วยนะ มีของดี", "ร้านเปิดอยู่นะ ของดีราคาเป็นมิตร", "มีของหายากในร้านด้วยนะ"],
 }
 const TONE_GREET := {
-	"hardcore": ["ว่าไง ลุยสนามไหน", "ดี เก็บเวลอยู่ ว่ามาเร็ว", "ไง วันนี้เป้าอีก 3 เวล"],
+	"hardcore": ["ว่าไง ลุยสนามไหน", "ดี เก็บเวลอยู่ ว่ามาเร็ว", "ไง ลุยเก็บเวลอยู่"],
 	"casual": ["ดีจ้า~ ชิล ๆ อยู่ 555", "หวัดดี เล่นชิล ๆ ไปเรื่อย", "ดีจ้า วันนี้ไม่รีบ ค่อย ๆ เก็บ"],
-	"newbie": ["สวัสดีค่า เพิ่งเริ่มเล่นเอง", "หวัดดี ยังมือใหม่อยู่เลย", "ดีจ้า เพิ่งเล่นได้ไม่กี่วัน"],
-	"stall": ["สวัสดีจ้า แวะดูของในร้านได้นะ", "หวัดดี มีของดีมาใหม่เลย", "ดีจ้า ร้านเปิดอยู่ เชิญดูได้"],
-	"night": ["หวัดดี~ สายดึกมารายงานตัว", "ดีจ้า ตื่นสายเลยเพิ่งมา 555"],
+	"newbie": ["สวัสดี เพิ่งเริ่มเล่นเอง", "หวัดดี ยังมือใหม่อยู่เลย", "ดีจ้า ยังเลเวลน้อยอยู่เลย"],
+	"stall": ["สวัสดีจ้า แวะดูของในร้านได้นะ", "หวัดดี ในร้านมีของดีนะ", "ดีจ้า ร้านเปิดอยู่ เชิญดูได้"],
+	"night": ["หวัดดี~ สายดึกมารายงานตัว", "ดีจ้า สายนอนดึกมาแล้ว 555"],
 }
 const TONE_IDLE := {
 	"hardcore": ["อืม ลุยต่อ", "เออ", "รีบเก็บเวลดีกว่า", "โอเค ไปล่าต่อละ"],
@@ -155,6 +169,9 @@ const TONE_IDLE := {
 ## Words that pick which system a "how do I" line is about, in this order.
 const HELP_TOPICS := [
 	["enhance", ["ตีบวก", "บวก", "ช่างตี", "เพชรม่วง", "เพชรชมพู"]],
+	["set", ["ชุดเซต", "เซต", "แก่นเทพ"]],
+	["wings", ["ปีก", "wing"]],
+	["mount", ["มอนท์", "สัตว์ขี่", "mount"]],
 	["stars", ["ดาว", "star", "paragon", "★"]],
 	["guild", ["กิลด์", "guild", "กิล"]],
 	["stall", ["ฝากขาย", "ต่อราคา", "ร้าน", "แผง", "ขายของ"]],
@@ -178,12 +195,13 @@ static func reply(body: Dictionary) -> Dictionary:
 	var tone := tone_of(p)
 	var channel := String(body.get("channel", ""))
 	var mate := String(body.get("from", ""))
+	var mine := news_of(body)
 	if channel == "party" or channel == "guild":
 		var said := _channel_answer(channel, text, mate, p, rng)
 		if not said.is_empty():
 			return said
 		if mate != "":
-			return _mate_answer(text, mate, p, h, history, tone, rng)
+			return _mate_answer(text, mate, p, h, history, tone, rng, mine)
 	# A short answer to what the player itself just asked completes it.
 	var asked := last_question(history)
 	if asked != "":
@@ -191,7 +209,7 @@ static func reply(body: Dictionary) -> Dictionary:
 		if not done.is_empty():
 			return done
 	var intent := intent_of(text)
-	var out := _answer(intent, text, p, h, history, tone, rng)
+	var out := _answer(intent, text, p, h, history, tone, rng, mine)
 	if String(out.action) == "none" and intent in PLAIN:
 		out.reply = _flavor(String(out.reply), tone, int(body.get("hour", -1)), rng)
 		out.reply = _ask_back(String(out.reply), p, tone, rng)
@@ -262,11 +280,11 @@ static func _opens_with_greet(text: String) -> bool:
 
 
 ## Another member's line answered in the party chat: by what it is about, never an action.
-static func _mate_answer(text: String, mate: String, p: Dictionary, h: Dictionary, history: Array, tone: String, rng: RandomNumberGenerator) -> Dictionary:
+static func _mate_answer(text: String, mate: String, p: Dictionary, h: Dictionary, history: Array, tone: String, rng: RandomNumberGenerator, mine := {}) -> Dictionary:
 	var intent := intent_of(text)
 	if intent in ["", "party", "shop", "come", "leave", "rude", "bot", "greet"]:
 		return {"reply": _fill(String(MATE_IDLE[rng.randi() % MATE_IDLE.size()]), mate, p), "action": "none"}
-	var out := _answer(intent, text, p, h, history, tone, rng)
+	var out := _answer(intent, text, p, h, history, tone, rng, mine)
 	out.action = "none"
 	return out
 
@@ -278,13 +296,43 @@ static func _guild_flavor(reply: String, p: Dictionary, rng: RandomNumberGenerat
 	return "%s %s" % [reply, _fill(String(GUILD_SUFFIX[rng.randi() % GUILD_SUFFIX.size()]), "", p)]
 
 
-static func _fill(line: String, mate: String, p: Dictionary) -> String:
+static func _fill(line: String, mate: String, p: Dictionary, t := -1.0) -> String:
 	var guild := String(p.get("guild", ""))
+	if line.contains("%wartime"):
+		line = line.replace("%wartime", GuildLeague.clock_text(GuildLeague.next_slot(t if t >= 0.0 else WorldPresence.clock())))
 	return line.replace("%name", mate if mate != "" else "เพื่อน").replace("%guild", guild if guild != "" else "กิลด์เรา")
 
 
+## The player's own gear and news (ChatThreads.news, WorldGear) for the line in `body`:
+## by its world index (body.player.index, its name matching) at body.t (real time,
+## WorldPresence.clock() without one); {} for no world player. Its "t" is the time.
+static func news_of(body: Dictionary) -> Dictionary:
+	var p: Dictionary = body.get("player", {})
+	var t := float(body.get("t", -1.0))
+	if t < 0.0:
+		t = WorldPresence.clock()
+	var out := ChatThreads.news(ChatThreads.index_of_state(p), t)
+	if not out.is_empty():
+		out["t"] = t
+		out["index"] = int(p.index)
+	return out
+
+
+## The lines of `pool` this player really can say (ChatThreads.apply with its news).
+static func _true_lines(pool: Array, mine: Dictionary, extra := {}) -> Array:
+	var rep := ChatThreads.news_vars(mine)
+	rep.merge(ChatThreads.my_vars(mine), true)
+	rep.merge(extra, true)
+	var out: Array = []
+	for line in pool:
+		var said := ChatThreads.apply(String(line), rep)
+		if said != "":
+			out.append(said)
+	return out
+
+
 ## The answer by intent, before the tone and a question back are added.
-static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, history: Array, tone: String, rng: RandomNumberGenerator) -> Dictionary:
+static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, history: Array, tone: String, rng: RandomNumberGenerator, mine := {}) -> Dictionary:
 	var doing := String(p.get("doing", ""))
 	var in_party := bool(p.get("inParty", false))
 	match intent:
@@ -297,6 +345,9 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 				return _say(BYE, rng, "leave_party")
 			return _say(BYE_STRANGER, rng)
 		"howru":
+			var news := _true_lines(HOWRU_NEWS, mine, _level_up(mine))
+			if not news.is_empty() and rng.randf() < 0.6:
+				return _say(news, rng)
 			return _say(HOWRU, rng)
 		"help":
 			return {"reply": help_text(help_topic(text)), "action": "none"}
@@ -317,7 +368,10 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 				return _say(COME_STALL, rng, "open_stall")
 			if in_party:
 				return _say(COME_PARTY, rng)
-			return _say(COME, rng)
+			var at := String(p.get("place", ""))
+			if at == "":
+				return {"reply": COME_NOWHERE, "action": "none"}
+			return {"reply": String(COME[rng.randi() % COME.size()]).replace("%place", at), "action": "none"}
 		"whereis":
 			return {"reply": _where_am_i(p, rng), "action": "none"}
 		"where":
@@ -326,10 +380,19 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 			var stars := int(p.get("stars", 0))
 			var lv := "Lv.%d%s" % [int(p.get("level", 1)), " ★%d" % stars if stars > 0 else ""]
 			if tone == "hardcore":
-				return {"reply": "%s เป้าวันนี้อีก %d เวล ลุย" % [lv, 1 + rng.randi() % 3], "action": "none"}
+				return {"reply": "%s ลุยต่อ!" % lv, "action": "none"}
 			return {"reply": ["ตอนนี้ %s แล้ว" % lv, "%s เองจ้า ยังต้องเก็บอีกเยอะ" % lv, "%s แล้ว! ขึ้นช้าแต่ชัวร์ 555" % lv][rng.randi() % 3], "action": "none"}
 		"enhance":
+			var g: Dictionary = mine.get("gear", {})
+			var plus := {}
+			if not g.is_empty():
+				plus = {"%wplus": str(int((g.get("weapon", {}) as Dictionary).get("plus", 0))), "%aplus": str(int((g.get("armor", {}) as Dictionary).get("plus", 0)))}
+			var news := _true_lines(ENHANCE_NEWS, mine, plus)
+			if not news.is_empty() and rng.randf() < 0.7:
+				return _say(news, rng)
 			return _say(ENHANCE, rng)
+		"gear", "set", "wings", "mount":
+			return {"reply": gear_answer(intent, p, mine, rng), "action": "none"}
 		"skill":
 			return _say(SKILL, rng)
 		"guild":
@@ -524,22 +587,89 @@ static func help_topic(text: String) -> String:
 static func help_text(topic: String) -> String:
 	match topic:
 		"enhance":
-			return "ตีบวกที่ช่างตีเหล็ก ถึง +6 ติดชัวร์ +7 ถึง +10 ลุ้น 50%% +11 ถึง +%d ยากขึ้นเรื่อย ๆ พลาดแค่เสียเพชร ครบชุดได้ออร่า" % ItemData.MAX_PLUS
+			return "ตีบวกที่ช่างตีเหล็ก ถึง +%d ติดชัวร์ +%d ถึง +10 ลุ้น %d%% +11 ถึง +%d ยากขึ้นเรื่อย ๆ พลาดแค่เสียเพชร ทั้งชุดถึง +%d ได้ออร่า" % [SAFE_PLUS, SAFE_PLUS + 1, int(round(ItemData.enhance_chance(SAFE_PLUS) * 100.0)), ItemData.MAX_PLUS, EnhanceFx.AURA_STEPS[0]]
+		"set":
+			return "ชุดเซต %d ดาว %d ชิ้น หลอมด้วยแก่นเทพ ติด %d%% อาวุธ เกราะ หมวก รองเท้าใช้ชิ้นชุดเทพ +%d ด้วย แก่นเทพดรอปที่%s กับ%s (★%d)" % [SetGearData.STARS, SetGearData.SLOTS.size(), int(round(SetGearData.CRAFT_CHANCE * 100.0)), ChatThreads.SET_DIVINE_PLUS, DrownedAbyssData.TITLE, DivineRegionData.TITLE, DrownedAbyssData.ENTRY_STAR]
+		"wings":
+			return "ปีกดรอปจากบอส Lv.%d ถึง ★%d หลอมเป็นปีกดาวได้ด้วย%s %d กับ%s %d ติด %d%%" % [ItemData.WING_DROP_LEVEL, StarWingData.REQUIRED_STARS, ItemData.JEWELS.chaos.name, int(StarWingData.CRAFT_COST.chaos), ItemData.JEWELS.feather.name, int(StarWingData.CRAFT_COST.feather), int(round(StarWingData.CRAFT_CHANCE * 100.0))]
+		"mount":
+			return "สัตว์ขี่ทำในเมนูสัตว์ขี่ ใช้วัตถุดิบที่ดรอปจากมอนในสนาม อัปได้ถึงเลเวล %d %sทำง่ายสุด %sยากสุด ติด %d%%" % [MountData.MAX_LEVEL, MountData.info("thunder_wolf").name, MountData.info("fire_drake").name, int(round(MountData.chance("fire_drake") * 100.0))]
 		"stars":
 			return "ดาว ★ ได้หลัง Lv.%d เก็บ EXP ต่อเหมือนเลเวล ได้แต้มดาวมาอัปสเตตัส ดาวเยอะถึงเข้าสนามดาวได้" % Game.MAX_LEVEL
 		"guild":
-			return "สมัครกิลด์ที่นายทะเบียนข้างสนามประลอง ต้อง Lv.%d มี 4 กิลด์ Alpha Neverdie Titan 3DLnw วอวันละ 3 รอบ 12:00 18:00 21:30 ลงชื่อก่อน 5 นาที" % Game.GUILD_LEVEL
+			var times: PackedStringArray = []
+			for at in GuildLeague.SLOTS:
+				times.append("%02d:%02d" % [int(at) / 3600, (int(at) % 3600) / 60])
+			return "สมัครกิลด์ที่นายทะเบียนกิลด์ในหมู่บ้าน ต้อง Lv.%d มี %d กิลด์ %s วอวันละ %d รอบ %s ลงชื่อได้ถึง %d นาทีก่อนเริ่ม" % [Game.GUILD_LEVEL, WorldPlayers.GUILDS.size(), " ".join(WorldPlayers.GUILDS.map(func(g): return WorldPlayers.guild_name(g))), GuildLeague.SLOTS.size(), " ".join(times), GuildLeague.REGISTER_CLOSE / 60]
 		"stall":
-			return "ร้านในหมู่บ้านเป็นของผู้เล่นที่พัก ของดีกว่าพ่อค้า ต่อราคาได้ลอตละครั้ง ขายให้ร้านได้ราคาดี ฝากขายได้ 1.5 เท่า จ่ายใน %d นาที" % StallStock.CONSIGN_MINUTES
+			return "ร้านในหมู่บ้านเป็นของผู้เล่นที่พัก ของดีกว่าพ่อค้า ต่อราคาได้ลอตละครั้ง ขายให้ร้านได้ราคาดี ฝากขายได้ %s เท่า จ่ายใน %d นาที" % [str(StallStock.CONSIGN_BONUS), StallStock.CONSIGN_MINUTES]
 		"party":
-			return "ชวนปาร์ตี้ได้จากการ์ดผู้เล่น หรือพิมพ์ชวนในแชท แล้วพิมพ์สั่งเพื่อนได้ ตามมา รอตรงนี้ กลับเมือง"
+			return "ชวนปาร์ตี้ได้จากการ์ดผู้เล่น หรือพิมพ์ชวนในแชท ตี้ละ %d คน แล้วพิมพ์สั่งเพื่อนได้ ตามมา รอตรงนี้ กลับเมือง" % Game.PARTY_SIZE
 		"events":
 			return "%s ทุกวัน %02d:00-%02d:00 %s เวลา %02d:%02d ในสนามประจำวัน เสาร์อาทิตย์%s" % [WorldEvents.NAME_EXP, WorldEvents.EXP_START / 3600, WorldEvents.EXP_END / 3600, WorldEvents.NAME_BOSS, WorldEvents.BOSS_START / 3600, (WorldEvents.BOSS_START % 3600) / 60, WorldEvents.NAME_GOLD]
 		"skill":
-			return "สกิลเรียนกับครูฝึกในหมู่บ้าน ปลดตามเลเวล อัปสกิลหลักก่อน แล้วลากใส่ช่องสกิลบนจอ"
+			return "สกิลอัปกับปรมาจารย์สกิลในหมู่บ้าน ปลดตามเลเวล อัปสกิลหลักก่อน แล้วลากใส่ช่องสกิลบนจอ"
 		"level":
 			return "เก็บเลเวลในสนามที่ตรงเลเวล ถามเราได้ว่าไปไหนดี ช่วง %s %02d:00-%02d:00 คุ้มสุด เข้าปาร์ตี้แล้วล่าด้วยกัน" % [WorldEvents.NAME_EXP, WorldEvents.EXP_START / 3600, WorldEvents.EXP_END / 3600]
 	return HELP_ANY
+
+
+## What it wears, asked about (`what`: "gear", "set", "wings" or "mount"), read off its
+## real gear (WorldGear through news_of); a plain word with none.
+static func gear_answer(what: String, p: Dictionary, mine: Dictionary, rng: RandomNumberGenerator) -> String:
+	var g: Dictionary = mine.get("gear", {})
+	if g.is_empty():
+		return ["ของก็ตามเลเวลนั่นแหละ 555", "ก็ใส่ของที่หาได้นั่นแหละ"][rng.randi() % 2]
+	var level := int(p.get("level", 1))
+	var stars := int(p.get("stars", 0)) if level >= Game.MAX_LEVEL else 0
+	match what:
+		"set":
+			var pieces := int(g.get("set_pieces", 0))
+			if pieces > 0:
+				return "%s ได้ %d ชิ้นแล้ว จาก %d" % [String(g.get("set_name", "ชุดเซต")), pieces, SetGearData.SLOTS.size()]
+			if stars < SetGearData.STARS:
+				return "ยังไม่มีชิ้นเซตเลย ชุดเซตต้อง ★%d ถึงใส่ได้" % SetGearData.STARS
+			return "ยังไม่มีชิ้นเซตเลย แก่นเทพหายากมาก"
+		"wings":
+			var wings: Dictionary = g.get("wings", {})
+			if int(wings.get("tier", 0)) > 0 and String(wings.get("name", "")) != "":
+				return "ใส่%s อยู่จ้า" % String(wings.name)
+			return "ยังไม่มีปีกเลย ปีกดรอปจากบอส Lv.%d" % ItemData.WING_DROP_LEVEL
+		"mount":
+			var mount: Dictionary = g.get("mount", {})
+			if not mount.is_empty() and String(mount.get("name", "")) != "":
+				return "ขี่%s เลเวล %d อยู่" % [String(mount.name), int(mount.get("level", 1))]
+			return "ยังไม่มีสัตว์ขี่เลย"
+	var parts: PackedStringArray = []
+	for slot in ["weapon", "armor", "helm", "boots"]:
+		var item: Dictionary = g.get(slot, {})
+		if item.is_empty():
+			continue
+		parts.append("%s +%d" % [ChatThreads.slot_word(slot), int(item.get("plus", 0))])
+	var out := "ตอนนี้ " + " ".join(parts) if not parts.is_empty() else "ตอนนี้ยังใส่ของธรรมดา"
+	if int(g.get("set_pieces", 0)) > 0:
+		out += " ชุดเซต %d ชิ้น" % int(g.set_pieces)
+	if int(g.get("divine_pieces", 0)) > 0:
+		out += " ชุดเทพ %d ชิ้น" % int(g.divine_pieces)
+		if int(g.get("divine_plus", 0)) > 0:
+			out += " +%d" % int(g.divine_plus)
+	return out
+
+
+## {"%up": its new level or stars} when player news `mine` levelled up in the news
+## window, {} otherwise.
+static func _level_up(mine: Dictionary) -> Dictionary:
+	if not mine.has("index") or not mine.has("t"):
+		return {}
+	var i := int(mine.index)
+	var t := float(mine.t)
+	var now := WorldPlayers.progress_at(i, t)
+	var before := WorldPlayers.progress_at(i, t - ChatThreads.window())
+	if int(now.level) > int(before.level):
+		return {"%up": "Lv.%d" % int(now.level)}
+	if int(now.level) >= Game.MAX_LEVEL and int(now.stars) > int(before.stars):
+		return {"%up": "★%d" % int(now.stars)}
+	return {}
 
 
 # --- Small talk ----------------------------------------------------------------------------
@@ -564,7 +694,7 @@ static func _where_am_i(p: Dictionary, rng: RandomNumberGenerator) -> String:
 		return String(WHEREIS_STALL[rng.randi() % WHEREIS_STALL.size()])
 	var here := String(p.get("place", ""))
 	if here == "":
-		return "อยู่แถวหมู่บ้านจ้า"
+		return "ตอนนี้ไม่ได้ล่าอยู่จ้า"
 	return ["อยู่ที่%s จ้า" % here, "ตอนนี้อยู่%s มาได้นะ" % here][rng.randi() % 2]
 
 
@@ -577,7 +707,7 @@ static func _idle(p: Dictionary, tone: String, rng: RandomNumberGenerator) -> St
 				return "พักขายของอยู่ แวะดูร้านไหม?"
 		"hunt":
 			if here != "" and rng.randf() < 0.5:
-				return "กำลังเก็บเลเวลอยู่ที่%s เลย" % here
+				return "กำลังเก็บ%sอยู่ที่%s เลย" % ["ดาว" if int(p.get("level", 1)) >= Game.MAX_LEVEL else "เลเวล", here]
 		"boss":
 			if rng.randf() < 0.5:
 				return "ล่าบอสอยู่ ขอโฟกัสแป๊บ 555"
