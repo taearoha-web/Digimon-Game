@@ -283,6 +283,15 @@ func _schedule_panel(box: VBoxContainer, t: float) -> void:
 	owner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	owner.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
 	col.add_child(owner)
+	# The deciding round: Sunday 21:30 counts double and crowns the Castle King.
+	var final_at := GuildLeague.final_slot(GuildLeague.week_of(t))
+	var final_rule := UIUtil.label("%s · รอบอาทิตย์ %s: แต้มอันดับและแต้มยึดปราสาท ×%d%s · ผู้ครองปราสาทหลังรอบนี้เป็น%s · แต้มรวมอันดับ 1 ของสัปดาห์เป็น%s" % [
+		GuildLeague.FINAL_TAG, GuildLeague.clock_text(final_at), GuildLeague.FINAL_MULT,
+		"" if GuildLeague.is_final(final_at) else " (เริ่มฤดูกาลหน้า)", GuildLeague.CASTLE_TITLE, GuildLeague.LEAGUE_TITLE], &"SmallLabel")
+	final_rule.name = "LeagueFinalRule"
+	final_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	final_rule.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR.lerp(Color.WHITE, 0.3))
+	col.add_child(final_rule)
 	# Today's rounds (and the one on now, which may have begun yesterday night).
 	var day := WorldEvents.day_of(t)
 	for r in GuildLeague.rounds_on(day):
@@ -302,6 +311,8 @@ func _round_row(at: int, t: float) -> Control:
 	for g in GuildLeague.guilds_at(at):
 		names.append(WorldPlayers.guild_name(g))
 	var text := "รอบ %s · %s" % [GuildLeague.clock_text(at), " · ".join(names)]
+	if GuildLeague.is_final(at):
+		text = "%s · %s" % [GuildLeague.FINAL_TAG, text]
 	var own := int(state.get("owner", 0))
 	if own > 0:
 		text += " (%s %s ครองปราสาท)" % [GuildLeague.CROWN, WorldPlayers.guild_name(own)]

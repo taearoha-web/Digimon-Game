@@ -645,3 +645,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-pet-world
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/pet_world_test.tscn
+      - name: league_titles_test (two weekly titles - แชมป์ลีก first by points, ราชันปราสาท the castle holder after Sunday 21:30; the deciding round doubles placement and capture points, HOLD and falls once, scored from the raw official results; a guild with both is จักรพรรดิแห่งสัปดาห์ and its members claim 10 chaos jewels and the title once; emp_claimed valid in the game and accounts.js; the season-end announcement names both once; the page, desk and HUD chip name both)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-league-titles
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/league_titles_test.tscn

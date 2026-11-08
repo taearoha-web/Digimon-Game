@@ -176,7 +176,7 @@ func refresh_name_plate() -> void:
 		return
 	var hero_name := String(Game.profile.get("name", ""))
 	var title := Achievements.title_of(Game.profile)
-	# The weekly league champion's members wear a gold crown plate (GuildLeague).
+	# The weekly Castle King's (ราชันปราสาท) members wear a gold crown plate (GuildLeague).
 	var champion := GuildLeague.hero_champion()
 	if champion:
 		hero_name = "%s %s" % [GuildLeague.CROWN, hero_name]

@@ -77,6 +77,26 @@ test('an ended round is stored once: first writer wins, later posts get the stor
   assert.equal(h.DB.sqlite.prepare('SELECT count(*) AS n FROM toon_league_rounds').get().n, 1);
 });
 
+test('the deciding round (Sunday 21:30, ×2 in the game) is stored raw like any other round', async () => {
+  // The game doubles its placement and capture points when it scores the round
+  // (GuildLeague.side_points / mult_of); the server keeps the falls and captures as fought.
+  const league = readFileSync(new URL('../../../data/guild_league.gd', import.meta.url), 'utf8');
+  assert.match(league, /const FINAL_MULT := 2/);
+  assert.match(league, /\* m\b/, 'the multiplier is applied when scoring');
+  const h = harness();
+  // Sunday of the week AT falls in: Thai day of the epoch's day 0 was a Thursday, so
+  // (day + 3) % 7 === 6 is a Sunday.
+  let day = Math.floor((AT + TZ) / DAY);
+  while ((day + 3) % 7 !== 6) day += 1;
+  const at = day * DAY - TZ + SLOTS[2];
+  assert.ok(isSlot(at));
+  const raw = result(at, {c: [1, 0, 2, 0]});
+  const answer = await h.post({at, result: raw}, {now: at + DURATION + 5});
+  assert.equal(answer.status, 201);
+  assert.deepEqual(answer.body.round.result, raw, 'nothing doubled in the stored result');
+  assert.equal(cleanResult(at, {...raw, mult: 2}), 'unknown key mult', 'no multiplier is accepted from a device');
+});
+
 test('a round nobody could fight (no guild at Lv.100) is stored too', async () => {
   const h = harness();
   const at = firstRound();

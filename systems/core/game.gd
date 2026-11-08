@@ -1365,7 +1365,7 @@ func add_exp(amount: int) -> void:
 		return
 	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
 	# Halloween potion multiplies on top of it.
-	# The guild league champion's members earn GuildLeague.EXP_BONUS more for a week.
+	# The guild league Castle King's (ราชันปราสาท) members earn GuildLeague.EXP_BONUS more for a week.
 	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)

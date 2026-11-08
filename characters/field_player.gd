@@ -229,7 +229,7 @@ func _level_text() -> String:
 	_label.modulate = WorldPlayers.GUILD_COLORS.get(g, Color("e8f4ff"))
 	var stars := Game.party_stars(member)
 	var line := "%s%s Lv.%d%s" % ["[%s] " % WorldPlayers.guild_name(g) if g > 0 else "", member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
-	# Members of the weekly league champion wear a gold crown plate (GuildLeague).
+	# Members of the weekly Castle King (ราชันปราสาท) wear a gold crown plate (GuildLeague).
 	if GuildLeague.crowned(g):
 		_label.modulate = GuildLeague.CROWN_COLOR
 		line = "%s %s" % [GuildLeague.CROWN, line]

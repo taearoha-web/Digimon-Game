@@ -52,10 +52,13 @@ const TABLE := [
 	# Appended (a worn title is saved as its index): ★300 and the God promotion.
 	{"id": "t_star300", "name": "ดาว 300", "desc": "ถึงดาว 300 (สูงสุด)", "title": "ดาราอมตะ", "kind": "stars", "goal": 300},
 	{"id": "t_god", "name": "เทพเจ้า", "desc": "เปลี่ยนอาชีพขั้นเทพเจ้า (เลเวล 100 ดาว 300)", "title": "เทพเจ้าแห่งอาชีพ", "kind": "god", "goal": 1},
-	# The weekly guild league champion's secret shop (GuildLeague.SHOP "crown").
-	{"id": "t_castle_king", "name": "ราชันปราสาท", "desc": "ซื้อตำแหน่งจากร้านลับแชมป์ปราสาท (เฉพาะกิลด์แชมป์ลีกประจำสัปดาห์)", "title": "ราชันปราสาท", "kind": "castle_crown", "goal": 1},
+	# The weekly Castle King's secret shop (GuildLeague.SHOP "crown").
+	{"id": "t_castle_king", "name": "ราชันปราสาท", "desc": "ซื้อตำแหน่งจากร้านลับราชันปราสาท (เฉพาะกิลด์ที่ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 21:30)", "title": "ราชันปราสาท", "kind": "castle_crown", "goal": 1},
 	# The top tier of the monthly reward pass (DailyPass, flags["pass_top"]).
 	{"id": "t_pass", "name": "สุดทางบัตรสะสม", "desc": "รับรางวัลขั้น 30 ของบัตรสะสมแต้ม", "title": "นักสะสมแต้ม", "kind": "pass_top", "goal": 1},
+	# The guild league's emperor: one guild both League Champion and Castle King of a week
+	# (GuildLeague.emperor_of; the bonus claimed on the league page sets GuildLeague.EMPEROR_FLAG).
+	{"id": "t_week_emperor", "name": "จักรพรรดิแห่งสัปดาห์", "desc": "กิลด์เป็นทั้งแชมป์ลีกและราชันปราสาทในสัปดาห์เดียวกัน แล้วรับโบนัสที่หน้าลีกกิลด์", "title": "จักรพรรดิแห่งสัปดาห์", "kind": "week_emperor", "goal": 1},
 ]
 ## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
 const GOD_ID := "t_god"
@@ -106,6 +109,7 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"tutorial": return 1 if int(flags.get("tut", 0)) == TUTORIAL_DONE else 0
 		"chat": return int(flags.get(CHAT_FLAG, 0))
 		"castle_crown": return int(flags.get(GuildLeague.CROWN_FLAG, 0))
+		"week_emperor": return int(flags.get(GuildLeague.EMPEROR_FLAG, 0))
 		"pass_top": return int(flags.get("pass_top", 0))
 		_: return 0
 

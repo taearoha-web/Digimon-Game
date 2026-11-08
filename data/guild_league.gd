@@ -31,19 +31,28 @@ extends RefCounted
 ## device); a war the hero fought counts its live result (record_war, war_finished).
 ##
 ## Points a war (side_points): WIN or LOSS, CAPTURE per castle capture, HOLD for holding
-## the castle at the bell, one per KILLS_PER_POINT falls. The castle holder is the guild that
-## held it at the end of the latest war; the holder when the season ends is the week's
-## champion (champion_of). For the next week every member of the champion (world players
-## too) wears a gold crown plate, the hero earns EXP_BONUS more EXP (Game.add_exp, the HUD
-## event chip) and may shop at the champion's secret shop (SHOP). The top three guilds'
-## members claim REWARDS once (claim). Hired wars (GuildWarData.roll_match) are practice
-## and count nothing here (ไม่นับคะแนนลีก).
+## the castle at the bell, one per KILLS_PER_POINT falls. The season's last round (Sunday
+## 21:30, รอบชี้ขาด: is_final) counts its placement and capture points FINAL_MULT times;
+## HOLD and the falls count once. The server keeps every round's raw result: the doubling
+## is applied here, when a round is scored, never stored.
+##
+## Two titles a week:
+##   แชมป์ลีก (League Champion, league_champion_of): first in the table by points. The top
+##   three guilds' members claim REWARDS once (claim).
+##   ราชันปราสาท (Castle King, champion_of): the castle holder after the season's last round.
+##   For the next week every member of the Castle King (world players too) wears a gold
+##   crown plate, the hero earns EXP_BONUS more EXP (Game.add_exp, the HUD event chip) and
+##   may shop at the Castle King's secret shop (SHOP).
+## A guild that is both (emperor_of) is จักรพรรดิแห่งสัปดาห์: its members claim EMPEROR_BONUS
+## and the title (Achievements "t_week_emperor") once with the weekly reward.
+## Hired wars (GuildWarData.roll_match) are practice and count nothing here (ไม่นับคะแนนลีก).
 ##
 ## profile.league (valid / repair keep it safe in a save):
 ##   week, wars: the current season and the hero's real wars in it, ints: a round's
 ##   {at (its start), g1..g4 (guilds by side), k1..k4 (falls), c1..c4 (captures), held,
 ##   own (the holder when it began)}, or an old war's {at, a, b, win, ca, cb, held, ka, kb}; prev_week, prev_wars: the season
-##   before; claimed: the season whose top-three reward was taken; ann: the season whose
+##   before; claimed: the season whose top-three reward was taken; emp_claimed: the season
+##   whose emperor bonus was taken; ann: the season whose
 ##   end was announced; shop_week, shop: the season of the secret shop's buy counts
 ##   ({id: count}); reg: the start (unix) of the round the hero registered for; told: the
 ##   round whose start was told to the hero.
@@ -72,6 +81,20 @@ const POWER_EDGE := 3.0
 const DEFEND_EDGE := 2.0
 const NOBODY_TAKES := 0.2
 const EXP_BONUS := 0.1
+## The deciding round (รอบชี้ขาด, is_final): the season's last round counts its placement
+## and capture points this many times, from season FINAL_FROM_WEEK on (the seasons before
+## were scored without it and stay as they were).
+const FINAL_MULT := 2
+const FINAL_FROM_WEEK := 2967
+const FINAL_TAG := "รอบชี้ขาด ×2"
+## The week's two titles and the emperor's, who holds both.
+const LEAGUE_TITLE := "แชมป์ลีก"
+const CASTLE_TITLE := "ราชันปราสาท"
+const EMPEROR_TITLE := "จักรพรรดิแห่งสัปดาห์"
+## The emperor's bonus, claimed once a season with the top-three reward (claim), and the
+## flag of its title (Achievements "t_week_emperor").
+const EMPEROR_BONUS := {"chaos": 10}
+const EMPEROR_FLAG := "lg_emperor"
 const CROWN := "♛"
 const CROWN_COLOR := Color("ffb81c")
 const MAX_WARS := 64
@@ -82,7 +105,7 @@ const REWARDS := {
 	2: {"gold": 15000000, "jewels": {"pink": 10, "chaos": 5}},
 	3: {"gold": 8000000, "jewels": {"pink": 5, "chaos": 2}},
 }
-## The champion's secret shop (ร้านลับแชมป์ปราสาท): gold, `limit` a season each.
+## The Castle King's secret shop (ร้านลับราชันปราสาท): gold, `limit` a season each.
 ## "crown" is the unique cosmetic: the title ราชันปราสาท (Achievements "t_castle_king").
 const CROWN_FLAG := "lg_crown"
 const SHOP: Array[Dictionary] = [
@@ -96,7 +119,7 @@ const SHOP: Array[Dictionary] = [
 ]
 const WAR_KEYS: Array[String] = ["at", "a", "b", "win", "ca", "cb", "held", "ka", "kb"]
 const ROUND_KEYS: Array[String] = ["at", "g1", "g2", "g3", "g4", "k1", "k2", "k3", "k4", "c1", "c2", "c3", "c4", "held", "own"]
-const INT_KEYS: Array[String] = ["week", "prev_week", "claimed", "ann", "shop_week", "reg", "told"]
+const INT_KEYS: Array[String] = ["week", "prev_week", "claimed", "emp_claimed", "ann", "shop_week", "reg", "told"]
 
 static var _sim_cache := {}
 static var _power_cache := {}
@@ -252,6 +275,23 @@ static func last_ended(t: float) -> int:
 	if not ended(at, t):
 		at = prev_slot(at)
 	return at
+
+
+## The start of season w's last round (Sunday 21:30 Thai): the deciding round.
+static func final_slot(w: int) -> int:
+	return prev_slot(int(week_end(w)))
+
+
+## The round starting `at` is a deciding round (รอบชี้ขาด ×2): its season's last, from
+## FINAL_FROM_WEEK on.
+static func is_final(at: int) -> bool:
+	var w := week_of(float(at))
+	return w >= FINAL_FROM_WEEK and at == final_slot(w)
+
+
+## What the round starting `at` multiplies its placement and capture points by.
+static func mult_of(at: int) -> int:
+	return FINAL_MULT if is_final(at) else 1
 
 
 ## "12:00" for a round's start.
@@ -565,15 +605,18 @@ static func start_holder(at: int, real: Array = []) -> int:
 
 
 ## Points guild g earns from a war: a round's placement (PLACE_POINTS) + HOLD for the
-## holder at the bell + its falls and captures (round_points); an old two-guild war's
-## WIN or LOSS + CAPTURE per capture + HOLD + falls.
+## holder at the bell + its falls and captures (round_points), the placement and the
+## captures times mult_of (the deciding round's ×2; HOLD and falls count once); an old
+## two-guild war's WIN or LOSS + CAPTURE per capture + HOLD + falls.
 static func side_points(e: Dictionary, g: int) -> int:
 	if e.has("g"):
 		var i := (e.g as Array).find(g)
 		if i < 0:
 			return 0
 		var place := placement(e).find(g)
-		return int(PLACE_POINTS[clampi(place, 0, PLACE_POINTS.size() - 1)]) + (HOLD if int(e.held) == g else 0) + round_points(int(e.k[i]), int(e.c[i]))
+		var m := mult_of(int(e.get("at", 0)))
+		return int(PLACE_POINTS[clampi(place, 0, PLACE_POINTS.size() - 1)]) * m + (HOLD if int(e.held) == g else 0) \
+			+ maxi(0, int(e.k[i])) / KILLS_PER_POINT + CAPTURE * maxi(0, int(e.c[i])) * m
 	if int(e.a) != g and int(e.b) != g:
 		return 0
 	var ours := int(e.a) == g
@@ -698,8 +741,9 @@ static func holder(w: int, real: Array, until := INF) -> int:
 	return holder_after(at, real)
 
 
-## The champion of season w: the castle holder when it ended (the top guild if nobody held
-## it). Before the season ends: the holder (and table) so far.
+## The Castle King (ราชันปราสาท) of season w: the castle holder after its last round
+## (Sunday 21:30; the top guild if nobody held it). Before the season ends: the holder (and
+## table) so far.
 static func champion_of(w: int, real: Array) -> int:
 	var last_at := 0
 	for e in real:
@@ -716,6 +760,31 @@ static func champion_of(w: int, real: Array) -> int:
 		champ = int(table(w, real)[0].g)
 	_champ_cache[key] = champ
 	return champ
+
+
+## The League Champion (แชมป์ลีก) of season w: first in the table by points (0 while no
+## guild has any).
+static func league_champion_of(w: int, real: Array) -> int:
+	var last_at := 0
+	for e in real:
+		if e is Dictionary:
+			last_at = maxi(last_at, int(e.get("at", 0)))
+	var key := "L|%d|%d|%d|%d|%d|%s" % [w, real.size(), last_at, LeagueRounds.revision, mini(last_ended(now()), int(week_end(w))), sim_salt]
+	if _champ_cache.has(key):
+		return int(_champ_cache[key])
+	if _champ_cache.size() > 16:
+		_champ_cache.clear()
+	var top: Dictionary = table(w, real)[0]
+	var g := int(top.g) if int(top.points) > 0 else 0
+	_champ_cache[key] = g
+	return g
+
+
+## The emperor (จักรพรรดิแห่งสัปดาห์) of season w: the guild that is both its League Champion
+## and its Castle King (holding the castle after the last round); 0 when none is both.
+static func emperor_of(w: int, real: Array) -> int:
+	var king := holder_after(final_slot(w), real)
+	return king if king > 0 and league_champion_of(w, real) == king else 0
 
 
 static func rank_of(w: int, real: Array, g: int) -> int:
@@ -765,7 +834,7 @@ static func real_wars(w: int) -> Array:
 	return []
 
 
-## Last season's champion as this device sees it (the hero's real wars of that season in).
+## Last season's Castle King as this device sees it (the hero's real wars of that season in).
 static func champion_now(t := -1.0) -> int:
 	if t < 0.0:
 		t = now()
@@ -773,7 +842,23 @@ static func champion_now(t := -1.0) -> int:
 	return champion_of(w, real_wars(w) if Game.has_profile else [])
 
 
-## The hero's guild won last season's castle.
+## Last season's League Champion (0 when nobody scored).
+static func league_champion_now(t := -1.0) -> int:
+	if t < 0.0:
+		t = now()
+	var w := week_of(t) - 1
+	return league_champion_of(w, real_wars(w) if Game.has_profile else [])
+
+
+## Last season's emperor (0 when no guild was both).
+static func emperor_now(t := -1.0) -> int:
+	if t < 0.0:
+		t = now()
+	var w := week_of(t) - 1
+	return emperor_of(w, real_wars(w) if Game.has_profile else [])
+
+
+## The hero's guild is last season's Castle King.
 static func hero_champion(t := -1.0) -> bool:
 	var g := Game.guild()
 	return g > 0 and champion_now(t) == g
@@ -784,12 +869,12 @@ static func crowned(g: int) -> bool:
 	return g > 0 and champion_now() == g
 
 
-## The EXP multiplier of the champion's members (Game.add_exp).
+## The EXP multiplier of the Castle King's members (Game.add_exp).
 static func exp_mult(t := -1.0) -> float:
 	return 1.0 + EXP_BONUS if hero_champion(t) else 1.0
 
 
-## The HUD event chip's line ("" when the hero is not a champion).
+## The HUD event chip's line ("" when the hero's guild is not the Castle King).
 static func chip_text(t := -1.0) -> String:
 	if t < 0.0:
 		t = now()
@@ -797,7 +882,7 @@ static func chip_text(t := -1.0) -> String:
 		return ""
 	var left := week_end(week_of(t)) - t
 	var span := "%d วัน" % int(ceil(left / float(DAY))) if left > float(DAY) else "%d ชม." % maxi(1, int(ceil(left / 3600.0)))
-	return "%s แชมป์ปราสาท EXP +%d%% เหลือ %s" % [CROWN, int(EXP_BONUS * 100.0), span]
+	return "%s %s EXP +%d%% เหลือ %s" % [CROWN, CASTLE_TITLE, int(EXP_BONUS * 100.0), span]
 
 
 ## Records the hero's real round (a castle war of every guild): `guilds` in team order
@@ -927,53 +1012,80 @@ static func spectated_result(match_info: Dictionary, result: Dictionary) -> int:
 		int(score[0]), int(score[1]), float(at))
 
 
-## The top-three reward the hero may claim now: {rank, gold, jewels, week} or {}.
+## What the hero may claim now of last season: the top-three reward (ranked: true, unless
+## taken: claimed) and, for the emperor's members, its bonus (emperor: true, unless taken:
+## emp_claimed). {rank, week, gold, jewels (both together), ranked, emperor} or {}.
 static func claimable(t := -1.0) -> Dictionary:
 	var g := Game.guild()
 	if g <= 0:
 		return {}
 	var d := data(t)
 	var w := week_of(now() if t < 0.0 else t) - 1
-	if int(d.get("claimed", -1)) == w:
+	var real := real_wars(w)
+	var out := {}
+	if int(d.get("claimed", -1)) != w:
+		var rank := rank_of(w, real, g)
+		if REWARDS.has(rank):
+			out = (REWARDS[rank] as Dictionary).duplicate(true)
+			out["rank"] = rank
+			out["ranked"] = true
+	if int(d.get("emp_claimed", -1)) != w and emperor_of(w, real) == g:
+		if out.is_empty():
+			out = {"rank": 1, "gold": 0, "jewels": {}, "ranked": false}
+		var jewels: Dictionary = out.jewels
+		for id in EMPEROR_BONUS:
+			jewels[id] = int(jewels.get(id, 0)) + int(EMPEROR_BONUS[id])
+		out["emperor"] = true
+	if out.is_empty():
 		return {}
-	var rank := rank_of(w, real_wars(w), g)
-	if not REWARDS.has(rank):
-		return {}
-	var out: Dictionary = (REWARDS[rank] as Dictionary).duplicate(true)
-	out["rank"] = rank
 	out["week"] = w
+	out["emperor"] = bool(out.get("emperor", false))
 	return out
 
 
-## Takes last season's top-three reward once. "ok" or a reason.
+## Takes last season's top-three reward and, for the emperor's members, its bonus (10 chaos
+## jewels and the title จักรพรรดิแห่งสัปดาห์), each once. "ok" or a reason.
 static func claim(t := -1.0) -> String:
 	if Game.guild() <= 0:
 		return "ต้องอยู่ในกิลด์ก่อน"
 	var d := data(t)
 	var w := week_of(now() if t < 0.0 else t) - 1
-	if int(d.get("claimed", -1)) == w:
-		return "รับรางวัลลีกของฤดูกาลที่แล้วไปแล้ว"
 	var reward := claimable(t)
 	if reward.is_empty():
+		if int(d.get("claimed", -1)) == w:
+			return "รับรางวัลลีกของฤดูกาลที่แล้วไปแล้ว"
 		return "กิลด์ของคุณไม่ติด 3 อันดับแรกเมื่อฤดูกาลที่แล้ว"
-	d["claimed"] = w
-	Game.add_gold(int(reward.gold))
+	if bool(reward.ranked):
+		d["claimed"] = w
+	if bool(reward.emperor):
+		d["emp_claimed"] = w
+		Game.profile["flags"][EMPEROR_FLAG] = 1
+	if int(reward.gold) > 0:
+		Game.add_gold(int(reward.gold))
 	for id in reward.jewels:
 		Game.give_or_store(ItemData.jewel(String(id), int(reward.jewels[id])))
+	if bool(reward.emperor):
+		# The titled achievements only (the emperor's title), not the goal rewards.
+		Game._check_achievements()
+		Game.title_changed.emit(Achievements.title_of(Game.profile))
 	Game.mark_dirty()
 	Game.save()
 	return "ok"
 
 
 static func reward_text(reward: Dictionary) -> String:
-	var parts: PackedStringArray = ["%s ทอง" % GuildScreen._num(int(reward.get("gold", 0)))]
+	var parts: PackedStringArray = []
+	if int(reward.get("gold", 0)) > 0:
+		parts.append("%s ทอง" % GuildScreen._num(int(reward.get("gold", 0))))
 	var jewels: Dictionary = reward.get("jewels", {})
 	for id in jewels:
 		parts.append("%s ×%d" % [ItemData.JEWELS[id].name, int(jewels[id])])
+	if bool(reward.get("emperor", false)):
+		parts.append("ตำแหน่ง \"%s\"" % EMPEROR_TITLE)
 	return " · ".join(parts)
 
 
-# --- The champion's secret shop ---------------------------------------------------
+# --- The Castle King's secret shop ------------------------------------------------
 
 static func shop_entry(id: String) -> Dictionary:
 	for e in SHOP:
@@ -984,7 +1096,7 @@ static func shop_entry(id: String) -> Dictionary:
 
 static func shop_name(e: Dictionary) -> String:
 	if String(e.kind) == "title":
-		return "ตำแหน่ง \"ราชันปราสาท\" (ของสะสมเฉพาะแชมป์)"
+		return "ตำแหน่ง \"ราชันปราสาท\" (ของสะสมเฉพาะกิลด์ราชันปราสาท)"
 	var item := shop_item(e)
 	return "%s ×%d" % [ItemData.name_of(item), int(e.count)]
 
@@ -1007,7 +1119,7 @@ static func shop_bought(id: String, t := -1.0) -> int:
 ## Why entry e cannot be bought now ("" when it can).
 static func shop_problem(e: Dictionary, t := -1.0) -> String:
 	if not hero_champion(t):
-		return "ร้านลับเปิดให้สมาชิกกิลด์แชมป์ปราสาทเท่านั้น"
+		return "ร้านลับเปิดให้สมาชิกกิลด์ราชันปราสาทเท่านั้น"
 	if String(e.kind) == "title" and int(Game.profile["flags"].get(CROWN_FLAG, 0)) > 0:
 		return "มีตำแหน่งนี้แล้ว"
 	if shop_bought(String(e.id), t) >= int(e.limit):
@@ -1051,8 +1163,21 @@ static func shop_buy(id: String, t := -1.0) -> String:
 
 # --- Week-end announcement (Game._process) ------------------------------------------
 
-## Once a season: tells the hero who won the last one (toast and world chat), and what it
-## means for the hero. True when it announced now.
+## The season-end announcement of season w: "แชมป์ลีกสัปดาห์นี้: X · ราชันปราสาท: Y",
+## then the emperor's line when one guild won both ([line] or [line, emperor line]).
+static func announce_lines(w: int, real: Array) -> PackedStringArray:
+	var league := league_champion_of(w, real)
+	var king := champion_of(w, real)
+	var out := PackedStringArray(["%sสัปดาห์นี้: %s · %s: %s" % [LEAGUE_TITLE, name_of(league) if league > 0 else "-", CASTLE_TITLE, name_of(king) if king > 0 else "-"]])
+	var emperor := emperor_of(w, real)
+	if emperor > 0:
+		out.append("%s กิลด์ %s เป็นทั้ง%sและ%s: %s!" % [CROWN, name_of(emperor), LEAGUE_TITLE, CASTLE_TITLE, EMPEROR_TITLE])
+	return out
+
+
+## Once a season (the first time the game notices it ended: ann): tells the hero who won
+## the last one's two titles (toast and world chat), the emperor too, and what it means for
+## the hero. True when it announced now.
 static func tick(t := -1.0) -> bool:
 	if not Game.has_profile:
 		return false
@@ -1065,12 +1190,13 @@ static func tick(t := -1.0) -> bool:
 		return false
 	d["ann"] = w
 	Game.mark_dirty()
-	var champ := champion_now(t)
-	var line := "กิลด์ %s ครองปราสาทประจำสัปดาห์!" % name_of(champ)
-	Game.say(line, &"quest")
-	Game.post_chat("world", "ประกาศลีกกิลด์", line, CROWN_COLOR)
+	for line in announce_lines(w - 1, real_wars(w - 1)):
+		Game.say(line, &"quest")
+		Game.post_chat("world", "ประกาศลีกกิลด์", line, CROWN_COLOR)
 	if hero_champion(t):
-		Game.say("%s กิลด์ของคุณเป็นแชมป์: EXP +%d%% ทั้งสัปดาห์ และร้านลับแชมป์เปิดแล้ว" % [CROWN, int(EXP_BONUS * 100.0)], &"success")
+		Game.say("%s กิลด์ของคุณเป็น%s: EXP +%d%% ทั้งสัปดาห์ และร้านลับ%sเปิดแล้ว" % [CROWN, CASTLE_TITLE, int(EXP_BONUS * 100.0), CASTLE_TITLE], &"success")
+	if Game.guild() > 0 and emperor_now(t) == Game.guild():
+		Game.say("กิลด์ของคุณเป็น%s! รับโบนัสเพชรเคออสและตำแหน่งได้ที่หน้าลีกกิลด์" % EMPEROR_TITLE, &"success")
 	if not claimable(t).is_empty():
 		Game.say("กิลด์ของคุณติด 3 อันดับแรก! รับรางวัลได้ที่หน้าลีกกิลด์", &"success")
 	# The hero's name plate wears (or drops) the crown.
@@ -1215,6 +1341,8 @@ static func tell_round(t := -1.0) -> bool:
 	d["told"] = at
 	Game.mark_dirty()
 	var line := "สงครามกิลด์รอบ %s เริ่มแล้ว: 4 กิลด์ชิงปราสาท · %s" % [clock_text(at), owner_text(at)]
+	if is_final(at):
+		line += " · %s: ใครครองปราสาทตอนจบเป็น%s" % [FINAL_TAG, CASTLE_TITLE]
 	if hero_makes_side(at):
 		Game.say(line + " — ไปที่ผู้บัญชาการสงครามกิลด์แล้วกด เข้าสู่สงคราม (มาสายก็เข้าได้จนจบรอบ)", &"quest")
 	else:
