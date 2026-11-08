@@ -394,7 +394,7 @@ func _fighters() -> void:
 	enemy.apply_shred(0.3, 8.0)
 	check(enemy.debuff_left("shred") == 0.0 and float(enemy.stats.def) == base_def, "a fighter in the countdown shrugs off a crack")
 	enemy._frozen = false
-	enemy._guard_until = Time.get_ticks_msec() + 5000
+	enemy._guard_until = GameClock.msec() + 5000
 	enemy.apply_weaken(0.3, 8.0)
 	check(enemy.debuff_left("weaken") == 0.0, "a fighter under its spawn guard shrugs off a weaken")
 	enemy._guard_until = 0
@@ -409,7 +409,7 @@ func _fighters() -> void:
 	check(is_equal_approx(float(enemy.stats.def), base_def * 0.825), "the crack survives the fighter's tick")
 	# While stunned a fighter skips _chase / _tick, but its marks still run out on time.
 	var keep_until: float = enemy._rshred_until
-	enemy._rshred_until = Time.get_ticks_msec() * 0.001 - 0.01
+	enemy._rshred_until = GameClock.msec() * 0.001 - 0.01
 	enemy._stun = 2.0
 	enemy._tick_status(0.1)
 	check(enemy.debuff_left("shred") == 0.0 and is_equal_approx(float(enemy.stats.def), base_def), "a stunned fighter's crack still runs out")
@@ -418,7 +418,7 @@ func _fighters() -> void:
 	check(enemy._rshred_until >= keep_until - 0.1, "and a new crack lands again")
 	enemy.receive_party_buff({"def": 0.2, "atk": 0.1, "secs": 60.0}, Color.WHITE, "QA", "qa_guard")
 	check(is_equal_approx(float(enemy.stats.def), base_def * 1.2 * 0.825), "a buff on a cracked fighter keeps the crack")
-	enemy._rshred_until = Time.get_ticks_msec() * 0.001 - 0.01
+	enemy._rshred_until = GameClock.msec() * 0.001 - 0.01
 	enemy._tick(0.1)
 	check(is_equal_approx(float(enemy.stats.def), base_def * 1.2) and enemy.debuff_left("shred") == 0.0, "an expired crack gives the DEF back")
 	enemy.apply_shred(0.3, 8.0)

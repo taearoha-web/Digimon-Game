@@ -93,6 +93,10 @@ var switch_post := -1
 ## first): it never batters the gate, fights only what comes within hold_range of its
 ## post (goal_point) and does not chase from it.
 var keep_back := false
+## Kept at its post with a front (the altar, in the assault on it; Vector3.INF none): it
+## never steps nearer that front than its post (fighting from the post, it gives ground
+## backwards only), and walks back when it stands nearer.
+var keep_front := Vector3.INF
 var kills := 0
 var deaths := 0
 var assists := 0
@@ -265,6 +269,11 @@ func hp_ratio() -> float:
 	return float(hp) / float(maxi(max_hp, 1))
 
 
+## Falling back to its camp to heal (not heading to the fight).
+func is_retreating() -> bool:
+	return _retreating
+
+
 func _leash() -> float:
 	return 1.0e9
 
@@ -279,11 +288,11 @@ func start_fight() -> void:
 
 
 func _start_guard() -> void:
-	_guard_until = Time.get_ticks_msec() + int(SPAWN_GUARD * 1000.0)
+	_guard_until = GameClock.msec() + int(SPAWN_GUARD * 1000.0)
 
 
 func under_guard() -> bool:
-	return Time.get_ticks_msec() < _guard_until
+	return GameClock.msec() < _guard_until
 
 
 ## A fighter fresh from its base (spawn guard) shrugs off marks as it shrugs off hits.
@@ -350,7 +359,7 @@ func _view() -> void:
 	# Area warnings that ran out leave the list, and the rest are read from packed
 	# arrays (every fighter looks through them every frame).
 	if not _dangers.is_empty():
-		var now := Time.get_ticks_msec()
+		var now := GameClock.msec()
 		var live: Array = []
 		for d in _dangers:
 			if now <= int(d.until):
@@ -653,7 +662,7 @@ func take_damage(raw: float, attacker: Node = null) -> void:
 
 
 func _receive(amount: int, crit: bool, attacker: Node) -> bool:
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	# กำแพงเหล็ก: a Defender in its party takes the edge off every blow.
 	amount = ClassRoles.guard(self, amount)
 	# Nobody is deleted by one hit or one combo, however many enemies pile on.
@@ -676,7 +685,7 @@ func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	if hp <= 0:
 		_die()
 		return true
-	if Time.get_ticks_msec() >= _cast_until:
+	if GameClock.msec() >= _cast_until:
 		visual.action("hurt", 320)
 	return false
 
@@ -842,7 +851,7 @@ func _hold_switch(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 			# It would step out (to close in, or an archer backing off): it swings or
 			# shoots from where it stands when the target is in reach.
 			var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
-			if _attack_timer <= 0.0 and Time.get_ticks_msec() >= _cast_until and _flat_distance(target.global_position) <= reach + 0.4:
+			if _attack_timer <= 0.0 and GameClock.msec() >= _cast_until and _flat_distance(target.global_position) <= reach + 0.4:
 				_basic_attack(target)
 			return Vector3.ZERO
 	return step
@@ -856,7 +865,8 @@ const KEEP_SLACK := 3.5
 func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
 	var in_reach := _flat_distance(target.global_position) <= reach + 0.4
-	if _flat_distance(goal_point) > KEEP_SLACK and not in_reach:
+	var ahead := _ahead_of_post(global_position)
+	if (_flat_distance(goal_point) > KEEP_SLACK and not in_reach) or ahead > 1.0:
 		return _run_to(SiegeArena.route(global_position, goal_point), delta)
 	var way := SiegeArena.route(global_position, target.global_position)
 	if _flat_distance_from(way, target.global_position) > 0.5 and not in_reach:
@@ -864,21 +874,28 @@ func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 		_tick(delta)
 		return Vector3.ZERO
 	var step := super._chase(target, delta, speed_factor)
-	if step != Vector3.ZERO and _flat_distance_from(global_position + step * 0.35, goal_point) > KEEP_SLACK + 0.5:
-		if _attack_timer <= 0.0 and Time.get_ticks_msec() >= _cast_until and in_reach:
+	if step != Vector3.ZERO and (_flat_distance_from(global_position + step * 0.35, goal_point) > KEEP_SLACK + 0.5 or _ahead_of_post(global_position + step * 0.35) > 0.5):
+		if _attack_timer <= 0.0 and GameClock.msec() >= _cast_until and in_reach:
 			_basic_attack(target)
 		return Vector3.ZERO
 	return step
 
 
+## How much nearer keep_front than its post `p` is (0 with no front).
+func _ahead_of_post(p: Vector3) -> float:
+	if not keep_front.is_finite():
+		return 0.0
+	return maxf(0.0, _flat_distance_from(goal_point, keep_front) - _flat_distance_from(p, keep_front))
+
+
 ## A person sees the warning ring and walks out of it after a beat; sometimes does not.
 func _dodge_area(delta: float) -> Vector3:
-	if _frozen or Time.get_ticks_msec() < _cast_until:
+	if _frozen or GameClock.msec() < _cast_until:
 		return Vector3.ZERO
 	if _dangers.is_empty():
 		_react_at = 0
 		return Vector3.ZERO
-	var now := Time.get_ticks_msec()
+	var now := GameClock.msec()
 	_view()
 	for i in _danger_at.size():
 		if _danger_team[i] == team or now > _danger_until[i]:
@@ -906,9 +923,9 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	if shape in ["burst", "blast"] and is_instance_valid(target):
 		var at := target.global_position if shape == "blast" else global_position
 		var wait := maxf(float(skill.hit_delay), lerpf(1.25, 0.65, difficulty))
-		_dangers.append({"center": Vector3(at.x, 0.0, at.z), "radius": float(skill.radius), "until": Time.get_ticks_msec() + int(wait * 1000.0) + 250, "team": team})
+		_dangers.append({"center": Vector3(at.x, 0.0, at.z), "radius": float(skill.radius), "until": GameClock.msec() + int(wait * 1000.0) + 250, "team": team})
 		if _dangers.size() > 40:
-			_dangers = _dangers.filter(func(d): return Time.get_ticks_msec() <= int(d.until))
+			_dangers = _dangers.filter(func(d): return GameClock.msec() <= int(d.until))
 	super._cast(skill, target)
 
 
@@ -1076,6 +1093,7 @@ func _upkeep_score(skill: Dictionary, distance: float) -> float:
 ## cast): a song of its family plays, the same buff runs, or both of the fighter's own
 ## buff slots (BuffBook.GROUP_LIMIT) are taken.
 func _buff_running(skill: Dictionary) -> bool:
+	# The buff icons (BuffBook) keep the wall clock, as the hero's do.
 	var now := Time.get_ticks_msec()
 	var entries := _buff_art.buffs
 	if BuffBook.is_song_skill(skill):
@@ -1121,7 +1139,7 @@ func _run_to(point: Vector3, delta: float) -> Vector3:
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))
 		visual.rotation.y = _yaw
-	if Time.get_ticks_msec() < _cast_until or to.length() < 1.0:
+	if GameClock.msec() < _cast_until or to.length() < 1.0:
 		return Vector3.ZERO
 	return to.normalized() * float(rstats.speed)
 
@@ -1138,7 +1156,7 @@ func _fall_back(delta: float) -> Vector3:
 	if _think <= 0.0:
 		_think = 0.3
 		_try_potion()
-	if Time.get_ticks_msec() < _cast_until or to.length() < 2.0:
+	if GameClock.msec() < _cast_until or to.length() < 2.0:
 		return Vector3.ZERO
 	return to.normalized() * float(rstats.speed) * 1.05
 
@@ -1165,11 +1183,13 @@ func _wander_on(delta: float) -> Vector3:
 	var way := SiegeArena.route(global_position, goal_point)
 	var to := way - global_position
 	to.y = 0.0
-	if _flat_distance(goal_point) < 2.5:
+	# The leader keeping behind its guild goes right to its post, at its full pace (it
+	# comes back from ahead of them; stopping short would leave it ahead).
+	if _flat_distance(goal_point) < (1.0 if keep_back else 2.5):
 		return Vector3.ZERO
 	_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))
 	visual.rotation.y = _yaw
-	return to.normalized() * float(rstats.speed) * 0.9
+	return to.normalized() * float(rstats.speed) * (1.0 if keep_back else 0.9)
 
 
 # ---------------------------------------------------------------------------
@@ -1304,7 +1324,7 @@ func receive_party_buff(buff: Dictionary, color: Color, label := "", skill_id :=
 	_atk_boost = maxf(_atk_boost, 1.0 + float(buff.get("atk", 0.0)))
 	_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
 	_sync_def()
-	_buff_until = maxf(_buff_until, Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
+	_buff_until = maxf(_buff_until, GameClock.msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 	var display := buff.duplicate()
 	display.secs = minf(float(buff.get("secs", 20.0)), 30.0)
 	_buff_art.add(display, color, label, true, skill_id)

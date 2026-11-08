@@ -1711,6 +1711,7 @@ func _assign_objectives() -> void:
 			var gate: CastleGate = null if team == castle_owner else (c.gate_for(f) if c != null else front_gate())
 			f.capture_role = false
 			f.keep_back = false
+			f.keep_front = Vector3.INF
 			f.hold_range = 0.0
 			f.objective = gate
 			match plan:

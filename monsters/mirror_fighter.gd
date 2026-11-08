@@ -85,7 +85,7 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
-	if _bar_until > 0.0 and Time.get_ticks_msec() * 0.001 > _bar_until and (_ring == null or not _ring.visible):
+	if _bar_until > 0.0 and GameClock.msec() * 0.001 > _bar_until and (_ring == null or not _ring.visible):
 		_bar.visible = false
 		_bar_until = 0.0
 	var moved := EntitySync.glide(self, goal, goal_yaw, delta)
@@ -112,13 +112,13 @@ func mirror_state(x: float, z: float, yaw: float, p_hp: int, p_max: int, p_flags
 		_bar.set_ratio(float(hp) / float(max_hp))
 		if hp < max_hp:
 			_bar.visible = true
-			_bar_until = Time.get_ticks_msec() * 0.001 + 6.0
+			_bar_until = GameClock.msec() * 0.001 + 6.0
 	var acting := (p_flags & EntitySync.F_ACTING) != 0
-	if acting and not _acting and Time.get_ticks_msec() >= _cast_until and _rv != null and is_instance_valid(_rv.hero_visual):
+	if acting and not _acting and GameClock.msec() >= _cast_until and _rv != null and is_instance_valid(_rv.hero_visual):
 		var clips: Array = class_data.get("attack", {}).get("anims", ["Attack_A"])
 		_rv.hero_visual.action(String(clips[_combo % maxi(1, clips.size())]), 1.0)
 		_combo += 1
-		_cast_until = Time.get_ticks_msec() + 450
+		_cast_until = GameClock.msec() + 450
 	_acting = acting
 
 
@@ -131,7 +131,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, _attacker: Node = 
 	hp = maxi(1, hp - shown)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
-	_bar_until = Time.get_ticks_msec() * 0.001 + 6.0
+	_bar_until = GameClock.msec() * 0.001 + 6.0
 	BattleVfx.damage_number(get_parent(), top_point(), str(shown) + ("!" if crit else ""), team == TEAM_ALLY, 1.35 if crit else 1.0)
 	visual.flash(Color(1, 1, 1))
 	return false

@@ -510,7 +510,7 @@ func flags_of(mob: Mob) -> int:
 	var f := 0
 	if mob.hostile:
 		f |= F_HOSTILE
-	if mob._winding or Time.get_ticks_msec() < mob._anim_lock:
+	if mob._winding or GameClock.msec() < mob._anim_lock:
 		f |= F_ACTING
 	if mob.is_dead():
 		f |= F_DEAD

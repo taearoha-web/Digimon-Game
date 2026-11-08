@@ -128,7 +128,7 @@ func _ready() -> void:
 		EntitySync.cast(mob, circles, String(info.get("clip", "attack")), title(move) if MOVES.has(move) else "")
 	mob.visual.flash(Color(1.0, 0.3, 0.2), first)
 	mob.visual.action(String(info.get("clip", "attack")), int((last_impact + 0.4) * 1000.0))
-	mob._anim_lock = Time.get_ticks_msec() + int((last_impact + 0.4) * 1000.0)
+	mob._anim_lock = GameClock.msec() + int((last_impact + 0.4) * 1000.0)
 	_announce()
 
 

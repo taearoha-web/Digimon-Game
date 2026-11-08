@@ -212,7 +212,7 @@ func apply_slow(seconds: float) -> void:
 func apply_shred(fraction: float, seconds: float) -> void:
 	if not _markable() or fraction <= 0.0 or seconds <= 0.0:
 		return
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var current := _rshred if now < _rshred_until else 0.0
 	var f := clampf(fraction, 0.0, SHRED_CAP) * PLAYER_MARK
 	if f + 0.0001 < current:
@@ -228,7 +228,7 @@ func apply_shred(fraction: float, seconds: float) -> void:
 func apply_weaken(fraction: float, seconds: float) -> void:
 	if not _markable() or fraction <= 0.0 or seconds <= 0.0:
 		return
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var current := _weaken_now()
 	var f := clampf(fraction, 0.0, WEAKEN_CAP) * PLAYER_MARK
 	if f + 0.0001 < current:
@@ -250,24 +250,24 @@ func _tick_status(delta: float) -> void:
 
 
 func debuff_left(key: String) -> float:
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var until := _rshred_until if key == "shred" else (_rweaken_until if key == "weaken" else 0.0)
 	return maxf(0.0, until - now)
 
 
 func _weaken_now() -> float:
-	return _rweaken if Time.get_ticks_msec() * 0.001 < _rweaken_until else 0.0
+	return _rweaken if GameClock.msec() * 0.001 < _rweaken_until else 0.0
 
 
 ## The only place stats.def is written: base x its own buff x an armour crack.
 func _sync_def() -> void:
-	var cracked := _rshred if Time.get_ticks_msec() * 0.001 < _rshred_until else 0.0
+	var cracked := _rshred if GameClock.msec() * 0.001 < _rshred_until else 0.0
 	stats["def"] = _base_def * _def_boost * (1.0 - cracked)
 
 
 ## Ends the marks once their time is up (and gives the DEF and the tag colour back).
 func _expire_marks() -> void:
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var changed := false
 	if _rshred_until > 0.0 and now >= _rshred_until:
 		_rshred = 0.0
@@ -343,7 +343,7 @@ func _chase(target: Node3D, delta: float, _speed_factor: float) -> Vector3:
 	var to := target.global_position - global_position
 	to.y = 0.0
 	var distance := to.length()
-	var now := Time.get_ticks_msec()
+	var now := GameClock.msec()
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-12.0 * delta))
 		visual.rotation.y = _yaw
@@ -415,7 +415,7 @@ func _tick(delta: float) -> void:
 	_cd_owed += delta * _cd_rate
 	if _cd_owed >= CD_STEP:
 		_flush_cooldowns()
-	if _buff_until > 0.0 and Time.get_ticks_msec() * 0.001 > _buff_until:
+	if _buff_until > 0.0 and GameClock.msec() * 0.001 > _buff_until:
 		_buff_until = 0.0
 		_atk_boost = 1.0
 		_def_boost = 1.0
@@ -553,7 +553,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	if _rv and _rv.hero_visual:
 		_rv.hero_visual.skill_action(skill, delay)
 		SkillShow.anticipate(get_parent(), skill, global_position, delay, aim, _rv.hero_visual)
-	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 80
+	_cast_until = GameClock.msec() + int(delay * 1000.0) + 80
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
 	var cast_sound := SkillSound.cast(skill)
 	if cast_sound != &"skill_start":
@@ -610,7 +610,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
 				_sync_def()
 				_raise_hp(float(buff.get("hp", 0.0)))
-				_buff_until = maxf(_buff_until, Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
+				_buff_until = maxf(_buff_until, GameClock.msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 				var display_buff := buff.duplicate()
 				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
 				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id))
@@ -706,7 +706,7 @@ func _basic_attack(target: Node3D) -> void:
 	_combo += 1
 	if _rv and _rv.hero_visual:
 		_rv.hero_visual.action(clip, 1.0)
-	_cast_until = Time.get_ticks_msec() + int(float(attack.hit_delay) * 1000.0) + 60
+	_cast_until = GameClock.msec() + int(float(attack.hit_delay) * 1000.0) + 60
 	var color: Color = attack.get("color", Color.WHITE)
 	var mult := float(attack.mult)
 	var target_ref: WeakRef = weakref(target)

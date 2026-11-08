@@ -99,7 +99,7 @@ func force_special(kind: String) -> void:
 	mob._slam_timer = maxf(mob._slam_timer, TELEGRAPH + 1.0)
 	mob.visual.flash(Color(1.0, 0.3, 0.2), TELEGRAPH)
 	mob.visual.action("attack", int(TELEGRAPH * 1000.0))
-	mob._anim_lock = Time.get_ticks_msec() + int(TELEGRAPH * 1000.0)
+	mob._anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
 	BattleVfx.floating_text(zone, mob.top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.3)
 	_draw_telegraph()
 	if EntitySync.hosting():
