@@ -117,10 +117,9 @@ func _row(id: StringName, level: int) -> Control:
 	var detail := "ปลอดภัย · ร้านค้า · เซฟจุดฟื้นฟู" if id == &"town" else "มอนสเตอร์ Lv.%d–%d · บอสประจำแมพ" % [int(z.level[0]), int(z.level[1])]
 	if z.has("star"):
 		detail = "ดาว %d+ · วัตถุดิบสร้างอุปกรณ์ดาว %d" % [int(z.star), int(z.gear_star)]
-	if id == DivineRegionData.ID:
-		detail = "ดาว 200 · ชุดเทพประจำอาชีพ แรงที่สุด ดรอปยากสุด 0.5%"
-	if id == DrownedAbyssData.ID:
-		detail = "ดาว %d+ · เก็บเลเวลดาว 200–300 · มอนโหด เพชรดรอปเยอะ · วัตถุดิบชุดเซต" % DrownedAbyssData.ENTRY_STAR
+	# The two ★200-300 fields: one band, one drop table (EndgameFields).
+	if EndgameFields.has(id):
+		detail = "ดาว %d+ · เก็บเลเวลดาว 200–300 · %s (ชิ้น +10 ใช้ผสมชุดเซต 250 ดาว)" % [EndgameFields.ENTRY_STAR, EndgameFields.drop_text()]
 	if not open:
 		detail = "ล็อก · " + ZoneData.access_reason(id, level, int(Game.paragon().level))
 	info.add_child(UIUtil.label(detail, &"SmallLabel"))

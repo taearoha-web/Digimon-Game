@@ -2318,42 +2318,123 @@ func craft_star_wings(item: Dictionary) -> String:
 	return "ok"
 
 
+## Text of the refusal when the only fitting divine piece is the worn one and the
+## player has not confirmed (craft_set_piece's allow_worn).
+const SET_WORN_CONFIRM := "ชิ้นประจำอาชีพที่เข้าเงื่อนไขมีแค่ชิ้นที่สวมอยู่ ต้องยืนยันก่อนจึงจะใช้ได้"
+
+
+## The divine pieces that fit this hero's [param slot] set piece (SetGearData.divine_fits,
+## +10 up): [{"where": "bag" | "storage" | "equip", "item": the live piece}], the
+## lowest + first, bag before storage on a tie, the worn piece always last.
+func set_divine_choices(slot: String) -> Array[Dictionary]:
+	var cls := String(class_id())
+	var out: Array[Dictionary] = []
+	for item in profile["inv"]:
+		if SetGearData.divine_fits(item, cls, slot):
+			out.append({"where": "bag", "item": item})
+	for item in storage():
+		if SetGearData.divine_fits(item, cls, slot) and storage_lock(item) == "":
+			out.append({"where": "storage", "item": item})
+	out.sort_custom(func(a, b): return int(a.item.get("plus", 0)) < int(b.item.get("plus", 0)) or (int(a.item.get("plus", 0)) == int(b.item.get("plus", 0)) and a.where == "bag" and b.where != "bag"))
+	var worn: Variant = profile["equip"].get(slot)
+	if SetGearData.divine_fits(worn, cls, slot):
+		out.append({"where": "equip", "item": worn})
+	return out
+
+
+## The choice craft_set_piece uses for [param slot]: [param pick] (one of the
+## set_divine_choices items) when given and still there, else the first choice
+## ({} when none fits).
+func set_divine_pick(slot: String, pick: Dictionary = {}) -> Dictionary:
+	var choices := set_divine_choices(slot)
+	if not pick.is_empty():
+		for choice in choices:
+			if is_same(choice.item, pick):
+				return choice
+		return {}
+	return choices[0] if not choices.is_empty() else {}
+
+
 ## Why the forge cannot make a 250-star set piece for [param slot] now ("" when it can):
-## an unknown slot, a Vagabond, missing materials or no room in the bag and storage.
-func set_piece_problem(slot: String) -> String:
+## an unknown slot, a Vagabond, no fitting divine piece (+10 up) or too few Lotus
+## Scales (SetGearData.recipe), the worn piece without [param allow_worn], missing
+## core / jewels, or no room in the bag and storage.
+func set_piece_problem(slot: String, pick: Dictionary = {}, allow_worn := false) -> String:
 	if not SetGearData.SLOTS.has(slot):
 		return "ชุดเซตไม่มีชิ้นนี้"
-	if not SetGearData.THEMES.has(String(class_id())):
+	var cls := String(class_id())
+	if not SetGearData.THEMES.has(cls):
 		return "เลือกอาชีพก่อนจึงจะผสมชุดเซตได้"
+	var need := SetGearData.recipe(cls, slot)
+	var from_bag := false
+	if String(need.divine_slot) != "":
+		var choice := set_divine_pick(slot, pick)
+		if choice.is_empty():
+			return "ต้องมี %s (ชุดประจำอาชีพ ดรอปที่%sและ%s)" % [SetGearData.divine_need_text(cls, slot), DivineRegionData.TITLE, DrownedAbyssData.TITLE]
+		if choice.where == "equip" and not allow_worn:
+			return SET_WORN_CONFIRM
+		from_bag = choice.where == "bag"
+	elif jewel_count(String(need.scale_id)) < int(need.scales):
+		return "ต้องมี %s %d (ตอนนี้ %d)" % [ItemData.JEWELS[String(need.scale_id)].name, int(need.scales), jewel_count(String(need.scale_id))]
 	for id in SetGearData.CRAFT_COST:
 		if jewel_count(id) < int(SetGearData.CRAFT_COST[id]):
 			return "วัตถุดิบไม่พอ (ต้องใช้ %s)" % SetGearData.cost_text()
-	if inventory_free() <= 0 and SharedStorage.full():
+	if not from_bag and inventory_free() <= 0 and SharedStorage.full():
 		return "กระเป๋าและคลังเต็ม ทำที่ว่างก่อนผสม"
 	return ""
 
 
-## Forges one piece of this class's 250-star set (SetGearData) from one set core and
-## 20 purple, 20 pink and 20 chaos jewels (SetGearData.CRAFT_COST). It succeeds at
-## SetGearData.CRAFT_CHANCE; a failed try uses up every material (like enhance_item).
-## The piece goes to the bag, or to storage when the bag is full (give_or_store).
-## `roll` (0-1) replaces the random roll (tests); below 0 rolls Game.rng.
+## Forges one piece of this class's 250-star set (SetGearData.recipe): one set core
+## and 20 purple, 20 pink and 20 chaos jewels (SetGearData.CRAFT_COST), plus the
+## class's divine piece of the slot at +10 up (weapon, armour, helm, boots; [param
+## pick] or the lowest + one, set_divine_choices; the worn one only with [param
+## allow_worn]) or SetGearData.SCALES Lotus Scales (ring, amulet). It succeeds at
+## SetGearData.CRAFT_CHANCE; a failed try uses up the core and the jewels but keeps
+## the divine piece and the scales. The piece comes out at +0 and goes to the bag, or
+## to storage when the bag is full (give_or_store); gems in the divine piece go back
+## to the bag. `roll` (0-1) replaces the random roll (tests); below 0 rolls Game.rng.
 ## Returns "ok", "fail" or why not (Thai).
-func craft_set_piece(slot: String, roll := -1.0) -> String:
-	var problem := set_piece_problem(slot)
+func craft_set_piece(slot: String, roll := -1.0, pick: Dictionary = {}, allow_worn := false) -> String:
+	var problem := set_piece_problem(slot, pick, allow_worn)
 	if problem != "":
 		return problem
+	var cls := String(class_id())
+	var need := SetGearData.recipe(cls, slot)
+	var choice := set_divine_pick(slot, pick) if String(need.divine_slot) != "" else {}
 	for id in SetGearData.CRAFT_COST:
 		_spend_jewels(id, int(SetGearData.CRAFT_COST[id]))
 	if roll < 0.0:
 		roll = rng.randf()
-	if roll >= SetGearData.CRAFT_CHANCE:
+	if roll >= float(need.chance):
 		flag_add("set_fail")
 		inventory_changed.emit()
 		mark_dirty()
 		return "fail"
-	var piece := SetGearData.item(String(class_id()), slot)
+	var gems: Array = []
+	if not choice.is_empty():
+		var used: Dictionary = choice.item
+		gems = (used.get("gems", []) as Array).duplicate()
+		match String(choice.where):
+			"bag", "storage":
+				var list: Array = profile["inv"] if choice.where == "bag" else storage()
+				for k in list.size():
+					if is_same(list[k], used):
+						list.remove_at(k)
+						break
+			"equip":
+				profile["equip"].erase(slot)
+				clamp_vitals()
+	else:
+		_spend_jewels(String(need.scale_id), int(need.scales))
+	var piece := SetGearData.item(cls, slot)
 	give_or_store(piece)
+	for gem_id in gems:
+		var bits := String(gem_id).split("_")
+		if bits.size() == 2:
+			give_or_store(ItemData.gem(bits[0], int(bits[1])))
+	if not choice.is_empty() and choice.where == "storage":
+		# The hero (with the new piece) first, then the storage without the old one.
+		_commit_storage(false)
 	flag_add("set_made")
 	check_achievements()
 	inventory_changed.emit()
