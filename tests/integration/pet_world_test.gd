@@ -19,6 +19,24 @@ func check(ok: bool, message: String) -> void:
 		printerr("FAIL: ", message)
 
 
+## The nodes that stay: everything in the tree but the short-lived effects of the fight
+## still going on in the field (meshes, particles and class signature flashes come and go
+## with each swing, so counting them reads the fight, not a leak).
+func _lasting_nodes() -> int:
+	var n := 0
+	var stack: Array[Node] = [get_tree().root]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		var script: Script = node.get_script()
+		if script != null and script.resource_path.get_file() == "signature_kit.gd":
+			continue
+		if node is MeshInstance3D or node is CPUParticles3D or node is GPUParticles3D or node is MultiMeshInstance3D:
+			continue
+		n += 1
+		stack.append_array(node.get_children())
+	return n
+
+
 func wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
 
@@ -43,8 +61,9 @@ func _ready() -> void:
 		await _village(round == 0)
 		await _field(round == 0)
 		await wait(0.3)
-		counts.append(int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
-	check(counts[1] <= counts[0] + 60, "no nodes leak over zone changes (%s)" % str(counts))
+		counts.append(_lasting_nodes())
+		check(int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)) == 0, "no orphan nodes after a zone change (round %d)" % round)
+	check(counts[1] <= counts[0] + 20, "no nodes leak over zone changes (%s)" % str(counts))
 	check(get_tree().get_nodes_in_group("pet_followers").is_empty() and get_tree().get_nodes_in_group("ai_pets").is_empty(), "no pet is left once the zone is gone")
 	await _guild_war()
 	print("PET WORLD TEST: %d checks, %d failures" % [checks, failures])
