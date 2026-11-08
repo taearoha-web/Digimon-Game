@@ -20,8 +20,8 @@ var checks := 0
 const DAY := 86400.0
 const SPEED := 4.0
 const CAPTURE_BOUND := 900.0
-const SEEDS := [77]
-const RETRY_SEEDS := [9001]
+const SEEDS := [4242]
+const RETRY_SEEDS := [9001, 2024]
 
 
 func check(ok: bool, message: String) -> void:
