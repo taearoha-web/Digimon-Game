@@ -515,7 +515,7 @@ func _build_star_field() -> void:
 		_make_weather(StringName(data.get("weather", &"")))
 	if int(data.boss.get("star",0)) == 200:
 		var label := Label3D.new()
-		label.text = "ลานบัลลังก์ราชันสมุทร • ดาว 200-300" if deep else ("วิหารบัวดารา • ดรอปชุดเทพ 200 ดาว" if divine else "บัลลังก์สุริยคราส • ดาว 200")
+		label.text = ("ลานบัลลังก์ราชันสมุทร • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว" if deep else "วิหารบัวดารา • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว") if deep or divine else "บัลลังก์สุริยคราส • ดาว 200"
 		label.position = _boss_spot + Vector3(0,4,0)
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.font_size = 48
@@ -1477,13 +1477,9 @@ func _drop_loot(mob: Mob) -> void:
 		_spawn_loot(item, 0, from)
 	var boss := mob.is_boss
 	var class_id := Game.class_id()
-	if zone_id == DivineRegionData.ID:
-		_divine_loot(mob, from)
-		_star_wing_drop(mob, from)
-		return
-	if zone_id == DrownedAbyssData.ID:
-		for item in DrownedAbyssData.kill_drops(boss, bool(mob.template.get("elite", false)), _drop_fortune(), rng):
-			_spawn_loot(item, 0, from)
+	# The two ★200-300 fields share one table (EndgameFields).
+	if bool(data.get("endgame_loot", false)):
+		_endgame_loot(mob, from)
 		return
 	if StarProgression.is_region(zone_id):
 		_star_loot(mob, from)
@@ -1604,21 +1600,18 @@ func _boss_chase(mob: Mob, from: Vector3, class_id: StringName, loot: Dictionary
 		Game.say("โชคสะสม: อีก %d ครั้งจะได้ของหายากแน่นอน" % BossLootData.kills_left(mob.monster_id, Game.boss_pity()), &"info")
 
 
-func _divine_loot(mob: Mob, from: Vector3) -> void:
+## วิหารบัวดารา and ห้วงสมุทรอสูร: EndgameFields.kill_drops (divine pieces, 200★
+## jewellery, Lotus Scales, gems, potions, wings), with a line for the rare ones.
+func _endgame_loot(mob: Mob, from: Vector3) -> void:
 	var elite := bool(mob.template.get("elite", false))
-	for item in DivineGearData.drops(ItemData.drop_class(Game.class_id(), rng), mob.is_boss, elite, rng):
+	for item in EndgameFields.kill_drops(Game.class_id(), mob.is_boss, elite, _drop_fortune(), rng):
 		_spawn_loot(item, 0, from)
-		Game.say("ชุดเทพประจำอาชีพ 200 ดาวตกแล้ว!%s" % _tag_text(item), &"quest")
-	# The divine set has no jewellery: the sanctuary adds 200★ rings and amulets.
-	if mob.is_boss or rng.randf() < (STAR_GEAR_ELITE if elite else STAR_GEAR_NORMAL):
-		var slot := "ring" if rng.randf() < 0.5 else "amulet"
-		_spawn_loot(StarProgression.item(ItemData.drop_class(Game.class_id(), rng), 200, slot, rng), 0, from)
-	if mob.is_boss:
-		_spawn_loot(ItemData.potion("hp_xl", 3), 0, from)
-		_spawn_loot(ItemData.potion("mp_xl", 3), 0, from)
-		_spawn_loot(_random_gem(100, 1), 0, from)
-	elif rng.randf() < 0.35:
-		_spawn_loot(ItemData.potion("hp_xl" if rng.randf() < 0.55 else "mp_xl", 1), 0, from)
+		if DivineGearData.is_item(item):
+			Game.say("ชุดประจำอาชีพ 200 ดาวตกแล้ว! (ใช้ +10 ผสมชุดเซต 250 ดาว)%s" % _tag_text(item), &"quest")
+		elif item.get("kind", "") == "jewel" and String(item.get("id", "")) == EndgameFields.SCALE:
+			Game.say("%sตกแล้ว! ใช้ผสมแหวน/สร้อยชุดเซต 250 ดาวที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
+		elif item.get("slot", "") == "wings":
+			Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
 ## Chance that a ★ region kill drops a piece of that region's ★ gear.

@@ -7,7 +7,9 @@ extends Node3D
 ## piece and the mythic 200★ piece at their best rolls) by 10-25%. Two, four and
 ## six pieces worn give the set bonus; four or more show the class aura.
 ## Covers stats, the star requirement, costs, odds, bonus, save / load, icons,
-## the hero's models and the forge's ผสมชุดเซต section.
+## the hero's models and the forge's ผสมชุดเซต section. The recipe's sanctuary part
+## (a +10 divine piece or Lotus Scales, SetGearData.recipe) is stocked by stock()
+## here and tested on its own in set_recipe_test.
 ##   godot --headless --path . res://tests/integration/set_gear_test.tscn
 var checks := 0
 var failures := 0
@@ -68,9 +70,21 @@ func clear_jewels() -> void:
 			Game._spend_jewels(id, have)
 
 
+var _rng := RandomNumberGenerator.new()
+
+
+## Core and jewels for [param times] pieces, the Lotus Scales of as many rings /
+## amulets and a +10 divine piece of the hero's class in every divine slot that has none.
 func stock(times := 1) -> void:
 	for id in SetGearData.CRAFT_COST:
 		give(id, int(SetGearData.CRAFT_COST[id]) * times)
+	give(SetGearData.SCALE, SetGearData.SCALES * times)
+	for slot in DivineGearData.SLOTS:
+		if Game.set_divine_choices(slot).is_empty():
+			var piece := DivineGearData.item(Game.class_id(), slot, _rng)
+			if not piece.is_empty():
+				piece["plus"] = SetGearData.DIVINE_PLUS
+				Game.profile.inv.append(piece)
 
 
 func _jewels() -> Dictionary:
@@ -189,8 +203,8 @@ func _requirement() -> void:
 func _craft() -> void:
 	_hero(&"warrior", SetGearData.STARS)
 	clear_jewels()
-	check(Game.set_piece_problem("weapon").begins_with("วัตถุดิบไม่พอ"), "nothing to craft with (%s)" % Game.set_piece_problem("weapon"))
-	check(Game.craft_set_piece("weapon", 0.0).begins_with("วัตถุดิบไม่พอ") and _set_pieces(Game.profile.inv).is_empty(), "no piece without materials")
+	check(Game.set_piece_problem("weapon").begins_with("ต้องมี") and Game.set_piece_problem("ring").begins_with("ต้องมี"), "nothing to craft with (%s)" % Game.set_piece_problem("weapon"))
+	check(Game.craft_set_piece("weapon", 0.0).begins_with("ต้องมี") and _set_pieces(Game.profile.inv).is_empty(), "no piece without materials")
 	check(Game.craft_set_piece("wings", 0.0) != "ok" and Game.craft_set_piece("bogus", 0.0) != "ok", "only the six pieces")
 	# One short of any cost refuses and keeps everything.
 	for short in SetGearData.CRAFT_COST:

@@ -166,8 +166,8 @@ static func rarity_odds(level: int, stars: int) -> Array:
 ## The forge jewels and mount materials a seller of `level` and `stars` has found by now
 ## (ids, the common ones more than once): purple from the start, pink from Lv.20, the
 ## mount materials as their mounts come within reach, chaos and drills at Lv.100,
-## feathers from ★50, the drake's scale from ★100 and the set core from ★200 (it drops
-## only in ห้วงสมุทรอสูร).
+## feathers from ★50, the drake's scale from ★100 and the set core and the Lotus Scale
+## from ★200 (both drop only in the two ★200-300 fields, EndgameFields).
 static func jewels_for(level: int, stars: int) -> Array[String]:
 	var out: Array[String] = ["purple", "purple", "purple"]
 	if level >= 20:
@@ -184,6 +184,7 @@ static func jewels_for(level: int, stars: int) -> Array[String]:
 			out.append("drake_scale")
 		if stars >= DrownedAbyssData.ENTRY_STAR:
 			out.append("set_core")
+			out.append(EndgameFields.SCALE)
 	return out
 
 

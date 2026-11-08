@@ -234,12 +234,14 @@ func _build_line(cls: StringName) -> void:
 	Game.add_item(ItemData.jewel("feather", 1))
 	for i in 10:
 		Game.enhance_item(Game.profile.equip.weapon)
-	# A 250-star set piece forged at the blacksmith (SetGearData) and a spare set core.
+	# A 250-star set piece forged at the blacksmith (SetGearData.recipe: the ring takes
+	# Lotus Scales; the divine weapon above stays), a spare set core and a spare scale.
 	Game.add_item(ItemData.jewel("set_core", 2))
 	Game.add_item(ItemData.jewel("purple", 20))
 	Game.add_item(ItemData.jewel("pink", 20))
 	Game.add_item(ItemData.jewel("chaos", 20))
-	if Game.craft_set_piece("weapon", 0.0) != "ok":
+	Game.add_item(ItemData.jewel(SetGearData.SCALE, SetGearData.SCALES + 1))
+	if Game.craft_set_piece("ring", 0.0) != "ok":
 		_fail("%s: craft_set_piece" % cls)
 	# A guild at Lv.100 (the hero leads it) and the other guild led by another character of
 	# the player (profile "guild_leaders").

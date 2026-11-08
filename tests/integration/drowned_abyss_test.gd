@@ -2,9 +2,11 @@ extends Node3D
 ## ห้วงสมุทรอสูร (DrownedAbyssData), the 200★-300★ levelling field: the 200★
 ## gate (and that it stays open at any higher star count), the travel chain
 ## and warp list, the all-new bestiary and its field boss, music, scenery,
-## monster strength and EXP against the Lotus Sanctum, and the drop table
-## (purple 3%, pink 1%, chaos 3%, the set material 0.1%, gems, hp_god, gold
-## and the mount materials) checked statistically with seeded dice.
+## monster strength and EXP in the same band as the Lotus Sanctum
+## (EndgameFields), and the drop table both fields share (purple 3%, pink 1%,
+## chaos 3%, the set material 0.1%, Lotus Scales, divine pieces, 200★
+## jewellery, gems, hp_god, wings, gold and the mount materials) checked
+## statistically with seeded dice.
 ## godot --headless --path . res://tests/integration/drowned_abyss_test.tscn
 var checks := 0
 var failures := 0
@@ -109,19 +111,63 @@ func _bestiary() -> void:
 	check(StringName(boss.monster) == DrownedAbyssData.BOSS and bool(MonsterData.get_monster(boss.monster).get("boss", false)), "the tyrant is the field boss")
 	check(BossAttack.has_moves(MonsterData.get_monster(boss.monster)), "the boss has signature moves")
 	check(int(boss.level) > 200, "the boss outranks the camps")
-	# Brutal: stronger than the sanctuary's monsters, and EXP fit for 200★ -> 300★.
+	# The same band as the sanctuary (EndgameFields), EXP fit for 200★ -> 300★.
 	var ours := MonsterData.stats_for(&"abyss_angler", 188)
-	var lotus := MonsterData.stats_for(&"lotus_sprite", 162)
-	check(float(ours.hp) > float(lotus.hp) * 1.5 and float(ours.atk) > float(lotus.atk) * 1.3, "normal monsters hit harder and last longer than the sanctuary's (%d/%d hp, %d/%d atk)" % [ours.hp, lotus.hp, ours.atk, lotus.atk])
+	var lotus := MonsterData.stats_for(&"lotus_sprite", 188)
+	check(ours == lotus, "a sanctuary sprite and an abyss angler of one level are equals (%s / %s)" % [ours, lotus])
 	var tyrant := MonsterData.stats_for(DrownedAbyssData.BOSS, int(boss.level))
-	var seraph := MonsterData.stats_for(&"lotus_seraph", 175)
-	check(float(tyrant.hp) > float(seraph.hp) * 1.4 and float(tyrant.atk) > float(seraph.atk), "the tyrant outclasses the sanctuary's boss")
+	var lotus_zone := ZoneData.get_zone(DivineRegionData.ID)
+	var seraph := MonsterData.stats_for(&"lotus_seraph", int(lotus_zone.boss.level))
+	check(tyrant.hp == seraph.hp and tyrant.atk == seraph.atk and tyrant.def == seraph.def and tyrant.exp == seraph.exp, "the tyrant and the sanctuary's boss are equals")
+	_same_band(z, lotus_zone)
 	var boost := 1.0 + float(z.gear_star) / 25.0
 	for stars in [200, 250, 299]:
 		var kills := float(HeroStats.star_need(stars)) / (float(ours.exp) * boost)
 		check(kills > 6.0 and kills < 30.0, "a star at %d takes %.1f kills" % [stars, kills])
-	var lotus_kills := float(HeroStats.star_need(200)) / (float(lotus.exp) * (1.0 + 200.0 / 25.0))
-	check(float(HeroStats.star_need(200)) / (float(ours.exp) * boost) < lotus_kills, "it levels faster than the sanctuary")
+	var lotus_kills := float(HeroStats.star_need(200)) / (float(lotus.exp) * (1.0 + float(lotus_zone.gear_star) / 25.0))
+	check(is_equal_approx(float(HeroStats.star_need(200)) / (float(ours.exp) * boost), lotus_kills), "it levels as fast as the sanctuary")
+
+
+## Both ★200-300 fields: one gate, one level band, one tuning, and every role's
+## monster multipliers (hp, atk, def, exp, gold) within the same range.
+func _same_band(z: Dictionary, lotus: Dictionary) -> void:
+	for key in ["star", "gear_star", "jewel_drop", "set_core_drop", "endgame_loot", "divine_region"]:
+		check(z.get(key) == lotus.get(key), "%s is the same in both fields (%s / %s)" % [key, z.get(key), lotus.get(key)])
+	check(int(z.star) == 200 and int(lotus.star) == 200 and int(z.boss.star) == 200 and int(lotus.boss.star) == 200, "entry at 200 stars in both")
+	check(ZoneData.access_reason(ID, 100, 199) != "" and ZoneData.access_reason(DivineRegionData.ID, 100, 199) != "", "199 stars enter neither")
+	check(ZoneData.access_reason(ID, 100, 200) == "" and ZoneData.access_reason(DivineRegionData.ID, 100, 200) == "", "200 stars enter both")
+	check(MonsterData.ZONE_TUNING[ID] == MonsterData.ZONE_TUNING[DivineRegionData.ID] and MonsterData.LATE_HP[ID] == MonsterData.LATE_HP[DivineRegionData.ID], "one field tuning")
+	check(int(z.boss.level) == int(lotus.boss.level) and is_equal_approx(float(z.boss.respawn), float(lotus.boss.respawn)), "bosses of one level and respawn")
+	var levels := func(zone: Dictionary) -> Array:
+		var lo := 999
+		var hi := 0
+		var sum := 0.0
+		for camp in zone.camps:
+			lo = mini(lo, int(camp.levels[0]))
+			hi = maxi(hi, int(camp.levels[1]))
+			sum += (float(camp.levels[0]) + float(camp.levels[1])) * 0.5
+		return [lo, hi, sum / float(zone.camps.size())]
+	var a: Array = levels.call(z)
+	var b: Array = levels.call(lotus)
+	check(a[0] == b[0] and a[1] == b[1] and a[0] == 180 and a[1] == 200 and absf(float(a[2]) - float(b[2])) < 2.0, "camps span Lv.180-200 in both (%s / %s)" % [a, b])
+	var roles := func(table: Dictionary) -> Dictionary:
+		var out := {}
+		for id in table:
+			var m: Dictionary = table[id]
+			var role := "boss" if m.get("boss", false) else ("elite" if m.get("elite", false) else "normal")
+			if not out.has(role): out[role] = {}
+			for key in ["hp", "atk", "def", "exp", "gold"]:
+				if not out[role].has(key): out[role][key] = []
+				out[role][key].append(float(m.get(key, 1.0)))
+		return out
+	var deep: Dictionary = roles.call(DrownedAbyssData.MONSTERS)
+	var holy: Dictionary = roles.call(DivineRegionData.MONSTERS)
+	for role in ["normal", "elite", "boss"]:
+		for key in ["hp", "atk", "def", "exp", "gold"]:
+			var d: Array = deep[role][key]
+			var h: Array = holy[role][key]
+			var mean := func(v: Array) -> float: return v.reduce(func(acc, x): return acc + x, 0.0) / float(v.size())
+			check(h.min() >= d.min() - 0.001 and h.max() <= d.max() + 0.001 and absf(mean.call(h) / mean.call(d) - 1.0) < 0.05, "%s %s in the same band (%s / %s)" % [role, key, h, d])
 
 
 func _drop_rates() -> void:
@@ -229,7 +275,10 @@ func _field_drops() -> void:
 		var want := float(MountData.info(mount).drop)
 		var got: float = count.call("jewel", mat) / float(kills)
 		check(near(got, want, maxf(want * 0.45, 0.0006)), "mount material %s at its usual %.2f%% (%.4f)" % [mat, want * 100.0, got])
-	check(not zone.items.any(func(it): return it.get("kind", "") == "equip"), "no gear clutter: jewels, gems, potions and gold only")
+	# The sanctuary's half of the shared table: divine pieces, 200★ jewellery, scales.
+	check(zone.items.any(func(it): return DivineGearData.is_item(it)), "divine pieces drop here too")
+	check(zone.items.any(func(it): return int(it.get("star_tier", 0)) == 200 and String(it.get("slot", "")) in ["ring", "amulet"]), "200★ rings and amulets drop here too")
+	check(near(count.call("jewel", EndgameFields.SCALE) / float(kills), EndgameFields.SCALE_NORMAL, 0.002), "Lotus Scales ~0.5%% (%d)" % count.call("jewel", EndgameFields.SCALE))
 	zone.free()
 
 
