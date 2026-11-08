@@ -252,6 +252,8 @@ func _catch_up() -> void:
 	for s in sold:
 		paid += int(s.price)
 	check(int(Game.profile.gold) == gold + paid, "their gold is paid")
+	## A daily quest may finish on the same day (date dependent): only the stall's own toasts count.
+	toasts = toasts.filter(func(t): return not String(t).begins_with("ภารกิจรายวัน"))
 	check(toasts.size() == 1 and String(toasts[0]).contains("ระหว่างที่คุณไม่อยู่"), "one summary toast instead of one per sale")
 	check(is_equal_approx(float(PlayerStall.state().tick), later), "ticked up to now")
 	check(PlayerStall.tick(later, rng).is_empty(), "the same moment twice sells nothing more")
