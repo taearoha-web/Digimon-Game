@@ -134,6 +134,8 @@ func _process(delta: float) -> void:
 			_record_web_session_sample()
 	if _cloud_modal_paused:
 		return
+	# The guild league's frozen rounds: saved, fetched and posted (data/league_rounds.gd).
+	LeagueRounds.process(delta)
 	if not has_profile:
 		return
 	if OS.has_feature("web"):

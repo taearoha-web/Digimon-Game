@@ -332,3 +332,70 @@ floors with its own hero and AI party (world players in `Game.world_party`).
   cheap effect (one ring / flash / ball, VfxBudget and MemoryGuard gated, at most 6 a
   second for all followers), then walks back to its owner after 2.6 s without acts. It
   never calls take_hit: the monster's HP comes with the host's snapshots.
+
+## Guild league: official round results (`/api/league/*`, plain HTTPS)
+
+The castle's holder is a chain from the world's first round (`GuildLeague.holder_after`).
+Each device used to work every past round out again from the guilds' fighter power, so a
+code update that changed power (gear, balance, AI) rewrote old rounds, and devices that
+fought or watched different rounds disagreed. Now an ended round is stored once on the
+server and read by everyone; it never changes. Server: `hosting/worker/league.mjs`;
+client: `data/league_rounds.gd` (`LeagueRounds`), read by `data/guild_league.gd`.
+
+No account or session is needed. Storage: the D1 table `toon_league_rounds` (`at` integer
+primary key, `result` JSON text, `created_at`), created by the migration
+`hosting/accounts/drizzle/0001_league_rounds.sql`. The deploy workflow applies it with
+the account migrations (`wrangler d1 migrations apply`, "apply_migrations" input on).
+
+A round result has the shape `GuildLeague.sim_round` produces:
+
+```json
+{"at": 1795422600, "g": [1, 2, 3, 4], "k": [30, 12, 5, 8], "c": [2, 0, 1, 0], "held": 1, "own": 3}
+```
+
+`at` is the round's start (unix). `g` lists the guilds that fought (ids 1-4, each once,
+none or 2-4 of them). `k` and `c` give each guild's falls (0-100000) and captures
+(0-1000), in the order of `g`. `held` is the holder at the bell (0 nobody, else one of
+`g`). `own` is the holder when the round began (0-4). A round nobody could fight (nobody
+at Lv.100) has `g: []`.
+
+### `GET /api/league/rounds?from=<unix>&to=<unix>`
+
+Returns `200 {"rounds": [{"at", "result"}...], "now": <server unix>}` with every stored
+round whose start is between `from` and `to` (inclusive, in time order, at most 200).
+`to - from` may be at most 21 days. A malformed range is `400 invalid_range`.
+
+### `POST /api/league/round` with `{"at": <unix>, "result": {...}}` (content-type application/json)
+
+- `at` must be a real round start: 12:00, 18:00 or 21:30 Thai time, from the world's
+  first round on (`WorldPlayers.START_UNIX`). Otherwise `400 invalid_round`.
+- The round must be over on the server's clock: `now >= at + 1200 - 60` (a minute of
+  slack for device clocks). Otherwise `409 round_not_over`.
+- The result is checked strictly: only the keys above, ints in range, `result.at == at`.
+  Otherwise `400 invalid_round`. The body may be at most 2 KB (`413`).
+- First writer wins: `201 {"stored": true, "round": {"at", "result"}}` when it was
+  stored, else `200 {"stored": false, "round": <the stored one>}`.
+- A cross-site `Origin` is `403 invalid_origin`.
+
+Both routes are limited per IP (`CF-Connecting-IP`, buckets in `toon_rate_limits`): 120
+requests per 10 minutes each for GET and POST. Over the limit gives `429
+too_many_requests` with `Retry-After`.
+
+### Client (`LeagueRounds`)
+
+- An ended round is read from, in order: the server's result, the hero's own fought or
+  watched round, this device's record of it, and only then seeded (`sim_round`). The
+  seeded result is then recorded (`freeze`) and never worked out again. Server results and
+  device records are kept in `user://toon_tale_league.json`, not in the save, so offline
+  play keeps the frozen history. A round still running or yet to come is never shown as
+  decided. It begins with the holder after the latest ended round.
+- Web build only (same-origin `fetch` through `JavaScriptBridge`). The device fetches the
+  ended rounds of this season and the last on startup, when the league page or the guild
+  war desk opens (at most every 30 s), every 10 minutes, and after each bell.
+- An ended round in that window that the server does not have is posted with this
+  device's result. A round the hero fought or watched goes at once. Any other round waits
+  90 s after the bell, so fighters' results come first. The answer is adopted in both
+  cases. When the store started, devices posted the rounds of the two seasons as their
+  code then computed them (first writer wins), which froze the history from then on.
+- Native builds and moved world clocks (`TOON_WORLD_DAYS`, tests) never talk to the server.
+  With a moved clock nothing is written to the file either.

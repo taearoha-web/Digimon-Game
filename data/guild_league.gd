@@ -11,6 +11,15 @@ extends RefCounted
 ## The castle carries over: the guild holding it at a round's bell holds it when the next
 ## round begins (and the one after, across days and weeks) until another guild takes it in
 ## a war (start_holder / holder_after: a chain of holders from the world's first round).
+##
+## A round that has ended is frozen (LeagueRounds): the server's official result when
+## known (the same on every device), else this device's own record of it, kept the first
+## time it was worked out. Only a round nobody has a result of yet is seeded (sim_round),
+## so a code update that changes fighter power can not rewrite the past, and the chain
+## goes on from the last frozen holder. A round still running or yet to come is never
+## shown as decided: the table, the holder, the champion and the desk count ended rounds
+## only (and the hero's own recorded round), and a round begins with the holder after the
+## latest ended round.
 ## The holder starts inside the castle and defends (GuildWarMatch); the seeded rounds give
 ## it DEFEND_EDGE.
 ##
@@ -96,6 +105,8 @@ static var _champ_cache := {}
 static var _chain := {}
 static var _chain_key := ""
 static var _chain_last := 0
+## Tests: added to the seeded rounds' seed (a code update that changes the seeded results).
+static var sim_salt := ""
 ## The league round being fought now ({guilds (team order), at, owner}; {} for a practice
 ## war). Set by GuildWarMatch when it builds a league war; war_finished records it.
 static var current_match := {}
@@ -227,6 +238,22 @@ static func prev_slot(at: int) -> int:
 	return at - DAY
 
 
+## The round starting `at` is over at `t` (now when -1): its bell rang.
+static func ended(at: int, t := -1.0) -> bool:
+	if t < 0.0:
+		t = now()
+	return float(at) + GuildWarData.DURATION <= t
+
+
+## The start of the latest round over by t (its bell rang); before the world's first
+## round is over, a time before WorldPlayers.START_UNIX.
+static func last_ended(t: float) -> int:
+	var at := prev_slot(next_slot(t))
+	if not ended(at, t):
+		at = prev_slot(at)
+	return at
+
+
 ## "12:00" for a round's start.
 static func clock_text(at: int) -> String:
 	var s := posmod(at + WorldPlayers.TZ, DAY)
@@ -275,7 +302,7 @@ static func round_points(kills: int, caps: int) -> int:
 ## {at, g: guilds, k: falls, c: captures, held, own}; {} when fewer than two guilds have
 ## anyone at Lv.100.
 static func sim_round(at: int, own: int) -> Dictionary:
-	var key := "%d|%d" % [at, own]
+	var key := "%d|%d%s" % [at, own, sim_salt]
 	if _sim_cache.has(key):
 		return _sim_cache[key]
 	if _sim_cache.size() > 400:
@@ -294,7 +321,7 @@ static func sim_round(at: int, own: int) -> Dictionary:
 	var out := {}
 	if gs.size() >= 2:
 		var rng := RandomNumberGenerator.new()
-		rng.seed = hash("guild_league_round|%d|%d" % [at, own])
+		rng.seed = hash("guild_league_round|%d|%d%s" % [at, own, sim_salt])
 		var held := 0
 		var keeper := gs.find(own)
 		if keeper >= 0 and rng.randf() < float(weight[keeper]) / total:
@@ -402,10 +429,30 @@ static func sim_war(at: int, a: int, b: int) -> Dictionary:
 	return out
 
 
-## The results of round `at` begun with the castle held by `own`: [the round] (the hero's
-## real one, else the seeded one), or, for a round the hero fought in the old pairs, its
-## old wars (the real ones and the seeded other pair). [] when nobody could fight.
+## A frozen round result (LeagueRounds) as round_results gives it: [] when nobody fought.
+## The server's carries "official" (its `own` then is the holder it leaves when nobody
+## holds the castle at the bell, _after).
+static func _frozen(r: Dictionary, official := false) -> Array:
+	if (r.get("g", []) as Array).is_empty():
+		return []
+	var e := r.duplicate(true)
+	if official:
+		e["official"] = true
+	return [e]
+
+
+## The results of round `at` begun with the castle held by `own`. An ended round: the
+## server's official result, else the hero's real one (or, for a round the hero fought in
+## the old pairs, its old wars: the real ones and the seeded other pair), else this
+## device's frozen one, else the seeded one, which is then frozen (LeagueRounds.freeze:
+## never worked out again). A round not over: the hero's real one, else the seeded one
+## (never shown as a result; see events, holder_after). [] when nobody could fight.
 static func round_results(at: int, own: int, real: Array) -> Array:
+	var over := ended(at)
+	if over:
+		var off := LeagueRounds.official_of(at)
+		if not off.is_empty():
+			return _frozen(off, true)
 	var mine := _real_round(real, at)
 	if not mine.is_empty():
 		return [mine]
@@ -422,19 +469,28 @@ static func round_results(at: int, own: int, real: Array) -> Array:
 			if not e.is_empty():
 				out.append(e)
 		return out
+	if over:
+		var kept := LeagueRounds.seen_of(at)
+		if not kept.is_empty():
+			return _frozen(kept)
 	var sim := sim_round(at, own)
+	if over:
+		LeagueRounds.freeze(at, sim if not sim.is_empty() else {"at": at, "g": [], "k": [], "c": [], "held": 0, "own": own})
 	return [] if sim.is_empty() else [sim]
 
 
 ## Who holds the castle after a round's results begun with `own`: only a capture changes
-## it (a round's holder at the bell); old pairs: the holder who earned more in its war.
+## it (a round's holder at the bell; nobody at the bell leaves it with `own`, or with the
+## official round's own); old pairs: the holder who earned more in its war.
 static func _after(results: Array, own: int) -> int:
 	var best := 0
 	var best_key := -1
 	for e in results:
 		var held := int(e.get("held", 0))
 		if (e as Dictionary).has("g"):
-			return held if held > 0 else own
+			if held > 0:
+				return held
+			return int(e.get("own", own)) if bool(e.get("official", false)) else own
 		if held <= 0:
 			continue
 		var key := side_points(e, held) * 1000 + int(e.ca if int(e.a) == held else e.cb) * 10 + (9 - held)
@@ -463,13 +519,19 @@ static func _chain_sig(real: Array) -> String:
 	for e in real:
 		if e is Dictionary:
 			last = maxi(last, int(e.get("at", 0)) + int(e.get("held", 0)) * 7 + int(e.get("k1", e.get("ka", 0))))
-	return "%d|%d" % [real.size(), last]
+	return "%d|%d|%d|%s" % [real.size(), last, LeagueRounds.revision, sim_salt]
 
 
 ## Who holds the castle after the round starting `at` (its bell): the chain of holders
 ## from the world's first round (WorldPlayers.START_UNIX), round by round, each begun with
-## the one before's holder. Cached (followed on from the last round worked out).
+## the one before's holder, every round's result frozen once over (round_results). Cached
+## (followed on from the last round worked out). A round not over yet has no result: the
+## holder then is the one after the latest round over (nothing is foretold).
 static func holder_after(at: int, real: Array = []) -> int:
+	if at < WorldPlayers.START_UNIX:
+		return 0
+	if not ended(at):
+		return holder_after(last_ended(now()), real)
 	var all := _chain_real(real)
 	var sig := _chain_sig(all)
 	if sig != _chain_key:
@@ -478,8 +540,6 @@ static func holder_after(at: int, real: Array = []) -> int:
 		_chain_last = 0
 	if _chain.has(at):
 		return int(_chain[at])
-	if at < WorldPlayers.START_UNIX:
-		return 0
 	# Walk on from the last round worked out before `at` (or the first round).
 	var r := _chain_last if _chain_last > 0 and _chain_last < at else next_slot(float(WorldPlayers.START_UNIX) - 1.0)
 	var own := int(_chain.get(r, 0)) if _chain.has(r) else 0
@@ -558,20 +618,25 @@ static func sim_wars(w: int) -> Array:
 	return out
 
 
-## The wars of season w over by `until`, time order: the hero's real round in place of
-## its seeded one (counted as soon as it is recorded), every other round once it has
-## ended, each begun with the castle's holder of the round before (start_holder). An old
-## two-guild record keeps its round in the old pairs.
+## The wars of season w over by `until` (and by now: a round still running or yet to come
+## is never counted), time order: the hero's real round in place of its seeded one
+## (counted as soon as it is recorded), every other round once it has ended (its frozen
+## result, round_results), each begun with the castle's holder of the round before
+## (start_holder). An old two-guild record keeps its round in the old pairs.
 static func events(w: int, real: Array, until := INF) -> Array:
 	var out: Array = []
+	until = minf(until, now())
 	for m in schedule(w):
 		var at := int(m.at)
 		if float(at) > until:
 			break
+		var over := float(at) + GuildWarData.DURATION <= until
+		if not over and _real_round(real, at).is_empty() and _legacy_at(real, at).is_empty():
+			continue
 		var own := start_holder(at, real)
 		var results := round_results(at, own, real)
 		for e in results:
-			if bool(e.get("real", false)) or float(at) + GuildWarData.DURATION <= until:
+			if bool(e.get("real", false)) or over:
 				out.append(e)
 	return out
 
@@ -620,10 +685,11 @@ static func table(w: int, real: Array, until := INF) -> Array[Dictionary]:
 	return out
 
 
-## Who holds the castle at `until` (in season w's view): the holder after the latest round
-## over by then (the chain carries across days and weeks); 0 before anyone took it.
+## Who holds the castle at `until` (in season w's view; never later than now): the holder
+## after the latest round over by then (the chain carries across days and weeks); 0
+## before anyone took it.
 static func holder(w: int, real: Array, until := INF) -> int:
-	var t := minf(until, week_end(w) - 1.0)
+	var t := minf(minf(until, week_end(w) - 1.0), now())
 	var at := live_slot(t)
 	if at < 0:
 		at = prev_slot(next_slot(t))
@@ -632,13 +698,14 @@ static func holder(w: int, real: Array, until := INF) -> int:
 	return holder_after(at, real)
 
 
-## The champion of season w: the castle holder when it ended (the top guild if nobody held it).
+## The champion of season w: the castle holder when it ended (the top guild if nobody held
+## it). Before the season ends: the holder (and table) so far.
 static func champion_of(w: int, real: Array) -> int:
 	var last_at := 0
 	for e in real:
 		if e is Dictionary:
 			last_at = maxi(last_at, int(e.get("at", 0)))
-	var key := "%d|%d|%d" % [w, real.size(), last_at]
+	var key := "%d|%d|%d|%d|%d|%s" % [w, real.size(), last_at, LeagueRounds.revision, mini(last_ended(now()), int(week_end(w))), sim_salt]
 	if _champ_cache.has(key):
 		return int(_champ_cache[key])
 	if _champ_cache.size() > 16:
@@ -764,7 +831,12 @@ static func record_round(guilds: Array, caps: Array, kills: Array, held: int, t 
 		wars.pop_front()
 	d["wars"] = wars
 	Game.mark_dirty()
-	return side_points(_round_of(e), ours)
+	var r := _round_of(e)
+	if is_round(int(t)):
+		# This device's record of the round, sent to the server as the round's result.
+		r.erase("real")
+		LeagueRounds.record_real(int(t), r)
+	return side_points(r, ours)
 
 
 ## Records an old two-guild war (kept for old callers): `ours` / `theirs`, captures and
@@ -1153,13 +1225,18 @@ static func tell_round(t := -1.0) -> bool:
 
 ## The state of round `at` at time t: "wait", "live" or "done" (with "war": its result as
 ## events gives it, {} when nobody could fight; "real" when the hero fought or watched it).
+## Never later than now: a round not over is not shown as decided (unless the hero's own).
 static func round_state(at: int, t := -1.0) -> Dictionary:
 	if t < 0.0:
 		t = now()
+	t = minf(t, now())
 	if t < float(at):
 		return {"state": "wait", "owner": start_holder(at)}
 	var real := real_wars(week_of(float(at)))
 	var mine := _real_round(real, at)
+	if ended(at, t) and LeagueRounds.is_official(at):
+		var off := round_results(at, start_holder(at), real)
+		return {"state": "done", "war": off[0] if not off.is_empty() else {}, "real": not mine.is_empty(), "official": true, "owner": start_holder(at)}
 	if not mine.is_empty():
 		return {"state": "done", "war": mine, "real": true, "owner": start_holder(at)}
 	if t < float(at) + GuildWarData.DURATION:

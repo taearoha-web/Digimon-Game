@@ -13,6 +13,7 @@ import {mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync} from 'node:
 import {tmpdir} from 'node:os';
 import {join, dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {firstRound} from '../league.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const workerDir = resolve(here, '..');
@@ -122,6 +123,18 @@ try {
   }
 
   assert.deepEqual(await (await fetch(`${BASE}/api/online/status`)).json(), {online: 0});
+  // Guild league official results on the real D1 (migration 0001_league_rounds): first writer wins.
+  {
+    const at = firstRound();
+    const post = result => fetch(`${BASE}/api/league/round`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({at, result})});
+    const first = await post({at, g: [1, 2], k: [3, 4], c: [1, 0], held: 1, own: 0});
+    assert.equal(first.status, 201, await first.clone().text());
+    const second = await post({at, g: [1, 2], k: [3, 4], c: [0, 1], held: 2, own: 0});
+    assert.equal(second.status, 200);
+    assert.equal((await second.json()).round.result.held, 1);
+    const list = await (await fetch(`${BASE}/api/league/rounds?from=${at}&to=${at}`)).json();
+    assert.deepEqual(list.rounds.map(r => r.result.held), [1]);
+  }
   const noUpgrade = await fetch(`${BASE}/api/online/ws`);
   assert.equal(noUpgrade.status, 426);
   assert.equal(await upgradeStatus(''), 401);
@@ -218,7 +231,7 @@ try {
   assert.deepEqual(await d.next('host'), {t: 'host', zone: 'field_e2e', id: null});
   d.ws.close();
   await waitFor(async () => (await (await fetch(`${BASE}/api/online/status`)).json()).online === 0, 5000, 'everyone gone again');
-  console.log('online e2e: ok (wrangler dev, D1 accounts, WebSockets: welcome, join, chat, party, host, ent_snap, kick, leave; shared world: zone host without a party, ent_snap / wp_snap / ent_hit, whost, ai_chat)');
+  console.log('online e2e: ok (wrangler dev, D1 accounts, league rounds first writer wins, WebSockets: welcome, join, chat, party, host, ent_snap, kick, leave; shared world: zone host without a party, ent_snap / wp_snap / ent_hit, whost, ai_chat)');
 } finally {
   cleanup();
 }

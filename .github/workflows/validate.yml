@@ -117,6 +117,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-league4
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_league4_test.tscn
+      - name: League rounds are frozen once over (a seeded round is never worked out again even when the seeding changes, the device's record survives a restart offline, the server's official results override the device's, the chain of holders goes on from the frozen holder, running and future rounds are never shown as decided, missing rounds are posted and the first writer's result is adopted)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-league-freeze
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/league_freeze_test.tscn
       - name: Daily / weekly quests and the free monthly pass (five daily and three weekly quests drawn per character and Thai day / week, kills / bosses / trades / stall sales / enhancing / party minutes / chat / world boss / guild war move them, claimed once for pass points, 30 tiers a month claimed one by one or all at once with a title at the top, day / week / month resets with a warning, saves stay valid, menu tab and red dot)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-daily-pass
@@ -258,10 +262,11 @@ jobs:
           cd hosting/worker
           npm install --omit=dev --no-audit --no-fund
           node tests/chat.test.mjs
-      - name: Online play server (room logic, party hosts, trades, duels, stalls, limits, WorldRoom hibernation, /api/online routes; then the real Worker under wrangler dev with a local D1 and two WebSockets)
+      - name: Online play server (room logic, party hosts, trades, duels, stalls, limits, WorldRoom hibernation, /api/online routes, guild league official results /api/league; then the real Worker under wrangler dev with a local D1 and two WebSockets)
         run: |
           cd hosting/worker
           node tests/online.test.mjs
+          node tests/league.test.mjs
           npm install --no-audit --no-fund
           node tests/online_e2e.mjs
       - name: Check the UI canvas buffers stay within the video memory budget

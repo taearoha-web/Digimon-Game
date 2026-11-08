@@ -12,6 +12,8 @@ const GOLD := Color("ffd84a")
 static func build(parent: Control, refresh: Callable) -> Control:
 	var t := WorldPresence.clock()
 	var w := GuildLeague.week_of(t)
+	# The rounds' official results from the server (GuildLeague / LeagueRounds).
+	LeagueRounds.want_fetch()
 	var mine := Game.guild()
 	var scroll := TouchScroll.new()
 	scroll.name = "LeagueView"
@@ -30,7 +32,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	info.name = "LeagueInfo"
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(info)
-	var rule := UIUtil.label("4 กิลด์ (Alpha · Neverdie · Titan · 3DLnw) รบกันตามเวลาจริงวันละ 3 รอบ %s ทุกรอบทั้ง 4 กิลด์ชิงปราสาทในสนามเดียวกัน · แต้มตามอันดับ %s · ยึดปราสาทครั้งละ %d · ครองปราสาทตอนจบ %d · ล้มศัตรูทุก %d คน +1 · ผู้ครองปราสาทครองต่อข้ามรอบจนกว่าจะถูกยึด — รอบที่คุณลงสนามหรือชมจนจบนับผลจริง รอบอื่นตัดสินจากกำลังจริงของทุกกิลด์" % [
+	var rule := UIUtil.label("4 กิลด์ (Alpha · Neverdie · Titan · 3DLnw) รบกันตามเวลาจริงวันละ 3 รอบ %s ทุกรอบทั้ง 4 กิลด์ชิงปราสาทในสนามเดียวกัน · แต้มตามอันดับ %s · ยึดปราสาทครั้งละ %d · ครองปราสาทตอนจบ %d · ล้มศัตรูทุก %d คน +1 · ผู้ครองปราสาทครองต่อข้ามรอบจนกว่าจะถูกยึด — รอบที่คุณลงสนามหรือชมจนจบนับผลจริง รอบอื่นตัดสินจากกำลังจริงของทุกกิลด์ · ผลของรอบที่จบแล้วบันทึกถาวร เหมือนกันทุกเครื่อง" % [
 		GuildWarScreen._slot_list(), " / ".join(GuildLeague.PLACE_POINTS.map(func(v): return str(v))), GuildLeague.CAPTURE, GuildLeague.HOLD, GuildLeague.KILLS_PER_POINT], &"SmallLabel")
 	rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(rule)

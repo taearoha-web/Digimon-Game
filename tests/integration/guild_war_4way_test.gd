@@ -348,6 +348,8 @@ func _league() -> void:
 	var start := int(GuildLeague.week_start(w - 1))
 	var at := GuildLeague.next_slot(float(start) - 1.0)
 	var end := int(GuildLeague.week_end(w))
+	# Walked once both weeks are over (a round not over yet has no result to begin with).
+	WorldPresence.clock_offset = float(end) + 60.0 - WorldPlayers.now()
 	var rounds := 0
 	var keeps := 0
 	var held_rounds := 0
