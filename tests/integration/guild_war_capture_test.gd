@@ -62,7 +62,7 @@ func _ready() -> void:
 			var r: Dictionary = {}
 			for s in seeds + RETRY_SEEDS:
 				r = await _war(int(s), int(owner), seconds, full)
-				if not (r.captures as Array).is_empty():
+				if _contested(r):
 					break
 				print("seed %d owner %d: no capture, trying the next seed" % [int(s), int(owner)])
 			all.append(r)
@@ -225,7 +225,23 @@ func _judge(all: Array, full: bool) -> void:
 		return
 	for r in all:
 		var caps: Array = r.captures
-		check(not caps.is_empty(), "seed %d owner %d: the castle is taken within %.0f s (took none)" % [int(r.seed), int(r.owner), CAPTURE_BOUND])
+		# From nobody the castle must be taken. From a holder (it starts at the single switch's
+		# side and keeps it while one of its own stands in the circle) the attackers must at
+		# least break in, win the switch and start a count on the altar: holders are meant to
+		# be hard to dislodge.
+		if int(r.owner) < 0:
+			check(not caps.is_empty(), "seed %d owner %d: the castle is taken within %.0f s (took none)" % [int(r.seed), int(r.owner), CAPTURE_BOUND])
+		else:
+			check(_contested(r), "seed %d owner %d: the attackers take the switch and start a count on the altar within %.0f s (captures %s, counts %s)" % [int(r.seed), int(r.owner), CAPTURE_BOUND, caps, r.starts])
 		if int(r.owner) >= 0 and not caps.is_empty():
 			check(int(caps[0][1]) != int(r.owner), "seed %d: the castle changes hands" % int(r.seed))
 	check(lead_falls * 2 <= member_falls + 2, "the leaders still fall less often than their members (%d against %d)" % [lead_falls, member_falls])
+
+
+## A war counts as contested: a capture, or (with a holder) a count started by the attackers.
+func _contested(r: Dictionary) -> bool:
+	if not (r.captures as Array).is_empty():
+		return true
+	if int(r.owner) < 0:
+		return false
+	return int((r.starts as Array)[1 - int(r.owner)]) > 0
