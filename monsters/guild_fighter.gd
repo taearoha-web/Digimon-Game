@@ -93,6 +93,10 @@ var switch_post := -1
 ## first): it never batters the gate, fights only what comes within hold_range of its
 ## post (goal_point) and does not chase from it.
 var keep_back := false
+## Kept at its post with a front (the altar, in the assault on it; Vector3.INF none): it
+## never steps nearer that front than its post (fighting from the post, it gives ground
+## backwards only), and walks back when it stands nearer.
+var keep_front := Vector3.INF
 var kills := 0
 var deaths := 0
 var assists := 0
@@ -263,6 +267,11 @@ func is_ranged() -> bool:
 
 func hp_ratio() -> float:
 	return float(hp) / float(maxi(max_hp, 1))
+
+
+## Falling back to its camp to heal (not heading to the fight).
+func is_retreating() -> bool:
+	return _retreating
 
 
 func _leash() -> float:
@@ -856,7 +865,8 @@ const KEEP_SLACK := 3.5
 func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
 	var in_reach := _flat_distance(target.global_position) <= reach + 0.4
-	if _flat_distance(goal_point) > KEEP_SLACK and not in_reach:
+	var ahead := _ahead_of_post(global_position)
+	if (_flat_distance(goal_point) > KEEP_SLACK and not in_reach) or ahead > 1.0:
 		return _run_to(SiegeArena.route(global_position, goal_point), delta)
 	var way := SiegeArena.route(global_position, target.global_position)
 	if _flat_distance_from(way, target.global_position) > 0.5 and not in_reach:
@@ -864,11 +874,18 @@ func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 		_tick(delta)
 		return Vector3.ZERO
 	var step := super._chase(target, delta, speed_factor)
-	if step != Vector3.ZERO and _flat_distance_from(global_position + step * 0.35, goal_point) > KEEP_SLACK + 0.5:
+	if step != Vector3.ZERO and (_flat_distance_from(global_position + step * 0.35, goal_point) > KEEP_SLACK + 0.5 or _ahead_of_post(global_position + step * 0.35) > 0.5):
 		if _attack_timer <= 0.0 and Time.get_ticks_msec() >= _cast_until and in_reach:
 			_basic_attack(target)
 		return Vector3.ZERO
 	return step
+
+
+## How much nearer keep_front than its post `p` is (0 with no front).
+func _ahead_of_post(p: Vector3) -> float:
+	if not keep_front.is_finite():
+		return 0.0
+	return maxf(0.0, _flat_distance_from(goal_point, keep_front) - _flat_distance_from(p, keep_front))
 
 
 ## A person sees the warning ring and walks out of it after a beat; sometimes does not.
@@ -1165,11 +1182,13 @@ func _wander_on(delta: float) -> Vector3:
 	var way := SiegeArena.route(global_position, goal_point)
 	var to := way - global_position
 	to.y = 0.0
-	if _flat_distance(goal_point) < 2.5:
+	# The leader keeping behind its guild goes right to its post, at its full pace (it
+	# comes back from ahead of them; stopping short would leave it ahead).
+	if _flat_distance(goal_point) < (1.0 if keep_back else 2.5):
 		return Vector3.ZERO
 	_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))
 	visual.rotation.y = _yaw
-	return to.normalized() * float(rstats.speed) * 0.9
+	return to.normalized() * float(rstats.speed) * (1.0 if keep_back else 0.9)
 
 
 # ---------------------------------------------------------------------------

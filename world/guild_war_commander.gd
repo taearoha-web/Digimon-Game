@@ -76,6 +76,19 @@ const LEADER_BACK := 6.5
 ## what comes within LEADER_REACH of that post (never the gate) and walks back to it.
 const LEADER_TRAIL := 9.0
 const LEADER_REACH := 6.0
+## In the assault on the altar, before it is sent up, the AI leader's post is never nearer
+## the altar than REAR_GAP m farther than the middle of the members round it (the upper
+## median of their distances to the altar: behind at least half of them, both of two),
+## whatever the post would be otherwise (stepping back from enemies, waiting close by the
+## altar in a war of more than two, the throne room's door with none of its own near).
+const REAR_GAP := 5.0
+## Besides its whole guild on the way, the leader keeps behind the middle of those within
+## REAR_RADIUS m of it (its healers, bard and bodyguard among them).
+const REAR_RADIUS := 45.0
+## Its healers, bard and bodyguard stand a step ahead of its post: they count this much
+## nearer the altar (more than REAR_GAP less that step), so its post never backs away
+## from them for good, yet it waits for them when they lag behind it.
+const TIED_SLACK := 4.0
 ## The leader goes onto the altar only with the barrier open (both switches held) and the
 ## way clear: at least the escort's worth of its guild within VANGUARD_RADIUS of the altar
 ## and at most ALTAR_CLEAR_FOES of the other guild there (or twice as many of ours), or one
@@ -223,6 +236,10 @@ var _index := PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
 var leader_go := false
 var leader_post := Vector3.ZERO
 var leader_covering := false
+## The members whose posts follow the leader's, as of the last apply: instance id -> TIED_*.
+var _tied := {}
+const TIED_GUARD := 0
+const TIED_SCREEN := 1
 ## The AI leader taking the altar stepped off it to be healed (its count waits; tests).
 var resting := false
 ## The AI leader taking the altar stepped off before a stronger wave (its count waits).
@@ -1321,6 +1338,7 @@ func apply() -> void:
 	var inside := guarded_post and war.front_gate() == null
 	var bodyguard := _bodyguard(side, ai_lead) if inside else null
 	var screen_dir := _screen_dir(leader_post) if inside else Vector3.ZERO
+	_tied.clear()
 	for f in side:
 		var r := _role(f, ai_lead)
 		f.focus = focus
@@ -1329,9 +1347,11 @@ func apply() -> void:
 		if f.is_dead() or f.capture_role:
 			continue
 		if f == ai_lead and leader_post.is_finite():
-			# The leader at its post behind its guild: it fights only what comes to it.
+			# The leader at its post behind its guild: it fights only what comes to it (in
+			# the assault on the altar giving ground backwards only).
 			f.objective = null
 			f.keep_back = true
+			f.keep_front = SiegeArena.ALTAR if assault and not leader_covering else Vector3.INF
 			f.hold_range = LEADER_REACH
 			f.goal_point = leader_post
 			continue
@@ -1349,6 +1369,7 @@ func apply() -> void:
 			f.objective = null
 			f.hold_range = 6.0
 			f.goal_point = _in_bounds(leader_post + lead_dir * 1.3 + Vector3(-lead_dir.z, 0, lead_dir.x) * 1.2)
+			_tied[f.get_instance_id()] = TIED_GUARD
 			continue
 		if guarded_post and screen_dir != Vector3.ZERO and (r == ROLE_TANK or r == ROLE_MELEE) and _index[r] % 3 == 2:
 			# The screen: between the leader and the nearest foes.
@@ -1357,6 +1378,7 @@ func apply() -> void:
 			f.hold_range = 8.0
 			f.goal_point = _in_bounds(leader_post + screen_dir * 5.0 + Vector3(-screen_dir.z, 0, screen_dir.x) * (float(side_k % 4) - 1.5) * 1.6)
 			side_k += 1
+			_tied[f.get_instance_id()] = TIED_SCREEN
 			continue
 		if guarded_post and (r == ROLE_HEALER or r == ROLE_BARD):
 			# The healers and the bard keep at the waiting leader's side, a step ahead of it
@@ -1483,8 +1505,10 @@ func _foes_near(at: Vector3, radius: float) -> int:
 ## holding the castle, behind the altar; else LEADER_TRAIL behind its front line (the
 ## switch it clears, the gate, the rally point), and never nearer that front than
 ## LEADER_TRAIL behind the middle of its guild's body (on the way back to its camp), so it
-## never walks ahead of the guild into the other one's line; in the assault on the altar
-## always LEADER_TRAIL behind that middle.
+## never walks ahead of the guild into the other one's line; in the assault on the altar,
+## not yet sent up, behind the members round it whatever else it does (_rear_line,
+## _rear_post: measured from the altar, not along the way home, which runs from a switch
+## past the altar's side to the door).
 func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) -> Vector3:
 	# Holding the castle with the gates up: inside, behind the front tier (it walks through
 	# its own gates), out of the attackers' reach.
@@ -1494,7 +1518,15 @@ func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) 
 	if resting or evading:
 		leader_covering = false
 		return _in_bounds(SiegeArena.ALTAR + forward * REST_BACK)
+	# The assault on the altar, not yet sent up: whatever else it does, behind its members
+	# (taking the switches before it too, so it is not left ahead once the assault starts).
+	var securing := tactic == SECURE and war.front_gate() == null and war.castle_owner != team and not leader_go
+	var rear: Dictionary = _rear_line(lead) if assault or securing else {}
 	var cover := _cover_point(lead, fwd)
+	if cover.is_finite() and not rear.is_empty() and _flat(cover, SiegeArena.ALTAR) < float(rear.line) - REAR_GAP:
+		# Stepping back from enemies would take it ahead of its members: its rear post
+		# instead (its bodyguard and screen between it and them).
+		cover = Vector3.INF
 	leader_covering = cover.is_finite()
 	if leader_covering:
 		return _in_bounds(cover)
@@ -1512,6 +1544,8 @@ func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) 
 		GUARD, ESCORT:
 			if not assault:
 				return Vector3.INF
+			if not rear.is_empty():
+				return _rear_post(lead, rear)
 	var body := _body_anchor(lead, at)
 	var p := at - fwd * LEADER_TRAIL
 	if body.is_finite():
@@ -1521,7 +1555,102 @@ func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) 
 		# Too few of its guild up there (the rest on the switches or on the way): it waits
 		# behind the throne room's door.
 		p = _back_along(rally, at, LEADER_TRAIL)
+	if not rear.is_empty() and _flat(p, SiegeArena.ALTAR) < float(rear.line):
+		return _rear_post(lead, rear)
 	return _in_bounds(Vector3(p.x, 0.0, p.z))
+
+
+## The members the AI leader keeps behind in the assault on the altar ({} with none):
+## "line", the least distance from the altar its post may have: REAR_GAP past the upper
+## median of the distances of its guild on its way there (behind at least half of them,
+## both of two: those standing, not on a switch nor in their camp nor falling back to
+## it), of the whole guild and of those within REAR_RADIUS of it (its healers, bard and
+## bodyguard, a step ahead of its post, counted TIED_SLACK m nearer the altar, so that it
+## waits for them when they lag but never backs away from them; not its screen);
+## "anchor" (and "dist" from the altar), the member it trails LEADER_TRAIL behind: the
+## middle of those that go on their own (not its healers, bard or bodyguard; the ones
+## coming back from their camp too: it falls back to them, so it is not left ahead of
+## them when they pass it), else of all of them.
+func _rear_line(lead: GuildFighter) -> Dictionary:
+	var going: Array = []
+	var all: Array = []
+	for f in _side():
+		# Not those falling back to their camp to heal (it would follow them home).
+		if f == lead or f.is_dead() or f.switch_post >= 0 or f.is_retreating() or _in_camp(f):
+			continue
+		var tie := int(_tied.get(f.get_instance_id(), -1))
+		if tie == TIED_SCREEN:
+			continue
+		var r := _role(f, lead)
+		var follows := tie == TIED_GUARD or r == ROLE_HEALER or r == ROLE_BARD
+		var d := _flat(f.global_position, SiegeArena.ALTAR)
+		var by := _flat(f.global_position, lead.global_position) < REAR_RADIUS
+		if by:
+			all.append([d - (TIED_SLACK if follows else 0.0), f.global_position])
+		if not follows:
+			going.append([d, f.global_position])
+	var near := going
+	# Only those who keep by it round it: it keeps just behind them (trailing them by
+	# LEADER_TRAIL, their posts a step ahead of its own, it would back away for good).
+	var trail := not near.is_empty()
+	if not trail:
+		near = all
+	if near.is_empty():
+		return {}
+	var by_d := func(x, y): return float(x[0]) < float(y[0])
+	near.sort_custom(by_d)
+	var mid: Array = near[near.size() / 2]
+	var line := float(mid[0]) + REAR_GAP
+	if not all.is_empty():
+		all.sort_custom(by_d)
+		var round_it: Array = all[all.size() / 2]
+		if float(round_it[0]) + REAR_GAP > line:
+			line = float(round_it[0]) + REAR_GAP
+			if not trail or line > float(mid[0]) + LEADER_TRAIL:
+				# Those round it hold it back more than the middle it trails: it keeps
+				# just behind them.
+				return {"line": line, "anchor": round_it[1], "dist": float(round_it[0]), "trail": false}
+	return {"line": line, "anchor": mid[1], "dist": float(mid[0]), "trail": trail}
+
+
+## The leader's post in the assault on the altar (`rear` from _rear_line): LEADER_TRAIL m
+## farther from the altar than its anchor (at least its line): in the throne room
+## straight out from the altar past the anchor (the way home runs to the door, past the
+## altar's side for a member by a switch), else back along the way home; of those past
+## the line the one nearest the anchor, else the farthest. Kept back by those round it
+## (no anchor to trail) it holds where it stands while that is past the line by at most
+## LEADER_TRAIL.
+func _rear_post(lead: GuildFighter, rear: Dictionary) -> Vector3:
+	var a: Vector3 = rear.anchor
+	a.y = 0.0
+	var line := float(rear.line)
+	var lead_d := _flat(lead.global_position, SiegeArena.ALTAR)
+	if not bool(rear.trail) and lead_d >= line and lead_d <= line + LEADER_TRAIL:
+		return Vector3(lead.global_position.x, 0.0, lead.global_position.z)
+	var want := maxf(float(rear.dist) + LEADER_TRAIL, line) if bool(rear.trail) else line
+	var cands: Array[Vector3] = []
+	if SiegeArena.section(a) == 4:
+		var out := a - SiegeArena.ALTAR
+		out.y = 0.0
+		var dir := out.normalized() if out.length() > 1.0 else Vector3(0, 0, 1)
+		for k in [0, 1, -1, 2, -2, 3, -3, 4, -4]:
+			var c := _in_bounds(SiegeArena.ALTAR + dir.rotated(Vector3.UP, 0.3 * float(k)) * want)
+			if SiegeArena.section(c) == 4:
+				cands.append(c)
+	# Back along the way home a step at a time (the way may turn, so its length is not the
+	# distance gained from the altar).
+	var back := maxf(1.0, want - _flat(a, SiegeArena.ALTAR))
+	for k in 6:
+		cands.append(_in_bounds(_back_along(a, SiegeArena.ALTAR, back + 2.0 * float(k))))
+	var best := Vector3.INF
+	var far := cands[0]
+	for c in cands:
+		if _flat(c, SiegeArena.ALTAR) > _flat(far, SiegeArena.ALTAR):
+			far = c
+		if _flat(c, SiegeArena.ALTAR) >= line and (not best.is_finite() or _flat(c, a) < _flat(best, a)):
+			best = c
+	var p := best if best.is_finite() else far
+	return Vector3(p.x, 0.0, p.z)
 
 
 ## The middle of the guild's body on its way to `at`: the member at the median distance
@@ -1551,7 +1680,7 @@ func _body_anchor(lead: GuildFighter, at: Vector3) -> Vector3:
 func _back_along(p: Vector3, front_at: Vector3, metres: float) -> Vector3:
 	var at := Vector3(p.x, 0.0, p.z)
 	var left := metres
-	for step in 3:
+	for step in 6:
 		var camp := war.home_of(team)
 		if _flat(at, camp) < SiegeArena.CAMP_RADIUS:
 			# In its camp already: straight back, away from the front.
