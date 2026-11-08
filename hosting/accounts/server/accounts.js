@@ -257,12 +257,23 @@ const GUILD_ID = /^[1-4]$/;
 // reg: the start (unix) of the league round the hero registered for; told: the round it was told about.
 const LEAGUE_INTS = new Set(['week', 'prev_week', 'claimed', 'ann', 'shop_week', 'reg', 'told']);
 const LEAGUE_WAR_KEYS = ['at', 'a', 'b', 'win', 'ca', 'cb', 'held', 'ka', 'kb'];
+// A round of the four-guild war (GuildLeague.ROUND_KEYS): its guilds g1-g4 (0 for none),
+// falls k1-k4, captures c1-c4, the holder at the bell and the holder it began with.
+const LEAGUE_ROUND_KEYS = ['at', 'g1', 'g2', 'g3', 'g4', 'k1', 'k2', 'k3', 'k4', 'c1', 'c2', 'c3', 'c4', 'held', 'own'];
+const MAX_LEAGUE_NUMBER = 1_000_000_000_000;
+function leagueRecord(war) {
+  if (!dictionary(war)) return false;
+  const keys = 'g1' in war ? LEAGUE_ROUND_KEYS : LEAGUE_WAR_KEYS;
+  if (Object.keys(war).length !== keys.length || !keys.every(key => integer(war[key], 0, MAX_LEAGUE_NUMBER))) return false;
+  if (keys === LEAGUE_ROUND_KEYS) {
+    return ['g1', 'g2', 'g3', 'g4', 'held', 'own'].every(key => integer(war[key], 0, GUILD_COUNT));
+  }
+  return integer(war.a, 1, GUILD_COUNT) && integer(war.b, 1, GUILD_COUNT) && integer(war.win, 0, GUILD_COUNT) && integer(war.held, 0, GUILD_COUNT);
+}
 
 function validLeague(league) {
   if (!dictionary(league) || Object.keys(league).length > 16) return false;
-  const wars = list => Array.isArray(list) && list.length <= 64 && list.every(war => dictionary(war)
-    && Object.keys(war).length === LEAGUE_WAR_KEYS.length && LEAGUE_WAR_KEYS.every(key => integer(war[key]))
-    && integer(war.a, 1, GUILD_COUNT) && integer(war.b, 1, GUILD_COUNT) && integer(war.win, 0, GUILD_COUNT) && integer(war.held, 0, GUILD_COUNT));
+  const wars = list => Array.isArray(list) && list.length <= 64 && list.every(leagueRecord);
   return Object.entries(league).every(([key, value]) => {
     if (LEAGUE_INTS.has(key)) return integer(value, -1);
     if (key === 'wars' || key === 'prev_wars') return wars(value);

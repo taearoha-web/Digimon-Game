@@ -328,6 +328,15 @@ test('the weekly guild league record is accepted', async t => {
   const fourSaved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle(four)}});
   assert.equal(fourSaved.status, 200, JSON.stringify(fourSaved.body));
   for (const g of [0, 1, 2, 3]) assert.doesNotThrow(() => validateBundle(bundle({...sample(), flags: {guild: g}})));
+  // A round of the four-guild war the hero fought or watched (GuildLeague.ROUND_KEYS),
+  // beside an older two-guild war in the same season.
+  const round = {at: 1794135600, g1: 1, g2: 2, g3: 3, g4: 4, k1: 40, k2: 31, k3: 55, k4: 12, c1: 0, c2: 0, c3: 1, c4: 0, held: 3, own: 1};
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), league: {week: 2966, wars: [LEAGUE_WAR, round], prev_wars: [round]}})));
+  const roundSaved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: bundle({...sample(), league: {week: 2966, wars: [round]}})}});
+  assert.equal(roundSaved.status, 200, JSON.stringify(roundSaved.body));
+  for (const bad of [{...round, g1: 5}, {...round, held: 7}, {...round, own: -1}, {...round, k1: 1.5}, {...round, extra: 1}, (({c4, ...rest}) => rest)(round)]) {
+    assert.throws(() => validateBundle(bundle({...sample(), league: {wars: [bad]}})), /guild league record/);
+  }
 });
 
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
