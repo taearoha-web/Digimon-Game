@@ -136,9 +136,16 @@ func _veterans() -> void:
 	check(who >= 0, "a hardcore player completes the divine set")
 	if who < 0:
 		return
-	var plus_then := WorldPlayers.divine_plus(WorldPlayers.member(who, t0))
-	var plus_later := WorldPlayers.divine_plus(WorldPlayers.member(who, t0 + 20.0 * 86400.0))
-	check(plus_later > plus_then and plus_later <= 10, "the divine set is enhanced with play (+%d -> +%d)" % [plus_then, plus_later])
+	# Its forging goes on (WorldGear): the four pieces' + and the 250★ set pieces made from
+	# the +10 divine ones only ever add up.
+	var worth := func(g: Dictionary) -> int:
+		var total := int(g.set_pieces) * (ItemData.MAX_PLUS + 1)
+		for slot in DivineGearData.SLOTS:
+			total += int(g[slot].plus) if String(g[slot].kind) != "set" else 0
+		return total
+	var plus_then: int = worth.call(WorldGear.gear(who, t0))
+	var plus_later: int = worth.call(WorldGear.gear(who, t0 + 20.0 * 86400.0))
+	check(plus_later > plus_then and WorldPlayers.divine_plus(WorldPlayers.member(who, t0)) <= ItemData.MAX_PLUS, "the divine set is enhanced and forged on with play (%d -> %d)" % [plus_then, plus_later])
 	check(int(WorldPlayers.state(who, t0).stars) < Game.PARAGON_MAX, "the divine set is complete on the way to ★300 (★%d)" % int(WorldPlayers.state(who, t0).stars))
 	# Only at ★300 (Game.PARAGON_MAX) does it turn to the endgame's sessions.
 	var top_day := -1.0

@@ -35,6 +35,7 @@ const WORDS := [
 	[["เขากวาง"], {"label": "เขากวางเรืองแสง", "kind": "jewel", "ids": ["stag_antler"]}],
 	[["กริฟฟิน"], {"label": "ขนปีกกริฟฟิน", "kind": "jewel", "ids": ["griffin_plume"]}],
 	[["เกล็ดมังกร", "เกล็ด"], {"label": "เกล็ดมังกรเพลิง", "kind": "jewel", "ids": ["drake_scale"]}],
+	[["เกล็ดบัว", "เกล็ดดารา", "lotus scale", "scale"], {"label": "เกล็ดบัวดารา", "kind": "jewel", "ids": ["lotus_scale"]}],
 	[["ของทำมอนท์", "ของมอนท์", "วัตถุดิบมอนท์", "ของสัตว์ขี่", "วัตถุดิบสัตว์ขี่", "มอนท์", "สัตว์ขี่", "mount"], {"label": "วัตถุดิบสัตว์ขี่", "kind": "jewel", "ids": ["wolf_fang", "stag_antler", "griffin_plume", "drake_scale"]}],
 	[["นิล"], {"label": "นิลดำ", "kind": "gem", "ids": ["onyx"]}],
 	[["มุก"], {"label": "มุกจันทรา", "kind": "gem", "ids": ["pearl"]}],
@@ -318,6 +319,8 @@ static func hint(req: Dictionary) -> String:
 				match String(ids[0]):
 					"set_core":
 						return "แก่นเทพดรอปที่%s กับ%s (★%d ขึ้นไป)" % [DrownedAbyssData.TITLE, DivineRegionData.TITLE, DrownedAbyssData.ENTRY_STAR]
+					"lotus_scale":
+						return "เกล็ดบัวดาราดรอปที่%s กับ%s (★%d ขึ้นไป) ใช้หลอมแหวนกับสร้อยชุดเซต ชิ้นละ %d เกล็ด" % [DrownedAbyssData.TITLE, DivineRegionData.TITLE, EndgameFields.ENTRY_STAR, SetGearData.SCALES]
 					"feather":
 						return "ขนนกดรอปในสนามดาว %d ขึ้นไป" % ItemData.FEATHER_STARS
 					"drill":

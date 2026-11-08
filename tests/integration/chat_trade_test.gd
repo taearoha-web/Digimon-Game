@@ -79,6 +79,8 @@ func _parse() -> void:
 		["อยากได้ hp_god 10 ขวด", "potion", ["hp_god"]],
 		["หาซื้อขนปีกกริฟฟิน", "jewel", ["griffin_plume"]],
 		["หาซื้อแก่นเทพหลอมเซต", "jewel", ["set_core"]],
+		["หาซื้อเกล็ดบัวดารา", "jewel", ["lotus_scale"]],
+		["ใครมีเกล็ดบัวบ้าง", "jewel", ["lotus_scale"]],
 		["อยากได้ของทำมอนท์", "jewel", ["wolf_fang", "stag_antler", "griffin_plume", "drake_scale"]],
 		["ใครขายยามานาบ้าง", "potion", ["mp_s", "mp_m", "mp_l", "mp_xl", "mp_xxl"]],
 		["หาซื้อทับทิม", "gem", ["ruby"]],
@@ -219,6 +221,8 @@ func _sellers() -> void:
 
 
 func _nobody() -> void:
+	var scale_hint := ChatTrade.hint(ChatTrade.parse("หาซื้อเกล็ดบัวดารา"))
+	check(scale_hint.contains(DrownedAbyssData.TITLE) and scale_hint.contains(DivineRegionData.TITLE) and scale_hint.contains("%d เกล็ด" % SetGearData.SCALES), "Lotus Scales come from both endgame maps, five a jewellery piece (%s)" % scale_hint)
 	var req := ChatTrade.parse("หาซื้อแก่นเทพหลอมเซต")
 	# Nobody has it: every matching lot already bought from the stalls.
 	var t := WorldPresence.clock()

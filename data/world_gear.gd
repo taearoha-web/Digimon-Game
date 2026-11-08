@@ -9,8 +9,8 @@ extends RefCounted
 ## * Kills: KILLS_* (the auto-hunt kills per probe minute pace_probe measured in the
 ##   field of its level / stars) times the chunk; the kills roll the hero's real drop
 ##   chances: ItemData.JEWEL_DROP in the levelling and star fields; from ★200 (the drowned
-##   abyss and the lotus sanctum, which share one drop table) DrownedAbyssData.JEWEL_DROP,
-##   its 0.1% set core, the Lotus Scales (SCALE_DROP) and divine pieces (DIVINE_DROP); the
+##   abyss and the lotus sanctum, which share one drop table: EndgameFields) its jewels,
+##   0.1% set core, Lotus Scales (SCALE_DROP) and divine pieces (DIVINE_DROP); the
 ##   feathers of ItemData.feather_chance; every mount's own material (MountData drop); Lv.100
 ##   wings in the star fields (WING_DROP, Zone.STAR_WING_DROP). Only its own class's
 ##   pieces and wings are kept (ItemData.OWN_CLASS_DROP). A chunk's count is its expected
@@ -21,10 +21,10 @@ extends RefCounted
 ##   counts). A find comes at +0.
 ## * The forge, with the hero's own rules, every chunk:
 ##   1. the 250★ set (from ★250, SetGearData.SLOTS order): weapon / armour / helm / boots
-##      each take the divine piece of that slot at +10 or more (SET_DIVINE_PLUS), which is
-##      used up, ring and amulet SET_SCALES Lotus Scales; all take a set core and
-##      SetGearData.CRAFT_COST's jewels, at SetGearData.CRAFT_CHANCE; a failed try uses
-##      everything up (the divine piece too: it wears its old piece again, or a spare);
+##      each take the divine piece of that slot at +10 or more, ring and amulet their Lotus
+##      Scales, and every try a set core and the jewels (SetGearData.recipe), at its
+##      chance; a success uses the divine piece / scales up, a failed try loses only the
+##      core and the jewels;
 ##   2. +1 for the lowest worn piece (ItemData.enhance_cost / enhance_chance, up to +15;
 ##      while a set piece waits for its divine piece's +10, that piece first; a failed try
 ##      uses up the jewels and keeps the grade, as at the hero's forge, so a + never drops);
@@ -49,20 +49,19 @@ const CHUNK_GROWTH := 0.1
 const KILLS_LEVEL := [[1, 16.5], [5, 16.5], [20, 42.0], [60, 46.5], [90, 39.0], [99, 39.0]]
 const KILLS_STAR := [[0, 9.0], [30, 9.0], [120, 6.0], [199, 6.0]]
 const KILLS_ENDGAME := 1.5
-## From here a player hunts the drowned abyss and the lotus sanctum (WorldPlayers.endgame_plan).
-const ENDGAME_STARS := 200
-## Divine pieces a kill drops in the endgame maps (DivineGearData.DROP_NORMAL, with its
-## elites' and bosses' higher chances blended in).
-const DIVINE_DROP := 0.008
+## From here a player hunts the drowned abyss and the lotus sanctum (WorldPlayers.session_zone):
+## the two endgame maps share one band and one drop table (EndgameFields).
+const ENDGAME_STARS := EndgameFields.ENTRY_STAR
+## The share of an endgame map's kills that are elites (its camps' temple golems and the
+## like): the divine pieces and Lotus Scales a kill drops blend EndgameFields' normal and
+## elite chances by it.
+const ELITE_SHARE := 0.1
+const DIVINE_DROP := DivineGearData.DROP_NORMAL * (1.0 - ELITE_SHARE) + DivineGearData.DROP_ELITE * ELITE_SHARE
+const SCALE_DROP := EndgameFields.SCALE_NORMAL * (1.0 - ELITE_SHARE) + EndgameFields.SCALE_ELITE * ELITE_SHARE
 ## Lv.100 wings a star-field kill drops (Zone.STAR_WING_DROP).
-const WING_DROP := 0.006
-## The set recipe. TODO: switch to SetGearData.recipe(class_id, slot) ({core, jewels,
-## divine_slot, scales, chance}) once it is in this branch; these are its values.
-const SET_SCALES := 5
-const SET_DIVINE_PLUS := 10
-## Lotus Scales (เกล็ดบัวดารา) a kill drops in the endgame maps. TODO: the drop's own
-## constant once the set recipe lands.
-const SCALE_DROP := 0.005
+const WING_DROP := EndgameFields.WING_NORMAL
+## The divine piece's + a set piece asks for (SetGearData.recipe's divine_plus).
+const SET_DIVINE_PLUS := SetGearData.DIVINE_PLUS
 ## Events between two snapshots of the state.
 const SNAP := 24
 const ENHANCE_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "wings"]
@@ -138,7 +137,7 @@ static func warm(t: float, budget: int) -> bool:
 		if sim == null:
 			sim = _new_sim(i)
 			_sims[i] = sim
-		while _edge(sim.chunks) < w:
+		while _edge(sim.chunks) <= w:
 			_run_chunk(i, sim, sim.chunks)
 			sim.chunks += 1
 			if Time.get_ticks_usec() - start > budget:
@@ -377,7 +376,7 @@ static func _sim(i: int, w: float) -> Sim:
 	if sim == null:
 		sim = _new_sim(i)
 		_sims[i] = sim
-	while _edge(sim.chunks) < w:
+	while _edge(sim.chunks) <= w:
 		_run_chunk(i, sim, sim.chunks)
 		sim.chunks += 1
 	return sim
@@ -514,23 +513,15 @@ static func _apply(st: Dictionary, ev: Dictionary) -> void:
 					st.prev[slot] = worn[slot]
 				worn[slot] = ["divine", 0]
 			st.divine = _divine_count(st)
-		"set_piece", "set_fail":
-			var used := String(ev.get("used", ""))
-			if used.begins_with("divine_"):
-				# The +10 divine piece it wore went into the forge.
+		"set_piece":
+			# The +10 divine piece it wore there went into the forge (the jewellery's
+			# Lotus Scales are no piece of its gear).
+			if String(ev.get("used", "")).begins_with("divine_"):
 				var dv: Dictionary = st.dv
 				dv[slot] = int(dv.get(slot, 0)) - 1
 				st.divine = _divine_count(st)
-				if String(ev.kind) == "set_fail":
-					if int(dv[slot]) > 0:
-						worn[slot] = ["divine", 0]
-					elif (st.prev as Dictionary).has(slot):
-						worn[slot] = st.prev[slot]
-					else:
-						worn.erase(slot)
-			if String(ev.kind) == "set_piece":
-				worn[slot] = ["set", 0]
-				st.set = int(ev.to)
+			worn[slot] = ["set", 0]
+			st.set = int(ev.to)
 		"wings_up":
 			var plus := int((worn["wings"] as Array)[1]) if worn.has("wings") else 0
 			worn["wings"] = [String(ev.key), plus]
@@ -596,7 +587,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 		sim.next_find += 1
 		var slot := String(f[1])
 		var key := String(f[2])
-		at = maxf(at + 0.0001, float(f[0]))
+		at = maxf(at, float(f[0]))
 		if key == "divine":
 			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine"]
 			_emit(sim, at, "divine_piece", slot, int(live.divine), 0, "", {"wear": wear, "key": "divine"})
@@ -609,10 +600,10 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	var top := level >= Game.MAX_LEVEL
 	var endgame := top and stars >= ENDGAME_STARS
 	if endgame:
-		sim.purple += _count(rng, kills * float(DrownedAbyssData.JEWEL_DROP.purple))
-		sim.pink += _count(rng, kills * float(DrownedAbyssData.JEWEL_DROP.pink))
-		sim.chaos += _count(rng, kills * float(DrownedAbyssData.JEWEL_DROP.chaos))
-		sim.core += _count(rng, kills * DrownedAbyssData.SET_CORE_DROP)
+		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple))
+		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink))
+		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos))
+		sim.core += _count(rng, kills * EndgameFields.SET_CORE_DROP)
 		sim.scales += _count(rng, kills * SCALE_DROP)
 	else:
 		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple))
@@ -678,23 +669,25 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 	var rng := sim.rng
 	var cls := sim.job
 	var worn: Dictionary = sim.live.worn
-	var cost: Dictionary = SetGearData.CRAFT_COST
-	var need_p := int(cost.get("purple", 0))
-	var need_k := int(cost.get("pink", 0))
-	var need_c := int(cost.get("chaos", 0))
-	var need_core := int(cost.get(SetGearData.CORE, 1))
-	# The 250★ set first, piece by piece in SetGearData.SLOTS order: a weapon / armour /
-	# helm / boots piece takes the divine piece it wears there at +10 or more (used up),
-	# a ring or amulet SET_SCALES Lotus Scales; both a set core and the jewels.
 	var ts := _set_slot(sim, level, stars)
+	var need := SetGearData.recipe(cls, ts) if ts != "" else {}
+	var jewels: Dictionary = need.get("jewels", {})
+	var need_p := int(jewels.get("purple", 0))
+	var need_k := int(jewels.get("pink", 0))
+	var need_c := int(jewels.get("chaos", 0))
+	var need_core := int(need.get("core", 1))
+	# The 250★ set first, piece by piece in SetGearData.SLOTS order, by its recipe
+	# (SetGearData.recipe): a weapon / armour / helm / boots piece takes the divine piece
+	# it wears there at +divine_plus (used up on success), a ring or amulet its Lotus
+	# Scales (used up on success); every try a set core and the jewels, lost on a fail.
 	var guard := 0
 	while ts != "" and guard < 12:
 		guard += 1
-		var divine_slot := DivineGearData.SLOTS.has(ts)
+		var divine_slot := String(need.get("divine_slot", "")) != ""
 		if divine_slot:
-			if not worn.has(ts) or String(worn[ts][0]) != "divine" or int(worn[ts][1]) < SET_DIVINE_PLUS:
+			if not worn.has(ts) or String(worn[ts][0]) != "divine" or int(worn[ts][1]) < int(need.divine_plus):
 				break
-		elif sim.scales < SET_SCALES:
+		elif sim.scales < int(need.get("scales", 0)):
 			break
 		if sim.core < need_core or sim.purple < need_p or sim.pink < need_k or sim.chaos < need_c:
 			break
@@ -702,91 +695,101 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 		sim.purple -= need_p
 		sim.pink -= need_k
 		sim.chaos -= need_c
-		var used := "divine_%s" % ts
-		if not divine_slot:
-			sim.scales -= SET_SCALES
-			used = "scales"
 		var n := int(sim.live.set)
 		at += 0.0001
-		if rng.randf() < SetGearData.CRAFT_CHANCE:
+		if rng.randf() < float(need.get("chance", SetGearData.CRAFT_CHANCE)):
+			var used := "divine_%s" % ts
+			if not divine_slot:
+				sim.scales -= int(need.get("scales", 0))
+				used = "scales"
 			_emit(sim, at, "set_piece", ts, n, n + 1, SetGearData.item_name(cls, ts), {"used": used})
 		else:
-			_emit(sim, at, "set_fail", ts, n, n, SetGearData.item_name(cls, ts), {"used": used})
+			_emit(sim, at, "set_fail", ts, n, n, SetGearData.item_name(cls, ts), {"kept": "divine_%s" % ts if divine_slot else "scales"})
 		ts = _set_slot(sim, level, stars)
+		need = SetGearData.recipe(cls, ts) if ts != "" else {}
+		jewels = need.get("jewels", {})
+		need_p = int(jewels.get("purple", 0))
+		need_k = int(jewels.get("pink", 0))
+		need_c = int(jewels.get("chaos", 0))
+		need_core = int(need.get("core", 1))
 	# While a set piece waits for its divine piece's +10, that piece is enhanced first; once
 	# only the core or jewels are missing, the set's jewels are kept back.
 	var focus := ""
 	var reserve := false
 	if ts != "":
-		if DivineGearData.SLOTS.has(ts) and worn.has(ts) and String(worn[ts][0]) == "divine" and int(worn[ts][1]) < SET_DIVINE_PLUS:
+		if String(need.get("divine_slot", "")) != "" and worn.has(ts) and String(worn[ts][0]) == "divine" and int(worn[ts][1]) < SET_DIVINE_PLUS:
 			focus = ts
 		elif sim.core >= need_core:
 			reserve = true
 	var keep_p := need_p if reserve else 0
 	var keep_k := need_k if reserve else 0
 	var keep_c := need_c if reserve else 0
-	# +1 for the lowest worn piece (the focus first), as long as the jewels last.
+	# +1 for the lowest worn piece (the focus first), as long as the jewels last: first
+	# the steps up to +9 (no chaos jewel), then the mount, then the steps from +9 on.
 	var tries := 0
-	while tries < 200:
-		tries += 1
-		var pick := focus if focus != "" and int(worn[focus][1]) < SET_DIVINE_PLUS else ""
-		var low := ItemData.MAX_PLUS
-		if pick != "":
-			low = int(worn[pick][1])
-		elif focus == "":
-			for slot in ENHANCE_SLOTS:
-				if worn.has(slot) and int(worn[slot][1]) < low:
-					low = int(worn[slot][1])
-					pick = slot
-		if pick == "":
-			break
-		var p_cost := 0
-		var k_cost := 0
-		var c_cost := 0
-		if low < 6:
-			p_cost = 1
-		elif low < 9:
-			k_cost = 1
-		else:
-			var n := int(ItemData.ENHANCE_HIGH[clampi(low - 9, 0, ItemData.ENHANCE_HIGH.size() - 1)][1])
-			p_cost = n
-			k_cost = n
-			c_cost = n
-		if sim.purple - keep_p < p_cost or sim.pink - keep_k < k_cost or sim.chaos - keep_c < c_cost:
-			break
-		sim.purple -= p_cost
-		sim.pink -= k_cost
-		sim.chaos -= c_cost
-		at += 0.0001
-		var ref := {"key": String(worn[pick][0])}
-		if rng.randf() < ItemData.enhance_chance(low):
-			_emit(sim, at, "enhance_ok", pick, low, low + 1, "", ref)
-		else:
-			_emit(sim, at, "enhance_fail", pick, low, low, "", ref)
-	# The mount: the newest one levelled to the top, then the next one crafted.
-	if sim.rides and level >= sim.ride_from:
-		while tries < 260:
+	for pass_n in 2:
+		var cap := 9 if pass_n == 0 else ItemData.MAX_PLUS
+		while tries < 200 * (pass_n + 1):
 			tries += 1
-			var k := -1
-			for m in MountData.ORDER.size():
-				if int((sim.live.mounts as Dictionary).get(MountData.ORDER[m], 0)) < MountData.MAX_LEVEL:
-					k = m
-					break
-			if k < 0:
+			var pick := focus if focus != "" and int(worn[focus][1]) < SET_DIVINE_PLUS else ""
+			var low := ItemData.MAX_PLUS
+			if pick != "":
+				low = int(worn[pick][1])
+			elif focus == "":
+				for slot in ENHANCE_SLOTS:
+					if worn.has(slot) and int(worn[slot][1]) < mini(low, cap):
+						low = int(worn[slot][1])
+						pick = slot
+			if pick == "":
 				break
-			var id: String = MountData.ORDER[k]
-			var lv := int((sim.live.mounts as Dictionary).get(id, 0))
-			var step := MountData.cost(id, lv + 1)
-			if sim.mats[k] < int(step.mat) or sim.chaos - keep_c < int(step.chaos):
-				break
-			sim.mats[k] -= int(step.mat)
-			sim.chaos -= int(step.chaos)
-			at += 0.0001
-			var mname := String(MountData.info(id).name)
-			if rng.randf() < MountData.chance(id):
-				_emit(sim, at, "mount_up", "mount", lv, lv + 1, mname, {"id": id})
+			var p_cost := 0
+			var k_cost := 0
+			var c_cost := 0
+			if low < 6:
+				p_cost = 1
+			elif low < 9:
+				k_cost = 1
 			else:
-				_emit(sim, at, "mount_fail", "mount", lv, lv, mname, {"id": id})
+				var n := int(ItemData.ENHANCE_HIGH[clampi(low - 9, 0, ItemData.ENHANCE_HIGH.size() - 1)][1])
+				p_cost = n
+				k_cost = n
+				c_cost = n
+			if sim.purple - keep_p < p_cost or sim.pink - keep_k < k_cost or sim.chaos - keep_c < c_cost:
+				break
+			sim.purple -= p_cost
+			sim.pink -= k_cost
+			sim.chaos -= c_cost
+			at += 0.0001
+			var ref := {"key": String(worn[pick][0])}
+			if rng.randf() < ItemData.enhance_chance(low):
+				_emit(sim, at, "enhance_ok", pick, low, low + 1, "", ref)
+			else:
+				_emit(sim, at, "enhance_fail", pick, low, low, "", ref)
+		if pass_n == 0:
+			# The mount: the newest one levelled to the top, then the next one crafted.
+			if sim.rides and level >= sim.ride_from:
+				while tries < 200 * (pass_n + 1) + 60:
+					tries += 1
+					var k := -1
+					for m in MountData.ORDER.size():
+						if int((sim.live.mounts as Dictionary).get(MountData.ORDER[m], 0)) < MountData.MAX_LEVEL:
+							k = m
+							break
+					if k < 0:
+						break
+					var id: String = MountData.ORDER[k]
+					var lv := int((sim.live.mounts as Dictionary).get(id, 0))
+					var step := MountData.cost(id, lv + 1)
+					if sim.mats[k] < int(step.mat) or sim.chaos - keep_c < int(step.chaos):
+						break
+					sim.mats[k] -= int(step.mat)
+					sim.chaos -= int(step.chaos)
+					at += 0.0001
+					var mname := String(MountData.info(id).name)
+					if rng.randf() < MountData.chance(id):
+						_emit(sim, at, "mount_up", "mount", lv, lv + 1, mname, {"id": id})
+					else:
+						_emit(sim, at, "mount_fail", "mount", lv, lv, mname, {"id": id})
 	# The 100★ wings from Lv.100 wings: a chaos jewel and a feather, 30%.
 	if level >= Game.MAX_LEVEL and stars >= StarWingData.REQUIRED_STARS:
 		var wc := int(StarWingData.CRAFT_COST.chaos)

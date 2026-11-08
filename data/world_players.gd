@@ -556,9 +556,12 @@ static func played_minutes(i: int, t: float) -> float:
 	var w := world_time(t)
 	if w <= origin:
 		return 0.0
+	# Kept per player and minute for the very moment read (another moment of the same
+	# minute is worked out again, so the answer never depends on what was read first).
 	var key := int(t / 60.0) * 4096 + i
-	if _minutes_cache.has(key):
-		return _minutes_cache[key]
+	var hit: Variant = _minutes_cache.get(key)
+	if hit != null and float(hit[0]) == t:
+		return float(hit[1])
 	if _minutes_cache.size() > 6000:
 		_minutes_cache.clear()
 	# A session can run past midnight (never past the next one), so the two latest days
@@ -574,7 +577,7 @@ static func played_minutes(i: int, t: float) -> float:
 		if d >= first:
 			total += _day_minutes(i, d, origin, w)
 	total /= SPEED
-	_minutes_cache[key] = total
+	_minutes_cache[key] = [t, total]
 	return total
 
 
@@ -778,8 +781,9 @@ static func halloween_work(i: int, t: float) -> float:
 	var cache_key: Variant = int(t / 10.0) * 4096 + i
 	if paused.has(key) or hw_skipped.has(key):
 		cache_key = "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(hw_skipped.get(key, 0.0))]
-	if _hw_cache.has(cache_key):
-		return float(_hw_cache[cache_key])
+	var hw_hit: Variant = _hw_cache.get(cache_key)
+	if hw_hit != null and float(hw_hit[0]) == t:
+		return float(hw_hit[1])
 	var from := played_minutes(i, start)
 	var last := played_minutes(i, float(WorldEvents.HALLOWEEN_END))
 	var upto := minf(float(paused[key]) if paused.has(key) else played_minutes(i, t), last)
@@ -787,7 +791,7 @@ static func halloween_work(i: int, t: float) -> float:
 	var work := played * efficiency(i) * halloween_share(i) * HALLOWEEN_EXTRA
 	if _hw_cache.size() > 512:
 		_hw_cache.clear()
-	_hw_cache[cache_key] = work
+	_hw_cache[cache_key] = [t, work]
 	return work
 
 
