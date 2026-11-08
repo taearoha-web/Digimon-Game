@@ -143,6 +143,15 @@ func _watch_late() -> void:
 	check(int(Game.profile.hp) == hp and not hero._dead, "the hero takes no damage")
 	await wait(3.0)
 	check(int(Game.profile.hp) == hp and m.hero_deaths == 0 and int(Game.profile.get("deaths", 0)) == deaths, "watching, the hero is never hurt and never falls")
+	# The board's switch chip: the holder's name and colour (shown once the gates are down).
+	m._set_switch(1)
+	view._update_board()
+	var chip_text := (view._switch_chip.get_child(0) as Label).text
+	check(chip_text == "สวิตช์: Neverdie · บาเรียเปิดให้ Neverdie" and view.switch_chip().color == m.team_color(1), "the board's switch chip names the holder in its colour (%s)" % chip_text)
+	check(view.switch_chip().text == "", "the chip waits for the gates to fall")
+	m._set_switch(-1)
+	view._update_board()
+	check((view._switch_chip.get_child(0) as Label).text == "สวิตช์: ว่าง · บาเรียปิดแท่น", "free: ว่าง")
 	# The camera: moves, pans, zooms, follows a focus.
 	var cam_before := view.camera.global_position
 	view.pan_by(Vector2(-300, 0))

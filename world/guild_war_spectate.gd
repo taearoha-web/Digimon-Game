@@ -77,12 +77,19 @@ var _pinch_from := 0.0
 var _leaving := false
 
 var _layer: CanvasLayer
+## The board's column at the top centre (GuildWarHud.top_band: toasts and the switch's
+## floating label stay under it).
+var _top_col: VBoxContainer
+var _chip_pulse := 0.0
 var _names: Array[Label] = []
 var _kills: Array[Label] = []
 var _swatches: Array[ColorRect] = []
 var _clock: Label
 var _owner: Label
 var _status: Label
+## The castle switch's chip (สวิตช์: <guild> · บาเรียเปิดให้ <guild>) in the holder's colour,
+## shown once the gates are down.
+var _switch_chip: PanelContainer
 var _banner: Label
 var _hint: Label
 var _feed: Label
@@ -316,6 +323,9 @@ func _process(delta: float) -> void:
 	center = center.lerp(want, 1.0 - exp(-delta * 2.6))
 	distance = lerpf(distance, _distance_goal, 1.0 - exp(-delta * 8.0))
 	_place_camera()
+	_pulse_chip(delta)
+	if _top_col != null:
+		GuildWarHud.top_band = _top_col.get_global_rect().end.y
 	_refresh -= delta
 	if _refresh <= 0.0:
 		_refresh = 0.2
@@ -546,6 +556,7 @@ func _build_board() -> void:
 	# The top centre: both guilds (colour, name, falls), the clock, the castle.
 	var many := match_node.team_count() > 2
 	var top := UIUtil.vbox(4)
+	_top_col = top
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.anchor_left = 0.5
 	top.anchor_right = 0.5
@@ -589,19 +600,31 @@ func _build_board() -> void:
 			row.add_child(node)
 	_owner = _outlined(UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	lines.add_child(_owner)
+	_switch_chip = UIUtil.chip(SiegeArena.SWITCH_NAME, Color("c9c9c9"), 18)
+	_switch_chip.name = "SwitchChip"
+	_switch_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_switch_chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_switch_chip.visible = false
+	_outlined(_switch_chip.get_child(0) as Label)
+	(_switch_chip.get_theme_stylebox("panel") as StyleBoxFlat).set_border_width_all(3)
+	lines.add_child(_switch_chip)
 	_status = _outlined(UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lines.add_child(_status)
 	# Top left: the "live" badge.
 	var live := UIUtil.chip("● ถ่ายทอดสด · กำลังชม", Color("ff5a5a"), 18)
 	live.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_outlined(live.get_child(0) as Label)
+	(live.get_child(0) as Label).add_theme_color_override("font_color", Color("ffd0d0"))
+	(live.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.32, 0.04, 0.04, 0.9)
 	live.position = Vector2(4, 8)
 	root.add_child(live)
 	# The middle: banners; under it, how to move the camera (until the first drag).
 	_banner = _outlined(UIUtil.label("", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_banner.offset_top = -120
+	# Under the toasts' lane (which starts under the board), above the feed.
+	_banner.offset_top = 16
 	_banner.add_theme_font_size_override("font_size", 40)
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner.modulate.a = 0.0
@@ -630,6 +653,16 @@ func _build_board() -> void:
 	_feed.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_feed.clip_text = true
 	_feed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# A dark backing so the news reads over snow, stone and grass alike.
+	var feed_back := StyleBoxFlat.new()
+	feed_back.bg_color = Color(0.05, 0.06, 0.1, 0.62)
+	feed_back.set_corner_radius_all(10)
+	feed_back.content_margin_left = 10
+	feed_back.content_margin_right = 10
+	feed_back.content_margin_top = 4
+	feed_back.content_margin_bottom = 4
+	_feed.add_theme_stylebox_override("normal", feed_back)
+	_feed.visible = false
 	root.add_child(_feed)
 	# Bottom left: leave; bottom right: the camera's focus.
 	leave_button = UIUtil.button("ออกจากการชม", &"", Vector2(220, 64))
@@ -728,6 +761,55 @@ func _update_board() -> void:
 	_owner.add_theme_color_override("font_color", m.owner_color().lerp(Color.WHITE, 0.2) if m.castle_owner >= 0 else Color("fff1b8"))
 	var capture := m.capture_line()
 	_status.text = capture if capture != "" and not m.capture.is_empty() else m.siege_status()
+	_update_switch_chip(m)
+
+
+## The switch's chip: who holds it, in that guild's colour, and whom the barrier is open for.
+func _update_switch_chip(m: GuildWarMatch) -> void:
+	if _switch_chip == null:
+		return
+	_switch_chip.visible = m.front_gate() == null and m.state in ["fight", "ending"]
+	var color := m.switch_color()
+	var label := _switch_chip.get_child(0) as Label
+	label.text = "%s · %s" % [m.switch_text(), m.barrier_open_text()]
+	label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.6))
+	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
+	if sb != null:
+		sb.bg_color = Color(color.darkened(0.72), 0.92)
+		sb.border_color = color
+
+
+## Fought over: the chip's border and backing swing towards the challenger's colour (the
+## text stays opaque).
+func _pulse_chip(delta: float) -> void:
+	var m := match_node
+	if _switch_chip == null or not _switch_chip.visible or not (m.switch_contested and m.switch_challenger >= 0):
+		_chip_pulse = 0.0
+		return
+	_chip_pulse += delta
+	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
+	if sb == null:
+		return
+	var mix := m.switch_color().lerp(m.team_color(m.switch_challenger), 0.5 + 0.5 * sin(_chip_pulse * 7.0))
+	sb.border_color = mix
+	sb.bg_color = Color(mix.darkened(0.72), 0.92)
+
+
+func _exit_tree() -> void:
+	GuildWarHud.top_band = 0.0
+
+
+## The board's column on screen (tests).
+func board_rect() -> Rect2:
+	return _top_col.get_global_rect() if _top_col != null else Rect2()
+
+
+## The switch chip now (tests): its text ("" while hidden) and colour.
+func switch_chip() -> Dictionary:
+	if _switch_chip == null:
+		return {}
+	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
+	return {"text": (_switch_chip.get_child(0) as Label).text if _switch_chip.visible else "", "color": sb.border_color if sb != null else Color.BLACK}
 
 
 ## The clock as the board shows it: what is left of the war (m:ss), ต่อเวลา in sudden death.
@@ -759,6 +841,7 @@ func _on_feed(text: String, _team: int) -> void:
 		_feed_lines.pop_front()
 	if _feed != null:
 		_feed.text = "\n".join(_feed_lines)
+		_feed.visible = _feed.text != ""
 
 
 func press_leave() -> void:

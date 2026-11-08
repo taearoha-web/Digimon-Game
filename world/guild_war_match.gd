@@ -17,11 +17,12 @@ extends Node
 ## Each guild's AI makes its own plan from how the war stands (plan_for): rush the gate,
 ## hold the bridge and strike back, pull back and regroup, storm the altar, split to block
 ## the way in while one takes the altar, or defend the castle; plans are told in the feed.
-## Two switches stand in the throne room's back corners (SiegeArena.SWITCHES): the altar is
-## shut behind a barrier for a guild until it holds both (more of it in each circle than of
-## any other guild; in a war of more than two a switch also stays with its taker while its
-## circle is empty); while the barrier is up its leader cannot start taking the
-## altar and a count going on waits where it is, until both are held again.
+## One switch stands on the throne room's left side (SiegeArena.SWITCH): the first guild to
+## stand in its circle while it is free takes it and keeps it while one living member of it
+## is inside, however many others come in (the next guild must clear them all out of the
+## circle); the altar is shut behind a barrier for every guild but the one holding it.
+## While the barrier is up a leader cannot start taking the altar and a count going on
+## waits where it is, until its guild holds the switch again.
 
 signal finished(result: Dictionary)
 signal feed(text: String, team: int)
@@ -121,6 +122,13 @@ var enemy_name: String:
 		team_names[1] = v
 ## Unix time the war began (the guild members' progress is taken at this moment).
 var started_at := 0
+## The waiting room (GuildLeague.lobby_slot): the hero came in before its league round's
+## bell; until this unix time (the round's start) nobody fights. 0 when not waiting.
+var lobby_until := 0
+## How far the hero may walk from its camp (or the keep) while waiting.
+const LOBBY_RADIUS := 25.0
+var lobby_ui: GuildWarLobby
+var _from_lobby := false
 var hero_kills := 0
 var hero_deaths := 0
 var hero_respawn_left := 0.0
@@ -192,25 +200,33 @@ var _cull_timer := 0.0
 var _crystal: MeshInstance3D
 var _crystal_mat: StandardMaterial3D
 
-## The castle's switches: who holds each now (-1 nobody, else the team; a switch with both
-## guilds inside is contested and held by nobody), read every SWITCH_EVERY seconds.
+## The castle's switch: who holds it now (-1 nobody, else the team), read every
+## SWITCH_EVERY seconds (read_switches, switch_next); fought over while another guild
+## stands in the circle with the holder (switch_challenger: the one with most there).
 const SWITCH_EVERY := 0.25
-## A war of more than two guilds: how many more bodies than its holders another guild
-## needs in a switch's circle to take it (read_switches).
-const SWITCH_EDGE := 2
-var switch_owner: Array[int] = [-1, -1]
-var switch_contested: Array[bool] = [false, false]
-## Tests and tools: both switches read as held by this guild (-1: as the field stands).
+## The light pillar over the switch, this tall.
+const SWITCH_BEAM_H := 16.0
+var switch_owner := -1
+var switch_contested := false
+var switch_challenger := -1
+## Tests and tools: the switch reads as held by this guild (-1: as the field stands).
 var switch_pin := -1
-## The hero's party sent to hold a switch (the HUD's buttons): its index, -1 for none.
-var party_switch := -1
+## The hero's party sent to hold the switch (the HUD's button).
+var party_switch := false
 var _switch_left := 0.0
-var _switch_parts: Array[Dictionary] = []
+var _switch_parts: Dictionary = {}
+## Readings of the circle so far, and the reading each team's stay in it began (the first
+## come takes a free switch on a level count).
+var _switch_seq := 0
+var _switch_arrival: Dictionary = {}
+## A resumed war: the switch stays with its saved holder until somebody steps in.
+var _switch_resumed := false
+var _switch_pulse := 0.0
+var _switch_fight_at := -100000
 var _barrier: MeshInstance3D
 var _barrier_mat: StandardMaterial3D
 var _barrier_hint := false
 var _switch_banner_at := -100000
-const CONTESTED_COLOR := Color("ffb15a")
 const BARRIER_COLOR := Color(0.55, 0.85, 1.0, 0.26)
 var _hero_killer: GuildFighter
 var _result: Dictionary = {}
@@ -383,6 +399,10 @@ func build(tree: SceneTree = null) -> void:
 			# A late arrival joins the round as it runs: the bell rings on the round's time.
 			if saved.is_empty():
 				time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 60.0, GuildWarData.DURATION)
+				# Early (the waiting room): everybody stands in camp until the bell.
+				if WorldPresence.clock() < float(started_at):
+					lobby_until = started_at
+					time_left = GuildWarData.DURATION
 	if roster.is_empty():
 		roster = GuildWarData.roll_match(rng)
 	_take_roster()
@@ -461,8 +481,45 @@ func build(tree: SceneTree = null) -> void:
 	var counts: PackedStringArray = []
 	for t in team_count():
 		counts.append("กิลด์ %s %d คน" % [team_names[t], side(t).size() + (1 if t == GuildFighter.TEAM_ALLY else 0)])
-	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) ยึดสวิตช์ซ้ายและขวาในห้องบัลลังก์ให้ครบเพื่อปลดบาเรีย แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
+	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) ยึดสวิตช์ในห้องบัลลังก์ (ใครยืนในวงก่อนได้ไป กิลด์อื่นต้องไล่ออกจากวงให้หมดก่อน) บาเรียจะเปิดให้กิลด์ที่ถือสวิตช์ แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
 	Game.say(owner_briefing(), &"quest")
+	if lobby_until > 0:
+		lobby_ui = GuildWarLobby.new()
+		add_child(lobby_ui)
+		lobby_ui.show_left(lobby_left())
+		Game.say("ห้องรอสงคราม: เริ่มใน %s — รอในค่าย (เดินได้ไม่เกิน %d เมตร) ยังโจมตีไม่ได้ ร่ายบัฟได้และบัฟติดตัวเข้าสงคราม" % [GuildLeague.until_text(lobby_until), int(LOBBY_RADIUS)], &"quest")
+
+
+## Seconds until the waiting room's war begins (0 when not waiting).
+func lobby_left() -> float:
+	return maxf(0.0, float(lobby_until) - WorldPresence.clock()) if lobby_until > 0 else 0.0
+
+
+## While waiting: nobody can be hurt (the fighters stay frozen until start_fight, the gates
+## unbreakable, the switch and the altar untouched), the hero stays within LOBBY_RADIUS of
+## its camp, the banner counts down; at the bell the war begins as if entered then.
+func _tick_lobby() -> void:
+	if is_instance_valid(hero):
+		hero._invulnerable_until = Time.get_ticks_msec() + 1000
+		hold_in_camp()
+	var left := lobby_left()
+	if lobby_ui != null and is_instance_valid(lobby_ui):
+		lobby_ui.show_left(left)
+	if left <= 0.0:
+		lobby_until = 0
+		_from_lobby = true
+		if lobby_ui != null and is_instance_valid(lobby_ui):
+			lobby_ui.started()
+
+
+## Pushes the hero back inside LOBBY_RADIUS of its camp (or the keep).
+func hold_in_camp() -> void:
+	var c := home_of(GuildFighter.TEAM_ALLY)
+	var d := hero.global_position - c
+	d.y = 0.0
+	if d.length() > LOBBY_RADIUS:
+		var p := c + d.normalized() * LOBBY_RADIUS
+		hero.global_position = Vector3(p.x, hero.global_position.y, p.z)
 
 
 ## The camps' colours (team order) for the war the zone is about to hold: a watched war's
@@ -747,6 +804,15 @@ func _restore(saved: Dictionary) -> void:
 		score[t] = int(scores[t]) if t < scores.size() else 0
 	hero_kills = int(saved.kills)
 	hero_deaths = int(saved.deaths)
+	# The switch's holder (an older checkpoint of two switches: the left one's); it keeps
+	# the switch until somebody steps into the circle (read_switches).
+	var sw: Variant = saved.get("switch", -1)
+	if sw is Array:
+		sw = (sw as Array)[0] if not (sw as Array).is_empty() else -1
+	var holder := clampi(int(sw), -1, team_count() - 1)
+	if holder >= 0:
+		_switch_resumed = true
+		_set_switch(holder)
 	_timer = 3.2
 	_count = 3
 
@@ -759,7 +825,7 @@ func save_checkpoint() -> void:
 		left.append(0 if g.is_dead() else int(ceil(1000.0 * float(g.hp) / float(maxi(1, g.max_hp)))))
 	var order: Array = GuildLeague.current_match.get("guilds", []) if not GuildLeague.current_match.is_empty() else []
 	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner, "picks": party_picks, "chosen": party_chosen,
-		"league": order, "teams": team_count()})
+		"league": order, "teams": team_count(), "switch": switch_owner})
 
 
 # ---------------------------------------------------------------------------
@@ -1081,6 +1147,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	team_buff_left = maxf(0.0, team_buff_left - delta)
+	_fit_switch_label()
 	match state:
 		"intro":
 			if hold:
@@ -1089,6 +1156,15 @@ func _process(delta: float) -> void:
 				if mirror and _hold_age > MIRROR_WAIT:
 					mirror_lost()
 				return
+			if lobby_until > 0:
+				_tick_lobby()
+				_cull_timer -= delta
+				if _cull_timer <= 0.0:
+					_cull_timer = 0.25
+					_cull_far()
+				if lobby_until > 0:
+					return
+				_timer = 0.0
 			_timer -= delta
 			var shown := ceili(_timer)
 			if shown < _count and shown >= 1:
@@ -1101,6 +1177,10 @@ func _process(delta: float) -> void:
 					zone.banner_requested.emit("บุก!!")
 					AudioManager.play_sfx(&"quest_complete", -2.0)
 					return
+				if _from_lobby:
+					# The bell rang: the war runs its full time from the round's real start.
+					time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 1.0, GuildWarData.DURATION)
+					_update_breakable()
 				save_checkpoint()
 				for f in all_fighters():
 					f.start_fight()
@@ -1182,7 +1262,7 @@ func _altar_hint_tick() -> void:
 	# The hero leads and stands on the altar behind the barrier: why it cannot press.
 	var blocked := hero_blocked_by_barrier()
 	if blocked and not _barrier_hint:
-		Game.say(BARRIER_TEXT, &"warning")
+		Game.say(barrier_text(GuildFighter.TEAM_ALLY), &"warning")
 	_barrier_hint = blocked
 
 
@@ -1597,7 +1677,7 @@ func gates_left() -> int:
 func _update_breakable() -> void:
 	var front := front_gates()
 	for g in gates:
-		g.breakable = front.has(g) and state != "ending"
+		g.breakable = front.has(g) and state != "ending" and lobby_until <= 0
 	var open: Array = []
 	for tier in 2:
 		var row: Array = []
@@ -1621,7 +1701,7 @@ func _on_gate_broken(gate: CastleGate) -> void:
 		return
 	_make_plans()
 	if front_gate() == null:
-		text = "ประตูชั้นสุดท้ายพัง! บุกห้องบัลลังก์ ยึดสวิตช์ซ้าย-ขวาให้ครบเพื่อปลดบาเรีย แล้วยืนบนแท่น %d วินาทีเพื่อยึดปราสาท" % int(CAPTURE_TIME)
+		text = "ประตูชั้นสุดท้ายพัง! บุกห้องบัลลังก์ ยึดสวิตช์ให้บาเรียเปิดให้กิลด์เรา แล้วยืนบนแท่น %d วินาทีเพื่อยึดปราสาท" % int(CAPTURE_TIME)
 	if opened or front_gate() == null:
 		zone.banner_requested.emit(text)
 	feed.emit(text, -1)
@@ -1848,79 +1928,68 @@ func capture_progress() -> float:
 
 
 # ---------------------------------------------------------------------------
-# The switches and the altar's barrier
+# The switch and the altar's barrier
 # ---------------------------------------------------------------------------
 
-const BARRIER_TEXT := "บาเรียกันแท่นอยู่ ต้องยึดสวิตช์ซ้ายและขวาให้ครบ"
+## The barrier's warning with the switch free (barrier_text gives the one for a holder).
+const BARRIER_TEXT := "บาเรียกันแท่นอยู่ — ต้องยึดสวิตช์ก่อน"
 
 
-## Who holds a switch with `ours` of our guild and `theirs` of the other inside its
-## circle: the guild with more living bodies there; nobody when empty or level (contested;
-## read_switches then leaves a level switch with the guild that held it).
-## A majority rather than "alone" so two equal squads do not freeze the war: bring more.
-static func switch_holder(ours: int, theirs: int) -> int:
-	if ours > theirs:
-		return GuildFighter.TEAM_ALLY
-	if theirs > ours:
-		return GuildFighter.TEAM_ENEMY
-	return -1
-
-
-## The holder of a switch with `counts[t]` living bodies of each team inside: the one team
-## with the most; -1 when empty or the most are level (contested).
-static func switch_holder_n(counts: Array) -> int:
+## Who holds the switch after a reading (pure): `counts[t]` living bodies of each team in
+## its circle, `owner` the guild holding it before (-1 nobody), `arrival[t]` the reading at
+## which team t's present stay in the circle began. The holder keeps it while at least one
+## of it is inside, however many others are; with none of it left the guild with the most
+## bodies inside takes it, then the one that came in first, then the lower team; an empty
+## circle is held by nobody.
+static func switch_next(counts: Array, owner: int, arrival: Dictionary = {}) -> int:
+	if owner >= 0 and owner < counts.size() and int(counts[owner]) > 0:
+		return owner
 	var best := -1
-	var top := 0
-	var level := false
 	for t in counts.size():
 		var c := int(counts[t])
-		if c > top:
-			top = c
+		if c <= 0:
+			continue
+		if best < 0 or c > int(counts[best]) or (c == int(counts[best]) and int(arrival.get(t, 1 << 30)) < int(arrival.get(best, 1 << 30))):
 			best = t
-			level = false
-		elif c == top and c > 0:
-			level = true
-	return -1 if level else best
+	return best
 
 
-## How many switches `team` holds now (0, 1 or 2).
-func switches_held(team: int) -> int:
+## Whether `team` holds the switch now.
+func holds_switch(team: int) -> bool:
 	if switch_pin >= 0:
-		return 2 if switch_pin == team else 0
-	var n := 0
-	for k in switch_owner.size():
-		n += 1 if switch_owner[k] == team else 0
-	return n
+		return switch_pin == team
+	return team >= 0 and switch_owner == team
 
 
-## The altar's barrier stands for `team` unless it holds both switches: its leader can
-## neither start taking the altar nor go on counting.
+## The altar's barrier stands for `team` unless it holds the switch: its leader can neither
+## start taking the altar nor go on counting.
 func barrier_up(team: int) -> bool:
-	return switches_held(team) < 2
+	return not holds_switch(team)
 
 
-## The living bodies inside switch `k`'s circle, one count a team: fighters, the hero and
+## The living bodies inside the switch's circle, one count a team: fighters, the hero and
 ## (hosting online) the party members' players on our side.
-func count_switch(k: int) -> Array[int]:
+func count_switch() -> Array[int]:
 	var out: Array[int] = []
 	out.resize(maxi(2, team_count()))
 	out.fill(0)
 	for t in team_count():
 		for f in side(t):
-			if is_instance_valid(f) and not f.is_dead() and SiegeArena.on_switch(f.global_position, k):
+			if is_instance_valid(f) and not f.is_dead() and SiegeArena.on_switch(f.global_position):
 				out[t] += 1
-	if not mirror and hero_alive() and SiegeArena.on_switch(hero.global_position, k):
+	if not mirror and hero_alive() and SiegeArena.on_switch(hero.global_position):
 		out[0] += 1
 	if not mirror and is_inside_tree():
 		for node in get_tree().get_nodes_in_group("remote_players"):
-			if node is Node3D and EntitySync.remote_alive(node) and SiegeArena.on_switch((node as Node3D).global_position, k):
+			if node is Node3D and EntitySync.remote_alive(node) and SiegeArena.on_switch((node as Node3D).global_position):
 				out[0] += 1
 	return out
 
 
-## Reads both switches (every SWITCH_EVERY s; the leader's war only, a mirror takes them
-## from the leader's status).
+## Reads the switch (every SWITCH_EVERY s; the leader's war only, a mirror takes it from
+## the leader's status) and pulses its circle while it is fought over.
 func _tick_switches(delta: float) -> void:
+	_pulse_switch(delta)
 	_switch_left -= delta
 	if _switch_left > 0.0:
 		return
@@ -1929,81 +1998,91 @@ func _tick_switches(delta: float) -> void:
 
 
 func read_switches() -> void:
-	for k in SiegeArena.SWITCHES.size():
-		var c := count_switch(k)
-		var holder := switch_holder_n(c)
-		var top: int = c.max()
-		var level := top > 0 and holder < 0
-		# Level numbers in the circle keep it with the guild that held it when it is one of
-		# the level ones (the challenger must outnumber the holders); an empty circle is held
-		# by nobody.
-		if level and switch_owner[k] >= 0 and switch_owner[k] < c.size() and c[switch_owner[k]] == top:
-			holder = switch_owner[k]
-		# A war of more than two guilds (DECISION): a switch stays with the guild that took it
-		# while the circle is empty, and until another guild has SWITCH_EDGE more bodies in it
-		# than the holders, or the barrier would almost never fall with three guilds always
-		# fighting over both.
-		if team_count() > 2:
-			var was := switch_owner[k]
-			if was >= 0 and was < c.size() and (top == 0 or (c[was] > 0 and top < c[was] + SWITCH_EDGE)):
-				# Its holders keep it until another guild brings SWITCH_EDGE more bodies
-				# into the circle than they have there, and while it stands empty.
-				holder = was
-				level = c[was] > 0 and c.count(0) < c.size() - 1
-		_set_switch(k, holder, level)
+	_switch_seq += 1
+	var c := count_switch()
+	for t in c.size():
+		if c[t] > 0:
+			if not _switch_arrival.has(t):
+				_switch_arrival[t] = _switch_seq
+		else:
+			_switch_arrival.erase(t)
+	# A resumed war gives the switch back to its holder until somebody steps into the
+	# empty circle (everybody starts again from the camps).
+	if _switch_resumed:
+		if c.max() == 0:
+			return
+		_switch_resumed = false
+	var holder := switch_next(c, switch_owner, _switch_arrival)
+	# Fought over: the holder still inside with another guild in the circle; the
+	# challenger is the one with the most bodies there.
+	var challenger := -1
+	if holder >= 0:
+		for t in c.size():
+			if t != holder and c[t] > 0 and (challenger < 0 or c[t] > c[challenger]):
+				challenger = t
+	_set_switch(holder, challenger)
 
 
-## A switch changes hands (told in the feed, recoloured, the commanders told at once).
-func _set_switch(k: int, holder: int, contested: bool) -> void:
-	var was := switch_owner[k]
-	if holder == was and contested == switch_contested[k]:
+## The switch changes hands or its fight starts / ends (told in the feed and a toast,
+## recoloured with a flash, the commanders told at once).
+func _set_switch(holder: int, challenger := -1) -> void:
+	var was := switch_owner
+	var was_challenger := switch_challenger
+	if holder == was and challenger == was_challenger:
 		return
-	var had: Array = []
-	for t in team_count():
-		had.append(switches_held(t))
-	switch_owner[k] = holder
-	switch_contested[k] = contested
-	_color_switch(k)
+	switch_owner = holder
+	switch_challenger = challenger if holder >= 0 else -1
+	switch_contested = switch_challenger >= 0
+	if not switch_contested:
+		_switch_pulse = 0.0
+	_color_switch()
 	_show_barrier()
+	if holder != was and zone != null and is_instance_valid(zone):
+		var color := team_color(holder) if holder >= 0 else Color.WHITE
+		VfxKit.flash(zone, SiegeArena.SWITCH + Vector3(0, 1.0, 0), color, 4.0, 0.35)
+		VfxKit.shockwave(zone, SiegeArena.SWITCH + Vector3(0, 0.3, 0), color, SiegeArena.SWITCH_RADIUS + 1.5)
 	if state != "fight":
 		return
-	var label: String = SiegeArena.SWITCH_NAMES[k]
-	if holder >= 0 and holder == was:
-		# Only the fight in the circle changed: the holders keep it while they are not outnumbered.
-		if contested:
-			feed.emit("%s ถูกแย่ง! กิลด์ %s ยังยึดไว้ได้ ต้องมีคนมากกว่าถึงจะชิงได้" % [label, team_name(holder)], -1)
-	elif holder >= 0:
-		feed.emit("กิลด์ %s ยึด%sได้" % [team_name(holder), label], holder)
-	elif was >= 0:
-		feed.emit(("%s ถูกแย่ง! กิลด์ %s เสียการยึด" if contested else "กิลด์ %s เสีย%s") % ([label, team_name(was)] if contested else [team_name(was), label]), -1)
-	elif contested:
-		feed.emit("หลายกิลด์แย่ง%sกันอยู่" % label if team_count() > 2 else "สองกิลด์แย่ง%sกันอยู่" % label, -1)
-	for team in team_count():
-		var now := switches_held(team)
-		if now == 2 and int(had[team]) < 2:
-			var text := "กิลด์ %s ยึดสวิตช์ครบทั้งสอง — บาเรียแท่นหายไป!" % team_name(team)
-			feed.emit(text, team)
-			# The banner at most every 10 s (a switch fought over may flip back and forth).
-			var now_ms := Time.get_ticks_msec()
-			if zone != null and is_instance_valid(zone) and now_ms - _switch_banner_at > 10000:
-				_switch_banner_at = now_ms
-				zone.banner_requested.emit(text)
-		elif now < 2 and int(had[team]) == 2:
-			feed.emit("กิลด์ %s เสียสวิตช์ — บาเรียกลับมากันแท่น" % team_name(team), team)
+	if holder >= 0 and holder != was:
+		var text := "กิลด์ %s ยึดสวิตช์ได้! บาเรียเปิดให้กิลด์ %s" % [team_name(holder), team_name(holder)]
+		if was >= 0:
+			text = "กิลด์ %s ไล่กิลด์ %s ออกจากวงสวิตช์ — บาเรียเปิดให้กิลด์ %s" % [team_name(holder), team_name(was), team_name(holder)]
+		feed.emit(text, holder)
+		# The toast at most every 6 s (a switch fought over may change hands often).
+		var now_ms := Time.get_ticks_msec()
+		if now_ms - _switch_banner_at > 6000:
+			_switch_banner_at = now_ms
+			Game.say("กิลด์ %s ยึดสวิตช์ได้! บาเรียเปิดให้กิลด์ %s" % [team_name(holder), team_name(holder)], &"info")
+	elif holder < 0 and was >= 0:
+		feed.emit("กิลด์ %s ไม่เหลือใครในวงสวิตช์ — สวิตช์ว่าง บาเรียกลับมากันแท่น" % team_name(was), was)
+	elif holder >= 0 and switch_challenger >= 0 and was_challenger < 0:
+		var now_ms := Time.get_ticks_msec()
+		if now_ms - _switch_fight_at > 8000:
+			_switch_fight_at = now_ms
+			feed.emit("กิลด์ %s บุกวงสวิตช์! กิลด์ %s ยังถือสวิตช์อยู่ — ต้องไล่ออกจากวงให้หมด" % [team_name(switch_challenger), team_name(holder)], -1)
 	for c in commanders:
 		c.on_switch_change()
 
 
-## Who holds each switch, for the online status as a party member sees the war (ours or
-## not: 0 our guild, 1 any other): -1 nobody, -2 contested and held by nobody, 2 / 3
-## contested and still held by ours / another.
-func switch_codes() -> Array:
-	var out: Array = []
-	for k in switch_owner.size():
-		var o := switch_owner[k]
-		var seen := -1 if o < 0 else mini(o, 1)
-		out.append((2 + seen if seen >= 0 else -2) if switch_contested[k] else seen)
-	return out
+## Who holds the switch, for the online status as a party member sees the war (ours or not:
+## 0 our guild, 1 any other): -1 nobody, 0 / 1 held, 2 / 3 held and fought over.
+func switch_code() -> int:
+	if switch_owner < 0:
+		return -1
+	return mini(switch_owner, 1) + (2 if switch_contested else 0)
+
+
+## A member's war takes the switch from the leader's code (switch_code); an older leader's
+## two codes, one a switch: the left one's.
+func apply_switch_code(code: Variant) -> void:
+	if code is Array:
+		code = (code as Array)[0] if not (code as Array).is_empty() else -1
+	var n := clampi(int(code), -2, 3)
+	if n < 0:
+		_set_switch(-1)
+		return
+	var holder := n % 2
+	_set_switch(holder, (1 - holder) if n >= 2 else -1)
 
 
 ## How the HUD names a holding guild: เรา / ศัตรู in a war of two the hero fights, else its name.
@@ -2015,24 +2094,47 @@ func _holder_word(t: int) -> String:
 	return team_name(t)
 
 
-## The HUD's chip for switch `k`: its name and who holds it.
-func switch_text(k: int) -> String:
-	var label: String = SiegeArena.SWITCH_NAMES[k]
-	var holder := switch_owner[k] if switch_pin < 0 else switch_pin
-	if switch_contested[k] and switch_pin < 0:
-		if holder >= 0:
-			return "%s: %s (แย่งกัน)" % [label, _holder_word(holder)]
-		return "%s: แย่งกัน" % label
+## The HUD's chip for the switch: "สวิตช์: <guild>" (ว่าง when free), and the fight in
+## its circle.
+func switch_text() -> String:
+	var holder := switch_owner if switch_pin < 0 else switch_pin
 	if holder < 0:
-		return "%s: ว่าง" % label
-	return "%s: %s" % [label, _holder_word(holder)]
+		return "%s: ว่าง" % SiegeArena.SWITCH_NAME
+	if switch_contested and switch_pin < 0:
+		return "%s: %s · %s กำลังแย่ง" % [SiegeArena.SWITCH_NAME, _holder_word(holder), _holder_word(switch_challenger)]
+	return "%s: %s" % [SiegeArena.SWITCH_NAME, _holder_word(holder)]
 
 
-func switch_color(k: int) -> Color:
-	if switch_contested[k] and switch_pin < 0:
-		return CONTESTED_COLOR
-	var holder := switch_owner[k] if switch_pin < 0 else switch_pin
+## Who the barrier is open for: "บาเรียเปิดให้ <guild>", or shut with the switch free.
+func barrier_open_text() -> String:
+	var holder := switch_owner if switch_pin < 0 else switch_pin
+	if holder < 0:
+		return "บาเรียปิดแท่น"
+	return "บาเรียเปิดให้ %s" % _holder_word(holder)
+
+
+## The label over the switch in the world: the holder's name (and who is fighting it for
+## the switch), seen from the throne room's door and the spectator's camera.
+func switch_label() -> String:
+	var holder := switch_owner if switch_pin < 0 else switch_pin
+	if holder < 0:
+		return "%s: ว่าง" % SiegeArena.SWITCH_NAME
+	if switch_contested and switch_pin < 0:
+		return "%s ถือสวิตช์ · %s กำลังแย่ง" % [team_name(holder), team_name(switch_challenger)]
+	return "%s: %s\nบาเรียเปิดให้ %s" % [SiegeArena.SWITCH_NAME, team_name(holder), team_name(holder)]
+
+
+## The holder's colour (grey when free).
+func switch_color() -> Color:
+	var holder := switch_owner if switch_pin < 0 else switch_pin
 	return Color("c9c9c9") if holder < 0 else team_color(holder)
+
+
+## The barrier's warning for `team`'s leader: who to clear out of the switch's circle.
+func barrier_text(team: int) -> String:
+	if switch_owner >= 0 and switch_owner != team and switch_pin < 0:
+		return "บาเรียกันแท่นอยู่ — ต้องไล่กิลด์ %s ออกจากวงสวิตช์ก่อน" % team_name(switch_owner)
+	return BARRIER_TEXT
 
 
 ## The HUD's warning while our guild's leader waits behind the barrier ("" otherwise).
@@ -2040,67 +2142,77 @@ func barrier_line() -> String:
 	if state != "fight" or front_gate() != null or castle_owner == GuildFighter.TEAM_ALLY or not barrier_up(GuildFighter.TEAM_ALLY):
 		return ""
 	if not capture.is_empty() and int(capture.team) == GuildFighter.TEAM_ALLY and bool(capture.get("barrier", false)):
-		return BARRIER_TEXT
+		return barrier_text(GuildFighter.TEAM_ALLY)
 	var lead := leader_of(GuildFighter.TEAM_ALLY)
 	if not mirror and lead != null and is_instance_valid(lead) and not bool(lead.call("is_dead")) and SiegeArena.on_altar(lead.global_position):
-		return BARRIER_TEXT
+		return barrier_text(GuildFighter.TEAM_ALLY)
 	return ""
 
 
-## Sends the hero's party to hold switch `k` (pressed again: back to the guild's plan).
+## Sends the hero's party to hold the switch (pressed again: back to the guild's plan).
 ## Returns what to tell the player.
-func order_party_switch(k: int) -> String:
+func order_party_switch() -> String:
 	if mirror or state not in ["intro", "fight"]:
 		return ""
-	if party_switch == k:
-		party_switch = -1
-		_assign_objectives()
-		return "ปาร์ตี้กลับไปตามแผนกิลด์"
-	party_switch = clampi(k, 0, SiegeArena.SWITCHES.size() - 1)
+	party_switch = not party_switch
 	_assign_objectives()
-	return "สั่งปาร์ตี้ไปยืนยึด%s" % SiegeArena.SWITCH_NAMES[party_switch]
+	return "สั่งปาร์ตี้ไปยืนยึดสวิตช์" if party_switch else "ปาร์ตี้กลับไปตามแผนกิลด์"
 
 
-## The two switch pads (a glowing ring on the floor in the holder's colour, a stone post
-## with a lever and a glowing orb, the name over it) and the barrier dome over the altar.
+## The switch pad (a glowing ring on the floor in the holder's colour, a stone post with a
+## lever and a glowing orb, a tall light pillar and the holder's name over it) and the
+## barrier dome over the altar. Cheap: unshaded materials recoloured on a change, no light,
+## no particles.
 func _raise_switches() -> void:
 	if zone == null:
 		return
 	_switch_parts.clear()
 	var stone := MeshKit.toon(SiegeArena.STONE)
-	for k in SiegeArena.SWITCHES.size():
-		var root := Node3D.new()
-		root.name = "CastleSwitch%d" % k
-		root.position = SiegeArena.SWITCHES[k]
-		zone.add_child(root)
-		var floor_mat := StandardMaterial3D.new()
-		floor_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		floor_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		floor_mat.albedo_color = Color(1, 1, 1, 0.22)
-		var disc := MeshKit.part(root, MeshKit.cylinder(), MaterialKeeper.keep(floor_mat), Vector3(0, 0.08, 0), Vector3(SiegeArena.SWITCH_RADIUS * 2.0, 0.04, SiegeArena.SWITCH_RADIUS * 2.0))
-		disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var ring_mat := StandardMaterial3D.new()
-		ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		ring_mat.albedo_color = Color.WHITE
-		var ring := MeshKit.part(root, MeshKit.torus(), MaterialKeeper.keep(ring_mat), Vector3(0, 0.14, 0), Vector3(SiegeArena.SWITCH_RADIUS * 2.0 + 0.3, 0.3, SiegeArena.SWITCH_RADIUS * 2.0 + 0.3))
-		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# The post stands at the circle's back edge, against the wall side.
-		var post := Vector3(0, 0, -SiegeArena.SWITCH_RADIUS * 0.55)
-		MeshKit.part(root, MeshKit.cylinder(), stone, post + Vector3(0, 1.2, 0), Vector3(0.8, 2.4, 0.8))
-		MeshKit.part(root, MeshKit.box(), MeshKit.toon(SiegeArena.WOOD), post + Vector3(0.35, 2.6, 0), Vector3(0.18, 1.3, 0.18), Vector3(0, 0, -35))
-		var orb_mat := (MeshKit.toon(Color.WHITE, {"emission": 1.4}) as StandardMaterial3D).duplicate() as StandardMaterial3D
-		var orb := MeshKit.part(root, MeshKit.sphere_low(), orb_mat, post + Vector3(0, 2.75, 0), Vector3(0.75, 0.75, 0.75))
-		orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var tag := Label3D.new()
-		tag.text = SiegeArena.SWITCH_NAMES[k]
-		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		tag.pixel_size = 0.012
-		tag.font_size = 56
-		tag.outline_size = 14
-		tag.position = post + Vector3(0, 4.0, 0)
-		root.add_child(tag)
-		_switch_parts.append({"floor": floor_mat, "ring": ring_mat, "orb": orb_mat, "tag": tag})
-		_color_switch(k)
+	var root := Node3D.new()
+	root.name = "CastleSwitch"
+	root.position = SiegeArena.SWITCH
+	zone.add_child(root)
+	var floor_mat := StandardMaterial3D.new()
+	floor_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	floor_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	floor_mat.albedo_color = Color(1, 1, 1, 0.22)
+	var disc := MeshKit.part(root, MeshKit.cylinder(), MaterialKeeper.keep(floor_mat), Vector3(0, 0.08, 0), Vector3(SiegeArena.SWITCH_RADIUS * 2.0, 0.04, SiegeArena.SWITCH_RADIUS * 2.0))
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.albedo_color = Color.WHITE
+	var ring := MeshKit.part(root, MeshKit.torus(), MaterialKeeper.keep(ring_mat), Vector3(0, 0.14, 0), Vector3(SiegeArena.SWITCH_RADIUS * 2.0 + 0.3, 0.3, SiegeArena.SWITCH_RADIUS * 2.0 + 0.3))
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The post stands at the circle's edge on the wall side (west).
+	var post := Vector3(-SiegeArena.SWITCH_RADIUS * 0.55, 0, 0)
+	MeshKit.part(root, MeshKit.cylinder(), stone, post + Vector3(0, 1.2, 0), Vector3(0.8, 2.4, 0.8))
+	MeshKit.part(root, MeshKit.box(), MeshKit.toon(SiegeArena.WOOD), post + Vector3(0.35, 2.6, 0), Vector3(0.18, 1.3, 0.18), Vector3(0, 0, -35))
+	var orb_mat := (MeshKit.toon(Color.WHITE, {"emission": 1.4}) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	var orb := MeshKit.part(root, MeshKit.sphere_low(), orb_mat, post + Vector3(0, 2.75, 0), Vector3(0.75, 0.75, 0.75))
+	orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The light pillar: a tall see-through column in the holder's colour over the circle,
+	# seen over the fight from the door and from the spectator's camera.
+	var beam_mat := StandardMaterial3D.new()
+	beam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	beam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	beam_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	beam_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	beam_mat.albedo_color = Color(1, 1, 1, 0.08)
+	MaterialKeeper.keep(beam_mat)
+	var beam := MeshKit.part(root, MeshKit.cylinder(), beam_mat, Vector3(0, SWITCH_BEAM_H * 0.5, 0), Vector3(SiegeArena.SWITCH_RADIUS * 1.1, SWITCH_BEAM_H, SiegeArena.SWITCH_RADIUS * 1.1), Vector3.ZERO, "Beam")
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var tag := Label3D.new()
+	tag.name = "SwitchLabel"
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.pixel_size = 0.02
+	tag.font_size = 64
+	tag.outline_size = 18
+	tag.outline_modulate = Color(0, 0, 0, 0.85)
+	tag.no_depth_test = true
+	tag.position = Vector3(0, 6.5, 0)
+	root.add_child(tag)
+	_switch_parts = {"floor": floor_mat, "ring": ring_mat, "orb": orb_mat, "beam": beam_mat, "tag": tag}
+	_color_switch()
 	var holder := Node3D.new()
 	holder.name = "AltarBarrier"
 	holder.position = SiegeArena.ALTAR
@@ -2118,26 +2230,98 @@ func _raise_switches() -> void:
 	_show_barrier()
 
 
-func _color_switch(k: int) -> void:
-	if k >= _switch_parts.size():
+## The switch's colour on the ground, the orb, the light pillar and the label: the holder's,
+## neutral white when free (blended towards the challenger's while fought over, _pulse_switch).
+func _color_switch(blend := 0.0) -> void:
+	if _switch_parts.is_empty():
 		return
-	var parts := _switch_parts[k]
-	var held := switch_owner[k] >= 0 or switch_contested[k]
-	var color := switch_color(k) if held else Color("f2f2f2")
-	(parts.ring as StandardMaterial3D).albedo_color = color
-	(parts.floor as StandardMaterial3D).albedo_color = Color(color, 0.32 if held else 0.16)
-	(parts.orb as StandardMaterial3D).albedo_color = color
-	(parts.orb as StandardMaterial3D).emission = color
-	(parts.tag as Label3D).modulate = color.lerp(Color.WHITE, 0.3)
+	var held := switch_owner >= 0 or switch_pin >= 0
+	var color := switch_color() if held else Color("f2f2f2")
+	if blend > 0.0 and switch_challenger >= 0:
+		color = color.lerp(team_color(switch_challenger), blend)
+	(_switch_parts.ring as StandardMaterial3D).albedo_color = color
+	(_switch_parts.floor as StandardMaterial3D).albedo_color = Color(color, 0.42 if held else 0.16)
+	(_switch_parts.orb as StandardMaterial3D).albedo_color = color
+	(_switch_parts.orb as StandardMaterial3D).emission = color
+	(_switch_parts.beam as StandardMaterial3D).albedo_color = Color(color, 0.3 if held else 0.06)
+	var tag := _switch_parts.tag as Label3D
+	tag.text = switch_label()
+	tag.modulate = switch_color().lerp(Color.WHITE, 0.2) if held else Color("f2f2f2")
 
 
-## The dome over the altar stands unless some guild holds both switches.
+## The tallest the switch's floating label's line may look on screen (logical px).
+const SWITCH_LABEL_MAX_PX := 26.0
+const SWITCH_LABEL_PIXEL := 0.02
+## The lowest the label may sit (a share of the screen height): above the controls.
+const SWITCH_LABEL_LOW := 0.7
+
+
+## The switch's floating label stays a readable, capped size on screen (it shrinks as the
+## camera comes close instead of filling the view) and hides while it would sit in the
+## top band the guild war's board holds (GuildWarHud.top_band), in the toasts' lane under
+## it (ToastLayer.lane_bottom) or off the screen.
+func _fit_switch_label() -> void:
+	if _switch_parts.is_empty():
+		return
+	var tag := _switch_parts.tag as Label3D
+	if not is_instance_valid(tag) or not tag.is_inside_tree():
+		return
+	var cam := tag.get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var depth := -(cam.global_transform.affine_inverse() * tag.global_position).z
+	if depth <= 0.5:
+		tag.visible = false
+		return
+	var view := tag.get_viewport().get_visible_rect().size
+	var span := 2.0 * depth * tan(deg_to_rad(cam.fov) * 0.5)
+	tag.pixel_size = minf(SWITCH_LABEL_PIXEL, SWITCH_LABEL_MAX_PX * span / (view.y * float(tag.font_size)))
+	var line_px := float(tag.font_size) * tag.pixel_size / span * view.y
+	var p := cam.unproject_position(tag.global_position)
+	var top_px := p.y - line_px * 0.5 * float(tag.text.count("\n") + 1)
+	# Also clear of the bottom row of controls (joystick, chat, skills).
+	tag.visible = top_px > maxf(GuildWarHud.top_band, ToastLayer.lane_bottom) + 12.0 and p.y < view.y * SWITCH_LABEL_LOW and p.x > 0.0 and p.x < view.x
+
+
+## The switch's floating label now (tests): shown, its line's height and place on screen (px).
+func switch_label_screen() -> Dictionary:
+	if _switch_parts.is_empty():
+		return {}
+	var tag := _switch_parts.tag as Label3D
+	var cam := tag.get_viewport().get_camera_3d()
+	if cam == null:
+		return {"visible": tag.visible, "line_px": 0.0, "pos": Vector2.ZERO}
+	var depth := maxf(0.01, -(cam.global_transform.affine_inverse() * tag.global_position).z)
+	var px := float(tag.font_size) * tag.pixel_size / (2.0 * depth * tan(deg_to_rad(cam.fov) * 0.5)) * tag.get_viewport().get_visible_rect().size.y
+	return {"visible": tag.visible, "line_px": px, "pos": cam.unproject_position(tag.global_position)}
+
+
+## While the switch is fought over its circle flickers between the holder's colour and the
+## challenger's (a few materials recoloured, nothing else).
+func _pulse_switch(delta: float) -> void:
+	if not switch_contested or _switch_parts.is_empty():
+		return
+	_switch_pulse += delta
+	_color_switch(0.5 + 0.5 * sin(_switch_pulse * 7.0))
+
+
+## The switch's look now (tests): the ring's colour, the label's text and colour, the pillar's.
+func switch_look() -> Dictionary:
+	if _switch_parts.is_empty():
+		return {}
+	return {"ring": (_switch_parts.ring as StandardMaterial3D).albedo_color, "beam": (_switch_parts.beam as StandardMaterial3D).albedo_color,
+		"label": (_switch_parts.tag as Label3D).text, "label_color": (_switch_parts.tag as Label3D).modulate,
+		"barrier": _barrier_mat.albedo_color if _barrier_mat != null else Color.BLACK}
+
+
+## The dome over the altar: shut (pale blue) with the switch free, tinted the holder's
+## colour while it is open for that guild alone (it stays shut for everyone else).
 func _show_barrier() -> void:
-	if _barrier != null:
-		var up := true
-		for t in team_count():
-			up = up and barrier_up(t)
-		_barrier.visible = up
+	if _barrier == null or _barrier_mat == null:
+		return
+	var holder := switch_owner if switch_pin < 0 else switch_pin
+	_barrier_mat.albedo_color = BARRIER_COLOR if holder < 0 else Color(team_color(holder).lerp(Color.WHITE, 0.15), BARRIER_COLOR.a)
+	_barrier.visible = true
 
 
 ## The rival guild's leader among spawned fighters: the fighter named `leader_name` (the
@@ -2175,7 +2359,7 @@ func hero_can_capture() -> bool:
 
 
 ## True when the hero leads, stands on the altar with the gates down and could take it
-## but for the barrier (our guild does not hold both switches).
+## but for the barrier (our guild does not hold the switch).
 func hero_blocked_by_barrier() -> bool:
 	if mirror or not hero_leads() or state != "fight" or front_gate() != null or castle_owner == GuildFighter.TEAM_ALLY:
 		return false
@@ -2192,9 +2376,9 @@ func start_hero_capture() -> void:
 
 
 ## The leader taking the altar counts only while standing in the yellow circle with the
-## barrier down for its guild (it holds both switches). Off the circle, or with a switch
+## barrier down for its guild (it holds the switch). Off the circle, or with the switch
 ## lost (the barrier is back), the count waits where it was and goes on when the leader
-## steps back on / both switches are held again; the leader falling or leaving the throne
+## steps back on / the switch is held again; the leader falling or leaving the throne
 ## room starts it over. A paused count gives way to the other guild's leader on the circle
 ## with the barrier down for its own guild.
 func _tick_capture(delta: float) -> void:
@@ -2225,7 +2409,7 @@ func _tick_capture(delta: float) -> void:
 			feed.emit("%s ออกนอกวงสีเหลือง — หยุดนับไว้ที่ %d/%d วิ" % [_who_name(who), int(capture.progress), int(CAPTURE_TIME)], team)
 		if blocked and not bool(capture.get("barrier", false)):
 			capture["barrier"] = true
-			feed.emit("บาเรียกลับมากันแท่น! กิลด์ %s หยุดนับที่ %d/%d วิ — ต้องยึดสวิตช์ซ้ายและขวาให้ครบ" % [team_name(team), int(capture.progress), int(CAPTURE_TIME)], team)
+			feed.emit("บาเรียกลับมากันแท่น! กิลด์ %s หยุดนับที่ %d/%d วิ — %s" % [team_name(team), int(capture.progress), int(CAPTURE_TIME), ("ต้องไล่กิลด์ %s ออกจากวงสวิตช์ก่อน" % team_name(switch_owner)) if switch_owner >= 0 else "ต้องยึดสวิตช์คืน"], team)
 			if zone != null and is_instance_valid(zone):
 				VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.4, 0), Color(BARRIER_COLOR, 1.0), 5.0)
 		capture["paused"] = true
@@ -2367,7 +2551,7 @@ func capture_line() -> String:
 	var who := capturer()
 	var who_name := _who_name(who) if who != null else ""
 	if bool(capture.get("barrier", false)):
-		return "กิลด์ %s หยุดนับที่ %d/%d วิ — บาเรียกันแท่น ต้องยึดสวิตช์ซ้ายและขวาให้ครบ" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME)]
+		return "กิลด์ %s หยุดนับที่ %d/%d วิ — %s" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME), barrier_text(int(capture.team))]
 	if bool(capture.get("paused", false)):
 		return "กิลด์ %s หยุดนับที่ %d/%d วิ%s — กลับเข้าวงสีเหลืองเพื่อนับต่อ" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME), (" (%s)" % who_name) if who_name != "" else ""]
 	return "กิลด์ %s กำลังยึดแท่น%s %d/%d วิ" % [team_name(int(capture.team)), (" (%s)" % who_name) if who_name != "" else "", int(capture.progress), int(CAPTURE_TIME)]
@@ -2432,7 +2616,7 @@ func siege_status() -> String:
 	if not capture.is_empty():
 		parts.append("กิลด์ %s กำลังยึด %d/%d วิ" % [team_name(int(capture.team)), int(capture.progress), int(CAPTURE_TIME)])
 	if gate == null:
-		parts.append("%s · %s" % [switch_text(0), switch_text(1)])
+		parts.append("%s · %s" % [switch_text(), barrier_open_text()])
 	return " · ".join(parts)
 
 
@@ -2611,12 +2795,9 @@ func mirror_sync(ev: String, d: Dictionary) -> void:
 		capture = {"team": clampi(int(cp[0]), 0, 1), "who": null, "progress": float(cp[1]), "paused": bool(cp[2]), "barrier": (cp as Array).size() >= 4 and bool(cp[3])}
 	else:
 		capture = {}
-	# The switches as the leader reads them (switch_codes).
-	var sw: Variant = d.get("sw", [])
-	if sw is Array and (sw as Array).size() == SiegeArena.SWITCHES.size():
-		for k in (sw as Array).size():
-			var code := clampi(int(sw[k]), -2, 3)
-			_set_switch(k, code - 2 if code >= 2 else maxi(code, -1), code == -2 or code >= 2)
+	# The switch as the leader reads it (switch_code).
+	if d.has("sw"):
+		apply_switch_code(d.get("sw"))
 
 
 ## A mirrored fighter fell on the leader's side; the hero's blow counts as its kill.

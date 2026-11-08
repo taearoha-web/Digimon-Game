@@ -146,6 +146,12 @@ func _build_lobby() -> void:
 		go.text = "ต้องเลเวล %d ขึ้นไป (ตอนนี้ %d)" % [MIN_LEVEL, int(Game.profile.level)]
 	elif problem != "":
 		go.text = problem
+	elif GuildLeague.lobby_slot(t) >= 0:
+		# The waiting room (GuildWarMatch.lobby_until): in early, at the camp, until the bell.
+		var at := GuildLeague.lobby_slot(t)
+		go.text = "เข้าสู่สนาม (รอเริ่ม) · รอบ %s เริ่มใน %s" % [GuildLeague.clock_text(at), GuildLeague.until_text(at, t)]
+		go.add_theme_font_size_override("font_size", 28)
+		_pulse(go)
 	else:
 		var at := GuildLeague.live_slot(t)
 		go.text = "เข้าสู่สงคราม! รอบ %s · %d กิลด์ชิงปราสาท" % [GuildLeague.clock_text(at), GuildLeague.rivals_of(mine, at).size() + 1]
@@ -283,6 +289,15 @@ func _schedule_panel(box: VBoxContainer, t: float) -> void:
 	owner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	owner.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
 	col.add_child(owner)
+	# The deciding round: Sunday 21:30 counts double and crowns the Castle King.
+	var final_at := GuildLeague.final_slot(GuildLeague.week_of(t))
+	var final_rule := UIUtil.label("%s · รอบอาทิตย์ %s: แต้มอันดับและแต้มยึดปราสาท ×%d%s · ผู้ครองปราสาทหลังรอบนี้เป็น%s · แต้มรวมอันดับ 1 ของสัปดาห์เป็น%s" % [
+		GuildLeague.FINAL_TAG, GuildLeague.clock_text(final_at), GuildLeague.FINAL_MULT,
+		"" if GuildLeague.is_final(final_at) else " (เริ่มฤดูกาลหน้า)", GuildLeague.CASTLE_TITLE, GuildLeague.LEAGUE_TITLE], &"SmallLabel")
+	final_rule.name = "LeagueFinalRule"
+	final_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	final_rule.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR.lerp(Color.WHITE, 0.3))
+	col.add_child(final_rule)
 	# Today's rounds (and the one on now, which may have begun yesterday night).
 	var day := WorldEvents.day_of(t)
 	for r in GuildLeague.rounds_on(day):
@@ -302,6 +317,8 @@ func _round_row(at: int, t: float) -> Control:
 	for g in GuildLeague.guilds_at(at):
 		names.append(WorldPlayers.guild_name(g))
 	var text := "รอบ %s · %s" % [GuildLeague.clock_text(at), " · ".join(names)]
+	if GuildLeague.is_final(at):
+		text = "%s · %s" % [GuildLeague.FINAL_TAG, text]
 	var own := int(state.get("owner", 0))
 	if own > 0:
 		text += " (%s %s ครองปราสาท)" % [GuildLeague.CROWN, WorldPlayers.guild_name(own)]
@@ -387,6 +404,10 @@ const SPECTATE_PATH := "res://world/guild_war_spectate.gd"
 func watch(_a := 0, _b := 0) -> void:
 	var info := GuildLeague.live_round_info()
 	if info.is_empty():
+		var soon := GuildLeague.lobby_slot()
+		if soon >= 0:
+			Game.say("ยังไม่เริ่ม เริ่มใน %s" % GuildLeague.until_text(soon), &"warning")
+			return
 		Game.say("ไม่มีการแข่งขันให้ชมตอนนี้", &"warning")
 		return
 	if not ResourceLoader.exists(SPECTATE_PATH):

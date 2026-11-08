@@ -365,7 +365,7 @@ func _war_ally_leader() -> void:
 		if f != lead and k < 3:
 			f.global_position = lead.global_position + Vector3(2.0 + k, 0.3, 1.0)
 			k += 1
-	# Both switches held for us (pinned; castle_switch_test holds them for real).
+	# The switch held for us (pinned; castle_switch_test holds it for real).
 	m.switch_pin = GuildFighter.TEAM_ALLY
 	ours.tactic = GuildWarCommander.GATHER
 	ours.since = 1.0
@@ -383,7 +383,7 @@ func _war_ally_leader() -> void:
 	check(ours.tactic == GuildWarCommander.ESCORT and lead.capture_role, "ally leader: escorted to the altar once the way is clear (%s)" % ours.tactic)
 	check(m.allies.filter(func(f): return f.capture_role).size() == 1, "ally leader: only the leader is sent onto the altar")
 	var tanks := m.allies.filter(func(f): return f.role == GuildWarCommander.ROLE_TANK and f != lead)
-	check(tanks.all(func(f): return f.guard_node == lead or f.switch_post >= 0), "ally leader: our tanks guard it (but the ones holding a switch)")
+	check(tanks.all(func(f): return f.guard_node == lead or f.switch_post), "ally leader: our tanks guard it (but the ones holding the switch)")
 	var toasts: Array[String] = []
 	var listen := func(text: String, _kind: StringName): toasts.append(text)
 	Game.toast.connect(listen)

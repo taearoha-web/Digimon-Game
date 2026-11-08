@@ -1365,7 +1365,7 @@ func add_exp(amount: int) -> void:
 		return
 	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
 	# Halloween potion multiplies on top of it.
-	# The guild league champion's members earn GuildLeague.EXP_BONUS more for a week.
+	# The guild league Castle King's (ราชันปราสาท) members earn GuildLeague.EXP_BONUS more for a week.
 	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
@@ -3206,7 +3206,7 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
 const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3", "gw_r_la", "gw_r_lb",
-	"gw_r_g3", "gw_r_g4", "gw_r_n", "gw_r_lg0", "gw_r_lg1", "gw_r_lg2", "gw_r_lg3", "gw_r_s0", "gw_r_s1", "gw_r_s2", "gw_r_s3"]
+	"gw_r_g3", "gw_r_g4", "gw_r_n", "gw_r_lg0", "gw_r_lg1", "gw_r_lg2", "gw_r_lg3", "gw_r_s0", "gw_r_s1", "gw_r_s2", "gw_r_s3", "gw_r_sw", "gw_r_sw0", "gw_r_sw1"]
 ## A war cut off (the page closed, the phone dropped it) can be rejoined for 10 minutes.
 const GW_CKPT_LIFETIME := 10 * 60
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
@@ -3235,6 +3235,8 @@ func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, s
 	# Saved flags are never negative: 0 nobody, team + 1 otherwise.
 	flags["gw_r_owner"] = clampi(int(siege.get("owner", -1)), -1, 3) + 1
 	flags["gw_r_n"] = clampi(int(siege.get("teams", 2)), 2, 4)
+	# The castle's switch: its holder + 1 (0 nobody).
+	flags["gw_r_sw"] = clampi(int(siege.get("switch", -1)), -1, 3) + 1
 	# The hero's party: roster index + 1 per pick (0 for an empty place).
 	var picks: Array = siege.get("picks", [])
 	flags["gw_r_pc"] = 1 if bool(siege.get("chosen", false)) else 0
@@ -3281,7 +3283,15 @@ func guildwar_checkpoint() -> Dictionary:
 			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0)),
 			"gates": _guildwar_saved_gates(flags), "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 4) - 1,
 			"chosen": int(flags.get("gw_r_pc", 0)) == 1, "picks": _guildwar_saved_picks(flags),
-			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags)}
+			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags), "switch": _guildwar_saved_switch(flags)}
+
+
+## The castle switch's holder in a checkpoint (-1 nobody); a checkpoint from the two
+## switches' days kept one a switch (gw_r_sw0 / gw_r_sw1): the first (left) one's.
+func _guildwar_saved_switch(flags: Dictionary) -> int:
+	if flags.has("gw_r_sw"):
+		return clampi(int(flags["gw_r_sw"]), 0, 4) - 1
+	return clampi(int(flags.get("gw_r_sw0", 0)), 0, 4) - 1
 
 
 ## The castle's gates in a checkpoint: one value a gate (GW_GATES), or, from a save before

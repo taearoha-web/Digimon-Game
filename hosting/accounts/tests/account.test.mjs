@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {handleAccountRequest, validateBundle} from '../server/accounts.js';
 import {D1Sqlite} from './d1-sqlite.mjs';
 
@@ -337,6 +338,23 @@ test('the weekly guild league record is accepted', async t => {
   for (const bad of [{...round, g1: 5}, {...round, held: 7}, {...round, own: -1}, {...round, k1: 1.5}, {...round, extra: 1}, (({c4, ...rest}) => rest)(round)]) {
     assert.throws(() => validateBundle(bundle({...sample(), league: {wars: [bad]}})), /guild league record/);
   }
+});
+
+test('the league emperor bonus season (emp_claimed) is accepted and checked like the other season numbers', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const league = {week: 2968, wars: [], prev_week: 2967, prev_wars: [], claimed: 2967, emp_claimed: 2967, ann: 2968};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), league, flags: {...(sample().flags ?? {}), lg_emperor: 1}})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), league: {week: 2968, emp_claimed: -1}})));
+  for (const bad of ['2967', 2967.5, -2, null, true]) {
+    assert.throws(() => validateBundle(bundle({...sample(), league: {week: 2968, emp_claimed: bad}})), /guild league record/);
+  }
+  // The game's GuildLeague.INT_KEYS and the server's list name the same keys.
+  const game = readFileSync(new URL('../../../data/guild_league.gd', import.meta.url), 'utf8');
+  const keys = JSON.parse(game.match(/const INT_KEYS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  for (const key of keys) assert.doesNotThrow(() => validateBundle(bundle({...sample(), league: {[key]: 1}})), key);
+  assert.ok(keys.includes('emp_claimed'));
 });
 
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {

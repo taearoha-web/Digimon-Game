@@ -518,7 +518,7 @@ func _on_npc(role: String) -> void:
 			if mine > 0:
 				choices.append({"label": "ภารกิจกิลด์ / ร้านแต้ม", "action": func(): guild_screen.open_quests()})
 				choices.append({"label": "ไปสงครามกิลด์", "action": func(): guildwar_screen.open_lobby()})
-			choices.append({"label": "ลีกกิลด์ / ร้านลับแชมป์" if GuildLeague.hero_champion() else "ลีกกิลด์รายสัปดาห์", "action": func(): guild_screen.open_league()})
+			choices.append({"label": "ลีกกิลด์ / ร้านลับราชันปราสาท" if GuildLeague.hero_champion() else "ลีกกิลด์รายสัปดาห์", "action": func(): guild_screen.open_league()})
 			choices.append({"label": "ไว้ก่อน"})
 			dialog.say("นายทะเบียนกิลด์", text, choices)
 		"tower":

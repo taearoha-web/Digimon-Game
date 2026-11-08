@@ -112,7 +112,7 @@ func _pin(f: GuildFighter, at: Vector3) -> void:
 func _free(f: GuildFighter) -> void:
 	f.capture_role = false
 	f.keep_back = false
-	f.switch_post = -1
+	f.switch_post = false
 	f.hold_range = 0.0
 	f.objective = null
 	f.focus = null
@@ -217,7 +217,7 @@ func _rules() -> void:
 		g.set_broken_quietly()
 	m._update_breakable()
 	m._assign_objectives()
-	var room := SiegeArena.SWITCHES[0] + Vector3(4.0, 0.3, 0)
+	var room := SiegeArena.SWITCH + Vector3(4.0, 0.3, 0)
 	a.global_position = room
 	r.global_position = room + Vector3(3.0, 0, 0)
 	h.global_position = room + Vector3(-30.0, 0, 0)

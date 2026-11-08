@@ -399,3 +399,7 @@ too_many_requests` with `Retry-After`.
   code then computed them (first writer wins), which froze the history from then on.
 - Native builds and moved world clocks (`TOON_WORLD_DAYS`, tests) never talk to the server.
   With a moved clock nothing is written to the file either.
+- Results are stored raw. The season's last round (Sunday 21:30, รอบชี้ขาด) counts its
+  placement and capture points ×2 from season `GuildLeague.FINAL_FROM_WEEK` on. HOLD and
+  falls count once. The game applies this when it scores a round (`GuildLeague.side_points`).
+  The server stores no multiplier and accepts none.

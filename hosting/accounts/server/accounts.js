@@ -254,8 +254,10 @@ function validateProfile(profile) {
 // The world's guilds: Alpha 1, Neverdie 2, Titan 3, 3DLnw 4 (WorldPlayers.GUILDS in the game).
 const GUILD_COUNT = 4;
 const GUILD_ID = /^[1-4]$/;
-// reg: the start (unix) of the league round the hero registered for; told: the round it was told about.
-const LEAGUE_INTS = new Set(['week', 'prev_week', 'claimed', 'ann', 'shop_week', 'reg', 'told']);
+// reg: the start (unix) of the league round the hero registered for; told: the round it was told about;
+// emp_claimed: the season whose emperor bonus (League Champion and Castle King both) was taken
+// (GuildLeague.INT_KEYS in the game: keep the two lists equal).
+const LEAGUE_INTS = new Set(['week', 'prev_week', 'claimed', 'emp_claimed', 'ann', 'shop_week', 'reg', 'told']);
 const LEAGUE_WAR_KEYS = ['at', 'a', 'b', 'win', 'ca', 'cb', 'held', 'ka', 'kb'];
 // A round of the four-guild war (GuildLeague.ROUND_KEYS): its guilds g1-g4 (0 for none),
 // falls k1-k4, captures c1-c4, the holder at the bell and the holder it began with.
