@@ -1136,7 +1136,7 @@ static func _find_last_seen(i: int, t: float) -> float:
 ## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
 ## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
-	var home := hunting_zone(level, stars, divine)
+	var home := session_zone(i, s0, level, stars)
 	if not divine or stars < Game.PARAGON_MAX:
 		return {"place": home, "doing": "hunt"}
 	var rng := RandomNumberGenerator.new()
@@ -1147,6 +1147,17 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 	if roll < 0.75:
 		return {"place": StarProgression.REGIONS[rng.randi() % StarProgression.REGIONS.size()], "doing": "help"}
 	return {"place": &"town", "doing": "stall"}
+
+
+## The field player i hunts in during the session that started at real time s0: the
+## field that fits it (hunting_zone); from ★200 the drowned abyss or the lotus sanctum,
+## the two endgame maps with the same drops and monster band, a session each by turns of
+## its own (WorldGear's drops are the same in either).
+static func session_zone(i: int, s0: float, level: int, stars: int) -> StringName:
+	var home := hunting_zone(level, stars)
+	if home == DrownedAbyssData.ID and hash("map|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 2 == 1:
+		return DivineRegionData.ID
+	return home
 
 
 ## The field a player hunts in: the one whose levels fit, then the star fields by stars,

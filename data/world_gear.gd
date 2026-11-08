@@ -39,8 +39,8 @@ extends RefCounted
 
 ## The chunk grid: CHUNK_GROWTH of the work so far, CHUNK_MIN..CHUNK_MAX probe minutes.
 const CHUNK_MIN := 2.5
-const CHUNK_MAX := 60.0
-const CHUNK_GROWTH := 0.05
+const CHUNK_MAX := 120.0
+const CHUNK_GROWTH := 0.1
 ## Kills per probe minute of auto-hunting (pace_probe, warrior, 40 s a sample: Lv.5
 ## meadow 16.5, Lv.20 desert 42, Lv.60 swamp 46.5, Lv.90 abyss 39, ★30 dawn forest 9,
 ## ★120 sky citadel 6, ★200 drowned abyss 1.5): by level in the levelling fields, by
@@ -120,6 +120,40 @@ static func last_event(i: int, t: float, kind: String, within: float) -> Diction
 		if String(list[k].kind) == kind:
 			return list[k]
 	return {}
+
+
+## Brings the players' simulations up to real time t, one chunk at a time, for at most
+## `budget` microseconds (WorldPresence calls it each frame): reads after it are a
+## look-up. True once everyone is up to date.
+static func warm(t: float, budget: int) -> bool:
+	var start := Time.get_ticks_usec()
+	var n := WorldPlayers.size()
+	if n <= 0:
+		return true
+	# A few players a call (their work read is not free either), round the world.
+	for k in mini(n, WARM_PLAYERS):
+		var i := (_warm_next + k) % n
+		var w := WorldPlayers.work_at(i, t)
+		var sim: Sim = _sims.get(i)
+		if sim == null:
+			sim = _new_sim(i)
+			_sims[i] = sim
+		while _edge(sim.chunks) < w:
+			_run_chunk(i, sim, sim.chunks)
+			sim.chunks += 1
+			if Time.get_ticks_usec() - start > budget:
+				_warm_next = i
+				return false
+		if Time.get_ticks_usec() - start > budget:
+			_warm_next = (i + 1) % n
+			return false
+	_warm_next = (_warm_next + mini(n, WARM_PLAYERS)) % n
+	return true
+
+
+static var _warm_next := 0
+## Players warm() looks at in one call.
+const WARM_PLAYERS := 3
 
 
 # --- Reading the state ---------------------------------------------------------------
@@ -327,6 +361,7 @@ class Sim:
 ## The fixed chunk grid: edges[c] is where chunk c starts (narrow while levelling, wider
 ## later: CHUNK_GROWTH of the work so far, CHUNK_MIN..CHUNK_MAX probe minutes).
 static var _edges := PackedFloat64Array([0.0])
+static var _mount_drops := PackedFloat64Array()
 
 
 static func _edge(c: int) -> float:
@@ -451,8 +486,8 @@ static func _count(rng: RandomNumberGenerator, mean: float) -> int:
 
 static func _emit(sim: Sim, w: float, kind: String, slot: String, from: int, to: int, item: String, extra := {}) -> void:
 	var ev := {"w": w, "kind": kind, "slot": slot, "from": from, "to": to, "item": item}
-	if not extra.is_empty():
-		ev.merge(extra)
+	for key in extra:
+		ev[key] = extra[key]
 	_apply(sim.live, ev)
 	sim.works.append(w)
 	sim.events.append(ev)
@@ -590,9 +625,13 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 				if stars >= int(StarProgression.ENTRY[k]):
 					field_star = int(StarProgression.ENTRY[k])
 		sim.feather += _count(rng, kills * ItemData.feather_chance(field_star))
-	for k in MountData.ORDER.size():
-		sim.mats[k] += _count(rng, kills * float(MountData.info(MountData.ORDER[k]).drop))
-	at = maxf(at, w0 + (w1 - w0) * 0.6)
+	if _mount_drops.is_empty():
+		for id in MountData.ORDER:
+			_mount_drops.append(float(MountData.info(id).drop))
+	for k in _mount_drops.size():
+		sim.mats[k] += _count(rng, kills * _mount_drops[k])
+	at = maxf(at, w0 + (w1 - w0) * 0.05)
+	var e0 := sim.events.size()
 	# More divine pieces of its own class once the set's hours are done (a forged one
 	# is made good this way): DIVINE_DROP a kill, its own class's at OWN_CLASS_DROP.
 	if endgame and w0 >= sim.divine_done:
@@ -618,6 +657,13 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 				else:
 					_emit(sim, at, "wings_up", "wings", 0, 1, "", {"key": key})
 	_forge(sim, at, level, stars)
+	# What the kills brought is picked up and forged bit by bit over the stretch: its
+	# events are spread evenly after the finds (their order kept).
+	var count := sim.events.size() - e0
+	for k in count:
+		var ws := at + (w1 - at) * float(k + 1) / float(count + 1)
+		sim.events[e0 + k].w = ws
+		sim.works[e0 + k] = ws
 
 
 ## The slot the next 250★ set piece is for ("" when the set is done or not open yet).

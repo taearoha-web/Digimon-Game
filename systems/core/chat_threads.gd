@@ -278,7 +278,8 @@ static func my_vars(n: Dictionary) -> Dictionary:
 
 ## Game knowledge from the game's own constants, for the lines that state a rule.
 static func rule_vars(t: float) -> Dictionary:
-	var abyss_mobs: Array = DrownedAbyssData.MONSTERS.keys()
+	# Its everyday monsters (the boss is named only by who hunts there).
+	var abyss_mobs: Array = DrownedAbyssData.NORMALS
 	return {
 		"%abyss": DrownedAbyssData.TITLE,
 		"%abyssstar": str(DrownedAbyssData.ENTRY_STAR),
@@ -443,7 +444,10 @@ static func thread_vars(s: Dictionary, rng: RandomNumberGenerator, ctx := {}, n 
 	var level := int(s.get("level", 1))
 	var stars := int(s.get("stars", 0)) if level >= Game.MAX_LEVEL else 0
 	ZoneData.ensure()
-	var field_id := WorldPlayers.hunting_zone(level, stars)
+	# The field it is in (from ★200 the abyss or the sanctum, a session each), else the
+	# one that fits it.
+	var here := StringName(s.get("place", ""))
+	var field_id := here if here != &"" and here != &"town" else WorldPlayers.hunting_zone(level, stars)
 	var field: Dictionary = ZoneData.get_zone(field_id)
 	var boss := ""
 	var respawn := 0.0

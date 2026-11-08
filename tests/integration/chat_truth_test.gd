@@ -318,7 +318,8 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 	if ctx.has("opener") and String(ctx.get("topic", "")) == "boss":
 		for m in (_rx.respawn as RegEx).search_all(text):
 			var o: Dictionary = ctx.opener
-			var z: Dictionary = ZoneData.get_zone(WorldPlayers.hunting_zone(int(o.level), int(o.stars) if int(o.level) >= Game.MAX_LEVEL else 0))
+			var here := StringName(o.get("place", ""))
+			var z: Dictionary = ZoneData.get_zone(here if here != &"" and here != &"town" else WorldPlayers.hunting_zone(int(o.level), int(o.stars) if int(o.level) >= Game.MAX_LEVEL else 0))
 			check(int(m.get_string(1)) == maxi(1, int(round(float(z.boss.get("respawn", 0.0)) / 60.0))), "the boss respawn is the field's (%s)" % tag)
 	# Names: fields and bosses (its own), finds / mounts / wings after a claim verb.
 	var rest := text
@@ -338,7 +339,9 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 			for verb in VERBS:
 				if text.contains(String(verb) + String(name)) and not text.contains("ใคร" + String(verb) + String(name)) and not text.contains("ถ้า" + String(verb)):
 					_count("drop" if verb in ["ได้", "ดรอป"] else "named")
-					check(facts.any(func(f): return (f.named as Dictionary).has(String(name))), "%s really has %s (%s)" % [who, name, tag])
+					# A name may be the start of a longer one ("ปีกอาร์เคน" of "ปีกอาร์เคน แห่งตำนาน"):
+					# the speaker's own longer name said in full counts.
+					check(facts.any(func(f): return (f.named as Dictionary).has(String(name)) or (f.named as Dictionary).keys().any(func(k): return String(k).begins_with(String(name)) and text.contains(String(verb) + String(k)))), "%s really has %s (%s)" % [who, name, tag])
 	for title in _gods:
 		if text.contains("เป็น" + String(title)):
 			check(bool(me.god) and _gods[title] == me["class"], "only a God says it is %s (%s)" % [title, tag])

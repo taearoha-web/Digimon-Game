@@ -492,7 +492,8 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 	rep["%guildlv"] = str(Game.GUILD_LEVEL)
 	rep["%maxlv"] = str(Game.MAX_LEVEL)
 	rep["%restock"] = str(int(StallStock.RESTOCK / 3600.0))
-	rep["%field"] = String(ZoneData.get_zone(WorldPlayers.hunting_zone(level, stars)).get("name", "สนาม"))
+	var field_id := place if place != &"" and place != &"town" else WorldPlayers.hunting_zone(level, stars)
+	rep["%field"] = String(ZoneData.get_zone(field_id).get("name", "สนาม"))
 	rep["%job"] = String(ClassData.get_class_data(StringName(s.get("class", ClassData.START))).get("name", ""))
 	if leader >= 0 and leader < WorldPlayers.size():
 		rep["%leader"] = String(WorldPlayers.entry(leader).name)

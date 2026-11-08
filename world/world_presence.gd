@@ -185,6 +185,10 @@ func _on_channel_line(channel: String, _speaker: String, _text: String, _color: 
 		_party_said_at = chat_clock()
 
 
+## Microseconds a frame may spend bringing the world players' gear up to now.
+const WARM_USEC := 1500
+
+
 func _process(delta: float) -> void:
 	if zone == null or not zone.is_built:
 		return
@@ -205,6 +209,9 @@ func _process(delta: float) -> void:
 			_snap_in = WP_SNAP_EVERY
 			send_snapshot()
 	chat_tick(delta)
+	# The world players' forging is worked out a little each frame (WorldGear.warm), so
+	# no read of their gear ever has to work out a whole life at once.
+	WorldGear.warm(clock(), WARM_USEC)
 
 
 ## The chat's clockwork, each frame: the lines of a conversation that are due, and the
