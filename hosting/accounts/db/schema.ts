@@ -39,3 +39,11 @@ export const toonRateLimits = sqliteTable('toon_rate_limits', {
   count: integer('count').notNull(),
   expiresAt: integer('expires_at').notNull(),
 }, table => [index('toon_rate_limits_expiry').on(table.expiresAt), check('toon_rate_limits_count_check', sql`${table.count} > 0`)]);
+
+// The guild league's official round results (hosting/worker/league.mjs): one row a round;
+// the first result posted for an ended round wins and never changes.
+export const toonLeagueRounds = sqliteTable('toon_league_rounds', {
+  at: integer('at').primaryKey(),
+  result: text('result').notNull(),
+  createdAt: integer('created_at').notNull(),
+});

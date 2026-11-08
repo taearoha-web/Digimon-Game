@@ -104,6 +104,8 @@ func _build_lobby() -> void:
 	_countdown = null
 	# Back at the desk: no league war is on its way (enter_league sets one again).
 	Game.guildwar_league = {}
+	# The rounds' official results from the server (GuildLeague / LeagueRounds).
+	LeagueRounds.want_fetch()
 	var column := _fill()
 	var head := UIUtil.hbox(14)
 	column.add_child(head)

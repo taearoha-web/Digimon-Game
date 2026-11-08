@@ -1,12 +1,18 @@
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
+
+const DRIZZLE = new URL('../drizzle/', import.meta.url);
 
 /** Executes the production prepared SQL against SQLite, including atomic batch.
- * No query recognition / hand-written save behavior can hide CAS bugs here. */
+ * No query recognition / hand-written save behavior can hide CAS bugs here.
+ * Without an argument every migration in drizzle/ is applied in order (as
+ * `wrangler d1 migrations apply` does); with one, only that file. */
 export class D1Sqlite {
-  constructor(migration = new URL('../drizzle/0000_quick_turbo.sql', import.meta.url)) {
+  constructor(migration = null) {
     this.sqlite = new DatabaseSync(':memory:');
-    this.sqlite.exec(readFileSync(migration, 'utf8'));
+    const files = migration ? [migration]
+      : readdirSync(DRIZZLE).filter(name => name.endsWith('.sql')).sort().map(name => new URL(name, DRIZZLE));
+    for (const file of files) this.sqlite.exec(readFileSync(file, 'utf8'));
   }
 
   prepare(sql) { return new D1Statement(this, sql); }

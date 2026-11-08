@@ -244,9 +244,9 @@ func _line_up(w: int) -> void:
 func _live_result(w: int) -> void:
 	_hero(WorldPlayers.NEVERDIE, 300)
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 4, 2)
+	pin(float(at) + GuildWarData.DURATION + 600.0)
 	var own := GuildLeague.start_holder(at)
 	var sim := GuildLeague.sim_round(at, own)
-	pin(float(at) + GuildWarData.DURATION + 600.0)
 	var before := GuildLeague.round_state(at)
 	check(String(before.state) == "done" and before.war == sim and not bool(before.get("real", false)), "without the hero the seeded result stands")
 	# The hero fights it (Neverdie first): its live result takes the round's place.
@@ -267,6 +267,8 @@ func _live_result(w: int) -> void:
 
 func _table(w: int) -> void:
 	_hero(WorldPlayers.LNW, 300)
+	# The week over: all of its rounds count (a round not over is never counted).
+	pin(GuildLeague.week_end(w) + 60.0)
 	var rows := GuildLeague.table(w, [])
 	check(rows.size() == 4, "the table has the four guilds")
 	var gs: Array = rows.map(func(r): return int(r.g))

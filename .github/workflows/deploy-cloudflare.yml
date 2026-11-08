@@ -8,6 +8,9 @@ name: Deploy to Cloudflare (game + accounts)
 #   CHAT_MODEL             (repository variable, not a secret) model id; default claude-opus-5-5
 # Online play (/api/online/*) runs in the WorldRoom Durable Object (SQLite backed, works on
 # the Workers Free plan); its binding and migration come from wrangler.example.jsonc.
+# The guild league's official round results (/api/league/*) live in the D1 table
+# toon_league_rounds, created by hosting/accounts/drizzle/0001_league_rounds.sql in the
+# "Apply database migrations" step below (keep apply_migrations on for that first deploy).
 # See hosting/CLOUDFLARE_TH.md for the step-by-step guide.
 on:
   workflow_dispatch:
@@ -71,10 +74,11 @@ jobs:
       - name: AI chat tests
         working-directory: hosting/worker
         run: node tests/chat.test.mjs
-      - name: Online play tests (room logic, WorldRoom Durable Object, /api/online routes; then the real Worker under wrangler dev with a local D1)
+      - name: Online play tests (room logic, WorldRoom Durable Object, /api/online routes, /api/league official round results; then the real Worker under wrangler dev with a local D1)
         working-directory: hosting/worker
         run: |
           node tests/online.test.mjs
+          node tests/league.test.mjs
           node tests/online_e2e.mjs
       - name: Check the Cloudflare token and account
         working-directory: hosting/worker
@@ -118,7 +122,7 @@ jobs:
         if: ${{ inputs.apply_migrations }}
         working-directory: hosting/worker
         run: npx wrangler d1 migrations apply "$DB_NAME" --remote
-      - name: Deploy the Worker (game + /api/account/* + /api/online/* with the WorldRoom Durable Object)
+      - name: Deploy the Worker (game + /api/account/* + /api/online/* with the WorldRoom Durable Object + /api/league/*)
         working-directory: hosting/worker
         run: |
           npx wrangler deploy 2>&1 | tee /tmp/deploy.log
@@ -155,6 +159,10 @@ jobs:
           online=$(curl -s "$SITE_URL/api/online/status")
           echo "GET /api/online/status -> $online"
           echo "$online" | grep -qE '^\{"online":[0-9]+\}$' || { echo "::error::The online play endpoint did not answer {\"online\":<count>} (durable_objects binding WORLD / class WorldRoom and its migration in hosting/worker/wrangler.example.jsonc)"; exit 1; }
+          # Guild league official results: the toon_league_rounds table (D1 migration 0001_league_rounds).
+          league=$(curl -s "$SITE_URL/api/league/rounds?from=0&to=1")
+          echo "GET /api/league/rounds -> $league"
+          echo "$league" | grep -qE '^\{"rounds":\[\],"now":[0-9]+\}$' || { echo "::error::The league results endpoint did not answer {\"rounds\":[],\"now\":<unix>} (is migration 0001_league_rounds applied? Run with apply_migrations on)"; exit 1; }
           # Offline web app: the service worker must always be fetched fresh, as JavaScript.
           sw=$(curl -s -D - -o /tmp/sw.js "$SITE_URL/sw.js")
           echo "GET /sw.js ->"; echo "$sw" | grep -iE '^(HTTP|cache-control|content-type)' || true
