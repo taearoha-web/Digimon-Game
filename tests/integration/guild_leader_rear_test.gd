@@ -7,15 +7,24 @@ extends Node
 ## AI-led guilds (ours led by a picked member, the hero held still in its camp) fight for
 ## the throne room with every gate down; the leader's distance to the altar is sampled
 ## against its guild's members, leader falls and the capture are counted.
-## SIM_SEEDS="4242,77,9001" SIM_SECONDS=420 for a longer measurement (defaults: one seed,
-## 90 s of war a setup).
+## The war runs at SPEED (SIM_SPEED=1 for real speed). SIM_SEEDS="4242,77,9001" SIM_OWNER=-1 SIM_SECONDS=420
+## for a longer measurement (every seed with every owner given; defaults: SETUPS, 90 s of
+## war each), SIM_SPEED=4 to run it faster, SIM_TRACE=1 (2: every sample of the assault).
 ## godot --headless --path . res://tests/integration/guild_leader_rear_test.tscn
 var failures: Array[String] = []
 var checks := 0
 
-const SEEDS := [4242]
+## [seed, castle owner] of each war: nobody holding it twice, the rival holding it once.
+const SETUPS := [[4242, -1], [4242, 1], [2024, -1]]
 ## War seconds (the clock once counted Engine.time_scale twice: its "360" were 90).
 const SECONDS := 90.0
+## War seconds between two samples.
+const SAMPLE_EVERY := 0.25
+## Engine.time_scale of the war (SIM_SPEED). The fighters' cast, swing and animation locks
+## run on GameClock (game time), so a faster war is the same fight as real speed (on the
+## wall clock, at 4x, the leaders looked behind on one machine and not on another);
+## measured three at a time, the escort share at 1x 77-84%, at 4x 68-83%.
+const SPEED := 2.0
 
 
 func check(ok: bool, message: String) -> void:
@@ -39,19 +48,22 @@ func _ready() -> void:
 	Game.profile.adv = 4
 	Game.profile["paragon"] = {"level": 200, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(200)}
 	Game.profile.hp = Game.stats_now().max_hp
-	var seeds: Array = SEEDS
+	var setups: Array = SETUPS
 	var env_seeds := OS.get_environment("SIM_SEEDS")
-	if env_seeds != "":
-		seeds = Array(env_seeds.split(",")).map(func(x): return int(x))
+	var owner_env := OS.get_environment("SIM_OWNER")
+	if env_seeds != "" or owner_env != "":
+		var seeds: Array = Array(env_seeds.split(",")).map(func(x): return int(x)) if env_seeds != "" else [4242]
+		var owners: Array = [-1, 1] if owner_env == "" else [int(owner_env)]
+		setups = []
+		for sd in seeds:
+			for owner in owners:
+				setups.append([sd, owner])
 	var seconds := SECONDS
 	if OS.get_environment("SIM_SECONDS") != "":
 		seconds = float(OS.get_environment("SIM_SECONDS"))
-	var owner_env := OS.get_environment("SIM_OWNER")
-	var owners: Array = [-1, 1] if owner_env == "" else [int(owner_env)]
 	var all: Array = []
-	for s in seeds:
-		for owner in owners:
-			all.append(await _war(int(s), int(owner), seconds))
+	for setup in setups:
+		all.append(await _war(int(setup[0]), int(setup[1]), seconds))
 	_judge(all)
 	print("GUILD LEADER REAR: %d checks, %d failures" % [checks, failures.size()])
 	if failures.is_empty():
@@ -67,7 +79,7 @@ static func _flat(a: Vector3, b: Vector3) -> float:
 ## for `seconds` of war time or until the castle changes hands.
 func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 	Game.current_zone = &"guildwar"
-	Game.guildwar_save_checkpoint(seed, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0], "owner": owner})
+	Game.guildwar_save_checkpoint(seed, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": owner})
 	Game.guildwar_resuming = true
 	Game.profile.hp = Game.stats_now().max_hp
 	var zone := Zone.new()
@@ -118,7 +130,10 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 	var sample_left := 0.0
 	var start_owner := m.castle_owner
 	var t0 := Time.get_ticks_msec()
-	Engine.time_scale = 4.0
+	var speed := SPEED
+	if OS.get_environment("SIM_SPEED") != "":
+		speed = float(OS.get_environment("SIM_SPEED"))
+	Engine.time_scale = speed
 	while clock < seconds and Time.get_ticks_msec() - t0 < 600000:
 		await get_tree().physics_frame
 		# The physics step already counts Engine.time_scale: war seconds.
@@ -146,7 +161,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 		sample_left -= dt
 		if sample_left > 0.0:
 			continue
-		sample_left = 0.5
+		sample_left = SAMPLE_EVERY
 		if OS.get_environment("SIM_TRACE") != "" and int(clock * 2.0) % 40 == 0:
 			var secs := []
 			for team in 2:
@@ -164,12 +179,14 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 				continue
 			var lead: GuildFighter = leads[team]
 			var c: GuildWarCommander = m.commanders[team]
-			if lead.is_dead() or lead.capture_role or lead.capturing:
+			# Sent up (leader_go): the guild cleared the way and the leader now walks onto
+			# the altar on purpose, so it is no longer "not yet sent".
+			if lead.is_dead() or lead.capture_role or lead.capturing or c.leader_go:
 				continue
 			var goal := Vector3.INF
 			var gate := m.front_gate()
 			if gate != null and c.tactic == GuildWarCommander.PUSH:
-				goal = SiegeArena.gate_front(gate.gate_index)
+				goal = SiegeArena.gate_front(gate.tier, gate.lane)
 			elif gate == null and c.tactic == GuildWarCommander.SECURE and c.secure_k >= 0:
 				goal = SiegeArena.SWITCHES[c.secure_k]
 			elif gate == null and c.tactic in [GuildWarCommander.ESCORT, GuildWarCommander.GUARD]:
@@ -179,7 +196,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			var dists: Array[float] = []
 			var side: Array[GuildFighter] = m.allies if team == 0 else m.enemies
 			for f in side:
-				if f == lead or f.is_dead() or f.switch_post >= 0 or _flat(f.global_position, lead.global_position) > 45.0:
+				if f == lead or f.is_dead() or f.switch_post >= 0 or f.is_retreating() or _flat(f.global_position, lead.global_position) > 45.0:
 					continue
 				dists.append(_flat(f.global_position, goal))
 			if dists.size() < 2:
@@ -193,6 +210,10 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			if _flat(lead.global_position, goal) > median:
 				behind[team] += 1
 				row[0] += 1
+			if OS.get_environment("SIM_TRACE") == "2" and key == GuildWarCommander.ESCORT:
+				# Each sample of the assault: behind (B) or ahead (A), the leader's and its
+				# post's distance to the altar, the members' round it.
+				print("  ESC t%d %s lead %.1f post %s cover %s hp %.2f | %s | switches %d" % [team, "B" if _flat(lead.global_position, goal) > median else "A", _flat(lead.global_position, goal), (str(snappedf(_flat(c.leader_post, goal), 0.1)) if c.leader_post.is_finite() else "INF"), c.leader_covering, lead.hp_ratio(), dists.map(func(x): return snappedf(x, 0.1)), m.switches_held(team)])
 			by_phase[key] = row
 	Engine.time_scale = 1.0
 	out.merge({"clock": clock, "lead_deaths": lead_deaths, "first_lead_death": first_lead_death, "before_lead": before_lead,
@@ -236,7 +257,9 @@ func _judge(all: Array) -> void:
 	# the bars leave room): the leader behind most of its guild in most of the assault,
 	# and falling far less often than its members.
 	var escort: Array = phases.get(GuildWarCommander.ESCORT, [0, 0])
-	check(samples >= 100, "the leaders were seen in the assault (%d samples)" % samples)
+	# A sample every SAMPLE_EVERY s: 50 s of the assault seen, 12.5 s of it on the altar.
+	check(samples >= 200, "the leaders were seen in the assault (%d samples)" % samples)
 	check(share >= 0.55, "the attacking leader stands behind most of its guild (%.0f%% of the time, before: about 25%%)" % (share * 100.0))
-	check(int(escort[1]) >= 50 and float(escort[0]) >= float(escort[1]) * 0.55, "in the assault on the altar the members go in first and the leader follows (%s)" % [escort])
+	check(int(escort[1]) >= 50, "the assault on the altar was seen long enough (%d samples)" % int(escort[1]))
+	check(float(escort[0]) >= float(escort[1]) * 0.55, "in the assault on the altar the members go in first and the leader follows (%s, before: 25-45%% at real speed)" % [escort])
 	check(falls * 4 <= member_falls + 2, "the leaders fall far less often than their members (%d against %d)" % [falls, member_falls])

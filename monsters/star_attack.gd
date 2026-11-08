@@ -64,7 +64,7 @@ func _ready() -> void:
 		for spot in points: circles.append([spot, radius, contact])
 		EntitySync.cast(mob, circles)
 	mob.visual.action("attack",int(end*1000.0))
-	mob._anim_lock=Time.get_ticks_msec()+int(end*1000.0)
+	mob._anim_lock=GameClock.msec()+int(end*1000.0)
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(mob) or mob.is_dead() or mob._stun>0.0 or mob._returning:

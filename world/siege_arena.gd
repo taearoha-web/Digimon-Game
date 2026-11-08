@@ -1,42 +1,65 @@
 class_name SiegeArena
 extends RefCounted
 ## The guild war's battlefield: a castle siege in the grand style of the great Japanese
-## castles. Each guild camps at one end of a wide field behind its own war curtains (the
-## hero's guild on the left, x < 0), the two meet on the plaza in the middle, and north of
-## it a stone bridge crosses the moat to the castle: a curtain of dressed-stone walls
-## (ishigaki: courses of blocks leaning back as they rise) under white plastered parapets
-## with loopholes and tiled caps, turrets along the walls and over every gate, and behind
-## it all the five-storey keep on its own great stone base, flanked by two lesser keeps.
-## Three gates stand one behind the other in the castle's long hall (GATE_Z); behind the
-## third is the throne room with the altar a guild must hold for a minute to take the
-## castle. The ground is flat: the moat and the walls are colliders, and fighters find
-## their way along the sections (route): the field, the bridge, the two yards and the
-## throne room, joined at the bridge foot and the three gates. The castle's banners take
-## the colour of the guild that holds it (the match recolours the BANNER_META material).
+## castles. Up to four guilds camp round a wide field behind their own war curtains (CAMPS:
+## west, east, south-west and south-east, each CAMP_DIST from the castle's approach, so no
+## guild is nearer than another), meet on the plaza and cross the wide stone bridge over the
+## moat to the castle: a curtain of dressed-stone walls (ishigaki: courses of blocks
+## leaning back as they rise) under white plastered parapets with loopholes and tiled caps,
+## turrets along the walls and over every gate, and behind it all the five-storey keep on
+## its own great stone base, flanked by two lesser keeps.
+## Three tiers of gates stand one behind the other in the castle's long hall (GATE_Z): the
+## first two tiers have TWO gates each, a left and a right one (LANE_X), and either of them
+## broken lets everyone through to the next tier; the third tier is one gate, the throne
+## room's. Behind it is the altar a guild must hold to take the castle. The ground is flat:
+## the moat and the walls are colliders, and fighters find their way along the sections
+## (route): the field, the bridge, the two yards and the throne room, joined at the bridge
+## foot and the gates (lane_open says which of a doubled tier's gates are already broken,
+## the match keeps it). The castle's banners take the colour of the guild that holds it
+## (the match recolours the BANNER_META material).
 
 ## Play radius (the boundary walls).
-const RADIUS := 78.0
-## The two camps: ours at (-BASE_X, BASE_Z), theirs at (BASE_X, BASE_Z).
-const BASE_X := 56.0
-const BASE_Z := 16.0
+const RADIUS := 124.0
+## The castle's approach: the middle of the bridge foot, where every camp's way meets.
+const APPROACH := Vector3(0, 0, -4.0)
+## The four camps (team 0 west, 1 east, 2 south-west, 3 south-east), each CAMP_DIST from
+## APPROACH on a fan 48 degrees apart (162, 18, 114 and 66 degrees, z to the south). A war
+## of two uses the first two (west and east).
+const CAMP_DIST := 88.0
+const CAMPS: Array[Vector3] = [Vector3(-83.7, 0, 23.2), Vector3(83.7, 0, 23.2), Vector3(-35.8, 0, 76.4), Vector3(35.8, 0, 76.4)]
+## The first two camps (kept for older callers: ours at (-BASE_X, BASE_Z), theirs at (BASE_X, BASE_Z)).
+const BASE_X := 83.7
+const BASE_Z := 23.2
 ## Inside this far from its camp a guild is safe from being chased (it heals there).
 const CAMP_RADIUS := 16.0
-## The plaza where the two guilds meet, south of the bridge.
-const PLAZA := Vector3(0, 0, 6.0)
+## The castle holder's camp inside the castle, in the second yard before the throne room's
+## gate: a guild that holds the castle lines up and comes back there (facing the way in,
+## rows of KEEP_ROW), and its own gates let it through (GuildWarMatch._gate_pass); from
+## there it is some thirty metres to the altar, so its fallen are not back on it at once.
+## Safe from being chased only this close.
+const KEEP_CAMP := Vector3(0, 0, -82.0)
+const KEEP_ROW := 10
+const KEEP_SAFE := 6.0
+## The plaza where the guilds meet, south of the bridge.
+const PLAZA := Vector3(0, 0, 8.0)
 ## The moat runs east-west between these z; the bridge crosses it at |x| < BRIDGE_HALF.
 const MOAT_SOUTH := -6.0
 const MOAT_NORTH := -14.0
-const BRIDGE_HALF := 5.5
+const BRIDGE_HALF := 21.0
 ## The castle hall (the two yards) is 2 * HALL_HALF wide; each gate opening 2 * GATE_HALF
-## wide, GATE_H high, the gates GATE_GAP apart. Past the third gate the throne room opens
-## out to 2 * THRONE_HALF wide and runs THRONE_DEPTH deep to the back wall.
-const HALL_HALF := 17.0
+## wide, GATE_H high, the tiers GATE_GAP apart. The first two tiers' gates stand at
+## x = -LANE_X and +LANE_X; the third tier's in the middle. Past the third the throne room
+## opens out to 2 * THRONE_HALF wide and runs THRONE_DEPTH deep to the back wall.
+const HALL_HALF := 27.0
 const GATE_HALF := 5.0
 const GATE_H := 8.0
-const GATE_GAP := 32.0
+const GATE_GAP := 36.0
+const LANE_X := 12.0
 const GATE_Z: Array[float] = [-18.0, -18.0 - GATE_GAP, -18.0 - GATE_GAP * 2.0]
-const THRONE_HALF := 34.0
-const THRONE_DEPTH := 44.0
+## Gates of each tier: two lanes on the first two, one on the third.
+const TIER_LANES: Array[int] = [2, 2, 1]
+const THRONE_HALF := 38.0
+const THRONE_DEPTH := 48.0
 const BACK_Z := -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH
 ## The stone base of the walls, then the plastered parapet on it.
 const STONE_H := 7.0
@@ -46,16 +69,26 @@ const WALL_H := STONE_H + PARAPET_H
 const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH * 0.5)
 const ALTAR_RADIUS := 2.8
 ## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา) in the throne room's back corners, left
-## (x < 0) and right. A guild holds a switch while someone of it stands inside the circle
-## and nobody of the other guild does; the altar's barrier falls for a guild only while it
-## holds both (GuildWarMatch.barrier_up), so its leader can take the altar.
-const SWITCHES: Array[Vector3] = [Vector3(-25.0, 0, BACK_Z + 9.0), Vector3(25.0, 0, BACK_Z + 9.0)]
+## (x < 0) and right. A guild holds a switch while more of it stands inside the circle than
+## of any other guild; the altar's barrier falls for a guild only while it holds both
+## (GuildWarMatch.barrier_up), so its leader can take the altar.
+const SWITCHES: Array[Vector3] = [Vector3(-28.0, 0, BACK_Z + 10.0), Vector3(28.0, 0, BACK_Z + 10.0)]
 const SWITCH_RADIUS := 3.2
 const SWITCH_NAMES: Array[String] = ["สวิตช์ซ้าย", "สวิตช์ขวา"]
-## Where the sections join: the bridge foot, then the three gates.
-const CONNECTORS: Array[Vector3] = [Vector3(0, 0, -4.0), Vector3(0, 0, -18.0), Vector3(0, 0, -18.0 - GATE_GAP), Vector3(0, 0, -18.0 - GATE_GAP * 2.0)]
+const LANE_NAMES: Array[String] = ["ซ้าย", "ขวา"]
+## Where the sections join, each a list of openings: the bridge foot (one per lane), the
+## first two tiers' two gates, the third tier's one.
+const CONNECTORS: Array = [
+	[Vector3(-LANE_X, 0, -4.0), Vector3(LANE_X, 0, -4.0)],
+	[Vector3(-LANE_X, 0, -18.0), Vector3(LANE_X, 0, -18.0)],
+	[Vector3(-LANE_X, 0, -18.0 - GATE_GAP), Vector3(LANE_X, 0, -18.0 - GATE_GAP)],
+	[Vector3(0, 0, -18.0 - GATE_GAP * 2.0)],
+]
 ## Zone meta holding the castle banners' shared material (recoloured for the castle's holder).
 const BANNER_META := "siege_banner_material"
+## Which of a doubled tier's gates are open (broken), [tier 0, tier 1] x [left, right]:
+## the way through goes by an open one. Set by GuildWarMatch (all shut when a war starts).
+static var lane_open: Array = [[false, false], [false, false]]
 
 const STONES: Array[Color] = [Color("a39f94"), Color("8f8b81"), Color("b3ada0"), Color("7d7a72"), Color("9c958a"), Color("c0b9aa")]
 const STONE := Color("a7a39a")
@@ -67,6 +100,25 @@ const WOOD := Color("4a2f20")
 const PAVING := Color("bdb6a4")
 const GOLD := Color("e8c050")
 const LOOPHOLE := Color("2b2622")
+
+
+## Where team `team`'s camp is (CAMPS; teams past the fourth wrap round).
+static func camp(team: int) -> Vector3:
+	return CAMPS[posmod(team, CAMPS.size())]
+
+
+## The way from a camp towards the castle's approach (flat, unit).
+static func camp_forward(team: int) -> Vector3:
+	var to := APPROACH - camp(team)
+	to.y = 0.0
+	return to.normalized()
+
+
+## The x of gate `lane` of tier `tier` (0 for the single gate of the third tier).
+static func gate_x(tier: int, lane: int) -> float:
+	if TIER_LANES[tier] < 2:
+		return 0.0
+	return -LANE_X if lane == 0 else LANE_X
 
 
 ## Which part of the battlefield a point is in: 0 field, 1 bridge, 2 first yard, 3 second
@@ -83,28 +135,62 @@ static func section(p: Vector3) -> int:
 	return 4
 
 
+## The opening of join `j` (CONNECTORS) to take from `from` on the way to `to`: of the ones
+## that are open (a broken gate; the bridge foot always), the shortest way through; when
+## none is open (the tier's gates all stand), the shortest of all.
+static func opening(j: int, from: Vector3, to: Vector3) -> Vector3:
+	var list: Array = CONNECTORS[j]
+	if list.size() == 1:
+		return list[0]
+	var best: Vector3 = list[0]
+	var best_d := INF
+	for pass_open in [true, false]:
+		for lane in list.size():
+			if pass_open and not is_open(j, lane):
+				continue
+			var c: Vector3 = list[lane]
+			var d := Vector2(from.x - c.x, from.z - c.z).length() + Vector2(to.x - c.x, to.z - c.z).length()
+			if d < best_d:
+				best_d = d
+				best = c
+		if best_d < INF:
+			return best
+	return best
+
+
+## Whether opening `lane` of join `j` lets anyone through now (the bridge foot always; a
+## gate once broken).
+static func is_open(j: int, lane: int) -> bool:
+	if j == 0:
+		return true
+	var tier := j - 1
+	if tier >= lane_open.size():
+		return true
+	var row: Array = lane_open[tier]
+	return lane < row.size() and bool(row[lane])
+
+
 ## The next point to walk to from `from` on the way to `to`: `to` itself within a section,
-## otherwise the connector towards it (and a step through once there).
+## otherwise the opening towards it (and a step through once there).
 static func route(from: Vector3, to: Vector3) -> Vector3:
 	var a := section(from)
 	var b := section(to)
 	if a == b:
 		return to
 	if b > a:
-		var c: Vector3 = CONNECTORS[a]
+		var c := opening(a, from, to)
 		if Vector2(from.x - c.x, from.z - c.z).length() < 2.4:
 			return c + Vector3(0, 0, -3.5)
 		return c
-	var back: Vector3 = CONNECTORS[a - 1]
+	var back := opening(a - 1, from, to)
 	if Vector2(from.x - back.x, from.z - back.z).length() < 2.4:
 		return back + Vector3(0, 0, 3.5)
 	return back
 
 
-## Front of gate k (the side the guilds come from).
-static func gate_front(k: int) -> Vector3:
-	return Vector3(0, 0, GATE_Z[k] + 3.0)
-
+## Front of gate `lane` of tier k (the side the guilds come from).
+static func gate_front(k: int, lane := 0) -> Vector3:
+	return Vector3(gate_x(k, lane), 0, GATE_Z[k] + 3.0)
 
 ## The castle's floor (x, z) past the moat, where the hero may stand beyond the field's
 ## round edge (Hero.field_hall): the yards and the wider throne room.
@@ -122,15 +208,21 @@ static func on_switch(p: Vector3, k: int) -> bool:
 	return Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS
 
 
-## Builds the field, the camps (in the two guild colours), the moat and bridge, the castle
-## with its walls, turrets, gatehouses, throne room and keeps, and their colliders.
-static func build(zone: Node3D, rng: RandomNumberGenerator, left_color: Color, right_color: Color) -> void:
+## Builds the field, a camp per guild colour in `colors` (CAMPS order: team 0 first), the
+## moat and the wide bridge, the castle with its walls, turrets, gatehouses, throne room and
+## keeps, and their colliders.
+static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> void:
 	Scenery.environment(zone, Color("5f8fd8"), Color("d6e4f2"), Color(0.9, 0.92, 1.0), Color(1.0, 0.95, 0.85))
-	var paths: Array[PackedVector2Array] = [
-		PackedVector2Array([Vector2(-BASE_X, BASE_Z), Vector2(-20.0, 9.0), Vector2(PLAZA.x, PLAZA.z), Vector2(20.0, 9.0), Vector2(BASE_X, BASE_Z)]),
-		PackedVector2Array([Vector2(PLAZA.x, PLAZA.z), Vector2(0.0, MOAT_SOUTH)]),
-	]
-	Scenery.ground(zone, 165.0, Color("6fae54"), Color("86c063"), 41, Color("cdb88a"), paths, 6.5, [Vector3(PLAZA.x, PLAZA.z, 14.0), Vector3(-BASE_X, BASE_Z, 13.0), Vector3(BASE_X, BASE_Z, 13.0)], &"meadow")
+	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(PLAZA.x, PLAZA.z), Vector2(0.0, MOAT_SOUTH)])]
+	var clearings: Array[Vector3] = [Vector3(PLAZA.x, PLAZA.z, 16.0)]
+	var count := clampi(colors.size(), 2, CAMPS.size())
+	for team in count:
+		var c := camp(team)
+		# Each camp's own road to the bridge foot of its nearer lane, past the plaza's rim.
+		var lane_x := -LANE_X if c.x < 0.0 else LANE_X
+		paths.append(PackedVector2Array([Vector2(c.x, c.z), Vector2(c.x * 0.45 + lane_x * 0.55, c.z * 0.35 + PLAZA.z * 0.65), Vector2(lane_x, MOAT_SOUTH)]))
+		clearings.append(Vector3(c.x, c.z, 14.0))
+	Scenery.ground(zone, 215.0, Color("6fae54"), Color("86c063"), 41, Color("cdb88a"), paths, 7.0, clearings, &"meadow")
 	var root := Node3D.new()
 	root.name = "Siege"
 	zone.add_child(root)
@@ -142,10 +234,10 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, left_color: Color, r
 	_bridge(root, masonry)
 	_castle(root, masonry, banner)
 	_keeps(root, masonry, banner)
-	_camp(root, -1.0, left_color)
-	_camp(root, 1.0, right_color)
+	for team in count:
+		_camp(root, team, colors[team] if colors[team] is Color else Color.WHITE)
 	_plaza(root)
-	_pines(root, rng)
+	_pines(root, rng, count)
 	_hills(root, rng)
 	masonry.commit(root)
 
@@ -327,31 +419,31 @@ static func _yagura(b: JapanKit.Batch, m: Masonry, at: Vector3, size: float, ban
 ## The gatehouse over gate k: massive dressed-stone jambs, a lintel beam, and a long
 ## turret spanning the opening (watari-yagura) with the castle's golden crest and two long
 ## banners. The door itself is the CastleGate the guilds break.
-static func _gatehouse(b: JapanKit.Batch, m: Masonry, k: int, banner: StandardMaterial3D, root: Node3D) -> void:
+static func _gatehouse(b: JapanKit.Batch, m: Masonry, k: int, banner: StandardMaterial3D, root: Node3D, gx := 0.0) -> void:
 	var z := GATE_Z[k]
 	for side in [-1.0, 1.0]:
-		var x: float = float(side) * (GATE_HALF + 1.6)
+		var x: float = gx + float(side) * (GATE_HALF + 1.6)
 		b.box(Vector3(x, (GATE_H + 1.0) * 0.5, z), Vector3(3.2, GATE_H + 1.0, 4.4), STONE_CORE)
 		m.block(Vector3(x, 0, z), Vector3(3.4, GATE_H + 1.0, 4.6), 0.0, [0, 1, 2 if float(side) > 0.0 else 3])
 		# The jambs close the wall up to the door (the CastleGate blocks the opening).
 		JapanKit.collider(root, Vector3(x, (GATE_H + 1.0) * 0.5, z), Vector3(3.2, GATE_H + 1.0, 4.4))
-	b.box(Vector3(0, GATE_H + 0.5, z), Vector3(GATE_HALF * 2.0 + 0.6, 1.0, 3.6), WOOD)
+	b.box(Vector3(gx, GATE_H + 0.5, z), Vector3(GATE_HALF * 2.0 + 0.6, 1.0, 3.6), WOOD)
 	var top := GATE_H + 1.0
 	var span := GATE_HALF * 2.0 + 7.0
-	b.box(Vector3(0, top + 0.15, z), Vector3(span + 0.4, 0.3, 5.0), WOOD)
-	b.box(Vector3(0, top + 1.8, z), Vector3(span, 3.2, 4.6), PLASTER)
+	b.box(Vector3(gx, top + 0.15, z), Vector3(span + 0.4, 0.3, 5.0), WOOD)
+	b.box(Vector3(gx, top + 1.8, z), Vector3(span, 3.2, 4.6), PLASTER)
 	for i in 5:
-		var x := (float(i) - 2.0) * span * 0.19
+		var x := gx + (float(i) - 2.0) * span * 0.19
 		b.box(Vector3(x, top + 1.9, z + 2.33), Vector3(0.8, 1.0, 0.06), Color("3a2c22"))
 		b.box(Vector3(x, top + 1.9, z - 2.33), Vector3(0.8, 1.0, 0.06), Color("3a2c22"))
-	b.roof(Vector3(0, top + 4.0, z), span + 3.0, 7.4, 1.6, TILE, 0.55)
-	b.box(Vector3(0, top + 4.9, z), Vector3(span * 0.6, 0.35, 0.5), TILE_EDGE)
+	b.roof(Vector3(gx, top + 4.0, z), span + 3.0, 7.4, 1.6, TILE, 0.55)
+	b.box(Vector3(gx, top + 4.9, z), Vector3(span * 0.6, 0.35, 0.5), TILE_EDGE)
 	for side in [-1.0, 1.0]:
-		b.box(Vector3(float(side) * span * 0.3, top + 5.2, z), Vector3(0.5, 0.8, 0.5), GOLD)
-	b.cyl(Vector3(0, top + 2.0, z + 2.5), 1.0, 0.12, GOLD, Vector3(90, 0, 0), 16)
-	b.cyl(Vector3(0, top + 2.0, z + 2.56), 0.6, 0.12, Color("c0392b"), Vector3(90, 0, 0), 16)
+		b.box(Vector3(gx + float(side) * span * 0.3, top + 5.2, z), Vector3(0.5, 0.8, 0.5), GOLD)
+	b.cyl(Vector3(gx, top + 2.0, z + 2.5), 1.0, 0.12, GOLD, Vector3(90, 0, 0), 16)
+	b.cyl(Vector3(gx, top + 2.0, z + 2.56), 0.6, 0.12, Color("c0392b"), Vector3(90, 0, 0), 16)
 	for side in [-1.0, 1.0]:
-		var flag := MeshKit.part(root, MeshKit.box(), banner, Vector3(float(side) * (GATE_HALF + 1.6), top - 2.2, z + 2.45), Vector3(1.4, 4.2, 0.08))
+		var flag := MeshKit.part(root, MeshKit.box(), banner, Vector3(gx + float(side) * (GATE_HALF + 1.6), top - 2.2, z + 2.45), Vector3(1.4, 4.2, 0.08))
 		flag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
@@ -360,36 +452,40 @@ static func _castle(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> voi
 	# The great front wall across the whole moat (dressed on its outer face; inside the
 	# hall on both), the first gate in the middle.
 	var reach := RADIUS + 34.0
+	var lane_in := LANE_X - GATE_HALF - 3.2
+	var lane_out := LANE_X + GATE_HALF + 3.2
 	_wall_x(b, m, root, -reach, -HALL_HALF, GATE_Z[0], [1])
 	_wall_x(b, m, root, HALL_HALF, reach, GATE_Z[0], [1])
-	_wall_x(b, m, root, -HALL_HALF, -GATE_HALF - 3.2, GATE_Z[0], [1, -1])
-	_wall_x(b, m, root, GATE_HALF + 3.2, HALL_HALF, GATE_Z[0], [1, -1])
-	# The yards' long side walls (dressed inside) to the third gate, the inner wall with the
-	# second gate, the wider wall with the third gate (the throne room's front), the throne
-	# room's side walls and the back wall.
+	# The first two tiers: a wall with a left and a right gate (LANE_X), a pier between them.
+	for k in 2:
+		var faces := [1, -1]
+		_wall_x(b, m, root, -HALL_HALF, -lane_out, GATE_Z[k], faces)
+		_wall_x(b, m, root, -lane_in, lane_in, GATE_Z[k], faces)
+		_wall_x(b, m, root, lane_out, HALL_HALF, GATE_Z[k], faces)
+	# The yards' long side walls (dressed inside) to the third gate, the wider wall with the
+	# third gate (the throne room's front), the throne room's side walls and the back wall.
 	_wall_z(b, m, root, -HALL_HALF, GATE_Z[0], GATE_Z[2], [1])
 	_wall_z(b, m, root, HALL_HALF, GATE_Z[0], GATE_Z[2], [-1])
-	_wall_x(b, m, root, -HALL_HALF, -GATE_HALF - 3.2, GATE_Z[1], [1, -1])
-	_wall_x(b, m, root, GATE_HALF + 3.2, HALL_HALF, GATE_Z[1], [1, -1])
 	_wall_x(b, m, root, -THRONE_HALF, -GATE_HALF - 3.2, GATE_Z[2], [1, -1])
 	_wall_x(b, m, root, GATE_HALF + 3.2, THRONE_HALF, GATE_Z[2], [1, -1])
 	_wall_z(b, m, root, -THRONE_HALF, GATE_Z[2], BACK_Z, [1])
 	_wall_z(b, m, root, THRONE_HALF, GATE_Z[2], BACK_Z, [-1])
 	_wall_x(b, m, root, -THRONE_HALF, THRONE_HALF, BACK_Z, [1])
 	for k in 3:
-		_gatehouse(b, m, k, banner, root)
+		for lane in TIER_LANES[k]:
+			_gatehouse(b, m, k, banner, root, gate_x(k, lane))
 	# Turrets: on the hall's corners, the throne room's corners, along the front wall.
 	for x in [-HALL_HALF, HALL_HALF]:
 		_yagura(b, m, Vector3(x, 0, GATE_Z[0]), 7.0, banner, root, STONE_H + 1.2)
 	for x in [-THRONE_HALF, THRONE_HALF]:
 		_yagura(b, m, Vector3(x, 0, GATE_Z[2]), 7.0, banner, root, STONE_H + 1.2)
 		_yagura(b, m, Vector3(x, 0, BACK_Z), 7.0, banner, root, STONE_H + 1.2)
-	for x in [-58.0, -38.0, 38.0, 58.0]:
+	for x in [-104.0, -78.0, -52.0, 52.0, 78.0, 104.0]:
 		_yagura(b, m, Vector3(x, 0, GATE_Z[0]), 6.0, banner, root)
 	# Paving in the yards and the throne room, and the landing in front of the first gate.
 	b.box(Vector3(0, 0.03, (GATE_Z[0] + GATE_Z[2]) * 0.5), Vector3(HALL_HALF * 2.0, 0.06, GATE_Z[0] - GATE_Z[2]), PAVING)
 	b.box(Vector3(0, 0.03, (GATE_Z[2] + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, 0.06, GATE_Z[2] - BACK_Z), PAVING)
-	b.box(Vector3(0, 0.04, (MOAT_NORTH + GATE_Z[0]) * 0.5), Vector3(BRIDGE_HALF * 2.0 + 6.0, 0.06, MOAT_NORTH - GATE_Z[0] + 1.0), PAVING)
+	b.box(Vector3(0, 0.04, (MOAT_NORTH + GATE_Z[0]) * 0.5), Vector3(BRIDGE_HALF * 2.0 + 4.0, 0.06, MOAT_NORTH - GATE_Z[0] + 1.0), PAVING)
 	for k in 2:
 		for f in [0.3, 0.5, 0.7]:
 			b.box(Vector3(0, 0.08, GATE_Z[k] - GATE_GAP * f), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
@@ -414,7 +510,7 @@ static func _castle(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> voi
 	for i in 8:
 		var angle := TAU * float(i) / 8.0
 		b.box(Vector3(ALTAR.x + cos(angle) * (ALTAR_RADIUS + 0.9), 0.95, ALTAR.z + sin(angle) * (ALTAR_RADIUS + 0.9)), Vector3(0.5, 0.5, 0.5), GOLD, Vector3(0, -rad_to_deg(angle), 45))
-	for x in [-6.0, 6.0]:
+	for x in [-7.0, 7.0]:
 		JapanKit.toro(b, Vector3(x, 0, GATE_Z[2] - 6.0), 1.6)
 	# Great hanging banners in the holder's colour along the throne room.
 	for f in [0.15, 0.4, 0.65, 0.9]:
@@ -461,14 +557,14 @@ static func _keeps(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> void
 	_tenshu(b, main + Vector3(0, 11.0, 0), 5, 15.0, 3.6)
 	for xs in [-1.0, 1.0]:
 		var x := float(xs)
-		var side := Vector3(x * 33.0, 0, -52.0)
+		var side := Vector3(x * 46.0, 0, -62.0)
 		b.box(side + Vector3(0, 4.5, 0), Vector3(13.0, 9.0, 13.0), STONE_CORE)
 		m.block(side, Vector3(13.6, 9.0, 13.6), 0.14, [0, 2 if x > 0.0 else 3])
 		_tenshu(b, side + Vector3(0, 9.0, 0), 3, 9.0, 3.0)
 		# A terraced wall stepping up from the front wall towards the lesser keep.
-		b.box(Vector3(x * 33.0, 2.5, -32.0), Vector3(20.0, 5.0, 2.6), STONE_CORE)
-		m.face(Vector3(minf(x * 23.0, x * 43.0), 0, -30.7), Vector3(maxf(x * 23.0, x * 43.0), 0, -30.7), Vector3(0, 0, 1), 0.0, 5.0, 0.0, 0.06)
-		_parapet(b, Vector3(x * 23.0, 5.0, -32.0), Vector3(x * 43.0, 5.0, -32.0))
+		b.box(Vector3(x * 46.0, 2.5, -38.0), Vector3(20.0, 5.0, 2.6), STONE_CORE)
+		m.face(Vector3(minf(x * 36.0, x * 56.0), 0, -36.7), Vector3(maxf(x * 36.0, x * 56.0), 0, -36.7), Vector3(0, 0, 1), 0.0, 5.0, 0.0, 0.06)
+		_parapet(b, Vector3(x * 36.0, 5.0, -38.0), Vector3(x * 56.0, 5.0, -38.0))
 	_commit(b, root, "Keeps")
 	for xs in [-1.0, 1.0]:
 		var flag := MeshKit.part(root, MeshKit.box(), banner, main + Vector3(float(xs) * 9.0, 7.0, 10.62), Vector3(2.6, 7.0, 0.1))
@@ -482,7 +578,7 @@ static func _keeps(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> void
 static func _moat(root: Node3D, m: Masonry) -> void:
 	var water := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(240.0, MOAT_SOUTH - MOAT_NORTH)
+	plane.size = Vector2((RADIUS + 34.0) * 2.0, MOAT_SOUTH - MOAT_NORTH)
 	water.mesh = plane
 	# Just above the field's ground (which runs under it), below the bridge deck.
 	water.position = Vector3(0, 0.05, (MOAT_SOUTH + MOAT_NORTH) * 0.5)
@@ -535,13 +631,15 @@ static func _bridge(root: Node3D, m: Masonry) -> void:
 	_commit(b, root, "Bridge")
 
 
-## A guild's war camp at one end of the field: a ring of war curtains (maku) in its colour
-## with white bands and crest, tents, tall banners and a glowing circle where the fallen
-## come back. The curtain opens towards the plaza.
-static func _camp(root: Node3D, side: float, color: Color) -> void:
+## A guild's war camp out on the field (CAMPS[team]): a ring of war curtains (maku) in its
+## colour with white bands and crest, tents, tall banners and a glowing circle where the
+## fallen come back. The curtain opens towards the castle's approach.
+static func _camp(root: Node3D, team: int, color: Color) -> void:
 	var b := JapanKit.Batch.new()
-	var center := Vector3(side * BASE_X, 0, BASE_Z)
-	var opening := Vector2(-side, -0.35).normalized()
+	var center := camp(team)
+	var fwd := camp_forward(team)
+	var side := Vector3(-fwd.z, 0, fwd.x)
+	var opening := Vector2(fwd.x, fwd.z)
 	# Wide enough for a whole guild in its rows (GuildWarMatch.spawn_slot).
 	var panels := 22
 	for i in panels:
@@ -557,18 +655,20 @@ static func _camp(root: Node3D, side: float, color: Color) -> void:
 		b.box(at + Vector3(0, 1.85, 0), Vector3(5.45, 0.28, 0.1), Color.WHITE, Vector3(0, yaw, 0))
 		b.cyl(at + Vector3(0, 1.3, 0) + out * 0.06, 0.45, 0.04, Color.WHITE, Vector3(90, yaw, 0), 12)
 		b.cyl(at + Vector3(0, 1.3, 0) + Vector3(-out.z, 0, out.x) * 2.7, 0.06, 2.6, WOOD)
-	# Tents along the camp's two sides, clear of the rows and the camera behind them.
+	# Tents along the camp's two flanks, clear of the rows and the camera behind them.
 	for i in 6:
-		var at := center + Vector3(side * (-2.0 + float(i % 3) * 6.0), 0, (14.0 if i < 3 else -14.0))
-		b.box(at + Vector3(0, 0.9, 0), Vector3(3.6, 1.8, 3.2), color.lerp(Color.WHITE, 0.6))
+		var at := center + fwd * (2.0 - float(i % 3) * 6.0) + side * (14.0 if i < 3 else -14.0)
+		var yaw := rad_to_deg(atan2(fwd.x, fwd.z))
+		b.box(at + Vector3(0, 0.9, 0), Vector3(3.6, 1.8, 3.2), color.lerp(Color.WHITE, 0.6), Vector3(0, yaw, 0))
 		b.roof(at + Vector3(0, 2.4, 0), 4.4, 3.8, 1.3, color.darkened(0.2), 0.5)
 	for i in 10:
 		var angle := TAU * (float(i) + 0.5) / 10.0
 		if Vector2(cos(angle), sin(angle)).dot(opening) > 0.8:
 			continue
 		JapanKit.banner(b, center + Vector3(cos(angle) * 17.5, 0, sin(angle) * 17.5), color)
-	_commit(b, root, "Camp%s" % ("Left" if side < 0.0 else "Right"))
+	_commit(b, root, "Camp%d" % team)
 	var ring := MeshInstance3D.new()
+	ring.name = "CampRing%d" % team
 	ring.mesh = MeshKit.cylinder()
 	ring.material_override = VfxKit._glow(color, 0.5)
 	ring.scale = Vector3(14.0, 0.02, 14.0)
@@ -577,37 +677,54 @@ static func _camp(root: Node3D, side: float, color: Color) -> void:
 	root.add_child(ring)
 
 
-## The plaza where the guilds meet: a paved circle ringed by tall stone lanterns.
+## The plaza where the guilds meet: a paved circle ringed by tall stone lanterns (open
+## towards the bridge).
 static func _plaza(root: Node3D) -> void:
 	var b := JapanKit.Batch.new()
-	b.cyl(Vector3(PLAZA.x, 0.04, PLAZA.z), 12.0, 0.08, PAVING, Vector3.ZERO, 36)
-	b.cyl(Vector3(PLAZA.x, 0.06, PLAZA.z), 6.0, 0.08, STONE.lightened(0.1), Vector3.ZERO, 36)
-	for i in 10:
-		var angle := TAU * (float(i) + 0.5) / 10.0
-		if absf(angle - PI * 1.5) < 0.45:
+	b.cyl(Vector3(PLAZA.x, 0.04, PLAZA.z), 14.0, 0.08, PAVING, Vector3.ZERO, 36)
+	b.cyl(Vector3(PLAZA.x, 0.06, PLAZA.z), 7.0, 0.08, STONE.lightened(0.1), Vector3.ZERO, 36)
+	for i in 12:
+		var angle := TAU * (float(i) + 0.5) / 12.0
+		if absf(angle - PI * 1.5) < 0.6:
 			continue
-		JapanKit.toro(b, PLAZA + Vector3(cos(angle) * 13.0, 0, sin(angle) * 13.0), 1.2)
+		JapanKit.toro(b, PLAZA + Vector3(cos(angle) * 15.0, 0, sin(angle) * 15.0), 1.2)
 	_commit(b, root, "Plaza")
 
 
-## Black pines framing the field (clear of the camps, the paths and the plaza).
-static func _pines(root: Node3D, rng: RandomNumberGenerator) -> void:
+## The segment distance from p to the line a-b (flat).
+static func _seg_dist(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
+
+## Black pines framing the field (clear of the camps, their roads and the plaza).
+static func _pines(root: Node3D, rng: RandomNumberGenerator, camps := 2) -> void:
 	var trunks: Array[Transform3D] = []
 	var trunk_colors: Array[Color] = []
 	var crowns: Array[Transform3D] = []
 	var crown_colors: Array[Color] = []
 	var placed := 0
 	var tries := 0
-	while placed < 70 and tries < 900:
+	# Every camp's road is kept clear, whichever camps are pitched.
+	camps = CAMPS.size()
+	while placed < 110 and tries < 1800:
 		tries += 1
 		var angle := rng.randf() * TAU
-		var r := rng.randf_range(30.0, RADIUS + 18.0)
+		var r := rng.randf_range(30.0, RADIUS + 22.0)
 		var p := Vector3(cos(angle) * r, 0, sin(angle) * r)
 		if p.z < MOAT_SOUTH + 3.0:
 			continue
-		if Vector2(p.x - BASE_X, p.z - BASE_Z).length() < 24.0 or Vector2(p.x + BASE_X, p.z - BASE_Z).length() < 24.0:
+		var flat := Vector2(p.x, p.z)
+		var clear := true
+		for team in camps:
+			var c := camp(team)
+			if flat.distance_to(Vector2(c.x, c.z)) < 26.0 or _seg_dist(flat, Vector2(c.x, c.z), Vector2(APPROACH.x, APPROACH.z)) < 10.0:
+				clear = false
+				break
+		if not clear:
 			continue
-		if Vector2(p.x - PLAZA.x, p.z - PLAZA.z).length() < 18.0 or (absf(p.z - 10.0) < 6.0 and absf(p.x) < 50.0):
+		if flat.distance_to(Vector2(PLAZA.x, PLAZA.z)) < 22.0 or (absf(p.z - MOAT_SOUTH) < 10.0 and absf(p.x) < BRIDGE_HALF + 14.0):
 			continue
 		var h := rng.randf_range(5.0, 9.0)
 		trunks.append(Transform3D(Basis().scaled(Vector3(0.6, h * 0.5, 0.6)), p + Vector3(0, h * 0.25, 0)))
@@ -640,7 +757,7 @@ static func _batch(root: Node3D, node_name: String, mesh: Mesh, transforms: Arra
 static func _hills(root: Node3D, rng: RandomNumberGenerator) -> void:
 	for i in 18:
 		var angle := TAU * float(i) / 18.0 + rng.randf() * 0.2
-		var dist := rng.randf_range(175.0, 205.0)
+		var dist := rng.randf_range(235.0, 270.0)
 		var height := rng.randf_range(26.0, 52.0)
 		var width := height * rng.randf_range(1.6, 2.2)
 		var tint := Color("5d7f63").lerp(Color("8fa6b8"), rng.randf())

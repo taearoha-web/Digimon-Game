@@ -12,7 +12,7 @@ var failures: Array[String] = []
 var checks := 0
 
 const SEEDS := [555]
-const RETRY_SEEDS := [77]
+const RETRY_SEEDS := [77, 9001]
 ## The first capture must come within this many seconds of war time: the first half of a
 ## war (GuildWarData.DURATION). The defaults stop at the first capture, so CI stays short
 ## (about 2 minutes: the sim runs at SPEED).
@@ -79,7 +79,7 @@ func _war(war_seed: int, owner: int, seconds: float, full: bool) -> Dictionary:
 	# The roster comes from the seed; the fighters' own dice (dodges, slips) too.
 	seed(war_seed)
 	Game.current_zone = &"guildwar"
-	Game.guildwar_save_checkpoint(war_seed, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0], "owner": owner})
+	Game.guildwar_save_checkpoint(war_seed, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": owner})
 	Game.guildwar_resuming = true
 	Game.profile.hp = Game.stats_now().max_hp
 	var zone := Zone.new()

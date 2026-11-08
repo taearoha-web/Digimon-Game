@@ -247,7 +247,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 	hp = maxi(0, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
-	_bar_until = Time.get_ticks_msec() * 0.001 + 6.0
+	_bar_until = GameClock.msec() * 0.001 + 6.0
 	BattleVfx.damage_number(get_parent(), top_point(), str(amount) + ("!" if crit else ""), false, 1.35 if crit else 1.0)
 	visual.flash(Color(1, 1, 1))
 	if hp <= 0:
@@ -257,7 +257,7 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 		_check_phase()
 	if not is_boss:
 		visual.action("hurt", 320)
-		_anim_lock = Time.get_ticks_msec() + 320
+		_anim_lock = GameClock.msec() + 320
 	provoke()
 	return false
 
@@ -382,7 +382,7 @@ func _physics_process(delta: float) -> void:
 	if not global_position.is_finite() or not velocity.is_finite():
 		velocity = Vector3.ZERO
 		global_position = home if home.is_finite() else Vector3.ZERO
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	if _bar_until > 0.0 and now > _bar_until and (_ring == null or not _ring.visible):
 		_bar.visible = false
 		_bar_until = 0.0
@@ -434,8 +434,13 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 	velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
-	move_and_slide()
+	_move()
 	_animate(horizontal, delta, chase_target)
+
+
+## One step of movement (a guild fighter standing still on the floor skips it).
+func _move() -> void:
+	move_and_slide()
 
 
 func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
@@ -479,7 +484,7 @@ func _wander(delta: float) -> Vector3:
 
 
 func _animate(horizontal: Vector3, delta: float, chase: Node3D) -> void:
-	if Time.get_ticks_msec() < _anim_lock:
+	if GameClock.msec() < _anim_lock:
 		return
 	if horizontal.length() > 0.25:
 		if chase == null:
@@ -517,7 +522,7 @@ func _strike() -> void:
 		return
 	var victim := _victim
 	visual.action("attack", 450)
-	_anim_lock = Time.get_ticks_msec() + 450
+	_anim_lock = GameClock.msec() + 450
 	var raw := float(stats.atk) * _atk_scale * randf_range(0.9, 1.1)
 	if String(template.attack) == "ranged":
 		var color: Color = template.get("color", Color("ff9a5a"))
@@ -594,7 +599,7 @@ func _add_remote_targets(out: Array[Node3D]) -> void:
 func add_threat(attacker: Node, amount: float) -> void:
 	if amount <= 0.0 or attacker == null or not is_instance_valid(attacker) or not (attacker is Node3D):
 		return
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var key := attacker.get_instance_id()
 	var entry: Dictionary = _threat.get(key, {"ref": weakref(attacker), "amount": 0.0, "at": now})
 	entry.amount = _faded(entry, now) + amount
@@ -606,7 +611,7 @@ func add_threat(attacker: Node, amount: float) -> void:
 func threat_of(node: Node) -> float:
 	if node == null or not _threat.has(node.get_instance_id()):
 		return 0.0
-	return _faded(_threat[node.get_instance_id()], Time.get_ticks_msec() * 0.001)
+	return _faded(_threat[node.get_instance_id()], GameClock.msec() * 0.001)
 
 
 func _faded(entry: Dictionary, now: float) -> float:
@@ -616,7 +621,7 @@ func _faded(entry: Dictionary, now: float) -> float:
 ## Who to go for: whoever has dealt it the most damage lately (and is still alive and
 ## within reach), else the closest. Rivals and guild fighters keep their own rules.
 func _pick_victim() -> Node3D:
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var best: Node3D = null
 	var best_threat := 0.0
 	for key in _threat.keys():
@@ -665,7 +670,7 @@ func _begin_slam() -> void:
 	EntitySync.cast(self, [[center, radius, 1.2]])
 	visual.flash(Color(1.0, 0.3, 0.2), 1.2)
 	visual.action("attack", 700)
-	_anim_lock = Time.get_ticks_msec() + 900
+	_anim_lock = GameClock.msec() + 900
 	get_tree().create_timer(1.2).timeout.connect(func():
 		_winding = false
 		if _dead:

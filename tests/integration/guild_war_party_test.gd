@@ -159,7 +159,7 @@ func _check_war_parties(m: GuildWarMatch, label: String) -> void:
 	for p in counts:
 		check(int(counts[p]) <= GuildWarMatch.PARTY_SIZE, "%s: party %d has at most five (%d)" % [label, p, counts[p]])
 	var listed := 0
-	for team in 2:
+	for team in m.team_count():
 		for p in m.parties_of(team):
 			listed += m.party_members(p).size()
 	check(listed == m.all_fighters().size(), "%s: the parties list every fighter once" % label)

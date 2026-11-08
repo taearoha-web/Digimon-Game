@@ -418,10 +418,15 @@ jobs:
           XDG_DATA_HOME: /tmp/toon-ci-online_guild_war_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/online_guild_war_test.tscn
       - name: guild_war_capture_test (no stalemate - two AI-led guilds, seeded, every gate down, take the castle within the first half of the war, from nobody and from its holder; the leaders still fall less than their members)
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild_war_capture_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_capture_test.tscn
+      - name: guild_war_4way_test (the league round's war of all four guilds - four camps far apart outside the castle with a clear way in, doubled gates, 80 fighters each hostile to the other guilds only, the castle's holder inside walking through its own gates and guarding them, placement scoring, the holder carried across rounds, days and weeks, the checkpoint, watching four guilds, practice wars of two, a seeded AI-only war of four ends in a capture)
+        timeout-minutes: 12
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild_war_4way_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_4way_test.tscn
       - name: online_client_test
         timeout-minutes: 10
         env:
@@ -597,6 +602,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-brace
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_brace_test.tscn
+      - name: guild_ai_budget_test (80 guild fighters, 40 vs 40, on a budget - the shared view of the field built once a physics frame, full decisions per frame within a quarter of the field and a few, foes are whoever's team differs, and they still pick targets, buff, heal and fell each other)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-ai-budget
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_ai_budget_test.tscn
       - name: guild_war_spectate_test (watching a live 20 vs 20 guild war - both guilds AI, the hero hidden / untargetable / unhurt with no skill bar, the spectator camera follows, pans, pinches, zooms and cycles castle / side A / side B, the clock starts at what is left, a short war ends with the result and the league hook, nothing paid, leaving returns to the field and spot; the hero plays 19 + hero against 20)
         timeout-minutes: 15
         env:

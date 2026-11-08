@@ -276,6 +276,56 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, rival: int,
 		"ally_power": ally_power, "enemy_power": enemy_power, "guilds": true, "ally_guild": guild, "enemy_guild": rival, "hero_in": bool(side.hero)}
 
 
+## A league round's war of all its guilds at once (GuildLeague: the four guilds in one
+## castle war), `guilds` in team order (team 0 first: the hero's guild when `with_hero`).
+## Each side as in roll_guild_match (its GUILD_SIDE strongest at t, online first then by
+## power; the hero takes one place on team 0 when it ranks among them). A guild with nobody
+## at Lv.100 yet sits the round out; {} when fewer than two guilds (or team 0's) can fight.
+## The shape: {sides: [{lineup, name, guild, power}], ally / enemy (the first two sides, as
+## roll_guild_match), ally_name, enemy_name, ally_guild, enemy_guild, guilds, hero_in}.
+static func roll_guild_war(rng: RandomNumberGenerator, guilds: Array, t: float, power_of_hero: float = -1.0, with_hero := true) -> Dictionary:
+	var order := func(a, b):
+		if bool(a.online) != bool(b.online):
+			return bool(a.online)
+		return float(a.power) > float(b.power) or (float(a.power) == float(b.power) and int(a.world) < int(b.world))
+	var sides: Array = []
+	var hero_in := false
+	for k in guilds.size():
+		var g := int(guilds[k])
+		if g <= 0:
+			continue
+		var mine := k == 0 and with_hero
+		var side := side_ids(g, t, hero_rank_point() if mine else -1.0)
+		var lineup: Array = []
+		for i in side.ids:
+			lineup.append(WorldPlayers.fighter(i, t, rng))
+		var hero_here := mine and bool(side.hero)
+		if lineup.is_empty() and not hero_here:
+			if k == 0:
+				return {}
+			continue
+		if hero_here:
+			hero_in = true
+			var picked := func(f) -> bool: return Game.guildwar_party_picks.has(String(f.member.name))
+			lineup.sort_custom(func(a, b):
+				if picked.call(a) != picked.call(b):
+					return picked.call(a)
+				return order.call(a, b))
+		else:
+			lineup.sort_custom(order)
+		var power := 0.0
+		if hero_here:
+			power = power_of_hero if power_of_hero >= 0.0 else hero_power()
+		for f in lineup:
+			power += float(f.power)
+		sides.append({"lineup": lineup, "name": WorldPlayers.guild_name(g), "guild": g, "power": power})
+	if sides.size() < 2:
+		return {}
+	return {"sides": sides, "ally": sides[0].lineup, "enemy": sides[1].lineup, "ally_name": sides[0].name, "enemy_name": sides[1].name,
+		"ally_power": sides[0].power, "enemy_power": sides[1].power, "guilds": true, "ally_guild": sides[0].guild, "enemy_guild": sides[1].guild,
+		"hero_in": hero_in}
+
+
 ## The `count` members of `guild` at Lv.100 who are furthest along at t (rank_point, the
 ## lower roster index on a tie).
 static func best_members(guild: int, t: float, count: int) -> Array[int]:

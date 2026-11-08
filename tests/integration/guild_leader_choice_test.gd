@@ -419,7 +419,7 @@ func _war_ally_leader() -> void:
 		lead.take_hit(lead.max_hp, false)
 		tries += 1
 	m._tick_capture(0.1)
-	check(lead.is_dead() and m.capture.is_empty() and m.castle_owner == -1, "ally leader: felled, the count starts over")
+	check(lead.is_dead() and m.capture.is_empty() and m.castle_owner == m.start_owner, "ally leader: felled, the count starts over (dead %s, capture %s, owner %d)" % [lead.is_dead(), m.capture, m.castle_owner])
 	# Back up, a full hold takes the castle for us.
 	lead.respawn()
 	lead.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)

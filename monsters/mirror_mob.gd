@@ -74,7 +74,7 @@ func _physics_process(delta: float) -> void:
 	if _dead:
 		return
 	_tick_status(delta)
-	if _bar_until > 0.0 and Time.get_ticks_msec() * 0.001 > _bar_until and (_ring == null or not _ring.visible):
+	if _bar_until > 0.0 and GameClock.msec() * 0.001 > _bar_until and (_ring == null or not _ring.visible):
 		_bar.visible = false
 		_bar_until = 0.0
 	var moved := EntitySync.glide(self, goal, goal_yaw, delta)
@@ -97,7 +97,7 @@ func mirror_state(x: float, z: float, yaw: float, p_hp: int, p_max: int, p_flags
 		_bar.set_ratio(float(hp) / float(max_hp))
 		if hp < max_hp:
 			_bar.visible = true
-			_bar_until = Time.get_ticks_msec() * 0.001 + 6.0
+			_bar_until = GameClock.msec() * 0.001 + 6.0
 	var angry := (p_flags & EntitySync.F_HOSTILE) != 0
 	if angry and not hostile:
 		hostile = true
@@ -105,9 +105,9 @@ func mirror_state(x: float, z: float, yaw: float, p_hp: int, p_max: int, p_flags
 	elif not angry:
 		hostile = false
 	var acting := (p_flags & EntitySync.F_ACTING) != 0
-	if acting and not _acting and Time.get_ticks_msec() >= _anim_lock:
+	if acting and not _acting and GameClock.msec() >= _anim_lock:
 		visual.action("attack", 450)
-		_anim_lock = Time.get_ticks_msec() + 450
+		_anim_lock = GameClock.msec() + 450
 	_acting = acting
 	var p := (p_flags >> 4) & 3
 	if p > phase:
@@ -129,12 +129,12 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 	hp = maxi(1, hp - amount)
 	_bar.set_ratio(float(hp) / float(max_hp))
 	_bar.visible = true
-	_bar_until = Time.get_ticks_msec() * 0.001 + 6.0
+	_bar_until = GameClock.msec() * 0.001 + 6.0
 	BattleVfx.damage_number(get_parent(), top_point(), str(amount) + ("!" if crit else ""), false, 1.35 if crit else 1.0)
 	visual.flash(Color(1, 1, 1))
-	if not is_boss and Time.get_ticks_msec() >= _anim_lock:
+	if not is_boss and GameClock.msec() >= _anim_lock:
 		visual.action("hurt", 320)
-		_anim_lock = Time.get_ticks_msec() + 320
+		_anim_lock = GameClock.msec() + 320
 	return false
 
 
@@ -245,7 +245,7 @@ func mirror_cast(d: Dictionary) -> void:
 		last = 0.5
 	visual.flash(Color(1.0, 0.3, 0.2), first)
 	visual.action(String(d.get("a", "attack")), int((last + 0.4) * 1000.0))
-	_anim_lock = Time.get_ticks_msec() + int((last + 0.4) * 1000.0)
+	_anim_lock = GameClock.msec() + int((last + 0.4) * 1000.0)
 	var title := String(d.get("n", ""))
 	if title != "":
 		BattleVfx.floating_text(parent, top_point() + Vector3(0, 0.9, 0), title, Color("ffb3a0"), 1.1)

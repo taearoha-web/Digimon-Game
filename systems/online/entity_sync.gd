@@ -510,7 +510,7 @@ func flags_of(mob: Mob) -> int:
 	var f := 0
 	if mob.hostile:
 		f |= F_HOSTILE
-	if mob._winding or Time.get_ticks_msec() < mob._anim_lock:
+	if mob._winding or GameClock.msec() < mob._anim_lock:
 		f |= F_ACTING
 	if mob.is_dead():
 		f |= F_DEAD
@@ -703,7 +703,10 @@ func _gw_tick(delta: float) -> void:
 	if war.state in ["ending", "done"]:
 		if not _gw_end_sent and not war._result.is_empty():
 			_gw_end_sent = true
-			_event(0, "gw_end", {"won": bool(war._result.get("won", false)), "us": war.score[0], "them": war.score[1],
+			var best := 0
+			for t in range(1, war.team_count()):
+				best = maxi(best, war.score[t])
+			_event(0, "gw_end", {"won": bool(war._result.get("won", false)), "us": war.score[0], "them": best,
 				"castle": String(war._result.get("castle", "")), "ours": bool(war._result.get("castle_ours", false)), "ot": war.overtime})
 		return
 	_gw_timer -= delta
@@ -711,10 +714,14 @@ func _gw_tick(delta: float) -> void:
 		return
 	_gw_timer = GW_EVERY
 	var cp: Array = []
+	# A member's view of the war is ours against the rest (any other guild is "them").
 	if not war.capture.is_empty():
-		cp = [int(war.capture.team), _q(float(war.capture.progress)), bool(war.capture.get("paused", false)), bool(war.capture.get("barrier", false))]
+		cp = [mini(int(war.capture.team), 1), _q(float(war.capture.progress)), bool(war.capture.get("paused", false)), bool(war.capture.get("barrier", false))]
+	var them := 0
+	for t in range(1, war.team_count()):
+		them = maxi(them, war.score[t])
 	# The castle's switches too (the team holding each, -1 nobody, -2 contested).
-	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], war.score[1]], "o": war.castle_owner, "cp": cp, "sw": war.switch_codes(), "ot": war.overtime})
+	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_codes(), "ot": war.overtime})
 
 
 # ---------------------------------------------------------------------------

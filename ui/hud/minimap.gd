@@ -76,10 +76,11 @@ func _draw() -> void:
 	# The castle siege: the altar (in its holder's colour) is always on the map, on the rim when far.
 	if zone.gw_match != null:
 		_dot(c, _to_map(SiegeArena.ALTAR, origin, yaw), zone.gw_match._owner_color(), 7.0, true)
-		# The rival guild's leader in its crown's colour, on the rim when far: the one to hunt down.
-		var lead: GuildFighter = zone.gw_match.enemy_leader
-		if lead != null and is_instance_valid(lead) and not lead.is_dead():
-			_dot(c, _to_map(lead.global_position, origin, yaw), LeaderMark.guild_color(GuildFighter.TEAM_ENEMY), 6.5, true)
+		# Every other guild's leader in its crown's colour, on the rim when far: the ones to hunt down.
+		for t in range(1, zone.gw_match.team_count()):
+			var lead: GuildFighter = zone.gw_match.ai_leader(t)
+			if lead != null and is_instance_valid(lead) and not lead.is_dead():
+				_dot(c, _to_map(lead.global_position, origin, yaw), LeaderMark.guild_color(t), 6.5, true)
 		# Ours when the player picked a member to lead it: the one to keep alive.
 		var ours: GuildFighter = zone.gw_match.ally_leader
 		if ours != null and is_instance_valid(ours) and not ours.is_dead():

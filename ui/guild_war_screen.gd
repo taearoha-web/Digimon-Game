@@ -146,7 +146,7 @@ func _build_lobby() -> void:
 		go.text = problem
 	else:
 		var at := GuildLeague.live_slot(t)
-		go.text = "เข้าสู่สงคราม! รอบ %s · %s ปะทะ %s" % [GuildLeague.clock_text(at), WorldPlayers.guild_name(mine), WorldPlayers.guild_name(GuildLeague.opponent(mine, at))]
+		go.text = "เข้าสู่สงคราม! รอบ %s · %d กิลด์ชิงปราสาท" % [GuildLeague.clock_text(at), GuildLeague.rivals_of(mine, at).size() + 1]
 		go.add_theme_font_size_override("font_size", 28)
 		_pulse(go)
 	go.pressed.connect(enter_league)
@@ -168,7 +168,7 @@ func _build_lobby() -> void:
 	left_scroll.add_child(left)
 	_schedule_panel(left, t)
 	_last_war(left)
-	var rules := UIUtil.label("• ลีกมี 4 กิลด์: Alpha · Neverdie · Titan · 3DLnw สงครามเปิดตามเวลาจริง วันละ 3 รอบ %s (เวลาไทย) รอบละ %d นาที แต่ละรอบสู้พร้อมกัน 2 คู่ ครบ 3 รอบได้เจอกันครบทุกคู่ แต้มรวมเป็นตารางรายสัปดาห์\n• แต่ละกิลด์ส่งสมาชิกที่เก่งที่สุด %d คน (เลเวล ดาว ชุดเทพและการตีบวก) ลงด้วยตัวละครจริงของแต่ละคน\n• สมัครรอบถัดไปได้จนถึง %d นาทีก่อนเริ่ม ถ้าอันดับในกิลด์ติด %d อันดับได้ลงสนามเป็นตัวจริง ไม่ติดก็กดชมการแข่งขันได้ เลือกเพื่อนเข้าปาร์ตี้ได้เฉพาะคนที่ติดตัวจริง\n• ไม่สมัครหรือมาไม่ทัน สงครามก็เริ่มตรงเวลา แพ้ชนะตามกำลังจริงของสองกิลด์ (ผลเหมือนกันทุกเครื่อง) — มาสายแต่สมัครไว้ยังเข้าได้จนจบรอบ\n• หลุดกลางสงคราม (แอปปิด เน็ตหลุด) กลับเข้ามาต่อได้ภายใน %d นาที ที่ปุ่มต่อสงครามเดิม\n• กิลด์เราเริ่มที่ค่ายฝั่งซ้าย อีกกิลด์ฝั่งขวา ข้ามสะพานไปตีประตูปราสาท 3 ชั้น (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ยึดแท่นได้เฉพาะหัวหน้ากิลด์ (กิลด์เรา: %s) ยืนในวงสีเหลืองบนแท่นให้ครบ %d วินาที กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาชนะ (ไม่มีใครยึด: นับคนที่ล้มได้ เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายใน %d วินาที · ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 10,000,000 + เพชรชมพู 10 เม็ด + ขนนก 2 ขน + EXP · แพ้ เหรียญ 500,000 · ซ้อมรบกับกิลด์รับจ้างได้รางวัลเหมือนกันแต่ไม่นับคะแนนลีก" % [
+	var rules := UIUtil.label("• ลีกมี 4 กิลด์: Alpha · Neverdie · Titan · 3DLnw สงครามเปิดตามเวลาจริง วันละ 3 รอบ %s (เวลาไทย) รอบละ %d นาที ทุกรอบทั้ง 4 กิลด์ลงสนามเดียวกัน ชิงปราสาทพร้อมกัน แต้มตามอันดับ (1: 40 · 2: 25 · 3: 15 · 4: 10) + ครองปราสาท + ยึด + ล้ม รวมเป็นตารางรายสัปดาห์\n• แต่ละกิลด์ส่งสมาชิกที่เก่งที่สุด %d คน (เลเวล ดาว ชุดเทพและการตีบวก) ลงด้วยตัวละครจริงของแต่ละคน\n• สมัครรอบถัดไปได้จนถึง %d นาทีก่อนเริ่ม ถ้าอันดับในกิลด์ติด %d อันดับได้ลงสนามเป็นตัวจริง ไม่ติดก็กดชมการแข่งขันได้ เลือกเพื่อนเข้าปาร์ตี้ได้เฉพาะคนที่ติดตัวจริง\n• ไม่สมัครหรือมาไม่ทัน สงครามก็เริ่มตรงเวลา แพ้ชนะตามกำลังจริงของสองกิลด์ (ผลเหมือนกันทุกเครื่อง) — มาสายแต่สมัครไว้ยังเข้าได้จนจบรอบ\n• หลุดกลางสงคราม (แอปปิด เน็ตหลุด) กลับเข้ามาต่อได้ภายใน %d นาที ที่ปุ่มต่อสงครามเดิม\n• แต่ละกิลด์เริ่มที่ค่ายของตัวเองนอกปราสาท (4 ค่ายห่างจากทางขึ้นปราสาทเท่ากัน) ข้ามสะพานไปตีประตูปราสาท 3 ชั้น ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้ (ประตูที่พังแล้วไม่ต้องตีใหม่)\n• ปราสาทเป็นของกิลด์ที่ครองไว้ตอนจบรอบก่อน จนกว่าจะมีกิลด์อื่นยึดได้: ผู้ครองเริ่มในปราสาท เดินผ่านประตูของตัวเองได้ ตีประตูตัวเองไม่ได้ ออกมาป้องกันประตูและแท่น\n• ยึดแท่นได้เฉพาะหัวหน้ากิลด์ (กิลด์เรา: %s) ยืนในวงสีเหลืองบนแท่นให้ครบ %d วินาที กิลด์ที่ครองปราสาทตอนหมดเวลาได้อันดับ 1 ที่เหลือเรียงตามแต้ม (ล้ม / 5 + ยึด × 5 · ไม่มีใครครอง: ตามแต้ม เสมอ = ต่อเวลา)\n• ถูกล้มแล้วเกิดใหม่ที่ค่ายใน %d วินาที · ไม่มีใครตายด้วยหมัดเดียว: ความเสียหายต่อการโดน 1 ครั้งไม่เกิน 20%% ของเลือดสูงสุด\n• เสบียง: ยาเลือดสงครามฟื้น HP 5,000 ครบ %d ขวดทุกครั้งที่เข้าสนาม (เหลือแล้วคืนกิลด์)\n• รางวัล: ชนะ เหรียญ 10,000,000 + เพชรชมพู 10 เม็ด + ขนนก 2 ขน + EXP · แพ้ เหรียญ 500,000 · ซ้อมรบกับกิลด์รับจ้างได้รางวัลเหมือนกันแต่ไม่นับคะแนนลีก" % [
 		_slot_list(), int(GuildWarData.DURATION / 60.0), GuildWarData.GUILD_SIDE, GuildLeague.REGISTER_CLOSE / 60, GuildWarData.GUILD_SIDE, Game.GW_CKPT_LIFETIME / 60,
 		_our_leader_text(mine), int(GuildWarMatch.CAPTURE_TIME), int(GuildWarData.RESPAWN), GuildWarData.SUPPLY_COUNT], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -176,8 +176,7 @@ func _build_lobby() -> void:
 	var right := UIUtil.vbox(6)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
-	var rival := GuildLeague.next_rival(mine, t)
-	right.add_child(UIUtil.label("สมาชิก 4 กิลด์ (เลเวล 100 ขึ้นไป)" if mine == 0 else "กิลด์ของคุณ: %s · คู่ต่อไป: %s" % [WorldPlayers.guild_name(mine), WorldPlayers.guild_name(rival)], &"SubHeaderLabel"))
+	right.add_child(UIUtil.label("สมาชิก 4 กิลด์ (เลเวล 100 ขึ้นไป)" if mine == 0 else "กิลด์ของคุณ: %s · ทุกรอบสู้กับอีก 3 กิลด์พร้อมกัน" % WorldPlayers.guild_name(mine), &"SubHeaderLabel"))
 	var scroll := TouchScroll.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -187,13 +186,12 @@ func _build_lobby() -> void:
 	scroll.add_child(list)
 	var shown: Array[int] = WorldPlayers.GUILDS.duplicate()
 	if mine > 0:
-		shown = [mine]
-		if rival > 0:
-			shown.append(rival)
+		shown.erase(mine)
+		shown.push_front(mine)
 	for g in shown:
 		var in_guild := WorldPlayers.members_at(g, t)
 		var side := GuildWarData.best_members(g, t, GuildWarData.GUILD_SIDE)
-		var head_label := UIUtil.label("กิลด์ %s%s · สมาชิก %d คน · ตัวจริง %d คน" % [WorldPlayers.guild_name(g), " (ฝั่งเรา)" if g == mine else (" (คู่ต่อไป)" if mine > 0 else ""), in_guild.size(), side.size()], &"BoldLabel")
+		var head_label := UIUtil.label("กิลด์ %s%s · สมาชิก %d คน · ตัวจริง %d คน" % [WorldPlayers.guild_name(g), " (ฝั่งเรา)" if g == mine else (" (คู่แข่ง)" if mine > 0 else ""), in_guild.size(), side.size()], &"BoldLabel")
 		head_label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS[g])
 		list.add_child(head_label)
 		if in_guild.is_empty():
@@ -245,8 +243,7 @@ func _schedule_panel(box: VBoxContainer, t: float) -> void:
 	var reg_text := ""
 	if mine > 0:
 		var place := GuildLeague.hero_place(next)
-		reg_text = "รอบ %s: %s ปะทะ %s · อันดับในกิลด์ #%d — %s" % [GuildLeague.clock_text(next), WorldPlayers.guild_name(mine),
-			WorldPlayers.guild_name(GuildLeague.opponent(mine, next)), place,
+		reg_text = "รอบ %s: 4 กิลด์ชิงปราสาท · อันดับในกิลด์ #%d — %s" % [GuildLeague.clock_text(next), place,
 			"ติดตัวจริง" if place > 0 and place <= GuildWarData.GUILD_SIDE else "ไม่ติด %d อันดับ (ชมการแข่งขันได้)" % GuildWarData.GUILD_SIDE]
 	else:
 		reg_text = "เข้ากิลด์ก่อนจึงสมัครลงสงครามได้"
@@ -277,22 +274,35 @@ func _schedule_panel(box: VBoxContainer, t: float) -> void:
 				Game.say(result, &"warning")
 			_build_lobby())
 	reg_line.add_child(reg)
+	# Who holds the castle as the next (or the live) round begins.
+	var live_at := GuildLeague.live_slot(t)
+	var owner := UIUtil.label(GuildLeague.owner_text(live_at if live_at >= 0 else next), &"BoldLabel")
+	owner.name = "LeagueOwner"
+	owner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	owner.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
+	col.add_child(owner)
 	# Today's rounds (and the one on now, which may have begun yesterday night).
 	var day := WorldEvents.day_of(t)
 	for r in GuildLeague.rounds_on(day):
-		var at := int(r.at)
-		col.add_child(UIUtil.label("รอบ %s%s" % [GuildLeague.clock_text(at), " · กำลังรบ" if GuildLeague.live_slot(t) == at else ""], &"BoldLabel"))
-		for p in r.pairs:
-			col.add_child(_match_row(at, int(p[0]), int(p[1]), t))
+		col.add_child(_round_row(int(r.at), t))
 
 
-## One war of a round: the two guilds, its state or result, and "ชมการแข่งขัน" while it is fought.
-func _match_row(at: int, a: int, b: int, t: float) -> Control:
+## One round: the four guilds in one castle war, its state or placement, and
+## "ชมการแข่งขัน" while it is fought.
+func _round_row(at: int, t: float) -> Control:
+	var box := UIUtil.vbox(2)
+	box.name = "Round_%d" % at
 	var line := UIUtil.hbox(8)
-	line.name = "Match_%d_%d_%d" % [at, a, b]
+	box.add_child(line)
 	var mine := Game.guild()
-	var state := GuildLeague.match_state(at, a, b, t)
-	var text := "%s ปะทะ %s" % [WorldPlayers.guild_name(a), WorldPlayers.guild_name(b)]
+	var state := GuildLeague.round_state(at, t)
+	var names: PackedStringArray = []
+	for g in GuildLeague.guilds_at(at):
+		names.append(WorldPlayers.guild_name(g))
+	var text := "รอบ %s · %s" % [GuildLeague.clock_text(at), " · ".join(names)]
+	var own := int(state.get("owner", 0))
+	if own > 0:
+		text += " (%s %s ครองปราสาท)" % [GuildLeague.CROWN, WorldPlayers.guild_name(own)]
 	match String(state.state):
 		"wait":
 			text += " · รอเริ่ม"
@@ -302,20 +312,24 @@ func _match_row(at: int, a: int, b: int, t: float) -> Control:
 			var war: Dictionary = state.war
 			if war.is_empty():
 				text += " · ไม่มีการแข่ง (สมาชิกยังไม่ถึงเลเวล %d)" % Game.GUILD_LEVEL
+			elif war.has("g"):
+				var places: PackedStringArray = []
+				var order := GuildLeague.placement(war)
+				for i in order.size():
+					places.append("%d.%s" % [i + 1, WorldPlayers.guild_name(order[i])])
+				text += " · %s%s%s" % [" ".join(places), " (ครองปราสาท)" if int(war.held) > 0 else "", " · คุณลงสนาม" if bool(state.get("real", false)) else ""]
 			else:
-				text += " · %s ชนะ%s%s" % [WorldPlayers.guild_name(int(war.win)), " (ครองปราสาท)" if int(war.held) > 0 else "", " · คุณลงสนาม" if bool(state.get("real", false)) else ""]
-	var label := UIUtil.label(text, &"BoldLabel" if a == mine or b == mine else &"SmallLabel")
+				text += " · %s ชนะ%s" % [WorldPlayers.guild_name(int(war.win)), " (ครองปราสาท)" if int(war.held) > 0 else ""]
+	var label := UIUtil.label(text, &"BoldLabel" if mine > 0 else &"SmallLabel")
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if a == mine or b == mine:
-		label.add_theme_color_override("font_color", WorldPlayers.GUILD_COLORS.get(mine, Color.WHITE))
 	line.add_child(label)
 	if String(state.state) == "live":
 		var watch_btn := UIUtil.button("ชมการแข่งขัน", &"AccentButton", Vector2(170, 52))
-		watch_btn.name = "Watch_%d_%d" % [a, b]
-		watch_btn.pressed.connect(func(): watch(a, b))
+		watch_btn.name = "Watch_%d" % at
+		watch_btn.pressed.connect(func(): watch())
 		line.add_child(watch_btn)
-	return line
+	return box
 
 
 ## "ตอนนี้ 17:42 · รอบ 18:00 เริ่มใน 18 นาที (ปิดรับสมัครใน 13 นาที)".
@@ -366,10 +380,10 @@ func enter_practice() -> void:
 const SPECTATE_PATH := "res://world/guild_war_spectate.gd"
 
 
-## "ชมการแข่งขัน": watches war a vs b of the round on now (GuildWarSpectate, when the
-## game has it).
-func watch(a: int, b: int) -> void:
-	var info := GuildLeague.live_match_info(a, b)
+## "ชมการแข่งขัน": watches the round on now, all four guilds (GuildWarSpectate, when the
+## game has it). `a` / `b` are kept for old callers (the round is the same).
+func watch(_a := 0, _b := 0) -> void:
+	var info := GuildLeague.live_round_info()
 	if info.is_empty():
 		Game.say("ไม่มีการแข่งขันให้ชมตอนนี้", &"warning")
 		return
@@ -391,8 +405,16 @@ func _build_result(result: Dictionary) -> void:
 	heading.add_theme_font_size_override("font_size", 64)
 	heading.add_theme_color_override("font_color", Color("ffd84a") if won else Color("9fb4ff"))
 	column.add_child(heading)
-	var score := "%s  %d  :  %d  %s%s" % [result.our_guild, int(result.score_us), int(result.score_them), result.their_guild, "  (ต่อเวลา)" if bool(result.get("overtime", false)) else ""]
-	column.add_child(UIUtil.label(score, &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	var places: Array = result.get("places", [])
+	if places.size() > 2:
+		heading.text = "อันดับ 1! ชนะสงคราม" if won else "จบอันดับ %d จาก %d กิลด์" % [int(result.get("placement", 0)), places.size()]
+		var table := PackedStringArray()
+		for row in places:
+			table.append("%d. %s%s %d" % [int(row.place), GuildLeague.CROWN if bool(row.holder) else "", String(row.name), int(row.kills)])
+		column.add_child(UIUtil.label("   ".join(table) + ("  (ต่อเวลา)" if bool(result.get("overtime", false)) else ""), &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	else:
+		var score := "%s  %d  :  %d  %s%s" % [result.our_guild, int(result.score_us), int(result.score_them), result.their_guild, "  (ต่อเวลา)" if bool(result.get("overtime", false)) else ""]
+		column.add_child(UIUtil.label(score, &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var castle := String(result.get("castle", ""))
 	column.add_child(UIUtil.label("ปราสาทเป็นของกิลด์ %s" % castle if castle != "" else "ไม่มีกิลด์ไหนยึดปราสาทได้ — ตัดสินจากจำนวนคนที่ล้มได้", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	var prize := "เหรียญ +%s" % _commas(int(result.gold))
@@ -412,8 +434,9 @@ func _build_result(result: Dictionary) -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 	var rows: Array = result.get("rows", [])
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
-		list.add_child(UIUtil.label(String(result.our_guild) if team == GuildFighter.TEAM_ALLY else String(result.their_guild), &"BoldLabel"))
+	var team_names: Array = result.get("team_names", [String(result.our_guild), String(result.their_guild)])
+	for team in team_names.size():
+		list.add_child(UIUtil.label(String(team_names[team]), &"BoldLabel"))
 		for r in rows:
 			if int(r.team) != team:
 				continue
@@ -534,7 +557,8 @@ func _last_war(box: VBoxContainer) -> void:
 	head.add_theme_color_override("font_color", Color("ffd84a") if won else Color("9fb4ff"))
 	box.add_child(head)
 	var rows: Array = last.get("rows", [])
-	for team in [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY]:
+	var their_names := String(last.get("their_guild", "")).split(" / ")
+	for team in 1 + their_names.size():
 		var side: Array = rows.filter(func(r): return int(r.get("team", 0)) == team)
 		if side.is_empty():
 			continue
@@ -542,7 +566,7 @@ func _last_war(box: VBoxContainer) -> void:
 			if int(a.kills) != int(b.kills):
 				return int(a.kills) > int(b.kills)
 			return int(a.deaths) < int(b.deaths))
-		var guild_name := String(last.get("our_guild" if team == GuildFighter.TEAM_ALLY else "their_guild", ""))
+		var guild_name := String(last.get("our_guild", "")) if team == GuildFighter.TEAM_ALLY else their_names[team - 1]
 		var title := UIUtil.label("กิลด์ %s%s" % [guild_name, " (ฝั่งเรา)" if team == GuildFighter.TEAM_ALLY else ""], &"SmallLabel")
 		title.add_theme_color_override("font_color", Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a"))
 		box.add_child(title)

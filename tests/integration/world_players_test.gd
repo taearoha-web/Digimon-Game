@@ -1025,7 +1025,7 @@ func _screens() -> void:
 	# the whole divine set at +10, ranks among Neverdie's strongest twenty).
 	var day_n := WorldEvents.day_of(WorldPresence.clock())
 	var round_at := GuildLeague.slot_start(day_n + 1, 0)
-	var rival := GuildLeague.opponent(WorldPlayers.NEVERDIE, round_at)
+	var rival := WorldPlayers.ALPHA
 	Game.paragon()["level"] = Game.PARAGON_MAX
 	var gear_rng := RandomNumberGenerator.new()
 	gear_rng.seed = 1
@@ -1049,14 +1049,14 @@ func _screens() -> void:
 	await get_tree().process_frame
 	var go_now := main.guildwar_screen.find_child("EnterWar", true, false) as Button
 	check(go_now != null and not go_now.disabled, "in a guild, registered, the war can be entered while the round is on (%s)" % (go_now.text if go_now else ""))
-	check(main.guildwar_screen.find_children("Watch_*", "Button", true, false).size() == 2, "both wars of the round can be watched")
+	check(main.guildwar_screen.find_children("Watch_*", "Button", true, false).size() == 1, "the round's war can be watched")
 	main.guildwar_screen.close_screen()
 	# The war itself: Neverdie's strongest on our side, the round's rival across.
 	Game.guildwar_league = GuildLeague.enter_match()
 	await main.go(&"guildwar", true)
 	await get_tree().create_timer(0.5).timeout
 	var war: GuildWarMatch = main.zone.gw_match
-	check(war != null and war.ally_name == "Neverdie" and war.enemy_name == WorldPlayers.guild_name(rival), "the war is Neverdie against %s" % WorldPlayers.guild_name(rival))
+	check(war != null and war.ally_name == "Neverdie" and war.enemy_name == WorldPlayers.guild_name(rival) and war.team_count() == 4, "the war is Neverdie against the three other guilds (%s)" % [war.team_names if war != null else []])
 	if war != null:
 		check(war.started_at == round_at and war.time_left <= GuildWarData.DURATION - 100.0, "a late arrival joins the round on its clock (%.0f s left)" % war.time_left)
 		var ours := true

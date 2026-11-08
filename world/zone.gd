@@ -380,17 +380,12 @@ func _build_pvp() -> void:
 	_make_boundary_walls(PvpArena.RADIUS + 1.5)
 
 
-## The guild war's castle siege: our guild's camp on the left, the rival's on the right.
+## The guild war's castle siege: a camp per guild of the war coming (GuildWarMatch.arena_colors:
+## a league round's guilds, a watched war's, a practice war's two), ours the first.
 func _build_siege() -> void:
-	var ours: Color = WorldPlayers.GUILD_COLORS.get(Game.guild(), Color("4a8cff"))
-	# The rival's colour in a league war (GuildLeague): the round's opponent; a practice war's red.
-	var rival := int(Game.guildwar_league.get("theirs", 0))
-	if rival == 0 and Game.guildwar_resuming:
-		var pair: Array = Game.guildwar_checkpoint().get("league", [])
-		rival = int(pair[1]) if pair.size() == 2 else 0
-	var theirs: Color = WorldPlayers.GUILD_COLORS.get(rival, Color("ff5a4a")) if Game.guild() > 0 else Color("ff5a4a")
-	SiegeArena.build(self, rng, ours, theirs)
-	_start = Vector3(-SiegeArena.BASE_X, 0, SiegeArena.BASE_Z)
+	SiegeArena.build(self, rng, GuildWarMatch.arena_colors())
+	var c := SiegeArena.camp(0)
+	_start = Vector3(c.x, 0, c.z)
 	# North of the moat the castle's walls close the field (its hall runs past the round edge).
 	_make_boundary_walls(SiegeArena.RADIUS + 1.5, SiegeArena.MOAT_SOUTH)
 

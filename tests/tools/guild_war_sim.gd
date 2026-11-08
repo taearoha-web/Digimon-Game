@@ -39,7 +39,7 @@ func _steer() -> void:
 	var goal := SiegeArena.ALTAR
 	var radius := 3.0
 	if gate != null:
-		goal = SiegeArena.gate_front(gate.gate_index) + Vector3(-3.0, 0, 2.0)
+		goal = SiegeArena.gate_front(gate.tier, gate.lane) + Vector3(-3.0, 0, 2.0)
 		radius = 10.0
 	elif _m.castle_owner == GuildFighter.TEAM_ALLY:
 		goal = SiegeArena.ALTAR + Vector3(0, 0, 5.0)

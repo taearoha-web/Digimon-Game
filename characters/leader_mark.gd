@@ -116,6 +116,10 @@ static func _build_crown(crown: Node3D, color: Color) -> void:
 ## The crown's colour for a side: its guild's own (WorldPlayers.GUILD_COLORS); the
 ## two sides always differ, so with no guild ours is gold and theirs rose.
 static func guild_color(team: int) -> Color:
+	# In a war of more than two guilds every crown is its own guild's colour.
+	var war := GuildWarMatch.current
+	if war != null and is_instance_valid(war) and war.team_count() > 2:
+		return war.team_color(team)
 	var mine := Game.guild()
 	var g := mine if team == GuildFighter.TEAM_ALLY else GuildLeague.war_rival()
 	var fallback := GOLD if team == GuildFighter.TEAM_ALLY else Color("ff6f8e")

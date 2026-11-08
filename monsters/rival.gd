@@ -51,6 +51,22 @@ var announce_skills := true
 var _summons: Array = []
 ## At most this many summons alive per AI fighter.
 const SUMMON_LIMIT := 3
+## The skills this fighter may use at all (its AI kit, level, tier and stars: none of it
+## changes in a fight), worked out on its first think and again if one of those changes.
+var _usable: Array = []
+var _usable_built := false
+var _usable_key: Array = []
+## The aura's height for the buff art (one Callable, not a new one every frame).
+var _top_fn: Callable
+## The party roles' regen and cooldown speed (ClassRoles), looked up every ROLE_STEP s.
+const ROLE_STEP := 0.2
+var _role_wait := 0.0
+var _role_time := 0.0
+var _cd_rate := 1.0
+## Cooldown time not yet taken off (the skills' cooldowns run down every CD_STEP s, and
+## always before they are read for a cast: _flush_cooldowns).
+const CD_STEP := 0.1
+var _cd_owed := 0.0
 ## Marks on this fighter (a player: half strength, 40% of the time; Mob.PLAYER_MARK).
 ## Kept apart from Mob's monster marks so the buff and respawn code that rebuilds
 ## stats.def never loses or keeps one by mistake: [fraction, until (s)].
@@ -97,6 +113,7 @@ func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: Strin
 	_dodge = lerpf(0.0, 0.18, difficulty)
 	_potions = int(round(lerpf(0.0, 3.0, difficulty)))
 	_strafe = 1.0 if randf() < 0.5 else -1.0
+	_usable_built = false
 
 
 func _make_visual() -> MonsterVisual:
@@ -195,7 +212,7 @@ func apply_slow(seconds: float) -> void:
 func apply_shred(fraction: float, seconds: float) -> void:
 	if not _markable() or fraction <= 0.0 or seconds <= 0.0:
 		return
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var current := _rshred if now < _rshred_until else 0.0
 	var f := clampf(fraction, 0.0, SHRED_CAP) * PLAYER_MARK
 	if f + 0.0001 < current:
@@ -211,7 +228,7 @@ func apply_shred(fraction: float, seconds: float) -> void:
 func apply_weaken(fraction: float, seconds: float) -> void:
 	if not _markable() or fraction <= 0.0 or seconds <= 0.0:
 		return
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var current := _weaken_now()
 	var f := clampf(fraction, 0.0, WEAKEN_CAP) * PLAYER_MARK
 	if f + 0.0001 < current:
@@ -233,24 +250,24 @@ func _tick_status(delta: float) -> void:
 
 
 func debuff_left(key: String) -> float:
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var until := _rshred_until if key == "shred" else (_rweaken_until if key == "weaken" else 0.0)
 	return maxf(0.0, until - now)
 
 
 func _weaken_now() -> float:
-	return _rweaken if Time.get_ticks_msec() * 0.001 < _rweaken_until else 0.0
+	return _rweaken if GameClock.msec() * 0.001 < _rweaken_until else 0.0
 
 
 ## The only place stats.def is written: base x its own buff x an armour crack.
 func _sync_def() -> void:
-	var cracked := _rshred if Time.get_ticks_msec() * 0.001 < _rshred_until else 0.0
+	var cracked := _rshred if GameClock.msec() * 0.001 < _rshred_until else 0.0
 	stats["def"] = _base_def * _def_boost * (1.0 - cracked)
 
 
 ## Ends the marks once their time is up (and gives the DEF and the tag colour back).
 func _expire_marks() -> void:
-	var now := Time.get_ticks_msec() * 0.001
+	var now := GameClock.msec() * 0.001
 	var changed := false
 	if _rshred_until > 0.0 and now >= _rshred_until:
 		_rshred = 0.0
@@ -326,7 +343,7 @@ func _chase(target: Node3D, delta: float, _speed_factor: float) -> Vector3:
 	var to := target.global_position - global_position
 	to.y = 0.0
 	var distance := to.length()
-	var now := Time.get_ticks_msec()
+	var now := GameClock.msec()
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-12.0 * delta))
 		visual.rotation.y = _yaw
@@ -342,7 +359,7 @@ func _chase(target: Node3D, delta: float, _speed_factor: float) -> Vector3:
 	var speed := float(rstats.speed) * pace * (0.5 if _slow > 0.0 else 1.0)
 	var dir := to.normalized() if distance > 0.01 else Vector3.ZERO
 	_think -= delta
-	if _think <= 0.0:
+	if _think <= 0.0 and _may_think():
 		_think = lerpf(0.55, 0.18, difficulty)
 		if _try_potion():
 			return Vector3.ZERO
@@ -373,22 +390,50 @@ func _chase(target: Node3D, delta: float, _speed_factor: float) -> Vector3:
 	return Vector3.ZERO
 
 
+## Whether it may score its skills now (a guild fighter waits for its slot of the
+## frame's budget, GuildFighter._may_think; a duel rival always may).
+func _may_think() -> bool:
+	return true
+
+
 func _tick(delta: float) -> void:
-	_buff_art.tick(self, not is_dead() and not duel_over, func(): return BuffAura.measure_top(_rv, self))
+	if not _top_fn.is_valid():
+		_top_fn = func(): return BuffAura.measure_top(_rv, self)
+	_buff_art.tick(self, not is_dead() and not duel_over, _top_fn)
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_potion_cd = maxf(0.0, _potion_cd - delta)
 	mp = minf(float(rstats.max_mp), mp + float(rstats.max_mp) * 0.025 * delta)
-	ClassRoles.regen(self, delta)
-	var step := delta * ClassRoles.cd_rate(self)
-	for id in cooldowns.keys():
-		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - step)
-	if _buff_until > 0.0 and Time.get_ticks_msec() * 0.001 > _buff_until:
+	# The party roles' regen (it carries fractions, so a few steps a second give the same
+	# HP and MP) and the Bard's cooldown speed are looked up a few times a second.
+	_role_wait -= delta
+	_role_time += delta
+	if _role_wait <= 0.0:
+		_role_wait = ROLE_STEP
+		ClassRoles.regen(self, _role_time)
+		_role_time = 0.0
+		_cd_rate = ClassRoles.cd_rate(self)
+	_cd_owed += delta * _cd_rate
+	if _cd_owed >= CD_STEP:
+		_flush_cooldowns()
+	if _buff_until > 0.0 and GameClock.msec() * 0.001 > _buff_until:
 		_buff_until = 0.0
 		_atk_boost = 1.0
 		_def_boost = 1.0
 		_sync_def()
 		_drop_hp_bonus()
 	_expire_marks()
+
+
+## Takes the time owed off every cooldown (before any cast is chosen or made).
+func _flush_cooldowns() -> void:
+	var step := _cd_owed
+	_cd_owed = 0.0
+	if step <= 0.0 or cooldowns.is_empty():
+		return
+	for id in cooldowns:
+		var left: float = cooldowns[id]
+		if left > 0.0:
+			cooldowns[id] = maxf(0.0, left - step)
 
 
 func _try_potion() -> bool:
@@ -419,10 +464,17 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	var hp_ratio := float(hp) / float(max_hp)
-	for skill in class_data.skills:
+	_flush_cooldowns()
+	var key := [level, _tier(), _stars(), hash(_buff_kit), class_data.skills.size()]
+	if not _usable_built or key != _usable_key:
+		_usable_built = true
+		_usable_key = key
+		_usable = []
+		for skill in class_data.skills:
+			if ClassData.ai_allows(skill, _buff_kit) and int(skill.level) <= level and ClassData.skill_tier(skill) <= _tier() and int(skill.get("star", 0)) <= _stars():
+				_usable.append(skill)
+	for skill in _usable:
 		var shape := String(skill.shape)
-		if not ClassData.ai_allows(skill, _buff_kit) or int(skill.level) > level or ClassData.skill_tier(skill) > _tier() or int(skill.get("star", 0)) > _stars():
-			continue
 		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, shape, distance, hp_ratio)
@@ -482,6 +534,7 @@ func _shape_score(skill: Dictionary, shape: String, distance: float, hp_ratio: f
 
 
 func _cast(skill: Dictionary, target: Node3D) -> void:
+	_flush_cooldowns()
 	mp -= float(skill.mp)
 	cooldowns[skill.id] = float(skill.cd) * lerpf(1.7, 1.05, difficulty)
 	var shape := String(skill.shape)
@@ -500,7 +553,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	if _rv and _rv.hero_visual:
 		_rv.hero_visual.skill_action(skill, delay)
 		SkillShow.anticipate(get_parent(), skill, global_position, delay, aim, _rv.hero_visual)
-	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 80
+	_cast_until = GameClock.msec() + int(delay * 1000.0) + 80
 	_attack_timer = maxf(_attack_timer, delay + 0.25)
 	var cast_sound := SkillSound.cast(skill)
 	if cast_sound != &"skill_start":
@@ -557,7 +610,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
 				_sync_def()
 				_raise_hp(float(buff.get("hp", 0.0)))
-				_buff_until = maxf(_buff_until, Time.get_ticks_msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
+				_buff_until = maxf(_buff_until, GameClock.msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 				var display_buff := buff.duplicate()
 				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
 				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id))
@@ -653,7 +706,7 @@ func _basic_attack(target: Node3D) -> void:
 	_combo += 1
 	if _rv and _rv.hero_visual:
 		_rv.hero_visual.action(clip, 1.0)
-	_cast_until = Time.get_ticks_msec() + int(float(attack.hit_delay) * 1000.0) + 60
+	_cast_until = GameClock.msec() + int(float(attack.hit_delay) * 1000.0) + 60
 	var color: Color = attack.get("color", Color.WHITE)
 	var mult := float(attack.mult)
 	var target_ref: WeakRef = weakref(target)

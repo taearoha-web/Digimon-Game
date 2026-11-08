@@ -51,7 +51,7 @@ func _season(w: int, t: float) -> void:
 	check(WorldEvents.weekday(start) == 1 and WorldEvents.time_of_day(start) == 0, "a season starts on Monday 00:00 Thai")
 	check(GuildLeague.week_of(start) == w and GuildLeague.week_of(start - 1.0) == w - 1 and GuildLeague.week_of(GuildLeague.week_end(w) - 1.0) == w, "Sunday 23:59 is still the same season")
 	var wars := GuildLeague.sim_wars(w)
-	check(wars.size() == 7 * GuildLeague.SLOTS.size() * 2, "three rounds a day, two wars a round (%d)" % wars.size())
+	check(wars.size() == 7 * GuildLeague.SLOTS.size(), "three rounds a day, one war of every guild a round (%d)" % wars.size())
 	var copy: Array = wars.duplicate(true)
 	GuildLeague._sim_cache.clear()
 	GuildLeague._power_cache.clear()
@@ -61,10 +61,10 @@ func _season(w: int, t: float) -> void:
 	var inside := true
 	for e in wars:
 		inside = inside and float(e.at) >= start and float(e.at) < GuildLeague.week_end(w)
-		played[int(e.a)] = int(played.get(int(e.a), 0)) + 1
-		played[int(e.b)] = int(played.get(int(e.b), 0)) + 1
-	check(inside, "every AI war is inside its season")
-	check(played.size() == GuildLeague.ids().size(), "every league guild plays (%d of %d)" % [played.size(), GuildLeague.ids().size()])
+		for g in e.g:
+			played[int(g)] = int(played.get(int(g), 0)) + 1
+	check(inside, "every AI round is inside its season")
+	check(played.size() == GuildLeague.ids().size() and played.values().all(func(n): return int(n) == wars.size()), "every league guild plays every round (%s)" % [played])
 	var zero := GuildLeague.table(w, [], start)
 	var mid := GuildLeague.table(w, [], t)
 	var final := GuildLeague.table(w, [])
@@ -73,26 +73,28 @@ func _season(w: int, t: float) -> void:
 	var wins := 0
 	for r in final:
 		wins += int(r.wins)
-	check(wins == wars.size() and final.size() == 4, "one winner a war, the four guilds only")
+	check(wins == wars.size() and final.size() == 4, "one first place a round, the four guilds only")
 	check(int(final[0].rank) == 1 and int(final[0].points) >= int(final[1].points), "ranked best first")
 	var champ := GuildLeague.champion_of(w, [])
-	check(champ == GuildLeague._last_holder(w, []) and champ > 0, "the champion holds the castle when the season ends")
-	check(GuildLeague.holder(w, [], start) == GuildLeague.champion_of(w - 1, []), "before the first war last week's champion holds the castle")
+	var last := GuildLeague.prev_slot(int(GuildLeague.week_end(w)))
+	check(champ == GuildLeague.holder_after(last) and champ > 0, "the champion holds the castle when the season ends")
+	check(GuildLeague.holder(w, [], start) == GuildLeague.holder_after(GuildLeague.prev_slot(int(start))), "before the week's first round the castle is with whoever held it at the end of last week")
+	check(GuildLeague.start_holder(GuildLeague.next_slot(start)) == GuildLeague.champion_of(w - 1, []) or GuildLeague.holder_after(GuildLeague.prev_slot(int(start))) == 0, "last week's champion holds the castle as this week begins")
 
 
 func _real_war(w: int, t: float) -> void:
 	_hero()
-	# The hero fought today's 12:00 round (over by 13:00): its result takes that war's place.
+	# The hero fought today's 12:00 round (over by 13:00): its result takes that round's place.
 	var at := GuildLeague.slot_start(WorldEvents.day_of(t), 0)
-	var rival := GuildLeague.opponent(WorldPlayers.ALPHA, at)
-	var sim := GuildLeague.sim_war(at, mini(WorldPlayers.ALPHA, rival), maxi(WorldPlayers.ALPHA, rival))
+	var own := GuildLeague.start_holder(at)
+	var sim := GuildLeague.sim_round(at, own)
 	var before := GuildLeague.table(w, GuildLeague.real_wars(w), t)
-	GuildLeague.current_match = {"ours": WorldPlayers.ALPHA, "theirs": rival, "at": at}
-	var result := Game.guildwar_finish(true, 30, 12, 4, 1, "Alpha", WorldPlayers.guild_name(rival))
-	var pts := GuildLeague.war_finished(result, true, [2, 0], 0, [30, 12])
-	var expected := GuildLeague.WIN + 2 * GuildLeague.CAPTURE + GuildLeague.HOLD + 30 / GuildLeague.KILLS_PER_POINT
-	check(pts == expected and int(result.league) == expected, "a real won war with two captures and the castle: %d points (%d)" % [expected, pts])
-	check(GuildLeague.real_wars(w).size() == 1, "the war is kept in the season's record")
+	GuildLeague.current_match = {"guilds": [1, 2, 3, 4], "at": at, "owner": own}
+	var result := Game.guildwar_finish(true, 30, 12, 4, 1, "Alpha", "Neverdie / Titan / 3DLnw")
+	var pts := GuildLeague.war_finished(result, true, [2, 0, 0, 0], 0, [30, 12, 5, 8])
+	var expected := 40 + 2 * GuildLeague.CAPTURE + GuildLeague.HOLD + 30 / GuildLeague.KILLS_PER_POINT
+	check(pts == expected and int(result.league) == expected, "a real round won with two captures and the castle: %d points (%d)" % [expected, pts])
+	check(GuildLeague.real_wars(w).size() == 1, "the round is kept in the season's record")
 	var after := GuildLeague.table(w, GuildLeague.real_wars(w), t)
 	var gain := func(g: int) -> int:
 		var a := 0
@@ -105,11 +107,10 @@ func _real_war(w: int, t: float) -> void:
 				a = int(r.points)
 		return a - b
 	check(gain.call(WorldPlayers.ALPHA) == expected - GuildLeague.side_points(sim, WorldPlayers.ALPHA), "the hero's guild earns the points in place of the seeded result")
-	check(gain.call(rival) == GuildLeague.LOSS + 12 / GuildLeague.KILLS_PER_POINT - GuildLeague.side_points(sim, rival), "the rival earns the loser's points")
-	var other: Array = GuildLeague.pairs_at(at)[1] if (GuildLeague.pairs_at(at)[0] as Array).has(WorldPlayers.ALPHA) else GuildLeague.pairs_at(at)[0]
-	var other_war := GuildLeague.sim_war(at, int(other[0]), int(other[1]))
-	var other_wins := int(other_war.get("held", 0)) > 0 and GuildLeague.side_points(other_war, int(other_war.held)) > expected
-	check(GuildLeague.holder(w, GuildLeague.real_wars(w), t + 1.0) == (int(other_war.held) if other_wins else WorldPlayers.ALPHA), "holding the castle at the bell makes the guild the holder")
+	# Neverdie: 12 falls -> 2 points, 2nd place.
+	check(gain.call(WorldPlayers.NEVERDIE) == 25 + 12 / GuildLeague.KILLS_PER_POINT - GuildLeague.side_points(sim, WorldPlayers.NEVERDIE), "the others earn their placement points")
+	check(GuildLeague.holder(w, GuildLeague.real_wars(w), float(at) + GuildWarData.DURATION + 1.0) == WorldPlayers.ALPHA, "holding the castle at the bell makes the guild the holder")
+	check(GuildLeague.start_holder(GuildLeague.next_slot(float(at))) == WorldPlayers.ALPHA, "and it holds the castle as the next round begins")
 	check(GuildLeague.current_match.is_empty(), "the league war is recorded once")
 	check(GuildLeague.war_finished({"won": true}, true, [1, 0], 0, [9, 3]) == 0 and GuildLeague.real_wars(w).size() == 1, "a guild war that is no league war (none being fought) earns nothing")
 	# A war with no guild (hired line-ups) is not a league war.
@@ -117,7 +118,7 @@ func _real_war(w: int, t: float) -> void:
 	check(GuildLeague.war_finished(hired, false, [1, 0], 0, [9, 3]) == 0 and GuildLeague.real_wars(w).size() == 1, "a hired war earns no league points")
 	# A war outside any guild is not recorded either.
 	_hero(0)
-	check(GuildLeague.record_war(0, 0, true, 1, 0, 0, 5, 1) == 0, "no guild, no league points")
+	check(GuildLeague.record_round([0, 1], [1, 0], [5, 1], 0) == 0, "no guild, no league points")
 
 
 func _rollover(w: int) -> void:
@@ -128,8 +129,7 @@ func _rollover(w: int) -> void:
 	pin(late)
 	# Alpha fights every round of the week and wins big (holding the castle in the last).
 	for m in GuildLeague.schedule(w):
-		if int(m.a) == WorldPlayers.ALPHA or int(m.b) == WorldPlayers.ALPHA:
-			GuildLeague.record_war(WorldPlayers.ALPHA, int(m.b) if int(m.a) == WorldPlayers.ALPHA else int(m.a), true, 5, 0, 0, 100, 10, float(m.at))
+		GuildLeague.record_round([1, 2, 3, 4], [5, 0, 0, 0], [100, 10, 10, 10], 0, float(m.at), GuildLeague.start_holder(int(m.at)))
 	check(not GuildLeague.hero_champion(), "no crown before the season ends")
 	# Monday 10:00 of the next season.
 	var t := GuildLeague.week_start(w + 1) + 10.0 * 3600.0

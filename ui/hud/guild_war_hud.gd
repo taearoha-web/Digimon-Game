@@ -169,7 +169,7 @@ func _update(_delta: float, force: bool) -> void:
 	if match_node == null or not is_instance_valid(match_node):
 		return
 	var m := match_node
-	_score.text = "%s  %d : %d  %s" % [m.ally_name, m.score[0], m.score[1], m.enemy_name]
+	_score.text = m.score_line()
 	var left := int(ceil(m.time_left))
 	_clock.text = "ต่อเวลา!" if m.overtime else "%d:%02d" % [left / 60, left % 60]
 	_owner.text = m.owner_line()
@@ -190,6 +190,10 @@ func _tell_gate(m: GuildWarMatch, force: bool) -> void:
 	var gate := m.front_gate()
 	if gate == null:
 		return
+	# The weaker of the front tier's gates.
+	for g in m.front_gates():
+		if float(g.hp) / float(maxi(1, g.max_hp)) < float(gate.hp) / float(maxi(1, gate.max_hp)):
+			gate = g
 	var quarters := int(ceil(4.0 * float(gate.hp) / float(maxi(1, gate.max_hp))))
 	var mark := gate.gate_index * 4 + quarters
 	if mark == _gate_mark:
@@ -197,11 +201,14 @@ func _tell_gate(m: GuildWarMatch, force: bool) -> void:
 	var first := _gate_mark < 0
 	_gate_mark = mark
 	if force or first or quarters < 4:
-		_post("ประตูชั้นที่ %d/3 เหลือ %d%%" % [gate.gate_index + 1, int(ceil(100.0 * float(gate.hp) / float(maxi(1, gate.max_hp))))], NEWS_COLOR)
+		_post(m.gate_status(), NEWS_COLOR)
 
 
 func _on_feed(text: String, team: int) -> void:
-	_post(text, NEWS_COLOR if team < 0 else (ALLY_COLOR if team == GuildFighter.TEAM_ALLY else ENEMY_COLOR))
+	var color := NEWS_COLOR if team < 0 else (ALLY_COLOR if team == GuildFighter.TEAM_ALLY else ENEMY_COLOR)
+	if team > 0 and match_node != null and is_instance_valid(match_node) and match_node.team_count() > 2:
+		color = match_node.team_color(team).lerp(Color.WHITE, 0.3)
+	_post(text, color)
 
 
 func _post(text: String, color: Color) -> void:
