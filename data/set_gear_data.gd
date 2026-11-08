@@ -5,6 +5,15 @@ extends RefCounted
 ## piece of every class) and jewels, at CRAFT_CHANCE (Game.craft_set_piece).
 ## Six pieces per class: the class weapon, armour, helm, boots, ring and amulet.
 ##
+## The recipe (recipe(), the one place it is written down) also takes the class's
+## sanctuary gear, so the divine set (ชุดประจำอาชีพ) stays worth hunting: the
+## weapon, armour, helm and boots each use up the divine piece of the same class
+## and slot at +DIVINE_PLUS or more; the ring and amulet (no divine piece exists)
+## use up SCALES Lotus Scales (ItemData.JEWELS "lotus_scale"). Both drop in the
+## two 200-300 star fields (EndgameFields). A failed try loses the core and the
+## jewels but keeps the divine piece / the scales. The set piece comes out at +0
+## (its +0 already beats the divine piece at +10).
+##
 ## Stats are fixed (no roll): every stat of a +0 piece is the best piece any other
 ## source can give in that slot at +10 (HeroStats.PLUS_BONUS, crit +4% a step),
 ## times MARGIN. The best pieces are the class's divine piece at its top roll
@@ -25,9 +34,15 @@ const RARITY := 4
 const MARGIN := 1.15
 ## What one +1 adds at the forge (HeroStats.gear_bonus): +5% a step, crit +4%.
 const PLUS_REF := 10
+## Core and jewels of one piece (spent on every try, success or not).
 const CRAFT_COST := {"set_core": 1, "purple": 20, "pink": 20, "chaos": 20}
 const CRAFT_CHANCE := 0.5
 const CORE := "set_core"
+## The divine piece a weapon / armour / helm / boots takes: same class and slot, +10 up.
+const DIVINE_PLUS := 10
+## Lotus Scales a ring / amulet takes.
+const SCALE := "lotus_scale"
+const SCALES := 5
 const PRICE := 600000
 
 const THEMES := {"warrior": "ราชันอัคนี", "archer": "พายุมรกต", "lancer": "มังกรอัสนี", "mage": "ดาราจักรอนันต์", "priest": "อรุณศักดิ์สิทธิ์",
@@ -200,6 +215,46 @@ static func cost_text() -> String:
 	for id in CRAFT_COST:
 		parts.append("%s %d" % [ItemData.JEWELS[id].name, int(CRAFT_COST[id])])
 	return " + ".join(parts)
+
+
+## The whole recipe of [param cls]'s [param slot] piece ({} for an unknown class or
+## slot): {"core": 1, "jewels": {id: n}, "divine_slot": slot or "", "divine_plus":
+## the + the divine piece needs, "scales": n, "scale_id", "chance", "keep_on_fail":
+## what a failure leaves (the divine piece, the scales)}. Game.craft_set_piece and
+## the world players' gear model both read it.
+static func recipe(cls: String, slot: String) -> Dictionary:
+	if not THEMES.has(cls) or not SLOTS.has(slot):
+		return {}
+	var jewels := CRAFT_COST.duplicate()
+	jewels.erase(CORE)
+	var divine := slot if DivineGearData.SLOTS.has(slot) else ""
+	return {"core": int(CRAFT_COST[CORE]), "jewels": jewels, "divine_slot": divine, "divine_plus": DIVINE_PLUS if divine != "" else 0,
+		"scales": 0 if divine != "" else SCALES, "scale_id": SCALE, "chance": CRAFT_CHANCE, "keep_on_fail": ["divine", "scales"]}
+
+
+## Whether [param item] is a divine piece that can go into [param cls]'s [param slot]
+## set piece: the same class and slot at +DIVINE_PLUS or more.
+static func divine_fits(item: Variant, cls: String, slot: String) -> bool:
+	if not DivineGearData.is_item(item):
+		return false
+	var it: Dictionary = item
+	return String(it.get("slot", "")) == slot and String(it.get("star_class", it.get("class", ""))) == cls and int(it.get("plus", 0)) >= DIVINE_PLUS
+
+
+## "ดาบพันดาบเทวะ +10": the divine piece the slot's recipe asks for ("" for jewellery).
+static func divine_need_text(cls: String, slot: String) -> String:
+	if not DivineGearData.SLOTS.has(slot):
+		return ""
+	return "%s +%d" % [DivineGearData.item_name(StringName(cls), slot), DIVINE_PLUS]
+
+
+## "ต้องมี: ดาบพันดาบเทวะ +10 (ชุดประจำอาชีพ) + แก่นเทพหลอมเซต 1 + เพชรม่วง 20 + ...".
+static func requirement_text(cls: String, slot: String) -> String:
+	var need := recipe(cls, slot)
+	if need.is_empty():
+		return ""
+	var first := ("%s (ชุดประจำอาชีพ ชิ้นใดก็ได้)" % divine_need_text(cls, slot)) if String(need.divine_slot) != "" else "%s %d" % [ItemData.JEWELS[SCALE].name, int(need.scales)]
+	return "ต้องมี: %s + %s" % [first, cost_text()]
 
 
 ## Every set piece (for icons, previews and tests).

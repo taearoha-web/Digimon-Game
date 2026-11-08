@@ -153,6 +153,9 @@ const JEWELS := {
 	# The one material of every 250-star set piece (SetGearData.CRAFT_COST), dropped
 	# in the 200-300 star fields.
 	"set_core": {"name": "แก่นเทพหลอมเซต", "color": Color("5cf2e6"), "price": 50000},
+	# The 250-star set's ring and amulet need these (SetGearData.recipe), dropped in
+	# the two 200-300 star fields (EndgameFields.SCALE_*).
+	"lotus_scale": {"name": "เกล็ดบัวดารา", "color": Color("f8a8dc"), "price": 30000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
@@ -570,7 +573,8 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	if StarGearData.is_star(item):
 		lines.append("อุปกรณ์แห่งดวงดาว %d" % int(item.star_tier))
 		if DivineGearData.is_item(item):
-			lines.append("ดรอปเฉพาะวิหารบัวดารา • เลเวล 100 และ 200 ดาว")
+			lines.append("ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร • เลเวล 100 และ 200 ดาว")
+			lines.append("ตีถึง +%d แล้วใช้ผสม%sชุดเซต 250 ดาวที่ช่างตีเหล็ก" % [SetGearData.DIVINE_PLUS, String(SLOT_NAMES.get(String(item.slot), ""))])
 			if item.slot == "armor": lines.append("ชุดครบเสื้อ กางเกง และถุงมือ • ใช้ได้ทั้งตัวละครชายและหญิง")
 		if String(item.get("set", "")).begins_with("star_") or DivineGearData.is_item(item): lines.append(StarProgression.set_bonus_text(String(item.star_class)))
 	var plus := int(item.get("plus", 0))

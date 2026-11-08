@@ -3,36 +3,33 @@ extends RefCounted
 ## ห้วงสมุทรอสูร: the post-story levelling field for 200★ to 300★, beyond the
 ## Lotus Sanctum. A drowned temple city on the sea floor with its own bestiary
 ## (existing Quaternius rigs re-dressed: new names, sizes, palettes and a
-## bioluminescent aura, see DeepMonsterArt) and its own drop table: the forge
-## jewels three times as often as anywhere else, the 20,000 HP potion, gems,
-## the mount materials and the rare set material ("set_core").
+## bioluminescent aura, see DeepMonsterArt). Its difficulty band and its drop
+## table are the Lotus Sanctum's (EndgameFields): the forge jewels three times as
+## often as anywhere else, the divine class pieces, the rare set material
+## ("set_core"), Lotus Scales, 200★ jewellery, the 20,000 HP potion, gems,
+## wings and the mount materials.
 ## The entry needs ENTRY_STAR stars, read the way every star field does
 ## (ZoneData.access_reason with Game.paragon().level), so it stays open once
 ## the star cap grows past 200.
 
 const ID: StringName = &"drowned_abyss"
 const TITLE := "ห้วงสมุทรอสูร"
-const ENTRY_STAR := 200
-## Experience boost of a kill here (Zone: 1 + gear_star / 25): the climb from
-## 200★ to 300★ takes about fifteen kills a star.
-const GEAR_STAR := 250
+const ENTRY_STAR := EndgameFields.ENTRY_STAR
+## Experience boost of a kill here (Zone: 1 + gear_star / 25), as in the sanctuary.
+const GEAR_STAR := EndgameFields.GEAR_STAR
 ## Like the star regions, every monster has ten times its designed health.
-const TOUGH_HP := 10.0
+const TOUGH_HP := EndgameFields.TOUGH_HP
 
-## Forge jewels per kill (Zone.jewel_drops reads the zone's "jewel_drop"):
-## three times the purple and chaos rate and twice the pink rate of other fields.
-const JEWEL_DROP := {"purple": 0.03, "pink": 0.01, "chaos": 0.03}
-## The set material (the set crafting's own jewel, ItemData.JEWELS["set_core"]):
-## 0.1% a kill, rolled only in this field.
-const SET_CORE := "set_core"
-const SET_CORE_DROP := 0.001
-## Gems and potions a kill drops on top of the jewels and gold.
-const GEM_NORMAL := 0.10
-const GEM_ELITE := 0.25
-const GEM_BOSS := 4
-const POTION_NORMAL := 0.08
-const POTION_ELITE := 0.20
-const POTION_BOSS := 5
+## The shared table's numbers under their old names (EndgameFields).
+const JEWEL_DROP := EndgameFields.JEWEL_DROP
+const SET_CORE := EndgameFields.SET_CORE
+const SET_CORE_DROP := EndgameFields.SET_CORE_DROP
+const GEM_NORMAL := EndgameFields.GEM_NORMAL
+const GEM_ELITE := EndgameFields.GEM_ELITE
+const GEM_BOSS := EndgameFields.GEM_BOSS
+const POTION_NORMAL := EndgameFields.POTION_NORMAL
+const POTION_ELITE := EndgameFields.POTION_ELITE
+const POTION_BOSS := EndgameFields.POTION_BOSS
 
 ## Normal monsters fight with MobAttack moves, the tyrant with BossAttack's.
 ## "aura" colours the glow DeepMonsterArt puts on each of them.
@@ -61,7 +58,6 @@ const NORMALS: Array[StringName] = [&"abyss_angler", &"reef_crab", &"tide_squid"
 const ELITES: Array[StringName] = [&"trench_horror", &"leviathan_whelp"]
 const BOSS: StringName = &"tidal_tyrant"
 const CAMP_NAMES := ["ลานโคมมรณะ", "แนวปะการังโลหิต", "ซากวิหารหมึกเงา", "สวนแมงกะพรุนวิญญาณ", "ค่ายเงือกทมิฬ", "ร่องลึกเลวีอาธาน"]
-const CAMP_LEVELS := [[180, 186], [182, 188], [184, 190], [186, 192], [188, 196], [192, 200]]
 
 
 static func has_monster(id: StringName) -> bool:
@@ -84,36 +80,21 @@ static func zone() -> Dictionary:
 		var ids: Array = [NORMALS[i]] if i < 5 else [&"reef_crab", &"reef_crab", &"trench_horror", &"leviathan_whelp"]
 		if i == 3: ids = [NORMALS[i], NORMALS[i], NORMALS[i], &"trench_horror"]
 		elif i == 4: ids = [NORMALS[i], NORMALS[i], NORMALS[i], &"leviathan_whelp"]
-		camps.append({"name": CAMP_NAMES[i], "monsters": ids, "levels": CAMP_LEVELS[i], "pos": positions[i], "radius": 9.0, "count": 9})
-	return {"name": TITLE, "scene": "field", "theme": ID, "star": ENTRY_STAR, "gear_star": GEAR_STAR,
-		# Post-story like the sanctuary: ★-field rules (world boss on weekends,
-		# perfect gems) and it may follow the ending field in the travel chain.
-		"divine_region": true,
+		camps.append({"name": CAMP_NAMES[i], "monsters": ids, "levels": EndgameFields.camp_levels(i, 6), "pos": positions[i], "radius": 9.0, "count": 9})
+	# Post-story like the sanctuary (EndgameFields.zone_fields: "divine_region", so
+	# ★-field rules, world boss on weekends, perfect gems; the shared gate and drops).
+	var out := {"name": TITLE, "scene": "field", "theme": ID,
 		"level": [100, 100], "music": ID, "ambience": &"water", "weather": &"bubbles",
-		"jewel_drop": JEWEL_DROP, "set_core_drop": SET_CORE_DROP,
 		"sky": Color("10324a"), "fog": Color("1d6a7c"), "ambient": Color("6fc9d8"), "sun": Color("9fe8ff"), "ground": Color("1f4a52"),
 		"sky_palette": [Color("040d1e"), Color("0c3550"), Color("1e7486")], "sun_size": 0.0, "moon": true,
 		"camps": camps,
-		"boss": {"monster": BOSS, "level": 210, "respawn": 150.0, "star": ENTRY_STAR},
+		"boss": {"monster": BOSS, "level": EndgameFields.BOSS_LEVEL, "respawn": EndgameFields.BOSS_RESPAWN, "star": ENTRY_STAR},
 		"prev": DivineRegionData.ID, "next": &""}
-
-
-## What a kill here drops besides gold, the jewels (Zone.jewel_drops) and the
-## mount materials: stat gems and the 20,000 HP potion (hp_god), mana now and then.
-## Chances grow by (1 + fortune) like every drop.
-static func kill_drops(boss: bool, elite: bool, fortune: float, roll: RandomNumberGenerator) -> Array:
-	var out: Array = []
-	var luck := 1.0 + maxf(fortune, 0.0)
-	if boss:
-		for i in GEM_BOSS:
-			out.append(Zone.random_stat_gem(200, 1, true, roll))
-		out.append(ItemData.potion("hp_god", POTION_BOSS))
-		out.append(ItemData.potion("mp_xxl", 3))
-		return out
-	if roll.randf() < (GEM_ELITE if elite else GEM_NORMAL) * luck:
-		out.append(Zone.random_stat_gem(200, 1, true, roll))
-	if roll.randf() < (POTION_ELITE if elite else POTION_NORMAL) * luck:
-		out.append(ItemData.potion("hp_god", 1))
-	elif roll.randf() < 0.05 * luck:
-		out.append(ItemData.potion("mp_xxl", 1))
+	out.merge(EndgameFields.zone_fields(), true)
 	return out
+
+
+## Gems and potions a kill drops (EndgameFields.supply_drops; the whole shared
+## table is EndgameFields.kill_drops).
+static func kill_drops(boss: bool, elite: bool, fortune: float, roll: RandomNumberGenerator) -> Array:
+	return EndgameFields.supply_drops(boss, elite, fortune, roll)

@@ -87,11 +87,11 @@ const QUESTS := {
 		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "eclipse_realm", "next": "eclipse_sovereign"},
 	"eclipse_sovereign": {"name": "น็อกซ์ออเรล ราชันสุริยคราส", "desc": "ราชันสุริยคราสจะปรากฏต่อผู้มีดาว 200 เท่านั้น ปราบมันเพื่อนำแสงกลับคืนสู่โลก", "target": "eclipse_sovereign", "count": 1, "level": 100, "star": 200,
 		"items": [["hp_xxl", 20], ["mp_xxl", 20]], "star_gear": 200, "zone": "eclipse_realm", "next": "lotus_monks"},
-	"lotus_monks": {"name": "นักพรตวานรหยก", "desc": "นักพรตวานรหยกขวางทางเข้าวิหารบัวดารา พิสูจน์ฝีมือให้พวกมันเห็น", "target": "jade_monk", "count": 15, "level": 100, "star": 200,
+	"lotus_monks": {"name": "นักพรตวานรหยก", "desc": "นักพรตวานรหยกขวางทางเข้าวิหารบัวดารา พิสูจน์ฝีมือให้พวกมันเห็น (ที่นี่และห้วงสมุทรอสูรดรอปชุดประจำอาชีพ แก่นเทพ และเกล็ดบัวดารา: ตีชุดประจำอาชีพถึง +10 แล้วนำไปผสมชุดเซต 250 ดาว)", "target": "jade_monk", "count": 15, "level": 100, "star": 200,
 		"items": [["hp_god", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_guardians"},
 	"lotus_guardians": {"name": "โกเลมพิทักษ์วิหาร", "desc": "โกเลมทองคำเฝ้าศาลาในวิหาร ทลายพวกมันเพื่อไปพบเทพพิทักษ์", "target": "temple_guardian", "count": 5, "level": 100, "star": 200,
 		"items": [["hp_god", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_seraph"},
-	"lotus_seraph": {"name": "ออเรเลีย ราชันปีกบัวดารา", "desc": "บททดสอบสุดท้ายของวีรบุรุษ: ปราบราชันปีกบัวดาราผู้เฝ้าวิหาร", "target": "lotus_seraph", "count": 1, "level": 100, "star": 200,
+	"lotus_seraph": {"name": "ออเรเลีย ราชันปีกบัวดารา", "desc": "บททดสอบสุดท้ายของวีรบุรุษ: ปราบราชันปีกบัวดาราผู้เฝ้าวิหาร บอสให้เกล็ดบัวดาราทุกครั้ง ใช้ผสมแหวนและสร้อยชุดเซต 250 ดาว", "target": "lotus_seraph", "count": 1, "level": 100, "star": 200,
 		"items": [["hp_god", 25], ["mp_xxl", 25]], "star_gear": 200, "zone": "lotus_sanctum", "next": ""},
 }
 

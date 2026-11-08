@@ -32,6 +32,8 @@ const CHECKPOINTS := [
 	["eclipse_realm", 100, 175, &"eclipse_realm", 150],
 	["lotus_sanctum", 100, 200, &"lotus_sanctum", 200],
 	["lotus_divine", 100, 200, &"lotus_sanctum", "divine"],
+	["drowned_abyss", 100, 200, &"drowned_abyss", 200],
+	["drowned_divine", 100, 200, &"drowned_abyss", "divine"],
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -43,12 +45,13 @@ const AIM := {
 	"volcano": [7, 22], "graveyard": [8, 24], "swamp": [9, 26], "storm": [10, 28],
 	"sky": [11, 30], "abyss": [12, 32], "void": [28, 80], "dawn_forest": [62, 150],
 	"crystal_valley": [84, 195], "sky_citadel": [105, 245], "eclipse_realm": [120, 285],
-	"lotus_sanctum": [175, 450],
+	# The two ★200-300 fields share one band (EndgameFields).
+	"lotus_sanctum": [175, 450], "drowned_abyss": [175, 450],
 }
 ## Fields from Lv.100 whose monsters carry x2..x5 health (MonsterData.LATE_HP):
 ## their aims above are the earlier ones times that, and a skill takes a smaller
 ## share of a monster's health.
-const LATE := ["void", "dawn_forest", "crystal_valley", "sky_citadel", "eclipse_realm", "lotus_sanctum", "lotus_divine"]
+const LATE := ["void", "dawn_forest", "crystal_valley", "sky_citadel", "eclipse_realm", "lotus_sanctum", "lotus_divine", "drowned_abyss", "drowned_divine"]
 
 
 func _ready() -> void:
