@@ -83,6 +83,9 @@ var _swatches: Array[ColorRect] = []
 var _clock: Label
 var _owner: Label
 var _status: Label
+## The castle switch's chip (สวิตช์: <guild> · บาเรียเปิดให้ <guild>) in the holder's colour,
+## shown once the gates are down.
+var _switch_chip: PanelContainer
 var _banner: Label
 var _hint: Label
 var _feed: Label
@@ -589,6 +592,12 @@ func _build_board() -> void:
 			row.add_child(node)
 	_owner = _outlined(UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	lines.add_child(_owner)
+	_switch_chip = UIUtil.chip(SiegeArena.SWITCH_NAME, Color("c9c9c9"), 18)
+	_switch_chip.name = "SwitchChip"
+	_switch_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_switch_chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_switch_chip.visible = false
+	lines.add_child(_switch_chip)
 	_status = _outlined(UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lines.add_child(_status)
@@ -728,6 +737,30 @@ func _update_board() -> void:
 	_owner.add_theme_color_override("font_color", m.owner_color().lerp(Color.WHITE, 0.2) if m.castle_owner >= 0 else Color("fff1b8"))
 	var capture := m.capture_line()
 	_status.text = capture if capture != "" and not m.capture.is_empty() else m.siege_status()
+	_update_switch_chip(m)
+
+
+## The switch's chip: who holds it, in that guild's colour, and whom the barrier is open for.
+func _update_switch_chip(m: GuildWarMatch) -> void:
+	if _switch_chip == null:
+		return
+	_switch_chip.visible = m.front_gate() == null and m.state in ["fight", "ending"]
+	var color := m.switch_color()
+	var label := _switch_chip.get_child(0) as Label
+	label.text = "%s · %s" % [m.switch_text(), m.barrier_open_text()]
+	label.add_theme_color_override("font_color", color.lightened(0.35))
+	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
+	if sb != null:
+		sb.bg_color = Color(color.r, color.g, color.b, 0.3)
+		sb.border_color = color
+
+
+## The switch chip now (tests): its text ("" while hidden) and colour.
+func switch_chip() -> Dictionary:
+	if _switch_chip == null:
+		return {}
+	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
+	return {"text": (_switch_chip.get_child(0) as Label).text if _switch_chip.visible else "", "color": sb.border_color if sb != null else Color.BLACK}
 
 
 ## The clock as the board shows it: what is left of the war (m:ss), ต่อเวลา in sudden death.

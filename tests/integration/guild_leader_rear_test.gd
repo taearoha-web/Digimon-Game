@@ -1,6 +1,6 @@
 extends Node
 ## The guild leaders stay behind their guild in the castle assault (GuildWarCommander:
-## the members push in first, take the switches and clear the throne room, the leader
+## the members push in first, take the switch and clear the throne room, the leader
 ## follows at the back and goes onto the altar only once the barrier is open and the way
 ## is clear; a leader under attack falls back behind its own; the guild holding the
 ## castle keeps its leader back by the altar behind its defenders). Headless, seeded: two
@@ -169,7 +169,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 				secs.append(side.map(func(f): return -1 if f.is_dead() else SiegeArena.section(f.global_position)))
 			for L in leads:
 				if not L.is_dead():
-					print("  lead t%d goal %s keep %s cap %s hold %.0f victim %s vel %.1f c.read van %s foes %s esc %s sw %s go %s" % [L.team, L.goal_point.round(), L.keep_back, L.capture_role, L.hold_range, (L._victim.global_position.round() if L._victim != null and is_instance_valid(L._victim) else "-"), L.velocity.length(), m.commanders[L.team].last_read.get("vanguard"), m.commanders[L.team].last_read.get("altar_foes"), m.commanders[L.team].last_read.get("escort"), m.commanders[L.team].last_read.get("switches"), m.commanders[L.team].leader_go])
+					print("  lead t%d goal %s keep %s cap %s hold %.0f victim %s vel %.1f c.read van %s foes %s esc %s sw %s go %s" % [L.team, L.goal_point.round(), L.keep_back, L.capture_role, L.hold_range, (L._victim.global_position.round() if L._victim != null and is_instance_valid(L._victim) else "-"), L.velocity.length(), m.commanders[L.team].last_read.get("vanguard"), m.commanders[L.team].last_read.get("altar_foes"), m.commanders[L.team].last_read.get("escort"), m.commanders[L.team].last_read.get("switch"), m.commanders[L.team].leader_go])
 			print("t %.0f state %s plans %s tactics %s/%s sections %s switches %s capture %s leads %s %s" % [clock, m.state, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, secs, m.switch_owner, m.capture, leads[0].global_position.round() if not leads[0].is_dead() else "dead", leads[1].global_position.round() if not leads[1].is_dead() else "dead"])
 		# The attackers' leader, not yet sent onto the altar: farther than most of its guild
 		# (the members in the fight round it, not the switch holders) from where the guild
@@ -187,8 +187,8 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			var gate := m.front_gate()
 			if gate != null and c.tactic == GuildWarCommander.PUSH:
 				goal = SiegeArena.gate_front(gate.tier, gate.lane)
-			elif gate == null and c.tactic == GuildWarCommander.SECURE and c.secure_k >= 0:
-				goal = SiegeArena.SWITCHES[c.secure_k]
+			elif gate == null and c.tactic == GuildWarCommander.SECURE and c.securing:
+				goal = SiegeArena.SWITCH
 			elif gate == null and c.tactic in [GuildWarCommander.ESCORT, GuildWarCommander.GUARD]:
 				goal = SiegeArena.ALTAR
 			if not goal.is_finite():
@@ -196,7 +196,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			var dists: Array[float] = []
 			var side: Array[GuildFighter] = m.allies if team == 0 else m.enemies
 			for f in side:
-				if f == lead or f.is_dead() or f.switch_post >= 0 or f.is_retreating() or _flat(f.global_position, lead.global_position) > 45.0:
+				if f == lead or f.is_dead() or f.switch_post or f.is_retreating() or _flat(f.global_position, lead.global_position) > 45.0:
 					continue
 				dists.append(_flat(f.global_position, goal))
 			if dists.size() < 2:
@@ -213,7 +213,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			if OS.get_environment("SIM_TRACE") == "2" and key == GuildWarCommander.ESCORT:
 				# Each sample of the assault: behind (B) or ahead (A), the leader's and its
 				# post's distance to the altar, the members' round it.
-				print("  ESC t%d %s lead %.1f post %s cover %s hp %.2f | %s | switches %d" % [team, "B" if _flat(lead.global_position, goal) > median else "A", _flat(lead.global_position, goal), (str(snappedf(_flat(c.leader_post, goal), 0.1)) if c.leader_post.is_finite() else "INF"), c.leader_covering, lead.hp_ratio(), dists.map(func(x): return snappedf(x, 0.1)), m.switches_held(team)])
+				print("  ESC t%d %s lead %.1f post %s cover %s hp %.2f | %s | switch %s" % [team, "B" if _flat(lead.global_position, goal) > median else "A", _flat(lead.global_position, goal), (str(snappedf(_flat(c.leader_post, goal), 0.1)) if c.leader_post.is_finite() else "INF"), c.leader_covering, lead.hp_ratio(), dists.map(func(x): return snappedf(x, 0.1)), m.holds_switch(team)])
 			by_phase[key] = row
 	Engine.time_scale = 1.0
 	out.merge({"clock": clock, "lead_deaths": lead_deaths, "first_lead_death": first_lead_death, "before_lead": before_lead,

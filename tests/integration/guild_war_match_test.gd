@@ -485,8 +485,8 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	# The hero on the altar: behind the barrier (no switch held) it cannot take it.
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	await _frames(2)
-	check(not m.hero_can_capture() and m.hero_blocked_by_barrier() and m.barrier_line() != "", "%s: with the switches not held the barrier keeps the hero off the altar" % label)
-	# With both switches held (pinned here; castle_switch_test holds them for real) the
+	check(not m.hero_can_capture() and m.hero_blocked_by_barrier() and m.barrier_line() != "", "%s: with the switch not held the barrier keeps the hero off the altar" % label)
+	# With the switch held (pinned here; castle_switch_test holds it for real) the
 	# interact button takes it; stepping off breaks the hold.
 	m.switch_pin = GuildFighter.TEAM_ALLY
 	await _frames(2)
@@ -549,7 +549,7 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	foe.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	foe.capture_role = true
 	await _frames(3)
-	check(m.capture.is_empty(), "%s: the rival leader behind the barrier (our switches) cannot start" % label)
+	check(m.capture.is_empty(), "%s: the rival leader behind the barrier (our switch) cannot start" % label)
 	m.switch_pin = GuildFighter.TEAM_ENEMY
 	await _frames(3)
 	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ENEMY and foe.capturing, "%s: the rival leader on the altar starts taking the castle" % label)

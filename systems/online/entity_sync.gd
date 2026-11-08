@@ -720,8 +720,8 @@ func _gw_tick(delta: float) -> void:
 	var them := 0
 	for t in range(1, war.team_count()):
 		them = maxi(them, war.score[t])
-	# The castle's switches too (the team holding each, -1 nobody, -2 contested).
-	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_codes(), "ot": war.overtime})
+	# The castle's switch too (GuildWarMatch.switch_code: -1 nobody, 0 ours, 1 another; +2 fought over).
+	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_code(), "ot": war.overtime})
 
 
 # ---------------------------------------------------------------------------
