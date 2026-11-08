@@ -47,6 +47,8 @@ NOTE_PAGES = "iPhone: กดปุ่มแชร์ → \"เพิ่มไป
 TITLE = "Toon Tale"
 ## Where the site is published (link previews need absolute image URLs).
 PAGES_URL = "https://taearoha-web.github.io/Digimon-Game/play/"
+## The live game with its account, online and league servers (Cloudflare).
+GAME_URL = "https://toon-tale.taearoha.workers.dev/"
 DESCRIPTION = "Toon Tale ผจญภัย ARPG แนวการ์ตูน 10 อาชีพ เล่นบนมือถือได้ทันที ไม่ต้องติดตั้ง"
 BRANDING = os.path.join(ROOT, "assets", "branding")
 PACKED = {  # Godot file -> (published gzip name, MIME of the inflated data)
@@ -270,6 +272,9 @@ def write_pages_site(pages_dir: str, shell: str) -> None:
         '<meta name="twitter:card" content="summary_large_image">\n'
         f'<meta name="twitter:image" content="{PAGES_URL}og.jpg?v={og_hash}">\n'
         '<style>body{margin:0}[hidden]{display:none!important}</style>\n'
+        # The GitHub Pages copy has no account / online / league server behind it (a POST
+        # there answers HTTP 405), so it sends players to the live site with the servers.
+        f'<script>if(/\\.github\\.io$/i.test(location.hostname))location.replace({json.dumps(GAME_URL)}+location.search+location.hash);</script>\n'
     )
     shell = shell.replace("Your browser does not support the canvas tag.", "เบราว์เซอร์นี้เปิดเกมไม่ได้ ลองเปิดด้วย Safari หรือ Chrome")
     page = head + shell[:split] + "</head>\n<body>\n" + shell[split:] + "\n</body>\n</html>\n"

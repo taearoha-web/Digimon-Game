@@ -14,7 +14,7 @@
  * Update: the new build caches everything (reusing unchanged, content-named
  * files from the old cache) before it can replace the build in use. */
 'use strict';
-const BUILD = 'ce71a63d48ff';
+const BUILD = '587a4c3ef207';
 const PREFIX = 'toon-tale-';
 const CACHE = PREFIX + BUILD;
 // [path relative to the scope, bytes (0 = unknown), content-addressed, small/core]
