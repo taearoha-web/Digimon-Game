@@ -117,6 +117,11 @@ def main() -> None:
             # DOM inputMode property so numeric LineEdits open a number pad
             # on iPhone instead of silently falling back to a text keyboard.
             loader = loader.replace("elem.inputmode=", "elem.inputMode=")
+            # iPhone / iPad drop the WebGL context under memory pressure or in the background.
+            # Godot only alerts in English; the shell reopens the game instead (see toonContextLost).
+            lost = 'alert("WebGL context lost, please reload the page")'
+            assert lost in loader, "Godot loader changed: WebGL context lost handler not found"
+            loader = loader.replace(lost, '(window.toonContextLost?window.toonContextLost():%s)' % lost)
             with open(os.path.join(OUT, name), "w", encoding="utf-8") as f:
                 f.write(loader)
         else:
