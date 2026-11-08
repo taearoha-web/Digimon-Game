@@ -531,7 +531,9 @@ func _ai_wars() -> void:
 func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 	seed(war_seed)
 	_hero()
-	Game.guildwar_save_checkpoint(war_seed, GuildWarData.DURATION, false, [0, 0, 0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": -1, "teams": 4})
+	# SIM_GATES=1: the doors stand (a measurement of how long they hold), else all down.
+	var doors := 1000 if OS.get_environment("SIM_GATES") != "" else 0
+	Game.guildwar_save_checkpoint(war_seed, GuildWarData.DURATION, false, [0, 0, 0, 0], 0, 0, 0, {"gates": [doors, doors, doors, doors, doors], "owner": -1, "teams": 4})
 	Game.guildwar_resuming = true
 	GuildWarMatch.next_roster = _roster(true, -1, war_seed)
 	var zone := _zone()
@@ -558,11 +560,17 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 	var trace := OS.get_environment("SIM_TRACE") != ""
 	if trace:
 		m.feed.connect(func(text: String, team: int): print("  [%.0f] %d %s" % [m.commanders[0].clock, team, text]))
-	Engine.time_scale = SPEED
+	Engine.time_scale = float(OS.get_environment("SIM_SPEED")) if OS.get_environment("SIM_SPEED") != "" else SPEED
+	var fallen_at := {}
 	while clock < seconds and Time.get_ticks_msec() - t0 < 900000:
 		await get_tree().physics_frame
 		var dt := get_physics_process_delta_time()
 		clock += dt
+		if doors > 0:
+			for gi in m.gates.size():
+				if m.gates[gi].is_dead() and not fallen_at.has(gi):
+					fallen_at[gi] = snappedf(clock, 1.0)
+					print("SIM4 seed %d: gate %d (tier %d) down at %.0f s" % [war_seed, gi, m.gates[gi].tier, clock])
 		m.time_left = GuildWarData.DURATION
 		for f in m.all_fighters():
 			var id := f.get_instance_id()

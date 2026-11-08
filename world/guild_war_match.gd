@@ -45,7 +45,7 @@ const CAPTURE_TIME := 45.0
 ## A gate holds out about this long against both whole guilds hitting it at once (its HP is
 ## set from all the fighters' strength, so more or stronger fighters meet a stronger door),
 ## each gate harder than the one before.
-const GATE_SECONDS := 110.0
+const GATE_SECONDS := 60.0
 const GATE_TOUGHNESS: Array[float] = [1.0, 1.25, 1.5]
 ## How often a guild looks again at its plan (and at once when a gate falls or the altar changes).
 const PLAN_EVERY := 12.0
@@ -1432,7 +1432,11 @@ func _raise_castle(saved: Dictionary) -> void:
 	var total := 0.0 if spectating() else float(Game.stats_now().atk)
 	for f in all_fighters():
 		total += float(f.rstats.atk)
-	var gate_hp := maxf(200000.0, GATE_SECONDS * total * GuildWarData.damage_scale)
+	# Two guilds' worth of strength (the average guild times two): in a war of four the
+	# attackers also fight each other and the holder guards its doors, so the whole field's
+	# strength made the doors last past the bell.
+	var guilds := maxi(2, team_count())
+	var gate_hp := maxf(200000.0, GATE_SECONDS * total * 2.0 / float(guilds) * GuildWarData.damage_scale)
 	var left: Array = saved.get("gates", [])
 	# A checkpoint from before the doubled gates kept one value a tier: its left gate's.
 	var per_tier := left.size() == SiegeArena.GATE_Z.size()
