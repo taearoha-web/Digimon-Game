@@ -94,6 +94,76 @@ func _same(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) < 0.02 and absf(a.g - b.g) < 0.02 and absf(a.b - b.b) < 0.02
 
 
+## The war HUD's lanes at phone landscape sizes (844x390 and its 2x 1688x780): the board,
+## the switch row, the warning and the toasts never overlap, the toasts start under the
+## board's column, the switch chip's text stays opaque while it flickers, and the
+## switch's floating label hides in the board's band.
+func _layout(hud: GuildWarHud, m: GuildWarMatch) -> void:
+	var toasts := ToastLayer.new()
+	add_child(toasts)
+	var window := get_window()
+	var was := window.size
+	# The HUD's own refresh held off (it would take the forced warning down).
+	hud._refresh = 1000.0
+	for size in [Vector2i(844, 390), Vector2i(1688, 780)]:
+		window.size = size
+		hud._barrier.text = GuildWarMatch.BARRIER_TEXT
+		hud._barrier.visible = true
+		Game.say("กิลด์ %s ยึดสวิตช์ได้! บาเรียเปิดให้กิลด์ %s" % [m.team_name(0), m.team_name(0)], &"info")
+		await _frames(4)
+		var rects := hud.layout_rects()
+		var stack := toasts.stack_rect()
+		check(rects.has("board") and rects.has("switch_row") and rects.has("warning"), "%s: the board, the switch row and the warning are shown (%s)" % [size, rects.keys()])
+		var names: Array = rects.keys()
+		for i in names.size():
+			for j in range(i + 1, names.size()):
+				var a: Rect2 = rects[names[i]]
+				var b: Rect2 = rects[names[j]]
+				check(not a.grow(-0.5).intersects(b.grow(-0.5)), "%s: %s and %s do not overlap (%s / %s)" % [size, names[i], names[j], a, b])
+		check(stack.size.y > 0.0, "%s: a toast is up" % size)
+		for key in names:
+			check(not (rects[key] as Rect2).grow(-0.5).intersects(stack), "%s: the toast lane is clear of the %s (%s / %s)" % [size, key, stack, rects[key]])
+		check(stack.position.y >= hud.band_bottom(), "%s: the toasts start under the board's column (%.0f >= %.0f)" % [size, stack.position.y, hud.band_bottom()])
+		var view := get_viewport().get_visible_rect()
+		check(view.encloses(hud.layout_rects().board), "%s: the board is on screen (%s in %s)" % [size, rects.board, view])
+		# The switch chip while fought over: the text stays fully opaque, the border swings.
+		var alphas: Array[float] = []
+		var borders: Array[Color] = []
+		for i in 8:
+			hud._pulse_chip(0.05)
+			alphas.append(hud.switch_label_alpha())
+			borders.append(hud.switch_chip_color())
+		check(m.switch_contested and alphas.all(func(x: float): return x >= 0.999), "%s: the chip's text stays opaque while contested (%s)" % [size, alphas])
+		check(borders.any(func(c: Color): return not _same(c, borders[0])), "%s: the chip's border pulses instead" % size)
+	# The floating label: hidden while it would sit in the board's band, capped in size.
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.current = true
+	cam.global_position = SiegeArena.SWITCH + Vector3(0, 6.5, 2.0)
+	cam.look_at(SiegeArena.SWITCH + Vector3(0, -20, 0.5), Vector3.UP)
+	m._fit_switch_label()
+	var tag := m.switch_label_screen()
+	check(not bool(tag.visible), "the switch label hides above the board's lane or under the camera (%s)" % [tag])
+	cam.global_position = SiegeArena.SWITCH + Vector3(16, 8, 3)
+	cam.look_at(SiegeArena.SWITCH + Vector3(0, 9, 0), Vector3.UP)
+	GuildWarHud.top_band = hud.band_bottom()
+	ToastLayer.lane_bottom = 0.0
+	m._fit_switch_label()
+	tag = m.switch_label_screen()
+	check(bool(tag.visible) and float(tag.line_px) <= GuildWarMatch.SWITCH_LABEL_MAX_PX + 0.5 and (tag.pos as Vector2).y > GuildWarHud.top_band, "in view under the board: shown, at most %d px a line (%s)" % [GuildWarMatch.SWITCH_LABEL_MAX_PX, tag])
+	cam.global_position = SiegeArena.SWITCH + Vector3(3, 7.5, 1.5)
+	cam.look_at(SiegeArena.SWITCH + Vector3(0, 6.5, 0), Vector3.UP)
+	m._fit_switch_label()
+	tag = m.switch_label_screen()
+	check(float(tag.line_px) <= GuildWarMatch.SWITCH_LABEL_MAX_PX + 0.5, "up close the label does not fill the screen (%.1f px)" % float(tag.line_px))
+	cam.queue_free()
+	toasts.queue_free()
+	window.size = was
+	hud._refresh = 0.0
+	hud._update(0.0, false)
+	await _frames(2)
+
+
 func _switch_and_barrier() -> void:
 	var zone := _open_war()
 	var m: GuildWarMatch = zone.gw_match
@@ -192,6 +262,7 @@ func _switch_and_barrier() -> void:
 	check(seen_blend, "the ring flickers towards the challenger's colour")
 	hud._update(0.0, false)
 	check(hud.switch_texts()[0].begins_with("สวิตช์: เรา") and hud.switch_texts()[0].contains("กำลังแย่ง"), "the HUD shows it ours, fought over (%s)" % [hud.switch_texts()])
+	await _layout(hud, m)
 	check(lines.any(func(t: String): return t.contains("บุกวงสวิตช์")), "the feed tells the fight in the circle")
 	# Our one is pushed out: none of ours left, the enemy (inside) takes it; the barrier is
 	# back for us, the count freezes.
