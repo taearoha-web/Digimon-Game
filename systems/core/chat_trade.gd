@@ -35,6 +35,7 @@ const WORDS := [
 	[["เขากวาง"], {"label": "เขากวางเรืองแสง", "kind": "jewel", "ids": ["stag_antler"]}],
 	[["กริฟฟิน"], {"label": "ขนปีกกริฟฟิน", "kind": "jewel", "ids": ["griffin_plume"]}],
 	[["เกล็ดมังกร", "เกล็ด"], {"label": "เกล็ดมังกรเพลิง", "kind": "jewel", "ids": ["drake_scale"]}],
+	[["เกล็ดบัว", "เกล็ดดารา", "lotus scale", "scale"], {"label": "เกล็ดบัวดารา", "kind": "jewel", "ids": ["lotus_scale"]}],
 	[["ของทำมอนท์", "ของมอนท์", "วัตถุดิบมอนท์", "ของสัตว์ขี่", "วัตถุดิบสัตว์ขี่", "มอนท์", "สัตว์ขี่", "mount"], {"label": "วัตถุดิบสัตว์ขี่", "kind": "jewel", "ids": ["wolf_fang", "stag_antler", "griffin_plume", "drake_scale"]}],
 	[["นิล"], {"label": "นิลดำ", "kind": "gem", "ids": ["onyx"]}],
 	[["มุก"], {"label": "มุกจันทรา", "kind": "gem", "ids": ["pearl"]}],
@@ -69,7 +70,7 @@ const SELL_LINES := [
 const NONE_LINES := [
 	"ตอนนี้ไม่มีใครขาย%what เลย ลองใหม่ทีหลังนะ",
 	"ดูทุกแผงแล้ว ไม่มีใครขาย%what เลยอ่ะ ลองใหม่ทีหลังนะ",
-	"%hero ตอนนี้ไม่มีใครขาย%what เลย แผงเติมของทุก 2 ชั่วโมงนะ",
+	"%hero ตอนนี้ไม่มีใครขาย%what เลย แผงเติมของทุก %restock ชั่วโมงนะ",
 ]
 
 static var _words: Array = []
@@ -212,7 +213,7 @@ static func answers(req: Dictionary, t: float = -1.0, seed_value := 0, hero := "
 	if not out.is_empty():
 		return out
 	var line := String(NONE_LINES[rng.randi() % NONE_LINES.size()]).replace("%what", String(req.get("label", "ของ")))
-	line = line.replace("%hero", hero if hero != "" else "เพื่อน")
+	line = line.replace("%hero", hero if hero != "" else "เพื่อน").replace("%restock", str(int(StallStock.RESTOCK / 3600.0)))
 	var tip := hint(req)
 	if tip != "":
 		line += " " + tip
@@ -311,24 +312,26 @@ static func hint(req: Dictionary) -> String:
 	match String(req.get("kind", "")):
 		"potion":
 			if ids.size() == 1 and String(ids[0]) == "hp_god":
-				return "ยาเลือดมหาเทพร้านค้าขายตอน Lv.100 หรือแลกที่ร้านแต้มกิลด์ก็ได้"
+				return "%sร้านค้าขายตอน Lv.%d หรือแลกที่ร้านแต้มกิลด์ก็ได้" % [ItemData.POTIONS.hp_god.name, Game.MAX_LEVEL]
 			return "ร้านค้าในหมู่บ้านก็มีขายนะ"
 		"jewel":
 			if ids.size() == 1:
 				match String(ids[0]):
 					"set_core":
-						return "แก่นเทพดรอปที่%sเท่านั้น (★%d ขึ้นไป)" % [DrownedAbyssData.TITLE, DrownedAbyssData.ENTRY_STAR]
+						return "แก่นเทพดรอปที่%s กับ%s (★%d ขึ้นไป)" % [DrownedAbyssData.TITLE, DivineRegionData.TITLE, DrownedAbyssData.ENTRY_STAR]
+					"lotus_scale":
+						return "เกล็ดบัวดาราดรอปที่%s กับ%s (★%d ขึ้นไป) ใช้หลอมแหวนกับสร้อยชุดเซต ชิ้นละ %d เกล็ด" % [DrownedAbyssData.TITLE, DivineRegionData.TITLE, EndgameFields.ENTRY_STAR, SetGearData.SCALES]
 					"feather":
 						return "ขนนกดรอปในสนามดาว %d ขึ้นไป" % ItemData.FEATHER_STARS
 					"drill":
 						return "สว่านแลกได้ที่ร้านแต้มกิลด์นะ"
 					"wolf_fang", "stag_antler", "griffin_plume", "drake_scale":
 						return "%sดรอปจากมอนตอนล่า โอกาสน้อยหน่อย" % String(ItemData.JEWELS[String(ids[0])].name)
-			return "เพชรดรอปจากมอนทุกสนาม ที่%sดรอปเยอะสุด" % DrownedAbyssData.TITLE
+			return "เพชรดรอปจากมอนทุกสนาม ที่%s กับ%s ดรอปเยอะกว่าสนามทั่วไป" % [DrownedAbyssData.TITLE, DivineRegionData.TITLE]
 		"gem":
 			return "อัญมณีดรอปจากมอน หรือแลกผลึกที่หอคอยได้"
 		"equip":
 			if String(req.get("slot", "")) == "wings":
-				return "ปีกดรอปจากบอส Lv.100 นะ"
-			return "ลองล่าบอสสนามดู ของดีดรอปบ่อย"
+				return "ปีกดรอปจากบอส Lv.%d นะ" % ItemData.WING_DROP_LEVEL
+			return "อุปกรณ์ดรอปจากมอนกับบอสในสนาม ลองล่าดูนะ"
 	return ""

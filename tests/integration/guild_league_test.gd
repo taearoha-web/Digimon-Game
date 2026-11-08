@@ -67,6 +67,9 @@ func _season(w: int, t: float) -> void:
 	check(played.size() == GuildLeague.ids().size() and played.values().all(func(n): return int(n) == wars.size()), "every league guild plays every round (%s)" % [played])
 	var zero := GuildLeague.table(w, [], start)
 	var mid := GuildLeague.table(w, [], t)
+	check(GuildLeague.table(w, []) == mid, "on Wednesday the table has the rounds over by then only")
+	# The week over: every round counts.
+	pin(GuildLeague.week_end(w) + 60.0)
 	var final := GuildLeague.table(w, [])
 	check(int(zero[0].points) == 0, "the table starts the week at zero")
 	check(int(mid[0].points) > 0 and int(final[0].points) > int(mid[0].points), "the table moves through the week without the player")
@@ -80,6 +83,7 @@ func _season(w: int, t: float) -> void:
 	check(champ == GuildLeague.holder_after(last) and champ > 0, "the champion holds the castle when the season ends")
 	check(GuildLeague.holder(w, [], start) == GuildLeague.holder_after(GuildLeague.prev_slot(int(start))), "before the week's first round the castle is with whoever held it at the end of last week")
 	check(GuildLeague.start_holder(GuildLeague.next_slot(start)) == GuildLeague.champion_of(w - 1, []) or GuildLeague.holder_after(GuildLeague.prev_slot(int(start))) == 0, "last week's champion holds the castle as this week begins")
+	pin(t)
 
 
 func _real_war(w: int, t: float) -> void:

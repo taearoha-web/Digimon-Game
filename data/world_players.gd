@@ -304,6 +304,7 @@ static func reset_roster() -> void:
 	_gen_count = 0
 	for cache in [_at, _cum, _minutes_cache, _sessions, _eff, _hw_share, _hw_cache, _name_hash]:
 		(cache as Dictionary).clear()
+	WorldGear.clear()
 	WorldParties.clear_cache()
 	_roster()
 
@@ -555,9 +556,12 @@ static func played_minutes(i: int, t: float) -> float:
 	var w := world_time(t)
 	if w <= origin:
 		return 0.0
+	# Kept per player and minute for the very moment read (another moment of the same
+	# minute is worked out again, so the answer never depends on what was read first).
 	var key := int(t / 60.0) * 4096 + i
-	if _minutes_cache.has(key):
-		return _minutes_cache[key]
+	var hit: Variant = _minutes_cache.get(key)
+	if hit != null and float(hit[0]) == t:
+		return float(hit[1])
 	if _minutes_cache.size() > 6000:
 		_minutes_cache.clear()
 	# A session can run past midnight (never past the next one), so the two latest days
@@ -573,7 +577,7 @@ static func played_minutes(i: int, t: float) -> float:
 		if d >= first:
 			total += _day_minutes(i, d, origin, w)
 	total /= SPEED
-	_minutes_cache[key] = total
+	_minutes_cache[key] = [t, total]
 	return total
 
 
@@ -690,6 +694,39 @@ static func progress_at(i: int, t: float) -> Dictionary:
 	return progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
 
 
+## Player i's work at real time t: the probe minutes progress_for reads (its own minutes
+## times its efficiency, plus its party EXP, head start and potions). It only grows, and
+## everything it has (its level, stars, the gear it forged: WorldGear) follows it.
+static func work_at(i: int, t: float) -> float:
+	return own_minutes(i, t) * efficiency(i) + maxf(0.0, bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
+
+
+## The work behind a member sheet (level, stars, frac, divine_frac, after): what
+## progress_for turned into it, read back.
+static func work_of(m: Dictionary, i: int) -> float:
+	var steps := _steps()
+	var eff := efficiency(i)
+	var base := steps[mini(Game.MAX_LEVEL - 1 + DIVINE_STARS, steps.size() - 1)]
+	var divine_need := DIVINE_HOURS * 60.0 * eff
+	var after := float(m.get("after", 0.0))
+	var divine_frac := float(m.get("divine_frac", 0.0))
+	var level := int(m.get("level", 1))
+	var stars := int(m.get("stars", 0)) if level >= Game.MAX_LEVEL else 0
+	if level >= Game.MAX_LEVEL and stars >= DIVINE_STARS:
+		if after > 0.0:
+			return base + divine_need + after * 60.0 * eff
+		if divine_frac > 0.0:
+			return maxf(base + divine_frac * divine_need, _sheet_work(steps, level, stars, float(m.get("frac", 0.0))))
+	return _sheet_work(steps, level, stars, float(m.get("frac", 0.0)))
+
+
+static func _sheet_work(steps: PackedFloat64Array, level: int, stars: int, frac: float) -> float:
+	var k := clampi(level - 1 + (stars if level >= Game.MAX_LEVEL else 0), 0, steps.size() - 1)
+	if k >= steps.size() - 1:
+		return steps[k]
+	return steps[k] + clampf(frac, 0.0, 0.999) * (steps[k + 1] - steps[k])
+
+
 ## Probe minutes partying with other world players (WorldParties) has added to player i by
 ## real time t: EXP_BONUS more on the share of its own play it spends in parties.
 static func party_work(i: int, t: float) -> float:
@@ -744,8 +781,9 @@ static func halloween_work(i: int, t: float) -> float:
 	var cache_key: Variant = int(t / 10.0) * 4096 + i
 	if paused.has(key) or hw_skipped.has(key):
 		cache_key = "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(hw_skipped.get(key, 0.0))]
-	if _hw_cache.has(cache_key):
-		return float(_hw_cache[cache_key])
+	var hw_hit: Variant = _hw_cache.get(cache_key)
+	if hw_hit != null and float(hw_hit[0]) == t:
+		return float(hw_hit[1])
 	var from := played_minutes(i, start)
 	var last := played_minutes(i, float(WorldEvents.HALLOWEEN_END))
 	var upto := minf(float(paused[key]) if paused.has(key) else played_minutes(i, t), last)
@@ -753,7 +791,7 @@ static func halloween_work(i: int, t: float) -> float:
 	var work := played * efficiency(i) * halloween_share(i) * HALLOWEEN_EXTRA
 	if _hw_cache.size() > 512:
 		_hw_cache.clear()
-	_hw_cache[cache_key] = work
+	_hw_cache[cache_key] = [t, work]
 	return work
 
 
@@ -1102,7 +1140,7 @@ static func _find_last_seen(i: int, t: float) -> float:
 ## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
 ## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
-	var home := hunting_zone(level, stars, divine)
+	var home := session_zone(i, s0, level, stars)
 	if not divine or stars < Game.PARAGON_MAX:
 		return {"place": home, "doing": "hunt"}
 	var rng := RandomNumberGenerator.new()
@@ -1113,6 +1151,17 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 	if roll < 0.75:
 		return {"place": StarProgression.REGIONS[rng.randi() % StarProgression.REGIONS.size()], "doing": "help"}
 	return {"place": &"town", "doing": "stall"}
+
+
+## The field player i hunts in during the session that started at real time s0: the
+## field that fits it (hunting_zone); from ★200 the drowned abyss or the lotus sanctum,
+## the two endgame maps with the same drops and monster band, a session each by turns of
+## its own (WorldGear's drops are the same in either).
+static func session_zone(i: int, s0: float, level: int, stars: int) -> StringName:
+	var home := hunting_zone(level, stars)
+	if home == DrownedAbyssData.ID and hash("map|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 2 == 1:
+		return DivineRegionData.ID
+	return home
 
 
 ## The field a player hunts in: the one whose levels fit, then the star fields by stars,
@@ -1280,6 +1329,27 @@ const RARELY_RIDE := 0.25
 ## never craft one; the rest craft the wolf at a level of their own (MOUNT_FROM) and trade
 ## up as they progress, levelling the newest one.
 static func mount_of(m: Dictionary) -> Dictionary:
+	var i := _sheet_index(m)
+	if i >= 0:
+		return WorldGear.mount_at_work(i, work_of(m, i))
+	return _drawn_mount(m)
+
+
+## The world player a member sheet belongs to (by name; -1 for none, e.g. a stand-in).
+static func _sheet_index(m: Dictionary) -> int:
+	var name := String(m.get("name", ""))
+	if name == "":
+		return -1
+	if not _index.has(name):
+		if _all.is_empty():
+			_roster()
+		if not _index.has(name):
+			return -1
+	return int(_index[name])
+
+
+## The mount a sheet that is no world player's would have, drawn from its name alone.
+static func _drawn_mount(m: Dictionary) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("mount|%s" % String(m.get("name", "")))
 	if rng.randf() >= MOUNT_SHARE:
@@ -1454,6 +1524,9 @@ static func _gear_key(m: Dictionary) -> String:
 ## Which pieces member sheet m wears, as one string (changes when it puts on a new find
 ## or enhances one).
 static func gear_signature(m: Dictionary) -> String:
+	var i := _sheet_index(m)
+	if i >= 0:
+		return WorldGear.signature_at_work(i, work_of(m, i))
 	var key := _gear_key(m)
 	if not _gear_sig.has(key):
 		equip(m)
@@ -1462,6 +1535,14 @@ static func gear_signature(m: Dictionary) -> String:
 
 ## What member sheet m wears now: its best find per slot (see above).
 static func equip(m: Dictionary) -> Dictionary:
+	var i := _sheet_index(m)
+	if i >= 0:
+		return WorldGear.equip_at_work(i, work_of(m, i))
+	return drawn_equip(m)
+
+
+## What a sheet that is no world player's wears: its best find per slot, drawn by point.
+static func drawn_equip(m: Dictionary) -> Dictionary:
 	var key := _gear_key(m)
 	if _gear.has(key):
 		return _gear[key]
@@ -1515,6 +1596,9 @@ const DIVINE_PLUS_HOURS := 3.0
 
 
 static func divine_plus(m: Dictionary) -> int:
+	var i := _sheet_index(m)
+	if i >= 0:
+		return int(WorldGear.divine_plus_of(WorldGear.state_at_work(i, work_of(m, i))))
 	return clampi(int(float(m.get("after", 0.0)) / DIVINE_PLUS_HOURS), 0, 10)
 
 

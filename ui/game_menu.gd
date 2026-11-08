@@ -33,6 +33,8 @@ var _stat_amounts: Dictionary = {}
 var forge_mode := false
 ## At the forge: the ผสมชุดเซต section (250★ set pieces) shows instead of the bag grid.
 var set_craft_open := false
+## The divine piece picked per set slot in ผสมชุดเซต (slot -> the live item).
+var _set_picks := {}
 ## The bag tab shows แผงของฉัน (PlayerStallView) instead of the bag; its picked item,
 ## price and count survive rebuilds in stall_view.
 var stall_open := false
@@ -103,6 +105,7 @@ func open_menu(tab: StringName = &"inventory") -> void:
 func close_menu() -> void:
 	forge_mode = false
 	set_craft_open = false
+	_set_picks.clear()
 	stall_open = false
 	is_open = false
 	_build_gen += 1
@@ -547,7 +550,10 @@ func _build_bag_grid(middle: VBoxContainer) -> void:
 
 
 ## ผสมชุดเซต (at the forge): the six 250★ set pieces of the hero's class, what one
-## costs (owned / needed) and the chance; Game.craft_set_piece makes the piece.
+## costs (owned / needed), each piece's own need (SetGearData.requirement_text: the
+## divine piece +10 or the Lotus Scales, met or not), a picker when several divine
+## pieces fit (the lowest + first, the worn one last and only after a confirmation)
+## and the chance; Game.craft_set_piece makes the piece.
 func _build_set_craft(middle: VBoxContainer) -> void:
 	var scroll := TouchScroll.new()
 	_page_scroll = scroll
@@ -567,7 +573,7 @@ func _build_set_craft(middle: VBoxContainer) -> void:
 		box.add_child(none)
 		return
 	var stars := int(Game.paragon().level)
-	var intro := UIUtil.label("%s (%s) · สวมใส่ได้ที่ ดาว %d (ตอนนี้ ดาว %d) · ชิ้นละ %s · สำเร็จ %d%% พลาดแล้ววัตถุดิบหายหมด" % [SetGearData.set_label(cls), String(SetGearData.ENGLISH[cls]), SetGearData.STARS, stars, SetGearData.cost_text(), int(SetGearData.CRAFT_CHANCE * 100.0)], &"SmallLabel")
+	var intro := UIUtil.label("%s (%s) · สวมใส่ได้ที่ ดาว %d (ตอนนี้ ดาว %d) · ชิ้นละ %s · อาวุธ/เกราะ/หมวก/รองเท้า ใช้ชุดประจำอาชีพชิ้นเดียวกัน +%d ขึ้นไป · แหวน/สร้อย ใช้%s %d · สำเร็จ %d%% พลาดแล้วแก่นเทพกับเพชรหาย แต่ชุดประจำอาชีพ/เกล็ดยังอยู่" % [SetGearData.set_label(cls), String(SetGearData.ENGLISH[cls]), SetGearData.STARS, stars, SetGearData.cost_text(), SetGearData.DIVINE_PLUS, String(ItemData.JEWELS[SetGearData.SCALE].name), SetGearData.SCALES, int(SetGearData.CRAFT_CHANCE * 100.0)], &"SmallLabel")
 	intro.name = "Intro"
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
@@ -615,18 +621,61 @@ func _build_set_craft(middle: VBoxContainer) -> void:
 		stats.name = "Stats"
 		stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(stats)
-		var problem := Game.set_piece_problem(slot)
-		var craft := UIUtil.button("ผสม (%d%%)" % int(SetGearData.CRAFT_CHANCE * 100.0), &"PrimaryButton", Vector2(140, 56))
+		# The piece's own need, green when met.
+		var choices := Game.set_divine_choices(slot)
+		var need := SetGearData.recipe(cls, slot)
+		var met := not choices.is_empty() if String(need.divine_slot) != "" else Game.jewel_count(SetGearData.SCALE) >= int(need.scales)
+		var have_text := ("มี %d ชิ้น" % choices.size()) if String(need.divine_slot) != "" else "มี %d/%d" % [Game.jewel_count(SetGearData.SCALE), int(need.scales)]
+		var req := RichTextLabel.new()
+		req.name = "Need"
+		req.bbcode_enabled = true
+		req.fit_content = true
+		req.scroll_active = false
+		req.add_theme_font_size_override("normal_font_size", 16)
+		req.text = "%s [color=#%s](%s %s)[/color]" % [SetGearData.requirement_text(cls, slot), "8dffb0" if met else "ff8a8a", "✓" if met else "✗", have_text]
+		col.add_child(req)
+		var pick: Dictionary = _set_pick(slot, choices)
+		if choices.size() > 1:
+			var picker := OptionButton.new()
+			picker.name = "DivinePick"
+			picker.custom_minimum_size = Vector2(0, 48)
+			for k in choices.size():
+				var c: Dictionary = choices[k]
+				picker.add_item("%s +%d · %s" % [String(c.item.get("name", "")), int(c.item.get("plus", 0)), {"bag": "กระเป๋า", "storage": "คลัง", "equip": "สวมอยู่"}[c.where]], k)
+				if is_same(c.item, pick):
+					picker.select(k)
+			picker.item_selected.connect(func(k: int):
+				_set_picks[slot] = choices[k].item
+				_queue_rebuild())
+			col.add_child(picker)
+		var worn_pick := not choices.is_empty() and choices.any(func(c): return is_same(c.item, pick) and c.where == "equip")
+		var problem := Game.set_piece_problem(slot, pick, true)
+		var craft := UIUtil.button(("ผสม (ใช้ชิ้นที่สวม)" if worn_pick else "ผสม (%d%%)" % int(SetGearData.CRAFT_CHANCE * 100.0)), &"PrimaryButton", Vector2(140, 56))
 		craft.name = "Craft"
 		craft.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		craft.disabled = problem != ""
 		craft.tooltip_text = problem
-		craft.pressed.connect(func(): _craft_set_piece(slot))
+		craft.pressed.connect(func(): _craft_set_piece(slot, pick, worn_pick))
 		line.add_child(craft)
 
 
-func _craft_set_piece(slot: String) -> void:
-	var result := Game.craft_set_piece(slot)
+## The divine piece the card of [param slot] uses: the player's pick while it still
+## fits, else the default (Game.set_divine_choices: lowest +, the worn one last).
+func _set_pick(slot: String, choices: Array[Dictionary]) -> Dictionary:
+	var chosen: Variant = _set_picks.get(slot)
+	for c in choices:
+		if is_same(c.item, chosen):
+			return c.item
+	_set_picks.erase(slot)
+	return choices[0].item if not choices.is_empty() else {}
+
+
+func _craft_set_piece(slot: String, pick: Dictionary = {}, worn := false) -> void:
+	if worn:
+		var approved: bool = await ModalDialog.confirm(self, "ใช้ชิ้นที่สวมอยู่?", "%s ที่สวมอยู่จะถูกใช้ผสม%s (ถ้าผสมพลาด ชิ้นนี้ยังอยู่)" % [String(pick.get("name", "")), SetGearData.item_name(String(Game.class_id()), slot)], "ใช้ชิ้นที่สวม", "ยกเลิก", true)
+		if not approved:
+			return
+	var result := Game.craft_set_piece(slot, -1.0, pick, worn)
 	match result:
 		"ok":
 			var cls := String(Game.class_id())
@@ -634,7 +683,7 @@ func _craft_set_piece(slot: String) -> void:
 			AudioManager.play_sfx(&"level_up")
 			Game.screen_flash.emit(SetGearData.palette(cls).glow, 0.3)
 		"fail":
-			Game.say("ผสมชุดเซตพลาด... (แก่นเทพกับเพชรสลายหายไป ลองใหม่อีกครั้ง)", &"warning")
+			Game.say("ผสมชุดเซตพลาด... (แก่นเทพกับเพชรสลายหายไป ชุดประจำอาชีพ/เกล็ดบัวดารายังอยู่ ลองใหม่อีกครั้ง)", &"warning")
 		_:
 			Game.say(result, &"warning")
 	_queue_rebuild()
@@ -757,7 +806,8 @@ func _refresh_detail() -> void:
 	elif item.get("kind", "") == "jewel":
 		var craft := String(item.get("id", "")) in StarWingData.CRAFT_COST
 		var for_mount := MountData.mount_of_mat(String(item.get("id", "")))
-		var how := UIUtil.label(("วัตถุดิบผสมชุดเซต 250 ดาว: ชิ้นเดียวผสมได้ทุกชิ้นของชุดเซตอาชีพตัวเอง (อาวุธ เกราะ หมวก รองเท้า แหวน สร้อย) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ชิ้นละ %s · สำเร็จ %d%% พลาดแล้ววัตถุดิบหายหมด · ดรอปในแมพ 200-300 ดาว" % [SetGearData.cost_text(), int(SetGearData.CRAFT_CHANCE * 100.0)]) if String(item.get("id", "")) == SetGearData.CORE
+		var how := UIUtil.label(("วัตถุดิบผสมชุดเซต 250 ดาว: ชิ้นเดียวผสมได้ทุกชิ้นของชุดเซตอาชีพตัวเอง (อาวุธ เกราะ หมวก รองเท้า แหวน สร้อย) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ชิ้นละ %s + ชุดประจำอาชีพชิ้นเดียวกัน +%d (แหวน/สร้อยใช้เกล็ดบัวดารา %d) · สำเร็จ %d%% พลาดแล้วแก่นเทพกับเพชรหาย · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร" % [SetGearData.cost_text(), SetGearData.DIVINE_PLUS, SetGearData.SCALES, int(SetGearData.CRAFT_CHANCE * 100.0)]) if String(item.get("id", "")) == SetGearData.CORE
+			else ("วัตถุดิบแหวนและสร้อยชุดเซต 250 ดาว: ชิ้นละ %d เกล็ด + %s ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" (ผสมพลาดเกล็ดยังอยู่) · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร (บอสให้ %d เกล็ดทุกตัว)" % [SetGearData.SCALES, SetGearData.cost_text(), EndgameFields.SCALE_BOSS]) if String(item.get("id", "")) == SetGearData.SCALE
 			else ("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
 			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"

@@ -214,7 +214,7 @@ func _ready() -> void:
 		check(String(text).length() <= 150, "an explanation fits the bubble (%d)" % String(text).length())
 	check(String(ask.call("อยู่ไหน", hunter).reply).contains("ป่าเงาม่วง"), "where are you names the place")
 	check(String(ask.call("ตอนนี้อยู่ที่ไหน", seller).reply).contains("ร้าน"), "a keeper is at its stall")
-	check(String(ask.call("มาหาหน่อย", hunter).reply).contains("หมู่บ้าน") and String(ask.call("มาหาหน่อย", hunter).action) == "none", "come here: meet in the village")
+	check(String(ask.call("มาหาหน่อย", hunter).reply).contains("ป่าเงาม่วง") and String(ask.call("มาหาหน่อย", hunter).action) == "none", "come here: meet where it really is (no promise to come)")
 	check(String(ask.call("มาเจอกันหน่อย เทรดของ", seller).action) == "open_stall", "come and trade with a keeper opens its stall")
 	var rude: Dictionary = ask.call("โง่จัง", hunter)
 	check(ChatBrain.RUDE.has(String(rude.reply)) and String(rude.action) == "none", "rudeness is deflected politely (%s)" % rude.reply)

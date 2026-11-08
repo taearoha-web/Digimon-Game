@@ -106,6 +106,13 @@ func _build() -> void:
 		god_line.name = "GodTitle"
 		god_line.add_theme_color_override("font_color", Color("ffe27a"))
 		_body.add_child(god_line)
+	# What it really wears (WorldGear: the same pieces its fighter and its body use).
+	var gear_text := gear_lines(i, WorldPresence.clock())
+	if gear_text != "":
+		var gear_line := UIUtil.label(gear_text, &"SmallLabel")
+		gear_line.name = "Gear"
+		gear_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_body.add_child(gear_line)
 	var team: Array = s.get("party_members", [])
 	if not team.is_empty() and int(s.get("party_leader", -1)) >= 0:
 		var names: Array[String] = []
@@ -170,6 +177,30 @@ func _build() -> void:
 		wares.name = "Stall"
 		wares.pressed.connect(open_stall)
 		talk_row.add_child(wares)
+
+
+## World player i's gear at real time t as the card shows it: each worn piece with its +,
+## the wings, the 250★ set and divine pieces, the mount (WorldGear.gear).
+static func gear_lines(i: int, t: float) -> String:
+	var g := WorldGear.gear(i, t)
+	var parts: PackedStringArray = []
+	for slot in ["weapon", "armor", "helm", "boots", "ring", "amulet"]:
+		var piece: Dictionary = g.get(slot, {})
+		if String(piece.get("name", "")) == "":
+			continue
+		var plus := int(piece.get("plus", 0))
+		parts.append("%s: %s%s" % [ItemData.SLOT_NAMES[slot], piece.name, " +%d" % plus if plus > 0 else ""])
+	var wings: Dictionary = g.get("wings", {})
+	if int(wings.get("tier", 0)) > 0:
+		parts.append("ปีก: %s%s" % [wings.name, " +%d" % int(wings.plus) if int(wings.get("plus", 0)) > 0 else ""])
+	if int(g.get("set_pieces", 0)) > 0:
+		parts.append("%s %d/%d ชิ้น" % [g.set_name, int(g.set_pieces), SetGearData.SLOTS.size()])
+	if int(g.get("divine_pieces", 0)) > 0:
+		parts.append("ชุดเทพ %d/%d ชิ้น" % [int(g.divine_pieces), DivineGearData.SLOTS.size()])
+	var mount: Dictionary = g.get("mount", {})
+	if not mount.is_empty():
+		parts.append("สัตว์ขี่: %s Lv.%d" % [mount.name, int(mount.level)])
+	return " · ".join(parts)
 
 
 ## Opens the typing bar to talk to the player on the card (AiChat).

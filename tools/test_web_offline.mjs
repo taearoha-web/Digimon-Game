@@ -51,6 +51,15 @@ const server = http.createServer(async (req, res) => {
     if (net.apiDown) { res.writeHead(503, {'Content-Type': 'application/json'}); res.end('{"error":{"code":"service_unavailable","message":"Down"}}'); return; }
     return api(req, res, url.pathname.slice(13));
   }
+  // The league's official round results (LeagueRounds): an empty store, like a fresh server.
+  if (url.pathname === '/api/league/rounds') {
+    res.writeHead(200, {'Content-Type': 'application/json'}); res.end(JSON.stringify({rounds: [], now: Math.floor(Date.now() / 1000)})); return;
+  }
+  if (url.pathname === '/api/league/round') {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    const body = raw ? JSON.parse(raw) : {};
+    res.writeHead(201, {'Content-Type': 'application/json'}); res.end(JSON.stringify({stored: true, round: body})); return;
+  }
   const name = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
   const file = path.join(root, name);
   if (!file.startsWith(root) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
@@ -97,7 +106,13 @@ const browser = await chromium.launch({headless: true, ...(process.env.CHROMIUM_
 const context = await browser.newContext({viewport: {width: 640, height: 360}});
 const page = await context.newPage();
 const failures = [], errors = [];
-page.on('requestfailed', request => { if (request.url().startsWith(origin)) failures.push(request.url() + ' ' + (request.failure() || {}).errorText); });
+page.on('requestfailed', request => {
+  const reason = (request.failure() || {}).errorText;
+  // The league's background sync (LeagueRounds) may be in flight when a test reloads the
+  // page: the navigation cancels it (net::ERR_ABORTED). That is not a failed request.
+  if (request.url().startsWith(origin + '/api/league/') && reason === 'net::ERR_ABORTED') return;
+  if (request.url().startsWith(origin)) failures.push(request.url() + ' ' + reason);
+});
 page.on('response', response => { if (response.url().startsWith(origin) && response.status() >= 400) failures.push(response.url() + ' HTTP ' + response.status()); });
 page.on('pageerror', error => errors.push(error.message));
 const consoleErrors = [];

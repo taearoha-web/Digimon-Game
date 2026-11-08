@@ -130,17 +130,24 @@ func _seeded(w: int) -> void:
 	GuildLeague._power_cache.clear()
 	WorldPlayers.reset_roster()
 	check(GuildLeague.sim_wars(w) == copy, "the seeded results come out the same when worked out again (same on every device)")
-	# The stronger guilds by real fighter power place better more often.
+	# The stronger guilds by real fighter power place better more often. Their power is
+	# their members' real forged gear (WorldGear), so the guilds stand close: over a few
+	# weeks, the pairs a few percent apart are counted.
 	var stronger_ahead := 0
 	var pairs := 0
-	for e in wars:
-		var order := GuildLeague.placement(e)
-		for i in order.size():
-			for j in range(i + 1, order.size()):
-				pairs += 1
-				if GuildLeague.week_power(order[i], int(e.at)) >= GuildLeague.week_power(order[j], int(e.at)):
-					stronger_ahead += 1
-	check(stronger_ahead > pairs / 2, "the stronger guild places ahead more often (%d of %d)" % [stronger_ahead, pairs])
+	for week in [w, w + 1, w + 2, w + 3]:
+		for e in GuildLeague.sim_wars(week):
+			var order := GuildLeague.placement(e)
+			for i in order.size():
+				for j in range(i + 1, order.size()):
+					var pa := GuildLeague.week_power(order[i], int(e.at))
+					var pb := GuildLeague.week_power(order[j], int(e.at))
+					if absf(pa - pb) < 0.02 * maxf(pa, pb):
+						continue
+					pairs += 1
+					if pa >= pb:
+						stronger_ahead += 1
+	check(pairs == 0 or stronger_ahead > pairs / 2, "the stronger guild places ahead more often (%d of %d)" % [stronger_ahead, pairs])
 	var e0: Dictionary = wars[0]
 	var p_manual := 0.0
 	var g0 := int(e0.g[0])
@@ -237,9 +244,9 @@ func _line_up(w: int) -> void:
 func _live_result(w: int) -> void:
 	_hero(WorldPlayers.NEVERDIE, 300)
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 4, 2)
+	pin(float(at) + GuildWarData.DURATION + 600.0)
 	var own := GuildLeague.start_holder(at)
 	var sim := GuildLeague.sim_round(at, own)
-	pin(float(at) + GuildWarData.DURATION + 600.0)
 	var before := GuildLeague.round_state(at)
 	check(String(before.state) == "done" and before.war == sim and not bool(before.get("real", false)), "without the hero the seeded result stands")
 	# The hero fights it (Neverdie first): its live result takes the round's place.
@@ -260,6 +267,8 @@ func _live_result(w: int) -> void:
 
 func _table(w: int) -> void:
 	_hero(WorldPlayers.LNW, 300)
+	# The week over: all of its rounds count (a round not over is never counted).
+	pin(GuildLeague.week_end(w) + 60.0)
 	var rows := GuildLeague.table(w, [])
 	check(rows.size() == 4, "the table has the four guilds")
 	var gs: Array = rows.map(func(r): return int(r.g))

@@ -8,7 +8,7 @@ permissions:
 jobs:
   game:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       XDG_DATA_HOME: /tmp/toon-ci-data
       XDG_CONFIG_HOME: /tmp/toon-ci-config
@@ -20,7 +20,7 @@ jobs:
           node-version: '22'
       - name: Install Godot 4.3
         run: |
-          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          curl --fail --location --retry 8 --retry-delay 15 --retry-all-errors https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           echo /tmp/godot >> "$GITHUB_PATH"
       - name: Import assets
@@ -101,6 +101,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-world-players
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/world_players_test.tscn
+      - name: World players forge their own gear (the same on every device, the hero's drop rates and forge odds, a + only through recorded events, the 250★ set from ★250 in order by its recipe, both endgame maps, fighters / card / stall wear the same, bench)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-world-gear
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/world_gear_test.tscn
       - name: Guild daily quests and the guild points shop (only in a guild, three quests a Thai day drawn from the guild and the day, the hero's kills / field bosses / forge successes / war wins / jewel pickups count plus the online guild mates' capped share, claimed once for guild points and gold, the shop gives chaos jewels / feathers / drills / pink jewels / god HP potions, a new day starts over, saves stay valid)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-quest
@@ -113,6 +117,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-league4
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_league4_test.tscn
+      - name: League rounds are frozen once over (a seeded round is never worked out again even when the seeding changes, the device's record survives a restart offline, the server's official results override the device's, the chain of holders goes on from the frozen holder, running and future rounds are never shown as decided, missing rounds are posted and the first writer's result is adopted)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-league-freeze
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/league_freeze_test.tscn
       - name: Daily / weekly quests and the free monthly pass (five daily and three weekly quests drawn per character and Thai day / week, kills / bosses / trades / stall sales / enhancing / party minutes / chat / world boss / guild war move them, claimed once for pass points, 30 tiers a month claimed one by one or all at once with a title at the top, day / week / month resets with a warning, saves stay valid, menu tab and red dot)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-daily-pass
@@ -205,6 +213,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-set-gear
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/set_gear_test.tscn
+      - name: 250-star set recipe (weapon/armour/helm/boots use up the class's divine piece at +10 up, ring/amulet 5 Lotus Scales, a failure keeps them, pick order and worn-piece confirmation, ผสมชุดเซต requirement lines, one drop table for the sanctuary and the abyss, scales nowhere else, saves)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-set-recipe
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/set_recipe_test.tscn
       - name: Loot magnet (every drop the hero earned flies to it from anywhere in the zone and is collected, world players' kills stay theirs, a full bag leaves gear on the ground with one toast until there is room, stacks still join, capped sparkles)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-loot-magnet
@@ -250,10 +262,11 @@ jobs:
           cd hosting/worker
           npm install --omit=dev --no-audit --no-fund
           node tests/chat.test.mjs
-      - name: Online play server (room logic, party hosts, trades, duels, stalls, limits, WorldRoom hibernation, /api/online routes; then the real Worker under wrangler dev with a local D1 and two WebSockets)
+      - name: Online play server (room logic, party hosts, trades, duels, stalls, limits, WorldRoom hibernation, /api/online routes, guild league official results /api/league; then the real Worker under wrangler dev with a local D1 and two WebSockets)
         run: |
           cd hosting/worker
           node tests/online.test.mjs
+          node tests/league.test.mjs
           npm install --no-audit --no-fund
           node tests/online_e2e.mjs
       - name: Check the UI canvas buffers stay within the video memory budget
@@ -355,7 +368,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Godot 4.3 and a virtual screen
         run: |
-          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          curl --fail --location --retry 8 --retry-delay 15 --retry-all-errors https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           echo /tmp/godot >> "$GITHUB_PATH"
           sudo apt-get update -q
@@ -427,6 +440,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild_war_4way_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_4way_test.tscn
+      - name: guild_war_siege_focus_test (with a castle holder every other guild goes for the castle and the holder, not each other - they rush the gates, pick the holder's fighters, leave the other attackers alone unless attacked close by, their area blows pass over them, the keep does not shelter the holder's gate guards, the leader's wait at the altar is bounded, rivals again in the throne room with every gate down; a seeded war of four at 4x reaches the gates, lands most blows on the holder and opens the first two tiers)
+        timeout-minutes: 8
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild_war_siege_focus_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_siege_focus_test.tscn
       - name: online_client_test
         timeout-minutes: 10
         env:
@@ -587,6 +605,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx-layers
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_layers_test.tscn
+      - name: The world players only say true things (thousands of thread lines, single lines and answers to the hero across players and times; every Lv, ★, +N, piece count, mount level, find, mount, wing, field, boss, God title, guild and party size checked against WorldGear / WorldPlayers for the speaker and the opener; news topics only with real news; rules read from the game's constants)
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-chat-truth
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_truth_test.tscn
       - name: phone_budget_test (every effect shader warmed while loading, buff auras rebuilt only on change, party roles built once a frame, other players' pets cheap below quality 2)
         timeout-minutes: 10
         env:

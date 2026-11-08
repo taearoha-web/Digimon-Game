@@ -166,8 +166,8 @@ static func rarity_odds(level: int, stars: int) -> Array:
 ## The forge jewels and mount materials a seller of `level` and `stars` has found by now
 ## (ids, the common ones more than once): purple from the start, pink from Lv.20, the
 ## mount materials as their mounts come within reach, chaos and drills at Lv.100,
-## feathers from ★50, the drake's scale from ★100 and the set core from ★200 (it drops
-## only in ห้วงสมุทรอสูร).
+## feathers from ★50, the drake's scale from ★100 and the set core and the Lotus Scale
+## from ★200 (both drop only in the two ★200-300 fields, EndgameFields).
 static func jewels_for(level: int, stars: int) -> Array[String]:
 	var out: Array[String] = ["purple", "purple", "purple"]
 	if level >= 20:
@@ -184,6 +184,7 @@ static func jewels_for(level: int, stars: int) -> Array[String]:
 			out.append("drake_scale")
 		if stars >= DrownedAbyssData.ENTRY_STAR:
 			out.append("set_core")
+			out.append(EndgameFields.SCALE)
 	return out
 
 
@@ -207,7 +208,17 @@ static func gem_cap(level: int, stars: int) -> int:
 static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 	t = _now(t)
 	var who := seller(i, t)
-	return lots_for("%s|%d" % [WorldPlayers.entry(i).name, window(i, t)], specialty(i), int(who.level), int(who.stars), Game.class_id())
+	var lots := lots_for("%s|%d" % [WorldPlayers.entry(i).name, window(i, t)], specialty(i), int(who.level), int(who.stars), Game.class_id())
+	# Finds for sale are its spare pieces, never what it wears itself (WorldGear).
+	var worn := {}
+	for piece in WorldGear.equip_at_work(i, WorldPlayers.work_at(i, t)).values():
+		worn["%s|%s|%d" % [piece.get("slot", ""), piece.get("name", ""), int(piece.get("level", 0))]] = true
+	var out: Array[Dictionary] = []
+	for lot in lots:
+		var item: Dictionary = lot.item
+		if not worn.has("%s|%s|%d" % [item.get("slot", ""), item.get("name", ""), int(item.get("level", 0))]):
+			out.append(lot)
+	return out
 
 
 ## The lots of a stall of `spec` kept by a seller of `level` and `stars`, seeded by `key`

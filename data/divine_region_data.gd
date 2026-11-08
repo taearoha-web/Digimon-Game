@@ -2,19 +2,23 @@ class_name DivineRegionData
 extends RefCounted
 ## A fifth, post-story destination. The four star milestones and wing drop
 ## regions remain unchanged; this sanctuary is an equipment hunt at 200 stars.
+## It shares its difficulty band and its drop table with ห้วงสมุทรอสูร
+## (EndgameFields): the divine class pieces (ชุดประจำอาชีพ, needed to forge the
+## 250★ set, SetGearData.recipe), set cores, Lotus Scales and the forge jewels.
+## Monster numbers match the abyss's role by role (normal, elite, boss).
 const ID: StringName = &"lotus_sanctum"
 const TITLE := "วิหารบัวดารา"
 ## Quaternius CC0 models (Ultimate Monsters), tinted for the sanctuary.
 ## Health is ten times the original design, like the star regions from 50 stars.
-const TOUGH_HP := 10.0
+const TOUGH_HP := EndgameFields.TOUGH_HP
 const MONSTERS := {
-	&"lotus_sprite": {"name":"ภูตบัวประกายดาว", "model":"flying/Ghost", "height":1.8, "hover":0.9, "hp":1.7, "atk":1.9, "def":1.15, "speed":2.7, "aggro":true, "attack":"ranged", "color":Color("f8c6eb"), "tint":Color(1.25,0.95,1.15), "behavior":"lotus_bolt", "exp":1.3, "gold":1.5},
-	&"jade_qilin": {"name":"มังกรหยกเทวะ", "model":"cute/YellowDragon", "height":2.4, "hp":2.4, "atk":1.8, "def":1.5, "speed":3.0, "aggro":true, "attack":"melee", "color":Color("89e9c5"), "tint":Color(0.75,1.2,0.95), "behavior":"jade_charge", "exp":1.5, "gold":1.7},
-	&"lotus_frog": {"name":"กบทองบัวทิพย์", "model":"big/Frog", "height":1.8, "hp":2.0, "atk":1.7, "def":1.35, "speed":2.6, "aggro":true, "attack":"melee", "color":Color("ffd98a"), "tint":Color(1.15,1.05,0.8), "behavior":"jade_charge", "exp":1.35, "gold":1.5},
-	&"jade_monk": {"name":"นักพรตวานรหยก", "model":"big/Monkroose", "height":2.2, "hp":2.2, "atk":1.85, "def":1.45, "speed":2.8, "aggro":true, "attack":"melee", "color":Color("8fe3c0"), "tint":Color(0.8,1.15,0.95), "behavior":"jade_charge", "exp":1.45, "gold":1.6},
-	&"gold_bee": {"name":"ผึ้งเกสรทองคำ", "model":"flying/Armabee_Evolved", "height":1.7, "hover":1.1, "hp":1.6, "atk":2.0, "def":1.1, "speed":3.0, "aggro":true, "attack":"ranged", "color":Color("ffd98a"), "tint":Color(1.25,1.1,0.8), "behavior":"lotus_bolt", "exp":1.35, "gold":1.6},
-	&"temple_guardian": {"name":"โกเลมพิทักษ์วิหาร", "model":"flying/Goleling_Evolved", "height":3.0, "hover":0.4, "hp":5.0, "atk":2.3, "def":2.0, "speed":2.4, "aggro":true, "attack":"melee", "elite":true, "color":Color("ffdc91"), "tint":Color(1.3,1.15,0.8), "behavior":"divine_slam", "exp":2.4, "gold":2.8},
-	&"lotus_seraph": {"name":"ออเรเลีย ราชันปีกบัวดารา", "model":"flying/Alpaking_Evolved", "height":5.0, "hover":0.6, "hp":29.0, "atk":3.15, "def":2.4, "speed":2.6, "aggro":true, "attack":"ranged", "boss":true, "color":Color("ffe3b3"), "tint":Color(1.3,1.2,1.05), "behavior":"lotus_judgment", "exp":3.0, "gold":4.0},
+	&"lotus_sprite": {"name":"ภูตบัวประกายดาว", "model":"flying/Ghost", "height":1.8, "hover":0.9, "hp":2.0, "atk":2.2, "def":1.3, "speed":2.7, "aggro":true, "attack":"ranged", "color":Color("f8c6eb"), "tint":Color(1.25,0.95,1.15), "behavior":"lotus_bolt", "exp":1.6, "gold":2.0},
+	&"jade_qilin": {"name":"มังกรหยกเทวะ", "model":"cute/YellowDragon", "height":2.4, "hp":2.6, "atk":2.1, "def":1.8, "speed":3.0, "aggro":true, "attack":"melee", "color":Color("89e9c5"), "tint":Color(0.75,1.2,0.95), "behavior":"jade_charge", "exp":1.7, "gold":2.1},
+	&"lotus_frog": {"name":"กบทองบัวทิพย์", "model":"big/Frog", "height":1.8, "hp":2.3, "atk":2.5, "def":1.5, "speed":2.6, "aggro":true, "attack":"melee", "color":Color("ffd98a"), "tint":Color(1.15,1.05,0.8), "behavior":"jade_charge", "exp":1.75, "gold":2.2},
+	&"jade_monk": {"name":"นักพรตวานรหยก", "model":"big/Monkroose", "height":2.2, "hp":1.9, "atk":2.3, "def":1.2, "speed":2.8, "aggro":true, "attack":"melee", "color":Color("8fe3c0"), "tint":Color(0.8,1.15,0.95), "behavior":"jade_charge", "exp":1.6, "gold":2.0},
+	&"gold_bee": {"name":"ผึ้งเกสรทองคำ", "model":"flying/Armabee_Evolved", "height":1.7, "hover":1.1, "hp":2.0, "atk":2.4, "def":1.2, "speed":3.0, "aggro":true, "attack":"ranged", "color":Color("ffd98a"), "tint":Color(1.25,1.1,0.8), "behavior":"lotus_bolt", "exp":1.65, "gold":2.0},
+	&"temple_guardian": {"name":"โกเลมพิทักษ์วิหาร", "model":"flying/Goleling_Evolved", "height":3.0, "hover":0.4, "hp":5.75, "atk":2.75, "def":2.3, "speed":2.4, "aggro":true, "attack":"melee", "elite":true, "color":Color("ffdc91"), "tint":Color(1.3,1.15,0.8), "behavior":"divine_slam", "exp":2.65, "gold":3.0},
+	&"lotus_seraph": {"name":"ออเรเลีย ราชันปีกบัวดารา", "model":"flying/Alpaking_Evolved", "height":5.0, "hover":0.6, "hp":32.0, "atk":3.4, "def":2.6, "speed":2.6, "aggro":true, "attack":"ranged", "boss":true, "color":Color("ffe3b3"), "tint":Color(1.3,1.2,1.05), "behavior":"lotus_judgment", "exp":3.4, "gold":5.0},
 }
 
 static func has_monster(id: StringName) -> bool:
@@ -36,8 +40,11 @@ static func zone() -> Dictionary:
 	for i in 5:
 		var ids: Array = [normals[i]]
 		if i >= 3: ids = [normals[i], normals[i], normals[i], &"temple_guardian"]
-		camps.append({"name":names[i], "monsters":ids, "levels":[158,166], "pos":positions[i], "radius":9.0, "count":10})
-	return {"name":TITLE, "scene":"field", "theme":ID, "divine_region":true, "star":200, "gear_star":200,
+		camps.append({"name":names[i], "monsters":ids, "levels":EndgameFields.camp_levels(i, 5), "pos":positions[i], "radius":9.0, "count":10})
+	var out := {"name":TITLE, "scene":"field", "theme":ID,
 		"level":[100,100], "music":ID, "ambience":&"water", "sky":Color("746995"), "fog":Color("c3a8c4"),
 		"ambient":Color("d9d7e9"), "sun":Color("ffefd9"), "ground":Color("aab7b7"), "camps":camps,
-		"boss":{"monster":&"lotus_seraph", "level":175, "respawn":120.0, "star":200}, "prev":&"eclipse_realm", "next":&""}
+		"boss":{"monster":&"lotus_seraph", "level":EndgameFields.BOSS_LEVEL, "respawn":EndgameFields.BOSS_RESPAWN, "star":EndgameFields.ENTRY_STAR}, "prev":&"eclipse_realm", "next":&""}
+	# The gate, EXP boost and drop table shared with the drowned abyss.
+	out.merge(EndgameFields.zone_fields(), true)
+	return out

@@ -451,7 +451,8 @@ func _note(channel: String, text: String) -> void:
 
 ## What the player is told: the line, who it is and who the hero is, the talk so far
 ## and the Thai hour (ChatBrain.reply reads it; the same shape as hosting/worker/chat.mjs
-## readChat, plus `hour`).
+## readChat, plus `hour`, the real time `t` and the player's world `index`, for what it
+## really wears: WorldGear).
 func request_body(i: int, text: String, channel: String) -> Dictionary:
 	var t := WorldPresence.clock()
 	var s := WorldPlayers.state(i, t)
@@ -470,7 +471,9 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 		"text": text,
 		"channel": channel,
 		"hour": WorldEvents.time_of_day(t) / 3600,
+		"t": t,
 		"player": {
+			"index": i,
 			"name": String(s.name),
 			"class": String(ClassData.get_class_data(StringName(s["class"])).get("name", "")),
 			"level": int(s.level),
