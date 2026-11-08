@@ -440,6 +440,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild_war_4way_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_4way_test.tscn
+      - name: guild_war_siege_focus_test (with a castle holder every other guild goes for the castle and the holder, not each other - they rush the gates, pick the holder's fighters, leave the other attackers alone unless attacked close by, their area blows pass over them, the keep does not shelter the holder's gate guards, the leader's wait at the altar is bounded, rivals again in the throne room with every gate down; a seeded war of four at 4x reaches the gates, lands most blows on the holder and opens the first two tiers)
+        timeout-minutes: 8
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild_war_siege_focus_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_siege_focus_test.tscn
       - name: online_client_test
         timeout-minutes: 10
         env:

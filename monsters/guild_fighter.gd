@@ -97,6 +97,23 @@ var keep_back := false
 ## never steps nearer that front than its post (fighting from the post, it gives ground
 ## backwards only), and walks back when it stands nearer.
 var keep_front := Vector3.INF
+## The siege's focus (GuildWarMatch._assign_objectives): the castle's holder while it has
+## one, for every other guild (-1: no focus, anyone of another guild).
+## Its fighters go for the holder's; another attacking guild's they leave alone unless it
+## strikes them (or goes for them, or for their leader) within RIVAL_REACH, and their area
+## blows pass over it (_targets). The rivalry between the attackers waits for the throne room.
+var holder_team := -1
+## Every gate down (GuildWarMatch._assign_objectives): in the throne room the attackers
+## fight each other too, over the switches and the altar (_in_rivalry).
+var rivalry_open := false
+const RIVAL_REACH := 8.0
+const HOLDER_BONUS := 5.0
+## Under the siege's focus a hurt attacker falls back to its guild's rear (rear_point: its
+## leader's post, its healers round it: GuildWarCommander.apply) to be healed, not the long
+## way to its camp; healed or after REAR_WAIT_MAX s there it goes on (home if still hurt).
+var rear_point := Vector3.INF
+const REAR_WAIT_MAX := 12.0
+var _rear_wait := 0.0
 var kills := 0
 var deaths := 0
 var assists := 0
@@ -488,16 +505,21 @@ func _pick_victim() -> Node3D:
 func _targets() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	var against_hero := team != TEAM_ALLY
-	if against_hero and _alive(hero):
+	# Under the siege's focus its area blows (aimed at the holder or its gate) pass over the
+	# other attacking guilds round it (the hero's side among them), but for the one it fights.
+	var spare_ours := holder_team >= 0 and holder_team != TEAM_ALLY
+	if against_hero and _alive(hero) and (not spare_ours or hero == _victim):
 		out.append(hero)
 	for t in _foes():
 		if _up(t) and t is GuildFighter:
+			if holder_team >= 0 and (t as GuildFighter).team != holder_team and t != _victim and not _in_rivalry(t):
+				continue
 			out.append(t as Node3D)
 	if against_hero:
 		for node in get_tree().get_nodes_in_group("summons"):
-			if _alive(node):
+			if _alive(node) and (not spare_ours or node == _victim):
 				out.append(node as Node3D)
-		if EntitySync.hosting():
+		if EntitySync.hosting() and not spare_ours:
 			_add_remote_targets(out)
 	# Every guild batters the same gate.
 	if _gate_up():
@@ -522,8 +544,22 @@ func _in_own_camp(t: Node3D) -> bool:
 		var caster: Variant = (t as SummonMob).caster
 		their = (caster as GuildFighter).team if caster is GuildFighter and is_instance_valid(caster) else TEAM_ENEMY
 	if siege != null and is_instance_valid(siege) and their == siege.castle_owner and siege.holds_keep():
-		return _flat_distance_from(t.global_position, SiegeArena.KEEP_CAMP) < SiegeArena.KEEP_SAFE
+		return keep_shelters(t)
 	return _flat_distance_from(t.global_position, SiegeArena.camp(their)) < SiegeArena.CAMP_RADIUS
+
+
+## The keep (the holder's camp in the second yard, a few steps before the third gate)
+## shelters the holder's own coming back from a fall or falling back hurt, not its guards
+## standing at the third gate in front of it while that gate stands (they would be out of
+## everyone's reach); with every gate down it shelters all of them, like any camp.
+static func keep_shelters(who: Node3D) -> bool:
+	var p := who.global_position
+	if Vector2(p.x - SiegeArena.KEEP_CAMP.x, p.z - SiegeArena.KEEP_CAMP.z).length() >= SiegeArena.KEEP_SAFE:
+		return false
+	var g := who as GuildFighter
+	if g == null or g.is_retreating() or g.under_guard():
+		return true
+	return g.siege != null and is_instance_valid(g.siege) and g.siege.front_gate() == null
 
 
 func _teammates() -> Array[Node3D]:
@@ -592,10 +628,16 @@ func _nearest_victim() -> Node3D:
 			continue
 		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + 6.0):
 			continue
+		var bias := 0.0
+		if holder_team >= 0 and t != taker and not (t is CastleGate):
+			if siege.team_of(t) == holder_team:
+				bias = HOLDER_BONUS
+			elif not _rival_on_me(t, d, guarding) and not _in_rivalry(t):
+				continue
 		# Inside the castle it presses on: it does not go back out for someone far behind.
 		if t != taker and SiegeArena.section(t.global_position) < my_section and d > 9.0:
 			continue
-		var score := -d
+		var score := -d + bias
 		# The guild's called target: everyone leans on it, ranged and assassins the most.
 		if t == called:
 			score += 12.0 if role == GuildWarCommander.ROLE_RANGED or role == GuildWarCommander.ROLE_ASSASSIN else 8.0
@@ -603,8 +645,9 @@ func _nearest_victim() -> Node3D:
 		if guarding != null and role == GuildWarCommander.ROLE_TANK and not (t is CastleGate) and _flat_distance_from(t.global_position, guarding.global_position) < 7.0:
 			score += 9.0
 		if t is CastleGate:
-			# The gate waits: anyone of the other guild close by comes first.
-			score -= 10.0
+			# The gate waits: anyone of the other guild close by comes first (less so
+			# battering the holder's gates: its guards come back from the keep at once).
+			score -= 10.0 if holder_team < 0 else 5.0
 		elif t == taker:
 			# Whoever is taking the altar must be stopped.
 			score += 30.0
@@ -631,6 +674,25 @@ func _nearest_victim() -> Node3D:
 			best_score = score
 			best = t
 	return best
+
+
+## Every gate down, this fighter and `t` both in the throne room: rivals again.
+func _in_rivalry(t: Node3D) -> bool:
+	return rivalry_open and SiegeArena.section(global_position) == 4 and SiegeArena.section(t.global_position) == 4
+
+
+## Under the siege's focus (holder_team): another attacking guild's `t`, `d` m off, is
+## fought only when it struck this fighter lately or goes for it (or for its leader,
+## `guarding`) close by.
+func _rival_on_me(t: Node3D, d: float, guarding: Node3D) -> bool:
+	if d > RIVAL_REACH:
+		return false
+	if t == _last_attacker and _grudge > 0.0:
+		return true
+	var mob := t as Mob
+	if mob == null:
+		return false
+	return mob._victim == self or (guarding != null and mob._victim == guarding)
 
 
 # ---------------------------------------------------------------------------
@@ -679,6 +741,8 @@ func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 		BattleVfx.damage_number(get_parent(), top_point(), str(amount) + ("!" if crit else ""), team == TEAM_ALLY, 1.35 if crit else 1.0)
 		visual.flash(Color(1, 1, 1))
 	if attacker != null and is_instance_valid(attacker):
+		if attacker is GuildFighter and siege != null and is_instance_valid(siege):
+			siege.note_blow((attacker as GuildFighter).team, team)
 		_last_attacker = attacker
 		_grudge = 4.0
 		_helpers[attacker.get_instance_id()] = attacker
@@ -819,6 +883,7 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var ratio := hp_ratio()
 	if not _retreating and ratio < RETREAT_BELOW and (_potions <= 0 or _potion_cd > 0.0):
 		_retreating = true
+		_rear_wait = 0.0
 	elif _retreating and (ratio > RETURN_ABOVE or (_flat_distance(spawn_point) < BASE_RADIUS * 0.6 and ratio > 0.5)):
 		_retreating = false
 	if _retreating and not _frozen:
@@ -1147,7 +1212,12 @@ func _run_to(point: Vector3, delta: float) -> Vector3:
 ## Low on health: run home, drink if possible, heal in the base, then return.
 func _fall_back(delta: float) -> Vector3:
 	_tick(delta)
-	var to := SiegeArena.route(global_position, spawn_point) - global_position
+	var back := spawn_point
+	if rear_point.is_finite() and _rear_wait < REAR_WAIT_MAX:
+		back = rear_point
+		if _flat_distance(rear_point) < 4.0:
+			_rear_wait += delta
+	var to := SiegeArena.route(global_position, back) - global_position
 	to.y = 0.0
 	if to.length_squared() > 0.01:
 		_yaw = lerp_angle(_yaw, atan2(to.x, to.z), 1.0 - exp(-10.0 * delta))

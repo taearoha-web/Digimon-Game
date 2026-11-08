@@ -52,7 +52,14 @@ extends RefCounted
 ## passed: evading). Another guild's leader on the altar: the main body goes for whichever
 ## is quicker, the leader or a switch its guild holds (deny_k). The holder counter-pushes
 ## the guild nearest to taking the castle (counter_team). Its moves are told in the feed
-## (GuildWarMatch.trace too).
+## (GuildWarMatch.trace too). The leader's wait for a clash is TIMING_MAX s at most, and
+## not again within TIMING_REST s.
+## The siege's focus (GuildWarMatch.siege_focus: the castle has a holder): every other
+## guild's business is the castle and the holder. It marks only the holder's fighters (its
+## called target, its assassins' dive: _siege_mark), picks the gate less defended by the
+## holder's own, gathers out of the holder's reach in the yards (SIEGE_RALLY) and sends its
+## hurt back to its leader's post rather than its far camp; the other attacking guilds are
+## rivals again only in the throne room with every gate down (_rival_open).
 ## It also calls a focus target for the whole guild (whoever takes the altar, then a healer
 ## or bard, an exposed leader, the weak), sends its assassins round to the back line, keeps
 ## stuns from landing on a target that is already stunned, and shouts short callouts in the
@@ -138,6 +145,7 @@ const SECURE_MAX := 30.0
 ## leader waits for them at most TIMING_MAX s.
 const CLASH_HEAT := 2.0
 const TIMING_MAX := 6.0
+const TIMING_REST := 20.0
 ## Reading the wave on the altar: foes within WAVE_RADIUS of the altar, at least WAVE_MIN
 ## and WAVE_EDGE more than its guard within GUARD_RADIUS: the leader steps off (at most
 ## EVADE_MAX s at a time) and comes back once they are no more than its guard.
@@ -167,9 +175,15 @@ const COMMIT_MIN := 5
 const GATHER_SHARE := 0.5
 const GATHER_MAX := 10.0
 const GATHER_RADIUS := 12.0
+## Under the siege's focus (a holder behind its gates) a guild gathers out of the holder's
+## reach, SIEGE_RALLY m before the gate of a tier inside the castle (in the yard, not at the
+## holder's keep), and waits for its fallen a little longer (they come back from far).
+const SIEGE_RALLY := 24.0
+const SIEGE_GATHER_MAX := 20.0
 ## Pushing: after PUSH_MIN seconds with less than TRICKLE_SHARE of the guild at the front
 ## (the rest dead or strung out on the way) it gathers again.
 const PUSH_MIN := 30.0
+const PUSH_HOLD := 14.0
 const TRICKLE_SHARE := 0.25
 const FRONT_RADIUS := 14.0
 ## A lost fight: LOSING_HEAT falls remembered (each fades over HEAT_MEMORY s) and two more
@@ -258,7 +272,7 @@ var counter_team := -1
 var clash := {}
 ## The leader waits for its moment (tests): since when, and why.
 var waiting := false
-var _wait_since := 0.0
+var _wait_since := -1.0e9
 
 
 func _init(p_war: GuildWarMatch, p_team: int) -> void:
@@ -349,7 +363,7 @@ static func pick_tactic(prev: String, held: float, s: Dictionary) -> String:
 			return GATHER
 		return PUSH
 	if prev == GATHER:
-		if float(s.gathered) >= GATHER_SHARE or held >= GATHER_MAX or int(s.enemies_at_rally) >= 2:
+		if float(s.gathered) >= GATHER_SHARE or held >= float(s.get("gather_max", GATHER_MAX)) or int(s.enemies_at_rally) >= 2:
 			return PUSH
 		return GATHER
 	return GATHER
@@ -565,7 +579,9 @@ func leader_timing(s: Dictionary) -> String:
 		return " หัวหน้ากิลด์อื่นล้มหมด"
 	var busy := busy_pair().size() == 2
 	var clear := int(s.get("altar_foes", 0)) <= ALTAR_CLEAR_FOES and int(s.get("vanguard", 0)) >= 1
-	if busy and not clear and (not waiting or clock - _wait_since < TIMING_MAX):
+	# One wait at a time, never begun again within TIMING_REST s of the last (the leader
+	# never stands back more than TIMING_MAX s in one go for the others to clash).
+	if busy and not clear and (waiting and clock - _wait_since < TIMING_MAX or not waiting and clock - _wait_since >= TIMING_REST):
 		return "wait"
 	if waiting and (clear or not busy):
 		return " หลังกิลด์อื่นซัดกันจนอ่อนแรง"
@@ -701,7 +717,7 @@ func _place() -> void:
 			rally = SiegeArena.APPROACH + back.normalized() * 12.0
 			fallback_point = home.lerp(SiegeArena.APPROACH, 0.55)
 		else:
-			rally = Vector3(x + toward * 4.0, 0, SiegeArena.GATE_Z[k] + 12.0)
+			rally = Vector3(x + toward * 4.0, 0, SiegeArena.GATE_Z[k] + (SIEGE_RALLY if _siege_mark() >= 0 else 12.0))
 			# Just inside the tier broken last, the far end of the same yard.
 			fallback_point = Vector3(x + toward * 4.0, 0, SiegeArena.GATE_Z[k - 1] - 6.0)
 	elif war.front_gate() != null:
@@ -776,11 +792,15 @@ func gate_for(f: GuildFighter) -> CastleGate:
 	return front[p % 2]
 
 
-## How many of the other guilds stand within 12 m of gate g's front.
+## How many of the other guilds stand within 12 m of gate g's front (only the holder's
+## while it holds the castle: another attacking guild at a gate is no defender of it).
 func _defenders_at(g: CastleGate) -> int:
 	var at := SiegeArena.gate_front(g.tier, g.lane)
+	var holder := war.castle_owner if war.castle_owner != team else -1
 	var n := 0
 	for f in _foes():
+		if holder >= 0 and f.team != holder:
+			continue
 		if not f.is_dead() and _flat(f.global_position, at) < 12.0:
 			n += 1
 	return n
@@ -918,10 +938,13 @@ func read() -> Dictionary:
 		if _flat(p, SiegeArena.ALTAR) < VANGUARD_RADIUS:
 			vanguard += 1
 	var enemies_at_rally := 0
+	# Under the siege's focus only the holder's count at the rally point (the other
+	# attackers gathering beside it are no threat to it there).
+	var only := _siege_mark()
 	for f in _foes():
 		if f.is_dead():
 			continue
-		if _flat(f.global_position, rally) < 16.0:
+		if _flat(f.global_position, rally) < 16.0 and (only < 0 or f.team == only):
 			enemies_at_rally += 1
 		if lead != null and _flat(f.global_position, lead.global_position) < 10.0:
 			threat += 1
@@ -967,6 +990,7 @@ func read() -> Dictionary:
 		"gathered": float(at_rally) / float(maxi(1, alive)),
 		"at_front": float(at_front) / float(maxi(1, alive)),
 		"enemies_at_rally": enemies_at_rally,
+		"gather_max": SIEGE_GATHER_MAX if only >= 0 else GATHER_MAX,
 		"switches": war.switches_held(team),
 		"foe_switches": foe_switches,
 		"rival_leaders_down": leaders_down,
@@ -986,8 +1010,9 @@ func _pick_focus() -> Node3D:
 		return taker
 	var best: Node3D = null
 	var best_score := -1.0e9
+	var only := _siege_mark()
 	for f in _foes():
-		if f.is_dead():
+		if f.is_dead() or (only >= 0 and f.team != only and not _rival_open(f)):
 			continue
 		var d := _flat(f.global_position, at)
 		if d > FOCUS_RANGE or _in_camp(f):
@@ -1003,7 +1028,7 @@ func _pick_focus() -> Node3D:
 		if score > best_score:
 			best_score = score
 			best = f
-	if team != GuildFighter.TEAM_ALLY and war.hero_alive():
+	if team != GuildFighter.TEAM_ALLY and war.hero_alive() and (only < 0 or only == GuildFighter.TEAM_ALLY):
 		var hero := war.hero
 		var d := _flat(hero.global_position, at)
 		if d <= FOCUS_RANGE and not _in_camp(hero):
@@ -1022,8 +1047,9 @@ func _pick_dive() -> Node3D:
 	var at := front()
 	var best: Node3D = null
 	var best_score := -1.0e9
+	var only := _siege_mark()
 	for f in _foes():
-		if f.is_dead() or f.under_guard() or _in_camp(f):
+		if f.is_dead() or f.under_guard() or _in_camp(f) or (only >= 0 and f.team != only and not _rival_open(f)):
 			continue
 		var kind := _kind(f)
 		if kind == KIND_OTHER or (kind == KIND_LEADER and _escorts(f) > 1 and f.hp_ratio() >= 0.4):
@@ -1035,12 +1061,26 @@ func _pick_dive() -> Node3D:
 		if score > best_score:
 			best_score = score
 			best = f
-	var hero_kind := _kind(war.hero) if war.hero_alive() else KIND_OTHER
+	var hero_kind := _kind(war.hero) if war.hero_alive() and (only < 0 or only == GuildFighter.TEAM_ALLY) else KIND_OTHER
 	if team != GuildFighter.TEAM_ALLY and hero_kind != KIND_OTHER and (hero_kind != KIND_LEADER or _escorts(war.hero) <= 1):
 		var d := _flat(war.hero.global_position, at)
 		if d <= DIVE_RANGE and not _in_camp(war.hero) and focus_score(d, war.hero_hp_ratio(), hero_kind, _escorts(war.hero), false, false) > best_score:
 			best = war.hero
 	return best
+
+
+## Under the siege's focus (GuildWarMatch.siege_focus) the holder is the only guild whose
+## fighters this guild marks (-1: anyone's), but in the throne room with every gate down.
+func _siege_mark() -> int:
+	if war.castle_owner == team or not war.siege_focus():
+		return -1
+	return war.castle_owner
+
+
+## Another attacking guild's `f` this guild marks all the same: every gate down, it in the
+## throne room (the switches and the altar are fought over by all).
+func _rival_open(f: GuildFighter) -> bool:
+	return war.front_gate() == null and SiegeArena.section(f.global_position) == 4
 
 
 func _kind(f: Node3D) -> int:
@@ -1079,7 +1119,7 @@ func _escorts(who: Node3D) -> int:
 func _in_camp(who: Node3D) -> bool:
 	var t := maxi(0, war.team_of(who))
 	if t == war.castle_owner and war.holds_keep():
-		return _flat(who.global_position, SiegeArena.KEEP_CAMP) < SiegeArena.KEEP_SAFE
+		return GuildFighter.keep_shelters(who)
 	return _flat(who.global_position, SiegeArena.camp(t)) < SiegeArena.CAMP_RADIUS
 
 
@@ -1339,6 +1379,7 @@ func apply() -> void:
 	var bodyguard := _bodyguard(side, ai_lead) if inside else null
 	var screen_dir := _screen_dir(leader_post) if inside else Vector3.ZERO
 	_tied.clear()
+	var rear := leader_post.is_finite() and _siege_mark() >= 0
 	for f in side:
 		var r := _role(f, ai_lead)
 		f.focus = focus
@@ -1401,6 +1442,10 @@ func apply() -> void:
 			PUSH:
 				if war.front_gate() != null:
 					f.goal_point = slot(at, fwd, r, i, _counts[r], depth)
+					# Nobody holding the castle, a war of more than two: the push is for the
+					# gate, not a chase after every guild on the field.
+					if war.castle_owner < 0 and war.team_count() > 2:
+						f.hold_range = PUSH_HOLD
 			ESCORT, GUARD:
 				f.objective = null
 				f.hold_range = ASSAULT_HOLD if assault else 11.0
@@ -1439,6 +1484,9 @@ func apply() -> void:
 		# The AI leader never charges in alone: it keeps to its place behind the tanks.
 		if f == ai_lead and tactic != DEFEND:
 			f.hold_range = 8.0 if depth < 0.0 else 5.0
+		# Under the siege's focus the hurt fall back to the leader's post (its healers).
+		if rear and f != ai_lead:
+			f.rear_point = leader_post
 
 
 ## Whether the AI leader taking the altar steps off it to be healed (resting): hurt with
