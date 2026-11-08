@@ -164,7 +164,9 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 				continue
 			var lead: GuildFighter = leads[team]
 			var c: GuildWarCommander = m.commanders[team]
-			if lead.is_dead() or lead.capture_role or lead.capturing:
+			# Sent up (leader_go): the guild cleared the way and the leader now walks onto
+			# the altar on purpose, so it is no longer "not yet sent".
+			if lead.is_dead() or lead.capture_role or lead.capturing or c.leader_go:
 				continue
 			var goal := Vector3.INF
 			var gate := m.front_gate()
