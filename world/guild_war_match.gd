@@ -1099,6 +1099,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	team_buff_left = maxf(0.0, team_buff_left - delta)
+	_fit_switch_label()
 	match state:
 		"intro":
 			if hold:
@@ -2185,6 +2186,53 @@ func _color_switch(blend := 0.0) -> void:
 	var tag := _switch_parts.tag as Label3D
 	tag.text = switch_label()
 	tag.modulate = switch_color().lerp(Color.WHITE, 0.2) if held else Color("f2f2f2")
+
+
+## The tallest the switch's floating label's line may look on screen (logical px).
+const SWITCH_LABEL_MAX_PX := 26.0
+const SWITCH_LABEL_PIXEL := 0.02
+## The lowest the label may sit (a share of the screen height): above the controls.
+const SWITCH_LABEL_LOW := 0.7
+
+
+## The switch's floating label stays a readable, capped size on screen (it shrinks as the
+## camera comes close instead of filling the view) and hides while it would sit in the
+## top band the guild war's board holds (GuildWarHud.top_band), in the toasts' lane under
+## it (ToastLayer.lane_bottom) or off the screen.
+func _fit_switch_label() -> void:
+	if _switch_parts.is_empty():
+		return
+	var tag := _switch_parts.tag as Label3D
+	if not is_instance_valid(tag) or not tag.is_inside_tree():
+		return
+	var cam := tag.get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var depth := -(cam.global_transform.affine_inverse() * tag.global_position).z
+	if depth <= 0.5:
+		tag.visible = false
+		return
+	var view := tag.get_viewport().get_visible_rect().size
+	var span := 2.0 * depth * tan(deg_to_rad(cam.fov) * 0.5)
+	tag.pixel_size = minf(SWITCH_LABEL_PIXEL, SWITCH_LABEL_MAX_PX * span / (view.y * float(tag.font_size)))
+	var line_px := float(tag.font_size) * tag.pixel_size / span * view.y
+	var p := cam.unproject_position(tag.global_position)
+	var top_px := p.y - line_px * 0.5 * float(tag.text.count("\n") + 1)
+	# Also clear of the bottom row of controls (joystick, chat, skills).
+	tag.visible = top_px > maxf(GuildWarHud.top_band, ToastLayer.lane_bottom) + 12.0 and p.y < view.y * SWITCH_LABEL_LOW and p.x > 0.0 and p.x < view.x
+
+
+## The switch's floating label now (tests): shown, its line's height and place on screen (px).
+func switch_label_screen() -> Dictionary:
+	if _switch_parts.is_empty():
+		return {}
+	var tag := _switch_parts.tag as Label3D
+	var cam := tag.get_viewport().get_camera_3d()
+	if cam == null:
+		return {"visible": tag.visible, "line_px": 0.0, "pos": Vector2.ZERO}
+	var depth := maxf(0.01, -(cam.global_transform.affine_inverse() * tag.global_position).z)
+	var px := float(tag.font_size) * tag.pixel_size / (2.0 * depth * tan(deg_to_rad(cam.fov) * 0.5)) * tag.get_viewport().get_visible_rect().size.y
+	return {"visible": tag.visible, "line_px": px, "pos": cam.unproject_position(tag.global_position)}
 
 
 ## While the switch is fought over its circle flickers between the holder's colour and the

@@ -33,6 +33,12 @@ var _chips: Array[PanelContainer] = []
 var _barrier: Label
 var _party_button: Button
 var _pulse := 0.0
+## The top column (board, capture line, switch row, warning).
+var _top: VBoxContainer
+## The bottom (logical px) of the guild-war board's column on screen, 0 without one: the
+## toasts start under it and the switch's floating label hides above it (one lane each,
+## nothing drawn over the board). The player's HUD and the spectator's board set it.
+static var top_band := 0.0
 var _refresh := 0.0
 ## The front gate's last quarter told in the chat (gate index * 4 + quarters left).
 var _gate_mark := -1
@@ -41,7 +47,9 @@ var _gate_mark := -1
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var top := UIUtil.vbox(3)
+	var top := UIUtil.vbox(4)
+	_top = top
+	top.name = "TopColumn"
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.anchor_left = 0.5
 	top.anchor_right = 0.5
@@ -83,9 +91,15 @@ func _ready() -> void:
 	_party_button.pressed.connect(press_party_switch)
 	_switch_row.add_child(_party_button)
 	for k in 2:
-		var chip := UIUtil.chip(SiegeArena.SWITCH_NAME if k == 0 else "บาเรีย", Color("c9c9c9"), 16)
+		var chip := UIUtil.chip(SiegeArena.SWITCH_NAME if k == 0 else "บาเรีย", Color("c9c9c9"), 17)
 		chip.name = "SwitchChip" if k == 0 else "BarrierChip"
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_outlined(chip.get_child(0) as Label)
+		var sb := chip.get_theme_stylebox("panel") as StyleBoxFlat
+		if sb != null:
+			sb.set_border_width_all(3)
+			sb.content_margin_top = 4
+			sb.content_margin_bottom = 4
 		_chips.append(chip)
 		_switch_row.add_child(chip)
 	_switch_row.visible = false
@@ -119,6 +133,37 @@ func _process(delta: float) -> void:
 	if _refresh <= 0.0:
 		_refresh = 0.2
 		_update(delta, false)
+	_pulse_chip(delta)
+	# Hidden (the spectator's board up instead): that board keeps the band.
+	if is_visible_in_tree():
+		top_band = band_bottom()
+
+
+func _exit_tree() -> void:
+	top_band = 0.0
+
+
+## The bottom of the top column on screen (logical px): the board and the rows under it.
+func band_bottom() -> float:
+	if _top == null:
+		return 0.0
+	return _top.get_global_rect().end.y
+
+
+## The rects on screen of the board, the switch row, the capture line and the warning (tests).
+func layout_rects() -> Dictionary:
+	var out := {}
+	for pair in [["board", _top.get_child(0)], ["taking", _taking], ["switch_row", _switch_row], ["warning", _barrier]]:
+		var c := pair[1] as Control
+		if c.is_visible_in_tree():
+			out[pair[0]] = c.get_global_rect()
+	return out
+
+
+## The switch chip's text colour as drawn (tests): the label stays opaque while fought over.
+func switch_label_alpha() -> float:
+	var label := _chip_label(0)
+	return (label.get_theme_color("font_color") * _chips[0].modulate * label.modulate * modulate).a
 
 
 ## The top bar's texts now (tests): [owner line, capture line].
@@ -158,20 +203,38 @@ func _update_switches(m: GuildWarMatch) -> void:
 	for k in _chips.size():
 		var label := _chip_label(k)
 		label.text = m.switch_text() if k == 0 else m.barrier_open_text()
-		label.add_theme_color_override("font_color", color.lightened(0.35))
+		# Solid dark backing, light text with an outline: readable on snow and on stone.
+		label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.6))
 		var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
 		if sb != null:
-			sb.bg_color = Color(color.r, color.g, color.b, 0.3)
+			sb.bg_color = Color(color.darkened(0.72), 0.92)
 			sb.border_color = color
-	# Fought over: the switch chip flickers towards the challenger's colour.
-	_pulse += 0.2
-	var fought := m.switch_contested and m.switch_challenger >= 0
-	_chips[0].modulate = Color.WHITE.lerp(m.team_color(m.switch_challenger).lightened(0.3), 0.5 + 0.5 * sin(_pulse * 6.0)) if fought else Color.WHITE
+	_chips[0].modulate = Color.WHITE
 	_party_button.visible = shown and not m.mirror and not m.hero_party_members().is_empty()
 	_party_button.modulate = Color("9dff9a") if m.party_switch else Color.WHITE
 	var warn := m.barrier_line()
 	_barrier.text = warn
 	_barrier.visible = warn != ""
+
+
+## Fought over: only the switch chip's border and backing swing between the holder's and
+## the challenger's colours (the text stays fully opaque).
+func _pulse_chip(delta: float) -> void:
+	var m := match_node
+	if m == null or not is_instance_valid(m) or _chips.is_empty() or not _switch_row.visible:
+		return
+	var sb := _chips[0].get_theme_stylebox("panel") as StyleBoxFlat
+	if sb == null:
+		return
+	var color := m.switch_color()
+	if m.switch_contested and m.switch_challenger >= 0:
+		_pulse += delta
+		var w := 0.5 + 0.5 * sin(_pulse * 7.0)
+		var mix := color.lerp(m.team_color(m.switch_challenger), w)
+		sb.border_color = mix
+		sb.bg_color = Color(mix.darkened(0.72), 0.92)
+	else:
+		_pulse = 0.0
 
 
 func _update(_delta: float, force: bool) -> void:

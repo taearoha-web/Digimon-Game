@@ -106,6 +106,8 @@ var _target_panel: PanelContainer
 var _boss_panel: PanelContainer
 var _timers: TimerBars
 var _tracker: Label
+## The zone / countdown banner's top (logical px) when no guild war board is up.
+const BANNER_TOP := 174.0
 var _tracker_timer := 0.0
 ## World event chip under the tracker (WorldEvents.describe), refreshed once a second
 ## and placed by _place_event_chip under however many tracker lines there are.
@@ -286,6 +288,10 @@ func set_controls_visible(value: bool) -> void:
 
 func show_banner(text: String) -> void:
 	_banner.text = text
+	# Never over the guild war's board, its rows or the toasts under them.
+	var top := maxf(BANNER_TOP, maxf(GuildWarHud.top_band, ToastLayer.lane_bottom) + 8.0) if _gw_hud != null else BANNER_TOP
+	_banner.offset_top = top
+	_banner.offset_bottom = top + 70.0
 	_banner.modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(_banner, "modulate:a", 1.0, 0.4)
@@ -340,7 +346,7 @@ func _process(delta: float) -> void:
 				lines.append(line)
 		_event_label.text = "\n".join(lines)
 		pass_dot.visible = DailyPass.claimable() > 0
-		_event_chip.visible = _event_label.text != ""
+		_event_chip.visible = _event_label.text != "" and _war() == null
 		_place_event_chip()
 
 
@@ -492,7 +498,8 @@ func _update_tracker(delta: float) -> void:
 	if _tracker_timer > 0.0:
 		return
 	_tracker_timer = 0.5
-	if Game.profile.is_empty() or zone.is_town:
+	# In a guild war its board and lanes own the top centre: no quest lines beside them.
+	if Game.profile.is_empty() or zone.is_town or _war() != null:
 		_tracker.visible = false
 		_place_event_chip()
 		return
@@ -1709,8 +1716,8 @@ func _build_banner(frame: Control) -> void:
 	_banner.anchor_right = 0.70
 	_banner.anchor_top = 0.0
 	_banner.anchor_bottom = 0.0
-	_banner.offset_top = 174
-	_banner.offset_bottom = 244
+	_banner.offset_top = BANNER_TOP
+	_banner.offset_bottom = BANNER_TOP + 70.0
 	_banner.modulate.a = 0.0
 	frame.add_child(_banner)
 

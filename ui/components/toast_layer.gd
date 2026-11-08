@@ -4,6 +4,10 @@ extends CanvasLayer
 
 const MAX_VISIBLE := 4
 const LIFETIME := 2.6
+## Where the stack starts (logical px from the top) when nothing reserves the top centre.
+const TOP := 124.0
+## The gap under a reserved top band (GuildWarHud.top_band: the guild war's board).
+const BAND_GAP := 8.0
 const KIND_COLORS := {
 	&"info": Color("34e0ff"),
 	&"success": Color("5ad17a"),
@@ -13,6 +17,9 @@ const KIND_COLORS := {
 }
 
 var _stack: VBoxContainer
+## The bottom of the toasts on screen while any is up, 0 without (the guild war's switch
+## label keeps out of the lane: GuildWarMatch._fit_switch_label).
+static var lane_bottom := 0.0
 
 
 func _ready() -> void:
@@ -27,7 +34,7 @@ func _ready() -> void:
 	_stack.anchor_right = 0.5
 	_stack.offset_left = -300
 	_stack.offset_right = 300
-	_stack.offset_top = 124
+	_stack.offset_top = TOP
 	_stack.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_stack.add_theme_constant_override("separation", 8)
 	_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -35,10 +42,32 @@ func _ready() -> void:
 	Game.toast.connect(show_toast)
 
 
+## The toasts' own lane: under the guild war's board and its rows when one is up (never on
+## top of them), at TOP otherwise.
+func _process(_delta: float) -> void:
+	_stack.offset_top = lane_top()
+	lane_bottom = _stack.get_global_rect().end.y if _stack.get_child_count() > 0 else 0.0
+
+
+func _exit_tree() -> void:
+	lane_bottom = 0.0
+
+
+static func lane_top() -> float:
+	return maxf(TOP, GuildWarHud.top_band + BAND_GAP) if GuildWarHud.top_band > 0.0 else TOP
+
+
+## The stack's rect on screen (tests).
+func stack_rect() -> Rect2:
+	return _stack.get_global_rect()
+
+
 func show_toast(text: String, kind: StringName = &"info") -> void:
 	if text.strip_edges() == "":
 		return
-	while _stack.get_child_count() >= MAX_VISIBLE:
+	# Under a guild war's board two at most, so the lane stays over the field's top half.
+	var cap := MAX_VISIBLE if GuildWarHud.top_band <= 0.0 else 2
+	while _stack.get_child_count() >= cap:
 		var oldest := _stack.get_child(0)
 		_stack.remove_child(oldest)
 		oldest.queue_free()
