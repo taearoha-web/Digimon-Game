@@ -51,6 +51,15 @@ const server = http.createServer(async (req, res) => {
     if (net.apiDown) { res.writeHead(503, {'Content-Type': 'application/json'}); res.end('{"error":{"code":"service_unavailable","message":"Down"}}'); return; }
     return api(req, res, url.pathname.slice(13));
   }
+  // The league's official round results (LeagueRounds): an empty store, like a fresh server.
+  if (url.pathname === '/api/league/rounds') {
+    res.writeHead(200, {'Content-Type': 'application/json'}); res.end(JSON.stringify({rounds: [], now: Math.floor(Date.now() / 1000)})); return;
+  }
+  if (url.pathname === '/api/league/round') {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    const body = raw ? JSON.parse(raw) : {};
+    res.writeHead(201, {'Content-Type': 'application/json'}); res.end(JSON.stringify({stored: true, round: body})); return;
+  }
   const name = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
   const file = path.join(root, name);
   if (!file.startsWith(root) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
