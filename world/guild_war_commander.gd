@@ -1061,7 +1061,7 @@ func _escorts(who: Node3D) -> int:
 ## Someone of the other guild standing in its own camp (nobody chases it there).
 func _in_camp(who: Node3D) -> bool:
 	var t := maxi(0, war.team_of(who))
-	if t == war.castle_owner:
+	if t == war.castle_owner and war.holds_keep():
 		return _flat(who.global_position, SiegeArena.KEEP_CAMP) < SiegeArena.KEEP_SAFE
 	return _flat(who.global_position, SiegeArena.camp(t)) < SiegeArena.CAMP_RADIUS
 

@@ -512,7 +512,7 @@ func _in_own_camp(t: Node3D) -> bool:
 	elif t is SummonMob:
 		var caster: Variant = (t as SummonMob).caster
 		their = (caster as GuildFighter).team if caster is GuildFighter and is_instance_valid(caster) else TEAM_ENEMY
-	if siege != null and is_instance_valid(siege) and their == siege.castle_owner:
+	if siege != null and is_instance_valid(siege) and their == siege.castle_owner and siege.holds_keep():
 		return _flat_distance_from(t.global_position, SiegeArena.KEEP_CAMP) < SiegeArena.KEEP_SAFE
 	return _flat_distance_from(t.global_position, SiegeArena.camp(their)) < SiegeArena.CAMP_RADIUS
 

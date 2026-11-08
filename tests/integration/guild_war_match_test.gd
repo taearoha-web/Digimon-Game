@@ -657,7 +657,9 @@ func _resume() -> void:
 	var bm: GuildWarMatch = back.gw_match
 	check(bm != null and bm.gates[0].is_dead() and not bm.gates[1].is_dead() and absi(bm.gates[2].hp - bm.gates[2].max_hp / 2) <= 2 and bm.gates[3].hp == bm.gates[3].max_hp and bm.gates[4].hp == bm.gates[4].max_hp, "resume: the gates come back as they were")
 	check(bm != null and bm.castle_owner == GuildFighter.TEAM_ENEMY and bm.front_gate() == bm.gates[2], "resume: and so does the castle's holder")
-	check(bm != null and bm.enemies.all(func(f): return f.spawn_point.distance_to(SiegeArena.KEEP_CAMP) < 20.0), "resume: the holder comes back inside the castle")
+	# A two-guild war keeps the holder in its own camp; only the league's war of 3-4 guilds
+	# brings it back inside the castle (GuildWarMatch.holds_keep, guild_war_4way_test).
+	check(bm != null and not bm.holds_keep() and bm.enemies.all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(GuildFighter.TEAM_ENEMY)) < 20.0), "resume: a two-guild war's holder comes back to its own camp")
 	back.queue_free()
 	await _frames(3)
 	Game.guildwar_save_checkpoint(123456, 777.0, false, [7, 5], 3, 2)

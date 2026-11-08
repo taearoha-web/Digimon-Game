@@ -233,6 +233,13 @@ func team_count() -> int:
 	return sides.size()
 
 
+## Whether the castle's holder starts and comes back inside the castle (KEEP_CAMP): the
+## league's war of three or four guilds. A two-guild war keeps both guilds in their own
+## camps, as before (the holder still walks through its own gates).
+func holds_keep() -> bool:
+	return team_count() > 2
+
+
 ## Team `t`'s fighters (an empty list for a team that is not in the war).
 func side(t: int) -> Array[GuildFighter]:
 	if t >= 0 and t < sides.size():
@@ -545,7 +552,7 @@ func _spawn_lineups(lead_at: Array[int], tree: SceneTree) -> Array:
 	for team in team_count():
 		var lineup: Array = _lineup(team)
 		var slot := 0
-		var inside := team == start_owner
+		var inside := team == start_owner and holds_keep()
 		for p in (party_plan[team] as Array).size():
 			for i in party_plan[team][p]:
 				if int(i) < 0:
@@ -719,7 +726,7 @@ func hero_camp_now() -> Vector3:
 
 ## Team t's camp now (where it comes back): the keep while it holds the castle, else its own.
 func home_of(t: int) -> Vector3:
-	if t == castle_owner and castle_owner >= 0:
+	if t == castle_owner and castle_owner >= 0 and holds_keep():
 		return SiegeArena.KEEP_CAMP
 	return SiegeArena.camp(t)
 
@@ -927,7 +934,7 @@ func _spawn(info: Dictionary, team: int, at: Vector3, guild: String, party := -1
 	fighter.siege = self
 	fighter.position = at
 	zone.add_child(fighter)
-	var fwd := Vector3(0, 0, 1) if team == start_owner else SiegeArena.camp_forward(team)
+	var fwd := Vector3(0, 0, 1) if team == start_owner and holds_keep() else SiegeArena.camp_forward(team)
 	fighter.visual.rotation.y = atan2(fwd.x, fwd.z)
 	fighter._yaw = fighter.visual.rotation.y
 	fighter.fell.connect(_on_fell)
@@ -2280,7 +2287,7 @@ func _send_home(team: int, in_castle := false) -> void:
 ## Team t's fighters come back at its home now (the keep while it holds the castle).
 func _rehome(t: int) -> void:
 	var list := side(t)
-	var inside := t == castle_owner
+	var inside := t == castle_owner and holds_keep()
 	for i in list.size():
 		list[i].spawn_point = spawn_slot(t, i, list.size(), inside)
 
