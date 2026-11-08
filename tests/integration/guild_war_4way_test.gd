@@ -290,7 +290,7 @@ func _owner_war() -> void:
 	var posted := 0
 	var lead := m.ai_leader(2)
 	for f in m.side(2):
-		if f == lead or f.switch_post >= 0:
+		if f == lead or f.switch_post:
 			continue
 		for g in m.front_gates():
 			if f.goal_point.distance_to(SiegeArena.gate_front(g.tier, g.lane)) < 9.0 and f.objective == null:

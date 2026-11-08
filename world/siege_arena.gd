@@ -68,13 +68,14 @@ const WALL_H := STONE_H + PARAPET_H
 ## The altar in the throne room and how close one must stand to take it.
 const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH * 0.5)
 const ALTAR_RADIUS := 2.8
-## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา) in the throne room's back corners, left
-## (x < 0) and right. A guild holds a switch while more of it stands inside the circle than
-## of any other guild; the altar's barrier falls for a guild only while it holds both
-## (GuildWarMatch.barrier_up), so its leader can take the altar.
-const SWITCHES: Array[Vector3] = [Vector3(-28.0, 0, BACK_Z + 10.0), Vector3(28.0, 0, BACK_Z + 10.0)]
+## The castle's one switch (สวิตช์) on the throne room's left side, halfway between the
+## door and the altar (off the carpet, inside the pillars). The first guild to stand in its
+## circle while it is free takes it and keeps it while one living member of it is inside,
+## however many others come in; the altar's barrier falls only for the guild holding it
+## (GuildWarMatch.barrier_up), so only that guild's leader can take the altar.
+const SWITCH := Vector3(-14.0, 0, -102.0)
 const SWITCH_RADIUS := 3.2
-const SWITCH_NAMES: Array[String] = ["สวิตช์ซ้าย", "สวิตช์ขวา"]
+const SWITCH_NAME := "สวิตช์"
 const LANE_NAMES: Array[String] = ["ซ้าย", "ขวา"]
 ## Where the sections join, each a list of openings: the bridge foot (one per lane), the
 ## first two tiers' two gates, the third tier's one.
@@ -202,10 +203,9 @@ static func on_altar(p: Vector3) -> bool:
 	return Vector2(p.x - ALTAR.x, p.z - ALTAR.z).length() <= ALTAR_RADIUS
 
 
-## Whether `p` stands inside switch `k`'s circle.
-static func on_switch(p: Vector3, k: int) -> bool:
-	var c: Vector3 = SWITCHES[k]
-	return Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS
+## Whether `p` stands inside the switch's circle.
+static func on_switch(p: Vector3) -> bool:
+	return Vector2(p.x - SWITCH.x, p.z - SWITCH.z).length() <= SWITCH_RADIUS
 
 
 ## Builds the field, a camp per guild colour in `colors` (CAMPS order: team 0 first), the

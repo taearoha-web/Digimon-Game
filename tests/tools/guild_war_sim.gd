@@ -132,7 +132,7 @@ func _ready() -> void:
 			if "commanders" in m:
 				print("  TACTICS ours=%s theirs=%s plans=%s" % [m.commanders[0].tactic, m.commanders[1].tactic, m.plans])
 				var lead1: Node3D = m.leader_of(1)
-				print("  SWITCHES owners=%s contested=%s squads=[%d,%d]/[%d,%d] secure=[%d,%d] rival_leader=%s" % [m.switch_owner, m.switch_contested, m.commanders[0].squads[0].size(), m.commanders[0].squads[1].size(), m.commanders[1].squads[0].size(), m.commanders[1].squads[1].size(), m.commanders[0].secure_k, m.commanders[1].secure_k, str(lead1.global_position) if lead1 != null else "-"])
+				print("  SWITCH owner=%d contested=%s squads=%d/%d securing=%s/%s rival_leader=%s" % [m.switch_owner, m.switch_contested, m.commanders[0].squad.size(), m.commanders[1].squad.size(), m.commanders[0].securing, m.commanders[1].securing, str(lead1.global_position) if lead1 != null else "-"])
 	Engine.time_scale = 1.0
 	var now := _census(zone)
 	var grow: Array = []

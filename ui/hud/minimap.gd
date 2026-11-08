@@ -76,6 +76,11 @@ func _draw() -> void:
 	# The castle siege: the altar (in its holder's colour) is always on the map, on the rim when far.
 	if zone.gw_match != null:
 		_dot(c, _to_map(SiegeArena.ALTAR, origin, yaw), zone.gw_match._owner_color(), 7.0, true)
+		# The switch once the gates are down: a white-rimmed dot in its holder's colour (grey free).
+		if zone.gw_match.front_gate() == null:
+			var at := _to_map(SiegeArena.SWITCH, origin, yaw)
+			_dot(c, at, Color.WHITE, 6.5, true)
+			_dot(c, at, zone.gw_match.switch_color(), 5.0, true)
 		# Every other guild's leader in its crown's colour, on the rim when far: the ones to hunt down.
 		for t in range(1, zone.gw_match.team_count()):
 			var lead: GuildFighter = zone.gw_match.ai_leader(t)
