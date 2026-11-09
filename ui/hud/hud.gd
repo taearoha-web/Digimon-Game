@@ -901,7 +901,7 @@ func _update_online_party() -> void:
 		follow_button.modulate = Color(0.55, 1.0, 0.85) if following else Color.WHITE
 		var stars := int(p.stars)
 		var cls := StringName(String(p.cls)) if String(p.cls) != "" else StringName(String((p.look as Dictionary).get("class", ClassData.START)))
-		var here := String(p.zone) == String(zone.zone_id)
+		var here := String(p.zone) == String(zone.net_id())
 		var key := "%s|%s|%d|%d|%s|%s" % [id, Online.display_name(p), int(p.level), stars, cls, here]
 		if key != entry.key:
 			entry["key"] = key

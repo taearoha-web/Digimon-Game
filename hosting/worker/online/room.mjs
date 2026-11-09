@@ -32,6 +32,17 @@ const TICK_EVERY_MS = 5_000;
 // Zones played per party (Shared combat); every other zone is open: one host serves
 // everyone in it (Shared world).
 export const INSTANCED_ZONES = new Set(['tower', 'pvp', 'guildwar', 'arena', 'raid']);
+// A guild league round's room: "guildwar_<round start unix>_<guild id>" (GuildLeague.war_room).
+// Played per party like "guildwar", but its host is the member who came in first: the one
+// running the round's war keeps it when the leader arrives later (a host change would make
+// that war start over).
+export const GUILD_ROOM = /^guildwar_[0-9]{9,11}_[0-9]{1,4}$/;
+export function isGuildRoom(zone) {
+  return typeof zone === 'string' && GUILD_ROOM.test(zone);
+}
+export function isInstanced(zone) {
+  return INSTANCED_ZONES.has(zone) || isGuildRoom(zone);
+}
 // ai_chat: what one frame of the world host's AI world chat may carry.
 export const AI_CHAT_LINES = 8;
 export const AI_CHAT_TEXT = 200;
@@ -424,7 +435,7 @@ export class Room {
   served(s, groups = null) {
     const zone = s.player?.zone;
     if (!zone) return [];
-    if (!INSTANCED_ZONES.has(zone)) return (groups ?? this.zoneGroups()).get(zone) ?? [];
+    if (!isInstanced(zone)) return (groups ?? this.zoneGroups()).get(zone) ?? [];
     const party = this.parties.get(s.partyId);
     return party ? this.membersInZone(party, zone) : [s];
   }
@@ -798,7 +809,7 @@ const HANDLERS = {
   pet_act(s, msg) {
     const p = s.player;
     if (!p.pet || !Object.hasOwn(PET_SKILLS, p.pet) || typeof msg.zone !== 'string' || msg.zone !== p.zone) return;
-    if (NO_PET_ZONES.has(p.zone) || this.duels.has(s.id)) return;
+    if (NO_PET_ZONES.has(p.zone) || isGuildRoom(p.zone) || this.duels.has(s.id)) return;
     const k = msg.k === 'a' ? 'a' : typeof msg.k === 'string' && PET_SKILLS[p.pet].includes(msg.k) ? msg.k : '';
     const at = petPoint(msg.p);
     if (!k || !at) return;
@@ -923,12 +934,15 @@ const HANDLERS = {
     this.sendTo(foe, {t: 'duel_over', from: s.id, loser: s.id});
   },
 
-  gw_invite(s) {
+  gw_invite(s, msg) {
     const party = this.parties.get(s.partyId);
     if (!party) {this.error(s, 'no_party'); return;}
     if (party.leader !== s.id) {this.error(s, 'not_leader'); return;}
     party.gw = {accepted: new Set()};
-    const out = JSON.stringify({t: 'gw_invite', from: s.id});
+    // A league round's invite names the leader's room (the members come in by themselves).
+    const invite = {t: 'gw_invite', from: s.id};
+    if (isGuildRoom(msg?.room)) invite.room = msg.room;
+    const out = JSON.stringify(invite);
     for (const id of party.members) if (id !== s.id) this.send(this.byId.get(id), out);
   },
 

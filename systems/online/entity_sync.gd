@@ -222,7 +222,8 @@ static func name_of(node: Variant) -> String:
 
 func setup(p_zone: Node3D) -> void:
 	zone = p_zone
-	key = StringName(p_zone.get("zone_id"))
+	# A league round's war: its round's room (Zone.net_id), not "guildwar".
+	key = StringName(p_zone.call("net_id")) if p_zone.has_method("net_id") else StringName(p_zone.get("zone_id"))
 	name = "EntitySync"
 
 
@@ -268,6 +269,13 @@ func _on_disconnected() -> void:
 func _wanted() -> int:
 	if not Online.is_online():
 		return OFF
+	# A league round's room (GuildLeague.war_room): one war for the whole party. A war of
+	# its own while a party member hosts the room becomes a mirror of that one; a mirror
+	# named the room's host (the host left) fights its own war on (GuildWarMatch.room_check).
+	var war: Variant = zone.get("gw_match")
+	if war != null and is_instance_valid(war) and (war as GuildWarMatch).league_room != &"":
+		if not (war as GuildWarMatch).room_check(key):
+			return OFF
 	if Online.is_zone_host(key):
 		return HOST if not Online.serves(key).is_empty() else OFF
 	if Online.is_mirror_zone(key):
@@ -706,8 +714,12 @@ func _gw_tick(delta: float) -> void:
 			var best := 0
 			for t in range(1, war.team_count()):
 				best = maxi(best, war.score[t])
-			_event(0, "gw_end", {"won": bool(war._result.get("won", false)), "us": war.score[0], "them": best,
-				"castle": String(war._result.get("castle", "")), "ours": bool(war._result.get("castle_ours", false)), "ot": war.overtime})
+			var end := {"won": bool(war._result.get("won", false)), "us": war.score[0], "them": best,
+				"castle": String(war._result.get("castle", "")), "ours": bool(war._result.get("castle_ours", false)), "ot": war.overtime}
+			# A league round: the round as this game records it, so the members record the same.
+			if not war.league_info.is_empty():
+				end["lg"] = war.league_end()
+			_event(0, "gw_end", end)
 		return
 	_gw_timer -= delta
 	if _gw_timer > 0.0:
@@ -721,7 +733,13 @@ func _gw_tick(delta: float) -> void:
 	for t in range(1, war.team_count()):
 		them = maxi(them, war.score[t])
 	# The castle's switch too (GuildWarMatch.switch_code: -1 nobody, 0 ours, 1 another; +2 fought over).
-	_event(0, "gw", {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_code(), "ot": war.overtime})
+	var status := {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_code(), "ot": war.overtime}
+	# A war of more guilds: every guild's falls and the holder as they are (a league mirror
+	# keeps the four guilds; an older member reads s / o).
+	if war.team_count() > 2:
+		status["sa"] = Array(war.score)
+		status["oa"] = war.castle_owner
+	_event(0, "gw", status)
 
 
 # ---------------------------------------------------------------------------

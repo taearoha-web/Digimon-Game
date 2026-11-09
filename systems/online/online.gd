@@ -59,6 +59,10 @@ var _hosts := {}
 var _world_host := ""
 var _remotes := {}
 var _zone: Zone
+## A league round's room (GuildLeague.war_room) the hero is moving within (its war is
+## rebuilt as a mirror or as its own, OnlineGuildWar.travel): the server keeps hearing that
+## room while the next war loads, so the room's host does not change hands meanwhile.
+var travel_room: StringName = &""
 var _attempt := 0
 ## Names of players seen this session (id -> name), for party members who dropped out.
 var _names := {}
@@ -183,7 +187,7 @@ func is_mirror_zone(zone: StringName) -> bool:
 ## Zones shared within the party only (the server's INSTANCED_ZONES); every other zone is
 ## open: everyone in it shares the same monsters.
 static func is_instanced(zone: StringName) -> bool:
-	return INSTANCED_ZONES.has(StringName(zone))
+	return INSTANCED_ZONES.has(StringName(zone)) or String(zone).begins_with(GuildLeague.ROOM_PREFIX)
 
 
 ## The other real players (connected, me excluded) whose player is in `zone`, party or not.
@@ -479,6 +483,7 @@ func remote_at(screen: Vector2) -> RemotePlayer:
 ## The hero's zone is built: its players come in, the server hears the zone at once.
 func zone_entered(zone: Zone) -> void:
 	_zone = zone
+	travel_room = &""
 	_free_remotes()
 	_link_hero(zone.hero)
 	for id in _players:
@@ -497,7 +502,12 @@ func zone_left(zone: Zone) -> void:
 
 
 func current_zone() -> StringName:
-	return _zone.zone_id if _zone != null and is_instance_valid(_zone) else Game.current_zone
+	if _zone != null and is_instance_valid(_zone):
+		return _zone.net_id()
+	# Between two zones of one league round's room (OnlineGuildWar.travel): still there.
+	if travel_room != &"" and Game.current_zone == &"guildwar":
+		return travel_room
+	return Game.current_zone
 
 
 # --- Helpers for frames ------------------------------------------------------------
@@ -1064,7 +1074,7 @@ func _is_member(id: String) -> bool:
 func _shows_here(p: Dictionary) -> bool:
 	if _zone == null or not is_instance_valid(_zone) or not _zone.is_built or _zone.is_queued_for_deletion():
 		return false
-	if String(p.zone) != String(_zone.zone_id) or String(p.id) == my_id():
+	if String(p.zone) != String(_zone.net_id()) or String(p.id) == my_id():
 		return false
 	var instanced := _zone.is_pvp or _zone.is_tower or bool(_zone.data.get("arena", false))
 	return not instanced or _is_member(String(p.id))

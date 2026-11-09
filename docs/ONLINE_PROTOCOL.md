@@ -62,7 +62,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `duel_answer` | `from, ok` | |
 | `pvp_hit` | `to, dmg, crit, skill?, fx?` | attacker-computed raw damage; the victim applies its own defence |
 | `duel_over` | `loser` | sent by the side that fell |
-| `gw_invite` | | party leader asks the party into the guild war (same match) |
+| `gw_invite` | `room?` | party leader asks the party into the guild war (same match); `room`: a league round's room (below) |
 | `gw_answer` | `ok` | |
 | `gw_start` | `seed, plan` | leader (host) starts; relayed to accepted members |
 | `stall_list` | `lots:[{lot, item, price}]` | publish my stall's current lots (PlayerStall) for real players; sent on connect and on every change |
@@ -163,9 +163,14 @@ clients may ignore.
 - **Duel.** `pvp_hit` is relayed only when `to` is the sender's accepted duel opponent.
   `duel_over` is relayed with `loser` = the sender (whatever it wrote). If a duelist
   drops, the other gets `duel_over {from, loser}` with the dropped player as loser.
-- **Guild war.** `gw_invite` (leader only) goes to every other member; `gw_answer` goes to
+- **Guild war.** `gw_invite` (leader only) goes to every other member, with `room` when it
+  is a league round's room (`guildwar_<digits>_<digits>`, else dropped); `gw_answer` goes to
   every other member (leader included); `gw_start` (leader only) goes to the members who
   answered yes since the last `gw_invite`.
+- **League round rooms.** A zone `guildwar_<round start unix>_<guild id>` (regex
+  `GUILD_ROOM` in room.mjs) is instanced like `guildwar` (party-scoped relays, no pets), but
+  its host is the member who came in **first** (zoneSeq): a leader arriving later does not
+  take it over (its war would start over).
 - **Stalls.** `stall_list` with no valid lots closes the stall. `stall` answers
   `stall_view` with `lots: []` for a player without a stall. `stall_buy` to a player
   without a published stall: `error no_stall`; the relayed `stall_buy` also carries
@@ -218,6 +223,40 @@ the same zone share the monsters:
 - The same mechanism runs the guild war together: the party leader hosts the match,
   the AI fighters are shared entities, members fight on the leader's side.
 
+## Guild league rounds together
+
+The league's castle war (4 guilds, `GuildLeague` rounds at 12:00 / 18:00 / 21:30, the
+waiting room from 5 minutes before) is entered by each player at its own desk
+(`GuildWarScreen.enter_league`: registered, in the guild's top `GUILD_SIDE`). Online, the
+party members of one guild in one round share **one** war:
+
+- **Room.** The war is fought in the zone `GuildLeague.war_room(at, guild)` =
+  `guildwar_<at>_<guild>` (`Zone.online_id`, `Zone.net_id()`; `Online.current_zone()`,
+  EntitySync's key). A practice war stays `guildwar`; another round or guild is another
+  room, so nobody is mixed into the wrong war.
+- **Host / mirror.** The first member in builds its own war (the AI of every guild) and
+  hosts it; a member arriving while a party member is in the room builds a mirror
+  (`GuildWarMatch._build_league_mirror`: the castle, the four camps, the waiting room and
+  the bell on the round's clock, no fighters of its own; fighters and gates come by
+  `ent_event spawn`, hits go back as `ent_hit`). If both came in at once and the server
+  names the other the host, the war of its own is swapped for a mirror
+  (`GuildWarMatch.room_check`, `OnlineGuildWar.travel`; the server keeps hearing the room
+  meanwhile: `Online.travel_room`). A mirror named the host, left alone or not hearing
+  its host for 20 s fights the round on in a war of its own (a late arrival; nothing lost).
+- **Line-up.** Each real member in the room before the bell takes the place of the host's
+  weakest AI member of the guild (`GuildWarMatch.seat_partners`), so the guild still sends
+  `GUILD_SIDE`; one arriving after the bell joins in addition.
+- **Status.** `gw` also carries `sa` (every guild's falls) and `oa` (the holder's team) when
+  more than two guilds fight; `gw_end` carries `lg {at, g, o, c, k, h, order, pl}` (the
+  round as the host records it: guilds in team order, start holder, captures, falls, the
+  holder at the bell, the placement). The mirror records exactly that round
+  (`GuildLeague.war_finished`), so every member's league, coins and the result posted to
+  `/api/league/round` are the host's (the server keeps the first one posted anyway).
+- **Invite.** A party leader entering a league round sends `gw_invite {room}` (nothing
+  held). A member gets a prompt only when it may come (same guild, registered for that
+  round, in the line-up, Lv.100); otherwise a Thai line says why (`OnlineGuildWar.league_problem`).
+  Yes takes it in through the same desk checks (`OnlineGuildWar.go_league`).
+
 ## Client API (Godot autoload `Online`, `systems/online/online.gd`)
 
 ```gdscript
@@ -242,7 +281,7 @@ func is_zone_host(zone: StringName) -> bool
 func is_mirror_zone(zone: StringName) -> bool      # someone else hosts (party or not): do not spawn monsters
 func zone_members(zone: StringName) -> Array       # ids of the other real players in that zone, party or not
 func serves(zone: StringName) -> Array             # whom that zone's host serves: zone_members (open) or party_members_in_zone (instanced)
-static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena, raid (INSTANCED_ZONES)
+static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena, raid (INSTANCED_ZONES), league rooms guildwar_<at>_<guild>
 func world_host() -> String                        # `whost` id ("" unknown / offline)
 func is_world_host() -> bool                       # this game makes the AI world chat
 func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
