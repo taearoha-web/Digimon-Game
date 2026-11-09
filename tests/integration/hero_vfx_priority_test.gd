@@ -134,6 +134,12 @@ func _scenario(label: String, quality: int, pressure: int, hot: bool, classes: A
 	_hero.set_physics_process(false)
 	# The test watches effects, not a fight the hero could lose.
 	_hero._invulnerable_until = Time.get_ticks_msec() + 100000000
+	# A Dark Lord's raven hunts on its own and its strikes are the hero's (they rightly use
+	# the hero's room): keep it still while only the others fight, then let it fly again.
+	var raven_mode := Node.PROCESS_MODE_INHERIT
+	if is_instance_valid(_hero.raven):
+		raven_mode = _hero.raven.process_mode
+		_hero.raven.process_mode = Node.PROCESS_MODE_DISABLED
 	# The AI world players hunt and cast for a while.
 	var players := _players()
 	var peak := {"particles": 0, "decorations": 0}
@@ -158,6 +164,8 @@ func _scenario(label: String, quality: int, pressure: int, hot: bool, classes: A
 	if crowd:
 		check(full_samples * 2 >= samples, "%s: the others' casts keep the shared budget full (%d of %d samples)" % [label, full_samples, samples])
 	check(hero_peak == 0, "%s: nobody but the hero spends the hero's room (%d)" % [label, hero_peak])
+	if is_instance_valid(_hero.raven):
+		_hero.raven.process_mode = raven_mode
 	# The hero casts every skill on its bar, class after class, away from the crowd.
 	var total := 0
 	var casts := 0
@@ -199,6 +207,11 @@ func _cast(zone: Zone, skill: Dictionary) -> int:
 	if mob == null:
 		check(false, "a mob away from the crowd for %s" % skill.id)
 		return 0
+	# The previous cast's lingering art gives the hero's room back first, so every cast is
+	# measured from the same start, alone or in the crowd.
+	var settle := Time.get_ticks_msec() + 3000
+	while Time.get_ticks_msec() < settle and VfxBudget.hero_counters() != {"particles": 0, "decorations": 0}:
+		await get_tree().process_frame
 	_hero.global_position = mob.global_position + Vector3(2.4, 0, 0)
 	_hero.cooldowns.clear()
 	_hero._cast_until = 0
