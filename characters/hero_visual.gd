@@ -70,6 +70,8 @@ var chibi := false
 ## emitter, no flames, beams or lights, and no aura motes. A village of 28 players
 ## carried over 200 CPU particle emitters before.
 var decor_light := false
+## The uid of the Legendary Guild Wings last dressed (a new pair arrives with a burst).
+var _legend_uid := ""
 ## The reward-shop costume worn (RewardShop.COSTUMES id, "" for none): its cloth colour
 ## over the outfit and its head accessory. set_costume rebuilds the body.
 var costume := ""
@@ -396,11 +398,15 @@ func _pose_wings(was: int, instant: bool) -> void:
 		player.play(clip, 0.0 if instant else 0.3)
 
 
-## The model of a worn pair: the Legendary Guild Wings' gold pair (LegendWingArt), the
-## 100★ class pair (StarWingData) or the Lv.100 class pair (GearKit).
+## The model of a worn pair: the Legendary Guild Wings' own gold pair (LegendWingArt;
+## a pair put on after the first dress arrives with its burst), the 100★ class pair
+## (StarWingData) or the Lv.100 class pair (GearKit).
 func _wing_model(item: Dictionary) -> Node3D:
 	if LegendWings.is_item(item):
-		return LegendWingArt.build(item, decor_light)
+		var uid := String(item.get("uid", ""))
+		var fresh := dressed > 1 and uid != _legend_uid
+		_legend_uid = uid
+		return LegendWingArt.build(item, decor_light, fresh)
 	return StarWingData.build(_wing_kind(item)) if StarGearData.is_star(item) else GearKit.wings(_wing_kind(item))
 
 
@@ -685,6 +691,8 @@ func refresh() -> void:
 		_skeleton.add_child(back)
 		var w := _wing_model(wings)
 		w.transform = KAYKIT_WINGS
+		if w is LegendWingArt:
+			(w as LegendWingArt).fit_big_head()
 		back.add_child(w)
 		_body_nodes.append(back)
 		_glow_piece([back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
