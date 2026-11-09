@@ -170,16 +170,14 @@ func refresh() -> void:
 	_update_bar()
 
 
-## เบ่งเลือด on a companion: its maximum follows the buff; the HP it adds is filled
-## in, and when it ends the HP above the normal maximum goes.
+## เบ่งเลือด on a companion: its maximum follows the buff (a ceiling, no HP is filled
+## in); when it ends the HP above the normal maximum goes.
 func _sync_hp_buff() -> void:
 	if stats.is_empty():
 		return
 	var target := int(float(stats.max_hp) * (1.0 + _book.total("hp") + legend_aura()))
 	if target == max_hp:
 		return
-	if target > max_hp and not _dead:
-		hp += target - max_hp
 	max_hp = target
 	hp = mini(hp, max_hp)
 	_update_bar()
@@ -650,9 +648,9 @@ func _heal_allies(fraction: float) -> void:
 
 func _buff_allies(buff: Dictionary, color: Color, label: String, skill_id: String) -> void:
 	hero.receive_buff(buff, color, label, true, skill_id)
-	# A Bard's song reaches the whole party: the other members and every summon too
-	# (other buffs stay the hero's, as they always were).
-	if not BuffBook.is_song(buff) or not is_inside_tree():
+	# A Bard's song and a party buff (เบ่งเลือด's max HP) reach the whole party: the other
+	# members and every summon too (other buffs stay the hero's, as they always were).
+	if not (BuffBook.is_song(buff) or buff.get("party") is Array) or not is_inside_tree():
 		return
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
 		if node != self and is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
@@ -1179,7 +1177,7 @@ func _apply_self(skill: Dictionary) -> void:
 		var buff: Dictionary = fx.buff
 		# A stance (self_only) stays on the one who cast it.
 		if not BuffBook.is_self_only(buff):
-			_buff_allies(buff, color, String(skill.name), String(skill.id))
+			_buff_allies(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
 		_book.add(buff, color, String(skill.name), false, String(skill.id))
 		# Persistent buff halo and the skill silhouette carry this feedback.
 

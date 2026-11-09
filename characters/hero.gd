@@ -1346,7 +1346,7 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		receive_buff(buff, color, String(skill.name), false, String(skill.id))
 		# A stance (self_only) is the caster's own; every other buff reaches the team.
 		if not BuffBook.is_self_only(buff):
-			_share_buff(buff, color, String(skill.name), String(skill.id))
+			_share_buff(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
 
 
 # --- The Dark Lord's raven and Summon -----------------------------------------
@@ -1495,11 +1495,10 @@ func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally :=
 	var max_before := int(stats.get("max_hp", 0))
 	_buffs = BuffBook.insert(_buffs, prepared, color, label, from_ally, skill_id)
 	refresh_stats()
-	# เบ่งเลือด: the HP it adds to the maximum is filled in too (10,000 -> 13,000 at ★1).
+	# เบ่งเลือด raises the ceiling only (10,000 -> 13,000 max at ★1); the HP itself stays.
 	var gained := int(stats.get("max_hp", 0)) - max_before
 	if gained > 0 and max_before > 0 and not _dead:
-		Game.profile.hp = mini(int(stats.max_hp), int(Game.profile.hp) + gained)
-		BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "HP +%d" % gained, Color("ff8080"), 0.9)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "HP สูงสุด +%d" % gained, Color("ff8080"), 0.9)
 	_sync_auras(Time.get_ticks_msec())
 	# Persistent buff halo and the skill silhouette carry this feedback.
 	if label != "":

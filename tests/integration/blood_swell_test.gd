@@ -1,7 +1,8 @@
 extends Node
 ## The Defender's เบ่งเลือด (skill id "brace"): max HP +30% and damage taken -10% for a
-## minute at ★1, +50% / -25% at ★5; the added HP is filled in and goes when it ends; it
-## is the Defender's own; it always stays on the bar; AI casters get the HP too.
+## minute at ★1, +50% / -25% at ★5; it raises the maximum (a ceiling) of everyone in the
+## party and fills no HP; the damage cut is the Defender's own; it always stays on the bar;
+## AI casters get the ceiling too.
 ##   godot --headless --path . res://tests/integration/blood_swell_test.tscn
 var failures := 0
 var checks := 0
@@ -18,7 +19,9 @@ func _ready() -> void:
 	WorldEvents.festival_enabled = false
 	var spec := ClassData.find_skill(&"defender", "brace")
 	check(String(spec.name) == "เบ่งเลือด" and int(spec.level) == 10 and String(spec.shape) == "self", "the Defender's Lv.10 self skill is เบ่งเลือด")
-	check(BuffBook.is_self_only(spec.fx.buff), "it is the Defender's own buff")
+	check(not BuffBook.is_self_only(spec.fx.buff), "it reaches the party")
+	var shared := BuffBook.party_part(spec.fx.buff)
+	check(shared.has("hp") and shared.has("secs") and not shared.has("guard"), "the party gets the max HP only, the damage cut stays the Defender's (%s)" % [shared])
 	var r1: Dictionary = SkillRank.scaled_fx(spec.fx, 1).buff
 	var r5: Dictionary = SkillRank.scaled_fx(spec.fx, 5).buff
 	check(is_equal_approx(float(r1.hp), 0.30) and is_equal_approx(float(r1.guard), 0.10), "★1: HP +30%%, damage -10%% (%s)" % [r1])
@@ -60,10 +63,11 @@ func _ready() -> void:
 	await get_tree().create_timer(0.6).timeout
 	var swollen := int(hero.stats.max_hp)
 	check(absi(swollen - int(base_max * 1.3)) <= 2, "★1: max HP %d -> %d (+30%%)" % [base_max, swollen])
-	check(int(Game.profile.hp) == swollen, "and the added HP is filled in (%d / %d)" % [int(Game.profile.hp), swollen])
+	check(int(Game.profile.hp) == base_max, "it fills no HP: only the ceiling rises (%d / %d)" % [int(Game.profile.hp), swollen])
 	check(absi(int(Game.stats_now().max_hp) - swollen) <= 2, "every stats_now reader sees the raised maximum")
+	Game.profile.hp = swollen
 	Game.clamp_vitals()
-	check(int(Game.profile.hp) == swollen, "clamp_vitals keeps the swollen HP")
+	check(int(Game.profile.hp) == swollen, "HP healed above the old maximum stays under the raised one")
 	check(BuffBook.absorb(hero._buffs, 1000) == 900, "damage taken -10%% (1000 -> %d)" % BuffBook.absorb(hero._buffs, 1000))
 	# A recast refreshes it without stacking more HP.
 	hero.cooldowns.clear()
@@ -105,7 +109,7 @@ func _ready() -> void:
 	rival.max_hp = 1000
 	rival.hp = 1000
 	rival._raise_hp(0.3)
-	check(rival.max_hp == 1300 and rival.hp == 1300, "a rival's เบ่งเลือด raises HP to %d/%d" % [rival.hp, rival.max_hp])
+	check(rival.max_hp == 1300 and rival.hp == 1000, "a rival's เบ่งเลือด raises the ceiling only: %d/%d" % [rival.hp, rival.max_hp])
 	rival._raise_hp(0.3)
 	check(rival.max_hp == 1300, "a second cast does not stack")
 	rival._drop_hp_bonus()
