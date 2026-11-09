@@ -45,5 +45,6 @@ vec3 sd_box(vec3 world_pos, vec3 world_normal, float layer, float scale) {
 
 // colour times the detail, by `strength` (0..1) of the shared amount.
 vec3 sd_apply(vec3 color, vec3 detail, float strength) {
-	return color * mix(vec3(1.0), detail, clamp(strength * surface_amount, 0.0, 1.0));
+	// 0.7: the grain stays a hint, so surfaces read as painted cartoon, not photos.
+	return color * mix(vec3(1.0), detail, clamp(0.7 * strength * surface_amount, 0.0, 1.0));
 }
