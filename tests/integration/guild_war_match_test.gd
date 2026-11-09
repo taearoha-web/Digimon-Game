@@ -162,10 +162,12 @@ func _war(staged: bool) -> void:
 	# Damage rules: the war scale applies, one hit is capped, a combo is capped.
 	var enemy: GuildFighter = m.enemies[0]
 	var max_hp := enemy.max_hp
+	# Damage is counted from the HP it has now: เบ่งเลือด raises the ceiling without filling it.
+	var start_hp := enemy.hp
 	check(enemy.war_scale == GuildWarData.damage_scale and enemy.war_scale > 1.0, "%s: the war scale is on" % label)
 	enemy._dodge = 0.0
 	enemy.take_hit(1, false)
-	check(max_hp - enemy.hp >= int(GuildWarData.damage_scale) - 1, "%s: damage is multiplied by the war scale (1 -> %d)" % [label, max_hp - enemy.hp])
+	check(start_hp - enemy.hp >= int(GuildWarData.damage_scale) - 1, "%s: damage is multiplied by the war scale (1 -> %d)" % [label, start_hp - enemy.hp])
 	var before := enemy.hp
 	BurstGuard.clear()
 	enemy.take_hit(max_hp * 10, false)
@@ -173,7 +175,7 @@ func _war(staged: bool) -> void:
 	check(not enemy.is_dead(), "%s: nobody is deleted by one hit" % label)
 	for i in 8:
 		enemy.take_hit(max_hp, false)
-	check(float(max_hp - enemy.hp) <= float(max_hp) * (BurstGuard.BURST_CAP + BurstGuard.HIT_CAP) + 2.0 or enemy.is_dead(), "%s: a burst inside two seconds is capped" % label)
+	check(float(start_hp - enemy.hp) <= float(max_hp) * (BurstGuard.BURST_CAP + BurstGuard.HIT_CAP) + 2.0 or enemy.is_dead(), "%s: a burst inside two seconds is capped" % label)
 	# A fall scores for the other guild and the fighter comes back.
 	var feed_lines: Array[String] = []
 	m.feed.connect(func(text: String, _t: int): feed_lines.append(text))
