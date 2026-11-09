@@ -1,0 +1,84 @@
+{
+ "source": "https://polyhaven.com/textures",
+ "license": "CC0-1.0",
+ "retrieved": "2026-11-08",
+ "note": "1k diffuse JPGs from Poly Haven's public API (dl.polyhaven.org). Processed by tools/make_surface_textures.py into the 8 layers of surface_detail.jpg (512 px each, stacked top to bottom in this order): resized, smoothed, posterised, mostly desaturated and centred on mid grey.",
+ "output": {
+  "file": "surface_detail.jpg",
+  "sha256": "7f6b8bb2d40eaca4a9aa6b16f623688d24c4ba48d9eec81b6876ca643f289916"
+ },
+ "layers": [
+  {
+   "layer": 0,
+   "used_for": "grass",
+   "asset": "leafy_grass",
+   "page": "https://polyhaven.com/a/leafy_grass",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leafy_grass/leafy_grass_diff_1k.jpg",
+   "bytes": 1195394,
+   "sha256": "cfa40bc9d9417d1852db8753a8d5917f110c40101179f63543c382e39bc05e4a"
+  },
+  {
+   "layer": 1,
+   "used_for": "dirt path",
+   "asset": "forest_ground_04",
+   "page": "https://polyhaven.com/a/forest_ground_04",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_diff_1k.jpg",
+   "bytes": 1113899,
+   "sha256": "50a4dda30875020c64385261aa7e00e2155b592302fa6794165f58fae73cbd2c"
+  },
+  {
+   "layer": 2,
+   "used_for": "sand",
+   "asset": "sand_01",
+   "page": "https://polyhaven.com/a/sand_01",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sand_01/sand_01_diff_1k.jpg",
+   "bytes": 485088,
+   "sha256": "a73b90eaa6d675ef57e7d48a8cf23e1f412e353ab2e29cf73930b8ecd4e76875"
+  },
+  {
+   "layer": 3,
+   "used_for": "cobble",
+   "asset": "cobblestone_floor_01",
+   "page": "https://polyhaven.com/a/cobblestone_floor_01",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_01/cobblestone_floor_01_diff_1k.jpg",
+   "bytes": 459525,
+   "sha256": "7630d6a59501cab4d2295b2be47bad892b8dae49895b4bee6bc26fd45c423e05"
+  },
+  {
+   "layer": 4,
+   "used_for": "stone wall (ishigaki)",
+   "asset": "japanese_stone_wall",
+   "page": "https://polyhaven.com/a/japanese_stone_wall",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/japanese_stone_wall/japanese_stone_wall_diff_1k.jpg",
+   "bytes": 1028056,
+   "sha256": "34d8a9ebf646a2f868cecc085b9aa2e1efb697038542455f0ed8a90fe70f78a9"
+  },
+  {
+   "layer": 5,
+   "used_for": "roof tiles",
+   "asset": "grey_roof_tiles_02",
+   "page": "https://polyhaven.com/a/grey_roof_tiles_02",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grey_roof_tiles_02/grey_roof_tiles_02_diff_1k.jpg",
+   "bytes": 402212,
+   "sha256": "3f001b2f07b5b1f4f8475187ed8fde2699319b15dfcf72ea4741570679560fe7"
+  },
+  {
+   "layer": 6,
+   "used_for": "wood planks",
+   "asset": "hinoki_planks",
+   "page": "https://polyhaven.com/a/hinoki_planks",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hinoki_planks/hinoki_planks_diff_1k.jpg",
+   "bytes": 527974,
+   "sha256": "a0166cad69a255971bf25f336c9947d2853b4dae5707c84a86f25f79aec347a5"
+  },
+  {
+   "layer": 7,
+   "used_for": "rock grain",
+   "asset": "rock_01",
+   "page": "https://polyhaven.com/a/rock_01",
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rock_01/rock_01_diff_1k.jpg",
+   "bytes": 688083,
+   "sha256": "0b5f0418eb1e686190c5d33bb54c400b1f9ed58813b5e34aa5e573a5197302b5"
+  }
+ ]
+}

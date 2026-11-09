@@ -86,6 +86,17 @@ const ACCENTS := {
 	&"graveyard": [Color("4e5566"), 0.4, 0.0], &"swamp": [Color("2f4a46"), 0.6, 0.0], &"storm": [Color("4a5563"), 0.4, 0.0],
 	&"sky": [Color("f2d98a"), 0.4, 0.0], &"abyss": [Color("2e1a2c"), 0.55, 0.0], &"void": [Color("8a5cff"), 0.35, 1.0],
 }
+## The ground's surface textures per theme (SurfaceKit layers): [open ground layer, metres a
+## tile, strength, trail layer, trail strength]. Snow takes the sand's soft drifts, ash
+## and weathered ground the rock grain.
+const GROUND_DETAIL := {
+	&"meadow": [SurfaceKit.GRASS, 5.2, 0.6, SurfaceKit.DIRT, 0.85], &"village": [SurfaceKit.GRASS, 5.2, 0.55, SurfaceKit.DIRT, 0.8],
+	&"digital": [SurfaceKit.ROCK, 5.0, 0.45, SurfaceKit.COBBLE, 0.6], &"desert": [SurfaceKit.SAND, 6.0, 0.85, SurfaceKit.DIRT, 0.7],
+	&"snow": [SurfaceKit.SAND, 7.0, 0.35, SurfaceKit.DIRT, 0.5], &"volcano": [SurfaceKit.ROCK, 5.0, 0.8, SurfaceKit.DIRT, 0.75],
+	&"graveyard": [SurfaceKit.DIRT, 4.0, 0.7, SurfaceKit.COBBLE, 0.7], &"swamp": [SurfaceKit.GRASS, 5.0, 0.55, SurfaceKit.DIRT, 0.8],
+	&"storm": [SurfaceKit.ROCK, 5.0, 0.7, SurfaceKit.DIRT, 0.7], &"sky": [SurfaceKit.GRASS, 5.2, 0.5, SurfaceKit.COBBLE, 0.7],
+	&"abyss": [SurfaceKit.ROCK, 5.0, 0.75, SurfaceKit.DIRT, 0.7], &"void": [SurfaceKit.ROCK, 5.4, 0.5, SurfaceKit.COBBLE, 0.6],
+}
 const MOONS := {&"abyss": Color("ff7a66"), &"graveyard": Color("f6f0dc"), &"void": Color("c8b8ff"), &"digital": Color("ece2ff")}
 
 static var _tuft: ArrayMesh
@@ -381,6 +392,14 @@ static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Co
 	var kinds := {&"desert": 1, &"snow": 2, &"volcano": 3, &"swamp": 4,
 		&"graveyard": 5, &"storm": 5, &"abyss": 5, &"void": 6, &"digital": 6}
 	mat.set_shader_parameter("surface_kind", int(kinds.get(theme, 0)))
+	var detail: Array = GROUND_DETAIL.get(theme, GROUND_DETAIL[&"meadow"])
+	mat.set_shader_parameter("ground_layer", float(detail[0]))
+	mat.set_shader_parameter("ground_scale", float(detail[1]))
+	mat.set_shader_parameter("ground_detail", float(detail[2]))
+	mat.set_shader_parameter("path_layer", float(detail[3]))
+	mat.set_shader_parameter("path_scale", 3.6 if int(detail[3]) == SurfaceKit.COBBLE else 4.0)
+	mat.set_shader_parameter("path_detail", float(detail[4]))
+	SurfaceKit.prepare(mat)
 	mi.material_override = mat
 	parent.add_child(mi)
 	var body := StaticBody3D.new()

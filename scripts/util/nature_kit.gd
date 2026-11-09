@@ -284,6 +284,7 @@ static func _material_for(material_name: String, theme: StringName, model_height
 		elif theme == &"snow":
 			amount = 0.72
 		rock.set_shader_parameter("moss_amount", amount)
+		SurfaceKit.prepare(rock)
 		return rock
 	if material_name.ends_with("Bark") or material_name.ends_with("Trunk"):
 		var tone: Color = colors.BirchBark if material_name.begins_with("Birch") else (colors.PalmBark if material_name.begins_with("Palm") else colors.Bark)

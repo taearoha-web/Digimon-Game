@@ -1,6 +1,9 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
-// Stylised rocks: flat stone colour with moss on the upward-facing parts.
+// Stylised rocks: flat stone colour with moss on the upward-facing parts. On medium and
+// high quality the shared rock grain (SurfaceKit) is laid on each facet, and the moss
+// takes the grass grain.
+#include "res://shaders/surface_detail.gdshaderinc"
 
 uniform vec4 stone_color : source_color = vec4(0.42, 0.45, 0.55, 1.0);
 uniform vec4 moss_color : source_color = vec4(0.36, 0.62, 0.34, 1.0);
@@ -9,10 +12,12 @@ uniform float moss_amount = 0.55;
 varying vec3 inst_tint;
 varying float up_facing;
 varying vec3 stone_position;
+varying vec3 stone_normal;
 
 void vertex() {
 	inst_tint = pow(COLOR.rgb, vec3(2.2));
-	up_facing = normalize(mat3(MODEL_MATRIX) * NORMAL).y;
+	stone_normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
+	up_facing = stone_normal.y;
 	stone_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
@@ -25,6 +30,13 @@ void fragment() {
 	// Irregular mineral bands follow the rock rather than forming a flat cap.
 	float band = sin(stone_position.y * 8.0 + veins * 1.3);
 	stone *= 1.0 + band * 0.022;
-	ALBEDO = mix(stone, moss_color.rgb, moss);
+	vec3 moss_col = moss_color.rgb;
+	if (surface_amount > 0.0) {
+		stone = sd_apply(stone, sd_box(stone_position, stone_normal, SD_ROCK, 1.6), 0.9);
+		moss_col = sd_apply(moss_col, sd_tex(stone_position.xz / 1.4, SD_GRASS), 0.7);
+		// The grain lets the moss creep into the stone's hollows.
+		moss = clamp(moss + (1.0 - dot(sd_tex(stone_position.xz / 1.6, SD_ROCK), vec3(0.333))) * 0.6 * moss, 0.0, 1.0);
+	}
+	ALBEDO = mix(stone, moss_col, moss);
 	ROUGHNESS = 1.0;
 }
