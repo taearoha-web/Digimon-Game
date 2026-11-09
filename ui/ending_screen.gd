@@ -25,6 +25,8 @@ const CREDITS := [
 	"สร้างด้วย Godot Engine",
 ]
 
+## The story pages shown (PAGES; chapter 2's finale sets StoryChapter2.ENDING_PAGES).
+var pages: Array = PAGES
 var _label: Label
 var _button: Button
 var _page := -1
@@ -62,9 +64,9 @@ func _ready() -> void:
 func _next() -> void:
 	_page += 1
 	var text := ""
-	if _page < PAGES.size():
-		text = PAGES[_page]
-	elif _page == PAGES.size():
+	if _page < pages.size():
+		text = String(pages[_page])
+	elif _page == pages.size():
 		text = "\n".join(CREDITS)
 	else:
 		_finish()
@@ -72,7 +74,7 @@ func _next() -> void:
 	_label.text = text
 	var tween := create_tween()
 	tween.tween_property(_label, "modulate:a", 1.0, 0.8)
-	tween.tween_interval(3.4 if _page < PAGES.size() else 6.0)
+	tween.tween_interval(3.4 if _page < pages.size() else 6.0)
 	tween.tween_property(_label, "modulate:a", 0.0, 0.7)
 	tween.tween_callback(_next)
 

@@ -2920,6 +2920,8 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 			state["status"] = "ready"
 			say("เควสต์ \"%s\" เสร็จแล้ว! กลับไปรายงาน" % quest.name, &"quest")
 		quest_changed.emit()
+	# บทที่ 2's kill and boss quests (StoryChapter2) count the same kill.
+	StoryChapter2.on_kill(monster_id)
 	if is_boss:
 		profile["boss_kills"][String(monster_id)] = int(profile["boss_kills"].get(String(monster_id), 0)) + 1
 	# The same emperor also appears in the tower; only the final field ends

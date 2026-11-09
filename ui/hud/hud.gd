@@ -510,6 +510,9 @@ func _update_tracker(delta: float) -> void:
 		var quest := QuestData.get_quest(quest_id)
 		var have := int(Game.quest_state(quest_id).get("progress", 0))
 		lines.append("เควสต์: %s %d/%d" % [quest.name, have, int(quest.count)] if have < int(quest.count) else "เควสต์: %s เสร็จแล้ว กลับไปรายงาน" % quest.name)
+	var story_line := StoryChapter2.tracker_line()
+	if story_line != "":
+		lines.append(story_line)
 	if PetData.quest_open(Game.profile):
 		lines.append("เควสต์: %s (ผู้ดูแลสัตว์เลี้ยงในหมู่บ้าน)" % PetData.QUEST_NAME)
 	var done := 0

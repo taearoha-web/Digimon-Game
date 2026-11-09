@@ -131,6 +131,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	visual.wing_mode = clampi(int(Game.profile.flags.get("wing_mode", 0)), HeroVisual.WING_STAND, HeroVisual.WING_FOLD)
+	visual.story_aura = StoryChapter2.has_aura()
 	add_child(visual)
 	visual.setup(Game.class_id(), "", true, Game.profile.equip, _look())
 	_equip_sig = _equipment_signature()

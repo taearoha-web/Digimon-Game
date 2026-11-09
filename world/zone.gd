@@ -16,6 +16,9 @@ signal guildwar_finished(result: Dictionary)
 signal tower_finished(result: Dictionary)
 ## A party raid entry ended (RaidRun result).
 signal raid_finished(result: Dictionary)
+## The chapter 2 throne stage (StoryStage) was won, and the queen's lines in it.
+signal story_stage_finished(result: Dictionary)
+signal story_speech(speaker: String, text: String)
 
 const FIELD_RADIUS := 52.0
 ## The hunting fields (Lv.1 meadow to the Lv.100 void) are wider, with their outer camps
@@ -49,6 +52,8 @@ var tower_run: TowerRun
 var tower_start_floor := 1
 ## The party raid (RaidData) running here; its zone is tower-like (no world players).
 var raid_run: RaidRun
+## The chapter 2 finale stage (StoryChapter2.STAGE_ID), null elsewhere.
+var story_stage: StoryStage
 ## A fixed seed for the raid's rolls (tests); 0 picks a new one.
 var raid_seed := 0
 var pvp_match: PvpMatch
@@ -248,6 +253,12 @@ func _ready() -> void:
 		tower_run.setup(self, hero, tower_start_floor)
 		tower_run.finished.connect(func(result: Dictionary): tower_finished.emit(result))
 		add_child(tower_run)
+	elif bool(data.get("story_stage", false)):
+		story_stage = StoryStage.new()
+		story_stage.setup(self, hero)
+		story_stage.finished.connect(func(result: Dictionary): story_stage_finished.emit(result))
+		story_stage.speech.connect(func(speaker: String, text: String): story_speech.emit(speaker, text))
+		add_child(story_stage)
 	await _slice()
 	AudioManager.play_music(data.get("music", &"meadow"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
@@ -412,7 +423,8 @@ func _build_field() -> void:
 	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID:
 		await _build_star_field()
 		return
-	if not is_tower and not bool(data.get("arena", false)):
+	var story := bool(data.get("story_stage", false))
+	if not is_tower and not bool(data.get("arena", false)) and not story:
 		field_radius = HUNT_RADIUS
 	_start = Vector3(-field_radius + 8.0, 0, 0)
 	var ground_color: Color = data.ground
@@ -449,7 +461,7 @@ func _build_field() -> void:
 		_camps.append(camp)
 		clear.append(Vector3(c.pos.x, c.pos.y, float(c.radius) + 2.0))
 	# Keep the paved/sand encounter courts open; foliage belongs at their edges.
-	if is_tower or bool(data.get("arena", false)):
+	if is_tower or bool(data.get("arena", false)) or story:
 		clear.append(Vector3(0, 0, 42.0))
 	_phase("ground")
 	await _slice()
@@ -457,7 +469,7 @@ func _build_field() -> void:
 	_phase("populate")
 	await _slice()
 	WorldArt.landscape(self, theme, field_radius, int(data.get("seed", 5)))
-	var special := is_tower or bool(data.get("arena", false))
+	var special := is_tower or bool(data.get("arena", false)) or story
 	if not special:
 		WorldArt.silhouettes(self, theme, field_radius, int(data.get("seed", 5)))
 	Scenery.sky_dressing(self, theme, _sky_look(), field_radius, int(data.get("seed", 5)))
@@ -485,7 +497,7 @@ func _build_field() -> void:
 	_make_boundary_walls(field_radius + 1.0)
 	if is_tower:
 		_start = Vector3(0, 0, 0)
-	if not bool(data.get("arena", false)) and not is_tower:
+	if not bool(data.get("arena", false)) and not is_tower and not story:
 		_add_warp(_start + Vector3(3.5, 0, -5.0), "วาปกลับเมือง / ข้ามแมพ")
 		_add_warp(Vector3(field_radius - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
 	_make_weather(StringName(data.get("weather", &"")))
@@ -515,8 +527,15 @@ func _build_star_field() -> void:
 	for portal in portals: _make_portal(portal)
 	_add_warp(_start + Vector3(3.5,0,-3.5), "วาปกลับเมือง / ข้ามแมพ")
 	_make_boundary_walls(55.0)
+	# บทที่ 2 (StoryChapter2): the sanctum's guardian and the abyss exile stand by the
+	# entrance; the throne stage's portal opens in the abyss while the finale is active.
+	if divine:
+		_add_npc("sanctum_guardian", StoryChapter2.role_name("sanctum_guardian"), &"priest", String(StoryChapter2.ROLES.sanctum_guardian[1]), _start + Vector3(-6.0, 0, -5.0), "Mage")
 	if deep:
+		_add_npc("abyss_exile", StoryChapter2.role_name("abyss_exile"), &"archer", String(StoryChapter2.ROLES.abyss_exile[1]), _start + Vector3(6.0, 0, -6.0), "Rogue")
 		_make_weather(StringName(data.get("weather", &"")))
+		if StoryChapter2.portal_open():
+			add_story_portal()
 	if int(data.boss.get("star",0)) == 200:
 		var label := Label3D.new()
 		label.text = ("ลานบัลลังก์ราชันสมุทร • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว" if deep else "วิหารบัวดารา • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว") if deep or divine else "บัลลังก์สุริยคราส • ดาว 200"
@@ -526,6 +545,23 @@ func _build_star_field() -> void:
 		label.pixel_size = 0.005
 		label.visibility_range_end = 32
 		add_child(label)
+
+
+## The chapter 2 finale's portal beside the tyrant's court (DrownedAbyssArt.layout), only
+## while its quest is active (StoryChapter2.portal_open); once per zone.
+func add_story_portal() -> void:
+	if story_portal_open() or zone_id != DrownedAbyssData.ID:
+		return
+	var portal := {"to": StoryChapter2.STAGE_ID, "pos": _boss_spot + Vector3(-16.0, 0, 8.0), "label": "%s • ดาว 300" % StoryChapter2.STAGE_TITLE, "level": 100}
+	portals.append(portal)
+	_make_portal(portal)
+	var holder := get_node_or_null("Portal_" + String(StoryChapter2.STAGE_ID))
+	if holder != null:
+		VfxKit.shockwave(self, portal.pos + Vector3(0, 0.1, 0), StoryChapter2Art.VIOLET, 4.0)
+
+
+func story_portal_open() -> bool:
+	return portals.any(func(p): return StringName(p.to) == StoryChapter2.STAGE_ID)
 
 
 ## Snow, embers, petals, fireflies, rain... that follow the hero (cheap CPU
@@ -698,6 +734,8 @@ func _villagers() -> Array:
 		["registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20)],
 		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-4.0, 0, -9.0), "Barbarian", V.RING + Vector3(-4.0, 0, -30)],
 		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -9.0), "Knight", V.RING + Vector3(4.0, 0, -30)],
+		# บทที่ 2 (StoryChapter2): the star scholar reads the sky beside the pagoda.
+		["scholar", StoryChapter2.role_name("scholar"), &"mage", String(StoryChapter2.ROLES.scholar[1]), V.PAGODA + Vector3(-7.0, 0, 9.0), "Mage", V.PAGODA + Vector3(-7.0, 0, 30)],
 		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
 		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
@@ -1041,6 +1079,8 @@ func _update_interact() -> void:
 		if npc.role == "elder":
 			var quest_id := QuestData.current_quest()
 			npc.marker.visible = quest_id != "" and Game.quest_status(quest_id) in ["new", "ready"] and QuestData.unlock_problem(QuestData.get_quest(quest_id)) == ""
+		if StoryChapter2.ROLES.has(npc.role):
+			npc.marker.visible = StoryChapter2.marker_for(npc.role)
 	interact_changed.emit(label)
 
 

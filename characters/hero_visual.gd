@@ -79,6 +79,9 @@ var _far := false
 var _far_overlays: Dictionary = {}
 ## Wing pose picked on the HUD (see WING_*); kept across gear changes.
 var wing_mode := WING_STAND
+## The hero wears รัศมีดาวเงา, the chapter 2 finale's cosmetic (StoryChapter2Art.aura);
+## Hero sets it from the save, so other players' bodies never show it by mistake.
+var story_aura := false
 var _wing_moving := false
 var _gear_scale := 1.0
 var skill_generation := 0
@@ -809,6 +812,11 @@ func _top_tier() -> int:
 ## Sparkles around the hero for legendary gear (violet), a weapon at +7 or more (gold)
 ## and, from gear tier 6 up (Lv.61+), a bigger and bigger aura plus a halo.
 func _make_aura() -> void:
+	if story_aura:
+		var shadow_star := StoryChapter2Art.aura(decor_light)
+		shadow_star.set_meta("far_decor", true)
+		add_child(shadow_star)
+		_body_nodes.append(shadow_star)
 	if GameSettings.quality == 0:
 		return
 	var color := Color(0, 0, 0, 0)

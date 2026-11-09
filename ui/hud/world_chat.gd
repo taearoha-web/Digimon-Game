@@ -450,6 +450,12 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 	var level := int(s.get("level", 1))
 	var stars := int(s.get("stars", 0)) if level >= Game.MAX_LEVEL else 0
 	var doing := String(s.get("doing", ""))
+	# A starred player now and then speaks of บทที่ 2 (StoryChapter2.chat_lines): each line
+	# is gated on the hero's real progress, so nothing is said before it happened.
+	if stars >= DrownedAbyssData.ENTRY_STAR and rng.randf() < 0.12:
+		var story := StoryChapter2.chat_lines()
+		if not story.is_empty():
+			return String(story[rng.randi() % story.size()])
 	var pool: Array = []
 	var errand := String(s.get("errand", ""))
 	if doing == "errand" and ERRAND.has(errand):
