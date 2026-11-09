@@ -596,7 +596,7 @@ static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 		NatureKit.place(parent, "Rocks_" + model, model, theme, transforms, tints, true, 75.0)
 
 
-static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3], habitat: FastNoiseLite) -> void:
+static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3], habitat: FastNoiseLite, with_flowers := true) -> void:
 	var colors: Dictionary = NatureKit.THEMES.get(theme, NatureKit.THEMES[&"meadow"])
 	var low: Color = colors["Grass"][0]
 	var high: Color = colors["Grass"][1]
@@ -655,7 +655,9 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		var centre := Vector3((cell.x + 0.5) * NatureKit.CHUNK, 1.0, (cell.y + 0.5) * NatureKit.CHUNK)
 		mmi.custom_aabb = NatureKit.chunk_bounds(tuft, transforms, indices, centre)
 		holder.add_child(mmi)
-	# Flowers
+	# Flowers (the Quaternius plant models; callers that bring their own leave them out)
+	if not with_flowers:
+		return
 	var groups: Dictionary = {}
 	var flower_colors: Dictionary = {}
 	var palette := [Color("e9a5b5"), Color("e9cc88"), Color("eee8cd"), Color("b8a6d8"), Color("d99880")]

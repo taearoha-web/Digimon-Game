@@ -628,10 +628,18 @@ static func siege(root: Node3D, colors: Array, camps: int) -> void:
 	habitat.frequency = 0.05
 	Scenery._grows = func(p: Vector2) -> bool: return p.y > S.MOAT_SOUTH + 4.0
 	var occupied: Array[Vector3] = blocked.duplicate()
-	for i in 2:
-		Scenery._grass(h, &"meadow", rng, S.RADIUS - 4.0, occupied, habitat)
-	Scenery._bushes(h, &"meadow", rng, S.RADIUS - 4.0, occupied, habitat)
+	# Grass tufts only (one shared mesh per chunk; the field is twice a hunting field's
+	# size, so a second pass at quality 2), the one-mesh wildflowers and round shrubs:
+	# the multi-model Quaternius bushes and plants would cost a draw per model per chunk.
+	for i in (2 if _q() >= 2 else 1):
+		Scenery._grass(h, &"meadow", rng, S.RADIUS - 4.0, occupied, habitat, false)
 	flower_drifts(h, rng, S.RADIUS - 4.0, occupied, count(60.0, 12))
+	var shrubs: Array[Transform3D] = []
+	var shrub_tints: Array[Color] = []
+	_scatter(rng, S.RADIUS - 6.0, occupied, count(45.0, 10), 1.0, func(p: Vector2) -> void:
+		shrubs.append(_yaw(rng, Vector3(1, 0.9, 1) * rng.randf_range(0.8, 1.5), Vector3(p.x, 0, p.y)))
+		shrub_tints.append(Color.WHITE.lerp(Color("c8e0a0"), rng.randf())))
+	place(h, "bush_ball", shrubs, shrub_tints, 60.0)
 	Scenery._grows = Callable()
 	var torches: Array[Transform3D] = []
 	var racks: Array[Transform3D] = []
