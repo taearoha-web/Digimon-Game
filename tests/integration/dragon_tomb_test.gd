@@ -327,6 +327,10 @@ func _ready() -> void:
 	def_ai.global_position = cone.origin - (cone.dir as Vector3) * 6.0 + Vector3(0, 0.3, 0)
 	priest_ai.global_position = def_ai.global_position + Vector3(2, 0, 0)
 	var mage_before := mage_ai.hp
+	# The claw is what is tested: no leftover 2.5 s grace from an earlier revive (a fast
+	# machine reaches this within it) and no lucky dodge.
+	hero._invulnerable_until = 0
+	hero.stats.dodge = 0.0
 	boss.tick(DragonBoss.CONE_TIME + 0.1)
 	var ward_loss := float(mage_before - mage_ai.hp) / float(mage_ai.max_hp)
 	check(ward_loss > 0.45 and ward_loss < 0.95 and not mage_ai.is_dead(), "a warded player survives the claw (%.2f)" % ward_loss)
