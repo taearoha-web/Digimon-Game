@@ -360,7 +360,7 @@ jobs:
     # The menu-scroll, skill-craft and skill-icon tests wait for drawn frames, so they run
     # with a real renderer on a virtual screen (xvfb, OpenGL).
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       XDG_CONFIG_HOME: /tmp/toon-ci-config
       XDG_CACHE_HOME: /tmp/toon-ci-cache
@@ -580,6 +580,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-vfx_mesh_cache_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/vfx_mesh_cache_test.tscn
+      - name: surface_kit_test (surface textures - one VRAM-compressed 512 px detail array shared by the ground, buildings, castle stone and rocks, none on low quality; the older texture size caps stay)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-surface_kit_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/surface_kit_test.tscn
       - name: sale_scroll_test (drawn frames)
         timeout-minutes: 10
         env:
@@ -615,6 +620,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-phone-budget
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/phone_budget_test.tscn
+      - name: sky_budget_test (every zone's sky and air at quality 0/1/2 - filmic curve, no SDFGI/SSAO/SSR/volumetric fog, one small compressed cloud texture, a few light shafts and cloud shadows, hidden under memory pressure)
+        timeout-minutes: 5
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-sky-budget
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/sky_budget_test.tscn
       - name: class_roles_test (one party role per class - แนวหน้า / กำแพงเหล็ก / พรแห่งแสง / ตราเวท / ตาเหยี่ยว / จุดตาย / ทะลวงเกราะ / พันธะวิญญาณ / เงามืด / ประสานเสียง - for the hero, the AI party and each guild-war party only, once per class, gone with a fallen member, real hits / blows / regen / cooldowns, party card and character screen)
         timeout-minutes: 10
         env:
@@ -655,3 +665,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-lobby
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_lobby_test.tscn
+      - name: hero_vfx_priority_test (the hero's own skill effects always show - a hunting field full of AI world players keeps the shared effect budget full at iPhone settings, quality 0 / 1, memory pressure 1 / 2, warm; every skill on the hero's bar still draws its effects from the hero's own room, which nobody else spends; every reservation comes back after a zone change)
+        timeout-minutes: 12
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-hero-vfx-priority
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/hero_vfx_priority_test.tscn

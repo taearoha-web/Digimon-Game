@@ -73,6 +73,8 @@ static func build(parent: Node3D, _zone_id: StringName = &"lotus_sanctum", tree:
 		var a := TAU * float(i) / 14.0
 		var p := Vector3(cos(a) * 104, -1, sin(a) * 104)
 		StarRegionArt._put(c, "rock", p, Vector3(37, 13 + i % 3 * 5, 27), LAVENDER.lerp(JADE, 0.25), Vector3(0, a, 0))
+	# Fallen petals, lily pads, wayside shrines and lanterns (visual only, batched).
+	PropDressing.lotus(c)
 	await _flush(c, tree)
 	StarRegionArt._add_colliders(c)
 	root.set_meta("zone_id", &"lotus_sanctum")

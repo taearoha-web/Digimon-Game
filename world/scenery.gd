@@ -4,7 +4,7 @@ extends RefCounted
 ## flowers (Quaternius nature models via [NatureKit]) and the sky.
 
 const PINES := ["PineTree_1", "PineTree_2", "PineTree_4", "PineTree_5"]
-const BROADLEAFS := [["MapleTree_4", 5.0], ["NormalTree_5", 4.0], ["MapleTree_1", 1.5], ["BirchTree_4", 1.0]]
+const BROADLEAFS := [["MapleTree_4", 5.0], ["NormalTree_5", 4.0], ["MapleTree_1", 1.5], ["BirchTree_4", 1.5], ["NormalTree_3", 1.5]]
 ## Light models for the dense forest wall outside the play area.
 const WALL_TREES := ["PineTree_5", "MapleTree_4", "PineTree_5", "NormalTree_5"]
 const BUSHES := ["Bush", "Bush_Large", "Bush_Small", "Bush_Flowers", "Bush_Large_Flowers", "Bush_Small_Flowers"]
@@ -86,6 +86,17 @@ const ACCENTS := {
 	&"graveyard": [Color("4e5566"), 0.4, 0.0], &"swamp": [Color("2f4a46"), 0.6, 0.0], &"storm": [Color("4a5563"), 0.4, 0.0],
 	&"sky": [Color("f2d98a"), 0.4, 0.0], &"abyss": [Color("2e1a2c"), 0.55, 0.0], &"void": [Color("8a5cff"), 0.35, 1.0],
 }
+## The ground's surface textures per theme (SurfaceKit layers): [open ground layer, metres a
+## tile, strength, trail layer, trail strength]. Snow takes the sand's soft drifts, ash
+## and weathered ground the rock grain.
+const GROUND_DETAIL := {
+	&"meadow": [SurfaceKit.GRASS, 5.2, 0.6, SurfaceKit.DIRT, 0.85], &"village": [SurfaceKit.GRASS, 5.2, 0.55, SurfaceKit.DIRT, 0.8],
+	&"digital": [SurfaceKit.ROCK, 5.0, 0.45, SurfaceKit.COBBLE, 0.6], &"desert": [SurfaceKit.SAND, 6.0, 0.85, SurfaceKit.DIRT, 0.7],
+	&"snow": [SurfaceKit.SAND, 7.0, 0.35, SurfaceKit.DIRT, 0.5], &"volcano": [SurfaceKit.ROCK, 5.0, 0.8, SurfaceKit.DIRT, 0.75],
+	&"graveyard": [SurfaceKit.DIRT, 4.0, 0.7, SurfaceKit.COBBLE, 0.7], &"swamp": [SurfaceKit.GRASS, 5.0, 0.55, SurfaceKit.DIRT, 0.8],
+	&"storm": [SurfaceKit.ROCK, 5.0, 0.7, SurfaceKit.DIRT, 0.7], &"sky": [SurfaceKit.GRASS, 5.2, 0.5, SurfaceKit.COBBLE, 0.7],
+	&"abyss": [SurfaceKit.ROCK, 5.0, 0.75, SurfaceKit.DIRT, 0.7], &"void": [SurfaceKit.ROCK, 5.4, 0.5, SurfaceKit.COBBLE, 0.6],
+}
 const MOONS := {&"abyss": Color("ff7a66"), &"graveyard": Color("f6f0dc"), &"void": Color("c8b8ff"), &"digital": Color("ece2ff")}
 
 static var _tuft: ArrayMesh
@@ -94,6 +105,9 @@ static var _glow_mat: StandardMaterial3D
 static var _prop_meshes: Dictionary = {}
 ## The `grows` filter of the populate call in progress (see populate).
 static var _grows := Callable()
+## The inner trees of the populate call in progress: (x, z, footprint), for the
+## toadstools PropDressing puts at their feet.
+static var _inner_trees: Array[Vector3] = []
 
 
 ## Sky, fog, ambient and the sun. `look` (from ZoneData) may carry "palette"
@@ -381,6 +395,14 @@ static func ground(parent: Node3D, half_size: float, color_a: Color, color_b: Co
 	var kinds := {&"desert": 1, &"snow": 2, &"volcano": 3, &"swamp": 4,
 		&"graveyard": 5, &"storm": 5, &"abyss": 5, &"void": 6, &"digital": 6}
 	mat.set_shader_parameter("surface_kind", int(kinds.get(theme, 0)))
+	var detail: Array = GROUND_DETAIL.get(theme, GROUND_DETAIL[&"meadow"])
+	mat.set_shader_parameter("ground_layer", float(detail[0]))
+	mat.set_shader_parameter("ground_scale", float(detail[1]))
+	mat.set_shader_parameter("ground_detail", float(detail[2]))
+	mat.set_shader_parameter("path_layer", float(detail[3]))
+	mat.set_shader_parameter("path_scale", 3.6 if int(detail[3]) == SurfaceKit.COBBLE else 4.0)
+	mat.set_shader_parameter("path_detail", float(detail[4]))
+	SurfaceKit.prepare(mat)
 	mi.material_override = mat
 	parent.add_child(mi)
 	var body := StaticBody3D.new()
@@ -410,6 +432,7 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 		clear: Array[Vector3], tree_density := 1.0, with_colliders := true, slicer: SceneTree = null,
 		grows := Callable()) -> void:
 	_grows = grows
+	_inner_trees = []
 	var occupied: Array[Vector3] = clear.duplicate()
 	var body := StaticBody3D.new()
 	body.name = "Colliders"
@@ -430,9 +453,13 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 	_rocks(parent, body, theme, rng, play_radius, occupied, with_colliders, habitat)
 	await FrameSlicer.pace(slicer)
 	theme_props(parent, theme, rng, play_radius, occupied, habitat)
+	# Ruins, stones, logs and toadstools (the village has its own street dressing).
+	if theme != &"village":
+		PropDressing.field(parent, theme, rng, play_radius, occupied, _inner_trees)
 	await FrameSlicer.pace(slicer)
 	_grass(parent, theme, rng, play_radius, occupied, habitat)
 	_grows = Callable()
+	_inner_trees = []
 
 
 static func _free(p: Vector2, radius: float, occupied: Array[Vector3]) -> bool:
@@ -501,6 +528,8 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 				shape.position = Vector3(p.x, 1.5, p.y)
 				body.add_child(shape)
 			occupied.append(Vector3(p.x, p.y, 1.4 * s))
+			if r < play_radius:
+				_inner_trees.append(Vector3(p.x, p.y, 1.4 * s))
 		x += step
 	for model in groups:
 		var transforms: Array[Transform3D] = []
@@ -515,7 +544,7 @@ static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerato
 	var colors: Dictionary = {}
 	var set: Dictionary = THEME_SETS.get(theme, {})
 	var palette: Array = set.get("bush_colors", [Color("dfa7bb"), Color("eed8a0"), Color("eef0df"), Color("b7abd5"), Color("dfa38d")])
-	var bush_total: int = int(float(set.get("bushes", 120)) * GameSettings.density_scale())
+	var bush_total: int = int(float(set.get("bushes", 120)) * PropDressing.bush_scale())
 	var placed := 0
 	var attempts := 0
 	while placed < bush_total and attempts < bush_total * 8:
@@ -586,7 +615,7 @@ static func _rocks(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 		NatureKit.place(parent, "Rocks_" + model, model, theme, transforms, tints, true, 75.0)
 
 
-static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3], habitat: FastNoiseLite) -> void:
+static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator, play_radius: float, occupied: Array[Vector3], habitat: FastNoiseLite, with_flowers := true) -> void:
 	var colors: Dictionary = NatureKit.THEMES.get(theme, NatureKit.THEMES[&"meadow"])
 	var low: Color = colors["Grass"][0]
 	var high: Color = colors["Grass"][1]
@@ -598,19 +627,19 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	var coverage := float(covers.get(theme, 1.0))
 	# A small set of natural patches, each containing several short bent tufts.
 	# This is still one shared mesh/material, split into the existing cull chunks.
-	for i in int(620.0 * GameSettings.density_scale() * coverage):
+	for i in int(620.0 * PropDressing.grass_scale() * coverage):
 		var centre := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		var pocket := habitat.get_noise_2dv(centre)
 		if centre.length() > play_radius or rng.randf() > smoothstep(-0.6, 0.3, pocket):
 			continue
 		var patch_tint := low.lerp(high, clampf(pocket * 0.8 + 0.45, 0.0, 1.0))
-		for j in rng.randi_range(4, 9):
+		for j in rng.randi_range(7, 13):
 			var angle := rng.randf() * TAU
-			var distance := sqrt(rng.randf()) * 2.4
+			var distance := sqrt(rng.randf()) * 1.5
 			var p := centre + Vector2(cos(angle), sin(angle)) * distance
 			if p.length() > play_radius or not _free(p, 0.16, occupied):
 				continue
-			var s := rng.randf_range(0.55, 1.05)
+			var s := rng.randf_range(0.6, 1.2)
 			transforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.82, s)), Vector3(p.x, 0.0, p.y)))
 			tints.append(patch_tint.lerp(high, rng.randf() * 0.16))
 	var mat := ShaderMaterial.new()
@@ -645,11 +674,13 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 		var centre := Vector3((cell.x + 0.5) * NatureKit.CHUNK, 1.0, (cell.y + 0.5) * NatureKit.CHUNK)
 		mmi.custom_aabb = NatureKit.chunk_bounds(tuft, transforms, indices, centre)
 		holder.add_child(mmi)
-	# Flowers
+	# Flowers (the Quaternius plant models; callers that bring their own leave them out)
+	if not with_flowers:
+		return
 	var groups: Dictionary = {}
 	var flower_colors: Dictionary = {}
 	var palette := [Color("e9a5b5"), Color("e9cc88"), Color("eee8cd"), Color("b8a6d8"), Color("d99880")]
-	var flower_total := int(float(THEME_SETS.get(theme, {}).get("flowers", 210)) * GameSettings.density_scale())
+	var flower_total := int(float(THEME_SETS.get(theme, {}).get("flowers", 210)) * PropDressing.flower_scale())
 	for i in int(ceil(float(flower_total) / 4.0)):
 		var centre := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		var pocket := habitat.get_noise_2dv(centre)

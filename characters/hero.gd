@@ -1016,7 +1016,15 @@ func use_skill(index: int) -> String:
 	return ""
 
 
+## The hero's own cast: its effects may use the hero's room of the visual budget
+## (VfxBudget.hero_begin), so a crowd of other casters never leaves it unseen.
 func _cast(skill: Dictionary) -> void:
+	VfxBudget.hero_begin()
+	_cast_now(skill)
+	VfxBudget.hero_end()
+
+
+func _cast_now(skill: Dictionary) -> void:
 	if _dead or Time.get_ticks_msec() < _cast_until: return
 	if not Game.skill_unlocked(skill) or float(cooldowns.get(skill.id,0.0)) > 0.0: return
 	if bool(skill.get("requires_wings",false)) and not visual.has_wings(): return
@@ -1075,6 +1083,12 @@ func _finish_cast(skill: Dictionary, target_ref: WeakRef, aim: Vector3, field_re
 
 
 func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
+	VfxBudget.hero_begin()
+	_resolve_now(skill, mob, aim)
+	VfxBudget.hero_end()
+
+
+func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 	if _dead or not is_instance_valid(field) or field.is_queued_for_deletion():
 		return
 	if String(skill.id) == "judgment_ray":
@@ -1184,7 +1198,7 @@ func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: floa
 	var flight := clampf(from.distance_to(to) / 20.0, 0.12, 0.6)
 	SkillTableau.flight(field, skill, from, to, flight, scale)
 	var mob_ref: WeakRef = weakref(mob)
-	get_tree().create_timer(flight).timeout.connect(func():
+	get_tree().create_timer(flight).timeout.connect(VfxBudget.carry(func():
 		if _dead:
 			return
 		var victim: Mob = mob_ref.get_ref() as Mob
@@ -1192,7 +1206,7 @@ func _shoot(skill: Dictionary, mob: Mob, mult: float, from: Vector3, scale: floa
 			if skill.get("special", "") == "boom":
 				VfxKit.shockwave(field, victim.global_position + Vector3(0, 0.15, 0), color, 2.2)
 			_deal(victim, mult, color, skill.vfx, true, skill)
-	, CONNECT_ONE_SHOT)
+	), CONNECT_ONE_SHOT)
 
 
 func _armageddon_impact(index: int, center: Vector3, radius: float, mult: float, skill: Dictionary) -> void:
@@ -1204,6 +1218,12 @@ func _armageddon_impact(index: int, center: Vector3, radius: float, mult: float,
 
 
 func _blast_damage(skill: Dictionary, center: Vector3, radius: float, mult: float, knockback := true) -> void:
+	VfxBudget.hero_begin()
+	_blast_damage_now(skill, center, radius, mult, knockback)
+	VfxBudget.hero_end()
+
+
+func _blast_damage_now(skill: Dictionary, center: Vector3, radius: float, mult: float, knockback := true) -> void:
 	SkillFeel.impact(self, skill, center, radius)
 	SkillFeel.area_from(center)
 	for node in get_tree().get_nodes_in_group("mobs"):
@@ -1218,14 +1238,14 @@ func _arrow_rain(skill: Dictionary, center: Vector3, radius: float, mult: float)
 	for i in 14:
 		var angle := randf() * TAU
 		var spot := center + Vector3(cos(angle), 0, sin(angle)) * randf() * radius
-		get_tree().create_timer(i * 0.07).timeout.connect(func():
+		get_tree().create_timer(i * 0.07).timeout.connect(VfxBudget.carry(func():
 			VfxKit.arrow(field, color, spot + Vector3(1.5, 12.0, 0.5), spot + Vector3(0, 0.2, 0), 0.28)
-		, CONNECT_ONE_SHOT)
-	get_tree().create_timer(0.55).timeout.connect(func():
+		), CONNECT_ONE_SHOT)
+	get_tree().create_timer(0.55).timeout.connect(VfxBudget.carry(func():
 		if _dead:
 			return
 		_blast_damage(skill, center, radius, mult)
-	, CONNECT_ONE_SHOT)
+	), CONNECT_ONE_SHOT)
 
 
 ## Calls the skill's creatures (replacing the same skill's earlier ones; at most 5 in all).
@@ -1455,7 +1475,15 @@ func _heal(fraction: float, share := true) -> void:
 
 
 ## Applies one hit: damage roll, crit, mitigation, skill effects, juice.
+## Every hit of the hero's (a skill's landing from a timer or a sequence too) draws its
+## contact art with the hero's room of the visual budget.
 func _deal(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, skill := {}) -> void:
+	VfxBudget.hero_begin()
+	_deal_now(mob, mult, color, vfx, melee, skill)
+	VfxBudget.hero_end()
+
+
+func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool, skill := {}) -> void:
 	if not _valid_target(mob):
 		return
 	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08) * (1.0 - _enemy_mark("weaken")) * gem_atk_mult()

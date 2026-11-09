@@ -103,6 +103,8 @@ func _process(delta: float) -> void:
 		var fall := smoothstep(end-0.75,end,clock)
 		h.visual.position.y=5.0*rise*(1.0-fall)
 		h.visual.set_wing_moving(false)
+	# The hero's star cast keeps the hero's own effect room (VfxBudget) on every beat.
+	VfxBudget.hero_begin()
 	while cursor<events.size() and float(events[cursor].at)<=clock:
 		var event:Dictionary=events[cursor]
 		cursor+=1
@@ -117,6 +119,7 @@ func _process(delta: float) -> void:
 			set_meta("landing_%d" % int(event.index),spot)
 			StarSkillArt.sword_drop(h,h.field,spot,int(event.index),0.42)
 		else: _hit(h,int(event.index),int(event.count))
+	VfxBudget.hero_end()
 	if clock>=end: queue_free()
 
 func _exit_tree() -> void:

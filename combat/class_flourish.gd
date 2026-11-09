@@ -186,9 +186,9 @@ static func _wave(parent: Node3D, pos: Vector3, color: Color, radius: float, cor
 
 
 static func _late_wave(parent: Node3D, pos: Vector3, color: Color, radius: float, delay: float, core := Color.WHITE, shade := Color.TRANSPARENT) -> void:
-	parent.create_tween().tween_interval(delay).finished.connect(func():
+	parent.create_tween().tween_interval(delay).finished.connect(VfxBudget.carry(func():
 		if _alive(parent):
-			_wave(parent, pos + Vector3.UP * 0.1, color, radius, core, shade), CONNECT_ONE_SHOT)
+			_wave(parent, pos + Vector3.UP * 0.1, color, radius, core, shade)), CONNECT_ONE_SHOT)
 
 
 ## Ground break: a heavy wave, a second wave and a puff of GPU dust.
@@ -297,9 +297,9 @@ static func cast(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 			var radius := float(skill.get("radius", 4.5))
 			if wait > 0.0:
 				_release(parent, skill, c, origin, yaw, s)
-				parent.create_tween().tween_interval(wait).finished.connect(func():
+				parent.create_tween().tween_interval(wait).finished.connect(VfxBudget.carry(func():
 					if _alive(parent):
-						_barrage(parent, skill, c, center, radius, s), CONNECT_ONE_SHOT)
+						_barrage(parent, skill, c, center, radius, s)), CONNECT_ONE_SHOT)
 			else:
 				_barrage(parent, skill, c, center, radius, s)
 		"fan":
@@ -503,10 +503,10 @@ static func _legend_arrival(parent: Node3D, skill: Dictionary, at: Vector3, s: f
 			for i in 6:
 				var angle := phase + TAU * float(i) / 6.0
 				var spot := at + Vector3(cos(angle), 0.0, sin(angle)) * 2.6 * s
-				parent.create_tween().tween_interval(0.06 * i).finished.connect(func():
+				parent.create_tween().tween_interval(0.06 * i).finished.connect(VfxBudget.carry(func():
 					if _alive(parent):
 						_colour_column(parent, spot, tide, 0.75 * s, 9.0 + 3.0 * s)
-						VfxArt.star_flash(parent, spot + Vector3.UP * 0.5, tide[1], 1.8, 0.35), CONNECT_ONE_SHOT)
+						VfxArt.star_flash(parent, spot + Vector3.UP * 0.5, tide[1], 1.8, 0.35)), CONNECT_ONE_SHOT)
 			_wave(parent, at + Vector3.UP * 0.1, tide[0], 4.5 * s, tide[1], tide[2])
 			_late_wave(parent, at, tide[1], 3.4 * s, 0.2, Color.WHITE, tide[2])
 			_late_wave(parent, at, tide[0], 5.2 * s, 0.42, tide[1], tide[2])
@@ -546,9 +546,9 @@ static func _apex(parent: Node3D, c: Array, at: Vector3, radius: float, family: 
 	for i in 8:
 		var angle := phase + TAU * float(i) / 8.0
 		var spot := at + Vector3(cos(angle), 0.0, sin(angle)) * r * 0.85
-		parent.create_tween().tween_interval(0.05 * i).finished.connect(func():
+		parent.create_tween().tween_interval(0.05 * i).finished.connect(VfxBudget.carry(func():
 			if _alive(parent):
-				_colour_column(parent, spot, c, 0.6, 12.0, warm), CONNECT_ONE_SHOT)
+				_colour_column(parent, spot, c, 0.6, 12.0, warm)), CONNECT_ONE_SHOT)
 	_motes(parent, at, c[1], "light", 40, r * 0.6, 0.5, 1.8)
 
 
@@ -644,9 +644,9 @@ static func _thrust(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 	var rings := 2 + int(p * 3.0)
 	for i in rings:
 		var at := start + forward * length * (0.25 + 0.7 * float(i) / float(maxi(rings - 1, 1)))
-		parent.create_tween().tween_interval(0.035 * i).finished.connect(func():
+		parent.create_tween().tween_interval(0.035 * i).finished.connect(VfxBudget.carry(func():
 			if _alive(parent) and _room(1):
-				_spear_ring(parent, at, forward, c[0], (0.9 + 0.25 * i) * s), CONNECT_ONE_SHOT)
+				_spear_ring(parent, at, forward, c[0], (0.9 + 0.25 * i) * s)), CONNECT_ONE_SHOT)
 	VfxKit.flash(parent, center + Vector3.UP, c[1], 3.0 * s, 0.28)
 	VfxKit.star_burst(parent, tip, c[0], 1.8 * s)
 	if not EliteSkillArt.handles(skill) and _room(3):
@@ -805,9 +805,9 @@ static func _release(parent: Node3D, skill: Dictionary, c: Array, origin: Vector
 		"mage":
 			_motes(parent, at, c[1], "diamond", int(6 + 12 * p), 0.5 * s, 0.0, 0.7)
 			if p >= 0.3 and _room(2):
-				parent.create_tween().tween_interval(0.08).finished.connect(func():
+				parent.create_tween().tween_interval(0.08).finished.connect(VfxBudget.carry(func():
 					if _alive(parent):
-						_spear_ring(parent, at + forward * 0.4, forward, c[2].lerp(c[0], 0.5), (1.0 + 1.0 * p) * s), CONNECT_ONE_SHOT)
+						_spear_ring(parent, at + forward * 0.4, forward, c[2].lerp(c[0], 0.5), (1.0 + 1.0 * p) * s)), CONNECT_ONE_SHOT)
 		"bard":
 			# The note leaves the rosette in a puff of little notes.
 			_motes(parent, at, c[0], "note", int(4 + 6 * p), 0.4 * s, 0.0, 0.6)
@@ -984,9 +984,9 @@ static func _legend_gate(parent: Node3D, id: String, c: Array, origin: Vector3, 
 ## [param core] burns along the hot centre, [param shade] darkens the outer edge.
 static func _crescent(parent: Node3D, at: Vector3, yaw: float, tilt: float, color: Color, core: Color, size: float, delay := 0.0, sweep := 1.0, shade := Color.TRANSPARENT) -> void:
 	if delay > 0.0:
-		parent.create_tween().tween_interval(delay).finished.connect(func():
+		parent.create_tween().tween_interval(delay).finished.connect(VfxBudget.carry(func():
 			if _alive(parent):
-				_crescent(parent, at, yaw, tilt, color, core, size, 0.0, sweep, shade), CONNECT_ONE_SHOT)
+				_crescent(parent, at, yaw, tilt, color, core, size, 0.0, sweep, shade)), CONNECT_ONE_SHOT)
 		return
 	if not _room(2):
 		return
@@ -1101,10 +1101,10 @@ static func _column_ring(parent: Node3D, center: Vector3, c: Array, radius: floa
 	for i in count:
 		var angle := phase + TAU * float(i) / float(count)
 		var at := center + Vector3(cos(angle), 0.0, sin(angle)) * radius
-		parent.create_tween().tween_interval(step * i).finished.connect(func():
+		parent.create_tween().tween_interval(step * i).finished.connect(VfxBudget.carry(func():
 			if _alive(parent) and _room(2):
 				VfxKit.pillar(parent, at, c[0], 9.0, 0.36 if soft else 0.5, 0.4 if soft else 0.45, c[1])
-				VfxArt.star_flash(parent, at + Vector3.UP * 0.3, c[1], 1.1 if soft else 1.6, 0.3), CONNECT_ONE_SHOT)
+				VfxArt.star_flash(parent, at + Vector3.UP * 0.3, c[1], 1.1 if soft else 1.6, 0.3)), CONNECT_ONE_SHOT)
 
 
 ## Lightning bolts striking around a point.
@@ -1113,10 +1113,10 @@ static func _bolt_ring(parent: Node3D, center: Vector3, c: Array, radius: float,
 	for i in count:
 		var angle := phase + TAU * float(i) / float(count)
 		var at := center + Vector3(cos(angle), 0.0, sin(angle)) * radius * randf_range(0.5, 1.0)
-		parent.create_tween().tween_interval(0.05 * i).finished.connect(func():
+		parent.create_tween().tween_interval(0.05 * i).finished.connect(VfxBudget.carry(func():
 			if _alive(parent) and _room(3):
 				VfxArt.painted_lightning(parent, at + Vector3(randf_range(-1, 1), 8.0, randf_range(-1, 1)), at + Vector3.UP * 0.1, c[1])
-				VfxKit.impact_ring(parent, at + Vector3.UP * 0.15, c[0], 1.4, 0.3), CONNECT_ONE_SHOT)
+				VfxKit.impact_ring(parent, at + Vector3.UP * 0.15, c[0], 1.4, 0.3)), CONNECT_ONE_SHOT)
 
 
 ## Extra glowing arrows of the skill's element over the landing area.
@@ -1125,14 +1125,14 @@ static func _arrow_storm(parent: Node3D, skill: Dictionary, c: Array, center: Ve
 	for i in count:
 		var angle := randf() * TAU
 		var spot := center + Vector3(cos(angle), 0.0, sin(angle)) * sqrt(randf()) * radius * 0.9
-		parent.create_tween().tween_interval(0.03 * i).finished.connect(func():
+		parent.create_tween().tween_interval(0.03 * i).finished.connect(VfxBudget.carry(func():
 			if not _alive(parent) or not _room(2):
 				return
 			if holy:
 				VfxKit.pillar(parent, spot, c[0], 8.0, 0.3, 0.3, c[1])
 			else:
 				_lance_streak(parent, spot + Vector3(0.8, 7.0, 0.3), spot + Vector3.UP * 0.1, c[0], c[1], 0.3, 0.24)
-			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.9, 0.28), CONNECT_ONE_SHOT)
+			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.9, 0.28)), CONNECT_ONE_SHOT)
 
 
 ## The Assassin's night: a cloud of dark smoke cards tinted from the shade
@@ -1149,11 +1149,11 @@ static func _dagger_rain(parent: Node3D, c: Array, center: Vector3, radius: floa
 	for i in count:
 		var angle := randf() * TAU
 		var spot := center + Vector3(cos(angle), 0.0, sin(angle)) * sqrt(randf()) * radius * 0.9
-		parent.create_tween().tween_interval(0.035 * i).finished.connect(func():
+		parent.create_tween().tween_interval(0.035 * i).finished.connect(VfxBudget.carry(func():
 			if not _alive(parent) or not _room(2):
 				return
 			_lance_streak(parent, spot + Vector3(-0.5, 6.5, 0.4), spot + Vector3.UP * 0.1, c[0], SkillArtDirection.PALETTES.nightblood[1], 0.26, 0.22)
-			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.8, 0.26, c[1], c[2]), CONNECT_ONE_SHOT)
+			VfxKit.impact_ring(parent, spot + Vector3.UP * 0.12, c[0], 0.8, 0.26, c[1], c[2])), CONNECT_ONE_SHOT)
 
 
 ## The element made physical at a hit point (fire flames, holy light, frost).

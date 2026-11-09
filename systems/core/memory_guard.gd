@@ -329,6 +329,8 @@ static func apply_render(tree: SceneTree) -> void:
 		var env: Environment = (node as WorldEnvironment).environment if node is WorldEnvironment else null
 		if env != null:
 			env.glow_enabled = glow_allowed() and bool(node.get_meta("glow_look", true))
+	# The sky's extras (SkyArt): shafts and cloud shadows, the colour grade, the cloud cover.
+	SkyArt.apply_pressure(tree)
 
 
 static func shadow_size() -> int:

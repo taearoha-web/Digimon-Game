@@ -131,18 +131,18 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	# Secondary motion, environment and afterglow (SkillLayers) wait with the art.
 	SkillLayers.release(parent, skill, center, origin, wait)
 	if wait > 0.0:
-		parent.create_tween().tween_interval(wait).finished.connect(func():
+		parent.create_tween().tween_interval(wait).finished.connect(VfxBudget.carry(func():
 			if is_instance_valid(parent) and parent.is_inside_tree():
-				SpellSpectacle.cast(parent, skill, look, center, origin, tier, crowd), CONNECT_ONE_SHOT)
+				SpellSpectacle.cast(parent, skill, look, center, origin, tier, crowd)), CONNECT_ONE_SHOT)
 	else:
 		SpellSpectacle.cast(parent, skill, look, center, origin, tier, crowd)
 	match shape:
 		"self", "summon": _self_cast(parent, skill, look, origin, tier)
 		"burst", "blast":
 			if wait > 0.0:
-				parent.create_tween().tween_interval(wait).finished.connect(func():
+				parent.create_tween().tween_interval(wait).finished.connect(VfxBudget.carry(func():
 					if is_instance_valid(parent) and parent.is_inside_tree():
-						_area(parent, skill, look, at, radius, tier), CONNECT_ONE_SHOT)
+						_area(parent, skill, look, at, radius, tier)), CONNECT_ONE_SHOT)
 			else:
 				_area(parent, skill, look, at, radius, tier)
 		"single": _single(parent, skill, look, center, origin, tier)

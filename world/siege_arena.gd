@@ -240,6 +240,8 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	_pines(root, rng, count)
 	_hills(root, rng)
 	masonry.commit(root)
+	# Grass, flowers, bushes, torches, weapon racks and the guilds' banners (visual only).
+	PropDressing.siege(root, colors, count)
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +314,8 @@ class Masonry:
 		var inst := MultiMeshInstance3D.new()
 		inst.name = "Masonry"
 		inst.multimesh = mm
-		inst.material_override = SiegeArena._vertex_material()
+		# Shared with every castle: toon stone with a weathered grain (SurfaceKit).
+		inst.material_override = SurfaceKit.vertex_material(false, false, SurfaceKit.KIND_MASONRY)
 		inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(inst)
 

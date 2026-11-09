@@ -114,6 +114,7 @@ static func material(streets: Array[PackedVector2Array], plaza := Vector3.ZERO) 
 	# Low quality and the safe picture keep the stones and joints but skip the wear,
 	# the grain, the tactile ridges and the meadow's flower specks.
 	mat.set_shader_parameter("detail", 0.0 if GameSettings.quality == 0 or GameSettings.safe_picture else 1.0)
+	SurfaceKit.prepare(mat)
 	return mat
 
 

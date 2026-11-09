@@ -184,6 +184,8 @@ func _ready() -> void:
 	is_town = bool(data.get("safe", false))
 	is_pvp = bool(data.get("pvp", false))
 	is_tower = bool(data.get("tower", false))
+	# The shared surface textures follow the quality chosen now (none on low quality).
+	SurfaceKit.refresh()
 	await _slice()
 	if is_town:
 		await _build_town()
@@ -193,6 +195,8 @@ func _ready() -> void:
 		_build_pvp()
 	else:
 		await _build_field()
+	# The sky, light and air of the zone's mood (before DayNight captures the designed look).
+	SkyArt.dress(self, zone_id, StringName(data.get("theme", &"")), TOWN_RADIUS if is_town else field_radius)
 	if DayNight.follows(zone_id) and _env != null:
 		day_night = DayNight.attach(self, _env, TOWN_RADIUS if is_town else field_radius, 1.0 if is_town else 0.0)
 	_phase("build_world")
@@ -642,11 +646,20 @@ func _build_town() -> void:
 		var spot: Vector3 = v[4]
 		var yard: Vector3 = spot + (v[6] - spot).normalized()
 		clear.append(Vector3(yard.x, yard.z, 3.0))
+	var yards: Array[Vector3] = []
 	for stall in JapanVillage.STALLS:
 		clear.append(Vector3(stall.x, stall.z, 1.6))
+		yards.append(Vector3(stall.x, stall.z, 1.6))
+	for v in villagers:
+		var spot: Vector3 = v[4]
+		yards.append(Vector3(spot.x, spot.z, 3.0))
+		var yard: Vector3 = spot + (v[6] - spot).normalized()
+		yards.append(Vector3(yard.x, yard.z, 3.0))
 	await _slice()
 	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null,
 		VillageGround.grows.bind(TOWN_RADIUS, green, streets))
+	# Potted plants, lantern posts, crates and signposts along the streets (visual only).
+	PropDressing.village(self, yards)
 	await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)

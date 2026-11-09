@@ -55,7 +55,7 @@ static func landscape(parent: Node3D, theme: StringName, radius: float, seed_val
 		var tint: Color = colors[0].lerp(colors[1], depth)
 		var height: float = float(RIDGE_HEIGHT.get(theme, 18.0)) * (0.9 + layer * 0.52)
 		var mesh := _ridge_mesh(theme, start, 64.0, height, seed_value, layer, tint)
-		var part := MeshKit.part(root, mesh, _colored_material(), Vector3.ZERO, Vector3.ONE, Vector3.ZERO, "Ridge_%d" % layer)
+		var part := MeshKit.part(root, mesh, _earth_material(), Vector3.ZERO, Vector3.ONE, Vector3.ZERO, "Ridge_%d" % layer)
 		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.set_meta("art_theme", theme)
 	root.set_meta("ridge_layers", layers)
@@ -392,6 +392,7 @@ static func build(parent: Node3D, theme: StringName, radius: float, seed_value: 
 					_fluted_column(cove, Vector3(-7.0 + i * 7.0, 0, -6.0), 1.1 + i * 0.5, palette)
 	if with_stream and WATERS.has(theme):
 		_stream(root, theme, 1.6 if theme != &"volcano" else 1.2)
+		PropDressing.stream_bank(root, theme, clearings, seed_value)
 	root.set_meta("art_theme", theme)
 	root.set_meta("visual_only", true)
 
@@ -568,6 +569,12 @@ static func _colored_material() -> StandardMaterial3D:
 	return _vertex_mat
 
 
+## Ridges, banks and river stones: the vertex colours with rock grain on the slopes and
+## earth on the flats (SurfaceKit; painted only on low quality). One shared material.
+static func _earth_material() -> ShaderMaterial:
+	return SurfaceKit.vertex_material(true, false, SurfaceKit.KIND_EARTH, true)
+
+
 static func _water_material(theme: StringName) -> ShaderMaterial:
 	if not _water_mats.has(theme):
 		var colors: Array = WATERS.get(theme, WATERS[&"meadow"])
@@ -581,9 +588,11 @@ static func _water_material(theme: StringName) -> ShaderMaterial:
 	return _water_mats[theme]
 
 
-static func _oval_mesh(size: Vector2, irregularity: float) -> ArrayMesh:
+static func _oval_mesh(size: Vector2, irregularity: float, color := Color(0, 0, 0, 0)) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	if color.a > 0.0:
+		st.set_color(color)
 	var count := 64
 	for i in count:
 		st.set_normal(Vector3.UP)
@@ -598,7 +607,7 @@ static func _oval_mesh(size: Vector2, irregularity: float) -> ArrayMesh:
 
 
 static func _oval(parent: Node3D, pos: Vector3, size: Vector2, color: Color, irregularity := 0.25) -> void:
-	var mesh := MeshKit.part(parent, _oval_mesh(size, irregularity), WorldArt._mat(color), pos, Vector3.ONE)
+	var mesh := MeshKit.part(parent, _oval_mesh(size, irregularity, color), _earth_material(), pos, Vector3.ONE)
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
@@ -639,12 +648,12 @@ static func _rock_cluster(parent: Node3D, pos: Vector3, palette: Array, rng: Ran
 		var p := pos + Vector3(rng.randf_range(-2.5, 2.5), scale.y * 0.39, rng.randf_range(-1.5, 1.5))
 		transforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(scale), p))
 		colors.append(palette[i % 2])
-	_batch(parent, _stone(), transforms, colors, "RiverStones")
+	_batch(parent, _stone(), transforms, colors, "RiverStones", false, _earth_material())
 
 
 ## One MultiMesh for a set of placements; `colors` may be shorter than
 ## `transforms` (it repeats). `glow` makes the tint emissive (lava, crystals).
-static func _batch(parent: Node3D, mesh: Mesh, transforms: Array, colors: Array, node_name: String, glow := false) -> void:
+static func _batch(parent: Node3D, mesh: Mesh, transforms: Array, colors: Array, node_name: String, glow := false, material: Material = null) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
@@ -656,7 +665,7 @@ static func _batch(parent: Node3D, mesh: Mesh, transforms: Array, colors: Array,
 	var instance := MultiMeshInstance3D.new()
 	instance.name = node_name
 	instance.multimesh = mm
-	instance.material_override = Scenery.glow_material() if glow else _colored_material()
+	instance.material_override = material if material != null else (Scenery.glow_material() if glow else _colored_material())
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(instance)
 

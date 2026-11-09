@@ -1,8 +1,11 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
-// A single opaque, texture-free material for all walkable terrain. UV is in
-// world metres; UV2 carries distance to the trail and the soft clearing mask.
-// Colour detail never displaces the floor or changes the collision surface.
+// A single opaque material for all walkable terrain. UV is in world metres; UV2
+// carries distance to the trail and the soft clearing mask. Colour detail never
+// displaces the floor or changes the collision surface. On medium and high quality
+// the shared surface textures (SurfaceKit) add the grain of grass, earth, sand or
+// rock and break up the trail's edge; on low quality the floor stays texture-free.
+#include "res://shaders/surface_detail.gdshaderinc"
 
 uniform vec4 ground_shadow : source_color = vec4(0.34, 0.48, 0.28, 1.0);
 uniform vec4 ground_sun : source_color = vec4(0.58, 0.66, 0.41, 1.0);
@@ -17,6 +20,13 @@ uniform float path_width = 2.8;
 uniform float seed_offset = 0.0;
 // 0 grass, 1 sand, 2 snow, 3 ash, 4 marsh, 5 weathered ground, 6 twilight.
 uniform int surface_kind = 0;
+// Detail layers (SD_*) of the open ground and of the trail, metres a tile, strength.
+uniform float ground_layer = 0.0;
+uniform float ground_scale = 2.6;
+uniform float ground_detail = 0.75;
+uniform float path_layer = 1.0;
+uniform float path_scale = 3.0;
+uniform float path_detail = 0.8;
 
 float hash21(vec2 p) {
 	vec3 q = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -57,13 +67,26 @@ void fragment() {
 	ground = mix(ground, accent_color.rgb, accent_mask * accent_amount);
 	// Broken, feathered edges create a worn trail instead of a painted stripe.
 	float edge = (patch - 0.5) * 0.75 + (brush - 0.5) * 0.16;
+	vec3 ground_tex = vec3(1.0);
+	vec3 path_tex = vec3(1.0);
+	if (surface_amount > 0.0) {
+		float tile_mask = smoothstep(0.38, 0.62, noise21(p * 0.06 + 3.1));
+		ground_tex = sd_ground(UV, ground_layer, ground_scale, tile_mask);
+		path_tex = sd_ground(UV, path_layer, path_scale, tile_mask);
+		// Tufts hold on along the trail's edge and bare earth bites into the grass:
+		// the edge follows the textures' light and dark instead of a smooth line.
+		edge += (dot(ground_tex, vec3(0.333)) - dot(path_tex, vec3(0.333))) * 0.9 * surface_amount;
+	}
 	float trail = 1.0 - smoothstep(path_width * 0.40, path_width + edge, UV2.x);
 	float worn = max(trail, UV2.y * 0.34);
 	float earth = smoothstep(0.68, 0.92, patch) * (1.0 - trail) * 0.14;
 	ground = mix(ground, soil_color.rgb, earth);
 	vec3 soil = soil_color.rgb * (0.89 + patch * 0.16 + brush * 0.06);
+	ground = sd_apply(ground, ground_tex, ground_detail);
+	soil = sd_apply(soil, path_tex, path_detail);
 	vec3 color = mix(ground, soil, worn * 0.89);
-	float texture_light = (brush - 0.5) * 0.14 * brush_fade + (grain - 0.5) * 0.06 * detail_fade;
+	// The procedural brush stays as the broad variation; the textures take the fine grain.
+	float texture_light = (brush - 0.5) * 0.14 * brush_fade + (grain - 0.5) * 0.06 * detail_fade * (1.0 - surface_amount);
 	vec3 glow = vec3(0.0);
 	float open = (1.0 - worn) * detail_fade;
 	if (surface_kind == 0) {

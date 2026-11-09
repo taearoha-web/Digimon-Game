@@ -534,10 +534,10 @@ static func projectile(parent: Node3D, color: Color, from: Vector3, to: Vector3,
 			ElementFx.flame_puff(parent, holder.global_position, size * 1.2), 0.0, 1.0, maxf(duration, 0.05))
 	# Bound to the flight carrier: unloading a zone cancels arrival and releases
 	# all resources immediately, without a suspended coroutine retaining them.
-	tween.tween_callback(func():
+	tween.tween_callback(VfxBudget.carry(func():
 		if is_instance_valid(parent) and parent.is_inside_tree():
 			element_impact(parent, to, color, variant, 0.7 + size * 0.65)
-		holder.queue_free())
+		holder.queue_free()))
 
 
 ## Two dimensional ribbons coil around a volumetric head and trail behind it.
@@ -607,10 +607,10 @@ static func arrow(parent: Node3D, color: Color, from: Vector3, to: Vector3, dura
 	trail.scale_amount_max = 0.8
 	var tween := carrier.create_tween()
 	tween.tween_property(carrier, "global_position", to, maxf(duration, 0.05))
-	tween.tween_callback(func():
+	tween.tween_callback(VfxBudget.carry(func():
 		if is_instance_valid(parent) and parent.is_inside_tree():
 			element_impact(parent, to, color, "arrow", 0.72)
-		carrier.queue_free())
+		carrier.queue_free()))
 
 
 ## A jagged lightning bolt between two points that flashes and fades.
@@ -727,9 +727,9 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 		MeteorArt.descent(carrier, pos, radius, fall_time)
 		var clock := carrier.create_tween()
 		clock.tween_interval(fall_time)
-		clock.tween_callback(func():
+		clock.tween_callback(VfxBudget.carry(func():
 			on_hit.call()
-			carrier.queue_free())
+			carrier.queue_free()))
 		return
 	var start := pos + Vector3(-5.0, 18.0, -3.0)
 	var rock := _instance(parent, MeshKit.sphere_low(), _glow(Color(1.0, 0.9, 0.6), 1.0), start)
@@ -752,7 +752,7 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 	trail.scale_amount_max = 4.0
 	var tween := rock.create_tween()
 	tween.tween_property(rock, "global_position", pos + Vector3(0, 0.8, 0), fall_time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.tween_callback(func():
+	tween.tween_callback(VfxBudget.carry(func():
 		shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius)
 		flash(parent, pos + Vector3(0, 1.0, 0), color, radius * 1.6, 0.4)
 		pillar(parent, pos, color, 8.0, radius * 0.45, 0.55)
@@ -760,7 +760,7 @@ static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float,
 		# The caster may have left meanwhile (a world player logging off).
 		if on_hit.is_valid():
 			on_hit.call()
-		rock.queue_free())
+		rock.queue_free()))
 
 
 # ---------------------------------------------------------------------------
@@ -924,9 +924,9 @@ static func slam(parent: Node3D, pos: Vector3, color: Color, radius: float) -> v
 
 
 static func get_ring_delay(parent: Node3D, pos: Vector3, color: Color, radius: float, delay: float) -> void:
-	parent.create_tween().tween_interval(delay).finished.connect(func():
+	parent.create_tween().tween_interval(delay).finished.connect(VfxBudget.carry(func():
 		if is_instance_valid(parent):
-			shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius))
+			shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius)))
 
 
 ## Many light columns (or arrows of light) falling over an area, staggered.
@@ -935,10 +935,10 @@ static func column_rain(parent: Node3D, center: Vector3, radius: float, color: C
 		var angle := randf() * TAU
 		var dist := sqrt(randf()) * radius
 		var pos := center + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
-		parent.create_tween().tween_interval(randf() * duration).finished.connect(func():
+		parent.create_tween().tween_interval(randf() * duration).finished.connect(VfxBudget.carry(func():
 			if is_instance_valid(parent) and VfxBudget.can_decorate():
 				pillar(parent, pos, color, height, 0.24, 0.3)
-				sparks(parent, pos + Vector3(0, 0.3, 0), color, 8, 2.5, 0.4))
+				sparks(parent, pos + Vector3(0, 0.3, 0), color, 8, 2.5, 0.4)))
 
 
 ## Stacked spinning rings that rise around [param pos]: a whirlwind / power-up column.
