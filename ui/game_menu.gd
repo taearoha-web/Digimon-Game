@@ -1342,6 +1342,27 @@ func _build_quests() -> void:
 		if status == "active" or status == "ready":
 			col.add_child(UIUtil.label("ความคืบหน้า: %d / %d  (%s)" % [int(Game.quest_state(id).get("progress", 0)), int(quest.count), MonsterData.get_monster(StringName(quest.target)).name], &"DimLabel"))
 		col.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d" % [int(quest.exp), int(quest.gold)], &"DimLabel"))
+	# บทที่ 2 (StoryChapter2): the endgame chain from the scholar, ★200 to ★300.
+	box.add_child(UIUtil.label("%s (รับจาก%s ข้างเจดีย์ในหมู่บ้าน · ดาว 200-300)" % [StoryChapter2.TITLE, StoryChapter2.role_name("scholar")], &"SubHeaderLabel"))
+	for id in StoryChapter2.ORDER:
+		var quest := StoryChapter2.get_quest(id)
+		var status := StoryChapter2.status(id)
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var col := UIUtil.vbox(2)
+		panel.add_child(col)
+		var state_text: String = {"new": "ยังไม่ได้รับ", "active": "กำลังทำ", "ready": "เสร็จแล้ว — กลับไปรายงาน", "done": "สำเร็จแล้ว"}[status]
+		var title := UIUtil.label("%s  (ดาว %d+)  — %s" % [quest.name, int(quest.star), state_text], &"BoldLabel")
+		if status == "done":
+			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		col.add_child(title)
+		var detail := UIUtil.label(quest.desc, &"SmallLabel")
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(detail)
+		if status == "active" or status == "ready":
+			col.add_child(UIUtil.label("ตอนนี้: %s" % StoryChapter2.objective_text(id), &"DimLabel"))
+		var pay := StoryChapter2.reward(id)
+		col.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d • วัตถุดิบจากวิหารบัวดาราและห้วงสมุทรอสูร%s" % [int(pay.exp), int(pay.gold), " • ตำแหน่ง \"%s\" และรัศมีดาวเงา" % StoryChapter2.END_TITLE if id == StoryChapter2.FINALE else ""], &"DimLabel"))
 
 
 # ---------------------------------------------------------------------------

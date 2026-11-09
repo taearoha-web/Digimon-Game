@@ -20,6 +20,7 @@ var online_stall: OnlineStall
 var online_prompt: OnlinePrompt
 var ai_chat: AiChat
 var tutorial: Tutorial
+var story: StoryChapter
 var tower_screen: TowerScreen
 ## The party raid keeper (RaidData) and its result.
 var raid_screen: RaidScreen
@@ -145,6 +146,10 @@ func _ready() -> void:
 	tutorial = Tutorial.new()
 	tutorial.main = self
 	add_child(tutorial)
+	# บทที่ 2: เงาเหนือดวงดาว (StoryChapter2): its NPCs' talk, escort, bosses and ending.
+	story = StoryChapter.new()
+	story.main = self
+	add_child(story)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -351,6 +356,10 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 			guildwar_screen.show_result(result))
 	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
 	z.raid_finished.connect(func(result: Dictionary): raid_screen.show_result(result))
+	z.story_stage_finished.connect(func(result: Dictionary): story.on_stage_finished(result))
+	z.story_speech.connect(func(speaker: String, text: String):
+		if not dialog.is_open:
+			dialog.say(speaker, text))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
 	# then let two frames draw it once (first-draw shader/texture work) before fading in.
@@ -479,6 +488,9 @@ func _on_level_up(level: int) -> void:
 
 func _on_npc(role: String) -> void:
 	if dialog.is_open:
+		return
+	if StoryChapter2.ROLES.has(role):
+		story.talk(role)
 		return
 	match role:
 		"elder":

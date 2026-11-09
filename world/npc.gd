@@ -39,6 +39,13 @@ const LOOKS := {
 		"npc_outfit": ["Mage", Color(1.15, 1.08, 1.05), ""], "npc_wash": 0.9, "npc_hat": ["ribbon", Color("e8463a")]},
 	"guide": {"gender": 1, "skin": 1, "hair": 3, "hair_color": 7, "eyes": 3, "eye_color": 1, "nose": 1, "mouth": 2,
 		"npc_outfit": ["Ranger", Color(0.7, 1.2, 1.5), ""], "npc_hat": ["tenugui", Color("f4f0e8")]},
+	# บทที่ 2 (StoryChapter2): the star scholar, the sanctum's guardian, the abyss exile.
+	"scholar": {"gender": 1, "skin": 1, "hair": 5, "hair_color": 9, "eyes": 2, "eye_color": 4, "nose": 0, "mouth": 1,
+		"npc_outfit": ["Mage", Color(0.55, 0.5, 1.1), "Mage_Cape"], "npc_hat": ["kasa", Color("6d5bb5")]},
+	"sanctum_guardian": {"gender": 1, "skin": 0, "hair": 2, "hair_color": 6, "eyes": 0, "eye_color": 2, "nose": 0, "mouth": 0,
+		"npc_outfit": ["Mage", Color(0.8, 1.35, 1.15), "Mage_Cape"], "npc_wash": 0.6, "npc_hat": ["ribbon", Color("7fe7d8")]},
+	"abyss_exile": {"gender": 0, "skin": 6, "hair": 1, "hair_color": 3, "eyes": 4, "eye_color": 3, "nose": 3, "mouth": 3,
+		"npc_outfit": ["Rogue", Color(0.45, 0.85, 1.0), "Rogue_Cape"], "npc_hat": ["tenugui", Color("1f4a52")]},
 }
 
 var role := "elder"
