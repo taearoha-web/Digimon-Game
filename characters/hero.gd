@@ -132,8 +132,11 @@ func _ready() -> void:
 	visual = HeroVisual.new()
 	visual.wing_mode = clampi(int(Game.profile.flags.get("wing_mode", 0)), HeroVisual.WING_STAND, HeroVisual.WING_FOLD)
 	visual.story_aura = StoryChapter2.has_aura()
+	visual.costume = RewardShop.active("costume")
 	add_child(visual)
 	visual.setup(Game.class_id(), "", true, Game.profile.equip, _look())
+	WalkTrail.attach(self, RewardShop.active("trail"))
+	Game.cosmetics_changed.connect(_on_cosmetics_changed)
 	_equip_sig = _equipment_signature()
 	MeshKit.blob_shadow(self, 0.8)
 	refresh_stats()
@@ -172,6 +175,16 @@ func _on_title_changed(_title: String) -> void:
 	refresh_name_plate()
 
 
+## The reward shop's costume, walk trail or name colour changed (RewardShop.wear).
+func _on_cosmetics_changed() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	if is_instance_valid(visual):
+		visual.set_costume(RewardShop.active("costume"))
+	WalkTrail.attach(self, RewardShop.active("trail"))
+	refresh_name_plate()
+
+
 func refresh_name_plate() -> void:
 	if not is_instance_valid(_name_plate):
 		return
@@ -182,6 +195,12 @@ func refresh_name_plate() -> void:
 	if champion:
 		hero_name = "%s %s" % [GuildLeague.CROWN, hero_name]
 	_name_plate.modulate = GuildLeague.CROWN_COLOR if champion else Color("fff4de")
+	_name_plate.outline_modulate = Color(0.1, 0.12, 0.2, 0.9)
+	# The reward shop's name colour (RewardShop.NAME_COLORS): text and outline.
+	var ncol := RewardShop.name_color(RewardShop.active("ncol"))
+	if not ncol.is_empty() and not champion:
+		_name_plate.modulate = ncol.color
+		_name_plate.outline_modulate = ncol.edge
 	# Wearing the Legendary Guild Wings (LegendWings): the ตำนาน tag in gold.
 	if LegendWings.worn(Game.profile):
 		hero_name = "「%s」 %s" % [LegendWings.TAG, hero_name]

@@ -232,6 +232,9 @@ function validateProfile(profile) {
   if ('league' in profile && !validLeague(profile.league)) fail(400, 'invalid_save', 'The guild league record is invalid.');
   // The Legendary Guild Wings record (LegendWings in the game): who holds each season's pair.
   if ('legend_wings' in profile && !validLegendRecord(profile.legend_wings)) fail(400, 'invalid_save', 'The legendary guild wings record is invalid.');
+  // The reward exchange (RewardShop in the game): league coins, event points, the unlocked
+  // cosmetics and what is worn, the stones bought this week and the rounds already paid.
+  if ('rshop' in profile && !validRewardShop(profile.rshop)) fail(400, 'invalid_save', 'The reward shop record is invalid.');
   // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
   if ('dpass' in profile) {
     const pass = profile.dpass;
@@ -323,6 +326,26 @@ function validLegendRecord(record) {
     }
     if (key === 'hand') {
       return dictionary(value) && Object.keys(value).length <= LEGEND_MAX_RECORDS && Object.entries(value).every(([w, n]) => week(w) && typeof n === 'string' && n.length <= 64);
+    }
+    return false;
+  });
+}
+
+// RewardShop.INT_KEYS / TEXT_KEYS in the game: keep the lists equal. own: unlocked
+// cosmetic ids; buy: {stone id: count this week}; paid: {round start: coins paid}.
+const RSHOP_INTS = new Set(['lc', 'ep', 'week', 'ev_day', 'ev_pts', 'boss_day', 'bonus_week']);
+const RSHOP_TEXTS = new Set(['cos', 'trail', 'ncol']);
+const RSHOP_ID_MAX = 32;
+const rshopId = value => typeof value === 'string' && value.length <= RSHOP_ID_MAX;
+function validRewardShop(shop) {
+  if (!dictionary(shop) || Object.keys(shop).length > 16) return false;
+  return Object.entries(shop).every(([key, value]) => {
+    if (RSHOP_INTS.has(key)) return integer(value, -1);
+    if (RSHOP_TEXTS.has(key)) return rshopId(value);
+    if (key === 'own') return Array.isArray(value) && value.length <= 64 && value.every(rshopId);
+    if (key === 'buy' || key === 'paid') {
+      return dictionary(value) && Object.keys(value).length <= 32 && Object.keys(value).every(rshopId)
+        && Object.values(value).every(count => integer(count, 0, key === 'buy' ? 1000 : MAX_LEAGUE_NUMBER));
     }
     return false;
   });

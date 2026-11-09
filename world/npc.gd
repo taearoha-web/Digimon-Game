@@ -46,6 +46,8 @@ const LOOKS := {
 		"npc_outfit": ["Mage", Color(0.8, 1.35, 1.15), "Mage_Cape"], "npc_wash": 0.6, "npc_hat": ["ribbon", Color("7fe7d8")]},
 	"abyss_exile": {"gender": 0, "skin": 6, "hair": 1, "hair_color": 3, "eyes": 4, "eye_color": 3, "nose": 3, "mouth": 3,
 		"npc_outfit": ["Rogue", Color(0.45, 0.85, 1.0), "Rogue_Cape"], "npc_hat": ["tenugui", Color("1f4a52")]},
+	"reward": {"gender": 1, "skin": 2, "hair": 5, "hair_color": 2, "eyes": 2, "eye_color": 3, "nose": 1, "mouth": 2,
+		"npc_outfit": ["Mage", Color(1.6, 1.25, 0.5), "Mage_Cape"], "npc_hat": ["ribbon", Color("ffb81c")]},
 }
 
 var role := "elder"

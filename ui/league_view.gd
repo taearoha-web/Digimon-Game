@@ -73,6 +73,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 		emp.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
 	box.add_child(emp)
 	box.add_child(_reward_card(refresh, mine))
+	box.add_child(_exchange_card())
 	if GuildLeague.hero_champion(t):
 		box.add_child(UIUtil.label("ร้านลับ%s (เปิดถึงสิ้นสัปดาห์)" % GuildLeague.CASTLE_TITLE, &"SubHeaderLabel"))
 		box.add_child(UIUtil.label("ทองของคุณ %s" % GuildScreen._num(int(Game.profile.gold)), &"SmallLabel"))
@@ -161,6 +162,28 @@ static func _reward_card(refresh: Callable, mine: int) -> Control:
 				Game.say(result, &"warning")
 			refresh.call())
 		line.add_child(claim)
+	return panel
+
+
+## The reward exchange (RewardShop): the hero's league coins and event points, and the
+## way in (Game.open_reward_shop -> Main opens the menu's tab).
+static func _exchange_card() -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	panel.name = "LeagueExchange"
+	var line := UIUtil.hbox(10)
+	panel.add_child(line)
+	var label := UIUtil.label("%s: %s %d · %s %d — ทุกรอบลีกที่ลงสนามได้%s (อันดับ %s · ยึดปราสาท +%d · ครองปราสาท +%d) โบนัสอันดับสัปดาห์ %s · บอสโลกและการล่าช่วงกิจกรรมได้%s" % [
+		RewardShop.SHOP_NAME, RewardShop.COIN_NAME, RewardShop.coins(), RewardShop.POINT_NAME, RewardShop.points(), RewardShop.COIN_NAME,
+		"/".join(RewardShop.PLACE_COINS.map(func(v): return str(v))), RewardShop.CAPTURE_COINS, RewardShop.HOLD_COINS,
+		"/".join(RewardShop.WEEK_BONUS.map(func(v): return str(v))), RewardShop.POINT_NAME], &"SmallLabel")
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_color_override("font_color", RewardShop.COIN_COLOR.lerp(Color.WHITE, 0.35))
+	line.add_child(label)
+	var open := UIUtil.button("เปิดร้าน", &"AccentButton", Vector2(150, 58))
+	open.name = "LeagueExchangeOpen"
+	open.pressed.connect(func(): Game.open_reward_shop())
+	line.add_child(open)
 	return panel
 
 

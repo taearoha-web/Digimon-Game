@@ -78,6 +78,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	visual.decor_light = _light_decor()
+	visual.costume = _costume_id()
 	add_child(visual)
 	_built_class = StringName(member["class"])
 	visual.setup(_built_class, "", true, _party_equip(), _visual_look())
@@ -464,6 +465,11 @@ func _raise_labels(lift: float) -> void:
 ## The clip it stands still in (a stall keeper may sit).
 func _rest_anim() -> String:
 	return "Idle"
+
+
+## The reward-shop costume this character wears ("" for none; FieldPlayer: world_cosmetics).
+func _costume_id() -> String:
+	return ""
 
 
 ## The cheap enhancement dressing (HeroVisual.decor_light): the party keeps the full one.

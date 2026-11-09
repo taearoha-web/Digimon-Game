@@ -400,6 +400,34 @@ test('the legendary guild wings are checked: fixed fields and stats, one pair a 
   }
 });
 
+test('the reward exchange record (rshop) is accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const rshop = {lc: 420, ep: 160, own: ['sakura', 'sparkle', 'rose'], cos: 'sakura', trail: 'sparkle', ncol: 'rose',
+    week: 2968, buy: {purple5: 2, ruby2: 1}, paid: {'1794200000': 38, '1794221600': 20}, ev_day: 20770, ev_pts: 60, boss_day: 20770, bonus_week: 2967};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), rshop})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {}})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {lc: 0, ep: 0, own: [], cos: '', trail: '', ncol: '', buy: {}, paid: {}}})));
+  for (const bad of [[], {junk: 1}, {lc: -2}, {lc: 1.5}, {lc: '5'}, {cos: 7}, {cos: 'x'.repeat(33)}, {own: 'sakura'}, {own: [1]},
+    {own: Array(65).fill('a')}, {buy: []}, {buy: {purple5: 1001}}, {buy: {purple5: -1}}, {paid: {'1': 'x'}}, {ev_pts: null}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), rshop: bad})), /reward shop record/, JSON.stringify(bad));
+  }
+  // The game's RewardShop.INT_KEYS / TEXT_KEYS and the server's lists name the same keys.
+  const game = readFileSync(new URL('../../../data/reward_shop.gd', import.meta.url), 'utf8');
+  const ints = JSON.parse(game.match(/const INT_KEYS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  const texts = JSON.parse(game.match(/const TEXT_KEYS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  for (const key of ints) assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {[key]: 1}})), key);
+  for (const key of texts) assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {[key]: 'sakura'}})), key);
+  const server = readFileSync(new URL('../server/accounts.js', import.meta.url), 'utf8');
+  const serverInts = server.match(/const RSHOP_INTS = new Set\(\[([^\]]*)\]\)/)[1].split(',').map(s => s.trim().replace(/'/g, '')).sort();
+  const serverTexts = server.match(/const RSHOP_TEXTS = new Set\(\[([^\]]*)\]\)/)[1].split(',').map(s => s.trim().replace(/'/g, '')).sort();
+  assert.deepEqual(serverInts, [...ints].sort());
+  assert.deepEqual(serverTexts, [...texts].sort());
+  // Stones from the shop are ordinary gems and jewels in the bag.
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [{kind: 'gem', id: 'ruby_2', count: 1}, {kind: 'jewel', id: 'purple', count: 5}]})));
+});
+
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
   const {register, call} = harness(t);
   const account = await register();

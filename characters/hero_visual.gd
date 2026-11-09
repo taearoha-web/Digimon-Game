@@ -70,6 +70,9 @@ var chibi := false
 ## emitter, no flames, beams or lights, and no aura motes. A village of 28 players
 ## carried over 200 CPU particle emitters before.
 var decor_light := false
+## The reward-shop costume worn (RewardShop.COSTUMES id, "" for none): its cloth colour
+## over the outfit and its head accessory. set_costume rebuilds the body.
+var costume := ""
 ## The particle emitters and meshes of the current outfit (distance LOD: set_far).
 var _emitters: Array[CPUParticles3D] = []
 var _lod_meshes: Array[MeshInstance3D] = []
@@ -274,6 +277,9 @@ func _refresh_chibi() -> void:
 	var acc := int(look.get("acc", 0))
 	if acc > 0:
 		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
+		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
+	if costume != "" and RewardShop.COSTUMES.has(costume):
+		RewardShop.build_accessory(_chibi_attach("Head", "ChibiCostume"), costume)
 		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
 	var boot_nodes: Array = []
 	if DivineGearData.is_item(boots):
@@ -513,6 +519,13 @@ func _dress_chibi(armor: Variant) -> void:
 				mat.set_shader_parameter("glow_color", SetGearData.palette(SetGearData.item_class(armor)).glow * 0.3)
 			elif tier >= 7 and not divine_armor:
 				mat.set_shader_parameter("glow_color", ChibiGear.cloth(tier) * 0.35)
+		# A reward-shop costume dyes the whole outfit over whatever armour is worn.
+		if costume != "" and RewardShop.COSTUMES.has(costume):
+			var c: Dictionary = RewardShop.COSTUMES[costume]
+			mat.set_shader_parameter("outfit_color", c.cloth)
+			mat.set_shader_parameter("outfit_amount", 0.92)
+			mat.set_shader_parameter("sheen", float(c.sheen))
+			mat.set_shader_parameter("glow_color", c.glow)
 		if divine_armor or divine_boots:
 			mat.set_shader_parameter("part_masks_enabled", true)
 		if divine_armor:
@@ -527,6 +540,15 @@ func _dress_chibi(armor: Variant) -> void:
 			mat.next_pass = StorybookFinish.outline(0.012 * _gear_scale)
 		mi.material_override = mat
 		mi.set_meta("polished", true)
+
+
+## Wears reward-shop costume `id` ("" takes it off): the body is rebuilt when it changes.
+func set_costume(id: String) -> void:
+	if id == costume:
+		return
+	costume = id
+	if _skeleton != null:
+		refresh()
 
 
 ## Rebuilds everything the hero wears from [member equip] (slot -> item).
@@ -618,6 +640,8 @@ func refresh() -> void:
 		outfit_style = String(own[0])
 		outfit_tint = own[1]
 		cape = [String(own[0]), String(own[2])] if String(own[2]) != "" else null
+	if costume != "" and RewardShop.COSTUMES.has(costume):
+		outfit_tint = (RewardShop.COSTUMES[costume] as Dictionary).cloth
 	var glb: String = OUTFIT_GLB[outfit_style]
 	var boots: Variant = equip.get("boots")
 	var armor_nodes: Array = []

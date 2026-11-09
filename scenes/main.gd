@@ -77,6 +77,8 @@ func _ready() -> void:
 	menu = GameMenu.new()
 	add_child(menu)
 	menu.title_requested.connect(_back_to_title)
+	# The reward exchange (RewardShop) asked for from the league page or the keeper.
+	Game.reward_shop_requested.connect(_open_reward_shop)
 	menu.raid_requested.connect(func():
 		if zone != null and (zone.is_pvp or zone.is_tower):
 			Game.say("เปิดดันเจี้ยนปาร์ตี้ได้นอกสนามประลอง หอคอย และดันเจี้ยน", &"warning")
@@ -449,6 +451,16 @@ func use_town_scroll() -> void:
 		go(&"town")
 
 
+## Opens the menu on the reward exchange's tab (closing the guild registrar's page first).
+func _open_reward_shop() -> void:
+	if guild_screen != null and guild_screen.is_open:
+		guild_screen.close_screen()
+	if menu.is_open:
+		menu.show_tab(&"reward")
+	else:
+		_open_menu(&"reward")
+
+
 func _open_menu(tab: StringName) -> void:
 	if _screen_open():
 		return
@@ -562,6 +574,11 @@ func _on_npc(role: String) -> void:
 				{"label": "ดูดันเจี้ยน", "action": func(): raid_screen.open_lobby()}, {"label": "ไว้ก่อน"}])
 		"pet":
 			_talk_pet_keeper()
+		"reward":
+			dialog.say(RewardShop.KEEPER, "ที่นี่รับแลก%sกับ%s! %sได้จากทุกรอบลีกกิลด์ที่เจ้าลงสนาม (อันดับ %s ต่อรอบ ยึดปราสาท +%d ครองปราสาทตอนจบ +%d) และโบนัสอันดับทุกสิ้นสัปดาห์ ส่วน%sได้จากการช่วยปราบบอสโลก (+%d) และการล่าช่วง EXP x2 หรือเทศกาล (วันละไม่เกิน %d) มีคอสตูม เอฟเฟกต์ท่าเดิน สีชื่อ และหินเสริมพลัง (จำกัดต่อสัปดาห์) ของทุกชิ้นผูกกับตัวละคร ขายหรือส่งต่อไม่ได้นะ ตอนนี้เจ้ามี%s %d และ%s %d" % [
+				RewardShop.COIN_NAME, RewardShop.POINT_NAME, RewardShop.COIN_NAME, "/".join(RewardShop.PLACE_COINS.map(func(v): return str(v))), RewardShop.CAPTURE_COINS, RewardShop.HOLD_COINS,
+				RewardShop.POINT_NAME, RewardShop.BOSS_EP, RewardShop.KILL_CAP, RewardShop.COIN_NAME, RewardShop.coins(), RewardShop.POINT_NAME, RewardShop.points()], [
+				{"label": "เปิดร้านแลกของรางวัล", "action": func(): _open_menu(&"reward")}, {"label": "ไว้ก่อน"}])
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])

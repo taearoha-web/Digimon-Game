@@ -9,7 +9,7 @@ signal title_requested()
 signal raid_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -176,6 +176,11 @@ func _rebuild() -> void:
 			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_content.add_child(page)
 			_page_scroll = LeagueView.build(page, _queue_rebuild) as TouchScroll
+		&"reward":
+			var page := UIUtil.vbox(8)
+			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_content.add_child(page)
+			_page_scroll = RewardShopView.build(page, _queue_rebuild) as TouchScroll
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
@@ -236,6 +241,12 @@ func _build_character() -> void:
 		party_line.name = "PartyRoles"
 		party_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		left.add_child(party_line)
+	# The reward exchange's two currencies (RewardShop), beside the gold.
+	var wallet := UIUtil.label("เหรียญ %s · %s %d · %s %d" % [GuildScreen._num(int(p.gold)), RewardShop.COIN_NAME, RewardShop.coins(), RewardShop.POINT_NAME, RewardShop.points()], &"SmallLabel")
+	wallet.name = "Wallet"
+	wallet.add_theme_color_override("font_color", RewardShop.COIN_COLOR.lerp(Color.WHITE, 0.3))
+	wallet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(wallet)
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
 	left.add_child(UIUtil.label("กรอกจำนวนแต้ม แล้วกดเพิ่มที่ค่าสถานะที่ต้องการ", &"SmallLabel"))

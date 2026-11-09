@@ -738,6 +738,7 @@ func _villagers() -> Array:
 		["scholar", StoryChapter2.role_name("scholar"), &"mage", String(StoryChapter2.ROLES.scholar[1]), V.PAGODA + Vector3(-7.0, 0, 9.0), "Mage", V.PAGODA + Vector3(-7.0, 0, 30)],
 		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
 		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
+		["reward", RewardShop.KEEPER, &"mage", "%s · %s / %s" % [RewardShop.SHOP_NAME, RewardShop.COIN_NAME, RewardShop.POINT_NAME], V.GUILD_HALL + Vector3(9.5, 0, 8.0), "Mage", V.GUILD_HALL + Vector3(9.5, 0, 30)],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
 		["raid", RaidData.KEEPER, &"warrior", "%s · วันละ %d รอบ" % [RaidData.SHORT, RaidData.RUNS_PER_DAY], V.PAGODA + Vector3(-5.6, 0, 10.4), "Knight", V.PAGODA + Vector3(-17.0, 0, 10.4)],
 		["pet", PetScreen.KEEPER, &"archer", "เลือกสัตว์เลี้ยงคู่ใจ", PetPen.KEEPER, "Ranger", PetPen.KEEPER_FACE],
