@@ -35,6 +35,10 @@ signal achievement_earned(id: String)
 signal title_changed(title: String)
 ## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
 signal mount_changed()
+## The reward shop's costume, walk trail or name colour worn changed (RewardShop.wear).
+signal cosmetics_changed()
+## Someone asked for the reward exchange (RewardShop): Main opens the menu on its tab.
+signal reward_shop_requested()
 ## The hero chose its pet (PetData, choose_pet).
 signal pet_changed()
 ## The hero's stall (PlayerStall: แผงของฉัน) changed: a lot listed, taken back or sold.
@@ -1012,6 +1016,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The weekly guild league record (GuildLeague).
 	if data.has(GuildLeague.KEY) and not GuildLeague.valid(data[GuildLeague.KEY]):
 		return false
+	# The reward exchange's currencies and unlocks (RewardShop).
+	if data.has(RewardShop.KEY) and not RewardShop.valid(data[RewardShop.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1238,6 +1245,7 @@ func _repair(data: Dictionary) -> Dictionary:
 					leaders[str(int(g))] = String(raw_leaders[key]).strip_edges().left(GUILD_LEADER_NAME_MAX)
 		data["guild_leaders"] = leaders
 	GuildLeague.repair(data)
+	RewardShop.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -2938,6 +2946,8 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 	daily_progress("zone_kills", 1)
 	if is_boss:
 		daily_progress("boss", 1)
+	# Event points for a kill in the event hours (RewardShop).
+	RewardShop.kill()
 	guild_quest_progress("kills", 1)
 	if is_boss:
 		guild_quest_progress("boss", 1)
@@ -3136,7 +3146,13 @@ func _on_world_boss_defeated(_zone: StringName) -> void:
 	if has_profile:
 		flag_add(Achievements.WORLD_BOSS_FLAG)
 		daily_progress("world_boss")
+		RewardShop.boss_defeated()
 		_check_achievements()
+
+
+## Opens the reward exchange (RewardShop): the league page and the keeper call this.
+func open_reward_shop() -> void:
+	reward_shop_requested.emit()
 
 
 # ---------------------------------------------------------------------------

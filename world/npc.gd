@@ -39,6 +39,8 @@ const LOOKS := {
 		"npc_outfit": ["Mage", Color(1.15, 1.08, 1.05), ""], "npc_wash": 0.9, "npc_hat": ["ribbon", Color("e8463a")]},
 	"guide": {"gender": 1, "skin": 1, "hair": 3, "hair_color": 7, "eyes": 3, "eye_color": 1, "nose": 1, "mouth": 2,
 		"npc_outfit": ["Ranger", Color(0.7, 1.2, 1.5), ""], "npc_hat": ["tenugui", Color("f4f0e8")]},
+	"reward": {"gender": 1, "skin": 2, "hair": 5, "hair_color": 2, "eyes": 2, "eye_color": 3, "nose": 1, "mouth": 2,
+		"npc_outfit": ["Mage", Color(1.6, 1.25, 0.5), "Mage_Cape"], "npc_hat": ["ribbon", Color("ffb81c")]},
 }
 
 var role := "elder"
