@@ -13,6 +13,7 @@
 | `assets/vfx/rpicster/**` | [Godot Particle and VFX Textures by RPicster](https://github.com/RPicster/Godot-particle-and-vfx-textures), 256 px alpha textures | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |
 | `audio/sfx/*.wav` | Synthesized by `tools/generate_placeholder_audio.py` and `tools/generate_skill_sfx.py` | Project |
 | `assets/ui/title_stage.jpg` (character select sky platform) | Provided by the game's owner as the character-select design | Project |
+| `assets/sky/painted_clouds.png` (painted cloud cover of every zone's sky) | Stylised cloud mask derived from [Kloofendal 48d Partly Cloudy (Pure Sky)](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky) by Greg Zaal and Jarod Guest, Poly Haven | CC0-1.0 (`assets/vendor/polyhaven_sky/PROVENANCE.md`) |
 | `audio/music/*.ogg` | One original track per place, synthesized by `tools/generate_zone_music.py` (Ogg Vorbis) | Project |
 
 The nature pack ships without textures; `NatureKit` and `shaders/foliage.gdshader` / `rock.gdshader`

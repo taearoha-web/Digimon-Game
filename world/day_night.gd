@@ -140,6 +140,8 @@ var _pool_mat: StandardMaterial3D
 ## shaders compile behind the travel fade rather than at the first dusk.
 var _warm_frames := 4
 var _cloud_tint := Color(-1, -1, -1)
+## The painted cloud cover's designed tint (SkyArt), multiplied by the hour's cloud colour.
+var _cover_base := Color(1, 1, 1, 0)
 
 
 static func _initial_hour() -> float:
@@ -319,6 +321,7 @@ func _capture() -> void:
 	base.sun_energy = sun.light_energy
 	base.shadow = sun.shadow_opacity
 	base.sun_angle = sky_mat.sun_angle_max
+	_cover_base = sky_mat.sky_cover_modulate
 	now.copy_from(base)
 	var dressing := zone.get_node_or_null("SkyDressing")
 	var holder: Node3D = dressing if dressing is Node3D else zone
@@ -454,6 +457,7 @@ func apply(force := false) -> void:
 		_cloud_tint = now.cloud
 		if _cloud_mat:
 			_cloud_mat.albedo_color = now.cloud
+		sky_mat.sky_cover_modulate = Color(_cover_base.r * now.cloud.r, _cover_base.g * now.cloud.g, _cover_base.b * now.cloud.b, _cover_base.a)
 		var dim := now.cloud.lerp(Color.WHITE, 0.25)
 		var shine := 1.0 + (now.lantern - 1.0) * 0.35
 		for entry in _particles:

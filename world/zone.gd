@@ -193,6 +193,8 @@ func _ready() -> void:
 		_build_pvp()
 	else:
 		await _build_field()
+	# The sky, light and air of the zone's mood (before DayNight captures the designed look).
+	SkyArt.dress(self, zone_id, StringName(data.get("theme", &"")), TOWN_RADIUS if is_town else field_radius)
 	if DayNight.follows(zone_id) and _env != null:
 		day_night = DayNight.attach(self, _env, TOWN_RADIUS if is_town else field_radius, 1.0 if is_town else 0.0)
 	_phase("build_world")
