@@ -69,6 +69,7 @@ static func _kind_of_base(base: String) -> String:
 
 ## Look id of an item (icon file name).
 static func look_of(item: Dictionary) -> String:
+	if LegendWings.is_item(item): return "%s_%s" % [LegendWings.LOOK, String(item.get("wing", ""))]
 	if SetGearData.is_item(item): return SetGearData.look_of(item)
 	if StarGearData.is_star(item): return StarGearData.look_of(item)
 	if item.get("kind", "") != "equip":

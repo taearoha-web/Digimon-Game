@@ -230,6 +230,8 @@ function validateProfile(profile) {
   // The weekly guild league record (GuildLeague in the game): season numbers, up to 64
   // real wars a season (ints under fixed keys) and the secret shop's buy counts.
   if ('league' in profile && !validLeague(profile.league)) fail(400, 'invalid_save', 'The guild league record is invalid.');
+  // The Legendary Guild Wings record (LegendWings in the game): who holds each season's pair.
+  if ('legend_wings' in profile && !validLegendRecord(profile.legend_wings)) fail(400, 'invalid_save', 'The legendary guild wings record is invalid.');
   // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
   if ('dpass' in profile) {
     const pass = profile.dpass;
@@ -284,6 +286,70 @@ function validLeague(league) {
   });
 }
 
+// The Legendary Guild Wings (LegendWings in the game): one pair a league season, minted for
+// the champion guild's leader, stamped with the season (legend_week, from the first season
+// with the deciding round) and the guild (1-4). Its fields and stats are fixed
+// (LegendWings.STATS / MODELS: keep these equal), it is Lv.1, of no class, mythic (4), and
+// an account may hold one pair of a season across every character, the shared storage and
+// what is worn.
+const LEGEND_FROM_WEEK = 2967;
+const LEGEND_MAX_WEEK = 100_000;
+const LEGEND_STATS = {atk: 1414, matk: 1456, hp: 5822, def: 624, mp: 2391, crit: 0.2};
+const LEGEND_MODELS = new Set(['priest', 'warrior', 'mage', 'archer', 'lancer', 'assassin', 'defender', 'summoner', 'bard']);
+const LEGEND_MAX_RECORDS = 64;
+function legendWings(item) {
+  return dictionary(item) && ('legend_week' in item || 'legend_guild' in item);
+}
+
+function validLegendWings(item) {
+  if (!integer(item.legend_week, LEGEND_FROM_WEEK, LEGEND_MAX_WEEK) || !integer(item.legend_guild, 1, GUILD_COUNT)) return false;
+  if (item.kind !== 'equip' || item.slot !== 'wings' || item.base !== 'wings' || !LEGEND_MODELS.has(item.wing)) return false;
+  if (item.level !== 1 || item.rarity !== 4 || (item.class ?? '') !== '') return false;
+  if ('star_tier' in item || 'set_gear' in item || 'collection' in item) return false;
+  const stats = item.stats;
+  if (!dictionary(stats) || Object.keys(stats).length !== Object.keys(LEGEND_STATS).length) return false;
+  return Object.entries(LEGEND_STATS).every(([key, want]) => typeof stats[key] === 'number' && Number.isFinite(stats[key])
+    && (key === 'crit' ? Math.abs(stats[key] - want) <= 0.0001 : stats[key] === want));
+}
+
+function validLegendRecord(record) {
+  if (!dictionary(record) || Object.keys(record).length > 3) return false;
+  const week = key => /^(0|[1-9]\d*)$/.test(key) && Number(key) <= LEGEND_MAX_WEEK;
+  return Object.entries(record).every(([key, value]) => {
+    if (key === 'done') return integer(value, -1, LEGEND_MAX_WEEK);
+    if (key === 'hold') {
+      return dictionary(value) && Object.keys(value).length <= LEGEND_MAX_RECORDS && Object.entries(value).every(([w, h]) => week(w)
+        && dictionary(h) && Object.keys(h).length === 3 && integer(h.g, 1, GUILD_COUNT) && typeof h.n === 'string' && h.n.length <= 64 && integer(h.s, 1, LEGEND_MAX_WEEK));
+    }
+    if (key === 'hand') {
+      return dictionary(value) && Object.keys(value).length <= LEGEND_MAX_RECORDS && Object.entries(value).every(([w, n]) => week(w) && typeof n === 'string' && n.length <= 64);
+    }
+    return false;
+  });
+}
+
+// Every pair in the bundle (bags, worn gear, old storages, stall lots, the shared storage)
+// is well formed and no two pairs carry one season.
+function validateLegendWings(bundle) {
+  const items = [];
+  for (const profile of Object.values(bundle.slots ?? {})) {
+    if (!dictionary(profile)) continue;
+    items.push(...(Array.isArray(profile.inv) ? profile.inv : []), ...(Array.isArray(profile.storage) ? profile.storage : []));
+    items.push(...Object.values(dictionary(profile.equip) ? profile.equip : {}));
+    for (const lot of (dictionary(profile.stall) && Array.isArray(profile.stall.lots)) ? profile.stall.lots : []) {
+      if (dictionary(lot) && legendWings(lot.item)) fail(400, 'invalid_save', 'The legendary guild wings cannot be set out on a stall.');
+    }
+  }
+  items.push(...(Array.isArray(bundle.storage) ? bundle.storage : []));
+  const weeks = new Set();
+  for (const item of items) {
+    if (!legendWings(item)) continue;
+    if (!validLegendWings(item)) fail(400, 'invalid_save', 'A pair of legendary guild wings is invalid.');
+    if (weeks.has(item.legend_week)) fail(400, 'invalid_save', `Two pairs of legendary guild wings carry season ${item.legend_week}; one pair a season an account.`);
+    weeks.add(item.legend_week);
+  }
+}
+
 function validateSharedStorage(bundle) {
   if ('storage' in bundle && (!Array.isArray(bundle.storage) || bundle.storage.length > MAX_SHARED_STORAGE
       || bundle.storage.some(item => !dictionary(item) || typeof item.kind !== 'string'))) {
@@ -306,6 +372,7 @@ export function validateBundle(bundle) {
     validateProfile(profile);
   }
   validateSharedStorage(bundle);
+  validateLegendWings(bundle);
   const kept = {slots: bundle.slots, selectedSlot: bundle.selectedSlot};
   if ('storage' in bundle) kept.storage = bundle.storage;
   if ('storageMigrated' in bundle) kept.storageMigrated = bundle.storageMigrated;

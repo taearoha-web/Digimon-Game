@@ -501,6 +501,8 @@ static func name_of(item: Dictionary) -> String:
 
 
 static func color_of(item: Dictionary) -> Color:
+	if LegendWings.is_item(item):
+		return LegendWings.COLOR
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].color
 	if item.get("kind", "") == "jewel":
@@ -520,6 +522,9 @@ static func unit_sell_price(item: Dictionary) -> int:
 
 
 static func sell_price(item: Dictionary) -> int:
+	# The Legendary Guild Wings have no price: never sold, consigned or set out on a stall.
+	if LegendWings.is_item(item):
+		return 0
 	if item.get("kind", "") == "jewel":
 		return int(JEWELS[item.id].price * 0.4) * int(item.get("count", 1))
 	if item.get("kind", "") == "gem":
@@ -567,6 +572,8 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	var lines := stat_lines(item)
 	if item.get("kind", "") != "equip":
 		return lines
+	if LegendWings.is_item(item):
+		lines.append_array(LegendWings.detail_lines(item))
 	if SetGearData.is_item(item):
 		lines.append("%s · อุปกรณ์ 250 ดาว (ผสมที่ช่างตีเหล็ก)" % SetGearData.set_label(SetGearData.item_class(item)))
 		lines.append("โบนัสเซต: " + SetGearData.bonus_text())
