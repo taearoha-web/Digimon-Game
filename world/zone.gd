@@ -184,6 +184,8 @@ func _ready() -> void:
 	is_town = bool(data.get("safe", false))
 	is_pvp = bool(data.get("pvp", false))
 	is_tower = bool(data.get("tower", false))
+	# The shared surface textures follow the quality chosen now (none on low quality).
+	SurfaceKit.refresh()
 	await _slice()
 	if is_town:
 		await _build_town()

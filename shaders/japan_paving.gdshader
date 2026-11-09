@@ -9,6 +9,9 @@ render_mode diffuse_burley, specular_schlick_ggx;
 // granite ring. A muted yellow tactile strip runs along the main street.
 // Every joint, speck and per-stone tone fades by its size in pixels (screen derivatives),
 // so the paving stays calm in the distance instead of shimmering.
+// On medium and high quality the shared surface textures (SurfaceKit) give each stone a
+// weathered grain and the gardens their grass; the joints stay procedural.
+#include "res://shaders/surface_detail.gdshaderinc"
 
 // Warm charcoal (never blue-gray): streets darkest, the walks a step lighter, the plaza's
 // setts and the granite kerbs warmer still.
@@ -119,7 +122,11 @@ vec3 grass(vec2 p, float footprint) {
 		vec3 bloom_color = mix(vec3(0.95, 0.78, 0.82), vec3(0.98, 0.92, 0.62), hash21(cell + 5.0));
 		color = mix(color, bloom_color, bloom * open * 0.9);
 	}
-	return color * (1.0 + (brush - 0.5) * 0.14 * brush_fade);
+	color *= 1.0 + (brush - 0.5) * 0.14 * brush_fade;
+	if (surface_amount > 0.0) {
+		color = sd_apply(color, sd_ground(p, SD_GRASS, 2.6, smoothstep(0.4, 0.6, broad)), 0.75);
+	}
+	return color;
 }
 
 void fragment() {
@@ -210,6 +217,12 @@ void fragment() {
 			color *= mix(vec3(0.9, 0.9, 0.92), vec3(1.07, 1.03, 0.97), patina);
 		}
 		color *= 0.93 + wear * 0.14 + grain * 0.16;
+		if (surface_amount > 0.0) {
+			// Each stone its own patch of grain: the texture shifts by the stone's hash, so
+			// neighbouring setts never show the same speckle.
+			vec2 gp = p / 1.3 + vec2(pat.y, pat.z) * 7.0;
+			color = sd_apply(color, sd_tex(gp, SD_ROCK), 0.55 - wear * 0.2);
+		}
 		// Joints: anti-aliased line, and a slight chamfer darkening the stone beside it.
 		float line = 1.0 - smoothstep(JOINT - px * 0.5, JOINT + px * 0.5, pat.x);
 		float chamfer = 1.0 - smoothstep(JOINT, JOINT + 0.035, pat.x);

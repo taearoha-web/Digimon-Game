@@ -1,0 +1,5 @@
+The source textures of surface_detail.jpg are from Poly Haven (https://polyhaven.com),
+published under CC0 1.0 Universal (public domain dedication):
+https://creativecommons.org/publicdomain/zero/1.0/
+Poly Haven license page: https://polyhaven.com/license
+See SOURCE.json for each source file, its URL and SHA-256.

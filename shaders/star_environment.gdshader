@@ -6,6 +6,12 @@ render_mode diffuse_burley, specular_disabled, cull_disabled;
 uniform int surface_role = 0; // 0 sculpted prop, 1 terrain, 2 water, 3 foliage
 uniform int region = 0;
 uniform float glow = 0.0;
+// Terrain only, medium and high quality: the shared surface textures (SurfaceKit). The
+// open ground takes `ground_layer`; paved courts (regions 2 and 3) a weathered stone grain.
+#include "res://shaders/surface_detail.gdshaderinc"
+uniform float ground_layer = 0.0;
+uniform float ground_scale = 2.6;
+uniform float ground_detail = 0.0;
 varying vec3 world_position;
 
 void vertex() {
@@ -40,6 +46,14 @@ void fragment() {
 				pavement -= garden * 0.82;
 			}
 			col *= 1.0 - grout * 0.105 * pavement;
+			if (surface_amount > 0.0 && ground_detail > 0.0) {
+				vec2 cell_id = floor(p * (region == 2 ? 0.25 : 0.33));
+				vec3 slab = sd_tex(p / 3.6 + cell_id * 0.37, SD_ROCK);
+				col = sd_apply(col, slab, ground_detail * 0.5 * pavement);
+				col = sd_apply(col, sd_ground(p, ground_layer, ground_scale, smoothstep(0.0, 1.0, broad * 0.5 + 0.5)), ground_detail * (1.0 - pavement));
+			}
+		} else if (surface_amount > 0.0 && ground_detail > 0.0) {
+			col = sd_apply(col, sd_ground(p, ground_layer, ground_scale, smoothstep(0.0, 1.0, broad * 0.5 + 0.5)), ground_detail);
 		}
 	} else if (surface_role == 2) {
 		float wave = sin(world_position.x * 1.7 + world_position.z * 1.3 - TIME * 0.65);

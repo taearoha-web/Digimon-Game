@@ -10,6 +10,12 @@ const SHADER := preload("res://shaders/star_environment.gdshader")
 const IDS := [&"dawn_forest", &"crystal_valley", &"sky_citadel", &"eclipse_realm"]
 const RADIUS := 55.5
 const SEEDS := [4317, 7361, 9773, 12109]
+## Terrain surface textures by material key: [SurfaceKit layer, metres a tile, strength].
+const GROUND_DETAIL := {
+	"terrain_0": [SurfaceKit.GRASS, 2.6, 0.75], "terrain_1": [SurfaceKit.ROCK, 3.0, 0.6],
+	"terrain_2": [SurfaceKit.GRASS, 2.8, 0.6], "terrain_3": [SurfaceKit.ROCK, 3.2, 0.6],
+	"divine_ground": [SurfaceKit.GRASS, 2.8, 0.55], "abyss_ground": [SurfaceKit.SAND, 3.6, 0.85],
+}
 static var _meshes: Dictionary = {}
 static var _materials: Dictionary = {}
 
@@ -727,6 +733,14 @@ static func _material(key: String, role := 0, region := 0, glow := 0.0) -> Mater
 			material.set_shader_parameter("surface_role", role)
 			material.set_shader_parameter("region", region)
 			material.set_shader_parameter("glow", glow)
+			if role == 1:
+				# Terrain grain (SurfaceKit): sea-floor sand in the drowned abyss, grass in
+				# the dawn forest and the lotus gardens, rock in the valley and the eclipse.
+				var detail: Array = GROUND_DETAIL.get(key, [SurfaceKit.GRASS, 2.6, 0.7])
+				material.set_shader_parameter("ground_layer", float(detail[0]))
+				material.set_shader_parameter("ground_scale", float(detail[1]))
+				material.set_shader_parameter("ground_detail", float(detail[2]))
+				SurfaceKit.prepare(material)
 			_materials[key] = material
 	return _materials[key]
 

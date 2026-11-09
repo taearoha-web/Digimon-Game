@@ -11,6 +11,7 @@
 | `assets/icons/**` | Hand-written SVG for this project | Project |
 | `assets/vfx/kenney-particles/**` | [Particle Pack 1.1 by Kenney](https://kenney.nl/assets/particle-pack) | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |
 | `assets/vfx/rpicster/**` | [Godot Particle and VFX Textures by RPicster](https://github.com/RPicster/Godot-particle-and-vfx-textures), 256 px alpha textures | CC0-1.0 (`LICENSE.txt` and original-file SHA-256 hashes in `SOURCE.json`) |
+| `assets/textures/surfaces/surface_detail.jpg` (toon detail of grass, earth, sand, cobble, stone wall, roof tiles, planks, rock) | [Poly Haven](https://polyhaven.com) textures (leafy_grass, forest_ground_04, sand_01, cobblestone_floor_01, japanese_stone_wall, grey_roof_tiles_02, hinoki_planks, rock_01), simplified by `tools/make_surface_textures.py` | CC0-1.0 (`LICENSE.txt` and source URLs / SHA-256 hashes in `SOURCE.json`) |
 | `audio/sfx/*.wav` | Synthesized by `tools/generate_placeholder_audio.py` and `tools/generate_skill_sfx.py` | Project |
 | `assets/ui/title_stage.jpg` (character select sky platform) | Provided by the game's owner as the character-select design | Project |
 | `assets/sky/painted_clouds.png` (painted cloud cover of every zone's sky) | Stylised cloud mask derived from [Kloofendal 48d Partly Cloudy (Pure Sky)](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky) by Greg Zaal and Jarod Guest, Poly Haven | CC0-1.0 (`assets/vendor/polyhaven_sky/PROVENANCE.md`) |

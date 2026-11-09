@@ -7,6 +7,8 @@ extends RefCounted
 ## Every piece is written into a [JapanKit.Batch]: all its boxes, cylinders and
 ## roofs become ONE mesh with vertex colours (plus one unshaded surface for the
 ## glowing lantern paper), so a whole building costs a single draw call.
+## The solid surface textures by kind (SurfaceKit): wood planks, plaster, stone and roof
+## tiles; the kind rides in the vertex alpha and UV holds metres along each face.
 
 const WOOD := Color("6b4430")
 const WOOD_DARK := Color("3f2a20")
@@ -28,6 +30,7 @@ class Batch:
 	var _verts := PackedVector3Array()
 	var _normals := PackedVector3Array()
 	var _colors := PackedColorArray()
+	var _uvs := PackedVector2Array()
 	var _indices := PackedInt32Array()
 	var _glow_verts := PackedVector3Array()
 	var _glow_normals := PackedVector3Array()
@@ -44,7 +47,8 @@ class Batch:
 
 	## `weight`, when given, sends the primitive to the cloth surface: it maps a
 	## vertex (in the piece's local space) to how freely it sways, 0..1.
-	func add(mesh_arrays: Array, local: Transform3D, color: Color, glow := false, weight := Callable()) -> void:
+	## `kind` (SurfaceKit.KIND_*, -1: by colour) picks the solid surface's texture.
+	func add(mesh_arrays: Array, local: Transform3D, color: Color, glow := false, weight := Callable(), kind := -1) -> void:
 		var t := xform * local
 		var unit: PackedVector3Array = mesh_arrays[Mesh.ARRAY_VERTEX]
 		var verts: PackedVector3Array = t * unit
@@ -77,6 +81,10 @@ class Batch:
 			_glow_colors.append_array(cols)
 			_glow_indices.append_array(idx)
 		else:
+			if kind < 0:
+				kind = SurfaceKit.kind_for(color)
+			cols.fill(SurfaceKit.tag(color, kind))
+			_uvs.append_array(JapanKit.face_uvs(unit, mesh_arrays[Mesh.ARRAY_NORMAL], local, kind == SurfaceKit.KIND_WOOD))
 			_verts.append_array(verts)
 			_normals.append_array(normals)
 			_colors.append_array(cols)
@@ -106,7 +114,8 @@ class Batch:
 	## length set by [param ridge], 0..1 of the width), turned by [param yaw].
 	func roof(pos: Vector3, w: float, d: float, h: float, color: Color, ridge := 0.35, yaw := 0.0) -> void:
 		var key := "roof%d" % int(ridge * 100.0)
-		add(JapanKit.arrays(key), JapanKit.place(pos, Vector3(w, h, d), Vector3(0, yaw, 0)), color)
+		var kind := SurfaceKit.KIND_WOOD if SurfaceKit.kind_for(color) == SurfaceKit.KIND_WOOD else SurfaceKit.KIND_ROOF
+		add(JapanKit.arrays(key), JapanKit.place(pos, Vector3(w, h, d), Vector3(0, yaw, 0)), color, false, Callable(), kind)
 
 	func is_empty() -> bool:
 		return _verts.is_empty() and _glow_verts.is_empty() and _cloth_verts.is_empty()
@@ -130,6 +139,7 @@ class Batch:
 			a[Mesh.ARRAY_VERTEX] = _verts
 			a[Mesh.ARRAY_NORMAL] = _normals
 			a[Mesh.ARRAY_COLOR] = _colors
+			a[Mesh.ARRAY_TEX_UV] = _uvs
 			a[Mesh.ARRAY_INDEX] = _indices
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, JapanKit.solid_material())
@@ -155,7 +165,7 @@ class Batch:
 
 
 static var _arrays: Dictionary = {}
-static var _solid: StandardMaterial3D
+static var _solid: ShaderMaterial
 static var _glow: StandardMaterial3D
 static var _cloth: ShaderMaterial
 
@@ -238,16 +248,40 @@ static func place(pos: Vector3, size: Vector3, rot_deg: Vector3) -> Transform3D:
 	return Transform3D(basis * Basis.from_scale(size), pos)
 
 
-static func solid_material() -> StandardMaterial3D:
+## Vertex-coloured, double-sided toon, textured by the kind in the vertex alpha (shared).
+static func solid_material() -> ShaderMaterial:
 	if _solid == null:
-		_solid = StandardMaterial3D.new()
-		_solid.vertex_color_use_as_albedo = true
-		_solid.vertex_color_is_srgb = true
-		_solid.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-		_solid.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-		_solid.roughness = 1.0
-		_solid.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_solid = SurfaceKit.vertex_material(true, true)
 	return _solid
+
+
+## UV in metres along each face of a primitive placed by `local` (size and turn), for the
+## surface textures: floors and tops take the primitive's own x / z, walls and roof slopes
+## run along the face horizontally and up the slope (slope length), so tile rows follow
+## the eaves and stone courses stay level whatever way the building faces. `grain_long`
+## turns the texture so wood grain runs along a post's or beam's length.
+static func face_uvs(unit: PackedVector3Array, unit_normals: PackedVector3Array, local: Transform3D, grain_long := false) -> PackedVector2Array:
+	var size := local.basis.get_scale()
+	var out := PackedVector2Array()
+	out.resize(unit.size())
+	var longest := 0 if size.x >= size.y and size.x >= size.z else (1 if size.y >= size.z else 2)
+	for i in unit.size():
+		var p := unit[i] * size
+		var n := (unit_normals[i] / Vector3(maxf(size.x, 0.001), maxf(size.y, 0.001), maxf(size.z, 0.001))).normalized()
+		var uv: Vector2
+		if absf(n.y) > 0.92:
+			uv = Vector2(p.x, p.z)
+			if grain_long and longest == 2:
+				uv = Vector2(p.z, p.x)
+		else:
+			var h := Vector2(n.x, n.z).normalized()
+			var slope := sqrt(maxf(1.0 - n.y * n.y, 0.05))
+			uv = Vector2(p.x * -h.y + p.z * h.x, -p.y / slope)
+			# Along a tall post (or a long beam seen side on) the grain follows the length.
+			if grain_long and longest == 1:
+				uv = Vector2(uv.y, uv.x)
+		out[i] = uv
+	return out
 
 
 static func glow_material() -> StandardMaterial3D:
