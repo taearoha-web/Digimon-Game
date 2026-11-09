@@ -106,6 +106,23 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_child(_content)
+	# Room on the right for the corner close button (X) above the content.
+	var gutter := Control.new()
+	gutter.custom_minimum_size = Vector2(40, 0)
+	gutter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(gutter)
+	# A close button in the top-right corner too, always on screen.
+	var corner := UIUtil.button("✕", &"PrimaryButton", Vector2(60, 60))
+	corner.name = "CloseCorner"
+	corner.anchor_left = 1.0
+	corner.anchor_right = 1.0
+	corner.offset_left = -62
+	corner.offset_right = -2
+	corner.offset_top = 2
+	corner.offset_bottom = 62
+	corner.add_theme_font_size_override("font_size", 30)
+	corner.pressed.connect(close_menu)
+	frame.add_child(corner)
 	Game.profile_changed.connect(_queue_rebuild)
 	Game.inventory_changed.connect(_queue_rebuild)
 	Game.quest_changed.connect(_queue_rebuild)
