@@ -24,6 +24,8 @@ var story: StoryChapter
 var tower_screen: TowerScreen
 ## The party raid keeper (RaidData) and its result.
 var raid_screen: RaidScreen
+## The mechanics dungeon's keeper (DungeonData): lobby, weekly ranking, exchange, result.
+var dungeon_screen: DungeonScreen
 ## The pet keeper's screen (PetData): choose the pet once, then see it.
 var pet_screen: PetScreen
 ## Online play with real players: trading (its window) and duels; idle while offline.
@@ -84,6 +86,11 @@ func _ready() -> void:
 			Game.say("เปิดดันเจี้ยนปาร์ตี้ได้นอกสนามประลอง หอคอย และดันเจี้ยน", &"warning")
 		elif not _screen_open():
 			raid_screen.open_lobby())
+	menu.dungeon_requested.connect(func():
+		if zone != null and (zone.is_pvp or zone.is_tower):
+			Game.say("เปิดสุสานมังกรโบราณได้นอกสนามประลอง หอคอย และดันเจี้ยน", &"warning")
+		elif not _screen_open():
+			dungeon_screen.open_lobby())
 	shop = ShopScreen.new()
 	add_child(shop)
 	trainer = SkillTrainer.new()
@@ -164,6 +171,10 @@ func _ready() -> void:
 	add_child(raid_screen)
 	raid_screen.enter_requested.connect(func(): go(RaidData.ID, false, true))
 	raid_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	dungeon_screen = DungeonScreen.new()
+	add_child(dungeon_screen)
+	dungeon_screen.enter_requested.connect(func(): go(DungeonData.ID, false, true))
+	dungeon_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	pet_screen = PetScreen.new()
 	add_child(pet_screen)
 	pet_screen.pet_chosen.connect(_on_pet_chosen)
@@ -364,6 +375,7 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	z.story_speech.connect(func(speaker: String, text: String):
 		if not dialog.is_open:
 			dialog.say(speaker, text))
+	z.dungeon_finished.connect(func(result: Dictionary): dungeon_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
 	# then let two frames draw it once (first-draw shader/texture work) before fading in.
@@ -472,7 +484,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (dungeon_screen != null and dungeon_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
 		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
@@ -581,6 +593,11 @@ func _on_npc(role: String) -> void:
 		"raid":
 			dialog.say(RaidData.KEEPER, "วิหารอสูรโลหิตเปิดรับปาร์ตี้ %d คนขึ้นไป วันละ %d รอบ (%s) ลงไปสามชั้น ชั้นสุดท้ายคือ%s ให้ผู้พิทักษ์รับการทุบ คนอื่นหลบวงแดงแล้วฆ่าสมุนให้ไว ใครชนะครั้งแรกของวันได้หีบใหญ่!" % [RaidData.MIN_PARTY, RaidData.RUNS_PER_DAY, RaidData.runs_text(), RaidData.BOSS_NAME], [
 				{"label": "ดูดันเจี้ยน", "action": func(): raid_screen.open_lobby()}, {"label": "ไว้ก่อน"}])
+		"dungeon":
+			dialog.say(DungeonData.KEEPER, "สุสานมังกรโบราณรับปาร์ตี้ %d คนพอดี เลเวล %d ขึ้นไป วันละ %d รอบ (%s) ข้างในมี%s กลไกสามอย่าง: ถูกมาร์คให้กระจายตัว ผู้พิทักษ์ล่อบอสรับกรงเล็บ และสลับไปทุบศิลาเมื่อบอสไร้เทียมทาน ใครเคลียร์เร็วที่สุดในสัปดาห์ติดอันดับ เกล็ดมังกรที่ได้เอามาแลกเครื่องรางมังกรกับข้าได้" % [DungeonData.PARTY_SIZE, DungeonData.SHOWN_MIN_LEVEL, DungeonData.RUNS_PER_DAY, DungeonData.runs_text(), DungeonData.BOSS_NAME], [
+				{"label": "ดูดันเจี้ยน", "action": func(): dungeon_screen.open_lobby()},
+				{"label": "อันดับสัปดาห์", "action": func(): dungeon_screen.open_lobby("ranking")},
+				{"label": "แลกเกล็ดมังกร", "action": func(): dungeon_screen.open_lobby("shop")}, {"label": "ไว้ก่อน"}])
 		"pet":
 			_talk_pet_keeper()
 		"reward":

@@ -61,6 +61,8 @@ const TABLE := [
 	{"id": "t_week_emperor", "name": "จักรพรรดิแห่งสัปดาห์", "desc": "กิลด์เป็นทั้งแชมป์ลีกและราชันปราสาทในสัปดาห์เดียวกัน แล้วรับโบนัสที่หน้าลีกกิลด์", "title": "จักรพรรดิแห่งสัปดาห์", "kind": "week_emperor", "goal": 1},
 	# บทที่ 2: เงาเหนือดวงดาว cleared (StoryChapter2.DONE_FLAG, set when the queen falls).
 	{"id": "t_chapter2", "name": "ผู้ดับเงาเหนือดวงดาว", "desc": "ปราบนิรา ราชินีเงาแห่งห้วงลึก บนบัลลังก์เงา (จบบทที่ 2: เงาเหนือดวงดาว)", "title": "ผู้ดับเงาเหนือดวงดาว", "kind": "chapter2", "goal": 1},
+	# The mechanics dungeon cleared under DungeonData.FAST_SECONDS (flags["tomb_fast"], DungeonData.claim).
+	{"id": "t_dragon_tomb", "name": "ผู้พิชิตสุสานมังกร", "desc": "พิชิตสุสานมังกรโบราณภายใน 5 นาที", "title": "ผู้พิชิตสุสานมังกร", "kind": "tomb_fast", "goal": 1},
 ]
 ## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
 const GOD_ID := "t_god"
@@ -114,6 +116,7 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"week_emperor": return int(flags.get(GuildLeague.EMPEROR_FLAG, 0))
 		"pass_top": return int(flags.get("pass_top", 0))
 		"chapter2": return int(flags.get(StoryChapter2.DONE_FLAG, 0))
+		"tomb_fast": return int(flags.get(DungeonData.F_FAST, 0))
 		_: return 0
 
 

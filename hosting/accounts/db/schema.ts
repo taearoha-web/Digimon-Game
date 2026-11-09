@@ -47,3 +47,14 @@ export const toonLeagueRounds = sqliteTable('toon_league_rounds', {
   result: text('result').notNull(),
   createdAt: integer('created_at').notNull(),
 });
+
+// The dragon tomb's weekly clear times (hosting/worker/dungeon.mjs): the best time of each
+// party leader's account a week (Monday 00:00 Thai), the party's four classes as JSON.
+export const toonDungeonTimes = sqliteTable('toon_dungeon_times', {
+  week: integer('week').notNull(),
+  leader: text('leader').notNull(),
+  name: text('name').notNull(),
+  secs: integer('secs').notNull(),
+  classes: text('classes').notNull(),
+  at: integer('at').notNull(),
+}, table => [primaryKey({columns: [table.week, table.leader]}), index('toon_dungeon_times_week_secs').on(table.week, table.secs)]);

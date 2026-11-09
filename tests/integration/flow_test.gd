@@ -185,7 +185,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 21, "eighteen villagers (the raid, pet and reward keepers and the chapter 2 scholar too), the guild hall door, the daily notice board and the warp crystal")
+	check(town.npcs.size() == 22, "nineteen villagers (the raid, tomb, pet and reward keepers and the chapter 2 scholar too), the guild hall door, the daily notice board and the warp crystal")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -2155,12 +2155,12 @@ func _japan_village() -> void:
 	check(village != null, "the village is built")
 	for piece in ["Shrine", "Pagoda", "Dojo", "GeneralStore", "Forge", "Storehouse", "Izakaya", "VillageGate", "SparringRing"]:
 		check(village != null and village.get_node_or_null(piece) != null, "the village has its %s" % piece)
-	check(town.npcs.size() == 21, "eighteen villagers (the raid, pet and reward keepers and the chapter 2 scholar too), the guild hall door, the notice board and the warp crystal")
+	check(town.npcs.size() == 22, "nineteen villagers (the raid, tomb, pet and reward keepers and the chapter 2 scholar too), the guild hall door, the notice board and the warp crystal")
 	var looks := {}
 	for npc in town.npcs:
 		if npc.visual != null:
 			looks[str(Npc.LOOKS.get(npc.role, {}))] = true
-	check(looks.size() == 18, "every villager looks different (%d looks)" % looks.size())
+	check(looks.size() == 19, "every villager looks different (%d looks)" % looks.size())
 	var board: Npc = null
 	for npc in town.npcs:
 		if npc.role == "daily":

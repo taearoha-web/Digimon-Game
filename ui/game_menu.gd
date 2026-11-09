@@ -7,6 +7,8 @@ signal closed()
 signal title_requested()
 ## The party raid (RaidData) from the menu: Main opens its keeper's screen.
 signal raid_requested()
+## The mechanics dungeon (DungeonData) from the menu: Main opens its keeper's screen.
+signal dungeon_requested()
 
 const TABS := [
 	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["settings", "ตั้งค่า"],
@@ -81,6 +83,12 @@ func _ready() -> void:
 		close_menu()
 		raid_requested.emit())
 	tabs.add_child(raid)
+	var tomb := UIUtil.button(DungeonData.SHORT, &"", Vector2(0, 54 if TABS.size() <= 8 else 46))
+	tomb.add_theme_color_override("font_color", Color("8af0b0"))
+	tomb.pressed.connect(func():
+		close_menu()
+		dungeon_requested.emit())
+	tabs.add_child(tomb)
 	tabs.add_child(UIUtil.spacer(false))
 	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 66))
 	close.pressed.connect(close_menu)

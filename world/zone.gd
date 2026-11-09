@@ -19,6 +19,8 @@ signal raid_finished(result: Dictionary)
 ## The chapter 2 throne stage (StoryStage) was won, and the queen's lines in it.
 signal story_stage_finished(result: Dictionary)
 signal story_speech(speaker: String, text: String)
+## A mechanics dungeon entry ended (DragonRun result).
+signal dungeon_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
 ## The hunting fields (Lv.1 meadow to the Lv.100 void) are wider, with their outer camps
@@ -59,6 +61,8 @@ var raid_run: RaidRun
 var story_stage: StoryStage
 ## A fixed seed for the raid's rolls (tests); 0 picks a new one.
 var raid_seed := 0
+## The mechanics dungeon (DungeonData) running here; tower-like too (no world players).
+var dungeon_run: DragonRun
 var pvp_match: PvpMatch
 var hero: Hero
 ## The hero's pet (PetData), when it has one and pets come along here (PetData.allowed_in).
@@ -253,6 +257,11 @@ func _ready() -> void:
 		raid_run.setup(self, hero, raid_seed)
 		raid_run.finished.connect(func(result: Dictionary): raid_finished.emit(result))
 		add_child(raid_run)
+	elif bool(data.get("dungeon", false)):
+		dungeon_run = DragonRun.new()
+		dungeon_run.setup(self, hero, raid_seed)
+		dungeon_run.finished.connect(func(result: Dictionary): dungeon_finished.emit(result))
+		add_child(dungeon_run)
 	elif is_tower:
 		Game.tower_begin_run()
 		tower_run = TowerRun.new()
@@ -494,6 +503,8 @@ func _build_field() -> void:
 		SpecialStageArt.build(self, zone_id)
 	if bool(data.get("raid", false)):
 		RaidArenaArt.build(self)
+	if bool(data.get("dungeon", false)):
+		DragonTombArt.build(self)
 	if data.has("boss"):
 		WorldArt.boss_landmark(self, theme, _boss_spot)
 	for camp in _camps:
@@ -826,6 +837,7 @@ func _villagers() -> Array:
 		["reward", RewardShop.KEEPER, &"mage", "%s · %s / %s" % [RewardShop.SHOP_NAME, RewardShop.COIN_NAME, RewardShop.POINT_NAME], V.GUILD_HALL + Vector3(9.5, 0, 8.0), "Mage", V.GUILD_HALL + Vector3(9.5, 0, 30)],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
 		["raid", RaidData.KEEPER, &"warrior", "%s · วันละ %d รอบ" % [RaidData.SHORT, RaidData.RUNS_PER_DAY], V.PAGODA + Vector3(-5.6, 0, 10.4), "Knight", V.PAGODA + Vector3(-17.0, 0, 10.4)],
+		["dungeon", DungeonData.KEEPER, &"mage", "%s · ปาร์ตี้ %d คน Lv.%d" % [DungeonData.SHORT, DungeonData.PARTY_SIZE, DungeonData.SHOWN_MIN_LEVEL], V.PAGODA + Vector3(-5.6, 0, 14.6), "Mage", V.PAGODA + Vector3(-17.0, 0, 14.6)],
 		["pet", PetScreen.KEEPER, &"archer", "เลือกสัตว์เลี้ยงคู่ใจ", PetPen.KEEPER, "Ranger", PetPen.KEEPER_FACE],
 		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],

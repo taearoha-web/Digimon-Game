@@ -314,6 +314,27 @@ test('mount levels and the old list of owned mounts are both accepted', async t 
   assert.equal(pet.status, 200, JSON.stringify(pet.body));
 });
 
+// The dragon tomb's items (DungeonData in the game): the material เกล็ดมังกรโบราณ is a jewel,
+// the exchange gear เครื่องรางมังกร / แหวนเขี้ยวมังกร is Lv.120 equipment of no class with
+// a "dungeon" key; both save in the bag, the storage, the stall and the shared storage.
+test('the dragon tomb\'s material, its gear and the tomb flags are accepted', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const scale = {kind: 'jewel', id: 'dragon_scale', count: 5};
+  const charm = {kind: 'equip', uid: 'd1', slot: 'amulet', base: 'amulet', name: 'เครื่องรางมังกร', rarity: 4, level: 120, class: '',
+    stats: {hp: 1900, mp: 1600, atk: 120, def: 110, crit: 0.05}, price: 60000, sockets: 3, gems: [], plus: 0, dungeon: 'dragon_tomb'};
+  const ring = {...charm, uid: 'd2', slot: 'ring', base: 'ring', name: 'แหวนเขี้ยวมังกร', price: 50000};
+  const profile = {...sample(100), inv: [charm, scale], storage: [ring], equip: {amulet: {...charm, uid: 'd3'}}, paragon: {level: 60, exp: 0},
+    flags: {tomb_day: '2026-03-02', tomb_runs: 1, tomb_open: '2026-03-02#1', tomb_week: 2966, tomb_clears: 3, tomb_best: 250, tomb_fast: 1, tomb_shop: 1},
+    stall: {lots: [{lot: 1, price: 90000, item: ring}], log: [], next: 2, tick: 0}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {...bundle(profile), storage: [scale, charm], storageMigrated: {}}}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const back = await call('save', {cookie: account.cookie});
+  assert.deepEqual(back.body.bundle.slots['1'].inv, [charm, scale]);
+  assert.deepEqual(back.body.bundle.slots['1'].flags.tomb_open, '2026-03-02#1');
+  assert.deepEqual(back.body.bundle.storage, [scale, charm]);
+});
+
 const LEAGUE_WAR = {at: 1794200000, a: 1, b: 2, win: 1, ca: 2, cb: 0, held: 1, ka: 30, kb: 12};
 
 test('the weekly guild league record is accepted', async t => {

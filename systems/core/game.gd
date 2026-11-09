@@ -143,6 +143,8 @@ func _process(delta: float) -> void:
 		return
 	# The guild league's frozen rounds: saved, fetched and posted (data/league_rounds.gd).
 	LeagueRounds.process(delta)
+	# The dragon tomb's weekly clear times (data/dungeon_ranking.gd).
+	DungeonRanking.process(delta)
 	if not has_profile:
 		return
 	if OS.has_feature("web"):

@@ -372,7 +372,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
 		move_and_slide()
 		_revive_timer -= delta
-		if _revive_timer <= 0.0 and not hero.is_dead():
+		# In the dragon tomb the fallen stand again at the boss's phase changes only (DragonRun).
+		if _revive_timer <= 0.0 and not hero.is_dead() and not DragonBoss.holds_fallen():
 			_revive()
 		return
 	_since_hurt += delta
@@ -397,6 +398,9 @@ func _physics_process(delta: float) -> void:
 		target = _pick_target()
 	# The party raid's boss (RaidBoss): out of its circle warnings first.
 	var escape := RaidBoss.danger_escape(global_position) if RaidBoss.active != null else Vector3.INF
+	# The dragon tomb's boss (DragonBoss): apart from a marked player, out of the claw's cone.
+	if not escape.is_finite() and DragonBoss.active != null:
+		escape = DragonBoss.danger_escape(global_position, self)
 	if escape.is_finite():
 		_face(escape, delta, 14.0)
 		desired = escape * float(stats.speed) * 1.25
@@ -480,6 +484,11 @@ func _light_decor() -> bool:
 func _pick_target() -> Mob:
 	if hero.safe_zone:
 		return null
+	# The dragon tomb (DragonBoss): while the boss hides behind its crystals, the crystals.
+	if DragonBoss.active != null:
+		var crystal := DragonBoss.priority_target(global_position)
+		if crystal != null:
+			return crystal
 	var stance := String(member.get("stance", "follow"))
 	var best: Mob = null
 	if stance == "aggressive":
@@ -979,8 +988,12 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 			return 9.6
 		return 0.0
 	# A provoke is worth most while the hero is the one being hurt.
-	if fx.has("taunt") and (hero_hp < 0.6 or RaidBoss.wants_taunt(self, target)) and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
+	if fx.has("taunt") and (hero_hp < 0.6 or RaidBoss.wants_taunt(self, target) or DragonBoss.wants_taunt(self, target)) and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
 		return 8.5
+	# The dragon's claw is aimed at an unprotected mate: a party defence buff (a Priest's) now.
+	if String(skill.shape) == "self" and fx.get("buff") is Dictionary and float(fx.buff.get("def", 0.0)) > 0.0 \
+			and not BuffBook.is_self_only(fx.buff) and DragonBoss.wants_ward(self):
+		return 9.2
 	match String(skill.shape):
 		"summon":
 			# A summoner companion fights through its creatures: call them as soon as there is a fight.

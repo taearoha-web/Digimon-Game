@@ -156,6 +156,9 @@ const JEWELS := {
 	# The 250-star set's ring and amulet need these (SetGearData.recipe), dropped in
 	# the two 200-300 star fields (EndgameFields.SCALE_*).
 	"lotus_scale": {"name": "เกล็ดบัวดารา", "color": Color("f8a8dc"), "price": 30000},
+	# The mechanics dungeon's material (DungeonData.SCALE): dropped by its boss only and
+	# exchanged at the tomb keeper for dungeon-only gear.
+	"dragon_scale": {"name": "เกล็ดมังกรโบราณ", "color": Color("5cf28a"), "price": 40000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}

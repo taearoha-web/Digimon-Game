@@ -10,7 +10,9 @@ name: Deploy to Cloudflare (game + accounts)
 # the Workers Free plan); its binding and migration come from wrangler.example.jsonc.
 # The guild league's official round results (/api/league/*) live in the D1 table
 # toon_league_rounds, created by hosting/accounts/drizzle/0001_league_rounds.sql in the
-# "Apply database migrations" step below (keep apply_migrations on for that first deploy).
+# "Apply database migrations" step below (keep apply_migrations on for that first deploy);
+# the dragon tomb's weekly clear times (/api/dungeon/*) in toon_dungeon_times
+# (0002_dungeon_times.sql) the same way.
 # See hosting/CLOUDFLARE_TH.md for the step-by-step guide.
 on:
   workflow_dispatch:
@@ -163,6 +165,11 @@ jobs:
           league=$(curl -s "$SITE_URL/api/league/rounds?from=0&to=1")
           echo "GET /api/league/rounds -> $league"
           echo "$league" | grep -qE '^\{"rounds":\[\],"now":[0-9]+\}$' || { echo "::error::The league results endpoint did not answer {\"rounds\":[],\"now\":<unix>} (is migration 0001_league_rounds applied? Run with apply_migrations on)"; exit 1; }
+          # Dragon tomb weekly clear times: the toon_dungeon_times table (D1 migration 0002_dungeon_times).
+          week=$(( ( $(date +%s) / 86400 + 3 ) / 7 ))
+          tomb=$(curl -s "$SITE_URL/api/dungeon/times?week=$week")
+          echo "GET /api/dungeon/times -> $tomb"
+          echo "$tomb" | grep -qE '^\{"week":[0-9]+,"times":\[' || { echo "::error::The dungeon ranking endpoint did not answer {\"week\":<n>,\"times\":[...]} (is migration 0002_dungeon_times applied? Run with apply_migrations on)"; exit 1; }
           # Offline web app: the service worker must always be fetched fresh, as JavaScript.
           sw=$(curl -s -D - -o /tmp/sw.js "$SITE_URL/sw.js")
           echo "GET /sw.js ->"; echo "$sw" | grep -iE '^(HTTP|cache-control|content-type)' || true

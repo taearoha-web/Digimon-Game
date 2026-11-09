@@ -33,6 +33,8 @@ const LOOKS := {
 		"npc_outfit": ["Rogue", Color(0.55, 0.5, 0.75), "Rogue_Cape"], "npc_hat": ["kasa", Color.WHITE]},
 	"raid": {"gender": 0, "skin": 4, "hair": 5, "hair_color": 0, "eyes": 1, "eye_color": 5, "nose": 3, "mouth": 3,
 		"npc_outfit": ["Knight", Color(1.6, 0.4, 0.45), "Knight_Cape"], "npc_hat": ["hachimaki", Color("8a0f1e")]},
+	"dungeon": {"gender": 1, "skin": 6, "hair": 5, "hair_color": 9, "eyes": 1, "eye_color": 4, "nose": 2, "mouth": 3,
+		"npc_outfit": ["Mage", Color(0.5, 1.3, 0.75), "Mage_Cape"], "npc_hat": ["eboshi", Color("1e4a30")]},
 	"pet": {"gender": 1, "skin": 2, "hair": 2, "hair_color": 4, "eyes": 3, "eye_color": 2, "nose": 1, "mouth": 2,
 		"npc_outfit": ["Ranger", Color(0.75, 1.3, 0.7), ""], "npc_hat": ["kasa", Color("e6c65a")]},
 	"healer": {"gender": 1, "skin": 0, "hair": 6, "hair_color": 0, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0,

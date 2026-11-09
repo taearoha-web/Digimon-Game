@@ -257,6 +257,9 @@ static func get_zone(id: StringName) -> Dictionary:
 	# The guild halls are entered from the guild screen or the keep's door, by members only.
 	if GuildHallData.is_hall(id):
 		return GuildHallData.zone(id)
+	# So is the mechanics dungeon (DungeonData).
+	if id == DungeonData.ID:
+		return DungeonData.zone()
 	return ZONES.get(id, ZONES[&"meadow"])
 
 static func access_reason(id: StringName, level: int, stars: int) -> String:

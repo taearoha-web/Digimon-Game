@@ -403,3 +403,57 @@ too_many_requests` with `Retry-After`.
   placement and capture points ×2 from season `GuildLeague.FINAL_FROM_WEEK` on. HOLD and
   falls count once. The game applies this when it scores a round (`GuildLeague.side_points`).
   The server stores no multiplier and accepts none.
+
+## Dragon tomb: weekly clear times (`/api/dungeon/*`, plain HTTPS)
+
+The four-player mechanics dungeon สุสานมังกรโบราณ (`data/dungeon_data.gd`, `DungeonData`)
+ranks the best clear time of each party leader's account in a week (Monday 00:00 Thai, the
+guild league's week numbering, `GuildLeague.week_of`). Server: `hosting/worker/dungeon.mjs`;
+client: `data/dungeon_ranking.gd` (`DungeonRanking`), shown on the keeper's screen
+(`ui/dungeon_screen.gd`) with each party's class badges.
+
+No account or session is needed. Storage: the D1 table `toon_dungeon_times` (`week`,
+`leader` primary key; `name`, `secs`, `classes` JSON text, `at`), created by the migration
+`hosting/accounts/drizzle/0002_dungeon_times.sql`, applied with the account migrations.
+
+An entry:
+
+```json
+{"leader": "u:toonhero", "name": "น้องแมว", "secs": 271, "classes": ["warrior", "defender", "priest", "mage"], "at": 1794138300}
+```
+
+`leader` is the leader's account key (`u:<account>`, else `id:<online id>`; a device that
+never signed in uses `local:<hero>` and never reaches the server). `secs` is the clear time
+(30-3600). `classes` are the four party members' class ids, the leader first.
+
+### `GET /api/dungeon/times?week=<n>`
+
+Returns `200 {"week": n, "times": [entry...], "now": <server unix>}`: the week's stored
+times, fastest first (ties by who posted first), at most 50. A week before the world
+opened or more than one ahead is `400 invalid_week`.
+
+### `POST /api/dungeon/time` with `{"week", "leader", "name", "secs", "classes"}` (content-type application/json)
+
+- Checked strictly: only those keys, `week` in range, `leader` 1-64 characters, `secs` an
+  int in 30-3600, exactly four known classes. Otherwise `400 invalid_time`. The body may be
+  at most 2 KB (`413`); `name` is cut to 32 characters.
+- The best time per (week, leader) is kept: `201 {"stored": true, "time": entry}` when
+  this one was stored (new or faster), else `200 {"stored": false, "time": <the stored one>}`.
+- A cross-site `Origin` is `403 invalid_origin`.
+
+Both routes are limited per IP (`CF-Connecting-IP`, buckets in `toon_rate_limits`): 120
+GETs and 60 POSTs per 10 minutes. Over the limit gives `429 too_many_requests` with
+`Retry-After`.
+
+### Client (`DungeonRanking`)
+
+- The board is the best time per leader from three sources: the week's seeded
+  world-player parties (deterministic from the week alone, so every device shows the same
+  board and it is never empty; they post nothing), the server's times, and this device's
+  own best of the week (`record_clear`, kept in `user://toon_tale_dungeon.json`, not in the
+  save). The hero's real time slots in among them; the top 20 are shown.
+- Web build only (same-origin `fetch` through `JavaScriptBridge`, `LeagueRounds.WebLink`).
+  The week's times are fetched when the keeper's screen opens (at most every 30 s) and every
+  10 minutes; a clear is posted once when it beats the device's best of the week, retried
+  after 5 minutes when the server could not be reached, never again after a `400`. Native
+  builds, moved world clocks and offline pages skip the server and keep the local best.

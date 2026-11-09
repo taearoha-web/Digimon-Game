@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node tests/chat.test.mjs && node tests/online.test.mjs && node tests/league.test.mjs",
+    "test": "node tests/chat.test.mjs && node tests/online.test.mjs && node tests/league.test.mjs && node tests/dungeon.test.mjs",
     "test:e2e": "node tests/online_e2e.mjs"
   },
   "devDependencies": {
