@@ -28,6 +28,8 @@ var _e_stop := PackedFloat32Array()
 var _e_end := PackedFloat32Array()
 var _e_owner := PackedInt64Array()
 var _e_reserved := PackedInt32Array()
+## 1 where the hero's own room (VfxBudget) paid the reservation, handed back on release.
+var _e_hero := PackedByteArray()
 var _e_live := PackedByteArray()
 ## Rings: start, length, owner; each has its own material (parameters per use).
 var _rings: Array[MeshInstance3D] = []
@@ -36,6 +38,7 @@ var _r_start := PackedFloat32Array()
 var _r_len := PackedFloat32Array()
 var _r_owner := PackedInt64Array()
 var _r_live := PackedByteArray()
+var _r_hero := PackedByteArray()
 ## Lights: start, length, peak energy, mode (0 flash: fast rise, eased decay;
 ## 1 charge: rises over its length then cuts), owner.
 var _lights: Array[OmniLight3D] = []
@@ -51,6 +54,7 @@ var _h_start := 0.0
 var _h_len := 0.0
 var _h_owner := 0
 var _h_live := false
+var _h_hero := false
 var _active := 0
 var _watched: Dictionary = {}
 ## Test / probe counters.
@@ -147,6 +151,7 @@ func emitter(owner_id: int, amount: int, life: float, delay := 0.0, stream := 0.
 	_e_end[slot] = _e_stop[slot] + life * 1.35 + 0.1
 	_e_owner[slot] = owner_id
 	_e_reserved[slot] = reserved
+	_e_hero[slot] = 1 if VfxBudget.last_from_hero else 0
 	_e_live[slot] = 2 # armed: starts at _e_start
 	_active += 1
 	_wake()
@@ -169,6 +174,7 @@ func _free_emitter() -> int:
 		_e_end.append(0.0)
 		_e_owner.append(0)
 		_e_reserved.append(0)
+		_e_hero.append(0)
 		_e_live.append(0)
 		return _emitters.size() - 1
 	var oldest := 0
@@ -190,7 +196,7 @@ func _retire_emitter(i: int) -> void:
 	var p := _emitters[i]
 	p.emitting = false
 	p.visible = false
-	VfxBudget.release_particles(_e_reserved[i])
+	VfxBudget.release_particles(_e_reserved[i], _e_hero[i] == 1)
 	_e_reserved[i] = 0
 
 
@@ -224,6 +230,7 @@ func ring(owner_id: int, at: Vector3, radius: float, length: float, mid: Color, 
 		_r_len.append(0.0)
 		_r_owner.append(0)
 		_r_live.append(0)
+		_r_hero.append(0)
 		slot = _rings.size() - 1
 	if slot < 0:
 		slot = 0
@@ -249,7 +256,7 @@ func ring(owner_id: int, at: Vector3, radius: float, length: float, mid: Color, 
 	_r_len[slot] = maxf(0.08, length)
 	_r_owner[slot] = owner_id
 	_r_live[slot] = 2
-	VfxBudget.reserve_decoration()
+	_r_hero[slot] = 1 if VfxBudget.reserve_decoration() else 0
 	_active += 1
 	borrowed += 1
 	_wake()
@@ -262,7 +269,7 @@ func _retire_ring(i: int) -> void:
 	_r_live[i] = 0
 	_active -= 1
 	_rings[i].visible = false
-	VfxBudget.release_decoration()
+	VfxBudget.release_decoration(_r_hero[i] == 1)
 
 
 ## A flash (mode 0) or a rising charge (mode 1). Lights are the scarcest
@@ -339,7 +346,7 @@ func haze(owner_id: int, at: Vector3, size: float, length: float, tint: Color, d
 	_h_len = maxf(0.1, length)
 	_h_owner = owner_id
 	_h_live = true
-	VfxBudget.reserve_decoration()
+	_h_hero = VfxBudget.reserve_decoration()
 	_active += 1
 	borrowed += 1
 	_wake()
@@ -352,7 +359,7 @@ func _retire_haze() -> void:
 	_h_live = false
 	_active -= 1
 	_haze.visible = false
-	VfxBudget.release_decoration()
+	VfxBudget.release_decoration(_h_hero)
 
 
 # ---------------------------------------------------------------------------

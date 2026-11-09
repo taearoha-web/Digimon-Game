@@ -50,6 +50,9 @@ var generation := -1
 var _field_ref: WeakRef
 var _claimed := 0
 var _claimed_parts := 0
+## What the hero's own room (VfxBudget) paid of the claims above.
+var _claimed_hero := 0
+var _claimed_parts_hero := 0
 var _light_claimed := false
 var _slots: Array[MeshInstance3D] = []
 var _mats: Array[ShaderMaterial] = []
@@ -330,19 +333,25 @@ func _begin(at: Vector3, yaw: float, seconds: float) -> void:
 
 
 func _release_claims() -> void:
-	VfxBudget._decorations = maxi(0, VfxBudget._decorations - _claimed)
-	VfxBudget._particles = maxi(0, VfxBudget._particles - _claimed_parts)
+	for i in _claimed:
+		VfxBudget.release_decoration(i < _claimed_hero)
+	VfxBudget.release_particles(_claimed_parts - _claimed_parts_hero)
+	VfxBudget.release_particles(_claimed_parts_hero, true)
 	if _light_claimed:
 		VfxBudget._lights = maxi(0, VfxBudget._lights - 1)
 	_claimed = 0
 	_claimed_parts = 0
+	_claimed_hero = 0
+	_claimed_parts_hero = 0
 	_light_claimed = false
 
 
 func _claim(cost := 1) -> bool:
 	if not VfxBudget.can_decorate(cost + RESERVE):
 		return false
-	VfxBudget._decorations += cost
+	for i in cost:
+		if VfxBudget.reserve_decoration():
+			_claimed_hero += 1
 	_claimed += cost
 	return true
 
@@ -473,13 +482,17 @@ func emit(kind: int, count: int, at: Vector3, velocity: Vector3, spread: float, 
 	var want := VfxBudget.count(count if tier == 2 else maxi(1, count / 2), 0)
 	var s := _pset(kind)
 	var room := mini(want, PARTICLE_CAP - int(s.count))
-	room = mini(room, VfxBudget.particle_limit() - VfxBudget._particles)
+	room = mini(room, VfxBudget.particle_room())
 	if room <= 0:
 		return 0
 	if int(s.count) == 0 and not _claim():
 		return 0
-	VfxBudget._particles += room
+	room = VfxBudget.reserve_particles(room)
+	if room <= 0:
+		return 0
 	_claimed_parts += room
+	if VfxBudget.last_from_hero:
+		_claimed_parts_hero += room
 	var base := velocity.length()
 	var dir := velocity.normalized() if base > 0.001 else Vector3.UP
 	for k in room:

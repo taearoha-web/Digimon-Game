@@ -220,9 +220,9 @@ static func crystal(parent: Node3D, pos: Vector3, width: float, height: float, t
 		tween.tween_interval(delay)
 	tween.tween_property(mi, "scale", Vector3(width, height, width), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_interval(hold)
-	tween.tween_callback(func():
+	tween.tween_callback(VfxBudget.carry(func():
 		if is_instance_valid(mi) and mi.is_inside_tree():
-			shatter(mi.get_parent() as Node3D, mi.global_position + Vector3(0, height * 0.45, 0), width, 4))
+			shatter(mi.get_parent() as Node3D, mi.global_position + Vector3(0, height * 0.45, 0), width, 4)))
 	tween.tween_method(func(v: float): mat.set_shader_parameter("fade", v), 1.0, 0.0, 0.18)
 	tween.parallel().tween_property(mi, "scale", Vector3(width * 1.15, height * 0.6, width * 1.15), 0.18)
 	tween.tween_callback(mi.queue_free)
@@ -600,9 +600,9 @@ static func _mushroom(parent: Node3D, pos: Vector3, size: float, delay: float) -
 	var tween := holder.create_tween()
 	tween.tween_interval(delay)
 	tween.tween_property(holder, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_callback(func():
+	tween.tween_callback(VfxBudget.carry(func():
 		if is_instance_valid(holder) and holder.is_inside_tree():
-			VfxArt.motes(holder.get_parent() as Node3D, holder.global_position + Vector3(0, 0.8 * size, 0), Color("eef8a0"), "star", 6, 0.6, 1.2, 1.0))
+			VfxArt.motes(holder.get_parent() as Node3D, holder.global_position + Vector3(0, 0.8 * size, 0), Color("eef8a0"), "star", 6, 0.6, 1.2, 1.0)))
 	tween.tween_interval(0.9)
 	tween.tween_property(holder, "scale", Vector3(1.1, 0.01, 1.1), 0.2)
 	tween.tween_callback(holder.queue_free)

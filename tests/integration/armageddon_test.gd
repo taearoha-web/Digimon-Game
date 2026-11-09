@@ -184,7 +184,8 @@ func _actual_cast(use_companion: bool, rank: int, saturated: bool) -> void:
 			if essential:
 				check(essential.visible and essential.mesh != null and essential.material_override != null,
 					label + ": saturated " + essential_name + " remains renderable")
-		check(int(VfxBudget.counters().decorations) == VfxBudget.decoration_limit(), label + ": essential meteor does not consume cosmetic slots")
+		# The hero's own cosmetics may use the hero's room (VfxBudget); the shared slots stay as saturated.
+		check(int(VfxBudget.counters().decorations) - int(VfxBudget.hero_counters().decorations) == VfxBudget.decoration_limit(), label + ": essential meteor does not consume cosmetic slots")
 		await get_tree().create_timer(9.5 - float(skill.hit_delay) - 0.2).timeout
 	else:
 		await get_tree().create_timer(9.5).timeout
