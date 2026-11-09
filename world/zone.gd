@@ -45,6 +45,9 @@ const PERFECT_GEM_LEVEL := 80
 var zone_id: StringName = &"meadow"
 var data: Dictionary = {}
 var is_town := false
+## A guild hall (GuildHallData): safe like the village, built by GuildHall, with the
+## guild's mates, the steward and the training dummy (the only "monster", never a fight).
+var is_hall := false
 var is_pvp := false
 var gw_match: GuildWarMatch
 var is_tower := false
@@ -186,13 +189,16 @@ func _ready() -> void:
 			mob.died.connect(_on_mob_died)
 			mob.phase_changed.connect(_on_boss_phase))
 	data = ZoneData.get_zone(zone_id)
-	is_town = bool(data.get("safe", false))
+	is_hall = bool(data.get("hall", false))
+	is_town = bool(data.get("safe", false)) and not is_hall
 	is_pvp = bool(data.get("pvp", false))
 	is_tower = bool(data.get("tower", false))
 	# The shared surface textures follow the quality chosen now (none on low quality).
 	SurfaceKit.refresh()
 	await _slice()
-	if is_town:
+	if is_hall:
+		await _build_hall()
+	elif is_town:
 		await _build_town()
 	elif is_pvp and bool(data.get("guildwar", false)):
 		_build_siege()
@@ -201,7 +207,7 @@ func _ready() -> void:
 	else:
 		await _build_field()
 	# The sky, light and air of the zone's mood (before DayNight captures the designed look).
-	SkyArt.dress(self, zone_id, StringName(data.get("theme", &"")), TOWN_RADIUS if is_town else field_radius)
+	SkyArt.dress(self, zone_id, StringName(data.get("theme", &"")), TOWN_RADIUS if is_town else (GuildHall.RADIUS if is_hall else field_radius))
 	if DayNight.follows(zone_id) and _env != null:
 		day_night = DayNight.attach(self, _env, TOWN_RADIUS if is_town else field_radius, 1.0 if is_town else 0.0)
 	_phase("build_world")
@@ -272,12 +278,16 @@ func _ready() -> void:
 				spawned += 1
 				await _slice()
 	_phase("spawn_mobs")
-	if WorldPresence.enabled and not is_pvp and not is_tower and not bool(data.get("arena", false)):
+	if WorldPresence.enabled and not is_pvp and not is_tower and not is_hall and not bool(data.get("arena", false)):
 		presence = WorldPresence.new()
 		presence.setup(self)
 		add_child(presence)
 		_phase("world_players")
-	if PetData.allowed_in(data):
+	if is_hall:
+		# The guild's mates idle and talk in the hall (a crowd of its own, not WorldPresence).
+		await _spawn_hall_mates()
+		_phase("hall_mates")
+	if PetData.allowed_in(data) and not is_hall:
 		pet_crowd = PetCrowd.new()
 		pet_crowd.setup(self)
 		add_child(pet_crowd)
@@ -368,6 +378,8 @@ func _process(delta: float) -> void:
 		_weather.global_position = Vector3(hero.global_position.x, _weather.position.y, hero.global_position.z)
 	if is_town:
 		_tick_pet_quest()
+		return
+	if is_hall:
 		return
 	# Another member hosts the monsters (EntitySync mirror): none of our own.
 	if sync != null and sync.is_mirror():
@@ -686,6 +698,8 @@ func _build_town() -> void:
 	for stall in JapanVillage.STALLS:
 		clear.append(Vector3(stall.x, stall.z, 1.6))
 		yards.append(Vector3(stall.x, stall.z, 1.6))
+	clear.append(Vector3(JapanVillage.HALL_DOOR.x, JapanVillage.HALL_DOOR.z, 3.0))
+	yards.append(Vector3(JapanVillage.HALL_DOOR.x, JapanVillage.HALL_DOOR.z, 3.0))
 	for v in villagers:
 		var spot: Vector3 = v[4]
 		yards.append(Vector3(spot.x, spot.z, 3.0))
@@ -718,6 +732,77 @@ func _build_town() -> void:
 	board.setup("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน")
 	npcs.append(board)
 	_add_warp(JapanVillage.WARP, "จุดวาปข้ามแมพ / กลับเมือง")
+	# The door to the guild halls at the foot of the keep's steps (members only).
+	var door := HallDoor.new()
+	door.position = JapanVillage.HALL_DOOR
+	add_child(door)
+	door.setup("hall_door", "ประตูโถงกิลด์", &"warrior", "เฉพาะสมาชิกกิลด์")
+	npcs.append(door)
+
+
+## The guild hall (GuildHall): the room in the guild's colours, the steward, the notice
+## board, the rest area, the training dummy, the warp stone and the way back to the village.
+func _build_hall() -> void:
+	var g := int(data.get("guild", 0))
+	var look := {"theme": &"village", "palette": [Color("1e1a2c"), Color("4a3c4c"), Color("8a6c5c")], "sun_size": 0.5,
+		"sun_color": Color("ffe2b0"), "cloud_range": Vector2(100.0, 150.0), "cloud_height": Vector2(12.0, 24.0)}
+	_env = Scenery.environment(self, Color("2b2438"), Color("6a5658"), Color("e2cfb8"), Color("ffe2b0"), look)
+	_start = GuildHall.START
+	await _slice()
+	await GuildHall.build(self, g, get_tree() if staged else null)
+	portals = [{"to": &"town", "pos": GuildHall.EXIT, "label": "กลับหมู่บ้าน", "level": 1}]
+	_make_portal(portals[0])
+	await _slice()
+	_add_warp(GuildHall.WARP, "จุดวาปข้ามแมพ / กลับเมือง")
+	_add_npc("steward", GuildHallData.STEWARD, &"warrior", "พรแห่งโถง · ตารางสงคราม · สมัครรบ", GuildHall.STEWARD, "Knight", GuildHall.STEWARD + Vector3(1.0, 0, 20.0))
+	await _slice()
+	var board := NoticeBoard.new()
+	board.position = GuildHall.NOTICE
+	board.rotation.y = -PI * 0.5
+	add_child(board)
+	board.setup("hall_notice", "กระดานประกาศกิลด์", &"mage", "ข้อความจากหัวหน้ากิลด์ %s" % WorldPlayers.guild_name(g))
+	npcs.append(board)
+	var rest := HallRestSpot.new()
+	rest.position = GuildHall.REST + Vector3(0, 0.12, -1.6)
+	add_child(rest)
+	rest.setup("hall_rest", "ลานพักกิลด์", &"priest", "นั่งพักรับ%s" % GuildHallData.BUFF_NAME)
+	npcs.append(rest)
+	await _slice()
+
+
+## The guild mates of the hall (GuildHallData.mates): one body a frame, each on a spot of
+## its own to start with.
+func _spawn_hall_mates() -> void:
+	var g := int(data.get("guild", 0))
+	var t := WorldPresence.clock()
+	# The training dummy stands in its ring (the hero is here now to be its "foe").
+	var dummy := TrainingDummy.new()
+	dummy.setup_dummy(GuildHall.DUMMY, hero)
+	dummy.position = GuildHall.DUMMY
+	add_child(dummy)
+	dummy.rotation.y = PI
+	await _slice()
+	var ids := GuildHallData.mates(g, t)
+	var spots := GuildHall.SPOTS.duplicate()
+	for k in ids.size():
+		var i: int = ids[k]
+		if Game.in_party(i):
+			continue
+		var mate := HallMate.new()
+		mate.setup_hall(i, WorldPlayers.member(i, t), hero, self, g, GuildHall.SPOTS, hash("hall|%d|%d" % [g, i]))
+		add_child(mate)
+		var spot: Vector3 = spots[(k * 5 + int(t / 3600.0)) % spots.size()]
+		mate.global_position = spot + Vector3(0, 0.3, 0)
+		await _slice()
+
+
+## The guild mates standing in the hall now.
+func hall_mates() -> Array[HallMate]:
+	var out: Array[HallMate] = []
+	for node in get_tree().get_nodes_in_group("world_players"):
+		if node is HallMate and is_instance_valid(node):
+			out.append(node)
+	return out
 
 
 ## The villagers: role, name, class, title, where they stand, model, the point they face.
@@ -822,20 +907,20 @@ func _spawn_hero() -> void:
 	hero.name = "Hero"
 	hero.field = self
 	hero.safe_zone = is_town
-	hero.field_radius = TOWN_RADIUS if is_town else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius)
-	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else Rect2()
+	hero.field_radius = TOWN_RADIUS if is_town else (GuildHall.RADIUS if is_hall else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius))
+	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else (GuildHall.rect() if is_hall else Rect2())
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":
 		spawn = _spawn_for(String(Game.profile["spawn_override"]))
 		Game.profile["spawn_override"] = ""
 	hero.global_position = spawn + Vector3(0, 0.2, 0)
-	hero.set_facing(PI * 0.5 if not is_town else PI)
+	hero.set_facing(PI * 0.5 if not (is_town or is_hall) else PI)
 	camera_rig = ThirdPersonCamera.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = hero
-	BattleVfx.text_scale = 1.0 if is_town else 1.8
-	if is_town:
+	BattleVfx.text_scale = 1.0 if is_town or is_hall else 1.8
+	if is_town or is_hall:
 		camera_rig.pitch_degrees = -22.0
 		camera_rig.distance = 8.0
 		camera_rig.max_distance = 15.0
@@ -854,7 +939,7 @@ func _spawn_hero() -> void:
 		camera_rig.far_plane = 150.0
 	add_child(camera_rig)
 	camera_rig.add_excluded_body(hero)
-	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
+	camera_rig.set_yaw_behind(PI * 1.5 if not (is_town or is_hall) else 0.0)
 	camera_rig.snap_to_target()
 	hero.camera_rig = camera_rig
 	# A ranked duel ends through PvpMatch, a duel with a real player through OnlineDuel

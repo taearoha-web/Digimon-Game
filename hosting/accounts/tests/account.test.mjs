@@ -340,6 +340,23 @@ test('the weekly guild league record is accepted', async t => {
   }
 });
 
+test('the guild hall notice (hall_notice) and the hall blessing flags are accepted, a long or non-text notice is not', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const hall = {...sample(), flags: {...(sample().flags ?? {}), guild: 2, guild4: 1, hall_until: 1794300000, hall_tier: 1},
+    hall_notice: 'นัดรวมพลรอบ 21:30 คืนนี้ ยาเต็มกระเป๋า เราจะเอาปราสาทมาให้ได้!'};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(hall)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const read = await call('save', {cookie: account.cookie});
+  assert.equal(read.status, 200);
+  assert.equal(read.body.bundle.slots['1'].hall_notice, hall.hall_notice);
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), hall_notice: ''})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), hall_notice: 'ก'.repeat(160)})));
+  for (const bad of [{...sample(), hall_notice: 'ก'.repeat(161)}, {...sample(), hall_notice: 5}, {...sample(), hall_notice: ['x']}]) {
+    assert.throws(() => validateBundle(bundle(bad)), /guild hall notice/);
+  }
+});
+
 test('the league emperor bonus season (emp_claimed) is accepted and checked like the other season numbers', async t => {
   const {register, call} = harness(t);
   const account = await register();

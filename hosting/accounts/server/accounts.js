@@ -235,6 +235,8 @@ function validateProfile(profile) {
   // The reward exchange (RewardShop in the game): league coins, event points, the unlocked
   // cosmetics and what is worn, the stones bought this week and the rounds already paid.
   if ('rshop' in profile && !validRewardShop(profile.rshop)) fail(400, 'invalid_save', 'The reward shop record is invalid.');
+  // The guild hall's notice the hero wrote as its guild's leader (GuildHallData.NOTICE_MAX).
+  if ('hall_notice' in profile && (typeof profile.hall_notice !== 'string' || profile.hall_notice.length > HALL_NOTICE_MAX)) fail(400, 'invalid_save', 'The guild hall notice is invalid.');
   // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
   if ('dpass' in profile) {
     const pass = profile.dpass;
@@ -258,6 +260,8 @@ function validateProfile(profile) {
 
 // The world's guilds: Alpha 1, Neverdie 2, Titan 3, 3DLnw 4 (WorldPlayers.GUILDS in the game).
 const GUILD_COUNT = 4;
+// The guild hall notice (GuildHallData.NOTICE_MAX in the game: keep the two equal).
+const HALL_NOTICE_MAX = 160;
 const GUILD_ID = /^[1-4]$/;
 // reg: the start (unix) of the league round the hero registered for; told: the round it was told about;
 // emp_claimed: the season whose emperor bonus (League Champion and Castle King both) was taken

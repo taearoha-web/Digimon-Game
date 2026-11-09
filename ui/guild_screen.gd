@@ -9,6 +9,8 @@ extends CanvasLayer
 signal closed()
 ## The member taps "ไปสงครามกิลด์": main opens the guild-war desk.
 signal war_requested()
+## "เข้าโถงกิลด์": the hero wants its guild's hall (GuildHallData; Main takes it there).
+signal hall_requested()
 
 const REFRESH := 10.0
 ## Member cards a guild column builds at most (see _guild_column).
@@ -142,6 +144,12 @@ func _build() -> void:
 			close_screen()
 			war_requested.emit())
 		head.add_child(war)
+		var hall := UIUtil.button("เข้าโถงกิลด์", &"AccentButton", Vector2(170, 60))
+		hall.name = "GoHall"
+		hall.pressed.connect(func():
+			close_screen()
+			hall_requested.emit())
+		head.add_child(hall)
 		var other := "roster" if view != "roster" else "quests"
 		var tab := UIUtil.button("รายชื่อสมาชิก" if other == "roster" else "ภารกิจกิลด์", &"PrimaryButton" if other == "quests" else &"", Vector2(170, 60))
 		tab.name = "GuildRoster" if other == "roster" else "GuildQuests"

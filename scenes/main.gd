@@ -104,6 +104,7 @@ func _ready() -> void:
 	guild_screen = GuildScreen.new()
 	add_child(guild_screen)
 	guild_screen.war_requested.connect(func(): guildwar_screen.open_lobby())
+	guild_screen.hall_requested.connect(_enter_hall)
 	registry = RegistryScreen.new()
 	add_child(registry)
 	online_screen = OnlineScreen.new()
@@ -567,6 +568,14 @@ func _on_npc(role: String) -> void:
 			choices.append({"label": "ลีกกิลด์ / ร้านลับราชันปราสาท" if GuildLeague.hero_champion() else "ลีกกิลด์รายสัปดาห์", "action": func(): guild_screen.open_league()})
 			choices.append({"label": "ไว้ก่อน"})
 			dialog.say("นายทะเบียนกิลด์", text, choices)
+		"hall_door":
+			_enter_hall()
+		"steward":
+			_talk_steward()
+		"hall_notice":
+			_talk_hall_notice()
+		"hall_rest":
+			_rest_in_hall()
 		"tower":
 			tower_screen.open_lobby()
 		"raid":
@@ -596,6 +605,132 @@ func _on_npc(role: String) -> void:
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+
+
+## The guild hall (GuildHallData): a member goes into its own guild's hall; anyone else is
+## told, in the door's words, who the hall is for.
+func _enter_hall() -> void:
+	var g := Game.guild()
+	var id := GuildHallData.id_of(g) if g > 0 else GuildHallData.id_of(WorldPlayers.ALPHA)
+	var problem := GuildHallData.enter_problem(id)
+	if problem != "":
+		if dialog.is_open:
+			dialog.close()
+		dialog.say("ประตูโถงกิลด์", problem)
+		return
+	if zone != null and zone.is_hall and zone.zone_id == id:
+		Game.say("เจ้าอยู่ในโถงกิลด์อยู่แล้ว", &"info")
+		return
+	go(id, false, true)
+
+
+## The steward (พ่อบ้านกิลด์): the blessing, the next war and registration for it.
+func _talk_steward() -> void:
+	var g := Game.guild()
+	var t := WorldPresence.clock()
+	var text := "%s\n\n%s" % [GuildHallData.buff_text(g, t), GuildHallData.war_text(t)]
+	var next := GuildLeague.next_slot(t)
+	var choices: Array = []
+	if GuildLeague.registered(next):
+		choices.append({"label": "ยกเลิกสมัครรอบ %s" % GuildLeague.clock_text(next), "action": func():
+			var result := GuildLeague.unregister()
+			Game.say("ยกเลิกการสมัครรอบ %s แล้ว" % GuildLeague.clock_text(next) if result == "ok" else result, &"info" if result == "ok" else &"warning")})
+	else:
+		choices.append({"label": "สมัครรอบ %s" % GuildLeague.clock_text(next), "action": func():
+			var result := GuildLeague.register()
+			if result == "ok":
+				AudioManager.play_ui(&"ui_open")
+				Game.say("สมัครสงครามกิลด์รอบ %s แล้ว — เริ่มเมื่อไหร่จะแจ้งเตือน" % GuildLeague.clock_text(next), &"success")
+			else:
+				Game.say(result, &"warning")})
+	choices.append({"label": "ไปสงครามกิลด์", "action": func(): guildwar_screen.open_lobby()})
+	choices.append({"label": "ลีกกิลด์", "action": func(): guild_screen.open_league()})
+	choices.append({"label": "ไว้ก่อน"})
+	dialog.say(GuildHallData.STEWARD, text, choices)
+
+
+## The hall's notice board: the leader's message; the hero writes it when it leads.
+func _talk_hall_notice() -> void:
+	var g := Game.guild()
+	var t := WorldPresence.clock()
+	var notice := GuildHallData.notice(g, t)
+	var text := "%s\n\n— %s, หัวหน้ากิลด์ %s" % [String(notice.text), String(notice.by), WorldPlayers.guild_name(g)]
+	var choices: Array = []
+	if bool(notice.mine):
+		choices.append({"label": "เขียนประกาศ", "action": _write_hall_notice})
+	choices.append({"label": "ปิด"})
+	dialog.say("กระดานประกาศกิลด์", text, choices)
+
+
+var _notice_box: CanvasLayer
+
+
+## A typing bar for the leader's notice (GuildHallData.set_notice).
+func _write_hall_notice() -> void:
+	if is_instance_valid(_notice_box):
+		_notice_box.queue_free()
+	_notice_box = CanvasLayer.new()
+	_notice_box.layer = 70
+	add_child(_notice_box)
+	var panel := UIUtil.panel(&"GlassPanel")
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -340
+	panel.offset_right = 340
+	panel.offset_top = 16
+	_notice_box.add_child(panel)
+	var column := UIUtil.vbox(8)
+	panel.add_child(column)
+	column.add_child(UIUtil.label("ประกาศถึงสมาชิกกิลด์ %s (ไม่เกิน %d ตัวอักษร)" % [WorldPlayers.guild_name(Game.guild()), GuildHallData.NOTICE_MAX], &"BoldLabel"))
+	var row := UIUtil.hbox(8)
+	column.add_child(row)
+	var edit := LineEdit.new()
+	edit.name = "NoticeText"
+	edit.placeholder_text = "เช่น นัดรวมพลรอบ 21:30 คืนนี้"
+	edit.max_length = GuildHallData.NOTICE_MAX
+	edit.text = String(Game.profile.get(GuildHallData.NOTICE_KEY, ""))
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.custom_minimum_size = Vector2(0, 52)
+	row.add_child(edit)
+	var save := UIUtil.button("บันทึก", &"PrimaryButton", Vector2(120, 52))
+	row.add_child(save)
+	var shut := UIUtil.button("ยกเลิก", &"", Vector2(100, 52))
+	row.add_child(shut)
+	var finish := func(text: String, write: bool):
+		if is_instance_valid(_notice_box):
+			_notice_box.queue_free()
+		_notice_box = null
+		if not write:
+			return
+		var result := GuildHallData.set_notice(text)
+		if result == "ok":
+			AudioManager.play_ui(&"ui_open")
+			Game.say("ติดประกาศบนกระดานกิลด์แล้ว", &"success")
+		else:
+			Game.say(result, &"warning")
+	save.pressed.connect(func(): finish.call(edit.text, true))
+	edit.text_submitted.connect(func(t: String): finish.call(t, true))
+	shut.pressed.connect(func(): finish.call("", false))
+	edit.grab_focus()
+
+
+## The rest area: HP and MP back, and the hall's blessing (once per half hour).
+func _rest_in_hall() -> void:
+	var g := Game.guild()
+	var t := WorldPresence.clock()
+	var stats := Game.stats_now()
+	Game.profile.hp = stats.max_hp
+	Game.profile.mp = stats.max_mp
+	var result := GuildHallData.grant(t)
+	if result == "ok":
+		if zone != null and zone.hero != null:
+			VfxKit.heal(zone, zone.hero.global_position, GuildLeague.CROWN_COLOR)
+			zone.hero.refresh_stats()
+		AudioManager.play_sfx(&"heal")
+		dialog.say("ลานพักกิลด์", "นั่งพักสักครู่... HP และ MP ฟื้นเต็ม และได้รับ%s %s นาน %d นาที ขอให้ล่าโชคดี!" % [
+			GuildHallData.BUFF_NAME, GuildHallData.tier_text(GuildHallData.tier(t)), GuildHallData.BUFF_TIME / 60])
+	else:
+		dialog.say("ลานพักกิลด์", "HP และ MP ฟื้นเต็มแล้ว แต่%s" % result)
 
 
 ## The pet keeper: before a pet is chosen it offers the three; afterwards it talks about

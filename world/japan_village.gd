@@ -38,6 +38,8 @@ const SWEETS := Vector3(55, 0, 14)
 ## walkway between the keepers, booths behind them, then room to reach the shop doors.
 const STALL_ROW := 5.0
 const GUILD_HALL := Vector3(40, 0, 29)
+## The door to the guild halls (HallDoor) at the foot of the keep's steps, between the registrars.
+const HALL_DOOR := Vector3(40, 0, 37.8)
 const RING := Vector3(40, 0, 53)
 const POND := Vector3(-30, 0, 54)
 ## The warp crystal and the daily notice board, either side of the plaza's south entry.
