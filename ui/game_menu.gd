@@ -7,9 +7,11 @@ signal closed()
 signal title_requested()
 ## The party raid (RaidData) from the menu: Main opens its keeper's screen.
 signal raid_requested()
+## The mechanics dungeon (DungeonData) from the menu: Main opens its keeper's screen.
+signal dungeon_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -66,10 +68,19 @@ func _ready() -> void:
 	frame.add_child(panel)
 	var row := UIUtil.hbox(14)
 	panel.add_child(row)
-	# Ten tabs and the close button must fit a 720 px tall phone screen.
+	# The tab column scrolls (many tabs never fit a phone screen in landscape); the close
+	# button stays below it, always on screen.
+	var column := UIUtil.vbox(8)
+	column.custom_minimum_size = Vector2(190, 0)
+	row.add_child(column)
+	# TouchScroll: a finger drag anywhere on the column scrolls it, even from a button.
+	var tab_scroll := TouchScroll.new()
+	tab_scroll.name = "TabScroll"
+	tab_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(tab_scroll)
 	var tabs := UIUtil.vbox(8 if TABS.size() <= 8 else 5)
-	tabs.custom_minimum_size = Vector2(190, 0)
-	row.add_child(tabs)
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_scroll.add_child(tabs)
 	for tab in TABS:
 		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54 if TABS.size() <= 8 else 46))
 		b.pressed.connect(func(): show_tab(StringName(tab[0])))
@@ -81,14 +92,37 @@ func _ready() -> void:
 		close_menu()
 		raid_requested.emit())
 	tabs.add_child(raid)
-	tabs.add_child(UIUtil.spacer(false))
-	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 66))
+	var tomb := UIUtil.button(DungeonData.SHORT, &"", Vector2(0, 54 if TABS.size() <= 8 else 46))
+	tomb.add_theme_color_override("font_color", Color("8af0b0"))
+	tomb.pressed.connect(func():
+		close_menu()
+		dungeon_requested.emit())
+	tabs.add_child(tomb)
+	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 60))
+	close.name = "CloseMenu"
 	close.pressed.connect(close_menu)
-	tabs.add_child(close)
+	column.add_child(close)
 	_content = Control.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_child(_content)
+	# Room on the right for the corner close button (X) above the content.
+	var gutter := Control.new()
+	gutter.custom_minimum_size = Vector2(40, 0)
+	gutter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(gutter)
+	# A close button in the top-right corner too, always on screen.
+	var corner := UIUtil.button("✕", &"PrimaryButton", Vector2(60, 60))
+	corner.name = "CloseCorner"
+	corner.anchor_left = 1.0
+	corner.anchor_right = 1.0
+	corner.offset_left = -62
+	corner.offset_right = -2
+	corner.offset_top = 2
+	corner.offset_bottom = 62
+	corner.add_theme_font_size_override("font_size", 30)
+	corner.pressed.connect(close_menu)
+	frame.add_child(corner)
 	Game.profile_changed.connect(_queue_rebuild)
 	Game.inventory_changed.connect(_queue_rebuild)
 	Game.quest_changed.connect(_queue_rebuild)
@@ -176,6 +210,11 @@ func _rebuild() -> void:
 			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_content.add_child(page)
 			_page_scroll = LeagueView.build(page, _queue_rebuild) as TouchScroll
+		&"reward":
+			var page := UIUtil.vbox(8)
+			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_content.add_child(page)
+			_page_scroll = RewardShopView.build(page, _queue_rebuild) as TouchScroll
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
@@ -236,6 +275,12 @@ func _build_character() -> void:
 		party_line.name = "PartyRoles"
 		party_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		left.add_child(party_line)
+	# The reward exchange's two currencies (RewardShop), beside the gold.
+	var wallet := UIUtil.label("เหรียญ %s · %s %d · %s %d" % [GuildScreen._num(int(p.gold)), RewardShop.COIN_NAME, RewardShop.coins(), RewardShop.POINT_NAME, RewardShop.points()], &"SmallLabel")
+	wallet.name = "Wallet"
+	wallet.add_theme_color_override("font_color", RewardShop.COIN_COLOR.lerp(Color.WHITE, 0.3))
+	wallet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(wallet)
 	var points := UIUtil.label("แต้มสถานะที่ใช้ได้: %d" % int(p.points), &"SubHeaderLabel")
 	left.add_child(points)
 	left.add_child(UIUtil.label("กรอกจำนวนแต้ม แล้วกดเพิ่มที่ค่าสถานะที่ต้องการ", &"SmallLabel"))
@@ -1342,6 +1387,27 @@ func _build_quests() -> void:
 		if status == "active" or status == "ready":
 			col.add_child(UIUtil.label("ความคืบหน้า: %d / %d  (%s)" % [int(Game.quest_state(id).get("progress", 0)), int(quest.count), MonsterData.get_monster(StringName(quest.target)).name], &"DimLabel"))
 		col.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d" % [int(quest.exp), int(quest.gold)], &"DimLabel"))
+	# บทที่ 2 (StoryChapter2): the endgame chain from the scholar, ★200 to ★300.
+	box.add_child(UIUtil.label("%s (รับจาก%s ข้างเจดีย์ในหมู่บ้าน · ดาว 200-300)" % [StoryChapter2.TITLE, StoryChapter2.role_name("scholar")], &"SubHeaderLabel"))
+	for id in StoryChapter2.ORDER:
+		var quest := StoryChapter2.get_quest(id)
+		var status := StoryChapter2.status(id)
+		var panel := UIUtil.panel(&"CardPanel")
+		box.add_child(panel)
+		var col := UIUtil.vbox(2)
+		panel.add_child(col)
+		var state_text: String = {"new": "ยังไม่ได้รับ", "active": "กำลังทำ", "ready": "เสร็จแล้ว — กลับไปรายงาน", "done": "สำเร็จแล้ว"}[status]
+		var title := UIUtil.label("%s  (ดาว %d+)  — %s" % [quest.name, int(quest.star), state_text], &"BoldLabel")
+		if status == "done":
+			title.add_theme_color_override("font_color", UIPalette.SUCCESS)
+		col.add_child(title)
+		var detail := UIUtil.label(quest.desc, &"SmallLabel")
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(detail)
+		if status == "active" or status == "ready":
+			col.add_child(UIUtil.label("ตอนนี้: %s" % StoryChapter2.objective_text(id), &"DimLabel"))
+		var pay := StoryChapter2.reward(id)
+		col.add_child(UIUtil.label("รางวัล: EXP %d • เหรียญ %d • วัตถุดิบจากวิหารบัวดาราและห้วงสมุทรอสูร%s" % [int(pay.exp), int(pay.gold), " • ตำแหน่ง \"%s\" และรัศมีดาวเงา" % StoryChapter2.END_TITLE if id == StoryChapter2.FINALE else ""], &"DimLabel"))
 
 
 # ---------------------------------------------------------------------------

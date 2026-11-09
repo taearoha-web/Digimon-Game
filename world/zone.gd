@@ -16,6 +16,11 @@ signal guildwar_finished(result: Dictionary)
 signal tower_finished(result: Dictionary)
 ## A party raid entry ended (RaidRun result).
 signal raid_finished(result: Dictionary)
+## The chapter 2 throne stage (StoryStage) was won, and the queen's lines in it.
+signal story_stage_finished(result: Dictionary)
+signal story_speech(speaker: String, text: String)
+## A mechanics dungeon entry ended (DragonRun result).
+signal dungeon_finished(result: Dictionary)
 
 const FIELD_RADIUS := 52.0
 ## The hunting fields (Lv.1 meadow to the Lv.100 void) are wider, with their outer camps
@@ -40,8 +45,14 @@ const PERFECT_GEM_CHANCE := 0.05
 const PERFECT_GEM_LEVEL := 80
 
 var zone_id: StringName = &"meadow"
+## The zone the online server hears (Online.current_zone, EntitySync), when it is not
+## zone_id: a league round's war is fought in its round's room (GuildLeague.war_room).
+var online_id: StringName = &""
 var data: Dictionary = {}
 var is_town := false
+## A guild hall (GuildHallData): safe like the village, built by GuildHall, with the
+## guild's mates, the steward and the training dummy (the only "monster", never a fight).
+var is_hall := false
 var is_pvp := false
 var gw_match: GuildWarMatch
 var is_tower := false
@@ -49,8 +60,12 @@ var tower_run: TowerRun
 var tower_start_floor := 1
 ## The party raid (RaidData) running here; its zone is tower-like (no world players).
 var raid_run: RaidRun
+## The chapter 2 finale stage (StoryChapter2.STAGE_ID), null elsewhere.
+var story_stage: StoryStage
 ## A fixed seed for the raid's rolls (tests); 0 picks a new one.
 var raid_seed := 0
+## The mechanics dungeon (DungeonData) running here; tower-like too (no world players).
+var dungeon_run: DragonRun
 var pvp_match: PvpMatch
 var hero: Hero
 ## The hero's pet (PetData), when it has one and pets come along here (PetData.allowed_in).
@@ -181,13 +196,16 @@ func _ready() -> void:
 			mob.died.connect(_on_mob_died)
 			mob.phase_changed.connect(_on_boss_phase))
 	data = ZoneData.get_zone(zone_id)
-	is_town = bool(data.get("safe", false))
+	is_hall = bool(data.get("hall", false))
+	is_town = bool(data.get("safe", false)) and not is_hall
 	is_pvp = bool(data.get("pvp", false))
 	is_tower = bool(data.get("tower", false))
 	# The shared surface textures follow the quality chosen now (none on low quality).
 	SurfaceKit.refresh()
 	await _slice()
-	if is_town:
+	if is_hall:
+		await _build_hall()
+	elif is_town:
 		await _build_town()
 	elif is_pvp and bool(data.get("guildwar", false)):
 		_build_siege()
@@ -196,7 +214,7 @@ func _ready() -> void:
 	else:
 		await _build_field()
 	# The sky, light and air of the zone's mood (before DayNight captures the designed look).
-	SkyArt.dress(self, zone_id, StringName(data.get("theme", &"")), TOWN_RADIUS if is_town else field_radius)
+	SkyArt.dress(self, zone_id, StringName(data.get("theme", &"")), TOWN_RADIUS if is_town else (GuildHall.RADIUS if is_hall else field_radius))
 	if DayNight.follows(zone_id) and _env != null:
 		day_night = DayNight.attach(self, _env, TOWN_RADIUS if is_town else field_radius, 1.0 if is_town else 0.0)
 	_phase("build_world")
@@ -242,12 +260,23 @@ func _ready() -> void:
 		raid_run.setup(self, hero, raid_seed)
 		raid_run.finished.connect(func(result: Dictionary): raid_finished.emit(result))
 		add_child(raid_run)
+	elif bool(data.get("dungeon", false)):
+		dungeon_run = DragonRun.new()
+		dungeon_run.setup(self, hero, raid_seed)
+		dungeon_run.finished.connect(func(result: Dictionary): dungeon_finished.emit(result))
+		add_child(dungeon_run)
 	elif is_tower:
 		Game.tower_begin_run()
 		tower_run = TowerRun.new()
 		tower_run.setup(self, hero, tower_start_floor)
 		tower_run.finished.connect(func(result: Dictionary): tower_finished.emit(result))
 		add_child(tower_run)
+	elif bool(data.get("story_stage", false)):
+		story_stage = StoryStage.new()
+		story_stage.setup(self, hero)
+		story_stage.finished.connect(func(result: Dictionary): story_stage_finished.emit(result))
+		story_stage.speech.connect(func(speaker: String, text: String): story_speech.emit(speaker, text))
+		add_child(story_stage)
 	await _slice()
 	AudioManager.play_music(data.get("music", &"meadow"))
 	AudioManager.play_ambient(data.get("ambience", &""), -14.0)
@@ -261,12 +290,16 @@ func _ready() -> void:
 				spawned += 1
 				await _slice()
 	_phase("spawn_mobs")
-	if WorldPresence.enabled and not is_pvp and not is_tower and not bool(data.get("arena", false)):
+	if WorldPresence.enabled and not is_pvp and not is_tower and not is_hall and not bool(data.get("arena", false)):
 		presence = WorldPresence.new()
 		presence.setup(self)
 		add_child(presence)
 		_phase("world_players")
-	if PetData.allowed_in(data):
+	if is_hall:
+		# The guild's mates idle and talk in the hall (a crowd of its own, not WorldPresence).
+		await _spawn_hall_mates()
+		_phase("hall_mates")
+	if PetData.allowed_in(data) and not is_hall:
 		pet_crowd = PetCrowd.new()
 		pet_crowd.setup(self)
 		add_child(pet_crowd)
@@ -283,6 +316,11 @@ func _ready() -> void:
 
 
 ## True while this zone is a guild war being watched (GuildWarSpectate), not fought.
+## The zone's id on the online server (online_id, else zone_id).
+func net_id() -> StringName:
+	return online_id if online_id != &"" else zone_id
+
+
 func watching() -> bool:
 	return gw_match != null and is_instance_valid(gw_match) and gw_match.spectating()
 
@@ -358,6 +396,8 @@ func _process(delta: float) -> void:
 	if is_town:
 		_tick_pet_quest()
 		return
+	if is_hall:
+		return
 	# Another member hosts the monsters (EntitySync mirror): none of our own.
 	if sync != null and sync.is_mirror():
 		return
@@ -412,7 +452,8 @@ func _build_field() -> void:
 	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID:
 		await _build_star_field()
 		return
-	if not is_tower and not bool(data.get("arena", false)):
+	var story := bool(data.get("story_stage", false))
+	if not is_tower and not bool(data.get("arena", false)) and not story:
 		field_radius = HUNT_RADIUS
 	_start = Vector3(-field_radius + 8.0, 0, 0)
 	var ground_color: Color = data.ground
@@ -449,7 +490,7 @@ func _build_field() -> void:
 		_camps.append(camp)
 		clear.append(Vector3(c.pos.x, c.pos.y, float(c.radius) + 2.0))
 	# Keep the paved/sand encounter courts open; foliage belongs at their edges.
-	if is_tower or bool(data.get("arena", false)):
+	if is_tower or bool(data.get("arena", false)) or story:
 		clear.append(Vector3(0, 0, 42.0))
 	_phase("ground")
 	await _slice()
@@ -457,7 +498,7 @@ func _build_field() -> void:
 	_phase("populate")
 	await _slice()
 	WorldArt.landscape(self, theme, field_radius, int(data.get("seed", 5)))
-	var special := is_tower or bool(data.get("arena", false))
+	var special := is_tower or bool(data.get("arena", false)) or story
 	if not special:
 		WorldArt.silhouettes(self, theme, field_radius, int(data.get("seed", 5)))
 	Scenery.sky_dressing(self, theme, _sky_look(), field_radius, int(data.get("seed", 5)))
@@ -470,6 +511,8 @@ func _build_field() -> void:
 		SpecialStageArt.build(self, zone_id)
 	if bool(data.get("raid", false)):
 		RaidArenaArt.build(self)
+	if bool(data.get("dungeon", false)):
+		DragonTombArt.build(self)
 	if data.has("boss"):
 		WorldArt.boss_landmark(self, theme, _boss_spot)
 	for camp in _camps:
@@ -485,7 +528,7 @@ func _build_field() -> void:
 	_make_boundary_walls(field_radius + 1.0)
 	if is_tower:
 		_start = Vector3(0, 0, 0)
-	if not bool(data.get("arena", false)) and not is_tower:
+	if not bool(data.get("arena", false)) and not is_tower and not story:
 		_add_warp(_start + Vector3(3.5, 0, -5.0), "วาปกลับเมือง / ข้ามแมพ")
 		_add_warp(Vector3(field_radius - 10.0, 0, -6.0), "วาปกลับเมือง / ข้ามแมพ")
 	_make_weather(StringName(data.get("weather", &"")))
@@ -515,8 +558,15 @@ func _build_star_field() -> void:
 	for portal in portals: _make_portal(portal)
 	_add_warp(_start + Vector3(3.5,0,-3.5), "วาปกลับเมือง / ข้ามแมพ")
 	_make_boundary_walls(55.0)
+	# บทที่ 2 (StoryChapter2): the sanctum's guardian and the abyss exile stand by the
+	# entrance; the throne stage's portal opens in the abyss while the finale is active.
+	if divine:
+		_add_npc("sanctum_guardian", StoryChapter2.role_name("sanctum_guardian"), &"priest", String(StoryChapter2.ROLES.sanctum_guardian[1]), _start + Vector3(-6.0, 0, -5.0), "Mage")
 	if deep:
+		_add_npc("abyss_exile", StoryChapter2.role_name("abyss_exile"), &"archer", String(StoryChapter2.ROLES.abyss_exile[1]), _start + Vector3(6.0, 0, -6.0), "Rogue")
 		_make_weather(StringName(data.get("weather", &"")))
+		if StoryChapter2.portal_open():
+			add_story_portal()
 	if int(data.boss.get("star",0)) == 200:
 		var label := Label3D.new()
 		label.text = ("ลานบัลลังก์ราชันสมุทร • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว" if deep else "วิหารบัวดารา • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว") if deep or divine else "บัลลังก์สุริยคราส • ดาว 200"
@@ -526,6 +576,23 @@ func _build_star_field() -> void:
 		label.pixel_size = 0.005
 		label.visibility_range_end = 32
 		add_child(label)
+
+
+## The chapter 2 finale's portal beside the tyrant's court (DrownedAbyssArt.layout), only
+## while its quest is active (StoryChapter2.portal_open); once per zone.
+func add_story_portal() -> void:
+	if story_portal_open() or zone_id != DrownedAbyssData.ID:
+		return
+	var portal := {"to": StoryChapter2.STAGE_ID, "pos": _boss_spot + Vector3(-16.0, 0, 8.0), "label": "%s • ดาว 300" % StoryChapter2.STAGE_TITLE, "level": 100}
+	portals.append(portal)
+	_make_portal(portal)
+	var holder := get_node_or_null("Portal_" + String(StoryChapter2.STAGE_ID))
+	if holder != null:
+		VfxKit.shockwave(self, portal.pos + Vector3(0, 0.1, 0), StoryChapter2Art.VIOLET, 4.0)
+
+
+func story_portal_open() -> bool:
+	return portals.any(func(p): return StringName(p.to) == StoryChapter2.STAGE_ID)
 
 
 ## Snow, embers, petals, fireflies, rain... that follow the hero (cheap CPU
@@ -650,6 +717,8 @@ func _build_town() -> void:
 	for stall in JapanVillage.STALLS:
 		clear.append(Vector3(stall.x, stall.z, 1.6))
 		yards.append(Vector3(stall.x, stall.z, 1.6))
+	clear.append(Vector3(JapanVillage.HALL_DOOR.x, JapanVillage.HALL_DOOR.z, 3.0))
+	yards.append(Vector3(JapanVillage.HALL_DOOR.x, JapanVillage.HALL_DOOR.z, 3.0))
 	for v in villagers:
 		var spot: Vector3 = v[4]
 		yards.append(Vector3(spot.x, spot.z, 3.0))
@@ -682,6 +751,77 @@ func _build_town() -> void:
 	board.setup("daily", "กระดานเควสต์รายวัน", &"mage", "งานประจำวัน")
 	npcs.append(board)
 	_add_warp(JapanVillage.WARP, "จุดวาปข้ามแมพ / กลับเมือง")
+	# The door to the guild halls at the foot of the keep's steps (members only).
+	var door := HallDoor.new()
+	door.position = JapanVillage.HALL_DOOR
+	add_child(door)
+	door.setup("hall_door", "ประตูโถงกิลด์", &"warrior", "เฉพาะสมาชิกกิลด์")
+	npcs.append(door)
+
+
+## The guild hall (GuildHall): the room in the guild's colours, the steward, the notice
+## board, the rest area, the training dummy, the warp stone and the way back to the village.
+func _build_hall() -> void:
+	var g := int(data.get("guild", 0))
+	var look := {"theme": &"village", "palette": [Color("1e1a2c"), Color("4a3c4c"), Color("8a6c5c")], "sun_size": 0.5,
+		"sun_color": Color("ffe2b0"), "cloud_range": Vector2(100.0, 150.0), "cloud_height": Vector2(12.0, 24.0)}
+	_env = Scenery.environment(self, Color("2b2438"), Color("6a5658"), Color("e2cfb8"), Color("ffe2b0"), look)
+	_start = GuildHall.START
+	await _slice()
+	await GuildHall.build(self, g, get_tree() if staged else null)
+	portals = [{"to": &"town", "pos": GuildHall.EXIT, "label": "กลับหมู่บ้าน", "level": 1}]
+	_make_portal(portals[0])
+	await _slice()
+	_add_warp(GuildHall.WARP, "จุดวาปข้ามแมพ / กลับเมือง")
+	_add_npc("steward", GuildHallData.STEWARD, &"warrior", "พรแห่งโถง · ตารางสงคราม · สมัครรบ", GuildHall.STEWARD, "Knight", GuildHall.STEWARD + Vector3(1.0, 0, 20.0))
+	await _slice()
+	var board := NoticeBoard.new()
+	board.position = GuildHall.NOTICE
+	board.rotation.y = -PI * 0.5
+	add_child(board)
+	board.setup("hall_notice", "กระดานประกาศกิลด์", &"mage", "ข้อความจากหัวหน้ากิลด์ %s" % WorldPlayers.guild_name(g))
+	npcs.append(board)
+	var rest := HallRestSpot.new()
+	rest.position = GuildHall.REST + Vector3(0, 0.12, -1.6)
+	add_child(rest)
+	rest.setup("hall_rest", "ลานพักกิลด์", &"priest", "นั่งพักรับ%s" % GuildHallData.BUFF_NAME)
+	npcs.append(rest)
+	await _slice()
+
+
+## The guild mates of the hall (GuildHallData.mates): one body a frame, each on a spot of
+## its own to start with.
+func _spawn_hall_mates() -> void:
+	var g := int(data.get("guild", 0))
+	var t := WorldPresence.clock()
+	# The training dummy stands in its ring (the hero is here now to be its "foe").
+	var dummy := TrainingDummy.new()
+	dummy.setup_dummy(GuildHall.DUMMY, hero)
+	dummy.position = GuildHall.DUMMY
+	add_child(dummy)
+	dummy.rotation.y = PI
+	await _slice()
+	var ids := GuildHallData.mates(g, t)
+	var spots := GuildHall.SPOTS.duplicate()
+	for k in ids.size():
+		var i: int = ids[k]
+		if Game.in_party(i):
+			continue
+		var mate := HallMate.new()
+		mate.setup_hall(i, WorldPlayers.member(i, t), hero, self, g, GuildHall.SPOTS, hash("hall|%d|%d" % [g, i]))
+		add_child(mate)
+		var spot: Vector3 = spots[(k * 5 + int(t / 3600.0)) % spots.size()]
+		mate.global_position = spot + Vector3(0, 0.3, 0)
+		await _slice()
+
+
+## The guild mates standing in the hall now.
+func hall_mates() -> Array[HallMate]:
+	var out: Array[HallMate] = []
+	for node in get_tree().get_nodes_in_group("world_players"):
+		if node is HallMate and is_instance_valid(node):
+			out.append(node)
+	return out
 
 
 ## The villagers: role, name, class, title, where they stand, model, the point they face.
@@ -698,10 +838,14 @@ func _villagers() -> Array:
 		["registry", "นายทะเบียนเกม", &"archer", "ทะเบียนผู้เล่น · ใครอยู่ไหน", V.IZAKAYA + Vector3(-2.0, 0, -5.4), "Ranger", V.IZAKAYA + Vector3(-2.0, 0, -20)],
 		["arena", "ผู้ดูแลสนามประลอง", &"warrior", "สนามประลอง 3 รอบ", V.RING + Vector3(-4.0, 0, -9.0), "Barbarian", V.RING + Vector3(-4.0, 0, -30)],
 		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -9.0), "Knight", V.RING + Vector3(4.0, 0, -30)],
+		# บทที่ 2 (StoryChapter2): the star scholar reads the sky beside the pagoda.
+		["scholar", StoryChapter2.role_name("scholar"), &"mage", String(StoryChapter2.ROLES.scholar[1]), V.PAGODA + Vector3(-7.0, 0, 9.0), "Mage", V.PAGODA + Vector3(-7.0, 0, 30)],
 		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
 		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
+		["reward", RewardShop.KEEPER, &"mage", "%s · %s / %s" % [RewardShop.SHOP_NAME, RewardShop.COIN_NAME, RewardShop.POINT_NAME], V.GUILD_HALL + Vector3(9.5, 0, 8.0), "Mage", V.GUILD_HALL + Vector3(9.5, 0, 30)],
 		["tower", "ผู้เฝ้าหอคอยห้วงวิบัติ", &"mage", "หอคอยไม่รู้จบ · ร้านผลึก", V.PAGODA + Vector3(-5.6, 0, 6.2), "Mage", V.PAGODA + Vector3(-17.0, 0, 6.2)],
 		["raid", RaidData.KEEPER, &"warrior", "%s · วันละ %d รอบ" % [RaidData.SHORT, RaidData.RUNS_PER_DAY], V.PAGODA + Vector3(-5.6, 0, 10.4), "Knight", V.PAGODA + Vector3(-17.0, 0, 10.4)],
+		["dungeon", DungeonData.KEEPER, &"mage", "%s · ปาร์ตี้ %d คน Lv.%d" % [DungeonData.SHORT, DungeonData.PARTY_SIZE, DungeonData.SHOWN_MIN_LEVEL], V.PAGODA + Vector3(-5.6, 0, 14.6), "Mage", V.PAGODA + Vector3(-17.0, 0, 14.6)],
 		["pet", PetScreen.KEEPER, &"archer", "เลือกสัตว์เลี้ยงคู่ใจ", PetPen.KEEPER, "Ranger", PetPen.KEEPER_FACE],
 		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
@@ -783,20 +927,20 @@ func _spawn_hero() -> void:
 	hero.name = "Hero"
 	hero.field = self
 	hero.safe_zone = is_town
-	hero.field_radius = TOWN_RADIUS if is_town else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius)
-	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else Rect2()
+	hero.field_radius = TOWN_RADIUS if is_town else (GuildHall.RADIUS if is_hall else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius))
+	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else (GuildHall.rect() if is_hall else Rect2())
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":
 		spawn = _spawn_for(String(Game.profile["spawn_override"]))
 		Game.profile["spawn_override"] = ""
 	hero.global_position = spawn + Vector3(0, 0.2, 0)
-	hero.set_facing(PI * 0.5 if not is_town else PI)
+	hero.set_facing(PI * 0.5 if not (is_town or is_hall) else PI)
 	camera_rig = ThirdPersonCamera.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = hero
-	BattleVfx.text_scale = 1.0 if is_town else 1.8
-	if is_town:
+	BattleVfx.text_scale = 1.0 if is_town or is_hall else 1.8
+	if is_town or is_hall:
 		camera_rig.pitch_degrees = -22.0
 		camera_rig.distance = 8.0
 		camera_rig.max_distance = 15.0
@@ -815,7 +959,7 @@ func _spawn_hero() -> void:
 		camera_rig.far_plane = 150.0
 	add_child(camera_rig)
 	camera_rig.add_excluded_body(hero)
-	camera_rig.set_yaw_behind(PI * 1.5 if not is_town else 0.0)
+	camera_rig.set_yaw_behind(PI * 1.5 if not (is_town or is_hall) else 0.0)
 	camera_rig.snap_to_target()
 	hero.camera_rig = camera_rig
 	# A ranked duel ends through PvpMatch, a duel with a real player through OnlineDuel
@@ -1041,6 +1185,8 @@ func _update_interact() -> void:
 		if npc.role == "elder":
 			var quest_id := QuestData.current_quest()
 			npc.marker.visible = quest_id != "" and Game.quest_status(quest_id) in ["new", "ready"] and QuestData.unlock_problem(QuestData.get_quest(quest_id)) == ""
+		if StoryChapter2.ROLES.has(npc.role):
+			npc.marker.visible = StoryChapter2.marker_for(npc.role)
 	interact_changed.emit(label)
 
 

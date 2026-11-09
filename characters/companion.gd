@@ -78,6 +78,7 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	visual.decor_light = _light_decor()
+	visual.costume = _costume_id()
 	add_child(visual)
 	_built_class = StringName(member["class"])
 	visual.setup(_built_class, "", true, _party_equip(), _visual_look())
@@ -164,21 +165,19 @@ func refresh() -> void:
 		visual.set_equipment(_party_equip())
 	mp = minf(mp, float(stats.max_mp))
 	var ratio := float(hp) / float(max_hp) if max_hp > 0 else 1.0
-	max_hp = int(float(stats.max_hp) * (1.0 + _book.total("hp")))
+	max_hp = int(float(stats.max_hp) * (1.0 + _book.total("hp") + legend_aura()))
 	hp = clampi(int(round(ratio * max_hp)), 1 if not _dead else 0, max_hp)
 	_update_bar()
 
 
-## เบ่งเลือด on a companion: its maximum follows the buff; the HP it adds is filled
-## in, and when it ends the HP above the normal maximum goes.
+## เบ่งเลือด on a companion: its maximum follows the buff (a ceiling, no HP is filled
+## in); when it ends the HP above the normal maximum goes.
 func _sync_hp_buff() -> void:
 	if stats.is_empty():
 		return
-	var target := int(float(stats.max_hp) * (1.0 + _book.total("hp")))
+	var target := int(float(stats.max_hp) * (1.0 + _book.total("hp") + legend_aura()))
 	if target == max_hp:
 		return
-	if target > max_hp and not _dead:
-		hp += target - max_hp
 	max_hp = target
 	hp = mini(hp, max_hp)
 	_update_bar()
@@ -213,7 +212,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.8)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def")))))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def") + legend_aura()))))))
 	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_book.buffs,amount)
 	hp = maxi(0, hp - amount)
@@ -371,7 +370,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y = -0.5 if is_on_floor() else velocity.y - _gravity * delta
 		move_and_slide()
 		_revive_timer -= delta
-		if _revive_timer <= 0.0 and not hero.is_dead():
+		# In the dragon tomb the fallen stand again at the boss's phase changes only (DragonRun).
+		if _revive_timer <= 0.0 and not hero.is_dead() and not DragonBoss.holds_fallen():
 			_revive()
 		return
 	_since_hurt += delta
@@ -396,6 +396,9 @@ func _physics_process(delta: float) -> void:
 		target = _pick_target()
 	# The party raid's boss (RaidBoss): out of its circle warnings first.
 	var escape := RaidBoss.danger_escape(global_position) if RaidBoss.active != null else Vector3.INF
+	# The dragon tomb's boss (DragonBoss): apart from a marked player, out of the claw's cone.
+	if not escape.is_finite() and DragonBoss.active != null:
+		escape = DragonBoss.danger_escape(global_position, self)
 	if escape.is_finite():
 		_face(escape, delta, 14.0)
 		desired = escape * float(stats.speed) * 1.25
@@ -466,6 +469,11 @@ func _rest_anim() -> String:
 	return "Idle"
 
 
+## The reward-shop costume this character wears ("" for none; FieldPlayer: world_cosmetics).
+func _costume_id() -> String:
+	return ""
+
+
 ## The cheap enhancement dressing (HeroVisual.decor_light): the party keeps the full one.
 func _light_decor() -> bool:
 	return false
@@ -474,6 +482,11 @@ func _light_decor() -> bool:
 func _pick_target() -> Mob:
 	if hero.safe_zone:
 		return null
+	# The dragon tomb (DragonBoss): while the boss hides behind its crystals, the crystals.
+	if DragonBoss.active != null:
+		var crystal := DragonBoss.priority_target(global_position)
+		if crystal != null:
+			return crystal
 	var stance := String(member.get("stance", "follow"))
 	var best: Mob = null
 	if stance == "aggressive":
@@ -635,9 +648,9 @@ func _heal_allies(fraction: float) -> void:
 
 func _buff_allies(buff: Dictionary, color: Color, label: String, skill_id: String) -> void:
 	hero.receive_buff(buff, color, label, true, skill_id)
-	# A Bard's song reaches the whole party: the other members and every summon too
-	# (other buffs stay the hero's, as they always were).
-	if not BuffBook.is_song(buff) or not is_inside_tree():
+	# A Bard's song and a party buff (เบ่งเลือด's max HP) reach the whole party: the other
+	# members and every summon too (other buffs stay the hero's, as they always were).
+	if not (BuffBook.is_song(buff) or buff.get("party") is Array) or not is_inside_tree():
 		return
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
 		if node != self and is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
@@ -681,7 +694,21 @@ func _hero_sings() -> bool:
 # ---------------------------------------------------------------------------
 
 func _buffed_atk() -> float:
-	return float(stats.atk) * (1.0 + _book.total("atk"))
+	return float(stats.atk) * (1.0 + _book.total("atk") + legend_aura())
+
+
+## True while this member wears the Legendary Guild Wings (LegendWings): the hero near it
+## gets the aura (Hero.refresh_stats); its own stats carry it (HeroStats.compute).
+func wears_legend_wings() -> bool:
+	return LegendWings.is_item(_party_equip().get("wings"))
+
+
+## The Legendary Guild Wings' aura on this member from the hero: the hero wears a pair
+## within LegendWings.AURA_RANGE (0 otherwise).
+func legend_aura() -> float:
+	if hero == null or not is_instance_valid(hero) or not Game.has_profile or not LegendWings.worn(Game.profile):
+		return 0.0
+	return LegendWings.AURA if global_position.distance_to(hero.global_position) <= LegendWings.AURA_RANGE else 0.0
 
 
 func _basic_attack() -> void:
@@ -733,7 +760,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	if skill is Dictionary and not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
 	raw *= ClassRoles.outgoing(self, mob)
-	var crit := randf() < float(stats.crit) + _book.total("crit") + ClassRoles.crit_bonus(self)
+	var crit := randf() < float(stats.crit) * (1.0 + legend_aura()) + _book.total("crit") + ClassRoles.crit_bonus(self)
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(self, float(mob.stats.def))))))
@@ -959,8 +986,12 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 			return 9.6
 		return 0.0
 	# A provoke is worth most while the hero is the one being hurt.
-	if fx.has("taunt") and (hero_hp < 0.6 or RaidBoss.wants_taunt(self, target)) and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
+	if fx.has("taunt") and (hero_hp < 0.6 or RaidBoss.wants_taunt(self, target) or DragonBoss.wants_taunt(self, target)) and distance <= float(skill.get("range", skill.get("radius", 3.0))) + 1.0:
 		return 8.5
+	# The dragon's claw is aimed at an unprotected mate: a party defence buff (a Priest's) now.
+	if String(skill.shape) == "self" and fx.get("buff") is Dictionary and float(fx.buff.get("def", 0.0)) > 0.0 \
+			and not BuffBook.is_self_only(fx.buff) and DragonBoss.wants_ward(self):
+		return 9.2
 	match String(skill.shape):
 		"summon":
 			# A summoner companion fights through its creatures: call them as soon as there is a fight.
@@ -1146,7 +1177,7 @@ func _apply_self(skill: Dictionary) -> void:
 		var buff: Dictionary = fx.buff
 		# A stance (self_only) stays on the one who cast it.
 		if not BuffBook.is_self_only(buff):
-			_buff_allies(buff, color, String(skill.name), String(skill.id))
+			_buff_allies(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
 		_book.add(buff, color, String(skill.name), false, String(skill.id))
 		# Persistent buff halo and the skill silhouette carry this feedback.
 

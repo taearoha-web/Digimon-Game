@@ -341,7 +341,7 @@ func _process(delta: float) -> void:
 		_event_in = 1.0
 		var t := WorldPresence.clock()
 		var lines := PackedStringArray()
-		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t)] + WorldEvents.chip_lines(t):
+		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t), GuildHallData.chip_text(t)] + WorldEvents.chip_lines(t):
 			if line != "":
 				lines.append(line)
 		_event_label.text = "\n".join(lines)
@@ -510,6 +510,9 @@ func _update_tracker(delta: float) -> void:
 		var quest := QuestData.get_quest(quest_id)
 		var have := int(Game.quest_state(quest_id).get("progress", 0))
 		lines.append("เควสต์: %s %d/%d" % [quest.name, have, int(quest.count)] if have < int(quest.count) else "เควสต์: %s เสร็จแล้ว กลับไปรายงาน" % quest.name)
+	var story_line := StoryChapter2.tracker_line()
+	if story_line != "":
+		lines.append(story_line)
 	if PetData.quest_open(Game.profile):
 		lines.append("เควสต์: %s (ผู้ดูแลสัตว์เลี้ยงในหมู่บ้าน)" % PetData.QUEST_NAME)
 	var done := 0
@@ -898,7 +901,7 @@ func _update_online_party() -> void:
 		follow_button.modulate = Color(0.55, 1.0, 0.85) if following else Color.WHITE
 		var stars := int(p.stars)
 		var cls := StringName(String(p.cls)) if String(p.cls) != "" else StringName(String((p.look as Dictionary).get("class", ClassData.START)))
-		var here := String(p.zone) == String(zone.zone_id)
+		var here := String(p.zone) == String(zone.net_id())
 		var key := "%s|%s|%d|%d|%s|%s" % [id, Online.display_name(p), int(p.level), stars, cls, here]
 		if key != entry.key:
 			entry["key"] = key

@@ -892,8 +892,9 @@ static func chip_text(t := -1.0) -> String:
 ## (team 0 the hero's), each team's captures and falls dealt, the team holding the castle
 ## at the bell (-1 nobody), `t` the round's start (it takes that round's place in the
 ## table; a time that is no round counts nothing) and `own` the guild that held the castle
-## when it began. Returns the league points `guilds[0]` earned (0 outside a guild).
-static func record_round(guilds: Array, caps: Array, kills: Array, held: int, t := -1.0, own := 0) -> int:
+## when it began; `spectating` for a round the hero only watched (no league coins).
+## Returns the league points `guilds[0]` earned (0 outside a guild).
+static func record_round(guilds: Array, caps: Array, kills: Array, held: int, t := -1.0, own := 0, spectating := false) -> int:
 	if not Game.has_profile or guilds.is_empty():
 		return 0
 	var ours := int(guilds[0])
@@ -924,12 +925,15 @@ static func record_round(guilds: Array, caps: Array, kills: Array, held: int, t 
 		# This device's record of the round, sent to the server as the round's result.
 		r.erase("real")
 		LeagueRounds.record_real(int(t), r)
+	# League coins for the round, once (RewardShop).
+	if not spectating:
+		RewardShop.round_fought(e, ours)
 	return side_points(r, ours)
 
 
 ## Records an old two-guild war (kept for old callers): `ours` / `theirs`, captures and
 ## falls of each side, who held the castle at the bell (-1 nobody, 0 ours, 1 theirs).
-static func record_war(ours: int, theirs: int, won: bool, caps_us: int, caps_them: int, held: int, kills_us: int, kills_them: int, t := -1.0) -> int:
+static func record_war(ours: int, theirs: int, won: bool, caps_us: int, caps_them: int, held: int, kills_us: int, kills_them: int, t := -1.0, spectating := false) -> int:
 	if ours <= 0 or not WorldPlayers.GUILD_NAMES.has(ours) or not Game.has_profile:
 		return 0
 	if theirs <= 0 or theirs == ours or not WorldPlayers.GUILD_NAMES.has(theirs):
@@ -949,6 +953,8 @@ static func record_war(ours: int, theirs: int, won: bool, caps_us: int, caps_the
 		wars.pop_front()
 	d["wars"] = wars
 	Game.mark_dirty()
+	if not spectating:
+		RewardShop.round_fought(e, ours)
 	return side_points(e, ours)
 
 
@@ -994,7 +1000,7 @@ static func spectated_result(match_info: Dictionary, result: Dictionary) -> int:
 			gs.append(int(g))
 		var own_team := int(result.get("start_owner", match_info.get("owner", -1)))
 		var own: int = int(gs[own_team]) if own_team >= 0 and own_team < gs.size() else 0
-		return record_round(gs, result.get("captures", []), result.get("score", []), int(result.get("castle_owner", -1)), float(at), own)
+		return record_round(gs, result.get("captures", []), result.get("score", []), int(result.get("castle_owner", -1)), float(at), own, true)
 	var pair: Variant = match_info.get("league_match", [])
 	if not (pair is Array) or (pair as Array).size() != 2:
 		return 0
@@ -1012,7 +1018,7 @@ static func spectated_result(match_info: Dictionary, result: Dictionary) -> int:
 	var score: Array = result.get("score", [0, 0])
 	var winner := int(result.get("winner", -1))
 	return record_war(a, b, winner == 0, int(caps[0]), int(caps[1]), int(result.get("castle_owner", -1)),
-		int(score[0]), int(score[1]), float(at))
+		int(score[0]), int(score[1]), float(at), true)
 
 
 ## What the hero may claim now of last season: the top-three reward (ranked: true, unless
@@ -1193,6 +1199,8 @@ static func tick(t := -1.0) -> bool:
 		return false
 	d["ann"] = w
 	Game.mark_dirty()
+	# The week's placement bonus in league coins (RewardShop), once.
+	RewardShop.week_closed(w - 1)
 	for line in announce_lines(w - 1, real_wars(w - 1)):
 		Game.say(line, &"quest")
 		Game.post_chat("world", "ประกาศลีกกิลด์", line, CROWN_COLOR)
@@ -1307,6 +1315,32 @@ static func enter_problem(t := -1.0) -> String:
 	if blocked != "":
 		return blocked
 	return ""
+
+
+## Online: the shared arena of round `at` for guild `g` ("guildwar_<at>_<g>", the zone the
+## server hears; party-scoped like "guildwar", docs/ONLINE_PROTOCOL.md "Guild league
+## rounds together"). Party members of one guild in one round meet only there: a practice
+## war ("guildwar") or another round / guild is another room.
+const ROOM_PREFIX := "guildwar_"
+
+
+static func war_room(at: int, g: int) -> StringName:
+	return StringName("%s%d_%d" % [ROOM_PREFIX, at, g])
+
+
+## {at, guild} of a room war_room made ({} for anything else).
+static func room_round(room: Variant) -> Dictionary:
+	var text := String(room) if (room is String or room is StringName) else ""
+	if not text.begins_with(ROOM_PREFIX):
+		return {}
+	var parts := text.substr(ROOM_PREFIX.length()).split("_")
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return {}
+	var at := parts[0].to_int()
+	var g := parts[1].to_int()
+	if at <= 0 or g <= 0:
+		return {}
+	return {"at": at, "guild": g}
 
 
 ## The round whose waiting room is open at t (from LOBBY_OPEN seconds before its start,

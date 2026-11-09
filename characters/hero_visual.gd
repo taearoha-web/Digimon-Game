@@ -70,6 +70,11 @@ var chibi := false
 ## emitter, no flames, beams or lights, and no aura motes. A village of 28 players
 ## carried over 200 CPU particle emitters before.
 var decor_light := false
+## The uid of the Legendary Guild Wings last dressed (a new pair arrives with a burst).
+var _legend_uid := ""
+## The reward-shop costume worn (RewardShop.COSTUMES id, "" for none): its cloth colour
+## over the outfit and its head accessory. set_costume rebuilds the body.
+var costume := ""
 ## The particle emitters and meshes of the current outfit (distance LOD: set_far).
 var _emitters: Array[CPUParticles3D] = []
 var _lod_meshes: Array[MeshInstance3D] = []
@@ -79,6 +84,9 @@ var _far := false
 var _far_overlays: Dictionary = {}
 ## Wing pose picked on the HUD (see WING_*); kept across gear changes.
 var wing_mode := WING_STAND
+## The hero wears รัศมีดาวเงา, the chapter 2 finale's cosmetic (StoryChapter2Art.aura);
+## Hero sets it from the save, so other players' bodies never show it by mistake.
+var story_aura := false
 var _wing_moving := false
 var _gear_scale := 1.0
 var skill_generation := 0
@@ -272,6 +280,9 @@ func _refresh_chibi() -> void:
 	if acc > 0:
 		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
 		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
+	if costume != "" and RewardShop.COSTUMES.has(costume):
+		RewardShop.build_accessory(_chibi_attach("Head", "ChibiCostume"), costume)
+		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
 	var boot_nodes: Array = []
 	if DivineGearData.is_item(boots):
 		boot_nodes = _divine_slot(boots)
@@ -294,7 +305,7 @@ func _refresh_chibi() -> void:
 		var chest := _skeleton.find_bone("Chest")
 		if chest >= 0:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
-		back.add_child(StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings)))
+		back.add_child(_wing_model(wings))
 		_glow_piece([back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_wing_flair(back.get_parent(), int(wings.get("plus", 0)))
 		_pose_wings.call_deferred(wing_mode, true)
@@ -385,6 +396,18 @@ func _pose_wings(was: int, instant: bool) -> void:
 		player.queue(clip)
 	elif player.current_animation != clip:
 		player.play(clip, 0.0 if instant else 0.3)
+
+
+## The model of a worn pair: the Legendary Guild Wings' own gold pair (LegendWingArt;
+## a pair put on after the first dress arrives with its burst), the 100★ class pair
+## (StarWingData) or the Lv.100 class pair (GearKit).
+func _wing_model(item: Dictionary) -> Node3D:
+	if LegendWings.is_item(item):
+		var uid := String(item.get("uid", ""))
+		var fresh := dressed > 1 and uid != _legend_uid
+		_legend_uid = uid
+		return LegendWingArt.build(item, decor_light, fresh)
+	return StarWingData.build(_wing_kind(item)) if StarGearData.is_star(item) else GearKit.wings(_wing_kind(item))
 
 
 ## Which class model a pair of wings shows (old items fall back to this hero's class).
@@ -502,6 +525,13 @@ func _dress_chibi(armor: Variant) -> void:
 				mat.set_shader_parameter("glow_color", SetGearData.palette(SetGearData.item_class(armor)).glow * 0.3)
 			elif tier >= 7 and not divine_armor:
 				mat.set_shader_parameter("glow_color", ChibiGear.cloth(tier) * 0.35)
+		# A reward-shop costume dyes the whole outfit over whatever armour is worn.
+		if costume != "" and RewardShop.COSTUMES.has(costume):
+			var c: Dictionary = RewardShop.COSTUMES[costume]
+			mat.set_shader_parameter("outfit_color", c.cloth)
+			mat.set_shader_parameter("outfit_amount", 0.92)
+			mat.set_shader_parameter("sheen", float(c.sheen))
+			mat.set_shader_parameter("glow_color", c.glow)
 		if divine_armor or divine_boots:
 			mat.set_shader_parameter("part_masks_enabled", true)
 		if divine_armor:
@@ -516,6 +546,15 @@ func _dress_chibi(armor: Variant) -> void:
 			mat.next_pass = StorybookFinish.outline(0.012 * _gear_scale)
 		mi.material_override = mat
 		mi.set_meta("polished", true)
+
+
+## Wears reward-shop costume `id` ("" takes it off): the body is rebuilt when it changes.
+func set_costume(id: String) -> void:
+	if id == costume:
+		return
+	costume = id
+	if _skeleton != null:
+		refresh()
 
 
 ## Rebuilds everything the hero wears from [member equip] (slot -> item).
@@ -607,6 +646,8 @@ func refresh() -> void:
 		outfit_style = String(own[0])
 		outfit_tint = own[1]
 		cape = [String(own[0]), String(own[2])] if String(own[2]) != "" else null
+	if costume != "" and RewardShop.COSTUMES.has(costume):
+		outfit_tint = (RewardShop.COSTUMES[costume] as Dictionary).cloth
 	var glb: String = OUTFIT_GLB[outfit_style]
 	var boots: Variant = equip.get("boots")
 	var armor_nodes: Array = []
@@ -648,8 +689,10 @@ func refresh() -> void:
 		back.name = "Wings"
 		back.bone_name = "chest"
 		_skeleton.add_child(back)
-		var w := StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings))
+		var w := _wing_model(wings)
 		w.transform = KAYKIT_WINGS
+		if w is LegendWingArt:
+			(w as LegendWingArt).fit_big_head()
 		back.add_child(w)
 		_body_nodes.append(back)
 		_glow_piece([back], int(wings.get("plus", 0)), WING_GLOW, 0.5)
@@ -809,6 +852,11 @@ func _top_tier() -> int:
 ## Sparkles around the hero for legendary gear (violet), a weapon at +7 or more (gold)
 ## and, from gear tier 6 up (Lv.61+), a bigger and bigger aura plus a halo.
 func _make_aura() -> void:
+	if story_aura:
+		var shadow_star := StoryChapter2Art.aura(decor_light)
+		shadow_star.set_meta("far_decor", true)
+		add_child(shadow_star)
+		_body_nodes.append(shadow_star)
 	if GameSettings.quality == 0:
 		return
 	var color := Color(0, 0, 0, 0)

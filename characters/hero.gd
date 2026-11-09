@@ -131,8 +131,12 @@ func _ready() -> void:
 	add_child(shape)
 	visual = HeroVisual.new()
 	visual.wing_mode = clampi(int(Game.profile.flags.get("wing_mode", 0)), HeroVisual.WING_STAND, HeroVisual.WING_FOLD)
+	visual.story_aura = StoryChapter2.has_aura()
+	visual.costume = RewardShop.active("costume")
 	add_child(visual)
 	visual.setup(Game.class_id(), "", true, Game.profile.equip, _look())
+	WalkTrail.attach(self, RewardShop.active("trail"))
+	Game.cosmetics_changed.connect(_on_cosmetics_changed)
 	_equip_sig = _equipment_signature()
 	MeshKit.blob_shadow(self, 0.8)
 	refresh_stats()
@@ -171,6 +175,16 @@ func _on_title_changed(_title: String) -> void:
 	refresh_name_plate()
 
 
+## The reward shop's costume, walk trail or name colour changed (RewardShop.wear).
+func _on_cosmetics_changed() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	if is_instance_valid(visual):
+		visual.set_costume(RewardShop.active("costume"))
+	WalkTrail.attach(self, RewardShop.active("trail"))
+	refresh_name_plate()
+
+
 func refresh_name_plate() -> void:
 	if not is_instance_valid(_name_plate):
 		return
@@ -181,6 +195,17 @@ func refresh_name_plate() -> void:
 	if champion:
 		hero_name = "%s %s" % [GuildLeague.CROWN, hero_name]
 	_name_plate.modulate = GuildLeague.CROWN_COLOR if champion else Color("fff4de")
+	_name_plate.outline_modulate = Color(0.1, 0.12, 0.2, 0.9)
+	# The reward shop's name colour (RewardShop.NAME_COLORS): text and outline.
+	var ncol := RewardShop.name_color(RewardShop.active("ncol"))
+	if not ncol.is_empty() and not champion:
+		_name_plate.modulate = ncol.color
+		_name_plate.outline_modulate = ncol.edge
+	# Wearing the Legendary Guild Wings (LegendWings): the ตำนาน tag in gold.
+	if LegendWings.worn(Game.profile):
+		hero_name = "「%s」 %s" % [LegendWings.TAG, hero_name]
+		if not champion:
+			_name_plate.modulate = LegendWings.COLOR
 	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" else hero_name
 
 
@@ -239,6 +264,19 @@ func _update_job_ring() -> void:
 	add_child(_ring)
 
 
+## The Legendary Guild Wings' aura from a party member (LegendWings): on while one wearing
+## a pair stands within AURA_RANGE; checked twice a second (_physics_process).
+var _legend_aura := false
+var _legend_aura_timer := 0.0
+
+
+func party_legend_aura() -> bool:
+	for node in get_tree().get_nodes_in_group("companions"):
+		if node is Companion and (node as Companion).wears_legend_wings() and (node as Node3D).global_position.distance_to(global_position) <= LegendWings.AURA_RANGE:
+			return true
+	return false
+
+
 func _equipment_signature() -> String:
 	var parts: PackedStringArray = []
 	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring", "wings"]:
@@ -256,6 +294,11 @@ func refresh_stats() -> void:
 			if buff.until > now:
 				values.append(float(buff.get(key, 0.0)))
 		totals[key] = BuffBook.stack(values)
+	# A party member's Legendary Guild Wings within reach (LegendWings.AURA; the hero's own
+	# pair is in HeroStats.compute).
+	if _legend_aura:
+		for key in ["atk", "def", "hp"]:
+			totals[key] = float(totals[key]) + LegendWings.AURA
 	Game.live_hp_buff = float(totals.hp)
 	stats = Game.stats_now(totals)
 	# เบ่งเลือด ended: the HP above the normal maximum goes with it.
@@ -616,6 +659,13 @@ func _physics_process(delta: float) -> void:
 		visual.position.y = lerpf(visual.position.y, 0.0, 1.0 - exp(-6.0 * delta))
 		return
 	_tick_timers(delta)
+	_legend_aura_timer -= delta
+	if _legend_aura_timer <= 0.0:
+		_legend_aura_timer = 0.5
+		var near := party_legend_aura()
+		if near != _legend_aura:
+			_legend_aura = near
+			refresh_stats()
 	var now := Time.get_ticks_msec()
 	var casting := now < _cast_until
 	var direction := _read_move()
@@ -1296,7 +1346,7 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		receive_buff(buff, color, String(skill.name), false, String(skill.id))
 		# A stance (self_only) is the caster's own; every other buff reaches the team.
 		if not BuffBook.is_self_only(buff):
-			_share_buff(buff, color, String(skill.name), String(skill.id))
+			_share_buff(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
 
 
 # --- The Dark Lord's raven and Summon -----------------------------------------
@@ -1445,11 +1495,10 @@ func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally :=
 	var max_before := int(stats.get("max_hp", 0))
 	_buffs = BuffBook.insert(_buffs, prepared, color, label, from_ally, skill_id)
 	refresh_stats()
-	# เบ่งเลือด: the HP it adds to the maximum is filled in too (10,000 -> 13,000 at ★1).
+	# เบ่งเลือด raises the ceiling only (10,000 -> 13,000 max at ★1); the HP itself stays.
 	var gained := int(stats.get("max_hp", 0)) - max_before
 	if gained > 0 and max_before > 0 and not _dead:
-		Game.profile.hp = mini(int(stats.max_hp), int(Game.profile.hp) + gained)
-		BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "HP +%d" % gained, Color("ff8080"), 0.9)
+		BattleVfx.floating_text(field, global_position + Vector3(0, 3.0, 0), "HP สูงสุด +%d" % gained, Color("ff8080"), 0.9)
 	_sync_auras(Time.get_ticks_msec())
 	# Persistent buff halo and the skill silhouette carry this feedback.
 	if label != "":

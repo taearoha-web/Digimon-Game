@@ -20,9 +20,12 @@ var online_stall: OnlineStall
 var online_prompt: OnlinePrompt
 var ai_chat: AiChat
 var tutorial: Tutorial
+var story: StoryChapter
 var tower_screen: TowerScreen
 ## The party raid keeper (RaidData) and its result.
 var raid_screen: RaidScreen
+## The mechanics dungeon's keeper (DungeonData): lobby, weekly ranking, exchange, result.
+var dungeon_screen: DungeonScreen
 ## The pet keeper's screen (PetData): choose the pet once, then see it.
 var pet_screen: PetScreen
 ## Online play with real players: trading (its window) and duels; idle while offline.
@@ -67,6 +70,7 @@ func _ready() -> void:
 		create_tween().tween_property(_flash, "color:a", 0.0, 0.35))
 	Game.ending_requested.connect(show_ending)
 	Game.profile_imported.connect(_reload_imported_profile, CONNECT_DEFERRED)
+	Game.legend_wings_awarded.connect(show_legend_letter)
 	hud = HUD.new()
 	hud.visible = false
 	add_child(hud)
@@ -75,11 +79,18 @@ func _ready() -> void:
 	menu = GameMenu.new()
 	add_child(menu)
 	menu.title_requested.connect(_back_to_title)
+	# The reward exchange (RewardShop) asked for from the league page or the keeper.
+	Game.reward_shop_requested.connect(_open_reward_shop)
 	menu.raid_requested.connect(func():
 		if zone != null and (zone.is_pvp or zone.is_tower):
 			Game.say("เปิดดันเจี้ยนปาร์ตี้ได้นอกสนามประลอง หอคอย และดันเจี้ยน", &"warning")
 		elif not _screen_open():
 			raid_screen.open_lobby())
+	menu.dungeon_requested.connect(func():
+		if zone != null and (zone.is_pvp or zone.is_tower):
+			Game.say("เปิดสุสานมังกรโบราณได้นอกสนามประลอง หอคอย และดันเจี้ยน", &"warning")
+		elif not _screen_open():
+			dungeon_screen.open_lobby())
 	shop = ShopScreen.new()
 	add_child(shop)
 	trainer = SkillTrainer.new()
@@ -100,6 +111,7 @@ func _ready() -> void:
 	guild_screen = GuildScreen.new()
 	add_child(guild_screen)
 	guild_screen.war_requested.connect(func(): guildwar_screen.open_lobby())
+	guild_screen.hall_requested.connect(_enter_hall)
 	registry = RegistryScreen.new()
 	add_child(registry)
 	online_screen = OnlineScreen.new()
@@ -145,6 +157,10 @@ func _ready() -> void:
 	tutorial = Tutorial.new()
 	tutorial.main = self
 	add_child(tutorial)
+	# บทที่ 2: เงาเหนือดวงดาว (StoryChapter2): its NPCs' talk, escort, bosses and ending.
+	story = StoryChapter.new()
+	story.main = self
+	add_child(story)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -155,6 +171,10 @@ func _ready() -> void:
 	add_child(raid_screen)
 	raid_screen.enter_requested.connect(func(): go(RaidData.ID, false, true))
 	raid_screen.go_home_requested.connect(func(): go(&"town", false, true))
+	dungeon_screen = DungeonScreen.new()
+	add_child(dungeon_screen)
+	dungeon_screen.enter_requested.connect(func(): go(DungeonData.ID, false, true))
+	dungeon_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	pet_screen = PetScreen.new()
 	add_child(pet_screen)
 	pet_screen.pet_chosen.connect(_on_pet_chosen)
@@ -351,6 +371,11 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 			guildwar_screen.show_result(result))
 	z.tower_finished.connect(func(result: Dictionary): tower_screen.show_result(result))
 	z.raid_finished.connect(func(result: Dictionary): raid_screen.show_result(result))
+	z.story_stage_finished.connect(func(result: Dictionary): story.on_stage_finished(result))
+	z.story_speech.connect(func(speaker: String, text: String):
+		if not dialog.is_open:
+			dialog.say(speaker, text))
+	z.dungeon_finished.connect(func(result: Dictionary): dungeon_screen.show_result(result))
 	z.banner_requested.connect(func(text: String): hud.show_banner(text))
 	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
 	# then let two frames draw it once (first-draw shader/texture work) before fading in.
@@ -371,6 +396,27 @@ func _fade_to(alpha: float, duration: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "modulate:a", alpha, duration)
 	await tween.finished
+
+
+## The letter that comes with a pair of the Legendary Guild Wings (LegendWings): who gave
+## it and why, the pair's name and that it is worn for good.
+func show_legend_letter(item: Dictionary, text: String) -> void:
+	var box := UIUtil.vbox(10)
+	var title := UIUtil.label(ItemData.name_of(item), &"SubHeaderLabel")
+	title.add_theme_color_override("font_color", LegendWings.COLOR)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(title)
+	var body := UIUtil.label(text, &"BoldLabel")
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(body)
+	for line in ItemData.detail_lines(item):
+		var row := UIUtil.label(line, &"SmallLabel")
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(row)
+	var view := get_viewport().get_visible_rect().size
+	var sheet := OverlaySheet.open(hud, "จดหมายจากลีกกิลด์", box, Vector2(minf(720.0, maxf(420.0, view.x - 60.0)), minf(520.0, maxf(360.0, view.y - 60.0))))
+	sheet.name = "LegendLetter"
 
 
 func show_ending() -> void:
@@ -418,6 +464,16 @@ func use_town_scroll() -> void:
 		go(&"town")
 
 
+## Opens the menu on the reward exchange's tab (closing the guild registrar's page first).
+func _open_reward_shop() -> void:
+	if guild_screen != null and guild_screen.is_open:
+		guild_screen.close_screen()
+	if menu.is_open:
+		menu.show_tab(&"reward")
+	else:
+		_open_menu(&"reward")
+
+
 func _open_menu(tab: StringName) -> void:
 	if _screen_open():
 		return
@@ -428,7 +484,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (dungeon_screen != null and dungeon_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
 		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
@@ -480,6 +536,9 @@ func _on_level_up(level: int) -> void:
 func _on_npc(role: String) -> void:
 	if dialog.is_open:
 		return
+	if StoryChapter2.ROLES.has(role):
+		story.talk(role)
+		return
 	match role:
 		"elder":
 			_talk_elder()
@@ -521,13 +580,31 @@ func _on_npc(role: String) -> void:
 			choices.append({"label": "ลีกกิลด์ / ร้านลับราชันปราสาท" if GuildLeague.hero_champion() else "ลีกกิลด์รายสัปดาห์", "action": func(): guild_screen.open_league()})
 			choices.append({"label": "ไว้ก่อน"})
 			dialog.say("นายทะเบียนกิลด์", text, choices)
+		"hall_door":
+			_enter_hall()
+		"steward":
+			_talk_steward()
+		"hall_notice":
+			_talk_hall_notice()
+		"hall_rest":
+			_rest_in_hall()
 		"tower":
 			tower_screen.open_lobby()
 		"raid":
 			dialog.say(RaidData.KEEPER, "วิหารอสูรโลหิตเปิดรับปาร์ตี้ %d คนขึ้นไป วันละ %d รอบ (%s) ลงไปสามชั้น ชั้นสุดท้ายคือ%s ให้ผู้พิทักษ์รับการทุบ คนอื่นหลบวงแดงแล้วฆ่าสมุนให้ไว ใครชนะครั้งแรกของวันได้หีบใหญ่!" % [RaidData.MIN_PARTY, RaidData.RUNS_PER_DAY, RaidData.runs_text(), RaidData.BOSS_NAME], [
 				{"label": "ดูดันเจี้ยน", "action": func(): raid_screen.open_lobby()}, {"label": "ไว้ก่อน"}])
+		"dungeon":
+			dialog.say(DungeonData.KEEPER, "สุสานมังกรโบราณรับปาร์ตี้ %d คนพอดี เลเวล %d ขึ้นไป วันละ %d รอบ (%s) ข้างในมี%s กลไกสามอย่าง: ถูกมาร์คให้กระจายตัว ผู้พิทักษ์ล่อบอสรับกรงเล็บ และสลับไปทุบศิลาเมื่อบอสไร้เทียมทาน ใครเคลียร์เร็วที่สุดในสัปดาห์ติดอันดับ เกล็ดมังกรที่ได้เอามาแลกเครื่องรางมังกรกับข้าได้" % [DungeonData.PARTY_SIZE, DungeonData.SHOWN_MIN_LEVEL, DungeonData.RUNS_PER_DAY, DungeonData.runs_text(), DungeonData.BOSS_NAME], [
+				{"label": "ดูดันเจี้ยน", "action": func(): dungeon_screen.open_lobby()},
+				{"label": "อันดับสัปดาห์", "action": func(): dungeon_screen.open_lobby("ranking")},
+				{"label": "แลกเกล็ดมังกร", "action": func(): dungeon_screen.open_lobby("shop")}, {"label": "ไว้ก่อน"}])
 		"pet":
 			_talk_pet_keeper()
+		"reward":
+			dialog.say(RewardShop.KEEPER, "ที่นี่รับแลก%sกับ%s! %sได้จากทุกรอบลีกกิลด์ที่เจ้าลงสนาม (อันดับ %s ต่อรอบ ยึดปราสาท +%d ครองปราสาทตอนจบ +%d) และโบนัสอันดับทุกสิ้นสัปดาห์ ส่วน%sได้จากการช่วยปราบบอสโลก (+%d) และการล่าช่วง EXP x2 หรือเทศกาล (วันละไม่เกิน %d) มีคอสตูม เอฟเฟกต์ท่าเดิน สีชื่อ และหินเสริมพลัง (จำกัดต่อสัปดาห์) ของทุกชิ้นผูกกับตัวละคร ขายหรือส่งต่อไม่ได้นะ ตอนนี้เจ้ามี%s %d และ%s %d" % [
+				RewardShop.COIN_NAME, RewardShop.POINT_NAME, RewardShop.COIN_NAME, "/".join(RewardShop.PLACE_COINS.map(func(v): return str(v))), RewardShop.CAPTURE_COINS, RewardShop.HOLD_COINS,
+				RewardShop.POINT_NAME, RewardShop.BOSS_EP, RewardShop.KILL_CAP, RewardShop.COIN_NAME, RewardShop.coins(), RewardShop.POINT_NAME, RewardShop.points()], [
+				{"label": "เปิดร้านแลกของรางวัล", "action": func(): _open_menu(&"reward")}, {"label": "ไว้ก่อน"}])
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])
@@ -545,6 +622,132 @@ func _on_npc(role: String) -> void:
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+
+
+## The guild hall (GuildHallData): a member goes into its own guild's hall; anyone else is
+## told, in the door's words, who the hall is for.
+func _enter_hall() -> void:
+	var g := Game.guild()
+	var id := GuildHallData.id_of(g) if g > 0 else GuildHallData.id_of(WorldPlayers.ALPHA)
+	var problem := GuildHallData.enter_problem(id)
+	if problem != "":
+		if dialog.is_open:
+			dialog.close()
+		dialog.say("ประตูโถงกิลด์", problem)
+		return
+	if zone != null and zone.is_hall and zone.zone_id == id:
+		Game.say("เจ้าอยู่ในโถงกิลด์อยู่แล้ว", &"info")
+		return
+	go(id, false, true)
+
+
+## The steward (พ่อบ้านกิลด์): the blessing, the next war and registration for it.
+func _talk_steward() -> void:
+	var g := Game.guild()
+	var t := WorldPresence.clock()
+	var text := "%s\n\n%s" % [GuildHallData.buff_text(g, t), GuildHallData.war_text(t)]
+	var next := GuildLeague.next_slot(t)
+	var choices: Array = []
+	if GuildLeague.registered(next):
+		choices.append({"label": "ยกเลิกสมัครรอบ %s" % GuildLeague.clock_text(next), "action": func():
+			var result := GuildLeague.unregister()
+			Game.say("ยกเลิกการสมัครรอบ %s แล้ว" % GuildLeague.clock_text(next) if result == "ok" else result, &"info" if result == "ok" else &"warning")})
+	else:
+		choices.append({"label": "สมัครรอบ %s" % GuildLeague.clock_text(next), "action": func():
+			var result := GuildLeague.register()
+			if result == "ok":
+				AudioManager.play_ui(&"ui_open")
+				Game.say("สมัครสงครามกิลด์รอบ %s แล้ว — เริ่มเมื่อไหร่จะแจ้งเตือน" % GuildLeague.clock_text(next), &"success")
+			else:
+				Game.say(result, &"warning")})
+	choices.append({"label": "ไปสงครามกิลด์", "action": func(): guildwar_screen.open_lobby()})
+	choices.append({"label": "ลีกกิลด์", "action": func(): guild_screen.open_league()})
+	choices.append({"label": "ไว้ก่อน"})
+	dialog.say(GuildHallData.STEWARD, text, choices)
+
+
+## The hall's notice board: the leader's message; the hero writes it when it leads.
+func _talk_hall_notice() -> void:
+	var g := Game.guild()
+	var t := WorldPresence.clock()
+	var notice := GuildHallData.notice(g, t)
+	var text := "%s\n\n— %s, หัวหน้ากิลด์ %s" % [String(notice.text), String(notice.by), WorldPlayers.guild_name(g)]
+	var choices: Array = []
+	if bool(notice.mine):
+		choices.append({"label": "เขียนประกาศ", "action": _write_hall_notice})
+	choices.append({"label": "ปิด"})
+	dialog.say("กระดานประกาศกิลด์", text, choices)
+
+
+var _notice_box: CanvasLayer
+
+
+## A typing bar for the leader's notice (GuildHallData.set_notice).
+func _write_hall_notice() -> void:
+	if is_instance_valid(_notice_box):
+		_notice_box.queue_free()
+	_notice_box = CanvasLayer.new()
+	_notice_box.layer = 70
+	add_child(_notice_box)
+	var panel := UIUtil.panel(&"GlassPanel")
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -340
+	panel.offset_right = 340
+	panel.offset_top = 16
+	_notice_box.add_child(panel)
+	var column := UIUtil.vbox(8)
+	panel.add_child(column)
+	column.add_child(UIUtil.label("ประกาศถึงสมาชิกกิลด์ %s (ไม่เกิน %d ตัวอักษร)" % [WorldPlayers.guild_name(Game.guild()), GuildHallData.NOTICE_MAX], &"BoldLabel"))
+	var row := UIUtil.hbox(8)
+	column.add_child(row)
+	var edit := LineEdit.new()
+	edit.name = "NoticeText"
+	edit.placeholder_text = "เช่น นัดรวมพลรอบ 21:30 คืนนี้"
+	edit.max_length = GuildHallData.NOTICE_MAX
+	edit.text = String(Game.profile.get(GuildHallData.NOTICE_KEY, ""))
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.custom_minimum_size = Vector2(0, 52)
+	row.add_child(edit)
+	var save := UIUtil.button("บันทึก", &"PrimaryButton", Vector2(120, 52))
+	row.add_child(save)
+	var shut := UIUtil.button("ยกเลิก", &"", Vector2(100, 52))
+	row.add_child(shut)
+	var finish := func(text: String, write: bool):
+		if is_instance_valid(_notice_box):
+			_notice_box.queue_free()
+		_notice_box = null
+		if not write:
+			return
+		var result := GuildHallData.set_notice(text)
+		if result == "ok":
+			AudioManager.play_ui(&"ui_open")
+			Game.say("ติดประกาศบนกระดานกิลด์แล้ว", &"success")
+		else:
+			Game.say(result, &"warning")
+	save.pressed.connect(func(): finish.call(edit.text, true))
+	edit.text_submitted.connect(func(t: String): finish.call(t, true))
+	shut.pressed.connect(func(): finish.call("", false))
+	edit.grab_focus()
+
+
+## The rest area: HP and MP back, and the hall's blessing (once per half hour).
+func _rest_in_hall() -> void:
+	var g := Game.guild()
+	var t := WorldPresence.clock()
+	var stats := Game.stats_now()
+	Game.profile.hp = stats.max_hp
+	Game.profile.mp = stats.max_mp
+	var result := GuildHallData.grant(t)
+	if result == "ok":
+		if zone != null and zone.hero != null:
+			VfxKit.heal(zone, zone.hero.global_position, GuildLeague.CROWN_COLOR)
+			zone.hero.refresh_stats()
+		AudioManager.play_sfx(&"heal")
+		dialog.say("ลานพักกิลด์", "นั่งพักสักครู่... HP และ MP ฟื้นเต็ม และได้รับ%s %s นาน %d นาที ขอให้ล่าโชคดี!" % [
+			GuildHallData.BUFF_NAME, GuildHallData.tier_text(GuildHallData.tier(t)), GuildHallData.BUFF_TIME / 60])
+	else:
+		dialog.say("ลานพักกิลด์", "HP และ MP ฟื้นเต็มแล้ว แต่%s" % result)
 
 
 ## The pet keeper: before a pet is chosen it offers the three; afterwards it talks about

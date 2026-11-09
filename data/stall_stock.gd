@@ -413,6 +413,9 @@ static func sell(index: int, count := 1) -> bool:
 	if index < 0 or index >= Game.profile.inv.size():
 		return false
 	var item: Dictionary = Game.profile.inv[index]
+	if LegendWings.is_item(item):
+		Game.say(LegendWings.SELL_TEXT, &"warning")
+		return false
 	var qty := clampi(count, 1, int(item.get("count", 1))) if ItemData.is_stackable(item) else 1
 	Game.add_gold(sell_price(item) * qty)
 	Game.remove_item_at(index, qty)
@@ -456,7 +459,7 @@ static func consign(index: int, count := 0, t: float = -1.0) -> bool:
 	var qty := stack if count <= 0 else clampi(count, 1, stack)
 	var gold := consign_price(item) * qty
 	if gold <= 0:
-		Game.say("ของชิ้นนี้ฝากขายไม่ได้", &"warning")
+		Game.say(LegendWings.STALL_TEXT if LegendWings.is_item(item) else "ของชิ้นนี้ฝากขายไม่ได้", &"warning")
 		return false
 	var due := int(ceil(t / 60.0)) + CONSIGN_MINUTES
 	var n := 0

@@ -725,14 +725,13 @@ func _storm_hit(victim: Node3D, mult: float, color: Color) -> void:
 	_hit(victim, mult, color)
 
 
-## เบ่งเลือด: the maximum rises by [param share] of the normal maximum and the
-## added HP is filled in (a stronger cast tops it up, a weaker one changes nothing).
+## เบ่งเลือด: the maximum rises by [param share] of the normal maximum (a ceiling: no HP
+## is filled in; a stronger cast raises it more, a weaker one changes nothing).
 func _raise_hp(share: float) -> void:
 	var base := max_hp - _hp_bonus
 	var bonus := int(float(base) * share)
 	if bonus <= _hp_bonus or is_dead():
 		return
-	hp += bonus - _hp_bonus
 	_hp_bonus = bonus
 	max_hp = base + _hp_bonus
 	hp = mini(hp, max_hp)

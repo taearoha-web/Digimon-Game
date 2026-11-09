@@ -1044,3 +1044,41 @@ test('WorldRoom: parties outlive a restart (storage) and members rejoin on recon
   again.accept(wb2, '2', 'bob');
   assert.deepEqual(wb2.sent.find(f => f.t === 'welcome').party.away, [], 'both back');
 });
+
+test('guild league round rooms: party-scoped, first arrival hosts (the leader does not take over), relays, no pets, invite names the room', () => {
+  const {connect} = world();
+  const room = 'guildwar_1731150000_2';
+  const a = connect('1').hello({pet: 'fire'});
+  const b = connect('2').hello({pet: 'fire'});
+  const x = connect('9').hello();
+  partyUp(a, b);
+  x.zone(room);                           // not in the party: alone there
+  assert.deepEqual(x.last('host'), {t: 'host', zone: room, id: null});
+  b.zone(room);                           // a member comes in first
+  assert.deepEqual(b.last('host'), {t: 'host', zone: room, id: null}, 'alone in the room: plays alone');
+  a.zone(room);                           // the leader arrives later: the first one keeps hosting
+  assert.deepEqual(a.last('host'), {t: 'host', zone: room, id: '2'});
+  assert.deepEqual(b.last('host'), {t: 'host', zone: room, id: '2'});
+  assert.deepEqual(x.last('host'), {t: 'host', zone: room, id: null}, 'an outsider in the room is never served');
+  clearAll(a, b, x);
+  b.send({t: 'ent_snap', zone: room, ents: [[1, 0, 0, 0, 10, 10, 0]]});
+  assert.equal(a.frames('ent_snap').length, 1, 'the host relays to its party in the room');
+  assert.equal(x.frames('ent_snap').length, 0, 'not to an outsider in the same room');
+  a.send({t: 'ent_hit', zone: room, eid: 1, dmg: 5});
+  assert.equal(b.frames('ent_hit').length, 1, 'a member hit goes to the host');
+  a.send({t: 'pet_act', zone: room, k: 'a', e: 1, p: [0, 0]});
+  assert.equal(b.frames('pet_act').length, 0, 'no pets in a guild war room');
+  // Another round (or guild) is another room.
+  a.zone('guildwar_1731171600_2');
+  assert.deepEqual(a.last('host'), {t: 'host', zone: 'guildwar_1731171600_2', id: null});
+  a.zone(room);
+  assert.deepEqual(a.last('host'), {t: 'host', zone: room, id: '2'}, 'back in: the host is still the first one');
+  // The leader's invite names its room; anything else is dropped.
+  a.send({t: 'gw_invite', room});
+  assert.deepEqual(b.last('gw_invite'), {t: 'gw_invite', from: '1', room});
+  a.send({t: 'gw_invite', room: 'meadow'});
+  assert.deepEqual(b.last('gw_invite'), {t: 'gw_invite', from: '1'});
+  // The host leaves: the one left plays alone.
+  b.zone('town');
+  assert.deepEqual(a.last('host'), {t: 'host', zone: room, id: null});
+});

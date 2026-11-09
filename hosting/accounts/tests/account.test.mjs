@@ -314,6 +314,27 @@ test('mount levels and the old list of owned mounts are both accepted', async t 
   assert.equal(pet.status, 200, JSON.stringify(pet.body));
 });
 
+// The dragon tomb's items (DungeonData in the game): the material เกล็ดมังกรโบราณ is a jewel,
+// the exchange gear เครื่องรางมังกร / แหวนเขี้ยวมังกร is Lv.120 equipment of no class with
+// a "dungeon" key; both save in the bag, the storage, the stall and the shared storage.
+test('the dragon tomb\'s material, its gear and the tomb flags are accepted', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const scale = {kind: 'jewel', id: 'dragon_scale', count: 5};
+  const charm = {kind: 'equip', uid: 'd1', slot: 'amulet', base: 'amulet', name: 'เครื่องรางมังกร', rarity: 4, level: 120, class: '',
+    stats: {hp: 1900, mp: 1600, atk: 120, def: 110, crit: 0.05}, price: 60000, sockets: 3, gems: [], plus: 0, dungeon: 'dragon_tomb'};
+  const ring = {...charm, uid: 'd2', slot: 'ring', base: 'ring', name: 'แหวนเขี้ยวมังกร', price: 50000};
+  const profile = {...sample(100), inv: [charm, scale], storage: [ring], equip: {amulet: {...charm, uid: 'd3'}}, paragon: {level: 60, exp: 0},
+    flags: {tomb_day: '2026-03-02', tomb_runs: 1, tomb_open: '2026-03-02#1', tomb_week: 2966, tomb_clears: 3, tomb_best: 250, tomb_fast: 1, tomb_shop: 1},
+    stall: {lots: [{lot: 1, price: 90000, item: ring}], log: [], next: 2, tick: 0}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {...bundle(profile), storage: [scale, charm], storageMigrated: {}}}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const back = await call('save', {cookie: account.cookie});
+  assert.deepEqual(back.body.bundle.slots['1'].inv, [charm, scale]);
+  assert.deepEqual(back.body.bundle.slots['1'].flags.tomb_open, '2026-03-02#1');
+  assert.deepEqual(back.body.bundle.storage, [scale, charm]);
+});
+
 const LEAGUE_WAR = {at: 1794200000, a: 1, b: 2, win: 1, ca: 2, cb: 0, held: 1, ka: 30, kb: 12};
 
 test('the weekly guild league record is accepted', async t => {
@@ -340,6 +361,23 @@ test('the weekly guild league record is accepted', async t => {
   }
 });
 
+test('the guild hall notice (hall_notice) and the hall blessing flags are accepted, a long or non-text notice is not', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const hall = {...sample(), flags: {...(sample().flags ?? {}), guild: 2, guild4: 1, hall_until: 1794300000, hall_tier: 1},
+    hall_notice: 'นัดรวมพลรอบ 21:30 คืนนี้ ยาเต็มกระเป๋า เราจะเอาปราสาทมาให้ได้!'};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(hall)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const read = await call('save', {cookie: account.cookie});
+  assert.equal(read.status, 200);
+  assert.equal(read.body.bundle.slots['1'].hall_notice, hall.hall_notice);
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), hall_notice: ''})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), hall_notice: 'ก'.repeat(160)})));
+  for (const bad of [{...sample(), hall_notice: 'ก'.repeat(161)}, {...sample(), hall_notice: 5}, {...sample(), hall_notice: ['x']}]) {
+    assert.throws(() => validateBundle(bundle(bad)), /guild hall notice/);
+  }
+});
+
 test('the league emperor bonus season (emp_claimed) is accepted and checked like the other season numbers', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -355,6 +393,77 @@ test('the league emperor bonus season (emp_claimed) is accepted and checked like
   const keys = JSON.parse(game.match(/const INT_KEYS: Array\[String\] = (\[[^\]]*\])/)[1]);
   for (const key of keys) assert.doesNotThrow(() => validateBundle(bundle({...sample(), league: {[key]: 1}})), key);
   assert.ok(keys.includes('emp_claimed'));
+});
+
+const legendPair = (week = 2967, guild = 1, extra = {}) => ({kind: 'equip', uid: `lw${week}`, slot: 'wings', base: 'wings', wing: 'priest',
+  plus: 0, sockets: 3, gems: [], set: '', name: 'ปีกตำนานแห่งกิลด์ Alpha', rarity: 4, level: 1, class: '',
+  stats: {atk: 1414, matk: 1456, hp: 5822, def: 624, mp: 2391, crit: 0.2}, price: 0, legend_week: week, legend_guild: guild, look: 'legend_wings', ...extra});
+
+test('the legendary guild wings are checked: fixed fields and stats, one pair a season an account', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const record = {done: 2968, hold: {'2967': {g: 1, n: '', s: 1}, '2968': {g: 1, n: 'Kaito', s: 2}}, hand: {'2968': 'Kaito'}};
+  const worn = {...sample(), equip: {wings: legendPair(2967)}, legend_wings: record};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2968, 2)]}}, selectedSlot: 1, storage: [legendPair(2969, 3)]}}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  // The game's fixed stats and models are the server's.
+  const game = readFileSync(new URL('../../../data/legend_wings.gd', import.meta.url), 'utf8');
+  const stats = game.match(/const STATS := (\{[^}]*\})/)[1];
+  assert.deepEqual(JSON.parse(stats), {atk: 1414, matk: 1456, hp: 5822, def: 624, mp: 2391, crit: 0.2});
+  const models = JSON.parse(game.match(/const MODELS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  for (const model of models) assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [legendPair(2967, 1, {wing: model})]})), model);
+  assert.equal(models.length, 9);
+  // Two pairs of one season anywhere in the account are refused: two bags, bag and worn,
+  // a bag and the shared storage.
+  assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}, '2': {...sample(), inv: [legendPair(2967, 2)]}}, selectedSlot: 1}), /one pair a season/);
+  assert.throws(() => validateBundle(bundle({...sample(), inv: [legendPair(2967)], equip: {wings: legendPair(2967)}})), /one pair a season/);
+  assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storage: [legendPair(2967)]}), /one pair a season/);
+  assert.doesNotThrow(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storage: [legendPair(2968)]}));
+  const rejected = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2967, 2)]}}, selectedSlot: 1}}});
+  assert.equal(rejected.status, 400);
+  assert.equal(rejected.body.error.code, 'invalid_save');
+  assert.match(rejected.body.error.message, /one pair a season/);
+  // A tampered pair: wrong stats, class lock, level, rarity, season, guild, model, extra stat.
+  for (const bad of [{stats: {...legendPair().stats, atk: 9999}}, {class: 'mage'}, {level: 100}, {rarity: 3}, {legend_week: 2966}, {legend_guild: 5},
+      {wing: 'darklord'}, {stats: {...legendPair().stats, speed: 1}}, {star_tier: 100}, {slot: 'armor', base: 'armor'}, {legend_week: '2967'}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [legendPair(2967, 1, bad)]})), /legendary guild wings/, JSON.stringify(bad));
+  }
+  // Never on a stall.
+  assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, price: 1, item: legendPair()}], log: []}})), /stall/);
+  // The record: seasons, guilds 1-4, names, streaks.
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), legend_wings: {done: -1, hold: {}, hand: {}}})));
+  for (const bad of [{done: 'x'}, {hold: {'2967': {g: 5, n: '', s: 1}}}, {hold: {'2967': {g: 1, n: 3, s: 1}}}, {hold: {'2967': {g: 1, n: ''}}},
+      {hold: {abc: {g: 1, n: '', s: 1}}}, {hand: {'2967': 5}}, {other: 1}, []]) {
+    assert.throws(() => validateBundle(bundle({...sample(), legend_wings: bad})), /legendary guild wings record/, JSON.stringify(bad));
+  }
+});
+
+test('the reward exchange record (rshop) is accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const rshop = {lc: 420, ep: 160, own: ['sakura', 'sparkle', 'rose'], cos: 'sakura', trail: 'sparkle', ncol: 'rose',
+    week: 2968, buy: {purple5: 2, ruby2: 1}, paid: {'1794200000': 38, '1794221600': 20}, ev_day: 20770, ev_pts: 60, boss_day: 20770, bonus_week: 2967};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), rshop})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {}})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {lc: 0, ep: 0, own: [], cos: '', trail: '', ncol: '', buy: {}, paid: {}}})));
+  for (const bad of [[], {junk: 1}, {lc: -2}, {lc: 1.5}, {lc: '5'}, {cos: 7}, {cos: 'x'.repeat(33)}, {own: 'sakura'}, {own: [1]},
+    {own: Array(65).fill('a')}, {buy: []}, {buy: {purple5: 1001}}, {buy: {purple5: -1}}, {paid: {'1': 'x'}}, {ev_pts: null}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), rshop: bad})), /reward shop record/, JSON.stringify(bad));
+  }
+  // The game's RewardShop.INT_KEYS / TEXT_KEYS and the server's lists name the same keys.
+  const game = readFileSync(new URL('../../../data/reward_shop.gd', import.meta.url), 'utf8');
+  const ints = JSON.parse(game.match(/const INT_KEYS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  const texts = JSON.parse(game.match(/const TEXT_KEYS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  for (const key of ints) assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {[key]: 1}})), key);
+  for (const key of texts) assert.doesNotThrow(() => validateBundle(bundle({...sample(), rshop: {[key]: 'sakura'}})), key);
+  const server = readFileSync(new URL('../server/accounts.js', import.meta.url), 'utf8');
+  const serverInts = server.match(/const RSHOP_INTS = new Set\(\[([^\]]*)\]\)/)[1].split(',').map(s => s.trim().replace(/'/g, '')).sort();
+  const serverTexts = server.match(/const RSHOP_TEXTS = new Set\(\[([^\]]*)\]\)/)[1].split(',').map(s => s.trim().replace(/'/g, '')).sort();
+  assert.deepEqual(serverInts, [...ints].sort());
+  assert.deepEqual(serverTexts, [...texts].sort());
+  // Stones from the shop are ordinary gems and jewels in the bag.
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [{kind: 'gem', id: 'ruby_2', count: 1}, {kind: 'jewel', id: 'purple', count: 5}]})));
 });
 
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {

@@ -9,6 +9,8 @@ extends CanvasLayer
 signal closed()
 ## The member taps "ไปสงครามกิลด์": main opens the guild-war desk.
 signal war_requested()
+## "เข้าโถงกิลด์": the hero wants its guild's hall (GuildHallData; Main takes it there).
+signal hall_requested()
 
 const REFRESH := 10.0
 ## Member cards a guild column builds at most (see _guild_column).
@@ -95,6 +97,7 @@ func open_league() -> void:
 
 func close_screen() -> void:
 	close_leader_picker()
+	close_legend_picker()
 	is_open = false
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
@@ -141,6 +144,12 @@ func _build() -> void:
 			close_screen()
 			war_requested.emit())
 		head.add_child(war)
+		var hall := UIUtil.button("เข้าโถงกิลด์", &"AccentButton", Vector2(170, 60))
+		hall.name = "GoHall"
+		hall.pressed.connect(func():
+			close_screen()
+			hall_requested.emit())
+		head.add_child(hall)
 		var other := "roster" if view != "roster" else "quests"
 		var tab := UIUtil.button("รายชื่อสมาชิก" if other == "roster" else "ภารกิจกิลด์", &"PrimaryButton" if other == "quests" else &"", Vector2(170, 60))
 		tab.name = "GuildRoster" if other == "roster" else "GuildQuests"
@@ -187,6 +196,7 @@ func _build() -> void:
 	var line := UIUtil.label(status, &"SmallLabel")
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(line)
+	column.add_child(_legend_row())
 	# The four guilds, two to a row.
 	var t := WorldPresence.clock()
 	var row: HBoxContainer = null
@@ -475,6 +485,115 @@ func _card(who: String, cls: StringName, level: String, where: String, online: b
 	info.add_child(detail)
 	line.add_child(UIUtil.label(level, &"BoldLabel"))
 	return panel
+
+
+# --- The Legendary Guild Wings (ปีกตำนานแห่งกิลด์, LegendWings) -----------------------
+
+var _legend_picker: OverlaySheet
+
+
+## This week's holder and the streak (LegendWings.line_now), the streak's earlier holders,
+## and, while the hero as leader has a pair to hand on, the button that opens the picker.
+func _legend_row() -> Control:
+	var box := UIUtil.vbox(4)
+	var row := UIUtil.hbox(8)
+	box.add_child(row)
+	var holders := LegendWings.streak_holders()
+	var text := LegendWings.line_now()
+	if holders.size() > 1:
+		var earlier: PackedStringArray = []
+		for k in range(1, holders.size()):
+			earlier.append("ฤดูกาลที่ %d: %s" % [int(holders[k].w), LegendWings.holder_label({"n": holders[k].n})])
+		text += " · ผู้ถือก่อนหน้าในชุดนี้: %s" % ", ".join(earlier)
+	var label := UIUtil.label(text, &"SmallLabel")
+	label.name = "LegendLine"
+	label.add_theme_color_override("font_color", LegendWings.COLOR)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+	var pending := LegendWings.pending()
+	if not pending.is_empty():
+		var hand := UIUtil.button("มอบปีกตำนาน", &"PrimaryButton", Vector2(170, 58))
+		hand.name = "HandLegend"
+		hand.pressed.connect(func(): open_legend_picker(int(pending.w)))
+		row.add_child(hand)
+		var note := UIUtil.label("กิลด์ %s เป็นแชมป์ลีกติดต่อกัน %d สัปดาห์ — คุณเป็นหัวหน้ากิลด์ เลือกสมาชิกที่จะรับปีกตำนานฤดูกาลที่ %d (ผู้ที่ถือปีกของชุดนี้อยู่แล้วรับซ้ำไม่ได้)" % [WorldPlayers.guild_name(int(pending.g)), int(pending.s), int(pending.w)], &"SmallLabel")
+		note.name = "LegendPending"
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(note)
+	return box
+
+
+## The Thai dialog listing whom the hero as leader may hand season w's pair to.
+func open_legend_picker(w: int) -> void:
+	close_legend_picker()
+	var choices := LegendWings.hand_choices(w)
+	if choices.is_empty():
+		Game.say("ไม่มีปีกตำนานรอมอบ", &"warning")
+		return
+	var box := UIUtil.vbox(8)
+	var hint := UIUtil.label("%s ฤดูกาลที่ %d · ผู้รับจะใส่ปีกทันทีและถอดไม่ได้ (เปลี่ยนได้เฉพาะปีกตำนานคู่อื่น) · มอบให้ตัวเองได้เมื่อยังไม่มีปีกของแชมป์ชุดนี้" % [LegendWings.NAME, w], &"SmallLabel")
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(hint)
+	var scroll := TouchScroll.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := UIUtil.vbox(6)
+	list.name = "LegendChoices"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var k := 0
+	for r in choices:
+		list.add_child(_legend_card(w, r, k))
+		k += 1
+	var sheet_size := Vector2(minf(900.0, maxf(560.0, _root.size.x - 80.0)), minf(600.0, maxf(380.0, _root.size.y - 60.0)))
+	_legend_picker = OverlaySheet.open(_root, "มอบ%s" % LegendWings.NAME, box, sheet_size)
+	_legend_picker.name = "LegendPicker"
+	_legend_picker.closed.connect(func(): _legend_picker = null)
+
+
+func close_legend_picker() -> void:
+	if _legend_picker != null and is_instance_valid(_legend_picker):
+		_legend_picker.queue_free()
+	_legend_picker = null
+
+
+func _legend_card(w: int, r: Dictionary, k: int) -> Control:
+	var panel := UIUtil.panel(&"CardPanel")
+	var line := UIUtil.hbox(10)
+	panel.add_child(line)
+	var info := UIUtil.vbox(0)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(info)
+	var who := "ตัวฉัน (%s)" % String(Game.profile.get("name", "")) if bool(r.get("me", false)) else String(r.name)
+	var title := UIUtil.label("%s  ·  %s" % [who, ClassData.get_class_data(StringName(r["class"])).name], &"BoldLabel")
+	title.clip_text = true
+	if bool(r.get("me", false)):
+		title.add_theme_color_override("font_color", LegendWings.COLOR)
+	info.add_child(title)
+	var stars := int(r.get("stars", 0))
+	info.add_child(UIUtil.label("Lv.%d%s" % [int(r.level), " ★%d" % stars if stars > 0 else ""], &"SmallLabel"))
+	var give := UIUtil.button("มอบให้", &"PrimaryButton", Vector2(150, 58))
+	give.name = "Hand_%d" % k
+	give.set_meta("pick", String(r.name))
+	give.pressed.connect(func(): hand_legend(w, String(r.name), who))
+	line.add_child(give)
+	return panel
+
+
+## Hands the pair on (LegendWings.hand_to), closes the picker and tells who got it.
+func hand_legend(w: int, pick: String, shown: String) -> bool:
+	var result := LegendWings.hand_to(w, pick)
+	if result != "ok":
+		Game.say(result, &"warning")
+		return false
+	AudioManager.play_ui(&"ui_open")
+	if pick != "":
+		Game.say("มอบ%sฤดูกาลที่ %d ให้ %s แล้ว" % [LegendWings.NAME, w, shown], &"success")
+	close_legend_picker()
+	_build()
+	return true
 
 
 # --- The guild leader picker (เลือกหัวหน้ากิลด์) -----------------------------------

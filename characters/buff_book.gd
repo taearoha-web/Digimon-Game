@@ -36,6 +36,18 @@ static func is_song(buff: Dictionary) -> bool:
 static func is_self_only(buff: Dictionary) -> bool:
 	return bool(buff.get("self_only", false))
 
+## What of [param buff] reaches the party: a buff naming "party" keys (เบ่งเลือด: only its
+## max HP) shares just those and its duration; any other buff is shared whole.
+static func party_part(buff: Dictionary) -> Dictionary:
+	if not buff.get("party") is Array:
+		return buff
+	var keys: Array = buff.party
+	var out := {}
+	for key in buff:
+		if key in keys or key in ["secs", "song", "name", "skill_id", "party"]:
+			out[key] = buff[key]
+	return out
+
 static func is_song_skill(skill: Dictionary) -> bool:
 	var fx: Variant = skill.get("fx")
 	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and is_song(fx.buff)

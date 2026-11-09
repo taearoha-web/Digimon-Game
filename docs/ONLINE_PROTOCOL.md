@@ -62,7 +62,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `duel_answer` | `from, ok` | |
 | `pvp_hit` | `to, dmg, crit, skill?, fx?` | attacker-computed raw damage; the victim applies its own defence |
 | `duel_over` | `loser` | sent by the side that fell |
-| `gw_invite` | | party leader asks the party into the guild war (same match) |
+| `gw_invite` | `room?` | party leader asks the party into the guild war (same match); `room`: a league round's room (below) |
 | `gw_answer` | `ok` | |
 | `gw_start` | `seed, plan` | leader (host) starts; relayed to accepted members |
 | `stall_list` | `lots:[{lot, item, price}]` | publish my stall's current lots (PlayerStall) for real players; sent on connect and on every change |
@@ -163,9 +163,14 @@ clients may ignore.
 - **Duel.** `pvp_hit` is relayed only when `to` is the sender's accepted duel opponent.
   `duel_over` is relayed with `loser` = the sender (whatever it wrote). If a duelist
   drops, the other gets `duel_over {from, loser}` with the dropped player as loser.
-- **Guild war.** `gw_invite` (leader only) goes to every other member; `gw_answer` goes to
+- **Guild war.** `gw_invite` (leader only) goes to every other member, with `room` when it
+  is a league round's room (`guildwar_<digits>_<digits>`, else dropped); `gw_answer` goes to
   every other member (leader included); `gw_start` (leader only) goes to the members who
   answered yes since the last `gw_invite`.
+- **League round rooms.** A zone `guildwar_<round start unix>_<guild id>` (regex
+  `GUILD_ROOM` in room.mjs) is instanced like `guildwar` (party-scoped relays, no pets), but
+  its host is the member who came in **first** (zoneSeq): a leader arriving later does not
+  take it over (its war would start over).
 - **Stalls.** `stall_list` with no valid lots closes the stall. `stall` answers
   `stall_view` with `lots: []` for a player without a stall. `stall_buy` to a player
   without a published stall: `error no_stall`; the relayed `stall_buy` also carries
@@ -218,6 +223,40 @@ the same zone share the monsters:
 - The same mechanism runs the guild war together: the party leader hosts the match,
   the AI fighters are shared entities, members fight on the leader's side.
 
+## Guild league rounds together
+
+The league's castle war (4 guilds, `GuildLeague` rounds at 12:00 / 18:00 / 21:30, the
+waiting room from 5 minutes before) is entered by each player at its own desk
+(`GuildWarScreen.enter_league`: registered, in the guild's top `GUILD_SIDE`). Online, the
+party members of one guild in one round share **one** war:
+
+- **Room.** The war is fought in the zone `GuildLeague.war_room(at, guild)` =
+  `guildwar_<at>_<guild>` (`Zone.online_id`, `Zone.net_id()`; `Online.current_zone()`,
+  EntitySync's key). A practice war stays `guildwar`; another round or guild is another
+  room, so nobody is mixed into the wrong war.
+- **Host / mirror.** The first member in builds its own war (the AI of every guild) and
+  hosts it; a member arriving while a party member is in the room builds a mirror
+  (`GuildWarMatch._build_league_mirror`: the castle, the four camps, the waiting room and
+  the bell on the round's clock, no fighters of its own; fighters and gates come by
+  `ent_event spawn`, hits go back as `ent_hit`). If both came in at once and the server
+  names the other the host, the war of its own is swapped for a mirror
+  (`GuildWarMatch.room_check`, `OnlineGuildWar.travel`; the server keeps hearing the room
+  meanwhile: `Online.travel_room`). A mirror named the host, left alone or not hearing
+  its host for 20 s fights the round on in a war of its own (a late arrival; nothing lost).
+- **Line-up.** Each real member in the room before the bell takes the place of the host's
+  weakest AI member of the guild (`GuildWarMatch.seat_partners`), so the guild still sends
+  `GUILD_SIDE`; one arriving after the bell joins in addition.
+- **Status.** `gw` also carries `sa` (every guild's falls) and `oa` (the holder's team) when
+  more than two guilds fight; `gw_end` carries `lg {at, g, o, c, k, h, order, pl}` (the
+  round as the host records it: guilds in team order, start holder, captures, falls, the
+  holder at the bell, the placement). The mirror records exactly that round
+  (`GuildLeague.war_finished`), so every member's league, coins and the result posted to
+  `/api/league/round` are the host's (the server keeps the first one posted anyway).
+- **Invite.** A party leader entering a league round sends `gw_invite {room}` (nothing
+  held). A member gets a prompt only when it may come (same guild, registered for that
+  round, in the line-up, Lv.100); otherwise a Thai line says why (`OnlineGuildWar.league_problem`).
+  Yes takes it in through the same desk checks (`OnlineGuildWar.go_league`).
+
 ## Client API (Godot autoload `Online`, `systems/online/online.gd`)
 
 ```gdscript
@@ -242,7 +281,7 @@ func is_zone_host(zone: StringName) -> bool
 func is_mirror_zone(zone: StringName) -> bool      # someone else hosts (party or not): do not spawn monsters
 func zone_members(zone: StringName) -> Array       # ids of the other real players in that zone, party or not
 func serves(zone: StringName) -> Array             # whom that zone's host serves: zone_members (open) or party_members_in_zone (instanced)
-static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena, raid (INSTANCED_ZONES)
+static func is_instanced(zone: StringName) -> bool # tower, pvp, guildwar, arena, raid (INSTANCED_ZONES), league rooms guildwar_<at>_<guild>
 func world_host() -> String                        # `whost` id ("" unknown / offline)
 func is_world_host() -> bool                       # this game makes the AI world chat
 func remote_node(id: String) -> Node3D             # the RemotePlayer in the current zone, or null
@@ -403,3 +442,57 @@ too_many_requests` with `Retry-After`.
   placement and capture points ×2 from season `GuildLeague.FINAL_FROM_WEEK` on. HOLD and
   falls count once. The game applies this when it scores a round (`GuildLeague.side_points`).
   The server stores no multiplier and accepts none.
+
+## Dragon tomb: weekly clear times (`/api/dungeon/*`, plain HTTPS)
+
+The four-player mechanics dungeon สุสานมังกรโบราณ (`data/dungeon_data.gd`, `DungeonData`)
+ranks the best clear time of each party leader's account in a week (Monday 00:00 Thai, the
+guild league's week numbering, `GuildLeague.week_of`). Server: `hosting/worker/dungeon.mjs`;
+client: `data/dungeon_ranking.gd` (`DungeonRanking`), shown on the keeper's screen
+(`ui/dungeon_screen.gd`) with each party's class badges.
+
+No account or session is needed. Storage: the D1 table `toon_dungeon_times` (`week`,
+`leader` primary key; `name`, `secs`, `classes` JSON text, `at`), created by the migration
+`hosting/accounts/drizzle/0002_dungeon_times.sql`, applied with the account migrations.
+
+An entry:
+
+```json
+{"leader": "u:toonhero", "name": "น้องแมว", "secs": 271, "classes": ["warrior", "defender", "priest", "mage"], "at": 1794138300}
+```
+
+`leader` is the leader's account key (`u:<account>`, else `id:<online id>`; a device that
+never signed in uses `local:<hero>` and never reaches the server). `secs` is the clear time
+(30-3600). `classes` are the four party members' class ids, the leader first.
+
+### `GET /api/dungeon/times?week=<n>`
+
+Returns `200 {"week": n, "times": [entry...], "now": <server unix>}`: the week's stored
+times, fastest first (ties by who posted first), at most 50. A week before the world
+opened or more than one ahead is `400 invalid_week`.
+
+### `POST /api/dungeon/time` with `{"week", "leader", "name", "secs", "classes"}` (content-type application/json)
+
+- Checked strictly: only those keys, `week` in range, `leader` 1-64 characters, `secs` an
+  int in 30-3600, exactly four known classes. Otherwise `400 invalid_time`. The body may be
+  at most 2 KB (`413`); `name` is cut to 32 characters.
+- The best time per (week, leader) is kept: `201 {"stored": true, "time": entry}` when
+  this one was stored (new or faster), else `200 {"stored": false, "time": <the stored one>}`.
+- A cross-site `Origin` is `403 invalid_origin`.
+
+Both routes are limited per IP (`CF-Connecting-IP`, buckets in `toon_rate_limits`): 120
+GETs and 60 POSTs per 10 minutes. Over the limit gives `429 too_many_requests` with
+`Retry-After`.
+
+### Client (`DungeonRanking`)
+
+- The board is the best time per leader from three sources: the week's seeded
+  world-player parties (deterministic from the week alone, so every device shows the same
+  board and it is never empty; they post nothing), the server's times, and this device's
+  own best of the week (`record_clear`, kept in `user://toon_tale_dungeon.json`, not in the
+  save). The hero's real time slots in among them; the top 20 are shown.
+- Web build only (same-origin `fetch` through `JavaScriptBridge`, `LeagueRounds.WebLink`).
+  The week's times are fetched when the keeper's screen opens (at most every 30 s) and every
+  10 minutes; a clear is posted once when it beats the device's best of the week, retried
+  after 5 minutes when the server could not be reached, never again after a `400`. Native
+  builds, moved world clocks and offline pages skip the server and keep the local best.

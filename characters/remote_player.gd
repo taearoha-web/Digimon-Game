@@ -162,6 +162,9 @@ func apply_look(raw: Variant, level := -1, stars := -1) -> void:
 		PlayerLook.redress(visual, look)
 		if visual.has_wings() and visual.wing_mode != int(look.wing_mode) and mount == null:
 			visual.set_wing_mode(int(look.wing_mode))
+	# The reward shop's walk trail it wears (RewardShop), as its look says.
+	if WalkTrail.worn(self) != str(look.get("trail", "")):
+		WalkTrail.attach(self, str(look.get("trail", "")))
 	var data := JobData.resolve(StringName(look["class"]), int(look.adv))
 	var attack: Dictionary = data.get("attack", {})
 	_attack_anims = attack.get("anims", ["1H_Melee_Attack_Chop"])
@@ -414,7 +417,7 @@ func _update_label() -> void:
 	var lv := clampi(Online.num(player.get("level", look.get("level", 1)), 1), 1, Game.MAX_LEVEL)
 	var stars := clampi(Online.num(player.get("stars", look.get("stars", 0)), 0), 0, Game.PARAGON_MAX)
 	var who := Online.display_name(player)
-	var key := "%s|%d|%d|%s|%s|%d" % [who, lv, stars, in_party, anim == "dead", int(look.get("adv", 0))]
+	var key := "%s|%d|%d|%s|%s|%d|%s" % [who, lv, stars, in_party, anim == "dead", int(look.get("adv", 0)), str(look.get("ncol", ""))]
 	if key == _label_key:
 		return
 	_label_key = key
@@ -426,6 +429,12 @@ func _update_label() -> void:
 		line = "%s ล้ม..." % who
 	_label.text = line
 	_label.modulate = PARTY_COLOR if in_party else NAME_COLOR
+	_label.outline_modulate = Color(0.08, 0.1, 0.18, 0.95)
+	# The reward shop's name colour it wears (RewardShop.NAME_COLORS).
+	var ncol := RewardShop.name_color(str(look.get("ncol", "")))
+	if not ncol.is_empty() and not in_party:
+		_label.modulate = ncol.color
+		_label.outline_modulate = ncol.edge
 	_god_lift = 0.2 if line.contains("\n") else 0.0
 	_raise(_lift)
 

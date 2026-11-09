@@ -169,6 +169,8 @@ func _ready() -> void:
 		add_to_group("world_players")
 	_label.text = _level_text()
 	_worn = _party_equip()
+	# The reward shop's walk trail its guild's standing earned it (RewardShop).
+	WalkTrail.attach(self, String(RewardShop.world_cosmetics(world_index).trail))
 	_wing_think = _rng.randf_range(0.5, 4.0)
 	mount_info = WorldPlayers.mount_of(member)
 	ride_taste = WorldPlayers.ride_taste(world_index)
@@ -183,6 +185,10 @@ func _ready() -> void:
 
 func _visual_look() -> Dictionary:
 	return WorldPlayers.look(world_index)
+
+
+func _costume_id() -> String:
+	return String(RewardShop.world_cosmetics(world_index).cos)
 
 
 ## The players around wear the cheap enhancement dressing; a party member the full one.
@@ -227,12 +233,22 @@ func refresh() -> void:
 func _level_text() -> String:
 	var g := WorldPlayers.guild_at(world_index, int(member.level))
 	_label.modulate = WorldPlayers.GUILD_COLORS.get(g, Color("e8f4ff"))
+	_label.outline_modulate = Color(0, 0, 0, _label.outline_modulate.a)
+	# A name colour from the reward shop (RewardShop.world_cosmetics) over the guild's.
+	var ncol := RewardShop.name_color(String(RewardShop.world_cosmetics(world_index).ncol))
+	if not ncol.is_empty():
+		_label.modulate = ncol.color
+		_label.outline_modulate = ncol.edge
 	var stars := Game.party_stars(member)
 	var line := "%s%s Lv.%d%s" % ["[%s] " % WorldPlayers.guild_name(g) if g > 0 else "", member.name, int(member.level), " ★%d" % stars if stars > 0 else ""]
 	# Members of the weekly Castle King (ราชันปราสาท) wear a gold crown plate (GuildLeague).
 	if GuildLeague.crowned(g):
 		_label.modulate = GuildLeague.CROWN_COLOR
 		line = "%s %s" % [GuildLeague.CROWN, line]
+	# A holder of the Legendary Guild Wings (LegendWings) wears the ตำนาน tag in gold.
+	if world_index >= 0 and LegendWings.ai_holds(world_index):
+		_label.modulate = LegendWings.COLOR
+		line = "「%s」 %s" % [LegendWings.TAG, line]
 	# A God (Lv.100 ★300) wears its title over the name, like the hero's name plate.
 	var god := WorldPlayers.god_title({"class": member["class"], "level": int(member.level), "stars": stars})
 	if god != "":

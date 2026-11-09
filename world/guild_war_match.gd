@@ -240,6 +240,18 @@ var hold := false
 var _hold_age := 0.0
 ## A member gives up on a leader that has not started after this many seconds.
 const MIRROR_WAIT := 45.0
+## A league round fought online (GuildLeague.war_room): the room this war is in ("" for a
+## practice war) and the round {guilds (team order), at, owner}. The party members of one
+## guild in one round share one war: the first one in hosts it (its own war, the AI of
+## every guild), everyone after mirrors it (OnlineGuildWar.mirror_wanted).
+var league_room: StringName = &""
+var league_info: Dictionary = {}
+## A league mirror that has not heard its room's host for this long fights its own war.
+const ROOM_WAIT := 20.0
+var _room_wait := 0.0
+## This war is being swapped for the room's (OnlineGuildWar.travel): no second swap.
+var _moving := false
+var _seat_timer := 0.0
 
 
 func setup(p_zone: Node3D, p_hero: Hero) -> void:
@@ -393,6 +405,18 @@ func build(tree: SceneTree = null) -> void:
 			var held := GuildLeague.start_holder(started_at)
 			start_owner = playing.find(held) if held > 0 else -1
 			GuildLeague.current_match = {"guilds": playing, "at": started_at, "owner": held if start_owner >= 0 else 0}
+			league_info = GuildLeague.current_match.duplicate(true)
+			league_room = GuildLeague.war_room(started_at, Game.guild())
+			zone.set("online_id", league_room)
+			# A party member of our guild already fights this round online: its war is ours.
+			if OnlineGuildWar.mirror_wanted(league_room):
+				GuildLeague.current_match = {}
+				if not saved.is_empty():
+					Game.guildwar_clear_checkpoint()
+				roster = {}
+				mirror = true
+				_build_league_mirror(league_info)
+				return
 			# The hero on the field always holds one of the GUILD_SIDE places.
 			if (roster.ally as Array).size() >= GuildWarData.GUILD_SIDE:
 				(roster.ally as Array).resize(GuildWarData.GUILD_SIDE - 1)
@@ -1148,6 +1172,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	team_buff_left = maxf(0.0, team_buff_left - delta)
 	_fit_switch_label()
+	if league_room != &"" and not _moving and state not in ["ending", "done"]:
+		_tick_room(delta)
 	match state:
 		"intro":
 			if hold:
@@ -2778,12 +2804,23 @@ func mirror_sync(ev: String, d: Dictionary) -> void:
 	if state == "intro" and String(d.get("st", "")) == "fight":
 		hold = false
 		_timer = minf(_timer, 0.01)
+		# The host's bell rang first (another clock): the waiting room is over here too.
+		if lobby_until > 0:
+			lobby_until = mini(lobby_until, int(WorldPresence.clock()))
 	time_left = clampf(float(d.get("tl", time_left)), 0.0, GuildWarData.DURATION)
 	overtime = bool(d.get("ot", overtime))
 	var s: Variant = d.get("s", [])
-	if s is Array and (s as Array).size() >= 2:
-		score = [int(s[0]), int(s[1])]
-	var holder := clampi(int(d.get("o", castle_owner)), -1, team_count() - 1)
+	var all: Variant = d.get("sa", [])
+	if team_count() > 2 and all is Array and (all as Array).size() == team_count():
+		for t in team_count():
+			score[t] = maxi(0, int(all[t]))
+	elif s is Array and (s as Array).size() >= 2:
+		if team_count() <= 2:
+			score = [int(s[0]), int(s[1])]
+		else:
+			score[0] = int(s[0])
+			score[1] = int(s[1])
+	var holder := clampi(int(d.get("oa", d.get("o", castle_owner))), -1, team_count() - 1)
 	if holder != castle_owner:
 		castle_owner = holder
 		_color_crystal()
@@ -2830,7 +2867,25 @@ func _mirror_end(d: Dictionary) -> void:
 	_result["castle"] = String(d.get("castle", ""))
 	_result["castle_ours"] = bool(d.get("ours", false))
 	var held := 0 if bool(d.get("ours", false)) else (1 if String(d.get("castle", "")) != "" else -1)
-	GuildLeague.war_finished(_result, Game.guild() > 0, [0, 0], held, score)
+	var lg := _league_from(d.get("lg"))
+	if not lg.is_empty():
+		# A league round: the host's record of it (the same guild in team 0), so this hero's
+		# league, its posted result and its coins are the host's round to the number.
+		GuildLeague.current_match = {"guilds": lg.g, "at": lg.at, "owner": lg.o}
+		_result["placement"] = lg.pl
+		_result["team_names"] = Array(team_names)
+		var places: Array = []
+		for i in (lg.order as Array).size():
+			var t := int(lg.order[i])
+			places.append({"team": t, "name": team_name(t), "place": i + 1, "kills": int(lg.k[t]), "captures": int(lg.c[t]),
+				"points": GuildLeague.round_points(int(lg.k[t]), int(lg.c[t])), "holder": t == int(lg.h)})
+		_result["places"] = places
+		score.assign(lg.k)
+		captures.assign(lg.c)
+		GuildLeague.war_finished(_result, true, lg.c, int(lg.h), lg.k)
+	else:
+		GuildLeague.current_match = {}
+		GuildLeague.war_finished(_result, Game.guild() > 0, [0, 0], held, score)
 	zone.banner_requested.emit("ชนะสงคราม!" if won else "พ่ายแพ้สงคราม")
 	if won and is_instance_valid(hero):
 		hero.level_up_fx()
@@ -2841,5 +2896,167 @@ func _mirror_end(d: Dictionary) -> void:
 func mirror_lost() -> void:
 	if not mirror or state in ["ending", "done"]:
 		return
+	if league_room != &"":
+		# A league round goes on without the host: this hero fights it in a war of its own
+		# (a late arrival: the round's own clock), nothing lost or counted twice.
+		if not _moving:
+			Game.say("ห้องสงครามของเพื่อนร่วมปาร์ตี้ปิดไปแล้ว — สู้รอบนี้ต่อในสงครามของคุณเอง", &"warning")
+			_move_room(false)
+		return
 	Game.say("หลุดจากสงครามของหัวหน้าปาร์ตี้", &"warning")
 	_mirror_end({"won": false})
+
+
+# ---------------------------------------------------------------------------
+# Online: a league round's room (GuildLeague.war_room), one war for the party
+# ---------------------------------------------------------------------------
+
+## The castle and the four camps of the round; the fighters come from the room's host.
+## The waiting room and the bell run on the round's clock like the host's own.
+func _build_league_mirror(info: Dictionary) -> void:
+	league_info = info.duplicate(true)
+	var order: Array = info.get("guilds", [])
+	started_at = int(info.get("at", WorldPresence.clock()))
+	_set_teams(clampi(order.size(), 2, SiegeArena.CAMPS.size()))
+	for t in team_count():
+		team_guilds[t] = int(order[t])
+		team_names[t] = GuildLeague.name_of(int(order[t]))
+	var held := int(info.get("owner", 0))
+	start_owner = order.find(held) if held > 0 else -1
+	BurstGuard.clear()
+	_raise_castle({})
+	Game.guildwar_issue_supply()
+	Game.guildwar_clear_checkpoint()
+	hold = false
+	if WorldPresence.clock() < float(started_at):
+		lobby_until = started_at
+		time_left = GuildWarData.DURATION
+	else:
+		time_left = clampf(GuildWarData.DURATION - (WorldPresence.clock() - float(started_at)), 1.0, GuildWarData.DURATION)
+	if is_instance_valid(hero):
+		hero.global_position = hero_camp_now()
+	var host := OnlineGuildWar.room_host(league_room)
+	var who := Online.display_name(Online.player(host)) if host != "" else "เพื่อนร่วมปาร์ตี้"
+	zone.banner_requested.emit("สงครามกิลด์ · %s" % " ปะทะ ".join(team_names))
+	Game.say("สงครามลีกรอบ %s ห้องเดียวกับ %s: สู้ฝั่งกิลด์ %s ด้วยกัน ศัตรูชุดเดียวกัน ผลรอบเดียวกัน" % [GuildLeague.clock_text(started_at), who, ally_name], &"quest")
+	if lobby_until > 0:
+		lobby_ui = GuildWarLobby.new()
+		add_child(lobby_ui)
+		lobby_ui.show_left(lobby_left())
+		Game.say("ห้องรอสงคราม: เริ่มใน %s — รอในค่ายกับปาร์ตี้ ยังโจมตีไม่ได้" % GuildLeague.until_text(lobby_until), &"quest")
+
+
+## EntitySync asks before it picks its mode in the room: false while this war is being
+## swapped. A war of its own when a party member hosts the room becomes a mirror of that
+## one; a mirror named the host (the old host left) fights the round in its own war.
+func room_check(room: StringName) -> bool:
+	if _moving:
+		return false
+	if state in ["ending", "done"] or not Online.is_online():
+		return true
+	var host := Online.zone_host(room)
+	var other := host != "" and host != Online.my_id()
+	if not mirror:
+		if other and Online.party_members_in_zone(room).has(host):
+			Game.say("%s เปิดห้องสงครามรอบนี้อยู่แล้ว — ย้ายไปสู้ในสงครามเดียวกัน" % Online.display_name(Online.player(host)), &"info")
+			_move_room(true)
+			return false
+		# Someone outside the party named host (an older server): this war stays its own.
+		return not other
+	if host == Online.my_id() and not Online.serves(room).is_empty():
+		_move_room(false)
+		return false
+	return not other or Online.party_members_in_zone(room).has(host)
+
+
+## The room's host is heard (a mirror), the partners take their places (a host).
+func _tick_room(delta: float) -> void:
+	if mirror:
+		var sync: Variant = zone.get("sync")
+		var heard: bool = sync != null and is_instance_valid(sync) and (sync as EntitySync).is_mirror()
+		_room_wait = 0.0 if heard else _room_wait + delta
+		if _room_wait > ROOM_WAIT:
+			_room_wait = 0.0
+			mirror_lost()
+		return
+	if state != "intro":
+		return
+	_seat_timer -= delta
+	if _seat_timer <= 0.0:
+		_seat_timer = 1.0
+		seat_partners()
+
+
+## Each real party member of our guild in the room before the bell takes the place of our
+## weakest AI member in the line-up (the guild still sends GuildWarData.GUILD_SIDE: the
+## hero, its partners and the rest of the strongest). One coming after the bell joins in.
+## Returns how many AI members stood down.
+func seat_partners() -> int:
+	if mirror or league_room == &"" or state != "intro" or not Online.is_online():
+		return 0
+	var partners := Online.serves(league_room).size()
+	var keep := maxi(0, GuildWarData.GUILD_SIDE - 1 - partners)
+	var ours := side(GuildFighter.TEAM_ALLY)
+	var out := 0
+	while ours.size() > keep:
+		var weakest: GuildFighter = null
+		for f in ours:
+			if f == _lead_at(GuildFighter.TEAM_ALLY):
+				continue
+			if weakest == null or f.max_hp + int(f.rstats.atk) < weakest.max_hp + int(weakest.rstats.atk):
+				weakest = f
+		if weakest == null:
+			break
+		ours.erase(weakest)
+		weakest.queue_free()
+		out += 1
+	if out > 0:
+		Game.say("สมาชิกกิลด์ที่เป็นผู้เล่นจริง %d คนลงรอบนี้ด้วย — แทนที่สมาชิก AI ที่อ่อนที่สุด %d คน" % [partners, out], &"info")
+	return out
+
+
+## The round as this war (the room's host) records it, for its members' gw_end.
+func league_end() -> Dictionary:
+	var order := placement()
+	return {"at": int(league_info.get("at", started_at)), "g": league_info.get("guilds", []), "o": int(league_info.get("owner", 0)),
+		"c": Array(captures), "k": Array(score), "h": castle_owner, "order": Array(order), "pl": order.find(GuildFighter.TEAM_ALLY) + 1}
+
+
+## The host's league_end checked against this war's round ({} when it is not ours).
+func _league_from(v: Variant) -> Dictionary:
+	if league_room == &"" or not (v is Dictionary):
+		return {}
+	var d: Dictionary = v
+	var g: Variant = d.get("g")
+	var n := team_count()
+	if int(d.get("at", 0)) != int(league_info.get("at", -1)) or not (g is Array) or (g as Array).size() != n or int(g[0]) != Game.guild():
+		return {}
+	for key in ["c", "k", "order"]:
+		if not (d.get(key) is Array) or (d[key] as Array).size() != n:
+			return {}
+	var out := {"at": int(d.at), "o": int(d.get("o", 0)), "h": clampi(int(d.get("h", -1)), -1, n - 1), "pl": clampi(int(d.get("pl", n)), 1, n)}
+	var gs: Array = []
+	var cs: Array[int] = []
+	var ks: Array[int] = []
+	var order: Array = []
+	for i in n:
+		gs.append(int(g[i]))
+		cs.append(maxi(0, int(d.c[i])))
+		ks.append(maxi(0, int(d.k[i])))
+		order.append(clampi(int(d.order[i]), 0, n - 1))
+	out["g"] = gs
+	out["c"] = cs
+	out["k"] = ks
+	out["order"] = order
+	return out
+
+
+## Swaps this war for the room's: a mirror of its host, or (no host left) a war of its own.
+func _move_room(as_mirror: bool) -> void:
+	if _moving:
+		return
+	_moving = true
+	if as_mirror:
+		# Its own war ends here (nothing counted): the host's is the round's.
+		Game.guildwar_clear_checkpoint()
+	OnlineGuildWar.travel({"guilds": league_info.get("guilds", []), "at": int(league_info.get("at", started_at))}, as_mirror, league_room)

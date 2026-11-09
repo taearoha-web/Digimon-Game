@@ -12,9 +12,23 @@ static var _vertex_material: StandardMaterial3D
 
 
 static func build(parent: Node3D, stage: StringName) -> void:
-	if stage not in [&"tower", &"arena"]:
+	if stage not in [&"tower", &"arena", StoryChapter2.STAGE_ID]:
 		return
 	if parent.has_node("SpecialStageArt"):
+		return
+	if stage == StoryChapter2.STAGE_ID:
+		# The chapter 2 throne court: its own dark floor and the architecture of StoryChapter2Art.
+		var throne := Node3D.new()
+		throne.name = "SpecialStageArt"
+		throne.set_meta("stage", String(stage))
+		throne.set_meta("visual_only", true)
+		parent.add_child(throne)
+		_floor(throne, &"tower")
+		var worn := throne.get_node_or_null("WornInlaidFloor") as MeshInstance3D
+		if worn != null and worn.material_override is ShaderMaterial:
+			(worn.material_override as ShaderMaterial).set_shader_parameter("base_color", Color("2a2142"))
+			(worn.material_override as ShaderMaterial).set_shader_parameter("accent_color", Color("6a4fa8"))
+		StoryChapter2Art.throne_court(throne)
 		return
 	GameSettings.load_settings()
 	var root := Node3D.new()

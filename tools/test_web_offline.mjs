@@ -60,6 +60,14 @@ const server = http.createServer(async (req, res) => {
     const body = raw ? JSON.parse(raw) : {};
     res.writeHead(201, {'Content-Type': 'application/json'}); res.end(JSON.stringify({stored: true, round: body})); return;
   }
+  // The dragon tomb's weekly clear times (DungeonRanking): an empty board, like a fresh server.
+  if (url.pathname === '/api/dungeon/times') {
+    res.writeHead(200, {'Content-Type': 'application/json'}); res.end(JSON.stringify({week: Number(url.searchParams.get('week')) || 0, times: []})); return;
+  }
+  if (url.pathname === '/api/dungeon/time') {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    res.writeHead(201, {'Content-Type': 'application/json'}); res.end(JSON.stringify({stored: true})); return;
+  }
   const name = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
   const file = path.join(root, name);
   if (!file.startsWith(root) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
@@ -110,7 +118,11 @@ page.on('requestfailed', request => {
   const reason = (request.failure() || {}).errorText;
   // The league's background sync (LeagueRounds) may be in flight when a test reloads the
   // page: the navigation cancels it (net::ERR_ABORTED). That is not a failed request.
-  if (request.url().startsWith(origin + '/api/league/') && reason === 'net::ERR_ABORTED') return;
+  // The same background syncs may also be in flight at the moment a test cuts the network
+  // (net::ERR_INTERNET_DISCONNECTED): the game sends none while offline, but one started
+  // just before. Those are not failed requests either.
+  if ((request.url().startsWith(origin + '/api/league/') || request.url().startsWith(origin + '/api/dungeon/'))
+      && (reason === 'net::ERR_ABORTED' || reason === 'net::ERR_INTERNET_DISCONNECTED')) return;
   if (request.url().startsWith(origin)) failures.push(request.url() + ' ' + reason);
 });
 page.on('response', response => { if (response.url().startsWith(origin) && response.status() >= 400) failures.push(response.url() + ' HTTP ' + response.status()); });

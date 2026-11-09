@@ -168,6 +168,9 @@ static func list_item(bag_index: int, price: int, count := 0, at := -1.0) -> int
 		Game.say("แผงเต็มแล้ว ตั้งขายได้ไม่เกิน %d ชิ้น" % MAX_LOTS, &"warning")
 		return -1
 	var source: Dictionary = Game.profile.inv[bag_index]
+	if LegendWings.is_item(source):
+		Game.say(LegendWings.STALL_TEXT, &"warning")
+		return -1
 	var item: Dictionary = source.duplicate(true)
 	var qty := 1
 	if ItemData.is_stackable(source):

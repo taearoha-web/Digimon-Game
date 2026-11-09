@@ -33,8 +33,15 @@ signal world_boss_defeated(zone: StringName)
 signal achievement_earned(id: String)
 ## The title above the hero's head changed ("" when taken off).
 signal title_changed(title: String)
+## The hero received a pair of the Legendary Guild Wings (LegendWings): the pair and the
+## letter's text (Main shows the popup).
+signal legend_wings_awarded(item: Dictionary, text: String)
 ## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
 signal mount_changed()
+## The reward shop's costume, walk trail or name colour worn changed (RewardShop.wear).
+signal cosmetics_changed()
+## Someone asked for the reward exchange (RewardShop): Main opens the menu on its tab.
+signal reward_shop_requested()
 ## The hero chose its pet (PetData, choose_pet).
 signal pet_changed()
 ## The hero's stall (PlayerStall: แผงของฉัน) changed: a lot listed, taken back or sold.
@@ -136,6 +143,8 @@ func _process(delta: float) -> void:
 		return
 	# The guild league's frozen rounds: saved, fetched and posted (data/league_rounds.gd).
 	LeagueRounds.process(delta)
+	# The dragon tomb's weekly clear times (data/dungeon_ranking.gd).
+	DungeonRanking.process(delta)
 	if not has_profile:
 		return
 	if OS.has_feature("web"):
@@ -152,6 +161,8 @@ func _process(delta: float) -> void:
 		if guild() > 0:
 			_guild_quest_announce()
 		GuildLeague.tick()
+		# The season's Legendary Guild Wings, minted once the season is over.
+		LegendWings.tick()
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -407,6 +418,11 @@ func stats_now(buffs := {}) -> Dictionary:
 	# A running Halloween potion also lifts the attack (BOOST_ATK).
 	if has_profile and exp_boost_left() > 0.0:
 		out["atk"] = float(out["atk"]) * (1.0 + BOOST_ATK)
+	# The guild hall's blessing (GuildHallData, พรแห่งโถงกิลด์): +ATK% by the guild's league placement.
+	if has_profile:
+		var hall := GuildHallData.atk_bonus()
+		if hall > 0.0:
+			out["atk"] = float(out["atk"]) * (1.0 + hall)
 	return out
 
 
@@ -1012,6 +1028,12 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The weekly guild league record (GuildLeague).
 	if data.has(GuildLeague.KEY) and not GuildLeague.valid(data[GuildLeague.KEY]):
 		return false
+	# The Legendary Guild Wings record (LegendWings): who holds each season's pair.
+	if data.has(LegendWings.KEY) and not LegendWings.valid_record(data[LegendWings.KEY]):
+		return false
+	# The reward exchange's currencies and unlocks (RewardShop).
+	if data.has(RewardShop.KEY) and not RewardShop.valid(data[RewardShop.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1131,6 +1153,9 @@ func _valid_item(value: Variant) -> bool:
 	# A 250-star set piece (SetGearData): its class, slot, base and Lv.350 must agree.
 	if item.has("set_gear") and (item.has("star_tier") or item.has("collection") or not SetGearData.valid(item)):
 		return false
+	# A pair of the Legendary Guild Wings (LegendWings): its fixed fields and stats.
+	if (item.has("legend_week") or item.has("legend_guild")) and not LegendWings.valid_item(item):
+		return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
 	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
@@ -1166,6 +1191,12 @@ func _repair(data: Dictionary) -> Dictionary:
 	data["play_time"] = float(data.get("play_time", 0.0))
 	var zone := StringName(data.get("zone", "town"))
 	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower", &"guildwar"] else "town"
+	# The guild hall's notice the hero wrote as leader (GuildHallData): short text or nothing.
+	if data.has(GuildHallData.NOTICE_KEY):
+		if data[GuildHallData.NOTICE_KEY] is String:
+			data[GuildHallData.NOTICE_KEY] = String(data[GuildHallData.NOTICE_KEY]).left(GuildHallData.NOTICE_MAX)
+		else:
+			data.erase(GuildHallData.NOTICE_KEY)
 	if data.get("look") is Dictionary:
 		data["look"] = FaceKit.repair(data["look"])
 	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "boss_pity", "pvp"]:
@@ -1219,6 +1250,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		if item is Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	StarWingData.migrate_profile(data)
+	LegendWings.repair(data)
 	_repair_mounts(data)
 	data["pet"] = PetData.chosen(data)
 	# Saves from before the stall get an empty one.
@@ -1238,6 +1270,7 @@ func _repair(data: Dictionary) -> Dictionary:
 					leaders[str(int(g))] = String(raw_leaders[key]).strip_edges().left(GUILD_LEADER_NAME_MAX)
 		data["guild_leaders"] = leaders
 	GuildLeague.repair(data)
+	RewardShop.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
@@ -1365,8 +1398,9 @@ func add_exp(amount: int) -> void:
 		return
 	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
 	# Halloween potion multiplies on top of it.
-	# The guild league Castle King's (ราชันปราสาท) members earn GuildLeague.EXP_BONUS more for a week.
-	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult()))
+	# The guild league Castle King's (ราชันปราสาท) members earn GuildLeague.EXP_BONUS more for a week,
+	# and the guild hall's blessing (GuildHallData) adds its share for half an hour after a rest.
+	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult() * GuildHallData.exp_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return
@@ -2736,6 +2770,10 @@ func equip_from_bag(index: int) -> bool:
 		return false
 	var slot: String = item.slot
 	var old: Variant = profile["equip"].get(slot)
+	# The Legendary Guild Wings come off only for another pair of them (LegendWings).
+	if LegendWings.is_item(old) and not LegendWings.is_item(item):
+		say(LegendWings.LOCK_TEXT, &"warning")
+		return false
 	profile["equip"][slot] = item
 	profile["inv"].remove_at(index)
 	if old != null:
@@ -2749,6 +2787,9 @@ func equip_from_bag(index: int) -> bool:
 
 func unequip(slot: String) -> bool:
 	if not profile["equip"].has(slot) or profile["inv"].size() >= bag_size():
+		return false
+	if LegendWings.is_item(profile["equip"][slot]):
+		say(LegendWings.LOCK_TEXT, &"warning")
 		return false
 	profile["inv"].append(profile["equip"][slot])
 	profile["equip"].erase(slot)
@@ -2767,6 +2808,9 @@ func clamp_vitals() -> void:
 
 func sell_item(index: int, count := 1) -> void:
 	var item: Dictionary = profile["inv"][index]
+	if LegendWings.is_item(item):
+		say(LegendWings.SELL_TEXT, &"warning")
+		return
 	var each := ItemData.unit_sell_price(item)
 	var qty := count if ItemData.is_stackable(item) else 1
 	add_gold(each * qty)
@@ -2920,6 +2964,8 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 			state["status"] = "ready"
 			say("เควสต์ \"%s\" เสร็จแล้ว! กลับไปรายงาน" % quest.name, &"quest")
 		quest_changed.emit()
+	# บทที่ 2's kill and boss quests (StoryChapter2) count the same kill.
+	StoryChapter2.on_kill(monster_id)
 	if is_boss:
 		profile["boss_kills"][String(monster_id)] = int(profile["boss_kills"].get(String(monster_id), 0)) + 1
 	# The same emperor also appears in the tower; only the final field ends
@@ -2938,6 +2984,8 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 	daily_progress("zone_kills", 1)
 	if is_boss:
 		daily_progress("boss", 1)
+	# Event points for a kill in the event hours (RewardShop).
+	RewardShop.kill()
 	guild_quest_progress("kills", 1)
 	if is_boss:
 		guild_quest_progress("boss", 1)
@@ -3136,7 +3184,13 @@ func _on_world_boss_defeated(_zone: StringName) -> void:
 	if has_profile:
 		flag_add(Achievements.WORLD_BOSS_FLAG)
 		daily_progress("world_boss")
+		RewardShop.boss_defeated()
 		_check_achievements()
+
+
+## Opens the reward exchange (RewardShop): the league page and the keeper call this.
+func open_reward_shop() -> void:
+	reward_shop_requested.emit()
 
 
 # ---------------------------------------------------------------------------

@@ -33,6 +33,8 @@ var _wait := 0.0
 var prompt: CanvasLayer
 var _prompt_left := 0.0
 var _invite_from := ""
+## The league room of the open prompt (&"" for a practice war's invite).
+var _invite_room: StringName = &""
 
 
 static func ensure(tree: SceneTree) -> OnlineGuildWar:
@@ -56,10 +58,15 @@ static func take_start() -> Dictionary:
 	return plan
 
 
-## The party leader's own war is built: invite the party and hold the countdown.
+## The party leader's own war is built: invite the party and hold the countdown. A league
+## round's war (GuildWarMatch.league_room) holds nothing: the round runs on its own clock;
+## the leader's invite carries the room, and members of its guild who registered come in.
 static func on_war_built(p_zone: Node) -> void:
 	var w: Variant = p_zone.get("gw_match")
-	if w == null or not is_instance_valid(w) or (w as GuildWarMatch).mirror:
+	if w == null or not is_instance_valid(w):
+		return
+	var war := w as GuildWarMatch
+	if war.league_room == &"" and war.mirror:
 		return
 	if not Online.is_online() or not Online.in_party() or String(Online.party().get("leader", "")) != Online.my_id():
 		return
@@ -69,7 +76,101 @@ static func on_war_built(p_zone: Node) -> void:
 			others.append(String(id))
 	if others.is_empty():
 		return
-	ensure(p_zone.get_tree()).lead(w as GuildWarMatch, others)
+	if war.league_room != &"":
+		var away: Array = others.filter(func(id): return Online.party_members_in_zone(war.league_room).find(id) < 0)
+		if away.is_empty():
+			return
+		Online.send("gw_invite", {"room": String(war.league_room)})
+		Game.say("ชวนปาร์ตี้ลงสงครามลีกรอบ %s ด้วยกันแล้ว (เฉพาะสมาชิกกิลด์เดียวกันที่สมัครรอบนี้)" % GuildLeague.clock_text(int(war.league_info.get("at", war.started_at))), &"quest")
+		return
+	ensure(p_zone.get_tree()).lead(war, others)
+
+
+# --- League rounds together (GuildLeague.war_room) -------------------------------------
+
+## The next league war built goes into its room as a mirror (a war of its own met the
+## room's host) / as a war of its own (the room's host left): GuildWarMatch.build.
+static var _room_mirror := false
+static var _room_own := false
+## Tests: the last swap asked for ({league, mirror, room}).
+static var last_travel: Dictionary = {}
+
+
+## Whether a league war about to be built in `room` mirrors a party member's: one is
+## there already (the first one in hosts the room), or the room asked for it.
+static func mirror_wanted(room: StringName) -> bool:
+	var forced := _room_mirror
+	var own := _room_own
+	_room_mirror = false
+	_room_own = false
+	if not Online.is_online() or not Online.in_party() or room == &"":
+		return false
+	if own:
+		return false
+	return forced or not Online.party_members_in_zone(room).is_empty()
+
+
+## The room's host as the server named it, else the party member who is in it ("" none).
+static func room_host(room: StringName) -> String:
+	var host := Online.zone_host(room)
+	if host != "" and host != Online.my_id():
+		return host
+	var here := Online.party_members_in_zone(room)
+	return String(here[0]) if not here.is_empty() else ""
+
+
+## Swaps the war for the room's (GuildWarMatch._move_room): the same round again, as a
+## mirror or as its own; the server keeps hearing the room meanwhile (Online.travel_room).
+static func travel(league: Dictionary, as_mirror: bool, room: StringName) -> void:
+	_room_mirror = as_mirror
+	_room_own = not as_mirror
+	last_travel = {"league": league, "mirror": as_mirror, "room": room}
+	Online.travel_room = room
+	Game.guildwar_league = league.duplicate(true)
+	Game.guildwar_resuming = false
+	var tree := Engine.get_main_loop() as SceneTree
+	var scene := tree.current_scene if tree != null else null
+	if scene != null and scene.has_method("go"):
+		scene.call_deferred("go", WAR_ZONE, false, true)
+
+
+## Why this hero cannot come into its leader's league room ("" when it can): another guild,
+## not registered, not in the line-up, out of time, too low.
+static func league_problem(room: StringName) -> String:
+	var r := GuildLeague.room_round(room)
+	if r.is_empty():
+		return "ห้องสงครามไม่ถูกต้อง"
+	if not Game.has_profile:
+		return "ยังไม่มีตัวละคร"
+	var reason := ZoneData.access_reason(WAR_ZONE, int(Game.profile.get("level", 1)), int(Game.paragon().level))
+	if reason != "":
+		return reason
+	if Game.guild() <= 0:
+		return "ยังไม่ได้เข้ากิลด์ — สงครามลีกสู้ร่วมกันได้เฉพาะสมาชิกกิลด์เดียวกัน"
+	if Game.guild() != int(r.guild):
+		return "อยู่คนละกิลด์ (หัวหน้าปาร์ตี้อยู่กิลด์ %s) — สงครามลีกสู้ร่วมกันได้เฉพาะสมาชิกกิลด์เดียวกัน" % GuildLeague.name_of(int(r.guild))
+	if GuildLeague.entry_slot() != int(r.at):
+		return "รอบ %s ไม่เปิดให้เข้าแล้ว" % GuildLeague.clock_text(int(r.at))
+	if not GuildLeague.registered(int(r.at)):
+		return "ไม่ได้สมัครรอบ %s ไว้ (ต้องสมัครก่อนเริ่ม %d นาที)" % [GuildLeague.clock_text(int(r.at)), GuildLeague.REGISTER_CLOSE / 60]
+	return GuildLeague.enter_problem()
+
+
+## "เข้าสู่สงคราม" with the party: the round the hero may go into now, as the desk does it
+## (GuildWarScreen.enter_league), straight to the war. "" or the reason it cannot.
+static func go_league(tree: SceneTree) -> String:
+	var m := GuildLeague.enter_match()
+	if m.is_empty():
+		return GuildLeague.enter_problem()
+	Game.guildwar_league = m
+	Game.guildwar_resuming = false
+	Game.guildwar_party_chosen = false
+	var scene := tree.current_scene if tree != null else null
+	if scene != null and scene.has_method("go"):
+		if tree.paused:
+			tree.paused = false
+		scene.call("go", WAR_ZONE, false, true)
+	return ""
 
 
 func _ready() -> void:
@@ -158,7 +259,17 @@ func _on_message(type: String, data: Dictionary) -> void:
 				Game.say("%s %s" % [who_name, "ตอบรับ ไปสงครามด้วยกัน" if invited[from] == "yes" else "ไม่ไปสงคราม"], &"info")
 		"gw_invite":
 			if from != "" and from == _leader() and from != Online.my_id():
-				_invited_by(from)
+				# A league round's invite names its room (an older server drops it: the
+				# leader's own zone tells it then).
+				var room := String(data.get("room", "")) if data.get("room") is String else ""
+				if room == "":
+					var there := String(Online.player(from).get("zone", ""))
+					if there.begins_with(GuildLeague.ROOM_PREFIX):
+						room = there
+				if room != "":
+					_league_invited_by(from, StringName(room))
+				else:
+					_invited_by(from)
 		"gw_start":
 			if from == "" or from != _leader():
 				return
@@ -191,7 +302,26 @@ func _invited_by(from: String) -> void:
 	_show_prompt(from)
 
 
-func _show_prompt(from: String) -> void:
+## The leader went into a league round's room: a prompt for a member of its guild who
+## registered for that round and made the line-up, else a Thai line saying why not.
+func _league_invited_by(from: String, room: StringName) -> void:
+	var war := _my_war()
+	if war != null and war.league_room == room:
+		return  # already in that room: the war is the room's (EntitySync, room_check)
+	var reason := league_problem(room)
+	if reason == "" and (Game.current_zone in [WAR_ZONE, &"pvp", &"tower"] or GuildWarSpectate.is_pending()):
+		reason = "ติดภารกิจอื่นอยู่"
+	if reason != "":
+		Online.send("gw_answer", {"ok": false})
+		Game.say("หัวหน้าปาร์ตี้ชวนลงสงครามลีกด้วยกัน แต่ไปไม่ได้: %s" % reason, &"warning")
+		return
+	_invite_from = from
+	_invite_room = room
+	var at := int(GuildLeague.room_round(room).at)
+	_show_prompt(from, "{leader} ชวนลงสงครามลีกรอบ %s ด้วยกัน\nห้องเดียวกัน ฝั่งกิลด์เดียวกัน ไปด้วยไหม?" % GuildLeague.clock_text(at))
+
+
+func _show_prompt(from: String, line := "{leader} ชวนลงสงครามกิลด์ด้วยกัน\nสู้ฝั่งเดียวกับหัวหน้าปาร์ตี้ ไปด้วยไหม?") -> void:
 	_close_prompt()
 	var p: Variant = Online.players().get(from, {})
 	var leader_name := String((p as Dictionary).get("name", (p as Dictionary).get("user", "หัวหน้าปาร์ตี้"))) if p is Dictionary else "หัวหน้าปาร์ตี้"
@@ -208,7 +338,8 @@ func _show_prompt(from: String) -> void:
 	prompt.add_child(box)
 	var column := UIUtil.vbox(12)
 	box.add_child(column)
-	var text := UIUtil.label("%s ชวนลงสงครามกิลด์ด้วยกัน\nสู้ฝั่งเดียวกับหัวหน้าปาร์ตี้ ไปด้วยไหม?" % leader_name, &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	var text := UIUtil.label(line.replace("{leader}", leader_name), &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	text.name = "Text"
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(text)
 	var row := UIUtil.hbox(14)
@@ -239,6 +370,20 @@ func answer(ok: bool) -> void:
 		return
 	_close_prompt()
 	_invite_from = ""
+	var room := _invite_room
+	_invite_room = &""
+	if room != &"":
+		# A league round: the member's own way in (its registration, its line-up place);
+		# in the room its war mirrors the host's (GuildWarMatch.build, mirror_wanted).
+		var why := league_problem(room) if ok else ""
+		Online.send("gw_answer", {"ok": ok and why == ""})
+		if not ok:
+			return
+		if why == "":
+			why = go_league(get_tree())
+		if why != "":
+			Game.say("ลงสงครามลีกกับปาร์ตี้ไม่ได้: %s" % why, &"warning")
+		return
 	Online.send("gw_answer", {"ok": ok})
 	if not ok:
 		return

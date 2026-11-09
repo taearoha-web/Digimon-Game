@@ -95,6 +95,7 @@ const MONSTERS := {
 static func get_monster(id: StringName) -> Dictionary:
 	if DivineRegionData.has_monster(id): return DivineRegionData.monster(id)
 	if DrownedAbyssData.has_monster(id): return DrownedAbyssData.monster(id)
+	if StoryChapter2.has_monster(id): return StoryChapter2.monster(id)
 	if StarMonsters.has(id): return StarMonsters.get_monster(id)
 	return MONSTERS.get(id, MONSTERS[&"pink_slime"])
 
@@ -138,6 +139,9 @@ static var _home_zone := {}
 
 ## The field a monster lives in (its first camp or boss slot), for ZONE_TUNING.
 static func home_zone(id: StringName) -> StringName:
+	# The chapter 2 bosses fight with the tuning of the field they appear in.
+	if StoryChapter2.has_monster(id):
+		return StoryChapter2.home_of(id)
 	if _home_zone.is_empty():
 		ZoneData.ensure()
 		for zone_id in ZoneData.ZONES:

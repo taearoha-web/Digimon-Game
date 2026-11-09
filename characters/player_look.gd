@@ -5,7 +5,9 @@ extends RefCounted
 ## its job step, the face and hair, every worn piece (with its plus, gems and set, so the
 ## enhancement glow, wings, cape and set pieces come out the same) and the wing pose are.
 ##   {"class": "mage", "adv": 2, "face": {gender, hair, ...}, "equip": {slot: item},
-##    "wing_mode": 0, "level": 41, "stars": 0}
+##    "wing_mode": 0, "level": 41, "stars": 0, "cos": "", "trail": "", "ncol": ""}
+## cos / trail / ncol are the reward shop's costume, walk trail and name colour worn
+## (RewardShop ids, "" for none): they travel with the look so the others see them.
 ## of_hero builds it from the hero's profile (Game.hero_look), of_member from a world
 ## player's sheet (what FieldPlayer wears), dress puts it on a HeroVisual the way a
 ## Companion / FieldPlayer is dressed (HeroVisual.setup with the class, the gear and the
@@ -34,7 +36,21 @@ static func of_profile(p: Dictionary) -> Dictionary:
 		"wing_mode": clampi(int((flags as Dictionary).get("wing_mode", 0)) if flags is Dictionary else 0, HeroVisual.WING_STAND, HeroVisual.WING_FOLD),
 		"level": int(p.get("level", 1)),
 		"stars": int((paragon as Dictionary).get("level", 0)) if paragon is Dictionary else 0,
+		"cos": _worn(p, "costume"),
+		"trail": _worn(p, "trail"),
+		"ncol": _worn(p, "ncol"),
 	}
+
+
+## The reward-shop cosmetic of `tab` profile `p` wears ("" for none or when not owned).
+static func _worn(p: Dictionary, tab: String) -> String:
+	var d: Variant = p.get(RewardShop.KEY, {})
+	if not d is Dictionary:
+		return ""
+	var key := "cos" if tab == "costume" else tab
+	var id := str((d as Dictionary).get(key, ""))
+	var own: Variant = (d as Dictionary).get("own", [])
+	return id if id != "" and own is Array and (own as Array).has(id) and RewardShop.catalog(tab).has(id) else ""
 
 
 ## A world player's look (the one FieldPlayer wears): sheet `m` (WorldPlayers.member)
@@ -42,6 +58,7 @@ static func of_profile(p: Dictionary) -> Dictionary:
 static func of_member(m: Dictionary, index: int) -> Dictionary:
 	var level := int(m.get("level", 1))
 	var stars := Game.party_stars(m)
+	var worn := RewardShop.world_cosmetics(index)
 	return {
 		"class": String(m.get("class", ClassData.START)),
 		"adv": JobData.adv_for(level, stars),
@@ -50,6 +67,9 @@ static func of_member(m: Dictionary, index: int) -> Dictionary:
 		"wing_mode": HeroVisual.WING_STAND,
 		"level": level,
 		"stars": stars,
+		"cos": String(worn.cos),
+		"trail": String(worn.trail),
+		"ncol": String(worn.ncol),
 	}
 
 
@@ -69,6 +89,7 @@ static func wire_equip(equip: Dictionary) -> Dictionary:
 ## Puts `look` (already clean) on `visual`: the same HeroVisual.setup a Companion and a
 ## FieldPlayer go through, then the wing pose.
 static func dress(visual: HeroVisual, look: Dictionary) -> void:
+	visual.costume = str(look.get("cos", ""))
 	visual.setup(StringName(look.get("class", ClassData.START)), "", true, look.get("equip", {}), look.get("face", {}))
 	var mode := int(look.get("wing_mode", HeroVisual.WING_STAND))
 	if mode != HeroVisual.WING_STAND and visual.has_wings():
@@ -77,6 +98,7 @@ static func dress(visual: HeroVisual, look: Dictionary) -> void:
 
 ## Equipment only (the body stays): a new piece or a new plus.
 static func redress(visual: HeroVisual, look: Dictionary) -> void:
+	visual.costume = str(look.get("cos", ""))
 	visual.set_equipment(look.get("equip", {}))
 
 
@@ -110,7 +132,15 @@ static func clean(raw: Variant) -> Dictionary:
 		"wing_mode": clampi(_int(src.get("wing_mode", 0)), HeroVisual.WING_STAND, HeroVisual.WING_FOLD),
 		"level": clampi(_int(src.get("level", 1)), 1, Game.MAX_LEVEL),
 		"stars": clampi(_int(src.get("stars", 0)), 0, Game.PARAGON_MAX),
+		"cos": _cosmetic(src.get("cos", ""), "costume"),
+		"trail": _cosmetic(src.get("trail", ""), "trail"),
+		"ncol": _cosmetic(src.get("ncol", ""), "ncol"),
 	}
+
+
+## A reward-shop id from the wire: one of the catalogue's or "".
+static func _cosmetic(v: Variant, tab: String) -> String:
+	return str(v) if (v is String or v is StringName) and RewardShop.catalog(tab).has(str(v)) else ""
 
 
 ## One worn piece from the network, or {} when it is not a valid piece of gear.
