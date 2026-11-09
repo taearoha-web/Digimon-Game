@@ -216,8 +216,12 @@ func _host() -> void:
 	Online._dispatch({"t": "ent_hit", "zone": String(room), "eid": int(foe.get_meta("eid", 0)), "dmg": 50, "crit": false, "from": "p2"})
 	await seconds(0.3)
 	check(foe.is_dead() and war.score[0] == kills + 1, "host: the partner's kill scores for our guild")
-	await seconds(0.6)
+	# The status goes out on its own beat: wait (up to 4 s) for one sent after the kill.
 	var status := link.events("gw")
+	var wait_until := Time.get_ticks_msec() + 4000
+	while Time.get_ticks_msec() < wait_until and (status.is_empty() or int((status[-1].data.get("sa", [0]) as Array)[0]) != war.score[0]):
+		await seconds(0.2)
+		status = link.events("gw")
 	check(not status.is_empty() and (status[-1].data.sa as Array).size() == 4 and int(status[-1].data.sa[0]) == war.score[0], "host: the status carries all four guilds' falls")
 	if not status.is_empty():
 		host_status = status[-1].data
