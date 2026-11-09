@@ -68,10 +68,19 @@ func _ready() -> void:
 	frame.add_child(panel)
 	var row := UIUtil.hbox(14)
 	panel.add_child(row)
-	# Ten tabs and the close button must fit a 720 px tall phone screen.
+	# The tab column scrolls (many tabs never fit a phone screen in landscape); the close
+	# button stays below it, always on screen.
+	var column := UIUtil.vbox(8)
+	column.custom_minimum_size = Vector2(190, 0)
+	row.add_child(column)
+	var tab_scroll := ScrollContainer.new()
+	tab_scroll.name = "TabScroll"
+	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tab_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(tab_scroll)
 	var tabs := UIUtil.vbox(8 if TABS.size() <= 8 else 5)
-	tabs.custom_minimum_size = Vector2(190, 0)
-	row.add_child(tabs)
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_scroll.add_child(tabs)
 	for tab in TABS:
 		var b := UIUtil.button(String(tab[1]), &"", Vector2(0, 54 if TABS.size() <= 8 else 46))
 		b.pressed.connect(func(): show_tab(StringName(tab[0])))
@@ -89,10 +98,10 @@ func _ready() -> void:
 		close_menu()
 		dungeon_requested.emit())
 	tabs.add_child(tomb)
-	tabs.add_child(UIUtil.spacer(false))
-	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 66))
+	var close := UIUtil.button("ปิด", &"PrimaryButton", Vector2(0, 60))
+	close.name = "CloseMenu"
 	close.pressed.connect(close_menu)
-	tabs.add_child(close)
+	column.add_child(close)
 	_content = Control.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
