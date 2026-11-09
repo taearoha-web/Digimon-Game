@@ -22,6 +22,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://taearoha-web.github.io/Digimon-Game/play/og.jpg?v=78530e7783fe">
 <style>body{margin:0}[hidden]{display:none!important}</style>
+<script>if(/\.github\.io$/i.test(location.hostname))location.replace("https://toon-tale.taearoha.workers.dev/"+location.search+location.hash);</script>
 <title>Toon Tale</title>
 <link rel="stylesheet" href="accounts.e72d966b1892.css">
 <style>@font-face{font-family:"Fredoka";src:url("font-fredoka.2ba02e68b152.ttf") format("truetype");font-weight:300 700;font-style:normal;font-display:swap}@font-face{font-family:"Mitr";src:url("font-mitr.847340933424.ttf") format("truetype");font-weight:400 500;font-style:normal;font-display:swap}@font-face{font-family:"Noto Sans Thai";src:url("font-noto-sans-thai.5a1c559bb539.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap}</style>
@@ -322,7 +323,7 @@
 <script src="index.js"></script>
 <script src="accounts.18834948bfa0.js"></script>
 <script src="session.efd8d5072c18.js"></script>
-<script>window.TOON_OFFLINE = {"build":"ce71a63d48ff","files":[["./",0,false,true],["accounts.18834948bfa0.js",67158,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.63bac15b.part001.gz.wasm",16777216,true,false],["game.63bac15b.part002.gz.wasm",16777216,true,false],["game.63bac15b.part003.gz.wasm",16777216,true,false],["game.63bac15b.part004.gz.wasm",16777216,true,false],["game.63bac15b.part005.gz.wasm",9182375,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331495,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.60b077dd427a.js",15894,true,true],["session.efd8d5072c18.js",19536,true,true]],"total":86567153};</script>
+<script>window.TOON_OFFLINE = {"build":"063f78573691","files":[["./",0,false,true],["accounts.18834948bfa0.js",67158,true,true],["accounts.e72d966b1892.css",7674,true,true],["apple-touch-icon.png?v=1196b39e2aea",82955,true,true],["engine.d0b30e03.gz.wasm",7975981,true,false],["font-fredoka.2ba02e68b152.ttf",159184,true,true],["font-mitr.847340933424.ttf",222116,true,true],["font-noto-sans-thai.5a1c559bb539.ttf",218652,true,true],["game.63bac15b.part001.gz.wasm",16777216,true,false],["game.63bac15b.part002.gz.wasm",16777216,true,false],["game.63bac15b.part003.gz.wasm",16777216,true,false],["game.63bac15b.part004.gz.wasm",16777216,true,false],["game.63bac15b.part005.gz.wasm",9182375,true,false],["icon-512.png?v=1196b39e2aea",567887,true,true],["icon-maskable-192.png?v=1196b39e2aea",74556,true,true],["icon-maskable-512.png?v=1196b39e2aea",430809,true,true],["icon.png?v=1196b39e2aea",93421,true,true],["index.audio.worklet.js",7298,false,true],["index.js",331545,false,true],["manifest.webmanifest?v=23f2bff9c6ec",1298,true,true],["offline.60b077dd427a.js",15894,true,true],["session.efd8d5072c18.js",19536,true,true]],"total":86567203};</script>
 <script src="offline.60b077dd427a.js"></script>
 <script>
 (function () {
@@ -506,7 +507,35 @@
   // through public resize policy 0 instead of modifying the engine or browser
   // devicePixelRatio. High draws at the phone's own resolution (up to 2560 px on the long
   // edge) so names and the world stay sharp; medium and low trade pixels for speed.
+  // Reopened after the phone dropped the graphics context: start lighter this time.
   let renderQuality = 1;
+  try { if (sessionStorage.getItem('toon-context-lost')) renderQuality = 0; } catch (_) {}
+  // The browser took the game's graphics away (low memory, or the page went to the
+  // background while loading). Reload once by itself; if it happens again soon, ask.
+  window.toonContextLost = function () {
+    let last = 0;
+    try { last = Number(sessionStorage.getItem('toon-context-lost')) || 0; } catch (_) {}
+    try { sessionStorage.setItem('toon-context-lost', String(Date.now())); } catch (_) {}
+    try { window.toonSession.error('webgl context lost'); } catch (_) {}
+    const box = document.createElement('div');
+    box.setAttribute('role', 'alert');
+    box.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;background:rgba(8,12,32,.94);color:#fff;font:600 18px/1.5 "Noto Sans Thai",sans-serif;text-align:center';
+    const text = document.createElement('div');
+    const again = Date.now() - last < 120000;
+    text.textContent = again
+      ? 'เครื่องหน่วยความจำไม่พอสำหรับภาพเกม · ปิดแอป/แท็บอื่นแล้วแตะเพื่อเปิดเกมใหม่'
+      : 'ภาพเกมหลุด กำลังเปิดเกมใหม่ให้อัตโนมัติ…';
+    box.appendChild(text);
+    if (again) {
+      const btn = document.createElement('button');
+      btn.textContent = 'เปิดเกมใหม่';
+      btn.style.cssText = 'font:700 20px "Noto Sans Thai",sans-serif;padding:12px 28px;border:0;border-radius:999px;background:#e0a33a;color:#1b1206';
+      btn.addEventListener('click', function () { location.reload(); });
+      box.appendChild(btn);
+    }
+    document.body.appendChild(box);
+    if (!again) setTimeout(function () { location.reload(); }, 800);
+  };
   function resizeGameCanvas() {
     const canvas = document.getElementById('canvas');
     const width = Math.max(1, window.innerWidth);

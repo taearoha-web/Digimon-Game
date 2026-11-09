@@ -480,7 +480,35 @@
   // through public resize policy 0 instead of modifying the engine or browser
   // devicePixelRatio. High draws at the phone's own resolution (up to 2560 px on the long
   // edge) so names and the world stay sharp; medium and low trade pixels for speed.
+  // Reopened after the phone dropped the graphics context: start lighter this time.
   let renderQuality = 1;
+  try { if (sessionStorage.getItem('toon-context-lost')) renderQuality = 0; } catch (_) {}
+  // The browser took the game's graphics away (low memory, or the page went to the
+  // background while loading). Reload once by itself; if it happens again soon, ask.
+  window.toonContextLost = function () {
+    let last = 0;
+    try { last = Number(sessionStorage.getItem('toon-context-lost')) || 0; } catch (_) {}
+    try { sessionStorage.setItem('toon-context-lost', String(Date.now())); } catch (_) {}
+    try { window.toonSession.error('webgl context lost'); } catch (_) {}
+    const box = document.createElement('div');
+    box.setAttribute('role', 'alert');
+    box.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;background:rgba(8,12,32,.94);color:#fff;font:600 18px/1.5 "Noto Sans Thai",sans-serif;text-align:center';
+    const text = document.createElement('div');
+    const again = Date.now() - last < 120000;
+    text.textContent = again
+      ? 'เครื่องหน่วยความจำไม่พอสำหรับภาพเกม · ปิดแอป/แท็บอื่นแล้วแตะเพื่อเปิดเกมใหม่'
+      : 'ภาพเกมหลุด กำลังเปิดเกมใหม่ให้อัตโนมัติ…';
+    box.appendChild(text);
+    if (again) {
+      const btn = document.createElement('button');
+      btn.textContent = 'เปิดเกมใหม่';
+      btn.style.cssText = 'font:700 20px "Noto Sans Thai",sans-serif;padding:12px 28px;border:0;border-radius:999px;background:#e0a33a;color:#1b1206';
+      btn.addEventListener('click', function () { location.reload(); });
+      box.appendChild(btn);
+    }
+    document.body.appendChild(box);
+    if (!again) setTimeout(function () { location.reload(); }, 800);
+  };
   function resizeGameCanvas() {
     const canvas = document.getElementById('canvas');
     const width = Math.max(1, window.innerWidth);
