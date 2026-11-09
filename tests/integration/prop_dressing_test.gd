@@ -153,7 +153,7 @@ func _ready() -> void:
 	check(street.size() >= 15, "village: street props are placed (%d)" % street.size())
 	var keep_off: Array = []
 	for npc in zone.npcs:
-		if npc is NoticeBoard or npc.role == "warp":
+		if npc is NoticeBoard or npc.role == "warp" or npc.visual == null:
 			continue
 		var front := Vector3(sin(npc.visual.rotation.y), 0, cos(npc.visual.rotation.y))
 		for spot in [npc.global_position, npc.global_position + front * 2.0]:

@@ -24,7 +24,7 @@ func _blocked(zone: Zone) -> Array[String]:
 	var space := zone.get_world_3d().direct_space_state
 	var blocked: Array[String] = []
 	for npc in zone.npcs:
-		if npc is NoticeBoard or npc.role == "warp":
+		if npc is NoticeBoard or npc.role == "warp" or npc.visual == null:
 			continue
 		var front := Vector3(sin(npc.visual.rotation.y), 0, cos(npc.visual.rotation.y))
 		for spot in [npc.global_position, npc.global_position + front * 2.0]:
@@ -50,7 +50,7 @@ func _ready() -> void:
 		add_child(zone)
 		await get_tree().physics_frame
 		await get_tree().physics_frame
-		check(zone.is_built and zone.npcs.size() == 18, "seed %d: the village is built with its villagers (%d)" % [layout_seed, zone.npcs.size()])
+		check(zone.is_built and zone.npcs.size() == 19, "seed %d: the village is built with its villagers, board, warp stone and guild hall door (%d)" % [layout_seed, zone.npcs.size()])
 		var blocked := _blocked(zone)
 		check(blocked.is_empty(), "seed %d: no villager or the spot in front of them is inside a rock, tree or wall (%s)" % [layout_seed, blocked])
 		zone.queue_free()

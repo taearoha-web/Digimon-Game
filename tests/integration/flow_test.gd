@@ -185,7 +185,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 18, "sixteen villagers (the raid and pet keepers too), the daily notice board and the warp crystal")
+	check(town.npcs.size() == 19, "sixteen villagers (the raid and pet keepers too), the daily notice board, the warp crystal and the guild hall door")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -2155,7 +2155,7 @@ func _japan_village() -> void:
 	check(village != null, "the village is built")
 	for piece in ["Shrine", "Pagoda", "Dojo", "GeneralStore", "Forge", "Storehouse", "Izakaya", "VillageGate", "SparringRing"]:
 		check(village != null and village.get_node_or_null(piece) != null, "the village has its %s" % piece)
-	check(town.npcs.size() == 18, "sixteen villagers (the raid and pet keepers too), the notice board and the warp crystal")
+	check(town.npcs.size() == 19, "sixteen villagers (the raid and pet keepers too), the notice board, the warp crystal and the guild hall door")
 	var looks := {}
 	for npc in town.npcs:
 		if npc.visual != null:
@@ -2171,7 +2171,7 @@ func _japan_village() -> void:
 	var space := town.get_world_3d().direct_space_state
 	var blocked: Array[String] = []
 	for npc in town.npcs:
-		if npc is NoticeBoard or npc.role == "warp":
+		if npc is NoticeBoard or npc.role == "warp" or npc.visual == null:
 			continue
 		var front := Vector3(sin(npc.visual.rotation.y), 0, cos(npc.visual.rotation.y))
 		for spot in [npc.global_position, npc.global_position + front * 2.0]:

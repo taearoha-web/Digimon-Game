@@ -390,6 +390,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-player_stall_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/player_stall_test.tscn
+      - name: guild_hall_test
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild_hall_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_hall_test.tscn
       - name: online_trade_test
         timeout-minutes: 10
         env:

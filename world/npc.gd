@@ -39,6 +39,9 @@ const LOOKS := {
 		"npc_outfit": ["Mage", Color(1.15, 1.08, 1.05), ""], "npc_wash": 0.9, "npc_hat": ["ribbon", Color("e8463a")]},
 	"guide": {"gender": 1, "skin": 1, "hair": 3, "hair_color": 7, "eyes": 3, "eye_color": 1, "nose": 1, "mouth": 2,
 		"npc_outfit": ["Ranger", Color(0.7, 1.2, 1.5), ""], "npc_hat": ["tenugui", Color("f4f0e8")]},
+	# The guild hall's steward (พ่อบ้านกิลด์, GuildHall).
+	"steward": {"gender": 0, "skin": 2, "hair": 4, "hair_color": 6, "eyes": 2, "eye_color": 3, "nose": 2, "mouth": 1,
+		"npc_outfit": ["Knight", Color(0.55, 0.5, 0.6), "Knight_Cape"], "npc_hat": ["eboshi", Color.BLACK]},
 }
 
 var role := "elder"

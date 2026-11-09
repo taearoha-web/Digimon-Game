@@ -407,6 +407,11 @@ func stats_now(buffs := {}) -> Dictionary:
 	# A running Halloween potion also lifts the attack (BOOST_ATK).
 	if has_profile and exp_boost_left() > 0.0:
 		out["atk"] = float(out["atk"]) * (1.0 + BOOST_ATK)
+	# The guild hall's blessing (GuildHallData, พรแห่งโถงกิลด์): +ATK% by the guild's league placement.
+	if has_profile:
+		var hall := GuildHallData.atk_bonus()
+		if hall > 0.0:
+			out["atk"] = float(out["atk"]) * (1.0 + hall)
 	return out
 
 
@@ -1166,6 +1171,12 @@ func _repair(data: Dictionary) -> Dictionary:
 	data["play_time"] = float(data.get("play_time", 0.0))
 	var zone := StringName(data.get("zone", "town"))
 	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower", &"guildwar"] else "town"
+	# The guild hall's notice the hero wrote as leader (GuildHallData): short text or nothing.
+	if data.has(GuildHallData.NOTICE_KEY):
+		if data[GuildHallData.NOTICE_KEY] is String:
+			data[GuildHallData.NOTICE_KEY] = String(data[GuildHallData.NOTICE_KEY]).left(GuildHallData.NOTICE_MAX)
+		else:
+			data.erase(GuildHallData.NOTICE_KEY)
 	if data.get("look") is Dictionary:
 		data["look"] = FaceKit.repair(data["look"])
 	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "boss_pity", "pvp"]:
@@ -1365,8 +1376,9 @@ func add_exp(amount: int) -> void:
 		return
 	# The evening EXP x2 event (WorldEvents) doubles every EXP the hero earns; a
 	# Halloween potion multiplies on top of it.
-	# The guild league Castle King's (ราชันปราสาท) members earn GuildLeague.EXP_BONUS more for a week.
-	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult()))
+	# The guild league Castle King's (ราชันปราสาท) members earn GuildLeague.EXP_BONUS more for a week,
+	# and the guild hall's blessing (GuildHallData) adds its share for half an hour after a rest.
+	amount = int(round(float(amount) * WorldEvents.exp_multiplier(WorldPresence.clock()) * exp_boost_mult() * GuildLeague.exp_mult() * GuildHallData.exp_mult()))
 	if profile["level"] >= MAX_LEVEL:
 		_add_paragon_exp(amount)
 		return

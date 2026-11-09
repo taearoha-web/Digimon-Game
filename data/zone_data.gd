@@ -251,9 +251,14 @@ static func get_zone(id: StringName) -> Dictionary:
 	# The party raid is entered from its keeper, never walked to: not in ZONES.
 	if id == RaidData.ID:
 		return RaidData.zone()
+	# The guild halls are entered from the guild screen or the keep's door, by members only.
+	if GuildHallData.is_hall(id):
+		return GuildHallData.zone(id)
 	return ZONES.get(id, ZONES[&"meadow"])
 
 static func access_reason(id: StringName, level: int, stars: int) -> String:
+	if GuildHallData.is_hall(id):
+		return GuildHallData.enter_problem(id)
 	var z := get_zone(id)
 	if level < int(z.get("level", [1,1])[0]): return "ต้องเลเวล %d" % int(z.level[0])
 	if stars < int(z.get("star", 0)): return "ต้องเลเวล 100 ดาว %d" % int(z.star)
