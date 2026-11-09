@@ -182,24 +182,57 @@ func _look() -> void:
 	MemoryGuard.pressure = 0
 	var art := LegendWingArt.build(pair)
 	add_child(art)
-	check(art.name.begins_with("Wings_legend_") and art.name.ends_with(String(pair.wing)), "the week's star wing model, named as a pair of wings (%s)" % art.name)
+	check(art.name.begins_with("Wings_legend_") and art is LegendWingArt, "its own built pair of wings, named as a pair (%s)" % art.name)
 	var meshes := art.find_children("*", "MeshInstance3D", true, false)
 	var gold := true
+	var tris := 0
 	for m in meshes:
-		for i in (m as MeshInstance3D).mesh.get_surface_count():
-			gold = gold and (m as MeshInstance3D).get_surface_override_material(i) == LegendWingArt.material()
-		gold = gold and bool(m.get_meta("no_outline", false))
-	check(not meshes.is_empty() and gold, "every surface wears the shared gold shader, no outline")
-	check(art.find_child("LegendSparkles", true, false) != null, "sparkles on the full quality setting")
+		var mi := m as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			gold = gold and mi.get_surface_override_material(i) == LegendWingArt.material()
+		gold = gold and bool(mi.get_meta("no_outline", false)) and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		tris += LegendWingMesh.triangles(mi.mesh)
+	check(meshes.size() == 5 and gold, "two great wings, two lower wings and the halo in the one shared gold shader, no outline pass, no shadow (%d meshes)" % meshes.size())
+	check(tris > 1500 and tris < 6000, "phone-sized: %d triangles" % tris)
+	check(art.find_child("WingR", true, false).mesh == art.find_child("WingL", true, false).mesh and LegendWingMesh.wing() == art.find_child("WingR", true, false).mesh,
+		"the left wing mirrors the right one's shared mesh")
+	var rows := {}
+	var arrays := LegendWingMesh.wing().surface_get_arrays(0)
+	for uv2 in arrays[Mesh.ARRAY_TEX_UV2]:
+		rows[int(floor((uv2 as Vector2).x))] = true
+	check(rows.has(LegendWingMesh.ROW_PRIMARY) and rows.has(LegendWingMesh.ROW_SECONDARY) and rows.has(LegendWingMesh.ROW_COVERT), "three rows of feathers: primaries, secondaries, coverts")
+	check(LegendWingMesh.halo(WorldPlayers.LNW) != LegendWingMesh.halo(WorldPlayers.TITAN), "the halo's gems wear the guild's colour")
+	var player := art.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var clips := true
+	for clip in ["Idle", "Flap", "Glide", "Fold", "Unfold"]:
+		clips = clips and player.has_animation(clip)
+	check(clips and player.current_animation == "Idle", "it answers to the wing clips and idles")
+	var open_basis: Basis = art.find_child("WingR", true, false).transform.basis
+	art.fold = 1.0
+	check(not art.find_child("WingR", true, false).transform.basis.is_equal_approx(open_basis), "folding moves the wings")
+	art.fold = 0.0
+	var motes := art.find_child("LegendSparkles", true, false) as CPUParticles3D
+	check(motes != null and motes.amount <= LegendWingArt.SPARKLES, "drifting motes on the full quality setting, VfxBudget-sized")
 	art.queue_free()
 	MemoryGuard.pressure = 2
 	var tight := LegendWingArt.build(pair)
-	check(tight.find_child("LegendSparkles", true, false) == null, "no sparkles under memory pressure 2")
-	tight.queue_free()
+	check(tight.find_child("LegendSparkles", true, false) == null, "no motes under memory pressure 2")
+	tight.free()
 	MemoryGuard.pressure = 0
-	check(LegendWingArt.build(pair, true).find_child("LegendSparkles", true, false) == null, "the light dress of a crowd has none")
+	GameSettings.quality = 0
+	var low := LegendWingArt.build(pair)
+	check(low.find_child("LegendSparkles", true, false) == null, "no motes on the low quality setting")
+	low.free()
+	GameSettings.quality = 2
+	var crowd := LegendWingArt.build(pair, true)
+	check(crowd.find_child("LegendSparkles", true, false) == null, "the light dress of a crowd has none")
+	crowd.free()
+	var fresh := LegendWingArt.build(pair, false, true)
+	add_child(fresh)
+	check(fresh.fold > 0.5 and fresh.find_children("*", "CPUParticles3D", true, false).size() >= 2, "a fresh pair arrives folded and bursts open in gold")
+	fresh.queue_free()
 	for w in range(W0, W0 + LegendWings.MODELS.size()):
-		check(LegendWings.MODELS.has(LegendWings.model_of(w)) and LegendWings.model_of(w) != "darklord", "season %d shows a pair of wings" % w)
+		check(LegendWings.MODELS.has(LegendWings.model_of(w)) and LegendWings.model_of(w) != "darklord", "season %d keeps a valid wing field" % w)
 
 
 ## Season one: the hero leads Alpha, Alpha is champion, the hero gets exactly one pair,

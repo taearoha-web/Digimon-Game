@@ -48,8 +48,9 @@ const SOCKETS := 3
 ## (HeroStats.PLUS_BONUS, the crit grade) and a tenth more. Fixed, never rolled: the
 ## server checks the very same numbers (accounts.js LEGEND_STATS: keep them equal).
 const STATS := {"atk": 1414, "matk": 1456, "hp": 5822, "def": 624, "mp": 2391, "crit": 0.2}
-## The wing models a pair may show (assets/models/star_wings; the Dark Lord's cape is not
-## a pair of wings), by week.
+## The season's "wing" field, by week (kept in every pair: the save and accounts.js check
+## it). It no longer picks the look: every pair wears the Legendary Guild Wings' own
+## design (LegendWingArt), its halo gems in the guild's colour.
 const MODELS: Array[String] = ["priest", "warrior", "mage", "archer", "lancer", "assassin", "defender", "summoner", "bard"]
 const LOOK := "legend_wings"
 const LOCK_TEXT := "ปีกตำนานแห่งกิลด์ถอดไม่ได้ — เปลี่ยนได้เฉพาะปีกตำนานแห่งกิลด์คู่อื่น"
