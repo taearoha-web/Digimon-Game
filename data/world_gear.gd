@@ -175,6 +175,10 @@ static func gear_at_work(i: int, w: float) -> Dictionary:
 		out["wings"] = {"tier": 0, "name": "", "plus": 0}
 	else:
 		out["wings"] = {"tier": int(st.wtier), "name": String(_item(i, "wings", String(wings[0])).get("name", "")), "plus": int(wings[1])}
+	# A holder of the Legendary Guild Wings (LegendWings) wears that pair (tier 3) over any.
+	var legend := LegendWings.ai_item(i)
+	if not legend.is_empty():
+		out["wings"] = {"tier": 3, "name": String(legend.name), "plus": 0}
 	out["set_pieces"] = int(st.set)
 	out["set_name"] = SetGearData.set_label(String(cls))
 	out["divine_pieces"] = int(st.divine)
@@ -206,6 +210,9 @@ static func equip_at_work(i: int, w: float) -> Dictionary:
 		if EnhanceFx.can_enhance(item):
 			item["plus"] = int(worn[1])
 		out[slot] = item
+	var legend := LegendWings.ai_item(i)
+	if not legend.is_empty():
+		out["wings"] = legend.duplicate(true)
 	return out
 
 
@@ -217,6 +224,9 @@ static func signature_at_work(i: int, w: float) -> String:
 		if (st.worn as Dictionary).has(slot):
 			var worn: Array = st.worn[slot]
 			parts.append("%s:%s+%d" % [slot, worn[0], int(worn[1])])
+	var legend := LegendWings.ai_item(i)
+	if not legend.is_empty():
+		parts.append("legend:%d" % int(legend.legend_week))
 	return ",".join(parts)
 
 

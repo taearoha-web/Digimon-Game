@@ -233,6 +233,10 @@ func _level_text() -> String:
 	if GuildLeague.crowned(g):
 		_label.modulate = GuildLeague.CROWN_COLOR
 		line = "%s %s" % [GuildLeague.CROWN, line]
+	# A holder of the Legendary Guild Wings (LegendWings) wears the ตำนาน tag in gold.
+	if world_index >= 0 and LegendWings.ai_holds(world_index):
+		_label.modulate = LegendWings.COLOR
+		line = "「%s」 %s" % [LegendWings.TAG, line]
 	# A God (Lv.100 ★300) wears its title over the name, like the hero's name plate.
 	var god := WorldPlayers.god_title({"class": member["class"], "level": int(member.level), "stars": stars})
 	if god != "":

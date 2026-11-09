@@ -164,7 +164,7 @@ func refresh() -> void:
 		visual.set_equipment(_party_equip())
 	mp = minf(mp, float(stats.max_mp))
 	var ratio := float(hp) / float(max_hp) if max_hp > 0 else 1.0
-	max_hp = int(float(stats.max_hp) * (1.0 + _book.total("hp")))
+	max_hp = int(float(stats.max_hp) * (1.0 + _book.total("hp") + legend_aura()))
 	hp = clampi(int(round(ratio * max_hp)), 1 if not _dead else 0, max_hp)
 	_update_bar()
 
@@ -174,7 +174,7 @@ func refresh() -> void:
 func _sync_hp_buff() -> void:
 	if stats.is_empty():
 		return
-	var target := int(float(stats.max_hp) * (1.0 + _book.total("hp")))
+	var target := int(float(stats.max_hp) * (1.0 + _book.total("hp") + legend_aura()))
 	if target == max_hp:
 		return
 	if target > max_hp and not _dead:
@@ -213,7 +213,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.8)
 		return
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def")))))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def") + legend_aura()))))))
 	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_book.buffs,amount)
 	hp = maxi(0, hp - amount)
@@ -681,7 +681,21 @@ func _hero_sings() -> bool:
 # ---------------------------------------------------------------------------
 
 func _buffed_atk() -> float:
-	return float(stats.atk) * (1.0 + _book.total("atk"))
+	return float(stats.atk) * (1.0 + _book.total("atk") + legend_aura())
+
+
+## True while this member wears the Legendary Guild Wings (LegendWings): the hero near it
+## gets the aura (Hero.refresh_stats); its own stats carry it (HeroStats.compute).
+func wears_legend_wings() -> bool:
+	return LegendWings.is_item(_party_equip().get("wings"))
+
+
+## The Legendary Guild Wings' aura on this member from the hero: the hero wears a pair
+## within LegendWings.AURA_RANGE (0 otherwise).
+func legend_aura() -> float:
+	if hero == null or not is_instance_valid(hero) or not Game.has_profile or not LegendWings.worn(Game.profile):
+		return 0.0
+	return LegendWings.AURA if global_position.distance_to(hero.global_position) <= LegendWings.AURA_RANGE else 0.0
 
 
 func _basic_attack() -> void:
@@ -733,7 +747,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	if skill is Dictionary and not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
 	raw *= ClassRoles.outgoing(self, mob)
-	var crit := randf() < float(stats.crit) + _book.total("crit") + ClassRoles.crit_bonus(self)
+	var crit := randf() < float(stats.crit) * (1.0 + legend_aura()) + _book.total("crit") + ClassRoles.crit_bonus(self)
 	if crit:
 		raw *= HeroStats.CRIT_DAMAGE
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(self, float(mob.stats.def))))))

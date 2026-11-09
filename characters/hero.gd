@@ -182,6 +182,11 @@ func refresh_name_plate() -> void:
 	if champion:
 		hero_name = "%s %s" % [GuildLeague.CROWN, hero_name]
 	_name_plate.modulate = GuildLeague.CROWN_COLOR if champion else Color("fff4de")
+	# Wearing the Legendary Guild Wings (LegendWings): the ตำนาน tag in gold.
+	if LegendWings.worn(Game.profile):
+		hero_name = "「%s」 %s" % [LegendWings.TAG, hero_name]
+		if not champion:
+			_name_plate.modulate = LegendWings.COLOR
 	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" else hero_name
 
 
@@ -240,6 +245,19 @@ func _update_job_ring() -> void:
 	add_child(_ring)
 
 
+## The Legendary Guild Wings' aura from a party member (LegendWings): on while one wearing
+## a pair stands within AURA_RANGE; checked twice a second (_physics_process).
+var _legend_aura := false
+var _legend_aura_timer := 0.0
+
+
+func party_legend_aura() -> bool:
+	for node in get_tree().get_nodes_in_group("companions"):
+		if node is Companion and (node as Companion).wears_legend_wings() and (node as Node3D).global_position.distance_to(global_position) <= LegendWings.AURA_RANGE:
+			return true
+	return false
+
+
 func _equipment_signature() -> String:
 	var parts: PackedStringArray = []
 	for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring", "wings"]:
@@ -257,6 +275,11 @@ func refresh_stats() -> void:
 			if buff.until > now:
 				values.append(float(buff.get(key, 0.0)))
 		totals[key] = BuffBook.stack(values)
+	# A party member's Legendary Guild Wings within reach (LegendWings.AURA; the hero's own
+	# pair is in HeroStats.compute).
+	if _legend_aura:
+		for key in ["atk", "def", "hp"]:
+			totals[key] = float(totals[key]) + LegendWings.AURA
 	Game.live_hp_buff = float(totals.hp)
 	stats = Game.stats_now(totals)
 	# เบ่งเลือด ended: the HP above the normal maximum goes with it.
@@ -617,6 +640,13 @@ func _physics_process(delta: float) -> void:
 		visual.position.y = lerpf(visual.position.y, 0.0, 1.0 - exp(-6.0 * delta))
 		return
 	_tick_timers(delta)
+	_legend_aura_timer -= delta
+	if _legend_aura_timer <= 0.0:
+		_legend_aura_timer = 0.5
+		var near := party_legend_aura()
+		if near != _legend_aura:
+			_legend_aura = near
+			refresh_stats()
 	var now := Time.get_ticks_msec()
 	var casting := now < _cast_until
 	var direction := _read_move()

@@ -68,6 +68,7 @@ func _ready() -> void:
 		create_tween().tween_property(_flash, "color:a", 0.0, 0.35))
 	Game.ending_requested.connect(show_ending)
 	Game.profile_imported.connect(_reload_imported_profile, CONNECT_DEFERRED)
+	Game.legend_wings_awarded.connect(show_legend_letter)
 	hud = HUD.new()
 	hud.visible = false
 	add_child(hud)
@@ -380,6 +381,27 @@ func _fade_to(alpha: float, duration: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "modulate:a", alpha, duration)
 	await tween.finished
+
+
+## The letter that comes with a pair of the Legendary Guild Wings (LegendWings): who gave
+## it and why, the pair's name and that it is worn for good.
+func show_legend_letter(item: Dictionary, text: String) -> void:
+	var box := UIUtil.vbox(10)
+	var title := UIUtil.label(ItemData.name_of(item), &"SubHeaderLabel")
+	title.add_theme_color_override("font_color", LegendWings.COLOR)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(title)
+	var body := UIUtil.label(text, &"BoldLabel")
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(body)
+	for line in ItemData.detail_lines(item):
+		var row := UIUtil.label(line, &"SmallLabel")
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(row)
+	var view := get_viewport().get_visible_rect().size
+	var sheet := OverlaySheet.open(hud, "จดหมายจากลีกกิลด์", box, Vector2(minf(720.0, maxf(420.0, view.x - 60.0)), minf(520.0, maxf(360.0, view.y - 60.0))))
+	sheet.name = "LegendLetter"
 
 
 func show_ending() -> void:

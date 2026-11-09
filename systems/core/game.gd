@@ -33,6 +33,9 @@ signal world_boss_defeated(zone: StringName)
 signal achievement_earned(id: String)
 ## The title above the hero's head changed ("" when taken off).
 signal title_changed(title: String)
+## The hero received a pair of the Legendary Guild Wings (LegendWings): the pair and the
+## letter's text (Main shows the popup).
+signal legend_wings_awarded(item: Dictionary, text: String)
 ## The owned mounts or the active one changed (MountData; the hero swaps the ridden body).
 signal mount_changed()
 ## The hero chose its pet (PetData, choose_pet).
@@ -152,6 +155,8 @@ func _process(delta: float) -> void:
 		if guild() > 0:
 			_guild_quest_announce()
 		GuildLeague.tick()
+		# The season's Legendary Guild Wings, minted once the season is over.
+		LegendWings.tick()
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -1012,6 +1017,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The weekly guild league record (GuildLeague).
 	if data.has(GuildLeague.KEY) and not GuildLeague.valid(data[GuildLeague.KEY]):
 		return false
+	# The Legendary Guild Wings record (LegendWings): who holds each season's pair.
+	if data.has(LegendWings.KEY) and not LegendWings.valid_record(data[LegendWings.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1131,6 +1139,9 @@ func _valid_item(value: Variant) -> bool:
 	# A 250-star set piece (SetGearData): its class, slot, base and Lv.350 must agree.
 	if item.has("set_gear") and (item.has("star_tier") or item.has("collection") or not SetGearData.valid(item)):
 		return false
+	# A pair of the Legendary Guild Wings (LegendWings): its fixed fields and stats.
+	if (item.has("legend_week") or item.has("legend_guild")) and not LegendWings.valid_item(item):
+		return false
 	if not item.get("stats", {}) is Dictionary or not item.get("gems", []) is Array:
 		return false
 	if item.get("base", "") != "wings" and not ItemData.NAMES.has(item.get("base")):
@@ -1219,6 +1230,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		if item is Dictionary:
 			ItemData.migrate_wings(item, String(data.get("class", "warrior")))
 	StarWingData.migrate_profile(data)
+	LegendWings.repair(data)
 	_repair_mounts(data)
 	data["pet"] = PetData.chosen(data)
 	# Saves from before the stall get an empty one.
@@ -2736,6 +2748,10 @@ func equip_from_bag(index: int) -> bool:
 		return false
 	var slot: String = item.slot
 	var old: Variant = profile["equip"].get(slot)
+	# The Legendary Guild Wings come off only for another pair of them (LegendWings).
+	if LegendWings.is_item(old) and not LegendWings.is_item(item):
+		say(LegendWings.LOCK_TEXT, &"warning")
+		return false
 	profile["equip"][slot] = item
 	profile["inv"].remove_at(index)
 	if old != null:
@@ -2749,6 +2765,9 @@ func equip_from_bag(index: int) -> bool:
 
 func unequip(slot: String) -> bool:
 	if not profile["equip"].has(slot) or profile["inv"].size() >= bag_size():
+		return false
+	if LegendWings.is_item(profile["equip"][slot]):
+		say(LegendWings.LOCK_TEXT, &"warning")
 		return false
 	profile["inv"].append(profile["equip"][slot])
 	profile["equip"].erase(slot)
@@ -2767,6 +2786,9 @@ func clamp_vitals() -> void:
 
 func sell_item(index: int, count := 1) -> void:
 	var item: Dictionary = profile["inv"][index]
+	if LegendWings.is_item(item):
+		say(LegendWings.SELL_TEXT, &"warning")
+		return
 	var each := ItemData.unit_sell_price(item)
 	var qty := count if ItemData.is_stackable(item) else 1
 	add_gold(each * qty)

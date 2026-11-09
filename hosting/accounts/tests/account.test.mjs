@@ -357,6 +357,49 @@ test('the league emperor bonus season (emp_claimed) is accepted and checked like
   assert.ok(keys.includes('emp_claimed'));
 });
 
+const legendPair = (week = 2967, guild = 1, extra = {}) => ({kind: 'equip', uid: `lw${week}`, slot: 'wings', base: 'wings', wing: 'priest',
+  plus: 0, sockets: 3, gems: [], set: '', name: 'ปีกตำนานแห่งกิลด์ Alpha', rarity: 4, level: 1, class: '',
+  stats: {atk: 1414, matk: 1456, hp: 5822, def: 624, mp: 2391, crit: 0.2}, price: 0, legend_week: week, legend_guild: guild, look: 'legend_wings', ...extra});
+
+test('the legendary guild wings are checked: fixed fields and stats, one pair a season an account', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const record = {done: 2968, hold: {'2967': {g: 1, n: '', s: 1}, '2968': {g: 1, n: 'Kaito', s: 2}}, hand: {'2968': 'Kaito'}};
+  const worn = {...sample(), equip: {wings: legendPair(2967)}, legend_wings: record};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2968, 2)]}}, selectedSlot: 1, storage: [legendPair(2969, 3)]}}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  // The game's fixed stats and models are the server's.
+  const game = readFileSync(new URL('../../../data/legend_wings.gd', import.meta.url), 'utf8');
+  const stats = game.match(/const STATS := (\{[^}]*\})/)[1];
+  assert.deepEqual(JSON.parse(stats), {atk: 1414, matk: 1456, hp: 5822, def: 624, mp: 2391, crit: 0.2});
+  const models = JSON.parse(game.match(/const MODELS: Array\[String\] = (\[[^\]]*\])/)[1]);
+  for (const model of models) assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [legendPair(2967, 1, {wing: model})]})), model);
+  assert.equal(models.length, 9);
+  // Two pairs of one season anywhere in the account are refused: two bags, bag and worn,
+  // a bag and the shared storage.
+  assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}, '2': {...sample(), inv: [legendPair(2967, 2)]}}, selectedSlot: 1}), /one pair a season/);
+  assert.throws(() => validateBundle(bundle({...sample(), inv: [legendPair(2967)], equip: {wings: legendPair(2967)}})), /one pair a season/);
+  assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storage: [legendPair(2967)]}), /one pair a season/);
+  assert.doesNotThrow(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storage: [legendPair(2968)]}));
+  const rejected = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2967, 2)]}}, selectedSlot: 1}}});
+  assert.equal(rejected.status, 400);
+  assert.equal(rejected.body.error.code, 'invalid_save');
+  assert.match(rejected.body.error.message, /one pair a season/);
+  // A tampered pair: wrong stats, class lock, level, rarity, season, guild, model, extra stat.
+  for (const bad of [{stats: {...legendPair().stats, atk: 9999}}, {class: 'mage'}, {level: 100}, {rarity: 3}, {legend_week: 2966}, {legend_guild: 5},
+      {wing: 'darklord'}, {stats: {...legendPair().stats, speed: 1}}, {star_tier: 100}, {slot: 'armor', base: 'armor'}, {legend_week: '2967'}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [legendPair(2967, 1, bad)]})), /legendary guild wings/, JSON.stringify(bad));
+  }
+  // Never on a stall.
+  assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, price: 1, item: legendPair()}], log: []}})), /stall/);
+  // The record: seasons, guilds 1-4, names, streaks.
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), legend_wings: {done: -1, hold: {}, hand: {}}})));
+  for (const bad of [{done: 'x'}, {hold: {'2967': {g: 5, n: '', s: 1}}}, {hold: {'2967': {g: 1, n: 3, s: 1}}}, {hold: {'2967': {g: 1, n: ''}}},
+      {hold: {abc: {g: 1, n: '', s: 1}}}, {hand: {'2967': 5}}, {other: 1}, []]) {
+    assert.throws(() => validateBundle(bundle({...sample(), legend_wings: bad})), /legendary guild wings record/, JSON.stringify(bad));
+  }
+});
+
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
   const {register, call} = harness(t);
   const account = await register();

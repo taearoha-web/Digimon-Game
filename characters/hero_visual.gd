@@ -297,7 +297,7 @@ func _refresh_chibi() -> void:
 		var chest := _skeleton.find_bone("Chest")
 		if chest >= 0:
 			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
-		back.add_child(StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings)))
+		back.add_child(_wing_model(wings))
 		_glow_piece([back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_wing_flair(back.get_parent(), int(wings.get("plus", 0)))
 		_pose_wings.call_deferred(wing_mode, true)
@@ -388,6 +388,14 @@ func _pose_wings(was: int, instant: bool) -> void:
 		player.queue(clip)
 	elif player.current_animation != clip:
 		player.play(clip, 0.0 if instant else 0.3)
+
+
+## The model of a worn pair: the Legendary Guild Wings' gold pair (LegendWingArt), the
+## 100★ class pair (StarWingData) or the Lv.100 class pair (GearKit).
+func _wing_model(item: Dictionary) -> Node3D:
+	if LegendWings.is_item(item):
+		return LegendWingArt.build(item, decor_light)
+	return StarWingData.build(_wing_kind(item)) if StarGearData.is_star(item) else GearKit.wings(_wing_kind(item))
 
 
 ## Which class model a pair of wings shows (old items fall back to this hero's class).
@@ -651,7 +659,7 @@ func refresh() -> void:
 		back.name = "Wings"
 		back.bone_name = "chest"
 		_skeleton.add_child(back)
-		var w := StarWingData.build(_wing_kind(wings)) if StarGearData.is_star(wings) else GearKit.wings(_wing_kind(wings))
+		var w := _wing_model(wings)
 		w.transform = KAYKIT_WINGS
 		back.add_child(w)
 		_body_nodes.append(back)

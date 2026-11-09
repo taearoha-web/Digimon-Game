@@ -95,6 +95,9 @@ static func player_name(id: String) -> String:
 static func tradable(item: Dictionary) -> bool:
 	if not String(item.get("kind", "")) in TRADE_KINDS:
 		return false
+	# The Legendary Guild Wings stay with the account (the shared storage moves them).
+	if LegendWings.is_item(item):
+		return false
 	for key in ["bound", "quest", "no_trade"]:
 		if bool(item.get(key, false)):
 			return false
@@ -235,7 +238,7 @@ func offer(index: int, count := 1) -> bool:
 		return false
 	var item: Dictionary = Game.profile.inv[index]
 	if not tradable(item):
-		Game.say("ของชิ้นนี้แลกเปลี่ยนไม่ได้", &"warning")
+		Game.say(LegendWings.TRADE_TEXT if LegendWings.is_item(item) else "ของชิ้นนี้แลกเปลี่ยนไม่ได้", &"warning")
 		return false
 	if ItemData.is_stackable(item):
 		var n := mini(count, free_count(item))
