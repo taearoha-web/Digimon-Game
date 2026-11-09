@@ -392,6 +392,7 @@ static func build(parent: Node3D, theme: StringName, radius: float, seed_value: 
 					_fluted_column(cove, Vector3(-7.0 + i * 7.0, 0, -6.0), 1.1 + i * 0.5, palette)
 	if with_stream and WATERS.has(theme):
 		_stream(root, theme, 1.6 if theme != &"volcano" else 1.2)
+		PropDressing.stream_bank(root, theme, clearings, seed_value)
 	root.set_meta("art_theme", theme)
 	root.set_meta("visual_only", true)
 

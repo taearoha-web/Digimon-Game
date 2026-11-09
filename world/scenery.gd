@@ -4,7 +4,7 @@ extends RefCounted
 ## flowers (Quaternius nature models via [NatureKit]) and the sky.
 
 const PINES := ["PineTree_1", "PineTree_2", "PineTree_4", "PineTree_5"]
-const BROADLEAFS := [["MapleTree_4", 5.0], ["NormalTree_5", 4.0], ["MapleTree_1", 1.5], ["BirchTree_4", 1.0]]
+const BROADLEAFS := [["MapleTree_4", 5.0], ["NormalTree_5", 4.0], ["MapleTree_1", 1.5], ["BirchTree_4", 1.5], ["NormalTree_3", 1.5]]
 ## Light models for the dense forest wall outside the play area.
 const WALL_TREES := ["PineTree_5", "MapleTree_4", "PineTree_5", "NormalTree_5"]
 const BUSHES := ["Bush", "Bush_Large", "Bush_Small", "Bush_Flowers", "Bush_Large_Flowers", "Bush_Small_Flowers"]
@@ -94,6 +94,9 @@ static var _glow_mat: StandardMaterial3D
 static var _prop_meshes: Dictionary = {}
 ## The `grows` filter of the populate call in progress (see populate).
 static var _grows := Callable()
+## The inner trees of the populate call in progress: (x, z, footprint), for the
+## toadstools PropDressing puts at their feet.
+static var _inner_trees: Array[Vector3] = []
 
 
 ## Sky, fog, ambient and the sun. `look` (from ZoneData) may carry "palette"
@@ -410,6 +413,7 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 		clear: Array[Vector3], tree_density := 1.0, with_colliders := true, slicer: SceneTree = null,
 		grows := Callable()) -> void:
 	_grows = grows
+	_inner_trees = []
 	var occupied: Array[Vector3] = clear.duplicate()
 	var body := StaticBody3D.new()
 	body.name = "Colliders"
@@ -430,9 +434,13 @@ static func populate(parent: Node3D, theme: StringName, rng: RandomNumberGenerat
 	_rocks(parent, body, theme, rng, play_radius, occupied, with_colliders, habitat)
 	await FrameSlicer.pace(slicer)
 	theme_props(parent, theme, rng, play_radius, occupied, habitat)
+	# Ruins, stones, logs and toadstools (the village has its own street dressing).
+	if theme != &"village":
+		PropDressing.field(parent, theme, rng, play_radius, occupied, _inner_trees)
 	await FrameSlicer.pace(slicer)
 	_grass(parent, theme, rng, play_radius, occupied, habitat)
 	_grows = Callable()
+	_inner_trees = []
 
 
 static func _free(p: Vector2, radius: float, occupied: Array[Vector3]) -> bool:
@@ -501,6 +509,8 @@ static func _trees(parent: Node3D, body: StaticBody3D, theme: StringName, rng: R
 				shape.position = Vector3(p.x, 1.5, p.y)
 				body.add_child(shape)
 			occupied.append(Vector3(p.x, p.y, 1.4 * s))
+			if r < play_radius:
+				_inner_trees.append(Vector3(p.x, p.y, 1.4 * s))
 		x += step
 	for model in groups:
 		var transforms: Array[Transform3D] = []
@@ -515,7 +525,7 @@ static func _bushes(parent: Node3D, theme: StringName, rng: RandomNumberGenerato
 	var colors: Dictionary = {}
 	var set: Dictionary = THEME_SETS.get(theme, {})
 	var palette: Array = set.get("bush_colors", [Color("dfa7bb"), Color("eed8a0"), Color("eef0df"), Color("b7abd5"), Color("dfa38d")])
-	var bush_total: int = int(float(set.get("bushes", 120)) * GameSettings.density_scale())
+	var bush_total: int = int(float(set.get("bushes", 120)) * PropDressing.bush_scale())
 	var placed := 0
 	var attempts := 0
 	while placed < bush_total and attempts < bush_total * 8:
@@ -598,19 +608,19 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	var coverage := float(covers.get(theme, 1.0))
 	# A small set of natural patches, each containing several short bent tufts.
 	# This is still one shared mesh/material, split into the existing cull chunks.
-	for i in int(620.0 * GameSettings.density_scale() * coverage):
+	for i in int(620.0 * PropDressing.grass_scale() * coverage):
 		var centre := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		var pocket := habitat.get_noise_2dv(centre)
 		if centre.length() > play_radius or rng.randf() > smoothstep(-0.6, 0.3, pocket):
 			continue
 		var patch_tint := low.lerp(high, clampf(pocket * 0.8 + 0.45, 0.0, 1.0))
-		for j in rng.randi_range(4, 9):
+		for j in rng.randi_range(7, 13):
 			var angle := rng.randf() * TAU
-			var distance := sqrt(rng.randf()) * 2.4
+			var distance := sqrt(rng.randf()) * 1.5
 			var p := centre + Vector2(cos(angle), sin(angle)) * distance
 			if p.length() > play_radius or not _free(p, 0.16, occupied):
 				continue
-			var s := rng.randf_range(0.55, 1.05)
+			var s := rng.randf_range(0.6, 1.2)
 			transforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.82, s)), Vector3(p.x, 0.0, p.y)))
 			tints.append(patch_tint.lerp(high, rng.randf() * 0.16))
 	var mat := ShaderMaterial.new()
@@ -649,7 +659,7 @@ static func _grass(parent: Node3D, theme: StringName, rng: RandomNumberGenerator
 	var groups: Dictionary = {}
 	var flower_colors: Dictionary = {}
 	var palette := [Color("e9a5b5"), Color("e9cc88"), Color("eee8cd"), Color("b8a6d8"), Color("d99880")]
-	var flower_total := int(float(THEME_SETS.get(theme, {}).get("flowers", 210)) * GameSettings.density_scale())
+	var flower_total := int(float(THEME_SETS.get(theme, {}).get("flowers", 210)) * PropDressing.flower_scale())
 	for i in int(ceil(float(flower_total) / 4.0)):
 		var centre := Vector2(rng.randf_range(-play_radius, play_radius), rng.randf_range(-play_radius, play_radius))
 		var pocket := habitat.get_noise_2dv(centre)
