@@ -118,7 +118,11 @@ page.on('requestfailed', request => {
   const reason = (request.failure() || {}).errorText;
   // The league's background sync (LeagueRounds) may be in flight when a test reloads the
   // page: the navigation cancels it (net::ERR_ABORTED). That is not a failed request.
-  if ((request.url().startsWith(origin + '/api/league/') || request.url().startsWith(origin + '/api/dungeon/')) && reason === 'net::ERR_ABORTED') return;
+  // The same background syncs may also be in flight at the moment a test cuts the network
+  // (net::ERR_INTERNET_DISCONNECTED): the game sends none while offline, but one started
+  // just before. Those are not failed requests either.
+  if ((request.url().startsWith(origin + '/api/league/') || request.url().startsWith(origin + '/api/dungeon/'))
+      && (reason === 'net::ERR_ABORTED' || reason === 'net::ERR_INTERNET_DISCONNECTED')) return;
   if (request.url().startsWith(origin)) failures.push(request.url() + ' ' + reason);
 });
 page.on('response', response => { if (response.url().startsWith(origin) && response.status() >= 400) failures.push(response.url() + ' HTTP ' + response.status()); });
