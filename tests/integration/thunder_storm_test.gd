@@ -77,7 +77,7 @@ func _ready() -> void:
 	check(is_equal_approx(waves[1].time - waves[0].time, 0.75) and is_equal_approx(waves[2].time - waves[1].time, 0.75), "exact 0.75 second wave cadence")
 	check(seq._art.find_children("ThunderStormCloud", "MeshInstance3D", true, false).size() == 1, "one sky ring (ThunderStormCloud) over the storm")
 	check(seq._art.find_children("*", "CPUParticles3D", true, false).is_empty() and seq._art.find_children("*", "Light3D", true, false).is_empty(), "the sky ring adds no lights or particles")
-	check(VfxBudget.counters().decorations <= VfxBudget.decoration_limit(), "simultaneous storm waves obey shared decoration cap")
+	check(VfxBudget.counters().decorations <= VfxBudget.decoration_limit() + VfxBudget.hero_decoration_room(), "simultaneous storm waves obey shared decoration cap (and the hero's own room)")
 	# Fill remaining capacity with tracked nodes to exercise the hard limit.
 	while VfxBudget.can_decorate():
 		var reservation := Node.new()

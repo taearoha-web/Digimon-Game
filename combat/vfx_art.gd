@@ -571,10 +571,10 @@ static func bloom(parent: Node3D, pos: Vector3, color: Color, kind: String, radi
 ## Two crossing crescents: the warrior's signature finishing cut.
 static func cross_slash(parent: Node3D, pos: Vector3, yaw: float, color: Color, size := 3.0) -> void:
 	VfxKit.slash_arc(parent, pos, yaw, color, size, -0.7)
-	parent.create_tween().tween_interval(0.07).finished.connect(func():
+	parent.create_tween().tween_interval(0.07).finished.connect(VfxBudget.carry(func():
 		if is_instance_valid(parent):
 			VfxKit.slash_arc(parent, pos, yaw, color, size, 0.7)
-			star_flash(parent, pos, color, size * 0.9))
+			star_flash(parent, pos, color, size * 0.9)))
 
 
 # ---------------------------------------------------------------------------

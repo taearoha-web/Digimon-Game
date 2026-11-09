@@ -360,7 +360,7 @@ jobs:
     # The menu-scroll, skill-craft and skill-icon tests wait for drawn frames, so they run
     # with a real renderer on a virtual screen (xvfb, OpenGL).
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       XDG_CONFIG_HOME: /tmp/toon-ci-config
       XDG_CACHE_HOME: /tmp/toon-ci-cache
@@ -665,3 +665,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-lobby
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_lobby_test.tscn
+      - name: hero_vfx_priority_test (the hero's own skill effects always show - a hunting field full of AI world players keeps the shared effect budget full at iPhone settings, quality 0 / 1, memory pressure 1 / 2, warm; every skill on the hero's bar still draws its effects from the hero's own room, which nobody else spends; every reservation comes back after a zone change)
+        timeout-minutes: 12
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-hero-vfx-priority
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/hero_vfx_priority_test.tscn

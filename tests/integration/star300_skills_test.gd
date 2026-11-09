@@ -168,7 +168,8 @@ func _casts() -> void:
 					while is_instance_valid(seq) and not seq.is_queued_for_deletion() and frames < 2000:
 						await get_tree().process_frame
 						frames += 1
-						if int(VfxBudget.counters().decorations) > VfxBudget.decoration_limit():
+						# The shared budget plus the hero's own room (VfxBudget.hero_decoration_room).
+						if int(VfxBudget.counters().decorations) > VfxBudget.decoration_limit() + VfxBudget.hero_decoration_room():
 							over_budget += 1
 						avatar = avatar or field.get_node_or_null("StarGodAvatar_" + String(god.id)) != null
 						temple = temple or field.get_node_or_null("StarGodTemple_" + String(god.id)) != null

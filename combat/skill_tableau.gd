@@ -120,11 +120,11 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 			if t >= float(puffs.next) and is_instance_valid(root) and root.is_inside_tree():
 				puffs["next"] = t + 0.22
 				ElementFx.flame_puff(parent, root.global_position, 0.45 * size), 0.0, 1.0, seconds)
-	tw.tween_callback(func():
+	tw.tween_callback(VfxBudget.carry(func():
 		# The archer's arrival bursts into a fan of light; the carrier owns the rest.
 		if family == "archer" and is_instance_valid(parent) and parent.is_inside_tree():
 			VfxKit.impact_fan(parent, to, look.accent, 0.75 * size, "spark")
-		root.queue_free())
+		root.queue_free()))
 	return root
 
 ## Glitter shed along a projectile's path: a small continuous emitter of the
@@ -603,13 +603,13 @@ static func _shield_bounce(parent: Node3D, skill: Dictionary, look: Dictionary, 
 	tw.tween_property(root, "global_position", to, seconds)
 	if plate:
 		root.create_tween().tween_property(plate, "rotation:y", TAU * 1.5, delay + seconds)
-	tw.tween_callback(func():
+	tw.tween_callback(VfxBudget.carry(func():
 		if is_instance_valid(parent) and parent.is_inside_tree():
 			var streak := SpellSpectacle._root(parent, (from + to) * 0.5, "ShieldStreak_" + id)
 			streak.look_at(to, Vector3.RIGHT if absf((to - from).normalized().dot(Vector3.UP)) > 0.98 else Vector3.UP, true)
 			SkillInk.ribbon(streak, look, Vector3.ZERO, from.distance_to(to) * 0.5, 2, Vector3.ZERO, 0.28)
 			SkillInk.ribbon(streak, look, Vector3.ZERO, from.distance_to(to) * 0.5, 2, Vector3(0, 0, PI * 0.5), 0.28)
-			streak.create_tween().tween_interval(0.3).finished.connect(streak.queue_free, CONNECT_ONE_SHOT))
+			streak.create_tween().tween_interval(0.3).finished.connect(streak.queue_free, CONNECT_ONE_SHOT)))
 	tw.tween_interval(0.2)
 	tw.tween_callback(root.queue_free)
 

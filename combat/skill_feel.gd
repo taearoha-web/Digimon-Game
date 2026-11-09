@@ -336,7 +336,7 @@ static func launch(p_hero: Node3D, mob: Mob, dir: Vector3, w: float, slide := tr
 	tween.chain().tween_property(visual, "position:y", 0.0, air * 0.58).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(visual, "rotation:x", 0.0, air * 0.58).set_ease(Tween.EASE_IN)
 	var ref: WeakRef = weakref(mob)
-	tween.chain().tween_callback(func():
+	tween.chain().tween_callback(VfxBudget.carry(func():
 		var m := ref.get_ref() as Mob
 		if m == null or not is_instance_valid(m.visual):
 			return
@@ -348,7 +348,7 @@ static func launch(p_hero: Node3D, mob: Mob, dir: Vector3, w: float, slide := tr
 		squash.tween_property(m.visual, "scale", Vector3.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		var parent := m.get_parent() as Node3D
 		if parent and VfxBudget.can_decorate(1) and VfxBudget.quality() >= 1:
-			VfxKit.sparks(parent, m.global_position + Vector3(0, 0.15, 0), Color("d9c4a0"), 8, 2.6, 0.35))
+			VfxKit.sparks(parent, m.global_position + Vector3(0, 0.15, 0), Color("d9c4a0"), 8, 2.6, 0.35)))
 
 
 # ---------------------------------------------------------------------------
