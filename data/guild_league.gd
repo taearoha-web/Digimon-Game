@@ -1317,6 +1317,32 @@ static func enter_problem(t := -1.0) -> String:
 	return ""
 
 
+## Online: the shared arena of round `at` for guild `g` ("guildwar_<at>_<g>", the zone the
+## server hears; party-scoped like "guildwar", docs/ONLINE_PROTOCOL.md "Guild league
+## rounds together"). Party members of one guild in one round meet only there: a practice
+## war ("guildwar") or another round / guild is another room.
+const ROOM_PREFIX := "guildwar_"
+
+
+static func war_room(at: int, g: int) -> StringName:
+	return StringName("%s%d_%d" % [ROOM_PREFIX, at, g])
+
+
+## {at, guild} of a room war_room made ({} for anything else).
+static func room_round(room: Variant) -> Dictionary:
+	var text := String(room) if (room is String or room is StringName) else ""
+	if not text.begins_with(ROOM_PREFIX):
+		return {}
+	var parts := text.substr(ROOM_PREFIX.length()).split("_")
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return {}
+	var at := parts[0].to_int()
+	var g := parts[1].to_int()
+	if at <= 0 or g <= 0:
+		return {}
+	return {"at": at, "guild": g}
+
+
 ## The round whose waiting room is open at t (from LOBBY_OPEN seconds before its start,
 ## when registration closes, until it starts; GuildWarMatch.lobby_until), else -1.
 static func lobby_slot(t := -1.0) -> int:

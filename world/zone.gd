@@ -45,6 +45,9 @@ const PERFECT_GEM_CHANCE := 0.05
 const PERFECT_GEM_LEVEL := 80
 
 var zone_id: StringName = &"meadow"
+## The zone the online server hears (Online.current_zone, EntitySync), when it is not
+## zone_id: a league round's war is fought in its round's room (GuildLeague.war_room).
+var online_id: StringName = &""
 var data: Dictionary = {}
 var is_town := false
 ## A guild hall (GuildHallData): safe like the village, built by GuildHall, with the
@@ -313,6 +316,11 @@ func _ready() -> void:
 
 
 ## True while this zone is a guild war being watched (GuildWarSpectate), not fought.
+## The zone's id on the online server (online_id, else zone_id).
+func net_id() -> StringName:
+	return online_id if online_id != &"" else zone_id
+
+
 func watching() -> bool:
 	return gw_match != null and is_instance_valid(gw_match) and gw_match.spectating()
 

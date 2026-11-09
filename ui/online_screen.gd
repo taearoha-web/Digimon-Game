@@ -210,7 +210,9 @@ func _row(p: Dictionary) -> Control:
 	if member:
 		who.add_theme_color_override("font_color", Color("7dff8a"))
 	info.add_child(who)
-	var zone_name := String(ZoneData.get_zone(StringName(String(p.zone))).get("name", String(p.zone))) if String(p.zone) != "" else "-"
+	# A league round's room (GuildLeague.war_room) reads as the guild war.
+	var shown_zone := "guildwar" if String(p.zone).begins_with(GuildLeague.ROOM_PREFIX) else String(p.zone)
+	var zone_name := String(ZoneData.get_zone(StringName(shown_zone)).get("name", shown_zone)) if shown_zone != "" else "-"
 	var where := UIUtil.label("ผู้เล่นจริง · %s%s" % [zone_name, " · ปาร์ตี้ของคุณ" if member else ""], &"SmallLabel")
 	where.add_theme_color_override("font_color", Color("6dffd0"))
 	info.add_child(where)
