@@ -646,11 +646,20 @@ func _build_town() -> void:
 		var spot: Vector3 = v[4]
 		var yard: Vector3 = spot + (v[6] - spot).normalized()
 		clear.append(Vector3(yard.x, yard.z, 3.0))
+	var yards: Array[Vector3] = []
 	for stall in JapanVillage.STALLS:
 		clear.append(Vector3(stall.x, stall.z, 1.6))
+		yards.append(Vector3(stall.x, stall.z, 1.6))
+	for v in villagers:
+		var spot: Vector3 = v[4]
+		yards.append(Vector3(spot.x, spot.z, 3.0))
+		var yard: Vector3 = spot + (v[6] - spot).normalized()
+		yards.append(Vector3(yard.x, yard.z, 3.0))
 	await _slice()
 	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null,
 		VillageGround.grows.bind(TOWN_RADIUS, green, streets))
+	# Potted plants, lantern posts, crates and signposts along the streets (visual only).
+	PropDressing.village(self, yards)
 	await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)

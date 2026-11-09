@@ -240,6 +240,8 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	_pines(root, rng, count)
 	_hills(root, rng)
 	masonry.commit(root)
+	# Grass, flowers, bushes, torches, weapon racks and the guilds' banners (visual only).
+	PropDressing.siege(root, colors, count)
 
 
 # ---------------------------------------------------------------------------

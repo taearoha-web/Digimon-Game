@@ -20,6 +20,12 @@
 The nature pack ships without textures; `NatureKit` and `shaders/foliage.gdshader` / `rock.gdshader`
 recolour it procedurally.
 
+The world props of `world/prop_dressing.gd` (field ruins, standing stones, logs, toadstools, wildflowers,
+lily pads and reeds; the village's potted plants, bonsai, crates, lantern posts and signposts; the guild
+war's torches, weapon racks and war banners; the Lotus Sanctum's wayside shrines and lanterns; the
+Drowned Abyss's shells and starfish) are original project geometry built from primitives at run time.
+No model or texture files were added for them.
+
 ## Sound effects (CC0)
 
 | Files | Source |

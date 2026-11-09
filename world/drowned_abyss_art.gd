@@ -79,6 +79,8 @@ static func build(parent: Node3D, _zone_id: StringName = DrownedAbyssData.ID, tr
 		var a := TAU * float(i) / 16.0 + 0.2
 		var p := Vector3(cos(a) * 100, -2, sin(a) * 100)
 		StarRegionArt._put(c, "rock", p, Vector3(34, 14 + i % 4 * 6, 26), DEEP.lerp(Color("123d55"), float(i % 3) * 0.35), Vector3(0, a, 0))
+	# Shells, starfish, sea grass and coral sprigs (visual only, batched).
+	PropDressing.abyss(c)
 	await StarRegionArt._flush(c, tree)
 	StarRegionArt._add_colliders(c)
 	root.set_meta("zone_id", DrownedAbyssData.ID)
