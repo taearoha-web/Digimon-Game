@@ -1,33 +1,41 @@
 class_name LegendWingArt
 extends Node3D
-## The look of the Legendary Guild Wings (LegendWings): a dedicated pair built in code
-## (LegendWingMesh), not a reused class pair. Two great upswept gold wings with three
-## rows of clearly inked feathers (long primaries curving up and out, secondaries,
-## rounded coverts), a smaller pair below, and a gold halo crowned with turning rays and
-## gems in the guild's colour between them. Everything wears one shared unshaded
-## material (legend_wing.gdshader: prismatic sweep, glowing tips, rippling feathers on
-## TIME), so the pair is radiant in every zone and at night and costs five draw calls.
+## The look of the Legendary Guild Wings (LegendWings), the grandest wings in the game:
+## a dedicated set built in code (LegendWingMesh), not a reused class pair. Three
+## stacked tiers of faceted golden-crystal blades (a great upswept pair, a middle pair
+## fanned out to the side, a small low pair), each blade running from a gold body
+## through white-hot to a prismatic crystal tip; the guild's crest crown floating
+## behind the head (a crystal-spiked circlet holding a shield of the guild's jewel
+## colours); and sashes of golden light hanging from the wing roots like a royal mantle.
+## Glints twinkle all over the blades (in the shader) so the whole set shimmers. The
+## wings, crown and sashes share one unshaded material (legend_wing.gdshader): six draw
+## calls, no textures, no lights.
 ##
 ## It answers to the wing clips (Idle, Flap, Glide, Fold, Unfold on an AnimationPlayer),
 ## so HeroVisual poses it like any pair: the clips drive [member beat] and [member fold],
 ## which place the four wing nodes. Golden motes drift down from it (LegendSparkles,
 ## VfxBudget-counted; never on the low setting, at memory pressure 2 or in a crowd's
-## light dress), and a fresh pair arrives with a radiant burst.
+## light dress), and a fresh pair arrives with a burst.
 ##
 ## Model space is the chibi's (x side, y up, z front) like the wing GLBs; everything is
 ## authored in metres at the hero's size under the Fit node, on the shoulder blades.
 
 const SHADER := preload("res://shaders/legend_wing.gdshader")
 const SPARKLE_COLOR := Color(1.0, 0.74, 0.22, 0.85)
-const SPARKLES := 16
+const SPARKLES := 18
 ## The chibi's model space is this many times smaller than the hero in metres.
 const FIT := 1.0 / 2.45
 ## The shoulder blades in model space.
 const BACK := Vector3(0.0, 0.57, -0.09)
-## Pivots (metres, from the shoulder blades) of the right wings and the halo.
-const UPPER_PIVOT := Vector3(0.1, 0.06, -0.1)
-const LOWER_PIVOT := Vector3(0.13, -0.4, -0.1)
-const HALO_AT := Vector3(0.0, 0.6, -0.26)
+## Pivots (metres, from the shoulder blades) of the right wings, the crown and the sashes.
+const UPPER_PIVOT := Vector3(0.1, 0.1, -0.12)
+const LOWER_PIVOT := Vector3(0.12, -0.24, -0.1)
+const CROWN_AT := Vector3(0.0, 0.8, -0.3)
+const CROWN_SCALE := 1.25
+const RIBBONS_AT := Vector3(0.0, 0.0, -0.08)
+## Each tier's size (the meshes are authored at 1).
+const UPPER_SCALE := 1.15
+const LOWER_SCALE := 1.3
 const BURST_COLOR := Color(1.0, 0.85, 0.42)
 
 ## Wing beat: 0 rests open, up to 1 raised, down to -1 lowered.
@@ -41,18 +49,18 @@ const BURST_COLOR := Color(1.0, 0.85, 0.42)
 		fold = value
 		_place()
 
-## The halo's arrival swell (1 at rest).
-var halo_pop := 1.0:
+## The crown's arrival swell (1 at rest).
+var crown_pop := 1.0:
 	set(value):
-		halo_pop = value
+		crown_pop = value
 		_place()
 var guild := 0
-## How far the halo sits above HALO_AT (a big-headed body wears it higher).
-var _halo_lift := 0.0
+## How far the crown sits above CROWN_AT (a big-headed body wears it higher).
+var _crown_lift := 0.0
 var _fit: Node3D
 var _upper: Array[MeshInstance3D] = []
 var _lower: Array[MeshInstance3D] = []
-var _halo: MeshInstance3D
+var _crown: MeshInstance3D
 static var _material: ShaderMaterial
 static var _mote_material: StandardMaterial3D
 static var _library: AnimationLibrary
@@ -90,7 +98,8 @@ func _make() -> void:
 	for side in [1.0, -1.0]:
 		_upper.append(_piece("Wing" + ("R" if side > 0 else "L"), LegendWingMesh.wing(), gold))
 		_lower.append(_piece("Lower" + ("R" if side > 0 else "L"), LegendWingMesh.lower(), gold))
-	_halo = _piece("Halo", LegendWingMesh.halo(guild), gold)
+	_crown = _piece("Crown", LegendWingMesh.crown(guild), gold)
+	_piece("Ribbons", LegendWingMesh.ribbons(), gold).position = RIBBONS_AT
 	_place()
 	var player := AnimationPlayer.new()
 	player.name = "AnimationPlayer"
@@ -105,7 +114,7 @@ func _piece(piece_name: String, mesh: ArrayMesh, mat: Material) -> MeshInstance3
 	mi.mesh = mesh
 	mi.set_surface_override_material(0, mat)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The shader inks its own feathers: no hull outline (an extra pass) on top.
+	# The shader inks its own blades: no hull outline (an extra pass) on top.
 	mi.set_meta("no_outline", true)
 	_fit.add_child(mi)
 	return mi
@@ -117,25 +126,25 @@ func _place() -> void:
 		return
 	var mirror := Basis.from_scale(Vector3(-1, 1, 1))
 	# Folding rolls the wings down along the back like a mantle and draws them in.
-	var up := Basis.from_euler(Vector3(deg_to_rad(-10.0 + 6.0 * fold), deg_to_rad(22.0 + 26.0 * fold), deg_to_rad(beat * 20.0 - 112.0 * fold)))
-	up = up.scaled(Vector3.ONE * lerpf(1.0, 0.52, fold))
-	var low := Basis.from_euler(Vector3(deg_to_rad(8.0), deg_to_rad(34.0 + 16.0 * fold), deg_to_rad(-beat * 10.0 - 30.0 * fold)))
-	low = low.scaled(Vector3.ONE * lerpf(1.0, 0.6, fold))
+	var up := Basis.from_euler(Vector3(deg_to_rad(-10.0 + 6.0 * fold), deg_to_rad(20.0 + 28.0 * fold), deg_to_rad(beat * 14.0 - 14.0 - 98.0 * fold)))
+	up = up.scaled(Vector3.ONE * UPPER_SCALE * lerpf(1.0, 0.45, fold))
+	var low := Basis.from_euler(Vector3(deg_to_rad(6.0), deg_to_rad(28.0 + 22.0 * fold), deg_to_rad(10.0 - beat * 9.0 - 50.0 * fold)))
+	low = low.scaled(Vector3.ONE * LOWER_SCALE * lerpf(1.0, 0.5, fold))
 	for i in 2:
 		var m := Basis.IDENTITY if i == 0 else mirror
 		var flip := Vector3(1, 1, 1) if i == 0 else Vector3(-1, 1, 1)
 		_upper[i].transform = Transform3D(m * up, UPPER_PIVOT * flip)
 		_lower[i].transform = Transform3D(m * low, LOWER_PIVOT * flip)
-	if _halo != null:
-		_halo.position = HALO_AT + Vector3(0, _halo_lift, 0)
-		_halo.scale = Vector3.ONE * lerpf(1.0, 0.7, fold) * halo_pop
+	if _crown != null:
+		_crown.position = CROWN_AT + Vector3(0, _crown_lift, 0)
+		_crown.scale = Vector3.ONE * CROWN_SCALE * lerpf(1.0, 0.75, fold) * crown_pop
 
 
-## On the KayKit body (the world players' rig, a far bigger head) the pair is a little
-## larger and the halo rides above the helmet.
+## On the KayKit body (the world players' rig, a far bigger head) the set is a little
+## larger and the crown rides above the helmet.
 func fit_big_head() -> void:
 	_fit.scale = Vector3.ONE * FIT * 1.12
-	_halo_lift = 0.36
+	_crown_lift = 0.36
 	_place()
 
 
@@ -197,7 +206,7 @@ static func sparkles(fit: Node3D) -> CPUParticles3D:
 	p.lifetime = 3.4
 	p.preprocess = 3.4
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	p.emission_box_extents = Vector3(1.5, 0.7, 0.25)
+	p.emission_box_extents = Vector3(2.3, 1.1, 0.3)
 	p.direction = Vector3.DOWN
 	p.spread = 25.0
 	p.initial_velocity_min = 0.05
@@ -213,18 +222,29 @@ static func sparkles(fit: Node3D) -> CPUParticles3D:
 	return p
 
 
-## The arrival: the wings sweep open from folded, the halo swells in, and a radiant
+## The arrival: the wings sweep open from folded, the crown swells in, and a radiant
 ## flash with rays and a ring of gold sparks (VfxKit, budget-counted) bursts behind.
 func _burst() -> void:
 	fold = 1.0
-	var player := get_node_or_null("AnimationPlayer") as AnimationPlayer
-	if player != null:
-		player.play("Unfold")
-		player.queue("Idle")
-	halo_pop = 0.2
+	crown_pop = 0.2
 	var tween := create_tween()
-	tween.tween_property(self, "halo_pop", 1.25, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(self, "halo_pop", 1.0, 0.4).set_trans(Tween.TRANS_SINE)
-	var at := _fit.to_global(HALO_AT + Vector3(0, -0.15, -0.1))
-	VfxKit.flash(_fit, at, BURST_COLOR, 3.0, 0.6)
-	VfxKit.sparks(_fit, at, BURST_COLOR, 26, 3.6, 1.0)
+	tween.tween_property(self, "crown_pop", 1.3, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "crown_pop", 1.0, 0.4).set_trans(Tween.TRANS_SINE)
+	var at := _fit.to_global(CROWN_AT + Vector3(0, -0.4, -0.1))
+	VfxKit.flash(_fit, at, BURST_COLOR, 4.0, 0.7)
+	VfxKit.sparks(_fit, at, BURST_COLOR, 30, 4.4, 1.1)
+	# The wearer poses its wings in this frame's deferred calls (HeroVisual._pose_wings,
+	# queued after this): sweep them open after that, so the unfold is not cut short.
+	_unfold.call_deferred(true)
+
+
+func _unfold(again: bool) -> void:
+	if again:
+		_unfold.call_deferred(false)
+		return
+	var player := get_node_or_null("AnimationPlayer") as AnimationPlayer
+	if player == null:
+		return
+	fold = 1.0
+	player.play("Unfold")
+	player.queue("Idle")

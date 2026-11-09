@@ -7,7 +7,8 @@ extends Node
 ## for another pair; it is never sold, traded or set out on a stall; it rides the shared
 ## storage to another character of any class and is worn from Lv.1; every stat beats the
 ## best 100★ pair at +15 and the aura lifts the wearer; the save and the item validate,
-## a tampered pair is refused; the look is the gold pair with budget-safe sparkles.
+## a tampered pair is refused; the look is three tiers of gold-crystal blades, the guild's
+## crest crown and golden sashes, with budget-safe sparkles.
 ##   XDG_DATA_HOME=$(mktemp -d) godot --headless --path . res://tests/integration/legend_wings_test.tscn
 var failures := 0
 var checks := 0
@@ -186,22 +187,37 @@ func _look() -> void:
 	var meshes := art.find_children("*", "MeshInstance3D", true, false)
 	var gold := true
 	var tris := 0
+	var surfaces := 0
 	for m in meshes:
 		var mi := m as MeshInstance3D
 		for i in mi.mesh.get_surface_count():
 			gold = gold and mi.get_surface_override_material(i) == LegendWingArt.material()
 		gold = gold and bool(mi.get_meta("no_outline", false)) and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		tris += LegendWingMesh.triangles(mi.mesh)
-	check(meshes.size() == 5 and gold, "two great wings, two lower wings and the halo in the one shared gold shader, no outline pass, no shadow (%d meshes)" % meshes.size())
-	check(tris > 1500 and tris < 6000, "phone-sized: %d triangles" % tris)
-	check(art.find_child("WingR", true, false).mesh == art.find_child("WingL", true, false).mesh and LegendWingMesh.wing() == art.find_child("WingR", true, false).mesh,
-		"the left wing mirrors the right one's shared mesh")
+		surfaces += mi.mesh.get_surface_count()
+	check(meshes.size() == 6 and gold, "two great wings, two lower wing sets, the crest crown and the sashes in the one shared gold shader, no outline pass, no shadow (%d meshes)" % meshes.size())
+	check(surfaces <= 8 and tris > 2000 and tris < 7000, "phone-sized: %d surfaces, %d triangles" % [surfaces, tris])
+	check(art.find_child("WingR", true, false).mesh == art.find_child("WingL", true, false).mesh and LegendWingMesh.wing() == art.find_child("WingR", true, false).mesh
+			and art.find_child("LowerR", true, false).mesh == art.find_child("LowerL", true, false).mesh,
+		"the left wings mirror the right ones' shared meshes")
+	# Three stacked tiers: the great wings above, the lower set (middle and low tier)
+	# below, and together the biggest wings in the game (the widest 100★ pair, the
+	# bard's, spans about 4.2 m on the hero).
+	var top_box := _box(art, ["WingR", "WingL"])
+	var low_box := _box(art, ["LowerR", "LowerL"])
+	var all_box := top_box.merge(low_box)
+	check(top_box.end.y > low_box.end.y + 0.5 and low_box.position.y < top_box.position.y, "the great wings tower over the lower tiers")
+	check(all_box.size.x * 2.45 > 5.4 and all_box.size.y * 2.45 > 4.0, "the grandest span in the game (%.1f x %.1f m)" % [all_box.size.x * 2.45, all_box.size.y * 2.45])
 	var rows := {}
-	var arrays := LegendWingMesh.wing().surface_get_arrays(0)
-	for uv2 in arrays[Mesh.ARRAY_TEX_UV2]:
-		rows[int(floor((uv2 as Vector2).x))] = true
-	check(rows.has(LegendWingMesh.ROW_PRIMARY) and rows.has(LegendWingMesh.ROW_SECONDARY) and rows.has(LegendWingMesh.ROW_COVERT), "three rows of feathers: primaries, secondaries, coverts")
-	check(LegendWingMesh.halo(WorldPlayers.LNW) != LegendWingMesh.halo(WorldPlayers.TITAN), "the halo's gems wear the guild's colour")
+	for mesh in [LegendWingMesh.wing(), LegendWingMesh.lower()]:
+		for uv2 in (mesh as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2]:
+			rows[int(floor((uv2 as Vector2).x))] = true
+	check(rows.has(LegendWingMesh.ROW_BLADE) and rows.has(LegendWingMesh.ROW_SHARD), "crystal blades with crystal shards over their roots")
+	check(art.find_child("Crown", true, false) != null and art.find_child("Ribbons", true, false) != null and art.find_child("Halo", true, false) == null,
+		"a floating crest crown (no plain ring halo) and sashes of golden light")
+	check(LegendWingMesh.crown(WorldPlayers.LNW) != LegendWingMesh.crown(WorldPlayers.TITAN), "the crest wears the guild's colours")
+	var alpha := LegendWingMesh.crest_colors(WorldPlayers.ALPHA)
+	check(alpha[0].v < 0.5 and alpha[1].v > 0.8, "Alpha's gold gem sits on a deep field, so it reads against the gold wings")
 	var player := art.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var clips := true
 	for clip in ["Idle", "Flap", "Glide", "Fold", "Unfold"]:
@@ -233,6 +249,18 @@ func _look() -> void:
 	fresh.queue_free()
 	for w in range(W0, W0 + LegendWings.MODELS.size()):
 		check(LegendWings.MODELS.has(LegendWings.model_of(w)) and LegendWings.model_of(w) != "darklord", "season %d keeps a valid wing field" % w)
+
+
+## The merged model-space box of the named pieces of a wing set.
+func _box(art: Node3D, names: Array) -> AABB:
+	var box := AABB()
+	var first := true
+	for piece_name in names:
+		var mi := art.find_child(piece_name, true, false) as MeshInstance3D
+		var b := (art.global_transform.affine_inverse() * mi.global_transform) * mi.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
 
 
 ## Season one: the hero leads Alpha, Alpha is champion, the hero gets exactly one pair,
