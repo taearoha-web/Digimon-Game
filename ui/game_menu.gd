@@ -73,9 +73,9 @@ func _ready() -> void:
 	var column := UIUtil.vbox(8)
 	column.custom_minimum_size = Vector2(190, 0)
 	row.add_child(column)
-	var tab_scroll := ScrollContainer.new()
+	# TouchScroll: a finger drag anywhere on the column scrolls it, even from a button.
+	var tab_scroll := TouchScroll.new()
 	tab_scroll.name = "TabScroll"
-	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tab_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(tab_scroll)
 	var tabs := UIUtil.vbox(8 if TABS.size() <= 8 else 5)
