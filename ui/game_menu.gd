@@ -1790,7 +1790,7 @@ func _open_backup() -> void:
 		suggested = Game.slot
 	for save_slot in range(1, Game.SLOT_COUNT + 1):
 		var info := Game.slot_info(save_slot)
-		var title := "ช่อง %d · ว่าง" % save_slot if info.is_empty() else "ช่อง %d · %s Lv.%d" % [save_slot, info.name, info.level]
+		var title := "ช่อง %d · ว่าง" % save_slot if info.is_empty() else ("ช่อง %d · เซฟเสียหาย %s" % [save_slot, info.name] if bool(info.get("damaged", false)) else "ช่อง %d · %s Lv.%d" % [save_slot, info.name, info.level])
 		destination.add_item(title, save_slot)
 	destination.select(suggested - 1)
 	destination_row.add_child(destination)

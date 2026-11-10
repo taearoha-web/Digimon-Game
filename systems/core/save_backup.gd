@@ -46,7 +46,7 @@ static func backup_now(reason := "daily") -> String:
 		if not _write_text(dir.path_join(Game.save_path(slot).get_file()), slots[slot]):
 			_remove_dir(dir)
 			return ""
-		var parsed: Variant = JSON.parse_string(slots[slot])
+		var parsed: Variant = Game.parse_save_text(slots[slot])
 		var summary: Dictionary = Game._slot_summary(parsed as Dictionary) if parsed is Dictionary else {}
 		index.slots[String.num_int64(slot)] = {"name": summary.get("name", "?"), "class": summary.get("class", "warrior"),
 			"level": summary.get("level", 1), "adv": summary.get("adv", 0)}
@@ -144,6 +144,78 @@ static func restored_marker() -> Dictionary:
 	return {"time": int(parsed.get("time", 0)), "slots": slots}
 
 
+## Backup copies already brought back by recover_hidden ({"<backup folder>|<slot>": 1}).
+const RECOVERED_PATH := "user://backups/recovered.json"
+
+
+## Heroes the save check once hid and the cloud sync then deleted: for each empty slot,
+## the newest backup copy of that slot comes back when that copy is one the save check
+## refuses (or cannot even parse) but salvage reads (Game.salvage_profile). Such a hero
+## was invisible on the character select, so the player cannot have deleted it on
+## purpose. Skipped when a hero of that name and class is already in a slot; each copy
+## comes back at most once (RECOVERED_PATH). Returns the slots restored.
+static func recover_hidden() -> Array:
+	var done: Variant = JSON.parse_string(_file_text(RECOVERED_PATH)) if FileAccess.file_exists(RECOVERED_PATH) else {}
+	if not done is Dictionary:
+		done = {}
+	var deleted: Dictionary = (done as Dictionary).get("deleted", {}) if (done as Dictionary).get("deleted") is Dictionary else {}
+	var live := {}
+	for i in range(1, Game.SLOT_COUNT + 1):
+		var info := Game.slot_info(i)
+		if not info.is_empty():
+			live["%s|%s" % [info.get("name", ""), info.get("class", "")]] = true
+	var restored: Array = []
+	var entries := list()
+	for i in range(1, Game.SLOT_COUNT + 1):
+		if Game.has_save(i):
+			continue
+		for entry in entries:
+			if not (entry.slots as Dictionary).has(str(i)):
+				continue
+			var key := "%s|%d" % [String(entry.dir).get_file(), i]
+			var raw := _file_text(String(entry.dir).path_join(Game.save_path(i).get_file()))
+			var parsed: Variant = Game.parse_save_text(raw)
+			var strict: bool = JSON.new().parse(raw) == OK and parsed is Dictionary and Game._valid_profile(parsed)
+			# The newest copy of the slot decides: a readable one means the hero was shown
+			# then, so it may have been deleted on purpose since.
+			# Deleted on purpose (note_deleted) after this copy was made: it stays deleted.
+			if strict or done.has(key) or not parsed is Dictionary or float(deleted.get(str(i), 0)) >= float(entry.time):
+				break
+			var text := _valid_backup_text(String(entry.dir), i)
+			var saved: Variant = Game.parse_save_text(text) if text != "" else null
+			if not saved is Dictionary:
+				break
+			var who := "%s|%s" % [String(saved.get("name", "")), String(saved.get("class", ""))]
+			done[key] = 1
+			if live.has(who):
+				break
+			if _write_slot(i, _stamped(text)):
+				live[who] = true
+				restored.append(i)
+			break
+	if not restored.is_empty():
+		_mark_restored(restored)
+		Game._slot_json.clear()
+		Game._queue_cloud_save()
+	if not (done as Dictionary).is_empty():
+		DirAccess.make_dir_recursive_absolute(ROOT)
+		_write_text(RECOVERED_PATH, JSON.stringify(done))
+	return restored
+
+
+## The player deleted the hero of [param slot] (Game.delete_save): recover_hidden never
+## brings back a copy made before now.
+static func note_deleted(slot: int) -> void:
+	var done: Variant = JSON.parse_string(_file_text(RECOVERED_PATH)) if FileAccess.file_exists(RECOVERED_PATH) else {}
+	if not done is Dictionary:
+		done = {}
+	if not done.get("deleted") is Dictionary:
+		done["deleted"] = {}
+	done.deleted[str(slot)] = int(Time.get_unix_time_from_system())
+	DirAccess.make_dir_recursive_absolute(ROOT)
+	_write_text(RECOVERED_PATH, JSON.stringify(done))
+
+
 ## A daily backup, at most once per real (local) day; true when one was made now.
 static func maybe_daily() -> bool:
 	var today := Time.get_date_string_from_system()
@@ -189,16 +261,21 @@ static func _valid_backup_text(dir: String, slot: int) -> String:
 	if file == null or file.get_length() > Game.MAX_SAVE_BYTES:
 		return ""
 	var text := file.get_as_text()
-	var parsed: Variant = JSON.parse_string(text)
-	if not parsed is Dictionary or not Game._valid_profile(parsed as Dictionary):
+	var parsed: Variant = Game.parse_save_text(text)
+	if not parsed is Dictionary:
 		return ""
-	return text
+	if Game._valid_profile(parsed as Dictionary):
+		return text if JSON.new().parse(text) == OK else JSON.stringify(parsed)
+	# A copy the save check refuses (a check that once refused legitimate data hid such
+	# heroes): it comes back salvaged, only what fails taken out (Game.salvage_profile).
+	var saved := Game.salvage_profile(parsed as Dictionary)
+	return JSON.stringify(saved) if not saved.is_empty() else ""
 
 
 ## The validated slot text with saved_at set to now: a restored save is the newest one,
 ## so the web page's sync (newest saved_at wins) does not put the online copy back over it.
 static func _stamped(text: String) -> String:
-	var parsed: Variant = JSON.parse_string(text)
+	var parsed: Variant = Game.parse_save_text(text)
 	if not parsed is Dictionary:
 		return text
 	parsed["saved_at"] = int(Time.get_unix_time_from_system())

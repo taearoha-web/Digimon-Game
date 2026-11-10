@@ -8,6 +8,8 @@ extends CanvasLayer
 signal new_game_pressed(slot: int)
 signal continue_pressed(slot: int)
 
+## A slot whose save file cannot be read (Game.slot_damaged): shown, never as empty.
+const DAMAGED_TEXT := "เซฟเสียหาย"
 ## Set by Main after a hero was created: that slot's hero lands in a column of light.
 var arrival_slot := 0
 var stage: TitleStage
@@ -205,7 +207,10 @@ func _make_plate(slot: int) -> void:
 	number.add_theme_color_override("font_color", TitleStage.GOLD)
 	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(number)
-	var who := UIUtil.label(String(info.name), &"BoldLabel")
+	var damaged := bool(info.get("damaged", false))
+	var who := UIUtil.label(DAMAGED_TEXT if damaged else String(info.name), &"BoldLabel")
+	if damaged:
+		who.add_theme_color_override("font_color", Color("ff9a8a"))
 	who.add_theme_font_size_override("font_size", 15)
 	who.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	who.clip_text = true
@@ -275,9 +280,17 @@ func _refresh() -> void:
 	_create.theme_type_variation = &"PrimaryButton" if count == 0 else &"GhostButton"
 	var info: Dictionary = _slots.get(_selected, {})
 	var used := not info.is_empty()
-	_play.visible = used
+	var damaged := used and bool(info.get("damaged", false))
+	_play.visible = used and not damaged
 	_delete.visible = used
-	if used:
+	if damaged:
+		# A save file that cannot be read: kept (never shown as empty, never overwritten)
+		# until it is restored from a backup, replaced by a save code or deleted.
+		_name.text = "%s%s" % [DAMAGED_TEXT, (" · " + String(info.name)) if String(info.name) != "" else ""]
+		_detail.text = "จุด %d · ไฟล์เซฟอ่านไม่ได้ ข้อมูลยังเก็บไว้ไม่ถูกลบ" % _selected
+		_detail.add_theme_color_override("font_color", Color("ff9a8a"))
+		_hint.text = "กด \"สำรอง/กู้คืน\" เพื่อกู้จากสำเนาสำรองรายวัน หรือนำเข้ารหัสเซฟลงจุดนี้"
+	elif used:
 		var cls := JobData.resolve(StringName(info["class"]), int(info.adv))
 		_name.text = String(info.name)
 		_detail.text = "จุด %d · %s · Lv.%d%s" % [_selected, cls.name, int(info.level), "  ★%d" % int(info.stars) if int(info.get("stars", 0)) > 0 else ""]
@@ -312,7 +325,7 @@ func _on_tap(at: Vector2) -> void:
 
 
 func _on_play() -> void:
-	if _slots.has(_selected):
+	if _slots.has(_selected) and not bool(_slots[_selected].get("damaged", false)):
 		continue_pressed.emit(_selected)
 
 

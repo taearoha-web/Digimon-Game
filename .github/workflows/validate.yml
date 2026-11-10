@@ -37,6 +37,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-backup
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/save_backup_test.tscn
+      - name: save_survival_test (a Lv.100 ★300 Dark Lord and Summoner played through the dragon tomb, reward shop, legendary wings, chapter 2, guild hall, league, stall and storage survive save / reload / JSON / the cloud bundle / the accounts server; a broken field is salvaged, never hidden; an unreadable slot shows as damaged and is never uploaded as gone; nan / inf saves read back; hidden heroes come back from the daily backup)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-save-survival
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/save_survival_test.tscn
       - name: Shared storage (every character sees it, other-class gear stays greyed, old storages move in once with nothing lost or doubled, cloud bundle, backups, deleting a character keeps it)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-shared-storage
