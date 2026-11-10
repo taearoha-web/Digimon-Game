@@ -130,10 +130,81 @@ static func signature(id: String) -> GDScript:
 	return _signatures[id]
 
 
+## How high (metres above [param world]) a piece standing there may reach before it leaves
+## the top of the screen, for the camera now showing [param node]'s viewport: the field
+## camera looks down from high up (about -47 degrees, 22 m away, fov 40), so the far side
+## of a hit area has only a few metres of sky and a set piece taller than that is cut off.
+## [param margin] is the share of the half screen kept free at the top (the HUD, the
+## wind-up zoom). 99 when there is no perspective camera (headless tests).
+static func headroom(node: Node, world: Vector3, margin := 0.12) -> float:
+	var view := node.get_viewport() if is_instance_valid(node) and node.is_inside_tree() else null
+	var camera := view.get_camera_3d() if view else null
+	if camera == null or camera.projection != Camera3D.PROJECTION_PERSPECTIVE:
+		return 99.0
+	var basis := camera.global_basis
+	var forward := -basis.z
+	var up := basis.y
+	var k := tan(deg_to_rad(camera.fov) * 0.5) * (1.0 - margin)
+	var rel := world - camera.global_position
+	var depth := rel.dot(forward)
+	var den := up.y - k * forward.y
+	if depth <= 0.5 or den <= 0.05:
+		return 99.0
+	return clampf((k * depth - rel.dot(up)) / den, 0.0, 99.0)
+
+
+## The scale (least..1) that keeps a piece [param height] tall at [param world] in frame.
+static func fit(node: Node, world: Vector3, height: float, least := 0.6) -> float:
+	return clampf(headroom(node, world) / maxf(height, 0.01), least, 1.0)
+
+
+## A god skill drawn by its own signature art (combat/god_art/<id>.gd): that art is the
+## whole show. The shared class systems (ClassFlourish, ClassSignature, CasterArt,
+## MeleeArt and the SkillLayers stack) ask this and stay out, so none of their generic
+## rune circles, sky seals, column crowns or white cores plays under the set pieces; the
+## signature keeps its own area ring.
+static func owns(skill: Dictionary) -> bool:
+	return not skill.is_empty() and StarSkillData.is_god(skill) and signature(String(skill.get("id", ""))) != null
+
+
+## The running cast of each god skill (its StarSkillSequence), noted at the wind-up.
+static var _casts := {}
+## How long before its cast's natural end a root stops watching it (the sequence ends
+## 0.6 s after the finale: a cast that ran its course must never cut its own art short).
+const CAST_MARGIN := 0.15
+
+
+## Ties every root of the cast of [param id] under [param parent] that is not tied yet
+## (StarSkillArt and GodRangedKit roots, by name) to that cast: if the cast ends within
+## the next [param until] seconds (the hero died, or left the field), they fade out at
+## once (StarSkillArt.CLOSE) instead of standing on for seconds over nobody's fight.
+static func bind_roots(parent: Node, id: String, until: float) -> void:
+	var ref: WeakRef = _casts.get(id)
+	var cast: Node = ref.get_ref() if ref else null
+	if not is_instance_valid(parent) or not is_instance_valid(cast) or until <= 0.0:
+		return
+	for node in parent.get_children():
+		if not String(node.name).contains(id):
+			continue
+		if node is StarSkillArt:
+			var root := node as StarSkillArt
+			if root.cast_ref == null:
+				root.cast_ref = ref
+				root.cast_until = root.age + until
+		elif node is GodRangedKit:
+			var kit := node as GodRangedKit
+			if kit.watch_ref == null:
+				kit.watch_ref = ref
+				kit.watch_until = kit.age + until
+
+
 static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, point: Vector3, time: float) -> void:
 	var id := String(skill.id)
 	var own := signature(id)
+	var cast := caster.get_node_or_null("StarCast_" + id) if is_instance_valid(caster) else null
+	_casts[id] = weakref(cast) if cast else null
 	if own != null and own.has_method("telegraph") and own.telegraph(art, caster, skill, point, time):
+		bind_roots(art.get_parent(), id, time + float(StarSkillData.GOD_BEATS.back()) + 0.6 - CAST_MARGIN)
 		return
 	var c := StarSkillArt.look(skill)
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
@@ -226,9 +297,12 @@ static func strike(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	var last := StarSkillData.GOD_BEATS.size() - 1
 	var own := signature(id)
 	if own != null:
+		var left := float(StarSkillData.GOD_BEATS[last]) - float(StarSkillData.GOD_BEATS[mini(index, last)]) + 0.6 - CAST_MARGIN
 		if index >= last and own.has_method("finale") and own.finale(art, parent, skill, point, source):
+			bind_roots(parent, id, left)
 			return
 		if index < last and own.has_method("wave") and own.wave(art, parent, skill, index, point, source):
+			bind_roots(parent, id, left)
 			return
 	if index >= last:
 		_finale(art, parent, id, c, r, point, source)

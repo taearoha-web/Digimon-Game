@@ -68,6 +68,13 @@ var generation := -1
 var follow_offset := Vector3.ZERO
 var require_alive := false
 var buff_id := ""
+## The cast this root belongs to (GodSkillArt.bind_roots): when that StarSkillSequence
+## ends before [member cast_until] (this root's age), the hero died or left in the middle
+## of the cast, and the root fades out within CLOSE seconds instead of playing on.
+const CLOSE := 0.3
+var cast_ref: WeakRef
+var cast_until := 0.0
+var _closing := -1.0
 
 static func handles(skill: Dictionary) -> bool:
 	return COLORS.has(String(skill.get("id", "")))
@@ -151,8 +158,10 @@ func _process(delta: float) -> void:
 		# BuffArt's engine decides active/overwritten buffs; roots also support
 		# explicit cancellation when gameplay removes their owning buff.
 	age+=delta
+	if cast_ref and _closing<0.0 and age<cast_until and not is_instance_valid(cast_ref.get_ref()):
+		_closing=age
 	_draw()
-	if age>=lifetime: queue_free()
+	if age>=lifetime or (_closing>=0.0 and age>=_closing+CLOSE): queue_free()
 
 func _draw() -> void:
 	for layer in layers:
@@ -182,6 +191,7 @@ func _draw() -> void:
 			node.position+=Vector3(sin(a),0,cos(a))*float(options.orbit)
 		var fade := smoothstep(0.0,float(options.get("fade_in",0.045)),t)
 		fade*=1.0-smoothstep(minf(float(options.get("decay",0.60)),0.98),1.0,t)
+		if _closing>=0.0: fade*=clampf(1.0-(age-_closing)/CLOSE,0.0,1.0)
 		var mat := node.material_override as ShaderMaterial
 		mat.set_shader_parameter("fade",fade)
 		mat.set_shader_parameter("age",age)

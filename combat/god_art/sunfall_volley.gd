@@ -81,7 +81,7 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 	var rise := {"travel": _sun - low, "tw": Vector2(0, time * 0.95), "ease": 2, "grow": time * 0.9, "from": 0.35, "fin": 0.15, "fout": 0.28,
 		"scale_curve": [0.0, 1.0, fire_at - 0.5, 1.0, fire_at - 0.22, 1.25, fire_at, 0.95, total - 0.4, 1.0, total, 0.6]}
 	g.add(K.mesh("sphere"), K.SUN, FIRE.merged({"flow": 1.0}), low, Vector3.ONE * SUN_SIZE, Vector3.ZERO, 0.0, total - 0.05, rise)
-	g.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 2, "billboard": true, "p1": 9.0, "p2": 0.3, "gain": 0.6}), low, Vector3.ONE * SUN_SIZE * 3.3, Vector3.ZERO, 0.0, total - 0.05, rise)
+	g.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 2, "billboard": true, "p1": 9.0, "p2": 0.3, "gain": 0.3, "c_core": Color("ffe9a0")}), low, Vector3.ONE * SUN_SIZE * 3.0, Vector3.ZERO, 0.0, total - 0.05, rise)
 	g.add(K.mesh("quad"), K.GLOW, {"mode": 5, "p1": 30.0, "gain": 0.9, "c_core": Color("fff6c0"), "c_mid": Color("ffc23a"), "c_edge": Color("ff8a1a")}, Vector3.UP * 0.07, Vector3.ONE * r, K.FLAT, 0.0, total, {"grow": 0.5, "from": 0.3, "fout": 0.5})
 	_volley(g, 0, r, time - FLIGHT - 0.1)
 	if not K.lean():
@@ -93,7 +93,7 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 		return true
 	s.bind(caster, ID, cast, time)
 	# Slow prominences round the sun, a shaft of sunlight onto the field, heat rising.
-	s.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 2, "billboard": true, "p1": 5.0, "p2": 0.2, "gain": 0.22, "seed": 3.0}), low, Vector3.ONE * SUN_SIZE * 5.2, Vector3.ZERO, 0.0, total - 0.05, rise)
+	s.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 2, "billboard": true, "p1": 5.0, "p2": 0.2, "gain": 0.12, "seed": 3.0, "c_core": Color("ffd98a")}), low, Vector3.ONE * SUN_SIZE * 4.6, Vector3.ZERO, 0.0, total - 0.05, rise)
 	s.add(K.mesh("shaft"), K.GLOW, {"mode": 3, "p1": 0.5, "p2": 0.3, "gain": 0.2, "c_core": Color("fff6c0"), "c_mid": Color("ffd86a"), "c_edge": Color("ffa22a")}, Vector3.ZERO, Vector3(r * 0.7, _sun.length(), r * 0.7), K.falling(Vector3.ZERO, -_sun, 1.0).basis.get_euler(), time * 0.55, total - time * 0.55 - 0.3, {"fin": 0.5, "fout": 0.4})
 	var motes := []
 	var mote_data := []
@@ -109,7 +109,7 @@ static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: in
 	var r := _radius(skill)
 	var beats: Array = StarSkillData.GOD_BEATS
 	# This beat's volley has just landed: the ground flashes under it.
-	K.layer(art, K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 1, "p1": 1.1, "gain": 1.0}), _centre(index, r) + Vector3.UP * 0.09, Vector3.ONE * _spread(index, r) * 1.25, K.FLAT, 0.6, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.75})
+	K.layer(art, K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 1, "p1": 1.1, "gain": 0.55, "c_core": Color("ffe08a")}), _centre(index, r) + Vector3.UP * 0.09, Vector3.ONE * _spread(index, r) * 1.25, K.FLAT, 0.6, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.75})
 	var gap := float(beats[index + 1]) - float(beats[index])
 	if index + 1 < beats.size() - 1:
 		var next := K.open(parent, point, 1.0, "GodVolley_" + ID, source)
@@ -142,11 +142,11 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	var f := K.open(parent, point, 1.0, "GodFinale_" + ID, source)
 	if f:
 		# Pillar of fire with a white-hot heart, a wall of flame rolling to the rim.
-		f.add(K.mesh("column"), K.VEIL, FIRE.merged({"mode": 14, "p1": 5.0, "p2": 2.2}), Vector3.ZERO, Vector3(1.9, 12.5, 1.9), Vector3.ZERO, 0.0, 1.15, {"grow": 0.12, "from": 0.35, "to": Vector3(0.4, 1.1, 0.4), "fin": 0.02, "fout": 0.55})
+		f.add(K.mesh("column"), K.VEIL, FIRE.merged({"mode": 14, "p1": 5.0, "p2": 2.2}), Vector3.ZERO, Vector3(1.5, 12.5, 1.5), Vector3.ZERO, 0.0, 1.15, {"grow": 0.12, "from": 0.35, "to": Vector3(0.4, 1.1, 0.4), "fin": 0.02, "fout": 0.55})
 		f.add(K.mesh("column"), K.VEIL, FIRE.merged({"mode": 14, "p1": 3.2, "p2": 7.0, "seed": 5.0}), Vector3.ZERO, Vector3(r * 1.04, 2.8, r * 1.04), Vector3.ZERO, 0.02, 1.0, {"grow": 0.8, "from": 0.1, "fin": 0.03, "fout": 0.4})
-		f.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 1, "p1": 1.2, "p2": 1.0}), Vector3.UP * 0.1, Vector3.ONE * r * 1.25, K.FLAT, 0.0, 0.85, {"fin": 0.01})
-		f.add(K.mesh("column"), K.GLOW, {"mode": 3, "p1": 8.0, "p2": 0.3, "gain": 0.7, "c_core": Color.WHITE, "c_mid": Color("fff3b0"), "c_edge": Color("ffc23a")}, Vector3.ZERO, Vector3(0.6, 13.5, 0.6), Vector3.ZERO, 0.0, 0.8, {"to": Vector3(0.15, 1.0, 0.15), "fin": 0.02, "fout": 0.35})
-		f.add(K.mesh("quad"), K.GLOW, {"mode": 0, "billboard": true, "p1": 1.9, "gain": 0.6, "c_core": Color.WHITE, "c_mid": Color("fff0a0"), "c_edge": Color("ffb42a")}, Vector3.UP * 1.6, Vector3.ONE * 6.0, Vector3.ZERO, 0.0, 0.3, {"fin": 0.02, "fout": 0.22})
+		f.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 1, "p1": 1.2, "p2": 1.0, "gain": 0.5, "c_core": Color("ffd470")}), Vector3.UP * 0.1, Vector3.ONE * r * 1.25, K.FLAT, 0.0, 0.85, {"fin": 0.01})
+		f.add(K.mesh("column"), K.GLOW, {"mode": 3, "p1": 8.0, "p2": 0.3, "gain": 0.4, "c_core": Color("fff3c0"), "c_mid": Color("ffd870"), "c_edge": Color("ffa82a")}, Vector3.ZERO, Vector3(0.5, 13.5, 0.5), Vector3.ZERO, 0.0, 0.8, {"to": Vector3(0.15, 1.0, 0.15), "fin": 0.02, "fout": 0.35})
+		f.add(K.mesh("quad"), K.GLOW, {"mode": 0, "billboard": true, "p1": 2.4, "gain": 0.36, "c_core": Color("fff6d0"), "c_mid": Color("ffe07a"), "c_edge": Color("ffa82a")}, Vector3.UP * 1.6, Vector3.ONE * 4.6, Vector3.ZERO, 0.0, 0.3, {"fin": 0.02, "fout": 0.22})
 		var embers := []
 		var ember_data := []
 		var count: int = [14, 30, 48][q]
@@ -162,7 +162,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	# The sun answers: a flare bursts from it and fires spring up where the flame wall passes.
 	var avatar := K.open(parent, point, 1.0, "StarGodAvatar_" + ID, source)
 	if avatar:
-		avatar.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 2, "billboard": true, "p1": 14.0, "p2": 0.18, "gain": 0.5, "seed": 7.0}), _sun, Vector3.ONE * SUN_SIZE * 6.5, Vector3.ZERO, 0.0, 0.75, {"grow": 0.2, "from": 0.4, "fin": 0.02, "fout": 0.5, "priority": -1})
+		avatar.add(K.mesh("quad"), K.GLOW, FIRE.merged({"mode": 2, "billboard": true, "p1": 14.0, "p2": 0.18, "gain": 0.26, "seed": 7.0, "c_core": Color("ffe08a")}), _sun, Vector3.ONE * SUN_SIZE * 5.4, Vector3.ZERO, 0.0, 0.75, {"grow": 0.2, "from": 0.4, "fin": 0.02, "fout": 0.5, "priority": -1})
 		var fires := []
 		var fire_data := []
 		var count: int = [8, 12, 18][q]

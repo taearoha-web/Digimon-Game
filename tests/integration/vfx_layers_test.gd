@@ -99,7 +99,18 @@ func _ready() -> void:
 	await get_tree().create_timer(3.5).timeout
 	# --- memory pressure and quality ---
 	var probes := [ClassData.find_skill(&"mage", "meteo"), ClassData.find_skill(&"warrior", "sword_of_justice"),
-		ClassData.find_skill(&"priest", "grand_healing"), ClassData.find_skill(&"bard", "resonance"), StarSkillData.pool(&"warrior")[4]]
+		ClassData.find_skill(&"priest", "grand_healing"), ClassData.find_skill(&"bard", "resonance"), StarSkillData.pool(&"warrior")[3]]
+	# The god skills with their own signature art (GodSkillArt.owns) draw every beat
+	# themselves: the shared stack plays nothing under them.
+	for cls in SkillShow.FAMILY_COLORS:
+		var stars := StarSkillData.pool(StringName(cls))
+		var god: Dictionary = stars[4] if stars.size() > 4 else {}
+		if GodSkillArt.owns(god):
+			var count := field.get_child_count()
+			SkillLayers.reset_crowd()
+			SkillLayers.star_beat(field, god, Vector3(3, 0, 0), 4, 5, Vector3.ZERO)
+			SkillLayers.anticipate(field, god, Vector3.ZERO, 1.5, Vector3(3, 0, 0))
+			check(field.get_child_count() == count, "%s: the shared stack stays out of its own god art" % god.id)
 	for skill in probes:
 		var full: Dictionary = _cast(field, skill)
 		await get_tree().create_timer(3.0).timeout

@@ -14,6 +14,8 @@ const HOT := Color("fff0f2")
 const ID := "death_gods_eclipse"
 ## The Death God's height: its eyes stay inside the third-person camera's frame.
 const REAPER := 5.7
+## How far beyond the caster (as the camera sees it) the Death God rises.
+const BEYOND := 4.4
 static var _cache := {}
 
 
@@ -230,42 +232,95 @@ static func _scythe(r: float) -> ArrayMesh:
 	return _cache.scythe
 
 
-## The Death God: a hooded figure on the origin, +Y 1 tall, facing +Z, arms spread.
+## The Death God: a hooded figure on the origin, facing +Z, its hood 1 tall. One bone hand
+## reaches out, the other holds a great scythe whose crescent blade arcs over the hood
+## (to +Y 1.2). Violet cloth (it must read against its own black sun), a void for a face,
+## two burning eyes.
 static func _reaper() -> ArrayMesh:
 	if not _cache.has("reaper"):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 13
 		var st := K.begin()
 		var p := K.Part.new()
-		var cloth := Color(0.05, 0.03, 0.09)
+		var cloth := Color(0.17, 0.08, 0.34)
+		var deep := Color(0.08, 0.035, 0.17)
+		p.ink(deep, 0.1)
+		p.tube(Vector3(0, 0.0, 0), Vector3(0, 0.34, 0), 0.27, 0.17, 9)
 		p.ink(cloth, 0.1)
-		p.tube(Vector3(0, 0.0, 0), Vector3(0, 0.36, 0), 0.34, 0.26, 9)
-		p.tube(Vector3(0, 0.36, 0), Vector3(0, 0.66, 0), 0.26, 0.21, 9)
+		p.tube(Vector3(0, 0.34, 0), Vector3(0, 0.66, 0), 0.17, 0.2, 9)
 		# Tatters at the hem.
 		for i in 11:
 			var a := TAU * float(i) / 11.0
 			var dir := Vector3(cos(a), 0, sin(a))
-			p.ink(cloth.lightened(0.04 * float(i % 3)), 0.1)
-			p.tube(dir * 0.3 + Vector3.UP * 0.1, dir * rng.randf_range(0.36, 0.46) + Vector3.DOWN * rng.randf_range(0.02, 0.1), 0.09, 0.0, 3)
-		p.ink(Color(0.09, 0.04, 0.16), 0.2)
-		p.ball(Vector3(0, 0.67, 0), Vector3(0.32, 0.09, 0.2), 8, 3)
+			p.ink(deep.lightened(0.05 * float(i % 3)), 0.1)
+			p.tube(dir * 0.23 + Vector3.UP * 0.1, dir * rng.randf_range(0.3, 0.4) + Vector3.DOWN * rng.randf_range(0.02, 0.1), 0.08, 0.0, 3)
+		# A crimson sash down the front, the mantle over the shoulders with its burning hem.
+		p.ink(CRIMSON.darkened(0.25), 0.2, 0.25)
+		p.box(Vector3(0, 0.36, 0.185), Vector3(0.07, 0.56, 0.03))
+		p.ink(cloth.lightened(0.1), 0.2)
+		p.ball(Vector3(0, 0.67, 0), Vector3(0.35, 0.085, 0.21), 8, 3)
+		p.ink(CRIMSON, 0.2, 0.7)
+		p.tube(Vector3(0, 0.635, 0), Vector3(0, 0.65, 0), 0.3, 0.33, 10, 0.62, false)
 		# The hood, and the void where a face would be.
-		p.ball(Vector3(0, 0.82, 0.0), Vector3(0.18, 0.2, 0.19), 8, 5)
-		p.tube(Vector3(0, 0.95, -0.02), Vector3(0, 1.0, -0.16), 0.1, 0.0, 5)
+		p.ink(cloth.lightened(0.05), 0.2)
+		p.ball(Vector3(0, 0.82, 0.0), Vector3(0.19, 0.2, 0.19), 8, 5)
+		p.tube(Vector3(0, 0.96, -0.02), Vector3(0, 1.0, -0.2), 0.1, 0.0, 5)
 		p.ink(Color(0.0, 0.0, 0.0), 0.0)
-		p.ball(Vector3(0, 0.8, 0.1), Vector3(0.12, 0.14, 0.11), 7, 4)
-		p.ink(CRIMSON, 0.0, 1.0)
-		for x in [-0.05, 0.05]:
-			p.gem(Vector3(x, 0.81, 0.205), Vector3(0.03, 0.014, 0.012))
-		# Sleeves spread wide, bone hands.
-		for s in [-1.0, 1.0]:
-			p.ink(cloth.lightened(0.03), 0.1)
-			p.tube(Vector3(s * 0.24, 0.66, 0.0), Vector3(s * 0.46, 0.56, 0.1), 0.085, 0.1, 5)
-			p.tube(Vector3(s * 0.46, 0.56, 0.1), Vector3(s * 0.62, 0.62, 0.2), 0.1, 0.07, 5)
-			p.ink(Color(0.86, 0.84, 0.8), 0.3)
-			for k in 3:
-				var spread := (float(k) - 1.0) * 0.035
-				p.tube(Vector3(s * 0.62, 0.62, 0.2), Vector3(s * (0.7 + absf(spread) * 0.2), 0.66 + spread, 0.27), 0.014, 0.004, 3)
+		p.ball(Vector3(0, 0.815, 0.09), Vector3(0.135, 0.15, 0.12), 7, 4)
+		p.ink(Color(1.0, 0.16, 0.2), 0.0, 1.0)
+		for x in [-0.058, 0.058]:
+			p.gem(Vector3(x, 0.84, 0.2), Vector3(0.042, 0.024, 0.024))
+		# One sleeve reaches out, bone fingers spread; the other holds the scythe.
+		p.ink(cloth.lightened(0.04), 0.1)
+		p.tube(Vector3(-0.24, 0.66, 0.0), Vector3(-0.46, 0.56, 0.1), 0.085, 0.1, 5)
+		p.tube(Vector3(-0.46, 0.56, 0.1), Vector3(-0.62, 0.62, 0.2), 0.1, 0.07, 5)
+		p.tube(Vector3(0.24, 0.66, 0.0), Vector3(0.36, 0.56, 0.08), 0.085, 0.1, 5)
+		p.tube(Vector3(0.36, 0.56, 0.08), Vector3(0.42, 0.5, 0.12), 0.1, 0.07, 5)
+		p.ink(Color(0.9, 0.88, 0.82), 0.3)
+		for k in 3:
+			var spread := (float(k) - 1.0) * 0.04
+			p.tube(Vector3(-0.62, 0.62, 0.2), Vector3(-0.71 - absf(spread) * 0.2, 0.67 + spread, 0.28), 0.016, 0.005, 3)
+		p.ball(Vector3(0.42, 0.5, 0.13), Vector3(0.035, 0.035, 0.035), 5, 3)
+		# The scythe: a black shaft with bone rings, the crescent arcing over the hood.
+		var foot := Vector3(0.34, 0.04, 0.13)
+		var head := Vector3(0.5, 0.98, 0.1)
+		p.ink(Color(0.1, 0.06, 0.16), 0.5)
+		p.tube(foot, head, 0.022, 0.02, 5)
+		p.ink(Color(0.9, 0.88, 0.82), 0.4)
+		for t in [0.3, 0.62, 0.97]:
+			var at := foot.lerp(head, t)
+			p.tube(at, at + (head - foot).normalized() * 0.022, 0.032, 0.032, 5)
+		var centre := head + Vector3(-0.45, -0.16, 0)
+		var steps := 16
+		var outer: Array[Vector3] = []
+		var inner: Array[Vector3] = []
+		for i in steps + 1:
+			var t := float(i) / float(steps)
+			var phi := 0.535 + 2.35 * t
+			var reach := 0.523 * (1.0 + 0.13 * sin(t * PI))
+			var out := Vector3(cos(phi), sin(phi) * 0.62, 0)
+			var width := 0.23 * pow(1.0 - t, 0.7) * (0.5 + 0.5 * sin(minf(t * 5.0, 1.0) * PI * 0.5))
+			outer.append(centre + out * reach)
+			inner.append(centre + out * (reach - width))
+		var thick := Vector3(0, 0, 0.014)
+		for i in steps:
+			# Black steel from the spine, a crimson line, the edge white-hot.
+			for side in [1.0, -1.0]:
+				var z: Vector3 = thick * side
+				var mid0 := inner[i].lerp(outer[i], 0.3)
+				var mid1 := inner[i + 1].lerp(outer[i + 1], 0.3)
+				p.ink(Color(0.05, 0.03, 0.08), 0.9)
+				p.quad(outer[i] + z, outer[i + 1] + z, mid1 + z, mid0 + z)
+				p.ink(HOT, 0.6, 0.3)
+				p.quad(mid0 + z, mid1 + z, inner[i + 1], inner[i])
+				p.ink(CRIMSON, 0.0, 0.9)
+				var c0 := inner[i].lerp(outer[i], 0.56)
+				var c1 := inner[i + 1].lerp(outer[i + 1], 0.56)
+				var d0 := inner[i].lerp(outer[i], 0.68)
+				var d1 := inner[i + 1].lerp(outer[i + 1], 0.68)
+				p.quad(c0 + z * 1.3, c1 + z * 1.3, d1 + z * 1.3, d0 + z * 1.3)
+			p.ink(Color(0.2, 0.02, 0.08), 0.5)
+			p.quad(outer[i] + thick, outer[i] - thick, outer[i + 1] - thick, outer[i + 1] + thick)
 		K.stamp(st, p)
 		_cache.reaper = K.finish(st, Vector3(0.3, 1.5, 0.3))
 	return _cache.reaper
@@ -306,6 +361,20 @@ static func _reap() -> Array:
 	return _cache.reap
 
 
+## The Death God in [param root]: near enough, and no taller than the camera shows, so
+## that hood, eyes, scythe and the black sun at its back all stay in frame. It leans back
+## a little, its face to the camera.
+static func _death_god(root: StarSkillArt, shroud: bool) -> void:
+	var spot := K.beyond(root, BEYOND)
+	var face := K.facing(root)
+	var tall := REAPER * GodSkillArt.fit(root, root.to_global(spot), REAPER * 1.22, 0.6)
+	var back := spot * (1.0 + (tall * 0.19 + 0.7) / BEYOND)
+	K.put(root, K.SOLID, _reaper(), "EclipseDeathGod", spot, Vector3(tall * 1.1, tall, tall * 1.1), 2.0, {"drop": -0.75, "flight": 0.3, "ease": 1.0, "rim_color": Color("b070ff"), "rim": 0.75, "glow_color": Color("ff4a56")}, {"fade_in": 0.1, "decay": 0.72}, Vector3(-0.24, face, 0))
+	K.put(root, K.FLAT, _sun(), "EclipseTotal", back + Vector3.UP * tall * 0.8, Vector3.ONE * tall * 0.31, 2.1, {"soft": 0.7, "hot": Color(1, 0.94, 0.95, 1.0), "core": 0.5, "flick": 0.14, "add": 0.55, "gain": 1.2, "priority": -1}, {"initial": 0.68, "grow_time": 0.12, "fade_in": 0.02, "decay": 0.7, "face_camera": true}, Vector3(-0.3, 0, 0))
+	if shroud:
+		K.put(root, K.BITS, K.burst("eclipse_shroud", "puff", 30, 0.5, 3.2, 1.2, 1.6, [Color(0.05, 0.02, 0.1), Color(0.12, 0.03, 0.2), Color(0.02, 0.01, 0.04)], 1.3, 0.3, 43, 0.1, 1.2), "EclipseShroud", spot, Vector3.ONE, 1.9, {"life": 1.5, "gravity": -0.8, "drag": 1.4, "piece": 1.3, "swell": 1.8, "alpha": 0.6, "shrink": 0.4, "spin": 1.5}, {"decay": 0.8})
+
+
 static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, point: Vector3, time: float) -> bool:
 	var r := K.radius(skill)
 	var origin := caster.global_position
@@ -324,8 +393,10 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 	var sky := K.extra(parent, Vector3(point.x, 0, point.z), time + 1.5, "StarGodSky_" + ID, origin)
 	if sky:
 		# The black sun climbs behind the caster and hangs there through the waves.
-		var spot := K.beyond(sky, 7.5)
-		K.put(sky, K.FLAT, _sun(), "EclipseSun", spot + Vector3.UP * 2.8, Vector3.ONE * 2.0, time + 1.5, {"soft": 0.7, "hot": Color(1, 0.9, 0.92, 1.0), "core": 0.55, "flick": 0.12, "add": 0.5}, {"initial": 0.3, "grow_time": 0.3, "fade_in": 0.08, "travel": Vector3.UP * 2.2, "decay": 0.93, "face_camera": true}, Vector3(-0.3, 0, 0))
+		var spot := K.beyond(sky, BEYOND)
+		# It stops where the camera still shows its whole corona.
+		var rise := clampf(K.sky(sky, spot, 9.0) - 2.8 - 3.4, 0.4, 2.2)
+		K.put(sky, K.FLAT, _sun(), "EclipseSun", spot + Vector3.UP * 2.8, Vector3.ONE * 1.7, time + 1.5, {"soft": 0.7, "hot": Color(1, 0.9, 0.92, 1.0), "core": 0.55, "flick": 0.12, "add": 0.5}, {"initial": 0.3, "grow_time": 0.3, "fade_in": 0.08, "travel": Vector3.UP * rise, "decay": 0.93, "face_camera": true}, Vector3(-0.3, 0, 0))
 		K.put(sky, K.BITS, K.burst("eclipse_drift", "feather", 26, 0.5, r * 0.8, 0.4, -1.0, [BLACK, Color(0.1, 0.03, 0.12)], 0.36, 1.2, 4, 3.0, 7.0), "EclipseDrift", Vector3.ZERO, Vector3.ONE, time + 1.2, {"life": 2.2, "gravity": 1.2, "drag": 0.8, "piece": 0.36, "sway": 0.5, "spin": 3.0, "floor_y": 0.08, "shrink": 0.9}, {"decay": 0.9})
 		sky._draw()
 	return true
@@ -347,22 +418,22 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	var swing := 0.62
 	# The crescent reaps the whole circle once, level with the neck.
 	K.put(art, K.SOLID, _scythe(r), "EclipseScythe", Vector3.UP * 1.5, Vector3.ONE, swing, {"rim_color": CRIMSON, "rim": 0.9, "glow_color": HOT}, {"fade_in": 0.02, "turn": Vector3(0, TAU * 1.05, 0), "decay": 0.78}, Vector3(0, 1.5, 0))
+	var extras := GodSkillArt.extra_roots(2)
+	if extras < 1:
+		# A phone has no room for the avatar's own root: the Death God stands in this one,
+		# straight after the scythe (the layers a low quality drops are the trimmings).
+		_death_god(art, false)
 	K.put(art, K.FLAT, reap[0], "EclipseWake", Vector3.UP * 1.5, Vector3.ONE * r, swing + 0.25, {"sweep": swing * 0.62, "tail": 0.9, "soft": 0.7, "hot": Color(1, 0.96, 0.97, 1.0), "core": 0.4, "add": 0.6, "gain": 1.15}, {"fade_in": 0.01, "decay": 0.7})
 	K.put(art, K.FLAT, reap[1], "EclipseScar", Vector3.UP * 0.07, Vector3.ONE * r, 2.3, {"sweep": swing * 0.6, "soft": 0.6, "hot": Color(1, 0.85, 0.88, 1.0), "core": 0.45, "flick": 0.14, "add": 0.6, "gain": 1.15}, {"delay": 0.05, "decay": 0.7})
 	K.put(art, K.BITS, K.burst("eclipse_feathers", "feather", 80, 0.5, r * 0.95, 0.5, -1.2, [BLACK, Color(0.1, 0.03, 0.12), Color(0.3, 0.02, 0.08)], 0.75, 0.5, 41, 2.0, 7.5), "EclipseFeatherFall", Vector3.ZERO, Vector3.ONE, 2.4, {"life": 2.2, "gravity": 1.5, "drag": 0.8, "piece": 0.75, "sway": 0.55, "spin": 3.5, "floor_y": 0.08, "shrink": 0.9}, {"delay": 0.12, "decay": 0.85})
 	K.put(art, K.FLAT, K.shock("eclipse_shock", _c(CRIMSON, 1.0), 0.16), "EclipseShock", Vector3.UP * 0.12, Vector3.ONE * r * 1.2, 0.6, {"soft": 1.2, "hot": Color(1, 0.9, 0.92, 1.0), "core": 0.55, "add": 0.6}, {"delay": swing * 0.5, "initial": 0.08, "grow_time": 0.75, "fade_in": 0.02, "decay": 0.3})
 	K.put(art, K.BITS, K.burst("eclipse_sparks", "ember", 70, r * 0.5, r * 0.85, 4.5, 3.0, [CRIMSON, HOT, VIOLET.lightened(0.25)], 0.2, 0.36, 42, 1.0, 1.9), "EclipseReapSparks", Vector3.ZERO, Vector3.ONE, 1.4, {"life": 0.9, "gravity": 5.0, "drag": 1.6, "piece": 0.2, "add": 0.7, "shrink": 0.25}, {"delay": 0.03, "decay": 0.8})
-	var extras := GodSkillArt.extra_roots(2)
 	if extras < 1:
 		return true
 	# The Death God stands up out of the dark behind the caster, the eclipse at its back.
 	var avatar := K.extra(parent, point, 2.2, "StarGodAvatar_" + ID, source)
 	if avatar:
-		var spot := K.beyond(avatar, 8.0)
-		var face := K.facing(avatar)
-		K.put(avatar, K.FLAT, _sun(), "EclipseTotal", spot * 1.12 + Vector3.UP * REAPER * 0.83, Vector3.ONE * 2.5, 2.1, {"soft": 0.7, "hot": Color(1, 0.94, 0.95, 1.0), "core": 0.5, "flick": 0.14, "add": 0.55, "gain": 1.2, "priority": -1}, {"initial": 0.68, "grow_time": 0.12, "fade_in": 0.02, "decay": 0.7, "face_camera": true}, Vector3(-0.3, 0, 0))
-		K.put(avatar, K.SOLID, _reaper(), "EclipseDeathGod", spot, Vector3(REAPER * 1.15, REAPER, REAPER * 1.15), 2.0, {"drop": -0.75, "flight": 0.3, "ease": 1.0, "rim_color": VIOLET, "rim": 1.1, "glow_color": Color("ff3a4a")}, {"fade_in": 0.1, "decay": 0.72}, Vector3(0, face, 0))
-		K.put(avatar, K.BITS, K.burst("eclipse_shroud", "puff", 30, 0.5, 3.2, 1.2, 1.6, [Color(0.05, 0.02, 0.1), Color(0.12, 0.03, 0.2), Color(0.02, 0.01, 0.04)], 1.3, 0.3, 43, 0.1, 1.2), "EclipseShroud", spot, Vector3.ONE, 1.9, {"life": 1.5, "gravity": -0.8, "drag": 1.4, "piece": 1.3, "swell": 1.8, "alpha": 0.6, "shrink": 0.4, "spin": 1.5}, {"decay": 0.8})
+		_death_god(avatar, true)
 		avatar._draw()
 	if extras < 2:
 		return true

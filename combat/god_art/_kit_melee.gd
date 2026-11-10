@@ -503,3 +503,32 @@ static func beyond(art: Node3D, distance: float) -> Vector3:
 static func facing(art: Node3D) -> float:
 	var dir := -away(art)
 	return atan2(dir.x, dir.z)
+
+
+## How a tall piece ([param height] m) standing at [param spot] (root space) stays inside
+## the camera's frame: [scale, lean]. It first leans sideways across the screen (its whole
+## length stays readable, and the screen is wider than it is tall), then it shrinks.
+static func framed(art: Node3D, spot: Vector3, height: float, max_lean := 0.55, least := 0.6) -> Array:
+	var room := GodSkillArt.headroom(art, art.to_global(spot) if art.is_inside_tree() else spot)
+	if room >= height:
+		return [1.0, 0.0]
+	var lean := minf(max_lean, acos(clampf(room / height, 0.0, 1.0)))
+	return [clampf(room / (height * cos(lean)), least, 1.0), lean]
+
+
+## Euler angles of a piece turned by [param yaw] and then leaned [param lean] radians to the
+## side as the camera sees it ([param side] +1: its top goes to the screen's right).
+static func leaned(art: Node3D, yaw: float, lean: float, side := 1.0) -> Vector3:
+	return (Basis(away(art), lean * side) * Basis(Vector3.UP, yaw)).get_euler()
+
+
+## The sky a piece may use over [param spot] (root space): never more than [param design].
+static func sky(art: Node3D, spot: Vector3, design: float) -> float:
+	return minf(design, GodSkillArt.headroom(art, art.to_global(spot) if art.is_inside_tree() else spot))
+
+
+## Euler angles of a piece lying flat (its face up) tipped [param tilt] radians towards
+## the camera, so that its face shows from high up.
+static func tipped(art: Node3D, tilt: float) -> Vector3:
+	var axis := away(art).cross(Vector3.UP)
+	return Basis(axis.normalized(), tilt).get_euler() if axis.length() > 0.01 else Vector3.ZERO

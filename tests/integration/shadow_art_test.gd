@@ -62,6 +62,10 @@ func _ready() -> void:
 		check(skills.size() >= 29, "%s has its skills and star skills (%d)" % [cls, skills.size()])
 		for skill in skills:
 			check(ClassSignature.handles(skill), "%s %s is a signature skill" % [cls, skill.id])
+			# A god skill with its own signature art (GodSkillArt.owns) draws every beat itself.
+			if GodSkillArt.owns(skill):
+				check(_layers(skill, 2, 0) == 0, "%s %s: the class layers stay out of its own god art" % [cls, skill.id])
+				continue
 			var high := _layers(skill, 2, 0)
 			var mid := _layers(skill, 2, 1)
 			var core := _layers(skill, 2, 2)

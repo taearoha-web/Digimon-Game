@@ -224,7 +224,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 
 ## Star skills (★50-★300): a wind-up and one composition per contact beat.
 static func star_telegraph(parent: Node3D, skill: Dictionary, origin: Vector3, point: Vector3, duration: float, visual: HeroVisual = null) -> void:
-	if not handles(skill) or not _alive(parent) or not VfxBudget.can_decorate(4 + RESERVE):
+	if not handles(skill) or GodSkillArt.owns(skill) or not _alive(parent) or not VfxBudget.can_decorate(4 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var art := _root(parent, origin, "CasterArt_StarWindup_" + id, _yaw(origin, point))
@@ -233,7 +233,7 @@ static func star_telegraph(parent: Node3D, skill: Dictionary, origin: Vector3, p
 
 
 static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
-	if not handles(skill) or not _alive(parent) or not VfxBudget.can_decorate(3 + RESERVE):
+	if not handles(skill) or GodSkillArt.owns(skill) or not _alive(parent) or not VfxBudget.can_decorate(3 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var god := StarSkillData.is_god(skill)

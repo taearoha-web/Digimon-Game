@@ -13,8 +13,10 @@ const HARP := Vector3(-2.7, 0.0, 3.6)
 const VIOLIN := Vector3(-6.6, 3.1, -0.4)
 const HORN := Vector3(6.6, 3.1, -0.4)
 const DRUM := Vector3(3.0, 2.3, 3.9)
-const BELL := Vector3(0, 6.7, 1.2)
+const BELL := Vector3(0, 5.4, 0.6)
 const HARP_SIZE := 0.7
+## The height the set needs of the camera's frame: the harp and the bell over the stage.
+const TALL := 6.4
 const ROSE := Color("ff6fb5")
 const ROSE_DK := Color("d6387f")
 const ROSE_LT := Color("ffb3d6")
@@ -30,24 +32,39 @@ const LEAD := 24.0
 static var _ribbons := {}
 
 
+## What the field camera shows of the sky over the target (see K.frame): the scale of
+## every root of this cast, set by the wind-up.
+static var _fit := 1.0
+
+
+static func _root(parent: Node3D, point: Vector3, seconds: float, label: String, source: Vector3, owner: StarSkillArt = null) -> StarSkillArt:
+	var art := K.root(parent, point, seconds, label, source, owner)
+	if art:
+		art.scale = Vector3.ONE * _fit
+	return art
+
+
+
 static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, point: Vector3, time: float) -> bool:
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
 	var origin := caster.global_position
 	var parent := art.get_parent() as Node3D
+	_fit = K.frame(parent, point, origin, TALL, HARP.z)
+	r /= _fit
 	# The bard: a ribbon of staff lines winds up round the body over a ring of rose light.
 	_ribbon(art, "SymphonyCallRibbon", "call", time, 6.0, 9.0 + 16.0 * time / 1.5, {"girth": 0.34, "wave_amp": 0.08})
 	K.put(art, K.VEIL, K.shock(ROSE, IVORY, GOLD), "SymphonyCallRing", Vector3.UP * 0.08, Vector3.ONE * 1.9, Vector3.ZERO, time, {"initial": 0.3, "grow_time": 0.5, "spin": 1.0, "decay": 0.9}, {"opacity": 0.8})
-	var ground := K.root(parent, Vector3(point.x, 0, point.z), time, "StarGodGround_" + ID, origin, art)
+	var ground := _root(parent, Vector3(point.x, 0, point.z), time, "StarGodGround_" + ID, origin, art)
 	if ground:
 		# The stage rises with its harp; the instruments come down out of the sky.
-		K.put(ground, K.SOLID, bandstand_mesh(), "GodStage", Vector3.ZERO, Vector3.ONE, Vector3.ZERO, time, {"fade_in": 0.1, "decay": 1.0, "cull": 12.0}, LOOK.merged({"slide": Vector3(0, -8.5, 0), "slide_time": time * 0.7, "slide_ease": -2.4}))
+		K.put(ground, K.SOLID, bandstand_mesh(), "GodStage", Vector3.ZERO, Vector3.ONE / _fit, Vector3.ZERO, time, {"fade_in": 0.1, "decay": 1.0, "cull": 12.0}, LOOK.merged({"slide": Vector3(0, -8.5, 0), "slide_time": time * 0.7, "slide_ease": -2.4}))
 		K.put(ground, K.SOLID, ensemble_mesh(), "GodOrchestra", Vector3.ZERO, Vector3.ONE, Vector3.ZERO, time * 0.8, {"fade_in": 0.15, "decay": 1.0, "delay": time * 0.2, "cull": 14.0}, LOOK.merged(BOB).merged({"slide": Vector3(0, 9.0, 0), "slide_time": time * 0.6, "slide_ease": -2.4}))
 		K.put(ground, K.VEIL, K.area_mark(ROSE, GOLD), "SymphonyArea", Vector3.UP * 0.07, Vector3.ONE * r, Vector3.ZERO, time, {"initial": 0.2, "grow_time": 0.45, "spin": 0.25, "decay": 0.97})
 		_ribbon(ground, "SymphonyRibbon", "field", time, 4.0, 4.0 + 13.0 * time, {})
 		ground._draw()
 	if GodSkillArt.extra_roots(1) < 1:
 		return true
-	var sky := K.root(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
+	var sky := _root(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
 	if sky:
 		_lights(sky, time, true)
 		K.put(sky, K.SOLID, confetti_mesh(), "SymphonyPetals", Vector3(0, 5.5, 0.0), Vector3(1.6, 0.4, 1.6), Vector3.ZERO, time, {"cull": 20.0, "decay": 0.9, "delay": time * 0.3}, LOOK.merged({"burst": 1.0, "gravity": 2.4, "drag": 2.0, "life": time}))
@@ -71,7 +88,8 @@ static func _player(index: int) -> Vector3:
 
 
 static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: int, point: Vector3, source: Vector3) -> bool:
-	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
+	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0) / _fit
+	art.scale = Vector3.ONE * _fit
 	_stage(parent, r, point, source, index)
 	var from := _player(index)
 	var to := _target(index)
@@ -85,7 +103,9 @@ static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: in
 	# The instrument that plays swells and flashes.
 	var solo: Mesh = [harp_mesh(), violin_mesh(), horn_mesh(), drum_mesh()][index % 4]
 	var seat: Vector3 = [HARP, VIOLIN, HORN, DRUM][index % 4]
-	K.put(art, K.SOLID, solo, "SymphonySolo", seat, Vector3.ONE, Vector3.ZERO, 0.42, {"initial": 1.3, "grow_time": 0.7, "fade_in": 0.01, "decay": 0.7, "cull": 6.0}, LOOK.merged(BOB if index > 0 else {}).merged({"glow": 0.5, "glow_color": Color("fff3c8")}))
+	# (the harp stands on the bandstand, at its true size)
+	var own := 1.0 / _fit if index % 4 == 0 else 1.0
+	K.put(art, K.SOLID, solo, "SymphonySolo", seat * own, Vector3.ONE * own, Vector3.ZERO, 0.42, {"initial": 1.3, "grow_time": 0.7, "fade_in": 0.01, "decay": 0.7, "cull": 6.0}, LOOK.merged(BOB if index > 0 else {}).merged({"glow": 0.5, "glow_color": Color("fff3c8")}))
 	K.put(art, K.VEIL, ripple_mesh(), "SymphonyRipple", Vector3(to.x, 0.1, to.z), Vector3.ONE * (r * 0.75 if index == 3 else r * 0.42), Vector3.ZERO, 0.6, {"initial": 0.15, "grow_time": 0.9, "decay": 0.4, "delay": flight * 0.8}, {"tint": IVORY.lerp(tone, 0.4)})
 	if K.quality() == 2:
 		K.put(art, K.GLOW, K.sprite(), "SymphonyFlash", seat + Vector3(0, 2.6 if index == 0 else 0.0, -0.8), Vector3.ONE * 4.5, Vector3.ZERO, 0.35, {"initial": 0.4, "grow_time": 0.4, "fade_in": 0.02, "decay": 0.3}, {"radial": 1.6, "billboard": true, "tint": IVORY.lerp(tone, 0.5), "opacity": 0.7})
@@ -99,10 +119,10 @@ static func _stage(parent: Node3D, r: float, point: Vector3, source: Vector3, in
 		return
 	var since := float(StarSkillData.GOD_BEATS[index])
 	var stay := float(StarSkillData.GOD_BEATS[4]) - since + 1.8
-	var art := K.root(parent, point, stay, "StarGodSet_" + ID, source)
+	var art := _root(parent, point, stay, "StarGodSet_" + ID, source)
 	if not art:
 		return
-	K.put(art, K.SOLID, bandstand_mesh(), "GodStage", Vector3.ZERO, Vector3.ONE, Vector3.ZERO, stay, {"fade_in": 0.001, "decay": 0.88, "cull": 12.0}, LOOK)
+	K.put(art, K.SOLID, bandstand_mesh(), "GodStage", Vector3.ZERO, Vector3.ONE / _fit, Vector3.ZERO, stay, {"fade_in": 0.001, "decay": 0.88, "cull": 12.0}, LOOK)
 	K.put(art, K.SOLID, ensemble_mesh(), "GodOrchestra", Vector3.ZERO, Vector3.ONE, Vector3.ZERO, stay, {"fade_in": 0.001, "decay": 0.88, "cull": 14.0}, LOOK.merged(BOB))
 	K.put(art, K.VEIL, K.area_mark(ROSE, GOLD), "SymphonyArea", Vector3.UP * 0.07, Vector3.ONE * r, Vector3.ZERO, stay, {"spin": 0.25, "decay": 0.8, "fade_in": 0.001})
 	_ribbon(art, "SymphonyRibbon", "field", stay, 4.0 + 13.0 * (1.5 + since), 4.0 + 13.0 * (1.5 + since + stay), {"fade_in": 0.001})
@@ -112,7 +132,8 @@ static func _stage(parent: Node3D, r: float, point: Vector3, source: Vector3, in
 
 
 static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: Vector3, source: Vector3) -> bool:
-	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
+	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0) / _fit
+	art.scale = Vector3.ONE * _fit
 	_stage(parent, r, point, source, 4)
 	# The great bell swings in and tolls; its ring sweeps the field.
 	K.put(art, K.SOLID, bell_mesh(), "GodBell", BELL, Vector3.ONE * 1.55, Vector3.ZERO, 1.8, {"initial": 1.35, "grow_time": 0.12, "flap": 0.3, "flap_rate": 11.0, "fade_in": 0.01, "decay": 0.85, "cull": 20.0}, LOOK.merged({"slide": Vector3(0, 5.0, 0), "slide_time": 0.14, "slide_ease": 2.0, "shadow_tint": Color(1.0, 0.72, 0.5)}))
@@ -125,7 +146,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	if extras < 1:
 		return true
 	# Tutti: every instrument swells at once and throws its sound at the centre.
-	var avatar := K.root(parent, point, 1.9, "StarGodAvatar_" + ID, source)
+	var avatar := _root(parent, point, 1.9, "StarGodAvatar_" + ID, source)
 	if avatar:
 		K.put(avatar, K.VEIL, tutti_mesh(), "SymphonyTutti", Vector3.ZERO, Vector3.ONE, Vector3.ZERO, 0.75, {"initial": 1.12, "grow_time": 0.9, "fade_in": 0.03, "decay": 0.45, "cull": 10.0}, {"tint": Color("fff0d8")})
 		K.put(avatar, K.SOLID, ensemble_mesh(), "SymphonyStrike", Vector3.ZERO, Vector3.ONE, Vector3.ZERO, 0.45, {"initial": 1.1, "grow_time": 0.7, "fade_in": 0.01, "decay": 0.6, "cull": 14.0}, LOOK.merged(BOB).merged({"glow": 0.55, "glow_color": Color("fff3c8")}))
@@ -133,7 +154,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 		avatar._draw()
 	if extras < 2:
 		return true
-	var temple := K.root(parent, point, 2.1, "StarGodTemple_" + ID, source)
+	var temple := _root(parent, point, 2.1, "StarGodTemple_" + ID, source)
 	if temple:
 		_ribbon(temple, "SymphonyCrescendo", "rise", 1.6, 4.0, 62.0, {"fade_in": 0.02, "decay": 0.8})
 		K.put(temple, K.SOLID, confetti_mesh(), "SymphonyShower", Vector3(0, 4.5, 0), Vector3(2.2, 0.5, 2.2), Vector3(0, 1.0, 0), 2.0, {"cull": 24.0, "decay": 0.9, "delay": 0.1}, LOOK.merged({"burst": 1.0, "gravity": 3.2, "drag": 1.6, "life": 1.9}))

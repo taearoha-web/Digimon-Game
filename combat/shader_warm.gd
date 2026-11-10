@@ -33,6 +33,19 @@ const MESH_SHADERS: Array[String] = [
 	"res://shaders/shadow_wing_glow.gdshader",
 	"res://shaders/elite_skill.gdshader",
 	"res://shaders/vfx_spirit.gdshader",
+	# The god-tier (300 star) signature art (combat/god_art): the melee, ranged and
+	# arcane kits' set pieces, light and debris.
+	"res://shaders/god_melee_solid.gdshader",
+	"res://shaders/god_melee_flat.gdshader",
+	"res://shaders/god_melee_bits.gdshader",
+	"res://shaders/god_solid.gdshader",
+	"res://shaders/god_sun.gdshader",
+	"res://shaders/god_glow.gdshader",
+	"res://shaders/god_veil.gdshader",
+	"res://shaders/god_arcane_solid.gdshader",
+	"res://shaders/god_arcane_path.gdshader",
+	"res://shaders/god_arcane_glow.gdshader",
+	"res://shaders/god_arcane_veil.gdshader",
 ]
 ## Effect shaders that particles or multimeshes draw (the instanced variant).
 const INSTANCED_SHADERS: Array[String] = [
@@ -41,6 +54,10 @@ const INSTANCED_SHADERS: Array[String] = [
 	"res://shaders/melee_spark.gdshader",
 	"res://shaders/melee_debris.gdshader",
 	"res://shaders/summon_aura.gdshader",
+	# The ranged god kit's swarms (GodRangedKit.swarm: one MultiMesh per volley).
+	"res://shaders/god_solid.gdshader",
+	"res://shaders/god_glow.gdshader",
+	"res://shaders/god_veil.gdshader",
 ]
 ## Seconds the samples stay drawn.
 const HOLD := 0.4

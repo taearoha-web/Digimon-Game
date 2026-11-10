@@ -225,7 +225,7 @@ static func _steps(now: float, was: float, per: float) -> int:
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: Vector3, duration: float, visual: HeroVisual = null) -> void:
 	# The Mage, Priest and Summoner signature art rides the same hook (SkillShow calls every class through here).
 	CasterArt.anticipate(parent, skill, origin, aim, duration, visual)
-	if not handles(skill) or not _alive(parent) or duration < 0.12 or not VfxBudget.can_decorate(4 + RESERVE):
+	if not handles(skill) or GodSkillArt.owns(skill) or not _alive(parent) or duration < 0.12 or not VfxBudget.can_decorate(4 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var c := palette(skill)
@@ -322,7 +322,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 ## Star skills: one composition per contact beat of StarSkillSequence. A self star
 ## skill is rooted at the Bard ([param source]), never at the aimed foe.
 static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
-	if not handles(skill) or not _alive(parent) or not VfxBudget.can_decorate(3 + RESERVE):
+	if not handles(skill) or GodSkillArt.owns(skill) or not _alive(parent) or not VfxBudget.can_decorate(3 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var at := source if String(skill.get("shape", "")) == "self" else Vector3(point.x, source.y, point.z)

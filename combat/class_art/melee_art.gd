@@ -149,7 +149,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 
 ## Star skills: one composition per real contact beat (StarSkillSequence).
 static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
-	if not handles_star(skill) or not _alive(parent):
+	if not handles_star(skill) or GodSkillArt.owns(skill) or not _alive(parent):
 		return
 	var ground := Vector3(point.x, source.y, point.z)
 	var yaw := _yaw(source, point)
@@ -172,7 +172,7 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 
 ## Star wind-up (StarSkillArt.telegraph), bound to the caster's generation.
 static func star_charge(caster: Node3D, skill: Dictionary, point: Vector3, duration: float) -> void:
-	if not handles_star(skill) or not is_instance_valid(caster):
+	if not handles_star(skill) or GodSkillArt.owns(skill) or not is_instance_valid(caster):
 		return
 	var parent := caster.get_parent() as Node3D
 	if not _alive(parent):

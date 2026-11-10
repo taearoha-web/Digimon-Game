@@ -203,10 +203,13 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 		return true
 	var sky := K.extra(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
 	if sky:
-		K.put(sky, K.SOLID, _clouds(), "EdictClouds", Vector3.UP * 8.6, Vector3(7.5, 5.0, 7.5), time + 0.5, {"rim_color": GOLD, "rim": 0.4}, {"initial": 0.3, "grow_time": 0.6, "fade_in": 0.3, "spin": 0.35, "decay": 0.85})
+		# As high as the camera shows over the target: the cloud ring's near rim hangs at the
+		# top of the screen and the point comes down through the gap, into view.
+		var top := K.sky(sky, Vector3.ZERO, 8.0) + 2.2
+		K.put(sky, K.SOLID, _clouds(), "EdictClouds", Vector3.UP * top, Vector3(7.0, 4.5, 7.0), time + 0.5, {"rim_color": GOLD, "rim": 0.4}, {"initial": 0.3, "grow_time": 0.6, "fade_in": 0.3, "spin": 0.35, "decay": 0.85})
 		# Only the point shows through the gap; it sinks a little as the edict is spoken.
-		K.put(sky, K.SOLID, _giant(), "EdictOmenSword", Vector3.UP * 7.0, Vector3(GIANT * 2.1, GIANT, GIANT * 2.1), time, {"rim_color": GOLD, "rim": 0.5, "glow_color": PALE}, {"fade_in": 0.25, "travel": Vector3.DOWN * 2.2, "decay": 0.97, "spin": 0.5})
-		K.put(sky, K.FLAT, _rays(), "EdictRays", Vector3.UP * 0.1, Vector3(r * 0.8, 8.6, r * 0.8), time + 0.3, {"soft": 1.4, "flow": 0.6, "gain": 1.0, "add": 0.45}, {"fade_in": 0.4, "spin": -0.2, "decay": 0.8})
+		K.put(sky, K.SOLID, _giant(), "EdictOmenSword", Vector3.UP * (top - 1.8), Vector3(GIANT * 2.1, GIANT, GIANT * 2.1), time, {"rim_color": GOLD, "rim": 0.5, "glow_color": PALE}, {"fade_in": 0.25, "travel": Vector3.DOWN * 3.0, "decay": 0.97, "spin": 0.5})
+		K.put(sky, K.FLAT, _rays(), "EdictRays", Vector3.UP * 0.1, Vector3(r * 0.8, top, r * 0.8), time + 0.3, {"soft": 1.4, "flow": 0.6, "gain": 1.0, "add": 0.45}, {"fade_in": 0.4, "spin": -0.2, "decay": 0.8})
 		sky._draw()
 	return true
 
@@ -215,7 +218,8 @@ static func wave(art: StarSkillArt, _parent: Node3D, skill: Dictionary, index: i
 	var r := K.radius(skill)
 	var meshes := _wave_meshes(index, r)
 	# The blades stay planted until the great sword has fallen.
-	var stay := (1.5 - 0.32 * float(index)) + 1.7
+	# (the shock of its landing blows them away: the god-sword stands alone)
+	var stay := (1.5 - 0.32 * float(index)) + 0.45
 	K.put(art, K.SOLID, meshes[0], "EdictBlades", Vector3.ZERO, Vector3.ONE, stay, {"drop": 15.0, "flight": 0.2, "heat": 0.7, "rim_color": GOLD, "rim": 0.55, "glow_color": Color("ffd870")}, {"decay": 0.88})
 	K.put(art, K.FLAT, meshes[1], "EdictBladeLight", Vector3.ZERO, Vector3.ONE, stay, {"drop": 15.0, "flight": 0.2, "after": 0.14, "flash": 0.3, "sweep": 0.2, "soft": 0.5, "hot": Color(1, 0.86, 0.4, 1.0), "core": 0.3, "flick": 0.1, "add": 0.55}, {"decay": 0.75})
 	K.put(art, K.BITS, meshes[2], "EdictBladeRubble", Vector3.ZERO, Vector3.ONE, 1.5, {"life": 1.1, "gravity": 17.0, "piece": 0.3, "floor_y": 0.06, "shrink": 0.75, "hot": Color(1.0, 0.7, 0.25, 0.5)}, {"decay": 0.9})
@@ -225,9 +229,14 @@ static func wave(art: StarSkillArt, _parent: Node3D, skill: Dictionary, index: i
 static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: Vector3, source: Vector3) -> bool:
 	var r := K.radius(skill)
 	var flight := 0.24
-	var size := Vector3(GIANT * 2.1, GIANT, GIANT * 2.1)
-	# The mountain of a sword: out of the clouds, into the centre, to stay.
-	K.put(art, K.SOLID, _giant(), "EdictGodSword", Vector3.DOWN * GIANT * 0.13, size, 2.5, {"drop": 30.0 / GIANT, "flight": flight, "heat": 0.6, "rim_color": GOLD, "rim": 0.4, "glow_color": Color("ffd060")}, {"decay": 0.82}, Vector3(0.05, 0.6, 0.04))
+	# The mountain of a sword: out of the clouds, into the centre, to stay. It leans across
+	# the screen as far as it must for its guard and pommel to stay in the camera's frame.
+	var pose := K.framed(art, Vector3.ZERO, GIANT * 1.05, 0.72)
+	var giant := GIANT * float(pose[0])
+	var lean := float(pose[1]) + 0.08
+	var size := Vector3(giant * 2.0, giant, giant * 2.0)
+	var tall := giant * 0.87 * cos(lean)
+	K.put(art, K.SOLID, _giant(), "EdictGodSword", Vector3.DOWN * giant * 0.13, size, 2.5, {"drop": 30.0 / giant, "flight": flight, "heat": 0.6, "rim_color": GOLD, "rim": 0.85, "glow_color": Color("ffd060")}, {"decay": 0.82}, K.leaned(art, K.facing(art) + 0.25, lean, -1.0))
 	K.put(art, K.FLAT, K.cracks("edict_fissures", 9, 0.1, 1.0, 0.055, CREVICE, 11, 1, 0.3), "EdictFissures", Vector3.UP * 0.07, Vector3.ONE * r * 1.05, 2.4, {"sweep": 0.3, "soft": 0.35, "hot": Color(1, 0.9, 0.5, 1.0), "core": 0.2, "flick": 0.1, "add": 0.7, "gain": 1.2}, {"delay": flight, "decay": 0.7})
 	K.put(art, K.BITS, K.burst("edict_rubble", "rock", 46, 0.6, 2.6, 8.5, 11.0, [ROCK, ROCK.lightened(0.18), ROCK.darkened(0.25), Color("8a6f52")], 0.62, 0.05, 21), "EdictRubble", Vector3.ZERO, Vector3.ONE, 2.2, {"life": 1.9, "gravity": 21.0, "piece": 0.62, "floor_y": 0.1, "shrink": 0.8, "spin": 7.0, "hot": Color(1.0, 0.65, 0.2, 0.7)}, {"delay": flight, "decay": 0.9})
 	K.put(art, K.FLAT, K.shock("edict_shock", Color(1.0, 0.8, 0.35, 1.0), 0.2), "EdictShock", Vector3.UP * 0.12, Vector3.ONE * r * 1.25, 0.6, {"soft": 1.3, "hot": Color(1, 1, 0.9, 1.0), "core": 0.5, "add": 0.5}, {"delay": flight, "initial": 0.06, "grow_time": 0.75, "fade_in": 0.02, "decay": 0.3})
@@ -245,17 +254,18 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	# The lion on the guard roars: rings of sound burst from the hilt.
 	var avatar := K.extra(parent, point, 2.2, "StarGodAvatar_" + ID, source)
 	if avatar:
-		var high := Vector3.UP * (GIANT * 0.6)
+		# The guard, where the leaning sword carries it.
+		var high := Basis(K.away(avatar), -lean) * (Vector3.UP * giant * 0.62)
 		K.put(avatar, K.FLAT, _roar(), "EdictRoar", high, Vector3.ONE * 5.2, 1.3, {"soft": 0.9, "sweep": 0.3, "tail": 1.4, "hot": Color(1, 1, 0.85, 0.8), "core": 0.5, "add": 0.45}, {"delay": flight + 0.04, "initial": 0.2, "grow_time": 0.55, "decay": 0.45, "face_camera": true})
-		K.put(avatar, K.SOLID, StarGeometry.mesh("lion"), "EdictLion", high + Vector3(0, 0.1, 0), Vector3.ONE * 1.5, 2.0, {"remap": 1.0, "tone_a": Color("9c4312"), "tone_b": Color("ffd870"), "rim_color": PALE, "rim": 0.5}, {"delay": flight + 0.02, "initial": 0.3, "grow_time": 0.1, "fade_in": 0.05, "decay": 0.8, "face_camera": true})
-		K.put(avatar, K.FLAT, _rays(), "EdictGlory", Vector3.UP * 0.1, Vector3(r * 0.75, 9.2, r * 0.75), 2.0, {"soft": 1.4, "flow": 0.8, "gain": 1.0, "add": 0.45}, {"delay": flight, "fade_in": 0.1, "spin": 0.3, "decay": 0.6})
+		K.put(avatar, K.SOLID, StarGeometry.mesh("lion"), "EdictLion", high + Vector3(0, 0.1, 0), Vector3.ONE * 1.6, 2.0, {"remap": 1.0, "tone_a": Color("9c4312"), "tone_b": Color("ffd870"), "rim_color": PALE, "rim": 0.5}, {"delay": flight + 0.02, "initial": 0.3, "grow_time": 0.1, "fade_in": 0.05, "decay": 0.8, "face_camera": true})
+		K.put(avatar, K.FLAT, _rays(), "EdictGlory", Vector3.UP * 0.1, Vector3(r * 0.75, tall + 1.6, r * 0.75), 2.0, {"soft": 1.4, "flow": 0.8, "gain": 1.0, "add": 0.45}, {"delay": flight, "fade_in": 0.1, "spin": 0.3, "decay": 0.6})
 		avatar._draw()
 	if extras < 2:
 		return true
 	# The sky it came through, and what it tore loose.
 	var temple := K.extra(parent, point, 2.2, "StarGodTemple_" + ID, source)
 	if temple:
-		K.put(temple, K.SOLID, _clouds(), "EdictCloudRing", Vector3.UP * 9.2, Vector3(9.0, 5.0, 9.0), 2.1, {"rim_color": GOLD, "rim": 0.4}, {"initial": 0.7, "grow_time": 0.5, "spin": 0.5, "decay": 0.7})
+		K.put(temple, K.SOLID, _clouds(), "EdictCloudRing", Vector3.UP * (tall + 5.6), Vector3(8.0, 4.5, 8.0), 2.1, {"rim_color": GOLD, "rim": 0.4}, {"initial": 0.7, "grow_time": 0.5, "spin": 0.5, "decay": 0.7})
 		K.put(temple, K.BITS, K.burst("edict_petals", "feather", 60, 0.5, r * 0.95, 0.6, -1.5, [Color("ff2a40"), Color("ff5a5a"), GOLD], 0.55, 0.6, 31, 3.0, 9.0), "EdictPetals", Vector3.ZERO, Vector3.ONE, 2.1, {"life": 2.0, "gravity": 1.6, "drag": 0.8, "piece": 0.55, "sway": 0.5, "spin": 4.0, "floor_y": 0.08, "shrink": 0.85}, {"delay": flight, "decay": 0.8})
 		K.put(temple, K.FLAT, K.shock("edict_shock2", Color(1.0, 0.75, 0.3, 0.8), 0.1), "EdictShock2", Vector3.UP * 0.1, Vector3.ONE * r * 1.6, 0.9, {"soft": 1.2, "add": 0.5}, {"delay": flight + 0.12, "initial": 0.1, "grow_time": 0.8, "decay": 0.3})
 		temple._draw()

@@ -65,6 +65,7 @@ const EFFECT_SCRIPTS := [
 	"res://combat/taunt_chain.gd", "res://combat/martial_skill_art.gd", "res://combat/star_skill_art.gd",
 	"res://combat/summon_aura.gd", "res://combat/sculpture_art.gd", "res://characters/shadow_wing_art.gd",
 	"res://combat/elite_skill_art.gd", "res://characters/summon.gd",
+	"res://combat/god_art/_kit_melee.gd", "res://combat/god_art/_kit_ranged.gd", "res://combat/god_art/_kit_arcane.gd",
 ]
 
 

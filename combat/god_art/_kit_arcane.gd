@@ -54,6 +54,18 @@ static func root(parent: Node3D, point: Vector3, seconds: float, label: String, 
 	return GodSkillArt._extra(parent, point, seconds, label, source, owner)
 
 
+## The scale (least..1) of a whole set built round [param point] whose tallest piece is
+## [param tall] m high and stands [param beyond] m past the centre (away from the caster):
+## what the field camera shows of the sky there. Give it to every root of the cast
+## (`root.scale`) and divide the hit radius by it, so the area marks keep their true size.
+static func frame(parent: Node3D, point: Vector3, source: Vector3, tall: float, beyond: float, least := 0.62) -> float:
+	var dir := (point - source) * Vector3(1, 0, 1)
+	dir = dir.normalized() if dir.length() > 0.05 else Vector3.ZERO
+	var centre := Vector3(point.x, 0, point.z)
+	var s := GodSkillArt.fit(parent, centre + dir * beyond, tall, least)
+	return GodSkillArt.fit(parent, centre + dir * beyond * s, tall, least)
+
+
 static func quality() -> int:
 	return VfxBudget.quality()
 
