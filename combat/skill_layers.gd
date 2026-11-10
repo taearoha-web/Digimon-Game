@@ -91,7 +91,7 @@ const STAR_CLASS_ELEMENT := {
 }
 const STAR_ELEMENT := {
 	"lionfang_cleave": "flame", "divine_edict": "flame", "chaos_inferno": "flame", "crystal_prison": "frost",
-	"leviathan_surge": "tide", "eclipse_sovereign": "tide", "heavenrend_spear": "storm",
+	"leviathan_surge": "tide", "eclipse_sovereign": "tide", "heavenrend_spear": "flame",
 	"imperial_cataclysm": "storm", "worldsplitter": "earth", "sunfall_volley": "flame", "genesis_nova": "flame",
 }
 ## Particle cards are sized for the chibi scale seen from the follow camera.
