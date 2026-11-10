@@ -72,6 +72,11 @@ var _audio_stall_saved := false
 var stall_saves := 0
 const BASE_BAG := 40
 const MAX_BAG := 100
+## Pieces a bag may hold past its size: a pair of the Legendary Guild Wings put on with
+## the bag and the shared storage both full leaves the old pair in the bag anyway
+## (LegendWings.give_to_hero); a full 100-slot bag then holds 101, and the whole hero
+## used to be refused. accounts.js allows the same (MAX_INV).
+const BAG_OVERFLOW := 8
 const BAG_STEP := 10
 ## The storage every hero shares (SharedStorage): room for deposits.
 const STORAGE_SIZE := SharedStorage.SIZE
@@ -547,25 +552,85 @@ func free_slot() -> int:
 	return 0
 
 
-func _read_slot(for_slot: int) -> Dictionary:
+## The slot file parsed as JSON (null when it is missing, too big or not JSON).
+func _read_slot_json(for_slot: int) -> Variant:
 	if for_slot < 1 or for_slot > SLOT_COUNT or not has_save(for_slot):
-		return {}
+		return null
 	var file := FileAccess.open(save_path(for_slot), FileAccess.READ)
-	if file == null:
+	if file == null or file.get_length() > MAX_SAVE_BYTES:
+		return null
+	return parse_save_text(file.get_as_text())
+
+
+## A save's JSON text parsed. Godot writes a NaN or infinite float as a bare nan / inf,
+## which no JSON reader accepts: one such number made a whole hero unreadable. Those
+## numbers are read as 0 (salvage then checks the field like any other).
+static func parse_save_text(text: String) -> Variant:
+	var json := JSON.new()
+	if json.parse(text) == OK:
+		return json.data
+	if _NON_FINITE.search(text) and json.parse(_NON_FINITE.sub(text, "$1 0", true)) == OK:
+		return json.data
+	return null
+
+
+## A bare nan / inf where a JSON value starts (after ':' '[' or ','). Only tried when
+## the text does not parse as it is.
+static var _NON_FINITE: RegEx = _non_finite_regex()
+
+
+static func _non_finite_regex() -> RegEx:
+	var re := RegEx.new()
+	re.compile("([:\\[,])\\s*-?(?:nan|inf)(?=\\s*[,\\]}])")
+	return re
+
+
+## The slot's profile, {} when the slot is empty or cannot be read at all. A save that
+## fails _valid_profile is salvaged (salvage_profile: only the fields and items that fail
+## go), never hidden: a check that refused legitimate data once made whole heroes vanish
+## from the character select, and the cloud sync then deleted them everywhere.
+func _read_slot(for_slot: int) -> Dictionary:
+	var parsed: Variant = _read_slot_json(for_slot)
+	if not parsed is Dictionary:
 		return {}
-	if file.get_length() > MAX_SAVE_BYTES:
-		return {}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if parsed is Dictionary and _valid_profile(parsed):
+	if _valid_profile(parsed):
 		return parsed
-	return {}
+	var saved := salvage_profile(parsed)
+	if not saved.is_empty() and not _salvage_logged.has(for_slot):
+		_salvage_logged[for_slot] = true
+		push_warning("Slot %d failed the save check and was salvaged; dropped: %s" % [for_slot, ", ".join(profile_problems(parsed))])
+	return saved
 
 
-## A short summary of a slot for the title screen; {} when it is empty.
+## Slots already reported as salvaged (one warning a run).
+var _salvage_logged := {}
+
+
+## True when the slot holds a file that cannot be read as a hero even after salvage: the
+## character select shows it as damaged (เซฟเสียหาย), never as empty, and nothing
+## overwrites it (free_slot skips it, the cloud never uploads the account without it).
+func slot_damaged(for_slot: int) -> bool:
+	return has_save(for_slot) and _read_slot(for_slot).is_empty()
+
+
+## What the character select shows of a damaged slot: its name and class when they can
+## still be read, "damaged": true.
+func _damaged_summary(for_slot: int) -> Dictionary:
+	var parsed: Variant = _read_slot_json(for_slot)
+	var raw: Dictionary = parsed if parsed is Dictionary else {}
+	var cls := String(raw.get("class", "")) if raw.get("class") is String else ""
+	return {"damaged": true, "class": cls if ClassData.CLASSES.has(StringName(cls)) else String(ClassData.START),
+		"name": String(raw.get("name", "")).left(80) if raw.get("name") is String else "",
+		"level": clampi(int(raw.get("level", 1)), 1, MAX_LEVEL) if _valid_number(raw.get("level")) else 1,
+		"adv": 0, "zone": "town", "play_time": 0.0, "saved_at": 0, "rank": 0, "stars": 0, "look": {}, "equip": {}}
+
+
+## A short summary of a slot for the title screen; {} when it is empty, {"damaged": true,
+## ...} when a file is there that cannot be read (slot_damaged).
 func slot_info(for_slot: int) -> Dictionary:
 	var raw := _read_slot(for_slot)
 	if raw.is_empty():
-		return {}
+		return _damaged_summary(for_slot) if has_save(for_slot) else {}
 	return _slot_summary(raw)
 
 
@@ -574,7 +639,7 @@ func slot_info(for_slot: int) -> Dictionary:
 func slot_overview(for_slot: int) -> Dictionary:
 	var raw := _read_slot(for_slot)
 	if raw.is_empty():
-		return {}
+		return _damaged_summary(for_slot) if has_save(for_slot) else {}
 	var out := _slot_summary(raw)
 	var repaired := _repair(raw)
 	out["look"] = repaired.get("look", {})
@@ -677,10 +742,20 @@ func _write_profile(snapshot: Dictionary, destination: int) -> bool:
 	if destination < 1 or destination > SLOT_COUNT:
 		return false
 	var path := save_path(destination)
+	# Writing a profile the save check refuses is a bug of the code that wrote it: say so
+	# loudly (tests fail on it), and the read salvages it rather than hiding the hero.
+	var text := JSON.stringify(snapshot)
+	# A NaN / infinite number would be written as a bare nan / inf that no JSON reader
+	# (the game, the browser, the server) accepts: it is written as 0.
+	var as_read: Variant = parse_save_text(text)
+	if as_read is Dictionary and _NON_FINITE.search(text) and JSON.new().parse(text) != OK:
+		push_error("SAVE CHECK: slot %d held a NaN / infinite number (written as 0)" % destination)
+		text = JSON.stringify(as_read)
+	if not as_read is Dictionary or not _valid_profile(as_read):
+		push_error("SAVE CHECK: slot %d is written with fields the save check refuses: %s" % [destination, ", ".join(profile_problems(as_read)) if as_read is Dictionary else "not JSON"])
 	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		return false
-	var text := JSON.stringify(snapshot)
 	file.store_string(text)
 	file.flush()
 	var write_error := file.get_error()
@@ -704,6 +779,15 @@ func load_game(from_slot := -1) -> bool:
 	var raw := _read_slot(target)
 	if raw.is_empty():
 		return false
+	# A salvaged save: the file as it was is kept aside once (toon_tale_slot_N.json.damaged.json)
+	# and the salvaged hero is written back at once, so the next read is clean.
+	var original: Variant = _read_slot_json(target)
+	var salvaged: bool = original is Dictionary and not _valid_profile(original)
+	if salvaged and not FileAccess.file_exists(save_path(target) + ".damaged.json"):
+		var copy := FileAccess.open(save_path(target) + ".damaged.json", FileAccess.WRITE)
+		if copy:
+			copy.store_string(JSON.stringify(original))
+			copy.close()
 	slot = target
 	profile = _repair(raw)
 	has_profile = true
@@ -715,6 +799,11 @@ func load_game(from_slot := -1) -> bool:
 	_autosave_timer = 0.0
 	_party_gear.clear()
 	_remember_slot()
+	if salvaged:
+		var clean := profile.duplicate(true)
+		clean["zone"] = String(current_zone)
+		if _write_profile(clean, slot):
+			_queue_cloud_save()
 	profile_changed.emit()
 	inventory_changed.emit()
 	return true
@@ -728,6 +817,8 @@ func delete_save(for_slot := -1) -> void:
 	if existed and DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path(target))) != OK:
 		return
 	_slot_json.erase(target)
+	if existed:
+		SaveBackup.note_deleted(target)
 	if target == slot:
 		has_profile = false
 		profile = {}
@@ -737,10 +828,18 @@ func delete_save(for_slot := -1) -> void:
 
 ## Read every committed slot, without repairing or mutating its saved data.
 ## Empty / invalid slots stay absent, so deleting a slot reaches the cloud too.
+## A slot whose file is there but cannot be read even after salvage is never left out
+## (the server would delete that hero): its raw JSON goes up as it is, and a file that is
+## not JSON at all stops the upload ({} here, "" from cloud_bundle_json).
 func build_cloud_bundle() -> Dictionary:
 	var slots: Dictionary = {}
 	for i in range(1, SLOT_COUNT + 1):
 		var saved := _read_slot(i)
+		if saved.is_empty() and has_save(i):
+			var raw: Variant = _read_slot_json(i)
+			if not raw is Dictionary:
+				return {}
+			saved = raw
 		if not saved.is_empty():
 			slots[String.num_int64(i)] = saved
 	var bundle := {"slots": slots, "selectedSlot": clampi(slot, 1, SLOT_COUNT)}
@@ -759,7 +858,11 @@ func _cloud_save_script(serialized_bundle: String) -> String:
 func _queue_cloud_save() -> void:
 	if not OS.has_feature("web"):
 		return
-	JavaScriptBridge.eval(_cloud_save_script(cloud_bundle_json()), true)
+	var bundle := cloud_bundle_json()
+	# "" = a slot file that is not JSON at all: an upload without it would delete it.
+	if bundle == "":
+		return
+	JavaScriptBridge.eval(_cloud_save_script(bundle), true)
 
 
 ## The JSON text of every saved slot, kept from the last read or write with the file's
@@ -790,7 +893,14 @@ func cloud_bundle_json() -> String:
 			continue
 		if kept == null or String(kept.stamp) != stamp:
 			var saved := _read_slot(i)
-			kept = {"stamp": stamp, "text": JSON.stringify(saved) if not saved.is_empty() else ""}
+			if saved.is_empty():
+				# Damaged beyond salvage: its raw JSON goes up as it is (left out, the server
+				# would delete the hero); not JSON at all: no upload until it is dealt with.
+				var raw: Variant = _read_slot_json(i)
+				if not raw is Dictionary:
+					return ""
+				saved = raw
+			kept = {"stamp": stamp, "text": JSON.stringify(saved)}
 			_slot_json[i] = kept
 		if String(kept.text) != "":
 			parts.append("\"%d\":%s" % [i, String(kept.text)])
@@ -1051,7 +1161,7 @@ func _valid_profile(data: Dictionary) -> bool:
 				if not _valid_integer(r.get(key, 0)):
 					return false
 	for key in ["inv", "storage"]:
-		if data.get(key, []).size() > (MAX_BAG if key == "inv" else LEGACY_STORAGE_SIZE):
+		if data.get(key, []).size() > (MAX_BAG + BAG_OVERFLOW if key == "inv" else LEGACY_STORAGE_SIZE):
 			return false
 		for item in data.get(key, []):
 			if not _valid_item(item):
@@ -1111,6 +1221,110 @@ func _valid_profile(data: Dictionary) -> bool:
 	return true
 
 
+## The fields salvage_profile rebuilds rather than drops: a hero cannot be read without them.
+const SALVAGE_CORE: Array[String] = ["class", "level", "version", "paragon", "adv"]
+
+
+## The smallest profile salvage checks a field against: the class (unknown = {}), the
+## level, the stars and the advancement, each repaired if it fails on its own.
+func _salvage_core(data: Dictionary) -> Dictionary:
+	# The class and the level are never salvaged: without them (or with a level no hero
+	# can have) it is not a hero's save.
+	if not data.get("class") is String or not ClassData.CLASSES.has(StringName(data["class"])) or not _valid_integer(data.get("level"), 1, MAX_LEVEL):
+		return {}
+	var core := {"class": data["class"], "version": SAVE_VERSION, "level": data.level}
+	var para: Variant = _salvage_value(func(v): return core.merged({"paragon": v}), data.get("paragon", {}), 2, [], "paragon")
+	core["paragon"] = para if para is Dictionary else {}
+	if _valid_profile(core.merged({"adv": data.get("adv", 0)})):
+		core["adv"] = data.get("adv", 0)
+	elif _valid_number(data.get("adv"), -INF, INF):
+		core["adv"] = clampi(int(data.adv), 0, JobData.LEGEND_ADV)
+	return core
+
+
+## A profile that fails _valid_profile with only what fails taken out: each field (and
+## inside it each entry, each item, each flag) is checked beside the core on its own;
+## what passes stays, what fails goes. {} when even the class cannot be read. The game
+## then repairs it as it does every save (_repair). [param dropped] gets the paths taken out.
+func salvage_profile(data: Dictionary, dropped: Array = []) -> Dictionary:
+	var core := _salvage_core(data)
+	if core.is_empty():
+		dropped.append("class")
+		return {}
+	var out := core.duplicate(true)
+	for key in data:
+		if not key is String:
+			dropped.append(str(key))
+			continue
+		if key in SALVAGE_CORE:
+			if key != "version" and not _same_value(data[key], core.get(key)):
+				dropped.append(String(key))
+			continue
+		var kept: Variant = _salvage_value(func(v): return core.merged({key: v}), data[key], 2, dropped, String(key))
+		if typeof(kept) != TYPE_NIL:
+			out[key] = kept
+	# Fields that pass alone but not together (none today): drop them one by one.
+	if not _valid_profile(out):
+		for key in out.keys():
+			if key in SALVAGE_CORE:
+				continue
+			var trial := out.duplicate()
+			trial.erase(key)
+			if _valid_profile(trial):
+				dropped.append(String(key))
+				return trial
+		return {}
+	return out
+
+
+## Value [param value] salvaged where [param place] puts it into a probe profile: kept
+## when the probe passes; else (a dictionary or list, [param depth] levels down) only the
+## entries that pass; null when nothing of it can stay.
+func _salvage_value(place: Callable, value: Variant, depth: int, dropped: Array, path: String) -> Variant:
+	if _valid_profile(place.call(value)):
+		return value
+	if depth > 0 and value is Dictionary:
+		var kept := {}
+		for k in value:
+			var sub: Variant = _salvage_value(func(v): return place.call({k: v}), value[k], depth - 1, dropped, "%s.%s" % [path, str(k)])
+			if typeof(sub) != TYPE_NIL:
+				kept[k] = sub
+		if _valid_profile(place.call(kept)):
+			return kept
+	elif depth > 0 and value is Array:
+		var kept := []
+		for i in (value as Array).size():
+			var sub: Variant = _salvage_value(func(v): return place.call([v]), value[i], depth - 1, dropped, "%s[%d]" % [path, i])
+			if typeof(sub) != TYPE_NIL:
+				kept.append(sub)
+		# Too many entries (a size limit): the last ones go, not the whole list.
+		var guard := 0
+		while not kept.is_empty() and not _valid_profile(place.call(kept)) and guard < 64:
+			kept.pop_back()
+			dropped.append("%s[%d]" % [path, kept.size()])
+			guard += 1
+		if _valid_profile(place.call(kept)):
+			return kept
+	dropped.append(path)
+	return null
+
+
+## The same JSON value (1 and 1.0 are).
+func _same_value(a: Variant, b: Variant) -> bool:
+	if (a is int or a is float) and (b is int or b is float):
+		return float(a) == float(b)
+	return typeof(a) == typeof(b) and a == b
+
+
+## What salvage_profile would take out of [param data] ([] for a valid profile).
+func profile_problems(data: Dictionary) -> Array:
+	if _valid_profile(data):
+		return []
+	var dropped: Array = []
+	salvage_profile(data, dropped)
+	return dropped
+
+
 func _valid_number(value: Variant, minimum := 0.0, maximum := float(MAX_SAVE_NUMBER)) -> bool:
 	return (value is int or value is float) and is_finite(float(value)) and float(value) >= minimum and float(value) <= maximum
 
@@ -1139,7 +1353,7 @@ func _valid_item(value: Variant) -> bool:
 		if item.kind == "jewel":
 			return _valid_integer(item.get("count", 1), 1) and ItemData.JEWELS.has(item.get("id"))
 		return _valid_integer(item.get("count", 1), 1) and (ItemData.POTIONS.has(item.get("id")) if item.kind == "potion" else _valid_gem_id(item.get("id")))
-	if item.get("kind") != "equip" or not ItemData.EQUIP_SLOTS.has(item.get("slot")):
+	if item.get("kind") != "equip" or not item.get("slot") is String or not ItemData.EQUIP_SLOTS.has(item.get("slot")):
 		return false
 	for key in ["uid", "name", "class", "set", "base", "boss"]:
 		if not item.get(key, "") is String:

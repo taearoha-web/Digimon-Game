@@ -5,6 +5,9 @@ const COOKIE = '__Host-toon_session';
 const MAX_PROFILE_BYTES = 1_048_576;
 // Character slots per account (Game.SLOT_COUNT in the game).
 const MAX_SLOTS = 10;
+// A bag holds at most 100 pieces, plus Game.BAG_OVERFLOW (8) a pair of the Legendary Guild
+// Wings can leave past its size when the bag and the shared storage are both full.
+const MAX_INV = 108;
 // The storage every character shares (SharedStorage in the game): a top-level list of
 // items. SharedStorage.SIZE (150) is the room for deposits; the game moves the old
 // per-character storages (80 each) in without losing any, so it may hold up to
@@ -112,6 +115,11 @@ function dictionary(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+// Text length as the game counts it (characters, not UTF-16 units: an emoji is one).
+function chars(value) {
+  return [...value].length;
+}
+
 function integer(value, minimum = 0, maximum = 1_000_000_000_000) {
   return Number.isSafeInteger(value) && value >= minimum && value <= maximum;
 }
@@ -212,7 +220,7 @@ function validateProfile(profile) {
   for (const key of ['attrs', 'skills', 'boss_kills', 'pvp', 'tower', 'look']) {
     if (Object.values(profile[key] ?? {}).some(value => !integer(value))) fail(400, 'invalid_save', `The character field ${key} has invalid values.`);
   }
-  if ((profile.inv?.length ?? 0) > 100 || (profile.storage?.length ?? 0) > 80
+  if ((profile.inv?.length ?? 0) > MAX_INV || (profile.storage?.length ?? 0) > 80
       || (profile.loadout ?? []).some(value => typeof value !== 'string')
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
@@ -225,7 +233,7 @@ function validateProfile(profile) {
     const leaders = profile.guild_leaders;
     if (!dictionary(leaders) || Object.keys(leaders).length > 8
         || Object.keys(leaders).some(key => !GUILD_ID.test(key))
-        || Object.values(leaders).some(value => typeof value !== 'string' || value.length > 64)) fail(400, 'invalid_save', 'The guild leaders are invalid.');
+        || Object.values(leaders).some(value => typeof value !== 'string' || chars(value) > 64)) fail(400, 'invalid_save', 'The guild leaders are invalid.');
   }
   // The weekly guild league record (GuildLeague in the game): season numbers, up to 64
   // real wars a season (ints under fixed keys) and the secret shop's buy counts.
@@ -236,7 +244,7 @@ function validateProfile(profile) {
   // cosmetics and what is worn, the stones bought this week and the rounds already paid.
   if ('rshop' in profile && !validRewardShop(profile.rshop)) fail(400, 'invalid_save', 'The reward shop record is invalid.');
   // The guild hall's notice the hero wrote as its guild's leader (GuildHallData.NOTICE_MAX).
-  if ('hall_notice' in profile && (typeof profile.hall_notice !== 'string' || profile.hall_notice.length > HALL_NOTICE_MAX)) fail(400, 'invalid_save', 'The guild hall notice is invalid.');
+  if ('hall_notice' in profile && (typeof profile.hall_notice !== 'string' || chars(profile.hall_notice) > HALL_NOTICE_MAX)) fail(400, 'invalid_save', 'The guild hall notice is invalid.');
   // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
   if ('dpass' in profile) {
     const pass = profile.dpass;
@@ -326,10 +334,10 @@ function validLegendRecord(record) {
     if (key === 'done') return integer(value, -1, LEGEND_MAX_WEEK);
     if (key === 'hold') {
       return dictionary(value) && Object.keys(value).length <= LEGEND_MAX_RECORDS && Object.entries(value).every(([w, h]) => week(w)
-        && dictionary(h) && Object.keys(h).length === 3 && integer(h.g, 1, GUILD_COUNT) && typeof h.n === 'string' && h.n.length <= 64 && integer(h.s, 1, LEGEND_MAX_WEEK));
+        && dictionary(h) && Object.keys(h).length === 3 && integer(h.g, 1, GUILD_COUNT) && typeof h.n === 'string' && chars(h.n) <= 64 && integer(h.s, 1, LEGEND_MAX_WEEK));
     }
     if (key === 'hand') {
-      return dictionary(value) && Object.keys(value).length <= LEGEND_MAX_RECORDS && Object.entries(value).every(([w, n]) => week(w) && typeof n === 'string' && n.length <= 64);
+      return dictionary(value) && Object.keys(value).length <= LEGEND_MAX_RECORDS && Object.entries(value).every(([w, n]) => week(w) && typeof n === 'string' && chars(n) <= 64);
     }
     return false;
   });
@@ -340,7 +348,7 @@ function validLegendRecord(record) {
 const RSHOP_INTS = new Set(['lc', 'ep', 'week', 'ev_day', 'ev_pts', 'boss_day', 'bonus_week']);
 const RSHOP_TEXTS = new Set(['cos', 'trail', 'ncol']);
 const RSHOP_ID_MAX = 32;
-const rshopId = value => typeof value === 'string' && value.length <= RSHOP_ID_MAX;
+const rshopId = value => typeof value === 'string' && chars(value) <= RSHOP_ID_MAX;
 function validRewardShop(shop) {
   if (!dictionary(shop) || Object.keys(shop).length > 16) return false;
   return Object.entries(shop).every(([key, value]) => {

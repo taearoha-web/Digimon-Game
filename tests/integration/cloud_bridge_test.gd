@@ -88,8 +88,8 @@ func _test_full_bundle() -> void:
 	var file := FileAccess.open(probe.save_path(3), FileAccess.WRITE)
 	file.store_string("{\"class\":\"missing\",\"level\":1}")
 	file.close()
-	check(not probe.build_cloud_bundle().slots.has("3"), "invalid local slots are excluded rather than uploaded")
-	check(not JSON.parse_string(probe.cloud_bundle_json()).slots.has("3"), "a slot file changed behind the cache is read again (excluded here)")
+	check(String(probe.build_cloud_bundle().slots.get("3", {}).get("class", "")) == "missing", "an unreadable local slot goes up as it is, never left out (left out, the server would delete that hero)")
+	check(String(JSON.parse_string(probe.cloud_bundle_json()).slots.get("3", {}).get("class", "")) == "missing", "a slot file changed behind the cache is read again (kept here)")
 	check(probe._write_profile(JSON.parse_string(disk_before["3"]), 3), "fixture restores the valid third slot")
 
 

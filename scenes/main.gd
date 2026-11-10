@@ -243,6 +243,11 @@ func _show_title(arrival := 0) -> void:
 	# nothing may save it again (a lost focus after deleting it would bring it back).
 	Game.playing = false
 	Game.has_profile = false
+	# Heroes an older build hid (the save check refused them) and the cloud sync then
+	# deleted come back from this device's daily backups (SaveBackup.recover_hidden).
+	var back := SaveBackup.recover_hidden()
+	if not back.is_empty():
+		Game.say("กู้ตัวละครที่หายคืนจากสำเนาสำรองในเครื่องแล้ว (จุด %s)" % ", ".join(back.map(func(n): return str(n))), &"success")
 	var screen := MainMenu.new()
 	screen.arrival_slot = arrival
 	title_screen = screen

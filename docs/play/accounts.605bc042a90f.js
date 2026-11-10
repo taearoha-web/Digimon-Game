@@ -164,6 +164,17 @@
     // flush. Only recover files that are demonstrably newer than that draft.
     if (!old || (hasHeroes(local) && newest(local) > newest(old.bundle || blank()))) {
       await write(active,{bundle:local,revision:old ? old.revision : 0,dirty:active !== 'guest',savedAt:Date.now()});
+      return;
+    }
+    // A hero file on this device that the draft lacks: an older game build left heroes it
+    // could not read out of the bundle (the next start then deleted the file and the
+    // upload deleted the hero online). Such a hero is kept: the draft takes it back.
+    const draftBundle = old.bundle || blank();
+    const missing = Object.keys(local.slots).filter(n => !Object.prototype.hasOwnProperty.call((draftBundle.slots || {}),n));
+    if (missing.length) {
+      const merged = bundleOf(draftBundle);
+      for (const n of missing) merged.slots[n] = copy(local.slots[n]);
+      await write(active,{bundle:merged,revision:old.revision,dirty:active !== 'guest',savedAt:Date.now()});
     }
   }
   async function backup(owner,bundle,label) {
