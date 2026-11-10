@@ -20,7 +20,7 @@ const PALETTE := {
 	"wind_stance": GALE, "typhoon_spear": GALE, "gale_cyclone": GALE, "iron_resolve": STEEL,
 	"dragon_tooth": DRAGON, "dragon_lance": DRAGON, "dragon_stance": DRAGON,
 	"sky_pierce": HOLY, "valkyrie_blessing": HOLY, "gungnir": HOLY, "heaven_rend": HOLY, "ragnarok_lance": HOLY,
-	"heartseeker": HEART, "aegis_formation": HOLY, "worldsplitter": HOLY, "heavenrend_spear": WIND,
+	"heartseeker": HEART, "aegis_formation": HOLY, "worldsplitter": HOLY, "heavenrend_spear": DRAGON,
 }
 const ROCK := Color("5f5a52")
 ## The elite stances: a magic circle, rune rings and a pillar of light (MeleeArt.ascend).

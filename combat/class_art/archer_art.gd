@@ -62,7 +62,8 @@ static func anticipate(kit: SignatureKit, ctx: Dictionary) -> void:
 			kit.bolt(THUNDER, hand, hand + Vector3(randf_range(-0.7, 0.7), randf_range(0.4, 0.9), randf_range(-0.3, 0.4)), time * (0.35 + 0.3 * i), 0.18, 0.6, K.MAIN)
 	if int(ctx.level) >= 40 or int(ctx.star) > 0:
 		kit.sheet(K.RUNES, c, Vector3(0, 0.05, 0), 0.0, time + 0.1, {"ground": true, "size": Vector2.ONE * 1.4, "grow": Vector2.ONE * 2.3, "spin": 1.4, "count": 14.0, "fade_in": 0.3, "decay": 0.85, "opacity": 0.65})
-	if String(ctx.id) in RAIN or String((ctx.skill as Dictionary).get("special", "")) == "rain":
+	# (Sunfall Volley's sky belongs to its own sun: combat/god_art/sunfall_volley.gd.)
+	if (String(ctx.id) in RAIN and GodSkillArt.signature(String(ctx.id)) == null) or String((ctx.skill as Dictionary).get("special", "")) == "rain":
 		var sky := kit.to_local(Vector3(ctx.center.x, kit.global_position.y, ctx.center.z)) + Vector3(0, 7.5, 0)
 		kit.sheet(K.SOFT, c, sky, 0.0, time + 0.3, {"billboard": 1, "size": Vector2.ONE * 1.0, "grow": Vector2.ONE * 4.0, "fade_in": 0.4, "decay": 0.8, "opacity": 0.55})
 		kit.sheet(K.RUNES, c, sky, 0.0, time + 0.3, {"ground": true, "size": Vector2.ONE * 1.5, "grow": Vector2.ONE * float(ctx.radius) * 1.4, "spin": -1.0, "count": 18.0, "fade_in": 0.4, "decay": 0.85, "opacity": 0.6})
@@ -258,7 +259,8 @@ static func star_beat(kit: SignatureKit, ctx: Dictionary) -> void:
 	match id:
 		"celestial_hunt", "sunfall_volley":
 			rain(kit, c, radius, 0.0 if index > 0 else 0.15, 8 + index * 2, id == "sunfall_volley")
-			if id == "sunfall_volley" and index == 0:
+			# Sunfall Volley's own sun fills its sky (combat/god_art/sunfall_volley.gd): no rune ring there.
+			if id == "sunfall_volley" and index == 0 and GodSkillArt.signature(id) == null:
 				kit.sheet(K.RUNES, GOLD, Vector3(0, 7.5, 0), 0.0, 1.6, {"ground": true, "size": Vector2.ONE * radius, "grow": Vector2.ONE * radius * 1.8, "spin": 0.8, "count": 24.0, "level": K.CORE, "decay": 0.75, "opacity": 0.5})
 		"sylph_step":
 			_gale(kit, WIND, radius * 0.7)

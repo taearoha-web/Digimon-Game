@@ -271,6 +271,11 @@ test('recovery resets password, rotates single-use recovery code and revokes all
 
 test('persistent atomic IP rate limits apply to signup/login/reset without targeted ID lockout', async t => {
   const {register, call, DB} = harness(t);
+  // The limits count in fixed 15-minute windows of the wall clock: a run that straddles a
+  // window's end would start a fresh count halfway (401 instead of 429). Begin just after
+  // the boundary when one is less than 25 s away.
+  const left = 900 - (Date.now() / 1000) % 900;
+  if (left < 25) await new Promise(resolve => setTimeout(resolve, (left + 1) * 1000));
   await register();
   for (let i = 0; i < 30; i++) assert.equal((await call('login', {method: 'POST', body: {username: 'toonhero', password: OTHER_PASSWORD}})).status, 401);
   const limited = await call('login', {method: 'POST', body: {username: 'toonhero', password: OTHER_PASSWORD}});

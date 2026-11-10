@@ -118,8 +118,23 @@ static func _spot(index: int, radius: float) -> Vector3:
 # aureole; the ground root raises the sigil and the pantheon, the sky root
 # forms the class emblem over the target.
 # ---------------------------------------------------------------------------
+## A god skill may have its own signature art: res://combat/god_art/<skill id>.gd with
+## static telegraph(art, caster, skill, point, time), wave(art, parent, skill, index,
+## point, source) and finale(art, parent, skill, point, source), each returning true when
+## it drew the beat (false: the shared art below draws it). Scripts are looked up once.
+static var _signatures := {}
+static func signature(id: String) -> GDScript:
+	if not _signatures.has(id):
+		var path := "res://combat/god_art/%s.gd" % id
+		_signatures[id] = load(path) if ResourceLoader.exists(path) else null
+	return _signatures[id]
+
+
 static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, point: Vector3, time: float) -> void:
 	var id := String(skill.id)
+	var own := signature(id)
+	if own != null and own.has_method("telegraph") and own.telegraph(art, caster, skill, point, time):
+		return
 	var c := StarSkillArt.look(skill)
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
 	var spectral := 1.0 if id == "astral_apocalypse" else 0.0
@@ -209,6 +224,12 @@ static func strike(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	var c := StarSkillArt.look(skill)
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
 	var last := StarSkillData.GOD_BEATS.size() - 1
+	var own := signature(id)
+	if own != null:
+		if index >= last and own.has_method("finale") and own.finale(art, parent, skill, point, source):
+			return
+		if index < last and own.has_method("wave") and own.wave(art, parent, skill, index, point, source):
+			return
 	if index >= last:
 		_finale(art, parent, id, c, r, point, source)
 	else:
