@@ -143,6 +143,9 @@ static func impact(p_hero: Node3D, skill: Dictionary, center: Vector3, radius: f
 			hub._beat_ms = now
 			hub._beat(skill, t, center - p_hero.global_position, false, true)
 	var shape := String(skill.get("shape", ""))
+	# A god skill's signature art leaves its own scar on the ground (combat/god_art).
+	if GodSkillArt.owns(skill):
+		return
 	if t >= SkillWeight.MEDIUM and (shape in ["burst", "blast"] or SkillWeight.is_slam(skill) or star_beat >= 0):
 		hub.place_mark(center, clampf(radius * 0.55, 1.2, 4.5), SkillWeight.element(skill))
 

@@ -207,7 +207,7 @@ static func _reset_stats(layers: Array[String]) -> void:
 
 ## Layer 1, over the existing wind-up ([param duration]); never delays the cast.
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, duration: float, aim := Vector3.ZERO, visual: HeroVisual = null) -> void:
-	if not enabled or skill.is_empty():
+	if not enabled or skill.is_empty() or GodSkillArt.owns(skill):
 		return
 	var layers := layers_now(_crowd())
 	_reset_stats(layers)
@@ -306,7 +306,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 ## A star skill's beat (StarSkillSequence): the first beat and a god finale get
 ## the full stack, the waves between a lighter one.
 static func star_beat(parent: Node3D, skill: Dictionary, at: Vector3, index: int, count: int, origin: Vector3) -> void:
-	if not enabled or skill.is_empty():
+	if not enabled or skill.is_empty() or GodSkillArt.owns(skill):
 		return
 	var look := look_of(skill)
 	var finale := StarSkillData.is_god(skill) and index == count - 1 and count > 1

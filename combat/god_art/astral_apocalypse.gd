@@ -146,7 +146,7 @@ static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: in
 		return true
 	var swell := [0.0, 0.15, 0.22, 1.0, gap - 0.1, 0.85, gap, 0.12]
 	hole.add(K.mesh("sphere"), K.SUN, {"c_core": Color("eafcff"), "c_mid": Color("8a5cff"), "c_edge": Color("05020e"), "invert": 1.0, "flow": 3.0}, _star, Vector3.ONE * 1.5, Vector3.ZERO, 0.08, gap - 0.06, {"scale_curve": swell, "fin": 0.04, "fout": 0.02})
-	hole.add(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 11, "billboard": true, "p1": 16.0, "p2": 0.2, "prism": 1.0, "gain": 1.1}), _star, Vector3.ONE * 6.5, Vector3.ZERO, 0.08, gap - 0.06, {"scale_curve": swell, "fin": 0.05, "fout": 0.03, "priority": -1})
+	hole.add(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 11, "billboard": true, "p1": 16.0, "p2": 0.2, "prism": 1.0, "gain": 0.8}), _star, Vector3.ONE * 6.5, Vector3.ZERO, 0.08, gap - 0.06, {"scale_curve": swell, "fin": 0.05, "fout": 0.03, "priority": -1})
 	var streaks := []
 	var streak_data := []
 	var count: int = [8, 16, 24][K.quality()]
@@ -163,13 +163,13 @@ static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: in
 static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: Vector3, source: Vector3) -> bool:
 	var r := _radius(skill)
 	var q := K.quality()
-	K.layer(art, K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 1, "p1": 1.4, "p2": 1.0, "prism": 1.0, "gain": 0.9}), Vector3.UP * 0.11, Vector3.ONE * r * 1.3, K.FLAT, 0.95, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.8})
+	K.layer(art, K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 1, "p1": 1.4, "p2": 1.0, "prism": 1.0, "gain": 0.6}), Vector3.UP * 0.11, Vector3.ONE * r * 1.3, K.FLAT, 0.95, {"initial": 1.0, "grow_time": 0.01, "fade_in": 0.01, "decay": 0.8})
 	var f := K.open(parent, point, 1.0, "GodFinale_" + ID, source)
 	if f:
 		# Supernova: a white-hot shell that swells and burns away, a blinding flash, a
 		# four-point star, then stardust falling over the whole field.
-		f.add(K.mesh("sphere"), K.SUN, {"c_core": Color.WHITE, "c_mid": Color("c8f6ff"), "c_edge": Color("8a5cff"), "flow": 5.0}, _star, Vector3.ONE * 2.8, Vector3.ZERO, 0.0, 0.5, {"grow": 0.2, "from": 0.05, "fin": 0.01, "fout": 0.46})
-		f.add(K.mesh("quad"), K.GLOW, {"mode": 10, "billboard": true, "life": 0.9, "prism": 0.5, "c_core": Color.WHITE, "c_mid": Color("c8f6ff"), "c_edge": Color("9a7cff")}, _star, Vector3.ONE * 9.5, Vector3.ZERO, 0.0, 0.9, {"grow": 0.18, "from": 0.2, "fin": 0.01, "fout": 0.4})
+		f.add(K.mesh("sphere"), K.SUN, {"c_core": Color("d8f4ff"), "c_mid": Color("8ad0ff"), "c_edge": Color("7a4cff"), "flow": 5.0}, _star, Vector3.ONE * 2.2, Vector3.ZERO, 0.0, 0.5, {"grow": 0.2, "from": 0.05, "fin": 0.01, "fout": 0.46})
+		f.add(K.mesh("quad"), K.GLOW, {"mode": 10, "billboard": true, "life": 0.9, "prism": 0.5, "gain": 0.7, "c_core": Color("eafaff"), "c_mid": Color("a8e4ff"), "c_edge": Color("9a7cff")}, _star, Vector3.ONE * 8.0, Vector3.ZERO, 0.0, 0.9, {"grow": 0.18, "from": 0.2, "fin": 0.01, "fout": 0.4})
 		var dust := []
 		var dust_data := []
 		var count: int = [16, 34, 54][q]
@@ -178,15 +178,15 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 			dust.append(K.card(K.scatter(k, count, r * 0.95) + Vector3.UP * (2.5 + seed * 4.0), 0.3 + 0.35 * seed))
 			dust_data.append(Color(0.15 + seed * 0.7, seed, 0, 0))
 		f.swarm(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 10, "billboard": true, "life": 1.7, "prism": 1.0, "drift": Vector3(0, -1.5, 0), "sway": 0.35}), dust, dust_data, 0.0, 2.6, {"fin": 0.01})
-		f.add(K.mesh("quad"), K.GLOW, {"mode": 0, "billboard": true, "p1": 1.6, "gain": 0.7, "c_core": Color.WHITE, "c_mid": Color("d8f8ff"), "c_edge": Color("9a7cff")}, _star, Vector3.ONE * 8.0, Vector3.ZERO, 0.0, 0.3, {"fin": 0.02, "fout": 0.22})
+		f.add(K.mesh("quad"), K.GLOW, {"mode": 0, "billboard": true, "p1": 2.4, "gain": 0.36, "c_core": Color("eafaff"), "c_mid": Color("a8e4ff"), "c_edge": Color("9a7cff")}, _star, Vector3.ONE * 5.6, Vector3.ZERO, 0.0, 0.3, {"fin": 0.02, "fout": 0.22})
 	var extras := GodSkillArt.extra_roots(2)
 	if extras < 1:
 		return true
-	# The shock front seen face on, and a second ring racing over the ground.
+	# The shock front: a halo racing out level with the star, and a second ring over the ground.
 	var avatar := K.open(parent, point, 1.0, "StarGodAvatar_" + ID, source)
 	if avatar:
-		avatar.add(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 1, "billboard": true, "p1": 0.9, "p2": 1.0, "prism": 1.0}), _star, Vector3.ONE * 8.5, Vector3.ZERO, 0.0, 0.85, {"fin": 0.01})
-		avatar.add(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 1, "p1": 0.8, "prism": 0.7}), Vector3.UP * 0.12, Vector3.ONE * r * 1.05, K.FLAT, 0.18, 0.8, {"fin": 0.01})
+		avatar.add(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 1, "p1": 0.9, "p2": 1.0, "prism": 1.0, "gain": 0.8}), _star, Vector3.ONE * 7.0, K.FLAT, 0.0, 0.85, {"fin": 0.01})
+		avatar.add(K.mesh("quad"), K.GLOW, STARLIGHT.merged({"mode": 1, "p1": 0.8, "prism": 0.7, "gain": 0.6}), Vector3.UP * 0.12, Vector3.ONE * r * 1.05, K.FLAT, 0.18, 0.8, {"fin": 0.01})
 		avatar.lifetime = maxf(avatar.lifetime, 2.0)
 	if extras < 2:
 		return true

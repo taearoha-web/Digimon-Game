@@ -12,7 +12,7 @@ const ID := "seraphic_judgment"
 ## towards the camera, because the field camera looks down from high up.
 static var _hover := Vector3(0, 1.7, -1.6)
 const SIZE := 0.95
-const HOLY := {"c_core": Color.WHITE, "c_mid": Color("fff1bd"), "c_edge": Color("ffd166")}
+const HOLY := {"c_core": Color("fff6dc"), "c_mid": Color("ffe9a8"), "c_edge": Color("ffc95a")}
 ## Pillars are alpha blended so that light on light stays gold instead of burning white.
 const GILT := {"c_core": Color("fffdf0"), "c_mid": Color("ffe9a0"), "c_edge": Color("ffc84a")}
 const AZURE := {"c_core": Color.WHITE, "c_mid": Color("d9f0ff"), "c_edge": Color("8ecbff")}
@@ -48,21 +48,22 @@ static func _feathers(root: K, spots: Array, count: int, spread: float, height: 
 
 
 ## The healing that washes over the caster's side: soft green-gold rings and rising motes.
-static func _heal(parent: Node3D, source: Vector3, size: float) -> void:
+## ([param motes]: the finale's; the waves keep to the ring, four of them overlap.)
+static func _heal(parent: Node3D, source: Vector3, size: float, motes := false) -> void:
 	var at := Vector3(source.x, 0, source.z)
 	var h := K.open(parent, at, 0.8, "GodHeal_" + ID, at)
 	if not h:
 		return
-	h.add(K.mesh("quad"), K.GLOW, HEAL.merged({"mode": 1, "p1": 1.5, "p2": 1.0, "gain": 0.5}), Vector3.UP * 0.08, Vector3.ONE * size, K.FLAT, 0.0, 0.95, {"fin": 0.02})
-	if K.lean():
+	h.add(K.mesh("quad"), K.GLOW, HEAL.merged({"mode": 1, "p1": 1.5, "p2": 1.0, "gain": 0.3}), Vector3.UP * 0.08, Vector3.ONE * size, K.FLAT, 0.0, 0.95, {"fin": 0.02})
+	if K.lean() or not motes:
 		return
-	var motes := []
+	var cards := []
 	var mote_data := []
 	for k in 6:
 		var seed := K.rand(float(k) * 2.1 + size)
-		motes.append(K.card(K.scatter(k, 6, size * 0.45) + Vector3.UP * (0.4 + seed), 0.22 + 0.12 * seed))
+		cards.append(K.card(K.scatter(k, 6, size * 0.45) + Vector3.UP * (0.4 + seed), 0.22 + 0.12 * seed))
 		mote_data.append(Color(seed * 0.3, seed, 0, 0))
-	h.swarm(K.mesh("quad"), K.GLOW, HEAL.merged({"mode": 12, "billboard": true, "life": 0.9, "drift": Vector3(0, 1.7, 0), "sway": 0.15}), motes, mote_data, 0.0, 1.25, {"fin": 0.01})
+	h.swarm(K.mesh("quad"), K.GLOW, HEAL.merged({"mode": 12, "billboard": true, "life": 0.9, "drift": Vector3(0, 1.7, 0), "sway": 0.15}), cards, mote_data, 0.0, 1.25, {"fin": 0.01})
 
 
 static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, point: Vector3, time: float) -> bool:
@@ -119,10 +120,10 @@ static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: in
 			rings.append(K.lying(spot + Vector3.UP * (0.08 + 0.002 * k), 3.0 + 0.4 * float(index)))
 			data.append(Color(0.07 * float(k), seed, 0, 0))
 		w.swarm(K.mesh("column"), K.VEIL, GILT.merged({"mode": 3, "p1": -6.0, "p2": 0.35, "gain": 1.3, "life": 0.75}), pillars, data, 0.0, 0.75 + 0.07 * spots.size(), {"fin": 0.01, "fout": 0.05})
-		w.swarm(K.mesh("quad"), K.GLOW, HOLY.merged({"mode": 1, "p1": 0.9, "p2": 1.0, "gain": 0.7, "life": 0.6}), rings, data, 0.0, 0.6 + 0.07 * spots.size(), {"fin": 0.01, "fout": 0.05})
-		_feathers(w, spots, [3, 6, 9][q], 1.6, 4.5, 1.5, 0.05, 0.3)
+		w.swarm(K.mesh("quad"), K.GLOW, HOLY.merged({"mode": 1, "p1": 0.9, "p2": 1.0, "gain": 0.45, "life": 0.6}), rings, data, 0.0, 0.6 + 0.07 * spots.size(), {"fin": 0.01, "fout": 0.05})
+		_feathers(w, spots, [3, 6, 9][q], 1.6, 4.5, 0.95, 0.05, 0.25)
 		if q >= 1 and MemoryGuard.pressure == 0:
-			w.swarm(K.mesh("column"), K.GLOW, {"mode": 3, "p1": -9.0, "p2": 0.3, "gain": 0.6, "life": 0.55, "c_core": Color.WHITE, "c_mid": Color.WHITE, "c_edge": Color("fff1bd")}, cores, data, 0.0, 0.55 + 0.07 * spots.size(), {"fin": 0.01, "fout": 0.05})
+			w.swarm(K.mesh("column"), K.GLOW, {"mode": 3, "p1": -9.0, "p2": 0.3, "gain": 0.34, "life": 0.55, "c_core": Color("fffbe8"), "c_mid": Color("fff1c8"), "c_edge": Color("ffe08a")}, cores, data, 0.0, 0.55 + 0.07 * spots.size(), {"fin": 0.01, "fout": 0.05})
 	_heal(parent, source, 3.6 + 0.4 * float(index))
 	return true
 
@@ -135,11 +136,11 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	if f:
 		# The great pillar where the cross meets, a calm ring of light, a rain of feathers.
 		var heart := Vector3(0, 0, r * 0.3)
-		f.add(K.mesh("column"), K.VEIL, GILT.merged({"mode": 3, "p1": -5.0, "p2": 0.3, "gain": 1.3}), heart, Vector3(1.3, 12.0, 1.3), Vector3.ZERO, 0.0, 1.3, {"to": Vector3(0.5, 1.0, 0.5), "fin": 0.02, "fout": 0.5})
-		f.add(K.mesh("quad"), K.GLOW, AZURE.merged({"mode": 1, "p1": 0.7, "gain": 0.45}), Vector3.UP * 0.11, Vector3.ONE * r * 1.25, K.FLAT, 0.0, 1.0, {"fin": 0.01})
+		f.add(K.mesh("column"), K.VEIL, GILT.merged({"mode": 3, "p1": -5.0, "p2": 0.3, "gain": 1.0}), heart, Vector3(1.15, 12.0, 1.15), Vector3.ZERO, 0.0, 1.3, {"to": Vector3(0.5, 1.0, 0.5), "fin": 0.02, "fout": 0.5})
+		f.add(K.mesh("quad"), K.GLOW, AZURE.merged({"mode": 1, "p1": 0.7, "gain": 0.3, "c_core": Color("e4f4ff")}), Vector3.UP * 0.11, Vector3.ONE * r * 1.25, K.FLAT, 0.0, 1.0, {"fin": 0.01})
 		_feathers(f, [Vector3.ZERO], [12, 26, 40][q], r * 0.9, 7.0, 2.2, 0.0, 0.5)
-		f.add(K.mesh("column"), K.GLOW, {"mode": 3, "p1": -8.0, "p2": 0.3, "gain": 1.0, "c_core": Color.WHITE, "c_mid": Color.WHITE, "c_edge": Color("fff1bd")}, heart, Vector3(0.5, 12.5, 0.5), Vector3.ZERO, 0.0, 0.9, {"to": Vector3(0.2, 1.0, 0.2), "fin": 0.02, "fout": 0.4})
-	_heal(parent, source, 5.5)
+		f.add(K.mesh("column"), K.GLOW, {"mode": 3, "p1": -8.0, "p2": 0.3, "gain": 0.45, "c_core": Color("fffbe8"), "c_mid": Color("fff1c8"), "c_edge": Color("ffe08a")}, heart, Vector3(0.4, 12.5, 0.4), Vector3.ZERO, 0.0, 0.9, {"to": Vector3(0.2, 1.0, 0.2), "fin": 0.02, "fout": 0.4})
+	_heal(parent, source, 5.5, true)
 	var extras := GodSkillArt.extra_roots(2)
 	if extras < 1:
 		return true
@@ -147,8 +148,8 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	var avatar := K.open(parent, point, 1.0, "StarGodAvatar_" + ID, source)
 	if avatar:
 		var chest := _hover + Vector3.UP * 3.0 * SIZE
-		avatar.add(K.mesh("quad"), K.VEIL, GILT.merged({"mode": 2, "billboard": true, "p1": 16.0, "p2": 0.08, "gain": 0.7, "seed": 4.0}), chest, Vector3.ONE * 8.0, Vector3.ZERO, 0.0, 1.8, {"grow": 0.3, "from": 0.25, "fin": 0.03, "fout": 0.8, "priority": -1})
-		avatar.add(K.mesh("quad"), K.GLOW, AZURE.merged({"mode": 1, "billboard": true, "p1": 0.5, "gain": 0.35}), chest, Vector3.ONE * 7.0, Vector3.ZERO, 0.05, 0.9, {"fin": 0.01, "priority": -1})
+		avatar.add(K.mesh("quad"), K.VEIL, GILT.merged({"mode": 2, "billboard": true, "p1": 16.0, "p2": 0.08, "gain": 0.5, "seed": 4.0}), chest, Vector3.ONE * 7.0, Vector3.ZERO, 0.0, 1.8, {"grow": 0.3, "from": 0.25, "fin": 0.03, "fout": 0.8, "priority": -1})
+		avatar.add(K.mesh("quad"), K.GLOW, AZURE.merged({"mode": 0, "billboard": true, "p1": 2.2, "gain": 0.22}), chest, Vector3.ONE * 5.0, Vector3.ZERO, 0.05, 0.9, {"fin": 0.05, "fout": 0.5, "priority": -1})
 	if extras < 2:
 		return true
 	# Lesser pillars at the ends of the cross and motes of light rising from it.

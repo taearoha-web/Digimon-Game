@@ -389,6 +389,9 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
 	if not enabled or skill.is_empty() or not skill.has("star"):
 		return
+	# A god skill with its own signature art (combat/god_art) draws every beat itself.
+	if GodSkillArt.owns(skill):
+		return
 	if not _alive(parent) or not _room(4):
 		return
 	var key := "%s_beat%d" % [String(skill.id), index]

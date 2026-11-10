@@ -6,6 +6,8 @@ extends RefCounted
 ## head-first into the middle. Cosmetic only: StarSkillSequence owns every contact.
 const K := preload("res://combat/god_art/_kit_arcane.gd")
 const ID := "celestial_dragon_emperor"
+## The height the set needs of the camera's frame: the cloud bank and the dragon's rise.
+const TALL := 7.0
 const BODY := 26.0
 const SPACING := 2.3
 const ROSE := 8.5
@@ -102,6 +104,19 @@ static func _dragon(art: StarSkillArt, label: String, seconds: float, first: int
 	K.put(art, K.PATH, dragon_mesh(), label, Vector3.ZERO, Vector3.ONE, Vector3.ZERO, seconds, {"fade_in": 0.02, "decay": 1.0, "cull": 80.0}.merged(style, true), params)
 
 
+## What the field camera shows of the sky over the target (see K.frame): the scale of
+## every root of this cast, set by the wind-up.
+static var _fit := 1.0
+
+
+static func _root(parent: Node3D, point: Vector3, seconds: float, label: String, source: Vector3, owner: StarSkillArt = null) -> StarSkillArt:
+	var art := K.root(parent, point, seconds, label, source, owner)
+	if art:
+		art.scale = Vector3.ONE * _fit
+	return art
+
+
+
 # ---------------------------------------------------------------------------
 # Beats
 # ---------------------------------------------------------------------------
@@ -109,10 +124,12 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 	var r := clampf(float(skill.get("radius", 9.5)), 4.0, 10.0)
 	var origin := caster.global_position
 	var parent := art.get_parent() as Node3D
+	_fit = K.frame(parent, point, origin, TALL, 0.0)
+	r /= _fit
 	# The summoner: a ring of jade light and a wreath of cloud at the feet.
 	K.put(art, K.GLOW, K.shock(JADE, Color("fff3b0"), JADE_HI), "DragonCallRing", Vector3.UP * 0.08, Vector3.ONE * 1.9, Vector3.ZERO, time, {"initial": 0.3, "grow_time": 0.5, "spin": 1.2, "decay": 0.9}, {"opacity": 0.8})
 	K.put(art, K.SOLID, cloud_ring(), "DragonCallCloud", Vector3.UP * 0.25, Vector3(1.5, 1.2, 1.5), Vector3.ZERO, time, {"initial": 0.4, "grow_time": 0.5, "spin": -1.6, "fade_in": 0.15}, CLOUD_LOOK)
-	var ground := K.root(parent, Vector3(point.x, 0, point.z), time, "StarGodGround_" + ID, origin, art)
+	var ground := _root(parent, Vector3(point.x, 0, point.z), time, "StarGodGround_" + ID, origin, art)
 	if ground:
 		var data := course()
 		var goal: float = data.cross[0]
@@ -124,7 +141,7 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 		ground._draw()
 	if GodSkillArt.extra_roots(1) < 1:
 		return true
-	var sky := K.root(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
+	var sky := _root(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
 	if sky:
 		_heavens(sky, time, 0.0, true)
 		sky._draw()
@@ -142,7 +159,8 @@ static func _heavens(art: StarSkillArt, seconds: float, turned: float, gather: b
 
 
 static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: int, point: Vector3, source: Vector3) -> bool:
-	var r := clampf(float(skill.get("radius", 9.5)), 4.0, 10.0)
+	var r := clampf(float(skill.get("radius", 9.5)), 4.0, 10.0) / _fit
+	art.scale = Vector3.ONE * _fit
 	_flight(parent, r, point, source, index)
 	var d := heading(index)
 	var yaw := atan2(d.x, d.z)
@@ -187,7 +205,7 @@ static func _flight(parent: Node3D, r: float, point: Vector3, source: Vector3, i
 	var dive := float(beats[4]) - since
 	var speed := (float(data.ground) - float(cross[3])) / maxf(0.1, float(beats[4]) - float(beats[3]))
 	var gone := dive + (BODY + 6.0) / speed
-	var flight := K.root(parent, point, gone + 0.05, "StarGodFlight_" + ID, source)
+	var flight := _root(parent, point, gone + 0.05, "StarGodFlight_" + ID, source)
 	if not flight:
 		return
 	var keys := []
@@ -203,7 +221,8 @@ static func _flight(parent: Node3D, r: float, point: Vector3, source: Vector3, i
 
 
 static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: Vector3, source: Vector3) -> bool:
-	var r := clampf(float(skill.get("radius", 9.5)), 4.0, 10.0)
+	var r := clampf(float(skill.get("radius", 9.5)), 4.0, 10.0) / _fit
+	art.scale = Vector3.ONE * _fit
 	_flight(parent, r, point, source, 4)
 	# The dive lands: a pillar of jade and gold light, the shock, the cracked ground.
 	K.put(art, K.VEIL, K.column("jade_pillar", [Color(1.0, 0.95, 0.6, 0.9), Color(0.25, 1.0, 0.65, 0.8), Color(0.05, 0.85, 0.55, 0.55), Color(1.0, 0.8, 0.25, 0.3), Color(1.0, 0.8, 0.3, 0.0)], 0.5, 18), "DragonPillar", Vector3.ZERO, Vector3(2.6, 17.0, 2.6), Vector3.ZERO, 1.15, {"initial": 0.35, "grow_time": 0.12, "fade_in": 0.02, "decay": 0.4, "front": true}, {"noise_amt": 0.75, "noise_scale": Vector2(8.0, 1.6), "flow": Vector2(0.4, -4.0), "bias": -0.25, "taper": 0.4, "heat": 0.25, "hot": Color("fff6c0"), "fres": 0.5, "opacity": 0.85})
@@ -216,7 +235,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	if extras < 1:
 		return true
 	# The clouds spiral up round the pillar.
-	var avatar := K.root(parent, point, 1.9, "StarGodAvatar_" + ID, source)
+	var avatar := _root(parent, point, 1.9, "StarGodAvatar_" + ID, source)
 	if avatar:
 		K.put(avatar, K.SOLID, cloud_helix(), "DragonSpiral", Vector3.ZERO, Vector3(1.0, 0.6, 1.0), Vector3.ZERO, 1.7, {"initial": 0.55, "grow_time": 0.5, "spin": 4.2, "travel": Vector3.UP * 1.2, "fade_in": 0.05, "decay": 0.6, "cull": 6.0}, CLOUD_LOOK)
 		K.put(avatar, K.VEIL, K.shock(GOLD, Color("fffbe0"), JADE_HI), "DragonHalo", Vector3.UP * 3.6, Vector3.ONE * r * 0.7, Vector3.ZERO, 0.9, {"initial": 0.1, "grow_time": 0.8, "decay": 0.4, "delay": 0.08})
@@ -224,7 +243,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 		avatar._draw()
 	if extras < 2:
 		return true
-	var temple := K.root(parent, point, 2.0, "StarGodTemple_" + ID, source)
+	var temple := _root(parent, point, 2.0, "StarGodTemple_" + ID, source)
 	if temple:
 		K.put(temple, K.SOLID, cloud_ring(), "DragonSurge", Vector3.UP * 0.35, Vector3(r * 0.9, 0.8, r * 0.9), Vector3.ZERO, 1.2, {"initial": 0.25, "grow_time": 0.6, "spin": 2.4, "fade_in": 0.05, "decay": 0.55}, CLOUD_LOOK)
 		K.put(temple, K.VEIL, K.shock(GOLD, Color("fffbe0"), JADE_HI), "DragonSecondShock", Vector3.UP * 0.14, Vector3.ONE * r * 0.8, Vector3.ZERO, 0.8, {"initial": 0.08, "grow_time": 0.8, "decay": 0.4, "delay": 0.16})

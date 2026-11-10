@@ -10,6 +10,8 @@ const ID := "abyssal_throne"
 ## behind the centre and is no taller than that view shows.
 const THRONE := Vector3(0, 0, 2.1)
 const THRONE_SIZE := 0.62
+## The height the set needs of the camera's frame: the throne's crown of spires.
+const TALL := 7.6
 const CROWN := Vector3(0, 0.1, -2.4)
 const RAVENS := Vector3(0, 4.0, -1.6)
 const PIT := 5.6
@@ -26,25 +28,40 @@ const STONE_LOOK := {"rim_color": Color("c060ff"), "rim": 0.7, "shadow_tint": Co
 const FIRE_LOOK := {"noise_amt": 1.0, "noise_scale": Vector2(5.0, 1.5), "flow": Vector2(0.0, -3.0), "bias": 0.12, "taper": 0.95, "sway": 0.5, "edge_heat": 0.9, "hot": Color(1.0, 0.45, 0.92)}
 
 
+## What the field camera shows of the sky over the target (see K.frame): the scale of
+## every root of this cast, set by the wind-up.
+static var _fit := 1.0
+
+
+static func _root(parent: Node3D, point: Vector3, seconds: float, label: String, source: Vector3, owner: StarSkillArt = null) -> StarSkillArt:
+	var art := K.root(parent, point, seconds, label, source, owner)
+	if art:
+		art.scale = Vector3.ONE * _fit
+	return art
+
+
+
 static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, point: Vector3, time: float) -> bool:
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
 	var origin := caster.global_position
 	var parent := art.get_parent() as Node3D
+	_fit = K.frame(parent, point, origin, TALL, THRONE.z)
+	r /= _fit
 	# The Dark Lord: a ring of dark fire at the feet, ravens wheeling round the shoulders.
 	K.put(art, K.VEIL, K.shock(VIOLET, MAGENTA, Color("1a0630")), "ThroneCallRing", Vector3.UP * 0.08, Vector3.ONE * 1.9, Vector3.ZERO, time, {"initial": 0.3, "grow_time": 0.5, "spin": -1.2, "decay": 0.9}, {"opacity": 0.85})
 	K.put(art, K.SOLID, raven_mesh(), "ThroneCallRavens", Vector3.UP * 2.3, Vector3.ONE * 1.5, Vector3.ZERO, time, {"initial": 0.4, "grow_time": 0.4, "spin": 2.6, "fade_in": 0.1}, STONE_LOOK.merged({"flap": 0.09, "flap_rate": 14.0}))
-	var ground := K.root(parent, Vector3(point.x, 0, point.z), time, "StarGodGround_" + ID, origin, art)
+	var ground := _root(parent, Vector3(point.x, 0, point.z), time, "StarGodGround_" + ID, origin, art)
 	if ground:
 		# The throne rises out of the opening pit.
 		K.put(ground, K.SOLID, throne_mesh(), "GodThrone", THRONE, Vector3.ONE * THRONE_SIZE, Vector3.ZERO, time, {"fade_in": 0.03, "decay": 1.0, "cull": 16.0}, STONE_LOOK.merged({"slide": Vector3(0, -13.8, 0), "slide_time": time * 0.86, "slide_ease": -2.4}))
+		K.put(ground, K.VEIL, K.area_mark(MAGENTA, VIOLET), "ThroneArea", Vector3.UP * 0.07, Vector3.ONE * r, Vector3.ZERO, time, {"initial": 0.2, "grow_time": 0.45, "spin": -0.25, "decay": 0.97})
 		K.put(ground, K.VEIL, abyss_mesh(), "ThroneAbyss", Vector3.UP * 0.05, Vector3.ONE * PIT, Vector3.ZERO, time, {"initial": 0.08, "grow_time": 0.4, "fade_in": 0.05, "decay": 1.0, "priority": -2})
 		K.put(ground, K.VEIL, pit_fire(), "ThroneFire", Vector3.UP * 0.05, Vector3.ONE, Vector3.ZERO, time, {"initial": 0.2, "grow_time": 0.5, "fade_in": 0.2, "decay": 1.0, "delay": time * 0.12}, FIRE_LOOK)
-		K.put(ground, K.VEIL, K.area_mark(MAGENTA, VIOLET), "ThroneArea", Vector3.UP * 0.07, Vector3.ONE * r, Vector3.ZERO, time, {"initial": 0.2, "grow_time": 0.45, "spin": -0.25, "decay": 0.97})
 		K.put(ground, K.VEIL, mist_mesh(), "ThroneMist", Vector3.UP * 0.09, Vector3.ONE * PIT * 0.9, Vector3.ZERO, time, {"initial": 0.1, "grow_time": 0.45, "fade_in": 0.3, "decay": 1.0, "spin": 0.5, "priority": -1}, {"noise_amt": 1.0, "noise_scale": Vector2(5.0, 1.6), "flow": Vector2(0.25, -0.5), "bias": -0.5, "taper": 0.0, "tint": Color(0.6, 0.5, 0.9), "opacity": 0.7})
 		ground._draw()
 	if GodSkillArt.extra_roots(1) < 1:
 		return true
-	var sky := K.root(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
+	var sky := _root(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
 	if sky:
 		_court(sky, time, 0.0, true)
 		sky._draw()
@@ -64,7 +81,8 @@ static func _spot(index: int) -> Vector3:
 
 
 static func wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: int, point: Vector3, source: Vector3) -> bool:
-	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
+	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0) / _fit
+	art.scale = Vector3.ONE * _fit
 	_stage(parent, r, point, source, index)
 	var spot := _spot(index)
 	var yaw := atan2(spot.x, spot.z)
@@ -94,20 +112,21 @@ static func _stage(parent: Node3D, r: float, point: Vector3, source: Vector3, in
 		return
 	var beat := float(StarSkillData.GOD_BEATS[4]) - float(StarSkillData.GOD_BEATS[index])
 	var stay := beat + 1.9
-	var art := K.root(parent, point, stay, "StarGodSet_" + ID, source)
+	var art := _root(parent, point, stay, "StarGodSet_" + ID, source)
 	if not art:
 		return
 	K.put(art, K.SOLID, throne_mesh(), "GodThrone", THRONE, Vector3.ONE * THRONE_SIZE, Vector3.ZERO, stay, {"fade_in": 0.001, "decay": 0.88, "cull": 16.0}, STONE_LOOK)
+	K.put(art, K.VEIL, K.area_mark(MAGENTA, VIOLET), "ThroneArea", Vector3.UP * 0.07, Vector3.ONE * r, Vector3.ZERO, stay, {"spin": -0.25, "decay": 0.8, "fade_in": 0.001})
 	K.put(art, K.VEIL, abyss_mesh(), "ThroneAbyss", Vector3.UP * 0.05, Vector3.ONE * PIT, Vector3.ZERO, stay, {"fade_in": 0.001, "decay": 0.8, "priority": -2})
 	K.put(art, K.VEIL, pit_fire(), "ThroneFire", Vector3.UP * 0.05, Vector3.ONE, Vector3.ZERO, stay, {"fade_in": 0.001, "decay": 0.8}, FIRE_LOOK)
-	K.put(art, K.VEIL, K.area_mark(MAGENTA, VIOLET), "ThroneArea", Vector3.UP * 0.07, Vector3.ONE * r, Vector3.ZERO, stay, {"spin": -0.25, "decay": 0.8, "fade_in": 0.001})
 	if MemoryGuard.pressure == 0 and index < 4:
 		K.put(art, K.SOLID, raven_mesh(), "ThroneRavens", RAVENS, Vector3(5.2, 5.2, 5.2), Vector3(0, 1.8, 0), beat + 0.25, {"spin": 1.7, "fade_in": 0.001, "decay": 0.97, "cull": 4.0}, STONE_LOOK.merged({"flap": 0.085, "flap_rate": 13.0}))
 	art._draw()
 
 
 static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: Vector3, source: Vector3) -> bool:
-	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
+	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0) / _fit
+	art.scale = Vector3.ONE * _fit
 	var land := 0.24
 	_stage(parent, r, point, source, 4)
 	# The crown of black iron falls and slams down; the abyss erupts through it.
@@ -121,7 +140,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	if extras < 1:
 		return true
 	# The ravens scatter; dark fire rings the field.
-	var avatar := K.root(parent, point, 2.0, "StarGodAvatar_" + ID, source)
+	var avatar := _root(parent, point, 2.0, "StarGodAvatar_" + ID, source)
 	if avatar:
 		K.put(avatar, K.SOLID, raven_mesh(), "ThroneRavensScatter", RAVENS, Vector3(5.2, 5.2, 5.2), Vector3(0, 1.8 + 1.7 * 1.75, 0), 1.6, {"fade_in": 0.001, "decay": 0.8, "delay": land, "cull": 30.0}, STONE_LOOK.merged({"flap": 0.1, "flap_rate": 20.0, "burst": 1.0, "gravity": -0.6, "drag": 0.5, "life": 1.7}))
 		K.put(avatar, K.VEIL, fire_ring(), "ThroneFireRing", Vector3.UP * 0.05, Vector3(r * 0.105, 1.0, r * 0.105), Vector3.ZERO, 1.3, {"initial": 0.5, "grow_time": 0.2, "fade_in": 0.05, "decay": 0.5, "delay": land + 0.08}, FIRE_LOOK)
@@ -129,7 +148,7 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 		avatar._draw()
 	if extras < 2:
 		return true
-	var temple := K.root(parent, point, 2.0, "StarGodTemple_" + ID, source)
+	var temple := _root(parent, point, 2.0, "StarGodTemple_" + ID, source)
 	if temple:
 		var chains := {"slide": Vector3(0, -7.5, 0), "slide_time": 0.2, "slide_ease": -2.0}
 		K.put(temple, K.SOLID, chain_mesh(), "ThroneChainsFront", Vector3.ZERO, Vector3.ONE * 1.25, Vector3(0, PI, 0), 1.3, {"turn": Vector3(0, 0.4, 0), "fade_in": 0.01, "decay": 0.7, "delay": land, "cull": 12.0}, STONE_LOOK.merged(chains))

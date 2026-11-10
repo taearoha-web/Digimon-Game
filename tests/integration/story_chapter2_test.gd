@@ -393,6 +393,9 @@ func _mid_boss() -> void:
 	var center: Vector3 = moves.telegraph.shapes[0].center
 	check(moves.inside(center + dir * 6.0) and not moves.inside(center + dir * 6.0 + dir.rotated(Vector3.UP, PI * 0.5) * 5.0), "the lance covers its line only")
 	hero.global_position = center + dir * 6.0 + Vector3(0, 0.2, 0)
+	# The lance is what is tested: no leftover grace and no lucky dodge roll (Hero.take_damage).
+	hero._invulnerable_until = 0
+	hero.stats.dodge = 0.0
 	moves.tick(StoryBoss.TELEGRAPH + 0.1)
 	check(moves.specials == 2 and int(Game.profile.hp) < hp, "standing in the lance hurts")
 	_heal()

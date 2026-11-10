@@ -47,6 +47,10 @@ func _ready() -> void:
 		MemoryGuard.pressure = int(mode[2])
 		var total := 0
 		for skill in skills:
+			# A god skill with its own signature art (GodSkillArt.owns) draws every beat itself.
+			if GodSkillArt.owns(skill):
+				check(await _cast(skill) == 0, "%s: the class layers stay out of its own god art" % skill.id)
+				continue
 			var snapshot: Dictionary = skill.duplicate(true)
 			var layers := await _cast(skill)
 			total += layers

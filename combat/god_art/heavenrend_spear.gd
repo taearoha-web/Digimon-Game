@@ -18,6 +18,8 @@ const RINGS := [0.3, 0.5, 0.72, 0.94]
 const COUNTS := [6, 9, 12, 15]
 ## The god-spear's length: the dragon's head stays at eye level for the third-person camera.
 const GIANT := 9.5
+## How far beyond the caster (as the camera sees it) the god-spear lands.
+const BEYOND := 4.0
 static var _cache := {}
 
 
@@ -248,10 +250,15 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 		return true
 	var sky := K.extra(parent, Vector3(point.x, 0, point.z), time, "StarGodSky_" + ID, origin, art)
 	if sky:
-		var spot := K.beyond(sky, 5.0)
-		K.put(sky, K.FLAT, _rift(), "SpearRift", spot + Vector3.UP * 8.6, Vector3.ONE * 5.5, time + 0.4, {"soft": 0.6, "hot": Color(1, 0.9, 0.5, 1.0), "core": 0.55, "flick": 0.15, "add": 0.5}, {"initial": 0.08, "grow_time": 0.85, "fade_in": 0.1, "decay": 0.9}, Vector3(0.25, 0, 0))
-		K.put(sky, K.SOLID, _giant(), "SpearOmenPoint", spot + Vector3.UP * 7.6, Vector3(GIANT * 2.1, GIANT, GIANT * 2.1), time, {"rim_color": ORANGE, "rim": 0.6, "glow_color": EMBER}, {"fade_in": 0.5, "travel": Vector3.DOWN * 1.8, "decay": 0.97, "spin": 2.0, "delay": time * 0.35})
-		K.put(sky, K.BITS, K.burst("spear_cinders", "ember", 50, 0.2, 3.0, 0.8, -2.5, [EMBER, ORANGE, RED], 0.2, 1.0, 14, 7.0, 8.4), "SpearCinders", spot, Vector3.ONE, time + 0.3, {"life": 1.6, "gravity": 3.0, "drag": 0.6, "piece": 0.2, "sway": 0.3, "add": 0.7, "shrink": 0.4}, {"delay": time * 0.3, "decay": 0.9})
+		var spot := K.beyond(sky, BEYOND)
+		# The wound hangs as high as the camera shows over that spot.
+		var top := K.sky(sky, spot, 7.4) + 1.2
+		# The wound opens beyond the field and tips its face to the camera: seen from high
+		# up, anything hung over the fight would only hide it.
+		var far := K.beyond(sky, BEYOND + 5.5)
+		K.put(sky, K.FLAT, _rift(), "SpearRift", far + Vector3.UP * maxf(1.6, K.sky(sky, far, 8.6) - 1.2), Vector3.ONE * 3.6, time + 0.4, {"soft": 0.6, "hot": Color(1, 0.9, 0.5, 1.0), "core": 0.55, "flick": 0.15, "add": 0.5}, {"initial": 0.08, "grow_time": 0.85, "fade_in": 0.1, "decay": 0.9}, K.tipped(sky, 1.0))
+		K.put(sky, K.SOLID, _giant(), "SpearOmenPoint", spot + Vector3.UP * (top - 1.0), Vector3(GIANT * 2.1, GIANT, GIANT * 2.1), time, {"rim_color": ORANGE, "rim": 0.6, "glow_color": EMBER}, {"fade_in": 0.5, "travel": Vector3.DOWN * 1.8, "decay": 0.97, "spin": 2.0, "delay": time * 0.35})
+		K.put(sky, K.BITS, K.burst("spear_cinders", "ember", 50, 0.2, 3.0, 0.8, -2.5, [EMBER, ORANGE, RED], 0.2, 1.0, 14, 7.0, 8.4), "SpearCinders", spot + Vector3.UP * (top - 8.6), Vector3.ONE, time + 0.3, {"life": 1.6, "gravity": 3.0, "drag": 0.6, "piece": 0.2, "sway": 0.3, "add": 0.7, "shrink": 0.4}, {"delay": time * 0.3, "decay": 0.9})
 		sky._draw()
 	return true
 
@@ -260,7 +267,8 @@ static func wave(art: StarSkillArt, _parent: Node3D, skill: Dictionary, index: i
 	var r := K.radius(skill)
 	var meshes := _ring_meshes(index, r)
 	# The rings stand until the god-spear has struck.
-	var stay := (1.5 - 0.32 * float(index)) + 1.3
+	# (the inner rings go down with the crater, the outer ones stand as its crown)
+	var stay := (1.5 - 0.32 * float(index)) + (0.35 if index < 2 else 1.3)
 	K.put(art, K.SOLID, meshes[0], "SpearRing", Vector3.ZERO, Vector3.ONE, stay, {"drop": -5.5, "flight": 0.15, "ease": 1.0, "heat": 0.8, "rim_color": ORANGE, "rim": 0.55, "glow_color": Color("ffb040")}, {"decay": 0.85})
 	K.put(art, K.FLAT, meshes[1], "SpearRingLava", Vector3.ZERO, Vector3.ONE, stay, {"flash": 0.35, "sweep": 0.18, "soft": 0.45, "hot": Color(1, 0.62, 0.14, 1.0), "core": 0.28, "flick": 0.12, "add": 0.6}, {"decay": 0.6})
 	K.put(art, K.BITS, meshes[2], "SpearRingRubble", Vector3.ZERO, Vector3.ONE, 1.6, {"life": 1.25, "gravity": 18.0, "piece": 0.36, "floor_y": 0.06, "shrink": 0.75, "hot": Color(1.0, 0.45, 0.1, 0.6)}, {"decay": 0.9})
@@ -271,14 +279,20 @@ static func wave(art: StarSkillArt, _parent: Node3D, skill: Dictionary, index: i
 static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: Vector3, source: Vector3) -> bool:
 	var r := K.radius(skill)
 	var flight := 0.22
-	var spot := K.beyond(art, 5.0)
-	var size := Vector3(GIANT * 2.1, GIANT, GIANT * 2.1)
-	var lean := Vector3(0.1, 0.4, -0.07)
+	var spot := K.beyond(art, BEYOND)
+	# It leans across the screen as far as it must for the dragon's head and the blade's
+	# root to stay in the camera's frame, and is no longer than the frame allows.
+	var pose := K.framed(art, spot, GIANT * 1.05, 0.85)
+	var giant := GIANT * float(pose[0])
+	var tilt := float(pose[1]) + 0.08
+	var size := Vector3(giant * 2.3, giant, giant * 2.3)
+	var lean := K.leaned(art, K.facing(art) + 0.4, tilt, 1.0)
+	var tall := giant * 0.94 * cos(tilt)
 	# The god-spear: out of the torn sky, point first, to the hilt of its blade in the ground.
-	K.put(art, K.SOLID, _giant(), "SpearGod", spot + Vector3.DOWN * GIANT * 0.06, size, 2.4, {"drop": 30.0 / GIANT, "flight": flight, "heat": 0.9, "rim_color": ORANGE, "rim": 0.6, "glow_color": Color("ffb040")}, {"decay": 0.82}, lean)
+	K.put(art, K.SOLID, _giant(), "SpearGod", spot + Vector3.DOWN * giant * 0.06, size, 2.4, {"drop": 30.0 / giant, "flight": flight, "heat": 0.9, "rim_color": ORANGE, "rim": 0.6, "glow_color": Color("ffb040")}, {"decay": 0.82}, lean)
 	K.put(art, K.SOLID, _crater(), "SpearCrater", spot, Vector3.ONE, 2.3, {"drop": -1.6, "flight": 0.12, "ease": 1.0, "heat": 0.6, "rim_color": ORANGE, "rim": 0.35, "glow_color": Color("ff7a20")}, {"delay": flight, "decay": 0.85})
 	K.put(art, K.FLAT, _lava(), "SpearLava", spot * 0.5 + Vector3.UP * 0.06, Vector3.ONE * r * 1.05, 2.3, {"sweep": 0.3, "soft": 0.4, "hot": Color(1, 0.62, 0.14, 1.0), "core": 0.25, "flick": 0.1, "add": 0.6, "gain": 1.15}, {"delay": flight, "decay": 0.7})
-	K.put(art, K.FLAT, _drill(), "SpearDrill", spot + Vector3.UP * 0.2, Vector3(GIANT, GIANT * 0.9, GIANT), 1.1, {"drop": 30.0 / GIANT / 0.9, "flight": flight, "soft": 1.0, "flow": 5.0, "hot": Color(1, 0.95, 0.6, 0.9), "core": 0.5, "add": 0.75, "gain": 1.2}, {"spin": -14.0, "decay": 0.45})
+	K.put(art, K.FLAT, _drill(), "SpearDrill", spot + Vector3.UP * 0.2, Vector3(giant, giant * 0.9, giant), 1.1, {"drop": 30.0 / giant / 0.9, "flight": flight, "soft": 1.0, "flow": 5.0, "hot": Color(1, 0.95, 0.6, 0.9), "core": 0.5, "add": 0.75, "gain": 1.2}, {"decay": 0.45}, lean)
 	K.put(art, K.BITS, K.burst("spear_rubble", "rock", 44, 1.0, 3.2, 8.0, 12.0, [ROCK, ROCK.lightened(0.15), ROCK.darkened(0.25)], 0.7, 0.05, 61), "SpearRubble", spot, Vector3.ONE, 2.2, {"life": 1.9, "gravity": 22.0, "piece": 0.7, "floor_y": 0.1, "shrink": 0.8, "spin": 7.0, "hot": Color(1.0, 0.4, 0.08, 0.9)}, {"delay": flight, "decay": 0.9})
 	K.put(art, K.FLAT, K.shock("spear_shock", Color(1.0, 0.45, 0.1, 1.0), 0.22), "SpearShock", spot * 0.5 + Vector3.UP * 0.12, Vector3.ONE * r * 1.25, 0.6, {"soft": 1.2, "hot": Color(1, 0.95, 0.7, 1.0), "core": 0.5, "add": 0.6}, {"delay": flight, "initial": 0.06, "grow_time": 0.75, "fade_in": 0.02, "decay": 0.3})
 	var extras := GodSkillArt.extra_roots(2)
@@ -287,7 +301,8 @@ static func finale(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	# The wound in the sky it came through, raining cinders and scales.
 	var avatar := K.extra(parent, point, 2.2, "StarGodAvatar_" + ID, source)
 	if avatar:
-		K.put(avatar, K.FLAT, _rift(), "SpearRiftOpen", spot + Vector3.UP * 9.0, Vector3.ONE * 7.0, 2.0, {"soft": 0.6, "hot": Color(1, 0.9, 0.5, 1.0), "core": 0.55, "flick": 0.15, "add": 0.5}, {"initial": 0.75, "grow_time": 0.3, "decay": 0.65}, Vector3(0.25, 0, 0))
+		var far := K.beyond(avatar, BEYOND + 5.5)
+		K.put(avatar, K.FLAT, _rift(), "SpearRiftOpen", far + Vector3.UP * maxf(1.6, K.sky(avatar, far, 8.6) - 1.4), Vector3.ONE * 4.4, 2.0, {"soft": 0.6, "hot": Color(1, 0.9, 0.5, 1.0), "core": 0.55, "flick": 0.15, "add": 0.5, "priority": -1}, {"initial": 0.75, "grow_time": 0.3, "decay": 0.65}, K.tipped(avatar, 1.0))
 		K.put(avatar, K.BITS, K.burst("spear_scales", "scale", 60, 0.5, r * 0.8, 3.5, 9.0, [RED, ORANGE, Color("b0120e"), EMBER], 0.42, 0.25, 62, 0.3, 2.0), "SpearScales", spot * 0.5, Vector3.ONE, 2.2, {"life": 2.0, "gravity": 9.0, "drag": 0.7, "piece": 0.42, "sway": 0.3, "spin": 9.0, "floor_y": 0.08, "shrink": 0.85}, {"delay": flight, "decay": 0.85})
 		K.put(avatar, K.BITS, K.burst("spear_embers", "ember", 80, 0.3, r * 0.8, 1.5, 5.5, [EMBER, ORANGE, Color("ffe9a0")], 0.2, 0.5, 63, 0.1, 1.5), "SpearEmbers", spot * 0.5, Vector3.ONE, 2.3, {"life": 1.9, "gravity": -1.5, "drag": 1.3, "piece": 0.2, "sway": 0.3, "add": 0.7, "shrink": 0.3}, {"delay": flight + 0.05, "decay": 0.8})
 		avatar._draw()

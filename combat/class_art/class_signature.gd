@@ -40,7 +40,7 @@ static func _ctx(skill: Dictionary, origin: Vector3, center: Vector3, delay := 0
 ## Wind-up, bound to the caster's skill generation (a cancel drops it).
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: Vector3, duration: float, visual: HeroVisual = null) -> void:
 	var f := family(skill)
-	if f == "" or duration < 0.1:
+	if f == "" or GodSkillArt.owns(skill) or duration < 0.1:
 		return
 	var kit := SignatureKit.begin(parent, origin, aim, "Signature_Windup_" + String(skill.get("id", "")), visual)
 	if kit == null:
@@ -74,7 +74,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 ## Rides one projectile from -> to over its flight seconds.
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> void:
 	var f := family(skill)
-	if f == "" or from.distance_squared_to(to) < 0.04:
+	if f == "" or GodSkillArt.owns(skill) or from.distance_squared_to(to) < 0.04:
 		return
 	var kit := SignatureKit.begin(parent, from, to, "Signature_Flight_" + String(skill.get("id", "")))
 	if kit == null:
@@ -117,7 +117,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 ## One contact beat of a star skill (index 0 is the first; the god skills' last beat is the finale).
 static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: int, source: Vector3) -> void:
 	var f := family(skill)
-	if f == "":
+	if f == "" or GodSkillArt.owns(skill):
 		return
 	var ground := Vector3(point.x, source.y if absf(point.y - source.y) < 3.0 else point.y, point.z)
 	var kit := SignatureKit.begin(parent, ground, ground + (ground - source), "Signature_Star_%s_%d" % [String(skill.get("id", "")), index])

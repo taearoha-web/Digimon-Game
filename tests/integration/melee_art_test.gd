@@ -65,6 +65,10 @@ func _ready() -> void:
 		var parts := 0
 		for skill in skills:
 			check(MeleeArt.handles(skill) or MeleeArt.handles_star(skill), "covered: " + String(skill.id))
+			# A god skill with its own signature art (GodSkillArt.owns) draws every beat itself.
+			if GodSkillArt.owns(skill):
+				check(int(_cast(field, skill)[0]) == 0, "%s: the class layers stay out of its own god art" % skill.id)
+				continue
 			var snapshot: Dictionary = skill.duplicate(true)
 			var made := _cast(field, skill)
 			if setting[0] == "high":
