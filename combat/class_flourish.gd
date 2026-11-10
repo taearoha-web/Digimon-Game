@@ -415,7 +415,8 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 				_star_ascend(parent, c, at, s, family, apex)
 				_legend_arrival(parent, skill, at, s)
 			return
-	if apex and index == 0:
+	# (A god skill with its own signature art, combat/god_art, has its own sky: no generic apex.)
+	if apex and index == 0 and GodSkillArt.signature(String(skill.id)) == null:
 		_apex(parent, c, ground, radius, family)
 	# A god's five beats each land under the shared layer stack's white-hot core
 	# (SkillLayers.star_beat): their own flash, star and column stay tinted and smaller.
