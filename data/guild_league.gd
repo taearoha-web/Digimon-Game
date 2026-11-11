@@ -1294,6 +1294,9 @@ static func hero_place(at: int) -> int:
 
 ## The hero ranks among its guild's GuildWarData.GUILD_SIDE strongest for round `at`.
 static func hero_makes_side(at: int) -> bool:
+	# The guild's leader always fights for it, whatever its place.
+	if Game.hero_leads_guild(Game.guild(), float(at)):
+		return true
 	var place := hero_place(at)
 	return place > 0 and place <= GuildWarData.GUILD_SIDE
 
