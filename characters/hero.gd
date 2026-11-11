@@ -1311,7 +1311,7 @@ func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				if skill.has("pierce"):
 					var spec: Dictionary = skill.pierce
 					var tip := mob.global_position + Vector3(0, 1.0, 0)
-					VfxKit.arrow(field, color, origin, tip + (tip - origin).normalized() * float(spec.get("len", 6.0)) * 0.6, 0.28)
+					if not GodSkillArt.owns(skill): VfxKit.arrow(field, color, origin, tip + (tip - origin).normalized() * float(spec.get("len", 6.0)) * 0.6, 0.28)
 					for extra in Pierce.victims(get_tree(), global_position, mob.global_position, spec, mob):
 						_deal(extra, mult * float(spec.get("k", 0.7)), color, skill.vfx, true, skill)
 		"fan":
