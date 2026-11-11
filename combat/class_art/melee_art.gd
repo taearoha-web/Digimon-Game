@@ -107,7 +107,7 @@ static func _yaw(from: Vector3, to: Vector3) -> float:
 
 ## Wind-up, bound to the caster's skill generation (a cancel drops it).
 static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: Vector3, duration: float, visual: HeroVisual = null) -> void:
-	if not handles(skill) or skill.has("star") or duration < 0.1 or not _alive(parent):
+	if not handles(skill) or skill.has("star") or GodSkillArt.owns(skill) or duration < 0.1 or not _alive(parent):
 		return
 	var rig := acquire(parent, origin, _yaw(origin, aim), duration + 0.12)
 	if rig == null:
@@ -125,7 +125,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 
 ## Release, at the same beat as the damage (delay: an area's landing wait).
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, delay := 0.0) -> void:
-	if not handles(skill) or skill.has("star") or not _alive(parent):
+	if not handles(skill) or skill.has("star") or GodSkillArt.owns(skill) or not _alive(parent):
 		return
 	var shape := String(skill.get("shape", "single"))
 	var at := center if shape == "blast" else origin
