@@ -2,6 +2,7 @@
 // Cloudflare REST API (bound parameters, so a full save never hits the SQL statement size limit).
 //   node boost-character.mjs fetch <username> <dir>      writes <dir>/bundle.json and <dir>/meta.json
 //   node boost-character.mjs apply <dir> <boosted.json>   (boosted.json = {slot, profile, created} from tools/boost_character.tscn)
+//   node boost-character.mjs apply-slots <dir> <slots.json>  (slots.json = {slots} from tools/guild_setup.tscn: existing slots replaced)
 //   node boost-character.mjs wipe <dir>                   every character of the fetched save removed (a fresh start)
 // apply checks the save with the same rules as the game server, keeps a snapshot of the save it
 // replaces, and only writes if nobody saved in between (compare-and-swap on the revision).
@@ -43,11 +44,16 @@ if (command === 'fetch') {
   writeFileSync(`${b}/meta.json`, JSON.stringify({userId: user.id, revision: save.revision, updatedAt: save.updated_at}));
   const slots = JSON.parse(save.bundle).slots ?? {};
   console.log(`Online save revision ${save.revision}: ` + Object.entries(slots).map(([slot, p]) => `slot ${slot} ${p.name} (${p.class} Lv.${p.level})`).join(', '));
-} else if (command === 'apply' || command === 'wipe') {
+} else if (command === 'apply' || command === 'apply-slots' || command === 'wipe') {
   const meta = JSON.parse(readFileSync(`${a}/meta.json`, 'utf8'));
   const next = JSON.parse(readFileSync(`${a}/bundle.json`, 'utf8'));
-  const boosted = command === 'apply' ? JSON.parse(readFileSync(b, 'utf8')) : {};
-  if (command === 'wipe') {
+  const boosted = command !== 'wipe' ? JSON.parse(readFileSync(b, 'utf8')) : {};
+  if (command === 'apply-slots') {
+    for (const [slot, profile] of Object.entries(boosted.slots ?? {})) {
+      if (!next.slots?.[slot]) throw new Error(`Slot ${slot} is not in the fetched save`);
+      next.slots[slot] = profile;
+    }
+  } else if (command === 'wipe') {
     // A fresh start: no character left, slot 1 selected (the old save stays as a snapshot).
     next.slots = {};
     next.selectedSlot = 1;
@@ -73,5 +79,5 @@ if (command === 'fetch') {
     (SELECT revision FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT 5)`, [meta.userId, meta.userId]);
   console.log(`Saved revision ${rows[0].revision} (was ${meta.revision})${command === 'wipe' ? ', every character removed' : boosted.created ? `, new character in slot ${boosted.slot}` : ''}. The previous save is kept as a snapshot.`);
 } else {
-  throw new Error('usage: fetch <username> <dir> | apply <dir> <boosted.json> | wipe <dir>');
+  throw new Error('usage: fetch <username> <dir> | apply <dir> <boosted.json> | apply-slots <dir> <slots.json> | wipe <dir>');
 }
