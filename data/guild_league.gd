@@ -1226,7 +1226,8 @@ static func tick(t := -1.0) -> bool:
 
 # --- Guild points for the rounds fought without the player -----------------------------
 
-## Guild points a character earns for a league round its guild fought while the player
+## Guild points (and league coins, RewardShop.place_coins) a character earns for a league
+## round its guild fought while the player
 ## was not playing it (its AI self fought in the line-up), by the guild's place in the
 ## round (1st..4th): about a day of guild quests over a day's three rounds.
 const IDLE_POINTS: Array[int] = [15, 10, 7, 5]
@@ -1259,6 +1260,7 @@ static func credit_idle_rounds(t := -1.0) -> int:
 	if g <= 0 or int(Game.profile.level) < Game.GUILD_LEVEL:
 		return 0
 	var points := 0
+	var coins := 0
 	var rounds := 0
 	var at := next_slot(float(since))
 	var guard := 0
@@ -1272,11 +1274,13 @@ static func credit_idle_rounds(t := -1.0) -> int:
 				var place := placement(e).find(g)
 				if place >= 0:
 					points += IDLE_POINTS[mini(place, IDLE_POINTS.size() - 1)]
+					coins += RewardShop.place_coins(e, g)
 					rounds += 1
 		at = next_slot(float(at))
 	if points > 0:
 		flags[GuildQuestData.POINTS_FLAG] = int(flags.get(GuildQuestData.POINTS_FLAG, 0)) + points
-		Game.say("ตัวละครนี้ลงสงครามกิลด์ %d รอบระหว่างที่คุณไม่ได้เล่น: +%d แต้มกิลด์" % [rounds, points], &"success")
+		RewardShop.add_coins(coins)
+		Game.say("ตัวละครนี้ลงสงครามกิลด์ %d รอบระหว่างที่คุณไม่ได้เล่น: +%d แต้มกิลด์ · +%d %s" % [rounds, points, coins, RewardShop.COIN_NAME], &"success")
 	return points
 
 

@@ -56,7 +56,9 @@ func _idle_points(w: int) -> void:
 	pin(float(GuildLeague.slot_start(day, 2)) + GuildWarData.DURATION + 60.0)
 	var got := GuildLeague.credit_idle_rounds()
 	check(got >= 3 * GuildLeague.IDLE_POINTS[-1] and got <= 3 * GuildLeague.IDLE_POINTS[0] and Game.guild_points() == got, "three rounds without the player pay guild points (%d)" % got)
-	check(GuildLeague.credit_idle_rounds() == 0 and Game.guild_points() == got, "each round is paid once")
+	check(RewardShop.coins() >= 3 * RewardShop.PLACE_COINS[-1], "and league coins for the costumes (%d)" % RewardShop.coins())
+	var coins_once := RewardShop.coins()
+	check(GuildLeague.credit_idle_rounds() == 0 and Game.guild_points() == got and RewardShop.coins() == coins_once, "each round is paid once")
 	# The next day's first round: one more, paid once.
 	pin(float(GuildLeague.slot_start(day + 1, 0)) + GuildWarData.DURATION + 60.0)
 	var more := GuildLeague.credit_idle_rounds()
