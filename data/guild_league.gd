@@ -1271,7 +1271,16 @@ static func unregister(t := -1.0) -> String:
 ## The hero registered for the round starting `at`.
 static func registered(at: int) -> bool:
 	var d := data()
-	return not d.is_empty() and int(d.get("reg", -1)) == at
+	if d.is_empty():
+		return false
+	var reg := int(d.get("reg", -1))
+	if reg == at:
+		return true
+	# Registered before the day's last round moved from 21:30 to 20:30: that sign-up is for
+	# the same round.
+	var day := WorldEvents.day_of(float(at))
+	return day >= EARLY_FINAL_DAY and at == slot_start(day, SLOTS.size() - 1) \
+		and reg == day * DAY - WorldPlayers.TZ + OLD_LAST_SLOT
 
 
 ## The hero's place in its guild for the round starting `at` (1 = strongest, by the same
