@@ -1112,7 +1112,7 @@ func stand_in_lines() -> Array[String]:
 		var team := maxi(0, team_guilds.find(int(g)))
 		var lead := leader_of(team)
 		var who := "คุณ" if lead == hero else (String((lead as GuildFighter).member.get("name", "")) if lead is GuildFighter else "ไม่มีใคร")
-		out.append("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม (อ่านเซฟตัวละครนี้ไม่ได้) — %s นำทัพ %s แทน" % [String(stand_ins[g]), who, WorldPlayers.guild_name(int(g))])
+		out.append("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม (ตัวละครของคุณ ลงสนามไม่ได้) — %s นำทัพ %s แทน" % [String(stand_ins[g]), who, WorldPlayers.guild_name(int(g))])
 	return out
 
 
