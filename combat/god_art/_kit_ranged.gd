@@ -416,6 +416,14 @@ static func _build(kind: String) -> Mesh:
 		"orbit0": return _orbit(0)
 		"orbit1": return _orbit(1)
 		"orbit2": return _orbit(2)
+		# Neutral (white) pieces of the star signatures (combat/star_art), painted by tint / ember.
+		"light_arrow": return _light_arrow(true)
+		"light_arrow_bare": return _light_arrow(false)
+		"crescent": return _crescent()
+		"reticle": return _reticle()
+		"link": return _link()
+		"helix": return _helix()
+		"beam": return _beam()
 	return null
 
 
@@ -811,3 +819,123 @@ static func _orbit(variant: int) -> Mesh:
 				belt_r.append(0.03)
 			b.tube(belt, belt_r, 3, Color("fff2c0"), Color("fff2c0"))
 	return b.commit()
+
+
+# ---------------------------------------------------------------------------
+# Neutral pieces of the star signatures (combat/star_art): white bodies that the
+# shader paints (god_solid tint / ember, god_glow colours), so one mesh serves every skill.
+# ---------------------------------------------------------------------------
+## An arrow of light: the point at the origin, the shaft back along +Y, three vanes and a
+## tail that thins out behind it (alpha), like the sun arrow but white for any tint
+## (without the tail: an arrow left planted in the ground).
+static func _light_arrow(tail: bool) -> Mesh:
+	var b := Build.new()
+	var x := Vector3(1, 0, 0)
+	var z := Vector3(0, 0, 1)
+	var pale := Color(1, 1, 1, 0.75)
+	b.emit = 1.0
+	b.cone(Vector3(0, 0.55, 0), Vector3.ZERO, 0.15, 4, Color.WHITE, pale)
+	b.emit = 0.85
+	b.cone(Vector3(0, 0.48, 0), Vector3(0, 0.7, 0), 0.1, 4, Color.WHITE, Color.WHITE)
+	b.emit = 0.55
+	b.tube([Vector3(0, 0.5, 0), Vector3(0, 1.85, 0)], [0.045, 0.04], 5, Color(0.95, 0.95, 0.97), Color(0.82, 0.82, 0.88))
+	b.emit = 0.8
+	for k in 3:
+		var a := TAU * float(k) / 3.0
+		var out := Vector3(cos(a), 0, sin(a))
+		b.quad(Vector3(0, 1.25, 0), out * 0.21 + Vector3(0, 1.45, 0), out * 0.25 + Vector3(0, 1.9, 0), Vector3(0, 1.78, 0), Color.WHITE, Color(0.85, 0.85, 0.9))
+	if not tail:
+		return b.commit()
+	b.loft([
+		[Vector3(0, 0.15, 0), x * 0.05, z * 0.05, pale, 1.0, 0.9],
+		[Vector3(0, 0.6, 0), x * 0.16, z * 0.16, Color.WHITE, 1.0, 0.75],
+		[Vector3(0, 2.4, 0), x * 0.12, z * 0.12, Color.WHITE, 1.0, 0.45],
+		[Vector3(0, 6.0, 0), x * 0.01, z * 0.01, Color.WHITE, 1.0, 0.0]], 5)
+	return b.commit()
+
+
+## A crescent moon in the XY plane (it faces +Z), its horns opening towards +X; radius 1.
+static func _crescent() -> Mesh:
+	var b := Build.new()
+	var path := []
+	var radii := []
+	for i in 29:
+		var t := float(i) / 28.0
+		var a := lerpf(0.62, TAU - 0.62, t)
+		path.append(Vector3(cos(a), sin(a), 0) * (1.0 - 0.12 * sin(t * PI)))
+		radii.append(0.012 + 0.27 * pow(sin(t * PI), 1.3))
+	b.emit = 0.9
+	b.tube(path, radii, 10, Color.WHITE, Color.WHITE)
+	return b.commit()
+
+
+## A hunter's reticle in the XY plane: two rings, four ticks pointing in, a centre point.
+static func _reticle() -> Mesh:
+	var b := Build.new()
+	b.emit = 1.0
+	for ring in [[1.0, 0.03, 0.0, 1.0], [0.6, 0.022, 0.785, 0.7]]:
+		var r := float(ring[0])
+		for arc in 4:
+			var path := []
+			var radii := []
+			var a0 := float(ring[2]) + TAU * float(arc) / 4.0 + 0.12
+			var span := TAU / 4.0 * float(ring[3]) - 0.24
+			for i in 9:
+				var a := a0 + span * float(i) / 8.0
+				path.append(Vector3(cos(a), sin(a), 0) * r)
+				radii.append(float(ring[1]))
+			b.tube(path, radii, 4, Color.WHITE, Color.WHITE)
+	for k in 4:
+		var a := TAU * float(k) / 4.0
+		var out := Vector3(cos(a), sin(a), 0)
+		b.cone(out * 1.32, out * 0.72, 0.06, 4, Color.WHITE, Color.WHITE)
+	b.ball(Vector3.ZERO, Vector3.ONE * 0.07, Color.WHITE, Color.WHITE, 6, 4)
+	return b.commit()
+
+
+## One link of a chain of light, 0.5 m long along +Y (origin at its centre).
+static func _link() -> Mesh:
+	var b := Build.new()
+	var path := []
+	var radii := []
+	for i in 21:
+		var a := TAU * float(i) / 20.0
+		path.append(Vector3(cos(a) * 0.13, sin(a) * 0.25, 0))
+		radii.append(0.055)
+	b.emit = 0.7
+	b.tube(path, radii, 5, Color.WHITE, Color.WHITE)
+	return b.commit()
+
+
+## Three ribbons of wind winding up round +Y (god_glow mode 16): 2.6 m tall, widening
+## from 0.5 to 1.15 m; UV.x across each ribbon, UV.y 1 at its foot.
+static func _helix() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 30
+	for k in 3:
+		var phase := TAU * float(k) / 3.0
+		for i in n:
+			var corners := [[i, 0.0], [i, 1.0], [i + 1, 1.0], [i, 0.0], [i + 1, 1.0], [i + 1, 0.0]]
+			for c in corners:
+				var t := float(c[0]) / float(n)
+				var a := phase + t * TAU * 1.15
+				var r := lerpf(0.5, 1.15, t)
+				var y := t * 2.6 + (float(c[1]) - 0.5) * lerpf(0.22, 0.42, t)
+				st.set_normal(Vector3(cos(a), 0, sin(a)))
+				st.set_uv(Vector2(float(c[1]), 1.0 - t))
+				st.add_vertex(Vector3(cos(a) * r, y, sin(a) * r))
+	return st.commit()
+
+
+## A beam of light along +Y from the origin, 1 m long and 1 m wide: two crossed strips
+## (god_glow mode 16 draws it out from the origin; UV.y 1 at the origin).
+static func _beam() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for side in [Vector3(0.5, 0, 0), Vector3(0, 0, 0.5)]:
+		for c in [[-1.0, 0.0], [1.0, 0.0], [1.0, 1.0], [-1.0, 0.0], [1.0, 1.0], [-1.0, 1.0]]:
+			st.set_normal(Vector3.BACK)
+			st.set_uv(Vector2(float(c[0]) * 0.5 + 0.5, 1.0 - float(c[1])))
+			st.add_vertex(side * float(c[0]) + Vector3(0, float(c[1]), 0))
+	return st.commit()
