@@ -708,11 +708,16 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-lobby
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_lobby_test.tscn
-      - name: reward_shop_test (the reward exchange - league coins once a round the hero fought and once a week's placement bonus, event points from the world boss once a day and from kills in the event hours up to the daily cap, the catalogue's prices and both currencies, weekly stone limits, unlocks and the wardrobe through the save code, a costume dyes the hero visual and adds its accessory, the walk trail obeys VfxBudget and the quality / memory pressure, name colours on the hero and a remote player's look, the world players' cosmetics by league standing, the page, the keeper and accounts.js accepting the profile)
+      - name: reward_shop_test (the reward exchange - league coins once a round the hero fought and once a week's placement bonus, event points from the world boss once a day and from kills in the event hours up to the daily cap, the catalogue's prices and both currencies, weekly stone limits, unlocks and the wardrobe through the save code, a costume dyes the hero visual and adds its pieces, the walk trail obeys VfxBudget and the quality / memory pressure, name colours on the hero and a remote player's look, the world players' cosmetics by league standing, the page, the keeper and accounts.js accepting the profile)
         timeout-minutes: 12
         env:
           XDG_DATA_HOME: /tmp/toon-ci-reward-shop
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/reward_shop_test.tscn
+      - name: costume_look_test (the reward-shop costumes - every costume builds its own pieces on the bones it names, the kitsune has nine tails, gear wings shorten the back, the motes follow the quality, the memory pressure and the crowd dressing while the silhouettes stay, nothing casts a shadow, taking a costume off or freeing the body leaves no node behind)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-costume-look
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/costume_look_test.tscn
       - name: hero_vfx_priority_test (the hero's own skill effects always show - a hunting field full of AI world players keeps the shared effect budget full at iPhone settings, quality 0 / 1, memory pressure 1 / 2, warm; every skill on the hero's bar still draws its effects from the hero's own room, which nobody else spends; every reservation comes back after a zone change)
         timeout-minutes: 12
         env:
