@@ -676,6 +676,9 @@ func _spawn_lineups(lead_at: Array[int], tree: SceneTree) -> Array:
 					continue
 				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE * team + p
 				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size(), inside), team_names[team], pid)
+				# The holder starts inside but comes back from a fall at its camp outside.
+				if inside:
+					fighter.spawn_point = spawn_slot(team, slot, lineup.size(), false)
 				side(team).append(fighter)
 				if int(i) == lead_at[team]:
 					out[team] = fighter
@@ -1595,7 +1598,8 @@ func _respawn_hero() -> void:
 	Game.profile.hp = stats.max_hp
 	Game.profile.mp = stats.max_mp
 	hero.revive()
-	hero.global_position = hero_camp_now()
+	# Back at our camp outside the castle, even while our guild holds it.
+	hero.global_position = SiegeArena.camp(GuildFighter.TEAM_ALLY) + Vector3(0, 0.3, 0)
 	BurstGuard.forget(hero.get_instance_id())
 	VfxKit.flash(zone, hero.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.8)
 	hero_back.emit()
@@ -2631,12 +2635,12 @@ func _send_home(team: int, in_castle := false) -> void:
 		feed.emit("กิลด์ %s ถูกส่งกลับฐาน ต้องบุกขึ้นมายึดแท่นใหม่ %d วินาที" % [team_name(team), int(CAPTURE_TIME)], team)
 
 
-## Team t's fighters come back at its home now (the keep while it holds the castle).
+## Team t's fighters come back from a fall at their camp outside the castle, even the
+## castle's holder (it started inside, but has to walk back in).
 func _rehome(t: int) -> void:
 	var list := side(t)
-	var inside := t == castle_owner and holds_keep()
 	for i in list.size():
-		list[i].spawn_point = spawn_slot(t, i, list.size(), inside)
+		list[i].spawn_point = spawn_slot(t, i, list.size(), false)
 
 
 ## The top bar's line: who holds the castle.
