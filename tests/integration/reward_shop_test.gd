@@ -4,8 +4,9 @@ extends Node
 ## placement bonus; event points from the world boss once a day and from kills in the
 ## event hours up to the daily cap; the catalogue's prices in both currencies and the
 ## weekly stone limits; unlocks and the wardrobe through the save code, the save
-## validator and the repair; a costume dyes the hero visual and adds its accessory; the
-## walk trail obeys VfxBudget and the quality / memory pressure; the name colour on the
+## validator and the repair; a costume dyes the hero visual and adds its pieces (CostumeArt;
+## costume_look_test checks them in depth); the walk trail obeys VfxBudget and the
+## quality / memory pressure; the name colour on the
 ## hero's plate and on a remote player's look; the world players' cosmetics by league
 ## standing; the page, the league card, the keeper and accounts.js accepting the profile.
 ##   godot --headless --path . res://tests/integration/reward_shop_test.tscn
@@ -295,7 +296,7 @@ func _costume() -> void:
 	check(mat != null and mat.get_shader_parameter("outfit_color") == cloth, "the costume dyes the chibi outfit")
 	check(float(mat.get_shader_parameter("outfit_amount")) > 0.9 and mat.get_shader_parameter("glow_color") == RewardShop.COSTUMES.royal.glow, "with its sheen and glow")
 	var acc := v.model.find_child("ChibiCostume", true, false)
-	check(acc != null and acc.get_child_count() > 0, "the costume's head accessory is built (crown)")
+	check(acc != null and acc.get_child_count() > 0, "the costume's head piece is built (crown)")
 	# Over armour the costume still wins; taking it off brings the armour's cloth back.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
@@ -483,6 +484,8 @@ func _page() -> void:
 	check(wallet != null and wallet.text.contains("500") and wallet.text.contains(RewardShop.COIN_NAME) and wallet.text.contains(RewardShop.POINT_NAME), "both currencies on the page (%s)" % (wallet.text if wallet else ""))
 	for id in RewardShop.COSTUMES:
 		check(host.find_child("Reward_%s" % id, true, false) != null, "a card for costume %s" % id)
+		var desc := host.find_child("RewardDesc_%s" % id, true, false) as Label
+		check(desc != null and desc.text == String(RewardShop.COSTUMES[id].desc), "the card names the pieces of costume %s" % id)
 	var buy := host.find_child("RewardBuy_sakura", true, false) as Button
 	check(buy != null and not buy.disabled, "sakura can be bought")
 	var royal := host.find_child("RewardBuy_royal", true, false) as Button

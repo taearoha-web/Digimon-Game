@@ -49,7 +49,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 			for e in RewardShop.STONES:
 				box.add_child(_stone_card(e, refresh))
 		_:
-			var note := {"costume": "คอสตูม: ย้อมชุดทั้งตัวพร้อมเครื่องประดับบนหัว ใส่ได้ทุกอาชีพทับเกราะที่สวมอยู่ · สวมได้ครั้งละ 1 ชุด",
+			var note := {"costume": "คอสตูม: ย้อมชุดทั้งตัว พร้อมชิ้นตกแต่งหลายชั้นบนหัว หลัง สะโพกหรือไหล่ (หาง ผ้าคลุม ปีก มงกุฎ ฯลฯ) และประกายรอบตัว ใส่ได้ทุกอาชีพทับเกราะที่สวมอยู่ · สวมได้ครั้งละ 1 ชุด",
 				"trail": "เอฟเฟกต์ท่าเดิน: ร่องรอยที่ตามรอยเท้าเวลาเดิน (ปิดเองที่กราฟิกต่ำหรือเมื่อเครื่องหน่วยความจำตึง)",
 				"ncol": "สีชื่อ: สีป้ายชื่อเหนือหัว ผู้เล่นคนอื่นที่ออนไลน์เห็นด้วย (สมาชิกราชันปราสาทยังใส่สีมงกุฎทองตามเดิม)"}
 			box.add_child(UIUtil.label(String(note.get(tab, "")), &"SmallLabel"))
@@ -84,7 +84,19 @@ static func _cosmetic_card(p_tab: String, id: String, refresh: Callable) -> Cont
 	label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.45))
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.add_child(label)
+	if e.has("desc"):
+		# A costume names its pieces under the name and the price.
+		var text := UIUtil.vbox(2)
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.add_child(label)
+		var desc := UIUtil.label(String(e.desc), &"SmallLabel")
+		desc.name = "RewardDesc_%s" % id
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.add_child(desc)
+		line.add_child(text)
+	else:
+		line.add_child(label)
 	if owned:
 		var wear := UIUtil.button("ถอด" if worn else "สวม", &"PrimaryButton" if not worn else &"", Vector2(130, 54))
 		wear.name = "RewardWear_%s" % id
