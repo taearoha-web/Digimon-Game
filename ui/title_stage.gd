@@ -191,10 +191,86 @@ func add_hero(slot: int, overview: Dictionary, arrival := false) -> void:
 		aside.name = "ShieldAside"
 		visual._skeleton.add_child(aside)
 		aside.setup(visual, visual._skeleton)
+	soften_glow(visual)
 	heroes[slot] = {"root": root, "visual": visual, "shadow": shadow, "height": height, "scale": 1.0, "feet": Vector3.ZERO}
 	_place(slot)
 	if arrival:
 		_arrive(slot)
+
+
+## The holders of a hero's gear light (EnhanceFx body aura and wing flair, the 250★
+## set aura, piece glows and the sparkle emitters).
+const GLOW_HOLDERS: Array[String] = ["SetAura", "WingFlair", "PieceGlow", "Aura", "GemSparkle"]
+## How much of that light the select stage keeps: the additive glows of a +12..+15
+## set (the sun disc, body glows, light wings and cape) stack into one white blob over
+## the bright painting, washing the hero out and covering the neighbours and plates.
+const GLOW_KEEP := 0.45
+## The billboard glows of those holders shrink to this share of their size.
+const GLOW_QUAD_SCALE := 0.6
+## The additive enhancement overlays on the gear meshes themselves.
+const OVERLAY_KEEP := 0.4
+
+
+## Tones a hero's gear light down for the select stage only: every additive glow
+## material fades to GLOW_KEEP (overlays on the worn meshes to OVERLAY_KEEP) and the
+## aura's billboard glows shrink, so body and face stay clear. The renderer is
+## gl_compatibility, where GeometryInstance3D.transparency does nothing, so this
+## swaps in dimmed copies of the materials (and copies of the glow quads): the
+## shared originals, and so the in-game look, stay unchanged.
+static func soften_glow(visual: Node3D) -> void:
+	var dims := {}
+	var stack: Array = [[visual, false]]
+	while not stack.is_empty():
+		var pair: Array = stack.pop_back()
+		var node: Node = pair[0]
+		var held: bool = pair[1] or String(node.name) in GLOW_HOLDERS
+		if node is GeometryInstance3D:
+			var geo := node as GeometryInstance3D
+			if _additive(geo.material_overlay):
+				geo.material_overlay = _dim(dims, geo.material_overlay, OVERLAY_KEEP)
+			if _additive(geo.material_override):
+				geo.material_override = _dim(dims, geo.material_override, GLOW_KEEP)
+		if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			var mi := node as MeshInstance3D
+			if held and mi.mesh is QuadMesh:
+				var quad := mi.mesh.duplicate() as QuadMesh
+				quad.size *= GLOW_QUAD_SCALE
+				mi.mesh = quad
+			if mi.material_override != null:
+				pass
+			elif mi.mesh is PrimitiveMesh:
+				# (Its surface count asks the rendering server: none on a headless run.)
+				if _additive((mi.mesh as PrimitiveMesh).material):
+					var copy := mi.mesh.duplicate() as PrimitiveMesh
+					copy.material = _dim(dims, copy.material, GLOW_KEEP)
+					mi.mesh = copy
+			else:
+				for i in mi.mesh.get_surface_count():
+					var mat := mi.get_active_material(i)
+					if _additive(mat):
+						mi.set_surface_override_material(i, _dim(dims, mat, GLOW_KEEP))
+		elif node is CPUParticles3D and (node as CPUParticles3D).mesh is PrimitiveMesh:
+			var p := node as CPUParticles3D
+			var prim := p.mesh as PrimitiveMesh
+			if _additive(prim.material):
+				var copy := prim.duplicate() as PrimitiveMesh
+				copy.material = _dim(dims, prim.material, GLOW_KEEP)
+				p.mesh = copy
+		for child in node.get_children():
+			stack.append([child, held])
+
+
+static func _additive(mat: Material) -> bool:
+	return mat is BaseMaterial3D and (mat as BaseMaterial3D).blend_mode == BaseMaterial3D.BLEND_MODE_ADD
+
+
+## A still, dimmed copy of [param mat], one per original.
+static func _dim(dims: Dictionary, mat: Material, keep: float) -> Material:
+	if not dims.has(mat):
+		var copy := mat.duplicate() as BaseMaterial3D
+		copy.albedo_color.a = (mat as BaseMaterial3D).albedo_color.a * keep
+		dims[mat] = copy
+	return dims[mat]
 
 
 func remove_hero(slot: int, effect := true) -> void:
