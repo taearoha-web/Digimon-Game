@@ -751,6 +751,24 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_art_arcane_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/star_art_arcane_test.tscn
+
+  skill-art:
+    # The Lv.60-100 regular skill signature art tests (combat/skill_art), in their own job
+    # so none runs past its limit.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      XDG_CONFIG_HOME: /tmp/toon-ci-config
+      XDG_CACHE_HOME: /tmp/toon-ci-cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.3
+        run: |
+          curl --fail --location --retry 8 --retry-delay 15 --retry-all-errors https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          echo /tmp/godot >> "$GITHUB_PATH"
+      - name: Import assets
+        run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
       - name: skill_art_guard_test (Defender and Assassin Lv.60-100 signature art owns its show through hero and companion casts, lite for companions, layer cap, roots freed, budget back to baseline, quality 0, death mid-cast)
         timeout-minutes: 10
         env:
