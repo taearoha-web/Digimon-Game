@@ -1312,8 +1312,12 @@ func post_of(f: GuildFighter) -> bool:
 ## way forward, the AI leader behind its tanks, the focus and dive targets, tanks told
 ## whom to guard. Nothing changes before the first think (tactic "").
 func apply() -> void:
-	if tactic == "":
-		return
+	if tactic != "":
+		_apply_tactic()
+	_apply_order()
+
+
+func _apply_tactic() -> void:
 	var side := _side()
 	for f in side:
 		f.switch_post = post_of(f)
@@ -1474,6 +1478,166 @@ func apply() -> void:
 		# Under the siege's focus the hurt fall back to the leader's post (its healers).
 		if rear and f != ai_lead:
 			f.rear_point = leader_post
+
+
+# ---------------------------------------------------------------------------
+# The guild leader's orders (บัญชาการ)
+# ---------------------------------------------------------------------------
+
+## Orders the guild's leader gives (the hero leading ours: GuildWarMatch.order_guild). An
+## order stands until changed (or until order_until on the commander's clock when given a
+## time), and while it stands it decides every fighter's goal after the AI's own plan
+## and tactic are laid out (apply), so the AI keeps choosing targets, focus and buffs:
+##   gate     (ตีประตู)   everyone at the front tier's gate (order_data.lane: left / right);
+##             cleared by itself once every tier is open;
+##   switch   (ยึดสวิตช์) everyone into the switch's circle (the gates down only);
+##   escort   (บุกแท่น/คุ้มกัน) a step ahead of the leader on its way to the altar;
+##   defend   (ตั้งรับ)   holding the castle: out in front of its gates (both, by the
+##             pressure), the gates down: round the altar; else holding the line where the
+##             leader stands;
+##   rally    (รวมพล)     round the leader, wherever it goes;
+##   fallback (ถอย)       back to the guild's camp (the keep for the castle's holder).
+## The switch squad keeps its post under escort and defend (the barrier stays open); an AI
+## leader keeps its own post except when falling back. "" is the AI's own plan (ตามแผน AI).
+const ORDER_GATE := "gate"
+const ORDER_SWITCH := "switch"
+const ORDER_ESCORT := "escort"
+const ORDER_DEFEND := "defend"
+const ORDER_RALLY := "rally"
+const ORDER_FALLBACK := "fallback"
+const ORDERS: Array[String] = [ORDER_GATE, ORDER_SWITCH, ORDER_ESCORT, ORDER_DEFEND, ORDER_RALLY, ORDER_FALLBACK]
+const ORDER_NAMES := {
+	"gate": "ตีประตู", "switch": "ยึดสวิตช์", "escort": "บุกแท่น/คุ้มกันหัวกิล",
+	"defend": "ตั้งรับป้องกัน", "rally": "รวมพลที่หัวกิล", "fallback": "ถอยกลับค่าย",
+}
+
+var order := ""
+var order_data: Dictionary = {}
+## The commander's clock at which the order runs out (< 0: until changed).
+var order_until := -1.0
+
+
+## Gives the guild an order (kind one of ORDERS, "" back to the AI's plan) for `seconds`
+## (0: until changed).
+func set_order(kind: String, data: Dictionary = {}, seconds := 0.0) -> void:
+	order = kind if ORDERS.has(kind) else ""
+	order_data = data.duplicate() if order != "" else {}
+	order_until = clock + seconds if order != "" and seconds > 0.0 else -1.0
+
+
+func clear_order() -> void:
+	set_order("")
+
+
+## Whether an order of the leader stands now (one that ran out is cleared).
+func has_order() -> bool:
+	if order != "" and order_until >= 0.0 and clock >= order_until:
+		clear_order()
+	return order != ""
+
+
+## The order as told ("ตีประตูซ้าย", "รวมพลที่หัวกิล"), "" with none.
+func order_name() -> String:
+	if not has_order():
+		return ""
+	var text := String(ORDER_NAMES.get(order, order))
+	if order == ORDER_GATE and order_data.has("lane"):
+		text += SiegeArena.LANE_NAMES[clampi(int(order_data.lane), 0, 1)]
+	return text
+
+
+## The gate the gate order batters now: the front tier's gate of the lane ordered (the
+## other one when that one is not standing, the single gate of the third tier).
+func order_gate() -> CastleGate:
+	if war.castle_owner == team:
+		return null
+	var front := war.front_gates()
+	if front.is_empty():
+		return null
+	var want := int(order_data.get("lane", -1))
+	for g in front:
+		if g.lane == want:
+			return g
+	return front[0]
+
+
+## Lays the leader's order over the formation (every fighter of the guild but the one
+## taking the altar and the dead; see ORDER_GATE).
+func _apply_order() -> void:
+	if not has_order():
+		return
+	var gate: CastleGate = null
+	if order == ORDER_GATE:
+		gate = order_gate()
+		if gate == null:
+			clear_order()
+			war.feed.emit("กิลด์ %s: ไม่มีประตูให้ตีแล้ว — กลับไปตามแผน AI" % war.team_name(team), team)
+			return
+	if order == ORDER_SWITCH and war.front_gate() != null:
+		return
+	var side := _side()
+	var lead := leader()
+	var ai_lead := _alive_leader() as GuildFighter
+	var lead_at: Vector3 = lead.global_position if lead != null and is_instance_valid(lead) else front()
+	lead_at.y = 0.0
+	var to_altar := SiegeArena.ALTAR - lead_at
+	to_altar.y = 0.0
+	var fwd := to_altar.normalized() if to_altar.length() > 1.5 else Vector3(0, 0, -1)
+	var counts := PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
+	var index := PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
+	for f in side:
+		if not f.is_dead() and not f.capture_role:
+			counts[_role(f, ai_lead)] += 1
+	var front_now := war.front_gates()
+	var home := war.home_of(team)
+	var k := 0
+	for f in side:
+		if f.is_dead() or f.capture_role:
+			continue
+		if f == ai_lead and order != ORDER_FALLBACK:
+			continue
+		if f.switch_post and (order == ORDER_ESCORT or order == ORDER_DEFEND) and war.front_gate() == null:
+			continue
+		var r := _role(f, ai_lead)
+		var i := index[r]
+		index[r] += 1
+		f.keep_back = false
+		f.keep_front = Vector3.INF
+		f.rear_point = Vector3.INF
+		f.switch_post = false
+		match order:
+			ORDER_GATE:
+				f.objective = gate
+				f.hold_range = 0.0
+				f.goal_point = SiegeArena.gate_front(gate.tier, gate.lane) + Vector3(float(k % 7 - 3) * 1.3, 0, float(k / 7) * 1.8)
+			ORDER_SWITCH:
+				f.objective = null
+				f.hold_range = 0.0
+				f.switch_post = true
+				var spread := TAU * float(k % 9) / 9.0
+				f.goal_point = SiegeArena.SWITCH + Vector3(cos(spread), 0, sin(spread)) * SiegeArena.SWITCH_RADIUS * (0.3 + 0.12 * float(k % 4))
+			ORDER_ESCORT:
+				f.hold_range = 9.0
+				f.goal_point = _in_bounds(slot(lead_at + fwd * 4.0, fwd, r, i, counts[r]))
+			ORDER_DEFEND:
+				f.objective = null
+				f.hold_range = 12.0
+				if war.castle_owner == team and not front_now.is_empty():
+					var g := defend_gate_for(f, front_now)
+					f.goal_point = SiegeArena.gate_front(g.tier, g.lane) + Vector3(float(k % 5 - 2) * 1.6, 0, 1.5 + float(k / 5 % 3) * 1.4)
+				elif front_now.is_empty():
+					f.goal_point = GuildWarMatch._spot(SiegeArena.ALTAR, k, SiegeArena.ALTAR_RADIUS + 2.0)
+				else:
+					f.hold_range = 14.0
+					f.goal_point = _in_bounds(slot(lead_at, fwd, r, i, counts[r]))
+			ORDER_RALLY:
+				f.hold_range = 8.0
+				f.goal_point = _in_bounds(GuildWarMatch._spot(lead_at, k, 3.0))
+			ORDER_FALLBACK:
+				f.objective = null
+				f.hold_range = 6.0
+				f.goal_point = GuildWarMatch._spot(home, k, 3.5)
+		k += 1
 
 
 ## Whether the AI leader taking the altar steps off it to be healed (resting): hurt with

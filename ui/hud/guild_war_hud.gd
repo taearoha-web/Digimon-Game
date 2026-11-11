@@ -10,6 +10,11 @@ extends Control
 ## altar's barrier is open for (บาเรียเปิดให้ <guild>), the barrier's warning while our
 ## leader waits on the altar behind it (who to clear out of the circle), and a button that
 ## sends the hero's party to take the switch.
+## The hero leading our guild gets a command button under the board (บัญชาการ, the order
+## standing on it: "สั่ง: ตีประตูซ้าย"): a tap opens the orders panel (ตีประตู ซ้าย / ขวา,
+## ยึดสวิตช์, บุกแท่น/คุ้มกัน, ตั้งรับ, รวมพลที่ตัวฉัน, ถอยกลับค่าย, ตามแผน AI), each a
+## thumb-sized button; the order drives the whole guild's AI (GuildWarMatch.order_guild).
+## Hidden for a party member in its leader's war (mirror) and when a member leads.
 
 ## The chat channel the war's news goes to (WorldChat tags it [สงคราม]).
 const CHAT_CHANNEL := "war"
@@ -33,6 +38,16 @@ var _chips: Array[PanelContainer] = []
 var _barrier: Label
 var _party_button: Button
 var _pulse := 0.0
+## The leader's command row (under the board), its button and the orders panel.
+var _command_row: HBoxContainer
+var _command_button: Button
+var _orders: PanelContainer
+var _order_grid: GridContainer
+## Short names on the command button (the war chat gets the full order).
+const ORDER_SHORT := {"gate": "ตีประตู", "switch": "ยึดสวิตช์", "escort": "บุกแท่น", "defend": "ตั้งรับ", "rally": "รวมพล", "fallback": "ถอยกลับค่าย"}
+const COMMAND_LABEL := "บัญชาการ"
+## The orders panel's buttons: thumb-sized on a phone.
+const ORDER_BUTTON := Vector2(178, 58)
 ## The top column (board, capture line, switch row, warning).
 var _top: VBoxContainer
 ## The bottom (logical px) of the guild-war board's column on screen, 0 without one: the
@@ -76,6 +91,17 @@ func _ready() -> void:
 	_owner.name = "CastleOwner"
 	lines.add_child(_owner)
 	# Who is taking the altar, only while someone stands on it.
+	_command_row = UIUtil.hbox(8)
+	_command_row.name = "CommandRow"
+	_command_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_command_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	top.add_child(_command_row)
+	_command_button = UIUtil.button(COMMAND_LABEL, &"", Vector2(170, 46))
+	_command_button.name = "CommandButton"
+	_command_button.add_theme_font_size_override("font_size", 17)
+	_command_button.pressed.connect(toggle_orders)
+	_command_row.add_child(_command_button)
+	_command_row.visible = false
 	_taking = _outlined(UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_taking.name = "AltarCapture"
 	_taking.add_theme_color_override("font_color", TAKING_COLOR)
@@ -114,6 +140,144 @@ func _ready() -> void:
 	_respawn.add_theme_font_size_override("font_size", 56)
 	_respawn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_respawn)
+	_build_orders()
+
+
+## The orders panel: centred on the screen over the field, three thumb-sized buttons a row.
+func _build_orders() -> void:
+	_orders = UIUtil.panel(&"HudPanel")
+	_orders.name = "OrdersPanel"
+	_orders.mouse_filter = Control.MOUSE_FILTER_STOP
+	_orders.anchor_left = 0.5
+	_orders.anchor_right = 0.5
+	_orders.anchor_top = 0.5
+	_orders.anchor_bottom = 0.5
+	_orders.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_orders.grow_vertical = Control.GROW_DIRECTION_BOTH
+	add_child(_orders)
+	var col := UIUtil.vbox(8)
+	_orders.add_child(col)
+	var title := _outlined(UIUtil.label("สั่งการทั้งกิลด์", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	col.add_child(title)
+	_order_grid = GridContainer.new()
+	_order_grid.name = "OrderGrid"
+	_order_grid.columns = 3
+	_order_grid.add_theme_constant_override("h_separation", 8)
+	_order_grid.add_theme_constant_override("v_separation", 8)
+	col.add_child(_order_grid)
+	_orders.visible = false
+
+
+## The orders on offer now: [kind, data, label, enabled].
+func order_choices() -> Array:
+	var m := match_node
+	var out: Array = []
+	if m == null or not is_instance_valid(m):
+		return out
+	var front := m.front_gates()
+	var ours := m.castle_owner == GuildFighter.TEAM_ALLY
+	if front.size() >= 2:
+		for g in front:
+			out.append(["gate", {"lane": g.lane}, "ตีประตู" + SiegeArena.LANE_NAMES[g.lane], not ours])
+	else:
+		out.append(["gate", {}, "ตีประตู", not ours and not front.is_empty()])
+	out.append(["switch", {}, "ยึดสวิตช์", front.is_empty()])
+	out.append(["escort", {}, "บุกแท่น/คุ้มกัน", true])
+	out.append(["defend", {}, "ตั้งรับป้องกัน", true])
+	out.append(["rally", {}, "รวมพลที่ตัวฉัน", true])
+	out.append(["fallback", {}, "ถอยกลับค่าย", true])
+	out.append(["auto", {}, "ตามแผน AI", true])
+	return out
+
+
+## The command button: opens (or closes) the orders panel.
+func toggle_orders() -> void:
+	if _orders.visible:
+		close_orders()
+	else:
+		open_orders()
+
+
+func open_orders() -> void:
+	if match_node == null or not is_instance_valid(match_node) or not match_node.hero_commands():
+		return
+	for child in _order_grid.get_children():
+		_order_grid.remove_child(child)
+		child.queue_free()
+	for choice in order_choices():
+		var data: Dictionary = choice[1]
+		var b := UIUtil.button(String(choice[2]), &"", ORDER_BUTTON)
+		b.name = "Order_%s%s" % [choice[0], ("_%d" % int(data.lane)) if data.has("lane") else ""]
+		b.add_theme_font_size_override("font_size", 18)
+		b.disabled = not bool(choice[3])
+		b.pressed.connect(press_order.bind(String(choice[0]), data))
+		_order_grid.add_child(b)
+	var shut := UIUtil.button("ปิด", &"", ORDER_BUTTON)
+	shut.name = "Order_close"
+	shut.add_theme_font_size_override("font_size", 18)
+	shut.pressed.connect(close_orders)
+	_order_grid.add_child(shut)
+	_orders.visible = true
+	_orders.reset_size()
+
+
+func close_orders() -> void:
+	_orders.visible = false
+
+
+## Whether the orders panel is up (tests).
+func orders_open() -> bool:
+	return _orders.visible
+
+
+## The orders panel's buttons (tests).
+func order_buttons() -> Array[Button]:
+	var out: Array[Button] = []
+	for child in _order_grid.get_children():
+		if child is Button and not child.is_queued_for_deletion():
+			out.append(child as Button)
+	return out
+
+
+## An order picked: the guild is told (the war chat), the panel closes.
+func press_order(kind: String, data: Dictionary = {}) -> void:
+	if match_node == null or not is_instance_valid(match_node):
+		return
+	var said := match_node.order_guild(kind, data)
+	Game.say(String(said.text), &"info" if bool(said.ok) else &"warning")
+	if bool(said.ok):
+		close_orders()
+	_update_command(match_node)
+
+
+## The command button's text now, "" while it is hidden (tests).
+func command_text() -> String:
+	return _command_button.text if _command_button.is_visible_in_tree() else ""
+
+
+func _update_command(m: GuildWarMatch) -> void:
+	var shown := m.hero_commands()
+	# With the gates down it sits in the switch's row (no extra line under the board: the
+	# band the switch's floating label keeps out of stays as it was).
+	var host: Control = _switch_row if _switch_row.visible else _command_row
+	if _command_button.get_parent() != host:
+		_command_button.get_parent().remove_child(_command_button)
+		host.add_child(_command_button)
+		_command_button.custom_minimum_size = Vector2(120 if host == _switch_row else 170, 46)
+	_command_row.visible = shown and host == _command_row
+	_command_button.visible = shown
+	if not shown:
+		_orders.visible = false
+		return
+	var c: GuildWarCommander = m.commanders[0]
+	var text := COMMAND_LABEL
+	if c.has_order():
+		text = "สั่ง: " + String(ORDER_SHORT.get(c.order, c.order))
+		if c.order == GuildWarCommander.ORDER_GATE and c.order_data.has("lane"):
+			text += SiegeArena.LANE_NAMES[clampi(int(c.order_data.lane), 0, 1)]
+	if _command_button.text != text:
+		_command_button.text = text
+	_command_button.modulate = Color("ffd27a") if c.has_order() else Color.WHITE
 
 
 static func _outlined(label: Label) -> Label:
@@ -153,7 +317,7 @@ func band_bottom() -> float:
 ## The rects on screen of the board, the switch row, the capture line and the warning (tests).
 func layout_rects() -> Dictionary:
 	var out := {}
-	for pair in [["board", _top.get_child(0)], ["taking", _taking], ["switch_row", _switch_row], ["warning", _barrier]]:
+	for pair in [["board", _top.get_child(0)], ["command", _command_row], ["taking", _taking], ["switch_row", _switch_row], ["warning", _barrier]]:
 		var c := pair[1] as Control
 		if c.is_visible_in_tree():
 			out[pair[0]] = c.get_global_rect()
@@ -250,6 +414,7 @@ func _update(_delta: float, force: bool) -> void:
 	_taking.add_theme_color_override("font_color", TAKING_COLOR if not m.capture.is_empty() else Color("bfe8ff"))
 	_taking.visible = _taking.text != ""
 	_update_switches(m)
+	_update_command(m)
 	_tell_gate(m, force)
 	if m.hero_respawn_left > 0.0:
 		_respawn.text = "เกิดใหม่ใน %d" % int(ceil(m.hero_respawn_left))

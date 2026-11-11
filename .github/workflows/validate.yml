@@ -101,6 +101,10 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-gw-switch
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/castle_switch_test.tscn
+      - name: Guild war gates and the leader's orders (the hero's attack button and auto batter the front tier's gate when no foe is near, never a standing gate of an open tier nor its own castle's; the leading hero's บัญชาการ button and orders panel drive every ally fighter - gate, switch, rally, fall back, defend - and ตามแผน AI clears it; hidden for a member-led guild and a mirror)
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-gw-orders
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/guild_war_orders_test.tscn
       - name: Guild leaders go in last (the members push in first, take the switches and clear the altar while the AI leader waits behind them with its healers; it goes up only with the barrier open and the way clear, falls back behind its own when attacked, and the castle's holder keeps its leader behind the altar - both guilds AI-led in a seeded throne-room fight, the leader behind most of its guild and falling far less than its members)
         env:
           XDG_DATA_HOME: /tmp/toon-ci-gw-leader-rear
@@ -424,6 +428,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-online_follow_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/online_follow_test.tscn
+      - name: auto_leash_test (auto hunting stays in a circle round the spot it was switched on; a fleeing target is dropped for the nearest monster inside, with none the hero walks back; walking by hand and teleports move the circle; following a party member has no leash)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-auto_leash_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/auto_leash_test.tscn
       - name: online_duel_test
         timeout-minutes: 10
         env:
