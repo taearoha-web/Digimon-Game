@@ -61,7 +61,8 @@ func _ready() -> void:
 	var field := Node3D.new()
 	add_child(field)
 	var skill := ClassData.find_skill(&"lancer","ragnarok_lance")
-	SkillShow.play(field,skill,Vector3(0,0,3),Vector3.ZERO)
+	# Ragnarok Lance now draws its own signature (combat/skill_art); the elite layer's clock is checked directly.
+	EliteSkillArt.play(field,skill,Vector3(0,0,3),Vector3.ZERO)
 	var art := field.get_node("EliteSkill_ragnarok_lance") as EliteSkillArt
 	var age := art.age
 	get_tree().paused=true
