@@ -884,10 +884,12 @@ func _refresh_party() -> void:
 
 
 ## Who takes the altar for our guild in the war (the rules line): the hero, the member
-## picked to lead (the guild screen's เลือกหัวหน้ากิลด์), or the hero standing in for
-## another character of the player that is not being played.
+## picked to lead (the guild screen's เลือกหัวหน้ากิลด์), or another character of the
+## player picked to lead (played by the AI, tagged as the player's).
 static func _our_leader_text(mine: int) -> String:
 	if mine <= 0:
 		return "คุณ"
 	var who := Game.guild_war_leader(mine)
+	if who != "" and Game.guild_war_alt_leader(mine) > 0:
+		return "%s (%s)" % [who, Game.ALT_WAR_TAG]
 	return "คุณ" if who == "" else who
