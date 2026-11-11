@@ -751,3 +751,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star_art_arcane_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/star_art_arcane_test.tscn
+      - name: skill_art_sky_test (Archer, Mage and Priest Lv.60-100 class skill signatures own their show through the real hero and companion casts, every quality and memory pressure, inside the budget, roots freed, death mid-cast)
+        timeout-minutes: 20
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-skill_art_sky_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/skill_art_sky_test.tscn

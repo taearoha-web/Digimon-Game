@@ -12,6 +12,11 @@ static var _casters: Dictionary = {}
 static var _bounces: Dictionary = {}
 
 static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) -> void:
+	# A regular skill with its own signature art (combat/skill_art) draws its links itself.
+	if SkillSignature.owns(skill):
+		if SkillSignature.script_for(skill.get("id", "")).has_method("link"):
+			SkillSignature.script_for(skill.get("id", "")).link(parent, skill, from, to)
+		return
 	var look := SkillShow.profile_for(skill)
 	if String(look.signature) == "lightning":
 		VfxKit.lightning(parent, from, to, look.primary)
@@ -32,6 +37,14 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 	root.create_tween().tween_interval(0.3).finished.connect(root.queue_free, CONNECT_ONE_SHOT)
 
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> Node3D:
+	# A regular skill with its own signature art (combat/skill_art) draws its carrier itself;
+	# when its carrier finds no room (null) the essential projectile below still flies.
+	if SkillSignature.owns(skill):
+		if not SkillSignature.script_for(skill.get("id", "")).has_method("flight"):
+			return null
+		var own: Node3D = SkillSignature.script_for(skill.get("id", "")).flight(parent, skill, from, to, seconds, size)
+		if own:
+			return own
 	ClassSignature.flight(parent, skill, from, to, seconds, size)  # class signature hook (Archer / Assassin / Dark Lord)
 	if MartialSkillArt.handles(skill):
 		var martial := MartialSkillArt.flight(parent,skill,from,to,seconds,size)
@@ -163,6 +176,11 @@ static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: b
 
 ## [param crit] only adds a fan of light; damage was already decided.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
+	# A regular skill with its own signature art (combat/skill_art) owns its contacts too.
+	if SkillSignature.owns(skill):
+		if SkillSignature.script_for(skill.get("id", "")).has_method("contact"):
+			SkillSignature.script_for(skill.get("id", "")).contact(parent, skill, at, crit)
+		return
 	SkillLayers.contact(parent, skill, at, crit)
 	ClassFlourish.contact(parent, skill, at, crit)
 	ShadowSkillArt.contact(parent, skill, at, crit)

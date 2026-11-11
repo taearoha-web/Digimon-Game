@@ -406,8 +406,19 @@ func _marks() -> void:
 	check(not mark.visible, "a mark is gone after its life (%.1f s)" % SkillFeel.MARK_LIFE)
 	# A real blast lays one through Hero._blast_damage.
 	var before := hub.marks_visible()
-	rig.hero._blast_damage(ClassData.find_skill(&"mage", "ice_storm"), Vector3(5, 0, 5), 5.0, 1.0)
-	check(hub.marks_visible() == before + 1, "a heavy blast leaves a mark")
+	# (A skill whose own signature art draws its scar, GodSkillArt.owns, lays none here.)
+	var heavy := {}
+	for skill in ClassData.pool(&"mage"):
+		if String(skill.shape) == "blast" and not GodSkillArt.owns(skill) and SkillWeight.tier_of(skill) >= SkillWeight.MEDIUM:
+			heavy = skill
+	check(not heavy.is_empty(), "a heavy blast without its own signature art to test")
+	rig.hero._blast_damage(heavy, Vector3(5, 0, 5), 5.0, 1.0)
+	check(hub.marks_visible() == before + 1, "a heavy blast leaves a mark (%s)" % heavy.get("id", ""))
+	var owned := ClassData.find_skill(&"mage", "ice_storm")
+	if GodSkillArt.owns(owned):
+		var marks := hub.marks_visible()
+		rig.hero._blast_damage(owned, Vector3(-5, 0, 5), 5.0, 1.0)
+		check(hub.marks_visible() == marks, "a blast with its own signature art leaves its own scar instead")
 	rig.field.queue_free()
 	await rig.field.tree_exited
 	MemoryGuard.force(-1, get_tree())

@@ -1139,7 +1139,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			elif String(skill.id) == "armageddon":
 				ArmageddonSequence.launch(field, self, center, radius, mult, _armageddon_impact.bind(skill))
 			elif skill.vfx == &"fireball":
-				VfxKit.meteor(field, center, color, 0.5, radius, func(): _blast(skill, center, radius, mult), String(skill.id) == "hell_meteor")
+				VfxKit.meteor(field, center, color, 0.5, radius, func(): _blast(skill, center, radius, mult), String(skill.id) == "hell_meteor", GodSkillArt.owns(skill))
 			else:
 				_blast(skill, center, radius, mult)
 

@@ -1324,7 +1324,7 @@ func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				var victim: Mob = list[i] if i < list.size() else mob
 				if _valid_target(victim):
 					_shoot(skill, victim, mult, origin, 1.0)
-			if list.is_empty():
+			if list.is_empty() and not GodSkillArt.owns(skill):
 				for i in count:
 					var angle := (i - 1) * 0.25
 					VfxKit.arrow(field, color, origin, origin + forward.rotated(Vector3.UP, angle) * 9.0, 0.3)
@@ -1368,7 +1368,7 @@ func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			elif String(skill.id) == "armageddon":
 				ArmageddonSequence.launch(field, self, center, radius, mult, _armageddon_impact.bind(skill))
 			elif skill.get("special", "") == "meteor":
-				VfxKit.meteor(field, center, color, 0.55, radius, func(): _blast_damage(skill, center, radius, mult), String(skill.id) == "hell_meteor")
+				VfxKit.meteor(field, center, color, 0.55, radius, func(): _blast_damage(skill, center, radius, mult), String(skill.id) == "hell_meteor", GodSkillArt.owns(skill))
 			elif skill.get("special", "") == "rain":
 				_arrow_rain(skill, center, radius, mult)
 			else:
@@ -1423,7 +1423,8 @@ func _blast_damage_now(skill: Dictionary, center: Vector3, radius: float, mult: 
 
 func _arrow_rain(skill: Dictionary, center: Vector3, radius: float, mult: float) -> void:
 	var color: Color = skill.color
-	for i in 14:
+	# A skill with its own signature art (combat/skill_art) draws its own rain.
+	for i in (0 if GodSkillArt.owns(skill) else 14):
 		var angle := randf() * TAU
 		var spot := center + Vector3(cos(angle), 0, sin(angle)) * randf() * radius
 		get_tree().create_timer(i * 0.07).timeout.connect(VfxBudget.carry(func():
