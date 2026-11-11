@@ -19,6 +19,9 @@ const MOVES := {
 	],
 }
 const STYLE_COLORS := {"storm": Color("9affc8"), "quake": Color("e8c08a"), "whirl": Color("5cc8ff"), "ice": Color("bff4ff")}
+## The star skill whose signature art (StarSignature, combat/star_art) draws a style's
+## wind-up and landing (legend_windup / legend_move there, when it has them).
+const STYLE_SKILL := {"storm": "moonwolf_pact", "quake": "moonwolf_pact", "whirl": "eclipse_sovereign", "ice": "eclipse_sovereign"}
 
 
 static func has(kind: String) -> bool:
@@ -32,6 +35,9 @@ static func moves(kind: String) -> Array:
 ## Strike effects of a move at [param pos]; budget-gated VfxKit helpers only.
 static func impact_vfx(parent: Node3D, style: String, pos: Vector3, radius: float) -> void:
 	if not is_instance_valid(parent):
+		return
+	var own := StarSignature.script_for(STYLE_SKILL.get(style, ""))
+	if own != null and own.has_method("legend_move") and own.legend_move(parent, style, pos, radius):
 		return
 	var color: Color = STYLE_COLORS.get(style, Color.WHITE)
 	match style:
@@ -52,6 +58,15 @@ static func impact_vfx(parent: Node3D, style: String, pos: Vector3, radius: floa
 			ElementFx.shatter(parent, pos + Vector3(0, 1.0, 0), 1.2, 6)
 		_:
 			VfxKit.shockwave(parent, pos + Vector3(0, 0.1, 0), color, radius)
+
+
+## The wind-up of a move (cosmetic), [param seconds] before it lands at [param pos].
+static func windup_vfx(parent: Node3D, style: String, pos: Vector3, radius: float, seconds: float, caster: Node3D = null) -> void:
+	if not is_instance_valid(parent):
+		return
+	var own := StarSignature.script_for(STYLE_SKILL.get(style, ""))
+	if own != null and own.has_method("legend_windup"):
+		own.legend_windup(parent, style, pos, radius, seconds, caster)
 
 
 ## Stun / freeze of a move on a victim (monsters, fighters, the hero or an ally).
