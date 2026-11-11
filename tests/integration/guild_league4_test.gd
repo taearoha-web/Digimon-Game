@@ -37,10 +37,35 @@ func _ready() -> void:
 	_table(w)
 	_migration()
 	_validation()
+	_idle_points(w)
 	await _desk(w)
 	WorldPresence.clock_offset = 0.0
 	print("GUILD LEAGUE 4: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
+
+
+## Rounds fought without the player: guild points by the guild's place in each round,
+## once, from the first round of the day for a character never credited, not for a round
+## the hero fought for real, nothing outside a guild.
+func _idle_points(w: int) -> void:
+	var day := WorldEvents.day_of(GuildLeague.week_start(w)) + 2
+	_hero(WorldPlayers.TITAN, 0)
+	Game.profile["flags"].erase(GuildLeague.IDLE_FLAG)
+	Game.profile["flags"][GuildQuestData.POINTS_FLAG] = 0
+	# After the day's three rounds: all three credited, each 5-15 points.
+	pin(float(GuildLeague.slot_start(day, 2)) + GuildWarData.DURATION + 60.0)
+	var got := GuildLeague.credit_idle_rounds()
+	check(got >= 3 * GuildLeague.IDLE_POINTS[-1] and got <= 3 * GuildLeague.IDLE_POINTS[0] and Game.guild_points() == got, "three rounds without the player pay guild points (%d)" % got)
+	check(GuildLeague.credit_idle_rounds() == 0 and Game.guild_points() == got, "each round is paid once")
+	# The next day's first round: one more, paid once.
+	pin(float(GuildLeague.slot_start(day + 1, 0)) + GuildWarData.DURATION + 60.0)
+	var more := GuildLeague.credit_idle_rounds()
+	check(more >= GuildLeague.IDLE_POINTS[-1] and more <= GuildLeague.IDLE_POINTS[0], "the next round pays too (%d)" % more)
+	# Outside a guild: the clock moves on, nothing is paid.
+	Game.new_profile(&"warrior", "League4 Solo", FaceKit.default_look())
+	Game.profile.level = 100
+	pin(float(GuildLeague.slot_start(day + 1, 1)) + GuildWarData.DURATION + 60.0)
+	check(GuildLeague.credit_idle_rounds() == 0 and Game.guild_points() == 0, "no guild, no points")
 
 
 ## A hero at Lv.100 with `stars`; at ★300 it also wears the whole divine set at +10, as

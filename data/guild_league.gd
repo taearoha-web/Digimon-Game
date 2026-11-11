@@ -1200,6 +1200,7 @@ static func tick(t := -1.0) -> bool:
 		return false
 	if t < 0.0:
 		t = now()
+	credit_idle_rounds(t)
 	var d := data(t)
 	tell_round(t)
 	var w := week_of(t)
@@ -1221,6 +1222,62 @@ static func tick(t := -1.0) -> bool:
 	# The hero's name plate wears (or drops) the crown.
 	Game.title_changed.emit(Achievements.title_of(Game.profile))
 	return true
+
+
+# --- Guild points for the rounds fought without the player -----------------------------
+
+## Guild points a character earns for a league round its guild fought while the player
+## was not playing it (its AI self fought in the line-up), by the guild's place in the
+## round (1st..4th): about a day of guild quests over a day's three rounds.
+const IDLE_POINTS: Array[int] = [15, 10, 7, 5]
+## The profile flag holding the start (unix) of the last round credited.
+const IDLE_FLAG := "gw_idle_at"
+## At most this many days of rounds are credited at once (a hero left for a long time).
+const IDLE_DAYS := 14
+
+
+## Credits the guild points of every league round over since the last one credited that
+## the hero's guild fought without the hero in it (the hero fought it for real: its own
+## result and the guild quest count instead). A character credited for the first time
+## starts from the first round of the Thai day. Returns the points added.
+static func credit_idle_rounds(t := -1.0) -> int:
+	if not Game.has_profile:
+		return 0
+	if t < 0.0:
+		t = now()
+	var g := Game.guild()
+	var flags: Dictionary = Game.profile["flags"]
+	var last := last_ended(t)
+	var since := int(flags.get(IDLE_FLAG, 0))
+	if since <= 0:
+		since = slot_start(WorldEvents.day_of(t), 0) - 1
+	since = maxi(since, int(t) - IDLE_DAYS * DAY)
+	if last <= since:
+		return 0
+	flags[IDLE_FLAG] = last
+	Game.mark_dirty()
+	if g <= 0 or int(Game.profile.level) < Game.GUILD_LEVEL:
+		return 0
+	var points := 0
+	var rounds := 0
+	var at := next_slot(float(since))
+	var guard := 0
+	while at <= last and guard < IDLE_DAYS * SLOTS.size() + 3:
+		guard += 1
+		var real := real_wars(week_of(float(at)))
+		if guilds_at(at).has(g) and _real_round(real, at).is_empty():
+			for e in round_results(at, start_holder(at, real), real):
+				if not (e as Dictionary).has("g") or not (e.g as Array).has(g):
+					continue
+				var place := placement(e).find(g)
+				if place >= 0:
+					points += IDLE_POINTS[mini(place, IDLE_POINTS.size() - 1)]
+					rounds += 1
+		at = next_slot(float(at))
+	if points > 0:
+		flags[GuildQuestData.POINTS_FLAG] = int(flags.get(GuildQuestData.POINTS_FLAG, 0)) + points
+		Game.say("ตัวละครนี้ลงสงครามกิลด์ %d รอบระหว่างที่คุณไม่ได้เล่น: +%d แต้มกิลด์" % [rounds, points], &"success")
+	return points
 
 
 # --- Registration and the live rounds -----------------------------------------------
