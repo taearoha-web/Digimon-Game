@@ -1217,7 +1217,8 @@ func mob_at(screen: Vector2) -> Mob:
 		var mob := node as Mob
 		if mob == null or not is_instance_valid(mob) or not mob.visible or mob.is_dead() or mob.is_queued_for_deletion():
 			continue
-		var d := tap_distance(camera, mob.global_position, 2.4, screen)
+		# A castle gate is a tall door: a tap anywhere up its middle picks it.
+		var d := tap_distance(camera, mob.global_position, CastleGate.HEIGHT if mob is CastleGate else 2.4, screen)
 		if d < best_d:
 			best_d = d
 			best = mob

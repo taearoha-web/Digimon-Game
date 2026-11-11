@@ -100,6 +100,13 @@ func _make_visual() -> MonsterVisual:
 	return v
 
 
+## Whether `attacker` (the hero when null) can hurt this gate now: it stands, it is one of
+## the front tier's (a standing gate of a tier already open, or one behind the front, takes
+## no hits) and it is not the attacker's own guild's (the castle's holder).
+func open_to(attacker: Node = null) -> bool:
+	return not _dead and breakable and not GuildWarMatch.owner_hit(attacker)
+
+
 func body_radius() -> float:
 	return SiegeArena.GATE_HALF * 0.7
 
