@@ -619,7 +619,7 @@ func _deny(s: Dictionary) -> void:
 		var holders: int = war.count_switch()[their]
 		deny_switch = _flat(body, SiegeArena.SWITCH) + 6.0 * float(holders) < to_leader - 6.0
 	if deny_switch and not was:
-		trace_line("deny_sw", "หัวหน้ากิลด์ %s: ไล่กิลด์ %s ออกจากวงสวิตช์เร็วกว่า!" % [war.team_name(team), war.team_name(their)])
+		trace_line("deny_sw", "หัวหน้ากิลด์ %s: เข้าวงสวิตช์ให้มากกว่ากิลด์ %s!" % [war.team_name(team), war.team_name(their)])
 	elif not deny_switch and (was or tactic == DEFEND):
 		trace_line("deny_lead%d" % their, "หัวหน้ากิลด์ %s: ส่งทีมจู่โจมไปล้มหัวหน้ากิลด์ %s บนแท่น!" % [war.team_name(team), war.team_name(their)])
 
@@ -696,7 +696,7 @@ func _switch(next: String, s: Dictionary) -> void:
 			callout("guard", "คุ้มกันหัวหน้า!")
 		DEFEND:
 			if bool(s.enemy_capturing):
-				callout("stop", "หยุดคนบนแท่น! สตันหัวกิล ไล่พวกมันออกจากวงสวิตช์ให้บาเรียกลับมา!")
+				callout("stop", "หยุดคนบนแท่น! สตันหัวกิล เข้าวงสวิตช์ให้มากกว่าพวกมันให้บาเรียกลับมา!")
 				_buff_up(SiegeArena.ALTAR, 30.0)
 			elif was != "":
 				callout("hold", "ตั้งรับ! อย่าให้ผ่าน!")

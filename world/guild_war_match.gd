@@ -204,6 +204,8 @@ var _crystal_mat: StandardMaterial3D
 ## SWITCH_EVERY seconds (read_switches, switch_next); fought over while another guild
 ## stands in the circle with the holder (switch_challenger: the one with most there).
 const SWITCH_EVERY := 0.25
+## Seconds a guild must outnumber the holder inside the switch's circle to take it.
+const SWITCH_TAKE_TIME := 3.0
 ## The light pillar over the switch, this tall.
 const SWITCH_BEAM_H := 16.0
 var switch_owner := -1
@@ -219,6 +221,9 @@ var _switch_parts: Dictionary = {}
 ## come takes a free switch on a level count).
 var _switch_seq := 0
 var _switch_arrival: Dictionary = {}
+## The guild outnumbering the holder in the circle and for how long (SWITCH_TAKE_TIME).
+var _switch_taker := -1
+var _switch_taking := 0.0
 ## A resumed war: the switch stays with its saved holder until somebody steps in.
 var _switch_resumed := false
 var _switch_pulse := 0.0
@@ -531,7 +536,7 @@ func build(tree: SceneTree = null) -> void:
 	var counts: PackedStringArray = []
 	for t in team_count():
 		counts.append("กิลด์ %s %d คน" % [team_names[t], side(t).size() + (1 if t == GuildFighter.TEAM_ALLY else 0)])
-	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) ยึดสวิตช์ในห้องบัลลังก์ (ใครยืนในวงก่อนได้ไป กิลด์อื่นต้องไล่ออกจากวงให้หมดก่อน) บาเรียจะเปิดให้กิลด์ที่ถือสวิตช์ แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
+	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) ยึดสวิตช์ในห้องบัลลังก์ (กิลด์ที่มีคนยืนในวงมากกว่าครบ %d วินาทีได้ไป) บาเรียจะเปิดให้กิลด์ที่ถือสวิตช์ แล้วหัวหน้ากิลด์ยืนบนแท่นให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(SWITCH_TAKE_TIME), int(CAPTURE_TIME)], &"quest")
 	Game.say(owner_briefing(), &"quest")
 	if lobby_until > 0:
 		lobby_ui = GuildWarLobby.new()
@@ -2018,13 +2023,19 @@ const BARRIER_TEXT := "บาเรียกันแท่นอยู่ — �
 
 ## Who holds the switch after a reading (pure): `counts[t]` living bodies of each team in
 ## its circle, `owner` the guild holding it before (-1 nobody), `arrival[t]` the reading at
-## which team t's present stay in the circle began. The holder keeps it while at least one
-## of it is inside, however many others are; with none of it left the guild with the most
-## bodies inside takes it, then the one that came in first, then the lower team; an empty
-## circle is held by nobody.
+## which team t's present stay in the circle began. The guild with the most bodies inside
+## takes it; the holder keeps it on a level count (while at least one of it is inside);
+## among the others, the one that came in first, then the lower team; an empty circle is
+## held by nobody. read_switches makes a challenger outnumber the holder for
+## SWITCH_TAKE_TIME before it changes hands.
 static func switch_next(counts: Array, owner: int, arrival: Dictionary = {}) -> int:
 	if owner >= 0 and owner < counts.size() and int(counts[owner]) > 0:
-		return owner
+		var most := 0
+		for t in counts.size():
+			if t != owner:
+				most = maxi(most, int(counts[t]))
+		if int(counts[owner]) >= most:
+			return owner
 	var best := -1
 	for t in counts.size():
 		var c := int(counts[t])
@@ -2094,6 +2105,20 @@ func read_switches() -> void:
 			return
 		_switch_resumed = false
 	var holder := switch_next(c, switch_owner, _switch_arrival)
+	# Outnumbered while still inside: the holder keeps it until the bigger side has stayed
+	# SWITCH_TAKE_TIME; with none of the holder left it changes hands at once.
+	if switch_owner >= 0 and holder >= 0 and holder != switch_owner and switch_owner < c.size() and c[switch_owner] > 0:
+		if _switch_taker != holder:
+			_switch_taker = holder
+			_switch_taking = 0.0
+		_switch_taking += SWITCH_EVERY
+		if _switch_taking + 0.001 < SWITCH_TAKE_TIME:
+			holder = switch_owner
+		else:
+			_switch_taker = -1
+	else:
+		_switch_taker = -1
+		_switch_taking = 0.0
 	# Fought over: the holder still inside with another guild in the circle; the
 	# challenger is the one with the most bodies there.
 	var challenger := -1
@@ -2127,7 +2152,7 @@ func _set_switch(holder: int, challenger := -1) -> void:
 	if holder >= 0 and holder != was:
 		var text := "กิลด์ %s ยึดสวิตช์ได้! บาเรียเปิดให้กิลด์ %s" % [team_name(holder), team_name(holder)]
 		if was >= 0:
-			text = "กิลด์ %s ไล่กิลด์ %s ออกจากวงสวิตช์ — บาเรียเปิดให้กิลด์ %s" % [team_name(holder), team_name(was), team_name(holder)]
+			text = "กิลด์ %s ชิงสวิตช์จากกิลด์ %s — บาเรียเปิดให้กิลด์ %s" % [team_name(holder), team_name(was), team_name(holder)]
 		feed.emit(text, holder)
 		# The toast at most every 6 s (a switch fought over may change hands often).
 		var now_ms := Time.get_ticks_msec()
@@ -2140,7 +2165,7 @@ func _set_switch(holder: int, challenger := -1) -> void:
 		var now_ms := Time.get_ticks_msec()
 		if now_ms - _switch_fight_at > 8000:
 			_switch_fight_at = now_ms
-			feed.emit("กิลด์ %s บุกวงสวิตช์! กิลด์ %s ยังถือสวิตช์อยู่ — ต้องไล่ออกจากวงให้หมด" % [team_name(switch_challenger), team_name(holder)], -1)
+			feed.emit("กิลด์ %s บุกวงสวิตช์! กิลด์ %s ยังถือสวิตช์อยู่ — มีคนในวงมากกว่า %d วิเพื่อยึด" % [team_name(switch_challenger), team_name(holder), int(SWITCH_TAKE_TIME)], -1)
 	for c in commanders:
 		c.on_switch_change()
 
@@ -2214,7 +2239,7 @@ func switch_color() -> Color:
 ## The barrier's warning for `team`'s leader: who to clear out of the switch's circle.
 func barrier_text(team: int) -> String:
 	if switch_owner >= 0 and switch_owner != team and switch_pin < 0:
-		return "บาเรียกันแท่นอยู่ — ต้องไล่กิลด์ %s ออกจากวงสวิตช์ก่อน" % team_name(switch_owner)
+		return "บาเรียกันแท่นอยู่ — ต้องมีคนในวงสวิตช์มากกว่ากิลด์ %s" % team_name(switch_owner)
 	return BARRIER_TEXT
 
 
@@ -2490,7 +2515,7 @@ func _tick_capture(delta: float) -> void:
 			feed.emit("%s ออกนอกวงสีเหลือง — หยุดนับไว้ที่ %d/%d วิ" % [_who_name(who), int(capture.progress), int(CAPTURE_TIME)], team)
 		if blocked and not bool(capture.get("barrier", false)):
 			capture["barrier"] = true
-			feed.emit("บาเรียกลับมากันแท่น! กิลด์ %s หยุดนับที่ %d/%d วิ — %s" % [team_name(team), int(capture.progress), int(CAPTURE_TIME), ("ต้องไล่กิลด์ %s ออกจากวงสวิตช์ก่อน" % team_name(switch_owner)) if switch_owner >= 0 else "ต้องยึดสวิตช์คืน"], team)
+			feed.emit("บาเรียกลับมากันแท่น! กิลด์ %s หยุดนับที่ %d/%d วิ — %s" % [team_name(team), int(capture.progress), int(CAPTURE_TIME), ("ต้องมีคนในวงสวิตช์มากกว่ากิลด์ %s" % team_name(switch_owner)) if switch_owner >= 0 else "ต้องยึดสวิตช์คืน"], team)
 			if zone != null and is_instance_valid(zone):
 				VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.4, 0), Color(BARRIER_COLOR, 1.0), 5.0)
 		capture["paused"] = true

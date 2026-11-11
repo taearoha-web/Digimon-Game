@@ -74,7 +74,7 @@ const ALTAR_RADIUS := 2.8
 ## however many others come in; the altar's barrier falls only for the guild holding it
 ## (GuildWarMatch.barrier_up), so only that guild's leader can take the altar.
 const SWITCH := Vector3(-14.0, 0, -102.0)
-const SWITCH_RADIUS := 3.2
+const SWITCH_RADIUS := 4.2
 const SWITCH_NAME := "สวิตช์"
 const LANE_NAMES: Array[String] = ["ซ้าย", "ขวา"]
 ## Where the sections join, each a list of openings: the bridge foot (one per lane), the

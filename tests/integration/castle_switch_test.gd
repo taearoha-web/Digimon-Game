@@ -51,10 +51,11 @@ func _ready() -> void:
 
 
 func _pure_rules() -> void:
-	# The holder keeps it while one of it is inside, whatever the others bring.
+	# The most bodies inside take it; the holder keeps it on a level count.
 	check(GuildWarMatch.switch_next([0, 0], -1) == -1, "an empty circle: nobody holds it")
 	check(GuildWarMatch.switch_next([1, 0], -1) == 0 and GuildWarMatch.switch_next([0, 3], -1) == 1, "the first guild in a free circle takes it")
-	check(GuildWarMatch.switch_next([1, 5], 0) == 0 and GuildWarMatch.switch_next([1, 5, 4, 3], 0) == 0, "the holder keeps it with one inside against many (2 and 4 guilds)")
+	check(GuildWarMatch.switch_next([1, 5], 0) == 1 and GuildWarMatch.switch_next([1, 5, 4, 3], 0) == 1, "outnumbered, the holder loses it to the most bodies (2 and 4 guilds)")
+	check(GuildWarMatch.switch_next([2, 2], 0) == 0 and GuildWarMatch.switch_next([3, 1, 2], 0) == 0, "level or ahead, the holder keeps it")
 	check(GuildWarMatch.switch_next([0, 5], 0) == 1 and GuildWarMatch.switch_next([0, 0], 0) == -1, "none of the holder left: the next guild in takes it, or nobody")
 	check(GuildWarMatch.switch_next([0, 2, 3, 0], 0) == 2, "several waiting: the most bodies")
 	check(GuildWarMatch.switch_next([0, 2, 2, 0], 0, {1: 7, 2: 4}) == 2 and GuildWarMatch.switch_next([0, 2, 2, 0], 0, {1: 3, 2: 4}) == 1, "level: the one that came in first")
