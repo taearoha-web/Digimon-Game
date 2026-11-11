@@ -11,7 +11,17 @@ static var _sculpt_parts: Dictionary = {}
 static var _casters: Dictionary = {}
 static var _bounces: Dictionary = {}
 
+## A regular skill with its own signature art (combat/skill_art) draws its links, flights
+## and hits itself when its script has that beat; the shared art stays out of it.
+static func _signed(skill: Dictionary, beat: String) -> GDScript:
+	var own := SkillSignature.script_for(skill.get("id", "")) if SkillSignature.owns(skill) else null
+	return own if own and own.has_method(beat) else null
+
 static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) -> void:
+	if SkillSignature.owns(skill):
+		var own := _signed(skill, "link")
+		if own: own.link(parent, skill, from, to)
+		return
 	var look := SkillShow.profile_for(skill)
 	if String(look.signature) == "lightning":
 		VfxKit.lightning(parent, from, to, look.primary)
@@ -32,6 +42,9 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 	root.create_tween().tween_interval(0.3).finished.connect(root.queue_free, CONNECT_ONE_SHOT)
 
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> Node3D:
+	var signed := _signed(skill, "flight")
+	var drawn: Node3D = signed.flight(parent, skill, from, to, seconds, size) if signed else null
+	if drawn: return drawn # else the essential body below still flies
 	ClassSignature.flight(parent, skill, from, to, seconds, size)  # class signature hook (Archer / Assassin / Dark Lord)
 	if MartialSkillArt.handles(skill):
 		var martial := MartialSkillArt.flight(parent,skill,from,to,seconds,size)
@@ -163,6 +176,10 @@ static func _sparkle_trail(root: Node3D, look: Dictionary, size: float, arrow: b
 
 ## [param crit] only adds a fan of light; damage was already decided.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
+	if SkillSignature.owns(skill):
+		var own := _signed(skill, "contact")
+		if own: own.contact(parent, skill, at, crit)
+		return
 	SkillLayers.contact(parent, skill, at, crit)
 	ClassFlourish.contact(parent, skill, at, crit)
 	ShadowSkillArt.contact(parent, skill, at, crit)
