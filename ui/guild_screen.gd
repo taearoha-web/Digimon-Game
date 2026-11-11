@@ -463,7 +463,7 @@ static func alt_row(a: Dictionary, is_lead := false) -> Dictionary:
 	var stars := int(a.get("stars", 0))
 	return {"name": "%s (ตัวละครของคุณ)" % String(a.name), "class": StringName(a["class"]), "level": int(a.level), "stars": stars,
 		"level_text": "Lv.%d%s" % [int(a.level), " ★%d" % stars if stars > 0 else ""],
-		"where": "ตัวละครของคุณ · ไม่ได้เล่นอยู่ — ไม่ลงสงครามกิลด์จนกว่าจะเล่นตัวนี้", "online": false, "alt": int(a.slot), "lead": is_lead}
+		"where": "ตัวละครของคุณ · ไม่ได้เล่นอยู่ — ลงสงครามกิลด์ให้กิลด์นี้โดย AI", "online": false, "alt": int(a.slot), "lead": is_lead}
 
 
 func _card(who: String, cls: StringName, level: String, where: String, online: bool, lead := false) -> Control:
@@ -619,7 +619,7 @@ static func leader_choices(g: int, t: float) -> Array[Dictionary]:
 		var row := alt_row(a, String(lead.kind) == "alt" and int(lead.get("slot", 0)) == int(a.slot))
 		row["pick"] = Game.alt_pick(int(a.slot))
 		row["current"] = row.lead
-		row["where"] = "ตัวละครของคุณ · ไม่ได้เล่นอยู่ — ในสงครามกิลด์หัวหน้าสำรองนำทัพแทน"
+		row["where"] = "ตัวละครของคุณ · ไม่ได้เล่นอยู่ — นำทัพในสงครามกิลด์โดย AI"
 		mine.append(row)
 	sort_members(mine, "level")
 	mine.append_array(rows)

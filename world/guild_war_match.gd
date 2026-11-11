@@ -432,11 +432,16 @@ func build(tree: SceneTree = null) -> void:
 	_take_roster()
 	# Who leads each side (the player picks, Game.guild_war_leader): a picked member is
 	# always in its line-up. Another guild's default leader (its strongest member) leads
-	# when in the line-up, else its best tank does, as always. One of the player's other
-	# characters picked to lead is not in the war: the default leads instead (told below).
+	# when in the line-up, else its best tank does, as always. The player's other
+	# characters in a guild (Game.guild_alts) fight for it as the AI (alt_war_fighter),
+	# each in place of one of its world players, and one picked to lead leads; only one
+	# whose save cannot be read stays out, and the default leads instead (told below).
 	var lead_names: Array[String] = []
 	lead_names.resize(team_count())
 	lead_names.fill("")
+	var lead_alts: Array[int] = []
+	lead_alts.resize(team_count())
+	lead_alts.fill(0)
 	stand_ins.clear()
 	if bool(roster.get("guilds", false)):
 		var t0 := float(started_at)
@@ -444,15 +449,33 @@ func build(tree: SceneTree = null) -> void:
 			var g := team_guilds[t]
 			if g <= 0:
 				continue
-			lead_names[t] = Game.guild_war_leader(g, t0)
 			var lineup: Array = _lineup(t)
-			if t == GuildFighter.TEAM_ALLY:
-				ensure_member(lineup, lead_names[t], t0, rng)
-			elif String(Game.guild_leader_of(g, t0).kind) == "member" and Game.guild_leader_pick(g) == lead_names[t]:
-				ensure_member(lineup, lead_names[t], t0, rng)
 			var chosen := Game.guild_leader_of(g, t0)
 			if String(chosen.kind) == "alt":
-				stand_ins[g] = String(chosen.name)
+				lead_names[t] = String(chosen.name)
+				lead_alts[t] = int(chosen.slot)
+			else:
+				lead_names[t] = Game.guild_war_leader(g, t0)
+				if t == GuildFighter.TEAM_ALLY:
+					ensure_member(lineup, lead_names[t], t0, rng)
+				elif String(chosen.kind) == "member" and Game.guild_leader_pick(g) == lead_names[t]:
+					ensure_member(lineup, lead_names[t], t0, rng)
+			var cap := GuildWarData.GUILD_SIDE - (1 if t == GuildFighter.TEAM_ALLY else 0) if not league.is_empty() else lineup.size()
+			var keep: Array = []
+			if lead_alts[t] == 0 and lead_names[t] != "":
+				keep.append(lead_names[t])
+			if t == GuildFighter.TEAM_ALLY:
+				for who in Game.guildwar_party_picks:
+					keep.append(who)
+			for alt in Game.guild_alts(g):
+				var info := Game.alt_war_fighter(int(alt.slot))
+				if info.is_empty() or not put_alt(lineup, info, cap, keep):
+					if int(alt.slot) == lead_alts[t]:
+						stand_ins[g] = String(alt.name)
+			if stand_ins.has(g):
+				# The picked character is not on the field: the default leads.
+				lead_alts[t] = 0
+				lead_names[t] = "" if t == GuildFighter.TEAM_ALLY else WorldPlayers.guild_leader(g, t0)
 	_take_picks(saved)
 	var party_rng := RandomNumberGenerator.new()
 	party_rng.seed = hash("gw_party|%d" % roll_seed)
@@ -465,16 +488,19 @@ func build(tree: SceneTree = null) -> void:
 	for t in team_count():
 		var lineup: Array = _lineup(t)
 		var at := -1
-		if t == GuildFighter.TEAM_ALLY:
+		if lead_alts[t] > 0:
+			# The player's character leads with its own build (no tank build).
+			at = alt_index(lineup, lead_alts[t])
+		elif t == GuildFighter.TEAM_ALLY:
 			if lead_names[t] != "":
 				for i in lineup.size():
-					if String(lineup[i].member.get("name", "")) == lead_names[t]:
+					if int(lineup[i].get("alt", 0)) == 0 and String(lineup[i].member.get("name", "")) == lead_names[t]:
 						at = i
 						break
 		else:
 			var pick := lead_names[t] if team_guilds[t] > 0 and Game.guild_leader_pick(team_guilds[t]) != "" else ""
 			at = GuildWarData.leader_index(lineup, pick)
-		if at >= 0:
+		if at >= 0 and lead_alts[t] == 0:
 			lineup[at] = GuildWarData.tank_build(lineup[at])
 		lead_at.append(at)
 	var leads: Array = await _spawn_lineups(lead_at, tree)
@@ -1072,20 +1098,21 @@ func _mark_focus() -> void:
 		_focus_mark.global_position = target.global_position + Vector3(0, 0.08, 0)
 
 
-## The player's other characters picked to lead a guild, by guild id: they are not
-## being played, so not in the war, and its default leader stands in (stand_in_lines).
+## The player's other characters picked to lead a guild whose save could not be read
+## (Game.alt_war_fighter) or found no place in its line-up, by guild id: not on the
+## field, so its default leader stands in (stand_in_lines). Empty when they lead.
 var stand_ins := {}
 
 
-## One line per guild whose picked leader (another character of the player) is not on
-## the field: "หัวหน้ากิลด์ X ไม่ได้ลงสนาม — Y นำทัพแทน".
+## One line per guild whose picked leader (another character of the player) could not
+## take the field: "หัวหน้ากิลด์ X ไม่ได้ลงสนาม — Y นำทัพแทน".
 func stand_in_lines() -> Array[String]:
 	var out: Array[String] = []
 	for g in stand_ins:
 		var team := maxi(0, team_guilds.find(int(g)))
 		var lead := leader_of(team)
 		var who := "คุณ" if lead == hero else (String((lead as GuildFighter).member.get("name", "")) if lead is GuildFighter else "ไม่มีใคร")
-		out.append("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม (ตัวละครของคุณที่ไม่ได้เล่นอยู่) — %s นำทัพ %s แทน" % [String(stand_ins[g]), who, WorldPlayers.guild_name(int(g))])
+		out.append("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม (ตัวละครของคุณ ลงสนามไม่ได้) — %s นำทัพ %s แทน" % [String(stand_ins[g]), who, WorldPlayers.guild_name(int(g))])
 	return out
 
 
@@ -1111,6 +1138,34 @@ func hero_leads() -> bool:
 ## A side's AI leader (a GuildFighter), null when the hero leads ours or it is gone.
 func ai_leader(team: int) -> GuildFighter:
 	return _lead_at(team)
+
+
+## Puts one of the player's other characters (`info`: Game.alt_war_fighter) into a guild's
+## `lineup`: added while it is under `cap`, else in place of its last world player whose
+## name is not in `keep` (the picked leader, the hero's party picks), so the side keeps its
+## size. False when there is no place for it (or it is already there).
+static func put_alt(lineup: Array, info: Dictionary, cap: int, keep: Array = []) -> bool:
+	var slot := int(info.get("alt", 0))
+	if slot <= 0 or alt_index(lineup, slot) >= 0:
+		return false
+	if lineup.size() < cap:
+		lineup.append(info)
+		return true
+	for i in range(lineup.size() - 1, -1, -1):
+		var other: Dictionary = lineup[i]
+		if int(other.get("alt", 0)) > 0 or keep.has(String(other.member.get("name", ""))):
+			continue
+		lineup[i] = info
+		return true
+	return false
+
+
+## Where the player's character from save slot `slot` stands in `lineup` (-1: not there).
+static func alt_index(lineup: Array, slot: int) -> int:
+	for i in lineup.size():
+		if int((lineup[i] as Dictionary).get("alt", 0)) == slot:
+			return i
+	return -1
 
 
 ## Puts the member named `who` into `lineup` when it is not there (the player picked it

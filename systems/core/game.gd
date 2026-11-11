@@ -3664,8 +3664,8 @@ func join_guild(g: int) -> bool:
 # For the hero's own guild "" means the hero leads; for the other guild "" means its
 # strongest member (WorldPlayers.guild_leader). A pick that is no longer in that guild
 # (moved, deleted, not at Lv.100) falls back to that default. Another character of the
-# player is not being played, so it is never in the guild war: there the default leads
-# in its place (guild_war_leader).
+# player is not being played but still fights in the guild war, played by the AI with its
+# own build (alt_war_fighter), so picked to lead it leads there too (guild_war_leader).
 
 ## How long a saved pick may be (world player names are short).
 const GUILD_LEADER_NAME_MAX := 64
@@ -3730,10 +3730,12 @@ func guild_leader_name(g: int, t := -1.0) -> String:
 	return "" if String(lead.kind) == "hero" else String(lead.name)
 
 
-## Who leads guild `g` in the guild war: as chosen, but another character of the player
-## is not in the war, so the default leads instead (the hero for its own guild, else its
-## strongest member). "" is the hero.
-func guild_war_leader(g: int, t := -1.0) -> String:
+## Who leads guild `g` in the guild war, as chosen: "" is the hero, else a world player's
+## name or the name of another character of the player (it fights the war as an AI,
+## alt_war_fighter; guild_war_alt_leader gives its slot). `alts` false: such a character
+## counts as not there and the default leads (the hero for its own guild, else its
+## strongest member), for what only the hero or a world player can hold (LegendWings).
+func guild_war_leader(g: int, t := -1.0, alts := true) -> String:
 	if t < 0.0:
 		t = WorldPresence.clock()
 	var lead := guild_leader_of(g, t)
@@ -3741,10 +3743,18 @@ func guild_war_leader(g: int, t := -1.0) -> String:
 		"hero":
 			return ""
 		"alt":
+			if alts:
+				return String(lead.name)
 			if g > 0 and g == guild():
 				return ""
 			return WorldPlayers.guild_leader(g, t)
 	return String(lead.name)
+
+
+## The save slot of the player's other character chosen to lead guild `g` (0: none).
+func guild_war_alt_leader(g: int, t := -1.0) -> int:
+	var lead := guild_leader_of(g, t)
+	return int(lead.get("slot", 0)) if String(lead.kind) == "alt" else 0
 
 
 ## True when the hero leads its own guild `g`.
@@ -3760,7 +3770,7 @@ func guild_leader_label(g: int, t := -1.0) -> String:
 		"hero":
 			return "คุณ (%s)" % String(lead.name)
 		"alt":
-			return "%s (ตัวละครของคุณ · ไม่ได้เล่นอยู่)" % String(lead.name)
+			return "%s (%s)" % [String(lead.name), ALT_WAR_TAG]
 		"none":
 			return "ยังไม่มี"
 	return String(lead.name)
@@ -3789,8 +3799,9 @@ func set_guild_leader(g: int, pick: String, t := -1.0) -> bool:
 
 ## The player's other characters (the other save slots, read without loading them)
 ## that are in guild `g`: Lv.100 or more with that guild. [{slot, name, class, adv,
-## level, stars}]. They count as members but stay out of the guild war while another
-## character is played. Kept by the slot files' stamps (the guild screen refreshes).
+## level, stars}]. They count as members and fight in the guild war for that guild,
+## played by the AI (alt_war_fighter), even against the hero's own guild. Kept by the
+## slot files' stamps (the guild screen refreshes).
 var _alt_cache := {}
 
 
@@ -3802,6 +3813,54 @@ func guild_alts(g: int) -> Array[Dictionary]:
 		if int(found.guild) == g:
 			out.append(found)
 	return out
+
+
+## How another character of the player is tagged in the guild war (its name, its leader
+## line): it is the player's, played by the AI.
+const ALT_WAR_TAG := "ตัวละครของคุณ · AI"
+## What of a save makes its fighter's sheet (HeroStats.compute, the AI's skills, its mount).
+const ALT_WAR_KEYS: Array[String] = ["class", "level", "attrs", "equip", "adv", "paragon", "skills", "mounts", "mount"]
+
+
+## The player's other character in save slot `for_slot` as a guild-war fighter
+## (GuildFighter.setup_fighter), built as it really is from its save (read, never written,
+## never loaded): class, level, stars and their points, job advancement, stat points,
+## skill ranks, worn gear (its +plus, gems and wings), mount and face. `alt` holds the slot
+## and the tag reads ALT_WAR_TAG. {} when the slot cannot be read, is the one played or
+## is under Lv.100 (no guild).
+func alt_war_fighter(for_slot: int) -> Dictionary:
+	if for_slot < 1 or for_slot > SLOT_COUNT or (has_profile and for_slot == slot):
+		return {}
+	var raw := _read_slot(for_slot)
+	if raw.is_empty():
+		return {}
+	var p := _repair(raw.duplicate(true))
+	var level := int(p.get("level", 1))
+	if level < GUILD_LEVEL or not ClassData.CLASSES.has(StringName(p.get("class", ""))):
+		return {}
+	var sheet := {}
+	for key in ALT_WAR_KEYS:
+		if p.has(key):
+			var v: Variant = p[key]
+			sheet[key] = v.duplicate(true) if v is Dictionary or v is Array else v
+	if not sheet.get("equip") is Dictionary:
+		sheet["equip"] = {}
+	if not sheet.get("attrs") is Dictionary:
+		sheet["attrs"] = {}
+	var para: Variant = sheet.get("paragon", {})
+	var stars := int((para as Dictionary).get("level", 0)) if para is Dictionary else 0
+	var s := {"level": level, "stars": stars}
+	return {
+		"member": {"class": String(p["class"]), "name": String(p.get("name", "")), "level": level},
+		"profile": sheet,
+		"mults": {"hp": 1.0, "atk": 1.0, "def": 1.0},
+		"difficulty": GuildWarData.SKILL,
+		"look": (p.get("look", {}) as Dictionary).duplicate(true) if p.get("look") is Dictionary else {},
+		"grade": WorldPlayers.grade_of(level, stars, false),
+		"tag": "%s · %s" % [WorldPlayers.level_text(s), ALT_WAR_TAG],
+		"power": GuildWarData.power_of(HeroStats.compute(sheet)),
+		"alt": for_slot,
+	}
 
 
 ## Every other character of the player (the other save slots, any level or guild), read

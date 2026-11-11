@@ -153,12 +153,15 @@ static func staying_power(info: Dictionary) -> float:
 ## Which of a guild's line-up leads it: the one named `leader_name` (a leader the player
 ## picked) when it is there, else the toughest of them once built as a tank (tank_build:
 ## the most HP x defence), whatever the class (the owner's rule: the rival's leader is
-## always its guild's toughest).
+## always its guild's toughest). The player's own other characters (Game.alt_war_fighter)
+## lead only when the player picks them (GuildWarMatch.build), never by this.
 static func leader_index(lineup: Array, leader_name := "") -> int:
 	var best := -1
 	var best_score := -INF
 	for i in lineup.size():
 		var info: Dictionary = lineup[i]
+		if int(info.get("alt", 0)) > 0:
+			continue
 		if leader_name != "" and String(info.member.get("name", "")) == leader_name:
 			return i
 		var score := staying_power(tank_build(info))

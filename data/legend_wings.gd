@@ -5,7 +5,8 @@ extends RefCounted
 ## (GuildLeague.league_champion_of), stamped with the week id and the guild (legend_week,
 ## legend_guild). The guild's leader receives it (Game.guild_war_leader: the hero when it
 ## leads its own guild, else a world player, who then wears it for real: WorldGear shows
-## it in its gear, so chat and the player card tell the truth). When the same guild is
+## it in its gear, so chat and the player card tell the truth; another character of the
+## player picked to lead, played by the AI in the war, does not: the default does). When the same guild is
 ## champion again the next week (a streak), the leader does not keep the new pair but hands
 ## it to a member: the hero as leader picks one in the guild screen (hand_choices /
 ## hand_to; itself only while it holds none of this streak); an AI leader gives it to the
@@ -309,7 +310,7 @@ static func _resolve(w: int, t: float) -> Dictionary:
 	var close := GuildLeague.week_end(w)
 	var prev := hold_of(w - 1)
 	var streak := int(prev.get("s", 0)) + 1 if not prev.is_empty() and int(prev.g) == champ else 1
-	var leader := Game.guild_war_leader(champ, close)
+	var leader := Game.guild_war_leader(champ, close, false)
 	if streak == 1:
 		return {"g": champ, "n": leader, "s": 1, "by": leader}
 	var taken := streak_names(w, champ)

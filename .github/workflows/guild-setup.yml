@@ -1,0 +1,85 @@
+name: Guild leaders of an account (owner only)
+
+# Manual only, and only for people with write access to this repository.
+# Puts named characters of one game account into guilds, makes each the leader of its guild for
+# every character of that account (tools/guild_setup.tscn), and optionally gives each of them a
+# mount at a level as the active one. The previous save is kept as a snapshot, and nothing is
+# written if the game saved in between. Close the game first; on the next start pick
+# "ใช้เซฟออนไลน์ล่าสุด" if the save screen asks.
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: Game ID (account)
+        required: true
+      assign:
+        description: 'name:class:guild, comma separated (guild = alpha, neverdie, titan, 3dlnw; class "any" matches any), e.g. Hades:darklord:alpha'
+        required: true
+      mount:
+        description: Mount for each of them (none, thunder_wolf, glow_stag, griffin, fire_drake)
+        default: none
+        required: true
+      mount_level:
+        description: Level of that mount (1-5)
+        default: '1'
+        required: true
+      confirm:
+        description: Type GUILD to confirm
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boost-character
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DB_NAME: ${{ vars.D1_DATABASE_NAME || 'toon-tale-accounts' }}
+      TARGET_USER: ${{ inputs.username }}
+      ASSIGN: ${{ inputs.assign }}
+      MOUNT: ${{ inputs.mount }}
+      MOUNT_LEVEL: ${{ inputs.mount_level }}
+      CONFIRM: ${{ inputs.confirm }}
+      XDG_DATA_HOME: /tmp/toon-guild-data
+    steps:
+      - name: Check the request
+        run: |
+          test "$CONFIRM" = "GUILD" || { echo "::error::Type GUILD in the confirm field."; exit 1; }
+          echo "$TARGET_USER" | grep -Eq '^[a-z0-9_]{3,24}$' || { echo "::error::Invalid game ID."; exit 1; }
+          echo "$MOUNT" | grep -Eq '^(none|thunder_wolf|glow_stag|griffin|fire_drake)$' || { echo "::error::Unknown mount."; exit 1; }
+          echo "$MOUNT_LEVEL" | grep -Eq '^[1-5]$' || { echo "::error::The mount level must be 1 to 5."; exit 1; }
+          test -n "$ASSIGN" || { echo "::error::Enter at least one assignment."; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Godot 4.3
+        run: |
+          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          echo /tmp/godot >> "$GITHUB_PATH"
+      - name: Import assets
+        run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path . > /tmp/import.log 2>&1 || { tail -50 /tmp/import.log; exit 1; }
+      - name: Fetch the online save
+        run: |
+          mkdir -p /tmp/guild
+          node hosting/worker/boost-character.mjs fetch "$TARGET_USER" /tmp/guild
+      - name: Set guilds and leaders with the game's own code
+        run: |
+          Godot_v4.3-stable_linux.x86_64 --headless --path . res://tools/guild_setup.tscn -- \
+            --in /tmp/guild/bundle.json --out /tmp/guild/slots.json --assign "$ASSIGN" \
+            --mount "$MOUNT" --mount-level "$MOUNT_LEVEL" 2>&1 | tee /tmp/guild/log.txt
+          grep -q '^GUILD: slot ' /tmp/guild/log.txt || { echo "::error::The setup did not run; see the log above."; exit 1; }
+          test -s /tmp/guild/slots.json
+      - name: Save it online
+        run: |
+          node hosting/worker/boost-character.mjs apply-slots /tmp/guild /tmp/guild/slots.json
+          rm -rf /tmp/guild

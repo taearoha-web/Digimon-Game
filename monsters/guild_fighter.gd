@@ -165,6 +165,16 @@ var _rest_at := Vector3.INF
 
 
 ## info: GuildWarData.make_fighter(). `title` is the guild tag shown before the name.
+## The save slot when it is another character of the player (Game.alt_war_fighter),
+## played by the AI; 0 for everyone else.
+var alt_slot := 0
+
+
+## Its name over its head: tagged as the player's own character when it is one.
+func shown_name() -> String:
+	return String(member.name) + (" (%s)" % Game.ALT_WAR_TAG if alt_slot > 0 else "")
+
+
 func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vector3, title: String) -> void:
 	team = p_team
 	grade = int(info.get("grade", 0))
@@ -173,6 +183,10 @@ func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vecto
 	spawn_point = p_spawn
 	goal_point = SiegeArena.PLAZA
 	setup_rival(info, p_spawn, p_hero, title)
+	alt_slot = int(info.get("alt", 0))
+	if alt_slot > 0:
+		rival_name = "%s (%s)" % [rival_name, Game.ALT_WAR_TAG]
+		template["name"] = rival_name
 	war_scale = GuildWarData.damage_scale
 	announce_skills = false
 	_potions = 3
@@ -196,10 +210,10 @@ func _ready() -> void:
 	_label.font_size = 36
 	if in_hero_party():
 		# The hero's party: a diamond before the name and the party's green.
-		_label.text = "◆ " + String(member.name)
+		_label.text = "◆ " + shown_name()
 		_label.modulate = GuildWarMatch.PARTY_COLOR
 	else:
-		_label.text = String(member.name)
+		_label.text = shown_name()
 		_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
 	_label.visibility_range_end = 30.0
 	# Fifty fighters on one field: far ones stop animating like far monsters do.
@@ -223,7 +237,7 @@ func make_leader() -> void:
 	# The target bar names it (it is tough by its own build: GuildWarData.tank_build).
 	template["name"] = "%s · ผู้นำกิลด์" % rival_name
 	if _label != null:
-		_label.text = "หัวหน้ากิลด์ " + String(member.name)
+		_label.text = "หัวหน้ากิลด์ " + shown_name()
 		_label.modulate = LeaderMark.guild_color(team).lerp(Color.WHITE, 0.2)
 		# Seen from across the field, not only up close like the others' names.
 		_label.visibility_range_end = 0.0

@@ -5,8 +5,8 @@ extends Node
 ## members of their guild, the guild screen's picker, and the guild war: by default the
 ## hero leads ours and the rival's strongest leads theirs; a member picked for ours is put
 ## in the line-up, crowned, tank-built, our commander's leader, takes the altar itself and
-## the hero cannot; a member picked for theirs leads them; another character of the
-## player picked to lead is not in the war and the default leads instead (told in a line).
+## the hero cannot; a member picked for theirs leads them; the player's other characters
+## fight for their guilds as the AI, and one picked to lead leads it in the war.
 ## godot --headless --path . res://tests/integration/guild_leader_choice_test.tscn
 var failures: Array[String] = []
 var checks := 0
@@ -240,7 +240,7 @@ func _guild_screen() -> void:
 	await _frames(2)
 	check(Game.guild_leader_pick(never) == Game.alt_pick(ALT_SLOT), "picking it saves it")
 	var lead_n := screen.find_child("LeaderNeverdie", true, false) as Label
-	check(lead_n != null and lead_n.text.contains("%s (ตัวละครของคุณ · ไม่ได้เล่นอยู่)" % ALT_NAME), "Neverdie's leader line names it as the player's character (%s)" % (lead_n.text if lead_n else "-"))
+	check(lead_n != null and lead_n.text.contains("%s (%s)" % [ALT_NAME, Game.ALT_WAR_TAG]), "Neverdie's leader line names it as the player's character (%s)" % (lead_n.text if lead_n else "-"))
 	# Closing the screen closes a picker left open.
 	screen.open_leader_picker(never)
 	await _frames(1)
@@ -301,10 +301,13 @@ func _war_default() -> void:
 	# Without a pick their toughest leads (the owner's rule), whoever leads the guild day to day.
 	var toughest := 0.0
 	for f in m.enemies:
+		if f.alt_slot > 0:
+			continue  # the player's own character leads only when picked
 		toughest = maxf(toughest, float(f.max_hp) * (1.0 + float(f.rstats.def) / 100.0))
 	if m.enemy_leader != null:
 		check(float(m.enemy_leader.max_hp) * (1.0 + float(m.enemy_leader.rstats.def) / 100.0) >= toughest * 0.999, "default: their toughest leads them (guild leader %s)" % strongest)
-	check(not _names(m.allies).has(ALT2_NAME) and not _names(m.enemies).has(ALT_NAME), "the player's other characters are not in the war")
+	check(_names(m.allies).has(ALT2_NAME) and _names(m.enemies).has(ALT_NAME), "the player's other characters fight for their guilds (AI)")
+	check(m.allies.all(func(f): return f.alt_slot == 0 or not f.is_leader) and m.enemies.all(func(f): return f.alt_slot == 0 or not f.is_leader), "default: they do not lead unless picked")
 	check(m.stand_in_lines().is_empty(), "default: nobody stands in")
 	await _close_war(zone)
 
@@ -469,19 +472,18 @@ func _war_alt_leaders() -> void:
 	var alpha := WorldPlayers.ALPHA
 	var never := WorldPlayers.NEVERDIE
 	check(Game.set_guild_leader(never, Game.alt_pick(ALT_SLOT)) and Game.set_guild_leader(alpha, Game.alt_pick(ALT2_SLOT)), "both guilds led by the player's other characters")
-	check(Game.guild_war_leader(alpha) == "" and Game.guild_war_leader(never) == WorldPlayers.guild_leader(never, _t()), "in the war the defaults lead in their place")
+	check(Game.guild_war_leader(alpha) == ALT2_NAME and Game.guild_war_leader(never) == ALT_NAME, "in the war the picked characters lead")
+	check(Game.guild_war_alt_leader(alpha) == ALT2_SLOT and Game.guild_war_alt_leader(never) == ALT_SLOT, "by their slots")
+	check(Game.guild_war_leader(alpha, -1.0, false) == "" and Game.guild_war_leader(never, -1.0, false) == WorldPlayers.guild_leader(never, _t()), "without them (legend wings) the defaults")
 	var zone := _open_war()
 	var m: GuildWarMatch = zone.gw_match
 	if m == null:
 		check(false, "alt leaders: no match")
 		return
-	check(not _names(m.allies).has(ALT2_NAME) and not _names(m.enemies).has(ALT_NAME), "alt leaders: never in the war")
-	check(m.hero_leads() and m.leader_of(GuildFighter.TEAM_ALLY) == zone.hero, "alt leaders: the hero leads ours in place of the other character")
-	check(m.enemy_leader != null and m.enemy_leader.is_leader, "alt leaders: their default leads theirs")
-	var lines := m.stand_in_lines()
-	check(lines.size() == 2, "alt leaders: a line for each guild (%s)" % [lines])
-	check(lines.any(func(x: String): return x.contains("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม" % ALT_NAME) and x.contains(String(m.enemy_leader.member.name) + " นำทัพ")), "alt leaders: told who leads Neverdie instead (%s)" % [lines])
-	check(lines.any(func(x: String): return x.contains("หัวหน้ากิลด์ %s ไม่ได้ลงสนาม" % ALT2_NAME) and x.contains("คุณ นำทัพ")), "alt leaders: told the hero leads Alpha instead (%s)" % [lines])
+	check(_names(m.allies).has(ALT2_NAME) and _names(m.enemies).has(ALT_NAME), "alt leaders: in the war")
+	check(not m.hero_leads() and m.ally_leader != null and m.ally_leader.alt_slot == ALT2_SLOT and m.ally_leader.is_leader, "alt leaders: the other character leads ours")
+	check(m.enemy_leader != null and m.enemy_leader.alt_slot == ALT_SLOT and m.enemy_leader.is_leader, "alt leaders: the other character leads Neverdie")
+	check(m.stand_in_lines().is_empty(), "alt leaders: nobody stands in (%s)" % [m.stand_in_lines()])
 	await _close_war(zone)
 	check(Game.save(), "the played character saved with its picks")
 
