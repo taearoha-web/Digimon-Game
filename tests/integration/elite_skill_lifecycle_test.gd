@@ -27,8 +27,9 @@ func _ready() -> void:
 			var snapshot: Dictionary=skill.duplicate(true)
 			var field := Node3D.new()
 			add_child(field)
-			if String(skill.id) in ["armageddon","judgment_ray"]:
-				# These keep their own hit/visual clocks; dedicated tests cover damage.
+			if String(skill.id) in ["armageddon","judgment_ray"] or SkillSignature.owns(skill):
+				# These keep their own hit/visual clocks (dedicated tests cover damage), or draw their
+				# own signature art (combat/skill_art, covered by the skill_art_* tests).
 				field.queue_free()
 				await field.tree_exited
 				continue
