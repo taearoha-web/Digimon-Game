@@ -210,6 +210,10 @@ static func telegraph(caster: Node3D, skill: Dictionary, point: Vector3, duratio
 		art.generation_ref=weakref(visual)
 		art.generation=visual.skill_generation
 	_face(art,origin,point)
+	# A star skill with its own signature art (combat/star_art) draws the whole wind-up.
+	if StarSignature.owns(skill) and StarSignature.telegraph(art,caster,skill,point,time):
+		art._draw()
+		return art
 	if id in DEFENDER: _recent_shield=equipped_sword(caster)
 	if id in ASSASSIN:
 		_recent_dagger=equipped_sword(caster)
@@ -307,6 +311,9 @@ static func launch(caster: Node3D, skill: Dictionary, point: Vector3, duration :
 	var colors := look(skill)
 	var source := _body_point(caster)
 	var art := _root(parent,source,duration+0.10,"StarLaunch_"+id)
+	if StarSignature.owns(skill) and StarSignature.launch(art,caster,skill,point,duration):
+		art._draw()
+		return art
 	ClassSignature.flight(parent,skill,source,point,duration,1.2)
 	var delta := point-source
 	_face(art,source,point)
@@ -332,6 +339,7 @@ static func launch(caster: Node3D, skill: Dictionary, point: Vector3, duration :
 ## giant scenery sculptures. index is the zero-based actual hit number.
 static func strike(parent: Node3D, skill: Dictionary, point: Vector3, index := 0, source := Vector3.ZERO) -> StarSkillArt:
 	if not handles(skill) or not VfxBudget.can_decorate(): return null
+	if StarSignature.owns(skill): return StarSignature.strike(parent,skill,point,index,source)
 	ClassFlourish.star_beat(parent, skill, point, index, source)
 	if String(skill.id) in ASSASSIN: ShadowSkillArt.star(parent, skill, point, index, source)
 	if String(skill.id) in DARKLORD: LordSkillArt.star(parent, skill, point, index, source)
@@ -691,6 +699,7 @@ static func equipped_sword(caster: Node3D) -> Mesh:
 
 static func sword_drop(caster: Node3D, parent: Node3D, point: Vector3, index: int, flight := 0.42) -> StarSkillArt:
 	if not is_instance_valid(caster) or not is_instance_valid(parent) or not VfxBudget.can_decorate(): return null
+	if StarSignature.script_for("celestial_swordfall"): return StarSignature.drop("celestial_swordfall",caster,parent,point,index,flight)
 	var art := _root(parent,point,flight+0.025,"CelestialEquippedSword_%02d"%index)
 	var colors := look({"id":"celestial_swordfall"})
 	var mesh := equipped_sword(caster)
@@ -709,6 +718,7 @@ static func sword_drop(caster: Node3D, parent: Node3D, point: Vector3, index: in
 ## passes total flight+hit duration; this helper emits no decorative swords.
 static func sword_canopy(parent: Node3D, point: Vector3, radius: float, duration: float) -> StarSkillArt:
 	if not VfxBudget.can_decorate(): return null
+	if StarSignature.script_for("celestial_swordfall"): return StarSignature.canopy("celestial_swordfall",parent,point,radius,duration)
 	var art := _root(parent,point,duration,"CelestialSwordCanopy")
 	if not art: return null
 	var colors := look({"id":"celestial_swordfall"})
