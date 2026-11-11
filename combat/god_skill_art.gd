@@ -165,6 +165,7 @@ static func fit(node: Node, world: Vector3, height: float, least := 0.6) -> floa
 ## signature keeps its own area ring.
 static func owns(skill: Dictionary) -> bool:
 	if StarSignature.owns(skill): return true # a lower star skill with its own art (combat/star_art)
+	if SkillSignature.owns(skill): return true # a regular class skill with its own art (combat/skill_art)
 	return not skill.is_empty() and StarSkillData.is_god(skill) and signature(String(skill.get("id", ""))) != null
 
 
