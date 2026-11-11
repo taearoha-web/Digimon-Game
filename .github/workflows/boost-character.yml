@@ -47,7 +47,7 @@ on:
         description: Type BOOST to confirm
         required: true
       gear:
-        description: Gear (divine = divine set + 200-star ring/amulet; set250 = the 250-star class set, needs 250+ stars)
+        description: Gear (divine = divine set + 200-star ring/amulet; set250 = the 250-star class set, needs 250+ stars; keep = leave the worn gear as it is)
         default: divine
         required: true
 
@@ -87,7 +87,7 @@ jobs:
           echo "$ACCESSORY_PLUS" | grep -Eq '^([0-9]|1[0-5])$' || { echo "::error::The ring and amulet enhancement must be 0 to 15."; exit 1; }
           echo "$STARS" | grep -Eq '^(2[0-9][0-9]|300)$' || { echo "::error::Stars must be 200 to 300."; exit 1; }
           echo "$MOUNT" | grep -Eq '^(none|thunder_wolf|glow_stag|griffin|fire_drake)$' || { echo "::error::Unknown mount."; exit 1; }
-          echo "$GEAR" | grep -Eq '^(divine|set250)$' || { echo "::error::Gear must be divine or set250."; exit 1; }
+          echo "$GEAR" | grep -Eq '^(divine|set250|keep)$' || { echo "::error::Gear must be divine, set250 or keep."; exit 1; }
           echo "$MOUNT_LEVEL" | grep -Eq '^[1-5]$' || { echo "::error::The mount level must be 1 to 5."; exit 1; }
           test -n "$TARGET_NAME" || { echo "::error::Enter the character name."; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }

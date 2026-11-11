@@ -252,7 +252,7 @@ func _posting(w: int) -> void:
 	# The rounds of this season and the last the server lacks are posted, POST_DELAY after
 	# their bell; the server keeps the first and answers with it.
 	var server: FakeServer = LeagueRounds.transport
-	pin(GuildLeague.week_start(w) + 2.0 * DAY + 21.0 * 3600.0)
+	pin(GuildLeague.week_start(w) + 2.0 * DAY + 20.0 * 3600.0)
 	var due := LeagueRounds.due(GuildLeague.now())
 	check(not due.is_empty(), "ended rounds the server lacks are due to be posted (%d)" % due.size())
 	for i in 200:

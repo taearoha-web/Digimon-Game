@@ -1,6 +1,6 @@
 extends Node
 ## Timed world events (WorldEvents): the schedule is fixed by the real clock in Thai
-## time (EXP x2 19:00-21:00, the world boss 20:30 for 20 minutes in the field of the
+## time (EXP x2 19:00-21:00, the world boss 19:30 for 20 minutes in the field of the
 ## day, +20% gold on the weekend), add_exp doubles in the window, and the world boss
 ## spawns in its field during the window, once a window.
 ##   godot --headless --path . res://tests/integration/world_events_test.tscn
@@ -53,16 +53,16 @@ func _schedule() -> void:
 	check(WorldEvents.gold_multiplier(thai(2026, 10, 31, 10)) == 1.2 and WorldEvents.gold_multiplier(thai(2026, 11, 1, 23)) == 1.2, "Saturday and Sunday: gold x1.2")
 	check(WorldEvents.gold_multiplier(thai(2026, 10, 28, 10)) == 1.0 and WorldEvents.gold_multiplier(thai(2026, 11, 2, 1)) == 1.0, "weekdays: no gold bonus")
 	# The world boss window and its field.
-	var boss := WorldEvents.boss_now(thai(2026, 10, 28, 20, 35))
-	check(not boss.is_empty() and String(boss.id) == "wboss", "20:35: the world boss is on")
-	check(WorldEvents.boss_now(thai(2026, 10, 28, 20, 29)).is_empty() and WorldEvents.boss_now(thai(2026, 10, 28, 20, 50)).is_empty(), "20:29 and 20:50: no world boss")
-	check(is_equal_approx(float(boss.get("until", 0.0)), thai(2026, 10, 28, 20, 50)), "the window ends at 20:50")
+	var boss := WorldEvents.boss_now(thai(2026, 10, 28, 19, 35))
+	check(not boss.is_empty() and String(boss.id) == "wboss", "19:35: the world boss is on")
+	check(WorldEvents.boss_now(thai(2026, 10, 28, 19, 29)).is_empty() and WorldEvents.boss_now(thai(2026, 10, 28, 19, 50)).is_empty(), "19:29 and 19:50: no world boss")
+	check(is_equal_approx(float(boss.get("until", 0.0)), thai(2026, 10, 28, 19, 50)), "the window ends at 19:50")
 	check(_hunting_field(StringName(boss.get("zone", &""))), "the boss field is a real hunting field (%s)" % boss.get("zone", ""))
 	check(String(boss.name_th).begins_with("บอสโลกที่ "), "named in Thai")
 	var fields := {}
 	var star_weekend := 0
 	for d in 56:
-		var t := thai(2026, 10, 28, 20, 35) + float(d * 86400)
+		var t := thai(2026, 10, 28, 19, 35) + float(d * 86400)
 		var zone := WorldEvents.boss_zone(t)
 		check(_hunting_field(zone), "day %d boss field is a hunting field (%s)" % [d, zone])
 		var star := StarProgression.is_region(zone) or zone == DivineRegionData.ID
@@ -72,17 +72,17 @@ func _schedule() -> void:
 		fields[zone] = true
 	check(fields.size() >= 8, "the boss rotates through the fields (%d in 8 weeks)" % fields.size())
 	check(star_weekend > 0, "a ★ region hosts the boss on some weekends (%d)" % star_weekend)
-	check(WorldEvents.boss_zone(thai(2026, 10, 28, 20, 35)) == WorldEvents.boss_zone(thai(2026, 10, 28, 20, 45)), "one field for the whole window")
+	check(WorldEvents.boss_zone(thai(2026, 10, 28, 19, 35)) == WorldEvents.boss_zone(thai(2026, 10, 28, 19, 45)), "one field for the whole window")
 	# What is on and what comes next.
-	var ids: Array = WorldEvents.current(thai(2026, 10, 31, 19, 30)).map(func(e): return String(e.id))
-	check(ids == ["exp2", "gold"], "Saturday 19:30: EXP x2 and the gold bonus (%s)" % str(ids))
-	ids = WorldEvents.current(thai(2026, 10, 28, 20, 35)).map(func(e): return String(e.id))
-	check(ids == ["exp2", "wboss"], "Wednesday 20:35: EXP x2 and the world boss (%s)" % str(ids))
+	var ids: Array = WorldEvents.current(thai(2026, 10, 31, 19, 15)).map(func(e): return String(e.id))
+	check(ids == ["exp2", "gold"], "Saturday 19:15: EXP x2 and the gold bonus (%s)" % str(ids))
+	ids = WorldEvents.current(thai(2026, 10, 28, 19, 35)).map(func(e): return String(e.id))
+	check(ids == ["exp2", "wboss"], "Wednesday 19:35: EXP x2 and the world boss (%s)" % str(ids))
 	check(WorldEvents.current(thai(2026, 10, 28, 10)).is_empty(), "Wednesday 10:00: nothing on")
 	var next := WorldEvents.next_event(thai(2026, 10, 28, 10))
 	check(String(next.get("id", "")) == "exp2" and is_equal_approx(float(next.get("in", 0.0)), 9.0 * 3600.0), "10:00: EXP x2 in 9 hours")
-	next = WorldEvents.next_event(thai(2026, 10, 28, 19, 30))
-	check(String(next.get("id", "")) == "wboss" and is_equal_approx(float(next.get("in", 0.0)), 3600.0) and _hunting_field(StringName(next.get("zone", &""))), "19:30: the world boss in an hour")
+	next = WorldEvents.next_event(thai(2026, 10, 28, 19, 0))
+	check(String(next.get("id", "")) == "wboss" and is_equal_approx(float(next.get("in", 0.0)), 1800.0) and _hunting_field(StringName(next.get("zone", &""))), "19:00: the world boss in half an hour")
 	next = WorldEvents.next_event(thai(2026, 10, 28, 20, 35))
 	check(String(next.get("id", "")) == "exp2" and is_equal_approx(float(next.get("in", 0.0)), (22.0 * 60.0 + 25.0) * 60.0), "20:35: EXP x2 tomorrow")
 	var a := float(WorldEvents.next_event(thai(2026, 10, 28, 10))["in"])
@@ -91,8 +91,8 @@ func _schedule() -> void:
 	# The HUD line.
 	var line := WorldEvents.describe(thai(2026, 10, 28, 19, 18))
 	check(line.begins_with("EXP x2 เหลือ ") and line.ends_with("นาที"), "19:18 chip: EXP x2 with minutes left (%s)" % line)
-	line = WorldEvents.describe(thai(2026, 10, 28, 20, 38))
-	check(line.begins_with("บอสโลกที่ ") and line.ends_with("12 นาที"), "20:38 chip: the world boss and its field (%s)" % line)
+	line = WorldEvents.describe(thai(2026, 10, 28, 19, 38))
+	check(line.begins_with("บอสโลกที่ ") and line.ends_with("12 นาที"), "19:38 chip: the world boss and its field (%s)" % line)
 	line = WorldEvents.describe(thai(2026, 10, 28, 17, 0))
 	check(line == "EXP x2 ใน 2 ชม.", "17:00 chip: the next event (%s)" % line)
 	line = WorldEvents.describe(thai(2026, 10, 31, 10, 0))

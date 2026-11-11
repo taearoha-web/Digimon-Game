@@ -2,7 +2,7 @@ class_name WorldEvents
 extends RefCounted
 ## Timed world events, the reason to log in every day: a fixed daily schedule read off
 ## the real clock (WorldPresence.clock()) in Thai time (WorldPlayers.TZ), the same for
-## everyone. EXP x2 every evening 19:00-21:00; the world boss (บอสโลก) at 20:30 for
+## everyone. EXP x2 every evening 19:00-21:00; the world boss (บอสโลก) at 19:30 for
 ## 20 minutes in the hunting field of the day (the base fields in ZoneData order, one
 ## a day; on Saturday and Sunday the ★ regions join the rotation); on the weekend gold
 ## drops pay +20% and forge jewels drop twice as often; every 15 minutes a golden monster
@@ -13,7 +13,7 @@ const DAY := 86400
 const EXP_START := 19 * 3600
 const EXP_END := 21 * 3600
 const EXP_MULT := 2.0
-const BOSS_START := 20 * 3600 + 30 * 60
+const BOSS_START := 19 * 3600 + 30 * 60
 const BOSS_LENGTH := 20 * 60
 const WEEKEND_GOLD := 1.2
 ## World boss over the field's own: HP, gold reward per Lv.10 of the hero, the rarity

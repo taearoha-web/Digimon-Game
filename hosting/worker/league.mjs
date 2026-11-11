@@ -18,7 +18,14 @@
 // Mirrors of the game's constants (data/guild_league.gd, data/guild_war_data.gd,
 // data/world_players.gd); tests/league.test.mjs reads the .gd files to keep them equal.
 export const TZ = 7 * 3600;
-export const SLOTS = [12 * 3600, 18 * 3600, 21 * 3600 + 30 * 60];
+export const SLOTS = [12 * 3600, 18 * 3600, 20 * 3600 + 30 * 60];
+/** The last round moved from 21:30 to 20:30 Thai from this Thai day on (11 Nov 2026); earlier days keep 21:30 (as the game: GuildLeague.EARLY_FINAL_DAY). */
+export const EARLY_FINAL_DAY = 20768;
+const OLD_LAST_SLOT = 21 * 3600 + 30 * 60;
+/** Seconds of Thai day `day` its round k starts. */
+export function slotSecond(day, k) {
+  return k === SLOTS.length - 1 && day < EARLY_FINAL_DAY ? OLD_LAST_SLOT : SLOTS[k];
+}
 export const DURATION = 1200;
 export const START_UNIX = 1793274300;
 export const GUILDS = [1, 2, 3, 4];
@@ -60,19 +67,20 @@ function isInt(v, lo, hi) {
 export function firstRound() {
   const day = Math.floor((START_UNIX - 1 + TZ) / DAY);
   for (const d of [day, day + 1]) {
-    for (const s of SLOTS) {
-      const at = d * DAY - TZ + s;
+    for (let k = 0; k < SLOTS.length; k++) {
+      const at = d * DAY - TZ + slotSecond(d, k);
       if (at > START_UNIX - 1) return at;
     }
   }
   return 0;
 }
 
-/** True when a league round starts at unix `at` (12:00, 18:00 or 21:30 Thai). */
+/** True when a league round starts at unix `at` (12:00, 18:00 or 20:30 Thai; 21:30 before EARLY_FINAL_DAY). */
 export function isSlot(at) {
   if (!Number.isSafeInteger(at) || at < firstRound()) return false;
   const second = ((at + TZ) % DAY + DAY) % DAY;
-  return SLOTS.includes(second);
+  const day = Math.floor((at + TZ) / DAY);
+  return SLOTS.some((_, k) => slotSecond(day, k) === second);
 }
 
 /** A clean copy of a posted round result, or a reason string when it is malformed. */
@@ -156,7 +164,7 @@ async function postRound(request, env, now) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return failure(400, 'invalid_round', 'Send {at, result}.');
   for (const key of Object.keys(body)) if (key !== 'at' && key !== 'result') return failure(400, 'invalid_round', `Unknown key ${key}.`);
   const at = body.at;
-  if (!isSlot(at)) return failure(400, 'invalid_round', 'at must be the start of a league round (12:00, 18:00 or 21:30 Thai).');
+  if (!isSlot(at)) return failure(400, 'invalid_round', 'at must be the start of a league round (12:00, 18:00 or 20:30 Thai).');
   if (now < at + DURATION - END_MARGIN) return failure(409, 'round_not_over', 'The round has not ended yet.');
   const result = cleanResult(at, body.result);
   if (typeof result === 'string') return failure(400, 'invalid_round', result);

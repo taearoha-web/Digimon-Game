@@ -34,7 +34,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Game.set_process(false)
 	GameSettings.load_settings()
-	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 - WorldPlayers.now()
+	# 14:45 Thai on day 20: clear of every league round and its run-up (the day's last round
+	# moved to 20:30, so the old 18:45 came within its build-up and changed who was online).
+	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.0 * 86400.0 - 4.0 * 3600.0 - WorldPlayers.now()
 	_make_characters()
 	_save_and_fallbacks()
 	await _guild_screen()

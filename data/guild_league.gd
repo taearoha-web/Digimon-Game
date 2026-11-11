@@ -3,7 +3,7 @@ extends RefCounted
 ## Weekly guild league (ลีกกิลด์รายสัปดาห์): a season runs Monday 00:00 to Sunday 23:59
 ## Thai time (WorldEvents.day_of). Only the world's four guilds play (WorldPlayers.GUILDS:
 ## Alpha, Neverdie, Titan, 3DLnw). Guild wars happen on real time only, three rounds a day
-## starting at SLOTS (12:00, 18:00, 21:30 Thai), each GuildWarData.DURATION long. Each
+## starting at SLOTS (12:00, 18:00, 20:30 Thai; 21:30 before EARLY_FINAL_DAY), each GuildWarData.DURATION long. Each
 ## round is ONE castle war of all four guilds at once (every guild against every other;
 ## a guild with nobody at Lv.100 sits it out). Each guild sends its GuildWarData.GUILD_SIDE
 ## strongest members (GuildWarData.side_ids).
@@ -32,7 +32,7 @@ extends RefCounted
 ##
 ## Points a war (side_points): WIN or LOSS, CAPTURE per castle capture, HOLD for holding
 ## the castle at the bell, one per KILLS_PER_POINT falls. The season's last round (Sunday
-## 21:30, รอบชี้ขาด: is_final) counts its placement and capture points FINAL_MULT times;
+## 20:30, รอบชี้ขาด: is_final) counts its placement and capture points FINAL_MULT times;
 ## HOLD and the falls count once. The server keeps every round's raw result: the doubling
 ## is applied here, when a round is scored, never stored.
 ##
@@ -58,8 +58,13 @@ extends RefCounted
 ##   round whose start was told to the hero.
 
 const KEY := "league"
-## Seconds of the Thai day each round starts: 12:00, 18:00 and 21:30.
-const SLOTS: Array[int] = [12 * 3600, 18 * 3600, 21 * 3600 + 30 * 60]
+## Seconds of the Thai day each round starts: 12:00, 18:00 and 20:30 (slot_start).
+const SLOTS: Array[int] = [12 * 3600, 18 * 3600, 20 * 3600 + 30 * 60]
+## The last round of the day moved from 21:30 to 20:30 Thai from this Thai day on
+## (WorldEvents.day_of; 11 Nov 2026): rounds of earlier days stay at 21:30 so their
+## stored results still match.
+const EARLY_FINAL_DAY := 20768
+const OLD_LAST_SLOT := 21 * 3600 + 30 * 60
 ## Registration for a round closes this many seconds before it starts.
 const REGISTER_CLOSE := 300
 ## The registered line-up may wait in the arena from this long before a round starts
@@ -170,7 +175,10 @@ static func week_end(w: int) -> float:
 
 ## Unix time round k (0-2) of Thai day `day` starts.
 static func slot_start(day: int, k: int) -> int:
-	return day * DAY - WorldPlayers.TZ + SLOTS[k]
+	var second := SLOTS[k]
+	if k == SLOTS.size() - 1 and day < EARLY_FINAL_DAY:
+		second = OLD_LAST_SLOT
+	return day * DAY - WorldPlayers.TZ + second
 
 
 ## Every league guild, in id order: a round is one castle war of all of them.
@@ -280,7 +288,7 @@ static func last_ended(t: float) -> int:
 	return at
 
 
-## The start of season w's last round (Sunday 21:30 Thai): the deciding round.
+## The start of season w's last round (Sunday 20:30 Thai): the deciding round.
 static func final_slot(w: int) -> int:
 	return prev_slot(int(week_end(w)))
 
@@ -745,7 +753,7 @@ static func holder(w: int, real: Array, until := INF) -> int:
 
 
 ## The Castle King (ราชันปราสาท) of season w: the castle holder after its last round
-## (Sunday 21:30; the top guild if nobody held it). Before the season ends: the holder (and
+## (Sunday 20:30; the top guild if nobody held it). Before the season ends: the holder (and
 ## table) so far.
 static func champion_of(w: int, real: Array) -> int:
 	var last_at := 0
@@ -1263,7 +1271,16 @@ static func unregister(t := -1.0) -> String:
 ## The hero registered for the round starting `at`.
 static func registered(at: int) -> bool:
 	var d := data()
-	return not d.is_empty() and int(d.get("reg", -1)) == at
+	if d.is_empty():
+		return false
+	var reg := int(d.get("reg", -1))
+	if reg == at:
+		return true
+	# Registered before the day's last round moved from 21:30 to 20:30: that sign-up is for
+	# the same round.
+	var day := WorldEvents.day_of(float(at))
+	return day >= EARLY_FINAL_DAY and at == slot_start(day, SLOTS.size() - 1) \
+		and reg == day * DAY - WorldPlayers.TZ + OLD_LAST_SLOT
 
 
 ## The hero's place in its guild for the round starting `at` (1 = strongest, by the same
@@ -1277,6 +1294,9 @@ static func hero_place(at: int) -> int:
 
 ## The hero ranks among its guild's GuildWarData.GUILD_SIDE strongest for round `at`.
 static func hero_makes_side(at: int) -> bool:
+	# The guild's leader always fights for it, whatever its place.
+	if Game.hero_leads_guild(Game.guild(), float(at)):
+		return true
 	var place := hero_place(at)
 	return place > 0 and place <= GuildWarData.GUILD_SIDE
 

@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import worker from '../worker.mjs';
-import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, START_UNIX, MAX_RANGE} from '../league.mjs';
+import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE} from '../league.mjs';
 import {D1Sqlite} from '../../accounts/tests/d1-sqlite.mjs';
 
 const ORIGIN = 'https://toon.example';
@@ -45,16 +45,21 @@ test('the server\'s league constants are the game\'s', () => {
   const league = readFileSync(new URL('../../../data/guild_league.gd', import.meta.url), 'utf8');
   const war = readFileSync(new URL('../../../data/guild_war_data.gd', import.meta.url), 'utf8');
   const players = readFileSync(new URL('../../../data/world_players.gd', import.meta.url), 'utf8');
-  assert.match(league, /const SLOTS: Array\[int\] = \[12 \* 3600, 18 \* 3600, 21 \* 3600 \+ 30 \* 60\]/);
-  assert.deepEqual(SLOTS, [12 * 3600, 18 * 3600, 21 * 3600 + 30 * 60]);
+  assert.match(league, /const SLOTS: Array\[int\] = \[12 \* 3600, 18 \* 3600, 20 \* 3600 \+ 30 \* 60\]/);
+  assert.equal(Number(league.match(/const EARLY_FINAL_DAY := (\d+)/)[1]), EARLY_FINAL_DAY);
+  assert.deepEqual(SLOTS, [12 * 3600, 18 * 3600, 20 * 3600 + 30 * 60]);
   assert.equal(Number(war.match(/const DURATION := ([\d.]+)/)[1]), DURATION);
   assert.equal(Number(players.match(/const START_UNIX := (\d+)/)[1]), START_UNIX);
   assert.equal(Number(players.match(/const TZ := 7 \* 3600/) ? 7 * 3600 : -1), TZ);
 });
 
-test('round starts: 12:00, 18:00 and 21:30 Thai from the world\'s first round only', () => {
+test('round starts: 12:00, 18:00 and 20:30 Thai (21:30 before EARLY_FINAL_DAY) from the world\'s first round only', () => {
   assert.ok(isSlot(AT));
-  assert.ok(isSlot(AT - SLOTS[1] + SLOTS[0]) && isSlot(AT - SLOTS[1] + SLOTS[2]));
+  const atDay = Math.floor((AT + TZ) / DAY);
+  assert.ok(isSlot(AT - SLOTS[1] + SLOTS[0]) && isSlot(AT - SLOTS[1] + slotSecond(atDay, 2)));
+  const late = EARLY_FINAL_DAY * DAY - TZ;
+  assert.ok(isSlot(late + 20 * 3600 + 1800) && !isSlot(late + 21 * 3600 + 1800), 'from EARLY_FINAL_DAY the last round is 20:30');
+  assert.ok(isSlot(late - DAY + 21 * 3600 + 1800) && !isSlot(late - DAY + 20 * 3600 + 1800), 'the day before it stays 21:30');
   assert.ok(!isSlot(AT + 60) && !isSlot(AT - 3600) && !isSlot(AT + 0.5) && !isSlot(String(AT)));
   assert.ok(firstRound() >= START_UNIX && isSlot(firstRound()) && !isSlot(firstRound() - DAY));
 });
@@ -77,7 +82,7 @@ test('an ended round is stored once: first writer wins, later posts get the stor
   assert.equal(h.DB.sqlite.prepare('SELECT count(*) AS n FROM toon_league_rounds').get().n, 1);
 });
 
-test('the deciding round (Sunday 21:30, ×2 in the game) is stored raw like any other round', async () => {
+test('the deciding round (Sunday 20:30, ×2 in the game) is stored raw like any other round', async () => {
   // The game doubles its placement and capture points when it scores the round
   // (GuildLeague.side_points / mult_of); the server keeps the falls and captures as fought.
   const league = readFileSync(new URL('../../../data/guild_league.gd', import.meta.url), 'utf8');
@@ -88,7 +93,7 @@ test('the deciding round (Sunday 21:30, ×2 in the game) is stored raw like any 
   // (day + 3) % 7 === 6 is a Sunday.
   let day = Math.floor((AT + TZ) / DAY);
   while ((day + 3) % 7 !== 6) day += 1;
-  const at = day * DAY - TZ + SLOTS[2];
+  const at = day * DAY - TZ + slotSecond(day, 2);
   assert.ok(isSlot(at));
   const raw = result(at, {c: [1, 0, 2, 0]});
   const answer = await h.post({at, result: raw}, {now: at + DURATION + 5});

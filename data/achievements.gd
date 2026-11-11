@@ -53,7 +53,7 @@ const TABLE := [
 	{"id": "t_star300", "name": "ดาว 300", "desc": "ถึงดาว 300 (สูงสุด)", "title": "ดาราอมตะ", "kind": "stars", "goal": 300},
 	{"id": "t_god", "name": "เทพเจ้า", "desc": "เปลี่ยนอาชีพขั้นเทพเจ้า (เลเวล 100 ดาว 300)", "title": "เทพเจ้าแห่งอาชีพ", "kind": "god", "goal": 1},
 	# The weekly Castle King's secret shop (GuildLeague.SHOP "crown").
-	{"id": "t_castle_king", "name": "ราชันปราสาท", "desc": "ซื้อตำแหน่งจากร้านลับราชันปราสาท (เฉพาะกิลด์ที่ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 21:30)", "title": "ราชันปราสาท", "kind": "castle_crown", "goal": 1},
+	{"id": "t_castle_king", "name": "ราชันปราสาท", "desc": "ซื้อตำแหน่งจากร้านลับราชันปราสาท (เฉพาะกิลด์ที่ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 20:30)", "title": "ราชันปราสาท", "kind": "castle_crown", "goal": 1},
 	# The top tier of the monthly reward pass (DailyPass, flags["pass_top"]).
 	{"id": "t_pass", "name": "สุดทางบัตรสะสม", "desc": "รับรางวัลขั้น 30 ของบัตรสะสมแต้ม", "title": "นักสะสมแต้ม", "kind": "pass_top", "goal": 1},
 	# The guild league's emperor: one guild both League Champion and Castle King of a week

@@ -1,7 +1,7 @@
 class_name LegendWings
 extends RefCounted
 ## ปีกตำนานแห่งกิลด์ (Legendary Guild Wings): one pair a week, minted when a league season
-## closes (after the Sunday 21:30 round is frozen) for the guild first in the table
+## closes (after the Sunday 20:30 round is frozen) for the guild first in the table
 ## (GuildLeague.league_champion_of), stamped with the week id and the guild (legend_week,
 ## legend_guild). The guild's leader receives it (Game.guild_war_leader: the hero when it
 ## leads its own guild, else a world player, who then wears it for real: WorldGear shows

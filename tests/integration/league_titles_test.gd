@@ -1,7 +1,7 @@
 extends Node
 ## The guild league's two weekly titles (GuildLeague): แชมป์ลีก (League Champion, first by
 ## points; the top three still claim REWARDS) and ราชันปราสาท (Castle King, the holder after
-## the Sunday 21:30 round: crown plate, EXP, secret shop); the deciding round (รอบชี้ขาด ×2)
+## the Sunday's last round round: crown plate, EXP, secret shop); the deciding round (รอบชี้ขาด ×2)
 ## doubles its placement and capture points (HOLD and falls count once) from
 ## FINAL_FROM_WEEK on, applied when scoring the raw (official) results; a guild that is both
 ## is จักรพรรดิแห่งสัปดาห์ and its members claim 10 chaos jewels and the title once with the
@@ -82,7 +82,8 @@ func _official(w: int, top: int, king: int) -> void:
 
 func _final_round(w: int) -> void:
 	var at := GuildLeague.final_slot(w)
-	check(GuildLeague.clock_text(at) == "21:30" and WorldEvents.day_of(float(at)) == WorldEvents.day_of(GuildLeague.week_end(w) - 1.0), "the deciding round is Sunday 21:30 (%s)" % GuildLeague.clock_text(at))
+	var last := "21:30" if WorldEvents.day_of(float(at)) < GuildLeague.EARLY_FINAL_DAY else "20:30"
+	check(GuildLeague.clock_text(at) == last and WorldEvents.day_of(float(at)) == WorldEvents.day_of(GuildLeague.week_end(w) - 1.0), "the deciding round is Sunday's last round, %s (%s)" % [last, GuildLeague.clock_text(at)])
 	check(GuildLeague.is_final(at) and GuildLeague.mult_of(at) == 2, "it counts ×2")
 	var others := 0
 	for m in GuildLeague.schedule(w):
@@ -140,9 +141,9 @@ func _points(w: int) -> void:
 func _castle_king(w: int) -> void:
 	pin(GuildLeague.week_end(w) + 3600.0)
 	var final_at := GuildLeague.final_slot(w)
-	check(GuildLeague.holder_after(final_at - int(3.5 * 3600.0)) == WorldPlayers.TITAN, "Titan held the castle until Sunday 21:30")
+	check(GuildLeague.holder_after(GuildLeague.slot_start(WorldEvents.day_of(float(final_at)), 1)) == WorldPlayers.TITAN, "Titan held the castle until Sunday's last round")
 	check(GuildLeague.holder_after(final_at) == WorldPlayers.LNW, "3DLnw took it in the deciding round")
-	check(GuildLeague.champion_of(w, []) == WorldPlayers.LNW and GuildLeague.champion_now() == WorldPlayers.LNW, "ราชันปราสาท: the holder after Sunday 21:30")
+	check(GuildLeague.champion_of(w, []) == WorldPlayers.LNW and GuildLeague.champion_now() == WorldPlayers.LNW, "ราชันปราสาท: the holder after Sunday's last round")
 	check(GuildLeague.crowned(WorldPlayers.LNW) and not GuildLeague.crowned(WorldPlayers.TITAN), "the Castle King wears the crown, the League Champion does not")
 	check(GuildLeague.emperor_of(w, []) == 0, "two guilds, no emperor")
 	_hero(WorldPlayers.LNW)
@@ -266,7 +267,7 @@ func _ui(wa: int, wb: int) -> void:
 	check(champ != null and champ.text.contains(GuildLeague.LEAGUE_TITLE) and champ.text.contains(GuildLeague.CASTLE_TITLE)
 		and champ.text.contains("Titan") and champ.text.contains("3DLnw"), "the page names both titles and their guilds (%s)" % (champ.text if champ else ""))
 	var final_note := holder.find_child("LeagueFinal", true, false) as Label
-	check(final_note != null and final_note.text.contains(GuildLeague.FINAL_TAG) and final_note.text.contains("21:30"), "the table shows รอบชี้ขาด ×2 (%s)" % (final_note.text if final_note else ""))
+	check(final_note != null and final_note.text.contains(GuildLeague.FINAL_TAG) and final_note.text.contains("20:30"), "the table shows รอบชี้ขาด ×2 (%s)" % (final_note.text if final_note else ""))
 	var emp := holder.find_child("LeagueEmperor", true, false) as Label
 	check(emp != null and emp.text.contains(GuildLeague.EMPEROR_TITLE), "and the emperor's rule (%s)" % (emp.text if emp else ""))
 	var info := holder.find_child("LeagueInfo", true, false) as Label
@@ -299,8 +300,8 @@ func _ui(wa: int, wb: int) -> void:
 	check(rule != null and rule.text.contains(GuildLeague.FINAL_TAG) and rule.text.contains(GuildLeague.CASTLE_TITLE), "the desk explains the deciding round (%s)" % (rule.text if rule else ""))
 	var row := desk.find_child("Round_%d" % final_at, true, false)
 	var row_label: Label = row.find_children("*", "Label", true, false)[0] if row else null
-	check(row_label != null and row_label.text.begins_with(GuildLeague.FINAL_TAG), "Sunday 21:30 is marked รอบชี้ขาด ×2 (%s)" % (row_label.text if row_label else ""))
-	var plain := desk.find_child("Round_%d" % (final_at - int(3.5 * 3600.0)), true, false)
+	check(row_label != null and row_label.text.begins_with(GuildLeague.FINAL_TAG), "Sunday's last round is marked รอบชี้ขาด ×2 (%s)" % (row_label.text if row_label else ""))
+	var plain := desk.find_child("Round_%d" % GuildLeague.slot_start(WorldEvents.day_of(float(final_at)), 1), true, false)
 	var plain_label: Label = plain.find_children("*", "Label", true, false)[0] if plain else null
 	check(plain_label != null and not plain_label.text.contains(GuildLeague.FINAL_TAG), "18:00 is not")
 	desk.close_screen()
