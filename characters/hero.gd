@@ -72,6 +72,20 @@ var _summons: Array = []
 var _auto_center := Vector3.ZERO
 var _auto_radius := 10.0
 var _auto_timer := 0.0
+## Auto hunting's leash: the hero hunts inside a circle of AUTO_LEASH metres round the
+## spot auto was switched on (_auto_center). A target that runs out of it is dropped for
+## the nearest monster inside; with none the hero walks back to the spot and waits. Walking
+## by hand moves the circle along; a teleport (respawn camp, raid phase) re-centres it.
+## Online following has its own moving circle (_follow_step) and no leash.
+## 14 m: wider than any class's basic-attack reach (11 m for the longest), so a ranged hero
+## at the centre still covers the whole circle.
+const AUTO_LEASH := 14.0
+## Walking back once this far from the spot with nothing to fight.
+const AUTO_HOME := 2.5
+## A move this long in one frame is a teleport, not a step: the circle comes along.
+const AUTO_JUMP := 6.0
+var _auto_last_pos := Vector3.ZERO
+var _auto_ring: MeshInstance3D = null
 var stats: Dictionary = {}
 var cooldowns: Dictionary = {}
 var last_cast_id := ""
@@ -437,19 +451,14 @@ func set_auto(on: bool) -> void:
 		if _dead or safe_zone:
 			message.emit("ออโต้ใช้ได้เฉพาะในทุ่งล่ามอนสเตอร์")
 			return
-		var camp: Dictionary = field.camp_near(global_position) if field and field.has_method("camp_near") else {}
-		if camp.is_empty():
-			_auto_center = global_position
-			_auto_radius = 12.0
-		else:
-			_auto_center = Vector3(camp.pos.x, 0.0, camp.pos.y)
-			_auto_radius = float(camp.radius)
 		Online.stop_follow()
-		Game.say("ออโต้เปิด: ล่าในวงนี้ (แตะปุ่มออโต้หรือเดินเองเพื่อหยุด)", &"info")
+		_auto_anchor_at(global_position)
+		Game.say("ออโต้เปิด: ล่าในวงรอบจุดนี้ (เดินเองเพื่อย้ายวง แตะปุ่มออโต้เพื่อหยุด)", &"info")
 	else:
 		engaged = false
 		_pending = {}
 	auto = on
+	_auto_ring_show(on)
 	auto_changed.emit(on)
 
 
@@ -458,12 +467,20 @@ func _auto_step(delta: float) -> Vector3:
 	if _auto_timer <= 0.0:
 		_auto_timer = 0.3
 		_auto_think()
+	if auto:
+		_auto_leash_check()
 	var home := _flat(_auto_center - global_position)
 	if not _valid_target(target):
-		if home.length() > 4.0:
+		if home.length() > (AUTO_HOME if auto else 4.0):
 			_face(home, delta, 12.0)
 			return home.normalized() * float(stats.speed)
 		return Vector3.ZERO
+	if auto:
+		# Pushed or carried out of the circle: walk back in before fighting on.
+		if home.length() > _auto_radius + 1.0:
+			_face(home, delta, 12.0)
+			return home.normalized() * float(stats.speed)
+		return _auto_leash_clamp(_combat_step(delta))
 	if home.length() > _auto_radius + 6.0:
 		set_target(null)
 		engaged = false
@@ -504,7 +521,11 @@ func _auto_think() -> void:
 		message.emit("ยาเลือดหมด — ปิดออโต้")
 		set_auto(false)
 		return
-	if not _valid_target(target):
+	if auto:
+		_auto_leash_check()
+		if not _valid_target(target):
+			set_target(_auto_leash_pick())
+	elif not _valid_target(target):
 		for mob in mobs_in_range(_auto_radius + 6.0):
 			if _flat(mob.global_position - _auto_center).length() <= _auto_radius + 2.0:
 				set_target(mob)
@@ -512,6 +533,81 @@ func _auto_think() -> void:
 	engaged = _valid_target(target)
 	if engaged and _pending.is_empty() and Time.get_ticks_msec() >= _cast_until and mp_rate > 0.12:
 		_auto_cast(hp_rate)
+
+
+# --- Auto hunting's leash (kept apart from target choice so it filters any picker) ---
+
+## Whether a point (a monster's position, less its body radius as [param slack]) is
+## inside auto hunting's circle. Always true when auto is off (following, by hand).
+func _auto_leash_ok(pos: Vector3, slack := 0.0) -> bool:
+	if not auto:
+		return true
+	return _flat(pos - _auto_center).length() - slack <= _auto_radius
+
+
+## Drops the target once it has left the circle (auto then picks one inside).
+func _auto_leash_check() -> void:
+	if _valid_target(target) and not _auto_leash_ok(target.global_position, target.body_radius()):
+		set_target(null)
+		engaged = false
+		_pending = {}
+		_auto_timer = 0.0
+
+
+## The nearest monster inside the circle, or null.
+func _auto_leash_pick() -> Mob:
+	for mob in mobs_in_range(_auto_radius * 2.0 + 4.0):
+		if _auto_leash_ok(mob.global_position, mob.body_radius()):
+			return mob
+	return null
+
+
+## Never walks out of the circle: at its edge the outward part of the step is cut.
+func _auto_leash_clamp(v: Vector3) -> Vector3:
+	var off := _flat(global_position - _auto_center)
+	if off.length() < _auto_radius - 0.3 or off.length() < 0.01:
+		return v
+	var out := off.normalized()
+	var along := v.dot(out)
+	return v - out * along if along > 0.0 else v
+
+
+## Centres the circle on a spot (auto switched on, walked by hand, a tapped monster, a
+## teleport) and moves the ground ring there.
+func _auto_anchor_at(pos: Vector3) -> void:
+	_auto_center = Vector3(pos.x, 0.0, pos.z)
+	_auto_radius = AUTO_LEASH
+	_auto_last_pos = global_position
+	if is_instance_valid(_auto_ring):
+		_auto_ring.global_position = Vector3(pos.x, global_position.y + 0.05, pos.z)
+
+
+## The faint ring on the ground showing the circle while auto is on: one unshaded torus.
+func _auto_ring_show(on: bool) -> void:
+	if not on:
+		if is_instance_valid(_auto_ring):
+			_auto_ring.visible = false
+		return
+	if not is_instance_valid(_auto_ring):
+		_auto_ring = MeshInstance3D.new()
+		_auto_ring.name = "AutoRing"
+		var mesh := TorusMesh.new()
+		mesh.inner_radius = AUTO_LEASH - 0.07
+		mesh.outer_radius = AUTO_LEASH + 0.07
+		mesh.rings = 72
+		mesh.ring_segments = 3
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.55, 1.0, 0.7, 0.28)
+		mesh.material = mat
+		_auto_ring.mesh = mesh
+		_auto_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_auto_ring.scale = Vector3(1.0, 0.25, 1.0)
+		_auto_ring.top_level = true
+		add_child(_auto_ring)
+	_auto_ring.visible = true
+	_auto_ring.global_position = Vector3(_auto_center.x, global_position.y + 0.05, _auto_center.z)
 
 
 ## Picks the next skill off the bar that makes sense right now. A song plays when
@@ -582,7 +678,7 @@ func tap_target(mob: Mob) -> void:
 	else:
 		engaged = true
 		if auto:
-			_auto_center = mob.global_position
+			_auto_anchor_at(mob.global_position)
 	var who := String((mob as Rival).member.get("name", "")) if mob is Rival else String(mob.template.get("name", ""))
 	message.emit("เลือกเป้า: %s" % who)
 
@@ -673,9 +769,14 @@ func _physics_process(delta: float) -> void:
 		engaged = false
 		_pending = {}
 		if auto:
-			set_auto(false)
+			# Walking by hand keeps auto on and carries its circle along.
+			set_target(null)
+			_auto_anchor_at(global_position)
 		if Online.follow_id != "":
 			Online.stop_follow("เดินเองแล้ว — หยุดเดินตาม")
+	if auto and _flat(global_position - _auto_last_pos).length() > AUTO_JUMP:
+		_auto_anchor_at(global_position)
+	_auto_last_pos = global_position
 	if _target_dead():
 		_on_target_lost()
 	var desired := Vector3.ZERO
@@ -923,7 +1024,7 @@ func _on_target_lost() -> void:
 	target = null
 	target_changed.emit(null)
 	if engaged or not _pending.is_empty():
-		var next := nearest_mob(12.0)
+		var next := _auto_leash_pick() if auto else nearest_mob(12.0)
 		if next:
 			set_target(next)
 		else:
