@@ -21,6 +21,7 @@ var _tap: TouchCameraArea
 var _plates: Dictionary = {}   # slot -> PanelContainer
 var _plate_layer: Control
 var _counter: Label
+var _masthead: Control
 var _name: Label
 var _detail: Label
 var _hint: Label
@@ -76,16 +77,21 @@ func _ready() -> void:
 
 
 func _build_masthead(frame: Control) -> void:
-	var titles := UIUtil.vbox(0)
+	# One compact line tucked in the corner, above the back row's name plates
+	# (_update_plates keeps every plate below it).
+	var titles := UIUtil.hbox(10)
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	titles.position = Vector2.ZERO
 	frame.add_child(titles)
+	_masthead = titles
 	var title := UIUtil.label("TOON TALE", &"TitleLabel")
-	title.add_theme_font_size_override("font_size", 34)
-	_outline(title, 10)
+	title.add_theme_font_size_override("font_size", 22)
+	_outline(title, 7)
 	titles.add_child(title)
 	var sub := UIUtil.label("เลือกฮีโร่ของคุณ  ·  v%s" % ProjectSettings.get_setting("application/config/version", ""), &"BoldLabel")
-	_outline(sub, 6)
+	sub.add_theme_font_size_override("font_size", 13)
+	sub.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_outline(sub, 5)
 	titles.add_child(sub)
 	_counter = UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_RIGHT)
 	_outline(_counter, 6)
@@ -116,9 +122,10 @@ func _build_panel(frame: Control) -> void:
 	_name.clip_text = true
 	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(_name)
+	# Class title, Lv and ★ in full: wraps to a second line rather than trimming.
 	_detail = UIUtil.label("", &"BoldLabel")
-	_detail.clip_text = true
-	_detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.max_lines_visible = 2
 	info.add_child(_detail)
 	_hint = UIUtil.label("", &"SmallLabel")
 	_hint.clip_text = true
@@ -257,7 +264,12 @@ func _update_plates() -> void:
 		var head := stage.head_screen(int(slot))
 		var size := _plate_size(plate, int(slot))
 		plate.size = size
-		plate.position = Vector2(head.x - size.x * 0.5, head.y - size.y - 4.0)
+		var at := Vector2(head.x - size.x * 0.5, head.y - size.y - 4.0)
+		# Never under the title in the corner.
+		var top := _masthead.get_global_rect() if is_instance_valid(_masthead) else Rect2()
+		if top.size.x > 0.0 and at.x < top.end.x and at.x + size.x > top.position.x:
+			at.y = maxf(at.y, top.end.y + 4.0)
+		plate.position = at
 
 
 ## The plate's natural width (whole name) capped at its circle's width.
@@ -293,7 +305,7 @@ func _refresh() -> void:
 	elif used:
 		var cls := JobData.resolve(StringName(info["class"]), int(info.adv))
 		_name.text = String(info.name)
-		_detail.text = "จุด %d · %s · Lv.%d%s" % [_selected, cls.name, int(info.level), "  ★%d" % int(info.stars) if int(info.get("stars", 0)) > 0 else ""]
+		_detail.text = "%s · Lv.%d%s" % [cls.name, int(info.level), "  ★%d" % int(info.stars) if int(info.get("stars", 0)) > 0 else ""]
 		_detail.add_theme_color_override("font_color", cls.color.lightened(0.35))
 		_hint.text = "%s · เวลาเล่น %s" % [ZoneData.get_zone(StringName(info.zone)).name, UIUtil.format_play_time(float(info.play_time))]
 	elif count == 0:
