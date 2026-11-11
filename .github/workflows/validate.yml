@@ -593,21 +593,6 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star300_skills_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star300_skills_test.tscn
-      - name: "star_art_melee_test (Warrior / Lancer / Defender / Assassin 50-200 star signature art - real casts own the show, roots freed, budget back to baseline, quality 0, death mid-cast)"
-        timeout-minutes: 10
-        env:
-          XDG_DATA_HOME: /tmp/toon-ci-star_art_melee_test
-        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_art_melee_test.tscn
-      - name: star_art_ranged_test (the Archer, Mage and Priest 50 to 200 star signatures own their show, cast at every quality and under memory pressure inside the budget, free everything, and leave at once when the cast stops early)
-        timeout-minutes: 15
-        env:
-          XDG_DATA_HOME: /tmp/toon-ci-star_art_ranged_test
-        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_art_ranged_test.tscn
-      - name: star_art_arcane_test (summoner, dark lord and bard 50-200 star signature art owns its show, layer cap, budget, planned contacts, legend summon skills, cleanup at every quality)
-        timeout-minutes: 10
-        env:
-          XDG_DATA_HOME: /tmp/toon-ci-star_art_arcane_test
-        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/star_art_arcane_test.tscn
       - name: star_wings_test
         timeout-minutes: 10
         env:
@@ -733,3 +718,36 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-hero-vfx-priority
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/hero_vfx_priority_test.tscn
+
+  star-art:
+    # The 50-200 star signature art tests (combat/star_art), beside the other jobs so none
+    # runs past its limit.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      XDG_CONFIG_HOME: /tmp/toon-ci-config
+      XDG_CACHE_HOME: /tmp/toon-ci-cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.3
+        run: |
+          curl --fail --location --retry 8 --retry-delay 15 --retry-all-errors https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          echo /tmp/godot >> "$GITHUB_PATH"
+      - name: Import assets
+        run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
+      - name: "star_art_melee_test (Warrior / Lancer / Defender / Assassin 50-200 star signature art - real casts own the show, roots freed, budget back to baseline, quality 0, death mid-cast)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star_art_melee_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_art_melee_test.tscn
+      - name: star_art_ranged_test (the Archer, Mage and Priest 50 to 200 star signatures own their show, cast at every quality and under memory pressure inside the budget, free everything, and leave at once when the cast stops early)
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star_art_ranged_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_art_ranged_test.tscn
+      - name: star_art_arcane_test (summoner, dark lord and bard 50-200 star signature art owns its show, layer cap, budget, planned contacts, legend summon skills, cleanup at every quality)
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star_art_arcane_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/star_art_arcane_test.tscn
