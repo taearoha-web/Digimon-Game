@@ -1658,8 +1658,9 @@ func _raise_castle(saved: Dictionary) -> void:
 	if castle_owner >= 0 and castle_owner != start_owner:
 		captures[castle_owner] = maxi(captures[castle_owner], 1)
 		_rehome(castle_owner)
-		for f in side(castle_owner):
-			f.position = f.spawn_point
+		var list := side(castle_owner)
+		for i in list.size():
+			list[i].position = spawn_slot(castle_owner, i, list.size(), holds_keep())
 		if start_owner >= 0:
 			_rehome(start_owner)
 			for f in side(start_owner):

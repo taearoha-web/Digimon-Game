@@ -253,7 +253,8 @@ func _owner_war() -> void:
 		check(false, "owner war: no match")
 		return
 	check(m.castle_owner == 2 and m.start_owner == 2, "the holder of the round before holds the castle as the war begins")
-	check(m.side(2).all(func(f): return SiegeArena.section(f.global_position) >= 3 and f.spawn_point.distance_to(SiegeArena.KEEP_CAMP) < 20.0), "the holder starts inside the castle")
+	check(m.side(2).all(func(f): return SiegeArena.section(f.global_position) >= 3 and f.global_position.distance_to(SiegeArena.KEEP_CAMP) < 20.0), "the holder starts inside the castle")
+	check(m.side(2).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(2)) < SiegeArena.CAMP_RADIUS), "but comes back from a fall at its camp outside")
 	check(m.side(1).all(func(f): return f.global_position.distance_to(SiegeArena.camp(1)) < SiegeArena.CAMP_RADIUS), "the others start in their camps outside")
 	check(m.owner_briefing().contains(m.team_name(2)), "the briefing names the holder (%s)" % m.owner_briefing())
 	m._timer = 0.05
@@ -305,7 +306,7 @@ func _owner_war() -> void:
 	m.capture = {"team": 1, "who": taker, "progress": GuildWarMatch.CAPTURE_TIME, "paused": false, "barrier": false}
 	m._complete_capture()
 	check(m.castle_owner == 1 and m.captures[1] == 1, "a capture changes the holder")
-	check(m.side(1).all(func(f): return f.spawn_point.distance_to(SiegeArena.KEEP_CAMP) < 20.0) and m.side(2).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(2)) < SiegeArena.CAMP_RADIUS), "the new holder comes back in the keep, the old one at its camp")
+	check(m.side(1).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(1)) < SiegeArena.CAMP_RADIUS) and m.side(2).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(2)) < SiegeArena.CAMP_RADIUS), "after a fall both the new holder and the old one come back at their camps outside")
 	check(m.passes_gates(raider) and not m.passes_gates(keeper), "the gates are the new holder's")
 	await _drop(zone)
 
@@ -459,7 +460,7 @@ func _resume() -> void:
 	var bm: GuildWarMatch = back.gw_match
 	check(bm.resumed and bm.roll_seed == seed_was and bm.team_count() == 4 and bm.score == [3, 4, 5, 6], "a resumed war of four comes back with every score (%s)" % [bm.score])
 	check(bm.gates[1].is_dead() and not bm.gates[0].is_dead() and bm.front_tier() == 1, "and its gates")
-	check(bm.castle_owner == 3 and bm.side(3).all(func(f): return f.spawn_point.distance_to(SiegeArena.KEEP_CAMP) < 20.0), "and its holder, back inside")
+	check(bm.castle_owner == 3 and bm.side(3).all(func(f): return f.global_position.distance_to(SiegeArena.KEEP_CAMP) < 20.0), "and its holder, back inside")
 	await _drop(back)
 
 
