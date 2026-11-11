@@ -54,7 +54,7 @@ func _ready() -> void:
 						func(_index: int, _point: Vector3, _radius: float, _multiplier: float): pass)
 					check(sequence != null, "Armageddon launches its dedicated presentation")
 					_check_essential_meteor(fx, "catalogue q%d" % quality)
-				elif StarSignature.owns(skill):
+				elif StarSignature.owns(skill) or SkillSignature.owns(skill):
 					# Its own set piece (combat/star_art) draws on its own roots (the melee and arcane
 					# signatures under StarContact_<id>_<i>, the ranged ones on GodRangedKit stages).
 					check(fx.find_children("*", "Node3D", true, false).size() > 0,"star signature drew its set piece: "+String(skill.id))

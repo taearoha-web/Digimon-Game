@@ -273,7 +273,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 ## Release: the skill's own composition, at the same beat as its damage.
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, delay := 0.0) -> void:
 	CasterArt.play(parent, skill, center, origin, delay)
-	if not handles(skill) or not _alive(parent) or skill.has("star") or not VfxBudget.can_decorate(3 + RESERVE):
+	if not handles(skill) or GodSkillArt.owns(skill) or not _alive(parent) or skill.has("star") or not VfxBudget.can_decorate(3 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var shape := String(skill.get("shape", "single"))
@@ -294,7 +294,7 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 ## status mark the skill brings (cracked staff, tear-note, fermata) or a gold echo.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3) -> void:
 	CasterArt.contact(parent, skill, at)
-	if not handles(skill) or skill.has("star") or not _alive(parent) or not VfxBudget.can_decorate(2 + RESERVE):
+	if not handles(skill) or skill.has("star") or GodSkillArt.owns(skill) or not _alive(parent) or not VfxBudget.can_decorate(2 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var q := VfxBudget.quality()

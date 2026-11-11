@@ -56,7 +56,7 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, aim: 
 ## Release, at the same beat as the damage ([param delay] for landings).
 static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vector3, delay := 0.0) -> void:
 	var f := family(skill)
-	if f == "" or skill.has("star"):
+	if f == "" or skill.has("star") or GodSkillArt.owns(skill):
 		return
 	var ctx := _ctx(skill, origin, center, delay)
 	var at := center if String(ctx.shape) == "blast" else origin
@@ -93,7 +93,7 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 ## Every hit of a skill ([param crit] from the combat roll, cosmetic only).
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
 	var f := family(skill)
-	if f == "":
+	if f == "" or GodSkillArt.owns(skill):
 		return
 	var id := String(skill.get("id", ""))
 	var now := Time.get_ticks_msec()
