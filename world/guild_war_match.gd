@@ -2270,6 +2270,50 @@ func order_party_switch() -> String:
 	return "สั่งปาร์ตี้ไปยืนยึดสวิตช์" if party_switch else "ปาร์ตี้กลับไปตามแผนกิลด์"
 
 
+## True when the hero may command our whole guild (บัญชาการ): it leads it (no member was
+## picked to lead), in its own war (not a party member's view of a leader's: mirror),
+## before or during the fight.
+func hero_commands() -> bool:
+	return not mirror and spectator == null and hero_leads() and is_instance_valid(hero) and state in ["intro", "fight"] and not commanders.is_empty()
+
+
+## Our guild's standing order as told ("ตีประตูซ้าย"), "" while it follows the AI's plan.
+func guild_order_name() -> String:
+	return commanders[0].order_name() if not commanders.is_empty() else ""
+
+
+## The hero, leading our guild, orders all of it (GuildWarCommander.set_order: kind one of
+## GuildWarCommander.ORDERS, "" or "auto" back to the AI commander's plan; data.lane picks
+## a gate of a doubled tier). The order is told in the war chat (หัวกิลสั่ง: ...) and laid
+## out at once. Returns {ok, text}: text for a toast (why not, when ok is false).
+func order_guild(kind: String, data: Dictionary = {}) -> Dictionary:
+	if not hero_commands():
+		return {"ok": false, "text": "สั่งการได้เฉพาะหัวหน้ากิลด์ระหว่างสงคราม"}
+	var c: GuildWarCommander = commanders[GuildFighter.TEAM_ALLY]
+	if kind == "" or kind == "auto":
+		c.clear_order()
+		var back := "หัวกิลสั่ง: ตามแผน AI"
+		feed.emit(back, GuildFighter.TEAM_ALLY)
+		_assign_objectives()
+		return {"ok": true, "text": back}
+	if not GuildWarCommander.ORDERS.has(kind):
+		return {"ok": false, "text": "ไม่รู้จักคำสั่งนี้"}
+	if kind == GuildWarCommander.ORDER_GATE:
+		if castle_owner == GuildFighter.TEAM_ALLY:
+			return {"ok": false, "text": "ประตูเป็นของกิลด์เรา — ตีไม่ได้"}
+		if front_gate() == null:
+			return {"ok": false, "text": "ประตูพังหมดแล้ว"}
+		if gates_of_tier(front_tier()).size() < 2:
+			data = {}
+	if kind == GuildWarCommander.ORDER_SWITCH and front_gate() != null:
+		return {"ok": false, "text": "ต้องพังประตูให้หมดก่อนจึงยึดสวิตช์ได้"}
+	c.set_order(kind, data)
+	var text := "หัวกิลสั่ง: %s!" % c.order_name()
+	feed.emit(text, GuildFighter.TEAM_ALLY)
+	_assign_objectives()
+	return {"ok": true, "text": text}
+
+
 ## The switch pad (a glowing ring on the floor in the holder's colour, a stone post with a
 ## lever and a glowing orb, a tall light pillar and the holder's name over it) and the
 ## barrier dome over the altar. Cheap: unshaded materials recoloured on a change, no light,

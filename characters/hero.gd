@@ -416,6 +416,9 @@ func tap_attack() -> void:
 		return
 	if not _valid_target(target):
 		set_target(nearest_mob())
+	# The castle siege: no foe near, the front gate is the one to batter.
+	if target == null:
+		set_target(war_gate())
 	if target == null:
 		message.emit("ไม่มีมอนสเตอร์อยู่ใกล้ๆ")
 		return
@@ -464,7 +467,8 @@ func _auto_step(delta: float) -> Vector3:
 			_face(home, delta, 12.0)
 			return home.normalized() * float(stats.speed)
 		return Vector3.ZERO
-	if home.length() > _auto_radius + 6.0:
+	# (A castle gate auto went for is battered wherever the walk there started.)
+	if home.length() > _auto_radius + 6.0 and not (target is CastleGate):
 		set_target(null)
 		engaged = false
 		_pending = {}
@@ -509,6 +513,13 @@ func _auto_think() -> void:
 			if _flat(mob.global_position - _auto_center).length() <= _auto_radius + 2.0:
 				set_target(mob)
 				break
+	if not _valid_target(target):
+		# The castle siege: nobody to fight round here, auto goes to batter the front gate
+		# (and hunts round it from then on).
+		var gate := war_gate()
+		if gate != null:
+			set_target(gate)
+			_auto_center = SiegeArena.gate_front(gate.tier, gate.lane)
 	engaged = _valid_target(target)
 	if engaged and _pending.is_empty() and Time.get_ticks_msec() >= _cast_until and mp_rate > 0.12:
 		_auto_cast(hp_rate)
@@ -575,6 +586,9 @@ func _auto_cast(hp_rate: float) -> void:
 func tap_target(mob: Mob) -> void:
 	if _dead or safe_zone or not _valid_target(mob) or GameSettings.tap_target_mode >= 2:
 		return
+	if mob is CastleGate and not (mob as CastleGate).open_to(self):
+		message.emit("ประตูนี้ตีไม่ได้ตอนนี้ (ต้องเป็นประตูชั้นหน้าของศัตรู)")
+		return
 	set_target(mob)
 	_pending = {}
 	if GameSettings.tap_target_mode == 1:
@@ -612,10 +626,16 @@ func mobs_in_range(radius := TARGET_RANGE) -> Array[Mob]:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		var mob := node as Mob
 		if mob and not mob.is_dead() and _flat(mob.global_position - global_position).length() <= radius:
+			# A castle gate only while it can be hurt (not one of an open tier, nor ours).
+			if mob is CastleGate and not (mob as CastleGate).open_to(self):
+				continue
 			list.append(mob)
 	list.sort_custom(func(a: Mob, b: Mob) -> bool:
-		if a.hostile != b.hostile:
-			return a.hostile
+		# A gate to batter counts as a foe: the nearer of it and the fighters comes first.
+		var ha := a.hostile or a is CastleGate
+		var hb := b.hostile or b is CastleGate
+		if ha != hb:
+			return ha
 		return _flat(a.global_position - global_position).length() < _flat(b.global_position - global_position).length())
 	return list
 
@@ -623,6 +643,24 @@ func mobs_in_range(radius := TARGET_RANGE) -> Array[Mob]:
 func nearest_mob(radius := TARGET_RANGE) -> Mob:
 	var list := mobs_in_range(radius)
 	return list[0] if not list.is_empty() else null
+
+
+## In the castle siege: the nearest gate of the front tier the hero can batter (within
+## WAR_GATE_REACH m), null outside a war, with every tier open or holding the castle.
+const WAR_GATE_REACH := 70.0
+func war_gate() -> CastleGate:
+	if not GuildWarMatch.in_war():
+		return null
+	var best: CastleGate = null
+	var best_d := WAR_GATE_REACH
+	for g in GuildWarMatch.current.front_gates():
+		if not is_instance_valid(g) or not g.open_to(self):
+			continue
+		var d := _flat(g.global_position - global_position).length()
+		if d < best_d:
+			best_d = d
+			best = g
+	return best
 
 
 func use_potion(kind: String) -> void:
