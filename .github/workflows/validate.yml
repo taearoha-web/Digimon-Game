@@ -756,3 +756,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-skill_art_guard_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/skill_art_guard_test.tscn
+      - name: "skill_art_blade_test (Warrior / Lancer Lv.60-100 signature art - hero and companion casts own the show, companion lighter, roots freed, budget back to baseline, quality 0, death mid-cast)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-skill_art_blade_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/skill_art_blade_test.tscn

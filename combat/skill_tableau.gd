@@ -42,9 +42,11 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 	root.create_tween().tween_interval(0.3).finished.connect(root.queue_free, CONNECT_ONE_SHOT)
 
 static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3, seconds: float, size := 1.0) -> Node3D:
-	var signed := _signed(skill, "flight")
-	var drawn: Node3D = signed.flight(parent, skill, from, to, seconds, size) if signed else null
-	if drawn: return drawn # else the essential body below still flies
+	if SkillSignature.owns(skill):
+		var signed := _signed(skill, "flight")
+		if signed == null: return null # its signature art (combat/skill_art) draws the flight
+		var drawn: Node3D = signed.flight(parent, skill, from, to, seconds, size)
+		if drawn: return drawn # else the essential body below still flies
 	ClassSignature.flight(parent, skill, from, to, seconds, size)  # class signature hook (Archer / Assassin / Dark Lord)
 	if MartialSkillArt.handles(skill):
 		var martial := MartialSkillArt.flight(parent,skill,from,to,seconds,size)
