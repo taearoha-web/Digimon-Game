@@ -205,7 +205,7 @@ func _ready() -> void:
 	var plus := String(ask.call("ตีบวกยังไง", hunter).reply)
 	check(plus.contains("+6") and plus.contains("+%d" % ItemData.MAX_PLUS) and plus.contains("50%"), "how to enhance mentions the safe + and the odds (%s)" % plus)
 	var events := String(ask.call("อีเวนต์มีตอนไหน", hunter).reply)
-	check(events.contains(WorldEvents.NAME_EXP) and events.contains("19:00-21:00") and events.contains(WorldEvents.NAME_BOSS) and events.contains("20:30"), "events are explained with their times (%s)" % events)
+	check(events.contains(WorldEvents.NAME_EXP) and events.contains("19:00-21:00") and events.contains(WorldEvents.NAME_BOSS) and events.contains("19:30"), "events are explained with their times (%s)" % events)
 	check(String(ask.call("กิลด์เข้ายังไง", hunter).reply).contains("Lv.%d" % Game.GUILD_LEVEL), "how to join a guild names the level")
 	check(String(ask.call("ฝากขายทำไง", hunter).reply).contains("1.5"), "how stalls work names the consignment bonus")
 	check(String(ask.call("ดาวคืออะไร", hunter).reply).contains("★") and String(ask.call("ปาร์ตี้ทำยังไง", hunter).reply).contains("ตามมา"), "stars and parties are explained")
