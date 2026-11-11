@@ -4,7 +4,7 @@ extends RefCounted
 ## registrar (GuildScreen "league") and the game menu (GameMenu "league"): the season's
 ## time left and castle holder, the table (rank, guild, points, wins, captures, holder)
 ## and the deciding round's ×2 note, last season's two titles (แชมป์ลีก by points,
-## ราชันปราสาท the castle holder after Sunday 21:30) and the emperor who won both, the
+## ราชันปราสาท the castle holder after Sunday 20:30) and the emperor who won both, the
 ## top-three reward (and the emperor's bonus) to claim and, for the Castle King's members,
 ## the secret shop. `refresh` rebuilds the page after a claim or a buy.
 
@@ -29,7 +29,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	box.add_child(UIUtil.label("ลีกกิลด์รายสัปดาห์", &"SubHeaderLabel"))
 	var left := int(GuildLeague.week_end(w) - t)
 	var holder := GuildLeague.holder(w, GuildLeague.real_wars(w), t)
-	var info := UIUtil.label("ฤดูกาลนี้ (จันทร์ 00:00 – อาทิตย์ 23:59 เวลาไทย) จบใน %d วัน %d ชม. · ผู้ครองปราสาทตอนนี้: กิลด์ %s — 2 ตำแหน่งทุกสัปดาห์: %s = แต้มรวมอันดับ 1 (รับรางวัลอันดับ 1) · %s = ผู้ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 21:30 (ป้ายมงกุฎ EXP +%d%% ร้านลับ) · ได้ทั้งสองเป็น%s" % [
+	var info := UIUtil.label("ฤดูกาลนี้ (จันทร์ 00:00 – อาทิตย์ 23:59 เวลาไทย) จบใน %d วัน %d ชม. · ผู้ครองปราสาทตอนนี้: กิลด์ %s — 2 ตำแหน่งทุกสัปดาห์: %s = แต้มรวมอันดับ 1 (รับรางวัลอันดับ 1) · %s = ผู้ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 20:30 (ป้ายมงกุฎ EXP +%d%% ร้านลับ) · ได้ทั้งสองเป็น%s" % [
 		left / 86400, (left % 86400) / 3600, GuildLeague.name_of(holder), GuildLeague.LEAGUE_TITLE, GuildLeague.CASTLE_TITLE,
 		int(GuildLeague.EXP_BONUS * 100.0), GuildLeague.EMPEROR_TITLE], &"SmallLabel")
 	info.name = "LeagueInfo"
@@ -37,7 +37,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	box.add_child(info)
 	var rule := UIUtil.label("4 กิลด์ (Alpha · Neverdie · Titan · 3DLnw) รบกันตามเวลาจริงวันละ 3 รอบ %s ทุกรอบทั้ง 4 กิลด์ชิงปราสาทในสนามเดียวกัน · แต้มตามอันดับ %s · ยึดปราสาทครั้งละ %d · ครองปราสาทตอนจบ %d · ล้มศัตรูทุก %d คน +1 · ผู้ครองปราสาทครองต่อข้ามรอบจนกว่าจะถูกยึด — รอบที่คุณลงสนามหรือชมจนจบนับผลจริง รอบอื่นตัดสินจากกำลังจริงของทุกกิลด์ · ผลของรอบที่จบแล้วบันทึกถาวร เหมือนกันทุกเครื่อง" % [
 		GuildWarScreen._slot_list(), " / ".join(GuildLeague.PLACE_POINTS.map(func(v): return str(v))), GuildLeague.CAPTURE, GuildLeague.HOLD, GuildLeague.KILLS_PER_POINT], &"SmallLabel")
-	rule.text += " · %s: รอบอาทิตย์ 21:30 แต้มอันดับและแต้มยึดปราสาท ×%d" % [GuildLeague.FINAL_TAG, GuildLeague.FINAL_MULT]
+	rule.text += " · %s: รอบอาทิตย์ 20:30 แต้มอันดับและแต้มยึดปราสาท ×%d" % [GuildLeague.FINAL_TAG, GuildLeague.FINAL_MULT]
 	rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(rule)
 	box.add_child(_table(GuildLeague.table(w, GuildLeague.real_wars(w), t), holder, mine))
@@ -109,7 +109,7 @@ static func _table(rows: Array[Dictionary], holder: int, mine: int) -> Control:
 	return grid
 
 
-## The deciding round's note under the table (รอบชี้ขาด ×2: Sunday 21:30, GuildLeague.is_final)
+## The deciding round's note under the table (รอบชี้ขาด ×2: Sunday 20:30, GuildLeague.is_final)
 ## and whether this season's is counted yet.
 static func _final_note(w: int, t: float) -> Control:
 	var at := GuildLeague.final_slot(w)

@@ -1,7 +1,7 @@
 extends Node
 ## The four-guild league (GuildLeague, WorldPlayers, GuildWarData): Alpha, Neverdie, Titan
 ## and 3DLnw; everyone picks a guild of its own and each guild has at least twenty who
-## reach Lv.100; three rounds a day at 12:00, 18:00 and 21:30 Thai, each round one castle
+## reach Lv.100; three rounds a day at 12:00, 18:00 and 20:30 Thai (21:30 before GuildLeague.EARLY_FINAL_DAY), each round one castle
 ## war of all four guilds; registration closes five minutes before a round; the hero fights
 ## only among its guild's strongest twenty; wars the hero does not fight get a seeded
 ## result from real power (the same after everything is worked out again); the hero's live
@@ -106,18 +106,19 @@ func _guilds() -> void:
 
 func _schedule() -> void:
 	var first := WorldEvents.day_of(float(WorldPlayers.START_UNIX))
-	for d in range(first, first + 10):
+	for d in range(first, maxi(first + 10, GuildLeague.EARLY_FINAL_DAY + 3)):
 		var rounds := GuildLeague.rounds_on(d)
 		check(rounds.size() == 3, "three rounds on day %d" % d)
 		var times: Array = rounds.map(func(r): return GuildLeague.clock_text(int(r.at)))
-		check(times == ["12:00", "18:00", "21:30"], "rounds at 12:00, 18:00, 21:30 Thai (%s)" % [times])
+		var last := "21:30" if d < GuildLeague.EARLY_FINAL_DAY else "20:30"
+		check(times == ["12:00", "18:00", last], "rounds at 12:00, 18:00, %s Thai on day %d (%s)" % [last, d, times])
 		for r in rounds:
 			check(WorldEvents.day_of(float(r.at)) == d, "a round is on its own Thai day")
 			check(r.guilds == [1, 2, 3, 4], "one war a round, all four guilds in it")
 	var at := GuildLeague.slot_start(first + 3, 1)
 	check(GuildLeague.live_slot(float(at)) == at and GuildLeague.live_slot(float(at) + GuildWarData.DURATION - 1.0) == at and GuildLeague.live_slot(float(at) + GuildWarData.DURATION) == -1, "a round is on for DURATION")
 	check(GuildLeague.next_slot(float(at) - 1.0) == at and GuildLeague.next_slot(float(at)) == GuildLeague.slot_start(first + 3, 2), "the next round")
-	check(GuildLeague.next_slot(float(GuildLeague.slot_start(first + 3, 2)) + 10.0) == GuildLeague.slot_start(first + 4, 0), "after 21:30 the next is tomorrow's 12:00")
+	check(GuildLeague.next_slot(float(GuildLeague.slot_start(first + 3, 2)) + 10.0) == GuildLeague.slot_start(first + 4, 0), "after the last round the next is tomorrow's 12:00")
 	check(GuildLeague.schedule(GuildLeague.week_of(float(at))).size() == 21, "21 rounds a week")
 
 

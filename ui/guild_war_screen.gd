@@ -220,7 +220,7 @@ func _build_lobby() -> void:
 			list.add_child(row_line)
 
 
-## "12:00 · 18:00 · 21:30".
+## "12:00 · 18:00 · 20:30".
 static func _slot_list() -> String:
 	var parts: PackedStringArray = []
 	for s in GuildLeague.SLOTS:
@@ -289,7 +289,7 @@ func _schedule_panel(box: VBoxContainer, t: float) -> void:
 	owner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	owner.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
 	col.add_child(owner)
-	# The deciding round: Sunday 21:30 counts double and crowns the Castle King.
+	# The deciding round: Sunday 20:30 counts double and crowns the Castle King.
 	var final_at := GuildLeague.final_slot(GuildLeague.week_of(t))
 	var final_rule := UIUtil.label("%s · รอบอาทิตย์ %s: แต้มอันดับและแต้มยึดปราสาท ×%d%s · ผู้ครองปราสาทหลังรอบนี้เป็น%s · แต้มรวมอันดับ 1 ของสัปดาห์เป็น%s" % [
 		GuildLeague.FINAL_TAG, GuildLeague.clock_text(final_at), GuildLeague.FINAL_MULT,
