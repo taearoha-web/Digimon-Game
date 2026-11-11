@@ -13,8 +13,13 @@ on:
         description: Game ID (account)
         required: true
       assign:
-        description: 'name:class:guild, comma separated (guild = alpha, neverdie, titan, 3dlnw; class "any" matches any), e.g. Hades:darklord:alpha'
-        required: true
+        description: 'name:class:guild, comma separated (guild = alpha, neverdie, titan, 3dlnw; class "any" matches any), e.g. Hades:darklord:alpha; may be empty with relook'
+        default: ''
+        required: false
+      relook:
+        description: 'Optional: name:class, comma separated: each gets a new look different from the others'
+        default: ''
+        required: false
       mount:
         description: Mount for each of them (none, thunder_wolf, glow_stag, griffin, fire_drake)
         default: none
@@ -44,6 +49,7 @@ jobs:
       DB_NAME: ${{ vars.D1_DATABASE_NAME || 'toon-tale-accounts' }}
       TARGET_USER: ${{ inputs.username }}
       ASSIGN: ${{ inputs.assign }}
+      RELOOK: ${{ inputs.relook }}
       MOUNT: ${{ inputs.mount }}
       MOUNT_LEVEL: ${{ inputs.mount_level }}
       CONFIRM: ${{ inputs.confirm }}
@@ -55,7 +61,7 @@ jobs:
           echo "$TARGET_USER" | grep -Eq '^[a-z0-9_]{3,24}$' || { echo "::error::Invalid game ID."; exit 1; }
           echo "$MOUNT" | grep -Eq '^(none|thunder_wolf|glow_stag|griffin|fire_drake)$' || { echo "::error::Unknown mount."; exit 1; }
           echo "$MOUNT_LEVEL" | grep -Eq '^[1-5]$' || { echo "::error::The mount level must be 1 to 5."; exit 1; }
-          test -n "$ASSIGN" || { echo "::error::Enter at least one assignment."; exit 1; }
+          test -n "$ASSIGN$RELOOK" || { echo "::error::Enter an assignment or a relook."; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -75,7 +81,7 @@ jobs:
       - name: Set guilds and leaders with the game's own code
         run: |
           Godot_v4.3-stable_linux.x86_64 --headless --path . res://tools/guild_setup.tscn -- \
-            --in /tmp/guild/bundle.json --out /tmp/guild/slots.json --assign "$ASSIGN" \
+            --in /tmp/guild/bundle.json --out /tmp/guild/slots.json --assign "$ASSIGN" --relook "$RELOOK" \
             --mount "$MOUNT" --mount-level "$MOUNT_LEVEL" 2>&1 | tee /tmp/guild/log.txt
           grep -q '^GUILD: slot ' /tmp/guild/log.txt || { echo "::error::The setup did not run; see the log above."; exit 1; }
           test -s /tmp/guild/slots.json

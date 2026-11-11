@@ -5,6 +5,8 @@ extends Node
 ## itself), optionally giving each of them a mount at a level as the active one.
 ##   godot --headless --path . res://tools/guild_setup.tscn -- --in bundle.json --out out.json
 ##     --assign "Hades:darklord:alpha,Orochi:darklord:neverdie" [--mount fire_drake --mount-level 1]
+##     [--relook "Hades:darklord,Orochi:darklord"]  (each gets a new look: hair, colours, eyes, outfit
+##     all different from one another; the gender stays). --assign may be empty with --relook.
 ## A guild is its name (alpha, neverdie, titan, 3dlnw) or id (1-4); a class "any" matches any.
 ## Writes {slots: {...}} with every slot of the bundle (changed or not).
 
@@ -19,7 +21,8 @@ func _ready() -> void:
 func _arg(name: String) -> String:
 	var args := OS.get_cmdline_user_args()
 	var at := args.find("--" + name)
-	return args[at + 1] if at >= 0 and at + 1 < args.size() else ""
+	var value: String = args[at + 1] if at >= 0 and at + 1 < args.size() else ""
+	return "" if value.begins_with("--") else value
 
 
 func _fail(message: String) -> int:
@@ -41,9 +44,18 @@ func _run() -> int:
 		if not _arg("mount-level").is_valid_int() or not int(_arg("mount-level")) in range(1, MountData.MAX_LEVEL + 1):
 			return _fail("--mount-level must be 1 to %d" % MountData.MAX_LEVEL)
 		mount_level = int(_arg("mount-level"))
-	var result := setup(bundle, _arg("assign"), mount, mount_level)
-	if result.has("error"):
-		return _fail(String(result.error))
+	var result := {"lines": []}
+	if _arg("assign").strip_edges() != "":
+		result = setup(bundle, _arg("assign"), mount, mount_level)
+		if result.has("error"):
+			return _fail(String(result.error))
+	if _arg("relook").strip_edges() != "":
+		var looks := relook(bundle, _arg("relook"))
+		if looks.has("error"):
+			return _fail(String(looks.error))
+		result.lines.append_array(looks.lines)
+	if result.lines.is_empty():
+		return _fail("nothing to do (--assign or --relook)")
 	var out := FileAccess.open(_arg("out"), FileAccess.WRITE)
 	if out == null:
 		return _fail("cannot write " + _arg("out"))
@@ -112,5 +124,45 @@ static func setup(bundle: Dictionary, assign: String, mount := "", mount_level :
 			return {"error": "slot %s does not pass the game's save check after the change" % s}
 	for g in leaders:
 		lines.append("%s is led by slot %s for every character" % [WorldPlayers.guild_name(g), leaders[g]])
+	bundle.slots = slots
+	return {"lines": lines}
+
+
+## New looks for the named characters ("name:class,...") of [param bundle], in place, each
+## different from the others (hair style, hair colour, eye colour and outfit spread out),
+## the gender kept. {lines} or {error}.
+static func relook(bundle: Dictionary, names: String) -> Dictionary:
+	var slots: Dictionary = (bundle.slots as Dictionary).duplicate(true)
+	var lines: Array[String] = []
+	var n := 0
+	for part in names.split(",", false):
+		var bits := part.strip_edges().split(":")
+		var who := bits[0].strip_edges().to_lower()
+		var cls := bits[1].strip_edges().to_lower() if bits.size() > 1 else "any"
+		var found: Array[String] = []
+		for s in slots:
+			var hero: Variant = slots[s]
+			if hero is Dictionary and String(hero.get("name", "")).strip_edges().to_lower() == who and (cls == "any" or String(hero.get("class", "")) == cls):
+				found.append(String(s))
+		if found.size() != 1:
+			return {"error": "expected exactly one %s (%s), found %d" % [bits[0], cls, found.size()]}
+		var hero: Dictionary = slots[found[0]]
+		var old: Dictionary = FaceKit.repair(hero.get("look", {}) if hero.get("look") is Dictionary else {})
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("relook|" + String(hero.name))
+		var look := FaceKit.random_look(rng)
+		var gender := int(old.gender)
+		look["gender"] = gender
+		# Spread the parts the eye reads first, one step apart per character.
+		look["hair"] = (n * 2 + 1) % FaceKit.option_count("hair", gender)
+		look["hair_color"] = (n * 3 + 2) % FaceKit.option_count("hair_color", gender)
+		look["eye_color"] = (n * 2 + 1) % FaceKit.option_count("eye_color", gender)
+		look["outfit"] = (n + 1) % FaceKit.option_count("outfit", gender)
+		ChibiLook.apply_style(look, (n * 2 + 1) % ChibiLook.count("style"))
+		hero["look"] = FaceKit.repair(look)
+		if not Game._valid_profile(hero):
+			return {"error": "%s does not pass the save check with the new look" % bits[0]}
+		lines.append("slot %s %s: new look hair %d colour %d eyes %d outfit %d" % [found[0], hero.name, int(hero.look.hair), int(hero.look.hair_color), int(hero.look.eye_color), int(hero.look.outfit)])
+		n += 1
 	bundle.slots = slots
 	return {"lines": lines}
