@@ -1,0 +1,86 @@
+name: Move characters between accounts (owner only)
+
+# Manual only, and only for people with write access to this repository.
+# Moves named characters from one game account into free slots of another
+# (tools/move_characters.tscn), then optionally sets guilds and guild leaders in the
+# destination (tools/guild_setup.gd). The destination is written first, then the source; each
+# previous save is kept as a snapshot and nothing is written if the game saved in between.
+# Close the game on both accounts first; on the next start pick "ใช้เซฟออนไลน์ล่าสุด".
+on:
+  workflow_dispatch:
+    inputs:
+      from_username:
+        description: Game ID the characters leave
+        required: true
+      to_username:
+        description: Game ID the characters join
+        required: true
+      names:
+        description: 'name:class, comma separated (class "any" matches any), e.g. Hades:darklord'
+        required: true
+      assign:
+        description: 'Optional, in the destination: name:class:guild, comma separated (alpha, neverdie, titan, 3dlnw)'
+        default: ''
+        required: false
+      confirm:
+        description: Type MOVE to confirm
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boost-character
+  cancel-in-progress: false
+
+jobs:
+  move:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DB_NAME: ${{ vars.D1_DATABASE_NAME || 'toon-tale-accounts' }}
+      FROM_USER: ${{ inputs.from_username }}
+      TO_USER: ${{ inputs.to_username }}
+      NAMES: ${{ inputs.names }}
+      ASSIGN: ${{ inputs.assign }}
+      CONFIRM: ${{ inputs.confirm }}
+      XDG_DATA_HOME: /tmp/toon-move-data
+    steps:
+      - name: Check the request
+        run: |
+          test "$CONFIRM" = "MOVE" || { echo "::error::Type MOVE in the confirm field."; exit 1; }
+          echo "$FROM_USER" | grep -Eq '^[a-z0-9_]{3,24}$' || { echo "::error::Invalid source game ID."; exit 1; }
+          echo "$TO_USER" | grep -Eq '^[a-z0-9_]{3,24}$' || { echo "::error::Invalid destination game ID."; exit 1; }
+          test "$FROM_USER" != "$TO_USER" || { echo "::error::The two game IDs must differ."; exit 1; }
+          test -n "$NAMES" || { echo "::error::Enter the characters to move."; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Godot 4.3
+        run: |
+          curl --fail --location --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          echo /tmp/godot >> "$GITHUB_PATH"
+      - name: Import assets
+        run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path . > /tmp/import.log 2>&1 || { tail -50 /tmp/import.log; exit 1; }
+      - name: Fetch both online saves
+        run: |
+          mkdir -p /tmp/move/from /tmp/move/to
+          node hosting/worker/boost-character.mjs fetch "$FROM_USER" /tmp/move/from
+          node hosting/worker/boost-character.mjs fetch "$TO_USER" /tmp/move/to
+      - name: Move them with the game's own code
+        run: |
+          Godot_v4.3-stable_linux.x86_64 --headless --path . res://tools/move_characters.tscn -- \
+            --from /tmp/move/from/bundle.json --to /tmp/move/to/bundle.json --names "$NAMES" --assign "$ASSIGN" \
+            --out-from /tmp/move/from_slots.json --out-to /tmp/move/to_slots.json 2>&1 | tee /tmp/move/log.txt
+          grep -q '^MOVE: .* -> slot ' /tmp/move/log.txt || { echo "::error::The move did not run; see the log above."; exit 1; }
+          test -s /tmp/move/from_slots.json -a -s /tmp/move/to_slots.json
+      - name: Save the destination, then the source
+        run: |
+          node hosting/worker/boost-character.mjs apply-bundle /tmp/move/to /tmp/move/to_slots.json
+          node hosting/worker/boost-character.mjs apply-bundle /tmp/move/from /tmp/move/from_slots.json
+          rm -rf /tmp/move
