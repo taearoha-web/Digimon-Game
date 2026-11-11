@@ -216,6 +216,9 @@ func _line_up(w: int) -> void:
 	# A weak hero (Lv.100, no stars) is outside its guild's strongest twenty.
 	_hero(g, 0)
 	var place := GuildLeague.hero_place(at)
+	# Leading the guild (the default after joining) always makes the side.
+	check(Game.hero_leads_guild(g, float(at)) and GuildLeague.hero_makes_side(at), "the guild's leader fights whatever its place (#%d)" % place)
+	check(Game.set_guild_leader(g, WorldPlayers.guild_leader(g, float(at)), float(at)), "a member is picked to lead instead")
 	check(place > GuildWarData.GUILD_SIDE and not GuildLeague.hero_makes_side(at), "a weak hero ranks #%d, not in the twenty" % place)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
