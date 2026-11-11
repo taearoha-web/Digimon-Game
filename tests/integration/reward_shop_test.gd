@@ -441,7 +441,19 @@ func _world_players(w: int) -> void:
 		counts[g] = float(n) / float(maxi(1, members.size()))
 	var first := GuildLeague.league_champion_of(w, real)
 	var last: int = GuildLeague.table(w, real, t)[3].g
-	check(first > 0 and counts[first] > counts[last], "the league champion's members wear more costumes (%s)" % [counts])
+	# Cosmetics are bought with what each world player really earned in the league rounds
+	# (world_wallet): the champion's members earned more than the last guild's.
+	var purse := {}
+	for g in [first, last]:
+		purse[g] = RewardShop.guild_week_coins(g, w, t)
+	check(first > 0 and purse[first] > purse[last], "the league champion's members earned more league coins that season (%s, worn %s)" % [purse, counts])
+	var rich := WorldPlayers.members_at(first, t)[0]
+	var spent := 0
+	var worn := RewardShop.world_cosmetics(rich, t)
+	for tab in [["costume", "cos"], ["trail", "trail"], ["ncol", "ncol"]]:
+		if String(worn[tab[1]]) != "":
+			spent += int(RewardShop.entry(tab[0], String(worn[tab[1]])).lc)
+	check(spent <= int(RewardShop.world_wallet(rich, t).lc), "a world player only wears what its coins could buy (%d <= %d)" % [spent, int(RewardShop.world_wallet(rich, t).lc)])
 	check(any_trail and any_color, "trails and name colours are worn too")
 	var low := -1
 	for i in WorldPlayers.size():

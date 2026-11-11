@@ -558,6 +558,9 @@ func _heal_all(list: Array) -> void:
 			Game.profile.hp = Game.stats_now().max_hp
 			if (n as Hero).is_dead():
 				(n as Hero).revive()
+			# No revive grace or lucky dodge in the way of the damage checks that follow.
+			(n as Hero)._invulnerable_until = 0
+			(n as Hero).stats.dodge = 0.0
 		elif n is Companion:
 			var c := n as Companion
 			if c.is_dead():

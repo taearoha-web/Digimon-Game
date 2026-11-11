@@ -416,36 +416,122 @@ static func buy(tab: String, id: String, t := -1.0) -> String:
 
 # --- The world players --------------------------------------------------------------
 
-## What AI world player i owns and wears ({cos, trail, ncol}, "" for none): nothing
-## below Lv.100 (no guild, no league coins yet); the better its guild's league standing
-## last season, the more of its members wear the shop's things, fixed by the name so it
-## is the same on every device all week.
+## The cosmetics world player i wears on the Thai day of t: what it bought with what it
+## really earned (world_wallet), bought in its own wish order while the wallet allows.
 static func world_cosmetics(i: int, t := -1.0) -> Dictionary:
 	var out := {"cos": "", "trail": "", "ncol": ""}
 	if i < 0 or i >= WorldPlayers.size():
 		return out
 	if t < 0.0:
 		t = now()
+	var day := WorldEvents.day_of(t)
+	var key := "%d|%d" % [i, day]
+	if _world_cache.has(key):
+		return (_world_cache[key] as Dictionary).duplicate()
+	if _world_cache.size() > 4096:
+		_world_cache.clear()
 	var level := WorldPlayers.level_at(i, t)
 	var g := WorldPlayers.guild_at(i, level)
-	if g <= 0:
-		return out
-	var w := GuildLeague.week_of(t) - 1
-	var rank := GuildLeague.rank_of(w, GuildLeague.real_wars(w) if Game.has_profile else [], g)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("rshop|%s|%d" % [String(WorldPlayers.entry(i).name), w])
-	# Odds by rank (1st..4th) of wearing a costume, a trail and a name colour.
-	var odds: Array = [[0.7, 0.5, 0.6], [0.5, 0.3, 0.45], [0.3, 0.15, 0.3], [0.15, 0.05, 0.15]][clampi(rank - 1, 0, 3)]
-	var costumes := COSTUMES.keys()
-	var trails := TRAILS.keys()
-	var colors := NAME_COLORS.keys()
-	if rng.randf() < float(odds[0]):
-		out["cos"] = String(costumes[rng.randi() % costumes.size()])
-	if rng.randf() < float(odds[1]):
-		out["trail"] = String(trails[rng.randi() % trails.size()])
-	if rng.randf() < float(odds[2]):
-		out["ncol"] = String(colors[rng.randi() % colors.size()])
+	if g > 0:
+		var wallet := world_wallet(i, t)
+		var lc := int(wallet.lc)
+		var ep := int(wallet.ep)
+		# A wish list of its own (by name), bought in order while the wallet allows;
+		# the latest of each kind is worn.
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("rshop_wish|%s" % String(WorldPlayers.entry(i).name))
+		var wishes: Array = []
+		for tab in ["costume", "trail", "ncol"]:
+			for id in catalog(tab):
+				wishes.append([tab, id])
+		for k in range(wishes.size() - 1, 0, -1):
+			var j := rng.randi() % (k + 1)
+			var tmp = wishes[k]
+			wishes[k] = wishes[j]
+			wishes[j] = tmp
+		for wish in wishes:
+			var e: Dictionary = entry(String(wish[0]), String(wish[1]))
+			if e.is_empty() or int(e.get("lc", 0)) > lc or int(e.get("ep", 0)) > ep:
+				continue
+			lc -= int(e.get("lc", 0))
+			ep -= int(e.get("ep", 0))
+			out[{"costume": "cos", "trail": "trail", "ncol": "ncol"}[String(wish[0])]] = String(wish[1])
+	_world_cache[key] = out.duplicate()
 	return out
+
+
+## What world player i has earned by Thai day of t: league coins from every league round
+## its guild fought since it reached Lv.100 (its share of the line-up, WORLD_SHARE, by the
+## guild's place, captures and the castle, like the hero's round_coins) plus the week
+## bonuses, and event points from the world boss and event-hour kills (WORLD_EP a day).
+## {lc, ep}.
+const WORLD_SHARE := 0.8
+const WORLD_EP := 45
+static var _world_cache := {}
+static var _guild_week_cache := {}
+
+
+static func world_wallet(i: int, t := -1.0) -> Dictionary:
+	if t < 0.0:
+		t = now()
+	var level := WorldPlayers.level_at(i, t)
+	var g := WorldPlayers.guild_at(i, level)
+	if g <= 0 or level < Game.GUILD_LEVEL:
+		return {"lc": 0, "ep": 0}
+	var first_w := GuildLeague.week_of(float(WorldPlayers.START_UNIX))
+	var last_w := GuildLeague.week_of(t)
+	var lc := 0.0
+	var days := 0
+	for w in range(first_w, last_w + 1):
+		var end := minf(GuildLeague.week_end(w), t)
+		if WorldPlayers.level_at(i, end) < Game.GUILD_LEVEL:
+			continue
+		lc += float(guild_week_coins(g, w, t)) * WORLD_SHARE
+		var start := maxf(GuildLeague.week_start(w), float(WorldPlayers.START_UNIX))
+		days += maxi(0, WorldEvents.day_of(end) - WorldEvents.day_of(start) + 1)
+	return {"lc": int(lc), "ep": days * WORLD_EP}
+
+
+## League coins one member of guild g earned in season w by t (every round over, by the
+## guild's result; the season's placement bonus once it closed). Cached per season (the
+## running one per its last finished round).
+static func guild_week_coins(g: int, w: int, t := -1.0) -> int:
+	if t < 0.0:
+		t = now()
+	var last := GuildLeague.last_ended(t)
+	var key := "%d|%d|%d" % [g, w, last if t < GuildLeague.week_end(w) else -1]
+	if _guild_week_cache.has(key):
+		return int(_guild_week_cache[key])
+	if _guild_week_cache.size() > 512:
+		_guild_week_cache.clear()
+	var real: Array = GuildLeague.real_wars(w) if Game.has_profile else []
+	var total := 0
+	for r in GuildLeague.schedule(w):
+		var at := int(r.at)
+		if not GuildLeague.ended(at, t) or not (r.guilds as Array).has(g):
+			continue
+		for e in GuildLeague.round_results(at, GuildLeague.start_holder(at, real), real):
+			if not (e as Dictionary).has("g"):
+				continue
+			total += place_coins(e, g)
+	if t >= GuildLeague.week_end(w):
+		var rank := GuildLeague.rank_of(w, real, g)
+		if rank >= 1:
+			total += int(WEEK_BONUS[clampi(rank - 1, 0, WEEK_BONUS.size() - 1)])
+	_guild_week_cache[key] = total
+	return total
+
+
+## Coins for a round result ({g, k, c, held}) as guild g fought it: its place, its captures
+## and the castle at the bell (0 when g was not in it).
+static func place_coins(e: Dictionary, g: int) -> int:
+	var gs: Array = e.get("g", [])
+	var i := gs.find(g)
+	if i < 0:
+		return 0
+	var place := GuildLeague.placement(e).find(g)
+	var caps := int((e.get("c", []) as Array)[i]) if i < (e.get("c", []) as Array).size() else 0
+	return int(PLACE_COINS[clampi(place, 0, PLACE_COINS.size() - 1)]) + CAPTURE_COINS * maxi(0, caps) + (HOLD_COINS if int(e.get("held", 0)) == g else 0)
 
 
 # --- Looks -------------------------------------------------------------------------
