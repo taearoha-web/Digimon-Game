@@ -51,10 +51,11 @@ func _ready() -> void:
 
 
 func _pure_rules() -> void:
-	# The holder keeps it while one of it is inside, whatever the others bring.
+	# The most bodies inside take it; the holder keeps it on a level count.
 	check(GuildWarMatch.switch_next([0, 0], -1) == -1, "an empty circle: nobody holds it")
 	check(GuildWarMatch.switch_next([1, 0], -1) == 0 and GuildWarMatch.switch_next([0, 3], -1) == 1, "the first guild in a free circle takes it")
-	check(GuildWarMatch.switch_next([1, 5], 0) == 0 and GuildWarMatch.switch_next([1, 5, 4, 3], 0) == 0, "the holder keeps it with one inside against many (2 and 4 guilds)")
+	check(GuildWarMatch.switch_next([1, 5], 0) == 1 and GuildWarMatch.switch_next([1, 5, 4, 3], 0) == 1, "outnumbered, the holder loses it to the most bodies (2 and 4 guilds)")
+	check(GuildWarMatch.switch_next([2, 2], 0) == 0 and GuildWarMatch.switch_next([3, 1, 2], 0) == 0, "level or ahead, the holder keeps it")
 	check(GuildWarMatch.switch_next([0, 5], 0) == 1 and GuildWarMatch.switch_next([0, 0], 0) == -1, "none of the holder left: the next guild in takes it, or nobody")
 	check(GuildWarMatch.switch_next([0, 2, 3, 0], 0) == 2, "several waiting: the most bodies")
 	check(GuildWarMatch.switch_next([0, 2, 2, 0], 0, {1: 7, 2: 4}) == 2 and GuildWarMatch.switch_next([0, 2, 2, 0], 0, {1: 3, 2: 4}) == 1, "level: the one that came in first")
@@ -269,11 +270,11 @@ func _switch_and_barrier() -> void:
 	_away(ours[0])
 	m.read_switches()
 	check(m.switch_owner == GuildFighter.TEAM_ENEMY and m.barrier_up(GuildFighter.TEAM_ALLY) and not m.barrier_up(GuildFighter.TEAM_ENEMY), "none of ours left inside: theirs take it, the barrier opens for them alone")
-	check(lines.any(func(t: String): return t.contains("ไล่กิลด์ %s ออกจากวงสวิตช์" % m.team_name(0))), "the feed tells who cleared whom")
+	check(lines.any(func(t: String): return t.contains("ชิงสวิตช์จากกิลด์ %s" % m.team_name(0))), "the feed tells who cleared whom")
 	m._tick_capture(7.0)
 	check(not m.capture.is_empty() and is_equal_approx(float(m.capture.progress), 7.0) and bool(m.capture.barrier) and bool(m.capture.paused), "the count freezes at 7 s, kept (%s)" % m.capture)
-	var want := "บาเรียกันแท่นอยู่ — ต้องไล่กิลด์ %s ออกจากวงสวิตช์ก่อน" % m.team_name(1)
-	check(m.capture_line().contains("ต้องไล่กิลด์ %s ออกจากวงสวิตช์ก่อน" % m.team_name(1)) and m.barrier_line() == want, "the bar says who to clear out: %s / %s" % [m.capture_line(), m.barrier_line()])
+	var want := "บาเรียกันแท่นอยู่ — ต้องมีคนในวงสวิตช์มากกว่ากิลด์ %s" % m.team_name(1)
+	check(m.capture_line().contains("ต้องมีคนในวงสวิตช์มากกว่ากิลด์ %s" % m.team_name(1)) and m.barrier_line() == want, "the bar says who to clear out: %s / %s" % [m.capture_line(), m.barrier_line()])
 	look = m.switch_look()
 	check(_same(look.ring, enemy_color) and String(look.label).contains(m.team_name(1)) and _same(look.barrier, enemy_color.lerp(Color.WHITE, 0.15)), "the look follows the new holder (%s)" % [look])
 	hud._update(0.0, false)
