@@ -82,8 +82,8 @@ func _run() -> int:
 	var gear := _arg("gear").strip_edges()
 	if gear == "":
 		gear = "divine"
-	if not gear in ["divine", "set250"]:
-		return _fail("--gear must be divine or set250")
+	if not gear in ["divine", "set250", "keep"]:
+		return _fail("--gear must be divine, set250 or keep")
 	if gear == "set250" and stars < SetGearData.STARS:
 		return _fail("the 250-star set needs --stars %d or more" % SetGearData.STARS)
 	if _arg("mount-level") != "":
@@ -160,7 +160,9 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	_advance()
 	_vault = bundle.storage if bundle.get("storage") is Array else []
 	_vault_used = false
-	_dress(accessory_plus, gear == "set250")
+	# "keep": the worn gear stays as it is (only levels, stars and the mount change).
+	if gear != "keep":
+		_dress(accessory_plus, gear == "set250")
 	if mount != "":
 		var owned: Dictionary = Game.profile.get("mounts", {}) if Game.profile.get("mounts") is Dictionary else {}
 		owned[mount] = maxi(int(owned.get(mount, 0)), clampi(mount_level, 1, MountData.MAX_LEVEL))
