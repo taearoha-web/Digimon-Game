@@ -253,7 +253,7 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 ## legend (Wind Monkey King, Poseidon) arrives in a wind or water vortex. Called by
 ## Summon when the creature enters the field (its behaviour is untouched).
 static func summon_arrival(parent: Node3D, skill: Dictionary, at: Vector3, size := 1.0) -> void:
-	if not handles(skill) or not _alive(parent) or not VfxBudget.can_decorate(3 + RESERVE):
+	if not handles(skill) or GodSkillArt.owns(skill) or not _alive(parent) or not VfxBudget.can_decorate(3 + RESERVE):
 		return
 	var id := String(skill.get("id", ""))
 	var art := _root(parent, at, "CasterArt_Arrive_" + id)

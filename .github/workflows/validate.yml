@@ -766,3 +766,8 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-skill_art_sky_test
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/skill_art_sky_test.tscn
+      - name: "skill_art_mystic_test (Summoner, Dark Lord and Bard Lv.60-100 signature art: real hero and companion casts own the show, layer cap, budget, quality 0, cleanup, death mid-cast)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-skill_art_mystic_test
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/skill_art_mystic_test.tscn

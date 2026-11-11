@@ -1367,6 +1367,10 @@ func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				ThunderStormSequence.launch(field, self, center, radius, _storm_candidates, _storm_hit.bind(skill, mult))
 			elif String(skill.id) == "armageddon":
 				ArmageddonSequence.launch(field, self, center, radius, mult, _armageddon_impact.bind(skill))
+			elif skill.get("special", "") == "meteor" and GodSkillArt.owns(skill):
+				# Its own signature art (combat/skill_art) draws the fall; the meteor's clock stays.
+				var land := func(): _blast_damage(skill, center, radius, mult)
+				field.create_tween().tween_callback(VfxBudget.carry(func(): if land.is_valid(): land.call())).set_delay(0.55)
 			elif skill.get("special", "") == "meteor":
 				VfxKit.meteor(field, center, color, 0.55, radius, func(): _blast_damage(skill, center, radius, mult), String(skill.id) == "hell_meteor", GodSkillArt.owns(skill))
 			elif skill.get("special", "") == "rain":

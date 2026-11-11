@@ -158,8 +158,8 @@ func _ready() -> void:
 	for family in SkillShow.FAMILY_COLORS:
 		var entry := ClassData.find_skill(StringName(family), skill_id)
 		if not entry.is_empty():
-			# A star skill with its own signature art (StarSignature) draws the arrival itself.
-			if StarSignature.owns(entry) or SkillSignature.owns(entry):
+			# A skill with its own signature art (StarSignature / SkillSignature) draws the arrival itself.
+			if GodSkillArt.owns(entry):
 				break
 			var look := SkillShow.profile_for(entry)
 			var arrival := SpellSpectacle._root(get_parent(), global_position, "CreatureArrival")
