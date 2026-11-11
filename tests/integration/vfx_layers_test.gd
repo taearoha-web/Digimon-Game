@@ -100,6 +100,9 @@ func _ready() -> void:
 	# --- memory pressure and quality ---
 	var probes := [ClassData.find_skill(&"mage", "meteo"), ClassData.find_skill(&"warrior", "sword_of_justice"),
 		ClassData.find_skill(&"priest", "grand_healing"), ClassData.find_skill(&"bard", "resonance"), StarSkillData.pool(&"warrior")[3]]
+	# A star skill with its own signature art (StarSignature, combat/star_art) plays no shared
+	# stack at all, like a god skill: it is no probe of the stack's trimming.
+	probes = probes.filter(func(s: Dictionary) -> bool: return not GodSkillArt.owns(s))
 	# The god skills with their own signature art (GodSkillArt.owns) draw every beat
 	# themselves: the shared stack plays nothing under them.
 	for cls in SkillShow.FAMILY_COLORS:

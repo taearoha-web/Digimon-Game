@@ -158,6 +158,9 @@ func _ready() -> void:
 	for family in SkillShow.FAMILY_COLORS:
 		var entry := ClassData.find_skill(StringName(family), skill_id)
 		if not entry.is_empty():
+			# A star skill with its own signature art (StarSignature) draws the arrival itself.
+			if StarSignature.owns(entry):
+				break
 			var look := SkillShow.profile_for(entry)
 			var arrival := SpellSpectacle._root(get_parent(), global_position, "CreatureArrival")
 			var mat := SpellSpectacle._material(look, 0.7)
@@ -637,6 +640,7 @@ func _cast_move(move: Dictionary) -> void:
 		_visual.action(String(move.clip), int(float(move.lock) * 1000.0))
 	var field := get_parent()
 	VfxKit.ground_circle(field, center, color, radius, float(move.impact) + 0.1)
+	LegendMoves.windup_vfx(field, String(move.style), center, radius, float(move.impact), self)
 	BattleVfx.floating_text(field, global_position + Vector3(0, (float(_kind.height) + 0.8) * size_mult, 0), String(move.name), color, 1.0)
 	get_tree().create_timer(float(move.impact)).timeout.connect(func(): _land_move(move, center, radius), CONNECT_ONE_SHOT)
 

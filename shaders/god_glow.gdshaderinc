@@ -9,6 +9,11 @@
 //   6 cross of light   7 scorch with cooling cracks    8 fire puff
 //   9 mote            10 four-point star              11 accretion swirl
 //  12 healing plus    13 lightning ribbon           14 fire on a column or a wall
+//  15 glass bubble (a dome or ward on a sphere: fresnel rim, hex cells, a rising sweep)
+//  16 ribbon of light (a strip, UV.x across, UV.y 1 at its start): drawn out from its
+//     start in the first quarter of its life, streaks running along it (p1 speed)
+//  17 sigil on the ground: rings, a ring of glyphs and a {p1/2} star that write
+//     themselves round the circle (p2: how fast, in lives; 0 drawn at once)
 uniform int mode = 0;
 uniform vec4 c_core : source_color = vec4(1.0, 0.98, 0.85, 1.0);
 uniform vec4 c_mid : source_color = vec4(1.0, 0.72, 0.2, 1.0);
@@ -218,6 +223,61 @@ void fragment() {
 		float flick = step(0.3, noise(vec2(age * 34.0, v_seed * 5.0 + floor(UV.y * 3.0))));
 		al = (1.0 - smoothstep(0.1, 1.0, across)) * (0.35 + 0.65 * flick) * (1.0 - smoothstep(0.55, 1.0, k));
 		h = 1.0 - smoothstep(0.0, 0.5, across);
+	} else if (mode == 15) {
+		float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
+		float rim_ = pow(1.0 - facing, max(p1, 0.5));
+		vec2 hp = vec2(UV.x * 30.0, UV.y * 17.32);
+		vec2 r2 = vec2(1.0, 1.732);
+		vec2 h1 = mod(hp, r2) - r2 * 0.5;
+		vec2 h2 = mod(hp - r2 * 0.5, r2) - r2 * 0.5;
+		vec2 g = dot(h1, h1) < dot(h2, h2) ? h1 : h2;
+		float hexd = max(dot(abs(g), vec2(0.5, 0.866)), abs(g.x));
+		float cells = smoothstep(0.4, 0.49, hexd);
+		float sweep = pow(0.5 + 0.5 * sin(UV.y * 14.0 + age * 5.0 + v_seed * 6.0), 8.0);
+		al = rim_ * 0.85 + cells * (0.1 + 0.55 * sweep) * (0.35 + rim_) + 0.05 + sweep * 0.06;
+		h = rim_ * 0.9 + cells * sweep * 0.5;
+	} else if (mode == 16) {
+		float across = abs(UV.x - 0.5) * 2.0;
+		float y = 1.0 - UV.y;
+		float n = noise(vec2(y * 7.0 * max(p2, 0.1) - age * p1, v_seed * 3.0 + UV.x * 1.5));
+		float streak = pow(0.5 + 0.5 * sin(y * 22.0 * max(p2, 0.1) - age * p1 * 3.0 + v_seed * 7.0), 3.0);
+		float body = 1.0 - smoothstep(0.2, 1.0, across);
+		float ends = smoothstep(0.0, 0.08, y) * (1.0 - smoothstep(0.78, 1.0, y));
+		float shown = 1.0 - smoothstep(k * 4.0 - 0.06, k * 4.0, y);
+		al = body * ends * shown * (0.45 + 0.4 * n + 0.35 * streak) * (1.0 - smoothstep(0.6, 1.0, k));
+		h = (1.0 - smoothstep(0.0, 0.6, across)) * (0.55 + 0.35 * n + 0.3 * streak);
+	} else if (mode == 17) {
+		float pts = clamp(floor(p1 + 0.5), 3.0, 12.0);
+		float reveal = p2 > 0.0 ? clamp(k * p2, 0.0, 1.0) : 1.0;
+		float ang = fract(a / 6.2832 + 0.75);
+		float drawn = 1.0 - smoothstep(reveal - 0.04, reveal, ang);
+		drawn = max(drawn, step(0.999, reveal));
+		float ring1 = 1.0 - smoothstep(0.008, 0.024, abs(r - 0.94));
+		float ring2 = 1.0 - smoothstep(0.005, 0.016, abs(r - 0.8));
+		float ring3 = 1.0 - smoothstep(0.004, 0.014, abs(r - 0.34));
+		float segs = 40.0;
+		float cellf = a / 6.2832 * segs;
+		float gl = hash(vec2(floor(cellf), v_seed + 3.0));
+		float bar = (1.0 - smoothstep(0.0, 0.009, abs(fract(cellf) - 0.5) * 6.2832 / segs * r)) * step(0.83, r) * step(r, 0.91);
+		float dash = (1.0 - smoothstep(0.004, 0.012, abs(r - (0.835 + 0.07 * gl)))) * step(abs(fract(cellf) - 0.5), 0.36);
+		float glyph = max(bar * step(0.25, gl), dash * step(0.5, gl));
+		float seg_n = 6.2832 / pts;
+		float d0 = 0.8 * cos(seg_n);
+		float hl = 0.8 * sin(seg_n);
+		float rot = 1.5708;
+		float m0 = floor((a - rot) / seg_n + 0.5);
+		float star = 0.0;
+		for (int j = -1; j <= 1; j++) {
+			float phi = rot + (m0 + float(j)) * seg_n;
+			vec2 dn = vec2(cos(phi), sin(phi));
+			float qx = dot(p, dn);
+			float qy = dot(p, vec2(-dn.y, dn.x));
+			star = max(star, (1.0 - smoothstep(0.005, 0.017, abs(qx - d0))) * step(abs(qy), hl));
+		}
+		float wash = (1.0 - smoothstep(0.5, 0.95, r)) * 0.07 + (1.0 - smoothstep(0.0, 0.34, r)) * 0.08;
+		float pulse = 0.86 + 0.14 * sin(age * 4.0 + v_seed);
+		al = ((ring1 + ring2 * 0.85 + ring3 * 0.6 + star * 0.9 + glyph * 0.75) * pulse + wash) * drawn * step(r, 1.0);
+		h = ring1 * 0.75 + star * 0.85 + ring2 * 0.5 + glyph * 0.6;
 	} else if (mode == 14) {
 		// Fire on a column or a wall: solid at the foot, torn into tongues towards the top.
 		float y = 1.0 - UV.y;
