@@ -10,7 +10,7 @@ extends RefCounted
 ## - แต้มกิจกรรม (Event Points, "ep"): the world boss the hero helped bring down
 ##   (boss_defeated, once a day) and every kill during the event hours (the evening
 ##   EXP x2 and the festival, WorldEvents), KILL_EP a kill up to KILL_CAP a Thai day.
-## The shop sells costumes (COSTUMES, tint + accessory on the hero visual, any class),
+## The shop sells costumes (COSTUMES: a dye and CostumeArt's pieces on the hero, any class),
 ## walk trails (TRAILS, WalkTrail), name-plate colours (NAME_COLORS) and power stones
 ## (STONES: gems and forge jewels of ItemData, a weekly limit each). Cosmetics are
 ## account-wide unlocks (`own`), worn through `cos` / `trail` / `ncol` (the wardrobe);
@@ -45,16 +45,17 @@ const INT_KEYS: Array[String] = ["lc", "ep", "week", "ev_day", "ev_pts", "boss_d
 const TEXT_KEYS: Array[String] = ["cos", "trail", "ncol"]
 const TABS := [["costume", "คอสตูม"], ["trail", "เอฟเฟกต์ท่าเดิน"], ["ncol", "สีชื่อ"], ["stone", "หินเสริมพลัง"]]
 
-## Costumes: a cloth colour over the outfit, its sheen / glow and a head accessory
-## (RewardShop.build_accessory). Prices in coins, some need points too.
+## Costumes: a cloth colour over the outfit, its sheen / glow, and the costume's own
+## pieces on the head, back, hips and shoulders with a few drifting motes (CostumeArt;
+## `desc` names them on the shop card). Prices in coins, some need points too.
 const COSTUMES := {
-	"sakura": {"name": "ชุดซากุระบาน", "cloth": Color("ff9ccb"), "sheen": 0.3, "glow": Color(0.25, 0.08, 0.14), "acc": "blossom", "lc": 300, "ep": 0},
-	"midnight": {"name": "ชุดราตรีสีนิล", "cloth": Color("2a2b4a"), "sheen": 0.45, "glow": Color(0.08, 0.1, 0.3), "acc": "horns", "lc": 400, "ep": 0},
-	"kitsune": {"name": "ชุดจิ้งจอกเก้าหาง", "cloth": Color("ff8a3a"), "sheen": 0.25, "glow": Color(0.3, 0.12, 0.0), "acc": "ears", "lc": 450, "ep": 60},
-	"seafoam": {"name": "ชุดคลื่นทะเล", "cloth": Color("5ad0e6"), "sheen": 0.5, "glow": Color(0.05, 0.25, 0.3), "acc": "shell", "lc": 350, "ep": 80},
-	"royal": {"name": "ชุดราชันทองคำ", "cloth": Color("ffd24a"), "sheen": 0.7, "glow": Color(0.35, 0.28, 0.05), "acc": "crown", "lc": 800, "ep": 150},
-	"shadow": {"name": "ชุดเงาอสูร", "cloth": Color("4a1c5e"), "sheen": 0.4, "glow": Color(0.3, 0.05, 0.4), "acc": "horns", "lc": 600, "ep": 200},
-	"celestial": {"name": "ชุดเทวดาแสงดาว", "cloth": Color("f2f0ff"), "sheen": 0.6, "glow": Color(0.3, 0.3, 0.45), "acc": "halo", "lc": 900, "ep": 300},
+	"sakura": {"name": "ชุดซากุระบาน", "cloth": Color("ff9ccb"), "sheen": 0.3, "glow": Color(0.25, 0.08, 0.14), "desc": "กิ่งซากุระบานประดับผม · โอบิผูกโบว์ใหญ่ด้านหลัง · กลีบซากุระโปรยรอบตัว", "lc": 300, "ep": 0},
+	"midnight": {"name": "ชุดราตรีสีนิล", "cloth": Color("2a2b4a"), "sheen": 0.45, "glow": Color(0.08, 0.1, 0.3), "desc": "ผ้าคลุมราตรีพราวดาวคอตั้ง · เขาโค้งเสี้ยวจันทร์ · เข็มกลัดจันทร์เสี้ยวทอง", "lc": 400, "ep": 0},
+	"kitsune": {"name": "ชุดจิ้งจอกเก้าหาง", "cloth": Color("ff8a3a"), "sheen": 0.25, "glow": Color(0.3, 0.12, 0.0), "desc": "หางจิ้งจอกปุยเก้าหาง · หูจิ้งจอกใหญ่ · ขนคอฟู · ไฟจิ้งจอกสีฟ้าลอยรอบตัว", "lc": 450, "ep": 60},
+	"seafoam": {"name": "ชุดคลื่นทะเล", "cloth": Color("5ad0e6"), "sheen": 0.5, "glow": Color(0.05, 0.25, 0.3), "desc": "ครีบบนหัวและข้างหู · เกราะไหล่เปลือกหอยมุก · ฟองอากาศลอยขึ้นรอบตัว", "lc": 350, "ep": 80},
+	"royal": {"name": "ชุดราชันทองคำ", "cloth": Color("ffd24a"), "sheen": 0.7, "glow": Color(0.35, 0.28, 0.05), "desc": "ผ้าคลุมกำมะหยี่แดงขลิบขนเออร์มีน · มงกุฎทองประดับอัญมณี · อินทรธนูทองพู่ระย้า", "lc": 800, "ep": 150},
+	"shadow": {"name": "ชุดเงาอสูร", "cloth": Color("4a1c5e"), "sheen": 0.4, "glow": Color(0.3, 0.05, 0.4), "desc": "หางปีศาจปลายโพดำเรืองแสง · เขาโค้งใหญ่ · ควันม่วงลอยวนที่เท้า", "lc": 600, "ep": 200},
+	"celestial": {"name": "ชุดเทวดาแสงดาว", "cloth": Color("f2f0ff"), "sheen": 0.6, "glow": Color(0.3, 0.3, 0.45), "desc": "ปีกขนนกสีขาว · ผ้าคลุมไหล่ประกายดาว · วงรัศมีเรืองแสง · ดาวระยิบรอบตัว", "lc": 900, "ep": 300},
 }
 ## Walk trails (WalkTrail): what follows the hero's steps.
 const TRAILS := {
@@ -539,41 +540,6 @@ static func place_coins(e: Dictionary, g: int) -> int:
 ## The name-plate colours of `id`: {color, edge} or {} for none.
 static func name_color(id: String) -> Dictionary:
 	return NAME_COLORS.get(id, {})
-
-
-## A code-built head accessory of costume `id` on `root` (a node on the head bone whose
-## axes are the chibi model's). CC0 shapes only.
-static func build_accessory(root: Node3D, id: String) -> void:
-	var c: Dictionary = COSTUMES.get(id, {})
-	if c.is_empty():
-		return
-	var cloth: Color = c.cloth
-	match String(c.acc):
-		"blossom":
-			var at := Vector3(-0.16, 0.18, -0.03)
-			for k in 5:
-				var a := k * TAU / 5.0
-				GearKit._p(root, MeshKit.sphere_low(), cloth.lerp(Color.WHITE, 0.3), at + Vector3(0.0, sin(a) * 0.035, cos(a) * 0.035), Vector3(0.02, 0.05, 0.05))
-			GearKit._p(root, MeshKit.sphere_low(), Color("ffd24a"), at + Vector3(-0.012, 0, 0), Vector3.ONE * 0.03, Vector3.ZERO, 0.4)
-		"horns":
-			for side in [-1.0, 1.0]:
-				GearKit._p(root, MeshKit.cone(), cloth.lerp(Color.BLACK, 0.3), Vector3(side * 0.11, 0.24, 0.0), Vector3(0.05, 0.12, 0.05), Vector3(0, 0, side * -25.0), 0.15)
-		"ears":
-			for side in [-1.0, 1.0]:
-				GearKit._p(root, MeshKit.cone(), cloth, Vector3(side * 0.12, 0.26, -0.02), Vector3(0.07, 0.14, 0.05), Vector3(0, 0, side * -12.0))
-				GearKit._p(root, MeshKit.cone(), Color("fff1e0"), Vector3(side * 0.12, 0.25, 0.0), Vector3(0.035, 0.09, 0.03), Vector3(0, 0, side * -12.0))
-		"shell":
-			GearKit._p(root, MeshKit.hemisphere(), cloth.lerp(Color.WHITE, 0.2), Vector3(0.15, 0.17, -0.02), Vector3(0.07, 0.06, 0.07), Vector3(0, 0, -60.0), 0.2)
-			GearKit._p(root, MeshKit.sphere_low(), Color("f2f0ff"), Vector3(0.15, 0.2, -0.02), Vector3.ONE * 0.025, Vector3.ZERO, 0.5)
-		"crown":
-			GearKit._p(root, MeshKit.torus(), cloth, Vector3(0, 0.25, 0), Vector3(0.14, 0.14, 0.14), Vector3(90, 0, 0), 0.5)
-			for k in 5:
-				var a := k * TAU / 5.0
-				GearKit._p(root, MeshKit.cone(), cloth, Vector3(sin(a) * 0.13, 0.3, cos(a) * 0.13), Vector3(0.03, 0.06, 0.03), Vector3.ZERO, 0.5)
-			GearKit._p(root, MeshKit.sphere_low(), Color("ff4a5e"), Vector3(0, 0.33, 0.13), Vector3.ONE * 0.025, Vector3.ZERO, 0.8)
-		"halo":
-			var ring := GearKit._p(root, MeshKit.torus(), Color("ffe9a0"), Vector3(0, 0.36, 0), Vector3(0.12, 0.12, 0.12), Vector3(90, 0, 0), 1.0)
-			ring.scale = Vector3(0.12, 0.12, 0.04)
 
 
 # --- Save safety (Game._valid_profile / _repair, accounts.js validRewardShop) ---------

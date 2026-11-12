@@ -718,13 +718,15 @@ static func pillar(parent: Node3D, pos: Vector3, color: Color, height := 6.0, wi
 
 
 ## Falls from the sky onto [param pos]; [param on_hit] is called at impact.
-static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float, radius: float, on_hit: Callable, sculpted := false) -> void:
-	if sculpted:
+static func meteor(parent: Node3D, pos: Vector3, color: Color, fall_time: float, radius: float, on_hit: Callable, sculpted := false, bare := false) -> void:
+	# bare: the same clock and callback without any art (a skill whose signature draws its own meteor).
+	if sculpted or bare:
 		# Same gameplay callback and fall time; the elite art replaces the old cylinder.
 		var carrier := Node3D.new()
 		carrier.name = "SculptedMeteorCarrier"
 		parent.add_child(carrier)
-		MeteorArt.descent(carrier, pos, radius, fall_time)
+		if not bare:
+			MeteorArt.descent(carrier, pos, radius, fall_time)
 		var clock := carrier.create_tween()
 		clock.tween_interval(fall_time)
 		clock.tween_callback(VfxBudget.carry(func():

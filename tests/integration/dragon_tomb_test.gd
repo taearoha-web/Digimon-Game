@@ -153,7 +153,9 @@ func _ready() -> void:
 	# --- The run -------------------------------------------------------------------------
 	Game.profile.flags.erase(DungeonData.F_DAY)
 	Game.profile.flags.erase(DungeonData.F_WEEK)
-	check(DungeonData.enter() == "", "today's entry")
+	# One pinned day for the whole run, so a run across midnight (CI at 00:00 UTC) stays on one day.
+	var run_day := GoalsData.today()
+	check(DungeonData.enter(run_day) == "", "today's entry")
 	Game.current_zone = DungeonData.ID
 	var zone := Zone.new()
 	zone.zone_id = DungeonData.ID
@@ -471,7 +473,7 @@ func _ready() -> void:
 	check(get_tree().get_nodes_in_group("mobs").filter(func(m): return m is DragonCrystal and not m.is_dead() and not m.is_queued_for_deletion()).is_empty(), "no crystal left")
 
 	# A second entry the same day: 1-3 scales.
-	check(DungeonData.enter() == "" and DungeonData.runs_left() == 0, "the second entry of the day")
+	check(DungeonData.enter(run_day) == "" and DungeonData.runs_left(run_day) == 0, "the second entry of the day")
 	var again := DungeonData.claim(rng, 400)
 	check(not again.is_empty() and not bool(again.first_week) and int(again.scales) >= 1 and int(again.scales) <= 3, "the second clear drops 1-3 scales")
 	check(int(Game.profile.flags.get(DungeonData.F_BEST, 0)) == 250, "a slower clear keeps the best time")

@@ -93,7 +93,7 @@ func _ready() -> void:
 	# A cancelled wind-up (new skill generation) is dropped at once.
 	var visual := HeroVisual.new()
 	field.add_child(visual)
-	MeleeArt.anticipate(field, ClassData.find_skill(&"warrior", "grand_cross"), Vector3.ZERO, Vector3(0, 0, 3), 0.6, visual)
+	MeleeArt.anticipate(field, ClassData.find_skill(&"warrior", "bone_crash"), Vector3.ZERO, Vector3(0, 0, 3), 0.6, visual)
 	var windup: MeleeArt = null
 	for rig in _rigs():
 		if (rig as MeleeArt).busy:
@@ -132,7 +132,7 @@ func _ready() -> void:
 	check(busy.is_empty(), "every rig is back in the pool, idle (%d busy)" % busy.size())
 	check(VfxBudget.counters() == {"particles": 0, "decorations": 0, "lights": 0}, "reservations released after the run: %s" % VfxBudget.counters())
 	# A field freed mid-cast gives its reservations back.
-	_cast(field, ClassData.find_skill(&"warrior", "gladiator"))
+	_cast(field, ClassData.find_skill(&"warrior", "destroyer"))
 	field.queue_free()
 	await field.tree_exited
 	await get_tree().process_frame

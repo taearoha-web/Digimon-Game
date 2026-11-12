@@ -27,8 +27,9 @@ func _ready() -> void:
 			var snapshot: Dictionary=skill.duplicate(true)
 			var field := Node3D.new()
 			add_child(field)
-			if String(skill.id) in ["armageddon","judgment_ray"]:
-				# These keep their own hit/visual clocks; dedicated tests cover damage.
+			if String(skill.id) in ["armageddon","judgment_ray"] or SkillSignature.owns(skill):
+				# These keep their own hit/visual clocks (dedicated tests cover damage), or draw their
+				# own signature art (combat/skill_art, covered by the skill_art_* tests).
 				field.queue_free()
 				await field.tree_exited
 				continue
@@ -60,7 +61,8 @@ func _ready() -> void:
 	var field := Node3D.new()
 	add_child(field)
 	var skill := ClassData.find_skill(&"lancer","ragnarok_lance")
-	SkillShow.play(field,skill,Vector3(0,0,3),Vector3.ZERO)
+	# Ragnarok Lance now draws its own signature (combat/skill_art); the elite layer's clock is checked directly.
+	EliteSkillArt.play(field,skill,Vector3(0,0,3),Vector3.ZERO)
 	var art := field.get_node("EliteSkill_ragnarok_lance") as EliteSkillArt
 	var age := art.age
 	get_tree().paused=true

@@ -73,7 +73,8 @@ var decor_light := false
 ## The uid of the Legendary Guild Wings last dressed (a new pair arrives with a burst).
 var _legend_uid := ""
 ## The reward-shop costume worn (RewardShop.COSTUMES id, "" for none): its cloth colour
-## over the outfit and its head accessory. set_costume rebuilds the body.
+## over the outfit and its own pieces (CostumeArt, _wear_costume). set_costume rebuilds
+## the body.
 var costume := ""
 ## The particle emitters and meshes of the current outfit (distance LOD: set_far).
 var _emitters: Array[CPUParticles3D] = []
@@ -281,8 +282,7 @@ func _refresh_chibi() -> void:
 		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
 		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
 	if costume != "" and RewardShop.COSTUMES.has(costume):
-		RewardShop.build_accessory(_chibi_attach("Head", "ChibiCostume"), costume)
-		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)
+		_wear_costume()
 	var boot_nodes: Array = []
 	if DivineGearData.is_item(boots):
 		boot_nodes = _divine_slot(boots)
@@ -546,6 +546,35 @@ func _dress_chibi(armor: Variant) -> void:
 			mat.next_pass = StorybookFinish.outline(0.012 * _gear_scale)
 		mi.material_override = mat
 		mi.set_meta("polished", true)
+
+
+## The reward-shop costume's own pieces (CostumeArt): one mesh on each bone it dresses
+## (head, chest, hips, upper arms), authored in model space, so the bone's rest is undone
+## on its frame. Under gear wings (or a Dark Lord's cape) the costume keeps its back
+## short: no costume wings, a capelet for a long cape. Its drifting motes only for the
+## fully dressed (not the cheap crowd, decor_light) above the lowest quality; the outline
+## pass with the body's. Everything is kept in _body_nodes, so a re-dress frees it.
+func _wear_costume() -> void:
+	var winged := equip.get("wings") is Dictionary
+	var outlined := GameSettings.quality > 0 and not decor_light
+	for spec in CostumeArt.parts(costume):
+		var bone := String(spec[0])
+		var part := String(spec[1])
+		var piece := CostumeArt.piece(costume, part, winged, outlined)
+		if piece == null:
+			continue
+		var frame := _chibi_attach(bone, "ChibiCostume" if part == "head" else "ChibiCostume_" + part)
+		var idx := _skeleton.find_bone(bone)
+		if idx >= 0:
+			frame.transform = _skeleton.get_bone_global_rest(idx).affine_inverse()
+		frame.add_child(piece)
+	if decor_light:
+		return
+	var motes := CostumeArt.motes(costume)
+	if motes != null:
+		motes.set_meta("far_decor", true)
+		_skeleton.add_child(motes)
+		_body_nodes.append(motes)
 
 
 ## Wears reward-shop costume `id` ("" takes it off): the body is rebuilt when it changes.
