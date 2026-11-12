@@ -14,7 +14,7 @@ extends Node3D
 ##   the host's bell ends it and the round it records is the host's to the number;
 ## - swaps: a war of its own when a party member hosts the room becomes a mirror; a mirror
 ##   named the host / left alone fights on in its own war;
-## - the leader's invite names the room: another guild, not registered, too low are told in
+## - the leader's invite names the room: another guild or too low are told in
 ##   Thai; a registered member of the guild gets the prompt;
 ## - offline: the league war as always (its own, the full line-up).
 ## godot --headless --audio-driver Dummy --path . res://tests/integration/online_guild_war_party_test.tscn
@@ -401,13 +401,6 @@ func _invites() -> void:
 	Online._dispatch({"t": "gw_invite", "from": "lead1", "room": String(other)})
 	check(coord.prompt == null and bool(link.frames("gw_answer").size() == 1) and not bool(link.frames("gw_answer")[0].ok), "invite: another guild's room: no")
 	check(toasts.any(func(t): return t.contains("คนละกิลด์")), "invite: told in Thai it is another guild (%s)" % str(toasts))
-	# Not registered.
-	toasts.clear()
-	var reg := int(Game.profile.league.reg)
-	Game.profile.league["reg"] = -1
-	Online._dispatch({"t": "gw_invite", "from": "lead1", "room": String(room)})
-	check(coord.prompt == null and toasts.any(func(t): return t.contains("ไม่ได้สมัคร")), "invite: not registered: told in Thai (%s)" % str(toasts))
-	Game.profile.league["reg"] = reg
 	# Too low.
 	toasts.clear()
 	Game.profile.level = 60

@@ -222,10 +222,13 @@ func _registration(w: int) -> void:
 	check(m.guilds == [WorldPlayers.ALPHA, 2, 3, 4] and int(m.at) == at, "the war to enter is the round's, all four guilds, ours first (%s)" % [m])
 	pin(float(at) + GuildWarData.DURATION + 1.0)
 	check(GuildLeague.enter_problem() != "", "over when the round ends")
-	# Without registering: the round runs anyway, the hero can only watch.
+	# Without registering: the round runs anyway, and the hero in the line-up may still go in
+	# late (going in signs it up).
 	var next := GuildLeague.next_slot(GuildLeague.now())
 	pin(float(next) + 60.0)
-	check(not GuildLeague.registered(next) and GuildLeague.enter_problem().contains("ชม"), "not registered: watch only (%s)" % GuildLeague.enter_problem())
+	check(not GuildLeague.registered(next) and GuildLeague.enter_problem() == "", "not registered: may still go in late (%s)" % GuildLeague.enter_problem())
+	check(int(GuildLeague.enter_match().get("at", 0)) == next and GuildLeague.registered(next), "going in late signs the hero up")
+	GuildLeague.data()["reg"] = -1
 	pin(float(next) + GuildWarData.DURATION + 60.0)
 	var state := GuildLeague.round_state(next)
 	check(String(state.state) == "done" and not (state.war as Dictionary).is_empty(), "the round still ran on time and has a result")
@@ -438,12 +441,13 @@ func _desk(w: int) -> void:
 	check(int(Game.guildwar_league.get("at", 0)) == at and desk.candidates.size() == GuildWarData.GUILD_SIDE - 1, "into the party screen with the line-up (%d)" % desk.candidates.size())
 	desk.close_screen()
 	Game.guildwar_league = {}
-	# A weak hero in the same round may only watch.
+	# A weak hero in the same round (not leading its guild) may only watch.
 	_hero(WorldPlayers.ALPHA, 0)
+	Game.set_guild_leader(WorldPlayers.ALPHA, WorldPlayers.guild_leader(WorldPlayers.ALPHA, float(at)), float(at))
 	desk.open_lobby()
 	await get_tree().process_frame
 	go = desk.find_child("EnterWar", true, false) as Button
-	check(go != null and go.disabled, "not registered: no entering (%s)" % (go.text if go else ""))
+	check(go != null and go.disabled, "weak and not in the line-up: no entering (%s)" % (go.text if go else ""))
 	check(desk.find_children("Watch_*", "Button", true, false).size() == 1, "but watching is open")
 	desk.close_screen()
 	desk.queue_free()

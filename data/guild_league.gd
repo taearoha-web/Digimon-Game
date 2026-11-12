@@ -24,7 +24,8 @@ extends RefCounted
 ## it DEFEND_EDGE.
 ##
 ## The hero (in a guild, Lv.100+) registers for the next round until REGISTER_CLOSE
-## seconds before it starts (register); it fights only when it ranks among its guild's
+## seconds before it starts (register), or simply goes in late while the round's waiting
+## room is open or it runs (enter_match); it fights only when it ranks among its guild's
 ## strongest GUILD_SIDE (hero_place), else it may watch (live_match_info). A round runs on
 ## time whether the hero registered or not. A war the hero did not fight gets a seeded
 ## result from both sides' real fighter power at its start (sim_war: the same on every
@@ -1372,7 +1373,9 @@ static func rivals_of(g: int, at: int) -> Array[int]:
 
 
 ## Why the hero cannot go into the war being fought at t ("" when it can): a round must
-## be on, the hero registered for it, in the line-up (top GUILD_SIDE), not done with it.
+## be on (or its waiting room open), the hero in the line-up (top GUILD_SIDE or the guild's
+## leader), not done with it. Registering is not needed to go in: a hero who missed it
+## may still join late (enter_match signs it up).
 static func enter_problem(t := -1.0) -> String:
 	if t < 0.0:
 		t = now()
@@ -1383,8 +1386,8 @@ static func enter_problem(t := -1.0) -> String:
 	if at < 0:
 		var nxt := next_slot(t)
 		return "ยังไม่ถึงเวลาสงคราม (รอบถัดไป %s) · เปิดให้เข้ารอได้ตอน %s" % [clock_text(nxt), clock_text(nxt - LOBBY_OPEN)]
-	if not registered(at):
-		return "ไม่ได้สมัครรอบนี้ — ชมการแข่งขันได้"
+	# Not registered in time: a hero in the line-up may still come in late; going in signs
+	# it up for the round (enter_match).
 	if not hero_makes_side(at):
 		return "อันดับในกิลด์ #%d ไม่ติด %d อันดับ — ชมการแข่งขันได้" % [hero_place(at), GuildWarData.GUILD_SIDE]
 	if not _real_round(real_wars(week_of(float(at))), at).is_empty():
@@ -1460,6 +1463,10 @@ static func enter_match(t := -1.0) -> Dictionary:
 	if enter_problem(t) != "":
 		return {}
 	var at := entry_slot(t)
+	if not registered(at):
+		# Late: the hero who missed registration goes in now and counts as registered.
+		data(t)["reg"] = at
+		Game.mark_dirty()
 	var order: Array = [Game.guild()]
 	order.append_array(rivals_of(Game.guild(), at))
 	return {"guilds": order, "at": at}

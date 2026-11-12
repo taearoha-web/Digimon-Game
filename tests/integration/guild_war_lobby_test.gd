@@ -2,7 +2,7 @@ extends Node
 ## The guild war's waiting room (GuildLeague.lobby_slot, GuildWarMatch.lobby_until,
 ## GuildWarLobby): from five minutes before a league round (when registration closes) the
 ## registered hero in its guild's line-up may go into the arena early; before that the desk
-## says when it opens, an unregistered hero gets no button. Inside, before the bell: the
+## says when it opens; a hero who missed registration may still go in late. Inside, before the bell: the
 ## hero at its camp with its line-up, nobody hurt, the gates unbreakable, the switch not
 ## taken, the hero kept within LOBBY_RADIUS of its camp, the countdown banner (and 10-9-8...).
 ## At the bell the war runs its full DURATION from the round's real start. Leaving and
@@ -96,13 +96,12 @@ func _desk(at: int) -> void:
 	Game.guildwar_league = {}
 	# Watching is for live wars only.
 	check(GuildLeague.live_round_info().is_empty(), "nothing to watch before the start")
-	# Unregistered: no way in.
-	var reg := int(Game.profile.league.reg)
+	# Missed registration: the hero in the line-up may still come in late; going in signs it up.
 	Game.profile.league["reg"] = -1
 	go = await _go_button(desk)
-	check(go != null and go.disabled, "an unregistered hero gets no button (%s)" % (go.text if go else ""))
+	check(go != null and not go.disabled, "an unregistered hero may still go in late (%s)" % (go.text if go else ""))
+	check(int(GuildLeague.enter_match().get("at", 0)) == at and GuildLeague.registered(at), "going in late signs the hero up")
 	desk.close_screen()
-	Game.profile.league["reg"] = reg
 	# The round started: the usual live entry.
 	pin(float(at) + 30.0)
 	check(GuildLeague.lobby_slot() == -1 and GuildLeague.live_slot(GuildLeague.now()) == at and GuildLeague.enter_problem() == "", "after the start: the live entry")

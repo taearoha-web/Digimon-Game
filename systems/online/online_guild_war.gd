@@ -151,8 +151,6 @@ static func league_problem(room: StringName) -> String:
 		return "อยู่คนละกิลด์ (หัวหน้าปาร์ตี้อยู่กิลด์ %s) — สงครามลีกสู้ร่วมกันได้เฉพาะสมาชิกกิลด์เดียวกัน" % GuildLeague.name_of(int(r.guild))
 	if GuildLeague.entry_slot() != int(r.at):
 		return "รอบ %s ไม่เปิดให้เข้าแล้ว" % GuildLeague.clock_text(int(r.at))
-	if not GuildLeague.registered(int(r.at)):
-		return "ไม่ได้สมัครรอบ %s ไว้ (ต้องสมัครก่อนเริ่ม %d นาที)" % [GuildLeague.clock_text(int(r.at)), GuildLeague.REGISTER_CLOSE / 60]
 	return GuildLeague.enter_problem()
 
 
