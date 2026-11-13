@@ -1747,7 +1747,7 @@ static func set_core_roll(zone: Dictionary, fortune: float, roll: RandomNumberGe
 	var chance := float(zone.get("set_core_drop", 0.0))
 	if chance <= 0.0:
 		return false
-	return roll.randf() < chance * (1.0 + fortune)
+	return roll.randf() < chance * (1.0 + fortune) * WorldEvents.core_multiplier(WorldPresence.clock())
 
 
 ## Chase pieces of a field boss; every miss raises the next kill's chance.

@@ -47,6 +47,8 @@ func near(value: float, want: float, tolerance: float) -> bool:
 
 func _ready() -> void:
 	Game.set_process(false)
+	# Drop rates are checked at their base odds, not the festival's.
+	WorldEvents.festival_enabled = false
 	ZoneData.ensure()
 	_gate_and_travel()
 	_bestiary()
