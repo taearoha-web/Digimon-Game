@@ -48,6 +48,8 @@ func at(t: float) -> void:
 
 func _ready() -> void:
 	Game.set_process(false)
+	# The weekend rush on its own: its test dates fall inside the x5 festival.
+	WorldEvents.festival_enabled = false
 	Game.new_profile(&"warrior", "Weekend QA")
 	ZoneData.ensure()
 	_jewel_rush()

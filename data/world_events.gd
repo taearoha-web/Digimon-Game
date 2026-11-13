@@ -43,6 +43,16 @@ const FESTIVAL_END := FESTIVAL_START + 7 * DAY
 const FESTIVAL_EXP := 3.0
 const FESTIVAL_JEWEL := 3.0
 const NAME_FESTIVAL := "เทศกาล EXP x3 + ดรอปเพชร x3"
+## The second festival (เทศกาล EXP x5 + ดรอปเพชร/แก่นเทพ x5): from 13 Nov 2026 07:40 Thai
+## time for seven days every EXP is x5 (on top of the evening EXP x2), the forge jewels
+## (purple, pink, chaos) drop five times as often (on top of the weekend rush) and so does
+## the set material (แก่นเทพหลอมเซต, Zone.set_core_roll). The same for everyone.
+const FESTIVAL5_START := 1794530400
+const FESTIVAL5_END := FESTIVAL5_START + 7 * DAY
+const FESTIVAL5_EXP := 5.0
+const FESTIVAL5_JEWEL := 5.0
+const FESTIVAL5_CORE := 5.0
+const NAME_FESTIVAL5 := "เทศกาล EXP x5 + ดรอปเพชร/แก่นเทพ x5"
 ## Tests of the progression maths that run on the real clock switch the festival off.
 static var festival_enabled := true
 const NAME_BOSS := "บอสโลก"
@@ -134,9 +144,9 @@ static func boss_zone(t: float) -> StringName:
 	return _fields[posmod(day, _fields.size())]
 
 
-## EXP multiplier at `t`: the evening EXP x2 times the festival's x3 while it runs.
+## EXP multiplier at `t`: the evening EXP x2 times the running festival's (x3 or x5).
 static func exp_multiplier(t: float) -> float:
-	return (EXP_MULT if evening_exp(t) else 1.0) * (FESTIVAL_EXP if festival_on(t) else 1.0)
+	return (EXP_MULT if evening_exp(t) else 1.0) * (FESTIVAL_EXP if festival_on(t) else 1.0) * (FESTIVAL5_EXP if festival5_on(t) else 1.0)
 
 
 ## The daily evening EXP x2 (19:00-21:00 Thai time).
@@ -149,13 +159,23 @@ static func festival_on(t: float) -> bool:
 	return festival_enabled and t >= float(FESTIVAL_START) and t < float(FESTIVAL_END)
 
 
+static func festival5_on(t: float) -> bool:
+	return festival_enabled and t >= float(FESTIVAL5_START) and t < float(FESTIVAL5_END)
+
+
+## Set material (แก่นเทพหลอมเซต) drop chances: x5 during the second festival.
+static func core_multiplier(t: float) -> float:
+	return FESTIVAL5_CORE if festival5_on(t) else 1.0
+
+
 ## The HUD line of the festival ("" outside it): days left while more than two remain.
 static func festival_text(t: float) -> String:
-	if not festival_on(t):
+	var name := NAME_FESTIVAL5 if festival5_on(t) else (NAME_FESTIVAL if festival_on(t) else "")
+	if name == "":
 		return ""
-	var left := float(FESTIVAL_END) - t
+	var left := float(FESTIVAL5_END if festival5_on(t) else FESTIVAL_END) - t
 	var span := "%d วัน" % int(ceil(left / float(DAY))) if left > 2.0 * float(DAY) else _span(left)
-	return "%s เหลือ %s" % [NAME_FESTIVAL, span]
+	return "%s เหลือ %s" % [name, span]
 
 
 static func halloween_on(t: float) -> bool:
@@ -167,9 +187,9 @@ static func halloween_text(t: float) -> String:
 	return "%s เหลือ %s" % [NAME_HALLOWEEN, _span(float(HALLOWEEN_END) - t)] if halloween_on(t) else ""
 
 
-## Forge jewel drop chances: doubled all weekend (Thai time), tripled during the festival.
+## Forge jewel drop chances: doubled all weekend (Thai time), x3 / x5 during the festivals.
 static func jewel_multiplier(t: float) -> float:
-	return (WEEKEND_JEWEL if is_weekend(t) else 1.0) * (FESTIVAL_JEWEL if festival_on(t) else 1.0)
+	return (WEEKEND_JEWEL if is_weekend(t) else 1.0) * (FESTIVAL_JEWEL if festival_on(t) else 1.0) * (FESTIVAL5_JEWEL if festival5_on(t) else 1.0)
 
 
 ## The HUD line of the weekend jewel rush ("" on weekdays).
@@ -245,6 +265,8 @@ static func current(t: float) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
 	if festival_on(t):
 		list.append({"id": "festival", "name_th": NAME_FESTIVAL, "until": float(FESTIVAL_END)})
+	if festival5_on(t):
+		list.append({"id": "festival5", "name_th": NAME_FESTIVAL5, "until": float(FESTIVAL5_END)})
 	if evening_exp(t):
 		list.append({"id": "exp2", "name_th": NAME_EXP, "until": _at(t, EXP_END)})
 	var boss := boss_now(t)

@@ -50,6 +50,14 @@ func _schedule() -> void:
 	check(WorldEvents.exp_multiplier(thai(2026, 11, 11, 10)) == 1.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 11, 10)) == 1.0, "after the festival: back to normal")
 	check(WorldEvents.festival_text(thai(2026, 11, 4, 10)).begins_with(WorldEvents.NAME_FESTIVAL) and WorldEvents.chip_lines(thai(2026, 11, 4, 10))[0] == WorldEvents.festival_text(thai(2026, 11, 4, 10)), "the HUD chip shows the festival first")
 	check(WorldEvents.current(thai(2026, 11, 4, 10)).any(func(e): return String(e.id) == "festival") and not WorldEvents.current(thai(2026, 11, 4, 10)).any(func(e): return String(e.id) == "exp2"), "festival listed, the evening EXP only in the evening")
+	# The second festival: 13 Nov 2026 07:40 Thai for seven days, EXP / jewels / set material x5.
+	var fest5 := float(WorldEvents.FESTIVAL5_START)
+	check(not WorldEvents.festival5_on(fest5 - 1.0) and WorldEvents.festival5_on(fest5) and WorldEvents.festival5_on(fest5 + 6.9 * 86400.0) and not WorldEvents.festival5_on(float(WorldEvents.FESTIVAL5_END)), "the x5 festival runs seven days from its start")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 13, 10)) == 5.0 and WorldEvents.exp_multiplier(thai(2026, 11, 13, 19, 30)) == 10.0, "x5 festival: EXP x5, x10 in the evening")
+	check(WorldEvents.jewel_multiplier(thai(2026, 11, 13, 10)) == 5.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 14, 10)) == 10.0, "x5 festival jewels, the weekend rush on top")
+	check(WorldEvents.core_multiplier(thai(2026, 11, 13, 10)) == 5.0 and WorldEvents.core_multiplier(thai(2026, 11, 12, 10)) == 1.0, "set material x5 only during it")
+	check(WorldEvents.festival_text(thai(2026, 11, 13, 10)).begins_with(WorldEvents.NAME_FESTIVAL5) and WorldEvents.current(thai(2026, 11, 13, 10)).any(func(e): return String(e.id) == "festival5"), "the x5 festival on the HUD chip and the event list")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 20, 10)) == 1.0 and WorldEvents.core_multiplier(thai(2026, 11, 20, 10)) == 1.0, "after the x5 festival: back to normal")
 	check(WorldEvents.gold_multiplier(thai(2026, 10, 31, 10)) == 1.2 and WorldEvents.gold_multiplier(thai(2026, 11, 1, 23)) == 1.2, "Saturday and Sunday: gold x1.2")
 	check(WorldEvents.gold_multiplier(thai(2026, 10, 28, 10)) == 1.0 and WorldEvents.gold_multiplier(thai(2026, 11, 2, 1)) == 1.0, "weekdays: no gold bonus")
 	# The world boss window and its field.
