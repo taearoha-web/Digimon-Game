@@ -246,6 +246,7 @@ static func build_icon_node(id: String) -> Node3D:
 const COSTUME_ICON_VIEW := {
 	"kitsune": [-125.0, 1.66, 2.1], "royal": [-140.0, 1.66, 2.15], "celestial": [-135.0, 1.8, 2.3], "shadow": [-120.0, 1.68, 2.3],
 	"midnight": [-145.0, 1.7, 2.2], "sakura": [-140.0, 1.64, 2.05], "seafoam": [-30.0, 1.7, 2.0],
+	"dragon_god": [-128.0, 1.95, 2.95],
 }
 
 

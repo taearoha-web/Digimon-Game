@@ -78,7 +78,7 @@ func _run() -> int:
 	if mount == "none":
 		mount = ""
 	if mount != "" and not MountData.exists(mount):
-		return _fail("--mount must be one of %s" % ", ".join(MountData.ORDER))
+		return _fail("--mount must be one of %s" % ", ".join(MountData.ALL))
 	var gear := _arg("gear").strip_edges()
 	if gear == "":
 		gear = "divine"

@@ -861,12 +861,14 @@ func _refresh_detail() -> void:
 		var for_mount := MountData.mount_of_mat(String(item.get("id", "")))
 		var how := UIUtil.label(("วัตถุดิบผสมชุดเซต 250 ดาว: ชิ้นเดียวผสมได้ทุกชิ้นของชุดเซตอาชีพตัวเอง (อาวุธ เกราะ หมวก รองเท้า แหวน สร้อย) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ชิ้นละ %s + ชุดประจำอาชีพชิ้นเดียวกัน +%d (แหวน/สร้อยใช้เกล็ดบัวดารา %d) · สำเร็จ %d%% พลาดแล้วแก่นเทพกับเพชรหาย · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร" % [SetGearData.cost_text(), SetGearData.DIVINE_PLUS, SetGearData.SCALES, int(SetGearData.CRAFT_CHANCE * 100.0)]) if String(item.get("id", "")) == SetGearData.CORE
 			else ("วัตถุดิบแหวนและสร้อยชุดเซต 250 ดาว: ชิ้นละ %d เกล็ด + %s ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" (ผสมพลาดเกล็ดยังอยู่) · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร (บอสให้ %d เกล็ดทุกตัว)" % [SetGearData.SCALES, SetGearData.cost_text(), EndgameFields.SCALE_BOSS]) if String(item.get("id", "")) == SetGearData.SCALE
+			else SkyIsleLoot.help(String(item.get("id", ""))) if SkyIsleLoot.help(String(item.get("id", ""))) != ""
 			else ("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
 			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
 			else "ใช้ตีบวกที่ช่างตีเหล็ก: เพชรม่วงตี +1 ถึง +6 (สำเร็จ 100%) · เพชรชมพูตี +7 ถึง +9 (50%) · +10 ใช้เพชรม่วง ชมพู ชาออส อย่างละ 1 (50%) · +11 ถึง +15 เพิ่มอย่างละ 1 ทุกขั้น (45%, 40%, 35%, 30%, 25%)", &"DimLabel")
 		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_detail.add_child(how)
+		_build_isle_actions(item, target)
 		var sell_jewel := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
 		sell_jewel.pressed.connect(func(): _sell_selected(1))
 		target.add_child(sell_jewel)
@@ -919,6 +921,70 @@ func _refresh_detail() -> void:
 		var index := _selected_index
 		stall.pressed.connect(func(): open_stall(index))
 		target.add_child(stall)
+
+
+## The bag actions of เกาะลอยฟ้าเทพมังกร's stackables (SkyIsleLoot): "เปิด" / "เปิดทั้งหมด"
+## on a treasure chest, "แลกชุดเทพมังกร (n/50)" on the costume fragments and "ไปหน้าสัตว์ขี่"
+## on the egg.
+func _build_isle_actions(item: Dictionary, target: Control) -> void:
+	match String(item.get("id", "")):
+		SkyIsleLoot.CHEST:
+			var count := int(item.get("count", 1))
+			# One under the other: the menu's close button covers the top right corner.
+			var pair := UIUtil.vbox(6)
+			pair.name = "ChestActions"
+			target.add_child(pair)
+			var open := UIUtil.button("เปิด", &"PrimaryButton", Vector2(0, 58))
+			open.name = "ChestOpen"
+			open.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			open.pressed.connect(func(): _open_chests(1))
+			pair.add_child(open)
+			var all := UIUtil.button("เปิดทั้งหมด (%d)" % mini(count, SkyIsleLoot.OPEN_ALL_MAX), &"AccentButton", Vector2(0, 58))
+			all.name = "ChestOpenAll"
+			all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			all.disabled = count < 2
+			all.pressed.connect(func(): _open_chests(SkyIsleLoot.OPEN_ALL_MAX))
+			pair.add_child(all)
+		SkyIsleLoot.FRAGMENT:
+			var have := SkyIsleLoot.fragments()
+			var problem := SkyIsleLoot.exchange_problem()
+			var swap := UIUtil.button("แลกชุดเทพมังกร (%d/%d)" % [have, SkyIsleLoot.COSTUME_FRAGMENTS] if problem != "มีแล้ว" else "แลกชุดเทพมังกรแล้ว", &"PrimaryButton", Vector2(0, 58))
+			swap.name = "FragmentExchange"
+			swap.disabled = problem != ""
+			swap.tooltip_text = problem
+			swap.pressed.connect(func():
+				var result := SkyIsleLoot.exchange_costume()
+				if result != "ok":
+					Game.say(result, &"warning")
+				_selected_index = RewardShop.bag_index(SkyIsleLoot.COSTUME)
+				_rebuild())
+			target.add_child(swap)
+		SkyIsleLoot.EGG:
+			var hatch := UIUtil.button("ไปหน้าสัตว์ขี่ (ฟัก%s)" % String(MountData.info(SkyIsleLoot.MOUNT).name), &"PrimaryButton", Vector2(0, 58))
+			hatch.name = "EggHatch"
+			hatch.pressed.connect(func(): show_tab(&"mounts"))
+			target.add_child(hatch)
+
+
+## Opens up to [param count] treasure chests (SkyIsleLoot.open_chests) with a little
+## flourish: a gold flash, the chest sound and the prizes read out.
+func _open_chests(count: int) -> void:
+	var result := SkyIsleLoot.open_chests(count)
+	if int(result.opened) > 0:
+		AudioManager.play_sfx(&"coin")
+		Game.screen_flash.emit(Color("ffd84a"), 0.14)
+		Game.say("เปิด%s %d กล่อง: %s" % [String(ItemData.JEWELS[SkyIsleLoot.CHEST].name), int(result.opened), SkyIsleLoot.prize_text(result)], &"success")
+		for item in result.jackpots:
+			SkyIsleLoot.celebrate(item)
+	if String(result.stopped) != "":
+		Game.say(String(result.stopped), &"warning")
+	# The chest stack may be gone: keep it selected while there are chests left.
+	_selected_index = -1
+	for i in Game.profile.inv.size():
+		var it: Dictionary = Game.profile.inv[i]
+		if it.get("kind", "") == "jewel" and String(it.get("id", "")) == SkyIsleLoot.CHEST:
+			_selected_index = i
+	_rebuild()
 
 
 ## Opens แผงของฉัน in the bag tab, with bag slot [param pick] picked to price (-1: none).
@@ -1528,12 +1594,12 @@ func _build_mounts() -> void:
 	var box := UIUtil.vbox(8)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
-	box.add_child(UIUtil.label("สัตว์ขี่  %d / %d" % [Game.owned_mounts().size(), MountData.ORDER.size()], &"HeaderLabel"))
+	box.add_child(UIUtil.label("สัตว์ขี่  %d / %d" % [Game.owned_mounts().size(), MountData.ALL.size()], &"HeaderLabel"))
 	var how := UIUtil.label("สร้างและอัปเลเวลด้วยวัตถุดิบของแต่ละตัว (ดรอปจากมอนสเตอร์ทุกแผนที่ล่า) + เพชรชาออส · โอกาสสำเร็จต่างกันแต่ละตัว ถ้าพลาดวัตถุดิบกับเพชรจะหายไป เลเวลคงเดิม · ค่าพลังของตัวที่ใช้อยู่นับตลอด ขี่หรือไม่ขี่ก็ได้ · ขี่แล้ววิ่งเร็วขึ้น และสู้บนหลังได้เลย · เพชรชาออสในกระเป๋า %d เม็ด" % Game.jewel_count("chaos"), &"SubHeaderLabel")
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(how)
 	var active := Game.active_mount()
-	for id in MountData.ORDER:
+	for id in MountData.ALL:
 		var info := MountData.info(id)
 		var level := Game.mount_level(id)
 		var owned := level > 0

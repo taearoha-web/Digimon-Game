@@ -38,7 +38,7 @@ void fragment() {
 // The share of the colour that glows (1 = a lit gem or a halo).
 uniform float glow = 0.0;
 // Sheets: 0 plain, 1 night sky (twinkling star specks), 2 starlit (gold stars),
-// 3 royal velvet; trim_width > 0 draws a border down the sides and along the hem.
+// 3 royal velvet, 4 dragon scales (rims in speck_color); trim_width > 0 draws a border down the sides and along the hem.
 uniform float pattern = 0.0;
 uniform vec4 trim_color : source_color = vec4(1.0, 0.85, 0.4, 1.0);
 uniform float trim_width = 0.0;
@@ -63,7 +63,20 @@ void vertex() {
 void fragment() {
 	vec3 c = tint;
 	float lit = glow;
-	if (pattern > 0.5) {
+	if (pattern > 3.5) {
+		// Dragon scales: offset rows of scallops, dark at each root, bright towards its
+		// rim, the rim itself picked out in speck_color with a faint shimmer.
+		vec2 g = cloth * vec2(11.0, 8.0);
+		g.x += 0.5 * mod(floor(g.y), 2.0);
+		vec2 f = fract(g);
+		float d = length(f - vec2(0.5, 0.0));
+		float inside = 1.0 - smoothstep(0.66, 0.7, d);
+		float shade = mix(0.55, 1.08, smoothstep(0.05, 0.62, d)) * inside + 0.5 * (1.0 - inside);
+		float rim = smoothstep(0.5, 0.62, d) * inside;
+		float h = costume_hash(floor(g));
+		c = mix(c * shade, speck_color.rgb, rim * 0.75);
+		lit += rim * (0.1 + 0.1 * sin(TIME * 1.4 + h * 20.0 + cloth.y * 6.0));
+	} else if (pattern > 0.5) {
 		// Specks on a grid, one in a few cells, twinkling.
 		vec2 g = cloth * vec2(15.0, 22.0);
 		vec2 id = floor(g);

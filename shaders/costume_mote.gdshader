@@ -18,13 +18,19 @@ uniform float drift = 0.0;
 // Size pulse (0..1) and turning (radians a second) of each quad.
 uniform float twinkle = 0.0;
 uniform float spin = 0.0;
-// 0 soft glow, 1 four-point star, 2 petal, 3 bubble, 4 smoke puff.
+// 0 soft glow, 1 four-point star, 2 petal, 3 bubble, 4 smoke puff, 5 a little spirit
+// dragon (a wriggling wisp with a bright head; use with align).
 uniform float shape = 0.0;
 // 1 adds light (glows), 0 covers like paint (petals, smoke).
 uniform float additive = 1.0;
 
+// 1 turns each quad so its +x leads along the mote's path on screen (spirit dragons
+// fly head first); 0 keeps the mote's own turn.
+uniform float align = 0.0;
+
 varying vec4 tint;
 varying float fade;
+varying float wave;
 
 void vertex() {
 	vec3 home = VERTEX;
@@ -46,6 +52,15 @@ void vertex() {
 	vec2 corner = (UV - 0.5) * s;
 	corner = vec2(corner.x * cos(turn) - corner.y * sin(turn), corner.x * sin(turn) + corner.y * cos(turn));
 	vec4 view = MODELVIEW_MATRIX * vec4(p, 1.0);
+	if (align > 0.5) {
+		float a2 = a + 0.08 * sign(orbit + 0.0001);
+		vec4 ahead = MODELVIEW_MATRIX * vec4(cos(a2) * r, y, sin(a2) * r, 1.0);
+		vec2 dir = ahead.xy - view.xy;
+		dir = length(dir) > 0.0005 ? normalize(dir) : vec2(1.0, 0.0);
+		vec2 flat_corner = (UV - 0.5) * s;
+		corner = dir * flat_corner.x + vec2(-dir.y, dir.x) * flat_corner.y;
+	}
+	wave = ph * 37.0;
 	view.xy += corner;
 	VERTEX = view.xyz;
 	NORMAL = vec3(0.0, 0.0, 1.0);
@@ -76,8 +91,21 @@ void fragment() {
 		float shine = smoothstep(0.09, 0.0, length(q - vec2(-0.14, 0.14)));
 		a = clamp(ring + shine, 0.0, 1.0);
 		c = mix(c, vec3(1.0), shine);
-	} else {
+	} else if (shape < 4.5) {
 		a = smoothstep(0.5, 0.05, d) * 0.55;
+	} else {
+		// A spirit dragon: a body wriggling from the tail (-x) to the head (+x), thicker
+		// towards the head, a white-hot head with two little horns swept back.
+		float along = smoothstep(-0.46, 0.26, q.x);
+		float yc = 0.085 * sin(q.x * 11.0 - TIME * 7.0 + wave) * (1.0 - along * 0.75);
+		float w = mix(0.02, 0.07, along);
+		float body = smoothstep(w, w * 0.35, abs(q.y - yc)) * step(-0.47, q.x) * step(q.x, 0.3);
+		vec2 hq = q - vec2(0.3, 0.085 * sin(0.3 * 11.0 - TIME * 7.0 + wave) * 0.25);
+		float head = smoothstep(0.13, 0.04, length(hq * vec2(0.8, 1.15)));
+		float horns = smoothstep(0.014, 0.004, abs(abs(hq.y) - 0.035 + hq.x * 0.5)) * step(-0.14, hq.x) * step(hq.x, -0.02);
+		float halo = smoothstep(0.2, 0.0, length(hq)) * 0.35;
+		a = clamp(max(max(body, head), horns) + halo, 0.0, 1.0);
+		c = mix(c, vec3(1.0), clamp(head * 0.85 + body * along * 0.35, 0.0, 1.0));
 	}
 	a *= tint.a * fade;
 	ALBEDO = c * a;

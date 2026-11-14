@@ -307,6 +307,21 @@ test('same-origin JSON-only writes block CSRF; request sizes, malformed JSON and
   assert.equal((await call('session', {cookie: account.cookie})).status, 200);
 });
 
+test('the sky isle collectibles are accepted: chest, fragment and egg stacks, the fragment costume, the sky dragon mount', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  // SkyIsleLoot in the game: three stackable "jewel" items, the costume dragon_god (an
+  // item, worn through rshop.cos) and the mount sky_dragon at a level of 1-5.
+  const isle = {...sample(), mounts: {sky_dragon: 5, fire_drake: 1}, mount: 'sky_dragon',
+    inv: [{kind: 'jewel', id: 'dragon_chest', count: 12}, {kind: 'jewel', id: 'dragon_fragment', count: 49},
+      {kind: 'jewel', id: 'sky_dragon_egg', count: 2}, {kind: 'costume', id: 'dragon_god', rarity: 4}],
+    rshop: {lc: 0, ep: 0, own: ['dragon_god'], cos: 'dragon_god', trail: '', ncol: ''}, flags: {cos_item_dragon_god: 1}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(isle)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const over = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...isle, mounts: {sky_dragon: 6}})}});
+  assert.equal(over.status, 400, 'a mount past Lv.5 is refused');
+});
+
 test('mount levels and the old list of owned mounts are both accepted', async t => {
   const {register, call} = harness(t);
   const account = await register();

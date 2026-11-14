@@ -62,6 +62,9 @@ const COSTUMES := {
 	"royal": {"name": "ชุดราชันทองคำ", "cloth": Color("ffd24a"), "sheen": 0.7, "glow": Color(0.35, 0.28, 0.05), "desc": "ผ้าคลุมกำมะหยี่แดงขลิบขนเออร์มีน · มงกุฎทองประดับอัญมณี · อินทรธนูทองพู่ระย้า", "lc": 800, "ep": 150},
 	"shadow": {"name": "ชุดเงาอสูร", "cloth": Color("4a1c5e"), "sheen": 0.4, "glow": Color(0.3, 0.05, 0.4), "desc": "หางปีศาจปลายโพดำเรืองแสง · เขาโค้งใหญ่ · ควันม่วงลอยวนที่เท้า", "lc": 600, "ep": 200},
 	"celestial": {"name": "ชุดเทวดาแสงดาว", "cloth": Color("f2f0ff"), "sheen": 0.6, "glow": Color(0.3, 0.3, 0.45), "desc": "ปีกขนนกสีขาว · ผ้าคลุมไหล่ประกายดาว · วงรัศมีเรืองแสง · ดาวระยิบรอบตัว", "lc": 900, "ep": 300},
+	# เกาะลอยฟ้าเทพมังกร only (SkyIsleLoot.COSTUME): not sold for coins. `fragments`: how
+	# many ชิ้นส่วนชุดเทพมังกร (SkyIsleLoot.FRAGMENT) the exchange takes, here or from the bag.
+	"dragon_god": {"name": "ชุดเทพมังกร", "cloth": Color("1f9c86"), "sheen": 0.65, "glow": Color(0.05, 0.3, 0.22), "desc": "เขามังกรทองและหงอนหยก · หางมังกรเกล็ดหยกยาวส่ายไปมา · ผ้าคลุมไหล่เกล็ดมังกรเข็มกลัดทอง · มังกรวิญญาณตัวน้อยบินวนรอบตัว · แลกด้วยชิ้นส่วนจากเกาะลอยฟ้าเทพมังกรเท่านั้น", "lc": 0, "ep": 0, "fragments": 50},
 }
 ## Walk trails (WalkTrail): what follows the hero's steps.
 const TRAILS := {
@@ -322,11 +325,19 @@ static func name_of(tab: String, id: String) -> String:
 ## "300 เหรียญลีก + 60 แต้มกิจกรรม" of an entry.
 static func price_text(e: Dictionary) -> String:
 	var parts: PackedStringArray = []
+	if fragments_of(e) > 0:
+		return "แลกด้วยชิ้นส่วน %d ชิ้น (มี %d) · ดรอปที่%s" % [fragments_of(e), Game.jewel_count(SkyIsleLoot.FRAGMENT) if Game.has_profile else 0, SkyIsleData.TITLE]
 	if int(e.get("lc", 0)) > 0:
 		parts.append("%d %s" % [int(e.lc), COIN_NAME])
 	if int(e.get("ep", 0)) > 0:
 		parts.append("%d %s" % [int(e.ep), POINT_NAME])
 	return " + ".join(parts) if not parts.is_empty() else "ฟรี"
+
+
+## How many costume fragments (SkyIsleLoot.FRAGMENT) entry `e` is exchanged for (0: it
+## is bought with coins and points).
+static func fragments_of(e: Dictionary) -> int:
+	return int(e.get("fragments", 0))
 
 
 # --- Owning and wearing ------------------------------------------------------------
@@ -352,7 +363,7 @@ static func active(tab: String) -> String:
 ## A costume's grade by its price in coins (the bag tile's colour).
 static func costume_rarity(id: String) -> int:
 	var lc := int(COSTUMES.get(id, {}).get("lc", 0))
-	if lc >= 800:
+	if lc >= 800 or fragments_of(COSTUMES.get(id, {})) > 0:
 		return 4
 	if lc >= 600:
 		return 3
@@ -549,6 +560,8 @@ static func problem(tab: String, id: String, t := -1.0) -> String:
 		return "แลกครบ %d ครั้งของสัปดาห์นี้แล้ว" % int(e.limit)
 	if tab in ["stone", "costume"] and Game.inventory_free() <= 0 and Game.storage().size() >= Game.STORAGE_SIZE:
 		return "กระเป๋าและคลังเต็ม"
+	if fragments_of(e) > Game.jewel_count(SkyIsleLoot.FRAGMENT):
+		return "%sไม่พอ (มี %d/%d)" % [String(ItemData.JEWELS[SkyIsleLoot.FRAGMENT].name), Game.jewel_count(SkyIsleLoot.FRAGMENT), fragments_of(e)]
 	if coins() < int(e.get("lc", 0)):
 		return "%sไม่พอ" % COIN_NAME
 	if points() < int(e.get("ep", 0)):
@@ -567,6 +580,9 @@ static func buy(tab: String, id: String, t := -1.0) -> String:
 	var d := data()
 	d["lc"] = int(d.get("lc", 0)) - int(e.get("lc", 0))
 	d["ep"] = int(d.get("ep", 0)) - int(e.get("ep", 0))
+	if fragments_of(e) > 0:
+		Game._spend_jewels(SkyIsleLoot.FRAGMENT, fragments_of(e))
+		Game.inventory_changed.emit()
 	if tab == "stone":
 		Game.give_or_store(stone_item(e))
 		var w := GuildLeague.week_of(now() if t < 0.0 else t)
@@ -626,7 +642,9 @@ static func world_cosmetics(i: int, t := -1.0) -> Dictionary:
 		var wishes: Array = []
 		for tab in ["costume", "trail", "ncol"]:
 			for id in catalog(tab):
-				wishes.append([tab, id])
+				# Never the isle's costume: it is not sold for coins (fragments only).
+				if fragments_of(catalog(tab)[id]) <= 0:
+					wishes.append([tab, id])
 		for k in range(wishes.size() - 1, 0, -1):
 			var j := rng.randi() % (k + 1)
 			var tmp = wishes[k]
