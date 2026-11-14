@@ -25,6 +25,9 @@ const HITS := [4, 1]
 ## Upright emblems lean back this much (about X) to meet the raised gameplay camera.
 const TILT_BACK := -0.22
 static var _casts := {}
+## The latest caster of each skill id (a weakref), kept after its release is matched, so
+## the hit flashes can close with it.
+static var _last := {}
 static var _hits := {}
 static var _hops := {}
 
@@ -91,6 +94,9 @@ static func note(skill: Dictionary, visual: HeroVisual, origin: Vector3, aim: Ve
 	list = list.filter(func(e): return now - int(e.ms) < 4000 and (e.ref as WeakRef).get_ref() != null)
 	if caster:
 		list.append({"ref": weakref(caster), "ms": now, "aim": aim, "origin": origin})
+		_last[id] = weakref(caster)
+		if _last.size() > 64:
+			_last.clear()
 	_casts[id] = list
 	if _casts.size() > 64:
 		_casts.clear()
@@ -116,6 +122,13 @@ static func caster_of(skill: Dictionary, origin: Vector3) -> Array:
 	var entry: Dictionary = list[best]
 	list.remove_at(best)
 	return [(entry.ref as WeakRef).get_ref(), entry.aim]
+
+
+## The latest live caster noted for skill [param id] (null when none is known).
+static func _last_caster(id: String) -> Node3D:
+	var ref: WeakRef = _last.get(id)
+	var node: Node3D = ref.get_ref() as Node3D if ref != null else null
+	return node if is_instance_valid(node) else null
 
 
 ## The flat yaw from [param from] to [param to] (or [param fallback] when they meet).
@@ -480,7 +493,11 @@ static func hit(parent: Node3D, skill: Dictionary, at: Vector3, colors: Array, c
 	_hits[id] = seen
 	if _hits.size() > 128:
 		_hits.clear()
-	var r := open(parent, at, 0.7, "Skill_%s_hit" % id, randf() * TAU, null, 3)
+	# A hit flash closes with its caster too (a hit landing as the caster dies goes with it).
+	var caster := _last_caster(id)
+	if caster != null and Root.down(caster):
+		return
+	var r := open(parent, at, 0.7, "Skill_%s_hit" % id, randf() * TAU, caster, 3)
 	if r == null:
 		return
 	var c0: Color = colors[0]
