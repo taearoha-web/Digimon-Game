@@ -398,8 +398,11 @@ func _ride() -> void:
 		add_child(mount)
 		mount.build(SkyIsleLoot.MOUNT)
 		check(mount.id == SkyIsleLoot.MOUNT and mount.seat != null and mount.head != null, "the sky dragon builds its body, head and saddle (merged %s)" % merged)
-		check(mount._coils.size() >= 12, "a long body of coils (%d)" % mount._coils.size())
-		var length := mount.head.position.z - mount._coil_base[mount._coil_base.size() - 1].z
+		# The Summoner's god-skill dragon (CelestialDragon "mount"), one body laid on its pose.
+		var dragon := mount.body.get_node_or_null("DragonBody") as MeshInstance3D
+		check(dragon != null and mount._dragon != null and dragon.material_override == mount._dragon and mount._dragon.shader == CelestialDragon.SHADER, "the long eastern dragon of the god skill (merged %s)" % merged)
+		var pose := CelestialDragon.pose("mount")
+		var length: float = (pose.box as AABB).size.z * MountVisual.SKY_SCALE
 		check(length > 5.0 and mount.head.position.y > drake.head.position.y + 0.4, "clearly bigger than the fire drake: %.1f m from head to tail, its head %.1f m up" % [length, mount.head.position.y])
 		check(mount.seat_height() > drake.seat_height(), "its saddle sits higher than the drake's")
 		for cls in [&"darklord", &"mage", &"archer", &"defender", &"bard"]:
@@ -410,12 +413,12 @@ func _ride() -> void:
 			check(rider.seated and is_equal_approx(y, mount.seat_height() - MountVisual.RIDE_HIP), "%s sits in the saddle" % cls)
 			rider.queue_free()
 		await settle()
-		var tip: Node3D = mount._coils[mount._coils.size() - 1]
-		var a := tip.position
+		var a := float(mount._dragon.get_shader_parameter("clock"))
 		await get_tree().create_timer(0.3).timeout
-		check(tip.position != a, "the tail rides its wave")
-		var seat_coil: Node3D = mount._coils[5]
-		check(seat_coil.position.is_equal_approx(mount._coil_base[5]), "the coil under the saddle stays still")
+		check(float(mount._dragon.get_shader_parameter("clock")) > a, "the body rides its wave")
+		var calm_from := float(mount._dragon.get_shader_parameter("calm_from"))
+		var calm_to := float(mount._dragon.get_shader_parameter("calm_to"))
+		check(calm_from < float(pose.seat_s) and calm_to > float(pose.seat_s), "the wave stills under the saddle (%.1f-%.1f m)" % [calm_from, calm_to])
 		var near := mount.drawn_parts()
 		mount.set_far(true)
 		check(mount.drawn_parts() < near, "far away the small parts hide (%d < %d)" % [mount.drawn_parts(), near])

@@ -90,7 +90,7 @@ const MONSTERS := {
 	&"nova_drake": {"name": "มังกรน้อยซูเปอร์โนวา", "model": "cute/YellowDragon", "height": 3.6, "hp": 7.5, "atk": 5.0, "def": 4.4, "speed": 3.4, "aggro": true, "attack": "melee", "tint": Color(1.9, 0.5, 0.9), "exp": 4.0, "gold": 5.0, "behavior": "pounce"},
 	# The rare dragon of the zones flagged "rare_dragon" (RareDragon: its strength comes from
 	# the field it visits, its crystal look from RareDragon.dress).
-	&"prism_dragon": {"name": "มังกรแก้วเจ็ดสี", "model": "flying/Dragon_Evolved", "height": 4.8, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.0, "color": Color("9df7ff"), "behavior": "chain_lightning", "behavior2": "thunder_cage"},
+	&"prism_dragon": {"name": "มังกรแก้วเจ็ดสี", "celestial": "prism", "model": "flying/Dragon_Evolved", "height": 4.8, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.0, "color": Color("9df7ff"), "behavior": "chain_lightning", "behavior2": "thunder_cage"},
 	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "big/Demon", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0, "behavior": "rift_trail", "behavior2": "event_horizon"},
 }
 

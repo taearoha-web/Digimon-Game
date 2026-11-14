@@ -44,8 +44,9 @@ const MOVES := {
 	"glacial_bloom": {"th": "ผลึกน้ำแข็ง", "style": "glacier", "slow": 3.5, "freeze": true, "clip": "skill2"},
 	# The Dragon God (SkyIsleData): a widening breath of golden fire that leaves the ground
 	# burning, and a cage of heaven's lightning that closes on whoever stands in it.
-	"dragon_breath": {"th": "ลมหายใจเทพมังกร", "style": "dragonfire", "slow": 0.0},
-	"heavens_fall": {"th": "อัสนีสวรรค์ถล่ม", "style": "heaven", "slow": 2.0},
+	# Cast with the celestial dragon's breath (skill1) and heaven's call (skill2), CelestialDragonVisual.
+	"dragon_breath": {"th": "ลมหายใจเทพมังกร", "style": "dragonfire", "slow": 0.0, "clip": "skill1"},
+	"heavens_fall": {"th": "อัสนีสวรรค์ถล่ม", "style": "heaven", "slow": 2.0, "clip": "skill2"},
 }
 const STYLE_COLORS := {
 	"spore": Color("8fe05a"), "fire": Color("ff6a2a"), "sand": Color("e8c06a"), "ice": Color("9fe8ff"),

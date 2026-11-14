@@ -29,12 +29,9 @@ var _leg_swing: Array[float] = []
 var _wings: Array = []
 var _flames: Array[Node3D] = []
 var _flame_scale: Array[Vector3] = []
-## The sky dragon's long body: coils that ride a wave ([member _coil_wave]: each one's
-## share of it) round their resting places.
-var _coils: Array[Node3D] = []
-var _coil_base: Array[Vector3] = []
-var _coil_tilt: Array[float] = []
-var _coil_wave: Array[float] = []
+## The sky dragon's body material (CelestialDragon "mount"): its clock runs with the gait.
+var _dragon: ShaderMaterial
+var _dragon_clock := 0.0
 var _t := 0.0
 var _gait := 0.0
 var _run := 0.0
@@ -85,10 +82,7 @@ func build(p_id: String) -> void:
 	_wings.clear()
 	_flames.clear()
 	_flame_scale.clear()
-	_coils.clear()
-	_coil_base.clear()
-	_coil_tilt.clear()
-	_coil_wave.clear()
+	_dragon = null
 	body = MeshKit.pivot(self, "Body")
 	tail = null
 	head = null
@@ -100,7 +94,7 @@ func build(p_id: String) -> void:
 		_: _build_wolf()
 	var shadow := MeshKit.blob_shadow(self, 0.7)
 	shadow.scale = Vector3(1.6, 2.6, 1.0)
-	if not _coils.is_empty():
+	if _dragon != null:
 		# The long body's shadow.
 		shadow.scale = Vector3(2.2, 7.6, 1.0)
 		shadow.position.z = -1.6
@@ -137,13 +131,13 @@ func _merge_parts() -> void:
 	anchors.append_array(legs)
 	for w in _wings:
 		anchors.append(w[0])
-	anchors.append_array(_coils)
 	var groups := {}
 	var order: Array[String] = []
 	var baked: Array[MeshInstance3D] = []
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
-		if mi.name == "BlobShadow" or _flames.has(mi) or mi.material_override == null:
+		# The sky dragon's body keeps its own mesh and shader (laid on its pose in the vertex stage).
+		if mi.name == "BlobShadow" or _flames.has(mi) or mi.material_override == null or mi.has_meta("unmerged"):
 			continue
 		var xf := mi.transform
 		var up := mi.get_parent() as Node3D
@@ -411,16 +405,11 @@ func _process(delta: float) -> void:
 		var amp := lerpf(0.12, _wing_amp, _run)
 		for w in _wings:
 			(w[0] as Node3D).rotation.z = float(w[1]) * (float(w[2]) + amp * beat)
-	if not _coils.is_empty():
-		# The body's wave runs from the neck to the tail: slow while hovering, quick and
-		# snaking from side to side at speed.
-		var pace := lerpf(1.7, 6.5, _run)
-		var high := lerpf(0.2, 0.26, _run)
-		for i in _coils.size():
-			var w := _coil_wave[i]
-			var ph := _t * pace - float(i) * 0.62
-			_coils[i].position = _coil_base[i] + Vector3(sin(ph * 0.5 + 1.3) * w * (0.1 + 0.3 * _run), sin(ph) * w * high, 0.0)
-			_coils[i].rotation.x = _coil_tilt[i] - cos(ph) * w * 0.22
+	if _dragon != null:
+		# The body's wave runs from the neck to the tail (stilled under the saddle): slow
+		# while hovering, quick and snaking at speed.
+		_dragon_clock += delta * lerpf(1.0, 3.2, _run)
+		_dragon.set_shader_parameter("clock", _dragon_clock)
 	for i in _flames.size():
 		var k := 1.0 + 0.16 * sin(_t * FLAME_FLICKER + i * 1.7) + 0.08 * sin(_t * 31.0 + i)
 		_flames[i].scale = Vector3(_flame_scale[i].x * (2.0 - k), _flame_scale[i].y * k, _flame_scale[i].z * (2.0 - k))
@@ -720,140 +709,30 @@ func _build_drake() -> void:
 # belly, riding on clouds (เกาะลอยฟ้าเทพมังกร only, SkyIsleLoot.MOUNT)
 # ---------------------------------------------------------------------------
 
-## The centre line from the neck down to the tail tip: [z, y, radius, wave] a coil (wave:
-## how far the coil rides the body's wave; 0 under the saddle so the rider sits steady).
-## The neck rises in an S, the back arches behind the saddle and the tail curls up.
-const SKY_COILS := [
-	[1.2, 2.32, 0.3, 0.2], [1.17, 2.04, 0.33, 0.17], [1.1, 1.76, 0.37, 0.13], [0.94, 1.5, 0.41, 0.09], [0.68, 1.28, 0.45, 0.04],
-	[0.3, 1.15, 0.47, 0.0], [-0.1, 1.12, 0.47, 0.0], [-0.5, 1.15, 0.46, 0.03], [-0.88, 1.27, 0.44, 0.1],
-	[-1.24, 1.48, 0.41, 0.2], [-1.6, 1.68, 0.38, 0.3], [-1.98, 1.72, 0.35, 0.4], [-2.34, 1.56, 0.32, 0.5],
-	[-2.66, 1.3, 0.29, 0.6], [-2.98, 1.08, 0.26, 0.7], [-3.32, 1.0, 0.23, 0.8], [-3.66, 1.1, 0.2, 0.88],
-	[-3.96, 1.32, 0.17, 0.94], [-4.18, 1.6, 0.14, 1.0],
-]
-## The whole dragon is built at this scale (the rider's saddle included).
-const SKY_SCALE := 1.2
+## The whole dragon is this many world metres to a mesh metre of CelestialDragon "mount".
+const SKY_SCALE := 0.4
+## How far the dragon floats over its clouds (world metres).
+const SKY_FLOAT := 0.7
 
 
+## The isle's eastern dragon (CelestialDragon "mount", the same body as the Summoner's
+## god skill and the isle's dragons): one mesh laid on its riding pose by the shader,
+## level under the saddle (the wave stills there), the neck up in front, the tail
+## curling behind. [member head] marks the nose. The clouds it rides do not bob.
 func _build_sky_dragon() -> void:
-	var jade := _mat(Color("0f9274"))
-	var jade_dark := _mat(Color("075a4c"))
-	var jade_light := _mat(Color("49cfa6"))
-	var belly := _mat(Color("f3e6c0"))
-	var belly_shade := _mat(Color("dcc48c"))
-	var gold := _mat(Color("ffc72e"))
-	var gold_dark := _mat(Color("d08e14"))
-	var mane := _mat(Color("fff1cf"))
-	var glow := _mat(Color("7dffd0"), 1.4)
-	var pearl := _mat(Color("eafff6"), 2.0)
+	var dragon := CelestialDragon.body("mount")
+	dragon.scale = Vector3.ONE * SKY_SCALE
+	dragon.position.y = SKY_FLOAT
+	dragon.set_meta("unmerged", true)
+	body.add_child(dragon)
+	_dragon = dragon.material_override as ShaderMaterial
+	var pose := CelestialDragon.pose("mount")
+	var seat_at: Vector3 = (pose.seat as Vector3) * SKY_SCALE + Vector3.UP * SKY_FLOAT
+	head = MeshKit.pivot(body, "Head", (pose.nose as Vector3) * SKY_SCALE + Vector3.UP * SKY_FLOAT)
+	_saddle(seat_at + Vector3(0, -0.02, 0), Color("0c5448"), Color("f4ead0"), Color("ffc72e"), 0.62)
 	var cloud := _mat(Color("eef5ff"), 0.2)
 	var cloud_shade := _mat(Color("c4dcf2"))
-	body.scale = Vector3.ONE * SKY_SCALE
-	# The body: a chain of coils that ride a slow wave (the tail most of all), each
-	# turned along the body's line so they join into one long back.
-	var count := SKY_COILS.size()
-	for i in count:
-		var c: Array = SKY_COILS[i]
-		var r := float(c[2])
-		var at := Vector3(0, float(c[1]), float(c[0]))
-		var before: Array = SKY_COILS[maxi(i - 1, 0)]
-		var after: Array = SKY_COILS[mini(i + 1, count - 1)]
-		var along := Vector3(0, float(before[1]) - float(after[1]), float(before[0]) - float(after[0]))
-		var reach := along.length() * (0.5 if i > 0 and i < count - 1 else 1.0)
-		var coil := MeshKit.pivot(body, "Coil%d" % i, at)
-		coil.rotation.x = -atan2(along.y, along.z)
-		_coils.append(coil)
-		_coil_base.append(coil.position)
-		_coil_tilt.append(coil.rotation.x)
-		_coil_wave.append(float(c[3]))
-		var long := reach * 2.1
-		MeshKit.part(coil, MeshKit.sphere(), jade, Vector3.ZERO, Vector3(r * 2.0, r * 1.9, long))
-		# A darker back and a pale belly plate with a shaded edge.
-		MeshKit.part(coil, MeshKit.sphere(), jade_dark, Vector3(0, r * 0.36, 0), Vector3(r * 1.55, r * 1.45, long * 0.96))
-		MeshKit.part(coil, MeshKit.sphere(), belly if i % 2 == 0 else belly_shade, Vector3(0, -r * 0.4, 0), Vector3(r * 1.5, r * 1.25, long * 0.8))
-		# A row of bright scales down each flank.
-		for side in [-1.0, 1.0]:
-			MeshKit.part(coil, MeshKit.sphere_low(), jade_light, Vector3(side * r * 0.93, -r * 0.02, 0.0), Vector3(0.09, r * 0.34, long * 0.5))
-		# The gold mane down the spine (the saddle sits on coils 5 and 6).
-		if i != 5 and i != 6:
-			var tall := 0.3 if i < 5 else lerpf(0.32, 0.14, float(i - 7) / float(count - 8))
-			MeshKit.part(coil, MeshKit.cone(), gold if i % 2 == 0 else gold_dark, Vector3(0, r * 0.92 + tall * 0.4, -0.04), Vector3(0.13, tall, 0.3), Vector3(-30, 0, 0))
-			if i < 5:
-				for side in [-1.0, 1.0]:
-					MeshKit.part(coil, MeshKit.cone(), mane, Vector3(side * r * 0.52, r * 0.74, -0.08), Vector3(0.14, 0.34, 0.2), Vector3(-36, 0, -side * 36.0))
-		# A glowing pearl spot on each flank of the tail.
-		if i >= 9 and i % 2 == 1:
-			for side in [-1.0, 1.0]:
-				MeshKit.part(coil, MeshKit.sphere_low(), glow, Vector3(side * r * 0.96, r * 0.1, 0.0), Vector3.ONE * 0.085)
-	# The tail's end: a fan of gold and jade fins round a pearl.
-	var tip: Node3D = _coils[count - 1]
-	for f in 5:
-		var a := -56.0 + f * 28.0
-		MeshKit.part(tip, MeshKit.sphere(), gold if f % 2 == 0 else jade_light, Vector3(sin(deg_to_rad(a)) * 0.22, 0.02, -0.3 - cos(deg_to_rad(a)) * 0.24), Vector3(0.15, 0.05, 0.66), Vector3(0, a, 0))
-	MeshKit.part(tip, MeshKit.sphere_low(), pearl, Vector3(0, 0.02, -0.2), Vector3.ONE * 0.14)
-	_saddle(Vector3(0, 1.6, -0.06), Color("0c5448"), Color("f4ead0"), Color("ffc72e"), 0.72)
-	# A gold chest plate with a jade gem under the neck.
-	MeshKit.part(body, MeshKit.sphere(), gold, Vector3(0, 1.14, 1.02), Vector3(0.6, 0.56, 0.2), Vector3(-34, 0, 0))
-	MeshKit.part(body, MeshKit.sphere_low(), glow, Vector3(0, 1.14, 1.13), Vector3(0.14, 0.14, 0.08))
-	# Head: a long snout, antlers, whiskers, a flowing mane and beard.
-	head = MeshKit.pivot(body, "Head", Vector3(0, 2.62, 1.36))
-	MeshKit.part(head, MeshKit.sphere(), jade, Vector3.ZERO, Vector3(0.86, 0.74, 0.88))
-	MeshKit.part(head, MeshKit.sphere(), jade_dark, Vector3(0, 0.12, -0.06), Vector3(0.7, 0.58, 0.72))
-	MeshKit.part(head, MeshKit.sphere(), jade, Vector3(0, -0.1, 0.5), Vector3(0.58, 0.42, 0.76))
-	MeshKit.part(head, MeshKit.sphere(), belly, Vector3(0, -0.26, 0.4), Vector3(0.5, 0.2, 0.74))
-	MeshKit.part(head, MeshKit.sphere(), jade_light, Vector3(0, 0.03, 0.82), Vector3(0.4, 0.22, 0.22))
-	MeshKit.part(head, MeshKit.sphere_low(), pearl, Vector3(0, 0.3, 0.32), Vector3(0.15, 0.15, 0.1))
-	MeshKit.part(head, MeshKit.torus(), gold, Vector3(0, 0.3, 0.31), Vector3(0.24, 0.2, 0.24), Vector3(68, 0, 0))
-	for side in [-1.0, 1.0]:
-		_eye(head, Vector3(side * 0.26, 0.1, 0.3), 0.2, Color("0e4a3c"), side)
-		MeshKit.part(head, MeshKit.box(), gold, Vector3(side * 0.26, 0.29, 0.28), Vector3(0.26, 0.055, 0.08), Vector3(0, 0, side * -18.0))
-		MeshKit.part(head, MeshKit.sphere_low(), _mat(Color("0a3a32")), Vector3(side * 0.11, 0.06, 0.92), Vector3(0.06, 0.05, 0.04))
-		MeshKit.part(head, MeshKit.sphere_low(), _mat(Color("ff9aa0")), Vector3(side * 0.31, -0.1, 0.34), Vector3(0.13, 0.06, 0.06))
-		MeshKit.part(head, MeshKit.cone(), mane, Vector3(side * 0.16, -0.26, 0.74), Vector3(0.06, 0.12, 0.06), Vector3(180, 0, 0))
-		# Antlers: a beam up and back with three tines, pearls at the tips.
-		var antler := MeshKit.pivot(head, "Antler", Vector3(side * 0.25, 0.3, -0.12), Vector3(-28, 0, -side * 24.0))
-		MeshKit.part(antler, MeshKit.cylinder(), gold_dark, Vector3(0, 0.3, 0), Vector3(0.11, 0.6, 0.11))
-		MeshKit.part(antler, MeshKit.cone(), gold, Vector3(0, 0.84, -0.06), Vector3(0.1, 0.52, 0.1), Vector3(-14, 0, 0))
-		MeshKit.part(antler, MeshKit.cone(), gold, Vector3(0, 0.46, 0.16), Vector3(0.08, 0.36, 0.08), Vector3(52, 0, 0))
-		MeshKit.part(antler, MeshKit.cone(), gold, Vector3(side * 0.16, 0.6, -0.02), Vector3(0.08, 0.36, 0.08), Vector3(0, 0, -side * 58.0))
-		MeshKit.part(antler, MeshKit.cone(), gold, Vector3(0, 0.3, -0.14), Vector3(0.07, 0.26, 0.07), Vector3(-62, 0, 0))
-		MeshKit.part(antler, MeshKit.sphere_low(), pearl, Vector3(0, 1.1, -0.12), Vector3.ONE * 0.08)
-		# Ear fins and the mane behind the cheeks.
-		MeshKit.part(head, MeshKit.sphere(), jade, Vector3(side * 0.48, 0.12, -0.16), Vector3(0.44, 0.1, 0.28), Vector3(0, side * 24.0, side * 26.0))
-		MeshKit.part(head, MeshKit.sphere(), gold, Vector3(side * 0.49, 0.13, -0.14), Vector3(0.3, 0.06, 0.17), Vector3(0, side * 24.0, side * 26.0))
-		for k in 3:
-			MeshKit.part(head, MeshKit.cone(), mane, Vector3(side * (0.38 - k * 0.04), -0.08 - k * 0.13, -0.26 - k * 0.04), Vector3(0.17, 0.4, 0.15), Vector3(-58 - k * 14.0, 0, -side * (50.0 - k * 12.0)))
-		# Long whiskers curling back from the snout.
-		var whisker := MeshKit.pivot(head, "Whisker", Vector3(side * 0.2, -0.04, 0.8), Vector3(0, -side * 40.0, 0))
-		MeshKit.part(whisker, MeshKit.capsule(), glow, Vector3(side * 0.16, 0.04, 0.0), Vector3(0.04, 0.16, 0.04), Vector3(0, 0, 90.0 + side * 14.0))
-		MeshKit.part(whisker, MeshKit.capsule(), glow, Vector3(side * 0.42, 0.04, -0.06), Vector3(0.032, 0.14, 0.032), Vector3(0, side * 26.0, 90.0 - side * 12.0))
-		MeshKit.part(whisker, MeshKit.capsule(), glow, Vector3(side * 0.62, -0.06, -0.2), Vector3(0.024, 0.12, 0.024), Vector3(0, side * 48.0, 90.0 - side * 40.0))
-		MeshKit.part(whisker, MeshKit.sphere_low(), pearl, Vector3(side * 0.7, -0.16, -0.3), Vector3.ONE * 0.05)
-	# The beard and the crest between the antlers.
-	MeshKit.part(head, MeshKit.cone(), mane, Vector3(0, -0.44, 0.3), Vector3(0.22, 0.38, 0.15), Vector3(170, 0, 0))
-	MeshKit.part(head, MeshKit.cone(), mane, Vector3(0, -0.38, 0.54), Vector3(0.15, 0.26, 0.1), Vector3(165, 0, 0))
-	for k in 3:
-		MeshKit.part(head, MeshKit.cone(), gold if k != 1 else gold_dark, Vector3(0, 0.44 - k * 0.05, -0.1 - k * 0.2), Vector3(0.15, 0.4 - k * 0.05, 0.32), Vector3(-34 - k * 10.0, 0, 0))
-	# Shoulder fins that ripple like small wings.
-	for side in [-1.0, 1.0]:
-		var fin := MeshKit.pivot(body, "Wing", Vector3(side * 0.4, 1.36, 0.62))
-		_wings.append([fin, side, 0.3])
-		MeshKit.part(fin, MeshKit.sphere(), gold, Vector3(side * 0.42, 0.02, -0.14), Vector3(0.86, 0.08, 0.42), Vector3(0, side * 20.0, 0))
-		for f in 3:
-			MeshKit.part(fin, MeshKit.sphere(), jade_light if f % 2 == 0 else belly, Vector3(side * (0.54 + f * 0.1), -0.01 - f * 0.01, -0.34 - f * 0.17), Vector3(0.76 - f * 0.1, 0.05, 0.22), Vector3(0, side * (30.0 + f * 16.0), 0))
-	# Four short legs tucked under the body, paddling the air; the front right holds a pearl.
-	var k := SKY_SCALE
-	for spec in [[Vector3(0.4, 1.02, 0.62), 0.0], [Vector3(-0.4, 1.02, 0.62), 0.6], [Vector3(0.4, 1.06, -0.86), PI], [Vector3(-0.4, 1.06, -0.86), PI + 0.6]]:
-		var leg := _leg((spec[0] as Vector3) * k, spec[1], 0.5)
-		leg.scale = Vector3.ONE * k
-		MeshKit.part(leg, MeshKit.sphere(), jade, Vector3(0, -0.08, 0), Vector3(0.36, 0.46, 0.44))
-		MeshKit.part(leg, MeshKit.capsule(), jade_dark, Vector3(0, -0.34, 0.08), Vector3(0.2, 0.2, 0.2), Vector3(28, 0, 0))
-		MeshKit.part(leg, MeshKit.sphere(), gold, Vector3(0, -0.52, 0.2), Vector3(0.26, 0.16, 0.3))
-		for t in 3:
-			MeshKit.part(leg, MeshKit.cone(), mane, Vector3((t - 1) * 0.09, -0.56, 0.36), Vector3(0.07, 0.18, 0.07), Vector3(110, (t - 1) * 20.0, 0))
-		if (spec[0] as Vector3).x > 0.0 and (spec[0] as Vector3).z > 0.0:
-			MeshKit.part(leg, MeshKit.sphere_low(), pearl, Vector3(0, -0.66, 0.3), Vector3.ONE * 0.22)
-	# The clouds it rides: puffs under the body, on the ground node so they do not bob.
-	for puff in [[Vector3(0, 0.36, 0.9), 1.1], [Vector3(0.1, 0.32, -0.3), 1.25], [Vector3(-0.1, 0.34, -1.6), 1.1], [Vector3(0.05, 0.28, -3.0), 0.95], [Vector3(-0.05, 0.26, -4.3), 0.75]]:
+	for puff in [[Vector3(0, 0.3, 1.2), 0.9], [Vector3(0.1, 0.28, -0.1), 1.15], [Vector3(-0.1, 0.3, -1.4), 1.05], [Vector3(0.05, 0.26, -2.7), 0.9], [Vector3(-0.05, 0.24, -3.9), 0.7]]:
 		var at: Vector3 = puff[0]
 		var size: float = puff[1]
 		for bit in [[Vector3.ZERO, Vector3(1.1, 0.42, 0.9), cloud], [Vector3(0.42, -0.04, 0.2), Vector3(0.7, 0.34, 0.6), cloud], [Vector3(-0.4, -0.08, -0.16), Vector3(0.74, 0.3, 0.64), cloud_shade]]:

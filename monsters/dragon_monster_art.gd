@@ -18,6 +18,9 @@ static func attach(visual: Node3D, template: Dictionary) -> void:
 	if visual == null or not template.has("aura") or visual.has_meta("dragon_aura"):
 		return
 	visual.set_meta("dragon_aura", true)
+	if visual is CelestialDragonVisual:
+		_celestial(visual as CelestialDragonVisual, template)
+		return
 	_repaint(visual, template)
 	var color: Color = template.aura
 	var boss := bool(template.get("boss", false))
@@ -73,6 +76,72 @@ static func attach(visual: Node3D, template: Dictionary) -> void:
 		_crown(root, color, h, top, front, 5, 0.75)
 	if boss and decor != "god":
 		_crown(root, color, h, top, front, 7, 1.0)
+
+
+## The eastern dragons (CelestialDragonVisual): horns, crown and mane are part of the
+## dragon's own mesh (they move with its head), so the dressing here is what stays put:
+## the ring of light, the cloud it rests on, the pearl it chases, the storm round the
+## wyvern, the god's sun-halo behind his head and the motes round him.
+static func _celestial(visual: CelestialDragonVisual, template: Dictionary) -> void:
+	var color: Color = template.aura
+	var decor := String(template.get("decor", ""))
+	var h := visual.height
+	var foot := float(template.get("hover", 0.0))
+	var root := Node3D.new()
+	root.name = "DragonAura"
+	visual.add_child(root)
+	var ring := clampf(h * 0.42, 0.8, 3.2)
+	_add(root, "ring", _glow(color, 0.5), Vector3(0, 0.05, 0), Vector3.ONE * ring)
+	_add(root, "ring", _glow(color.lightened(0.4), 0.35), Vector3(0, 0.06, 0), Vector3.ONE * ring * 0.7)
+	# The cloud it coils on (flyers: under the lowest coil).
+	var puffs := 5 if decor == "god" else 3
+	var cloud := _solid(Color("fff8ee").lerp(color, 0.1))
+	for i in puffs:
+		var a := TAU * float(i) / float(puffs) + 0.4
+		_add(root, "pearl", cloud, Vector3(cos(a) * h * 0.22, foot * 0.5 + h * 0.03, sin(a) * h * 0.2 - h * 0.04), Vector3(h * 0.4, h * 0.12, h * 0.34))
+	var nose := visual.point("nose")
+	var skull := visual.point("skull")
+	match decor:
+		"pearl", "cloud":
+			# The pearl a dragon chases, held before its nose.
+			_pearl(root, color, nose + Vector3(h * 0.24, -h * 0.3, h * 0.02), h * (0.07 if decor == "cloud" else 0.09))
+		"sparks":
+			for i in 5:
+				var a := TAU * float(i) / 5.0
+				_add(root, "spike", _glow(Color("fff2a0"), 0.9), Vector3(cos(a) * h * 0.62, foot + h * (0.3 + 0.18 * float(i % 3)), sin(a) * h * 0.62),
+					Vector3(h * 0.04, h * 0.3, h * 0.04), Vector3(0.9 * sin(a), a, 0.9 * cos(a)))
+		"horns":
+			# Jade motes drifting round the old dragon.
+			for i in 4:
+				var a := TAU * float(i) / 4.0 + 0.5
+				_add(root, "pearl", _glow(color.lightened(0.3), 0.8), Vector3(cos(a) * h * 0.55, h * (0.35 + 0.15 * float(i % 2)), sin(a) * h * 0.55), Vector3.ONE * h * 0.05)
+		"god":
+			_god_celestial(root, color, template.get("halo", Color("7df0c4")), h, skull, nose)
+
+
+## The Dragon God's sun-halo behind his head, the great pearl before him, motes round him.
+static func _god_celestial(root: Node3D, color: Color, halo: Color, h: float, skull: Vector3, nose: Vector3) -> void:
+	var gold := _solid(Color("ffd35a"))
+	var bright := _glow(Color("fff2b0"), 0.9)
+	_add(root, "ring", _glow(halo, 0.4), Vector3(0, 0.07, 0), Vector3.ONE * h * 0.75)
+	var centre := Vector3(0, skull.y + h * 0.04, skull.z - h * 0.24)
+	var radius := h * 0.3
+	_add(root, "ring", gold, centre, Vector3.ONE * radius, Vector3(PI * 0.5, 0, 0))
+	_add(root, "ring", _glow(halo, 0.6), centre, Vector3.ONE * radius * 0.84, Vector3(PI * 0.5, 0, 0))
+	_add(root, "disc", _glow(halo, 0.08), centre + Vector3(0, 0, -0.02), Vector3.ONE * radius, Vector3(PI * 0.5, 0, 0))
+	for i in 12:
+		var a := TAU * float(i) / 12.0
+		var long := i % 2 == 0
+		var reach := radius * (1.0 + (0.34 if long else 0.22))
+		_add(root, "spike", gold if long else bright, centre + Vector3(cos(a) * reach, sin(a) * reach, 0),
+			Vector3(radius * 0.13, radius * (0.62 if long else 0.38), radius * 0.05), Vector3(0, 0, a - PI * 0.5))
+	# The dragon pearl, burning before him in its two orbits.
+	var pearl := Vector3(0, nose.y - h * 0.16, nose.z + h * 0.1)
+	_pearl(root, color, pearl, h * 0.08)
+	_add(root, "ring", _glow(halo, 0.8), pearl, Vector3.ONE * h * 0.14, Vector3(-0.6, 0.4, 0.9))
+	for i in 8:
+		var a := TAU * float(i) / 8.0 + 0.2
+		_add(root, "pearl", bright, Vector3(cos(a) * h * 0.62, h * (0.12 + 0.18 * float(i % 4)), sin(a) * h * 0.62), Vector3.ONE * h * 0.035)
 
 
 ## Repaints the rig's flat materials by name (template "paint": {material name: colour}),
