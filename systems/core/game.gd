@@ -645,6 +645,7 @@ func slot_overview(for_slot: int) -> Dictionary:
 	var repaired := _repair(raw)
 	out["look"] = repaired.get("look", {})
 	out["equip"] = repaired.equip
+	out["costume"] = _worn_costume(repaired)
 	return out
 
 
@@ -665,7 +666,14 @@ func slot_profile_preview(for_slot: int) -> Dictionary:
 		return {}
 	var repaired := _repair(raw)
 	return {"class": repaired["class"], "adv": repaired.adv,
-		"look": repaired.get("look", {}), "equip": repaired.equip}
+		"look": repaired.get("look", {}), "equip": repaired.equip, "costume": _worn_costume(repaired)}
+
+
+## The reward-shop costume a saved profile wears ("" for none or an unknown id).
+static func _worn_costume(profile_data: Dictionary) -> String:
+	var shop: Variant = profile_data.get(RewardShop.KEY)
+	var id := String((shop as Dictionary).get("cos", "")) if shop is Dictionary else ""
+	return id if RewardShop.COSTUMES.has(id) else ""
 
 
 func last_slot() -> int:
