@@ -46,6 +46,9 @@ const TICK := 1.0
 const MAX_KEPT := 3000
 const MAX_KILLS := 100000
 const MAX_CAPTURES := 1000
+## The server lets a fought round replace a seeded one this long after the bell
+## (league.mjs FOUGHT_GRACE).
+const FOUGHT_GRACE := 1800.0
 
 ## at -> result from the server.
 static var official := {}
@@ -71,6 +74,11 @@ static var _pending := {}
 static var _posted := {}
 ## Rounds this device fought or watched to the end: posted without waiting.
 static var _real := {}
+## at -> this device's fought or watched result of it, kept even when the server already
+## holds a seeded one: it is posted as fought (f: 1) and replaces that for FOUGHT_GRACE.
+static var _mine := {}
+## at -> true once the fought result was sent after the server already had a result.
+static var _claimed := {}
 static var _fetched := false
 static var _fetch_at := 0.0
 static var _last_fetch := -INF
@@ -130,6 +138,7 @@ static func record_real(at: int, result: Dictionary) -> void:
 	if r.is_empty():
 		return
 	_real[at] = true
+	_mine[at] = r
 	_posted.erase(at)
 	if official.has(at):
 		return
@@ -158,6 +167,8 @@ static func reset() -> void:
 	seen.clear()
 	_pending.clear()
 	_posted.clear()
+	_mine.clear()
+	_claimed.clear()
 	_real.clear()
 	_fetched = false
 	_fetch_at = 0.0
@@ -351,7 +362,16 @@ static func due(t: float) -> Array[int]:
 	while at <= w.y:
 		var bell := float(at) + GuildWarData.DURATION
 		var wait := -SERVER_MARGIN if _real.has(at) else POST_DELAY
-		if t >= bell + wait and not official.has(at):
+		# The hero is in this round's war right now (overtime runs past the bell): its
+		# real result is coming, so no seeded guess is posted for it.
+		if not _real.has(at) and int(GuildLeague.current_match.get("at", -1)) == at:
+			at = GuildLeague.next_slot(float(at))
+			continue
+		# The server already has a result but this device fought the round: its fought
+		# result is sent once (the server keeps it over a seeded one for FOUGHT_GRACE).
+		if _mine.has(at) and official.has(at) and not _claimed.has(at) and official[at] != _mine[at] and t <= bell + FOUGHT_GRACE:
+			out.append(at)
+		elif t >= bell + wait and not official.has(at):
 			var last := float(_posted.get(at, -INF))
 			var never_tried := last == -INF
 			var retry := last >= 0.0 and t - last >= RETRY
@@ -372,7 +392,13 @@ static func _post_due(link: Object, t: float) -> void:
 			if _real.has(a):
 				at = a
 				break
-	var r := result_of(at)
+	var r: Dictionary = result_of(at)
+	if _mine.has(at):
+		# Fought or watched to the bell: sent as such.
+		r = (_mine[at] as Dictionary).duplicate()
+		r["f"] = 1
+		if official.has(at):
+			_claimed[at] = true
 	if r.is_empty():
 		GuildLeague.holder_after(at)  # works the round out (and freezes it)
 		r = result_of(at)

@@ -253,7 +253,7 @@ party members of one guild in one round share **one** war:
   round as the host records it: guilds in team order, start holder, captures, falls, the
   holder at the bell, the placement). The mirror records exactly that round
   (`GuildLeague.war_finished`), so every member's league, coins and the result posted to
-  `/api/league/round` are the host's (the server keeps the first one posted anyway).
+  `/api/league/round` are the host's (the server keeps the first one posted; a fought result, `f: 1`, replaces a seeded one for `FOUGHT_GRACE` after the bell).
 - **Invite.** A party leader entering a league round sends `gw_invite {room}` (nothing
   held). A member gets a prompt only when it may come (same guild, registered for that
   round, in the line-up, Lv.100); otherwise a Thai line says why (`OnlineGuildWar.league_problem`).

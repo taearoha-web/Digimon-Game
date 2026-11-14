@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import worker from '../worker.mjs';
-import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE} from '../league.mjs';
+import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE, FOUGHT_GRACE} from '../league.mjs';
 import {D1Sqlite} from '../../accounts/tests/d1-sqlite.mjs';
 
 const ORIGIN = 'https://toon.example';
@@ -80,6 +80,32 @@ test('an ended round is stored once: first writer wins, later posts get the stor
   assert.deepEqual(list.body.rounds, [{at: AT, result: result()}]);
   assert.equal(list.body.now, AFTER);
   assert.equal(h.DB.sqlite.prepare('SELECT count(*) AS n FROM toon_league_rounds').get().n, 1);
+});
+
+test('a fought round replaces a seeded one posted before it, once, within the grace', async () => {
+  const h = harness();
+  const seeded = result();
+  assert.equal((await h.post({at: AT, result: seeded})).status, 201);
+  const fought = {...result(AT, {held: 2, c: [0, 2, 0, 0]}), f: 1};
+  const claim = await h.post({at: AT, result: fought}, {from: h.nextIp()});
+  assert.equal(claim.status, 201);
+  assert.equal(claim.body.stored, true);
+  assert.deepEqual(claim.body.round.result, fought, 'the fought result is the round now');
+  // A second fought result does not replace the first, nor does a seeded one.
+  const late = {...result(AT, {held: 3, c: [0, 0, 1, 0]}), f: 1};
+  const again = await h.post({at: AT, result: late}, {from: h.nextIp()});
+  assert.equal(again.body.stored, false);
+  assert.deepEqual(again.body.round.result, fought);
+  assert.deepEqual((await h.post({at: AT, result: seeded}, {from: h.nextIp()})).body.round.result, fought);
+  assert.equal(h.DB.sqlite.prepare('SELECT count(*) AS n FROM toon_league_rounds').get().n, 1);
+  // After the grace a seeded round stays whatever comes.
+  const h2 = harness();
+  await h2.post({at: AT, result: seeded});
+  const tooLate = await h2.post({at: AT, result: fought}, {now: AT + DURATION + FOUGHT_GRACE + 1, from: h2.nextIp()});
+  assert.equal(tooLate.body.stored, false);
+  assert.deepEqual(tooLate.body.round.result, seeded);
+  // f must be 1 when present.
+  assert.equal((await h2.post({at: AT, result: {...seeded, f: 2}}, {from: h2.nextIp()})).status, 400);
 });
 
 test('the deciding round (Sunday 20:30, ×2 in the game) is stored raw like any other round', async () => {
