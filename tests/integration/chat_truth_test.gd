@@ -338,6 +338,10 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 			var id: StringName = z[1]
 			check(id == SkyIsleData.ID or id == DrownedAbyssData.ID or id == DivineRegionData.ID or facts.any(func(f): return (f.fields as Dictionary).has(id)), "%s is the speaker's field (%s)" % [z[0], tag])
 			rest = rest.replace(String(z[0]), "#")
+	# The Dragon God's name is also part of his gear's names (อาวุธเทพมังกร, ปีกเทพมังกร,
+	# ชุดเทพมังกร): those are items, not a claim about the boss.
+	for item_word in ["อาวุธเทพมังกร", "ปีกเทพมังกร", "ชุดเทพมังกร", "ผ้าคลุมจักรพรรดิเทพมังกร"]:
+		rest = rest.replace(item_word, "#")
 	for boss in _bosses:
 		if rest.contains(String(boss)):
 			_count("boss")
