@@ -116,6 +116,12 @@ const WEATHER := {
 		{"amount": 44, "life": 7.0, "size": 0.1, "color": Color(1.0, 0.9, 0.55, 0.8), "add": true, "dir": Vector3(0.2, 0.3, 0.1), "spread": 60.0, "speed": [0.2, 0.6], "y": 2.0, "box": Vector3(26, 1.5, 26), "pulse": true},
 		{"amount": 18, "life": 9.0, "size": Vector2(0.12, 0.3), "color": Color(1.0, 1.0, 1.0, 0.9), "dir": Vector3(0.4, -1, 0.2), "spread": 35.0, "speed": [0.3, 0.7], "gravity": Vector3(0.4, -0.15, 0.2), "y": 10.0, "scale": [0.6, 1.0]},
 	],
+	# เกาะลอยฟ้าเทพมังกร: gold leaves on the high wind, streaks of wind, drifting light.
+	&"windstream": [
+		{"amount": 40, "life": 6.0, "size": Vector2(0.16, 0.11), "color": Color("ffd257"), "dir": Vector3(0.82, -0.35, 0.57), "spread": 26.0, "speed": [1.2, 2.4], "gravity": Vector3(0.5, -0.2, 0.35), "y": 7.0, "scale": [0.6, 1.1]},
+		{"amount": 22, "life": 2.6, "size": Vector2(0.9, 0.035), "color": Color(1.0, 1.0, 1.0, 0.4), "dir": Vector3(0.82, 0.0, 0.57), "spread": 4.0, "speed": [7.0, 10.0], "y": 2.2, "box": Vector3(26, 2.0, 26), "scale": [0.6, 1.6]},
+		{"amount": 30, "life": 8.0, "size": 0.08, "color": Color(1.0, 0.92, 0.6, 0.7), "add": true, "dir": Vector3(0.3, 0.2, 0.2), "spread": 60.0, "speed": [0.2, 0.6], "y": 1.6, "box": Vector3(26, 1.4, 26), "pulse": true},
+	],
 	# The drowned abyss: rising bubbles and drifting glow plankton.
 	&"bubbles": [
 		{"amount": 52, "life": 6.0, "size": 0.2, "color": Color(0.65, 0.95, 1.0, 0.6), "add": true, "dir": Vector3(0, 1, 0), "spread": 12.0, "speed": [0.7, 1.5], "y": 0.3, "box": Vector3(26, 0.5, 26), "ring": true, "scale": [0.5, 1.4]},
@@ -449,7 +455,7 @@ func _build_field() -> void:
 	var fog: Color = data.get("fog", sky.lerp(Color.WHITE, 0.35))
 	_env = Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)), _sky_look())
 	_ambient_base = _env.environment.ambient_light_energy
-	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID:
+	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID or zone_id == SkyIsleData.ID:
 		await _build_star_field()
 		return
 	var story := bool(data.get("story_stage", false))
@@ -537,12 +543,15 @@ func _build_field() -> void:
 func _build_star_field() -> void:
 	var divine := zone_id == DivineRegionData.ID
 	var deep := zone_id == DrownedAbyssData.ID
+	var isle := zone_id == SkyIsleData.ID
 	var layout := DrownedAbyssArt.layout() if deep else (DivineRegionArt.layout() if divine else StarRegionArt.layout(zone_id))
+	if isle: layout = SkyIsleArt.layout()
 	_start = layout.spawn
 	_boss_spot = layout.boss_pos
 	# Built over a few frames behind the travel fade, like the other fields.
 	var pace := get_tree() if staged and is_inside_tree() else null
-	if deep: await DrownedAbyssArt.build(self, zone_id, pace)
+	if isle: await SkyIsleArt.build(self, zone_id, pace)
+	elif deep: await DrownedAbyssArt.build(self, zone_id, pace)
 	elif divine: await DivineRegionArt.build(self, zone_id, pace)
 	else: await StarRegionArt.build(self, zone_id, pace)
 	for source in data.camps:
@@ -567,6 +576,22 @@ func _build_star_field() -> void:
 		_make_weather(StringName(data.get("weather", &"")))
 		if StoryChapter2.portal_open():
 			add_story_portal()
+	if isle:
+		# เกาะลอยฟ้าเทพมังกร: its wind and leaves, the stele at the entrance naming the
+		# drops (SkyIsleData.drop_text) and the name of the Dragon God's court.
+		_make_weather(StringName(data.get("weather", &"")))
+		for sign in [[SkyIsleArt.sign_spot() + Vector3(0, 3.6, 0), "%s • ดาว %d ขึ้นไป\nดรอป: %s" % [SkyIsleData.TITLE, SkyIsleData.ENTRY_STAR, SkyIsleData.drop_text()], 40],
+				[_boss_spot + Vector3(0, 4, 0), "ลานศาลเทพมังกร • ดาว %d" % SkyIsleData.ENTRY_STAR, 48]]:
+			var plaque := Label3D.new()
+			plaque.text = sign[1]
+			plaque.position = sign[0]
+			plaque.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			plaque.font_size = sign[2]
+			plaque.outline_size = 10
+			plaque.modulate = Color("fff0c2")
+			plaque.pixel_size = 0.005
+			plaque.visibility_range_end = 32
+			add_child(plaque)
 	if int(data.boss.get("star",0)) == 200:
 		var label := Label3D.new()
 		label.text = ("ลานบัลลังก์ราชันสมุทร • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว" if deep else "วิหารบัวดารา • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว") if deep or divine else "บัลลังก์สุริยคราส • ดาว 200"

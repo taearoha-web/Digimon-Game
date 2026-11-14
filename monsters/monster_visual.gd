@@ -138,6 +138,14 @@ func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
 			continue
 		if not GameSettings.world_shadows():
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# The outline grows in the mesh's own space: the FBX rigs (dawn/Bat, dawn/Dragon,
+		# dawn/Slime) carry a x100 node scale, which would blow it up into shards.
+		var nested := 1.0
+		var up: Node = mi
+		while up != model and up is Node3D:
+			nested *= absf((up as Node3D).scale.x)
+			up = up.get_parent()
+		var mesh_width := width / maxf(nested, 0.0001)
 		for i in mi.mesh.get_surface_count():
 			var source := mi.get_active_material(i) as StandardMaterial3D
 			if source and skin:
@@ -146,7 +154,7 @@ func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
 				painted.set_meta("storybook_key", "%s|%s" % [source.resource_path, skin.resource_path])
 				source = painted
 			if source:
-				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, width, _soft_body))
+				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, mesh_width, _soft_body))
 
 
 func _process(delta: float) -> void:
