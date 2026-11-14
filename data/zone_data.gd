@@ -245,6 +245,9 @@ static func ensure() -> void:
 	# The 200★-300★ levelling field lies beyond the sanctuary.
 	ZONES[DivineRegionData.ID]["next"] = DrownedAbyssData.ID
 	ZONES[DrownedAbyssData.ID] = DrownedAbyssData.zone()
+	# The ★300 field lies beyond the abyss.
+	ZONES[DrownedAbyssData.ID]["next"] = SkyIsleData.ID
+	ZONES[SkyIsleData.ID] = SkyIsleData.zone()
 
 static func get_zone(id: StringName) -> Dictionary:
 	ensure()

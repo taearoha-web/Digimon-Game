@@ -1641,6 +1641,10 @@ func _drop_loot(mob: Mob) -> void:
 	if bool(data.get("endgame_loot", false)):
 		_endgame_loot(mob, from)
 		return
+	# เกาะลอยฟ้าเทพมังกร has its own table (SkyIsleLoot).
+	if bool(data.get("sky_isle_loot", false)):
+		_sky_isle_loot(mob, from)
+		return
 	if StarProgression.is_region(zone_id):
 		_star_loot(mob, from)
 		return
@@ -1772,6 +1776,15 @@ func _endgame_loot(mob: Mob, from: Vector3) -> void:
 			Game.say("%sตกแล้ว! ใช้ผสมแหวน/สร้อยชุดเซต 250 ดาวที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
 		elif item.get("slot", "") == "wings":
 			Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
+
+
+## เกาะลอยฟ้าเทพมังกร: SkyIsleLoot.kill_drops, the jackpots told to the whole server.
+func _sky_isle_loot(mob: Mob, from: Vector3) -> void:
+	var elite := bool(mob.template.get("elite", false))
+	for item in SkyIsleLoot.kill_drops(Game.class_id(), mob.is_boss, elite, _drop_fortune(), rng):
+		_spawn_loot(item, 0, from)
+		if SkyIsleLoot.is_jackpot(item):
+			SkyIsleLoot.announce(item)
 
 
 ## Chance that a ★ region kill drops a piece of that region's ★ gear.
