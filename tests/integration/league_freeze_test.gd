@@ -45,6 +45,12 @@ class FakeServer:
 			posts.append(b)
 			if LeagueRounds.now() < float(at) + GuildWarData.DURATION - LeagueRounds.SERVER_MARGIN:
 				status = 409
+			elif rounds.has(at) and int((b.result as Dictionary).get("f", 0)) == 1 and int((rounds[at] as Dictionary).get("f", 0)) != 1 \
+					and LeagueRounds.now() <= float(at) + GuildWarData.DURATION + LeagueRounds.FOUGHT_GRACE:
+				# A fought round replaces a seeded one (league.mjs FOUGHT_GRACE).
+				rounds[at] = b.result
+				status = 201
+				out = {"stored": true, "round": {"at": at, "result": b.result}}
 			elif rounds.has(at):
 				status = 200
 				out = {"stored": false, "round": {"at": at, "result": rounds[at]}}
@@ -298,11 +304,13 @@ func _hero_round(w: int) -> void:
 	for i in 4:
 		LeagueRounds.poll()
 	check(server.rounds.has(at) and int(server.rounds[at].held) == WorldPlayers.TITAN, "the hero's real result is the round's official one")
+	check(int(server.rounds[at].get("f", 0)) == 1, "posted as a fought round")
 	check(GuildLeague.holder_after(at) == WorldPlayers.TITAN, "and the castle is Titan's")
-	# A round the server already has: the hero's own result does not replace it.
+	# A round other players already fought (the server's is a fought one): the hero's own
+	# result does not replace it.
 	var at2 := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 3, 1)
 	pin(float(at2) + GuildWarData.DURATION + 2.0)
-	var theirs := {"at": at2, "g": [1, 2, 3, 4], "k": [30, 1, 1, 1], "c": [2, 0, 0, 0], "held": 1, "own": 3}
+	var theirs := {"at": at2, "g": [1, 2, 3, 4], "k": [30, 1, 1, 1], "c": [2, 0, 0, 0], "held": 1, "own": 3, "f": 1}
 	server.rounds[at2] = theirs
 	GuildLeague.current_match = {"guilds": [3, 1, 2, 4], "at": at2, "owner": 0}
 	GuildLeague.war_finished({"won": true}, true, [2, 0, 0, 0], 0, [44, 9, 8, 7])
@@ -310,5 +318,22 @@ func _hero_round(w: int) -> void:
 		LeagueRounds.poll()
 	check(int(server.rounds[at2].held) == WorldPlayers.ALPHA, "the server keeps the first result")
 	check(GuildLeague.holder_after(at2) == WorldPlayers.ALPHA and GuildLeague.holder(w, GuildLeague.real_wars(w)) == WorldPlayers.ALPHA, "and every device follows it, the hero's too")
+	# Another device's seeded guess reached the server first (the war ran into overtime):
+	# the hero's fought result still becomes the round's.
+	var at3 := GuildLeague.next_slot(float(at2))
+	pin(float(at3) + GuildWarData.DURATION + 120.0)
+	var own3 := GuildLeague.start_holder(at3)
+	GuildLeague.current_match = {"guilds": [3, 1, 2, 4], "at": at3, "owner": own3}
+	check(not LeagueRounds.due(GuildLeague.now()).has(at3), "no seeded guess is posted for the round the hero is still fighting")
+	var guess := {"at": at3, "g": [1, 2, 3, 4], "k": [30, 27, 50, 25], "c": [1, 0, 0, 2], "held": 4, "own": own3}
+	server.rounds[at3] = guess
+	LeagueRounds.adopt(at3, guess)
+	GuildLeague.war_finished({"won": true}, true, [3, 0, 0, 0], 0, [61, 9, 8, 7])
+	check(LeagueRounds.due(GuildLeague.now()).has(at3), "the fought result is due although the server has a guess")
+	for i in 4:
+		LeagueRounds.poll()
+	check(int(server.rounds[at3].held) == WorldPlayers.TITAN and int(server.rounds[at3].get("f", 0)) == 1, "the fought result replaced the seeded guess on the server")
+	check(int(LeagueRounds.official_of(at3).held) == WorldPlayers.TITAN and GuildLeague.holder_after(at3) == WorldPlayers.TITAN, "and this device reads the castle with the hero's guild")
+	check(not LeagueRounds.due(GuildLeague.now()).has(at3), "sent once")
 	var state := GuildLeague.round_state(at2)
 	check(bool(state.get("real", false)) and bool(state.get("official", false)) and int(state.war.held) == WorldPlayers.ALPHA, "the desk shows the official result, marked as fought")

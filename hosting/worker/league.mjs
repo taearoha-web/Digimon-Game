@@ -36,6 +36,10 @@ export const MAX_RANGE = 21 * 86400;
 export const MAX_KILLS = 100000;
 export const MAX_CAPTURES = 1000;
 export const MAX_BODY_BYTES = 2048;
+/** A round a hero really fought (or watched) to the bell replaces a seeded result posted
+ * before it for this long after the bell (overtime, a slow connection). The first fought
+ * result then stays for good. */
+export const FOUGHT_GRACE = 1800;
 /** Per IP: [action, at most, window seconds]. */
 export const LIMITS = {
   league_get: [120, 600],
@@ -87,7 +91,8 @@ export function isSlot(at) {
 export function cleanResult(at, result) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return 'result must be an object';
   const keys = Object.keys(result);
-  for (const key of keys) if (!['at', 'g', 'k', 'c', 'held', 'own'].includes(key)) return `unknown key ${key}`;
+  for (const key of keys) if (!['at', 'g', 'k', 'c', 'held', 'own', 'f'].includes(key)) return `unknown key ${key}`;
+  if (result.f !== undefined && result.f !== 1) return 'f must be 1 when present';
   if (result.at !== at) return 'result.at must equal at';
   const {g, k, c} = result;
   if (!Array.isArray(g) || !Array.isArray(k) || !Array.isArray(c)) return 'g, k and c must be arrays';
@@ -100,7 +105,10 @@ export function cleanResult(at, result) {
   if (!isInt(result.held, 0, 4) || (result.held !== 0 && !g.includes(result.held))) return 'held must be 0 or one of the round\'s guilds';
   if (!isInt(result.own, 0, 4)) return 'own must be 0 to 4';
   if (g.length === 0 && (result.held !== 0)) return 'a round nobody fought has no holder';
-  return {at, g: [...g], k: [...k], c: [...c], held: result.held, own: result.own};
+  const out = {at, g: [...g], k: [...k], c: [...c], held: result.held, own: result.own};
+  // f: 1 marks a round a hero fought or watched to the bell (not this device's seeded guess).
+  if (result.f === 1 && g.length > 0) out.f = 1;
+  return out;
 }
 
 /** Counts one call of `action` from the request's IP; a Response (429) when over the limit. */
@@ -173,8 +181,19 @@ async function postRound(request, env, now) {
     env.DB.prepare('INSERT OR IGNORE INTO toon_league_rounds (at, result, created_at) VALUES (?, ?, ?)').bind(at, JSON.stringify(result), now),
     env.DB.prepare('SELECT at, result FROM toon_league_rounds WHERE at = ?').bind(at),
   ]);
-  const stored = Number(insert.meta?.changes ?? 0) > 0;
-  const round = rowOf(read.results[0]);
+  let stored = Number(insert.meta?.changes ?? 0) > 0;
+  let round = rowOf(read.results[0]);
+  // ...except that a fought round replaces a seeded one posted before it, for a while after
+  // the bell: the players who were in the war decide it, not a device that only guessed.
+  if (!stored && result.f === 1 && round && round.result?.f !== 1 && now <= at + DURATION + FOUGHT_GRACE) {
+    const before = JSON.stringify(round.result);
+    const [update, again] = await env.DB.batch([
+      env.DB.prepare('UPDATE toon_league_rounds SET result = ? WHERE at = ? AND result = ?').bind(JSON.stringify(result), at, before),
+      env.DB.prepare('SELECT at, result FROM toon_league_rounds WHERE at = ?').bind(at),
+    ]);
+    stored = Number(update.meta?.changes ?? 0) > 0;
+    round = rowOf(again.results[0]);
+  }
   return json({stored, round}, stored ? 201 : 200);
 }
 
