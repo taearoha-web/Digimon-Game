@@ -1389,6 +1389,9 @@ func _valid_item(value: Variant) -> bool:
 	# A 250-star set piece (SetGearData): its class, slot, base and Lv.350 must agree.
 	if item.has("set_gear") and (item.has("star_tier") or item.has("collection") or not SetGearData.valid(item)):
 		return false
+	# A Dragon God weapon or pair of 300★ wings (DragonGearData): fixed fields, stats in range.
+	if item.has(DragonGearData.KEY) and not DragonGearData.valid(item):
+		return false
 	# A pair of the Legendary Guild Wings (LegendWings): its fixed fields and stats.
 	if (item.has("legend_week") or item.has("legend_guild")) and not LegendWings.valid_item(item):
 		return false
@@ -1611,6 +1614,10 @@ func _repair_item(item: Dictionary) -> void:
 	# Older saves may hold gear above the star cap (the 250-star set pieces are
 	# Lv.350 by design: SetGearData.LEVEL).
 	var level_cap := maxi(ItemData.MAX_GEAR_LEVEL, SetGearData.LEVEL) if SetGearData.is_item(item) else ItemData.MAX_GEAR_LEVEL
+	# The Dragon God's gear is Lv.400 (★300: DragonGearData.LEVEL).
+	if DragonGearData.is_item(item):
+		level_cap = maxi(level_cap, DragonGearData.LEVEL)
+		item[DragonGearData.KEY] = 1
 	if item.has("level") and int(item.level) > level_cap:
 		item["level"] = level_cap
 	for key in ["count", "rarity", "level", "price", "plus", "sockets"]:
@@ -1987,6 +1994,9 @@ func tower_reroll_wings(item: Dictionary) -> String:
 	if int(tower().shards) < TowerData.COST_REROLL:
 		return "ผลึกไม่พอ (ต้องใช้ %d)" % TowerData.COST_REROLL
 	var fresh := StarWingData.item(String(item.get("wing","warrior")),rng) if StarWingData.is_wing(item) else ItemData.wings(rng, String(item.get("wing", "warrior")))
+	# The 300★ Dragon God wings stay what they are: a fresh roll inside their own range.
+	if DragonGearData.is_wings(item):
+		fresh = DragonGearData.wings(StringName(DragonGearData.item_class(item)), rng)
 	tower_spend(TowerData.COST_REROLL)
 	item["stats"] = fresh.stats
 	item["rarity"] = fresh.rarity
@@ -3107,7 +3117,7 @@ func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 		var item: Dictionary = profile["inv"][i]
 		# Wings, the forged 250★ set pieces and everything that is not gear (potions, gems,
 		# jewels, reward-shop costumes) are never sold off in bulk.
-		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item):
+		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item) or DragonGearData.is_item(item):
 			continue
 		if not other_ok and is_other_class(item):
 			continue
@@ -3171,7 +3181,7 @@ func is_other_class(item: Dictionary) -> bool:
 
 ## Gold a picked-up [param item] is sold for at once (sells_other_class), 0 to keep it.
 func pickup_sale(item: Dictionary) -> int:
-	if not has_profile or not sells_other_class() or not is_other_class(item) or item.get("slot", "") == "wings":
+	if not has_profile or not sells_other_class() or not is_other_class(item) or item.get("slot", "") == "wings" or DragonGearData.is_item(item):
 		return 0
 	if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
 		return 0
@@ -3181,7 +3191,7 @@ func pickup_sale(item: Dictionary) -> int:
 ## Whether a drop is kept: potions, gems, jewels, gold and wings always are; gear only
 ## when its grade is switched on in the pickup filter (gear of every class alike).
 func keeps_loot(item: Dictionary) -> bool:
-	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings":
+	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or DragonGearData.is_item(item):
 		return true
 	return (loot_mask() >> clampi(int(item.get("rarity", 0)), 0, 4)) & 1 == 1
 

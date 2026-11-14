@@ -229,6 +229,10 @@ function validateProfile(profile) {
   // old storage, never worn as gear (the worn one is rshop.cos) and never on a stall.
   if ([...(profile.inv ?? []), ...(profile.storage ?? [])].some(item => costumeItem(item) && !validCostumeItem(item))
       || Object.values(profile.equip ?? {}).some(costumeItem)) fail(400, 'invalid_save', 'A costume item is invalid.');
+  // The Dragon God's gear (DragonGearData in the game): the weapon and the 300-star wings.
+  if ([...(profile.inv ?? []), ...(profile.storage ?? []), ...Object.values(profile.equip ?? {}),
+       ...(Array.isArray(profile.stall?.lots) ? profile.stall.lots.map(lot => lot?.item) : [])]
+      .some(item => dragonGear(item) && !validDragonGear(item))) fail(400, 'invalid_save', 'A Dragon God item is invalid.');
   // The hero's guild (flags.guild): none (0) or one of the world's four (Alpha 1, Neverdie 2,
   // Titan 3, 3DLnw 4); flags.guild4 marks a save that went through the four-guild re-pick.
   if (profile.flags && 'guild' in profile.flags && !integer(profile.flags.guild, 0, GUILD_COUNT)) fail(400, 'invalid_save', 'The character guild is invalid.');
@@ -268,6 +272,27 @@ function validateProfile(profile) {
         || log.some(entry => !dictionary(entry))) fail(400, 'invalid_save', 'The character stall is invalid.');
   }
   if (ENCODER.encode(JSON.stringify(profile)).byteLength > MAX_PROFILE_BYTES) fail(413, 'save_too_large', 'Each character save must be at most 1 MiB.');
+}
+
+// The Dragon God's gear (DragonGearData in the game: keep these equal): a weapon of the
+// class's own kind or a pair of 300-star wings, marked dragon: 1, Lv.400 (worn from 300
+// stars), mythic (4), of one class, +0 to +15, and never a star, divine, set or legend piece.
+const DRAGON_LEVEL = 400;
+const DRAGON_WEAPONS = {warrior: 'sword', archer: 'bow', lancer: 'spear', mage: 'staff', priest: 'wand', summoner: 'lantern',
+  defender: 'greatshield', assassin: 'dagger', darklord: 'scepter', bard: 'lute'};
+const DRAGON_STATS = new Set(['atk', 'matk', 'def', 'hp', 'mp', 'crit']);
+const dragonGear = item => dictionary(item) && 'dragon' in item;
+function validDragonGear(item) {
+  if (item.dragon !== 1 || item.kind !== 'equip' || item.level !== DRAGON_LEVEL || item.rarity !== 4) return false;
+  if (typeof item.class !== 'string' || !(item.class in DRAGON_WEAPONS) || !Object.hasOwn(DRAGON_WEAPONS, item.class)) return false;
+  if (['star_tier', 'star_class', 'set_gear', 'collection', 'legend_week', 'legend_guild'].some(key => key in item)) return false;
+  if (!integer(item.plus ?? 0, 0, 15) || !integer(item.sockets ?? 0, 0, 4)) return false;
+  if (item.slot === 'weapon') {
+    if (item.base !== DRAGON_WEAPONS[item.class]) return false;
+  } else if (item.slot !== 'wings' || item.base !== 'wings' || item.wing !== item.class) return false;
+  const stats = item.stats ?? {};
+  return dictionary(stats) && Object.entries(stats).every(([key, value]) => DRAGON_STATS.has(key)
+    && typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100_000);
 }
 
 // The world's guilds: Alpha 1, Neverdie 2, Titan 3, 3DLnw 4 (WorldPlayers.GUILDS in the game).
@@ -406,6 +431,7 @@ function validateSharedStorage(bundle) {
     fail(400, 'invalid_save', `The shared storage must be a list of at most ${MAX_SHARED_STORAGE} items.`);
   }
   if ((bundle.storage ?? []).some(item => costumeItem(item) && !validCostumeItem(item))) fail(400, 'invalid_save', 'A costume item in the shared storage is invalid.');
+  if ((bundle.storage ?? []).some(item => dragonGear(item) && !validDragonGear(item))) fail(400, 'invalid_save', 'A Dragon God item in the shared storage is invalid.');
   if ('storageMigrated' in bundle) {
     const record = bundle.storageMigrated;
     if (!dictionary(record) || Object.keys(record).length > MAX_STORAGE_KEYS

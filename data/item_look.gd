@@ -73,6 +73,7 @@ static func _kind_of_base(base: String) -> String:
 static func look_of(item: Dictionary) -> String:
 	if ItemData.is_costume(item): return "costume_" + String(item.get("id", ""))
 	if LegendWings.is_item(item): return "%s_%d" % [LegendWings.LOOK, int(item.get("legend_guild", 0))]
+	if DragonGearData.is_item(item): return DragonGearData.look_of(item)
 	if SetGearData.is_item(item): return SetGearData.look_of(item)
 	if StarGearData.is_star(item): return StarGearData.look_of(item)
 	if item.get("kind", "") != "equip":
@@ -165,6 +166,7 @@ static func all_icon_ids() -> Array[String]:
 		ids.append("wings_" + cls)
 	for piece in SetGearData.catalogue():
 		ids.append(SetGearData.look_of(piece))
+	ids.append_array(DragonGearData.icon_ids())
 	for costume_id in RewardShop.COSTUMES:
 		ids.append("costume_" + costume_id)
 	for g in range(1, 5):
@@ -176,6 +178,7 @@ static func all_icon_ids() -> Array[String]:
 static func build_icon_node(id: String) -> Node3D:
 	if id.begins_with("star_"): return StarGearArt.build_icon_node(id)
 	if id.begins_with("set_"): return SetGearArt.build_icon_node(id)
+	if id.begins_with("dragon_"): return DragonGearArt.build_icon_node(id)
 	if id.begins_with("costume_"): return costume_icon_node(id.trim_prefix("costume_"))
 	var kind := id.rsplit("_", true, 1)[0]
 	var holder := Node3D.new()
