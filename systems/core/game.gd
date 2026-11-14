@@ -2280,7 +2280,7 @@ func owned_mounts() -> Array:
 	var out: Array = []
 	var levels: Variant = profile.get("mounts", {})
 	if levels is Dictionary:
-		for id in MountData.ORDER:
+		for id in MountData.ALL:
 			if int(levels.get(id, 0)) > 0:
 				out.append(id)
 	return out

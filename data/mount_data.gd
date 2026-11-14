@@ -36,9 +36,18 @@ const MOUNTS := {
 	"fire_drake": {"name": "มังกรน้อยเพลิง", "speed": 0.50, "color": Color("ff6a3d"),
 		"mat": "drake_scale", "drop": 0.001, "chaos": 15, "chance": 0.10, "bonus": {"hp": 0.05, "atk": 0.02, "crit": 0.01},
 		"desc": "มังกรน้อยขี้เล่น หางมีเปลวไฟลุกโชน"},
+	# เกาะลอยฟ้าเทพมังกร only: its egg (SkyIsleLoot.EGG) drops there alone (drop 0 here: not
+	# part of the every-field material roll, Zone.mount_mat_drops). The egg is the gate,
+	# so every step succeeds.
+	"sky_dragon": {"name": "มังกรฟ้าเทพ", "speed": 0.65, "color": Color("3fd6b4"),
+		"mat": "sky_dragon_egg", "drop": 0.0, "chaos": 20, "chance": 1.0, "bonus": {"hp": 0.08, "atk": 0.04, "def": 0.02, "crit": 0.02},
+		"desc": "มังกรฟ้าเกล็ดหยกแผงคอทอง เหินเมฆพาทะยาน (ไข่จากเกาะลอยฟ้าเทพมังกร)"},
 }
-## Menu order (easiest first).
+## The mounts whose material every hunting field drops (Zone.mount_mat_drops), easiest
+## first: also what the AI world players craft (WorldGear) and chat about.
 const ORDER: Array[String] = ["thunder_wolf", "glow_stag", "griffin", "fire_drake"]
+## Menu order: ORDER, then the isle-only มังกรฟ้าเทพ.
+const ALL: Array[String] = ["thunder_wolf", "glow_stag", "griffin", "fire_drake", "sky_dragon"]
 const BONUS_ORDER: Array[String] = ["hp", "atk", "def", "crit"]
 
 
@@ -61,7 +70,7 @@ static func mat_of(id: String) -> String:
 
 ## The mount a material belongs to ("" when `mat` is no mount material).
 static func mount_of_mat(mat: String) -> String:
-	for id in ORDER:
+	for id in ALL:
 		if String(MOUNTS[id].mat) == mat:
 			return id
 	return ""

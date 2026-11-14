@@ -1778,13 +1778,33 @@ func _endgame_loot(mob: Mob, from: Vector3) -> void:
 			Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
-## เกาะลอยฟ้าเทพมังกร: SkyIsleLoot.kill_drops, the jackpots told to the whole server.
+## เกาะลอยฟ้าเทพมังกร: SkyIsleLoot.kill_drops with a line for the rare ones. A jackpot
+## (the Dragon God weapon, the 300★ wings, the egg) always lands whatever the pickup
+## filter says, under a tall gold beam, with the finder's own fanfare, and the whole
+## server is told (SkyIsleLoot.announce).
 func _sky_isle_loot(mob: Mob, from: Vector3) -> void:
 	var elite := bool(mob.template.get("elite", false))
 	for item in SkyIsleLoot.kill_drops(Game.class_id(), mob.is_boss, elite, _drop_fortune(), rng):
-		_spawn_loot(item, 0, from)
 		if SkyIsleLoot.is_jackpot(item):
+			var drop := LootDrop.new()
+			drop.setup(item, 0, hero, from)
+			add_child(drop)
+			VfxKit.loot_beam(drop, Color("ffd84a"), 10.0)
+			BattleVfx.floating_text(self, from + Vector3(0, 2.4, 0), "แจ็กพอต! %s" % ItemData.name_of(item), Color("ffd84a"), 1.5)
+			SkyIsleLoot.celebrate(item)
 			SkyIsleLoot.announce(item)
+			continue
+		_spawn_loot(item, 0, from)
+		if item.get("kind", "") == "jewel":
+			match String(item.get("id", "")):
+				SkyIsleLoot.CHEST:
+					Game.say("%sตกแล้ว! เปิดได้จากกระเป๋า" % ItemData.name_of(item), &"quest")
+				SkyIsleLoot.FRAGMENT:
+					Game.say("%sตกแล้ว! สะสมครบ %d ชิ้นแลกชุดเทพมังกร (มี %d + ที่เพิ่งตก)" % [ItemData.name_of(item), SkyIsleLoot.COSTUME_FRAGMENTS, SkyIsleLoot.fragments()], &"quest")
+				EndgameFields.SCALE:
+					Game.say("%sตกแล้ว! ใช้ผสมแหวน/สร้อยชุดเซต 250 ดาวที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
+		elif DivineGearData.is_item(item):
+			Game.say("ชุดประจำอาชีพ 200 ดาวตกแล้ว! (ใช้ +10 ผสมชุดเซต 250 ดาว)%s" % _tag_text(item), &"quest")
 
 
 ## Chance that a ★ region kill drops a piece of that region's ★ gear.

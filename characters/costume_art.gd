@@ -16,6 +16,11 @@ extends RefCounted
 ##              bow and ribbon tails at the back, falling petals
 ##   midnight   a starry night cape (a capelet under gear wings) with a high collar,
 ##              crescent horns, a gold crescent moon pin, a few faint stars
+##   dragon_god the isle-only costume (SkyIsleLoot, exchanged for fragments): gold dragon
+##              antlers, a jade crest and ear fins, the dragon pearl on the brow, a long
+##              scaled tail with gold dorsal spikes and a fin fan that sways, a scale
+##              mantle with a spiked collar, gold clasps and chains (and a pointed scale
+##              cape without gear wings), scale pauldrons, little spirit dragons flying round
 ##
 ## Everything is authored in the chibi's model space (x side, y up 0..1, z front) and
 ## HeroVisual mounts each part on its bone with the bone's rest undone. One mesh per
@@ -46,6 +51,7 @@ const PARTS := {
 	"seafoam": [["Head", "head"], ["Chest", "back"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 	"sakura": [["Head", "head"], ["Hips", "obi"]],
 	"midnight": [["Head", "head"], ["Chest", "back"]],
+	"dragon_god": [["Head", "head"], ["Chest", "back"], ["Hips", "tail"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 }
 ## Each layer's look: sway (tip offset in model units), speed and lag down the piece,
 ## glow share, and for the cloth sheets the pattern, trim and lining (costume.gdshaderinc).
@@ -64,6 +70,9 @@ const STYLE := {
 	"midnight": {"solid": {"glow": 0.06},
 		"sheet": {"pattern": 1.0, "trim": Color("c9d4ff"), "trim_width": 0.03, "lining": Color("3a2a6a"), "speck": Color("eaf0ff"), "sway": Vector3(0.01, 0.0, -0.03), "speed": 1.15, "lag": 2.6},
 		"sheet2": {"pattern": 1.0, "trim": Color("c9d4ff"), "trim_width": 0.12, "lining": Color("2a1f55"), "speck": Color("eaf0ff")}},
+	"dragon_god": {"solid": {"sway": Vector3(0.05, 0.016, 0.02), "speed": 1.15, "lag": 3.0, "glow": 0.05},
+		"sheet": {"pattern": 4.0, "trim": Color("ffd24a"), "trim_width": 0.05, "lining": Color("0d4a40"), "speck": Color("b8ffe0"), "sway": Vector3(0.01, 0.0, -0.03), "speed": 1.2, "lag": 2.6, "glow": 0.04},
+		"sheet2": {"pattern": 4.0, "trim": Color("ffd24a"), "trim_width": 0.11, "lining": Color("0d4a40"), "speck": Color("b8ffe0"), "glow": 0.04}},
 }
 ## The drifting motes: how many, the quad shape (costume_mote.gdshader), colour, size in
 ## metres, the ring they keep (model units) and how they move.
@@ -74,6 +83,8 @@ const MOTES := {
 	"shadow": {"n": 7, "shape": 4.0, "color": Color(0.55, 0.16, 0.85, 0.9), "size": 0.42, "r": [0.16, 0.3], "y_lo": 0.0, "y_hi": 0.34, "rise": 0.17, "orbit": 0.35, "drift": 0.03, "additive": 0.35},
 	"seafoam": {"n": 6, "shape": 3.0, "color": Color("d4fbff"), "size": 0.13, "r": [0.32, 0.48], "y_lo": 0.05, "y_hi": 1.1, "rise": 0.1, "orbit": 0.25, "drift": 0.05, "additive": 0.5},
 	"midnight": {"n": 4, "shape": 1.0, "color": Color("bcd0ff"), "size": 0.12, "r": [0.4, 0.5], "y": [0.45, 1.1], "orbit": 0.2, "twinkle": 1.0, "additive": 1.0},
+	# Little spirit dragons flying head first round the wearer (shape 5, aligned to their path).
+	"dragon_god": {"n": 3, "shape": 5.0, "align": 1.0, "color": Color("7dffd0"), "size": 0.62, "r": [0.4, 0.5], "y": [0.3, 1.0], "orbit": 1.25, "bob": 0.07, "additive": 1.0},
 }
 
 static var _meshes := {}
@@ -125,6 +136,7 @@ static func mesh_of(id: String, part: String, winged: bool) -> ArrayMesh:
 		"seafoam": _seafoam(b, part)
 		"sakura": _sakura(b, part)
 		"midnight": _midnight(b, part, winged)
+		"dragon_god": _dragon(b, part, winged)
 	var mesh := _commit(b)
 	if _meshes.size() >= CACHE_LIMIT:
 		_meshes.erase(_meshes.keys()[0])
@@ -160,6 +172,10 @@ static func motes(id: String) -> MeshInstance3D:
 			var rad := rng.randf_range(float(r[0]), float(r[1]))
 			var home := Vector3(cos(a) * rad, rng.randf_range(float(ys[0]), float(ys[1])), sin(a) * rad)
 			var phase := (float(k) + rng.randf()) / float(n)
+			if float(spec.get("align", 0.0)) > 0.5:
+				# Aligned motes (the spirit dragons) all turn at one pace (the shader's pace
+				# is by fract(phase * 7.31)), so they stay spread round the wearer.
+				phase = float(k * 3 + 1) / 7.31
 			var size := float(spec.size) * rng.randf_range(0.8, 1.15)
 			for c in corners:
 				st.set_color(spec.color)
@@ -224,7 +240,7 @@ static func _mote_material(id: String) -> ShaderMaterial:
 	var spec: Dictionary = MOTES[id]
 	var mat := ShaderMaterial.new()
 	mat.shader = MOTE
-	for p in ["orbit", "rise", "y_lo", "y_hi", "bob", "drift", "twinkle", "spin", "shape", "additive"]:
+	for p in ["orbit", "rise", "y_lo", "y_hi", "bob", "drift", "twinkle", "spin", "shape", "additive", "align"]:
 		if spec.has(p):
 			mat.set_shader_parameter(p, float(spec[p]))
 	if not spec.has("rise"):
@@ -930,3 +946,145 @@ static func _midnight(b: Dictionary, part: String, winged: bool) -> void:
 				_long_cape(b, "sheet", 0.6, 0.52, 0.3, 0.58, NIGHT, NIGHT_DEEP, 3.0)
 			_flat(b, "glow", _crescent(0.036), Transform3D(Basis(Vector3.FORWARD, deg_to_rad(-25.0)), Vector3(0.07, 0.545, 0.132)), 0.01, Color("fff4c8"), MOON)
 			_flat(b, "glow", _star(0.018, 0.007, 4), Transform3D(Basis.IDENTITY, Vector3(0.105, 0.575, 0.128)), 0.005, Color.WHITE, MOON)
+
+
+# --- Dragon god (ชุดเทพมังกร, เกาะลอยฟ้าเทพมังกร) ----------------------------------------------
+
+const JADE := Color("1fae8f")
+const JADE_DEEP := Color("0c5f58")
+const JADE_LIGHT := Color("8ff2cf")
+const JADE_GLOW := Color("7dffd0")
+const DRAGON_GOLD := Color("ffcf3a")
+const DRAGON_GOLD_DEEP := Color("c98a18")
+const HORN_TIP := Color("fff3c0")
+
+
+static func _dragon(b: Dictionary, part: String, winged: bool) -> void:
+	match part:
+		"head": _dragon_head(b)
+		"back": _dragon_back(b, winged)
+		"tail": _dragon_tail(b)
+		"arm_l", "arm_r": _dragon_arm(b, 1.0 if part == "arm_l" else -1.0)
+
+
+## A horn tube from root to tip: dark gold into a pale tip, ringed like a real horn.
+static func _dragon_horn(b: Dictionary, ctrl: Array, fat: float, rings: float, glow_tip := false) -> void:
+	_sweep(b, "solid", _spline(ctrl, 4), 8,
+		func(t: float) -> float: return fat * pow(1.0 - t, 0.8) + 0.003,
+		func(t: float) -> Color: return DRAGON_GOLD_DEEP.lerp(DRAGON_GOLD, smoothstep(0.1, 0.6, t)).darkened(0.25 * smoothstep(0.3, 0.0, absf(fmod(t * rings, 1.0) - 0.5)) * (1.0 - t)).lerp(HORN_TIP, smoothstep(0.7, 1.0, t)),
+		func(_t: float) -> Vector2: return Vector2.ZERO,
+		func(_a: float, t: float) -> float: return 1.0 + 0.09 * smoothstep(0.55, 0.0, absf(fmod(t * rings, 1.0) - 0.5)) * (1.0 - t))
+	if glow_tip:
+		_prim(b, "glow", _dot(), JADE_GLOW, ctrl[ctrl.size() - 1], Vector3.ONE * 0.026)
+
+
+static func _dragon_head(b: Dictionary) -> void:
+	var fin_rim := [JADE_DEEP, JADE, JADE, DRAGON_GOLD, DRAGON_GOLD, DRAGON_GOLD, JADE, JADE]
+	for side in [-1.0, 1.0]:
+		# Eastern antlers: a beam rising back with two tines, gold into pale tips.
+		_dragon_horn(b, [Vector3(side * 0.1, 0.93, 0.0), Vector3(side * 0.16, 1.0, -0.03), Vector3(side * 0.205, 1.09, -0.08), Vector3(side * 0.215, 1.19, -0.125), Vector3(side * 0.18, 1.275, -0.13)], 0.034, 7.0, true)
+		_dragon_horn(b, [Vector3(side * 0.172, 1.02, -0.04), Vector3(side * 0.205, 1.085, 0.015), Vector3(side * 0.21, 1.15, 0.05)], 0.02, 3.0)
+		_dragon_horn(b, [Vector3(side * 0.21, 1.13, -0.1), Vector3(side * 0.27, 1.18, -0.115), Vector3(side * 0.315, 1.25, -0.105)], 0.018, 3.0)
+		# Dragon ears: a fin behind each temple.
+		var ear := Vector3(side * 0.185, 0.875, -0.03)
+		var out := Vector3(side * 0.75, 0.38, -0.55).normalized()
+		_flat(b, "solid", _leaf(0.15, 0.085), _plane(ear, Vector3(0, 0.75, 0.65), out), 0.012, JADE_LIGHT, fin_rim)
+	# The crest: fins down the middle of the head from the brow to the nape.
+	var plates := 5
+	for k in plates:
+		var th := deg_to_rad(lerpf(18.0, 128.0, float(k) / float(plates - 1)))
+		var out := Vector3(0, cos(th), -sin(th))
+		var at := Vector3(0, 0.86, -0.005) + Vector3(0, out.y * 0.142, out.z * 0.17)
+		var tall := 0.115 - 0.012 * absf(float(k) - 1.0)
+		_flat(b, "solid", _leaf(tall, 0.075), _plane(at, Vector3(0, sin(th), cos(th)), out + Vector3(0, -0.1, -0.45)), 0.009, JADE_LIGHT, fin_rim)
+	# The dragon pearl on the brow in a gold setting.
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(-20.0))
+	_flat(b, "solid", [Vector2(0, 0.046), Vector2(0.03, 0), Vector2(0, -0.034), Vector2(-0.03, 0)], Transform3D(tilt, Vector3(0, 0.878, 0.204)), 0.006, DRAGON_GOLD, DRAGON_GOLD_DEEP)
+	_prim(b, "glow", _dot(), JADE_GLOW, Vector3(0, 0.88, 0.214), Vector3(0.034, 0.04, 0.02), Vector3.ZERO, Vector2.ZERO, tilt)
+
+
+static func _dragon_tail(b: Dictionary) -> void:
+	# Out of the hips, down and back, then curling to one side and up.
+	var ctrl := [Vector3(0, 0.3, -0.055), Vector3(0, 0.25, -0.17), Vector3(0.02, 0.165, -0.3), Vector3(0.085, 0.105, -0.43),
+		Vector3(0.19, 0.105, -0.525), Vector3(0.3, 0.17, -0.545), Vector3(0.365, 0.285, -0.5), Vector3(0.37, 0.4, -0.42)]
+	var pts := _spline(ctrl, 6)
+	var phase := 0.4
+	var radius := func(t: float) -> float: return lerpf(0.056, 0.012, pow(t, 0.8)) * (0.7 + 0.3 * smoothstep(0.0, 0.08, t))
+	_sweep(b, "solid", pts, 8, radius,
+		func(t: float) -> Color:
+			# Rows of scales: each row dark at its root, light at its edge.
+			var row := fmod(t * 14.0, 1.0)
+			return JADE_DEEP.lerp(JADE, smoothstep(0.0, 0.5, row)).lerp(JADE_LIGHT, smoothstep(0.6, 1.0, row) * 0.7),
+		func(t: float) -> Vector2: return Vector2(t, phase),
+		func(a: float, t: float) -> float:
+			var row: float = floor(t * 14.0)
+			return 1.0 + (0.1 * maxf(0.0, sin(a * 4.0 + row * PI)) + 0.05) * smoothstep(0.0, 0.7, fmod(t * 14.0, 1.0)) * (1.0 - t * 0.5))
+	# Dorsal spikes along the top of the tail, gold, smaller towards the tip.
+	var n := pts.size()
+	var spikes := 9
+	for k in spikes:
+		var t := lerpf(0.06, 0.86, float(k) / float(spikes - 1))
+		var i := clampi(int(round(t * float(n - 1))), 1, n - 2)
+		var p: Vector3 = pts[i]
+		var tg := ((pts[i + 1] as Vector3) - (pts[i - 1] as Vector3)).normalized()
+		var up := Vector3.UP - tg * Vector3.UP.dot(tg)
+		up = up.normalized() if up.length() > 0.05 else Vector3.BACK
+		var lean := (up - tg * 0.45).normalized()
+		var h := lerpf(0.07, 0.03, t)
+		var r: float = radius.call(float(i) / float(n - 1))
+		_prim(b, "solid", MeshKit.cone(), DRAGON_GOLD, p + up * (r * 0.9) + lean * h * 0.5, Vector3(0.016 + r * 0.5, h, 0.03 + r * 0.25), Vector3.ZERO, Vector2(float(i) / float(n - 1), phase), _along(lean) * Basis(Vector3.UP, atan2(tg.x, tg.z)))
+	# The tip: a fan of three fins, gold at the root into glowing jade, round a pearl.
+	var tip: Vector3 = pts[n - 1]
+	var dir := (tip - (pts[n - 3] as Vector3)).normalized()
+	var across := dir.cross(Vector3.UP).normalized()
+	var free := Vector2(1.0, phase)
+	var lift := across.cross(dir).normalized()
+	# Two fans crossed like an arrow's fletching, so the tip reads from every side.
+	for fan in [across, lift]:
+		var axis: Vector3 = fan
+		for f in [-1.0, 0.0, 1.0]:
+			var fd: Vector3 = (dir + axis * f * 0.7).normalized()
+			_flat(b, "solid", _leaf(0.2 - 0.04 * absf(f), 0.1), _plane(tip - dir * 0.015, axis, fd), 0.008, JADE_LIGHT, [DRAGON_GOLD, DRAGON_GOLD, JADE, JADE, JADE_LIGHT, JADE, JADE, DRAGON_GOLD], free)
+	_prim(b, "solid", _dot(), DRAGON_GOLD, tip - dir * 0.02, Vector3(0.06, 0.03, 0.06), Vector3.ZERO, free, _along(dir))
+	_prim(b, "glow", _dot(), JADE_GLOW, tip + dir * 0.012, Vector3.ONE * 0.044, Vector3.ZERO, free)
+
+
+static func _dragon_back(b: Dictionary, winged: bool) -> void:
+	# The scale mantle over the shoulders, its hem cut into scale points; without gear
+	# wings a pointed scale cape hangs below it.
+	_capelet(b, "sheet2", 0.635, 0.15, 1.7, 0.108, 0.215, JADE, JADE_DEEP, 7.0, 0.16)
+	if not winged:
+		_long_cape(b, "sheet", 0.6, 0.4, 0.28, 0.5, JADE, JADE_DEEP, 3.0)
+	# A high collar of scale spikes behind the neck.
+	for k in 5:
+		var a := deg_to_rad(lerpf(-62.0, 62.0, float(k) / 4.0))
+		var at := Vector3(sin(a) * 0.125, 0.645, 0.03 - cos(a) * 0.12)
+		var out := Vector3(sin(a) * 0.55, 1.0, -cos(a) * 0.55).normalized()
+		_prim(b, "solid", MeshKit.cone(), DRAGON_GOLD if k % 2 == 0 else JADE, at + out * 0.035, Vector3(0.04, 0.09 - 0.012 * absf(float(k) - 2.0), 0.022), Vector3.ZERO, Vector2.ZERO, _along(out) * Basis(Vector3.UP, a))
+	# Gold clasps with gems joined by a double chain, a dragon pearl hanging in the middle.
+	for side in [-1.0, 1.0]:
+		var at := Vector3(side * 0.094, 0.562, 0.112)
+		_prim(b, "solid", MeshKit.cylinder(), DRAGON_GOLD, at, Vector3(0.056, 0.014, 0.056), Vector3(78, 0, 0))
+		_prim(b, "solid", MeshKit.cylinder(), DRAGON_GOLD_DEEP, at + Vector3(0, 0, -0.004), Vector3(0.07, 0.01, 0.07), Vector3(78, 0, 0))
+		_prim(b, "glow", _dot(), JADE_GLOW, at + Vector3(0, 0.002, 0.011), Vector3(0.03, 0.03, 0.016))
+	for drop in [0.0, 0.03]:
+		var d: float = drop
+		var chain := _bezier(Vector3(-0.09, 0.556 - d * 0.3, 0.118), Vector3(-0.04, 0.53 - d, 0.142), Vector3(0.04, 0.53 - d, 0.142), Vector3(0.09, 0.556 - d * 0.3, 0.118), 8)
+		_sweep(b, "solid", chain, 5, func(_t: float) -> float: return 0.0055, func(_t: float) -> Color: return DRAGON_GOLD, func(_t: float) -> Vector2: return Vector2.ZERO)
+	_prim(b, "solid", MeshKit.cylinder(), DRAGON_GOLD, Vector3(0, 0.498, 0.142), Vector3(0.052, 0.01, 0.056), Vector3(90, 0, 0))
+	_prim(b, "glow", _dot(), JADE_GLOW, Vector3(0, 0.498, 0.148), Vector3(0.032, 0.036, 0.022))
+
+
+static func _dragon_arm(b: Dictionary, side: float) -> void:
+	var at := Vector3(side * 0.16, 0.6, 0.02)
+	var turn := Basis(Vector3.FORWARD, side * deg_to_rad(26.0))
+	# Three overlapping scale plates, gold rimmed, a horn spike on top and a jade gem.
+	for k in 3:
+		var drop := float(k)
+		var plate := at + turn * Vector3(side * 0.022 * drop, -0.016 * drop, 0)
+		# Each plate: a jade dome over a wider, flatter gold one that shows as its rim.
+		_prim(b, "solid", _dot(), JADE.lerp(JADE_DEEP, 0.3 * drop), plate + turn * Vector3(0, 0.004, 0), Vector3(0.125 + 0.012 * drop, 0.075 - 0.01 * drop, 0.115 + 0.01 * drop), Vector3.ZERO, Vector2.ZERO, turn)
+		_prim(b, "solid", _dot(), DRAGON_GOLD if k != 1 else DRAGON_GOLD_DEEP, plate, Vector3(0.142 + 0.012 * drop, 0.036, 0.132 + 0.01 * drop), Vector3.ZERO, Vector2.ZERO, turn)
+	var lean := (turn * Vector3(side * 0.5, 1.0, 0)).normalized()
+	_prim(b, "solid", MeshKit.cone(), HORN_TIP, at + turn * Vector3(0, 0.03, 0) + lean * 0.042, Vector3(0.034, 0.085, 0.034), Vector3.ZERO, Vector2.ZERO, _along(lean))
+	_prim(b, "glow", _dot(), JADE_GLOW, at + turn * Vector3(side * 0.066, 0.004, 0.0), Vector3(0.022, 0.03, 0.03))

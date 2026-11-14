@@ -723,6 +723,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-costume-item
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/costume_item_test.tscn
+      - name: "sky_isle_loot_test (the sky isle's collectibles: the four jackpot rates per kill measured over seeded kills - weapon 0.5%, 300-star wings 0.1%, costume fragment 0.1%, egg 0.1% - the same for elites, with fortune and with the festival on or off, never a Lv.100 pair of wings, the Poseidon table still drops; treasure chests - drop, published odds, open one or a stack, a full bag and storage lose nothing; 49 fragments refuse and 50 make the costume, never for coins, never on an AI player; the egg hatches the sky dragon mount, the fastest; only jackpots are announced; saves, icons, the bag actions and the reward shop card)"
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-sky-isle-loot
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/sky_isle_loot_test.tscn
       - name: "item_icons_test (every jewel, gem, potion, costume, the legendary wings and what every shop, stall, pass, raid and drop hands out has an icon; a bag tile reads ×N, the level or nothing, never Lv.0)"
         timeout-minutes: 10
         env:
