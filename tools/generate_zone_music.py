@@ -1403,6 +1403,37 @@ def drowned_abyss():
     return master(tr, 0.4, tone=3000, drive=1.1)
 
 
+@track("sky_dragon_isle", "dragon shrine in the high sky: erhu-like reed over koto arps and wind, temple bells, then taiko, choir and brass in a pentatonic hymn", "D minor pentatonic / dorian", "4/4 100")
+def sky_dragon_isle():
+    tr = Track("sky_dragon_isle", 100, 32, seed=41)
+    A = prog("Dm C Bb C Dm F C Dm")
+    B = prog("Bb C Dm Dm Gm F C A5")
+    mel_a = bars("D5:1.5 F5:.5 G5:1 A5:1 | C6:2 A5:1 G5:1 | F5:1.5 G5:.5 A5:1 D6:1 | C6:3 A5:1 | D6:1.5 C6:.5 A5:1 G5:1 | F5:1 G5:1 A5:2 | G5:1 F5:1 D5:1 C5:1 | D5:4")
+    mel_b = bars("F5:1 G5:1 A5:1 C6:1 | D6:2 C6:1 A5:1 | F6:1.5 E6:.5 D6:2 | A5:3 C6:1 | D6:1 F6:1 G6:1.5 F6:.5 | A6:2 F6:1 D6:1 | E6:1 D6:1 C6:1 G5:1 | A5:4")
+    for s in range(2):
+        sb = s * 8
+        arp(tr, koto, A, sb, 0.15, step=0.5, pattern="broken", octave=4, length=0.9)
+        chords(tr, pad, A, sb, 0.09, octave=3, cutoff=1300)
+        bass(tr, sub, A, sb, 0.4, "whole", octave=2)
+        if s:
+            drums(tr, sb, 8, "ominous", 0.55, fills=False)
+    melody(tr, reed, mel_a, 0, 0.3, legato=0.98)
+    melody(tr, reed, mel_a, 8, 0.28, legato=0.98, unison=[(flute, 1, 0.5), (glock, 1, 0.12)])
+    for s in range(2):
+        sb = 16 + s * 8
+        chords(tr, choir, B, sb, 0.11, octave=3)
+        chords(tr, strings, B, sb, 0.1, octave=3)
+        bass(tr, low_brass, B, sb, 0.4, "roots", octave=2)
+        arp(tr, koto, B, sb, 0.11, step=0.5, pattern="updown", octave=4)
+        drums(tr, sb, 8, "war", 0.8 if s else 0.65)
+    melody(tr, brass, mel_b, 16, 0.34, unison=[(reed, 0, 0.5)])
+    melody(tr, brass, mel_b, 24, 0.36, unison=[(brass, -1, 0.45), (strings, 0, 0.4), (glock, 1, 0.14)])
+    for bar in range(0, 32, 4):
+        tr.note(bell, tr.bar_pos(bar), 1.5, "D4" if bar % 8 == 0 else "A3", 0.16)
+    bed(tr, "wind", 0.07)
+    return master(tr, 0.28, tone=4800, drive=1.2)
+
+
 @track("pvp", "coliseum: crowd bed, stomp-stomp-clap, taiko, staccato brass riff, chant hits", "E minor", "4/4 136")
 def pvp():
     tr = Track("pvp", 136, 40, seed=30)

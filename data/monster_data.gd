@@ -126,8 +126,8 @@ const ZONE_TUNING := {
 	# The two ★200-300 fields share one band (EndgameFields).
 	&"lotus_sanctum": EndgameFields.TUNING,
 	&"drowned_abyss": EndgameFields.TUNING,
-	# Stub until the map team tunes it (docs/SKY_ISLE_PLAN.md).
-	&"sky_dragon_isle": EndgameFields.TUNING,
+	# เกาะลอยฟ้าเทพมังกร: its own band, above them (SkyIsleData).
+	&"sky_dragon_isle": SkyIsleData.TUNING,
 }
 ## Late bosses gained boss health (index 2) when single-target skills began to
 ## out-hit area skills (ClassData.SINGLE_EDGE), so boss fights keep their length.
@@ -136,7 +136,7 @@ const ZONE_TUNING := {
 const LATE_HP := {
 	&"void": 2.0, &"dawn_forest": 2.5, &"crystal_valley": 3.0,
 	&"sky_citadel": 3.5, &"eclipse_realm": 4.0, &"lotus_sanctum": EndgameFields.LATE_HP, &"drowned_abyss": EndgameFields.LATE_HP,
-	&"sky_dragon_isle": EndgameFields.LATE_HP,
+	&"sky_dragon_isle": SkyIsleData.LATE_HP,
 }
 static var _home_zone := {}
 

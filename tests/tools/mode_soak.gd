@@ -16,7 +16,7 @@ const NODE_TOLERANCE := 60
 const OBJECT_TOLERANCE := 400
 const RESOURCE_TOLERANCE := 40
 const TWEEN_TOLERANCE := 8
-const ALL_MODES := ["town_ui", "meadow", "abyss", "dawn_forest", "lotus_sanctum", "drowned_abyss", "tower", "pvp", "guildwar", "arena"]
+const ALL_MODES := ["town_ui", "meadow", "abyss", "dawn_forest", "lotus_sanctum", "drowned_abyss", "sky_dragon_isle", "tower", "pvp", "guildwar", "arena"]
 
 var main: Node
 var family := &"warrior"

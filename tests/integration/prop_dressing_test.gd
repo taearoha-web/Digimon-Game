@@ -135,6 +135,18 @@ func _ready() -> void:
 			if not DrownedAbyssArt._clear((xf as Transform3D).origin, 0.0):
 				bad_sea += 1
 	check(sea > 40 and bad_sea == 0, "abyss: shells, starfish, grass and coral (%d) keep off its paths and camps (%d)" % [sea, bad_sea])
+	# เกาะลอยฟ้าเทพมังกร: flowers, ferns, leaves and pebbles off its ways, camps, brooks,
+	# ponds and sky bays.
+	var isle := {"batches": {}, "colliders": []}
+	PropDressing.isle(isle)
+	var blooms := 0
+	var bad_blooms := 0
+	for key in isle.batches:
+		for xf in isle.batches[key].transforms:
+			blooms += 1
+			if not SkyIsleArt._clear((xf as Transform3D).origin, 0.0):
+				bad_blooms += 1
+	check(blooms > 60 and bad_blooms == 0 and isle.colliders.is_empty(), "isle: flowers, ferns, leaves and pebbles (%d) keep off its ways, camps, brooks and bays (%d), no colliders" % [blooms, bad_blooms])
 	var lotus := {"batches": {}, "colliders": []}
 	PropDressing.lotus(lotus)
 	var petals: int = lotus.batches.get("divine_petal:solid", {"transforms": []}).transforms.size()

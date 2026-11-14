@@ -14,7 +14,8 @@ extends Node
 const CHECKPOINTS := [
 	# [label, hero level, stars, zone, gear: "lv" | star tier | "divine"]
 	# The hero sits in the middle of each field's level range, wearing rare
-	# (+5) gear of that level, or the previous region's star set.
+	# (+5) gear of that level, or the previous region's star set ("set": the 250★
+	# class set at +15 with 100★ wings at +15).
 	["meadow", 4, 0, &"meadow", "lv"],
 	["dark_forest", 10, 0, &"dark_forest", "lv"],
 	["desert", 18, 0, &"desert", "lv"],
@@ -34,6 +35,8 @@ const CHECKPOINTS := [
 	["lotus_divine", 100, 200, &"lotus_sanctum", "divine"],
 	["drowned_abyss", 100, 200, &"drowned_abyss", 200],
 	["drowned_divine", 100, 200, &"drowned_abyss", "divine"],
+	# เกาะลอยฟ้าเทพมังกร: a ★300 hero in the whole 250★ set at +15 with 100★ wings.
+	["sky_dragon_isle", 100, 300, &"sky_dragon_isle", "set"],
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -47,11 +50,13 @@ const AIM := {
 	"crystal_valley": [84, 195], "sky_citadel": [105, 245], "eclipse_realm": [120, 285],
 	# The two ★200-300 fields share one band (EndgameFields).
 	"lotus_sanctum": [175, 450], "drowned_abyss": [175, 450],
+	# The same farming band for its own hero; the Dragon God is the longest boss fight.
+	"sky_dragon_isle": [175, 600],
 }
 ## Fields from Lv.100 whose monsters carry x2..x5 health (MonsterData.LATE_HP):
 ## their aims above are the earlier ones times that, and a skill takes a smaller
 ## share of a monster's health.
-const LATE := ["void", "dawn_forest", "crystal_valley", "sky_citadel", "eclipse_realm", "lotus_sanctum", "lotus_divine", "drowned_abyss", "drowned_divine"]
+const LATE := ["void", "dawn_forest", "crystal_valley", "sky_citadel", "eclipse_realm", "lotus_sanctum", "lotus_divine", "drowned_abyss", "drowned_divine", "sky_dragon_isle"]
 
 
 func _ready() -> void:
@@ -91,6 +96,11 @@ func _hero(cls: StringName, level: int, stars: int, gear: Variant) -> Dictionary
 	p.equip = {}
 	for slot in ItemData.SLOTS:
 		var item: Dictionary
+		if typeof(gear) == TYPE_STRING and gear == "set":
+			item = SetGearData.item(String(cls), slot)
+			item.plus = ItemData.MAX_PLUS
+			p.equip[slot] = item
+			continue
 		if typeof(gear) == TYPE_STRING and gear == "divine":
 			item = DivineGearData.item(cls, slot, rng) if DivineGearData.SLOTS.has(slot) else StarProgression.item(cls, 200, slot, rng)
 		elif typeof(gear) == TYPE_INT:
@@ -99,6 +109,10 @@ func _hero(cls: StringName, level: int, stars: int, gear: Variant) -> Dictionary
 			item = ItemData.generate(level, cls, rng, 2, slot)
 		item.plus = 5
 		p.equip[slot] = item
+	if typeof(gear) == TYPE_STRING and gear == "set":
+		var wings := StarWingData.item(String(cls), rng, 4)
+		wings.plus = ItemData.MAX_PLUS
+		p.equip["wings"] = wings
 	return HeroStats.compute(p)
 
 
@@ -164,7 +178,7 @@ func _band(cp: String, key: String, value: float) -> void:
 		"skill_pct": ok = cp == "meadow" or (value >= (8.0 if cp in LATE else 25.0) and value <= 100.0)
 		"die_n": ok = value >= 10.0 and value <= 40.0
 		"die_b": ok = value >= 3.0 and value <= 15.0
-		"max_hit": ok = value <= 120000.0
+		"max_hit": ok = value <= (200000.0 if cp == "sky_dragon_isle" else 120000.0)
 	if not ok:
 		failures += 1
 		printerr("FAIL %s %s = %.2f is out of its band" % [cp, key, value])

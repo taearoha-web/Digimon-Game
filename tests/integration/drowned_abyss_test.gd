@@ -68,9 +68,9 @@ func _gate_and_travel() -> void:
 		check(ZoneData.access_reason(ID, 100, stars) == "", "%d stars enter" % stars)
 	check(ZoneData.access_reason(ID, 100, 150).contains("200"), "the lock names the 200 stars it needs")
 	var route := WarpScreen.destinations()
-	check(route[-1] == ID and route[-2] == DivineRegionData.ID, "the warp list ends with the sanctuary then this field")
+	check(route[-2] == ID and route[-3] == DivineRegionData.ID and route[-1] == SkyIsleData.ID, "the warp list ends with the sanctuary, this field, then the ★300 isle")
 	check(StringName(ZoneData.get_zone(DivineRegionData.ID).next) == ID and StringName(z.prev) == DivineRegionData.ID, "travel chain: sanctuary <-> drowned abyss")
-	check(String(z.next) == "", "the chain ends here")
+	check(StringName(z.next) == SkyIsleData.ID, "the ★300 isle lies beyond it")
 	# The gate reads the hero's stars the way the game does (Game.paragon().level).
 	Game.new_profile(&"warrior", "Abyss QA")
 	Game.profile.level = 100
