@@ -309,6 +309,7 @@ func _ready() -> void:
 		pet_crowd = PetCrowd.new()
 		pet_crowd.setup(self)
 		add_child(pet_crowd)
+	RareDragon.attach(self)
 	OnlineGuildWar.ensure(get_tree())
 	if EntitySync.supports(self) and not watching():
 		sync = EntitySync.new()
@@ -1582,6 +1583,9 @@ func adopt_shared(mob: Mob, kind: String) -> void:
 			var sparkle := VfxKit.buff_emitter(mob, WorldEvents.GOLDEN_COLOR)
 			sparkle.name = "GoldenSparkle"
 			sparkle.emitting = true
+		"rare":
+			if RareDragon.of(self) != null:
+				RareDragon.of(self).adopt(mob)
 		_:
 			for camp in _camps:
 				if Vector2(mob.home.x - float(camp.pos.x), mob.home.z - float(camp.pos.y)).length() <= float(camp.radius) + 1.0:
@@ -1632,6 +1636,8 @@ func _on_mob_died(mob: Mob) -> void:
 		_on_world_boss_died(mob)
 	if mob.has_meta("golden"):
 		_on_golden_died(mob)
+	if mob.has_meta(RareDragon.META) and RareDragon.of(self) != null:
+		RareDragon.of(self).died(mob)
 	# A world player's kill is its own: the hero earns EXP by its share of the damage,
 	# and the kill (loot, quests) only when it dealt most of it.
 	var share := mob.party_share()

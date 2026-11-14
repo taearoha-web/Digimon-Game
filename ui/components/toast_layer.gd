@@ -54,7 +54,9 @@ func _exit_tree() -> void:
 
 
 static func lane_top() -> float:
-	return maxf(TOP, GuildWarHud.top_band + BAND_GAP) if GuildWarHud.top_band > 0.0 else TOP
+	var top := maxf(TOP, GuildWarHud.top_band + BAND_GAP) if GuildWarHud.top_band > 0.0 else TOP
+	# A server-wide announcement is up (AnnounceBanner): the toasts start under its strip.
+	return maxf(top, AnnounceBanner.band_bottom + BAND_GAP) if AnnounceBanner.band_bottom > 0.0 else top
 
 
 ## The stack's rect on screen (tests).

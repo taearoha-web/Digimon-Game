@@ -52,6 +52,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `wp_snap` | `zone, ps:[[index, x, z, yaw, anim, flags]]` | zone host only, 4 per second: the AI world players (see Shared world) |
 | `wp_event` | `zone, index, ev, data` | zone host only: "skill", "bubble", "leave" (see Shared world) |
 | `ai_chat` | `lines:[{ch:"world", speaker, text, color?, index?}]` | world host only: the AI world-channel chat (see Shared world) |
+| `announce` | `kind, what, cls, zone` | my jackpot drop (`kind` "jackpot") or rare-dragon kill (`kind` "rare"), for everyone online; fields only, never text (see Announcements) |
 | `trade_req` | `to` | |
 | `trade_answer` | `from, ok` | |
 | `trade_offer` | `items:[item dict], gold` | replaces my offer; unlocks both sides |
@@ -91,6 +92,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `pet_act` | `from, zone, k, e, p` - another player's pet attacked / cast (see Pets) |
 | `wp_snap` / `wp_event` | relayed from the zone host, plus `from` |
 | `ai_chat` | relayed from the world host, plus `from` |
+| `announce` | `from, user, name, kind, what, cls, zone` - another player's jackpot or rare-dragon kill; the client writes the line itself (see Announcements) |
 | `trade_req` / `trade_answer` / `trade_offer` / `trade_lock` / `trade_confirm` / `trade_cancel` | relayed with `from`; the server keeps the trade session state |
 | `trade_done` | `give:{items,gold}, get:{items,gold}` - apply it: remove `give`, add `get` |
 | `duel_req` / `duel_answer` / `pvp_hit` / `duel_over` | relayed with `from` |
@@ -348,6 +350,39 @@ floors with its own hero and AI party (world players in `Game.world_party`).
   server relays it to everyone else with `from`. Everyone else does not make world-channel
   AI chat of its own and shows the relayed lines (bubble over the speaker when it stands
   in the zone). Guild and party AI chat and the AI's answers to the hero stay local.
+
+## Announcements (jackpot drops and the rare dragon, server-wide)
+
+A jackpot on เกาะลอยฟ้าเทพมังกร and the rare dragon (มังกรแก้วเจ็ดสี) are told to everyone
+playing: a banner across the top of the HUD (`ui/hud/announce_banner.gd`: gold for a
+jackpot, jade for the dragon, queued) and a system line in the world chat
+(`systems/core/announcer.gd`).
+
+- What every game works out by itself, with nothing on the wire: the rare dragon's
+  windows (`WorldEvents.rare_now`, read off the clock, the same on every device) and the
+  AI world players' jackpots (`IsleLuck`, also read off the clock). Their cheering in the
+  world chat is ordinary `ai_chat` from the world host.
+- What is relayed: a real player's own jackpot (`SkyIsleLoot.announce` ->
+  `Announcer.broadcast`) and a real player bringing the rare dragon down
+  (`Announcer.rare_slain`), as `announce {kind, what, cls, zone}`:
+  - `kind` "jackpot": `what` is "weapon", "wings", "fragment", "egg", "chest" or ""
+    (something this build has no word for); `cls` the class of a weapon or wings.
+  - `kind` "rare": `what` is "slain".
+- The frame carries **no text**. The server (`ANNOUNCE_*` in `room.mjs`) drops it unless
+  `kind` and `what` are one of those fixed words (`ANNOUNCE_KINDS`, kept equal to
+  `Announcer.WHATS` by a test), `zone` is the sender's own zone and one of
+  `ANNOUNCE_ZONES` (the isle), and the sender's `stars` reach `ANNOUNCE_STARS` (300); a
+  `cls` that is not one of the game's ten becomes "". At most `ANNOUNCE_PER_MINUTE` (4) a
+  player a minute and never two within a second; a rare-dragon kill at most once in 5
+  minutes. Whatever else the client wrote is not relayed. It goes on as
+  `{t, from, user, name, kind, what, cls, zone}` to everyone else, `from` / `user` /
+  `name` being the server's own record of the sender (as for `chat`). No error frames.
+- Receivers (`Announcer.receive`) check the fields again, hear one player at most every
+  1.5 s, rebuild the item from `what` / `cls` and write the Thai line themselves with
+  their own constants (the same `SkyIsleLoot.announce` a local drop uses), so the channel
+  cannot carry spam, markup, links or another player's name. A receiver never relays.
+- The limits are per connection and reset when the room wakes from hibernation; a
+  reconnect cannot be used to pass the per-second gap of the frame limit (30 a second).
 
 ## Pets (real players' pets fighting together)
 

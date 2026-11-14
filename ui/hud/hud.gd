@@ -125,6 +125,10 @@ var world_chat: WorldChat
 var _online_in := 0.0
 var _zone_label: Label
 var _banner: Label
+## Server-wide announcements (Announcer): a strip under the top bars, above the toasts.
+var announce: AnnounceBanner
+const ANNOUNCE_TOP := 80.0
+const ANNOUNCE_WIDTH := 760.0
 var _death_panel: ColorRect
 var _death_title: Label
 var _death_sub: Label
@@ -194,6 +198,7 @@ func _ready() -> void:
 	_build_top_right(_frame)
 	_build_action_buttons(_frame)
 	_build_banner(_frame)
+	_build_announce(_frame)
 	_build_world_chat(_frame)
 	_frame.resized.connect(_layout_actions)
 	_layout_actions()
@@ -342,6 +347,8 @@ func _process(delta: float) -> void:
 	if _event_in <= 0.0:
 		_event_in = 1.0
 		var t := WorldPresence.clock()
+		Announcer.tick(t)
+		announce.hold = _war() != null
 		var lines := PackedStringArray()
 		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t), GuildHallData.chip_text(t)] + WorldEvents.chip_lines(t):
 			if line != "":
@@ -1725,6 +1732,19 @@ func _build_banner(frame: Control) -> void:
 	_banner.offset_bottom = BANNER_TOP + 70.0
 	_banner.modulate.a = 0.0
 	frame.add_child(_banner)
+
+
+## The announcement strip: centred, never wider than the gap between the hero panel and
+## the top-right column, so it stays clear of both on a phone.
+func _build_announce(frame: Control) -> void:
+	announce = AnnounceBanner.new()
+	announce.anchor_left = 0.5
+	announce.anchor_right = 0.5
+	announce.offset_left = -ANNOUNCE_WIDTH * 0.5
+	announce.offset_right = ANNOUNCE_WIDTH * 0.5
+	announce.offset_top = ANNOUNCE_TOP
+	announce.offset_bottom = ANNOUNCE_TOP + AnnounceBanner.HEIGHT
+	frame.add_child(announce)
 
 
 func _build_death_overlay() -> void:

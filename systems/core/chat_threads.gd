@@ -123,6 +123,27 @@ const TOPICS := {
 		"reply": ["เดี๋ยวไปช่วย %to", "ว่างอยู่ ไปกัน", "ยาที่แผงในหมู่บ้านถูกกว่าร้านค้านะ", "ไปที่จุดวาปในหมู่บ้านแล้วเลือก%field เลย", "ติดอยู่อ่ะ ขอโทษนะ %to"],
 		"back": ["ขอบคุณมาก %to", "รอที่%field นะ", "เพื่อนกิลด์ดีที่สุด"],
 	},
+	# เกาะลอยฟ้าเทพมังกร (SkyIsleData): where it is, what it drops and the rare dragon, every
+	# number from SkyIsleLoot / SkyIsleData / WorldEvents (rule_vars: %isle %islestar
+	# %isleprev %isleweapon %islewings %dweapon %dwing %dfrag %degg %fragneed %rare
+	# %raretimes %raremin).
+	"isle": {
+		"open": ["{isle}%isle มอนถึกมาก ใครไปบ้าง", "{inisle}ฟาร์ม%isle อยู่ ลุ้น%isleweapon %dweapon เปอร์เซ็นต์ต่อตัว", "%isleweapon ที่%isle ออกยากไหม ใครรู้บ้าง",
+			"{isle}ใครเจอ%rare ที่%isle บ้าง", "%rare โผล่วันละกี่รอบ ใครรู้บ้าง", "%isle เข้ายังไง ใครรู้บ้าง", "{inisle}เห็นลำแสงสีรุ้งเมื่อไหร่รีบวิ่งไปเลย นั่นแหละ%rare"],
+		"reply": ["ต้อง ★%islestar ก่อนนะถึงเข้า%isle ได้", "%isleweapon โอกาส %dweapon เปอร์เซ็นต์ต่อตัว ส่วน%islewings %dwing เปอร์เซ็นต์เอง",
+			"%rare มาวันละ %raretimes รอบ รอบละ %raremin นาที เวลาไม่ซ้ำกันสักวัน", "ทางเข้าอยู่ต่อจาก%isleprev", "ชิ้นส่วนคอสตูมต้องสะสมให้ครบ %fragneed ก่อนถึงแลกชุดได้ โอกาส %dfrag เปอร์เซ็นต์ต่อตัว",
+			"ไข่สัตว์ขี่ที่นั่นโอกาส %degg เปอร์เซ็นต์ต่อตัว ใจเย็น ๆ", "ใครได้แจ็กพอตที่นั่น ประกาศทั้งเซิร์ฟเลยนะ", "{isle}ไปด้วย ๆ ฉัน %lv", "เห็นลำแสงสีรุ้งกลางสนามเมื่อไหร่ นั่นแหละ%rare",
+			"{inisle}อยู่%isle นี่แหละ มาเลย"],
+		"back": ["ขอบใจ %to", "{isle}ไปลุ้นกัน", "{inisle}จะฟาร์มต่ออีกสักพัก", "โอเค เข้าใจละ"],
+	},
+	# A world player's jackpot on the isle was just announced to the server (IsleLuck;
+	# WorldPresence forces this topic with the winner opening, ctx.vars: %jrate %jitem).
+	"jackpot": {
+		"open": ["ดรอปจริงด้วย!! มือสั่นเลย", "ฟาร์ม%isle มานาน ในที่สุดก็ออก", "ขอบคุณเทพมังกร 555", "แจ็กพอตแตกแล้ว! เห็นประกาศกันไหม"],
+		"reply": ["โห ยินดีด้วย %to!", "ดรอปจริงด้วย อิจฉาเลย", "ขอแบ่งดวงหน่อย %to", "อยากได้บ้างจัง", "{isle}เดี๋ยวตามไปฟาร์ม%isle ด้วย", "โอกาสแค่ %jrate เปอร์เซ็นต์ต่อตัวเองนะ ดวงมาก %to",
+			"แคปไว้ยัง 555", "ขายไหม %to ให้ราคาดี", "ยินดีด้วย %to เห็นประกาศเลย"],
+		"back": ["ขอบคุณทุกคน~", "ดวงล้วน ๆ 555", "ยังไม่ขายนะ 555", "ไปฟาร์มต่อละ"],
+	},
 	# A stall keeper's call (its lines name what it really has: WorldPresence passes them
 	# as ctx.open_lines) and the answers to it.
 	"stall": {
@@ -140,7 +161,7 @@ const TOPICS := {
 const PLAIN_LINES := {"open": ["สวัสดีทุกคน~"], "reply": ["555 จริง", "เห็นด้วย ๆ", "โอเค ๆ %to"], "back": ["ขอบใจ %to", "555 โอเค"]}
 ## Topics a guild or party chat may open (the world chat may open any).
 const CHANNEL_TOPICS := {
-	"guild": ["war", "boss", "help", "god_done", "god_soon", "abyss", "set", "enhance_ok", "enhance_fail", "greet", "drop", "mount", "wings"],
+	"guild": ["war", "boss", "help", "god_done", "god_soon", "abyss", "isle", "set", "enhance_ok", "enhance_fail", "greet", "drop", "mount", "wings"],
 	"party": ["next", "drop", "joke", "boss", "mount", "enhance_ok", "enhance_fail", "wings"],
 }
 ## Words a play style ends some lines with (voice).
@@ -280,6 +301,42 @@ static func my_vars(n: Dictionary) -> Dictionary:
 static func rule_vars(t: float) -> Dictionary:
 	# Its everyday monsters (the boss is named only by who hunts there).
 	var abyss_mobs: Array = DrownedAbyssData.NORMALS
+	var out := isle_vars()
+	out.merge(_rule_vars(t, abyss_mobs))
+	return out
+
+
+## What the chat knows of เกาะลอยฟ้าเทพมังกร, from the game's own constants: its name and
+## gate, the way in (the field before it, when it has one), the owner's drop rates in
+## percent, the fragments a costume takes and the rare dragon's schedule.
+static func isle_vars() -> Dictionary:
+	ZoneData.ensure()
+	var out := {
+		"%isle": SkyIsleData.TITLE,
+		"%islestar": str(SkyIsleData.ENTRY_STAR),
+		"%isleweapon": ISLE_WEAPON,
+		"%islewings": ISLE_WINGS,
+		"%dweapon": IsleLuck.percent(SkyIsleLoot.WEAPON_DROP),
+		"%dwing": IsleLuck.percent(SkyIsleLoot.WING_DROP),
+		"%dfrag": IsleLuck.percent(SkyIsleLoot.FRAGMENT_DROP),
+		"%degg": IsleLuck.percent(SkyIsleLoot.EGG_DROP),
+		"%fragneed": str(SkyIsleLoot.COSTUME_FRAGMENTS),
+		"%rare": WorldEvents.NAME_RARE,
+		"%raretimes": "%d-%d" % [WorldEvents.RARE_MIN, WorldEvents.RARE_MAX],
+		"%raremin": str(WorldEvents.RARE_LENGTH / 60),
+	}
+	var prev := StringName(ZoneData.get_zone(SkyIsleData.ID).get("prev", &""))
+	if prev != &"" and prev != &"town" and ZoneData.ZONES.has(prev):
+		out["%isleprev"] = String(ZoneData.ZONES[prev].get("name", ""))
+	return out
+
+
+## The Dragon God's gear as the chat calls it (the pieces' own names differ by class).
+const ISLE_WEAPON := "อาวุธเทพมังกร"
+const ISLE_WINGS := "ปีกเทพมังกร"
+
+
+static func _rule_vars(t: float, abyss_mobs: Array) -> Dictionary:
 	return {
 		"%abyss": DrownedAbyssData.TITLE,
 		"%abyssstar": str(DrownedAbyssData.ENTRY_STAR),
@@ -349,6 +406,10 @@ static func topic_for(channel: String, s: Dictionary, rng: RandomNumberGenerator
 		weights["god_soon"] = 0.3
 	if stars >= 150:
 		weights["abyss"] = 1.0
+	if stars >= SkyIsleData.ENTRY_STAR:
+		weights["isle"] = 1.3 if String(s.get("place", "")) == String(SkyIsleData.ID) else 0.9
+	elif stars >= 250:
+		weights["isle"] = 0.4
 	if stars >= 200 or int(g.get("set_pieces", 0)) > 0:
 		weights["set"] = 0.8 + (0.4 if not (n.get("set_piece", {}) as Dictionary).is_empty() else 0.0)
 	if guild > 0:
@@ -474,6 +535,8 @@ static func thread_vars(s: Dictionary, rng: RandomNumberGenerator, ctx := {}, n 
 	if have != "" and String(MountData.info(next_id).get("name", "")) != have:
 		out["%nextmount"] = String(MountData.info(next_id).get("name", ""))
 	out.merge(news_vars(n), true)
+	# A forced topic's own facts (WorldPresence: a jackpot's item and rate).
+	out.merge(ctx.get("vars", {}), true)
 	return out
 
 
@@ -547,7 +610,7 @@ static func _placeholder() -> RegEx:
 
 ## Whether condition `cond` holds for speaker state `me` with news `mine`: god / notgod /
 ## far (★300 still far) / waiting (Lv.100, not yet God) / stars (Lv.100) / abyss (can
-## enter the drowned abyss) / inabyss / field (stands in its hunting field) / town /
+## enter the drowned abyss) / inabyss / isle (can enter เกาะลอยฟ้าเทพมังกร) / inisle / field (stands in its hunting field) / town /
 ## newbie / guild / set0 (no set piece) / setnear (4-5 of them) / nowings / nomount /
 ## boss (hunting bosses now).
 static func cond_ok(cond: String, me: Dictionary, mine: Dictionary) -> bool:
@@ -571,6 +634,10 @@ static func cond_ok(cond: String, me: Dictionary, mine: Dictionary) -> bool:
 			return stars >= DrownedAbyssData.ENTRY_STAR
 		"inabyss":
 			return place == String(DrownedAbyssData.ID)
+		"isle":
+			return stars >= SkyIsleData.ENTRY_STAR
+		"inisle":
+			return place == String(SkyIsleData.ID)
 		"field":
 			return place != "" and place != "town" and place == String(WorldPlayers.hunting_zone(level, stars))
 		"town":

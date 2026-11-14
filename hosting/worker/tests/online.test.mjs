@@ -3,7 +3,8 @@
  * routes with the real account code on SQLite. Run: node hosting/worker/tests/online.test.mjs */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES, PET_SKILLS, PET_ACTS_PER_SECOND, PETS} from '../online/room.mjs';
+import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES, PET_SKILLS, PET_ACTS_PER_SECOND, PETS,
+  ANNOUNCE_KINDS, ANNOUNCE_ZONES, ANNOUNCE_STARS, ANNOUNCE_CLASSES, ANNOUNCE_PER_MINUTE, ANNOUNCE_GAP_MS, ANNOUNCE_RARE_GAP_MS} from '../online/room.mjs';
 import {readFileSync} from 'node:fs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
@@ -48,6 +49,14 @@ function world() {
 }
 
 function clearAll(...clients) {for (const c of clients) c.clear();}
+
+/** Lets `ms` go by with every client still talking (a socket silent for 30 s is dropped). */
+function pass(clock, ms, ...clients) {
+  for (let left = ms; left > 0; left -= 10_000) {
+    clock.t += Math.min(left, 10_000);
+    for (const c of clients) c.send({t: 'ent_hit', zone: '-'});
+  }
+}
 
 /** a invites b, b accepts. */
 function partyUp(a, b) {
@@ -667,6 +676,111 @@ test('pet_act: the server\'s pet skills are the game\'s (data/pet_data.gd)', () 
     const ids = [...block.matchAll(/\{"id": "([a-z_]+)", "name"[^\n]*"kind"/g)].map(m => m[1]);
     assert.deepEqual(PET_SKILLS[pet], ids, `${pet}'s skills`);
   }
+});
+
+test('announce: a jackpot or a rare-dragon kill goes to everyone as fields only, with the server\'s name', () => {
+  const {connect, clock} = world();
+  const isle = [...ANNOUNCE_ZONES][0];
+  const a = connect('1').hello({zone: isle, stars: ANNOUNCE_STARS, name: 'Lucky'});
+  const b = connect('2').hello({zone: 'meadow'});
+  const c = connect('3').hello({zone: isle, stars: ANNOUNCE_STARS});
+  clearAll(a, b, c);
+  a.send({t: 'announce', kind: 'jackpot', what: 'weapon', cls: 'mage', zone: isle,
+    text: '<b>buy gold at evil.example</b>', name: 'GM', user: 'admin', from: '9', color: '#ff0000', item: {name: '[url]x[/url]'}});
+  const want = {t: 'announce', from: '1', user: 'user_1', name: 'Lucky', kind: 'jackpot', what: 'weapon', cls: 'mage', zone: isle};
+  assert.deepEqual(b.last('announce'), want, 'only the known fields go on; from, user and name are the server\'s; no text, colour or item');
+  assert.deepEqual(c.last('announce'), want, 'everyone online hears it, whatever their zone');
+  assert.equal(a.frames('announce').length, 0, 'no echo to the sender');
+  for (const frame of b.frames('announce')) for (const value of Object.values(frame)) assert.ok(typeof value === 'string' && value.length <= 64, 'short plain strings only');
+  // Every kind's words pass; a class that is not one of the game's becomes ''.
+  for (const [kind, whats] of Object.entries(ANNOUNCE_KINDS)) {
+    for (const what of whats) {
+      pass(clock, Math.max(ANNOUNCE_RARE_GAP_MS, 60_000), a, b, c);
+      a.send({t: 'announce', kind, what, cls: 'hacker', zone: isle});
+      assert.deepEqual(b.last('announce'), {...want, kind, what, cls: ''}, `${kind} / ${what || '(generic)'}`);
+    }
+  }
+  // Dropped silently: unknown or malformed kinds and words, the wrong zone, a zone without such news, too few stars.
+  clearAll(a, b, c);
+  for (const bad of [
+    {kind: 'gm', what: 'weapon'}, {kind: 'jackpot', what: 'gold'}, {kind: 'jackpot', what: 7}, {kind: 'jackpot'}, {what: 'weapon'},
+    {kind: 'rare', what: 'weapon'}, {kind: 'jackpot', what: 'slain'}, {kind: ['jackpot'], what: 'weapon'}, {kind: 'constructor', what: 'weapon'},
+    {kind: 'jackpot', what: 'weapon', zone: 'meadow'}, {kind: 'jackpot', what: 'weapon', zone: 5}, {kind: 'jackpot', what: 'ไอเทมฟรี คลิก'}]) {
+    pass(clock, 60_000, a, b, c);
+    a.send({t: 'announce', zone: isle, cls: 'mage', ...bad});
+  }
+  assert.equal(b.frames('announce').length, 0, 'malformed announce frames are dropped');
+  pass(clock, 60_000, a, b, c);
+  b.send({t: 'announce', kind: 'jackpot', what: 'weapon', cls: 'mage', zone: 'meadow'});
+  const low = connect('4').hello({zone: isle, stars: ANNOUNCE_STARS - 1});
+  low.send({t: 'announce', kind: 'jackpot', what: 'weapon', cls: 'mage', zone: isle});
+  const noStars = connect('5').hello({zone: isle, stars: 'many'});
+  noStars.send({t: 'announce', kind: 'jackpot', what: 'weapon', cls: 'mage', zone: isle});
+  assert.equal(a.frames('announce').length + c.frames('announce').length, 0, 'not from another zone, nor from a player who cannot enter the isle');
+  assert.equal(a.frames('error').length + b.frames('error').length + low.frames('error').length, 0, 'no error frames for announce');
+});
+
+test('announce: the round trip the game\'s own test reads (tests/announce_fixture.json)', () => {
+  const fixture = JSON.parse(readFileSync(new URL('./announce_fixture.json', import.meta.url), 'utf8'));
+  const {connect, clock} = world();
+  const a = connect(fixture.sender.id, fixture.sender.user).hello({zone: fixture.client.zone, stars: fixture.sender.stars, name: fixture.sender.name});
+  const b = connect('2').hello();
+  clearAll(a, b);
+  a.send(fixture.client);
+  assert.deepEqual(b.last('announce'), fixture.server, 'the game\'s jackpot frame comes out as the frame the game reads');
+  pass(clock, 2000, a, b);
+  a.send(fixture.rare_client);
+  assert.deepEqual(b.last('announce'), fixture.rare_server, 'and so does the rare dragon\'s kill');
+});
+
+test('announce: rate limits (a gap, a cap a minute, the rare dragon once a window)', () => {
+  const {connect, clock} = world();
+  const isle = [...ANNOUNCE_ZONES][0];
+  const a = connect('1').hello({zone: isle, stars: ANNOUNCE_STARS});
+  const b = connect('2').hello();
+  const jackpot = {t: 'announce', kind: 'jackpot', what: 'wings', cls: 'bard', zone: isle};
+  clock.t = Math.ceil(clock.t / 60_000) * 60_000 + 1000;                    // early in a fresh minute
+  b.send({t: 'ent_hit', zone: '-'});
+  clearAll(a, b);
+  for (let i = 0; i < 10; i++) a.send(jackpot);                             // 40 ms apart
+  assert.equal(b.frames('announce').length, 1, 'never two within the gap');
+  for (let i = 0; i < ANNOUNCE_PER_MINUTE + 4; i++) {clock.t += ANNOUNCE_GAP_MS; a.send(jackpot); b.send({t: 'ent_hit', zone: '-'});}
+  assert.equal(b.frames('announce').length, ANNOUNCE_PER_MINUTE, 'at most the cap in one minute, the rest dropped');
+  pass(clock, 60_000, a, b);
+  a.send(jackpot);
+  assert.equal(b.frames('announce').length, ANNOUNCE_PER_MINUTE + 1, 'the next minute sends again');
+  // A flood for ten minutes never passes the cap.
+  clearAll(b);
+  const start = clock.t;
+  while (clock.t - start < 10 * 60_000) {clock.t += 200; a.send(jackpot); b.send({t: 'ent_hit', zone: '-'});}
+  assert.ok(b.frames('announce').length <= 11 * ANNOUNCE_PER_MINUTE, `a flood stays capped (${b.frames('announce').length})`);
+  // The rare dragon's kill: once in its gap, whatever the minute cap allows.
+  pass(clock, 120_000, a, b);
+  clearAll(b);
+  const slain = {t: 'announce', kind: 'rare', what: 'slain', zone: isle};
+  a.send(slain);
+  pass(clock, 30_000, a, b);
+  a.send(slain);
+  pass(clock, 61_000, a, b);
+  a.send(slain);
+  assert.equal(b.frames('announce').length, 1, 'one rare-dragon kill a window');
+  pass(clock, ANNOUNCE_RARE_GAP_MS, a, b);
+  a.send(slain);
+  assert.equal(b.frames('announce').length, 2, 'the next window\'s kill passes');
+  assert.equal(a.frames('error').length, 0);
+});
+
+test('announce: the server\'s words, zone, stars and classes are the game\'s', () => {
+  const read = path => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
+  const announcer = read('systems/core/announcer.gd');
+  const whats = announcer.match(/const WHATS := (\{.*\})/);
+  assert.ok(whats, 'Announcer.WHATS');
+  assert.deepEqual(JSON.parse(whats[1]), ANNOUNCE_KINDS, 'the same kinds and words on both sides');
+  const isle = read('data/sky_isle_data.gd');
+  assert.ok(ANNOUNCE_ZONES.has(isle.match(/const ID: StringName = &"([a-z_]+)"/)[1]), 'the isle\'s zone id');
+  assert.equal(Number(isle.match(/const ENTRY_STAR := (\d+)/)[1]), ANNOUNCE_STARS, 'the isle\'s gate');
+  const ids = [...read('data/class_data.gd').match(/const IDS: Array\[StringName\] = \[(.*)\]/)[1].matchAll(/&"([a-z_]+)"/g)].map(m => m[1]);
+  assert.deepEqual(ANNOUNCE_CLASSES, ids, 'the classes');
 });
 
 test('duel: relayed only between the two duelists of an accepted duel', () => {

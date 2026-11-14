@@ -411,6 +411,12 @@ const HIGH := ["กิลด์ %guild รับสมาชิกตั้ง�
 	"{field}ดาวขึ้นช้าจังที่ %zone", "ใครไปเก็บดาวด้วยกันบ้าง", "%guild ต้องชนะกิลด์วอรอบนี้!"]
 const TOP := ["ชุดเทพครบแล้ว ตอนนี้ตีบวกถึง +%mydplus ใครมีเพชรขายบ้าง", "รับพาเก็บดาว ทักมาได้", "{boss}ล่าบอสที่%zone อยู่ ใครมาด้วยไหม",
 	"มือใหม่มาถามได้นะ ยินดีช่วย", "%guild สู้ ๆ"]
+## Hunting on เกาะลอยฟ้าเทพมังกร (ISLE_SHARE of such a player's lines): the isle's drops and
+## its rare dragon, every number from the game's constants (ChatThreads.isle_vars).
+const ISLE := ["{inisle}ฟาร์ม%isle อยู่ ลุ้น%isleweapon %dweapon เปอร์เซ็นต์ต่อตัว", "{inisle}%islewings โอกาสแค่ %dwing เปอร์เซ็นต์ต่อตัว ใจต้องนิ่ง",
+	"{inisle}ใครเห็นลำแสงสีรุ้งบอกด้วย จะไปตี%rare", "{inisle}%rare มาวันละ %raretimes รอบ รอบละ %raremin นาที ต้องเฝ้าเอา",
+	"{inisle}เก็บชิ้นส่วนคอสตูมอยู่ ต้องครบ %fragneed ถึงแลกชุดได้", "{inisle}ถึง ★%islestar แล้วมา%isle กันได้นะ", "{inisle}ลุ้นไข่สัตว์ขี่ที่%isle โอกาส %degg เปอร์เซ็นต์ต่อตัว"]
+const ISLE_SHARE := 0.35
 ## Stall keepers: players taking a break in the village, selling what they found.
 ## %gear / %potion / %jewel name a lot this stall really has (StallStock.lot_name); a line
 ## naming goods the stall does not have is never said. Potions are under the merchant's
@@ -475,6 +481,9 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 		pool = LOW
 	if rng.randf() < (0.1 if doing in ["stall", "errand"] else 0.25):
 		pool = ANY
+	# On the isle (a roll only there, so everyone else's picks stay as they were).
+	if doing in ["hunt", "boss"] and String(s.get("place", "")) == String(SkyIsleData.ID) and rng.randf() < ISLE_SHARE:
+		pool = ISLE
 	var leader := int(s.get("party_leader", -1))
 	var members: Array = s.get("party_members", [])
 	var party_n := members.size()

@@ -233,6 +233,7 @@ func chat_tick(delta: float) -> void:
 		if _party_in <= 0.0:
 			_party_in = randf_range(PARTY_EVERY.x, PARTY_EVERY.y)
 			party_once()
+	_isle_luck()
 	flush_ai_chat()
 
 
@@ -684,15 +685,34 @@ static func _people(first: Dictionary, pool: Array) -> Array:
 	return [first] + others.slice(0, 3)
 
 
+## A world player's jackpot on the isle was just announced (Announcer.take_luck): the
+## winner and a few others online talk about it in the world chat (ChatThreads topic
+## "jackpot": congratulations, envy, the real rate). The world host's game makes the lines.
+func _isle_luck() -> void:
+	for e in Announcer.take_luck():
+		if world_chat_relayed() or _online.size() < 2:
+			continue
+		var winner := {}
+		for o in _online:
+			if int(o.index) == int(e.index):
+				winner = o
+		if winner.is_empty():
+			continue
+		_start_thread("world", _people(winner, _online), {"topic": "jackpot", "delay": 2.5,
+			"vars": {"%jrate": IsleLuck.percent(float(e.rate)), "%jitem": ItemData.name_of(e.item)}})
+
+
 ## Starts a conversation on `channel` among `people` (people[0] opens): the first line
-## now, the answers queued. False when nothing fresh was left to say.
-func _start_thread(channel: String, people: Array) -> bool:
+## now (after extra.delay seconds when given), the answers queued. `extra` joins the
+## thread's ctx (a forced topic, its vars). False when nothing fresh was left to say.
+func _start_thread(channel: String, people: Array, extra := {}) -> bool:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = randi()
 	var names: Array = []
 	for o in _online:
 		names.append(String(o.name))
 	var ctx := {"online": _online.size(), "names": names}
+	ctx.merge(extra, true)
 	var opener: Dictionary = people[0]
 	if String(opener.get("doing", "")) == "stall" and channel == "world" and rng.randf() < 0.6:
 		# Its calls (lines naming what it really has), not the small talk anyone may say.
@@ -710,8 +730,12 @@ func _start_thread(channel: String, people: Array) -> bool:
 	var first := _fresh_of(lines[0].options)
 	if first == "":
 		return false
-	_say(channel, opener, first)
 	var at := chat_clock()
+	if float(extra.get("delay", 0.0)) > 0.0:
+		at += float(extra.delay)
+		_queue.append({"at": at, "channel": channel, "state": opener, "options": [first], "put_off": 0})
+	else:
+		_say(channel, opener, first)
 	for k in range(1, lines.size()):
 		at += float(lines[k].delay)
 		var who: Dictionary = people[int(lines[k].who)]

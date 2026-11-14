@@ -14,7 +14,7 @@ extends Mob
 
 var eid := 0
 var sync: EntitySync
-## "" (a field monster), "field_boss", "world_boss" or "golden".
+## "" (a field monster), "field_boss", "world_boss", "golden" or "rare" (RareDragon).
 var kind := ""
 var goal := Vector3.ZERO
 var goal_yaw := 0.0
@@ -44,6 +44,8 @@ func setup_mirror(p_sync: EntitySync, p_eid: int, d: Dictionary, p_hero: Node3D)
 			template["name"] = WorldEvents.NAME_GOLDEN
 			template["tint"] = WorldEvents.GOLDEN_COLOR
 			set_meta("golden", int(d.get("win", -1)))
+		"rare":
+			set_meta(RareDragon.META, int(d.get("win", -1)))
 	max_hp = maxi(1, int(d.get("mhp", max_hp)))
 	hp = clampi(int(d.get("hp", max_hp)), 1, max_hp)
 	hostile = int(d.get("h", 0)) != 0
@@ -68,6 +70,8 @@ func _ready() -> void:
 		var sparkle := VfxKit.buff_emitter(self, WorldEvents.GOLDEN_COLOR)
 		sparkle.name = "GoldenSparkle"
 		sparkle.emitting = true
+	elif kind == "rare":
+		RareDragon.dress(self)
 
 
 func _physics_process(delta: float) -> void:

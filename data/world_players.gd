@@ -1157,8 +1157,15 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 ## field that fits it (hunting_zone); from ★200 the drowned abyss or the lotus sanctum,
 ## the two endgame maps with the same drops and monster band, a session each by turns of
 ## its own (WorldGear's drops are the same in either).
+const ISLE_SHARE := 60
+
+
 static func session_zone(i: int, s0: float, level: int, stars: int) -> StringName:
 	var home := hunting_zone(level, stars)
+	# At ★300 most sessions go to เกาะลอยฟ้าเทพมังกร (ISLE_SHARE of them, a roll of its own
+	# so the turns between the two older maps stay as they were).
+	if home == DrownedAbyssData.ID and stars >= SkyIsleData.ENTRY_STAR and WorldEvents.roll("isle|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 100 < ISLE_SHARE:
+		return SkyIsleData.ID
 	if home == DrownedAbyssData.ID and hash("map|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 2 == 1:
 		return DivineRegionData.ID
 	return home
@@ -1301,6 +1308,19 @@ static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
 			ranks[String(skill.id)] = rank + 1
 			points -= 1
 	return ranks
+
+
+## Player i's skills at real time t for its card: {skills (how many it has unlocked),
+## stars (the ranks it bought, skill_ranks), max}.
+static func skill_summary(i: int, t: float) -> Dictionary:
+	var p := progress_at(i, t)
+	var level := int(p.level)
+	var cls := StringName(String(entry(i)["class"])) if level >= ClassData.LINE_LEVEL else ClassData.START
+	var ranks := skill_ranks(cls, level, int(p.stars))
+	var stars := 0
+	for id in ranks:
+		stars += int(ranks[id])
+	return {"skills": ranks.size(), "stars": stars, "max": ranks.size() * SkillRank.MAX}
 
 
 # --- Mounts (MountData) --------------------------------------------------------------

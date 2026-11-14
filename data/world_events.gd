@@ -5,7 +5,8 @@ extends RefCounted
 ## everyone. EXP x2 every evening 19:00-21:00; the world boss (บอสโลก) at 19:30 for
 ## 20 minutes in the hunting field of the day (the base fields in ZoneData order, one
 ## a day; on Saturday and Sunday the ★ regions join the rotation); on the weekend gold
-## drops pay +20% and forge jewels drop twice as often; every 15 minutes a golden monster
+## drops pay +20% and forge jewels drop twice as often; a few times a day the rare dragon
+## (มังกรแก้วเจ็ดสี) visits เกาะลอยฟ้าเทพมังกร for 10 minutes (rare_now); every 15 minutes a golden monster
 ## (มอนทองคำ) visits each levelling field for 3 minutes. Times are seconds of the Thai day; the day index (Thai midnight to
 ## midnight) names a boss window in profile.flags ("wboss|<day>").
 
@@ -80,6 +81,23 @@ const GOLDEN_COLOR := Color("ffd23a")
 const NAME_GOLDEN := "มอนทองคำ"
 ## profile.flags[GOLDEN_FLAG]: the last window whose golden monster the hero killed.
 const GOLDEN_FLAG := "golden"
+
+## The rare dragon (มังกรแก้วเจ็ดสี) of the zones flagged "rare_dragon" (เกาะลอยฟ้าเทพมังกร;
+## RareDragon runs it): RARE_MIN to RARE_MAX windows a Thai day (rare_count), each
+## RARE_LENGTH seconds, at a minute nobody can learn by habit: the day is cut into as many
+## equal parts as it has windows and each window starts at a whole minute of its part picked
+## by a hash of the day (rare_windows), never within RARE_GAP of the next part. Read off
+## the clock, so every device opens the same windows. profile.flags[RARE_FLAG]: the last
+## window whose dragon the hero saw fall.
+const RARE_MIN := 4
+const RARE_MAX := 6
+const RARE_LENGTH := 10 * 60
+const RARE_GAP := 30 * 60
+const NAME_RARE := "มังกรแก้วเจ็ดสี"
+const RARE_COLOR := Color("7dffd8")
+const RARE_FLAG := "rare_dragon"
+## A window's number: its Thai day times RARE_SLOTS plus its place in the day.
+const RARE_SLOTS := 8
 
 static var _fields: Array[StringName] = []
 static var _star_fields: Array[StringName] = []
@@ -203,7 +221,7 @@ static func weekend_text(t: float) -> String:
 ## The HUD event chip's lines at `t` (Hud): the running or next event (describe), the
 ## weekend jewel rush and the Halloween event, each only while it has something to say.
 static func chip_lines(t: float) -> Array:
-	return [festival_text(t), describe(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+	return [festival_text(t), rare_text(t), describe(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
 
 
 ## A levelling field (the golden monster's ground): a field with monster camps, not the
@@ -244,6 +262,69 @@ static func golden_tier(zone: Dictionary) -> int:
 static func golden_pick(n: int, zone_id: StringName, camps: int, monsters: int) -> Vector2i:
 	var h := absi(String(zone_id).hash())
 	return Vector2i(posmod(n * 31 + h, maxi(1, camps)), posmod(n * 17 + h / 7, maxi(1, monsters)))
+
+
+## A well-mixed number (0 .. 2^32-1) for `key`, the same on every device: a string's hash
+## alone moves by one when its last digit does, so neighbouring days would follow a pattern.
+static func roll(key: String) -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(key)
+	rng.randi()
+	return rng.randi()
+
+
+## How many times the rare dragon comes on Thai day `day` (RARE_MIN..RARE_MAX).
+static func rare_count(day: int) -> int:
+	return RARE_MIN + roll("rare|%d" % day) % (RARE_MAX - RARE_MIN + 1)
+
+
+## Unix times the rare dragon's windows of Thai day `day` open, in order.
+static func rare_windows(day: int) -> Array[float]:
+	var out: Array[float] = []
+	var count := rare_count(day)
+	var part := DAY / count
+	var minutes := maxi(1, (part - RARE_LENGTH - RARE_GAP) / 60)
+	var midnight := float(day) * float(DAY) - float(WorldPlayers.TZ)
+	for k in count:
+		out.append(midnight + float(k * part + 60 * (roll("rare|%d|%d" % [day, k]) % minutes)))
+	return out
+
+
+## The rare dragon's window `t` is in: {window, start, until, day, slot}, or {} outside.
+static func rare_now(t: float) -> Dictionary:
+	var day := day_of(t)
+	var starts := rare_windows(day)
+	for k in starts.size():
+		if t >= starts[k] and t < starts[k] + float(RARE_LENGTH):
+			return {"window": day * RARE_SLOTS + k, "start": starts[k], "until": starts[k] + float(RARE_LENGTH), "day": day, "slot": k}
+	return {}
+
+
+## Unix time the next window opens after `t` (tests and probes; the game never shows it).
+static func rare_next(t: float) -> float:
+	for days in 2:
+		for start in rare_windows(day_of(t) + days):
+			if start > t:
+				return start
+	return t + float(DAY)
+
+
+## The camp (index) the dragon of `window` comes to in a field of `camps` camps.
+static func rare_camp(window: int, camps: int) -> int:
+	return roll("rarecamp|%d" % window) % maxi(1, camps)
+
+
+## Whether this hero already saw the dragon of `window` fall (its prize is once a window).
+static func rare_done(window: int) -> bool:
+	return Game.has_profile and int(Game.profile.flags.get(RARE_FLAG, -1)) == window
+
+
+## The HUD line while the rare dragon lives ("" outside a window and once it fell).
+static func rare_text(t: float) -> String:
+	var event := rare_now(t)
+	if event.is_empty() or rare_done(int(event.window)):
+		return ""
+	return "%s ที่%s เหลือ %s" % [NAME_RARE, SkyIsleData.TITLE, _span(float(event.until) - t)]
 
 
 static func gold_multiplier(t: float) -> float:

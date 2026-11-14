@@ -671,6 +671,27 @@ function petPoint(value) {
   return value.map(v => Math.round(v * 10) / 10);
 }
 
+/** `announce`: a player's jackpot drop or rare-dragon kill, told to everyone online
+ * (Announcer in the game). The frame carries no text: only a kind, what it is (one of
+ * the kind's fixed words), the class of a gear piece and the zone; every client writes
+ * the line itself from those, with the name the server knows the sender by. So it cannot
+ * be used to push words, markup or another player's name at anyone. */
+export const ANNOUNCE_KINDS = {
+  jackpot: ['', 'weapon', 'wings', 'fragment', 'egg', 'chest'],
+  rare: ['slain'],
+};
+/** Only from a zone that has such news (SkyIsleData.ID), by a player standing in it ... */
+export const ANNOUNCE_ZONES = new Set(['sky_dragon_isle']);
+/** ... who has the stars to enter it (SkyIsleData.ENTRY_STAR). */
+export const ANNOUNCE_STARS = 300;
+/** The classes a gear piece may be of (ClassData.IDS in the game; a test keeps them the same). */
+export const ANNOUNCE_CLASSES = ['warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard'];
+/** At most this many a player a minute, never two within ANNOUNCE_GAP_MS; a rare-dragon
+ * kill at most once in ANNOUNCE_RARE_GAP_MS (its window is longer). The rest are dropped. */
+export const ANNOUNCE_PER_MINUTE = 4;
+export const ANNOUNCE_GAP_MS = 1000;
+export const ANNOUNCE_RARE_GAP_MS = 5 * 60_000;
+
 const lotKey = (buyer, lot) => `${buyer}\u0000${String(lot)}`;
 
 /** Relays a frame with `from` set by the server (whatever the client wrote in it); a
@@ -819,6 +840,27 @@ const HANDLERS = {
     if (++s.petRate.count > PET_ACTS_PER_SECOND) return;
     const out = JSON.stringify({t: 'pet_act', from: s.id, zone: p.zone, k, e: int(msg.e, 0, PET_EID_MAX, 0), p: at});
     for (const m of this.served(s)) if (m.id !== s.id) this.send(m, out);
+  },
+
+  /** The sender's jackpot or rare-dragon kill, to everyone else (see ANNOUNCE_KINDS). */
+  announce(s, msg) {
+    const p = s.player;
+    if (typeof msg.kind !== 'string' || !Object.hasOwn(ANNOUNCE_KINDS, msg.kind)) return;
+    const kind = msg.kind;
+    if (typeof msg.what !== 'string' || !ANNOUNCE_KINDS[kind].includes(msg.what)) return;
+    if (typeof msg.zone !== 'string' || msg.zone !== p.zone || !ANNOUNCE_ZONES.has(p.zone)) return;
+    if (!(p.stars >= ANNOUNCE_STARS)) return;
+    const cls = typeof msg.cls === 'string' && ANNOUNCE_CLASSES.includes(msg.cls) ? msg.cls : '';
+    const now = this.now();
+    const rate = s.announce ??= {min: -1, count: 0, last: -Infinity, rare: -Infinity};
+    if (now - rate.last < ANNOUNCE_GAP_MS) return;
+    if (kind === 'rare' && now - rate.rare < ANNOUNCE_RARE_GAP_MS) return;
+    const min = Math.floor(now / 60_000);
+    if (rate.min !== min) {rate.min = min; rate.count = 0;}
+    if (++rate.count > ANNOUNCE_PER_MINUTE) return;
+    rate.last = now;
+    if (kind === 'rare') rate.rare = now;
+    this.broadcast({t: 'announce', from: s.id, user: s.user, name: p.name, kind, what: msg.what, cls, zone: p.zone}, s.id);
   },
 
   ai_chat(s, msg) {

@@ -31,6 +31,17 @@ extends RefCounted
 ##   3. the mount (MountData.cost / chance: the wolf to Lv.5, then the stag, the griffin,
 ##      the drake), for the players who take up mounts (WorldPlayers.MOUNT_SHARE);
 ##   4. from ★100 the 100★ wings (a chaos jewel and a feather, StarWingData.CRAFT_CHANCE).
+## * Gems (_gems, on rolls of their own so the forge's stay as they were): the stat gems its
+##   kills drop (Zone.DROP_RATE_GEM in the levelling fields, EndgameFields.GEM_* from ★200,
+##   the sizes of Zone.random_stat_gem), the special gems and drills of the ★ fields
+##   (Zone.SPECIAL_GEM_STAR / DRILL_STAR). It keeps the kinds its class builds on
+##   (gem_plan: ruby for the fighters, sapphire for the casters, amethyst and emerald for
+##   the Defender, emerald in everyone's armour, one special gem in the ring), fuses three
+##   of a size into the next at the forge's own odds (ItemData.GEM_FUSE_CHANCE: a failed
+##   try loses one) as long as its sockets stay full, drills its endgame pieces
+##   (ItemData.max_sockets: a fourth socket at +15) and keeps its best gems in the
+##   sockets its gear has (a new piece takes the old one's gems over; drilled sockets
+##   stay with the old piece). Only a share of the gems a kill drops is kept (GEM_KEEN*).
 ##
 ## Every step is an event ({at, kind, slot, from, to, item}) the chats can quote; gear(i, t)
 ## is the state after the events up to t. A player's simulation is kept and only ever
@@ -65,8 +76,28 @@ const SET_DIVINE_PLUS := SetGearData.DIVINE_PLUS
 ## Events between two snapshots of the state.
 const SNAP := 24
 const ENHANCE_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "wings"]
-const KINDS: Array[String] = ["enhance_ok", "enhance_fail", "set_piece", "set_fail", "divine_piece", "wings_up", "wings_fail", "mount_up", "mount_fail", "drop"]
+const KINDS: Array[String] = ["enhance_ok", "enhance_fail", "set_piece", "set_fail", "divine_piece", "wings_up", "wings_fail", "mount_up", "mount_fail", "drop", "gems"]
+## The slots that hold gems, the best gems first.
+const GEM_SLOTS: Array[String] = ["weapon", "ring", "amulet", "helm", "boots", "armor"]
+## The share of the gems its kills drop that a world player keeps and puts to use (the
+## rest it sells with its other loot, as it sells the gear it does not wear): a few in a
+## thousand of the levelling fields' many small gems, more of the endgame fields', and
+## GEM_KEEN of the ★ fields' special gems and drills. It fuses up to size GEM_FUSE_TOP (the
+## two last steps, at 70% and 40% and dear in gold, are left to the hero). Together they keep a guild war
+## side's gain from its gems within the hero's reach (world_growth_test: MAX_GEM_LIFT).
+const GEM_KEEN := 0.3
+const GEM_KEEN_FIELD := 0.002
+const GEM_KEEN_ENDGAME := 0.015
+const GEM_FUSE_TOP := 2
+## The gem a class builds on, and the special gem it likes (one, in the ring).
+const GEM_MAIN := {"defender": "amethyst"}
+const GEM_SPECIAL := {"defender": "pearl", "priest": "opal", "bard": "opal"}
+## Fuses a player gets round to in one stretch of play.
+const FUSES_PER_CHUNK := 40
 
+## Gem fuses tried and made so far by everyone, by the size fused from (tests: the odds).
+static var fuse_tries := [0, 0, 0, 0]
+static var fuse_made := [0, 0, 0, 0]
 static var _sims := {}
 static var _items := {}
 static var _read := {}
@@ -74,6 +105,8 @@ static var _read := {}
 
 ## Forgets every simulation (tests: worked out again from nothing, as another device would).
 static func clear() -> void:
+	fuse_tries = [0, 0, 0, 0]
+	fuse_made = [0, 0, 0, 0]
 	_sims.clear()
 	_items.clear()
 	_read.clear()
@@ -185,7 +218,65 @@ static func gear_at_work(i: int, w: float) -> Dictionary:
 	out["divine_plus"] = divine_plus_of(st)
 	var mount := String(st.mount)
 	out["mount"] = {} if mount == "" else {"name": String(MountData.info(mount).name), "level": int(st.mounts[mount]), "id": mount}
+	out["gems"] = gem_summary(i, st)
 	return out
+
+
+## The gem a class builds its sockets on: {main, body, special} (ItemData.GEMS ids). A
+## caster's sapphire raises its magic attack, a fighter's ruby its attack, the Defender
+## stacks defence (amethyst) with health (emerald) in its jewellery; everyone's armour
+## holds emeralds; the special gem is crit damage for the damage dealers, lifesteal for
+## the Defender and cooldown for the supports.
+static func gem_plan(cls: String) -> Dictionary:
+	var main := String(GEM_MAIN.get(cls, "sapphire" if String(ClassData.get_class_data(StringName(cls)).get("main", "str")) == "int" else "ruby"))
+	return {"main": main, "body": "emerald", "special": String(GEM_SPECIAL.get(cls, "onyx"))}
+
+
+## The gem kind slot `slot` of a `cls` holds (gem_plan).
+static func gem_for_slot(cls: String, slot: String) -> String:
+	var plan := gem_plan(cls)
+	if cls == "defender":
+		return String(plan.body) if slot in ["ring", "amulet"] else String(plan.main)
+	return String(plan.body) if slot == "armor" else String(plan.main)
+
+
+## The sockets of the piece player i wears in `slot` in state st (its own and the drilled
+## ones, at most ItemData.max_sockets), 0 without a piece.
+static func sockets_of(i: int, st: Dictionary, slot: String) -> int:
+	var worn: Variant = (st.worn as Dictionary).get(slot)
+	if worn == null:
+		return 0
+	var item := _item(i, slot, String(worn[0]))
+	var top := ItemData.MAX_SOCKETS + (1 if int(worn[1]) >= ItemData.MAX_PLUS else 0)
+	return mini(int(item.get("sockets", 0)) + int((st.get("drill", {}) as Dictionary).get(slot, 0)), top)
+
+
+## The gems in the sockets of `slot` in state st (never more than the piece has sockets).
+static func gems_of(i: int, st: Dictionary, slot: String) -> Array:
+	var list: Array = (st.get("gems", {}) as Dictionary).get(slot, [])
+	return list.slice(0, sockets_of(i, st, slot))
+
+
+## What the card and the chat say of player i's gems: {count, sockets, best (the top
+## size worn, -1 none), main (the kind it wears most), main_name, best_name}.
+static func gem_summary(i: int, st: Dictionary) -> Dictionary:
+	var count := 0
+	var sockets := 0
+	var best := -1
+	var kinds := {}
+	for slot in GEM_SLOTS:
+		sockets += sockets_of(i, st, slot)
+		for id in gems_of(i, st, slot):
+			var bits := String(id).split("_")
+			count += 1
+			best = maxi(best, int(bits[1]))
+			kinds[bits[0]] = int(kinds.get(bits[0], 0)) + 1
+	var main := ""
+	for kind in kinds:
+		if main == "" or int(kinds[kind]) > int(kinds[main]):
+			main = String(kind)
+	return {"count": count, "sockets": sockets, "best": best, "main": main,
+		"main_name": String(ItemData.GEMS[main].name) if main != "" else "", "best_name": String(ItemData.GEM_SIZES[best]) if best >= 0 else ""}
 
 
 ## The lowest + among the divine pieces worn (0 with none worn).
@@ -209,6 +300,11 @@ static func equip_at_work(i: int, w: float) -> Dictionary:
 			continue
 		if EnhanceFx.can_enhance(item):
 			item["plus"] = int(worn[1])
+		if String(slot) in GEM_SLOTS:
+			var gems := gems_of(i, st, String(slot))
+			if not gems.is_empty():
+				item["sockets"] = sockets_of(i, st, String(slot))
+				item["gems"] = gems.duplicate()
 		out[slot] = item
 	var legend := LegendWings.ai_item(i)
 	if not legend.is_empty():
@@ -224,6 +320,9 @@ static func signature_at_work(i: int, w: float) -> String:
 		if (st.worn as Dictionary).has(slot):
 			var worn: Array = st.worn[slot]
 			parts.append("%s:%s+%d" % [slot, worn[0], int(worn[1])])
+			var gems := gems_of(i, st, String(slot)) if String(slot) in GEM_SLOTS else []
+			if not gems.is_empty():
+				parts.append("g:%s" % "/".join(gems))
 	var legend := LegendWings.ai_item(i)
 	if not legend.is_empty():
 		parts.append("legend:%d" % int(legend.legend_week))
@@ -281,6 +380,8 @@ static func _public(i: int, ev: Dictionary) -> Dictionary:
 	var out := {"kind": ev.kind, "slot": ev.slot, "from": ev.from, "to": ev.to, "item": item}
 	if ev.has("used"):
 		out["used"] = ev.used
+	if ev.has("gems"):
+		out["gems"] = (ev.gems as Array).duplicate()
 	return out
 
 
@@ -365,6 +466,10 @@ class Sim:
 	var rides := false
 	var ride_from := 0
 	var job := ""
+	## Gems: their own rolls, the bag (gem id -> count, the kinds its class uses) and drills.
+	var grng := RandomNumberGenerator.new()
+	var bag := {}
+	var drills := 0
 
 
 ## The fixed chunk grid: edges[c] is where chunk c starts (narrow while levelling, wider
@@ -397,9 +502,10 @@ static func _new_sim(i: int) -> Sim:
 	var e := WorldPlayers.entry(i)
 	var name := String(e.name)
 	sim.rng.seed = hash("wgear_sim|%s" % name)
+	sim.grng.seed = hash("wgear_gems|%s" % name)
 	sim.eff = WorldPlayers.efficiency(i)
 	sim.job = String(e["class"])
-	sim.live = {"worn": {}, "prev": {}, "dv": {}, "wtier": 0, "set": 0, "divine": 0, "mounts": {}, "mount": ""}
+	sim.live = {"worn": {}, "prev": {}, "dv": {}, "wtier": 0, "set": 0, "divine": 0, "mounts": {}, "mount": "", "gems": {}, "drill": {}}
 	sim.snaps.append(_copy(sim.live))
 	# Who takes up mounts, and from which level: drawn as WorldPlayers always has.
 	var mrng := RandomNumberGenerator.new()
@@ -509,8 +615,13 @@ static func _apply(st: Dictionary, ev: Dictionary) -> void:
 	var slot := String(ev.slot)
 	var worn: Dictionary = st.worn
 	match String(ev.kind):
+		"gems":
+			st.gems[slot] = (ev.gems as Array).duplicate()
+			st.drill[slot] = int(ev.get("socks", 0))
 		"drop":
 			worn[slot] = [String(ev.key), 0]
+			# A drilled socket stays with the old piece.
+			(st.drill as Dictionary).erase(slot)
 			if slot == "wings":
 				st.wtier = 1
 		"enhance_ok":
@@ -522,6 +633,7 @@ static func _apply(st: Dictionary, ev: Dictionary) -> void:
 				if worn.has(slot):
 					st.prev[slot] = worn[slot]
 				worn[slot] = ["divine", 0]
+				(st.drill as Dictionary).erase(slot)
 			st.divine = _divine_count(st)
 		"set_piece":
 			# The +10 divine piece it wore there went into the forge (the jewellery's
@@ -531,6 +643,7 @@ static func _apply(st: Dictionary, ev: Dictionary) -> void:
 				dv[slot] = int(dv.get(slot, 0)) - 1
 				st.divine = _divine_count(st)
 			worn[slot] = ["set", 0]
+			(st.drill as Dictionary).erase(slot)
 			st.set = int(ev.to)
 		"wings_up":
 			var plus := int((worn["wings"] as Array)[1]) if worn.has("wings") else 0
@@ -560,8 +673,11 @@ static func _copy(st: Dictionary) -> Dictionary:
 	var prev := {}
 	for slot in st.prev:
 		prev[slot] = (st.prev[slot] as Array).duplicate()
+	var gems := {}
+	for slot in st.gems:
+		gems[slot] = (st.gems[slot] as Array).duplicate()
 	return {"worn": worn, "prev": prev, "dv": (st.dv as Dictionary).duplicate(), "wtier": st.wtier, "set": st.set, "divine": st.divine,
-		"mounts": (st.mounts as Dictionary).duplicate(), "mount": st.mount}
+		"mounts": (st.mounts as Dictionary).duplicate(), "mount": st.mount, "gems": gems, "drill": (st.drill as Dictionary).duplicate()}
 
 
 ## The worth of a worn piece with its + (finds of the level and star tiers compared).
@@ -658,6 +774,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 				else:
 					_emit(sim, at, "wings_up", "wings", 0, 1, "", {"key": key})
 	_forge(sim, at, level, stars)
+	_gems(i, sim, at + 0.01, level, stars, kills)
 	# What the kills brought is picked up and forged bit by bit over the stretch: its
 	# events are spread evenly after the finds (their order kept).
 	var count := sim.events.size() - e0
@@ -665,6 +782,150 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 		var ws := at + (w1 - at) * float(k + 1) / float(count + 1)
 		sim.events[e0 + k].w = ws
 		sim.works[e0 + k] = ws
+
+
+## The gems of one stretch of play: what its kills dropped (the kinds its class uses, on
+## the gem rolls), the fusing, the drilling, and its best gems back into its sockets. One
+## "gems" event for each slot whose sockets changed.
+static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: float) -> void:
+	var g := sim.grng
+	var cls := sim.job
+	var plan := gem_plan(cls)
+	var top := level >= Game.MAX_LEVEL
+	var endgame := top and stars >= ENDGAME_STARS
+	# Stat gems: a fifth of the drops are of each kind; it keeps its two.
+	var rate := 0.0
+	var size := 2
+	var perfect := 0.0
+	if not top:
+		rate = Zone.DROP_RATE_GEM
+		size = 0 if level < 12 else (1 if level < 26 else 2)
+		perfect = Zone.PERFECT_GEM_CHANCE if level >= Zone.PERFECT_GEM_LEVEL else 0.0
+	elif endgame:
+		rate = EndgameFields.GEM_NORMAL * (1.0 - ELITE_SHARE) + EndgameFields.GEM_ELITE * ELITE_SHARE
+		perfect = Zone.PERFECT_GEM_CHANCE
+	var mean := kills * rate * (GEM_KEEN_ENDGAME if endgame else GEM_KEEN_FIELD) / float(ItemData.STAT_GEMS.size())
+	if mean > 0.0:
+		for kind in [String(plan.main), String(plan.body)]:
+			_bag_add(sim, "%s_%d" % [kind, size], _count(g, mean * (1.0 - perfect)))
+			_bag_add(sim, "%s_3" % kind, _count(g, mean * perfect))
+	# The ★ fields: special gems (it keeps its own kind) and drills.
+	if top and stars >= 1:
+		for n in _count(g, kills * Zone.SPECIAL_GEM_STAR * GEM_KEEN / float(ItemData.SPECIAL_GEMS.size())):
+			_bag_add(sim, "%s_%d" % [String(plan.special), g.randi_range(0, 1)], 1)
+		sim.drills += _count(g, kills * Zone.DRILL_STAR * GEM_KEEN)
+	var live: Dictionary = sim.live
+	var worn: Dictionary = live.worn
+	# Drills go into its endgame pieces, the weapon first.
+	var drill: Dictionary = (live.drill as Dictionary).duplicate()
+	for slot in GEM_SLOTS:
+		if sim.drills <= 0:
+			break
+		if not worn.has(slot) or not (String(worn[slot][0]) in ["set", "divine", "s200"]):
+			continue
+		var item := _item(i, slot, String(worn[slot][0]))
+		if not EnhanceFx.can_enhance(item):
+			continue
+		var most := ItemData.MAX_SOCKETS + (1 if int(worn[slot][1]) >= ItemData.MAX_PLUS else 0)
+		while sim.drills > 0 and int(item.get("sockets", 0)) + int(drill.get(slot, 0)) < most:
+			drill[slot] = int(drill.get(slot, 0)) + 1
+			sim.drills -= 1
+	# Everything it has: the bag and what sits in its sockets (taking a gem out is free).
+	var pool := {}
+	for id in sim.bag:
+		_pool_add(pool, String(id), int(sim.bag[id]))
+	for slot in live.gems:
+		for id in live.gems[slot]:
+			_pool_add(pool, String(id), 1)
+	var caps := {}
+	var want := {}
+	for slot in GEM_SLOTS:
+		caps[slot] = 0
+		if worn.has(slot):
+			# A level band's find is read from the simulation itself (its item is not made yet).
+			var key := String(worn[slot][0])
+			var own := ItemData.sockets_for(int((sim.find_info.get("%s|%s" % [slot, key], {}) as Dictionary).get("rarity", 0))) if key.begins_with("b") else int(_item(i, slot, key).get("sockets", 0))
+			caps[slot] = mini(own + int(drill.get(slot, 0)), ItemData.MAX_SOCKETS + (1 if int(worn[slot][1]) >= ItemData.MAX_PLUS else 0))
+		var kind := gem_for_slot(cls, slot)
+		want[kind] = int(want.get(kind, 0)) + int(caps[slot])
+	var special := String(plan.special)
+	var special_slot := int(caps.get("ring", 0)) > 0 and pool.has(special)
+	if special_slot:
+		want[special] = 1
+		want[gem_for_slot(cls, "ring")] = int(want[gem_for_slot(cls, "ring")]) - 1
+	# Fusing: three of a size into the next, while the sockets stay full.
+	var fuses := 0
+	for kind in pool:
+		var sizes: Array = pool[kind]
+		for s in mini(GEM_FUSE_TOP, ItemData.GEM_MAX_SIZE):
+			while sizes[s] >= 3 and fuses < FUSES_PER_CHUNK:
+				var total := 0
+				for n in sizes:
+					total += n
+				if total - 2 < int(want.get(kind, 0)):
+					break
+				fuses += 1
+				fuse_tries[s] += 1
+				if g.randf() < float(ItemData.GEM_FUSE_CHANCE[s]):
+					fuse_made[s] += 1
+					sizes[s] -= 3
+					sizes[s + 1] += 1
+				else:
+					sizes[s] -= 1
+	# Its best gems into the sockets, the weapon's first.
+	var e := 0
+	for slot in GEM_SLOTS:
+		var list: Array = []
+		var kind := gem_for_slot(cls, slot)
+		for k in int(caps[slot]):
+			var id := ""
+			if slot == "ring" and k == 0 and special_slot:
+				id = _pool_take(pool, special)
+			if id == "":
+				id = _pool_take(pool, kind)
+			if id == "":
+				break
+			list.append(id)
+		var had: Array = (live.gems as Dictionary).get(slot, [])
+		if list != had or int(drill.get(slot, 0)) != int((live.drill as Dictionary).get(slot, 0)):
+			e += 1
+			var best := -1
+			for id in list:
+				best = maxi(best, int(String(id).split("_")[1]))
+			_emit(sim, at + 0.0001 * float(e), "gems", slot, had.size(), list.size(), "", {"gems": list, "socks": int(drill.get(slot, 0)), "best": best})
+	sim.bag.clear()
+	for kind in pool:
+		var sizes: Array = pool[kind]
+		for s in sizes.size():
+			if sizes[s] > 0:
+				sim.bag["%s_%d" % [kind, s]] = sizes[s]
+
+
+static func _bag_add(sim: Sim, id: String, n: int) -> void:
+	if n > 0:
+		sim.bag[id] = int(sim.bag.get(id, 0)) + n
+
+
+static func _pool_add(pool: Dictionary, id: String, n: int) -> void:
+	var bits := id.split("_")
+	if not pool.has(bits[0]):
+		pool[bits[0]] = [0, 0, 0, 0, 0]
+	var sizes: Array = pool[bits[0]]
+	sizes[int(bits[1])] += n
+	pool[bits[0]] = sizes
+
+
+## The biggest gem of `kind` left in the pool ("" when none), taken out.
+static func _pool_take(pool: Dictionary, kind: String) -> String:
+	if not pool.has(kind):
+		return ""
+	var sizes: Array = pool[kind]
+	for s in range(sizes.size() - 1, -1, -1):
+		if sizes[s] > 0:
+			sizes[s] -= 1
+			pool[kind] = sizes
+			return "%s_%d" % [kind, s]
+	return ""
 
 
 ## The slot the next 250★ set piece is for ("" when the set is done or not open yet).

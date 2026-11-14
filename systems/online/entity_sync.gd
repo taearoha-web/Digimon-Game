@@ -511,6 +511,9 @@ func describe(mob: Mob) -> Dictionary:
 	elif mob.has_meta("golden"):
 		d["k"] = "golden"
 		d["win"] = int(mob.get_meta("golden", -1))
+	elif mob.has_meta(RareDragon.META):
+		d["k"] = "rare"
+		d["win"] = int(mob.get_meta(RareDragon.META, -1))
 	return d
 
 
@@ -822,7 +825,7 @@ func _real_mob(m: MirrorMob, hero: Node3D) -> Mob:
 	mob.setup(m.monster_id, m.level, m.home, hero)
 	if m.kind in ["world_boss", "golden"]:
 		mob.template = m.template.duplicate()
-	for meta in ["world_boss", "golden", "field_boss"]:
+	for meta in ["world_boss", "golden", "field_boss", RareDragon.META]:
 		if m.has_meta(meta):
 			mob.set_meta(meta, m.get_meta(meta))
 	mob.max_hp = maxi(1, m.max_hp)

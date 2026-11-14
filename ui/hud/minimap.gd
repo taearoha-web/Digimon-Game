@@ -1,7 +1,7 @@
 class_name Minimap
 extends Control
 ## Round radar in the corner: the hero in the middle, monsters (red), the boss
-## (big gold), the golden monster (gold), your companion (cyan), portals (blue) and villagers (yellow);
+## (big gold), the golden monster (gold), the rare dragon (a jade diamond, on the rim when far), your companion (cyan), portals (blue) and villagers (yellow);
 ## in the village each district's outline in its own colour.
 ## The map turns with the camera so "up" is where you are looking.
 
@@ -65,6 +65,11 @@ func _draw() -> void:
 		var mob := node as Mob
 		if mob and not mob.is_dead():
 			var mark := mob_marker(mob)
+			if mob.has_meta(RareDragon.META):
+				# The rare dragon: a white-rimmed jade diamond, always on the map.
+				_dot(c, _to_map(mob.global_position, origin, yaw), Color.WHITE, float(mark[1]) + 2.0, true)
+				_dot(c, _to_map(mob.global_position, origin, yaw), mark[0], mark[1], true)
+				continue
 			_dot(c, _to_map(mob.global_position, origin, yaw), mark[0], mark[1])
 	for buddy in zone.companions:
 		if is_instance_valid(buddy):
@@ -127,6 +132,8 @@ func _draw_clock(c: Vector2) -> void:
 static func mob_marker(mob: Mob) -> Array:
 	if mob.has_meta("golden"):
 		return [WorldEvents.GOLDEN_COLOR, 5.0]
+	if mob.has_meta(RareDragon.META):
+		return [WorldEvents.RARE_COLOR, 7.0]
 	if mob.is_boss:
 		return [Color("ffcf3a"), 6.0]
 	return [Color("ff5a5a") if mob.hostile else Color("c46a6a"), 3.0]
