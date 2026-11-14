@@ -179,7 +179,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var aura := 1.0 + (LegendWings.AURA if LegendWings.worn(profile) else 0.0)
 	atk *= aura
 	def *= aura
-	return {
+	var out := {
 		"legend_aura": aura > 1.0,
 		"set_gear": int(gear.get("set_gear", 0)),
 		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG) + float(set_bonus.get("crit_dmg", 0.0)),
@@ -197,6 +197,8 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
 		"haste": clampf(MAX_HASTE * float(attrs.dex) / (float(attrs.dex) + HASTE_HALF_DEX) + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
 	}
+	# The Dragon God weapon's own line for the class (DragonGearData.SIGNATURE).
+	return DragonGearData.apply_signature(out, profile)
 
 
 ## Stat shares of the profile's active mount at its level (MountData.bonus; {} with none).
