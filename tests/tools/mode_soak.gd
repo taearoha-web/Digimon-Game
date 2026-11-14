@@ -152,7 +152,7 @@ func _ready() -> void:
 		_census(round_no)
 	Engine.time_scale = 1.0
 	_judge()
-	if modes.any(func(m): return String(m) in ["meadow", "abyss", "dawn_forest", "lotus_sanctum", "drowned_abyss"]) and rides == 0:
+	if modes.any(func(m): return String(m) in ["meadow", "abyss", "dawn_forest", "lotus_sanctum", "drowned_abyss", "sky_dragon_isle"]) and rides == 0:
 		failures.append("the hero never rode into a field fight")
 	print("MODE SOAK: %d rounds x %d modes, %.0f s each at %.1fx, %d falls, %d rides, wall %ds, %d failures" % [rounds, modes.size(), seconds, scale, falls, rides, (Time.get_ticks_msec() - _wall_start) / 1000, failures.size()])
 	for f in failures:
@@ -165,8 +165,9 @@ func _ready() -> void:
 func _make_endgame_hero() -> void:
 	Game.profile["level"] = 100
 	Game.profile["adv"] = 4
-	Game.paragon().level = 200
-	Game.profile["paragon"]["alloc"] = Game.party_star_alloc(200)
+	# ★300: every field, the sky isle (SkyIsleData.ENTRY_STAR) included, lets the hero in.
+	Game.paragon().level = SkyIsleData.ENTRY_STAR
+	Game.profile["paragon"]["alloc"] = Game.party_star_alloc(SkyIsleData.ENTRY_STAR)
 	for skill in ClassData.pool(family):
 		Game.profile.skills[String(skill.id)] = 5
 	for slot in ItemData.SLOTS:
