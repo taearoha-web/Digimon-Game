@@ -3,7 +3,7 @@ extends RefCounted
 ## The celestial dressing of the เกาะลอยฟ้าเทพมังกร bestiary (SkyIsleData): every dragon
 ## stands on a ring of light in its own colour ("aura") and wears the piece its "decor"
 ## names: a cushion of cloud (the whelp), horns of light (the drake, the elder), a
-## dragon pearl with its orbit (the wyrmling, the shrine dragon), antlers (the kirin),
+## dragon pearl with its orbit (the wyrmling, the shrine dragon), motes of gold (the kirin),
 ## shards of lightning (the wyvern). Elites add a crown. The Dragon God ("god") wears a
 ## crown of gold, a jade sun-halo with twelve rays behind its back, the great pearl
 ## before its chest and a double ring of light on a bank of cloud.
@@ -20,6 +20,9 @@ static func attach(visual: Node3D, template: Dictionary) -> void:
 	visual.set_meta("dragon_aura", true)
 	if visual is CelestialDragonVisual:
 		_celestial(visual as CelestialDragonVisual, template)
+		return
+	if visual is KirinVisual:
+		_kirin(visual as KirinVisual, template)
 		return
 	_repaint(visual, template)
 	var color: Color = template.aura
@@ -117,6 +120,23 @@ static func _celestial(visual: CelestialDragonVisual, template: Dictionary) -> v
 				_add(root, "pearl", _glow(color.lightened(0.3), 0.8), Vector3(cos(a) * h * 0.55, h * (0.35 + 0.15 * float(i % 2)), sin(a) * h * 0.55), Vector3.ONE * h * 0.05)
 		"god":
 			_god_celestial(root, color, template.get("halo", Color("7df0c4")), h, skull, nose)
+
+
+## The kirin (KirinVisual) carries its horn and the clouds under its hooves itself: here
+## only its ring of light and a few motes of gold drifting round it.
+static func _kirin(visual: KirinVisual, template: Dictionary) -> void:
+	var color: Color = template.aura
+	var h := visual.height
+	var root := Node3D.new()
+	root.name = "DragonAura"
+	visual.add_child(root)
+	var ring := clampf(h * 0.45, 0.8, 3.2)
+	_add(root, "ring", _glow(color, 0.45), Vector3(0, 0.05, 0), Vector3.ONE * ring)
+	_add(root, "ring", _glow(Color("ffe08a"), 0.35), Vector3(0, 0.06, 0), Vector3.ONE * ring * 0.7)
+	var mote := _glow(Color("fff0b0"), 0.85)
+	for i in 4:
+		var a := TAU * float(i) / 4.0 + 0.7
+		_add(root, "pearl", mote, Vector3(cos(a) * h * 0.5, h * (0.3 + 0.16 * float(i % 2)), sin(a) * h * 0.5), Vector3.ONE * h * 0.035)
 
 
 ## The Dragon God's sun-halo behind his head, the great pearl before him, motes round him.

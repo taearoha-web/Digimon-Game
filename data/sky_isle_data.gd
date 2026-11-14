@@ -4,8 +4,9 @@ extends RefCounted
 ## islands round the Dragon God's shrine, high over a sea of cloud (SkyIsleArt), with an
 ## all-dragon bestiary and the hardest field boss of the game, เทพมังกร. The dragon-shaped
 ## ones ("celestial": a CelestialDragon kind) are the long eastern dragon of the Summoner's
-## god skill จักรพรรดิมังกรสวรรค์, each in its own palette, pose, horns and moves; the drake
-## and the kirin are re-dressed rigs. All wear DragonMonsterArt's celestial dressing.
+## god skill จักรพรรดิมังกรสวรรค์, each in its own palette, pose, horns and moves; the kirin
+## ("beast": "kirin") is sculpted in code the same way (Kirin, KirinVisual); the drake is a
+## re-dressed rig. All wear DragonMonsterArt's celestial dressing.
 ##
 ## Band (above the ★200-300 fields, EndgameFields): entry at ENTRY_STAR, camps
 ## Lv.CAMP_MIN-CAMP_MAX, the boss at BOSS_LEVEL, its own MonsterData.ZONE_TUNING / LATE_HP
@@ -49,8 +50,8 @@ const MONSTERS := {
 		"color": Color("5fe0a8"), "tint": Color.WHITE, "paint": {"Dino_Main": Color("2fb48a"), "Dino_Secondary": Color("eaf4c4")}, "aura": Color("5fe0a8"), "decor": "horns", "behavior": "pounce", "exp": 2.3, "gold": 2.9},
 	&"gold_wyrmling": {"name": "มังกรน้อยเกล็ดทอง", "celestial": "wyrmling", "model": "cute/YellowDragon", "height": 2.3, "hp": 2.3, "atk": 2.4, "def": 1.5, "speed": 3.0, "aggro": true, "attack": "melee",
 		"color": Color("ffd05a"), "tint": Color(1.3, 1.15, 0.6), "paint": {}, "aura": Color("ffd05a"), "decor": "pearl", "behavior": "spin", "exp": 2.25, "gold": 3.1},
-	&"cloud_kirin": {"name": "กิเลนเหยียบเมฆ", "model": "star/Horse_White", "height": 2.7, "hp": 2.2, "atk": 2.6, "def": 1.4, "speed": 3.9, "aggro": true, "attack": "melee",
-		"color": Color("ffb8dc"), "tint": Color.WHITE, "paint": {"Main": Color("fff6f2"), "Main_Light": Color("ffdbe8"), "Hooves": Color("f0bf4c"), "Hair": Color("ff8fbe"), "Muzzle": Color("ffd2c4")}, "aura": Color("ffb8dc"), "decor": "antlers", "behavior": "lunge", "exp": 2.3, "gold": 2.9},
+	&"cloud_kirin": {"name": "กิเลนเหยียบเมฆ", "beast": "kirin", "model": "star/Horse_White", "height": 2.7, "hp": 2.2, "atk": 2.6, "def": 1.4, "speed": 3.9, "aggro": true, "attack": "melee",
+		"color": Color("ffd36a"), "tint": Color.WHITE, "paint": {"Main": Color("fff6f2"), "Main_Light": Color("ffdbe8"), "Hooves": Color("f0bf4c"), "Hair": Color("ff8fbe"), "Muzzle": Color("ffd2c4")}, "aura": Color("6ff0cc"), "decor": "kirin", "behavior": "lunge", "exp": 2.3, "gold": 2.9},
 	&"storm_wyvern": {"name": "ไวเวิร์นอัสนี", "celestial": "wyvern", "model": "dawn/Bat", "height": 3.2, "hover": 0.4, "hp": 2.0, "atk": 2.7, "def": 1.2, "speed": 3.3, "aggro": true, "attack": "ranged",
 		"color": Color("b08cff"), "tint": Color.WHITE, "paint": {"Main": Color("6a4fd0"), "Black": Color("2c2670"), "Belly": Color("d4c4ff"), "Nose": Color("ff9ae0")}, "aura": Color("b08cff"), "decor": "sparks", "behavior": "beam", "exp": 2.35, "gold": 2.9},
 	&"shrine_dragon": {"name": "มังกรผู้เฝ้าศาลเทพ", "celestial": "guardian", "model": "flying/Dragon_Evolved", "height": 3.8, "hover": 0.6, "hp": 6.0, "atk": 3.0, "def": 2.3, "speed": 3.1, "aggro": true, "attack": "ranged", "elite": true,
