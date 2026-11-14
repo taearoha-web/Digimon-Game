@@ -225,6 +225,10 @@ function validateProfile(profile) {
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');
+  // Reward-shop costumes are items (RewardShop.costume_item in the game): in the bag or an
+  // old storage, never worn as gear (the worn one is rshop.cos) and never on a stall.
+  if ([...(profile.inv ?? []), ...(profile.storage ?? [])].some(item => costumeItem(item) && !validCostumeItem(item))
+      || Object.values(profile.equip ?? {}).some(costumeItem)) fail(400, 'invalid_save', 'A costume item is invalid.');
   // The hero's guild (flags.guild): none (0) or one of the world's four (Alpha 1, Neverdie 2,
   // Titan 3, 3DLnw 4); flags.guild4 marks a save that went through the four-guild re-pick.
   if (profile.flags && 'guild' in profile.flags && !integer(profile.flags.guild, 0, GUILD_COUNT)) fail(400, 'invalid_save', 'The character guild is invalid.');
@@ -260,7 +264,7 @@ function validateProfile(profile) {
     const lots = dictionary(stall) ? (stall.lots ?? []) : null;
     const log = dictionary(stall) ? (stall.log ?? []) : null;
     if (!Array.isArray(lots) || lots.length > 10 || !Array.isArray(log) || log.length > 40
-        || lots.some(lot => !dictionary(lot) || !dictionary(lot.item) || !integer(lot.lot, 1) || !integer(lot.price, 1))
+        || lots.some(lot => !dictionary(lot) || !dictionary(lot.item) || costumeItem(lot.item) || !integer(lot.lot, 1) || !integer(lot.price, 1))
         || log.some(entry => !dictionary(entry))) fail(400, 'invalid_save', 'The character stall is invalid.');
   }
   if (ENCODER.encode(JSON.stringify(profile)).byteLength > MAX_PROFILE_BYTES) fail(413, 'save_too_large', 'Each character save must be at most 1 MiB.');
@@ -343,12 +347,23 @@ function validLegendRecord(record) {
   });
 }
 
-// RewardShop.INT_KEYS / TEXT_KEYS in the game: keep the lists equal. own: unlocked
-// cosmetic ids; buy: {stone id: count this week}; paid: {round start: coins paid}.
+// RewardShop.INT_KEYS / TEXT_KEYS in the game: keep the lists equal. own: the cosmetics
+// the hero bought (a costume is an item too, see costumeItem); cos: the costume in the
+// costume slot (its id: the item carries nothing else); buy: {stone id: count this week};
+// paid: {round start: coins paid}.
 const RSHOP_INTS = new Set(['lc', 'ep', 'week', 'ev_day', 'ev_pts', 'boss_day', 'bonus_week']);
 const RSHOP_TEXTS = new Set(['cos', 'trail', 'ncol']);
 const RSHOP_ID_MAX = 32;
 const rshopId = value => typeof value === 'string' && chars(value) <= RSHOP_ID_MAX;
+// A costume item (RewardShop.costume_item / valid_costume_item in the game): exactly its
+// kind, its id and its grade 0-4.
+const COSTUME_KEYS = new Set(['kind', 'id', 'rarity']);
+const costumeItem = item => dictionary(item) && item.kind === 'costume';
+function validCostumeItem(item) {
+  return Object.keys(item).every(key => COSTUME_KEYS.has(key)) && rshopId(item.id) && chars(item.id) > 0
+    && integer(item.rarity ?? 1, 0, 4);
+}
+
 function validRewardShop(shop) {
   if (!dictionary(shop) || Object.keys(shop).length > 16) return false;
   return Object.entries(shop).every(([key, value]) => {
@@ -390,6 +405,7 @@ function validateSharedStorage(bundle) {
       || bundle.storage.some(item => !dictionary(item) || typeof item.kind !== 'string'))) {
     fail(400, 'invalid_save', `The shared storage must be a list of at most ${MAX_SHARED_STORAGE} items.`);
   }
+  if ((bundle.storage ?? []).some(item => costumeItem(item) && !validCostumeItem(item))) fail(400, 'invalid_save', 'A costume item in the shared storage is invalid.');
   if ('storageMigrated' in bundle) {
     const record = bundle.storageMigrated;
     if (!dictionary(record) || Object.keys(record).length > MAX_STORAGE_KEYS

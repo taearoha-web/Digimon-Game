@@ -6,9 +6,11 @@ extends RefCounted
 ##   armor   "armor_<style>_<tier>"                (a stock outfit from the KayKit pack, tinted by tier)
 ##   helm    "helm_<0..11>"
 ##   boots / ring / amulet  "<slot>_<tier>"        (icons only)
+##   costume "costume_<id>"                         (a reward-shop costume on a little hero, icons only)
 ## Items store no look: it is derived from slot, level and uid, so old saves work.
 
 const ICON_DIR := "res://assets/icons/items/"
+const UNKNOWN_ICON := "res://assets/icons/ui/quest.svg"
 const ARMOR_STYLES := [["rogue", "rogue"], ["ranger", "rogue"], ["ranger", "barbarian"], ["barbarian", "mage"], ["knight", "mage"], ["knight", "knight"], ["knight", "mage"], ["mage", "knight"], ["knight", "knight"], ["knight", "mage"]]
 const ARMOR_TINTS := [Color(1, 1, 1), Color(0.86, 1.06, 0.86), Color(0.85, 0.96, 1.25), Color(1.3, 1.1, 0.7), Color(1.15, 0.85, 1.3), Color(1.35, 0.8, 0.75),
 		Color(1.1, 1.0, 1.45), Color(1.3, 1.22, 0.9), Color(1.3, 0.98, 0.68), Color(1.2, 1.12, 0.95)]
@@ -69,6 +71,7 @@ static func _kind_of_base(base: String) -> String:
 
 ## Look id of an item (icon file name).
 static func look_of(item: Dictionary) -> String:
+	if ItemData.is_costume(item): return "costume_" + String(item.get("id", ""))
 	if LegendWings.is_item(item): return "%s_%d" % [LegendWings.LOOK, int(item.get("legend_guild", 0))]
 	if SetGearData.is_item(item): return SetGearData.look_of(item)
 	if StarGearData.is_star(item): return StarGearData.look_of(item)
@@ -114,8 +117,11 @@ static func helm_look(item: Dictionary) -> Dictionary:
 
 
 static func icon(item: Dictionary) -> Texture2D:
+	if ItemData.is_costume(item):
+		return icon_for_id(look_of(item))
 	if item.get("kind", "") == "jewel":
-		return load("res://assets/icons/ui/jewel_%s.svg" % String(item.id)) as Texture2D
+		var jewel_path := "res://assets/icons/ui/jewel_%s.svg" % String(item.get("id", ""))
+		return load(jewel_path) as Texture2D if ResourceLoader.exists(jewel_path) else null
 	if item.get("kind", "") == "gem":
 		# Perfect and legendary gems have their own icon (a gold / rainbow halo).
 		var bits := String(item.id).split("_")
@@ -129,7 +135,8 @@ static func icon(item: Dictionary) -> Texture2D:
 		return load(path) as Texture2D
 	var id := look_of(item)
 	if id == "":
-		return null
+		# A thing of no known kind (an item from a newer game, say) still shows something.
+		return load(UNKNOWN_ICON) as Texture2D if not item.is_empty() and item.get("kind", "") != "equip" else null
 	return icon_for_id(id)
 
 
@@ -158,6 +165,10 @@ static func all_icon_ids() -> Array[String]:
 		ids.append("wings_" + cls)
 	for piece in SetGearData.catalogue():
 		ids.append(SetGearData.look_of(piece))
+	for costume_id in RewardShop.COSTUMES:
+		ids.append("costume_" + costume_id)
+	for g in range(1, 5):
+		ids.append("%s_%d" % [LegendWings.LOOK, g])
 	return ids
 
 
@@ -165,6 +176,7 @@ static func all_icon_ids() -> Array[String]:
 static func build_icon_node(id: String) -> Node3D:
 	if id.begins_with("star_"): return StarGearArt.build_icon_node(id)
 	if id.begins_with("set_"): return SetGearArt.build_icon_node(id)
+	if id.begins_with("costume_"): return costume_icon_node(id.trim_prefix("costume_"))
 	var kind := id.rsplit("_", true, 1)[0]
 	var holder := Node3D.new()
 	if kind in WeaponKit.KINDS:
@@ -176,6 +188,14 @@ static func build_icon_node(id: String) -> Node3D:
 			holder.rotation_degrees = Vector3(0, 0, -38)
 		if (kind == "staff" or kind == "spear") and not WeaponKit.has_model(kind):
 			holder.set_meta("frame", Vector3(0.5, 0.65, 1.9))
+		return holder
+	if id.begins_with(LegendWings.LOOK + "_"):
+		# The Legendary Guild Wings: their own gold design, the halo gems in the guild's colour.
+		var legend := LegendWingArt.build({"legend_guild": int(id.get_slice("_", 2))}, true)
+		legend.rotation_degrees = Vector3(0, 180, 0)
+		holder.add_child(legend)
+		# Its meshes carry generous bounds for the beat: the icon tool frames them closer.
+		holder.set_meta("zoom", 1.35)
 		return holder
 	if id.begins_with("wings_"):
 		var wings := GearKit.wings(id.trim_prefix("wings_"))
@@ -217,6 +237,54 @@ static func build_icon_node(id: String) -> Node3D:
 				holder.rotation_degrees = Vector3(12, -50, 0)
 			return holder
 	return null
+
+
+## A costume's icon: a little hero in the costume, turned so its signature pieces read
+## (the tails, the cape, the wings from a three-quarter back view; the crown, the
+## ears, the horns and the halo above). The hero is dressed once it is in the tree.
+## costume id: [turn (degrees), frame centre height, frame size] in the icon.
+const COSTUME_ICON_VIEW := {
+	"kitsune": [-125.0, 1.66, 2.1], "royal": [-140.0, 1.66, 2.15], "celestial": [-135.0, 1.8, 2.3], "shadow": [-120.0, 1.68, 2.3],
+	"midnight": [-145.0, 1.7, 2.2], "sakura": [-140.0, 1.64, 2.05], "seafoam": [-30.0, 1.7, 2.0],
+}
+
+
+static func costume_icon_node(costume_id: String) -> Node3D:
+	if not RewardShop.COSTUMES.has(costume_id):
+		return null
+	var holder := Node3D.new()
+	var visual := HeroVisual.new()
+	visual.costume = costume_id
+	var view: Array = COSTUME_ICON_VIEW.get(costume_id, [-35.0, 1.65, 2.1])
+	visual.rotation_degrees.y = float(view[0])
+	visual.position.x = 0.1 if float(view[0]) < -90.0 else 0.0
+	visual.ready.connect(func():
+		visual.setup(&"warrior", "", false, {}, FaceKit.default_look())
+		if visual.anim != null:
+			visual.anim.play("Idle")
+			visual.anim.seek(0.4, true)
+			visual.anim.pause(), CONNECT_ONE_SHOT)
+	holder.add_child(visual)
+	# A soft disc of the costume's colour behind the hero, so the icon reads as the
+	# costume at a glance (and apart from gear) in a small bag tile.
+	var disc := MeshInstance3D.new()
+	var round := CylinderMesh.new()
+	round.top_radius = float(view[2]) * 0.47
+	round.bottom_radius = round.top_radius
+	round.height = 0.01
+	round.radial_segments = 48
+	disc.mesh = round
+	var paint := StandardMaterial3D.new()
+	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	paint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var cloth: Color = RewardShop.COSTUMES[costume_id].cloth
+	paint.albedo_color = Color(cloth.lerp(Color.WHITE, 0.25), 0.8)
+	disc.material_override = paint
+	disc.rotation_degrees.x = 90.0
+	disc.position = Vector3(0.0, float(view[1]), -2.0)
+	holder.add_child(disc)
+	holder.set_meta("frame", Vector3(0.0, float(view[1]), float(view[2])))
+	return holder
 
 
 static func _add_mesh_part(parent: Node3D, glb: String, node_name: String, tint: Color) -> void:

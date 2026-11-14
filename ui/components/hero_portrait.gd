@@ -1,7 +1,8 @@
 class_name HeroPortrait
 extends TextureRect
 ## A half-body portrait of the real hero: the chosen look (hair, eyes, skin,
-## accessory), the worn outfit and head gear, from the chest up. Only appearance
+## accessory), the worn outfit and head gear and the reward-shop costume in the costume
+## slot (RewardShop.worn_of), from the chest up. Only appearance
 ## changes create a temporary 3D capture of two stills (eyes open and closed);
 ## during play the HUD shows a normal texture and blinks by swapping the two,
 ## with no extra running viewport.
@@ -94,7 +95,7 @@ func refresh_profile(profile: Dictionary) -> void:
 	# The bust shows the outfit and head gear; wings and weapons stay out of frame.
 	equipment.erase("wings")
 	equipment.erase("weapon")
-	_pending_profile = {"class": StringName(profile.get("class", ClassData.START)), "look": look, "equip": equipment}
+	_pending_profile = {"class": StringName(profile.get("class", ClassData.START)), "look": look, "equip": equipment, "costume": RewardShop.worn_of(profile)}
 	if _textures.has(key):
 		_show(_textures[key])
 		_shown_key = key
@@ -127,7 +128,7 @@ static func appearance_key(profile: Dictionary) -> String:
 				var tier := ItemLook.tier_of(piece)
 				if tier >= 8:
 					halo_tier = maxi(halo_tier, tier)
-	return "%s|%s|%s|%d|%d" % [String(profile.get("class", "")), ",".join(looks), ",".join(dress), halo_tier, int(GameSettings.quality > 0)]
+	return "%s|%s|%s|%d|%d|%s" % [String(profile.get("class", "")), ",".join(looks), ",".join(dress), halo_tier, int(GameSettings.quality > 0), RewardShop.worn_of(profile)]
 
 
 func _show(pair: Array) -> void:
@@ -199,6 +200,7 @@ func _capture_pending(runner_id: int) -> void:
 	_add_lighting(viewport)
 	var visual := HeroVisual.new()
 	_visual = visual
+	visual.costume = String(profile.get("costume", ""))
 	viewport.add_child(visual)
 	visual.setup(profile.get("class", ClassData.START), "", false, profile.get("equip", {}), profile.get("look", {}))
 	_isolate_bust(visual)

@@ -49,7 +49,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 			for e in RewardShop.STONES:
 				box.add_child(_stone_card(e, refresh))
 		_:
-			var note := {"costume": "คอสตูม: ย้อมชุดทั้งตัว พร้อมชิ้นตกแต่งหลายชั้นบนหัว หลัง สะโพกหรือไหล่ (หาง ผ้าคลุม ปีก มงกุฎ ฯลฯ) และประกายรอบตัว ใส่ได้ทุกอาชีพทับเกราะที่สวมอยู่ · สวมได้ครั้งละ 1 ชุด",
+			var note := {"costume": "คอสตูม: ย้อมชุดทั้งตัว พร้อมชิ้นตกแต่งหลายชั้นบนหัว หลัง สะโพกหรือไหล่ (หาง ผ้าคลุม ปีก มงกุฎ ฯลฯ) และประกายรอบตัว ใส่ได้ทุกอาชีพทับเกราะที่สวมอยู่ · แลกแล้วได้เป็นไอเทมเข้ากระเป๋า ใส่ที่ช่องคอสตูม (ครั้งละ 1 ชุด) ฝากคลังส่งให้ตัวละครอื่นได้ แต่ขายหรือแลกเปลี่ยนไม่ได้",
 				"trail": "เอฟเฟกต์ท่าเดิน: ร่องรอยที่ตามรอยเท้าเวลาเดิน (ปิดเองที่กราฟิกต่ำหรือเมื่อเครื่องหน่วยความจำตึง)",
 				"ncol": "สีชื่อ: สีป้ายชื่อเหนือหัว ผู้เล่นคนอื่นที่ออนไลน์เห็นด้วย (สมาชิกราชันปราสาทยังใส่สีมงกุฎทองตามเดิม)"}
 			box.add_child(UIUtil.label(String(note.get(tab, "")), &"SmallLabel"))
@@ -76,10 +76,26 @@ static func _cosmetic_card(p_tab: String, id: String, refresh: Callable) -> Cont
 	var line := UIUtil.hbox(10)
 	panel.add_child(line)
 	var color: Color = e.get("cloth", e.get("color", RewardShop.COIN_COLOR))
-	line.add_child(_swatch(color))
-	var owned := RewardShop.owns(id)
+	var is_costume := p_tab == "costume"
+	if is_costume:
+		# A costume is an item: its own icon (ItemLook), as in the bag.
+		var icon := TextureRect.new()
+		icon.name = "RewardIcon_%s" % id
+		icon.texture = ItemLook.icon(RewardShop.costume_item(id))
+		icon.custom_minimum_size = Vector2(64, 64)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(icon)
+	else:
+		line.add_child(_swatch(color))
 	var worn := RewardShop.active(p_tab) == id
-	var state := " · สวมอยู่" if worn else (" · มีแล้ว" if owned else "")
+	var in_bag := is_costume and RewardShop.bag_index(id) >= 0
+	# A costume: worn or in the bag can be put on / taken off here; bought but elsewhere
+	# (the storage, another hero) is only marked.
+	var owned := (worn or in_bag) if is_costume else RewardShop.owns(id)
+	var bought := RewardShop.owns(id)
+	var state := " · สวมอยู่" if worn else (" · อยู่ในกระเป๋า" if in_bag else (" · มีแล้ว" if owned else (" · แลกแล้ว" if bought else "")))
 	var label := UIUtil.label("%s%s\n%s" % [String(e.name), state, RewardShop.price_text(e)], &"BoldLabel")
 	label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.45))
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -98,7 +114,7 @@ static func _cosmetic_card(p_tab: String, id: String, refresh: Callable) -> Cont
 	else:
 		line.add_child(label)
 	if owned:
-		var wear := UIUtil.button("ถอด" if worn else "สวม", &"PrimaryButton" if not worn else &"", Vector2(130, 54))
+		var wear := UIUtil.button("ถอด" if worn else ("ใส่" if is_costume else "สวม"), &"PrimaryButton" if not worn else &"", Vector2(130, 54))
 		wear.name = "RewardWear_%s" % id
 		wear.pressed.connect(func():
 			var result := RewardShop.wear(p_tab, "" if worn else id)
@@ -108,6 +124,12 @@ static func _cosmetic_card(p_tab: String, id: String, refresh: Callable) -> Cont
 				Game.say(result, &"warning")
 			refresh.call())
 		line.add_child(wear)
+	elif is_costume and bought:
+		var gone := UIUtil.button("แลกแล้ว", &"", Vector2(130, 54))
+		gone.name = "RewardBought_%s" % id
+		gone.disabled = true
+		gone.tooltip_text = "คอสตูมนี้อยู่ในคลังหรือที่ตัวละครอื่น (เบิกจากคลังมาใส่ได้)"
+		line.add_child(gone)
 	else:
 		var problem := RewardShop.problem(p_tab, id)
 		var buy := UIUtil.button("แลก", &"AccentButton", Vector2(130, 54))
@@ -118,7 +140,7 @@ static func _cosmetic_card(p_tab: String, id: String, refresh: Callable) -> Cont
 			var result := RewardShop.buy(p_tab, id)
 			if result == "ok":
 				AudioManager.play_sfx(&"coin")
-				Game.say("แลก %s แล้ว" % String(e.name), &"success")
+				Game.say(("แลก %s แล้ว — ใส่ได้ที่ช่องคอสตูมในกระเป๋า" if p_tab == "costume" else "แลก %s แล้ว") % String(e.name), &"success")
 			else:
 				Game.say(result, &"warning")
 			refresh.call())

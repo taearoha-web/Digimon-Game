@@ -63,10 +63,12 @@ func _init(p_size := Vector2i(250, 300)) -> void:
 	viewport.add_child(plinth)
 
 
-func show_hero(class_id: StringName, equip: Dictionary, model := "", look := {}) -> void:
+## [param costume]: the reward-shop costume worn (RewardShop.worn_costume, "" for none).
+func show_hero(class_id: StringName, equip: Dictionary, model := "", look := {}, costume := "") -> void:
 	if visual:
 		visual.queue_free()
 	visual = HeroVisual.new()
+	visual.costume = costume
 	_pivot.add_child(visual)
 	visual.setup(class_id, model, true, equip, look)
 

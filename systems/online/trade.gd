@@ -31,6 +31,7 @@ const LOG_SPEAKER := "ระบบ"
 ## Item kinds that can change hands; anything else (and anything marked bound / quest)
 ## stays with its owner. Gear of another class trades: that is what drops of other
 ## classes are for.
+## A reward-shop costume ("costume") is not among them: it moves through the storage only.
 const TRADE_KINDS := ["equip", "potion", "jewel", "gem"]
 
 ## The other player's id while a trade is open ("" = none).

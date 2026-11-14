@@ -12,10 +12,16 @@ extends RefCounted
 ##   EXP x2 and the festival, WorldEvents), KILL_EP a kill up to KILL_CAP a Thai day.
 ## The shop sells costumes (COSTUMES: a dye and CostumeArt's pieces on the hero, any class),
 ## walk trails (TRAILS, WalkTrail), name-plate colours (NAME_COLORS) and power stones
-## (STONES: gems and forge jewels of ItemData, a weekly limit each). Cosmetics are
-## account-wide unlocks (`own`), worn through `cos` / `trail` / `ncol` (the wardrobe);
-## stones go to the bag. Nothing here can be sold or traded. The AI world players own
-## cosmetics by their guild's league standing too (world_cosmetics).
+## (STONES: gems and forge jewels of ItemData, a weekly limit each). Trails and name
+## colours are unlocks of the hero (`own`), worn through `trail` / `ncol`; stones go to
+## the bag. A costume is an ITEM ({kind: "costume", id, rarity}: costume_item) with its
+## own icon: bought once a hero (`own` remembers the purchase), it goes to the bag and
+## is worn in the costume slot of the paper doll (wear_from_bag / take_off_costume);
+## the worn one is `cos` (its id: the item carries nothing else, so the slot is the id).
+## It moves between heroes through the shared storage only: nothing here can be sold,
+## traded or set out on a stall. Costumes bought before they were items become items
+## once per hero (migrate_items). The AI world players own cosmetics by their guild's
+## league standing too (world_cosmetics).
 
 const KEY := "rshop"
 const COIN_NAME := "เหรียญลีก"
@@ -325,24 +331,192 @@ static func price_text(e: Dictionary) -> String:
 
 # --- Owning and wearing ------------------------------------------------------------
 
+## Whether the hero bought `id` here (a costume: once a hero, wherever its item is now).
 static func owns(id: String) -> bool:
 	return Game.has_profile and (data().get("own", []) as Array).has(id)
 
 
-## The id worn of a cosmetic tab ("" for none); the costume only while it is still owned.
+## The id worn of a cosmetic tab ("" for none). The costume is the item in the costume
+## slot (worn_costume), whichever hero bought it.
 static func active(tab: String) -> String:
 	if not Game.has_profile:
 		return ""
-	var key := "cos" if tab == "costume" else tab
-	var id := String(data().get(key, ""))
+	if tab == "costume":
+		return worn_costume()
+	var id := String(data().get(tab, ""))
 	return id if id != "" and owns(id) and catalog(tab).has(id) else ""
 
 
-## Wears `id` of its tab ("" takes it off). "ok" or a reason.
+# --- Costume items ------------------------------------------------------------------
+
+## A costume's grade by its price in coins (the bag tile's colour).
+static func costume_rarity(id: String) -> int:
+	var lc := int(COSTUMES.get(id, {}).get("lc", 0))
+	if lc >= 800:
+		return 4
+	if lc >= 600:
+		return 3
+	if lc >= 400:
+		return 2
+	return 1
+
+
+## The item of costume `id` ({} for an unknown id). Every copy of a costume is the same.
+static func costume_item(id: String) -> Dictionary:
+	if not COSTUMES.has(id):
+		return {}
+	return {"kind": "costume", "id": id, "rarity": costume_rarity(id)}
+
+
+## A saved costume item is well formed (Game._valid_item): a known id, its grade, nothing else.
+static func valid_costume_item(item: Dictionary) -> bool:
+	for key in item:
+		if not String(key) in ["kind", "id", "rarity"]:
+			return false
+	return item.get("id") is String and COSTUMES.has(String(item.id)) and Game._valid_integer(item.get("rarity", 1), 0, 4)
+
+
+## The costume in the hero's costume slot ("" for none).
+static func worn_costume() -> String:
+	if not Game.has_profile:
+		return ""
+	return worn_of(Game.profile)
+
+
+## The costume profile `p` wears ("" for none or an unknown id): what PlayerLook sends.
+static func worn_of(p: Dictionary) -> String:
+	var d: Variant = p.get(KEY, {})
+	if not d is Dictionary:
+		return ""
+	var id := str((d as Dictionary).get("cos", ""))
+	return id if COSTUMES.has(id) else ""
+
+
+## The item in the costume slot, or null when it is empty.
+static func worn_costume_item() -> Variant:
+	var id := worn_costume()
+	return costume_item(id) if id != "" else null
+
+
+## Bag slot of the first costume item `id` ("" = any costume), -1 when there is none.
+static func bag_index(id := "") -> int:
+	if not Game.has_profile:
+		return -1
+	var inv: Array = Game.profile.get("inv", [])
+	for i in inv.size():
+		if ItemData.is_costume(inv[i]) and (id == "" or String(inv[i].get("id", "")) == id):
+			return i
+	return -1
+
+
+## Whether this hero has costume `id` at hand: worn or in the bag.
+static func has_item(id: String) -> bool:
+	return worn_costume() == id or bag_index(id) >= 0
+
+
+## Puts the costume of bag slot `index` on (a costume worn before goes to that bag
+## slot). "ok" or a reason.
+static func wear_from_bag(index: int) -> String:
+	if not Game.has_profile:
+		return "ยังไม่มีตัวละคร"
+	var inv: Array = Game.profile.inv
+	if index < 0 or index >= inv.size() or not ItemData.is_costume(inv[index]):
+		return "ไม่มีคอสตูมชิ้นนี้"
+	var id := String(inv[index].get("id", ""))
+	if not COSTUMES.has(id):
+		return "ไม่มีของชิ้นนี้"
+	var old := worn_costume()
+	inv.remove_at(index)
+	if old != "":
+		inv.insert(index, costume_item(old))
+	data()["cos"] = id
+	_costume_changed()
+	return "ok"
+
+
+## Takes the worn costume off into the bag. "ok" (also when nothing is worn) or a reason.
+static func take_off_costume() -> String:
+	if not Game.has_profile:
+		return "ยังไม่มีตัวละคร"
+	var old := worn_costume()
+	if old == "":
+		var d := data()
+		if String(d.get("cos", "")) != "":
+			d["cos"] = ""
+		return "ok"
+	if Game.inventory_free() <= 0:
+		return "กระเป๋าเต็ม"
+	Game.profile.inv.append(costume_item(old))
+	data()["cos"] = ""
+	_costume_changed()
+	return "ok"
+
+
+static func _costume_changed() -> void:
+	Game.mark_dirty()
+	Game.inventory_changed.emit()
+	Game.profile_changed.emit()
+	Game.cosmetics_changed.emit()
+
+
+## The flag that marks costume `id` as turned into an item for this hero (migrate_items).
+const ITEM_FLAG := "cos_item_"
+
+
+## Costumes bought before they were items (`own`) become items, once per hero and per
+## costume (ITEM_FLAG): the one worn (`cos`) is already in the costume slot, one this hero
+## already has as an item (worn or in the bag) is only marked, the rest go to the bag
+## (the shared storage when the bag is full). A costume that fits nowhere is tried again
+## at the next load. Returns how many items it made.
+static func migrate_items() -> int:
+	if not Game.has_profile or not Game.profile.get(KEY) is Dictionary:
+		return 0
+	var d := data()
+	var flags: Dictionary = Game.profile.flags
+	var made := 0
+	var stored := false
+	for id in (d.get("own", []) as Array).duplicate():
+		var cid := String(id)
+		if not COSTUMES.has(cid) or flags.has(ITEM_FLAG + cid):
+			continue
+		if not has_item(cid):
+			var item := costume_item(cid)
+			if Game.inventory_free() > 0:
+				Game.profile.inv.append(item)
+			elif SharedStorage.put(item):
+				stored = true
+			else:
+				Game.say("กระเป๋าและคลังเต็ม — %s จะมาเป็นไอเทมเมื่อมีที่ว่าง" % String(COSTUMES[cid].name), &"warning")
+				continue
+			made += 1
+		flags[ITEM_FLAG + cid] = 1
+	if made > 0 or stored:
+		Game.mark_dirty()
+		Game.inventory_changed.emit()
+	if stored:
+		# The storage first, then the hero (Game._commit_storage): a crash between the two
+		# can only leave the costume in both, never in neither.
+		SharedStorage.store()
+	return made
+
+
+## Wears `id` of its tab ("" takes it off). A costume is the item: `id` comes out of the
+## bag into the costume slot. "ok" or a reason.
 static func wear(tab: String, id: String) -> String:
 	if not Game.has_profile:
 		return "ยังไม่มีตัวละคร"
-	var key := "cos" if tab == "costume" else tab
+	if tab == "costume":
+		if id == "":
+			return take_off_costume()
+		if not COSTUMES.has(id):
+			return "ไม่มีของชิ้นนี้"
+		if worn_costume() == id:
+			return "ok"
+		var at := bag_index(id)
+		if at < 0:
+			return "ไม่มีคอสตูมนี้ในกระเป๋า" if owns(id) else "ยังไม่ได้แลกของชิ้นนี้"
+		return wear_from_bag(at)
+	var key := tab
 	if id != "" and not catalog(tab).has(id):
 		return "ไม่มีของชิ้นนี้"
 	if id != "" and not owns(id):
@@ -373,7 +547,7 @@ static func problem(tab: String, id: String, t := -1.0) -> String:
 		return "มีแล้ว"
 	if tab == "stone" and bought(id, t) >= int(e.limit):
 		return "แลกครบ %d ครั้งของสัปดาห์นี้แล้ว" % int(e.limit)
-	if tab == "stone" and Game.inventory_free() <= 0 and Game.storage().size() >= Game.STORAGE_SIZE:
+	if tab in ["stone", "costume"] and Game.inventory_free() <= 0 and Game.storage().size() >= Game.STORAGE_SIZE:
 		return "กระเป๋าและคลังเต็ม"
 	if coins() < int(e.get("lc", 0)):
 		return "%sไม่พอ" % COIN_NAME
@@ -382,8 +556,9 @@ static func problem(tab: String, id: String, t := -1.0) -> String:
 	return ""
 
 
-## Buys `id` of `tab`: a cosmetic becomes an account unlock (and is worn when nothing of
-## its kind is), a stone goes to the bag. "ok" or a reason.
+## Buys `id` of `tab`: a costume is an item into the bag (the storage when the bag is
+## full), once a hero; a trail or name colour becomes an unlock (and is worn when nothing
+## of its kind is); a stone goes to the bag. "ok" or a reason.
 static func buy(tab: String, id: String, t := -1.0) -> String:
 	var why := problem(tab, id, t)
 	if why != "":
@@ -401,14 +576,21 @@ static func buy(tab: String, id: String, t := -1.0) -> String:
 		var buys: Dictionary = d.get("buy", {})
 		buys[id] = int(buys.get(id, 0)) + 1
 		d["buy"] = buys
+	elif tab == "costume":
+		var own: Array = d.get("own", [])
+		if not own.has(id):
+			own.append(id)
+		d["own"] = own
+		# Bought as an item: never made a second time by migrate_items.
+		Game.profile.flags[ITEM_FLAG + id] = 1
+		Game.give_or_store(costume_item(id))
 	else:
 		var own: Array = d.get("own", [])
 		if not own.has(id):
 			own.append(id)
 		d["own"] = own
-		var key := "cos" if tab == "costume" else tab
-		if String(d.get(key, "")) == "":
-			d[key] = id
+		if String(d.get(tab, "")) == "":
+			d[tab] = id
 			Game.cosmetics_changed.emit()
 	Game.mark_dirty()
 	Game.save()
@@ -605,5 +787,10 @@ static func repair(profile: Dictionary) -> void:
 	d["own"] = own
 	for key in TEXT_KEYS:
 		var id := String(d.get(key, ""))
-		if id != "" and not own.has(id):
+		# The costume slot holds an item (any hero's, through the storage): a known id
+		# stays; a trail or a name colour must be owned.
+		if key == "cos":
+			if id != "" and not COSTUMES.has(id):
+				d[key] = ""
+		elif id != "" and not own.has(id):
 			d[key] = ""

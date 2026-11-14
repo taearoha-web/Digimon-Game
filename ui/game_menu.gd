@@ -458,15 +458,21 @@ func _build_inventory() -> void:
 	row.add_child(equip)
 	var preview := HeroPreview.new(Vector2i(240, 290))
 	equip.add_child(preview)
-	preview.show_hero(Game.class_id(), Game.profile.equip, "", Game.profile.get("look", {}))
+	preview.name = "HeroPreview"
+	# The same body as the hero in the world (Hero._look: a save without a look is the boy).
+	var look: Dictionary = Game.profile.get("look", {})
+	preview.show_hero(Game.class_id(), Game.profile.equip, "", look if look.has("gender") else {"gender": 0}, RewardShop.worn_costume())
 	var slots := GridContainer.new()
 	slots.columns = 3
 	slots.add_theme_constant_override("h_separation", 6)
 	slots.add_theme_constant_override("v_separation", 6)
 	equip.add_child(slots)
-	for slot in ItemData.EQUIP_SLOTS:
-		var item: Variant = Game.profile.equip.get(slot)
+	# The gear slots, then the costume slot beside the wings (RewardShop: a costume item
+	# changes the look only, no stats: Game.COSTUME_SLOT stays out of EQUIP_SLOTS).
+	for slot in ItemData.EQUIP_SLOTS + [Game.COSTUME_SLOT]:
+		var item: Variant = Game.equipped(slot)
 		var b := Button.new()
+		b.name = "Slot_%s" % slot
 		b.custom_minimum_size = Vector2(74, 74)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 58)
@@ -566,7 +572,7 @@ func _build_bag_grid(middle: VBoxContainer) -> void:
 		if i < Game.profile.inv.size():
 			var item: Dictionary = Game.profile.inv[i]
 			b.icon = ItemLook.icon(item)
-			b.text = ("×%d" % int(item.count)) if ItemData.is_stackable(item) else ItemData.level_text(int(item.level)).replace("Lv.100 ", "")
+			b.text = ItemData.tile_text(item)
 			b.add_theme_color_override("font_color", ItemData.color_of(item))
 			b.add_theme_font_size_override("font_size", 17)
 			_style_item_button(b, ItemData.color_of(item), _selected_index == i)
@@ -784,7 +790,7 @@ func _refresh_detail() -> void:
 		UIUtil.clear(_actions)
 	var item: Variant = null
 	if _selected_slot != "":
-		item = Game.profile.equip.get(_selected_slot)
+		item = Game.equipped(_selected_slot)
 	elif _selected_index >= 0 and _selected_index < Game.profile.inv.size():
 		item = Game.profile.inv[_selected_index]
 	if item == null:
@@ -812,6 +818,8 @@ func _refresh_detail() -> void:
 			_detail.add_child(owner)
 		elif ItemData.gear_class(item) != "":
 			_detail.add_child(UIUtil.label("อาชีพ: " + SharedStorage.class_name_of(ItemData.gear_class(item)), &"SmallLabel"))
+	elif ItemData.is_costume(item):
+		_detail.add_child(UIUtil.label("%s • %s • ใส่ได้ทุกอาชีพ" % [ItemData.SLOT_NAMES[Game.COSTUME_SLOT], ItemData.RARITY_NAMES[clampi(int(item.get("rarity", 1)), 0, 4)]], &"SmallLabel"))
 	if _selected_slot == "" and item.get("kind", "") == "equip" and not Game.is_other_class(item):
 		_build_compare(item)
 	for line in ItemData.detail_lines(item):
@@ -862,6 +870,21 @@ func _refresh_detail() -> void:
 		var sell_jewel := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
 		sell_jewel.pressed.connect(func(): _sell_selected(1))
 		target.add_child(sell_jewel)
+	elif ItemData.is_costume(item):
+		# Worn: take it off into the bag. In the bag: put it in the costume slot. Never sold.
+		var costume_button := UIUtil.button("ถอด" if _selected_slot != "" else "ใส่", &"" if _selected_slot != "" else &"PrimaryButton", Vector2(0, 58))
+		costume_button.name = "CostumeWear"
+		if _selected_slot != "":
+			costume_button.pressed.connect(func():
+				if Game.unequip(Game.COSTUME_SLOT):
+					_selected_slot = ""
+				_rebuild())
+		else:
+			costume_button.pressed.connect(func():
+				Game.equip_from_bag(_selected_index)
+				_selected_index = -1
+				_rebuild())
+		target.add_child(costume_button)
 	elif item.get("kind", "") == "gem":
 		_detail.add_child(UIUtil.label("ไปที่ช่างตีเหล็กเพื่อใส่ลงช่องในอาวุธ/ชุด", &"DimLabel"))
 		var info := ItemData.gem_info(item)

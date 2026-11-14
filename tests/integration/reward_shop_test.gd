@@ -202,16 +202,22 @@ func _buying(w: int) -> void:
 	RewardShop.add_points(int(c.ep) + 5)
 	check(RewardShop.buy("costume", "kitsune") == "ok", "bought the costume")
 	check(RewardShop.coins() == 0 and RewardShop.points() == 5, "both prices paid (%d / %d)" % [RewardShop.coins(), RewardShop.points()])
-	check(RewardShop.owns("kitsune") and RewardShop.active("costume") == "kitsune", "owned and worn at once (nothing was worn)")
+	# A costume is an item now: into the bag with its own icon, not worn by itself.
+	var bag := RewardShop.bag_index("kitsune")
+	check(RewardShop.owns("kitsune") and bag >= 0 and RewardShop.active("costume") == "", "bought: the costume item is in the bag, nothing worn yet")
+	check(bag >= 0 and Game.profile.inv[bag] == RewardShop.costume_item("kitsune") and ItemLook.icon(Game.profile.inv[bag]) != null, "the item {kind costume, id, rarity} has its icon")
+	check(bag >= 0 and ItemData.tile_text(Game.profile.inv[bag]) == "คอสตูม" and ItemData.name_of(Game.profile.inv[bag]) == String(c.name), "its tile and name")
 	check(RewardShop.buy("costume", "kitsune") == "มีแล้ว", "an owned cosmetic is never sold twice")
+	check(RewardShop.wear("costume", "kitsune") == "ok" and RewardShop.active("costume") == "kitsune" and RewardShop.bag_index("kitsune") < 0, "worn from the bag into the costume slot")
 	RewardShop.add_coins(5000)
 	RewardShop.add_points(5000)
-	check(RewardShop.buy("costume", "sakura") == "ok" and RewardShop.active("costume") == "kitsune", "a second costume is owned, the first stays on")
+	check(RewardShop.buy("costume", "sakura") == "ok" and RewardShop.active("costume") == "kitsune" and RewardShop.bag_index("sakura") >= 0, "a second costume goes to the bag, the first stays on")
 	_seen = 0
 	Game.cosmetics_changed.connect(_count_seen)
 	check(RewardShop.wear("costume", "sakura") == "ok" and RewardShop.active("costume") == "sakura" and _seen == 1, "the wardrobe switches the costume and tells the hero")
+	check(RewardShop.bag_index("kitsune") >= 0 and RewardShop.bag_index("sakura") < 0, "the costume taken off went back to the bag")
 	check(RewardShop.wear("costume", "royal") != "ok" and RewardShop.active("costume") == "sakura", "a costume not owned cannot be worn")
-	check(RewardShop.wear("costume", "") == "ok" and RewardShop.active("costume") == "" and _seen == 2, "taken off")
+	check(RewardShop.wear("costume", "") == "ok" and RewardShop.active("costume") == "" and _seen == 2 and RewardShop.bag_index("sakura") >= 0, "taken off into the bag")
 	check(RewardShop.wear("costume", "") == "ok" and _seen == 2, "taking off nothing says nothing")
 	Game.cosmetics_changed.disconnect(_count_seen)
 	check(RewardShop.buy("trail", "sparkle") == "ok" and RewardShop.active("trail") == "sparkle", "a trail")
@@ -260,6 +266,7 @@ func _persistence() -> void:
 	check(Game.import_code(code), "the save code imports")
 	check(RewardShop.coins() == coins and (Game.profile[RewardShop.KEY].own as Array) == own, "coins and unlocks survive the save code")
 	check(RewardShop.active("trail") == "sparkle" and RewardShop.active("ncol") == "sunset" and RewardShop.active("costume") == "", "what is worn survives")
+	check(RewardShop.bag_index("kitsune") >= 0 and RewardShop.bag_index("sakura") >= 0, "the costume items survive the save code")
 	check(Game.save_code_roundtrip(), "the save round-trips")
 	# Broken records are refused; a repair drops unknown ids and clears what is not owned.
 	var copy: Dictionary = Game.profile.duplicate(true)
@@ -270,7 +277,10 @@ func _persistence() -> void:
 	var p := {RewardShop.KEY: loose}
 	RewardShop.repair(p)
 	var r: Dictionary = p[RewardShop.KEY]
-	check(r.lc is int and r.lc == 12 and r.own == ["sakura"] and r.cos == "" and r.ncol == "" and r.buy.purple5 is int and r.paid["5"] is int, "repair: ints back, unknown ids and unowned wear dropped (%s)" % [r])
+	check(r.lc is int and r.lc == 12 and r.own == ["sakura"] and r.cos == "royal" and r.ncol == "" and r.buy.purple5 is int and r.paid["5"] is int, "repair: ints back, unknown ids and unowned wear dropped, the costume slot keeps its item (%s)" % [r])
+	var odd := {RewardShop.KEY: {"cos": "nope"}}
+	RewardShop.repair(odd)
+	check(String(odd[RewardShop.KEY].cos) == "", "an unknown costume in the slot is dropped")
 	var broken := {RewardShop.KEY: {"lc": -9}}
 	RewardShop.repair(broken)
 	check(not broken.has(RewardShop.KEY), "an invalid record is dropped on repair")
@@ -371,6 +381,7 @@ func _hero_plate() -> void:
 	RewardShop.add_points(5000)
 	RewardShop.buy("ncol", "rose")
 	RewardShop.buy("costume", "midnight")
+	RewardShop.wear("costume", "midnight")
 	RewardShop.buy("trail", "star")
 	var field := Node3D.new()
 	field.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -494,7 +505,23 @@ func _page() -> void:
 	await get_tree().process_frame
 	check(RewardShop.owns("sakura") and _rebuilt == 1, "bought from the page")
 	var wear := host.find_child("RewardWear_sakura", true, false) as Button
-	check(wear != null and wear.text == "ถอด", "the owned costume shows the wardrobe button")
+	check(wear != null and wear.text == "ใส่", "the costume in the bag shows the put-on button")
+	check(host.find_child("RewardIcon_sakura", true, false) is TextureRect and (host.find_child("RewardIcon_sakura", true, false) as TextureRect).texture != null, "a costume card shows the item's icon")
+	if wear:
+		wear.pressed.emit()
+		await get_tree().process_frame
+	check(RewardShop.active("costume") == "sakura", "put on from the page")
+	wear = host.find_child("RewardWear_sakura", true, false) as Button
+	check(wear != null and wear.text == "ถอด", "then the take-off button")
+	# Bought, then moved to the storage: marked as bought, nothing to wear or buy here.
+	RewardShop.wear("costume", "")
+	Game.deposit_item(RewardShop.bag_index("sakura"))
+	UIUtil.clear(host)
+	RewardShopView.build(host, _rebuild_page)
+	await get_tree().process_frame
+	var gone := host.find_child("RewardBought_sakura", true, false) as Button
+	check(gone != null and gone.disabled and host.find_child("RewardBuy_sakura", true, false) == null, "a costume bought but in the storage is marked, not sold again")
+	Game.withdraw_item(SharedStorage.items().find(RewardShop.costume_item("sakura")))
 	for tab in ["trail", "ncol", "stone"]:
 		var b := host.find_child("RewardTab_%s" % tab, true, false) as Button
 		check(b != null, "tab button %s" % tab)

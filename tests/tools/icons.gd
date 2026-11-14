@@ -78,7 +78,7 @@ func _render(node: Node3D) -> Image:
 	await get_tree().process_frame
 	var box := _bounds(node)
 	var center := box.get_center()
-	cam.size = maxf(box.size.x, box.size.y) * 1.18
+	cam.size = maxf(box.size.x, box.size.y) * 1.18 / float(node.get_meta("zoom", 1.0))
 	if node.has_meta("frame"):
 		var f: Vector3 = node.get_meta("frame")
 		center = Vector3(f.x, f.y, 0)
