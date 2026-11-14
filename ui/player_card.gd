@@ -200,6 +200,13 @@ static func gear_lines(i: int, t: float) -> String:
 	var mount: Dictionary = g.get("mount", {})
 	if not mount.is_empty():
 		parts.append("สัตว์ขี่: %s Lv.%d" % [mount.name, int(mount.level)])
+	# The gems in its sockets and the stars it bought at the Skill Master.
+	var gems: Dictionary = g.get("gems", {})
+	if int(gems.get("count", 0)) > 0:
+		parts.append("อัญมณี: %d/%d ช่อง (%s สูงสุด%s)" % [int(gems.count), int(gems.sockets), String(gems.main_name), String(gems.best_name)])
+	var skills := WorldPlayers.skill_summary(i, t)
+	if int(skills.skills) > 0:
+		parts.append("สกิล: %d สกิล ดาวรวม %d/%d" % [int(skills.skills), int(skills.stars), int(skills.max)])
 	return " · ".join(parts)
 
 

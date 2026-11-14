@@ -788,6 +788,9 @@ func _pick_target() -> Mob:
 	var wboss := _join_world_boss()
 	if wboss != null:
 		return wboss
+	var rare := _join_rare()
+	if rare != null:
+		return rare
 	# In a party: what the leader fights (unless the hero's side has it).
 	var lead := party_leader()
 	if lead != null and lead.target != null and is_instance_valid(lead.target) and not lead.target.is_dead() \
@@ -842,6 +845,34 @@ func _join_world_boss() -> Mob:
 		Game.world_chat.emit(String(member.name), text, WorldPlayers.GUILD_COLORS.get(g, Color("bfe8ff")))
 		bubble(text)
 	return boss
+
+
+## The rare dragon (RareDragon) is up within WorldEvents.BOSS_JOIN_RANGE and the hero's
+## side is fighting it: this player joins in (at most RareDragon.HELPERS at once), with
+## a shout now and then, and holds back once the world players have dealt
+## RareDragon.HELPER_SHARE of the damage, so the kill and its prize stay the hero's.
+func _join_rare() -> Mob:
+	var rare := RareDragon.live(zone)
+	if rare == null or rare.party_damage <= 0 or _flat(rare.global_position - global_position).length() > WorldEvents.BOSS_JOIN_RANGE:
+		return null
+	if float(rare.others_damage) > RareDragon.HELPER_SHARE * float(rare.others_damage + rare.party_damage):
+		return null
+	if target != rare:
+		var busy := 0
+		for node in get_tree().get_nodes_in_group("world_players"):
+			var other := node as FieldPlayer
+			if other != null and other != self and other.target == rare:
+				busy += 1
+		if busy >= RareDragon.HELPERS:
+			return null
+	var now := Time.get_ticks_msec() * 0.001
+	if now >= _shout_at:
+		_shout_at = now + WorldEvents.BOSS_SHOUT_GAP + _rng.randf_range(0.0, 20.0)
+		var text: String = RareDragon.SHOUTS[_rng.randi() % RareDragon.SHOUTS.size()]
+		var g := WorldPlayers.guild_at(world_index, int(member.level))
+		Game.world_chat.emit(String(member.name), text, WorldPlayers.GUILD_COLORS.get(g, Color("bfe8ff")))
+		bubble(text)
+	return rare
 
 
 ## Standing in the world boss's telegraph (WorldBoss.inside), it steps 7 m out of it

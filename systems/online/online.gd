@@ -270,6 +270,9 @@ func _dispatch(msg: Dictionary) -> void:
 			Game.say("%s ตอบรับคำชวนเข้าปาร์ตี้" % who if msg.get("ok") == true else "%s ปฏิเสธคำชวนเข้าปาร์ตี้" % who, &"info")
 		"chat":
 			_on_chat(msg)
+		"announce":
+			# Another player's jackpot or rare-dragon kill: fields only, the text is ours.
+			Announcer.receive(msg)
 		"error":
 			var text := str(msg.get("text", "")).strip_edges().left(160)
 			Game.say(text if text != "" else "เกิดข้อผิดพลาดในการเล่นออนไลน์", &"warning")
