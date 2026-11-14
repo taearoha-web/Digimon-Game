@@ -88,6 +88,9 @@ const MONSTERS := {
 	&"rift_stalker": {"name": "นักล่าช่องมิติ", "model": "big/Ninja", "height": 3.0, "hp": 6.0, "atk": 6.0, "def": 3.8, "speed": 4.8, "aggro": true, "attack": "melee", "tint": Color(0.5, 1.7, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "lunge"},
 	&"tentacle_horror": {"name": "อสูรหนวดอนันต์", "model": "cute/Cthulhu", "height": 3.2, "hp": 7.0, "atk": 5.2, "def": 4.0, "speed": 3.0, "aggro": true, "attack": "ranged", "color": Color("ff5af0"), "tint": Color(1.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "beam"},
 	&"nova_drake": {"name": "มังกรน้อยซูเปอร์โนวา", "model": "cute/YellowDragon", "height": 3.6, "hp": 7.5, "atk": 5.0, "def": 4.4, "speed": 3.4, "aggro": true, "attack": "melee", "tint": Color(1.9, 0.5, 0.9), "exp": 4.0, "gold": 5.0, "behavior": "pounce"},
+	# The rare dragon of the zones flagged "rare_dragon" (RareDragon: its strength comes from
+	# the field it visits, its crystal look from RareDragon.dress).
+	&"prism_dragon": {"name": "มังกรแก้วเจ็ดสี", "celestial": "prism", "model": "flying/Dragon_Evolved", "height": 4.8, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.0, "color": Color("9df7ff"), "behavior": "chain_lightning", "behavior2": "thunder_cage"},
 	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "big/Demon", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0, "behavior": "rift_trail", "behavior2": "event_horizon"},
 }
 
@@ -95,6 +98,7 @@ const MONSTERS := {
 static func get_monster(id: StringName) -> Dictionary:
 	if DivineRegionData.has_monster(id): return DivineRegionData.monster(id)
 	if DrownedAbyssData.has_monster(id): return DrownedAbyssData.monster(id)
+	if SkyIsleData.has_monster(id): return SkyIsleData.monster(id)
 	if StoryChapter2.has_monster(id): return StoryChapter2.monster(id)
 	if StarMonsters.has(id): return StarMonsters.get_monster(id)
 	return MONSTERS.get(id, MONSTERS[&"pink_slime"])
@@ -125,6 +129,8 @@ const ZONE_TUNING := {
 	# The two ★200-300 fields share one band (EndgameFields).
 	&"lotus_sanctum": EndgameFields.TUNING,
 	&"drowned_abyss": EndgameFields.TUNING,
+	# เกาะลอยฟ้าเทพมังกร: its own band, above them (SkyIsleData).
+	&"sky_dragon_isle": SkyIsleData.TUNING,
 }
 ## Late bosses gained boss health (index 2) when single-target skills began to
 ## out-hit area skills (ClassData.SINGLE_EDGE), so boss fights keep their length.
@@ -133,6 +139,7 @@ const ZONE_TUNING := {
 const LATE_HP := {
 	&"void": 2.0, &"dawn_forest": 2.5, &"crystal_valley": 3.0,
 	&"sky_citadel": 3.5, &"eclipse_realm": 4.0, &"lotus_sanctum": EndgameFields.LATE_HP, &"drowned_abyss": EndgameFields.LATE_HP,
+	&"sky_dragon_isle": SkyIsleData.LATE_HP,
 }
 static var _home_zone := {}
 

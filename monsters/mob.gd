@@ -135,6 +135,7 @@ func _ready() -> void:
 	visual = _make_visual()
 	if StarMonsters.has(monster_id): StarMonsterArt.attach(visual, template)
 	elif DrownedAbyssData.has_monster(monster_id): DeepMonsterArt.attach(visual, template)
+	elif SkyIsleData.has_monster(monster_id): DragonMonsterArt.attach(visual, template)
 	var top := visual.height
 	if not GameSettings.world_shadows():
 		MeshKit.blob_shadow(self, clampf(float(template.height) * 0.55, 0.5, 1.6))
@@ -171,9 +172,8 @@ func _ready() -> void:
 
 ## The model of this monster (ranked-duel rivals override it with a hero model).
 func _make_visual() -> MonsterVisual:
-	var v := MonsterVisual.new()
-	add_child(v)
-	v.setup(String(template.model), float(template.height), float(template.get("hover", 0.0)), template.get("tint", Color.WHITE))
+	# The isle's eastern dragons ("celestial") are drawn by CelestialDragon, the rest by their rigs.
+	var v := CelestialDragonVisual.make(self, template)
 	v.add_to_group("anim_lod")
 	return v
 

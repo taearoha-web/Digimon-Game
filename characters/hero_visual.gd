@@ -407,6 +407,9 @@ func _wing_model(item: Dictionary) -> Node3D:
 		var fresh := dressed > 1 and uid != _legend_uid
 		_legend_uid = uid
 		return LegendWingArt.build(item, decor_light, fresh)
+	# The 300★ Dragon God wings (the Dark Lord's: a dragon-scale cape with small wings).
+	if DragonGearData.is_wings(item):
+		return DragonWingArt.build(DragonGearData.item_class(item), decor_light)
 	return StarWingData.build(_wing_kind(item)) if StarGearData.is_star(item) else GearKit.wings(_wing_kind(item))
 
 
@@ -1017,6 +1020,10 @@ func _hold_gear() -> void:
 		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
 		if offhand != "": _hold("divine_%s_%s_200" % [offhand, class_id], "handslot.l", plus if offhand == "dagger" else 0, true)
 		return
+	if DragonGearData.is_weapon(equip.get("weapon")):
+		var dragon_offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
+		if dragon_offhand != "": _hold("dragon_%s_%s" % [dragon_offhand, DragonGearData.item_class(equip.weapon)], "handslot.l", plus if dragon_offhand == "dagger" else 0, true)
+		return
 	if SetGearData.is_item(equip.get("weapon")):
 		var set_offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
 		if set_offhand != "": _hold("set_%s_%s" % [set_offhand, SetGearData.item_class(equip.weapon)], "handslot.l", plus if set_offhand == "dagger" else 0, true)
@@ -1074,6 +1081,11 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 		item = StarGearArt.build(look)
 	elif look.begins_with("set_"):
 		item = SetGearArt.build(look)
+	elif look.begins_with("dragon_"):
+		item = DragonGearArt.build(look)
+		# The dragon's breath round the weapon in the hand (never in a crowd's light dress).
+		if not offhand or kind == "dagger":
+			DragonGearArt.breath(item, decor_light)
 	elif look.begins_with("shield"):
 		item = WeaponKit.shield(look)
 	elif look.begins_with("book_"):

@@ -120,6 +120,8 @@ func _row(id: StringName, level: int) -> Control:
 	# The two ★200-300 fields: one band, one drop table (EndgameFields).
 	if EndgameFields.has(id):
 		detail = "ดาว %d+ · เก็บเลเวลดาว 200–300 · %s (ชิ้น +10 ใช้ผสมชุดเซต 250 ดาว)" % [EndgameFields.ENTRY_STAR, EndgameFields.drop_text()]
+	if id == SkyIsleData.ID:
+		detail = "ดาว %d+ · มอนสเตอร์มังกร Lv.%d–%d · ดรอป %s" % [SkyIsleData.ENTRY_STAR, SkyIsleData.CAMP_MIN, SkyIsleData.CAMP_MAX, SkyIsleData.drop_text()]
 	if not open:
 		detail = "ล็อก · " + ZoneData.access_reason(id, level, int(Game.paragon().level))
 	info.add_child(UIUtil.label(detail, &"SmallLabel"))

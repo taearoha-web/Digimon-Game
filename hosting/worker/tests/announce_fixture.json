@@ -1,0 +1,8 @@
+{
+  "about": "One announcement over the wire, read by both sides' tests: hosting/worker/tests/online.test.mjs (the room turns `client` from `sender` into `server`) and tests/integration/announcer_test.gd (the game sends exactly `client` for the hero's jackpot and writes its own Thai line from `server`).",
+  "sender": {"id": "1", "user": "user_1", "name": "Lucky", "stars": 300},
+  "client": {"t": "announce", "kind": "jackpot", "what": "weapon", "cls": "mage", "zone": "sky_dragon_isle"},
+  "server": {"t": "announce", "from": "1", "user": "user_1", "name": "Lucky", "kind": "jackpot", "what": "weapon", "cls": "mage", "zone": "sky_dragon_isle"},
+  "rare_client": {"t": "announce", "kind": "rare", "what": "slain", "cls": "", "zone": "sky_dragon_isle"},
+  "rare_server": {"t": "announce", "from": "1", "user": "user_1", "name": "Lucky", "kind": "rare", "what": "slain", "cls": "", "zone": "sky_dragon_isle"}
+}

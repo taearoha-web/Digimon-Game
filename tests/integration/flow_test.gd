@@ -747,7 +747,7 @@ func _warp_points() -> void:
 	var town: Zone = main.zone
 	check(town.npcs.any(func(n): return n.role == "warp"), "the village has a warp crystal")
 	var places := WarpScreen.destinations()
-	check(places.size() == 18 and places[17] == DrownedAbyssData.ID and places[16] == DivineRegionData.ID and places[15] == &"eclipse_realm" and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list includes legacy fields, four star regions, the 200-star sanctuary and the 200-300 star field")
+	check(places.size() == 19 and places[18] == SkyIsleData.ID and places[17] == DrownedAbyssData.ID and places[16] == DivineRegionData.ID and places[15] == &"eclipse_realm" and places[0] == &"town" and places[10] == &"abyss" and places[11] == &"void", "the warp list includes legacy fields, four star regions, the 200-star sanctuary, the 200-300 star field and the ★300 isle")
 	check(WarpScreen.unlocked(&"meadow", 1) and not WarpScreen.unlocked(&"dark_forest", 6) and WarpScreen.unlocked(&"dark_forest", 7), "fields unlock by level")
 	Game.profile["level"] = 30
 	var open := places.filter(func(p): return WarpScreen.unlocked(p, 30))
@@ -1513,7 +1513,7 @@ func _zones() -> void:
 	await _start(&"warrior")
 	Game.add_exp(2000000)
 	Game.profile.level=100
-	Game.paragon().level=200
+	Game.paragon().level=300
 	for id in ZoneData.ZONES:
 		if id == &"town" or id == &"arena" or id == &"pvp" or id == &"guildwar" or id == &"tower":
 			continue
@@ -1526,7 +1526,7 @@ func _zones() -> void:
 		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1), "%s has the right portals" % id)
 		for camp in info.camps:
 			for m in camp.monsters:
-				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m) or DrownedAbyssData.has_monster(m), "monster %s exists" % m)
+				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m) or DrownedAbyssData.has_monster(m) or SkyIsleData.has_monster(m), "monster %s exists" % m)
 
 
 func _items() -> void:

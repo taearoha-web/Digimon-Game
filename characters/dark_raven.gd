@@ -199,7 +199,7 @@ func _ready() -> void:
 static func look_for(weapon: Variant) -> int:
 	if not (weapon is Dictionary) or (weapon as Dictionary).is_empty():
 		return Look.PLAIN
-	if SetGearData.is_item(weapon):
+	if SetGearData.is_item(weapon) or DragonGearData.is_weapon(weapon):
 		return Look.ABYSS
 	if DivineGearData.is_item(weapon):
 		return Look.DIVINE

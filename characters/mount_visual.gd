@@ -29,6 +29,9 @@ var _leg_swing: Array[float] = []
 var _wings: Array = []
 var _flames: Array[Node3D] = []
 var _flame_scale: Array[Vector3] = []
+## The sky dragon's body material (CelestialDragon "mount"): its clock runs with the gait.
+var _dragon: ShaderMaterial
+var _dragon_clock := 0.0
 var _t := 0.0
 var _gait := 0.0
 var _run := 0.0
@@ -79,14 +82,22 @@ func build(p_id: String) -> void:
 	_wings.clear()
 	_flames.clear()
 	_flame_scale.clear()
+	_dragon = null
 	body = MeshKit.pivot(self, "Body")
+	tail = null
+	head = null
 	match id:
 		"glow_stag": _build_stag()
 		"griffin": _build_griffin()
 		"fire_drake": _build_drake()
+		"sky_dragon": _build_sky_dragon()
 		_: _build_wolf()
 	var shadow := MeshKit.blob_shadow(self, 0.7)
 	shadow.scale = Vector3(1.6, 2.6, 1.0)
+	if _dragon != null:
+		# The long body's shadow.
+		shadow.scale = Vector3(2.2, 7.6, 1.0)
+		shadow.position.z = -1.6
 	_details.clear()
 	_shadow_parts.clear()
 	if merged:
@@ -125,7 +136,8 @@ func _merge_parts() -> void:
 	var baked: Array[MeshInstance3D] = []
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
-		if mi.name == "BlobShadow" or _flames.has(mi) or mi.material_override == null:
+		# The sky dragon's body keeps its own mesh and shader (laid on its pose in the vertex stage).
+		if mi.name == "BlobShadow" or _flames.has(mi) or mi.material_override == null or mi.has_meta("unmerged"):
 			continue
 		var xf := mi.transform
 		var up := mi.get_parent() as Node3D
@@ -393,6 +405,11 @@ func _process(delta: float) -> void:
 		var amp := lerpf(0.12, _wing_amp, _run)
 		for w in _wings:
 			(w[0] as Node3D).rotation.z = float(w[1]) * (float(w[2]) + amp * beat)
+	if _dragon != null:
+		# The body's wave runs from the neck to the tail (stilled under the saddle): slow
+		# while hovering, quick and snaking at speed.
+		_dragon_clock += delta * lerpf(1.0, 3.2, _run)
+		_dragon.set_shader_parameter("clock", _dragon_clock)
 	for i in _flames.size():
 		var k := 1.0 + 0.16 * sin(_t * FLAME_FLICKER + i * 1.7) + 0.08 * sin(_t * 31.0 + i)
 		_flames[i].scale = Vector3(_flame_scale[i].x * (2.0 - k), _flame_scale[i].y * k, _flame_scale[i].z * (2.0 - k))
@@ -685,3 +702,39 @@ func _build_drake() -> void:
 	_flames.append(MeshKit.part(fire, MeshKit.sphere(), core, Vector3(0, 0.12, 0.02), Vector3(0.15, 0.24, 0.15)))
 	for f in _flames:
 		_flame_scale.append(f.scale)
+
+
+# ---------------------------------------------------------------------------
+# มังกรฟ้าเทพ: a long eastern sky dragon, jade scales, gold mane and antlers, a pale
+# belly, riding on clouds (เกาะลอยฟ้าเทพมังกร only, SkyIsleLoot.MOUNT)
+# ---------------------------------------------------------------------------
+
+## The whole dragon is this many world metres to a mesh metre of CelestialDragon "mount".
+const SKY_SCALE := 0.4
+## How far the dragon floats over its clouds (world metres).
+const SKY_FLOAT := 0.7
+
+
+## The isle's eastern dragon (CelestialDragon "mount", the same body as the Summoner's
+## god skill and the isle's dragons): one mesh laid on its riding pose by the shader,
+## level under the saddle (the wave stills there), the neck up in front, the tail
+## curling behind. [member head] marks the nose. The clouds it rides do not bob.
+func _build_sky_dragon() -> void:
+	var dragon := CelestialDragon.body("mount")
+	dragon.scale = Vector3.ONE * SKY_SCALE
+	dragon.position.y = SKY_FLOAT
+	dragon.set_meta("unmerged", true)
+	body.add_child(dragon)
+	_dragon = dragon.material_override as ShaderMaterial
+	var pose := CelestialDragon.pose("mount")
+	var seat_at: Vector3 = (pose.seat as Vector3) * SKY_SCALE + Vector3.UP * SKY_FLOAT
+	head = MeshKit.pivot(body, "Head", (pose.nose as Vector3) * SKY_SCALE + Vector3.UP * SKY_FLOAT)
+	_saddle(seat_at + Vector3(0, -0.02, 0), Color("0c5448"), Color("f4ead0"), Color("ffc72e"), 0.62)
+	var cloud := _mat(Color("eef5ff"), 0.2)
+	var cloud_shade := _mat(Color("c4dcf2"))
+	for puff in [[Vector3(0, 0.3, 1.2), 0.9], [Vector3(0.1, 0.28, -0.1), 1.15], [Vector3(-0.1, 0.3, -1.4), 1.05], [Vector3(0.05, 0.26, -2.7), 0.9], [Vector3(-0.05, 0.24, -3.9), 0.7]]:
+		var at: Vector3 = puff[0]
+		var size: float = puff[1]
+		for bit in [[Vector3.ZERO, Vector3(1.1, 0.42, 0.9), cloud], [Vector3(0.42, -0.04, 0.2), Vector3(0.7, 0.34, 0.6), cloud], [Vector3(-0.4, -0.08, -0.16), Vector3(0.74, 0.3, 0.64), cloud_shade]]:
+			var puff_part := MeshKit.part(self, MeshKit.sphere(), bit[2], at + (bit[0] as Vector3) * size, (bit[1] as Vector3) * size)
+			puff_part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

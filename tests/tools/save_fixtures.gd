@@ -238,6 +238,9 @@ func _build_line(cls: StringName) -> void:
 	var divine := DivineGearData.item(cls, "weapon", rng)
 	if not divine.is_empty():
 		Game.add_item(divine)
+	# The Dragon God's drops of เกาะลอยฟ้าเทพมังกร, kept in the bag (worn from ★300).
+	Game.add_item(DragonGearData.weapon(cls, rng))
+	Game.add_item(DragonGearData.wings(cls, rng))
 	Game.add_item(ItemData.gem("emerald", 2))
 	Game.socket_gem(Game.profile.equip.ring, Game.profile.inv.size() - 1)
 	Game.add_item(ItemData.jewel("purple", 12))

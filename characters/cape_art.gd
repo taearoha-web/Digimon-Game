@@ -42,6 +42,9 @@ const FIT := 0.66
 		_push("fold", value)
 
 var star := false
+## Colour overrides of the star design (build_tinted): the cape shader's palette keys, plus
+## "capelet_color" / "capelet_deep" for the feather capelet and "gem" for the clasps.
+var tint := {}
 ## Everything is authored at TOP_Y / BACK_Z and fitted onto the chibi's back by this node.
 var _fit: Node3D
 var _materials: Array[ShaderMaterial] = []
@@ -51,6 +54,17 @@ static func build(p_star: bool) -> Node3D:
 	var cape := CapeArt.new()
 	cape.star = p_star
 	cape.name = "Wings_star_darklord" if p_star else "Wings_darklord"
+	cape._make()
+	return cape
+
+
+## The star design re-cut in other colours under [param node_name] (the Dragon God's
+## emperor cape: DragonWingArt).
+static func build_tinted(node_name: String, colors: Dictionary) -> CapeArt:
+	var cape := CapeArt.new()
+	cape.star = true
+	cape.tint = colors
+	cape.name = node_name
 	cape._make()
 	return cape
 
@@ -65,9 +79,12 @@ func _make() -> void:
 	if star:
 		var palette := {"outer_color": Color("4a2a9a"), "outer_deep": Color("0e0824"), "lining_color": Color("5a1430"),
 			"trim_color": Color("ffd36b"), "glow_color": Color("ff9ae6"), "style": 1.0}
+		for key in ["outer_color", "outer_deep", "lining_color", "trim_color", "glow_color"]:
+			if tint.has(key):
+				palette[key] = tint[key]
 		_layer(palette.merged({"kind": 0.0, "top_width": 0.3, "hem_width": 0.74, "cape_length": STAR_LENGTH,
 			"hem_curve": 0.1, "wrap": 0.2, "fold_depth": 0.06, "folds": 5.5, "crest": 1.0, "feather_len": 0.17}, true), 52, 34)
-		_layer(palette.merged({"kind": 1.0, "outer_color": Color("3a2378"), "outer_deep": Color("0c0620"), "behind": 0.05,
+		_layer(palette.merged({"kind": 1.0, "outer_color": tint.get("capelet_color", Color("3a2378")), "outer_deep": tint.get("capelet_deep", Color("0c0620")), "behind": 0.05,
 			"top_width": 0.34, "hem_width": 0.66, "cape_length": 0.24, "hem_curve": 0.32, "wrap": 0.26, "fold_depth": 0.014,
 			"folds": 4.0, "crest": 0.0, "scallop": 11.0, "phase": 0.6, "stiff": 0.3}, true), 22, 12)
 		_layer(palette.merged({"kind": 2.0, "top_width": 0.1, "hem_width": 0.17, "cape_length": 0.075, "crest": 0.0}, true), 18, 6)
@@ -174,7 +191,7 @@ func _clasps() -> void:
 	root.name = "Clasps"
 	_fit.add_child(root)
 	var metal := MeshKit.toon(Color("f0c058"), {"emission": 0.2 if star else 0.08})
-	var gem := MeshKit.toon(Color("b06bff") if star else Color("e8243c"), {"emission": 1.2 if star else 0.6})
+	var gem := MeshKit.toon(tint.get("gem", Color("b06bff")) if star else Color("e8243c"), {"emission": 1.2 if star else 0.6})
 	for side in [-1.0, 1.0]:
 		var at := Vector3(side * 0.205, TOP_Y - 0.035, BACK_Z + 0.12)
 		_piece(root, MeshKit.cylinder(), metal, at, Vector3(0.075, 0.022, 0.075), Vector3(90, 0, 0))

@@ -67,6 +67,9 @@ const MOODS := {
 	# The lotus sanctum: a rose-gold heaven with shafts falling on the temple.
 	&"lotus_sanctum": {"clouds": Color(1.0, 0.86, 0.9, 0.85), "warm": 0.55, "rays": Color(1.0, 0.85, 0.66, 0.4), "ray_count": 7,
 		"exposure": 1.02, "grade": Vector3(1.0, 1.06, 1.12)},
+	# เกาะลอยฟ้าเทพมังกร: a bright high sky, golden-hour light, long gold shafts.
+	&"sky_dragon_isle": {"clouds": Color(1.0, 0.95, 0.88, 0.75), "warm": 0.7, "rays": Color(1.0, 0.86, 0.52, 0.3), "ray_count": 6,
+		"shadows": 0.14, "exposure": 0.98, "sky_light": 0.25, "grade": Vector3(1.0, 1.1, 1.22)},
 	# The drowned abyss: no clouds, the surface's light falling as teal shafts.
 	&"drowned_abyss": {"clouds": Color(0.4, 0.85, 0.9, 0.25), "warm": 0.0, "rays": Color(0.45, 0.95, 1.0, 0.36), "ray_count": 7,
 		"sky_light": 0.45, "grade": Vector3(1.0, 1.06, 1.08)},

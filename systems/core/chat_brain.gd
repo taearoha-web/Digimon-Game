@@ -25,6 +25,8 @@ const INTENTS := [
 	["rude", ["โง่", "กาก", "ควาย", "เหี้ย", "สัส", "ไอ้", "อีดอก", "fuck", "noob", "ห่วย", "ไปตาย", "น่ารำคาญ", "ขยะ", "ไอ้บ้า"]],
 	["leave", ["ออกจากปาร์ตี้", "ออกจากตี้", "ออกตี้", "แยกกัน", "ไปก่อนนะ", "บาย", "ลาก่อน", "bye", "ไว้เจอกัน"]],
 	["howru", ["เป็นยังไงบ้าง", "เป็นไงบ้าง", "สบายดีไหม", "สบายดีมั้ย", "เป็นไงมั่ง", "เหนื่อยไหม"]],
+	# เกาะลอยฟ้าเทพมังกร and its rare dragon (help_text "isle": the game's own numbers).
+	["isle", ["เกาะลอยฟ้า", "เทพมังกร", "มังกรแก้ว", "เกาะมังกร", "เจ็ดสี"]],
 	["help", ["วิธี", "ยังไง", "ทำไง", "ทำยังไง", "สอนหน่อย", "แนะนำหน่อย", "คืออะไร", "กี่โมง", "เมื่อไหร่", "ตอนไหน", "เวลาไหน", "อีเวนต์", "อีเว้นท์", "อีเว้น", "บอสโลก", "exp x2"]],
 	["party", ["ปาร์ตี้", "ปาตี้", "ตี้", "party", "ไปด้วยกัน", "ไปด้วยไหม", "ไปล่าด้วย", "ล่าด้วยกัน", "เก็บเลเวลด้วย", "เข้ากลุ่ม", "จอยกัน", "จอยไหม"]],
 	["shop", ["ขายอะไร", "ขายไหม", "มีอะไรขาย", "ดูร้าน", "ดูของ", "ซื้อ", "ร้าน", "ราคา", "ขายของ", "รับซื้อ", "ของดี"]],
@@ -33,6 +35,7 @@ const INTENTS := [
 	["set", ["ชุดเซต", "เซต", "แก่นเทพ", "หลอมเซต"]],
 	["wings", ["ปีก", "wing"]],
 	["mount", ["มอนท์", "สัตว์ขี่", "ขี่อะไร", "mount"]],
+	["gems", ["อัญมณี", "ฝังเพชร", "ฝังพลอย", "เจม", "gem"]],
 	["gear", ["อุปกรณ์", "ใส่อะไร", "ใส่ชุด", "ชุดอะไร", "อาวุธอะไร", "ของที่ใส่", "ใส่ของ", "gear", "ชุดเทพ"]],
 	["enhance", ["ตีบวก", "หินตีบวก", "+7", "+8", "+9", "+10", "บวกแตก", "บวกเท่าไหร่", "บวกกี่", "+กี่", "+เท่าไหร่"]],
 	["whereis", ["อยู่ไหน", "อยู่ที่ไหน", "อยู่แถวไหน", "อยู่แมพไหน", "อยู่ตรงไหน"]],
@@ -46,7 +49,7 @@ const INTENTS := [
 	["greet", ["สวัสดี", "หวัดดี", "ดีจ้า", "ดีครับ", "ดีค่ะ", "hello", "hi", "ทัก"]],
 ]
 ## Intents answered with plain chat: these may take the tone's colour and a question back.
-const PLAIN := ["", "greet", "thanks", "praise", "level", "class", "enhance", "skill", "guild", "where", "whereis", "bot", "howru", "gear", "set", "wings", "mount"]
+const PLAIN := ["", "greet", "thanks", "praise", "level", "class", "enhance", "skill", "guild", "where", "whereis", "bot", "howru", "gear", "set", "wings", "mount", "gems"]
 
 const GREET := ["สวัสดีจ้า!", "หวัดดี~ เล่นสนุกไหม", "ดีจ้า วันนี้มาเก็บเลเวลเหรอ", "สวัสดี! มีอะไรให้ช่วยไหม"]
 const GREET_AGAIN := "ทักอีกแล้ว 555 มีอะไรให้ช่วยไหม"
@@ -168,6 +171,7 @@ const TONE_IDLE := {
 }
 ## Words that pick which system a "how do I" line is about, in this order.
 const HELP_TOPICS := [
+	["isle", ["เกาะลอยฟ้า", "เทพมังกร", "มังกรแก้ว", "เกาะมังกร", "เจ็ดสี"]],
 	["enhance", ["ตีบวก", "บวก", "ช่างตี", "เพชรม่วง", "เพชรชมพู"]],
 	["set", ["ชุดเซต", "เซต", "แก่นเทพ"]],
 	["wings", ["ปีก", "wing"]],
@@ -351,6 +355,8 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 			return _say(HOWRU, rng)
 		"help":
 			return {"reply": help_text(help_topic(text)), "action": "none"}
+		"isle":
+			return {"reply": help_text("isle"), "action": "none"}
 		"party":
 			if in_party:
 				return _say(ALREADY, rng)
@@ -391,7 +397,7 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 			if not news.is_empty() and rng.randf() < 0.7:
 				return _say(news, rng)
 			return _say(ENHANCE, rng)
-		"gear", "set", "wings", "mount":
+		"gear", "set", "wings", "mount", "gems":
 			return {"reply": gear_answer(intent, p, mine, rng), "action": "none"}
 		"skill":
 			return _say(SKILL, rng)
@@ -605,6 +611,10 @@ static func help_text(topic: String) -> String:
 			return "ร้านในหมู่บ้านเป็นของผู้เล่นที่พัก ของดีกว่าพ่อค้า ต่อราคาได้ลอตละครั้ง ขายให้ร้านได้ราคาดี ฝากขายได้ %s เท่า จ่ายใน %d นาที" % [str(StallStock.CONSIGN_BONUS), StallStock.CONSIGN_MINUTES]
 		"party":
 			return "ชวนปาร์ตี้ได้จากการ์ดผู้เล่น หรือพิมพ์ชวนในแชท ตี้ละ %d คน แล้วพิมพ์สั่งเพื่อนได้ ตามมา รอตรงนี้ กลับเมือง" % Game.PARTY_SIZE
+		"isle":
+			var v := ChatThreads.isle_vars()
+			return "%s เข้าได้ที่ ★%s %s %s%% %s %s%% ชิ้นส่วนคอสตูมกับไข่สัตว์ขี่ %s%% ต่อตัว %sโผล่วันละ %s รอบ" % [v["%isle"], v["%islestar"], v["%isleweapon"], v["%dweapon"],
+				v["%islewings"], v["%dwing"], v["%dfrag"], v["%rare"], v["%raretimes"]]
 		"events":
 			return "%s ทุกวัน %02d:00-%02d:00 %s เวลา %02d:%02d ในสนามประจำวัน เสาร์อาทิตย์%s" % [WorldEvents.NAME_EXP, WorldEvents.EXP_START / 3600, WorldEvents.EXP_END / 3600, WorldEvents.NAME_BOSS, WorldEvents.BOSS_START / 3600, (WorldEvents.BOSS_START % 3600) / 60, WorldEvents.NAME_GOLD]
 		"skill":
@@ -640,6 +650,12 @@ static func gear_answer(what: String, p: Dictionary, mine: Dictionary, rng: Rand
 			if not mount.is_empty() and String(mount.get("name", "")) != "":
 				return "ขี่%s เลเวล %d อยู่" % [String(mount.name), int(mount.get("level", 1))]
 			return "ยังไม่มีสัตว์ขี่เลย"
+		"gems":
+			# The gems really in its sockets (WorldGear.gem_summary).
+			var gems: Dictionary = g.get("gems", {})
+			if int(gems.get("count", 0)) > 0:
+				return "ฝังอัญมณีไว้ %d เม็ด ส่วนใหญ่%s ขั้นสูงสุดคือ%s" % [int(gems.count), String(gems.main_name), String(gems.best_name)]
+			return "ยังไม่ได้ฝังอัญมณีเลย ของที่ใส่ยังไม่มีช่อง"
 	var parts: PackedStringArray = []
 	for slot in ["weapon", "armor", "helm", "boots"]:
 		var item: Dictionary = g.get(slot, {})

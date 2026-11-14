@@ -307,6 +307,21 @@ test('same-origin JSON-only writes block CSRF; request sizes, malformed JSON and
   assert.equal((await call('session', {cookie: account.cookie})).status, 200);
 });
 
+test('the sky isle collectibles are accepted: chest, fragment and egg stacks, the fragment costume, the sky dragon mount', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  // SkyIsleLoot in the game: three stackable "jewel" items, the costume dragon_god (an
+  // item, worn through rshop.cos) and the mount sky_dragon at a level of 1-5.
+  const isle = {...sample(), mounts: {sky_dragon: 5, fire_drake: 1}, mount: 'sky_dragon',
+    inv: [{kind: 'jewel', id: 'dragon_chest', count: 12}, {kind: 'jewel', id: 'dragon_fragment', count: 49},
+      {kind: 'jewel', id: 'sky_dragon_egg', count: 2}, {kind: 'costume', id: 'dragon_god', rarity: 4}],
+    rshop: {lc: 0, ep: 0, own: ['dragon_god'], cos: 'dragon_god', trail: '', ncol: ''}, flags: {cos_item_dragon_god: 1}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(isle)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const over = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...isle, mounts: {sky_dragon: 6}})}});
+  assert.equal(over.status, 400, 'a mount past Lv.5 is refused');
+});
+
 test('mount levels and the old list of owned mounts are both accepted', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -441,6 +456,44 @@ test('the legendary guild wings are checked: fixed fields and stats, one pair a 
       {hold: {abc: {g: 1, n: '', s: 1}}}, {hand: {'2967': 5}}, {other: 1}, []]) {
     assert.throws(() => validateBundle(bundle({...sample(), legend_wings: bad})), /legendary guild wings record/, JSON.stringify(bad));
   }
+});
+
+const dragonWeapon = (extra = {}) => ({kind: 'equip', uid: 'dg1', slot: 'weapon', base: 'staff', plus: 0, sockets: 3, gems: [], set: '',
+  name: 'คทาเทพมังกรดารา', rarity: 4, level: 400, class: 'mage', dragon: 1, stats: {matk: 2100, hp: 900, mp: 500, crit: 0.07, def: 90}, price: 900000, ...extra});
+const dragonWings = (extra = {}) => ({kind: 'equip', uid: 'dg2', slot: 'wings', base: 'wings', wing: 'mage', plus: 0, sockets: 3, gems: [], set: '',
+  name: 'ปีกเทพมังกรดารา', rarity: 4, level: 400, class: 'mage', dragon: 1, stats: {matk: 1080, hp: 2850, def: 293, mp: 1700, crit: 0.125}, price: 900000, ...extra});
+
+test('the Dragon God weapon and 300-star wings are checked: fixed fields, class weapon kind, never another tier', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const hero = {...sample(100), paragon: {level: 300}, equip: {weapon: dragonWeapon({plus: 15, sockets: 4}), wings: dragonWings({plus: 7})},
+    inv: [dragonWeapon({class: 'warrior', base: 'sword', uid: 'dg3'})], stall: {lots: [{lot: 1, price: 5000000, item: dragonWings({uid: 'dg4'})}], log: []}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': hero}, selectedSlot: 1, storage: [dragonWings({class: 'darklord', wing: 'darklord', uid: 'dg5'})]}}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  // The server's weapon kinds are the game's (StarGearData.WEAPON_KIND), and the level is DragonGearData's.
+  const kinds = readFileSync(new URL('../../../data/star_gear_data.gd', import.meta.url), 'utf8').match(/const WEAPON_KIND := (\{[^}]*\})/)[1];
+  for (const [cls, kind] of Object.entries(JSON.parse(kinds))) {
+    assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [dragonWeapon({class: cls, base: kind})]})), cls);
+    assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [dragonWings({class: cls, wing: cls})]})), cls);
+  }
+  const game = readFileSync(new URL('../../../data/dragon_gear_data.gd', import.meta.url), 'utf8');
+  assert.match(game, /const STARS := 300\n/);
+  assert.match(game, /const LEVEL := 100 \+ STARS\n/);
+  assert.match(game, /const RARITY := 4\n/);
+  // A look sent between players carries no stats: the fixed fields alone are enough.
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [dragonWeapon({stats: undefined})]})));
+  for (const bad of [{dragon: 2}, {dragon: true}, {level: 300}, {level: 401}, {rarity: 3}, {class: ''}, {class: 'vagabond'}, {base: 'sword'}, {plus: 16},
+      {star_tier: 200}, {set_gear: 'mage'}, {collection: 'lotus_200'}, {legend_week: 2967}, {slot: 'armor', base: 'armor'}, {kind: 'gem'},
+      {stats: {atk: -1}}, {stats: {speed: 5}}, {stats: {matk: 1e9}}, {stats: []}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [dragonWeapon(bad)]})), /Dragon God item is invalid/, JSON.stringify(bad));
+  }
+  for (const bad of [{wing: 'warrior'}, {base: 'staff'}, {level: 200}, {class: 'priest'}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), equip: {wings: dragonWings(bad)}})), /Dragon God item is invalid/, JSON.stringify(bad));
+    assert.throws(() => validateBundle({...bundle(), storage: [dragonWings(bad)]}), /Dragon God item in the shared storage/, JSON.stringify(bad));
+    assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, price: 9, item: dragonWings(bad)}], log: []}})), /Dragon God item is invalid/, JSON.stringify(bad));
+  }
+  const rejected = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...hero, equip: {weapon: dragonWeapon({level: 100})}})}});
+  assert.equal(rejected.status, 400);
 });
 
 test('the reward exchange record (rshop) is accepted and checked', async t => {

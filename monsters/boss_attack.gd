@@ -42,11 +42,17 @@ const MOVES := {
 	# clips: a maelstrom that drags (slows) whoever it catches, ice crystals that freeze.
 	"maelstrom": {"th": "คลื่นน้ำวน", "style": "whirl", "slow": 2.5, "clip": "skill1"},
 	"glacial_bloom": {"th": "ผลึกน้ำแข็ง", "style": "glacier", "slow": 3.5, "freeze": true, "clip": "skill2"},
+	# The Dragon God (SkyIsleData): a widening breath of golden fire that leaves the ground
+	# burning, and a cage of heaven's lightning that closes on whoever stands in it.
+	# Cast with the celestial dragon's breath (skill1) and heaven's call (skill2), CelestialDragonVisual.
+	"dragon_breath": {"th": "ลมหายใจเทพมังกร", "style": "dragonfire", "slow": 0.0, "clip": "skill1"},
+	"heavens_fall": {"th": "อัสนีสวรรค์ถล่ม", "style": "heaven", "slow": 2.0, "clip": "skill2"},
 }
 const STYLE_COLORS := {
 	"spore": Color("8fe05a"), "fire": Color("ff6a2a"), "sand": Color("e8c06a"), "ice": Color("9fe8ff"),
 	"bone": Color("e8e0d0"), "poison": Color("9ae04a"), "bolt": Color("7ab8ff"), "light": Color("ffd84a"),
 	"void": Color("b05aff"), "whirl": Color("5cc8ff"), "glacier": Color("bff4ff"),
+	"dragonfire": Color("ffc23a"), "heaven": Color("fff0a0"),
 }
 
 var mob: Mob
@@ -244,6 +250,14 @@ func _strike_vfx(shot: Dictionary) -> void:
 			LegendMoves.impact_vfx(parent, "whirl", pos, r)
 		"glacier":
 			LegendMoves.impact_vfx(parent, "ice", pos, r)
+		"dragonfire":
+			VfxKit.fire_ring(parent, pos, color, r * 0.85, 9, 0.9)
+			VfxKit.pillar(parent, pos, Color("ff8a2a"), 5.0, r * 0.4, 0.4)
+			BattleVfx.burst(parent, pos + Vector3(0, 0.4, 0), color, 10, 1.0)
+		"heaven":
+			VfxKit.lightning(parent, pos + Vector3(0.4, 11.0, 0.3), pos, color)
+			VfxKit.pillar(parent, pos, color, 10.0, r * 0.5, 0.45)
+			VfxKit.shockwave(parent, pos + Vector3(0, 0.1, 0), Color("7df0c4"), r)
 		"fire":
 			VfxKit.fire_ring(parent, pos, color, r * 0.8, 8, 0.8)
 			BattleVfx.burst(parent, pos + Vector3(0, 0.4, 0), color, 10, 0.9)
@@ -397,6 +411,24 @@ static func plan(move_id: String, o: Vector3, f: Vector3, h: Vector3, heading: V
 			out.append(_shot(h, 4.5, 1.5, 1.6, 0))
 			for p in _ring(o, 7.0, 7, rng.randf() * TAU, [rng.randi() % 7]):
 				out.append(_shot(p, 2.2, 2.3, 1.3, 1))
+		"dragon_breath":
+			# A cone of golden fire rolls out toward the target, row after row; the last
+			# row keeps burning.
+			var rows := [[3.4, [0.0]], [6.6, [-1.7, 1.7]], [9.8, [-3.3, 0.0, 3.3]], [13.0, [-3.4, 0.0, 3.4]]]
+			for j in rows.size():
+				for lateral in rows[j][1]:
+					var flame := _shot(o + f * float(rows[j][0]) + side * float(lateral), 2.1, 1.1 + 0.24 * j, 1.5, j)
+					if j == 3 and lateral != 0.0:
+						flame["linger"] = 3.5
+					out.append(flame)
+		"heavens_fall":
+			# Five bolts cage the target, the sky falls on the middle, then four more
+			# strike wide of it.
+			for p in _ring(h, 5.6, 5, rng.randf() * TAU, []):
+				out.append(_shot(p, 1.7, 1.2, 1.3, 0))
+			out.append(_shot(h, 3.0, 2.0, 1.6, 1))
+			for p in _ring(h, 9.4, 4, rng.randf() * TAU, []):
+				out.append(_shot(p, 2.2, 2.7, 1.4, 2))
 		"event_horizon":
 			out.append(_shot(h, 2.2, 1.4, 1.4, 0))
 			for p in _around(h, 3, 3.0, 6.0, rng):

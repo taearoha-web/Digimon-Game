@@ -162,6 +162,11 @@ const JEWELS := {
 	# The mechanics dungeon's material (DungeonData.SCALE): dropped by its boss only and
 	# exchanged at the tomb keeper for dungeon-only gear.
 	"dragon_scale": {"name": "เกล็ดมังกรโบราณ", "color": Color("5cf28a"), "price": 40000},
+	# เกาะลอยฟ้าเทพมังกร only (SkyIsleLoot): the treasure chest (opened from the bag), the
+	# costume fragment (50 make ชุดเทพมังกร) and the egg of the mount มังกรฟ้าเทพ.
+	"dragon_chest": {"name": "กล่องสมบัติเทพมังกร", "color": Color("ffc93c"), "price": 20000},
+	"dragon_fragment": {"name": "ชิ้นส่วนชุดเทพมังกร", "color": Color("4fe0b0"), "price": 60000},
+	"sky_dragon_egg": {"name": "ไข่มังกรฟ้าเทพ", "color": Color("9af0e0"), "price": 300000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
@@ -529,6 +534,8 @@ static func name_of(item: Dictionary) -> String:
 static func color_of(item: Dictionary) -> Color:
 	if LegendWings.is_item(item):
 		return LegendWings.COLOR
+	if DragonGearData.is_item(item):
+		return DragonGearData.COLOR
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].color
 	if item.get("kind", "") == "jewel":
@@ -614,6 +621,8 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		return lines
 	if LegendWings.is_item(item):
 		lines.append_array(LegendWings.detail_lines(item))
+	if DragonGearData.is_item(item):
+		lines.append_array(DragonGearData.detail_lines(item))
 	if SetGearData.is_item(item):
 		lines.append("%s · อุปกรณ์ 250 ดาว (ผสมที่ช่างตีเหล็ก)" % SetGearData.set_label(SetGearData.item_class(item)))
 		lines.append("โบนัสเซต: " + SetGearData.bonus_text())

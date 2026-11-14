@@ -4,7 +4,7 @@ var checks := 0
 var failures := 0
 
 const BOSSES := [&"mush_king", &"fire_dragon", &"sand_dragon", &"yeti_king", &"magma_dragon", &"bone_lord",
-	&"toad_king", &"storm_dragon", &"gold_dragon", &"abyss_dragon", &"void_emperor", &"tidal_tyrant"]
+	&"toad_king", &"storm_dragon", &"gold_dragon", &"abyss_dragon", &"void_emperor", &"tidal_tyrant", &"dragon_god"]
 
 class Victim:
 	extends Node3D
@@ -98,7 +98,7 @@ func _ready() -> void:
 	for id in BOSSES:
 		names[MonsterData.get_monster(id).behavior] = true
 		names[MonsterData.get_monster(id).behavior2] = true
-	check(names.size() == 24, "24 distinct moves across 12 bosses")
+	check(names.size() == 26, "26 distinct moves across 13 bosses")
 	# Every field-zone boss is covered.
 	ZoneData.ensure()
 	for zone_id in ZoneData.ZONES:

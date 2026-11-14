@@ -852,6 +852,40 @@ static func abyss(c: Dictionary) -> void:
 					StarRegionArt._put(c, "crystal", tip, Vector3(0.1, 0.18, 0.1), col.lightened(0.25), Vector3(0, ang, 0), "glow")
 
 
+## เกาะลอยฟ้าเทพมังกร: wild flowers in gold, peach and white, ferns, fallen ginkgo leaves
+## and pale pebbles between the camps, ways, brooks and bays (SkyIsleArt._clear).
+static func isle(c: Dictionary) -> void:
+	var A := SkyIsleArt
+	A._register_shapes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 30077
+	var blooms := [Color("ffe07a"), Color("ffb3c4"), Color("fff6e4"), Color("ffcf7a"), Color("d9c2ff")]
+	for i in count(520.0, 130):
+		var a := rng.randf() * TAU
+		var r := 5.0 + sqrt(rng.randf()) * 49.0
+		var p := Vector3(cos(a) * r, 0.0, sin(a) * r)
+		if not A._clear(p, 2.3):
+			continue
+		match i % 6:
+			0, 1, 2:
+				# A drift of flowers of one colour.
+				var tone: Color = blooms[(i / 6) % blooms.size()]
+				for k in 3:
+					var off := Vector3(rng.randf_range(-0.9, 0.9), 0, rng.randf_range(-0.9, 0.9))
+					StarRegionArt._put(c, "isle_bloom", p + off, Vector3.ONE * rng.randf_range(0.3, 0.5), tone, Vector3(0, rng.randf() * TAU, 0), "foliage")
+			3:
+				StarRegionArt._put(c, "fern", p, Vector3.ONE * rng.randf_range(0.5, 0.85), A.GRASS.lerp(A.PINE, rng.randf() * 0.6), Vector3(0, rng.randf() * TAU, 0), "foliage")
+			4:
+				# Fallen ginkgo leaves.
+				for k in 5:
+					var off := Vector3(rng.randf_range(-1.2, 1.2), 0.02, rng.randf_range(-1.2, 1.2))
+					StarRegionArt._put(c, "box", p + off, Vector3(0.3, 0.01, 0.2) * rng.randf_range(0.7, 1.2), A.GINKGO.lerp(Color("f39a3c"), rng.randf() * 0.5), Vector3(0, rng.randf() * TAU, 0))
+			5:
+				for k in 3:
+					var off := Vector3(rng.randf_range(-0.6, 0.6), 0.05, rng.randf_range(-0.6, 0.6))
+					StarRegionArt._put(c, "rock", p + off, Vector3(0.4, 0.16, 0.32) * rng.randf_range(0.7, 1.3), Color("d6ccb8"), Vector3(0, rng.randf() * TAU, 0))
+
+
 ## Registers the shell and starfish meshes in StarRegionArt's shared shape cache.
 static func _register_sea_shapes() -> void:
 	if not StarRegionArt._meshes.has("sea_shell"):

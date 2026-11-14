@@ -16,7 +16,10 @@ extends Node
 ## - field and boss names: its own hunting field / where it stands and that field's boss;
 ## - a God title after เป็น: only from a player at ★300;
 ## - guild names: its guild or one it meets in the war;
-## - party sizes, failed tries, the boss respawn, the war's next round, percentages.
+## - party sizes, failed tries, the boss respawn, the war's next round, percentages;
+## - เกาะลอยฟ้าเทพมังกร: its gate (★SkyIsleData.ENTRY_STAR), its drop rates (SkyIsleLoot.*_DROP,
+##   in percent) and the rare dragon's schedule (WorldEvents.RARE_*) are the constants;
+## - the gems it says it wears are the ones in its sockets (WorldGear.gem_summary).
 ## A news topic (drop, enhance_ok, enhance_fail) is only opened with that news, and the
 ## old made-up lines never come back. The checks read WorldGear's answers, not how it
 ## makes them.
@@ -35,7 +38,7 @@ const BANNED := ["ตายไปสามรอบ", "ฟาร์มทั้�
 	"ซื้อไปรอบที่แล้ว", "ลดราคาช่วงนี้", "ของหายากเพิ่งได้มา", "เพิ่งเล่นได้ไม่กี่วัน", "กลางคืนคนน้อย", "ตื่นสาย", "วันนี้ดรอปไม่ค่อยดี"]
 const SLOT_OF := {"อาวุธ": "weapon", "เกราะ": "armor", "หมวก": "helm", "รองเท้า": "boots"}
 const VERBS := ["ได้", "ดรอป", "ขี่", "ใส่", "อัป", "ทำ", "หลอม"]
-const QUESTIONS := ["ใส่อะไรอยู่", "ชุดเซตได้กี่ชิ้นแล้ว", "มีปีกไหม", "ขี่อะไรอยู่", "ตีบวกได้เท่าไหร่แล้ว", "เป็นไงบ้าง", "เลเวลเท่าไหร่", "สวัสดี", "อยู่ไหน"]
+const QUESTIONS := ["ใส่อะไรอยู่", "ชุดเซตได้กี่ชิ้นแล้ว", "มีปีกไหม", "ขี่อะไรอยู่", "ฝังอัญมณีอะไรไว้บ้าง", "ตีบวกได้เท่าไหร่แล้ว", "เป็นไงบ้าง", "เลเวลเท่าไหร่", "สวัสดี", "อยู่ไหน"]
 
 
 func check(ok: bool, message: String) -> void:
@@ -99,7 +102,8 @@ func _setup() -> void:
 		if z.has("boss"):
 			var boss := String(MonsterData.get_monster(StringName(z.boss.monster)).get("name", ""))
 			if boss != "":
-				_bosses[boss] = StringName(id)
+				# One boss may stand in more than one field.
+				_bosses[boss] = (_bosses.get(boss, []) as Array) + [StringName(id)]
 	_zones.sort_custom(func(a, b): return String(a[0]).length() > String(b[0]).length())
 	# Names a claim may carry: every jewel, potion and gem, every mount; wings, sets and
 	# finds join as WorldGear names them.
@@ -195,6 +199,10 @@ func _answers(online: Array, t: float, rng: RandomNumberGenerator) -> void:
 						check(text.contains("%s +%d" % [ItemData.SLOT_NAMES[slot], int(g[slot].plus)]), "%s tells its real %s (+%d: %s)" % [s.name, slot, int(g[slot].plus), text])
 				"ชุดเซตได้กี่ชิ้นแล้ว":
 					check(text.contains("%d ชิ้น" % int(g.set_pieces)) if int(g.set_pieces) > 0 else text.contains("ยังไม่มี"), "%s tells its real set (%d: %s)" % [s.name, int(g.set_pieces), text])
+				"ฝังอัญมณีอะไรไว้บ้าง":
+					var gems: Dictionary = g.gems
+					check(text.contains("%d เม็ด" % int(gems.count)) and text.contains(String(gems.main_name)) and text.contains(String(gems.best_name)) if int(gems.count) > 0 else text.contains("ยังไม่ได้ฝัง"), "%s tells its real gems (%s: %s)" % [s.name, gems, text])
+					_count("gems")
 				"มีปีกไหม":
 					check(text.contains(String(g.wings.name)) if int(g.wings.tier) > 0 else text.contains("ยังไม่มี"), "%s tells its real wings (%s: %s)" % [s.name, g.wings, text])
 
@@ -277,7 +285,7 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 	var plain := (_rx.lv as RegEx).sub(text, "", true)
 	for m in (_rx.star as RegEx).search_all(plain):
 		var st := int(m.get_string(1))
-		check(st in [DrownedAbyssData.ENTRY_STAR, JobData.GOD_STARS, SetGearData.STARS, StarWingData.REQUIRED_STARS, ItemData.FEATHER_STARS] or facts.any(func(f): return int(f.stars) == st), "★%d is a rule's or the speaker's (%s)" % [st, tag])
+		check(st in [SkyIsleData.ENTRY_STAR, DrownedAbyssData.ENTRY_STAR, JobData.GOD_STARS, SetGearData.STARS, StarWingData.REQUIRED_STARS, ItemData.FEATHER_STARS] or facts.any(func(f): return int(f.stars) == st), "★%d is a rule's or the speaker's (%s)" % [st, tag])
 	for m in (_rx.left as RegEx).search_all(text):
 		check(int(m.get_string(1)) == maxi(1, JobData.GOD_STARS - int(me.stars)), "the stars it lacks are real (%s)" % tag)
 	if not stall and not ChatBrain.ENHANCE.any(func(x): return text.begins_with(String(x))) and not text.contains("ต้องใช้ชิ้นชุดเทพ +%d" % ChatThreads.SET_DIVINE_PLUS):
@@ -313,7 +321,8 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 		check(int(m.get_string(1)) == int(ctx.get("online", -1)), "the players online are counted (%s)" % tag)
 	for m in (_rx.pct as RegEx).search_all(text):
 		var allowed := {str(int(round(Game.PARTY_EXP_BONUS * 100.0))): true, str(int(round(float(SetGearData.BONUS[4].atk) * 100.0))): true,
-			str(int(round(SetGearData.CRAFT_CHANCE * 100.0))): true, str(snappedf(DrownedAbyssData.SET_CORE_DROP * 100.0, 0.01)): true}
+			str(int(round(SetGearData.CRAFT_CHANCE * 100.0))): true, str(snappedf(DrownedAbyssData.SET_CORE_DROP * 100.0, 0.01)): true,
+			IsleLuck.percent(SkyIsleLoot.WEAPON_DROP): true, IsleLuck.percent(SkyIsleLoot.WING_DROP): true, IsleLuck.percent(SkyIsleLoot.FRAGMENT_DROP): true, IsleLuck.percent(SkyIsleLoot.EGG_DROP): true}
 		check(allowed.has(m.get_string(1)) or facts.any(func(f): return (f.fchance as Dictionary).has(m.get_string(1))), "a percentage is the game's (%s)" % tag)
 	if ctx.has("opener") and String(ctx.get("topic", "")) == "boss":
 		for m in (_rx.respawn as RegEx).search_all(text):
@@ -327,13 +336,17 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 		if rest.contains(String(z[0])):
 			_count("field")
 			var id: StringName = z[1]
-			check(id == DrownedAbyssData.ID or id == DivineRegionData.ID or facts.any(func(f): return (f.fields as Dictionary).has(id)), "%s is the speaker's field (%s)" % [z[0], tag])
+			check(id == SkyIsleData.ID or id == DrownedAbyssData.ID or id == DivineRegionData.ID or facts.any(func(f): return (f.fields as Dictionary).has(id)), "%s is the speaker's field (%s)" % [z[0], tag])
 			rest = rest.replace(String(z[0]), "#")
+	# The Dragon God's name is also part of his gear's names (อาวุธเทพมังกร, ปีกเทพมังกร,
+	# ชุดเทพมังกร): those are items, not a claim about the boss.
+	for item_word in ["อาวุธเทพมังกร", "ปีกเทพมังกร", "ชุดเทพมังกร", "ผ้าคลุมจักรพรรดิเทพมังกร"]:
+		rest = rest.replace(item_word, "#")
 	for boss in _bosses:
 		if rest.contains(String(boss)):
 			_count("boss")
-			var zone: StringName = _bosses[boss]
-			check(facts.any(func(f): return (f.fields as Dictionary).has(zone)), "%s is the boss of the speaker's field (%s)" % [boss, tag])
+			var zones: Array = _bosses[boss]
+			check(facts.any(func(f): return zones.any(func(zone): return (f.fields as Dictionary).has(zone))), "%s is the boss of the speaker's field (%s)" % [boss, tag])
 	if not stall:
 		for name in _names:
 			for verb in VERBS:

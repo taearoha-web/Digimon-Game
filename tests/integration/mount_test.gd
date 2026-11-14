@@ -590,7 +590,11 @@ func _menu() -> void:
 		pick.pressed.emit()
 		await settle()
 	check(Game.active_mount() == "glow_stag", "menu pick makes the stag active")
+	# (The isle's sky dragon is the one mount that always hatches: its egg is the gate.)
+	var sky := _card(menu, SkyIsleLoot.MOUNT)
 	for label in menu._content.find_children("*", "Label", true, false):
+		if sky != null and sky.is_ancestor_of(label):
+			continue
 		check(not (label as Label).text.contains("สำเร็จ 100"), "no tab text promises 100%% (%s)" % (label as Label).text.left(40))
 	# A failed drake craft from the menu: costs gone, a Thai miss message, still Lv.0.
 	var toasts: Array = []

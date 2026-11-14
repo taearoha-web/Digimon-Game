@@ -191,7 +191,8 @@ static func worn_count(equip: Dictionary, cls: String) -> int:
 	var n := 0
 	for slot in equip:
 		var piece: Variant = equip[slot]
-		if is_item(piece) and item_class(piece) == cls:
+		# The Dragon God weapon of the class stands in for the set's weapon (DragonGearData).
+		if (is_item(piece) and item_class(piece) == cls) or DragonGearData.counts_for_set(piece, cls):
 			n += 1
 	return n
 

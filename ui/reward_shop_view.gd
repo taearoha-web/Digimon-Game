@@ -137,7 +137,8 @@ static func _cosmetic_card(p_tab: String, id: String, refresh: Callable) -> Cont
 		buy.disabled = problem != ""
 		buy.tooltip_text = problem
 		buy.pressed.connect(func():
-			var result := RewardShop.buy(p_tab, id)
+			# The isle's costume is exchanged for fragments (announced to the server).
+			var result := SkyIsleLoot.exchange_costume() if id == SkyIsleLoot.COSTUME else RewardShop.buy(p_tab, id)
 			if result == "ok":
 				AudioManager.play_sfx(&"coin")
 				Game.say(("แลก %s แล้ว — ใส่ได้ที่ช่องคอสตูมในกระเป๋า" if p_tab == "costume" else "แลก %s แล้ว") % String(e.name), &"success")
