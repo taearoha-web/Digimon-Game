@@ -2,8 +2,10 @@ class_name SkyIsleData
 extends RefCounted
 ## เกาะลอยฟ้าเทพมังกร: the ★300 hunting field beyond ห้วงสมุทรอสูร. A chain of floating
 ## islands round the Dragon God's shrine, high over a sea of cloud (SkyIsleArt), with an
-## all-dragon bestiary (existing rigs re-dressed: new names, sizes, palettes and the
-## celestial dressing of DragonMonsterArt) and the hardest field boss of the game, เทพมังกร.
+## all-dragon bestiary and the hardest field boss of the game, เทพมังกร. The dragon-shaped
+## ones ("celestial": a CelestialDragon kind) are the long eastern dragon of the Summoner's
+## god skill จักรพรรดิมังกรสวรรค์, each in its own palette, pose, horns and moves; the drake
+## and the kirin are re-dressed rigs. All wear DragonMonsterArt's celestial dressing.
 ##
 ## Band (above the ★200-300 fields, EndgameFields): entry at ENTRY_STAR, camps
 ## Lv.CAMP_MIN-CAMP_MAX, the boss at BOSS_LEVEL, its own MonsterData.ZONE_TUNING / LATE_HP
@@ -36,27 +38,29 @@ const TUNING := [0.0692, 424.0, 0.1367, 513.0]
 const LATE_HP := 6.0
 
 ## Normal monsters fight with MobAttack moves, the Dragon God with BossAttack's two
-## signature moves from the start ("alternate"). "paint" repaints the rig's flat materials by name
+## signature moves from the start ("alternate"). "model" is the rig of a non-celestial
+## monster (and the fallback of a celestial one). "paint" repaints the rig's flat materials by name
 ## (the wyrmling's rig is textured: its "tint" does it), "aura" colours DragonMonsterArt's
 ## dressing, "decor" picks its extra piece, "halo" the colour of the god's sun-halo.
 const MONSTERS := {
-	&"cloud_whelp": {"name": "ลูกมังกรเมฆา", "model": "flying/Dragon", "height": 2.0, "hover": 0.9, "hp": 2.0, "atk": 2.3, "def": 1.3, "speed": 3.1, "aggro": true, "attack": "ranged",
+	&"cloud_whelp": {"name": "ลูกมังกรเมฆา", "celestial": "whelp", "model": "flying/Dragon", "height": 2.0, "hover": 0.9, "hp": 2.0, "atk": 2.3, "def": 1.3, "speed": 3.1, "aggro": true, "attack": "ranged",
 		"color": Color("bfe9ff"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("eef6ff"), "Dragon_Secondary": Color("6fbdf0"), "Dragon_Horn": Color("ffd76a")}, "aura": Color("bfe9ff"), "decor": "cloud", "behavior": "volley", "exp": 2.2, "gold": 2.8},
 	&"jade_drake": {"name": "เดรกเกล็ดหยก", "model": "big/Dino", "height": 2.7, "hp": 2.7, "atk": 2.2, "def": 1.9, "speed": 2.9, "aggro": true, "attack": "melee",
 		"color": Color("5fe0a8"), "tint": Color.WHITE, "paint": {"Dino_Main": Color("2fb48a"), "Dino_Secondary": Color("eaf4c4")}, "aura": Color("5fe0a8"), "decor": "horns", "behavior": "pounce", "exp": 2.3, "gold": 2.9},
-	&"gold_wyrmling": {"name": "มังกรน้อยเกล็ดทอง", "model": "cute/YellowDragon", "height": 2.3, "hp": 2.3, "atk": 2.4, "def": 1.5, "speed": 3.0, "aggro": true, "attack": "melee",
+	&"gold_wyrmling": {"name": "มังกรน้อยเกล็ดทอง", "celestial": "wyrmling", "model": "cute/YellowDragon", "height": 2.3, "hp": 2.3, "atk": 2.4, "def": 1.5, "speed": 3.0, "aggro": true, "attack": "melee",
 		"color": Color("ffd05a"), "tint": Color(1.3, 1.15, 0.6), "paint": {}, "aura": Color("ffd05a"), "decor": "pearl", "behavior": "spin", "exp": 2.25, "gold": 3.1},
 	&"cloud_kirin": {"name": "กิเลนเหยียบเมฆ", "model": "star/Horse_White", "height": 2.7, "hp": 2.2, "atk": 2.6, "def": 1.4, "speed": 3.9, "aggro": true, "attack": "melee",
 		"color": Color("ffb8dc"), "tint": Color.WHITE, "paint": {"Main": Color("fff6f2"), "Main_Light": Color("ffdbe8"), "Hooves": Color("f0bf4c"), "Hair": Color("ff8fbe"), "Muzzle": Color("ffd2c4")}, "aura": Color("ffb8dc"), "decor": "antlers", "behavior": "lunge", "exp": 2.3, "gold": 2.9},
-	&"storm_wyvern": {"name": "ไวเวิร์นอัสนี", "model": "dawn/Bat", "height": 3.2, "hover": 0.4, "hp": 2.0, "atk": 2.7, "def": 1.2, "speed": 3.3, "aggro": true, "attack": "ranged",
+	&"storm_wyvern": {"name": "ไวเวิร์นอัสนี", "celestial": "wyvern", "model": "dawn/Bat", "height": 3.2, "hover": 0.4, "hp": 2.0, "atk": 2.7, "def": 1.2, "speed": 3.3, "aggro": true, "attack": "ranged",
 		"color": Color("b08cff"), "tint": Color.WHITE, "paint": {"Main": Color("6a4fd0"), "Black": Color("2c2670"), "Belly": Color("d4c4ff"), "Nose": Color("ff9ae0")}, "aura": Color("b08cff"), "decor": "sparks", "behavior": "beam", "exp": 2.35, "gold": 2.9},
-	&"shrine_dragon": {"name": "มังกรผู้เฝ้าศาลเทพ", "model": "flying/Dragon_Evolved", "height": 3.8, "hover": 0.6, "hp": 6.0, "atk": 3.0, "def": 2.3, "speed": 3.1, "aggro": true, "attack": "ranged", "elite": true,
-		"color": Color("ff7a5a"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("dc4630"), "Dragon_Secondary": Color("f2bd48"), "Dragon_Horn": Color("fff0c8")}, "aura": Color("ff9a5a"), "decor": "pearl", "behavior": "mortar", "exp": 3.6, "gold": 4.2},
-	&"emerald_elder": {"name": "พญามังกรมรกต", "model": "dawn/Dragon", "height": 4.2, "hover": 0.0, "hp": 6.6, "atk": 2.9, "def": 2.6, "speed": 3.0, "aggro": true, "attack": "melee", "elite": true,
+	&"shrine_dragon": {"name": "มังกรผู้เฝ้าศาลเทพ", "celestial": "guardian", "model": "flying/Dragon_Evolved", "height": 3.8, "hover": 0.6, "hp": 6.0, "atk": 3.0, "def": 2.3, "speed": 3.1, "aggro": true, "attack": "ranged", "elite": true,
+		"color": Color("5fe8b8"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("dc4630"), "Dragon_Secondary": Color("f2bd48"), "Dragon_Horn": Color("fff0c8")}, "aura": Color("7af0c8"), "decor": "pearl", "behavior": "mortar", "exp": 3.6, "gold": 4.2},
+	&"emerald_elder": {"name": "พญามังกรมรกต", "celestial": "elder", "model": "dawn/Dragon", "height": 4.2, "hover": 0.0, "hp": 6.6, "atk": 2.9, "def": 2.6, "speed": 3.0, "aggro": true, "attack": "melee", "elite": true,
 		"color": Color("3ff0a0"), "tint": Color.WHITE, "paint": {"Main": Color("22a872"), "Wings": Color("0f6f60"), "Belly": Color("f2e6a0"), "Claws": Color("f0bf4c")}, "aura": Color("3ff0a0"), "decor": "horns", "behavior": "cleave", "exp": 3.7, "gold": 4.2},
-	# The Dragon God: the upright winged dragon in white gold, crowned, with a jade sun-halo
-	# behind its back and the dragon pearl before it (DragonMonsterArt "god").
-	&"dragon_god": {"name": "เทพมังกร", "model": "dawn/Dragon", "height": 6.4, "hover": 0.0, "hp": 40.0, "atk": 3.7, "def": 3.0, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true,
+	# The Dragon God: the god skill's dragon in white gold, coiled on his cloud, crowned and
+	# antlered in gold with a jade mane, a jade sun-halo behind his head and the dragon pearl
+	# before him (CelestialDragon "god", DragonMonsterArt "god").
+	&"dragon_god": {"name": "เทพมังกร", "celestial": "god", "model": "dawn/Dragon", "height": 5.0, "hover": 0.0, "hp": 40.0, "atk": 3.7, "def": 3.0, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true,
 		"color": Color("ffd766"), "tint": Color.WHITE, "paint": {"Main": Color("fff3dc"), "Wings": Color("f2b83a"), "Belly": Color("ffd35a"), "Claws": Color("46b894")}, "aura": Color("ffd766"), "halo": Color("7df0c4"), "decor": "god", "projectile": "orb",
 		"behavior": "dragon_breath", "behavior2": "heavens_fall", "alternate": true, "exp": 4.6, "gold": 7.0},
 }

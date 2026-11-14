@@ -12,8 +12,8 @@ extends Node
 ##   diamond on the minimap (kept on the rim when far) and a pillar of rainbow light over
 ##   it that shows from across the field (one unshaded additive mesh: no light, no
 ##   particles).
-## - It is the field's own boss in strength (tune: HP_SCALE times its HP), wears the
-##   storm dragon's rig under a prismatic crystal shader, and fights with telegraphed
+## - It is the field's own boss in strength (tune: HP_SCALE times its HP), is the god
+##   skill's eastern dragon in rainbow crystal (CelestialDragon "prism"), and fights with telegraphed
 ##   moves (BossAttack). The world players hunting nearby join in once the hero's side
 ##   has engaged it (FieldPlayer._join_rare), holding back so the kill stays the hero's.
 ## - When the window ends it flies off. When it falls, the hero's side that dealt most of
@@ -236,7 +236,9 @@ static func dress(m: Mob) -> void:
 	if m == null or not is_instance_valid(m) or m.has_meta("rare_dressed"):
 		return
 	m.set_meta("rare_dressed", true)
-	if m.visual != null and m.visual.model != null:
+	# The eastern crystal dragon (CelestialDragon "prism") is glass already: its own shader
+	# turns its scales to rainbow facets. A rig (an old mirror) wears the crystal material.
+	if m.visual != null and m.visual.model != null and not m.visual is CelestialDragonVisual:
 		for node in m.visual.model.find_children("*", "MeshInstance3D", true, false):
 			var mi := node as MeshInstance3D
 			if mi.mesh == null:

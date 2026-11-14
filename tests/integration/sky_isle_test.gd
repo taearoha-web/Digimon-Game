@@ -126,12 +126,28 @@ func _bestiary() -> void:
 			var ours: float = role.call(SkyIsleData.MONSTERS, key, r)
 			var theirs: float = role.call(DrownedAbyssData.MONSTERS, key, r)
 			check(ours >= theirs * 0.95 and ours <= theirs * 1.35, "%s %s multiplier in a sane range of the abyss's (%.2f / %.2f)" % [r, key, ours, theirs])
+	# The look: the dragon-shaped ones are the Summoner's god-skill dragon (CelestialDragon),
+	# each its own kind (palette, horns, pose, move); the drake and the kirin keep their rigs.
+	var kinds := {}
+	var palettes := {}
+	var poses := {}
+	for id in SkyIsleData.MONSTERS:
+		var kind := String(SkyIsleData.MONSTERS[id].get("celestial", ""))
+		if kind != "":
+			check(CelestialDragon.has(kind) and not kinds.has(kind), "%s is its own celestial dragon (%s)" % [id, kind])
+			kinds[kind] = true
+			palettes[CelestialDragon.KINDS[kind].palette] = true
+			poses[CelestialDragon.KINDS[kind].pose] = true
+	check(kinds.size() == 6 and palettes.size() == 6 and poses.size() == 6, "six dragons, six palettes, six poses")
+	check(SkyIsleData.MONSTERS[SkyIsleData.BOSS].get("celestial", "") == "god" and not SkyIsleData.MONSTERS[&"jade_drake"].has("celestial") and not SkyIsleData.MONSTERS[&"cloud_kirin"].has("celestial"), "the god is the Dragon God; the drake and the kirin keep their own shapes")
 	# The dressing.
 	for id in SkyIsleData.MONSTERS:
-		var visual := MonsterVisual.new()
-		add_child(visual)
 		var t := MonsterData.get_monster(id)
-		visual.setup(String(t.model), float(t.height), float(t.get("hover", 0.0)), t.get("tint", Color.WHITE))
+		var visual := CelestialDragonVisual.make(self, t)
+		check((visual is CelestialDragonVisual) == t.has("celestial"), "%s is drawn as it should be" % id)
+		if visual is CelestialDragonVisual:
+			var body := visual.get_node_or_null("CelestialDragon/DragonBody") as MeshInstance3D
+			check(body != null and body.mesh == CelestialDragon.mesh(String(t.celestial)) and is_equal_approx(visual.height, float(t.height) + float(t.get("hover", 0.0))), "%s: one shared mesh, fitted to %.1f m" % [id, float(t.height)])
 		DragonMonsterArt.attach(visual, t)
 		var aura := visual.get_node_or_null("DragonAura")
 		check(aura != null and aura.get_child_count() >= 3 and aura.get_child_count() <= (60 if id == SkyIsleData.BOSS else 20), "%s wears its dressing (%d pieces)" % [id, aura.get_child_count() if aura else 0])

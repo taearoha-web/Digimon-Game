@@ -187,17 +187,11 @@ func _zone() -> void:
 	var boss := MonsterData.stats_for(StringName(zone.data.boss.monster), int(zone.data.boss.level))
 	check(mob.max_hp == int(float(boss.hp) * RareDragon.HP_SCALE) and mob.hp == mob.max_hp and int(mob.stats.atk) == int(float(boss.atk) * RareDragon.ATK_SCALE), "the field boss's strength, %sx its HP (%d)" % [str(RareDragon.HP_SCALE), mob.max_hp])
 	check(mob.level == int(zone.data.boss.level), "at the field boss's level")
-	# Its look: crystal on every surface, the beacon, a name seen from afar.
-	var surfaces := 0
-	var crystal := 0
-	for m in mob.visual.model.find_children("*", "MeshInstance3D", true, false):
-		var mi := m as MeshInstance3D
-		if mi.mesh == null:
-			continue
-		for i in mi.mesh.get_surface_count():
-			surfaces += 1
-			crystal += 1 if mi.get_surface_override_material(i) == RareDragon.prism_material() else 0
-	check(surfaces > 0 and crystal == surfaces, "every surface of the rig wears the one crystal material (%d of %d)" % [crystal, surfaces])
+	# Its look: the god-skill dragon (CelestialDragon "prism") in rainbow crystal, the beacon,
+	# a name seen from afar.
+	var crystal := mob.visual as CelestialDragonVisual
+	check(crystal != null and crystal.kind == "prism" and float(crystal.mat.get_shader_parameter("prism")) >= 1.0, "a crystal eastern dragon, its scales in rainbow facets")
+	check(crystal != null and crystal.body_mesh.mesh == CelestialDragon.mesh("prism"), "its body is the one shared crystal dragon mesh")
 	var beacon := mob.get_node_or_null("RareBeacon") as Node3D
 	var pillar := mob.get_node_or_null("RareBeacon/Pillar") as MeshInstance3D
 	check(beacon != null and pillar != null and pillar.material_override == RareDragon.pillar_material() and (pillar.mesh as CylinderMesh).height >= 40.0, "a pillar of light 40 m and more over it")
