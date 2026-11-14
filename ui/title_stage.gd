@@ -181,6 +181,8 @@ func add_hero(slot: int, overview: Dictionary, arrival := false) -> void:
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(shadow)
 	var visual := HeroVisual.new()
+	# The worn reward-shop costume shows here too, as in the world.
+	visual.costume = String(overview.get("costume", ""))
 	root.add_child(visual)
 	visual.setup(StringName(overview.get("class", ClassData.START)), "", true, overview.get("equip", {}), overview.get("look", {}))
 	var height := HeroVisual.CHIBI_HEIGHT if visual.chibi else HeroVisual.HEIGHT

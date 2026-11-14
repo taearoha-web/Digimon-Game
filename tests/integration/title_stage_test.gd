@@ -101,6 +101,10 @@ func _make(slot: int, cls: StringName, name: String, level: int) -> void:
 func _check_heroes() -> void:
 	_make(1, &"warrior", "หนึ่ง", 12)
 	_make(2, &"mage", "สอง", 30)
+	# Slot 2 wears the kitsune costume: the select stage shows it on the hero.
+	Game.give_or_store(RewardShop.costume_item("kitsune"))
+	RewardShop.wear_from_bag(Game.profile.inv.find(RewardShop.costume_item("kitsune")))
+	Game.save()
 	_make(3, &"priest", "สาม", 45)
 	_make(7, &"defender", "เจ็ด", 100)
 	# The screen on its own (Main would start the game on "เริ่มผจญภัย").
@@ -111,6 +115,8 @@ func _check_heroes() -> void:
 	var stage := menu.stage
 	check(stage.heroes.size() == 4 and stage.heroes.has(1) and stage.heroes.has(2) and stage.heroes.has(3) and stage.heroes.has(7), "each saved hero stands on its own slot's circle (%s)" % str(stage.heroes.keys()))
 	check(menu._plates.size() == 4, "each hero has a name plate")
+	check(String(Game.slot_overview(2).get("costume", "")) == "kitsune" and String((stage.heroes[2].visual as HeroVisual).costume) == "kitsune", "the hero of slot 2 stands in its worn costume")
+	check(String((stage.heroes[1].visual as HeroVisual).costume) == "", "a hero without one wears none")
 	for shape in SHAPES:
 		get_window().size = Vector2i(shape)
 		await frames(3)
