@@ -5,12 +5,15 @@ extends RefCounted
 ##
 ## Equipment: { kind:"equip", uid, slot, base, name, rarity, level, class, stats{atk,def,hp,mp,crit}, price }
 ## Potions:   { kind:"potion", id, count }
+## Costumes:  { kind:"costume", id (RewardShop.COSTUMES), rarity } a reward-shop costume (one piece, no
+##            level or stats), worn in the costume slot (RewardShop.wear_from_bag); it goes
+##            between the bag and the shared storage, never to a merchant, a trade or a stall
 ## Jewels:    { kind:"jewel", id ("purple" / "pink" / "chaos" / "feather"), count } spent at the forge (JEWELS);
 ##            the mount materials ("wolf_fang", ...) are jewels too, spent on mounts (MountData),
 ##            and so is the set core ("set_core") the forge makes 250★ set pieces from (SetGearData)
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
-const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก"}
+const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก", "costume": "คอสตูม"}
 ## Every equipment slot on the paper doll (wings only drop from the Lv.100 boss).
 const EQUIP_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet", "wings"]
 
@@ -243,6 +246,24 @@ static func potion(id: String, count := 1) -> Dictionary:
 
 static func is_stackable(item: Dictionary) -> bool:
 	return item.get("kind", "") in ["potion", "gem", "jewel"]
+
+
+## A reward-shop costume item (RewardShop.costume_item).
+static func is_costume(item: Variant) -> bool:
+	return item is Dictionary and item.get("kind", "") == "costume"
+
+
+## The text on a bag / slot tile under the icon: "×5" for a stack, the level ("Lv.80",
+## "ดาว50" above Lv.100) for gear, "คอสตูม" for a costume and nothing for anything else
+## (a thing without a level never reads "Lv.0").
+static func tile_text(item: Dictionary) -> String:
+	if is_stackable(item):
+		return "×%d" % int(item.get("count", 1))
+	if is_costume(item):
+		return "คอสตูม"
+	if item.get("kind", "") == "equip" and int(item.get("level", 0)) > 0:
+		return level_text(int(item.level)).replace("Lv.100 ", "")
+	return ""
 
 
 static func jewel(id: String, count := 1) -> Dictionary:
@@ -499,6 +520,8 @@ static func name_of(item: Dictionary) -> String:
 		return JEWELS[item.id].name
 	if item.get("kind", "") == "gem":
 		return gem_info(item).name
+	if is_costume(item):
+		return String(RewardShop.COSTUMES.get(String(item.get("id", "")), {}).get("name", "คอสตูม"))
 	var plus := int(item.get("plus", 0))
 	return ("+%d " % plus if plus > 0 else "") + str(item.get("name", "?"))
 
@@ -512,7 +535,7 @@ static func color_of(item: Dictionary) -> Color:
 		return JEWELS[item.id].color
 	if item.get("kind", "") == "gem":
 		return gem_info(item).color
-	return RARITY_COLORS[int(item.get("rarity", 0))]
+	return RARITY_COLORS[clampi(int(item.get("rarity", 0)), 0, RARITY_COLORS.size() - 1)]
 
 
 ## Price of one unit (stackables) or the whole item.
@@ -527,6 +550,9 @@ static func unit_sell_price(item: Dictionary) -> int:
 static func sell_price(item: Dictionary) -> int:
 	# The Legendary Guild Wings have no price: never sold, consigned or set out on a stall.
 	if LegendWings.is_item(item):
+		return 0
+	# A reward-shop costume is never sold (no merchant, stall or consignment takes it).
+	if is_costume(item):
 		return 0
 	if item.get("kind", "") == "jewel":
 		return int(JEWELS[item.id].price * 0.4) * int(item.get("count", 1))
@@ -546,11 +572,22 @@ static func buy_price(item: Dictionary) -> int:
 	return int(int(item.get("price", 1)) * 1.2)
 
 
+const COSTUME_NOTE := "ใส่ในช่องคอสตูม · ไม่แทนชุดเกราะ"
+const COSTUME_MOVE_NOTE := "ไม่มีค่าพลัง ใส่ได้ทุกอาชีพ · ฝากคลังส่งให้ตัวละครอื่นได้ · ขาย แลกเปลี่ยน หรือวางแผงไม่ได้"
+
+
 ## Lines like "ATK +24" for tooltips.
 static func stat_lines(item: Dictionary) -> Array[String]:
 	var lines: Array[String] = []
 	if item.get("kind", "") == "potion":
 		lines.append(POTIONS[item.id].desc)
+		return lines
+	if is_costume(item):
+		var e: Dictionary = RewardShop.COSTUMES.get(String(item.get("id", "")), {})
+		if e.has("desc"):
+			lines.append(String(e.desc))
+		lines.append(COSTUME_NOTE)
+		lines.append(COSTUME_MOVE_NOTE)
 		return lines
 	if item.get("kind", "") == "gem":
 		var info := gem_info(item)

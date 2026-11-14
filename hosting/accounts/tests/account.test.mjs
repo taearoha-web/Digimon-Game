@@ -471,6 +471,28 @@ test('the reward exchange record (rshop) is accepted and checked', async t => {
   assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [{kind: 'gem', id: 'ruby_2', count: 1}, {kind: 'jewel', id: 'purple', count: 5}]})));
 });
 
+test('reward-shop costumes are items: in the bag, the shared storage and the costume slot (rshop.cos)', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  // Hero 1 wears the kitsune costume (its slot is rshop.cos) and has the royal one in the bag;
+  // the sakura costume waits in the shared storage for another hero.
+  const one = {...sample(), inv: [{kind: 'costume', id: 'royal', rarity: 4}, {kind: 'jewel', id: 'purple', count: 2}],
+    rshop: {lc: 10, ep: 0, own: ['kitsune', 'royal', 'sakura'], cos: 'kitsune', trail: '', ncol: ''}, flags: {cos_item_kitsune: 1, cos_item_royal: 1, cos_item_sakura: 1}};
+  const two = {...sample(20, 'น้องหมา'), rshop: {lc: 0, ep: 0, own: [], cos: 'celestial'}};
+  const full = {slots: {'1': one, '2': two}, selectedSlot: 1, storage: [{kind: 'costume', id: 'sakura', rarity: 1}], storageMigrated: {}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: full}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle({...full, storage: [{kind: 'costume', id: 'sakura'}]}), 'a costume without its grade');
+  for (const bad of [{kind: 'costume', id: 'royal', rarity: 4, count: 2}, {kind: 'costume', id: 'royal', rarity: 9}, {kind: 'costume', id: 7},
+    {kind: 'costume', id: ''}, {kind: 'costume', id: 'x'.repeat(33)}, {kind: 'costume', id: 'royal', level: 1}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [bad]})), /costume item is invalid/, JSON.stringify(bad));
+    assert.throws(() => validateBundle({...bundle(), storage: [bad]}), /costume item in the shared storage/, JSON.stringify(bad));
+  }
+  // Never worn as gear, never on a stall.
+  assert.throws(() => validateBundle(bundle({...sample(), equip: {costume: {kind: 'costume', id: 'royal', rarity: 4}}})), /costume item is invalid/);
+  assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, price: 50, item: {kind: 'costume', id: 'royal', rarity: 4}}], log: []}})), /stall is invalid/);
+});
+
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
   const {register, call} = harness(t);
   const account = await register();

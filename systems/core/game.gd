@@ -494,6 +494,7 @@ func import_code(code: String, target_slot := -1) -> bool:
 	_autosave_timer = 0.0
 	_party_gear.clear()
 	_remember_slot()
+	_migrate_costume_items()
 	_queue_cloud_save()
 	profile_changed.emit()
 	inventory_changed.emit()
@@ -804,9 +805,19 @@ func load_game(from_slot := -1) -> bool:
 		clean["zone"] = String(current_zone)
 		if _write_profile(clean, slot):
 			_queue_cloud_save()
+	_migrate_costume_items()
 	profile_changed.emit()
 	inventory_changed.emit()
 	return true
+
+
+## Costumes bought before they were items become items once (RewardShop.migrate_items),
+## written at once so a reload never makes them again.
+func _migrate_costume_items() -> void:
+	var before := JSON.stringify(profile.get("flags", {}))
+	RewardShop.migrate_items()
+	if JSON.stringify(profile.get("flags", {})) != before:
+		save()
 
 
 func delete_save(for_slot := -1) -> void:
@@ -1353,6 +1364,9 @@ func _valid_item(value: Variant) -> bool:
 		if item.kind == "jewel":
 			return _valid_integer(item.get("count", 1), 1) and ItemData.JEWELS.has(item.get("id"))
 		return _valid_integer(item.get("count", 1), 1) and (ItemData.POTIONS.has(item.get("id")) if item.kind == "potion" else _valid_gem_id(item.get("id")))
+	# A reward-shop costume (RewardShop.costume_item): its id and grade, nothing else.
+	if item.get("kind") == "costume":
+		return RewardShop.valid_costume_item(item)
 	if item.get("kind") != "equip" or not item.get("slot") is String or not ItemData.EQUIP_SLOTS.has(item.get("slot")):
 		return false
 	for key in ["uid", "name", "class", "set", "base", "boss"]:
@@ -1580,6 +1594,10 @@ func _repair_item(item: Dictionary) -> void:
 			item[key] = int(item.get(key, 0))
 		item["stats"] = item.get("stats", {})
 		item["gems"] = item.get("gems", [])
+	elif item.get("kind") == "costume":
+		# One piece, no count: its grade follows the costume's price.
+		item["rarity"] = RewardShop.costume_rarity(String(item.get("id", "")))
+		return
 	else:
 		item["count"] = int(item.get("count", 1))
 	# Older saves may hold gear above the star cap (the 250-star set pieces are
@@ -2958,6 +2976,9 @@ func use_potion_at(index: int) -> String:
 
 ## null-safe reason an item cannot be worn ("" = ok).
 func equip_problem(item: Dictionary) -> String:
+	# A costume goes in the costume slot: any class, any level.
+	if ItemData.is_costume(item):
+		return "" if RewardShop.COSTUMES.has(String(item.get("id", ""))) else "ใส่ไม่ได้"
 	if item.get("kind", "") != "equip":
 		return "ใส่ไม่ได้"
 	# Gear above Lv.100 (dropped in the arena and the tower) needs paragon levels:
@@ -2977,7 +2998,14 @@ func equip_problem(item: Dictionary) -> String:
 
 
 func equip_from_bag(index: int) -> bool:
+	if index < 0 or index >= profile["inv"].size():
+		return false
 	var item: Dictionary = profile["inv"][index]
+	if ItemData.is_costume(item):
+		var worn := RewardShop.wear_from_bag(index)
+		if worn != "ok":
+			say(worn, &"warning")
+		return worn == "ok"
 	var problem := equip_problem(item)
 	if problem != "":
 		say(problem, &"warning")
@@ -3000,6 +3028,13 @@ func equip_from_bag(index: int) -> bool:
 
 
 func unequip(slot: String) -> bool:
+	if slot == COSTUME_SLOT:
+		if RewardShop.worn_costume() == "":
+			return false
+		var off := RewardShop.take_off_costume()
+		if off != "ok":
+			say(off, &"warning")
+		return off == "ok"
 	if not profile["equip"].has(slot) or profile["inv"].size() >= bag_size():
 		return false
 	if LegendWings.is_item(profile["equip"][slot]):
@@ -3014,6 +3049,19 @@ func unequip(slot: String) -> bool:
 	return true
 
 
+## The paper doll's costume slot (RewardShop: the worn costume item). It is kept apart from
+## profile.equip and ItemData.EQUIP_SLOTS: a costume has no stats, no level and no plus,
+## so stats, gear score, the forge and the sale code never see it.
+const COSTUME_SLOT := "costume"
+
+
+## What a paper-doll slot holds (the gear of profile.equip, or the costume item), or null.
+func equipped(slot: String) -> Variant:
+	if slot == COSTUME_SLOT:
+		return RewardShop.worn_costume_item()
+	return profile.get("equip", {}).get(slot)
+
+
 func clamp_vitals() -> void:
 	var stats := stats_now()
 	profile["hp"] = clampi(profile["hp"], 0, stats.max_hp)
@@ -3021,15 +3069,23 @@ func clamp_vitals() -> void:
 
 
 func sell_item(index: int, count := 1) -> void:
+	if index < 0 or index >= profile["inv"].size():
+		return
 	var item: Dictionary = profile["inv"][index]
 	if LegendWings.is_item(item):
 		say(LegendWings.SELL_TEXT, &"warning")
+		return
+	if ItemData.is_costume(item):
+		say(COSTUME_SELL_TEXT, &"warning")
 		return
 	var each := ItemData.unit_sell_price(item)
 	var qty := count if ItemData.is_stackable(item) else 1
 	add_gold(each * qty)
 	remove_item_at(index, qty)
 	daily_progress("trade")
+
+
+const COSTUME_SELL_TEXT := "คอสตูมขายไม่ได้ (ฝากคลังเพื่อส่งให้ตัวละครอื่นได้)"
 
 
 ## Bag items auto-sell would sell: unworn gear of the chosen grades (bit per
@@ -3041,7 +3097,8 @@ func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 	var other_ok := sells_other_class()
 	for i in profile["inv"].size():
 		var item: Dictionary = profile["inv"][i]
-		# Wings and the forged 250★ set pieces are never sold off in bulk.
+		# Wings, the forged 250★ set pieces and everything that is not gear (potions, gems,
+		# jewels, reward-shop costumes) are never sold off in bulk.
 		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item):
 			continue
 		if not other_ok and is_other_class(item):

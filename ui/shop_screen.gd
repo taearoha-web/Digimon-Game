@@ -191,6 +191,9 @@ func _rebuild() -> void:
 	for i in Game.profile.inv.size():
 		var item: Dictionary = Game.profile.inv[i]
 		empty = false
+		# A reward-shop costume is never sold (it moves through the storage only).
+		if ItemData.is_costume(item):
+			continue
 		if stall >= 0:
 			_sell_box.add_child(_consign_row(item, i))
 			continue

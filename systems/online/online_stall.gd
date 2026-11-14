@@ -135,7 +135,8 @@ func _bought(data: Dictionary) -> void:
 	_pending.erase(lot)
 	var item: Variant = data.get("item")
 	var price := maxi(0, int(data.get("price", 0)))
-	if not (item is Dictionary) or not Game._valid_item(item):
+	# A reward-shop costume never sells on a stall (PlayerStall refuses to list one).
+	if not (item is Dictionary) or not Game._valid_item(item) or ItemData.is_costume(item):
 		Game.say("ข้อมูลไอเทมจากผู้ขายผิดพลาด", &"warning")
 		return
 	var got: Dictionary = (item as Dictionary).duplicate(true)

@@ -430,6 +430,9 @@ static func valid(value: Variant) -> bool:
 			return false
 		if not Game._valid_number(lot.get("listed_at", 0.0)) or not Game._valid_item(lot.get("item")):
 			return false
+		# A reward-shop costume never goes on a stall (list_item: no worth).
+		if ItemData.is_costume(lot.get("item")):
+			return false
 	for entry in s.get("log", []):
 		if not entry is Dictionary or not entry.get("buyer", "") is String or not entry.get("name", "") is String or not entry.get("color", "") is String:
 			return false

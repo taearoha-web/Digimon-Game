@@ -416,6 +416,9 @@ static func sell(index: int, count := 1) -> bool:
 	if LegendWings.is_item(item):
 		Game.say(LegendWings.SELL_TEXT, &"warning")
 		return false
+	if ItemData.is_costume(item) or sell_price(item) <= 0:
+		Game.say(Game.COSTUME_SELL_TEXT if ItemData.is_costume(item) else "ของชิ้นนี้ขายไม่ได้", &"warning")
+		return false
 	var qty := clampi(count, 1, int(item.get("count", 1))) if ItemData.is_stackable(item) else 1
 	Game.add_gold(sell_price(item) * qty)
 	Game.remove_item_at(index, qty)

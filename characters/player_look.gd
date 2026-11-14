@@ -42,8 +42,12 @@ static func of_profile(p: Dictionary) -> Dictionary:
 	}
 
 
-## The reward-shop cosmetic of `tab` profile `p` wears ("" for none or when not owned).
+## The reward-shop cosmetic of `tab` profile `p` wears ("" for none or when not owned;
+## the costume: the one in its costume slot).
 static func _worn(p: Dictionary, tab: String) -> String:
+	# The costume is the item in the costume slot (any hero's, moved through the storage).
+	if tab == "costume":
+		return RewardShop.worn_of(p)
 	var d: Variant = p.get(RewardShop.KEY, {})
 	if not d is Dictionary:
 		return ""

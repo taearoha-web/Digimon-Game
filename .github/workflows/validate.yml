@@ -718,6 +718,16 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-costume-look
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/costume_look_test.tscn
+      - name: "costume_item_test (reward-shop costumes as items: bought into the bag with their own icon, worn in the costume slot beside the wings, the hero, the bag screen's turntable and the HUD portrait follow, one hero stores it and another wears it, no merchant / stall / consignment / trade / auto-sell, no stats, old unlocks become items once per hero with nothing made twice, the save check)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-costume-item
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/costume_item_test.tscn
+      - name: "item_icons_test (every jewel, gem, potion, costume, the legendary wings and what every shop, stall, pass, raid and drop hands out has an icon; a bag tile reads ×N, the level or nothing, never Lv.0)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-item-icons
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/item_icons_test.tscn
       - name: hero_vfx_priority_test (the hero's own skill effects always show - a hunting field full of AI world players keeps the shared effect budget full at iPhone settings, quality 0 / 1, memory pressure 1 / 2, warm; every skill on the hero's bar still draws its effects from the hero's own room, which nobody else spends; every reservation comes back after a zone change)
         timeout-minutes: 12
         env:

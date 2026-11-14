@@ -206,6 +206,8 @@ func _ready() -> void:
 	# Equipment can change while the menu pauses gameplay. The portrait's
 	# one-shot capture also runs safely during that pause.
 	Game.inventory_changed.connect(_refresh_portrait)
+	# The costume slot (RewardShop) dresses the portrait too.
+	Game.cosmetics_changed.connect(_refresh_portrait)
 	_save_label = UIUtil.label("บันทึกอัตโนมัติ", &"SmallLabel")
 	_save_label.modulate.a = 0.0
 	_save_label.anchor_left = 1.0

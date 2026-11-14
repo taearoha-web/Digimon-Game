@@ -118,6 +118,9 @@ func _build_shared_storage() -> void:
 	Game.add_item(ItemData.potion("hp_s", 7))
 	Game.add_item(ItemData.generate(40, &"archer", Game.rng, 2, "weapon"))
 	Game.add_item(ItemData.generate(40, &"warrior", Game.rng, 1, "armor"))
+	# A reward-shop costume item on its way to another hero.
+	RewardShop.add_coins(1000)
+	RewardShop.buy("costume", "sakura")
 	while not Game.profile.inv.is_empty():
 		if not Game.deposit_item(0):
 			_fail("shared storage: a deposit failed")
@@ -196,6 +199,15 @@ func _build_line(cls: StringName) -> void:
 	Game.profile["deaths"] = 2
 	Game.profile["hp"] = maxi(1, int(Game.profile.hp) - 17)
 	Game.profile["mp"] = maxi(0, int(Game.profile.mp) - 9)
+	# The bard has bought two reward-shop costumes: one worn in the costume slot, one in the bag.
+	if cls == &"bard":
+		RewardShop.add_coins(2000)
+		RewardShop.add_points(1000)
+		for id in ["kitsune", "royal"]:
+			if RewardShop.buy("costume", id) != "ok":
+				_fail("bard: the %s costume was not bought" % id)
+		if RewardShop.wear("costume", "kitsune") != "ok":
+			_fail("bard: the kitsune costume was not worn")
 	_keep("%s_lv23" % cls)
 
 	# The same hero at Lv.100 with ★ levels, star gear, star wings and ★ points spent.
