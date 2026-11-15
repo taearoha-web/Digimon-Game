@@ -30,8 +30,14 @@ var _plan := {}
 var _lift := 0.0
 
 
-## The visual a template asks for: a celestial dragon for "celestial" templates, the rig otherwise.
+## The visual a template asks for: a celestial dragon for "celestial" templates, the
+## sculpted kirin (KirinVisual) for "beast": "kirin", the rig otherwise.
 static func make(parent: Node, template: Dictionary) -> MonsterVisual:
+	if String(template.get("beast", "")) == "kirin":
+		var kirin := KirinVisual.new()
+		parent.add_child(kirin)
+		kirin.build(float(template.height))
+		return kirin
 	var kind_id := String(template.get("celestial", ""))
 	if CelestialDragon.has(kind_id):
 		var dragon := CelestialDragonVisual.new()

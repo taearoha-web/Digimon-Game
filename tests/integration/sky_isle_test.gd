@@ -30,6 +30,7 @@ func _ready() -> void:
 	_band()
 	_boss_moves()
 	_scenery()
+	await _kirin()
 	await _in_game()
 	print("SKY ISLE: %s (%d checks, %d failures)" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
@@ -127,7 +128,8 @@ func _bestiary() -> void:
 			var theirs: float = role.call(DrownedAbyssData.MONSTERS, key, r)
 			check(ours >= theirs * 0.95 and ours <= theirs * 1.35, "%s %s multiplier in a sane range of the abyss's (%.2f / %.2f)" % [r, key, ours, theirs])
 	# The look: the dragon-shaped ones are the Summoner's god-skill dragon (CelestialDragon),
-	# each its own kind (palette, horns, pose, move); the drake and the kirin keep their rigs.
+	# each its own kind (palette, horns, pose, move); the kirin is sculpted the same way
+	# (Kirin, KirinVisual: _kirin); the drake keeps its rig.
 	var kinds := {}
 	var palettes := {}
 	var poses := {}
@@ -140,11 +142,12 @@ func _bestiary() -> void:
 			poses[CelestialDragon.KINDS[kind].pose] = true
 	check(kinds.size() == 6 and palettes.size() == 6 and poses.size() == 6, "six dragons, six palettes, six poses")
 	check(SkyIsleData.MONSTERS[SkyIsleData.BOSS].get("celestial", "") == "god" and not SkyIsleData.MONSTERS[&"jade_drake"].has("celestial") and not SkyIsleData.MONSTERS[&"cloud_kirin"].has("celestial"), "the god is the Dragon God; the drake and the kirin keep their own shapes")
+	check(String(SkyIsleData.MONSTERS[&"cloud_kirin"].get("beast", "")) == "kirin" and not SkyIsleData.MONSTERS[&"jade_drake"].has("beast"), "the kirin is the sculpted kirin, the drake its rig")
 	# The dressing.
 	for id in SkyIsleData.MONSTERS:
 		var t := MonsterData.get_monster(id)
 		var visual := CelestialDragonVisual.make(self, t)
-		check((visual is CelestialDragonVisual) == t.has("celestial"), "%s is drawn as it should be" % id)
+		check((visual is CelestialDragonVisual) == t.has("celestial") and (visual is KirinVisual) == (String(t.get("beast", "")) == "kirin"), "%s is drawn as it should be" % id)
 		if visual is CelestialDragonVisual:
 			var body := visual.get_node_or_null("CelestialDragon/DragonBody") as MeshInstance3D
 			check(body != null and body.mesh == CelestialDragon.mesh(String(t.celestial)) and is_equal_approx(visual.height, float(t.height) + float(t.get("hover", 0.0))), "%s: one shared mesh, fitted to %.1f m" % [id, float(t.height)])
@@ -351,6 +354,65 @@ func _triangles(mesh: Mesh) -> int:
 	return total
 
 
+## กิเลนเหยียบเมฆ: the code-sculpted kirin (Kirin, KirinVisual). One shared mesh inside the
+## isle dragons' budget (lighter at quality 0), its own material, no lights, particles or
+## textures; the gait, the horn charge, the flinch, the fall and the hit flash move its
+## shader; it frees cleanly.
+func _kirin() -> void:
+	var t := MonsterData.get_monster(&"cloud_kirin")
+	check(float(t.height) >= 2.4 and float(t.height) <= 3.0 and String(t.behavior) == "lunge" and String(t.attack) == "melee", "the kirin keeps its height band and its horn charge (lunge)")
+	var saved := GameSettings.quality
+	var tris := {}
+	for q in [0, 1, 2]:
+		GameSettings.quality = q
+		tris[q] = _triangles(Kirin.mesh())
+	check(tris[1] == tris[2] and tris[2] >= 1500 and tris[2] <= 2600, "q1-2: one kirin mesh about the dragons' budget (%d triangles)" % tris[2])
+	check(tris[0] < tris[2] * 0.75 and tris[0] >= 900, "q0: a lighter kirin (%d triangles)" % tris[0])
+	GameSettings.quality = saved
+	check(not Kirin.SHADER.code.contains("sampler2D"), "the kirin's shader needs no texture")
+	var holder := Node3D.new()
+	add_child(holder)
+	var a := CelestialDragonVisual.make(holder, t) as KirinVisual
+	var b := CelestialDragonVisual.make(holder, t) as KirinVisual
+	check(a != null and b != null, "the monster factory builds the kirin")
+	if a == null or b == null:
+		holder.free()
+		return
+	check(a.body_mesh.mesh == Kirin.mesh() and b.body_mesh.mesh == a.body_mesh.mesh and a.mat != b.mat and a.mat.shader == Kirin.SHADER, "two kirins share the mesh, each with its own material")
+	check(is_equal_approx(a.height, float(t.height)) and Kirin.mesh().custom_aabb.has_volume(), "fitted to %.1f m, with room for its moves in its bounds" % float(t.height))
+	DragonMonsterArt.attach(a, t)
+	var aura := a.get_node_or_null("DragonAura")
+	check(aura != null and aura.get_child_count() >= 3 and aura.get_child_count() <= 12, "it stands on its ring of light")
+	check(a.find_children("*", "Light3D", true, false).is_empty() and a.find_children("*", "GPUParticles3D", true, false).is_empty() and a.find_children("*", "CPUParticles3D", true, false).is_empty(), "no lights or particles")
+	var pf := func(key: String) -> float: return float(a.mat.get_shader_parameter(key))
+	var clock0: float = pf.call("clock")
+	a.play("run")
+	await get_tree().create_timer(0.8).timeout
+	check(pf.call("stride") > 0.3 and pf.call("gallop") > 0.3 and pf.call("stream") > 0.3 and pf.call("clock") > clock0 + 0.5, "it gallops: legs swing, mane and tail stream (stride %.2f)" % pf.call("stride"))
+	a.play("idle")
+	a.action("attack", 1200)
+	await get_tree().create_timer(0.44).timeout
+	check(pf.call("rear") > 0.4 and pf.call("tuck") > 0.6, "the charge: it rears, forehooves curled (rear %.2f)" % pf.call("rear"))
+	await get_tree().create_timer(0.3).timeout
+	check(pf.call("head_pitch") > 0.4 and pf.call("lunge") > 0.2 and pf.call("charge") > 0.6, "then plunges, head low, the horn alight (head %.2f)" % pf.call("head_pitch"))
+	await get_tree().create_timer(0.6).timeout
+	check(absf(pf.call("rear")) < 0.05 and absf(pf.call("lunge")) < 0.05 and absf(pf.call("head_pitch")) < 0.05, "and stands again")
+	a.flash(Color(1, 0.3, 0.2), 0.3)
+	check(pf.call("glow") > 0.4, "the hit flash lights it")
+	a.action("hurt", 320)
+	await get_tree().create_timer(0.09).timeout
+	check(pf.call("rear") > 0.05, "it flinches")
+	a.hold("die")
+	await get_tree().create_timer(0.8).timeout
+	check(pf.call("fold") > 0.9 and pf.call("roll") > 1.0 and a.current == "die", "it falls on its side, legs folded")
+	var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - 1 - holder.find_children("*", "", true, false).size()
+	holder.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(not is_instance_valid(a) and int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) <= nodes, "the kirins free cleanly (%d -> %d nodes)" % [nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	check(Kirin.mesh() != null and _triangles(Kirin.mesh()) == tris[clampi(GameSettings.quality, 0, 2)], "the shared mesh outlives them")
+
+
 ## The zone as the game builds it: the hero arrives, the camps fill, the boss stands in
 ## his court, the signs hang, the weather blows, and leaving frees everything.
 func _in_game() -> void:
@@ -378,6 +440,8 @@ func _in_game() -> void:
 		kinds[(mob as Mob).monster_id] = true
 		check(SkyIsleData.has_monster((mob as Mob).monster_id), "only dragons of the isle live here")
 	check(kinds.size() >= 7, "every kind is about (%d)" % kinds.size())
+	var kirins := mobs.filter(func(m): return (m as Mob).monster_id == &"cloud_kirin")
+	check(not kirins.is_empty() and kirins.all(func(m): return (m as Mob).visual is KirinVisual and (m as Mob).visual.body_mesh.mesh == Kirin.mesh()), "the kirin camp is the sculpted kirin, one shared mesh (%d)" % kirins.size())
 	var texts := []
 	for node in zone.find_children("*", "Label3D", true, false):
 		texts.append((node as Label3D).text)
