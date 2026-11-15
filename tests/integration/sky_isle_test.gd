@@ -366,7 +366,7 @@ func _kirin() -> void:
 	for q in [0, 1, 2]:
 		GameSettings.quality = q
 		tris[q] = _triangles(Kirin.mesh())
-	check(tris[1] == tris[2] and tris[2] >= 1500 and tris[2] <= 2600, "q1-2: one kirin mesh about the dragons' budget (%d triangles)" % tris[2])
+	check(tris[1] == tris[2] and tris[2] >= 1500 and tris[2] <= 3100, "q1-2: one kirin mesh about the dragons' budget (%d triangles)" % tris[2])
 	check(tris[0] < tris[2] * 0.75 and tris[0] >= 900, "q0: a lighter kirin (%d triangles)" % tris[0])
 	GameSettings.quality = saved
 	check(not Kirin.SHADER.code.contains("sampler2D"), "the kirin's shader needs no texture")

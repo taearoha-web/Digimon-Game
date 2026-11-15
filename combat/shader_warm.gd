@@ -46,6 +46,11 @@ const MESH_SHADERS: Array[String] = [
 	"res://shaders/god_arcane_path.gdshader",
 	"res://shaders/god_arcane_glow.gdshader",
 	"res://shaders/god_arcane_veil.gdshader",
+	# เกาะลอยฟ้าเทพมังกร's creatures (Kirin, CelestialDragon: the isle's dragons, the Dragon
+	# God, the rare crystal dragon and the sky dragon mount), so the first kirin or dragon
+	# that walks into view does not stall the frame compiling its body shader.
+	"res://shaders/kirin.gdshader",
+	"res://shaders/celestial_dragon.gdshader",
 ]
 ## Effect shaders that particles or multimeshes draw (the instanced variant).
 const INSTANCED_SHADERS: Array[String] = [
