@@ -28,6 +28,8 @@ var _model_y := 0.0
 var _plan := {}
 ## How far heaven's call lifts the whole dragon now.
 var _lift := 0.0
+## The kind's rise_k (CelestialDragon.KINDS): how far its rearing lifts the head.
+var _rise_k := 1.0
 
 
 ## The visual a template asks for: a celestial dragon for "celestial" templates, the
@@ -112,6 +114,9 @@ func action(key: String, lock_ms := 450, _speed := 1.0) -> void:
 	var secs := maxf(0.35, float(lock_ms) / 1000.0)
 	var spec: Dictionary = CelestialDragon.KINDS.get(kind, {})
 	var size := float(spec.get("head", 1.0)) * 1.6
+	# How far its rearing lifts the head (the Dragon God's stays in the player's view).
+	var up := float(spec.get("rise_k", 1.0))
+	_rise_k = up
 	_restart()
 	match key:
 		"attack":
@@ -121,14 +126,14 @@ func action(key: String, lock_ms := 450, _speed := 1.0) -> void:
 			_to({"reach": 0.0, "rise": 0.0}, 0.22)
 		"skill1":
 			# The breath: draw back and up, then the head thrown forward, mouth alight.
-			_to({"reach": -0.7 * size, "rise": 0.35 * size, "breath": 0.6}, secs * 0.3)
+			_to({"reach": -0.7 * size * up, "rise": 0.35 * size * up, "breath": 0.6}, secs * 0.3)
 			_to({"reach": 1.8 * size, "rise": -0.7 * size, "breath": 1.0}, secs * 0.18)
 			_move_tween.tween_interval(secs * 0.32)
 			_to({"reach": 0.0, "rise": 0.0, "breath": 0.0}, secs * 0.2)
 		"skill2":
 			# Heaven's call: reared to the sky, the whole dragon lifted, glowing gold.
-			_to({"reach": -0.5 * size, "rise": 0.6 * size, "breath": 1.0}, secs * 0.35)
-			_move_tween.parallel().tween_property(self, "_lift", height * 0.05, secs * 0.35).set_trans(Tween.TRANS_SINE)
+			_to({"reach": lerpf(0.4, -0.5, up) * size, "rise": 0.6 * size * up, "breath": 1.0}, secs * 0.35)
+			_move_tween.parallel().tween_property(self, "_lift", height * 0.05 * up, secs * 0.35).set_trans(Tween.TRANS_SINE)
 			_move_tween.tween_interval(secs * 0.3)
 			_to({"reach": 1.1 * size, "rise": -0.9 * size}, secs * 0.12)
 			_move_tween.parallel().tween_property(self, "_lift", 0.0, secs * 0.12)
@@ -142,7 +147,7 @@ func action(key: String, lock_ms := 450, _speed := 1.0) -> void:
 func _strike(style: String, secs: float, size: float) -> void:
 	match style:
 		"rear":
-			_to({"reach": -0.8 * size, "rise": 1.4 * size}, secs * 0.4)
+			_to({"reach": -0.8 * size * _rise_k, "rise": 1.4 * size * _rise_k}, secs * 0.4)
 			_to({"reach": 1.6 * size, "rise": -0.5 * size}, secs * 0.2)
 			_to({"reach": 0.0, "rise": 0.0}, secs * 0.4)
 		"spin":

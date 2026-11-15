@@ -144,8 +144,10 @@ static func _god_celestial(root: Node3D, color: Color, halo: Color, h: float, sk
 	var gold := _solid(Color("ffd35a"))
 	var bright := _glow(Color("fff2b0"), 0.9)
 	_add(root, "ring", _glow(halo, 0.4), Vector3(0, 0.07, 0), Vector3.ONE * h * 0.75)
-	var centre := Vector3(0, skull.y + h * 0.04, skull.z - h * 0.24)
-	var radius := h * 0.3
+	# Centred a little under the skull and behind it, so the rays crown his head without
+	# rising far over it (the field camera keeps the whole halo in view close up).
+	var centre := Vector3(0, skull.y - h * 0.05, skull.z - h * 0.26)
+	var radius := h * 0.27
 	_add(root, "ring", gold, centre, Vector3.ONE * radius, Vector3(PI * 0.5, 0, 0))
 	_add(root, "ring", _glow(halo, 0.6), centre, Vector3.ONE * radius * 0.84, Vector3(PI * 0.5, 0, 0))
 	_add(root, "disc", _glow(halo, 0.08), centre + Vector3(0, 0, -0.02), Vector3.ONE * radius, Vector3(PI * 0.5, 0, 0))

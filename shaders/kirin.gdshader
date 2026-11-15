@@ -41,6 +41,10 @@ varying vec3 wn;
 varying vec3 wp;
 varying vec2 info;
 varying float hide;
+// 1 on the clouds under the hooves (lit softly), and on the legs how much of the scale
+// pattern shows (fine scales above, fading to smooth hide over the hooves).
+varying float soft;
+varying float leg;
 
 mat3 rot_x(float a) {
 	float c = cos(a);
@@ -81,6 +85,8 @@ void vertex() {
 	vec3 p = VERTEX;
 	vec3 n = NORMAL;
 	float part = CUSTOM1.w;
+	soft = part > 10.5 ? 1.0 : 0.0;
+	leg = part > 0.5 && part < 4.5 ? 0.15 + 0.85 * smoothstep(0.4, 1.1, p.y) : 0.0;
 	vec3 piv = CUSTOM1.xyz;
 	// Tufts, mane, beard and whiskers flutter, streaming back on the move.
 	float fl = CUSTOM0.z * (1.0 - COLOR.a);
@@ -154,15 +160,17 @@ void fragment() {
 	vec3 v = normalize(CAMERA_POSITION_WORLD - wp);
 	if (scales > 0.0 && info.y > 0.0) {
 		// Overlapping jade scales, their free (back) edges rimmed in gold; none on the belly.
-		vec2 q = vec2(UV.x * 4.6, UV.y * 15.0);
+		// The legs wear finer, rounder scales (more along, fewer round the thinner tube).
+		vec2 q = mix(vec2(UV.x * 4.6, UV.y * 15.0), vec2(UV.x * 9.0, UV.y * 11.0), step(0.01, leg));
 		float fa = fract(q.x);
 		float row = floor(q.x);
 		float da = length(vec2(fa - 1.0, (fract(q.y + 0.5 * mod(row, 2.0)) - 0.5) * 1.7));
 		float db = length(vec2(fa, (fract(q.y + 0.5 * mod(row + 1.0, 2.0)) - 0.5) * 1.7));
 		float d = da < 1.0 ? da : db;
-		float k = info.y * scales * hide;
-		base = mix(base, base * mix(1.18, 0.82, d) + 0.02, k);
-		base = mix(base, scale_gold.rgb, smoothstep(0.8, 0.94, d) * k * 0.85);
+		float k = info.y * scales * hide * (leg > 0.0 ? leg : 1.0);
+		float relief = leg > 0.0 ? 0.55 : 1.0;
+		base = mix(base, base * mix(1.0 + 0.18 * relief, 1.0 - 0.18 * relief, d) + 0.02, k);
+		base = mix(base, scale_gold.rgb, smoothstep(0.8, 0.94, d) * k * 0.85 * relief * relief);
 		// The cream belly in broad plates, each lined in gold.
 		float plate = fract(UV.x * 5.5);
 		float belly = (1.0 - hide) * info.y * scales;
@@ -176,6 +184,12 @@ void fragment() {
 	col = mix(col, rim_color.rgb, clamp(fr * rim, 0.0, 1.0));
 	float emit = clamp(info.x, 0.0, 1.0);
 	col = mix(col, base * 1.2 + 0.08, emit);
+	if (soft > 0.5) {
+		// Cloud: a wide soft shade instead of the toon step, its outline melting into white.
+		vec3 vapour = mix(base * vec3(0.84, 0.92, 0.96), base * 1.08 + 0.04, smoothstep(0.2, 0.95, l));
+		col = mix(vapour, vec3(1.0), clamp(fr * 1.6, 0.0, 0.85));
+		if (base.b < 0.5) col = base * 1.2 + 0.08;
+	}
 	// The horn burns gold while it charges (UV2.x = 2).
 	if (info.x > 1.5) col = mix(base * 1.15 + 0.1, vec3(1.0, 0.97, 0.75), charge * 0.8);
 	ALBEDO = mix(col, glow_color.rgb, glow);
