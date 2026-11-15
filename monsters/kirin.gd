@@ -30,6 +30,7 @@ const CREAM := Color("ffe9b4")
 const CREAM_DK := Color("f2cf86")
 const MANE := Color("fffaf0")
 const FIRE := Color("ffaa36")
+const HAIR_GOLD := Color("ffd98a")
 const EYE := Color("fff27a")
 const CLOUD := Color("ffffff")
 const CLOUD_DK := Color("bfe9dc")
@@ -116,26 +117,54 @@ static func _tip(c: Color) -> Color:
 	return Color(c, 0.0)
 
 
-## A flame-shaped tuft: a flat ribbon (both faces drawn) in the plane across [param face],
-## from root to tip in an S, widest a third of the way, cream to fire, fluttering to its tip.
-static func _flame(b: K.Builder, root: Vector3, tip: Vector3, width: float, curl: Vector3, face := Vector3.RIGHT, root_col := MANE, tip_col := FIRE, segs := 3) -> void:
+## Hair: cream at the root, warm gold through the middle, gold fire at the tip.
+static func _hair(u: float) -> Color:
+	var col := MANE.lerp(HAIR_GOLD, smoothstep(0.1, 0.6, u)).lerp(FIRE, smoothstep(0.55, 1.0, u))
+	col.a = 1.0 - u
+	return col
+
+
+## One lock of hair: a ribbon folded along its spine (a shallow ridge, so it has volume
+## and catches the light like a lock, not a blade), from root to tip in a soft S, tapering
+## to a point, cream into gold fire, its flutter growing to the tip (COLOR.a). [param face]
+## is the side the ridge faces.
+static func _lock(b: K.Builder, root: Vector3, tip: Vector3, width: float, curl: Vector3, face: Vector3, segs := 3, phase := 0.0) -> void:
 	var d := tip - root
 	var pts := []
 	for k in segs + 1:
 		var u := float(k) / float(segs)
-		pts.append(root + d * u + curl * sin(u * PI) - curl * 0.35 * sin(u * TAU))
+		pts.append(root + d * u + curl * sin(u * PI) - curl * 0.3 * sin(u * TAU + phase))
 	var prev := []
 	for k in pts.size():
 		var u := float(k) / float(segs)
 		var tangent: Vector3 = (pts[mini(k + 1, segs)] - pts[maxi(k - 1, 0)]).normalized()
 		var across := tangent.cross(face).normalized()
-		var w := width * sin(PI * (0.15 + 0.85 * u))
-		var col := root_col.lerp(tip_col, pow(u, 1.3))
-		col.a = 1.0 - u
-		var here := [pts[k] - across * w * 0.5, pts[k] + across * w * 0.5, col]
+		var up := across.cross(tangent).normalized()
+		var w := width * 0.5 * pow(1.0 - u, 0.65) * (0.8 + 0.45 * sin(PI * minf(u * 1.6, 1.0)))
+		var col := _hair(u)
+		var mid: Vector3 = pts[k] + up * w * 0.55
+		var ring := [
+			b.pt(pts[k] - across * w, (up * 0.45 - across).normalized(), col),
+			b.pt(mid, up, col),
+			b.pt(pts[k] + across * w, (up * 0.45 + across).normalized(), col)]
 		if not prev.is_empty():
-			b.quad(prev[0], prev[1], here[1], here[0], prev[2], here[2])
-		prev = here
+			b.tri(prev[0], prev[1], ring[1]); b.tri(prev[0], ring[1], ring[0])
+			b.tri(prev[1], prev[2], ring[2]); b.tri(prev[1], ring[2], ring[1])
+		prev = ring
+
+
+## A tuft of [param n] locks fanned across [param face] from about [param root] to about
+## [param tip]: thinner, slightly different in length and curl, so it reads as soft hair.
+static func _tuft(b: K.Builder, root: Vector3, tip: Vector3, width: float, curl: Vector3, face: Vector3, n := 3, segs := 3) -> void:
+	var d := tip - root
+	var across := d.cross(face).normalized()
+	for j in n:
+		var f := 0.0 if n == 1 else float(j) / float(n - 1) - 0.5
+		var long := 1.0 - 0.16 * absf(f) * 2.0 + 0.06 * float(j % 2)
+		var off := across * f * width * 0.9
+		var r := root + off * 0.5
+		var t := root + d * long + off * 0.9 + face * 0.05 * float((j + 1) % 2)
+		_lock(b, r, t, width * (1.3 / float(n) + 0.22), curl * (1.0 + 0.3 * f), face, segs, f * 2.0)
 
 
 static func _build(lite: bool) -> ArrayMesh:
@@ -158,16 +187,16 @@ static func _torso(b: K.Builder, sides: int, lite: bool) -> void:
 	var radii := [Vector2(0.12, 0.12), Vector2(0.33, 0.35), Vector2(0.42, 0.43), Vector2(0.37, 0.38), Vector2(0.38, 0.41), Vector2(0.41, 0.47), Vector2(0.35, 0.42), Vector2(0.16, 0.2)]
 	b.tube(path, radii, sides + 1, [[JADE, CREAM]])
 	b.weight = 0.0
-	# Flame tufts down the spine, cream fading to gold fire, blown back.
-	var tufts := 4 if lite else 6
+	# Soft tufts of hair down the spine, cream into gold fire, lying back along it.
+	var tufts := 3 if lite else 4
 	_part(b, BODY, Vector3.ZERO, 1.0)
-	b.emit = 0.2
+	b.emit = 0.18
 	for k in tufts:
 		var f := float(k) / float(tufts - 1)
-		var z := lerpf(0.5, -0.8, f)
-		var y := 1.98 - 0.04 * f
-		var tall := lerpf(0.36, 0.26, f)
-		_flame(b, Vector3(0, y - 0.06, z + 0.08), Vector3(0, y + tall, z - 0.32), 0.22, Vector3(0, 0.02, 0.07))
+		var z := lerpf(0.42, -0.78, f)
+		var y := 1.96 - 0.04 * f
+		var tall := lerpf(0.24, 0.16, f)
+		_tuft(b, Vector3(0, y - 0.08, z + 0.06), Vector3(0, y + tall, z - 0.4), 0.2, Vector3(0, 0.06, 0.04), Vector3.UP, 2, 3)
 	b.emit = 0.0
 	# Gold swirls on shoulder and haunch (the kirin's flame marks), flat on the hide.
 	if lite:
@@ -200,56 +229,76 @@ static func _leg(b: K.Builder, i: int, leg: Dictionary, lite: bool) -> void:
 	var knee := float(leg.knee)
 	var kz := float(leg.knee_z)
 	var hz := float(leg.hoof_z)
-	var sides := 5 if lite else 7
+	var sides := 6 if lite else 7
 	_part(b, i + 1, hip, 0.0, leg)
 	b.weight = 0.8
 	var lx := x + side * 0.03
+	var lower := JADE.lerp(JADE_DK, 0.55)
+	# Radii are (width, depth): a deer's leg, broad from the side, slimmer from the front,
+	# muscled above the joint and tapering into a fine cannon over the hoof. The frame's
+	# up is +Z so the width stays across the leg all the way down (no twist at the joint).
 	if front:
-		b.tube([hip + Vector3(0, 0.12, 0), Vector3(lx, 1.12, 0.6), Vector3(lx, knee + 0.04, kz), Vector3(lx, 0.36, hz - 0.01), Vector3(lx, 0.25, hz + 0.02)],
-			[0.16, 0.12, 0.085, 0.065, 0.07], sides, [[JADE, JADE_DK], [JADE, JADE_DK], [JADE_DK, JADE_DK]])
+		# Shoulder and forearm, the knee (carpus), the cannon, the fetlock, the pastern.
+		b.tube([hip + Vector3(0, 0.14, 0.02), Vector3(lx, 1.2, 0.62), Vector3(lx, 0.98, 0.62), Vector3(lx, knee, kz), Vector3(lx, 0.37, hz - 0.01), Vector3(lx, 0.27, hz + 0.02)],
+			[Vector2(0.19, 0.25), Vector2(0.16, 0.2), Vector2(0.125, 0.15), Vector2(0.092, 0.1), Vector2(0.08, 0.086), Vector2(0.072, 0.078)], sides,
+			[[JADE, JADE_DK], [JADE, JADE_DK], [JADE, JADE_DK], [lower, JADE_DK], [lower, JADE_DK]], Vector3.BACK, false)
 	else:
-		# The hind leg: a strong thigh, the hock pointing back, the cannon down to the hoof.
-		b.tube([hip + Vector3(0, 0.1, 0.02), Vector3(lx, 1.2, -0.48), Vector3(lx, 0.98, -0.6), Vector3(lx, knee, kz), Vector3(lx, 0.36, hz - 0.02), Vector3(lx, 0.25, hz)],
-			[Vector2(0.2, 0.24), 0.16, 0.12, 0.08, 0.065, 0.07], sides, [[JADE, JADE_DK], [JADE, JADE_DK], [JADE, JADE_DK], [JADE_DK, JADE_DK]])
+		# The hind leg: a deep thigh and gaskin, the hock pointing back, the cannon down to the hoof.
+		b.tube([hip + Vector3(0, 0.12, 0.04), Vector3(lx, 1.3, -0.5), Vector3(lx, 1.04, -0.62), Vector3(lx, knee + 0.02, kz), Vector3(lx, 0.37, hz - 0.02), Vector3(lx, 0.27, hz)],
+			[Vector2(0.22, 0.32), Vector2(0.19, 0.26), Vector2(0.13, 0.16), Vector2(0.092, 0.115), Vector2(0.08, 0.086), Vector2(0.072, 0.078)], sides,
+			[[JADE, JADE_DK], [JADE, JADE_DK], [JADE, JADE_DK], [lower, JADE_DK], [lower, JADE_DK]], Vector3.BACK, false)
 	b.weight = 0.0
+	# The joint: a smooth knob at the knee / hock.
+	var joint := Vector3(lx, knee + (0.0 if front else 0.02), kz + (0.03 if front else -0.04))
+	b.ball(joint, Vector3(0.09, 0.09, 0.095), JADE, JADE.lerp(JADE_DK, 0.4), 5, 2)
 	# Gold cloven hoof.
 	b.emit = 0.2
-	b.tube([Vector3(lx, 0.28, hz + 0.02), Vector3(lx, 0.15, hz + 0.05)], [0.075, Vector2(0.095, 0.085)], 5 if lite else 6, [[GOLD, GOLD_DK]])
+	b.tube([Vector3(lx, 0.29, hz + 0.02), Vector3(lx, 0.15, hz + 0.05)], [0.078, Vector2(0.1, 0.09)], 5 if lite else 7, [[GOLD, GOLD_DK]], Vector3.BACK)
 	b.emit = 0.0
-	# Flame tufts at the ankle, streaming back.
+	# Feathering at the fetlock: a few soft locks streaming back.
 	_part(b, i + 1, hip, 1.0, leg)
 	b.emit = 0.2
-	for k in 2:
-		var o := side * (0.05 if k == 0 else -0.04)
-		var root := Vector3(lx + o, 0.42 - 0.05 * k, hz - 0.03)
-		_flame(b, root, root + Vector3(o, 0.18 - 0.1 * k, -0.34 + 0.06 * k), 0.17, Vector3(0, 0.05, 0.0))
+	var root := Vector3(lx, 0.44, hz - 0.05)
+	_tuft(b, root, root + Vector3(side * 0.05, 0.08, -0.3), 0.17, Vector3(0, 0.05, 0.0), Vector3(side, 0.4, 0).normalized(), 2, 2)
 	b.emit = 0.0
-	# The cloud under the hoof: soft puffs and a gold-trimmed curl (ruyi).
+	# The cloud under the hoof: a cluster of soft round puffs (one at the lowest quality),
+	# lit softly by the shader, the big one rimmed in gold where it meets the hoof.
 	_part(b, CLOUD_PART + i + 1, hip, 0.0, leg)
 	var c := Vector3(lx, cloud_y(), hz)
-	b.emit = 0.65
-	var puffs := [Vector3(0, 0.0, 0.0), Vector3(0.17, -0.01, -0.12), Vector3(-0.16, -0.01, 0.1)]
-	for k in (1 if lite else 2):
-		var o: Vector3 = puffs[k]
-		var r := 0.22 if k == 0 else 0.16
-		b.ball(c + o, Vector3(r * 1.15, r * 0.5, r), CLOUD, CLOUD_DK, 6, 4)
-	# The ruyi curl round the hoof: a flat ribbon of cloud with a gold lining.
-	var curl := []
-	var n := 6 if lite else 9
-	for k in n:
-		var u := float(k) / float(n - 1)
-		var a := u * TAU * 1.2 + float(i) * 1.7
-		curl.append([c + Vector3(cos(a), 0.0, sin(a)) * lerpf(0.36, 0.1, u) + Vector3(0, 0.07 + 0.04 * u, 0), Vector3(cos(a), 0, sin(a)), lerpf(0.11, 0.03, u)])
-	for k in n - 1:
-		var p: Array = curl[k]
-		var q: Array = curl[k + 1]
-		b.quad(p[0] - p[1] * p[2], p[0] + p[1] * p[2], q[0] + q[1] * q[2], q[0] - q[1] * q[2], CLOUD, CLOUD)
-		if not lite:
-			b.emit = 0.7
-			var up := Vector3(0, 0.012, 0)
-			b.quad(p[0] + p[1] * p[2] * 0.55 + up, p[0] + p[1] * p[2] + up, q[0] + q[1] * q[2] + up, q[0] + q[1] * q[2] * 0.55 + up, GOLD, GOLD)
-			b.emit = 0.65
+	b.emit = 0.55
+	var a0 := float(i) * 1.7
+	var puffs := [[Vector3(0, 0.02, 0.0), Vector3(0.27, 0.17, 0.24)],
+		[Vector3(cos(a0), 0, sin(a0)) * 0.22 + Vector3(0, -0.01, 0), Vector3(0.16, 0.11, 0.15)],
+		[Vector3(cos(a0 + 2.4), 0, sin(a0 + 2.4)) * 0.2 + Vector3(0, -0.02, 0), Vector3(0.14, 0.09, 0.13)]]
+	for k in (1 if lite else 3):
+		_puff(b, c + puffs[k][0], puffs[k][1], (10 if lite else 12) if k == 0 else 8, 3 if k == 0 else 2, k == 0)
 	b.emit = 0.0
+
+
+## A round cloud puff: a dome (no hidden underside) with smooth normals, white on top,
+## mint-shadowed round its foot ([param gilt]: a gold rim there). The shader lights it
+## softly so it reads as vapour.
+static func _puff(b: K.Builder, c: Vector3, r: Vector3, lon: int, lat: int, gilt := false) -> void:
+	var base := b.v.size()
+	var rows := lat + 1
+	for i in rows + 1:
+		var th := PI * 0.6 * float(mini(i, rows - 1)) / float(rows - 1)
+		var inside := i < rows
+		for j in lon + 1:
+			var ph := TAU * float(j) / float(lon)
+			var d := Vector3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph)) if inside else Vector3(0, -0.3, 0)
+			var col := CLOUD_DK.lerp(CLOUD, clampf(d.y * 0.9 + 0.45, 0.0, 1.0))
+			if gilt and i == rows - 1:
+				col = GOLD.lerp(CLOUD, 0.35)
+			b.pt(c + d * r, (d / r).normalized() if inside else Vector3.DOWN, col)
+	for i in rows:
+		for j in lon:
+			var a := base + i * (lon + 1) + j
+			var d := a + lon + 1
+			if i == 0:
+				b.tri(a, d + 1, d)
+			else:
+				b.tri(a, a + 1, d + 1); b.tri(a, d + 1, d)
 
 
 static func cloud_y() -> float:
@@ -262,19 +311,22 @@ static func _neck(b: K.Builder, sides: int, lite: bool) -> void:
 	b.tube([Vector3(0, 1.56, 0.58), Vector3(0, 1.9, 0.92), Vector3(0, 2.24, 1.14), Vector3(0, 2.5, 1.28), Vector3(0, 2.62, 1.34)],
 		[Vector2(0.3, 0.36), Vector2(0.22, 0.25), Vector2(0.18, 0.2), Vector2(0.16, 0.17), Vector2(0.1, 0.1)], sides, [[JADE, CREAM]])
 	b.weight = 0.0
-	# The flowing mane down the crest of the neck, cream into gold fire, in two ranks.
+	# The flowing mane down the crest of the neck: soft tufts of locks, cream into gold
+	# fire, falling to either side of the crest and back, with a shorter rank under them.
 	_part(b, NECK, NECK_PIVOT, 1.0)
 	b.emit = 0.15
-	var n := 5 if lite else 7
+	var n := 5 if lite else 6
 	for k in n:
 		var f := float(k) / float(n - 1)
-		var root := Vector3(0, lerpf(2.66, 1.95, f), lerpf(1.2, 0.55, f))
-		var long := lerpf(0.75, 0.55, f)
-		_flame(b, root, root + Vector3(0, 0.18 - 0.2 * f, -long), 0.3, Vector3(0, 0.1, 0.0))
-		if not lite and k % 2 == 1:
-			for side in [-1.0, 1.0]:
-				var r2 := root + Vector3(side * 0.13, -0.1, 0.05)
-				_flame(b, r2, r2 + Vector3(side * 0.2, -0.12, -long * 0.85), 0.24, Vector3(side * 0.05, 0.06, 0.0), Vector3(1, 0.4 * side, 0).normalized())
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var root := Vector3(0, lerpf(2.64, 1.95, f), lerpf(1.18, 0.55, f))
+		var long := lerpf(0.72, 0.56, f)
+		var face := Vector3(side * 0.55, 1.0, 0.25).normalized()
+		_tuft(b, root, root + Vector3(side * 0.16, -0.1 - 0.22 * f, -long), 0.34, Vector3(side * 0.04, 0.16, 0.0), face, 2 if lite else 3, 3)
+		if not lite and (k == 1 or k == 3):
+			for s2 in [-1.0, 1.0]:
+				var r2 := root + Vector3(s2 * 0.12, -0.12, 0.02)
+				_tuft(b, r2, r2 + Vector3(s2 * 0.18, -0.34, -long * 0.75), 0.2, Vector3(s2 * 0.05, 0.06, 0.0), Vector3(s2, 0.5, 0).normalized(), 1, 3)
 	b.emit = 0.0
 
 
@@ -345,17 +397,22 @@ static func _head(b: K.Builder, lite: bool) -> void:
 		for side in [-1.0, 1.0]:
 			b.tube([Vector3(0, 1.25, 1.64), Vector3(side * 0.3, 1.7, 1.75), Vector3(side * 0.42, 2.0, 2.0)], [0.08, 0.05, 0.0], 5, [[GOLD, GOLD_DK]])
 	b.emit = 0.0
-	# Mane flowing back from the skull and a beard under the chin, cream into fire.
+	# Mane flowing back from the skull and down the nape, and a beard under the chin:
+	# tufts of soft locks, cream into gold fire, falling with gravity (head frame: +z back
+	# up the skull, +y over the brow).
 	_part(b, NECK, NECK_PIVOT, 1.0)
-	b.emit = 0.25
-	var manes := 5 if lite else 9
+	b.emit = 0.22
+	var manes := 4 if lite else 6
 	for k in manes:
-		var a := lerpf(-0.6, PI + 0.6, float(k) / float(manes - 1))
+		var a := lerpf(-0.45, PI + 0.45, float(k) / float(manes - 1))
 		var out := Vector3(cos(a), sin(a), 0)
-		var long := 1.5 + 0.55 * float(k % 3)
-		b.cone(Vector3(out.x * 0.42, out.y * 0.38 + 0.08, 1.55), Vector3(out.x * 1.0, out.y * 0.85 - 0.2, 1.7 + long), Vector2(0.22, 0.18), 4, MANE, _tip(FIRE))
+		var long := 1.5 + 0.4 * float(k % 3)
+		var root := Vector3(out.x * 0.4, out.y * 0.36 + 0.1, 1.5)
+		var tip := Vector3(out.x * 0.9, out.y * 0.2 - 1.05, 1.7 + long)
+		_tuft(b, root, tip, 0.55, Vector3(out.x * 0.12, 0.42, 0.0), Vector3(out.x, out.y + 0.6, -0.3).normalized(), 2, 3)
 	for k in 3:
-		b.cone(Vector3(0.14 * (k - 1), -0.4, 0.95), Vector3(0.32 * (k - 1), -1.25 - 0.15 * float(k % 2), 1.75), 0.13, 4, MANE, _tip(FIRE))
+		var root := Vector3(0.12 * (k - 1), -0.4, 0.95)
+		_lock(b, root, Vector3(0.26 * (k - 1), -1.2 - 0.15 * float(k % 2), 1.7), 0.36, Vector3(0, 0, 0.15), Vector3(0, -0.3, -1).normalized(), 3, float(k))
 	b.emit = 0.0
 	b.xf = Transform3D.IDENTITY
 
@@ -370,10 +427,10 @@ static func _tail(b: K.Builder, lite: bool) -> void:
 	_part(b, TAIL, TAIL_PIVOT, 0.8)
 	b.emit = 0.2
 	var end := Vector3(0, 1.12, -1.62)
-	var n := 5 if lite else 7
+	var n := 4 if lite else 5
 	for k in n:
 		var a := TAU * float(k) / float(n)
 		var out := Vector3(cos(a), 0, sin(a))
-		var dir := out * 0.2 + Vector3(0, -0.6, -0.14)
-		_flame(b, end + out * 0.04, end + dir, 0.26, out * 0.08 + Vector3(0, 0, -0.05), Vector3(-sin(a), 0, cos(a)))
+		var dir := out * 0.16 + Vector3(0, -0.62, -0.12)
+		_lock(b, end + out * 0.04, end + dir * (1.0 - 0.12 * float(k % 2)), 0.2, out * 0.07 + Vector3(0, 0, -0.06), out, 3, a)
 	b.emit = 0.0

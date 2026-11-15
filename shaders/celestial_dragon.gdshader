@@ -73,10 +73,22 @@ void vertex() {
 	float neck = 1.0 - smoothstep(0.0, 6.0, s);
 	c += vec3(0.0, 1.0, 0.0) * rise * neck * neck;
 	vec3 local = VERTEX;
-	// Wings and fins beat along the body's normal (COLOR.a below 1 is the share).
+	vec3 ln = NORMAL;
+	// Wings beat round the shoulder (COLOR.a below 1 is the share): the further out, the
+	// later and the further they swing, so the hand trails the arm and the tips whip.
 	float beat = (1.0 - COLOR.a) * flap;
-	local.y += sin(t * flap_rate) * beat * abs(local.x);
-	vec3 n = normalize(S * NORMAL.x + N * NORMAL.y - T * NORMAL.z);
+	if (beat > 0.0) {
+		float sx = local.x < 0.0 ? -1.0 : 1.0;
+		vec2 sh = vec2(0.45 * sx, 0.35);
+		vec2 d = local.xy - sh;
+		float r = abs(d.x);
+		float ang = (sin(t * flap_rate - r * 0.45) * 2.4 + 0.35) * beat * (1.0 + 0.3 * smoothstep(1.2, 3.8, r)) * sx;
+		float c = cos(ang);
+		float sn = sin(ang);
+		local.xy = sh + vec2(c * d.x - sn * d.y, sn * d.x + c * d.y);
+		ln.xy = vec2(c * ln.x - sn * ln.y, sn * ln.x + c * ln.y);
+	}
+	vec3 n = normalize(S * ln.x + N * ln.y - T * ln.z);
 	VERTEX = c + (S * local.x + N * local.y) * girth;
 	NORMAL = n;
 	wn = normalize((MODEL_MATRIX * vec4(n, 0.0)).xyz);
@@ -98,7 +110,7 @@ void fragment() {
 		vec2 q = vec2(UV.x * 3.4, UV.y * 16.0);
 		q.x += 0.5 * floor(q.y);
 		vec2 f = fract(q) - vec2(0.38, 0.5);
-		sc = smoothstep(0.34, 0.56, length(f)) * info.y * scales;
+		sc = smoothstep(0.34, 0.56, length(f)) * max(info.y, 0.0) * scales;
 		base = mix(base * 1.1 + 0.03, base * 0.76, sc);
 	}
 	if (prism > 0.0) {
@@ -110,9 +122,16 @@ void fragment() {
 	}
 	float l = dot(nn, normalize(vec3(0.25, 0.9, 0.1) + v * 0.55)) * 0.5 + 0.5;
 	vec3 col = mix(base * shadow_tint.rgb, base, smoothstep(0.42, 0.54, l));
+	if (info.y < -0.5) {
+		// Wing membrane (UV2.y = -1): thin skin, shaded softly, glowing through where the
+		// sky light comes from behind it and paling toward its edge.
+		float through = pow(clamp(1.0 - abs(dot(nn, v)), 0.0, 1.0), 1.5);
+		col = mix(base * shadow_tint.rgb, base, smoothstep(0.25, 0.8, l));
+		col += base * through * 0.5;
+	}
 	col += base * smoothstep(0.82, 0.92, l) * 0.2;
 	float fr = pow(1.0 - abs(dot(nn, v)), 2.5);
-	col = mix(col, rim_color.rgb, clamp(fr * rim, 0.0, 1.0));
+	col = mix(col, rim_color.rgb, clamp(fr * rim * (info.y < -0.5 ? 0.3 : 1.0), 0.0, 1.0));
 	float emit = clamp(info.x, 0.0, 1.0);
 	col = mix(col, base * 1.2 + 0.08, emit);
 	if (info.x > 1.5) col = mix(col, breath_color.rgb * 1.4, breath);

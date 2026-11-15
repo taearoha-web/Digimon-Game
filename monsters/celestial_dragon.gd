@@ -44,16 +44,22 @@ const PALETTES := {
 ## body's girth; head: the head's size (the young ones' heads are bigger); horns:
 ## "antlers", "horns" (swept back), "crest" (a fan of fins), "nubs"; crown: 0 none, 5 an
 ## elite's, 7 the god's; wings: a bat-wing pair that beats; pose: the spline (_pose);
-## move: how it attacks (CelestialDragonVisual); wave: [amp, length, speed].
+## move: how it attacks (CelestialDragonVisual); wave: [amp, length, speed]; rise_k: how
+## far its rearing moves lift the head (1: all the way); room: head room kept over the
+## head in its bounds (mesh metres: the template height then fits the same dragon, the
+## head lower in it); horn_lift: how high the antlers sweep (1: all the way); soft:
+## rounded horn tips, a softer mane and fins, no saw of teeth (the crystal dragon);
+## mane_drop: the mane falls this much down the neck; whisker_len: whisker length
+## (the mount's, short and drooping, clear of the rider).
 const KINDS := {
-	"god": {"palette": "god", "length": 26.0, "thick": 1.6, "head": 1.45, "horns": "antlers", "mane": 13, "beard": true, "whiskers": true, "crown": 7, "pose": "throne", "move": "rear", "wave": [0.22, 9.0, 1.4], "legs": true},
+	"god": {"palette": "god", "length": 26.0, "thick": 1.6, "head": 1.45, "horns": "antlers", "mane": 13, "beard": true, "whiskers": true, "crown": 7, "pose": "throne", "move": "rear", "wave": [0.22, 9.0, 1.4], "legs": true, "rise_k": 0.4, "room": 0.75, "horn_lift": 0.8},
 	"guardian": {"palette": "guardian", "length": 20.0, "thick": 1.4, "head": 1.2, "horns": "crest", "mane": 11, "beard": true, "whiskers": true, "crown": 5, "pose": "guard", "move": "rear", "wave": [0.18, 8.0, 1.6], "legs": true},
 	"elder": {"palette": "elder", "length": 22.0, "thick": 1.55, "head": 1.3, "horns": "antlers", "mane": 13, "beard": true, "long_beard": true, "whiskers": true, "crown": 5, "pose": "elder", "move": "lunge", "wave": [0.16, 10.0, 1.2], "legs": true},
-	"prism": {"palette": "prism", "length": 24.0, "thick": 1.4, "head": 1.2, "horns": "antlers", "mane": 7, "mane_len": 0.8, "beard": false, "whiskers": false, "crown": 0, "pose": "spiral", "move": "rear", "wave": [0.3, 9.0, 1.8], "legs": true, "prism": 1.0},
+	"prism": {"palette": "prism", "length": 24.0, "thick": 1.4, "head": 1.2, "horns": "antlers", "mane": 7, "mane_len": 0.8, "beard": false, "whiskers": false, "crown": 0, "pose": "spiral", "move": "rear", "wave": [0.3, 9.0, 1.8], "legs": true, "prism": 1.0, "soft": true},
 	"whelp": {"palette": "whelp", "length": 12.0, "thick": 1.35, "head": 1.5, "horns": "nubs", "mane": 7, "mane_len": 0.55, "beard": false, "whiskers": true, "crown": 0, "pose": "whelp", "move": "lunge", "wave": [0.26, 6.0, 2.4], "legs": true},
 	"wyrmling": {"palette": "wyrmling", "length": 11.0, "thick": 1.5, "head": 1.4, "horns": "horns", "mane": 9, "mane_len": 0.6, "beard": true, "whiskers": false, "crown": 0, "pose": "wyrm", "move": "spin", "wave": [0.12, 6.0, 2.0], "legs": true},
 	"wyvern": {"palette": "wyvern", "length": 13.0, "thick": 1.25, "head": 1.25, "horns": "horns", "mane": 0, "beard": false, "whiskers": false, "crown": 0, "pose": "wyvern", "move": "swoop", "wave": [0.3, 6.5, 2.2], "legs": false, "wings": true},
-	"mount": {"palette": "mount", "length": 20.0, "thick": 1.35, "head": 1.2, "horns": "antlers", "mane": 11, "beard": true, "whiskers": true, "crown": 0, "pose": "ride", "move": "lunge", "wave": [0.16, 6.5, 1.6], "legs": true},
+	"mount": {"palette": "mount", "length": 20.0, "thick": 1.35, "head": 1.2, "horns": "antlers", "mane": 9, "mane_len": 0.75, "mane_drop": 0.7, "beard": true, "whiskers": true, "whisker_len": 0.5, "crown": 0, "pose": "ride", "move": "lunge", "wave": [0.16, 6.5, 1.6], "legs": true},
 }
 
 static var _meshes := {}
@@ -136,7 +142,9 @@ static func _control(name: String) -> Array:
 		"throne":
 			# Coiled one turn round its own cloud, rising, the neck up and over to the front.
 			var turn := _helix(Vector3(0, 0, -1.6), 4.4, 3.4, PI * 0.5 - TAU * 1.0, PI * 0.5 - 0.5, 0.7, 2.8, 16)
-			return turn + [Vector3(1.0, 3.9, 0.9), Vector3(0.5, 5.5, 0.6), Vector3(0.0, 6.6, 1.4), Vector3(0.0, 6.9, 2.9), Vector3(0.0, 6.5, 4.3), Vector3(0.0, 5.9, 5.6)]
+			# The head carried low and forward over the coil, so the player's camera keeps
+			# his crown in view, close up and while he calls down heaven's lightning.
+			return turn + [Vector3(1.0, 3.9, 0.9), Vector3(0.5, 5.3, 0.8), Vector3(0.0, 6.15, 1.8), Vector3(0.0, 6.3, 3.3), Vector3(0.0, 5.85, 4.8), Vector3(0.0, 5.2, 6.15)]
 		"guard":
 			# A loop on the ground, then reared straight up like a temple lion.
 			var loop := _helix(Vector3(0, 0, -0.8), 2.4, 2.0, PI * 0.5 - TAU * 0.9, PI * 0.5 - 0.3, 0.6, 1.1, 12)
@@ -160,9 +168,11 @@ static func _control(name: String) -> Array:
 			return [Vector3(0.2, 2.6, -8.2), Vector3(0.7, 1.7, -6.9), Vector3(-0.5, 1.3, -5.3), Vector3(-0.7, 1.6, -3.6), Vector3(0.2, 2.0, -2.0), Vector3(0.4, 2.4, -0.5),
 				Vector3(0.0, 2.9, 0.9), Vector3(0.0, 3.1, 2.2), Vector3(0.0, 3.0, 3.4)]
 		"ride":
-			# Level under the saddle, the neck rising high in an S in front, the back rolling in waves behind, the tail curled up.
+			# Level under the saddle, the neck rising in an S in front (the head carried low
+			# enough that the rider's face shows over it), the back rolling in waves behind,
+			# the tail curled up.
 			return [Vector3(0.0, 4.6, -11.2), Vector3(0.0, 3.6, -11.6), Vector3(0.2, 2.4, -10.8), Vector3(-0.2, 1.8, -9.2), Vector3(0.2, 2.6, -7.8), Vector3(0.0, 3.2, -6.2), Vector3(0.0, 2.4, -4.6),
-				Vector3(0.0, 2.2, -3.0), Vector3(0.0, 2.2, -1.4), Vector3(0.0, 2.4, 0.2), Vector3(0.0, 3.3, 1.3), Vector3(0.0, 4.7, 1.8), Vector3(0.0, 5.9, 2.3), Vector3(0.0, 6.5, 3.3), Vector3(0.0, 6.4, 4.6)]
+				Vector3(0.0, 2.2, -3.0), Vector3(0.0, 2.2, -1.4), Vector3(0.0, 2.4, 0.2), Vector3(0.0, 3.2, 1.3), Vector3(0.0, 4.4, 1.95), Vector3(0.0, 5.3, 2.7), Vector3(0.0, 5.65, 3.8), Vector3(0.0, 5.4, 5.1)]
 	return [Vector3(0, 1, -6), Vector3(0, 1, 0), Vector3(0, 2, 3)]
 
 
@@ -204,7 +214,7 @@ static func pose(kind: String) -> Dictionary:
 	var nose: Vector3 = at.call(head)
 	var skull: Vector3 = at.call(head - 1.2 * hs)
 	var crown := skull + Vector3(0, 0.75 * hs, 0)
-	box = box.expand(skull + Vector3(0, 2.0 * hs, 0))
+	box = box.expand(skull + Vector3(0, 2.0 * hs + float(spec.get("room", 0.0)), 0))
 	box = box.expand(nose + Vector3(0, 0, 1.0))
 	if spec.get("wings", false):
 		var shoulder: Vector3 = at.call(head - length * 0.24)
@@ -253,6 +263,7 @@ static func _build(spec: Dictionary, lite: bool) -> ArrayMesh:
 	var length := float(spec.length)
 	var thick := float(spec.thick)
 	var hs := float(spec.head)
+	var soft := bool(spec.get("soft", false))
 	var sides := 7 if lite else 10
 	var b := K.Builder.new()
 	# Body: the back over a pale belly, flagged for the scale pattern.
@@ -285,7 +296,7 @@ static func _build(spec: Dictionary, lite: bool) -> ArrayMesh:
 	b.ball(Vector3(0, 0.15, 0.06), Vector3(0.19, 0.12, 0.14), top, back, 6, 4)
 	for side in [-1.0, 1.0]:
 		b.cone(Vector3(side * 0.16, -0.02, 0.2), Vector3(side * 0.17, -0.32, 0.26), 0.06, 5, ivory)
-		if not lite:
+		if not lite and not soft:
 			for k in 3:
 				b.cone(Vector3(side * (0.24 + 0.04 * k), -0.06, 0.5 + 0.25 * k), Vector3(side * (0.25 + 0.04 * k), -0.24, 0.52 + 0.25 * k), 0.045, 4, ivory)
 		# Brow ridge, then the lit eye under it.
@@ -294,19 +305,35 @@ static func _build(spec: Dictionary, lite: bool) -> ArrayMesh:
 		b.ball(Vector3(side * 0.44, 0.4, 0.95), Vector3(0.12, 0.11, 0.15), Color("fffdf0"), p.eye, 6, 4)
 		b.emit = 0.0
 		b.ball(Vector3(side * 0.53, 0.4, 0.9), Vector3(0.04, 0.09, 0.07), Color("2a0a14"), Color("2a0a14"), 5, 3)
-		_horns(b, String(spec.horns), side, horn, horn_dk, lite)
+		var head_xf := b.xf
+		var lift := float(spec.get("horn_lift", 1.0))
+		b.xf = head_xf * Transform3D(Basis.IDENTITY.scaled(Vector3(1, lift, 1)), Vector3(0, 0.5 * (1.0 - lift), 0))
+		_horns(b, String(spec.horns), side, horn, horn_dk, lite, soft)
+		b.xf = head_xf
 		if spec.get("whiskers", false):
 			b.emit = 0.45
 			var whisker := []
 			var thin := []
+			var wl := float(spec.get("whisker_len", 1.0))
 			for k in 9:
 				var u := float(k) / 8.0
-				whisker.append(Vector3(side * (0.24 + 0.75 * sin(u * 2.4) + 0.2 * u), 0.45 * sin(u * 4.4) * u - 0.1 * u, 0.22 + u * 4.6))
+				if wl < 1.0:
+					# Short whiskers curling out and down from the snout, clear of a rider.
+					whisker.append(Vector3(side * (0.24 + 0.55 * sin(u * 2.0)), -0.15 - 1.5 * u * u * wl + 0.15 * sin(u * 5.0) * u, 0.22 + u * 4.6 * wl))
+				else:
+					whisker.append(Vector3(side * (0.24 + 0.75 * sin(u * 2.4) + 0.2 * u), 0.45 * sin(u * 4.4) * u - 0.1 * u, 0.22 + u * 4.6))
 				thin.append(lerpf(0.06, 0.014, u))
 			b.tube(whisker, thin, 4, [horn])
 			b.emit = 0.0
 		# Cheek fins.
-		var fin_k := lerpf(0.55, 1.0, float(spec.get("mane_len", 1.0)))
+		var fin_k := lerpf(0.55, 1.0, float(spec.get("mane_len", 1.0))) * (0.7 if soft else 1.0)
+		if soft:
+			# Rounded fan fins instead of points: a few short petals.
+			for k in 3:
+				var a := lerpf(-0.5, 0.6, float(k) / 2.0)
+				var tip := Vector3(side * (0.5 + 0.55 * cos(a)), 0.1 + 0.45 * sin(a), 1.6 + 0.35 * cos(a))
+				b.tube([Vector3(side * 0.5, 0.1, 1.3), (Vector3(side * 0.5, 0.1, 1.3) + tip) * 0.5 + Vector3(0, 0.06, 0), tip], [Vector2(0.09, 0.05), Vector2(0.13, 0.06), Vector2(0.06, 0.04)], 5, [back.lerp(Color.WHITE, 0.3), mane_tip])
+			continue
 		b.tri3(Vector3(side * 0.5, 0.2, 1.25), Vector3(side * 0.56, -0.25, 1.35), Vector3(side * (0.5 + 0.75 * fin_k), 0.25, 1.25 + 1.05 * fin_k), back.lerp(Color.WHITE, 0.3), back, mane_tip)
 		b.tri3(Vector3(side * 0.5, 0.2, 1.25), Vector3(side * 0.52, 0.5, 1.4), Vector3(side * (0.5 + 0.6 * fin_k), 0.2 + 0.55 * fin_k, 1.3 + 1.1 * fin_k), back.lerp(Color.WHITE, 0.3), back, mane_tip)
 	# Mane: swept-back flames round the skull; a beard under the chin.
@@ -318,7 +345,14 @@ static func _build(spec: Dictionary, lite: bool) -> ArrayMesh:
 		var out := Vector3(cos(a), sin(a), 0)
 		var long := (1.5 + 0.5 * float(k % 3)) * float(spec.get("mane_len", 1.0))
 		var spread := lerpf(0.6, 1.05, float(spec.get("mane_len", 1.0)))
-		b.cone(Vector3(out.x * 0.44, out.y * 0.4 + 0.08, 1.5), Vector3(out.x * spread, out.y * spread + 0.1, 1.6 + long), Vector2(0.17, 0.17), 5, mane, mane_tip)
+		var drop := float(spec.get("mane_drop", 0.0))
+		var root := Vector3(out.x * 0.44, out.y * 0.4 + 0.08, 1.5)
+		var tip := Vector3(out.x * spread * (1.0 - 0.35 * drop), out.y * spread * (1.0 - drop) + 0.1 - drop * 0.9, 1.6 + long)
+		if soft:
+			# Soft locks: a rounded taper, bowed, never a point.
+			b.tube([root, root.lerp(tip, 0.5) + Vector3(0, 0.15, 0), tip], [0.2, 0.17, 0.07], 5, [mane, mane.lerp(mane_tip, 0.5), mane_tip])
+		else:
+			b.cone(root, tip, Vector2(0.17, 0.17), 5, mane, mane_tip)
 	if spec.get("beard", false):
 		var drop := 1.6 if spec.get("long_beard", false) else 1.05
 		for k in 3:
@@ -333,7 +367,7 @@ static func _build(spec: Dictionary, lite: bool) -> ArrayMesh:
 	while s < length - 1.2:
 		var f := s / length
 		var base := _girth(s, length) * thick * 0.86
-		var high := (0.62 * (1.0 - 0.6 * f) + 0.1) * thick
+		var high := (0.62 * (1.0 - 0.6 * f) + 0.1) * thick * ((smoothstep(2.0 * hs, 6.0 * hs, s) * 0.3 + 0.3) if soft else 1.0)
 		b.tri3(Vector3(0, base, s - 0.08), Vector3(0, base, s + 0.56), Vector3(0, base + high, s + 0.62), fin, fin, fin.lerp(Color.WHITE, 0.6))
 		s += 0.56 if not lite else 0.9
 	# Tail tuft.
@@ -353,13 +387,20 @@ static func _build(spec: Dictionary, lite: bool) -> ArrayMesh:
 				for k in 3:
 					b.cone(foot, foot + Vector3(side * 0.26 * (k - 1) + side * 0.1, -0.32, -0.62) * size, 0.09 * size, 5, ivory)
 	if spec.get("wings", false):
-		_wings(b, length * 0.24, back_dk, belly_dk, horn)
+		_wings(b, length * 0.24, back_dk, back, horn, lite)
 	return b.mesh()
 
 
-static func _horns(b: K.Builder, style: String, side: float, horn: Color, horn_dk: Color, lite: bool) -> void:
+static func _horns(b: K.Builder, style: String, side: float, horn: Color, horn_dk: Color, lite: bool, soft := false) -> void:
 	match style:
 		"antlers":
+			if soft:
+				# Short smooth antlers with rounded tips (the crystal dragon).
+				b.tube([Vector3(side * 0.3, 0.5, 1.3), Vector3(side * 0.47, 0.85, 1.62), Vector3(side * 0.56, 1.05, 1.98)], [0.16, 0.13, 0.1], 6, [[horn, horn_dk]])
+				b.ball(Vector3(side * 0.56, 1.05, 1.98), Vector3.ONE * 0.11, horn, horn_dk, 6, 3)
+				b.tube([Vector3(side * 0.47, 0.85, 1.62), Vector3(side * 0.68, 1.0, 1.7), Vector3(side * 0.76, 1.12, 1.84)], [0.09, 0.08, 0.07], 5, [[horn, horn_dk]])
+				b.ball(Vector3(side * 0.76, 1.12, 1.84), Vector3.ONE * 0.08, horn, horn_dk, 5, 3)
+				return
 			b.tube([Vector3(side * 0.3, 0.5, 1.3), Vector3(side * 0.52, 1.1, 1.9), Vector3(side * 0.66, 1.5, 2.7), Vector3(side * 0.6, 1.62, 3.3)], [0.13, 0.1, 0.06, 0.0], 6, [[horn, horn_dk]])
 			b.tube([Vector3(side * 0.52, 1.1, 1.9), Vector3(side * 0.86, 1.5, 2.1), Vector3(side * 1.0, 1.9, 2.5)], [0.08, 0.06, 0.0], 5, [[horn, horn_dk]])
 			if not lite:
@@ -395,20 +436,69 @@ static func _crown(b: K.Builder, points: int, gold: Color, gold_dk: Color, jewel
 	b.emit = 0.0
 
 
-## A wyvern's bat wings at [param at] along the body (COLOR.a 0: the shader beats them).
-static func _wings(b: K.Builder, at: float, arm: Color, skin: Color, claw: Color) -> void:
+## A wyvern's bat wings at [param at] along the body (COLOR.a 0: the shader beats them,
+## round the shoulder, the tips trailing). Each is a bat's hand: a bright arm (shoulder,
+## elbow, wrist) with a thumb claw, three long finger bones fanning back from the wrist,
+## and between them a darker membrane (UV2.y = -1: the shader lights it as thin skin)
+## that billows down a little between the bones and is cut into scallops between the
+## finger tips, paling to its trailing edge.
+static func _wings(b: K.Builder, at: float, arm: Color, skin: Color, claw: Color, lite := false) -> void:
 	b.phase = 0.0
+	var membrane := arm.lerp(skin, 0.2)
+	var thin := skin.lerp(arm, 0.15)
+	var bone := skin.lerp(Color.WHITE, 0.7)
+	var rows := 2 if lite else 3
+	var cols := 2 if lite else 3
 	for side in [-1.0, 1.0]:
-		var root := Vector3(side * 0.45, 0.35, at)
-		var elbow := Vector3(side * 1.7, 1.5, at + 0.5)
-		var wrist := Vector3(side * 3.0, 1.75, at + 1.0)
-		b.tube([root, elbow, wrist], [0.12, 0.09, 0.06], 5, [arm])
-		var fingers := [Vector3(side * 3.7, 0.8, at + 1.9), Vector3(side * 3.0, 0.1, at + 2.8), Vector3(side * 1.9, -0.1, at + 3.1)]
-		var prev := wrist
-		for tip in fingers:
-			b.tube([wrist, tip], [0.05, 0.02], 4, [arm])
-			b.tri3(root, prev, tip, skin, skin.lerp(Color.WHITE, 0.2), skin.lerp(arm, 0.3))
-			prev = tip
-		b.tri3(root, prev, Vector3(side * 0.5, 0.25, at + 2.6), skin, skin, skin)
-		b.cone(wrist, wrist + Vector3(side * 0.1, 0.4, -0.15), 0.06, 4, claw)
+		var sh := Vector3(side * 0.45, 0.35, at)
+		var elbow := Vector3(side * 1.45, 1.05, at + 0.75)
+		var wrist := Vector3(side * 2.55, 1.7, at - 0.05)
+		var tips := [Vector3(side * 4.4, 2.0, at + 0.95), Vector3(side * 3.95, 0.9, at + 2.45), Vector3(side * 2.7, 0.25, at + 3.2)]
+		var tail := Vector3(side * 0.5, 0.1, at + 2.55)
+		# The membrane: a panel between each pair of fingers, and the inner one from the
+		# arm to the last finger and back to the flank.
+		b.weight = -1.0
+		for k in 2:
+			_membrane(b, func(u: float, v: float) -> Vector3:
+				var a0: Vector3 = wrist.lerp(tips[k], u)
+				var a1: Vector3 = wrist.lerp(tips[k + 1], u)
+				return a0.lerp(a1, v), wrist, tips[k].lerp(tips[k + 1], 0.5), rows, cols, membrane, thin, side)
+		_membrane(b, func(u: float, v: float) -> Vector3:
+			# v runs from the shoulder out along the arm to the wrist; u from the arm to the trailing edge.
+			var arm_pt: Vector3 = sh.lerp(elbow, v * 2.0) if v < 0.5 else elbow.lerp(wrist, v * 2.0 - 1.0)
+			var edge_pt: Vector3 = tail.lerp(tips[2], v)
+			return arm_pt.lerp(edge_pt, u), sh.lerp(wrist, 0.5), tail.lerp(tips[2], 0.5), rows, cols, membrane, thin, side)
+		# The leading edge between shoulder and wrist, in front of the elbow.
+		b.tri3(sh, wrist, elbow, membrane, membrane, membrane)
+		b.weight = 0.0
+		# Bones: the arm, the thumb claw, the fingers (bright against the skin).
+		b.tube([sh, elbow, wrist], [0.14, 0.11, 0.09], 5, [[bone, bone.lerp(skin, 0.4)]])
+		b.ball(elbow, Vector3.ONE * 0.12, bone, skin, 5, 3)
+		b.ball(wrist, Vector3.ONE * 0.13, bone, skin, 5, 3)
+		for tip in tips:
+			var mid: Vector3 = wrist.lerp(tip, 0.5) + Vector3(0, 0.12, 0)
+			b.tube([wrist, mid, tip], [0.075, 0.05, 0.02], 4, [[bone, bone.lerp(skin, 0.4)]])
+		b.emit = 0.6
+		b.cone(wrist + Vector3(0, 0.06, -0.05), wrist + Vector3(side * 0.12, 0.42, -0.3), 0.06, 4, claw)
+		b.emit = 0.0
 	b.phase = -1.0
+
+
+## One panel of wing membrane: [param at](u, v) the flat point (u: from the root bone
+## outward, v: across); the trailing edge (u = 1) is cut into a scallop toward
+## [param hub], and the skin billows down between the bones.
+static func _membrane(b: K.Builder, at: Callable, hub: Vector3, edge_mid: Vector3, rows: int, cols: int, col: Color, edge_col: Color, side: float) -> void:
+	var into := (hub - edge_mid) * 0.3
+	var base := b.v.size()
+	for i in rows + 1:
+		var u := float(i) / float(rows)
+		for j in cols + 1:
+			var v := float(j) / float(cols)
+			var bow := sin(PI * v)
+			var p: Vector3 = at.call(u, v) + into * bow * u * u - Vector3(0, 0.22, 0) * bow * sin(PI * minf(u * 1.2, 1.0))
+			b.pt(p, Vector3(side * 0.15, 1.0, 0).normalized(), col.lerp(edge_col, u * u), Vector2(u, v))
+	for i in rows:
+		for j in cols:
+			var a := base + i * (cols + 1) + j
+			var d := a + cols + 1
+			b.tri(a, a + 1, d + 1); b.tri(a, d + 1, d)
