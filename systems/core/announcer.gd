@@ -45,6 +45,8 @@ const RARE_SLAIN := "%s ปราบ%sที่%sได้แล้ว!"
 ## False while the announcement on its way is somebody else's (a world player's, or one
 ## that came over the network): it is shown here and never sent on.
 static var relay := true
+## false: tick() tells nothing (tests that count objects must not get a timed banner).
+static var ticking := true
 static var history: Array = []
 static var _sinks: Array[Callable] = []
 static var _heard := {}
@@ -194,6 +196,8 @@ static func quietly(job: Callable) -> void:
 ## opening is told to everyone, wherever the hero is, and the world players' jackpots
 ## (IsleLuck) that fell due since the last look.
 static func tick(t: float) -> void:
+	if not ticking:
+		return
 	var event := WorldEvents.rare_now(t)
 	if not event.is_empty() and int(event.window) != _rare_told:
 		_rare_told = int(event.window)

@@ -37,6 +37,9 @@ func _counts() -> Vector2i:
 
 func _ready() -> void:
 	GameSettings.load_settings()
+	# The clock-driven server announcements (the rare dragon's window, the world players'
+	# isle jackpots) would add a banner and chat lines mid-count whenever one falls due.
+	Announcer.ticking = false
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await _frames(3)
