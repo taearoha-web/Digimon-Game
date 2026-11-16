@@ -121,10 +121,12 @@ func _gear(label: String, level: int, stars: int, cap: int, top_plus: int, e: Di
 	var item: Dictionary = e.item
 	var plus := int(item.get("plus", 0))
 	s.gear += 1
-	s.plus[plus] = int(s.plus.get(plus, 0)) + 1
+	if EnhanceFx.can_enhance(item):
+		s.plus[plus] = int(s.plus.get(plus, 0)) + 1
 	s.rarity[int(item.rarity)] = int(s.rarity.get(int(item.rarity), 0)) + 1
 	s.hot += 1 if bool(e.hot) else 0
 	check(int(item.level) <= cap, "%s: %s Lv.%d within its reach (Lv.%d)" % [label, item.name, int(item.level), cap])
+	check(EnhanceFx.can_enhance(item) or plus == 0, "%s: %s is a ring or amulet, sold at +0 (+%d)" % [label, item.name, plus])
 	check(plus <= (StallStock.SET_PLUS_MAX if SetGearData.is_item(item) else top_plus), "%s: %s +%d within its band (+%d)" % [label, item.name, plus, top_plus])
 	check(level >= Game.MAX_LEVEL or plus <= 9, "%s: below Lv.100 never +10 or more (+%d)" % [label, plus])
 	check(int(item.rarity) >= 2, "%s: above the merchant's grade" % label)
@@ -182,7 +184,10 @@ func _share(s: Dictionary, lo: int, hi: int) -> float:
 	for k in s.plus:
 		if int(k) >= lo and int(k) <= hi:
 			n += int(s.plus[k])
-	return float(n) / maxf(1.0, float(s.gear))
+	var forged := 0
+	for k in s.plus:
+		forged += int(s.plus[k])
+	return float(n) / maxf(1.0, float(forged))
 
 
 func _compare(st: Dictionary) -> void:

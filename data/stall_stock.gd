@@ -330,6 +330,9 @@ static func _make_lots(key: String, spec: String, level: int, stars: int, cls: S
 		var item := find(rng, level, stars, slot, rarity, for_class, spec)
 		# A 250★ set piece leaves the forge at +0 and is sold near it; the rest at the band.
 		item["plus"] = rng.randi_range(0, SET_PLUS_MAX) if SetGearData.is_item(item) else roll_plus(rng, band)
+		# Rings and amulets cannot be forged (EnhanceFx.can_enhance): they are sold at +0.
+		if not EnhanceFx.can_enhance(item):
+			item["plus"] = 0
 		_socket(item, rng, level, stars, cls)
 		out.append({"item": item, "price": gear_price(item)})
 	var potions := _potions_for(level)

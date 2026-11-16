@@ -1580,6 +1580,9 @@ const CASTER_WEAPONS := ["staff", "wand", "lantern"]
 
 
 func _repair_item(item: Dictionary) -> void:
+	# Rings and amulets cannot be forged: a + on one (old stall stock) is cleared.
+	if item.get("kind", "") == "equip" and not EnhanceFx.can_enhance(item) and int(item.get("plus", 0)) != 0:
+		item["plus"] = 0
 	# A class's weapon kind can change (priest staff -> wand, summoner staff ->
 	# lantern): spell-caster weapons become the class's kind at the same tier,
 	# renamed from the old kind's name list (the priest's first wands included).
