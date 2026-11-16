@@ -590,7 +590,7 @@ func _menu() -> void:
 		pick.pressed.emit()
 		await settle()
 	check(Game.active_mount() == "glow_stag", "menu pick makes the stag active")
-	# (The isle's sky dragon is the one mount that always hatches: its egg is the gate.)
+	# (No card promises 100%; the isle's sky dragon is skipped by habit, it says 5%.)
 	var sky := _card(menu, SkyIsleLoot.MOUNT)
 	for label in menu._content.find_children("*", "Label", true, false):
 		if sky != null and sky.is_ancestor_of(label):

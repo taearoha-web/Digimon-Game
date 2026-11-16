@@ -27,8 +27,26 @@ func _frames(n: int) -> void:
 
 ## Effects a screen plays (the healer's glow) end within a couple of seconds.
 func _settle() -> void:
-	await get_tree().create_timer(2.5).timeout
+	# Longer than a toast lives (ToastLayer: fade in, LIFETIME, fade out), so a toast that a
+	# timed check (achievements, the daily pass, the league) raised mid-pass is gone before
+	# the count and is never mistaken for a leak.
+	await get_tree().create_timer(maxf(2.5, 0.18 + ToastLayer.LIFETIME + 0.35 + 0.4)).timeout
 	await _frames(4)
+	# A toast a timer raised during that wait (a quest or event notice) would still be on
+	# screen at the count: wait for every toast to fade before counting.
+	for n in 60:
+		if _toasts() == 0:
+			break
+		await get_tree().create_timer(0.25).timeout
+	await _frames(2)
+
+
+func _toasts() -> int:
+	var count := 0
+	for node in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		if node is ToastLayer and (node as ToastLayer)._stack != null:
+			count += (node as ToastLayer)._stack.get_child_count()
+	return count
 
 
 func _counts() -> Vector2i:

@@ -40,7 +40,7 @@ const MOUNTS := {
 	# part of the every-field material roll, Zone.mount_mat_drops). The egg is the gate,
 	# so every step succeeds.
 	"sky_dragon": {"name": "มังกรฟ้าเทพ", "speed": 0.65, "color": Color("3fd6b4"),
-		"mat": "sky_dragon_egg", "drop": 0.0, "chaos": 20, "chance": 1.0, "bonus": {"hp": 0.08, "atk": 0.04, "def": 0.02, "crit": 0.02},
+		"mat": "sky_dragon_egg", "drop": 0.0, "chaos": 20, "chance": 0.05, "bonus": {"hp": 0.08, "atk": 0.04, "def": 0.02, "crit": 0.02},
 		"desc": "มังกรฟ้าเกล็ดหยกแผงคอทอง เหินเมฆพาทะยาน (ไข่จากเกาะลอยฟ้าเทพมังกร)"},
 }
 ## The mounts whose material every hunting field drops (Zone.mount_mat_drops), easiest

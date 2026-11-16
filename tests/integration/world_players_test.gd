@@ -297,7 +297,8 @@ func _gear() -> void:
 		for slot in DivineGearData.SLOTS:
 			# The divine piece, or the 250★ set piece forged from it (WorldGear).
 			divine = divine and top.has(slot) and (DivineGearData.is_item(top[slot]) or SetGearData.is_item(top[slot]))
-		check(divine and top.has("wings") and StarGearData.is_star(top.wings), "%s: the divine set (or set pieces forged from it) and the star wings in the end" % name)
+		# The star wings, or the legend wings the player won in a weekly event (LegendWings).
+		check(divine and top.has("wings") and (StarGearData.is_star(top.wings) or LegendWings.is_item(top.wings)), "%s: the divine set (or set pieces forged from it) and the star wings in the end" % name)
 		check(not WorldPlayers.equip({"name": name, "class": e["class"], "level": 99, "stars": 0, "frac": 0.9}).has("wings"), "%s: no wings before Lv.100" % name)
 		var again := WorldPlayers.equip({"name": name, "class": e["class"], "level": 73, "stars": 0, "frac": 0.25})
 		WorldPlayers._gear.clear()

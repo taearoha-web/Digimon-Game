@@ -375,7 +375,12 @@ func _egg_and_mount() -> void:
 	give(SkyIsleLoot.EGG, 1)
 	give("chaos", int(info.chaos))
 	check(MountData.cost(SkyIsleLoot.MOUNT, 1) == {"mat": 1, "chaos": int(info.chaos)}, "Lv.1 takes one egg")
-	check(Game.craft_mount(SkyIsleLoot.MOUNT, 0.999) == "ok", "one egg hatches the dragon, every try succeeds")
+	check(is_equal_approx(MountData.chance(SkyIsleLoot.MOUNT), 0.05), "every craft and level-up step succeeds 5%")
+	check(Game.craft_mount(SkyIsleLoot.MOUNT, 0.05) == "fail" and Game.mount_level(SkyIsleLoot.MOUNT) == 0, "a roll of 5% or more fails")
+	check(Game.jewel_count(SkyIsleLoot.EGG) == 0, "a failed hatch uses the egg up")
+	give(SkyIsleLoot.EGG, 1)
+	give("chaos", int(info.chaos))
+	check(Game.craft_mount(SkyIsleLoot.MOUNT, 0.049) == "ok", "a roll under 5% hatches the dragon")
 	check(Game.mount_level(SkyIsleLoot.MOUNT) == 1 and Game.active_mount() == SkyIsleLoot.MOUNT, "มังกรฟ้าเทพ Lv.1, the active mount")
 	check(Game.jewel_count(SkyIsleLoot.EGG) == 0 and Game.jewel_count("chaos") == 0, "the egg and the chaos jewels are used up")
 	check(Game.owned_mounts() == [SkyIsleLoot.MOUNT], "it is among the owned mounts")
@@ -560,7 +565,7 @@ func _menu() -> void:
 		check(title != null and title.text.contains("มังกรฟ้าเทพ") and title.text.contains("Lv.0/5"), "its card names it (%s)" % (title.text if title else ""))
 		check((card.find_child("MatIcon", true, false) as TextureRect).texture == ItemLook.icon(ItemData.jewel(SkyIsleLoot.EGG)), "with the egg's icon")
 		var cost := card.find_child("Cost", true, false) as Label
-		check(cost != null and cost.text.contains("ไข่มังกรฟ้าเทพ 1/1"), "and what the hatch takes (%s)" % (cost.text if cost else ""))
+		check(cost != null and cost.text.contains("ไข่มังกรฟ้าเทพ ") and cost.text.contains("/1 ·") and cost.text.contains("5%"), "and what the hatch takes, at 5% (%s)" % (cost.text if cost else ""))
 	# The reward shop lists it under costumes, paid in fragments.
 	menu.queue_free()
 	await settle()

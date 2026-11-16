@@ -12,7 +12,7 @@ extends Node
 ##   diamond on the minimap (kept on the rim when far) and a pillar of rainbow light over
 ##   it that shows from across the field (one unshaded additive mesh: no light, no
 ##   particles).
-## - It is the field's own boss in strength (tune: HP_SCALE times its HP), is the god
+## - It is the field's own boss and more in strength (tune: HP_SCALE times its HP), is the god
 ##   skill's eastern dragon in rainbow crystal (CelestialDragon "prism"), and fights with telegraphed
 ##   moves (BossAttack). The world players hunting nearby join in once the hero's side
 ##   has engaged it (FieldPlayer._join_rare), holding back so the kill stays the hero's.
@@ -27,10 +27,15 @@ extends Node
 const ID: StringName = &"prism_dragon"
 ## Mob meta: the window (WorldEvents.rare_now) this dragon belongs to.
 const META := "rare_dragon"
-## Over the field boss's stats (MonsterData.stats_for of zone.boss): a few minutes'
-## fight for one ★300 hero in the field's gear.
-const HP_SCALE := 2.0
-const ATK_SCALE := 0.85
+## Over the field boss's stats (MonsterData.stats_for of zone.boss): a raid-lite fight for
+## one ★300 hero in the field's gear. Raised at the owner's request: twice the health it
+## had (2x the boss's, now 4x) and 2.5x the bite it had (0.85x the boss's attack before the
+## Dragon God's own went up 5x, SkyIsleData.BOSS_ATK: 0.85 * 2.5 / 5 of it now). Its two
+## lightning moves alternate from the first one, every SLAM_EVERY seconds (MonsterData
+## "slam_every", BossAttack.start) instead of a field boss's 8.
+const HP_SCALE := 4.0
+const ATK_SCALE := 0.425
+const SLAM_EVERY := 5.0
 const EXP_SCALE := 3.0
 ## Without a field boss: this many times the camp's toughest monster.
 const NO_BOSS_HP := 60.0

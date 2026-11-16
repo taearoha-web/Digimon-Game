@@ -187,6 +187,11 @@ func _zone() -> void:
 	var boss := MonsterData.stats_for(StringName(zone.data.boss.monster), int(zone.data.boss.level))
 	check(mob.max_hp == int(float(boss.hp) * RareDragon.HP_SCALE) and mob.hp == mob.max_hp and int(mob.stats.atk) == int(float(boss.atk) * RareDragon.ATK_SCALE), "the field boss's strength, %sx its HP (%d)" % [str(RareDragon.HP_SCALE), mob.max_hp])
 	check(mob.level == int(zone.data.boss.level), "at the field boss's level")
+	# Raised (owner): twice the health it had (2x the boss's) and 2.5x the bite (0.85x the boss's
+	# attack before the Dragon God's own went up SkyIsleData.BOSS_ATK times).
+	var old_atk := float(boss.atk) / SkyIsleData.BOSS_ATK * 0.85
+	check(is_equal_approx(RareDragon.HP_SCALE, 4.0) and absf(float(mob.stats.atk) / old_atk - 2.5) < 0.01, "twice the health and 2.5x the bite it had (atk x%.2f)" % (float(mob.stats.atk) / old_atk))
+	check(bool(mob.template.get("alternate", false)) and is_equal_approx(float(mob.template.get("slam_every", 0.0)), RareDragon.SLAM_EVERY) and RareDragon.SLAM_EVERY < Mob.SLAM_INTERVAL, "both lightning moves from the first one, every %.0f s" % RareDragon.SLAM_EVERY)
 	# Its look: the god-skill dragon (CelestialDragon "prism") in rainbow crystal, the beacon,
 	# a name seen from afar.
 	var crystal := mob.visual as CelestialDragonVisual
