@@ -19,6 +19,16 @@ extends RefCounted
 ## leave bag things (a chosen count of a stack) with a keeper to sell for more, paid out
 ## later ("consign|<due minute>|<n>" = gold; collect_consignments), and the keepers call out a lot of theirs in
 ## the world chat now and then (announcement).
+##
+## What a stall lays out is worth the trip: a keeper's spare finds come forged (plus_band:
+## a newcomer's +1..+4, a veteran's +7..+12 and, from ★200, the odd +13..+15 showpiece),
+## socketed with the gems their class builds on, legendary and mythic more often than not;
+## a veteran sells the star tier it farms, the 100★ wings, the divine pieces and 200★
+## jewellery from ★200 and, very rarely, a 250★ set piece; jewels and materials come in
+## bulk, the sky isle's goods only from a ★300 keeper. Showpieces (is_hot: ของเด่น) are
+## listed first and cost a premium. Prices follow the game's own (gear_price: the
+## merchant's price, the forge jewels of the +, the gems), never under what the stall
+## would pay back for the lot (RESALE_FLOOR).
 
 ## Real seconds between two restocks of a stall.
 const RESTOCK := 7200.0
@@ -30,10 +40,54 @@ const GEAR_MARKUP := {2: 1.3, 3: 1.55, 4: 1.8}
 const POTION_DISCOUNT := 0.85
 ## Forge jewels (the merchant has none) and gems cost this much over their base price.
 const JEWEL_MARKUP := 1.15
-const GEM_PRICE := [60, 180, 540, 1620, 4860]
+## A stall gem by size (small .. legendary): a fused gem is worth well over three of the
+## size below (the fusing gold and the failed tries); a special gem SPECIAL_GEM_MARKUP more.
+const GEM_PRICE := [60, 240, 900, 4000, 16000]
+const SPECIAL_GEM_MARKUP := 2.0
+## The forge jewels of a piece's + cost this much over their average (enhance_value).
+const ENHANCE_MARGIN := 1.15
+## A divine piece (0.5% a kill in the lotus sanctum) costs this many times its grade's price.
+const DIVINE_PREMIUM := 2.5
+## A showpiece (is_hot) costs this much more.
+const HOT_PREMIUM := 1.25
+## Gear at this + or more is a showpiece (ของเด่น).
+const HOT_PLUS := 13
+## The rare goods that are showpieces too.
+const HOT_GOODS: Array[String] = ["set_core", "dragon_fragment", "sky_dragon_egg"]
+## A lot never costs less than this many times what a stall pays for it (and its gems)
+## on consignment: bought here, haggled 20% off and consigned back, it still loses gold.
+const RESALE_FLOOR := 1.6
 ## Chances of a stall piece being rare (2), legendary (3) or mythic (4) for a keeper of
 ## Lv.60-99 (rarity_odds: fewer good finds below, more from Lv.100).
-const RARITY_ODDS := [[2, 0.62], [3, 0.3], [4, 0.08]]
+const RARITY_ODDS := [[2, 0.3], [3, 0.52], [4, 0.18]]
+## The order a stall lays its lots out in after the showpieces (_better).
+const SHELF := {"equip": 0, "jewel": 1, "gem": 1, "potion": 2}
+## A piece is for another class than the hero's this often.
+const OTHER_CLASS := 0.25
+## From Lv.100 (find): a gear lot is a 250★ set piece (from ★250), wings (not at an armour
+## stall) or the divine piece of its slot (from ★200) at these shares; a star piece is of
+## the tier below the seller's this often; a mythic star piece is the best of MYTHIC_TRIES.
+const SET_SHARE := 0.008
+const WING_SHARE := 0.13
+const DIVINE_SHARE := 0.3
+const LOWER_TIER := 0.2
+const MYTHIC_TRIES := 10
+## A set piece is sold at +0 .. +SET_PLUS_MAX.
+const SET_PLUS_MAX := 7
+## From Lv.100 a piece has a drilled socket this often (_socket).
+const DRILL_SHARE := 0.35
+## A gem (in a socket or a gem lot) is the seller's biggest size this often, else one under.
+const TOP_GEM_SHARE := 0.55
+## Materials a lot holds: [fewest, most for a ★300 keeper] (bulk_count).
+const BULK := {"purple": [3, 40], "pink": [2, 30], "chaos": [2, 25], "feather": [1, 3], "drill": [1, 3],
+	"wolf_fang": [1, 4], "stag_antler": [1, 4], "griffin_plume": [1, 3], "drake_scale": [1, 3],
+	"lotus_scale": [1, 5], "dragon_scale": [1, 3], "set_core": [1, 1],
+	"dragon_chest": [1, 3], "dragon_fragment": [1, 2], "sky_dragon_egg": [1, 1]}
+## The sky isle's goods (SkyIsleLoot): only a keeper of ISLE_STARS lays them out, a jewel
+## lot ISLE_SHARE of the time, [id, share] (the chest most, the egg very rarely).
+const ISLE_STARS := 300
+const ISLE_SHARE := 0.08
+const ISLE_GOODS := [["dragon_chest", 0.7], ["dragon_fragment", 0.25], ["sky_dragon_egg", 0.05]]
 const FLAG := "stall|"
 const HAGGLE_FLAG := "haggle|"
 const CONSIGN_FLAG := "consign|"
@@ -51,12 +105,13 @@ const CONSIGN_MAX := 8
 const HAGGLE_ACCEPT_LINES := ["ก็ได้ ลดให้ %d%% แต่บอกต่อด้วยนะ", "เอ้า ลด %d%% ให้เป็นพิเศษเลย", "ตกลง ลดให้ %d%% เพราะคุณน่ารัก"]
 const HAGGLE_REFUSE_LINES := ["ขอโทษนะ ราคานี้ต่อไม่ได้แล้วจริง ๆ", "ของดีขนาดนี้ ราคาเต็มเท่านั้นนะ", "ลดไม่ไหวแล้ว หามาเหนื่อยมาก"]
 const HAGGLE_COUNTER_LINES := ["เต็มที่ได้แค่ %d%% นะ เอาไหม", "ลด %d%% พอได้ แต่มากกว่านี้ไม่ไหว"]
-## Specialities and what a stall of each lays out: gear pieces, consumable lots.
+## Specialities and what a stall of each lays out: gear pieces, consumable lots (six lots
+## a stall, the same as ever).
 const KINDS := {
-	"mixed": {"gear": 4, "potions": 1, "jewels": 1},
-	"weapon": {"gear": 5, "potions": 1, "jewels": 0},
+	"mixed": {"gear": 4, "potions": 0, "jewels": 2},
+	"weapon": {"gear": 5, "potions": 0, "jewels": 1},
 	"armor": {"gear": 5, "potions": 0, "jewels": 1},
-	"potion": {"gear": 2, "potions": 4, "jewels": 0},
+	"potion": {"gear": 2, "potions": 3, "jewels": 1},
 	"jewel": {"gear": 2, "potions": 0, "jewels": 4},
 }
 const KIND_NAMES := {"mixed": "ของดีสารพัด", "weapon": "อาวุธ", "armor": "เกราะและเครื่องประดับ", "potion": "ยา", "jewel": "เพชรและอัญมณี"}
@@ -70,6 +125,7 @@ const KEYWORDS := [
 
 static var _by_name := {}
 static var _sellers := {}
+static var _lots := {}
 
 
 ## The stall's restock window at real time t (each stall keeps its own offset).
@@ -144,10 +200,13 @@ static func progress(level: int, stars: int) -> int:
 
 
 ## The highest gear level a seller of `level` and `stars` may lay out: its own level, and
-## from Lv.100 the star gear it could find (100 + its stars up to the ★200 tier).
+## from Lv.100 the star gear it could find (100 + its stars up to the ★200 tier: the
+## divine pieces are Lv.300), from ★250 the set pieces (Lv.350, SetGearData.LEVEL).
 static func gear_cap(level: int, stars: int) -> int:
 	if level < Game.MAX_LEVEL:
 		return maxi(1, level)
+	if stars >= SetGearData.STARS:
+		return SetGearData.LEVEL
 	return Game.MAX_LEVEL + clampi(stars, 0, ItemData.MAX_GEAR_STAR)
 
 
@@ -155,19 +214,21 @@ static func gear_cap(level: int, stars: int) -> int:
 static func rarity_odds(level: int, stars: int) -> Array:
 	var p := progress(level, stars)
 	if p < 25:
-		return [[2, 0.85], [3, 0.15]]
+		return [[2, 0.55], [3, 0.45]]
 	if p < 60:
-		return [[2, 0.7], [3, 0.27], [4, 0.03]]
+		return [[2, 0.4], [3, 0.5], [4, 0.1]]
 	if p < Game.MAX_LEVEL:
 		return RARITY_ODDS
-	return [[2, 0.5], [3, 0.36], [4, 0.14]]
+	return [[2, 0.1], [3, 0.6], [4, 0.3]]
 
 
 ## The forge jewels and mount materials a seller of `level` and `stars` has found by now
 ## (ids, the common ones more than once): purple from the start, pink from Lv.20, the
-## mount materials as their mounts come within reach, chaos and drills at Lv.100,
+## mount materials as their mounts come within reach, chaos and drills at Lv.100, the
+## ancient dragon's scales from ★20 (the mechanics dungeon, DungeonData.MIN_STARS),
 ## feathers from ★50, the drake's scale from ★100 and the set core and the Lotus Scale
-## from ★200 (both drop only in the two ★200-300 fields, EndgameFields).
+## from ★200 (both drop only in the two ★200-300 fields, EndgameFields). The sky isle's
+## goods are not here: only a ★300 keeper has them, rarely (ISLE_GOODS).
 static func jewels_for(level: int, stars: int) -> Array[String]:
 	var out: Array[String] = ["purple", "purple", "purple"]
 	if level >= 20:
@@ -177,14 +238,16 @@ static func jewels_for(level: int, stars: int) -> Array[String]:
 	if level >= 60:
 		out.append("stag_antler")
 	if level >= Game.MAX_LEVEL:
-		out.append_array(["chaos", "chaos", "drill", "griffin_plume"])
+		out.append_array(["chaos", "chaos", "chaos", "drill", "griffin_plume"])
+		if stars >= DungeonData.MIN_STARS:
+			out.append(DungeonData.SCALE)
 		if stars >= ItemData.FEATHER_STARS:
-			out.append("feather")
+			out.append_array(["feather", "feather"])
 		if stars >= 100:
 			out.append("drake_scale")
 		if stars >= DrownedAbyssData.ENTRY_STAR:
 			out.append("set_core")
-			out.append(EndgameFields.SCALE)
+			out.append_array([EndgameFields.SCALE, EndgameFields.SCALE])
 	return out
 
 
@@ -222,18 +285,36 @@ static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 
 
 ## The lots of a stall of `spec` kept by a seller of `level` and `stars`, seeded by `key`
-## (the keeper and the window), for a hero of class `cls`: gear of the seller's own
-## level (a few levels under it at most, star gear up to its stars), graded by
-## rarity_odds; the potions the merchant sells at the seller's level; the jewels and gems
-## it could have found (jewels_for, gem_cap). A low-level seller never has high-tier goods.
+## (the keeper and the window), for a hero of class `cls`, the best first (hot lots, then
+## the dearest; k keeps each lot's own number): gear of the seller's own reach (find: its
+## level, a few levels under it at most; from ★50 the star tiers, the 100★ wings, the
+## divine pieces from ★200 and now and then a 250★ set piece), graded by rarity_odds,
+## forged to the + of its progress (plus_band) and socketed with the gems its class builds
+## on (_socket); the potions the merchant sells at the seller's level; the jewels it could
+## have found, in bulk (jewels_for, bulk_count; the sky isle's goods only from a ★300
+## keeper, ISLE_SHARE) and its gems (gem_cap). A low-level seller never has high-tier
+## goods; nothing that may not change hands (sellable) is ever laid out.
 static func lots_for(key: String, spec: String, level: int, stars: int, cls: StringName) -> Array[Dictionary]:
+	# The chat and the stall screen ask often: a window's lots are made once (copies out).
+	var memo := "%s|%s|%d|%d|%s" % [key, spec, level, stars, cls]
+	if not _lots.has(memo):
+		if _lots.size() > 96:
+			_lots.clear()
+		_lots[memo] = _make_lots(key, spec, level, stars, cls)
+	var out: Array[Dictionary] = []
+	for lot in _lots[memo]:
+		out.append((lot as Dictionary).duplicate(true))
+	return out
+
+
+static func _make_lots(key: String, spec: String, level: int, stars: int, cls: StringName) -> Array[Dictionary]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("stall|%s" % key)
 	var kind: Dictionary = KINDS.get(spec, KINDS.mixed)
 	level = clampi(level, 1, Game.MAX_LEVEL)
 	stars = clampi(stars, 0, Game.PARAGON_MAX) if level >= Game.MAX_LEVEL else 0
-	var cap := gear_cap(level, stars)
 	var odds := rarity_odds(level, stars)
+	var band := plus_band(level, stars)
 	var out: Array[Dictionary] = []
 	for n in int(kind.gear):
 		var slot: String = ItemData.SLOTS[rng.randi() % ItemData.SLOTS.size()]
@@ -242,29 +323,15 @@ static func lots_for(key: String, spec: String, level: int, stars: int, cls: Str
 		elif spec == "armor":
 			slot = ["armor", "helm", "boots", "ring", "amulet"][n % 5]
 		var rarity := _rarity_by(rng, odds)
-		# Weapons mostly for the hero's class, now and then another class's find.
-		var for_class := cls
-		if slot == "weapon" and rng.randf() < 0.35:
+		# Gear mostly for the hero's class, now and then another class's find.
+		var for_class: StringName = cls if ClassData.IDS.has(cls) else ClassData.IDS[rng.randi() % ClassData.IDS.size()]
+		if rng.randf() < OTHER_CLASS:
 			for_class = ClassData.IDS[rng.randi() % ClassData.IDS.size()]
-		var item := {}
-		var roll := rng.randf()
-		if level >= Game.MAX_LEVEL and roll < 0.12 and spec != "armor":
-			item = ItemData.wings(rng, String(cls), rarity)
-		elif level >= Game.MAX_LEVEL and stars >= int(StarProgression.TIERS[0]) and roll < 0.4:
-			var tier := 0
-			for k in StarProgression.TIERS:
-				if stars >= int(k):
-					tier = int(k)
-			item = StarProgression.item(for_class, tier, slot, rng)
-		if item.is_empty():
-			var top := cap
-			if level >= Game.MAX_LEVEL and stars > 0:
-				top = Game.MAX_LEVEL + clampi(stars - rng.randi_range(0, 8), 0, mini(stars, 20))
-			var lv := maxi(1, top - rng.randi_range(0, 3 if level < Game.MAX_LEVEL else 0))
-			item = ItemData.generate(lv, for_class, rng, rarity, slot)
-		var grade := clampi(int(item.get("rarity", rarity)), 2, 4)
-		var price := int(round(float(ItemData.buy_price(item)) * float(GEAR_MARKUP[grade])))
-		out.append({"item": item, "price": price})
+		var item := find(rng, level, stars, slot, rarity, for_class, spec)
+		# A 250★ set piece leaves the forge at +0 and is sold near it; the rest at the band.
+		item["plus"] = rng.randi_range(0, SET_PLUS_MAX) if SetGearData.is_item(item) else roll_plus(rng, band)
+		_socket(item, rng, level, stars, cls)
+		out.append({"item": item, "price": gear_price(item)})
 	var potions := _potions_for(level)
 	for n in int(kind.potions):
 		var id: String = potions[(n + rng.randi()) % potions.size()]
@@ -275,24 +342,247 @@ static func lots_for(key: String, spec: String, level: int, stars: int, cls: Str
 	var biggest := gem_cap(level, stars)
 	for n in int(kind.jewels):
 		var item := {}
-		var price := 0
-		if rng.randf() < 0.55:
+		if stars >= ISLE_STARS and rng.randf() < ISLE_SHARE:
+			var r := rng.randf()
+			var id := "dragon_chest"
+			for pair in ISLE_GOODS:
+				r -= float(pair[1])
+				if r < 0.0:
+					id = String(pair[0])
+					break
+			item = ItemData.jewel(id, bulk_count(id, level, stars, rng))
+		elif rng.randf() < 0.6:
 			var id: String = jewels[rng.randi() % jewels.size()]
-			var count := 1
-			if id in ["purple", "pink", "chaos"]:
-				count = 1 + rng.randi() % (3 + progress(level, stars) / 60)
-			item = ItemData.jewel(id, count)
-			price = int(round(float(ItemData.JEWELS[id].price) * JEWEL_MARKUP * count))
+			item = ItemData.jewel(id, bulk_count(id, level, stars, rng))
 		else:
-			var gems: Array = ItemData.GEMS.keys()
-			var size := clampi(biggest - rng.randi() % 2, 0, biggest)
-			var count := 1 + rng.randi() % 2
-			item = ItemData.gem(String(gems[rng.randi() % gems.size()]), size, count)
-			price = int(GEM_PRICE[size]) * count
-		out.append({"item": item, "price": price})
+			# Mostly the gems the hero's class builds on (WorldGear.gem_plan).
+			var plan := WorldGear.gem_plan(String(cls) if ClassData.IDS.has(cls) else "warrior")
+			var wanted := [String(plan.main), String(plan.main), String(plan.body), String(plan.special)]
+			var gem_id: String = String(wanted[rng.randi() % wanted.size()]) if rng.randf() < 0.65 else String(ItemData.GEMS.keys()[rng.randi() % ItemData.GEMS.size()])
+			var size := clampi(biggest - (0 if rng.randf() < TOP_GEM_SHARE else 1), 0, biggest)
+			item = ItemData.gem(gem_id, size, 1 + rng.randi() % (3 if size < ItemData.GEM_MAX_SIZE else 2))
+		out.append({"item": item, "price": goods_price(item)})
+	var kept: Array[Dictionary] = []
 	for k in out.size():
 		out[k]["k"] = k
-	return out
+		out[k]["hot"] = is_hot(out[k].item)
+		if sellable(out[k].item):
+			kept.append(out[k])
+	kept.sort_custom(_better)
+	return kept
+
+
+## Best lot first: a hot lot, then gear before jewels and gems before potions, then the
+## dearer one, then the earlier one.
+static func _better(a: Dictionary, b: Dictionary) -> bool:
+	if bool(a.hot) != bool(b.hot):
+		return bool(a.hot)
+	var ra := int(SHELF.get(String(a.item.get("kind", "")), SHELF.size()))
+	var rb := int(SHELF.get(String(b.item.get("kind", "")), SHELF.size()))
+	if ra != rb:
+		return ra < rb
+	if int(a.price) != int(b.price):
+		return int(a.price) > int(b.price)
+	return int(a.k) < int(b.k)
+
+
+## One piece of gear a seller of `level` and `stars` found in `slot` for `for_class`:
+## below Lv.100 a piece of its level; from Lv.100 the best it can reach: now and then a
+## 250★ set piece (from ★250, SET_SHARE), wings (the 100★ wings from ★100), the class's
+## divine piece (from ★200, its four slots, DIVINE_SHARE) or a piece of the star tier it
+## farms (from ★50, now and then the tier below), otherwise the older Lv.100+ gear. The
+## class-locked endgame pieces are the best of a few rolls (_best): a seller keeps its
+## good rolls for the stall.
+static func find(rng: RandomNumberGenerator, level: int, stars: int, slot: String, rarity: int, for_class: StringName, spec: String) -> Dictionary:
+	var item := {}
+	if level >= Game.MAX_LEVEL:
+		var roll := rng.randf()
+		var cls := String(for_class)
+		if stars >= SetGearData.STARS and roll < SET_SHARE:
+			item = SetGearData.item(cls, slot)
+		elif spec != "armor" and roll < SET_SHARE + WING_SHARE:
+			if stars >= StarWingData.REQUIRED_STARS:
+				item = _best(func(): return StarWingData.item(cls, rng, 4 if rarity >= 4 else 3), 2)
+			else:
+				item = ItemData.wings(rng, cls, rarity)
+		elif stars >= DivineGearData.STARS and DivineGearData.SLOTS.has(slot) and roll < SET_SHARE + WING_SHARE + DIVINE_SHARE:
+			item = _best(func(): return DivineGearData.item(for_class, slot, rng), 3)
+		elif stars >= int(StarProgression.TIERS[0]):
+			var tiers: Array = StarProgression.TIERS.filter(func(x): return stars >= int(x))
+			var tier := int(tiers[-1])
+			if tiers.size() > 1 and rng.randf() < LOWER_TIER:
+				tier = int(tiers[-2])
+			item = _best(func(): return StarProgression.item(for_class, tier, slot, rng), MYTHIC_TRIES if rarity >= 4 else 2)
+	if item.is_empty():
+		var top := gear_cap(level, stars)
+		if level >= Game.MAX_LEVEL:
+			top = Game.MAX_LEVEL + clampi(stars - rng.randi_range(0, 8), 0, mini(stars, 20))
+		var lv := maxi(1, top - rng.randi_range(0, 3 if level < Game.MAX_LEVEL else 0))
+		item = ItemData.generate(lv, for_class, rng, rarity, slot)
+	return item
+
+
+## The best of `tries` pieces made by `make` (the higher grade, then the higher stats).
+static func _best(make: Callable, tries: int) -> Dictionary:
+	var best: Dictionary = make.call()
+	for n in tries - 1:
+		var other: Dictionary = make.call()
+		if other.is_empty():
+			break
+		if _worth(other) > _worth(best):
+			best = other
+	return best
+
+
+static func _worth(item: Dictionary) -> float:
+	var sum := 0.0
+	for key in item.get("stats", {}):
+		sum += float(item.stats[key]) * (1000.0 if key == "crit" else 1.0)
+	return float(item.get("rarity", 0)) * 1e9 + sum
+
+
+## The + a seller of `level` and `stars` forges its finds to: {lo, hi, show}: a piece is
+## +lo..+hi (the higher steps rarer) or, rarely, one of the showpieces in show ([[plus,
+## chance]]): a newcomer's few purple-jewel steps, a veteran's +7..+12 and, from ★200,
+## the odd +13..+15. Below Lv.100 no piece reaches +10 (that takes chaos jewels).
+static func plus_band(level: int, stars: int) -> Dictionary:
+	var p := progress(level, stars)
+	if p < 25:
+		return {"lo": 1, "hi": 4, "show": [[6, 0.05]]}
+	if p < 60:
+		return {"lo": 3, "hi": 6, "show": [[7, 0.08], [8, 0.03]]}
+	if level < Game.MAX_LEVEL:
+		return {"lo": 4, "hi": 8, "show": [[9, 0.08]]}
+	if stars < 100:
+		return {"lo": 6, "hi": 10, "show": [[11, 0.06], [12, 0.02]]}
+	if stars < DivineGearData.STARS:
+		return {"lo": 7, "hi": 11, "show": [[12, 0.07], [13, 0.025]]}
+	if stars < ISLE_STARS:
+		return {"lo": 7, "hi": 12, "show": [[13, 0.04], [14, 0.015], [15, 0.005]]}
+	return {"lo": 8, "hi": 12, "show": [[13, 0.05], [14, 0.02], [15, 0.008]]}
+
+
+## One + from `band` (plus_band): a showpiece by its chance, otherwise lo..hi, the
+## higher steps rarer.
+static func roll_plus(rng: RandomNumberGenerator, band: Dictionary) -> int:
+	var r := rng.randf()
+	for pair in band.show:
+		r -= float(pair[1])
+		if r < 0.0:
+			return int(pair[0])
+	var span := int(band.hi) - int(band.lo) + 1
+	return int(band.lo) + mini(span - 1, int(pow(rng.randf(), 1.3) * float(span)))
+
+
+## A seller fills the sockets of its find with the gems the piece's class builds on
+## (WorldGear.gem_for_slot; a ring takes the class's special gem first), of the sizes it
+## has (gem_cap); from Lv.100 it may have drilled one more (a fourth only at +15). Some
+## pieces, a newcomer's most, come with empty sockets.
+static func _socket(item: Dictionary, rng: RandomNumberGenerator, level: int, stars: int, cls: StringName) -> void:
+	var sockets := int(item.get("sockets", 0))
+	if level >= Game.MAX_LEVEL and rng.randf() < DRILL_SHARE:
+		sockets += 1
+	sockets = clampi(sockets, 0, ItemData.max_sockets(item))
+	item["sockets"] = sockets
+	item["gems"] = []
+	var fill := 0.45 if level < Game.MAX_LEVEL else (0.8 if stars < DivineGearData.STARS else 0.92)
+	if sockets <= 0 or rng.randf() >= fill:
+		return
+	var owner := ItemData.gear_class(item)
+	if not ClassData.IDS.has(StringName(owner)):
+		owner = String(cls) if ClassData.IDS.has(cls) else "warrior"
+	var slot := String(item.get("slot", "weapon"))
+	var main := WorldGear.gem_for_slot(owner, "weapon" if slot == "wings" else slot)
+	var biggest := gem_cap(level, stars)
+	for n in sockets:
+		var kind := main
+		if slot == "ring" and n == 0:
+			kind = String(WorldGear.gem_plan(owner).special)
+		var size := clampi(biggest - (0 if rng.randf() < TOP_GEM_SHARE else 1), 0, biggest)
+		(item.gems as Array).append("%s_%d" % [kind, size])
+
+
+## Gold the forge jewels for +`plus` are worth on average (ItemData.enhance_cost at the
+## jewels' prices over ItemData.enhance_chance, step by step from +0).
+static func enhance_value(plus: int) -> int:
+	var total := 0.0
+	for step in clampi(plus, 0, ItemData.MAX_PLUS):
+		var cost := ItemData.enhance_cost({"plus": step})
+		var gold := 0.0
+		for id in cost:
+			gold += float(ItemData.JEWELS[id].price) * int(cost[id])
+		total += gold / ItemData.enhance_chance(step)
+	return int(round(total))
+
+
+## A gem's price on a stall (one gem): GEM_PRICE by size, a special gem dearer.
+static func gem_price(gem_id: String) -> int:
+	var info := ItemData.gem_info({"id": gem_id})
+	return int(round(float(GEM_PRICE[int(info.size)]) * (SPECIAL_GEM_MARKUP if bool(info.special) else 1.0)))
+
+
+## What a gear lot costs: the merchant's price times the grade's markup (a divine piece
+## DIVINE_PREMIUM more), the forge jewels of its + (enhance_value) with ENHANCE_MARGIN,
+## the gems in it (gem_price), HOT_PREMIUM on a showpiece; never under RESALE_FLOOR times
+## what a stall pays for it and its gems on consignment, so buying here to consign it
+## back (haggled or not) never pays.
+static func gear_price(item: Dictionary) -> int:
+	var grade := clampi(int(item.get("rarity", 2)), 2, 4)
+	var worth := float(ItemData.buy_price(item)) * float(GEAR_MARKUP[grade])
+	if DivineGearData.is_item(item):
+		worth *= DIVINE_PREMIUM
+	worth += float(enhance_value(int(item.get("plus", 0)))) * ENHANCE_MARGIN
+	var resale := float(consign_price(item))
+	for gem_id in item.get("gems", []):
+		var bits := String(gem_id).split("_")
+		worth += float(gem_price(String(gem_id)))
+		resale += float(consign_price(ItemData.gem(bits[0], int(bits[1]))))
+	if is_hot(item):
+		worth *= HOT_PREMIUM
+	return int(round(maxf(worth, resale * RESALE_FLOOR)))
+
+
+## What a jewel or gem lot costs: JEWEL_MARKUP over the jewels' price, gem_price a gem;
+## never under RESALE_FLOOR times its consignment value.
+static func goods_price(item: Dictionary) -> int:
+	var count := int(item.get("count", 1))
+	var worth := 0.0
+	if String(item.get("kind", "")) == "gem":
+		worth = float(gem_price(String(item.id))) * count
+	else:
+		worth = float(ItemData.JEWELS[item.id].price) * JEWEL_MARKUP * count
+	if is_hot(item):
+		worth *= HOT_PREMIUM
+	return int(round(maxf(worth, float(consign_price(item) * count) * RESALE_FLOOR)))
+
+
+## How many of material `id` a seller of `level` and `stars` lays out in one lot: BULK's
+## range, its top growing with the seller's progress (a newcomer a handful, a ★300 keeper
+## dozens of jewels).
+static func bulk_count(id: String, level: int, stars: int, rng: RandomNumberGenerator) -> int:
+	var span: Array = BULK.get(id, [1, 1])
+	var reach := clampf(float(progress(level, stars)) / float(Game.MAX_LEVEL + Game.PARAGON_MAX), 0.15, 1.0)
+	var hi := int(span[0]) + int(round(float(int(span[1]) - int(span[0])) * reach))
+	return rng.randi_range(int(span[0]), maxi(int(span[0]), hi))
+
+
+## A showpiece (ของเด่น): gear at +HOT_PLUS or more, a 250★ set piece, or one of the rare
+## goods in HOT_GOODS (the set core, the Dragon God costume's fragment, the sky dragon's egg).
+static func is_hot(item: Dictionary) -> bool:
+	match String(item.get("kind", "")):
+		"equip":
+			return int(item.get("plus", 0)) >= HOT_PLUS or SetGearData.is_item(item)
+		"jewel":
+			return HOT_GOODS.has(String(item.get("id", "")))
+	return false
+
+
+## Whether a stall may lay out `item`: never the Dragon God's weapon or wings, a costume,
+## the Legendary Guild Wings or anything else that may not be traded or saved.
+static func sellable(item: Dictionary) -> bool:
+	if DragonGearData.is_item(item) or ItemData.is_costume(item) or LegendWings.is_item(item):
+		return false
+	return OnlineTrade.tradable(item) and Game._valid_item(item)
 
 
 static func _rarity_by(rng: RandomNumberGenerator, odds: Array) -> int:
@@ -377,7 +667,9 @@ static func haggle(i: int, k: int, t: float = -1.0) -> Dictionary:
 	return out
 
 
-## The hero buys lot k of stall i: gold spent, the lot in the bag and gone from the stall.
+## The hero buys lot k of stall i: gold spent, the lot in the bag (in the shared storage
+## when the bag is full, Game.give_or_store) and gone from the stall. Nothing is spent
+## when neither has room.
 static func buy(i: int, k: int, t: float = -1.0) -> bool:
 	t = _now(t)
 	for e in stock(i, t):
@@ -388,15 +680,12 @@ static func buy(i: int, k: int, t: float = -1.0) -> bool:
 		if int(Game.profile.gold) < price:
 			Game.say("เหรียญไม่พอ", &"warning")
 			return false
-		var stacks: bool = ItemData.is_stackable(item) and Game.profile.inv.any(func(x): return x.get("kind", "") == item.get("kind", "") and x.get("id") == item.id)
-		if not stacks and Game.inventory_free() <= 0:
-			Game.say("กระเป๋าเต็ม", &"warning")
-			return false
 		if item.get("kind", "") == "equip":
 			item["uid"] = ItemData.make_uid()
+		if not Game.give_or_store(item):
+			return false
 		Game.profile.flags[_flag_key(i, window(i, t), k)] = 1
 		Game.spend_gold(price)
-		Game.add_item(item)
 		Game.mark_dirty()
 		return true
 	return false
@@ -510,8 +799,6 @@ static func _thousands(n: int) -> String:
 	return text + out
 
 
-## Stall keeper i calls out one of the lots it still has at time t for the world chat
-## ("ร้านลุงหมี: มีดาบระดับหายาก Lv.27 ราคา 3,200 แวะดูได้"); "" with nothing left.
 ## The name of one lot of `kind` (equip / potion / jewel) stall i really has now, as a
 ## chat line says it ("ดาบนักล่า +0" is never claimed as +8), or "" when it has none.
 static func lot_name(i: int, kind: String, pick: int, t: float = -1.0) -> String:
@@ -520,18 +807,22 @@ static func lot_name(i: int, kind: String, pick: int, t: float = -1.0) -> String
 	var lots := stock(i, _now(t)).filter(func(e): return String(e.item.get("kind", "")) == kind)
 	if lots.is_empty():
 		return ""
-	var item: Dictionary = lots[absi(pick) % lots.size()].item
-	var plus := int(item.get("plus", 0))
-	return ItemData.name_of(item) + (" +%d" % plus if plus > 0 else "")
+	# ItemData.name_of already leads with the + ("+12 ดาบ..."), as the stall shows it.
+	return ItemData.name_of(lots[absi(pick) % lots.size()].item)
 
 
+## Stall keeper i calls out one of the lots it still has at time t for the world chat
+## ("ร้านลุงหมี: มี+8 ดาบระดับหายาก Lv.27 ราคา 3,200 แวะดูได้"); "" with nothing left.
+## A showpiece it has (is_hot) is called out half the time, as "ของเด่น".
 static func announcement(i: int, t: float = -1.0) -> String:
 	t = _now(t)
 	var lots := stock(i, t)
 	if lots.is_empty():
 		return ""
 	var name := String(WorldPlayers.entry(i).name)
-	var e: Dictionary = lots[absi(hash("announce|%s|%d" % [name, int(t / 600.0)])) % lots.size()]
+	var roll := absi(hash("announce|%s|%d" % [name, int(t / 600.0)]))
+	var hot := lots.filter(func(x): return bool(x.get("hot", false)))
+	var e: Dictionary = hot[roll % hot.size()] if not hot.is_empty() and roll % 2 == 0 else lots[roll % lots.size()]
 	var item: Dictionary = e.item
 	var what := ItemData.name_of(item)
 	if String(item.get("kind", "")) == "equip":
@@ -539,6 +830,8 @@ static func announcement(i: int, t: float = -1.0) -> String:
 	elif int(item.get("count", 1)) > 1:
 		what = "%s ×%d" % [what, int(item.count)]
 	var shop := name if name.begins_with("ร้าน") else "ร้าน" + name
+	if bool(e.get("hot", false)):
+		return "%s: มีของเด่น %s ราคา %s แวะดูได้" % [shop, what, _thousands(int(e.price))]
 	return "%s: มี%s ราคา %s แวะดูได้" % [shop, what, _thousands(int(e.price))]
 
 

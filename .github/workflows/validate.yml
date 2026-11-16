@@ -404,6 +404,11 @@ jobs:
           sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0
       - name: Import assets
         run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
+      - name: "Stall goods worth buying (+ by the keeper's progress: a veteran's +7..+12 and a rare +13..+15 ของเด่น; star, divine, 200★ jewellery, 100★ wings, a very rare 250★ set piece; sky isle goods only from ★300; socketed with the class's gems; no Dragon God gear or costumes; prices carry the jewels of the +; best first; full bag goes to storage; saves valid)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-stall-goods
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/stall_goods_test.tscn
       - name: boss_attack_test
         timeout-minutes: 10
         env:

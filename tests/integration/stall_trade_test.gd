@@ -106,7 +106,8 @@ func _stock(i: int, t: float) -> void:
 					check(int(e.price) > 0, "%s: has a price" % ItemData.name_of(item))
 	print("stall_trade_test: gear by rarity across the stalls %s, %d of %d weapons for the hero's class" % [rarities, for_hero, weapons])
 	check(weapons > 0 and for_hero * 2 > weapons, "weapons are mostly for the hero's class (%d of %d)" % [for_hero, weapons])
-	check(int(rarities.get(2, 0)) > int(rarities.get(3, 0)) and int(rarities.get(3, 0)) > int(rarities.get(4, 0)) and int(rarities.get(4, 0)) >= 0, "the rarer the grade, the rarer the find (%s)" % [rarities])
+	# Keepers bring their good finds: legendary and mythic most of the time, mythic the rarer.
+	check(int(rarities.get(3, 0)) + int(rarities.get(4, 0)) > int(rarities.get(2, 0)) and int(rarities.get(3, 0)) > int(rarities.get(4, 0)) and int(rarities.get(4, 0)) > 0, "legendary and mythic most, mythic rarer than legendary (%s)" % [rarities])
 
 
 func _buy(i: int, t: float) -> void:
