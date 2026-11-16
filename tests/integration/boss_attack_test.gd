@@ -180,6 +180,25 @@ func run_runtime() -> void:
 	check(boss.get_children().any(func(n): return n is BossAttack) and boss._winding, "_begin_slam dispatches to BossAttack")
 	check(boss._slam_timer == Mob.SLAM_INTERVAL, "phase 0-1 keeps the 8 s slam rhythm")
 	boss.free()
+	# The rare crystal dragon keeps a faster rhythm of its own, quicker still enraged.
+	var prism := make_actor(RareDragon.ID, target)
+	prism._winding = false
+	prism._begin_slam()
+	check(is_equal_approx(prism._slam_timer, RareDragon.SLAM_EVERY), "the rare dragon slams every %.0f s (%.1f)" % [RareDragon.SLAM_EVERY, prism._slam_timer])
+	var prism_turns: Array[String] = []
+	for i in 2:
+		prism_turns.append(BossAttack.pick(prism))
+	check(prism_turns.has("chain_lightning") and prism_turns.has("thunder_cage"), "and takes turns with both lightning moves from the start")
+	prism.phase = 2
+	prism._winding = false
+	for child in prism.get_children():
+		if child is BossAttack:
+			child.free()
+	prism._begin_slam()
+	check(prism._slam_timer < RareDragon.SLAM_EVERY and prism._slam_timer <= BossAttack.P2_INTERVAL, "enraged it slams faster (%.1f s)" % prism._slam_timer)
+	prism.free()
+	# The Dragon God's moves strike off his attack, five times what was measured (SkyIsleData.BOSS_ATK).
+	check(is_equal_approx(float(SkyIsleData.TUNING[3]), 513.0 * SkyIsleData.BOSS_ATK) and is_equal_approx(SkyIsleData.BOSS_ATK, 5.0), "the Dragon God hits five times as hard")
 	# The abyss boss is the summoner's Poseidon: his rig, his skills, his clips, both from the start.
 	var poseidon := make_actor(&"tidal_tyrant", target)
 	check(String(poseidon.template.model) == "summon/Poseidon" and String(poseidon.template.get("legend", "")) == "poseidon", "the abyss boss is Poseidon")

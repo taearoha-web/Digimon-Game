@@ -48,6 +48,17 @@ extends Node3D
 ##                          high quality, budget) a soft emerald light. It perches a
 ##                          little further out on the arm and circles wider and
 ##                          higher, and its strikes burst in emerald (LordSkillArt).
+##   Dragon God scepter     the Dragon God raven (อีกาเทพมังกรอเวจี), the set raven's size and
+##   (คทาเทพมังกรอเวจี)      flight dressed in the scepter's jade and gold (DragonGearData):
+##                          jade plumage with glowing jade vanes and gold-tipped primaries,
+##                          gold-rimmed jade scales down the breast, a gold dorsal ridge,
+##                          branching gold dragon horns, a jade mane and two long gold
+##                          whiskers on the head, eyes in the class's glow, a tail of two
+##                          trailing dragon whiskers round a jade fin streamer, a dragon
+##                          pearl circling it, the scepter's breath (DragonGearArt's jade
+##                          wisp shell) round its body, jade-and-gold motes, a jade
+##                          afterimage of the wingbeat and (budget) a soft jade light; its
+##                          strikes burst in jade and gold (LordSkillArt.JADE).
 ## The glow, the moving extras and the stardust follow the graphics quality (none
 ## on the lowest, or while memory is tight; the stardust is one draw surface that
 ## counts as a VfxBudget decoration); the colours and shapes stay at every quality.
@@ -64,9 +75,9 @@ const LEASH := 22.0
 const GROUP_RADIUS := 3.2
 const VIOLET := Color("8a4dff")
 ## The bird's look, from the owner's weapon (look_for).
-enum Look { PLAIN, FIRE, ICE, SHADOW, HOLY, THUNDER, CROWN, STAR_50, STAR_100, STAR_150, STAR_200, DIVINE, ABYSS }
+enum Look { PLAIN, FIRE, ICE, SHADOW, HOLY, THUNDER, CROWN, STAR_50, STAR_100, STAR_150, STAR_200, DIVINE, ABYSS, DRAGON }
 const LOOK_NAMES := ["อีกาทมิฬ", "อีกามังกรเพลิง", "อีกาน้ำแข็ง", "อีกาเงามืด", "อีกาศักดิ์สิทธิ์", "อีกาสายฟ้า",
-	"ราชาอีกา", "อีกาดารา ★50", "อีกาดารา ★100", "อีกาดารา ★150", "อีกาดารา ★200", "จักรพรรดิอีกาทมิฬ", "อีกาจักรพรรดิอเวจี"]
+	"ราชาอีกา", "อีกาดารา ★50", "อีกาดารา ★100", "อีกาดารา ★150", "อีกาดารา ★200", "จักรพรรดิอีกาทมิฬ", "อีกาจักรพรรดิอเวจี", "อีกาเทพมังกรอเวจี"]
 ## The divine raven's size: bigger birds (the set look) circle wider and higher in
 ## proportion and reach further for the strike (reach()).
 const DIVINE_SIZE := 1.24
@@ -84,6 +95,7 @@ static var _dust_material: StandardMaterial3D
 ## The set raven's static parts merged per moving pivot and material (_bake), by
 ## look, quality and place in the build: built once, shared by every set raven.
 static var _baked: Dictionary = {}
+static var _breath_mat: ShaderMaterial
 const BAKE_LIMIT := 160
 
 var owner_ref: WeakRef
@@ -136,8 +148,8 @@ var _dust_retry := 0.0
 var _scale := 1.0
 var _wants_dust := false
 var _dust_sink := DUST_SINK
-## Set look: the flowing tail ribbons (every segment pivot with its wave phase),
-## the wing afterimages (one shared fading material), the emerald light, the beak tip.
+## Set and dragon looks: the flowing tail ribbons (every segment pivot with its wave
+## phase), the wing afterimages (one shared fading material), the light, the beak tip.
 var _ribbons: Array[Node3D] = []
 var _ribbon_phase: PackedFloat32Array = PackedFloat32Array()
 var _ghosts: Array[Node3D] = []
@@ -146,6 +158,8 @@ var _ghost_mat: StandardMaterial3D
 var _flap_amp := 0.0
 var _light: OmniLight3D
 var _beak: Node3D
+## Dragon look: the scepter's breath round the body (DragonGearArt's wisp shell), rich only.
+var _breath: MeshInstance3D
 
 
 ## Gives `owner_node` a raven (once) and returns it.
@@ -195,11 +209,14 @@ func _ready() -> void:
 
 
 ## Which look a weapon gives the raven: the scepter's tier (Lv.50-90 themes, the
-## Lv.100 crown), a star scepter's tier, the divine scepter or the set scepter.
+## Lv.100 crown), a star scepter's tier, the divine scepter, the set scepter or the
+## Dragon God scepter.
 static func look_for(weapon: Variant) -> int:
 	if not (weapon is Dictionary) or (weapon as Dictionary).is_empty():
 		return Look.PLAIN
-	if SetGearData.is_item(weapon) or DragonGearData.is_weapon(weapon):
+	if DragonGearData.is_weapon(weapon):
+		return Look.DRAGON
+	if SetGearData.is_item(weapon):
 		return Look.ABYSS
 	if DivineGearData.is_item(weapon):
 		return Look.DIVINE
@@ -215,6 +232,12 @@ static func look_for(weapon: Variant) -> int:
 ## quality, memory not tight).
 static func rich() -> bool:
 	return GameSettings.quality > 0 and MemoryGuard.pressure < 2
+
+
+## The big birds (the set raven and the Dragon God raven): their size, perch, reach,
+## long primaries, ribbons, afterimages and light.
+static func grand(p_look: int) -> bool:
+	return p_look == Look.ABYSS or p_look == Look.DRAGON
 
 
 ## The colours and extras of a look (built once per look).
@@ -276,6 +299,16 @@ static func palette(p_look: int) -> Dictionary:
 				"covert": Color("181022"), "second": Color("0e0a16"), "glow": 1.1, "size": DIVINE_SIZE * SET_SIZE, "rim": true,
 				"fx": "abyss", "dust": 22, "dust_a": s.gem, "dust_b": s.edge, "dust_size": 0.2, "dust_sink": -0.45,
 				"accent": s.glow, "metal": s.metal, "cloth": s.cloth, "pale": s.edge, "horn": horn.lightened(0.14)}, true)
+		Look.DRAGON:
+			# The Dragon God scepter (DragonGearArt.palette "darklord"): jade and gold, the
+			# class's own glow in the eyes and its gem in the pearl.
+			var d := DragonGearArt.palette("darklord")
+			p.merge({"black": Color("0d3a33"), "sheen": Color("1f7f6a"), "edge": d.glow, "tip": DragonGearData.GOLD,
+				"dark": Color("072622"), "beak": Color("143d36"), "feet": Color("8c6a2c"), "eye": d.eye,
+				"covert": Color("17614f"), "second": Color("0b2e29"), "glow": 1.1, "size": DIVINE_SIZE * SET_SIZE, "rim": true,
+				"fx": "dragon", "dust": 22, "dust_a": d.glow, "dust_b": DragonGearData.GOLD_LIGHT, "dust_size": 0.2, "dust_sink": -0.45,
+				"accent": DragonGearData.GOLD, "metal": Color("d29a32"), "cloth": DragonGearData.JADE, "pale": DragonGearData.JADE_LIGHT,
+				"scale": Color("1d8c70"), "pearl": d.pearl}, true)
 	_palettes[p_look] = p
 	return p
 
@@ -332,6 +365,7 @@ func _rebuild() -> void:
 	_ghost_mat = null
 	_light = null
 	_beak = null
+	_breath = null
 	_build()
 	_animate(0.0, "perch" if state == State.PERCH else "glide")
 
@@ -345,7 +379,7 @@ func _perch(lord: Node3D) -> Vector3:
 	var visual := _visual(lord)
 	if visual != null:
 		var at := visual.perch_point()
-		if look == Look.ABYSS:
+		if DarkRaven.grand(look):
 			# The big bird stands further out to the side of the arm, clear of the Lord.
 			var side := visual.global_basis.x.normalized()
 			at += side * signf((at - visual.global_position).dot(side)) * PERCH_OUT
@@ -354,7 +388,7 @@ func _perch(lord: Node3D) -> Vector3:
 
 
 ## How much further than the divine raven this bird circles and reaches (1 up to
-## the divine look, SET_SIZE for the set raven).
+## the divine look, SET_SIZE for the set and dragon ravens).
 func reach() -> float:
 	return maxf(1.0, _scale / DIVINE_SIZE)
 
@@ -452,7 +486,7 @@ func _fight(lord: Node3D, target: Mob, delta: float) -> void:
 			_dive = 0.0
 			_retarget = 0.0
 			LordSkillArt.raven_peck(target.get_parent() as Node3D, goal, from, group, GROUP_RADIUS,
-				LordSkillArt.ABYSS if look == Look.ABYSS else LordSkillArt.FORCE)
+				LordSkillArt.ABYSS if look == Look.ABYSS else (LordSkillArt.JADE if look == Look.DRAGON else LordSkillArt.FORCE))
 	_fly_to(goal, delta, SPEED * (1.5 if _strike_timer <= 0.0 else 0.8) * sqrt(k))
 	_bank = lerpf(_bank, 28.0 if _strike_timer > 0.0 else 0.0, minf(1.0, delta * 4.0))
 	_animate(delta, pose)
@@ -538,7 +572,7 @@ func _animate(delta: float, pose: String) -> void:
 		foot.rotation_degrees.x = -_pitch + 70.0 * maxf(0.0, -_legs) - 75.0 * maxf(0.0, _legs)
 	var fierce := pose == "stoop" or pose == "strike"
 	if _eyes:
-		_eyes.emission_energy_multiplier = (2.6 if fierce else 1.3) * (1.4 if look == Look.DIVINE else (1.7 if look == Look.ABYSS else 1.0))
+		_eyes.emission_energy_multiplier = (2.6 if fierce else 1.3) * (1.4 if look == Look.DIVINE else (1.7 if DarkRaven.grand(look) else 1.0))
 	_animate_look(delta, fierce)
 
 
@@ -595,8 +629,8 @@ func _update_dust(delta: float) -> void:
 	if _dust_timer <= 0.0 and _tail != null:
 		_dust_timer = DUST_LIFE / float(n) * (1.6 if state == State.PERCH else 1.0)
 		var from := _tail.global_transform * Vector3(0, 0, -0.3)
-		if look == Look.ABYSS and _hands.size() == 2 and _dust_head % 3 != 0:
-			# The set raven sheds motes from both wing tips as well as the tail.
+		if DarkRaven.grand(look) and _hands.size() == 2 and _dust_head % 3 != 0:
+			# The set and dragon ravens shed motes from both wing tips as well as the tail.
 			var side := -1.0 if _dust_head % 3 == 1 else 1.0
 			from = _hands[(_dust_head % 3) - 1].global_transform * Vector3(side * 0.42, 0, -0.12)
 		_dust_at[_dust_head] = from
@@ -679,6 +713,7 @@ func _build() -> void:
 	var rim: bool = p.rim
 	var glow: float = p.glow
 	var abyss := fx == "abyss"
+	var big := DarkRaven.grand(look)
 	_scale = float(p.size)
 	_root = Node3D.new()
 	_root.name = "Raven"
@@ -691,8 +726,8 @@ func _build() -> void:
 	var edge := _mat(p.edge, rim, glow * 0.3)
 	var dark := _mat(p.dark, rim)
 	var beak := _mat(p.beak, rim)
-	var feet := MeshKit.toon(p.feet, {"rim": true} if abyss else {})
-	var gold := MeshKit.toon(p.accent, {"emission": 0.15 if not abyss else 0.9})
+	var feet := MeshKit.toon(p.feet, {"rim": true} if big else {})
+	var gold := MeshKit.toon(p.accent, {"emission": 0.15 if not big else (0.9 if abyss else 0.35), "rim": big})
 	var jess := MeshKit.toon(Color("a01e30"))
 	var tip := _mat(p.tip, rim)
 	if glow > 0.0 and fancy:
@@ -700,11 +735,11 @@ func _build() -> void:
 		_glow_energy = glow
 		tip = _glow
 	_eyes = (MeshKit.toon(p.eye, {"emission": 1.3}) as StandardMaterial3D).duplicate()
-	if abyss:
-		# Edge and tip glow at every quality on the set bird (the colour is its plumage).
+	if big:
+		# Edge and tip glow at every quality on the big birds (the colour is their plumage).
 		edge = MeshKit.toon(p.edge, {"rim": true, "emission": glow * (0.45 if fancy else 0.25)})
 		if _glow == null:
-			tip = MeshKit.toon(p.tip, {"emission": 0.6})
+			tip = MeshKit.toon(p.tip, {"emission": 0.6 if abyss else 0.3, "rim": true})
 	_body = Node3D.new()
 	_body.name = "Body"
 	_body.position = Vector3(0, 0.2, 0)
@@ -729,15 +764,15 @@ func _build() -> void:
 	for k in 3:
 		_piece(_head, MeshKit.cone(), black, Vector3((float(k) - 1.0) * 0.04, -0.07, 0.07), Vector3(0.05, 0.08, 0.04), Vector3(160, 0, (float(k) - 1.0) * 12.0))
 	# Brows over glowing eyes (gold brows on the emperor).
-	var brow := gold if fx in ["divine", "abyss"] else dark
+	var brow := gold if fx in ["divine", "abyss", "dragon"] else dark
 	for side in [-1.0, 1.0]:
 		_piece(_head, MeshKit.box(), brow, Vector3(side * 0.07, 0.075, 0.075), Vector3(0.07, 0.022, 0.06), Vector3(0, 0, side * -18.0))
-		_piece(_head, MeshKit.sphere_low(), _eyes, Vector3(side * 0.078, 0.04, 0.08), Vector3(0.045, 0.045, 0.04) * (1.25 if fx in ["divine", "abyss"] else 1.0))
+		_piece(_head, MeshKit.sphere_low(), _eyes, Vector3(side * 0.078, 0.04, 0.08), Vector3(0.045, 0.045, 0.04) * (1.25 if fx in ["divine", "abyss", "dragon"] else 1.0))
 	# The heavy beak: a thick base, a long ridge curving down to the tip, a lower mandible.
 	_piece(_head, MeshKit.sphere_low(), beak, Vector3(0, 0.01, 0.12), Vector3(0.085, 0.075, 0.08))
 	_piece(_head, MeshKit.cone(), beak, Vector3(0, 0.012, 0.19), Vector3(0.07, 0.15, 0.06), Vector3(96, 0, 0))
 	_piece(_head, MeshKit.cone(), beak, Vector3(0, -0.018, 0.17), Vector3(0.05, 0.1, 0.04), Vector3(84, 0, 0))
-	_piece(_head, MeshKit.cone(), gold if fx in ["holy", "divine", "abyss"] else beak, Vector3(0, -0.006, 0.262), Vector3(0.025, 0.035, 0.02), Vector3(150, 0, 0))
+	_piece(_head, MeshKit.cone(), gold if fx in ["holy", "divine", "abyss", "dragon"] else beak, Vector3(0, -0.006, 0.262), Vector3(0.025, 0.035, 0.02), Vector3(150, 0, 0))
 	_beak = Node3D.new()
 	_beak.name = "BeakTip"
 	_beak.position = Vector3(0, -0.006, 0.27)
@@ -763,14 +798,14 @@ func _build() -> void:
 			_piece(hand, MeshKit.sphere_low(), edge, Vector3(side * 0.05, 0.008, 0.055), Vector3(0.14, 0.022, 0.04))
 		# The five fingered flight feathers, the look's colour towards the tips (the
 		# set bird spreads seven longer ones).
-		var primaries := 7 if abyss else 5
+		var primaries := 7 if big else 5
 		for k in primaries:
-			var ang: float = side * ((10.0 - k * 11.0) if abyss else (4.0 - k * 15.0))
+			var ang: float = side * ((10.0 - k * 11.0) if big else (4.0 - k * 15.0))
 			var feather := Node3D.new()
-			feather.position = Vector3(side * 0.05, -0.004 * k, -0.01 - k * (0.03 if abyss else 0.035))
+			feather.position = Vector3(side * 0.05, -0.004 * k, -0.01 - k * (0.03 if big else 0.035))
 			feather.rotation_degrees = Vector3(0, ang, 0)
 			hand.add_child(feather)
-			var length := (0.58 - k * 0.035) if abyss else (0.42 - k * 0.04)
+			var length := (0.58 - k * 0.035) if big else (0.42 - k * 0.04)
 			_piece(feather, MeshKit.sphere_low(), dark if k % 2 == 0 else black, Vector3(side * length * 0.5, 0, 0), Vector3(length, 0.016, 0.105))
 			_piece(feather, MeshKit.sphere_low(), tip, Vector3(side * (length - 0.07), 0.003, 0), Vector3(0.12, 0.017, 0.08))
 			_feather_extra(feather, fx, side, length, k)
@@ -785,7 +820,7 @@ func _build() -> void:
 	for k in 5:
 		var feather := Node3D.new()
 		_tail.add_child(feather)
-		var length := 0.36 - absf(float(k) - 2.0) * 0.05 + (0.14 if abyss else 0.0)
+		var length := 0.36 - absf(float(k) - 2.0) * 0.05 + (0.14 if big else 0.0)
 		_piece(feather, MeshKit.sphere_low(), black if k != 2 else sheen, Vector3(0, -0.002 * absf(k - 2.0), -length * 0.5), Vector3(0.08, 0.016, length))
 		_piece(feather, MeshKit.sphere_low(), tip, Vector3(0, 0.001, -length + 0.06), Vector3(0.07, 0.017, 0.1))
 		_tail_extra(feather, fx, length, k)
@@ -813,6 +848,9 @@ func _build() -> void:
 	_head_extra(fx, p)
 	if abyss:
 		_abyss_extras(p, edge)
+	elif big:
+		_dragon_extras(p, edge)
+	if big:
 		_bake()
 	_wants_dust = fancy and int(p.dust) > 0
 	if _wants_dust:
@@ -829,6 +867,13 @@ func _feather_extra(feather: Node3D, fx: String, side: float, length: float, k: 
 		_piece(feather, MeshKit.sphere_low(), _mat(DarkRaven.palette(look).edge, true, 1.1), Vector3(side * length * 0.56, 0.009, -0.036), Vector3(length * 0.86, 0.012, 0.022))
 		if fancy and k % 3 == 0:
 			_add_fx(Fx.TWINKLE, _piece(feather, MeshKit.sphere_low(), _flame(DarkRaven.palette(look).pale), Vector3(side * (length - 0.02), 0.014, 0), Vector3(0.026, 0.026, 0.026)), k * 1.1 + side)
+	if fx == "dragon":
+		# A glowing jade vane down each flight feather and a gold quill to its tip.
+		var p := DarkRaven.palette(look)
+		_piece(feather, MeshKit.sphere_low(), _mat(p.edge, true, 1.0), Vector3(side * length * 0.56, 0.009, -0.036), Vector3(length * 0.86, 0.012, 0.022))
+		_piece(feather, MeshKit.sphere_low(), _mat(p.metal, true, 0.35), Vector3(side * length * 0.5, 0.011, 0.004), Vector3(length * 0.9, 0.01, 0.012))
+		if fancy and k % 3 == 0:
+			_add_fx(Fx.TWINKLE, _piece(feather, MeshKit.sphere_low(), _flame(DragonGearData.GOLD_LIGHT), Vector3(side * (length - 0.02), 0.014, 0), Vector3(0.026, 0.026, 0.026)), k * 1.1 + side)
 	if not fancy:
 		return
 	match fx:
@@ -884,6 +929,22 @@ func _wing_extra(wing: Node3D, hand: Node3D, fx: String, side: float) -> void:
 				_piece(wing, MeshKit.sphere_low(), glow, Vector3(side * (0.04 + k * 0.066), -0.004, -0.255), Vector3(0.1, 0.02, 0.05), Vector3(0, side * -6.0, 0))
 			_piece(hand, MeshKit.sphere_low(), bright, Vector3(side * 0.06, 0.014, 0.06), Vector3(0.16, 0.022, 0.026))
 			_piece(hand, MeshKit.sphere_low(), glow, Vector3(side * 0.04, 0.012, -0.08), Vector3(0.14, 0.02, 0.03))
+		"dragon":
+			var p := DarkRaven.palette(look)
+			var gold := _mat(p.metal, true)
+			var scale_mat := _mat(p.scale, true)
+			var glow := MeshKit.toon(p.edge, {"rim": true, "emission": 0.7})
+			# A gold leading edge, jade scale coverts each rimmed in gold (a gold scale a
+			# little bigger behind each jade one), and glowing jade tips on the secondaries.
+			_piece(wing, MeshKit.sphere_low(), gold, Vector3(side * 0.21, 0.022, 0.088), Vector3(0.42, 0.028, 0.032))
+			for k in 4:
+				var x := side * (0.06 + k * 0.095)
+				_piece(wing, MeshKit.sphere_low(), gold, Vector3(x, 0.02, 0.006), Vector3(0.145, 0.03, 0.165), Vector3(0, side * -10.0, 0))
+				_piece(wing, MeshKit.sphere_low(), scale_mat, Vector3(x, 0.028, 0.014), Vector3(0.12, 0.032, 0.14), Vector3(0, side * -10.0, 0))
+			for k in 6:
+				_piece(wing, MeshKit.sphere_low(), glow, Vector3(side * (0.04 + k * 0.066), -0.004, -0.255), Vector3(0.1, 0.02, 0.05), Vector3(0, side * -6.0, 0))
+			_piece(hand, MeshKit.sphere_low(), gold, Vector3(side * 0.06, 0.014, 0.06), Vector3(0.16, 0.024, 0.028))
+			_piece(hand, MeshKit.sphere_low(), glow, Vector3(side * 0.04, 0.012, -0.08), Vector3(0.14, 0.02, 0.03))
 
 
 ## Extras on a tail feather.
@@ -901,6 +962,9 @@ func _tail_extra(feather: Node3D, fx: String, length: float, k: int) -> void:
 		"thunder":
 			if fancy and k == 2:
 				_add_fx(Fx.GLINT, _bolt(feather, Vector3(0, 0.012, -length * 0.6), 1.0, 0.16, true), 0.81)
+		"dragon":
+			# A gold quill down every tail feather (the streamers are _dragon_extras).
+			_piece(feather, MeshKit.sphere_low(), _mat(DarkRaven.palette(look).metal, true, 0.4), Vector3(0, 0.006, -length * 0.55), Vector3(0.016, 0.012, length * 0.8))
 		"abyss":
 			# An emerald quill down every tail feather (the ribbons are _abyss_extras).
 			_piece(feather, MeshKit.sphere_low(), _mat(DarkRaven.palette(look).edge, true, 1.0), Vector3(0, 0.006, -length * 0.55), Vector3(0.018, 0.012, length * 0.8))
@@ -945,6 +1009,8 @@ func _head_extra(fx: String, p: Dictionary) -> void:
 					_piece(_head, MeshKit.sphere_low(), _mat(p.tip, true, 1.0), Vector3(off * 0.03, 0.13 - absf(off) * 0.015, -0.08), Vector3(0.022, 0.016, 0.18 - absf(off) * 0.04), Vector3(-34, off * 16.0, 0))
 		"abyss":
 			_abyss_crown(p)
+		"dragon":
+			_dragon_crown(p)
 		"divine":
 			if fancy:
 				for side in [-1.0, 1.0]:
@@ -1092,6 +1158,186 @@ func _abyss_extras(p: Dictionary, edge: Material) -> void:
 		_light.position = Vector3(0, 0.22, 0)
 		_root.add_child(_light)
 		VfxBudget.track_light(_light)
+
+
+## The Dragon God raven's head: branching gold dragon horns sweeping back from the
+## brow, a jade mane down the nape, two long gold whiskers curling from the beak, the
+## class's gem on the brow and (rich) jade fire over the eyes.
+func _dragon_crown(p: Dictionary) -> void:
+	var gold := _mat(p.metal, true)
+	var glow := MeshKit.toon(p.edge, {"rim": true, "emission": 1.1})
+	var jade := _mat(p.scale, true)
+	var gem := MeshKit.toon(p.pearl, {"unshaded": true, "emission": 1.8})
+	for side in [-1.0, 1.0]:
+		# The horn: a gold antler sweeping back from the brow, one tine rising from it.
+		var pts := [Vector3(side * 0.05, 0.11, 0.03), Vector3(side * 0.075, 0.16, -0.02), Vector3(side * 0.09, 0.2, -0.09), Vector3(side * 0.085, 0.225, -0.17)]
+		var widths := [0.05, 0.04, 0.028]
+		for k in 3:
+			_segment(_head, MeshKit.cone() if k == 2 else MeshKit.cylinder(), gold, pts[k], pts[k + 1], widths[k])
+		_segment(_head, MeshKit.cone(), gold, pts[1], pts[1] + Vector3(side * 0.03, 0.06, 0.015), 0.02)
+		for k in 2:
+			var inward := Vector3(-side * 0.014, 0.006, 0.01)
+			_segment(_head, MeshKit.cone() if k == 1 else MeshKit.cylinder(), glow, pts[k] + inward, pts[k + 1] + inward, 0.014)
+		# The whisker: a thin gold strand curling out and down from the base of the beak.
+		var w := [Vector3(side * 0.035, -0.005, 0.17), Vector3(side * 0.09, -0.025, 0.16), Vector3(side * 0.14, -0.07, 0.1), Vector3(side * 0.16, -0.13, 0.02), Vector3(side * 0.15, -0.18, -0.05)]
+		for k in 4:
+			_segment(_head, MeshKit.cone() if k == 3 else MeshKit.cylinder(), gold, w[k], w[k + 1], 0.01 - k * 0.0012)
+		_piece(_head, MeshKit.sphere_low(), glow, w[4], Vector3(0.018, 0.018, 0.018))
+	# The jade mane: glowing spikes down the nape, longest in the middle.
+	for k in 5:
+		var off := float(k) - 2.0
+		_piece(_head, MeshKit.cone(), glow if k % 2 == 0 else jade, Vector3(off * 0.028, 0.1 - absf(off) * 0.012, -0.09 - absf(off) * 0.01),
+			Vector3(0.03, 0.15 - absf(off) * 0.025, 0.02), Vector3(-120 + absf(off) * 6.0, off * 14.0, 0))
+	# A gold brow crest round the class's gem.
+	_piece(_head, MeshKit.torus(), gold, Vector3(0, 0.1, 0.075), Vector3(0.07, 0.05, 0.07), Vector3(-70, 0, 0))
+	_piece(_head, MeshKit.sphere_low(), gem, Vector3(0, 0.1, 0.085), Vector3(0.034, 0.034, 0.03))
+	if fancy:
+		for side in [-1.0, 1.0]:
+			_add_fx(Fx.FLAME, _piece(_head, MeshKit.cone(), _flame(p.eye), Vector3(side * 0.09, 0.085, 0.065), Vector3(0.04, 0.11, 0.03), Vector3(-40, 0, side * -32.0)), side * 1.9)
+
+
+## The rest of the Dragon God raven: gold-rimmed jade scales down the breast, a gold
+## dorsal ridge, a ruff of jade and gold hackles, its tail streamers (every quality: two
+## trailing gold whiskers round a jade fin streamer), and when rich the jade wing
+## afterimages, the dragon pearl circling it, the scepter's breath round its body and
+## the light.
+func _dragon_extras(p: Dictionary, edge: Material) -> void:
+	var gold := _mat(p.metal, true)
+	var jade := _mat(p.scale, true)
+	var gem := MeshKit.toon(p.pearl, {"unshaded": true, "emission": 1.8})
+	# Breast scales: overlapping rows of jade plates, each on a slightly bigger gold one
+	# (its rim), offset row to row like a dragon's belly.
+	for r in 6:
+		var n := 4 if r % 2 == 0 else 3
+		var y := 0.06 - r * 0.042
+		for i in n:
+			var x := (float(i) - float(n - 1) * 0.5) * 0.046
+			var at := Vector3(x, y, 0.292 - absf(x) * 0.5 - absf(y + 0.04) * 0.25)
+			var turn := Vector3(-18, x * 260.0, 0)
+			_piece(_body, MeshKit.sphere_low(), gold, at, Vector3(0.05, 0.046, 0.014), turn)
+			_piece(_body, MeshKit.sphere_low(), jade, at + Vector3(0, 0.005, 0.004), Vector3(0.04, 0.036, 0.014), turn)
+	_piece(_body, MeshKit.sphere_low(), gem, Vector3(0, 0.1, 0.27), Vector3(0.04, 0.04, 0.03))
+	# A ruff of hackles round the neck, jade and gold in turn.
+	for k in 7:
+		var a := PI * (float(k) / 6.0 - 0.5) * 1.5
+		_piece(_body, MeshKit.cone(), edge if k % 2 == 0 else gold, Vector3(sin(a) * 0.12, 0.09 + cos(a) * 0.03, 0.2 + cos(a) * 0.03), Vector3(0.04, 0.1, 0.03), Vector3(-95, 0, -rad_to_deg(a) * 0.8))
+	# The dorsal ridge: gold spines down the back, a jade glow along their foot.
+	for k in 5:
+		var z := 0.12 - k * 0.075
+		_piece(_body, MeshKit.cone(), gold, Vector3(0, 0.155 - k * 0.006, z), Vector3(0.03, 0.07 - k * 0.006, 0.04), Vector3(-30, 0, 0))
+	_piece(_body, MeshKit.sphere_low(), edge, Vector3(0, 0.15, -0.03), Vector3(0.02, 0.016, 0.36))
+	# Gold chevrons down the back either side of the ridge, a jade line along each flank.
+	for side in [-1.0, 1.0]:
+		for k in 3:
+			_piece(_body, MeshKit.sphere_low(), gold, Vector3(side * 0.05, 0.16 - k * 0.012, 0.09 - k * 0.11), Vector3(0.016, 0.014, 0.12 - k * 0.015), Vector3(0, side * 32.0, 0))
+		_piece(_body, MeshKit.sphere_low(), edge, Vector3(side * 0.14, 0.02, -0.06), Vector3(0.016, 0.022, 0.26), Vector3(0, side * 6.0, 0))
+	# The tail: two long whiskers (gold strand, a jade glow, a gold tuft) round a wide jade
+	# fin streamer ending in a gold-edged fin, each a chain of pivots rippled in _animate.
+	var core := MeshKit.toon(p.edge, {"rim": true, "emission": 1.0})
+	var cloth := _mat(p.cloth, true)
+	for r in 3:
+		var off := float(r) - 1.0
+		var fin := r == 1
+		var parent: Node3D = _tail
+		var segments := 7 if fin else 6
+		var seg := 0.12 if fin else 0.13
+		for j in segments:
+			var pivot := Node3D.new()
+			pivot.position = Vector3(off * 0.05, -0.012, -0.12) if j == 0 else Vector3(0, 0, -seg)
+			if j == 0:
+				pivot.rotation_degrees.y = off * 20.0
+			parent.add_child(pivot)
+			var t := float(j) / float(segments - 1)
+			if fin:
+				var w := lerpf(0.08, 0.05, t)
+				_piece(pivot, MeshKit.sphere_low(), cloth, Vector3(0, 0, -seg * 0.5), Vector3(w, 0.008, seg * 1.3))
+				_piece(pivot, MeshKit.sphere_low(), core, Vector3(0, 0.003, -seg * 0.5), Vector3(w * 0.3, 0.01, seg * 1.25))
+				for side in [-1.0, 1.0]:
+					_piece(pivot, MeshKit.sphere_low(), gold, Vector3(side * w * 0.5, 0.0, -seg * 0.5), Vector3(0.012, 0.009, seg * 1.2))
+			else:
+				_piece(pivot, MeshKit.sphere_low(), gold, Vector3(0, 0, -seg * 0.5), Vector3(0.022 - t * 0.008, 0.016 - t * 0.006, seg * 1.25))
+				_piece(pivot, MeshKit.sphere_low(), core, Vector3(0, 0.004, -seg * 0.5), Vector3(0.01, 0.018, seg * 1.1))
+			_ribbons.append(pivot)
+			_ribbon_phase.append(float(j) * 0.9 + float(r) * 1.3)
+			parent = pivot
+		if fin:
+			# The dragon's tail fin: three gold-edged jade lobes fanned out.
+			for k in 3:
+				var a := (float(k) - 1.0) * 34.0
+				var lobe := Vector3(sin(deg_to_rad(a)) * 0.07, 0, -seg - 0.07 * cos(deg_to_rad(a)))
+				_piece(parent, MeshKit.sphere_low(), gold, lobe, Vector3(0.075, 0.01, 0.17), Vector3(0, a, 0))
+				_piece(parent, MeshKit.sphere_low(), jade, lobe + Vector3(0, 0.004, 0.005), Vector3(0.055, 0.012, 0.14), Vector3(0, a, 0))
+		else:
+			_piece(parent, MeshKit.cone(), core, Vector3(0, 0, -seg - 0.04), Vector3(0.05, 0.1, 0.02), Vector3(-90, 0, 0))
+	if not fancy:
+		return
+	# The wing afterimages: jade silhouettes of arm and hand a beat behind the wing.
+	_ghost_mat = (MeshKit.toon(p.edge, {"unshaded": true, "alpha": 0.3}) as StandardMaterial3D).duplicate()
+	_ghost_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_ghost_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	for side in [-1.0, 1.0]:
+		var ghost := Node3D.new()
+		ghost.name = "WingGhost"
+		ghost.position = Vector3(side * 0.12, 0.08, 0.08)
+		ghost.visible = false
+		_body.add_child(ghost)
+		_piece(ghost, MeshKit.sphere_low(), _ghost_mat, Vector3(side * 0.21, -0.01, -0.08), Vector3(0.46, 0.01, 0.38))
+		var hand := Node3D.new()
+		hand.position = Vector3(side * 0.4, 0, 0)
+		ghost.add_child(hand)
+		for k in 3:
+			var feather := Node3D.new()
+			feather.position = Vector3(side * 0.05, 0, -0.02 - k * 0.07)
+			feather.rotation_degrees.y = side * (8.0 - k * 26.0)
+			hand.add_child(feather)
+			_piece(feather, MeshKit.sphere_low(), _ghost_mat, Vector3(side * 0.27, -0.01, 0), Vector3(0.6 - k * 0.06, 0.01, 0.17))
+		_ghosts.append(ghost)
+		_ghost_hands.append(hand)
+	# The dragon pearl circling the bird in a gold ring, a trail of two jade wisps behind it.
+	var orbit := Node3D.new()
+	orbit.name = "DragonPearl"
+	orbit.position = Vector3(0, 0.3, -0.02)
+	_root.add_child(orbit)
+	var pearl := Vector3(0.66, 0, 0)
+	_piece(orbit, MeshKit.sphere_low(), gem, pearl, Vector3(0.075, 0.075, 0.075))
+	_piece(orbit, MeshKit.sphere_low(), MeshKit.toon(Color.WHITE, {"unshaded": true, "emission": 2.0}), pearl + Vector3(0.012, 0.02, 0.02), Vector3(0.022, 0.022, 0.022))
+	_piece(orbit, MeshKit.torus(), _mat(p.metal, true, 0.6), pearl, Vector3(0.13, 0.08, 0.13), Vector3(0, 0, 90))
+	var wisp := MeshKit.toon(p.edge, {"unshaded": true, "alpha": 0.55, "emission": 1.2})
+	for k in 2:
+		var a := -0.22 * float(k + 1)
+		_piece(orbit, MeshKit.sphere_low(), wisp, Vector3(cos(a), 0, sin(a)) * 0.66, Vector3(0.05, 0.03, 0.05) * (1.0 - 0.3 * k))
+	_add_fx(Fx.ORBIT, orbit, 0.0)
+	# The scepter's breath: its jade wisp shell (DragonGearArt) curling up round the body.
+	_breath = MeshInstance3D.new()
+	_breath.name = "DragonBreath"
+	_breath.mesh = DragonGearArt._breath_shell()
+	_breath.position = Vector3(0, -0.05, 0.0)
+	_breath.scale = Vector3(0.95, 0.85, 1.25)
+	_breath.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_breath.set_meta("no_outline", true)
+	_breath.material_override = DarkRaven._breath_material()
+	_root.add_child(_breath)
+	# A soft jade light (desktop, high quality, no memory pressure, a light free).
+	if not MemoryGuard.phone() and VfxBudget.can_light():
+		_light = OmniLight3D.new()
+		_light.name = "DragonLight"
+		_light.light_color = p.edge
+		_light.light_energy = 0.55
+		_light.omni_range = 2.2
+		_light.position = Vector3(0, 0.22, 0)
+		_root.add_child(_light)
+		VfxBudget.track_light(_light)
+
+
+## The Dragon God raven's breath: DragonGearArt's wisp shader, softer round a body.
+static func _breath_material() -> ShaderMaterial:
+	if _breath_mat == null:
+		_breath_mat = ShaderMaterial.new()
+		_breath_mat.shader = DragonGearArt.BREATH_SHADER
+		_breath_mat.render_priority = 1
+		_breath_mat.set_shader_parameter("opacity", 0.3)
+		MaterialKeeper.keep(_breath_mat)
+	return _breath_mat
 
 
 ## Merges the set raven's static parts: under each moving pivot (body, head, wings,
