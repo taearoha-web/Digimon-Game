@@ -764,6 +764,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-hero-vfx-priority
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/hero_vfx_priority_test.tscn
+      - name: "guild_war_attendance_test (AI world players come to their guild's war: each guild sends its strongest members at Lv.100 whether offline, hunting, at a stall or on an errand, never more than the side; each fights with its own level, stars, class and forged gear with its + (WorldGear), the same rolled again; the spawned fighter carries that sheet)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-guild-war-attendance
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_attendance_test.tscn
 
   star-art:
     # The 50-200 star signature art tests (combat/star_art), beside the other jobs so none
