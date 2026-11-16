@@ -6,7 +6,10 @@ extends Node3D
 ## where they started. Also the real Hero (equip / unequip) and an AI Lord's raven
 ## (RivalVisual). The set scepter (250★) gives the set raven (อีกาจักรพรรดิอเวจี):
 ## half again the divine one or more, with its ribbons, afterimages, rune ring,
-## light and emerald strike, all gone again when the scepter comes off.
+## light and emerald strike, all gone again when the scepter comes off. The Dragon God
+## scepter (คทาเทพมังกรอเวจี) gives the dragon raven (อีกาเทพมังกรอเวจี): the set raven's size
+## and flight in jade and gold, with its whisker streamers, pearl, breath and jade strike,
+## gone again when it comes off (for the hero, an AI Lord and a world player alike).
 
 ## Stands in for the Lord that owns the raven (DarkRaven reads `visual`).
 class Lord extends Node3D:
@@ -41,7 +44,7 @@ func _ready() -> void:
 	rng.seed = 5
 	var a := &"darklord"
 	var L := DarkRaven.Look
-	# Every weapon class: the ten scepter tiers, the four star tiers, divine, set, none.
+	# Every weapon class: the ten scepter tiers, the four star tiers, divine, dragon, set, none.
 	var cases: Array = [[null, L.PLAIN]]
 	for level in [1, 15, 25, 35, 45, 55, 65, 75, 85, 95, 100]:
 		var tier := ItemData.tier_for(level)
@@ -51,11 +54,16 @@ func _ready() -> void:
 		cases.append([StarProgression.item(a, stars, "weapon", rng), L.STAR_50 + StarGearData.index(stars)])
 	var star200: Dictionary = cases[cases.size() - 1][0]
 	cases.append([DivineGearData.item(a, "weapon", rng), L.DIVINE])
+	var dragon_scepter := DragonGearData.weapon(a, rng)
+	cases.append([dragon_scepter, L.DRAGON])
 	var set_scepter := SetGearData.item(String(a), "weapon")
 	cases.append([set_scepter, L.ABYSS])
 	for c in cases:
 		check(DarkRaven.look_for(c[0]) == int(c[1]), "look_for %s -> %s (got %s)" % [ItemLook.look_of(c[0]) if c[0] is Dictionary else "none", DarkRaven.LOOK_NAMES[c[1]], DarkRaven.LOOK_NAMES[DarkRaven.look_for(c[0])]])
 	check(DarkRaven.look_for({}) == L.PLAIN, "an empty weapon slot is the plain raven")
+	check(DarkRaven.look_for(DragonGearData.wings(a, rng)) != L.DRAGON, "only the dragon scepter, not the dragon wings, gives the dragon raven")
+	for cls in ClassData.IDS:
+		check(DarkRaven.look_for(DragonGearData.weapon(cls, rng)) == L.DRAGON, "any Dragon God weapon a Lord holds gives the dragon raven (%s)" % cls)
 	check(DarkRaven.LOOK_NAMES.size() == L.size(), "every look has a name")
 	# A raven on a stand-in Lord, its weapon swapped through every class three times.
 	var lord := Lord.new()
@@ -93,10 +101,13 @@ func _ready() -> void:
 			var dust_wanted := int(DarkRaven.palette(want).dust) > 0
 			check((raven._dust != null) == dust_wanted, "stardust only on star and divine looks (%s)" % DarkRaven.LOOK_NAMES[want])
 			check(int(VfxBudget.counters().decorations) == (1 if dust_wanted else 0), "stardust holds one decoration while worn (%s): %s" % [DarkRaven.LOOK_NAMES[want], VfxBudget.counters()])
-			var abyss := want == L.ABYSS
-			check(int(VfxBudget.counters().lights) == (1 if abyss else 0) and (raven._light != null) == abyss, "only the set raven holds a light (%s): %s" % [DarkRaven.LOOK_NAMES[want], VfxBudget.counters()])
-			check((raven._ribbons.size() == 19) == abyss and (raven._ghosts.size() == 2) == abyss and (raven._ghost_mat != null) == abyss, "ribbons and afterimages only on the set raven (%s)" % DarkRaven.LOOK_NAMES[want])
-			check(is_equal_approx(raven.reach(), DarkRaven.SET_SIZE if abyss else 1.0), "the set raven circles wider (%s: %.2f)" % [DarkRaven.LOOK_NAMES[want], raven.reach()])
+			var big := DarkRaven.grand(want)
+			var dragon := want == L.DRAGON
+			check(int(VfxBudget.counters().lights) == (1 if big else 0) and (raven._light != null) == big, "only the set and dragon ravens hold a light (%s): %s" % [DarkRaven.LOOK_NAMES[want], VfxBudget.counters()])
+			check((raven._ribbons.size() == 19) == big and (raven._ghosts.size() == 2) == big and (raven._ghost_mat != null) == big, "ribbons and afterimages only on the set and dragon ravens (%s)" % DarkRaven.LOOK_NAMES[want])
+			check(is_equal_approx(raven.reach(), DarkRaven.SET_SIZE if big else 1.0), "the big ravens circle wider (%s: %.2f)" % [DarkRaven.LOOK_NAMES[want], raven.reach()])
+			check((raven._breath != null) == dragon and raven.find_children("DragonPearl", "", true, false).size() == (1 if dragon else 0), "the pearl and the scepter's breath only on the dragon raven (%s)" % DarkRaven.LOOK_NAMES[want])
+			check(raven.find_children("RuneRing", "", true, false).size() == (1 if want == L.ABYSS else 0), "the rune ring only on the set raven (%s)" % DarkRaven.LOOK_NAMES[want])
 			# Every pose of the flight with this look: no errors, the extras animate.
 			for pose in ["perch", "glide", "flap", "stoop", "strike", "land"]:
 				raven._clock += 0.05
@@ -109,11 +120,20 @@ func _ready() -> void:
 	check(int(draws_per_look[L.ABYSS]) <= int(draws_per_look[L.DIVINE]) * 3 / 2, "the set raven's draws stay near the divine raven's (%d vs %d)" % [int(draws_per_look[L.ABYSS]), int(draws_per_look[L.DIVINE])])
 	var ratio := float(scale_per_look[L.ABYSS]) / float(scale_per_look[L.DIVINE])
 	check(ratio >= 1.5 and ratio <= 1.8, "the set raven is 1.5-1.8x the divine one (%.2f)" % ratio)
+	# The dragon raven: the set raven's size, its own parts, its draws as tight.
+	check(is_equal_approx(float(scale_per_look[L.DRAGON]), float(scale_per_look[L.ABYSS])), "the dragon raven is the set raven's size")
+	check(int(nodes_per_look[L.DRAGON]) > int(nodes_per_look[L.DIVINE]), "the dragon raven adds parts over the divine one")
+	check(int(draws_per_look[L.DRAGON]) <= int(draws_per_look[L.DIVINE]) * 3 / 2, "the dragon raven's draws stay near the divine raven's (%d vs %d)" % [int(draws_per_look[L.DRAGON]), int(draws_per_look[L.DIVINE])])
+	var jade := DarkRaven.palette(L.DRAGON)
+	check(jade.fx == "dragon" and jade.eye == SetGearData.palette("darklord").glow and jade.edge == DragonGearData.GLOW and int(jade.dust) > 0, "the dragon raven wears the scepter's jade and gold, eyes in the class's glow")
 	# The set raven strikes from its beak, in front of and above its feet, and its
 	# emerald bite plays and releases its budget.
 	var beak := raven.strike_point()
 	check(beak.distance_to(raven.global_position) > 0.2, "the strike leaves the set raven's beak, not its feet")
 	LordSkillArt.raven_peck(self, Vector3(3, 1, 3), beak, true, DarkRaven.GROUP_RADIUS, LordSkillArt.ABYSS)
+	await get_tree().create_timer(1.6).timeout
+	await get_tree().process_frame
+	LordSkillArt.raven_peck(self, Vector3(-3, 1, 3), beak, true, DarkRaven.GROUP_RADIUS, LordSkillArt.JADE)
 	await get_tree().create_timer(1.6).timeout
 	await get_tree().process_frame
 	check(int(VfxBudget.counters().decorations) == 1, "the emerald strike art releases its budget: %s" % [VfxBudget.counters()])
@@ -180,6 +200,11 @@ func _ready() -> void:
 	await get_tree().process_frame
 	check(ai_raven.look == L.STAR_200, "an AI Lord's raven wears its scepter's look")
 	check(ai_raven.global_position.distance_to(rv.hero_visual.perch_point()) < 0.05, "an AI Lord's raven sits on its arm")
+	# The AI Lord re-dressed (a world player's or a rival's new gear) with the dragon scepter.
+	rv.hero_visual.set_equipment({"weapon": dragon_scepter})
+	for i in 2:
+		await get_tree().process_frame
+	check(ai_raven.look == L.DRAGON and ai_raven._ribbons.size() == 19, "an AI Lord's raven turns into the dragon raven with the dragon scepter")
 	ai.queue_free()
 	await ai.tree_exited
 	# The real Hero: equip and unequip through the profile.
@@ -193,7 +218,8 @@ func _ready() -> void:
 	hero._sync_raven()
 	await get_tree().process_frame
 	check(hero.raven != null, "the Dark Lord hero has a raven")
-	for c in [cases[5], cases[cases.size() - 1], [null, L.PLAIN], cases[cases.size() - 1], cases[cases.size() - 2], cases[10]]:
+	var dragon_case := [dragon_scepter, L.DRAGON]
+	for c in [cases[5], cases[cases.size() - 1], [null, L.PLAIN], cases[cases.size() - 1], dragon_case, cases[cases.size() - 1], dragon_case, [null, L.PLAIN], dragon_case, cases[cases.size() - 3], cases[10]]:
 		if c[0] == null:
 			Game.profile.equip.erase("weapon")
 		else:
@@ -202,8 +228,9 @@ func _ready() -> void:
 		await get_tree().process_frame
 		check(hero.raven.look == int(c[1]), "hero equip gives %s (got %s)" % [DarkRaven.LOOK_NAMES[c[1]], DarkRaven.LOOK_NAMES[hero.raven.look]])
 		check(absf(hero.raven._root.scale.x - float(scale_per_look[int(c[1])])) < 0.001, "hero raven is the size of %s" % DarkRaven.LOOK_NAMES[c[1]])
-		check(int(VfxBudget.counters().lights) == (1 if int(c[1]) == L.ABYSS else 0), "hero raven light follows the set scepter (%s): %s" % [DarkRaven.LOOK_NAMES[c[1]], VfxBudget.counters()])
-		if int(c[1]) == L.ABYSS:
+		check(int(VfxBudget.counters().lights) == (1 if DarkRaven.grand(int(c[1])) else 0), "hero raven light follows the set and dragon scepters (%s): %s" % [DarkRaven.LOOK_NAMES[c[1]], VfxBudget.counters()])
+		check((hero.raven._breath != null) == (int(c[1]) == L.DRAGON), "hero raven breathes jade only under the dragon scepter (%s)" % DarkRaven.LOOK_NAMES[c[1]])
+		if DarkRaven.grand(int(c[1])):
 			var perch := hero.raven._perch(hero)
 			var arm := hero.visual.perch_point()
 			check(absf(perch.y - arm.y) < 0.001 and is_equal_approx(Vector2(perch.x - arm.x, perch.z - arm.z).length(), DarkRaven.PERCH_OUT), "the set raven perches a little further out on the arm")
@@ -211,13 +238,14 @@ func _ready() -> void:
 			# Unequipped: back to the plain bird, nothing of the set bird left.
 			check(hero.raven._ribbons.is_empty() and hero.raven._ghosts.is_empty() and hero.raven._light == null and hero.raven.reach() == 1.0, "unequipping the set scepter reverts the raven")
 			check(hero.raven.find_children("RuneRing", "", true, false).is_empty() and hero.raven.find_children("AbyssLight", "", true, false).is_empty(), "no set raven parts left after unequipping")
+			check(hero.raven.find_children("DragonPearl", "", true, false).is_empty() and hero.raven.find_children("DragonLight", "", true, false).is_empty() and hero.raven.find_children("DragonBreath", "", true, false).is_empty() and hero.raven._breath == null, "no dragon raven parts left after unequipping")
 	field.queue_free()
 	await field.tree_exited
 	await get_tree().process_frame
 	check(get_tree().get_nodes_in_group("dark_ravens").is_empty(), "no raven left behind")
 	check(VfxBudget.counters() == {"particles": 0, "decorations": 0, "lights": 0}, "budget released at the end: %s" % [VfxBudget.counters()])
-	print("RAVEN LOOKS: %s | %d looks, %d checks, %d failures, nodes plain %d crown %d divine %d set %d, draws divine %d set %d, set/divine size %.2f" % ["PASS" if failures == 0 else "FAIL",
-		nodes_per_look.size(), checks, failures, plain_nodes, int(nodes_per_look[L.CROWN]), int(nodes_per_look[L.DIVINE]), int(nodes_per_look[L.ABYSS]), int(draws_per_look[L.DIVINE]), int(draws_per_look[L.ABYSS]), ratio])
+	print("RAVEN LOOKS: %s | %d looks, %d checks, %d failures, nodes plain %d crown %d divine %d set %d dragon %d, draws divine %d set %d dragon %d, set/divine size %.2f" % ["PASS" if failures == 0 else "FAIL",
+		nodes_per_look.size(), checks, failures, plain_nodes, int(nodes_per_look[L.CROWN]), int(nodes_per_look[L.DIVINE]), int(nodes_per_look[L.ABYSS]), int(nodes_per_look[L.DRAGON]), int(draws_per_look[L.DIVINE]), int(draws_per_look[L.ABYSS]), int(draws_per_look[L.DRAGON]), ratio])
 	get_tree().quit(failures)
 
 

@@ -96,7 +96,9 @@ static func start(actor: Mob) -> void:
 	attack.mob = actor
 	attack.move = pick(actor)
 	actor._winding = true
-	actor._slam_timer = Mob.SLAM_INTERVAL if actor.phase < 2 else P2_INTERVAL
+	# A faster boss (MonsterData "slam_every": the rare dragon) keeps its own rhythm, quicker still enraged.
+	var every := float(actor.template.get("slam_every", Mob.SLAM_INTERVAL))
+	actor._slam_timer = every if actor.phase < 2 else minf(P2_INTERVAL, every * 0.8)
 	actor._attack_timer = maxf(actor._attack_timer, 1.8)
 	actor.add_child(attack)
 

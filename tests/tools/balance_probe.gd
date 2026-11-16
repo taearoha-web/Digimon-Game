@@ -9,7 +9,8 @@ extends Node
 ## Columns: basic = basic hits to kill a normal monster, skill% = the best
 ## skill hit (rank 5, no crit) as a share of a normal monster's HP,
 ## boss = best-skill hits to kill the boss, die_n / die_b = normal / boss hits
-## to kill the hero.
+## to kill the hero; on a field with a rare dragon (RareDragon), rare / die_r = the
+## same for it.
 
 const CHECKPOINTS := [
 	# [label, hero level, stars, zone, gear: "lv" | star tier | "divine"]
@@ -53,6 +54,11 @@ const AIM := {
 	# The same farming band for its own hero; the Dragon God is the longest boss fight.
 	"sky_dragon_isle": [175, 600],
 }
+## Hits to fall that a field sets apart from the shared bands (die_n 10-40, die_b 3-15):
+## the owner made the isle bite harder (SkyIsleData.BOSS_ATK, NORMAL_ATK): its normal
+## monsters at about 9 hits and the Dragon God's heavy hit all but felling the hero, though
+## never from full health.
+const DIE_BANDS := {"sky_dragon_isle": {"die_n": [6.0, 14.0], "die_b": [1.0, 2.0]}}
 ## Fields from Lv.100 whose monsters carry x2..x5 health (MonsterData.LATE_HP):
 ## their aims above are the earlier ones times that, and a skill takes a smaller
 ## share of a monster's health.
@@ -139,7 +145,11 @@ func _measure(cls: StringName, cp: Array) -> Dictionary:
 	var skill_boss := HeroStats.mitigate(float(stats.atk) * best, float(boss.def))
 	var hurt_n := HeroStats.mitigate(float(normal.atk), float(stats.def))
 	var hurt_b := HeroStats.mitigate(float(boss.atk) * 1.6, float(stats.def))
-	return {"cp": cp[0], "cls": String(cls), "atk": int(stats.atk), "hp": int(stats.max_hp), "def": int(stats.def), "dodge": float(stats.dodge),
+	# The rare dragon of a "rare_dragon" field (RareDragon.tune: the boss scaled), the same heavy hit.
+	var rare := bool(zone.get("rare_dragon", false))
+	var hurt_r := HeroStats.mitigate(float(boss.atk) * RareDragon.ATK_SCALE * 1.6, float(stats.def))
+	return {"die_r": float(stats.max_hp) / maxf(hurt_r, 1.0) if rare else 0.0, "rare": float(boss.hp) * RareDragon.HP_SCALE / maxf(skill_boss, 1.0) if rare else 0.0,
+		"cp": cp[0], "cls": String(cls), "atk": int(stats.atk), "hp": int(stats.max_hp), "def": int(stats.def), "dodge": float(stats.dodge),
 		"mob_hp": int(normal.hp), "boss_hp": int(boss.hp),
 		"basic": float(normal.hp) / maxf(basic, 1.0), "skill_pct": 100.0 * skill_hit / float(normal.hp),
 		"boss": float(boss.hp) / maxf(skill_boss, 1.0), "max_hit": int(skill_hit * HeroStats.CRIT_DAMAGE),
@@ -154,7 +164,9 @@ func _print(rows: Array) -> void:
 		by_zone[r.cp].append(r)
 	for cp in by_zone:
 		var line := "ZONE %s" % cp
-		for key in ["basic", "skill_pct", "boss", "die_n", "die_b", "max_hit"]:
+		for key in ["basic", "skill_pct", "boss", "die_n", "die_b", "max_hit", "rare", "die_r"]:
+			if key in ["rare", "die_r"] and float(by_zone[cp][0][key]) <= 0.0:
+				continue
 			var values: Array = by_zone[cp].map(func(r): return float(r[key]))
 			values.sort()
 			var half := values.size() / 2
@@ -176,8 +188,9 @@ func _band(cp: String, key: String, value: float) -> void:
 		"basic": ok = not AIM.has(cp) or absf(value / float(AIM[cp][0]) - 1.0) <= 0.3
 		"boss": ok = not AIM.has(cp) or absf(value / float(AIM[cp][1]) - 1.0) <= 0.3
 		"skill_pct": ok = cp == "meadow" or (value >= (8.0 if cp in LATE else 25.0) and value <= 100.0)
-		"die_n": ok = value >= 10.0 and value <= 40.0
-		"die_b": ok = value >= 3.0 and value <= 15.0
+		"die_n", "die_b":
+			var band: Array = DIE_BANDS.get(cp, {}).get(key, [10.0, 40.0] if key == "die_n" else [3.0, 15.0])
+			ok = value >= float(band[0]) and value <= float(band[1])
 		"max_hit": ok = value <= (200000.0 if cp == "sky_dragon_isle" else 120000.0)
 	if not ok:
 		failures += 1

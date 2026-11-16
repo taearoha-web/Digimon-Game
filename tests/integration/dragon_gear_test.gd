@@ -337,7 +337,7 @@ func _rules() -> void:
 	check(Game.deposit_item(at) and Game.storage().has(own), "it goes into the storage")
 	check(Game.withdraw_item(Game.storage().find(own)) and Game.profile.inv.has(own), "and comes back out")
 
-	check(DarkRaven.look_for(DragonGearData.weapon(&"darklord", rng)) == DarkRaven.Look.ABYSS, "the Dark Lord's raven keeps its abyss look under the dragon sceptre")
+	check(DarkRaven.look_for(DragonGearData.weapon(&"darklord", rng)) == DarkRaven.Look.DRAGON, "the Dark Lord's raven turns into the dragon raven under the dragon sceptre")
 
 
 func _save() -> void:

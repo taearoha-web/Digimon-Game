@@ -33,9 +33,15 @@ const BOSS_RESPAWN := 180.0
 ## MonsterData.LATE_HP. Measured with the balance probe: a ★300 hero in the 250★ set +15
 ## needs about 175 basic hits a normal monster (the abyss's band for a ★200 hero in ★200
 ## gear) and about 600 strongest-skill hits for the Dragon God (the abyss's Poseidon: 450);
-## a normal monster needs about 18 hits to bring that hero down, the boss 5-6 (the abyss: 20
-## and 8), so the Dragon God is the longest and the most dangerous field boss fight.
-const TUNING := [0.0692, 424.0, 0.1367, 513.0]
+## a normal monster needed about 18 hits to bring that hero down, the boss 5-6 (the abyss: 20
+## and 8). Then the owner asked for the isle to bite harder (health unchanged): the Dragon
+## God hits five times as hard (BOSS_ATK on the measured 513, his normal hits and both
+## moves: a heavy hit now all but fells that hero, about 1.1 hits; dodge the circles), and
+## the normal monsters twice as hard (NORMAL_ATK, about 9 hits). The elites share the
+## normal attack row and keep their strength.
+const BOSS_ATK := 5.0
+const NORMAL_ATK := 2.0
+const TUNING := [0.0692, 424.0, 0.1367, 513.0 * BOSS_ATK]
 const LATE_HP := 6.0
 
 ## Normal monsters fight with MobAttack moves, the Dragon God with BossAttack's two
@@ -79,6 +85,8 @@ static func monster(id: StringName) -> Dictionary:
 	var m: Dictionary = MONSTERS.get(id, {}).duplicate(true)
 	if not m.is_empty():
 		m.hp = float(m.hp) * TOUGH_HP
+		if NORMALS.has(id):
+			m.atk = float(m.atk) * NORMAL_ATK
 	return m
 
 

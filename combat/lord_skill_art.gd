@@ -31,6 +31,8 @@ const SUMMON := [Color("7a3ff0"), Color("e0a83a"), Color("10041e")]
 const HOST := [Color("9a5cff"), Color("ffc24a"), Color("04010a")]
 ## The Abyss Emperor set's emerald (SetGearData "darklord"): the set raven's strikes.
 const ABYSS := [Color("8aff5a"), Color("eaffd8"), Color("0e0818")]
+## The Dragon God scepter's jade and gold (DragonGearData): the dragon raven's strikes.
+const JADE := [Color("6dffd2"), Color("fff1b8"), Color("0a2a24")]
 const STAR_PALETTES := {"chaos_inferno": "ember", "raven_sovereign": "force", "lords_dominion": "royal", "imperial_cataclysm": "royal"}
 const CONTACT_GAP_MS := 90
 const PECK_GAP_MS := 120
@@ -191,7 +193,8 @@ static func star(parent: Node3D, skill: Dictionary, point: Vector3, index: int, 
 ## dark vortex, shadow ravens converging on the point and a burst of feathers.
 ## [param at] is the body the raven struck, [param from] where it dived from,
 ## [param reach] how far round the target a group strike reaches, [param colors]
-## the palette (FORCE; ABYSS for the set raven, whose bite bursts emerald too).
+## the palette (FORCE; ABYSS for the set raven, whose bite bursts emerald too; JADE
+## for the Dragon God raven).
 static func raven_peck(parent: Node3D, at: Vector3, from: Vector3, group: bool, reach := 3.2, colors: Array = FORCE) -> void:
 	if not _alive(parent) or not VfxBudget.can_decorate((4 if group else 2) + RESERVE):
 		return
