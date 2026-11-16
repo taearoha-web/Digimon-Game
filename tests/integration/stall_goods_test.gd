@@ -238,9 +238,18 @@ func _town() -> void:
 		var lots := StallStock.full_stock(i, t)
 		check(lots.size() <= 6, "%s: six lots at most (%d)" % [WorldPlayers.entry(i).name, lots.size()])
 		var best: Dictionary = lots[0] if not lots.is_empty() else {}
+		var equip := WorldGear.equip_at_work(i, WorldPlayers.work_at(i, t))
+		var limits := StallStock.plus_limits(equip)
+		for k in lots.size() - 1:
+			check(not StallStock._better(lots[k + 1], lots[k]), "%s: the best lot first after the caps" % WorldPlayers.entry(i).name)
 		for e in lots:
 			if String(e.item.get("kind", "")) == "equip":
 				var plus := int(e.item.get("plus", 0))
+				check(plus <= int(limits.top), "%s: sells +%d, never past the best it has forged itself (+%d)" % [WorldPlayers.entry(i).name, plus, int(limits.top)])
+				var slot := String(e.item.get("slot", ""))
+				if limits.has(slot) and not SetGearData.is_item(e.item):
+					check(plus <= int(limits[slot]), "%s: a spare %s +%d is no better forged than the one it wears (+%d)" % [WorldPlayers.entry(i).name, slot, plus, int(limits[slot])])
+				check(int(e.price) == StallStock.gear_price(e.item) and bool(e.hot) == StallStock.is_hot(e.item), "%s: price and hot flag follow the capped +" % WorldPlayers.entry(i).name)
 				counts[plus] = int(counts.get(plus, 0)) + 1
 				plus15 += 1 if plus == 15 else 0
 			hot += 1 if bool(e.hot) else 0

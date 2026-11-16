@@ -273,15 +273,50 @@ static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 	var who := seller(i, t)
 	var lots := lots_for("%s|%d" % [WorldPlayers.entry(i).name, window(i, t)], specialty(i), int(who.level), int(who.stars), Game.class_id())
 	# Finds for sale are its spare pieces, never what it wears itself (WorldGear).
+	var equip := WorldGear.equip_at_work(i, WorldPlayers.work_at(i, t))
 	var worn := {}
-	for piece in WorldGear.equip_at_work(i, WorldPlayers.work_at(i, t)).values():
+	for piece in equip.values():
 		worn["%s|%s|%d" % [piece.get("slot", ""), piece.get("name", ""), int(piece.get("level", 0))]] = true
+	var limits := plus_limits(equip)
 	var out: Array[Dictionary] = []
 	for lot in lots:
 		var item: Dictionary = lot.item
-		if not worn.has("%s|%s|%d" % [item.get("slot", ""), item.get("name", ""), int(item.get("level", 0))]):
-			out.append(lot)
+		if worn.has("%s|%s|%d" % [item.get("slot", ""), item.get("name", ""), int(item.get("level", 0))]):
+			continue
+		var cap := spare_plus_cap(limits, item)
+		if int(item.get("plus", 0)) > cap:
+			# A keeper never sells a spare forged past what it has managed on its own gear.
+			item["plus"] = cap
+			lot["price"] = gear_price(item)
+			lot["hot"] = is_hot(item)
+		out.append(lot)
+	out.sort_custom(_better)
 	return out
+
+
+## What a keeper wearing `equip` (WorldGear.equip_at_work) has forged: {"top": its best
+## + on any forgeable piece, slot: the + of the forgeable piece it wears there}.
+static func plus_limits(equip: Dictionary) -> Dictionary:
+	var out := {"top": 0}
+	for slot in equip:
+		var piece: Dictionary = equip[slot]
+		if not EnhanceFx.can_enhance(piece) or SetGearData.is_item(piece):
+			continue
+		var plus := int(piece.get("plus", 0))
+		out[String(slot)] = plus
+		out.top = maxi(int(out.top), plus)
+	return out
+
+
+## The highest + a spare `item` of a keeper with `limits` (plus_limits) may carry: no more
+## than the piece it wears in that slot (it would wear the better one) and never past the
+## best it has forged at all. Rings and amulets are never forged.
+static func spare_plus_cap(limits: Dictionary, item: Dictionary) -> int:
+	if not EnhanceFx.can_enhance(item):
+		return 0
+	if SetGearData.is_item(item):
+		return mini(SET_PLUS_MAX, int(limits.top))
+	return mini(int(limits.top), int(limits.get(String(item.get("slot", "")), limits.top)))
 
 
 ## The lots of a stall of `spec` kept by a seller of `level` and `stars`, seeded by `key`

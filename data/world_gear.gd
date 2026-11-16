@@ -63,6 +63,10 @@ const KILLS_ENDGAME := 1.5
 ## From here a player hunts the drowned abyss and the lotus sanctum (WorldPlayers.session_zone):
 ## the two endgame maps share one band and one drop table (EndgameFields).
 const ENDGAME_STARS := EndgameFields.ENTRY_STAR
+## A world player is a keen forger: besides its own kills' jewels it buys and trades for
+## more with the gold its farming brings (the merchant's and the stalls' jewels), so its
+## jewel (and feather) income is this many times what its kills alone drop.
+const JEWEL_DILIGENCE := 2.5
 ## The share of an endgame map's kills that are elites (its camps' temple golems and the
 ## like): the divine pieces and Lotus Scales a kill drops blend EndgameFields' normal and
 ## elite chances by it.
@@ -726,22 +730,22 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	var top := level >= Game.MAX_LEVEL
 	var endgame := top and stars >= ENDGAME_STARS
 	if endgame:
-		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple))
-		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink))
-		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos))
+		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple) * JEWEL_DILIGENCE)
+		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink) * JEWEL_DILIGENCE)
+		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos) * JEWEL_DILIGENCE)
 		sim.core += _count(rng, kills * EndgameFields.SET_CORE_DROP)
 		sim.scales += _count(rng, kills * SCALE_DROP)
 	else:
-		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple))
-		sim.pink += _count(rng, kills * float(ItemData.JEWEL_DROP.pink))
-		sim.chaos += _count(rng, kills * float(ItemData.JEWEL_DROP.chaos))
+		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple) * JEWEL_DILIGENCE)
+		sim.pink += _count(rng, kills * float(ItemData.JEWEL_DROP.pink) * JEWEL_DILIGENCE)
+		sim.chaos += _count(rng, kills * float(ItemData.JEWEL_DROP.chaos) * JEWEL_DILIGENCE)
 	if top:
 		var field_star := ENDGAME_STARS if endgame else 0
 		if not endgame:
 			for k in StarProgression.REGIONS.size():
 				if stars >= int(StarProgression.ENTRY[k]):
 					field_star = int(StarProgression.ENTRY[k])
-		sim.feather += _count(rng, kills * ItemData.feather_chance(field_star))
+		sim.feather += _count(rng, kills * ItemData.feather_chance(field_star) * JEWEL_DILIGENCE)
 	if _mount_drops.is_empty():
 		for id in MountData.ORDER:
 			_mount_drops.append(float(MountData.info(id).drop))
@@ -995,6 +999,19 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 	var keep_p := need_p if reserve else 0
 	var keep_k := need_k if reserve else 0
 	var keep_c := need_c if reserve else 0
+	# The 100★ wings from Lv.100 wings: a chaos jewel and a feather, 30%; crafted before
+	# the high grades, whose chaos jewels would otherwise always come first.
+	if level >= Game.MAX_LEVEL and stars >= StarWingData.REQUIRED_STARS:
+		var wc := int(StarWingData.CRAFT_COST.chaos)
+		var wf := int(StarWingData.CRAFT_COST.feather)
+		while int(sim.live.wtier) == 1 and sim.feather >= wf and sim.chaos - keep_c >= wc:
+			sim.feather -= wf
+			sim.chaos -= wc
+			at += 0.0001
+			if rng.randf() < StarWingData.CRAFT_CHANCE:
+				_emit(sim, at, "wings_up", "wings", 1, 2, "", {"key": "sw"})
+			else:
+				_emit(sim, at, "wings_fail", "wings", 1, 1, StarWingData.item_name(cls))
 	# +1 for the lowest worn piece (the focus first), as long as the jewels last: first
 	# the steps up to +9 (no chaos jewel), then the mount, then the steps from +9 on.
 	var tries := 0
@@ -1061,15 +1078,3 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 						_emit(sim, at, "mount_up", "mount", lv, lv + 1, mname, {"id": id})
 					else:
 						_emit(sim, at, "mount_fail", "mount", lv, lv, mname, {"id": id})
-	# The 100★ wings from Lv.100 wings: a chaos jewel and a feather, 30%.
-	if level >= Game.MAX_LEVEL and stars >= StarWingData.REQUIRED_STARS:
-		var wc := int(StarWingData.CRAFT_COST.chaos)
-		var wf := int(StarWingData.CRAFT_COST.feather)
-		while int(sim.live.wtier) == 1 and sim.feather >= wf and sim.chaos - keep_c >= wc:
-			sim.feather -= wf
-			sim.chaos -= wc
-			at += 0.0001
-			if rng.randf() < StarWingData.CRAFT_CHANCE:
-				_emit(sim, at, "wings_up", "wings", 1, 2, "", {"key": "sw"})
-			else:
-				_emit(sim, at, "wings_fail", "wings", 1, 1, StarWingData.item_name(cls))
