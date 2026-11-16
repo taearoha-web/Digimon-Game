@@ -221,6 +221,7 @@ func _stall_rows() -> void:
 		var row := _row(e.item, int(e.price), "ซื้อ", func(): StallStock.buy(who, k))
 		row.name = "Lot_%d" % k
 		var info := row.find_child("Info", true, false) as Control
+		_lot_badges(row, info, e)
 		var code := StallStock.haggled(who, k)
 		if code == 0:
 			var haggle := UIUtil.button("ต่อราคา", &"", Vector2(150, 48))
@@ -242,6 +243,63 @@ func _stall_rows() -> void:
 	if lots.is_empty():
 		note = "ของหมดแล้ว " + note
 	_buy_box.add_child(UIUtil.label(note, &"DimLabel"))
+
+
+## What makes a stall lot stand out, at a glance: its + on the icon's corner in the forge
+## glow's colour (EnhanceFx.color_of), a "ของเด่น" chip over the name and a gold frame on
+## a showpiece (StallStock.is_hot), and the gems already in its sockets.
+func _lot_badges(row: PanelContainer, info: Control, lot: Dictionary) -> void:
+	var item: Dictionary = lot.item
+	var plus := int(item.get("plus", 0))
+	var icon := (row.get_child(0) as Control).get_child(0) as Control
+	if plus > 0 and icon != null:
+		var color: Color = EnhanceFx.color_of(plus) if plus >= 5 else UIPalette.CYAN
+		var tag := PanelContainer.new()
+		tag.name = "PlusBadge"
+		var box := StyleBoxFlat.new()
+		box.bg_color = Color(0.05, 0.07, 0.13, 0.96)
+		box.border_color = color
+		box.set_border_width_all(2)
+		box.set_corner_radius_all(9)
+		box.content_margin_left = 7
+		box.content_margin_right = 7
+		box.content_margin_top = 0
+		box.content_margin_bottom = 0
+		tag.add_theme_stylebox_override("panel", box)
+		var text := Label.new()
+		text.text = "+%d" % plus
+		text.add_theme_font_size_override("font_size", 19)
+		text.add_theme_color_override("font_color", color.lightened(0.45))
+		text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		text.add_theme_constant_override("outline_size", 3)
+		tag.add_child(text)
+		icon.add_child(tag)
+		tag.position = Vector2(-10, 40)
+	var chips := UIUtil.hbox(6)
+	chips.name = "Badges"
+	if bool(lot.get("hot", false)):
+		var hot := UIUtil.chip("★ ของเด่น", UIPalette.DANGER.lerp(UIPalette.GOLD, 0.35), 16)
+		hot.name = "HotBadge"
+		chips.add_child(hot)
+		var frame := StyleBoxFlat.new()
+		frame.bg_color = Color("3d2f1f")
+		frame.border_color = UIPalette.GOLD
+		frame.set_border_width_all(3)
+		frame.set_corner_radius_all(14)
+		frame.set_content_margin_all(10)
+		row.add_theme_stylebox_override("panel", frame)
+	if item.get("kind", "") == "equip":
+		var gems: Array = item.get("gems", [])
+		if not gems.is_empty():
+			var best := 0
+			for g in gems:
+				best = maxi(best, int(String(g).split("_")[1]))
+			chips.add_child(UIUtil.chip("อัญมณี %d/%d · %s" % [gems.size(), int(item.get("sockets", 0)), ItemData.GEM_SIZES[best]], UIPalette.PURPLE, 14))
+	if chips.get_child_count() > 0:
+		info.add_child(chips)
+		info.move_child(chips, 0)
+	else:
+		chips.free()
 
 
 ## A bag slot at a stall: sold now at the stall's price, or left with the keeper to sell

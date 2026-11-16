@@ -221,7 +221,7 @@ func _ready() -> void:
 			check(not line.contains("%"), "no placeholder left: %s" % line)
 			if line.begins_with("ขาย") and line.ends_with("ทักได้เลย"):
 				var goods := line.trim_prefix("ขาย").trim_suffix(" ทักได้เลย")
-				var has := StallStock.stock(i, WorldPresence.clock()).any(func(e): return String(e.item.get("kind", "")) == "equip" and (ItemData.name_of(e.item) + (" +%d" % int(e.item.get("plus", 0)) if int(e.item.get("plus", 0)) > 0 else "")) == goods)
+				var has := StallStock.stock(i, WorldPresence.clock()).any(func(e): return String(e.item.get("kind", "")) == "equip" and ItemData.name_of(e.item) == goods)
 				check(has, "%s really sells %s" % [st.name, goods])
 				told += 1
 		if i > 12:
