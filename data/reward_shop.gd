@@ -64,6 +64,9 @@ const COSTUMES := {
 	"celestial": {"name": "ชุดเทวดาแสงดาว", "cloth": Color("f2f0ff"), "sheen": 0.6, "glow": Color(0.3, 0.3, 0.45), "desc": "ปีกขนนกสีขาว · ผ้าคลุมไหล่ประกายดาว · วงรัศมีเรืองแสง · ดาวระยิบรอบตัว", "lc": 900, "ep": 300},
 	# เกาะลอยฟ้าเทพมังกร only (SkyIsleLoot.COSTUME): not sold for coins. `fragments`: how
 	# many ชิ้นส่วนชุดเทพมังกร (SkyIsleLoot.FRAGMENT) the exchange takes, here or from the bag.
+	# The Loy Krathong festival's costume (LoyKrathong.COSTUME): `frag_id` names the piece the
+	# exchange takes (else SkyIsleLoot.FRAGMENT); `festival` keeps it to the festival's days.
+	"loykrathong": {"name": "ชุดลอยกระทง", "cloth": Color("d6365a"), "sheen": 0.6, "glow": Color(0.3, 0.16, 0.02), "desc": "สไบทองปักลายกนกพาดไหล่ · มงกุฎดอกบัวทองยอดชฎา · เข็มขัดทองหัวพลอยกับชายผ้าห้อยหน้า · กำไลต้นแขนทอง · ดวงไฟกระทงน้อยลอยวนรอบตัว · แลกด้วยชิ้นส่วนหรือแต้มลอยกระทงช่วงเทศกาลเท่านั้น", "lc": 0, "ep": 0, "fragments": 30, "frag_id": "lk_piece", "festival": "loyk"},
 	"dragon_god": {"name": "ชุดเทพมังกร", "cloth": Color("1f9c86"), "sheen": 0.65, "glow": Color(0.05, 0.3, 0.22), "desc": "เขามังกรทองและหงอนหยก · หางมังกรเกล็ดหยกยาวส่ายไปมา · ผ้าคลุมไหล่เกล็ดมังกรเข็มกลัดทอง · มังกรวิญญาณตัวน้อยบินวนรอบตัว · แลกด้วยชิ้นส่วนจากเกาะลอยฟ้าเทพมังกรเท่านั้น", "lc": 0, "ep": 0, "fragments": 50},
 }
 ## Walk trails (WalkTrail): what follows the hero's steps.
@@ -236,7 +239,7 @@ static func boss_defeated(t := -1.0) -> int:
 
 ## Whether the event hours (EXP x2 evening or the festival) run at t.
 static func event_hours(t: float) -> bool:
-	return WorldEvents.evening_exp(t) or WorldEvents.festival_on(t) or WorldEvents.festival5_on(t)
+	return WorldEvents.evening_exp(t) or WorldEvents.festival_on(t) or WorldEvents.festival5_on(t) or LoyKrathong.night_on(t)
 
 
 ## A kill at t (Game.report_kill): KILL_EP during the event hours, KILL_CAP a Thai day.
@@ -326,7 +329,8 @@ static func name_of(tab: String, id: String) -> String:
 static func price_text(e: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	if fragments_of(e) > 0:
-		return "แลกด้วยชิ้นส่วน %d ชิ้น (มี %d) · ดรอปที่%s" % [fragments_of(e), Game.jewel_count(SkyIsleLoot.FRAGMENT) if Game.has_profile else 0, SkyIsleData.TITLE]
+		var where := LoyKrathong.TITLE if String(e.get("festival", "")) == "loyk" else "ดรอปที่%s" % SkyIsleData.TITLE
+		return "แลกด้วยชิ้นส่วน %d ชิ้น (มี %d) · %s" % [fragments_of(e), Game.jewel_count(fragment_id(e)) if Game.has_profile else 0, where]
 	if int(e.get("lc", 0)) > 0:
 		parts.append("%d %s" % [int(e.lc), COIN_NAME])
 	if int(e.get("ep", 0)) > 0:
@@ -338,6 +342,11 @@ static func price_text(e: Dictionary) -> String:
 ## is bought with coins and points).
 static func fragments_of(e: Dictionary) -> int:
 	return int(e.get("fragments", 0))
+
+
+## The piece entry `e` is exchanged for: its `frag_id`, else the sky isle's fragment.
+static func fragment_id(e: Dictionary) -> String:
+	return String(e.get("frag_id", SkyIsleLoot.FRAGMENT))
 
 
 # --- Owning and wearing ------------------------------------------------------------
@@ -560,8 +569,10 @@ static func problem(tab: String, id: String, t := -1.0) -> String:
 		return "แลกครบ %d ครั้งของสัปดาห์นี้แล้ว" % int(e.limit)
 	if tab in ["stone", "costume"] and Game.inventory_free() <= 0 and Game.storage().size() >= Game.STORAGE_SIZE:
 		return "กระเป๋าและคลังเต็ม"
-	if fragments_of(e) > Game.jewel_count(SkyIsleLoot.FRAGMENT):
-		return "%sไม่พอ (มี %d/%d)" % [String(ItemData.JEWELS[SkyIsleLoot.FRAGMENT].name), Game.jewel_count(SkyIsleLoot.FRAGMENT), fragments_of(e)]
+	if String(e.get("festival", "")) == "loyk" and not LoyKrathong.on():
+		return "แลกได้เฉพาะช่วง%s" % LoyKrathong.TITLE
+	if fragments_of(e) > Game.jewel_count(fragment_id(e)):
+		return "%sไม่พอ (มี %d/%d)" % [String(ItemData.JEWELS[fragment_id(e)].name), Game.jewel_count(fragment_id(e)), fragments_of(e)]
 	if coins() < int(e.get("lc", 0)):
 		return "%sไม่พอ" % COIN_NAME
 	if points() < int(e.get("ep", 0)):
@@ -581,7 +592,7 @@ static func buy(tab: String, id: String, t := -1.0) -> String:
 	d["lc"] = int(d.get("lc", 0)) - int(e.get("lc", 0))
 	d["ep"] = int(d.get("ep", 0)) - int(e.get("ep", 0))
 	if fragments_of(e) > 0:
-		Game._spend_jewels(SkyIsleLoot.FRAGMENT, fragments_of(e))
+		Game._spend_jewels(fragment_id(e), fragments_of(e))
 		Game.inventory_changed.emit()
 	if tab == "stone":
 		Game.give_or_store(stone_item(e))

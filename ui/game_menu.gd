@@ -11,7 +11,7 @@ signal raid_requested()
 signal dungeon_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["hunt", DragonHuntView.TAB_NAME], ["weekly", WeeklyCollect.NAME], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["hunt", DragonHuntView.TAB_NAME], ["weekly", WeeklyCollect.NAME], ["loyk", LoyKrathongView.TAB_NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -221,6 +221,7 @@ func _rebuild() -> void:
 			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_content.add_child(page)
 			_page_scroll = WeeklyCollectView.build(page, _queue_rebuild) as TouchScroll
+		&"loyk": _page_scroll = LoyKrathongView.build(_content, _queue_rebuild, close_menu)
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
@@ -230,6 +231,7 @@ func _rebuild() -> void:
 func _mark_pass_tab() -> void:
 	_mark_tab(DailyPassView.TAB_ID, DailyPassView.TAB_NAME, Game.has_profile and DailyPass.claimable() > 0)
 	_mark_tab(DragonHuntView.TAB_ID, DragonHuntView.TAB_NAME, Game.has_profile and DragonHunt.claimable() > 0)
+	_mark_tab(LoyKrathongView.TAB_ID, LoyKrathongView.TAB_NAME, Game.has_profile and LoyKrathong.on() and LoyKrathong.entry_problem() == "")
 
 
 func _mark_tab(id: StringName, text: String, ready: bool) -> void:

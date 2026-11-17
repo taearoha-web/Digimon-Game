@@ -423,6 +423,9 @@ func apply(force := false) -> void:
 	if env == null or not is_instance_valid(sun):
 		return
 	var h := hour()
+	# The village holds its night through the Loy Krathong night (LoyKrathong, real time).
+	if warmth > 0.0 and is_nan(fixed_hour) and LoyKrathong.night_on(WorldPresence.clock()):
+		h = LoyKrathong.NIGHT_HOUR
 	sample(h, base, now, _ka, _kb, warmth)
 	var flashing: bool = zone.has_method("is_flashing") and zone.is_flashing()
 	if "_ambient_base" in zone:

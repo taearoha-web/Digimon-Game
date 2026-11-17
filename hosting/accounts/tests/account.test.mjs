@@ -572,6 +572,40 @@ test('the weekly rare collection: its pieces (wk<theme>_<rank> jewel stacks) and
   assert.equal(themes, Number(server.match(/const WCOL_THEMES = (\d+)/)[1]));
 });
 
+test('the Loy Krathong festival: its stackables (lk_* jewel stacks), its costume and its record (loyk) are accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const loyk = {day: 20416, n: 3, fl: 11, pts: 420, pg: 1234, pgd: 20416, pgg: 1, got: 3};
+  const hero = {...sample(), loyk, flags: {lk_queen: 1, lk_naga: 81667},
+    inv: [{kind: 'jewel', id: 'lk_leaf', count: 30}, {kind: 'jewel', id: 'lk_scale', count: 2}, {kind: 'jewel', id: 'lk_k3', count: 1},
+      {kind: 'jewel', id: 'lk_piece', count: 12}, {kind: 'costume', id: 'loykrathong', rarity: 4}],
+    stall: {lots: [{lot: 1, item: {kind: 'jewel', id: 'lk_lotus', count: 5}, price: 25000}]}};
+  const shared = {...bundle(hero), storage: [{kind: 'jewel', id: 'lk_k0', count: 4}]};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: shared}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), loyk: {}})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), loyk: {day: -1, n: 0, fl: 0, pts: 0, pg: 0, pgd: -1, pgg: 0, got: 0}})));
+  for (const bad of [[], {junk: 1}, {day: -2}, {n: 101}, {n: 1.5}, {pts: -1}, {pts: '5'}, {pgg: 2}, {got: 4}, {pg: 1e9}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), loyk: bad})), /Loy Krathong record/, JSON.stringify(bad));
+  }
+  for (const bad of [{kind: 'jewel', id: 'lk_k4', count: 1}, {kind: 'jewel', id: 'lk_gold', count: 1}, {kind: 'jewel', id: 'lk_leaf', count: 0},
+    {kind: 'jewel', id: 'lk_leaf', count: 1.5}, {kind: 'jewel', id: 'lk_leaf', count: 1, stats: {atk: 9}}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [bad]})), /Loy Krathong item/, JSON.stringify(bad));
+    assert.throws(() => validateBundle({...bundle(), storage: [bad]}), /Loy Krathong item/, JSON.stringify(bad));
+    assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, item: bad, price: 10}]}})), /Loy Krathong item/, JSON.stringify(bad));
+  }
+  // The game's ids are the server's.
+  const game = readFileSync(new URL('../../../data/loy_krathong.gd', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../server/accounts.js', import.meta.url), 'utf8');
+  const ids = [...game.match(/const MATS: Array\[String\] = \[([^\]]*)\]/)[1].matchAll(/"(lk_[a-z0-9]+)"/g)].map(m => m[1])
+    .concat([...game.matchAll(/"id": "(lk_[a-z0-9]+)"/g)].map(m => m[1]), [game.match(/const PIECE := "(lk_[a-z0-9]+)"/)[1]]);
+  const serverIds = server.match(/const LK_IDS = new Set\(\[([^\]]*)\]/)[1].match(/lk_[a-z0-9]+/g);
+  assert.deepEqual([...new Set(ids)].sort(), [...new Set(serverIds)].sort());
+  const keys = game.match(/const _KEYS := \[([^\]]*)\]/)[1].match(/"([a-z]+)"/g).map(k => k.slice(1, -1));
+  const serverKeys = Object.keys(eval('(' + server.match(/const LK_RANGES = (\{[^\n]*\});/)[1].replace(/LK_MAX/g, '1') + ')'));
+  assert.deepEqual([...keys].sort(), [...serverKeys].sort());
+});
+
 test('reward-shop costumes are items: in the bag, the shared storage and the costume slot (rshop.cos)', async t => {
   const {register, call} = harness(t);
   const account = await register();

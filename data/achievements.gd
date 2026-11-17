@@ -69,6 +69,9 @@ const TABLE := [
 	# eight themes (WeeklyCollect.SETS_FLAG / THEMES_FLAG).
 	{"id": "t_wcol", "name": "นักสะสมของแรร์", "desc": "แลกหีบสมบัตินักสะสม (ครบชุด 5 แบบของอีเว้นสะสมของแรร์ประจำสัปดาห์)", "title": "นักสะสมของแรร์", "kind": "wcol_sets", "goal": 1},
 	{"id": "t_wcol_all", "name": "ตำนานนักสะสม", "desc": "แลกหีบสมบัตินักสะสมครบทั้ง 8 ธีม", "title": "ตำนานนักสะสม", "kind": "wcol_themes", "goal": 8},
+	# The Loy Krathong festival's pageant winners (LoyKrathong.settle: flags lk_queen / lk_king).
+	{"id": "t_lk_queen", "name": "นางนพมาศ ๒๕๖๙", "desc": "ชนะการประกวดนางนพมาศ เทศกาลลอยกระทง ๒๕๖๙", "title": "นางนพมาศ ๒๕๖๙", "kind": "lk_queen", "goal": 1},
+	{"id": "t_lk_king", "name": "หนุ่มลอยกระทง ๒๕๖๙", "desc": "ชนะการประกวดหนุ่มลอยกระทง เทศกาลลอยกระทง ๒๕๖๙", "title": "หนุ่มลอยกระทง ๒๕๖๙", "kind": "lk_king", "goal": 1},
 ]
 ## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
 const GOD_ID := "t_god"
@@ -125,6 +128,8 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"tomb_fast": return int(flags.get(DungeonData.F_FAST, 0))
 		"dragon_hunt": return int(flags.get(DragonHunt.TOP_FLAG, 0))
 		"wcol_sets": return int(flags.get(WeeklyCollect.SETS_FLAG, 0))
+		"lk_queen": return int(flags.get(LoyKrathong.QUEEN_FLAG, 0))
+		"lk_king": return int(flags.get(LoyKrathong.KING_FLAG, 0))
 		"wcol_themes":
 			var bits := int(flags.get(WeeklyCollect.THEMES_FLAG, 0))
 			var n := 0

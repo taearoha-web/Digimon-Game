@@ -1169,6 +1169,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The week's rare collection record (WeeklyCollect).
 	if data.has(WeeklyCollect.KEY) and not WeeklyCollect.valid(data[WeeklyCollect.KEY]):
 		return false
+	# The Loy Krathong festival's record (LoyKrathong).
+	if data.has(LoyKrathong.KEY) and not LoyKrathong.valid(data[LoyKrathong.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1518,6 +1521,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	GuildLeague.repair(data)
 	RewardShop.repair(data)
 	WeeklyCollect.repair(data)
+	LoyKrathong.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon

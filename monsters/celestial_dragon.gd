@@ -36,6 +36,10 @@ const PALETTES := {
 		"mane": Color("ff7038"), "mane_tip": Color("ffd28a"), "fin": Color("ff5a3a"), "eye": Color("fff6c0"), "rim": Color("fff4c8"), "shade": Color(0.68, 0.52, 0.56)},
 	"wyvern": {"back": Color("6a52e0"), "back_dk": Color("26206a"), "belly": Color("dccdff"), "belly_dk": Color("9c84f0"), "horn": Color("fff27a"), "horn_dk": Color("e0a81a"),
 		"mane": Color("fff27a"), "mane_tip": Color("ffffff"), "fin": Color("ffe24a"), "eye": Color("fff6a0"), "rim": Color("cfc0ff"), "shade": Color(0.5, 0.48, 0.78)},
+	# พญานาค of the Loy Krathong night (LoyKrathong): emerald scales over a gold belly, a
+	# flame-red crest and mane, gold crown and fins, amber eyes alight.
+	"naga": {"back": Color("1f9a6a"), "back_dk": Color("0a4a3a"), "belly": Color("ffe08a"), "belly_dk": Color("d89a2a"), "horn": Color("ffcf3a"), "horn_dk": Color("b87818"),
+		"mane": Color("ff5a2a"), "mane_tip": Color("ffe08a"), "fin": Color("ffb03a"), "eye": Color("ffe85a"), "rim": Color("bfffe0"), "shade": Color(0.4, 0.52, 0.64)},
 	"mount": {"back": Color("12a07c"), "back_dk": Color("08584a"), "belly": Color("fff4cf"), "belly_dk": Color("efc46a"), "horn": Color("ffcf3a"), "horn_dk": Color("c98418"),
 		"mane": Color("fffaf0"), "mane_tip": Color("a8ffe0"), "fin": Color("ffc72e"), "eye": Color("fffbd0"), "rim": Color("d6fff0"), "shade": Color(0.44, 0.54, 0.72)},
 }
@@ -59,6 +63,7 @@ const KINDS := {
 	"whelp": {"palette": "whelp", "length": 12.0, "thick": 1.35, "head": 1.5, "horns": "nubs", "mane": 7, "mane_len": 0.55, "beard": false, "whiskers": true, "crown": 0, "pose": "whelp", "move": "lunge", "wave": [0.26, 6.0, 2.4], "legs": true},
 	"wyrmling": {"palette": "wyrmling", "length": 11.0, "thick": 1.5, "head": 1.4, "horns": "horns", "mane": 9, "mane_len": 0.6, "beard": true, "whiskers": false, "crown": 0, "pose": "wyrm", "move": "spin", "wave": [0.12, 6.0, 2.0], "legs": true},
 	"wyvern": {"palette": "wyvern", "length": 13.0, "thick": 1.25, "head": 1.25, "horns": "horns", "mane": 0, "beard": false, "whiskers": false, "crown": 0, "pose": "wyvern", "move": "swoop", "wave": [0.3, 6.5, 2.2], "legs": false, "wings": true},
+	"naga": {"palette": "naga", "length": 24.0, "thick": 1.55, "head": 1.3, "horns": "crest", "mane": 11, "mane_len": 0.85, "beard": false, "whiskers": false, "crown": 7, "pose": "naga", "move": "rear", "wave": [0.2, 8.0, 1.5], "legs": false, "rise_k": 0.6, "room": 0.4},
 	"mount": {"palette": "mount", "length": 20.0, "thick": 1.35, "head": 1.2, "horns": "antlers", "mane": 9, "mane_len": 0.75, "mane_drop": 0.7, "beard": true, "whiskers": true, "whisker_len": 0.5, "crown": 0, "pose": "ride", "move": "lunge", "wave": [0.16, 6.5, 1.6], "legs": true},
 }
 
@@ -157,6 +162,11 @@ static func _control(name: String) -> Array:
 			# Rising through the air in a loose helix, light as glass.
 			var spin := _helix(Vector3(0, 0, -0.6), 2.4, 2.8, PI * 0.5 - TAU * 1.25, PI * 0.5 - 0.4, 0.8, 5.6, 18)
 			return spin + [Vector3(0.6, 6.7, 1.6), Vector3(0.0, 7.3, 2.6), Vector3(0.0, 7.2, 3.8), Vector3(0.0, 6.9, 4.9)]
+		"naga":
+			# Risen from the water: a wide coil on the surface, the body standing up like a
+			# cobra's, the crowned head held high and forward over the coil.
+			var ring := _helix(Vector3(0, 0, -0.6), 3.0, 2.3, PI * 0.5 - TAU * 1.05, PI * 0.5 - 0.35, 0.5, 1.0, 16)
+			return ring + [Vector3(0.4, 2.3, 0.9), Vector3(0.0, 3.9, 0.3), Vector3(0.0, 5.4, 0.1), Vector3(0.0, 6.6, 0.8), Vector3(0.0, 7.0, 2.1), Vector3(0.0, 6.6, 3.3)]
 		"whelp":
 			return [Vector3(-0.9, 2.6, -6.4), Vector3(-1.1, 1.7, -5.5), Vector3(-0.4, 1.0, -4.3), Vector3(0.8, 1.0, -3.0), Vector3(1.0, 1.5, -1.6), Vector3(0.3, 2.1, -0.4),
 				Vector3(0.0, 2.7, 0.7), Vector3(0.0, 2.9, 1.9), Vector3(0.0, 2.8, 3.0)]
