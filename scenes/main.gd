@@ -610,6 +610,16 @@ func _on_npc(role: String) -> void:
 				RewardShop.COIN_NAME, RewardShop.POINT_NAME, RewardShop.COIN_NAME, "/".join(RewardShop.PLACE_COINS.map(func(v): return str(v))), RewardShop.CAPTURE_COINS, RewardShop.HOLD_COINS,
 				RewardShop.POINT_NAME, RewardShop.BOSS_EP, RewardShop.KILL_CAP, RewardShop.COIN_NAME, RewardShop.coins(), RewardShop.POINT_NAME, RewardShop.points()], [
 				{"label": "เปิดร้านแลกของรางวัล", "action": func(): _open_menu(&"reward")}, {"label": "ไว้ก่อน"}])
+		"loyk_pier":
+			dialog.say("ท่าน้ำลอยกระทง", "คืนนี้พระจันทร์สวยนะ! เลือกกระทงจากกระเป๋า พิมพ์คำอธิษฐาน แล้วปล่อยให้ลอยไปกับสายน้ำ ลอยได้วันละ %d ใบ (วันนี้เหลือ %d) ยังไม่มีกระทง? เอาใบตอง ดอกบัว เทียนทอง เกล็ดพญานาค ที่ล่าได้มาประดิษฐ์ที่นี่เลย" % [LoyKrathong.DAILY_FLOATS, LoyKrathong.floats_left()], [
+				{"label": "ลอยกระทง / ทำกระทง", "action": func(): _open_menu(&"loyk")}, {"label": "ไว้ก่อน"}])
+		"loyk_stage":
+			var rank := LoyKrathong.hero_rank()
+			var said := "เวทีประกวด%s ๒๕๖๙ ขึ้นเวทีได้วันละครั้ง ชุดยิ่งงาม ปีกยิ่งอลัง ของยิ่งตีบวกสูง คะแนนโหวตยิ่งมาก ใส่ชุดลอยกระทงมาด้วยยิ่งได้ใจกรรมการ! ประกาศผล %s" % [LoyKrathong.PAGEANT_NAME, LoyKrathong.date_text(float(LoyKrathong.RESULT_AT))]
+			if rank > 0:
+				said += " ตอนนี้คุณอยู่อันดับ %d" % rank
+			dialog.say("พิธีกรเวทีนพมาศ", said, [
+				{"label": "ขึ้นเวที / ดูอันดับ", "action": func(): _open_menu(&"loyk")}, {"label": "ไว้ก่อน"}])
 		"arena":
 			dialog.say("ผู้ดูแลสนามประลอง", "ท้าทายสนามประลอง! สู้ 3 รอบ ปราบฝูงมอนสเตอร์แล้วจบด้วยบอส ชนะแล้วได้รางวัลก้อนโต (ชนะครั้งแรกของวันได้เต็ม) พร้อมไหม?", [
 				{"label": "เข้าสนาม", "action": func(): go(&"arena")}, {"label": "ไว้ก่อน"}])

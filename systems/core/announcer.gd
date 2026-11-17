@@ -212,6 +212,7 @@ static func tick(t: float) -> void:
 			_luck.append(e)
 	_luck_t = t
 	DragonHunt.tick(t)
+	LoyKrathong.tick(t)
 
 
 ## The world players' jackpots announced since the last call (WorldPresence: the others
@@ -233,3 +234,4 @@ static func reset() -> void:
 	_luck_t = -1.0
 	relay = true
 	DragonHunt.reset()
+	LoyKrathong.reset()

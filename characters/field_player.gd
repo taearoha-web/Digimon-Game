@@ -822,11 +822,14 @@ func _pick_target() -> Mob:
 
 # --- The world boss (WorldEvents, WorldBoss) ----------------------------------------
 
-## The field's world boss (Zone._wboss) while it lives, or null.
+## The field's world boss (Zone._wboss), else พญานาค of the Loy Krathong night
+## (Zone._naga), while it lives, or null.
 func _world_boss() -> Mob:
 	if zone == null or not is_instance_valid(zone):
 		return null
 	var boss: Mob = zone._wboss
+	if boss == null or not is_instance_valid(boss) or boss.is_dead():
+		boss = zone._naga
 	return boss if boss != null and is_instance_valid(boss) and not boss.is_dead() else null
 
 
@@ -840,7 +843,8 @@ func _join_world_boss() -> Mob:
 	var now := Time.get_ticks_msec() * 0.001
 	if now >= _shout_at:
 		_shout_at = now + WorldEvents.BOSS_SHOUT_GAP + _rng.randf_range(0.0, 20.0)
-		var text: String = WorldEvents.BOSS_SHOUTS[_rng.randi() % WorldEvents.BOSS_SHOUTS.size()]
+		var shouts: Array = LoyKrathong.NAGA_SHOUTS if boss.has_meta("naga") else WorldEvents.BOSS_SHOUTS
+		var text: String = shouts[_rng.randi() % shouts.size()]
 		var g := WorldPlayers.guild_at(world_index, int(member.level))
 		Game.world_chat.emit(String(member.name), text, WorldPlayers.GUILD_COLORS.get(g, Color("bfe8ff")))
 		bubble(text)

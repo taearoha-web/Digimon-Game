@@ -12,6 +12,7 @@ extends RefCounted
 ##            the mount materials ("wolf_fang", ...) are jewels too, spent on mounts (MountData),
 ##            and so is the set core ("set_core") the forge makes 250★ set pieces from (SetGearData),
 ##            and so are the weekly rare collection's pieces ("wk<theme>_<rank>", WeeklyCollect)
+##            and the Loy Krathong festival's materials, krathongs and costume piece ("lk_*", LoyKrathong)
 
 const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "ring", "amulet"]
 const SLOT_NAMES := {"weapon": "อาวุธ", "armor": "เกราะ", "helm": "หมวก", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย", "wings": "ปีก", "costume": "คอสตูม"}
@@ -170,7 +171,7 @@ const JEWELS := {
 	"sky_dragon_egg": {"name": "ไข่มังกรฟ้าเทพ", "color": Color("9af0e0"), "price": 300000},
 	# The weekly rare collection (WeeklyCollect): wk<theme>_<rank>, eight themes of five
 	# pieces from common (0) to legendary (4), coloured by rank (WeeklyCollect.RANK_COLORS / PRICES).
-	"wk0_0": {"name": "ดอกดาวเรือง", "color": Color("9fe8a0"), "price": 3000}, "wk0_1": {"name": "เทียนหอมพราย", "color": Color("6fc0ff"), "price": 8000}, "wk0_2": {"name": "กระทงใบตอง", "color": Color("ffd23a"), "price": 20000}, "wk0_3": {"name": "โคมลอยทองคำ", "color": Color("c46bff"), "price": 50000}, "wk0_4": {"name": "จันทร์เพ็ญแก้ว", "color": Color("ff5a7a"), "price": 150000},
+	"wk0_0": {"name": "ดอกดาวเรือง", "color": Color("9fe8a0"), "price": 3000}, "wk0_1": {"name": "เทียนหอมพราย", "color": Color("6fc0ff"), "price": 8000}, "wk0_2": {"name": "กระทงจิ๋วนำโชค", "color": Color("ffd23a"), "price": 20000}, "wk0_3": {"name": "โคมลอยทองคำ", "color": Color("c46bff"), "price": 50000}, "wk0_4": {"name": "จันทร์เพ็ญแก้ว", "color": Color("ff5a7a"), "price": 150000},
 	"wk1_0": {"name": "ฝุ่นดาว", "color": Color("9fe8a0"), "price": 3000}, "wk1_1": {"name": "เศษดาวตก", "color": Color("6fc0ff"), "price": 8000}, "wk1_2": {"name": "ผลึกดาวหาง", "color": Color("ffd23a"), "price": 20000}, "wk1_3": {"name": "หัวใจอุกกาบาต", "color": Color("c46bff"), "price": 50000}, "wk1_4": {"name": "ดาวเหนือนิรันดร์", "color": Color("ff5a7a"), "price": 150000},
 	"wk2_0": {"name": "ขี้เถ้าเพลิง", "color": Color("9fe8a0"), "price": 3000}, "wk2_1": {"name": "ขนนกฟีนิกซ์", "color": Color("6fc0ff"), "price": 8000}, "wk2_2": {"name": "เปลวไฟนิรันดร์", "color": Color("ffd23a"), "price": 20000}, "wk2_3": {"name": "น้ำตาฟีนิกซ์", "color": Color("c46bff"), "price": 50000}, "wk2_4": {"name": "ไข่ฟีนิกซ์ทองคำ", "color": Color("ff5a7a"), "price": 150000},
 	"wk3_0": {"name": "เปลือกหอยสังข์", "color": Color("9fe8a0"), "price": 3000}, "wk3_1": {"name": "เกล็ดนางเงือก", "color": Color("6fc0ff"), "price": 8000}, "wk3_2": {"name": "ปะการังเลือด", "color": Color("ffd23a"), "price": 20000}, "wk3_3": {"name": "ไข่มุกราตรี", "color": Color("c46bff"), "price": 50000}, "wk3_4": {"name": "ตรีศูลจ้าวสมุทร", "color": Color("ff5a7a"), "price": 150000},
@@ -178,6 +179,14 @@ const JEWELS := {
 	"wk5_0": {"name": "เกล็ดหิมะคริสตัล", "color": Color("9fe8a0"), "price": 3000}, "wk5_1": {"name": "เขี้ยวหมาป่าน้ำแข็ง", "color": Color("6fc0ff"), "price": 8000}, "wk5_2": {"name": "ผลึกน้ำแข็งพันปี", "color": Color("ffd23a"), "price": 20000}, "wk5_3": {"name": "หัวใจธารน้ำแข็ง", "color": Color("c46bff"), "price": 50000}, "wk5_4": {"name": "มงกุฎราชันหิมะ", "color": Color("ff5a7a"), "price": 150000},
 	"wk6_0": {"name": "เหรียญทองโบราณ", "color": Color("9fe8a0"), "price": 3000}, "wk6_1": {"name": "ด้วงสคารับ", "color": Color("6fc0ff"), "price": 8000}, "wk6_2": {"name": "ม้วนปาปิรุส", "color": Color("ffd23a"), "price": 20000}, "wk6_3": {"name": "ดวงตาเทพสุริยะ", "color": Color("c46bff"), "price": 50000}, "wk6_4": {"name": "หน้ากากฟาโรห์ทองคำ", "color": Color("ff5a7a"), "price": 150000},
 	"wk7_0": {"name": "ประกายสายฟ้า", "color": Color("9fe8a0"), "price": 3000}, "wk7_1": {"name": "ขนอินทรีพายุ", "color": Color("6fc0ff"), "price": 8000}, "wk7_2": {"name": "ผลึกเมฆฝน", "color": Color("ffd23a"), "price": 20000}, "wk7_3": {"name": "กลองเทพสายฟ้า", "color": Color("c46bff"), "price": 50000}, "wk7_4": {"name": "หัวใจพายุนิรันดร์", "color": Color("ff5a7a"), "price": 150000},
+	# The Loy Krathong festival (LoyKrathong): its materials (lk_leaf .. lk_scale, dropped
+	# during the festival), the four krathongs made of them (lk_k0 .. lk_k3, floated at the
+	# pier) and the festival costume's piece (lk_piece).
+	"lk_leaf": {"name": "ใบตอง", "color": Color("7ad06a"), "price": 2000}, "lk_lotus": {"name": "ดอกบัว", "color": Color("ff8fc8"), "price": 5000},
+	"lk_candle": {"name": "เทียนทอง", "color": Color("ffd23a"), "price": 15000}, "lk_scale": {"name": "เกล็ดพญานาค", "color": Color("5cf2d0"), "price": 60000},
+	"lk_k0": {"name": "กระทงใบตอง", "color": Color("7ad06a"), "price": 8000}, "lk_k1": {"name": "กระทงดอกบัว", "color": Color("ff8fc8"), "price": 20000},
+	"lk_k2": {"name": "กระทงทองคำ", "color": Color("ffd23a"), "price": 50000}, "lk_k3": {"name": "กระทงเทพนาคา", "color": Color("5cf2d0"), "price": 150000},
+	"lk_piece": {"name": "ชิ้นส่วนชุดลอยกระทง", "color": Color("ffc24a"), "price": 20000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}

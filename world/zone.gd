@@ -80,6 +80,10 @@ var rng := RandomNumberGenerator.new()
 var _event_rng := RandomNumberGenerator.new()
 ## The weekly rare collection's rolls (WeeklyCollect), apart from the zone's other dice.
 var _weekly_rng := RandomNumberGenerator.new()
+## The Loy Krathong festival's rolls (LoyKrathong: materials, the Naga's drops).
+var _loyk_rng := RandomNumberGenerator.new()
+## พญานาค of the Loy Krathong night (LoyKrathong.naga_now) while it lives here.
+var _naga: Mob
 var portals: Array[Dictionary] = []
 var npcs: Array[Npc] = []
 var companions: Array[Companion] = []
@@ -198,6 +202,7 @@ func _ready() -> void:
 	else:
 		rng.randomize()
 	_weekly_rng.randomize()
+	_loyk_rng.randomize()
 	# Every monster that enters the zone (spawned or scripted) pays out when it dies.
 	child_entered_tree.connect(func(node: Node):
 		var mob := node as Mob
@@ -417,6 +422,7 @@ func _process(delta: float) -> void:
 		for camp in _camps:
 			_refill_camp(camp)
 		_tick_world_boss()
+		_tick_naga()
 		_tick_golden()
 	_tick_boss(delta)
 	if bool(data.get("arena", false)):
@@ -754,11 +760,17 @@ func _build_town() -> void:
 		var yard: Vector3 = spot + (v[6] - spot).normalized()
 		yards.append(Vector3(yard.x, yard.z, 3.0))
 	await _slice()
+	# The Loy Krathong festival's pond (LoyKrathongPier): its stage and pier kept clear.
+	if LoyKrathong.decor_on():
+		clear.append_array(LoyKrathongPier.clear_spots())
 	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null,
 		VillageGround.grows.bind(TOWN_RADIUS, green, streets))
 	# Potted plants, lantern posts, crates and signposts along the streets (visual only).
 	PropDressing.village(self, yards)
 	await _slice()
+	if LoyKrathong.decor_on():
+		LoyKrathongPier.build(self, npcs)
+		await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)
 	await _slice()
@@ -1440,6 +1452,99 @@ func _on_world_boss_died(mob: Mob) -> void:
 		Game.emit_signal("world_boss_defeated", Game.current_zone)
 
 
+## พญานาค (LoyKrathong.naga_now): on the Loy Krathong night, in its windows, in every
+## levelling field, the field boss's stats at LoyKrathong.NAGA_HP times its HP, drawn as
+## the Naga (CelestialDragon "naga") rising beside the boss spot in a ring of rippling
+## water, with the world boss's special moves; the world players hunting here join in
+## (FieldPlayer._world_boss). Once a window: brought down, flags[NAGA_FLAG] keeps it down;
+## when the window ends it sinks back.
+func _tick_naga() -> void:
+	if not Game.has_profile or is_town or is_pvp or is_tower or not data.has("boss") or not WorldEvents.golden_field(data):
+		return
+	var event := LoyKrathong.naga_now(WorldPresence.clock())
+	if _naga != null and is_instance_valid(_naga) and not _naga.is_dead():
+		if event.is_empty() or int(event.window) != int(_naga.get_meta("naga", -1)):
+			Game.say("%sดำกลับลงน้ำไปแล้ว" % LoyKrathong.NAGA_NAME, &"info")
+			_naga.queue_free()
+			_naga = null
+		return
+	if event.is_empty() or LoyKrathong.naga_done(int(event.window)):
+		return
+	if int(Game.paragon().level) < int(data.boss.get("star", 0)):
+		return
+	var info: Dictionary = data.boss
+	var mob := Mob.new()
+	var spot := _boss_spot + Vector3(-6.0, 0, 4.0)
+	mob.setup(info.monster, int(info.level), spot, hero)
+	mob.template = mob.template.duplicate()
+	mob.template["name"] = LoyKrathong.NAGA_NAME
+	mob.template["celestial"] = "naga"
+	mob.template["height"] = LoyKrathong.NAGA_HEIGHT
+	mob.template["boss"] = true
+	mob.is_boss = true
+	mob.max_hp = int(float(mob.max_hp) * LoyKrathong.NAGA_HP)
+	mob.hp = mob.max_hp
+	mob.set_meta("naga", int(event.window))
+	mob.set_meta("world_boss", int(event.window))
+	mob.position = spot + Vector3(0, 0.3, 0)
+	add_child(mob)
+	var special := WorldBoss.new()
+	special.setup(mob, self)
+	mob.add_child(special)
+	if mob._label:
+		mob._label.modulate = LoyKrathong.NAGA_COLOR
+		mob._label.visibility_range_end = 40.0
+	LoyKrathongPier.water_ring(mob)
+	_naga = mob
+	banner_requested.emit("%sขึ้นจากน้ำแล้ว!" % LoyKrathong.NAGA_NAME)
+	Game.say("%sขึ้นจากน้ำที่ %s! เหลือเวลา %d นาที" % [LoyKrathong.NAGA_NAME, String(data.get("name", "")), maxi(1, int(ceil((float(event.until) - WorldPresence.clock()) / 60.0)))], &"warning")
+
+
+## The Naga is down: its window is spent; the hero's side gets the bounty, its scales,
+## festival pieces and points, and a roll for rares (told to the server).
+func _on_naga_died(mob: Mob) -> void:
+	Game.profile.flags[LoyKrathong.NAGA_FLAG] = int(mob.get_meta("naga", -1))
+	Game.mark_dirty()
+	if mob == _naga:
+		_naga = null
+	if mob.party_share() <= 0.0:
+		return
+	var from := mob.global_position
+	var gold := WorldEvents.BOSS_GOLD_PER_10 * 2 * maxi(1, int(Game.profile.level) / 10)
+	_spawn_loot({}, gold, from)
+	var drops := LoyKrathong.naga_drops(_loyk_rng)
+	for item in drops.items:
+		_spawn_loot(item, 0, from)
+	LoyKrathong.add_points(LoyKrathong.NAGA_POINTS)
+	VfxKit.sparks(self, from + Vector3(0, 1.5, 0), LoyKrathong.NAGA_COLOR, 48, 7.0, 1.2)
+	var jackpot: Dictionary = drops.jackpot
+	if not jackpot.is_empty():
+		Game.screen_flash.emit(LoyKrathong.NAGA_COLOR, 0.25)
+		Announcer.broadcast("%s ปราบ%sได้ %s!" % [String(Game.profile.get("name", "")), LoyKrathong.NAGA_NAME, ItemData.name_of(jackpot)], "jackpot")
+	var text := "%s ปราบ%sแล้ว! เกล็ดพญานาคร่วงลงมา" % [String(Game.profile.get("name", "")), LoyKrathong.NAGA_NAME]
+	banner_requested.emit("ปราบ%sแล้ว! +%d เหรียญ +%d แต้มลอยกระทง" % [LoyKrathong.NAGA_NAME, gold, LoyKrathong.NAGA_POINTS])
+	Game.say(text, &"quest")
+	Game.world_chat.emit("ประกาศ", text, LoyKrathong.NAGA_COLOR)
+
+
+## The Loy Krathong festival's materials (LoyKrathong.kill_drops), on their own RNG.
+func _loyk_drop(mob: Mob, from: Vector3) -> void:
+	var kind := ""
+	if mob == _wboss or mob.has_meta("world_boss"):
+		kind = "world_boss"
+	elif mob.has_meta("golden"):
+		kind = "golden"
+	elif mob.is_boss:
+		kind = "boss"
+	elif bool(mob.template.get("elite", false)):
+		kind = "elite"
+	var zone := data
+	if is_town or is_pvp or is_tower:
+		zone = {}
+	for item in LoyKrathong.kill_drops(zone, kind, _drop_fortune(), WorldPresence.clock(), _loyk_rng):
+		_spawn_loot(item, 0, from)
+
+
 ## The golden monster (WorldEvents.golden_now): in its window, in every levelling field
 ## (WorldEvents.golden_field), a gilded monster of the field in the window's camp
 ## (WorldEvents.golden_pick), GOLDEN_HP times the HP, named มอนทองคำ, with a sparkle.
@@ -1546,6 +1651,7 @@ func enter_shared_mirror() -> void:
 		camp.mobs = []
 	_boss = null
 	_wboss = null
+	_naga = null
 	_golden = null
 	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
 		hero.set_target(null)
@@ -1640,6 +1746,8 @@ func _on_mob_died(mob: Mob) -> void:
 		_on_world_boss_died(mob)
 	if mob.has_meta("golden"):
 		_on_golden_died(mob)
+	if mob.has_meta("naga"):
+		_on_naga_died(mob)
 	if mob.has_meta(RareDragon.META) and RareDragon.of(self) != null:
 		RareDragon.of(self).died(mob)
 	# A world player's kill is its own: the hero earns EXP by its share of the damage,
@@ -1668,6 +1776,7 @@ func _drop_loot(mob: Mob) -> void:
 	_spawn_loot({}, gold, from)
 	_drop_jewels(from)
 	_weekly_drop(mob, from)
+	_loyk_drop(mob, from)
 	var source := &"field_boss" if _is_field_boss(mob) else (&"star" if is_star_field() and not mob.is_boss else &"")
 	for item in gem_bonus_drops(source, _drop_fortune(), rng):
 		_spawn_loot(item, 0, from)
