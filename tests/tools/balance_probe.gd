@@ -56,9 +56,9 @@ const AIM := {
 }
 ## Hits to fall that a field sets apart from the shared bands (die_n 10-40, die_b 3-15):
 ## the owner made the isle bite harder (SkyIsleData.BOSS_ATK, NORMAL_ATK): its normal
-## monsters at about 9 hits and the Dragon God's heavy hit all but felling the hero, though
-## never from full health.
-const DIE_BANDS := {"sky_dragon_isle": {"die_n": [6.0, 14.0], "die_b": [1.0, 2.0]}}
+## monsters at about 9 hits and the Dragon God's heavy hit (twice as hard) taking about a
+## third of the hero (2-4 hits to fall).
+const DIE_BANDS := {"sky_dragon_isle": {"die_n": [6.0, 14.0], "die_b": [2.0, 4.0]}}
 ## Fields from Lv.100 whose monsters carry x2..x5 health (MonsterData.LATE_HP):
 ## their aims above are the earlier ones times that, and a skill takes a smaller
 ## share of a monster's health.
