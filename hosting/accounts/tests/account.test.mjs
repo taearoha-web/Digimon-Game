@@ -322,6 +322,24 @@ test('the sky isle collectibles are accepted: chest, fragment and egg stacks, th
   assert.equal(over.status, 400, 'a mount past Lv.5 is refused');
 });
 
+test('the dragon hunt record is accepted with its rewards and refused when malformed', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  // DragonHunt in the game: profile.dhunt {n, pts, got (7 milestone bits), kills, golden},
+  // its rewards plain stacks, its title a flag counter.
+  const hunter = {...sample(), dhunt: {n: 0, pts: 2150, got: 127, kills: 12, golden: 38}, flags: {dhunt_top: 1},
+    inv: [{kind: 'jewel', id: 'set_core', count: 4}, {kind: 'jewel', id: 'sky_dragon_egg', count: 1}]};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(hunter)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  let revision = 1;
+  for (const dhunt of [[], {got: 128}, {pts: -1}, {pts: 1.5}, {n: 'x'}, {n: -2}, {junk: 1}, {kills: 'many'}]) {
+    const bad = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle({...hunter, dhunt})}});
+    assert.equal(bad.status, 400, JSON.stringify(dhunt));
+  }
+  const fresh = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle({...sample(), dhunt: {n: -1, pts: 0, got: 0, kills: 0, golden: 0}})}});
+  assert.equal(fresh.status, 200, JSON.stringify(fresh.body));
+});
+
 test('mount levels and the old list of owned mounts are both accepted', async t => {
   const {register, call} = harness(t);
   const account = await register();

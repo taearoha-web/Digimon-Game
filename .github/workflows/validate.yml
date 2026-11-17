@@ -769,6 +769,16 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-guild-war-attendance
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_attendance_test.tscn
+      - name: "forge_weekend_test (สุดสัปดาห์ตีบวก after the x5 festival: from 20 Nov 2026 07:40 every Saturday and Sunday +10 points on every forge step that can fail, cap 95%, the real forge rate, the forge screen line and button, HUD chip, the world players' forge untouched)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-forge-weekend
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/forge_weekend_test.tscn
+      - name: "dragon_hunt_test (ล่ามังกรแก้วเจ็ดสี: 20-27 Nov 2026 and every four weeks, twice the rare dragon, hunt points from a real dragon kill and a real golden monster, milestones claimed once with the title, save validation and repair, world players' points, top list and announcements, the menu tab)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-dragon-hunt
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/dragon_hunt_test.tscn
 
   star-art:
     # The 50-200 star signature art tests (combat/star_art), beside the other jobs so none

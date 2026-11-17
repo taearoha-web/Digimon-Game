@@ -211,6 +211,7 @@ static func tick(t: float) -> void:
 			quietly(func(): SkyIsleLoot.announce(item, who))
 			_luck.append(e)
 	_luck_t = t
+	DragonHunt.tick(t)
 
 
 ## The world players' jackpots announced since the last call (WorldPresence: the others
@@ -231,3 +232,4 @@ static func reset() -> void:
 	_rare_told = -1
 	_luck_t = -1.0
 	relay = true
+	DragonHunt.reset()

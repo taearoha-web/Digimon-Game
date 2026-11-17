@@ -56,6 +56,16 @@ const FESTIVAL5_CORE := 5.0
 const NAME_FESTIVAL5 := "เทศกาล EXP x5 + ดรอปเพชร/แก่นเทพ x5"
 ## Tests of the progression maths that run on the real clock switch the festival off.
 static var festival_enabled := true
+## After the x5 festival (สุดสัปดาห์ตีบวก): from FESTIVAL5_END on, every Saturday and Sunday
+## (is_weekend, Thai time) each forge step that can fail succeeds FORGE_BONUS (percentage
+## points) more often, never above FORGE_CAP (enhance_chance_at; Game.enhance_item and
+## the forge screen read it). The world players' forge simulation (WorldGear) keeps the
+## plain odds: it runs in work, not time. Tests of base forge odds switch it off.
+const FORGE_START := FESTIVAL5_END
+const FORGE_BONUS := 0.10
+const FORGE_CAP := 0.95
+const NAME_FORGE := "สุดสัปดาห์ตีบวก"
+static var forge_weekend_enabled := true
 const NAME_BOSS := "บอสโลก"
 const NAME_GOLD := "โบนัสทอง +20%"
 ## Weekend jewel rush (สุดสัปดาห์ดรอปเพชร x2): all of Saturday and Sunday (Thai time)
@@ -96,8 +106,9 @@ const RARE_GAP := 30 * 60
 const NAME_RARE := "มังกรแก้วเจ็ดสี"
 const RARE_COLOR := Color("7dffd8")
 const RARE_FLAG := "rare_dragon"
-## A window's number: its Thai day times RARE_SLOTS plus its place in the day.
-const RARE_SLOTS := 8
+## A window's number: its Thai day times RARE_SLOTS plus its place in the day (room for
+## the hunt week's doubled days).
+const RARE_SLOTS := 16
 
 static var _fields: Array[StringName] = []
 static var _star_fields: Array[StringName] = []
@@ -218,10 +229,40 @@ static func weekend_text(t: float) -> String:
 	return "%s เหลือ %s" % [NAME_WEEKEND_JEWEL, _span(_at(t, DAY, 1 if weekday(t) == 6 else 0) - t)]
 
 
+static func forge_weekend_on(t: float) -> bool:
+	return forge_weekend_enabled and t >= float(FORGE_START) and is_weekend(t)
+
+
+## The forge's extra chance at `t` (0 outside a forge weekend).
+static func forge_bonus(t: float) -> float:
+	return FORGE_BONUS if forge_weekend_on(t) else 0.0
+
+
+## The chance (0-1) of the next +1 from grade `plus` at `t`: ItemData.enhance_chance with
+## the forge weekend's bonus on every step that can fail (a sure step stays sure).
+static func enhance_chance_at(plus: int, t: float) -> float:
+	var base := ItemData.enhance_chance(plus)
+	if base >= 1.0:
+		return base
+	return minf(FORGE_CAP, base + forge_bonus(t))
+
+
+## The forge screen's line of the forge weekend ("" outside it).
+static func forge_line(t: float) -> String:
+	return "%s: โอกาสสำเร็จ +%d%%" % [NAME_FORGE, int(round(FORGE_BONUS * 100.0))] if forge_weekend_on(t) else ""
+
+
+## The HUD line of the forge weekend ("" outside it).
+static func forge_text(t: float) -> String:
+	if not forge_weekend_on(t):
+		return ""
+	return "%s เหลือ %s" % [forge_line(t), _span(_at(t, DAY, 1 if weekday(t) == 6 else 0) - t)]
+
+
 ## The HUD event chip's lines at `t` (Hud): the running or next event (describe), the
 ## weekend jewel rush and the Halloween event, each only while it has something to say.
 static func chip_lines(t: float) -> Array:
-	return [festival_text(t), rare_text(t), describe(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+	return [festival_text(t), DragonHunt.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
 
 
 ## A levelling field (the golden monster's ground): a field with monster camps, not the
@@ -273,9 +314,10 @@ static func roll(key: String) -> int:
 	return rng.randi()
 
 
-## How many times the rare dragon comes on Thai day `day` (RARE_MIN..RARE_MAX).
+## How many times the rare dragon comes on Thai day `day` (RARE_MIN..RARE_MAX; twice as
+## many on a day of the dragon hunt week, DragonHunt.rare_mult).
 static func rare_count(day: int) -> int:
-	return RARE_MIN + roll("rare|%d" % day) % (RARE_MAX - RARE_MIN + 1)
+	return (RARE_MIN + roll("rare|%d" % day) % (RARE_MAX - RARE_MIN + 1)) * DragonHunt.rare_mult(day)
 
 
 ## Unix times the rare dragon's windows of Thai day `day` open, in order.
