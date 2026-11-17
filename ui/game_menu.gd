@@ -11,7 +11,7 @@ signal raid_requested()
 signal dungeon_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["hunt", DragonHuntView.TAB_NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -215,6 +215,7 @@ func _rebuild() -> void:
 			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_content.add_child(page)
 			_page_scroll = RewardShopView.build(page, _queue_rebuild) as TouchScroll
+		&"hunt": _page_scroll = DragonHuntView.build(_content, _queue_rebuild)
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
@@ -222,11 +223,15 @@ func _rebuild() -> void:
 
 ## The "ภารกิจ & บัตร" tab shows a red dot while something is waiting to be claimed.
 func _mark_pass_tab() -> void:
-	var b: Button = _tab_buttons.get(DailyPassView.TAB_ID)
+	_mark_tab(DailyPassView.TAB_ID, DailyPassView.TAB_NAME, Game.has_profile and DailyPass.claimable() > 0)
+	_mark_tab(DragonHuntView.TAB_ID, DragonHuntView.TAB_NAME, Game.has_profile and DragonHunt.claimable() > 0)
+
+
+func _mark_tab(id: StringName, text: String, ready: bool) -> void:
+	var b: Button = _tab_buttons.get(id)
 	if b == null:
 		return
-	var ready := Game.has_profile and DailyPass.claimable() > 0
-	b.text = DailyPassView.TAB_NAME + (" ●" if ready else "")
+	b.text = text + (" ●" if ready else "")
 	for key in ["font_color", "font_disabled_color", "font_hover_color", "font_pressed_color"]:
 		if ready:
 			b.add_theme_color_override(key, UIPalette.DANGER)
@@ -1221,7 +1226,15 @@ func _build_forge_buttons(item: Dictionary) -> void:
 		need.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		need.add_theme_color_override("font_color", Color("e8dcff") if enough else Color("ff8a8a"))
 		spot.add_child(need)
-		var btn := UIUtil.button("ตีบวก +%d  (%d%%)" % [plus + 1, int(ItemData.enhance_chance(plus) * 100.0)], &"PrimaryButton", Vector2(0, 58))
+		# The forge weekend (สุดสัปดาห์ตีบวก): its line, and the odds on the button with it.
+		var now := WorldPresence.clock()
+		var weekend := WorldEvents.forge_line(now)
+		if weekend != "":
+			var line := UIUtil.label(weekend, &"BoldLabel")
+			line.name = "ForgeWeekend"
+			line.add_theme_color_override("font_color", Color("ffd23a"))
+			spot.add_child(line)
+		var btn := UIUtil.button("ตีบวก +%d  (%d%%)" % [plus + 1, int(round(WorldEvents.enhance_chance_at(plus, now) * 100.0))], &"PrimaryButton", Vector2(0, 58))
 		btn.disabled = not enough
 		btn.pressed.connect(func():
 			var result := Game.enhance_item(item)

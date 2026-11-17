@@ -1143,6 +1143,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# Daily / weekly quests and the reward pass (DailyPass).
 	if data.has(DailyPass.KEY) and not DailyPass.valid(data[DailyPass.KEY]):
 		return false
+	# The dragon hunt week's record (DragonHunt).
+	if data.has(DragonHunt.KEY) and not DragonHunt.valid(data[DragonHunt.KEY]):
+		return false
 	for value in data.get("ach", {}).values():
 		if not value is bool:
 			return false
@@ -1495,6 +1498,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	# Saves from before the stall get an empty one.
 	PlayerStall.repair(data)
 	DailyPass.repair(data)
+	DragonHunt.repair(data)
 	# The four guilds: every hero from before them leaves its guild once and picks again
 	# at the guild registrar (everything else stays).
 	migrate_guild4(data)
@@ -2562,7 +2566,8 @@ func enhance_item(item: Dictionary) -> String:
 		if int(cost[id]) > 0:
 			_spend_jewels(id, int(cost[id]))
 	daily_progress("enhance")
-	if rng.randf() < ItemData.enhance_chance(plus):
+	# The forge weekend (WorldEvents.enhance_chance_at) adds to the plain odds.
+	if rng.randf() < WorldEvents.enhance_chance_at(plus, WorldPresence.clock()):
 		item["plus"] = plus + 1
 		item["price"] = int(int(item.price) * 1.12)
 		flag_max("best_plus", plus + 1)

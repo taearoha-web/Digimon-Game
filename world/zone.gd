@@ -1502,6 +1502,7 @@ func _on_golden_died(mob: Mob) -> void:
 		Game.world_chat.emit("ประกาศ", "%s ถูกปราบแล้ว!" % WorldEvents.NAME_GOLDEN, WorldEvents.GOLDEN_COLOR)
 		return
 	Game.daily_progress("golden")
+	DragonHunt.on_golden()
 	var from := mob.global_position
 	var gold := WorldEvents.GOLDEN_GOLD * WorldEvents.golden_tier(data)
 	_spawn_loot({}, gold, from)

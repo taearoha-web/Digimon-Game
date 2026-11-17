@@ -262,6 +262,15 @@ function validateProfile(profile) {
         || ['day', 'week', 'month', 'pts', 'warn'].some(key => key in pass && !integer(pass[key], -1))
         || ('got' in pass && !integer(pass.got, 0, 2 ** 30 - 1))) fail(400, 'invalid_save', 'The daily quests or reward pass are invalid.');
   }
+  // The dragon hunt week's record (DragonHunt in the game): the hunt, points, claimed
+  // milestones (7 bits) and kill counters, all integers.
+  if ('dhunt' in profile) {
+    const hunt = profile.dhunt;
+    if (!dictionary(hunt) || Object.keys(hunt).some(key => !['n', 'pts', 'got', 'kills', 'golden'].includes(key))
+        || ('n' in hunt && !integer(hunt.n, -1, 100000))
+        || ('got' in hunt && !integer(hunt.got, 0, 2 ** 7 - 1))
+        || ['pts', 'kills', 'golden'].some(key => key in hunt && !integer(hunt[key], 0, 10000000))) fail(400, 'invalid_save', 'The dragon hunt record is invalid.');
+  }
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
     const stall = profile.stall;

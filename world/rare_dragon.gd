@@ -358,6 +358,8 @@ func died(m: Mob) -> void:
 	var win := int(m.get_meta(META, -1))
 	var paid := WorldEvents.rare_done(win)
 	Game.profile.flags[WorldEvents.RARE_FLAG] = win
+	if not paid:
+		DragonHunt.on_rare(m.party_share())
 	Game.mark_dirty()
 	if m == mob:
 		mob = null

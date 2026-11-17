@@ -47,6 +47,8 @@ func at(t: float) -> void:
 func _ready() -> void:
 	Game.set_process(false)
 	WorldEvents.festival_enabled = false
+	# The plain schedule: its 60 days cross the dragon hunt weeks (twice the windows).
+	DragonHunt.enabled = false
 	Game.new_profile(&"warrior", "Rare QA")
 	ZoneData.ensure()
 	_schedule()
