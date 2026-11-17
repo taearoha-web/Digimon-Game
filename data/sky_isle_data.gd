@@ -35,11 +35,11 @@ const BOSS_RESPAWN := 180.0
 ## gear) and about 600 strongest-skill hits for the Dragon God (the abyss's Poseidon: 450);
 ## a normal monster needed about 18 hits to bring that hero down, the boss 5-6 (the abyss: 20
 ## and 8). Then the owner asked for the isle to bite harder (health unchanged): the Dragon
-## God hits five times as hard (BOSS_ATK on the measured 513, his normal hits and both
-## moves: a heavy hit now all but fells that hero, about 1.1 hits; dodge the circles), and
+## God hit five times as hard, then (owner, later) twice as hard (BOSS_ATK on the measured 513,
+## his normal hits and both moves: a heavy hit takes about 2.7 hits to fell that hero), and
 ## the normal monsters twice as hard (NORMAL_ATK, about 9 hits). The elites share the
 ## normal attack row and keep their strength.
-const BOSS_ATK := 5.0
+const BOSS_ATK := 2.0
 const NORMAL_ATK := 2.0
 const TUNING := [0.0692, 424.0, 0.1367, 513.0 * BOSS_ATK]
 const LATE_HP := 6.0

@@ -197,8 +197,8 @@ func run_runtime() -> void:
 	prism._begin_slam()
 	check(prism._slam_timer < RareDragon.SLAM_EVERY and prism._slam_timer <= BossAttack.P2_INTERVAL, "enraged it slams faster (%.1f s)" % prism._slam_timer)
 	prism.free()
-	# The Dragon God's moves strike off his attack, five times what was measured (SkyIsleData.BOSS_ATK).
-	check(is_equal_approx(float(SkyIsleData.TUNING[3]), 513.0 * SkyIsleData.BOSS_ATK) and is_equal_approx(SkyIsleData.BOSS_ATK, 5.0), "the Dragon God hits five times as hard")
+	# The Dragon God's moves strike off his attack, twice what was measured (SkyIsleData.BOSS_ATK).
+	check(is_equal_approx(float(SkyIsleData.TUNING[3]), 513.0 * SkyIsleData.BOSS_ATK) and is_equal_approx(SkyIsleData.BOSS_ATK, 2.0), "the Dragon God hits twice as hard")
 	# The abyss boss is the summoner's Poseidon: his rig, his skills, his clips, both from the start.
 	var poseidon := make_actor(&"tidal_tyrant", target)
 	check(String(poseidon.template.model) == "summon/Poseidon" and String(poseidon.template.get("legend", "")) == "poseidon", "the abyss boss is Poseidon")

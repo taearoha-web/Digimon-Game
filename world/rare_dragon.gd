@@ -30,11 +30,11 @@ const META := "rare_dragon"
 ## Over the field boss's stats (MonsterData.stats_for of zone.boss): a raid-lite fight for
 ## one ★300 hero in the field's gear. Raised at the owner's request: twice the health it
 ## had (2x the boss's, now 4x) and 2.5x the bite it had (0.85x the boss's attack before the
-## Dragon God's own went up 5x, SkyIsleData.BOSS_ATK: 0.85 * 2.5 / 5 of it now). Its two
+## Dragon God's own went up, SkyIsleData.BOSS_ATK: 0.85 * 2.5 / BOSS_ATK of it now). Its two
 ## lightning moves alternate from the first one, every SLAM_EVERY seconds (MonsterData
 ## "slam_every", BossAttack.start) instead of a field boss's 8.
 const HP_SCALE := 4.0
-const ATK_SCALE := 0.425
+const ATK_SCALE := 0.85 * 2.5 / SkyIsleData.BOSS_ATK
 const SLAM_EVERY := 5.0
 const EXP_SCALE := 3.0
 ## Without a field boss: this many times the camp's toughest monster.
