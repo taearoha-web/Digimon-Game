@@ -260,9 +260,10 @@ static func forge_text(t: float) -> String:
 
 
 ## The HUD event chip's lines at `t` (Hud): the running or next event (describe), the
-## weekend jewel rush and the Halloween event, each only while it has something to say.
+## week's rare collection (WeeklyCollect), the weekend jewel rush and the Halloween event,
+## each only while it has something to say.
 static func chip_lines(t: float) -> Array:
-	return [festival_text(t), DragonHunt.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+	return [festival_text(t), DragonHunt.chip_text(t), WeeklyCollect.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
 
 
 ## A levelling field (the golden monster's ground): a field with monster camps, not the
@@ -390,6 +391,9 @@ static func current(t: float) -> Array[Dictionary]:
 		list.append({"id": "festival", "name_th": NAME_FESTIVAL, "until": float(FESTIVAL_END)})
 	if festival5_on(t):
 		list.append({"id": "festival5", "name_th": NAME_FESTIVAL5, "until": float(FESTIVAL5_END)})
+	var weekly := WeeklyCollect.event(t)
+	if not weekly.is_empty():
+		list.append(weekly)
 	if evening_exp(t):
 		list.append({"id": "exp2", "name_th": NAME_EXP, "until": _at(t, EXP_END)})
 	var boss := boss_now(t)

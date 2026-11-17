@@ -1166,6 +1166,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The reward exchange's currencies and unlocks (RewardShop).
 	if data.has(RewardShop.KEY) and not RewardShop.valid(data[RewardShop.KEY]):
 		return false
+	# The week's rare collection record (WeeklyCollect).
+	if data.has(WeeklyCollect.KEY) and not WeeklyCollect.valid(data[WeeklyCollect.KEY]):
+		return false
 	if data.has("gw_last"):
 		var last: Variant = data.gw_last
 		if not last is Dictionary or not last.get("rows", []) is Array or (last.get("rows", []) as Array).size() > 200:
@@ -1514,6 +1517,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		data["guild_leaders"] = leaders
 	GuildLeague.repair(data)
 	RewardShop.repair(data)
+	WeeklyCollect.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
 	if int(data.level) == MAX_LEVEL and int(data.exp) > 0:
 		var para: Dictionary = data.paragon
