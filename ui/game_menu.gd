@@ -11,7 +11,7 @@ signal raid_requested()
 signal dungeon_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["weekly", WeeklyCollect.NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -215,6 +215,11 @@ func _rebuild() -> void:
 			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_content.add_child(page)
 			_page_scroll = RewardShopView.build(page, _queue_rebuild) as TouchScroll
+		&"weekly":
+			var page := UIUtil.vbox(8)
+			page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_content.add_child(page)
+			_page_scroll = WeeklyCollectView.build(page, _queue_rebuild) as TouchScroll
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)

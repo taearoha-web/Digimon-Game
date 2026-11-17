@@ -417,6 +417,8 @@ const ISLE := ["{inisle}ฟาร์ม%isle อยู่ ลุ้น%isleweapo
 	"{inisle}ใครเห็นลำแสงสีรุ้งบอกด้วย จะไปตี%rare", "{inisle}%rare มาวันละ %raretimes รอบ รอบละ %raremin นาที ต้องเฝ้าเอา",
 	"{inisle}เก็บชิ้นส่วนคอสตูมอยู่ ต้องครบ %fragneed ถึงแลกชุดได้", "{inisle}ถึง ★%islestar แล้วมา%isle กันได้นะ", "{inisle}ลุ้นไข่สัตว์ขี่ที่%isle โอกาส %degg เปอร์เซ็นต์ต่อตัว"]
 const ISLE_SHARE := 0.35
+## Lines about the weekly rare collection (WeeklyCollect.chat_line) while it runs.
+const WEEKLY_SHARE := 0.1
 ## Stall keepers: players taking a break in the village, selling what they found.
 ## %gear / %potion / %jewel name a lot this stall really has (StallStock.lot_name); a line
 ## naming goods the stall does not have is never said. Potions are under the merchant's
@@ -463,6 +465,13 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 		var story := StoryChapter2.chat_lines()
 		if not story.is_empty():
 			return String(story[absi(hash(seed_value * 31 + 5)) % story.size()])
+	# While the weekly rare collection runs (WeeklyCollect), a player now and then talks of
+	# the week's theme and the pieces it really found. Its own roll, so the other lines'
+	# picks stay as they were.
+	if float(hash(seed_value * 6271 + 29) % 1000) < WEEKLY_SHARE * 1000.0:
+		var weekly := WeeklyCollect.chat_line(s, seed_value, t)
+		if weekly != "":
+			return weekly
 	var pool: Array = []
 	var errand := String(s.get("errand", ""))
 	if doing == "errand" and ERRAND.has(errand):

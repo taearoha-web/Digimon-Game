@@ -63,6 +63,10 @@ const TABLE := [
 	{"id": "t_chapter2", "name": "ผู้ดับเงาเหนือดวงดาว", "desc": "ปราบนิรา ราชินีเงาแห่งห้วงลึก บนบัลลังก์เงา (จบบทที่ 2: เงาเหนือดวงดาว)", "title": "ผู้ดับเงาเหนือดวงดาว", "kind": "chapter2", "goal": 1},
 	# The mechanics dungeon cleared under DungeonData.FAST_SECONDS (flags["tomb_fast"], DungeonData.claim).
 	{"id": "t_dragon_tomb", "name": "ผู้พิชิตสุสานมังกร", "desc": "พิชิตสุสานมังกรโบราณภายใน 5 นาที", "title": "ผู้พิชิตสุสานมังกร", "kind": "tomb_fast", "goal": 1},
+	# The weekly rare collection (WeeklyCollect): a full set exchanged, and the sets of all
+	# eight themes (WeeklyCollect.SETS_FLAG / THEMES_FLAG).
+	{"id": "t_wcol", "name": "นักสะสมของแรร์", "desc": "แลกหีบสมบัตินักสะสม (ครบชุด 5 แบบของอีเว้นสะสมของแรร์ประจำสัปดาห์)", "title": "นักสะสมของแรร์", "kind": "wcol_sets", "goal": 1},
+	{"id": "t_wcol_all", "name": "ตำนานนักสะสม", "desc": "แลกหีบสมบัตินักสะสมครบทั้ง 8 ธีม", "title": "ตำนานนักสะสม", "kind": "wcol_themes", "goal": 8},
 ]
 ## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
 const GOD_ID := "t_god"
@@ -117,6 +121,14 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"pass_top": return int(flags.get("pass_top", 0))
 		"chapter2": return int(flags.get(StoryChapter2.DONE_FLAG, 0))
 		"tomb_fast": return int(flags.get(DungeonData.F_FAST, 0))
+		"wcol_sets": return int(flags.get(WeeklyCollect.SETS_FLAG, 0))
+		"wcol_themes":
+			var bits := int(flags.get(WeeklyCollect.THEMES_FLAG, 0))
+			var n := 0
+			for th in WeeklyCollect.THEMES.size():
+				if bits & (1 << th):
+					n += 1
+			return n
 		_: return 0
 
 
