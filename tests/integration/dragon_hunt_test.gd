@@ -1,6 +1,7 @@
 extends Node
 ## ล่ามังกรแก้วเจ็ดสี, the dragon hunt week after the x5 festival (DragonHunt; headless):
-## - the dates: 20 Nov 2026 07:40 to 27 Nov 07:40 Thai time, again every four weeks;
+## - the dates: 27 Nov 2026 07:40 to 4 Dec 07:40 Thai time (a week after the x5 festival,
+##   clear of Loy Krathong), again every four weeks;
 ## - the rare dragon twice as often on the hunt's days (still never close together, one
 ##   number each), the plain schedule outside them and with the switch off;
 ## - hunt points: a real kill of the dragon on the isle, a real golden monster in a
@@ -61,13 +62,13 @@ func _ready() -> void:
 
 
 func _dates() -> void:
-	check(DragonHunt.START == WorldEvents.FESTIVAL5_END and float(DragonHunt.START) == thai(2026, 11, 20, 7, 40), "it starts as the x5 festival ends: 20 Nov 2026 07:40")
-	check(not DragonHunt.is_on(thai(2026, 11, 20, 7, 39)) and DragonHunt.is_on(thai(2026, 11, 20, 7, 40)), "not a minute before")
-	check(DragonHunt.is_on(thai(2026, 11, 27, 7, 39)) and not DragonHunt.is_on(thai(2026, 11, 27, 7, 40)), "seven days: to 27 Nov 07:40")
-	check(DragonHunt.index(thai(2026, 11, 10, 12)) == -1 and DragonHunt.index(thai(2026, 12, 1, 12)) == 0 and not DragonHunt.is_on(thai(2026, 12, 1, 12)), "nothing before it; between hunts the last one's record stays")
-	check(DragonHunt.is_on(thai(2026, 12, 18, 7, 40)) and DragonHunt.index(thai(2026, 12, 18, 7, 40)) == 1 and not DragonHunt.is_on(thai(2026, 12, 25, 7, 40)), "again four weeks later (18-25 Dec)")
-	check(DragonHunt.next_start(thai(2026, 12, 1, 12)) == thai(2026, 12, 18, 7, 40), "the next one's start")
-	check(DragonHunt.date_text(float(DragonHunt.START)) == "20 พ.ย. 07:40", "its date in Thai (%s)" % DragonHunt.date_text(float(DragonHunt.START)))
+	check(DragonHunt.START == WorldEvents.FESTIVAL5_END + 7 * WorldEvents.DAY and float(DragonHunt.START) == thai(2026, 11, 27, 7, 40), "it starts a week after the x5 festival: 27 Nov 2026 07:40")
+	check(not DragonHunt.is_on(thai(2026, 11, 27, 7, 39)) and DragonHunt.is_on(thai(2026, 11, 27, 7, 40)), "not a minute before")
+	check(DragonHunt.is_on(thai(2026, 12, 4, 7, 39)) and not DragonHunt.is_on(thai(2026, 12, 4, 7, 40)), "seven days: to 4 Dec 07:40")
+	check(DragonHunt.index(thai(2026, 11, 17, 12)) == -1 and DragonHunt.index(thai(2026, 11, 24, 21)) == -1 and DragonHunt.index(thai(2026, 12, 8, 12)) == 0 and not DragonHunt.is_on(thai(2026, 12, 8, 12)), "nothing before it; between hunts the last one's record stays")
+	check(DragonHunt.is_on(thai(2026, 12, 25, 7, 40)) and DragonHunt.index(thai(2026, 12, 25, 7, 40)) == 1 and not DragonHunt.is_on(thai(2027, 1, 1, 7, 40)), "again four weeks later (25 Dec - 1 Jan)")
+	check(DragonHunt.next_start(thai(2026, 12, 8, 12)) == thai(2026, 12, 25, 7, 40), "the next one's start")
+	check(DragonHunt.date_text(float(DragonHunt.START)) == "27 พ.ย. 07:40", "its date in Thai (%s)" % DragonHunt.date_text(float(DragonHunt.START)))
 
 
 func _schedule() -> void:
@@ -76,11 +77,12 @@ func _schedule() -> void:
 	var ok_gap := true
 	var ids := {}
 	var last_end := -INF
-	for d in range(19, 28):
-		var day := WorldEvents.day_of(thai(2026, 11, d, 12))
+	var first := WorldEvents.day_of(thai(2026, 11, 26, 12))
+	for d in range(0, 9):
+		var day := first + d
 		var starts := WorldEvents.rare_windows(day)
 		counts.append(starts.size())
-		var hunt := d >= 20 and d <= 26
+		var hunt := d >= 1 and d <= 7
 		var plain := WorldEvents.RARE_MIN + WorldEvents.roll("rare|%d" % day) % (WorldEvents.RARE_MAX - WorldEvents.RARE_MIN + 1)
 		ok_double = ok_double and starts.size() == plain * (2 if hunt else 1)
 		var midnight := float(day) * 86400.0 - float(WorldPlayers.TZ)
@@ -90,19 +92,19 @@ func _schedule() -> void:
 			var now := WorldEvents.rare_now(starts[k] + 60.0)
 			ok_gap = ok_gap and not now.is_empty() and not ids.has(int(now.window))
 			ids[int(now.window)] = true
-	print("dragon_hunt_test: windows 19-27 Nov: %s" % str(counts))
-	check(ok_double, "twice the rare dragon's windows on 20-26 Nov, the plain count on 19 and 27 Nov (%s)" % str(counts))
+	print("dragon_hunt_test: windows 26 Nov - 4 Dec: %s" % str(counts))
+	check(ok_double, "twice the rare dragon's windows on 27 Nov - 3 Dec, the plain count on 26 Nov and 4 Dec (%s)" % str(counts))
 	check(ok_gap, "still never closer than RARE_GAP, inside their day, one number each")
 	DragonHunt.enabled = false
-	var day := WorldEvents.day_of(thai(2026, 11, 22, 12))
-	check(WorldEvents.rare_count(day) <= WorldEvents.RARE_MAX and DragonHunt.chip_text(thai(2026, 11, 22, 12)) == "", "the switch gives the plain schedule back")
+	var day := WorldEvents.day_of(thai(2026, 11, 29, 12))
+	check(WorldEvents.rare_count(day) <= WorldEvents.RARE_MAX and DragonHunt.chip_text(thai(2026, 11, 29, 12)) == "", "the switch gives the plain schedule back")
 	DragonHunt.enabled = true
 
 
 func _points() -> void:
 	Game.profile.erase(DragonHunt.KEY)
-	check(DragonHunt.on_golden(thai(2026, 11, 19, 12)) == 0 and DragonHunt.on_rare(1.0, thai(2026, 11, 27, 9)) == 0 and not Game.profile.has(DragonHunt.KEY), "no points outside the hunt")
-	var t := thai(2026, 11, 21, 12)
+	check(DragonHunt.on_golden(thai(2026, 11, 26, 12)) == 0 and DragonHunt.on_rare(1.0, thai(2026, 12, 4, 9)) == 0 and not Game.profile.has(DragonHunt.KEY), "no points outside the hunt")
+	var t := thai(2026, 11, 28, 12)
 	check(DragonHunt.on_rare(0.0, t) == 0, "standing by is not a hand in it")
 	check(DragonHunt.on_rare(0.3, t) == DragonHunt.RARE_HELP, "a hand in someone else's kill: +%d" % DragonHunt.RARE_HELP)
 	check(DragonHunt.on_golden(t) == DragonHunt.GOLDEN, "a golden monster: +%d" % DragonHunt.GOLDEN)
@@ -112,8 +114,8 @@ func _points() -> void:
 
 
 func _real_kills() -> void:
-	# The dragon on the isle, in a window of 22 Nov.
-	var day := WorldEvents.day_of(thai(2026, 11, 22, 12))
+	# The dragon on the isle, in a window of 29 Nov.
+	var day := WorldEvents.day_of(thai(2026, 11, 29, 12))
 	var starts := WorldEvents.rare_windows(day)
 	at(starts[3] + 20.0)
 	DragonHunt.test_time = -1.0
@@ -149,7 +151,7 @@ func _real_kills() -> void:
 	# A golden monster in a levelling field, for a hero below ★300.
 	Game.paragon().level = 0
 	Game.profile.level = 5
-	var n := int(floor(thai(2026, 11, 23, 10) / float(WorldEvents.GOLDEN_PERIOD)))
+	var n := int(floor(thai(2026, 11, 30, 10) / float(WorldEvents.GOLDEN_PERIOD)))
 	at(WorldEvents.golden_start(n) + 20.0)
 	Game.current_zone = &"meadow"
 	var field := LootZone.new()
@@ -176,7 +178,7 @@ func _bag(id: String) -> int:
 
 
 func _milestones() -> void:
-	var t := thai(2026, 11, 24, 12)
+	var t := thai(2026, 12, 1, 12)
 	DragonHunt.test_time = t
 	Game.profile.erase(DragonHunt.KEY)
 	Game.profile.inv.clear()
@@ -198,14 +200,14 @@ func _milestones() -> void:
 	# After the hunt: still claimable until the next one; then a fresh record.
 	s["pts"] = 2000
 	s["got"] = 1
-	check(DragonHunt.claimable(thai(2026, 12, 10, 12)) == 6, "what is left can be claimed until the next hunt")
-	var next := DragonHunt.state(thai(2026, 12, 18, 9))
+	check(DragonHunt.claimable(thai(2026, 12, 17, 12)) == 6, "what is left can be claimed until the next hunt")
+	var next := DragonHunt.state(thai(2026, 12, 25, 9))
 	check(int(next.n) == 1 and int(next.pts) == 0 and int(next.got) == 0, "the next hunt starts a fresh record")
 	DragonHunt.test_time = -1.0
 
 
 func _saves() -> void:
-	var t := thai(2026, 11, 24, 12)
+	var t := thai(2026, 12, 1, 12)
 	Game.profile[DragonHunt.KEY] = {"n": 0, "pts": 1234, "got": 5, "kills": 3, "golden": 9}
 	var data := JSON.parse_string(Marshalls.base64_to_utf8(Game.export_code())) as Dictionary
 	check(Game._valid_profile(data), "a profile with the hunt record is valid")
@@ -226,7 +228,7 @@ func _saves() -> void:
 
 
 func _world_players() -> void:
-	var t := thai(2026, 11, 26, 21)
+	var t := thai(2026, 12, 3, 21)
 	WorldPlayers.ensure_until(t)
 	var windows := DragonHunt.ended_windows(0, t)
 	var slain := 0
@@ -237,7 +239,7 @@ func _world_players() -> void:
 			slain += 1
 			if first.is_empty():
 				first = w
-	print("dragon_hunt_test: %d hunt windows by 26 Nov 21:00, %d slain by world players" % [windows.size(), slain])
+	print("dragon_hunt_test: %d hunt windows by 3 Dec 21:00, %d slain by world players" % [windows.size(), slain])
 	check(windows.size() >= 6 * 8, "the hunt's windows so far (%d)" % windows.size())
 	var t0 := Time.get_ticks_usec()
 	var rows := DragonHunt.top(t, 10)
@@ -254,14 +256,14 @@ func _world_players() -> void:
 	var again := DragonHunt.top(t, 10)
 	check(str(again) == str(rows), "the same list when worked out again (every device)")
 	var i := int(ai[0].index)
-	check(DragonHunt.ai_points(i, 0, thai(2026, 11, 22, 12)) <= DragonHunt.ai_points(i, 0, t) and DragonHunt.ai_points(i, 0, thai(2026, 11, 20, 7, 40)) == 0, "a world player's points only grow from zero")
-	check(DragonHunt.ai_points(i, 0, thai(2026, 12, 2, 12)) == DragonHunt.ai_points(i, 0, thai(2026, 11, 27, 7, 40)), "and stop when the hunt ends")
+	check(DragonHunt.ai_points(i, 0, thai(2026, 11, 29, 12)) <= DragonHunt.ai_points(i, 0, t) and DragonHunt.ai_points(i, 0, thai(2026, 11, 27, 7, 40)) == 0, "a world player's points only grow from zero")
+	check(DragonHunt.ai_points(i, 0, thai(2026, 12, 9, 12)) == DragonHunt.ai_points(i, 0, thai(2026, 12, 4, 7, 40)), "and stop when the hunt ends")
 	check(cost < 3000.0, "the list is cheap enough for a menu (%.0f ms)" % cost)
 	# The server's news: the opening once, a world player's kill when its window ends.
 	Announcer.reset()
 	Game.profile.flags.erase(WorldEvents.RARE_FLAG)
-	Announcer.tick(thai(2026, 11, 20, 8))
-	Announcer.tick(thai(2026, 11, 20, 8) + 1.0)
+	Announcer.tick(thai(2026, 11, 27, 8))
+	Announcer.tick(thai(2026, 11, 27, 8) + 1.0)
 	var opening := Announcer.history.filter(func(h): return String(h.text).begins_with("ศึกล่ามังกรแก้วเจ็ดสีเริ่มแล้ว"))
 	check(opening.size() == 1 and String(opening[0].kind) == "rare", "the hunt's opening is told once")
 	if first.is_empty():
@@ -280,11 +282,11 @@ func _world_players() -> void:
 
 
 func _tab() -> void:
-	at(thai(2026, 11, 24, 12))
+	at(thai(2026, 12, 1, 12))
 	Game.profile[DragonHunt.KEY] = {"n": 0, "pts": 300, "got": 1, "kills": 2, "golden": 4}
 	var chip := DragonHunt.chip_text(WorldPresence.clock())
 	check(chip.begins_with(DragonHunt.NAME) and chip.contains("x2") and chip.contains("แต้มล่า 300") and WorldEvents.chip_lines(WorldPresence.clock()).has(chip), "the HUD chip line (%s)" % chip)
-	check(DragonHunt.chip_text(thai(2026, 12, 1, 12)) == "", "no chip line between hunts")
+	check(DragonHunt.chip_text(thai(2026, 12, 8, 12)) == "", "no chip line between hunts")
 	check(GameMenu.TABS.any(func(tab): return tab[0] == "hunt" and tab[1] == "ล่ามังกรแก้ว"), "the menu has the tab")
 	var menu := GameMenu.new()
 	add_child(menu)

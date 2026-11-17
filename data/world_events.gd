@@ -174,8 +174,11 @@ static func boss_zone(t: float) -> StringName:
 
 
 ## EXP multiplier at `t`: the evening EXP x2 times the running festival's (x3 or x5).
+## The Loy Krathong night's x2 (LoyKrathong.exp_bonus) is ADDED to the evening's rather
+## than multiplied: 19:00-21:00 x3, 21:00-23:00 x2 on that night, never x4.
 static func exp_multiplier(t: float) -> float:
-	return (EXP_MULT if evening_exp(t) else 1.0) * (FESTIVAL_EXP if festival_on(t) else 1.0) * (FESTIVAL5_EXP if festival5_on(t) else 1.0)
+	var evening := 1.0 + (EXP_MULT - 1.0 if evening_exp(t) else 0.0) + LoyKrathong.exp_bonus(t)
+	return evening * (FESTIVAL_EXP if festival_on(t) else 1.0) * (FESTIVAL5_EXP if festival5_on(t) else 1.0)
 
 
 ## The daily evening EXP x2 (19:00-21:00 Thai time).
@@ -260,10 +263,11 @@ static func forge_text(t: float) -> String:
 
 
 ## The HUD event chip's lines at `t` (Hud): the running or next event (describe), the
+## Loy Krathong festival (LoyKrathong), the dragon hunt week (DragonHunt), the
 ## week's rare collection (WeeklyCollect), the weekend jewel rush and the Halloween event,
 ## each only while it has something to say.
 static func chip_lines(t: float) -> Array:
-	return [festival_text(t), DragonHunt.chip_text(t), WeeklyCollect.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+	return [festival_text(t), LoyKrathong.chip_text(t), DragonHunt.chip_text(t), WeeklyCollect.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
 
 
 ## A levelling field (the golden monster's ground): a field with monster camps, not the
@@ -391,6 +395,7 @@ static func current(t: float) -> Array[Dictionary]:
 		list.append({"id": "festival", "name_th": NAME_FESTIVAL, "until": float(FESTIVAL_END)})
 	if festival5_on(t):
 		list.append({"id": "festival5", "name_th": NAME_FESTIVAL5, "until": float(FESTIVAL5_END)})
+	list.append_array(LoyKrathong.events(t))
 	var weekly := WeeklyCollect.event(t)
 	if not weekly.is_empty():
 		list.append(weekly)

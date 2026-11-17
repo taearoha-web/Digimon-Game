@@ -257,6 +257,12 @@ function validateProfile(profile) {
   if ([...(profile.inv ?? []), ...(profile.storage ?? []),
        ...(Array.isArray(profile.stall?.lots) ? profile.stall.lots.map(lot => lot?.item) : [])]
       .some(item => weeklyPiece(item) && !validWeeklyPiece(item))) fail(400, 'invalid_save', 'A weekly collection piece is invalid.');
+  // The Loy Krathong festival (LoyKrathong in the game): its record and its stackables
+  // (jewel stacks "lk_*": materials, krathongs, the costume piece) wherever items go.
+  if ('loyk' in profile && !validLoyKrathong(profile.loyk)) fail(400, 'invalid_save', 'The Loy Krathong record is invalid.');
+  if ([...(profile.inv ?? []), ...(profile.storage ?? []),
+       ...(Array.isArray(profile.stall?.lots) ? profile.stall.lots.map(lot => lot?.item) : [])]
+      .some(item => loyKrathongItem(item) && !validLoyKrathongItem(item))) fail(400, 'invalid_save', 'A Loy Krathong item is invalid.');
   // The guild hall's notice the hero wrote as its guild's leader (GuildHallData.NOTICE_MAX).
   if ('hall_notice' in profile && (typeof profile.hall_notice !== 'string' || chars(profile.hall_notice) > HALL_NOTICE_MAX)) fail(400, 'invalid_save', 'The guild hall notice is invalid.');
   // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
@@ -443,6 +449,21 @@ function validWeeklyCollect(record) {
   });
 }
 
+// The Loy Krathong festival (LoyKrathong in the game: keep LK_IDS equal to its MATS,
+// KRATHONGS ids and PIECE). Its stackables are jewel stacks of these ids and nothing else;
+// the record is {day, n, fl, pts, pg, pgd, pgg, got}, all integers (LoyKrathong.valid).
+const LK_IDS = new Set(['lk_leaf', 'lk_lotus', 'lk_candle', 'lk_scale', 'lk_k0', 'lk_k1', 'lk_k2', 'lk_k3', 'lk_piece']);
+const LK_MAX = 1_000_000;
+const LK_RANGES = {day: [-1, 100_000], pgd: [-1, 100_000], n: [0, 100], pgg: [0, 1], got: [0, 3], fl: [0, LK_MAX], pts: [0, LK_MAX], pg: [0, LK_MAX]};
+const loyKrathongItem = item => dictionary(item) && item.kind === 'jewel' && typeof item.id === 'string' && item.id.startsWith('lk_');
+function validLoyKrathongItem(item) {
+  return LK_IDS.has(item.id) && Object.keys(item).every(key => WCOL_KEYS.has(key)) && integer(item.count ?? 1, 1, 1_000_000);
+}
+function validLoyKrathong(record) {
+  if (!dictionary(record) || Object.keys(record).length > Object.keys(LK_RANGES).length) return false;
+  return Object.entries(record).every(([key, value]) => key in LK_RANGES && integer(value, LK_RANGES[key][0], LK_RANGES[key][1]));
+}
+
 // Every pair in the bundle (bags, worn gear, old storages, stall lots, the shared storage)
 // is well formed and no two pairs carry one season.
 function validateLegendWings(bundle) {
@@ -473,6 +494,7 @@ function validateSharedStorage(bundle) {
   if ((bundle.storage ?? []).some(item => costumeItem(item) && !validCostumeItem(item))) fail(400, 'invalid_save', 'A costume item in the shared storage is invalid.');
   if ((bundle.storage ?? []).some(item => dragonGear(item) && !validDragonGear(item))) fail(400, 'invalid_save', 'A Dragon God item in the shared storage is invalid.');
   if ((bundle.storage ?? []).some(item => weeklyPiece(item) && !validWeeklyPiece(item))) fail(400, 'invalid_save', 'A weekly collection piece in the shared storage is invalid.');
+  if ((bundle.storage ?? []).some(item => loyKrathongItem(item) && !validLoyKrathongItem(item))) fail(400, 'invalid_save', 'A Loy Krathong item in the shared storage is invalid.');
   if ('storageMigrated' in bundle) {
     const record = bundle.storageMigrated;
     if (!dictionary(record) || Object.keys(record).length > MAX_STORAGE_KEYS

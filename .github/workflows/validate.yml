@@ -779,11 +779,16 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-forge-weekend
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/forge_weekend_test.tscn
-      - name: "dragon_hunt_test (ล่ามังกรแก้วเจ็ดสี: 20-27 Nov 2026 and every four weeks, twice the rare dragon, hunt points from a real dragon kill and a real golden monster, milestones claimed once with the title, save validation and repair, world players' points, top list and announcements, the menu tab)"
+      - name: "dragon_hunt_test (ล่ามังกรแก้วเจ็ดสี: 27 Nov - 4 Dec 2026 and every four weeks, twice the rare dragon, hunt points from a real dragon kill and a real golden monster, milestones claimed once with the title, save validation and repair, world players' points, top list and announcements, the menu tab)"
         timeout-minutes: 10
         env:
           XDG_DATA_HOME: /tmp/toon-ci-dragon-hunt
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/dragon_hunt_test.tscn
+      - name: "loy_krathong_test (เทศกาลลอยกระทง: 22-26 Nov 2026, the night's EXP and Naga, material drops by band, crafting, floats and the daily cap, rewards once, the pageant, AI floats and chat, the pier, the costume, save validation)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-loy-krathong
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/loy_krathong_test.tscn
 
   star-art:
     # The 50-200 star signature art tests (combat/star_art), beside the other jobs so none

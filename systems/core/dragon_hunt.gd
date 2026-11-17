@@ -1,8 +1,9 @@
 class_name DragonHunt
 extends RefCounted
-## ล่ามังกรแก้วเจ็ดสี, the rainbow dragon hunt week that follows the x5 festival: from
-## START (20 Nov 2026 07:40 Thai time, WorldEvents.FESTIVAL5_END) for LENGTH (seven days),
-## and again every EVERY (four weeks). Read off the clock like every world event, so
+## ล่ามังกรแก้วเจ็ดสี, the rainbow dragon hunt week: from START (27 Nov 2026 07:40 Thai
+## time, a week after the x5 festival ends, WorldEvents.FESTIVAL5_END + 7 days, so it does
+## not clash with Loy Krathong, LoyKrathong 22-26 Nov) for LENGTH (seven days), and again
+## every EVERY (four weeks). Read off the clock like every world event, so
 ## every device runs the same hunts.
 ##
 ## - The rare dragon (WorldEvents.rare_*, RareDragon) comes twice as often: a Thai day
@@ -25,7 +26,7 @@ extends RefCounted
 ## bits), kills, golden}; all ints (valid / repair; the server checks the same shape).
 
 const KEY := "dhunt"
-const START := WorldEvents.FESTIVAL5_END
+const START := WorldEvents.FESTIVAL5_END + 7 * WorldEvents.DAY
 const LENGTH := 7 * WorldEvents.DAY
 const EVERY := 28 * WorldEvents.DAY
 const NAME := "ล่ามังกรแก้วเจ็ดสี"
@@ -117,7 +118,7 @@ static func chip_text(t: float) -> String:
 	return "%s (มังกรมา x2) เหลือ %s%s" % [NAME, span, pts]
 
 
-## "20 พ.ย. 07:40" (Thai time).
+## "27 พ.ย. 07:40" (Thai time).
 static func date_text(t: float) -> String:
 	var d := Time.get_datetime_dict_from_unix_time(int(t) + WorldPlayers.TZ)
 	var months := ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]

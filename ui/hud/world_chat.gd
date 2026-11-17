@@ -472,6 +472,12 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 		var weekly := WeeklyCollect.chat_line(s, seed_value, t)
 		if weekly != "":
 			return weekly
+	# During the Loy Krathong festival (LoyKrathong.chat_line) a player now and then makes a
+	# wish, talks of the pier, the moon, the night and the Naga. Its own roll, too.
+	if float(hash(seed_value * 4637 + 41) % 1000) < LoyKrathong.CHAT_SHARE * 1000.0:
+		var loyk := LoyKrathong.chat_line(s, seed_value, t)
+		if loyk != "":
+			return loyk
 	var pool: Array = []
 	var errand := String(s.get("errand", ""))
 	if doing == "errand" and ERRAND.has(errand):

@@ -16,6 +16,11 @@ extends RefCounted
 ##              bow and ribbon tails at the back, falling petals
 ##   midnight   a starry night cape (a capelet under gear wings) with a high collar,
 ##              crescent horns, a gold crescent moon pin, a few faint stars
+##   loykrathong the Loy Krathong festival's costume (LoyKrathong, exchanged for pieces or
+##              festival points): a gold lotus crown with a tiered spire and ear ornaments,
+##              a gold sabai across the chest with a jewelled collar and a hanging end, a
+##              gold belt with a ruby buckle and a silk front panel, gold armlets, little
+##              krathong candle lights drifting round
 ##   dragon_god the isle-only costume (SkyIsleLoot, exchanged for fragments): gold dragon
 ##              antlers, a jade crest and ear fins, the dragon pearl on the brow, a long
 ##              scaled tail with gold dorsal spikes and a fin fan that sways, a scale
@@ -52,6 +57,7 @@ const PARTS := {
 	"sakura": [["Head", "head"], ["Hips", "obi"]],
 	"midnight": [["Head", "head"], ["Chest", "back"]],
 	"dragon_god": [["Head", "head"], ["Chest", "back"], ["Hips", "tail"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
+	"loykrathong": [["Head", "head"], ["Chest", "back"], ["Hips", "belt"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 }
 ## Each layer's look: sway (tip offset in model units), speed and lag down the piece,
 ## glow share, and for the cloth sheets the pattern, trim and lining (costume.gdshaderinc).
@@ -73,6 +79,9 @@ const STYLE := {
 	"dragon_god": {"solid": {"sway": Vector3(0.05, 0.016, 0.02), "speed": 1.15, "lag": 3.0, "glow": 0.05},
 		"sheet": {"pattern": 4.0, "trim": Color("ffd24a"), "trim_width": 0.05, "lining": Color("0d4a40"), "speck": Color("b8ffe0"), "sway": Vector3(0.01, 0.0, -0.03), "speed": 1.2, "lag": 2.6, "glow": 0.04},
 		"sheet2": {"pattern": 4.0, "trim": Color("ffd24a"), "trim_width": 0.11, "lining": Color("0d4a40"), "speck": Color("b8ffe0"), "glow": 0.04}},
+	"loykrathong": {"solid": {"sway": Vector3(0.006, 0.0, -0.012), "speed": 1.4, "lag": 1.6, "glow": 0.06},
+		"sheet": {"pattern": 0.0, "trim": Color("e8264a"), "trim_width": 0.07, "lining": Color("c98a18"), "sway": Vector3(0.008, 0.0, -0.022), "speed": 1.3, "lag": 2.2, "glow": 0.08},
+		"sheet2": {"pattern": 0.0, "trim": Color("ffcf3a"), "trim_width": 0.16, "lining": Color("8a1428"), "sway": Vector3(0.01, 0.0, 0.016), "speed": 1.5, "lag": 1.8}},
 }
 ## The drifting motes: how many, the quad shape (costume_mote.gdshader), colour, size in
 ## metres, the ring they keep (model units) and how they move.
@@ -84,6 +93,8 @@ const MOTES := {
 	"seafoam": {"n": 6, "shape": 3.0, "color": Color("d4fbff"), "size": 0.13, "r": [0.32, 0.48], "y_lo": 0.05, "y_hi": 1.1, "rise": 0.1, "orbit": 0.25, "drift": 0.05, "additive": 0.5},
 	"midnight": {"n": 4, "shape": 1.0, "color": Color("bcd0ff"), "size": 0.12, "r": [0.4, 0.5], "y": [0.45, 1.1], "orbit": 0.2, "twinkle": 1.0, "additive": 1.0},
 	# Little spirit dragons flying head first round the wearer (shape 5, aligned to their path).
+	# Little krathong candle lights drifting round the wearer.
+	"loykrathong": {"n": 5, "shape": 0.0, "color": Color("ffc46a"), "size": 0.16, "r": [0.4, 0.5], "y": [0.25, 0.95], "orbit": 0.35, "bob": 0.05, "additive": 1.0},
 	"dragon_god": {"n": 3, "shape": 5.0, "align": 1.0, "color": Color("7dffd0"), "size": 0.62, "r": [0.4, 0.5], "y": [0.3, 1.0], "orbit": 1.25, "bob": 0.07, "additive": 1.0},
 }
 
@@ -137,6 +148,7 @@ static func mesh_of(id: String, part: String, winged: bool) -> ArrayMesh:
 		"sakura": _sakura(b, part)
 		"midnight": _midnight(b, part, winged)
 		"dragon_god": _dragon(b, part, winged)
+		"loykrathong": _loykrathong(b, part)
 	var mesh := _commit(b)
 	if _meshes.size() >= CACHE_LIMIT:
 		_meshes.erase(_meshes.keys()[0])
@@ -1088,3 +1100,132 @@ static func _dragon_arm(b: Dictionary, side: float) -> void:
 	var lean := (turn * Vector3(side * 0.5, 1.0, 0)).normalized()
 	_prim(b, "solid", MeshKit.cone(), HORN_TIP, at + turn * Vector3(0, 0.03, 0) + lean * 0.042, Vector3(0.034, 0.085, 0.034), Vector3.ZERO, Vector2.ZERO, _along(lean))
 	_prim(b, "glow", _dot(), JADE_GLOW, at + turn * Vector3(side * 0.066, 0.004, 0.0), Vector3(0.022, 0.03, 0.03))
+
+
+# --- Loy Krathong (ชุดลอยกระทง) ------------------------------------------------------------
+
+const THAI_GOLD := Color("ffcf3a")
+const THAI_GOLD_DEEP := Color("c98a18")
+const THAI_GOLD_LIGHT := Color("fff0a8")
+const THAI_RUBY := Color("e8264a")
+const THAI_LOTUS := Color("ff8fc8")
+const THAI_LOTUS_DEEP := Color("e8508f")
+
+
+static func _loykrathong(b: Dictionary, part: String) -> void:
+	match part:
+		"head":
+			_lk_crown(b)
+		"back":
+			_lk_sabai(b)
+		"belt":
+			_lk_belt(b)
+		"arm_l", "arm_r":
+			var side := 1.0 if part == "arm_l" else -1.0
+			var at := Vector3(side * 0.162, 0.565, 0.022)
+			var turn := Basis(Vector3.FORWARD, side * deg_to_rad(26.0))
+			# A gold armlet (พาหุรัด) with a flame-shaped kanok point rising from it.
+			_prim(b, "solid", MeshKit.torus(), THAI_GOLD, at, Vector3(0.092, 0.2, 0.088), Vector3.ZERO, Vector2.ZERO, turn)
+			var tip := at + turn * Vector3(side * 0.03, 0.01, 0.04)
+			var xf := _plane(tip, turn * Vector3(1, 0, 0), turn * Vector3(0, 1, 0), 1.0)
+			_flat(b, "solid", _leaf(0.06, 0.038), xf, 0.006, THAI_GOLD, THAI_GOLD_DEEP)
+			_prim(b, "glow", _dot(), THAI_RUBY, tip + turn * Vector3(0, 0.014, 0.006), Vector3.ONE * 0.018)
+
+
+## The lotus crown: a gold band round the head ringed with lotus petals, a tiered spire
+## (ยอดชฎา) rising from a lotus bud, gems, and gold ear ornaments (กรรเจียก) at the sides.
+static func _lk_crown(b: Dictionary) -> void:
+	var c := Vector3(0, 0.955, -0.01)
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(-8.0))
+	var at := func(p: Vector3) -> Vector3: return c + tilt * p
+	_prim(b, "solid", MeshKit.cylinder(), THAI_GOLD, at.call(Vector3(0, 0.0, 0)), Vector3(0.262, 0.05, 0.25), Vector3.ZERO, Vector2.ZERO, tilt)
+	_prim(b, "solid", MeshKit.torus(), THAI_GOLD_DEEP, at.call(Vector3(0, -0.024, 0)), Vector3(0.276, 0.18, 0.264), Vector3.ZERO, Vector2.ZERO, tilt)
+	# Lotus petals round the band, pink tipped, pointing up and out.
+	for k in 10:
+		var a := TAU * float(k) / 10.0
+		var dir := Vector3(sin(a), 0, cos(a))
+		var base: Vector3 = at.call(dir * 0.12 + Vector3(0, 0.03, 0))
+		var up := (tilt * (Vector3.UP + dir * 0.45)).normalized()
+		var xf := _plane(base, tilt * Vector3(cos(a), 0, -sin(a)), up, 1.0)
+		_flat(b, "solid", _leaf(0.085, 0.05), xf, 0.007, THAI_LOTUS if k % 2 == 0 else THAI_GOLD_LIGHT, THAI_GOLD_DEEP)
+		_prim(b, "glow", _dot(), [THAI_RUBY, Color("2fd8a8")][k % 2], at.call(dir * 0.133 + Vector3(0, 0.0, 0)), Vector3(0.022, 0.022, 0.012), Vector3.ZERO, Vector2.ZERO, Basis(Vector3.UP, a))
+	# The spire: a lotus bud on a cap, then five gold tiers narrowing to a fine point.
+	_prim(b, "solid", MeshKit.hemisphere(), THAI_GOLD, at.call(Vector3(0, 0.03, 0)), Vector3(0.2, 0.12, 0.19), Vector3.ZERO, Vector2.ZERO, tilt)
+	var y := 0.09
+	for k in 5:
+		var w := lerpf(0.13, 0.045, float(k) / 4.0)
+		_prim(b, "solid", MeshKit.cylinder(), THAI_GOLD if k % 2 == 0 else THAI_GOLD_LIGHT, at.call(Vector3(0, y, 0)), Vector3(w, 0.028, w), Vector3.ZERO, Vector2.ZERO, tilt)
+		y += 0.034
+	_prim(b, "solid", MeshKit.cone(), THAI_GOLD, at.call(Vector3(0, y + 0.06, 0)), Vector3(0.036, 0.13, 0.036), Vector3.ZERO, Vector2.ZERO, tilt)
+	_prim(b, "glow", _dot(), Color("fff6d8"), at.call(Vector3(0, y + 0.13, 0)), Vector3.ONE * 0.024)
+	_prim(b, "glow", _dot(), THAI_RUBY, at.call(Vector3(0, 0.07, 0.112)), Vector3(0.034, 0.04, 0.02))
+	# Gold flowers on the band over each temple, a tassel of beads hanging from each.
+	for side in [-1.0, 1.0]:
+		var root: Vector3 = at.call(Vector3(side * 0.128, 0.0, 0.05))
+		for k in 5:
+			var a := TAU * float(k) / 5.0
+			var xf := _plane(root + Vector3(side * 0.008, 0, 0), Vector3(0, cos(a), sin(a)), Vector3(side, 0, 0).cross(Vector3(0, cos(a), sin(a))), 1.0)
+			_flat(b, "solid", _leaf(0.034, 0.024), Transform3D(xf.basis, root + Vector3(0, cos(a), sin(a)) * 0.004 + Vector3(side * 0.01, 0, 0)), 0.004, THAI_LOTUS, THAI_GOLD_DEEP)
+		_prim(b, "glow", _dot(), THAI_GOLD_LIGHT, root + Vector3(side * 0.016, 0, 0), Vector3.ONE * 0.022)
+		var pts := _bezier(root, root + Vector3(side * 0.01, -0.03, 0.01), root + Vector3(side * 0.012, -0.07, 0.0), root + Vector3(side * 0.01, -0.1, -0.005), 6)
+		_sweep(b, "solid", pts, 5, func(_t: float) -> float: return 0.006, func(t: float) -> Color: return THAI_GOLD.lerp(THAI_GOLD_DEEP, t),
+			func(t: float) -> Vector2: return Vector2(t, side))
+		_prim(b, "glow", _dot(), THAI_RUBY, pts[pts.size() - 1], Vector3.ONE * 0.02, Vector3.ZERO, Vector2(1.0, side))
+
+
+## The gold sabai (สไบ): a sash wound from the right hip over the left shoulder, a broad
+## gold collar (สังวาล) with a pendant, and the sabai's long end hanging down the back.
+static func _lk_sabai(b: Dictionary) -> void:
+	var centre := Vector3(0, 0.52, 0.035)
+	var tilt := Basis(Vector3.FORWARD, deg_to_rad(-34.0))
+	# The band round the torso, in the tilted plane (ellipse round the chest).
+	_surface(b, "sheet", 33, 4,
+		func(u: float, v: float) -> Vector3:
+			var a := v * TAU + PI
+			var r := Vector3(sin(a) * 0.14, (u - 0.5) * 0.08, cos(a) * 0.132)
+			return centre + tilt * r,
+		func(u: float, _v: float) -> Color: return THAI_GOLD.lerp(THAI_GOLD_DEEP, absf(u - 0.5) * 0.8),
+		func(_u: float, _v: float) -> Vector2: return Vector2.ZERO,
+		func(p: Vector3) -> Vector3: return Vector3(p.x - centre.x, 0.0, p.z - centre.z))
+	# The hanging end, from the back of the left shoulder down past the waist.
+	var top := centre + tilt * Vector3(0.05, 0.0, -0.12)
+	_surface(b, "sheet", 12, 4,
+		func(u: float, v: float) -> Vector3:
+			var w := lerpf(0.07, 0.085, v)
+			return top + Vector3((u - 0.5) * w + v * 0.02, -v * 0.3, -0.02 - v * 0.05),
+		func(_u: float, v: float) -> Color: return THAI_GOLD.lerp(THAI_GOLD_LIGHT, v * 0.4),
+		func(_u: float, v: float) -> Vector2: return Vector2(v, 0.6),
+		func(_p: Vector3) -> Vector3: return Vector3(0, 0, -1))
+	# A fringe of gold beads at its end.
+	for k in 5:
+		var x := lerpf(-0.04, 0.045, float(k) / 4.0)
+		_prim(b, "solid", _dot(), THAI_GOLD_DEEP, top + Vector3(x + 0.02, -0.31, -0.07), Vector3.ONE * 0.016, Vector3.ZERO, Vector2(1.0, 0.6))
+	# The collar: a gold crescent across the chest with rubies, a pendant in the middle.
+	var collar := _bezier(Vector3(-0.1, 0.6, 0.1), Vector3(-0.06, 0.55, 0.15), Vector3(0.06, 0.55, 0.15), Vector3(0.1, 0.6, 0.1), 9)
+	_sweep(b, "solid", collar, 6, func(t: float) -> float: return 0.012 - 0.004 * absf(t - 0.5), func(_t: float) -> Color: return THAI_GOLD, func(_t: float) -> Vector2: return Vector2.ZERO)
+	for k in [2, 4, 6]:
+		_prim(b, "glow", _dot(), THAI_RUBY if k != 4 else Color("2fd8a8"), collar[k] + Vector3(0, -0.006, 0.01), Vector3.ONE * 0.02)
+	var pendant := Vector3(0, 0.525, 0.152)
+	var pxf := _plane(pendant, Vector3.RIGHT, Vector3(0, -1, 0.15), 1.0)
+	_flat(b, "solid", _leaf(0.05, 0.04), pxf, 0.008, THAI_GOLD, THAI_GOLD_DEEP)
+	_prim(b, "glow", _dot(), THAI_RUBY, pendant + Vector3(0, -0.02, 0.008), Vector3(0.022, 0.026, 0.014))
+
+
+## The belt (เข็มขัด): a gold band round the waist, a jewelled buckle, and the front panel
+## (ชายไหว) hanging from it in gold-trimmed silk.
+static func _lk_belt(b: Dictionary) -> void:
+	_prim(b, "solid", MeshKit.cylinder(), THAI_GOLD, Vector3(0, 0.392, 0.035), Vector3(0.29, 0.05, 0.266))
+	_prim(b, "solid", MeshKit.torus(), THAI_GOLD_DEEP, Vector3(0, 0.374, 0.035), Vector3(0.298, 0.08, 0.274))
+	var buckle := Vector3(0, 0.392, 0.172)
+	_prim(b, "solid", _dot(), THAI_GOLD, buckle, Vector3(0.09, 0.07, 0.03))
+	_prim(b, "glow", _dot(), THAI_RUBY, buckle + Vector3(0, 0, 0.014), Vector3(0.038, 0.034, 0.016))
+	for side in [-1.0, 1.0]:
+		_prim(b, "glow", _dot(), Color("2fd8a8"), buckle + Vector3(side * 0.03, 0, 0.01), Vector3.ONE * 0.016)
+	_surface(b, "sheet2", 9, 4,
+		func(u: float, v: float) -> Vector3:
+			var w := lerpf(0.09, 0.07, v)
+			var point := (1.0 - absf(u * 2.0 - 1.0)) * 0.03 * smoothstep(0.8, 1.0, v)
+			return buckle + Vector3((u - 0.5) * w, -0.03 - v * 0.17 - point, 0.002 - v * 0.012),
+		func(_u: float, v: float) -> Color: return THAI_RUBY.lerp(Color("b81a3a"), v),
+		func(_u: float, v: float) -> Vector2: return Vector2(v, 0.0),
+		func(_p: Vector3) -> Vector3: return Vector3(0, 0, 1))
