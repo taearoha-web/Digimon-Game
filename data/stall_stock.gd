@@ -28,7 +28,8 @@ extends RefCounted
 ## bulk, the sky isle's goods only from a ★300 keeper. Showpieces (is_hot: ของเด่น) are
 ## listed first and cost a premium. Prices follow the game's own (gear_price: the
 ## merchant's price, the forge jewels of the +, the gems), never under what the stall
-## would pay back for the lot (RESALE_FLOOR).
+## would pay back for the lot (RESALE_FLOOR). During the weekly rare collection a keeper
+## may lay out spare pieces of the week it found itself (_weekly_lot).
 
 ## Real seconds between two restocks of a stall.
 const RESTOCK := 7200.0
@@ -290,8 +291,24 @@ static func full_stock(i: int, t: float = -1.0) -> Array[Dictionary]:
 			lot["price"] = gear_price(item)
 			lot["hot"] = is_hot(item)
 		out.append(lot)
+	_weekly_lot(i, t, out)
 	out.sort_custom(_better)
 	return out
+
+
+## The weekly rare collection (WeeklyCollect.stall_lot): now and then a keeper lays out
+## spare pieces it found itself this week, in place of its last jewel or gem lot (the
+## stall keeps its six lots, its potions and that lot's number). The window's start decides, so
+## the lot holds for the whole window.
+static func _weekly_lot(i: int, t: float, lots: Array[Dictionary]) -> void:
+	var start := restock_at(i, t) - RESTOCK
+	var item := WeeklyCollect.stall_lot(i, start, "%s|%d" % [WorldPlayers.entry(i).name, window(i, t)])
+	if item.is_empty():
+		return
+	for n in range(lots.size() - 1, -1, -1):
+		if String(lots[n].item.get("kind", "")) in ["jewel", "gem"]:
+			lots[n] = {"item": item, "price": goods_price(item), "k": int(lots[n].k), "hot": is_hot(item)}
+			return
 
 
 ## What a keeper wearing `equip` (WorldGear.equip_at_work) has forged: {"top": its best
@@ -611,7 +628,8 @@ static func is_hot(item: Dictionary) -> bool:
 		"equip":
 			return int(item.get("plus", 0)) >= HOT_PLUS or SetGearData.is_item(item)
 		"jewel":
-			return HOT_GOODS.has(String(item.get("id", "")))
+			# The weekly collection's two rarest pieces are showpieces too (WeeklyCollect).
+			return HOT_GOODS.has(String(item.get("id", ""))) or WeeklyCollect.rank_of(item) >= WeeklyCollect.PIECES - 2
 	return false
 
 

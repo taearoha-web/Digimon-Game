@@ -279,7 +279,11 @@ func _collect() -> void:
 			_bag_full_toast()
 			return
 		var qty := int(item.get("count", 1))
-		if String(item.get("kind", "")) == "jewel":
+		# A weekly rare-collection piece (WeeklyCollect) is no forge jewel for the guild
+		# quest: it counts for the week's collectors and shows its pop-up instead.
+		if WeeklyCollect.is_piece(item):
+			WeeklyCollect.picked(item)
+		elif String(item.get("kind", "")) == "jewel":
 			Game.guild_quest_progress("jewels", qty)
 		if parent != null:
 			var tag := ItemData.class_tag(item, String(Game.class_id()))

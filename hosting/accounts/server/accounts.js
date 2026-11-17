@@ -251,6 +251,12 @@ function validateProfile(profile) {
   // The reward exchange (RewardShop in the game): league coins, event points, the unlocked
   // cosmetics and what is worn, the stones bought this week and the rounds already paid.
   if ('rshop' in profile && !validRewardShop(profile.rshop)) fail(400, 'invalid_save', 'The reward shop record is invalid.');
+  // The weekly rare collection (WeeklyCollect in the game): the week's record and its pieces
+  // (stackable jewels "wk<theme>_<rank>") in the bag, an old storage and on the stall.
+  if ('wcol' in profile && !validWeeklyCollect(profile.wcol)) fail(400, 'invalid_save', 'The weekly collection record is invalid.');
+  if ([...(profile.inv ?? []), ...(profile.storage ?? []),
+       ...(Array.isArray(profile.stall?.lots) ? profile.stall.lots.map(lot => lot?.item) : [])]
+      .some(item => weeklyPiece(item) && !validWeeklyPiece(item))) fail(400, 'invalid_save', 'A weekly collection piece is invalid.');
   // The guild hall's notice the hero wrote as its guild's leader (GuildHallData.NOTICE_MAX).
   if ('hall_notice' in profile && (typeof profile.hall_notice !== 'string' || chars(profile.hall_notice) > HALL_NOTICE_MAX)) fail(400, 'invalid_save', 'The guild hall notice is invalid.');
   // Daily / weekly quests and the monthly reward pass (DailyPass in the game).
@@ -261,6 +267,15 @@ function validateProfile(profile) {
           || typeof entry.id !== 'string' || !integer(entry.p ?? 0) || !integer(entry.t ?? 1, 1) || typeof (entry.c ?? false) !== 'boolean'))
         || ['day', 'week', 'month', 'pts', 'warn'].some(key => key in pass && !integer(pass[key], -1))
         || ('got' in pass && !integer(pass.got, 0, 2 ** 30 - 1))) fail(400, 'invalid_save', 'The daily quests or reward pass are invalid.');
+  }
+  // The dragon hunt week's record (DragonHunt in the game): the hunt, points, claimed
+  // milestones (7 bits) and kill counters, all integers.
+  if ('dhunt' in profile) {
+    const hunt = profile.dhunt;
+    if (!dictionary(hunt) || Object.keys(hunt).some(key => !['n', 'pts', 'got', 'kills', 'golden'].includes(key))
+        || ('n' in hunt && !integer(hunt.n, -1, 100000))
+        || ('got' in hunt && !integer(hunt.got, 0, 2 ** 7 - 1))
+        || ['pts', 'kills', 'golden'].some(key => key in hunt && !integer(hunt[key], 0, 10000000))) fail(400, 'invalid_save', 'The dragon hunt record is invalid.');
   }
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
@@ -403,6 +418,31 @@ function validRewardShop(shop) {
   });
 }
 
+// The weekly rare collection (WeeklyCollect in the game). A piece is a jewel stack with an id
+// "wk<theme 0-7>_<rank 0-4>" (WeeklyCollect.THEMES / PIECES) and nothing else; the record is
+// {week, pts, got: [5 counts], ex: {option id: times this week}} (WeeklyCollect.valid).
+const WCOL_THEMES = 8;
+const WCOL_PIECES = 5;
+const WCOL_PIECE = new RegExp(`^wk[0-${WCOL_THEMES - 1}]_[0-${WCOL_PIECES - 1}]$`);
+const WCOL_KEYS = new Set(['kind', 'id', 'count']);
+const weeklyPiece = item => dictionary(item) && item.kind === 'jewel' && typeof item.id === 'string' && item.id.startsWith('wk');
+function validWeeklyPiece(item) {
+  return WCOL_PIECE.test(item.id) && Object.keys(item).every(key => WCOL_KEYS.has(key)) && integer(item.count ?? 1, 1, 1_000_000);
+}
+function validWeeklyCollect(record) {
+  if (!dictionary(record) || Object.keys(record).length > 8) return false;
+  return Object.entries(record).every(([key, value]) => {
+    if (key === 'week') return integer(value, -1, 100_000);
+    if (key === 'pts') return integer(value, 0, 1_000_000_000);
+    if (key === 'got') return Array.isArray(value) && value.length === WCOL_PIECES && value.every(n => integer(n, 0, 1_000_000));
+    if (key === 'ex') {
+      return dictionary(value) && Object.keys(value).length <= 16
+        && Object.entries(value).every(([id, n]) => chars(id) <= 16 && integer(n, 0, 1000));
+    }
+    return false;
+  });
+}
+
 // Every pair in the bundle (bags, worn gear, old storages, stall lots, the shared storage)
 // is well formed and no two pairs carry one season.
 function validateLegendWings(bundle) {
@@ -432,6 +472,7 @@ function validateSharedStorage(bundle) {
   }
   if ((bundle.storage ?? []).some(item => costumeItem(item) && !validCostumeItem(item))) fail(400, 'invalid_save', 'A costume item in the shared storage is invalid.');
   if ((bundle.storage ?? []).some(item => dragonGear(item) && !validDragonGear(item))) fail(400, 'invalid_save', 'A Dragon God item in the shared storage is invalid.');
+  if ((bundle.storage ?? []).some(item => weeklyPiece(item) && !validWeeklyPiece(item))) fail(400, 'invalid_save', 'A weekly collection piece in the shared storage is invalid.');
   if ('storageMigrated' in bundle) {
     const record = bundle.storageMigrated;
     if (!dictionary(record) || Object.keys(record).length > MAX_STORAGE_KEYS

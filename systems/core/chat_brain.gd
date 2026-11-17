@@ -27,6 +27,8 @@ const INTENTS := [
 	["howru", ["เป็นยังไงบ้าง", "เป็นไงบ้าง", "สบายดีไหม", "สบายดีมั้ย", "เป็นไงมั่ง", "เหนื่อยไหม"]],
 	# เกาะลอยฟ้าเทพมังกร and its rare dragon (help_text "isle": the game's own numbers).
 	["isle", ["เกาะลอยฟ้า", "เทพมังกร", "มังกรแก้ว", "เกาะมังกร", "เจ็ดสี"]],
+	# The weekly rare collection (WeeklyCollect.chat_answer: the theme and its own finds).
+	["weekly", ["ของแรร์", "สะสมของ", "สะสมแรร์", "ธีมสัปดาห์", "ธีมอะไร", "อีเว้นสัปดาห์", "อีเว้นประจำสัปดาห์", "อีเวนต์สัปดาห์"]],
 	["help", ["วิธี", "ยังไง", "ทำไง", "ทำยังไง", "สอนหน่อย", "แนะนำหน่อย", "คืออะไร", "กี่โมง", "เมื่อไหร่", "ตอนไหน", "เวลาไหน", "อีเวนต์", "อีเว้นท์", "อีเว้น", "บอสโลก", "exp x2"]],
 	["party", ["ปาร์ตี้", "ปาตี้", "ตี้", "party", "ไปด้วยกัน", "ไปด้วยไหม", "ไปล่าด้วย", "ล่าด้วยกัน", "เก็บเลเวลด้วย", "เข้ากลุ่ม", "จอยกัน", "จอยไหม"]],
 	["shop", ["ขายอะไร", "ขายไหม", "มีอะไรขาย", "ดูร้าน", "ดูของ", "ซื้อ", "ร้าน", "ราคา", "ขายของ", "รับซื้อ", "ของดี"]],
@@ -357,6 +359,8 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 			return {"reply": help_text(help_topic(text)), "action": "none"}
 		"isle":
 			return {"reply": help_text("isle"), "action": "none"}
+		"weekly":
+			return {"reply": WeeklyCollect.chat_answer(int(p.get("index", -1)), float(mine.get("t", WorldPresence.clock()))), "action": "none"}
 		"party":
 			if in_party:
 				return _say(ALREADY, rng)

@@ -127,6 +127,9 @@ var _zone_label: Label
 var _banner: Label
 ## Server-wide announcements (Announcer): a strip under the top bars, above the toasts.
 var announce: AnnounceBanner
+## The weekly rare collection's drop pop-up (WeeklyDropPopup) and its top (share of the height).
+var weekly_popup: WeeklyDropPopup
+const WEEKLY_POPUP_TOP := 0.6
 const ANNOUNCE_TOP := 80.0
 const ANNOUNCE_WIDTH := 760.0
 var _death_panel: ColorRect
@@ -199,6 +202,7 @@ func _ready() -> void:
 	_build_action_buttons(_frame)
 	_build_banner(_frame)
 	_build_announce(_frame)
+	_build_weekly_popup(_frame)
 	_build_world_chat(_frame)
 	_frame.resized.connect(_layout_actions)
 	_layout_actions()
@@ -1732,6 +1736,20 @@ func _build_banner(frame: Control) -> void:
 	_banner.offset_bottom = BANNER_TOP + 70.0
 	_banner.modulate.a = 0.0
 	frame.add_child(_banner)
+
+
+## The weekly rare collection's drop pop-up (WeeklyDropPopup): centred a little under the
+## hero, clear of the toasts at the top, the joystick and the skill buttons.
+func _build_weekly_popup(frame: Control) -> void:
+	weekly_popup = WeeklyDropPopup.new()
+	weekly_popup.anchor_left = 0.5
+	weekly_popup.anchor_right = 0.5
+	weekly_popup.anchor_top = WEEKLY_POPUP_TOP
+	weekly_popup.anchor_bottom = WEEKLY_POPUP_TOP
+	weekly_popup.offset_left = -WeeklyDropPopup.WIDTH * 0.5
+	weekly_popup.offset_right = WeeklyDropPopup.WIDTH * 0.5
+	weekly_popup.offset_bottom = WeeklyDropPopup.HEIGHT
+	frame.add_child(weekly_popup)
 
 
 ## The announcement strip: centred, never wider than the gap between the hero panel and

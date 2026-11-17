@@ -221,9 +221,9 @@ func _band() -> void:
 	var die_boss := float(hero.max_hp) / HeroStats.mitigate(float(god.atk) * 1.6, float(hero.def))
 	check(basic > 110.0 and basic < 300.0, "a ★300 Dark Lord in the 250★ set +15 needs a farmable number of basic hits (%.0f)" % basic)
 	# The owner's harder isle: normal monsters hit twice as hard (about 9 hits, was 18), the
-	# Dragon God five times (a heavy hit all but fells that hero: about 1.1, was 5-6).
+	# Dragon God twice as hard (a heavy hit takes about a third of that hero: about 2.7, was 5-6).
 	check(die > 6.0 and die < 14.0, "the monsters hurt that hero hard (%.1f hits to fall)" % die)
-	check(die_boss > 1.0 and die_boss < 2.0, "the Dragon God's slam is near fatal, not from full health (%.1f hits to fall)" % die_boss)
+	check(die_boss > 2.0 and die_boss < 4.0, "the Dragon God's slam hurts hard, a few to fall (%.1f hits to fall)" % die_boss)
 	for id in SkyIsleData.MONSTERS:
 		var raw: Dictionary = SkyIsleData.MONSTERS[id]
 		var want := float(raw.atk) * (SkyIsleData.NORMAL_ATK if SkyIsleData.NORMALS.has(id) else 1.0)

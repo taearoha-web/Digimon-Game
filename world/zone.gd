@@ -78,6 +78,8 @@ var pet_crowd: PetCrowd
 var camera_rig: ThirdPersonCamera
 var rng := RandomNumberGenerator.new()
 var _event_rng := RandomNumberGenerator.new()
+## The weekly rare collection's rolls (WeeklyCollect), apart from the zone's other dice.
+var _weekly_rng := RandomNumberGenerator.new()
 var portals: Array[Dictionary] = []
 var npcs: Array[Npc] = []
 var companions: Array[Companion] = []
@@ -195,6 +197,7 @@ func _ready() -> void:
 		rng.seed = layout_seed
 	else:
 		rng.randomize()
+	_weekly_rng.randomize()
 	# Every monster that enters the zone (spawned or scripted) pays out when it dies.
 	child_entered_tree.connect(func(node: Node):
 		var mob := node as Mob
@@ -1502,6 +1505,7 @@ func _on_golden_died(mob: Mob) -> void:
 		Game.world_chat.emit("ประกาศ", "%s ถูกปราบแล้ว!" % WorldEvents.NAME_GOLDEN, WorldEvents.GOLDEN_COLOR)
 		return
 	Game.daily_progress("golden")
+	DragonHunt.on_golden()
 	var from := mob.global_position
 	var gold := WorldEvents.GOLDEN_GOLD * WorldEvents.golden_tier(data)
 	_spawn_loot({}, gold, from)
@@ -1663,6 +1667,7 @@ func _drop_loot(mob: Mob) -> void:
 	var gold: int = int(mob.stats.gold * rng.randf_range(0.7, 1.4) * WorldEvents.gold_multiplier(WorldPresence.clock()))
 	_spawn_loot({}, gold, from)
 	_drop_jewels(from)
+	_weekly_drop(mob, from)
 	var source := &"field_boss" if _is_field_boss(mob) else (&"star" if is_star_field() and not mob.is_boss else &"")
 	for item in gem_bonus_drops(source, _drop_fortune(), rng):
 		_spawn_loot(item, 0, from)
@@ -1757,6 +1762,34 @@ func _drop_jewels(from: Vector3) -> void:
 	# event leaves the zone's seeded rolls as they are.
 	if WorldEvents.halloween_on(WorldPresence.clock()) and _event_rng.randf() < WorldEvents.HALLOWEEN_DROP:
 		_spawn_loot(ItemData.potion("halloween"), 0, from)
+
+
+## The weekly rare collection (WeeklyCollect): the week's pieces, rolled on their own RNG
+## so the zone's seeded rolls stay put; the legendary one is told to everyone.
+func _weekly_drop(mob: Mob, from: Vector3) -> void:
+	var kind := ""
+	if mob == _wboss or mob.has_meta("world_boss"):
+		kind = "world_boss"
+	elif mob.has_meta("golden"):
+		kind = "golden"
+	elif mob.is_boss:
+		kind = "boss"
+	elif bool(mob.template.get("elite", false)):
+		kind = "elite"
+	var zone := data
+	if is_town or is_pvp or is_tower:
+		zone = {}
+	for item in WeeklyCollect.kill_drops(zone, kind, _drop_fortune(), WorldPresence.clock(), _weekly_rng):
+		if WeeklyCollect.rank_of(item) == WeeklyCollect.PIECES - 1:
+			var drop := LootDrop.new()
+			drop.setup(item, 0, hero, from)
+			add_child(drop)
+			VfxKit.loot_beam(drop, WeeklyCollect.RANK_COLORS[WeeklyCollect.PIECES - 1], 10.0)
+			BattleVfx.floating_text(self, from + Vector3(0, 2.4, 0), "ของแรร์ระดับตำนาน! %s" % ItemData.name_of(item), WeeklyCollect.COLOR, 1.5)
+			Game.screen_flash.emit(WeeklyCollect.COLOR, 0.2)
+			Announcer.broadcast(WeeklyCollect.jackpot_text(String(Game.profile.get("name", "")), item), "jackpot")
+			continue
+		_spawn_loot(item, 0, from)
 
 
 ## The forge jewels one kill drops in a field: each of the field's "jewel_drop" rates

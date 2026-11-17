@@ -322,6 +322,24 @@ test('the sky isle collectibles are accepted: chest, fragment and egg stacks, th
   assert.equal(over.status, 400, 'a mount past Lv.5 is refused');
 });
 
+test('the dragon hunt record is accepted with its rewards and refused when malformed', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  // DragonHunt in the game: profile.dhunt {n, pts, got (7 milestone bits), kills, golden},
+  // its rewards plain stacks, its title a flag counter.
+  const hunter = {...sample(), dhunt: {n: 0, pts: 2150, got: 127, kills: 12, golden: 38}, flags: {dhunt_top: 1},
+    inv: [{kind: 'jewel', id: 'set_core', count: 4}, {kind: 'jewel', id: 'sky_dragon_egg', count: 1}]};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(hunter)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  let revision = 1;
+  for (const dhunt of [[], {got: 128}, {pts: -1}, {pts: 1.5}, {n: 'x'}, {n: -2}, {junk: 1}, {kills: 'many'}]) {
+    const bad = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle({...hunter, dhunt})}});
+    assert.equal(bad.status, 400, JSON.stringify(dhunt));
+  }
+  const fresh = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle({...sample(), dhunt: {n: -1, pts: 0, got: 0, kills: 0, golden: 0}})}});
+  assert.equal(fresh.status, 200, JSON.stringify(fresh.body));
+});
+
 test('mount levels and the old list of owned mounts are both accepted', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -522,6 +540,36 @@ test('the reward exchange record (rshop) is accepted and checked', async t => {
   assert.deepEqual(serverTexts, [...texts].sort());
   // Stones from the shop are ordinary gems and jewels in the bag.
   assert.doesNotThrow(() => validateBundle(bundle({...sample(), inv: [{kind: 'gem', id: 'ruby_2', count: 1}, {kind: 'jewel', id: 'purple', count: 5}]})));
+});
+
+test('the weekly rare collection: its pieces (wk<theme>_<rank> jewel stacks) and its record (wcol) are accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const wcol = {week: 0, pts: 128, got: [40, 18, 6, 2, 1], ex: {set: 1, p0: 3}};
+  const hero = {...sample(), wcol, flags: {wcol_sets: 1, wcol_themes: 1},
+    inv: [{kind: 'jewel', id: 'wk0_0', count: 12}, {kind: 'jewel', id: 'wk0_4', count: 1}, {kind: 'jewel', id: 'wk7_3', count: 2}],
+    stall: {lots: [{lot: 1, item: {kind: 'jewel', id: 'wk1_2', count: 3}, price: 69000}]}};
+  const shared = {...bundle(hero), storage: [{kind: 'jewel', id: 'wk5_1', count: 4}]};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: shared}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), wcol: {}})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), wcol: {week: -1, pts: 0, got: [0, 0, 0, 0, 0], ex: {}}})));
+  for (const bad of [[], {junk: 1}, {week: -2}, {week: 1.5}, {pts: -1}, {pts: '5'}, {got: [1, 2, 3]}, {got: [0, 0, 0, 0, -1]},
+    {ex: []}, {ex: {set: 1001}}, {ex: {['x'.repeat(17)]: 1}}, {ex: {set: 'x'}}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), wcol: bad})), /weekly collection record/, JSON.stringify(bad));
+  }
+  for (const bad of [{kind: 'jewel', id: 'wk8_0', count: 1}, {kind: 'jewel', id: 'wk0_5', count: 1}, {kind: 'jewel', id: 'wk0_0', count: 0},
+    {kind: 'jewel', id: 'wk0_0', count: 1.5}, {kind: 'jewel', id: 'wk00_0', count: 1}, {kind: 'jewel', id: 'wk0_0', count: 1, stats: {atk: 9}}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [bad]})), /weekly collection piece/, JSON.stringify(bad));
+    assert.throws(() => validateBundle({...bundle(), storage: [bad]}), /weekly collection piece/, JSON.stringify(bad));
+    assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, item: bad, price: 10}]}})), /weekly collection piece/, JSON.stringify(bad));
+  }
+  // The game's themes and pieces are the server's.
+  const game = readFileSync(new URL('../../../data/weekly_collect.gd', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../server/accounts.js', import.meta.url), 'utf8');
+  assert.equal(Number(game.match(/const PIECES := (\d+)/)[1]), Number(server.match(/const WCOL_PIECES = (\d+)/)[1]));
+  const themes = game.slice(game.indexOf('const THEMES')).split('\n]')[0].match(/\{"name": /g).length;
+  assert.equal(themes, Number(server.match(/const WCOL_THEMES = (\d+)/)[1]));
 });
 
 test('reward-shop costumes are items: in the bag, the shared storage and the costume slot (rshop.cos)', async t => {
