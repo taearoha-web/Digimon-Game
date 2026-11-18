@@ -722,6 +722,74 @@ def yeti(arm, body):
     K.bake_ao(body, strength=0.4, shade=Vector((0.62, 0.7, 0.86)))
 
 
+# ---------------------------------------------------------------- big/Tribal
+
+def bone_mask_warrior(arm, body):
+    """bone_knight (ash white) and demon_ninja (blood red): a tribal warrior in a carved
+    bone mask. The tiki mask keeps its pattern, recut in bone with dried-blood paint
+    (untinted); its eyes burn inside the mask holes and the body's tribal stripes glow
+    (both tinted: pale fire for the knight, red for the demon); ash skin with painted
+    ribs, bone pauldrons with spikes, the feathers turned into a crown of bone spikes."""
+    keys = K.regions(body)
+    SKINR, PALE, MARK, MASK, PUPIL = "b7725f", "c5c7d0", "d2be5d", "6ea86c", "606266"
+    K.tag_regions(body, keys)
+    groups = L.dominant_groups(body)
+    mats = [m.name[2:] for m in body.data.materials]
+
+    def is_mask(p):
+        return groups[p.vertices[0]] == "Head" and p.center.y < -0.2 and 1.55 < p.center.z < 3.0
+
+    crisp = K.split_where(body, lambda p: is_mask(p) or mats[p.material_index] == PALE)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4000)
+    L.relax(body, 2, 0.4)
+    L.clean(crisp, quads=False)
+    L.join(body, crisp)
+    ash_hi, ash, ash_lo = C("a09888"), C("7a7268"), C("58524c")
+
+    def paint(region, co, n, info):
+        r = region[2:]
+        mask = info["bone"] == "Head" and co.y < -0.2 and 1.55 < co.z < 3.0 and abs(co.x) < 0.66
+        if r == PALE:
+            if co.z < 2.6 and abs(co.x) < 0.55:  # the eyes inside the mask holes
+                return L.mix(C("ffffff"), C("ffd8a0"), L.smooth(-0.8, 0.0, n.y)), GLOW
+            # feathers -> spikes of bone
+            return L.mix(C("a89272"), C("fff8ea"), L.smooth(2.9, 3.7, co.z)), IVORY
+        if r == PUPIL:
+            return C("fff0c8"), GLOW
+        if mask:
+            if r == MASK:
+                c = L.mix(C("cdbd9c"), C("f2e8d2"), max(0.0, -n.y) * 0.7 + max(0.0, n.z) * 0.3)
+                return L.mix(c, C("a08c6c"), L.smooth(0.6, 0.8, K.fbm(co, 5.0, 4)) * 0.4), IVORY
+            if r == MARK:
+                return C("fff8e6"), IVORY
+            return L.mix(C("4a120e"), C("7a2018"), max(0.0, -n.y)), IVORY  # dried-blood carving paint
+        if r == MARK:  # the tribal bands become painted bones over dark skin
+            return L.mix(C("c8bca4"), C("fbf4e4"), max(0.0, -n.y) * 0.6 + max(0.0, n.z) * 0.4)
+        c = L.mix(ash_lo, ash, L.smooth(0.5, -0.4, n.y))
+        c = L.mix(c, ash_hi, L.smooth(-0.5, -0.9, n.y) * L.smooth(1.0, 1.7, co.z) * 0.6)
+        return L.mix(c, C("34302e"), L.smooth(0.6, 0.15, co.z) * 0.6)
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    # bone pauldrons with spikes
+    for sx in (-1.0, 1.0):
+        q, m = K.dir_hit(surf, Vector((0.75 * sx, 0.15, 1.85)), Vector((0.25 * sx, 0.0, 1.0)))
+        if q is None:
+            continue
+        with parts.on(IVORY):
+            parts.ellipsoid(q + m * 0.04, (0.3, 0.26, 0.12), K.basis(m), color=None, weights=q, seg=14, rings=8,
+                            color_fn=lambda u: L.mix(C("a89272"), C("fbf2de"), L.smooth(-0.3, 0.9, u.z)))
+        for k in range(2):
+            K.horn(parts, q + m * 0.1 + Vector((0.06 * sx * (2 * k - 1), 0.08 * k, 0)),
+                   (m + Vector((0.3 * sx, 0.1 + 0.2 * k, 0.2))).normalized(), 0.3 - 0.05 * k, 0.06, q,
+                   C("a89272"), C("fff8ea"), seg=8, rings=5)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
@@ -731,6 +799,7 @@ RECIPES = {
     "big/Orc_Skull": skull_orc,
     "big/Ninja": shadow_ninja,
     "big/Yeti": yeti,
+    "big/Tribal": bone_mask_warrior,
 }
 
 
