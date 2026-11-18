@@ -34,7 +34,7 @@ const POTION_BOSS := EndgameFields.POTION_BOSS
 ## Normal monsters fight with MobAttack moves, the tyrant with BossAttack's.
 ## "aura" colours the glow DeepMonsterArt puts on each of them.
 const MONSTERS := {
-	&"abyss_angler": {"name": "ปลาโคมมรณะ", "model": "big/Fish", "height": 2.3, "hover": 0.5, "hp": 2.0, "atk": 2.2, "def": 1.3, "speed": 2.8, "aggro": true, "attack": "ranged",
+	&"abyss_angler": {"name": "ปลาโคมมรณะ", "model": "remaster/big/Fish_abyss_angler", "height": 2.3, "hover": 0.5, "hp": 2.0, "atk": 2.2, "def": 1.3, "speed": 2.8, "aggro": true, "attack": "ranged",
 		"color": Color("6ef3ff"), "tint": Color(0.5, 1.15, 1.5), "aura": Color("6ef3ff"), "behavior": "mortar", "exp": 1.6, "gold": 2.0},
 	&"reef_crab": {"name": "ปูเกราะปะการังโลหิต", "model": "dawn/Crab", "height": 2.1, "hp": 2.6, "atk": 2.1, "def": 1.8, "speed": 2.6, "aggro": true, "attack": "melee",
 		"color": Color("ff5a7a"), "tint": Color(1.5, 0.55, 0.7), "aura": Color("ff5a7a"), "behavior": "spin", "exp": 1.7, "gold": 2.1},
