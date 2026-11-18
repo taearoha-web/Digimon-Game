@@ -241,3 +241,45 @@ def zigzag(parts, point, normal, size, color, up=Vector((0, 0, 1)), mode="glow",
         # Not star-shaped about 0 for decal rings: draw it as two quads-ish strokes instead.
         parts.stroke(point, normal, [pts[0], pts[2], pts[4]], size * 0.26, color, up=up, taper=True, lift=0.018)
         parts.stroke(point, normal, [pts[1], pts[3], pts[4]], size * 0.18, color, up=up, taper=True, lift=0.02)
+
+
+def thicken(obj, arm, bones, factor, along=None):
+    """Pushes the vertices driven mostly by `bones` away from (factor > 1) or towards their
+    bone's axis: chunkier limbs on a lanky rig. along(t 0 head..1 tail) -> extra factor."""
+    groups = L.dominant_groups(obj)
+    for v in obj.data.vertices:
+        b = groups[v.index]
+        if b not in bones:
+            continue
+        bone = arm.data.bones[b]
+        h, t = bone.head_local, bone.tail_local
+        axis = t - h
+        k = max(0.0, min(1.0, (v.co - h).dot(axis) / max(axis.length_squared, 1e-8)))
+        foot = h + axis * k
+        f = factor * (along(k) if along else 1.0)
+        v.co = foot + (v.co - foot) * f
+
+
+def cape(parts, center, z_top, z_bot, r_top, r_bot, arc, color_fn, weights, rows=8, cols=14, flare=0.0,
+         thick=0.03):
+    """A curved two-sided sheet hanging behind a creature (cape, mantle, leaf skirt): a part
+    of a cone around the vertical through center, spanning `arc` radians centred on +Y
+    (the back). color_fn(u across -1..1, v top 0..1, outside) -> colour."""
+    cos, faces, cols_ = [], [], []
+    for side in (1, 0):
+        base = len(cos)
+        for r in range(rows + 1):
+            v = r / rows
+            z = z_top + (z_bot - z_top) * v
+            rad = r_top + (r_bot - r_top) * v + (thick if side else 0.0)
+            for c in range(cols + 1):
+                u = c / cols * 2.0 - 1.0
+                a = math.pi * 0.5 + u * arc * 0.5 * (1.0 + flare * v)
+                cos.append(Vector((center.x + math.cos(a) * rad, center.y + math.sin(a) * rad, z)))
+                cols_.append(color_fn(u, v, bool(side)))
+        for r in range(rows):
+            for c in range(cols):
+                a_ = base + r * (cols + 1) + c
+                quad = (a_, a_ + 1, a_ + cols + 2, a_ + cols + 1)
+                faces.append(tuple(reversed(quad)) if side else quad)
+    return parts._add(cos, faces, lambda i: cols_[i], weights, False)

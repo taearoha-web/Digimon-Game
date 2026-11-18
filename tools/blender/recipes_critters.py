@@ -56,7 +56,7 @@ def _frog_toes(parts, arm, body, pad_fn, toe_fn):
         side = "L" if sx > 0 else "R"
         for f in ("Index3", "Middle3", "Pinky3", "Thumb2"):
             b = arm.data.bones["%s.%s" % (f, side)]
-            parts.ellipsoid(b.tail_local, (0.065, 0.065, 0.055), color=None, weights={b.name: 1.0}, seg=8, rings=5,
+            parts.ellipsoid(b.tail_local, (0.065, 0.065, 0.055), color=None, weights={b.name: 1.0}, seg=7, rings=4,
                             color_fn=pad_fn)
         foot = [body.data.vertices[i].co for i, g in enumerate(groups) if g == "Foot." + side]
         if foot:
@@ -65,7 +65,7 @@ def _frog_toes(parts, arm, body, pad_fn, toe_fn):
             cx = sum(v.x for v in foot) / len(foot)
             for k in (-1, 0, 1):
                 parts.ellipsoid(V((cx + 0.13 * k, fy + 0.05 + 0.03 * abs(k), fz + 0.05)), (0.07, 0.07, 0.05),
-                                color=None, weights={"Foot." + side: 1.0}, seg=8, rings=5, color_fn=toe_fn)
+                                color=None, weights={"Foot." + side: 1.0}, seg=7, rings=4, color_fn=toe_fn)
 
 
 def yellow_frog(arm, body):
@@ -187,6 +187,7 @@ def toad_king(arm, body):
     """Royal toad boss (toad_king only): stout warty royal-purple body with a golden belly,
     an ermine collar, a jewelled gold crown, heavy-lidded haughty eyes, a stern wide mouth."""
     _frog_base(body)
+    L.decimate_to(body, 4200)
     purple, dusk, wart, gold, ink = C("8a4fc8"), C("40206e"), C("b48ae8"), C("ffd36a"), C("2a1240")
 
     def paint(name, co, n, info):
@@ -217,7 +218,7 @@ def toad_king(arm, body):
     parts.stroke(p, n, stern, 0.05, C("1a0a28"), lift=0.012, taper=False)
     # Warts on the back and crown of the head.
     rng = random.Random(4)
-    for d in M.fibonacci(46):
+    for d in M.fibonacci(30):
         if d.y < 0.0:
             continue
         p, n = M.dir_hit(surf, V((0, 0.1, 1.5)), d)
@@ -228,14 +229,14 @@ def toad_king(arm, body):
                         color_fn=lambda u: L.mix(C("6a3aa8"), C("d2b0f2"), L.smooth(-0.2, 1.0, u.z)))
     # Ermine collar around the neck.
     neck = V((0, 0.12, 1.98))
-    for i in range(18):
-        a = 2.0 * math.pi * i / 18
+    for i in range(15):
+        a = 2.0 * math.pi * i / 15
         d = V((math.cos(a), math.sin(a) * 0.9, -0.1))
         p, n = M.dir_hit(surf, neck, d)
         if p is None or (p - neck).length > 0.75:
             continue
-        parts.ellipsoid(p + n * 0.05, (0.14, 0.14, 0.11), color=None, weights={"Torso": 0.5, "Neck": 0.5}, seg=9,
-                        rings=6, color_fn=lambda u: L.mix(C("dcd6ea"), WHITE, L.smooth(-0.6, 0.7, u.z)))
+        parts.ellipsoid(p + n * 0.05, (0.14, 0.14, 0.11), color=None, weights={"Torso": 0.5, "Neck": 0.5}, seg=7,
+                        rings=5, color_fn=lambda u: L.mix(C("dcd6ea"), WHITE, L.smooth(-0.6, 0.7, u.z)))
         if i % 3 == 0:
             parts.ellipsoid(p + n * 0.18 + V((0, 0, -0.03)), (0.028, 0.028, 0.05), color=C("1a1420"),
                             weights={"Torso": 0.5, "Neck": 0.5}, seg=6, rings=4)
@@ -259,12 +260,295 @@ def toad_king(arm, body):
     finish(body, parts)
 
 
+# ================================================================ big/MushroomKing (pilot fix)
+
+def mush_king(arm, body):
+    """Mushroom monarch (mush_king, the summon treant): the lanky Quaternius body made
+    sturdy - thick trunk-like legs, broad belly, strong arms, a grander cap - with a
+    velvet cape, a white moustache, stern royal eyes and the jewelled crown."""
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    K.thicken(body, arm, {"UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"}, 1.55)
+    K.thicken(body, arm, {"UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R"}, 1.4,
+              along=lambda k: 1.0 + 0.1 * k)
+    trunk = V((0, 0.22, 0))
+    K.scale_region(body, lambda c: abs(c.x) < 0.9 and 0.45 < c.z < 2.15,
+                   V((0, 0.22, 1.3)), (1.32, 1.3, 1.0), lambda c: L.smooth(0.45, 0.85, c.z) * L.smooth(2.15, 1.8, c.z))
+    del trunk
+    L.decimate_to(body, 3500)
+    L.relax(body, 2, 0.35)
+    cap_top, cap_rim, gill = C("8fdcff"), C("3a8fd8"), C("fff1d9")
+    skin_top, skin_low = C("fff1de"), C("dcae7e")
+    leaf_top, leaf_low = C("a6e35a"), C("4f9e3a")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        held = bone.startswith(("Middle", "Index", "Pinky", "Thumb")) and co.x > 1.35
+        if name == "Orc_Main":
+            return L.mix(leaf_low, leaf_top, L.smooth(0.42, 0.86, co.z))
+        if name == "MushroomKing_Secondary":
+            if bone in ("Head", "Neck"):
+                c = L.mix(cap_rim, cap_top, L.smooth(2.7, 3.5, co.z))
+                return L.mix(c, gill, L.smooth(-0.1, -0.6, n.z))
+            return L.mix(cap_rim, C("bfe9ff"), L.smooth(0.0, 0.08, info["bump"]))
+        if held:
+            return C("f8e3c4")
+        c = L.mix(skin_low, skin_top, L.smooth(0.3, 2.4, co.z))
+        return L.mix(c, C("fff8ee"), max(0.0, -n.y) * 0.25)
+
+    K.paint_body(body, paint)
+    # A grander cap (after painting: the cap keeps its colours).
+    groups = L.dominant_groups(body)
+    for v in body.data.vertices:
+        if groups[v.index] in ("Head", "Neck") and v.co.z > 2.62:
+            d = v.co - V((0, -0.12, 2.75))
+            v.co = V((0, -0.12, 2.75)) + V((d.x * 1.2, d.y * 1.2, d.z * 1.12))
+    body.data.update()
+    surf, parts = start(body)
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.335 * sx, -0.36, 2.29)), 0.19, V((0.3 * sx, -1.0, -0.02)).normalized(),
+                     C("ffcf5a"), C("c0501a"), {"Head": 1.0}, lid=C("f2d2aa"), slant=0.28, side=sx, slit=False,
+                     iris=0.66, lid_drop=1.6)
+        p, n = M.front_hit(surf, 0.33 * sx, 2.5)
+        parts.stroke(p, n, [(0.2 * sx, 0.07), (0.05 * sx, 0.01), (-0.1 * sx, -0.05)], 0.09, C("5a3018"),
+                     lift=0.02)
+    # Royal white moustache, curling out.
+    p, n = M.front_hit(surf, 0.0, 2.08)
+    for sx in (-1.0, 1.0):
+        parts.blob(p + n * 0.05 + V((0.02 * sx, 0, 0.02)), (0.13, 0.085), V((sx, -0.3, -0.25)), 0.42, None,
+                   weights={"Head": 1.0}, seg=10, rings=7, tip=0.4, bend=V((0.03 * sx, -0.02, 0.16)),
+                   color_fn=lambda a: L.mix(C("eee6da"), WHITE, a))
+    M.cap_spots(parts, surf, V((0, -0.15, 2.95)), 10, 0.17, C("ffffff"), min_z=0.0)
+    # Velvet cape with an ermine hem, hanging from the shoulders.
+    red, red_dk, ermine = C("d23a4a"), C("7a1430"), C("fbf6ee")
+
+    def cape_col(u, v, outside):
+        if v > 0.85:
+            return L.mix(ermine, C("e6e0f0"), 0.3 if outside else 0.6)
+        if not outside:
+            return L.mix(red_dk, C("4a0a1e"), 0.5)
+        return L.mix(red, red_dk, L.smooth(0.0, 1.0, v) * 0.5 + abs(u) * 0.4)
+
+    K.cape(parts, V((0, 0.2, 0)), 1.95, 0.38, 0.62, 0.95, math.radians(200), cape_col,
+           {"Torso": 0.75, "Abdomen": 0.25}, flare=0.15)
+    # Ermine mantle over the shoulders (covers where the cape hangs from).
+    neck = V((0, 0.2, 1.95))
+    for i in range(16):
+        a = 2.0 * math.pi * i / 16
+        p, n = M.dir_hit(surf, neck, V((math.cos(a), math.sin(a) * 0.9, -0.25)))
+        if p is None or (p - neck).length > 0.95:
+            continue
+        parts.ellipsoid(p + n * 0.06, (0.17, 0.17, 0.12), color=None, weights={"Torso": 0.6, "Neck": 0.4}, seg=7,
+                        rings=5, color_fn=lambda u: L.mix(C("dcd6ea"), WHITE, L.smooth(-0.6, 0.7, u.z)))
+        if i % 2 == 0:
+            parts.ellipsoid(p + n * 0.22 + V((0, 0, -0.03)), (0.03, 0.03, 0.055), color=C("1a1420"),
+                            weights={"Torso": 1.0}, seg=6, rings=4)
+    # The crown.
+    apex, _an = M.dir_hit(surf, V((0, -0.15, 3.0)), V((0, 0, 1)))
+    gold, gold_dark = C("ffd84a"), C("e39a1c")
+    base = apex - V((0, 0, 0.12))
+    w = {"Head": 1.0}
+    with parts.use("keep"):
+        parts.frustum(base, V((0, 0, 1)), 0.45, 0.54, 0.34,
+                      lambda t, side: L.mix(gold_dark, gold, 0.35 + 0.65 * t) if side else C("8a1030"), w, seg=28)
+        for i in range(5):
+            a = math.pi * 0.5 + 2.0 * math.pi * i / 5
+            rim = base + V((math.cos(a) * 0.5, math.sin(a) * 0.5, 0.29))
+            d = V((math.cos(a) * 0.25, math.sin(a) * 0.25, 1.0)).normalized()
+            parts.blob(rim, (0.11, 0.065), d, 0.32, None, weights=w, seg=8, rings=5, tip=0.25,
+                       color_fn=lambda along: L.mix(gold_dark, C("fff2a0"), along),
+                       up=V((math.cos(a), math.sin(a), 0)))
+            parts.ellipsoid(rim + d * 0.32, (0.065, 0.065, 0.065), color=None, weights=w, seg=8, rings=5,
+                            color_fn=lambda u: L.mix(C("ff3b6b"), C("ffc2d4"), L.smooth(0.0, 1.0, u.z)))
+        parts.ellipsoid(base + V((0, -0.51, 0.17)), (0.11, 0.05, 0.12), color=None, weights=w, seg=12, rings=8,
+                        color_fn=lambda u: L.mix(C("c4103c"), C("ff8aa8"), L.smooth(-0.3, 1.0, u.z)))
+    finish(body, parts)
+
+
+# ================================================================ meadow pilot fixes
+
+def green_slime(arm, body):
+    """The pilot's green slime with a relaxed wide grin (it read as shocked) and the AO
+    baked on the jelly alone, so no dark crease rings the big eye."""
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4200)
+    L.inflate(body, 0.02)
+    lo, hi = L.bounds(body)
+    height = hi.z - lo.z
+    L.paint_body(body, M.jelly_paint(C("d2f78a"), C("86dc5c"), C("4dab4f"), C("b9f58a"), height, tip=C("f4ffb0")))
+    L.bake_ao(body)  # the jelly only: the eye and decals added below don't occlude it
+    surf, parts = start(body, L.Parts)
+    M.sparkly_eye(parts, V((0.015, -0.74, 0.86)), 0.4, V((0.0, -1.0, -0.02)).normalized(), C("5a2a0a"),
+                  C("f6b032"), {"Head": 1.0}, iris=0.6, pupil=0.32)
+    for sx in (-1.0, 1.0):
+        p, n = M.front_hit(surf, 0.58 * sx, 0.52)
+        M.cheek(parts, p, n, 0.14, 0.085, C("ff7a8a"))
+    p, n = M.front_hit(surf, 0.0, 0.36)
+    # Wide, shallow grin: a gentle open crescent, flat on top.
+    pts = [(math.cos(a) * 0.23, math.sin(a) * 0.075) for a in [math.pi + math.pi * i / 16 for i in range(17)]]
+    pts += [(0.23 * (1.0 - 2.0 * i / 6.0), 0.012) for i in range(1, 6)]
+    parts.decal(p, n, pts, C("2f4a1a"), rings=3)
+    parts.decal(p + V((0, 0, -0.035)), n, M.ellipse(0.1, 0.03, 12), C("ff8a8a"), lift=0.02, rings=1)
+    parts.decal(p + V((0.08, 0, 0.0)), n, [(-0.028, 0.012), (0.0, -0.045), (0.028, 0.012)], WHITE, lift=0.022,
+                rings=1)
+    p, n = M.front_hit(surf, -0.62, 1.0)
+    M.gloss(parts, p, n, 0.22, C("f6ffe0"))
+    M.bubbles(parts, surf, [(V((0.85, -0.5, -0.4)), 1.0), (V((-0.85, -0.45, -0.5)), 0.7),
+                            (V((0.6, 0.8, -0.3)), 0.8), (V((-0.5, 0.85, -0.45)), 0.6)], C("86dc5c"), 0.07)
+    L.join_parts(body, parts.to_object())
+
+
+def wild_chicken(arm, body):
+    """The pilot's furious chicken with a real fanned tail: arching glossy dark sickle
+    feathers over a fan of golden ones (a jungle fowl's tail), instead of a stubby wedge."""
+    L.delete_faces(body, ("Eye_White",), where=lambda c, n, g: n == "Eye_Black" and abs(c.x) > 0.36)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4600)
+    L.relax(body, 4, 0.5, ("Chicken_Main",))
+    lo, hi = L.bounds(body)
+    height = hi.z - lo.z
+    cream_top, cream_low, shade = C("fffdf7"), C("f4e7d4"), C("e6d5c4")
+    comb_top, comb_low = C("ff6a52"), C("d92a34")
+    beak_top, beak_low = C("ffcb52"), C("f28a1e")
+
+    def paint(name, co, n, info):
+        if name == "Chicken_Main":
+            if abs(co.x) > 0.66:
+                return L.mix(shade, C("ffffff"), L.smooth(0.72, 1.1, abs(co.x)))
+            c = L.mix(cream_low, cream_top, L.smooth(0.15, 0.95, co.z / height))
+            return L.mix(c, C("ffffff"), max(0.0, -n.y) * 0.35)
+        if name == "Chicken_Red":
+            return L.mix(comb_low, comb_top, L.smooth(-0.02, 0.1, info["bump"]))
+        if name == "Beak":
+            return L.mix(beak_low, beak_top, L.smooth(0.3, 0.8, co.z))
+        return C("5a2414")
+
+    K.paint_body(body, paint)
+    surf, parts = start(body)
+    for sx in (-1.0, 1.0):
+        cute_eye(parts, V((0.5 * sx, -0.38, 0.77)), 0.34, V((0.5 * sx, -1.0, 0.06)).normalized(),
+                 C("2e170c"), C("c46a1c"), {"Head": 1.0}, iris=0.58, pupil=0.32)
+        p, n = M.front_hit(surf, 0.44 * sx, 1.17)
+        parts.stroke(p, n, [(0.2 * sx, 0.07), (0.05 * sx, 0.02), (-0.1 * sx, -0.06)], 0.085, C("7a2c1c"),
+                     lift=0.02)
+        p, n = M.front_hit(surf, 0.6 * sx, 0.36)
+        M.cheek(parts, p, n, 0.12, 0.075, C("ff8f8a"))
+        foot = V((0.32 * sx, -0.42, 0.05))
+        for k in (-1, 0, 1):
+            d = V((0.35 * k + 0.12 * sx, -1.0, -0.05)).normalized()
+            parts.blob(foot, (0.08, 0.06), d, 0.3, None, weights={"Body": 1.0}, seg=8, rings=5, tip=0.8,
+                       color_fn=lambda along: L.mix(C("ff9a2a"), C("ffc35a"), along))
+    # Tail: a fan of seven golden feathers darkening to the tips, then three long arching
+    # sickle feathers over it, glossy green-black with a teal sheen (a jungle fowl's tail).
+    root, rn = M.dir_hit(surf, V((0, 0, 0.95)), V((0, 1.0, 0.25)))
+    root = root - rn * 0.08
+    u = V((0, 0.25, 0.97)).normalized()
+    for k in range(-3, 4):
+        a = k * 0.3
+        d = (V((1, 0, 0)) * math.sin(a) + u * math.cos(a)).normalized()
+        parts.blob(root + V((0.04 * k, 0.0, 0.0)), (0.2, 0.05), d, 1.25 - 0.1 * abs(k), None,
+                   weights={"Body": 1.0}, seg=10, rings=7, tip=0.6, up=V((0, 1, 0)), bend=V((0.0, 0.12, -0.03)),
+                   color_fn=lambda t: L.mix(C("e88a2a"), C("2a3a3a"), L.smooth(0.4, 0.95, t)))
+    for k in (-1, 0, 1):
+        d = (V((1, 0, 0)) * math.sin(k * 0.3) + V((0, 0.3, 0.95))).normalized()
+        parts.blob(root + V((0.06 * k, 0.1, 0.08)), (0.17, 0.05), d, 1.45 - 0.12 * abs(k), None,
+                   weights={"Body": 1.0}, seg=10, rings=9, tip=0.3, up=V((0, 1, 0)), bend=V((0.15 * k, 0.45, -0.3)),
+                   color_fn=lambda t: L.mix(C("1d2a2a"), C("2f8a7a"), L.smooth(0.2, 0.95, t) * 0.7))
+    finish(body, parts, strength=0.38, shade=V((0.86, 0.66, 0.58)))
+
+
+def spine_clusters(parts, surf, center, count, keep_clear, seed=5, length=0.24, radius=0.045, z_range=(0.15, 1.9),
+                   spine=C("fff6d8"), spine_root=C("d8c690"), areole=C("f4f0e2")):
+    """Cactus areoles: a fuzzy pale dot with three stiff spines, big enough to read at game
+    distance (outlined like the body)."""
+    rng = random.Random(seed)
+    placed = []
+    for d in M.fibonacci(count * 3):
+        if d.z < -0.3 or len(placed) >= count:
+            continue
+        p, n = M.dir_hit(surf, center, d)
+        if p is None or not (z_range[0] < p.z < z_range[1]) or keep_clear(p):
+            continue
+        if any((p - q).length < length * 1.3 for q in placed):
+            continue
+        placed.append(p)
+        parts.decal(p, n, M.ellipse(radius * 1.2, radius * 1.2, 8), areole, rings=1)
+        for k in range(3):
+            a = 2.0 * math.pi * k / 3 + rng.uniform(0, 1)
+            t_, b_, _n = L.frame(n)
+            dd = (n * 1.0 + (t_ * math.cos(a) + b_ * math.sin(a)) * 0.75).normalized()
+            parts.blob(p - n * 0.01, radius * 0.6, dd, length * rng.uniform(0.85, 1.1), None, weights=p, seg=4,
+                       rings=2, tip=0.05, color_fn=lambda t: L.mix(spine_root, spine, t))
+
+
+def cactus_hat(arm, body):
+    """The pilot's sombrero cactus with spine clusters that read at game distance."""
+    L.delete_small_islands(body, 3, ("Cactoro_Secondary",))
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    hat = L.split_off(body, ("Head3",))
+    L.clean(body, fill_holes=8)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3000)
+    L.clean(hat, quads=False)
+    L.join(body, hat)
+    green_top, green_low, rib = C("b4e870"), C("4fae4a"), C("d8f59a")
+    straw_top, straw_low = C("ffd27a"), C("d98b38")
+
+    def paint(name, co, n, info):
+        if info["bone"] == "Head3":
+            if name == "Cactoro_Red":
+                return C("ef4b4b")
+            if name == "Cactoro_Main":
+                return C("42c46a")
+            return L.mix(straw_low, straw_top, max(0.0, n.z) * 0.8 + 0.2)
+        c = L.mix(green_low, green_top, L.smooth(0.0, 1.9, co.z))
+        if abs(co.x) < 0.95:
+            a = math.atan2(co.y, co.x)
+            c = L.mix(c, rib, L.smooth(0.82, 0.98, math.cos(a * 7.0)) * 0.75)
+        return c
+
+    K.paint_body(body, paint)
+    surf, parts = start(body)
+    groups = L.dominant_groups(body)
+    cute_eye(parts, V((0.01, -0.72, 1.12)), 0.39, V((0.0, -1.0, -0.05)).normalized(), C("10204a"),
+             C("3d9be8"), {"Head": 1.0}, iris=0.6, pupil=0.32)
+    p, n = M.front_hit(surf, 0.0, 0.55)
+    M.smile_mouth(parts, p, n, 0.16, 0.12, C("3a2a12"), C("ff7f86"))
+    for sx in (-1.0, 1.0):
+        p, n = M.front_hit(surf, 0.5 * sx, 0.68)
+        M.cheek(parts, p, n, 0.12, 0.075, C("ff8a80"))
+    spine_clusters(parts, surf, V((0, 0, 1.0)), 26,
+                   lambda p: (p.y < -0.2 and abs(p.x) < 0.66 and 0.3 < p.z < 1.62) or
+                   surf.weights_at(p).get("Head3", 0.0) > 0.2, length=0.27, radius=0.05)
+    for sx, petal, middle in ((-1.0, C("ff7ab6"), C("ffe066")), (1.0, C("ffd84a"), C("ff9a3a"))):
+        side = [v.co for v in body.data.vertices if v.co.x * sx > 0.5 and groups[v.index] != "Head3"]
+        tip = max(side, key=lambda v: v.z + abs(v.x) * 0.6)
+        p, n = M.dir_hit(surf, tip - V((0.25 * sx, 0, 0.25)), V((0.4 * sx, -0.3, 1.0)))
+        if p is not None:
+            M.flower(parts, p, (n + V((0, -0.4, 0.3))).normalized(), 0.2, petal, middle, weights=p)
+    hat = [v.co for v in body.data.vertices if groups[v.index] == "Head3"]
+    hat_center = sum(hat, V()) / len(hat)
+    pose = L.pose_matrix(arm, "Head3")
+    want = pose.inverted() @ (pose @ hat_center + V((-0.45, -0.8, 0.55)))
+    p, n = surf.toward(want + (want - hat_center).normalized() * 2.0, hat_center)
+    if p is not None:
+        M.flower(parts, p, n, 0.3, C("ff5fa2"), C("ffe066"), weights={"Head3": 1.0}, turn=0.3)
+    finish(body, parts)
+
+
 # ================================================================ registry / runner
 
 RECIPES = {
     "big/Frog": yellow_frog,
     "big/FrogToxic": toxic_frog,
     "big/FrogKing": toad_king,
+    "big/MushroomKing": mush_king,
+    "blob/GreenBlob": green_slime,
+    "blob/Chicken": wild_chicken,
+    "blob/Cactoro": cactus_hat,
 }
 SOURCE = {"big/FrogToxic": "big/Frog", "big/FrogKing": "big/Frog"}
 
