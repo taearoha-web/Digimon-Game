@@ -974,6 +974,126 @@ def storm_ninja(arm, body):
     K.bake_ao(body)
 
 
+# ---------------------------------------------------------------- blob/Wizard
+
+def desert_wizard(arm, body):
+    """desert_wizard: a sand sorcerer. Sun-bleached sand hat and robe with gold bands,
+    the face sunk in shadow under the brim with only two ember eyes burning, glowing
+    amber glyphs around the hat."""
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    hat = L.split_off(body, ("Head3",))
+    L.clean(body, fill_holes=24)
+    L.subdivide(body, 2)
+    L.decimate_to(body, 3200)
+    L.relax(body, 2, 0.4)
+    L.clean(hat, quads=False)
+    L.join(body, hat)
+    sand_hi, sand, sand_lo = C("f2dcae"), C("d4b07a"), C("9a7448")
+    gold, gold_hi = C("c8901e"), C("ffe08a")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "Wizard_Secondary":
+            return L.mix(gold, gold_hi, max(0.0, n.z) * 0.6 + 0.2), IVORY
+        if bone == "Head3":  # the hat: sand, darker towards the crooked tip
+            c = L.mix(sand, sand_hi, max(0.0, n.z) * 0.5 + L.smooth(0.3, -0.6, n.y) * 0.3)
+            c = L.mix(c, sand_lo, L.smooth(2.2, 2.6, co.z) * 0.6)
+            return L.mix(c, C("b08858"), L.smooth(0.6, 0.8, K.noise(co, 6.0, 2)) * 0.3)
+        # the robe/body: deep shadow under the brim, lighter towards the hem
+        c = L.mix(C("4a3426"), C("a88054"), L.smooth(1.1, 0.25, co.z))
+        return L.mix(c, C("2a1c16"), L.smooth(-0.2, -0.8, n.y) * L.smooth(0.55, 1.2, co.z) * 0.7)
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        p, n = K.front_hit(surf, 0.36 * sx, 0.86)
+        if p is not None:
+            with parts.on(IVORY_GLOW):
+                parts.ellipsoid(p + n * 0.01, (0.2, 0.055, 0.07), K.basis(n, Vector((0, 0, 1))) @
+                                K.Matrix.Rotation(0.45 * sx, 3, "Z"), color=None, weights=head, seg=12, rings=6,
+                                color_fn=lambda u: L.mix(C("fff6c0"), C("ff8a10"), abs(u.x)))
+    # glowing glyphs around the hat
+    for k in range(6):
+        a = 2.0 * math.pi * k / 6 + 0.25
+        q, m = K.dir_hit(surf, Vector((0.0, -0.05, 1.95)), Vector((math.cos(a), math.sin(a), 0.15)))
+        if q is not None:
+            glyph = [[(-0.05, 0.07), (0.05, 0.07), (0.0, -0.07)], [(0.0, 0.08), (0.0, -0.08)],
+                     [(-0.06, 0.0), (0.06, 0.0)]][k % 3]
+            K.glow_path(parts, q, m, glyph, 0.025, C("ffd060"), mat=IVORY_GLOW, lift=0.02)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body, shade=Vector((0.7, 0.58, 0.55)))
+
+
+# ---------------------------------------------------------------- cute/Cthulhu
+
+def tentacle_horror(arm, body):
+    """tentacle_horror (magenta), hell_wizard (red) and trench_horror (teal): an eldritch
+    tentacle horror. Mottled hide with pale, suckered tentacles (tinted per variant),
+    two burning gold slit eyes under heavy brows plus three smaller eyes opening across
+    the brow (untinted, so every variant keeps the same unsettling gold), glowing
+    tinted veins over the dome, bony spines along the crest, ragged wing membranes."""
+    eyes = [Vector((0.4 * s, -0.43, 0.87)) for s in (-1.0, 1.0)]
+    L.delete_faces(body, where=lambda c, n, g: any((c - e).length < 0.27 for e in eyes) and c.y < -0.2)
+    L.clean(body, fill_holes=24)
+    L.subdivide(body, 2)
+    L.decimate_to(body, 4200)
+    L.relax(body, 2, 0.4)
+    hide_hi, hide, hide_lo = C("d8ccd4"), C("a898a8"), C("5e5064")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if bone.startswith("Wing"):
+            d = abs(co.x) - 0.5
+            return L.mix(C("6a5a6e"), C("2e2632"), L.smooth(0.2, 1.0, d))
+        if bone.startswith("Eyebrow"):
+            return L.mix(hide_lo, hide, 0.4)
+        tentacle = co.y < -0.3 and co.z < 0.7
+        c = L.mix(hide_lo, hide, L.smooth(0.3, -0.5, n.y) * 0.6 + max(0.0, n.z) * 0.2)
+        c = L.mix(c, C("4a3e50"), L.smooth(0.55, 0.75, K.fbm(co, 3.0, 5)) * 0.5)  # mottling
+        if tentacle:
+            c = L.mix(c, hide_hi, L.smooth(0.7, 0.2, co.z) * 0.7)
+        return c
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    gold, gold_dark = C("fff4a8"), C("e07a00")
+    for sx in (-1.0, 1.0):
+        c = Vector((0.36 * sx, -0.5, 0.88))
+        gaze = Vector((0.35 * sx, -1.0, 0.05)).normalized()
+        K.fierce_eye(parts, c, 0.15, gaze, sx, gold, gold_dark, head, lid=C("8a7a8c"), open_=0.5,
+                     glow_mat=IVORY_GLOW, slant=0.4)
+    # three more eyes opening across the brow
+    for (x, z, r) in ((0.0, 1.12, 0.08), (0.2, 1.2, 0.055), (-0.21, 1.19, 0.06)):
+        p, n = K.front_hit(surf, x, z)
+        if p is not None:
+            K.fierce_eye(parts, p - n * r * 0.45, r, (n + Vector((0, -0.3, 0))).normalized(), 1.0 if x >= 0 else -1.0,
+                         gold, gold_dark, head, lid=C("8a7a8c"), open_=0.55, glow_mat=IVORY_GLOW, slant=0.0,
+                         pupil="slit")
+    # suckers under the tentacles
+    for d in K.fibonacci(90):
+        if d.y > -0.45 or d.z > -0.05:
+            continue
+        p, n = K.dir_hit(surf, Vector((0, -0.2, 0.5)), d)
+        if p is None or p.z > 0.6:
+            continue
+        with parts.on(DETAIL):
+            parts.decal(p, n, K.ellipse(0.035, 0.035, 10), C("f4e8f0"), rings=1)
+            parts.decal(p, n, K.ellipse(0.016, 0.016, 8), C("8a6a84"), rings=1, lift=0.02)
+    # glowing veins over the dome (tinted: each variant's own colour)
+    rng = random.Random(13)
+    for d in (Vector((0.6, 0.3, 0.8)), Vector((-0.6, 0.3, 0.8)), Vector((0.2, 0.9, 0.5)), Vector((-0.3, 0.9, 0.3)),
+              Vector((0.8, -0.1, 0.4)), Vector((-0.8, -0.1, 0.4))):
+        q, m = K.dir_hit(surf, Vector((0, 0, 0.8)), d)
+        if q is not None:
+            K.glow_path(parts, q, m, K.crack_path(rng, 0.4, 6, 0.4), 0.03, C("ffffff"))
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
@@ -987,6 +1107,8 @@ RECIPES = {
     "blob/GreenSpikyBlob": hell_cyclops,
     "blob/Orc": lava_orc,
     "blob/Ninja": storm_ninja,
+    "blob/Wizard": desert_wizard,
+    "cute/Cthulhu": tentacle_horror,
 }
 
 
