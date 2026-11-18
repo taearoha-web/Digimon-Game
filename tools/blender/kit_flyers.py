@@ -79,17 +79,6 @@ def atlas_regions(body):
 
 # ---------------------------------------------------------------- painting
 
-def paint_body(obj, paint, glow_names=(), glow2_names=()):
-    """remaster_lib.paint_body plus: faces whose original material is in glow_names /
-    glow2_names go onto the Glow / Glow2 materials."""
-    names = [m.name if m else "" for m in obj.data.materials]
-    L.paint_body(obj, paint)
-    if glow_names or glow2_names:
-        _ensure_mats(obj)
-    # paint_body kept polygon order; recompute from the saved names.
-    return names
-
-
 def paint_body_glow(obj, paint, glow=None):
     """Like remaster_lib.paint_body but glow(name, co, bone) -> 0 / 1 / 2 picks Skin-or-
     Detail / Glow / Glow2 per face (centre co, dominant bone of its first vertex)."""
@@ -198,11 +187,12 @@ def join_parts(body, parts_obj):
         return 0
 
     remap = [slot(m) for m in me.materials]
-    for poly in me.polygons:
-        poly.material_index = remap[poly.material_index]
+    idx = [remap[p.material_index] for p in me.polygons]
     me.materials.clear()
     for n in order:
         me.materials.append(L.material(n))
+    for poly, i in zip(me.polygons, idx):
+        poly.material_index = i
 
 
 # ---------------------------------------------------------------- export
@@ -214,11 +204,12 @@ def export(arm, body, path, clips, glow=(1.0, 0.8, 0.3), glow2=None, strength=1.
     used = sorted({p.material_index for p in me.polygons})
     keep = [me.materials[i] for i in used]
     remap = {i: k for k, i in enumerate(used)}
-    for p in me.polygons:
-        p.material_index = remap[p.material_index]
+    idx = [remap[p.material_index] for p in me.polygons]
     me.materials.clear()
     for m in keep:
         me.materials.append(m)
+    for p, i in zip(me.polygons, idx):
+        p.material_index = i
     L.export(arm, body, path, clips)
     data = open(path, "rb").read()
     jlen, _t = struct.unpack_from("<I4s", data, 12)
@@ -380,3 +371,24 @@ def ridge(parts, surf, center, dirs, length, width, color_fn, weights=None, out=
                    color_fn=color_fn, detail=detail, up=Vector((1, 0, 0)))
         made.append((p, n))
     return made
+
+
+def hollow_eye(parts, center, radius, gaze, weights, socket=C("12061c"), lid_col=None, tilt=0.5, open_=0.35,
+               pupil=0.34, glow="glow", ball=C("e8f8ff"), up=Vector((0, 0, 1)), sink=0.35, pupil_y=0.0):
+    """An empty dark socket with a burning pinpoint: no white, no iris."""
+    gaze = gaze.normalized()
+    c = center - gaze * radius * sink
+    parts.ellipsoid(c, (radius, radius, radius * 1.1), color=None, weights=weights, seg=14, rings=9,
+                    color_fn=lambda u: L.mix(socket, socket * 0.4, L.smooth(0.0, 1.0, -u.y)))
+    p = c + gaze * radius * 0.78 + up * radius * pupil_y
+    parts.ellipsoid(p, (radius * pupil * 0.8, radius * pupil * 0.6, radius * pupil * 1.05), color=None,
+                    weights=weights, detail=glow, seg=10, rings=6,
+                    color_fn=lambda u: L.mix(ball, ball * 0.6, L.smooth(0.2, -0.8, u.z)))
+    if lid_col is not None:
+        inward = Vector((-1.0 if center.x > 0 else 1.0, 0, 0))
+        inward = (inward - gaze * inward.dot(gaze)).normalized()
+        upv = (up - gaze * up.dot(gaze)).normalized()
+        ax = (upv * math.cos(tilt) + inward * math.sin(tilt)).normalized()
+        half = math.pi * 0.5 - open_
+        parts.sphere_cap(c, radius * 1.06, ax, (half, half), lid_col, weights, lift=0.0, up=gaze, seg=22, rings=5,
+                         detail=False)

@@ -128,10 +128,106 @@ def dragon_elder(arm, body):
                                [i * math.pi / 6 for i in range(12)]], C("2a0806"), rings=1, lift=0.01)
     K.join_parts(body, parts.to_object())
     L.bake_ao(body, strength=0.5, shade=Vector((0.55, 0.42, 0.45)))
-    return {"glow": "ffc040", "strength": 2.2}
+    return {"glow": "ffa820", "strength": 1.3}
+
+
+def dragon_young(arm, body):
+    """Dragon: sand_dragon (sand tint), storm_dragon (blue), drake summon (teal), cloud
+    whelp, leviathan whelp. A pale stone-and-sand hide with a dark dorsal crest and
+    banded belly, so each tint paints the whole beast; lightning-pale glowing eyes."""
+    eyes = K.eye_balls(body, ("Eye_White",))
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5600)
+    L.relax(body, 2, 0.35, ("Dragon_Main",))
+    top, mid, belly = C("9a8676"), C("e8d6b4"), C("fff8e4")
+    horn_root, horn_tip = C("7a6a62"), C("fffaf0")
+    paint = _dragon_paint(top, mid, belly, C("b0a088"), C("4a4450"), C("d8d0d8"), horn_root, horn_tip,
+                          C("3a0e18"), 0.2)
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    _dragon_face(parts, surf, body, eyes, C("c8b494"), C("5a4a42"), C("fff4c0"), {"Head": 1.0}, horn_root,
+                 horn_tip)
+    horn_col = lambda t: L.mix(horn_root, horn_tip, L.smooth(0.0, 0.9, t))  # noqa: E731
+    # Crest spines over the skull and down the neck; a pair of swept cheek frills.
+    K.ridge(parts, surf, Vector((0.0, 0.0, 2.2)), [(Vector((0, 0.6, 1.0)), 0.9), (Vector((0, 1.0, 0.8)), 1.0),
+                                                   (Vector((0, 1.0, 0.35)), 0.95), (Vector((0, 1.0, 0.0)), 0.85),
+                                                   (Vector((0, 1.0, -0.35)), 0.7)],
+            0.42, 0.15, horn_col, tilt=Vector((0, 0.6, 0)))
+    for sx in (-1.0, 1.0):
+        p, n = dir_hit(surf, Vector((0.0, -0.2, 2.15)), Vector((1.0 * sx, 0.15, -0.05)))
+        if p is not None:
+            for k, (dz, ln) in enumerate(((0.06, 0.42), (-0.08, 0.32))):
+                parts.blob(p - n * 0.04 + Vector((0, 0.05 * k, dz)), (0.07, 0.04), Vector((0.75 * sx, 0.65, -0.05 + dz)),
+                           ln, None, weights={"Head": 1.0}, seg=8, rings=5, tip=0.05, color_fn=horn_col)
+        p, n = front_hit(surf, 0.1 * sx, 2.05)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.5, shade=Vector((0.5, 0.48, 0.58)))
+    return {"glow": "ffe050", "strength": 1.3}
+
+
+# ---------------------------------------------------------------- ghosts
+
+def _ghost_paint(top, low, deep, swirl, teeth=C("f4ecdc"), mouth=C("14061e"), top_z=2.6, low_z=0.5):
+    def paint(name, co, n, info):
+        if name in ("Eye_White",):
+            return teeth
+        if name in ("Eye_Black",):
+            return mouth
+        h = L.smooth(low_z, top_z, co.z)
+        c = L.mix(low, top, h)
+        # Ectoplasm thins out towards hands and tail: deeper colour at the extremities.
+        ext = L.smooth(1.2, 2.6, abs(co.x)) + L.smooth(1.0, 0.3, co.z)
+        c = L.mix(c, deep, min(1.0, ext) * 0.7)
+        c = L.mix(c, swirl, max(0.0, K.fbm(co + Vector((0, 0, co.z * 0.5)), 0.45)) * 0.5)
+        return L.mix(c, c * 1.15, max(0.0, -n.y) * 0.25)
+
+    return paint
+
+
+def _wisps(parts, surf, base_z, col_fn, count=5, spread=0.3, length=0.55, seed=4):
+    """Ragged ectoplasm tatters trailing from the lower body."""
+    rng = random.Random(seed)
+    for k in range(count):
+        a = math.pi * 2.0 * k / count + rng.uniform(-0.3, 0.3)
+        d = Vector((math.cos(a), math.sin(a) * 0.8 + 0.25, -0.4))
+        p, n = dir_hit(surf, Vector((0.0, 0.25, base_z + 0.25)), d)
+        if p is None:
+            continue
+        axis = (n * 0.35 + Vector((0, 0.35, -1.0))).normalized()
+        parts.blob(p - n * 0.05, (0.09, 0.05), axis, length * rng.uniform(0.75, 1.15), None, weights=p, seg=8, rings=6,
+                   tip=0.04, color_fn=col_fn, bend=Vector((math.cos(a) * 0.15, 0.2, 0.0)))
+
+
+def ghost(arm, body):
+    """Ghost: ghost (violet), abyss_ghost (blood-red tint), elemental summon (blue),
+    lotus sprite (pink). A pale ectoplasm spook with hollow sockets and burning pinpoint
+    eyes, a jagged grin and tattered wisps; pale base so every tint becomes its glow."""
+    eyes = [e for e in K.eye_balls(body, ("Eye_White",)) if e[0].z > 1.85]
+    L.delete_faces(body, where=lambda c, n, g: (n == "Eye_White" and c.z > 1.82) or (n == "Eye_Black" and c.z > 2.0))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5200)
+    L.relax(body, 2, 0.35, ("Ghost_Main",))
+    top, low, deep, swirl = C("efe6ff"), C("a48ae6"), C("4a2a8a"), C("ffffff")
+    L.paint_body(body, _ghost_paint(top, low, deep, swirl, top_z=2.8, low_z=0.6))
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.hollow_eye(parts, c, r * 1.0, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, lid_col=C("cbb8f6"),
+                     tilt=0.55, open_=0.45, pupil=0.48, sink=0.6)
+    _wisps(parts, surf, 0.55, lambda t: L.mix(C("8a6ad0"), C("3a1a70"), t), count=5, length=0.5)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.4, shade=Vector((0.55, 0.5, 0.8)))
+    return {"glow": "8af2ff", "strength": 1.5}
 
 
 RECIPES = {
+    "flying/Ghost": ghost,
+    "flying/Dragon": dragon_young,
     "flying/Dragon_Evolved": dragon_elder,
 }
 
