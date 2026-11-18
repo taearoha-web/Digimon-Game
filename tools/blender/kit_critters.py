@@ -283,3 +283,59 @@ def cape(parts, center, z_top, z_bot, r_top, r_bot, arc, color_fn, weights, rows
                 quad = (a_, a_ + 1, a_ + cols + 2, a_ + cols + 1)
                 faces.append(tuple(reversed(quad)) if side else quad)
     return parts._add(cos, faces, lambda i: cols_[i], weights, False)
+
+
+def island_info(obj):
+    """[(vertex_set, centre, size, mean texture colour)] of the body's loose pieces."""
+    tex = tex_lookup(obj)
+    me = obj.data
+    vcol = {}
+    for li, l in enumerate(me.loops):
+        vcol.setdefault(l.vertex_index, tex[li] if tex else Vector((1, 1, 1)))
+    out = []
+    for vs, _mat in L.islands(obj):
+        c = sum((me.vertices[i].co for i in vs), Vector()) / len(vs)
+        lo, hi = L.bounds(obj, vs)
+        col = sum((vcol[i] for i in vs), Vector()) / len(vs)
+        out.append((vs, c, hi - lo, col))
+    return out
+
+
+def delete_islands(obj, pred):
+    """Deletes loose pieces where pred(centre, size, colour, n_verts) (texture-atlas eyes)."""
+    kill = set()
+    for vs, c, size, col in island_info(obj):
+        if pred(c, size, col, len(vs)):
+            kill |= vs
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in kill], context="VERTS")
+    bm.to_mesh(obj.data)
+    bm.free()
+    return len(kill)
+
+
+def is_grey(col, ref, tol=0.06):
+    return (col - ref).length < tol
+
+
+ATLAS_LID = L.srgb("8d909e")
+ATLAS_PUPIL = L.srgb("232426")
+
+
+def atlas_eye(c, size, col, n):
+    """The Quaternius atlas eyeball (grey lid ball) and its pupil bar."""
+    return is_grey(col, ATLAS_LID) or is_grey(col, ATLAS_PUPIL, 0.03)
+
+
+def mat_islands(obj, mat_name):
+    """[(centre, radius)] of loose pieces of one material (where the source's eyes sat)."""
+    out = []
+    me = obj.data
+    for vs, mat in L.islands(obj):
+        if mat != mat_name:
+            continue
+        lo, hi = L.bounds(obj, vs)
+        out.append(((lo + hi) * 0.5, max(hi - lo) * 0.5))
+    return out
