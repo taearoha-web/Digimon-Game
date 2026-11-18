@@ -557,5 +557,6 @@ def build(name):
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
+    import recipes_critters  # team critters' recipes (and its pilot fixes) build through their own runner
     for name in (args or list(RECIPES)):
-        build(name)
+        recipes_critters.build(name) if name in recipes_critters.RECIPES else build(name)
