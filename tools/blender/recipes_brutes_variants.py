@@ -280,6 +280,17 @@ def void_golem(arm, body):
                                 rings=6)
 
     def post(body):
+        # the base recipe's slate brow slabs, turned to obsidian like the rest
+        me = body.data
+        attr = me.color_attributes["Col"]
+        ivory = [m.name for m in me.materials].index(IVORY)
+        for p in me.polygons:
+            c = p.center
+            if p.material_index == ivory and c.z > 2.25 and c.y < -0.25 and 0.05 < abs(c.x) < 0.7:
+                for li in p.loop_indices:
+                    k = attr.data[li].color
+                    if k[0] + k[1] + k[2] > 0.25:
+                        attr.data[li].color = (k[0] * 0.52, k[1] * 0.46, k[2] * 0.66, 1.0)
         K.glow_tips(body, shard_mat, GLOW, 0.14, C("e8d8ff"), WHITE)
         K.flat(body, (shard_mat,))
         K.merge_materials(body, {shard_mat: IVORY})
@@ -415,13 +426,13 @@ def jade_drake(arm, body):
             K.horn(parts, p - n * 0.02, V((1.0 * sx, -0.15, -0.3)).normalized(), 0.75, 0.026, HEAD, gold, gold_hi,
                    bend=V((0.1 * sx, 0.15, -0.3)), seg=5, rings=7, tip=0.2)
         # jade plates down the spine
-        for k, z in enumerate((2.3, 2.08, 1.86, 1.64, 1.42, 1.2, 0.98)):
-            q, m = K.dir_hit(surf, V((0, 0.2, z)), V((0, 1.0, 0.35)))
+        for k, z in enumerate((2.25, 2.04, 1.83, 1.62, 1.41, 1.2, 0.99)):
+            q, m = K.dir_hit(surf, V((0, 0.0, z)), V((0, 1.0, 0.05)))
             if q is None:
                 continue
             s_ = 1.0 - 0.07 * abs(k - 2)
             with parts.on(IVORY):
-                parts.blob(q - m * 0.08, (0.2 * s_, 0.05), (m + V((0, 0.2, 0.6))).normalized(), 0.5 * s_, None,
+                parts.blob(q - m * 0.06, (0.2 * s_, 0.05), (m + V((0, 0.5, 0.35))).normalized(), 0.55 * s_, None,
                            weights=q, seg=8, rings=5, tip=0.12, up=V((1, 0, 0)),
                            color_fn=lambda t: L.mix(jade, C("3cc890"), L.smooth(0.0, 0.8, t)) if t < 0.85 else jade_hi)
         # small wings: golden ribs, jade membrane
