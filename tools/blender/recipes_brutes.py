@@ -601,7 +601,7 @@ def shadow_ninja(arm, body):
     L.relax(body, 2, 0.4)
     L.clean(steel, quads=False)
     L.join(body, steel)
-    suit_hi, suit, suit_lo = C("7c7c9a"), C("48485e"), C("2a2a38")
+    suit_hi, suit, suit_lo = C("9090b0"), C("58587a"), C("34344a")
 
     def paint(name, co, n, info):
         bone = info["bone"]
