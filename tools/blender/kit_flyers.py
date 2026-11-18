@@ -410,3 +410,10 @@ class Snapshot:
     def region(self, co):
         _loc, _n, idx, _d = self.bvh.find_nearest(co)
         return self.names[idx] if idx is not None else ""
+
+
+def basis(z):
+    """3x3 matrix whose third column is z (an ellipsoid's local axes facing along z)."""
+    from mathutils import Matrix
+    t_, b_, n_ = L.frame(z)
+    return Matrix((t_, b_, n_)).transposed()

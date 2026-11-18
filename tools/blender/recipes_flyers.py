@@ -578,7 +578,248 @@ def ember_spirit(arm, body):
     return {"glow": "ffb040", "strength": 1.6, "glow2": "ff7a20", "strength2": 1.6}
 
 
+# ---------------------------------------------------------------- casters and fallen
+
+def _bolt(rng, n=6, step=0.09):
+    """A zig-zag lightning path in the surface plane."""
+    path = [(0.0, 0.0)]
+    for i in range(n):
+        x, y = path[-1]
+        path.append((x + (step * 0.7 if i % 2 == 0 else -step * 0.45) + rng.uniform(-0.02, 0.02), y - step))
+    return path
+
+
+def storm_wizard(arm, body):
+    """Alpaking: storm_wizard. The spiky cap is a storm-mage's hood of night-blue cloth
+    with stitched folds and crackling lightning runes (emissive); under it a shadowed
+    face with one glaring storm eye; wings like ragged thunderheads."""
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5600)
+    L.relax(body, 2, 0.3)
+    hood_top, hood_low, face_top, face_low = C("5a6aa8"), C("1e2246"), C("c8d0a0"), C("6a7050")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":  # thunderhead wings
+            t = L.smooth(0.5, 2.0, abs(co.x))
+            c = L.mix(C("4a5068"), C("e8ecf8"), t)
+            return L.mix(c, c * 0.75, max(0.0, K.fbm(co, 0.22)) * 1.2)
+        if name == "c_645c42":  # hood
+            c = L.mix(hood_low, hood_top, L.smooth(1.4, 3.2, co.z))
+            fold = abs(math.sin(math.atan2(co.x, co.y + 0.6) * 5.0 + co.z * 2.0))
+            c = L.mix(c, c * 0.6, L.smooth(0.25, 0.0, fold) * 0.6)
+            return L.mix(c, c * 1.25, L.smooth(0.0, 0.06, info["bump"]))
+        # face, deep in the hood's shadow towards the top
+        c = L.mix(face_low, face_top, L.smooth(1.4, 2.0, co.z))
+        return L.mix(c, c * 0.45, L.smooth(1.95, 2.3, co.z))
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        K.fierce_eye(parts, c, r * 0.95, Vector((0.0, -1.0, 0.05)), {"Head": 1.0}, face_low, ball=C("d8f4ff"),
+                     slit=(0.08, 0.55), tilt=0.0, open_=0.38, lower_lid=0.5, ring=C("4aa8ff"),
+                     brow=hood_low)
+    # Lightning runes on the hood.
+    rng = random.Random(7)
+    for d in (Vector((0.5, -0.6, 0.6)), Vector((-0.55, -0.5, 0.5)), Vector((0.75, 0.3, 0.4)),
+              Vector((-0.7, 0.4, 0.45)), Vector((0.05, 0.6, 0.9)), Vector((0.0, -0.5, 1.0))):
+        p, n = dir_hit(surf, Vector((0.0, 0.9, 2.3)), d)
+        if p is not None:
+            parts.stroke(p, n, _bolt(rng), 0.05, C("bfe8ff"), detail="glow2", lift=0.012, taper=False)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45)
+    return {"glow": "aee4ff", "strength": 1.6, "glow2": "7ac8ff", "strength2": 1.5}
+
+
+def sky_priest(arm, body):
+    """Alpaking_Evolved: sky_priest, shadow seraph, lotus seraph. A three-eyed oracle: pale
+    porcelain face with gilt filigree, a tall gilded mitre-crown set with a glowing
+    gem, three burning eyes under solemn heavy lids, wings of layered cloud."""
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5300)
+    L.relax(body, 2, 0.3)
+    skin_top, skin_low, gold, gold_dark = C("fff4e0"), C("c8b8a8"), C("ffd860"), C("a86a20")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":
+            t = L.smooth(0.5, 2.0, abs(co.x))
+            c = L.mix(C("8a8aa0"), C("ffffff"), t)
+            return L.mix(c, c * 0.8, max(0.0, K.fbm(co, 0.25)) * 0.9)
+        if name == "c_645c42":  # crown
+            c = L.mix(gold_dark, gold, L.smooth(1.4, 3.4, co.z))
+            c = L.mix(c, C("fff4c0"), L.smooth(0.02, 0.1, info["bump"]))
+            return L.mix(c, gold_dark * 0.7, L.smooth(0.6, 1.0, math.sin(co.z * 22.0)) * 0.35)
+        c = L.mix(skin_low, skin_top, L.smooth(0.6, 2.4, co.z))
+        # gilt filigree bands round the lower face
+        band = abs(math.sin(co.z * 9.0 + math.atan2(co.x, -co.y) * 2.0))
+        return L.mix(c, gold, L.smooth(0.12, 0.0, band) * L.smooth(1.3, 0.8, co.z) * 0.8)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 0.0 if abs(c.x) < 0.1 else (1.0 if c.x > 0 else -1.0)
+        K.fierce_eye(parts, c, r * 0.95, Vector((0.25 * sx, -1.0, 0.0)), {"Head": 1.0}, skin_low, ball=C("fff0c0"),
+                     slit=None, tilt=0.35 if sx else 0.0, open_=0.3, lower_lid=0.55, ring=C("ffb040"),
+                     brow=gold_dark if not sx else None)
+    # A glowing gem on the crown's brow.
+    p, n = dir_hit(surf, Vector((0.0, 0.3, 2.9)), Vector((0.0, -1.0, 0.25)))
+    if p is not None:
+        parts.ellipsoid(p + n * 0.05, (0.13, 0.17, 0.08), K.basis(n), color=None, weights={"Neck": 1.0},
+                        detail="glow2", seg=10, rings=6, color_fn=lambda u: C("ffe8a0"))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.4, shade=Vector((0.7, 0.6, 0.6)))
+    return {"glow": "ffe6a0", "strength": 1.5, "glow2": "a8f0ff", "strength2": 1.6}
+
+
+def fallen_angel(arm, body):
+    """Demon: fallen_angel, shadow queen. Ash-marble skin, obsidian horns, a cracked halo
+    still burning gold (emissive), eyes of white fire with no pupils under a cruel brow,
+    torn wings scorched at the edges, glowing sigil scars on the chest."""
+    eyes = [e for e in K.eye_balls(body, ("c_8f92a0",)) if abs(e[0].x) < 0.8]
+    L.delete_faces(body, ("c_1e1f22",), where=lambda c, n, g: n == "c_8f92a0" and abs(c.x) < 0.8)
+    L.clean(body)
+    L.decimate_to(body, 5200)
+    skin_top, skin_low, horn_a, horn_b = C("fdf8ff"), C("bfb2cc"), C("1a1620"), C("6a6078")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "c_8f92a0":  # wing claws
+            return L.mix(horn_a, C("d8d0e0"), L.smooth(-0.01, 0.06, info["bump"]))
+        if name == "c_222422":
+            if co.z > 2.38 and abs(co.x) < 0.4 and co.y > -0.15:  # halo
+                return C("ffe8a0")
+            if bone.startswith("Wing"):  # torn membranes, scorched edges
+                t = L.smooth(0.6, 1.9, abs(co.x)) * 0.5 + L.smooth(0.6, 1.3, co.y) * 0.5
+                c = L.mix(C("2a2232"), C("5a4a68"), t)
+                return L.mix(c, C("c86a30"), L.smooth(0.8, 1.0, t) * 0.6)
+            return L.mix(horn_a, horn_b, L.smooth(2.0, 2.8, co.z))  # horns
+        c = L.mix(skin_low, skin_top, L.smooth(1.2, 2.6, co.z))
+        # marble veining
+        v = abs(K.fbm(co * Vector((1.0, 1.0, 2.5)), 0.3, 3))
+        c = L.mix(c, C("8a7a9a"), L.smooth(0.05, 0.0, v) * 0.35)
+        return L.mix(c, c * 0.7, L.smooth(1.3, 2.4, abs(co.x)) * 0.5)
+
+    K.paint_body_glow(body, paint, glow=lambda name, co, bone:
+                      2 if (name == "c_222422" and co.z > 2.38 and abs(co.x) < 0.4 and co.y > -0.15) else 0)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.85, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, skin_low, lid_dark=C("3a3048"),
+                     ball=C("fff8e0"), slit=None, tilt=0.6, open_=0.28, lower_lid=0.6, brow=C("4a3e5a"))
+    # Sigil scars across the chest.
+    p, n = front_hit(surf, 0.0, 1.45)
+    if p is not None:
+        parts.stroke(p, n, [(-0.22, 0.12), (0.0, -0.1), (0.22, 0.12)], 0.035, C("ffe0a0"), detail="glow2", taper=False)
+        parts.stroke(p, n, [(0.0, 0.18), (0.0, -0.18)], 0.035, C("ffe0a0"), detail="glow2", taper=False)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.55, 0.5, 0.65)))
+    return {"glow": "fff4d0", "strength": 1.7, "glow2": "ffc040", "strength2": 1.5}
+
+
+def magma_wizard(arm, body):
+    """Hywirl: magma_wizard, sky wind spirit. A spirit of cooled lava: basalt skin split by
+    hot seams, burning eyes under a jagged crest, glowing spell-sigils on both palms."""
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5600)
+    L.relax(body, 2, 0.3)
+    rock_top, rock_low, seam = C("8a7a7a"), C("3a3236"), C("ffd090")
+
+    def paint(name, co, n, info):
+        c = L.mix(rock_low, rock_top, L.smooth(0.4, 2.6, co.z))
+        c = L.mix(c, c * 1.25, L.smooth(0.0, 0.06, info["bump"]))
+        d0, d1 = K.cells(co, 0.28)
+        s = 1.0 - L.smooth(0.0, 0.1, d1 - d0)
+        c = L.mix(c, seam, s * 0.85)
+        return L.mix(c, c * 0.7, max(0.0, K.fbm(co, 0.18)) * 0.6)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.9, Vector((0.45 * sx, -1.0, 0.0)), {"Head": 1.0}, rock_top, lid_dark=rock_low,
+                     ball=C("ffe0a0"), slit=(0.07, 0.5), tilt=0.55, open_=0.3, lower_lid=0.55, brow=rock_low)
+    # Spell sigils on the palms (rings with a dot).
+    for side in ("L", "R"):
+        b = arm.data.bones["Middle1." + side]
+        c = b.head_local
+        p, n = surf.toward(c + Vector((0.0, -2.0, -0.3)), c)
+        if p is None:
+            continue
+        w = {"LowerArm." + side: 0.5, "Middle1." + side: 0.5}
+        ring = [(math.cos(a) * 0.16, math.sin(a) * 0.16) for a in [i * math.pi / 8 for i in range(17)]]
+        parts.stroke(p, n, ring, 0.035, C("ffe0b0"), weights=w, detail="glow2", taper=False, lift=0.015)
+        parts.decal(p, n, [(math.cos(a) * 0.05, math.sin(a) * 0.05) for a in [i * math.pi / 5 for i in range(10)]],
+                    C("ffe0b0"), weights=w, detail="glow2", rings=1, lift=0.015)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45)
+    return {"glow": "ffc050", "strength": 1.6, "glow2": "ffd890", "strength2": 1.5}
+
+
+def grave_witch(arm, body):
+    """Squidle: grave_witch, tide squid. A crone-squid of the graveyard: bruised violet skin
+    with darker warts, bone horns, tattered veined wings, a hanging tongue, sickly
+    glowing eyes under hooded lids, and a rune of the dead glowing on the brow."""
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.decimate_to(body, 5400)
+    skin_top, skin_low, wart = C("b8a0c8"), C("4a3858"), C("6a4a7a")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "c_a58c72":  # horns: bone
+            return L.mix(C("6a5a4a"), C("f4ecd8"), L.smooth(2.3, 2.95, co.z))
+        if name == "c_2a6f8b":  # wings: tattered, veined
+            t = L.smooth(0.6, 1.9, abs(co.x)) * 0.5 + L.smooth(0.6, 1.3, co.y) * 0.5
+            c = L.mix(C("2a1e36"), C("8a7aa0"), t)
+            vein = abs(math.sin(math.atan2(co.y - 0.3, abs(co.x) - 0.4) * 7.0))
+            return L.mix(c, C("1a1022"), L.smooth(0.15, 0.0, vein) * 0.6)
+        if name == "c_5b354a":  # mouth and tongue
+            return L.mix(C("3a0e24"), C("a04a6a"), L.smooth(1.7, 1.1, co.z))
+        c = L.mix(skin_low, skin_top, L.smooth(1.1, 2.6, co.z))
+        c = L.mix(c, wart, L.smooth(0.25, 0.45, K.fbm(co, 0.12, 2)))
+        return L.mix(c, c * 0.65, L.smooth(1.0, 2.4, abs(co.x)) * 0.5)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.9, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, skin_top * 0.85,
+                     lid_dark=skin_low, ball=C("d8ffb0"), slit=(0.07, 0.5), tilt=0.45, open_=0.3, lower_lid=0.5,
+                     ring=C("70d050"), brow=skin_low)
+    # A rune of the dead on the brow: a circle crossed by a downward fork.
+    top = max(c.z for c, r in eyes) + 0.32
+    p, n = front_hit(surf, 0.0, top)
+    if p is not None:
+        ring = [(math.cos(a) * 0.1, math.sin(a) * 0.1) for a in [i * math.pi / 8 for i in range(17)]]
+        parts.stroke(p, n, ring, 0.03, C("c8ffb0"), detail="glow2", taper=False)
+        parts.stroke(p, n, [(0.0, 0.14), (0.0, -0.16)], 0.03, C("c8ffb0"), detail="glow2", taper=False)
+        parts.stroke(p, n, [(-0.08, -0.16), (0.0, -0.06), (0.08, -0.16)], 0.03, C("c8ffb0"), detail="glow2",
+                     taper=False)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45)
+    return {"glow": "c0ff80", "strength": 1.5, "glow2": "a0ff90", "strength2": 1.4}
+
+
 RECIPES = {
+    "flying/Alpaking": storm_wizard,
+    "flying/Alpaking_Evolved": sky_priest,
+    "flying/Demon": fallen_angel,
+    "flying/Hywirl": magma_wizard,
+    "flying/Squidle": grave_witch,
     "flying/Glub": plague_bug,
     "flying/Glub_Evolved": ember_spirit,
     "flying/Goleling": blood_bat,
