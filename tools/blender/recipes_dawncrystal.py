@@ -52,7 +52,7 @@ def _crab_base(body, claw_scale=1.0):
             K.scale_region(body, lambda c, sx=sx: c.x * sx > 0.62 and c.z > 0.5, root, (claw_scale,) * 3,
                            lambda c, sx=sx: L.smooth(0.62, 0.8, c.x * sx))
     L.subdivide(body, 1)
-    L.decimate_to(body, 4000 if claw_scale == 1.0 else 3600)
+    L.decimate_to(body, 4000 if claw_scale == 1.0 else 2800)
     L.relax(body, 2, 0.3, ("Main",))
 
 
@@ -173,7 +173,7 @@ def coral_hermit(arm, body):
 
     origin = V((0, 0.8, 0.88))
     centres = Q.spiral_shell(parts, origin, V((0, 0.9, 1)), V((0, -1, 0.5)), 0.62, 1.7, shell_col, origin,
-                             steps=8, shrink=0.72, rise=0.6)
+                             steps=7, shrink=0.7, rise=0.6)
     # a flared lip of the shell's mouth behind the head
     lip_c = origin + V((0, -0.32, -0.12))
     parts.ellipsoid(lip_c, (0.6, 0.14, 0.42), Q.basis(V((0, -1, 0.35)).normalized()), color=None, weights=origin,
@@ -181,13 +181,13 @@ def coral_hermit(arm, body):
     # Blood coral branches and barnacles on the shell.
     rng = random.Random(9)
     for k, (c, r, i) in enumerate(centres[:4]):
-        for j in range(2 if i < 2 else 1):
+        for j in range(2 if i == 0 else (1 if i < 3 else 0)):
             a = rng.uniform(0, 2 * math.pi)
             d = V((math.cos(a) * 0.9, math.sin(a) * 0.6 + 0.35, 0.8)).normalized()
             Q.coral(parts, c + d * r * 0.8, d, 0.5 * (1.0 - 0.15 * i), 0.085, origin, C("8a0612"), C("ff3a2a"),
                     depth=2, seed=31 + k * 5 + j, spread=0.7)
-        for j in range(5 if i < 3 else 2):
-            a = 2.0 * math.pi * j / 5 + i
+        for j in range(4 if i < 3 else 2):
+            a = 2.0 * math.pi * j / 4 + i
             d = V((math.cos(a), math.sin(a), 0.25)).normalized()
             Q.thorn(parts, c + d * r * 0.9, (d + V((0, 0, 0.3))).normalized(), r * 0.5, r * 0.16, origin,
                     D("c86a5a"), D("fff0e4"))
@@ -423,7 +423,7 @@ def thorn_skull(arm, body):
     Q.delete_mat_islands(body, lambda m, c, s, n: m == "Main_Light" and n > 60)
     L.clean(body)
     L.subdivide(body, 1)
-    L.decimate_to(body, 2600)
+    L.decimate_to(body, 2200)
     bone_hi, bone_lo, moss = D("f4ead0"), D("c8b088"), D("6aa040")
 
     def paint(name, co, n, info):
@@ -500,8 +500,8 @@ def thorn_skull(arm, body):
                 Q.leaf(parts, q, (m + V((0, 0, 0.3))).normalized(), 0.22, 0.09, D("3a8a30"), D("a8d850"), q,
                        V((0, 0, 1)) if abs(m.z) < 0.8 else V((0, -1, 0)))
     # A beard of roots from under the jaw down to the ground.
-    for k in range(7):
-        a = math.radians(-150 + 300 * k / 6)
+    for k in range(5):
+        a = math.radians(-150 + 300 * k / 4)
         top = V((math.sin(a) * 0.4, -0.05 - math.cos(a) * 0.25, 0.08))
         out = V((math.sin(a), -math.cos(a) * 0.6 + 0.25, 0)).normalized()
         pts = [top + out * (0.45 * t) + V((0, 0, -0.16 * t + 0.08 * math.sin(t * 3.1))) for t in
@@ -847,7 +847,7 @@ def _alpaca(arm, body, glass):
     L.clean(body)
     Q.grow(body, hc, 0.4, 0.8, 1.35)
     L.subdivide(body, 1)
-    L.decimate_to(body, 4600)
+    L.decimate_to(body, 3800 if glass else 4600)
     L.relax(body, 2, 0.35)
     names = [m.name for m in body.data.materials]
     wool_v = {v for p in body.data.polygons if names[p.material_index] == "Main" for v in p.vertices}
@@ -924,7 +924,7 @@ def _alpaca(arm, body, glass):
         if q is not None:
             Q.cluster(parts, q - m * 0.02 + V((0, -0.1, 0.1)), (m + V((0, -0.2, 0.3))).normalized(), 0.42, head,
                       D("8ac8ff"), WHITE, count=5, seed=99, spread=0.55)
-        for k in range(14):
+        for k in range(9):
             q, m = Q.hit(surf, V((0.04, 0.0, 2.2)), V((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.3, 1))))
             if q is not None:
                 with parts.use("glow"):
