@@ -6,7 +6,8 @@ Same contract as remaster_monsters.RECIPES, built with kit_critters' material se
 eyes, teeth and glowing marks stay untinted ("Keep..." materials). A few outputs are
 VARIANTS of a shared rig for one monster only (big/FrogKing = toad_king): they are
 written to remaster/<dir>/<Variant>.glb and that monster's "model" points at
-"remaster/<dir>/<Variant>" directly.
+"remaster/<dir>/<Variant>" directly. The per-monster variants of shared rigs (abyss_angler,
+lotus_frog, jade_monk, gold_birb, nova_drake, jade_qilin) live in recipes_critters_variants.py.
 """
 import math
 import os
