@@ -426,6 +426,136 @@ def eclipse_mage(arm, body):
     finish(body, parts)
 
 
+def scythe(arm, parts, length=2.7, blade=1.15, grip=0.3):
+    """The reaper's scythe, held in the right hand: upright in Idle, the blade forward at
+    the top (built in rest space from the hand's Idle pose), skinned to the hand."""
+    w = {"hand.r": 1.0}
+    pos, rot = hand_frame(arm, "handslot.r")
+    inv = rot.inverted()
+    up = (inv @ V((0, 0, 1))).normalized()
+    fwd = (inv @ V((-1.0, -0.55, 0))).normalized()
+    fwd = (fwd - up * fwd.dot(up)).normalized()
+    side = up.cross(fwd).normalized()
+    bot = pos - up * (length * grip)
+    top = pos + up * (length * (1.0 - grip))
+    with parts.use("keep"):
+        parts.blob(bot, 0.06, up, length, None, weights=w, seg=8, rings=4, tip=0.85,
+                   color_fn=lambda a: L.mix(D("1a1626"), D("3a3256"), a))
+        for k in (0.08, 0.62, 0.97):
+            parts.ellipsoid(bot + up * (length * k), (0.07, 0.07, 0.04), basis=_basis_z(up), color=D("cfd3ea"),
+                            weights=w, seg=10, rings=5)
+        # the socket where blade meets shaft, a silver crescent collar
+        parts.ellipsoid(top, (0.1, 0.1, 0.12), basis=_basis_z(up), color=None, weights=w, seg=10, rings=6,
+                        color_fn=lambda u: L.mix(D("8d92b4"), D("eef0ff"), L.smooth(-0.5, 0.8, u.z)))
+    with parts.use("glow"):
+        # long curved blade sweeping forward and down, starlight blue to white edge
+        parts.blob(top - up * 0.02, (0.03, 0.17), fwd, blade, None, weights=w, seg=10, rings=8, tip=0.04,
+                   bend=-up * 0.6 - fwd * 0.1, up=up,
+                   color_fn=lambda a: L.mix(C("6fb8ff"), C("f2fbff"), L.smooth(0.0, 0.9, a)))
+        parts.blob(top + up * 0.02, 0.035, up, 0.25, C("bfe8ff"), weights=w, seg=6, rings=4, tip=0.1)
+    return side
+
+
+def eclipse_reaper(arm, body):
+    """ผู้เก็บเกี่ยวแสงดาว: the starlight reaper: a pale skull with star-white eyes deep in a
+    tall pointed night-blue hood, a long tattered cloak scattered with stars, a dark
+    eclipse ring behind the head and a great scythe with a blade of starlight."""
+    L.delete_faces(body, ("Hat",))
+    L.clean(body, quads=False, merge=1e-5)
+    night, ink, silver = D("2b2548"), D("16121f"), D("c4c9e2")
+    pal = {"cloth": (night, 0.62), "leather": (D("3b3360"), 0.5), "metal": (silver, 0.6), "bone": (D("dfe2ee"), 0.9),
+           "dark": (D("0e0b16"), 0.2)}
+    robe_paint(body, pal, lambda co, n: L.mix(D("9a9fb8"), D("eef0f8"), L.smooth(1.35, 2.05, co.z)))
+    S.recolor_eyes(body, lambda co: C("d9fbff"))
+    surf, parts = start(body)
+    open_dir = V((0, -1, -0.12)).normalized()
+
+    def hood_col(u, out):
+        if not out:
+            return D("08060e")
+        return L.mix(D("1a1530"), D("3a3266"), L.smooth(-0.6, 0.9, u.z))
+
+    S.shell(parts, V((0, 0.1, 1.78)), (0.58, 0.6, 0.58), hood_col, HEAD, open_dir=open_dir, open_angle=0.9,
+            thick=0.06, seg=22, rings=12, peak=0.45)
+    # long ragged cloak
+    cy, arc = 0.06, 3.2
+    back_cape(parts, lambda u, v, out: L.mix(D("2e2754"), D("0f0c1a"), v) if out else D("120e1c"), r_top=0.42,
+              r_bot=0.7, z_top=1.3, z_bot=0.06, arc=arc, ragged=0.28, cols=16, cy=cy)
+    import random
+    rng = random.Random(5)
+    with parts.use("glow"):
+        for i in range(11):
+            u, v = rng.uniform(-0.85, 0.85), rng.uniform(0.15, 0.85)
+            a = math.pi * 0.5 + u * arc * 0.5 * (1.0 + 0.15 * v)
+            r = 0.42 + (0.7 - 0.42) * v + 0.045
+            c = V((math.cos(a) * r, cy + math.sin(a) * r, 1.3 + (0.06 - 1.3) * v))
+            out = V((math.cos(a), math.sin(a), 0))
+            sz = rng.uniform(0.025, 0.05)
+            for d in (V((0, 0, 1)), out.cross(V((0, 0, 1)))):
+                parts.ellipsoid(c, (sz * 0.35, sz * 0.35, sz * 1.6), basis=_basis_z(d), color=C("e8f6ff"),
+                                weights=CHEST, seg=6, rings=4)
+        # dark eclipse ring behind the head
+        S.ring(parts, V((0, 0.62, 2.0)), V((0, 1, 0.15)), 0.5, 0.03, None, HEAD, seg=32, tube=5,
+               color_fn=lambda t, s_: L.mix(C("8a5cff"), C("e7d6ff"), 0.5 + 0.5 * math.cos(t * 2 * math.pi * 4)))
+    scythe(arm, parts)
+    finish(body, parts)
+
+
+# ================================================================ bone soldiers (Skeleton_Minion / Rogue)
+
+def bone_paint(body, pal, bone_col, part_kind=None):
+    """Skeleton bodies: bone by its own painted shading, the rest by atlas class."""
+
+    def paint(name, co, n, info):
+        kind, val = S.tex_class(info["tex"])
+        if part_kind:
+            kind = part_kind(name, kind)
+        if kind == "bone":
+            return shade(L.mix(bone_col[0], bone_col[1], L.smooth(0.2, 2.1, co.z)), val, 0.9, lo=0.75, hi=1.08)
+        base, ref = pal[kind]
+        return shade(base, val, ref)
+
+    K.paint_body(body, paint, face_mode=eyes_mode, tex=True)
+
+
+def eclipse_minion(arm, body):
+    """ทหารกระดูกคราส: an eclipse bone soldier: warm ivory bones with soft shade, violet ember
+    eyes, an iron skull-cap with a silver crescent and a ragged purple tabard."""
+    L.clean(body, quads=False, merge=1e-5)
+    pal = {"cloth": (D("6a3fa8"), 0.62), "leather": (D("3a2d4a"), 0.55), "metal": (D("9aa0b8"), 0.6),
+           "dark": (D("1c1626"), 0.2), "cloak": (D("5b3a8f"), 0.75)}
+    bone_paint(body, pal, (D("d9cbb4"), D("fbf4e6")), lambda name, kind: "cloak" if name == "Cloak" else kind)
+    S.recolor_eyes(body, lambda co: C("b45cff"))
+    surf, parts = start(body)
+    # iron skull-cap with a rim and a silver crescent
+    parts.ellipsoid(V((0, 0.02, 1.86)), (0.5, 0.52, 0.37), color=None, weights=HEAD, seg=22, rings=10,
+                    squash_bottom=0.85, color_fn=lambda u: L.mix(D("3a3354"), D("7d77a0"), L.smooth(-0.2, 0.9, u.z)))
+    parts.frustum(V((0, 0.02, 1.8)), V((0, 0, 1)), 0.52, 0.51, 0.07,
+                  lambda t, side: L.mix(D("595478"), D("aeb2cc"), t), HEAD, seg=26)
+    with parts.use("keep"):
+        S.crescent(parts, V((0, -0.47, 1.98)), V((0, -1, 0.3)), V((0, 0.3, 1)), 0.13, 0.5, HEAD,
+                   lambda t, k: L.mix(D("f0f2ff"), D("b0b4d0"), k * 0.6), thick=0.04)
+    finish(body, parts)
+
+
+def eclipse_rogue(arm, body):
+    """เงามีดราตรี: a night-blade skeleton: a violet-black hood and cape, a scarf over the jaw,
+    magenta ember eyes and silver buckles."""
+    L.clean(body, quads=False, merge=1e-5)
+    pal = {"cloth": (D("3a2560"), 0.62), "leather": (D("2a2235"), 0.55), "metal": (D("b9bdd6"), 0.6),
+           "dark": (D("120e18"), 0.2), "hood": (D("332252"), 0.7)}
+    bone_paint(body, pal, (D("cfc4d8"), D("f4effa")),
+               lambda name, kind: "hood" if name in ("Hood", "Cape") else kind)
+    S.recolor_eyes(body, lambda co: C("ff5ce0"))
+    surf, parts = start(body)
+    # scarf over the lower face, a tail down the back
+    parts.frustum(V((0, -0.02, 1.3)), V((0, -0.08, 1)), 0.4, 0.46, 0.25,
+                  lambda t, side: L.mix(D("1e1430"), D("4a2f78"), t), HEAD, seg=24)
+    S.feather(parts, V((0.12, 0.38, 1.45)), V((0.35, 1, -0.9)), 0.55, 0.08, CHEST, D("3e2868"), D("1e1430"),
+              up=V((0, 0, 1)), tip=0.5, thick=0.3)
+    finish(body, parts)
+
+
 RECIPES = {
     "star/Skeleton_Warrior_sky_warden": sky_warden,
     "star/Skeleton_Warrior_sky_high_warden": sky_high_warden,
@@ -433,6 +563,9 @@ RECIPES = {
     "star/Skeleton_Warrior_eclipse_dreadknight": eclipse_dreadknight,
     "star/Skeleton_Mage_sky_oracle": sky_oracle,
     "star/Skeleton_Mage_eclipse_mage": eclipse_mage,
+    "star/Skeleton_Mage_eclipse_reaper": eclipse_reaper,
+    "star/Skeleton_Minion_eclipse_minion": eclipse_minion,
+    "star/Skeleton_Rogue_eclipse_rogue": eclipse_rogue,
 }
 
 
