@@ -28,6 +28,7 @@ OUT = os.path.join(SRC, "remaster")
 
 C = L.srgb
 SKIN, DETAIL, GLOW, IVORY, IVORY_GLOW = K.SKIN, K.DETAIL, K.GLOW, K.IVORY, K.IVORY_GLOW
+SKIN_FUR, SKIN_HIDE = "Skin_Fur", "Skin_Hide"  # temporary slots (merged into Skin before export)
 WHITE = C("ffffff")
 
 
@@ -646,6 +647,81 @@ def shadow_ninja(arm, body):
     K.bake_ao(body)
 
 
+# ---------------------------------------------------------------- big/Yeti
+
+def yeti(arm, body):
+    """yeti, yeti_king (icy blue boss) and crystal_yeti: a shaggy snow brute. Thick
+    white fur in drooping clumps over the head, shoulders, back and arms, a dark
+    blue-grey hide on the face, hands and feet, ram horns, icy glowing eyes under a
+    shaggy brow, yellowed fangs in a roaring mouth, ice crystals on the shoulders
+    (tinted: they turn deep blue on the king)."""
+    L.delete_faces(body, ("Eye_White",), where=lambda c, n, g: n == "Eye_Black" and c.z > 2.15)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3400)
+    L.relax(body, 2, 0.4)
+    fur_hi, fur, fur_lo = C("ffffff"), C("e6ecf2"), C("a8b4c4")
+    hide_hi, hide = C("9ab0c8"), C("6a82a0")
+
+    def paint(name, co, n, info):
+        if name == "Yeti_Teeth":
+            return L.mix(C("d8c898"), C("fffaf0"), 0.6), IVORY
+        if name in ("Tongue", "Eye_Black"):
+            return C("6a2034") if name == "Tongue" else C("1a0a14"), IVORY
+        if name == "Yeti_Secondary" and info["bone"] not in ("Body", "Torso", "Abdomen"):
+            c = L.mix(hide, hide_hi, max(0.0, n.z) * 0.5 + 0.2)
+            return L.mix(c, C("2e3a4c"), L.smooth(0.6, 0.8, K.noise(co, 8.0, 2)) * 0.3), SKIN_HIDE
+        c = L.mix(fur_lo, fur, L.smooth(-0.3, 0.6, n.z) * 0.6 + 0.3)
+        c = L.mix(c, fur_hi, L.smooth(0.45, 0.75, K.fbm(co, 5.0, 8)) * 0.6)  # fur clumps
+        return c, SKIN_FUR
+
+    K.displace(body, 0.07, lambda co, n: 0.0 if co.z < 0.2 else L.smooth(0.45, 0.75, K.noise(co, 5.0, 8)))
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        c = Vector((0.29 * sx, -0.5, 2.3))
+        gaze = Vector((0.25 * sx, -1.0, 0.0)).normalized()
+        K.fierce_eye(parts, c, 0.105, gaze, sx, C("e8fbff"), C("3a9ae8"), head, lid=C("6a82a0"), open_=0.45,
+                     glow_mat=IVORY_GLOW, pupil="dot", slant=0.4)
+        # big lower fangs
+        K.fang(parts, Vector((0.17 * sx, -0.6, 1.9)), Vector((0.15 * sx, -0.3, 1.0)), 0.22, 0.05, head,
+               root=C("c8b888"))
+        # ram horns curling back and down from the crown
+        K.horn(parts, Vector((0.38 * sx, -0.12, 2.6)), Vector((0.85 * sx, 0.3, 0.55)).normalized(), 0.65, 0.14, head,
+               C("5a5050"), C("e8dcc8"), bend=Vector((0.12 * sx, -0.05, -0.55)), rings_col=C("3a3030"), bands=6, seg=12,
+               rings=10)
+    # fur: shaggy fringes wherever the fur meets bare hide (face rim, wrists, ankles) ...
+    for p, across, n in K.border_points(body, SKIN_FUR, SKIN_HIDE, 0.1):
+        if p.y < -0.25 and 1.6 < p.z < 2.7 and abs(p.x) < 0.55:
+            continue  # not over the face
+        d = (across + n * 0.7 + Vector((0, 0, -0.35))).normalized()
+        with parts.on(DETAIL):
+            parts.blob(p - n * 0.03, (0.09, 0.045), d, 0.2, None, weights=p, seg=6, rings=3, tip=0.3, up=n,
+                       color_fn=lambda t: L.mix(fur, fur_hi, t))
+    # ... and spiky clumps breaking the silhouette over the crown, shoulders and back
+    def bare(p, n):
+        return p.y < -0.25 or p.z < 1.3 or abs(p.x) > 1.3
+    K.tufts(parts, surf, Vector((0, 0.05, 1.6)), K.fibonacci(70), 0.24, 0.1, fur, fur_hi, seed=2, per=1,
+            droop=0.55, lift_out=0.7, skip=bare, seg=6, rings=3, flat=0.5, tip=0.3, mat=DETAIL)
+    for sx in (-1.0, 1.0):
+        # shaggy brow over the eyes
+        K.tufts(parts, surf, Vector((0.3 * sx, -0.2, 2.45)), [Vector((0.2 * sx, -1.0, 0.5)).normalized()], 0.2,
+                0.07, fur, fur_hi, weights=head, seed=40, per=3, droop=0.7, lift_out=0.5, seg=6, rings=3,
+                flat=0.45, tip=0.4, mat=DETAIL)
+        # ice crystals on the shoulders (they take the tint)
+        q, m = K.dir_hit(surf, Vector((0.7 * sx, 0.2, 1.9)), Vector((0.2 * sx, 0.4, 1.0)))
+        if q is not None:
+            for k in range(3):
+                dd = (m + Vector((0.4 * sx * (k - 1), 0.3, 0.4))).normalized()
+                K.crystal(parts, q - m * 0.02 + Vector((0.08 * sx * (k - 1), 0.05 * k, 0)), dd, 0.38 - 0.08 * abs(k - 1),
+                          0.08, q, C("b8e4ff"), C("f4fcff"), mat=SKIN)
+    K.join_parts(body, parts.to_object())
+    K.merge_materials(body, {SKIN_FUR: SKIN, SKIN_HIDE: SKIN})
+    K.bake_ao(body, strength=0.4, shade=Vector((0.62, 0.7, 0.86)))
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
@@ -654,6 +730,7 @@ RECIPES = {
     "big/Orc": forest_orc,
     "big/Orc_Skull": skull_orc,
     "big/Ninja": shadow_ninja,
+    "big/Yeti": yeti,
 }
 
 

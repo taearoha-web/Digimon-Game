@@ -414,7 +414,7 @@ def scatter_dirs(n, seed, cond=None, center=None):
 
 
 def tufts(parts, surf, center, dirs, length, radius, root, tip_col, weights=None, jitter=0.35, seed=1, per=1,
-          lift_out=0.6, droop=0.35, mat=SKIN, seg=6, rings=3, skip=None, flat=0.5):
+          lift_out=0.6, droop=0.35, mat=SKIN, seg=6, rings=3, skip=None, flat=0.5, tip=0.08):
     """Fur / spike tufts over the body: rays from center along each of dirs hit the
     surface; at each hit `per` blobs lean outward and droop down."""
     rng = random.Random(seed)
@@ -429,7 +429,7 @@ def tufts(parts, surf, center, dirs, length, radius, root, tip_col, weights=None
                 dd = (n * lift_out + j + Vector((0, 0, -droop))).normalized()
                 ln = length * rng.uniform(0.75, 1.2)
                 parts.blob(p - n * radius * 0.5, (radius, radius * flat), dd, ln, None,
-                           weights=weights if weights is not None else p, seg=seg, rings=rings, tip=0.08,
+                           weights=weights if weights is not None else p, seg=seg, rings=rings, tip=tip,
                            color_fn=lambda t: L.mix(root, tip_col, L.smooth(0.0, 1.0, t)), up=n)
                 made += 1
     return made
@@ -548,3 +548,52 @@ def fbm(v, scale=1.0, seed=0, octaves=3):
         tot += amp
         amp *= 0.5
     return out / tot
+
+
+def border_points(obj, inside, outside, spacing=0.12):
+    """Points along the border where faces of material `inside` meet faces of `outside`:
+    [(point, across, normal)] - across points from the inside face into the outside one."""
+    me = obj.data
+    names = [m.name for m in me.materials]
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    out = []
+    for e in bm.edges:
+        if len(e.link_faces) != 2:
+            continue
+        a, b = e.link_faces
+        na, nb = names[a.material_index], names[b.material_index]
+        if na == outside and nb == inside:
+            a, b = b, a
+        elif not (na == inside and nb == outside):
+            continue
+        mid = (e.verts[0].co + e.verts[1].co) * 0.5
+        if any((mid - p).length < spacing for p, _a, _n in out):
+            continue
+        across = (b.calc_center_median() - a.calc_center_median()).normalized()
+        out.append((mid.copy(), across, (a.normal + b.normal).normalized()))
+    bm.free()
+    return out
+
+
+def displace(obj, amount, fn):
+    """Pushes vertices along their normals by amount * fn(co, normal) (lumpy fur, rock)."""
+    for v in obj.data.vertices:
+        v.co += v.normal * amount * fn(v.co, v.normal)
+
+
+def merge_materials(obj, mapping):
+    """Folds material slots into others by name ({"Skin_Fur": "Skin"})."""
+    me = obj.data
+    old = [m.name for m in me.materials]
+    names = []
+    for n in old:
+        t = mapping.get(n, n)
+        if t not in names:
+            names.append(t)
+    idx = [names.index(mapping.get(old[p.material_index], old[p.material_index])) for p in me.polygons]
+    me.materials.clear()
+    for n in names:
+        me.materials.append(L.material(n))
+    for p, i in zip(me.polygons, idx):
+        p.material_index = i
