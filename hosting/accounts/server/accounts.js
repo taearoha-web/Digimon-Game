@@ -576,12 +576,24 @@ function sessionPruning(db, userId, now) {
   ];
 }
 
+// Snapshots kept per account: the SNAPSHOT_RECENT newest revisions, and the last revision
+// of each of the SNAPSHOT_DAYS most recent (Thai) days saved on. The game uploads every few
+// seconds while played, so the newest five alone covered barely a minute: a hero that lost
+// a day's progress (★300 back to ★250) could not be brought back from the server.
+export const SNAPSHOT_RECENT = 5;
+export const SNAPSHOT_DAYS = 14;
+const THAI_OFFSET = 7 * 3600;
+export const SNAPSHOT_PRUNE_SQL = `DELETE FROM toon_save_snapshots WHERE user_id = ?
+  AND revision NOT IN (SELECT revision FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT ${SNAPSHOT_RECENT})
+  AND revision NOT IN (SELECT MAX(revision) FROM toon_save_snapshots WHERE user_id = ?
+    GROUP BY (updated_at + ${THAI_OFFSET}) / 86400 ORDER BY MAX(revision) DESC LIMIT ${SNAPSHOT_DAYS})`;
+const SNAPSHOT_MAX = SNAPSHOT_RECENT + SNAPSHOT_DAYS;
+
 function snapshotStatements(db, userId, revision, now) {
   return [
     db.prepare(`INSERT OR IGNORE INTO toon_save_snapshots (user_id, revision, bundle, updated_at)
       SELECT user_id, revision, bundle, updated_at FROM toon_saves WHERE user_id = ? AND revision = ? AND updated_at = ?`).bind(userId, revision, now),
-    db.prepare(`DELETE FROM toon_save_snapshots WHERE user_id = ? AND revision NOT IN
-      (SELECT revision FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT 5)`).bind(userId, userId),
+    db.prepare(SNAPSHOT_PRUNE_SQL).bind(userId, userId, userId),
   ];
 }
 
@@ -712,7 +724,7 @@ async function route(request, env) {
   }
   if (path === '/api/account/save/history' && method === 'GET') {
     const {user} = await requireSession(request, db, now);
-    const result = await db.prepare('SELECT revision, updated_at FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT 5').bind(user.id).all();
+    const result = await db.prepare(`SELECT revision, updated_at FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT ${SNAPSHOT_MAX}`).bind(user.id).all();
     return response({userId: user.id, snapshots: result.results.map(row => ({revision: row.revision, updatedAt: new Date(row.updated_at * 1000).toISOString()}))});
   }
   if (path === '/api/account/save/restore' && method === 'POST') {

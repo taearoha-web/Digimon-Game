@@ -191,6 +191,40 @@ test('last five snapshots are bounded; restoring creates a new revision and stal
   assert.equal(DB.sqlite.prepare('SELECT count(*) AS n FROM toon_save_snapshots').get().n, 5);
 });
 
+// A phone uploads every few seconds: the five newest snapshots covered about a minute, so a
+// hero that went back from ★300 to ★250 could not be found on the server any more. The
+// last save of each recent day is kept too, and can be restored.
+test('the last save of each of the recent days is kept as a snapshot and can be restored', async t => {
+  const {register, call, DB} = harness(t);
+  const account = await register();
+  let clock = Date.UTC(2026, 10, 1, 5);
+  t.mock.method(Date, 'now', () => clock);
+  const stars = level => ({...sample(100), paragon: {level, exp: 0, points: 0, spent: 0, alloc: {}}});
+  let revision = 0;
+  const save = async level => {
+    const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: bundle(stars(level))}});
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+    revision = saved.body.revision;
+  };
+  // 20 days of play, 30 autosaves a day; the hero reaches ★300 on day 18 and is at ★250 after.
+  for (let day = 0; day < 20; day++) {
+    for (let i = 0; i < 30; i++) { await save(day < 18 ? 100 + day * 10 : 250); clock += 10_000; }
+    clock += 86_400_000 - 300_000;
+  }
+  const kept = DB.sqlite.prepare('SELECT revision, updated_at FROM toon_save_snapshots ORDER BY revision DESC').all();
+  assert.ok(kept.length <= 5 + 14, `${kept.length} snapshots kept`);
+  const days = new Set(kept.map(row => Math.floor((row.updated_at + 7 * 3600) / 86400)));
+  assert.ok(days.size >= 14, `snapshots of ${days.size} days kept`);
+  const history = await call('save/history', {cookie: account.cookie});
+  assert.equal(history.body.snapshots.length, kept.length);
+  // The ★270 day (day 17, the last before the loss) is still there and comes back.
+  const day17 = kept.find(row => JSON.parse(DB.sqlite.prepare('SELECT bundle FROM toon_save_snapshots WHERE revision = ?').get(row.revision).bundle).slots['1'].paragon.level === 270);
+  assert.ok(day17, 'the last save before the loss is kept');
+  const restored = await call('save/restore', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, revision: day17.revision}});
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.bundle.slots['1'].paragon.level, 270);
+});
+
 // The storage every character shares (SharedStorage in the game) rides in the bundle as
 // "storage" (items) and "storageMigrated" (the old per-character storages moved in).
 test('the shared storage is saved with the characters, validated, and never dropped by an old game', async t => {
