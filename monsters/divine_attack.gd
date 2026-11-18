@@ -2,6 +2,8 @@ class_name DivineAttack
 extends Node
 ## Fixed telegraphs: the locked points never chase the player after warning.
 ## One hit per actor, including overlapping petals; stun/death cancels cleanly.
+## The lotus queen's moves (and her plain blow) live here; the sanctum's ordinary
+## monsters and its temple golem run their own signature move (MonsterMove, StarMoves).
 var mob: Mob
 var special := false
 var age := 0.0
@@ -10,10 +12,10 @@ var radius := 2.0
 var points: Array[Vector3] = []
 var warned: Node3D
 var impact_done := false
-var charge := false
 
 static func start(actor: Mob, boss_move := false) -> void:
 	if not actor._alive(actor._victim): return
+	if not boss_move and MonsterMove.start(actor, 2.6): return
 	var action := DivineAttack.new()
 	action.mob = actor
 	action.special = boss_move
@@ -26,15 +28,12 @@ func _ready() -> void:
 	var origin := mob.global_position * Vector3(1,0,1)
 	var target := mob._victim.global_position * Vector3(1,0,1)
 	var forward := (target - origin).normalized()
-	charge = mob.template.get("behavior", "") == "jade_charge"
 	if special:
 		contact = 1.3
 		radius = 2.1
 		for i in 6:
 			var a := TAU * float(i) / 6.0 + float(mob.phase) * PI / 6.0
 			points.append(origin + Vector3(cos(a),0,sin(a)) * 6.0)
-	elif charge:
-		points.append(origin + forward * minf(5.0, origin.distance_to(target)))
 	elif mob.template.attack == "ranged":
 		contact = 1.05
 		points.append(target)
@@ -57,9 +56,6 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 	age += delta
-	if charge and age > contact - 0.25 and age <= contact:
-		var movement := (points[0] - mob.global_position) * Vector3(1,0,1)
-		mob.move_and_collide(movement.limit_length(delta * 16.0))
 	if not impact_done and age >= contact:
 		impact_done = true
 		for point in points: DivineImpact.emit_at(mob.get_parent(), point, radius)

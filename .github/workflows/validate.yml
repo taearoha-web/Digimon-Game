@@ -414,6 +414,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-weekly-collect
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/weekly_collect_test.tscn
+      - name: "Star and lotus monster moves (every behaviour of the ★1-200 normals / elites and the lotus sanctum has its own move: circle, cone, lane or ring warning before the blow, locked, cast online as covering circles, damage in band, elites bigger)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-star-moves
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_moves_test.tscn
       - name: boss_attack_test
         timeout-minutes: 10
         env:
