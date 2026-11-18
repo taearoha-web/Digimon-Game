@@ -225,8 +225,8 @@ def green_slime(arm, body):
     # A little fang on the lip.
     parts.decal(p + Vector((0.06, 0, 0.04)), n, [(-0.03, 0.0), (0.0, -0.05), (0.03, 0.0)], WHITE, lift=0.022,
                 rings=1)
-    p, n = dir_hit(surf, Vector((0, 0, 0.9)), Vector((-0.55, -0.55, 0.65)))
-    gloss(parts, p, n, 0.24, C("f6ffe0"))
+    p, n = front_hit(surf, -0.62, 1.0)
+    gloss(parts, p, n, 0.22, C("f6ffe0"))
     bubbles(parts, surf, [(Vector((0.85, -0.5, -0.4)), 1.0), (Vector((-0.85, -0.45, -0.5)), 0.7),
                           (Vector((0.6, 0.8, -0.3)), 0.8), (Vector((-0.5, 0.85, -0.45)), 0.6)],
             C("86dc5c"), 0.07)
@@ -238,7 +238,7 @@ def wild_chicken(arm, body):
     L.delete_faces(body, ("Eye_White",), where=lambda c, n, g: n == "Eye_Black" and abs(c.x) > 0.36)
     L.clean(body)
     L.subdivide(body, 1)
-    L.decimate_to(body, 5400)
+    L.decimate_to(body, 5000)
     L.relax(body, 4, 0.5, ("Chicken_Main",))
     lo, hi = L.bounds(body)
     height = hi.z - lo.z

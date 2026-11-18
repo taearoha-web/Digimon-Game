@@ -1,5 +1,9 @@
 extends Node3D
-## Temp: per-monster shots in the meadow's light. args: outdir [orig]
+## Before/after review shots for the Blender remasters (tools/blender/remaster_monsters.py):
+## each monster in the meadow's light at the game camera's pitch, idle / mid-attack /
+## close-up / back, saved as <outdir>/<id>_<mode>.png (600 px squares).
+##   godot --rendering-driver opengl3 --path . res://tests/tools/remaster_review.tscn -- <outdir> [orig|new] [id,id,...]
+## "orig" renders the original models (MonsterVisual.use_remaster off).
 const IDS := [&"pink_slime", &"green_slime", &"wild_chicken", &"yellow_frog", &"mush_baby", &"cactus_hat", &"mush_king"]
 
 
@@ -21,19 +25,15 @@ func _ready() -> void:
 	cam.fov = 40
 	add_child(cam)
 	cam.current = true
-	if OS.get_environment("NOLOD") != "":
-		get_viewport().mesh_lod_threshold = 0.0
-	var only: Array = []
+	var ids: Array = IDS
 	if args.size() > 2:
-		only = Array(args[2].split(","))
-	for id in IDS:
-		if not only.is_empty() and not only.has(String(id)):
-			continue
-		var t: Dictionary = MonsterData.get_monster(id)
+		ids = Array(args[2].split(","))
+	for id in ids:
+		var t: Dictionary = MonsterData.get_monster(StringName(id))
 		var v := CelestialDragonVisual.make(self, t)
 		var h := float(t.height)
 		for mode in ["idle", "attack", "close", "back"]:
-			v.rotation_degrees.y = 25.0 if mode != "back" else float(OS.get_environment("BACKYAW") if OS.get_environment("BACKYAW") != "" else "155")
+			v.rotation_degrees.y = 25.0 if mode != "back" else 155.0
 			if mode == "attack":
 				var clip: StringName = v._clips.get("attack", &"")
 				if clip != &"":
@@ -46,10 +46,6 @@ func _ready() -> void:
 				v.anim.pause()
 			v.current = "freeze"
 			v.model.scale = v._rest_scale
-			if OS.get_environment("RESTPOSE") != "":
-				v.anim.stop()
-				for sk in v.model.find_children("*", "Skeleton3D", true, false):
-					(sk as Skeleton3D).reset_bone_poses()
 			# The game camera's pitch (-24 degrees), framed on the monster.
 			var d := h * (3.3 if mode != "close" else 1.9)
 			var pitch := deg_to_rad(-24.0 if mode != "close" else -12.0)
