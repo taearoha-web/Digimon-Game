@@ -349,6 +349,197 @@ def lotus_sprite(arm, body):
     return {"glow": "fff0b0", "strength": 1.5, "glow2": "ffd0e8", "strength2": 1.3}
 
 
+
+# ================================================================ Ghost_Skull
+
+def _skull_prep(body, target=4000):
+    L.clean(body)
+    skull = L.split_off(body, ("Head",))
+    L.subdivide(body, 1)
+    L.decimate_to(body, target)
+    L.relax(body, 2, 0.35)
+    L.clean(skull, quads=False)
+    L.join(body, skull)
+
+
+def _tatters(parts, surf, col_fn, count=6, length=0.55, seed=9):
+    F._wisps(parts, surf, 0.5, col_fn, count=count, length=length, seed=seed)
+
+
+def star_wraith(arm, body):
+    """Ghost_Skull -> star_wraith (วิญญาณดาวดับ): the ghost of a dead star. The skull is
+    dark meteoric stone split by white-hot star-fire cracks, a star burns in each socket,
+    a broken corona of crystal star-shards stands behind the head, and the shadow body is
+    a night sky drawn with glowing constellations."""
+    _skull_prep(body)
+    stone_top, stone_low = C("f0f0ff"), C("8a88a8")
+    sky_top, sky_low = C("6a6aa0"), C("1a1838")
+
+    def paint(name, co, n, info):
+        if name == "c_a58c72":
+            c = L.mix(stone_low, stone_top, L.smooth(1.4, 2.5, co.z))
+            c = L.mix(c, c * 0.6, max(0.0, K.fbm(co, 0.09, 2)) * 0.9)
+            d0, d1 = K.cells(co, 0.16)
+            seam = 1.0 - L.smooth(0.0, 0.05, d1 - d0)
+            return L.mix(c, C("2a2440"), seam * 0.8 * L.smooth(1.5, 2.3, co.z))
+        c = L.mix(sky_low, sky_top, L.smooth(0.4, 2.6, co.z))
+        neb = max(0.0, K.fbm(co + Vector((3, 1, 0)), 0.35, 3))
+        c = L.mix(c, C("7a5ac8"), neb * 0.7)
+        star = K.fbm(co, 0.05, 1)
+        return L.mix(c, C("ffffff"), L.smooth(0.5, 0.6, star))
+
+    K.paint_body_glow(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        p, n = surf.toward(Vector((0.27 * sx, -5.0, 1.95)), Vector((0.27 * sx, -0.3, 1.95)))
+        if p is None:
+            continue
+        parts.ellipsoid(p + Vector((0, 0.02, 0)), (0.12, 0.05, 0.11), color=None, weights=wh, seg=10, rings=6,
+                        color_fn=lambda u: C("0a0818"))
+        # A small star burning in the socket: a glowing core and four twinkle rays.
+        g = p + Vector((0, -0.04, 0))
+        parts.ellipsoid(g, (0.085, 0.05, 0.085), color=None, weights=wh, detail="glow", seg=8, rings=5,
+                        color_fn=lambda u: C("f8fbff"))
+        for a in range(4):
+            d = Vector((math.cos(a * math.pi / 2), 0.0, math.sin(a * math.pi / 2)))
+            parts.blob(g, (0.03, 0.015), d, 0.17 if a % 2 else 0.24, None, weights=wh, detail="glow", seg=5,
+                       rings=3, tip=0.05, color_fn=lambda t: C("f8fbff"), up=Vector((0, -1, 0)))
+        # A heavy stone brow.
+        p3, n3 = front_hit(surf, 0.27 * sx, 2.12)
+        if p3 is not None:
+            parts.stroke(p3, n3, [(0.18 * sx, 0.06), (0.05 * sx, 0.0), (-0.1 * sx, -0.08)], 0.07, C("141226"),
+                         lift=0.012)
+    # Star-fire cracks running over the cranium.
+    rng = random.Random(14)
+    for k in range(7):
+        a = rng.uniform(-2.4, 2.4)
+        d = Vector((math.sin(a), -math.cos(a) * 0.6 + 0.3, 0.9))
+        p, n = dir_hit(surf, Vector((0, -0.15, 2.0)), d)
+        if p is None or p.z < 2.15:
+            continue
+        path = [(0.0, 0.0)]
+        ang = rng.uniform(0, math.pi * 2)
+        for i in range(4):
+            ang += rng.uniform(-0.9, 0.9)
+            x, y = path[-1]
+            path.append((x + math.cos(ang) * 0.08, y + math.sin(ang) * 0.08))
+        parts.stroke(p, n, path, 0.03, C("e8f4ff"), weights=wh, detail="glow", lift=0.01)
+    # A broken corona of crystal star shards behind the head.
+    centre = Vector((0.0, 0.45, 2.45))
+    for k in range(9):
+        a = math.pi * 0.5 + 2.0 * math.pi * k / 9 + (0.12 if k % 2 else 0.0)
+        out = Vector((math.cos(a), 0.0, math.sin(a)))
+        if out.z < -0.55:
+            continue
+        ln = 0.5 if k % 2 == 0 else 0.32
+        base = centre + out * 0.72
+        parts.blob(base, (0.15, 0.07), out + Vector((0, 0.15, 0)), ln, None, weights=wh, seg=6, rings=4, tip=0.05,
+                   color_fn=lambda t: L.mix(C("8a8ac8"), C("f4f8ff"), L.smooth(0.1, 0.9, t)), up=Vector((0, 1, 0)))
+        parts.ellipsoid(base + out * ln * 0.92, (0.05, 0.05, 0.05), color=None, weights=wh, detail="glow", seg=6,
+                        rings=4, color_fn=lambda u: C("f8fbff"))
+    torus(parts, centre, Vector((0, 1, 0)), 0.74, 0.05, lambda u, v: C("c8d0ff"), wh, seg=28, sides=6,
+          detail="glow2")
+    # Constellations on the shadow body: glowing stars joined by thin lines.
+    for k, (sx, z0) in enumerate(((1.0, 1.2), (-1.0, 1.0), (1.0, 0.75))):
+        pts = []
+        for i in range(4):
+            a = sx * (0.6 + 0.35 * i) + rng.uniform(-0.15, 0.15)
+            z = z0 + rng.uniform(-0.15, 0.25) - 0.08 * i
+            d = Vector((math.sin(a), -math.cos(a), 0.0))
+            p, n = surf.toward(Vector((0, 0.3, z)) + d * 5.0, Vector((0, 0.3, z)))
+            if p is not None:
+                pts.append((p, n))
+        for i, (p, n) in enumerate(pts):
+            parts.decal(p, n, star_outline(0.1, 0.035, 4), C("ffffff"), lift=0.014, rings=1, detail="glow")
+            if i:
+                q, _m = pts[i - 1]
+                pm, nm = surf.project((p + q) * 0.5, n, 0.6)
+                if pm is None:
+                    continue
+                t_, b_, n_ = L.frame(nm)
+                a2, b2 = p - pm, q - pm
+                parts.stroke(pm, nm, [(a2.dot(t_), a2.dot(b_)), (b2.dot(t_), b2.dot(b_))], 0.016, C("c8d8ff"),
+                             lift=0.012, detail="glow2", taper=False)
+    _tatters(parts, surf, lambda t: L.mix(C("2a2a5a"), C("08061a"), t), count=7, length=0.62, seed=4)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.5, 0.5, 0.75)))
+    return {"glow": "e8f4ff", "strength": 1.8, "glow2": "a8b8ff", "strength2": 1.3}
+
+
+def eclipse_wraith(arm, body):
+    """Ghost_Skull -> eclipse_wraith (วิญญาณกะโหลกคราส): a skull in eclipse. Half the skull is
+    bone, half swallowed by black shadow along a curved terminator; a black sun with a
+    burning corona hangs behind the head, a crescent moon glows on the brow, one socket
+    holds an eclipse ring of light, and a ragged mantle of dusk cloth wraps the shoulders."""
+    import kit_critters as KC
+    _skull_prep(body)
+    bone_top, bone_low, night = C("fbf2e2"), C("cbbca4"), C("161020")
+    shade_top, shade_low = C("6a4a7a"), C("1a1022")
+
+    def eclipse_side(co):
+        # Shadow over the creature's right half, along a curved limb like the moon's.
+        return L.smooth(0.04, -0.04, co.x - 0.18 * math.cos((co.z - 1.95) * 2.2) + 0.1)
+
+    def paint(name, co, n, info):
+        if name == "c_a58c72":
+            c = L.mix(bone_low, bone_top, L.smooth(1.5, 2.5, co.z))
+            c = L.mix(c, C("2a1a2c"), L.smooth(-0.01, -0.06, info["bump"]) * 0.85)
+            return L.mix(c, night, eclipse_side(co))
+        h = L.smooth(0.4, 2.4, co.z)
+        c = L.mix(shade_low, shade_top, h)
+        return L.mix(c, shade_low * 0.6, L.smooth(1.3, 2.6, abs(co.x)) * 0.6)
+
+    K.paint_body_glow(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        p, n = surf.toward(Vector((0.27 * sx, -5.0, 1.95)), Vector((0.27 * sx, -0.3, 1.95)))
+        if p is None:
+            continue
+        if sx > 0:  # bone side: an ember in the socket
+            parts.ellipsoid(p + Vector((0.0, -0.02, -0.01)), (0.1, 0.045, 0.09), color=None, weights=wh,
+                            detail="glow", seg=10, rings=6, color_fn=lambda u: C("ffe8b0"))
+        else:  # shadow side: a thin ring of light, the eclipse in the eye
+            torus(parts, p + Vector((0, -0.02, 0)), Vector((0, -1, 0)), 0.085, 0.022, lambda u, v: C("ffd890"), wh,
+                  seg=16, sides=5, detail="glow2")
+    # A crescent moon on the brow.
+    p, n = front_hit(surf, 0.0, 2.32)
+    if p is not None:
+        arc = [(math.cos(a) * 0.12 - 0.02, math.sin(a) * 0.12) for a in [math.radians(d) for d in range(-120, 121, 20)]]
+        parts.stroke(p, n, arc, 0.06, C("fff0c0"), weights=wh, detail="glow2", lift=0.012)
+    # The black sun behind the head, with its corona.
+    centre = Vector((0.0, 0.5, 2.4))
+    R = 0.88
+    parts.ellipsoid(centre, (R, 0.06, R), color=None, weights=wh, seg=24, rings=8,
+                    color_fn=lambda u: C("0c0812"))
+    torus(parts, centre + Vector((0, -0.02, 0)), Vector((0, 1, 0)), R + 0.02, 0.06, lambda u, v: C("fff0c0"), wh,
+          seg=32, sides=6, detail="glow2")
+    rng = random.Random(3)
+    for k in range(14):
+        a = 2.0 * math.pi * k / 14 + rng.uniform(-0.08, 0.08)
+        out = Vector((math.cos(a), 0.0, math.sin(a)))
+        if out.z < -0.6:
+            continue
+        ln = rng.uniform(0.18, 0.42) * (1.4 if k % 3 == 0 else 1.0)
+        flame(parts, centre + out * R + Vector((0, -0.01, 0)), out, ln * 1.2, 0.08, wh, hot=C("fff6d0"),
+              mid=C("ffc060"), cool=C("ff7a30"), bend=Vector((math.cos(a + 1.5), 0, math.sin(a + 1.5))) * 0.06)
+
+    # A ragged mantle of dusk cloth round the shoulders, hanging at the back.
+    def cloth(u, v, outside):
+        c = L.mix(C("3a2a4a"), C("150c1c"), v)
+        c = L.mix(c, c * 0.7, L.smooth(0.7, 1.0, abs(math.sin(u * 9.0))) * 0.5)
+        return c if outside else c * 0.6
+    KC.cape(parts, Vector((0.0, 0.05, 0.0)), 1.72, 0.85, 0.42, 0.7, 3.6, cloth, {"Torso": 0.6, "Body1": 0.4},
+            rows=6, cols=14, flare=0.2)
+    _tatters(parts, surf, lambda t: L.mix(C("3a2a4a"), C("100a16"), t), count=6, length=0.55, seed=9)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.5, 0.45, 0.65)))
+    return {"glow": "ffe0a0", "strength": 1.6, "glow2": "ffd070", "strength2": 1.7}
+
+
 def F_ellipse(rx, ry, n=16):
     return [(math.cos(2 * math.pi * i / n) * rx, math.sin(2 * math.pi * i / n) * ry) for i in range(n)]
 
@@ -356,10 +547,14 @@ def F_ellipse(rx, ry, n=16):
 # ================================================================ registry / runner
 
 RECIPES = {
+    "flying/Ghost_Skull_eclipse_wraith": eclipse_wraith,
+    "flying/Ghost_Skull_star_wraith": star_wraith,
     "flying/Ghost_abyss_ghost": abyss_ghost,
     "flying/Ghost_lotus_sprite": lotus_sprite,
 }
 SOURCE = {
+    "flying/Ghost_Skull_eclipse_wraith": "flying/Ghost_Skull",
+    "flying/Ghost_Skull_star_wraith": "flying/Ghost_Skull",
     "flying/Ghost_abyss_ghost": "flying/Ghost",
     "flying/Ghost_lotus_sprite": "flying/Ghost",
 }
