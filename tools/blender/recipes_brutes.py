@@ -9,6 +9,8 @@ glowing slit / narrow eyes under heavy lids, brows, tusks, horns, scars, runes, 
 Several rigs are shared by tinted monsters (MonsterData "tint" multiplies Skin / Detail /
 Glow): their skin is painted in light, low-saturation tones so every tint reads, while
 bone, tusks and fixed-colour eyes sit on the untinted Ivory / IvoryGlow materials.
+The other monsters of a shared rig get their own VARIANT model (recipes_brutes_variants.py):
+each base recipe takes an optional variant spec `v` (see "variant hooks" below).
 """
 import math
 import os
@@ -738,8 +740,8 @@ def yeti(arm, body, v=None):
                root=C("c8b888"))
         # ram horns curling back and down from the crown
         if _has(v, "horns"):
-            K.horn(parts, Vector((0.38 * sx, -0.12, 2.6)), Vector((0.85 * sx, 0.3, 0.55)).normalized(), 0.65, 0.14, head,
-                   C("5a5050"), C("e8dcc8"), bend=Vector((0.12 * sx, -0.05, -0.55)), rings_col=C("3a3030"), bands=6,
+            K.horn(parts, Vector((0.38 * sx, -0.12, 2.6)), Vector((0.85 * sx, 0.3, 0.55)).normalized(), 0.65, 0.14,
+                   head, C("5a5050"), C("e8dcc8"), bend=Vector((0.12 * sx, -0.05, -0.55)), rings_col=C("3a3030"), bands=6,
                    seg=12, rings=10)
     # fur: shaggy fringes wherever the fur meets bare hide (face rim, wrists, ankles) ...
     for p, across, n in K.border_points(body, SKIN_FUR, SKIN_HIDE, 0.1):
@@ -764,8 +766,8 @@ def yeti(arm, body, v=None):
         if q is not None and _has(v, "crystals"):
             for k in range(3):
                 dd = (m + Vector((0.4 * sx * (k - 1), 0.3, 0.4))).normalized()
-                K.crystal(parts, q - m * 0.02 + Vector((0.08 * sx * (k - 1), 0.05 * k, 0)), dd, 0.38 - 0.08 * abs(k - 1),
-                          0.08, q, C("b8e4ff"), C("f4fcff"), mat=SKIN)
+                K.crystal(parts, q - m * 0.02 + Vector((0.08 * sx * (k - 1), 0.05 * k, 0)), dd,
+                          0.38 - 0.08 * abs(k - 1), 0.08, q, C("b8e4ff"), C("f4fcff"), mat=SKIN)
     _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.merge_materials(body, {SKIN_FUR: SKIN, SKIN_HIDE: SKIN})
