@@ -566,6 +566,86 @@ def skull_orc(arm, body):
     K.bake_ao(body)
 
 
+# ---------------------------------------------------------------- big/Ninja
+
+def slit_eyes(parts, surf, x, z, w, h, slant, core, rim, weights, band=None, mat=GLOW, lift=0.03):
+    """Glowing eye slits painted onto a face, optionally over a dark band (mask opening)."""
+    for sx in (-1.0, 1.0):
+        p, n = K.front_hit(surf, x * sx, z)
+        if p is None:
+            continue
+        path = [(sx * (-w * 0.5 + w * i / 8.0), -h * 0.5 * (1.0 - i / 8.0) * slant + h * 0.35 *
+                 math.sin(math.pi * i / 8.0)) for i in range(9)]
+        if band is not None:
+            with parts.on(DETAIL):
+                parts.stroke(p, n, path, h * 2.2, band, lift=lift * 0.5, weights=weights)
+        with parts.on(mat):
+            parts.stroke(p, n, path, h, core, lift=lift, weights=weights)
+
+
+def shadow_ninja(arm, body):
+    """shadow_ninja, rift_stalker (cyan) and abyss_merman (teal): a masked assassin.
+    The bare face becomes a cloth mask with glowing eye slits (tinted), deep-shadowed
+    hood and suit with lighter folds, bandage-wrapped hands and shins, a blood-red sash
+    and trailing scarf, steel katanas with gold guards (untinted)."""
+    L.delete_faces(body, ("Eye_Black",), where=lambda c, n, g: n == "Eye_White" and g == "Head")
+    L.clean(body)
+    names = [m.name for m in body.data.materials]
+    groups = L.dominant_groups(body)
+    steel = K.split_where(body, lambda p: names[p.material_index] in ("Eye_White", "Birb_Secondary", "Gold") or
+                          groups[p.vertices[0]] == "Middle1.L" or
+                          (names[p.material_index] == "Ninja_Main" and p.center.y > 0.4 and p.center.z > 2.25))
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4300)
+    L.relax(body, 2, 0.4)
+    L.clean(steel, quads=False)
+    L.join(body, steel)
+    suit_hi, suit, suit_lo = C("7c7c9a"), C("48485e"), C("2a2a38")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name in ("Eye_White", "Birb_Secondary"):
+            return L.mix(C("7a8090"), C("f4f8ff"), L.smooth(-0.01, 0.03, info["bump"]) * 0.6 + max(0.0, n.z) * 0.4), \
+                IVORY
+        if name == "Gold":
+            return L.mix(C("8a5a18"), C("ffd860"), max(0.0, n.z) * 0.7 + 0.2), IVORY
+        if name == "Ninja_Main" and (bone == "Middle1.L" or (co.y > 0.4 and co.z > 2.25)):
+            # hilts: dark wrap with a diamond pattern
+            return L.mix(C("1a1a22"), C("5a5060"), L.smooth(0.6, 0.9, math.sin(co.x * 40) * math.sin(co.z * 40))), IVORY
+        if name == "Belt":
+            if co.z > 0.5:  # the sash
+                return L.mix(C("6a0c14"), C("c8283a"), max(0.0, -n.y) * 0.6 + 0.2), IVORY
+            return C("2a2420")  # soles
+        if name == "Ninja_Secondary":
+            if bone == "Head":  # the face, now a cloth mask
+                return L.mix(suit_lo, suit, 0.6 + 0.4 * max(0.0, n.z))
+            # bandage wraps on hands and shins
+            u = co.x * 9.0 + co.z * 14.0 if abs(co.x) > 1.0 else co.z * 22.0 + co.y * 6.0
+            return L.mix(C("e8e2d6"), C("9a9488"), L.smooth(0.7, 0.95, math.sin(u))), IVORY
+        c = L.mix(suit_lo, suit, L.smooth(-0.2, 0.7, n.z) * 0.6 + L.smooth(0.3, -0.6, n.y) * 0.4)
+        c = L.mix(c, suit_hi, L.smooth(0.03, 0.09, info["bump"]) * 0.7)  # folds catch the light
+        return c
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    slit_eyes(parts, surf, 0.27, 2.25, 0.3, 0.06, 0.6, C("ffffff"), C("e8f0ff"), head, band=C("0e0e14"))
+    # a trailing scarf from the back of the neck
+    for k, (dx, ln) in enumerate(((0.1, 1.1), (-0.12, 0.85))):
+        base = Vector((dx, 0.5, 2.05))
+        with parts.on(IVORY):
+            parts.blob(base, (0.13, 0.03), Vector((dx * 2.0, 1.0, -0.55)).normalized(), ln, None,
+                       weights={"Torso": 1.0}, seg=10, rings=8, tip=0.55, up=Vector((0, 0.5, 1)),
+                       bend=Vector((0.15 * (1 - 2 * k), 0.1, -0.25)),
+                       color_fn=lambda t: L.mix(C("8a1420"), C("d8344a"), t))
+    with parts.on(IVORY):
+        parts.ellipsoid(Vector((0.0, 0.42, 2.1)), (0.2, 0.1, 0.12), color=C("a81c2c"), weights={"Torso": 1.0}, seg=10,
+                        rings=6)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
@@ -573,6 +653,7 @@ RECIPES = {
     "big/Dino": sand_raptor,
     "big/Orc": forest_orc,
     "big/Orc_Skull": skull_orc,
+    "big/Ninja": shadow_ninja,
 }
 
 
