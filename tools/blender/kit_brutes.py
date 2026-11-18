@@ -520,3 +520,31 @@ def crystal(parts, base, direction, length, radius, weights, root, tip_col, mat=
     with parts.on(mat):
         return parts.blob(base, radius, direction, length, None, weights=weights, seg=sides, rings=3, tip=0.02,
                           color_fn=lambda t: L.mix(root, tip_col, t))
+
+
+def noise(v, scale=1.0, seed=0):
+    """Smooth 3D value noise 0..1 (mottling, fur clumps, rock veins)."""
+    p = v * scale
+    i = Vector((math.floor(p.x), math.floor(p.y), math.floor(p.z)))
+    f = p - i
+    u = Vector([t * t * (3.0 - 2.0 * t) for t in f])
+
+    def h(dx, dy, dz):
+        return hash01(Vector((i.x + dx, i.y + dy, i.z + dz)), seed)
+
+    x00 = h(0, 0, 0) * (1 - u.x) + h(1, 0, 0) * u.x
+    x10 = h(0, 1, 0) * (1 - u.x) + h(1, 1, 0) * u.x
+    x01 = h(0, 0, 1) * (1 - u.x) + h(1, 0, 1) * u.x
+    x11 = h(0, 1, 1) * (1 - u.x) + h(1, 1, 1) * u.x
+    y0 = x00 * (1 - u.y) + x10 * u.y
+    y1 = x01 * (1 - u.y) + x11 * u.y
+    return y0 * (1 - u.z) + y1 * u.z
+
+
+def fbm(v, scale=1.0, seed=0, octaves=3):
+    out, amp, tot = 0.0, 1.0, 0.0
+    for o in range(octaves):
+        out += noise(v, scale * (2 ** o), seed + o) * amp
+        tot += amp
+        amp *= 0.5
+    return out / tot

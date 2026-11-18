@@ -257,9 +257,110 @@ def stone_golem(arm, body):
     K.bake_ao(body, strength=0.5)
 
 
+# ---------------------------------------------------------------- big/Alien
+
+def swamp_beast(arm, body):
+    """swamp_dino: a bog monster. Mottled moss-and-mud hide (darker back, sallow belly),
+    warts, moss hanging off the shoulders and head, the curly feelers turned into dripping
+    swamp-weed fronds, sickly glowing slit eyes under heavy lids, a jagged maw with
+    yellowed teeth. Painted through its green tint (pre-compensated)."""
+    tint = (0.7, 1.3, 0.7)
+    P = lambda h: K.pre(C(h), tint)  # noqa: E731
+    keys = K.regions(body)
+    BODY, WEED, BELLY, MOUTH, PUPIL = "9b70a8", "97b77e", "c5c7d0", "a17e93", "606266"
+    K.tag_regions(body, keys)
+    L.delete_faces(body, ("R_" + PUPIL,), where=lambda c, n, g: n == "R_" + BELLY and g == "Head")
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4400)
+    L.relax(body, 2, 0.4)
+    back, hide, belly, mud = C("5f7834"), C("86a04a"), C("d6cf86"), C("6e6034")
+
+    def paint(region, co, n, info):
+        r = region[2:]
+        if r == WEED:  # swamp weed: dark roots, yellow-green tips, banded
+            if abs(co.x) > 0.55:  # the curls by the ears
+                t = L.smooth(0.6, 1.05, abs(co.x))
+            elif co.z > 2.7:  # the horns
+                t = L.smooth(2.6, 3.5, co.z)
+            else:  # the snout
+                t = 0.45
+            c = L.mix(C("2e5a22"), C("b8e05a"), t)
+            c = L.mix(c, C("1e4018"), L.smooth(0.55, 0.8, K.noise(co, 6.0, 3)) * 0.5)
+            return K.pre(c, tint)
+        if r == MOUTH:
+            return K.pre(L.mix(C("200a0c"), C("6a2026"), L.smooth(-0.6, -0.2, n.y) * 0.5), tint)
+        c = L.mix(back, hide, L.smooth(0.5, -0.4, n.y))
+        if r == BELLY or (co.y < -0.3 and abs(co.x) < 0.45 and 0.9 < co.z < 1.8):
+            c = L.mix(c, belly, 0.85 if r == BELLY else 0.5)
+        m = K.fbm(co, 1.6, 7)
+        c = L.mix(c, C("3e4a1e"), L.smooth(0.55, 0.75, m) * 0.55)  # dark blotches
+        c = L.mix(c, C("b8c070"), L.smooth(0.42, 0.3, m) * 0.4)  # sallow patches
+        c = L.mix(c, mud, L.smooth(0.7, 0.15, co.z))  # mud-caked legs
+        return K.pre(c, tint)
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    lid = P("6a8238")
+    for sx in (-1.0, 1.0):
+        c = Vector((0.3 * sx, -0.43, 2.3))
+        gaze = Vector((0.3 * sx, -1.0, 0.0)).normalized()
+        K.fierce_eye(parts, c, 0.13, gaze, sx, C("f4ff8a"), C("7ab018"), head, lid=lid, open_=0.48,
+                     glow_mat=IVORY_GLOW, slant=0.3)
+        K.ridge(parts, Vector((0.48 * sx, -0.36, 2.52)), Vector((0.08 * sx, -0.58, 2.42)), 0.075, P("56702e"), head,
+                bulge=Vector((0, -0.05, 0.03)), tip=0.7)
+    # jagged yellowed teeth around the maw
+    p, n = K.front_hit(surf, 0.0, 1.98)
+    for k, x in enumerate((-0.13, -0.065, 0.0, 0.065, 0.13)):
+        q, m = K.front_hit(surf, x * 1.2, 2.07)
+        if q is not None:
+            K.fang(parts, q + Vector((0, 0.02, 0)), Vector((0.1 * x, -0.35, -1.0)), 0.12 + 0.04 * (k % 2), 0.034, head,
+                   root=C("b8a868"), tip_col=C("f0e8c0"), seg=6, rings=3)
+        q, m = K.front_hit(surf, x * 0.9, 1.9)
+        if q is not None and k % 2 == 0:
+            K.fang(parts, q + Vector((0, 0.02, 0)), Vector((0.1 * x, -0.35, 1.0)), 0.1, 0.03, head,
+                   root=C("b8a868"), tip_col=C("f0e8c0"), seg=6, rings=3)
+    # warts over the back, shoulders and crown
+    rng = random.Random(4)
+    placed = []
+    for d in K.fibonacci(160):
+        if d.y < -0.35 and abs(d.x) < 0.6:
+            continue
+        p, n = K.dir_hit(surf, Vector((0, 0.05, 1.7)), d)
+        if p is None or p.z < 0.7 or any((p - q).length < 0.22 for q in placed) or len(placed) > 26:
+            continue
+        placed.append(p)
+        s = rng.uniform(0.035, 0.065)
+        parts.ellipsoid(p, (s, s, s * 0.6), K.basis(n), color=None, weights=p, seg=6, rings=4,
+                        color_fn=lambda u: K.pre(L.mix(C("5a6a2e"), C("c4d07a"), L.smooth(-0.2, 0.9, u.z)), tint))
+    # moss hanging off the shoulders, the back of the head and the arms
+    dirs = [d for d in K.fibonacci(90) if d.z > 0.15 and d.y > -0.2]
+    K.tufts(parts, surf, Vector((0, 0.1, 1.9)), dirs, 0.22, 0.045, K.pre(C("3e6a24"), tint), K.pre(C("b4dc5a"), tint),
+            seed=5, per=2, droop=0.9, lift_out=0.5, skip=lambda p, n: p.z < 1.6, seg=5, rings=3)
+    for sx in (-1.0, 1.0):
+        arm_dirs = [Vector((0.0, 0.3, 1.0)).normalized()]
+        for k in range(5):
+            K.tufts(parts, surf, Vector((sx * (0.6 + 0.22 * k), 0.15, 1.82)), arm_dirs, 0.2, 0.04,
+                    K.pre(C("3e6a24"), tint), K.pre(C("b4dc5a"), tint), seed=10 + k, per=2, droop=1.2,
+                    lift_out=0.3, seg=5, rings=3)
+    # slime sheen streaks on the head and belly
+    for (x, z) in ((-0.25, 2.65), (0.18, 1.45)):
+        p, n = K.front_hit(surf, x, z)
+        if p is not None:
+            with parts.on(DETAIL):
+                parts.stroke(p, n, [(math.cos(a) * 0.12, math.sin(a) * 0.1) for a in
+                                    [math.radians(d) for d in range(100, 180, 15)]], 0.035,
+                             K.pre(C("d8f0a0"), tint), lift=0.016)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body, shade=Vector((0.5, 0.55, 0.45)))
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
+    "big/Alien": swamp_beast,
 }
 
 
