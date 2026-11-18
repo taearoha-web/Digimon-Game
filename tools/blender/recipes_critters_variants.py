@@ -229,11 +229,137 @@ def lotus_frog(arm, body):
     finish(body, parts)
 
 
+# ================================================================ big/Monkroose  jade_monk
+
+def jade_monk(arm, body):
+    """Jade ape ascetic (jade_monk): an old sage monkey with silver-white fur, a jade robe
+    draped over one shoulder and flaring into a skirt, a long string of prayer beads with a
+    jade bead at the heart, jade bracers, drooping white brows and beard, calm half-closed
+    eyes and a glowing jade mark on the brow."""
+    eyes = R.atlas_eyes(body)
+    L.clean(body)
+    K.thicken(body, arm, {"UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R"}, 1.15)
+    K.thicken(body, arm, {"UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"}, 1.2)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3700)
+    fur, fur_hi, limb, mask, cream = D("d4dcd4"), D("f4f8f2"), D("8a9a90"), D("707c74"), D("fff8ec")
+    jade, jade_dk, gold = D("2fa078"), D("17664c"), D("f0c860")
+
+    def robe(co):
+        """The robe over the torso (fur showing in a V at the chest): 1 robe, None fur."""
+        if co.z < 0.7 or co.z > 1.98 or abs(co.x) > (0.66 if co.z < 1.6 else 0.5):
+            return None
+        if co.y < 0.0 and co.z > 1.55 and abs(co.x) < (co.z - 1.55) * 0.9:
+            return None
+        return 1.0
+
+    def paint(name, co, n, info):
+        orange = R.tex_is(info, "9c632e", 0.1)
+        dark = R.tex_is(info, "635c43", 0.06)
+        head = co.z > 1.95 and abs(co.x) < 0.95
+        r = robe(co) if not head else None
+        if r is not None:
+            if r > 1.5:
+                return gold
+            return L.mix(jade_dk, jade, max(0.0, n.z) * 0.4 + max(0.0, -n.y) * 0.4)
+        if dark:
+            return mask
+        if orange and head:
+            if co.y < -0.45 and abs(co.x) < 0.35:
+                if co.y < -0.78 and co.z > 2.1:
+                    return D("3a3436")  # nose
+                return L.mix(D("efe6d8"), cream, max(0.0, n.z) * 0.5)
+            if abs(co.x) > 0.5:
+                return D("e8c0b0")
+            return fur_hi
+        if orange and abs(co.x) > 0.55 or orange and co.z < 0.75:
+            return limb
+        c = L.mix(fur, fur_hi, max(0.0, n.z) * 0.4 + max(0.0, -n.y) * 0.3)
+        return L.mix(c, D("b0bab0"), max(0.0, n.y) * 0.35)
+
+    K.paint_body(body, paint, all_keep, tex=True)
+    K.scale_region(body, lambda c: c.z > 1.9 and c.y < -0.35 and abs(c.x) < 0.4, V((0, -0.35, 2.2)),
+                   (0.9, 0.62, 0.9), lambda c: L.smooth(-0.35, -0.55, c.y))
+    body.data.update()
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c + V((0, -0.02, 0)), r * 0.9, V((0.3 * sx, -1.0, -0.1)).normalized(), D("b8ffd8"),
+                     D("2a9a6a"), w, lid=mask, slant=-0.15, side=sx, slit=False, iris=0.85, lid_drop=0.9)
+        # Long white brows drooping past the eyes.
+        p, n = M.front_hit(surf, c.x * 0.8, c.z + r * 1.25)
+        if p is not None:
+            for k in range(3):
+                parts.blob(p - n * 0.03 + V((0, 0, -0.02 * k)), (0.08, 0.04), V((sx, -0.3, -0.7 - 0.25 * k)),
+                           0.32 - 0.05 * k, None, weights=w, seg=6, rings=4, tip=0.1, up=n,
+                           color_fn=lambda t: L.mix(D("e8ece6"), WHITE, t))
+    # A white beard from the chin.
+    p, n = M.front_hit(surf, 0.0, 2.02)
+    if p is not None:
+        for k, (x, ln) in enumerate(((-0.16, 0.3), (-0.08, 0.4), (0.0, 0.48), (0.08, 0.4), (0.16, 0.3))):
+            parts.blob(p - n * 0.06 + V((x, 0, 0)), (0.11, 0.08), V((x * 1.2, -0.3, -1.0)), ln, None, weights=w,
+                       seg=7, rings=5, tip=0.3, color_fn=lambda t: L.mix(D("e0e6e0"), WHITE, t))
+    # Glowing jade mark on the brow.
+    p, n = M.dir_hit(surf, V((0, -0.2, 2.45)), V((0, -1.0, 0.55)))
+    if p is not None:
+        glow_spot(parts, p, n, 0.055, C("2af0a0"), C("e8fff4"), weights=w)
+    # Prayer beads round the neck, hanging over the chest, a big jade bead at the front.
+    neck = V((0, 0.12, 1.92))
+    beads = 22
+    for i in range(beads):
+        a = -math.pi * 0.5 + 2.0 * math.pi * i / beads
+        sag = (1.0 - math.cos(a + math.pi * 0.5)) * 0.5  # 0 at the front, 1 at the back
+        d = V((math.cos(a), math.sin(a) * 0.9, -0.55 + 0.45 * sag))
+        q, qn = M.dir_hit(surf, neck, d)
+        if q is None or (q - neck).length > 0.95:
+            continue
+        big = i == 0
+        rr = 0.1 if big else 0.06
+        if big:
+            col = lambda u: L.mix(C("0e6a46"), C("8affc8"), L.smooth(-0.3, 1.0, u.z))  # noqa: E731
+        else:
+            col = lambda u: L.mix(D("4a2a18"), D("a8703a"), L.smooth(-0.4, 1.0, u.z))  # noqa: E731
+        parts.ellipsoid(q + qn * rr * 0.8, (rr, rr, rr), color=None, weights={"Torso": 0.7, "Neck": 0.3}, seg=8,
+                        rings=5, color_fn=col)
+        if big:
+            parts.blob(q + qn * 0.05 + V((0, 0, -0.08)), (0.05, 0.03), V((0, -0.2, -1)), 0.2, None,
+                       weights={"Torso": 1.0}, seg=6, rings=4, tip=0.3, color_fn=lambda t: L.mix(gold, D("c87a2a"), t))
+    # Jade bracers on the forearms.
+    for side in ("L", "R"):
+        b = arm.data.bones["LowerArm." + side]
+        h, t = b.head_local, b.tail_local
+        mid = h + (t - h) * 0.55
+        q, _qn = surf.toward(mid + V((0, 0, 2.0)), mid)
+        rad = ((q - mid).length if q is not None else 0.15) + 0.035
+        ax = (t - h).normalized()
+        parts.frustum(mid - ax * 0.17, ax, rad, rad * 1.08, 0.34,
+                      lambda k, outside: L.mix(C("0e7a52"), C("6ae8b0"), 0.3 + 0.5 * k) if outside else jade_dk,
+                      {b.name: 1.0}, seg=14)
+        for e in (0.0, 0.34):
+            parts.frustum(mid - ax * (0.19 - e), ax, rad * 1.1, rad * 1.1, 0.04,
+                          lambda k, outside: gold, {b.name: 1.0}, seg=14)
+    # The robe's skirt, flaring over the hips, with a gold hem.
+    K.cape(parts, V((0, 0.18, 0)), 1.2, 0.36, 0.66, 0.98, 2.0 * math.pi * 0.999,
+           lambda u, v, out: gold if v > 0.86 or abs(u) > 0.94 else L.mix(jade, jade_dk, 0.3 + 0.5 * v + (0.0 if out else 0.3)),
+           {"Hips": 1.0}, rows=6, cols=28, thick=0.03)
+    # A gold cord belt with a knot at the front.
+    parts.frustum(V((0, 0.18, 1.13)), V((0, 0, 1)), 0.69, 0.68, 0.11, lambda k, out: L.mix(D("c89a3a"), gold, k),
+                  {"Hips": 1.0}, seg=28)
+    parts.ellipsoid(V((0.12, -0.52, 1.17)), (0.09, 0.06, 0.08), color=gold, weights={"Hips": 1.0}, seg=10, rings=6)
+    for sx in (-1.0, 1.0):
+        parts.blob(V((0.12, -0.54, 1.12)), 0.035, V((0.25 * sx, -0.2, -1.0)), 0.36, None, weights={"Hips": 1.0},
+                   seg=6, rings=4, tip=0.6, color_fn=lambda t: L.mix(gold, D("c8842a"), t))
+    finish(body, parts)
+
+
 # ================================================================ registry / runner
 
 RECIPES = {
     "big/Fish_abyss_angler": abyss_angler,
     "big/Frog_lotus_frog": lotus_frog,
+    "big/Monkroose_jade_monk": jade_monk,
 }
 
 
