@@ -819,6 +819,458 @@ def sky_wind_spirit(arm, body):
     return {"glow": "c8fbff", "strength": 1.5, "glow2": "a8f0ff", "strength2": 1.3}
 
 
+
+# ================================================================ Armabee_Evolved
+
+def gold_bee(arm, body):
+    """Armabee_Evolved -> gold_bee (ผึ้งเกสรทองคำ): a sacred pollen bee of the divine region.
+    Burnished gold chitin with velvet umber bands (the reverse of a common bee), a fluffy
+    cream pollen ruff round the neck, glowing pollen puffs on the antenna tips, two
+    pollen baskets on the abdomen, a little golden lotus bud between the antennae,
+    amber compound eyes, honey-gold veined wings, an ivory stinger lit with honey."""
+    eyes = K.eye_balls(body, ("Eye_White",))
+    snap = K.Snapshot(body, ("Armabee_Main", "Armabee_Secondary"))
+    L.delete_faces(body, ("Eye_Black",))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4400)
+    L.relax(body, 2, 0.3, ("Armabee_Main", "Armabee_Secondary"))
+    gold, gold_dark = C("ffe070"), C("b07010")
+    band, band_low = C("6a3a14"), C("2a1406")
+    eye_cols = [F._compound(c, C("3a1804"), C("e8901a"), C("fff0a0")) for c, r in eyes]
+
+    def paint(name, co, n, info):
+        if name == "Eye_White":
+            k = 0 if (len(eyes) < 2 or abs(co.x - eyes[0][0].x) < abs(co.x - eyes[1][0].x)) else 1
+            return eye_cols[k](co)
+        if name == "Wings":
+            t = L.smooth(0.4, 2.0, abs(co.x))
+            c = L.mix(C("e8b040"), C("fff8e0"), t)
+            vein = abs(math.sin((co.y * 1.3 + abs(co.x) * 0.45) * 9.0))
+            return L.mix(c, C("b07010"), L.smooth(0.12, 0.0, vein) * 0.7)
+        if name == "Teeth":
+            return L.mix(C("e8d8b0"), C("fffaf0"), L.smooth(-0.01, 0.05, info["bump"]))
+        if name == "Tongue":
+            return C("e89a20")
+        if snap.region(co) == "Armabee_Secondary":
+            c = L.mix(band_low, band, L.smooth(-0.6, 0.6, n.z) * 0.6 + 0.4 * max(0.0, -n.y))
+            return L.mix(c, c * 1.4, max(0.0, K.fbm(co, 0.05, 1)) * 0.6)  # velvet fuzz
+        k = L.mix(gold_dark, gold, L.smooth(-0.6, 0.8, n.z))
+        return L.mix(k, C("fff6d0"), L.smooth(0.55, 0.95, abs(n.x)) * 0.35)
+
+    K.paint_body_glow(body, paint, glow=lambda name, co, bone: 2 if name == "Wings" else 0)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        parts.sphere_cap(c, r, Vector((0.2 * sx, -1.0, 0.6)).normalized(), (0.16, 0.11), WHITE, wh, lift=0.02,
+                         seg=12, rings=2)
+        a = c + Vector((0.9 * sx, -0.25, 0.85)).normalized() * r * 1.05
+        b = c + Vector((-0.75 * sx, -0.6, 0.35)).normalized() * r * 1.05
+        parts.blob(a, (r * 0.3, r * 0.15), b - a, (b - a).length * 1.2, None, weights=wh, seg=10, rings=6, tip=0.5,
+                   up=Vector((0, -1, 0.3)), color_fn=lambda t: L.mix(gold, gold_dark, t))
+    # Pollen ruff round the neck.
+    fluff = lambda u: L.mix(C("f0d890"), C("fffbe8"), L.smooth(-0.6, 0.7, u.z))
+    rng = random.Random(2)
+    for k in range(16):
+        a = 2.0 * math.pi * k / 16
+        d = Vector((math.cos(a), math.sin(a), -0.15))
+        p, n = dir_hit(surf, Vector((0.0, 0.15, 1.98)), d)
+        if p is None or (p.y < -0.2 and abs(p.x) < 0.42):
+            continue
+        s = rng.uniform(0.12, 0.16)
+        parts.ellipsoid(p + n * 0.03, (s, s, s * 0.85), color=None, weights=p, seg=8, rings=6, color_fn=fluff)
+    # Antenna tips: glowing pollen puffs.
+    me = body.data
+    for sx in (-1.0, 1.0):
+        tip = max((v.co for v in me.vertices if v.co.x * sx > 0.2), key=lambda co: co.z)
+        parts.ellipsoid(tip + Vector((0, 0, 0.04)), (0.13, 0.13, 0.12), color=None, weights=tip, detail="glow",
+                        seg=10, rings=7, color_fn=lambda u: L.mix(C("ffd040"), C("fff6c0"), L.smooth(-0.5, 0.8, u.z)))
+        for k in range(4):
+            a = 2.0 * math.pi * k / 4 + 0.4
+            q = tip + Vector((math.cos(a) * 0.14, math.sin(a) * 0.14, 0.04 + 0.05 * (k % 2)))
+            parts.ellipsoid(q, (0.045, 0.045, 0.045), color=None, weights=tip, seg=6, rings=4,
+                            color_fn=lambda u: C("ffe890"))
+    # A little golden lotus bud between the antennae.
+    apex, _an = dir_hit(surf, Vector((0.0, -0.1, 2.3)), Vector((0.0, -0.15, 1.0)))
+    if apex is not None:
+        lotus(parts, apex - Vector((0, 0, 0.04)), UP, 0.07, 6, 0.24, 0.08,
+              lambda t: L.mix(C("e8a020"), C("fff0b0"), t), wh, layers=1, open_=0.3)
+        parts.ellipsoid(apex + Vector((0, 0, 0.1)), (0.06, 0.06, 0.06), color=None, weights=wh, detail="glow", seg=8,
+                        rings=5, color_fn=lambda u: C("fff4c0"))
+    # Pollen baskets on the abdomen sides.
+    for sx in (-1.0, 1.0):
+        p, n = dir_hit(surf, Vector((0.0, 0.2, 1.3)), Vector((sx, 0.35, -0.2)))
+        if p is not None:
+            parts.ellipsoid(p + n * 0.1, (0.18, 0.15, 0.16), color=None, weights=p, detail="glow", seg=10, rings=7,
+                            color_fn=lambda u: L.mix(C("ffb820"), C("fff0a0"), L.smooth(-0.6, 0.8, u.z)))
+    # Stinger.
+    lo, hi = L.bounds(body)
+    axis = Vector((0.0, 0.55, -1.0)).normalized()
+    p, n = dir_hit(surf, Vector((0.0, 0.1, lo.z + 0.6)), axis)
+    if p is not None:
+        parts.blob(p - axis * 0.05, 0.11, axis, 0.42, None, weights=p, seg=10, rings=6, tip=0.05,
+                   color_fn=lambda t: L.mix(gold_dark, C("fff4e0"), t))
+        parts.blob(p + axis * 0.28, 0.035, axis, 0.18, None, weights=p, seg=6, rings=4, tip=0.05, detail="glow",
+                   color_fn=lambda t: C("ffd060"))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.4, shade=Vector((0.7, 0.55, 0.45)))
+    return {"glow": "ffd050", "strength": 1.5, "glow2": "fff0c0", "strength2": 0.4}
+
+
+# ================================================================ Goleling_Evolved
+
+def temple_guardian(arm, body):
+    """Goleling_Evolved -> temple_guardian (โกเลมพิทักษ์วิหาร): a carved stone guardian of
+    a temple, not a bat. Sandstone in fitted blocks with moss in the joints, the ears cut
+    down into gilt-rimmed stone ornaments, a tiered golden prang crown with a ruby where
+    the fire crown burned, a glowing gold urna on the brow, stern glowing gold eyes under
+    a carved brow, stone tusks, the wings re-carved as stone feathers edged with gold,
+    and a gem-set gold collar."""
+    eyes = [e for e in K.eye_balls(body, ("c_8f92a0",)) if abs(e[0].x) < 0.8]
+    L.delete_faces(body, ("c_1e1f22", "c_cc9129"), where=lambda c, n, g: n == "c_8f92a0" and abs(c.x) < 0.8)
+    L.clean(body, fill_holes=60)
+    # Cut the tall bat ears down to squat ornaments.
+    for v in body.data.vertices:
+        if v.co.z > 2.85 and abs(v.co.x) > 0.3:
+            v.co.z = 2.85 + (v.co.z - 2.85) * 0.5
+    L.decimate_to(body, 3300)
+    stone_top, stone_low, seam, moss = C("e8e2d4"), C("8a8478"), C("4a4438"), C("5a7a3a")
+    gold, gold_dark = C("ffd860"), C("a86a18")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "c_8f92a0":  # wing claws -> gold finials
+            return L.mix(gold_dark, gold, L.smooth(-0.01, 0.06, info["bump"]))
+        if name == "c_a58c72":  # tusks / teeth: pale stone
+            return L.mix(C("c8bca0"), C("fff8e8"), L.smooth(-0.01, 0.05, info["bump"]))
+        on_wing = bone.startswith("Wing")
+        c = L.mix(stone_low, stone_top, L.smooth(1.4, 3.0, co.z))
+        if name == "c_5b354a" and on_wing:
+            # Stone feathers: rows fanning out from the shoulder, gilt at the edge.
+            ang = math.atan2(co.y - 0.3, abs(co.x) - 0.4)
+            row = abs(math.sin(ang * 9.0))
+            c = L.mix(c, seam, L.smooth(0.15, 0.0, row) * 0.8)
+            t = L.smooth(0.6, 1.9, abs(co.x)) * 0.5 + L.smooth(0.5, 1.3, co.y) * 0.5
+            return L.mix(c, gold, L.smooth(0.9, 1.0, t) * 0.8)
+        if name == "c_5b354a":
+            if bone == "Torso" or co.z < 1.75:
+                return C("2a1a14")  # inside the mouth
+            return c * 0.92  # the nose ridge
+        if on_wing:
+            return L.mix(stone_low, seam, 0.4)  # wing ribs: darker stone
+        # Fitted blocks with mossy joints.
+        d0, d1 = K.cells(Vector((co.x, co.y, co.z * 1.4)), 0.32)
+        j = 1.0 - L.smooth(0.0, 0.1, d1 - d0)
+        c = L.mix(c, c * 0.8, max(0.0, K.fbm(co, 0.1, 2)) * 0.6)
+        c = L.mix(c, L.mix(seam, moss, L.smooth(2.4, 1.6, co.z)), j * 0.85)
+        if co.z > 2.85 and abs(co.x) > 0.35:  # gilt ear rims
+            c = L.mix(c, gold, L.smooth(0.03, 0.08, info["bump"]))
+        return c
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.8, Vector((0.3 * sx, -1.0, 0.0)), wh, stone_top * 0.9, lid_dark=stone_low,
+                     brow=stone_low, brow_size=1.3, ball=C("ffe9a0"), slit=None, tilt=0.5, open_=0.32, lower_lid=0.6)
+    # Gold urna on the brow.
+    top_eye = max(c.z for c, r in eyes)
+    p, n = front_hit(surf, 0.0, top_eye + 0.28)
+    if p is not None:
+        parts.ellipsoid(p + n * 0.03, (0.09, 0.09, 0.06), K.basis(n), color=None, weights=wh, detail="glow2", seg=10,
+                        rings=6, color_fn=lambda u: C("fff0b0"))
+        torus(parts, p + n * 0.01, n, 0.11, 0.03, lambda u, v: L.mix(gold_dark, gold, v), wh, seg=14, sides=5)
+    # The tiered golden prang crown with a ruby.
+    apex, _an = dir_hit(surf, Vector((0.0, -0.05, 2.6)), UP)
+    if apex is not None:
+        z = apex.z - 0.08
+        cen = Vector((0.0, apex.y, z))
+        col = lambda t, side: L.mix(gold_dark, gold, 0.35 + 0.65 * t) if side else gold
+        for k, (r0, r1, h) in enumerate(((0.42, 0.38, 0.16), (0.32, 0.27, 0.15), (0.23, 0.18, 0.14),
+                                         (0.15, 0.11, 0.12))):
+            parts.frustum(cen, UP, r0, r1, h, col, wh, seg=16)
+            torus(parts, cen + Vector((0, 0, h)), UP, r1, 0.025, lambda u, v: gold, wh, seg=16, sides=4)
+            cen = cen + Vector((0, 0, h))
+        parts.blob(cen, 0.1, UP, 0.55, None, weights=wh, seg=8, rings=6, tip=0.05,
+                   color_fn=lambda t: L.mix(gold_dark, C("fff4c0"), t))
+        parts.ellipsoid(Vector((0.0, apex.y - 0.4, z + 0.1)), (0.08, 0.05, 0.1), color=None, weights=wh,
+                        detail="glow2", seg=10, rings=6, color_fn=lambda u: C("ff4a6a"))
+    # Carved stone flight feathers along the wings (a garuda's, not a bat's), gilt-tipped.
+    _wing_feathers(parts, arm, lambda t: L.mix(stone_low, L.mix(stone_top, gold, L.smooth(0.75, 1.0, t)),
+                                               L.smooth(0.0, 0.5, t)),
+                   length=0.7, width=0.26, per=(("Wing1", 0.6), ("Wing2", 0.4), ("Wing2", 1.0), ("Wing3", 0.5),
+                                                ("Wing3", 1.0), ("Wing4", 0.6), ("Wing4", 1.0)))
+    # Gem-set gold collar round the lower body.
+    rng = random.Random(1)
+    for k in range(14):
+        a = 2.0 * math.pi * k / 14
+        p, n = dir_hit(surf, Vector((0.0, 0.1, 1.5)), Vector((math.cos(a), math.sin(a), -0.35)))
+        if p is None:
+            continue
+        parts.ellipsoid(p + n * 0.02, (0.09, 0.09, 0.07), K.basis(n), color=None, weights=p, seg=8, rings=5,
+                        color_fn=lambda u: L.mix(gold_dark, gold, L.smooth(-0.5, 0.8, u.z)))
+        if k % 2 == 0:
+            parts.ellipsoid(p + n * 0.08, (0.045, 0.045, 0.03), K.basis(n), color=None, weights=p, detail="glow2",
+                            seg=6, rings=4, color_fn=lambda u: C("ff4a6a"))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.5, shade=Vector((0.6, 0.55, 0.5)))
+    return {"glow": "ffd860", "strength": 1.5, "glow2": "ff5070", "strength2": 1.2}
+
+
+# ================================================================ Demon
+
+def shadow_queen(arm, body):
+    """Demon -> shadow_queen (นิรา ราชินีเงาแห่งห้วงลึก, story boss): queen of the abyssal
+    shadow. The halo is gone: a crown of black crystal spires set with glowing amethysts
+    rises from a gold band, the horns sweep back into great curls, long shadow-tendril
+    hair falls down the back, violet eyes burn under queenly lids with winged liner, and
+    the wings are dusted with stars."""
+    eyes = [e for e in K.eye_balls(body, ("c_8f92a0",)) if abs(e[0].x) < 0.8]
+    L.delete_faces(body, ("c_1e1f22",), where=lambda c, n, g: (n == "c_8f92a0" and abs(c.x) < 0.8) or
+                   (n == "c_222422" and c.z > 2.38 and abs(c.x) < 0.4 and c.y > -0.15))
+    L.clean(body)
+    L.decimate_to(body, 4300)
+    skin_top, skin_low = C("fbf4ff"), C("b8a4d8")
+    horn_a, horn_b = C("140e1c"), C("6a4a8a")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "c_8f92a0":  # wing claws
+            return L.mix(horn_a, C("c8b0f0"), L.smooth(-0.01, 0.06, info["bump"]))
+        if name == "c_222422":
+            if bone.startswith("Wing"):  # star-dusted membranes
+                t = L.smooth(0.6, 1.9, abs(co.x)) * 0.5 + L.smooth(0.6, 1.3, co.y) * 0.5
+                c = L.mix(C("2a1a40"), C("7a5ab0"), t)
+                return L.mix(c, WHITE, L.smooth(0.5, 0.62, K.fbm(co, 0.06, 1)))
+            return L.mix(horn_a, horn_b, L.smooth(2.0, 2.8, co.z))  # horns
+        c = L.mix(skin_low, skin_top, L.smooth(1.2, 2.6, co.z))
+        v = abs(K.fbm(co * Vector((1.0, 1.0, 2.5)), 0.3, 3))
+        c = L.mix(c, C("8a6ab8"), L.smooth(0.05, 0.0, v) * 0.4)  # shadow veins
+        return L.mix(c, c * 0.75, L.smooth(1.3, 2.4, abs(co.x)) * 0.5)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.85, Vector((0.3 * sx, -1.0, 0.0)), wh, skin_low, lid_dark=C("2a1a3a"),
+                     ball=C("e8c8ff"), slit=(0.07, 0.45), tilt=0.45, open_=0.32, lower_lid=0.65, ring=C("9a4aff"))
+        p, n = front_hit(surf, c.x + 0.18 * sx, c.z + 0.08)
+        if p is not None:  # winged liner at the outer corner
+            parts.stroke(p, n, [(-0.06 * sx, 0.0), (0.06 * sx, 0.05), (0.16 * sx, 0.12)], 0.04, C("1a0a24"),
+                         lift=0.02)
+    # Crown: gold band, black crystal spires, amethysts.
+    apex, _an = dir_hit(surf, Vector((0.0, 0.0, 2.2)), UP)
+    if apex is not None:
+        base = Vector((0.0, apex.y + 0.02, apex.z - 0.12))
+        parts.frustum(base, UP, 0.36, 0.4, 0.12,
+                      lambda t, side: L.mix(C("a86a20"), C("ffd860"), 0.4 + 0.6 * t), wh, seg=20)
+        for k in range(7):
+            a = math.pi * 0.5 + 2.0 * math.pi * (k - 3) / 12  # a fan across the front
+            out = Vector((math.cos(a) * 0.36, -math.sin(a) * 0.36, 0.08))
+            tall = 1.0 - 0.14 * abs(k - 3)
+            d = Vector((out.x * 0.5, out.y * 0.5, 1.0))
+            parts.blob(base + out, (0.08, 0.06), d, tall, None, weights=wh, seg=6, rings=5, tip=0.05,
+                       color_fn=lambda t: L.mix(C("2a1a40"), C("e8d8ff"), L.smooth(0.2, 1.0, t)))
+            parts.ellipsoid(base + out + Vector((out.x * 0.12, out.y * 0.12, 0.08)), (0.08, 0.05, 0.1),
+                            color=None, weights=wh, detail="glow2", seg=8, rings=5, color_fn=lambda u: C("a050ff"))
+    # Horns sweep back into curls.
+    for sx in (-1.0, 1.0):
+        tips = [v.co for v in body.data.vertices if v.co.z > 2.5 and v.co.x * sx > 0.25 and abs(v.co.x) < 0.75]
+        if not tips:
+            continue
+        tip = max(tips, key=lambda co: co.z)
+        parts.horn(tip - Vector((0.02 * sx, -0.02, 0.12)), Vector((0.35 * sx, 0.8, 0.45)), 0.75, 0.1,
+                   lambda t: L.mix(horn_b, horn_a, t), wh, curl=Vector((0.1 * sx, 0.15, -0.55)))
+    # Shadow tendril hair down the back.
+    rng = random.Random(12)
+    for k in range(7):
+        a = math.pi * 0.5 + (k - 3) * 0.28
+        p, n = dir_hit(surf, Vector((0.0, 0.0, 2.15)), Vector((math.cos(a), math.sin(a), 0.25)))
+        if p is None:
+            continue
+        parts.blob(p - n * 0.05, (0.13, 0.05), Vector((math.cos(a) * 0.3, 0.6, -1.0)), rng.uniform(1.0, 1.3), None,
+                   weights=p, seg=8, rings=7, tip=0.1, up=n, bend=Vector((math.cos(a) * 0.2, 0.35, 0.1)),
+                   color_fn=lambda t: L.mix(C("2a1a44"), C("7a4ad0"), L.smooth(0.6, 1.0, t)))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.55, 0.5, 0.7)))
+    return {"glow": "e0c0ff", "strength": 1.7, "glow2": "a040ff", "strength2": 1.1}
+
+
+# ================================================================ Alpaking_Evolved
+
+def _alpaking_prep(body, target):
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, target)
+    L.relax(body, 2, 0.3)
+    return eyes
+
+
+def _wing_feathers(parts, arm, col_fn, length=0.9, width=0.16, per=(("Wing2", 0.5), ("Wing3", 0.3), ("Wing3", 0.9),
+                                                                   ("Wing4", 0.5), ("Wing4", 1.0)), petal_=False,
+                   tip_glow=None):
+    """Long primaries hanging off the wing bones (rigid on each bone); tip_glow: colour of
+    a glowing bead at each feather's tip."""
+    for side, sx in (("L", 1.0), ("R", -1.0)):
+        for i, (bn, f) in enumerate(per):
+            b = arm.data.bones["%s.%s" % (bn, side)]
+            p = b.head_local.lerp(b.tail_local, min(f, 1.0))
+            d = Vector((0.35 * sx * (i / len(per)), 0.65, -0.55 - 0.1 * i)).normalized()
+            ln = length * (0.75 + 0.12 * i)
+            w = {"%s.%s" % (bn, side): 1.0}
+            if petal_:
+                petal(parts, p, (d + Vector((0.3 * sx, 0, 0.6))).normalized(), ln, width, col_fn, w,
+                      up=Vector((0, 0, 1)), cup=0.15, seg=7, rings=5)
+            else:
+                parts.blob(p, (width, width * 0.25), d, ln, None, weights=w, seg=6, rings=5, tip=0.2,
+                           up=Vector((0, 0, 1)), bend=Vector((0.1 * sx, 0.1, -0.1)), color_fn=col_fn)
+                if tip_glow is not None:
+                    q = p + d * ln * 0.97 + Vector((0.1 * sx, 0.1, -0.1))
+                    parts.ellipsoid(q, (0.05, 0.05, 0.05), color=None, weights=w, detail="glow2", seg=6, rings=4,
+                                    color_fn=lambda u: tip_glow)
+
+
+def shadow_seraph(arm, body):
+    """Alpaking_Evolved -> shadow_seraph (ซาเลีย วิหคเงาสะท้อน, story boss): a seraph-bird of
+    reflected shadow. The face becomes dusk-violet plumage with a silvered sheen, a hooked
+    mirror-silver beak, three violet eyes (the brow eye ringed by a silver mirror), the
+    mitre swept back into a crest of long shadow plumes, long primaries trailing from both
+    wings and a fan of tail plumes below; feather tips catch a silver glow."""
+    eyes = _alpaking_prep(body, 3400)
+    dusk_top, dusk_low, silver = C("b0a8e0"), C("3a3060"), C("f0f0ff")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":
+            t = L.smooth(0.5, 2.0, abs(co.x))
+            c = L.mix(C("2a2448"), C("c8c8f0"), t)
+            row = abs(math.sin(abs(co.x) * 10.0))
+            return L.mix(c, c * 0.6, L.smooth(0.2, 0.0, row) * 0.6)
+        if name == "c_645c42":  # crown -> mirror plumage, banded
+            c = L.mix(dusk_low, silver, L.smooth(1.8, 3.6, co.z))
+            return L.mix(c, dusk_low, L.smooth(0.7, 1.0, math.sin(co.z * 14.0)) * 0.4)
+        c = L.mix(dusk_low, dusk_top, L.smooth(0.6, 2.4, co.z))
+        f = K.scales(co * Vector((1.0, 1.0, 1.6)), 0.16)
+        c = L.mix(c, c * 0.6, f * 0.6)  # feather scallops
+        return L.mix(c, silver, L.smooth(0.4, 0.9, -n.y) * L.smooth(1.6, 2.4, co.z) * 0.3)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 0.0 if abs(c.x) < 0.1 else (1.0 if c.x > 0 else -1.0)
+        K.fierce_eye(parts, c, r * 0.9, Vector((0.25 * sx, -1.0, 0.0)), wh, dusk_top, lid_dark=dusk_low,
+                     ball=C("e8d0ff"), slit=(0.07, 0.5), tilt=0.5 if sx else 0.0, open_=0.3, lower_lid=0.6,
+                     ring=C("8a4aff"), brow=dusk_low if sx else None)
+        if not sx:
+            torus(parts, c + Vector((0, -0.05, 0)), Vector((0, -1, 0.1)), r * 1.15, 0.05,
+                  lambda u, v: L.mix(C("8a8ab0"), silver, v), wh, seg=20, sides=6, detail="glow2")
+    # Hooked mirror-silver beak between the lower eyes.
+    p, n = front_hit(surf, 0.0, 1.7)
+    if p is not None:
+        parts.blob(p - n * 0.1, (0.24, 0.18), Vector((0.0, -1.0, -0.3)), 0.75, None, weights=wh, seg=12, rings=8,
+                   tip=0.08, bend=Vector((0.0, 0.05, -0.28)), color_fn=lambda t: L.mix(C("a8a8d8"), silver, t))
+    # Crest of shadow plumes sweeping back from the crown.
+    rng = random.Random(7)
+    for k in range(7):
+        x = (k - 3) * 0.28
+        p, n = dir_hit(surf, Vector((x * 0.4, 0.4, 2.6)), Vector((x, 0.3, 1.0)))
+        if p is None:
+            continue
+        ln = 1.3 - 0.12 * abs(k - 3) + rng.uniform(-0.1, 0.1)
+        parts.blob(p - n * 0.08, (0.17, 0.05), Vector((x * 0.6, 0.9, 0.75)), ln, None, weights={"Neck": 1.0}, seg=8,
+                   rings=7, tip=0.12, up=Vector((0, -0.6, 1)), bend=Vector((x * 0.15, 0.25, -0.2)),
+                   color_fn=lambda t: L.mix(C("2a2448"), C("d8d8ff"), L.smooth(0.55, 1.0, t)))
+    plume = lambda t: L.mix(C("2a2448"), C("e0e0ff"), L.smooth(0.6, 1.0, t))
+    _wing_feathers(parts, arm, plume, length=1.0, width=0.17, tip_glow=C("f0f0ff"))
+    # Tail plumes fanning below.
+    for k in range(5):
+        a = (k - 2) * 0.35
+        p = Vector((math.sin(a) * 0.15, 0.5, 0.75))
+        parts.blob(p, (0.16, 0.05), Vector((math.sin(a), 0.6, -1.0)), 1.2 - 0.12 * abs(k - 2), None,
+                   weights={"Body1": 1.0}, seg=8, rings=7, tip=0.15, up=Vector((0, -1, 0)),
+                   bend=Vector((math.sin(a) * 0.2, 0.3, 0.05)), color_fn=plume)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.55, 0.5, 0.75)))
+    return {"glow": "e0c8ff", "strength": 1.7, "glow2": "f0f0ff", "strength2": 1.3}
+
+
+def lotus_seraph(arm, body):
+    """Alpaking_Evolved -> lotus_seraph (ออเรเลีย ราชันปีกบัวดารา, divine region boss): a
+    lotus-winged star sovereign. Pearl porcelain face blushing lotus-pink below, a great
+    golden lotus crown with a star jewel on the mitre, a golden halo set with stars
+    behind the head, wings of huge pink-white lotus petals, a pearl necklace, a lotus
+    seat of petals under the body, and three serene golden eyes."""
+    eyes = _alpaking_prep(body, 3000)
+    skin_top, skin_low, pink, gold, gold_dark = C("fffaf4"), C("ffd0e0"), C("ff8ac0"), C("ffd860"), C("b07a20")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":
+            t = L.smooth(0.5, 2.0, abs(co.x))
+            c = L.mix(C("fff0f6"), pink, t)
+            vein = abs(math.sin(abs(co.x) * 14.0))
+            return L.mix(c, L.mix(c, pink, 0.6), L.smooth(0.15, 0.0, vein) * 0.5)
+        if name == "c_645c42":
+            c = L.mix(gold_dark, gold, L.smooth(1.6, 3.4, co.z))
+            return L.mix(c, C("fff4c0"), L.smooth(0.02, 0.1, info["bump"]))
+        c = L.mix(skin_low, skin_top, L.smooth(0.6, 2.2, co.z))
+        band = abs(math.sin(co.z * 9.0 + math.atan2(co.x, -co.y) * 2.0))
+        return L.mix(c, gold, L.smooth(0.1, 0.0, band) * L.smooth(1.2, 0.8, co.z) * 0.7)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 0.0 if abs(c.x) < 0.1 else (1.0 if c.x > 0 else -1.0)
+        K.fierce_eye(parts, c, r * 0.9, Vector((0.25 * sx, -1.0, 0.0)), wh, skin_top, lid_dark=C("d8a8b8"),
+                     ball=C("fff0b0"), slit=None, tilt=0.2 if sx else 0.0, open_=0.42, lower_lid=0.7,
+                     ring=C("e8a020"))
+    petal_col = lambda t: L.mix(C("fff6fa"), C("ff7ab8"), L.smooth(0.3, 1.0, t))
+    # The great lotus crown on the mitre, with a star jewel.
+    apex, _an = dir_hit(surf, Vector((0.0, 0.3, 2.8)), UP)
+    if apex is not None:
+        base = apex - Vector((0, 0, 0.1))
+        lotus(parts, base, UP, 0.3, 9, 0.85, 0.26, petal_col, {"Neck": 1.0}, layers=2, open_=0.45)
+        parts.ellipsoid(base + Vector((0, 0, 0.2)), (0.16, 0.16, 0.12), color=None, weights={"Neck": 1.0},
+                        detail="glow", color_fn=lambda u: C("fff4b0"))
+    p, n = dir_hit(surf, Vector((0.0, 0.3, 2.9)), Vector((0.0, -1.0, 0.25)))
+    if p is not None:
+        parts.decal(p, n, star_outline(0.22, 0.09, 5), C("fff6c0"), weights={"Neck": 1.0}, lift=0.03, rings=2,
+                    detail="glow")
+    # Golden halo set with stars.
+    hc = Vector((0.0, 1.0, 2.75))
+    torus(parts, hc, Vector((0, 1, 0.15)), 1.15, 0.06, lambda u, v: L.mix(gold_dark, C("fff4c0"), v),
+          {"Neck": 1.0}, seg=36, sides=6, detail="glow2")
+    for k in range(8):
+        a = 2.0 * math.pi * k / 8 + math.pi / 8
+        q = hc + Vector((math.cos(a) * 1.15, 0.0, math.sin(a) * 1.15))
+        parts.decal(q + Vector((0, -0.08, 0)), Vector((0, -1, 0)), star_outline(0.14, 0.05, 4), C("fff6c0"),
+                    weights={"Neck": 1.0}, lift=0.0, rings=1, detail="glow2")
+    # Lotus-petal wings.
+    _wing_feathers(parts, arm, petal_col, length=1.05, width=0.3, petal_=True)
+    # Pearl necklace and a lotus seat.
+    for k in range(18):
+        a = 2.0 * math.pi * k / 18
+        p, n = dir_hit(surf, Vector((0.0, 0.15, 1.0)), Vector((math.cos(a), math.sin(a), -0.15)))
+        if p is not None:
+            parts.ellipsoid(p + n * 0.05, (0.065, 0.065, 0.065), color=None, weights=p, seg=6, rings=4,
+                            color_fn=lambda u: L.mix(C("e8dce8"), WHITE, L.smooth(-0.4, 0.8, u.z)))
+    lotus(parts, Vector((0.0, 0.25, 0.75)), Vector((0, 0, -1)), 0.45, 10, 0.7, 0.24,
+          lambda t: L.mix(C("fff6fa"), C("ff8ac0"), L.smooth(0.3, 1.0, t)), {"Body1": 1.0}, layers=1, open_=0.75)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.35, shade=Vector((0.75, 0.62, 0.65)))
+    return {"glow": "fff0b0", "strength": 1.6, "glow2": "ffd860", "strength2": 1.4}
+
+
 def F_ellipse(rx, ry, n=16):
     return [(math.cos(2 * math.pi * i / n) * rx, math.sin(2 * math.pi * i / n) * ry) for i in range(n)]
 
@@ -826,6 +1278,11 @@ def F_ellipse(rx, ry, n=16):
 # ================================================================ registry / runner
 
 RECIPES = {
+    "flying/Alpaking_Evolved_lotus_seraph": lotus_seraph,
+    "flying/Alpaking_Evolved_shadow_seraph": shadow_seraph,
+    "flying/Demon_shadow_queen": shadow_queen,
+    "flying/Goleling_Evolved_temple_guardian": temple_guardian,
+    "flying/Armabee_Evolved_gold_bee": gold_bee,
     "flying/Hywirl_sky_wind_spirit": sky_wind_spirit,
     "flying/Squidle_tide_squid": tide_squid,
     "flying/Glub_Evolved_drown_jelly": drown_jelly,
@@ -835,6 +1292,11 @@ RECIPES = {
     "flying/Ghost_lotus_sprite": lotus_sprite,
 }
 SOURCE = {
+    "flying/Alpaking_Evolved_lotus_seraph": "flying/Alpaking_Evolved",
+    "flying/Alpaking_Evolved_shadow_seraph": "flying/Alpaking_Evolved",
+    "flying/Demon_shadow_queen": "flying/Demon",
+    "flying/Goleling_Evolved_temple_guardian": "flying/Goleling_Evolved",
+    "flying/Armabee_Evolved_gold_bee": "flying/Armabee_Evolved",
     "flying/Hywirl_sky_wind_spirit": "flying/Hywirl",
     "flying/Squidle_tide_squid": "flying/Squidle",
     "flying/Glub_Evolved_drown_jelly": "flying/Glub_Evolved",
