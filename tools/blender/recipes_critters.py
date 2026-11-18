@@ -21,6 +21,15 @@ from mathutils import Matrix, Vector  # noqa: E402
 
 C = L.srgb
 WHITE = C("ffffff")
+
+
+def D(hex_or_tuple, gamma=0.55):
+    """A colour as it should SHOW in game. The game's vertex-colour path darkens and
+    saturates mid-tones (a linear value reads roughly as if it were sRGB), so plain
+    C() suits the bright pastel critters but crushes muted ones (rot, mud, stone) to near
+    black: D() lifts the linear value part of the way back."""
+    c = L.srgb(hex_or_tuple)
+    return V((c.x ** gamma, c.y ** gamma, c.z ** gamma))
 V = Vector
 
 
@@ -111,27 +120,27 @@ def toxic_frog(arm, body):
     venom stripes and glands, narrow glowing red eyes, a grim mouth dripping venom.
     Painted final colours (untinted)."""
     _frog_base(body)
-    hide, hide_hi, under = C("173a26"), C("3f8a4a"), C("a8d84a")
-    neon, neon_hi = C("8cff2a"), C("eaff8a")
+    hide, hide_hi, under = D("173a26"), D("3f8a4a"), D("a8d84a")
+    neon, neon_hi = D("8cff2a"), D("eaff8a")
 
     def paint(name, co, n, info):
         if name == "Frog_Secondary" and _frog_is_belly(co):
-            return L.mix(C("6a9a2a"), under, L.smooth(1.0, 1.9, co.z))
+            return L.mix(D("6a9a2a"), under, L.smooth(1.0, 1.9, co.z))
         c = L.mix(hide, hide_hi, L.smooth(0.3, 2.4, co.z) * 0.5 + max(0.0, -n.y) * 0.35)
-        return L.mix(c, C("4a7a3a"), max(0.0, -n.z) * 0.4)
+        return L.mix(c, D("4a7a3a"), max(0.0, -n.z) * 0.4)
 
     K.paint_body(body, paint, lambda *a: "keep")
     surf, parts = start(body)
     parts.mode = "keep"
     for sx in (-1.0, 1.0):
-        K.fierce_eye(parts, V((0.31 * sx, -0.43, 2.46)), 0.205, V((0.3 * sx, -1.0, 0.1)).normalized(), C("ffb02a"),
-                     C("ff1a1a"), {"Head": 1.0}, lid=C("1f4a2a"), slant=0.4, side=sx, slit=True, pupil_w=0.5,
-                     iris=0.8, sclera=C("ffd23a"), glow=True, lid_drop=1.7)
-    _frog_toes(parts, arm, body, lambda u: L.mix(C("1a3a1a"), C("4a8a2a"), L.smooth(-0.5, 0.8, u.z)),
-               lambda u: L.mix(C("1a3a1a"), C("4a8a2a"), L.smooth(-0.5, 0.8, u.z)))
+        K.fierce_eye(parts, V((0.31 * sx, -0.43, 2.46)), 0.205, V((0.3 * sx, -1.0, 0.1)).normalized(), D("ffb02a"),
+                     D("ff1a1a"), {"Head": 1.0}, lid=D("1f4a2a"), slant=0.4, side=sx, slit=True, pupil_w=0.5,
+                     iris=0.8, sclera=D("ffd23a"), glow=True, lid_drop=1.7)
+    _frog_toes(parts, arm, body, lambda u: L.mix(D("1a3a1a"), D("4a8a2a"), L.smooth(-0.5, 0.8, u.z)),
+               lambda u: L.mix(D("1a3a1a"), D("4a8a2a"), L.smooth(-0.5, 0.8, u.z)))
     p, n = M.front_hit(surf, 0.0, 2.2)
     grim = [(x / 10.0 * 0.26, -0.07 * (x / 10.0) ** 2 + 0.02) for x in range(-10, 11)]
-    parts.stroke(p, n, grim, 0.045, C("050805"), lift=0.012, taper=False)
+    parts.stroke(p, n, grim, 0.045, D("050805"), lift=0.012, taper=False)
     with parts.use("glow"):
         q, qn = M.front_hit(surf, 0.2, 2.13)
         parts.ellipsoid(q + qn * 0.02, (0.03, 0.03, 0.055), color=neon, weights={"Head": 1.0}, seg=8, rings=6)
@@ -646,11 +655,11 @@ def sand_wolf(arm, body):
     L.clean(body)
     L.subdivide(body, 1)
     L.decimate_to(body, 3200)
-    saddle, side, cream = C("aaa298"), C("d8d2c6"), C("f8f2e8")
+    saddle, side, cream = D("847c72"), D("cec6b8"), D("f8f2e8")
 
     def paint(name, co, n, info):
         if name == "Eye_Black":
-            return C("1a1416")
+            return D("1a1416")
         if name == "Dog_Secondary":
             return L.mix(cream, WHITE, L.smooth(0.3, 0.9, co.z) * 0.5)
         c = L.mix(side, saddle, L.smooth(0.0, 0.8, n.z * 0.6 + n.y * 0.6))
@@ -660,26 +669,26 @@ def sand_wolf(arm, body):
     surf, parts = start(body)
     for sx in (-1.0, 1.0):
         K.fierce_eye(parts, V((0.52 * sx, -0.72, 0.78)), 0.19, V((0.4 * sx, -1.0, 0.05)).normalized(),
-                     C("ffe066"), C("f0a020"), {"Head": 1.0}, lid=C("b8b0a4"), slant=0.4, side=sx, slit=False,
-                     iris=0.72, lid_drop=1.35)
+                     D("ffe066"), D("f0a020"), {"Head": 1.0}, lid=D("b8b0a4"), slant=0.4, side=sx, slit=False,
+                     iris=0.92, lid_drop=1.75)
         p, n = M.front_hit(surf, 0.5 * sx, 1.05)
-        parts.stroke(p, n, [(0.22 * sx, 0.08), (0.06 * sx, 0.0), (-0.1 * sx, -0.07)], 0.08, C("4a403a"), lift=0.02)
+        parts.stroke(p, n, [(0.22 * sx, 0.08), (0.06 * sx, 0.0), (-0.1 * sx, -0.07)], 0.08, D("4a403a"), lift=0.02)
         # Upright pointed ears with dark tips and a pale inner ear.
         p, n = M.dir_hit(surf, V((0, 0, 0.9)), V((0.52 * sx, -0.2, 0.6)))
         parts.blob(p - n * 0.08, (0.24, 0.1), V((0.45 * sx, -0.15, 1.0)).normalized(), 0.62, None,
                    weights={"Head": 1.0}, seg=10, rings=7, tip=0.08, up=V((0, -1, 0)),
-                   color_fn=lambda t: L.mix(saddle, C("3a3430"), L.smooth(0.55, 0.95, t)))
+                   color_fn=lambda t: L.mix(saddle, D("3a3430"), L.smooth(0.55, 0.95, t)))
         with parts.use("keep"):
             parts.blob(p - n * 0.02 + V((0, -0.06, 0.02)), (0.13, 0.05), V((0.45 * sx, -0.3, 1.0)).normalized(),
                        0.42, None, weights={"Head": 1.0}, seg=8, rings=5, tip=0.1, up=V((0, -1, 0)),
-                       color_fn=lambda t: L.mix(C("b8948a"), C("e0bcb0"), t))
+                       color_fn=lambda t: L.mix(D("b8948a"), D("e0bcb0"), t))
         fur_tufts(parts, surf, V((0, -0.2, 0.6)), [V((sx, -0.35, -0.3)), V((sx, 0.1, -0.1))], 0.3, side, cream,
                   weights={"Head": 1.0}, seed=5 + int(sx))
         p, n = M.front_hit(surf, 0.12 * sx, 0.3)
         if p is not None:
             K.fang(parts, p - n * 0.02, V((0, -0.25, -1)), 0.14, 0.04, {"Head": 1.0})
     p, n = M.front_hit(surf, 0.0, 0.33)
-    parts.stroke(p, n, [(x / 8.0 * 0.22, -0.04 * (1 - (x / 8.0) ** 2)) for x in range(-8, 9)], 0.035, C("2a1a1a"),
+    parts.stroke(p, n, [(x / 8.0 * 0.22, -0.04 * (1 - (x / 8.0) ** 2)) for x in range(-8, 9)], 0.035, D("2a1a1a"),
                  lift=0.016)
     p, n = M.dir_hit(surf, V((0, 0, 0.5)), V((0, 1, 0.2)))
     if p is not None:
@@ -698,28 +707,28 @@ def peck_birb(arm, body):
     L.clean(body)
     L.subdivide(body, 1)
     L.decimate_to(body, 4200)
-    back, breast, spike_dk = C("cbbfae"), C("fff8ec"), C("6a5a4a")
+    back, breast, spike_dk = D("cbbfae"), D("fff8ec"), D("6a5a4a")
 
     def paint(name, co, n, info):
         if name == "Birb_Beak":
-            return L.mix(C("c86418"), C("ffc04a"), L.smooth(-0.2, 0.8, n.z) * 0.7 + L.smooth(0.0, 0.6, co.z) * 0.3)
+            return L.mix(D("c86418"), D("ffc04a"), L.smooth(-0.2, 0.8, n.z) * 0.7 + L.smooth(0.0, 0.6, co.z) * 0.3)
         if name == "Birb_Secondary":
-            return L.mix(spike_dk, C("efe6d8"), L.smooth(0.08, -0.02, info["bump"]))
+            return L.mix(spike_dk, D("efe6d8"), L.smooth(0.08, -0.02, info["bump"]))
         c = L.mix(breast, back, L.smooth(-0.6, 0.6, n.y * 0.8 + n.z * 0.4))
-        return L.mix(c, C("a89880"), L.smooth(0.05, 0.15, info["bump"]) * 0.6)
+        return L.mix(c, D("a89880"), L.smooth(0.05, 0.15, info["bump"]) * 0.6)
 
     K.paint_body(body, paint, lambda name, c, n, bone: "keep" if name == "Birb_Beak" else "skin")
     surf, parts = start(body)
     for sx in (-1.0, 1.0):
-        K.fierce_eye(parts, V((0.55 * sx, -0.95, 1.0)), 0.25, V((0.5 * sx, -1.0, 0.0)).normalized(), C("fff060"),
-                     C("ff7a1a"), {"Head": 1.0}, lid=C("e4dacb"), slant=0.45, side=sx, slit=False, iris=0.66,
-                     lid_drop=1.65)
+        K.fierce_eye(parts, V((0.55 * sx, -0.95, 1.0)), 0.25, V((0.5 * sx, -1.0, 0.0)).normalized(), D("fff060"),
+                     D("ff7a1a"), {"Head": 1.0}, lid=D("e4dacb"), slant=0.45, side=sx, slit=False, iris=0.92,
+                     lid_drop=1.85)
         p, n = M.front_hit(surf, 0.55 * sx, 1.36)
-        parts.stroke(p, n, [(0.3 * sx, 0.12), (0.08 * sx, 0.02), (-0.16 * sx, -0.1)], 0.11, C("3a2a20"), lift=0.02)
+        parts.stroke(p, n, [(0.3 * sx, 0.12), (0.08 * sx, 0.02), (-0.16 * sx, -0.1)], 0.11, D("3a2a20"), lift=0.02)
     scallops(parts, surf, V((0, -0.4, 1.0)), [V((x, -0.6, z)) for x in (-0.6, -0.2, 0.2, 0.6) for z in (-0.6, -0.3)],
-             0.12, C("bfae96"))
+             0.12, D("bfae96"))
     scallops(parts, surf, V((0, -0.4, 1.0)), [V((x, 1.0, z)) for x in (-0.5, 0.0, 0.5) for z in (-0.2, 0.3, 0.8)],
-             0.14, C("9a8a74"))
+             0.14, D("9a8a74"))
     finish(body, parts)
 
 
@@ -761,6 +770,309 @@ def snow_pigeon(arm, body):
     finish(body, parts)
 
 
+# ================================================================ atlas helpers
+
+def tex_is(info, hexcol, tol=0.08):
+    t = info.get("tex")
+    return t is not None and (t - C(hexcol)).length < tol
+
+
+def atlas_eyes(body, min_n=150):
+    """Drops the atlas eyeballs (grey lid balls of min_n+ vertices) and their pupil bars;
+    returns the eyeball centres and radii."""
+    out = []
+    kill = []
+    for vs, c, size, col in K.island_info(body):
+        if K.is_grey(col, K.ATLAS_LID) and len(vs) >= min_n:
+            out.append((c, max(size) * 0.5))
+            kill.append(vs)
+        elif K.is_grey(col, K.ATLAS_PUPIL, 0.03) and len(vs) < 30 and abs(c.x) > 0.25:
+            kill.append(vs)
+    import bmesh
+    dead = set().union(*kill) if kill else set()
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in dead], context="VERTS")
+    bm.to_mesh(body.data)
+    bm.free()
+    return sorted(out, key=lambda e: e[0].x)
+
+
+# ================================================================ blob/Cat  village cat, summon cat
+
+def tabby_cat(arm, body):
+    """Cute tabby (the village cats, the summon cat): warm ginger fur with soft darker tabby
+    stripes, white muzzle and chest, pink nose and inner ears, green sparkly eyes, whiskers."""
+    eyes = atlas_eyes(body)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3600)
+    ginger, ginger_hi, stripe, cream = C("f4a860"), C("ffd090"), C("c86a34"), C("fff4e6")
+
+    def paint(name, co, n, info):
+        if tex_is(info, "893f5e", 0.12):
+            return C("ffaabb")  # inner ear
+        dark = tex_is(info, "714e23", 0.1)
+        if dark and co.y < -0.68 and co.z < 0.65 and abs(co.x) < 0.3:
+            return C("ff8fa0") if co.z > 0.42 else C("5a3020")  # nose / mouth line
+        c = L.mix(ginger, ginger_hi, max(0.0, n.z) * 0.6)
+        if dark:
+            c = stripe
+        muzzle = max(0.0, -n.y) * L.smooth(0.75, 0.3, co.z) + max(0.0, -n.z) * 0.8
+        return L.mix(c, cream, L.smooth(0.25, 0.6, muzzle))
+
+    K.paint_body(body, paint, tex=True)
+    surf, parts = start(body)
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        cute_eye(parts, c + V((0, -0.02, 0.02)), r * 0.92, V((0.45 * sx, -1.0, 0.05)).normalized(), C("0e3a1a"),
+                 C("7ae05a"), {"Head": 1.0}, iris=0.66, pupil=0.3, oval=1.3)
+        p, n = M.front_hit(surf, 0.62 * sx, 0.42)
+        if p is not None:
+            M.cheek(parts, p, n, 0.1, 0.06, C("ff8f9a"))
+            for k in (-1, 0, 1):
+                parts.stroke(p + V((0.05 * sx, 0, 0.04 * k)), n,
+                             [(0.0, 0.0), (0.18 * sx, 0.03 * k), (0.34 * sx, 0.07 * k)], 0.025, C("5a3a2a"), lift=0.02)
+    finish(body, parts)
+
+
+def ghoul_cat(arm, body):
+    """Undead ghoul cat (ghoul_hound only): mangy grey-green fur, a stitched scar over the
+    skull, bare bone ribs, sunken black sockets with glowing sickly pupils, jagged fangs,
+    ragged tufts. Painted final colours (untinted): eerie, not cute."""
+    eyes = atlas_eyes(body)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3600)
+    rot, rot_dk, pale, bone = D("a8b494"), D("707e60"), D("c8d0b0"), D("ece6cc")
+
+    def paint(name, co, n, info):
+        if tex_is(info, "893f5e", 0.12):
+            return D("6a3a4a")  # inner ear, raw
+        dark = tex_is(info, "714e23", 0.1)
+        if dark and co.y < -0.68 and co.z < 0.65 and abs(co.x) < 0.3:
+            return D("2a1a1a")
+        c = L.mix(rot_dk, rot, L.smooth(-0.4, 0.8, n.z) * 0.7 + 0.2)
+        if dark:
+            c = L.mix(rot_dk, D("4a5640"), 0.6)  # old tabby stripes, now rot
+        mott = 0.5 + 0.5 * math.sin(co.x * 9.0 + co.z * 7.0) * math.sin(co.y * 8.0 - co.z * 5.0)
+        c = L.mix(c, D("6a6a48"), L.smooth(0.7, 0.95, mott) * 0.6)
+        return L.mix(c, pale, max(0.0, -n.z) * 0.4)
+
+    K.paint_body(body, paint, lambda *a: "keep", tex=True)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        gaze = V((0.45 * sx, -1.0, 0.0)).normalized()
+        # Sunken socket: a dark ring painted around a small glowing ember of a pupil.
+        p, n = M.dir_hit(surf, c, gaze)
+        if p is None:
+            continue
+        parts.decal(p, n, M.ellipse(r * 0.95, r * 0.75, 18, rot=0.35 * sx), D("140c10"), rings=2)
+        with parts.use("glow"):
+            parts.sphere_cap(c - gaze * r * 0.35, r * 0.62, gaze, (0.42, 0.42), None, {"Head": 1.0}, lift=0.0,
+                             seg=14, rings=3, detail=False,
+                             color_fn=lambda x, y: L.mix(D("faff9a"), D("8aff2a"), L.smooth(0.0, 1.0, math.hypot(x, y))))
+        parts.sphere_cap(c - gaze * r * 0.35, r * 0.62, gaze, (0.08, 0.3), D("0a0a06"), {"Head": 1.0}, lift=0.02,
+                         seg=10, rings=1)
+        # Heavy brow ridge.
+        q, qn = M.front_hit(surf, c.x * 1.0, c.z + r * 1.1)
+        if q is not None:
+            parts.stroke(q, qn, [(0.24 * sx, 0.08), (0.05 * sx, -0.02), (-0.12 * sx, -0.08)], 0.09, D("1a1a14"),
+                         lift=0.02)
+    # Stitched scar over the skull.
+    p, n = M.dir_hit(surf, V((0, 0, 0.9)), V((0.25, -0.6, 1.0)))
+    if p is not None:
+        path = [(-0.35, 0.05), (-0.12, -0.02), (0.1, 0.03), (0.32, -0.04)]
+        parts.stroke(p, n, path, 0.06, D("5a2a2a"), lift=0.014, taper=False, up=V((0, 1, 0)))
+        for k in range(5):
+            x = -0.3 + 0.15 * k
+            parts.stroke(p, n, [(x, -0.08), (x + 0.02, 0.08)], 0.025, D("1a1410"), lift=0.022, taper=False,
+                         up=V((0, 1, 0)))
+    # Bare ribs on both flanks.
+    for sx in (-1.0, 1.0):
+        for k in range(3):
+            q, qn = M.dir_hit(surf, V((0, 0.1, 0.7)), V((sx, 0.4 + 0.25 * k, -0.15 * k)))
+            if q is not None:
+                parts.stroke(q, qn, [(-0.14, 0.12), (0.0, 0.0), (0.14, -0.12)], 0.05, bone, lift=0.014,
+                             up=V((0, 0, 1)))
+    # Jagged fangs.
+    for x, ln in ((-0.2, 0.2), (-0.08, 0.13), (0.07, 0.15), (0.19, 0.22)):
+        q, qn = M.front_hit(surf, x, 0.32)
+        if q is not None:
+            K.fang(parts, q - qn * 0.02, V((x * 0.5, -0.3, -1.0)), ln, 0.045, {"Head": 1.0}, color=D("e8e0b0"))
+    # Ragged tufts down the spine.
+    fur_tufts(parts, surf, V((0, 0, 0.8)), [V((0, 0.2 * k, 1.0 - 0.3 * k)).normalized() for k in range(1, 5)], 0.26,
+              rot_dk, D("9aa888"), weights=None, count=3, seed=13, spread=0.7)
+    finish(body, parts)
+
+
+# ================================================================ blob/Fish  mud_fish
+
+def mud_fish(arm, body):
+    """Toxic mud fish (mud_fish only): murky olive-brown scales, sickly yellow-green belly,
+    glowing toxic spots, catfish barbels, slit yellow eyes, the toothy maw kept and yellowed.
+    Painted final colours (untinted)."""
+    eyes = atlas_eyes(body)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5000)
+    mud, mud_dk, belly, toxic = D("8c8a48"), D("5e5c30"), D("c8d468"), D("9cff3a")
+
+    def paint(name, co, n, info):
+        if tex_is(info, "8d909e", 0.08):
+            return L.mix(D("c8b878"), D("f0e8c0"), L.smooth(0.0, 0.08, info["bump"]))  # teeth
+        if tex_is(info, "5b374b", 0.1):
+            return D("2a1418")  # maw
+        if tex_is(info, "ca8f2d", 0.12):
+            return L.mix(D("7a7a30"), D("d8d050"), L.smooth(-0.02, 0.1, info["bump"]))  # side fins
+        if tex_is(info, "00adaf", 0.15):
+            return L.mix(D("4a4a24"), D("a8b040"), L.smooth(-0.02, 0.12, info["bump"]))  # dorsal fins
+        c = L.mix(mud_dk, mud, L.smooth(-0.3, 0.8, n.z * 0.5 + n.y * 0.4) * 0.5 + 0.3)
+        sc = 0.5 + 0.5 * math.sin(co.z * 14.0 + abs(co.x) * 6.0) * math.sin(co.y * 12.0)
+        c = L.mix(c, mud_dk, L.smooth(0.75, 0.95, sc) * 0.5)
+        return L.mix(c, belly, L.smooth(0.1, 0.7, -n.z) * 0.8)
+
+    K.paint_body(body, paint, lambda *a: "keep", tex=True)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.9, V((0.55 * sx, -1.0, 0.1)).normalized(), D("fff04a"), D("d8a010"),
+                     {"Head": 1.0}, lid=D("4a4a24"), slant=0.5, side=sx, slit=True, pupil_w=0.1, iris=0.8,
+                     sclera=D("d8d890"), lid_drop=1.5)
+    # Barbels (whiskers) from the corners of the maw.
+    for sx in (-1.0, 1.0):
+        p, n = M.front_hit(surf, 0.42 * sx, 0.45)
+        if p is not None:
+            parts.blob(p, 0.035, V((0.8 * sx, -0.6, -0.3)).normalized(), 0.7, None, weights={"Head": 1.0}, seg=6,
+                       rings=6, tip=0.25, bend=V((0.1 * sx, 0, -0.3)),
+                       color_fn=lambda t: L.mix(D("4a4a24"), D("a8b048"), t))
+    with parts.use("glow"):
+        placed = []
+        for d in M.fibonacci(60):
+            if d.y < -0.3 or len(placed) >= 10:
+                continue
+            p, n = M.dir_hit(surf, V((0, -0.1, 1.1)), d)
+            if p is None or n.z < -0.3 or any((p - q).length < 0.35 for q in placed):
+                continue
+            placed.append(p)
+            parts.decal(p, n, M.ellipse(0.06, 0.06, 10), toxic, rings=1)
+    finish(body, parts)
+
+
+# ================================================================ blob/Pigeon  volt_pigeon
+
+def volt_pigeon(arm, body):
+    """Thunder bird (volt_pigeon only): electric-blue plumage fading to a pale belly, a
+    crest and wing tips that flash yellow, glowing lightning zigzags on both sides, a
+    bright beak, determined glowing eyes. Painted final colours (untinted)."""
+    eyes = atlas_eyes(body)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4200)
+    blue, blue_dk, belly, volt = D("4a9aff"), D("2a4ad0"), D("d0ecff"), D("fff04a")
+
+    def paint(name, co, n, info):
+        if tex_is(info, "ca8f2d", 0.12):
+            return L.mix(D("ff9a1a"), D("ffe04a"), L.smooth(0.4, 0.8, co.z))  # beak
+        if tex_is(info, "232426", 0.05):
+            return D("2a1a0a")
+        if tex_is(info, "8d909e", 0.06):
+            return D("1a2a8a")  # brow over the beak
+        if abs(co.x) > 0.75:  # wing feathers
+            return L.mix(blue_dk, volt, L.smooth(0.95, 1.18, abs(co.x)))
+        c = L.mix(blue_dk, blue, L.smooth(-0.6, 0.7, n.z * 0.7 - n.y * 0.4) * 0.8 + 0.2)
+        return L.mix(c, belly, L.smooth(0.2, 0.8, -n.z) * 0.8)
+
+    K.paint_body(body, paint, lambda *a: "keep", tex=True)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c + V((0, -0.03, 0)), r * 0.85, V((0.5 * sx, -1.0, 0.05)).normalized(), D("ffec5a"),
+                     D("ff9a1a"), {"Head": 1.0}, lid=D("2a3aaa"), slant=0.4, side=sx, slit=False, iris=0.92,
+                     glow=True, lid_drop=1.8)
+    with parts.use("glow"):
+        for sx in (-1.0, 1.0):
+            p, n = M.dir_hit(surf, V((0, -0.1, 0.8)), V((sx, 0.2, -0.1)))
+            if p is not None:
+                K.zigzag(parts, p, n, 0.55, volt, mode="glow", turn=0.25 * sx)
+    # Crest of spiky feathers, yellow-tipped.
+    for k in range(-2, 3):
+        p, n = M.dir_hit(surf, V((0, -0.1, 0.9)), V((0.15 * k, 0.1, 1.0)))
+        if p is not None:
+            parts.blob(p - n * 0.05, (0.09, 0.05), V((0.35 * k, 0.4, 1.0)).normalized(), 0.45 - 0.05 * abs(k), None,
+                       weights={"Head": 1.0}, seg=8, rings=5, tip=0.1, up=V((0, 1, 0)),
+                       color_fn=lambda t: L.mix(blue, volt, L.smooth(0.5, 0.9, t)))
+    finish(body, parts)
+
+
+# ================================================================ cute/Deer  sky_hound
+
+def cloud_deer(arm, body):
+    """Cloud deer (sky_hound only): sky-white fur with a pale blue blush of dusk, cloud puffs
+    around the neck and ears, pale gold antlers, a soft pink nose, big starry eyes and a
+    small closed smile instead of the gaping mouth."""
+    def junk(c, size, col, n):
+        if n in (51, 37) and abs(c.x) > 0.35:
+            return True  # eyes and lower lids
+        if c.y < -0.45 and 0.35 < c.z < 0.8 and abs(c.x) < 0.3 and n <= 18:
+            return True  # teeth, mouth
+        return False
+    K.delete_islands(body, junk)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4200)
+    fur, fur_lo, sky = C("fbfcff"), C("dfe8f8"), C("a8c8f0")
+
+    def paint(name, co, n, info):
+        t = info.get("tex") or V((0.3, 0.3, 0.3))
+        if tex_is(info, "686247", 0.07) and co.z > 1.2:
+            return L.mix(C("e8c87a"), C("fff2c8"), L.smooth(1.3, 1.85, co.z))  # antlers
+        if abs(co.x) > 0.4 and co.z > 1.1 and co.y > -0.1:
+            return L.mix(C("ffc8d8"), fur, L.smooth(-0.2, 0.5, n.y))  # ears
+        if tex_is(info, "212121", 0.05) and co.y < -0.5:
+            return C("ffb8c4")  # nose
+        c = L.mix(fur_lo, fur, L.smooth(0.2, 1.2, co.z))
+        return L.mix(c, sky, max(0.0, n.y) * 0.35 + max(0.0, -n.z) * 0.3)
+
+    K.paint_body(body, paint, tex=True)
+    surf, parts = start(body)
+    for sx in (-1.0, 1.0):
+        cute_eye(parts, V((0.46 * sx, -0.44, 0.92)), 0.2, V((0.5 * sx, -1.0, 0.0)).normalized(), C("1a2a6a"),
+                 C("8ac8ff"), {"Head": 1.0}, iris=0.68, pupil=0.34, oval=1.25)
+        p, n = M.front_hit(surf, 0.5 * sx, 0.62)
+        if p is not None:
+            M.cheek(parts, p, n, 0.09, 0.055, C("ffb0c8"))
+    # A soft muzzle over the old gaping mouth, with a small closed smile.
+    parts.ellipsoid(V((0, -0.56, 0.6)), (0.3, 0.16, 0.22), color=None, weights={"Head": 1.0}, seg=14, rings=9,
+                    color_fn=lambda u: L.mix(C("e8eefa"), WHITE, L.smooth(-0.8, 0.5, u.z)))
+    for sx in (-1.0, 1.0):
+        parts.blob(V((0, -0.715, 0.6)), (0.018, 0.012), V((sx, 0.15, 0.0)).normalized(), 0.11, C("6a4a5a"),
+                   weights={"Head": 1.0}, seg=6, rings=4, tip=0.6, bend=V((0, 0.02, 0.035)))
+    # Cloud puffs: a fluffy collar and tufts by the ears.
+    rng = random.Random(21)
+    for i in range(10):
+        a = 2.0 * math.pi * i / 10
+        p, n = M.dir_hit(surf, V((0, 0, 0.35)), V((math.cos(a), math.sin(a), -0.35)))
+        if p is None:
+            continue
+        s = rng.uniform(0.13, 0.18)
+        parts.ellipsoid(p + n * 0.06, (s, s, s * 0.85), color=None, weights=p, seg=10, rings=7,
+                        color_fn=lambda u: L.mix(C("cfe0f8"), WHITE, L.smooth(-0.7, 0.6, u.z)))
+    for sx in (-1.0, 1.0):
+        p, n = M.dir_hit(surf, V((0, 0, 1.0)), V((sx, 0.1, 0.55)))
+        if p is not None:
+            for k in range(3):
+                parts.ellipsoid(p + n * 0.04 + V((0.06 * k * sx, 0.05 * k, 0.04 * k)), (0.1, 0.1, 0.09),
+                                color=None, weights={"Head": 1.0}, seg=8, rings=6,
+                                color_fn=lambda u: L.mix(C("d8e6fa"), WHITE, L.smooth(-0.7, 0.6, u.z)))
+    finish(body, parts)
+
+
 # ================================================================ registry / runner
 
 RECIPES = {
@@ -775,8 +1087,13 @@ RECIPES = {
     "blob/Dog": sand_wolf,
     "blob/Birb": peck_birb,
     "flying/Pigeon": snow_pigeon,
+    "blob/Cat": tabby_cat,
+    "blob/CatGhoul": ghoul_cat,
+    "blob/Fish": mud_fish,
+    "blob/Pigeon": volt_pigeon,
+    "cute/Deer": cloud_deer,
 }
-SOURCE = {"big/FrogToxic": "big/Frog", "big/FrogKing": "big/Frog"}
+SOURCE = {"big/FrogToxic": "big/Frog", "big/FrogKing": "big/Frog", "blob/CatGhoul": "blob/Cat"}
 
 
 def build(name):

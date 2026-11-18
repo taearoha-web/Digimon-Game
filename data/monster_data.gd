@@ -51,7 +51,7 @@ const MONSTERS := {
 	&"bone_knight": {"name": "อัศวินกระดูก", "model": "big/Tribal", "height": 2.3, "hp": 2.0, "atk": 1.7, "def": 1.6, "speed": 2.6, "aggro": true, "attack": "melee", "tint": Color(1.3, 1.3, 1.2), "behavior": "cleave"},
 	&"grave_ghost": {"name": "วิญญาณสุสาน", "model": "flying/Ghost_Skull", "height": 1.7, "hp": 1.6, "atk": 1.9, "def": 1.1, "speed": 2.8, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("8aa0ff"), "tint": Color(0.9, 1.0, 1.4), "behavior": "mortar"},
 	&"blood_bat": {"name": "ค้างคาวเลือด", "model": "flying/Goleling", "height": 1.5, "hp": 1.4, "atk": 1.9, "def": 1.1, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.3, "color": Color("ff4a5a"), "tint": Color(1.6, 0.5, 0.5), "behavior": "volley"},
-	&"ghoul_hound": {"name": "แมวผีดิบ", "model": "blob/Cat", "height": 1.6, "hp": 1.7, "atk": 1.8, "def": 1.3, "speed": 3.9, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.2, 0.8), "behavior": "lunge"},
+	&"ghoul_hound": {"name": "แมวผีดิบ", "model": "remaster/blob/CatGhoul", "height": 1.6, "hp": 1.7, "atk": 1.8, "def": 1.3, "speed": 3.9, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.2, 0.8), "behavior": "lunge"},
 	&"grave_witch": {"name": "แม่มดสุสาน", "model": "flying/Squidle", "height": 1.8, "hp": 1.5, "atk": 2.1, "def": 1.2, "speed": 2.4, "aggro": true, "attack": "ranged", "color": Color("b06aff"), "tint": Color(0.9, 0.6, 1.4), "hover": 1.0, "behavior": "beam"},
 	&"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "model": "big/Orc_Skull", "height": 4.4, "hp": 16.0, "atk": 2.6, "def": 2.2, "speed": 2.6, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.7, 0.7), "behavior": "bone_spikes", "behavior2": "bone_rain"},
 	# Poison swamp

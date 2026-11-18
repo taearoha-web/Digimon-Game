@@ -211,11 +211,15 @@ def fierce_eye(parts, center, radius, gaze, iris_top, iris_bottom, weights, lid,
                              seg=14, rings=1)
         parts.sphere_cap(center, radius, gaze, (iris * 0.16, iris * 0.16), WHITE, weights, lift=0.036, up=up,
                          offset=(-iris * 0.35 * side, iris * 0.35), seg=10, rings=1)
-    # Slanted lid: a cap tilted so the inner corner sits lower (angry).
-    tilt = Vector((0, 0, 1)).lerp(Vector((-side, 0, 0)), slant).normalized()
-    t_, b_, n_ = L.frame(gaze, up)
-    lid_axis = (gaze + up * lid_drop).normalized()
-    parts.sphere_cap(center, radius * 1.06, lid_axis, (1.25, 0.95), lid, weights, lift=0.0, up=tilt, seg=22,
+    # Slanted lid: a cap whose centre leans towards the nose, so its edge runs diagonally
+    # down to the inner corner (a glare), over a darker rim that reads as the lash line.
+    inner = Vector((-side, 0.0, 0.0))
+    lean = (up + inner * slant * 2.6).normalized()
+    lid_axis = (gaze + lean * lid_drop).normalized()
+    rim = L.mix(lid, L.srgb("1a1010"), 0.75)
+    parts.sphere_cap(center, radius * 1.05, lid_axis, (1.34, 1.04), rim, weights, lift=0.0, up=up, seg=22,
+                     rings=3, detail=False, offset=(0.0, -0.12))
+    parts.sphere_cap(center, radius * 1.075, lid_axis, (1.25, 0.95), lid, weights, lift=0.0, up=up, seg=22,
                      rings=4, detail=False, offset=(0.0, -0.12))
 
 
