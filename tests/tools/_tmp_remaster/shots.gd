@@ -1,6 +1,6 @@
 extends Node3D
 ## Temp: per-monster shots in the meadow's light. args: outdir [orig]
-const IDS := [&"pink_slime", &"green_slime", &"wild_chicken", &"yellow_frog", &"mush_baby", &"cactus_hat", &"mush_king", &"toad_king", &"toxic_frog", &"lotus_frog", &"giant_cactus"]
+const IDS := [&"pink_slime", &"green_slime", &"wild_chicken", &"yellow_frog", &"mush_baby", &"cactus_hat", &"mush_king"]
 
 
 func _ready() -> void:
