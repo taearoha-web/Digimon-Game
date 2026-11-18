@@ -500,12 +500,79 @@ def forest_orc(arm, body):
     K.bake_ao(body)
 
 
+# ---------------------------------------------------------------- big/Orc_Skull
+
+def skull_orc(arm, body):
+    """skull_orc and bone_lord (blood-red boss): an orc under a real bone skull helm.
+    Aged ivory skull with cracks (untinted), pitch-black sockets with ember eyes burning
+    deep inside, curling bone horns from its temples, a blood-red mohawk, grey-green hide
+    with dark war stripes (tinted towards dried blood for the bone lord), iron spikes."""
+    L.clean(body)
+    iron = K.split_where(body, lambda p: body.data.materials[p.material_index].name in ("Metal", "Wood"))
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4300)
+    L.relax(body, 2, 0.35)
+    L.clean(iron, quads=False)
+    L.join(body, iron)
+    bone_hi, bone, bone_lo = C("f6eedc"), C("e0d0b0"), C("a89272")
+
+    def paint(name, co, n, info):
+        if name == "MushroomKing_Main":
+            socket = 0.1 < abs(co.x) < 0.43 and 2.12 < co.z < 2.42 and co.y > -0.6
+            nose = abs(co.x) < 0.09 and 2.0 < co.z < 2.16 and co.y > -0.72
+            if socket or nose:
+                return C("120a0a"), IVORY
+            c = L.mix(bone_lo, bone, L.smooth(1.8, 2.3, co.z))
+            c = L.mix(c, bone_hi, max(0.0, n.z) * 0.5 + max(0.0, -n.y) * 0.2)
+            c = L.mix(c, C("8a7458"), L.smooth(0.6, 0.8, K.fbm(co, 4.0, 2)) * 0.35)  # stains
+            if 1.86 < co.z < 2.02 and co.y < -0.6:  # teeth gaps
+                c = L.mix(c, C("3a2a20"), L.smooth(0.75, 0.95, math.cos(co.x * 52.0)) * 0.8)
+            return c, IVORY
+        if name == "Metal":
+            return L.mix(C("3a3a42"), C("c4c8d0"), L.smooth(0.0, 0.05, info["bump"])), IVORY
+        if name == "Wood":
+            return L.mix(C("3a2618"), C("7a5636"), K.noise(co, 10.0, 1)), IVORY
+        if name == "Orc_Mouth":  # the mohawk
+            return L.mix(C("5a0e18"), C("d8343e"), L.smooth(2.6, 3.2, co.z))
+        if name.startswith("Belt"):
+            return L.mix(C("3e2a1c"), C("7a5636"), K.noise(co, 12.0, 4))
+        c = L.mix(C("6c7a54"), C("a4b07e"), L.smooth(0.4, -0.4, n.y))
+        c = L.mix(c, C("56603e"), L.smooth(0.6, 0.8, K.fbm(co, 2.5, 6)) * 0.4)
+        if name == "Orc_Secondary":
+            c = L.mix(c, C("2e3420"), 0.7)
+        return c
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        c = Vector((0.26 * sx, -0.54, 2.27))
+        with parts.on(IVORY_GLOW):
+            parts.ellipsoid(c, (0.075, 0.05, 0.06), color=None, weights=head, seg=10, rings=6,
+                            color_fn=lambda u: L.mix(C("ff3010"), C("fff0a0"), L.smooth(-0.9, -0.2, u.y)))
+        # curling bone horns from the temples
+        K.horn(parts, Vector((0.46 * sx, -0.3, 2.55)), Vector((0.8 * sx, 0.1, 0.5)).normalized(), 0.55, 0.11, head,
+               C("a89272"), C("fff6e4"), bend=Vector((0.05 * sx, 0.12, 0.35)), rings_col=C("8a7458"), bands=5)
+    # cracks over the skull
+    rng = random.Random(3)
+    for (x, z, a) in ((0.2, 2.62, -1.2), (-0.3, 2.55, -2.0), (0.05, 2.75, -1.5)):
+        p, n = K.front_hit(surf, x, z)
+        if p is not None:
+            with parts.on(DETAIL):
+                parts.stroke(p, n, K.crack_path(rng, 0.22, 4, 0.3, heading=a), 0.025, C("4a3a2a"), lift=0.012,
+                             weights=head)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
     "big/Alien": swamp_beast,
     "big/Dino": sand_raptor,
     "big/Orc": forest_orc,
+    "big/Orc_Skull": skull_orc,
 }
 
 
