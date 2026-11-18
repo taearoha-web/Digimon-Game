@@ -1,0 +1,664 @@
+"""Team critters' per-monster VARIANTS of shared rigs (see recipes_critters.py).
+
+    /opt/bpy5/bin/python tools/blender/recipes_critters_variants.py [big/Fish_abyss_angler ...]
+
+Several monsters used one remastered model and differed by a colour tint only. The first
+monster of each group keeps the shared model (recipes_critters.RECIPES); every other one
+gets its own recipe here, built from the same rig (every clip kept) and written to
+remaster/<dir>/<Name>_<monster_id>.glb; that monster's "model" points at
+"remaster/<dir>/<Name>_<monster_id>". They differ by shape and features, not only paint,
+and are painted in final colours on the untinted ("Keep") materials, so the data's
+"tint" does not change them.
+"""
+import math
+import os
+import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import remaster_lib as L  # noqa: E402
+import kit_critters as K  # noqa: E402
+import remaster_monsters as M  # noqa: E402
+import recipes_critters as R  # noqa: E402
+from mathutils import Vector  # noqa: E402
+
+V = Vector
+C = L.srgb
+D = R.D
+WHITE = C("ffffff")
+start, finish = R.start, R.finish
+
+
+def all_keep(*_a):
+    return "keep"
+
+
+def glow_spot(parts, p, n, r, c0, c1, weights=None):
+    """A small raised glowing photophore / gem."""
+    with parts.use("glow"):
+        parts.ellipsoid(p + n * 0.004, (r, r, r * 0.55), M.basis(n), color=None, weights=weights or p, seg=8, rings=5,
+                        color_fn=lambda u: L.mix(c0, c1, L.smooth(-0.2, 1.0, u.z)))
+
+
+# ================================================================ big/Fish  abyss_angler
+
+def abyss_angler(arm, body):
+    """Deep-sea angler (abyss_angler): an inky navy hide with rows of glowing photophores,
+    a huge underslung jaw bristling with needle fangs, small milky glowing eyes, ragged
+    dark fins rimmed in cyan, and the glowing lure on a stalk curling over its face."""
+    R.drop_islands(body, lambda c, size, mat: (mat == "Eye_White" and c.z > 2.3) or mat == "Eye_Black")
+    L.clean(body)
+    L.decimate_to(body, 3900)
+    L.relax(body, 2, 0.3, ("Fish_Main",))
+    # A big jutting jaw: the face below the eyes widened and pushed forward, the chin dropped.
+    K.scale_region(body, lambda c: 1.55 < c.z < 2.35 and c.y < -0.1, V((0, -0.2, 2.02)), (1.22, 1.3, 1.18),
+                   lambda c: L.smooth(-0.1, -0.45, c.y) * L.smooth(1.55, 1.8, c.z) * L.smooth(2.35, 2.15, c.z))
+    K.move_region(body, lambda c: 1.55 < c.z < 2.02 and c.y < -0.3,
+                  lambda c: V((0, -0.1, -0.07)) * L.smooth(-0.3, -0.7, c.y) * L.smooth(1.55, 1.8, c.z))
+    body.data.update()
+    mouth = K.mat_islands(body, "Mouth")
+    mc, mr = mouth[0] if mouth else (V((0, -0.8, 2.0)), 0.4)
+    back, side, belly = D("141c38"), D("2c4468"), D("7a7c9c")
+    cyan, cyan_hi = D("39e6ff"), D("d8fffa")
+
+    def paint(name, co, n, info):
+        if name == "Eye_White":
+            return D("dff0ea")  # needle teeth
+        if name == "Mouth":
+            return D("12060e")
+        if name == "Fish_Flaps":
+            return L.mix(D("1a2240"), D("3ab0c8"), L.smooth(0.0, 0.07, info["bump"]))
+        if name == "Fish_Secondary" and co.y > 0.2:
+            return L.mix(D("101630"), D("2a8aa0"), L.smooth(0.0, 0.08, info["bump"]))  # dorsal fins
+        if name == "Fish_Secondary":
+            return L.mix(belly, D("9a9ab8"), L.smooth(1.0, 2.0, co.z))
+        c = L.mix(side, back, L.smooth(-0.3, 0.6, n.y * 0.7 + n.z * 0.3))
+        sc = 0.5 + 0.5 * math.sin(co.z * 11.0 + abs(co.x) * 5.0) * math.sin(co.y * 10.0 + co.x * 3.0)
+        c = L.mix(c, D("0a0e20"), L.smooth(0.8, 0.97, sc) * 0.4)
+        return L.mix(c, belly, max(0.0, -n.y) * L.smooth(2.2, 1.2, co.z) * 0.45)
+
+    K.paint_body(body, paint, all_keep)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.3 * sx, -0.42, 2.47)), 0.13, V((0.45 * sx, -1.0, 0.1)).normalized(), D("f4fff8"),
+                     D("6ae8d8"), {"Head": 1.0}, lid=D("1a2444"), slant=0.3, side=sx, slit=False, iris=0.95,
+                     glow=True, sclera=D("0a1020"), lid_drop=1.6)
+    # Needle fangs round the lower jaw, pointing up and out.
+    w = {"Head": 1.0}
+    for k in range(9):
+        a = math.pi * (0.12 + 0.76 * k / 8.0)
+        x = math.cos(a) * mr * 1.1
+        p, n = surf.toward(V((x, -4.0, mc.z - 0.02)), V((x * 0.6, mc.y, mc.z - 0.02)))
+        if p is None:
+            continue
+        ln = 0.2 + 0.08 * math.sin(a) ** 4
+        K.fang(parts, p - n * 0.02, (n * 0.35 + V((0, 0, 1))).normalized(), ln, 0.035, w, color=D("eef8f4"))
+    # Lure: a stalk rising from the brow and curling forward over the face, a glowing bulb.
+    root, rn = M.dir_hit(surf, V((0, -0.1, 3.0)), V((0, -0.45, 1)))
+    if root is not None:
+        axis = V((0, -0.35, 1)).normalized()
+        ln = 0.95
+        bend = V((0, -0.85, -0.25))
+        parts.blob(root - rn * 0.03, (0.06, 0.05), axis, ln, None, weights=w, seg=8, rings=9, tip=0.55, bend=bend,
+                   color_fn=lambda t: L.mix(D("1a2444"), D("3a5a7a"), t))
+        tip = root + axis * ln + bend
+        with parts.use("glow"):
+            parts.ellipsoid(tip + V((0, 0, -0.1)), (0.17, 0.17, 0.2), color=None, weights=w, seg=14, rings=9,
+                            color_fn=lambda u: L.mix(C("12d8ff"), C("eaffa0"), L.smooth(-0.4, 0.9, -u.y * 0.6 + u.z * 0.4)))
+        parts.ellipsoid(tip + V((0, 0.02, 0.05)), (0.09, 0.09, 0.07), color=D("1a2444"), weights=w, seg=10, rings=5)
+        with parts.use("glow"):
+            for k in range(3):
+                a = math.pi * (0.25 + 0.25 * k)
+                d = V((math.cos(a) * 0.6, -0.2, -1.0)).normalized()
+                parts.blob(tip + V((0, 0, -0.26)), 0.025, d, 0.16, cyan_hi, weights=w, seg=6, rings=4, tip=0.4)
+    # Ragged dark spines along the dorsal ridge (instead of the ice fish's crystals).
+    for k, (y, z, ln) in enumerate(((0.4, 3.25, 0.34), (0.7, 2.85, 0.42), (0.85, 2.4, 0.38), (0.9, 1.95, 0.32))):
+        p, n = M.dir_hit(surf, V((0, 0.0, z - 0.2)), V((0, y + 0.3, 0.8)))
+        if p is None:
+            continue
+        d = (n + V((0, 0.4, 0.2))).normalized()
+        parts.blob(p - n * 0.05, (0.06, 0.035), d, ln, None, weights=p, seg=6, rings=4, tip=0.05,
+                   color_fn=lambda t: L.mix(D("101630"), D("2a7a90"), t))
+    # Photophores: a row along each flank, a few on the arms, two on the cheeks.
+    for sx in (-1.0, 1.0):
+        for k in range(6):
+            z = 0.75 + 0.22 * k
+            p, n = M.dir_hit(surf, V((0, 0.1, z)), V((sx, -0.45, 0.0)))
+            if p is not None:
+                glow_spot(parts, p, n, 0.045 if k % 2 else 0.035, cyan, cyan_hi)
+        for k in range(4):
+            x = 0.6 + 0.3 * k
+            p, n = M.dir_hit(surf, V((x * sx, 0.17, 1.82)), V((0, -0.4, 1.0)))
+            if p is not None:
+                glow_spot(parts, p, n, 0.035, cyan, cyan_hi)
+        p, n = M.front_hit(surf, 0.5 * sx, 2.25)
+        if p is not None:
+            glow_spot(parts, p, n, 0.04, cyan, cyan_hi)
+    finish(body, parts)
+
+
+# ================================================================ big/Frog  lotus_frog
+
+def lotus_petal_col(along):
+    return L.mix(C("fff4f6"), C("ff5a9a"), L.smooth(0.25, 1.0, along))
+
+
+def lotus(parts, center, normal, size, weights, outer=8, inner=5, turn=0.0):
+    """A lotus bloom facing along normal: a ring of open petals, an upright inner ring, a
+    golden seed pod."""
+    t_, b_, n_ = L.frame(normal)
+    for ring, (count, lift, sz) in enumerate(((outer, 0.35, 1.0), (inner, 1.4, 0.8))):
+        for i in range(count):
+            a = turn + 2.0 * math.pi * (i + 0.5 * ring) / count
+            d = (t_ * math.cos(a) + b_ * math.sin(a) + n_ * lift).normalized()
+            parts.blob(center, (size * 0.36, size * 0.14), d, size * sz, None, weights=weights, seg=8, rings=5,
+                       tip=0.35, color_fn=lotus_petal_col, up=n_, bend=n_ * size * 0.25)
+    parts.ellipsoid(center + n_ * size * 0.18, (size * 0.3, size * 0.3, size * 0.16), M.basis(n_), color=None,
+                    weights=weights, seg=12, rings=6,
+                    color_fn=lambda u: L.mix(C("d89a1a"), C("ffe680"), L.smooth(-0.2, 0.9, u.z)))
+
+
+def lotus_frog(arm, body):
+    """Divine golden lotus frog (lotus_frog): gleaming gold skin with pearl belly and pink
+    petal markings, a lotus bloom crowning its head, a collar of lotus petals, a lily pad
+    worn on its back like a shawl, serene half-lidded jade eyes and a glowing jewel brow."""
+    R._frog_base(body)
+    L.decimate_to(body, 3600)
+    gold_lo, gold_hi, pearl = D("d89820"), D("fff0a0"), C("fff8ec")
+
+    def paint(name, co, n, info):
+        if name == "Frog_Secondary":
+            return L.mix(C("ffe8d0"), pearl, L.smooth(1.0, 1.8, co.z)) if R._frog_is_belly(co) else C("ff8ab4")
+        c = L.mix(gold_lo, gold_hi, L.smooth(0.4, 2.5, co.z) * 0.6 + max(0.0, n.z) * 0.4)
+        c = L.mix(c, D("c88a28"), max(0.0, n.y) * 0.3)
+        return L.mix(c, D("fff6c8"), max(0.0, -n.z) * 0.4)
+
+    K.paint_body(body, paint, all_keep)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        M.sparkly_eye(parts, V((0.31 * sx, -0.43, 2.46)), 0.205, V((0.35 * sx, -1.0, 0.05)).normalized(),
+                      C("0e4a34"), C("4ae0a0"), w, iris=0.62, pupil=0.3, lid=D("e8b840"))
+        p, n = M.front_hit(surf, 0.38 * sx, 2.2)
+        M.cheek(parts, p, n, 0.07, 0.04, C("ffa0b8"))
+    R._frog_toes(parts, arm, body, lambda u: L.mix(C("ff8ab4"), C("ffe0ec"), L.smooth(-0.5, 0.8, u.z)),
+                 lambda u: L.mix(C("e8a020"), C("ffe680"), L.smooth(-0.5, 0.8, u.z)))
+    p, n = M.front_hit(surf, 0.0, 2.2)
+    smile = [(x / 10.0 * 0.16, -0.035 * (1.0 - (x / 10.0) ** 2)) for x in range(-10, 11)]
+    parts.stroke(p, n, smile, 0.035, C("8a3a20"), lift=0.012)
+    # Jewel on the brow, between the eyes.
+    p, n = M.front_hit(surf, 0.0, 2.5)
+    if p is not None:
+        glow_spot(parts, p, n, 0.06, C("2ae8a0"), C("e0fff0"), weights=w)
+    # Pink petal markings over the back and arms (pairs of petals).
+    for d in [V((0.35, 1.0, 0.3)), V((-0.4, 1.0, -0.2)), V((0.1, 1.0, -0.6)), V((0.6, 0.6, -0.4)),
+              V((-0.75, 0.3, 0.1)), V((0.75, 0.3, 0.1)), V((-0.3, 0.6, 0.9))]:
+        q, qn = M.dir_hit(surf, V((0, 0.1, 1.6)), d)
+        if q is not None:
+            for rot in (0.6, 0.0, -0.6):
+                pts = [(x, y + 0.07) for x, y in M.ellipse(0.028, 0.07, 12)]
+                pts = [(x * math.cos(rot) - y * math.sin(rot), x * math.sin(rot) + y * math.cos(rot)) for x, y in pts]
+                parts.decal(q, qn, [(x, y - 0.04) for x, y in pts], C("ff86b4"), rings=1)
+    # Lotus crown on the head.
+    apex, an = M.dir_hit(surf, V((0, 0.1, 2.3)), V((0, 0.35, 1)))
+    if apex is not None:
+        lotus(parts, apex + V((0, 0, 0.06)), (an + V((0, 0, 1.2))).normalized(), 0.4, w, outer=9, inner=6)
+    # Collar of lotus petals round the neck.
+    neck = V((0, 0.12, 1.98))
+    for i in range(12):
+        a = 2.0 * math.pi * i / 12
+        d = V((math.cos(a), math.sin(a) * 0.9, -0.15))
+        q, qn = M.dir_hit(surf, neck, d)
+        if q is None or (q - neck).length > 0.8:
+            continue
+        parts.blob(q - qn * 0.02, (0.13, 0.05), (qn + V((0, 0, -0.9))).normalized(), 0.3, None,
+                   weights={"Torso": 0.5, "Neck": 0.5}, seg=6, rings=4, tip=0.35, color_fn=lotus_petal_col, up=qn)
+    # A lily pad over the back like a shawl.
+    q, qn = M.dir_hit(surf, V((0, 0.1, 1.55)), V((0, 1, 0.25)))
+    if q is not None:
+        def pad(u):
+            a = math.atan2(u.y, u.x)
+            r = math.hypot(u.x, u.y)
+            vein = L.smooth(0.85, 0.98, abs(math.cos(a * 5.0))) * L.smooth(0.15, 0.4, r)
+            c = L.mix(C("2e8a3a"), C("6ac850"), L.smooth(-0.3, 0.9, u.z) * 0.7 + r * 0.3)
+            return L.mix(c, C("b8f080"), vein * 0.7)
+        parts.ellipsoid(q + qn * 0.06, (0.62, 0.55, 0.05), M.basis(qn), color=None, weights=q, seg=20, rings=8,
+                        color_fn=pad)
+    finish(body, parts)
+
+
+# ================================================================ big/Monkroose  jade_monk
+
+def jade_monk(arm, body):
+    """Jade ape ascetic (jade_monk): an old sage monkey with silver-white fur, a jade robe
+    draped over one shoulder and flaring into a skirt, a long string of prayer beads with a
+    jade bead at the heart, jade bracers, drooping white brows and beard, calm half-closed
+    eyes and a glowing jade mark on the brow."""
+    eyes = R.atlas_eyes(body)
+    L.clean(body)
+    K.thicken(body, arm, {"UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R"}, 1.15)
+    K.thicken(body, arm, {"UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"}, 1.2)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3700)
+    fur, fur_hi, limb, mask, cream = D("d4dcd4"), D("f4f8f2"), D("8a9a90"), D("707c74"), D("fff8ec")
+    jade, jade_dk, gold = D("2fa078"), D("17664c"), D("f0c860")
+
+    def robe(co):
+        """The robe over the torso (fur showing in a V at the chest): 1 robe, None fur."""
+        if co.z < 0.7 or co.z > 1.98 or abs(co.x) > (0.66 if co.z < 1.6 else 0.5):
+            return None
+        if co.y < 0.0 and co.z > 1.55 and abs(co.x) < (co.z - 1.55) * 0.9:
+            return None
+        return 1.0
+
+    def paint(name, co, n, info):
+        orange = R.tex_is(info, "9c632e", 0.1)
+        dark = R.tex_is(info, "635c43", 0.06)
+        head = co.z > 1.95 and abs(co.x) < 0.95
+        r = robe(co) if not head else None
+        if r is not None:
+            if r > 1.5:
+                return gold
+            return L.mix(jade_dk, jade, max(0.0, n.z) * 0.4 + max(0.0, -n.y) * 0.4)
+        if dark:
+            return mask
+        if orange and head:
+            if co.y < -0.45 and abs(co.x) < 0.35:
+                if co.y < -0.78 and co.z > 2.1:
+                    return D("3a3436")  # nose
+                return L.mix(D("efe6d8"), cream, max(0.0, n.z) * 0.5)
+            if abs(co.x) > 0.5:
+                return D("e8c0b0")
+            return fur_hi
+        if orange and abs(co.x) > 0.55 or orange and co.z < 0.75:
+            return limb
+        c = L.mix(fur, fur_hi, max(0.0, n.z) * 0.4 + max(0.0, -n.y) * 0.3)
+        return L.mix(c, D("b0bab0"), max(0.0, n.y) * 0.35)
+
+    K.paint_body(body, paint, all_keep, tex=True)
+    K.scale_region(body, lambda c: c.z > 1.9 and c.y < -0.35 and abs(c.x) < 0.4, V((0, -0.35, 2.2)),
+                   (0.9, 0.62, 0.9), lambda c: L.smooth(-0.35, -0.55, c.y))
+    body.data.update()
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c + V((0, -0.02, 0)), r * 0.9, V((0.3 * sx, -1.0, -0.1)).normalized(), D("b8ffd8"),
+                     D("2a9a6a"), w, lid=mask, slant=-0.15, side=sx, slit=False, iris=0.85, lid_drop=0.9)
+        # Long white brows drooping past the eyes.
+        p, n = M.front_hit(surf, c.x * 0.8, c.z + r * 1.25)
+        if p is not None:
+            for k in range(3):
+                parts.blob(p - n * 0.03 + V((0, 0, -0.02 * k)), (0.08, 0.04), V((sx, -0.3, -0.7 - 0.25 * k)),
+                           0.32 - 0.05 * k, None, weights=w, seg=6, rings=4, tip=0.1, up=n,
+                           color_fn=lambda t: L.mix(D("e8ece6"), WHITE, t))
+    # A white beard from the chin.
+    p, n = M.front_hit(surf, 0.0, 2.02)
+    if p is not None:
+        for k, (x, ln) in enumerate(((-0.16, 0.3), (-0.08, 0.4), (0.0, 0.48), (0.08, 0.4), (0.16, 0.3))):
+            parts.blob(p - n * 0.06 + V((x, 0, 0)), (0.11, 0.08), V((x * 1.2, -0.3, -1.0)), ln, None, weights=w,
+                       seg=7, rings=5, tip=0.3, color_fn=lambda t: L.mix(D("e0e6e0"), WHITE, t))
+    # Glowing jade mark on the brow.
+    p, n = M.dir_hit(surf, V((0, -0.2, 2.45)), V((0, -1.0, 0.55)))
+    if p is not None:
+        glow_spot(parts, p, n, 0.055, C("2af0a0"), C("e8fff4"), weights=w)
+    # Prayer beads round the neck, hanging over the chest, a big jade bead at the front.
+    neck = V((0, 0.12, 1.92))
+    beads = 22
+    for i in range(beads):
+        a = -math.pi * 0.5 + 2.0 * math.pi * i / beads
+        sag = (1.0 - math.cos(a + math.pi * 0.5)) * 0.5  # 0 at the front, 1 at the back
+        d = V((math.cos(a), math.sin(a) * 0.9, -0.55 + 0.45 * sag))
+        q, qn = M.dir_hit(surf, neck, d)
+        if q is None or (q - neck).length > 0.95:
+            continue
+        big = i == 0
+        rr = 0.1 if big else 0.06
+        if big:
+            col = lambda u: L.mix(C("0e6a46"), C("8affc8"), L.smooth(-0.3, 1.0, u.z))  # noqa: E731
+        else:
+            col = lambda u: L.mix(D("4a2a18"), D("a8703a"), L.smooth(-0.4, 1.0, u.z))  # noqa: E731
+        parts.ellipsoid(q + qn * rr * 0.8, (rr, rr, rr), color=None, weights={"Torso": 0.7, "Neck": 0.3}, seg=8,
+                        rings=5, color_fn=col)
+        if big:
+            parts.blob(q + qn * 0.05 + V((0, 0, -0.08)), (0.05, 0.03), V((0, -0.2, -1)), 0.2, None,
+                       weights={"Torso": 1.0}, seg=6, rings=4, tip=0.3, color_fn=lambda t: L.mix(gold, D("c87a2a"), t))
+    # Jade bracers on the forearms.
+    for side in ("L", "R"):
+        b = arm.data.bones["LowerArm." + side]
+        h, t = b.head_local, b.tail_local
+        mid = h + (t - h) * 0.55
+        q, _qn = surf.toward(mid + V((0, 0, 2.0)), mid)
+        rad = ((q - mid).length if q is not None else 0.15) + 0.035
+        ax = (t - h).normalized()
+        parts.frustum(mid - ax * 0.17, ax, rad, rad * 1.08, 0.34,
+                      lambda k, outside: L.mix(C("0e7a52"), C("6ae8b0"), 0.3 + 0.5 * k) if outside else jade_dk,
+                      {b.name: 1.0}, seg=14)
+        for e in (0.0, 0.34):
+            parts.frustum(mid - ax * (0.19 - e), ax, rad * 1.1, rad * 1.1, 0.04,
+                          lambda k, outside: gold, {b.name: 1.0}, seg=14)
+    # The robe's skirt, flaring over the hips, with a gold hem.
+    K.cape(parts, V((0, 0.18, 0)), 1.2, 0.36, 0.66, 0.98, 2.0 * math.pi * 0.999,
+           lambda u, v, out: gold if v > 0.86 or abs(u) > 0.94 else L.mix(jade, jade_dk, 0.3 + 0.5 * v + (0.0 if out else 0.3)),
+           {"Hips": 1.0}, rows=6, cols=28, thick=0.03)
+    # A gold cord belt with a knot at the front.
+    parts.frustum(V((0, 0.18, 1.13)), V((0, 0, 1)), 0.69, 0.68, 0.11, lambda k, out: L.mix(D("c89a3a"), gold, k),
+                  {"Hips": 1.0}, seg=28)
+    parts.ellipsoid(V((0.12, -0.52, 1.17)), (0.09, 0.06, 0.08), color=gold, weights={"Hips": 1.0}, seg=10, rings=6)
+    for sx in (-1.0, 1.0):
+        parts.blob(V((0.12, -0.54, 1.12)), 0.035, V((0.25 * sx, -0.2, -1.0)), 0.36, None, weights={"Hips": 1.0},
+                   seg=6, rings=4, tip=0.6, color_fn=lambda t: L.mix(gold, D("c8842a"), t))
+    finish(body, parts)
+
+
+# ================================================================ blob/Birb  gold_birb
+
+def gold_birb(arm, body):
+    """Golden bird (gold_birb): gleaming metallic-gold plumage with bronze scallops and a
+    pale-gold breast, a crest of three tall ruby-tipped plumes, a fanned peacock tail with
+    jewel eye-spots, an ivory beak, a ruby on the brow and proud ruby eyes."""
+    R.drop_islands(body, lambda c, size, mat: mat in ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3800)
+    deep, gold, shine, breast = C("d8a818"), C("ffe04a"), C("fff8c8"), C("fff8e0")
+
+    def paint(name, co, n, info):
+        if name == "Birb_Beak":
+            return L.mix(D("c8a060"), D("fff8e8"), L.smooth(-0.2, 0.8, n.z) * 0.6 + L.smooth(0.0, 0.6, co.z) * 0.4)
+        if name == "Birb_Secondary":
+            return L.mix(D("8a4a10"), D("fff0b0"), L.smooth(0.0, 0.1, info["bump"]))
+        c = L.mix(deep, gold, L.smooth(-0.6, 0.7, n.z * 0.7 - n.y * 0.3))
+        c = L.mix(c, shine, L.smooth(0.55, 0.9, n.z * 0.6 - n.y * 0.5) * 0.7)  # metallic sheen
+        return L.mix(c, breast, L.smooth(0.2, 0.8, -n.y) * L.smooth(1.0, 0.4, co.z) * 0.7)
+
+    K.paint_body(body, paint, all_keep)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.55 * sx, -0.95, 1.0)), 0.25, V((0.5 * sx, -1.0, 0.0)).normalized(), D("ffd0a0"),
+                     D("e81a3a"), {"Head": 1.0}, lid=D("e0a428"), slant=0.3, side=sx, slit=False, iris=0.9,
+                     glow=True, lid_drop=1.7)
+        p, n = M.front_hit(surf, 0.55 * sx, 1.36)
+        parts.stroke(p, n, [(0.3 * sx, 0.1), (0.08 * sx, 0.04), (-0.16 * sx, -0.06)], 0.09, D("7a4a10"), lift=0.02)
+    R.scallops(parts, surf, V((0, -0.4, 1.0)), [V((x, -0.6, z)) for x in (-0.6, -0.2, 0.2, 0.6) for z in (-0.6, -0.3)],
+               0.12, D("d8a040"))
+    R.scallops(parts, surf, V((0, -0.4, 1.0)), [V((x, 1.0, z)) for x in (-0.5, 0.0, 0.5) for z in (-0.2, 0.3, 0.8)],
+               0.14, D("a06a14"))
+    # Ruby on the brow.
+    p, n = M.front_hit(surf, 0.0, 1.42)
+    if p is not None:
+        glow_spot(parts, p, n, 0.08, C("e0103a"), C("ffb0c0"), weights={"Head2": 1.0})
+        with parts.use("keep"):
+            parts.decal(p, n, M.ellipse(0.13, 0.11, 16), D("ffe070"), rings=1, lift=0.006)
+
+    def plume(base, d, ln, w, bend, tip_col):
+        parts.blob(base, (0.2, 0.05), d, ln, None, weights=w, seg=8, rings=7, tip=0.55, bend=bend,
+                   color_fn=lambda t: L.mix(L.mix(D("c88a1a"), D("fff0a0"), L.smooth(0.0, 0.6, t)), tip_col,
+                                            L.smooth(0.72, 0.9, t)), up=V((0, -1, 0)))
+
+    # Crest: three tall plumes rising from the crown and arching back.
+    top, tn = M.dir_hit(surf, V((0, -0.2, 1.6)), V((0, -0.1, 1)))
+    if top is not None:
+        for k, (x, ln) in enumerate(((-0.2, 1.2), (0.0, 1.6), (0.2, 1.2))):
+            d = V((x * 2.0, -0.1, 1.0)).normalized()
+            plume(top - tn * 0.08 + V((x, 0, 0)), d, ln, {"Head3": 1.0}, V((x * 1.2, 0.7, -0.1)), C("e8103a"))
+    # Tail fan with jewel eye-spots.
+    tail, tln = M.dir_hit(surf, V((0, 0.0, 0.7)), V((0, 1.0, 0.1)))
+    if tail is not None:
+        for k in range(5):
+            a = math.radians(-50 + 25 * k)
+            d = V((math.sin(a) * 1.3, 0.4, math.cos(a))).normalized()
+            ln = 1.7 - 0.2 * abs(k - 2)
+            base = tail - tln * 0.1
+            parts.blob(base, (0.26, 0.05), d, ln, None, weights={"Head": 1.0}, seg=8, rings=7, tip=0.7,
+                       bend=V((0, 0.2, -0.1)), up=V((0, 1, 0)),
+                       color_fn=lambda t: L.mix(L.mix(D("b07818"), D("ffe070"), L.smooth(0.0, 0.5, t)),
+                                                D("0e8a6a"), L.smooth(0.68, 0.76, t) * L.smooth(0.98, 0.9, t)))
+            tip = base + d * ln * 0.86 + V((0, 0.2, -0.1)) * 0.74
+            glow_spot(parts, tip + V((0, 0.05, 0)), V((0, 1, 0.3)).normalized(), 0.1, C("e0103a"), C("ff9ab0"), weights={"Head": 1.0})
+    finish(body, parts)
+
+
+# ================================================================ cute/YellowDragon  nova_drake, jade_qilin
+
+def _dragon_prep(body):
+    """The little dragon's base (as recipes_critters.little_dragon): atlas eyes and lids
+    dropped, smoothed once."""
+    def junk(c, size, col, n):
+        return n in (51, 37) and abs(c.x) > 0.3 and 0.7 < c.z < 1.0 and c.y < -0.3
+    K.delete_islands(body, junk)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5000)
+
+
+def _dragon_region(co, n, info):
+    """Which part of the little dragon a corner belongs to (from its atlas texture)."""
+    t = info.get("tex")
+    if abs(co.x) > 0.62 and co.z > 0.75:
+        return "wing_bone" if R.tex_is(info, "302d15", 0.05) or R.tex_is(info, "372e13", 0.05) else "wing"
+    if 1.05 < co.z and abs(co.x) > 0.2 and t is not None and t.length > 0.2 and co.y > -0.45:
+        return "horn"
+    if (R.tex_is(info, "27250f", 0.03) or R.tex_is(info, "2b2910", 0.03)) and info["bone"].startswith("Eyebrow"):
+        return "brow"
+    if co.y < -0.45 and 0.55 < co.z < 0.7 and abs(co.x) < 0.25 and t is not None and t.length > 0.15:
+        return "teeth"
+    if co.y < -0.35 and 0.3 < co.z < 0.72 and abs(co.x) < 0.3 and t is not None and t.length < 0.06:
+        return "mouth"
+    return "hide"
+
+
+def _dragon_paint(body, colours, hide_fn):
+    """Paints every region from colours (a colour or f(co, n) per region; hide_fn(co, n) for
+    the hide), all on the untinted material."""
+    def paint(name, co, n, info):
+        r = _dragon_region(co, n, info)
+        if r == "hide":
+            return hide_fn(co, n)
+        c = colours[r]
+        return c(co, n) if callable(c) else c
+
+    K.paint_body(body, paint, all_keep, tex=True)
+
+
+def _dragon_horn_tip(surf, sx, top=True):
+    """Base point and outward normal for a new horn beside the existing ones."""
+    if top:
+        return M.dir_hit(surf, V((0, -0.1, 1.0)), V((0.45 * sx, 0.25, 1.0)))
+    return M.dir_hit(surf, V((0, -0.1, 1.0)), V((1.0 * sx, 0.3, 0.45)))
+
+
+def nova_drake(arm, body):
+    """Supernova drake (nova_drake): a deep cosmic-violet hide scattered with glowing
+    stars, a crown of great swept-back horns
+    that burn from violet to white-hot tips plus a ridge of flame spikes, nebula wings,
+    and white-gold slit eyes."""
+    _dragon_prep(body)
+    void, void_hi, nebula = D("1e1040"), D("4a2a8a"), D("c02a9a")
+
+    def hide(co, n):
+        c = L.mix(void, void_hi, max(0.0, n.z) * 0.5 + max(0.0, -n.y) * 0.25)
+        sc = 0.5 + 0.5 * math.sin(co.z * 16.0 + co.x * 5.0) * math.sin(co.x * 15.0 - co.y * 9.0)
+        return L.mix(c, D("6a3ab0"), L.smooth(0.82, 0.97, sc) * 0.4 * max(0.0, n.y + 0.3))
+
+    def wing(co, n):
+        t = L.smooth(0.6, 1.6, abs(co.x))
+        return L.mix(L.mix(D("3a1a7a"), nebula, t), D("ff9a3a"), L.smooth(1.25, 1.6, abs(co.x)) * 0.8)
+
+    _dragon_paint(body, {"wing_bone": lambda co, n: wing(co, n) * 0.6, "wing": wing,
+                         "horn": lambda co, n: L.mix(D("5a2a9a"), D("ff6ad0"), L.smooth(1.1, 1.55, co.z)),
+                         "brow": D("6a2a9a"), "teeth": D("fff6ea"), "mouth": C("2a0820")}, hide)
+    K.bake_ao(body, strength=0.35)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.41 * sx, -0.44, 0.88)), 0.2, V((0.45 * sx, -1.0, 0.0)).normalized(), D("ffffff"),
+                     D("ffb02a"), w, lid=D("2a1650"), slant=0.45, side=sx, slit=True, pupil_w=0.1, iris=0.9,
+                     glow=True, sclera=D("1a0a30"), lid_drop=1.8, lid_size=0.8)
+    # Great swept-back horns, burning to white-hot tips.
+    with parts.use("glow"):
+        for sx in (-1.0, 1.0):
+            p, n = _dragon_horn_tip(surf, sx)
+            if p is not None:
+                parts.blob(p - n * 0.05, 0.09, V((0.5 * sx, 0.6, 1.0)), 0.75, None, weights={"Head3": 1.0}, seg=10,
+                           rings=7, tip=0.08, bend=V((0.05 * sx, 0.35, -0.12)),
+                           color_fn=lambda t: L.mix(L.mix(C("6a1ac0"), C("ff2a9a"), L.smooth(0.0, 0.5, t)),
+                                                    C("fff4c0"), L.smooth(0.55, 1.0, t)))
+        # Flame spikes down the back of the head and spine.
+        for k in range(5):
+            a = math.radians(-10 + 28 * k)
+            d = V((0, math.sin(a), math.cos(a)))
+            p, n = M.dir_hit(surf, V((0, 0.0, 0.75)), d)
+            if p is None:
+                continue
+            parts.blob(p - n * 0.04, (0.08, 0.035), (n + V((0, 0.5, 0.2))).normalized(), 0.32 - 0.03 * k, None,
+                       weights=p, seg=6, rings=5, tip=0.05, up=V((1, 0, 0)),
+                       color_fn=lambda t: L.mix(C("ff2a8a"), C("ffd060"), t))
+        # Stars over the hide and wings.
+        rng = random.Random(23)
+        placed = []
+        for d in M.fibonacci(160):
+            p, n = M.dir_hit(surf, V((0, 0.0, 0.8)), d)
+            if p is None or any((p - q).length < 0.16 for q in placed) or (p.y < -0.3 and p.z < 0.75 and abs(p.x) < 0.35):
+                continue
+            placed.append(p)
+            s = rng.uniform(0.022, 0.04)
+            parts.decal(p, n, [(0, s * 2.2), (s * 0.5, s * 0.5), (s * 2.2, 0), (s * 0.5, -s * 0.5), (0, -s * 2.2),
+                               (-s * 0.5, -s * 0.5), (-s * 2.2, 0), (-s * 0.5, s * 0.5)], C("fff8e0"), rings=1,
+                        lift=0.016)
+        for sx in (-1.0, 1.0):
+            for k in range(6):
+                x = 0.75 + 0.15 * k
+                z = 0.85 + 0.06 * k + (0.1 if k % 2 else -0.05)
+                for side in (-1.0, 1.0):
+                    p, n = surf.toward(V((x * sx, -4.0 * side, z)), V((x * sx, 0.0, z)))
+                    if p is not None:
+                        parts.decal(p, n, M.ellipse(0.025, 0.025, 6), C("fff0f8"), rings=1, lift=0.012)
+    K.join_parts(body, parts.to_object())
+
+
+def jade_qilin(arm, body):
+    """Jade god-dragon (jade_qilin): jade-green scales flecked with gold, a pale jade belly,
+    branching golden antlers, cloud-curl manes of white and jade at the cheeks and crown,
+    carved jade plates down its back, long golden whiskers, jade wings ribbed in gold and
+    calm golden eyes."""
+    _dragon_prep(body)
+    jade, jade_dk, belly, gold = D("3ab884"), D("17704e"), D("d8f4e0"), D("ffd04a")
+
+    def hide(co, n):
+        c = L.mix(jade, jade_dk, L.smooth(-0.2, 0.7, n.y * 0.8 + n.z * 0.3))
+        sc = 0.5 + 0.5 * math.sin(co.z * 16.0 + co.x * 5.0) * math.sin(co.x * 15.0 - co.y * 9.0)
+        c = L.mix(c, D("0e5a3a"), L.smooth(0.8, 0.97, sc) * 0.45 * max(0.0, n.y + 0.3))
+        return L.mix(c, belly, L.smooth(0.2, 0.8, -n.y) * L.smooth(0.95, 0.5, co.z))
+
+    def jwing(co, n):
+        return L.mix(L.mix(D("17704e"), D("7ae0b0"), L.smooth(0.6, 1.5, abs(co.x))), D("e8c050"),
+                     L.smooth(1.35, 1.6, abs(co.x)) * 0.7)
+
+    _dragon_paint(body, {"wing_bone": jwing, "wing": jwing,
+                         "horn": lambda co, n: L.mix(D("c08a20"), D("fff0a0"), L.smooth(1.1, 1.55, co.z)),
+                         "brow": D("1a5a3a"), "teeth": D("fffaf0"), "mouth": D("6a1a2a")}, hide)
+    K.bake_ao(body, strength=0.35)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.41 * sx, -0.44, 0.88)), 0.2, V((0.45 * sx, -1.0, 0.0)).normalized(), D("fff4a0"),
+                     D("d89a10"), w, lid=D("2a8a60"), slant=0.15, side=sx, slit=True, pupil_w=0.14, iris=0.88,
+                     lid_drop=1.6, lid_size=0.8)
+    gold_fn = lambda t: L.mix(D("c08a20"), D("fff0a0"), t)  # noqa: E731
+    # Branching golden antlers.
+    for sx in (-1.0, 1.0):
+        p, n = _dragon_horn_tip(surf, sx)
+        if p is None:
+            continue
+        main = V((0.35 * sx, 0.35, 1.0)).normalized()
+        parts.blob(p - n * 0.04, 0.07, main, 0.7, None, weights={"Head3": 1.0}, seg=8, rings=7, tip=0.3,
+                   bend=V((0.12 * sx, 0.2, 0)), color_fn=gold_fn)
+        for k, (f, tine) in enumerate(((0.35, V((0.9 * sx, -0.2, 0.6))), (0.65, V((-0.2 * sx, -0.5, 0.8))))):
+            q = p + main * 0.7 * f + V((0.12 * sx, 0.2, 0)) * f * f
+            parts.blob(q, 0.045, tine, 0.28, None, weights={"Head3": 1.0}, seg=6, rings=5, tip=0.3, color_fn=gold_fn)
+    # Cloud-curl manes: cheeks and crown.
+    def curl(base, d, size, wgt):
+        for k in range(3):
+            a = (k - 1) * 0.5
+            dd = (d + V((0, 0, 0.3 * (k - 1)))).normalized()
+            parts.blob(base, (size * 0.5, size * 0.3), dd, size * (1.0 - 0.15 * abs(k - 1)), None, weights=wgt,
+                       seg=8, rings=5, tip=0.35, bend=V((0, 0, size * 0.5)), up=V((0, -1, 0)),
+                       color_fn=lambda t: L.mix(D("7ad8b0"), D("ffffff"), L.smooth(0.2, 1.0, t)))
+    for sx in (-1.0, 1.0):
+        p, n = M.dir_hit(surf, V((0, -0.1, 0.65)), V((1.0 * sx, -0.3, -0.1)))
+        if p is not None:
+            curl(p - n * 0.05, V((sx, 0.3, -0.2)), 0.36, w)
+    p, n = M.dir_hit(surf, V((0, 0.0, 1.0)), V((0, 0.6, 1.0)))
+    if p is not None:
+        curl(p - n * 0.05, V((0, 0.8, 0.5)), 0.4, {"Head3": 1.0})
+    # Carved jade plates down the back.
+    for k in range(4):
+        a = math.radians(35 + 25 * k)
+        d = V((0, math.sin(a), math.cos(a)))
+        p, n = M.dir_hit(surf, V((0, 0.0, 0.75)), d)
+        if p is None:
+            continue
+        s = 0.17 - 0.02 * k
+        parts.ellipsoid(p + n * 0.02, (s, s * 0.85, 0.05), M.basis(n), color=None, weights=p, seg=6, rings=4,
+                        color_fn=lambda u: L.mix(D("1a8a5a"), D("b8ffe0"), L.smooth(-0.2, 1.0, u.z)))
+        parts.ellipsoid(p + n * 0.065, (s * 0.35, s * 0.35, 0.025), M.basis(n), color=gold, weights=p, seg=8, rings=4)
+    # Long golden whiskers from the snout.
+    for sx in (-1.0, 1.0):
+        p, n = M.front_hit(surf, 0.22 * sx, 0.74)
+        if p is not None:
+            parts.blob(p - n * 0.02, 0.025, V((0.9 * sx, -0.5, 0.05)), 0.7, None, weights=w, seg=6, rings=6, tip=0.4,
+                       bend=V((0.1 * sx, 0.1, -0.35)), color_fn=gold_fn)
+    # Gold flecks over the scales.
+    rng = random.Random(9)
+    placed = []
+    for d in M.fibonacci(60):
+        p, n = M.dir_hit(surf, V((0, 0.0, 0.8)), d)
+        if p is None or p.y < -0.2 or any((p - q).length < 0.25 for q in placed):
+            continue
+        placed.append(p)
+        s = rng.uniform(0.03, 0.05)
+        parts.decal(p, n, M.ellipse(s, s * 0.8, 6), gold, rings=1, lift=0.014)
+    K.join_parts(body, parts.to_object())
+
+
+
+
+
+# ================================================================ registry / runner
+
+RECIPES = {
+    "big/Fish_abyss_angler": abyss_angler,
+    "big/Frog_lotus_frog": lotus_frog,
+    "big/Monkroose_jade_monk": jade_monk,
+    "blob/Birb_gold_birb": gold_birb,
+    "cute/YellowDragon_nova_drake": nova_drake,
+    "cute/YellowDragon_jade_qilin": jade_qilin,
+}
+
+
+def source(name):
+    """The rig a variant is built from: remaster/<dir>/<Name>_<id> -> <dir>/<Name>."""
+    d, f = name.split("/")
+    return d + "/" + f.split("_")[0]
+
+
+SOURCE = {name: source(name) for name in RECIPES}
+
+
+def build(name):
+    R.RECIPES.update(RECIPES)
+    R.SOURCE.update(SOURCE)
+    R.build(name)
+
+
+if __name__ == "__main__":
+    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
+    for name in (args or list(RECIPES)):
+        build(name)

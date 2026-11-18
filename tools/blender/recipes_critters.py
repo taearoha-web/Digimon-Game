@@ -6,7 +6,8 @@ Same contract as remaster_monsters.RECIPES, built with kit_critters' material se
 eyes, teeth and glowing marks stay untinted ("Keep..." materials). A few outputs are
 VARIANTS of a shared rig for one monster only (big/FrogKing = toad_king): they are
 written to remaster/<dir>/<Variant>.glb and that monster's "model" points at
-"remaster/<dir>/<Variant>" directly.
+"remaster/<dir>/<Variant>" directly. The per-monster variants of shared rigs (abyss_angler,
+lotus_frog, jade_monk, gold_birb, nova_drake, jade_qilin) live in recipes_critters_variants.py.
 """
 import math
 import os
@@ -1232,6 +1233,24 @@ def thunder_monkey(arm, body):
             K.fang(parts, p + V((0.07 * sx, 0.02, 0.0)), V((0, -0.3, -1)), 0.11, 0.032, {"Head": 1.0})
     fur_tufts(parts, surf, V((0, 0, 2.4)), [V((0, -0.2, 1)), V((0, 0.4, 1)), V((0, 0.8, 0.6))], 0.3, limb, fur,
               weights={"Head": 1.0}, seed=33)
+    # Lightning marks (the thunder monkey): glowing bolts on the chest, shoulders, thighs and brow.
+    volt = C("7ae8ff")
+    p, n = M.front_hit(surf, 0.0, 1.4)
+    if p is not None:
+        K.zigzag(parts, p, n, 0.6, volt)
+    for sx in (-1.0, 1.0):
+        p, n = surf.toward(V((1.05 * sx, 0.16, 3.5)), V((1.05 * sx, 0.16, 1.82)))
+        if p is not None:
+            K.zigzag(parts, p, n, 0.36, volt, up=V((0, -1, 0)), turn=1.2 * sx)
+        p, n = M.front_hit(surf, 0.38 * sx, 0.72)
+        if p is not None:
+            K.zigzag(parts, p, n, 0.36, volt, turn=-0.25 * sx)
+        p, n = M.dir_hit(surf, V((0, 0.25, 1.3)), V((sx, 0.9, 0.0)))
+        if p is not None:
+            K.zigzag(parts, p, n, 0.42, volt, turn=0.3 * sx)
+    p, n = M.dir_hit(surf, V((0, -0.2, 2.5)), V((0, -0.55, 1.0)))
+    if p is not None:
+        K.zigzag(parts, p, n, 0.24, volt)
     finish(body, parts)
 
 

@@ -34,20 +34,20 @@ const POTION_BOSS := EndgameFields.POTION_BOSS
 ## Normal monsters fight with MobAttack moves, the tyrant with BossAttack's.
 ## "aura" colours the glow DeepMonsterArt puts on each of them.
 const MONSTERS := {
-	&"abyss_angler": {"name": "ปลาโคมมรณะ", "model": "big/Fish", "height": 2.3, "hover": 0.5, "hp": 2.0, "atk": 2.2, "def": 1.3, "speed": 2.8, "aggro": true, "attack": "ranged",
+	&"abyss_angler": {"name": "ปลาโคมมรณะ", "model": "remaster/big/Fish_abyss_angler", "height": 2.3, "hover": 0.5, "hp": 2.0, "atk": 2.2, "def": 1.3, "speed": 2.8, "aggro": true, "attack": "ranged",
 		"color": Color("6ef3ff"), "tint": Color(0.5, 1.15, 1.5), "aura": Color("6ef3ff"), "behavior": "mortar", "exp": 1.6, "gold": 2.0},
 	&"reef_crab": {"name": "ปูเกราะปะการังโลหิต", "model": "dawn/Crab", "height": 2.1, "hp": 2.6, "atk": 2.1, "def": 1.8, "speed": 2.6, "aggro": true, "attack": "melee",
 		"color": Color("ff5a7a"), "tint": Color(1.5, 0.55, 0.7), "aura": Color("ff5a7a"), "behavior": "spin", "exp": 1.7, "gold": 2.1},
-	&"tide_squid": {"name": "หมึกเงาคลื่นคลั่ง", "model": "flying/Squidle", "height": 2.3, "hover": 0.9, "hp": 2.0, "atk": 2.4, "def": 1.2, "speed": 2.9, "aggro": true, "attack": "ranged",
+	&"tide_squid": {"name": "หมึกเงาคลื่นคลั่ง", "model": "remaster/flying/Squidle_tide_squid", "height": 2.3, "hover": 0.9, "hp": 2.0, "atk": 2.4, "def": 1.2, "speed": 2.9, "aggro": true, "attack": "ranged",
 		"color": Color("b98cff"), "tint": Color(0.9, 0.7, 1.6), "aura": Color("b98cff"), "behavior": "beam", "exp": 1.65, "gold": 2.0},
-	&"drown_jelly": {"name": "แมงกะพรุนวิญญาณจมน้ำ", "model": "flying/Glub_Evolved", "height": 2.1, "hover": 1.1, "hp": 1.9, "atk": 2.3, "def": 1.2, "speed": 2.7, "aggro": true, "attack": "ranged",
+	&"drown_jelly": {"name": "แมงกะพรุนวิญญาณจมน้ำ", "model": "remaster/flying/Glub_Evolved_drown_jelly", "height": 2.1, "hover": 1.1, "hp": 1.9, "atk": 2.3, "def": 1.2, "speed": 2.7, "aggro": true, "attack": "ranged",
 		"color": Color("7affd8"), "tint": Color(0.7, 1.5, 1.3), "aura": Color("7affd8"), "behavior": "volley", "exp": 1.6, "gold": 2.0},
-	&"abyss_merman": {"name": "นักรบเงือกทมิฬ", "model": "big/Ninja", "height": 2.6, "hp": 2.3, "atk": 2.5, "def": 1.5, "speed": 3.6, "aggro": true, "attack": "melee",
+	&"abyss_merman": {"name": "นักรบเงือกทมิฬ", "model": "remaster/big/Ninja_abyss_merman", "height": 2.6, "hp": 2.3, "atk": 2.5, "def": 1.5, "speed": 3.6, "aggro": true, "attack": "melee",
 		"color": Color("4ad8c8"), "tint": Color(0.45, 1.0, 1.1), "aura": Color("4ad8c8"), "behavior": "lunge", "exp": 1.75, "gold": 2.2},
-	&"trench_horror": {"name": "อสูรหนวดร่องลึก", "model": "cute/Cthulhu", "height": 3.5, "hp": 5.5, "atk": 2.8, "def": 2.2, "speed": 2.9, "aggro": true, "attack": "ranged", "elite": true,
+	&"trench_horror": {"name": "อสูรหนวดร่องลึก", "model": "remaster/cute/Cthulhu_trench_horror", "height": 3.5, "hp": 5.5, "atk": 2.8, "def": 2.2, "speed": 2.9, "aggro": true, "attack": "ranged", "elite": true,
 		"color": Color("3affc8"), "tint": Color(0.4, 1.4, 1.2), "aura": Color("3affc8"), "behavior": "beam", "exp": 2.6, "gold": 3.0},
-	&"leviathan_whelp": {"name": "ลูกเลวีอาธานคลั่ง", "model": "flying/Dragon", "height": 3.7, "hover": 0.5, "hp": 6.0, "atk": 2.7, "def": 2.4, "speed": 3.2, "aggro": true, "attack": "melee", "elite": true,
-		"color": Color("2ab8ff"), "tint": Color(0.4, 0.9, 1.6), "aura": Color("2ab8ff"), "behavior": "pounce", "exp": 2.7, "gold": 3.0},
+	&"leviathan_whelp": {"name": "ลูกเลวีอาธานคลั่ง", "model": "remaster/flying/Dragon_leviathan_whelp", "height": 3.7, "hover": 0.5, "hp": 6.0, "atk": 2.7, "def": 2.4, "speed": 3.2, "aggro": true, "attack": "melee", "elite": true,
+		"color": Color("2ab8ff"), "tint": Color(0.95, 1.0, 1.1), "aura": Color("2ab8ff"), "behavior": "pounce", "exp": 2.7, "gold": 3.0},
 	# The summoner's Poseidon himself, grown to a boss: the same rig and clips (Attack throws
 	# a water orb, Skill1 / Skill2 cast his two legend skills, LegendMoves) and his own colours.
 	&"tidal_tyrant": {"name": "โพไซดอน ราชันสมุทรอสูร", "model": "summon/Poseidon", "height": 5.8, "hp": 32.0, "atk": 3.4, "def": 2.6, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true,
