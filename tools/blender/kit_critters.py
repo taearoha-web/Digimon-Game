@@ -184,7 +184,8 @@ def move_region(obj, pred, offset_fn):
 # ---------------------------------------------------------------- faces
 
 def fierce_eye(parts, center, radius, gaze, iris_top, iris_bottom, weights, lid, slant=0.35, side=1.0,
-               slit=True, pupil_w=0.12, iris=0.62, glow=False, sclera=None, lid_drop=1.45, up=Vector((0, 0, 1))):
+               slit=True, pupil_w=0.12, iris=0.62, glow=False, sclera=None, lid_drop=1.45, up=Vector((0, 0, 1)),
+               lid_size=1.0):
     """A narrow, determined eye: (optional) sclera, big iris, a slit or round pupil, one
     small glint, and a heavy slanted upper lid in the creature's own colour cutting across
     it. side: +1 for the creature's left eye (lid inner corner points down to the nose).
@@ -217,10 +218,10 @@ def fierce_eye(parts, center, radius, gaze, iris_top, iris_bottom, weights, lid,
     lean = (up + inner * slant * 2.6).normalized()
     lid_axis = (gaze + lean * lid_drop).normalized()
     rim = L.mix(lid, L.srgb("1a1010"), 0.75)
-    parts.sphere_cap(center, radius * 1.05, lid_axis, (1.34, 1.04), rim, weights, lift=0.0, up=up, seg=22,
-                     rings=3, detail=False, offset=(0.0, -0.12))
-    parts.sphere_cap(center, radius * 1.075, lid_axis, (1.25, 0.95), lid, weights, lift=0.0, up=up, seg=22,
-                     rings=4, detail=False, offset=(0.0, -0.12))
+    parts.sphere_cap(center, radius * 1.05, lid_axis, (1.34 * lid_size, 1.04 * lid_size), rim, weights, lift=0.0, up=up, seg=22,
+                     rings=3, detail=True, offset=(0.0, -0.12))
+    parts.sphere_cap(center, radius * 1.075, lid_axis, (1.25 * lid_size, 0.95 * lid_size), lid, weights, lift=0.0, up=up, seg=22,
+                     rings=4, detail=True, offset=(0.0, -0.12))
 
 
 def fang(parts, base, direction, length, width, weights, color=None, up=None):
