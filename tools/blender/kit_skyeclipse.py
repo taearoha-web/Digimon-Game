@@ -162,27 +162,31 @@ def feather(parts, root, direction, length, width, weights, c0, c1, up, tip=0.3,
                       tip=tip, bend=bend, color_fn=lambda a: L.mix(c0, c1, L.smooth(0.1, 1.0, a)), up=up)
 
 
-def wing(parts, root, side, span, weights, c_root, c_tip, rows=(7, 6, 5), lift=0.5, back=0.4, droop=0.0,
-         scale=1.0, accent=None, accent_rows=(0,)):
-    """A folded-up feathered wing on the creature's back. side +1 = its left (+X). The
-    wing's leading edge runs out and up from root; rows of feathers hang from it,
-    longest at the tip (primaries) -> shortest (coverts) on top."""
+def wing(parts, root, side, span, weights, c_root, c_tip, rows=(7, 6, 5), lift=0.9, back=0.15, droop=0.0,
+         scale=1.0, accent=None, accent_rows=(0,), width=0.13, rear=None):
+    """A raised feathered wing. side +1 = the creature's left (+X). The leading edge runs
+    out and up from root (lift: how steep, back: how far it leans back); the feathers lie
+    in the wing's plane, trailing back and down from it: long primaries at the tip, shorter
+    rows of coverts above them. accent colours the tips of accent_rows."""
     out = V((side, back, lift)).normalized()
+    # Feathers trail back and outwards, so the wing opens like a fan towards the viewer.
+    rear = (rear or V((side * 0.8, 0.6, -0.1))).normalized()
+    normal = out.cross(rear).normalized()
+    if normal.x * side < 0:
+        normal = -normal
     tip_pt = root + out * span
     for r, n in enumerate(rows):
-        k = 1.0 - r * 0.28
+        k = 1.0 - r * 0.27
         for i in range(n):
             t = (i + 0.5) / n
-            base = root.lerp(tip_pt, 0.12 + 0.88 * t) + V((0, 0.03 * r, 0.05 * r))
-            # Feathers sweep out and down; outermost point further out.
-            d = V((side * (0.25 + 0.9 * t), 0.25 + 0.15 * t, -1.0 + 0.55 * t + droop)).normalized()
-            length = span * (0.45 + 0.55 * t) * k * scale
-            w = span * 0.075 * (1.0 + 0.3 * t) * k
+            base = root.lerp(tip_pt, 0.08 + 0.92 * t) + normal * (0.02 * r)
+            d = (rear * (0.55 + 0.6 * t) - out * (0.95 - 0.75 * t) + V((0, 0, -0.25 * droop))).normalized()
+            length = span * (0.42 + 0.6 * t) * k * scale
+            w = span * width * (0.8 + 0.4 * t) * k
             c1 = accent if (accent is not None and r in accent_rows) else c_tip
-            feather(parts, base, d, length, w, weights, c_root, c1, up=V((0, 1, 0)), tip=0.35,
-                    bend=V((side * 0.1, 0.05, 0.05)) * length)
-    # The bony leading edge (arm of the wing), a soft rounded bar.
-    parts.blob(root, (span * 0.07, span * 0.06), out, span * 1.02, None, weights=weights, seg=10, rings=6, tip=0.45,
+            feather(parts, base, d, length, w, weights, c_root, c1, up=normal, tip=0.4, thick=0.18,
+                    bend=-normal * 0.05 * length)
+    parts.blob(root, (span * 0.07, span * 0.06), out, span * 1.04, None, weights=weights, seg=8, rings=6, tip=0.4,
                color_fn=lambda a: L.mix(c_root, c_root.lerp(c_tip, 0.4), a))
 
 

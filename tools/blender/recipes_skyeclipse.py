@@ -212,13 +212,13 @@ def sun_disc(parts, center, radius, n_rays, c_disc, c_ray, c_tip, weights, back=
     """A sun halo behind the head: a thin disc and a ring of long tapering rays."""
     t_, b_, n_ = L.frame(back)
     parts.ellipsoid(center, (radius, radius, radius * 0.12), basis=Matrix((t_, b_, n_)).transposed(), color=None,
-                    weights=weights, seg=24, rings=8, color_fn=lambda u: L.mix(c_ray, c_disc, 1.0 - abs(u.z) * 0.0))
+                    weights=weights, seg=18, rings=6, color_fn=lambda u: L.mix(c_ray, c_disc, 1.0 - abs(u.z) * 0.0))
     for i in range(n_rays):
         a = 2.0 * math.pi * i / n_rays + math.pi / n_rays
         d = t_ * math.cos(a) + b_ * math.sin(a)
         ln = radius * (0.95 if i % 2 else 0.6)
-        parts.blob(center + d * radius * 0.7, (radius * 0.16, radius * 0.05), d, ln, None, weights=weights, seg=8,
-                   rings=5, tip=0.1, up=n_, color_fn=lambda a_: L.mix(c_ray, c_tip, a_))
+        parts.blob(center + d * radius * 0.7, (radius * 0.16, radius * 0.05), d, ln, None, weights=weights, seg=6,
+                   rings=4, tip=0.1, up=n_, color_fn=lambda a_: L.mix(c_ray, c_tip, a_))
 
 
 def sky_high_warden(arm, body):
@@ -232,13 +232,13 @@ def sky_high_warden(arm, body):
     knight_paint(body, pal)
     surf, parts = start(body)
     knight_helm(parts, D("ffe27a"), D("e9a93c"), D("fffaf0"), D("e9dcc4"), faceplate=0.3)
-    crest(parts, D("ffffff"), D("ffffff"), height=0.34, width=0.09, n=10)
+    crest(parts, D("ffffff"), D("ffffff"), height=0.34, width=0.09, n=8)
     with parts.use("keep"):
-        sun_disc(parts, HELM_C + V((0, 0.42, 0.18)), 0.5, 14, D("ffcf4a"), D("ffb23a"), D("fff3b0"), HEAD)
+        sun_disc(parts, HELM_C + V((0, 0.42, 0.18)), 0.5, 12, D("ffcf4a"), D("ffb23a"), D("fff3b0"), HEAD)
     for sx in (-1, 1):
         pauldron(parts, sx, lambda u: L.mix(D("e8a23a"), D("ffe68a"), L.smooth(-0.4, 0.9, u.z)), scale=1.25)
-        S.wing(parts, V((0.16 * sx, 0.28, 1.25)), sx, 0.9, CHEST, D("fff8ec"), D("ffffff"), rows=(6, 5, 4),
-               lift=1.1, back=0.6, accent=D("ffd86a"), accent_rows=(2,))
+        S.wing(parts, V((0.16 * sx, 0.3, 1.25)), sx, 0.95, CHEST, D("fff8ec"), D("ffffff"), rows=(5, 4, 3),
+               lift=1.0, back=0.25, accent=D("ffd86a"), accent_rows=(0,))
     back_cape(parts, lambda u, v, out: (D("ffd25a") if abs(u) > 0.82 or v > 0.9 else L.mix(D("e04a34"), D("b02a22"), v))
               if out else D("8a1c18"), arc=1.9, r_bot=0.44, z_bot=0.36)
     # the sun emblem on the breastplate
@@ -556,6 +556,219 @@ def eclipse_rogue(arm, body):
     finish(body, parts)
 
 
+# ================================================================ pegasi (Horse_White)
+
+HORSE_HEAD = {"Head": 1.0}
+WITHERS = {"Torso3": 0.55, "Torso2": 0.45}
+
+
+UPPER_LEGS = ("FrontUpperLeg.L", "FrontUpperLeg.R", "BackLeg.L", "BackLeg.R", "BackUpperLeg.L", "BackUpperLeg.R")
+LOWER_LEGS = ("FrontLowerLeg.L", "FrontLowerLeg.R", "BackLowerLeg.L", "BackLowerLeg.R", "IKFrontLeg.L", "IKFrontLeg.R",
+              "IKBackLeg.L", "IKBackLeg.R", "FF.L", "FF.R", "FFB.L", "FFB.R")
+
+
+def horse_base(arm, body):
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    # sturdier, rounder cartoon legs
+    K.thicken(body, arm, UPPER_LEGS, 1.2)
+    K.thicken(body, arm, LOWER_LEGS, 1.55)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4300)
+    L.relax(body, 2, 0.4)
+
+
+def horse_eye_spot(surf, sx, y=-2.86, z=4.18):
+    p, n = surf.toward(V((sx * 3.0, y, z)), V((0.0, y, z)))
+    return p, n
+
+
+def sky_pegasus(arm, body):
+    """เพกาซัสปีกอรุณ: a dawn-winged pegasus: pearl white coat with a lilac-blue shade
+    underneath, a flowing golden mane and tail, gold hooves, large bright sky-blue eyes,
+    white wings with dawn-gold primaries, a small golden halo set close above the ears."""
+    import remaster_monsters as M
+    horse_base(arm, body)
+    white, shade_c, gold = D("fffdf8"), D("cdd3f2"), D("ffd36a")
+
+    def paint(name, co, n, info):
+        if name == "Hair":
+            return L.mix(D("f0a640"), D("ffe9a0"), L.smooth(-0.02, 0.08, info["bump"]))
+        if name == "Hooves":
+            return L.mix(D("d99a35"), gold, L.smooth(0.0, 0.25, co.z))
+        if name == "Muzzle":
+            return D("f5d6dc")
+        c = L.mix(shade_c, white, L.smooth(-0.7, 0.4, n.z))
+        return L.mix(c, D("f8eedd"), L.smooth(1.4, 0.6, co.z) * 0.6)
+
+    K.paint_body(body, paint)
+    surf, parts = start(body)
+    for sx in (-1, 1):
+        p, n = horse_eye_spot(surf, sx)
+        with parts.use("keep"):
+            M.sparkly_eye(parts, p - n * 0.06, 0.15, V((0.75 * sx, -0.65, 0.05)).normalized(), D("2a6fd8"),
+                          D("9fe4ff"), HORSE_HEAD, iris=0.62, pupil=0.3, lid=D("f4f2fa"))
+        S.wing(parts, V((0.24 * sx, -0.8, 3.12)), sx, 1.6, WITHERS, D("fffdf6"), D("ffffff"), rows=(6, 5, 4),
+               lift=1.0, back=0.3, accent=D("ffd877"), accent_rows=(0,))
+    with parts.use("glow"):
+        S.ring(parts, V((0, -2.45, 5.1)), V((0, 0.35, 1)), 0.32, 0.035, None, {"Torso3": 1.0}, flat=0.6,
+               color_fn=lambda t, s_: L.mix(C("ffc83a"), C("fff2c0"), 0.5 + 0.5 * s_))
+    finish(body, parts)
+
+
+def sky_storm_pegasus(arm, body):
+    """เพกาซัสพายุทอง: the golden storm pegasus (elite): a thundercloud-blue coat with gold
+    lightning on its flanks, a storm-cloud mane with gold streaks, a gold faceplate and
+    breastplate, a crown of lightning spikes, burning gold eyes, great storm-blue wings
+    with gold primaries and storm clouds about its hooves."""
+    import remaster_monsters as M
+    horse_base(arm, body)
+    top, belly, gold = D("41507e"), D("9eabcf"), D("ffcf55")
+
+    def paint(name, co, n, info):
+        if name == "Hair":
+            return L.mix(D("262c48"), D("ffd45c"), L.smooth(0.02, 0.1, info["bump"]))
+        if name == "Hooves":
+            return L.mix(D("c98a2a"), gold, L.smooth(0.0, 0.25, co.z))
+        if name == "Muzzle":
+            return D("2c3352")
+        return L.mix(belly, top, L.smooth(-0.6, 0.6, n.z))
+
+    K.paint_body(body, paint)
+    surf, parts = start(body)
+    for sx in (-1, 1):
+        p, n = horse_eye_spot(surf, sx)
+        with parts.use("keep"):
+            M.sparkly_eye(parts, p - n * 0.06, 0.14, V((0.75 * sx, -0.65, 0.05)).normalized(), D("c86a10"),
+                          D("ffe070"), HORSE_HEAD, iris=0.66, pupil=0.26, lid=D("3a4774"))
+        q, nq = horse_eye_spot(surf, sx, z=4.33)
+        parts.stroke(q, nq, [(0.12 * sx, 0.05), (0.0, 0.0), (-0.14 * sx, -0.06)], 0.06, D("1e2440"),
+                     weights=HORSE_HEAD, lift=0.03)
+        # lightning on the flank and the shoulder
+        for (y, z, sz, turn) in ((0.45, 2.75, 0.8, 0.2), (-0.95, 2.45, 0.55, -0.3)):
+            q, nq = surf.toward(V((sx * 3.0, y, z)), V((0.0, y, z)))
+            K.zigzag(parts, q, nq, sz, C("ffd44a"), turn=turn * sx)
+        S.wing(parts, V((0.24 * sx, -0.8, 3.12)), sx, 2.1, WITHERS, D("3d4a78"), D("8fa0d4"), rows=(6, 5, 4),
+               lift=1.15, back=0.3, accent=D("ffd060"), accent_rows=(0, 1))
+    # gold faceplate down the face, a gem on the brow
+    p, n = surf.toward(V((0, -6, 5.2)), V((0, -2.7, 3.9)))
+    with parts.use("keep"):
+        parts.decal(p, n, M_ellipse(0.11, 0.36), gold, weights=HORSE_HEAD, lift=0.02, up=V((0, 0.6, 0.8)),
+                    detail=False)
+        parts.ellipsoid(p + n * 0.05, (0.08, 0.06, 0.1), color=None, weights=HORSE_HEAD, seg=10, rings=6,
+                        color_fn=lambda u: L.mix(D("2a74d8"), D("bff0ff"), L.smooth(-0.5, 0.9, u.z)))
+        # crown of lightning spikes between the ears
+        for i, a in enumerate((-0.45, 0.0, 0.45)):
+            K.horn(parts, V((math.sin(a) * 0.14, -2.42, 4.62)), V((math.sin(a) * 0.6, 0.15, 1)), 0.42 if i == 1 else 0.3,
+                   0.06, HORSE_HEAD, D("e9a530"), D("fff4b8"), mode="keep", seg=8)
+    # a gold collar at the base of the neck
+    with parts.use("keep"):
+        S.ring(parts, V((0, -1.5, 3.0)), V((0, -0.55, 0.85)), 0.43, 0.07, None, {"Neck1": 1.0}, seg=28, tube=6,
+               color_fn=lambda t, s_: L.mix(D("c98a2a"), D("ffe48a"), 0.5 + 0.5 * s_))
+    finish(body, parts)
+
+
+def M_ellipse(rx, ry, n=20):
+    return [(math.cos(2 * math.pi * i / n) * rx, math.sin(2 * math.pi * i / n) * ry) for i in range(n)]
+
+
+# ================================================================ cloud sheep (blob/Dog)
+
+def sky_cloud_sheep(arm, body):
+    """แกะปุยเมฆ (sky_cloud_alpaca's new look): a round cloud sheep floating on its own
+    little cloud: a fleece of white cloud puffs shaded sky blue underneath, a cream face
+    with big sky-blue eyes, blush and a smile, floppy pink-lined ears, small curled gold
+    horns, a tuft of fleece on the brow and two tiny cloud wings."""
+    import remaster_monsters as M
+    import recipes_critters as RC
+    RC.drop_islands(body, lambda c, size, mat: mat == "Eye_White" or (mat == "Eye_Black" and abs(c.x) > 0.1))
+    # a small sheep's nose instead of the dog's big one
+    ni = L.mat_index(body, "Eye_Black")
+    nose = {v for p in body.data.polygons if p.material_index == ni for v in p.vertices}
+    nc = sum((body.data.vertices[i].co for i in nose), V()) / max(1, len(nose))
+    for i in nose:
+        v = body.data.vertices[i]
+        v.co = nc + (v.co - nc) * 0.55 + V((0, 0.06, 0.04))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 2600)
+    wool, wool_shade, face = D("ffffff"), D("b9d3f4"), D("fff1e4")
+
+    def paint(name, co, n, info):
+        if name == "Eye_Black":
+            return D("c96a7e")
+        if name == "Dog_Secondary" or (co.y < -0.5 and co.z < 1.15 and abs(co.x) < 0.75):
+            return L.mix(D("f6dccb"), face, L.smooth(0.2, 0.9, co.z))
+        if co.z > 1.0 and abs(co.x) > 0.6:  # the floppy ears
+            return L.mix(D("f4c3cc"), D("fde4e8"), L.smooth(-0.3, 0.6, n.z))
+        return L.mix(wool_shade, wool, L.smooth(-0.6, 0.5, n.z))
+
+    K.paint_body(body, paint)
+    surf, parts = start(body)
+    center = V((0, 0.05, 0.85))
+    # the fleece
+    for d in S_fib(40):
+        if d.y < -0.35 and d.z < 0.62:
+            continue  # leave the face open
+        if d.z < -0.3:
+            continue
+        p, n = M.dir_hit(surf, center, d)
+        if p is None or (p.z > 1.0 and abs(p.x) > 0.62):
+            continue  # not over the ears
+        r = 0.2 + 0.06 * (0.5 + 0.5 * d.z)
+        parts.ellipsoid(p + n * 0.03, (r, r, r * 0.9), color=None, weights=p, seg=9, rings=5,
+                        color_fn=lambda u: L.mix(wool_shade, wool, L.smooth(-0.7, 0.5, u.z)))
+    # brow tuft
+    for (x, z) in ((-0.17, 1.38), (0.17, 1.38), (0.0, 1.47)):
+        p, n = M.front_hit(surf, x, z)
+        if p is not None:
+            parts.ellipsoid(p + n * 0.06, (0.17, 0.15, 0.15), color=None, weights={"Head": 1.0}, seg=10, rings=6,
+                            color_fn=lambda u: L.mix(wool_shade, wool, L.smooth(-0.7, 0.5, u.z)))
+    for sx in (-1.0, 1.0):
+        with parts.use("keep"):
+            M.sparkly_eye(parts, V((0.4 * sx, -0.62, 0.86)), 0.21, V((0.3 * sx, -1.0, 0.0)).normalized(),
+                          D("1d5fd0"), D("8fe0ff"), {"Head": 1.0}, iris=0.66, pupil=0.34)
+        p, n = M.front_hit(surf, 0.62 * sx, 0.55)
+        if p is not None:
+            M.cheek(parts, p, n, 0.12, 0.07, D("ff9fb0"))
+        # small curled gold horns just above the ears
+        # small curled gold ram horns over the ears
+        hc = V((0.6 * sx, -0.3, 1.18))
+        with parts.use("keep"):
+            for k in range(9):
+                t = k / 8
+                th = math.radians(80 + 300 * t)
+                r = 0.2 * (1.0 - 0.55 * t)
+                q = hc + V((sx * (0.02 + 0.14 * t), -math.cos(th) * r, math.sin(th) * r))
+                rad = 0.09 * (1.0 - 0.5 * t)
+                parts.ellipsoid(q, (rad, rad, rad), color=None, weights={"Head": 1.0}, seg=6, rings=4,
+                                color_fn=lambda u, t=t: L.mix(D("e0a038"), D("fff0b8"), 0.3 + 0.5 * t + 0.2 * u.z))
+        # tiny cloud wings
+        S.wing(parts, V((0.42 * sx, 0.5, 1.15)), sx, 0.6, {"Body": 1.0}, D("eaf4ff"), D("ffffff"), rows=(4, 3),
+               lift=0.9, back=0.3, width=0.2)
+    p, n = M.front_hit(surf, 0.0, 0.3)
+    if p is not None:
+        M.smile_mouth(parts, p, n, 0.12, 0.09, D("7a3040"), D("ff8a9a"))
+    p, n = M.front_hit(surf, 0.0, 0.5)
+    if p is not None:
+        with parts.use("keep"):
+            parts.ellipsoid(p, (0.09, 0.05, 0.06), color=D("e58da0"), weights={"Head": 1.0}, seg=10, rings=6)
+    # the cushion of cloud it floats on
+    S.cloud(parts, V((0, 0.05, 0.08)), 0.62, {"Body": 1.0}, D("ffffff"), D("9fc2ee"), n=7, seed=4, flat=0.55,
+            spread=1.3)
+    finish(body, parts)
+
+
+def S_fib(n):
+    out = []
+    for i in range(n):
+        z = 1.0 - 2.0 * (i + 0.5) / n
+        r = math.sqrt(max(0.0, 1.0 - z * z))
+        a = i * math.pi * (3.0 - math.sqrt(5.0))
+        out.append(V((r * math.cos(a), r * math.sin(a), z)))
+    return out
+
+
 RECIPES = {
     "star/Skeleton_Warrior_sky_warden": sky_warden,
     "star/Skeleton_Warrior_sky_high_warden": sky_high_warden,
@@ -566,6 +779,9 @@ RECIPES = {
     "star/Skeleton_Mage_eclipse_reaper": eclipse_reaper,
     "star/Skeleton_Minion_eclipse_minion": eclipse_minion,
     "star/Skeleton_Rogue_eclipse_rogue": eclipse_rogue,
+    "star/Horse_White_sky_pegasus": sky_pegasus,
+    "star/Horse_White_sky_storm_pegasus": sky_storm_pegasus,
+    "blob/Dog_sky_cloud_alpaca": sky_cloud_sheep,
 }
 
 
@@ -576,7 +792,7 @@ def source(name):
         if base.startswith(rig + "_"):
             return os.path.join(SRC, d, rig + ".glb")
     if base.startswith("Dog_"):
-        return os.path.join(SRC, d, "Dog.gltf")
+        return os.path.join(SRC, d, "Dog.gltf")  # blob/Dog
     raise KeyError(name)
 
 
