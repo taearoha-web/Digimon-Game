@@ -597,3 +597,39 @@ def merge_materials(obj, mapping):
         me.materials.append(L.material(n))
     for p, i in zip(me.polygons, idx):
         p.material_index = i
+
+
+def glow_tips(obj, mat, glow_mat, reach, hot, core):
+    """Re-materials the far ends of the islands of `mat` (spikes, horns) as glow, white-hot
+    at the very tip. An island's base is its vertex nearest the model's centre."""
+    me = obj.data
+    names = [m.name for m in me.materials]
+    if glow_mat not in names:
+        me.materials.append(L.material(glow_mat))
+        names.append(glow_mat)
+    mi, gi = names.index(mat), names.index(glow_mat)
+    lo, hi = L.bounds(obj)
+    centre = (lo + hi) * 0.5
+    attr = me.color_attributes["Col"]
+    by_vert = {}
+    for p in me.polygons:
+        if p.material_index == mi:
+            by_vert.setdefault(p.vertices[0], []).append(p)
+    for verts, _n in L.islands(obj):
+        polys = [p for v in verts for p in by_vert.get(v, ())]
+        if not polys:
+            continue
+        cos = {i: me.vertices[i].co for i in verts}
+        base = min(cos.values(), key=lambda c: (c - centre).length)
+        tip = max(cos.values(), key=lambda c: (c - base).length)
+        length = (tip - base).length
+        if length < 1e-4:
+            continue
+        for p in polys:
+            t = max((cos[i] - base).length / length for i in p.vertices)
+            if t > 1.0 - reach / max(length, reach):
+                p.material_index = gi
+                for li in p.loop_indices:
+                    vt = (cos[me.loops[li].vertex_index] - base).length / length
+                    c = L.mix(hot, core, L.smooth(0.85, 1.0, vt))
+                    attr.data[li].color = (c[0], c[1], c[2], 1.0)

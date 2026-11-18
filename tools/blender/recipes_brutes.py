@@ -790,6 +790,190 @@ def bone_mask_warrior(arm, body):
     K.bake_ao(body)
 
 
+# ---------------------------------------------------------------- blob/GreenSpikyBlob
+
+def hell_cyclops(arm, body):
+    """hell_dino: a hellspawn cyclops blob. Charred hide (pre-compensated through its red
+    tint) split by molten lava cracks, the spikes turned into obsidian horns with
+    red-hot tips, one huge burning slit eye under a heavy scowling lid, a fanged maw."""
+    tint = (1.6, 0.4, 0.4)
+    keys = K.regions(body)
+    HIDE, PALE, PUPIL = "869a7e", "c5c7d0", "606266"
+    K.tag_regions(body, keys)
+    L.delete_faces(body, ("R_" + PUPIL,), where=lambda c, n, g: n == "R_" + PALE and c.y < -0.6 and abs(c.x) < 0.7
+                   and 0.55 < c.z < 1.95)
+    spikes = K.split_where(body, lambda p: body.data.materials[p.material_index].name == "R_" + PALE)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3000)
+    L.relax(body, 2, 0.4)
+    L.clean(spikes, quads=False)
+    L.decimate_to(spikes, 2600)
+    L.join(body, spikes)
+    lava, lava_hot = C("ff5a10"), C("ffe070")
+
+    def paint(region, co, n, info):
+        r = region[2:]
+        if r == PALE:  # obsidian horns
+            t = L.smooth(0.0, 0.25, info["bump"])
+            return L.mix(C("1a1418"), C("5a2a24"), t * 0.6), IVORY
+        c = L.mix(C("6a2a22"), C("b8483a"), L.smooth(0.4, -0.5, n.y) * 0.5 + max(0.0, n.z) * 0.3)
+        c = L.mix(c, C("3a1410"), L.smooth(0.55, 0.75, K.fbm(co, 1.6, 3)) * 0.55)
+        return K.pre(c, tint)
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    c = Vector((0.0, -1.3, 1.35))
+    gaze = Vector((0.0, -1.0, 0.05)).normalized()
+    K.fierce_eye(parts, c, 0.42, gaze, 1.0, C("fff4a0"), C("ff5a00"), head, lid=K.pre(C("7a3028"), tint), open_=0.4,
+                 glow_mat=IVORY_GLOW, slant=0.0)
+    # fanged maw
+    p, n = K.front_hit(surf, 0.0, 0.6)
+    mouth = [(x / 10.0 * 0.6, -0.08 * (1.0 - (x / 10.0) ** 2)) for x in range(-10, 11)]
+    with parts.on(DETAIL):
+        parts.stroke(p, n, mouth, 0.16, K.pre(C("120406"), tint), lift=0.014)
+    for k, x in enumerate((-0.42, -0.24, -0.08, 0.08, 0.24, 0.42)):
+        q, m = K.front_hit(surf, x, 0.66 - 0.05 * (1.0 - (x / 0.6) ** 2))
+        if q is not None:
+            K.fang(parts, q, (m * 0.5 + Vector((0, 0, -1.0))).normalized(), 0.22 + 0.1 * (k in (1, 4)), 0.065,
+                   q, root=C("d8c8a8"), seg=6, rings=4)
+    # lava cracks over the hide
+    rng = random.Random(9)
+    for d in K.fibonacci(26):
+        if d.y < -0.6 and abs(d.x) < 0.5 and d.z > -0.4:
+            continue
+        q, m = K.dir_hit(surf, Vector((0, 0, 1.3)), d)
+        if q is None or q.z < 0.15:
+            continue
+        path = K.crack_path(rng, 0.55, 6, 0.35)
+        with parts.on(DETAIL):
+            parts.stroke(q, m, path, 0.11, K.pre(C("140808"), tint), lift=0.01)
+        with parts.on(IVORY_GLOW):
+            parts.stroke(q, m, path, 0.05, lava, lift=0.02)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+    K.glow_tips(body, IVORY, IVORY_GLOW, 0.2, lava, lava_hot)
+
+
+# ---------------------------------------------------------------- blob/Orc
+
+def lava_orc(arm, body):
+    """fire_orc: a lava orc. A crust of cooled basalt (pre-compensated through its red
+    tint) split by glowing magma cracks, a mohawk of living flame, ember eyes under a
+    scowling brow, charred tusks, the tongue a lick of magma, an iron ring in one ear."""
+    tint = (1.5, 0.6, 0.5)
+    P = lambda h: K.pre(C(h), tint)  # noqa: E731
+    keys = K.regions(body)
+    HIDE, HAIR, TONGUE, LIPS, PALE, RING, PUPIL = "b3c07f", "71b0c3", "a17e93", "c386a3", "c5c7d0", "e7c770", "606266"
+    K.tag_regions(body, keys)
+    L.delete_faces(body, ("R_" + PUPIL,), where=lambda c, n, g: n == "R_" + PALE and c.z > 0.5)
+    crisp = K.split_where(body, lambda p: body.data.materials[p.material_index].name in ("R_" + HAIR, "R_" + RING))
+    L.clean(body)
+    L.subdivide(body, 2)
+    L.decimate_to(body, 3600)
+    L.relax(body, 2, 0.4)
+    L.clean(crisp, quads=False)
+    L.join(body, crisp)
+    magma, magma_hot = C("ff6a10"), C("fff09a")
+
+    def paint(region, co, n, info):
+        r = region[2:]
+        if r == HAIR:  # flames: white-hot roots, orange, red tips
+            t = L.smooth(1.25, 2.0, co.z)
+            return L.mix(L.mix(magma_hot, magma, L.smooth(0.0, 0.5, t)), C("d81e08"), L.smooth(0.5, 1.0, t)), IVORY_GLOW
+        if r == RING:
+            return L.mix(C("3a3438"), C("a8a4ac"), max(0.0, n.z)), IVORY
+        if r == PALE:  # tusks
+            return L.mix(C("6a5a50"), C("e8dcc4"), L.smooth(0.2, 0.42, co.z)), IVORY
+        if r == TONGUE:
+            return L.mix(C("ff5a10"), C("ffd060"), max(0.0, -n.y)), IVORY_GLOW
+        if r == LIPS:
+            return P("2a1210")
+        c = L.mix(C("7a5246"), C("b07e68"), L.smooth(0.3, -0.6, n.y) * 0.5 + max(0.0, n.z) * 0.4)
+        c = L.mix(c, C("4e3430"), L.smooth(0.5, 0.75, K.fbm(co, 2.5, 3)) * 0.6)
+        return K.pre(c, tint)
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        c = Vector((0.5 * sx, -0.66, 0.74))
+        gaze = Vector((0.35 * sx, -1.0, 0.05)).normalized()
+        K.fierce_eye(parts, c, 0.2, gaze, sx, C("fff6b0"), C("ff6a00"), head, lid=P("8a5e50"), open_=0.5,
+                     glow_mat=IVORY_GLOW, slant=0.45)
+        K.fang(parts, Vector((0.36 * sx, -0.72, 0.36)), Vector((0.2 * sx, -0.4, 1.0)), 0.3, 0.07, head,
+               root=C("6a5a50"), tip_col=C("f0e4cc"), bend=Vector((0.03 * sx, -0.05, 0)))
+    rng = random.Random(21)
+    for d in K.fibonacci(30):
+        if d.y < -0.5 and abs(d.x) < 0.75 and -0.6 < d.z < 0.5:
+            continue  # keep the face clear
+        q, m = K.dir_hit(surf, Vector((0, 0, 0.9)), d)
+        if q is None or q.z < 0.08 or q.z > 1.35:
+            continue
+        path = K.crack_path(rng, 0.4, 5, 0.35)
+        with parts.on(DETAIL):
+            parts.stroke(q, m, path, 0.09, P("1a0e0c"), lift=0.01)
+        with parts.on(IVORY_GLOW):
+            parts.stroke(q, m, path, 0.04, magma, lift=0.02)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
+# ---------------------------------------------------------------- blob/Ninja
+
+def storm_ninja(arm, body):
+    """storm_ninja: a hooded storm assassin. The face hidden behind a dark mask with two
+    glowing eyes under angry lids (glow, tinted electric blue), steel blades, storm-cloud hood with lighter folds, trailing scarf tails."""
+    keys = K.regions(body)
+    HOOD, EYE, PUPIL, BLADE, FACE, GUARD = "5f5f5f", "c5c7d0", "606266", "cac9c8", "cebd9f", "e7c770"
+    K.tag_regions(body, keys)
+    L.delete_faces(body, ("R_" + EYE, "R_" + PUPIL))
+    crisp = K.split_where(body, lambda p: body.data.materials[p.material_index].name in ("R_" + BLADE, "R_" + GUARD)
+                          or (body.data.materials[p.material_index].name == "R_" + HOOD and p.center.z > 1.9 and
+                              p.center.y > 0.3))
+    L.clean(body, fill_holes=24)
+    L.subdivide(body, 2)
+    L.decimate_to(body, 3400)
+    L.relax(body, 2, 0.4)
+    L.clean(crisp, quads=False)
+    L.join(body, crisp)
+
+    def paint(region, co, n, info):
+        r = region[2:]
+        if r == BLADE:
+            return L.mix(C("8a92a4"), C("f4f8ff"), max(0.0, n.z) * 0.5 + 0.3), IVORY
+        if r == GUARD:
+            return L.mix(C("6a5020"), C("e8c060"), max(0.0, n.z) * 0.6 + 0.2), IVORY
+        if r == HOOD and co.z > 1.9 and co.y > 0.3:  # hilts
+            return L.mix(C("1a1a24"), C("4a4a5a"), L.smooth(0.6, 0.9, math.sin(co.x * 40) * math.sin(co.z * 40)))
+        if r == FACE:  # the mask
+            return L.mix(C("7a8094"), C("a4aabc"), max(0.0, n.z) * 0.5)
+        c = L.mix(C("4a5064"), C("8a92aa"), L.smooth(-0.4, 0.8, n.z) * 0.6 + L.smooth(0.3, -0.7, n.y) * 0.3)
+        return L.mix(c, C("b4bccc"), L.smooth(0.04, 0.1, info["bump"]) * 0.6)
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        c = Vector((0.58 * sx, -0.84, 0.99))
+        gaze = Vector((0.3 * sx, -1.0, 0.0)).normalized()
+        K.fierce_eye(parts, c, 0.27, gaze, sx, C("ffffff"), C("a8ccff"), head, lid=C("5a6078"), open_=0.66,
+                     glow_mat=GLOW, slant=0.45, pupil=None)
+    # trailing scarf tails
+    for k, (dx, ln) in enumerate(((0.25, 1.0), (-0.2, 0.8))):
+        base = Vector((dx, 0.85, 0.75))
+        with parts.on(SKIN):
+            parts.blob(base, (0.16, 0.04), Vector((dx * 1.5, 1.0, -0.3)).normalized(), ln, None, weights=base,
+                       seg=10, rings=8, tip=0.5, up=Vector((0, 0.4, 1)), bend=Vector((0.2 * (1 - 2 * k), 0.15, 0.2)),
+                       color_fn=lambda t: L.mix(C("3a3e50"), C("8a92aa"), t))
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
@@ -800,6 +984,9 @@ RECIPES = {
     "big/Ninja": shadow_ninja,
     "big/Yeti": yeti,
     "big/Tribal": bone_mask_warrior,
+    "blob/GreenSpikyBlob": hell_cyclops,
+    "blob/Orc": lava_orc,
+    "blob/Ninja": storm_ninja,
 }
 
 
