@@ -20,6 +20,21 @@
   let cacheDB, userFS, overlay, readyPromise, readyResolve, started = false;
   let draft = null, conflictSave = null, uploadPromise = null, saveTimer, initDone = false;
   let writeChain = Promise.resolve();
+  // The uploads sent on top of one revision whose answers have not come back
+  // ({revision, bundles}), also kept in the cache under 'sent:<identity>': when an answer
+  // is lost (a phone drops off the network, or the page is killed mid-request) the server
+  // may hold one of them at revision + 1. That is this device's own save, not another
+  // device's, and must not stop the sync or be offered as "a newer save".
+  let sent = null;
+  const SENT_MAX = 3;
+  const sentKey = user => 'sent:' + identity(user);
+  const isOwnUpload = (record,serverBundle,revision) => !!record && Number(record.revision) + 1 === revision
+    && Array.isArray(record.bundles) && record.bundles.some(b => equal(b,serverBundle));
+  function noteSent(bundle,revision) {
+    if (!sent || sent.revision !== revision) sent = {revision,bundles:[]};
+    if (!sent.bundles.some(b => equal(b,bundle))) sent.bundles = sent.bundles.concat([bundle]).slice(-SENT_MAX);
+    queueWrite(sentKey(state.user),sent).catch(() => {});
+  }
   let transitioning = false;
   const copy = value => JSON.parse(JSON.stringify(value));
   // Character slots per account (Game.SLOT_COUNT in the game, MAX_SLOTS on the server).
@@ -324,10 +339,22 @@
     window.dispatchEvent(new CustomEvent('toonaccountpanelchange',{detail:{open:false}}));
     const canvas = document.getElementById('canvas'); if (started && canvas) canvas.focus({preventScroll:true});
   }
+  // ★ (paragon stars) and when the hero was last saved: two copies of a Lv.100 hero look
+  // the same by level alone (a phone lost ★300 → ★250 on a choice screen that showed only
+  // "เลเวล 100" for both).
+  function starsText(p) {
+    const stars = p && p.paragon && typeof p.paragon === 'object' ? Number(p.paragon.level) || 0 : 0;
+    return stars > 0 ? ' · ★' + stars : '';
+  }
+  function savedText(p) {
+    const at = Number(p && p.saved_at) || 0;
+    if (at < 1e9) return '';
+    try { return ' · บันทึก ' + new Date(at * 1000).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); } catch (_) { return ''; }
+  }
   function summaries(bundle) {
     const stored = Array.isArray(bundle.storage) ? '<p class="ta-hint ta-storage">คลังรวมทุกตัวละคร: ' + escaped(storageCount(bundle)) + ' ชิ้น</p>' : '';
     if (!hasHeroes(bundle)) return '<p class="ta-empty">ยังไม่มีตัวละคร</p>' + stored;
-    return '<div class="ta-heroes">' + Object.entries(bundle.slots).map(([slot,p]) => '<div class="ta-hero"><span class="ta-slot">' + escaped(slot) + '</span><div><strong>' + escaped(p.name || 'นักผจญภัย') + '</strong><small>' + escaped(CLASS_NAMES[p.class] || p.class || 'ตัวละคร') + ' · เลเวล ' + escaped(p.level || 1) + '</small></div></div>').join('') + '</div>' + stored;
+    return '<div class="ta-heroes">' + Object.entries(bundle.slots).map(([slot,p]) => '<div class="ta-hero"><span class="ta-slot">' + escaped(slot) + '</span><div><strong>' + escaped(p.name || 'นักผจญภัย') + '</strong><small>' + escaped(CLASS_NAMES[p.class] || p.class || 'ตัวละคร') + ' · เลเวล ' + escaped(p.level || 1) + escaped(starsText(p)) + escaped(savedText(p)) + '</small></div></div>').join('') + '</div>' + stored;
   }
   async function finish(user,bundle,revision,pending = false) {
     state.user = user; state.revision = revision; state.pending = pending; state.conflict = false; state.authExpired = false; state.accountChanged = false; state.error = '';
@@ -398,6 +425,9 @@
     const cached = await read(identity(user));
     state.user = user; state.revision = revision;
     if (cached && cached.dirty) {
+      // The server holds this device's own last upload (its answer was lost): the draft
+      // continues from that revision instead of being treated as another device's save.
+      if (cached.revision !== revision && isOwnUpload(await read(sentKey(user)),serverBundle,revision)) cached.revision = revision;
       draft = cached;
       if (equal(cached.bundle,serverBundle)) return finish(user,serverBundle,revision);
       // A slot restored from an offline backup in the game (saved_at = the restore
@@ -491,14 +521,17 @@
     state.conflict = true; state.pending = true; conflictSave = cloud;
     if (note) state.error = note;
     const local = copy(draft.bundle), server = bundleOf(cloud.bundle || blank()), revision = Number(cloud.revision) || 0;
-    const useOnline = {label:'ใช้เซฟออนไลน์ล่าสุด',kind:restored ? 'secondary' : 'primary',run:async () => {
+    // The copy saved last (the heroes' saved_at) is offered first: a local save newer than
+    // the online one is not "a newer save from another device".
+    const localFirst = !!restored || newest(local) > newest(server);
+    const useOnline = {label:localFirst && !restored ? 'ใช้เซฟออนไลน์ (เก่ากว่า)' : 'ใช้เซฟออนไลน์ล่าสุด',kind:localFirst ? 'secondary' : 'primary',run:async () => {
       if (started) transitioning = true;
       await backup(identity(state.user),local,restored ? 'เซฟที่กู้คืน ก่อนเลือกเซฟออนไลน์' : 'ก่อนเลือกเซฟออนไลน์');
       draft = {bundle:server,revision,dirty:false,savedAt:Date.now()}; await write(identity(state.user),draft);
       state.conflict = false; state.pending = false; state.error = '';
       if (beforeStart) await finish(state.user,server,revision); else { await write('stagedSwitch',{identity:identity(state.user),bundle:server}); location.reload(); }
     }};
-    const useLocal = {label:restored ? 'ใช้เซฟที่กู้คืน (ส่งขึ้นออนไลน์)' : 'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',kind:restored ? 'primary' : 'secondary',run:async () => {
+    const useLocal = {label:restored ? 'ใช้เซฟที่กู้คืน (ส่งขึ้นออนไลน์)' : localFirst ? 'ใช้เซฟในเครื่องนี้ (ใหม่กว่า)' : 'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',kind:localFirst ? 'primary' : 'secondary',run:async () => {
       if (started) transitioning = true;
       feedback('กำลังส่งเซฟในเครื่องขึ้นออนไลน์…',false);
       await backup(identity(state.user),server,'ก่อนแทนเซฟออนไลน์ด้วยเซฟในเครื่อง');
@@ -524,8 +557,8 @@
     const intro = restored
       ? '<p class="ta-intro">คุณเพิ่งกู้คืนเซฟในเครื่อง — จะใช้เซฟที่กู้คืนหรือเซฟออนไลน์?</p><p class="ta-hint">เซฟที่กู้คืนจากสำเนาสำรองในเครื่องนี้' + slotsNote + ' ยังไม่ได้ส่งขึ้นออนไลน์ ตัวละครและไอเทมจะใช้ทั้งชุด ไม่มีการรวมข้อมูลอัตโนมัติ สำเนาอีกชุดจะเก็บในเครื่องนี้</p>'
       : '<p class="ta-intro">มีความคืบหน้าสองชุด กรุณาเลือกชุดที่จะเล่นต่อ ตัวละครและไอเทมจะใช้ทั้งชุด ไม่มีการรวมข้อมูลอัตโนมัติ สำเนาอีกชุดจะเก็บในเครื่องนี้</p>';
-    panel(restored ? 'เซฟที่กู้คืน หรือเซฟออนไลน์' : 'พบเซฟใหม่จากอีกเครื่อง',intro + '<div class="ta-compare"><div><h3>' + (restored ? 'ที่กู้คืนในเครื่องนี้' : 'ในเครื่องนี้') + '</h3>' + summaries(local) + '</div><div><h3>ออนไลน์ล่าสุด</h3>' + summaries(server) + '</div></div>',
-      restored ? [useLocal,useOnline,later] : [useOnline,useLocal,later],
+    panel(restored ? 'เซฟที่กู้คืน หรือเซฟออนไลน์' : localFirst ? 'เซฟในเครื่องนี้ใหม่กว่าเซฟออนไลน์' : 'พบเซฟใหม่จากอีกเครื่อง',intro + '<div class="ta-compare"><div><h3>' + (restored ? 'ที่กู้คืนในเครื่องนี้' : 'ในเครื่องนี้') + '</h3>' + summaries(local) + '</div><div><h3>' + (localFirst && !restored ? 'ออนไลน์ (เก่ากว่า)' : 'ออนไลน์ล่าสุด') + '</h3>' + summaries(server) + '</div></div>',
+      localFirst ? [useLocal,useOnline,later] : [useOnline,useLocal,later],
       {foot:restored ? 'เซฟที่กู้คืนจะแทนข้อมูลออนไลน์ล่าสุด เลือกเซฟออนไลน์แทนได้ถ้ากู้คืนผิดชุด' : 'เลือกเซฟในเครื่องจะแทนข้อมูลออนไลน์ล่าสุด โปรดตรวจชื่อและเลเวลก่อนยืนยัน'});
     if (note) feedback(note);
   }
@@ -544,6 +577,7 @@
         while (state.pending && !state.conflict && navigator.onLine) {
           const outgoing = copy(draft.bundle), expectedRevision = state.revision;
           lastOutgoing = outgoing;
+          noteSent(outgoing,expectedRevision);
           await writeChain;
           const result = await api('save',{method:'POST',body:JSON.stringify({expectedRevision,bundle:outgoing})});
           state.revision = result.revision; state.error = '';
@@ -559,14 +593,19 @@
           try {
             const latest = await api('save');
             const server = bundleOf(latest.bundle || blank());
-            if (equal(server,draft.bundle) || (lastOutgoing && equal(server,lastOutgoing))) {
+            if (equal(server,draft.bundle) || (lastOutgoing && equal(server,lastOutgoing)) || isOwnUpload(sent,server,Number(latest.revision))) {
               const same = equal(server,draft.bundle);
               state.revision = latest.revision; state.pending = !same; state.error = '';
               draft = {bundle:copy(draft.bundle),revision:latest.revision,dirty:!same,savedAt:Date.now()};
               await queueWrite(identity(state.user),draft);
-              if (!same) scheduleUpload(100);
+              if (!same) { scheduleUpload(100); return; }
             } else { state.conflict = true; await showConflict(latest); }
-          } catch (_) { state.conflict = true; conflictSave = null; }
+          } catch (_) {
+            // The online save could not be read (still offline): never stop syncing over
+            // it. The upload is tried again; its next 409 reads the online save again.
+            // (This used to set conflict with no screen: nothing was uploaded for the rest
+            // of the session, and the next start offered the stale online copy first.)
+          }
         }
         if (state.pending && !state.conflict) scheduleUpload(30000);
         // Network failures retain the draft and retry on reconnect, never with
