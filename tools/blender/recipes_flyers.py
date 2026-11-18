@@ -385,7 +385,87 @@ def ice_bee(arm, body):
     return {"glow": "a0f0ff", "strength": 1.6, "glow2": "c8e8ff", "strength2": 0.35}
 
 
+# ---------------------------------------------------------------- bats
+
+def _bat(arm, body, fur_top, fur_low, chest, membrane, membrane_edge, inner_ear, nose, ear_z, glow_ball,
+         crown=False):
+    eyes = [e for e in K.eye_balls(body, ("c_8f92a0",)) if abs(e[0].x) < 0.8]
+    snap = K.Snapshot(body)
+    L.delete_faces(body, ("c_1e1f22",), where=lambda c, n, g: n == "c_8f92a0" and abs(c.x) < 0.8)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5400 if not crown else 5800)
+    L.relax(body, 2, 0.3, ("c_738636",))
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        region = snap.region(co)
+        if name == "c_8f92a0":  # wing claws
+            return L.mix(C("4a3a3a"), C("fff4e0"), L.smooth(-0.01, 0.06, info["bump"]))
+        if name == "c_a58c72":  # fangs
+            return L.mix(C("e8dcc4"), C("fffaf0"), L.smooth(-0.01, 0.04, info["bump"]))
+        if name == "c_cc9129":  # crown of fire
+            return L.mix(C("ff6a10"), C("fff0a0"), L.smooth(3.05, 3.5, co.z))
+        on_wing = bone.startswith("Wing")
+        if name == "c_5b354a" and on_wing:
+            # Leathery membrane: dark near the finger bones, thin and lit at the edge, veins.
+            t = L.smooth(0.6, 1.8, abs(co.x)) * 0.5 + L.smooth(0.5, 1.3, co.y) * 0.5
+            c = L.mix(membrane, membrane_edge, t)
+            vein = abs(math.sin(math.atan2(co.y - 0.3, abs(co.x) - 0.4) * 7.0))
+            return L.mix(c, membrane * 0.6, L.smooth(0.15, 0.0, vein) * 0.5)
+        if name == "c_5b354a":
+            if bone == "Torso" or co.z < 1.75:
+                return C("6a1a26")  # inside of the mouth
+            return nose  # the nose-leaf ridge
+        if on_wing:
+            return L.mix(fur_low, fur_top, 0.4) * 0.8  # wing-finger bones
+        # Fur: streaky (stretched noise), pale chest, darker crown; pink inside the ears.
+        streak = K.fbm(Vector((co.x * 3.0, co.y * 3.0, co.z * 0.8)), 0.12, 2)
+        c = L.mix(fur_low, fur_top, L.smooth(1.6, 2.8, co.z))
+        c = L.mix(c, chest, L.smooth(-0.2, -0.8, n.y) * L.smooth(2.1, 1.6, co.z) * 0.8)
+        c = L.mix(c, c * 0.7, max(0.0, streak) * 0.8)
+        c = L.mix(c, c * 1.2, max(0.0, -streak) * 0.5)
+        if co.z > ear_z and n.y < -0.2 and abs(co.x) > 0.25:
+            c = L.mix(c, inner_ear, L.smooth(-0.2, -0.6, n.y) * L.smooth(ear_z, ear_z + 0.2, co.z))
+        return c
+
+    K.paint_body_glow(body, paint, glow=lambda name, co, bone: 2 if name == "c_cc9129" else 0)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.8, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, fur_top * 0.9,
+                     brow=fur_top * 0.7, ball=glow_ball, slit=(0.08, 0.45), tilt=0.6, open_=0.3, lower_lid=0.6)
+    if not crown:
+        # Two long fangs over the lower lip.
+        lo_eye = min(c.z for c, r in eyes)
+        for sx in (-1.0, 1.0):
+            p, n = front_hit(surf, 0.13 * sx, lo_eye - 0.42)
+            if p is not None:
+                K.fang(parts, p - n * 0.03, Vector((0.0, -0.3, -1.0)), 0.24, 0.05, {"Head": 1.0})
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.6, 0.45, 0.5)))
+
+
+def blood_bat(arm, body):
+    """Goleling: blood_bat. A vampire bat: streaky dark fur with a paler chest, pink inner
+    ears, thin veined membranes, burning red slit eyes under a heavy brow, long fangs."""
+    _bat(arm, body, C("a06a5e"), C("5a3438"), C("d8a090"), C("3a1a22"), C("b05a5a"), C("e88a90"), C("8a4c4c"),
+         2.55, C("ff6060"))
+    return {"glow": "ff3020", "strength": 1.6}
+
+
+def flame_bat(arm, body):
+    """Goleling_Evolved: flame_bee (fire bat), temple guardian. A soot-furred fire bat
+    whose crown burns (emissive), ember-gold eyes, a fanged roaring maw."""
+    _bat(arm, body, C("b08060"), C("5a3a2a"), C("e8c090"), C("3a1e18"), C("e08040"), C("f0a070"), C("8a5a40"),
+         2.95, C("ffd060"), crown=True)
+    return {"glow": "ffc040", "strength": 1.5, "glow2": "ff9020", "strength2": 1.3}
+
+
 RECIPES = {
+    "flying/Goleling": blood_bat,
+    "flying/Goleling_Evolved": flame_bat,
     "flying/Armabee": poison_bee,
     "flying/Armabee_Evolved": ice_bee,
     "flying/Ghost_Skull": skull_ghost,
