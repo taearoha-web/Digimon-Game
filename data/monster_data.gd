@@ -55,12 +55,12 @@ const MONSTERS := {
 	&"grave_witch": {"name": "แม่มดสุสาน", "model": "flying/Squidle", "height": 1.8, "hp": 1.5, "atk": 2.1, "def": 1.2, "speed": 2.4, "aggro": true, "attack": "ranged", "color": Color("b06aff"), "tint": Color(0.9, 0.6, 1.4), "hover": 1.0, "behavior": "beam"},
 	&"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "model": "big/Orc_Skull", "height": 4.4, "hp": 16.0, "atk": 2.6, "def": 2.2, "speed": 2.6, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.7, 0.7), "behavior": "bone_spikes", "behavior2": "bone_rain"},
 	# Poison swamp
-	&"toxic_frog": {"name": "กบพิษมรณะ", "model": "big/Frog", "height": 1.8, "hp": 2.1, "atk": 1.9, "def": 1.5, "speed": 2.8, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.4, 0.6), "behavior": "pounce"},
+	&"toxic_frog": {"name": "กบพิษมรณะ", "model": "remaster/big/FrogToxic", "height": 1.8, "hp": 2.1, "atk": 1.9, "def": 1.5, "speed": 2.8, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.4, 0.6), "behavior": "pounce"},
 	&"swamp_dino": {"name": "อสุรกายหนอง", "model": "big/Alien", "height": 2.5, "hp": 2.3, "atk": 2.0, "def": 1.7, "speed": 2.7, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.3, 0.7), "behavior": "spin"},
 	&"mud_fish": {"name": "ปลาโคลนพิษ", "model": "blob/Fish", "height": 1.6, "hp": 1.7, "atk": 2.1, "def": 1.2, "speed": 2.9, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("9ae04a"), "tint": Color(0.8, 1.2, 0.5), "behavior": "beam"},
 	&"venom_mush": {"name": "เห็ดพิษร้าย", "model": "blob/Mushnub_Evolved", "height": 1.9, "hp": 2.0, "atk": 1.9, "def": 1.6, "speed": 2.3, "aggro": true, "attack": "melee", "tint": Color(1.3, 0.7, 1.3), "behavior": "spin"},
 	&"plague_bee": {"name": "แมลงโรคระบาด", "model": "flying/Glub", "height": 1.4, "hp": 1.5, "atk": 2.2, "def": 1.2, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("b8e04a"), "tint": Color(0.8, 1.4, 0.5), "behavior": "volley"},
-	&"toad_king": {"name": "ราชากบพิษ", "model": "big/Frog", "height": 4.4, "hp": 18.0, "atk": 2.8, "def": 2.4, "speed": 2.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.6, 1.3), "behavior": "tongue_lash", "behavior2": "poison_pools"},
+	&"toad_king": {"name": "ราชากบพิษ", "model": "remaster/big/FrogKing", "height": 4.4, "hp": 18.0, "atk": 2.8, "def": 2.4, "speed": 2.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.6, 1.3), "behavior": "tongue_lash", "behavior2": "poison_pools"},
 	# Storm peaks
 	&"thunder_golem": {"name": "ยักษ์หินสายฟ้า", "model": "big/BlueDemon", "height": 3.0, "hp": 2.6, "atk": 2.2, "def": 2.0, "speed": 2.5, "aggro": true, "attack": "melee", "tint": Color(1.4, 1.4, 0.7), "behavior": "spin"},
 	&"volt_pigeon": {"name": "นกสายฟ้า", "model": "blob/Pigeon", "height": 1.4, "hp": 1.7, "atk": 2.4, "def": 1.3, "speed": 3.7, "aggro": true, "attack": "ranged", "hover": 1.4, "color": Color("fff06a"), "tint": Color(0.7, 1.3, 2.2), "behavior": "beam"},

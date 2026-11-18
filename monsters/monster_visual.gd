@@ -161,7 +161,10 @@ func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
 				painted.set_meta("storybook_key", "%s|%s" % [source.resource_path, skin.resource_path])
 				source = painted
 			if source:
-				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, mesh_width, _soft_body))
+				# Remaster parts on a "Keep..." material (eyes, teeth, glowing marks) keep
+				# their painted colours under any tint.
+				var own := Color.WHITE if source.resource_name.begins_with("Keep") else tint
+				mi.set_surface_override_material(i, StorybookFinish.material(source, own, mesh_width, _soft_body))
 
 
 func _process(delta: float) -> void:

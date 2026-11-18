@@ -29,7 +29,8 @@ func _ready() -> void:
 	if args.size() > 2:
 		ids = Array(args[2].split(","))
 	for id in ids:
-		var t: Dictionary = MonsterData.get_monster(StringName(id))
+		# "blob/Cat" (a model path, not a monster id): the bare model, untinted (village animals).
+		var t: Dictionary = {"model": id, "height": 1.4} if String(id).contains("/") else MonsterData.get_monster(StringName(id))
 		var v := CelestialDragonVisual.make(self, t)
 		var h := float(t.height)
 		for mode in ["idle", "attack", "close", "back"]:
@@ -49,7 +50,7 @@ func _ready() -> void:
 			# The game camera's pitch (-24 degrees), framed on the monster.
 			var d := h * (3.3 if mode != "close" else 1.9)
 			var pitch := deg_to_rad(-24.0 if mode != "close" else -12.0)
-			var focus := Vector3(0, h * 0.5, 0)
+			var focus := Vector3(0, h * 0.5 + float(t.get("hover", 0.0)), 0)
 			cam.position = focus + Vector3(0, -sin(pitch) * d, cos(pitch) * d)
 			cam.look_at(focus)
 			for i in 3:
@@ -57,7 +58,7 @@ func _ready() -> void:
 			var img := get_viewport().get_texture().get_image()
 			var s := 600
 			img = img.get_region(Rect2i((img.get_width() - s) / 2, (img.get_height() - s) / 2, s, s))
-			img.save_png("%s/%s_%s.png" % [outdir, id, mode])
+			img.save_png("%s/%s_%s.png" % [outdir, String(id).replace("/", "_"), mode])
 		v.queue_free()
 		await get_tree().process_frame
 	get_tree().quit()
