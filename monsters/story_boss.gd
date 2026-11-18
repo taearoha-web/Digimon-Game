@@ -123,10 +123,13 @@ func force_special(kind: String) -> void:
 	_cycle = _rng.randf_range(CYCLE.x, CYCLE.y) * haste
 	mob._winding = true
 	mob._slam_timer = maxf(mob._slam_timer, TELEGRAPH + 1.0)
-	mob.visual.flash(Color(0.7, 0.4, 1.0), TELEGRAPH)
-	mob.visual.action("attack", int(TELEGRAPH * 1000.0))
-	mob._anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
-	BattleVfx.floating_text(zone, mob.top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("d9b8ff"), 1.3)
+	mob._anim_lock = GameClock.msec() + int((TELEGRAPH + 0.5) * 1000.0)
+	# The wind-up fills the telegraph, the move's name over the boss (BossCast).
+	if BossCast.begin(mob, self, "story_" + kind, TELEGRAPH, {"title": String(TITLES[kind]), "color": mob.template.get("color", COLOR)}) == null:
+		mob.visual.flash(Color(0.7, 0.4, 1.0), TELEGRAPH)
+		mob.visual.action("attack", int(TELEGRAPH * 1000.0))
+		mob._anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
+		BattleVfx.floating_text(zone, mob.top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("d9b8ff"), 1.3)
 	_draw()
 
 
@@ -159,6 +162,7 @@ func _fire() -> void:
 	mob._winding = false
 	if mob.is_dead():
 		return
+	BossCast.release_on(mob)
 	var color: Color = mob.template.get("color", COLOR)
 	for s in shapes:
 		var c: Vector3 = s.center

@@ -209,3 +209,95 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 	mat.set_shader_parameter("glow", 0.55)
 	_glow_tween = create_tween()
 	_glow_tween.tween_method(_param.bind("glow"), 0.55, 0.0, maxf(duration, 0.05))
+
+
+# ---------------------------------------------------------------------------
+# Boss casts (BossCast): the wind-up held as long as the telegraph lasts, on the same
+# shader scalars the clips use. The breath (skill1, fire) draws the head back and up
+# with the mouth kindling; heaven's call (skill2, sky moves) rears to the sky with the
+# whole dragon lifted; other moves coil back by the kind's own strike. The release
+# throws the head out along the body, then everything eases back to rest.
+# ---------------------------------------------------------------------------
+
+## The shader poses the cast; the node only swells a little.
+func cast_body(pose: String) -> Dictionary:
+	return {"lean": 0.0, "lift": 0.0, "sx": 1.04 if pose != "crouch" else 1.08, "sy": 1.04 if pose != "crouch" else 0.94}
+
+
+func _cast_size() -> float:
+	return float(CelestialDragon.KINDS.get(kind, {}).get("head", 1.0)) * 1.6
+
+
+func _cast_clip_windup(secs: float, hold: float, clip: String) -> void:
+	if mat == null:
+		return
+	var spec: Dictionary = CelestialDragon.KINDS.get(kind, {})
+	var size := _cast_size()
+	var up := float(spec.get("rise_k", 1.0))
+	_rise_k = up
+	busy_until = Time.get_ticks_msec() + int((secs + hold + 1.2) * 1000.0)
+	_cast_clip = clip
+	current = clip
+	_restart()
+	match clip:
+		"skill2":
+			_to({"reach": lerpf(0.4, -0.5, up) * size, "rise": 0.75 * size * up, "breath": 1.0}, secs)
+			_move_tween.parallel().tween_property(self, "_lift", height * 0.07 * up, secs).set_trans(Tween.TRANS_SINE)
+		"skill1":
+			_to({"reach": -0.95 * size * up, "rise": 0.45 * size * up, "breath": 0.75}, secs)
+		_:
+			if _cast_pose == "crouch":
+				_to({"reach": -0.5 * size, "rise": -0.35 * size, "breath": 0.4}, secs)
+			elif String(spec.get("move", "lunge")) == "swoop":
+				mat.set_shader_parameter("flap_rate", 13.0)
+				_to({"reach": -0.7 * size, "rise": 0.9 * size * up, "breath": 0.5}, secs)
+			else:
+				_to({"reach": -1.0 * size, "rise": 0.6 * size * up, "breath": 0.5}, secs)
+	# Held at the top of the wind-up: a slow quiver while the telegraph runs out.
+	if hold > 0.05:
+		var shake := 0.08 * size
+		var at := float(_plan.get("reach", 0.0))
+		_to({"reach": at - shake}, hold * 0.5)
+		_to({"reach": at + shake * 0.5}, hold * 0.5)
+
+
+func _cast_clip_release(secs: float) -> void:
+	if mat == null or _cast_clip == "":
+		_cast_clip = ""
+		return
+	var size := _cast_size()
+	busy_until = Time.get_ticks_msec() + int((secs + 0.5) * 1000.0)
+	_restart()
+	if _cast_pose == "crouch":
+		_to({"reach": 1.2 * size, "rise": -0.9 * size, "breath": 1.0}, 0.1)
+	else:
+		_to({"reach": 1.8 * size, "rise": -0.7 * size, "breath": 1.0}, 0.12)
+	_move_tween.parallel().tween_property(self, "_lift", 0.0, 0.12)
+	_move_tween.tween_interval(0.25)
+	_to({"reach": 0.0, "rise": 0.0, "breath": 0.0}, secs)
+	_move_tween.tween_callback(func(): mat.set_shader_parameter("flap_rate", 5.0))
+	_cast_clip = ""
+
+
+func cast_cancel() -> void:
+	var was := _cast_clip != ""
+	super.cast_cancel()
+	if was and mat != null and current != "die":
+		_restart()
+		_to({"reach": 0.0, "rise": 0.0, "breath": 0.0}, 0.2)
+		_move_tween.parallel().tween_property(self, "_lift", 0.0, 0.2)
+		mat.set_shader_parameter("flap_rate", 5.0)
+		busy_until = 0
+
+
+## The glow lights the dragon's own material (no overlay on this mesh); a hit flash
+## playing now is left to show.
+func cast_glow(color: Color, amount: float) -> void:
+	if mat == null or (_glow_tween != null and _glow_tween.is_running()):
+		return
+	mat.set_shader_parameter("glow_color", color)
+	mat.set_shader_parameter("glow", clampf(amount, 0.0, 1.0) * 0.32)
+
+
+func cast_point(part: String) -> Vector3:
+	return point("nose" if part == "mouth" else "chest")

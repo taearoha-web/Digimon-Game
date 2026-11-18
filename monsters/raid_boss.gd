@@ -257,10 +257,20 @@ func force_special(kind: String) -> void:
 	if telegraphs.is_empty():
 		return
 	_winding = true
-	visual.flash(Color(1.0, 0.3, 0.25), TELEGRAPH)
-	visual.action("attack", int(TELEGRAPH * 1000.0))
-	_anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
-	BattleVfx.floating_text(parent, top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.4)
+	# The wind-up fills the telegraph (BossCast), mirrored to the party's games.
+	var wind := TELEGRAPH + (0.3 if kind == "nova" else 0.0)
+	_anim_lock = GameClock.msec() + int((wind + 0.5) * 1000.0)
+	if EntitySync.hosting():
+		var circles: Array = []
+		if kind != "buster":
+			for t in telegraphs:
+				circles.append([t.center, float(t.radius), float(t.left)])
+		EntitySync.cast(self, circles, "attack", String(TITLES[kind]), "raid_" + kind, wind)
+	if BossCast.begin(self, null, "raid_" + kind, wind, {"title": String(TITLES[kind]), "color": COLOR}) == null:
+		visual.flash(Color(1.0, 0.3, 0.25), TELEGRAPH)
+		visual.action("attack", int(TELEGRAPH * 1000.0))
+		_anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
+		BattleVfx.floating_text(parent, top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.4)
 
 
 func _tick_telegraphs(delta: float) -> void:
@@ -283,6 +293,7 @@ func _tick_telegraphs(delta: float) -> void:
 	_clear_shapes()
 	_winding = false
 	specials += 1
+	BossCast.release_on(self)
 	var hit := {}
 	for t in fired:
 		_land(t, hit)

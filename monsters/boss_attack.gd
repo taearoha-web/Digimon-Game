@@ -142,10 +142,14 @@ func _ready() -> void:
 		var circles: Array = []
 		for shot in shots:
 			circles.append([shot.pos, float(shot.r), float(shot.at)])
-		EntitySync.cast(mob, circles, String(info.get("clip", "attack")), title(move) if MOVES.has(move) else "")
+		EntitySync.cast(mob, circles, String(info.get("clip", "attack")), title(move) if MOVES.has(move) else "", move if MOVES.has(move) else "", first)
+	mob._anim_lock = GameClock.msec() + int((last_impact + 0.4) * 1000.0)
+	# A boss's move is cast (BossCast): the wind-up fills the telegraph up to the first
+	# blow, its name rides over the boss. The plain monsters' moves (MobAttack) just strike.
+	if MOVES.has(move) and BossCast.begin(mob, self, move, first) != null:
+		return
 	mob.visual.flash(Color(1.0, 0.3, 0.2), first)
 	mob.visual.action(String(info.get("clip", "attack")), int((last_impact + 0.4) * 1000.0))
-	mob._anim_lock = GameClock.msec() + int((last_impact + 0.4) * 1000.0)
 	_announce()
 
 
