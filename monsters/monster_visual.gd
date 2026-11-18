@@ -24,6 +24,11 @@ const EXTRA_CLIPS := {
 	"summon/ChibiDemon": {"Idle": "", "Walk": "", "Run": "", "Attack": "res://assets/models/monsters/summon/ChibiDemon_punch.res"},
 }
 const CLIP_SPEED := {"summon/ChibiDemon": {"attack": 2.4}}
+## Remastered models (built by tools/blender/remaster_monsters.py): a file at
+## REMASTER_DIR + "<dir>/<Name>.glb" stands in for that model wherever it is used, with
+## the same rig and clip names. Off only for before/after review shots.
+const REMASTER_DIR := DIR + "remaster/"
+static var use_remaster := true
 
 var model: Node3D
 var anim: AnimationPlayer
@@ -65,6 +70,8 @@ func setup(model_path: String, target_height: float, hover := 0.0, tint := Color
 		for ext in [".glb", ".fbx"]:
 			if ResourceLoader.exists(DIR + model_path + ext):
 				path = DIR + model_path + ext
+		if use_remaster and ResourceLoader.exists(REMASTER_DIR + model_path + ".glb"):
+			path = REMASTER_DIR + model_path + ".glb"
 	var packed := load(path) as PackedScene
 	if packed == null:
 		push_error("MonsterVisual: missing %s" % model_path)
@@ -154,7 +161,11 @@ func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
 				painted.set_meta("storybook_key", "%s|%s" % [source.resource_path, skin.resource_path])
 				source = painted
 			if source:
-				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, mesh_width, _soft_body))
+				# Remastered parts on an "Ivory*" (bone, tusks, glowing eyes) or "Keep*" material
+				# (eyes, teeth, glowing marks) keep their own painted colour under a tint.
+				var mat_name := String(source.resource_name)
+				var own_tint := Color.WHITE if mat_name.begins_with("Ivory") or mat_name.begins_with("Keep") else tint
+				mi.set_surface_override_material(i, StorybookFinish.material(source, own_tint, mesh_width, _soft_body))
 
 
 func _process(delta: float) -> void:
