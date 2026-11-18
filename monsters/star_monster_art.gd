@@ -16,11 +16,26 @@ static func attach(root: Node3D, definition: Dictionary) -> void:
 	var theme := String(definition.get("region", "dawn_forest"))
 	var style := String(definition.decor)
 	var skeleton := _find_skeleton(root)
-	var head := _anchor(root, skeleton, ["head", "Head"], "StarCrown", Vector3(0, h * 0.72, 0))
-	var torso := _anchor(root, skeleton, ["chest", "Torso3", "Torso"], "StarMantle", Vector3(0, h * 0.45, 0))
+	# Blob rigs keep "Head" low in the body: a definition may name the bones its crown
+	# ("decor_head") and mantle ("decor_torso") follow, and lift the crown ("decor_lift",
+	# in crown units) so it sits on top of the creature, not inside it.
+	var head_bones: Array = ["head", "Head"]
+	if definition.has("decor_head"):
+		head_bones.push_front(String(definition.decor_head))
+	var torso_bones: Array = ["chest", "Torso3", "Torso"]
+	if definition.has("decor_torso"):
+		torso_bones.push_front(String(definition.decor_torso))
+	var head := _anchor(root, skeleton, head_bones, "StarCrown", Vector3(0, h * 0.72, 0))
+	var torso := _anchor(root, skeleton, torso_bones, "StarMantle", Vector3(0, h * 0.45, 0))
 	var royal := bool(definition.get("boss", false))
 	var elite := bool(definition.get("elite", false))
 	var unit := h * 0.22
+	if definition.has("decor_lift"):
+		var lifted := Node3D.new()
+		lifted.name = "StarCrownLift"
+		lifted.position = Vector3(0, unit * float(definition.decor_lift), 0)
+		head.add_child(lifted)
+		head = lifted
 	if theme == "dawn_forest":
 		_add(head, "leaves", theme, Vector3(0, unit * 0.38, 0), Vector3.ONE * unit)
 		if style in ["flower", "spirit", "forest_king"]:
