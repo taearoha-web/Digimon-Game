@@ -39,7 +39,7 @@ const MONSTERS := {
 	&"ice_fish": {"name": "ปลาน้ำแข็งลอยฟ้า", "model": "big/Fish", "height": 1.3, "hp": 1.0, "atk": 1.4, "def": 1.0, "speed": 2.6, "aggro": true, "attack": "ranged", "hover": 1.0, "color": Color("7fe3ff"), "tint": Color(0.7, 1.0, 1.4), "behavior": "beam"},
 	&"snow_pigeon": {"name": "นกพิราบหิมะ", "model": "flying/Pigeon", "height": 1.1, "hp": 0.9, "atk": 1.3, "def": 0.9, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.3, "color": Color("e8f6ff"), "tint": Color(1.0, 1.05, 1.25), "behavior": "volley"},
 	&"ice_bee": {"name": "ผึ้งน้ำแข็ง", "model": "flying/Armabee_Evolved", "height": 1.3, "hp": 1.1, "atk": 1.4, "def": 1.0, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("8fe8ff"), "tint": Color(0.7, 0.95, 1.4), "behavior": "volley"},
-	&"yeti_king": {"name": "ราชายักษ์หิมะ", "model": "big/Yeti", "height": 4.0, "hp": 12.0, "atk": 2.0, "def": 1.8, "speed": 2.2, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.95, 1.4), "behavior": "freeze_ring", "behavior2": "avalanche"},
+	&"yeti_king": {"name": "ราชายักษ์หิมะ", "model": "remaster/big/Yeti_yeti_king", "height": 4.0, "hp": 12.0, "atk": 2.0, "def": 1.8, "speed": 2.2, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.95, 1.4), "behavior": "freeze_ring", "behavior2": "avalanche"},
 	# Volcano
 	&"fire_orc": {"name": "ออร์คลาวา", "model": "blob/Orc", "height": 2.1, "hp": 1.5, "atk": 1.4, "def": 1.3, "speed": 2.4, "aggro": true, "attack": "melee", "tint": Color(1.5, 0.6, 0.5), "behavior": "cleave"},
 	&"lava_dino": {"name": "มังกรน้อยลาวา", "model": "big/Birb", "height": 2.2, "hp": 1.55, "atk": 1.4, "def": 1.3, "speed": 2.5, "aggro": true, "attack": "melee", "tint": Color(2.4, 1.0, 0.6), "behavior": "lunge"},
@@ -53,7 +53,7 @@ const MONSTERS := {
 	&"blood_bat": {"name": "ค้างคาวเลือด", "model": "flying/Goleling", "height": 1.5, "hp": 1.4, "atk": 1.9, "def": 1.1, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.3, "color": Color("ff4a5a"), "tint": Color(1.6, 0.5, 0.5), "behavior": "volley"},
 	&"ghoul_hound": {"name": "แมวผีดิบ", "model": "remaster/blob/CatGhoul", "height": 1.6, "hp": 1.7, "atk": 1.8, "def": 1.3, "speed": 3.9, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.2, 0.8), "behavior": "lunge"},
 	&"grave_witch": {"name": "แม่มดสุสาน", "model": "flying/Squidle", "height": 1.8, "hp": 1.5, "atk": 2.1, "def": 1.2, "speed": 2.4, "aggro": true, "attack": "ranged", "color": Color("b06aff"), "tint": Color(0.9, 0.6, 1.4), "hover": 1.0, "behavior": "beam"},
-	&"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "model": "big/Orc_Skull", "height": 4.4, "hp": 16.0, "atk": 2.6, "def": 2.2, "speed": 2.6, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.7, 0.7), "behavior": "bone_spikes", "behavior2": "bone_rain"},
+	&"bone_lord": {"name": "ราชาโครงกระดูกเลือด", "model": "remaster/big/Orc_Skull_bone_lord", "height": 4.4, "hp": 16.0, "atk": 2.6, "def": 2.2, "speed": 2.6, "aggro": true, "attack": "melee", "boss": true, "tint": Color(1.2, 0.7, 0.7), "behavior": "bone_spikes", "behavior2": "bone_rain"},
 	# Poison swamp
 	&"toxic_frog": {"name": "กบพิษมรณะ", "model": "remaster/big/FrogToxic", "height": 1.8, "hp": 2.1, "atk": 1.9, "def": 1.5, "speed": 2.8, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.4, 0.6), "behavior": "pounce"},
 	&"swamp_dino": {"name": "อสุรกายหนอง", "model": "big/Alien", "height": 2.5, "hp": 2.3, "atk": 2.0, "def": 1.7, "speed": 2.7, "aggro": true, "attack": "melee", "tint": Color(0.7, 1.3, 0.7), "behavior": "spin"},
@@ -78,20 +78,20 @@ const MONSTERS := {
 	# Abyss of hell
 	&"hell_orc": {"name": "ออร์คปีศาจ", "model": "big/Demon", "height": 2.8, "hp": 3.4, "atk": 3.2, "def": 2.5, "speed": 2.9, "aggro": true, "attack": "melee", "tint": Color(1.2, 0.5, 0.5), "behavior": "cleave"},
 	&"abyss_ghost": {"name": "ผีนรกอเวจี", "model": "flying/Ghost", "height": 2.2, "hp": 2.8, "atk": 3.6, "def": 1.8, "speed": 3.1, "aggro": true, "attack": "ranged", "hover": 1.1, "color": Color("ff4a6a"), "tint": Color(1.8, 0.4, 0.6), "behavior": "mortar"},
-	&"demon_ninja": {"name": "นักรบเผ่าปีศาจ", "model": "big/Tribal", "height": 2.4, "hp": 2.6, "atk": 3.9, "def": 1.9, "speed": 4.3, "aggro": true, "attack": "melee", "tint": Color(1.4, 0.5, 0.6), "behavior": "lunge"},
+	&"demon_ninja": {"name": "นักรบเผ่าปีศาจ", "model": "remaster/big/Tribal_demon_ninja", "height": 2.4, "hp": 2.6, "atk": 3.9, "def": 1.9, "speed": 4.3, "aggro": true, "attack": "melee", "tint": Color(1.4, 0.5, 0.6), "behavior": "lunge"},
 	&"hell_dino": {"name": "สัตว์ประหลาดนรก", "model": "blob/GreenSpikyBlob", "height": 3.2, "hp": 3.6, "atk": 3.3, "def": 2.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(1.6, 0.4, 0.4), "behavior": "spin"},
-	&"hell_wizard": {"name": "ปีศาจหนวดนรก", "model": "cute/Cthulhu", "height": 2.2, "hp": 2.8, "atk": 4.0, "def": 2.0, "speed": 2.7, "aggro": true, "attack": "ranged", "color": Color("ff3a5a"), "tint": Color(2.0, 0.7, 0.8), "behavior": "beam"},
+	&"hell_wizard": {"name": "ปีศาจหนวดนรก", "model": "remaster/cute/Cthulhu_hell_wizard", "height": 2.2, "hp": 2.8, "atk": 4.0, "def": 2.0, "speed": 2.7, "aggro": true, "attack": "ranged", "color": Color("ff3a5a"), "tint": Color(2.0, 0.7, 0.8), "behavior": "beam"},
 	&"abyss_dragon": {"name": "ราชามังกรอเวจี", "model": "flying/Dragon_Evolved", "height": 5.8, "hp": 30.0, "atk": 3.8, "def": 3.5, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.1, "color": Color("ff2a4a"), "tint": Color(0.5, 0.45, 1.0), "behavior": "inferno_spiral", "behavior2": "inferno_twin"},
 	# Void of calamity (Lv.100 endgame farm): huge HP, heavy hits, rich drops.
-	&"void_golem": {"name": "ยักษ์หินห้วงว่างเปล่า", "model": "big/BlueDemon", "height": 3.6, "hp": 6.5, "atk": 4.6, "def": 4.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(0.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "spin"},
+	&"void_golem": {"name": "ยักษ์หินห้วงว่างเปล่า", "model": "remaster/big/BlueDemon_void_golem", "height": 3.6, "hp": 6.5, "atk": 4.6, "def": 4.6, "speed": 3.0, "aggro": true, "attack": "melee", "tint": Color(0.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "spin"},
 	&"star_wraith": {"name": "วิญญาณดาวดับ", "model": "flying/Ghost_Skull", "height": 2.8, "hp": 5.5, "atk": 5.6, "def": 3.4, "speed": 3.4, "aggro": true, "attack": "ranged", "hover": 1.2, "color": Color("9a7aff"), "tint": Color(0.8, 0.6, 2.0), "exp": 4.0, "gold": 5.0, "behavior": "mortar"},
-	&"rift_stalker": {"name": "นักล่าช่องมิติ", "model": "big/Ninja", "height": 3.0, "hp": 6.0, "atk": 6.0, "def": 3.8, "speed": 4.8, "aggro": true, "attack": "melee", "tint": Color(0.5, 1.7, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "lunge"},
+	&"rift_stalker": {"name": "นักล่าช่องมิติ", "model": "remaster/big/Ninja_rift_stalker", "height": 3.0, "hp": 6.0, "atk": 6.0, "def": 3.8, "speed": 4.8, "aggro": true, "attack": "melee", "tint": Color(0.5, 1.7, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "lunge"},
 	&"tentacle_horror": {"name": "อสูรหนวดอนันต์", "model": "cute/Cthulhu", "height": 3.2, "hp": 7.0, "atk": 5.2, "def": 4.0, "speed": 3.0, "aggro": true, "attack": "ranged", "color": Color("ff5af0"), "tint": Color(1.7, 0.5, 1.9), "exp": 4.0, "gold": 5.0, "behavior": "beam"},
 	&"nova_drake": {"name": "มังกรน้อยซูเปอร์โนวา", "model": "cute/YellowDragon", "height": 3.6, "hp": 7.5, "atk": 5.0, "def": 4.4, "speed": 3.4, "aggro": true, "attack": "melee", "tint": Color(1.9, 0.5, 0.9), "exp": 4.0, "gold": 5.0, "behavior": "pounce"},
 	# The rare dragon of the zones flagged "rare_dragon" (RareDragon: its strength comes from
 	# the field it visits, its crystal look from RareDragon.dress).
 	&"prism_dragon": {"name": "มังกรแก้วเจ็ดสี", "celestial": "prism", "model": "flying/Dragon_Evolved", "height": 4.8, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 3.0, "aggro": true, "attack": "ranged", "boss": true, "hover": 1.0, "color": Color("9df7ff"), "behavior": "chain_lightning", "behavior2": "thunder_cage", "alternate": true, "slam_every": 5.0},
-	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "big/Demon", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0, "behavior": "rift_trail", "behavior2": "event_horizon"},
+	&"void_emperor": {"name": "จักรพรรดิแห่งห้วงวิบัติ", "model": "remaster/big/Demon_void_emperor", "height": 7.2, "hp": 45.0, "atk": 6.4, "def": 6.0, "speed": 3.4, "aggro": true, "attack": "melee", "boss": true, "tint": Color(0.8, 0.4, 2.2), "color": Color("b05aff"), "exp": 3.0, "gold": 6.0, "behavior": "rift_trail", "behavior2": "event_horizon"},
 }
 
 

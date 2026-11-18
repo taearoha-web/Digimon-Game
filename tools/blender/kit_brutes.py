@@ -633,3 +633,158 @@ def glow_tips(obj, mat, glow_mat, reach, hot, core):
                     vt = (cos[me.loops[li].vertex_index] - base).length / length
                     c = L.mix(hot, core, L.smooth(0.85, 1.0, vt))
                     attr.data[li].color = (c[0], c[1], c[2], 1.0)
+
+
+# ---------------------------------------------------------------- variants (recipes_brutes_variants.py)
+
+def scale_region(obj, pred, center, factors, falloff=None):
+    """Scales the vertices where pred(co) about center by factors (x, y, z); falloff(co)
+    0..1 blends the move (a soft selection) - broader shoulders, a longer jaw."""
+    for v in obj.data.vertices:
+        if pred(v.co):
+            t = falloff(v.co) if falloff else 1.0
+            d = v.co - center
+            v.co = L.mix(v.co, center + Vector((d.x * factors[0], d.y * factors[1], d.z * factors[2])), t)
+    obj.data.update()
+
+
+def move_region(obj, offset_fn):
+    """Moves every vertex by offset_fn(co) (a Vector, zero to leave it)."""
+    for v in obj.data.vertices:
+        v.co = v.co + offset_fn(v.co)
+    obj.data.update()
+
+
+def bone_axis(arm, name):
+    """(head, tail) of a bone in the rest pose (model space)."""
+    b = arm.data.bones[name]
+    return b.head_local.copy(), b.tail_local.copy()
+
+
+def spike_ring(parts, center, axis, radius, count, length, width, weights, root, tip_col, mat=IVORY, tilt=0.15,
+               phase=0.0, sizes=None, seg=6):
+    """A crown of spikes standing on a ring (crowns, collars, halos of shards)."""
+    t_, b_, n_ = L.frame(axis)
+    out = []
+    for i in range(count):
+        a = phase + 2.0 * math.pi * i / count
+        r = t_ * math.cos(a) + b_ * math.sin(a)
+        k = sizes[i % len(sizes)] if sizes else 1.0
+        base = center + r * radius
+        d = (n_ + r * tilt).normalized()
+        out.append(horn(parts, base, d, length * k, width * k ** 0.5, weights, root, tip_col, mat=mat, seg=seg,
+                        rings=4, tip=0.03))
+    return out
+
+
+def ring_band(parts, center, axis, radius, height, color_fn, weights, mat=IVORY, seg=20, flare=1.0):
+    """A closed band (crown base, bracer, collar) on `mat`."""
+    with parts.on(mat):
+        return parts.frustum(center, axis, radius, radius * flare, height, color_fn, weights, seg=seg)
+
+
+def cloth(parts, top_l, top_r, drop, length, weights, color_fn, cols=6, rows=6, thick=0.03, sway=None, mat=IVORY,
+          ragged=0.0, seed=0, bulge=None):
+    """A hanging sheet (cape, mantle, loincloth, fin membrane) from the edge top_l..top_r
+    falling along `drop` for `length`: a thin two-sided grid. color_fn(u across, t down);
+    sway(u, t) -> Vector offset; ragged tears the bottom edge; bulge(u, t) -> Vector pushes
+    it out (over the back). weights: dict / Vector anchor, or f(u, t) -> dict."""
+    rng = random.Random(seed)
+    drop = drop.normalized()
+    across = top_r - top_l
+    nrm = across.cross(drop).normalized()
+    tear = [1.0 - ragged * rng.random() for _ in range(cols + 1)]
+    with parts.on(mat):
+        cos, faces, cols_ = [], [], []
+        for side in (0, 1):
+            for r in range(rows + 1):
+                for c in range(cols + 1):
+                    u, t = c / cols, r / rows
+                    t2 = t * tear[c]
+                    p = top_l + across * u + drop * (length * t2)
+                    if sway:
+                        p = p + sway(u, t2)
+                    if bulge:
+                        p = p + bulge(u, t2)
+                    p = p + nrm * (thick * (0.5 if side else -0.5))
+                    cos.append(p)
+                    cols_.append(color_fn(u, t2))
+        n1 = (rows + 1) * (cols + 1)
+        for side in (0, 1):
+            o = side * n1
+            for r in range(rows):
+                for c in range(cols):
+                    a = o + r * (cols + 1) + c
+                    f = (a, a + 1, a + cols + 2, a + cols + 1)
+                    faces.append(f if side else tuple(reversed(f)))
+        # close the rim
+        rim = [(0, c) for c in range(cols)] + [(r, cols) for r in range(rows)] + \
+              [(rows, c) for c in range(cols, 0, -1)] + [(r, 0) for r in range(rows, 0, -1)]
+        nxt = rim[1:] + rim[:1]
+        for (r0, c0), (r1, c1) in zip(rim, nxt):
+            a, b = r0 * (cols + 1) + c0, r1 * (cols + 1) + c1
+            faces.append((a, b, b + n1, a + n1))
+        if callable(weights) and not isinstance(weights, (dict, Vector)):
+            vs = parts._add(cos, faces, lambda i: cols_[i], {}, False)
+            for i, v in enumerate(vs):
+                k = i % n1
+                r, c = divmod(k, cols + 1)
+                for g, x in weights(c / cols, r / rows).items():
+                    v[parts.deform][parts._group(g)] = x
+            return vs
+        return parts._add(cos, faces, lambda i: cols_[i], weights, False)
+
+
+def gem(parts, center, normal, radius, color, weights, mat=GLOW, depth=0.6):
+    """A cut gem (octahedron-ish) half sunk in a surface."""
+    with parts.on(mat):
+        return parts.ellipsoid(center, (radius, radius, radius * depth), basis(normal), color=None, weights=weights,
+                               seg=6, rings=3, color_fn=lambda u: L.mix(color, WHITE, L.smooth(0.3, 1.0, u.z) * 0.6))
+
+
+def fin(parts, bases, tips, weights, color_fn, mat=DETAIL, thick=0.025, spines=None, spine_r=0.022):
+    """A fin membrane strung between a base polyline (on the body) and a tip polyline:
+    a thin two-sided strip; color_fn(u along 0..1, t base 0..tip 1). spines: (root, tip
+    colour) to run a bony ray up every edge."""
+    n = len(bases)
+    with parts.on(mat):
+        cos, cols = [], []
+        for side in (-1.0, 1.0):
+            for i in range(n):
+                a, b = bases[i], tips[i]
+                along = (bases[min(i + 1, n - 1)] - bases[max(i - 1, 0)]).normalized()
+                nrm = along.cross((b - a).normalized()).normalized() * thick * 0.5 * side
+                for t in (0.0, 1.0):
+                    cos.append(a + (b - a) * t + nrm * (1.0 - 0.7 * t))
+                    cols.append(color_fn(i / max(n - 1, 1), t))
+        faces = []
+        for s_, o in ((0, 0), (1, 2 * n)):
+            for i in range(n - 1):
+                f = (o + 2 * i, o + 2 * i + 2, o + 2 * i + 3, o + 2 * i + 1)
+                faces.append(f if s_ else tuple(reversed(f)))
+        for i in range(n - 1):  # the free edge and the root
+            faces.append((2 * i + 1, 2 * i + 3, 2 * n + 2 * i + 3, 2 * n + 2 * i + 1))
+        faces.append((0, 1, 2 * n + 1, 2 * n))
+        faces.append((2 * n - 1, 2 * n - 2, 4 * n - 2, 4 * n - 1))
+        vs = parts._add(cos, faces, lambda i: cols[i], weights, False)
+    if spines:
+        for a, b in zip(bases, tips):
+            horn(parts, a, b - a, (b - a).length * 1.04, spine_r, weights, spines[0], spines[1], mat=mat, seg=5,
+                 rings=3, tip=0.1)
+    return vs
+
+
+def ring_of(parts, center, axis, radius, count, size, weights, color, mat=GLOW, gap=0.0, phase=0.0, seg=5):
+    """A thin glowing ring made of short stretched beads (halo, orbit, accretion disc);
+    gap 0..1 leaves an arc open."""
+    t_, b_, n_ = L.frame(axis)
+    with parts.on(mat):
+        for i in range(count):
+            u = i / count
+            if gap and u > 1.0 - gap:
+                continue
+            a = phase + 2.0 * math.pi * u
+            p = center + (t_ * math.cos(a) + b_ * math.sin(a)) * radius
+            tang = -t_ * math.sin(a) + b_ * math.cos(a)
+            ln = 2.0 * math.pi * radius / count * 0.62
+            parts.ellipsoid(p, (size, size, ln), basis(tang), color=color, weights=weights, seg=seg, rings=3)

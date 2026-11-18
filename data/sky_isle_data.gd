@@ -52,7 +52,7 @@ const LATE_HP := 6.0
 const MONSTERS := {
 	&"cloud_whelp": {"name": "ลูกมังกรเมฆา", "celestial": "whelp", "model": "flying/Dragon", "height": 2.0, "hover": 0.9, "hp": 2.0, "atk": 2.3, "def": 1.3, "speed": 3.1, "aggro": true, "attack": "ranged",
 		"color": Color("bfe9ff"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("eef6ff"), "Dragon_Secondary": Color("6fbdf0"), "Dragon_Horn": Color("ffd76a")}, "aura": Color("bfe9ff"), "decor": "cloud", "behavior": "volley", "exp": 2.2, "gold": 2.8},
-	&"jade_drake": {"name": "เดรกเกล็ดหยก", "model": "big/Dino", "height": 2.7, "hp": 2.7, "atk": 2.2, "def": 1.9, "speed": 2.9, "aggro": true, "attack": "melee",
+	&"jade_drake": {"name": "เดรกเกล็ดหยก", "model": "remaster/big/Dino_jade_drake", "height": 2.7, "hp": 2.7, "atk": 2.2, "def": 1.9, "speed": 2.9, "aggro": true, "attack": "melee",
 		"color": Color("5fe0a8"), "tint": Color.WHITE, "paint": {"Dino_Main": Color("2fb48a"), "Dino_Secondary": Color("eaf4c4")}, "aura": Color("5fe0a8"), "decor": "horns", "behavior": "pounce", "exp": 2.3, "gold": 2.9},
 	&"gold_wyrmling": {"name": "มังกรน้อยเกล็ดทอง", "celestial": "wyrmling", "model": "cute/YellowDragon", "height": 2.3, "hp": 2.3, "atk": 2.4, "def": 1.5, "speed": 3.0, "aggro": true, "attack": "melee",
 		"color": Color("ffd05a"), "tint": Color(1.3, 1.15, 0.6), "paint": {}, "aura": Color("ffd05a"), "decor": "pearl", "behavior": "spin", "exp": 2.25, "gold": 3.1},

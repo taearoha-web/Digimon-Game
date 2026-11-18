@@ -32,9 +32,38 @@ SKIN_FUR, SKIN_HIDE = "Skin_Fur", "Skin_Hide"  # temporary slots (merged into Sk
 WHITE = C("ffffff")
 
 
+# ---------------------------------------------------------------- variant hooks
+# Every base recipe takes an optional variant spec `v` (recipes_brutes_variants.py): with
+# v None it builds exactly the shared model. Keys (all optional):
+#   "shape": f(body)              reshape the smoothed mesh before painting
+#   "paint": f(base_paint) -> fn   wrap / replace the paint function
+#   "skip": {feature, ...}         leave out named default features
+#   "eye": (core, rim)             eye colours ("lid": lid colour, where the recipe has one)
+#   "tris": n                      the body's decimation target
+#   "extra": f(arm, body, surf, parts)  add parts before they are joined
+#   "post": f(body)               after the AO bake (glow tips etc.)
+
+def _hook(v, key, *a):
+    f = (v or {}).get(key)
+    return f(*a) if f else None
+
+
+def _paint(v, fn):
+    f = (v or {}).get("paint")
+    return f(fn) if f else fn
+
+
+def _has(v, feature):
+    return feature not in (v or {}).get("skip", ())
+
+
+def _eye(v, core, rim):
+    return (v or {}).get("eye", (core, rim))
+
+
 # ---------------------------------------------------------------- big/Demon
 
-def demon(arm, body):
+def demon(arm, body, v=None):
     """hell_orc (red) and void_emperor (violet boss): a horned, winged demon lord.
     Burnt-black hands and feet, lighter chest, glowing ember cracks over the chest and
     arms (tinted: lava red / void violet), fiery untinted eyes under a scowling brow,
@@ -47,12 +76,13 @@ def demon(arm, body):
     crisp = K.split_where(body, lambda p: body.data.materials[p.material_index].name == "R_" + DARK)
     L.clean(body)
     L.subdivide(body, 1)
-    L.decimate_to(body, 4100)
+    L.decimate_to(body, (v or {}).get("tris", 4100))
     L.relax(body, 2, 0.4)
     L.clean(crisp, quads=False)
     halo = K.face_islands(crisp, lambda p: abs(p.center.x) < 0.42 and p.center.z > 2.7 and abs(p.center.y) < 0.42)
-    K.retag(crisp, {v for _c, _h, vs in halo for v in vs}, "R_halo")
+    K.retag(crisp, {i for _c, _h, vs in halo for i in vs}, "R_halo")
     L.join(body, crisp)
+    _hook(v, "shape", body)
 
     chest, main, back, burnt = C("f0d2c8"), C("cf9e94"), C("94635f"), C("2e2228")
 
@@ -81,15 +111,15 @@ def demon(arm, body):
         c = L.mix(c, burnt, ext * 0.92)
         return c
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
-    lid = C("b07a74")
+    lid = (v or {}).get("lid", C("b07a74"))
     for sx in (-1.0, 1.0):
         c = Vector((0.31 * sx, -0.47, 2.2))
         gaze = Vector((0.28 * sx, -1.0, 0.05)).normalized()
-        K.fierce_eye(parts, c, 0.135, gaze, sx, C("fff6b0"), C("ff7a10"), head, lid=lid, open_=0.5,
+        K.fierce_eye(parts, c, 0.135, gaze, sx, *_eye(v, C("fff6b0"), C("ff7a10")), head, lid=lid, open_=0.5,
                      glow_mat=IVORY_GLOW)
         # heavy brow ridge, low over the nose
         K.ridge(parts, Vector((0.5 * sx, -0.4, 2.42)), Vector((0.07 * sx, -0.6, 2.3)), 0.075, C("8a5550"), head,
@@ -101,7 +131,7 @@ def demon(arm, body):
         # bone spikes on the shoulders
         for k, (dx, dz) in enumerate(((0.0, 0.0), (0.18, -0.06), (-0.16, -0.04))):
             p, n = K.dir_hit(surf, Vector((0.62 * sx + dx * sx, 0.15, 1.8)), Vector((0.35 * sx, 0.2, 1.0)))
-            if p is not None:
+            if p is not None and _has(v, "shoulder_spikes"):
                 K.horn(parts, p - n * 0.03, (n + Vector((0.2 * sx, 0.1, 0.5))).normalized(), 0.26 - 0.06 * k,
                        0.06 - 0.01 * k, p, C("231c22"), C("efe2c8"), seg=8, rings=5)
     p, n = K.front_hit(surf, 0.0, 1.96)
@@ -114,27 +144,29 @@ def demon(arm, body):
     for (x, z, head_a, ln) in ((0.25, 1.55, -1.9, 0.55), (-0.3, 1.45, -1.2, 0.5), (0.05, 1.2, -1.6, 0.45),
                                (0.4, 1.25, -2.2, 0.35), (-0.15, 1.75, -0.6, 0.35)):
         p, n = K.front_hit(surf, x, z)
-        if p is not None:
+        if p is not None and _has(v, "embers"):
             K.glow_path(parts, p, n, K.crack_path(rng, ln, 6, 0.3, heading=head_a), 0.055, ember)
     for sx in (-1.0, 1.0):
         for k in range(2):
             p, n = K.dir_hit(surf, Vector((0.9 * sx + 0.3 * k * sx, 0.05, 1.82)), Vector((0, -0.3, 1.0)))
-            if p is not None:
+            if p is not None and _has(v, "embers"):
                 K.glow_path(parts, p, n, K.crack_path(rng, 0.35, 5, 0.25, heading=0.0 if sx > 0 else math.pi), 0.035,
                             ember, up=Vector((0, -1, 0)))
     # a row of spines down the back
     for k, z in enumerate((2.45, 2.2, 1.95, 1.7, 1.45)):
         p, n = K.dir_hit(surf, Vector((0, 0.1, z)), Vector((0, 1.0, 0.15)))
-        if p is not None:
+        if p is not None and _has(v, "spines"):
             K.horn(parts, p - n * 0.03, (n + Vector((0, 0.0, 0.45))).normalized(), 0.34 - 0.035 * k, 0.07 - 0.007 * k,
                    p, C("231c22"), C("efe2c8"), seg=8, rings=5)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.bake_ao(body)
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- big/BlueDemon
 
-def stone_golem(arm, body):
+def stone_golem(arm, body, v=None):
     """thunder_golem (yellow) and void_golem (violet): the goblin rig recut as a stone
     golem - flat-shaded faceted slate (untinted, so both share real stone), glowing cracks,
     eye slits, mouth and chest core on Glow (tinted: lightning yellow / void violet),
@@ -146,7 +178,7 @@ def stone_golem(arm, body):
     L.delete_faces(body, ("R_" + PUPIL,), where=lambda c, n, g: n == "R_" + EYE and g == "Head")
     club = K.split_where(body, lambda p: body.data.materials[p.material_index].name in ("R_" + CLUB, "R_" + WRAP))
     L.clean(body)
-    L.decimate_to(body, 2900)
+    L.decimate_to(body, (v or {}).get("tris", 2900))
     L.relax(body, 1, 0.3)
     L.clean(club, quads=False)
     L.join(body, club)
@@ -159,6 +191,7 @@ def stone_golem(arm, body):
         j = K.hash01(co * 3.0, seed) - 0.5
         return c * (1.0 + j * 0.22)
 
+    _hook(v, "shape", body)
     def paint(region, co, n, info):
         r = region[2:]
         cen = info["poly"]
@@ -170,7 +203,7 @@ def stone_golem(arm, body):
             return C("5a4a3a"), IVORY
         return stone(cen, n), IVORY
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
@@ -230,7 +263,7 @@ def stone_golem(arm, body):
     # boulder pauldrons and crystal growths (crystals take the tint)
     for sx in (-1.0, 1.0):
         q, m = K.dir_hit(surf, Vector((0.75 * sx, 0.15, 1.75)), Vector((0.3 * sx, 0.1, 1.0)))
-        if q is not None:
+        if q is not None and _has(v, "crystals"):
             K.rock(parts, q + m * 0.05, 0.3, lambda u: stone(Vector((0, 0, 2.0)), u) * 0.95, q, seed=int(10 + sx),
                    squash=(1.15, 1.0, 0.7), up=m)
             for k in range(3):
@@ -239,7 +272,7 @@ def stone_golem(arm, body):
                           0.08, q, C("c8ccd8"), C("ffffff"), mat=SKIN)
     for k, (x, z) in enumerate(((0.3, 2.0), (-0.25, 1.75), (0.05, 1.35))):
         q, m = K.dir_hit(surf, Vector((x, 0.0, z)), Vector((x * 0.6, 1.0, 0.25)))
-        if q is not None:
+        if q is not None and _has(v, "crystals"):
             K.crystal(parts, q - m * 0.03, (m + Vector((0, 0.1, 0.55))).normalized(), 0.5 - 0.08 * k, 0.1, q,
                       C("c8ccd8"), C("ffffff"), mat=SKIN)
     # rune bands of light around the club
@@ -253,9 +286,11 @@ def stone_golem(arm, body):
             with parts.on(GLOW):
                 parts.frustum(Vector((cx, yb + 0.025, cz)), Vector((0, -1, 0)), rad * 0.8, rad * 0.8, 0.05,
                               lambda t, side_: glow, {"Middle1.L": 1.0}, seg=10)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.flat(body, (IVORY, SKIN))
     K.bake_ao(body, strength=0.5)
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- big/Alien
@@ -372,7 +407,7 @@ def claws(parts, arm, side, length=0.16, radius=0.04, root=C("4a3a30"), tip_col=
                bend=Vector((0, 0, -length * 0.3)), seg=6, rings=4)
 
 
-def sand_raptor(arm, body):
+def sand_raptor(arm, body, v=None):
     """sand_dino (plus the summoner's green beast and the jade drake, which repaint it):
     a desert raptor-dino. Its hue lives in the Dino_Main / Dino_Secondary base colours
     (so a template's "paint" still recolours it); the vertex paint carries the pattern:
@@ -381,10 +416,11 @@ def sand_raptor(arm, body):
     L.delete_faces(body, ("Eye_White", "Eye_Black"))
     L.clean(body)
     L.subdivide(body, 1)
-    L.decimate_to(body, 4300)
+    L.decimate_to(body, (v or {}).get("tris", 4300))
     L.relax(body, 2, 0.4)
     body["base_colors"] = '{"Dino_Main": "e2b67e", "Dino_Secondary": "f4e2b8"}'
 
+    _hook(v, "shape", body)
     def paint(name, co, n, info):
         if name == "Dino_Teeth":
             return L.mix(C("d8c8a0"), C("fffaf0"), L.smooth(2.1, 1.8, co.z)), IVORY
@@ -407,14 +443,14 @@ def sand_raptor(arm, body):
         c = L.mix(c, C("6a5040"), L.smooth(0.35, 0.05, co.z) * 0.6)  # dusty feet
         return c, "Dino_Main"
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
     for sx in (-1.0, 1.0):
         c = Vector((0.36 * sx, -0.4, 2.5))
         gaze = Vector((0.45 * sx, -1.0, 0.0)).normalized()
-        K.fierce_eye(parts, c, 0.125, gaze, sx, C("ffd040"), C("c86010"), head, lid=C("c8a070"), open_=0.5,
+        K.fierce_eye(parts, c, 0.125, gaze, sx, *_eye(v, C("ffd040"), C("c86010")), head, lid=C("c8a070"), open_=0.5,
                      glow_mat=IVORY, slant=0.28, lid_mat="Dino_Main")
         # horned brow scutes
         K.horn(parts, Vector((0.36 * sx, -0.42, 2.66)), Vector((0.5 * sx, 0.3, 0.6)).normalized(), 0.2, 0.06, head,
@@ -426,8 +462,10 @@ def sand_raptor(arm, body):
         for k in (-1, 0, 1):
             toes.append((Vector((0.36 * sx + 0.09 * k, -0.18, 0.08)), Vector((0.2 * k, -1.0, -0.3)).normalized()))
         claws(parts, arm, side, toes=toes)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.bake_ao(body, shade=Vector((0.62, 0.52, 0.5)))
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- big/Orc
@@ -503,7 +541,7 @@ def forest_orc(arm, body):
 
 # ---------------------------------------------------------------- big/Orc_Skull
 
-def skull_orc(arm, body):
+def skull_orc(arm, body, v=None):
     """skull_orc and bone_lord (blood-red boss): an orc under a real bone skull helm.
     Aged ivory skull with cracks (untinted), pitch-black sockets with ember eyes burning
     deep inside, curling bone horns from its temples, a blood-red mohawk, grey-green hide
@@ -511,12 +549,13 @@ def skull_orc(arm, body):
     L.clean(body)
     iron = K.split_where(body, lambda p: body.data.materials[p.material_index].name in ("Metal", "Wood"))
     L.subdivide(body, 1)
-    L.decimate_to(body, 4300)
+    L.decimate_to(body, (v or {}).get("tris", 4300))
     L.relax(body, 2, 0.35)
     L.clean(iron, quads=False)
     L.join(body, iron)
     bone_hi, bone, bone_lo = C("f6eedc"), C("e0d0b0"), C("a89272")
 
+    _hook(v, "shape", body)
     def paint(name, co, n, info):
         if name == "MushroomKing_Main":
             socket = 0.1 < abs(co.x) < 0.43 and 2.12 < co.z < 2.42 and co.y > -0.6
@@ -543,7 +582,7 @@ def skull_orc(arm, body):
             c = L.mix(c, C("2e3420"), 0.7)
         return c
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
@@ -553,8 +592,9 @@ def skull_orc(arm, body):
             parts.ellipsoid(c, (0.075, 0.05, 0.06), color=None, weights=head, seg=10, rings=6,
                             color_fn=lambda u: L.mix(C("ff3010"), C("fff0a0"), L.smooth(-0.9, -0.2, u.y)))
         # curling bone horns from the temples
-        K.horn(parts, Vector((0.46 * sx, -0.3, 2.55)), Vector((0.8 * sx, 0.1, 0.5)).normalized(), 0.55, 0.11, head,
-               C("a89272"), C("fff6e4"), bend=Vector((0.05 * sx, 0.12, 0.35)), rings_col=C("8a7458"), bands=5)
+        if _has(v, "horns"):
+            K.horn(parts, Vector((0.46 * sx, -0.3, 2.55)), Vector((0.8 * sx, 0.1, 0.5)).normalized(), 0.55, 0.11, head,
+                   C("a89272"), C("fff6e4"), bend=Vector((0.05 * sx, 0.12, 0.35)), rings_col=C("8a7458"), bands=5)
     # cracks over the skull
     rng = random.Random(3)
     for (x, z, a) in ((0.2, 2.62, -1.2), (-0.3, 2.55, -2.0), (0.05, 2.75, -1.5)):
@@ -563,8 +603,10 @@ def skull_orc(arm, body):
             with parts.on(DETAIL):
                 parts.stroke(p, n, K.crack_path(rng, 0.22, 4, 0.3, heading=a), 0.025, C("4a3a2a"), lift=0.012,
                              weights=head)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.bake_ao(body)
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- big/Ninja
@@ -584,7 +626,7 @@ def slit_eyes(parts, surf, x, z, w, h, slant, core, rim, weights, band=None, mat
             parts.stroke(p, n, path, h, core, lift=lift, weights=weights)
 
 
-def shadow_ninja(arm, body):
+def shadow_ninja(arm, body, v=None):
     """shadow_ninja, rift_stalker (cyan) and abyss_merman (teal): a masked assassin.
     The bare face becomes a cloth mask with glowing eye slits (tinted), deep-shadowed
     hood and suit with lighter folds, bandage-wrapped hands and shins, a blood-red sash
@@ -597,12 +639,13 @@ def shadow_ninja(arm, body):
                           groups[p.vertices[0]] == "Middle1.L" or
                           (names[p.material_index] == "Ninja_Main" and p.center.y > 0.4 and p.center.z > 2.25))
     L.subdivide(body, 1)
-    L.decimate_to(body, 4300)
+    L.decimate_to(body, (v or {}).get("tris", 4300))
     L.relax(body, 2, 0.4)
     L.clean(steel, quads=False)
     L.join(body, steel)
     suit_hi, suit, suit_lo = C("9090b0"), C("58587a"), C("34344a")
 
+    _hook(v, "shape", body)
     def paint(name, co, n, info):
         bone = info["bone"]
         if name in ("Eye_White", "Birb_Secondary"):
@@ -627,29 +670,33 @@ def shadow_ninja(arm, body):
         c = L.mix(c, suit_hi, L.smooth(0.03, 0.09, info["bump"]) * 0.7)  # folds catch the light
         return c
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
-    slit_eyes(parts, surf, 0.27, 2.25, 0.3, 0.06, 0.6, C("ffffff"), C("e8f0ff"), head, band=C("0e0e14"))
+    if _has(v, "eyes"):
+        slit_eyes(parts, surf, 0.27, 2.25, 0.3, 0.06, 0.6, C("ffffff"), C("e8f0ff"), head, band=C("0e0e14"))
     # a trailing scarf from the back of the neck
-    for k, (dx, ln) in enumerate(((0.1, 1.1), (-0.12, 0.85))):
+    for k, (dx, ln) in enumerate(((0.1, 1.1), (-0.12, 0.85)) if _has(v, "scarf") else ()):
         base = Vector((dx, 0.5, 2.05))
         with parts.on(IVORY):
             parts.blob(base, (0.13, 0.03), Vector((dx * 2.0, 1.0, -0.55)).normalized(), ln, None,
                        weights={"Torso": 1.0}, seg=10, rings=8, tip=0.55, up=Vector((0, 0.5, 1)),
                        bend=Vector((0.15 * (1 - 2 * k), 0.1, -0.25)),
                        color_fn=lambda t: L.mix(C("8a1420"), C("d8344a"), t))
-    with parts.on(IVORY):
-        parts.ellipsoid(Vector((0.0, 0.42, 2.1)), (0.2, 0.1, 0.12), color=C("a81c2c"), weights={"Torso": 1.0}, seg=10,
-                        rings=6)
+    if _has(v, "scarf"):
+        with parts.on(IVORY):
+            parts.ellipsoid(Vector((0.0, 0.42, 2.1)), (0.2, 0.1, 0.12), color=C("a81c2c"), weights={"Torso": 1.0},
+                            seg=10, rings=6)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.bake_ao(body)
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- big/Yeti
 
-def yeti(arm, body):
+def yeti(arm, body, v=None):
     """yeti, yeti_king (icy blue boss) and crystal_yeti: a shaggy snow brute. Thick
     white fur in drooping clumps over the head, shoulders, back and arms, a dark
     blue-grey hide on the face, hands and feet, ram horns, icy glowing eyes under a
@@ -658,11 +705,12 @@ def yeti(arm, body):
     L.delete_faces(body, ("Eye_White",), where=lambda c, n, g: n == "Eye_Black" and c.z > 2.15)
     L.clean(body)
     L.subdivide(body, 1)
-    L.decimate_to(body, 3400)
+    L.decimate_to(body, (v or {}).get("tris", 3400))
     L.relax(body, 2, 0.4)
     fur_hi, fur, fur_lo = C("ffffff"), C("e6ecf2"), C("a8b4c4")
     hide_hi, hide = C("9ab0c8"), C("6a82a0")
 
+    _hook(v, "shape", body)
     def paint(name, co, n, info):
         if name == "Yeti_Teeth":
             return L.mix(C("d8c898"), C("fffaf0"), 0.6), IVORY
@@ -676,22 +724,23 @@ def yeti(arm, body):
         return c, SKIN_FUR
 
     K.displace(body, 0.07, lambda co, n: 0.0 if co.z < 0.2 else L.smooth(0.45, 0.75, K.noise(co, 5.0, 8)))
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
     for sx in (-1.0, 1.0):
         c = Vector((0.29 * sx, -0.5, 2.3))
         gaze = Vector((0.25 * sx, -1.0, 0.0)).normalized()
-        K.fierce_eye(parts, c, 0.105, gaze, sx, C("e8fbff"), C("3a9ae8"), head, lid=C("6a82a0"), open_=0.45,
+        K.fierce_eye(parts, c, 0.105, gaze, sx, *_eye(v, C("e8fbff"), C("3a9ae8")), head, lid=C("6a82a0"), open_=0.45,
                      glow_mat=IVORY_GLOW, pupil="dot", slant=0.4)
         # big lower fangs
         K.fang(parts, Vector((0.17 * sx, -0.6, 1.9)), Vector((0.15 * sx, -0.3, 1.0)), 0.22, 0.05, head,
                root=C("c8b888"))
         # ram horns curling back and down from the crown
-        K.horn(parts, Vector((0.38 * sx, -0.12, 2.6)), Vector((0.85 * sx, 0.3, 0.55)).normalized(), 0.65, 0.14, head,
-               C("5a5050"), C("e8dcc8"), bend=Vector((0.12 * sx, -0.05, -0.55)), rings_col=C("3a3030"), bands=6, seg=12,
-               rings=10)
+        if _has(v, "horns"):
+            K.horn(parts, Vector((0.38 * sx, -0.12, 2.6)), Vector((0.85 * sx, 0.3, 0.55)).normalized(), 0.65, 0.14, head,
+                   C("5a5050"), C("e8dcc8"), bend=Vector((0.12 * sx, -0.05, -0.55)), rings_col=C("3a3030"), bands=6,
+                   seg=12, rings=10)
     # fur: shaggy fringes wherever the fur meets bare hide (face rim, wrists, ankles) ...
     for p, across, n in K.border_points(body, SKIN_FUR, SKIN_HIDE, 0.1):
         if p.y < -0.25 and 1.6 < p.z < 2.7 and abs(p.x) < 0.55:
@@ -712,19 +761,21 @@ def yeti(arm, body):
                 flat=0.45, tip=0.4, mat=DETAIL)
         # ice crystals on the shoulders (they take the tint)
         q, m = K.dir_hit(surf, Vector((0.7 * sx, 0.2, 1.9)), Vector((0.2 * sx, 0.4, 1.0)))
-        if q is not None:
+        if q is not None and _has(v, "crystals"):
             for k in range(3):
                 dd = (m + Vector((0.4 * sx * (k - 1), 0.3, 0.4))).normalized()
                 K.crystal(parts, q - m * 0.02 + Vector((0.08 * sx * (k - 1), 0.05 * k, 0)), dd, 0.38 - 0.08 * abs(k - 1),
                           0.08, q, C("b8e4ff"), C("f4fcff"), mat=SKIN)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.merge_materials(body, {SKIN_FUR: SKIN, SKIN_HIDE: SKIN})
     K.bake_ao(body, strength=0.4, shade=Vector((0.62, 0.7, 0.86)))
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- big/Tribal
 
-def bone_mask_warrior(arm, body):
+def bone_mask_warrior(arm, body, v=None):
     """bone_knight (ash white) and demon_ninja (blood red): a tribal warrior in a carved
     bone mask. The tiki mask keeps its pattern, recut in bone with dried-blood paint
     (untinted); its eyes burn inside the mask holes and the body's tribal stripes glow
@@ -742,12 +793,13 @@ def bone_mask_warrior(arm, body):
     crisp = K.split_where(body, lambda p: is_mask(p) or mats[p.material_index] == PALE)
     L.clean(body)
     L.subdivide(body, 1)
-    L.decimate_to(body, 4000)
+    L.decimate_to(body, (v or {}).get("tris", 4000))
     L.relax(body, 2, 0.4)
     L.clean(crisp, quads=False)
     L.join(body, crisp)
     ash_hi, ash, ash_lo = C("a09888"), C("7a7268"), C("58524c")
 
+    _hook(v, "shape", body)
     def paint(region, co, n, info):
         r = region[2:]
         mask = info["bone"] == "Head" and co.y < -0.2 and 1.55 < co.z < 3.0 and abs(co.x) < 0.66
@@ -771,13 +823,13 @@ def bone_mask_warrior(arm, body):
         c = L.mix(c, ash_hi, L.smooth(-0.5, -0.9, n.y) * L.smooth(1.0, 1.7, co.z) * 0.6)
         return L.mix(c, C("34302e"), L.smooth(0.6, 0.15, co.z) * 0.6)
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     # bone pauldrons with spikes
     for sx in (-1.0, 1.0):
         q, m = K.dir_hit(surf, Vector((0.75 * sx, 0.15, 1.85)), Vector((0.25 * sx, 0.0, 1.0)))
-        if q is None:
+        if q is None or not _has(v, "pauldrons"):
             continue
         with parts.on(IVORY):
             parts.ellipsoid(q + m * 0.04, (0.3, 0.26, 0.12), K.basis(m), color=None, weights=q, seg=14, rings=8,
@@ -786,8 +838,10 @@ def bone_mask_warrior(arm, body):
             K.horn(parts, q + m * 0.1 + Vector((0.06 * sx * (2 * k - 1), 0.08 * k, 0)),
                    (m + Vector((0.3 * sx, 0.1 + 0.2 * k, 0.2))).normalized(), 0.3 - 0.05 * k, 0.06, q,
                    C("a89272"), C("fff8ea"), seg=8, rings=5)
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.bake_ao(body)
+    _hook(v, "post", body)
 
 
 # ---------------------------------------------------------------- blob/GreenSpikyBlob
@@ -1028,7 +1082,7 @@ def desert_wizard(arm, body):
 
 # ---------------------------------------------------------------- cute/Cthulhu
 
-def tentacle_horror(arm, body):
+def tentacle_horror(arm, body, v=None):
     """tentacle_horror (magenta), hell_wizard (red) and trench_horror (teal): an eldritch
     tentacle horror. Mottled hide with pale, suckered tentacles (tinted per variant),
     two burning gold slit eyes under heavy brows plus three smaller eyes opening across
@@ -1038,10 +1092,11 @@ def tentacle_horror(arm, body):
     L.delete_faces(body, where=lambda c, n, g: any((c - e).length < 0.27 for e in eyes) and c.y < -0.2)
     L.clean(body, fill_holes=24)
     L.subdivide(body, 2)
-    L.decimate_to(body, 4200)
+    L.decimate_to(body, (v or {}).get("tris", 4200))
     L.relax(body, 2, 0.4)
     hide_hi, hide, hide_lo = C("d8ccd4"), C("a898a8"), C("5e5064")
 
+    _hook(v, "shape", body)
     def paint(name, co, n, info):
         bone = info["bone"]
         if bone.startswith("Wing"):
@@ -1056,22 +1111,23 @@ def tentacle_horror(arm, body):
             c = L.mix(c, hide_hi, L.smooth(0.7, 0.2, co.z) * 0.7)
         return c
 
-    K.paint(body, paint)
+    K.paint(body, _paint(v, paint))
     surf = L.Surface(body)
     parts = K.BParts(surf)
     head = {"Head": 1.0}
-    gold, gold_dark = C("fff4a8"), C("e07a00")
+    gold, gold_dark = _eye(v, C("fff4a8"), C("e07a00"))
     for sx in (-1.0, 1.0):
         c = Vector((0.36 * sx, -0.5, 0.88))
         gaze = Vector((0.35 * sx, -1.0, 0.05)).normalized()
-        K.fierce_eye(parts, c, 0.15, gaze, sx, gold, gold_dark, head, lid=C("8a7a8c"), open_=0.5,
+        K.fierce_eye(parts, c, 0.15, gaze, sx, gold, gold_dark, head, lid=(v or {}).get("lid", C("8a7a8c")), open_=0.5,
                      glow_mat=IVORY_GLOW, slant=0.4)
     # three more eyes opening across the brow
     for (x, z, r) in ((0.0, 1.12, 0.08), (0.2, 1.2, 0.055), (-0.21, 1.19, 0.06)):
         p, n = K.front_hit(surf, x, z)
         if p is not None:
             K.fierce_eye(parts, p - n * r * 0.45, r, (n + Vector((0, -0.3, 0))).normalized(), 1.0 if x >= 0 else -1.0,
-                         gold, gold_dark, head, lid=C("8a7a8c"), open_=0.55, glow_mat=IVORY_GLOW, slant=0.0,
+                         gold, gold_dark, head, lid=(v or {}).get("lid", C("8a7a8c")), open_=0.55, glow_mat=IVORY_GLOW,
+                         slant=0.0,
                          pupil="slit")
     # suckers under the tentacles
     for d in K.fibonacci(90):
@@ -1088,10 +1144,12 @@ def tentacle_horror(arm, body):
     for d in (Vector((0.6, 0.3, 0.8)), Vector((-0.6, 0.3, 0.8)), Vector((0.2, 0.9, 0.5)), Vector((-0.3, 0.9, 0.3)),
               Vector((0.8, -0.1, 0.4)), Vector((-0.8, -0.1, 0.4))):
         q, m = K.dir_hit(surf, Vector((0, 0, 0.8)), d)
-        if q is not None:
+        if q is not None and _has(v, "veins"):
             K.glow_path(parts, q, m, K.crack_path(rng, 0.4, 6, 0.4), 0.03, C("ffffff"))
+    _hook(v, "extra", arm, body, surf, parts)
     K.join_parts(body, parts.to_object())
     K.bake_ao(body)
+    _hook(v, "post", body)
 
 
 RECIPES = {
