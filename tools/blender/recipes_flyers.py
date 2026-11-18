@@ -463,7 +463,124 @@ def flame_bat(arm, body):
     return {"glow": "ffc040", "strength": 1.5, "glow2": "ff9020", "strength2": 1.3}
 
 
+# ---------------------------------------------------------------- glubs
+
+def _glub_prep(body, target):
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, target)
+    L.relax(body, 2, 0.3, ("c_403a5a",))
+    return eyes
+
+
+def _glub_wings(co, root, tip):
+    t = L.smooth(0.4, 2.0, abs(co.x))
+    c = L.mix(root, tip, t)
+    vein = abs(math.sin((co.y * 1.2 + abs(co.x) * 0.5) * 8.0))
+    c = L.mix(c, root * 0.6, L.smooth(0.12, 0.0, vein) * 0.7)
+    return L.mix(c, c * 0.7, max(0.0, K.fbm(co, 0.3)) * 0.8)  # grimy
+
+
+def plague_bug(arm, body):
+    """Glub: plague_bee. A bloated plague insect: mottled bruise-grey carapace crusted with
+    glowing pus boils, a cracked proboscis horn, venom-yellow eyes in sunken lids, grimy
+    torn wings with a sickly sheen."""
+    eyes = _glub_prep(body, 4800)
+    shell_top, shell_low, bruise, horn = C("b0b098"), C("5a5266"), C("7a6a8a"), C("d8d0b0")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":
+            return _glub_wings(co, C("5a5a50"), C("d8e0c0"))
+        c = L.mix(shell_low, shell_top, L.smooth(1.4, 3.0, co.z))
+        c = L.mix(c, bruise, max(0.0, K.fbm(co, 0.25)) * 1.2)
+        if co.z > 2.85:  # the proboscis horn: bony, ringed
+            c = L.mix(c, horn, L.smooth(2.85, 3.2, co.z))
+            c = L.mix(c, c * 0.65, L.smooth(0.6, 1.0, math.sin(co.z * 38.0)) * 0.6)
+        return L.mix(c, c * 0.6, L.smooth(-0.005, -0.04, info["bump"]))
+
+    K.paint_body_glow(body, paint, glow=lambda name, co, bone: 2 if name == "c_818181" else 0)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.95, Vector((0.35 * sx, -1.0, 0.0)), {"Head": 1.0}, shell_top * 0.8,
+                     ball=C("e8ff70"), slit=(0.42, 0.06), tilt=0.45, open_=0.35, lower_lid=0.5, ring=C("8ab020"),
+                     brow=shell_low)
+    # Pus boils: raised sacs with glowing caps, clustered on the belly and back.
+    rng = random.Random(11)
+    placed = []
+    for k in range(40):
+        a = rng.uniform(0, 2 * math.pi)
+        z = rng.uniform(-0.9, 0.5)
+        d = Vector((math.cos(a), math.sin(a), z))
+        p, n = dir_hit(surf, Vector((0.0, 0.0, 2.1)), d)
+        if p is None or p.z > 2.8 or (p.y < -0.1 and p.z > 1.9 and abs(p.x) < 0.65):
+            continue
+        if any((p - q).length < 0.24 for q in placed) or len(placed) >= 11:
+            continue
+        placed.append(p)
+        s = rng.uniform(0.6, 1.1)
+        parts.ellipsoid(p - n * 0.02, (0.085 * s, 0.085 * s, 0.085 * s), color=None, weights=p, seg=8, rings=5,
+                        color_fn=lambda u: L.mix(C("8a9a40"), C("c8d070"), L.smooth(-0.5, 0.8, u.z)))
+        parts.ellipsoid(p + n * 0.06 * s, (0.04 * s, 0.04 * s, 0.04 * s), color=None, weights=p, detail="glow",
+                        seg=6, rings=4, color_fn=lambda u: C("d8ff60"))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45)
+    return {"glow": "c8ff30", "strength": 1.5, "glow2": "b8c890", "strength2": 0.3}
+
+
+def ember_spirit(arm, body):
+    """Glub_Evolved: ember_ghost, drowned jelly. A living cinder: charcoal crust split by
+    glowing lava cracks (emissive), five ember eyes under scorched lids, ash-grey wings
+    with burning edges."""
+    eyes = _glub_prep(body, 4100)
+    crust_top, crust_low, ash = C("5a4a46"), C("1e1618"), C("8a7a70")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":
+            c = _glub_wings(co, C("3a3030"), C("a89890"))
+            return L.mix(c, C("ff8a30"), L.smooth(1.6, 2.1, abs(co.x)) * 0.7)
+        c = L.mix(crust_low, crust_top, L.smooth(0.6, 4.0, co.z))
+        c = L.mix(c, ash, max(0.0, K.fbm(co, 0.2)) * 0.9)
+        # Heat glowing through the thin crust between plates.
+        d0, d1 = K.cells(co, 0.32)
+        seam = 1.0 - L.smooth(0.0, 0.12, d1 - d0)
+        return L.mix(c, C("e85a1a"), seam * 0.85)
+
+    K.paint_body_glow(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 0.0 if abs(c.x) < 0.05 else (1.0 if c.x > 0 else -1.0)
+        K.fierce_eye(parts, c, r * 0.9, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, crust_top,
+                     lid_dark=crust_low, ball=C("ffd070"), slit=(0.07, 0.5), tilt=0.5 if sx else 0.0, open_=0.32,
+                     lower_lid=0.55)
+    # Glowing lava cracks across the body.
+    rng = random.Random(21)
+    for k in range(16):
+        a = rng.uniform(0, 2 * math.pi)
+        z = rng.uniform(0.7, 4.0)
+        d = Vector((math.cos(a), math.sin(a), 0.0))
+        p, n = surf.toward(Vector((0, 0, z)) + d * 5.0, Vector((0, 0.1, z)))
+        if p is None or any((p - e[0]).length < e[1] * 1.6 for e in eyes):
+            continue
+        path = [(0.0, 0.0)]
+        ang = rng.uniform(0, math.pi)
+        for i in range(5):
+            ang += rng.uniform(-0.8, 0.8)
+            x, y = path[-1]
+            path.append((x + math.cos(ang) * 0.07, y + math.sin(ang) * 0.07))
+        parts.stroke(p, n, path, 0.035, C("ffb050"), detail="glow2", lift=0.01)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.4, shade=Vector((0.6, 0.45, 0.45)))
+    return {"glow": "ffb040", "strength": 1.6, "glow2": "ff7a20", "strength2": 1.6}
+
+
 RECIPES = {
+    "flying/Glub": plague_bug,
+    "flying/Glub_Evolved": ember_spirit,
     "flying/Goleling": blood_bat,
     "flying/Goleling_Evolved": flame_bat,
     "flying/Armabee": poison_bee,
